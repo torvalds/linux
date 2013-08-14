@@ -201,6 +201,60 @@ drm_gem_remove_prime_handles(struct drm_gem_object *obj, struct drm_file *filp)
 	}
 }
 
+static void drm_gem_object_ref_bug(struct kref *list_kref)
+{
+	BUG();
+}
+
+/**
+ * Called after the last handle to the object has been closed
+ *
+ * Removes any name for the object. Note that this must be
+ * called before drm_gem_object_free or we'll be touching
+ * freed memory
+ */
+static void drm_gem_object_handle_free(struct drm_gem_object *obj)
+{
+	struct drm_device *dev = obj->dev;
+
+	/* Remove any name for this object */
+	spin_lock(&dev->object_name_lock);
+	if (obj->name) {
+		idr_remove(&dev->object_name_idr, obj->name);
+		obj->name = 0;
+		spin_unlock(&dev->object_name_lock);
+		/*
+		 * The object name held a reference to this object, drop
+		 * that now.
+		*
+		* This cannot be the last reference, since the handle holds one too.
+		 */
+		kref_put(&obj->refcount, drm_gem_object_ref_bug);
+	} else
+		spin_unlock(&dev->object_name_lock);
+
+}
+
+void
+drm_gem_object_handle_unreference_unlocked(struct drm_gem_object *obj)
+{
+	if (obj == NULL)
+		return;
+
+	if (atomic_read(&obj->handle_count) == 0)
+		return;
+
+	/*
+	* Must bump handle count first as this may be the last
+	* ref, in which case the object would disappear before we
+	* checked for a name
+	*/
+
+	if (atomic_dec_and_test(&obj->handle_count))
+		drm_gem_object_handle_free(obj);
+	drm_gem_object_unreference_unlocked(obj);
+}
+
 /**
  * Removes the mapping from handle to filp for this object.
  */
@@ -532,41 +586,6 @@ drm_gem_object_free(struct kref *kref)
 		dev->driver->gem_free_object(obj);
 }
 EXPORT_SYMBOL(drm_gem_object_free);
-
-static void drm_gem_object_ref_bug(struct kref *list_kref)
-{
-	BUG();
-}
-
-/**
- * Called after the last handle to the object has been closed
- *
- * Removes any name for the object. Note that this must be
- * called before drm_gem_object_free or we'll be touching
- * freed memory
- */
-void drm_gem_object_handle_free(struct drm_gem_object *obj)
-{
-	struct drm_device *dev = obj->dev;
-
-	/* Remove any name for this object */
-	spin_lock(&dev->object_name_lock);
-	if (obj->name) {
-		idr_remove(&dev->object_name_idr, obj->name);
-		obj->name = 0;
-		spin_unlock(&dev->object_name_lock);
-		/*
-		 * The object name held a reference to this object, drop
-		 * that now.
-		*
-		* This cannot be the last reference, since the handle holds one too.
-		 */
-		kref_put(&obj->refcount, drm_gem_object_ref_bug);
-	} else
-		spin_unlock(&dev->object_name_lock);
-
-}
-EXPORT_SYMBOL(drm_gem_object_handle_free);
 
 void drm_gem_vm_open(struct vm_area_struct *vma)
 {
