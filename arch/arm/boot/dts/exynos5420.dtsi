@@ -180,4 +180,11 @@
 		clocks = <&clock 260>, <&clock 131>;
 		clock-names = "uart", "clk_uart_baud0";
 	};
+
+	fimd@14400000 {
+		samsung,power-domain = <&disp_pd>;
+		clocks = <&clock 147>, <&clock 421>;
+		clock-names = "sclk_fimd", "fimd";
+	};
+
 };
