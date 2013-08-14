@@ -640,12 +640,6 @@ static int ar933x_uart_probe(struct platform_device *pdev)
 	if (id > CONFIG_SERIAL_AR933X_NR_UARTS)
 		return -EINVAL;
 
-	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem_res) {
-		dev_err(&pdev->dev, "no MEM resource\n");
-		return -EINVAL;
-	}
-
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq_res) {
 		dev_err(&pdev->dev, "no IRQ resource\n");
@@ -659,6 +653,7 @@ static int ar933x_uart_probe(struct platform_device *pdev)
 
 	port = &up->port;
 
+	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	port->membase = devm_ioremap_resource(&pdev->dev, mem_res);
 	if (IS_ERR(port->membase))
 		return PTR_ERR(port->membase);
