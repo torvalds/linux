@@ -1,7 +1,7 @@
 /*
  * Allwinner SUNXI "glue layer"
  *
- * Copyright © 2013 Jussi Kivilinna <jussi.kivilinna@iki.fi>
+ * Copyright Â© 2013 Jussi Kivilinna <jussi.kivilinna@iki.fi>
  *
  * Based on the sw_usb "Allwinner OTG Dual Role Controller" code.
  *  Copyright 2007-2012 (C) Allwinner Technology Co., Ltd.
