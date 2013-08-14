@@ -175,7 +175,8 @@ static struct resource pmu_resources[] = {
 
 void __init emev2_add_standard_devices(void)
 {
-	emev2_clock_init();
+	if (!IS_ENABLED(CONFIG_COMMON_CLK))
+		emev2_clock_init();
 
 	emev2_register_uart(0);
 	emev2_register_uart(1);
