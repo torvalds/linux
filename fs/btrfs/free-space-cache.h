@@ -112,6 +112,12 @@ int btrfs_return_cluster_to_free_space(
 int btrfs_trim_block_group(struct btrfs_block_group_cache *block_group,
 			   u64 *trimmed, u64 start, u64 end, u64 minlen);
 
-void btrfs_test_free_space_cache(void);
+/* Support functions for runnint our sanity tests */
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+int test_add_free_space_entry(struct btrfs_block_group_cache *cache,
+			      u64 offset, u64 bytes, bool bitmap);
+int test_check_exists(struct btrfs_block_group_cache *cache,
+		      u64 offset, u64 bytes);
+#endif
 
 #endif

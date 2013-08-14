@@ -56,6 +56,7 @@
 #include "rcu-string.h"
 #include "dev-replace.h"
 #include "free-space-cache.h"
+#include "tests/btrfs-tests.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/btrfs.h>
@@ -1762,6 +1763,11 @@ static void btrfs_print_info(void)
 			"\n");
 }
 
+static int btrfs_run_sanity_tests(void)
+{
+	return btrfs_test_free_space_cache();
+}
+
 static int __init init_btrfs_fs(void)
 {
 	int err;
@@ -1804,14 +1810,17 @@ static int __init init_btrfs_fs(void)
 	if (err)
 		goto free_delayed_ref;
 
-	err = register_filesystem(&btrfs_fs_type);
-	if (err)
-		goto unregister_ioctl;
-
 	btrfs_init_lockdep();
 
 	btrfs_print_info();
-	btrfs_test_free_space_cache();
+
+	err = btrfs_run_sanity_tests();
+	if (err)
+		goto unregister_ioctl;
+
+	err = register_filesystem(&btrfs_fs_type);
+	if (err)
+		goto unregister_ioctl;
 
 	return 0;
 
