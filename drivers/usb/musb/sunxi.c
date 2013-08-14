@@ -20,8 +20,6 @@
  *
  */
 #define DEBUG 1
-#define VERBOSE 1
-#define pr_dbg pr_debug
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -225,7 +223,7 @@ static void __USBC_ForceIdToHigh(__iomem void *base)
 /* force id to (id_type) */
 static void USBC_ForceId(__iomem void *base, u32 id_type)
 {
-	pr_dbg("%s(): id_type %s\n", __func__,
+	pr_debug("%s(): id_type %s\n", __func__,
 		id_type == USBC_ID_TYPE_HOST ? "host" :
 		(id_type == USBC_ID_TYPE_DEVICE ? "device" : "disable"));
 
@@ -279,7 +277,7 @@ static void __USBC_ForceVbusValidToHigh(__iomem void *base)
 /* force vbus valid to (id_type) */
 static void USBC_ForceVbusValid(__iomem void *base, u32 vbus_type)
 {
-	pr_dbg("%s(): vbus_type %s\n", __func__,
+	pr_debug("%s(): vbus_type %s\n", __func__,
 		vbus_type == USBC_VBUS_TYPE_LOW ? "low" :
 		(vbus_type == USBC_VBUS_TYPE_HIGH ? "high" : "disable"));
 
@@ -370,7 +368,7 @@ static u32 USBC_Phy_Write(__iomem void *base, u32 usbc_no, u32 addr, u32 data,
 
 static void UsbPhyInit(__iomem void *base, u32 usbc_no)
 {
-	pr_dbg("%s():\n", __func__);
+	pr_debug("%s():\n", __func__);
 
 	/* NOTE: comments google-translated. */
 
@@ -400,7 +398,7 @@ static s32 usb_clock_init(struct sunxi_musb_glue *glue)
 	int err = 0;
 	struct sunxi_musb_clock *sw_hcd_io = &glue->clk;
 
-	pr_dbg("%s():\n", __func__);
+	pr_debug("%s():\n", __func__);
 
 	sw_hcd_io->sie_clk = NULL;
 	sw_hcd_io->phy_clk = NULL;
@@ -452,7 +450,7 @@ static s32 usb_clock_exit(struct sunxi_musb_glue *glue)
 {
 	struct sunxi_musb_clock *sw_hcd_io = &glue->clk;
 
-	pr_dbg("%s():\n", __func__);
+	pr_debug("%s():\n", __func__);
 
 	if (sw_hcd_io->sie_clk) {
 		clk_put(sw_hcd_io->sie_clk);
@@ -477,7 +475,7 @@ static s32 open_usb_clock(struct sunxi_musb_glue *glue)
 	struct sunxi_musb_clock *sw_hcd_io = &glue->clk;
 	int ret;
 
-	pr_dbg("%s():\n", __func__);
+	pr_debug("%s():\n", __func__);
 
 	ret = clk_enable(sw_hcd_io->sie_clk);
 	if (ret < 0) {
@@ -509,7 +507,7 @@ static s32 close_usb_clock(struct sunxi_musb_glue *glue)
 {
 	struct sunxi_musb_clock *sw_hcd_io = &glue->clk;
 
-	pr_dbg("%s():\n", __func__);
+	pr_debug("%s():\n", __func__);
 
 	clk_reset(sw_hcd_io->phy0_clk, 1);
 	clk_disable(sw_hcd_io->phy0_clk);
@@ -576,7 +574,7 @@ static void sw_hcd_board_set_vbus(struct musb *musb, int is_on)
 
 static void sunxi_musb_set_vbus(struct musb *musb, int on)
 {
-	pr_dbg("%s(): on = %d, otg_state = %s\n", __func__, on,
+	pr_debug("%s(): on = %d, otg_state = %s\n", __func__, on,
 	       otg_state_string(musb->xceiv->state));
 
 	sw_hcd_board_set_vbus(musb, on);
@@ -611,7 +609,7 @@ static irqreturn_t sunxi_musb_interrupt(int irq, void *__hci)
 
 static void sunxi_musb_enable(struct musb *musb)
 {
-	pr_dbg("%s():\n", __func__);
+	pr_debug("%s():\n", __func__);
 
 	/* flush pending interrupts */
 	musb_writeb(musb->mregs, MUSB_INTRUSB, 0xff);
@@ -629,7 +627,7 @@ static void sunxi_musb_enable(struct musb *musb)
 
 static void sunxi_musb_disable(struct musb *musb)
 {
-	pr_dbg("%s():\n", __func__);
+	pr_debug("%s():\n", __func__);
 }
 
 static void sunxi_musb_try_idle(struct musb *musb, unsigned long timeout)
@@ -645,7 +643,7 @@ static int sunxi_musb_vbus_status(struct musb *musb)
 
 static int sunxi_musb_set_mode(struct musb *musb, u8 musb_mode)
 {
-	pr_dbg("%s(): musb_mode %d\n", __func__, musb_mode);
+	pr_debug("%s(): musb_mode %d\n", __func__, musb_mode);
 
 	switch (musb_mode) {
 	case MUSB_HOST:
@@ -677,7 +675,7 @@ static int sunxi_musb_init(struct musb *musb)
 	struct sunxi_musb_board_data *board = musb_to_board(musb);
 	int ret = -ENODEV;
 
-	pr_dbg("%s():\n", __func__);
+	pr_debug("%s():\n", __func__);
 
 	glue->exiting = 0;
 
@@ -741,7 +739,7 @@ static int sunxi_musb_exit(struct musb *musb)
 	struct sunxi_musb_board_data *board = musb_to_board(musb);
 	unsigned long flags;
 
-	pr_dbg("%s():\n", __func__);
+	pr_debug("%s():\n", __func__);
 
 	spin_lock_irqsave(&musb->lock, flags);
 	glue->exiting = 1;
@@ -784,7 +782,7 @@ static int __devinit sunxi_musb_probe(struct platform_device *pdev)
 	struct sunxi_musb_glue		*glue;
 	int				ret = -ENOMEM;
 
-	pr_dbg("%s():\n", __func__);
+	pr_debug("%s():\n", __func__);
 
 	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
 	if (!glue) {
@@ -844,7 +842,7 @@ static int __devexit sunxi_musb_remove(struct platform_device *pdev)
 {
 	struct sunxi_musb_glue *glue = platform_get_drvdata(pdev);
 
-	pr_dbg("%s():\n", __func__);
+	pr_debug("%s():\n", __func__);
 
 	platform_device_del(glue->musb);
 	platform_device_put(glue->musb);
@@ -870,7 +868,7 @@ static int __init sunxi_musb_drvinit(void)
 {
 	int ret;
 
-	pr_dbg("%s():\n", __func__);
+	pr_debug("%s():\n", __func__);
 
 	ret = platform_driver_register(&sunxi_musb_driver);
 	if (ret < 0)
@@ -889,7 +887,7 @@ module_init(sunxi_musb_drvinit);
 
 static void __exit sunxi_musb_drvexit(void)
 {
-	pr_dbg("%s():\n", __func__);
+	pr_debug("%s():\n", __func__);
 
 	unregister_musb_device();
 	platform_driver_unregister(&sunxi_musb_driver);

@@ -10,8 +10,6 @@
  *
  */
 #define DEBUG 1
-#define VERBOSE 1
-#define pr_dbg pr_debug
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -46,7 +44,7 @@ static s32 pin_init(struct sunxi_musb_board_priv *priv)
 	struct sunxi_musb_gpio *sw_hcd_io = &priv->gpio;
 	s32 ret = 0;
 
-	pr_dbg("%s():\n", __func__);
+	pr_debug("%s():\n", __func__);
 
 	/* request gpio */
 	ret = script_parser_fetch("usbc0", "usb_drv_vbus_gpio",
@@ -99,7 +97,7 @@ static s32 pin_exit(struct sunxi_musb_board_priv *priv)
 {
 	struct sunxi_musb_gpio *sw_hcd_io = &priv->gpio;
 
-	pr_dbg("%s():\n", __func__);
+	pr_debug("%s():\n", __func__);
 
 	if (sw_hcd_io->Drv_vbus_Handle) {
 		if (sw_hcd_io->drv_vbus_gpio_set.port == 0xffff) { /* power */
@@ -124,7 +122,7 @@ static int sunxi_musb_board_priv_set_phy_power(
 	struct sunxi_musb_gpio *sw_hcd_io = &priv->gpio;
 	int on_off;
 
-	pr_dbg("%s():\n", __func__);
+	pr_debug("%s():\n", __func__);
 
 	if (sw_hcd_io->Drv_vbus_Handle == 0) {
 		dev_info(priv->dev, "wrn: sw_hcd_io->drv_vbus_Handle is null\n");
@@ -169,7 +167,7 @@ static struct sunxi_musb_board_priv *sunxi_musb_board_priv_init(
 	struct sunxi_musb_board_priv *priv;
 	int ret;
 
-	pr_dbg("%s():\n", __func__);
+	pr_debug("%s():\n", __func__);
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -191,7 +189,7 @@ static struct sunxi_musb_board_priv *sunxi_musb_board_priv_init(
 
 static void sunxi_musb_board_priv_exit(struct sunxi_musb_board_priv *priv)
 {
-	pr_dbg("%s():\n", __func__);
+	pr_debug("%s():\n", __func__);
 
 	pin_exit(priv);
 	kfree(priv);
