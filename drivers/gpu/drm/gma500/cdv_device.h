@@ -26,3 +26,4 @@ extern void cdv_hdmi_init(struct drm_device *dev, struct psb_intel_mode_device *
 			int reg);
 extern struct drm_display_mode *cdv_intel_crtc_mode_get(struct drm_device *dev,
 					     struct drm_crtc *crtc);
+extern void cdv_update_wm(struct drm_device *dev, struct drm_crtc *crtc);
