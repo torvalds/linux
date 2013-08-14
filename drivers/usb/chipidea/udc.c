@@ -1637,8 +1637,7 @@ static int ci_udc_start(struct usb_gadget *gadget,
 	pm_runtime_get_sync(&ci->gadget.dev);
 	if (ci->platdata->flags & CI_HDRC_PULLUP_ON_VBUS) {
 		if (ci->vbus_active) {
-			if (ci->platdata->flags & CI_HDRC_REGS_SHARED)
-				hw_device_reset(ci, USBMODE_CM_DC);
+			hw_device_reset(ci, USBMODE_CM_DC);
 		} else {
 			pm_runtime_put_sync(&ci->gadget.dev);
 			goto done;
@@ -1801,7 +1800,7 @@ static int udc_start(struct ci_hdrc *ci)
 		}
 	}
 
-	if (!(ci->platdata->flags & CI_HDRC_REGS_SHARED)) {
+	if (!(ci->platdata->flags & CI_HDRC_PULLUP_ON_VBUS)) {
 		retval = hw_device_reset(ci, USBMODE_CM_DC);
 		if (retval)
 			goto put_transceiver;
