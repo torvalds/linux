@@ -24,9 +24,6 @@
 #include "ci.h"
 #include "ci_hdrc_imx.h"
 
-#define pdev_to_phy(pdev) \
-	((struct usb_phy *)platform_get_drvdata(pdev))
-
 struct ci_hdrc_imx_data {
 	struct usb_phy *phy;
 	struct platform_device *ci_pdev;
