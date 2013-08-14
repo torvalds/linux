@@ -943,11 +943,6 @@ int btrfs_quota_disable(struct btrfs_trans_handle *trans,
 
 	btrfs_free_qgroup_config(fs_info);
 
-	if (!quota_root) {
-		ret = -EINVAL;
-		goto out;
-	}
-
 	ret = btrfs_clean_quota_tree(trans, quota_root);
 	if (ret)
 		goto out;
