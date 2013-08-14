@@ -357,13 +357,9 @@ extern int CIFSSMBUnixQuerySymLink(const unsigned int xid,
 			struct cifs_tcon *tcon,
 			const unsigned char *searchName, char **syminfo,
 			const struct nls_table *nls_codepage);
-#ifdef CONFIG_CIFS_SYMLINK_EXPERIMENTAL
-extern int CIFSSMBQueryReparseLinkInfo(const unsigned int xid,
-			struct cifs_tcon *tcon,
-			const unsigned char *searchName,
-			char *symlinkinfo, const int buflen, __u16 fid,
-			const struct nls_table *nls_codepage);
-#endif /* temporarily unused until cifs_symlink fixed */
+extern int CIFSSMBQuerySymLink(const unsigned int xid, struct cifs_tcon *tcon,
+			       __u16 fid, char **symlinkinfo,
+			       const struct nls_table *nls_codepage);
 extern int CIFSSMBOpen(const unsigned int xid, struct cifs_tcon *tcon,
 			const char *fileName, const int disposition,
 			const int access_flags, const int omode,

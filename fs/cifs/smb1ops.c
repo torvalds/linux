@@ -881,6 +881,37 @@ cifs_mand_lock(const unsigned int xid, struct cifsFileInfo *cfile, __u64 offset,
 			   (__u8)type, wait, 0);
 }
 
+static int
+cifs_query_symlink(const unsigned int xid, struct cifs_tcon *tcon,
+		   const char *full_path, char **target_path,
+		   struct cifs_sb_info *cifs_sb)
+{
+	int rc;
+	int oplock = 0;
+	__u16 netfid;
+
+	cifs_dbg(FYI, "%s: path: %s\n", __func__, full_path);
+
+	rc = CIFSSMBOpen(xid, tcon, full_path, FILE_OPEN,
+			 FILE_READ_ATTRIBUTES, OPEN_REPARSE_POINT, &netfid,
+			 &oplock, NULL, cifs_sb->local_nls,
+			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	if (rc)
+		return rc;
+
+	rc = CIFSSMBQuerySymLink(xid, tcon, netfid, target_path,
+				 cifs_sb->local_nls);
+	if (rc) {
+		CIFSSMBClose(xid, tcon, netfid);
+		return rc;
+	}
+
+	convert_delimiter(*target_path, '/');
+	CIFSSMBClose(xid, tcon, netfid);
+	cifs_dbg(FYI, "%s: target path: %s\n", __func__, *target_path);
+	return rc;
+}
+
 struct smb_version_operations smb1_operations = {
 	.send_cancel = send_nt_cancel,
 	.compare_fids = cifs_compare_fids,
@@ -927,6 +958,7 @@ struct smb_version_operations smb1_operations = {
 	.rename_pending_delete = cifs_rename_pending_delete,
 	.rename = CIFSSMBRename,
 	.create_hardlink = CIFSCreateHardLink,
+	.query_symlink = cifs_query_symlink,
 	.open = cifs_open_file,
 	.set_fid = cifs_set_fid,
 	.close = cifs_close_file,
