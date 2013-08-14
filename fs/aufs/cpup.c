@@ -607,6 +607,7 @@ out:
  * the caller must set the both of lower dentries.
  * @len is for truncating when it is -1 copyup the entire file.
  * in link/rename cases, @dst_parent may be different from the real one.
+ * basic->bsrc can be larger than basic->bdst.
  */
 static int au_cpup_single(struct au_cp_generic *cpg, struct dentry *dst_parent)
 {
@@ -623,8 +624,6 @@ static int au_cpup_single(struct au_cp_generic *cpg, struct dentry *dst_parent)
 		struct path h_path;
 		struct au_cpup_reg_attr h_src_attr;
 	} *a;
-
-	AuDebugOn(cpg->bsrc <= cpg->bdst);
 
 	err = -ENOMEM;
 	a = kmalloc(sizeof(*a), GFP_NOFS);
@@ -724,7 +723,8 @@ static int au_cpup_single(struct au_cp_generic *cpg, struct dentry *dst_parent)
 			}
 		}
 		au_set_ibstart(inode, cpg->bdst);
-	}
+	} else
+		au_set_ibend(inode, cpg->bdst);
 	au_set_h_iptr(inode, cpg->bdst, au_igrab(dst_inode),
 		      au_hi_flags(inode, isdir));
 
@@ -858,24 +858,12 @@ static int au_cpup_simple(struct au_cp_generic *cpg)
 {
 	int err;
 	unsigned int flags_orig;
-	aufs_bindex_t bsrc, bend;
-	struct dentry *dentry, *h_dentry;
+	struct dentry *dentry;
+
+	AuDebugOn(cpg->bsrc < 0);
 
 	dentry = cpg->dentry;
 	DiMustWriteLock(dentry);
-
-	bend = au_dbend(dentry);
-	if (cpg->bsrc < 0) {
-		for (bsrc = cpg->bdst + 1; bsrc <= bend; bsrc++) {
-			h_dentry = au_h_dptr(dentry, bsrc);
-			if (h_dentry) {
-				AuDebugOn(!h_dentry->d_inode);
-				break;
-			}
-		}
-		AuDebugOn(bsrc > bend);
-		cpg->bsrc = bsrc;
-	}
 
 	err = au_lkup_neg(dentry, cpg->bdst, /*wh*/1);
 	if (!err) {
@@ -908,7 +896,7 @@ static void au_call_cpup_simple(void *args)
 	au_pin_hdir_release(a->cpg->pin);
 }
 
-int au_sio_cpup_simple(struct au_cp_generic *cpg)
+static int au_do_sio_cpup_simple(struct au_cp_generic *cpg)
 {
 	int err, wkq_err;
 	struct dentry *dentry, *parent;
@@ -946,6 +934,34 @@ int au_sio_cpup_simple(struct au_cp_generic *cpg)
 
 out:
 	return err;
+}
+
+int au_sio_cpup_simple(struct au_cp_generic *cpg)
+{
+	aufs_bindex_t bsrc, bend;
+	struct dentry *dentry, *h_dentry;
+
+	if (cpg->bsrc < 0) {
+		dentry = cpg->dentry;
+		bend = au_dbend(dentry);
+		for (bsrc = cpg->bdst + 1; bsrc <= bend; bsrc++) {
+			h_dentry = au_h_dptr(dentry, bsrc);
+			if (h_dentry) {
+				AuDebugOn(!h_dentry->d_inode);
+				break;
+			}
+		}
+		AuDebugOn(bsrc > bend);
+		cpg->bsrc = bsrc;
+	}
+	AuDebugOn(cpg->bsrc <= cpg->bdst);
+	return au_do_sio_cpup_simple(cpg);
+}
+
+int au_sio_cpdown_simple(struct au_cp_generic *cpg)
+{
+	AuDebugOn(cpg->bdst <= cpg->bsrc);
+	return au_do_sio_cpup_simple(cpg);
 }
 
 /* ---------------------------------------------------------------------- */
