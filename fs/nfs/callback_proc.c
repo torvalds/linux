@@ -464,6 +464,7 @@ out:
 	} else
 		res->csr_status = status;
 
+	trace_nfs4_cb_sequence(args, res, status);
 	dprintk("%s: exit with status = %d res->csr_status %d\n", __func__,
 		ntohl(status), ntohl(res->csr_status));
 	return status;

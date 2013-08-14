@@ -240,6 +240,145 @@ DEFINE_NFS4_CLIENTID_EVENT(nfs4_destroy_clientid);
 DEFINE_NFS4_CLIENTID_EVENT(nfs4_bind_conn_to_session);
 DEFINE_NFS4_CLIENTID_EVENT(nfs4_sequence);
 DEFINE_NFS4_CLIENTID_EVENT(nfs4_reclaim_complete);
+
+TRACE_EVENT(nfs4_setup_sequence,
+		TP_PROTO(
+			const struct nfs4_session *session,
+			const struct nfs4_sequence_args *args
+		),
+		TP_ARGS(session, args),
+
+		TP_STRUCT__entry(
+			__field(unsigned int, session)
+			__field(unsigned int, slot_nr)
+			__field(unsigned int, seq_nr)
+			__field(unsigned int, highest_used_slotid)
+		),
+
+		TP_fast_assign(
+			const struct nfs4_slot *sa_slot = args->sa_slot;
+			__entry->session = nfs_session_id_hash(&session->sess_id);
+			__entry->slot_nr = sa_slot->slot_nr;
+			__entry->seq_nr = sa_slot->seq_nr;
+			__entry->highest_used_slotid =
+					sa_slot->table->highest_used_slotid;
+		),
+		TP_printk(
+			"session=0x%08x slot_nr=%u seq_nr=%u "
+			"highest_used_slotid=%u",
+			__entry->session,
+			__entry->slot_nr,
+			__entry->seq_nr,
+			__entry->highest_used_slotid
+		)
+);
+
+#define show_nfs4_sequence_status_flags(status) \
+	__print_flags((unsigned long)status, "|", \
+		{ SEQ4_STATUS_CB_PATH_DOWN, "CB_PATH_DOWN" }, \
+		{ SEQ4_STATUS_CB_GSS_CONTEXTS_EXPIRING, \
+			"CB_GSS_CONTEXTS_EXPIRING" }, \
+		{ SEQ4_STATUS_CB_GSS_CONTEXTS_EXPIRED, \
+			"CB_GSS_CONTEXTS_EXPIRED" }, \
+		{ SEQ4_STATUS_EXPIRED_ALL_STATE_REVOKED, \
+			"EXPIRED_ALL_STATE_REVOKED" }, \
+		{ SEQ4_STATUS_EXPIRED_SOME_STATE_REVOKED, \
+			"EXPIRED_SOME_STATE_REVOKED" }, \
+		{ SEQ4_STATUS_ADMIN_STATE_REVOKED, \
+			"ADMIN_STATE_REVOKED" }, \
+		{ SEQ4_STATUS_RECALLABLE_STATE_REVOKED,	 \
+			"RECALLABLE_STATE_REVOKED" }, \
+		{ SEQ4_STATUS_LEASE_MOVED, "LEASE_MOVED" }, \
+		{ SEQ4_STATUS_RESTART_RECLAIM_NEEDED, \
+			"RESTART_RECLAIM_NEEDED" }, \
+		{ SEQ4_STATUS_CB_PATH_DOWN_SESSION, \
+			"CB_PATH_DOWN_SESSION" }, \
+		{ SEQ4_STATUS_BACKCHANNEL_FAULT, \
+			"BACKCHANNEL_FAULT" })
+
+TRACE_EVENT(nfs4_sequence_done,
+		TP_PROTO(
+			const struct nfs4_session *session,
+			const struct nfs4_sequence_res *res
+		),
+		TP_ARGS(session, res),
+
+		TP_STRUCT__entry(
+			__field(unsigned int, session)
+			__field(unsigned int, slot_nr)
+			__field(unsigned int, seq_nr)
+			__field(unsigned int, highest_slotid)
+			__field(unsigned int, target_highest_slotid)
+			__field(unsigned int, status_flags)
+			__field(int, error)
+		),
+
+		TP_fast_assign(
+			const struct nfs4_slot *sr_slot = res->sr_slot;
+			__entry->session = nfs_session_id_hash(&session->sess_id);
+			__entry->slot_nr = sr_slot->slot_nr;
+			__entry->seq_nr = sr_slot->seq_nr;
+			__entry->highest_slotid = res->sr_highest_slotid;
+			__entry->target_highest_slotid =
+					res->sr_target_highest_slotid;
+			__entry->error = res->sr_status;
+		),
+		TP_printk(
+			"error=%d (%s) session=0x%08x slot_nr=%u seq_nr=%u "
+			"highest_slotid=%u target_highest_slotid=%u "
+			"status_flags=%u (%s)",
+			__entry->error,
+			show_nfsv4_errors(__entry->error),
+			__entry->session,
+			__entry->slot_nr,
+			__entry->seq_nr,
+			__entry->highest_slotid,
+			__entry->target_highest_slotid,
+			__entry->status_flags,
+			show_nfs4_sequence_status_flags(__entry->status_flags)
+		)
+);
+
+struct cb_sequenceargs;
+struct cb_sequenceres;
+
+TRACE_EVENT(nfs4_cb_sequence,
+		TP_PROTO(
+			const struct cb_sequenceargs *args,
+			const struct cb_sequenceres *res,
+			__be32 status
+		),
+		TP_ARGS(args, res, status),
+
+		TP_STRUCT__entry(
+			__field(unsigned int, session)
+			__field(unsigned int, slot_nr)
+			__field(unsigned int, seq_nr)
+			__field(unsigned int, highest_slotid)
+			__field(unsigned int, cachethis)
+			__field(int, error)
+		),
+
+		TP_fast_assign(
+			__entry->session = nfs_session_id_hash(&args->csa_sessionid);
+			__entry->slot_nr = args->csa_slotid;
+			__entry->seq_nr = args->csa_sequenceid;
+			__entry->highest_slotid = args->csa_highestslotid;
+			__entry->cachethis = args->csa_cachethis;
+			__entry->error = -be32_to_cpu(status);
+		),
+
+		TP_printk(
+			"error=%d (%s) session=0x%08x slot_nr=%u seq_nr=%u "
+			"highest_slotid=%u",
+			__entry->error,
+			show_nfsv4_errors(__entry->error),
+			__entry->session,
+			__entry->slot_nr,
+			__entry->seq_nr,
+			__entry->highest_slotid
+		)
+);
 #endif /* CONFIG_NFS_V4_1 */
 
 DECLARE_EVENT_CLASS(nfs4_open_event,
