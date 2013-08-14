@@ -238,7 +238,7 @@ static void drm_gem_object_handle_free(struct drm_gem_object *obj)
 void
 drm_gem_object_handle_unreference_unlocked(struct drm_gem_object *obj)
 {
-	if (atomic_read(&obj->handle_count) == 0)
+	if (WARN_ON(atomic_read(&obj->handle_count) == 0))
 		return;
 
 	/*
