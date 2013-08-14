@@ -304,15 +304,14 @@ static int comp(const void *a, const void *b)
 
 static void do_sort_something(void)
 {
-	size_t sz = 40960;
-	int buf[sz], i;
+	int buf[40960], i;
 
-	for (i = 0; i < (int)sz; i++)
-		buf[i] = sz - i - 1;
+	for (i = 0; i < (int)ARRAY_SIZE(buf); i++)
+		buf[i] = ARRAY_SIZE(buf) - i - 1;
 
-	qsort(buf, sz, sizeof(int), comp);
+	qsort(buf, ARRAY_SIZE(buf), sizeof(int), comp);
 
-	for (i = 0; i < (int)sz; i++) {
+	for (i = 0; i < (int)ARRAY_SIZE(buf); i++) {
 		if (buf[i] != i) {
 			pr_debug("qsort failed\n");
 			break;
