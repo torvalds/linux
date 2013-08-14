@@ -772,6 +772,29 @@ fail:
 	return err > 0 ? 0 : err;
 }
 
+int truncate_xattr_node(struct inode *inode, struct page *page)
+{
+	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	nid_t nid = F2FS_I(inode)->i_xattr_nid;
+	struct dnode_of_data dn;
+	struct page *npage;
+
+	if (!nid)
+		return 0;
+
+	npage = get_node_page(sbi, nid);
+	if (IS_ERR(npage))
+		return PTR_ERR(npage);
+
+	F2FS_I(inode)->i_xattr_nid = 0;
+	set_new_dnode(&dn, inode, page, npage, nid);
+
+	if (page)
+		dn.inode_page_locked = 1;
+	truncate_node(&dn);
+	return 0;
+}
+
 /*
  * Caller should grab and release a mutex by calling mutex_lock_op() and
  * mutex_unlock_op().
@@ -782,22 +805,16 @@ int remove_inode_page(struct inode *inode)
 	struct page *page;
 	nid_t ino = inode->i_ino;
 	struct dnode_of_data dn;
+	int err;
 
 	page = get_node_page(sbi, ino);
 	if (IS_ERR(page))
 		return PTR_ERR(page);
 
-	if (F2FS_I(inode)->i_xattr_nid) {
-		nid_t nid = F2FS_I(inode)->i_xattr_nid;
-		struct page *npage = get_node_page(sbi, nid);
-
-		if (IS_ERR(npage))
-			return PTR_ERR(npage);
-
-		F2FS_I(inode)->i_xattr_nid = 0;
-		set_new_dnode(&dn, inode, page, npage, nid);
-		dn.inode_page_locked = 1;
-		truncate_node(&dn);
+	err = truncate_xattr_node(inode, page);
+	if (err) {
+		f2fs_put_page(page, 1);
+		return err;
 	}
 
 	/* 0 is possible, after f2fs_new_inode() is failed */
