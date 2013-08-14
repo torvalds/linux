@@ -379,7 +379,12 @@ static int tilcdc_crtc_mode_set(struct drm_crtc *crtc,
 	else
 		tilcdc_clear(dev, LCDC_RASTER_TIMING_2_REG, LCDC_SYNC_EDGE);
 
-	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
+	/*
+	 * use value from adjusted_mode here as this might have been
+	 * changed as part of the fixup for slave encoders to solve the
+	 * issue where tilcdc timings are not VESA compliant
+	 */
+	if (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC)
 		tilcdc_set(dev, LCDC_RASTER_TIMING_2_REG, LCDC_INVERT_HSYNC);
 	else
 		tilcdc_clear(dev, LCDC_RASTER_TIMING_2_REG, LCDC_INVERT_HSYNC);
