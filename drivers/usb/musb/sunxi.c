@@ -33,6 +33,7 @@
 #include <plat/sys_config.h>
 #include <mach/clock.h>
 #include "../../power/axp_power/axp-gpio.h"
+#include "sunxi_musb_plat.h"
 
 #include "musb_core.h"
 
@@ -970,77 +971,6 @@ MODULE_AUTHOR("Jussi Kivilinna <jussi.kivilinna@iki.fi>");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:" SUNXI_MUSB_DRIVER_NAME);
 
-static struct resource sunxi_musb_resources[] = {
-	[0] = {
-		.start = SW_PA_USB0_IO_BASE,
-		.end = SW_PA_USB0_IO_BASE + 0xfff,
-		.flags = IORESOURCE_MEM,
-		.name = "sunxi_musb0-mem",
-	},
-	[1] = {
-		.start = SW_INT_IRQNO_USB0,
-		.end = SW_INT_IRQNO_USB0,
-		.flags = IORESOURCE_IRQ,
-		.name = "mc", /* hardcoded in musb */
-	},
-};
-
-/* Can support a maximum ep number, ep0 ~ 5 */
-#define USBC_MAX_EP_NUM		6
-
-static struct musb_fifo_cfg sunxi_musb_mode_cfg[] = {
-	{ .hw_ep_num =  1, .style = FIFO_TX, .maxpacket = 512,
-		.mode = BUF_SINGLE, },
-	{ .hw_ep_num =  1, .style = FIFO_RX, .maxpacket = 512,
-		.mode = BUF_SINGLE, },
-	{ .hw_ep_num =  2, .style = FIFO_TX, .maxpacket = 512,
-		.mode = BUF_SINGLE, },
-	{ .hw_ep_num =  2, .style = FIFO_RX, .maxpacket = 512,
-		.mode = BUF_SINGLE, },
-	{ .hw_ep_num =  3, .style = FIFO_TX, .maxpacket = 512,
-		.mode = BUF_SINGLE, },
-	{ .hw_ep_num =  3, .style = FIFO_RX, .maxpacket = 512,
-		.mode = BUF_SINGLE, },
-	{ .hw_ep_num =  4, .style = FIFO_TX, .maxpacket = 512,
-		.mode = BUF_SINGLE, },
-	{ .hw_ep_num =  4, .style = FIFO_RX, .maxpacket = 512,
-		.mode = BUF_SINGLE, },
-	{ .hw_ep_num =  5, .style = FIFO_TX, .maxpacket = 512,
-		.mode = BUF_SINGLE, },
-	{ .hw_ep_num =  5, .style = FIFO_RX, .maxpacket = 512,
-		.mode = BUF_SINGLE, },
-};
-
-static struct musb_hdrc_config sunxi_musb_config = {
-	.multipoint	= 1,
-	.dyn_fifo	= 1,
-	.soft_con	= 1,
-	.dma		= 0,
-
-	.num_eps	= USBC_MAX_EP_NUM,
-	.ram_bits	= 11,
-
-	.fifo_cfg	= sunxi_musb_mode_cfg,
-	.fifo_cfg_size	= ARRAY_SIZE(sunxi_musb_mode_cfg),
-};
-
-static struct musb_hdrc_platform_data sunxi_musb_plat = {
-	.mode		= MUSB_HOST,
-	.config		= &sunxi_musb_config,
-};
-
-static struct platform_device sunxi_musb_device = {
-	.name	= SUNXI_MUSB_DRIVER_NAME,
-	.id	= -1,
-
-	.dev = {
-		.platform_data = &sunxi_musb_plat,
-	},
-
-	.resource = sunxi_musb_resources,
-	.num_resources = ARRAY_SIZE(sunxi_musb_resources),
-};
-
 static int __init sunxi_musb_drvinit(void)
 {
 	int ret;
@@ -1049,8 +979,7 @@ static int __init sunxi_musb_drvinit(void)
 	if (ret < 0)
 		return ret;
 
-	/* TODO: move to arch/arm/... */
-	ret = platform_device_register(&sunxi_musb_device);
+	ret = register_musb_device();
 	if (ret < 0)
 		goto err0;
 
@@ -1063,7 +992,7 @@ module_init(sunxi_musb_drvinit);
 
 static void __exit sunxi_musb_drvexit(void)
 {
-	platform_device_unregister(&sunxi_musb_device);
+	unregister_musb_device();
 	platform_driver_unregister(&sunxi_musb_driver);
 }
 module_exit(sunxi_musb_drvexit);
