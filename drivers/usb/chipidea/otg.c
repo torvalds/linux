@@ -37,13 +37,23 @@ enum ci_role ci_otg_role(struct ci_hdrc *ci)
 	return role;
 }
 
-/**
- * ci_role_work - perform role changing based on ID pin
- * @work: work struct
- */
-static void ci_role_work(struct work_struct *work)
+void ci_handle_vbus_change(struct ci_hdrc *ci)
 {
-	struct ci_hdrc *ci = container_of(work, struct ci_hdrc, work);
+	u32 otgsc;
+
+	if (!ci->is_otg)
+		return;
+
+	otgsc = hw_read(ci, OP_OTGSC, ~0);
+
+	if (otgsc & OTGSC_BSV)
+		usb_gadget_vbus_connect(&ci->gadget);
+	else
+		usb_gadget_vbus_disconnect(&ci->gadget);
+}
+
+static void ci_handle_id_switch(struct ci_hdrc *ci)
+{
 	enum ci_role role = ci_otg_role(ci);
 
 	if (role != ci->role) {
@@ -53,9 +63,27 @@ static void ci_role_work(struct work_struct *work)
 		ci_role_stop(ci);
 		ci_role_start(ci, role);
 	}
+}
+/**
+ * ci_otg_work - perform otg (vbus/id) event handle
+ * @work: work struct
+ */
+static void ci_otg_work(struct work_struct *work)
+{
+	struct ci_hdrc *ci = container_of(work, struct ci_hdrc, work);
+
+	if (ci->id_event) {
+		ci->id_event = false;
+		ci_handle_id_switch(ci);
+	} else if (ci->b_sess_valid_event) {
+		ci->b_sess_valid_event = false;
+		ci_handle_vbus_change(ci);
+	} else
+		dev_err(ci->dev, "unexpected event occurs at %s\n", __func__);
 
 	enable_irq(ci->irq);
 }
+
 
 /**
  * ci_hdrc_otg_init - initialize otg struct
@@ -63,7 +91,7 @@ static void ci_role_work(struct work_struct *work)
  */
 int ci_hdrc_otg_init(struct ci_hdrc *ci)
 {
-	INIT_WORK(&ci->work, ci_role_work);
+	INIT_WORK(&ci->work, ci_otg_work);
 	ci->wq = create_singlethread_workqueue("ci_otg");
 	if (!ci->wq) {
 		dev_err(ci->dev, "can't create workqueue\n");

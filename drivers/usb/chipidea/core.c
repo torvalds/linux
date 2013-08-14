@@ -303,15 +303,33 @@ static irqreturn_t ci_irq(int irq, void *data)
 	if (ci->is_otg)
 		otgsc = hw_read(ci, OP_OTGSC, ~0);
 
-	if (ci->role != CI_ROLE_END)
-		ret = ci_role(ci)->irq(ci);
-
-	if (ci->is_otg && (otgsc & OTGSC_IDIS)) {
-		hw_write(ci, OP_OTGSC, OTGSC_IDIS, OTGSC_IDIS);
+	/*
+	 * Handle id change interrupt, it indicates device/host function
+	 * switch.
+	 */
+	if (ci->is_otg && (otgsc & OTGSC_IDIE) && (otgsc & OTGSC_IDIS)) {
+		ci->id_event = true;
+		ci_clear_otg_interrupt(ci, OTGSC_IDIS);
 		disable_irq_nosync(ci->irq);
 		queue_work(ci->wq, &ci->work);
-		ret = IRQ_HANDLED;
+		return IRQ_HANDLED;
 	}
+
+	/*
+	 * Handle vbus change interrupt, it indicates device connection
+	 * and disconnection events.
+	 */
+	if (ci->is_otg && (otgsc & OTGSC_BSVIE) && (otgsc & OTGSC_BSVIS)) {
+		ci->b_sess_valid_event = true;
+		ci_clear_otg_interrupt(ci, OTGSC_BSVIS);
+		disable_irq_nosync(ci->irq);
+		queue_work(ci->wq, &ci->work);
+		return IRQ_HANDLED;
+	}
+
+	/* Handle device/host interrupt */
+	if (ci->role != CI_ROLE_END)
+		ret = ci_role(ci)->irq(ci);
 
 	return ret;
 }

@@ -132,6 +132,9 @@ struct hw_bank {
  * @transceiver: pointer to USB PHY, if any
  * @hcd: pointer to usb_hcd for ehci host driver
  * @debugfs: root dentry for this controller in debugfs
+ * @id_event: indicates there is an id event, and handled at ci_otg_work
+ * @b_sess_valid_event: indicates there is a vbus event, and handled
+ * at ci_otg_work
  */
 struct ci_hdrc {
 	struct device			*dev;
@@ -168,6 +171,8 @@ struct ci_hdrc {
 	struct usb_phy			*transceiver;
 	struct usb_hcd			*hcd;
 	struct dentry			*debugfs;
+	bool				id_event;
+	bool				b_sess_valid_event;
 };
 
 static inline struct ci_role_driver *ci_role(struct ci_hdrc *ci)
