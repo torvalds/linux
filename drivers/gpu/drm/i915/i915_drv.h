@@ -1826,8 +1826,6 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 						  size_t size);
 void i915_gem_free_object(struct drm_gem_object *obj);
-struct i915_vma *i915_gem_vma_create(struct drm_i915_gem_object *obj,
-				     struct i915_address_space *vm);
 void i915_gem_vma_destroy(struct i915_vma *vma);
 
 int __must_check i915_gem_object_pin(struct drm_i915_gem_object *obj,

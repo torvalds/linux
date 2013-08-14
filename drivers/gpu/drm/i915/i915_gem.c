@@ -4109,8 +4109,19 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	i915_gem_object_free(obj);
 }
 
-struct i915_vma *i915_gem_vma_create(struct drm_i915_gem_object *obj,
+struct i915_vma *i915_gem_obj_to_vma(struct drm_i915_gem_object *obj,
 				     struct i915_address_space *vm)
+{
+	struct i915_vma *vma;
+	list_for_each_entry(vma, &obj->vma_list, vma_link)
+		if (vma->vm == vm)
+			return vma;
+
+	return NULL;
+}
+
+static struct i915_vma *__i915_gem_vma_create(struct drm_i915_gem_object *obj,
+					      struct i915_address_space *vm)
 {
 	struct i915_vma *vma = kzalloc(sizeof(*vma), GFP_KERNEL);
 	if (vma == NULL)
@@ -4127,6 +4138,19 @@ struct i915_vma *i915_gem_vma_create(struct drm_i915_gem_object *obj,
 		list_add(&vma->vma_link, &obj->vma_list);
 	else
 		list_add_tail(&vma->vma_link, &obj->vma_list);
+
+	return vma;
+}
+
+struct i915_vma *
+i915_gem_obj_lookup_or_create_vma(struct drm_i915_gem_object *obj,
+				  struct i915_address_space *vm)
+{
+	struct i915_vma *vma;
+
+	vma = i915_gem_obj_to_vma(obj, vm);
+	if (!vma)
+		vma = __i915_gem_vma_create(obj, vm);
 
 	return vma;
 }
@@ -4856,28 +4880,4 @@ unsigned long i915_gem_obj_size(struct drm_i915_gem_object *o,
 			return vma->node.size;
 
 	return 0;
-}
-
-struct i915_vma *i915_gem_obj_to_vma(struct drm_i915_gem_object *obj,
-				     struct i915_address_space *vm)
-{
-	struct i915_vma *vma;
-	list_for_each_entry(vma, &obj->vma_list, vma_link)
-		if (vma->vm == vm)
-			return vma;
-
-	return NULL;
-}
-
-struct i915_vma *
-i915_gem_obj_lookup_or_create_vma(struct drm_i915_gem_object *obj,
-				  struct i915_address_space *vm)
-{
-	struct i915_vma *vma;
-
-	vma = i915_gem_obj_to_vma(obj, vm);
-	if (!vma)
-		vma = i915_gem_vma_create(obj, vm);
-
-	return vma;
 }
