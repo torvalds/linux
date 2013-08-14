@@ -2240,7 +2240,10 @@ void dwc_otg_ep_start_transfer(dwc_otg_core_if_t *_core_if, dwc_ep_t *_ep)
 				(_ep->xfer_len - 1 + _ep->maxpacket) / 
 				_ep->maxpacket;
 		}
-
+		if (_ep->type == DWC_OTG_EP_TYPE_ISOC)
+		{
+		    deptsiz.b.mc = 1;
+		}
 		dwc_write_reg32(&in_regs->dieptsiz, deptsiz.d32);
 
 		/* Write the DMA register */
@@ -2279,7 +2282,19 @@ void dwc_otg_ep_start_transfer(dwc_otg_core_if_t *_core_if, dwc_ep_t *_ep)
 				}
 			}
 		}
-				
+		if (_ep->type == DWC_OTG_EP_TYPE_ISOC) 
+		{
+			dsts_data_t dsts = {.d32 = 0 };
+			dsts.d32 = dwc_read_reg32(&_core_if->dev_if->dev_global_regs->dsts);
+			if (dsts.b.soffn & 0x1) 
+			{
+				depctl.b.setd0pid = 1;
+			} 
+			else 
+			{
+				depctl.b.setd1pid = 1;
+			}
+		}
 		/* EP enable, IN data in FIFO */
 		depctl.b.cnak = 1;
 		depctl.b.epena = 1;
