@@ -154,7 +154,7 @@ void drm_gem_private_object_init(struct drm_device *dev,
 	obj->filp = NULL;
 
 	kref_init(&obj->refcount);
-	atomic_set(&obj->handle_count, 0);
+	obj->handle_count = 0;
 	obj->size = size;
 }
 EXPORT_SYMBOL(drm_gem_private_object_init);
@@ -218,11 +218,9 @@ static void drm_gem_object_handle_free(struct drm_gem_object *obj)
 	struct drm_device *dev = obj->dev;
 
 	/* Remove any name for this object */
-	spin_lock(&dev->object_name_lock);
 	if (obj->name) {
 		idr_remove(&dev->object_name_idr, obj->name);
 		obj->name = 0;
-		spin_unlock(&dev->object_name_lock);
 		/*
 		 * The object name held a reference to this object, drop
 		 * that now.
@@ -230,15 +228,13 @@ static void drm_gem_object_handle_free(struct drm_gem_object *obj)
 		* This cannot be the last reference, since the handle holds one too.
 		 */
 		kref_put(&obj->refcount, drm_gem_object_ref_bug);
-	} else
-		spin_unlock(&dev->object_name_lock);
-
+	}
 }
 
 void
 drm_gem_object_handle_unreference_unlocked(struct drm_gem_object *obj)
 {
-	if (WARN_ON(atomic_read(&obj->handle_count) == 0))
+	if (WARN_ON(obj->handle_count == 0))
 		return;
 
 	/*
@@ -247,8 +243,11 @@ drm_gem_object_handle_unreference_unlocked(struct drm_gem_object *obj)
 	* checked for a name
 	*/
 
-	if (atomic_dec_and_test(&obj->handle_count))
+	spin_lock(&obj->dev->object_name_lock);
+	if (--obj->handle_count == 0)
 		drm_gem_object_handle_free(obj);
+	spin_unlock(&obj->dev->object_name_lock);
+
 	drm_gem_object_unreference_unlocked(obj);
 }
 
@@ -326,17 +325,21 @@ drm_gem_handle_create(struct drm_file *file_priv,
 	 * allocation under our spinlock.
 	 */
 	idr_preload(GFP_KERNEL);
+	spin_lock(&dev->object_name_lock);
 	spin_lock(&file_priv->table_lock);
 
 	ret = idr_alloc(&file_priv->object_idr, obj, 1, 0, GFP_NOWAIT);
-
+	drm_gem_object_reference(obj);
+	obj->handle_count++;
 	spin_unlock(&file_priv->table_lock);
+	spin_unlock(&dev->object_name_lock);
 	idr_preload_end();
-	if (ret < 0)
+	if (ret < 0) {
+		drm_gem_object_handle_unreference_unlocked(obj);
 		return ret;
+	}
 	*handlep = ret;
 
-	drm_gem_object_handle_reference(obj);
 
 	if (dev->driver->gem_open_object) {
 		ret = dev->driver->gem_open_object(obj, file_priv);
@@ -454,6 +457,12 @@ drm_gem_flink_ioctl(struct drm_device *dev, void *data,
 
 	idr_preload(GFP_KERNEL);
 	spin_lock(&dev->object_name_lock);
+	/* prevent races with concurrent gem_close. */
+	if (obj->handle_count == 0) {
+		ret = -ENOENT;
+		goto err;
+	}
+
 	if (!obj->name) {
 		ret = idr_alloc(&dev->object_name_idr, obj, 1, 0, GFP_NOWAIT);
 		if (ret < 0)

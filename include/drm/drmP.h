@@ -631,8 +631,16 @@ struct drm_gem_object {
 	/** Reference count of this object */
 	struct kref refcount;
 
-	/** Handle count of this object. Each handle also holds a reference */
-	atomic_t handle_count; /* number of handles on this object */
+	/**
+	 * handle_count - gem file_priv handle count of this object
+	 *
+	 * Each handle also holds a reference. Note that when the handle_count
+	 * drops to 0 any global names (e.g. the id in the flink namespace) will
+	 * be cleared.
+	 *
+	 * Protected by dev->object_name_lock.
+	 * */
+	unsigned handle_count;
 
 	/** Related drm device */
 	struct drm_device *dev;
@@ -1595,13 +1603,6 @@ int drm_gem_handle_create(struct drm_file *file_priv,
 			  struct drm_gem_object *obj,
 			  u32 *handlep);
 int drm_gem_handle_delete(struct drm_file *filp, u32 handle);
-
-static inline void
-drm_gem_object_handle_reference(struct drm_gem_object *obj)
-{
-	drm_gem_object_reference(obj);
-	atomic_inc(&obj->handle_count);
-}
 
 void drm_gem_object_handle_unreference_unlocked(struct drm_gem_object *obj);
 

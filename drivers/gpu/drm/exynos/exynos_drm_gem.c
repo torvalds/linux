@@ -138,7 +138,7 @@ void exynos_drm_gem_destroy(struct exynos_drm_gem_obj *exynos_gem_obj)
 	obj = &exynos_gem_obj->base;
 	buf = exynos_gem_obj->buffer;
 
-	DRM_DEBUG_KMS("handle count = %d\n", atomic_read(&obj->handle_count));
+	DRM_DEBUG_KMS("handle count = %d\n", obj->handle_count);
 
 	/*
 	 * do not release memory region from exporter.
