@@ -1119,6 +1119,13 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 		rx_status->flag |= RX_FLAG_NO_SIGNAL_VAL;
 
 	sc->rx.discard_next = false;
+
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+	if (ieee80211_is_data_present(hdr->frame_control) &&
+	    !ieee80211_is_qos_nullfunc(hdr->frame_control))
+		sc->rx.num_pkts++;
+#endif
+
 	return 0;
 }
 
@@ -1266,10 +1273,6 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 
 		hdr = (struct ieee80211_hdr *) (hdr_skb->data +
 						ah->caps.rx_status_len);
-
-		if (ieee80211_is_data_present(hdr->frame_control) &&
-		    !ieee80211_is_qos_nullfunc(hdr->frame_control))
-			sc->rx.num_pkts++;
 
 		rxs = IEEE80211_SKB_RXCB(hdr_skb);
 		memset(rxs, 0, sizeof(struct ieee80211_rx_status));
