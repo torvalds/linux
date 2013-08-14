@@ -750,4 +750,18 @@ void cik_compute_ring_set_wptr(struct radeon_device *rdev,
 int ci_get_temp(struct radeon_device *rdev);
 int kv_get_temp(struct radeon_device *rdev);
 
+int kv_dpm_init(struct radeon_device *rdev);
+int kv_dpm_enable(struct radeon_device *rdev);
+void kv_dpm_disable(struct radeon_device *rdev);
+int kv_dpm_pre_set_power_state(struct radeon_device *rdev);
+int kv_dpm_set_power_state(struct radeon_device *rdev);
+void kv_dpm_post_set_power_state(struct radeon_device *rdev);
+void kv_dpm_setup_asic(struct radeon_device *rdev);
+void kv_dpm_display_configuration_changed(struct radeon_device *rdev);
+void kv_dpm_fini(struct radeon_device *rdev);
+u32 kv_dpm_get_sclk(struct radeon_device *rdev, bool low);
+u32 kv_dpm_get_mclk(struct radeon_device *rdev, bool low);
+void kv_dpm_print_power_state(struct radeon_device *rdev,
+			      struct radeon_ps *ps);
+
 #endif

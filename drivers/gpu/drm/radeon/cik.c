@@ -6593,6 +6593,7 @@ int cik_irq_set(struct radeon_device *rdev)
 	u32 hpd1, hpd2, hpd3, hpd4, hpd5, hpd6;
 	u32 grbm_int_cntl = 0;
 	u32 dma_cntl, dma_cntl1;
+	u32 thermal_int;
 
 	if (!rdev->irq.installed) {
 		WARN(1, "Can't enable IRQ/MSI because no handler is installed\n");
@@ -6624,6 +6625,9 @@ int cik_irq_set(struct radeon_device *rdev)
 	cp_m2p1 = RREG32(CP_ME2_PIPE1_INT_CNTL) & ~TIME_STAMP_INT_ENABLE;
 	cp_m2p2 = RREG32(CP_ME2_PIPE2_INT_CNTL) & ~TIME_STAMP_INT_ENABLE;
 	cp_m2p3 = RREG32(CP_ME2_PIPE3_INT_CNTL) & ~TIME_STAMP_INT_ENABLE;
+
+	thermal_int = RREG32_SMC(CG_THERMAL_INT_CTRL) &
+		~(THERM_INTH_MASK | THERM_INTL_MASK);
 
 	/* enable CP interrupts on all rings */
 	if (atomic_read(&rdev->irq.ring_int[RADEON_RING_TYPE_GFX_INDEX])) {
@@ -6782,6 +6786,11 @@ int cik_irq_set(struct radeon_device *rdev)
 		hpd6 |= DC_HPDx_INT_EN;
 	}
 
+	if (rdev->irq.dpm_thermal) {
+		DRM_DEBUG("dpm thermal\n");
+		thermal_int |= THERM_INTH_MASK | THERM_INTL_MASK;
+	}
+
 	WREG32(CP_INT_CNTL_RING0, cp_int_cntl);
 
 	WREG32(SDMA0_CNTL + SDMA0_REGISTER_OFFSET, dma_cntl);
@@ -6815,6 +6824,8 @@ int cik_irq_set(struct radeon_device *rdev)
 	WREG32(DC_HPD4_INT_CONTROL, hpd4);
 	WREG32(DC_HPD5_INT_CONTROL, hpd5);
 	WREG32(DC_HPD6_INT_CONTROL, hpd6);
+
+	WREG32_SMC(CG_THERMAL_INT_CTRL, thermal_int);
 
 	return 0;
 }
@@ -7027,6 +7038,7 @@ int cik_irq_process(struct radeon_device *rdev)
 	bool queue_hotplug = false;
 	bool queue_reset = false;
 	u32 addr, status, mc_client;
+	bool queue_thermal = false;
 
 	if (!rdev->ih.enabled || rdev->shutdown)
 		return IRQ_NONE;
@@ -7377,6 +7389,19 @@ restart_ih:
 				break;
 			}
 			break;
+		case 230: /* thermal low to high */
+			DRM_DEBUG("IH: thermal low to high\n");
+			rdev->pm.dpm.thermal.high_to_low = false;
+			queue_thermal = true;
+			break;
+		case 231: /* thermal high to low */
+			DRM_DEBUG("IH: thermal high to low\n");
+			rdev->pm.dpm.thermal.high_to_low = true;
+			queue_thermal = true;
+			break;
+		case 233: /* GUI IDLE */
+			DRM_DEBUG("IH: GUI idle\n");
+			break;
 		case 241: /* SDMA Privileged inst */
 		case 247: /* SDMA Privileged inst */
 			DRM_ERROR("Illegal instruction in SDMA command stream\n");
@@ -7416,9 +7441,6 @@ restart_ih:
 				break;
 			}
 			break;
-		case 233: /* GUI IDLE */
-			DRM_DEBUG("IH: GUI idle\n");
-			break;
 		default:
 			DRM_DEBUG("Unhandled interrupt: %d %d\n", src_id, src_data);
 			break;
@@ -7432,6 +7454,8 @@ restart_ih:
 		schedule_work(&rdev->hotplug_work);
 	if (queue_reset)
 		schedule_work(&rdev->reset_work);
+	if (queue_thermal)
+		schedule_work(&rdev->pm.dpm.thermal.work);
 	rdev->ih.rptr = rptr;
 	WREG32(IH_RB_RPTR, rdev->ih.rptr);
 	atomic_set(&rdev->ih.lock, 0);

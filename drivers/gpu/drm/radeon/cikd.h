@@ -28,9 +28,58 @@
 
 #define CIK_RB_BITMAP_WIDTH_PER_SH  2
 
+/* DIDT IND registers */
+#define DIDT_SQ_CTRL0                                     0x0
+#       define DIDT_CTRL_EN                               (1 << 0)
+#define DIDT_DB_CTRL0                                     0x20
+#define DIDT_TD_CTRL0                                     0x40
+#define DIDT_TCP_CTRL0                                    0x60
+
 /* SMC IND registers */
+#define NB_DPM_CONFIG_1                                   0x3F9E8
+#       define Dpm0PgNbPsLo(x)                            ((x) << 0)
+#       define Dpm0PgNbPsLo_MASK                          0x000000ff
+#       define Dpm0PgNbPsLo_SHIFT                         0
+#       define Dpm0PgNbPsHi(x)                            ((x) << 8)
+#       define Dpm0PgNbPsHi_MASK                          0x0000ff00
+#       define Dpm0PgNbPsHi_SHIFT                         8
+#       define DpmXNbPsLo(x)                              ((x) << 16)
+#       define DpmXNbPsLo_MASK                            0x00ff0000
+#       define DpmXNbPsLo_SHIFT                           16
+#       define DpmXNbPsHi(x)                              ((x) << 24)
+#       define DpmXNbPsHi_MASK                            0xff000000
+#       define DpmXNbPsHi_SHIFT                           24
+
+#define SMC_SYSCON_MSG_ARG_0                              0x80000068
+
 #define GENERAL_PWRMGT                                    0xC0200000
+#       define GLOBAL_PWRMGT_EN                           (1 << 0)
 #       define GPU_COUNTER_CLK                            (1 << 15)
+
+#define SCLK_PWRMGT_CNTL                                  0xC0200008
+#       define RESET_BUSY_CNT                             (1 << 4)
+#       define RESET_SCLK_CNT                             (1 << 5)
+#       define DYNAMIC_PM_EN                              (1 << 21)
+
+#define CG_FTV_0                                          0xC02001A8
+
+#define LCAC_SX0_OVR_SEL                                  0xC0400D04
+#define LCAC_SX0_OVR_VAL                                  0xC0400D08
+
+#define LCAC_MC0_OVR_SEL                                  0xC0400D34
+#define LCAC_MC0_OVR_VAL                                  0xC0400D38
+
+#define LCAC_MC1_OVR_SEL                                  0xC0400D40
+#define LCAC_MC1_OVR_VAL                                  0xC0400D44
+
+#define LCAC_MC2_OVR_SEL                                  0xC0400D4C
+#define LCAC_MC2_OVR_VAL                                  0xC0400D50
+
+#define LCAC_MC3_OVR_SEL                                  0xC0400D58
+#define LCAC_MC3_OVR_VAL                                  0xC0400D5C
+
+#define LCAC_CPL_OVR_SEL                                  0xC0400D84
+#define LCAC_CPL_OVR_VAL                                  0xC0400D88
 
 #define	CG_MULT_THERMAL_STATUS				0xC0300014
 #define		ASIC_MAX_TEMP(x)			((x) << 0)
@@ -59,6 +108,16 @@
 #	define DEEP_SLEEP_CLK_SEL_MASK			0xFF
 #	define ZCLK_SEL(x)				((x) << 8)
 #	define ZCLK_SEL_MASK				0xFF00
+
+#define	CG_THERMAL_INT_CTRL				0xC2100028
+#define		DIG_THERM_INTH(x)			((x) << 0)
+#define		DIG_THERM_INTH_MASK			0x000000FF
+#define		DIG_THERM_INTH_SHIFT			0
+#define		DIG_THERM_INTL(x)			((x) << 8)
+#define		DIG_THERM_INTL_MASK			0x0000FF00
+#define		DIG_THERM_INTL_SHIFT			8
+#define 	THERM_INTH_MASK				(1 << 24)
+#define 	THERM_INTL_MASK				(1 << 25)
 
 /* PCIE registers idx/data 0x38/0x3c */
 #define PB0_PIF_PWRDOWN_0                                 0x1100012 /* PCIE */
@@ -172,6 +231,19 @@
 /* direct registers */
 #define PCIE_INDEX  					0x38
 #define PCIE_DATA  					0x3C
+
+#define SMC_IND_INDEX_0  				0x200
+#define SMC_IND_DATA_0  				0x204
+
+#define SMC_IND_ACCESS_CNTL  				0x240
+#define		AUTO_INCREMENT_IND_0			(1 << 0)
+
+#define SMC_MESSAGE_0  					0x250
+#define		SMC_MSG_MASK				0xffff
+#define SMC_RESP_0  					0x254
+#define		SMC_RESP_MASK				0xffff
+
+#define SMC_MSG_ARG_0  					0x290
 
 #define VGA_HDP_CONTROL  				0x328
 #define		VGA_MEMORY_DISABLE				(1 << 4)
