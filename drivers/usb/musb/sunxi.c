@@ -526,16 +526,15 @@ static void sw_hcd_board_set_vbus(struct musb *musb, int is_on)
 	dev_info(glue->dev, "is_on = %d\n", is_on);
 
 	if (is_on) {
-		if (glue->vbus_on)
-			return; /* already enabled */
+		if (!glue->vbus_on) {
+			/* set gpio data */
+			if (board->set_phy_power(glue->board_priv, 1) < 0)
+				return;
 
-		/* set gpio data */
-		if (board->set_phy_power(glue->board_priv, 1) < 0)
-			return;
+			glue->vbus_on = 1;
 
-		glue->vbus_on = 1;
-
-		dev_info(glue->dev, "Set USB Power On\n");
+			dev_info(glue->dev, "Set USB Power On\n");
+		}
 
 		/* start session */
 		val = musb_readw(musb->mregs, MUSB_DEVCTL);
@@ -544,25 +543,26 @@ static void sw_hcd_board_set_vbus(struct musb *musb, int is_on)
 		val |= MUSB_DEVCTL_SESSION;
 		musb_writew(musb->mregs, MUSB_DEVCTL, val);
 
+		USBC_ForceId(musb->mregs, USBC_ID_TYPE_HOST);
 		USBC_ForceVbusValid(musb->mregs, USBC_VBUS_TYPE_HIGH);
 	} else {
-		if (!glue->vbus_on)
-			return; /* already disabled */
+		if (glue->vbus_on) {
+			/* set gpio data */
+			if (board->set_phy_power(glue->board_priv, 0) < 0)
+				return;
 
-		/* set gpio data */
-		if (board->set_phy_power(glue->board_priv, 0) < 0)
-			return;
+			glue->vbus_on = 0;
 
-		glue->vbus_on = 0;
-
-		dev_info(glue->dev, "Set USB Power Off\n");
+			dev_info(glue->dev, "Set USB Power Off\n");
+		}
 
 		/* end session */
 		val = musb_readw(musb->mregs, MUSB_DEVCTL);
 		val &= ~MUSB_DEVCTL_SESSION;
 		musb_writew(musb->mregs, MUSB_DEVCTL, val);
 
-		USBC_ForceVbusValid(musb->mregs, USBC_VBUS_TYPE_DISABLE);
+		USBC_ForceId(musb->mregs, USBC_ID_TYPE_DEVICE);
+		USBC_ForceVbusValid(musb->mregs, USBC_VBUS_TYPE_HIGH);
 	}
 
 	return;
@@ -709,8 +709,16 @@ static int sunxi_musb_init(struct musb *musb)
 	USBC_EnableDpDmPullUp(musb->mregs);
 	USBC_EnableIdPullUp(musb->mregs);
 
-	USBC_ForceId(musb->mregs, USBC_ID_TYPE_DISABLE);
-	USBC_ForceVbusValid(musb->mregs, USBC_VBUS_TYPE_DISABLE);
+	if (is_host_enabled(musb) && !is_otg_enabled(musb)) {
+		USBC_ForceId(musb->mregs, USBC_ID_TYPE_HOST);
+		USBC_ForceVbusValid(musb->mregs, USBC_VBUS_TYPE_HIGH);
+	} else if (is_peripheral_enabled(musb) && !is_otg_enabled(musb)) {
+		USBC_ForceId(musb->mregs, USBC_ID_TYPE_DEVICE);
+		USBC_ForceVbusValid(musb->mregs, USBC_VBUS_TYPE_HIGH);
+	} else {
+		USBC_ForceId(musb->mregs, USBC_ID_TYPE_DISABLE);
+		USBC_ForceVbusValid(musb->mregs, USBC_VBUS_TYPE_DISABLE);
+	}
 
 	return 0;
 

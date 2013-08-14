@@ -245,8 +245,17 @@ static struct sunxi_musb_board_data sunxi_musb_board_data = {
 	.set_phy_power	= sunxi_musb_board_priv_set_phy_power,
 };
 
+/* For testing peripheral mode, set this '1'. */
+#define MUSB_SUNXI_FORCE_PERIPHERAL 0
+
 static struct musb_hdrc_platform_data sunxi_musb_plat = {
+#if (defined(CONFIG_USB_GADGET_MUSB_HDRC) || \
+	defined(CONFIG_USB_GADGET_MUSB_HDRC_MODULE)) && \
+		MUSB_SUNXI_FORCE_PERIPHERAL
+	.mode		= MUSB_PERIPHERAL,
+#else
 	.mode		= MUSB_HOST,
+#endif
 	.config		= &sunxi_musb_config,
 	.board_data	= &sunxi_musb_board_data,
 };
@@ -263,8 +272,65 @@ static struct platform_device sunxi_musb_device = {
 	.num_resources = ARRAY_SIZE(sunxi_musb_resources),
 };
 
+#if defined(CONFIG_USB_GADGET_MUSB_HDRC) || \
+	defined(CONFIG_USB_GADGET_MUSB_HDRC_MODULE)
+static void do_fex_setup(struct musb_hdrc_platform_data *plat)
+{
+	int ret;
+	int enabled = 1;
+	int usb_port_type = 1;
+	int usb_detect_type = 0;
+
+	/* usbc enabled */
+	ret = script_parser_fetch("usbc0", "usb_used", &enabled, 64);
+	if (ret != 0) {
+		pr_debug("couldn't fetch config '%s':'%s'.\n",
+			 "usbc0", "usb_used");
+		enabled = 1;
+	}
+
+	/* usbc port type */
+	ret = script_parser_fetch("usbc0", "usb_port_type", &usb_port_type, 64);
+	if (ret != 0) {
+		pr_debug("couldn't fetch config '%s':'%s'.\n",
+			 "usbc0", "usb_port_type");
+		usb_port_type = 1;
+	}
+
+	/* usbc detect type */
+	ret = script_parser_fetch("usbc0", "usb_detect_type", &usb_detect_type,
+				  64);
+	if (ret != 0) {
+		pr_debug("couldn't fetch config '%s':'%s'.\n",
+			 "usbc0", "usb_detect_type");
+		usb_detect_type = 0;
+	}
+
+	pr_debug("usbc0 config: enabled=%d, port_type=%d, detect_type=%d\n",
+		enabled, usb_port_type, usb_detect_type);
+
+#if MUSB_SUNXI_FORCE_PERIPHERAL
+	plat->mode = MUSB_PERIPHERAL;
+#else
+	plat->mode = MUSB_HOST;
+	if (usb_port_type == 2 && usb_detect_type == 1) {
+		/* OTG is not yet supported */
+		plat->mode = /*MUSB_OTG*/ MUSB_PERIPHERAL;
+	} else if (usb_port_type == 0) {
+		plat->mode = MUSB_PERIPHERAL;
+	}
+#endif
+}
+#else
+static void do_fex_setup(struct musb_hdrc_platform_data *plat)
+{
+}
+#endif
+
 int register_musb_device(void)
 {
+	do_fex_setup(&sunxi_musb_plat);
+
 	return platform_device_register(&sunxi_musb_device);
 }
 
