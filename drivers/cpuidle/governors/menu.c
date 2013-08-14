@@ -228,14 +228,6 @@ again:
 	do_div(stddev, divisor);
 	stddev = int_sqrt(stddev);
 	/*
-	 * If we have outliers to the upside in our distribution, discard
-	 * those by setting the threshold to exclude these outliers, then
-	 * calculate the average and standard deviation again. Once we get
-	 * down to the bottom 3/4 of our samples, stop excluding samples.
-	 *
-	 * This can deal with workloads that have long pauses interspersed
-	 * with sporadic activity with a bunch of short pauses.
-	 *
 	 * The typical interval is obtained when standard deviation is small
 	 * or standard deviation is small compared to the average interval.
 	 *
@@ -246,12 +238,22 @@ again:
 		if (data->expected_us > avg)
 			data->predicted_us = avg;
 		return;
-
-	} else if ((divisor * 4) > INTERVALS * 3) {
-		/* Exclude the max interval */
-		thresh = max - 1;
-		goto again;
 	}
+
+	/*
+	 * If we have outliers to the upside in our distribution, discard
+	 * those by setting the threshold to exclude these outliers, then
+	 * calculate the average and standard deviation again. Once we get
+	 * down to the bottom 3/4 of our samples, stop excluding samples.
+	 *
+	 * This can deal with workloads that have long pauses interspersed
+	 * with sporadic activity with a bunch of short pauses.
+	 */
+	if ((divisor * 4) <= INTERVALS * 3)
+		return;
+
+	thresh = max - 1;
+	goto again;
 }
 
 /**
