@@ -302,7 +302,7 @@ static int pm800_regulator_probe(struct platform_device *pdev)
 		unsigned int count = 0;
 
 		/* Check whether num_regulator is valid. */
-		for (i = 0; ARRAY_SIZE(pdata->regulators); i++) {
+		for (i = 0; i < ARRAY_SIZE(pdata->regulators); i++) {
 			if (pdata->regulators[i])
 				count++;
 		}
