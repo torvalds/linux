@@ -83,6 +83,19 @@ static int drm_prime_add_buf_handle(struct drm_prime_file_private *prime_fpriv, 
 	return 0;
 }
 
+static struct dma_buf *drm_prime_lookup_buf_by_handle(struct drm_prime_file_private *prime_fpriv,
+						      uint32_t handle)
+{
+	struct drm_prime_member *member;
+
+	list_for_each_entry(member, &prime_fpriv->head, entry) {
+		if (member->handle == handle)
+			return member->dma_buf;
+	}
+
+	return NULL;
+}
+
 static int drm_prime_lookup_buf_handle(struct drm_prime_file_private *prime_fpriv,
 				       struct dma_buf *dma_buf,
 				       uint32_t *handle)
@@ -146,9 +159,8 @@ static void drm_gem_map_detach(struct dma_buf *dma_buf,
 	attach->priv = NULL;
 }
 
-static void drm_prime_remove_buf_handle_locked(
-		struct drm_prime_file_private *prime_fpriv,
-		struct dma_buf *dma_buf)
+void drm_prime_remove_buf_handle_locked(struct drm_prime_file_private *prime_fpriv,
+					struct dma_buf *dma_buf)
 {
 	struct drm_prime_member *member, *safe;
 
@@ -337,6 +349,8 @@ static struct dma_buf *export_and_register_object(struct drm_device *dev,
 	 */
 	obj->dma_buf = dmabuf;
 	get_dma_buf(obj->dma_buf);
+	/* Grab a new ref since the callers is now used by the dma-buf */
+	drm_gem_object_reference(obj);
 
 	return dmabuf;
 }
@@ -349,10 +363,20 @@ int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 	int ret = 0;
 	struct dma_buf *dmabuf;
 
+	mutex_lock(&file_priv->prime.lock);
 	obj = drm_gem_object_lookup(dev, file_priv, handle);
-	if (!obj)
-		return -ENOENT;
+	if (!obj)  {
+		ret = -ENOENT;
+		goto out_unlock;
+	}
 
+	dmabuf = drm_prime_lookup_buf_by_handle(&file_priv->prime, handle);
+	if (dmabuf) {
+		get_dma_buf(dmabuf);
+		goto out_have_handle;
+	}
+
+	mutex_lock(&dev->object_name_lock);
 	/* re-export the original imported object */
 	if (obj->import_attach) {
 		dmabuf = obj->import_attach->dmabuf;
@@ -360,45 +384,45 @@ int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 		goto out_have_obj;
 	}
 
-	mutex_lock(&dev->object_name_lock);
 	if (obj->dma_buf) {
 		get_dma_buf(obj->dma_buf);
 		dmabuf = obj->dma_buf;
-		mutex_unlock(&dev->object_name_lock);
 		goto out_have_obj;
 	}
 
 	dmabuf = export_and_register_object(dev, obj, flags);
-	mutex_unlock(&dev->object_name_lock);
 	if (IS_ERR(dmabuf)) {
 		/* normally the created dma-buf takes ownership of the ref,
 		 * but if that fails then drop the ref
 		 */
 		ret = PTR_ERR(dmabuf);
+		mutex_unlock(&dev->object_name_lock);
 		goto out;
 	}
 
-	mutex_lock(&file_priv->prime.lock);
-	/* if we've exported this buffer the cheat and add it to the import list
-	 * so we get the correct handle back
+out_have_obj:
+	/*
+	 * If we've exported this buffer then cheat and add it to the import list
+	 * so we get the correct handle back. We must do this under the
+	 * protection of dev->object_name_lock to ensure that a racing gem close
+	 * ioctl doesn't miss to remove this buffer handle from the cache.
 	 */
 	ret = drm_prime_add_buf_handle(&file_priv->prime,
 				       dmabuf, handle);
+	mutex_unlock(&dev->object_name_lock);
 	if (ret)
 		goto fail_put_dmabuf;
 
+out_have_handle:
 	ret = dma_buf_fd(dmabuf, flags);
-	if (ret < 0)
-		goto fail_rm_handle;
-
-	*prime_fd = ret;
-	mutex_unlock(&file_priv->prime.lock);
-	return 0;
-
-out_have_obj:
-	ret = dma_buf_fd(dmabuf, flags);
+	/*
+	 * We must _not_ remove the buffer from the handle cache since the newly
+	 * created dma buf is already linked in the global obj->dma_buf pointer,
+	 * and that is invariant as long as a userspace gem handle exists.
+	 * Closing the handle will clean out the cache anyway, so we don't leak.
+	 */
 	if (ret < 0) {
-		dma_buf_put(dmabuf);
+		goto fail_put_dmabuf;
 	} else {
 		*prime_fd = ret;
 		ret = 0;
@@ -406,14 +430,13 @@ out_have_obj:
 
 	goto out;
 
-fail_rm_handle:
-	drm_prime_remove_buf_handle_locked(&file_priv->prime,
-					   dmabuf);
-	mutex_unlock(&file_priv->prime.lock);
 fail_put_dmabuf:
 	dma_buf_put(dmabuf);
 out:
 	drm_gem_object_unreference_unlocked(obj);
+out_unlock:
+	mutex_unlock(&file_priv->prime.lock);
+
 	return ret;
 }
 EXPORT_SYMBOL(drm_gem_prime_handle_to_fd);
@@ -669,11 +692,3 @@ void drm_prime_destroy_file_private(struct drm_prime_file_private *prime_fpriv)
 	WARN_ON(!list_empty(&prime_fpriv->head));
 }
 EXPORT_SYMBOL(drm_prime_destroy_file_private);
-
-void drm_prime_remove_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf)
-{
-	mutex_lock(&prime_fpriv->lock);
-	drm_prime_remove_buf_handle_locked(prime_fpriv, dma_buf);
-	mutex_unlock(&prime_fpriv->lock);
-}
-EXPORT_SYMBOL(drm_prime_remove_buf_handle);

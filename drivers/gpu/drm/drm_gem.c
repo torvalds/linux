@@ -195,10 +195,12 @@ drm_gem_remove_prime_handles(struct drm_gem_object *obj, struct drm_file *filp)
 	 * Note: obj->dma_buf can't disappear as long as we still hold a
 	 * handle reference in obj->handle_count.
 	 */
+	mutex_lock(&filp->prime.lock);
 	if (obj->dma_buf) {
-		drm_prime_remove_buf_handle(&filp->prime,
-				obj->dma_buf);
+		drm_prime_remove_buf_handle_locked(&filp->prime,
+						   obj->dma_buf);
 	}
+	mutex_unlock(&filp->prime.lock);
 }
 
 static void drm_gem_object_ref_bug(struct kref *list_kref)

@@ -1508,7 +1508,7 @@ int drm_gem_dumb_destroy(struct drm_file *file,
 
 void drm_prime_init_file_private(struct drm_prime_file_private *prime_fpriv);
 void drm_prime_destroy_file_private(struct drm_prime_file_private *prime_fpriv);
-void drm_prime_remove_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf);
+void drm_prime_remove_buf_handle_locked(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf);
 
 #if DRM_DEBUG_CODE
 extern int drm_vma_info(struct seq_file *m, void *data);
