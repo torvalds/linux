@@ -40,6 +40,7 @@ MODULE_FIRMWARE("radeon/BONAIRE_mec.bin");
 MODULE_FIRMWARE("radeon/BONAIRE_mc.bin");
 MODULE_FIRMWARE("radeon/BONAIRE_rlc.bin");
 MODULE_FIRMWARE("radeon/BONAIRE_sdma.bin");
+MODULE_FIRMWARE("radeon/BONAIRE_smc.bin");
 MODULE_FIRMWARE("radeon/KAVERI_pfp.bin");
 MODULE_FIRMWARE("radeon/KAVERI_me.bin");
 MODULE_FIRMWARE("radeon/KAVERI_ce.bin");
@@ -1545,7 +1546,7 @@ static int cik_init_microcode(struct radeon_device *rdev)
 	const char *chip_name;
 	size_t pfp_req_size, me_req_size, ce_req_size,
 		mec_req_size, rlc_req_size, mc_req_size,
-		sdma_req_size;
+		sdma_req_size, smc_req_size;
 	char fw_name[30];
 	int err;
 
@@ -1561,6 +1562,7 @@ static int cik_init_microcode(struct radeon_device *rdev)
 		rlc_req_size = BONAIRE_RLC_UCODE_SIZE * 4;
 		mc_req_size = CIK_MC_UCODE_SIZE * 4;
 		sdma_req_size = CIK_SDMA_UCODE_SIZE * 4;
+		smc_req_size = ALIGN(BONAIRE_SMC_UCODE_SIZE, 4);
 		break;
 	case CHIP_KAVERI:
 		chip_name = "KAVERI";
@@ -1652,7 +1654,7 @@ static int cik_init_microcode(struct radeon_device *rdev)
 		err = -EINVAL;
 	}
 
-	/* No MC ucode on APUs */
+	/* No SMC, MC ucode on APUs */
 	if (!(rdev->flags & RADEON_IS_IGP)) {
 		snprintf(fw_name, sizeof(fw_name), "radeon/%s_mc.bin", chip_name);
 		err = request_firmware(&rdev->mc_fw, fw_name, rdev->dev);
@@ -1662,6 +1664,21 @@ static int cik_init_microcode(struct radeon_device *rdev)
 			printk(KERN_ERR
 			       "cik_mc: Bogus length %zu in firmware \"%s\"\n",
 			       rdev->mc_fw->size, fw_name);
+			err = -EINVAL;
+		}
+
+		snprintf(fw_name, sizeof(fw_name), "radeon/%s_smc.bin", chip_name);
+		err = request_firmware(&rdev->smc_fw, fw_name, rdev->dev);
+		if (err) {
+			printk(KERN_ERR
+			       "smc: error loading firmware \"%s\"\n",
+			       fw_name);
+			release_firmware(rdev->smc_fw);
+			rdev->smc_fw = NULL;
+		} else if (rdev->smc_fw->size != smc_req_size) {
+			printk(KERN_ERR
+			       "cik_smc: Bogus length %zu in firmware \"%s\"\n",
+			       rdev->smc_fw->size, fw_name);
 			err = -EINVAL;
 		}
 	}
@@ -1682,6 +1699,8 @@ out:
 		rdev->rlc_fw = NULL;
 		release_firmware(rdev->mc_fw);
 		rdev->mc_fw = NULL;
+		release_firmware(rdev->smc_fw);
+		rdev->smc_fw = NULL;
 	}
 	return err;
 }
@@ -6626,8 +6645,12 @@ int cik_irq_set(struct radeon_device *rdev)
 	cp_m2p2 = RREG32(CP_ME2_PIPE2_INT_CNTL) & ~TIME_STAMP_INT_ENABLE;
 	cp_m2p3 = RREG32(CP_ME2_PIPE3_INT_CNTL) & ~TIME_STAMP_INT_ENABLE;
 
-	thermal_int = RREG32_SMC(CG_THERMAL_INT_CTRL) &
-		~(THERM_INTH_MASK | THERM_INTL_MASK);
+	if (rdev->flags & RADEON_IS_IGP)
+		thermal_int = RREG32_SMC(CG_THERMAL_INT_CTRL) &
+			~(THERM_INTH_MASK | THERM_INTL_MASK);
+	else
+		thermal_int = RREG32_SMC(CG_THERMAL_INT) &
+			~(THERM_INT_MASK_HIGH | THERM_INT_MASK_LOW);
 
 	/* enable CP interrupts on all rings */
 	if (atomic_read(&rdev->irq.ring_int[RADEON_RING_TYPE_GFX_INDEX])) {
@@ -6788,7 +6811,10 @@ int cik_irq_set(struct radeon_device *rdev)
 
 	if (rdev->irq.dpm_thermal) {
 		DRM_DEBUG("dpm thermal\n");
-		thermal_int |= THERM_INTH_MASK | THERM_INTL_MASK;
+		if (rdev->flags & RADEON_IS_IGP)
+			thermal_int |= THERM_INTH_MASK | THERM_INTL_MASK;
+		else
+			thermal_int |= THERM_INT_MASK_HIGH | THERM_INT_MASK_LOW;
 	}
 
 	WREG32(CP_INT_CNTL_RING0, cp_int_cntl);
@@ -6825,7 +6851,10 @@ int cik_irq_set(struct radeon_device *rdev)
 	WREG32(DC_HPD5_INT_CONTROL, hpd5);
 	WREG32(DC_HPD6_INT_CONTROL, hpd6);
 
-	WREG32_SMC(CG_THERMAL_INT_CTRL, thermal_int);
+	if (rdev->flags & RADEON_IS_IGP)
+		WREG32_SMC(CG_THERMAL_INT_CTRL, thermal_int);
+	else
+		WREG32_SMC(CG_THERMAL_INT, thermal_int);
 
 	return 0;
 }

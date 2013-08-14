@@ -3663,7 +3663,7 @@ static void si_clear_vc(struct radeon_device *rdev)
 	WREG32(CG_FTV, 0);
 }
 
-static u8 si_get_ddr3_mclk_frequency_ratio(u32 memory_clock)
+u8 si_get_ddr3_mclk_frequency_ratio(u32 memory_clock)
 {
 	u8 mc_para_index;
 
@@ -3676,7 +3676,7 @@ static u8 si_get_ddr3_mclk_frequency_ratio(u32 memory_clock)
 	return mc_para_index;
 }
 
-static u8 si_get_mclk_frequency_ratio(u32 memory_clock, bool strobe_mode)
+u8 si_get_mclk_frequency_ratio(u32 memory_clock, bool strobe_mode)
 {
 	u8 mc_para_index;
 
@@ -3758,9 +3758,9 @@ static bool si_validate_phase_shedding_tables(struct radeon_device *rdev,
 	return true;
 }
 
-static void si_trim_voltage_table_to_fit_state_table(struct radeon_device *rdev,
-						     u32 max_voltage_steps,
-						     struct atom_voltage_table *voltage_table)
+void si_trim_voltage_table_to_fit_state_table(struct radeon_device *rdev,
+					      u32 max_voltage_steps,
+					      struct atom_voltage_table *voltage_table)
 {
 	unsigned int i, diff;
 

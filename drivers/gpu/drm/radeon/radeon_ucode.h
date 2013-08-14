@@ -140,4 +140,7 @@
 #define HAINAN_SMC_UCODE_START       0x10000
 #define HAINAN_SMC_UCODE_SIZE        0xe67C
 
+#define BONAIRE_SMC_UCODE_START      0x20000
+#define BONAIRE_SMC_UCODE_SIZE       0x1FDEC
+
 #endif

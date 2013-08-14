@@ -211,7 +211,7 @@ void radeon_atombios_i2c_init(struct radeon_device *rdev)
 }
 
 static struct radeon_gpio_rec radeon_lookup_gpio(struct radeon_device *rdev,
-							u8 id)
+						 u8 id)
 {
 	struct atom_context *ctx = rdev->mode_info.atom_context;
 	struct radeon_gpio_rec gpio;
