@@ -28,6 +28,20 @@ static __always_inline void preempt_count_set(int pc)
 }
 
 /*
+ * must be macros to avoid header recursion hell
+ */
+#define task_preempt_count(p) \
+	(task_thread_info(p)->preempt_count & ~PREEMPT_NEED_RESCHED)
+
+#define init_task_preempt_count(p) do { \
+	task_thread_info(p)->preempt_count = PREEMPT_DISABLED; \
+} while (0)
+
+#define init_idle_preempt_count(p, cpu) do { \
+	task_thread_info(p)->preempt_count = PREEMPT_ENABLED; \
+} while (0)
+
+/*
  * We fold the NEED_RESCHED bit into the preempt count such that
  * preempt_enable() can decrement and test for needing to reschedule with a
  * single instruction.
