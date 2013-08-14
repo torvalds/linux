@@ -363,14 +363,16 @@ struct sirfsoc_baudrate_to_regv {
 };
 
 struct sirfsoc_uart_port {
-	unsigned char			hw_flow_ctrl;
-	unsigned char			ms_enabled;
+	bool				hw_flow_ctrl;
+	bool				ms_enabled;
 
 	struct uart_port		port;
 	struct clk			*clk;
 	/* for SiRFmarco, there are SET/CLR for UART_INT_EN */
 	bool				is_marco;
 	struct sirfsoc_uart_register	*uart_reg;
+	unsigned int			cts_gpio;
+	unsigned int			rts_gpio;
 };
 
 /* Hardware Flow Control */
