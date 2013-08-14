@@ -100,7 +100,7 @@ static struct platform_device sw_pdev_dmac = {
 static struct resource sw_res_nand =
 {
 	.start = SW_PA_NANDFLASHC_IO_BASE,
-	.end = SW_PA_NANDFLASHC_IO_BASE + 0x1000,
+	.end = SW_PA_NANDFLASHC_IO_BASE + 0xfff,
 	.flags = IORESOURCE_MEM,
 };
 
