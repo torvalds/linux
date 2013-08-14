@@ -1088,7 +1088,7 @@ static void fc_lport_error(struct fc_lport *lport, struct fc_frame *fp)
 {
 	unsigned long delay = 0;
 	FC_LPORT_DBG(lport, "Error %ld in state %s, retries %d\n",
-		     PTR_ERR(fp), fc_lport_state(lport),
+		     IS_ERR(fp) ? -PTR_ERR(fp) : 0, fc_lport_state(lport),
 		     lport->retry_count);
 
 	if (PTR_ERR(fp) == -FC_EX_CLOSED)

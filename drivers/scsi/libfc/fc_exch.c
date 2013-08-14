@@ -1659,7 +1659,7 @@ static void fc_exch_recv_bls(struct fc_exch_mgr *mp, struct fc_frame *fp)
 			break;
 		default:
 			if (ep)
-				FC_EXCH_DBG(ep, "BLS rctl %x - %s received",
+				FC_EXCH_DBG(ep, "BLS rctl %x - %s received\n",
 					    fh->fh_r_ctl,
 					    fc_exch_rctl_name(fh->fh_r_ctl));
 			break;
@@ -1953,13 +1953,13 @@ static void fc_exch_rrq_resp(struct fc_seq *sp, struct fc_frame *fp, void *arg)
 
 	switch (op) {
 	case ELS_LS_RJT:
-		FC_EXCH_DBG(aborted_ep, "LS_RJT for RRQ");
+		FC_EXCH_DBG(aborted_ep, "LS_RJT for RRQ\n");
 		/* fall through */
 	case ELS_LS_ACC:
 		goto cleanup;
 	default:
-		FC_EXCH_DBG(aborted_ep, "unexpected response op %x "
-			    "for RRQ", op);
+		FC_EXCH_DBG(aborted_ep, "unexpected response op %x for RRQ\n",
+			    op);
 		return;
 	}
 
