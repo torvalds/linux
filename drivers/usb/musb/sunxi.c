@@ -673,10 +673,8 @@ static int sunxi_musb_set_mode(struct musb *musb, u8 musb_mode)
 
 static int sunxi_musb_init(struct musb *musb)
 {
-	unsigned long flags = 0;
 	struct sunxi_musb_glue *glue = musb_to_glue(musb);
 	struct sunxi_musb_board_data *board = musb_to_board(musb);
-	u32 reg_value = 0;
 	int ret = -ENODEV;
 
 	pr_dbg("%s():\n", __func__);
@@ -706,17 +704,6 @@ static int sunxi_musb_init(struct musb *musb)
 
 	/* moved here from open_usb_clock */
 	UsbPhyInit(musb->mregs, 0);
-
-	/* TODO: Should this be moved elsewhere? */
-	/* TODO: Is this needed? */
-	/* config usb fifo, 8kb mode */
-	spin_lock_irqsave(&musb->lock, flags);
-	/* USBC_ConfigFIFO_Base: */
-	reg_value = musb_readl((void *)SW_VA_SRAM_IO_BASE, 0x04);
-	reg_value &= ~(0x03 << 0);
-	reg_value |= (1 << 0);
-	musb_writel((void *)SW_VA_SRAM_IO_BASE, 0x04, reg_value);
-	spin_unlock_irqrestore(&musb->lock, flags);
 
 	/* config drv_vbus pin */
 	glue->board_priv = board->init(glue->dev);

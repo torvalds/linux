@@ -146,6 +146,23 @@ static int sunxi_musb_board_priv_set_phy_power(
 	return 0;
 }
 
+static void USBC_ConfigFIFO_Base(void)
+{
+	static DEFINE_SPINLOCK(lock);
+	unsigned long flags = 0;
+	u32 reg_value;
+
+	/* config usb fifo, 8kb mode */
+	spin_lock_irqsave(&lock, flags);
+
+	reg_value = __raw_readl((void __iomem *)SW_VA_SRAM_IO_BASE + 0x04);
+	reg_value &= ~(0x03 << 0);
+	reg_value |= (1 << 0);
+	__raw_writel(reg_value, (void __iomem *)SW_VA_SRAM_IO_BASE + 0x04);
+
+	spin_unlock_irqrestore(&lock, flags);
+}
+
 static struct sunxi_musb_board_priv *sunxi_musb_board_priv_init(
 							struct device *dev)
 {
@@ -159,6 +176,8 @@ static struct sunxi_musb_board_priv *sunxi_musb_board_priv_init(
 		return ERR_PTR(-ENOMEM);
 
 	priv->dev = dev;
+
+	USBC_ConfigFIFO_Base();
 
 	ret = pin_init(priv);
 	if (ret < 0) {
