@@ -792,13 +792,6 @@ static int bfin_spi_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	/* get register base and tx/rx dma */
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem) {
-		dev_err(dev, "can not get register base\n");
-		return -ENXIO;
-	}
-
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (!res) {
 		dev_err(dev, "can not get tx dma resource\n");
@@ -838,6 +831,7 @@ static int bfin_spi_probe(struct platform_device *pdev)
 	drv_data->pin_req = info->pin_req;
 	drv_data->sclk = sclk;
 
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	drv_data->regs = devm_ioremap_resource(dev, mem);
 	if (IS_ERR(drv_data->regs)) {
 		ret = PTR_ERR(drv_data->regs);
