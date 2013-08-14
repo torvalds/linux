@@ -181,10 +181,22 @@
 		clock-names = "uart", "clk_uart_baud0";
 	};
 
+	dp_phy: video-phy@10040728 {
+		compatible = "samsung,exynos5250-dp-video-phy";
+		reg = <0x10040728 4>;
+		#phy-cells = <0>;
+	};
+
+	dp-controller@145B0000 {
+		clocks = <&clock 412>;
+		clock-names = "dp";
+		phys = <&dp_phy>;
+		phy-names = "dp";
+	};
+
 	fimd@14400000 {
 		samsung,power-domain = <&disp_pd>;
 		clocks = <&clock 147>, <&clock 421>;
 		clock-names = "sclk_fimd", "fimd";
 	};
-
 };
