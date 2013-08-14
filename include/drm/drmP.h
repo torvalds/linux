@@ -687,6 +687,11 @@ struct drm_gem_object {
 	 *
 	 * The driver's ->gem_free_object callback is responsible for cleaning
 	 * up the dma_buf attachment and references acquired at import time.
+	 *
+	 * Note that the drm gem/prime core does not depend upon drivers setting
+	 * this field any more. So for drivers where this doesn't make sense
+	 * (e.g. virtual devices or a displaylink behind an usb bus) they can
+	 * simply leave it as NULL.
 	 */
 	struct dma_buf_attachment *import_attach;
 };
