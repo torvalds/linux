@@ -782,6 +782,14 @@ tda998x_encoder_mode_set(struct drm_encoder *encoder,
 	de_pix_s     = mode->htotal - mode->hdisplay;
 	ref_pix      = 3 + hs_pix_s;
 
+	/*
+	 * Attached LCD controllers may generate broken sync. Allow
+	 * those to adjust the position of the rising VS edge by adding
+	 * HSKEW to ref_pix.
+	 */
+	if (adjusted_mode->flags & DRM_MODE_FLAG_HSKEW)
+		ref_pix += adjusted_mode->hskew;
+
 	if ((mode->flags & DRM_MODE_FLAG_INTERLACE) == 0) {
 		ref_line     = 1 + mode->vsync_start - mode->vdisplay;
 		vwin1_line_s = mode->vtotal - mode->vdisplay - 1;
