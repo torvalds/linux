@@ -2619,6 +2619,9 @@ int i915_vma_unbind(struct i915_vma *vma)
 	if (list_empty(&vma->vma_link))
 		return 0;
 
+	if (!drm_mm_node_allocated(&vma->node))
+		goto destroy;
+
 	if (obj->pin_count)
 		return -EBUSY;
 
@@ -2656,6 +2659,8 @@ int i915_vma_unbind(struct i915_vma *vma)
 		obj->map_and_fenceable = true;
 
 	drm_mm_remove_node(&vma->node);
+
+destroy:
 	i915_gem_vma_destroy(vma);
 
 	/* Since the unbound list is global, only move to that list if
