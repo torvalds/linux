@@ -24,12 +24,21 @@
 
 struct rpcsec_gss_info;
 
+/* auth_cred ac_flags bits */
+enum {
+	RPC_CRED_NO_CRKEY_TIMEOUT = 0, /* underlying cred has no key timeout */
+	RPC_CRED_KEY_EXPIRE_SOON = 1, /* underlying cred key will expire soon */
+	RPC_CRED_NOTIFY_TIMEOUT = 2,   /* nofity generic cred when underlying
+					key will expire soon */
+};
+
 /* Work around the lack of a VFS credential */
 struct auth_cred {
 	kuid_t	uid;
 	kgid_t	gid;
 	struct group_info *group_info;
 	const char *principal;
+	unsigned long ac_flags;
 	unsigned char machine_cred : 1;
 };
 
@@ -111,6 +120,8 @@ struct rpc_authops {
 	rpc_authflavor_t	(*info2flavor)(struct rpcsec_gss_info *);
 	int			(*flavor2info)(rpc_authflavor_t,
 						struct rpcsec_gss_info *);
+	int			(*key_timeout)(struct rpc_auth *,
+						struct rpc_cred *);
 };
 
 struct rpc_credops {
@@ -127,6 +138,8 @@ struct rpc_credops {
 						void *, __be32 *, void *);
 	int			(*crunwrap_resp)(struct rpc_task *, kxdrdproc_t,
 						void *, __be32 *, void *);
+	int			(*crkey_timeout)(struct rpc_cred *);
+	bool			(*crkey_to_expire)(struct rpc_cred *);
 };
 
 extern const struct rpc_authops	authunix_ops;
@@ -166,6 +179,9 @@ int			rpcauth_uptodatecred(struct rpc_task *);
 int			rpcauth_init_credcache(struct rpc_auth *);
 void			rpcauth_destroy_credcache(struct rpc_auth *);
 void			rpcauth_clear_credcache(struct rpc_cred_cache *);
+int			rpcauth_key_timeout_notify(struct rpc_auth *,
+						struct rpc_cred *);
+bool			rpcauth_cred_key_to_expire(struct rpc_cred *);
 
 static inline
 struct rpc_cred *	get_rpccred(struct rpc_cred *cred)

@@ -63,6 +63,9 @@ static const struct rpc_credops gss_nullops;
 #define GSS_RETRY_EXPIRED 5
 static unsigned int gss_expired_cred_retry_delay = GSS_RETRY_EXPIRED;
 
+#define GSS_KEY_EXPIRE_TIMEO 240
+static unsigned int gss_key_expire_timeo = GSS_KEY_EXPIRE_TIMEO;
+
 #ifdef RPC_DEBUG
 # define RPCDBG_FACILITY	RPCDBG_AUTH
 #endif
@@ -1295,10 +1298,32 @@ gss_cred_init(struct rpc_auth *auth, struct rpc_cred *cred)
 	return err;
 }
 
+/*
+ * Returns -EACCES if GSS context is NULL or will expire within the
+ * timeout (miliseconds)
+ */
+static int
+gss_key_timeout(struct rpc_cred *rc)
+{
+	struct gss_cred *gss_cred = container_of(rc, struct gss_cred, gc_base);
+	unsigned long now = jiffies;
+	unsigned long expire;
+
+	if (gss_cred->gc_ctx == NULL)
+		return -EACCES;
+
+	expire = gss_cred->gc_ctx->gc_expiry - (gss_key_expire_timeo * HZ);
+
+	if (time_after(now, expire))
+		return -EACCES;
+	return 0;
+}
+
 static int
 gss_match(struct auth_cred *acred, struct rpc_cred *rc, int flags)
 {
 	struct gss_cred *gss_cred = container_of(rc, struct gss_cred, gc_base);
+	int ret;
 
 	if (test_bit(RPCAUTH_CRED_NEW, &rc->cr_flags))
 		goto out;
@@ -1311,11 +1336,26 @@ out:
 	if (acred->principal != NULL) {
 		if (gss_cred->gc_principal == NULL)
 			return 0;
-		return strcmp(acred->principal, gss_cred->gc_principal) == 0;
+		ret = strcmp(acred->principal, gss_cred->gc_principal) == 0;
+		goto check_expire;
 	}
 	if (gss_cred->gc_principal != NULL)
 		return 0;
-	return uid_eq(rc->cr_uid, acred->uid);
+	ret = uid_eq(rc->cr_uid, acred->uid);
+
+check_expire:
+	if (ret == 0)
+		return ret;
+
+	/* Notify acred users of GSS context expiration timeout */
+	if (test_bit(RPC_CRED_NOTIFY_TIMEOUT, &acred->ac_flags) &&
+	    (gss_key_timeout(rc) != 0)) {
+		/* test will now be done from generic cred */
+		test_and_clear_bit(RPC_CRED_NOTIFY_TIMEOUT, &acred->ac_flags);
+		/* tell NFS layer that key will expire soon */
+		set_bit(RPC_CRED_KEY_EXPIRE_SOON, &acred->ac_flags);
+	}
+	return ret;
 }
 
 /*
@@ -1842,6 +1882,7 @@ static const struct rpc_credops gss_credops = {
 	.crvalidate	= gss_validate,
 	.crwrap_req	= gss_wrap_req,
 	.crunwrap_resp	= gss_unwrap_resp,
+	.crkey_timeout	= gss_key_timeout,
 };
 
 static const struct rpc_credops gss_nullops = {
@@ -1928,6 +1969,13 @@ module_param_named(expired_cred_retry_delay,
 		   uint, 0644);
 MODULE_PARM_DESC(expired_cred_retry_delay, "Timeout (in seconds) until "
 		"the RPC engine retries an expired credential");
+
+module_param_named(key_expire_timeo,
+		   gss_key_expire_timeo,
+		   uint, 0644);
+MODULE_PARM_DESC(key_expire_timeo, "Time (in seconds) at the end of a "
+		"credential keys lifetime where the NFS layer cleans up "
+		"prior to key expiration");
 
 module_init(init_rpcsec_gss)
 module_exit(exit_rpcsec_gss)
