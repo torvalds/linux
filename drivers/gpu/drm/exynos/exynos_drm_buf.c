@@ -161,11 +161,6 @@ struct exynos_drm_gem_buf *exynos_drm_init_buf(struct drm_device *dev,
 void exynos_drm_fini_buf(struct drm_device *dev,
 				struct exynos_drm_gem_buf *buffer)
 {
-	if (!buffer) {
-		DRM_DEBUG_KMS("buffer is null.\n");
-		return;
-	}
-
 	kfree(buffer);
 	buffer = NULL;
 }
