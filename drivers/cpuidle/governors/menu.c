@@ -123,10 +123,10 @@ struct menu_device {
 	int             needs_update;
 
 	unsigned int	expected_us;
-	u64		predicted_us;
+	unsigned int	predicted_us;
 	unsigned int	exit_us;
 	unsigned int	bucket;
-	u64		correction_factor[BUCKETS];
+	unsigned int	correction_factor[BUCKETS];
 	unsigned int	intervals[INTERVALS];
 	int		interval_ptr;
 };
@@ -321,8 +321,13 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	if (data->correction_factor[data->bucket] == 0)
 		data->correction_factor[data->bucket] = RESOLUTION * DECAY;
 
-	/* Make sure to round up for half microseconds */
-	data->predicted_us = div_round64(data->expected_us * data->correction_factor[data->bucket],
+	/*
+	 * Force the result of multiplication to be 64 bits even if both
+	 * operands are 32 bits.
+	 * Make sure to round up for half microseconds.
+	 */
+	data->predicted_us = div_round64((uint64_t)data->expected_us *
+					 data->correction_factor[data->bucket],
 					 RESOLUTION * DECAY);
 
 	get_typical_interval(data);
@@ -388,7 +393,7 @@ static void menu_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	unsigned int last_idle_us = cpuidle_get_last_residency(dev);
 	struct cpuidle_state *target = &drv->states[last_idx];
 	unsigned int measured_us;
-	u64 new_factor;
+	unsigned int new_factor;
 
 	/*
 	 * Ugh, this idle state doesn't support residency measurements, so we
@@ -409,10 +414,9 @@ static void menu_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 		measured_us -= data->exit_us;
 
 
-	/* update our correction ratio */
-
-	new_factor = data->correction_factor[data->bucket]
-			* (DECAY - 1) / DECAY;
+	/* Update our correction ratio */
+	new_factor = data->correction_factor[data->bucket];
+	new_factor -= new_factor / DECAY;
 
 	if (data->expected_us > 0 && measured_us < MAX_INTERESTING)
 		new_factor += RESOLUTION * measured_us / data->expected_us;
@@ -425,9 +429,11 @@ static void menu_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 
 	/*
 	 * We don't want 0 as factor; we always want at least
-	 * a tiny bit of estimated time.
+	 * a tiny bit of estimated time. Fortunately, due to rounding,
+	 * new_factor will stay nonzero regardless of measured_us values
+	 * and the compiler can eliminate this test as long as DECAY > 1.
 	 */
-	if (new_factor == 0)
+	if (DECAY == 1 && unlikely(new_factor == 0))
 		new_factor = 1;
 
 	data->correction_factor[data->bucket] = new_factor;
