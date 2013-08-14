@@ -65,6 +65,7 @@
 #include <linux/usb/chipidea.h>
 #include <linux/usb/of.h>
 #include <linux/phy.h>
+#include <linux/regulator/consumer.h>
 
 #include "ci.h"
 #include "udc.h"
@@ -342,6 +343,24 @@ static irqreturn_t ci_irq(int irq, void *data)
 	return ret;
 }
 
+static int ci_get_platdata(struct device *dev,
+		struct ci_hdrc_platform_data *platdata)
+{
+	/* Get the vbus regulator */
+	platdata->reg_vbus = devm_regulator_get(dev, "vbus");
+	if (PTR_ERR(platdata->reg_vbus) == -EPROBE_DEFER) {
+		return -EPROBE_DEFER;
+	} else if (PTR_ERR(platdata->reg_vbus) == -ENODEV) {
+		platdata->reg_vbus = NULL; /* no vbus regualator is needed */
+	} else if (IS_ERR(platdata->reg_vbus)) {
+		dev_err(dev, "Getting regulator error: %ld\n",
+			PTR_ERR(platdata->reg_vbus));
+		return PTR_ERR(platdata->reg_vbus);
+	}
+
+	return 0;
+}
+
 static DEFINE_IDA(ci_ida);
 
 struct platform_device *ci_hdrc_add_device(struct device *dev,
@@ -350,6 +369,10 @@ struct platform_device *ci_hdrc_add_device(struct device *dev,
 {
 	struct platform_device *pdev;
 	int id, ret;
+
+	ret = ci_get_platdata(dev, platdata);
+	if (ret)
+		return ERR_PTR(ret);
 
 	id = ida_simple_get(&ci_ida, 0, 0, GFP_KERNEL);
 	if (id < 0)

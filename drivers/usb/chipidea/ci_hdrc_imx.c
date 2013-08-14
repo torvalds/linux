@@ -19,7 +19,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/usb/chipidea.h>
 #include <linux/clk.h>
-#include <linux/regulator/consumer.h>
 
 #include "ci.h"
 #include "ci_hdrc_imx.h"
@@ -28,7 +27,6 @@ struct ci_hdrc_imx_data {
 	struct usb_phy *phy;
 	struct platform_device *ci_pdev;
 	struct clk *clk;
-	struct regulator *reg_vbus;
 };
 
 static const struct usbmisc_ops *usbmisc_ops;
@@ -131,20 +129,6 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	/* we only support host now, so enable vbus here */
-	data->reg_vbus = devm_regulator_get(&pdev->dev, "vbus");
-	if (!IS_ERR(data->reg_vbus)) {
-		ret = regulator_enable(data->reg_vbus);
-		if (ret) {
-			dev_err(&pdev->dev,
-				"Failed to enable vbus regulator, err=%d\n",
-				ret);
-			goto err_clk;
-		}
-	} else {
-		data->reg_vbus = NULL;
-	}
-
 	pdata.phy = data->phy;
 
 	if (!pdev->dev.dma_mask)
@@ -157,7 +141,7 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(&pdev->dev,
 				"usbmisc init failed, ret=%d\n", ret);
-			goto err;
+			goto err_clk;
 		}
 	}
 
@@ -169,7 +153,7 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev,
 			"Can't register ci_hdrc platform device, err=%d\n",
 			ret);
-		goto err;
+		goto err_clk;
 	}
 
 	if (usbmisc_ops && usbmisc_ops->post) {
@@ -190,9 +174,6 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 
 disable_device:
 	ci_hdrc_remove_device(data->ci_pdev);
-err:
-	if (data->reg_vbus)
-		regulator_disable(data->reg_vbus);
 err_clk:
 	clk_disable_unprepare(data->clk);
 	return ret;
@@ -204,9 +185,6 @@ static int ci_hdrc_imx_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 	ci_hdrc_remove_device(data->ci_pdev);
-
-	if (data->reg_vbus)
-		regulator_disable(data->reg_vbus);
 
 	if (data->phy)
 		usb_phy_shutdown(data->phy);
