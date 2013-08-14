@@ -4596,6 +4596,36 @@ static void css_killed_ref_fn(struct percpu_ref *ref)
 }
 
 /**
+ * kill_css - destroy a css
+ * @css: css to destroy
+ *
+ * This function initiates destruction of @css by putting its base
+ * reference.  ->css_offline() will be invoked asynchronously once
+ * css_tryget() is guaranteed to fail and when the reference count reaches
+ * zero, @css will be released.
+ */
+static void kill_css(struct cgroup_subsys_state *css)
+{
+	/*
+	 * Killing would put the base ref, but we need to keep it alive
+	 * until after ->css_offline().
+	 */
+	css_get(css);
+
+	/*
+	 * cgroup core guarantees that, by the time ->css_offline() is
+	 * invoked, no new css reference will be given out via
+	 * css_tryget().  We can't simply call percpu_ref_kill() and
+	 * proceed to offlining css's because percpu_ref_kill() doesn't
+	 * guarantee that the ref is seen as killed on all CPUs on return.
+	 *
+	 * Use percpu_ref_kill_and_confirm() to get notifications as each
+	 * css is confirmed to be seen as killed on all CPUs.
+	 */
+	percpu_ref_kill_and_confirm(&css->refcnt, css_killed_ref_fn);
+}
+
+/**
  * cgroup_destroy_locked - the first stage of cgroup destruction
  * @cgrp: cgroup to be destroyed
  *
@@ -4641,30 +4671,12 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 		return -EBUSY;
 
 	/*
-	 * Block new css_tryget() by killing css refcnts.  cgroup core
-	 * guarantees that, by the time ->css_offline() is invoked, no new
-	 * css reference will be given out via css_tryget().  We can't
-	 * simply call percpu_ref_kill() and proceed to offlining css's
-	 * because percpu_ref_kill() doesn't guarantee that the ref is seen
-	 * as killed on all CPUs on return.
-	 *
-	 * Use percpu_ref_kill_and_confirm() to get notifications as each
-	 * css is confirmed to be seen as killed on all CPUs.
-	 * cgroup_destroy_css_killed() will be invoked to perform the rest
-	 * of destruction once the percpu refs of all css's are confirmed
-	 * to be killed.
+	 * Initiate massacre of all css's.  cgroup_destroy_css_killed()
+	 * will be invoked to perform the rest of destruction once the
+	 * percpu refs of all css's are confirmed to be killed.
 	 */
-	for_each_root_subsys(cgrp->root, ss) {
-		struct cgroup_subsys_state *css = cgroup_css(cgrp, ss->subsys_id);
-
-		/*
-		 * Killing would put the base ref, but we need to keep it
-		 * alive until after ->css_offline.
-		 */
-		percpu_ref_get(&css->refcnt);
-
-		percpu_ref_kill_and_confirm(&css->refcnt, css_killed_ref_fn);
-	}
+	for_each_root_subsys(cgrp->root, ss)
+		kill_css(cgroup_css(cgrp, ss->subsys_id));
 
 	/*
 	 * Mark @cgrp dead.  This prevents further task migration and child
