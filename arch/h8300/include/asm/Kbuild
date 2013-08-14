@@ -6,3 +6,4 @@ generic-y += mmu.h
 generic-y += module.h
 generic-y += trace_clock.h
 generic-y += xor.h
+generic-y += preempt.h
