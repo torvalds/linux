@@ -1473,6 +1473,11 @@ static int rk_camera_mclk_ctrl(int cif_idx, int on, int clk_rate)
     	clk_disable(clk->cif_clk_out);
     	clk_disable(clk->pd_cif);
         clk->on = false;
+        if(cif){
+           err = clk_set_parent(clk->cif_clk_out, clk_get(NULL, "cif1_out_div"));
+        }else{
+           err = clk_set_parent(clk->cif_clk_out, clk_get(NULL, "cif0_out_div"));
+        }
     }
     spin_unlock(&clk->lock);
 rk_camera_clk_ctrl_end:
