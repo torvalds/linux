@@ -843,9 +843,6 @@ static int mmp_pdma_probe(struct platform_device *op)
 	spin_lock_init(&pdev->phy_lock);
 
 	iores = platform_get_resource(op, IORESOURCE_MEM, 0);
-	if (!iores)
-		return -EINVAL;
-
 	pdev->base = devm_ioremap_resource(pdev->dev, iores);
 	if (IS_ERR(pdev->base))
 		return PTR_ERR(pdev->base);
