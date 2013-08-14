@@ -27,6 +27,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <mach/clock.h>
+#include <plat/system.h>
 
 #include "sunxi_musb_plat.h"
 #include "musb_core.h"
@@ -380,11 +381,10 @@ static void UsbPhyInit(__iomem void *base, u32 usbc_no)
 	USBC_Phy_Write(base, usbc_no, 0x20, 0x14, 5);
 
 	/* Adjust the disconnect threshold */
-#ifdef CONFIG_ARCH_SUN4I
-	USBC_Phy_Write(base, usbc_no, 0x2a, 3, 2);
-#else
-	USBC_Phy_Write(base, usbc_no, 0x2a, 2, 2);
-#endif
+	if (sunxi_is_sun5i())
+		USBC_Phy_Write(base, usbc_no, 0x2a, 2, 2);
+	else
+		USBC_Phy_Write(base, usbc_no, 0x2a, 3, 2);
 
 	return;
 }
