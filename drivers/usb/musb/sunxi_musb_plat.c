@@ -196,18 +196,8 @@ static void sunxi_musb_board_priv_exit(struct sunxi_musb_board_priv *priv)
 }
 
 static struct resource sunxi_musb_resources[] = {
-	[0] = {
-		.start = SW_PA_USB0_IO_BASE,
-		.end = SW_PA_USB0_IO_BASE + 0xfff,
-		.flags = IORESOURCE_MEM,
-		.name = "sunxi_musb0-mem",
-	},
-	[1] = {
-		.start = SW_INT_IRQNO_USB0,
-		.end = SW_INT_IRQNO_USB0,
-		.flags = IORESOURCE_IRQ,
-		.name = "mc", /* hardcoded in musb */
-	},
+	DEFINE_RES_MEM_NAMED(SW_PA_USB0_IO_BASE, 0x1000, "sunxi_musb0-mem"),
+	DEFINE_RES_IRQ_NAMED(SW_INT_IRQNO_USB0, "mc")
 };
 
 /* Can support a maximum ep number, ep0 ~ 5 */
