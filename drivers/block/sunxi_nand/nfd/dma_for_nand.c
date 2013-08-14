@@ -43,15 +43,6 @@ struct sw_dma_client nand_dma_client = {
 void nanddma_buffdone(struct sw_dma_chan * ch, void *buf, int size,enum sw_dma_buffresult result){
 	nanddma_completed_flag = 1;
 	wake_up( &DMA_wait );
-	//printk("buffer done. nanddma_completed_flag: %d\n", nanddma_completed_flag);
-}
-int  nanddma_opfn(struct sw_dma_chan * ch,   enum sw_chan_op op_code){
-	if(op_code == SW_DMAOP_START)
-		nanddma_completed_flag = 0;
-
-	//printk("buffer opfn: %d, nanddma_completed_flag: %d\n", (int)op_code, nanddma_completed_flag);
-
-	return 0;
 }
 
 __hdle NAND_RequestDMA  (__u32 dmatype)
@@ -62,7 +53,6 @@ __hdle NAND_RequestDMA  (__u32 dmatype)
 	if(ch < 0)
 		return ch;
 
-	sw_dma_set_opfn(ch, nanddma_opfn);
 	sw_dma_set_buffdone_fn(ch, nanddma_buffdone);
 
 	return ch;
