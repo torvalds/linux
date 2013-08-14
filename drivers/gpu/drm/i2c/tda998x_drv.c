@@ -229,6 +229,8 @@ struct tda998x_priv {
 
 /* Page 12h: HDCP and OTP */
 #define REG_TX3                   REG(0x12, 0x9a)     /* read/write */
+#define REG_TX4                   REG(0x12, 0x9b)     /* read/write */
+# define TX4_PD_RAM               (1 << 1)
 #define REG_TX33                  REG(0x12, 0xb8)     /* read/write */
 # define TX33_HDMI                (1 << 1)
 
@@ -673,12 +675,16 @@ read_edid_block(struct drm_encoder *encoder, uint8_t *buf, int blk)
 static uint8_t *
 do_get_edid(struct drm_encoder *encoder)
 {
+	struct tda998x_priv *priv = to_tda998x_priv(encoder);
 	int j = 0, valid_extensions = 0;
 	uint8_t *block, *new;
 	bool print_bad_edid = drm_debug & DRM_UT_KMS;
 
 	if ((block = kmalloc(EDID_LENGTH, GFP_KERNEL)) == NULL)
 		return NULL;
+
+	if (priv->rev == TDA19988)
+		reg_clear(encoder, REG_TX4, TX4_PD_RAM);
 
 	/* base block fetch */
 	if (read_edid_block(encoder, block, 0))
@@ -689,7 +695,7 @@ do_get_edid(struct drm_encoder *encoder)
 
 	/* if there's no extensions, we're done */
 	if (block[0x7e] == 0)
-		return block;
+		goto done;
 
 	new = krealloc(block, (block[0x7e] + 1) * EDID_LENGTH, GFP_KERNEL);
 	if (!new)
@@ -716,9 +722,15 @@ do_get_edid(struct drm_encoder *encoder)
 		block = new;
 	}
 
+done:
+	if (priv->rev == TDA19988)
+		reg_set(encoder, REG_TX4, TX4_PD_RAM);
+
 	return block;
 
 fail:
+	if (priv->rev == TDA19988)
+		reg_set(encoder, REG_TX4, TX4_PD_RAM);
 	dev_warn(encoder->dev->dev, "failed to read EDID\n");
 	kfree(block);
 	return NULL;
