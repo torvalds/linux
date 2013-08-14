@@ -54,6 +54,7 @@ EXPORT_SYMBOL(I_BDEV);
 static void bdev_inode_switch_bdi(struct inode *inode,
 			struct backing_dev_info *dst)
 {
+	bool wakeup_bdi = false;
 	struct backing_dev_info *old = inode->i_data.backing_dev_info;
 
 	if (unlikely(dst == old))		/* deadlock avoidance */
