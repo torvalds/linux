@@ -622,6 +622,13 @@
 				MX51_PAD_EIM_D24__I2C2_SDA 0x400001ed
 			>;
 		};
+
+		pinctrl_i2c2_3: i2c2grp-3 {
+			fsl,pins = <
+				MX51_PAD_GPIO1_2__I2C2_SCL 0x400001ed
+				MX51_PAD_GPIO1_3__I2C2_SDA 0x400001ed
+			>;
+		};
 	};
 
 	ipu_disp1 {
