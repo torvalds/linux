@@ -888,6 +888,14 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 
 		iwl_op_mode_hw_rf_kill(trans->op_mode, hw_rfkill);
 		if (hw_rfkill) {
+			/*
+			 * Clear the interrupt in APMG if the NIC is going down.
+			 * Note that when the NIC exits RFkill (else branch), we
+			 * can't access prph and the NIC will be reset in
+			 * start_hw anyway.
+			 */
+			iwl_write_prph(trans, APMG_RTC_INT_STT_REG,
+				       APMG_RTC_INT_STT_RFKILL);
 			set_bit(STATUS_RFKILL, &trans_pcie->status);
 			if (test_and_clear_bit(STATUS_HCMD_ACTIVE,
 					       &trans_pcie->status))

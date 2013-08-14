@@ -1349,7 +1349,7 @@ static struct platform_device dm365_vpbe_display = {
 	},
 };
 
-struct venc_platform_data dm365_venc_pdata = {
+static struct venc_platform_data dm365_venc_pdata = {
 	.setup_pinmux	= dm365_vpbe_setup_pinmux,
 	.setup_clock	= dm365_venc_setup_clock,
 };

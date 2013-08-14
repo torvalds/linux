@@ -84,12 +84,12 @@ static inline int drm_fixp2int(int64_t a)
 	return ((s64)a) >> DRM_FIXED_POINT;
 }
 
-static inline s64 drm_fixp_msbset(int64_t a)
+static inline unsigned drm_fixp_msbset(int64_t a)
 {
 	unsigned shift, sign = (a >> 63) & 1;
 
 	for (shift = 62; shift > 0; --shift)
-		if ((a >> shift) != sign)
+		if (((a >> shift) & 1) != sign)
 			return shift;
 
 	return 0;
@@ -100,9 +100,9 @@ static inline s64 drm_fixp_mul(s64 a, s64 b)
 	unsigned shift = drm_fixp_msbset(a) + drm_fixp_msbset(b);
 	s64 result;
 
-	if (shift > 63) {
-		shift = shift - 63;
-		a >>= shift >> 1;
+	if (shift > 61) {
+		shift = shift - 61;
+		a >>= (shift >> 1) + (shift & 1);
 		b >>= shift >> 1;
 	} else
 		shift = 0;
@@ -120,7 +120,7 @@ static inline s64 drm_fixp_mul(s64 a, s64 b)
 
 static inline s64 drm_fixp_div(s64 a, s64 b)
 {
-	unsigned shift = 63 - drm_fixp_msbset(a);
+	unsigned shift = 62 - drm_fixp_msbset(a);
 	s64 result;
 
 	a <<= shift;
@@ -154,7 +154,7 @@ static inline s64 drm_fixp_exp(s64 x)
 	}
 
 	if (x < 0)
-		sum = drm_fixp_div(1, sum);
+		sum = drm_fixp_div(DRM_FIXED_ONE, sum);
 
 	return sum;
 }

@@ -515,16 +515,16 @@
                                                 sirf,function = "pulse_count";
                                         };
                                 };
-                                cko0_rst_pins_a: cko0_rst@0 {
-                                        cko0_rst {
-                                                sirf,pins = "cko0_rstgrp";
-                                                sirf,function = "cko0_rst";
+                                cko0_pins_a: cko0@0 {
+                                        cko0 {
+                                                sirf,pins = "cko0grp";
+                                                sirf,function = "cko0";
                                         };
                                 };
-                                cko1_rst_pins_a: cko1_rst@0 {
-                                        cko1_rst {
-                                                sirf,pins = "cko1_rstgrp";
-                                                sirf,function = "cko1_rst";
+                                cko1_pins_a: cko1@0 {
+                                        cko1 {
+                                                sirf,pins = "cko1grp";
+                                                sirf,function = "cko1";
                                         };
                                 };
 			};
