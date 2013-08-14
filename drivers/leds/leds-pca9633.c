@@ -362,10 +362,12 @@ static int pca9633_probe(struct i2c_client *client,
 			if (pdata->leds.leds[i].default_trigger)
 				pca9633[i].led_cdev.default_trigger =
 					pdata->leds.leds[i].default_trigger;
-		} else {
-			snprintf(pca9633[i].name, sizeof(pca9633[i].name),
-				 "pca9633:%d", i);
 		}
+		if (!pdata || i >= pdata->leds.num_leds ||
+						!pdata->leds.leds[i].name)
+			snprintf(pca9633[i].name, sizeof(pca9633[i].name),
+				 "pca9633:%d:%.2x:%d", client->adapter->nr,
+				 client->addr, i);
 
 		pca9633[i].led_cdev.name = pca9633[i].name;
 		pca9633[i].led_cdev.brightness_set = pca9633_led_set;
