@@ -2439,7 +2439,7 @@ int radeon_asic_init(struct radeon_device *rdev)
 		rdev->num_crtc = 6;
 		rdev->has_uvd = true;
 		rdev->cg_flags =
-			/*RADEON_CG_SUPPORT_GFX_MGCG |*/
+			RADEON_CG_SUPPORT_GFX_MGCG |
 			RADEON_CG_SUPPORT_GFX_MGLS |
 			/*RADEON_CG_SUPPORT_GFX_CGCG |*/
 			RADEON_CG_SUPPORT_GFX_CGLS |
@@ -2464,7 +2464,7 @@ int radeon_asic_init(struct radeon_device *rdev)
 		if (rdev->family == CHIP_KAVERI) {
 			rdev->num_crtc = 4;
 			rdev->cg_flags =
-				/*RADEON_CG_SUPPORT_GFX_MGCG |*/
+				RADEON_CG_SUPPORT_GFX_MGCG |
 				RADEON_CG_SUPPORT_GFX_MGLS |
 				/*RADEON_CG_SUPPORT_GFX_CGCG |*/
 				RADEON_CG_SUPPORT_GFX_CGLS |
@@ -2492,7 +2492,7 @@ int radeon_asic_init(struct radeon_device *rdev)
 		} else {
 			rdev->num_crtc = 2;
 			rdev->cg_flags =
-				/*RADEON_CG_SUPPORT_GFX_MGCG |*/
+				RADEON_CG_SUPPORT_GFX_MGCG |
 				RADEON_CG_SUPPORT_GFX_MGLS |
 				/*RADEON_CG_SUPPORT_GFX_CGCG |*/
 				RADEON_CG_SUPPORT_GFX_CGLS |
