@@ -1527,6 +1527,7 @@ static int pch_uart_verify_port(struct uart_port *port,
 	return 0;
 }
 
+#if defined(CONFIG_CONSOLE_POLL) || defined(CONFIG_SERIAL_PCH_UART_CONSOLE)
 /*
  *	Wait for transmitter & holding register to empty
  */
@@ -1557,6 +1558,7 @@ static void wait_for_xmitr(struct eg20t_port *up, int bits)
 		}
 	}
 }
+#endif /* CONFIG_CONSOLE_POLL || CONFIG_SERIAL_PCH_UART_CONSOLE */
 
 #ifdef CONFIG_CONSOLE_POLL
 /*
