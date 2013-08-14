@@ -173,12 +173,6 @@ ENDPROC(cpu_do_switch_mm)
  *	value of the SCTLR_EL1 register.
  */
 ENTRY(__cpu_setup)
-	/*
-	 * Preserve the link register across the function call.
-	 */
-	mov	x28, lr
-	bl	__flush_dcache_all
-	mov	lr, x28
 	ic	iallu				// I+BTB cache invalidate
 	tlbi	vmalle1is			// invalidate I + D TLBs
 	dsb	sy
