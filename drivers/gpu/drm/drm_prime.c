@@ -354,7 +354,7 @@ fail:
 	/* hmm, if driver attached, we are relying on the free-object path
 	 * to detach.. which seems ok..
 	 */
-	drm_gem_object_handle_unreference_unlocked(obj);
+	drm_gem_handle_delete(file_priv, *handle);
 out_put:
 	dma_buf_put(dma_buf);
 	mutex_unlock(&file_priv->prime.lock);
