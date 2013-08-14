@@ -326,7 +326,6 @@ int cirrus_bo_create(struct drm_device *dev, int size, int align,
 		return ret;
 	}
 
-	cirrusbo->gem.driver_private = NULL;
 	cirrusbo->bo.bdev = &cirrus->ttm.bdev;
 
 	cirrus_ttm_placement(cirrusbo, TTM_PL_FLAG_VRAM | TTM_PL_FLAG_SYSTEM);
