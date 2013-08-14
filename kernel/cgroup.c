@@ -4355,6 +4355,7 @@ static void offline_css(struct cgroup_subsys_state *css)
 		ss->css_offline(css);
 
 	css->flags &= ~CSS_ONLINE;
+	css->cgroup->nr_css--;
 }
 
 /*
@@ -4559,14 +4560,29 @@ static void css_killed_work_fn(struct work_struct *work)
 	mutex_lock(&cgroup_mutex);
 
 	/*
+	 * css_tryget() is guaranteed to fail now.  Tell subsystems to
+	 * initate destruction.
+	 */
+	offline_css(css);
+
+	/*
 	 * If @cgrp is marked dead, it's waiting for refs of all css's to
 	 * be disabled before proceeding to the second phase of cgroup
 	 * destruction.  If we are the last one, kick it off.
 	 */
-	if (!--cgrp->nr_css && cgroup_is_dead(cgrp))
+	if (!cgrp->nr_css && cgroup_is_dead(cgrp))
 		cgroup_destroy_css_killed(cgrp);
 
 	mutex_unlock(&cgroup_mutex);
+
+	/*
+	 * Put the css refs from kill_css().  Each css holds an extra
+	 * reference to the cgroup's dentry and cgroup removal proceeds
+	 * regardless of css refs.  On the last put of each css, whenever
+	 * that may be, the extra dentry ref is put so that dentry
+	 * destruction happens only after all css's are released.
+	 */
+	css_put(css);
 }
 
 /* css kill confirmation processing requires process context, bounce */
@@ -4633,11 +4649,10 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	 * as killed on all CPUs on return.
 	 *
 	 * Use percpu_ref_kill_and_confirm() to get notifications as each
-	 * css is confirmed to be seen as killed on all CPUs.  The
-	 * notification callback keeps track of the number of css's to be
-	 * killed and invokes cgroup_destroy_css_killed() to perform the
-	 * rest of destruction once the percpu refs of all css's are
-	 * confirmed to be killed.
+	 * css is confirmed to be seen as killed on all CPUs.
+	 * cgroup_destroy_css_killed() will be invoked to perform the rest
+	 * of destruction once the percpu refs of all css's are confirmed
+	 * to be killed.
 	 */
 	for_each_root_subsys(cgrp->root, ss) {
 		struct cgroup_subsys_state *css = cgroup_css(cgrp, ss->subsys_id);
@@ -4704,35 +4719,16 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
  * @work: cgroup->destroy_free_work
  *
  * This function is invoked from a work item for a cgroup which is being
- * destroyed after the percpu refcnts of all css's are guaranteed to be
- * seen as killed on all CPUs, and performs the rest of destruction.  This
- * is the second step of destruction described in the comment above
- * cgroup_destroy_locked().
+ * destroyed after all css's are offlined and performs the rest of
+ * destruction.  This is the second step of destruction described in the
+ * comment above cgroup_destroy_locked().
  */
 static void cgroup_destroy_css_killed(struct cgroup *cgrp)
 {
 	struct cgroup *parent = cgrp->parent;
 	struct dentry *d = cgrp->dentry;
-	struct cgroup_subsys *ss;
 
 	lockdep_assert_held(&cgroup_mutex);
-
-	/*
-	 * css_tryget() is guaranteed to fail now.  Tell subsystems to
-	 * initate destruction.
-	 */
-	for_each_root_subsys(cgrp->root, ss)
-		offline_css(cgroup_css(cgrp, ss->subsys_id));
-
-	/*
-	 * Put the css refs from cgroup_destroy_locked().  Each css holds
-	 * an extra reference to the cgroup's dentry and cgroup removal
-	 * proceeds regardless of css refs.  On the last put of each css,
-	 * whenever that may be, the extra dentry ref is put so that dentry
-	 * destruction happens only after all css's are released.
-	 */
-	for_each_root_subsys(cgrp->root, ss)
-		css_put(cgroup_css(cgrp, ss->subsys_id));
 
 	/* delete this cgroup from parent->children */
 	list_del_rcu(&cgrp->sibling);

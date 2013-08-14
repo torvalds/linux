@@ -82,7 +82,7 @@ struct cgroup_subsys_state {
 	/* ID for this css, if possible */
 	struct css_id __rcu *id;
 
-	/* Used to put @cgroup->dentry on the last css_put() */
+	/* percpu_ref killing and putting dentry on the last css_put() */
 	struct work_struct destroy_work;
 };
 
