@@ -1434,7 +1434,8 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		goto done;
 	temp = xhci_readl(xhci, &xhci->op_regs->status);
 	if (temp == 0xffffffff || (xhci->xhc_state & XHCI_STATE_HALTED)) {
-		xhci_dbg(xhci, "HW died, freeing TD.\n");
+		xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+				"HW died, freeing TD.");
 		urb_priv = urb->hcpriv;
 		for (i = urb_priv->td_cnt; i < urb_priv->length; i++) {
 			td = urb_priv->td[i];
@@ -1452,8 +1453,9 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	}
 	if ((xhci->xhc_state & XHCI_STATE_DYING) ||
 			(xhci->xhc_state & XHCI_STATE_HALTED)) {
-		xhci_dbg(xhci, "Ep 0x%x: URB %p to be canceled on "
-				"non-responsive xHCI host.\n",
+		xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+				"Ep 0x%x: URB %p to be canceled on "
+				"non-responsive xHCI host.",
 				urb->ep->desc.bEndpointAddress, urb);
 		/* Let the stop endpoint command watchdog timer (which set this
 		 * state) finish cleaning up the endpoint TD lists.  We must
@@ -1474,8 +1476,9 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	urb_priv = urb->hcpriv;
 	i = urb_priv->td_cnt;
 	if (i < urb_priv->length)
-		xhci_dbg(xhci, "Cancel URB %p, dev %s, ep 0x%x, "
-				"starting at offset 0x%llx\n",
+		xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+				"Cancel URB %p, dev %s, ep 0x%x, "
+				"starting at offset 0x%llx",
 				urb, urb->dev->devpath,
 				urb->ep->desc.bEndpointAddress,
 				(unsigned long long) xhci_trb_virt_to_dma(

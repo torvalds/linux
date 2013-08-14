@@ -556,7 +556,8 @@ void xhci_find_new_dequeue_state(struct xhci_hcd *xhci,
 		return;
 	}
 	state->new_cycle_state = 0;
-	xhci_dbg(xhci, "Finding segment containing stopped TRB.\n");
+	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+			"Finding segment containing stopped TRB.");
 	state->new_deq_seg = find_trb_seg(cur_td->start_seg,
 			dev->eps[ep_index].stopped_trb,
 			&state->new_cycle_state);
@@ -566,12 +567,14 @@ void xhci_find_new_dequeue_state(struct xhci_hcd *xhci,
 	}
 
 	/* Dig out the cycle state saved by the xHC during the stop ep cmd */
-	xhci_dbg(xhci, "Finding endpoint context\n");
+	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+			"Finding endpoint context");
 	ep_ctx = xhci_get_ep_ctx(xhci, dev->out_ctx, ep_index);
 	state->new_cycle_state = 0x1 & le64_to_cpu(ep_ctx->deq);
 
 	state->new_deq_ptr = cur_td->last_trb;
-	xhci_dbg(xhci, "Finding segment containing last TRB in TD.\n");
+	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+			"Finding segment containing last TRB in TD.");
 	state->new_deq_seg = find_trb_seg(state->new_deq_seg,
 			state->new_deq_ptr,
 			&state->new_cycle_state);
@@ -598,13 +601,16 @@ void xhci_find_new_dequeue_state(struct xhci_hcd *xhci,
 	if (ep_ring->first_seg == ep_ring->first_seg->next &&
 			state->new_deq_ptr < dev->eps[ep_index].stopped_trb)
 		state->new_cycle_state ^= 0x1;
-	xhci_dbg(xhci, "Cycle state = 0x%x\n", state->new_cycle_state);
+	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+			"Cycle state = 0x%x", state->new_cycle_state);
 
 	/* Don't update the ring cycle state for the producer (us). */
-	xhci_dbg(xhci, "New dequeue segment = %p (virtual)\n",
+	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+			"New dequeue segment = %p (virtual)",
 			state->new_deq_seg);
 	addr = xhci_trb_virt_to_dma(state->new_deq_seg, state->new_deq_ptr);
-	xhci_dbg(xhci, "New dequeue pointer = 0x%llx (DMA)\n",
+	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+			"New dequeue pointer = 0x%llx (DMA)",
 			(unsigned long long) addr);
 }
 
@@ -632,9 +638,11 @@ static void td_to_noop(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 			if (flip_cycle)
 				cur_trb->generic.field[3] ^=
 					cpu_to_le32(TRB_CYCLE);
-			xhci_dbg(xhci, "Cancel (unchain) link TRB\n");
-			xhci_dbg(xhci, "Address = %p (0x%llx dma); "
-					"in seg %p (0x%llx dma)\n",
+			xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+					"Cancel (unchain) link TRB");
+			xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+					"Address = %p (0x%llx dma); "
+					"in seg %p (0x%llx dma)",
 					cur_trb,
 					(unsigned long long)xhci_trb_virt_to_dma(cur_seg, cur_trb),
 					cur_seg,
@@ -652,7 +660,8 @@ static void td_to_noop(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 					cpu_to_le32(TRB_CYCLE);
 			cur_trb->generic.field[3] |= cpu_to_le32(
 				TRB_TYPE(TRB_TR_NOOP));
-			xhci_dbg(xhci, "TRB to noop at offset 0x%llx\n",
+			xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+					"TRB to noop at offset 0x%llx",
 					(unsigned long long)
 					xhci_trb_virt_to_dma(cur_seg, cur_trb));
 		}
@@ -673,8 +682,9 @@ void xhci_queue_new_dequeue_state(struct xhci_hcd *xhci,
 {
 	struct xhci_virt_ep *ep = &xhci->devs[slot_id]->eps[ep_index];
 
-	xhci_dbg(xhci, "Set TR Deq Ptr cmd, new deq seg = %p (0x%llx dma), "
-			"new deq ptr = %p (0x%llx dma), new cycle = %u\n",
+	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+			"Set TR Deq Ptr cmd, new deq seg = %p (0x%llx dma), "
+			"new deq ptr = %p (0x%llx dma), new cycle = %u",
 			deq_state->new_deq_seg,
 			(unsigned long long)deq_state->new_deq_seg->dma,
 			deq_state->new_deq_ptr,
@@ -794,7 +804,8 @@ static void handle_stopped_endpoint(struct xhci_hcd *xhci,
 	 */
 	list_for_each(entry, &ep->cancelled_td_list) {
 		cur_td = list_entry(entry, struct xhci_td, cancelled_td_list);
-		xhci_dbg(xhci, "Removing canceled TD starting at 0x%llx (dma).\n",
+		xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+				"Removing canceled TD starting at 0x%llx (dma).",
 				(unsigned long long)xhci_trb_virt_to_dma(
 					cur_td->start_seg, cur_td->first_trb));
 		ep_ring = xhci_urb_to_transfer_ring(xhci, cur_td->urb);
@@ -914,14 +925,16 @@ void xhci_stop_endpoint_command_watchdog(unsigned long arg)
 
 	ep->stop_cmds_pending--;
 	if (xhci->xhc_state & XHCI_STATE_DYING) {
-		xhci_dbg(xhci, "Stop EP timer ran, but another timer marked "
-				"xHCI as DYING, exiting.\n");
+		xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+				"Stop EP timer ran, but another timer marked "
+				"xHCI as DYING, exiting.");
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		return;
 	}
 	if (!(ep->stop_cmds_pending == 0 && (ep->ep_state & EP_HALT_PENDING))) {
-		xhci_dbg(xhci, "Stop EP timer ran, but no command pending, "
-				"exiting.\n");
+		xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+				"Stop EP timer ran, but no command pending, "
+				"exiting.");
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		return;
 	}
@@ -963,8 +976,9 @@ void xhci_stop_endpoint_command_watchdog(unsigned long arg)
 			ring = temp_ep->ring;
 			if (!ring)
 				continue;
-			xhci_dbg(xhci, "Killing URBs for slot ID %u, "
-					"ep index %u\n", i, j);
+			xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+					"Killing URBs for slot ID %u, "
+					"ep index %u", i, j);
 			while (!list_empty(&ring->td_list)) {
 				cur_td = list_first_entry(&ring->td_list,
 						struct xhci_td,
@@ -987,9 +1001,11 @@ void xhci_stop_endpoint_command_watchdog(unsigned long arg)
 		}
 	}
 	spin_unlock_irqrestore(&xhci->lock, flags);
-	xhci_dbg(xhci, "Calling usb_hc_died()\n");
+	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+			"Calling usb_hc_died()");
 	usb_hc_died(xhci_to_hcd(xhci)->primary_hcd);
-	xhci_dbg(xhci, "xHCI host controller is dead.\n");
+	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+			"xHCI host controller is dead.");
 }
 
 
@@ -1093,7 +1109,8 @@ static void handle_set_deq_completion(struct xhci_hcd *xhci,
 			ep_state &= EP_STATE_MASK;
 			slot_state = le32_to_cpu(slot_ctx->dev_state);
 			slot_state = GET_SLOT_STATE(slot_state);
-			xhci_dbg(xhci, "Slot state = %u, EP state = %u\n",
+			xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+					"Slot state = %u, EP state = %u",
 					slot_state, ep_state);
 			break;
 		case COMP_EBADSLT:
@@ -1113,7 +1130,8 @@ static void handle_set_deq_completion(struct xhci_hcd *xhci,
 		 * cancelling URBs, which might not be an error...
 		 */
 	} else {
-		xhci_dbg(xhci, "Successful Set TR Deq Ptr cmd, deq = @%08llx\n",
+		xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+			"Successful Set TR Deq Ptr cmd, deq = @%08llx",
 			 le64_to_cpu(ep_ctx->deq));
 		if (xhci_trb_virt_to_dma(dev->eps[ep_index].queued_deq_seg,
 					 dev->eps[ep_index].queued_deq_ptr) ==
