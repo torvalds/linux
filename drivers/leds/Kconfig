@@ -292,12 +292,13 @@ config LEDS_PCA955X
 	  devices include PCA9550, PCA9551, PCA9552, and PCA9553.
 
 config LEDS_PCA9633
-	tristate "LED support for PCA9633 I2C chip"
+	tristate "LED support for PCA963x I2C chip"
 	depends on LEDS_CLASS
 	depends on I2C
 	help
-	  This option enables support for LEDs connected to the PCA9633
-	  LED driver chip accessed via the I2C bus.
+	  This option enables support for LEDs connected to the PCA963x
+	  LED driver chip accessed via the I2C bus. Supported
+	  devices include PCA9633 and PCA9634
 
 config LEDS_WM831X_STATUS
 	tristate "LED support for status LEDs on WM831x PMICs"
