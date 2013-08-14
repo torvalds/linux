@@ -3076,9 +3076,6 @@ static void __cancel_balance(struct btrfs_fs_info *fs_info)
 	atomic_set(&fs_info->mutually_exclusive_operation_running, 0);
 }
 
-void update_ioctl_balance_args(struct btrfs_fs_info *fs_info, int lock,
-			       struct btrfs_ioctl_balance_args *bargs);
-
 /*
  * Should be called with both balance and volume mutexes held
  */

@@ -1433,8 +1433,8 @@ int btrfs_add_log_tree(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-struct btrfs_root *btrfs_read_tree_root(struct btrfs_root *tree_root,
-					struct btrfs_key *key)
+static struct btrfs_root *btrfs_read_tree_root(struct btrfs_root *tree_root,
+					       struct btrfs_key *key)
 {
 	struct btrfs_root *root;
 	struct btrfs_fs_info *fs_info = tree_root->fs_info;
@@ -3754,8 +3754,8 @@ static void btrfs_destroy_all_ordered_extents(struct btrfs_fs_info *fs_info)
 	spin_unlock(&fs_info->ordered_root_lock);
 }
 
-int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
-			       struct btrfs_root *root)
+static int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
+				      struct btrfs_root *root)
 {
 	struct rb_node *node;
 	struct btrfs_delayed_ref_root *delayed_refs;

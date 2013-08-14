@@ -2441,7 +2441,7 @@ static int btrfsic_process_written_superblock(
 		int num_copies;
 		int mirror_num;
 		const char *additional_string = NULL;
-		struct btrfs_disk_key tmp_disk_key;
+		struct btrfs_disk_key tmp_disk_key = {0};
 
 		btrfs_set_disk_key_objectid(&tmp_disk_key,
 					    BTRFS_ROOT_ITEM_KEY);

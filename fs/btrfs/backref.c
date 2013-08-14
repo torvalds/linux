@@ -365,7 +365,7 @@ static int __resolve_indirect_refs(struct btrfs_fs_info *fs_info,
 		node = ulist_next(parents, &uiter);
 		ref->parent = node ? node->val : 0;
 		ref->inode_list = node ?
-			(struct extent_inode_elem *)(uintptr_t)node->aux : 0;
+			(struct extent_inode_elem *)(uintptr_t)node->aux : NULL;
 
 		/* additional parents require new refs being added here */
 		while ((node = ulist_next(parents, &uiter))) {

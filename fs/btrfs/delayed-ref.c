@@ -241,7 +241,7 @@ int btrfs_delayed_ref_lock(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-static void inline drop_delayed_ref(struct btrfs_trans_handle *trans,
+static inline void drop_delayed_ref(struct btrfs_trans_handle *trans,
 				    struct btrfs_delayed_ref_root *delayed_refs,
 				    struct btrfs_delayed_ref_node *ref)
 {

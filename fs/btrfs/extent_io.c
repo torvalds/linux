@@ -2954,11 +2954,11 @@ static void __extent_readpages(struct extent_io_tree *tree,
 			       struct bio **bio, int mirror_num,
 			       unsigned long *bio_flags, int rw)
 {
-	u64 start;
+	u64 start = 0;
 	u64 end = 0;
 	u64 page_start;
 	int index;
-	int first_index;
+	int first_index = 0;
 
 	for (index = 0; index < nr_pages; index++) {
 		page_start = page_offset(pages[index]);

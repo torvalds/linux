@@ -1067,7 +1067,7 @@ __tree_mod_log_oldest_root(struct btrfs_fs_info *fs_info,
 	int looped = 0;
 
 	if (!time_seq)
-		return 0;
+		return NULL;
 
 	/*
 	 * the very last operation that's logged for a root is the replacement
@@ -1078,7 +1078,7 @@ __tree_mod_log_oldest_root(struct btrfs_fs_info *fs_info,
 		tm = tree_mod_log_search_oldest(fs_info, root_logical,
 						time_seq);
 		if (!looped && !tm)
-			return 0;
+			return NULL;
 		/*
 		 * if there are no tree operation for the oldest root, we simply
 		 * return it. this should only happen if that (old) root is at
@@ -4782,7 +4782,7 @@ int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
  * This may release the path, and so you may lose any locks held at the
  * time you call it.
  */
-int btrfs_prev_leaf(struct btrfs_root *root, struct btrfs_path *path)
+static int btrfs_prev_leaf(struct btrfs_root *root, struct btrfs_path *path)
 {
 	struct btrfs_key key;
 	struct btrfs_disk_key found_key;

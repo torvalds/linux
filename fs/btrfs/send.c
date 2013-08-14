@@ -54,8 +54,8 @@ struct fs_path {
 
 			char *buf;
 			int buf_len;
-			int reversed:1;
-			int virtual_mem:1;
+			unsigned int reversed:1;
+			unsigned int virtual_mem:1;
 			char inline_buf[];
 		};
 		char pad[PAGE_SIZE];
