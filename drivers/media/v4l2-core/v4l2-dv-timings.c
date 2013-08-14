@@ -286,14 +286,14 @@ bool v4l2_detect_cvt(unsigned frame_height, unsigned hfreq, unsigned vsync,
 	/* Vertical */
 	if (reduced_blanking) {
 		v_fp = CVT_RB_V_FPORCH;
-		v_bp = (CVT_RB_MIN_V_BLANK * hfreq + 999999) / 1000000;
+		v_bp = (CVT_RB_MIN_V_BLANK * hfreq + 1999999) / 1000000;
 		v_bp -= vsync + v_fp;
 
 		if (v_bp < CVT_RB_MIN_V_BPORCH)
 			v_bp = CVT_RB_MIN_V_BPORCH;
 	} else {
 		v_fp = CVT_MIN_V_PORCH_RND;
-		v_bp = (CVT_MIN_VSYNC_BP * hfreq + 999999) / 1000000 - vsync;
+		v_bp = (CVT_MIN_VSYNC_BP * hfreq + 1999999) / 1000000 - vsync;
 
 		if (v_bp < CVT_MIN_V_BPORCH)
 			v_bp = CVT_MIN_V_BPORCH;
@@ -337,17 +337,16 @@ bool v4l2_detect_cvt(unsigned frame_height, unsigned hfreq, unsigned vsync,
 
 		frame_width = image_width + CVT_RB_H_BLANK;
 	} else {
+		unsigned ideal_duty_cycle_per_myriad =
+			100 * CVT_C_PRIME - (CVT_M_PRIME * 100000) / hfreq;
 		int h_blank;
-		unsigned ideal_duty_cycle = CVT_C_PRIME - (CVT_M_PRIME * 1000) / hfreq;
 
-		h_blank = (image_width * ideal_duty_cycle + (100 - ideal_duty_cycle) / 2) /
-						(100 - ideal_duty_cycle);
-		h_blank = h_blank - h_blank % (2 * CVT_CELL_GRAN);
+		if (ideal_duty_cycle_per_myriad < 2000)
+			ideal_duty_cycle_per_myriad = 2000;
 
-		if (h_blank * 100 / image_width < 20) {
-			h_blank = image_width / 5;
-			h_blank = (h_blank + 0x7) & ~0x7;
-		}
+		h_blank = image_width * ideal_duty_cycle_per_myriad /
+					(10000 - ideal_duty_cycle_per_myriad);
+		h_blank = (h_blank / (2 * CVT_CELL_GRAN)) * 2 * CVT_CELL_GRAN;
 
 		pix_clk = (image_width + h_blank) * hfreq;
 		pix_clk = (pix_clk / CVT_PXL_CLK_GRAN) * CVT_PXL_CLK_GRAN;
