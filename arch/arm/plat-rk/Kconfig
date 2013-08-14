@@ -212,6 +212,9 @@ config RK_FPGA
 
 config RK_CONFIG
 	bool
+	
+config MACH_RK_FAC
+	bool
 
 config RK_TIMER
 	bool

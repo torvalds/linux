@@ -1,7 +1,7 @@
 #ifndef __MACH_CONFIG_H
 #define __MACH_CONFIG_H
 #include <mach/board.h>
-#include <mach/iomux-rk30.h>
+//#include <mach/iomux-rk30.h>
 
 #define BOARD_DEFAULT
 //#define BOARD_RK3168_86V
@@ -24,6 +24,7 @@ enum {
 	TP_TYPE_NONE = 0,        
 	TP_TYPE_GSLX680, 
 	TP_TYPE_GT811_86V,
+	TP_TYPE_GT8XX,
 	TP_TYPE_MAX,
 };
 

@@ -62,7 +62,7 @@ board-$(CONFIG_MACH_RK3168_LR097) += board-rk3168-LR097.o
 board-$(CONFIG_MACH_RK3168_DS1006H) += board-rk3168-ds1006h.o
 board-$(CONFIG_MACH_RK3168_86V) += board-rk3168-86v.o
 board-$(CONFIG_MACH_RK3168_86V_OLD) += board-rk3168-86v-old.o
-board-$(CONFIG_MACH_RK_FAC) += board-rk3168-fac.o
+board-$(CONFIG_MACH_RK3168_FAC) += board-rk3168-fac.o
 
 obj-$(CONFIG_SOC_RK3168M) += board.o
 board-$(CONFIG_MACH_RK3168M_TB) += board-rk3168m-tb.o

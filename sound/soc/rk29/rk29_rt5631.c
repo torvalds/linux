@@ -24,7 +24,7 @@
 #include "rk29_i2s.h"
 
 #ifdef CONFIG_MACH_RK_FAC
-#include <mach/config.h>
+#include <plat/config.h>
 extern int codec_type;
 #endif
 #if 0

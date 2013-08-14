@@ -51,7 +51,7 @@
 #include <linux/ct36x.h>
 #endif
 #include <linux/regulator/act8931.h>
-#include <mach/config.h>
+#include <plat/config.h>
  
 
 
@@ -88,7 +88,7 @@
 #endif
 
 #include "board-rk3168-86v-camera.c"
-#include "board-rk-fac-config.c"
+#include "../plat-rk/rk-fac-config.c"
 #include <plat/key.h>
 
 /*
@@ -152,64 +152,7 @@ struct rk29_keys_platform_data rk29_keys_pdata = {
 	.buttons	= key_button,	
 	.chn	= -1,  //chn: 0-7, if do not use ADC,set 'chn' -1
 };
-#if defined(CONFIG_CT36X_TS)
 
-#define TOUCH_MODEL		363
-#define TOUCH_MAX_X		1280
-#define TOUCH_MAX_y		800
-#define TOUCH_RESET_PIN		RK30_PIN0_PB6
-#define TOUCH_INT_PIN		RK30_PIN1_PB7
-
-static struct ct36x_platform_data ct36x_info = {
-	.model   = TOUCH_MODEL,
-	.x_max   = TOUCH_MAX_X,
-	.y_max   = TOUCH_MAX_y,
-
-	.rst_io = {
-		.gpio = TOUCH_RESET_PIN,
-		.active_low = 1,
-	},
-	.irq_io = {
-		.gpio = TOUCH_INT_PIN,
-		.active_low = 1,
-	},
-	.orientation = {1, 0, 1, 0},
-};
-#endif
-#if defined(CONFIG_TOUCHSCREEN_GSLX680)
-#define TOUCH_RESET_PIN RK30_PIN0_PB6
-#define TOUCH_EN_PIN NULL
-#define TOUCH_INT_PIN RK30_PIN1_PB7
-
-int gslx680_init_platform_hw(void)
-{
-
-       if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
-                gpio_free(TOUCH_RESET_PIN);
-                printk("gslx680_init_platform_hw gpio_request error\n");
-                return -EIO;
-        }
-        if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
-                gpio_free(TOUCH_INT_PIN);
-                printk("gslx680_init_platform_hw  gpio_request error\n");
-                return -EIO;
-        }
-        gpio_direction_output(TOUCH_RESET_PIN, GPIO_HIGH);
-        mdelay(10);
-        gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
-        mdelay(10);
-        gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
-        msleep(300);
-        return 0;
-
-}
-
-struct ts_hw_data     gslx680_info = {
-	.reset_gpio = TOUCH_RESET_PIN,
-	.touch_en_gpio = TOUCH_INT_PIN,
-	.init_platform_hw = gslx680_init_platform_hw,
-};
-#endif
 #if defined (CONFIG_TOUCHSCREEN_GSLX680_RK3168)
 static int gslx680_init_platform_hw()
 {
@@ -2055,14 +1998,6 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 		.flags         = 0,
 		.platform_data = &cm3217_info,
 	},
-#endif
-#if defined (CONFIG_TOUCHSCREEN_GSLX680)
-    {
-        .type           = "gslX680",
-        .addr           = 0x40,
-        .flags          = 0,
-        .platform_data =&gslx680_info,
-    },
 #endif
 #if defined(CONFIG_TOUCHSCREEN_GT82X_IIC)
 	{

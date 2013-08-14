@@ -155,8 +155,11 @@ config MACH_RK3168_86V
 
 config MACH_RK3168_86V_OLD
         bool "RK3168 86V  Old Board"
- config MACH_RK_FAC
+        
+config MACH_RK3168_FAC
         bool "RK3168 Board for factory"
+        select MACH_RK_FAC
+
 endchoice
 
 choice

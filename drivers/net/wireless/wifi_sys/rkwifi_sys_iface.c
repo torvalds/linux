@@ -10,7 +10,7 @@
 #include <asm/uaccess.h>
 
 #ifdef CONFIG_MACH_RK_FAC
-#include <mach/config.h>
+#include <plat/config.h>
 extern int wifi_type;
 #endif 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))

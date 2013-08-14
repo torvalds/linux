@@ -754,7 +754,11 @@ static int rk_ts_probe(struct i2c_client *client, const struct i2c_device_id *id
 {
 	int ret = 0;
 	struct rk_ts_data *ts;
-	struct goodix_platform_data *pdata ;
+	#ifdef CONFIG_MACH_RK_FAC
+		struct tp_platform_data *pdata;  
+	#else 
+		struct goodix_platform_data *pdata ;
+	#endif
 	
 	printk(KERN_INFO "Install touch driver.\n");
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) 
@@ -773,7 +777,11 @@ static int rk_ts_probe(struct i2c_client *client, const struct i2c_device_id *id
 
 	pdata = client->dev.platform_data;
 	ts->irq_pin = pdata->irq_pin;
+#ifdef CONFIG_MACH_RK_FAC
+	ts->rst_pin = pdata->reset_pin;
+#else
 	ts->rst_pin = pdata->rest_pin;
+#endif
 	ts->pendown =PEN_RELEASE;
 	ts->client = client;
 	ts->ts_init = goodix_ts_init;	

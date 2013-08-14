@@ -3,7 +3,7 @@
 #else
 #define CONFIG_ERR(v, name)
 #endif
-#include <mach/config.h>
+#include <plat/config.h>
 
 
 /* keyboard */

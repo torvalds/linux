@@ -5,7 +5,7 @@
 #include "../hdmi/rk_hdmi.h"
 #endif
 #if defined(CONFIG_MACH_RK_FAC)
-#include <mach/config.h>
+#include <plat/config.h>
 extern uint lcd_param[LCD_PARAM_MAX];
 #endif
 
@@ -321,7 +321,7 @@ size_t get_fb_size(void)
 	if(pchar!=NULL)
 	{
 		do{
-			if(count==15)
+			if(count==13)
 			{
 				num=strcspn(pchar,",");
 				for(i=0;i<num;i++)
@@ -330,7 +330,7 @@ size_t get_fb_size(void)
 				mLcdWith=simple_strtol(LcdWith,NULL,10);		
 			}
 			
-		  	if(count==11){		
+		  	if(count==9){		
 				num=strcspn(pchar,",");
 				for(i=0;i<num;i++)
 					LcdHigh[i]=pchar[i];
