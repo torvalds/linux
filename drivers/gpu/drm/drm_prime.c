@@ -83,6 +83,21 @@ static int drm_prime_add_buf_handle(struct drm_prime_file_private *prime_fpriv, 
 	return 0;
 }
 
+static int drm_prime_lookup_buf_handle(struct drm_prime_file_private *prime_fpriv,
+				       struct dma_buf *dma_buf,
+				       uint32_t *handle)
+{
+	struct drm_prime_member *member;
+
+	list_for_each_entry(member, &prime_fpriv->head, entry) {
+		if (member->dma_buf == dma_buf) {
+			*handle = member->handle;
+			return 0;
+		}
+	}
+	return -ENOENT;
+}
+
 static int drm_gem_map_attach(struct dma_buf *dma_buf,
 			      struct device *target_dev,
 			      struct dma_buf_attachment *attach)
@@ -654,20 +669,6 @@ void drm_prime_destroy_file_private(struct drm_prime_file_private *prime_fpriv)
 	WARN_ON(!list_empty(&prime_fpriv->head));
 }
 EXPORT_SYMBOL(drm_prime_destroy_file_private);
-
-int drm_prime_lookup_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf, uint32_t *handle)
-{
-	struct drm_prime_member *member;
-
-	list_for_each_entry(member, &prime_fpriv->head, entry) {
-		if (member->dma_buf == dma_buf) {
-			*handle = member->handle;
-			return 0;
-		}
-	}
-	return -ENOENT;
-}
-EXPORT_SYMBOL(drm_prime_lookup_buf_handle);
 
 void drm_prime_remove_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf)
 {
