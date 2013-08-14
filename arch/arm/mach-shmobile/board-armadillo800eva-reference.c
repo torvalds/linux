@@ -190,10 +190,10 @@ static void __init eva_init(void)
 }
 
 #define RESCNT2 IOMEM(0xe6188020)
-static void eva_restart(char mode, const char *cmd)
+static void eva_restart(enum reboot_mode mode, const char *cmd)
 {
 	/* Do soft power on reset */
-	writel((1 << 31), RESCNT2);
+	writel(1 << 31, RESCNT2);
 }
 
 static const char *eva_boards_compat_dt[] __initdata = {
