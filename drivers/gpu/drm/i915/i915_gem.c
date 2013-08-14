@@ -4132,6 +4132,7 @@ struct i915_vma *i915_gem_vma_create(struct drm_i915_gem_object *obj,
 
 	INIT_LIST_HEAD(&vma->vma_link);
 	INIT_LIST_HEAD(&vma->mm_list);
+	INIT_LIST_HEAD(&vma->exec_list);
 	vma->vm = vm;
 	vma->obj = obj;
 
