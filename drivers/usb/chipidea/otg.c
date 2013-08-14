@@ -52,6 +52,7 @@ void ci_handle_vbus_change(struct ci_hdrc *ci)
 		usb_gadget_vbus_disconnect(&ci->gadget);
 }
 
+#define CI_VBUS_STABLE_TIMEOUT_MS 5000
 static void ci_handle_id_switch(struct ci_hdrc *ci)
 {
 	enum ci_role role = ci_otg_role(ci);
@@ -61,6 +62,9 @@ static void ci_handle_id_switch(struct ci_hdrc *ci)
 			ci_role(ci)->name, ci->roles[role]->name);
 
 		ci_role_stop(ci);
+		/* wait vbus lower than OTGSC_BSV */
+		hw_wait_reg(ci, OP_OTGSC, OTGSC_BSV, 0,
+				CI_VBUS_STABLE_TIMEOUT_MS);
 		ci_role_start(ci, role);
 	}
 }

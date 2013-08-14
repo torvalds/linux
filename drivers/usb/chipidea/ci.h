@@ -308,4 +308,7 @@ int hw_port_test_set(struct ci_hdrc *ci, u8 mode);
 
 u8 hw_port_test_get(struct ci_hdrc *ci);
 
+int hw_wait_reg(struct ci_hdrc *ci, enum ci_hw_regs reg, u32 mask,
+				u32 value, unsigned int timeout_ms);
+
 #endif	/* __DRIVERS_USB_CHIPIDEA_CI_H */
