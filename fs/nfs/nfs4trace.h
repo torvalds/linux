@@ -894,6 +894,61 @@ DECLARE_EVENT_CLASS(nfs4_commit_event,
 DEFINE_NFS4_COMMIT_EVENT(nfs4_commit);
 #ifdef CONFIG_NFS_V4_1
 DEFINE_NFS4_COMMIT_EVENT(nfs4_pnfs_commit_ds);
+
+#define show_pnfs_iomode(iomode) \
+	__print_symbolic(iomode, \
+		{ IOMODE_READ, "READ" }, \
+		{ IOMODE_RW, "RW" }, \
+		{ IOMODE_ANY, "ANY" })
+
+TRACE_EVENT(nfs4_layoutget,
+		TP_PROTO(
+			const struct nfs_open_context *ctx,
+			const struct pnfs_layout_range *args,
+			const struct pnfs_layout_range *res,
+			int error
+		),
+
+		TP_ARGS(ctx, args, res, error),
+
+		TP_STRUCT__entry(
+			__field(dev_t, dev)
+			__field(u32, fhandle)
+			__field(u64, fileid)
+			__field(u32, iomode)
+			__field(u64, offset)
+			__field(u64, count)
+			__field(int, error)
+		),
+
+		TP_fast_assign(
+			const struct inode *inode = ctx->dentry->d_inode;
+			__entry->dev = inode->i_sb->s_dev;
+			__entry->fileid = NFS_FILEID(inode);
+			__entry->fhandle = nfs_fhandle_hash(NFS_FH(inode));
+			__entry->iomode = args->iomode;
+			__entry->offset = args->offset;
+			__entry->count = args->length;
+			__entry->error = error;
+		),
+
+		TP_printk(
+			"error=%d (%s) fileid=%02x:%02x:%llu fhandle=0x%08x "
+			"iomode=%s offset=%llu count=%llu",
+			__entry->error,
+			show_nfsv4_errors(__entry->error),
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->fileid,
+			__entry->fhandle,
+			show_pnfs_iomode(__entry->iomode),
+			(unsigned long long)__entry->offset,
+			(unsigned long long)__entry->count
+		)
+);
+
+DEFINE_NFS4_INODE_EVENT(nfs4_layoutcommit);
+DEFINE_NFS4_INODE_EVENT(nfs4_layoutreturn);
+
 #endif /* CONFIG_NFS_V4_1 */
 
 #endif /* _TRACE_NFS4_H */
