@@ -208,10 +208,8 @@ static int ci_hdrc_imx_remove(struct platform_device *pdev)
 	if (data->reg_vbus)
 		regulator_disable(data->reg_vbus);
 
-	if (data->phy) {
+	if (data->phy)
 		usb_phy_shutdown(data->phy);
-		module_put(data->phy->dev->driver->owner);
-	}
 
 	clk_disable_unprepare(data->clk);
 
