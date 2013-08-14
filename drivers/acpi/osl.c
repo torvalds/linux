@@ -52,6 +52,7 @@
 #include <acpi/acpi.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/processor.h>
+#include "internal.h"
 
 #define _COMPONENT		ACPI_OS_SERVICES
 ACPI_MODULE_NAME("osl");
@@ -1351,8 +1352,8 @@ struct osi_setup_entry {
 	bool enable;
 };
 
-static struct osi_setup_entry __initdata
-		osi_setup_entries[OSI_STRING_ENTRIES_MAX] = {
+static struct osi_setup_entry
+		osi_setup_entries[OSI_STRING_ENTRIES_MAX] __initdata = {
 	{"Module Device", true},
 	{"Processor Device", true},
 	{"3.0 _SCP Extensions", true},

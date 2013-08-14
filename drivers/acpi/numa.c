@@ -159,7 +159,7 @@ acpi_table_print_srat_entry(struct acpi_subtable_header *header)
  * distance than the others.
  * Do some quick checks here and only use the SLIT if it passes.
  */
-static __init int slit_valid(struct acpi_table_slit *slit)
+static int __init slit_valid(struct acpi_table_slit *slit)
 {
 	int i, j;
 	int d = slit->locality_count;

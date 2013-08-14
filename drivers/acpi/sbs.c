@@ -873,14 +873,9 @@ static void acpi_sbs_callback(void *context)
 	u8 saved_charger_state = sbs->charger_present;
 	u8 saved_battery_state;
 	acpi_ac_get_present(sbs);
-	if (sbs->charger_present != saved_charger_state) {
-#ifdef CONFIG_ACPI_PROC_EVENT
-		acpi_bus_generate_proc_event4(ACPI_AC_CLASS, ACPI_AC_DIR_NAME,
-					      ACPI_SBS_NOTIFY_STATUS,
-					      sbs->charger_present);
-#endif
+	if (sbs->charger_present != saved_charger_state)
 		kobject_uevent(&sbs->charger.dev->kobj, KOBJ_CHANGE);
-	}
+
 	if (sbs->manager_present) {
 		for (id = 0; id < MAX_SBS_BAT; ++id) {
 			if (!(sbs->batteries_supported & (1 << id)))
@@ -890,12 +885,6 @@ static void acpi_sbs_callback(void *context)
 			acpi_battery_read(bat);
 			if (saved_battery_state == bat->present)
 				continue;
-#ifdef CONFIG_ACPI_PROC_EVENT
-			acpi_bus_generate_proc_event4(ACPI_BATTERY_CLASS,
-						      bat->name,
-						      ACPI_SBS_NOTIFY_STATUS,
-						      bat->present);
-#endif
 			kobject_uevent(&bat->bat.dev->kobj, KOBJ_CHANGE);
 		}
 	}
