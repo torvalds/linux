@@ -165,28 +165,36 @@ static const struct ieee80211_rate ath5k_rates[] = {
 	  .flags = IEEE80211_RATE_SHORT_PREAMBLE },
 	{ .bitrate = 60,
 	  .hw_value = ATH5K_RATE_CODE_6M,
-	  .flags = 0 },
+	  .flags = IEEE80211_RATE_SUPPORTS_5MHZ |
+		   IEEE80211_RATE_SUPPORTS_10MHZ },
 	{ .bitrate = 90,
 	  .hw_value = ATH5K_RATE_CODE_9M,
-	  .flags = 0 },
+	  .flags = IEEE80211_RATE_SUPPORTS_5MHZ |
+		   IEEE80211_RATE_SUPPORTS_10MHZ },
 	{ .bitrate = 120,
 	  .hw_value = ATH5K_RATE_CODE_12M,
-	  .flags = 0 },
+	  .flags = IEEE80211_RATE_SUPPORTS_5MHZ |
+		   IEEE80211_RATE_SUPPORTS_10MHZ },
 	{ .bitrate = 180,
 	  .hw_value = ATH5K_RATE_CODE_18M,
-	  .flags = 0 },
+	  .flags = IEEE80211_RATE_SUPPORTS_5MHZ |
+		   IEEE80211_RATE_SUPPORTS_10MHZ },
 	{ .bitrate = 240,
 	  .hw_value = ATH5K_RATE_CODE_24M,
-	  .flags = 0 },
+	  .flags = IEEE80211_RATE_SUPPORTS_5MHZ |
+		   IEEE80211_RATE_SUPPORTS_10MHZ },
 	{ .bitrate = 360,
 	  .hw_value = ATH5K_RATE_CODE_36M,
-	  .flags = 0 },
+	  .flags = IEEE80211_RATE_SUPPORTS_5MHZ |
+		   IEEE80211_RATE_SUPPORTS_10MHZ },
 	{ .bitrate = 480,
 	  .hw_value = ATH5K_RATE_CODE_48M,
-	  .flags = 0 },
+	  .flags = IEEE80211_RATE_SUPPORTS_5MHZ |
+		   IEEE80211_RATE_SUPPORTS_10MHZ },
 	{ .bitrate = 540,
 	  .hw_value = ATH5K_RATE_CODE_54M,
-	  .flags = 0 },
+	  .flags = IEEE80211_RATE_SUPPORTS_5MHZ |
+		   IEEE80211_RATE_SUPPORTS_10MHZ },
 };
 
 static inline u64 ath5k_extend_tsf(struct ath5k_hw *ah, u32 rstamp)
