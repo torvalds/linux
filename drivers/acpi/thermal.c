@@ -190,7 +190,6 @@ struct acpi_thermal {
 	struct thermal_zone_device *thermal_zone;
 	int tz_enabled;
 	int kelvin_offset;
-	struct mutex lock;
 };
 
 /* --------------------------------------------------------------------------
@@ -1098,8 +1097,6 @@ static int acpi_thermal_add(struct acpi_device *device)
 	strcpy(acpi_device_name(device), ACPI_THERMAL_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_THERMAL_CLASS);
 	device->driver_data = tz;
-	mutex_init(&tz->lock);
-
 
 	result = acpi_thermal_get_info(tz);
 	if (result)
@@ -1132,7 +1129,6 @@ static int acpi_thermal_remove(struct acpi_device *device)
 	tz = acpi_driver_data(device);
 
 	acpi_thermal_unregister_thermal_zone(tz);
-	mutex_destroy(&tz->lock);
 	kfree(tz);
 	return 0;
 }
