@@ -3610,6 +3610,18 @@ static int pci_slot_reset(struct pci_slot *slot, int probe)
 }
 
 /**
+ * pci_probe_reset_slot - probe whether a PCI slot can be reset
+ * @slot: PCI slot to probe
+ *
+ * Return 0 if slot can be reset, negative if a slot reset is not supported.
+ */
+int pci_probe_reset_slot(struct pci_slot *slot)
+{
+	return pci_slot_reset(slot, 1);
+}
+EXPORT_SYMBOL_GPL(pci_probe_reset_slot);
+
+/**
  * pci_reset_slot - reset a PCI slot
  * @slot: PCI slot to reset
  *
@@ -3660,6 +3672,18 @@ static int pci_bus_reset(struct pci_bus *bus, int probe)
 
 	return 0;
 }
+
+/**
+ * pci_probe_reset_bus - probe whether a PCI bus can be reset
+ * @bus: PCI bus to probe
+ *
+ * Return 0 if bus can be reset, negative if a bus reset is not supported.
+ */
+int pci_probe_reset_bus(struct pci_bus *bus)
+{
+	return pci_bus_reset(bus, 1);
+}
+EXPORT_SYMBOL_GPL(pci_probe_reset_bus);
 
 /**
  * pci_reset_bus - reset a PCI bus
