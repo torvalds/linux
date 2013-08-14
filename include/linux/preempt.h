@@ -50,18 +50,17 @@ do { \
 #define preempt_enable_no_resched() sched_preempt_enable_no_resched()
 
 #ifdef CONFIG_PREEMPT
-asmlinkage void preempt_schedule(void);
 #define preempt_enable() \
 do { \
 	barrier(); \
 	if (unlikely(preempt_count_dec_and_test())) \
-		preempt_schedule(); \
+		__preempt_schedule(); \
 } while (0)
 
 #define preempt_check_resched() \
 do { \
 	if (should_resched()) \
-		preempt_schedule(); \
+		__preempt_schedule(); \
 } while (0)
 
 #else
@@ -83,17 +82,15 @@ do { \
 
 #ifdef CONFIG_PREEMPT
 
-#ifdef CONFIG_CONTEXT_TRACKING
-asmlinkage void preempt_schedule_context(void);
-#else
-#define preempt_schedule_context() preempt_schedule()
+#ifndef CONFIG_CONTEXT_TRACKING
+#define __preempt_schedule_context() __preempt_schedule()
 #endif
 
 #define preempt_enable_notrace() \
 do { \
 	barrier(); \
 	if (unlikely(__preempt_count_dec_and_test())) \
-		preempt_schedule_context(); \
+		__preempt_schedule_context(); \
 } while (0)
 #else
 #define preempt_enable_notrace() preempt_enable_no_resched_notrace()

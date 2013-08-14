@@ -95,4 +95,14 @@ static __always_inline bool should_resched(void)
 	return unlikely(!__this_cpu_read_4(__preempt_count));
 }
 
+#ifdef CONFIG_PREEMPT
+  extern asmlinkage void ___preempt_schedule(void);
+# define __preempt_schedule() asm ("call ___preempt_schedule")
+  extern asmlinkage void preempt_schedule(void);
+# ifdef CONFIG_CONTEXT_TRACKING
+    extern asmlinkage void ___preempt_schedule_context(void);
+#   define __preempt_schedule_context() asm ("call ___preempt_schedule_context")
+# endif
+#endif
+
 #endif /* __ASM_PREEMPT_H */
