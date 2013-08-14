@@ -846,7 +846,7 @@ err0:
 
 static int sunxi_musb_exit(struct musb *musb)
 {
-	struct sunxi_musb_glue *glue = dev_get_drvdata(musb->controller);
+	struct sunxi_musb_glue *glue = musb_to_glue(musb);
 	unsigned long flags;
 
 	pr_dbg("%s():\n", __func__);
