@@ -222,3 +222,21 @@ DT_MACHINE_START(AM43_DT, "Generic AM43 (Flattened Device Tree)")
 	.dt_compat	= am43_boards_compat,
 MACHINE_END
 #endif
+
+#ifdef CONFIG_SOC_DRA7XX
+static const char *dra7xx_boards_compat[] __initdata = {
+	"ti,dra7",
+	NULL,
+};
+
+DT_MACHINE_START(DRA7XX_DT, "Generic DRA7XX (Flattened Device Tree)")
+	.reserve	= omap_reserve,
+	.smp		= smp_ops(omap4_smp_ops),
+	.map_io		= omap5_map_io,
+	.init_early	= dra7xx_init_early,
+	.init_irq	= omap_gic_of_init,
+	.init_machine	= omap_generic_init,
+	.init_time	= omap5_realtime_timer_init,
+	.dt_compat	= dra7xx_boards_compat,
+MACHINE_END
+#endif
