@@ -1196,7 +1196,7 @@ struct drm_device {
 
 	/** \name GEM information */
 	/*@{ */
-	spinlock_t object_name_lock;
+	struct mutex object_name_lock;
 	struct idr object_name_idr;
 	/*@} */
 	int switch_power_state;
