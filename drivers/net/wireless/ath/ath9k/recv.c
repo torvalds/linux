@@ -1084,6 +1084,7 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 		return 0;
 
 	ath9k_process_tsf(rx_stats, rx_status, tsf);
+	ath_debug_stat_rx(sc, rx_stats);
 
 	/*
 	 * Process PHY errors and return so that the packet
@@ -1269,8 +1270,6 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		if (ieee80211_is_data_present(hdr->frame_control) &&
 		    !ieee80211_is_qos_nullfunc(hdr->frame_control))
 			sc->rx.num_pkts++;
-
-		ath_debug_stat_rx(sc, &rs);
 
 		rxs = IEEE80211_SKB_RXCB(hdr_skb);
 		memset(rxs, 0, sizeof(struct ieee80211_rx_status));
