@@ -3193,12 +3193,11 @@ search_free:
 	if (i915_is_ggtt(vm)) {
 		bool mappable, fenceable;
 
-		fenceable =
-			i915_gem_obj_ggtt_size(obj) == fence_size &&
-			(i915_gem_obj_ggtt_offset(obj) & (fence_alignment - 1)) == 0;
+		fenceable = (vma->node.size == fence_size &&
+			     (vma->node.start & (fence_alignment - 1)) == 0);
 
-		mappable =
-			vma->node.start + obj->base.size <= dev_priv->gtt.mappable_end;
+		mappable = (vma->node.start + obj->base.size <=
+			    dev_priv->gtt.mappable_end);
 
 		obj->map_and_fenceable = mappable && fenceable;
 	}
