@@ -658,4 +658,5 @@ const struct psb_ops cdv_chip_ops = {
 	.power_down = cdv_power_down,
 	.power_up = cdv_power_up,
 	.update_wm = cdv_update_wm,
+	.disable_sr = cdv_disable_sr,
 };

@@ -701,6 +701,7 @@ struct psb_ops {
 	int (*power_up)(struct drm_device *dev);
 	int (*power_down)(struct drm_device *dev);
 	void (*update_wm)(struct drm_device *dev, struct drm_crtc *crtc);
+	void (*disable_sr)(struct drm_device *dev);
 
 	void (*lvds_bl_power)(struct drm_device *dev, bool on);
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE

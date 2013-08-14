@@ -211,7 +211,7 @@ void gma_crtc_dpms(struct drm_crtc *crtc, int mode)
 	 */
 
 	if (IS_CDV(dev))
-		cdv_intel_disable_self_refresh(dev);
+		dev_priv->ops->disable_sr(dev);
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
