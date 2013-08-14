@@ -72,6 +72,7 @@
 #include "bits.h"
 #include "host.h"
 #include "debug.h"
+#include "otg.h"
 
 /* Controller register map */
 static uintptr_t ci_regs_nolpm[] = {
@@ -528,7 +529,7 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		goto stop;
 
 	if (ci->is_otg)
-		hw_write(ci, OP_OTGSC, OTGSC_IDIE, OTGSC_IDIE);
+		ci_hdrc_otg_init(ci);
 
 	ret = dbg_create_files(ci);
 	if (!ret)
