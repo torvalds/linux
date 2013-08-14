@@ -1688,8 +1688,13 @@ int i915_driver_unload(struct drm_device *dev)
 
 	intel_gpu_ips_teardown();
 
-	if (HAS_POWER_WELL(dev))
+	if (HAS_POWER_WELL(dev)) {
+		/* The i915.ko module is still not prepared to be loaded when
+		 * the power well is not enabled, so just enable it in case
+		 * we're going to unload/reload. */
+		intel_set_power_well(dev, true);
 		i915_remove_power_well(dev);
+	}
 
 	i915_teardown_sysfs(dev);
 
