@@ -10,9 +10,19 @@
 #include <linux/linkage.h>
 #include <linux/list.h>
 
+/*
+ * We use the MSB mostly because its available; see <linux/preempt_mask.h> for
+ * the other bits -- can't include that header due to inclusion hell.
+ */
+#define PREEMPT_NEED_RESCHED	0x80000000
+
+/*
+ * We mask the PREEMPT_NEED_RESCHED bit so as not to confuse all current users
+ * that think a non-zero value indicates we cannot preempt.
+ */
 static __always_inline int preempt_count(void)
 {
-	return current_thread_info()->preempt_count;
+	return current_thread_info()->preempt_count & ~PREEMPT_NEED_RESCHED;
 }
 
 static __always_inline int *preempt_count_ptr(void)
@@ -20,9 +30,38 @@ static __always_inline int *preempt_count_ptr(void)
 	return &current_thread_info()->preempt_count;
 }
 
+/*
+ * We now loose PREEMPT_NEED_RESCHED and cause an extra reschedule; however the
+ * alternative is loosing a reschedule. Better schedule too often -- also this
+ * should be a very rare operation.
+ */
 static __always_inline void preempt_count_set(int pc)
 {
 	*preempt_count_ptr() = pc;
+}
+
+/*
+ * We fold the NEED_RESCHED bit into the preempt count such that
+ * preempt_enable() can decrement and test for needing to reschedule with a
+ * single instruction.
+ *
+ * We invert the actual bit, so that when the decrement hits 0 we know we both
+ * need to resched (the bit is cleared) and can resched (no preempt count).
+ */
+
+static __always_inline void set_preempt_need_resched(void)
+{
+	*preempt_count_ptr() &= ~PREEMPT_NEED_RESCHED;
+}
+
+static __always_inline void clear_preempt_need_resched(void)
+{
+	*preempt_count_ptr() |= PREEMPT_NEED_RESCHED;
+}
+
+static __always_inline bool test_preempt_need_resched(void)
+{
+	return !(*preempt_count_ptr() & PREEMPT_NEED_RESCHED);
 }
 
 #if defined(CONFIG_DEBUG_PREEMPT) || defined(CONFIG_PREEMPT_TRACER)
@@ -42,7 +81,7 @@ asmlinkage void preempt_schedule(void);
 
 #define preempt_check_resched() \
 do { \
-	if (unlikely(test_thread_flag(TIF_NEED_RESCHED))) \
+	if (unlikely(!*preempt_count_ptr())) \
 		preempt_schedule(); \
 } while (0)
 
@@ -52,7 +91,7 @@ void preempt_schedule_context(void);
 
 #define preempt_check_resched_context() \
 do { \
-	if (unlikely(test_thread_flag(TIF_NEED_RESCHED))) \
+	if (unlikely(!*preempt_count_ptr())) \
 		preempt_schedule_context(); \
 } while (0)
 #else
@@ -88,7 +127,6 @@ do { \
 #define preempt_enable() \
 do { \
 	preempt_enable_no_resched(); \
-	barrier(); \
 	preempt_check_resched(); \
 } while (0)
 
@@ -116,7 +154,6 @@ do { \
 #define preempt_enable_notrace() \
 do { \
 	preempt_enable_no_resched_notrace(); \
-	barrier(); \
 	preempt_check_resched_context(); \
 } while (0)
 
