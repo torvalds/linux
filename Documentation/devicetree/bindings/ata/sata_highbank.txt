@@ -20,6 +20,9 @@ Optional properties:
 			indicator lights using the indicated GPIOs
 - calxeda,led-order : a u32 array that map port numbers to offsets within the
 			SGPIO bitstream.
+- calxeda,tx-atten  : a u32 array that contains TX attenuation override
+			codes, one per port. The upper 3 bytes are always
+			0 and thus ignored.
 
 Example:
         sata@ffe08000 {
@@ -31,4 +34,5 @@ Example:
 					&combophy0 2 &combophy0 3>;
 		calxeda,sgpio-gpio =<&gpioh 5 1 &gpioh 6 1 &gpioh 7 1>;
 		calxeda,led-order = <4 0 1 2 3>;
+		calxeda,tx-atten = <0xff 22 0xff 0xff 23>;
         };

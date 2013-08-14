@@ -46,14 +46,19 @@
 #define CR_BUSY				0x0001
 #define CR_START			0x0001
 #define CR_WR_RDN			0x0002
+#define CPHY_TX_INPUT_STS		0x2001
 #define CPHY_RX_INPUT_STS		0x2002
-#define CPHY_SATA_OVERRIDE	 	0x4000
-#define CPHY_OVERRIDE			0x2005
+#define CPHY_SATA_TX_OVERRIDE		0x8000
+#define CPHY_SATA_RX_OVERRIDE	 	0x4000
+#define CPHY_TX_OVERRIDE		0x2004
+#define CPHY_RX_OVERRIDE		0x2005
 #define SPHY_LANE			0x100
 #define SPHY_HALF_RATE			0x0001
 #define CPHY_SATA_DPLL_MODE		0x0700
 #define CPHY_SATA_DPLL_SHIFT		8
 #define CPHY_SATA_DPLL_RESET		(1 << 11)
+#define CPHY_SATA_TX_ATTEN		0x1c00
+#define CPHY_SATA_TX_ATTEN_SHIFT	10
 #define CPHY_PHY_COUNT			6
 #define CPHY_LANE_COUNT			4
 #define CPHY_PORT_COUNT			(CPHY_PHY_COUNT * CPHY_LANE_COUNT)
@@ -66,6 +71,7 @@ struct phy_lane_info {
 	void __iomem *phy_base;
 	u8 lane_mapping;
 	u8 phy_devs;
+	u8 tx_atten;
 };
 static struct phy_lane_info port_data[CPHY_PORT_COUNT];
 
@@ -76,7 +82,6 @@ static DEFINE_SPINLOCK(sgpio_lock);
 #define SGPIO_PINS			3
 #define SGPIO_PORTS			8
 
-/* can be cast as an ahci_host_priv for compatibility with most functions */
 struct ecx_plat_data {
 	u32		n_ports;
 	unsigned	sgpio_gpio[SGPIO_PINS];
@@ -259,8 +264,27 @@ static void highbank_cphy_disable_overrides(u8 sata_port)
 	if (unlikely(port_data[sata_port].phy_base == NULL))
 		return;
 	tmp = combo_phy_read(sata_port, CPHY_RX_INPUT_STS + lane * SPHY_LANE);
-	tmp &= ~CPHY_SATA_OVERRIDE;
-	combo_phy_write(sata_port, CPHY_OVERRIDE + lane * SPHY_LANE, tmp);
+	tmp &= ~CPHY_SATA_RX_OVERRIDE;
+	combo_phy_write(sata_port, CPHY_RX_OVERRIDE + lane * SPHY_LANE, tmp);
+}
+
+static void cphy_override_tx_attenuation(u8 sata_port, u32 val)
+{
+	u8 lane = port_data[sata_port].lane_mapping;
+	u32 tmp;
+
+	if (val & 0x8)
+		return;
+
+	tmp = combo_phy_read(sata_port, CPHY_TX_INPUT_STS + lane * SPHY_LANE);
+	tmp &= ~CPHY_SATA_TX_OVERRIDE;
+	combo_phy_write(sata_port, CPHY_TX_OVERRIDE + lane * SPHY_LANE, tmp);
+
+	tmp |= CPHY_SATA_TX_OVERRIDE;
+	combo_phy_write(sata_port, CPHY_TX_OVERRIDE + lane * SPHY_LANE, tmp);
+
+	tmp |= (val << CPHY_SATA_TX_ATTEN_SHIFT) & CPHY_SATA_TX_ATTEN;
+	combo_phy_write(sata_port, CPHY_TX_OVERRIDE + lane * SPHY_LANE, tmp);
 }
 
 static void cphy_override_rx_mode(u8 sata_port, u32 val)
@@ -268,21 +292,21 @@ static void cphy_override_rx_mode(u8 sata_port, u32 val)
 	u8 lane = port_data[sata_port].lane_mapping;
 	u32 tmp;
 	tmp = combo_phy_read(sata_port, CPHY_RX_INPUT_STS + lane * SPHY_LANE);
-	tmp &= ~CPHY_SATA_OVERRIDE;
-	combo_phy_write(sata_port, CPHY_OVERRIDE + lane * SPHY_LANE, tmp);
+	tmp &= ~CPHY_SATA_RX_OVERRIDE;
+	combo_phy_write(sata_port, CPHY_RX_OVERRIDE + lane * SPHY_LANE, tmp);
 
-	tmp |= CPHY_SATA_OVERRIDE;
-	combo_phy_write(sata_port, CPHY_OVERRIDE + lane * SPHY_LANE, tmp);
+	tmp |= CPHY_SATA_RX_OVERRIDE;
+	combo_phy_write(sata_port, CPHY_RX_OVERRIDE + lane * SPHY_LANE, tmp);
 
 	tmp &= ~CPHY_SATA_DPLL_MODE;
 	tmp |= val << CPHY_SATA_DPLL_SHIFT;
-	combo_phy_write(sata_port, CPHY_OVERRIDE + lane * SPHY_LANE, tmp);
+	combo_phy_write(sata_port, CPHY_RX_OVERRIDE + lane * SPHY_LANE, tmp);
 
 	tmp |= CPHY_SATA_DPLL_RESET;
-	combo_phy_write(sata_port, CPHY_OVERRIDE + lane * SPHY_LANE, tmp);
+	combo_phy_write(sata_port, CPHY_RX_OVERRIDE + lane * SPHY_LANE, tmp);
 
 	tmp &= ~CPHY_SATA_DPLL_RESET;
-	combo_phy_write(sata_port, CPHY_OVERRIDE + lane * SPHY_LANE, tmp);
+	combo_phy_write(sata_port, CPHY_RX_OVERRIDE + lane * SPHY_LANE, tmp);
 
 	msleep(15);
 }
@@ -299,16 +323,20 @@ static void highbank_cphy_override_lane(u8 sata_port)
 						lane * SPHY_LANE);
 	} while ((tmp & SPHY_HALF_RATE) && (k++ < 1000));
 	cphy_override_rx_mode(sata_port, 3);
+	cphy_override_tx_attenuation(sata_port, port_data[sata_port].tx_atten);
 }
 
 static int highbank_initialize_phys(struct device *dev, void __iomem *addr)
 {
 	struct device_node *sata_node = dev->of_node;
-	int phy_count = 0, phy, port = 0;
+	int phy_count = 0, phy, port = 0, i;
 	void __iomem *cphy_base[CPHY_PHY_COUNT];
 	struct device_node *phy_nodes[CPHY_PHY_COUNT];
+	u32 tx_atten[CPHY_PORT_COUNT];
+
 	memset(port_data, 0, sizeof(struct phy_lane_info) * CPHY_PORT_COUNT);
 	memset(phy_nodes, 0, sizeof(struct device_node*) * CPHY_PHY_COUNT);
+	memset(tx_atten, 0xff, CPHY_PORT_COUNT);
 
 	do {
 		u32 tmp;
@@ -336,6 +364,10 @@ static int highbank_initialize_phys(struct device *dev, void __iomem *addr)
 		of_node_put(phy_data.np);
 		port += 1;
 	} while (port < CPHY_PORT_COUNT);
+	of_property_read_u32_array(sata_node, "calxeda,tx-atten",
+				tx_atten, port);
+	for (i = 0; i < port; i++)
+		port_data[i].tx_atten = (u8) tx_atten[i];
 	return 0;
 }
 
