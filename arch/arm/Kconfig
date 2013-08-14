@@ -20,7 +20,6 @@ config ARM
 	select GENERIC_STRNCPY_FROM_USER
 	select GENERIC_STRNLEN_USER
 	select HARDIRQS_SW_RESEND
-	select HAVE_AOUT
 	select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_SECCOMP_FILTER
@@ -218,7 +217,8 @@ config VECTORS_BASE
 	default DRAM_BASE if REMAP_VECTORS_TO_RAM
 	default 0x00000000
 	help
-	  The base address of exception vectors.
+	  The base address of exception vectors.  This must be two pages
+	  in size.
 
 config ARM_PATCH_PHYS_VIRT
 	bool "Patch physical to virtual translations at runtime" if EMBEDDED
@@ -701,7 +701,7 @@ config ARCH_S3C24XX
 	select ARCH_HAS_CPUFREQ
 	select ARCH_REQUIRE_GPIOLIB
 	select CLKDEV_LOOKUP
-	select CLKSRC_MMIO
+	select CLKSRC_SAMSUNG_PWM
 	select GENERIC_CLOCKEVENTS
 	select GPIO_SAMSUNG
 	select HAVE_CLK
@@ -724,7 +724,7 @@ config ARCH_S3C64XX
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_VIC
 	select CLKDEV_LOOKUP
-	select CLKSRC_MMIO
+	select CLKSRC_SAMSUNG_PWM
 	select CPU_V6
 	select GENERIC_CLOCKEVENTS
 	select GPIO_SAMSUNG
@@ -740,7 +740,6 @@ config ARCH_S3C64XX
 	select SAMSUNG_ATAGS
 	select SAMSUNG_CLKSRC
 	select SAMSUNG_GPIOLIB_4BIT
-	select SAMSUNG_IRQ_VIC_TIMER
 	select SAMSUNG_WDT_RESET
 	select USB_ARCH_HAS_OHCI
 	help
@@ -749,7 +748,7 @@ config ARCH_S3C64XX
 config ARCH_S5P64X0
 	bool "Samsung S5P6440 S5P6450"
 	select CLKDEV_LOOKUP
-	select CLKSRC_MMIO
+	select CLKSRC_SAMSUNG_PWM
 	select CPU_V6
 	select GENERIC_CLOCKEVENTS
 	select GPIO_SAMSUNG
@@ -768,7 +767,7 @@ config ARCH_S5PC100
 	bool "Samsung S5PC100"
 	select ARCH_REQUIRE_GPIOLIB
 	select CLKDEV_LOOKUP
-	select CLKSRC_MMIO
+	select CLKSRC_SAMSUNG_PWM
 	select CPU_V7
 	select GENERIC_CLOCKEVENTS
 	select GPIO_SAMSUNG
@@ -788,7 +787,7 @@ config ARCH_S5PV210
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	select ARCH_SPARSEMEM_ENABLE
 	select CLKDEV_LOOKUP
-	select CLKSRC_MMIO
+	select CLKSRC_SAMSUNG_PWM
 	select CPU_V7
 	select GENERIC_CLOCKEVENTS
 	select GPIO_SAMSUNG
@@ -1591,8 +1590,7 @@ config ARM_PSCI
 config ARCH_NR_GPIO
 	int
 	default 1024 if ARCH_SHMOBILE || ARCH_TEGRA
-	default 512 if SOC_OMAP5
-	default 512 if ARCH_KEYSTONE
+	default 512 if ARCH_EXYNOS || ARCH_KEYSTONE || SOC_OMAP5
 	default 392 if ARCH_U8500
 	default 352 if ARCH_VT8500
 	default 288 if ARCH_SUNXI

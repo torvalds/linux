@@ -120,7 +120,7 @@ static struct platform_device crag6410_backlight_device = {
 	.name		= "pwm-backlight",
 	.id		= -1,
 	.dev		= {
-		.parent	= &s3c_device_timer[0].dev,
+		.parent	= &samsung_device_pwm.dev,
 		.platform_data = &crag6410_backlight_data,
 	},
 };
@@ -375,7 +375,7 @@ static struct platform_device *crag6410_devices[] __initdata = {
 	&s3c_device_fb,
 	&s3c_device_ohci,
 	&s3c_device_usb_hsotg,
-	&s3c_device_timer[0],
+	&samsung_device_pwm,
 	&s3c64xx_device_iis0,
 	&s3c64xx_device_iis1,
 	&samsung_device_keypad,

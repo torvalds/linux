@@ -143,10 +143,14 @@ static void eeh_disable_irq(struct pci_dev *dev)
 static void eeh_enable_irq(struct pci_dev *dev)
 {
 	struct eeh_dev *edev = pci_dev_to_eeh_dev(dev);
+	struct irq_desc *desc;
 
 	if ((edev->mode) & EEH_DEV_IRQ_DISABLED) {
 		edev->mode &= ~EEH_DEV_IRQ_DISABLED;
-		enable_irq(dev->irq);
+
+		desc = irq_to_desc(dev->irq);
+		if (desc && desc->depth > 0)
+			enable_irq(dev->irq);
 	}
 }
 
@@ -338,6 +342,54 @@ static void *eeh_report_failure(void *data, void *userdata)
 	return NULL;
 }
 
+static void *eeh_rmv_device(void *data, void *userdata)
+{
+	struct pci_driver *driver;
+	struct eeh_dev *edev = (struct eeh_dev *)data;
+	struct pci_dev *dev = eeh_dev_to_pci_dev(edev);
+	int *removed = (int *)userdata;
+
+	/*
+	 * Actually, we should remove the PCI bridges as well.
+	 * However, that's lots of complexity to do that,
+	 * particularly some of devices under the bridge might
+	 * support EEH. So we just care about PCI devices for
+	 * simplicity here.
+	 */
+	if (!dev || (dev->hdr_type & PCI_HEADER_TYPE_BRIDGE))
+		return NULL;
+	driver = eeh_pcid_get(dev);
+	if (driver && driver->err_handler)
+		return NULL;
+
+	/* Remove it from PCI subsystem */
+	pr_debug("EEH: Removing %s without EEH sensitive driver\n",
+		 pci_name(dev));
+	edev->bus = dev->bus;
+	edev->mode |= EEH_DEV_DISCONNECTED;
+	(*removed)++;
+
+	pci_stop_and_remove_bus_device(dev);
+
+	return NULL;
+}
+
+static void *eeh_pe_detach_dev(void *data, void *userdata)
+{
+	struct eeh_pe *pe = (struct eeh_pe *)data;
+	struct eeh_dev *edev, *tmp;
+
+	eeh_pe_for_each_dev(pe, edev, tmp) {
+		if (!(edev->mode & EEH_DEV_DISCONNECTED))
+			continue;
+
+		edev->mode &= ~(EEH_DEV_DISCONNECTED | EEH_DEV_IRQ_DISABLED);
+		eeh_rmv_from_parent_pe(edev);
+	}
+
+	return NULL;
+}
+
 /**
  * eeh_reset_device - Perform actual reset of a pci slot
  * @pe: EEH PE
@@ -349,8 +401,9 @@ static void *eeh_report_failure(void *data, void *userdata)
  */
 static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus)
 {
+	struct pci_bus *frozen_bus = eeh_pe_bus_get(pe);
 	struct timeval tstamp;
-	int cnt, rc;
+	int cnt, rc, removed = 0;
 
 	/* pcibios will clear the counter; save the value */
 	cnt = pe->freeze_count;
@@ -362,8 +415,11 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus)
 	 * devices are expected to be attached soon when calling
 	 * into pcibios_add_pci_devices().
 	 */
+	eeh_pe_state_mark(pe, EEH_PE_KEEP);
 	if (bus)
-		__pcibios_remove_pci_devices(bus, 0);
+		pcibios_remove_pci_devices(bus);
+	else if (frozen_bus)
+		eeh_pe_dev_traverse(pe, eeh_rmv_device, &removed);
 
 	/* Reset the pci controller. (Asserts RST#; resets config space).
 	 * Reconfigure bridges and devices. Don't try to bring the system
@@ -384,9 +440,24 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus)
 	 * potentially weird things happen.
 	 */
 	if (bus) {
+		pr_info("EEH: Sleep 5s ahead of complete hotplug\n");
 		ssleep(5);
+
+		/*
+		 * The EEH device is still connected with its parent
+		 * PE. We should disconnect it so the binding can be
+		 * rebuilt when adding PCI devices.
+		 */
+		eeh_pe_traverse(pe, eeh_pe_detach_dev, NULL);
 		pcibios_add_pci_devices(bus);
+	} else if (frozen_bus && removed) {
+		pr_info("EEH: Sleep 5s ahead of partial hotplug\n");
+		ssleep(5);
+
+		eeh_pe_traverse(pe, eeh_pe_detach_dev, NULL);
+		pcibios_add_pci_devices(frozen_bus);
 	}
+	eeh_pe_state_clear(pe, EEH_PE_KEEP);
 
 	pe->tstamp = tstamp;
 	pe->freeze_count = cnt;

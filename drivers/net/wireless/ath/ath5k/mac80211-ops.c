@@ -325,7 +325,7 @@ ath5k_prepare_multicast(struct ieee80211_hw *hw,
 	struct netdev_hw_addr *ha;
 
 	mfilt[0] = 0;
-	mfilt[1] = 1;
+	mfilt[1] = 0;
 
 	netdev_hw_addr_list_for_each(ha, mc_list) {
 		/* calculate XOR of eight 6-bit values */

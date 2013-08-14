@@ -145,7 +145,7 @@ config SWIOTLB_XEN
 
 config XEN_TMEM
 	tristate
-	depends on !ARM
+	depends on !ARM && !ARM64
 	default m if (CLEANCACHE || FRONTSWAP)
 	help
 	  Shim to interface in-kernel Transcendent Memory hooks

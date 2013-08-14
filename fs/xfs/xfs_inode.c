@@ -896,7 +896,6 @@ xfs_dinode_to_disk(
 	to->di_projid_lo = cpu_to_be16(from->di_projid_lo);
 	to->di_projid_hi = cpu_to_be16(from->di_projid_hi);
 	memcpy(to->di_pad, from->di_pad, sizeof(to->di_pad));
-	to->di_flushiter = cpu_to_be16(from->di_flushiter);
 	to->di_atime.t_sec = cpu_to_be32(from->di_atime.t_sec);
 	to->di_atime.t_nsec = cpu_to_be32(from->di_atime.t_nsec);
 	to->di_mtime.t_sec = cpu_to_be32(from->di_mtime.t_sec);
@@ -924,6 +923,9 @@ xfs_dinode_to_disk(
 		to->di_lsn = cpu_to_be64(from->di_lsn);
 		memcpy(to->di_pad2, from->di_pad2, sizeof(to->di_pad2));
 		uuid_copy(&to->di_uuid, &from->di_uuid);
+		to->di_flushiter = 0;
+	} else {
+		to->di_flushiter = cpu_to_be16(from->di_flushiter);
 	}
 }
 
@@ -1029,10 +1031,14 @@ xfs_dinode_calc_crc(
 /*
  * Read the disk inode attributes into the in-core inode structure.
  *
- * If we are initialising a new inode and we are not utilising the
- * XFS_MOUNT_IKEEP inode cluster mode, we can simple build the new inode core
- * with a random generation number. If we are keeping inodes around, we need to
- * read the inode cluster to get the existing generation number off disk.
+ * For version 5 superblocks, if we are initialising a new inode and we are not
+ * utilising the XFS_MOUNT_IKEEP inode cluster mode, we can simple build the new
+ * inode core with a random generation number. If we are keeping inodes around,
+ * we need to read the inode cluster to get the existing generation number off
+ * disk. Further, if we are using version 4 superblocks (i.e. v1/v2 inode
+ * format) then log recovery is dependent on the di_flushiter field being
+ * initialised from the current on-disk value and hence we must also read the
+ * inode off disk.
  */
 int
 xfs_iread(
@@ -1054,6 +1060,7 @@ xfs_iread(
 
 	/* shortcut IO on inode allocation if possible */
 	if ((iget_flags & XFS_IGET_CREATE) &&
+	    xfs_sb_version_hascrc(&mp->m_sb) &&
 	    !(mp->m_flags & XFS_MOUNT_IKEEP)) {
 		/* initialise the on-disk inode core */
 		memset(&ip->i_d, 0, sizeof(ip->i_d));
@@ -2882,12 +2889,18 @@ xfs_iflush_int(
 			__func__, ip->i_ino, ip->i_d.di_forkoff, ip);
 		goto corrupt_out;
 	}
+
 	/*
-	 * bump the flush iteration count, used to detect flushes which
-	 * postdate a log record during recovery. This is redundant as we now
-	 * log every change and hence this can't happen. Still, it doesn't hurt.
+	 * Inode item log recovery for v1/v2 inodes are dependent on the
+	 * di_flushiter count for correct sequencing. We bump the flush
+	 * iteration count so we can detect flushes which postdate a log record
+	 * during recovery. This is redundant as we now log every change and
+	 * hence this can't happen but we need to still do it to ensure
+	 * backwards compatibility with old kernels that predate logging all
+	 * inode changes.
 	 */
-	ip->i_d.di_flushiter++;
+	if (ip->i_d.di_version < 3)
+		ip->i_d.di_flushiter++;
 
 	/*
 	 * Copy the dirty parts of the inode into the on-disk

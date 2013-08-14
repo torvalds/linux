@@ -269,6 +269,7 @@ void rtl_ips_nic_on(struct ieee80211_hw *hw)
 
 	spin_unlock_irqrestore(&rtlpriv->locks.ips_lock, flags);
 }
+EXPORT_SYMBOL_GPL(rtl_ips_nic_on);
 
 /*for FW LPS*/
 
@@ -518,6 +519,7 @@ void rtl_swlps_beacon(struct ieee80211_hw *hw, void *data, unsigned int len)
 			 "u_bufferd: %x, m_buffered: %x\n", u_buffed, m_buffed);
 	}
 }
+EXPORT_SYMBOL_GPL(rtl_swlps_beacon);
 
 void rtl_swlps_rf_awake(struct ieee80211_hw *hw)
 {
@@ -611,6 +613,19 @@ void rtl_swlps_rf_sleep(struct ieee80211_hw *hw)
 			MSECS(sleep_intv * mac->vif->bss_conf.beacon_int - 40));
 }
 
+void rtl_lps_change_work_callback(struct work_struct *work)
+{
+	struct rtl_works *rtlworks =
+	    container_of(work, struct rtl_works, lps_change_work);
+	struct ieee80211_hw *hw = rtlworks->hw;
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+
+	if (rtlpriv->enter_ps)
+		rtl_lps_enter(hw);
+	else
+		rtl_lps_leave(hw);
+}
+EXPORT_SYMBOL_GPL(rtl_lps_change_work_callback);
 
 void rtl_swlps_wq_callback(void *data)
 {
@@ -922,3 +937,4 @@ void rtl_p2p_info(struct ieee80211_hw *hw, void *data, unsigned int len)
 	else
 		rtl_p2p_noa_ie(hw, data, len - FCS_LEN);
 }
+EXPORT_SYMBOL_GPL(rtl_p2p_info);
