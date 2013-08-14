@@ -27,7 +27,7 @@ config DWC_DEBUG
 choice
 	prompt "DWC Mode Selection"
 	depends on USB_DWC_OTG
-	default DWC_HOST_ONLY
+	default DWC_DEVICE_ONLY
 	help
 	  Select the DWC Core in OTG, Host only, or Device only mode.
 
@@ -55,7 +55,7 @@ config USB_GADGET_DWC_HDRC
 choice
 	prompt "DWC DMA/SlaveMode Selection"
 	depends on USB_DWC_OTG
-	default DWC_DMA_MODE
+	default DWC_SLAVE
 	help
 	  Select the DWC DMA or Slave Mode.
 	  DMA mode uses the DWC core internal DMA engines.

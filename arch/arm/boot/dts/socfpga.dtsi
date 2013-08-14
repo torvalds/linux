@@ -747,32 +747,38 @@
 		};
 
 		usb0: usb@ffb00000 {
-			compatible = "snps,dwc-otg";
+			compatible = "snps,dwc2";
 			reg = <0xffb00000 0xffff>;
 			interrupts = <0 125 4>;
-			dma-mask = <0xffffffff>;
-			host-rx-fifo-size = <512>;
 			dev-rx-fifo-size = <512>;
 			dev-nperio-tx-fifo-size = <4096>;
 			dev-perio-tx-fifo-size = <512 512 512 512 512 512
 				512 512 512 512 512 512 512 512 512>;
 			dev-tx-fifo-size = <512 512 512 512 512 512
 				512 512 512 512 512 512 512 512 512>;
+			enable-dynamic-fifo = <1>;
+			host-rx-fifo-size = <0xa00>;
+			host-perio-tx-fifo-size = <0xa00>;
+			host-nperio-tx-fifo-size = <0xa00>;
+			dma-desc-enable = <0>;
 			status = "disabled";
 		};
 
 		usb1: usb@ffb40000 {
-			compatible = "snps,dwc-otg";
+			compatible = "snps,dwc2";
 			reg = <0xffb40000 0xffff>;
 			interrupts = <0 128 4>;
-			dma-mask = <0xffffffff>;
-			host-rx-fifo-size = <512>;
 			dev-rx-fifo-size = <512>;
 			dev-nperio-tx-fifo-size = <4096>;
 			dev-perio-tx-fifo-size = <512 512 512 512 512 512
 				512 512 512 512 512 512 512 512 512>;
 			dev-tx-fifo-size = <512 512 512 512 512 512
 				512 512 512 512 512 512 512 512 512>;
+			enable-dynamic-fifo = <1>;
+			host-rx-fifo-size = <0xa00>;
+			host-perio-tx-fifo-size = <0xa00>;
+			host-nperio-tx-fifo-size = <0xa00>;
+			dma-desc-enable = <0>;
 			status = "disabled";
 		};
 

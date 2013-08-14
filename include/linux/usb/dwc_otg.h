@@ -3,7 +3,7 @@
 
 #include <linux/platform_device.h>
 
-#define DWC_OTG_OF_COMPATIBLE	"snps,dwc-otg"
+#define DWC_OTG_OF_COMPATIBLE	"snps,dwc2"
 
 extern u64 dwc_otg_dmamask;
 

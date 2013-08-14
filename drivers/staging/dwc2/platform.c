@@ -39,6 +39,7 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 
 #include "core.h"
@@ -85,6 +86,7 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	int retval;
 	int irq;
 	struct dwc2_core_params params;
+	u32 prop;
 
 	/* Default all params to autodetect */
 	dwc2_set_all_params(&params, -1);
@@ -116,6 +118,31 @@ static int dwc2_driver_probe(struct platform_device *dev)
 
 	dev_dbg(&dev->dev, "mapped PA %08lx to VA %p\n",
 		(unsigned long)res->start, hsotg->regs);
+
+	if (!of_property_read_u32(dev->dev.of_node,
+		"enable-dynamic-fifo", &prop)) {
+		params.enable_dynamic_fifo = prop;
+
+		if (!of_property_read_u32(dev->dev.of_node,
+			"host-rx-fifo-size", &prop)) {
+			params.host_rx_fifo_size = prop;
+		}
+
+		if (!of_property_read_u32(dev->dev.of_node,
+			"host-perio-tx-fifo-size", &prop)) {
+			params.host_perio_tx_fifo_size = prop;
+		}
+
+		if (!of_property_read_u32(dev->dev.of_node,
+			"host-nperio-tx-fifo-size", &prop)) {
+			params.host_nperio_tx_fifo_size = prop;
+		}
+	}
+
+	if (!of_property_read_u32(dev->dev.of_node,
+		"dma-desc-enable", &prop)) {
+		params.dma_desc_enable = prop;
+	}
 
 	retval = dwc2_hcd_init(hsotg, irq, &params);
 	if (retval)
