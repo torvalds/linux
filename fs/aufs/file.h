@@ -138,6 +138,8 @@ long aufs_ioctl_nondir(struct file *file, unsigned int cmd, unsigned long arg);
 #ifdef CONFIG_COMPAT
 long aufs_compat_ioctl_dir(struct file *file, unsigned int cmd,
 			   unsigned long arg);
+long aufs_compat_ioctl_nondir(struct file *file, unsigned int cmd,
+			      unsigned long arg);
 #endif
 
 /* ---------------------------------------------------------------------- */
