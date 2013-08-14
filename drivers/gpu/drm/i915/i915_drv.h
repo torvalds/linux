@@ -1312,6 +1312,8 @@ struct drm_i915_gem_object {
 	struct list_head global_list;
 
 	struct list_head ring_list;
+	/** Used in execbuf to temporarily hold a ref */
+	struct list_head obj_exec_link;
 	/** This object's place in the batchbuffer or on the eviction list */
 	struct list_head exec_list;
 
