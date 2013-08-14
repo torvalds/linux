@@ -43,6 +43,7 @@
  * compatibility are made.
  */
 #define IB_USER_VERBS_ABI_VERSION	6
+#define IB_USER_VERBS_CMD_THRESHOLD    50
 
 enum {
 	IB_USER_VERBS_CMD_GET_CONTEXT,
@@ -121,6 +122,15 @@ struct ib_uverbs_cmd_hdr {
 	__u32 command;
 	__u16 in_words;
 	__u16 out_words;
+};
+
+struct ib_uverbs_cmd_hdr_ex {
+	__u32 command;
+	__u16 in_words;
+	__u16 out_words;
+	__u16 provider_in_words;
+	__u16 provider_out_words;
+	__u32 cmd_hdr_reserved;
 };
 
 struct ib_uverbs_get_context {
