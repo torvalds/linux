@@ -671,7 +671,7 @@ int btrfs_run_ordered_operations(struct btrfs_trans_handle *trans,
 	INIT_LIST_HEAD(&splice);
 	INIT_LIST_HEAD(&works);
 
-	mutex_lock(&root->fs_info->ordered_operations_mutex);
+	mutex_lock(&root->fs_info->ordered_extent_flush_mutex);
 	spin_lock(&root->fs_info->ordered_root_lock);
 	list_splice_init(&cur_trans->ordered_operations, &splice);
 	while (!list_empty(&splice)) {
@@ -718,7 +718,7 @@ out:
 		list_del_init(&work->list);
 		btrfs_wait_and_free_delalloc_work(work);
 	}
-	mutex_unlock(&root->fs_info->ordered_operations_mutex);
+	mutex_unlock(&root->fs_info->ordered_extent_flush_mutex);
 	return ret;
 }
 

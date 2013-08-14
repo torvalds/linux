@@ -2277,6 +2277,7 @@ int open_ctree(struct super_block *sb,
 
 
 	mutex_init(&fs_info->ordered_operations_mutex);
+	mutex_init(&fs_info->ordered_extent_flush_mutex);
 	mutex_init(&fs_info->tree_log_mutex);
 	mutex_init(&fs_info->chunk_mutex);
 	mutex_init(&fs_info->transaction_kthread_mutex);
