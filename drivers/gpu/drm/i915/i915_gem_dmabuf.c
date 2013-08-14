@@ -98,17 +98,6 @@ static void i915_gem_unmap_dma_buf(struct dma_buf_attachment *attachment,
 	mutex_unlock(&obj->base.dev->struct_mutex);
 }
 
-static void i915_gem_dmabuf_release(struct dma_buf *dma_buf)
-{
-	struct drm_i915_gem_object *obj = dma_buf->priv;
-
-	if (obj->base.export_dma_buf == dma_buf) {
-		/* drop the reference on the export fd holds */
-		obj->base.export_dma_buf = NULL;
-		drm_gem_object_unreference_unlocked(&obj->base);
-	}
-}
-
 static void *i915_gem_dmabuf_vmap(struct dma_buf *dma_buf)
 {
 	struct drm_i915_gem_object *obj = dma_buf->priv;
@@ -219,7 +208,7 @@ static int i915_gem_begin_cpu_access(struct dma_buf *dma_buf, size_t start, size
 static const struct dma_buf_ops i915_dmabuf_ops =  {
 	.map_dma_buf = i915_gem_map_dma_buf,
 	.unmap_dma_buf = i915_gem_unmap_dma_buf,
-	.release = i915_gem_dmabuf_release,
+	.release = drm_gem_dmabuf_release,
 	.kmap = i915_gem_dmabuf_kmap,
 	.kmap_atomic = i915_gem_dmabuf_kmap_atomic,
 	.kunmap = i915_gem_dmabuf_kunmap,
