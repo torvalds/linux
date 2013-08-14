@@ -1867,10 +1867,10 @@ replay:
 		else
 			err = register_netdevice(dev);
 
-		if (err < 0 && !IS_ERR(dev))
+		if (err < 0) {
 			free_netdev(dev);
-		if (err < 0)
 			goto out;
+		}
 
 		err = rtnl_configure_link(dev, ifm);
 		if (err < 0)
