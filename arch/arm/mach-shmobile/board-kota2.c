@@ -26,6 +26,7 @@
 #include <linux/irq.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/pinctrl/pinconf-generic.h>
+#include <linux/platform_data/pwm-renesas-tpu.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -37,8 +38,8 @@
 #include <linux/input/sh_keysc.h>
 #include <linux/gpio_keys.h>
 #include <linux/leds.h>
+#include <linux/leds_pwm.h>
 #include <linux/irqchip/arm-gic.h>
-#include <linux/platform_data/leds-renesas-tpu.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/sh_mmcif.h>
 #include <linux/mfd/tmio.h>
@@ -186,116 +187,100 @@ static struct platform_device gpio_leds_device = {
 };
 
 /* TPU LED */
-static struct led_renesas_tpu_config led_renesas_tpu12_pdata = {
-	.name		= "V2513",
-	.pin_gpio_fn	= GPIO_FN_TPU1TO2,
-	.pin_gpio	= 153,
-	.channel_offset = 0x90,
-	.timer_bit = 2,
-	.max_brightness = 1000,
-};
-
-static struct resource tpu12_resources[] = {
+static struct resource tpu1_pwm_resources[] = {
 	[0] = {
-		.name	= "TPU12",
-		.start	= 0xe6610090,
-		.end	= 0xe66100b5,
+		.start	= 0xe6610000,
+		.end	= 0xe66100ff,
 		.flags	= IORESOURCE_MEM,
 	},
 };
 
-static struct platform_device leds_tpu12_device = {
-	.name = "leds-renesas-tpu",
-	.id = 12,
-	.dev = {
-		.platform_data  = &led_renesas_tpu12_pdata,
-	},
-	.num_resources	= ARRAY_SIZE(tpu12_resources),
-	.resource	= tpu12_resources,
+static struct platform_device tpu1_pwm_device = {
+	.name = "renesas-tpu-pwm",
+	.id = 1,
+	.num_resources	= ARRAY_SIZE(tpu1_pwm_resources),
+	.resource	= tpu1_pwm_resources,
 };
 
-static struct led_renesas_tpu_config led_renesas_tpu41_pdata = {
-	.name		= "V2514",
-	.pin_gpio_fn	= GPIO_FN_TPU4TO1,
-	.pin_gpio	= 199,
-	.channel_offset = 0x50,
-	.timer_bit = 1,
-	.max_brightness = 1000,
-};
-
-static struct resource tpu41_resources[] = {
+static struct resource tpu2_pwm_resources[] = {
 	[0] = {
-		.name	= "TPU41",
-		.start	= 0xe6640050,
-		.end	= 0xe6640075,
+		.start	= 0xe6620000,
+		.end	= 0xe66200ff,
 		.flags	= IORESOURCE_MEM,
 	},
 };
 
-static struct platform_device leds_tpu41_device = {
-	.name = "leds-renesas-tpu",
-	.id = 41,
-	.dev = {
-		.platform_data  = &led_renesas_tpu41_pdata,
-	},
-	.num_resources	= ARRAY_SIZE(tpu41_resources),
-	.resource	= tpu41_resources,
+static struct platform_device tpu2_pwm_device = {
+	.name = "renesas-tpu-pwm",
+	.id = 2,
+	.num_resources	= ARRAY_SIZE(tpu2_pwm_resources),
+	.resource	= tpu2_pwm_resources,
 };
 
-static struct led_renesas_tpu_config led_renesas_tpu21_pdata = {
-	.name		= "V2515",
-	.pin_gpio_fn	= GPIO_FN_TPU2TO1,
-	.pin_gpio	= 197,
-	.channel_offset = 0x50,
-	.timer_bit = 1,
-	.max_brightness = 1000,
-};
-
-static struct resource tpu21_resources[] = {
+static struct resource tpu3_pwm_resources[] = {
 	[0] = {
-		.name	= "TPU21",
-		.start	= 0xe6620050,
-		.end	= 0xe6620075,
+		.start	= 0xe6630000,
+		.end	= 0xe66300ff,
 		.flags	= IORESOURCE_MEM,
 	},
 };
 
-static struct platform_device leds_tpu21_device = {
-	.name = "leds-renesas-tpu",
-	.id = 21,
-	.dev = {
-		.platform_data  = &led_renesas_tpu21_pdata,
-	},
-	.num_resources	= ARRAY_SIZE(tpu21_resources),
-	.resource	= tpu21_resources,
+static struct platform_device tpu3_pwm_device = {
+	.name = "renesas-tpu-pwm",
+	.id = 3,
+	.num_resources	= ARRAY_SIZE(tpu3_pwm_resources),
+	.resource	= tpu3_pwm_resources,
 };
 
-static struct led_renesas_tpu_config led_renesas_tpu30_pdata = {
-	.name		= "KEYLED",
-	.pin_gpio_fn	= GPIO_FN_TPU3TO0,
-	.pin_gpio	= 163,
-	.channel_offset = 0x10,
-	.timer_bit = 0,
-	.max_brightness = 1000,
-};
-
-static struct resource tpu30_resources[] = {
+static struct resource tpu4_pwm_resources[] = {
 	[0] = {
-		.name	= "TPU30",
-		.start	= 0xe6630010,
-		.end	= 0xe6630035,
+		.start	= 0xe6640000,
+		.end	= 0xe66400ff,
 		.flags	= IORESOURCE_MEM,
 	},
 };
 
-static struct platform_device leds_tpu30_device = {
-	.name = "leds-renesas-tpu",
-	.id = 30,
-	.dev = {
-		.platform_data  = &led_renesas_tpu30_pdata,
+static struct platform_device tpu4_pwm_device = {
+	.name = "renesas-tpu-pwm",
+	.id = 4,
+	.num_resources	= ARRAY_SIZE(tpu4_pwm_resources),
+	.resource	= tpu4_pwm_resources,
+};
+
+static struct pwm_lookup pwm_lookup[] = {
+	PWM_LOOKUP("renesas-tpu-pwm.1", 2, "leds-pwm.0", "V2513"),
+	PWM_LOOKUP("renesas-tpu-pwm.2", 1, "leds-pwm.0", "V2515"),
+	PWM_LOOKUP("renesas-tpu-pwm.3", 0, "leds-pwm.0", "KEYLED"),
+	PWM_LOOKUP("renesas-tpu-pwm.4", 1, "leds-pwm.0", "V2514"),
+};
+
+static struct led_pwm tpu_pwm_leds[] = {
+	{
+		.name		= "V2513",
+		.max_brightness	= 1000,
+	}, {
+		.name		= "V2515",
+		.max_brightness	= 1000,
+	}, {
+		.name		= "KEYLED",
+		.max_brightness	= 1000,
+	}, {
+		.name		= "V2514",
+		.max_brightness	= 1000,
 	},
-	.num_resources	= ARRAY_SIZE(tpu30_resources),
-	.resource	= tpu30_resources,
+};
+
+static struct led_pwm_platform_data leds_pwm_pdata = {
+	.num_leds = ARRAY_SIZE(tpu_pwm_leds),
+	.leds = tpu_pwm_leds,
+};
+
+static struct platform_device leds_pwm_device = {
+	.name = "leds-pwm",
+	.id = 0,
+	.dev = {
+		.platform_data = &leds_pwm_pdata,
+	},
 };
 
 /* Fixed 1.8V regulator to be used by MMCIF */
@@ -426,10 +411,11 @@ static struct platform_device *kota2_devices[] __initdata = {
 	&keysc_device,
 	&gpio_keys_device,
 	&gpio_leds_device,
-	&leds_tpu12_device,
-	&leds_tpu41_device,
-	&leds_tpu21_device,
-	&leds_tpu30_device,
+	&tpu1_pwm_device,
+	&tpu2_pwm_device,
+	&tpu3_pwm_device,
+	&tpu4_pwm_device,
+	&leds_pwm_device,
 	&mmcif_device,
 	&sdhi0_device,
 	&sdhi1_device,
@@ -512,6 +498,15 @@ static const struct pinctrl_map kota2_pinctrl_map[] = {
 				  "bsc_cs5_a", "bsc"),
 	PIN_MAP_MUX_GROUP_DEFAULT("smsc911x.0", "pfc-sh73a0",
 				  "bsc_we0", "bsc"),
+	/* TPU */
+	PIN_MAP_MUX_GROUP_DEFAULT("renesas-tpu-pwm.1", "pfc-sh73a0",
+				  "tpu1_to2", "tpu1"),
+	PIN_MAP_MUX_GROUP_DEFAULT("renesas-tpu-pwm.2", "pfc-sh73a0",
+				  "tpu2_to1", "tpu2"),
+	PIN_MAP_MUX_GROUP_DEFAULT("renesas-tpu-pwm.3", "pfc-sh73a0",
+				  "tpu3_to0", "tpu3"),
+	PIN_MAP_MUX_GROUP_DEFAULT("renesas-tpu-pwm.4", "pfc-sh73a0",
+				  "tpu4_to1", "tpu4"),
 };
 
 static void __init kota2_init(void)
@@ -524,6 +519,8 @@ static void __init kota2_init(void)
 
 	pinctrl_register_mappings(kota2_pinctrl_map,
 				  ARRAY_SIZE(kota2_pinctrl_map));
+	pwm_add_table(pwm_lookup, ARRAY_SIZE(pwm_lookup));
+
 	sh73a0_pinmux_init();
 
 	/* SMSC911X */
