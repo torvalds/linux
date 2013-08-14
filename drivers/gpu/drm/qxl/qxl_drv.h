@@ -405,9 +405,6 @@ int qxl_gem_object_create(struct qxl_device *qdev, int size,
 			  bool discardable, bool kernel,
 			  struct qxl_surface *surf,
 			  struct drm_gem_object **obj);
-int qxl_gem_object_pin(struct drm_gem_object *obj, uint32_t pin_domain,
-			  uint64_t *gpu_addr);
-void qxl_gem_object_unpin(struct drm_gem_object *obj);
 int qxl_gem_object_create_with_handle(struct qxl_device *qdev,
 				      struct drm_file *file_priv,
 				      u32 domain,
