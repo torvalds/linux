@@ -3106,7 +3106,6 @@ i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 	struct drm_device *dev = obj->base.dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 size, fence_size, fence_alignment, unfenced_alignment;
-	bool mappable, fenceable;
 	size_t gtt_max =
 		map_and_fenceable ? dev_priv->gtt.mappable_end : vm->total;
 	struct i915_vma *vma;
@@ -3191,18 +3190,18 @@ search_free:
 	list_move_tail(&obj->global_list, &dev_priv->mm.bound_list);
 	list_add_tail(&vma->mm_list, &vm->inactive_list);
 
-	fenceable =
-		i915_is_ggtt(vm) &&
-		i915_gem_obj_ggtt_size(obj) == fence_size &&
-		(i915_gem_obj_ggtt_offset(obj) & (fence_alignment - 1)) == 0;
+	if (i915_is_ggtt(vm)) {
+		bool mappable, fenceable;
 
-	mappable =
-		i915_is_ggtt(vm) &&
-		vma->node.start + obj->base.size <= dev_priv->gtt.mappable_end;
+		fenceable =
+			i915_gem_obj_ggtt_size(obj) == fence_size &&
+			(i915_gem_obj_ggtt_offset(obj) & (fence_alignment - 1)) == 0;
 
-	/* Map and fenceable only changes if the VM is the global GGTT */
-	if (i915_is_ggtt(vm))
+		mappable =
+			vma->node.start + obj->base.size <= dev_priv->gtt.mappable_end;
+
 		obj->map_and_fenceable = mappable && fenceable;
+	}
 
 	WARN_ON(map_and_fenceable && !obj->map_and_fenceable);
 
