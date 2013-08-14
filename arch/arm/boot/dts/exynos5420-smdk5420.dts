@@ -32,6 +32,8 @@
 	};
 
 	dp-controller@145B0000 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&dp_hpd>;
 		samsung,color-space = <0>;
 		samsung,dynamic-range = <0>;
 		samsung,ycbcr-coeff = <0>;
