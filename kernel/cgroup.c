@@ -4555,12 +4555,27 @@ static void cgroup_css_killed(struct cgroup *cgrp)
 	schedule_work(&cgrp->destroy_work);
 }
 
-static void css_ref_killed_fn(struct percpu_ref *ref)
+/*
+ * This is called when the refcnt of a css is confirmed to be killed.
+ * css_tryget() is now guaranteed to fail.
+ */
+static void css_killed_work_fn(struct work_struct *work)
+{
+	struct cgroup_subsys_state *css =
+		container_of(work, struct cgroup_subsys_state, destroy_work);
+	struct cgroup *cgrp = css->cgroup;
+
+	cgroup_css_killed(cgrp);
+}
+
+/* css kill confirmation processing requires process context, bounce */
+static void css_killed_ref_fn(struct percpu_ref *ref)
 {
 	struct cgroup_subsys_state *css =
 		container_of(ref, struct cgroup_subsys_state, refcnt);
 
-	cgroup_css_killed(css->cgroup);
+	INIT_WORK(&css->destroy_work, css_killed_work_fn);
+	schedule_work(&css->destroy_work);
 }
 
 /**
@@ -4634,7 +4649,7 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 		percpu_ref_get(&css->refcnt);
 
 		atomic_inc(&cgrp->css_kill_cnt);
-		percpu_ref_kill_and_confirm(&css->refcnt, css_ref_killed_fn);
+		percpu_ref_kill_and_confirm(&css->refcnt, css_killed_ref_fn);
 	}
 	cgroup_css_killed(cgrp);
 
