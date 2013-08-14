@@ -470,6 +470,7 @@ static int altera_jtaguart_remove(struct platform_device *pdev)
 #ifdef CONFIG_OF
 static struct of_device_id altera_jtaguart_match[] = {
 	{ .compatible = "ALTR,juart-1.0", },
+	{ .compatible = "altr,juart-1.0", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, altera_jtaguart_match);
