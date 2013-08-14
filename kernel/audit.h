@@ -240,13 +240,13 @@ extern int audit_uid_comparator(kuid_t left, u32 op, kuid_t right);
 extern int audit_gid_comparator(kgid_t left, u32 op, kgid_t right);
 extern int parent_len(const char *path);
 extern int audit_compare_dname_path(const char *dname, const char *path, int plen);
-extern struct sk_buff *	    audit_make_reply(int pid, int seq, int type,
-					     int done, int multi,
-					     const void *payload, int size);
+extern struct sk_buff *audit_make_reply(__u32 portid, int seq, int type,
+					int done, int multi,
+					const void *payload, int size);
 extern void		    audit_panic(const char *message);
 
 struct audit_netlink_list {
-	int pid;
+	__u32 portid;
 	struct sk_buff_head q;
 };
 

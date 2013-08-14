@@ -972,7 +972,7 @@ out:
 }
 
 /* List rules using struct audit_rule_data. */
-static void audit_list_rules(int pid, int seq, struct sk_buff_head *q)
+static void audit_list_rules(__u32 portid, int seq, struct sk_buff_head *q)
 {
 	struct sk_buff *skb;
 	struct audit_krule *r;
@@ -987,14 +987,15 @@ static void audit_list_rules(int pid, int seq, struct sk_buff_head *q)
 			data = audit_krule_to_data(r);
 			if (unlikely(!data))
 				break;
-			skb = audit_make_reply(pid, seq, AUDIT_LIST_RULES, 0, 1,
-					 data, sizeof(*data) + data->buflen);
+			skb = audit_make_reply(portid, seq, AUDIT_LIST_RULES,
+					       0, 1, data,
+					       sizeof(*data) + data->buflen);
 			if (skb)
 				skb_queue_tail(q, skb);
 			kfree(data);
 		}
 	}
-	skb = audit_make_reply(pid, seq, AUDIT_LIST_RULES, 1, 1, NULL, 0);
+	skb = audit_make_reply(portid, seq, AUDIT_LIST_RULES, 1, 1, NULL, 0);
 	if (skb)
 		skb_queue_tail(q, skb);
 }
@@ -1024,12 +1025,13 @@ static void audit_log_rule_change(char *action, struct audit_krule *rule, int re
 /**
  * audit_receive_filter - apply all rules to the specified message type
  * @type: audit message type
- * @pid: target pid for netlink audit messages
+ * @portid: target port id for netlink audit messages
  * @seq: netlink audit message sequence (serial) number
  * @data: payload data
  * @datasz: size of payload data
  */
-int audit_receive_filter(int type, int pid, int seq, void *data, size_t datasz)
+int audit_receive_filter(int type, __u32 portid, int seq, void *data,
+			 size_t datasz)
 {
 	struct task_struct *tsk;
 	struct audit_netlink_list *dest;
@@ -1047,11 +1049,11 @@ int audit_receive_filter(int type, int pid, int seq, void *data, size_t datasz)
 		dest = kmalloc(sizeof(struct audit_netlink_list), GFP_KERNEL);
 		if (!dest)
 			return -ENOMEM;
-		dest->pid = pid;
+		dest->portid = portid;
 		skb_queue_head_init(&dest->q);
 
 		mutex_lock(&audit_filter_mutex);
-		audit_list_rules(pid, seq, &dest->q);
+		audit_list_rules(portid, seq, &dest->q);
 		mutex_unlock(&audit_filter_mutex);
 
 		tsk = kthread_run(audit_send_list, dest, "audit_send_list");

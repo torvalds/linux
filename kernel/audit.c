@@ -93,7 +93,7 @@ static int	audit_failure = AUDIT_FAIL_PRINTK;
  * the portid to use to send netlink messages to that process.
  */
 int		audit_pid;
-static int	audit_nlk_portid;
+static __u32	audit_nlk_portid;
 
 /* If audit_rate_limit is non-zero, limit the rate of sending audit records
  * to that number per second.  This prevents DoS attacks, but results in
@@ -175,15 +175,15 @@ struct audit_buffer {
 };
 
 struct audit_reply {
-	int pid;
+	__u32 portid;
 	struct sk_buff *skb;
 };
 
-static void audit_set_pid(struct audit_buffer *ab, pid_t pid)
+static void audit_set_portid(struct audit_buffer *ab, __u32 portid)
 {
 	if (ab) {
 		struct nlmsghdr *nlh = nlmsg_hdr(ab->skb);
-		nlh->nlmsg_pid = pid;
+		nlh->nlmsg_pid = portid;
 	}
 }
 
@@ -482,7 +482,7 @@ static int kauditd_thread(void *dummy)
 int audit_send_list(void *_dest)
 {
 	struct audit_netlink_list *dest = _dest;
-	int pid = dest->pid;
+	__u32 portid = dest->portid;
 	struct sk_buff *skb;
 
 	/* wait for parent to finish and send an ACK */
@@ -490,14 +490,14 @@ int audit_send_list(void *_dest)
 	mutex_unlock(&audit_cmd_mutex);
 
 	while ((skb = __skb_dequeue(&dest->q)) != NULL)
-		netlink_unicast(audit_sock, skb, pid, 0);
+		netlink_unicast(audit_sock, skb, portid, 0);
 
 	kfree(dest);
 
 	return 0;
 }
 
-struct sk_buff *audit_make_reply(int pid, int seq, int type, int done,
+struct sk_buff *audit_make_reply(__u32 portid, int seq, int type, int done,
 				 int multi, const void *payload, int size)
 {
 	struct sk_buff	*skb;
@@ -510,7 +510,7 @@ struct sk_buff *audit_make_reply(int pid, int seq, int type, int done,
 	if (!skb)
 		return NULL;
 
-	nlh	= nlmsg_put(skb, pid, seq, t, size, flags);
+	nlh	= nlmsg_put(skb, portid, seq, t, size, flags);
 	if (!nlh)
 		goto out_kfree_skb;
 	data = nlmsg_data(nlh);
@@ -531,13 +531,13 @@ static int audit_send_reply_thread(void *arg)
 
 	/* Ignore failure. It'll only happen if the sender goes away,
 	   because our timeout is set to infinite. */
-	netlink_unicast(audit_sock, reply->skb, reply->pid, 0);
+	netlink_unicast(audit_sock, reply->skb, reply->portid, 0);
 	kfree(reply);
 	return 0;
 }
 /**
  * audit_send_reply - send an audit reply message via netlink
- * @pid: process id to send reply to
+ * @portid: netlink port to which to send reply
  * @seq: sequence number
  * @type: audit message type
  * @done: done (last) flag
@@ -545,11 +545,11 @@ static int audit_send_reply_thread(void *arg)
  * @payload: payload data
  * @size: payload size
  *
- * Allocates an skb, builds the netlink message, and sends it to the pid.
+ * Allocates an skb, builds the netlink message, and sends it to the port id.
  * No failure notifications.
  */
-static void audit_send_reply(int pid, int seq, int type, int done, int multi,
-			     const void *payload, int size)
+static void audit_send_reply(__u32 portid, int seq, int type, int done,
+			     int multi, const void *payload, int size)
 {
 	struct sk_buff *skb;
 	struct task_struct *tsk;
@@ -559,11 +559,11 @@ static void audit_send_reply(int pid, int seq, int type, int done, int multi,
 	if (!reply)
 		return;
 
-	skb = audit_make_reply(pid, seq, type, done, multi, payload, size);
+	skb = audit_make_reply(portid, seq, type, done, multi, payload, size);
 	if (!skb)
 		goto out;
 
-	reply->pid = pid;
+	reply->portid = portid;
 	reply->skb = skb;
 
 	tsk = kthread_run(audit_send_reply_thread, reply, "audit_send_reply");
@@ -839,7 +839,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 					size--;
 				audit_log_n_untrustedstring(ab, data, size);
 			}
-			audit_set_pid(ab, NETLINK_CB(skb).portid);
+			audit_set_portid(ab, NETLINK_CB(skb).portid);
 			audit_log_end(ab);
 		}
 		break;
