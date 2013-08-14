@@ -1019,6 +1019,7 @@ static bool ad9389b_check_edid_status(struct v4l2_subdev *sd)
 	segment = ad9389b_rd(sd, 0xc4);
 	if (segment >= EDID_MAX_SEGM) {
 		v4l2_err(sd, "edid segment number too big\n");
+		state->have_monitor = false;
 		return false;
 	}
 	v4l2_dbg(1, debug, sd, "%s: got segment %d\n", __func__, segment);
@@ -1032,6 +1033,8 @@ static bool ad9389b_check_edid_status(struct v4l2_subdev *sd)
 	}
 	if (!edid_segment_verify_crc(sd, segment)) {
 		/* edid crc error, force reread of edid segment */
+		v4l2_err(sd, "%s: edid crc error\n", __func__);
+		state->have_monitor = false;
 		ad9389b_s_power(sd, false);
 		ad9389b_s_power(sd, true);
 		return false;
