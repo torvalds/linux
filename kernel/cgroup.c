@@ -4599,13 +4599,15 @@ static void css_killed_ref_fn(struct percpu_ref *ref)
  * kill_css - destroy a css
  * @css: css to destroy
  *
- * This function initiates destruction of @css by putting its base
- * reference.  ->css_offline() will be invoked asynchronously once
- * css_tryget() is guaranteed to fail and when the reference count reaches
- * zero, @css will be released.
+ * This function initiates destruction of @css by removing cgroup interface
+ * files and putting its base reference.  ->css_offline() will be invoked
+ * asynchronously once css_tryget() is guaranteed to fail and when the
+ * reference count reaches zero, @css will be released.
  */
 static void kill_css(struct cgroup_subsys_state *css)
 {
+	cgroup_clear_dir(css->cgroup, 1 << css->ss->subsys_id);
+
 	/*
 	 * Killing would put the base ref, but we need to keep it alive
 	 * until after ->css_offline().
@@ -4703,10 +4705,10 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 		cgroup_destroy_css_killed(cgrp);
 
 	/*
-	 * Clear and remove @cgrp directory.  The removal puts the base ref
-	 * but we aren't quite done with @cgrp yet, so hold onto it.
+	 * Clear the base files and remove @cgrp directory.  The removal
+	 * puts the base ref but we aren't quite done with @cgrp yet, so
+	 * hold onto it.
 	 */
-	cgroup_clear_dir(cgrp, cgrp->root->subsys_mask);
 	cgroup_addrm_files(cgrp, cgroup_base_files, false);
 	dget(d);
 	cgroup_d_remove_dir(d);
