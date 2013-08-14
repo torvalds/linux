@@ -35,6 +35,11 @@ config MACH_RK3188_DS1006H
 config MACH_RK3188_U30GT2
 	bool "RK3188 u30gt2 board"
 
+        
+config MACH_RK3188_FAC
+        bool "RK3188 Board for factory"
+        select MACH_RK_FAC
+
 config MACH_RK3188_JETTAB
 	bool "RK3188 jettaB top board"
 
