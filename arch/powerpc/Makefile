@@ -98,7 +98,7 @@ CFLAGS-$(CONFIG_POWER7_CPU) += $(call cc-option,-mcpu=power7)
 CFLAGS-$(CONFIG_TUNE_CELL) += $(call cc-option,-mtune=cell)
 
 KBUILD_CPPFLAGS	+= -Iarch/$(ARCH)
-KBUILD_AFLAGS	+= -msoft-float -Iarch/$(ARCH)
+KBUILD_AFLAGS	+= -Iarch/$(ARCH)
 KBUILD_CFLAGS	+= -msoft-float -pipe -Iarch/$(ARCH) $(CFLAGS-y)
 CPP		= $(CC) -E $(KBUILD_CFLAGS)
 
@@ -132,21 +132,6 @@ ifeq ($(CONFIG_6xx),y)
 KBUILD_CFLAGS		+= -mcpu=powerpc
 endif
 
-ifeq ($(CONFIG_E500),y)
-ifeq ($(CONFIG_64BIT),y)
-KBUILD_CFLAGS		+= -mcpu=e5500
-KBUILD_AFLAGS		+= -mcpu=e5500
-else
-ifeq ($(CONFIG_PPC_E500MC),y)
-KBUILD_CFLAGS		+= -mcpu=e500mc
-KBUILD_AFLAGS		+= -mcpu=e500mc
-else
-KBUILD_CFLAGS		+= -mcpu=8540
-KBUILD_AFLAGS		+= -mcpu=8540
-endif
-endif
-endif
-
 # Work around a gcc code-gen bug with -fno-omit-frame-pointer.
 ifeq ($(CONFIG_FUNCTION_TRACER),y)
 KBUILD_CFLAGS		+= -mno-sched-epilog
@@ -154,6 +139,7 @@ endif
 
 cpu-as-$(CONFIG_4xx)		+= -Wa,-m405
 cpu-as-$(CONFIG_ALTIVEC)	+= -Wa,-maltivec
+cpu-as-$(CONFIG_E500)		+= -Wa,-me500
 cpu-as-$(CONFIG_E200)		+= -Wa,-me200
 
 KBUILD_AFLAGS += $(cpu-as-y)
