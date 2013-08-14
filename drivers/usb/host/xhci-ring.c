@@ -2904,8 +2904,8 @@ static int prepare_ring(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 			return -ENOMEM;
 		}
 
-		xhci_dbg(xhci, "ERROR no room on ep ring, "
-					"try ring expansion\n");
+		xhci_dbg_trace(xhci, trace_xhci_dbg_ring_expansion,
+				"ERROR no room on ep ring, try ring expansion");
 		num_trbs_needed = num_trbs - ep_ring->num_trbs_free;
 		if (xhci_ring_expansion(xhci, ep_ring, num_trbs_needed,
 					mem_flags)) {
