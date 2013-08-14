@@ -258,20 +258,11 @@ static unsigned int speedstep_get(unsigned int cpu)
 static int speedstep_target(struct cpufreq_policy *policy, unsigned int index)
 {
 	unsigned int policy_cpu;
-	struct cpufreq_freqs freqs;
 
 	policy_cpu = cpumask_any_and(policy->cpus, cpu_online_mask);
-	freqs.old = speedstep_get(policy_cpu);
-	freqs.new = speedstep_freqs[index].frequency;
-
-	pr_debug("transiting from %u to %u kHz\n", freqs.old, freqs.new);
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	smp_call_function_single(policy_cpu, _speedstep_set_state, &index,
 				 true);
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	return 0;
 }

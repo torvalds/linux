@@ -423,9 +423,8 @@ static int centrino_cpu_exit(struct cpufreq_policy *policy)
 static int centrino_target(struct cpufreq_policy *policy, unsigned int index)
 {
 	unsigned int	msr, oldmsr = 0, h = 0, cpu = policy->cpu;
-	struct cpufreq_freqs	freqs;
 	int			retval = 0;
-	unsigned int		j, first_cpu, tmp;
+	unsigned int		j, first_cpu;
 	struct cpufreq_frequency_table *op_points;
 	cpumask_var_t covered_cpus;
 
@@ -473,16 +472,6 @@ static int centrino_target(struct cpufreq_policy *policy, unsigned int index)
 				goto out;
 			}
 
-			freqs.old = extract_clock(oldmsr, cpu, 0);
-			freqs.new = extract_clock(msr, cpu, 0);
-
-			pr_debug("target=%dkHz old=%d new=%d msr=%04x\n",
-				op_points->frequency, freqs.old, freqs.new,
-				msr);
-
-			cpufreq_notify_transition(policy, &freqs,
-					CPUFREQ_PRECHANGE);
-
 			first_cpu = 0;
 			/* all but 16 LSB are reserved, treat them with care */
 			oldmsr &= ~0xffff;
@@ -497,8 +486,6 @@ static int centrino_target(struct cpufreq_policy *policy, unsigned int index)
 		cpumask_set_cpu(j, covered_cpus);
 	}
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
-
 	if (unlikely(retval)) {
 		/*
 		 * We have failed halfway through the frequency change.
@@ -509,12 +496,6 @@ static int centrino_target(struct cpufreq_policy *policy, unsigned int index)
 
 		for_each_cpu(j, covered_cpus)
 			wrmsr_on_cpu(j, MSR_IA32_PERF_CTL, oldmsr, h);
-
-		tmp = freqs.new;
-		freqs.new = freqs.old;
-		freqs.old = tmp;
-		cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
-		cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 	}
 	retval = 0;
 

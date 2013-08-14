@@ -29,14 +29,8 @@ static unsigned int cris_freq_get_cpu_frequency(unsigned int cpu)
 
 static int cris_freq_target(struct cpufreq_policy *policy, unsigned int state)
 {
-	struct cpufreq_freqs freqs;
 	reg_config_rw_clk_ctrl clk_ctrl;
 	clk_ctrl = REG_RD(config, regi_config, rw_clk_ctrl);
-
-	freqs.old = cris_freq_get_cpu_frequency(policy->cpu);
-	freqs.new = cris_freq_table[state].frequency;
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	local_irq_disable();
 
@@ -49,8 +43,6 @@ static int cris_freq_target(struct cpufreq_policy *policy, unsigned int state)
 	REG_WR(config, regi_config, rw_clk_ctrl, clk_ctrl);
 
 	local_irq_enable();
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	return 0;
 }

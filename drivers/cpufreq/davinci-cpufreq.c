@@ -68,46 +68,36 @@ static unsigned int davinci_getspeed(unsigned int cpu)
 
 static int davinci_target(struct cpufreq_policy *policy, unsigned int idx)
 {
-	int ret = 0;
-	struct cpufreq_freqs freqs;
 	struct davinci_cpufreq_config *pdata = cpufreq.dev->platform_data;
 	struct clk *armclk = cpufreq.armclk;
+	unsigned int old_freq, new_freq;
+	int ret = 0;
 
-	freqs.old = davinci_getspeed(0);
-	freqs.new = pdata->freq_table[idx].frequency;
-
-	dev_dbg(cpufreq.dev, "transition: %u --> %u\n", freqs.old, freqs.new);
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
+	old_freq = davinci_getspeed(0);
+	new_freq = pdata->freq_table[idx].frequency;
 
 	/* if moving to higher frequency, up the voltage beforehand */
-	if (pdata->set_voltage && freqs.new > freqs.old) {
+	if (pdata->set_voltage && new_freq > old_freq) {
 		ret = pdata->set_voltage(idx);
 		if (ret)
-			goto out;
+			return ret;
 	}
 
 	ret = clk_set_rate(armclk, idx);
 	if (ret)
-		goto out;
+		return ret;
 
 	if (cpufreq.asyncclk) {
 		ret = clk_set_rate(cpufreq.asyncclk, cpufreq.asyncrate);
 		if (ret)
-			goto out;
+			return ret;
 	}
 
 	/* if moving to lower freq, lower the voltage after lowering freq */
-	if (pdata->set_voltage && freqs.new < freqs.old)
+	if (pdata->set_voltage && new_freq < old_freq)
 		pdata->set_voltage(idx);
 
-out:
-	if (ret)
-		freqs.new = freqs.old;
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
-
-	return ret;
+	return 0;
 }
 
 static int davinci_cpu_init(struct cpufreq_policy *policy)

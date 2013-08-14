@@ -192,39 +192,25 @@ bL_cpufreq_set_rate(u32 cpu, u32 old_cluster, u32 new_cluster, u32 rate)
 static int bL_cpufreq_set_target(struct cpufreq_policy *policy,
 		unsigned int index)
 {
-	struct cpufreq_freqs freqs;
 	u32 cpu = policy->cpu, cur_cluster, new_cluster, actual_cluster;
-	int ret = 0;
+	unsigned int freqs_new;
 
 	cur_cluster = cpu_to_cluster(cpu);
 	new_cluster = actual_cluster = per_cpu(physical_cluster, cpu);
 
-	freqs.old = bL_cpufreq_get_rate(cpu);
-	freqs.new = freq_table[cur_cluster][index].frequency;
-
-	pr_debug("%s: cpu: %d, cluster: %d, oldfreq: %d, target freq: %d, new freq: %d\n",
-			__func__, cpu, cur_cluster, freqs.old, freqs.new,
-			freqs.new);
+	freqs_new = freq_table[cur_cluster][index].frequency;
 
 	if (is_bL_switching_enabled()) {
 		if ((actual_cluster == A15_CLUSTER) &&
-				(freqs.new < clk_big_min)) {
+				(freqs_new < clk_big_min)) {
 			new_cluster = A7_CLUSTER;
 		} else if ((actual_cluster == A7_CLUSTER) &&
-				(freqs.new > clk_little_max)) {
+				(freqs_new > clk_little_max)) {
 			new_cluster = A15_CLUSTER;
 		}
 	}
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
-
-	ret = bL_cpufreq_set_rate(cpu, actual_cluster, new_cluster, freqs.new);
-	if (ret)
-		freqs.new = freqs.old;
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
-
-	return ret;
+	return bL_cpufreq_set_rate(cpu, actual_cluster, new_cluster, freqs_new);
 }
 
 static inline u32 get_table_count(struct cpufreq_frequency_table *table)

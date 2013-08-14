@@ -107,12 +107,10 @@ static int spear1340_set_cpu_rate(struct clk *sys_pclk, unsigned long newfreq)
 static int spear_cpufreq_target(struct cpufreq_policy *policy,
 		unsigned int index)
 {
-	struct cpufreq_freqs freqs;
 	long newfreq;
 	struct clk *srcclk;
 	int ret, mult = 1;
 
-	freqs.old = spear_cpufreq_get(0);
 	newfreq = spear_cpufreq.freq_tbl[index].frequency * 1000;
 
 	if (of_machine_is_compatible("st,spear1340")) {
@@ -145,23 +143,14 @@ static int spear_cpufreq_target(struct cpufreq_policy *policy,
 		return newfreq;
 	}
 
-	freqs.new = newfreq / 1000;
-	freqs.new /= mult;
-
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
-
 	if (mult == 2)
 		ret = spear1340_set_cpu_rate(srcclk, newfreq);
 	else
 		ret = clk_set_rate(spear_cpufreq.clk, newfreq);
 
-	/* Get current rate after clk_set_rate, in case of failure */
-	if (ret) {
+	if (ret)
 		pr_err("CPU Freq: cpu clk_set_rate failed: %d\n", ret);
-		freqs.new = clk_get_rate(spear_cpufreq.clk) / 1000;
-	}
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 	return ret;
 }
 

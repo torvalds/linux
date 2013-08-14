@@ -58,48 +58,34 @@ static unsigned int kirkwood_cpufreq_get_cpu_frequency(unsigned int cpu)
 static int kirkwood_cpufreq_target(struct cpufreq_policy *policy,
 			    unsigned int index)
 {
-	struct cpufreq_freqs freqs;
 	unsigned int state = kirkwood_freq_table[index].driver_data;
 	unsigned long reg;
 
-	freqs.old = kirkwood_cpufreq_get_cpu_frequency(0);
-	freqs.new = kirkwood_freq_table[index].frequency;
+	local_irq_disable();
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
+	/* Disable interrupts to the CPU */
+	reg = readl_relaxed(priv.base);
+	reg |= CPU_SW_INT_BLK;
+	writel_relaxed(reg, priv.base);
 
-	dev_dbg(priv.dev, "Attempting to set frequency to %i KHz\n",
-		kirkwood_freq_table[index].frequency);
-	dev_dbg(priv.dev, "old frequency was %i KHz\n",
-		kirkwood_cpufreq_get_cpu_frequency(0));
-
-	if (freqs.old != freqs.new) {
-		local_irq_disable();
-
-		/* Disable interrupts to the CPU */
-		reg = readl_relaxed(priv.base);
-		reg |= CPU_SW_INT_BLK;
-		writel_relaxed(reg, priv.base);
-
-		switch (state) {
-		case STATE_CPU_FREQ:
-			clk_disable(priv.powersave_clk);
-			break;
-		case STATE_DDR_FREQ:
-			clk_enable(priv.powersave_clk);
-			break;
-		}
-
-		/* Wait-for-Interrupt, while the hardware changes frequency */
-		cpu_do_idle();
-
-		/* Enable interrupts to the CPU */
-		reg = readl_relaxed(priv.base);
-		reg &= ~CPU_SW_INT_BLK;
-		writel_relaxed(reg, priv.base);
-
-		local_irq_enable();
+	switch (state) {
+	case STATE_CPU_FREQ:
+		clk_disable(priv.powersave_clk);
+		break;
+	case STATE_DDR_FREQ:
+		clk_enable(priv.powersave_clk);
+		break;
 	}
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
+
+	/* Wait-for-Interrupt, while the hardware changes frequency */
+	cpu_do_idle();
+
+	/* Enable interrupts to the CPU */
+	reg = readl_relaxed(priv.base);
+	reg &= ~CPU_SW_INT_BLK;
+	writel_relaxed(reg, priv.base);
+
+	local_irq_enable();
 
 	return 0;
 }

@@ -141,7 +141,6 @@ processor_set_freq (
 {
 	int			ret = 0;
 	u32			value = 0;
-	struct cpufreq_freqs    cpufreq_freqs;
 	cpumask_t		saved_mask;
 	int			retval;
 
@@ -168,13 +167,6 @@ processor_set_freq (
 	pr_debug("Transitioning from P%d to P%d\n",
 		data->acpi_data.state, state);
 
-	/* cpufreq frequency struct */
-	cpufreq_freqs.old = data->freq_table[data->acpi_data.state].frequency;
-	cpufreq_freqs.new = data->freq_table[state].frequency;
-
-	/* notify cpufreq */
-	cpufreq_notify_transition(policy, &cpufreq_freqs, CPUFREQ_PRECHANGE);
-
 	/*
 	 * First we write the target state's 'control' value to the
 	 * control_register.
@@ -186,21 +178,10 @@ processor_set_freq (
 
 	ret = processor_set_pstate(value);
 	if (ret) {
-		unsigned int tmp = cpufreq_freqs.new;
-		cpufreq_notify_transition(policy, &cpufreq_freqs,
-				CPUFREQ_POSTCHANGE);
-		cpufreq_freqs.new = cpufreq_freqs.old;
-		cpufreq_freqs.old = tmp;
-		cpufreq_notify_transition(policy, &cpufreq_freqs,
-				CPUFREQ_PRECHANGE);
-		cpufreq_notify_transition(policy, &cpufreq_freqs,
-				CPUFREQ_POSTCHANGE);
 		printk(KERN_WARNING "Transition failed with error %d\n", ret);
 		retval = -ENODEV;
 		goto migrate_end;
 	}
-
-	cpufreq_notify_transition(policy, &cpufreq_freqs, CPUFREQ_POSTCHANGE);
 
 	data->acpi_data.state = state;
 

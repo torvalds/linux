@@ -271,7 +271,6 @@ static int pxa_set_target(struct cpufreq_policy *policy, unsigned int idx)
 {
 	struct cpufreq_frequency_table *pxa_freqs_table;
 	pxa_freqs_t *pxa_freq_settings;
-	struct cpufreq_freqs freqs;
 	unsigned long flags;
 	unsigned int new_freq_cpu, new_freq_mem;
 	unsigned int unused, preset_mdrefr, postset_mdrefr, cclkcfg;
@@ -282,24 +281,17 @@ static int pxa_set_target(struct cpufreq_policy *policy, unsigned int idx)
 
 	new_freq_cpu = pxa_freq_settings[idx].khz;
 	new_freq_mem = pxa_freq_settings[idx].membus;
-	freqs.old = policy->cur;
-	freqs.new = new_freq_cpu;
 
 	if (freq_debug)
 		pr_debug("Changing CPU frequency to %d Mhz, (SDRAM %d Mhz)\n",
-			 freqs.new / 1000, (pxa_freq_settings[idx].div2) ?
+			 new_freq_cpu / 1000, (pxa_freq_settings[idx].div2) ?
 			 (new_freq_mem / 2000) : (new_freq_mem / 1000));
 
-	if (vcc_core && freqs.new > freqs.old)
+	if (vcc_core && new_freq_cpu > policy->cur) {
 		ret = pxa_cpufreq_change_voltage(&pxa_freq_settings[idx]);
-	if (ret)
-		return ret;
-	/*
-	 * Tell everyone what we're about to do...
-	 * you should add a notify client with any platform specific
-	 * Vcc changing capability
-	 */
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
+		if (ret)
+			return ret;
+	}
 
 	/* Calculate the next MDREFR.  If we're slowing down the SDRAM clock
 	 * we need to preset the smaller DRI before the change.	 If we're
@@ -350,13 +342,6 @@ static int pxa_set_target(struct cpufreq_policy *policy, unsigned int idx)
 	local_irq_restore(flags);
 
 	/*
-	 * Tell everyone what we've just done...
-	 * you should add a notify client with any platform specific
-	 * SDRAM refresh timer adjustments
-	 */
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
-
-	/*
 	 * Even if voltage setting fails, we don't report it, as the frequency
 	 * change succeeded. The voltage reduction is not a critical failure,
 	 * only power savings will suffer from this.
@@ -365,7 +350,7 @@ static int pxa_set_target(struct cpufreq_policy *policy, unsigned int idx)
 	 * bug is triggered (seems a deadlock). Should anybody find out where,
 	 * the "return 0" should become a "return ret".
 	 */
-	if (vcc_core && freqs.new < freqs.old)
+	if (vcc_core && new_freq_cpu < policy->cur)
 		ret = pxa_cpufreq_change_voltage(&pxa_freq_settings[idx]);
 
 	return 0;

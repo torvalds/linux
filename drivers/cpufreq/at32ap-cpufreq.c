@@ -37,27 +37,23 @@ static unsigned long	loops_per_jiffy_ref;
 
 static int at32_set_target(struct cpufreq_policy *policy, unsigned int index)
 {
-	struct cpufreq_freqs freqs;
+	unsigned int old_freq, new_freq;
 
-	freqs.old = at32_get_speed(0);
-	freqs.new = freq_table[index].frequency;
+	old_freq = at32_get_speed(0);
+	new_freq = freq_table[index].frequency;
 
 	if (!ref_freq) {
-		ref_freq = freqs.old;
+		ref_freq = old_freq;
 		loops_per_jiffy_ref = boot_cpu_data.loops_per_jiffy;
 	}
 
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
-	if (freqs.old < freqs.new)
+	if (old_freq < new_freq)
 		boot_cpu_data.loops_per_jiffy = cpufreq_scale(
-				loops_per_jiffy_ref, ref_freq, freqs.new);
-	clk_set_rate(cpuclk, freqs.new * 1000);
-	if (freqs.new < freqs.old)
+				loops_per_jiffy_ref, ref_freq, new_freq);
+	clk_set_rate(cpuclk, new_freq * 1000);
+	if (new_freq < old_freq)
 		boot_cpu_data.loops_per_jiffy = cpufreq_scale(
-				loops_per_jiffy_ref, ref_freq, freqs.new);
-	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
-
-	pr_debug("cpufreq: set frequency %u Hz\n", freqs.new * 1000);
+				loops_per_jiffy_ref, ref_freq, new_freq);
 
 	return 0;
 }
