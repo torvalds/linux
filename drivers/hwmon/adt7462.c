@@ -333,7 +333,7 @@ static int ADT7462_REG_VOLT_MAX(struct adt7462_data *data, int which)
 			return 0x4C;
 		break;
 	}
-	return -ENODEV;
+	return 0;
 }
 
 static int ADT7462_REG_VOLT_MIN(struct adt7462_data *data, int which)
@@ -392,7 +392,7 @@ static int ADT7462_REG_VOLT_MIN(struct adt7462_data *data, int which)
 			return 0x77;
 		break;
 	}
-	return -ENODEV;
+	return 0;
 }
 
 static int ADT7462_REG_VOLT(struct adt7462_data *data, int which)
