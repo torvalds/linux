@@ -150,8 +150,13 @@ static void tc2_pm_down(u64 residency)
 		 * Let's do it in the safest possible way i.e. with
 		 * no memory access within the following sequence
 		 * including the stack.
+		 *
+		 * Note: fp is preserved to the stack explicitly prior doing
+		 * this since adding it to the clobber list is incompatible
+		 * with having CONFIG_FRAME_POINTER=y.
 		 */
 		asm volatile(
+		"str	fp, [sp, #-4]! \n\t"
 		"mrc	p15, 0, r0, c1, c0, 0	@ get CR \n\t"
 		"bic	r0, r0, #"__stringify(CR_C)" \n\t"
 		"mcr	p15, 0, r0, c1, c0, 0	@ set CR \n\t"
@@ -162,9 +167,10 @@ static void tc2_pm_down(u64 residency)
 		"bic	r0, r0, #(1 << 6)	@ disable local coherency \n\t"
 		"mcr	p15, 0, r0, c1, c0, 1	@ set AUXCR \n\t"
 		"isb	\n\t"
-		"dsb	"
+		"dsb	\n\t"
+		"ldr	fp, [sp], #4"
 		: : : "r0","r1","r2","r3","r4","r5","r6","r7",
-		      "r9","r10","r11","lr","memory");
+		      "r9","r10","lr","memory");
 
 		cci_disable_port_by_cpu(mpidr);
 
@@ -185,6 +191,7 @@ static void tc2_pm_down(u64 residency)
 		 * Let's do it in the safest possible way as above.
 		 */
 		asm volatile(
+		"str	fp, [sp, #-4]! \n\t"
 		"mrc	p15, 0, r0, c1, c0, 0	@ get CR \n\t"
 		"bic	r0, r0, #"__stringify(CR_C)" \n\t"
 		"mcr	p15, 0, r0, c1, c0, 0	@ set CR \n\t"
@@ -195,9 +202,10 @@ static void tc2_pm_down(u64 residency)
 		"bic	r0, r0, #(1 << 6)	@ disable local coherency \n\t"
 		"mcr	p15, 0, r0, c1, c0, 1	@ set AUXCR \n\t"
 		"isb	\n\t"
-		"dsb	"
+		"dsb	\n\t"
+		"ldr	fp, [sp], #4"
 		: : : "r0","r1","r2","r3","r4","r5","r6","r7",
-		      "r9","r10","r11","lr","memory");
+		      "r9","r10","lr","memory");
 	}
 
 	__mcpm_cpu_down(cpu, cluster);
