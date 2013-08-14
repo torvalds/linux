@@ -285,13 +285,13 @@ pca963x_dt_init(struct i2c_client *client, struct pca963x_chipdef *chip)
 		u32 reg;
 		int res;
 
+		res = of_property_read_u32(child, "reg", &reg);
+		if ((res != 0) || (reg >= chip->n_leds))
+			continue;
 		led.name =
 			of_get_property(child, "label", NULL) ? : child->name;
 		led.default_trigger =
 			of_get_property(child, "linux,default-trigger", NULL);
-		res = of_property_read_u32(child, "reg", &reg);
-		if (res != 0)
-			continue;
 		pca963x_leds[reg] = led;
 	}
 	pdata = devm_kzalloc(&client->dev,
@@ -300,7 +300,7 @@ pca963x_dt_init(struct i2c_client *client, struct pca963x_chipdef *chip)
 		return ERR_PTR(-ENOMEM);
 
 	pdata->leds.leds = pca963x_leds;
-	pdata->leds.num_leds = count;
+	pdata->leds.num_leds = chip->n_leds;
 
 	/* default to open-drain unless totem pole (push-pull) is specified */
 	if (of_property_read_bool(np, "nxp,totem-pole"))
