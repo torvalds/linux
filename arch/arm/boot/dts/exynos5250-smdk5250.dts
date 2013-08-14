@@ -262,19 +262,22 @@
 		pinctrl-0 = <&dp_hpd>;
 	};
 
-	display-timings {
-		native-mode = <&timing0>;
-		timing0: timing@0 {
-			/* 1280x800 */
-			clock-frequency = <50000>;
-			hactive = <1280>;
-			vactive = <800>;
-			hfront-porch = <4>;
-			hback-porch = <4>;
-			hsync-len = <4>;
-			vback-porch = <4>;
-			vfront-porch = <4>;
-			vsync-len = <4>;
+	fimd@14400000 {
+		status = "okay";
+		display-timings {
+			native-mode = <&timing0>;
+			timing0: timing@0 {
+				/* 1280x800 */
+				clock-frequency = <50000>;
+				hactive = <1280>;
+				vactive = <800>;
+				hfront-porch = <4>;
+				hback-porch = <4>;
+				hsync-len = <4>;
+				vback-porch = <4>;
+				vfront-porch = <4>;
+				vsync-len = <4>;
+			};
 		};
 	};
 
