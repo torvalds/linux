@@ -779,7 +779,7 @@ irqreturn_t pamu_av_isr(int irq, void *arg)
 	phys_addr_t phys;
 	unsigned int i, j, ret;
 
-	pr_emerg("fsl-pamu: access violation interrupt\n");
+	pr_emerg("access violation interrupt\n");
 
 	for (i = 0; i < data->count; i++) {
 		void __iomem *p = data->pamu_reg_base + i * PAMU_OFFSET;
@@ -1260,19 +1260,19 @@ static __init int fsl_pamu_init(void)
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,pamu");
 	if (!np) {
-		pr_err("fsl-pamu: could not find a PAMU node\n");
+		pr_err("could not find a PAMU node\n");
 		return -ENODEV;
 	}
 
 	ret = platform_driver_register(&fsl_of_pamu_driver);
 	if (ret) {
-		pr_err("fsl-pamu: could not register driver (err=%i)\n", ret);
+		pr_err("could not register driver (err=%i)\n", ret);
 		goto error_driver_register;
 	}
 
 	pdev = platform_device_alloc("fsl-of-pamu", 0);
 	if (!pdev) {
-		pr_err("fsl-pamu: could not allocate device %s\n",
+		pr_err("could not allocate device %s\n",
 		       np->full_name);
 		ret = -ENOMEM;
 		goto error_device_alloc;
@@ -1285,7 +1285,7 @@ static __init int fsl_pamu_init(void)
 
 	ret = platform_device_add(pdev);
 	if (ret) {
-		pr_err("fsl-pamu: could not add device %s (err=%i)\n",
+		pr_err("could not add device %s (err=%i)\n",
 		       np->full_name, ret);
 		goto error_device_add;
 	}
