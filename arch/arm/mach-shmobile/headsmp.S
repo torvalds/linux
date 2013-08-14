@@ -24,12 +24,16 @@ ENDPROC(shmobile_invalidate_start)
  * This will be mapped at address 0 by SBAR register.
  * We need _long_ jump to the physical address.
  */
+	.arm
 	.align  12
 ENTRY(shmobile_boot_vector)
 	ldr     r0, 2f
-	ldr     pc, 1f
+	ldr     r1, 1f
+	bx	r1
+
 ENDPROC(shmobile_boot_vector)
 
+	.align	2
 	.globl	shmobile_boot_fn
 shmobile_boot_fn:
 1:	.space	4
