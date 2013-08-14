@@ -238,10 +238,13 @@ again:
 	 *
 	 * The typical interval is obtained when standard deviation is small
 	 * or standard deviation is small compared to the average interval.
+	 *
+	 * Use this result only if there is no timer to wake us up sooner.
 	 */
 	if (((avg > stddev * 6) && (divisor * 4 >= INTERVALS * 3))
 							|| stddev <= 20) {
-		data->predicted_us = avg;
+		if (data->expected_us > avg)
+			data->predicted_us = avg;
 		return;
 
 	} else if ((divisor * 4) > INTERVALS * 3) {
