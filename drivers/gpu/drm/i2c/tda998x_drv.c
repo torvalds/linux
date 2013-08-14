@@ -32,6 +32,9 @@ struct tda998x_priv {
 	uint16_t rev;
 	uint8_t current_page;
 	int dpms;
+	u8 vip_cntrl_0;
+	u8 vip_cntrl_1;
+	u8 vip_cntrl_2;
 };
 
 #define to_tda998x_priv(x)  ((struct tda998x_priv *)to_encoder_slave(x)->slave_priv)
@@ -448,12 +451,9 @@ tda998x_encoder_dpms(struct drm_encoder *encoder, int mode)
 		reg_write(encoder, REG_ENA_VP_1, 0xff);
 		reg_write(encoder, REG_ENA_VP_2, 0xff);
 		/* set muxing after enabling ports: */
-		reg_write(encoder, REG_VIP_CNTRL_0,
-				VIP_CNTRL_0_SWAP_A(2) | VIP_CNTRL_0_SWAP_B(3));
-		reg_write(encoder, REG_VIP_CNTRL_1,
-				VIP_CNTRL_1_SWAP_C(0) | VIP_CNTRL_1_SWAP_D(1));
-		reg_write(encoder, REG_VIP_CNTRL_2,
-				VIP_CNTRL_2_SWAP_E(4) | VIP_CNTRL_2_SWAP_F(5));
+		reg_write(encoder, REG_VIP_CNTRL_0, priv->vip_cntrl_0);
+		reg_write(encoder, REG_VIP_CNTRL_1, priv->vip_cntrl_1);
+		reg_write(encoder, REG_VIP_CNTRL_2, priv->vip_cntrl_2);
 		break;
 	case DRM_MODE_DPMS_OFF:
 		/* disable audio and video ports */
@@ -822,6 +822,10 @@ tda998x_encoder_init(struct i2c_client *client,
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+
+	priv->vip_cntrl_0 = VIP_CNTRL_0_SWAP_A(2) | VIP_CNTRL_0_SWAP_B(3);
+	priv->vip_cntrl_1 = VIP_CNTRL_1_SWAP_C(0) | VIP_CNTRL_1_SWAP_D(1);
+	priv->vip_cntrl_2 = VIP_CNTRL_2_SWAP_E(4) | VIP_CNTRL_2_SWAP_F(5);
 
 	priv->current_page = 0;
 	priv->cec = i2c_new_dummy(client->adapter, 0x34);
