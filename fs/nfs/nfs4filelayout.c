@@ -39,6 +39,7 @@
 #include "internal.h"
 #include "delegation.h"
 #include "nfs4filelayout.h"
+#include "nfs4trace.h"
 
 #define NFSDBG_FACILITY         NFSDBG_PNFS_LD
 
@@ -247,6 +248,7 @@ static int filelayout_read_done_cb(struct rpc_task *task,
 	struct nfs_pgio_header *hdr = data->header;
 	int err;
 
+	trace_nfs4_pnfs_read(data, task->tk_status);
 	err = filelayout_async_handle_error(task, data->args.context->state,
 					    data->ds_clp, hdr->lseg);
 
@@ -363,6 +365,7 @@ static int filelayout_write_done_cb(struct rpc_task *task,
 	struct nfs_pgio_header *hdr = data->header;
 	int err;
 
+	trace_nfs4_pnfs_write(data, task->tk_status);
 	err = filelayout_async_handle_error(task, data->args.context->state,
 					    data->ds_clp, hdr->lseg);
 
@@ -395,6 +398,7 @@ static int filelayout_commit_done_cb(struct rpc_task *task,
 {
 	int err;
 
+	trace_nfs4_pnfs_commit_ds(data, task->tk_status);
 	err = filelayout_async_handle_error(task, NULL, data->ds_clp,
 					    data->lseg);
 

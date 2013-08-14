@@ -742,6 +742,160 @@ DEFINE_NFS4_IDMAP_EVENT(nfs4_map_group_to_gid);
 DEFINE_NFS4_IDMAP_EVENT(nfs4_map_uid_to_name);
 DEFINE_NFS4_IDMAP_EVENT(nfs4_map_gid_to_group);
 
+DECLARE_EVENT_CLASS(nfs4_read_event,
+		TP_PROTO(
+			const struct nfs_read_data *data,
+			int error
+		),
+
+		TP_ARGS(data, error),
+
+		TP_STRUCT__entry(
+			__field(dev_t, dev)
+			__field(u32, fhandle)
+			__field(u64, fileid)
+			__field(loff_t, offset)
+			__field(size_t, count)
+			__field(int, error)
+		),
+
+		TP_fast_assign(
+			const struct inode *inode = data->header->inode;
+			__entry->dev = inode->i_sb->s_dev;
+			__entry->fileid = NFS_FILEID(inode);
+			__entry->fhandle = nfs_fhandle_hash(NFS_FH(inode));
+			__entry->offset = data->args.offset;
+			__entry->count = data->args.count;
+			__entry->error = error;
+		),
+
+		TP_printk(
+			"error=%d (%s) fileid=%02x:%02x:%llu fhandle=0x%08x "
+			"offset=%lld count=%zu",
+			__entry->error,
+			show_nfsv4_errors(__entry->error),
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->fileid,
+			__entry->fhandle,
+			(long long)__entry->offset,
+			__entry->count
+		)
+);
+#define DEFINE_NFS4_READ_EVENT(name) \
+	DEFINE_EVENT(nfs4_read_event, name, \
+			TP_PROTO( \
+				const struct nfs_read_data *data, \
+				int error \
+			), \
+			TP_ARGS(data, error))
+DEFINE_NFS4_READ_EVENT(nfs4_read);
+#ifdef CONFIG_NFS_V4_1
+DEFINE_NFS4_READ_EVENT(nfs4_pnfs_read);
+#endif /* CONFIG_NFS_V4_1 */
+
+DECLARE_EVENT_CLASS(nfs4_write_event,
+		TP_PROTO(
+			const struct nfs_write_data *data,
+			int error
+		),
+
+		TP_ARGS(data, error),
+
+		TP_STRUCT__entry(
+			__field(dev_t, dev)
+			__field(u32, fhandle)
+			__field(u64, fileid)
+			__field(loff_t, offset)
+			__field(size_t, count)
+			__field(int, error)
+		),
+
+		TP_fast_assign(
+			const struct inode *inode = data->header->inode;
+			__entry->dev = inode->i_sb->s_dev;
+			__entry->fileid = NFS_FILEID(inode);
+			__entry->fhandle = nfs_fhandle_hash(NFS_FH(inode));
+			__entry->offset = data->args.offset;
+			__entry->count = data->args.count;
+			__entry->error = error;
+		),
+
+		TP_printk(
+			"error=%d (%s) fileid=%02x:%02x:%llu fhandle=0x%08x "
+			"offset=%lld count=%zu",
+			__entry->error,
+			show_nfsv4_errors(__entry->error),
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->fileid,
+			__entry->fhandle,
+			(long long)__entry->offset,
+			__entry->count
+		)
+);
+
+#define DEFINE_NFS4_WRITE_EVENT(name) \
+	DEFINE_EVENT(nfs4_write_event, name, \
+			TP_PROTO( \
+				const struct nfs_write_data *data, \
+				int error \
+			), \
+			TP_ARGS(data, error))
+DEFINE_NFS4_WRITE_EVENT(nfs4_write);
+#ifdef CONFIG_NFS_V4_1
+DEFINE_NFS4_WRITE_EVENT(nfs4_pnfs_write);
+#endif /* CONFIG_NFS_V4_1 */
+
+DECLARE_EVENT_CLASS(nfs4_commit_event,
+		TP_PROTO(
+			const struct nfs_commit_data *data,
+			int error
+		),
+
+		TP_ARGS(data, error),
+
+		TP_STRUCT__entry(
+			__field(dev_t, dev)
+			__field(u32, fhandle)
+			__field(u64, fileid)
+			__field(loff_t, offset)
+			__field(size_t, count)
+			__field(int, error)
+		),
+
+		TP_fast_assign(
+			const struct inode *inode = data->inode;
+			__entry->dev = inode->i_sb->s_dev;
+			__entry->fileid = NFS_FILEID(inode);
+			__entry->fhandle = nfs_fhandle_hash(NFS_FH(inode));
+			__entry->offset = data->args.offset;
+			__entry->count = data->args.count;
+			__entry->error = error;
+		),
+
+		TP_printk(
+			"error=%d (%s) fileid=%02x:%02x:%llu fhandle=0x%08x "
+			"offset=%lld count=%zu",
+			__entry->error,
+			show_nfsv4_errors(__entry->error),
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->fileid,
+			__entry->fhandle,
+			(long long)__entry->offset,
+			__entry->count
+		)
+);
+#define DEFINE_NFS4_COMMIT_EVENT(name) \
+	DEFINE_EVENT(nfs4_commit_event, name, \
+			TP_PROTO( \
+				const struct nfs_commit_data *data, \
+				int error \
+			), \
+			TP_ARGS(data, error))
+DEFINE_NFS4_COMMIT_EVENT(nfs4_commit);
+#ifdef CONFIG_NFS_V4_1
+DEFINE_NFS4_COMMIT_EVENT(nfs4_pnfs_commit_ds);
+#endif /* CONFIG_NFS_V4_1 */
+
 #endif /* _TRACE_NFS4_H */
 
 #undef TRACE_INCLUDE_PATH

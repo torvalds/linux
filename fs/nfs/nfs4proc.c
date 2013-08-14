@@ -3881,6 +3881,7 @@ static int nfs4_read_done_cb(struct rpc_task *task, struct nfs_read_data *data)
 {
 	struct nfs_server *server = NFS_SERVER(data->header->inode);
 
+	trace_nfs4_read(data, task->tk_status);
 	if (nfs4_async_handle_error(task, server, data->args.context->state) == -EAGAIN) {
 		rpc_restart_call_prepare(task);
 		return -EAGAIN;
@@ -3942,6 +3943,7 @@ static int nfs4_write_done_cb(struct rpc_task *task, struct nfs_write_data *data
 {
 	struct inode *inode = data->header->inode;
 	
+	trace_nfs4_write(data, task->tk_status);
 	if (nfs4_async_handle_error(task, NFS_SERVER(inode), data->args.context->state) == -EAGAIN) {
 		rpc_restart_call_prepare(task);
 		return -EAGAIN;
@@ -4033,6 +4035,7 @@ static int nfs4_commit_done_cb(struct rpc_task *task, struct nfs_commit_data *da
 {
 	struct inode *inode = data->inode;
 
+	trace_nfs4_commit(data, task->tk_status);
 	if (nfs4_async_handle_error(task, NFS_SERVER(inode), NULL) == -EAGAIN) {
 		rpc_restart_call_prepare(task);
 		return -EAGAIN;

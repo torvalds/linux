@@ -8,3 +8,8 @@
 #define CREATE_TRACE_POINTS
 #include "nfs4trace.h"
 
+#ifdef CONFIG_NFS_V4_1
+EXPORT_TRACEPOINT_SYMBOL_GPL(nfs4_pnfs_read);
+EXPORT_TRACEPOINT_SYMBOL_GPL(nfs4_pnfs_write);
+EXPORT_TRACEPOINT_SYMBOL_GPL(nfs4_pnfs_commit_ds);
+#endif
