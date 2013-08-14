@@ -226,18 +226,26 @@ again:
 		}
 	}
 	do_div(stddev, divisor);
-	stddev = int_sqrt(stddev);
 	/*
 	 * The typical interval is obtained when standard deviation is small
 	 * or standard deviation is small compared to the average interval.
 	 *
+	 * int_sqrt() formal parameter type is unsigned long. When the
+	 * greatest difference to an outlier exceeds ~65 ms * sqrt(divisor)
+	 * the resulting squared standard deviation exceeds the input domain
+	 * of int_sqrt on platforms where unsigned long is 32 bits in size.
+	 * In such case reject the candidate average.
+	 *
 	 * Use this result only if there is no timer to wake us up sooner.
 	 */
-	if (((avg > stddev * 6) && (divisor * 4 >= INTERVALS * 3))
+	if (likely(stddev <= ULONG_MAX)) {
+		stddev = int_sqrt(stddev);
+		if (((avg > stddev * 6) && (divisor * 4 >= INTERVALS * 3))
 							|| stddev <= 20) {
-		if (data->expected_us > avg)
-			data->predicted_us = avg;
-		return;
+			if (data->expected_us > avg)
+				data->predicted_us = avg;
+			return;
+		}
 	}
 
 	/*
