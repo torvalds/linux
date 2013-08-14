@@ -60,13 +60,8 @@ int au_cpdown_attr(struct path *h_path, struct dentry *h_src)
 #define au_fclr_cpdown(flags, name) \
 	do { (flags) &= ~AuCpdown_##name; } while (0)
 
-struct au_cpdown_dir_args {
-	struct dentry *parent;
-	unsigned int flags;
-};
-
 static int au_cpdown_dir_opq(struct dentry *dentry, aufs_bindex_t bdst,
-			     struct au_cpdown_dir_args *a)
+			     unsigned int *flags)
 {
 	int err;
 	struct dentry *opq_dentry;
@@ -76,7 +71,7 @@ static int au_cpdown_dir_opq(struct dentry *dentry, aufs_bindex_t bdst,
 	if (IS_ERR(opq_dentry))
 		goto out;
 	dput(opq_dentry);
-	au_fset_cpdown(a->flags, DIROPQ);
+	au_fset_cpdown(*flags, DIROPQ);
 
 out:
 	return err;
@@ -116,7 +111,7 @@ static int au_cpdown_dir(struct dentry *dentry, aufs_bindex_t bdst,
 	struct path h_path;
 	struct dentry *parent;
 	struct inode *h_dir, *h_inode, *inode, *dir;
-	struct au_cpdown_dir_args *args = arg;
+	unsigned int *flags = arg;
 
 	bstart = au_dbstart(dentry);
 	/* dentry is di-locked */
@@ -135,19 +130,19 @@ static int au_cpdown_dir(struct dentry *dentry, aufs_bindex_t bdst,
 			      S_IRWXU | S_IRUGO | S_IXUGO);
 	if (unlikely(err))
 		goto out_put;
-	au_fset_cpdown(args->flags, MADE_DIR);
+	au_fset_cpdown(*flags, MADE_DIR);
 
 	bopq = au_dbdiropq(dentry);
-	au_fclr_cpdown(args->flags, WHED);
-	au_fclr_cpdown(args->flags, DIROPQ);
+	au_fclr_cpdown(*flags, WHED);
+	au_fclr_cpdown(*flags, DIROPQ);
 	if (au_dbwh(dentry) == bdst)
-		au_fset_cpdown(args->flags, WHED);
-	if (!au_ftest_cpdown(args->flags, PARENT_OPQ) && bopq <= bdst)
-		au_fset_cpdown(args->flags, PARENT_OPQ);
+		au_fset_cpdown(*flags, WHED);
+	if (!au_ftest_cpdown(*flags, PARENT_OPQ) && bopq <= bdst)
+		au_fset_cpdown(*flags, PARENT_OPQ);
 	h_inode = h_path.dentry->d_inode;
 	mutex_lock_nested(&h_inode->i_mutex, AuLsc_I_CHILD);
-	if (au_ftest_cpdown(args->flags, WHED)) {
-		err = au_cpdown_dir_opq(dentry, bdst, args);
+	if (au_ftest_cpdown(*flags, WHED)) {
+		err = au_cpdown_dir_opq(dentry, bdst, flags);
 		if (unlikely(err)) {
 			mutex_unlock(&h_inode->i_mutex);
 			goto out_dir;
@@ -159,7 +154,7 @@ static int au_cpdown_dir(struct dentry *dentry, aufs_bindex_t bdst,
 	if (unlikely(err))
 		goto out_opq;
 
-	if (au_ftest_cpdown(args->flags, WHED)) {
+	if (au_ftest_cpdown(*flags, WHED)) {
 		err = au_cpdown_dir_wh(dentry, h_parent, dir, bdst);
 		if (unlikely(err))
 			goto out_opq;
@@ -174,7 +169,7 @@ static int au_cpdown_dir(struct dentry *dentry, aufs_bindex_t bdst,
 
 	/* revert */
 out_opq:
-	if (au_ftest_cpdown(args->flags, DIROPQ)) {
+	if (au_ftest_cpdown(*flags, DIROPQ)) {
 		mutex_lock_nested(&h_inode->i_mutex, AuLsc_I_CHILD);
 		rerr = au_diropq_remove(dentry, bdst);
 		mutex_unlock(&h_inode->i_mutex);
@@ -186,7 +181,7 @@ out_opq:
 		}
 	}
 out_dir:
-	if (au_ftest_cpdown(args->flags, MADE_DIR)) {
+	if (au_ftest_cpdown(*flags, MADE_DIR)) {
 		rerr = vfsub_sio_rmdir(au_h_iptr(dir, bdst), &h_path);
 		if (unlikely(rerr)) {
 			AuIOErr("failed removing %.*s b%d (%d)\n",
@@ -206,13 +201,10 @@ out:
 int au_cpdown_dirs(struct dentry *dentry, aufs_bindex_t bdst)
 {
 	int err;
-	struct au_cpdown_dir_args args = {
-		.parent	= dget_parent(dentry),
-		.flags	= 0
-	};
+	unsigned int flags;
 
-	err = au_cp_dirs(dentry, bdst, au_cpdown_dir, &args);
-	dput(args.parent);
+	flags = 0;
+	err = au_cp_dirs(dentry, bdst, au_cpdown_dir, &flags);
 
 	return err;
 }
