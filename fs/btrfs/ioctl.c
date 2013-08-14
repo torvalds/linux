@@ -2013,18 +2013,20 @@ static noinline int btrfs_search_path_in_tree(struct btrfs_fs_info *info,
 		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 		if (ret < 0)
 			goto out;
+		else if (ret > 0) {
+			ret = btrfs_previous_item(root, path, dirid,
+						  BTRFS_INODE_REF_KEY);
+			if (ret < 0)
+				goto out;
+			else if (ret > 0) {
+				ret = -ENOENT;
+				goto out;
+			}
+		}
 
 		l = path->nodes[0];
 		slot = path->slots[0];
-		if (ret > 0 && slot > 0)
-			slot--;
 		btrfs_item_key_to_cpu(l, &key, slot);
-
-		if (ret > 0 && (key.objectid != dirid ||
-				key.type != BTRFS_INODE_REF_KEY)) {
-			ret = -ENOENT;
-			goto out;
-		}
 
 		iref = btrfs_item_ptr(l, slot, struct btrfs_inode_ref);
 		len = btrfs_inode_ref_name_len(l, iref);
