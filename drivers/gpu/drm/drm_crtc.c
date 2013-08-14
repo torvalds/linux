@@ -799,6 +799,41 @@ void drm_connector_unplug_all(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_connector_unplug_all);
 
+int drm_bridge_init(struct drm_device *dev, struct drm_bridge *bridge,
+		const struct drm_bridge_funcs *funcs)
+{
+	int ret;
+
+	drm_modeset_lock_all(dev);
+
+	ret = drm_mode_object_get(dev, &bridge->base, DRM_MODE_OBJECT_BRIDGE);
+	if (ret)
+		goto out;
+
+	bridge->dev = dev;
+	bridge->funcs = funcs;
+
+	list_add_tail(&bridge->head, &dev->mode_config.bridge_list);
+	dev->mode_config.num_bridge++;
+
+ out:
+	drm_modeset_unlock_all(dev);
+	return ret;
+}
+EXPORT_SYMBOL(drm_bridge_init);
+
+void drm_bridge_cleanup(struct drm_bridge *bridge)
+{
+	struct drm_device *dev = bridge->dev;
+
+	drm_modeset_lock_all(dev);
+	drm_mode_object_put(dev, &bridge->base);
+	list_del(&bridge->head);
+	dev->mode_config.num_bridge--;
+	drm_modeset_unlock_all(dev);
+}
+EXPORT_SYMBOL(drm_bridge_cleanup);
+
 int drm_encoder_init(struct drm_device *dev,
 		      struct drm_encoder *encoder,
 		      const struct drm_encoder_funcs *funcs,
@@ -1184,6 +1219,7 @@ static int drm_mode_group_init(struct drm_device *dev, struct drm_mode_group *gr
 	total_objects += dev->mode_config.num_crtc;
 	total_objects += dev->mode_config.num_connector;
 	total_objects += dev->mode_config.num_encoder;
+	total_objects += dev->mode_config.num_bridge;
 
 	group->id_list = kzalloc(total_objects * sizeof(uint32_t), GFP_KERNEL);
 	if (!group->id_list)
@@ -1192,6 +1228,7 @@ static int drm_mode_group_init(struct drm_device *dev, struct drm_mode_group *gr
 	group->num_crtcs = 0;
 	group->num_connectors = 0;
 	group->num_encoders = 0;
+	group->num_bridges = 0;
 	return 0;
 }
 
@@ -1201,6 +1238,7 @@ int drm_mode_group_init_legacy_group(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
+	struct drm_bridge *bridge;
 	int ret;
 
 	if ((ret = drm_mode_group_init(dev, group)))
@@ -1216,6 +1254,11 @@ int drm_mode_group_init_legacy_group(struct drm_device *dev,
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
 		group->id_list[group->num_crtcs + group->num_encoders +
 			       group->num_connectors++] = connector->base.id;
+
+	list_for_each_entry(bridge, &dev->mode_config.bridge_list, head)
+		group->id_list[group->num_crtcs + group->num_encoders +
+			       group->num_connectors + group->num_bridges++] =
+					bridge->base.id;
 
 	return 0;
 }
@@ -3902,6 +3945,7 @@ void drm_mode_config_init(struct drm_device *dev)
 	INIT_LIST_HEAD(&dev->mode_config.fb_list);
 	INIT_LIST_HEAD(&dev->mode_config.crtc_list);
 	INIT_LIST_HEAD(&dev->mode_config.connector_list);
+	INIT_LIST_HEAD(&dev->mode_config.bridge_list);
 	INIT_LIST_HEAD(&dev->mode_config.encoder_list);
 	INIT_LIST_HEAD(&dev->mode_config.property_list);
 	INIT_LIST_HEAD(&dev->mode_config.property_blob_list);
@@ -3938,6 +3982,7 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 	struct drm_connector *connector, *ot;
 	struct drm_crtc *crtc, *ct;
 	struct drm_encoder *encoder, *enct;
+	struct drm_bridge *bridge, *brt;
 	struct drm_framebuffer *fb, *fbt;
 	struct drm_property *property, *pt;
 	struct drm_property_blob *blob, *bt;
@@ -3946,6 +3991,11 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 	list_for_each_entry_safe(encoder, enct, &dev->mode_config.encoder_list,
 				 head) {
 		encoder->funcs->destroy(encoder);
+	}
+
+	list_for_each_entry_safe(bridge, brt,
+				 &dev->mode_config.bridge_list, head) {
+		bridge->funcs->destroy(bridge);
 	}
 
 	list_for_each_entry_safe(connector, ot,

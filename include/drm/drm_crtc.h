@@ -49,6 +49,7 @@ struct drm_clip_rect;
 #define DRM_MODE_OBJECT_FB 0xfbfbfbfb
 #define DRM_MODE_OBJECT_BLOB 0xbbbbbbbb
 #define DRM_MODE_OBJECT_PLANE 0xeeeeeeee
+#define DRM_MODE_OBJECT_BRIDGE 0xbdbdbdbd
 
 struct drm_mode_object {
 	uint32_t id;
@@ -305,6 +306,7 @@ struct drm_connector;
 struct drm_encoder;
 struct drm_pending_vblank_event;
 struct drm_plane;
+struct drm_bridge;
 
 /**
  * drm_crtc_funcs - control CRTCs for a given device
@@ -506,6 +508,7 @@ struct drm_encoder_funcs {
  * @possible_crtcs: bitmask of potential CRTC bindings
  * @possible_clones: bitmask of potential sibling encoders for cloning
  * @crtc: currently bound CRTC
+ * @bridge: bridge associated to the encoder
  * @funcs: control functions
  * @helper_private: mid-layer private data
  *
@@ -522,6 +525,7 @@ struct drm_encoder {
 	uint32_t possible_clones;
 
 	struct drm_crtc *crtc;
+	struct drm_bridge *bridge;
 	const struct drm_encoder_funcs *funcs;
 	void *helper_private;
 };
@@ -682,6 +686,48 @@ struct drm_plane {
 };
 
 /**
+ * drm_bridge_funcs - drm_bridge control functions
+ * @mode_fixup: Try to fixup (or reject entirely) proposed mode for this bridge
+ * @disable: Called right before encoder prepare, disables the bridge
+ * @post_disable: Called right after encoder prepare, for lockstepped disable
+ * @mode_set: Set this mode to the bridge
+ * @pre_enable: Called right before encoder commit, for lockstepped commit
+ * @enable: Called right after encoder commit, enables the bridge
+ * @destroy: make object go away
+ */
+struct drm_bridge_funcs {
+	bool (*mode_fixup)(struct drm_bridge *bridge,
+			   const struct drm_display_mode *mode,
+			   struct drm_display_mode *adjusted_mode);
+	void (*disable)(struct drm_bridge *bridge);
+	void (*post_disable)(struct drm_bridge *bridge);
+	void (*mode_set)(struct drm_bridge *bridge,
+			 struct drm_display_mode *mode,
+			 struct drm_display_mode *adjusted_mode);
+	void (*pre_enable)(struct drm_bridge *bridge);
+	void (*enable)(struct drm_bridge *bridge);
+	void (*destroy)(struct drm_bridge *bridge);
+};
+
+/**
+ * drm_bridge - central DRM bridge control structure
+ * @dev: DRM device this bridge belongs to
+ * @head: list management
+ * @base: base mode object
+ * @funcs: control functions
+ * @driver_private: pointer to the bridge driver's internal context
+ */
+struct drm_bridge {
+	struct drm_device *dev;
+	struct list_head head;
+
+	struct drm_mode_object base;
+
+	const struct drm_bridge_funcs *funcs;
+	void *driver_private;
+};
+
+/**
  * drm_mode_set - new values for a CRTC config change
  * @head: list management
  * @fb: framebuffer to use for new config
@@ -741,6 +787,7 @@ struct drm_mode_group {
 	uint32_t num_crtcs;
 	uint32_t num_encoders;
 	uint32_t num_connectors;
+	uint32_t num_bridges;
 
 	/* list of object IDs for this group */
 	uint32_t *id_list;
@@ -755,6 +802,8 @@ struct drm_mode_group {
  * @fb_list: list of framebuffers available
  * @num_connector: number of connectors on this device
  * @connector_list: list of connector objects
+ * @num_bridge: number of bridges on this device
+ * @bridge_list: list of bridge objects
  * @num_encoder: number of encoders on this device
  * @encoder_list: list of encoder objects
  * @num_crtc: number of CRTCs on this device
@@ -792,6 +841,8 @@ struct drm_mode_config {
 
 	int num_connector;
 	struct list_head connector_list;
+	int num_bridge;
+	struct list_head bridge_list;
 	int num_encoder;
 	struct list_head encoder_list;
 	int num_plane;
@@ -880,6 +931,10 @@ extern int drm_connector_init(struct drm_device *dev,
 extern void drm_connector_cleanup(struct drm_connector *connector);
 /* helper to unplug all connectors from sysfs for device */
 extern void drm_connector_unplug_all(struct drm_device *dev);
+
+extern int drm_bridge_init(struct drm_device *dev, struct drm_bridge *bridge,
+			   const struct drm_bridge_funcs *funcs);
+extern void drm_bridge_cleanup(struct drm_bridge *bridge);
 
 extern int drm_encoder_init(struct drm_device *dev,
 			    struct drm_encoder *encoder,
