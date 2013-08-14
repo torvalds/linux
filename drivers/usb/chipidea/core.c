@@ -264,8 +264,6 @@ int hw_device_reset(struct ci_hdrc *ci, u32 mode)
 	while (hw_read(ci, OP_USBCMD, USBCMD_RST))
 		udelay(10);		/* not RTOS friendly */
 
-	hw_phymode_configure(ci);
-
 	if (ci->platdata->notify_event)
 		ci->platdata->notify_event(ci,
 			CI_HDRC_CONTROLLER_RESET_EVENT);
@@ -456,6 +454,8 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 
 	if (!ci->platdata->phy_mode)
 		ci->platdata->phy_mode = of_usb_get_phy_mode(dev->of_node);
+
+	hw_phymode_configure(ci);
 
 	if (!ci->platdata->dr_mode)
 		ci->platdata->dr_mode = of_usb_get_dr_mode(dev->of_node);
