@@ -926,7 +926,7 @@ static struct iommu_group *get_shared_pci_device_group(struct pci_dev *pdev)
 	struct iommu_group *group;
 	struct pci_bus *bus = pdev->bus;
 
-	/* 
+	/*
 	 * Traverese the pci bus device list to get
 	 * the shared iommu group.
 	 */
@@ -996,7 +996,7 @@ static struct iommu_group *get_pci_device_group(struct pci_dev *pdev)
 
 		/*
 		 * Devices on the root bus go through the iommu.  If that's not us,
-	 	 * find the next upstream device and test ACS up to the root bus.
+		 * find the next upstream device and test ACS up to the root bus.
 		 * Finding the next device may require skipping virtual buses.
 		 */
 		while (!pci_is_root_bus(dma_pdev->bus)) {
