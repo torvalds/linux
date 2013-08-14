@@ -190,7 +190,7 @@ static void ath_rx_edma_cleanup(struct ath_softc *sc)
 
 static void ath_rx_edma_init_queue(struct ath_rx_edma *rx_edma, int size)
 {
-	skb_queue_head_init(&rx_edma->rx_fifo);
+	__skb_queue_head_init(&rx_edma->rx_fifo);
 	rx_edma->rx_fifo_hwsize = size;
 }
 
