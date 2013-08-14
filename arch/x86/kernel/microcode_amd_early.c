@@ -238,25 +238,17 @@ static void __init collect_cpu_sig_on_bsp(void *arg)
 	uci->cpu_sig.sig = cpuid_eax(0x00000001);
 }
 #else
-static void collect_cpu_info_amd_early(struct cpuinfo_x86 *c,
-						 struct ucode_cpu_info *uci)
+void load_ucode_amd_ap(void)
 {
+	unsigned int cpu = smp_processor_id();
+	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 	u32 rev, eax;
 
 	rdmsr(MSR_AMD64_PATCH_LEVEL, rev, eax);
 	eax = cpuid_eax(0x00000001);
 
-	uci->cpu_sig.sig = eax;
 	uci->cpu_sig.rev = rev;
-	c->microcode = rev;
-	c->x86 = ((eax >> 8) & 0xf) + ((eax >> 20) & 0xff);
-}
-
-void load_ucode_amd_ap(void)
-{
-	unsigned int cpu = smp_processor_id();
-
-	collect_cpu_info_amd_early(&cpu_data(cpu), ucode_cpu_info + cpu);
+	uci->cpu_sig.sig = eax;
 
 	if (cpu && !ucode_loaded) {
 		void *ucode;
@@ -265,8 +257,10 @@ void load_ucode_amd_ap(void)
 			return;
 
 		ucode = (void *)(initrd_start + ucode_offset);
-		if (load_microcode_amd(0, ucode, ucode_size) != UCODE_OK)
+		eax   = ((eax >> 8) & 0xf) + ((eax >> 20) & 0xff);
+		if (load_microcode_amd(eax, ucode, ucode_size) != UCODE_OK)
 			return;
+
 		ucode_loaded = true;
 	}
 
@@ -278,6 +272,8 @@ int __init save_microcode_in_initrd_amd(void)
 {
 	enum ucode_state ret;
 	void *ucode;
+	u32 eax;
+
 #ifdef CONFIG_X86_32
 	unsigned int bsp = boot_cpu_data.cpu_index;
 	struct ucode_cpu_info *uci = ucode_cpu_info + bsp;
@@ -293,7 +289,10 @@ int __init save_microcode_in_initrd_amd(void)
 		return 0;
 
 	ucode = (void *)(initrd_start + ucode_offset);
-	ret = load_microcode_amd(0, ucode, ucode_size);
+	eax   = cpuid_eax(0x00000001);
+	eax   = ((eax >> 8) & 0xf) + ((eax >> 20) & 0xff);
+
+	ret = load_microcode_amd(eax, ucode, ucode_size);
 	if (ret != UCODE_OK)
 		return -EINVAL;
 
