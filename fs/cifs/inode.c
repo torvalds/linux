@@ -549,6 +549,10 @@ cifs_all_info_to_fattr(struct cifs_fattr *fattr, FILE_ALL_INFO *info,
 		 * when Unix extensions are disabled - fake it.
 		 */
 		fattr->cf_nlink = 2;
+	} else if (fattr->cf_cifsattrs & ATTR_REPARSE) {
+		fattr->cf_mode = S_IFLNK;
+		fattr->cf_dtype = DT_LNK;
+		fattr->cf_nlink = le32_to_cpu(info->NumberOfLinks);
 	} else {
 		fattr->cf_mode = S_IFREG | cifs_sb->mnt_file_mode;
 		fattr->cf_dtype = DT_REG;

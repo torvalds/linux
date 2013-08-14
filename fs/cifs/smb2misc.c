@@ -171,6 +171,10 @@ smb2_check_message(char *buf, unsigned int length)
 	if (4 + len != clc_len) {
 		cifs_dbg(FYI, "Calculated size %u length %u mismatch mid %llu\n",
 			 clc_len, 4 + len, mid);
+		/* create failed on symlink */
+		if (command == SMB2_CREATE_HE &&
+		    hdr->Status == STATUS_STOPPED_ON_SYMLINK)
+			return 0;
 		/* Windows 7 server returns 24 bytes more */
 		if (clc_len + 20 == len && command == SMB2_OPLOCK_BREAK_HE)
 			return 0;
