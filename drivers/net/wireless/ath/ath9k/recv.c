@@ -1099,6 +1099,16 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 	if (rx_stats->rs_more)
 		return 0;
 
+	/*
+	 * Return immediately if the RX descriptor has been marked
+	 * as corrupt based on the various error bits.
+	 *
+	 * This is different from the other corrupt descriptor
+	 * condition handled above.
+	 */
+	if (rx_stats->rs_status & ATH9K_RXERR_CORRUPT_DESC)
+		return -EINVAL;
+
 	hdr = (struct ieee80211_hdr *) (skb->data + ah->caps.rx_status_len);
 
 	ath9k_process_tsf(rx_stats, rx_status, tsf);
@@ -1335,8 +1345,6 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 			sc->rx.frag = skb;
 			goto requeue;
 		}
-		if (rs.rs_status & ATH9K_RXERR_CORRUPT_DESC)
-			goto requeue_drop_frag;
 
 		if (sc->rx.frag) {
 			int space = skb->len - skb_tailroom(hdr_skb);
