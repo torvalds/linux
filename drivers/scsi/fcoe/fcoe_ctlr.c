@@ -2828,8 +2828,8 @@ unlock:
  * disabled, so that should ensure that this routine is only called
  * when nothing is happening.
  */
-void fcoe_ctlr_mode_set(struct fc_lport *lport, struct fcoe_ctlr *fip,
-			enum fip_state fip_mode)
+static void fcoe_ctlr_mode_set(struct fc_lport *lport, struct fcoe_ctlr *fip,
+			       enum fip_state fip_mode)
 {
 	void *priv;
 
