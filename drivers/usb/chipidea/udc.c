@@ -27,6 +27,7 @@
 #include "udc.h"
 #include "bits.h"
 #include "debug.h"
+#include "otg.h"
 
 /* control endpoint description */
 static const struct usb_endpoint_descriptor
@@ -1844,13 +1845,13 @@ free_qh_pool:
 }
 
 /**
- * udc_remove: parent remove must call this to remove UDC
+ * ci_hdrc_gadget_destroy: parent remove must call this to remove UDC
  *
  * No interrupts active, the IRQ has been released
  */
-static void udc_stop(struct ci_hdrc *ci)
+void ci_hdrc_gadget_destroy(struct ci_hdrc *ci)
 {
-	if (ci == NULL)
+	if (!ci->roles[CI_ROLE_GADGET])
 		return;
 
 	usb_del_gadget_udc(&ci->gadget);
@@ -1865,15 +1866,32 @@ static void udc_stop(struct ci_hdrc *ci)
 		if (ci->global_phy)
 			usb_put_phy(ci->transceiver);
 	}
-	/* my kobject is dynamic, I swear! */
-	memset(&ci->gadget, 0, sizeof(ci->gadget));
+}
+
+static int udc_id_switch_for_device(struct ci_hdrc *ci)
+{
+	if (ci->is_otg) {
+		ci_clear_otg_interrupt(ci, OTGSC_BSVIS);
+		ci_enable_otg_interrupt(ci, OTGSC_BSVIE);
+	}
+
+	return 0;
+}
+
+static void udc_id_switch_for_host(struct ci_hdrc *ci)
+{
+	if (ci->is_otg) {
+		/* host doesn't care B_SESSION_VALID event */
+		ci_clear_otg_interrupt(ci, OTGSC_BSVIS);
+		ci_disable_otg_interrupt(ci, OTGSC_BSVIE);
+	}
 }
 
 /**
  * ci_hdrc_gadget_init - initialize device related bits
  * ci: the controller
  *
- * This function enables the gadget role, if the device is "device capable".
+ * This function initializes the gadget, if the device is "device capable".
  */
 int ci_hdrc_gadget_init(struct ci_hdrc *ci)
 {
@@ -1886,11 +1904,11 @@ int ci_hdrc_gadget_init(struct ci_hdrc *ci)
 	if (!rdrv)
 		return -ENOMEM;
 
-	rdrv->start	= udc_start;
-	rdrv->stop	= udc_stop;
+	rdrv->start	= udc_id_switch_for_device;
+	rdrv->stop	= udc_id_switch_for_host;
 	rdrv->irq	= udc_irq;
 	rdrv->name	= "gadget";
 	ci->roles[CI_ROLE_GADGET] = rdrv;
 
-	return 0;
+	return udc_start(ci);
 }

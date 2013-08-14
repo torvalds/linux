@@ -106,6 +106,13 @@ static void host_stop(struct ci_hdrc *ci)
 		regulator_disable(ci->platdata->reg_vbus);
 }
 
+
+void ci_hdrc_host_destroy(struct ci_hdrc *ci)
+{
+	if (ci->role == CI_ROLE_HOST)
+		host_stop(ci);
+}
+
 int ci_hdrc_host_init(struct ci_hdrc *ci)
 {
 	struct ci_role_driver *rdrv;

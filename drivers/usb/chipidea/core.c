@@ -420,6 +420,12 @@ void ci_hdrc_remove_device(struct platform_device *pdev)
 }
 EXPORT_SYMBOL_GPL(ci_hdrc_remove_device);
 
+static inline void ci_role_destroy(struct ci_hdrc *ci)
+{
+	ci_hdrc_gadget_destroy(ci);
+	ci_hdrc_host_destroy(ci);
+}
+
 static int ci_hdrc_probe(struct platform_device *pdev)
 {
 	struct device	*dev = &pdev->dev;
@@ -537,7 +543,7 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 
 	free_irq(ci->irq, ci);
 stop:
-	ci_role_stop(ci);
+	ci_role_destroy(ci);
 rm_wq:
 	flush_workqueue(ci->wq);
 	destroy_workqueue(ci->wq);
@@ -553,7 +559,7 @@ static int ci_hdrc_remove(struct platform_device *pdev)
 	flush_workqueue(ci->wq);
 	destroy_workqueue(ci->wq);
 	free_irq(ci->irq, ci);
-	ci_role_stop(ci);
+	ci_role_destroy(ci);
 
 	return 0;
 }
