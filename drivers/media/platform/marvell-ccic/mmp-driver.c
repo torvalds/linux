@@ -396,10 +396,6 @@ static int mmpcam_probe(struct platform_device *pdev)
 	 * Get our I/O memory.
 	 */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "no iomem resource!\n");
-		return -ENODEV;
-	}
 	mcam->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(mcam->regs))
 		return PTR_ERR(mcam->regs);
@@ -409,10 +405,6 @@ static int mmpcam_probe(struct platform_device *pdev)
 	 * should really be managed outside of this driver?
 	 */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "no power resource!\n");
-		return -ENODEV;
-	}
 	cam->power_regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(cam->power_regs))
 		return PTR_ERR(cam->power_regs);
