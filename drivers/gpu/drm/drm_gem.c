@@ -195,9 +195,14 @@ drm_gem_remove_prime_handles(struct drm_gem_object *obj, struct drm_file *filp)
 		drm_prime_remove_buf_handle(&filp->prime,
 				obj->import_attach->dmabuf);
 	}
-	if (obj->export_dma_buf) {
+
+	/*
+	 * Note: obj->dma_buf can't disappear as long as we still hold a
+	 * handle reference in obj->handle_count.
+	 */
+	if (obj->dma_buf) {
 		drm_prime_remove_buf_handle(&filp->prime,
-				obj->export_dma_buf);
+				obj->dma_buf);
 	}
 }
 
@@ -231,6 +236,15 @@ static void drm_gem_object_handle_free(struct drm_gem_object *obj)
 	}
 }
 
+static void drm_gem_object_exported_dma_buf_free(struct drm_gem_object *obj)
+{
+	/* Unbreak the reference cycle if we have an exported dma_buf. */
+	if (obj->dma_buf) {
+		dma_buf_put(obj->dma_buf);
+		obj->dma_buf = NULL;
+	}
+}
+
 static void
 drm_gem_object_handle_unreference_unlocked(struct drm_gem_object *obj)
 {
@@ -244,8 +258,10 @@ drm_gem_object_handle_unreference_unlocked(struct drm_gem_object *obj)
 	*/
 
 	mutex_lock(&obj->dev->object_name_lock);
-	if (--obj->handle_count == 0)
+	if (--obj->handle_count == 0) {
 		drm_gem_object_handle_free(obj);
+		drm_gem_object_exported_dma_buf_free(obj);
+	}
 	mutex_unlock(&obj->dev->object_name_lock);
 
 	drm_gem_object_unreference_unlocked(obj);
@@ -589,6 +605,8 @@ drm_gem_release(struct drm_device *dev, struct drm_file *file_private)
 void
 drm_gem_object_release(struct drm_gem_object *obj)
 {
+	WARN_ON(obj->dma_buf);
+
 	if (obj->filp)
 	    fput(obj->filp);
 }

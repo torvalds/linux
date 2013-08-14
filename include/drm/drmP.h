@@ -683,8 +683,16 @@ struct drm_gem_object {
 
 	void *driver_private;
 
-	/* dma buf exported from this GEM object */
-	struct dma_buf *export_dma_buf;
+	/**
+	 * dma_buf - dma buf associated with this GEM object
+	 *
+	 * Pointer to the dma-buf associated with this gem object (either
+	 * through importing or exporting). We break the resulting reference
+	 * loop when the last gem handle for this object is released.
+	 *
+	 * Protected by obj->object_name_lock
+	 */
+	struct dma_buf *dma_buf;
 
 	/* dma buf attachment backing this object */
 	struct dma_buf_attachment *import_attach;

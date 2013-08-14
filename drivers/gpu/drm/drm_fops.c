@@ -516,6 +516,7 @@ int drm_release(struct inode *inode, struct file *filp)
 	if (dev->driver->postclose)
 		dev->driver->postclose(dev, file_priv);
 
+
 	if (drm_core_check_feature(dev, DRIVER_PRIME))
 		drm_prime_destroy_file_private(&file_priv->prime);
 

@@ -108,11 +108,8 @@ void drm_gem_dmabuf_release(struct dma_buf *dma_buf)
 {
 	struct drm_gem_object *obj = dma_buf->priv;
 
-	if (obj->export_dma_buf == dma_buf) {
-		/* drop the reference on the export fd holds */
-		obj->export_dma_buf = NULL;
-		drm_gem_object_unreference_unlocked(obj);
-	}
+	/* drop the reference on the export fd holds */
+	drm_gem_object_unreference_unlocked(obj);
 }
 EXPORT_SYMBOL(drm_gem_dmabuf_release);
 
@@ -210,6 +207,37 @@ struct dma_buf *drm_gem_prime_export(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_gem_prime_export);
 
+static struct dma_buf *export_and_register_object(struct drm_device *dev,
+						  struct drm_gem_object *obj,
+						  uint32_t flags)
+{
+	struct dma_buf *dmabuf;
+
+	/* prevent races with concurrent gem_close. */
+	if (obj->handle_count == 0) {
+		dmabuf = ERR_PTR(-ENOENT);
+		return dmabuf;
+	}
+
+	dmabuf = dev->driver->gem_prime_export(dev, obj, flags);
+	if (IS_ERR(dmabuf)) {
+		/* normally the created dma-buf takes ownership of the ref,
+		 * but if that fails then drop the ref
+		 */
+		return dmabuf;
+	}
+
+	/*
+	 * Note that callers do not need to clean up the export cache
+	 * since the check for obj->handle_count guarantees that someone
+	 * will clean it up.
+	 */
+	obj->dma_buf = dmabuf;
+	get_dma_buf(obj->dma_buf);
+
+	return dmabuf;
+}
+
 int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 		struct drm_file *file_priv, uint32_t handle, uint32_t flags,
 		int *prime_fd)
@@ -226,15 +254,20 @@ int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 	/* re-export the original imported object */
 	if (obj->import_attach) {
 		dmabuf = obj->import_attach->dmabuf;
+		get_dma_buf(dmabuf);
 		goto out_have_obj;
 	}
 
-	if (obj->export_dma_buf) {
-		dmabuf = obj->export_dma_buf;
+	mutex_lock(&dev->object_name_lock);
+	if (obj->dma_buf) {
+		get_dma_buf(obj->dma_buf);
+		dmabuf = obj->dma_buf;
+		mutex_unlock(&dev->object_name_lock);
 		goto out_have_obj;
 	}
 
-	dmabuf = dev->driver->gem_prime_export(dev, obj, flags);
+	dmabuf = export_and_register_object(dev, obj, flags);
+	mutex_unlock(&dev->object_name_lock);
 	if (IS_ERR(dmabuf)) {
 		/* normally the created dma-buf takes ownership of the ref,
 		 * but if that fails then drop the ref
@@ -242,13 +275,12 @@ int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 		ret = PTR_ERR(dmabuf);
 		goto out;
 	}
-	obj->export_dma_buf = dmabuf;
 
 	/* if we've exported this buffer the cheat and add it to the import list
 	 * so we get the correct handle back
 	 */
 	ret = drm_prime_add_buf_handle(&file_priv->prime,
-				       obj->export_dma_buf, handle);
+				       dmabuf, handle);
 	if (ret)
 		goto fail_put_dmabuf;
 
@@ -261,7 +293,6 @@ int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 	return 0;
 
 out_have_obj:
-	get_dma_buf(dmabuf);
 	ret = dma_buf_fd(dmabuf, flags);
 	if (ret < 0)
 		dma_buf_put(dmabuf);
@@ -273,8 +304,6 @@ fail_rm_handle:
 	drm_prime_remove_buf_handle_locked(&file_priv->prime,
 					   dmabuf);
 fail_put_dmabuf:
-	/* clear NOT to be checked when releasing dma_buf */
-	obj->export_dma_buf = NULL;
 	dma_buf_put(dmabuf);
 out:
 	drm_gem_object_unreference_unlocked(obj);
@@ -359,13 +388,22 @@ int drm_gem_prime_fd_to_handle(struct drm_device *dev,
 	}
 
 	/* never seen this one, need to import */
+	mutex_lock(&dev->object_name_lock);
 	obj = dev->driver->gem_prime_import(dev, dma_buf);
 	if (IS_ERR(obj)) {
 		ret = PTR_ERR(obj);
-		goto out_put;
+		goto out_unlock;
 	}
 
-	ret = drm_gem_handle_create(file_priv, obj, handle);
+	if (obj->dma_buf) {
+		WARN_ON(obj->dma_buf != dma_buf);
+	} else {
+		obj->dma_buf = dma_buf;
+		get_dma_buf(dma_buf);
+	}
+
+	/* drm_gem_handle_create_tail unlocks dev->object_name_lock. */
+	ret = drm_gem_handle_create_tail(file_priv, obj, handle);
 	drm_gem_object_unreference_unlocked(obj);
 	if (ret)
 		goto out_put;
@@ -386,6 +424,8 @@ fail:
 	 * to detach.. which seems ok..
 	 */
 	drm_gem_handle_delete(file_priv, *handle);
+out_unlock:
+	mutex_lock(&dev->object_name_lock);
 out_put:
 	dma_buf_put(dma_buf);
 	mutex_unlock(&file_priv->prime.lock);
