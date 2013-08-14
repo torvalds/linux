@@ -82,7 +82,8 @@ struct cgroup_subsys_state {
 	/* ID for this css, if possible */
 	struct css_id __rcu *id;
 
-	/* percpu_ref killing and putting dentry on the last css_put() */
+	/* percpu_ref killing and RCU release */
+	struct rcu_head rcu_head;
 	struct work_struct destroy_work;
 };
 
