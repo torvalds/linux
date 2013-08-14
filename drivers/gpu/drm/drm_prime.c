@@ -192,7 +192,7 @@ static void drm_gem_unmap_dma_buf(struct dma_buf_attachment *attach,
 	/* nothing to be done here */
 }
 
-static void drm_gem_dmabuf_release(struct dma_buf *dma_buf)
+void drm_gem_dmabuf_release(struct dma_buf *dma_buf)
 {
 	struct drm_gem_object *obj = dma_buf->priv;
 
@@ -202,6 +202,7 @@ static void drm_gem_dmabuf_release(struct dma_buf *dma_buf)
 		drm_gem_object_unreference_unlocked(obj);
 	}
 }
+EXPORT_SYMBOL(drm_gem_dmabuf_release);
 
 static void *drm_gem_dmabuf_vmap(struct dma_buf *dma_buf)
 {
