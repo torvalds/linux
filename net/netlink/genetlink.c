@@ -877,8 +877,10 @@ static int ctrl_getfamily(struct sk_buff *skb, struct genl_info *info)
 #ifdef CONFIG_MODULES
 		if (res == NULL) {
 			genl_unlock();
+			up_read(&cb_lock);
 			request_module("net-pf-%d-proto-%d-family-%s",
 				       PF_NETLINK, NETLINK_GENERIC, name);
+			down_read(&cb_lock);
 			genl_lock();
 			res = genl_family_find_byname(name);
 		}

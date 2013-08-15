@@ -75,6 +75,7 @@ struct blk_shadow {
 	struct blkif_request req;
 	struct request *request;
 	struct grant *grants_used[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	struct scatterlist sg[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 };
 
 static DEFINE_MUTEX(blkfront_mutex);
@@ -98,7 +99,6 @@ struct blkfront_info
 	enum blkif_state connected;
 	int ring_ref;
 	struct blkif_front_ring ring;
-	struct scatterlist sg[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	unsigned int evtchn, irq;
 	struct request_queue *rq;
 	struct work_struct work;
@@ -422,11 +422,11 @@ static int blkif_queue_request(struct request *req)
 			ring_req->u.discard.flag = 0;
 	} else {
 		ring_req->u.rw.nr_segments = blk_rq_map_sg(req->q, req,
-							   info->sg);
+							   info->shadow[id].sg);
 		BUG_ON(ring_req->u.rw.nr_segments >
 		       BLKIF_MAX_SEGMENTS_PER_REQUEST);
 
-		for_each_sg(info->sg, sg, ring_req->u.rw.nr_segments, i) {
+		for_each_sg(info->shadow[id].sg, sg, ring_req->u.rw.nr_segments, i) {
 			fsect = sg->offset >> 9;
 			lsect = fsect + (sg->length >> 9) - 1;
 
@@ -867,12 +867,12 @@ static void blkif_completion(struct blk_shadow *s, struct blkfront_info *info,
 			     struct blkif_response *bret)
 {
 	int i = 0;
-	struct bio_vec *bvec;
-	struct req_iterator iter;
-	unsigned long flags;
+	struct scatterlist *sg;
 	char *bvec_data;
 	void *shared_data;
-	unsigned int offset = 0;
+	int nseg;
+
+	nseg = s->req.u.rw.nr_segments;
 
 	if (bret->operation == BLKIF_OP_READ) {
 		/*
@@ -881,19 +881,16 @@ static void blkif_completion(struct blk_shadow *s, struct blkfront_info *info,
 		 * than PAGE_SIZE, we have to keep track of the current offset,
 		 * to be sure we are copying the data from the right shared page.
 		 */
-		rq_for_each_segment(bvec, s->request, iter) {
-			BUG_ON((bvec->bv_offset + bvec->bv_len) > PAGE_SIZE);
-			if (bvec->bv_offset < offset)
-				i++;
-			BUG_ON(i >= s->req.u.rw.nr_segments);
+		for_each_sg(s->sg, sg, nseg, i) {
+			BUG_ON(sg->offset + sg->length > PAGE_SIZE);
 			shared_data = kmap_atomic(
 				pfn_to_page(s->grants_used[i]->pfn));
-			bvec_data = bvec_kmap_irq(bvec, &flags);
-			memcpy(bvec_data, shared_data + bvec->bv_offset,
-				bvec->bv_len);
-			bvec_kunmap_irq(bvec_data, &flags);
+			bvec_data = kmap_atomic(sg_page(sg));
+			memcpy(bvec_data   + sg->offset,
+			       shared_data + sg->offset,
+			       sg->length);
+			kunmap_atomic(bvec_data);
 			kunmap_atomic(shared_data);
-			offset = bvec->bv_offset + bvec->bv_len;
 		}
 	}
 	/* Add the persistent grant into the list of free grants */
@@ -1022,7 +1019,7 @@ static int setup_blkring(struct xenbus_device *dev,
 			 struct blkfront_info *info)
 {
 	struct blkif_sring *sring;
-	int err;
+	int err, i;
 
 	info->ring_ref = GRANT_INVALID_REF;
 
@@ -1034,7 +1031,8 @@ static int setup_blkring(struct xenbus_device *dev,
 	SHARED_RING_INIT(sring);
 	FRONT_RING_INIT(&info->ring, sring, PAGE_SIZE);
 
-	sg_init_table(info->sg, BLKIF_MAX_SEGMENTS_PER_REQUEST);
+	for (i = 0; i < BLK_RING_SIZE; i++)
+		sg_init_table(info->shadow[i].sg, BLKIF_MAX_SEGMENTS_PER_REQUEST);
 
 	/* Allocate memory for grants */
 	err = fill_grant_buffer(info, BLK_RING_SIZE *

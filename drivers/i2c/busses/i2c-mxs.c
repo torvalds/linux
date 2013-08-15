@@ -494,7 +494,7 @@ static int mxs_i2c_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg,
 	 * based on this empirical measurement and a lot of previous frobbing.
 	 */
 	i2c->cmd_err = 0;
-	if (msg->len < 8) {
+	if (0) {	/* disable PIO mode until a proper fix is made */
 		ret = mxs_i2c_pio_setup_xfer(adap, msg, flags);
 		if (ret)
 			mxs_i2c_reset(i2c);
