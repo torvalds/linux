@@ -1388,14 +1388,21 @@ static void __xen_evtchn_do_upcall(void)
 
 			pending_bits = active_evtchns(cpu, s, word_idx);
 			bit_idx = 0; /* usually scan entire word from start */
+			/*
+			 * We scan the starting word in two parts.
+			 *
+			 * 1st time: start in the middle, scanning the
+			 * upper bits.
+			 *
+			 * 2nd time: scan the whole word (not just the
+			 * parts skipped in the first pass) -- if an
+			 * event in the previously scanned bits is
+			 * pending again it would just be scanned on
+			 * the next loop anyway.
+			 */
 			if (word_idx == start_word_idx) {
-				/* We scan the starting word in two parts */
 				if (i == 0)
-					/* 1st time: start in the middle */
 					bit_idx = start_bit_idx;
-				else
-					/* 2nd time: mask bits done already */
-					bit_idx &= (1UL << start_bit_idx) - 1;
 			}
 
 			do {
