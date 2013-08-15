@@ -1441,6 +1441,7 @@ static int rk_camera_mclk_ctrl(int cif_idx, int on, int clk_rate)
 {
     int err = 0,cif;    
     struct rk_cif_clk *clk;
+    struct clk *cif_clk_out_div;
     
     cif = cif_idx - RK29_CAM_PLATFORM_DEV_ID;
     if ((cif<0)||(cif>1)) {
@@ -1474,10 +1475,17 @@ static int rk_camera_mclk_ctrl(int cif_idx, int on, int clk_rate)
     	clk_disable(clk->pd_cif);
         clk->on = false;
         if(cif){
-           err = clk_set_parent(clk->cif_clk_out, clk_get(NULL, "cif1_out_div"));
+            cif_clk_out_div =  clk_get(NULL, "cif1_out_div");
+            err = clk_set_parent(clk->cif_clk_out,cif_clk_out_div);
         }else{
-           err = clk_set_parent(clk->cif_clk_out, clk_get(NULL, "cif0_out_div"));
+            cif_clk_out_div =  clk_get(NULL, "cif0_out_div");
+            if(IS_ERR_OR_NULL(cif_clk_out_div)){
+                cif_clk_out_div =  clk_get(NULL, "cif_out_div");
+            }
+            err = clk_set_parent(clk->cif_clk_out, cif_clk_out_div);
         }
+        if(err)
+           RKCAMERA_TR("WARNING %s_%s_%d: camera sensor mclk maybe not close, please check!!!\n", __FILE__, __FUNCTION__, __LINE__); 
     }
     spin_unlock(&clk->lock);
 rk_camera_clk_ctrl_end:
