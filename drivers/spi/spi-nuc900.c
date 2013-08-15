@@ -373,7 +373,7 @@ static int nuc900_spi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, hw);
 	init_completion(&hw->done);
 
-	master->mode_bits          = SPI_MODE_0;
+	master->mode_bits          = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 	master->num_chipselect     = hw->pdata->num_cs;
 	master->bus_num            = hw->pdata->bus_num;
 	hw->bitbang.master         = hw->master;
