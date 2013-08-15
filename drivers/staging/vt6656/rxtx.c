@@ -1753,6 +1753,7 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
 CMD_STATUS csBeacon_xmit(struct vnt_private *pDevice,
 	struct vnt_tx_mgmt *pPacket)
 {
+	struct vnt_beacon_buffer *pTX_Buffer;
 	u32 cbFrameSize = pPacket->cbMPDULen + WLAN_FCS_LEN;
 	u32 cbHeaderSize = 0;
 	u16 wTxBufSize = sizeof(STxShortBufHead);
@@ -1762,7 +1763,6 @@ CMD_STATUS csBeacon_xmit(struct vnt_private *pDevice,
 	u16 wCurrentRate;
 	u32 cbFrameBodySize;
 	u32 cbReqCount;
-	PBEACON_BUFFER pTX_Buffer;
 	u8 *pbyTxBufferAddr;
 	PUSB_SEND_CONTEXT pContext;
 	CMD_STATUS status;
@@ -1773,7 +1773,8 @@ CMD_STATUS csBeacon_xmit(struct vnt_private *pDevice,
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ManagementSend TX...NO CONTEXT!\n");
         return status ;
     }
-    pTX_Buffer = (PBEACON_BUFFER) (&pContext->Data[0]);
+
+	pTX_Buffer = (struct vnt_beacon_buffer *)&pContext->Data[0];
     pbyTxBufferAddr = (u8 *)&(pTX_Buffer->wFIFOCtl);
 
     cbFrameBodySize = pPacket->cbPayloadLen;

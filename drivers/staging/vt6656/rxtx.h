@@ -43,15 +43,13 @@ struct vnt_tx_buffer {
 	u16 wReserved;
 } __packed;
 
-typedef struct tagSBEACON_BUFFER
-{
-    u8                            byType;
-    u8                            byPKTNO;
-    u16                            wTxByteCount;
-
-    u16                            wFIFOCtl;
-    u16                            wTimeStamp;
-} __packed BEACON_BUFFER, *PBEACON_BUFFER;
+struct vnt_beacon_buffer {
+	u8 byType;
+	u8 byPKTNO;
+	u16 wTxByteCount;
+	u16 wFIFOCtl;
+	u16 wTimeStamp;
+} __packed;
 
 void vDMA0_tx_80211(struct vnt_private *, struct sk_buff *skb);
 int nsDMA_tx_packet(struct vnt_private *, u32 uDMAIdx, struct sk_buff *skb);
