@@ -150,11 +150,11 @@ static int altera_spi_txrx(struct spi_device *spi, struct spi_transfer *t)
 		hw->imr &= ~ALTERA_SPI_CONTROL_IRRDY_MSK;
 		writel(hw->imr, hw->base + ALTERA_SPI_CONTROL);
 	} else {
-		/* send the first byte */
-		writel(hw_txbyte(hw, 0), hw->base + ALTERA_SPI_TXDATA);
-
-		while (1) {
+		while (hw->count < hw->len) {
 			unsigned int rxd;
+
+			writel(hw_txbyte(hw, hw->count),
+			       hw->base + ALTERA_SPI_TXDATA);
 
 			while (!(readl(hw->base + ALTERA_SPI_STATUS) &
 				 ALTERA_SPI_STATUS_RRDY_MSK))
@@ -174,14 +174,7 @@ static int altera_spi_txrx(struct spi_device *spi, struct spi_transfer *t)
 			}
 
 			hw->count++;
-
-			if (hw->count < hw->len)
-				writel(hw_txbyte(hw, hw->count),
-				       hw->base + ALTERA_SPI_TXDATA);
-			else
-				break;
 		}
-
 	}
 
 	return hw->count * hw->bytes_per_word;
