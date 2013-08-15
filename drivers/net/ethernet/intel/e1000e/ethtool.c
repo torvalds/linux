@@ -1665,7 +1665,7 @@ static int e1000_run_loopback_test(struct e1000_adapter *adapter)
 			ret_val = 13;	/* ret_val is the same as mis-compare */
 			break;
 		}
-		if (jiffies >= (time + 20)) {
+		if (time_after(jiffies, time + 20)) {
 			ret_val = 14;	/* error code for time out error */
 			break;
 		}
