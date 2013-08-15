@@ -119,7 +119,7 @@ static int update_dt_property(struct device_node *dn, struct property **prop,
 
 	if (!more) {
 		of_update_property(dn, new_prop);
-		new_prop = NULL;
+		*prop = NULL;
 	}
 
 	return 0;
