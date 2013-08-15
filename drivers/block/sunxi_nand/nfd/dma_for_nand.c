@@ -63,23 +63,32 @@ __s32  NAND_ReleaseDMA  (__hdle hDma)
 	return 0;
 }
 
-__s32 NAND_SettingDMA(__hdle hDMA, void * pArg)
-{
-	sw_dma_setflags(hDMA, SW_DMAF_AUTOSTART);
-	return sw_dma_config(hDMA, (struct dma_hw_conf*)pArg);
-}
+void NAND_Config_Start_DMA(__u8 rw, __u32 buff_addr, __u32 len)
+{	struct dma_hw_conf nand_hwconf = {
+		.xfer_type = DMAXFER_D_BWORD_S_BWORD,
+		.hf_irq = SW_DMA_IRQ_FULL,
+		.cmbk = 0x7f077f07,
+	};
 
-void eLIBs_CleanFlushDCacheRegion_nand(void *adr, size_t bytes)
-{
-	__cpuc_flush_dcache_area(adr, bytes + (1 << 5) * 2 - 2);
-}
+	nand_hwconf.dir = rw+1;
 
-__s32 NAND_DMAEqueueBuf(__hdle hDma,  __u32 buff_addr, __u32 len)
-{
-	eLIBs_CleanFlushDCacheRegion_nand((void *)buff_addr, (size_t)len);
+	if(rw == 0){
+		nand_hwconf.from = 0x01C03030,
+		nand_hwconf.address_type = DMAADDRT_D_LN_S_IO,
+		nand_hwconf.drqsrc_type = DRQ_TYPE_NAND;
+	} else {
+		nand_hwconf.to = 0x01C03030,
+		nand_hwconf.address_type = DMAADDRT_D_IO_S_LN,
+		nand_hwconf.drqdst_type = DRQ_TYPE_NAND;
+	}
+
+	sw_dma_setflags(DMACH_DNAND, SW_DMAF_AUTOSTART);
+	sw_dma_config(DMACH_DNAND, &nand_hwconf);
+
+	__cpuc_flush_dcache_area((void *)buff_addr, len + (1 << 5) * 2 - 2);
 
 	nanddma_completed_flag = 0;
-	return sw_dma_enqueue((int)hDma, NULL, buff_addr, len);
+	sw_dma_enqueue(DMACH_DNAND, NULL, buff_addr, len);
 }
 
 __s32 NAND_WaitDmaFinish(void)

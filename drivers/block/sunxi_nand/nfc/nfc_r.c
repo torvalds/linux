@@ -99,30 +99,6 @@ __s32 _wait_cmd_finish(void)
 	return 0;
 }
 
-void _dma_config_start(__u8 rw, __u32 buff_addr, __u32 len)
-{
-	struct dma_hw_conf nand_hwconf = {
-		.xfer_type = DMAXFER_D_BWORD_S_BWORD,
-		.hf_irq = SW_DMA_IRQ_FULL,
-		.cmbk = 0x7f077f07,
-	};
-
-	nand_hwconf.dir = rw+1;
-
-	if(rw == 0){
-		nand_hwconf.from = 0x01C03030,
-		nand_hwconf.address_type = DMAADDRT_D_LN_S_IO,
-		nand_hwconf.drqsrc_type = DRQ_TYPE_NAND;
-	} else {
-		nand_hwconf.to = 0x01C03030,
-		nand_hwconf.address_type = DMAADDRT_D_IO_S_LN,
-		nand_hwconf.drqdst_type = DRQ_TYPE_NAND;
-	}
-
-	NAND_SettingDMA(dma_hdle, (void*)&nand_hwconf);
-	NAND_DMAEqueueBuf(dma_hdle, buff_addr, len);
-}
-
 __s32 _reset(void)
 {
 	__u32 cfg;
@@ -342,7 +318,7 @@ __s32 _read_in_page_mode(NFC_CMD_LIST  *rcmd,void *mainbuf,void *sparebuf,__u8 d
 	this_dma_handle = dma_map_single(NULL, mainbuf, pagesize,
 					 DMA_FROM_DEVICE);
 
-	_dma_config_start(0, (__u32)mainbuf, pagesize);
+	NAND_Config_Start_DMA(0, (__u32)mainbuf, pagesize);
 
 	/*wait cmd fifo free*/
 	ret = _wait_cmdfifo_free();
