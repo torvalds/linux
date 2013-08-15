@@ -32,6 +32,7 @@
 #include "evergreend.h"
 #include "atom.h"
 
+extern void dce6_afmt_write_speaker_allocation(struct drm_encoder *encoder);
 extern void dce6_afmt_write_sad_regs(struct drm_encoder *encoder);
 extern void dce6_afmt_select_pin(struct drm_encoder *encoder);
 
@@ -267,7 +268,11 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 	       AFMT_60958_CS_CHANNEL_NUMBER_6(7) |
 	       AFMT_60958_CS_CHANNEL_NUMBER_7(8));
 
-	/* fglrx sets 0x0001005f | (x & 0x00fc0000) in 0x5f78 here */
+	if (ASIC_IS_DCE6(rdev)) {
+		dce6_afmt_write_speaker_allocation(encoder);
+	} else {
+		/* fglrx sets 0x0001005f | (x & 0x00fc0000) in 0x5f78 here */
+	}
 
 	WREG32(AFMT_AUDIO_PACKET_CONTROL2 + offset,
 	       AFMT_AUDIO_CHANNEL_ENABLE(0xff));

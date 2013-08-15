@@ -94,17 +94,62 @@ void dce6_afmt_select_pin(struct drm_encoder *encoder)
 	WREG32(AFMT_AUDIO_SRC_CONTROL + offset, AFMT_AUDIO_SRC_SELECT(id));
 }
 
+void dce6_afmt_write_speaker_allocation(struct drm_encoder *encoder)
+{
+	struct radeon_device *rdev = encoder->dev->dev_private;
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+	struct drm_connector *connector;
+	struct radeon_connector *radeon_connector = NULL;
+	u32 offset, tmp;
+	u8 *sadb;
+	int sad_count;
+
+	if (!dig->afmt->pin)
+		return;
+
+	offset = dig->afmt->pin->offset;
+
+	list_for_each_entry(connector, &encoder->dev->mode_config.connector_list, head) {
+		if (connector->encoder == encoder)
+			radeon_connector = to_radeon_connector(connector);
+	}
+
+	if (!radeon_connector) {
+		DRM_ERROR("Couldn't find encoder's connector\n");
+		return;
+	}
+
+	sad_count = drm_edid_to_speaker_allocation(radeon_connector->edid, &sadb);
+	if (sad_count < 0) {
+		DRM_ERROR("Couldn't read Speaker Allocation Data Block: %d\n", sad_count);
+		return;
+	}
+
+	/* program the speaker allocation */
+	tmp = RREG32_ENDPOINT(offset, AZ_F0_CODEC_PIN_CONTROL_CHANNEL_SPEAKER);
+	tmp &= ~(DP_CONNECTION | SPEAKER_ALLOCATION_MASK);
+	/* set HDMI mode */
+	tmp |= HDMI_CONNECTION;
+	if (sad_count)
+		tmp |= SPEAKER_ALLOCATION(sadb[0]);
+	else
+		tmp |= SPEAKER_ALLOCATION(5); /* stereo */
+	WREG32_ENDPOINT(offset, AZ_F0_CODEC_PIN_CONTROL_CHANNEL_SPEAKER, tmp);
+
+	kfree(sadb);
+}
+
 void dce6_afmt_write_sad_regs(struct drm_encoder *encoder)
 {
 	struct radeon_device *rdev = encoder->dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
-	u32 offset, tmp;
+	u32 offset;
 	struct drm_connector *connector;
 	struct radeon_connector *radeon_connector = NULL;
 	struct cea_sad *sads;
-	int i, sad_count, sadb_count;
-	u8 *sadb;
+	int i, sad_count;
 
 	static const u16 eld_reg_to_type[][2] = {
 		{ AZ_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR0, HDMI_AUDIO_CODING_TYPE_PCM },
@@ -143,23 +188,6 @@ void dce6_afmt_write_sad_regs(struct drm_encoder *encoder)
 	}
 	BUG_ON(!sads);
 
-	sadb_count = drm_edid_to_speaker_allocation(radeon_connector->edid, &sadb);
-	if (sadb_count < 0) {
-		DRM_ERROR("Couldn't read Speaker Allocation Data Block: %d\n", sadb_count);
-		return;
-	}
-
-	/* program the speaker allocation */
-	tmp = RREG32_ENDPOINT(offset, AZ_F0_CODEC_PIN_CONTROL_CHANNEL_SPEAKER);
-	tmp &= ~(DP_CONNECTION | SPEAKER_ALLOCATION_MASK);
-	/* set HDMI mode */
-	tmp |= HDMI_CONNECTION;
-	if (sadb_count)
-		tmp |= SPEAKER_ALLOCATION(sadb[0]);
-	else
-		tmp |= SPEAKER_ALLOCATION(5); /* stereo */
-	WREG32_ENDPOINT(offset, AZ_F0_CODEC_PIN_CONTROL_CHANNEL_SPEAKER, tmp);
-
 	for (i = 0; i < ARRAY_SIZE(eld_reg_to_type); i++) {
 		u32 value = 0;
 		int j;
@@ -180,7 +208,6 @@ void dce6_afmt_write_sad_regs(struct drm_encoder *encoder)
 	}
 
 	kfree(sads);
-	kfree(sadb);
 }
 
 static int dce6_audio_chipset_supported(struct radeon_device *rdev)
