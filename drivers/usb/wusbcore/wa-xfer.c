@@ -166,8 +166,8 @@ static inline void wa_xfer_init(struct wa_xfer *xfer)
 /*
  * Destroy a transfer structure
  *
- * Note that the xfer->seg[index] thingies follow the URB life cycle,
- * so we need to put them, not free them.
+ * Note that freeing xfer->seg[cnt]->urb will free the containing
+ * xfer->seg[cnt] memory that was allocated by __wa_xfer_setup_segs.
  */
 static void wa_xfer_destroy(struct kref *_xfer)
 {
@@ -175,9 +175,8 @@ static void wa_xfer_destroy(struct kref *_xfer)
 	if (xfer->seg) {
 		unsigned cnt;
 		for (cnt = 0; cnt < xfer->segs; cnt++) {
-			if (xfer->is_inbound)
-				usb_put_urb(xfer->seg[cnt]->dto_urb);
-			usb_put_urb(&xfer->seg[cnt]->urb);
+			usb_free_urb(xfer->seg[cnt]->dto_urb);
+			usb_free_urb(&xfer->seg[cnt]->urb);
 		}
 	}
 	kfree(xfer);
