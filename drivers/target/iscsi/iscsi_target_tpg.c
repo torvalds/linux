@@ -129,7 +129,8 @@ void iscsit_release_discovery_tpg(void)
 
 struct iscsi_portal_group *iscsit_get_tpg_from_np(
 	struct iscsi_tiqn *tiqn,
-	struct iscsi_np *np)
+	struct iscsi_np *np,
+	struct iscsi_tpg_np **tpg_np_out)
 {
 	struct iscsi_portal_group *tpg = NULL;
 	struct iscsi_tpg_np *tpg_np;
@@ -147,6 +148,8 @@ struct iscsi_portal_group *iscsit_get_tpg_from_np(
 		spin_lock(&tpg->tpg_np_lock);
 		list_for_each_entry(tpg_np, &tpg->tpg_gnp_list, tpg_np_list) {
 			if (tpg_np->tpg_np == np) {
+				*tpg_np_out = tpg_np;
+				kref_get(&tpg_np->tpg_np_kref);
 				spin_unlock(&tpg->tpg_np_lock);
 				spin_unlock(&tiqn->tiqn_tpg_lock);
 				return tpg;
@@ -494,6 +497,8 @@ struct iscsi_tpg_np *iscsit_tpg_add_network_portal(
 	INIT_LIST_HEAD(&tpg_np->tpg_np_child_list);
 	INIT_LIST_HEAD(&tpg_np->tpg_np_parent_list);
 	spin_lock_init(&tpg_np->tpg_np_parent_lock);
+	init_completion(&tpg_np->tpg_np_comp);
+	kref_init(&tpg_np->tpg_np_kref);
 	tpg_np->tpg_np		= np;
 	tpg_np->tpg		= tpg;
 
