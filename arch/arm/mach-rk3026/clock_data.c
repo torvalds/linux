@@ -2864,8 +2864,8 @@ static void __init rk2928_clock_common_init(unsigned long gpll_rate, unsigned lo
 	clk_set_parent_nolock(&aclk_vepu, &codec_pll_clk);
 	clk_set_parent_nolock(&aclk_vdpu, &codec_pll_clk);
 
-	clk_set_rate_nolock(&aclk_vepu, 200 * MHZ);
-	clk_set_rate_nolock(&aclk_vdpu, 200 * MHZ);
+	clk_set_rate_nolock(&aclk_vepu, 400 * MHZ);
+	clk_set_rate_nolock(&aclk_vdpu, 400 * MHZ);
 	//gpu auto sel
 	//clk_set_parent_nolock(&clk_gpu_pre, &general_pll_clk);
 	clk_set_rate_nolock(&clk_gpu_pre, 133 * MHZ);
