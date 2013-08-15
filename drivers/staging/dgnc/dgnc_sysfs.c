@@ -43,7 +43,6 @@
 #include <linux/kdev_t.h>
   
 #include "dgnc_driver.h"
-#include "dgnc_proc.h"
 #include "dgnc_mgmt.h"
 
 

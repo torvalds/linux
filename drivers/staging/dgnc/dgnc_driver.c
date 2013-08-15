@@ -43,7 +43,6 @@
 
 #include "dgnc_driver.h"
 #include "dgnc_pci.h"
-#include "dgnc_proc.h"
 #include "dpacompat.h"
 #include "dgnc_mgmt.h"
 #include "dgnc_tty.h"
@@ -313,11 +312,6 @@ static int dgnc_start(void)
 		}
 
 		/*
-		 * Register our basic stuff in /proc/dgnc
-		 */
-		dgnc_proc_register_basic_prescan();
-
-		/*
 		 * Init any global tty stuff.
 		 */
 		rc = dgnc_tty_preinit();
@@ -400,8 +394,6 @@ void dgnc_cleanup_module(void)
 
 	/* Turn off poller right away. */
 	del_timer_sync(&dgnc_poll_timer);
-
-	dgnc_proc_unregister_all();
 
 	dgnc_remove_driver_sysfiles(&dgnc_driver);
 
@@ -741,8 +733,6 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 	 * context, and there are no locks held.
 	 */
 	brd->flipbuf = dgnc_driver_kzmalloc(MYFLIPLEN, GFP_KERNEL);
-
-	dgnc_proc_register_basic_postscan(dgnc_NumBoards);
 
 	wake_up_interruptible(&brd->state_wait);
 
