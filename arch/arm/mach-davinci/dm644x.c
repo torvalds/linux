@@ -307,6 +307,7 @@ static struct clk_lookup dm644x_clks[] = {
 	CLK("serial8250.1", NULL, &uart1_clk),
 	CLK("serial8250.2", NULL, &uart2_clk),
 	CLK("davinci_emac.1", NULL, &emac_clk),
+	CLK("davinci_mdio.0", "fck", &emac_clk),
 	CLK("i2c_davinci.1", NULL, &i2c_clk),
 	CLK("palm_bk3710", NULL, &ide_clk),
 	CLK("davinci-mcbsp", NULL, &asp_clk),
@@ -950,8 +951,6 @@ static int __init dm644x_init_devices(void)
 
 	platform_device_register(&dm644x_mdio_device);
 	platform_device_register(&dm644x_emac_device);
-	clk_add_alias(NULL, dev_name(&dm644x_mdio_device.dev),
-		      NULL, &dm644x_emac_device.dev);
 
 	return 0;
 }

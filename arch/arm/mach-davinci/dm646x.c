@@ -351,6 +351,7 @@ static struct clk_lookup dm646x_clks[] = {
 	CLK("davinci-mcasp.1", NULL, &mcasp1_clk),
 	CLK(NULL, "aemif", &aemif_clk),
 	CLK("davinci_emac.1", NULL, &emac_clk),
+	CLK("davinci_mdio.0", "fck", &emac_clk),
 	CLK(NULL, "pwm0", &pwm0_clk),
 	CLK(NULL, "pwm1", &pwm1_clk),
 	CLK(NULL, "timer0", &timer0_clk),
@@ -940,8 +941,6 @@ static int __init dm646x_init_devices(void)
 
 	platform_device_register(&dm646x_mdio_device);
 	platform_device_register(&dm646x_emac_device);
-	clk_add_alias(NULL, dev_name(&dm646x_mdio_device.dev),
-		      NULL, &dm646x_emac_device.dev);
 
 	return 0;
 }
