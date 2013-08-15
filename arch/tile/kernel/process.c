@@ -187,16 +187,8 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	memset(&p->thread.dma_async_tlb, 0, sizeof(struct async_tlb));
 #endif
 
-#if CHIP_HAS_SN_PROC()
-	/* Likewise, the new thread is not running static processor code. */
-	p->thread.sn_proc_running = 0;
-	memset(&p->thread.sn_async_tlb, 0, sizeof(struct async_tlb));
-#endif
-
-#if CHIP_HAS_PROC_STATUS_SPR()
 	/* New thread has its miscellaneous processor state bits clear. */
 	p->thread.proc_status = 0;
-#endif
 
 #ifdef CONFIG_HARDWALL
 	/* New thread does not own any networks. */
@@ -378,15 +370,11 @@ static void save_arch_state(struct thread_struct *t)
 	t->system_save[2] = __insn_mfspr(SPR_SYSTEM_SAVE_0_2);
 	t->system_save[3] = __insn_mfspr(SPR_SYSTEM_SAVE_0_3);
 	t->intctrl_0 = __insn_mfspr(SPR_INTCTRL_0_STATUS);
-#if CHIP_HAS_PROC_STATUS_SPR()
 	t->proc_status = __insn_mfspr(SPR_PROC_STATUS);
-#endif
 #if !CHIP_HAS_FIXED_INTVEC_BASE()
 	t->interrupt_vector_base = __insn_mfspr(SPR_INTERRUPT_VECTOR_BASE_0);
 #endif
-#if CHIP_HAS_TILE_RTF_HWM()
 	t->tile_rtf_hwm = __insn_mfspr(SPR_TILE_RTF_HWM);
-#endif
 #if CHIP_HAS_DSTREAM_PF()
 	t->dstream_pf = __insn_mfspr(SPR_DSTREAM_PF);
 #endif
@@ -407,15 +395,11 @@ static void restore_arch_state(const struct thread_struct *t)
 	__insn_mtspr(SPR_SYSTEM_SAVE_0_2, t->system_save[2]);
 	__insn_mtspr(SPR_SYSTEM_SAVE_0_3, t->system_save[3]);
 	__insn_mtspr(SPR_INTCTRL_0_STATUS, t->intctrl_0);
-#if CHIP_HAS_PROC_STATUS_SPR()
 	__insn_mtspr(SPR_PROC_STATUS, t->proc_status);
-#endif
 #if !CHIP_HAS_FIXED_INTVEC_BASE()
 	__insn_mtspr(SPR_INTERRUPT_VECTOR_BASE_0, t->interrupt_vector_base);
 #endif
-#if CHIP_HAS_TILE_RTF_HWM()
 	__insn_mtspr(SPR_TILE_RTF_HWM, t->tile_rtf_hwm);
-#endif
 #if CHIP_HAS_DSTREAM_PF()
 	__insn_mtspr(SPR_DSTREAM_PF, t->dstream_pf);
 #endif
@@ -424,25 +408,10 @@ static void restore_arch_state(const struct thread_struct *t)
 
 void _prepare_arch_switch(struct task_struct *next)
 {
-#if CHIP_HAS_SN_PROC()
-	int snctl;
-#endif
 #if CHIP_HAS_TILE_DMA()
 	struct tile_dma_state *dma = &current->thread.tile_dma_state;
 	if (dma->enabled)
 		save_tile_dma_state(dma);
-#endif
-#if CHIP_HAS_SN_PROC()
-	/*
-	 * Suspend the static network processor if it was running.
-	 * We do not suspend the fabric itself, just like we don't
-	 * try to suspend the UDN.
-	 */
-	snctl = __insn_mfspr(SPR_SNCTL);
-	current->thread.sn_proc_running =
-		(snctl & SPR_SNCTL__FRZPROC_MASK) == 0;
-	if (current->thread.sn_proc_running)
-		__insn_mtspr(SPR_SNCTL, snctl | SPR_SNCTL__FRZPROC_MASK);
 #endif
 }
 
@@ -470,17 +439,6 @@ struct task_struct *__sched _switch_to(struct task_struct *prev,
 
 	/* Restore other arch state. */
 	restore_arch_state(&next->thread);
-
-#if CHIP_HAS_SN_PROC()
-	/*
-	 * Restart static network processor in the new process
-	 * if it was running before.
-	 */
-	if (next->thread.sn_proc_running) {
-		int snctl = __insn_mfspr(SPR_SNCTL);
-		__insn_mtspr(SPR_SNCTL, snctl & ~SPR_SNCTL__FRZPROC_MASK);
-	}
-#endif
 
 #ifdef CONFIG_HARDWALL
 	/* Enable or disable access to the network registers appropriately. */
@@ -523,7 +481,7 @@ int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
 		schedule();
 		return 1;
 	}
-#if CHIP_HAS_TILE_DMA() || CHIP_HAS_SN_PROC()
+#if CHIP_HAS_TILE_DMA()
 	if (thread_info_flags & _TIF_ASYNC_TLB) {
 		do_async_page_fault(regs);
 		return 1;

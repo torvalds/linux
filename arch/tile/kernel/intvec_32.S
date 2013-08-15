@@ -32,12 +32,6 @@
 
 #define PTREGS_OFFSET_SYSCALL PTREGS_OFFSET_REG(TREG_SYSCALL_NR)
 
-#if !CHIP_HAS_WH64()
-	/* By making this an empty macro, we can use wh64 in the code. */
-	.macro  wh64 reg
-	.endm
-#endif
-
 	.macro  push_reg reg, ptr=sp, delta=-4
 	{
 	 sw     \ptr, \reg
@@ -325,18 +319,14 @@ intvec_\vecname:
 	 movei  r3, -1   /* not used, but set for consistency */
 	}
 	.else
-#if CHIP_HAS_AUX_PERF_COUNTERS()
 	.ifc \c_routine, op_handle_aux_perf_interrupt
 	{
 	 mfspr  r2, AUX_PERF_COUNT_STS
 	 movei  r3, -1   /* not used, but set for consistency */
 	}
 	.else
-#endif
 	movei   r3, 0
-#if CHIP_HAS_AUX_PERF_COUNTERS()
 	.endif
-#endif
 	.endif
 	.endif
 	.endif
@@ -561,7 +551,6 @@ intvec_\vecname:
 	.endif
 	mtspr   INTERRUPT_CRITICAL_SECTION, zero
 
-#if CHIP_HAS_WH64()
 	/*
 	 * Prepare the first 256 stack bytes to be rapidly accessible
 	 * without having to fetch the background data.  We don't really
@@ -582,7 +571,6 @@ intvec_\vecname:
 	 addi   r52, r52, -64
 	}
 	wh64    r52
-#endif
 
 #ifdef CONFIG_TRACE_IRQFLAGS
 	.ifnc \function,handle_nmi
@@ -1533,11 +1521,9 @@ STD_ENTRY(_sys_clone)
 	__HEAD
 	.align 64
 	/* Align much later jump on the start of a cache line. */
-#if !ATOMIC_LOCKS_FOUND_VIA_TABLE()
 	nop
 #if PAGE_SIZE >= 0x10000
 	nop
-#endif
 #endif
 ENTRY(sys_cmpxchg)
 
@@ -1572,45 +1558,6 @@ ENTRY(sys_cmpxchg)
 # error Code here assumes PAGE_OFFSET can be loaded with just hi16()
 #endif
 
-#if ATOMIC_LOCKS_FOUND_VIA_TABLE()
-	{
-	 /* Check for unaligned input. */
-	 bnz    sp, .Lcmpxchg_badaddr
-	 mm     r25, r0, zero, 3, PAGE_SHIFT-1
-	}
-	{
-	 crc32_32 r25, zero, r25
-	 moveli r21, lo16(atomic_lock_ptr)
-	}
-	{
-	 auli   r21, r21, ha16(atomic_lock_ptr)
-	 auli   r23, zero, hi16(PAGE_OFFSET)  /* hugepage-aligned */
-	}
-	{
-	 shri	r20, r25, 32 - ATOMIC_HASH_L1_SHIFT
-	 slt_u  r23, r0, r23
-	 lw	r26, r0  /* see comment in the "#else" for the "lw r26". */
-	}
-	{
-	 s2a    r21, r20, r21
-	 bbns   r23, .Lcmpxchg_badaddr
-	}
-	{
-	 lw     r21, r21
-	 seqi	r23, TREG_SYSCALL_NR_NAME, __NR_FAST_cmpxchg64
-	 andi	r25, r25, ATOMIC_HASH_L2_SIZE - 1
-	}
-	{
-	 /* Branch away at this point if we're doing a 64-bit cmpxchg. */
-	 bbs    r23, .Lcmpxchg64
-	 andi   r23, r0, 7       /* Precompute alignment for cmpxchg64. */
-	}
-	{
-	 s2a	ATOMIC_LOCK_REG_NAME, r25, r21
-	 j      .Lcmpxchg32_tns   /* see comment in the #else for the jump. */
-	}
-
-#else /* ATOMIC_LOCKS_FOUND_VIA_TABLE() */
 	{
 	 /* Check for unaligned input. */
 	 bnz    sp, .Lcmpxchg_badaddr
@@ -1635,12 +1582,9 @@ ENTRY(sys_cmpxchg)
 
 	 /*
 	  * Ensure that the TLB is loaded before we take out the lock.
-	  * On tilepro, this will start fetching the value all the way
-	  * into our L1 as well (and if it gets modified before we
-	  * grab the lock, it will be invalidated from our cache
-	  * before we reload it).  On tile64, we'll start fetching it
-	  * into our L1 if we're the home, and if we're not, we'll
-	  * still at least start fetching it into the home's L2.
+	  * This will start fetching the value all the way into our L1
+	  * as well (and if it gets modified before we grab the lock,
+	  * it will be invalidated from our cache before we reload it).
 	  */
 	 lw	r26, r0
 	}
@@ -1682,8 +1626,6 @@ ENTRY(sys_cmpxchg)
 	  */
 	 j      .Lcmpxchg32_tns
 	}
-
-#endif /* ATOMIC_LOCKS_FOUND_VIA_TABLE() */
 
 /* Symbol for do_page_fault_ics() to use to compare against the PC. */
 .global __sys_cmpxchg_grab_lock
@@ -1822,9 +1764,6 @@ __sys_cmpxchg_grab_lock:
 	.align 64
 .Lcmpxchg64:
 	{
-#if ATOMIC_LOCKS_FOUND_VIA_TABLE()
-	 s2a	ATOMIC_LOCK_REG_NAME, r25, r21
-#endif
 	 bzt     r23, .Lcmpxchg64_tns
 	}
 	j       .Lcmpxchg_badaddr
@@ -1959,10 +1898,8 @@ int_unalign:
 		     do_page_fault
 	int_hand     INT_SN_CPL, SN_CPL, bad_intr
 	int_hand     INT_DOUBLE_FAULT, DOUBLE_FAULT, do_trap
-#if CHIP_HAS_AUX_PERF_COUNTERS()
 	int_hand     INT_AUX_PERF_COUNT, AUX_PERF_COUNT, \
 		     op_handle_aux_perf_interrupt, handle_nmi
-#endif
 
 	/* Synthetic interrupt delivered only by the simulator */
 	int_hand     INT_BREAKPOINT, BREAKPOINT, do_breakpoint

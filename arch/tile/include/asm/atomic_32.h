@@ -252,21 +252,6 @@ static inline void atomic64_set(atomic64_t *v, u64 n)
  * Internal definitions only beyond this point.
  */
 
-#define ATOMIC_LOCKS_FOUND_VIA_TABLE() \
-  (!CHIP_HAS_CBOX_HOME_MAP() && defined(CONFIG_SMP))
-
-#if ATOMIC_LOCKS_FOUND_VIA_TABLE()
-
-/* Number of entries in atomic_lock_ptr[]. */
-#define ATOMIC_HASH_L1_SHIFT 6
-#define ATOMIC_HASH_L1_SIZE (1 << ATOMIC_HASH_L1_SHIFT)
-
-/* Number of locks in each struct pointed to by atomic_lock_ptr[]. */
-#define ATOMIC_HASH_L2_SHIFT (CHIP_L2_LOG_LINE_SIZE() - 2)
-#define ATOMIC_HASH_L2_SIZE (1 << ATOMIC_HASH_L2_SHIFT)
-
-#else /* ATOMIC_LOCKS_FOUND_VIA_TABLE() */
-
 /*
  * Number of atomic locks in atomic_locks[]. Must be a power of two.
  * There is no reason for more than PAGE_SIZE / 8 entries, since that
@@ -280,8 +265,6 @@ static inline void atomic64_set(atomic64_t *v, u64 n)
 #ifndef __ASSEMBLY__
 extern int atomic_locks[];
 #endif
-
-#endif /* ATOMIC_LOCKS_FOUND_VIA_TABLE() */
 
 /*
  * All the code that may fault while holding an atomic lock must

@@ -21,7 +21,7 @@
 /* mm/fault.c */
 void do_page_fault(struct pt_regs *, int fault_num,
 		   unsigned long address, unsigned long write);
-#if CHIP_HAS_TILE_DMA() || CHIP_HAS_SN_PROC()
+#if CHIP_HAS_TILE_DMA()
 void do_async_page_fault(struct pt_regs *);
 #endif
 

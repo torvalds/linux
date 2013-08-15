@@ -78,7 +78,6 @@ STD_ENTRY(relocate_new_kernel)
 	move	r30, sp
 	addi	sp, sp, -16
 
-#if CHIP_HAS_CBOX_HOME_MAP()
 	/*
 	 * On TILE-GX, we need to flush all tiles' caches, since we may
 	 * have been doing hash-for-home caching there.  Note that we
@@ -116,7 +115,6 @@ STD_ENTRY(relocate_new_kernel)
 	shl16insli	r20, r20, hw0(hv_flush_remote)
 
 	jalr	r20
-#endif
 
 	/* r33 is destination pointer, default to zero */
 

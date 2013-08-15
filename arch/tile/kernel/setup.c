@@ -1046,9 +1046,6 @@ void __cpuinit setup_cpu(int boot)
 	arch_local_irq_unmask(INT_DMATLB_MISS);
 	arch_local_irq_unmask(INT_DMATLB_ACCESS);
 #endif
-#if CHIP_HAS_SN_PROC()
-	arch_local_irq_unmask(INT_SNITLB_MISS);
-#endif
 #ifdef __tilegx__
 	arch_local_irq_unmask(INT_SINGLE_STEP_K);
 #endif
@@ -1062,10 +1059,6 @@ void __cpuinit setup_cpu(int boot)
 #if CHIP_HAS_SN()
 	/* Static network is not restricted. */
 	__insn_mtspr(SPR_MPL_SN_ACCESS_SET_0, 1);
-#endif
-#if CHIP_HAS_SN_PROC()
-	__insn_mtspr(SPR_MPL_SN_NOTIFY_SET_0, 1);
-	__insn_mtspr(SPR_MPL_SN_CPL_SET_0, 1);
 #endif
 
 	/*
@@ -1291,7 +1284,6 @@ static void __init validate_va(void)
 struct cpumask __write_once cpu_lotar_map;
 EXPORT_SYMBOL(cpu_lotar_map);
 
-#if CHIP_HAS_CBOX_HOME_MAP()
 /*
  * hash_for_home_map lists all the tiles that hash-for-home data
  * will be cached on.  Note that this may includes tiles that are not
@@ -1301,7 +1293,6 @@ EXPORT_SYMBOL(cpu_lotar_map);
  */
 struct cpumask hash_for_home_map;
 EXPORT_SYMBOL(hash_for_home_map);
-#endif
 
 /*
  * cpu_cacheable_map lists all the cpus whose caches the hypervisor can
@@ -1394,7 +1385,6 @@ static void __init setup_cpu_maps(void)
 		cpu_lotar_map = *cpu_possible_mask;
 	}
 
-#if CHIP_HAS_CBOX_HOME_MAP()
 	/* Retrieve set of CPUs used for hash-for-home caching */
 	rc = hv_inquire_tiles(HV_INQ_TILES_HFH_CACHE,
 			      (HV_VirtAddr) hash_for_home_map.bits,
@@ -1402,9 +1392,6 @@ static void __init setup_cpu_maps(void)
 	if (rc < 0)
 		early_panic("hv_inquire_tiles(HFH_CACHE) failed: rc %d\n", rc);
 	cpumask_or(&cpu_cacheable_map, cpu_possible_mask, &hash_for_home_map);
-#else
-	cpu_cacheable_map = *cpu_possible_mask;
-#endif
 }
 
 

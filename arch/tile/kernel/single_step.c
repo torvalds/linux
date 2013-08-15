@@ -546,7 +546,6 @@ void single_step_once(struct pt_regs *regs)
 			}
 			break;
 
-#if CHIP_HAS_WH64()
 		/* postincrement operations */
 		case IMM_0_OPCODE_X1:
 			switch (get_ImmOpcodeExtension_X1(bundle)) {
@@ -581,7 +580,6 @@ void single_step_once(struct pt_regs *regs)
 				break;
 			}
 			break;
-#endif /* CHIP_HAS_WH64() */
 		}
 
 		if (state->update) {

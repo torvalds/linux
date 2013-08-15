@@ -30,7 +30,6 @@ typedef unsigned long elf_greg_t;
 #define ELF_NGREG (sizeof(struct pt_regs) / sizeof(elf_greg_t))
 typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 
-#define EM_TILE64  187
 #define EM_TILEPRO 188
 #define EM_TILEGX  191
 

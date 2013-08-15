@@ -207,7 +207,7 @@ config SYSVIPC_COMPAT
 	def_bool y
 	depends on COMPAT && SYSVIPC
 
-# We do not currently support disabling HIGHMEM on tile64 and tilepro.
+# We do not currently support disabling HIGHMEM on tilepro.
 config HIGHMEM
 	bool # "Support for more than 512 MB of RAM"
 	default !TILEGX

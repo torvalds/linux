@@ -511,12 +511,10 @@ intvec_\vecname:
 	.else
 	.ifc \c_routine, op_handle_perf_interrupt
 	mfspr   r2, PERF_COUNT_STS
-#if CHIP_HAS_AUX_PERF_COUNTERS()
 	.else
 	.ifc \c_routine, op_handle_aux_perf_interrupt
 	mfspr   r2, AUX_PERF_COUNT_STS
 	.endif
-#endif
 	.endif
 	.endif
 	.endif

@@ -7,7 +7,7 @@ lib-y = cacheflush.o checksum.o cpumask.o delay.o uaccess.o \
 	strchr_$(BITS).o strlen_$(BITS).o strnlen_$(BITS).o
 
 lib-$(CONFIG_TILEGX) += memcpy_user_64.o
-lib-$(CONFIG_TILEPRO) += atomic_32.o atomic_asm_32.o memcpy_tile64.o
+lib-$(CONFIG_TILEPRO) += atomic_32.o atomic_asm_32.o
 lib-$(CONFIG_SMP) += spinlock_$(BITS).o usercopy_$(BITS).o
 
 obj-$(CONFIG_MODULES) += exports.o

@@ -113,18 +113,14 @@ struct thread_struct {
 	unsigned long intctrl_0;
 	/* Is this task currently doing a backtrace? */
 	bool in_backtrace;
-#if CHIP_HAS_PROC_STATUS_SPR()
 	/* Any other miscellaneous processor state bits */
 	unsigned long proc_status;
-#endif
 #if !CHIP_HAS_FIXED_INTVEC_BASE()
 	/* Interrupt base for PL0 interrupts */
 	unsigned long interrupt_vector_base;
 #endif
-#if CHIP_HAS_TILE_RTF_HWM()
 	/* Tile cache retry fifo high-water mark */
 	unsigned long tile_rtf_hwm;
-#endif
 #if CHIP_HAS_DSTREAM_PF()
 	/* Data stream prefetch control */
 	unsigned long dstream_pf;
@@ -136,12 +132,6 @@ struct thread_struct {
 #if CHIP_HAS_TILE_DMA()
 	/* Async DMA TLB fault information */
 	struct async_tlb dma_async_tlb;
-#endif
-#if CHIP_HAS_SN_PROC()
-	/* Was static network processor when we were switched out? */
-	int sn_proc_running;
-	/* Async SNI TLB fault information */
-	struct async_tlb sn_async_tlb;
 #endif
 };
 
@@ -286,7 +276,6 @@ extern char chip_model[64];
 /* Data on which physical memory controller corresponds to which NUMA node. */
 extern int node_controller[];
 
-#if CHIP_HAS_CBOX_HOME_MAP()
 /* Does the heap allocator return hash-for-home pages by default? */
 extern int hash_default;
 
@@ -296,11 +285,6 @@ extern int kstack_hash;
 /* Does MAP_ANONYMOUS return hash-for-home pages by default? */
 #define uheap_hash hash_default
 
-#else
-#define hash_default 0
-#define kstack_hash 0
-#define uheap_hash 0
-#endif
 
 /* Are we using huge pages in the TLB for kernel data? */
 extern int kdata_huge;

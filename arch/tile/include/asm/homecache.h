@@ -33,8 +33,7 @@ struct zone;
 
 /*
  * Is this page immutable (unwritable) and thus able to be cached more
- * widely than would otherwise be possible?  On tile64 this means we
- * mark the PTE to cache locally; on tilepro it means we have "nc" set.
+ * widely than would otherwise be possible?  This means we have "nc" set.
  */
 #define PAGE_HOME_IMMUTABLE -2
 
