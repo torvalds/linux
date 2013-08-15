@@ -62,6 +62,7 @@ static int delete_dt_node(u32 phandle)
 		return -ENOENT;
 
 	dlpar_detach_node(dn);
+	of_node_put(dn);
 	return 0;
 }
 
