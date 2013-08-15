@@ -28,7 +28,7 @@ struct update_props_workarea {
 	u32 state;
 	u64 reserved;
 	u32 nprops;
-};
+} __packed;
 
 #define NODE_ACTION_MASK	0xff000000
 #define NODE_COUNT_MASK		0x00ffffff
