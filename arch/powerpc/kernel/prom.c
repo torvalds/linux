@@ -865,45 +865,63 @@ static int __init prom_reconfig_setup(void)
 __initcall(prom_reconfig_setup);
 #endif
 
+bool arch_match_cpu_phys_id(int cpu, u64 phys_id)
+{
+	return (int)phys_id == get_hard_smp_processor_id(cpu);
+}
+
+static bool __of_find_n_match_cpu_property(struct device_node *cpun,
+			const char *prop_name, int cpu, unsigned int *thread)
+{
+	const __be32 *cell;
+	int ac, prop_len, tid;
+	u64 hwid;
+
+	ac = of_n_addr_cells(cpun);
+	cell = of_get_property(cpun, prop_name, &prop_len);
+	if (!cell)
+		return false;
+	prop_len /= sizeof(*cell);
+	for (tid = 0; tid < prop_len; tid++) {
+		hwid = of_read_number(cell, ac);
+		if (arch_match_cpu_phys_id(cpu, hwid)) {
+			if (thread)
+				*thread = tid;
+			return true;
+		}
+		cell += ac;
+	}
+	return false;
+}
+
 /* Find the device node for a given logical cpu number, also returns the cpu
  * local thread number (index in ibm,interrupt-server#s) if relevant and
  * asked for (non NULL)
  */
 struct device_node *of_get_cpu_node(int cpu, unsigned int *thread)
 {
-	int hardid;
-	struct device_node *np;
+	struct device_node *cpun, *cpus;
 
-	hardid = get_hard_smp_processor_id(cpu);
+	cpus = of_find_node_by_path("/cpus");
+	if (!cpus) {
+		pr_warn("Missing cpus node, bailing out\n");
+		return NULL;
+	}
 
-	for_each_node_by_type(np, "cpu") {
-		const u32 *intserv;
-		unsigned int plen, t;
+	for_each_child_of_node(cpus, cpun) {
+		if (of_node_cmp(cpun->type, "cpu"))
+			continue;
 
-		/* Check for ibm,ppc-interrupt-server#s. If it doesn't exist
-		 * fallback to "reg" property and assume no threads
+		/* Check for non-standard "ibm,ppc-interrupt-server#s" property
+		 * for thread ids on PowerPC. If it doesn't exist fallback to
+		 * standard "reg" property.
 		 */
-		intserv = of_get_property(np, "ibm,ppc-interrupt-server#s",
-				&plen);
-		if (intserv == NULL) {
-			const u32 *reg = of_get_property(np, "reg", NULL);
-			if (reg == NULL)
-				continue;
-			if (*reg == hardid) {
-				if (thread)
-					*thread = 0;
-				return np;
-			}
-		} else {
-			plen /= sizeof(u32);
-			for (t = 0; t < plen; t++) {
-				if (hardid == intserv[t]) {
-					if (thread)
-						*thread = t;
-					return np;
-				}
-			}
-		}
+		if (__of_find_n_match_cpu_property(cpun,
+				"ibm,ppc-interrupt-server#s", cpu, thread))
+			return cpun;
+
+		if (__of_find_n_match_cpu_property(cpun, "reg", cpu, thread))
+			return cpun;
 	}
 	return NULL;
 }
