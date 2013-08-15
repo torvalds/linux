@@ -223,6 +223,55 @@ bool v4l_match_dv_timings(const struct v4l2_dv_timings *t1,
 }
 EXPORT_SYMBOL_GPL(v4l_match_dv_timings);
 
+void v4l2_print_dv_timings(const char *dev_prefix, const char *prefix,
+			   const struct v4l2_dv_timings *t, bool detailed)
+{
+	const struct v4l2_bt_timings *bt = &t->bt;
+	u32 htot, vtot;
+
+	if (t->type != V4L2_DV_BT_656_1120)
+		return;
+
+	htot = V4L2_DV_BT_FRAME_WIDTH(bt);
+	vtot = V4L2_DV_BT_FRAME_HEIGHT(bt);
+
+	if (prefix == NULL)
+		prefix = "";
+
+	pr_info("%s: %s%ux%u%s%u (%ux%u)\n", dev_prefix, prefix,
+		bt->width, bt->height, bt->interlaced ? "i" : "p",
+		(htot * vtot) > 0 ? ((u32)bt->pixelclock / (htot * vtot)) : 0,
+		htot, vtot);
+
+	if (!detailed)
+		return;
+
+	pr_info("%s: horizontal: fp = %u, %ssync = %u, bp = %u\n",
+			dev_prefix, bt->hfrontporch,
+			(bt->polarities & V4L2_DV_HSYNC_POS_POL) ? "+" : "-",
+			bt->hsync, bt->hbackporch);
+	pr_info("%s: vertical: fp = %u, %ssync = %u, bp = %u\n",
+			dev_prefix, bt->vfrontporch,
+			(bt->polarities & V4L2_DV_VSYNC_POS_POL) ? "+" : "-",
+			bt->vsync, bt->vbackporch);
+	pr_info("%s: pixelclock: %llu\n", dev_prefix, bt->pixelclock);
+	pr_info("%s: flags (0x%x):%s%s%s%s\n", dev_prefix, bt->flags,
+			(bt->flags & V4L2_DV_FL_REDUCED_BLANKING) ?
+			" REDUCED_BLANKING" : "",
+			(bt->flags & V4L2_DV_FL_CAN_REDUCE_FPS) ?
+			" CAN_REDUCE_FPS" : "",
+			(bt->flags & V4L2_DV_FL_REDUCED_FPS) ?
+			" REDUCED_FPS" : "",
+			(bt->flags & V4L2_DV_FL_HALF_LINE) ?
+			" HALF_LINE" : "");
+	pr_info("%s: standards (0x%x):%s%s%s%s\n", dev_prefix, bt->standards,
+			(bt->standards & V4L2_DV_BT_STD_CEA861) ?  " CEA" : "",
+			(bt->standards & V4L2_DV_BT_STD_DMT) ?  " DMT" : "",
+			(bt->standards & V4L2_DV_BT_STD_CVT) ?  " CVT" : "",
+			(bt->standards & V4L2_DV_BT_STD_GTF) ?  " GTF" : "");
+}
+EXPORT_SYMBOL_GPL(v4l2_print_dv_timings);
+
 /*
  * CVT defines
  * Based on Coordinated Video Timings Standard

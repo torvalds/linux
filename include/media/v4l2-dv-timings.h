@@ -76,6 +76,15 @@ bool v4l_match_dv_timings(const struct v4l2_dv_timings *measured,
 			  const struct v4l2_dv_timings *standard,
 			  unsigned pclock_delta);
 
+/** v4l2_print_dv_timings() - log the contents of a dv_timings struct
+  * @dev_prefix:device prefix for each log line.
+  * @prefix:	additional prefix for each log line, may be NULL.
+  * @t:		the timings data.
+  * @detailed:	if true, give a detailed log.
+  */
+void v4l2_print_dv_timings(const char *dev_prefix, const char *prefix,
+			   const struct v4l2_dv_timings *t, bool detailed);
+
 /** v4l2_detect_cvt - detect if the given timings follow the CVT standard
  * @frame_height - the total height of the frame (including blanking) in lines.
  * @hfreq - the horizontal frequency in Hz.
