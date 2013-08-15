@@ -31,6 +31,7 @@
 #include <linux/migrate.h>
 #include <linux/ratelimit.h>
 #include <linux/uuid.h>
+#include <linux/semaphore.h>
 #include <asm/unaligned.h>
 #include "compat.h"
 #include "ctree.h"
@@ -2297,6 +2298,7 @@ int open_ctree(struct super_block *sb,
 	init_rwsem(&fs_info->extent_commit_sem);
 	init_rwsem(&fs_info->cleanup_work_sem);
 	init_rwsem(&fs_info->subvol_sem);
+	sema_init(&fs_info->uuid_tree_rescan_sem, 1);
 	fs_info->dev_replace.lock_owner = 0;
 	atomic_set(&fs_info->dev_replace.nesting_level, 0);
 	mutex_init(&fs_info->dev_replace.lock_finishing_cancel_unmount);
@@ -3553,6 +3555,11 @@ int close_ctree(struct btrfs_root *root)
 
 	fs_info->closing = 1;
 	smp_mb();
+
+	/* wait for the uuid_scan task to finish */
+	down(&fs_info->uuid_tree_rescan_sem);
+	/* avoid complains from lockdep et al., set sem back to initial state */
+	up(&fs_info->uuid_tree_rescan_sem);
 
 	/* pause restriper - we want to resume on mount */
 	btrfs_pause_balance(fs_info);

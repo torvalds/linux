@@ -26,6 +26,7 @@
 #include <linux/ratelimit.h>
 #include <linux/kthread.h>
 #include <linux/raid/pq.h>
+#include <linux/semaphore.h>
 #include <asm/div64.h>
 #include "compat.h"
 #include "ctree.h"
@@ -3429,11 +3430,146 @@ int btrfs_cancel_balance(struct btrfs_fs_info *fs_info)
 	return 0;
 }
 
+static int btrfs_uuid_scan_kthread(void *data)
+{
+	struct btrfs_fs_info *fs_info = data;
+	struct btrfs_root *root = fs_info->tree_root;
+	struct btrfs_key key;
+	struct btrfs_key max_key;
+	struct btrfs_path *path = NULL;
+	int ret = 0;
+	struct extent_buffer *eb;
+	int slot;
+	struct btrfs_root_item root_item;
+	u32 item_size;
+	struct btrfs_trans_handle *trans;
+
+	path = btrfs_alloc_path();
+	if (!path) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	key.objectid = 0;
+	key.type = BTRFS_ROOT_ITEM_KEY;
+	key.offset = 0;
+
+	max_key.objectid = (u64)-1;
+	max_key.type = BTRFS_ROOT_ITEM_KEY;
+	max_key.offset = (u64)-1;
+
+	path->keep_locks = 1;
+
+	while (1) {
+		ret = btrfs_search_forward(root, &key, &max_key, path, 0);
+		if (ret) {
+			if (ret > 0)
+				ret = 0;
+			break;
+		}
+
+		if (key.type != BTRFS_ROOT_ITEM_KEY ||
+		    (key.objectid < BTRFS_FIRST_FREE_OBJECTID &&
+		     key.objectid != BTRFS_FS_TREE_OBJECTID) ||
+		    key.objectid > BTRFS_LAST_FREE_OBJECTID)
+			goto skip;
+
+		eb = path->nodes[0];
+		slot = path->slots[0];
+		item_size = btrfs_item_size_nr(eb, slot);
+		if (item_size < sizeof(root_item))
+			goto skip;
+
+		trans = NULL;
+		read_extent_buffer(eb, &root_item,
+				   btrfs_item_ptr_offset(eb, slot),
+				   (int)sizeof(root_item));
+		if (btrfs_root_refs(&root_item) == 0)
+			goto skip;
+		if (!btrfs_is_empty_uuid(root_item.uuid)) {
+			/*
+			 * 1 - subvol uuid item
+			 * 1 - received_subvol uuid item
+			 */
+			trans = btrfs_start_transaction(fs_info->uuid_root, 2);
+			if (IS_ERR(trans)) {
+				ret = PTR_ERR(trans);
+				break;
+			}
+			ret = btrfs_uuid_tree_add(trans, fs_info->uuid_root,
+						  root_item.uuid,
+						  BTRFS_UUID_KEY_SUBVOL,
+						  key.objectid);
+			if (ret < 0) {
+				pr_warn("btrfs: uuid_tree_add failed %d\n",
+					ret);
+				btrfs_end_transaction(trans,
+						      fs_info->uuid_root);
+				break;
+			}
+		}
+
+		if (!btrfs_is_empty_uuid(root_item.received_uuid)) {
+			if (!trans) {
+				/* 1 - received_subvol uuid item */
+				trans = btrfs_start_transaction(
+						fs_info->uuid_root, 1);
+				if (IS_ERR(trans)) {
+					ret = PTR_ERR(trans);
+					break;
+				}
+			}
+			ret = btrfs_uuid_tree_add(trans, fs_info->uuid_root,
+						  root_item.received_uuid,
+						 BTRFS_UUID_KEY_RECEIVED_SUBVOL,
+						  key.objectid);
+			if (ret < 0) {
+				pr_warn("btrfs: uuid_tree_add failed %d\n",
+					ret);
+				btrfs_end_transaction(trans,
+						      fs_info->uuid_root);
+				break;
+			}
+		}
+
+		if (trans) {
+			ret = btrfs_end_transaction(trans, fs_info->uuid_root);
+			if (ret)
+				break;
+		}
+
+skip:
+		btrfs_release_path(path);
+		if (key.offset < (u64)-1) {
+			key.offset++;
+		} else if (key.type < BTRFS_ROOT_ITEM_KEY) {
+			key.offset = 0;
+			key.type = BTRFS_ROOT_ITEM_KEY;
+		} else if (key.objectid < (u64)-1) {
+			key.offset = 0;
+			key.type = BTRFS_ROOT_ITEM_KEY;
+			key.objectid++;
+		} else {
+			break;
+		}
+		cond_resched();
+	}
+
+out:
+	btrfs_free_path(path);
+	if (ret)
+		pr_warn("btrfs: btrfs_uuid_scan_kthread failed %d\n", ret);
+	up(&fs_info->uuid_tree_rescan_sem);
+	return 0;
+}
+
 int btrfs_create_uuid_tree(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *tree_root = fs_info->tree_root;
 	struct btrfs_root *uuid_root;
+	struct task_struct *task;
+	int ret;
 
 	/*
 	 * 1 - root node
@@ -3453,8 +3589,21 @@ int btrfs_create_uuid_tree(struct btrfs_fs_info *fs_info)
 
 	fs_info->uuid_root = uuid_root;
 
-	return btrfs_commit_transaction(trans, tree_root);
+	ret = btrfs_commit_transaction(trans, tree_root);
+	if (ret)
+		return ret;
+
+	down(&fs_info->uuid_tree_rescan_sem);
+	task = kthread_run(btrfs_uuid_scan_kthread, fs_info, "btrfs-uuid");
+	if (IS_ERR(task)) {
+		pr_warn("btrfs: failed to start uuid_scan task\n");
+		up(&fs_info->uuid_tree_rescan_sem);
+		return PTR_ERR(task);
+	}
+
+	return 0;
 }
+
 /*
  * shrinking a device means finding all of the device extents past
  * the new size, and then following the back refs to the chunks.
