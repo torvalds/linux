@@ -224,6 +224,9 @@ int nfc_set_remote_general_bytes(struct nfc_dev *dev,
 				 u8 *gt, u8 gt_len);
 u8 *nfc_get_local_general_bytes(struct nfc_dev *dev, size_t *gb_len);
 
+int nfc_fw_download_done(struct nfc_dev *dev, const char *firmware_name,
+			 u32 result);
+
 int nfc_targets_found(struct nfc_dev *dev,
 		      struct nfc_target *targets, int ntargets);
 int nfc_target_lost(struct nfc_dev *dev, u32 target_idx);
