@@ -991,12 +991,12 @@ static void s_vGenerateTxParameter(struct vnt_private *pDevice,
 */
 
 static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
-	u8 *usbPacketBuf, int bNeedEncryption, u32 uSkbPacketLen, u32 uDMAIdx,
-	struct ethhdr *psEthHeader, u8 *pPacket, PSKeyItem pTransmitKey,
-	u32 uNodeIndex, u16 wCurrentRate, u32 *pcbHeaderLen, u32 *pcbTotalLen)
+	struct vnt_tx_buffer *pTxBufHead, int bNeedEncryption,
+	u32 uSkbPacketLen, u32 uDMAIdx,	struct ethhdr *psEthHeader,
+	u8 *pPacket, PSKeyItem pTransmitKey, u32 uNodeIndex, u16 wCurrentRate,
+	u32 *pcbHeaderLen, u32 *pcbTotalLen)
 {
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
-	struct vnt_tx_buffer *pTxBufHead;
 	u32 cbFrameSize, cbFrameBodySize;
 	u32 cb802_1_H_len;
 	u32 cbIVlen = 0, cbICVlen = 0, cbMIClen = 0, cbMACHdLen = 0;
@@ -1025,8 +1025,6 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
 		if (((PSKeyTable)pTransmitKey->pvKeyTable)->bSoftWEP == true)
 			bSoftWEP = true; /* WEP 256 */
 	}
-
-	pTxBufHead = (struct vnt_tx_buffer *)usbPacketBuf;
 
     // Get pkt type
     if (ntohs(psEthHeader->h_proto) > ETH_DATA_LEN) {
@@ -2541,8 +2539,10 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
         }
     }
 
+	pTX_Buffer = (struct vnt_tx_buffer *)&pContext->Data[0];
+
     fConvertedPacket = s_bPacketToWirelessUsb(pDevice, byPktType,
-                        (u8 *)(&pContext->Data[0]), bNeedEncryption,
+			pTX_Buffer, bNeedEncryption,
                         skb->len, uDMAIdx, &pDevice->sTxEthHeader,
                         (u8 *)skb->data, pTransmitKey, uNodeIndex,
                         pDevice->wCurrentRate,
@@ -2564,7 +2564,6 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
         }
     }
 
-	pTX_Buffer = (struct vnt_tx_buffer *)&pContext->Data[0];
     pTX_Buffer->byPKTNO = (u8) (((pDevice->wCurrentRate<<4) &0x00F0) | ((pDevice->wSeqCounter - 1) & 0x000F));
     pTX_Buffer->wTxByteCount = (u16)BytesToWrite;
 
@@ -2701,8 +2700,10 @@ int bRelayPacketSend(struct vnt_private *pDevice, u8 *pbySkbData, u32 uDataLen,
     // Convert the packet to an usb frame and copy into our buffer
     // and send the irp.
 
+	pTX_Buffer = (struct vnt_tx_buffer *)&pContext->Data[0];
+
     fConvertedPacket = s_bPacketToWirelessUsb(pDevice, byPktType,
-                         (u8 *)(&pContext->Data[0]), bNeedEncryption,
+			pTX_Buffer, bNeedEncryption,
                          uDataLen, TYPE_AC0DMA, &pDevice->sTxEthHeader,
                          pbySkbData, pTransmitKey, uNodeIndex,
                          pDevice->wCurrentRate,
@@ -2714,7 +2715,6 @@ int bRelayPacketSend(struct vnt_private *pDevice, u8 *pbySkbData, u32 uDataLen,
         return false;
     }
 
-	pTX_Buffer = (struct vnt_tx_buffer *)&pContext->Data[0];
     pTX_Buffer->byPKTNO = (u8) (((pDevice->wCurrentRate<<4) &0x00F0) | ((pDevice->wSeqCounter - 1) & 0x000F));
     pTX_Buffer->wTxByteCount = (u16)BytesToWrite;
 
