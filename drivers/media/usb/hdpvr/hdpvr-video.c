@@ -642,7 +642,7 @@ static int vidioc_s_dv_timings(struct file *file, void *_fh,
 	if (dev->status != STATUS_IDLE)
 		return -EBUSY;
 	for (i = 0; i < ARRAY_SIZE(hdpvr_dv_timings); i++)
-		if (v4l_match_dv_timings(timings, hdpvr_dv_timings + i, 0))
+		if (v4l2_match_dv_timings(timings, hdpvr_dv_timings + i, 0))
 			break;
 	if (i == ARRAY_SIZE(hdpvr_dv_timings))
 		return -EINVAL;

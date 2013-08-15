@@ -181,7 +181,7 @@ bool v4l2_find_dv_timings_cap(struct v4l2_dv_timings *t,
 
 	for (i = 0; i < ARRAY_SIZE(timings); i++) {
 		if (v4l2_dv_valid_timings(timings + i, cap) &&
-		    v4l_match_dv_timings(t, timings + i, pclock_delta)) {
+		    v4l2_match_dv_timings(t, timings + i, pclock_delta)) {
 			*t = timings[i];
 			return true;
 		}
@@ -191,16 +191,16 @@ bool v4l2_find_dv_timings_cap(struct v4l2_dv_timings *t,
 EXPORT_SYMBOL_GPL(v4l2_find_dv_timings_cap);
 
 /**
- * v4l_match_dv_timings - check if two timings match
+ * v4l2_match_dv_timings - check if two timings match
  * @t1 - compare this v4l2_dv_timings struct...
  * @t2 - with this struct.
  * @pclock_delta - the allowed pixelclock deviation.
  *
  * Compare t1 with t2 with a given margin of error for the pixelclock.
  */
-bool v4l_match_dv_timings(const struct v4l2_dv_timings *t1,
-			  const struct v4l2_dv_timings *t2,
-			  unsigned pclock_delta)
+bool v4l2_match_dv_timings(const struct v4l2_dv_timings *t1,
+			   const struct v4l2_dv_timings *t2,
+			   unsigned pclock_delta)
 {
 	if (t1->type != t2->type || t1->type != V4L2_DV_BT_656_1120)
 		return false;
@@ -221,7 +221,7 @@ bool v4l_match_dv_timings(const struct v4l2_dv_timings *t1,
 		return true;
 	return false;
 }
-EXPORT_SYMBOL_GPL(v4l_match_dv_timings);
+EXPORT_SYMBOL_GPL(v4l2_match_dv_timings);
 
 void v4l2_print_dv_timings(const char *dev_prefix, const char *prefix,
 			   const struct v4l2_dv_timings *t, bool detailed)

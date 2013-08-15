@@ -64,7 +64,7 @@ bool v4l2_find_dv_timings_cap(struct v4l2_dv_timings *t,
 			      const struct v4l2_dv_timings_cap *cap,
 			      unsigned pclock_delta);
 
-/** v4l_match_dv_timings() - do two timings match?
+/** v4l2_match_dv_timings() - do two timings match?
   * @measured:	  the measured timings data.
   * @standard:	  the timings according to the standard.
   * @pclock_delta: maximum delta in Hz between standard->pixelclock and
@@ -72,9 +72,9 @@ bool v4l2_find_dv_timings_cap(struct v4l2_dv_timings *t,
   *
   * Returns true if the two timings match, returns false otherwise.
   */
-bool v4l_match_dv_timings(const struct v4l2_dv_timings *measured,
-			  const struct v4l2_dv_timings *standard,
-			  unsigned pclock_delta);
+bool v4l2_match_dv_timings(const struct v4l2_dv_timings *measured,
+			   const struct v4l2_dv_timings *standard,
+			   unsigned pclock_delta);
 
 /** v4l2_print_dv_timings() - log the contents of a dv_timings struct
   * @dev_prefix:device prefix for each log line.

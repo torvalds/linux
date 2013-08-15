@@ -625,7 +625,7 @@ static int hdmi_s_dv_timings(struct v4l2_subdev *sd,
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(hdmi_timings); i++)
-		if (v4l_match_dv_timings(&hdmi_timings[i].dv_timings,
+		if (v4l2_match_dv_timings(&hdmi_timings[i].dv_timings,
 					timings, 0))
 			break;
 	if (i == ARRAY_SIZE(hdmi_timings)) {

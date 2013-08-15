@@ -763,7 +763,7 @@ static int find_and_set_predefined_video_timings(struct v4l2_subdev *sd,
 	int i;
 
 	for (i = 0; predef_vid_timings[i].timings.bt.width; i++) {
-		if (!v4l_match_dv_timings(timings, &predef_vid_timings[i].timings,
+		if (!v4l2_match_dv_timings(timings, &predef_vid_timings[i].timings,
 					DIGITAL_INPUT ? 250000 : 1000000))
 			continue;
 		io_write(sd, 0x00, predef_vid_timings[i].vid_std); /* video std */
@@ -1183,7 +1183,7 @@ static void adv7604_fill_optional_dv_timings_fields(struct v4l2_subdev *sd,
 	int i;
 
 	for (i = 0; adv7604_timings[i].bt.width; i++) {
-		if (v4l_match_dv_timings(timings, &adv7604_timings[i],
+		if (v4l2_match_dv_timings(timings, &adv7604_timings[i],
 					DIGITAL_INPUT ? 250000 : 1000000)) {
 			*timings = adv7604_timings[i];
 			break;
