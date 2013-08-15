@@ -68,6 +68,12 @@ void vpa_init(int cpu)
 	struct paca_struct *pp;
 	struct dtl_entry *dtl;
 
+	/*
+	 * The spec says it "may be problematic" if CPU x registers the VPA of
+	 * CPU y. We should never do that, but wail if we ever do.
+	 */
+	WARN_ON(cpu != smp_processor_id());
+
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
 		lppaca_of(cpu).vmxregs_in_use = 1;
 
