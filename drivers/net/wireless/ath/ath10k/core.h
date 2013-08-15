@@ -38,6 +38,7 @@
 #define ATH10K_SCAN_ID 0
 #define WMI_READY_TIMEOUT (5 * HZ)
 #define ATH10K_FLUSH_TIMEOUT_HZ (5*HZ)
+#define ATH10K_NUM_CHANS 38
 
 /* Antenna noise floor */
 #define ATH10K_DEFAULT_NOISE_FLOOR -95
@@ -285,6 +286,7 @@ struct ath10k {
 	u32 hw_max_tx_power;
 	u32 ht_cap_info;
 	u32 vht_cap_info;
+	u32 num_rf_chains;
 
 	struct targetdef *targetdef;
 	struct hostdef *hostdef;
@@ -373,6 +375,12 @@ struct ath10k {
 	enum ath10k_state state;
 
 	struct work_struct restart_work;
+
+	/* cycle count is reported twice for each visited channel during scan.
+	 * access protected by data_lock */
+	u32 survey_last_rx_clear_count;
+	u32 survey_last_cycle_count;
+	struct survey_info survey[ATH10K_NUM_CHANS];
 
 #ifdef CONFIG_ATH10K_DEBUGFS
 	struct ath10k_debug debug;
