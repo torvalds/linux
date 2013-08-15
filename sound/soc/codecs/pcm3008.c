@@ -54,8 +54,8 @@ static int pcm3008_soc_suspend(struct snd_soc_codec *codec)
 {
 	struct pcm3008_setup_data *setup = codec->dev->platform_data;
 
-	gpio_set_value(setup->pdad_pin, 0);
-	gpio_set_value(setup->pdda_pin, 0);
+	gpio_set_value_cansleep(setup->pdad_pin, 0);
+	gpio_set_value_cansleep(setup->pdda_pin, 0);
 
 	return 0;
 }
@@ -64,8 +64,8 @@ static int pcm3008_soc_resume(struct snd_soc_codec *codec)
 {
 	struct pcm3008_setup_data *setup = codec->dev->platform_data;
 
-	gpio_set_value(setup->pdad_pin, 1);
-	gpio_set_value(setup->pdda_pin, 1);
+	gpio_set_value_cansleep(setup->pdad_pin, 1);
+	gpio_set_value_cansleep(setup->pdda_pin, 1);
 
 	return 0;
 }
