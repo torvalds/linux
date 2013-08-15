@@ -84,24 +84,15 @@ static int verify_eraseblock(int ebnum)
 	for (j = 0; j < pgcnt - 1; ++j, addr += pgsize) {
 		/* Do a read to set the internal dataRAMs to different data */
 		err = mtdtest_read(mtd, addr0, bufsize, twopages);
-		if (err) {
-			pr_err("error: read failed at %#llx\n",
-			       (long long)addr0);
+		if (err)
 			return err;
-		}
 		err = mtdtest_read(mtd, addrn - bufsize, bufsize, twopages);
-		if (err) {
-			pr_err("error: read failed at %#llx\n",
-			       (long long)(addrn - bufsize));
+		if (err)
 			return err;
-		}
 		memset(twopages, 0, bufsize);
 		err = mtdtest_read(mtd, addr, bufsize, twopages);
-		if (err) {
-			pr_err("error: read failed at %#llx\n",
-			       (long long)addr);
+		if (err)
 			break;
-		}
 		if (memcmp(twopages, writebuf + (j * pgsize), bufsize)) {
 			pr_err("error: verify failed at %#llx\n",
 			       (long long)addr);
@@ -114,24 +105,15 @@ static int verify_eraseblock(int ebnum)
 
 		/* Do a read to set the internal dataRAMs to different data */
 		err = mtdtest_read(mtd, addr0, bufsize, twopages);
-		if (err) {
-			pr_err("error: read failed at %#llx\n",
-			       (long long)addr0);
+		if (err)
 			return err;
-		}
 		err = mtdtest_read(mtd, addrn - bufsize, bufsize, twopages);
-		if (err) {
-			pr_err("error: read failed at %#llx\n",
-			       (long long)(addrn - bufsize));
+		if (err)
 			return err;
-		}
 		memset(twopages, 0, bufsize);
 		err = mtdtest_read(mtd, addr, bufsize, twopages);
-		if (err) {
-			pr_err("error: read failed at %#llx\n",
-			       (long long)addr);
+		if (err)
 			return err;
-		}
 		memcpy(boundary, writebuf + mtd->erasesize - pgsize, pgsize);
 		prandom_bytes_state(&rnd_state, boundary + pgsize, pgsize);
 		if (memcmp(twopages, boundary, bufsize)) {
@@ -171,8 +153,6 @@ static int crosstest(void)
 	addr = addrn - pgsize - pgsize;
 	err = mtdtest_read(mtd, addr, pgsize, pp1);
 	if (err) {
-		pr_err("error: read failed at %#llx\n",
-		       (long long)addr);
 		kfree(pp1);
 		return err;
 	}
@@ -181,8 +161,6 @@ static int crosstest(void)
 	addr = addrn - pgsize - pgsize - pgsize;
 	err = mtdtest_read(mtd, addr, pgsize, pp1);
 	if (err) {
-		pr_err("error: read failed at %#llx\n",
-		       (long long)addr);
 		kfree(pp1);
 		return err;
 	}
@@ -192,8 +170,6 @@ static int crosstest(void)
 	pr_info("reading page at %#llx\n", (long long)addr);
 	err = mtdtest_read(mtd, addr, pgsize, pp2);
 	if (err) {
-		pr_err("error: read failed at %#llx\n",
-		       (long long)addr);
 		kfree(pp1);
 		return err;
 	}
@@ -203,8 +179,6 @@ static int crosstest(void)
 	pr_info("reading page at %#llx\n", (long long)addr);
 	err = mtdtest_read(mtd, addr, pgsize, pp3);
 	if (err) {
-		pr_err("error: read failed at %#llx\n",
-		       (long long)addr);
 		kfree(pp1);
 		return err;
 	}
@@ -214,8 +188,6 @@ static int crosstest(void)
 	pr_info("reading page at %#llx\n", (long long)addr);
 	err = mtdtest_read(mtd, addr, pgsize, pp4);
 	if (err) {
-		pr_err("error: read failed at %#llx\n",
-		       (long long)addr);
 		kfree(pp1);
 		return err;
 	}
@@ -269,11 +241,8 @@ static int erasecrosstest(void)
 	pr_info("reading 1st page of block %d\n", ebnum);
 	memset(readbuf, 0, pgsize);
 	err = mtdtest_read(mtd, addr0, pgsize, readbuf);
-	if (err) {
-		pr_err("error: read failed at %#llx\n",
-		       (long long)addr0);
+	if (err)
 		return err;
-	}
 
 	pr_info("verifying 1st page of block %d\n", ebnum);
 	if (memcmp(writebuf, readbuf, pgsize)) {
@@ -305,11 +274,8 @@ static int erasecrosstest(void)
 	pr_info("reading 1st page of block %d\n", ebnum);
 	memset(readbuf, 0, pgsize);
 	err = mtdtest_read(mtd, addr0, pgsize, readbuf);
-	if (err) {
-		pr_err("error: read failed at %#llx\n",
-		       (long long)addr0);
+	if (err)
 		return err;
-	}
 
 	pr_info("verifying 1st page of block %d\n", ebnum);
 	if (memcmp(writebuf, readbuf, pgsize)) {
@@ -358,11 +324,8 @@ static int erasetest(void)
 
 	pr_info("reading 1st page of block %d\n", ebnum);
 	err = mtdtest_read(mtd, addr0, pgsize, twopages);
-	if (err) {
-		pr_err("error: read failed at %#llx\n",
-		       (long long)addr0);
+	if (err)
 		return err;
-	}
 
 	pr_info("verifying 1st page of block %d is all 0xff\n",
 	       ebnum);

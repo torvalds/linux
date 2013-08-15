@@ -87,7 +87,7 @@ static int do_read(void)
 {
 	int eb = rand_eb();
 	int offs = rand_offs();
-	int len = rand_len(offs), err;
+	int len = rand_len(offs);
 	loff_t addr;
 
 	if (bbt[eb + 1]) {
@@ -97,13 +97,7 @@ static int do_read(void)
 			len = mtd->erasesize - offs;
 	}
 	addr = eb * mtd->erasesize + offs;
-	err = mtdtest_read(mtd, addr, len, readbuf);
-	if (unlikely(err)) {
-		pr_err("error: read failed at 0x%llx\n",
-		       (long long)addr);
-		return err;
-	}
-	return 0;
+	return mtdtest_read(mtd, addr, len, readbuf);
 }
 
 static int do_write(void)

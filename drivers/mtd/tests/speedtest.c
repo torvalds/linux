@@ -140,14 +140,9 @@ static int write_eraseblock_by_2pages(int ebnum)
 
 static int read_eraseblock(int ebnum)
 {
-	int err;
 	loff_t addr = ebnum * mtd->erasesize;
 
-	err = mtdtest_read(mtd, addr, mtd->erasesize, iobuf);
-	if (err)
-		pr_err("error: read failed at %#llx\n", addr);
-
-	return err;
+	return mtdtest_read(mtd, addr, mtd->erasesize, iobuf);
 }
 
 static int read_eraseblock_by_page(int ebnum)
@@ -158,11 +153,8 @@ static int read_eraseblock_by_page(int ebnum)
 
 	for (i = 0; i < pgcnt; i++) {
 		err = mtdtest_read(mtd, addr, pgsize, buf);
-		if (err) {
-			pr_err("error: read failed at %#llx\n",
-			       addr);
+		if (err)
 			break;
-		}
 		addr += pgsize;
 		buf += pgsize;
 	}
@@ -179,21 +171,13 @@ static int read_eraseblock_by_2pages(int ebnum)
 
 	for (i = 0; i < n; i++) {
 		err = mtdtest_read(mtd, addr, sz, buf);
-		if (err) {
-			pr_err("error: read failed at %#llx\n",
-			       addr);
+		if (err)
 			return err;
-		}
 		addr += sz;
 		buf += sz;
 	}
-	if (pgcnt % 2) {
+	if (pgcnt % 2)
 		err = mtdtest_read(mtd, addr, pgsize, buf);
-		if (err) {
-			pr_err("error: read failed at %#llx\n",
-			       addr);
-		}
-	}
 
 	return err;
 }

@@ -92,6 +92,8 @@ int mtdtest_read(struct mtd_info *mtd, loff_t addr, size_t size, void *buf)
 		err = 0;
 	if (!err && read != size)
 		err = -EIO;
+	if (err)
+		pr_err("error: read failed at %#llx\n", addr);
 
 	return err;
 }

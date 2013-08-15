@@ -55,8 +55,6 @@ static int read_eraseblock_by_page(int ebnum)
 		memset(buf, 0 , pgsize);
 		ret = mtdtest_read(mtd, addr, pgsize, buf);
 		if (ret) {
-			pr_err("error: read failed at %#llx\n",
-			       (long long)addr);
 			if (!err)
 				err = ret;
 		}
