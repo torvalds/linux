@@ -4361,6 +4361,9 @@ static struct btrfs_block_rsv *get_block_rsv(
 	if (root == root->fs_info->csum_root && trans->adding_csums)
 		block_rsv = trans->block_rsv;
 
+	if (root == root->fs_info->uuid_root)
+		block_rsv = trans->block_rsv;
+
 	if (!block_rsv)
 		block_rsv = root->block_rsv;
 
