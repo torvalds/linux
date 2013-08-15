@@ -1015,15 +1015,22 @@ xfs_ioctl_setattr(
 	 * to the file owner ID, except in cases where the
 	 * CAP_FSETID capability is applicable.
 	 */
-	if (current_fsuid() != ip->i_d.di_uid && !capable(CAP_FOWNER)) {
+	if (!inode_owner_or_capable(VFS_I(ip))) {
 		code = XFS_ERROR(EPERM);
 		goto error_return;
 	}
 
 	/*
 	 * Do a quota reservation only if projid is actually going to change.
+	 * Only allow changing of projid from init_user_ns since it is a
+	 * non user namespace aware identifier.
 	 */
 	if (mask & FSX_PROJID) {
+		if (current_user_ns() != &init_user_ns) {
+			code = XFS_ERROR(EINVAL);
+			goto error_return;
+		}
+
 		if (XFS_IS_QUOTA_RUNNING(mp) &&
 		    XFS_IS_PQUOTA_ON(mp) &&
 		    xfs_get_projid(ip) != fa->fsx_projid) {
@@ -1137,7 +1144,7 @@ xfs_ioctl_setattr(
 		 * cleared upon successful return from chown()
 		 */
 		if ((ip->i_d.di_mode & (S_ISUID|S_ISGID)) &&
-		    !capable(CAP_FSETID))
+		    !inode_capable(VFS_I(ip), CAP_FSETID))
 			ip->i_d.di_mode &= ~(S_ISUID|S_ISGID);
 
 		/*
