@@ -27,7 +27,7 @@
 #include <linux/delay.h>
 #include <linux/usb/omap_control_usb.h>
 
-#define	NUM_SYS_CLKS		5
+#define	NUM_SYS_CLKS		6
 #define	PLL_STATUS		0x00000004
 #define	PLL_GO			0x00000008
 #define	PLL_CONFIGURATION1	0x0000000C
@@ -62,6 +62,7 @@ enum sys_clk_rate {
 	CLK_RATE_12MHZ,
 	CLK_RATE_16MHZ,
 	CLK_RATE_19MHZ,
+	CLK_RATE_20MHZ,
 	CLK_RATE_26MHZ,
 	CLK_RATE_38MHZ
 };
@@ -70,8 +71,10 @@ static struct usb_dpll_params omap_usb3_dpll_params[NUM_SYS_CLKS] = {
 	{1250, 5, 4, 20, 0},		/* 12 MHz */
 	{3125, 20, 4, 20, 0},		/* 16.8 MHz */
 	{1172, 8, 4, 20, 65537},	/* 19.2 MHz */
+	{1000, 7, 4, 10, 0},            /* 20 MHz */
 	{1250, 12, 4, 20, 0},		/* 26 MHz */
 	{3125, 47, 4, 20, 92843},	/* 38.4 MHz */
+
 };
 
 static int omap_usb3_suspend(struct usb_phy *x, int suspend)
@@ -122,6 +125,8 @@ static inline enum sys_clk_rate __get_sys_clk_index(unsigned long rate)
 		return CLK_RATE_16MHZ;
 	case 19200000:
 		return CLK_RATE_19MHZ;
+	case 20000000:
+		return CLK_RATE_20MHZ;
 	case 26000000:
 		return CLK_RATE_26MHZ;
 	case 38400000:

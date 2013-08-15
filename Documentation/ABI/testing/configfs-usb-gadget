@@ -1,0 +1,81 @@
+What:		/config/usb-gadget
+Date:		Jun 2013
+KenelVersion:	3.11
+Description:
+		This group contains sub-groups corresponding to created
+		USB gadgets.
+
+What:		/config/usb-gadget/gadget
+Date:		Jun 2013
+KenelVersion:	3.11
+Description:
+
+		The attributes of a gadget:
+
+		UDC		- bind a gadget to UDC/unbind a gadget;
+				write UDC's name found in /sys/class/udc/*
+				to bind a gadget, empty string "" to unbind.
+
+		bDeviceClass	- USB device class code
+		bDeviceSubClass	- USB device subclass code
+		bDeviceProtocol	- USB device protocol code
+		bMaxPacketSize0	- maximum endpoint 0 packet size
+		bcdDevice	- bcd device release number
+		bcdUSB		- bcd USB specification version number
+		idProduct	- product ID
+		idVendor	- vendor ID
+
+What:		/config/usb-gadget/gadget/configs
+Date:		Jun 2013
+KenelVersion:	3.11
+Description:
+		This group contains a USB gadget's configurations
+
+What:		/config/usb-gadget/gadget/configs/config
+Date:		Jun 2013
+KernelVersion:	3.11
+Description:
+		The attributes of a configuration:
+
+		bmAttributes	- configuration characteristics
+		MaxPower	- maximum power consumption from the bus
+
+What:		/config/usb-gadget/gadget/configs/config/strings
+Date:		Jun 2013
+KernelVersion:	3.11
+Description:
+		This group contains subdirectories for language-specific
+		strings for this configuration.
+
+What:		/config/usb-gadget/gadget/configs/config/strings/language
+Date:		Jun 2013
+KernelVersion:	3.11
+Description:
+		The attributes:
+
+		configuration	- configuration description
+
+
+What:		/config/usb-gadget/gadget/functions
+Date:		Jun 2013
+KenelVersion:	3.11
+Description:
+		This group contains functions available to this USB gadget.
+
+What:		/config/usb-gadget/gadget/strings
+Date:		Jun 2013
+KenelVersion:	3.11
+Description:
+		This group contains subdirectories for language-specific
+		strings for this gadget.
+
+What:		/config/usb-gadget/gadget/strings/language
+Date:		Jun 2013
+KenelVersion:	3.11
+Description:
+		The attributes:
+
+		serialnumber	- gadget's serial number (string)
+		product		- gadget's product description
+		manufacturer	- gadget's manufacturer description
+

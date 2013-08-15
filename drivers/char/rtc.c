@@ -280,7 +280,7 @@ static irqreturn_t rtc_interrupt(int irq, void *dev_id)
 /*
  * sysctl-tuning infrastructure.
  */
-static ctl_table rtc_table[] = {
+static struct ctl_table rtc_table[] = {
 	{
 		.procname	= "max-user-freq",
 		.data		= &rtc_max_user_freq,
@@ -291,7 +291,7 @@ static ctl_table rtc_table[] = {
 	{ }
 };
 
-static ctl_table rtc_root[] = {
+static struct ctl_table rtc_root[] = {
 	{
 		.procname	= "rtc",
 		.mode		= 0555,
@@ -300,7 +300,7 @@ static ctl_table rtc_root[] = {
 	{ }
 };
 
-static ctl_table dev_root[] = {
+static struct ctl_table dev_root[] = {
 	{
 		.procname	= "dev",
 		.mode		= 0555,

@@ -116,6 +116,15 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 	unsigned long flags;
 	int ret, t, err = 0;
 
+	spin_lock_irqsave(&newchannel->sc_lock, flags);
+	if (newchannel->state == CHANNEL_OPEN_STATE) {
+		newchannel->state = CHANNEL_OPENING_STATE;
+	} else {
+		spin_unlock_irqrestore(&newchannel->sc_lock, flags);
+		return -EINVAL;
+	}
+	spin_unlock_irqrestore(&newchannel->sc_lock, flags);
+
 	newchannel->onchannel_callback = onchannelcallback;
 	newchannel->channel_callback_context = context;
 
@@ -215,6 +224,9 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 	list_del(&open_info->msglistentry);
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
+
+	if (err == 0)
+		newchannel->state = CHANNEL_OPENED_STATE;
 
 	kfree(open_info);
 	return err;
@@ -500,15 +512,14 @@ int vmbus_teardown_gpadl(struct vmbus_channel *channel, u32 gpadl_handle)
 }
 EXPORT_SYMBOL_GPL(vmbus_teardown_gpadl);
 
-/*
- * vmbus_close - Close the specified channel
- */
-void vmbus_close(struct vmbus_channel *channel)
+static void vmbus_close_internal(struct vmbus_channel *channel)
 {
 	struct vmbus_channel_close_channel *msg;
 	int ret;
 	unsigned long flags;
 
+	channel->state = CHANNEL_OPEN_STATE;
+	channel->sc_creation_callback = NULL;
 	/* Stop callback and cancel the timer asap */
 	spin_lock_irqsave(&channel->inbound_lock, flags);
 	channel->onchannel_callback = NULL;
@@ -537,6 +548,37 @@ void vmbus_close(struct vmbus_channel *channel)
 		get_order(channel->ringbuffer_pagecount * PAGE_SIZE));
 
 
+}
+
+/*
+ * vmbus_close - Close the specified channel
+ */
+void vmbus_close(struct vmbus_channel *channel)
+{
+	struct list_head *cur, *tmp;
+	struct vmbus_channel *cur_channel;
+
+	if (channel->primary_channel != NULL) {
+		/*
+		 * We will only close sub-channels when
+		 * the primary is closed.
+		 */
+		return;
+	}
+	/*
+	 * Close all the sub-channels first and then close the
+	 * primary channel.
+	 */
+	list_for_each_safe(cur, tmp, &channel->sc_list) {
+		cur_channel = list_entry(cur, struct vmbus_channel, sc_list);
+		if (cur_channel->state != CHANNEL_OPENED_STATE)
+			continue;
+		vmbus_close_internal(cur_channel);
+	}
+	/*
+	 * Now close the primary.
+	 */
+	vmbus_close_internal(channel);
 }
 EXPORT_SYMBOL_GPL(vmbus_close);
 

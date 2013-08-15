@@ -302,11 +302,14 @@ vcpu	.req	r0		@ vcpu pointer always in r0
 	.endif
 
 	mrc	p15, 0, r2, c14, c1, 0	@ CNTKCTL
+	mrrc	p15, 0, r4, r5, c7	@ PAR
 
 	.if \store_to_vcpu == 0
-	push	{r2}
+	push	{r2,r4-r5}
 	.else
 	str	r2, [vcpu, #CP15_OFFSET(c14_CNTKCTL)]
+	add	r12, vcpu, #CP15_OFFSET(c7_PAR)
+	strd	r4, r5, [r12]
 	.endif
 .endm
 
@@ -319,12 +322,15 @@ vcpu	.req	r0		@ vcpu pointer always in r0
  */
 .macro write_cp15_state read_from_vcpu
 	.if \read_from_vcpu == 0
-	pop	{r2}
+	pop	{r2,r4-r5}
 	.else
 	ldr	r2, [vcpu, #CP15_OFFSET(c14_CNTKCTL)]
+	add	r12, vcpu, #CP15_OFFSET(c7_PAR)
+	ldrd	r4, r5, [r12]
 	.endif
 
 	mcr	p15, 0, r2, c14, c1, 0	@ CNTKCTL
+	mcrr	p15, 0, r4, r5, c7	@ PAR
 
 	.if \read_from_vcpu == 0
 	pop	{r2-r12}
@@ -496,6 +502,10 @@ vcpu	.req	r0		@ vcpu pointer always in r0
 	ldr	r4, =VCPU_TIMER_CNTV_CVAL
 	add	r5, vcpu, r4
 	strd	r2, r3, [r5]
+
+	@ Ensure host CNTVCT == CNTPCT
+	mov	r2, #0
+	mcrr	p15, 4, r2, r2, c14	@ CNTVOFF
 
 1:
 #endif

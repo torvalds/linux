@@ -21,6 +21,10 @@
  *    be triggered
  */
 
+#if defined(CONFIG_SERIAL_MFD_HSU_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
+#define SUPPORT_SYSRQ
+#endif
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/console.h>
@@ -1248,13 +1252,8 @@ static int serial_hsu_resume(struct pci_dev *pdev)
 #ifdef CONFIG_PM_RUNTIME
 static int serial_hsu_runtime_idle(struct device *dev)
 {
-	int err;
-
-	err = pm_schedule_suspend(dev, 500);
-	if (err)
-		return -EBUSY;
-
-	return 0;
+	pm_schedule_suspend(dev, 500);
+	return -EBUSY;
 }
 
 static int serial_hsu_runtime_suspend(struct device *dev)

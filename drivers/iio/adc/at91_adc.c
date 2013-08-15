@@ -774,11 +774,13 @@ static int at91_adc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id at91_adc_dt_ids[] = {
 	{ .compatible = "atmel,at91sam9260-adc" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, at91_adc_dt_ids);
+#endif
 
 static struct platform_driver at91_adc_driver = {
 	.probe = at91_adc_probe,

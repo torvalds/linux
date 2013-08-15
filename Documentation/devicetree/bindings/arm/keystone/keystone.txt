@@ -1,0 +1,10 @@
+TI Keystone Platforms Device Tree Bindings
+-----------------------------------------------
+
+Boards with Keystone2 based devices (TCI66xxK2H) SOC shall have the
+following properties.
+
+Required properties:
+ - compatible: All TI specific devices present in Keystone SOC should be in
+   the form "ti,keystone-*". Generic devices like gic, arch_timers, ns16550
+   type UART should use the specified compatible for those devices.

@@ -208,7 +208,6 @@ static int bfin_rotary_remove(struct platform_device *pdev)
 	peripheral_free_list(per_cnt);
 
 	kfree(rotary);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

@@ -265,7 +265,7 @@ static int cc770_isa_probe(struct platform_device *pdev)
 	else
 		priv->clkout = COR_DEFAULT;
 
-	dev_set_drvdata(&pdev->dev, dev);
+	platform_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	err = register_cc770dev(dev);
@@ -293,12 +293,11 @@ static int cc770_isa_probe(struct platform_device *pdev)
 
 static int cc770_isa_remove(struct platform_device *pdev)
 {
-	struct net_device *dev = dev_get_drvdata(&pdev->dev);
+	struct net_device *dev = platform_get_drvdata(pdev);
 	struct cc770_priv *priv = netdev_priv(dev);
 	int idx = pdev->id;
 
 	unregister_cc770dev(dev);
-	dev_set_drvdata(&pdev->dev, NULL);
 
 	if (mem[idx]) {
 		iounmap(priv->reg_base);

@@ -64,6 +64,7 @@ choice
 
 config H83002
 	bool "H8/3001,3002,3003"
+	depends on BROKEN
 	select CPU_H8300H
 
 config H83007
@@ -72,6 +73,7 @@ config H83007
 
 config H83048
 	bool "H8/3044,3045,3046,3047,3048,3052"
+	depends on BROKEN
 	select CPU_H8300H
 
 config H83068
@@ -155,10 +157,12 @@ config H8300_TIMER16_CH
 config H8300_ITU_CH
 	int "ITU channel"
 	depends on H8300_ITU
+	range 0 4
 
 config H8300_TPU_CH
 	int "TPU channel"
 	depends on H8300_TPU
+	range 0 4
 
 source "kernel/Kconfig.preempt"
 

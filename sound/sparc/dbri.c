@@ -2670,8 +2670,6 @@ static int dbri_remove(struct platform_device *op)
 	snd_dbri_free(card->private_data);
 	snd_card_free(card);
 
-	dev_set_drvdata(&op->dev, NULL);
-
 	return 0;
 }
 

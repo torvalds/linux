@@ -44,7 +44,7 @@
 
 
 /*
- * Xilinx calls it "PLB TFT LCD Controller" though it can also be used for
+ * Xilinx calls it "TFT LCD Controller" though it can also be used for
  * the VGA port on the Xilinx ML40x board. This is a hardware display
  * controller for a 640x480 resolution TFT or VGA screen.
  *
@@ -54,11 +54,11 @@
  * don't start thinking about scrolling).  The second allows the LCD to
  * be turned on or off as well as rotated 180 degrees.
  *
- * In case of direct PLB access the second control register will be at
+ * In case of direct BUS access the second control register will be at
  * an offset of 4 as compared to the DCR access where the offset is 1
  * i.e. REG_CTRL. So this is taken care in the function
- * xilinx_fb_out_be32 where it left shifts the offset 2 times in case of
- * direct PLB access.
+ * xilinx_fb_out32 where it left shifts the offset 2 times in case of
+ * direct BUS access.
  */
 #define NUM_REGS	2
 #define REG_FB_ADDR	0
@@ -116,7 +116,8 @@ static struct fb_var_screeninfo xilinx_fb_var = {
 };
 
 
-#define PLB_ACCESS_FLAG	0x1		/* 1 = PLB, 0 = DCR */
+#define BUS_ACCESS_FLAG		0x1 /* 1 = BUS, 0 = DCR */
+#define LITTLE_ENDIAN_ACCESS	0x2 /* LITTLE ENDIAN IO functions */
 
 struct xilinxfb_drvdata {
 
@@ -146,19 +147,38 @@ struct xilinxfb_drvdata {
 	container_of(_info, struct xilinxfb_drvdata, info)
 
 /*
- * The XPS TFT Controller can be accessed through PLB or DCR interface.
+ * The XPS TFT Controller can be accessed through BUS or DCR interface.
  * To perform the read/write on the registers we need to check on
  * which bus its connected and call the appropriate write API.
  */
-static void xilinx_fb_out_be32(struct xilinxfb_drvdata *drvdata, u32 offset,
+static void xilinx_fb_out32(struct xilinxfb_drvdata *drvdata, u32 offset,
 				u32 val)
 {
-	if (drvdata->flags & PLB_ACCESS_FLAG)
-		out_be32(drvdata->regs + (offset << 2), val);
+	if (drvdata->flags & BUS_ACCESS_FLAG) {
+		if (drvdata->flags & LITTLE_ENDIAN_ACCESS)
+			iowrite32(val, drvdata->regs + (offset << 2));
+		else
+			iowrite32be(val, drvdata->regs + (offset << 2));
+	}
 #ifdef CONFIG_PPC_DCR
 	else
 		dcr_write(drvdata->dcr_host, offset, val);
 #endif
+}
+
+static u32 xilinx_fb_in32(struct xilinxfb_drvdata *drvdata, u32 offset)
+{
+	if (drvdata->flags & BUS_ACCESS_FLAG) {
+		if (drvdata->flags & LITTLE_ENDIAN_ACCESS)
+			return ioread32(drvdata->regs + (offset << 2));
+		else
+			return ioread32be(drvdata->regs + (offset << 2));
+	}
+#ifdef CONFIG_PPC_DCR
+	else
+		return dcr_read(drvdata->dcr_host, offset);
+#endif
+	return 0;
 }
 
 static int
@@ -197,7 +217,7 @@ xilinx_fb_blank(int blank_mode, struct fb_info *fbi)
 	switch (blank_mode) {
 	case FB_BLANK_UNBLANK:
 		/* turn on panel */
-		xilinx_fb_out_be32(drvdata, REG_CTRL, drvdata->reg_ctrl_default);
+		xilinx_fb_out32(drvdata, REG_CTRL, drvdata->reg_ctrl_default);
 		break;
 
 	case FB_BLANK_NORMAL:
@@ -205,7 +225,7 @@ xilinx_fb_blank(int blank_mode, struct fb_info *fbi)
 	case FB_BLANK_HSYNC_SUSPEND:
 	case FB_BLANK_POWERDOWN:
 		/* turn off panel */
-		xilinx_fb_out_be32(drvdata, REG_CTRL, 0);
+		xilinx_fb_out32(drvdata, REG_CTRL, 0);
 	default:
 		break;
 
@@ -227,33 +247,23 @@ static struct fb_ops xilinxfb_ops =
  * Bus independent setup/teardown
  */
 
-static int xilinxfb_assign(struct device *dev,
+static int xilinxfb_assign(struct platform_device *pdev,
 			   struct xilinxfb_drvdata *drvdata,
-			   unsigned long physaddr,
 			   struct xilinxfb_platform_data *pdata)
 {
 	int rc;
+	struct device *dev = &pdev->dev;
 	int fbsize = pdata->xvirt * pdata->yvirt * BYTES_PER_PIXEL;
 
-	if (drvdata->flags & PLB_ACCESS_FLAG) {
-		/*
-		 * Map the control registers in if the controller
-		 * is on direct PLB interface.
-		 */
-		if (!request_mem_region(physaddr, 8, DRIVER_NAME)) {
-			dev_err(dev, "Couldn't lock memory region at 0x%08lX\n",
-				physaddr);
-			rc = -ENODEV;
-			goto err_region;
-		}
+	if (drvdata->flags & BUS_ACCESS_FLAG) {
+		struct resource *res;
 
-		drvdata->regs_phys = physaddr;
-		drvdata->regs = ioremap(physaddr, 8);
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		drvdata->regs_phys = res->start;
+		drvdata->regs = devm_request_and_ioremap(&pdev->dev, res);
 		if (!drvdata->regs) {
-			dev_err(dev, "Couldn't lock memory region at 0x%08lX\n",
-				physaddr);
-			rc = -ENODEV;
-			goto err_map;
+			rc = -EADDRNOTAVAIL;
+			goto err_region;
 		}
 	}
 
@@ -270,7 +280,7 @@ static int xilinxfb_assign(struct device *dev,
 	if (!drvdata->fb_virt) {
 		dev_err(dev, "Could not allocate frame buffer memory\n");
 		rc = -ENOMEM;
-		if (drvdata->flags & PLB_ACCESS_FLAG)
+		if (drvdata->flags & BUS_ACCESS_FLAG)
 			goto err_fbmem;
 		else
 			goto err_region;
@@ -280,13 +290,19 @@ static int xilinxfb_assign(struct device *dev,
 	memset_io((void __iomem *)drvdata->fb_virt, 0, fbsize);
 
 	/* Tell the hardware where the frame buffer is */
-	xilinx_fb_out_be32(drvdata, REG_FB_ADDR, drvdata->fb_phys);
+	xilinx_fb_out32(drvdata, REG_FB_ADDR, drvdata->fb_phys);
+	rc = xilinx_fb_in32(drvdata, REG_FB_ADDR);
+	/* Endianess detection */
+	if (rc != drvdata->fb_phys) {
+		drvdata->flags |= LITTLE_ENDIAN_ACCESS;
+		xilinx_fb_out32(drvdata, REG_FB_ADDR, drvdata->fb_phys);
+	}
 
 	/* Turn on the display */
 	drvdata->reg_ctrl_default = REG_CTRL_ENABLE;
 	if (pdata->rotate_screen)
 		drvdata->reg_ctrl_default |= REG_CTRL_ROTATE;
-	xilinx_fb_out_be32(drvdata, REG_CTRL,
+	xilinx_fb_out32(drvdata, REG_CTRL,
 					drvdata->reg_ctrl_default);
 
 	/* Fill struct fb_info */
@@ -323,10 +339,10 @@ static int xilinxfb_assign(struct device *dev,
 		goto err_regfb;
 	}
 
-	if (drvdata->flags & PLB_ACCESS_FLAG) {
+	if (drvdata->flags & BUS_ACCESS_FLAG) {
 		/* Put a banner in the log (for DEBUG) */
-		dev_dbg(dev, "regs: phys=%lx, virt=%p\n", physaddr,
-					drvdata->regs);
+		dev_dbg(dev, "regs: phys=%pa, virt=%p\n",
+			&drvdata->regs_phys, drvdata->regs);
 	}
 	/* Put a banner in the log (for DEBUG) */
 	dev_dbg(dev, "fb: phys=%llx, virt=%p, size=%x\n",
@@ -345,15 +361,11 @@ err_cmap:
 		iounmap(drvdata->fb_virt);
 
 	/* Turn off the display */
-	xilinx_fb_out_be32(drvdata, REG_CTRL, 0);
+	xilinx_fb_out32(drvdata, REG_CTRL, 0);
 
 err_fbmem:
-	if (drvdata->flags & PLB_ACCESS_FLAG)
-		iounmap(drvdata->regs);
-
-err_map:
-	if (drvdata->flags & PLB_ACCESS_FLAG)
-		release_mem_region(physaddr, 8);
+	if (drvdata->flags & BUS_ACCESS_FLAG)
+		devm_iounmap(dev, drvdata->regs);
 
 err_region:
 	kfree(drvdata);
@@ -381,13 +393,11 @@ static int xilinxfb_release(struct device *dev)
 		iounmap(drvdata->fb_virt);
 
 	/* Turn off the display */
-	xilinx_fb_out_be32(drvdata, REG_CTRL, 0);
+	xilinx_fb_out32(drvdata, REG_CTRL, 0);
 
 	/* Release the resources, as allocated based on interface */
-	if (drvdata->flags & PLB_ACCESS_FLAG) {
-		iounmap(drvdata->regs);
-		release_mem_region(drvdata->regs_phys, 8);
-	}
+	if (drvdata->flags & BUS_ACCESS_FLAG)
+		devm_iounmap(dev, drvdata->regs);
 #ifdef CONFIG_PPC_DCR
 	else
 		dcr_unmap(drvdata->dcr_host, drvdata->dcr_len);
@@ -406,11 +416,9 @@ static int xilinxfb_release(struct device *dev)
 static int xilinxfb_of_probe(struct platform_device *op)
 {
 	const u32 *prop;
-	u32 *p;
-	u32 tft_access;
+	u32 tft_access = 0;
 	struct xilinxfb_platform_data pdata;
-	struct resource res;
-	int size, rc;
+	int size;
 	struct xilinxfb_drvdata *drvdata;
 
 	/* Copy with the default pdata (not a ptr reference!) */
@@ -424,34 +432,29 @@ static int xilinxfb_of_probe(struct platform_device *op)
 	}
 
 	/*
-	 * To check whether the core is connected directly to DCR or PLB
+	 * To check whether the core is connected directly to DCR or BUS
 	 * interface and initialize the tft_access accordingly.
 	 */
-	p = (u32 *)of_get_property(op->dev.of_node, "xlnx,dcr-splb-slave-if", NULL);
-	tft_access = p ? *p : 0;
+	of_property_read_u32(op->dev.of_node, "xlnx,dcr-splb-slave-if",
+			     &tft_access);
 
 	/*
-	 * Fill the resource structure if its direct PLB interface
+	 * Fill the resource structure if its direct BUS interface
 	 * otherwise fill the dcr_host structure.
 	 */
 	if (tft_access) {
-		drvdata->flags |= PLB_ACCESS_FLAG;
-		rc = of_address_to_resource(op->dev.of_node, 0, &res);
-		if (rc) {
-			dev_err(&op->dev, "invalid address\n");
-			goto err;
-		}
+		drvdata->flags |= BUS_ACCESS_FLAG;
 	}
 #ifdef CONFIG_PPC_DCR
 	else {
 		int start;
-		res.start = 0;
 		start = dcr_resource_start(op->dev.of_node, 0);
 		drvdata->dcr_len = dcr_resource_len(op->dev.of_node, 0);
 		drvdata->dcr_host = dcr_map(op->dev.of_node, start, drvdata->dcr_len);
 		if (!DCR_MAP_OK(drvdata->dcr_host)) {
 			dev_err(&op->dev, "invalid DCR address\n");
-			goto err;
+			kfree(drvdata);
+			return -ENODEV;
 		}
 	}
 #endif
@@ -478,11 +481,7 @@ static int xilinxfb_of_probe(struct platform_device *op)
 		pdata.rotate_screen = 1;
 
 	dev_set_drvdata(&op->dev, drvdata);
-	return xilinxfb_assign(&op->dev, drvdata, res.start, &pdata);
-
- err:
-	kfree(drvdata);
-	return -ENODEV;
+	return xilinxfb_assign(op, drvdata, &pdata);
 }
 
 static int xilinxfb_of_remove(struct platform_device *op)

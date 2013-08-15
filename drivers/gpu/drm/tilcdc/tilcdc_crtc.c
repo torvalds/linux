@@ -42,7 +42,8 @@ struct tilcdc_crtc {
 
 static void unref_worker(struct work_struct *work)
 {
-	struct tilcdc_crtc *tilcdc_crtc = container_of(work, struct tilcdc_crtc, work);
+	struct tilcdc_crtc *tilcdc_crtc =
+		container_of(work, struct tilcdc_crtc, work);
 	struct drm_device *dev = tilcdc_crtc->base.dev;
 	struct drm_framebuffer *fb;
 
@@ -55,10 +56,12 @@ static void unref_worker(struct work_struct *work)
 static void set_scanout(struct drm_crtc *crtc, int n)
 {
 	static const uint32_t base_reg[] = {
-			LCDC_DMA_FB_BASE_ADDR_0_REG, LCDC_DMA_FB_BASE_ADDR_1_REG,
+			LCDC_DMA_FB_BASE_ADDR_0_REG,
+			LCDC_DMA_FB_BASE_ADDR_1_REG,
 	};
 	static const uint32_t ceil_reg[] = {
-			LCDC_DMA_FB_CEILING_ADDR_0_REG, LCDC_DMA_FB_CEILING_ADDR_1_REG,
+			LCDC_DMA_FB_CEILING_ADDR_0_REG,
+			LCDC_DMA_FB_CEILING_ADDR_1_REG,
 	};
 	static const uint32_t stat[] = {
 			LCDC_END_OF_FRAME0, LCDC_END_OF_FRAME1,
@@ -194,7 +197,8 @@ static void tilcdc_crtc_dpms(struct drm_crtc *crtc, int mode)
 		tilcdc_crtc->frame_done = false;
 		stop(crtc);
 
-		/* if necessary wait for framedone irq which will still come
+		/*
+		 * if necessary wait for framedone irq which will still come
 		 * before putting things to sleep..
 		 */
 		if (priv->rev == 2) {
@@ -289,17 +293,24 @@ static int tilcdc_crtc_mode_set(struct drm_crtc *crtc,
 	reg = tilcdc_read(dev, LCDC_RASTER_TIMING_2_REG) & ~0x000fff00;
 	reg |= LCDC_AC_BIAS_FREQUENCY(info->ac_bias) |
 		LCDC_AC_BIAS_TRANSITIONS_PER_INT(info->ac_bias_intrpt);
+
+	/*
+	 * subtract one from hfp, hbp, hsw because the hardware uses
+	 * a value of 0 as 1
+	 */
 	if (priv->rev == 2) {
-		reg |= (hfp & 0x300) >> 8;
-		reg |= (hbp & 0x300) >> 4;
-		reg |= (hsw & 0x3c0) << 21;
+		/* clear bits we're going to set */
+		reg &= ~0x78000033;
+		reg |= ((hfp-1) & 0x300) >> 8;
+		reg |= ((hbp-1) & 0x300) >> 4;
+		reg |= ((hsw-1) & 0x3c0) << 21;
 	}
 	tilcdc_write(dev, LCDC_RASTER_TIMING_2_REG, reg);
 
 	reg = (((mode->hdisplay >> 4) - 1) << 4) |
-		((hbp & 0xff) << 24) |
-		((hfp & 0xff) << 16) |
-		((hsw & 0x3f) << 10);
+		(((hbp-1) & 0xff) << 24) |
+		(((hfp-1) & 0xff) << 16) |
+		(((hsw-1) & 0x3f) << 10);
 	if (priv->rev == 2)
 		reg |= (((mode->hdisplay >> 4) - 1) & 0x40) >> 3;
 	tilcdc_write(dev, LCDC_RASTER_TIMING_0_REG, reg);
@@ -307,8 +318,23 @@ static int tilcdc_crtc_mode_set(struct drm_crtc *crtc,
 	reg = ((mode->vdisplay - 1) & 0x3ff) |
 		((vbp & 0xff) << 24) |
 		((vfp & 0xff) << 16) |
-		((vsw & 0x3f) << 10);
+		(((vsw-1) & 0x3f) << 10);
 	tilcdc_write(dev, LCDC_RASTER_TIMING_1_REG, reg);
+
+	/*
+	 * be sure to set Bit 10 for the V2 LCDC controller,
+	 * otherwise limited to 1024 pixels width, stopping
+	 * 1920x1080 being suppoted.
+	 */
+	if (priv->rev == 2) {
+		if ((mode->vdisplay - 1) & 0x400) {
+			tilcdc_set(dev, LCDC_RASTER_TIMING_2_REG,
+				LCDC_LPP_B10);
+		} else {
+			tilcdc_clear(dev, LCDC_RASTER_TIMING_2_REG,
+				LCDC_LPP_B10);
+		}
+	}
 
 	/* Configure display type: */
 	reg = tilcdc_read(dev, LCDC_RASTER_CTRL_REG) &
@@ -384,10 +410,6 @@ static int tilcdc_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	return 0;
 }
 
-static void tilcdc_crtc_load_lut(struct drm_crtc *crtc)
-{
-}
-
 static const struct drm_crtc_funcs tilcdc_crtc_funcs = {
 		.destroy        = tilcdc_crtc_destroy,
 		.set_config     = drm_crtc_helper_set_config,
@@ -401,7 +423,6 @@ static const struct drm_crtc_helper_funcs tilcdc_crtc_helper_funcs = {
 		.commit         = tilcdc_crtc_commit,
 		.mode_set       = tilcdc_crtc_mode_set,
 		.mode_set_base  = tilcdc_crtc_mode_set_base,
-		.load_lut       = tilcdc_crtc_load_lut,
 };
 
 int tilcdc_crtc_max_width(struct drm_crtc *crtc)
@@ -422,7 +443,12 @@ int tilcdc_crtc_mode_valid(struct drm_crtc *crtc, struct drm_display_mode *mode)
 {
 	struct tilcdc_drm_private *priv = crtc->dev->dev_private;
 	unsigned int bandwidth;
+	uint32_t hbp, hfp, hsw, vbp, vfp, vsw;
 
+	/*
+	 * check to see if the width is within the range that
+	 * the LCD Controller physically supports
+	 */
 	if (mode->hdisplay > tilcdc_crtc_max_width(crtc))
 		return MODE_VIRTUAL_X;
 
@@ -433,10 +459,70 @@ int tilcdc_crtc_mode_valid(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	if (mode->vdisplay > 2048)
 		return MODE_VIRTUAL_Y;
 
+	DBG("Processing mode %dx%d@%d with pixel clock %d",
+		mode->hdisplay, mode->vdisplay,
+		drm_mode_vrefresh(mode), mode->clock);
+
+	hbp = mode->htotal - mode->hsync_end;
+	hfp = mode->hsync_start - mode->hdisplay;
+	hsw = mode->hsync_end - mode->hsync_start;
+	vbp = mode->vtotal - mode->vsync_end;
+	vfp = mode->vsync_start - mode->vdisplay;
+	vsw = mode->vsync_end - mode->vsync_start;
+
+	if ((hbp-1) & ~0x3ff) {
+		DBG("Pruning mode: Horizontal Back Porch out of range");
+		return MODE_HBLANK_WIDE;
+	}
+
+	if ((hfp-1) & ~0x3ff) {
+		DBG("Pruning mode: Horizontal Front Porch out of range");
+		return MODE_HBLANK_WIDE;
+	}
+
+	if ((hsw-1) & ~0x3ff) {
+		DBG("Pruning mode: Horizontal Sync Width out of range");
+		return MODE_HSYNC_WIDE;
+	}
+
+	if (vbp & ~0xff) {
+		DBG("Pruning mode: Vertical Back Porch out of range");
+		return MODE_VBLANK_WIDE;
+	}
+
+	if (vfp & ~0xff) {
+		DBG("Pruning mode: Vertical Front Porch out of range");
+		return MODE_VBLANK_WIDE;
+	}
+
+	if ((vsw-1) & ~0x3f) {
+		DBG("Pruning mode: Vertical Sync Width out of range");
+		return MODE_VSYNC_WIDE;
+	}
+
+	/*
+	 * some devices have a maximum allowed pixel clock
+	 * configured from the DT
+	 */
+	if (mode->clock > priv->max_pixelclock) {
+		DBG("Pruning mode: pixel clock too high");
+		return MODE_CLOCK_HIGH;
+	}
+
+	/*
+	 * some devices further limit the max horizontal resolution
+	 * configured from the DT
+	 */
+	if (mode->hdisplay > priv->max_width)
+		return MODE_BAD_WIDTH;
+
 	/* filter out modes that would require too much memory bandwidth: */
-	bandwidth = mode->hdisplay * mode->vdisplay * drm_mode_vrefresh(mode);
-	if (bandwidth > priv->max_bandwidth)
+	bandwidth = mode->hdisplay * mode->vdisplay *
+		drm_mode_vrefresh(mode);
+	if (bandwidth > priv->max_bandwidth) {
+		DBG("Pruning mode: exceeds defined bandwidth limit");
 		return MODE_BAD;
+	}
 
 	return MODE_OK;
 }

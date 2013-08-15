@@ -192,7 +192,6 @@ out_release_io:
 out_timer:
 	del_timer_sync(&priv->timer);
 out_free:
-	platform_set_drvdata(pdev, NULL);
 	kfree(priv);
 	return err;
 }
@@ -209,7 +208,6 @@ static int timeriomem_rng_remove(struct platform_device *pdev)
 	del_timer_sync(&priv->timer);
 	iounmap(priv->io_base);
 	release_mem_region(res->start, resource_size(res));
-	platform_set_drvdata(pdev, NULL);
 	kfree(priv);
 
 	return 0;

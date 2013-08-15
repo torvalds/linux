@@ -156,8 +156,6 @@ static struct usb_endpoint_descriptor uvc_fs_streaming_ep __initdata = {
 	/* The wMaxPacketSize and bInterval values will be initialized from
 	 * module parameters.
 	 */
-	.wMaxPacketSize		= 0,
-	.bInterval		= 0,
 };
 
 static struct usb_endpoint_descriptor uvc_hs_streaming_ep __initdata = {
@@ -169,8 +167,6 @@ static struct usb_endpoint_descriptor uvc_hs_streaming_ep __initdata = {
 	/* The wMaxPacketSize and bInterval values will be initialized from
 	 * module parameters.
 	 */
-	.wMaxPacketSize		= 0,
-	.bInterval		= 0,
 };
 
 static struct usb_endpoint_descriptor uvc_ss_streaming_ep __initdata = {
@@ -183,17 +179,14 @@ static struct usb_endpoint_descriptor uvc_ss_streaming_ep __initdata = {
 	/* The wMaxPacketSize and bInterval values will be initialized from
 	 * module parameters.
 	 */
-	.wMaxPacketSize		= 0,
-	.bInterval		= 0,
 };
 
 static struct usb_ss_ep_comp_descriptor uvc_ss_streaming_comp __initdata = {
 	.bLength		= sizeof(uvc_ss_streaming_comp),
 	.bDescriptorType	= USB_DT_SS_ENDPOINT_COMP,
-	/* The following 3 values can be tweaked if necessary. */
-	.bMaxBurst		= 0,
-	.bmAttributes		= 0,
-	.wBytesPerInterval	= cpu_to_le16(1024),
+	/* The bMaxBurst, bmAttributes and wBytesPerInterval values will be
+	 * initialized from module parameters.
+	 */
 };
 
 static const struct usb_descriptor_header * const uvc_fs_streaming[] = {
@@ -413,7 +406,7 @@ uvc_register_video(struct uvc_device *uvc)
 	if (video == NULL)
 		return -ENOMEM;
 
-	video->parent = &cdev->gadget->dev;
+	video->v4l2_dev = &uvc->v4l2_dev;
 	video->fops = &uvc_v4l2_fops;
 	video->release = video_device_release;
 	strlcpy(video->name, cdev->gadget->name, sizeof(video->name));
@@ -570,6 +563,7 @@ uvc_function_unbind(struct usb_configuration *c, struct usb_function *f)
 	INFO(cdev, "uvc_function_unbind\n");
 
 	video_unregister_device(uvc->vdev);
+	v4l2_device_unregister(&uvc->v4l2_dev);
 	uvc->control_ep->driver_data = NULL;
 	uvc->video.ep->driver_data = NULL;
 
@@ -697,6 +691,11 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 	if ((ret = usb_function_deactivate(f)) < 0)
 		goto error;
 
+	if (v4l2_device_register(&cdev->gadget->dev, &uvc->v4l2_dev)) {
+		printk(KERN_INFO "v4l2_device_register failed\n");
+		goto error;
+	}
+
 	/* Initialise video. */
 	ret = uvc_video_init(&uvc->video);
 	if (ret < 0)
@@ -712,6 +711,7 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 	return 0;
 
 error:
+	v4l2_device_unregister(&uvc->v4l2_dev);
 	if (uvc->vdev)
 		video_device_release(uvc->vdev);
 

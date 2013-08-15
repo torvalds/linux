@@ -139,24 +139,24 @@ struct oslec_state {
 	int adaption_mode;
 
 	int cond_met;
-	int32_t Pstates;
+	int32_t pstates;
 	int16_t adapt;
 	int32_t factor;
 	int16_t shift;
 
 	/* Average levels and averaging filter states */
-	int Ltxacc;
-	int Lrxacc;
-	int Lcleanacc;
-	int Lclean_bgacc;
-	int Ltx;
-	int Lrx;
-	int Lclean;
-	int Lclean_bg;
-	int Lbgn;
-	int Lbgn_acc;
-	int Lbgn_upper;
-	int Lbgn_upper_acc;
+	int ltxacc;
+	int lrxacc;
+	int lcleanacc;
+	int lclean_bgacc;
+	int ltx;
+	int lrx;
+	int lclean;
+	int lclean_bg;
+	int lbgn;
+	int lbgn_acc;
+	int lbgn_upper;
+	int lbgn_upper_acc;
 
 	/* foreground and background filter states */
 	struct fir16_state_t fir_state;

@@ -11,7 +11,7 @@ config SPEAKUP
 		point your browser at <http://www.linux-speakup.org/>.
 		There is also a mailing list at the above url that you
 		can subscribe to.
-		
+
 		Supported synthesizers are accent sa, accent pc,
 		appollo II., Auddapter, Braille 'n Speak, Dectalk
 		external (old), Dectalk PC (full length isa board),
@@ -19,24 +19,24 @@ config SPEAKUP
 		Litetalk, Keynote Gold internal PC, software
 		synthesizers, Speakout, transport, and a dummy module
 		that can be used with a plain text terminal.
-		
+
 		Speakup can either be built in or compiled as a module
 		by answering y or m.  If you answer y here, then you
 		must answer either y or m to at least one of the
 		synthesizer drivers below.  If you answer m here, then
 		the synthesizer drivers below can only be built as
 		modules.
-		
+
 		These drivers are not standalone drivers, but must be
 		used in conjunction with Speakup.  Think of them as
 		video cards for blind people.
-		
-		
+
+
 		The Dectalk pc driver can only be built as a module, and
 		requires software to be pre-loaded on to the card before
 		the module can be loaded.  See the decpc choice below
 		for more details.
-		
+
 		If you are not a blind person, or don't have access to
 		one of the listed synthesizers, you should say n.
 
@@ -84,7 +84,7 @@ config SPEAKUP_SYNTH_BNS
 config SPEAKUP_SYNTH_DECTLK
 	tristate "DECtalk Express synthesizer support"
 	---help---
-		
+
 		This is the Speakup driver for the DecTalk Express
 		synthesizer.  You can say y to build it into the kernel,
 		or m to build it as a module.  See the configuration
@@ -93,7 +93,7 @@ config SPEAKUP_SYNTH_DECTLK
 config SPEAKUP_SYNTH_DECEXT
 	tristate "DECtalk External (old) synthesizer support"
 	---help---
-		
+
 		This is the Speakup driver for the DecTalk External
 		(old) synthesizer.  You can say y to build it into the
 		kernel, or m to build it as a module.  See the
@@ -104,12 +104,12 @@ config SPEAKUP_SYNTH_DECPC
 	depends on m
 	tristate "DECtalk PC (big ISA card) synthesizer support"
 	---help---
-		
+
 		This is the Speakup driver for the DecTalk PC (full
 		length ISA) synthesizer.  You can say m to build it as
 		a module.  See the configuration help on the Speakup
 		choice above for more info.
-		
+
 		In order to use the DecTalk PC driver, you must download
 		the dec_pc.tgz file from linux-speakup.org.  It is in
 		the pub/linux/goodies directory.  The dec_pc.tgz file
@@ -118,14 +118,14 @@ config SPEAKUP_SYNTH_DECPC
 		This driver must be built as a module, and can not be
 		loaded until the file system is mounted and the DecTalk
 		PC software has been pre-loaded on to the board.
-		
+
 		See the README file in the dec_pc.tgz file for more
 		details.
 
 config SPEAKUP_SYNTH_DTLK
 	tristate "DoubleTalk PC synthesizer support"
 	---help---
-		
+
 		This is the Speakup driver for the internal DoubleTalk
 		PC synthesizer.  You can say y to build it into the
 		kernel, or m to build it as a module.  See the
@@ -135,7 +135,7 @@ config SPEAKUP_SYNTH_DTLK
 config SPEAKUP_SYNTH_KEYPC
 	tristate "Keynote Gold PC synthesizer support"
 	---help---
-		
+
 		This is the Speakup driver for the Keynote Gold
 		PC synthesizer.  You can say y to build it into the
 		kernel, or m to build it as a module.  See the
@@ -166,7 +166,7 @@ config SPEAKUP_SYNTH_SOFT
 config SPEAKUP_SYNTH_SPKOUT
 	tristate "Speak Out synthesizer support"
 	---help---
-		
+
 		This is the Speakup driver for the Speakout synthesizer.
 		 You can say y to build it into the kernel, or m to
 		build it as a module.  See the configuration help on the
@@ -175,7 +175,7 @@ config SPEAKUP_SYNTH_SPKOUT
 config SPEAKUP_SYNTH_TXPRT
 	tristate "Transport synthesizer support"
 	---help---
-		
+
 		This is the Speakup driver for the Transport
 		synthesizer.  You can say y to build it into the kernel,
 		or m to build it as a module.  See the configuration
@@ -184,7 +184,7 @@ config SPEAKUP_SYNTH_TXPRT
 config SPEAKUP_SYNTH_DUMMY
 	tristate "Dummy synthesizer driver (for testing)"
 	---help---
-		
+
 		This is a dummy Speakup driver for plugging a mere serial
 		terminal.  This is handy if you want to test speakup but
 		don't have the hardware.  You can say y to build it into

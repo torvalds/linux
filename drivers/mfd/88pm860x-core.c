@@ -1150,17 +1150,17 @@ static int pm860x_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	chip = kzalloc(sizeof(struct pm860x_chip), GFP_KERNEL);
+	chip = devm_kzalloc(&client->dev,
+			    sizeof(struct pm860x_chip), GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
 
 	chip->id = verify_addr(client);
-	chip->regmap = regmap_init_i2c(client, &pm860x_regmap_config);
+	chip->regmap = devm_regmap_init_i2c(client, &pm860x_regmap_config);
 	if (IS_ERR(chip->regmap)) {
 		ret = PTR_ERR(chip->regmap);
 		dev_err(&client->dev, "Failed to allocate register map: %d\n",
 				ret);
-		kfree(chip);
 		return ret;
 	}
 	chip->client = client;
@@ -1203,8 +1203,6 @@ static int pm860x_remove(struct i2c_client *client)
 		regmap_exit(chip->regmap_companion);
 		i2c_unregister_device(chip->companion);
 	}
-	regmap_exit(chip->regmap);
-	kfree(chip);
 	return 0;
 }
 

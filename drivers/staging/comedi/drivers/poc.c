@@ -13,25 +13,18 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 /*
 Driver: poc
 Description: Generic driver for very simple devices
 Author: ds
-Devices: [Keithley Metrabyte] DAC-02 (dac02), [Advantech] PCL-733 (pcl733),
-  PCL-734 (pcl734)
+Devices: [Keithley Metrabyte] DAC-02 (dac02)
 Updated: Sat, 16 Mar 2002 17:34:48 -0800
 Status: unknown
 
 This driver is indended to support very simple ISA-based devices,
 including:
   dac02 - Keithley DAC-02 analog output board
-  pcl733 - Advantech PCL-733
-  pcl734 - Advantech PCL-734
 
 Configuration options:
   [0] - I/O port base
@@ -101,39 +94,6 @@ static int dac02_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	return 1;
 }
 
-static int pcl733_insn_bits(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
-{
-	data[1] = inb(dev->iobase + 0);
-	data[1] |= (inb(dev->iobase + 1) << 8);
-	data[1] |= (inb(dev->iobase + 2) << 16);
-	data[1] |= (inb(dev->iobase + 3) << 24);
-
-	return insn->n;
-}
-
-static int pcl734_insn_bits(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
-{
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
-		if ((data[0] >> 0) & 0xff)
-			outb((s->state >> 0) & 0xff, dev->iobase + 0);
-		if ((data[0] >> 8) & 0xff)
-			outb((s->state >> 8) & 0xff, dev->iobase + 1);
-		if ((data[0] >> 16) & 0xff)
-			outb((s->state >> 16) & 0xff, dev->iobase + 2);
-		if ((data[0] >> 24) & 0xff)
-			outb((s->state >> 24) & 0xff, dev->iobase + 3);
-	}
-	data[1] = s->state;
-
-	return insn->n;
-}
-
 static int poc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct boarddef_struct *board = comedi_board(dev);
@@ -180,22 +140,6 @@ static const struct boarddef_struct boards[] = {
 		.winsn		= dac02_ao_winsn,
 		.rinsn		= readback_insn,
 		.range		= &range_unknown,
-	}, {
-		.name		= "pcl733",
-		.iosize		= 4,
-		.type		= COMEDI_SUBD_DI,
-		.n_chan		= 32,
-		.n_bits		= 1,
-		.insnbits	= pcl733_insn_bits,
-		.range		= &range_digital,
-	}, {
-		.name		= "pcl734",
-		.iosize		= 4,
-		.type		= COMEDI_SUBD_DO,
-		.n_chan		= 32,
-		.n_bits		= 1,
-		.insnbits	= pcl734_insn_bits,
-		.range		= &range_digital,
 	},
 };
 

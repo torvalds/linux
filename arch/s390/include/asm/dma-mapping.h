@@ -53,7 +53,7 @@ static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 	debug_dma_mapping_error(dev, dma_addr);
 	if (dma_ops->mapping_error)
 		return dma_ops->mapping_error(dev, dma_addr);
-	return (dma_addr == DMA_ERROR_CODE);
+	return dma_addr == DMA_ERROR_CODE;
 }
 
 static inline void *dma_alloc_coherent(struct device *dev, size_t size,

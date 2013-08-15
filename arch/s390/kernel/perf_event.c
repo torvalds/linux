@@ -13,6 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/perf_event.h>
+#include <linux/kvm_host.h>
 #include <linux/percpu.h>
 #include <linux/export.h>
 #include <asm/irq.h>
@@ -38,6 +39,58 @@ int perf_num_counters(void)
 	return num;
 }
 EXPORT_SYMBOL(perf_num_counters);
+
+static struct kvm_s390_sie_block *sie_block(struct pt_regs *regs)
+{
+	struct stack_frame *stack = (struct stack_frame *) regs->gprs[15];
+
+	if (!stack)
+		return NULL;
+
+	return (struct kvm_s390_sie_block *) stack->empty1[0];
+}
+
+static bool is_in_guest(struct pt_regs *regs)
+{
+	if (user_mode(regs))
+		return false;
+#if defined(CONFIG_KVM) || defined(CONFIG_KVM_MODULE)
+	return instruction_pointer(regs) == (unsigned long) &sie_exit;
+#else
+	return false;
+#endif
+}
+
+static unsigned long guest_is_user_mode(struct pt_regs *regs)
+{
+	return sie_block(regs)->gpsw.mask & PSW_MASK_PSTATE;
+}
+
+static unsigned long instruction_pointer_guest(struct pt_regs *regs)
+{
+	return sie_block(regs)->gpsw.addr & PSW_ADDR_INSN;
+}
+
+unsigned long perf_instruction_pointer(struct pt_regs *regs)
+{
+	return is_in_guest(regs) ? instruction_pointer_guest(regs)
+				 : instruction_pointer(regs);
+}
+
+static unsigned long perf_misc_guest_flags(struct pt_regs *regs)
+{
+	return guest_is_user_mode(regs) ? PERF_RECORD_MISC_GUEST_USER
+					: PERF_RECORD_MISC_GUEST_KERNEL;
+}
+
+unsigned long perf_misc_flags(struct pt_regs *regs)
+{
+	if (is_in_guest(regs))
+		return perf_misc_guest_flags(regs);
+
+	return user_mode(regs) ? PERF_RECORD_MISC_USER
+			       : PERF_RECORD_MISC_KERNEL;
+}
 
 void perf_event_print_debug(void)
 {

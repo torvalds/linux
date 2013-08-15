@@ -327,22 +327,23 @@ void pxa2xx_spi_dma_start(struct driver_data *drv_data)
 int pxa2xx_spi_dma_setup(struct driver_data *drv_data)
 {
 	struct pxa2xx_spi_master *pdata = drv_data->master_info;
+	struct device *dev = &drv_data->pdev->dev;
 	dma_cap_mask_t mask;
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	drv_data->dummy = devm_kzalloc(&drv_data->pdev->dev, SZ_2K, GFP_KERNEL);
+	drv_data->dummy = devm_kzalloc(dev, SZ_2K, GFP_KERNEL);
 	if (!drv_data->dummy)
 		return -ENOMEM;
 
-	drv_data->tx_chan = dma_request_channel(mask, pxa2xx_spi_dma_filter,
-						pdata);
+	drv_data->tx_chan = dma_request_slave_channel_compat(mask,
+				pxa2xx_spi_dma_filter, pdata, dev, "tx");
 	if (!drv_data->tx_chan)
 		return -ENODEV;
 
-	drv_data->rx_chan = dma_request_channel(mask, pxa2xx_spi_dma_filter,
-						pdata);
+	drv_data->rx_chan = dma_request_slave_channel_compat(mask,
+				pxa2xx_spi_dma_filter, pdata, dev, "rx");
 	if (!drv_data->rx_chan) {
 		dma_release_channel(drv_data->tx_chan);
 		drv_data->tx_chan = NULL;

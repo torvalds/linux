@@ -54,13 +54,15 @@ intel_fixed_panel_mode(struct drm_display_mode *fixed_mode,
 
 /* adjusted_mode has been preset to be the panel's fixed mode */
 void
-intel_pch_panel_fitting(struct drm_device *dev,
-			int fitting_mode,
-			const struct drm_display_mode *mode,
-			struct drm_display_mode *adjusted_mode)
+intel_pch_panel_fitting(struct intel_crtc *intel_crtc,
+			struct intel_crtc_config *pipe_config,
+			int fitting_mode)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_display_mode *mode, *adjusted_mode;
 	int x, y, width, height;
+
+	mode = &pipe_config->requested_mode;
+	adjusted_mode = &pipe_config->adjusted_mode;
 
 	x = y = width = height = 0;
 
@@ -104,17 +106,212 @@ intel_pch_panel_fitting(struct drm_device *dev,
 		}
 		break;
 
-	default:
 	case DRM_MODE_SCALE_FULLSCREEN:
 		x = y = 0;
 		width = adjusted_mode->hdisplay;
 		height = adjusted_mode->vdisplay;
 		break;
+
+	default:
+		WARN(1, "bad panel fit mode: %d\n", fitting_mode);
+		return;
 	}
 
 done:
-	dev_priv->pch_pf_pos = (x << 16) | y;
-	dev_priv->pch_pf_size = (width << 16) | height;
+	pipe_config->pch_pfit.pos = (x << 16) | y;
+	pipe_config->pch_pfit.size = (width << 16) | height;
+}
+
+static void
+centre_horizontally(struct drm_display_mode *mode,
+		    int width)
+{
+	u32 border, sync_pos, blank_width, sync_width;
+
+	/* keep the hsync and hblank widths constant */
+	sync_width = mode->crtc_hsync_end - mode->crtc_hsync_start;
+	blank_width = mode->crtc_hblank_end - mode->crtc_hblank_start;
+	sync_pos = (blank_width - sync_width + 1) / 2;
+
+	border = (mode->hdisplay - width + 1) / 2;
+	border += border & 1; /* make the border even */
+
+	mode->crtc_hdisplay = width;
+	mode->crtc_hblank_start = width + border;
+	mode->crtc_hblank_end = mode->crtc_hblank_start + blank_width;
+
+	mode->crtc_hsync_start = mode->crtc_hblank_start + sync_pos;
+	mode->crtc_hsync_end = mode->crtc_hsync_start + sync_width;
+}
+
+static void
+centre_vertically(struct drm_display_mode *mode,
+		  int height)
+{
+	u32 border, sync_pos, blank_width, sync_width;
+
+	/* keep the vsync and vblank widths constant */
+	sync_width = mode->crtc_vsync_end - mode->crtc_vsync_start;
+	blank_width = mode->crtc_vblank_end - mode->crtc_vblank_start;
+	sync_pos = (blank_width - sync_width + 1) / 2;
+
+	border = (mode->vdisplay - height + 1) / 2;
+
+	mode->crtc_vdisplay = height;
+	mode->crtc_vblank_start = height + border;
+	mode->crtc_vblank_end = mode->crtc_vblank_start + blank_width;
+
+	mode->crtc_vsync_start = mode->crtc_vblank_start + sync_pos;
+	mode->crtc_vsync_end = mode->crtc_vsync_start + sync_width;
+}
+
+static inline u32 panel_fitter_scaling(u32 source, u32 target)
+{
+	/*
+	 * Floating point operation is not supported. So the FACTOR
+	 * is defined, which can avoid the floating point computation
+	 * when calculating the panel ratio.
+	 */
+#define ACCURACY 12
+#define FACTOR (1 << ACCURACY)
+	u32 ratio = source * FACTOR / target;
+	return (FACTOR * ratio + FACTOR/2) / FACTOR;
+}
+
+void intel_gmch_panel_fitting(struct intel_crtc *intel_crtc,
+			      struct intel_crtc_config *pipe_config,
+			      int fitting_mode)
+{
+	struct drm_device *dev = intel_crtc->base.dev;
+	u32 pfit_control = 0, pfit_pgm_ratios = 0, border = 0;
+	struct drm_display_mode *mode, *adjusted_mode;
+
+	mode = &pipe_config->requested_mode;
+	adjusted_mode = &pipe_config->adjusted_mode;
+
+	/* Native modes don't need fitting */
+	if (adjusted_mode->hdisplay == mode->hdisplay &&
+	    adjusted_mode->vdisplay == mode->vdisplay)
+		goto out;
+
+	drm_mode_set_crtcinfo(adjusted_mode, 0);
+	pipe_config->timings_set = true;
+
+	switch (fitting_mode) {
+	case DRM_MODE_SCALE_CENTER:
+		/*
+		 * For centered modes, we have to calculate border widths &
+		 * heights and modify the values programmed into the CRTC.
+		 */
+		centre_horizontally(adjusted_mode, mode->hdisplay);
+		centre_vertically(adjusted_mode, mode->vdisplay);
+		border = LVDS_BORDER_ENABLE;
+		break;
+	case DRM_MODE_SCALE_ASPECT:
+		/* Scale but preserve the aspect ratio */
+		if (INTEL_INFO(dev)->gen >= 4) {
+			u32 scaled_width = adjusted_mode->hdisplay *
+				mode->vdisplay;
+			u32 scaled_height = mode->hdisplay *
+				adjusted_mode->vdisplay;
+
+			/* 965+ is easy, it does everything in hw */
+			if (scaled_width > scaled_height)
+				pfit_control |= PFIT_ENABLE |
+					PFIT_SCALING_PILLAR;
+			else if (scaled_width < scaled_height)
+				pfit_control |= PFIT_ENABLE |
+					PFIT_SCALING_LETTER;
+			else if (adjusted_mode->hdisplay != mode->hdisplay)
+				pfit_control |= PFIT_ENABLE | PFIT_SCALING_AUTO;
+		} else {
+			u32 scaled_width = adjusted_mode->hdisplay *
+				mode->vdisplay;
+			u32 scaled_height = mode->hdisplay *
+				adjusted_mode->vdisplay;
+			/*
+			 * For earlier chips we have to calculate the scaling
+			 * ratio by hand and program it into the
+			 * PFIT_PGM_RATIO register
+			 */
+			if (scaled_width > scaled_height) { /* pillar */
+				centre_horizontally(adjusted_mode,
+						    scaled_height /
+						    mode->vdisplay);
+
+				border = LVDS_BORDER_ENABLE;
+				if (mode->vdisplay != adjusted_mode->vdisplay) {
+					u32 bits = panel_fitter_scaling(mode->vdisplay, adjusted_mode->vdisplay);
+					pfit_pgm_ratios |= (bits << PFIT_HORIZ_SCALE_SHIFT |
+							    bits << PFIT_VERT_SCALE_SHIFT);
+					pfit_control |= (PFIT_ENABLE |
+							 VERT_INTERP_BILINEAR |
+							 HORIZ_INTERP_BILINEAR);
+				}
+			} else if (scaled_width < scaled_height) { /* letter */
+				centre_vertically(adjusted_mode,
+						  scaled_width /
+						  mode->hdisplay);
+
+				border = LVDS_BORDER_ENABLE;
+				if (mode->hdisplay != adjusted_mode->hdisplay) {
+					u32 bits = panel_fitter_scaling(mode->hdisplay, adjusted_mode->hdisplay);
+					pfit_pgm_ratios |= (bits << PFIT_HORIZ_SCALE_SHIFT |
+							    bits << PFIT_VERT_SCALE_SHIFT);
+					pfit_control |= (PFIT_ENABLE |
+							 VERT_INTERP_BILINEAR |
+							 HORIZ_INTERP_BILINEAR);
+				}
+			} else {
+				/* Aspects match, Let hw scale both directions */
+				pfit_control |= (PFIT_ENABLE |
+						 VERT_AUTO_SCALE | HORIZ_AUTO_SCALE |
+						 VERT_INTERP_BILINEAR |
+						 HORIZ_INTERP_BILINEAR);
+			}
+		}
+		break;
+	case DRM_MODE_SCALE_FULLSCREEN:
+		/*
+		 * Full scaling, even if it changes the aspect ratio.
+		 * Fortunately this is all done for us in hw.
+		 */
+		if (mode->vdisplay != adjusted_mode->vdisplay ||
+		    mode->hdisplay != adjusted_mode->hdisplay) {
+			pfit_control |= PFIT_ENABLE;
+			if (INTEL_INFO(dev)->gen >= 4)
+				pfit_control |= PFIT_SCALING_AUTO;
+			else
+				pfit_control |= (VERT_AUTO_SCALE |
+						 VERT_INTERP_BILINEAR |
+						 HORIZ_AUTO_SCALE |
+						 HORIZ_INTERP_BILINEAR);
+		}
+		break;
+	default:
+		WARN(1, "bad panel fit mode: %d\n", fitting_mode);
+		return;
+	}
+
+	/* 965+ wants fuzzy fitting */
+	/* FIXME: handle multiple panels by failing gracefully */
+	if (INTEL_INFO(dev)->gen >= 4)
+		pfit_control |= ((intel_crtc->pipe << PFIT_PIPE_SHIFT) |
+				 PFIT_FILTER_FUZZY);
+
+out:
+	if ((pfit_control & PFIT_ENABLE) == 0) {
+		pfit_control = 0;
+		pfit_pgm_ratios = 0;
+	}
+
+	/* Make sure pre-965 set dither correctly for 18bpp panels. */
+	if (INTEL_INFO(dev)->gen < 4 && pipe_config->pipe_bpp == 18)
+		pfit_control |= PANEL_8TO6_DITHER_ENABLE;
+
+	pipe_config->gmch_pfit.control = pfit_control;
+	pipe_config->gmch_pfit.pgm_ratios = pfit_pgm_ratios;
+	pipe_config->gmch_pfit.lvds_border_bits = border;
 }
 
 static int is_backlight_combination_mode(struct drm_device *dev)
@@ -130,10 +327,15 @@ static int is_backlight_combination_mode(struct drm_device *dev)
 	return 0;
 }
 
+/* XXX: query mode clock or hardware clock and program max PWM appropriately
+ * when it's 0.
+ */
 static u32 i915_read_blc_pwm_ctl(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 val;
+
+	WARN_ON_SMP(!spin_is_locked(&dev_priv->backlight.lock));
 
 	/* Restore the CTL value if it lost, e.g. GPU reset */
 
@@ -164,7 +366,7 @@ static u32 i915_read_blc_pwm_ctl(struct drm_device *dev)
 	return val;
 }
 
-static u32 _intel_panel_get_max_backlight(struct drm_device *dev)
+static u32 intel_panel_get_max_backlight(struct drm_device *dev)
 {
 	u32 max;
 
@@ -182,23 +384,8 @@ static u32 _intel_panel_get_max_backlight(struct drm_device *dev)
 			max *= 0xff;
 	}
 
-	return max;
-}
-
-u32 intel_panel_get_max_backlight(struct drm_device *dev)
-{
-	u32 max;
-
-	max = _intel_panel_get_max_backlight(dev);
-	if (max == 0) {
-		/* XXX add code here to query mode clock or hardware clock
-		 * and program max PWM appropriately.
-		 */
-		pr_warn_once("fixme: max PWM is zero\n");
-		return 1;
-	}
-
 	DRM_DEBUG_DRIVER("max backlight PWM = %d\n", max);
+
 	return max;
 }
 
@@ -217,8 +404,11 @@ static u32 intel_panel_compute_brightness(struct drm_device *dev, u32 val)
 		return val;
 
 	if (i915_panel_invert_brightness > 0 ||
-	    dev_priv->quirks & QUIRK_INVERT_BRIGHTNESS)
-		return intel_panel_get_max_backlight(dev) - val;
+	    dev_priv->quirks & QUIRK_INVERT_BRIGHTNESS) {
+		u32 max = intel_panel_get_max_backlight(dev);
+		if (max)
+			return max - val;
+	}
 
 	return val;
 }
@@ -227,6 +417,9 @@ static u32 intel_panel_get_backlight(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 val;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev_priv->backlight.lock, flags);
 
 	if (HAS_PCH_SPLIT(dev)) {
 		val = I915_READ(BLC_PWM_CPU_CTL) & BACKLIGHT_DUTY_CYCLE_MASK;
@@ -244,6 +437,9 @@ static u32 intel_panel_get_backlight(struct drm_device *dev)
 	}
 
 	val = intel_panel_compute_brightness(dev, val);
+
+	spin_unlock_irqrestore(&dev_priv->backlight.lock, flags);
+
 	DRM_DEBUG_DRIVER("get backlight PWM = %d\n", val);
 	return val;
 }
@@ -270,6 +466,10 @@ static void intel_panel_actually_set_backlight(struct drm_device *dev, u32 level
 		u32 max = intel_panel_get_max_backlight(dev);
 		u8 lbpc;
 
+		/* we're screwed, but keep behaviour backwards compatible */
+		if (!max)
+			max = 1;
+
 		lbpc = level * 0xfe / max + 1;
 		level /= lbpc;
 		pci_write_config_byte(dev->pdev, PCI_LBPC, lbpc);
@@ -282,9 +482,26 @@ static void intel_panel_actually_set_backlight(struct drm_device *dev, u32 level
 	I915_WRITE(BLC_PWM_CTL, tmp | level);
 }
 
-void intel_panel_set_backlight(struct drm_device *dev, u32 level)
+/* set backlight brightness to level in range [0..max] */
+void intel_panel_set_backlight(struct drm_device *dev, u32 level, u32 max)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 freq;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev_priv->backlight.lock, flags);
+
+	freq = intel_panel_get_max_backlight(dev);
+	if (!freq) {
+		/* we are screwed, bail out */
+		goto out;
+	}
+
+	/* scale to hardware, but be careful to not overflow */
+	if (freq < max)
+		level = level * freq / max;
+	else
+		level = freq / max * level;
 
 	dev_priv->backlight.level = level;
 	if (dev_priv->backlight.device)
@@ -292,11 +509,27 @@ void intel_panel_set_backlight(struct drm_device *dev, u32 level)
 
 	if (dev_priv->backlight.enabled)
 		intel_panel_actually_set_backlight(dev, level);
+out:
+	spin_unlock_irqrestore(&dev_priv->backlight.lock, flags);
 }
 
 void intel_panel_disable_backlight(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long flags;
+
+	/*
+	 * Do not disable backlight on the vgaswitcheroo path. When switching
+	 * away from i915, the other client may depend on i915 to handle the
+	 * backlight. This will leave the backlight on unnecessarily when
+	 * another client is not activated.
+	 */
+	if (dev->switch_power_state == DRM_SWITCH_POWER_CHANGING) {
+		DRM_DEBUG_DRIVER("Skipping backlight disable on vga switch\n");
+		return;
+	}
+
+	spin_lock_irqsave(&dev_priv->backlight.lock, flags);
 
 	dev_priv->backlight.enabled = false;
 	intel_panel_actually_set_backlight(dev, 0);
@@ -314,12 +547,19 @@ void intel_panel_disable_backlight(struct drm_device *dev)
 			I915_WRITE(BLC_PWM_PCH_CTL1, tmp);
 		}
 	}
+
+	spin_unlock_irqrestore(&dev_priv->backlight.lock, flags);
 }
 
 void intel_panel_enable_backlight(struct drm_device *dev,
 				  enum pipe pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum transcoder cpu_transcoder =
+		intel_pipe_to_cpu_transcoder(dev_priv, pipe);
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev_priv->backlight.lock, flags);
 
 	if (dev_priv->backlight.level == 0) {
 		dev_priv->backlight.level = intel_panel_get_max_backlight(dev);
@@ -347,14 +587,18 @@ void intel_panel_enable_backlight(struct drm_device *dev,
 		else
 			tmp &= ~BLM_PIPE_SELECT;
 
-		tmp |= BLM_PIPE(pipe);
+		if (cpu_transcoder == TRANSCODER_EDP)
+			tmp |= BLM_TRANSCODER_EDP;
+		else
+			tmp |= BLM_PIPE(cpu_transcoder);
 		tmp &= ~BLM_PWM_ENABLE;
 
 		I915_WRITE(reg, tmp);
 		POSTING_READ(reg);
 		I915_WRITE(reg, tmp | BLM_PWM_ENABLE);
 
-		if (HAS_PCH_SPLIT(dev)) {
+		if (HAS_PCH_SPLIT(dev) &&
+		    !(dev_priv->quirks & QUIRK_NO_PCH_PWM_ENABLE)) {
 			tmp = I915_READ(BLC_PWM_PCH_CTL1);
 			tmp |= BLM_PCH_PWM_ENABLE;
 			tmp &= ~BLM_PCH_OVERRIDE_ENABLE;
@@ -369,6 +613,8 @@ set_level:
 	 */
 	dev_priv->backlight.enabled = true;
 	intel_panel_actually_set_backlight(dev, dev_priv->backlight.level);
+
+	spin_unlock_irqrestore(&dev_priv->backlight.lock, flags);
 }
 
 static void intel_panel_init_backlight(struct drm_device *dev)
@@ -405,7 +651,8 @@ intel_panel_detect(struct drm_device *dev)
 static int intel_panel_update_status(struct backlight_device *bd)
 {
 	struct drm_device *dev = bl_get_data(bd);
-	intel_panel_set_backlight(dev, bd->props.brightness);
+	intel_panel_set_backlight(dev, bd->props.brightness,
+				  bd->props.max_brightness);
 	return 0;
 }
 
@@ -425,6 +672,7 @@ int intel_panel_setup_backlight(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct backlight_properties props;
+	unsigned long flags;
 
 	intel_panel_init_backlight(dev);
 
@@ -434,7 +682,11 @@ int intel_panel_setup_backlight(struct drm_connector *connector)
 	memset(&props, 0, sizeof(props));
 	props.type = BACKLIGHT_RAW;
 	props.brightness = dev_priv->backlight.level;
-	props.max_brightness = _intel_panel_get_max_backlight(dev);
+
+	spin_lock_irqsave(&dev_priv->backlight.lock, flags);
+	props.max_brightness = intel_panel_get_max_backlight(dev);
+	spin_unlock_irqrestore(&dev_priv->backlight.lock, flags);
+
 	if (props.max_brightness == 0) {
 		DRM_DEBUG_DRIVER("Failed to get maximum backlight value\n");
 		return -ENODEV;

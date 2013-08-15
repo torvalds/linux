@@ -514,13 +514,13 @@ static int msm_otg_suspend(struct msm_otg *motg)
 			motg->pdata->otg_control == OTG_PMIC_CONTROL)
 		writel(readl(USB_PHY_CTRL) | PHY_RETEN, USB_PHY_CTRL);
 
-	clk_disable(motg->pclk);
-	clk_disable(motg->clk);
+	clk_disable_unprepare(motg->pclk);
+	clk_disable_unprepare(motg->clk);
 	if (motg->core_clk)
-		clk_disable(motg->core_clk);
+		clk_disable_unprepare(motg->core_clk);
 
 	if (!IS_ERR(motg->pclk_src))
-		clk_disable(motg->pclk_src);
+		clk_disable_unprepare(motg->pclk_src);
 
 	if (motg->pdata->phy_type == SNPS_28NM_INTEGRATED_PHY &&
 			motg->pdata->otg_control == OTG_PMIC_CONTROL) {
@@ -552,12 +552,12 @@ static int msm_otg_resume(struct msm_otg *motg)
 		return 0;
 
 	if (!IS_ERR(motg->pclk_src))
-		clk_enable(motg->pclk_src);
+		clk_prepare_enable(motg->pclk_src);
 
-	clk_enable(motg->pclk);
-	clk_enable(motg->clk);
+	clk_prepare_enable(motg->pclk);
+	clk_prepare_enable(motg->clk);
 	if (motg->core_clk)
-		clk_enable(motg->core_clk);
+		clk_prepare_enable(motg->core_clk);
 
 	if (motg->pdata->phy_type == SNPS_28NM_INTEGRATED_PHY &&
 			motg->pdata->otg_control == OTG_PMIC_CONTROL) {
@@ -1468,7 +1468,7 @@ static int __init msm_otg_probe(struct platform_device *pdev)
 		if (IS_ERR(motg->pclk_src))
 			goto put_clk;
 		clk_set_rate(motg->pclk_src, INT_MAX);
-		clk_enable(motg->pclk_src);
+		clk_prepare_enable(motg->pclk_src);
 	} else
 		motg->pclk_src = ERR_PTR(-ENOENT);
 
@@ -1511,8 +1511,8 @@ static int __init msm_otg_probe(struct platform_device *pdev)
 		goto free_regs;
 	}
 
-	clk_enable(motg->clk);
-	clk_enable(motg->pclk);
+	clk_prepare_enable(motg->clk);
+	clk_prepare_enable(motg->pclk);
 
 	ret = msm_hsusb_init_vddcx(motg, 1);
 	if (ret) {
@@ -1532,7 +1532,7 @@ static int __init msm_otg_probe(struct platform_device *pdev)
 	}
 
 	if (motg->core_clk)
-		clk_enable(motg->core_clk);
+		clk_prepare_enable(motg->core_clk);
 
 	writel(0, USB_USBINTR);
 	writel(0, USB_OTGSC);
@@ -1579,8 +1579,8 @@ static int __init msm_otg_probe(struct platform_device *pdev)
 free_irq:
 	free_irq(motg->irq, motg);
 disable_clks:
-	clk_disable(motg->pclk);
-	clk_disable(motg->clk);
+	clk_disable_unprepare(motg->pclk);
+	clk_disable_unprepare(motg->clk);
 ldo_exit:
 	msm_hsusb_ldo_init(motg, 0);
 vddcx_exit:
@@ -1593,7 +1593,7 @@ put_core_clk:
 	clk_put(motg->pclk);
 put_pclk_src:
 	if (!IS_ERR(motg->pclk_src)) {
-		clk_disable(motg->pclk_src);
+		clk_disable_unprepare(motg->pclk_src);
 		clk_put(motg->pclk_src);
 	}
 put_clk:
@@ -1643,12 +1643,12 @@ static int msm_otg_remove(struct platform_device *pdev)
 	if (cnt >= PHY_SUSPEND_TIMEOUT_USEC)
 		dev_err(phy->dev, "Unable to suspend PHY\n");
 
-	clk_disable(motg->pclk);
-	clk_disable(motg->clk);
+	clk_disable_unprepare(motg->pclk);
+	clk_disable_unprepare(motg->clk);
 	if (motg->core_clk)
-		clk_disable(motg->core_clk);
+		clk_disable_unprepare(motg->core_clk);
 	if (!IS_ERR(motg->pclk_src)) {
-		clk_disable(motg->pclk_src);
+		clk_disable_unprepare(motg->pclk_src);
 		clk_put(motg->pclk_src);
 	}
 	msm_hsusb_ldo_init(motg, 0);

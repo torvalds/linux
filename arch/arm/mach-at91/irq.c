@@ -232,7 +232,14 @@ static void __maybe_unused at91_aic5_eoi(struct irq_data *d)
 	at91_aic_write(AT91_AIC5_EOICR, 0);
 }
 
-unsigned long *at91_extern_irq;
+static unsigned long *at91_extern_irq;
+
+u32 at91_get_extern_irq(void)
+{
+	if (!at91_extern_irq)
+		return 0;
+	return *at91_extern_irq;
+}
 
 #define is_extern_irq(hwirq) test_bit(hwirq, at91_extern_irq)
 

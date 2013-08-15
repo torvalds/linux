@@ -79,8 +79,6 @@ extern unsigned int kobjsize(const void *objp);
  * No page table caches to initialise.
  */
 #define pgtable_cache_init()	do { } while (0)
-#define io_remap_pfn_range	remap_pfn_range
-
 
 /*
  * All 32bit addresses are effectively valid for vmalloc...

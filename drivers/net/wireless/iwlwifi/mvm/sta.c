@@ -64,6 +64,7 @@
 
 #include "mvm.h"
 #include "sta.h"
+#include "rs.h"
 
 static int iwl_mvm_find_free_sta_id(struct iwl_mvm *mvm)
 {
@@ -217,6 +218,8 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 						      mvmvif->color);
 	mvm_sta->vif = vif;
 	mvm_sta->max_agg_bufsize = LINK_QUAL_AGG_FRAME_LIMIT_DEF;
+	mvm_sta->tx_protection = 0;
+	mvm_sta->tt_tx_protection = false;
 
 	/* HW restart, don't assume the memory has been zeroed */
 	atomic_set(&mvm->pending_frames[sta_id], 0);
@@ -225,9 +228,6 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 	for (i = 0; i < IEEE80211_NUM_ACS; i++)
 		if (vif->hw_queue[i] != IEEE80211_INVAL_HW_QUEUE)
 			mvm_sta->tfd_queue_msk |= BIT(vif->hw_queue[i]);
-
-	if (vif->cab_queue != IEEE80211_INVAL_HW_QUEUE)
-		mvm_sta->tfd_queue_msk |= BIT(vif->cab_queue);
 
 	/* for HW restart - need to reset the seq_number etc... */
 	memset(mvm_sta->tid_data, 0, sizeof(mvm_sta->tid_data));
@@ -608,6 +608,8 @@ int iwl_mvm_rm_bcast_sta(struct iwl_mvm *mvm, struct iwl_mvm_int_sta *bsta)
 	return ret;
 }
 
+#define IWL_MAX_RX_BA_SESSIONS 16
+
 int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		       int tid, u16 ssn, bool start)
 {
@@ -618,11 +620,20 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 
 	lockdep_assert_held(&mvm->mutex);
 
+	if (start && mvm->rx_ba_sessions >= IWL_MAX_RX_BA_SESSIONS) {
+		IWL_WARN(mvm, "Not enough RX BA SESSIONS\n");
+		return -ENOSPC;
+	}
+
 	cmd.mac_id_n_color = cpu_to_le32(mvm_sta->mac_id_n_color);
 	cmd.sta_id = mvm_sta->sta_id;
 	cmd.add_modify = STA_MODE_MODIFY;
-	cmd.add_immediate_ba_tid = (u8) tid;
-	cmd.add_immediate_ba_ssn = cpu_to_le16(ssn);
+	if (start) {
+		cmd.add_immediate_ba_tid = (u8) tid;
+		cmd.add_immediate_ba_ssn = cpu_to_le16(ssn);
+	} else {
+		cmd.remove_immediate_ba_tid = (u8) tid;
+	}
 	cmd.modify_mask = start ? STA_MODIFY_ADD_BA_TID :
 				  STA_MODIFY_REMOVE_BA_TID;
 
@@ -646,6 +657,14 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		IWL_ERR(mvm, "RX BA Session failed %sing, status 0x%x\n",
 			start ? "start" : "stopp", status);
 		break;
+	}
+
+	if (!ret) {
+		if (start)
+			mvm->rx_ba_sessions++;
+		else if (mvm->rx_ba_sessions > 0)
+			/* check that restart flow didn't zero the counter */
+			mvm->rx_ba_sessions--;
 	}
 
 	return ret;
@@ -798,20 +817,22 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		min(mvmsta->max_agg_bufsize, buf_size);
 	mvmsta->lq_sta.lq.agg_frame_cnt_limit = mvmsta->max_agg_bufsize;
 
+	IWL_DEBUG_HT(mvm, "Tx aggregation enabled on ra = %pM tid = %d\n",
+		     sta->addr, tid);
+
 	if (mvm->cfg->ht_params->use_rts_for_aggregation) {
 		/*
 		 * switch to RTS/CTS if it is the prefer protection
 		 * method for HT traffic
+		 * this function also sends the LQ command
 		 */
-		mvmsta->lq_sta.lq.flags |= LQ_FLAG_SET_STA_TLC_RTS_MSK;
+		return iwl_mvm_tx_protection(mvm, &mvmsta->lq_sta.lq,
+					     mvmsta, true);
 		/*
 		 * TODO: remove the TLC_RTS flag when we tear down the last
 		 * AGG session (agg_tids_count in DVM)
 		 */
 	}
-
-	IWL_DEBUG_HT(mvm, "Tx aggregation enabled on ra = %pM tid = %d\n",
-		     sta->addr, tid);
 
 	return iwl_mvm_send_lq_cmd(mvm, &mvmsta->lq_sta.lq, CMD_ASYNC, false);
 }
@@ -894,6 +915,7 @@ int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	struct iwl_mvm_sta *mvmsta = (void *)sta->drv_priv;
 	struct iwl_mvm_tid_data *tid_data = &mvmsta->tid_data[tid];
 	u16 txq_id;
+	enum iwl_mvm_agg_state old_state;
 
 	/*
 	 * First set the agg state to OFF to avoid calling
@@ -903,13 +925,17 @@ int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	txq_id = tid_data->txq_id;
 	IWL_DEBUG_TX_QUEUES(mvm, "Flush AGG: sta %d tid %d q %d state %d\n",
 			    mvmsta->sta_id, tid, txq_id, tid_data->state);
+	old_state = tid_data->state;
 	tid_data->state = IWL_AGG_OFF;
 	spin_unlock_bh(&mvmsta->lock);
 
-	if (iwl_mvm_flush_tx_path(mvm, BIT(txq_id), true))
-		IWL_ERR(mvm, "Couldn't flush the AGG queue\n");
+	if (old_state >= IWL_AGG_ON) {
+		if (iwl_mvm_flush_tx_path(mvm, BIT(txq_id), true))
+			IWL_ERR(mvm, "Couldn't flush the AGG queue\n");
 
-	iwl_trans_txq_disable(mvm->trans, tid_data->txq_id);
+		iwl_trans_txq_disable(mvm->trans, tid_data->txq_id);
+	}
+
 	mvm->queue_to_mac80211[tid_data->txq_id] =
 				IWL_INVALID_MAC80211_QUEUE;
 
@@ -1287,17 +1313,11 @@ void iwl_mvm_sta_modify_ps_wake(struct iwl_mvm *mvm,
 	struct iwl_mvm_add_sta_cmd cmd = {
 		.add_modify = STA_MODE_MODIFY,
 		.sta_id = mvmsta->sta_id,
-		.modify_mask = STA_MODIFY_SLEEPING_STA_TX_COUNT,
-		.sleep_state_flags = cpu_to_le16(STA_SLEEP_STATE_AWAKE),
+		.station_flags_msk = cpu_to_le32(STA_FLG_PS),
 		.mac_id_n_color = cpu_to_le32(mvmsta->mac_id_n_color),
 	};
 	int ret;
 
-	/*
-	 * Same modify mask for sleep_tx_count and sleep_state_flags but this
-	 * should be fine since if we set the STA as "awake", then
-	 * sleep_tx_count is not relevant.
-	 */
 	ret = iwl_mvm_send_cmd_pdu(mvm, ADD_STA, CMD_ASYNC, sizeof(cmd), &cmd);
 	if (ret)
 		IWL_ERR(mvm, "Failed to send ADD_STA command (%d)\n", ret);

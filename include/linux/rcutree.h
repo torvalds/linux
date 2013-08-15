@@ -30,7 +30,6 @@
 #ifndef __LINUX_RCUTREE_H
 #define __LINUX_RCUTREE_H
 
-extern void rcu_init(void);
 extern void rcu_note_context_switch(int cpu);
 extern int rcu_needs_cpu(int cpu, unsigned long *delta_jiffies);
 extern void rcu_cpu_stall_reset(void);
@@ -85,6 +84,8 @@ extern long rcu_batches_completed_sched(void);
 extern void rcu_force_quiescent_state(void);
 extern void rcu_bh_force_quiescent_state(void);
 extern void rcu_sched_force_quiescent_state(void);
+
+extern void exit_rcu(void);
 
 extern void rcu_scheduler_starting(void);
 extern int rcu_scheduler_active __read_mostly;

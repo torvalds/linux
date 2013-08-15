@@ -209,8 +209,7 @@ err_irq:
  */
 static int ehci_hcd_xilinx_of_remove(struct platform_device *op)
 {
-	struct usb_hcd *hcd = dev_get_drvdata(&op->dev);
-	dev_set_drvdata(&op->dev, NULL);
+	struct usb_hcd *hcd = platform_get_drvdata(op);
 
 	dev_dbg(&op->dev, "stopping XILINX-OF USB Controller\n");
 
@@ -229,7 +228,7 @@ static int ehci_hcd_xilinx_of_remove(struct platform_device *op)
  */
 static void ehci_hcd_xilinx_of_shutdown(struct platform_device *op)
 {
-	struct usb_hcd *hcd = dev_get_drvdata(&op->dev);
+	struct usb_hcd *hcd = platform_get_drvdata(op);
 
 	if (hcd->driver->shutdown)
 		hcd->driver->shutdown(hcd);

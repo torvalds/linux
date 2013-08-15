@@ -347,9 +347,6 @@ static inline void pmd_set(pmd_t * pmdp, pte_t * ptep)
 /* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
 #define kern_addr_valid(addr)	(1)
 
-#define io_remap_pfn_range(vma, vaddr, pfn, size, prot)	\
-		remap_pfn_range(vma, vaddr, pfn, size, prot)
-
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT

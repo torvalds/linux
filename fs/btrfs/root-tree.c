@@ -64,52 +64,59 @@ void btrfs_read_root_item(struct extent_buffer *eb, int slot,
 }
 
 /*
- * lookup the root with the highest offset for a given objectid.  The key we do
- * find is copied into 'key'.  If we find something return 0, otherwise 1, < 0
- * on error.
+ * btrfs_find_root - lookup the root by the key.
+ * root: the root of the root tree
+ * search_key: the key to search
+ * path: the path we search
+ * root_item: the root item of the tree we look for
+ * root_key: the reak key of the tree we look for
+ *
+ * If ->offset of 'seach_key' is -1ULL, it means we are not sure the offset
+ * of the search key, just lookup the root with the highest offset for a
+ * given objectid.
+ *
+ * If we find something return 0, otherwise > 0, < 0 on error.
  */
-int btrfs_find_last_root(struct btrfs_root *root, u64 objectid,
-			struct btrfs_root_item *item, struct btrfs_key *key)
+int btrfs_find_root(struct btrfs_root *root, struct btrfs_key *search_key,
+		    struct btrfs_path *path, struct btrfs_root_item *root_item,
+		    struct btrfs_key *root_key)
 {
-	struct btrfs_path *path;
-	struct btrfs_key search_key;
 	struct btrfs_key found_key;
 	struct extent_buffer *l;
 	int ret;
 	int slot;
 
-	search_key.objectid = objectid;
-	search_key.type = BTRFS_ROOT_ITEM_KEY;
-	search_key.offset = (u64)-1;
-
-	path = btrfs_alloc_path();
-	if (!path)
-		return -ENOMEM;
-	ret = btrfs_search_slot(NULL, root, &search_key, path, 0, 0);
+	ret = btrfs_search_slot(NULL, root, search_key, path, 0, 0);
 	if (ret < 0)
-		goto out;
+		return ret;
 
-	BUG_ON(ret == 0);
-	if (path->slots[0] == 0) {
-		ret = 1;
-		goto out;
+	if (search_key->offset != -1ULL) {	/* the search key is exact */
+		if (ret > 0)
+			goto out;
+	} else {
+		BUG_ON(ret == 0);		/* Logical error */
+		if (path->slots[0] == 0)
+			goto out;
+		path->slots[0]--;
+		ret = 0;
 	}
+
 	l = path->nodes[0];
-	slot = path->slots[0] - 1;
+	slot = path->slots[0];
+
 	btrfs_item_key_to_cpu(l, &found_key, slot);
-	if (found_key.objectid != objectid ||
+	if (found_key.objectid != search_key->objectid ||
 	    found_key.type != BTRFS_ROOT_ITEM_KEY) {
 		ret = 1;
 		goto out;
 	}
-	if (item)
-		btrfs_read_root_item(l, slot, item);
-	if (key)
-		memcpy(key, &found_key, sizeof(found_key));
 
-	ret = 0;
+	if (root_item)
+		btrfs_read_root_item(l, slot, root_item);
+	if (root_key)
+		memcpy(root_key, &found_key, sizeof(found_key));
 out:
-	btrfs_free_path(path);
+	btrfs_release_path(path);
 	return ret;
 }
 
@@ -212,86 +219,6 @@ int btrfs_insert_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	return btrfs_insert_item(trans, root, key, item, sizeof(*item));
 }
 
-/*
- * at mount time we want to find all the old transaction snapshots that were in
- * the process of being deleted if we crashed.  This is any root item with an
- * offset lower than the latest root.  They need to be queued for deletion to
- * finish what was happening when we crashed.
- */
-int btrfs_find_dead_roots(struct btrfs_root *root, u64 objectid)
-{
-	struct btrfs_root *dead_root;
-	struct btrfs_root_item *ri;
-	struct btrfs_key key;
-	struct btrfs_key found_key;
-	struct btrfs_path *path;
-	int ret;
-	u32 nritems;
-	struct extent_buffer *leaf;
-	int slot;
-
-	key.objectid = objectid;
-	btrfs_set_key_type(&key, BTRFS_ROOT_ITEM_KEY);
-	key.offset = 0;
-	path = btrfs_alloc_path();
-	if (!path)
-		return -ENOMEM;
-
-again:
-	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
-	if (ret < 0)
-		goto err;
-	while (1) {
-		leaf = path->nodes[0];
-		nritems = btrfs_header_nritems(leaf);
-		slot = path->slots[0];
-		if (slot >= nritems) {
-			ret = btrfs_next_leaf(root, path);
-			if (ret)
-				break;
-			leaf = path->nodes[0];
-			nritems = btrfs_header_nritems(leaf);
-			slot = path->slots[0];
-		}
-		btrfs_item_key_to_cpu(leaf, &key, slot);
-		if (btrfs_key_type(&key) != BTRFS_ROOT_ITEM_KEY)
-			goto next;
-
-		if (key.objectid < objectid)
-			goto next;
-
-		if (key.objectid > objectid)
-			break;
-
-		ri = btrfs_item_ptr(leaf, slot, struct btrfs_root_item);
-		if (btrfs_disk_root_refs(leaf, ri) != 0)
-			goto next;
-
-		memcpy(&found_key, &key, sizeof(key));
-		key.offset++;
-		btrfs_release_path(path);
-		dead_root =
-			btrfs_read_fs_root_no_radix(root->fs_info->tree_root,
-						    &found_key);
-		if (IS_ERR(dead_root)) {
-			ret = PTR_ERR(dead_root);
-			goto err;
-		}
-
-		ret = btrfs_add_dead_root(dead_root);
-		if (ret)
-			goto err;
-		goto again;
-next:
-		slot++;
-		path->slots[0]++;
-	}
-	ret = 0;
-err:
-	btrfs_free_path(path);
-	return ret;
-}
-
 int btrfs_find_orphan_roots(struct btrfs_root *tree_root)
 {
 	struct extent_buffer *leaf;
@@ -301,6 +228,10 @@ int btrfs_find_orphan_roots(struct btrfs_root *tree_root)
 	struct btrfs_root *root;
 	int err = 0;
 	int ret;
+	bool can_recover = true;
+
+	if (tree_root->fs_info->sb->s_flags & MS_RDONLY)
+		can_recover = false;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -340,20 +271,52 @@ int btrfs_find_orphan_roots(struct btrfs_root *tree_root)
 		root_key.objectid = key.offset;
 		key.offset++;
 
-		root = btrfs_read_fs_root_no_name(tree_root->fs_info,
-						  &root_key);
-		if (!IS_ERR(root))
-			continue;
+		root = btrfs_read_fs_root(tree_root, &root_key);
+		err = PTR_RET(root);
+		if (err && err != -ENOENT) {
+			break;
+		} else if (err == -ENOENT) {
+			struct btrfs_trans_handle *trans;
 
-		ret = PTR_ERR(root);
-		if (ret != -ENOENT) {
-			err = ret;
+			btrfs_release_path(path);
+
+			trans = btrfs_join_transaction(tree_root);
+			if (IS_ERR(trans)) {
+				err = PTR_ERR(trans);
+				btrfs_error(tree_root->fs_info, err,
+					    "Failed to start trans to delete "
+					    "orphan item");
+				break;
+			}
+			err = btrfs_del_orphan_item(trans, tree_root,
+						    root_key.objectid);
+			btrfs_end_transaction(trans, tree_root);
+			if (err) {
+				btrfs_error(tree_root->fs_info, err,
+					    "Failed to delete root orphan "
+					    "item");
+				break;
+			}
+			continue;
+		}
+
+		if (btrfs_root_refs(&root->root_item) == 0) {
+			btrfs_add_dead_root(root);
+			continue;
+		}
+
+		err = btrfs_init_fs_root(root);
+		if (err) {
+			btrfs_free_fs_root(root);
 			break;
 		}
 
-		ret = btrfs_find_dead_roots(tree_root, root_key.objectid);
-		if (ret) {
-			err = ret;
+		root->orphan_item_inserted = 1;
+
+		err = btrfs_insert_fs_root(root->fs_info, root);
+		if (err) {
+			BUG_ON(err == -EEXIST);
+			btrfs_free_fs_root(root);
 			break;
 		}
 	}
@@ -368,8 +331,6 @@ int btrfs_del_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 {
 	struct btrfs_path *path;
 	int ret;
-	struct btrfs_root_item *ri;
-	struct extent_buffer *leaf;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -379,8 +340,6 @@ int btrfs_del_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		goto out;
 
 	BUG_ON(ret != 0);
-	leaf = path->nodes[0];
-	ri = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_root_item);
 
 	ret = btrfs_del_item(trans, root, path);
 out:

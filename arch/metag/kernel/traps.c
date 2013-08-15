@@ -33,6 +33,7 @@
 #include <asm/siginfo.h>
 #include <asm/traps.h>
 #include <asm/hwthread.h>
+#include <asm/setup.h>
 #include <asm/switch.h>
 #include <asm/user_gateway.h>
 #include <asm/syscall.h>
@@ -87,8 +88,8 @@ const char *trap_name(int trapno)
 
 static DEFINE_SPINLOCK(die_lock);
 
-void die(const char *str, struct pt_regs *regs, long err,
-	 unsigned long addr)
+void __noreturn die(const char *str, struct pt_regs *regs,
+		    long err, unsigned long addr)
 {
 	static int die_counter;
 
@@ -811,7 +812,7 @@ static void set_trigger_mask(unsigned int mask)
 }
 #endif
 
-void __cpuinit per_cpu_trap_init(unsigned long cpu)
+void per_cpu_trap_init(unsigned long cpu)
 {
 	TBIRES int_context;
 	unsigned int thread = cpu_2_hwthread_id[cpu];

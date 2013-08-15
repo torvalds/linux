@@ -347,7 +347,6 @@ static int snd_card_ymfpci_probe(struct pci_dev *pci,
 static void snd_card_ymfpci_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 static struct pci_driver ymfpci_driver = {

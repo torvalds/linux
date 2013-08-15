@@ -312,7 +312,6 @@ static int lp8788_backlight_remove(struct platform_device *pdev)
 	backlight_update_status(bl_dev);
 	sysfs_remove_group(&pdev->dev.kobj, &lp8788_attr_group);
 	lp8788_backlight_unregister(bl);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

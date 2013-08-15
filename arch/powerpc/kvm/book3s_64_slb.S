@@ -66,10 +66,6 @@ slb_exit_skip_ ## num:
 
 	ld	r12, PACA_SLBSHADOWPTR(r13)
 
-	/* Save off the first entry so we can slbie it later */
-	ld	r10, SHADOW_SLB_ESID(0)(r12)
-	ld	r11, SHADOW_SLB_VSID(0)(r12)
-
 	/* Remove bolted entries */
 	UNBOLT_SLB_ENTRY(0)
 	UNBOLT_SLB_ENTRY(1)
@@ -81,14 +77,9 @@ slb_exit_skip_ ## num:
 
 	/* Flush SLB */
 
+	li	r10, 0
+	slbmte	r10, r10
 	slbia
-
-	/* r0 = esid & ESID_MASK */
-	rldicr  r10, r10, 0, 35
-	/* r0 |= CLASS_BIT(VSID) */
-	rldic   r12, r11, 56 - 36, 36
-	or      r10, r10, r12
-	slbie	r10
 
 	/* Fill SLB with our shadow */
 

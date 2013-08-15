@@ -33,9 +33,9 @@ you get the best hotplugging when you configure a highly modular system.
 
 KERNEL HOTPLUG HELPER (/sbin/hotplug)
 
-When you compile with CONFIG_HOTPLUG, you get a new kernel parameter:
-/proc/sys/kernel/hotplug, which normally holds the pathname "/sbin/hotplug".
-That parameter names a program which the kernel may invoke at various times.
+There is a kernel parameter: /proc/sys/kernel/hotplug, which normally
+holds the pathname "/sbin/hotplug".  That parameter names a program
+which the kernel may invoke at various times.
 
 The /sbin/hotplug program can be invoked by any subsystem as part of its
 reaction to a configuration change, from a thread in that subsystem.

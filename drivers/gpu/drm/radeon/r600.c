@@ -28,7 +28,6 @@
 #include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/firmware.h>
-#include <linux/platform_device.h>
 #include <linux/module.h>
 #include <drm/drmP.h>
 #include <drm/radeon_drm.h>
@@ -38,18 +37,7 @@
 #include "r600d.h"
 #include "atom.h"
 #include "avivod.h"
-
-#define PFP_UCODE_SIZE 576
-#define PM4_UCODE_SIZE 1792
-#define RLC_UCODE_SIZE 768
-#define R700_PFP_UCODE_SIZE 848
-#define R700_PM4_UCODE_SIZE 1360
-#define R700_RLC_UCODE_SIZE 1024
-#define EVERGREEN_PFP_UCODE_SIZE 1120
-#define EVERGREEN_PM4_UCODE_SIZE 1376
-#define EVERGREEN_RLC_UCODE_SIZE 768
-#define CAYMAN_RLC_UCODE_SIZE 1024
-#define ARUBA_RLC_UCODE_SIZE 1536
+#include "radeon_ucode.h"
 
 /* Firmware Names */
 MODULE_FIRMWARE("radeon/R600_pfp.bin");
@@ -68,24 +56,32 @@ MODULE_FIRMWARE("radeon/RS780_pfp.bin");
 MODULE_FIRMWARE("radeon/RS780_me.bin");
 MODULE_FIRMWARE("radeon/RV770_pfp.bin");
 MODULE_FIRMWARE("radeon/RV770_me.bin");
+MODULE_FIRMWARE("radeon/RV770_smc.bin");
 MODULE_FIRMWARE("radeon/RV730_pfp.bin");
 MODULE_FIRMWARE("radeon/RV730_me.bin");
+MODULE_FIRMWARE("radeon/RV730_smc.bin");
+MODULE_FIRMWARE("radeon/RV740_smc.bin");
 MODULE_FIRMWARE("radeon/RV710_pfp.bin");
 MODULE_FIRMWARE("radeon/RV710_me.bin");
+MODULE_FIRMWARE("radeon/RV710_smc.bin");
 MODULE_FIRMWARE("radeon/R600_rlc.bin");
 MODULE_FIRMWARE("radeon/R700_rlc.bin");
 MODULE_FIRMWARE("radeon/CEDAR_pfp.bin");
 MODULE_FIRMWARE("radeon/CEDAR_me.bin");
 MODULE_FIRMWARE("radeon/CEDAR_rlc.bin");
+MODULE_FIRMWARE("radeon/CEDAR_smc.bin");
 MODULE_FIRMWARE("radeon/REDWOOD_pfp.bin");
 MODULE_FIRMWARE("radeon/REDWOOD_me.bin");
 MODULE_FIRMWARE("radeon/REDWOOD_rlc.bin");
+MODULE_FIRMWARE("radeon/REDWOOD_smc.bin");
 MODULE_FIRMWARE("radeon/JUNIPER_pfp.bin");
 MODULE_FIRMWARE("radeon/JUNIPER_me.bin");
 MODULE_FIRMWARE("radeon/JUNIPER_rlc.bin");
+MODULE_FIRMWARE("radeon/JUNIPER_smc.bin");
 MODULE_FIRMWARE("radeon/CYPRESS_pfp.bin");
 MODULE_FIRMWARE("radeon/CYPRESS_me.bin");
 MODULE_FIRMWARE("radeon/CYPRESS_rlc.bin");
+MODULE_FIRMWARE("radeon/CYPRESS_smc.bin");
 MODULE_FIRMWARE("radeon/PALM_pfp.bin");
 MODULE_FIRMWARE("radeon/PALM_me.bin");
 MODULE_FIRMWARE("radeon/SUMO_rlc.bin");
@@ -108,6 +104,7 @@ static void r600_gpu_init(struct radeon_device *rdev);
 void r600_fini(struct radeon_device *rdev);
 void r600_irq_disable(struct radeon_device *rdev);
 static void r600_pcie_gen2_enable(struct radeon_device *rdev);
+extern int evergreen_rlc_resume(struct radeon_device *rdev);
 
 /**
  * r600_get_xclk - get the xclk
@@ -2146,21 +2143,14 @@ void r600_cp_stop(struct radeon_device *rdev)
 
 int r600_init_microcode(struct radeon_device *rdev)
 {
-	struct platform_device *pdev;
 	const char *chip_name;
 	const char *rlc_chip_name;
-	size_t pfp_req_size, me_req_size, rlc_req_size;
+	const char *smc_chip_name = "RV770";
+	size_t pfp_req_size, me_req_size, rlc_req_size, smc_req_size = 0;
 	char fw_name[30];
 	int err;
 
 	DRM_DEBUG("\n");
-
-	pdev = platform_device_register_simple("radeon_cp", 0, NULL, 0);
-	err = IS_ERR(pdev);
-	if (err) {
-		printk(KERN_ERR "radeon_cp: Failed to register firmware\n");
-		return -EINVAL;
-	}
 
 	switch (rdev->family) {
 	case CHIP_R600:
@@ -2195,32 +2185,51 @@ int r600_init_microcode(struct radeon_device *rdev)
 	case CHIP_RV770:
 		chip_name = "RV770";
 		rlc_chip_name = "R700";
+		smc_chip_name = "RV770";
+		smc_req_size = ALIGN(RV770_SMC_UCODE_SIZE, 4);
 		break;
 	case CHIP_RV730:
-	case CHIP_RV740:
 		chip_name = "RV730";
 		rlc_chip_name = "R700";
+		smc_chip_name = "RV730";
+		smc_req_size = ALIGN(RV730_SMC_UCODE_SIZE, 4);
 		break;
 	case CHIP_RV710:
 		chip_name = "RV710";
 		rlc_chip_name = "R700";
+		smc_chip_name = "RV710";
+		smc_req_size = ALIGN(RV710_SMC_UCODE_SIZE, 4);
+		break;
+	case CHIP_RV740:
+		chip_name = "RV730";
+		rlc_chip_name = "R700";
+		smc_chip_name = "RV740";
+		smc_req_size = ALIGN(RV740_SMC_UCODE_SIZE, 4);
 		break;
 	case CHIP_CEDAR:
 		chip_name = "CEDAR";
 		rlc_chip_name = "CEDAR";
+		smc_chip_name = "CEDAR";
+		smc_req_size = ALIGN(CEDAR_SMC_UCODE_SIZE, 4);
 		break;
 	case CHIP_REDWOOD:
 		chip_name = "REDWOOD";
 		rlc_chip_name = "REDWOOD";
+		smc_chip_name = "REDWOOD";
+		smc_req_size = ALIGN(REDWOOD_SMC_UCODE_SIZE, 4);
 		break;
 	case CHIP_JUNIPER:
 		chip_name = "JUNIPER";
 		rlc_chip_name = "JUNIPER";
+		smc_chip_name = "JUNIPER";
+		smc_req_size = ALIGN(JUNIPER_SMC_UCODE_SIZE, 4);
 		break;
 	case CHIP_CYPRESS:
 	case CHIP_HEMLOCK:
 		chip_name = "CYPRESS";
 		rlc_chip_name = "CYPRESS";
+		smc_chip_name = "CYPRESS";
+		smc_req_size = ALIGN(CYPRESS_SMC_UCODE_SIZE, 4);
 		break;
 	case CHIP_PALM:
 		chip_name = "PALM";
@@ -2246,15 +2255,15 @@ int r600_init_microcode(struct radeon_device *rdev)
 		me_req_size = R700_PM4_UCODE_SIZE * 4;
 		rlc_req_size = R700_RLC_UCODE_SIZE * 4;
 	} else {
-		pfp_req_size = PFP_UCODE_SIZE * 4;
-		me_req_size = PM4_UCODE_SIZE * 12;
-		rlc_req_size = RLC_UCODE_SIZE * 4;
+		pfp_req_size = R600_PFP_UCODE_SIZE * 4;
+		me_req_size = R600_PM4_UCODE_SIZE * 12;
+		rlc_req_size = R600_RLC_UCODE_SIZE * 4;
 	}
 
 	DRM_INFO("Loading %s Microcode\n", chip_name);
 
 	snprintf(fw_name, sizeof(fw_name), "radeon/%s_pfp.bin", chip_name);
-	err = request_firmware(&rdev->pfp_fw, fw_name, &pdev->dev);
+	err = request_firmware(&rdev->pfp_fw, fw_name, rdev->dev);
 	if (err)
 		goto out;
 	if (rdev->pfp_fw->size != pfp_req_size) {
@@ -2266,7 +2275,7 @@ int r600_init_microcode(struct radeon_device *rdev)
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "radeon/%s_me.bin", chip_name);
-	err = request_firmware(&rdev->me_fw, fw_name, &pdev->dev);
+	err = request_firmware(&rdev->me_fw, fw_name, rdev->dev);
 	if (err)
 		goto out;
 	if (rdev->me_fw->size != me_req_size) {
@@ -2277,7 +2286,7 @@ int r600_init_microcode(struct radeon_device *rdev)
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "radeon/%s_rlc.bin", rlc_chip_name);
-	err = request_firmware(&rdev->rlc_fw, fw_name, &pdev->dev);
+	err = request_firmware(&rdev->rlc_fw, fw_name, rdev->dev);
 	if (err)
 		goto out;
 	if (rdev->rlc_fw->size != rlc_req_size) {
@@ -2287,9 +2296,24 @@ int r600_init_microcode(struct radeon_device *rdev)
 		err = -EINVAL;
 	}
 
-out:
-	platform_device_unregister(pdev);
+	if ((rdev->family >= CHIP_RV770) && (rdev->family <= CHIP_HEMLOCK)) {
+		snprintf(fw_name, sizeof(fw_name), "radeon/%s_smc.bin", smc_chip_name);
+		err = request_firmware(&rdev->smc_fw, fw_name, rdev->dev);
+		if (err) {
+			printk(KERN_ERR
+			       "smc: error loading firmware \"%s\"\n",
+			       fw_name);
+			release_firmware(rdev->smc_fw);
+			rdev->smc_fw = NULL;
+		} else if (rdev->smc_fw->size != smc_req_size) {
+			printk(KERN_ERR
+			       "smc: Bogus length %zu in firmware \"%s\"\n",
+			       rdev->smc_fw->size, fw_name);
+			err = -EINVAL;
+		}
+	}
 
+out:
 	if (err) {
 		if (err != -EINVAL)
 			printk(KERN_ERR
@@ -2301,6 +2325,8 @@ out:
 		rdev->me_fw = NULL;
 		release_firmware(rdev->rlc_fw);
 		rdev->rlc_fw = NULL;
+		release_firmware(rdev->smc_fw);
+		rdev->smc_fw = NULL;
 	}
 	return err;
 }
@@ -2331,13 +2357,13 @@ static int r600_cp_load_microcode(struct radeon_device *rdev)
 
 	fw_data = (const __be32 *)rdev->me_fw->data;
 	WREG32(CP_ME_RAM_WADDR, 0);
-	for (i = 0; i < PM4_UCODE_SIZE * 3; i++)
+	for (i = 0; i < R600_PM4_UCODE_SIZE * 3; i++)
 		WREG32(CP_ME_RAM_DATA,
 		       be32_to_cpup(fw_data++));
 
 	fw_data = (const __be32 *)rdev->pfp_fw->data;
 	WREG32(CP_PFP_UCODE_ADDR, 0);
-	for (i = 0; i < PFP_UCODE_SIZE; i++)
+	for (i = 0; i < R600_PFP_UCODE_SIZE; i++)
 		WREG32(CP_PFP_UCODE_DATA,
 		       be32_to_cpup(fw_data++));
 
@@ -2675,12 +2701,29 @@ int r600_uvd_rbc_start(struct radeon_device *rdev)
 	return 0;
 }
 
-void r600_uvd_rbc_stop(struct radeon_device *rdev)
+void r600_uvd_stop(struct radeon_device *rdev)
 {
 	struct radeon_ring *ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
 
 	/* force RBC into idle state */
 	WREG32(UVD_RBC_RB_CNTL, 0x11010101);
+
+	/* Stall UMC and register bus before resetting VCPU */
+	WREG32_P(UVD_LMI_CTRL2, 1 << 8, ~(1 << 8));
+	WREG32_P(UVD_RB_ARB_CTRL, 1 << 3, ~(1 << 3));
+	mdelay(1);
+
+	/* put VCPU into reset */
+	WREG32(UVD_SOFT_RESET, VCPU_SOFT_RESET);
+	mdelay(5);
+
+	/* disable VCPU clock */
+	WREG32(UVD_VCPU_CNTL, 0x0);
+
+	/* Unstall UMC and register bus */
+	WREG32_P(UVD_LMI_CTRL2, 0, ~(1 << 8));
+	WREG32_P(UVD_RB_ARB_CTRL, 0, ~(1 << 3));
+
 	ring->ready = false;
 }
 
@@ -2699,6 +2742,11 @@ int r600_uvd_init(struct radeon_device *rdev)
 
 	/* disable interupt */
 	WREG32_P(UVD_MASTINT_EN, 0, ~(1 << 1));
+
+	/* Stall UMC and register bus before resetting VCPU */
+	WREG32_P(UVD_LMI_CTRL2, 1 << 8, ~(1 << 8));
+	WREG32_P(UVD_RB_ARB_CTRL, 1 << 3, ~(1 << 3));
+	mdelay(1);
 
 	/* put LMI, VCPU, RBC etc... into reset */
 	WREG32(UVD_SOFT_RESET, LMI_SOFT_RESET | VCPU_SOFT_RESET |
@@ -2728,10 +2776,6 @@ int r600_uvd_init(struct radeon_device *rdev)
 	WREG32(UVD_MPC_SET_MUXB1, 0x0);
 	WREG32(UVD_MPC_SET_ALU, 0);
 	WREG32(UVD_MPC_SET_MUX, 0x88);
-
-	/* Stall UMC */
-	WREG32_P(UVD_LMI_CTRL2, 1 << 8, ~(1 << 8));
-	WREG32_P(UVD_RB_ARB_CTRL, 1 << 3, ~(1 << 3));
 
 	/* take all subblocks out of reset, except VCPU */
 	WREG32(UVD_SOFT_RESET, VCPU_SOFT_RESET);
@@ -2986,7 +3030,7 @@ void r600_uvd_fence_emit(struct radeon_device *rdev,
 			 struct radeon_fence *fence)
 {
 	struct radeon_ring *ring = &rdev->ring[fence->ring];
-	uint32_t addr = rdev->fence_drv[fence->ring].gpu_addr;
+	uint64_t addr = rdev->fence_drv[fence->ring].gpu_addr;
 
 	radeon_ring_write(ring, PACKET0(UVD_CONTEXT_ID, 0));
 	radeon_ring_write(ring, fence->seq);
@@ -3112,6 +3156,90 @@ int r600_copy_blit(struct radeon_device *rdev,
 }
 
 /**
+ * r600_copy_cpdma - copy pages using the CP DMA engine
+ *
+ * @rdev: radeon_device pointer
+ * @src_offset: src GPU address
+ * @dst_offset: dst GPU address
+ * @num_gpu_pages: number of GPU pages to xfer
+ * @fence: radeon fence object
+ *
+ * Copy GPU paging using the CP DMA engine (r6xx+).
+ * Used by the radeon ttm implementation to move pages if
+ * registered as the asic copy callback.
+ */
+int r600_copy_cpdma(struct radeon_device *rdev,
+		    uint64_t src_offset, uint64_t dst_offset,
+		    unsigned num_gpu_pages,
+		    struct radeon_fence **fence)
+{
+	struct radeon_semaphore *sem = NULL;
+	int ring_index = rdev->asic->copy.blit_ring_index;
+	struct radeon_ring *ring = &rdev->ring[ring_index];
+	u32 size_in_bytes, cur_size_in_bytes, tmp;
+	int i, num_loops;
+	int r = 0;
+
+	r = radeon_semaphore_create(rdev, &sem);
+	if (r) {
+		DRM_ERROR("radeon: moving bo (%d).\n", r);
+		return r;
+	}
+
+	size_in_bytes = (num_gpu_pages << RADEON_GPU_PAGE_SHIFT);
+	num_loops = DIV_ROUND_UP(size_in_bytes, 0x1fffff);
+	r = radeon_ring_lock(rdev, ring, num_loops * 6 + 24);
+	if (r) {
+		DRM_ERROR("radeon: moving bo (%d).\n", r);
+		radeon_semaphore_free(rdev, &sem, NULL);
+		return r;
+	}
+
+	if (radeon_fence_need_sync(*fence, ring->idx)) {
+		radeon_semaphore_sync_rings(rdev, sem, (*fence)->ring,
+					    ring->idx);
+		radeon_fence_note_sync(*fence, ring->idx);
+	} else {
+		radeon_semaphore_free(rdev, &sem, NULL);
+	}
+
+	radeon_ring_write(ring, PACKET3(PACKET3_SET_CONFIG_REG, 1));
+	radeon_ring_write(ring, (WAIT_UNTIL - PACKET3_SET_CONFIG_REG_OFFSET) >> 2);
+	radeon_ring_write(ring, WAIT_3D_IDLE_bit);
+	for (i = 0; i < num_loops; i++) {
+		cur_size_in_bytes = size_in_bytes;
+		if (cur_size_in_bytes > 0x1fffff)
+			cur_size_in_bytes = 0x1fffff;
+		size_in_bytes -= cur_size_in_bytes;
+		tmp = upper_32_bits(src_offset) & 0xff;
+		if (size_in_bytes == 0)
+			tmp |= PACKET3_CP_DMA_CP_SYNC;
+		radeon_ring_write(ring, PACKET3(PACKET3_CP_DMA, 4));
+		radeon_ring_write(ring, src_offset & 0xffffffff);
+		radeon_ring_write(ring, tmp);
+		radeon_ring_write(ring, dst_offset & 0xffffffff);
+		radeon_ring_write(ring, upper_32_bits(dst_offset) & 0xff);
+		radeon_ring_write(ring, cur_size_in_bytes);
+		src_offset += cur_size_in_bytes;
+		dst_offset += cur_size_in_bytes;
+	}
+	radeon_ring_write(ring, PACKET3(PACKET3_SET_CONFIG_REG, 1));
+	radeon_ring_write(ring, (WAIT_UNTIL - PACKET3_SET_CONFIG_REG_OFFSET) >> 2);
+	radeon_ring_write(ring, WAIT_CP_DMA_IDLE_bit);
+
+	r = radeon_fence_emit(rdev, fence, ring->idx);
+	if (r) {
+		radeon_ring_unlock_undo(rdev, ring);
+		return r;
+	}
+
+	radeon_ring_unlock_commit(rdev, ring);
+	radeon_semaphore_free(rdev, &sem, *fence);
+
+	return r;
+}
+
+/**
  * r600_copy_dma - copy pages using the DMA engine
  *
  * @rdev: radeon_device pointer
@@ -3206,6 +3334,8 @@ static int r600_startup(struct radeon_device *rdev)
 	/* enable pcie gen2 link */
 	r600_pcie_gen2_enable(rdev);
 
+	r600_mc_program(rdev);
+
 	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw) {
 		r = r600_init_microcode(rdev);
 		if (r) {
@@ -3218,7 +3348,6 @@ static int r600_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r600_mc_program(rdev);
 	if (rdev->flags & RADEON_IS_AGP) {
 		r600_agp_enable(rdev);
 	} else {
@@ -3789,7 +3918,7 @@ static void r600_rlc_start(struct radeon_device *rdev)
 	WREG32(RLC_CNTL, RLC_ENABLE);
 }
 
-static int r600_rlc_init(struct radeon_device *rdev)
+static int r600_rlc_resume(struct radeon_device *rdev)
 {
 	u32 i;
 	const __be32 *fw_data;
@@ -3801,45 +3930,22 @@ static int r600_rlc_init(struct radeon_device *rdev)
 
 	WREG32(RLC_HB_CNTL, 0);
 
-	if (rdev->family == CHIP_ARUBA) {
-		WREG32(TN_RLC_SAVE_AND_RESTORE_BASE, rdev->rlc.save_restore_gpu_addr >> 8);
-		WREG32(TN_RLC_CLEAR_STATE_RESTORE_BASE, rdev->rlc.clear_state_gpu_addr >> 8);
-	}
-	if (rdev->family <= CHIP_CAYMAN) {
-		WREG32(RLC_HB_BASE, 0);
-		WREG32(RLC_HB_RPTR, 0);
-		WREG32(RLC_HB_WPTR, 0);
-	}
-	if (rdev->family <= CHIP_CAICOS) {
-		WREG32(RLC_HB_WPTR_LSB_ADDR, 0);
-		WREG32(RLC_HB_WPTR_MSB_ADDR, 0);
-	}
+	WREG32(RLC_HB_BASE, 0);
+	WREG32(RLC_HB_RPTR, 0);
+	WREG32(RLC_HB_WPTR, 0);
+	WREG32(RLC_HB_WPTR_LSB_ADDR, 0);
+	WREG32(RLC_HB_WPTR_MSB_ADDR, 0);
 	WREG32(RLC_MC_CNTL, 0);
 	WREG32(RLC_UCODE_CNTL, 0);
 
 	fw_data = (const __be32 *)rdev->rlc_fw->data;
-	if (rdev->family >= CHIP_ARUBA) {
-		for (i = 0; i < ARUBA_RLC_UCODE_SIZE; i++) {
-			WREG32(RLC_UCODE_ADDR, i);
-			WREG32(RLC_UCODE_DATA, be32_to_cpup(fw_data++));
-		}
-	} else if (rdev->family >= CHIP_CAYMAN) {
-		for (i = 0; i < CAYMAN_RLC_UCODE_SIZE; i++) {
-			WREG32(RLC_UCODE_ADDR, i);
-			WREG32(RLC_UCODE_DATA, be32_to_cpup(fw_data++));
-		}
-	} else if (rdev->family >= CHIP_CEDAR) {
-		for (i = 0; i < EVERGREEN_RLC_UCODE_SIZE; i++) {
-			WREG32(RLC_UCODE_ADDR, i);
-			WREG32(RLC_UCODE_DATA, be32_to_cpup(fw_data++));
-		}
-	} else if (rdev->family >= CHIP_RV770) {
+	if (rdev->family >= CHIP_RV770) {
 		for (i = 0; i < R700_RLC_UCODE_SIZE; i++) {
 			WREG32(RLC_UCODE_ADDR, i);
 			WREG32(RLC_UCODE_DATA, be32_to_cpup(fw_data++));
 		}
 	} else {
-		for (i = 0; i < RLC_UCODE_SIZE; i++) {
+		for (i = 0; i < R600_RLC_UCODE_SIZE; i++) {
 			WREG32(RLC_UCODE_ADDR, i);
 			WREG32(RLC_UCODE_DATA, be32_to_cpup(fw_data++));
 		}
@@ -3947,7 +4053,10 @@ int r600_irq_init(struct radeon_device *rdev)
 	r600_disable_interrupts(rdev);
 
 	/* init rlc */
-	ret = r600_rlc_init(rdev);
+	if (rdev->family >= CHIP_CEDAR)
+		ret = evergreen_rlc_resume(rdev);
+	else
+		ret = r600_rlc_resume(rdev);
 	if (ret) {
 		r600_ih_ring_fini(rdev);
 		return ret;
@@ -4028,6 +4137,7 @@ int r600_irq_set(struct radeon_device *rdev)
 	u32 hdmi0, hdmi1;
 	u32 d1grph = 0, d2grph = 0;
 	u32 dma_cntl;
+	u32 thermal_int = 0;
 
 	if (!rdev->irq.installed) {
 		WARN(1, "Can't enable IRQ/MSI because no handler is installed\n");
@@ -4062,7 +4172,20 @@ int r600_irq_set(struct radeon_device *rdev)
 		hdmi0 = RREG32(HDMI0_AUDIO_PACKET_CONTROL) & ~HDMI0_AZ_FORMAT_WTRIG_MASK;
 		hdmi1 = RREG32(HDMI1_AUDIO_PACKET_CONTROL) & ~HDMI0_AZ_FORMAT_WTRIG_MASK;
 	}
+
 	dma_cntl = RREG32(DMA_CNTL) & ~TRAP_ENABLE;
+
+	if ((rdev->family > CHIP_R600) && (rdev->family < CHIP_RV770)) {
+		thermal_int = RREG32(CG_THERMAL_INT) &
+			~(THERM_INT_MASK_HIGH | THERM_INT_MASK_LOW);
+	} else if (rdev->family >= CHIP_RV770) {
+		thermal_int = RREG32(RV770_CG_THERMAL_INT) &
+			~(THERM_INT_MASK_HIGH | THERM_INT_MASK_LOW);
+	}
+	if (rdev->irq.dpm_thermal) {
+		DRM_DEBUG("dpm thermal\n");
+		thermal_int |= THERM_INT_MASK_HIGH | THERM_INT_MASK_LOW;
+	}
 
 	if (atomic_read(&rdev->irq.ring_int[RADEON_RING_TYPE_GFX_INDEX])) {
 		DRM_DEBUG("r600_irq_set: sw int\n");
@@ -4144,6 +4267,11 @@ int r600_irq_set(struct radeon_device *rdev)
 		WREG32(DC_HOT_PLUG_DETECT3_INT_CONTROL, hpd3);
 		WREG32(HDMI0_AUDIO_PACKET_CONTROL, hdmi0);
 		WREG32(HDMI1_AUDIO_PACKET_CONTROL, hdmi1);
+	}
+	if ((rdev->family > CHIP_R600) && (rdev->family < CHIP_RV770)) {
+		WREG32(CG_THERMAL_INT, thermal_int);
+	} else if (rdev->family >= CHIP_RV770) {
+		WREG32(RV770_CG_THERMAL_INT, thermal_int);
 	}
 
 	return 0;
@@ -4336,6 +4464,7 @@ int r600_irq_process(struct radeon_device *rdev)
 	u32 ring_index;
 	bool queue_hotplug = false;
 	bool queue_hdmi = false;
+	bool queue_thermal = false;
 
 	if (!rdev->ih.enabled || rdev->shutdown)
 		return IRQ_NONE;
@@ -4503,6 +4632,16 @@ restart_ih:
 			DRM_DEBUG("IH: DMA trap\n");
 			radeon_fence_process(rdev, R600_RING_TYPE_DMA_INDEX);
 			break;
+		case 230: /* thermal low to high */
+			DRM_DEBUG("IH: thermal low to high\n");
+			rdev->pm.dpm.thermal.high_to_low = false;
+			queue_thermal = true;
+			break;
+		case 231: /* thermal high to low */
+			DRM_DEBUG("IH: thermal high to low\n");
+			rdev->pm.dpm.thermal.high_to_low = true;
+			queue_thermal = true;
+			break;
 		case 233: /* GUI IDLE */
 			DRM_DEBUG("IH: GUI idle\n");
 			break;
@@ -4519,6 +4658,8 @@ restart_ih:
 		schedule_work(&rdev->hotplug_work);
 	if (queue_hdmi)
 		schedule_work(&rdev->audio_work);
+	if (queue_thermal && rdev->pm.dpm_enabled)
+		schedule_work(&rdev->pm.dpm.thermal.work);
 	rdev->ih.rptr = rptr;
 	WREG32(IH_RB_RPTR, rdev->ih.rptr);
 	atomic_set(&rdev->ih.lock, 0);

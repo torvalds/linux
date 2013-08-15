@@ -398,7 +398,7 @@ static int add_jack_kctl(struct hda_codec *codec, hda_nid_t nid,
 			 const char *base_name)
 {
 	unsigned int def_conf, conn;
-	char name[44];
+	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	int idx, err;
 	bool phantom_jack;
 

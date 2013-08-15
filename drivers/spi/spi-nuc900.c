@@ -459,8 +459,6 @@ static int nuc900_spi_remove(struct platform_device *dev)
 
 	free_irq(hw->irq, hw);
 
-	platform_set_drvdata(dev, NULL);
-
 	spi_bitbang_stop(&hw->bitbang);
 
 	clk_disable(hw->clk);

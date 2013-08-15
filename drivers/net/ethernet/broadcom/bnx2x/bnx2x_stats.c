@@ -1002,7 +1002,6 @@ static int bnx2x_storm_stats_update(struct bnx2x *bp)
 		qstats->valid_bytes_received_lo =
 					qstats->total_bytes_received_lo;
 
-
 		UPDATE_EXTEND_TSTAT(rcv_ucast_pkts,
 					total_unicast_packets_received);
 		UPDATE_EXTEND_TSTAT(rcv_mcast_pkts,

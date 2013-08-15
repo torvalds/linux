@@ -180,10 +180,6 @@
 
 				bus-range = <0x00 0xff>;
 
-				reg = <0x40000 0x2000>, <0x80000 0x2000>;
-
-				reg-names = "pcie0.0", "pcie1.0";
-
 				ranges = <0x82000000 0 0x40000 0x40000 0 0x00002000   /* Port 0.0 registers */
 					0x82000000 0 0x80000 0x80000 0 0x00002000   /* Port 1.0 registers */
 					0x82000000 0 0xe0000000 0xe0000000 0 0x08000000   /* non-prefetchable memory */

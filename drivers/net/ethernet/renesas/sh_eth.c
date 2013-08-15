@@ -313,9 +313,14 @@ static const u16 sh_eth_offset_fast_sh3_sh2[SH_ETH_MAX_REGISTER_OFFSET] = {
 	[TSU_ADRL31]	= 0x01fc,
 };
 
-#if defined(CONFIG_CPU_SUBTYPE_SH7734) || \
-	defined(CONFIG_CPU_SUBTYPE_SH7763) || \
-	defined(CONFIG_ARCH_R8A7740)
+static int sh_eth_is_gether(struct sh_eth_private *mdp)
+{
+	if (mdp->reg_offset == sh_eth_offset_gigabit)
+		return 1;
+	else
+		return 0;
+}
+
 static void sh_eth_select_mii(struct net_device *ndev)
 {
 	u32 value = 0x0;
@@ -339,11 +344,7 @@ static void sh_eth_select_mii(struct net_device *ndev)
 
 	sh_eth_write(ndev, value, RMII_MII);
 }
-#endif
 
-/* There is CPU dependent code */
-#if defined(CONFIG_ARCH_R8A7778) || defined(CONFIG_ARCH_R8A7779)
-#define SH_ETH_RESET_DEFAULT	1
 static void sh_eth_set_duplex(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
@@ -354,7 +355,8 @@ static void sh_eth_set_duplex(struct net_device *ndev)
 		sh_eth_write(ndev, sh_eth_read(ndev, ECMR) & ~ECMR_DM, ECMR);
 }
 
-static void sh_eth_set_rate(struct net_device *ndev)
+/* There is CPU dependent code */
+static void sh_eth_set_rate_r8a777x(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
@@ -371,9 +373,9 @@ static void sh_eth_set_rate(struct net_device *ndev)
 }
 
 /* R8A7778/9 */
-static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
+static struct sh_eth_cpu_data r8a777x_data = {
 	.set_duplex	= sh_eth_set_duplex,
-	.set_rate	= sh_eth_set_rate,
+	.set_rate	= sh_eth_set_rate_r8a777x,
 
 	.ecsr_value	= ECSR_PSRTO | ECSR_LCHNG | ECSR_ICD,
 	.ecsipr_value	= ECSIPR_PSRTOIP | ECSIPR_LCHNGIP | ECSIPR_ICDIP,
@@ -383,26 +385,14 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.eesr_err_check	= EESR_TWB | EESR_TABT | EESR_RABT | EESR_RFE |
 			  EESR_RDE | EESR_RFRMER | EESR_TFE | EESR_TDE |
 			  EESR_ECI,
-	.tx_error_check	= EESR_TWB | EESR_TABT | EESR_TDE | EESR_TFE,
 
 	.apr		= 1,
 	.mpr		= 1,
 	.tpauser	= 1,
 	.hw_swap	= 1,
 };
-#elif defined(CONFIG_CPU_SUBTYPE_SH7724)
-#define SH_ETH_RESET_DEFAULT	1
-static void sh_eth_set_duplex(struct net_device *ndev)
-{
-	struct sh_eth_private *mdp = netdev_priv(ndev);
 
-	if (mdp->duplex) /* Full */
-		sh_eth_write(ndev, sh_eth_read(ndev, ECMR) | ECMR_DM, ECMR);
-	else		/* Half */
-		sh_eth_write(ndev, sh_eth_read(ndev, ECMR) & ~ECMR_DM, ECMR);
-}
-
-static void sh_eth_set_rate(struct net_device *ndev)
+static void sh_eth_set_rate_sh7724(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
@@ -419,19 +409,18 @@ static void sh_eth_set_rate(struct net_device *ndev)
 }
 
 /* SH7724 */
-static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
+static struct sh_eth_cpu_data sh7724_data = {
 	.set_duplex	= sh_eth_set_duplex,
-	.set_rate	= sh_eth_set_rate,
+	.set_rate	= sh_eth_set_rate_sh7724,
 
 	.ecsr_value	= ECSR_PSRTO | ECSR_LCHNG | ECSR_ICD,
 	.ecsipr_value	= ECSIPR_PSRTOIP | ECSIPR_LCHNGIP | ECSIPR_ICDIP,
-	.eesipr_value	= DMAC_M_RFRMER | DMAC_M_ECI | 0x01ff009f,
+	.eesipr_value	= 0x01ff009f,
 
 	.tx_check	= EESR_FTC | EESR_CND | EESR_DLC | EESR_CD | EESR_RTO,
 	.eesr_err_check	= EESR_TWB | EESR_TABT | EESR_RABT | EESR_RFE |
 			  EESR_RDE | EESR_RFRMER | EESR_TFE | EESR_TDE |
 			  EESR_ECI,
-	.tx_error_check	= EESR_TWB | EESR_TABT | EESR_TDE | EESR_TFE,
 
 	.apr		= 1,
 	.mpr		= 1,
@@ -440,22 +429,8 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.rpadir		= 1,
 	.rpadir_value	= 0x00020000, /* NET_IP_ALIGN assumed to be 2 */
 };
-#elif defined(CONFIG_CPU_SUBTYPE_SH7757)
-#define SH_ETH_HAS_BOTH_MODULES	1
-#define SH_ETH_HAS_TSU	1
-static int sh_eth_check_reset(struct net_device *ndev);
 
-static void sh_eth_set_duplex(struct net_device *ndev)
-{
-	struct sh_eth_private *mdp = netdev_priv(ndev);
-
-	if (mdp->duplex) /* Full */
-		sh_eth_write(ndev, sh_eth_read(ndev, ECMR) | ECMR_DM, ECMR);
-	else		/* Half */
-		sh_eth_write(ndev, sh_eth_read(ndev, ECMR) & ~ECMR_DM, ECMR);
-}
-
-static void sh_eth_set_rate(struct net_device *ndev)
+static void sh_eth_set_rate_sh7757(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
@@ -472,9 +447,9 @@ static void sh_eth_set_rate(struct net_device *ndev)
 }
 
 /* SH7757 */
-static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
-	.set_duplex		= sh_eth_set_duplex,
-	.set_rate		= sh_eth_set_rate,
+static struct sh_eth_cpu_data sh7757_data = {
+	.set_duplex	= sh_eth_set_duplex,
+	.set_rate	= sh_eth_set_rate_sh7757,
 
 	.eesipr_value	= DMAC_M_RFRMER | DMAC_M_ECI | 0x003fffff,
 	.rmcr_value	= 0x00000001,
@@ -483,8 +458,8 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.eesr_err_check	= EESR_TWB | EESR_TABT | EESR_RABT | EESR_RFE |
 			  EESR_RDE | EESR_RFRMER | EESR_TFE | EESR_TDE |
 			  EESR_ECI,
-	.tx_error_check	= EESR_TWB | EESR_TABT | EESR_TDE | EESR_TFE,
 
+	.irq_flags	= IRQF_SHARED,
 	.apr		= 1,
 	.mpr		= 1,
 	.tpauser	= 1,
@@ -494,7 +469,7 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.rpadir_value   = 2 << 16,
 };
 
-#define SH_GIGA_ETH_BASE	0xfee00000
+#define SH_GIGA_ETH_BASE	0xfee00000UL
 #define GIGA_MALR(port)		(SH_GIGA_ETH_BASE + 0x800 * (port) + 0x05c8)
 #define GIGA_MAHR(port)		(SH_GIGA_ETH_BASE + 0x800 * (port) + 0x05c0)
 static void sh_eth_chip_reset_giga(struct net_device *ndev)
@@ -519,52 +494,6 @@ static void sh_eth_chip_reset_giga(struct net_device *ndev)
 	}
 }
 
-static int sh_eth_is_gether(struct sh_eth_private *mdp);
-static int sh_eth_reset(struct net_device *ndev)
-{
-	struct sh_eth_private *mdp = netdev_priv(ndev);
-	int ret = 0;
-
-	if (sh_eth_is_gether(mdp)) {
-		sh_eth_write(ndev, 0x03, EDSR);
-		sh_eth_write(ndev, sh_eth_read(ndev, EDMR) | EDMR_SRST_GETHER,
-				EDMR);
-
-		ret = sh_eth_check_reset(ndev);
-		if (ret)
-			goto out;
-
-		/* Table Init */
-		sh_eth_write(ndev, 0x0, TDLAR);
-		sh_eth_write(ndev, 0x0, TDFAR);
-		sh_eth_write(ndev, 0x0, TDFXR);
-		sh_eth_write(ndev, 0x0, TDFFR);
-		sh_eth_write(ndev, 0x0, RDLAR);
-		sh_eth_write(ndev, 0x0, RDFAR);
-		sh_eth_write(ndev, 0x0, RDFXR);
-		sh_eth_write(ndev, 0x0, RDFFR);
-	} else {
-		sh_eth_write(ndev, sh_eth_read(ndev, EDMR) | EDMR_SRST_ETHER,
-				EDMR);
-		mdelay(3);
-		sh_eth_write(ndev, sh_eth_read(ndev, EDMR) & ~EDMR_SRST_ETHER,
-				EDMR);
-	}
-
-out:
-	return ret;
-}
-
-static void sh_eth_set_duplex_giga(struct net_device *ndev)
-{
-	struct sh_eth_private *mdp = netdev_priv(ndev);
-
-	if (mdp->duplex) /* Full */
-		sh_eth_write(ndev, sh_eth_read(ndev, ECMR) | ECMR_DM, ECMR);
-	else		/* Half */
-		sh_eth_write(ndev, sh_eth_read(ndev, ECMR) & ~ECMR_DM, ECMR);
-}
-
 static void sh_eth_set_rate_giga(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
@@ -585,9 +514,9 @@ static void sh_eth_set_rate_giga(struct net_device *ndev)
 }
 
 /* SH7757(GETHERC) */
-static struct sh_eth_cpu_data sh_eth_my_cpu_data_giga = {
+static struct sh_eth_cpu_data sh7757_data_giga = {
 	.chip_reset	= sh_eth_chip_reset_giga,
-	.set_duplex	= sh_eth_set_duplex_giga,
+	.set_duplex	= sh_eth_set_duplex,
 	.set_rate	= sh_eth_set_rate_giga,
 
 	.ecsr_value	= ECSR_ICD | ECSR_MPD,
@@ -598,11 +527,10 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data_giga = {
 	.eesr_err_check	= EESR_TWB1 | EESR_TWB | EESR_TABT | EESR_RABT |
 			  EESR_RFE | EESR_RDE | EESR_RFRMER | EESR_TFE |
 			  EESR_TDE | EESR_ECI,
-	.tx_error_check	= EESR_TWB1 | EESR_TWB | EESR_TABT | EESR_TDE | \
-			  EESR_TFE,
 	.fdr_value	= 0x0000072f,
 	.rmcr_value	= 0x00000001,
 
+	.irq_flags	= IRQF_SHARED,
 	.apr		= 1,
 	.mpr		= 1,
 	.tpauser	= 1,
@@ -615,19 +543,6 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data_giga = {
 	.tsu		= 1,
 };
 
-static struct sh_eth_cpu_data *sh_eth_get_cpu_data(struct sh_eth_private *mdp)
-{
-	if (sh_eth_is_gether(mdp))
-		return &sh_eth_my_cpu_data_giga;
-	else
-		return &sh_eth_my_cpu_data;
-}
-
-#elif defined(CONFIG_CPU_SUBTYPE_SH7734) || defined(CONFIG_CPU_SUBTYPE_SH7763)
-#define SH_ETH_HAS_TSU	1
-static int sh_eth_check_reset(struct net_device *ndev);
-static void sh_eth_reset_hw_crc(struct net_device *ndev);
-
 static void sh_eth_chip_reset(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
@@ -637,17 +552,7 @@ static void sh_eth_chip_reset(struct net_device *ndev)
 	mdelay(1);
 }
 
-static void sh_eth_set_duplex(struct net_device *ndev)
-{
-	struct sh_eth_private *mdp = netdev_priv(ndev);
-
-	if (mdp->duplex) /* Full */
-		sh_eth_write(ndev, sh_eth_read(ndev, ECMR) | ECMR_DM, ECMR);
-	else		/* Half */
-		sh_eth_write(ndev, sh_eth_read(ndev, ECMR) & ~ECMR_DM, ECMR);
-}
-
-static void sh_eth_set_rate(struct net_device *ndev)
+static void sh_eth_set_rate_gether(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
@@ -666,11 +571,11 @@ static void sh_eth_set_rate(struct net_device *ndev)
 	}
 }
 
-/* sh7763 */
-static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
+/* SH7734 */
+static struct sh_eth_cpu_data sh7734_data = {
 	.chip_reset	= sh_eth_chip_reset,
 	.set_duplex	= sh_eth_set_duplex,
-	.set_rate	= sh_eth_set_rate,
+	.set_rate	= sh_eth_set_rate_gether,
 
 	.ecsr_value	= ECSR_ICD | ECSR_MPD,
 	.ecsipr_value	= ECSIPR_LCHNGIP | ECSIPR_ICDIP | ECSIPR_MPDIP,
@@ -680,8 +585,6 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.eesr_err_check	= EESR_TWB1 | EESR_TWB | EESR_TABT | EESR_RABT |
 			  EESR_RFE | EESR_RDE | EESR_RFRMER | EESR_TFE |
 			  EESR_TDE | EESR_ECI,
-	.tx_error_check	= EESR_TWB1 | EESR_TWB | EESR_TABT | EESR_TDE | \
-			  EESR_TFE,
 
 	.apr		= 1,
 	.mpr		= 1,
@@ -691,54 +594,37 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.no_trimd	= 1,
 	.no_ade		= 1,
 	.tsu		= 1,
-#if defined(CONFIG_CPU_SUBTYPE_SH7734)
-	.hw_crc     = 1,
-	.select_mii = 1,
-#endif
+	.hw_crc		= 1,
+	.select_mii	= 1,
 };
 
-static int sh_eth_reset(struct net_device *ndev)
-{
-	int ret = 0;
+/* SH7763 */
+static struct sh_eth_cpu_data sh7763_data = {
+	.chip_reset	= sh_eth_chip_reset,
+	.set_duplex	= sh_eth_set_duplex,
+	.set_rate	= sh_eth_set_rate_gether,
 
-	sh_eth_write(ndev, EDSR_ENALL, EDSR);
-	sh_eth_write(ndev, sh_eth_read(ndev, EDMR) | EDMR_SRST_GETHER, EDMR);
+	.ecsr_value	= ECSR_ICD | ECSR_MPD,
+	.ecsipr_value	= ECSIPR_LCHNGIP | ECSIPR_ICDIP | ECSIPR_MPDIP,
+	.eesipr_value	= DMAC_M_RFRMER | DMAC_M_ECI | 0x003fffff,
 
-	ret = sh_eth_check_reset(ndev);
-	if (ret)
-		goto out;
+	.tx_check	= EESR_TC1 | EESR_FTC,
+	.eesr_err_check	= EESR_TWB1 | EESR_TWB | EESR_TABT | EESR_RABT | \
+			  EESR_RDE | EESR_RFRMER | EESR_TFE | EESR_TDE | \
+			  EESR_ECI,
 
-	/* Table Init */
-	sh_eth_write(ndev, 0x0, TDLAR);
-	sh_eth_write(ndev, 0x0, TDFAR);
-	sh_eth_write(ndev, 0x0, TDFXR);
-	sh_eth_write(ndev, 0x0, TDFFR);
-	sh_eth_write(ndev, 0x0, RDLAR);
-	sh_eth_write(ndev, 0x0, RDFAR);
-	sh_eth_write(ndev, 0x0, RDFXR);
-	sh_eth_write(ndev, 0x0, RDFFR);
+	.apr		= 1,
+	.mpr		= 1,
+	.tpauser	= 1,
+	.bculr		= 1,
+	.hw_swap	= 1,
+	.no_trimd	= 1,
+	.no_ade		= 1,
+	.tsu		= 1,
+	.irq_flags	= IRQF_SHARED,
+};
 
-	/* Reset HW CRC register */
-	sh_eth_reset_hw_crc(ndev);
-
-	/* Select MII mode */
-	if (sh_eth_my_cpu_data.select_mii)
-		sh_eth_select_mii(ndev);
-out:
-	return ret;
-}
-
-static void sh_eth_reset_hw_crc(struct net_device *ndev)
-{
-	if (sh_eth_my_cpu_data.hw_crc)
-		sh_eth_write(ndev, 0x0, CSMR);
-}
-
-#elif defined(CONFIG_ARCH_R8A7740)
-#define SH_ETH_HAS_TSU	1
-static int sh_eth_check_reset(struct net_device *ndev);
-
-static void sh_eth_chip_reset(struct net_device *ndev)
+static void sh_eth_chip_reset_r8a7740(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
@@ -749,65 +635,11 @@ static void sh_eth_chip_reset(struct net_device *ndev)
 	sh_eth_select_mii(ndev);
 }
 
-static int sh_eth_reset(struct net_device *ndev)
-{
-	int ret = 0;
-
-	sh_eth_write(ndev, EDSR_ENALL, EDSR);
-	sh_eth_write(ndev, sh_eth_read(ndev, EDMR) | EDMR_SRST_GETHER, EDMR);
-
-	ret = sh_eth_check_reset(ndev);
-	if (ret)
-		goto out;
-
-	/* Table Init */
-	sh_eth_write(ndev, 0x0, TDLAR);
-	sh_eth_write(ndev, 0x0, TDFAR);
-	sh_eth_write(ndev, 0x0, TDFXR);
-	sh_eth_write(ndev, 0x0, TDFFR);
-	sh_eth_write(ndev, 0x0, RDLAR);
-	sh_eth_write(ndev, 0x0, RDFAR);
-	sh_eth_write(ndev, 0x0, RDFXR);
-	sh_eth_write(ndev, 0x0, RDFFR);
-
-out:
-	return ret;
-}
-
-static void sh_eth_set_duplex(struct net_device *ndev)
-{
-	struct sh_eth_private *mdp = netdev_priv(ndev);
-
-	if (mdp->duplex) /* Full */
-		sh_eth_write(ndev, sh_eth_read(ndev, ECMR) | ECMR_DM, ECMR);
-	else		/* Half */
-		sh_eth_write(ndev, sh_eth_read(ndev, ECMR) & ~ECMR_DM, ECMR);
-}
-
-static void sh_eth_set_rate(struct net_device *ndev)
-{
-	struct sh_eth_private *mdp = netdev_priv(ndev);
-
-	switch (mdp->speed) {
-	case 10: /* 10BASE */
-		sh_eth_write(ndev, GECMR_10, GECMR);
-		break;
-	case 100:/* 100BASE */
-		sh_eth_write(ndev, GECMR_100, GECMR);
-		break;
-	case 1000: /* 1000BASE */
-		sh_eth_write(ndev, GECMR_1000, GECMR);
-		break;
-	default:
-		break;
-	}
-}
-
 /* R8A7740 */
-static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
-	.chip_reset	= sh_eth_chip_reset,
+static struct sh_eth_cpu_data r8a7740_data = {
+	.chip_reset	= sh_eth_chip_reset_r8a7740,
 	.set_duplex	= sh_eth_set_duplex,
-	.set_rate	= sh_eth_set_rate,
+	.set_rate	= sh_eth_set_rate_gether,
 
 	.ecsr_value	= ECSR_ICD | ECSR_MPD,
 	.ecsipr_value	= ECSIPR_LCHNGIP | ECSIPR_ICDIP | ECSIPR_MPDIP,
@@ -817,8 +649,6 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.eesr_err_check	= EESR_TWB1 | EESR_TWB | EESR_TABT | EESR_RABT |
 			  EESR_RFE | EESR_RDE | EESR_RFRMER | EESR_TFE |
 			  EESR_TDE | EESR_ECI,
-	.tx_error_check	= EESR_TWB1 | EESR_TWB | EESR_TABT | EESR_TDE | \
-			  EESR_TFE,
 
 	.apr		= 1,
 	.mpr		= 1,
@@ -829,11 +659,10 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.no_ade		= 1,
 	.tsu		= 1,
 	.select_mii	= 1,
+	.shift_rd0	= 1,
 };
 
-#elif defined(CONFIG_CPU_SUBTYPE_SH7619)
-#define SH_ETH_RESET_DEFAULT	1
-static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
+static struct sh_eth_cpu_data sh7619_data = {
 	.eesipr_value	= DMAC_M_RFRMER | DMAC_M_ECI | 0x003fffff,
 
 	.apr		= 1,
@@ -841,14 +670,11 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.tpauser	= 1,
 	.hw_swap	= 1,
 };
-#elif defined(CONFIG_CPU_SUBTYPE_SH7710) || defined(CONFIG_CPU_SUBTYPE_SH7712)
-#define SH_ETH_RESET_DEFAULT	1
-#define SH_ETH_HAS_TSU	1
-static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
+
+static struct sh_eth_cpu_data sh771x_data = {
 	.eesipr_value	= DMAC_M_RFRMER | DMAC_M_ECI | 0x003fffff,
 	.tsu		= 1,
 };
-#endif
 
 static void sh_eth_set_default_cpu_data(struct sh_eth_cpu_data *cd)
 {
@@ -873,22 +699,8 @@ static void sh_eth_set_default_cpu_data(struct sh_eth_cpu_data *cd)
 
 	if (!cd->eesr_err_check)
 		cd->eesr_err_check = DEFAULT_EESR_ERR_CHECK;
-
-	if (!cd->tx_error_check)
-		cd->tx_error_check = DEFAULT_TX_ERROR_CHECK;
 }
 
-#if defined(SH_ETH_RESET_DEFAULT)
-/* Chip Reset */
-static int  sh_eth_reset(struct net_device *ndev)
-{
-	sh_eth_write(ndev, sh_eth_read(ndev, EDMR) | EDMR_SRST_ETHER, EDMR);
-	mdelay(3);
-	sh_eth_write(ndev, sh_eth_read(ndev, EDMR) & ~EDMR_SRST_ETHER, EDMR);
-
-	return 0;
-}
-#else
 static int sh_eth_check_reset(struct net_device *ndev)
 {
 	int ret = 0;
@@ -906,7 +718,49 @@ static int sh_eth_check_reset(struct net_device *ndev)
 	}
 	return ret;
 }
-#endif
+
+static int sh_eth_reset(struct net_device *ndev)
+{
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+	int ret = 0;
+
+	if (sh_eth_is_gether(mdp)) {
+		sh_eth_write(ndev, EDSR_ENALL, EDSR);
+		sh_eth_write(ndev, sh_eth_read(ndev, EDMR) | EDMR_SRST_GETHER,
+			     EDMR);
+
+		ret = sh_eth_check_reset(ndev);
+		if (ret)
+			goto out;
+
+		/* Table Init */
+		sh_eth_write(ndev, 0x0, TDLAR);
+		sh_eth_write(ndev, 0x0, TDFAR);
+		sh_eth_write(ndev, 0x0, TDFXR);
+		sh_eth_write(ndev, 0x0, TDFFR);
+		sh_eth_write(ndev, 0x0, RDLAR);
+		sh_eth_write(ndev, 0x0, RDFAR);
+		sh_eth_write(ndev, 0x0, RDFXR);
+		sh_eth_write(ndev, 0x0, RDFFR);
+
+		/* Reset HW CRC register */
+		if (mdp->cd->hw_crc)
+			sh_eth_write(ndev, 0x0, CSMR);
+
+		/* Select MII mode */
+		if (mdp->cd->select_mii)
+			sh_eth_select_mii(ndev);
+	} else {
+		sh_eth_write(ndev, sh_eth_read(ndev, EDMR) | EDMR_SRST_ETHER,
+			     EDMR);
+		mdelay(3);
+		sh_eth_write(ndev, sh_eth_read(ndev, EDMR) & ~EDMR_SRST_ETHER,
+			     EDMR);
+	}
+
+out:
+	return ret;
+}
 
 #if defined(CONFIG_CPU_SH4) || defined(CONFIG_ARCH_SHMOBILE)
 static void sh_eth_set_receive_align(struct sk_buff *skb)
@@ -980,14 +834,6 @@ static void read_mac_address(struct net_device *ndev, unsigned char *mac)
 		ndev->dev_addr[4] = (sh_eth_read(ndev, MALR) >> 8) & 0xFF;
 		ndev->dev_addr[5] = (sh_eth_read(ndev, MALR) & 0xFF);
 	}
-}
-
-static int sh_eth_is_gether(struct sh_eth_private *mdp)
-{
-	if (mdp->reg_offset == sh_eth_offset_gigabit)
-		return 1;
-	else
-		return 0;
 }
 
 static unsigned long sh_eth_get_edtrr_trns(struct sh_eth_private *mdp)
@@ -1388,7 +1234,7 @@ static int sh_eth_txfree(struct net_device *ndev)
 }
 
 /* Packet receive function */
-static int sh_eth_rx(struct net_device *ndev, u32 intr_status)
+static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	struct sh_eth_rxdesc *rxdesc;
@@ -1396,6 +1242,7 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status)
 	int entry = mdp->cur_rx % mdp->num_rx_ring;
 	int boguscnt = (mdp->dirty_rx + mdp->num_rx_ring) - mdp->cur_rx;
 	struct sk_buff *skb;
+	int exceeded = 0;
 	u16 pkt_len = 0;
 	u32 desc_status;
 
@@ -1407,10 +1254,15 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status)
 		if (--boguscnt < 0)
 			break;
 
+		if (*quota <= 0) {
+			exceeded = 1;
+			break;
+		}
+		(*quota)--;
+
 		if (!(desc_status & RDFEND))
 			ndev->stats.rx_length_errors++;
 
-#if defined(CONFIG_ARCH_R8A7740)
 		/*
 		 * In case of almost all GETHER/ETHERs, the Receive Frame State
 		 * (RFS) bits in the Receive Descriptor 0 are from bit 9 to
@@ -1418,8 +1270,8 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status)
 		 * bits are from bit 25 to bit 16. So, the driver needs right
 		 * shifting by 16.
 		 */
-		desc_status >>= 16;
-#endif
+		if (mdp->cd->shift_rd0)
+			desc_status >>= 16;
 
 		if (desc_status & (RD_RFS1 | RD_RFS2 | RD_RFS3 | RD_RFS4 |
 				   RD_RFS5 | RD_RFS6 | RD_RFS10)) {
@@ -1494,7 +1346,7 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status)
 		sh_eth_write(ndev, EDRRR_R, EDRRR);
 	}
 
-	return 0;
+	return exceeded;
 }
 
 static void sh_eth_rcv_snd_disable(struct net_device *ndev)
@@ -1636,7 +1488,7 @@ static irqreturn_t sh_eth_interrupt(int irq, void *netdev)
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	struct sh_eth_cpu_data *cd = mdp->cd;
 	irqreturn_t ret = IRQ_NONE;
-	unsigned long intr_status;
+	unsigned long intr_status, intr_enable;
 
 	spin_lock(&mdp->lock);
 
@@ -1647,39 +1499,73 @@ static irqreturn_t sh_eth_interrupt(int irq, void *netdev)
 	 * and we need to fully handle it in sh_eth_error() in order to quench
 	 * it as it doesn't get cleared by just writing 1 to the ECI bit...
 	 */
-	intr_status &= sh_eth_read(ndev, EESIPR) | DMAC_M_ECI;
-	/* Clear interrupt */
-	if (intr_status & (EESR_FRC | EESR_RMAF | EESR_RRF |
-			EESR_RTLF | EESR_RTSF | EESR_PRE | EESR_CERF |
-			cd->tx_check | cd->eesr_err_check)) {
-		sh_eth_write(ndev, intr_status, EESR);
+	intr_enable = sh_eth_read(ndev, EESIPR);
+	intr_status &= intr_enable | DMAC_M_ECI;
+	if (intr_status & (EESR_RX_CHECK | cd->tx_check | cd->eesr_err_check))
 		ret = IRQ_HANDLED;
-	} else
+	else
 		goto other_irq;
 
-	if (intr_status & (EESR_FRC | /* Frame recv*/
-			EESR_RMAF | /* Multi cast address recv*/
-			EESR_RRF  | /* Bit frame recv */
-			EESR_RTLF | /* Long frame recv*/
-			EESR_RTSF | /* short frame recv */
-			EESR_PRE  | /* PHY-LSI recv error */
-			EESR_CERF)){ /* recv frame CRC error */
-		sh_eth_rx(ndev, intr_status);
+	if (intr_status & EESR_RX_CHECK) {
+		if (napi_schedule_prep(&mdp->napi)) {
+			/* Mask Rx interrupts */
+			sh_eth_write(ndev, intr_enable & ~EESR_RX_CHECK,
+				     EESIPR);
+			__napi_schedule(&mdp->napi);
+		} else {
+			dev_warn(&ndev->dev,
+				 "ignoring interrupt, status 0x%08lx, mask 0x%08lx.\n",
+				 intr_status, intr_enable);
+		}
 	}
 
 	/* Tx Check */
 	if (intr_status & cd->tx_check) {
+		/* Clear Tx interrupts */
+		sh_eth_write(ndev, intr_status & cd->tx_check, EESR);
+
 		sh_eth_txfree(ndev);
 		netif_wake_queue(ndev);
 	}
 
-	if (intr_status & cd->eesr_err_check)
+	if (intr_status & cd->eesr_err_check) {
+		/* Clear error interrupts */
+		sh_eth_write(ndev, intr_status & cd->eesr_err_check, EESR);
+
 		sh_eth_error(ndev, intr_status);
+	}
 
 other_irq:
 	spin_unlock(&mdp->lock);
 
 	return ret;
+}
+
+static int sh_eth_poll(struct napi_struct *napi, int budget)
+{
+	struct sh_eth_private *mdp = container_of(napi, struct sh_eth_private,
+						  napi);
+	struct net_device *ndev = napi->dev;
+	int quota = budget;
+	unsigned long intr_status;
+
+	for (;;) {
+		intr_status = sh_eth_read(ndev, EESR);
+		if (!(intr_status & EESR_RX_CHECK))
+			break;
+		/* Clear Rx interrupts */
+		sh_eth_write(ndev, intr_status & EESR_RX_CHECK, EESR);
+
+		if (sh_eth_rx(ndev, intr_status, &quota))
+			goto out;
+	}
+
+	napi_complete(napi);
+
+	/* Reenable Rx interrupts */
+	sh_eth_write(ndev, mdp->cd->eesipr_value, EESIPR);
+out:
+	return budget - quota;
 }
 
 /* PHY state control function */
@@ -1972,14 +1858,7 @@ static int sh_eth_open(struct net_device *ndev)
 	pm_runtime_get_sync(&mdp->pdev->dev);
 
 	ret = request_irq(ndev->irq, sh_eth_interrupt,
-#if defined(CONFIG_CPU_SUBTYPE_SH7763) || \
-	defined(CONFIG_CPU_SUBTYPE_SH7764) || \
-	defined(CONFIG_CPU_SUBTYPE_SH7757)
-				IRQF_SHARED,
-#else
-				0,
-#endif
-				ndev->name, ndev);
+			  mdp->cd->irq_flags, ndev->name, ndev);
 	if (ret) {
 		dev_err(&ndev->dev, "Can not assign IRQ number\n");
 		return ret;
@@ -1999,6 +1878,8 @@ static int sh_eth_open(struct net_device *ndev)
 	ret = sh_eth_phy_start(ndev);
 	if (ret)
 		goto out_free_irq;
+
+	napi_enable(&mdp->napi);
 
 	return ret;
 
@@ -2095,6 +1976,8 @@ static int sh_eth_close(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
+	napi_disable(&mdp->napi);
+
 	netif_stop_queue(ndev);
 
 	/* Disable interrupts by clearing the interrupt mask. */
@@ -2165,7 +2048,6 @@ static int sh_eth_do_ioctl(struct net_device *ndev, struct ifreq *rq,
 	return phy_mii_ioctl(phydev, rq, cmd);
 }
 
-#if defined(SH_ETH_HAS_TSU)
 /* For TSU_POSTn. Please refer to the manual about this (strange) bitfields */
 static void *sh_eth_tsu_get_post_reg_offset(struct sh_eth_private *mdp,
 					    int entry)
@@ -2508,7 +2390,6 @@ static int sh_eth_vlan_rx_kill_vid(struct net_device *ndev,
 
 	return 0;
 }
-#endif /* SH_ETH_HAS_TSU */
 
 /* SuperH's TSU register init function */
 static void sh_eth_tsu_init(struct sh_eth_private *mdp)
@@ -2652,11 +2533,21 @@ static const struct net_device_ops sh_eth_netdev_ops = {
 	.ndo_stop		= sh_eth_close,
 	.ndo_start_xmit		= sh_eth_start_xmit,
 	.ndo_get_stats		= sh_eth_get_stats,
-#if defined(SH_ETH_HAS_TSU)
+	.ndo_tx_timeout		= sh_eth_tx_timeout,
+	.ndo_do_ioctl		= sh_eth_do_ioctl,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+};
+
+static const struct net_device_ops sh_eth_netdev_ops_tsu = {
+	.ndo_open		= sh_eth_open,
+	.ndo_stop		= sh_eth_close,
+	.ndo_start_xmit		= sh_eth_start_xmit,
+	.ndo_get_stats		= sh_eth_get_stats,
 	.ndo_set_rx_mode	= sh_eth_set_multicast_list,
 	.ndo_vlan_rx_add_vid	= sh_eth_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= sh_eth_vlan_rx_kill_vid,
-#endif
 	.ndo_tx_timeout		= sh_eth_tx_timeout,
 	.ndo_do_ioctl		= sh_eth_do_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -2671,6 +2562,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	struct net_device *ndev = NULL;
 	struct sh_eth_private *mdp = NULL;
 	struct sh_eth_plat_data *pd = pdev->dev.platform_data;
+	const struct platform_device_id *id = platform_get_device_id(pdev);
 
 	/* get base addr */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -2729,15 +2621,14 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	mdp->reg_offset = sh_eth_get_register_offset(pd->register_type);
 
 	/* set cpu data */
-#if defined(SH_ETH_HAS_BOTH_MODULES)
-	mdp->cd = sh_eth_get_cpu_data(mdp);
-#else
-	mdp->cd = &sh_eth_my_cpu_data;
-#endif
+	mdp->cd = (struct sh_eth_cpu_data *)id->driver_data;
 	sh_eth_set_default_cpu_data(mdp->cd);
 
 	/* set function */
-	ndev->netdev_ops = &sh_eth_netdev_ops;
+	if (mdp->cd->tsu)
+		ndev->netdev_ops = &sh_eth_netdev_ops_tsu;
+	else
+		ndev->netdev_ops = &sh_eth_netdev_ops;
 	SET_ETHTOOL_OPS(ndev, &sh_eth_ethtool_ops);
 	ndev->watchdog_timeo = TX_TIMEOUT;
 
@@ -2776,10 +2667,12 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 		}
 	}
 
+	netif_napi_add(ndev, &mdp->napi, sh_eth_poll, 64);
+
 	/* network device register */
 	ret = register_netdev(ndev);
 	if (ret)
-		goto out_release;
+		goto out_napi_del;
 
 	/* mdio bus init */
 	ret = sh_mdio_init(ndev, pdev->id, pd);
@@ -2797,6 +2690,9 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 out_unregister:
 	unregister_netdev(ndev);
 
+out_napi_del:
+	netif_napi_del(&mdp->napi);
+
 out_release:
 	/* net_dev free */
 	if (ndev)
@@ -2809,16 +2705,18 @@ out:
 static int sh_eth_drv_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct sh_eth_private *mdp = netdev_priv(ndev);
 
 	sh_mdio_release(ndev);
 	unregister_netdev(ndev);
+	netif_napi_del(&mdp->napi);
 	pm_runtime_disable(&pdev->dev);
 	free_netdev(ndev);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
 
+#ifdef CONFIG_PM
 static int sh_eth_runtime_nop(struct device *dev)
 {
 	/*
@@ -2832,17 +2730,36 @@ static int sh_eth_runtime_nop(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops sh_eth_dev_pm_ops = {
+static const struct dev_pm_ops sh_eth_dev_pm_ops = {
 	.runtime_suspend = sh_eth_runtime_nop,
 	.runtime_resume = sh_eth_runtime_nop,
 };
+#define SH_ETH_PM_OPS (&sh_eth_dev_pm_ops)
+#else
+#define SH_ETH_PM_OPS NULL
+#endif
+
+static struct platform_device_id sh_eth_id_table[] = {
+	{ "sh7619-ether", (kernel_ulong_t)&sh7619_data },
+	{ "sh771x-ether", (kernel_ulong_t)&sh771x_data },
+	{ "sh7724-ether", (kernel_ulong_t)&sh7724_data },
+	{ "sh7734-gether", (kernel_ulong_t)&sh7734_data },
+	{ "sh7757-ether", (kernel_ulong_t)&sh7757_data },
+	{ "sh7757-gether", (kernel_ulong_t)&sh7757_data_giga },
+	{ "sh7763-gether", (kernel_ulong_t)&sh7763_data },
+	{ "r8a7740-gether", (kernel_ulong_t)&r8a7740_data },
+	{ "r8a777x-ether", (kernel_ulong_t)&r8a777x_data },
+	{ }
+};
+MODULE_DEVICE_TABLE(platform, sh_eth_id_table);
 
 static struct platform_driver sh_eth_driver = {
 	.probe = sh_eth_drv_probe,
 	.remove = sh_eth_drv_remove,
+	.id_table = sh_eth_id_table,
 	.driver = {
 		   .name = CARDNAME,
-		   .pm = &sh_eth_dev_pm_ops,
+		   .pm = SH_ETH_PM_OPS,
 	},
 };
 

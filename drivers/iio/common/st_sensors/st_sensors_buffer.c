@@ -24,11 +24,20 @@
 
 int st_sensors_get_buffer_element(struct iio_dev *indio_dev, u8 *buf)
 {
+	u8 *addr;
 	int i, n = 0, len;
-	u8 addr[ST_SENSORS_NUMBER_DATA_CHANNELS];
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
+	unsigned int num_data_channels = sdata->num_data_channels;
+	unsigned int byte_for_channel =
+			indio_dev->channels[0].scan_type.storagebits >> 3;
 
-	for (i = 0; i < ST_SENSORS_NUMBER_DATA_CHANNELS; i++) {
+	addr = kmalloc(num_data_channels, GFP_KERNEL);
+	if (!addr) {
+		len = -ENOMEM;
+		goto st_sensors_get_buffer_element_error;
+	}
+
+	for (i = 0; i < num_data_channels; i++) {
 		if (test_bit(i, indio_dev->active_scan_mask)) {
 			addr[n] = indio_dev->channels[i].address;
 			n++;
@@ -37,52 +46,58 @@ int st_sensors_get_buffer_element(struct iio_dev *indio_dev, u8 *buf)
 	switch (n) {
 	case 1:
 		len = sdata->tf->read_multiple_byte(&sdata->tb, sdata->dev,
-			addr[0], ST_SENSORS_BYTE_FOR_CHANNEL, buf,
-			sdata->multiread_bit);
+			addr[0], byte_for_channel, buf, sdata->multiread_bit);
 		break;
 	case 2:
-		if ((addr[1] - addr[0]) == ST_SENSORS_BYTE_FOR_CHANNEL) {
+		if ((addr[1] - addr[0]) == byte_for_channel) {
 			len = sdata->tf->read_multiple_byte(&sdata->tb,
-					sdata->dev, addr[0],
-					ST_SENSORS_BYTE_FOR_CHANNEL*n,
-					buf, sdata->multiread_bit);
+				sdata->dev, addr[0], byte_for_channel * n,
+				buf, sdata->multiread_bit);
 		} else {
-			u8 rx_array[ST_SENSORS_BYTE_FOR_CHANNEL*
-				    ST_SENSORS_NUMBER_DATA_CHANNELS];
+			u8 *rx_array;
+			rx_array = kmalloc(byte_for_channel * num_data_channels,
+					   GFP_KERNEL);
+			if (!rx_array) {
+				len = -ENOMEM;
+				goto st_sensors_free_memory;
+			}
+
 			len = sdata->tf->read_multiple_byte(&sdata->tb,
 				sdata->dev, addr[0],
-				ST_SENSORS_BYTE_FOR_CHANNEL*
-				ST_SENSORS_NUMBER_DATA_CHANNELS,
+				byte_for_channel * num_data_channels,
 				rx_array, sdata->multiread_bit);
-			if (len < 0)
-				goto read_data_channels_error;
+			if (len < 0) {
+				kfree(rx_array);
+				goto st_sensors_free_memory;
+			}
 
-			for (i = 0; i < n * ST_SENSORS_NUMBER_DATA_CHANNELS;
-									i++) {
+			for (i = 0; i < n * num_data_channels; i++) {
 				if (i < n)
 					buf[i] = rx_array[i];
 				else
 					buf[i] = rx_array[n + i];
 			}
-			len = ST_SENSORS_BYTE_FOR_CHANNEL*n;
+			kfree(rx_array);
+			len = byte_for_channel * n;
 		}
 		break;
 	case 3:
 		len = sdata->tf->read_multiple_byte(&sdata->tb, sdata->dev,
-			addr[0], ST_SENSORS_BYTE_FOR_CHANNEL*
-			ST_SENSORS_NUMBER_DATA_CHANNELS,
+			addr[0], byte_for_channel * num_data_channels,
 			buf, sdata->multiread_bit);
 		break;
 	default:
 		len = -EINVAL;
-		goto read_data_channels_error;
+		goto st_sensors_free_memory;
 	}
-	if (len != ST_SENSORS_BYTE_FOR_CHANNEL*n) {
+	if (len != byte_for_channel * n) {
 		len = -EIO;
-		goto read_data_channels_error;
+		goto st_sensors_free_memory;
 	}
 
-read_data_channels_error:
+st_sensors_free_memory:
+	kfree(addr);
+st_sensors_get_buffer_element_error:
 	return len;
 }
 EXPORT_SYMBOL(st_sensors_get_buffer_element);

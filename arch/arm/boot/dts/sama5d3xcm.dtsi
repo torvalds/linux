@@ -6,7 +6,7 @@
  *
  * Licensed under GPLv2 or later.
  */
-/include/ "sama5d3.dtsi"
+#include "sama5d3.dtsi"
 
 / {
 	compatible = "atmel,samad3xcm", "atmel,sama5d3", "atmel,sama5";
@@ -89,7 +89,7 @@
 
 		d2 {
 			label = "d2";
-			gpios = <&pioE 25 1>;	/* PE25, conflicts with A25, RXD2 */
+			gpios = <&pioE 25 GPIO_ACTIVE_LOW>;	/* PE25, conflicts with A25, RXD2 */
 		};
 	};
 };

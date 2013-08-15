@@ -17,12 +17,6 @@
 /* THE pt_regs: Defines how regs are saved during entry into kernel */
 
 struct pt_regs {
-	/*
-	 * 1 word gutter after reg-file has been saved
-	 * Technically not needed, Since SP always points to a "full" location
-	 * (vs. "empty"). But pt_regs is shared with tools....
-	 */
-	long res;
 
 	/* Real registers */
 	long bta;	/* bta_l1, bta_l2, erbta */
@@ -50,22 +44,32 @@ struct pt_regs {
 	long sp;	/* user/kernel sp depending on where we came from  */
 	long orig_r0;
 
-	/*to distinguish bet excp, syscall, irq */
+	/*
+	 * To distinguish bet excp, syscall, irq
+	 * For traps and exceptions, Exception Cause Register.
+	 * 	ECR: <00> <VV> <CC> <PP>
+	 * 	Last word used by Linux for extra state mgmt (syscall-restart)
+	 * For interrupts, use artificial ECR values to note current prio-level
+	 */
 	union {
+		struct {
 #ifdef CONFIG_CPU_BIG_ENDIAN
-		/* so that assembly code is same for LE/BE */
-		unsigned long orig_r8:16, event:16;
+			unsigned long state:8, ecr_vec:8,
+				      ecr_cause:8, ecr_param:8;
 #else
-		unsigned long event:16, orig_r8:16;
+			unsigned long ecr_param:8, ecr_cause:8,
+				      ecr_vec:8, state:8;
 #endif
-		long orig_r8_word;
+		};
+		unsigned long event;
 	};
+
+	long user_r25;
 };
 
 /* Callee saved registers - need to be saved only when you are scheduled out */
 
 struct callee_regs {
-	long res;	/* Again this is not needed */
 	long r25;
 	long r24;
 	long r23;
@@ -99,18 +103,20 @@ struct callee_regs {
 /* return 1 if PC in delay slot */
 #define delay_mode(regs) ((regs->status32 & STATUS_DE_MASK) == STATUS_DE_MASK)
 
-#define in_syscall(regs)    (regs->event & orig_r8_IS_SCALL)
-#define in_brkpt_trap(regs) (regs->event & orig_r8_IS_BRKPT)
+#define in_syscall(regs)    ((regs->ecr_vec == ECR_V_TRAP) && !regs->ecr_param)
+#define in_brkpt_trap(regs) ((regs->ecr_vec == ECR_V_TRAP) && regs->ecr_param)
 
-#define syscall_wont_restart(regs) (regs->event |= orig_r8_IS_SCALL_RESTARTED)
-#define syscall_restartable(regs) !(regs->event &  orig_r8_IS_SCALL_RESTARTED)
+#define STATE_SCALL_RESTARTED	0x01
+
+#define syscall_wont_restart(reg) (reg->state |= STATE_SCALL_RESTARTED)
+#define syscall_restartable(reg) !(reg->state &  STATE_SCALL_RESTARTED)
 
 #define current_pt_regs()					\
 ({								\
 	/* open-coded current_thread_info() */			\
 	register unsigned long sp asm ("sp");			\
 	unsigned long pg_start = (sp & ~(THREAD_SIZE - 1));	\
-	(struct pt_regs *)(pg_start + THREAD_SIZE - 4) - 1;	\
+	(struct pt_regs *)(pg_start + THREAD_SIZE) - 1;	\
 })
 
 static inline long regs_return_value(struct pt_regs *regs)
@@ -119,12 +125,5 @@ static inline long regs_return_value(struct pt_regs *regs)
 }
 
 #endif /* !__ASSEMBLY__ */
-
-#define orig_r8_IS_SCALL		0x0001
-#define orig_r8_IS_SCALL_RESTARTED	0x0002
-#define orig_r8_IS_BRKPT		0x0004
-#define orig_r8_IS_EXCPN		0x0008
-#define orig_r8_IS_IRQ1			0x0010
-#define orig_r8_IS_IRQ2			0x0020
 
 #endif /* __ASM_PTRACE_H */

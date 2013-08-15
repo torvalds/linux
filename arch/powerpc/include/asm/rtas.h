@@ -350,8 +350,8 @@ static inline u32 rtas_config_addr(int busno, int devfn, int reg)
 			(devfn << 8) | (reg & 0xff);
 }
 
-extern void __cpuinit rtas_give_timebase(void);
-extern void __cpuinit rtas_take_timebase(void);
+extern void rtas_give_timebase(void);
+extern void rtas_take_timebase(void);
 
 #ifdef CONFIG_PPC_RTAS
 static inline int page_is_rtas_user_buf(unsigned long pfn)

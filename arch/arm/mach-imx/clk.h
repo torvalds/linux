@@ -18,7 +18,6 @@ enum imx_pllv3_type {
 	IMX_PLLV3_USB,
 	IMX_PLLV3_AV,
 	IMX_PLLV3_ENET,
-	IMX_PLLV3_MLB,
 };
 
 struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
@@ -28,6 +27,9 @@ struct clk *clk_register_gate2(struct device *dev, const char *name,
 		const char *parent_name, unsigned long flags,
 		void __iomem *reg, u8 bit_idx,
 		u8 clk_gate_flags, spinlock_t *lock);
+
+struct clk * imx_obtain_fixed_clock(
+			const char *name, unsigned long rate);
 
 static inline struct clk *imx_clk_gate2(const char *name, const char *parent,
 		void __iomem *reg, u8 shift)

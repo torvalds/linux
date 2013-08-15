@@ -1,6 +1,8 @@
 #!/bin/bash
 # Manipulate options in a .config file from the command line
 
+myname=${0##*/}
+
 # If no prefix forced, use the default CONFIG_
 CONFIG_="${CONFIG_-CONFIG_}"
 
@@ -8,7 +10,7 @@ usage() {
 	cat >&2 <<EOL
 Manipulate options in a .config file from the command line.
 Usage:
-config options command ...
+$myname options command ...
 commands:
 	--enable|-e option   Enable option
 	--disable|-d option  Disable option
@@ -33,14 +35,14 @@ options:
 	--file config-file   .config file to change (default .config)
 	--keep-case|-k       Keep next symbols' case (dont' upper-case it)
 
-config doesn't check the validity of the .config file. This is done at next
+$myname doesn't check the validity of the .config file. This is done at next
 make time.
 
-By default, config will upper-case the given symbol. Use --keep-case to keep
+By default, $myname will upper-case the given symbol. Use --keep-case to keep
 the case of all following symbols unchanged.
 
-config uses 'CONFIG_' as the default symbol prefix. Set the environment
-variable CONFIG_ to the prefix to use. Eg.: CONFIG_="FOO_" config ...
+$myname uses 'CONFIG_' as the default symbol prefix. Set the environment
+variable CONFIG_ to the prefix to use. Eg.: CONFIG_="FOO_" $myname ...
 EOL
 	exit 1
 }

@@ -794,7 +794,6 @@ static int bfin_sir_remove(struct platform_device *pdev)
 	kfree(self->rx_buff.head);
 	free_netdev(dev);
 	kfree(sir_port);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

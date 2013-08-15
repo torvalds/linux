@@ -86,7 +86,8 @@ enum qlcnic_regs {
 #define QLCNIC_CMD_BC_EVENT_SETUP		0x31
 #define	QLCNIC_CMD_CONFIG_VPORT			0x32
 #define QLCNIC_CMD_GET_MAC_STATS		0x37
-#define QLCNIC_CMD_SET_DRV_VER			0x38
+#define QLCNIC_CMD_82XX_SET_DRV_VER		0x38
+#define QLCNIC_CMD_GET_LED_STATUS		0x3C
 #define QLCNIC_CMD_CONFIGURE_RSS		0x41
 #define QLCNIC_CMD_CONFIG_INTR_COAL		0x43
 #define QLCNIC_CMD_CONFIGURE_LED		0x44
@@ -102,6 +103,7 @@ enum qlcnic_regs {
 #define QLCNIC_CMD_GET_LINK_STATUS		0x68
 #define QLCNIC_CMD_SET_LED_CONFIG		0x69
 #define QLCNIC_CMD_GET_LED_CONFIG		0x6A
+#define QLCNIC_CMD_83XX_SET_DRV_VER		0x6F
 #define QLCNIC_CMD_ADD_RCV_RINGS		0x0B
 
 #define QLCNIC_INTRPT_INTX			1
@@ -152,7 +154,7 @@ struct qlcnic_hardware_context;
 struct qlcnic_adapter;
 
 int qlcnic_82xx_start_firmware(struct qlcnic_adapter *);
-int qlcnic_82xx_hw_read_wx_2M(struct qlcnic_adapter *adapter, ulong);
+int qlcnic_82xx_hw_read_wx_2M(struct qlcnic_adapter *adapter, ulong, int *);
 int qlcnic_82xx_hw_write_wx_2M(struct qlcnic_adapter *, ulong, u32);
 int qlcnic_82xx_config_hw_lro(struct qlcnic_adapter *adapter, int);
 int qlcnic_82xx_nic_set_promisc(struct qlcnic_adapter *adapter, u32);
@@ -197,4 +199,8 @@ void qlcnic_82xx_api_unlock(struct qlcnic_adapter *);
 void qlcnic_82xx_napi_enable(struct qlcnic_adapter *);
 void qlcnic_82xx_napi_disable(struct qlcnic_adapter *);
 void qlcnic_82xx_napi_del(struct qlcnic_adapter *);
+int qlcnic_82xx_shutdown(struct pci_dev *);
+int qlcnic_82xx_resume(struct qlcnic_adapter *);
+void qlcnic_clr_all_drv_state(struct qlcnic_adapter *adapter, u8 failed);
+void qlcnic_fw_poll_work(struct work_struct *work);
 #endif				/* __QLCNIC_HW_H_ */

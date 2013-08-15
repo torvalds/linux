@@ -115,7 +115,7 @@ static struct pseries_io_event * ioei_find_event(struct rtas_error_log *elog)
  *   by scope or event type alone. For example, Torrent ISR route change
  *   event is reported with scope 0x00 (Not Applicatable) rather than
  *   0x3B (Torrent-hub). It is better to let the clients to identify
- *   who owns the the event.
+ *   who owns the event.
  */
 
 static irqreturn_t ioei_interrupt(int irq, void *dev_id)

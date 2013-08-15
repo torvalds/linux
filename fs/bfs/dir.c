@@ -26,58 +26,51 @@ static struct buffer_head *bfs_find_entry(struct inode *dir,
 				const unsigned char *name, int namelen,
 				struct bfs_dirent **res_dir);
 
-static int bfs_readdir(struct file *f, void *dirent, filldir_t filldir)
+static int bfs_readdir(struct file *f, struct dir_context *ctx)
 {
 	struct inode *dir = file_inode(f);
 	struct buffer_head *bh;
 	struct bfs_dirent *de;
-	struct bfs_sb_info *info = BFS_SB(dir->i_sb);
 	unsigned int offset;
 	int block;
 
-	mutex_lock(&info->bfs_lock);
-
-	if (f->f_pos & (BFS_DIRENT_SIZE - 1)) {
+	if (ctx->pos & (BFS_DIRENT_SIZE - 1)) {
 		printf("Bad f_pos=%08lx for %s:%08lx\n",
-					(unsigned long)f->f_pos,
+					(unsigned long)ctx->pos,
 					dir->i_sb->s_id, dir->i_ino);
-		mutex_unlock(&info->bfs_lock);
-		return -EBADF;
+		return -EINVAL;
 	}
 
-	while (f->f_pos < dir->i_size) {
-		offset = f->f_pos & (BFS_BSIZE - 1);
-		block = BFS_I(dir)->i_sblock + (f->f_pos >> BFS_BSIZE_BITS);
+	while (ctx->pos < dir->i_size) {
+		offset = ctx->pos & (BFS_BSIZE - 1);
+		block = BFS_I(dir)->i_sblock + (ctx->pos >> BFS_BSIZE_BITS);
 		bh = sb_bread(dir->i_sb, block);
 		if (!bh) {
-			f->f_pos += BFS_BSIZE - offset;
+			ctx->pos += BFS_BSIZE - offset;
 			continue;
 		}
 		do {
 			de = (struct bfs_dirent *)(bh->b_data + offset);
 			if (de->ino) {
 				int size = strnlen(de->name, BFS_NAMELEN);
-				if (filldir(dirent, de->name, size, f->f_pos,
+				if (!dir_emit(ctx, de->name, size,
 						le16_to_cpu(de->ino),
-						DT_UNKNOWN) < 0) {
+						DT_UNKNOWN)) {
 					brelse(bh);
-					mutex_unlock(&info->bfs_lock);
 					return 0;
 				}
 			}
 			offset += BFS_DIRENT_SIZE;
-			f->f_pos += BFS_DIRENT_SIZE;
-		} while ((offset < BFS_BSIZE) && (f->f_pos < dir->i_size));
+			ctx->pos += BFS_DIRENT_SIZE;
+		} while ((offset < BFS_BSIZE) && (ctx->pos < dir->i_size));
 		brelse(bh);
 	}
-
-	mutex_unlock(&info->bfs_lock);
-	return 0;	
+	return 0;
 }
 
 const struct file_operations bfs_dir_operations = {
 	.read		= generic_read_dir,
-	.readdir	= bfs_readdir,
+	.iterate	= bfs_readdir,
 	.fsync		= generic_file_fsync,
 	.llseek		= generic_file_llseek,
 };

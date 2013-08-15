@@ -63,13 +63,6 @@ acpi_get_physical_device_location(acpi_handle handle, struct acpi_pld_info **pld
 #define ACPI_BUS_FILE_ROOT	"acpi"
 extern struct proc_dir_entry *acpi_root_dir;
 
-enum acpi_bus_removal_type {
-	ACPI_BUS_REMOVAL_NORMAL = 0,
-	ACPI_BUS_REMOVAL_EJECT,
-	ACPI_BUS_REMOVAL_SUPRISE,
-	ACPI_BUS_REMOVAL_TYPE_COUNT
-};
-
 enum acpi_bus_device_type {
 	ACPI_BUS_TYPE_DEVICE = 0,
 	ACPI_BUS_TYPE_POWER,
@@ -163,12 +156,10 @@ struct acpi_device_flags {
 	u32 dynamic_status:1;
 	u32 removable:1;
 	u32 ejectable:1;
-	u32 suprise_removal_ok:1;
 	u32 power_manageable:1;
-	u32 performance_manageable:1;
 	u32 eject_pending:1;
 	u32 match_driver:1;
-	u32 reserved:24;
+	u32 reserved:26;
 };
 
 /* File System */
@@ -283,13 +274,11 @@ struct acpi_device_wakeup {
 };
 
 struct acpi_device_physical_node {
-	u8 node_id;
+	unsigned int node_id;
 	struct list_head node;
 	struct device *dev;
+	bool put_online:1;
 };
-
-/* set maximum of physical nodes to 32 for expansibility */
-#define ACPI_MAX_PHYSICAL_NODE	32
 
 /* Device */
 struct acpi_device {
@@ -310,11 +299,9 @@ struct acpi_device {
 	struct acpi_driver *driver;
 	void *driver_data;
 	struct device dev;
-	enum acpi_bus_removal_type removal_type;	/* indicate for different removal type */
-	u8 physical_node_count;
+	unsigned int physical_node_count;
 	struct list_head physical_node_list;
 	struct mutex physical_node_lock;
-	DECLARE_BITMAP(physical_node_id_bitmap, ACPI_MAX_PHYSICAL_NODE);
 	struct list_head power_dependent;
 	void (*remove)(struct acpi_device *);
 };
@@ -443,7 +430,6 @@ int register_acpi_bus_type(struct acpi_bus_type *);
 int unregister_acpi_bus_type(struct acpi_bus_type *);
 
 struct acpi_pci_root {
-	struct list_head node;
 	struct acpi_device * device;
 	struct pci_bus *bus;
 	u16 segment;
@@ -455,7 +441,11 @@ struct acpi_pci_root {
 };
 
 /* helper */
-acpi_handle acpi_get_child(acpi_handle, u64);
+acpi_handle acpi_find_child(acpi_handle, u64, bool);
+static inline acpi_handle acpi_get_child(acpi_handle handle, u64 addr)
+{
+	return acpi_find_child(handle, addr, false);
+}
 int acpi_is_root_bridge(acpi_handle);
 struct acpi_pci_root *acpi_pci_find_root(acpi_handle handle);
 #define DEVICE_ACPI_HANDLE(dev) ((acpi_handle)ACPI_HANDLE(dev))
@@ -468,8 +458,6 @@ acpi_status acpi_add_pm_notifier(struct acpi_device *adev,
 				 acpi_notify_handler handler, void *context);
 acpi_status acpi_remove_pm_notifier(struct acpi_device *adev,
 				    acpi_notify_handler handler);
-int acpi_device_power_state(struct device *dev, struct acpi_device *adev,
-			    u32 target_state, int d_max_in, int *d_min_p);
 int acpi_pm_device_sleep_state(struct device *, int *, int);
 void acpi_dev_pm_add_dependent(acpi_handle handle, struct device *depdev);
 void acpi_dev_pm_remove_dependent(acpi_handle handle, struct device *depdev);
@@ -485,22 +473,12 @@ static inline acpi_status acpi_remove_pm_notifier(struct acpi_device *adev,
 {
 	return AE_SUPPORT;
 }
-static inline int __acpi_device_power_state(int m, int *p)
+static inline int acpi_pm_device_sleep_state(struct device *d, int *p, int m)
 {
 	if (p)
 		*p = ACPI_STATE_D0;
+
 	return (m >= ACPI_STATE_D0 && m <= ACPI_STATE_D3) ? m : ACPI_STATE_D0;
-}
-static inline int acpi_device_power_state(struct device *dev,
-					  struct acpi_device *adev,
-					  u32 target_state, int d_max_in,
-					  int *d_min_p)
-{
-	return __acpi_device_power_state(d_max_in, d_min_p);
-}
-static inline int acpi_pm_device_sleep_state(struct device *d, int *p, int m)
-{
-	return __acpi_device_power_state(m, p);
 }
 static inline void acpi_dev_pm_add_dependent(acpi_handle handle,
 					     struct device *depdev) {}

@@ -192,6 +192,7 @@ static void i915_restore_vga(struct drm_device *dev)
 static void i915_save_display(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long flags;
 
 	/* Display arbitration control */
 	if (INTEL_INFO(dev)->gen <= 4)
@@ -201,6 +202,8 @@ static void i915_save_display(struct drm_device *dev)
 	/* Don't regfile.save them in KMS mode */
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		i915_save_display_reg(dev);
+
+	spin_lock_irqsave(&dev_priv->backlight.lock, flags);
 
 	/* LVDS state */
 	if (HAS_PCH_SPLIT(dev)) {
@@ -221,6 +224,8 @@ static void i915_save_display(struct drm_device *dev)
 		if (IS_MOBILE(dev) && !IS_I830(dev))
 			dev_priv->regfile.saveLVDS = I915_READ(LVDS);
 	}
+
+	spin_unlock_irqrestore(&dev_priv->backlight.lock, flags);
 
 	if (!IS_I830(dev) && !IS_845G(dev) && !HAS_PCH_SPLIT(dev))
 		dev_priv->regfile.savePFIT_CONTROL = I915_READ(PFIT_CONTROL);
@@ -257,6 +262,7 @@ static void i915_restore_display(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 mask = 0xffffffff;
+	unsigned long flags;
 
 	/* Display arbitration */
 	if (INTEL_INFO(dev)->gen <= 4)
@@ -264,6 +270,8 @@ static void i915_restore_display(struct drm_device *dev)
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		i915_restore_display_reg(dev);
+
+	spin_lock_irqsave(&dev_priv->backlight.lock, flags);
 
 	/* LVDS state */
 	if (INTEL_INFO(dev)->gen >= 4 && !HAS_PCH_SPLIT(dev))
@@ -303,6 +311,8 @@ static void i915_restore_display(struct drm_device *dev)
 		I915_WRITE(PP_DIVISOR, dev_priv->regfile.savePP_DIVISOR);
 		I915_WRITE(PP_CONTROL, dev_priv->regfile.savePP_CONTROL);
 	}
+
+	spin_unlock_irqrestore(&dev_priv->backlight.lock, flags);
 
 	/* only restore FBC info on the platform that supports FBC*/
 	intel_disable_fbc(dev);

@@ -44,6 +44,47 @@ DEFINE_MUTEX(nfc_devlist_mutex);
 /* NFC device ID bitmap */
 static DEFINE_IDA(nfc_index_ida);
 
+int nfc_fw_download(struct nfc_dev *dev, const char *firmware_name)
+{
+	int rc = 0;
+
+	pr_debug("%s do firmware %s\n", dev_name(&dev->dev), firmware_name);
+
+	device_lock(&dev->dev);
+
+	if (!device_is_registered(&dev->dev)) {
+		rc = -ENODEV;
+		goto error;
+	}
+
+	if (dev->dev_up) {
+		rc = -EBUSY;
+		goto error;
+	}
+
+	if (!dev->ops->fw_download) {
+		rc = -EOPNOTSUPP;
+		goto error;
+	}
+
+	dev->fw_download_in_progress = true;
+	rc = dev->ops->fw_download(dev, firmware_name);
+	if (rc)
+		dev->fw_download_in_progress = false;
+
+error:
+	device_unlock(&dev->dev);
+	return rc;
+}
+
+int nfc_fw_download_done(struct nfc_dev *dev, const char *firmware_name)
+{
+	dev->fw_download_in_progress = false;
+
+	return nfc_genl_fw_download_done(dev, firmware_name);
+}
+EXPORT_SYMBOL(nfc_fw_download_done);
+
 /**
  * nfc_dev_up - turn on the NFC device
  *
@@ -69,6 +110,11 @@ int nfc_dev_up(struct nfc_dev *dev)
 		goto error;
 	}
 
+	if (dev->fw_download_in_progress) {
+		rc = -EBUSY;
+		goto error;
+	}
+
 	if (dev->dev_up) {
 		rc = -EALREADY;
 		goto error;
@@ -79,6 +125,13 @@ int nfc_dev_up(struct nfc_dev *dev)
 
 	if (!rc)
 		dev->dev_up = true;
+
+	/* We have to enable the device before discovering SEs */
+	if (dev->ops->discover_se) {
+		rc = dev->ops->discover_se(dev);
+		if (!rc)
+			pr_warn("SE discovery failed\n");
+	}
 
 error:
 	device_unlock(&dev->dev);
@@ -475,6 +528,108 @@ error:
 	return rc;
 }
 
+static struct nfc_se *find_se(struct nfc_dev *dev, u32 se_idx)
+{
+	struct nfc_se *se, *n;
+
+	list_for_each_entry_safe(se, n, &dev->secure_elements, list)
+		if (se->idx == se_idx)
+			return se;
+
+	return NULL;
+}
+
+int nfc_enable_se(struct nfc_dev *dev, u32 se_idx)
+{
+
+	struct nfc_se *se;
+	int rc;
+
+	pr_debug("%s se index %d\n", dev_name(&dev->dev), se_idx);
+
+	device_lock(&dev->dev);
+
+	if (!device_is_registered(&dev->dev)) {
+		rc = -ENODEV;
+		goto error;
+	}
+
+	if (!dev->dev_up) {
+		rc = -ENODEV;
+		goto error;
+	}
+
+	if (dev->polling) {
+		rc = -EBUSY;
+		goto error;
+	}
+
+	if (!dev->ops->enable_se || !dev->ops->disable_se) {
+		rc = -EOPNOTSUPP;
+		goto error;
+	}
+
+	se = find_se(dev, se_idx);
+	if (!se) {
+		rc = -EINVAL;
+		goto error;
+	}
+
+	if (se->type == NFC_SE_ENABLED) {
+		rc = -EALREADY;
+		goto error;
+	}
+
+	rc = dev->ops->enable_se(dev, se_idx);
+
+error:
+	device_unlock(&dev->dev);
+	return rc;
+}
+
+int nfc_disable_se(struct nfc_dev *dev, u32 se_idx)
+{
+
+	struct nfc_se *se;
+	int rc;
+
+	pr_debug("%s se index %d\n", dev_name(&dev->dev), se_idx);
+
+	device_lock(&dev->dev);
+
+	if (!device_is_registered(&dev->dev)) {
+		rc = -ENODEV;
+		goto error;
+	}
+
+	if (!dev->dev_up) {
+		rc = -ENODEV;
+		goto error;
+	}
+
+	if (!dev->ops->enable_se || !dev->ops->disable_se) {
+		rc = -EOPNOTSUPP;
+		goto error;
+	}
+
+	se = find_se(dev, se_idx);
+	if (!se) {
+		rc = -EINVAL;
+		goto error;
+	}
+
+	if (se->type == NFC_SE_DISABLED) {
+		rc = -EALREADY;
+		goto error;
+	}
+
+	rc = dev->ops->disable_se(dev, se_idx);
+
+error:
+	device_unlock(&dev->dev);
+	return rc;
+}
+
 int nfc_set_remote_general_bytes(struct nfc_dev *dev, u8 *gb, u8 gb_len)
 {
 	pr_debug("dev_name=%s gb_len=%d\n", dev_name(&dev->dev), gb_len);
@@ -707,14 +862,79 @@ inline void nfc_driver_failure(struct nfc_dev *dev, int err)
 }
 EXPORT_SYMBOL(nfc_driver_failure);
 
+int nfc_add_se(struct nfc_dev *dev, u32 se_idx, u16 type)
+{
+	struct nfc_se *se;
+	int rc;
+
+	pr_debug("%s se index %d\n", dev_name(&dev->dev), se_idx);
+
+	se = find_se(dev, se_idx);
+	if (se)
+		return -EALREADY;
+
+	se = kzalloc(sizeof(struct nfc_se), GFP_KERNEL);
+	if (!se)
+		return -ENOMEM;
+
+	se->idx = se_idx;
+	se->type = type;
+	se->state = NFC_SE_DISABLED;
+	INIT_LIST_HEAD(&se->list);
+
+	list_add(&se->list, &dev->secure_elements);
+
+	rc = nfc_genl_se_added(dev, se_idx, type);
+	if (rc < 0) {
+		list_del(&se->list);
+		kfree(se);
+
+		return rc;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(nfc_add_se);
+
+int nfc_remove_se(struct nfc_dev *dev, u32 se_idx)
+{
+	struct nfc_se *se, *n;
+	int rc;
+
+	pr_debug("%s se index %d\n", dev_name(&dev->dev), se_idx);
+
+	list_for_each_entry_safe(se, n, &dev->secure_elements, list)
+		if (se->idx == se_idx) {
+			rc = nfc_genl_se_removed(dev, se_idx);
+			if (rc < 0)
+				return rc;
+
+			list_del(&se->list);
+			kfree(se);
+
+			return 0;
+		}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL(nfc_remove_se);
+
 static void nfc_release(struct device *d)
 {
 	struct nfc_dev *dev = to_nfc_dev(d);
+	struct nfc_se *se, *n;
 
 	pr_debug("dev_name=%s\n", dev_name(&dev->dev));
 
 	nfc_genl_data_exit(&dev->genl_data);
 	kfree(dev->targets);
+
+	list_for_each_entry_safe(se, n, &dev->secure_elements, list) {
+			nfc_genl_se_removed(dev, se->idx);
+			list_del(&se->list);
+			kfree(se);
+	}
+
 	kfree(dev);
 }
 
@@ -786,7 +1006,6 @@ struct nfc_dev *nfc_get_device(unsigned int idx)
  */
 struct nfc_dev *nfc_allocate_device(struct nfc_ops *ops,
 				    u32 supported_protocols,
-				    u32 supported_se,
 				    int tx_headroom, int tx_tailroom)
 {
 	struct nfc_dev *dev;
@@ -804,10 +1023,9 @@ struct nfc_dev *nfc_allocate_device(struct nfc_ops *ops,
 
 	dev->ops = ops;
 	dev->supported_protocols = supported_protocols;
-	dev->supported_se = supported_se;
-	dev->active_se = NFC_SE_NONE;
 	dev->tx_headroom = tx_headroom;
 	dev->tx_tailroom = tx_tailroom;
+	INIT_LIST_HEAD(&dev->secure_elements);
 
 	nfc_genl_data_init(&dev->genl_data);
 

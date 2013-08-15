@@ -119,7 +119,7 @@
 			      0 32 0x4>;
 	};
 
-	i2c0: i2c@0xe6820000 {
+	i2c0: i2c@e6820000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "renesas,rmobile-iic";
@@ -131,7 +131,7 @@
 			      0 170 0x4>;
 	};
 
-	i2c1: i2c@0xe6822000 {
+	i2c1: i2c@e6822000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "renesas,rmobile-iic";
@@ -143,7 +143,7 @@
 			      0 54 0x4>;
 	};
 
-	i2c2: i2c@0xe6824000 {
+	i2c2: i2c@e6824000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "renesas,rmobile-iic";
@@ -155,7 +155,7 @@
 			      0 174 0x4>;
 	};
 
-	i2c3: i2c@0xe6826000 {
+	i2c3: i2c@e6826000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "renesas,rmobile-iic";
@@ -167,7 +167,7 @@
 			      0 186 0x4>;
 	};
 
-	i2c4: i2c@0xe6828000 {
+	i2c4: i2c@e6828000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "renesas,rmobile-iic";
@@ -179,7 +179,7 @@
 			      0 190 0x4>;
 	};
 
-	mmcif: mmcif@0x10010000 {
+	mmcif: mmcif@e6bd0000 {
 		compatible = "renesas,sh-mmcif";
 		reg = <0xe6bd0000 0x100>;
 		interrupt-parent = <&gic>;
@@ -189,7 +189,7 @@
 		status = "disabled";
 	};
 
-	sdhi0: sdhi@0xee100000 {
+	sdhi0: sdhi@ee100000 {
 		compatible = "renesas,r8a7740-sdhi";
 		reg = <0xee100000 0x100>;
 		interrupt-parent = <&gic>;
@@ -201,7 +201,7 @@
 	};
 
 	/* SDHI1 and SDHI2 have no CD pins, no need for CD IRQ */
-	sdhi1: sdhi@0xee120000 {
+	sdhi1: sdhi@ee120000 {
 		compatible = "renesas,r8a7740-sdhi";
 		reg = <0xee120000 0x100>;
 		interrupt-parent = <&gic>;
@@ -212,7 +212,7 @@
 		status = "disabled";
 	};
 
-	sdhi2: sdhi@0xee140000 {
+	sdhi2: sdhi@ee140000 {
 		compatible = "renesas,r8a7740-sdhi";
 		reg = <0xee140000 0x100>;
 		interrupt-parent = <&gic>;

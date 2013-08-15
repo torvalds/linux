@@ -269,6 +269,7 @@ static void veth_setup(struct net_device *dev)
 	dev->ethtool_ops = &veth_ethtool_ops;
 	dev->features |= NETIF_F_LLTX;
 	dev->features |= VETH_FEATURES;
+	dev->vlan_features = dev->features;
 	dev->destructor = veth_dev_free;
 
 	dev->hw_features = VETH_FEATURES;
@@ -379,12 +380,6 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 	else
 		snprintf(dev->name, IFNAMSIZ, DRV_NAME "%%d");
 
-	if (strchr(dev->name, '%')) {
-		err = dev_alloc_name(dev, dev->name);
-		if (err < 0)
-			goto err_alloc_name;
-	}
-
 	err = register_netdevice(dev);
 	if (err < 0)
 		goto err_register_dev;
@@ -404,7 +399,6 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 
 err_register_dev:
 	/* nothing to do */
-err_alloc_name:
 err_configure_peer:
 	unregister_netdevice(peer);
 	return err;

@@ -5,7 +5,7 @@
 // Confidence: High
 // Copyright: 2009,2010 Nicolas Palix, DIKU.  GPLv2.
 // URL: http://coccinelle.lip6.fr/
-// Options: -no_includes -include_headers
+// Options: --no-includes --include-headers
 //
 // Keywords: kmalloc, kzalloc, kcalloc
 // Version min: < 2.6.12 kmalloc

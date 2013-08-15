@@ -159,6 +159,8 @@ s32 ixgbe_dcb_hw_ets_config(struct ixgbe_hw *hw, u16 *refill, u16 *max,
 s32 ixgbe_dcb_hw_pfc_config(struct ixgbe_hw *hw, u8 pfc_en, u8 *tc_prio);
 s32 ixgbe_dcb_hw_config(struct ixgbe_hw *, struct ixgbe_dcb_config *);
 
+void ixgbe_dcb_read_rtrup2tc(struct ixgbe_hw *hw, u8 *map);
+
 /* DCB definitions for credit calculation */
 #define DCB_CREDIT_QUANTUM	64   /* DCB Quantum */
 #define MAX_CREDIT_REFILL       511  /* 0x1FF * 64B = 32704B */

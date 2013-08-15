@@ -55,7 +55,7 @@ Version 1.9.4.4
 * Overhaul color register routines.
 * Associated with the above, console colors are now obtained from a LUT
   called 'palette' instead of from the VGA registers.  This code was
-  modeled after that in atyfb and matroxfb.
+  modelled after that in atyfb and matroxfb.
 * Code cleanup, add comments.
 * Overhaul SR07 handling.
 * Bug fixes.

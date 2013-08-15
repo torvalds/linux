@@ -91,8 +91,8 @@ static void dwmac1000_set_filter(struct net_device *dev, int id)
 	unsigned int value = 0;
 	unsigned int perfect_addr_number;
 
-	CHIP_DBG(KERN_INFO "%s: # mcasts %d, # unicast %d\n",
-		 __func__, netdev_mc_count(dev), netdev_uc_count(dev));
+	pr_debug("%s: # mcasts %d, # unicast %d\n", __func__,
+		 netdev_mc_count(dev), netdev_uc_count(dev));
 
 	if (dev->flags & IFF_PROMISC)
 		value = GMAC_FRAME_FILTER_PR;
@@ -152,7 +152,7 @@ static void dwmac1000_set_filter(struct net_device *dev, int id)
 #endif
 	writel(value, ioaddr + GMAC_FRAME_FILTER);
 
-	CHIP_DBG(KERN_INFO "\tFilter: 0x%08x\n\tHash: HI 0x%08x, LO 0x%08x\n",
+	pr_debug("\tFilter: 0x%08x\n\tHash: HI 0x%08x, LO 0x%08x\n",
 		 readl(ioaddr + GMAC_FRAME_FILTER),
 		 readl(ioaddr + GMAC_HASH_HIGH), readl(ioaddr + GMAC_HASH_LOW));
 }
@@ -162,18 +162,18 @@ static void dwmac1000_flow_ctrl(void __iomem *ioaddr, unsigned int duplex,
 {
 	unsigned int flow = 0;
 
-	CHIP_DBG(KERN_DEBUG "GMAC Flow-Control:\n");
+	pr_debug("GMAC Flow-Control:\n");
 	if (fc & FLOW_RX) {
-		CHIP_DBG(KERN_DEBUG "\tReceive Flow-Control ON\n");
+		pr_debug("\tReceive Flow-Control ON\n");
 		flow |= GMAC_FLOW_CTRL_RFE;
 	}
 	if (fc & FLOW_TX) {
-		CHIP_DBG(KERN_DEBUG "\tTransmit Flow-Control ON\n");
+		pr_debug("\tTransmit Flow-Control ON\n");
 		flow |= GMAC_FLOW_CTRL_TFE;
 	}
 
 	if (duplex) {
-		CHIP_DBG(KERN_DEBUG "\tduplex mode: PAUSE %d\n", pause_time);
+		pr_debug("\tduplex mode: PAUSE %d\n", pause_time);
 		flow |= (pause_time << GMAC_FLOW_CTRL_PT_SHIFT);
 	}
 
@@ -185,11 +185,11 @@ static void dwmac1000_pmt(void __iomem *ioaddr, unsigned long mode)
 	unsigned int pmt = 0;
 
 	if (mode & WAKE_MAGIC) {
-		CHIP_DBG(KERN_DEBUG "GMAC: WOL Magic frame\n");
+		pr_debug("GMAC: WOL Magic frame\n");
 		pmt |= power_down | magic_pkt_en;
 	}
 	if (mode & WAKE_UCAST) {
-		CHIP_DBG(KERN_DEBUG "GMAC: WOL on global unicast\n");
+		pr_debug("GMAC: WOL on global unicast\n");
 		pmt |= global_unicast;
 	}
 
@@ -203,23 +203,13 @@ static int dwmac1000_irq_status(void __iomem *ioaddr,
 	int ret = 0;
 
 	/* Not used events (e.g. MMC interrupts) are not handled. */
-	if ((intr_status & mmc_tx_irq)) {
-		CHIP_DBG(KERN_INFO "GMAC: MMC tx interrupt: 0x%08x\n",
-			 readl(ioaddr + GMAC_MMC_TX_INTR));
+	if ((intr_status & mmc_tx_irq))
 		x->mmc_tx_irq_n++;
-	}
-	if (unlikely(intr_status & mmc_rx_irq)) {
-		CHIP_DBG(KERN_INFO "GMAC: MMC rx interrupt: 0x%08x\n",
-			 readl(ioaddr + GMAC_MMC_RX_INTR));
+	if (unlikely(intr_status & mmc_rx_irq))
 		x->mmc_rx_irq_n++;
-	}
-	if (unlikely(intr_status & mmc_rx_csum_offload_irq)) {
-		CHIP_DBG(KERN_INFO "GMAC: MMC rx csum offload: 0x%08x\n",
-			 readl(ioaddr + GMAC_MMC_RX_CSUM_OFFLOAD));
+	if (unlikely(intr_status & mmc_rx_csum_offload_irq))
 		x->mmc_rx_csum_offload_irq_n++;
-	}
 	if (unlikely(intr_status & pmt_irq)) {
-		CHIP_DBG(KERN_INFO "GMAC: received Magic frame\n");
 		/* clear the PMT bits 5 and 6 by reading the PMT status reg */
 		readl(ioaddr + GMAC_PMT);
 		x->irq_receive_pmt_irq_n++;
@@ -229,32 +219,22 @@ static int dwmac1000_irq_status(void __iomem *ioaddr,
 		/* Clean LPI interrupt by reading the Reg 12 */
 		ret = readl(ioaddr + LPI_CTRL_STATUS);
 
-		if (ret & LPI_CTRL_STATUS_TLPIEN) {
-			CHIP_DBG(KERN_INFO "GMAC TX entered in LPI\n");
+		if (ret & LPI_CTRL_STATUS_TLPIEN)
 			x->irq_tx_path_in_lpi_mode_n++;
-		}
-		if (ret & LPI_CTRL_STATUS_TLPIEX) {
-			CHIP_DBG(KERN_INFO "GMAC TX exit from LPI\n");
+		if (ret & LPI_CTRL_STATUS_TLPIEX)
 			x->irq_tx_path_exit_lpi_mode_n++;
-		}
-		if (ret & LPI_CTRL_STATUS_RLPIEN) {
-			CHIP_DBG(KERN_INFO "GMAC RX entered in LPI\n");
+		if (ret & LPI_CTRL_STATUS_RLPIEN)
 			x->irq_rx_path_in_lpi_mode_n++;
-		}
-		if (ret & LPI_CTRL_STATUS_RLPIEX) {
-			CHIP_DBG(KERN_INFO "GMAC RX exit from LPI\n");
+		if (ret & LPI_CTRL_STATUS_RLPIEX)
 			x->irq_rx_path_exit_lpi_mode_n++;
-		}
 	}
 
 	if ((intr_status & pcs_ane_irq) || (intr_status & pcs_link_irq)) {
-		CHIP_DBG(KERN_INFO "GMAC PCS ANE IRQ\n");
 		readl(ioaddr + GMAC_AN_STATUS);
 		x->irq_pcs_ane_n++;
 	}
 	if (intr_status & rgmii_irq) {
 		u32 status = readl(ioaddr + GMAC_S_R_GMII);
-		CHIP_DBG(KERN_INFO "GMAC RGMII/SGMII interrupt\n");
 		x->irq_rgmii_n++;
 
 		/* Save and dump the link status. */
@@ -271,11 +251,12 @@ static int dwmac1000_irq_status(void __iomem *ioaddr,
 				x->pcs_speed = SPEED_10;
 
 			x->pcs_link = 1;
-			pr_debug("Link is Up - %d/%s\n", (int)x->pcs_speed,
+			pr_debug("%s: Link is Up - %d/%s\n", __func__,
+				 (int)x->pcs_speed,
 				 x->pcs_duplex ? "Full" : "Half");
 		} else {
 			x->pcs_link = 0;
-			pr_debug("Link is Down\n");
+			pr_debug("%s: Link is Down\n", __func__);
 		}
 	}
 

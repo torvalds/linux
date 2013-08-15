@@ -55,10 +55,10 @@ struct nouveau_vma {
 struct nouveau_vm {
 	struct nouveau_vmmgr *vmm;
 	struct nouveau_mm mm;
-	int refcount;
+	struct kref refcount;
 
 	struct list_head pgd_list;
-	atomic_t engref[64]; //NVDEV_SUBDEV_NR];
+	atomic_t engref[NVDEV_SUBDEV_NR];
 
 	struct nouveau_vm_pgt *pgt;
 	u32 fpde;
@@ -116,9 +116,6 @@ extern struct nouveau_oclass nvc0_vmmgr_oclass;
 int  nv04_vm_create(struct nouveau_vmmgr *, u64, u64, u64,
 		    struct nouveau_vm **);
 void nv04_vmmgr_dtor(struct nouveau_object *);
-
-void nv50_vm_flush_engine(struct nouveau_subdev *, int engine);
-void nvc0_vm_flush_engine(struct nouveau_subdev *, u64 addr, int type);
 
 /* nouveau_vm.c */
 int  nouveau_vm_create(struct nouveau_vmmgr *, u64 offset, u64 length,

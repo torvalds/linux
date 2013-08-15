@@ -297,7 +297,7 @@ static int hspi_probe(struct platform_device *pdev)
 	}
 
 	hspi = spi_master_get_devdata(master);
-	dev_set_drvdata(&pdev->dev, hspi);
+	platform_set_drvdata(pdev, hspi);
 
 	/* init hspi */
 	hspi->master	= master;
@@ -341,7 +341,7 @@ static int hspi_probe(struct platform_device *pdev)
 
 static int hspi_remove(struct platform_device *pdev)
 {
-	struct hspi_priv *hspi = dev_get_drvdata(&pdev->dev);
+	struct hspi_priv *hspi = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(&pdev->dev);
 

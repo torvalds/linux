@@ -11,7 +11,349 @@
 #include <linux/io.h>
 #include <linux/clk-provider.h>
 #include <linux/spinlock.h>
-#include <mach/syscon.h>
+#include <linux/of.h>
+
+/* APP side SYSCON registers */
+/* CLK Control Register 16bit (R/W) */
+#define U300_SYSCON_CCR						(0x0000)
+#define U300_SYSCON_CCR_I2S1_USE_VCXO				(0x0040)
+#define U300_SYSCON_CCR_I2S0_USE_VCXO				(0x0020)
+#define U300_SYSCON_CCR_TURN_VCXO_ON				(0x0008)
+#define U300_SYSCON_CCR_CLKING_PERFORMANCE_MASK			(0x0007)
+#define U300_SYSCON_CCR_CLKING_PERFORMANCE_LOW_POWER		(0x04)
+#define U300_SYSCON_CCR_CLKING_PERFORMANCE_LOW			(0x03)
+#define U300_SYSCON_CCR_CLKING_PERFORMANCE_INTERMEDIATE		(0x02)
+#define U300_SYSCON_CCR_CLKING_PERFORMANCE_HIGH			(0x01)
+#define U300_SYSCON_CCR_CLKING_PERFORMANCE_BEST			(0x00)
+/* CLK Status Register 16bit (R/W) */
+#define U300_SYSCON_CSR						(0x0004)
+#define U300_SYSCON_CSR_PLL208_LOCK_IND				(0x0002)
+#define U300_SYSCON_CSR_PLL13_LOCK_IND				(0x0001)
+/* Reset lines for SLOW devices 16bit (R/W) */
+#define U300_SYSCON_RSR						(0x0014)
+#define U300_SYSCON_RSR_PPM_RESET_EN				(0x0200)
+#define U300_SYSCON_RSR_ACC_TMR_RESET_EN			(0x0100)
+#define U300_SYSCON_RSR_APP_TMR_RESET_EN			(0x0080)
+#define U300_SYSCON_RSR_RTC_RESET_EN				(0x0040)
+#define U300_SYSCON_RSR_KEYPAD_RESET_EN				(0x0020)
+#define U300_SYSCON_RSR_GPIO_RESET_EN				(0x0010)
+#define U300_SYSCON_RSR_EH_RESET_EN				(0x0008)
+#define U300_SYSCON_RSR_BTR_RESET_EN				(0x0004)
+#define U300_SYSCON_RSR_UART_RESET_EN				(0x0002)
+#define U300_SYSCON_RSR_SLOW_BRIDGE_RESET_EN			(0x0001)
+/* Reset lines for FAST devices 16bit (R/W) */
+#define U300_SYSCON_RFR						(0x0018)
+#define U300_SYSCON_RFR_UART1_RESET_ENABLE			(0x0080)
+#define U300_SYSCON_RFR_SPI_RESET_ENABLE			(0x0040)
+#define U300_SYSCON_RFR_MMC_RESET_ENABLE			(0x0020)
+#define U300_SYSCON_RFR_PCM_I2S1_RESET_ENABLE			(0x0010)
+#define U300_SYSCON_RFR_PCM_I2S0_RESET_ENABLE			(0x0008)
+#define U300_SYSCON_RFR_I2C1_RESET_ENABLE			(0x0004)
+#define U300_SYSCON_RFR_I2C0_RESET_ENABLE			(0x0002)
+#define U300_SYSCON_RFR_FAST_BRIDGE_RESET_ENABLE		(0x0001)
+/* Reset lines for the rest of the peripherals 16bit (R/W) */
+#define U300_SYSCON_RRR						(0x001c)
+#define U300_SYSCON_RRR_CDS_RESET_EN				(0x4000)
+#define U300_SYSCON_RRR_ISP_RESET_EN				(0x2000)
+#define U300_SYSCON_RRR_INTCON_RESET_EN				(0x1000)
+#define U300_SYSCON_RRR_MSPRO_RESET_EN				(0x0800)
+#define U300_SYSCON_RRR_XGAM_RESET_EN				(0x0100)
+#define U300_SYSCON_RRR_XGAM_VC_SYNC_RESET_EN			(0x0080)
+#define U300_SYSCON_RRR_NANDIF_RESET_EN				(0x0040)
+#define U300_SYSCON_RRR_EMIF_RESET_EN				(0x0020)
+#define U300_SYSCON_RRR_DMAC_RESET_EN				(0x0010)
+#define U300_SYSCON_RRR_CPU_RESET_EN				(0x0008)
+#define U300_SYSCON_RRR_APEX_RESET_EN				(0x0004)
+#define U300_SYSCON_RRR_AHB_RESET_EN				(0x0002)
+#define U300_SYSCON_RRR_AAIF_RESET_EN				(0x0001)
+/* Clock enable for SLOW peripherals 16bit (R/W) */
+#define U300_SYSCON_CESR					(0x0020)
+#define U300_SYSCON_CESR_PPM_CLK_EN				(0x0200)
+#define U300_SYSCON_CESR_ACC_TMR_CLK_EN				(0x0100)
+#define U300_SYSCON_CESR_APP_TMR_CLK_EN				(0x0080)
+#define U300_SYSCON_CESR_KEYPAD_CLK_EN				(0x0040)
+#define U300_SYSCON_CESR_GPIO_CLK_EN				(0x0010)
+#define U300_SYSCON_CESR_EH_CLK_EN				(0x0008)
+#define U300_SYSCON_CESR_BTR_CLK_EN				(0x0004)
+#define U300_SYSCON_CESR_UART_CLK_EN				(0x0002)
+#define U300_SYSCON_CESR_SLOW_BRIDGE_CLK_EN			(0x0001)
+/* Clock enable for FAST peripherals 16bit (R/W) */
+#define U300_SYSCON_CEFR					(0x0024)
+#define U300_SYSCON_CEFR_UART1_CLK_EN				(0x0200)
+#define U300_SYSCON_CEFR_I2S1_CORE_CLK_EN			(0x0100)
+#define U300_SYSCON_CEFR_I2S0_CORE_CLK_EN			(0x0080)
+#define U300_SYSCON_CEFR_SPI_CLK_EN				(0x0040)
+#define U300_SYSCON_CEFR_MMC_CLK_EN				(0x0020)
+#define U300_SYSCON_CEFR_I2S1_CLK_EN				(0x0010)
+#define U300_SYSCON_CEFR_I2S0_CLK_EN				(0x0008)
+#define U300_SYSCON_CEFR_I2C1_CLK_EN				(0x0004)
+#define U300_SYSCON_CEFR_I2C0_CLK_EN				(0x0002)
+#define U300_SYSCON_CEFR_FAST_BRIDGE_CLK_EN			(0x0001)
+/* Clock enable for the rest of the peripherals 16bit (R/W) */
+#define U300_SYSCON_CERR					(0x0028)
+#define U300_SYSCON_CERR_CDS_CLK_EN				(0x2000)
+#define U300_SYSCON_CERR_ISP_CLK_EN				(0x1000)
+#define U300_SYSCON_CERR_MSPRO_CLK_EN				(0x0800)
+#define U300_SYSCON_CERR_AHB_SUBSYS_BRIDGE_CLK_EN		(0x0400)
+#define U300_SYSCON_CERR_SEMI_CLK_EN				(0x0200)
+#define U300_SYSCON_CERR_XGAM_CLK_EN				(0x0100)
+#define U300_SYSCON_CERR_VIDEO_ENC_CLK_EN			(0x0080)
+#define U300_SYSCON_CERR_NANDIF_CLK_EN				(0x0040)
+#define U300_SYSCON_CERR_EMIF_CLK_EN				(0x0020)
+#define U300_SYSCON_CERR_DMAC_CLK_EN				(0x0010)
+#define U300_SYSCON_CERR_CPU_CLK_EN				(0x0008)
+#define U300_SYSCON_CERR_APEX_CLK_EN				(0x0004)
+#define U300_SYSCON_CERR_AHB_CLK_EN				(0x0002)
+#define U300_SYSCON_CERR_AAIF_CLK_EN				(0x0001)
+/* Single block clock enable 16bit (-/W) */
+#define U300_SYSCON_SBCER					(0x002c)
+#define U300_SYSCON_SBCER_PPM_CLK_EN				(0x0009)
+#define U300_SYSCON_SBCER_ACC_TMR_CLK_EN			(0x0008)
+#define U300_SYSCON_SBCER_APP_TMR_CLK_EN			(0x0007)
+#define U300_SYSCON_SBCER_KEYPAD_CLK_EN				(0x0006)
+#define U300_SYSCON_SBCER_GPIO_CLK_EN				(0x0004)
+#define U300_SYSCON_SBCER_EH_CLK_EN				(0x0003)
+#define U300_SYSCON_SBCER_BTR_CLK_EN				(0x0002)
+#define U300_SYSCON_SBCER_UART_CLK_EN				(0x0001)
+#define U300_SYSCON_SBCER_SLOW_BRIDGE_CLK_EN			(0x0000)
+#define U300_SYSCON_SBCER_UART1_CLK_EN				(0x0019)
+#define U300_SYSCON_SBCER_I2S1_CORE_CLK_EN			(0x0018)
+#define U300_SYSCON_SBCER_I2S0_CORE_CLK_EN			(0x0017)
+#define U300_SYSCON_SBCER_SPI_CLK_EN				(0x0016)
+#define U300_SYSCON_SBCER_MMC_CLK_EN				(0x0015)
+#define U300_SYSCON_SBCER_I2S1_CLK_EN				(0x0014)
+#define U300_SYSCON_SBCER_I2S0_CLK_EN				(0x0013)
+#define U300_SYSCON_SBCER_I2C1_CLK_EN				(0x0012)
+#define U300_SYSCON_SBCER_I2C0_CLK_EN				(0x0011)
+#define U300_SYSCON_SBCER_FAST_BRIDGE_CLK_EN			(0x0010)
+#define U300_SYSCON_SBCER_CDS_CLK_EN				(0x002D)
+#define U300_SYSCON_SBCER_ISP_CLK_EN				(0x002C)
+#define U300_SYSCON_SBCER_MSPRO_CLK_EN				(0x002B)
+#define U300_SYSCON_SBCER_AHB_SUBSYS_BRIDGE_CLK_EN		(0x002A)
+#define U300_SYSCON_SBCER_SEMI_CLK_EN				(0x0029)
+#define U300_SYSCON_SBCER_XGAM_CLK_EN				(0x0028)
+#define U300_SYSCON_SBCER_VIDEO_ENC_CLK_EN			(0x0027)
+#define U300_SYSCON_SBCER_NANDIF_CLK_EN				(0x0026)
+#define U300_SYSCON_SBCER_EMIF_CLK_EN				(0x0025)
+#define U300_SYSCON_SBCER_DMAC_CLK_EN				(0x0024)
+#define U300_SYSCON_SBCER_CPU_CLK_EN				(0x0023)
+#define U300_SYSCON_SBCER_APEX_CLK_EN				(0x0022)
+#define U300_SYSCON_SBCER_AHB_CLK_EN				(0x0021)
+#define U300_SYSCON_SBCER_AAIF_CLK_EN				(0x0020)
+/* Single block clock disable 16bit (-/W) */
+#define U300_SYSCON_SBCDR					(0x0030)
+/* Same values as above for SBCER */
+/* Clock force SLOW peripherals 16bit (R/W) */
+#define U300_SYSCON_CFSR					(0x003c)
+#define U300_SYSCON_CFSR_PPM_CLK_FORCE_EN			(0x0200)
+#define U300_SYSCON_CFSR_ACC_TMR_CLK_FORCE_EN			(0x0100)
+#define U300_SYSCON_CFSR_APP_TMR_CLK_FORCE_EN			(0x0080)
+#define U300_SYSCON_CFSR_KEYPAD_CLK_FORCE_EN			(0x0020)
+#define U300_SYSCON_CFSR_GPIO_CLK_FORCE_EN			(0x0010)
+#define U300_SYSCON_CFSR_EH_CLK_FORCE_EN			(0x0008)
+#define U300_SYSCON_CFSR_BTR_CLK_FORCE_EN			(0x0004)
+#define U300_SYSCON_CFSR_UART_CLK_FORCE_EN			(0x0002)
+#define U300_SYSCON_CFSR_SLOW_BRIDGE_CLK_FORCE_EN		(0x0001)
+/* Clock force FAST peripherals 16bit (R/W) */
+#define U300_SYSCON_CFFR					(0x40)
+/* Values not defined. Define if you want to use them. */
+/* Clock force the rest of the peripherals 16bit (R/W) */
+#define U300_SYSCON_CFRR					(0x44)
+#define U300_SYSCON_CFRR_CDS_CLK_FORCE_EN			(0x2000)
+#define U300_SYSCON_CFRR_ISP_CLK_FORCE_EN			(0x1000)
+#define U300_SYSCON_CFRR_MSPRO_CLK_FORCE_EN			(0x0800)
+#define U300_SYSCON_CFRR_AHB_SUBSYS_BRIDGE_CLK_FORCE_EN		(0x0400)
+#define U300_SYSCON_CFRR_SEMI_CLK_FORCE_EN			(0x0200)
+#define U300_SYSCON_CFRR_XGAM_CLK_FORCE_EN			(0x0100)
+#define U300_SYSCON_CFRR_VIDEO_ENC_CLK_FORCE_EN			(0x0080)
+#define U300_SYSCON_CFRR_NANDIF_CLK_FORCE_EN			(0x0040)
+#define U300_SYSCON_CFRR_EMIF_CLK_FORCE_EN			(0x0020)
+#define U300_SYSCON_CFRR_DMAC_CLK_FORCE_EN			(0x0010)
+#define U300_SYSCON_CFRR_CPU_CLK_FORCE_EN			(0x0008)
+#define U300_SYSCON_CFRR_APEX_CLK_FORCE_EN			(0x0004)
+#define U300_SYSCON_CFRR_AHB_CLK_FORCE_EN			(0x0002)
+#define U300_SYSCON_CFRR_AAIF_CLK_FORCE_EN			(0x0001)
+/* PLL208 Frequency Control 16bit (R/W) */
+#define U300_SYSCON_PFCR					(0x48)
+#define U300_SYSCON_PFCR_DPLL_MULT_NUM				(0x000F)
+/* Power Management Control 16bit (R/W) */
+#define U300_SYSCON_PMCR					(0x50)
+#define U300_SYSCON_PMCR_DCON_ENABLE				(0x0002)
+#define U300_SYSCON_PMCR_PWR_MGNT_ENABLE			(0x0001)
+/* Reset Out 16bit (R/W) */
+#define U300_SYSCON_RCR						(0x6c)
+#define U300_SYSCON_RCR_RESOUT0_RST_N_DISABLE			(0x0001)
+/* EMIF Slew Rate Control 16bit (R/W) */
+#define U300_SYSCON_SRCLR					(0x70)
+#define U300_SYSCON_SRCLR_MASK					(0x03FF)
+#define U300_SYSCON_SRCLR_VALUE					(0x03FF)
+#define U300_SYSCON_SRCLR_EMIF_1_SLRC_5_B			(0x0200)
+#define U300_SYSCON_SRCLR_EMIF_1_SLRC_5_A			(0x0100)
+#define U300_SYSCON_SRCLR_EMIF_1_SLRC_4_B			(0x0080)
+#define U300_SYSCON_SRCLR_EMIF_1_SLRC_4_A			(0x0040)
+#define U300_SYSCON_SRCLR_EMIF_1_SLRC_3_B			(0x0020)
+#define U300_SYSCON_SRCLR_EMIF_1_SLRC_3_A			(0x0010)
+#define U300_SYSCON_SRCLR_EMIF_1_SLRC_2_B			(0x0008)
+#define U300_SYSCON_SRCLR_EMIF_1_SLRC_2_A			(0x0004)
+#define U300_SYSCON_SRCLR_EMIF_1_SLRC_1_B			(0x0002)
+#define U300_SYSCON_SRCLR_EMIF_1_SLRC_1_A			(0x0001)
+/* EMIF Clock Control Register 16bit (R/W) */
+#define U300_SYSCON_ECCR					(0x0078)
+#define U300_SYSCON_ECCR_MASK					(0x000F)
+#define U300_SYSCON_ECCR_EMIF_1_STATIC_CLK_EN_N_DISABLE		(0x0008)
+#define U300_SYSCON_ECCR_EMIF_1_RET_OUT_CLK_EN_N_DISABLE	(0x0004)
+#define U300_SYSCON_ECCR_EMIF_MEMCLK_RET_EN_N_DISABLE		(0x0002)
+#define U300_SYSCON_ECCR_EMIF_SDRCLK_RET_EN_N_DISABLE		(0x0001)
+/* MMC/MSPRO frequency divider register 0 16bit (R/W) */
+#define U300_SYSCON_MMF0R					(0x90)
+#define U300_SYSCON_MMF0R_MASK					(0x00FF)
+#define U300_SYSCON_MMF0R_FREQ_0_HIGH_MASK			(0x00F0)
+#define U300_SYSCON_MMF0R_FREQ_0_LOW_MASK			(0x000F)
+/* MMC/MSPRO frequency divider register 1 16bit (R/W) */
+#define U300_SYSCON_MMF1R					(0x94)
+#define U300_SYSCON_MMF1R_MASK					(0x00FF)
+#define U300_SYSCON_MMF1R_FREQ_1_HIGH_MASK			(0x00F0)
+#define U300_SYSCON_MMF1R_FREQ_1_LOW_MASK			(0x000F)
+/* Clock control for the MMC and MSPRO blocks 16bit (R/W) */
+#define U300_SYSCON_MMCR					(0x9C)
+#define U300_SYSCON_MMCR_MASK					(0x0003)
+#define U300_SYSCON_MMCR_MMC_FB_CLK_SEL_ENABLE			(0x0002)
+#define U300_SYSCON_MMCR_MSPRO_FREQSEL_ENABLE			(0x0001)
+/* SYS_0_CLK_CONTROL first clock control 16bit (R/W) */
+#define U300_SYSCON_S0CCR					(0x120)
+#define U300_SYSCON_S0CCR_FIELD_MASK				(0x43FF)
+#define U300_SYSCON_S0CCR_CLOCK_REQ				(0x4000)
+#define U300_SYSCON_S0CCR_CLOCK_REQ_MONITOR			(0x2000)
+#define U300_SYSCON_S0CCR_CLOCK_INV				(0x0200)
+#define U300_SYSCON_S0CCR_CLOCK_FREQ_MASK			(0x01E0)
+#define U300_SYSCON_S0CCR_CLOCK_SELECT_MASK			(0x001E)
+#define U300_SYSCON_S0CCR_CLOCK_ENABLE				(0x0001)
+#define U300_SYSCON_S0CCR_SEL_MCLK				(0x8<<1)
+#define U300_SYSCON_S0CCR_SEL_ACC_FSM_CLK			(0xA<<1)
+#define U300_SYSCON_S0CCR_SEL_PLL60_48_CLK			(0xC<<1)
+#define U300_SYSCON_S0CCR_SEL_PLL60_60_CLK			(0xD<<1)
+#define U300_SYSCON_S0CCR_SEL_ACC_PLL208_CLK			(0xE<<1)
+#define U300_SYSCON_S0CCR_SEL_APP_PLL13_CLK			(0x0<<1)
+#define U300_SYSCON_S0CCR_SEL_APP_FSM_CLK			(0x2<<1)
+#define U300_SYSCON_S0CCR_SEL_RTC_CLK				(0x4<<1)
+#define U300_SYSCON_S0CCR_SEL_APP_PLL208_CLK			(0x6<<1)
+/* SYS_1_CLK_CONTROL second clock control 16 bit (R/W) */
+#define U300_SYSCON_S1CCR					(0x124)
+#define U300_SYSCON_S1CCR_FIELD_MASK				(0x43FF)
+#define U300_SYSCON_S1CCR_CLOCK_REQ				(0x4000)
+#define U300_SYSCON_S1CCR_CLOCK_REQ_MONITOR			(0x2000)
+#define U300_SYSCON_S1CCR_CLOCK_INV				(0x0200)
+#define U300_SYSCON_S1CCR_CLOCK_FREQ_MASK			(0x01E0)
+#define U300_SYSCON_S1CCR_CLOCK_SELECT_MASK			(0x001E)
+#define U300_SYSCON_S1CCR_CLOCK_ENABLE				(0x0001)
+#define U300_SYSCON_S1CCR_SEL_MCLK				(0x8<<1)
+#define U300_SYSCON_S1CCR_SEL_ACC_FSM_CLK			(0xA<<1)
+#define U300_SYSCON_S1CCR_SEL_PLL60_48_CLK			(0xC<<1)
+#define U300_SYSCON_S1CCR_SEL_PLL60_60_CLK			(0xD<<1)
+#define U300_SYSCON_S1CCR_SEL_ACC_PLL208_CLK			(0xE<<1)
+#define U300_SYSCON_S1CCR_SEL_ACC_PLL13_CLK			(0x0<<1)
+#define U300_SYSCON_S1CCR_SEL_APP_FSM_CLK			(0x2<<1)
+#define U300_SYSCON_S1CCR_SEL_RTC_CLK				(0x4<<1)
+#define U300_SYSCON_S1CCR_SEL_APP_PLL208_CLK			(0x6<<1)
+/* SYS_2_CLK_CONTROL third clock contol 16 bit (R/W) */
+#define U300_SYSCON_S2CCR					(0x128)
+#define U300_SYSCON_S2CCR_FIELD_MASK				(0xC3FF)
+#define U300_SYSCON_S2CCR_CLK_STEAL				(0x8000)
+#define U300_SYSCON_S2CCR_CLOCK_REQ				(0x4000)
+#define U300_SYSCON_S2CCR_CLOCK_REQ_MONITOR			(0x2000)
+#define U300_SYSCON_S2CCR_CLOCK_INV				(0x0200)
+#define U300_SYSCON_S2CCR_CLOCK_FREQ_MASK			(0x01E0)
+#define U300_SYSCON_S2CCR_CLOCK_SELECT_MASK			(0x001E)
+#define U300_SYSCON_S2CCR_CLOCK_ENABLE				(0x0001)
+#define U300_SYSCON_S2CCR_SEL_MCLK				(0x8<<1)
+#define U300_SYSCON_S2CCR_SEL_ACC_FSM_CLK			(0xA<<1)
+#define U300_SYSCON_S2CCR_SEL_PLL60_48_CLK			(0xC<<1)
+#define U300_SYSCON_S2CCR_SEL_PLL60_60_CLK			(0xD<<1)
+#define U300_SYSCON_S2CCR_SEL_ACC_PLL208_CLK			(0xE<<1)
+#define U300_SYSCON_S2CCR_SEL_ACC_PLL13_CLK			(0x0<<1)
+#define U300_SYSCON_S2CCR_SEL_APP_FSM_CLK			(0x2<<1)
+#define U300_SYSCON_S2CCR_SEL_RTC_CLK				(0x4<<1)
+#define U300_SYSCON_S2CCR_SEL_APP_PLL208_CLK			(0x6<<1)
+/* SC_PLL_IRQ_CONTROL 16bit (R/W) */
+#define U300_SYSCON_PICR					(0x0130)
+#define U300_SYSCON_PICR_MASK					(0x00FF)
+#define U300_SYSCON_PICR_FORCE_PLL208_LOCK_LOW_ENABLE		(0x0080)
+#define U300_SYSCON_PICR_FORCE_PLL208_LOCK_HIGH_ENABLE		(0x0040)
+#define U300_SYSCON_PICR_FORCE_PLL13_LOCK_LOW_ENABLE		(0x0020)
+#define U300_SYSCON_PICR_FORCE_PLL13_LOCK_HIGH_ENABLE		(0x0010)
+#define U300_SYSCON_PICR_IRQMASK_PLL13_UNLOCK_ENABLE		(0x0008)
+#define U300_SYSCON_PICR_IRQMASK_PLL13_LOCK_ENABLE		(0x0004)
+#define U300_SYSCON_PICR_IRQMASK_PLL208_UNLOCK_ENABLE		(0x0002)
+#define U300_SYSCON_PICR_IRQMASK_PLL208_LOCK_ENABLE		(0x0001)
+/* SC_PLL_IRQ_STATUS 16 bit (R/-) */
+#define U300_SYSCON_PISR					(0x0134)
+#define U300_SYSCON_PISR_MASK					(0x000F)
+#define U300_SYSCON_PISR_PLL13_UNLOCK_IND			(0x0008)
+#define U300_SYSCON_PISR_PLL13_LOCK_IND				(0x0004)
+#define U300_SYSCON_PISR_PLL208_UNLOCK_IND			(0x0002)
+#define U300_SYSCON_PISR_PLL208_LOCK_IND			(0x0001)
+/* SC_PLL_IRQ_CLEAR 16 bit (-/W) */
+#define U300_SYSCON_PICLR					(0x0138)
+#define U300_SYSCON_PICLR_MASK					(0x000F)
+#define U300_SYSCON_PICLR_RWMASK				(0x0000)
+#define U300_SYSCON_PICLR_PLL13_UNLOCK_SC			(0x0008)
+#define U300_SYSCON_PICLR_PLL13_LOCK_SC				(0x0004)
+#define U300_SYSCON_PICLR_PLL208_UNLOCK_SC			(0x0002)
+#define U300_SYSCON_PICLR_PLL208_LOCK_SC			(0x0001)
+/* Clock activity observability register 0 */
+#define U300_SYSCON_C0OAR					(0x140)
+#define U300_SYSCON_C0OAR_MASK					(0xFFFF)
+#define U300_SYSCON_C0OAR_VALUE					(0xFFFF)
+#define U300_SYSCON_C0OAR_BT_H_CLK				(0x8000)
+#define U300_SYSCON_C0OAR_ASPB_P_CLK				(0x4000)
+#define U300_SYSCON_C0OAR_APP_SEMI_H_CLK			(0x2000)
+#define U300_SYSCON_C0OAR_APP_SEMI_CLK				(0x1000)
+#define U300_SYSCON_C0OAR_APP_MMC_MSPRO_CLK			(0x0800)
+#define U300_SYSCON_C0OAR_APP_I2S1_CLK				(0x0400)
+#define U300_SYSCON_C0OAR_APP_I2S0_CLK				(0x0200)
+#define U300_SYSCON_C0OAR_APP_CPU_CLK				(0x0100)
+#define U300_SYSCON_C0OAR_APP_52_CLK				(0x0080)
+#define U300_SYSCON_C0OAR_APP_208_CLK				(0x0040)
+#define U300_SYSCON_C0OAR_APP_104_CLK				(0x0020)
+#define U300_SYSCON_C0OAR_APEX_CLK				(0x0010)
+#define U300_SYSCON_C0OAR_AHPB_M_H_CLK				(0x0008)
+#define U300_SYSCON_C0OAR_AHB_CLK				(0x0004)
+#define U300_SYSCON_C0OAR_AFPB_P_CLK				(0x0002)
+#define U300_SYSCON_C0OAR_AAIF_CLK				(0x0001)
+/* Clock activity observability register 1 */
+#define U300_SYSCON_C1OAR					(0x144)
+#define U300_SYSCON_C1OAR_MASK					(0x3FFE)
+#define U300_SYSCON_C1OAR_VALUE					(0x3FFE)
+#define U300_SYSCON_C1OAR_NFIF_F_CLK				(0x2000)
+#define U300_SYSCON_C1OAR_MSPRO_CLK				(0x1000)
+#define U300_SYSCON_C1OAR_MMC_P_CLK				(0x0800)
+#define U300_SYSCON_C1OAR_MMC_CLK				(0x0400)
+#define U300_SYSCON_C1OAR_KP_P_CLK				(0x0200)
+#define U300_SYSCON_C1OAR_I2C1_P_CLK				(0x0100)
+#define U300_SYSCON_C1OAR_I2C0_P_CLK				(0x0080)
+#define U300_SYSCON_C1OAR_GPIO_CLK				(0x0040)
+#define U300_SYSCON_C1OAR_EMIF_MPMC_CLK				(0x0020)
+#define U300_SYSCON_C1OAR_EMIF_H_CLK				(0x0010)
+#define U300_SYSCON_C1OAR_EVHIST_CLK				(0x0008)
+#define U300_SYSCON_C1OAR_PPM_CLK				(0x0004)
+#define U300_SYSCON_C1OAR_DMA_CLK				(0x0002)
+/* Clock activity observability register 2 */
+#define U300_SYSCON_C2OAR					(0x148)
+#define U300_SYSCON_C2OAR_MASK					(0x0FFF)
+#define U300_SYSCON_C2OAR_VALUE					(0x0FFF)
+#define U300_SYSCON_C2OAR_XGAM_CDI_CLK				(0x0800)
+#define U300_SYSCON_C2OAR_XGAM_CLK				(0x0400)
+#define U300_SYSCON_C2OAR_VC_H_CLK				(0x0200)
+#define U300_SYSCON_C2OAR_VC_CLK				(0x0100)
+#define U300_SYSCON_C2OAR_UA_P_CLK				(0x0080)
+#define U300_SYSCON_C2OAR_TMR1_CLK				(0x0040)
+#define U300_SYSCON_C2OAR_TMR0_CLK				(0x0020)
+#define U300_SYSCON_C2OAR_SPI_P_CLK				(0x0010)
+#define U300_SYSCON_C2OAR_PCM_I2S1_CORE_CLK			(0x0008)
+#define U300_SYSCON_C2OAR_PCM_I2S1_CLK				(0x0004)
+#define U300_SYSCON_C2OAR_PCM_I2S0_CORE_CLK			(0x0002)
+#define U300_SYSCON_C2OAR_PCM_I2S0_CLK				(0x0001)
+
 
 /*
  * The clocking hierarchy currently looks like this.
@@ -386,6 +728,213 @@ syscon_clk_register(struct device *dev, const char *name,
 	return clk;
 }
 
+#define U300_CLK_TYPE_SLOW 0
+#define U300_CLK_TYPE_FAST 1
+#define U300_CLK_TYPE_REST 2
+
+/**
+ * struct u300_clock - defines the bits and pieces for a certain clock
+ * @type: the clock type, slow fast or rest
+ * @id: the bit in the slow/fast/rest register for this clock
+ * @hw_ctrld: whether the clock is hardware controlled
+ * @clk_val: a value to poke in the one-write enable/disable registers
+ */
+struct u300_clock {
+	u8 type;
+	u8 id;
+	bool hw_ctrld;
+	u16 clk_val;
+};
+
+struct u300_clock const __initconst u300_clk_lookup[] = {
+	{
+		.type = U300_CLK_TYPE_REST,
+		.id = 3,
+		.hw_ctrld = true,
+		.clk_val = U300_SYSCON_SBCER_CPU_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_REST,
+		.id = 4,
+		.hw_ctrld = true,
+		.clk_val = U300_SYSCON_SBCER_DMAC_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_REST,
+		.id = 5,
+		.hw_ctrld = false,
+		.clk_val = U300_SYSCON_SBCER_EMIF_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_REST,
+		.id = 6,
+		.hw_ctrld = false,
+		.clk_val = U300_SYSCON_SBCER_NANDIF_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_REST,
+		.id = 8,
+		.hw_ctrld = true,
+		.clk_val = U300_SYSCON_SBCER_XGAM_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_REST,
+		.id = 9,
+		.hw_ctrld = false,
+		.clk_val = U300_SYSCON_SBCER_SEMI_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_REST,
+		.id = 10,
+		.hw_ctrld = true,
+		.clk_val = U300_SYSCON_SBCER_AHB_SUBSYS_BRIDGE_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_REST,
+		.id = 12,
+		.hw_ctrld = false,
+		/* INTCON: cannot be enabled, just taken out of reset */
+		.clk_val = 0xFFFFU,
+	},
+	{
+		.type = U300_CLK_TYPE_FAST,
+		.id = 0,
+		.hw_ctrld = true,
+		.clk_val = U300_SYSCON_SBCER_FAST_BRIDGE_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_FAST,
+		.id = 1,
+		.hw_ctrld = false,
+		.clk_val = U300_SYSCON_SBCER_I2C0_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_FAST,
+		.id = 2,
+		.hw_ctrld = false,
+		.clk_val = U300_SYSCON_SBCER_I2C1_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_FAST,
+		.id = 5,
+		.hw_ctrld = false,
+		.clk_val = U300_SYSCON_SBCER_MMC_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_FAST,
+		.id = 6,
+		.hw_ctrld = false,
+		.clk_val = U300_SYSCON_SBCER_SPI_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_SLOW,
+		.id = 0,
+		.hw_ctrld = true,
+		.clk_val = U300_SYSCON_SBCER_SLOW_BRIDGE_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_SLOW,
+		.id = 1,
+		.hw_ctrld = false,
+		.clk_val = U300_SYSCON_SBCER_UART_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_SLOW,
+		.id = 4,
+		.hw_ctrld = false,
+		.clk_val = U300_SYSCON_SBCER_GPIO_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_SLOW,
+		.id = 6,
+		.hw_ctrld = true,
+		/* No clock enable register bit */
+		.clk_val = 0xFFFFU,
+	},
+	{
+		.type = U300_CLK_TYPE_SLOW,
+		.id = 7,
+		.hw_ctrld = false,
+		.clk_val = U300_SYSCON_SBCER_APP_TMR_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_SLOW,
+		.id = 8,
+		.hw_ctrld = false,
+		.clk_val = U300_SYSCON_SBCER_ACC_TMR_CLK_EN,
+	},
+};
+
+static void __init of_u300_syscon_clk_init(struct device_node *np)
+{
+	struct clk *clk = ERR_PTR(-EINVAL);
+	const char *clk_name = np->name;
+	const char *parent_name;
+	void __iomem *res_reg;
+	void __iomem *en_reg;
+	u32 clk_type;
+	u32 clk_id;
+	int i;
+
+	if (of_property_read_u32(np, "clock-type", &clk_type)) {
+		pr_err("%s: syscon clock \"%s\" missing clock-type property\n",
+		       __func__, clk_name);
+		return;
+	}
+	if (of_property_read_u32(np, "clock-id", &clk_id)) {
+		pr_err("%s: syscon clock \"%s\" missing clock-id property\n",
+		       __func__, clk_name);
+		return;
+	}
+	parent_name = of_clk_get_parent_name(np, 0);
+
+	switch (clk_type) {
+	case U300_CLK_TYPE_SLOW:
+		res_reg = syscon_vbase + U300_SYSCON_RSR;
+		en_reg = syscon_vbase + U300_SYSCON_CESR;
+		break;
+	case U300_CLK_TYPE_FAST:
+		res_reg = syscon_vbase + U300_SYSCON_RFR;
+		en_reg = syscon_vbase + U300_SYSCON_CEFR;
+		break;
+	case U300_CLK_TYPE_REST:
+		res_reg = syscon_vbase + U300_SYSCON_RRR;
+		en_reg = syscon_vbase + U300_SYSCON_CERR;
+		break;
+	default:
+		pr_err("unknown clock type %x specified\n", clk_type);
+		return;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(u300_clk_lookup); i++) {
+		const struct u300_clock *u3clk = &u300_clk_lookup[i];
+
+		if (u3clk->type == clk_type && u3clk->id == clk_id)
+			clk = syscon_clk_register(NULL,
+						  clk_name, parent_name,
+						  0, u3clk->hw_ctrld,
+						  res_reg, u3clk->id,
+						  en_reg, u3clk->id,
+						  u3clk->clk_val);
+	}
+
+	if (!IS_ERR(clk)) {
+		of_clk_add_provider(np, of_clk_src_simple_get, clk);
+
+		/*
+		 * Some few system clocks - device tree does not
+		 * represent clocks without a corresponding device node.
+		 * for now we add these three clocks here.
+		 */
+		if (clk_type == U300_CLK_TYPE_REST && clk_id == 5)
+			clk_register_clkdev(clk, NULL, "pl172");
+		if (clk_type == U300_CLK_TYPE_REST && clk_id == 9)
+			clk_register_clkdev(clk, NULL, "semi");
+		if (clk_type == U300_CLK_TYPE_REST && clk_id == 12)
+			clk_register_clkdev(clk, NULL, "intcon");
+	}
+}
+
 /**
  * struct clk_mclk - U300 MCLK clock (MMC/SD clock)
  * @hw: corresponding clock hardware entry
@@ -590,10 +1139,41 @@ mclk_clk_register(struct device *dev, const char *name,
 	return clk;
 }
 
+static void __init of_u300_syscon_mclk_init(struct device_node *np)
+{
+	struct clk *clk = ERR_PTR(-EINVAL);
+	const char *clk_name = np->name;
+	const char *parent_name;
+
+	parent_name = of_clk_get_parent_name(np, 0);
+	clk = mclk_clk_register(NULL, clk_name, parent_name, false);
+	if (!IS_ERR(clk))
+		of_clk_add_provider(np, of_clk_src_simple_get, clk);
+}
+
+static const __initconst struct of_device_id u300_clk_match[] = {
+	{
+		.compatible = "fixed-clock",
+		.data = of_fixed_clk_setup,
+	},
+	{
+		.compatible = "fixed-factor-clock",
+		.data = of_fixed_factor_clk_setup,
+	},
+	{
+		.compatible = "stericsson,u300-syscon-clk",
+		.data = of_u300_syscon_clk_init,
+	},
+	{
+		.compatible = "stericsson,u300-syscon-mclk",
+		.data = of_u300_syscon_mclk_init,
+	},
+};
+
+
 void __init u300_clk_init(void __iomem *base)
 {
 	u16 val;
-	struct clk *clk;
 
 	syscon_vbase = base;
 
@@ -610,137 +1190,5 @@ void __init u300_clk_init(void __iomem *base)
 	val |= U300_SYSCON_PMCR_PWR_MGNT_ENABLE;
 	writew(val, syscon_vbase + U300_SYSCON_PMCR);
 
-	/* These are always available (RTC and PLL13) */
-	clk = clk_register_fixed_rate(NULL, "app_32_clk", NULL,
-				      CLK_IS_ROOT, 32768);
-	/* The watchdog sits directly on the 32 kHz clock */
-	clk_register_clkdev(clk, NULL, "coh901327_wdog");
-	clk = clk_register_fixed_rate(NULL, "pll13", NULL,
-				      CLK_IS_ROOT, 13000000);
-
-	/* These derive from PLL208 */
-	clk = clk_register_fixed_rate(NULL, "pll208", NULL,
-				      CLK_IS_ROOT, 208000000);
-	clk = clk_register_fixed_factor(NULL, "app_208_clk", "pll208",
-					0, 1, 1);
-	clk = clk_register_fixed_factor(NULL, "app_104_clk", "pll208",
-					0, 1, 2);
-	clk = clk_register_fixed_factor(NULL, "app_52_clk", "pll208",
-					0, 1, 4);
-	/* The 52 MHz is divided down to 26 MHz */
-	clk = clk_register_fixed_factor(NULL, "app_26_clk", "app_52_clk",
-					0, 1, 2);
-
-	/* Directly on the AMBA interconnect */
-	clk = syscon_clk_register(NULL, "cpu_clk", "app_208_clk", 0, true,
-				  syscon_vbase + U300_SYSCON_RRR, 3,
-				  syscon_vbase + U300_SYSCON_CERR, 3,
-				  U300_SYSCON_SBCER_CPU_CLK_EN);
-	clk = syscon_clk_register(NULL, "dmac_clk", "app_52_clk", 0, true,
-				  syscon_vbase + U300_SYSCON_RRR, 4,
-				  syscon_vbase + U300_SYSCON_CERR, 4,
-				  U300_SYSCON_SBCER_DMAC_CLK_EN);
-	clk_register_clkdev(clk, NULL, "dma");
-	clk = syscon_clk_register(NULL, "fsmc_clk", "app_52_clk", 0, false,
-				  syscon_vbase + U300_SYSCON_RRR, 6,
-				  syscon_vbase + U300_SYSCON_CERR, 6,
-				  U300_SYSCON_SBCER_NANDIF_CLK_EN);
-	clk_register_clkdev(clk, NULL, "fsmc-nand");
-	clk = syscon_clk_register(NULL, "xgam_clk", "app_52_clk", 0, true,
-				  syscon_vbase + U300_SYSCON_RRR, 8,
-				  syscon_vbase + U300_SYSCON_CERR, 8,
-				  U300_SYSCON_SBCER_XGAM_CLK_EN);
-	clk_register_clkdev(clk, NULL, "xgam");
-	clk = syscon_clk_register(NULL, "semi_clk", "app_104_clk", 0, false,
-				  syscon_vbase + U300_SYSCON_RRR, 9,
-				  syscon_vbase + U300_SYSCON_CERR, 9,
-				  U300_SYSCON_SBCER_SEMI_CLK_EN);
-	clk_register_clkdev(clk, NULL, "semi");
-
-	/* AHB bridge clocks */
-	clk = syscon_clk_register(NULL, "ahb_subsys_clk", "app_52_clk", 0, true,
-				  syscon_vbase + U300_SYSCON_RRR, 10,
-				  syscon_vbase + U300_SYSCON_CERR, 10,
-				  U300_SYSCON_SBCER_AHB_SUBSYS_BRIDGE_CLK_EN);
-	clk = syscon_clk_register(NULL, "intcon_clk", "ahb_subsys_clk", 0, false,
-				  syscon_vbase + U300_SYSCON_RRR, 12,
-				  syscon_vbase + U300_SYSCON_CERR, 12,
-				  /* Cannot be enabled, just taken out of reset */
-				  0xFFFFU);
-	clk_register_clkdev(clk, NULL, "intcon");
-	clk = syscon_clk_register(NULL, "emif_clk", "ahb_subsys_clk", 0, false,
-				  syscon_vbase + U300_SYSCON_RRR, 5,
-				  syscon_vbase + U300_SYSCON_CERR, 5,
-				  U300_SYSCON_SBCER_EMIF_CLK_EN);
-	clk_register_clkdev(clk, NULL, "pl172");
-
-	/* FAST bridge clocks */
-	clk = syscon_clk_register(NULL, "fast_clk", "app_26_clk", 0, true,
-				  syscon_vbase + U300_SYSCON_RFR, 0,
-				  syscon_vbase + U300_SYSCON_CEFR, 0,
-				  U300_SYSCON_SBCER_FAST_BRIDGE_CLK_EN);
-	clk = syscon_clk_register(NULL, "i2c0_p_clk", "fast_clk", 0, false,
-				  syscon_vbase + U300_SYSCON_RFR, 1,
-				  syscon_vbase + U300_SYSCON_CEFR, 1,
-				  U300_SYSCON_SBCER_I2C0_CLK_EN);
-	clk_register_clkdev(clk, NULL, "stu300.0");
-	clk = syscon_clk_register(NULL, "i2c1_p_clk", "fast_clk", 0, false,
-				  syscon_vbase + U300_SYSCON_RFR, 2,
-				  syscon_vbase + U300_SYSCON_CEFR, 2,
-				  U300_SYSCON_SBCER_I2C1_CLK_EN);
-	clk_register_clkdev(clk, NULL, "stu300.1");
-	clk = syscon_clk_register(NULL, "mmc_p_clk", "fast_clk", 0, false,
-				  syscon_vbase + U300_SYSCON_RFR, 5,
-				  syscon_vbase + U300_SYSCON_CEFR, 5,
-				  U300_SYSCON_SBCER_MMC_CLK_EN);
-	clk_register_clkdev(clk, "apb_pclk", "mmci");
-	clk = syscon_clk_register(NULL, "spi_p_clk", "fast_clk", 0, false,
-				  syscon_vbase + U300_SYSCON_RFR, 6,
-				  syscon_vbase + U300_SYSCON_CEFR, 6,
-				  U300_SYSCON_SBCER_SPI_CLK_EN);
-	/* The SPI has no external clock for the outward bus, uses the pclk */
-	clk_register_clkdev(clk, NULL, "pl022");
-	clk_register_clkdev(clk, "apb_pclk", "pl022");
-
-	/* SLOW bridge clocks */
-	clk = syscon_clk_register(NULL, "slow_clk", "pll13", 0, true,
-				  syscon_vbase + U300_SYSCON_RSR, 0,
-				  syscon_vbase + U300_SYSCON_CESR, 0,
-				  U300_SYSCON_SBCER_SLOW_BRIDGE_CLK_EN);
-	clk = syscon_clk_register(NULL, "uart0_clk", "slow_clk", 0, false,
-				  syscon_vbase + U300_SYSCON_RSR, 1,
-				  syscon_vbase + U300_SYSCON_CESR, 1,
-				  U300_SYSCON_SBCER_UART_CLK_EN);
-	/* Same clock is used for APB and outward bus */
-	clk_register_clkdev(clk, NULL, "uart0");
-	clk_register_clkdev(clk, "apb_pclk", "uart0");
-	clk = syscon_clk_register(NULL, "gpio_clk", "slow_clk", 0, false,
-				  syscon_vbase + U300_SYSCON_RSR, 4,
-				  syscon_vbase + U300_SYSCON_CESR, 4,
-				  U300_SYSCON_SBCER_GPIO_CLK_EN);
-	clk_register_clkdev(clk, NULL, "u300-gpio");
-	clk = syscon_clk_register(NULL, "keypad_clk", "slow_clk", 0, false,
-				  syscon_vbase + U300_SYSCON_RSR, 5,
-				  syscon_vbase + U300_SYSCON_CESR, 6,
-				  U300_SYSCON_SBCER_KEYPAD_CLK_EN);
-	clk_register_clkdev(clk, NULL, "coh901461-keypad");
-	clk = syscon_clk_register(NULL, "rtc_clk", "slow_clk", 0, true,
-				  syscon_vbase + U300_SYSCON_RSR, 6,
-				  /* No clock enable register bit */
-				  NULL, 0, 0xFFFFU);
-	clk_register_clkdev(clk, NULL, "rtc-coh901331");
-	clk = syscon_clk_register(NULL, "app_tmr_clk", "slow_clk", 0, false,
-				  syscon_vbase + U300_SYSCON_RSR, 7,
-				  syscon_vbase + U300_SYSCON_CESR, 7,
-				  U300_SYSCON_SBCER_APP_TMR_CLK_EN);
-	clk_register_clkdev(clk, NULL, "apptimer");
-	clk = syscon_clk_register(NULL, "acc_tmr_clk", "slow_clk", 0, false,
-				  syscon_vbase + U300_SYSCON_RSR, 8,
-				  syscon_vbase + U300_SYSCON_CESR, 8,
-				  U300_SYSCON_SBCER_ACC_TMR_CLK_EN);
-	clk_register_clkdev(clk, NULL, "timer");
-
-	/* Then this special MMC/SD clock */
-	clk = mclk_clk_register(NULL, "mmc_clk", "mmc_p_clk", false);
-	clk_register_clkdev(clk, NULL, "mmci");
+	of_clk_init(u300_clk_match);
 }

@@ -405,8 +405,6 @@ static int tps65217_regulator_remove(struct platform_device *pdev)
 	for (i = 0; i < TPS65217_NUM_REGULATOR; i++)
 		regulator_unregister(tps->rdev[i]);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 

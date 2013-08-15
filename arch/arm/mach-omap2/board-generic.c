@@ -15,6 +15,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/irqdomain.h>
+#include <linux/clk.h>
 
 #include <asm/mach/arch.h>
 
@@ -35,6 +36,21 @@ static struct of_device_id omap_dt_match_table[] __initdata = {
 	{ }
 };
 
+/*
+ * Create alias for USB host PHY clock.
+ * Remove this when clock phandle can be provided via DT
+ */
+static void __init legacy_init_ehci_clk(char *clkname)
+{
+	int ret;
+
+	ret = clk_add_alias("main_clk", NULL, clkname, NULL);
+	if (ret) {
+		pr_err("%s:Failed to add main_clk alias to %s :%d\n",
+						__func__, clkname, ret);
+	}
+}
+
 static void __init omap_generic_init(void)
 {
 	omap_sdrc_init(NULL, NULL);
@@ -45,10 +61,15 @@ static void __init omap_generic_init(void)
 	 * HACK: call display setup code for selected boards to enable omapdss.
 	 * This will be removed when omapdss supports DT.
 	 */
-	if (of_machine_is_compatible("ti,omap4-panda"))
+	if (of_machine_is_compatible("ti,omap4-panda")) {
 		omap4_panda_display_init_of();
+		legacy_init_ehci_clk("auxclk3_ck");
+
+	}
 	else if (of_machine_is_compatible("ti,omap4-sdp"))
 		omap_4430sdp_display_init_of();
+	else if (of_machine_is_compatible("ti,omap5-uevm"))
+		legacy_init_ehci_clk("auxclk1_ck");
 }
 
 #ifdef CONFIG_SOC_OMAP2420
@@ -183,5 +204,21 @@ DT_MACHINE_START(OMAP5_DT, "Generic OMAP5 (Flattened Device Tree)")
 	.init_time	= omap5_realtime_timer_init,
 	.dt_compat	= omap5_boards_compat,
 	.restart	= omap44xx_restart,
+MACHINE_END
+#endif
+
+#ifdef CONFIG_SOC_AM43XX
+static const char *am43_boards_compat[] __initdata = {
+	"ti,am43",
+	NULL,
+};
+
+DT_MACHINE_START(AM43_DT, "Generic AM43 (Flattened Device Tree)")
+	.map_io		= am33xx_map_io,
+	.init_early	= am43xx_init_early,
+	.init_irq	= omap_gic_of_init,
+	.init_machine	= omap_generic_init,
+	.init_time	= omap3_sync32k_timer_init,
+	.dt_compat	= am43_boards_compat,
 MACHINE_END
 #endif

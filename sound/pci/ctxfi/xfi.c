@@ -122,7 +122,6 @@ error:
 static void ct_card_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 #ifdef CONFIG_PM_SLEEP

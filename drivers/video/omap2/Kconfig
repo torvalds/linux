@@ -6,5 +6,6 @@ if ARCH_OMAP2PLUS
 source "drivers/video/omap2/dss/Kconfig"
 source "drivers/video/omap2/omapfb/Kconfig"
 source "drivers/video/omap2/displays/Kconfig"
+source "drivers/video/omap2/displays-new/Kconfig"
 
 endif

@@ -78,8 +78,8 @@ typedef int (*cam_get_reg_op) (struct gspca_dev *,
 				struct v4l2_dbg_register *);
 typedef int (*cam_set_reg_op) (struct gspca_dev *,
 				const struct v4l2_dbg_register *);
-typedef int (*cam_ident_op) (struct gspca_dev *,
-				struct v4l2_dbg_chip_ident *);
+typedef int (*cam_chip_info_op) (struct gspca_dev *,
+				struct v4l2_dbg_chip_info *);
 typedef void (*cam_streamparm_op) (struct gspca_dev *,
 				  struct v4l2_streamparm *);
 typedef void (*cam_pkt_op) (struct gspca_dev *gspca_dev,
@@ -112,8 +112,8 @@ struct sd_desc {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	cam_set_reg_op set_register;
 	cam_get_reg_op get_register;
+	cam_chip_info_op get_chip_info;
 #endif
-	cam_ident_op get_chip_ident;
 #if IS_ENABLED(CONFIG_INPUT)
 	cam_int_pkt_op int_pkt_scan;
 	/* other_input makes the gspca core create gspca_dev->input even when

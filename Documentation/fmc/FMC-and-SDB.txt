@@ -1,0 +1,88 @@
+
+FMC (FPGA Mezzanine Card) is the standard we use for our I/O devices,
+in the context of White Rabbit and related hardware.
+
+In our I/O environments we need to write drivers for each mezzanine
+card, and such drivers must work regardless of the carrier being used.
+To achieve this, we abstract the FMC interface.
+
+We have a carrier for PCI-E called SPEC and one for VME called SVEC,
+but more are planned.  Also, we support stand-alone devices (usually
+plugged on a SPEC card), controlled through Etherbone, developed by GSI.
+
+Code and documentation for the FMC bus was born as part of the spec-sw
+project, but now it lives in its own project. Other projects, i.e.
+software support for the various carriers, should include this as a
+submodule.
+
+The most up to date version of code and documentation is always
+available from the repository you can clone from:
+
+        git://ohwr.org/fmc-projects/fmc-bus.git (read-only)
+        git@ohwr.org:fmc-projects/fmc-bus.git (read-write for developers)
+
+Selected versions of the documentation, as well as complete tar
+archives for selected revisions are placed to the Files section of the
+project: `http://www.ohwr.org/projects/fmc-bus/files'
+
+
+What is FMC
+***********
+
+FMC, as said, stands for "FPGA Mezzanine Card". It is a standard
+developed by the VME consortium called VITA (VMEbus International Trade
+Association and ratified by ANSI, the American National Standard
+Institute.  The official documentation is called "ANSI-VITA 57.1".
+
+The FMC card is an almost square PCB, around 70x75 millimeters, that is
+called mezzanine in this document.  It usually lives plugged into
+another PCB for power supply and control; such bigger circuit board is
+called carrier from now on, and a single carrier may host more than one
+mezzanine.
+
+In the typical application the mezzanine is mostly analog while the
+carrier is mostly digital, and hosts an FPGA that must be configured to
+match the specific mezzanine and the desired application. Thus, you may
+need to load different FPGA images to drive different instances of the
+same mezzanine.
+
+FMC, as such, is not a bus in the usual meaning of the term, because
+most carriers have only one connector, and carriers with several
+connectors have completely separate electrical connections to them.
+This package, however, implements a bus as a software abstraction.
+
+
+What is SDB
+***********
+
+SDB (Self Describing Bus) is a set of data structures that we use for
+enumerating the internal structure of an FPGA image. We also use it as
+a filesystem inside the FMC EEPROM.
+
+SDB is not mandatory for use of this FMC kernel bus, but if you have SDB
+this package can make good use of it.  SDB itself is developed in the
+fpga-config-space OHWR project. The link to the repository is
+`git://ohwr.org/hdl-core-lib/fpga-config-space.git' and what is used in
+this project lives in the sdbfs subdirectory in there.
+
+SDB support for FMC is described in *note FMC Identification:: and
+*note SDB Support::
+
+
+SDB Support
+***********
+
+The fmc.ko bus driver exports a few functions to help drivers taking
+advantage of the SDB information that may be present in your own FPGA
+memory image.
+
+The module exports the following functions, in the special header
+<linux/fmc-sdb.h>. The linux/ prefix in the name is there because we
+plan to submit it upstream in the future, and don't want to force
+changes on our drivers if that happens.
+
+         int fmc_scan_sdb_tree(struct fmc_device *fmc, unsigned long address);
+         void fmc_show_sdb_tree(struct fmc_device *fmc);
+         signed long fmc_find_sdb_device(struct sdb_array *tree, uint64_t vendor,
+                                         uint32_t device, unsigned long *sz);
+         int fmc_free_sdb_tree(struct fmc_device *fmc);

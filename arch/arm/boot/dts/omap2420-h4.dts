@@ -7,7 +7,7 @@
  */
 /dts-v1/;
 
-/include/ "omap2420.dtsi"
+#include "omap2420.dtsi"
 
 / {
 	model = "TI OMAP2420 H4 board";

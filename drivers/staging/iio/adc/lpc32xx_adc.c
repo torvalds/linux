@@ -215,7 +215,6 @@ static int lpc32xx_adc_remove(struct platform_device *pdev)
 
 	iio_device_unregister(iodev);
 	free_irq(irq, info);
-	platform_set_drvdata(pdev, NULL);
 	clk_put(info->clk);
 	iounmap(info->adc_base);
 	iio_device_free(iodev);

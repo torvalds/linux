@@ -1041,7 +1041,7 @@ static int tegra_spi_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "master allocation failed\n");
 		return -ENOMEM;
 	}
-	dev_set_drvdata(&pdev->dev, master);
+	platform_set_drvdata(pdev, master);
 	tspi = spi_master_get_devdata(master);
 
 	/* Parse DT */
@@ -1152,7 +1152,7 @@ exit_free_master:
 
 static int tegra_spi_remove(struct platform_device *pdev)
 {
-	struct spi_master *master = dev_get_drvdata(&pdev->dev);
+	struct spi_master *master = platform_get_drvdata(pdev);
 	struct tegra_spi_data	*tspi = spi_master_get_devdata(master);
 
 	free_irq(tspi->irq, tspi);

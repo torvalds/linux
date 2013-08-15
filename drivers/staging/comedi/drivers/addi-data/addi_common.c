@@ -20,13 +20,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY
 WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-
-You should also find the complete GPL in the COPYING file accompanying this
-source code.
-
 @endverbatim
 */
 /*
@@ -45,10 +38,6 @@ source code.
   | Description : ADDI COMMON Main Module                                 |
   +-----------------------------------------------------------------------+
 */
-
-#ifndef COMEDI_SUBD_TTLIO
-#define COMEDI_SUBD_TTLIO   11	/* Digital Input Output But TTL */
-#endif
 
 static int i_ADDIDATA_InsnReadEeprom(struct comedi_device *dev,
 				     struct comedi_subdevice *s,
@@ -105,23 +94,14 @@ static int addi_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	if (!this_board->pc_EepromChip ||
-	    strcmp(this_board->pc_EepromChip, ADDIDATA_9054)) {
-		/* board does not have an eeprom or is not ADDIDATA_9054 */
-		if (this_board->i_IorangeBase1)
-			dev->iobase = pci_resource_start(pcidev, 1);
-		else
-			dev->iobase = pci_resource_start(pcidev, 0);
+	if (this_board->i_IorangeBase1)
+		dev->iobase = pci_resource_start(pcidev, 1);
+	else
+		dev->iobase = pci_resource_start(pcidev, 0);
 
-		devpriv->iobase = dev->iobase;
-		devpriv->i_IobaseAmcc = pci_resource_start(pcidev, 0);
-		devpriv->i_IobaseAddon = pci_resource_start(pcidev, 2);
-	} else {
-		/* board has an ADDIDATA_9054 eeprom */
-		dev->iobase = pci_resource_start(pcidev, 2);
-		devpriv->iobase = pci_resource_start(pcidev, 2);
-		devpriv->dw_AiBase = pci_ioremap_bar(pcidev, 3);
-	}
+	devpriv->iobase = dev->iobase;
+	devpriv->i_IobaseAmcc = pci_resource_start(pcidev, 0);
+	devpriv->i_IobaseAddon = pci_resource_start(pcidev, 2);
 	devpriv->i_IobaseReserved = pci_resource_start(pcidev, 3);
 
 	/* Initialize parameters that can be overridden in EEPROM */
@@ -132,7 +112,6 @@ static int addi_auto_attach(struct comedi_device *dev,
 	devpriv->s_EeParameters.i_NbrDiChannel = this_board->i_NbrDiChannel;
 	devpriv->s_EeParameters.i_NbrDoChannel = this_board->i_NbrDoChannel;
 	devpriv->s_EeParameters.i_DoMaxdata = this_board->i_DoMaxdata;
-	devpriv->s_EeParameters.i_Dma = this_board->i_Dma;
 	devpriv->s_EeParameters.i_Timer = this_board->i_Timer;
 	devpriv->s_EeParameters.ui_MinAcquisitiontimeNs =
 		this_board->ui_MinAcquisitiontimeNs;
@@ -191,9 +170,6 @@ static int addi_auto_attach(struct comedi_device *dev,
 		s->len_chanlist = this_board->i_AiChannelList;
 		s->range_table = this_board->pr_AiRangelist;
 
-		/* Set the initialisation flag */
-		devpriv->b_AiInitialisation = 1;
-
 		s->insn_config = this_board->ai_config;
 		s->insn_read = this_board->ai_read;
 		s->insn_write = this_board->ai_write;
@@ -215,8 +191,6 @@ static int addi_auto_attach(struct comedi_device *dev,
 		s->maxdata = devpriv->s_EeParameters.i_AoMaxdata;
 		s->len_chanlist =
 			devpriv->s_EeParameters.i_NbrAoChannel;
-		s->range_table = this_board->pr_AoRangelist;
-		s->insn_config = this_board->ao_config;
 		s->insn_write = this_board->ao_write;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
@@ -281,22 +255,7 @@ static int addi_auto_attach(struct comedi_device *dev,
 
 	/*  Allocate and Initialise TTL */
 	s = &dev->subdevices[5];
-	if (this_board->i_NbrTTLChannel) {
-		s->type = COMEDI_SUBD_TTLIO;
-		s->subdev_flags =
-			SDF_WRITEABLE | SDF_READABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = this_board->i_NbrTTLChannel;
-		s->maxdata = 1;
-		s->io_bits = 0;	/* all bits input */
-		s->len_chanlist = this_board->i_NbrTTLChannel;
-		s->range_table = &range_digital;
-		s->insn_config = this_board->ttl_config;
-		s->insn_bits = this_board->ttl_bits;
-		s->insn_read = this_board->ttl_read;
-		s->insn_write = this_board->ttl_write;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type = COMEDI_SUBD_UNUSED;
 
 	/* EEPROM */
 	s = &dev->subdevices[6];
@@ -323,8 +282,6 @@ static void i_ADDI_Detach(struct comedi_device *dev)
 			i_ADDI_Reset(dev);
 		if (dev->irq)
 			free_irq(dev->irq, dev);
-		if (devpriv->dw_AiBase)
-			iounmap(devpriv->dw_AiBase);
 	}
 	comedi_pci_disable(dev);
 }

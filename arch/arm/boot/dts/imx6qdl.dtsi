@@ -106,6 +106,8 @@
 			interrupts = <0 92 0x04>;
 			cache-unified;
 			cache-level = <2>;
+			arm,tag-latency = <4 2 3>;
+			arm,data-latency = <4 2 3>;
 		};
 
 		pmu {
@@ -638,7 +640,7 @@
 				status = "disabled";
 			};
 
-			usbmisc: usbmisc: usbmisc@02184800 {
+			usbmisc: usbmisc@02184800 {
 				#index-cells = <1>;
 				compatible = "fsl,imx6q-usbmisc";
 				reg = <0x02184800 0x200>;
@@ -742,19 +744,16 @@
 				reg = <0x021b4000 0x4000>;
 			};
 
-			weim@021b8000 {
+			weim: weim@021b8000 {
+				compatible = "fsl,imx6q-weim";
 				reg = <0x021b8000 0x4000>;
 				interrupts = <0 14 0x04>;
+				clocks = <&clks 196>;
 			};
 
 			ocotp@021bc000 {
 				compatible = "fsl,imx6q-ocotp";
 				reg = <0x021bc000 0x4000>;
-			};
-
-			ocotp@021c0000 {
-				reg = <0x021c0000 0x4000>;
-				interrupts = <0 21 0x04>;
 			};
 
 			tzasc@021d0000 { /* TZASC1 */

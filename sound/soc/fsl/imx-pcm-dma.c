@@ -67,8 +67,10 @@ int imx_pcm_dma_init(struct platform_device *pdev)
 		SND_DMAENGINE_PCM_FLAG_NO_DT |
 		SND_DMAENGINE_PCM_FLAG_COMPAT);
 }
+EXPORT_SYMBOL_GPL(imx_pcm_dma_init);
 
 void imx_pcm_dma_exit(struct platform_device *pdev)
 {
 	snd_dmaengine_pcm_unregister(&pdev->dev);
 }
+EXPORT_SYMBOL_GPL(imx_pcm_dma_exit);

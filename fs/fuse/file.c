@@ -548,8 +548,7 @@ static void fuse_aio_complete(struct fuse_io_priv *io, int err, ssize_t pos)
 			res = io->bytes < 0 ? io->size : io->bytes;
 
 			if (!is_sync_kiocb(io->iocb)) {
-				struct path *path = &io->iocb->ki_filp->f_path;
-				struct inode *inode = path->dentry->d_inode;
+				struct inode *inode = file_inode(io->iocb->ki_filp);
 				struct fuse_conn *fc = get_fuse_conn(inode);
 				struct fuse_inode *fi = get_fuse_inode(inode);
 

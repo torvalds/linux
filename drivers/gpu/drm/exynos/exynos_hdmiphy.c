@@ -15,7 +15,6 @@
 
 #include <linux/kernel.h>
 #include <linux/i2c.h>
-#include <linux/module.h>
 
 #include "exynos_drm_drv.h"
 #include "exynos_hdmi.h"
@@ -50,6 +49,10 @@ static const struct i2c_device_id hdmiphy_id[] = {
 static struct of_device_id hdmiphy_match_types[] = {
 	{
 		.compatible = "samsung,exynos5-hdmiphy",
+	}, {
+		.compatible = "samsung,exynos4210-hdmiphy",
+	}, {
+		.compatible = "samsung,exynos4212-hdmiphy",
 	}, {
 		/* end node */
 	}

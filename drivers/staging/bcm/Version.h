@@ -1,4 +1,3 @@
-
 /*Copyright (c) 2005 Beceem Communications Inc.
 
 Module Name:
@@ -17,7 +16,6 @@ Abstract:
 #define VER_FILETYPE                VFT_DRV
 #define VER_FILESUBTYPE             VFT2_DRV_NETWORK
 
-
 #define VER_FILEVERSION             5.2.45
 #define VER_FILEVERSION_STR         "5.2.45"
 
@@ -28,8 +26,4 @@ Abstract:
 #define VER_PRODUCTVERSION_STR      VER_FILEVERSION_STR
 
 
-
-
-//#include "common.ver"
-
-#endif 	//VERSION_H
+#endif /* VERSION_H */

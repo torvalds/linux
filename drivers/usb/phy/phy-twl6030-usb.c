@@ -347,7 +347,7 @@ static int twl6030_usb_probe(struct platform_device *pdev)
 	if (np) {
 		twl->regulator = "usb";
 	} else if (pdata) {
-		if (pdata->features & TWL6025_SUBCLASS)
+		if (pdata->features & TWL6032_SUBCLASS)
 			twl->regulator = "ldousb";
 		else
 			twl->regulator = "vusb";

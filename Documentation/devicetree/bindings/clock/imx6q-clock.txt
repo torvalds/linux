@@ -208,6 +208,7 @@ clocks and IDs.
 	pll4_post_div		193
 	pll5_post_div		194
 	pll5_video_div		195
+	eim_slow      		196
 
 Examples:
 

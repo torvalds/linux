@@ -61,11 +61,6 @@ static void __handle_on_exit_funcs(void)
 }
 #endif
 
-enum write_mode_t {
-	WRITE_FORCE,
-	WRITE_APPEND
-};
-
 struct perf_record {
 	struct perf_tool	tool;
 	struct perf_record_opts	opts;
@@ -77,12 +72,8 @@ struct perf_record {
 	int			output;
 	unsigned int		page_size;
 	int			realtime_prio;
-	enum write_mode_t	write_mode;
 	bool			no_buildid;
 	bool			no_buildid_cache;
-	bool			force;
-	bool			file_new;
-	bool			append_file;
 	long			samples;
 	off_t			post_processing_offset;
 };
@@ -198,26 +189,6 @@ static void perf_record__sig_exit(int exit_status __maybe_unused, void *arg)
 		return;
 
 	signal(signr, SIG_DFL);
-	kill(getpid(), signr);
-}
-
-static bool perf_evlist__equal(struct perf_evlist *evlist,
-			       struct perf_evlist *other)
-{
-	struct perf_evsel *pos, *pair;
-
-	if (evlist->nr_entries != other->nr_entries)
-		return false;
-
-	pair = perf_evlist__first(other);
-
-	list_for_each_entry(pos, &evlist->entries, node) {
-		if (memcmp(&pos->attr, &pair->attr, sizeof(pos->attr) != 0))
-			return false;
-		pair = perf_evsel__next(pair);
-	}
-
-	return true;
 }
 
 static int perf_record__open(struct perf_record *rec)
@@ -274,16 +245,7 @@ try_again:
 		goto out;
 	}
 
-	if (rec->file_new)
-		session->evlist = evlist;
-	else {
-		if (!perf_evlist__equal(session->evlist, evlist)) {
-			fprintf(stderr, "incompatible append\n");
-			rc = -1;
-			goto out;
-		}
- 	}
-
+	session->evlist = evlist;
 	perf_session__set_id_hdr_size(session);
 out:
 	return rc;
@@ -404,6 +366,7 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 	signal(SIGCHLD, sig_handler);
 	signal(SIGINT, sig_handler);
 	signal(SIGUSR1, sig_handler);
+	signal(SIGTERM, sig_handler);
 
 	if (!output_name) {
 		if (!fstat(STDOUT_FILENO, &st) && S_ISFIFO(st.st_mode))
@@ -415,23 +378,15 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 		if (!strcmp(output_name, "-"))
 			opts->pipe_output = true;
 		else if (!stat(output_name, &st) && st.st_size) {
-			if (rec->write_mode == WRITE_FORCE) {
-				char oldname[PATH_MAX];
-				snprintf(oldname, sizeof(oldname), "%s.old",
-					 output_name);
-				unlink(oldname);
-				rename(output_name, oldname);
-			}
-		} else if (rec->write_mode == WRITE_APPEND) {
-			rec->write_mode = WRITE_FORCE;
+			char oldname[PATH_MAX];
+			snprintf(oldname, sizeof(oldname), "%s.old",
+				 output_name);
+			unlink(oldname);
+			rename(output_name, oldname);
 		}
 	}
 
-	flags = O_CREAT|O_RDWR;
-	if (rec->write_mode == WRITE_APPEND)
-		rec->file_new = 0;
-	else
-		flags |= O_TRUNC;
+	flags = O_CREAT|O_RDWR|O_TRUNC;
 
 	if (opts->pipe_output)
 		output = STDOUT_FILENO;
@@ -445,7 +400,7 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 	rec->output = output;
 
 	session = perf_session__new(output_name, O_WRONLY,
-				    rec->write_mode == WRITE_FORCE, false, NULL);
+				    true, false, NULL);
 	if (session == NULL) {
 		pr_err("Not enough memory for reading perf file header\n");
 		return -1;
@@ -464,12 +419,6 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 
 	if (!rec->opts.branch_stack)
 		perf_header__clear_feat(&session->header, HEADER_BRANCH_STACK);
-
-	if (!rec->file_new) {
-		err = perf_session__read_header(session, output);
-		if (err < 0)
-			goto out_delete_session;
-	}
 
 	if (forks) {
 		err = perf_evlist__prepare_workload(evsel_list, &opts->target,
@@ -498,7 +447,7 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 		err = perf_header__write_pipe(output);
 		if (err < 0)
 			goto out_delete_session;
-	} else if (rec->file_new) {
+	} else {
 		err = perf_session__write_header(session, evsel_list,
 						 output, false);
 		if (err < 0)
@@ -869,8 +818,6 @@ static struct perf_record record = {
 			.uses_mmap   = true,
 		},
 	},
-	.write_mode = WRITE_FORCE,
-	.file_new   = true,
 };
 
 #define CALLCHAIN_HELP "do call-graph (stack chain/backtrace) recording: "
@@ -906,12 +853,8 @@ const struct option record_options[] = {
 		    "collect raw sample records from all opened counters"),
 	OPT_BOOLEAN('a', "all-cpus", &record.opts.target.system_wide,
 			    "system-wide collection from all CPUs"),
-	OPT_BOOLEAN('A', "append", &record.append_file,
-			    "append to the output file to do incremental profiling"),
 	OPT_STRING('C', "cpu", &record.opts.target.cpu_list, "cpu",
 		    "list of cpus to monitor"),
-	OPT_BOOLEAN('f', "force", &record.force,
-			"overwrite existing data file (deprecated)"),
 	OPT_U64('c', "count", &record.opts.user_interval, "event period to sample"),
 	OPT_STRING('o', "output", &record.output_name, "file",
 		    "output file name"),
@@ -976,16 +919,6 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 			    PARSE_OPT_STOP_AT_NON_OPTION);
 	if (!argc && perf_target__none(&rec->opts.target))
 		usage_with_options(record_usage, record_options);
-
-	if (rec->force && rec->append_file) {
-		ui__error("Can't overwrite and append at the same time."
-			  " You need to choose between -f and -A");
-		usage_with_options(record_usage, record_options);
-	} else if (rec->append_file) {
-		rec->write_mode = WRITE_APPEND;
-	} else {
-		rec->write_mode = WRITE_FORCE;
-	}
 
 	if (nr_cgroups && !rec->opts.target.system_wide) {
 		ui__error("cgroup monitoring only available in"

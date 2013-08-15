@@ -20,6 +20,7 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/msi.h>
+#include <linux/iommu.h>
 
 #include <asm/sections.h>
 #include <asm/io.h>
@@ -32,6 +33,8 @@
 #include <asm/iommu.h>
 #include <asm/tce.h>
 #include <asm/firmware.h>
+#include <asm/eeh_event.h>
+#include <asm/eeh.h>
 
 #include "powernv.h"
 #include "pci.h"
@@ -202,7 +205,8 @@ static void pnv_pci_handle_eeh_config(struct pnv_phb *phb, u32 pe_no)
 
 	spin_lock_irqsave(&phb->lock, flags);
 
-	rc = opal_pci_get_phb_diag_data(phb->opal_id, phb->diag.blob, PNV_PCI_DIAG_BUF_SIZE);
+	rc = opal_pci_get_phb_diag_data2(phb->opal_id, phb->diag.blob,
+					 PNV_PCI_DIAG_BUF_SIZE);
 	has_diag = (rc == OPAL_SUCCESS);
 
 	rc = opal_pci_eeh_freeze_clear(phb->opal_id, pe_no,
@@ -227,42 +231,49 @@ static void pnv_pci_handle_eeh_config(struct pnv_phb *phb, u32 pe_no)
 	spin_unlock_irqrestore(&phb->lock, flags);
 }
 
-static void pnv_pci_config_check_eeh(struct pnv_phb *phb, struct pci_bus *bus,
-				     u32 bdfn)
+static void pnv_pci_config_check_eeh(struct pnv_phb *phb,
+				     struct device_node *dn)
 {
 	s64	rc;
 	u8	fstate;
 	u16	pcierr;
 	u32	pe_no;
 
-	/* Get PE# if we support IODA */
-	pe_no = phb->bdfn_to_pe ? phb->bdfn_to_pe(phb, bus, bdfn & 0xff) : 0;
+	/*
+	 * Get the PE#. During the PCI probe stage, we might not
+	 * setup that yet. So all ER errors should be mapped to
+	 * PE#0
+	 */
+	pe_no = PCI_DN(dn)->pe_number;
+	if (pe_no == IODA_INVALID_PE)
+		pe_no = 0;
 
 	/* Read freeze status */
 	rc = opal_pci_eeh_freeze_status(phb->opal_id, pe_no, &fstate, &pcierr,
 					NULL);
 	if (rc) {
-		pr_warning("PCI %d: Failed to read EEH status for PE#%d,"
-			   " err %lld\n", phb->hose->global_number, pe_no, rc);
+		pr_warning("%s: Can't read EEH status (PE#%d) for "
+			   "%s, err %lld\n",
+			   __func__, pe_no, dn->full_name, rc);
 		return;
 	}
-	cfg_dbg(" -> EEH check, bdfn=%04x PE%d fstate=%x\n",
-		bdfn, pe_no, fstate);
+	cfg_dbg(" -> EEH check, bdfn=%04x PE#%d fstate=%x\n",
+		(PCI_DN(dn)->busno << 8) | (PCI_DN(dn)->devfn),
+		pe_no, fstate);
 	if (fstate != 0)
 		pnv_pci_handle_eeh_config(phb, pe_no);
 }
 
-static int pnv_pci_read_config(struct pci_bus *bus,
-			       unsigned int devfn,
-			       int where, int size, u32 *val)
+int pnv_pci_cfg_read(struct device_node *dn,
+		     int where, int size, u32 *val)
 {
-	struct pci_controller *hose = pci_bus_to_host(bus);
-	struct pnv_phb *phb = hose->private_data;
-	u32 bdfn = (((uint64_t)bus->number) << 8) | devfn;
+	struct pci_dn *pdn = PCI_DN(dn);
+	struct pnv_phb *phb = pdn->phb->private_data;
+	u32 bdfn = (pdn->busno << 8) | pdn->devfn;
+#ifdef CONFIG_EEH
+	struct eeh_pe *phb_pe = NULL;
+#endif
 	s64 rc;
-
-	if (hose == NULL)
-		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	switch (size) {
 	case 1: {
@@ -287,28 +298,43 @@ static int pnv_pci_read_config(struct pci_bus *bus,
 	default:
 		return PCIBIOS_FUNC_NOT_SUPPORTED;
 	}
-	cfg_dbg("pnv_pci_read_config bus: %x devfn: %x +%x/%x -> %08x\n",
-		bus->number, devfn, where, size, *val);
+	cfg_dbg("%s: bus: %x devfn: %x +%x/%x -> %08x\n",
+		__func__, pdn->busno, pdn->devfn, where, size, *val);
 
-	/* Check if the PHB got frozen due to an error (no response) */
-	pnv_pci_config_check_eeh(phb, bus, bdfn);
+	/*
+	 * Check if the specified PE has been put into frozen
+	 * state. On the other hand, we needn't do that while
+	 * the PHB has been put into frozen state because of
+	 * PHB-fatal errors.
+	 */
+#ifdef CONFIG_EEH
+	phb_pe = eeh_phb_pe_get(pdn->phb);
+	if (phb_pe && (phb_pe->state & EEH_PE_ISOLATED))
+		return PCIBIOS_SUCCESSFUL;
+
+	if (phb->eeh_state & PNV_EEH_STATE_ENABLED) {
+		if (*val == EEH_IO_ERROR_VALUE(size) &&
+		    eeh_dev_check_failure(of_node_to_eeh_dev(dn)))
+			return PCIBIOS_DEVICE_NOT_FOUND;
+	} else {
+		pnv_pci_config_check_eeh(phb, dn);
+	}
+#else
+	pnv_pci_config_check_eeh(phb, dn);
+#endif
 
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static int pnv_pci_write_config(struct pci_bus *bus,
-				unsigned int devfn,
-				int where, int size, u32 val)
+int pnv_pci_cfg_write(struct device_node *dn,
+		      int where, int size, u32 val)
 {
-	struct pci_controller *hose = pci_bus_to_host(bus);
-	struct pnv_phb *phb = hose->private_data;
-	u32 bdfn = (((uint64_t)bus->number) << 8) | devfn;
+	struct pci_dn *pdn = PCI_DN(dn);
+	struct pnv_phb *phb = pdn->phb->private_data;
+	u32 bdfn = (pdn->busno << 8) | pdn->devfn;
 
-	if (hose == NULL)
-		return PCIBIOS_DEVICE_NOT_FOUND;
-
-	cfg_dbg("pnv_pci_write_config bus: %x devfn: %x +%x/%x -> %08x\n",
-		bus->number, devfn, where, size, val);
+	cfg_dbg("%s: bus: %x devfn: %x +%x/%x -> %08x\n",
+		pdn->busno, pdn->devfn, where, size, val);
 	switch (size) {
 	case 1:
 		opal_pci_config_write_byte(phb->opal_id, bdfn, where, val);
@@ -322,14 +348,54 @@ static int pnv_pci_write_config(struct pci_bus *bus,
 	default:
 		return PCIBIOS_FUNC_NOT_SUPPORTED;
 	}
+
 	/* Check if the PHB got frozen due to an error (no response) */
-	pnv_pci_config_check_eeh(phb, bus, bdfn);
+#ifdef CONFIG_EEH
+	if (!(phb->eeh_state & PNV_EEH_STATE_ENABLED))
+		pnv_pci_config_check_eeh(phb, dn);
+#else
+	pnv_pci_config_check_eeh(phb, dn);
+#endif
 
 	return PCIBIOS_SUCCESSFUL;
 }
 
+static int pnv_pci_read_config(struct pci_bus *bus,
+			       unsigned int devfn,
+			       int where, int size, u32 *val)
+{
+	struct device_node *dn, *busdn = pci_bus_to_OF_node(bus);
+	struct pci_dn *pdn;
+
+	for (dn = busdn->child; dn; dn = dn->sibling) {
+		pdn = PCI_DN(dn);
+		if (pdn && pdn->devfn == devfn)
+			return pnv_pci_cfg_read(dn, where, size, val);
+	}
+
+	*val = 0xFFFFFFFF;
+	return PCIBIOS_DEVICE_NOT_FOUND;
+
+}
+
+static int pnv_pci_write_config(struct pci_bus *bus,
+				unsigned int devfn,
+				int where, int size, u32 val)
+{
+	struct device_node *dn, *busdn = pci_bus_to_OF_node(bus);
+	struct pci_dn *pdn;
+
+	for (dn = busdn->child; dn; dn = dn->sibling) {
+		pdn = PCI_DN(dn);
+		if (pdn && pdn->devfn == devfn)
+			return pnv_pci_cfg_write(dn, where, size, val);
+	}
+
+	return PCIBIOS_DEVICE_NOT_FOUND;
+}
+
 struct pci_ops pnv_pci_ops = {
-	.read = pnv_pci_read_config,
+	.read  = pnv_pci_read_config,
 	.write = pnv_pci_write_config,
 };
 
@@ -412,6 +478,7 @@ static struct iommu_table *pnv_pci_setup_bml_iommu(struct pci_controller *hose)
 	pnv_pci_setup_iommu_table(tbl, __va(be64_to_cpup(basep)),
 				  be32_to_cpup(sizep), 0);
 	iommu_init_table(tbl, hose->node);
+	iommu_register_group(tbl, pci_domain_nr(hose->bus), 0);
 
 	/* Deal with SW invalidated TCEs when needed (BML way) */
 	swinvp = of_get_property(hose->dn, "linux,tce-sw-invalidate-info",

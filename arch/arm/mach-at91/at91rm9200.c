@@ -11,6 +11,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/reboot.h>
 
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
@@ -304,7 +305,7 @@ static void at91rm9200_idle(void)
 	at91_pmc_write(AT91_PMC_SCDR, AT91_PMC_PCK);
 }
 
-static void at91rm9200_restart(char mode, const char *cmd)
+static void at91rm9200_restart(enum reboot_mode reboot_mode, const char *cmd)
 {
 	/*
 	 * Perform a hardware reset with the use of the Watchdog timer.
@@ -332,10 +333,6 @@ static void __init at91rm9200_initialize(void)
 {
 	arm_pm_idle = at91rm9200_idle;
 	arm_pm_restart = at91rm9200_restart;
-	at91_extern_irq = (1 << AT91RM9200_ID_IRQ0) | (1 << AT91RM9200_ID_IRQ1)
-			| (1 << AT91RM9200_ID_IRQ2) | (1 << AT91RM9200_ID_IRQ3)
-			| (1 << AT91RM9200_ID_IRQ4) | (1 << AT91RM9200_ID_IRQ5)
-			| (1 << AT91RM9200_ID_IRQ6);
 
 	/* Initialize GPIO subsystem */
 	at91_gpio_init(at91rm9200_gpio,
@@ -388,6 +385,10 @@ static unsigned int at91rm9200_default_irq_priority[NR_AIC_IRQS] __initdata = {
 AT91_SOC_START(at91rm9200)
 	.map_io = at91rm9200_map_io,
 	.default_irq_priority = at91rm9200_default_irq_priority,
+	.extern_irq = (1 << AT91RM9200_ID_IRQ0) | (1 << AT91RM9200_ID_IRQ1)
+		    | (1 << AT91RM9200_ID_IRQ2) | (1 << AT91RM9200_ID_IRQ3)
+		    | (1 << AT91RM9200_ID_IRQ4) | (1 << AT91RM9200_ID_IRQ5)
+		    | (1 << AT91RM9200_ID_IRQ6),
 	.ioremap_registers = at91rm9200_ioremap_registers,
 	.register_clocks = at91rm9200_register_clocks,
 	.init = at91rm9200_initialize,

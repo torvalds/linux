@@ -171,7 +171,5 @@ extern unsigned long profile_pc(struct pt_regs *regs);
 #define profile_pc(regs) instruction_pointer(regs)
 #endif
 
-extern int aarch32_break_trap(struct pt_regs *regs);
-
 #endif /* __ASSEMBLY__ */
 #endif

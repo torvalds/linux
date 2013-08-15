@@ -28,6 +28,7 @@
 #include <linux/leds.h>
 #include <linux/dma-mapping.h>
 #include <linux/pinctrl/machine.h>
+#include <linux/platform_data/gpio-rcar.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 #include <linux/smsc911x.h>
@@ -36,10 +37,6 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/mfd/tmio.h>
-#include <linux/usb/otg.h>
-#include <linux/usb/ehci_pdriver.h>
-#include <linux/usb/ohci_pdriver.h>
-#include <linux/pm_runtime.h>
 #include <mach/hardware.h>
 #include <mach/r8a7779.h>
 #include <mach/common.h>
@@ -60,6 +57,8 @@ static struct regulator_consumer_supply dummy_supplies[] = {
 	REGULATOR_SUPPLY("vdd33a", "smsc911x"),
 };
 
+static struct rcar_phy_platform_data usb_phy_platform_data __initdata;
+
 /* SMSC LAN89218 */
 static struct resource smsc911x_resources[] = {
 	[0] = {
@@ -68,7 +67,7 @@ static struct resource smsc911x_resources[] = {
 		.flags		= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start		= gic_iid(0x3c), /* IRQ 1 */
+		.start		= irq_pin(1), /* IRQ 1 */
 		.flags		= IORESOURCE_IRQ,
 	},
 };
@@ -149,39 +148,19 @@ static struct platform_device hspi_device = {
 	.num_resources	= ARRAY_SIZE(hspi_resources),
 };
 
-/* USB PHY */
-static struct resource usb_phy_resources[] = {
-	[0] = {
-		.start		= 0xffe70000,
-		.end		= 0xffe70900 - 1,
-		.flags		= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start		= 0xfff70000,
-		.end		= 0xfff70900 - 1,
-		.flags		= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device usb_phy_device = {
-	.name		= "rcar_usb_phy",
-	.resource	= usb_phy_resources,
-	.num_resources	= ARRAY_SIZE(usb_phy_resources),
-};
-
 /* LEDS */
 static struct gpio_led marzen_leds[] = {
 	{
 		.name		= "led2",
-		.gpio		= 157,
+		.gpio		= RCAR_GP_PIN(4, 29),
 		.default_state	= LEDS_GPIO_DEFSTATE_ON,
 	}, {
 		.name		= "led3",
-		.gpio		= 158,
+		.gpio		= RCAR_GP_PIN(4, 30),
 		.default_state	= LEDS_GPIO_DEFSTATE_ON,
 	}, {
 		.name		= "led4",
-		.gpio		= 159,
+		.gpio		= RCAR_GP_PIN(4, 31),
 		.default_state	= LEDS_GPIO_DEFSTATE_ON,
 	},
 };
@@ -204,160 +183,8 @@ static struct platform_device *marzen_devices[] __initdata = {
 	&sdhi0_device,
 	&thermal_device,
 	&hspi_device,
-	&usb_phy_device,
 	&leds_device,
 };
-
-/* USB */
-static struct usb_phy *phy;
-static int usb_power_on(struct platform_device *pdev)
-{
-	if (IS_ERR(phy))
-		return PTR_ERR(phy);
-
-	pm_runtime_enable(&pdev->dev);
-	pm_runtime_get_sync(&pdev->dev);
-
-	usb_phy_init(phy);
-
-	return 0;
-}
-
-static void usb_power_off(struct platform_device *pdev)
-{
-	if (IS_ERR(phy))
-		return;
-
-	usb_phy_shutdown(phy);
-
-	pm_runtime_put_sync(&pdev->dev);
-	pm_runtime_disable(&pdev->dev);
-}
-
-static struct usb_ehci_pdata ehcix_pdata = {
-	.power_on	= usb_power_on,
-	.power_off	= usb_power_off,
-	.power_suspend	= usb_power_off,
-};
-
-static struct resource ehci0_resources[] = {
-	[0] = {
-		.start	= 0xffe70000,
-		.end	= 0xffe70400 - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= gic_iid(0x4c),
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device ehci0_device = {
-	.name	= "ehci-platform",
-	.id	= 0,
-	.dev	= {
-		.dma_mask		= &ehci0_device.dev.coherent_dma_mask,
-		.coherent_dma_mask	= 0xffffffff,
-		.platform_data		= &ehcix_pdata,
-	},
-	.num_resources	= ARRAY_SIZE(ehci0_resources),
-	.resource	= ehci0_resources,
-};
-
-static struct resource ehci1_resources[] = {
-	[0] = {
-		.start	= 0xfff70000,
-		.end	= 0xfff70400 - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= gic_iid(0x4d),
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device ehci1_device = {
-	.name	= "ehci-platform",
-	.id	= 1,
-	.dev	= {
-		.dma_mask		= &ehci1_device.dev.coherent_dma_mask,
-		.coherent_dma_mask	= 0xffffffff,
-		.platform_data		= &ehcix_pdata,
-	},
-	.num_resources	= ARRAY_SIZE(ehci1_resources),
-	.resource	= ehci1_resources,
-};
-
-static struct usb_ohci_pdata ohcix_pdata = {
-	.power_on	= usb_power_on,
-	.power_off	= usb_power_off,
-	.power_suspend	= usb_power_off,
-};
-
-static struct resource ohci0_resources[] = {
-	[0] = {
-		.start	= 0xffe70400,
-		.end	= 0xffe70800 - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= gic_iid(0x4c),
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device ohci0_device = {
-	.name	= "ohci-platform",
-	.id	= 0,
-	.dev	= {
-		.dma_mask		= &ohci0_device.dev.coherent_dma_mask,
-		.coherent_dma_mask	= 0xffffffff,
-		.platform_data		= &ohcix_pdata,
-	},
-	.num_resources	= ARRAY_SIZE(ohci0_resources),
-	.resource	= ohci0_resources,
-};
-
-static struct resource ohci1_resources[] = {
-	[0] = {
-		.start	= 0xfff70400,
-		.end	= 0xfff70800 - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= gic_iid(0x4d),
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device ohci1_device = {
-	.name	= "ohci-platform",
-	.id	= 1,
-	.dev	= {
-		.dma_mask		= &ohci1_device.dev.coherent_dma_mask,
-		.coherent_dma_mask	= 0xffffffff,
-		.platform_data		= &ohcix_pdata,
-	},
-	.num_resources	= ARRAY_SIZE(ohci1_resources),
-	.resource	= ohci1_resources,
-};
-
-static struct platform_device *marzen_late_devices[] __initdata = {
-	&ehci0_device,
-	&ehci1_device,
-	&ohci0_device,
-	&ohci1_device,
-};
-
-void __init marzen_init_late(void)
-{
-	/* get usb phy */
-	phy = usb_get_phy(USB_PHY_TYPE_USB2);
-
-	shmobile_init_late();
-	platform_add_devices(marzen_late_devices,
-			     ARRAY_SIZE(marzen_late_devices));
-}
 
 static const struct pinctrl_map marzen_pinctrl_map[] = {
 	/* HSPI0 */
@@ -404,8 +231,10 @@ static void __init marzen_init(void)
 	pinctrl_register_mappings(marzen_pinctrl_map,
 				  ARRAY_SIZE(marzen_pinctrl_map));
 	r8a7779_pinmux_init();
+	r8a7779_init_irq_extpin(1); /* IRQ1 as individual interrupt */
 
 	r8a7779_add_standard_devices();
+	r8a7779_add_usb_phy_device(&usb_phy_platform_data);
 	platform_add_devices(marzen_devices, ARRAY_SIZE(marzen_devices));
 }
 
@@ -416,6 +245,6 @@ MACHINE_START(MARZEN, "marzen")
 	.nr_irqs	= NR_IRQS_LEGACY,
 	.init_irq	= r8a7779_init_irq,
 	.init_machine	= marzen_init,
-	.init_late	= marzen_init_late,
+	.init_late	= r8a7779_init_late,
 	.init_time	= r8a7779_earlytimer_init,
 MACHINE_END

@@ -5,9 +5,10 @@
 subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
 
 ccflags-y := -Ivirt/kvm -Iarch/powerpc/kvm
+KVM := ../../../virt/kvm
 
-common-objs-y = $(addprefix ../../../virt/kvm/, kvm_main.o coalesced_mmio.o \
-						eventfd.o)
+common-objs-y = $(KVM)/kvm_main.o $(KVM)/coalesced_mmio.o \
+		$(KVM)/eventfd.o
 
 CFLAGS_44x_tlb.o  := -I.
 CFLAGS_e500_mmu.o := -I.
@@ -53,7 +54,7 @@ kvm-e500mc-objs := \
 kvm-objs-$(CONFIG_KVM_E500MC) := $(kvm-e500mc-objs)
 
 kvm-book3s_64-objs-$(CONFIG_KVM_BOOK3S_64_PR) := \
-	../../../virt/kvm/coalesced_mmio.o \
+	$(KVM)/coalesced_mmio.o \
 	fpu.o \
 	book3s_paired_singles.o \
 	book3s_pr.o \
@@ -86,8 +87,8 @@ kvm-book3s_64-objs-$(CONFIG_KVM_XICS) += \
 	book3s_xics.o
 
 kvm-book3s_64-module-objs := \
-	../../../virt/kvm/kvm_main.o \
-	../../../virt/kvm/eventfd.o \
+	$(KVM)/kvm_main.o \
+	$(KVM)/eventfd.o \
 	powerpc.o \
 	emulate.o \
 	book3s.o \
@@ -111,7 +112,7 @@ kvm-book3s_32-objs := \
 kvm-objs-$(CONFIG_KVM_BOOK3S_32) := $(kvm-book3s_32-objs)
 
 kvm-objs-$(CONFIG_KVM_MPIC) += mpic.o
-kvm-objs-$(CONFIG_HAVE_KVM_IRQ_ROUTING) += $(addprefix ../../../virt/kvm/, irqchip.o)
+kvm-objs-$(CONFIG_HAVE_KVM_IRQ_ROUTING) += $(KVM)/irqchip.o
 
 kvm-objs := $(kvm-objs-m) $(kvm-objs-y)
 

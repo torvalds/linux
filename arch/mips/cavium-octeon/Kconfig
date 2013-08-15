@@ -10,6 +10,10 @@ config CAVIUM_CN63XXP1
 	  non-CN63XXP1 hardware, so it is recommended to select "n"
 	  unless it is known the workarounds are needed.
 
+endif # CPU_CAVIUM_OCTEON
+
+if CAVIUM_OCTEON_SOC
+
 config CAVIUM_OCTEON_2ND_KERNEL
 	bool "Build the kernel to be used as a 2nd kernel on the same chip"
 	default "n"
@@ -18,17 +22,6 @@ config CAVIUM_OCTEON_2ND_KERNEL
 	  address and use the 2nd uart for output. This allows a kernel built
 	  with this option to be run at the same time as one built without this
 	  option.
-
-config CAVIUM_OCTEON_HW_FIX_UNALIGNED
-	bool "Enable hardware fixups of unaligned loads and stores"
-	default "y"
-	help
-	  Configure the Octeon hardware to automatically fix unaligned loads
-	  and stores. Normally unaligned accesses are fixed using a kernel
-	  exception handler. This option enables the hardware automatic fixups,
-	  which requires only an extra 3 cycles. Disable this option if you
-	  are running code that relies on address exceptions on unaligned
-	  accesses.
 
 config CAVIUM_OCTEON_CVMSEG_SIZE
 	int "Number of L1 cache lines reserved for CVMSEG memory"
@@ -103,4 +96,4 @@ config OCTEON_ILM
 	  To compile this driver as a module, choose M here.  The module
 	  will be called octeon-ilm
 
-endif # CPU_CAVIUM_OCTEON
+endif # CAVIUM_OCTEON_SOC

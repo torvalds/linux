@@ -1,14 +1,57 @@
+/*
+ * addi_apci_3xxx.c
+ * Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
+ * Project manager: S. Weber
+ *
+ *	ADDI-DATA GmbH
+ *	Dieselstrasse 3
+ *	D-77833 Ottersweier
+ *	Tel: +19(0)7223/9493-0
+ *	Fax: +49(0)7223/9493-92
+ *	http://www.addi-data.com
+ *	info@addi-data.com
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2 of the License, or (at your
+ * option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ */
+
 #include <linux/pci.h>
+#include <linux/interrupt.h>
 
 #include "../comedidev.h"
+
 #include "comedi_fc.h"
-#include "amcc_s5933.h"
 
-#include "addi-data/addi_common.h"
+#define CONV_UNIT_NS		(1 << 0)
+#define CONV_UNIT_US		(1 << 1)
+#define CONV_UNIT_MS		(1 << 2)
 
-#include "addi-data/addi_eeprom.c"
-#include "addi-data/hwdrv_apci3xxx.c"
-#include "addi-data/addi_common.c"
+static const struct comedi_lrange apci3xxx_ai_range = {
+	8, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2),
+		BIP_RANGE(1),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2),
+		UNI_RANGE(1)
+	}
+};
+
+static const struct comedi_lrange apci3xxx_ao_range = {
+	2, {
+		BIP_RANGE(10),
+		UNI_RANGE(10)
+	}
+};
 
 enum apci3xxx_boardid {
 	BOARD_APCI3000_16,
@@ -38,651 +81,853 @@ enum apci3xxx_boardid {
 	BOARD_APCI3500,
 };
 
-static const struct addi_board apci3xxx_boardtypes[] = {
+struct apci3xxx_boardinfo {
+	const char *name;
+	int ai_subdev_flags;
+	int ai_n_chan;
+	unsigned int ai_maxdata;
+	unsigned char ai_conv_units;
+	unsigned int ai_min_acq_ns;
+	unsigned int has_ao:1;
+	unsigned int has_dig_in:1;
+	unsigned int has_dig_out:1;
+	unsigned int has_ttl_io:1;
+};
+
+static const struct apci3xxx_boardinfo apci3xxx_boardtypes[] = {
 	[BOARD_APCI3000_16] = {
-		.pc_DriverName		= "apci3000-16",
-		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
-		.i_NbrAiChannel		= 16,
-		.i_NbrAiChannelDiff	= 8,
-		.i_AiChannelList	= 16,
-		.i_AiMaxdata		= 4095,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.i_NbrTTLChannel	= 24,
-		.b_AvailableConvertUnit	= 6,
-		.ui_MinAcquisitiontimeNs = 10000,
-		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= i_APCI3XXX_Reset,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
+		.name			= "apci3000-16",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
+		.ai_n_chan		= 16,
+		.ai_maxdata		= 0x0fff,
+		.ai_conv_units		= CONV_UNIT_MS | CONV_UNIT_US,
+		.ai_min_acq_ns		= 10000,
+		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3000_8] = {
-		.pc_DriverName		= "apci3000-8",
-		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
-		.i_NbrAiChannel		= 8,
-		.i_NbrAiChannelDiff	= 4,
-		.i_AiChannelList	= 8,
-		.i_AiMaxdata		= 4095,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.i_NbrTTLChannel	= 24,
-		.b_AvailableConvertUnit	= 6,
-		.ui_MinAcquisitiontimeNs = 10000,
-		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= i_APCI3XXX_Reset,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
+		.name			= "apci3000-8",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
+		.ai_n_chan		= 8,
+		.ai_maxdata		= 0x0fff,
+		.ai_conv_units		= CONV_UNIT_MS | CONV_UNIT_US,
+		.ai_min_acq_ns		= 10000,
+		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3000_4] = {
-		.pc_DriverName		= "apci3000-4",
-		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
-		.i_NbrAiChannel		= 4,
-		.i_NbrAiChannelDiff	= 2,
-		.i_AiChannelList	= 4,
-		.i_AiMaxdata		= 4095,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.i_NbrTTLChannel	= 24,
-		.b_AvailableConvertUnit	= 6,
-		.ui_MinAcquisitiontimeNs = 10000,
-		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= i_APCI3XXX_Reset,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
+		.name			= "apci3000-4",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
+		.ai_n_chan		= 4,
+		.ai_maxdata		= 0x0fff,
+		.ai_conv_units		= CONV_UNIT_MS | CONV_UNIT_US,
+		.ai_min_acq_ns		= 10000,
+		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3006_16] = {
-		.pc_DriverName		= "apci3006-16",
-		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
-		.i_NbrAiChannel		= 16,
-		.i_NbrAiChannelDiff	= 8,
-		.i_AiChannelList	= 16,
-		.i_AiMaxdata		= 65535,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.i_NbrTTLChannel	= 24,
-		.b_AvailableConvertUnit	= 6,
-		.ui_MinAcquisitiontimeNs = 10000,
-		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= i_APCI3XXX_Reset,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
+		.name			= "apci3006-16",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
+		.ai_n_chan		= 16,
+		.ai_maxdata		= 0xffff,
+		.ai_conv_units		= CONV_UNIT_MS | CONV_UNIT_US,
+		.ai_min_acq_ns		= 10000,
+		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3006_8] = {
-		.pc_DriverName		= "apci3006-8",
-		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
-		.i_NbrAiChannel		= 8,
-		.i_NbrAiChannelDiff	= 4,
-		.i_AiChannelList	= 8,
-		.i_AiMaxdata		= 65535,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.i_NbrTTLChannel	= 24,
-		.b_AvailableConvertUnit	= 6,
-		.ui_MinAcquisitiontimeNs = 10000,
-		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= i_APCI3XXX_Reset,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
+		.name			= "apci3006-8",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
+		.ai_n_chan		= 8,
+		.ai_maxdata		= 0xffff,
+		.ai_conv_units		= CONV_UNIT_MS | CONV_UNIT_US,
+		.ai_min_acq_ns		= 10000,
+		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3006_4] = {
-		.pc_DriverName		= "apci3006-4",
-		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
-		.i_NbrAiChannel		= 4,
-		.i_NbrAiChannelDiff	= 2,
-		.i_AiChannelList	= 4,
-		.i_AiMaxdata		= 65535,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.i_NbrTTLChannel	= 24,
-		.b_AvailableConvertUnit	= 6,
-		.ui_MinAcquisitiontimeNs = 10000,
-		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= i_APCI3XXX_Reset,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
+		.name			= "apci3006-4",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
+		.ai_n_chan		= 4,
+		.ai_maxdata		= 0xffff,
+		.ai_conv_units		= CONV_UNIT_MS | CONV_UNIT_US,
+		.ai_min_acq_ns		= 10000,
+		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3010_16] = {
-		.pc_DriverName		= "apci3010-16",
-		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
-		.i_NbrAiChannel		= 16,
-		.i_NbrAiChannelDiff	= 8,
-		.i_AiChannelList	= 16,
-		.i_AiMaxdata		= 4095,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.i_NbrDiChannel		= 4,
-		.i_NbrDoChannel		= 4,
-		.i_DoMaxdata		= 1,
-		.i_NbrTTLChannel	= 24,
-		.b_AvailableConvertUnit	= 6,
-		.ui_MinAcquisitiontimeNs = 5000,
-		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= i_APCI3XXX_Reset,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.di_bits		= apci3xxx_di_insn_bits,
-		.do_bits		= apci3xxx_do_insn_bits,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
+		.name			= "apci3010-16",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
+		.ai_n_chan		= 16,
+		.ai_maxdata		= 0x0fff,
+		.ai_conv_units		= CONV_UNIT_MS | CONV_UNIT_US,
+		.ai_min_acq_ns		= 5000,
+		.has_dig_in		= 1,
+		.has_dig_out		= 1,
+		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3010_8] = {
-		.pc_DriverName		= "apci3010-8",
-		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
-		.i_NbrAiChannel		= 8,
-		.i_NbrAiChannelDiff	= 4,
-		.i_AiChannelList	= 8,
-		.i_AiMaxdata		= 4095,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.i_NbrDiChannel		= 4,
-		.i_NbrDoChannel		= 4,
-		.i_DoMaxdata		= 1,
-		.i_NbrTTLChannel	= 24,
-		.b_AvailableConvertUnit	= 6,
-		.ui_MinAcquisitiontimeNs = 5000,
-		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= i_APCI3XXX_Reset,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.di_bits		= apci3xxx_di_insn_bits,
-		.do_bits		= apci3xxx_do_insn_bits,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
+		.name			= "apci3010-8",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
+		.ai_n_chan		= 8,
+		.ai_maxdata		= 0x0fff,
+		.ai_conv_units		= CONV_UNIT_MS | CONV_UNIT_US,
+		.ai_min_acq_ns		= 5000,
+		.has_dig_in		= 1,
+		.has_dig_out		= 1,
+		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3010_4] = {
-		.pc_DriverName		= "apci3010-4",
-		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
-		.i_NbrAiChannel		= 4,
-		.i_NbrAiChannelDiff	= 2,
-		.i_AiChannelList	= 4,
-		.i_AiMaxdata		= 4095,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.i_NbrDiChannel		= 4,
-		.i_NbrDoChannel		= 4,
-		.i_DoMaxdata		= 1,
-		.i_NbrTTLChannel	= 24,
-		.b_AvailableConvertUnit	= 6,
-		.ui_MinAcquisitiontimeNs = 5000,
-		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= i_APCI3XXX_Reset,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.di_bits		= apci3xxx_di_insn_bits,
-		.do_bits		= apci3xxx_do_insn_bits,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
+		.name			= "apci3010-4",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
+		.ai_n_chan		= 4,
+		.ai_maxdata		= 0x0fff,
+		.ai_conv_units		= CONV_UNIT_MS | CONV_UNIT_US,
+		.ai_min_acq_ns		= 5000,
+		.has_dig_in		= 1,
+		.has_dig_out		= 1,
+		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3016_16] = {
-		.pc_DriverName		= "apci3016-16",
-		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
-		.i_NbrAiChannel		= 16,
-		.i_NbrAiChannelDiff	= 8,
-		.i_AiChannelList	= 16,
-		.i_AiMaxdata		= 65535,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.i_NbrDiChannel		= 4,
-		.i_NbrDoChannel		= 4,
-		.i_DoMaxdata		= 1,
-		.i_NbrTTLChannel	= 24,
-		.b_AvailableConvertUnit	= 6,
-		.ui_MinAcquisitiontimeNs = 5000,
-		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= i_APCI3XXX_Reset,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.di_bits		= apci3xxx_di_insn_bits,
-		.do_bits		= apci3xxx_do_insn_bits,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
+		.name			= "apci3016-16",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
+		.ai_n_chan		= 16,
+		.ai_maxdata		= 0xffff,
+		.ai_conv_units		= CONV_UNIT_MS | CONV_UNIT_US,
+		.ai_min_acq_ns		= 5000,
+		.has_dig_in		= 1,
+		.has_dig_out		= 1,
+		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3016_8] = {
-		.pc_DriverName		= "apci3016-8",
-		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
-		.i_NbrAiChannel		= 8,
-		.i_NbrAiChannelDiff	= 4,
-		.i_AiChannelList	= 8,
-		.i_AiMaxdata		= 65535,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.i_NbrDiChannel		= 4,
-		.i_NbrDoChannel		= 4,
-		.i_DoMaxdata		= 1,
-		.i_NbrTTLChannel	= 24,
-		.b_AvailableConvertUnit	= 6,
-		.ui_MinAcquisitiontimeNs = 5000,
-		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= i_APCI3XXX_Reset,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.di_bits		= apci3xxx_di_insn_bits,
-		.do_bits		= apci3xxx_do_insn_bits,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
+		.name			= "apci3016-8",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
+		.ai_n_chan		= 8,
+		.ai_maxdata		= 0xffff,
+		.ai_conv_units		= CONV_UNIT_MS | CONV_UNIT_US,
+		.ai_min_acq_ns		= 5000,
+		.has_dig_in		= 1,
+		.has_dig_out		= 1,
+		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3016_4] = {
-		.pc_DriverName		= "apci3016-4",
-		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
-		.i_NbrAiChannel		= 4,
-		.i_NbrAiChannelDiff	= 2,
-		.i_AiChannelList	= 4,
-		.i_AiMaxdata		= 65535,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.i_NbrDiChannel		= 4,
-		.i_NbrDoChannel		= 4,
-		.i_DoMaxdata		= 1,
-		.i_NbrTTLChannel	= 24,
-		.b_AvailableConvertUnit	= 6,
-		.ui_MinAcquisitiontimeNs = 5000,
-		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= i_APCI3XXX_Reset,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.di_bits		= apci3xxx_di_insn_bits,
-		.do_bits		= apci3xxx_do_insn_bits,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
+		.name			= "apci3016-4",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
+		.ai_n_chan		= 4,
+		.ai_maxdata		= 0xffff,
+		.ai_conv_units		= CONV_UNIT_MS | CONV_UNIT_US,
+		.ai_min_acq_ns		= 5000,
+		.has_dig_in		= 1,
+		.has_dig_out		= 1,
+		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3100_16_4] = {
-		.pc_DriverName		= "apci3100-16-4",
-		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
-		.i_NbrAiChannel		= 16,
-		.i_NbrAiChannelDiff	= 8,
-		.i_AiChannelList	= 16,
-		.i_NbrAoChannel		= 4,
-		.i_AiMaxdata		= 4095,
-		.i_AoMaxdata		= 4095,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.pr_AoRangelist		= &range_apci3XXX_ao,
-		.i_NbrTTLChannel	= 24,
-		.b_AvailableConvertUnit	= 6,
-		.ui_MinAcquisitiontimeNs = 10000,
-		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= i_APCI3XXX_Reset,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
+		.name			= "apci3100-16-4",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
+		.ai_n_chan		= 16,
+		.ai_maxdata		= 0x0fff,
+		.ai_conv_units		= CONV_UNIT_MS | CONV_UNIT_US,
+		.ai_min_acq_ns		= 10000,
+		.has_ao			= 1,
+		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3100_8_4] = {
-		.pc_DriverName		= "apci3100-8-4",
-		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
-		.i_NbrAiChannel		= 8,
-		.i_NbrAiChannelDiff	= 4,
-		.i_AiChannelList	= 8,
-		.i_NbrAoChannel		= 4,
-		.i_AiMaxdata		= 4095,
-		.i_AoMaxdata		= 4095,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.pr_AoRangelist		= &range_apci3XXX_ao,
-		.i_NbrTTLChannel	= 24,
-		.b_AvailableConvertUnit	= 6,
-		.ui_MinAcquisitiontimeNs = 10000,
-		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= i_APCI3XXX_Reset,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
+		.name			= "apci3100-8-4",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
+		.ai_n_chan		= 8,
+		.ai_maxdata		= 0x0fff,
+		.ai_conv_units		= CONV_UNIT_MS | CONV_UNIT_US,
+		.ai_min_acq_ns		= 10000,
+		.has_ao			= 1,
+		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3106_16_4] = {
-		.pc_DriverName		= "apci3106-16-4",
-		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
-		.i_NbrAiChannel		= 16,
-		.i_NbrAiChannelDiff	= 8,
-		.i_AiChannelList	= 16,
-		.i_NbrAoChannel		= 4,
-		.i_AiMaxdata		= 65535,
-		.i_AoMaxdata		= 4095,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.pr_AoRangelist		= &range_apci3XXX_ao,
-		.i_NbrTTLChannel	= 24,
-		.b_AvailableConvertUnit	= 6,
-		.ui_MinAcquisitiontimeNs = 10000,
-		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= i_APCI3XXX_Reset,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
+		.name			= "apci3106-16-4",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
+		.ai_n_chan		= 16,
+		.ai_maxdata		= 0xffff,
+		.ai_conv_units		= CONV_UNIT_MS | CONV_UNIT_US,
+		.ai_min_acq_ns		= 10000,
+		.has_ao			= 1,
+		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3106_8_4] = {
-		.pc_DriverName		= "apci3106-8-4",
-		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
-		.i_NbrAiChannel		= 8,
-		.i_NbrAiChannelDiff	= 4,
-		.i_AiChannelList	= 8,
-		.i_NbrAoChannel		= 4,
-		.i_AiMaxdata		= 65535,
-		.i_AoMaxdata		= 4095,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.pr_AoRangelist		= &range_apci3XXX_ao,
-		.i_NbrTTLChannel	= 24,
-		.b_AvailableConvertUnit	= 6,
-		.ui_MinAcquisitiontimeNs = 10000,
-		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= i_APCI3XXX_Reset,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
+		.name			= "apci3106-8-4",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
+		.ai_n_chan		= 8,
+		.ai_maxdata		= 0xffff,
+		.ai_conv_units		= CONV_UNIT_MS | CONV_UNIT_US,
+		.ai_min_acq_ns		= 10000,
+		.has_ao			= 1,
+		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3110_16_4] = {
-		.pc_DriverName		= "apci3110-16-4",
-		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
-		.i_NbrAiChannel		= 16,
-		.i_NbrAiChannelDiff	= 8,
-		.i_AiChannelList	= 16,
-		.i_NbrAoChannel		= 4,
-		.i_AiMaxdata		= 4095,
-		.i_AoMaxdata		= 4095,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.pr_AoRangelist		= &range_apci3XXX_ao,
-		.i_NbrDiChannel		= 4,
-		.i_NbrDoChannel		= 4,
-		.i_DoMaxdata		= 1,
-		.i_NbrTTLChannel	= 24,
-		.b_AvailableConvertUnit	= 6,
-		.ui_MinAcquisitiontimeNs = 5000,
-		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= i_APCI3XXX_Reset,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
-		.di_bits		= apci3xxx_di_insn_bits,
-		.do_bits		= apci3xxx_do_insn_bits,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
+		.name			= "apci3110-16-4",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
+		.ai_n_chan		= 16,
+		.ai_maxdata		= 0x0fff,
+		.ai_conv_units		= CONV_UNIT_MS | CONV_UNIT_US,
+		.ai_min_acq_ns		= 5000,
+		.has_ao			= 1,
+		.has_dig_in		= 1,
+		.has_dig_out		= 1,
+		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3110_8_4] = {
-		.pc_DriverName		= "apci3110-8-4",
-		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
-		.i_NbrAiChannel		= 8,
-		.i_NbrAiChannelDiff	= 4,
-		.i_AiChannelList	= 8,
-		.i_NbrAoChannel		= 4,
-		.i_AiMaxdata		= 4095,
-		.i_AoMaxdata		= 4095,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.pr_AoRangelist		= &range_apci3XXX_ao,
-		.i_NbrDiChannel		= 4,
-		.i_NbrDoChannel		= 4,
-		.i_DoMaxdata		= 1,
-		.i_NbrTTLChannel	= 24,
-		.b_AvailableConvertUnit	= 6,
-		.ui_MinAcquisitiontimeNs = 5000,
-		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= i_APCI3XXX_Reset,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
-		.di_bits		= apci3xxx_di_insn_bits,
-		.do_bits		= apci3xxx_do_insn_bits,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
+		.name			= "apci3110-8-4",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
+		.ai_n_chan		= 8,
+		.ai_maxdata		= 0x0fff,
+		.ai_conv_units		= CONV_UNIT_MS | CONV_UNIT_US,
+		.ai_min_acq_ns		= 5000,
+		.has_ao			= 1,
+		.has_dig_in		= 1,
+		.has_dig_out		= 1,
+		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3116_16_4] = {
-		.pc_DriverName		= "apci3116-16-4",
-		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
-		.i_NbrAiChannel		= 16,
-		.i_NbrAiChannelDiff	= 8,
-		.i_AiChannelList	= 16,
-		.i_NbrAoChannel		= 4,
-		.i_AiMaxdata		= 65535,
-		.i_AoMaxdata		= 4095,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.pr_AoRangelist		= &range_apci3XXX_ao,
-		.i_NbrDiChannel		= 4,
-		.i_NbrDoChannel		= 4,
-		.i_DoMaxdata		= 1,
-		.i_NbrTTLChannel	= 24,
-		.b_AvailableConvertUnit	= 6,
-		.ui_MinAcquisitiontimeNs = 5000,
-		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= i_APCI3XXX_Reset,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
-		.di_bits		= apci3xxx_di_insn_bits,
-		.do_bits		= apci3xxx_do_insn_bits,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
+		.name			= "apci3116-16-4",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
+		.ai_n_chan		= 16,
+		.ai_maxdata		= 0xffff,
+		.ai_conv_units		= CONV_UNIT_MS | CONV_UNIT_US,
+		.ai_min_acq_ns		= 5000,
+		.has_ao			= 1,
+		.has_dig_in		= 1,
+		.has_dig_out		= 1,
+		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3116_8_4] = {
-		.pc_DriverName		= "apci3116-8-4",
-		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
-		.i_NbrAiChannel		= 8,
-		.i_NbrAiChannelDiff	= 4,
-		.i_AiChannelList	= 8,
-		.i_NbrAoChannel		= 4,
-		.i_AiMaxdata		= 65535,
-		.i_AoMaxdata		= 4095,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.pr_AoRangelist		= &range_apci3XXX_ao,
-		.i_NbrDiChannel		= 4,
-		.i_NbrDoChannel		= 4,
-		.i_DoMaxdata		= 1,
-		.i_NbrTTLChannel	= 24,
-		.b_AvailableConvertUnit	= 6,
-		.ui_MinAcquisitiontimeNs = 5000,
-		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= i_APCI3XXX_Reset,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
-		.di_bits		= apci3xxx_di_insn_bits,
-		.do_bits		= apci3xxx_do_insn_bits,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
+		.name			= "apci3116-8-4",
+		.ai_subdev_flags	= SDF_COMMON | SDF_GROUND | SDF_DIFF,
+		.ai_n_chan		= 8,
+		.ai_maxdata		= 0xffff,
+		.ai_conv_units		= CONV_UNIT_MS | CONV_UNIT_US,
+		.ai_min_acq_ns		= 5000,
+		.has_ao			= 1,
+		.has_dig_in		= 1,
+		.has_dig_out		= 1,
+		.has_ttl_io		= 1,
 	},
 	[BOARD_APCI3003] = {
-		.pc_DriverName		= "apci3003",
-		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
-		.i_NbrAiChannelDiff	= 4,
-		.i_AiChannelList	= 4,
-		.i_AiMaxdata		= 65535,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.i_NbrDiChannel		= 4,
-		.i_NbrDoChannel		= 4,
-		.i_DoMaxdata		= 1,
-		.b_AvailableConvertUnit	= 7,
-		.ui_MinAcquisitiontimeNs = 2500,
-		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= i_APCI3XXX_Reset,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.di_bits		= apci3xxx_di_insn_bits,
-		.do_bits		= apci3xxx_do_insn_bits,
+		.name			= "apci3003",
+		.ai_subdev_flags	= SDF_DIFF,
+		.ai_n_chan		= 4,
+		.ai_maxdata		= 0xffff,
+		.ai_conv_units		= CONV_UNIT_MS | CONV_UNIT_US |
+					  CONV_UNIT_NS,
+		.ai_min_acq_ns		= 2500,
+		.has_dig_in		= 1,
+		.has_dig_out		= 1,
 	},
 	[BOARD_APCI3002_16] = {
-		.pc_DriverName		= "apci3002-16",
-		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
-		.i_NbrAiChannelDiff	= 16,
-		.i_AiChannelList	= 16,
-		.i_AiMaxdata		= 65535,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.i_NbrDiChannel		= 4,
-		.i_NbrDoChannel		= 4,
-		.i_DoMaxdata		= 1,
-		.b_AvailableConvertUnit	= 6,
-		.ui_MinAcquisitiontimeNs = 5000,
-		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= i_APCI3XXX_Reset,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.di_bits		= apci3xxx_di_insn_bits,
-		.do_bits		= apci3xxx_do_insn_bits,
+		.name			= "apci3002-16",
+		.ai_subdev_flags	= SDF_DIFF,
+		.ai_n_chan		= 16,
+		.ai_maxdata		= 0xffff,
+		.ai_conv_units		= CONV_UNIT_MS | CONV_UNIT_US,
+		.ai_min_acq_ns		= 5000,
+		.has_dig_in		= 1,
+		.has_dig_out		= 1,
 	},
 	[BOARD_APCI3002_8] = {
-		.pc_DriverName		= "apci3002-8",
-		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
-		.i_NbrAiChannelDiff	= 8,
-		.i_AiChannelList	= 8,
-		.i_AiMaxdata		= 65535,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.i_NbrDiChannel		= 4,
-		.i_NbrDoChannel		= 4,
-		.i_DoMaxdata		= 1,
-		.b_AvailableConvertUnit	= 6,
-		.ui_MinAcquisitiontimeNs = 5000,
-		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= i_APCI3XXX_Reset,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.di_bits		= apci3xxx_di_insn_bits,
-		.do_bits		= apci3xxx_do_insn_bits,
+		.name			= "apci3002-8",
+		.ai_subdev_flags	= SDF_DIFF,
+		.ai_n_chan		= 8,
+		.ai_maxdata		= 0xffff,
+		.ai_conv_units		= CONV_UNIT_MS | CONV_UNIT_US,
+		.ai_min_acq_ns		= 5000,
+		.has_dig_in		= 1,
+		.has_dig_out		= 1,
 	},
 	[BOARD_APCI3002_4] = {
-		.pc_DriverName		= "apci3002-4",
-		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
-		.i_NbrAiChannelDiff	= 4,
-		.i_AiChannelList	= 4,
-		.i_AiMaxdata		= 65535,
-		.pr_AiRangelist		= &range_apci3XXX_ai,
-		.i_NbrDiChannel		= 4,
-		.i_NbrDoChannel		= 4,
-		.i_DoMaxdata		= 1,
-		.b_AvailableConvertUnit	= 6,
-		.ui_MinAcquisitiontimeNs = 5000,
-		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= i_APCI3XXX_Reset,
-		.ai_config		= i_APCI3XXX_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3XXX_InsnReadAnalogInput,
-		.di_bits		= apci3xxx_di_insn_bits,
-		.do_bits		= apci3xxx_do_insn_bits,
+		.name			= "apci3002-4",
+		.ai_subdev_flags	= SDF_DIFF,
+		.ai_n_chan		= 4,
+		.ai_maxdata		= 0xffff,
+		.ai_conv_units		= CONV_UNIT_MS | CONV_UNIT_US,
+		.ai_min_acq_ns		= 5000,
+		.has_dig_in		= 1,
+		.has_dig_out		= 1,
 	},
 	[BOARD_APCI3500] = {
-		.pc_DriverName		= "apci3500",
-		.i_IorangeBase1		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
-		.pc_EepromChip		= ADDIDATA_9054,
-		.i_NbrAoChannel		= 4,
-		.i_AoMaxdata		= 4095,
-		.pr_AoRangelist		= &range_apci3XXX_ao,
-		.i_NbrTTLChannel	= 24,
-		.interrupt		= v_APCI3XXX_Interrupt,
-		.reset			= i_APCI3XXX_Reset,
-		.ao_write		= i_APCI3XXX_InsnWriteAnalogOutput,
-		.ttl_config		= i_APCI3XXX_InsnConfigInitTTLIO,
-		.ttl_bits		= i_APCI3XXX_InsnBitsTTLIO,
-		.ttl_read		= i_APCI3XXX_InsnReadTTLIO,
-		.ttl_write		= i_APCI3XXX_InsnWriteTTLIO,
+		.name			= "apci3500",
+		.has_ao			= 1,
+		.has_ttl_io		= 1,
 	},
 };
+
+struct apci3xxx_private {
+	void __iomem *mmio;
+	unsigned int ai_timer;
+	unsigned char ai_time_base;
+};
+
+static irqreturn_t apci3xxx_irq_handler(int irq, void *d)
+{
+	struct comedi_device *dev = d;
+	struct apci3xxx_private *devpriv = dev->private;
+	struct comedi_subdevice *s = dev->read_subdev;
+	unsigned int status;
+	unsigned int val;
+
+	/* Test if interrupt occur */
+	status = readl(devpriv->mmio + 16);
+	if ((status & 0x2) == 0x2) {
+		/* Reset the interrupt */
+		writel(status, devpriv->mmio + 16);
+
+		val = readl(devpriv->mmio + 28);
+		comedi_buf_put(s->async, val);
+
+		s->async->events |= COMEDI_CB_EOA;
+		comedi_event(dev, s);
+
+		return IRQ_HANDLED;
+	}
+	return IRQ_NONE;
+}
+
+static int apci3xxx_ai_started(struct comedi_device *dev)
+{
+	struct apci3xxx_private *devpriv = dev->private;
+
+	if ((readl(devpriv->mmio + 8) & 0x80000) == 0x80000)
+		return 1;
+	else
+		return 0;
+
+}
+
+static int apci3xxx_ai_setup(struct comedi_device *dev, unsigned int chanspec)
+{
+	struct apci3xxx_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(chanspec);
+	unsigned int range = CR_RANGE(chanspec);
+	unsigned int aref = CR_AREF(chanspec);
+	unsigned int delay_mode;
+	unsigned int val;
+
+	if (apci3xxx_ai_started(dev))
+		return -EBUSY;
+
+	/* Clear the FIFO */
+	writel(0x10000, devpriv->mmio + 12);
+
+	/* Get and save the delay mode */
+	delay_mode = readl(devpriv->mmio + 4);
+	delay_mode &= 0xfffffef0;
+
+	/* Channel configuration selection */
+	writel(delay_mode, devpriv->mmio + 4);
+
+	/* Make the configuration */
+	val = (range & 3) | ((range >> 2) << 6) |
+	      ((aref == AREF_DIFF) << 7);
+	writel(val, devpriv->mmio + 0);
+
+	/* Channel selection */
+	writel(delay_mode | 0x100, devpriv->mmio + 4);
+	writel(chan, devpriv->mmio + 0);
+
+	/* Restore delay mode */
+	writel(delay_mode, devpriv->mmio + 4);
+
+	/* Set the number of sequence to 1 */
+	writel(1, devpriv->mmio + 48);
+
+	return 0;
+}
+
+static int apci3xxx_ai_insn_read(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
+{
+	struct apci3xxx_private *devpriv = dev->private;
+	unsigned int val;
+	int ret;
+	int i;
+
+	ret = apci3xxx_ai_setup(dev, insn->chanspec);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < insn->n; i++) {
+		/* Start the conversion */
+		writel(0x80000, devpriv->mmio + 8);
+
+		/* Wait the EOS */
+		do {
+			val = readl(devpriv->mmio + 20);
+			val &= 0x1;
+		} while (!val);
+
+		/* Read the analog value */
+		data[i] = readl(devpriv->mmio + 28);
+	}
+
+	return insn->n;
+}
+
+static int apci3xxx_ai_ns_to_timer(struct comedi_device *dev,
+				   unsigned int *ns, int round_mode)
+{
+	const struct apci3xxx_boardinfo *board = comedi_board(dev);
+	struct apci3xxx_private *devpriv = dev->private;
+	unsigned int base;
+	unsigned int timer;
+	int time_base;
+
+	/* time_base: 0 = ns, 1 = us, 2 = ms */
+	for (time_base = 0; time_base < 3; time_base++) {
+		/* skip unsupported time bases */
+		if (!(board->ai_conv_units & (1 << time_base)))
+			continue;
+
+		switch (time_base) {
+		case 0:
+			base = 1;
+			break;
+		case 1:
+			base = 1000;
+			break;
+		case 2:
+			base = 1000000;
+			break;
+		}
+
+		switch (round_mode) {
+		case TRIG_ROUND_NEAREST:
+		default:
+			timer = (*ns + base / 2) / base;
+			break;
+		case TRIG_ROUND_DOWN:
+			timer = *ns / base;
+			break;
+		case TRIG_ROUND_UP:
+			timer = (*ns + base - 1) / base;
+			break;
+		}
+
+		if (timer < 0x10000) {
+			devpriv->ai_time_base = time_base;
+			devpriv->ai_timer = timer;
+			*ns = timer * time_base;
+			return 0;
+		}
+	}
+	return -EINVAL;
+}
+
+static int apci3xxx_ai_cmdtest(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_cmd *cmd)
+{
+	const struct apci3xxx_boardinfo *board = comedi_board(dev);
+	int err = 0;
+	unsigned int tmp;
+
+	/* Step 1 : check if triggers are trivially valid */
+
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_FOLLOW);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+
+	if (err)
+		return 1;
+
+	/* Step 2a : make sure trigger sources are unique */
+
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
+
+	if (err)
+		return 2;
+
+	/* Step 3: check if arguments are trivially valid */
+
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+	err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
+					 board->ai_min_acq_ns);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+
+	if (err)
+		return 3;
+
+	/* step 4: fix up any arguments */
+
+	/*
+	 * FIXME: The hardware supports multiple scan modes but the original
+	 * addi-data driver only supported reading a single channel with
+	 * interrupts. Need a proper datasheet to fix this.
+	 *
+	 * The following scan modes are supported by the hardware:
+	 * 1) Single software scan
+	 * 2) Single hardware triggered scan
+	 * 3) Continuous software scan
+	 * 4) Continuous software scan with timer delay
+	 * 5) Continuous hardware triggered scan
+	 * 6) Continuous hardware triggered scan with timer delay
+	 *
+	 * For now, limit the chanlist to a single channel.
+	 */
+	if (cmd->chanlist_len > 1) {
+		cmd->chanlist_len = 1;
+		err |= -EINVAL;
+	}
+
+	tmp = cmd->convert_arg;
+	err |= apci3xxx_ai_ns_to_timer(dev, &cmd->convert_arg,
+				       cmd->flags & TRIG_ROUND_MASK);
+	if (tmp != cmd->convert_arg)
+		err |= -EINVAL;
+
+	if (err)
+		return 4;
+
+	return 0;
+}
+
+static int apci3xxx_ai_cmd(struct comedi_device *dev,
+			   struct comedi_subdevice *s)
+{
+	struct apci3xxx_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
+	int ret;
+
+	ret = apci3xxx_ai_setup(dev, cmd->chanlist[0]);
+	if (ret)
+		return ret;
+
+	/* Set the convert timing unit */
+	writel(devpriv->ai_time_base, devpriv->mmio + 36);
+
+	/* Set the convert timing */
+	writel(devpriv->ai_timer, devpriv->mmio + 32);
+
+	/* Start the conversion */
+	writel(0x180000, devpriv->mmio + 8);
+
+	return 0;
+}
+
+static int apci3xxx_ai_cancel(struct comedi_device *dev,
+			      struct comedi_subdevice *s)
+{
+	return 0;
+}
+
+static int apci3xxx_ao_insn_write(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn,
+				  unsigned int *data)
+{
+	struct apci3xxx_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
+	unsigned int status;
+	int i;
+
+	for (i = 0; i < insn->n; i++) {
+		/* Set the range selection */
+		writel(range, devpriv->mmio + 96);
+
+		/* Write the analog value to the selected channel */
+		writel((data[i] << 8) | chan, devpriv->mmio + 100);
+
+		/* Wait the end of transfer */
+		do {
+			status = readl(devpriv->mmio + 96);
+		} while ((status & 0x100) != 0x100);
+	}
+
+	return insn->n;
+}
+
+static int apci3xxx_di_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
+{
+	data[1] = inl(dev->iobase + 32) & 0xf;
+
+	return insn->n;
+}
+
+static int apci3xxx_do_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
+{
+	unsigned int mask = data[0];
+	unsigned int bits = data[1];
+
+	s->state = inl(dev->iobase + 48) & 0xf;
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask);
+
+		outl(s->state, dev->iobase + 48);
+	}
+
+	data[1] = s->state;
+
+	return insn->n;
+}
+
+static int apci3xxx_dio_insn_config(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_insn *insn,
+				    unsigned int *data)
+{
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int mask = 1 << chan;
+	unsigned int bits;
+
+	/*
+	 * Port 0 (channels 0-7) are always inputs
+	 * Port 1 (channels 8-15) are always outputs
+	 * Port 2 (channels 16-23) are programmable i/o
+	 *
+	 * Changing any channel in port 2 changes the entire port.
+	 */
+	if (mask & 0xff0000)
+		bits = 0xff0000;
+	else
+		bits = 0;
+
+	switch (data[0]) {
+	case INSN_CONFIG_DIO_INPUT:
+		s->io_bits &= ~bits;
+		break;
+	case INSN_CONFIG_DIO_OUTPUT:
+		s->io_bits |= bits;
+		break;
+	case INSN_CONFIG_DIO_QUERY:
+		data[1] = (s->io_bits & bits) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		return insn->n;
+	default:
+		return -EINVAL;
+	}
+
+	/* update port 2 configuration */
+	if (bits)
+		outl((s->io_bits >> 24) & 0xff, dev->iobase + 224);
+
+	return insn->n;
+}
+
+static int apci3xxx_dio_insn_bits(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn,
+				  unsigned int *data)
+{
+	unsigned int mask = data[0];
+	unsigned int bits = data[1];
+	unsigned int val;
+
+	/* only update output channels */
+	mask &= s->io_bits;
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask);
+
+		if (mask & 0xff)
+			outl(s->state & 0xff, dev->iobase + 80);
+		if (mask & 0xff0000)
+			outl((s->state >> 16) & 0xff, dev->iobase + 112);
+	}
+
+	val = inl(dev->iobase + 80);
+	val |= (inl(dev->iobase + 64) << 8);
+	if (s->io_bits & 0xff0000)
+		val |= (inl(dev->iobase + 112) << 16);
+	else
+		val |= (inl(dev->iobase + 96) << 16);
+
+	data[1] = val;
+
+	return insn->n;
+}
+
+static int apci3xxx_reset(struct comedi_device *dev)
+{
+	struct apci3xxx_private *devpriv = dev->private;
+	unsigned int val;
+	int i;
+
+	/* Disable the interrupt */
+	disable_irq(dev->irq);
+
+	/* Clear the start command */
+	writel(0, devpriv->mmio + 8);
+
+	/* Reset the interrupt flags */
+	val = readl(devpriv->mmio + 16);
+	writel(val, devpriv->mmio + 16);
+
+	/* clear the EOS */
+	readl(devpriv->mmio + 20);
+
+	/* Clear the FIFO */
+	for (i = 0; i < 16; i++)
+		val = readl(devpriv->mmio + 28);
+
+	/* Enable the interrupt */
+	enable_irq(dev->irq);
+
+	return 0;
+}
 
 static int apci3xxx_auto_attach(struct comedi_device *dev,
 				unsigned long context)
 {
-	const struct addi_board *board = NULL;
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	const struct apci3xxx_boardinfo *board = NULL;
+	struct apci3xxx_private *devpriv;
+	struct comedi_subdevice *s;
+	int n_subdevices;
+	int subdev;
+	int ret;
 
 	if (context < ARRAY_SIZE(apci3xxx_boardtypes))
 		board = &apci3xxx_boardtypes[context];
 	if (!board)
 		return -ENODEV;
 	dev->board_ptr = board;
+	dev->board_name = board->name;
 
-	return addi_auto_attach(dev, context);
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
+
+	ret = comedi_pci_enable(dev);
+	if (ret)
+		return ret;
+
+	dev->iobase = pci_resource_start(pcidev, 2);
+	devpriv->mmio = pci_ioremap_bar(pcidev, 3);
+
+	if (pcidev->irq > 0) {
+		ret = request_irq(pcidev->irq, apci3xxx_irq_handler,
+				  IRQF_SHARED, dev->board_name, dev);
+		if (ret == 0)
+			dev->irq = pcidev->irq;
+	}
+
+	n_subdevices = (board->ai_n_chan ? 0 : 1) + board->has_ao +
+		       board->has_dig_in + board->has_dig_out +
+		       board->has_ttl_io;
+	ret = comedi_alloc_subdevices(dev, n_subdevices);
+	if (ret)
+		return ret;
+
+	subdev = 0;
+
+	/* Analog Input subdevice */
+	if (board->ai_n_chan) {
+		s = &dev->subdevices[subdev];
+		s->type		= COMEDI_SUBD_AI;
+		s->subdev_flags	= SDF_READABLE | board->ai_subdev_flags;
+		s->n_chan	= board->ai_n_chan;
+		s->maxdata	= board->ai_maxdata;
+		s->len_chanlist	= s->n_chan;
+		s->range_table	= &apci3xxx_ai_range;
+		s->insn_read	= apci3xxx_ai_insn_read;
+		if (dev->irq) {
+			dev->read_subdev = s;
+			s->subdev_flags	|= SDF_CMD_READ;
+			s->do_cmdtest	= apci3xxx_ai_cmdtest;
+			s->do_cmd	= apci3xxx_ai_cmd;
+			s->cancel	= apci3xxx_ai_cancel;
+		}
+
+		subdev++;
+	}
+
+	/* Analog Output subdevice */
+	if (board->has_ao) {
+		s = &dev->subdevices[subdev];
+		s->type		= COMEDI_SUBD_AO;
+		s->subdev_flags	= SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
+		s->n_chan	= 4;
+		s->maxdata	= 0x0fff;
+		s->range_table	= &apci3xxx_ao_range;
+		s->insn_write	= apci3xxx_ao_insn_write;
+
+		subdev++;
+	}
+
+	/* Digital Input subdevice */
+	if (board->has_dig_in) {
+		s = &dev->subdevices[subdev];
+		s->type		= COMEDI_SUBD_DI;
+		s->subdev_flags	= SDF_READABLE;
+		s->n_chan	= 4;
+		s->maxdata	= 1;
+		s->range_table	= &range_digital;
+		s->insn_bits	= apci3xxx_di_insn_bits;
+
+		subdev++;
+	}
+
+	/* Digital Output subdevice */
+	if (board->has_dig_out) {
+		s = &dev->subdevices[subdev];
+		s->type		= COMEDI_SUBD_DO;
+		s->subdev_flags	= SDF_WRITEABLE;
+		s->n_chan	= 4;
+		s->maxdata	= 1;
+		s->range_table	= &range_digital;
+		s->insn_bits	= apci3xxx_do_insn_bits;
+
+		subdev++;
+	}
+
+	/* TTL Digital I/O subdevice */
+	if (board->has_ttl_io) {
+		s = &dev->subdevices[subdev];
+		s->type		= COMEDI_SUBD_DIO;
+		s->subdev_flags	= SDF_READABLE | SDF_WRITEABLE;
+		s->n_chan	= 24;
+		s->maxdata	= 1;
+		s->io_bits	= 0xff;	/* channels 0-7 are always outputs */
+		s->range_table	= &range_digital;
+		s->insn_config	= apci3xxx_dio_insn_config;
+		s->insn_bits	= apci3xxx_dio_insn_bits;
+
+		subdev++;
+	}
+
+	apci3xxx_reset(dev);
+	return 0;
+}
+
+static void apci3xxx_detach(struct comedi_device *dev)
+{
+	struct apci3xxx_private *devpriv = dev->private;
+
+	if (devpriv) {
+		if (dev->iobase)
+			apci3xxx_reset(dev);
+		if (dev->irq)
+			free_irq(dev->irq, dev);
+		if (devpriv->mmio)
+			iounmap(devpriv->mmio);
+	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver apci3xxx_driver = {
 	.driver_name	= "addi_apci_3xxx",
 	.module		= THIS_MODULE,
 	.auto_attach	= apci3xxx_auto_attach,
-	.detach		= i_ADDI_Detach,
+	.detach		= apci3xxx_detach,
 };
 
 static int apci3xxx_pci_probe(struct pci_dev *dev,

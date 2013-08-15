@@ -1060,7 +1060,9 @@ struct platform_device *__init at32_add_device_usart(unsigned int id)
 
 void __init at32_setup_serial_console(unsigned int usart_id)
 {
+#ifdef CONFIG_SERIAL_ATMEL
 	atmel_default_console_device = at32_usarts[usart_id];
+#endif
 }
 
 /* --------------------------------------------------------------------

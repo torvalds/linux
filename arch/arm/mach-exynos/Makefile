@@ -14,7 +14,7 @@ obj-				:=
 
 obj-$(CONFIG_ARCH_EXYNOS)	+= common.o
 
-obj-$(CONFIG_PM)		+= pm.o
+obj-$(CONFIG_S5P_PM)		+= pm.o
 obj-$(CONFIG_PM_GENERIC_DOMAINS) += pm_domains.o
 obj-$(CONFIG_CPU_IDLE)		+= cpuidle.o
 
@@ -32,38 +32,5 @@ AFLAGS_exynos-smc.o		:=-Wa,-march=armv7-a$(plus_sec)
 
 # machine support
 
-obj-$(CONFIG_MACH_SMDKC210)		+= mach-smdkv310.o
-obj-$(CONFIG_MACH_SMDKV310)		+= mach-smdkv310.o
-obj-$(CONFIG_MACH_ARMLEX4210)		+= mach-armlex4210.o
-obj-$(CONFIG_MACH_UNIVERSAL_C210)	+= mach-universal_c210.o
-obj-$(CONFIG_MACH_NURI)			+= mach-nuri.o
-obj-$(CONFIG_MACH_ORIGEN)		+= mach-origen.o
-
-obj-$(CONFIG_MACH_SMDK4212)		+= mach-smdk4x12.o
-obj-$(CONFIG_MACH_SMDK4412)		+= mach-smdk4x12.o
-
 obj-$(CONFIG_MACH_EXYNOS4_DT)		+= mach-exynos4-dt.o
 obj-$(CONFIG_MACH_EXYNOS5_DT)		+= mach-exynos5-dt.o
-
-# device support
-
-obj-y					+= dev-uart.o
-obj-$(CONFIG_ARCH_EXYNOS4)		+= dev-audio.o
-obj-$(CONFIG_EXYNOS4_DEV_AHCI)		+= dev-ahci.o
-obj-$(CONFIG_EXYNOS_DEV_DMA)		+= dma.o
-obj-$(CONFIG_EXYNOS4_DEV_USB_OHCI)	+= dev-ohci.o
-
-obj-$(CONFIG_ARCH_EXYNOS)		+= setup-i2c0.o
-obj-$(CONFIG_EXYNOS4_SETUP_FIMC)	+= setup-fimc.o
-obj-$(CONFIG_EXYNOS4_SETUP_FIMD0)	+= setup-fimd0.o
-obj-$(CONFIG_EXYNOS4_SETUP_I2C1)	+= setup-i2c1.o
-obj-$(CONFIG_EXYNOS4_SETUP_I2C2)	+= setup-i2c2.o
-obj-$(CONFIG_EXYNOS4_SETUP_I2C3)	+= setup-i2c3.o
-obj-$(CONFIG_EXYNOS4_SETUP_I2C4)	+= setup-i2c4.o
-obj-$(CONFIG_EXYNOS4_SETUP_I2C5)	+= setup-i2c5.o
-obj-$(CONFIG_EXYNOS4_SETUP_I2C6)	+= setup-i2c6.o
-obj-$(CONFIG_EXYNOS4_SETUP_I2C7)	+= setup-i2c7.o
-obj-$(CONFIG_EXYNOS4_SETUP_KEYPAD)	+= setup-keypad.o
-obj-$(CONFIG_EXYNOS4_SETUP_SDHCI_GPIO)	+= setup-sdhci-gpio.o
-obj-$(CONFIG_EXYNOS4_SETUP_USB_PHY)	+= setup-usb-phy.o
-obj-$(CONFIG_EXYNOS_SETUP_SPI)		+= setup-spi.o

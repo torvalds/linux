@@ -999,7 +999,6 @@ struct ab8500_regulator_platform_data ab8500_regulator_plat_data = {
 	.num_ext_regulator      = ARRAY_SIZE(ab8500_ext_regulators),
 };
 
-/* Use the AB8500 init settings for AB8505 as they are the same right now */
 struct ab8500_regulator_platform_data ab8505_regulator_plat_data = {
 	.reg_init               = ab8505_reg_init,
 	.num_reg_init           = ARRAY_SIZE(ab8505_reg_init),

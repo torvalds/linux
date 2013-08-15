@@ -297,13 +297,6 @@ config MTD_IXP4XX
 	  IXDP425 and Coyote. If you have an IXP4xx based board and
 	  would like to use the flash chips on it, say 'Y'.
 
-config MTD_AUTCPU12
-	bool "NV-RAM mapping AUTCPU12 board"
-	depends on ARCH_AUTCPU12
-	help
-	  This enables access to the NV-RAM on autronix autcpu12 board.
-	  If you have such a board, say 'Y'.
-
 config MTD_IMPA7
 	tristate "JEDEC Flash device mapped on impA7"
 	depends on ARM && MTD_JEDECPROBE

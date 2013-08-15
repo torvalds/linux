@@ -636,8 +636,6 @@ static int mc13892_regulator_remove(struct platform_device *pdev)
 	struct mc13xxx_regulator_priv *priv = platform_get_drvdata(pdev);
 	int i;
 
-	platform_set_drvdata(pdev, NULL);
-
 	for (i = 0; i < priv->num_regulators; i++)
 		regulator_unregister(priv->regulators[i]);
 

@@ -35,7 +35,7 @@ typedef struct TransferDesc {
 	short eSize;		/* element size - is tohost flag for circular */
 } TRANSFERDESC;
 
-typedef TRANSFERDESC * LPTRANSFERDESC;
+typedef TRANSFERDESC *LPTRANSFERDESC;
 
 typedef struct TransferEvent {
 	unsigned int dwStart;		/* offset into the area */

@@ -1,0 +1,60 @@
+config TI_SOC_THERMAL
+	tristate "Texas Instruments SoCs temperature sensor driver"
+	depends on THERMAL
+	depends on ARCH_HAS_BANDGAP
+	help
+	  If you say yes here you get support for the Texas Instruments
+	  OMAP4460+ on die bandgap temperature sensor support. The register
+	  set is part of system control module.
+
+	  This includes alert interrupts generation and also the TSHUT
+	  support.
+
+config TI_THERMAL
+	bool "Texas Instruments SoCs thermal framework support"
+	depends on TI_SOC_THERMAL
+	depends on CPU_THERMAL
+	help
+	  If you say yes here you want to get support for generic thermal
+	  framework for the Texas Instruments on die bandgap temperature sensor.
+
+	  This includes trip points definitions, extrapolation rules and
+	  CPU cooling device bindings.
+
+config OMAP4_THERMAL
+	bool "Texas Instruments OMAP4 thermal support"
+	depends on TI_SOC_THERMAL
+	depends on ARCH_OMAP4
+	help
+	  If you say yes here you get thermal support for the Texas Instruments
+	  OMAP4 SoC family. The current chip supported are:
+	   - OMAP4430
+	   - OMAP4460
+	   - OMAP4470
+
+	  This includes alert interrupts generation and also the TSHUT
+	  support.
+
+config OMAP5_THERMAL
+	bool "Texas Instruments OMAP5 thermal support"
+	depends on TI_SOC_THERMAL
+	depends on SOC_OMAP5
+	help
+	  If you say yes here you get thermal support for the Texas Instruments
+	  OMAP5 SoC family. The current chip supported are:
+	   - OMAP5430
+
+	  This includes alert interrupts generation and also the TSHUT
+	  support.
+
+config DRA752_THERMAL
+	bool "Texas Instruments DRA752 thermal support"
+	depends on TI_SOC_THERMAL
+	depends on SOC_DRA7XX
+	help
+	  If you say yes here you get thermal support for the Texas Instruments
+	  DRA752 SoC family. The current chip supported are:
+	   - DRA752
+
+	  This includes alert interrupts generation and also the TSHUT
+	  support.

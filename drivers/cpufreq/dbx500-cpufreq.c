@@ -57,13 +57,13 @@ static int dbx500_cpufreq_target(struct cpufreq_policy *policy,
 	if (ret) {
 		pr_err("dbx500-cpufreq: Failed to set armss_clk to %d Hz: error %d\n",
 		       freqs.new * 1000, ret);
-		return ret;
+		freqs.new = freqs.old;
 	}
 
 	/* post change notification */
 	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
-	return 0;
+	return ret;
 }
 
 static unsigned int dbx500_cpufreq_getspeed(unsigned int cpu)
@@ -82,7 +82,7 @@ static unsigned int dbx500_cpufreq_getspeed(unsigned int cpu)
 	return freq_table[i].frequency;
 }
 
-static int __cpuinit dbx500_cpufreq_init(struct cpufreq_policy *policy)
+static int dbx500_cpufreq_init(struct cpufreq_policy *policy)
 {
 	int res;
 

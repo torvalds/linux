@@ -464,6 +464,19 @@ if (desc->irq_data.chip->irq_eoi)
 	protected via desc->lock, by the generic layer.
      </para>
   </chapter>
+
+  <chapter id="genericchip">
+     <title>Generic interrupt chip</title>
+     <para>
+       To avoid copies of identical implementations of irq chips the
+       core provides a configurable generic interrupt chip
+       implementation. Developers should check carefuly whether the
+       generic chip fits their needs before implementing the same
+       functionality slightly different themself.
+     </para>
+!Ekernel/irq/generic-chip.c
+  </chapter>
+
   <chapter id="structs">
      <title>Structures</title>
      <para>

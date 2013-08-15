@@ -45,7 +45,7 @@ static int ab8500_reg_clks(struct device *dev)
 				CLK_IS_ROOT);
 	clk_register_clkdev(clk, "sysclk", "ab8500-usb.0");
 	clk_register_clkdev(clk, "sysclk", "ab-iddet.0");
-	clk_register_clkdev(clk, "sysclk", "ab85xx-codec.0");
+	clk_register_clkdev(clk, "sysclk", "snd-soc-mop500.0");
 	clk_register_clkdev(clk, "sysclk", "shrm_bus");
 
 	/* ab8500_sysclk2 */
@@ -70,19 +70,19 @@ static int ab8500_reg_clks(struct device *dev)
 		AB8500_SYSULPCLKCTRL1, AB8500_SYSULPCLKCTRL1_ULPCLKREQ,
 		AB8500_SYSULPCLKCTRL1_ULPCLKREQ,
 		38400000, 9000, CLK_IS_ROOT);
-	clk_register_clkdev(clk, "ulpclk", "ab85xx-codec.0");
+	clk_register_clkdev(clk, "ulpclk", "snd-soc-mop500.0");
 
 	/* ab8500_intclk */
 	clk = clk_reg_sysctrl_set_parent(dev , "intclk", intclk_parents, 2,
 		intclk_reg_sel, intclk_reg_mask, intclk_reg_bits, 0);
-	clk_register_clkdev(clk, "intclk", "ab85xx-codec.0");
+	clk_register_clkdev(clk, "intclk", "snd-soc-mop500.0");
 	clk_register_clkdev(clk, NULL, "ab8500-pwm.1");
 
 	/* ab8500_audioclk */
 	clk = clk_reg_sysctrl_gate(dev , "audioclk", "intclk",
 		AB8500_SYSULPCLKCTRL1, AB8500_SYSULPCLKCTRL1_AUDIOCLKENA,
 		AB8500_SYSULPCLKCTRL1_AUDIOCLKENA, 0, 0);
-	clk_register_clkdev(clk, "audioclk", "ab85xx-codec.0");
+	clk_register_clkdev(clk, "audioclk", "ab8500-codec.0");
 
 	return 0;
 }

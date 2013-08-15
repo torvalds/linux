@@ -248,11 +248,6 @@ static int au1550_spi_setupxfer(struct spi_device *spi, struct spi_transfer *t)
 			hz = t->speed_hz;
 	}
 
-	if (bpw < 4 || bpw > 24) {
-		dev_err(&spi->dev, "setupxfer: invalid bits_per_word=%d\n",
-			bpw);
-		return -EINVAL;
-	}
 	if (hz > spi->max_speed_hz || hz > hw->freq_max || hz < hw->freq_min) {
 		dev_err(&spi->dev, "setupxfer: clock rate=%d out of range\n",
 			hz);
@@ -295,12 +290,6 @@ static int au1550_spi_setupxfer(struct spi_device *spi, struct spi_transfer *t)
 static int au1550_spi_setup(struct spi_device *spi)
 {
 	struct au1550_spi *hw = spi_master_get_devdata(spi->master);
-
-	if (spi->bits_per_word < 4 || spi->bits_per_word > 24) {
-		dev_err(&spi->dev, "setup: invalid bits_per_word=%d\n",
-			spi->bits_per_word);
-		return -EINVAL;
-	}
 
 	if (spi->max_speed_hz == 0)
 		spi->max_speed_hz = hw->freq_max;
@@ -782,6 +771,7 @@ static int au1550_spi_probe(struct platform_device *pdev)
 
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LSB_FIRST;
+	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 24);
 
 	hw = spi_master_get_devdata(master);
 
@@ -986,8 +976,6 @@ static int au1550_spi_remove(struct platform_device *pdev)
 		au1xxx_dbdma_chan_free(hw->dma_rx_ch);
 		au1xxx_dbdma_chan_free(hw->dma_tx_ch);
 	}
-
-	platform_set_drvdata(pdev, NULL);
 
 	spi_master_put(hw->master);
 	return 0;

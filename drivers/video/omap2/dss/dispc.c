@@ -103,6 +103,7 @@ static struct {
 	int irq;
 
 	unsigned long core_clk_rate;
+	unsigned long tv_pclk_rate;
 
 	u32 fifo_size[DISPC_MAX_NR_FIFOS];
 	/* maps which plane is using a fifo. fifo-id -> plane-id */
@@ -3071,20 +3072,13 @@ unsigned long dispc_mgr_pclk_rate(enum omap_channel channel)
 
 		return r / pcd;
 	} else {
-		enum dss_hdmi_venc_clk_source_select source;
-
-		source = dss_get_hdmi_venc_clk_source();
-
-		switch (source) {
-		case DSS_VENC_TV_CLK:
-			return venc_get_pixel_clock();
-		case DSS_HDMI_M_PCLK:
-			return hdmi_get_pixel_clock();
-		default:
-			BUG();
-			return 0;
-		}
+		return dispc.tv_pclk_rate;
 	}
+}
+
+void dispc_set_tv_pclk(unsigned long pclk)
+{
+	dispc.tv_pclk_rate = pclk;
 }
 
 unsigned long dispc_core_clk_rate(void)
@@ -3710,6 +3704,8 @@ static int __init omap_dispchw_probe(struct platform_device *pdev)
 
 	dispc_runtime_put();
 
+	dss_init_overlay_managers();
+
 	dss_debugfs_create_file("dispc", dispc_dump_regs);
 
 	return 0;
@@ -3722,6 +3718,8 @@ err_runtime_get:
 static int __exit omap_dispchw_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
+
+	dss_uninit_overlay_managers();
 
 	return 0;
 }

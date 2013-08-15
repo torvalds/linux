@@ -126,7 +126,7 @@ static int tpo_td043_write_mirror(struct spi_device *spi, bool h, bool v)
 
 static int tpo_td043_set_hmirror(struct omap_dss_device *dssdev, bool enable)
 {
-	struct tpo_td043_device *tpo_td043 = dev_get_drvdata(&dssdev->dev);
+	struct tpo_td043_device *tpo_td043 = dev_get_drvdata(dssdev->dev);
 
 	tpo_td043->hmirror = enable;
 	return tpo_td043_write_mirror(tpo_td043->spi, tpo_td043->hmirror,
@@ -135,7 +135,7 @@ static int tpo_td043_set_hmirror(struct omap_dss_device *dssdev, bool enable)
 
 static bool tpo_td043_get_hmirror(struct omap_dss_device *dssdev)
 {
-	struct tpo_td043_device *tpo_td043 = dev_get_drvdata(&dssdev->dev);
+	struct tpo_td043_device *tpo_td043 = dev_get_drvdata(dssdev->dev);
 
 	return tpo_td043->hmirror;
 }
@@ -338,7 +338,7 @@ static void tpo_td043_power_off(struct tpo_td043_device *tpo_td043)
 
 static int tpo_td043_enable_dss(struct omap_dss_device *dssdev)
 {
-	struct tpo_td043_device *tpo_td043 = dev_get_drvdata(&dssdev->dev);
+	struct tpo_td043_device *tpo_td043 = dev_get_drvdata(dssdev->dev);
 	int r;
 
 	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
@@ -372,7 +372,7 @@ err0:
 
 static void tpo_td043_disable_dss(struct omap_dss_device *dssdev)
 {
-	struct tpo_td043_device *tpo_td043 = dev_get_drvdata(&dssdev->dev);
+	struct tpo_td043_device *tpo_td043 = dev_get_drvdata(dssdev->dev);
 
 	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
 		return;
@@ -385,14 +385,14 @@ static void tpo_td043_disable_dss(struct omap_dss_device *dssdev)
 
 static int tpo_td043_enable(struct omap_dss_device *dssdev)
 {
-	dev_dbg(&dssdev->dev, "enable\n");
+	dev_dbg(dssdev->dev, "enable\n");
 
 	return tpo_td043_enable_dss(dssdev);
 }
 
 static void tpo_td043_disable(struct omap_dss_device *dssdev)
 {
-	dev_dbg(&dssdev->dev, "disable\n");
+	dev_dbg(dssdev->dev, "disable\n");
 
 	tpo_td043_disable_dss(dssdev);
 
@@ -405,10 +405,10 @@ static int tpo_td043_probe(struct omap_dss_device *dssdev)
 	struct panel_tpo_td043_data *pdata = get_panel_data(dssdev);
 	int ret = 0;
 
-	dev_dbg(&dssdev->dev, "probe\n");
+	dev_dbg(dssdev->dev, "probe\n");
 
 	if (tpo_td043 == NULL) {
-		dev_err(&dssdev->dev, "missing tpo_td043_device\n");
+		dev_err(dssdev->dev, "missing tpo_td043_device\n");
 		return -ENODEV;
 	}
 
@@ -423,28 +423,28 @@ static int tpo_td043_probe(struct omap_dss_device *dssdev)
 	tpo_td043->mode = TPO_R02_MODE_800x480;
 	memcpy(tpo_td043->gamma, tpo_td043_def_gamma, sizeof(tpo_td043->gamma));
 
-	tpo_td043->vcc_reg = regulator_get(&dssdev->dev, "vcc");
+	tpo_td043->vcc_reg = regulator_get(dssdev->dev, "vcc");
 	if (IS_ERR(tpo_td043->vcc_reg)) {
-		dev_err(&dssdev->dev, "failed to get LCD VCC regulator\n");
+		dev_err(dssdev->dev, "failed to get LCD VCC regulator\n");
 		ret = PTR_ERR(tpo_td043->vcc_reg);
 		goto fail_regulator;
 	}
 
 	if (gpio_is_valid(tpo_td043->nreset_gpio)) {
-		ret = devm_gpio_request_one(&dssdev->dev,
+		ret = devm_gpio_request_one(dssdev->dev,
 				tpo_td043->nreset_gpio, GPIOF_OUT_INIT_LOW,
 				"lcd reset");
 		if (ret < 0) {
-			dev_err(&dssdev->dev, "couldn't request reset GPIO\n");
+			dev_err(dssdev->dev, "couldn't request reset GPIO\n");
 			goto fail_gpio_req;
 		}
 	}
 
-	ret = sysfs_create_group(&dssdev->dev.kobj, &tpo_td043_attr_group);
+	ret = sysfs_create_group(&dssdev->dev->kobj, &tpo_td043_attr_group);
 	if (ret)
-		dev_warn(&dssdev->dev, "failed to create sysfs files\n");
+		dev_warn(dssdev->dev, "failed to create sysfs files\n");
 
-	dev_set_drvdata(&dssdev->dev, tpo_td043);
+	dev_set_drvdata(dssdev->dev, tpo_td043);
 
 	return 0;
 
@@ -457,11 +457,11 @@ fail_regulator:
 
 static void tpo_td043_remove(struct omap_dss_device *dssdev)
 {
-	struct tpo_td043_device *tpo_td043 = dev_get_drvdata(&dssdev->dev);
+	struct tpo_td043_device *tpo_td043 = dev_get_drvdata(dssdev->dev);
 
-	dev_dbg(&dssdev->dev, "remove\n");
+	dev_dbg(dssdev->dev, "remove\n");
 
-	sysfs_remove_group(&dssdev->dev.kobj, &tpo_td043_attr_group);
+	sysfs_remove_group(&dssdev->dev->kobj, &tpo_td043_attr_group);
 	regulator_put(tpo_td043->vcc_reg);
 }
 

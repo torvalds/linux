@@ -1776,7 +1776,7 @@ static int mv_u3d_remove(struct platform_device *dev)
 	kfree(u3d->eps);
 
 	if (u3d->irq)
-		free_irq(u3d->irq, &dev->dev);
+		free_irq(u3d->irq, u3d);
 
 	if (u3d->cap_regs)
 		iounmap(u3d->cap_regs);
@@ -1785,8 +1785,6 @@ static int mv_u3d_remove(struct platform_device *dev)
 	kfree(u3d->status_req);
 
 	clk_put(u3d->clk);
-
-	platform_set_drvdata(dev, NULL);
 
 	kfree(u3d);
 
@@ -1976,7 +1974,7 @@ static int mv_u3d_probe(struct platform_device *dev)
 	return 0;
 
 err_unregister:
-	free_irq(u3d->irq, &dev->dev);
+	free_irq(u3d->irq, u3d);
 err_request_irq:
 err_get_irq:
 	kfree(u3d->status_req);
@@ -1997,7 +1995,6 @@ err_map_cap_regs:
 err_get_cap_regs:
 err_get_clk:
 	clk_put(u3d->clk);
-	platform_set_drvdata(dev, NULL);
 	kfree(u3d);
 err_alloc_private:
 err_pdata:
@@ -2053,7 +2050,7 @@ static SIMPLE_DEV_PM_OPS(mv_u3d_pm_ops, mv_u3d_suspend, mv_u3d_resume);
 
 static void mv_u3d_shutdown(struct platform_device *dev)
 {
-	struct mv_u3d *u3d = dev_get_drvdata(&dev->dev);
+	struct mv_u3d *u3d = platform_get_drvdata(dev);
 	u32 tmp;
 
 	tmp = ioread32(&u3d->op_regs->usbcmd);

@@ -31,9 +31,9 @@
  *
  *        60        56        52        48        44        40        36        32
  * | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - |
- *                                     [      thresh_cmp     ]   [  thresh_ctl   ]
- *                                                                       |
- *                                       thresh start/stop OR FAB match -*
+ *   |                                 [      thresh_cmp     ]   [  thresh_ctl   ]
+ *   |                                                                   |
+ *   *- EBB (Linux)                      thresh start/stop OR FAB match -*
  *
  *        28        24        20        16        12         8         4         0
  * | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - |
@@ -85,6 +85,7 @@
  *
  */
 
+#define EVENT_EBB_MASK		1ull
 #define EVENT_THR_CMP_SHIFT	40	/* Threshold CMP value */
 #define EVENT_THR_CMP_MASK	0x3ff
 #define EVENT_THR_CTL_SHIFT	32	/* Threshold control value (start/stop) */
@@ -109,6 +110,17 @@
 #define EVENT_IS_MARKED		(EVENT_MARKED_MASK << EVENT_MARKED_SHIFT)
 #define EVENT_PSEL_MASK		0xff	/* PMCxSEL value */
 
+#define EVENT_VALID_MASK	\
+	((EVENT_THRESH_MASK    << EVENT_THRESH_SHIFT)		|	\
+	 (EVENT_SAMPLE_MASK    << EVENT_SAMPLE_SHIFT)		|	\
+	 (EVENT_CACHE_SEL_MASK << EVENT_CACHE_SEL_SHIFT)	|	\
+	 (EVENT_PMC_MASK       << EVENT_PMC_SHIFT)		|	\
+	 (EVENT_UNIT_MASK      << EVENT_UNIT_SHIFT)		|	\
+	 (EVENT_COMBINE_MASK   << EVENT_COMBINE_SHIFT)		|	\
+	 (EVENT_MARKED_MASK    << EVENT_MARKED_SHIFT)		|	\
+	 (EVENT_EBB_MASK       << PERF_EVENT_CONFIG_EBB_SHIFT)	|	\
+	  EVENT_PSEL_MASK)
+
 /* MMCRA IFM bits - POWER8 */
 #define	POWER8_MMCRA_IFM1		0x0000000040000000UL
 #define	POWER8_MMCRA_IFM2		0x0000000080000000UL
@@ -130,10 +142,10 @@
  *
  *        28        24        20        16        12         8         4         0
  * | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - |
- *                       [ ]   [  sample ]   [     ]   [6] [5]   [4] [3]   [2] [1]
- *                        |                     |
- *      L1 I/D qualifier -*                     |      Count of events for each PMC.
- *                                              |        p1, p2, p3, p4, p5, p6.
+ *                   |   [ ]   [  sample ]   [     ]   [6] [5]   [4] [3]   [2] [1]
+ *              EBB -*    |                     |
+ *                        |                     |      Count of events for each PMC.
+ *      L1 I/D qualifier -*                     |        p1, p2, p3, p4, p5, p6.
  *                     nc - number of counters -*
  *
  * The PMC fields P1..P6, and NC, are adder fields. As we accumulate constraints
@@ -148,6 +160,9 @@
 /* We just throw all the threshold bits into the constraint */
 #define CNST_THRESH_VAL(v)	(((v) & EVENT_THRESH_MASK) << 32)
 #define CNST_THRESH_MASK	CNST_THRESH_VAL(EVENT_THRESH_MASK)
+
+#define CNST_EBB_VAL(v)		(((v) & EVENT_EBB_MASK) << 24)
+#define CNST_EBB_MASK		CNST_EBB_VAL(EVENT_EBB_MASK)
 
 #define CNST_L1_QUAL_VAL(v)	(((v) & 3) << 22)
 #define CNST_L1_QUAL_MASK	CNST_L1_QUAL_VAL(3)
@@ -207,14 +222,21 @@ static inline bool event_is_fab_match(u64 event)
 
 static int power8_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp)
 {
-	unsigned int unit, pmc, cache;
+	unsigned int unit, pmc, cache, ebb;
 	unsigned long mask, value;
 
 	mask = value = 0;
 
-	pmc   = (event >> EVENT_PMC_SHIFT)       & EVENT_PMC_MASK;
-	unit  = (event >> EVENT_UNIT_SHIFT)      & EVENT_UNIT_MASK;
-	cache = (event >> EVENT_CACHE_SEL_SHIFT) & EVENT_CACHE_SEL_MASK;
+	if (event & ~EVENT_VALID_MASK)
+		return -1;
+
+	pmc   = (event >> EVENT_PMC_SHIFT)        & EVENT_PMC_MASK;
+	unit  = (event >> EVENT_UNIT_SHIFT)       & EVENT_UNIT_MASK;
+	cache = (event >> EVENT_CACHE_SEL_SHIFT)  & EVENT_CACHE_SEL_MASK;
+	ebb   = (event >> PERF_EVENT_CONFIG_EBB_SHIFT) & EVENT_EBB_MASK;
+
+	/* Clear the EBB bit in the event, so event checks work below */
+	event &= ~(EVENT_EBB_MASK << PERF_EVENT_CONFIG_EBB_SHIFT);
 
 	if (pmc) {
 		if (pmc > 6)
@@ -283,6 +305,18 @@ static int power8_get_constraint(u64 event, unsigned long *maskp, unsigned long 
 		mask  |= CNST_THRESH_MASK;
 		value |= CNST_THRESH_VAL(event >> EVENT_THRESH_SHIFT);
 	}
+
+	if (!pmc && ebb)
+		/* EBB events must specify the PMC */
+		return -1;
+
+	/*
+	 * All events must agree on EBB, either all request it or none.
+	 * EBB events are pinned & exclusive, so this should never actually
+	 * hit, but we leave it as a fallback in case.
+	 */
+	mask  |= CNST_EBB_VAL(ebb);
+	value |= CNST_EBB_MASK;
 
 	*maskp = mask;
 	*valp = value;
@@ -377,6 +411,10 @@ static int power8_compute_mmcr(u64 event[], int n_ev,
 
 	if (pmc_inuse & 0x7c)
 		mmcr[0] |= MMCR0_PMCjCE;
+
+	/* If we're not using PMC 5 or 6, freeze them */
+	if (!(pmc_inuse & 0x60))
+		mmcr[0] |= MMCR0_FC56;
 
 	mmcr[1] = mmcr1;
 	mmcr[2] = mmcra;
@@ -523,18 +561,13 @@ static int power8_generic_events[] = {
 static u64 power8_bhrb_filter_map(u64 branch_sample_type)
 {
 	u64 pmu_bhrb_filter = 0;
-	u64 br_privilege = branch_sample_type & ONLY_PLM;
 
-	/* BHRB and regular PMU events share the same prvillege state
+	/* BHRB and regular PMU events share the same privilege state
 	 * filter configuration. BHRB is always recorded along with a
-	 * regular PMU event. So privilege state filter criteria for BHRB
-	 * and the companion PMU events has to be the same. As a default
-	 * "perf record" tool sets all privillege bits ON when no filter
-	 * criteria is provided in the command line. So as along as all
-	 * privillege bits are ON or they are OFF, we are good to go.
+	 * regular PMU event. As the privilege state filter is handled
+	 * in the basic PMC configuration of the accompanying regular
+	 * PMU event, we ignore any separate BHRB specific request.
 	 */
-	if ((br_privilege != 7) && (br_privilege != 0))
-		return -1;
 
 	/* No branch filter requested */
 	if (branch_sample_type & PERF_SAMPLE_BRANCH_ANY)
@@ -574,7 +607,7 @@ static struct power_pmu power8_pmu = {
 	.get_constraint		= power8_get_constraint,
 	.get_alternatives	= power8_get_alternatives,
 	.disable_pmc		= power8_disable_pmc,
-	.flags			= PPMU_HAS_SSLOT | PPMU_HAS_SIER | PPMU_BHRB,
+	.flags			= PPMU_HAS_SSLOT | PPMU_HAS_SIER | PPMU_BHRB | PPMU_EBB,
 	.n_generic		= ARRAY_SIZE(power8_generic_events),
 	.generic_events		= power8_generic_events,
 	.attr_groups		= power8_pmu_attr_groups,
@@ -583,10 +616,19 @@ static struct power_pmu power8_pmu = {
 
 static int __init init_power8_pmu(void)
 {
+	int rc;
+
 	if (!cur_cpu_spec->oprofile_cpu_type ||
 	    strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power8"))
 		return -ENODEV;
 
-	return register_power_pmu(&power8_pmu);
+	rc = register_power_pmu(&power8_pmu);
+	if (rc)
+		return rc;
+
+	/* Tell userspace that EBB is supported */
+	cur_cpu_spec->cpu_user_features2 |= PPC_FEATURE2_EBB;
+
+	return 0;
 }
 early_initcall(init_power8_pmu);

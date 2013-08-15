@@ -163,7 +163,6 @@ struct tps6507x_dev {
 
 	/* Client devices */
 	struct tps6507x_pmic *pmic;
-	struct tps6507x_ts *ts;
 };
 
 #endif /*  __LINUX_MFD_TPS6507X_H */

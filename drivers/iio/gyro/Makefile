@@ -3,6 +3,7 @@
 #
 
 obj-$(CONFIG_ADIS16080) += adis16080.o
+obj-$(CONFIG_ADIS16130) += adis16130.o
 obj-$(CONFIG_ADIS16136) += adis16136.o
 obj-$(CONFIG_ADXRS450) += adxrs450.o
 

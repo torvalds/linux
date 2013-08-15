@@ -8,6 +8,8 @@ Required properties:
 Optional properties:
 - fsl,uart-has-rtscts : Indicate the uart has rts and cts
 - fsl,irda-mode : Indicate the uart supports irda mode
+- fsl,dte-mode : Indicate the uart works in DTE mode. The uart works
+                  is DCE mode by default.
 
 Example:
 
@@ -16,4 +18,5 @@ serial@73fbc000 {
 	reg = <0x73fbc000 0x4000>;
 	interrupts = <31>;
 	fsl,uart-has-rtscts;
+	fsl,dte-mode;
 };

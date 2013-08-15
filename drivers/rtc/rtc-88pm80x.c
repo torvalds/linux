@@ -345,7 +345,6 @@ out:
 static int pm80x_rtc_remove(struct platform_device *pdev)
 {
 	struct pm80x_rtc_info *info = platform_get_drvdata(pdev);
-	platform_set_drvdata(pdev, NULL);
 	pm80x_free_irq(info->chip, info->irq, info);
 	return 0;
 }

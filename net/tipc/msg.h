@@ -719,9 +719,9 @@ static inline void msg_set_link_tolerance(struct tipc_msg *m, u32 n)
 }
 
 u32 tipc_msg_tot_importance(struct tipc_msg *m);
-void tipc_msg_init(struct tipc_msg *m, u32 user, u32 type,
-			    u32 hsize, u32 destnode);
+void tipc_msg_init(struct tipc_msg *m, u32 user, u32 type, u32 hsize,
+		   u32 destnode);
 int tipc_msg_build(struct tipc_msg *hdr, struct iovec const *msg_sect,
-		   u32 num_sect, unsigned int total_len,
-			    int max_size, int usrmem, struct sk_buff **buf);
+		   u32 num_sect, unsigned int total_len, int max_size,
+		   struct sk_buff **buf);
 #endif

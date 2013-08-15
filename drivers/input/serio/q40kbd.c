@@ -181,7 +181,6 @@ static int q40kbd_remove(struct platform_device *pdev)
 	free_irq(Q40_IRQ_KEYBOARD, q40kbd);
 	kfree(q40kbd);
 
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 

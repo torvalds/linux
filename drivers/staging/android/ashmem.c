@@ -704,7 +704,8 @@ static long ashmem_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 /* support of 32bit userspace on 64bit platforms */
 #ifdef CONFIG_COMPAT
-static long compat_ashmem_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static long compat_ashmem_ioctl(struct file *file, unsigned int cmd,
+				unsigned long arg)
 {
 
 	switch (cmd) {

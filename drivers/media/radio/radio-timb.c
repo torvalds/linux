@@ -19,6 +19,8 @@
 #include <linux/io.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-event.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
@@ -44,7 +46,8 @@ static int timbradio_vidioc_querycap(struct file *file, void  *priv,
 	strlcpy(v->driver, DRIVER_NAME, sizeof(v->driver));
 	strlcpy(v->card, "Timberdale Radio", sizeof(v->card));
 	snprintf(v->bus_info, sizeof(v->bus_info), "platform:"DRIVER_NAME);
-	v->capabilities = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
+	v->device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
+	v->capabilities = v->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -62,34 +65,6 @@ static int timbradio_vidioc_s_tuner(struct file *file, void *priv,
 	return v4l2_subdev_call(tr->sd_tuner, tuner, s_tuner, v);
 }
 
-static int timbradio_vidioc_g_input(struct file *filp, void *priv,
-	unsigned int *i)
-{
-	*i = 0;
-	return 0;
-}
-
-static int timbradio_vidioc_s_input(struct file *filp, void *priv,
-	unsigned int i)
-{
-	return i ? -EINVAL : 0;
-}
-
-static int timbradio_vidioc_g_audio(struct file *file, void *priv,
-	struct v4l2_audio *a)
-{
-	a->index = 0;
-	strlcpy(a->name, "Radio", sizeof(a->name));
-	a->capability = V4L2_AUDCAP_STEREO;
-	return 0;
-}
-
-static int timbradio_vidioc_s_audio(struct file *file, void *priv,
-	const struct v4l2_audio *a)
-{
-	return a->index ? -EINVAL : 0;
-}
-
 static int timbradio_vidioc_s_frequency(struct file *file, void *priv,
 	const struct v4l2_frequency *f)
 {
@@ -104,44 +79,22 @@ static int timbradio_vidioc_g_frequency(struct file *file, void *priv,
 	return v4l2_subdev_call(tr->sd_tuner, tuner, g_frequency, f);
 }
 
-static int timbradio_vidioc_queryctrl(struct file *file, void *priv,
-	struct v4l2_queryctrl *qc)
-{
-	struct timbradio *tr = video_drvdata(file);
-	return v4l2_subdev_call(tr->sd_dsp, core, queryctrl, qc);
-}
-
-static int timbradio_vidioc_g_ctrl(struct file *file, void *priv,
-	struct v4l2_control *ctrl)
-{
-	struct timbradio *tr = video_drvdata(file);
-	return v4l2_subdev_call(tr->sd_dsp, core, g_ctrl, ctrl);
-}
-
-static int timbradio_vidioc_s_ctrl(struct file *file, void *priv,
-	struct v4l2_control *ctrl)
-{
-	struct timbradio *tr = video_drvdata(file);
-	return v4l2_subdev_call(tr->sd_dsp, core, s_ctrl, ctrl);
-}
-
 static const struct v4l2_ioctl_ops timbradio_ioctl_ops = {
 	.vidioc_querycap	= timbradio_vidioc_querycap,
 	.vidioc_g_tuner		= timbradio_vidioc_g_tuner,
 	.vidioc_s_tuner		= timbradio_vidioc_s_tuner,
 	.vidioc_g_frequency	= timbradio_vidioc_g_frequency,
 	.vidioc_s_frequency	= timbradio_vidioc_s_frequency,
-	.vidioc_g_input		= timbradio_vidioc_g_input,
-	.vidioc_s_input		= timbradio_vidioc_s_input,
-	.vidioc_g_audio		= timbradio_vidioc_g_audio,
-	.vidioc_s_audio		= timbradio_vidioc_s_audio,
-	.vidioc_queryctrl	= timbradio_vidioc_queryctrl,
-	.vidioc_g_ctrl		= timbradio_vidioc_g_ctrl,
-	.vidioc_s_ctrl		= timbradio_vidioc_s_ctrl
+	.vidioc_log_status      = v4l2_ctrl_log_status,
+	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
 static const struct v4l2_file_operations timbradio_fops = {
 	.owner		= THIS_MODULE,
+	.open		= v4l2_fh_open,
+	.release	= v4l2_fh_release,
+	.poll		= v4l2_ctrl_poll,
 	.unlocked_ioctl	= video_ioctl2,
 };
 
@@ -173,6 +126,7 @@ static int timbradio_probe(struct platform_device *pdev)
 	tr->video_dev.release = video_device_release_empty;
 	tr->video_dev.minor = -1;
 	tr->video_dev.lock = &tr->lock;
+	set_bit(V4L2_FL_USE_FH_PRIO, &tr->video_dev.flags);
 
 	strlcpy(tr->v4l2_dev.name, DRIVER_NAME, sizeof(tr->v4l2_dev.name));
 	err = v4l2_device_register(NULL, &tr->v4l2_dev);
@@ -180,6 +134,15 @@ static int timbradio_probe(struct platform_device *pdev)
 		goto err;
 
 	tr->video_dev.v4l2_dev = &tr->v4l2_dev;
+
+	tr->sd_tuner = v4l2_i2c_new_subdev_board(&tr->v4l2_dev,
+		i2c_get_adapter(pdata->i2c_adapter), pdata->tuner, NULL);
+	tr->sd_dsp = v4l2_i2c_new_subdev_board(&tr->v4l2_dev,
+		i2c_get_adapter(pdata->i2c_adapter), pdata->dsp, NULL);
+	if (tr->sd_tuner == NULL || tr->sd_dsp == NULL)
+		goto err_video_req;
+
+	tr->v4l2_dev.ctrl_handler = tr->sd_dsp->ctrl_handler;
 
 	err = video_register_device(&tr->video_dev, VFL_TYPE_RADIO, -1);
 	if (err) {
@@ -193,7 +156,6 @@ static int timbradio_probe(struct platform_device *pdev)
 	return 0;
 
 err_video_req:
-	video_device_release_empty(&tr->video_dev);
 	v4l2_device_unregister(&tr->v4l2_dev);
 err:
 	dev_err(&pdev->dev, "Failed to register: %d\n", err);
@@ -206,10 +168,7 @@ static int timbradio_remove(struct platform_device *pdev)
 	struct timbradio *tr = platform_get_drvdata(pdev);
 
 	video_unregister_device(&tr->video_dev);
-	video_device_release_empty(&tr->video_dev);
-
 	v4l2_device_unregister(&tr->v4l2_dev);
-
 	return 0;
 }
 

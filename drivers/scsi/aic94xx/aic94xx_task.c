@@ -505,7 +505,8 @@ static int asd_build_ssp_ascb(struct asd_ascb *ascb, struct sas_task *task,
 		scb->ssp_task.ssp_cmd.efb_prio_attr |= EFB_MASK;
 	scb->ssp_task.ssp_cmd.efb_prio_attr |= (task->ssp_task.task_prio << 3);
 	scb->ssp_task.ssp_cmd.efb_prio_attr |= (task->ssp_task.task_attr & 7);
-	memcpy(scb->ssp_task.ssp_cmd.cdb, task->ssp_task.cdb, 16);
+	memcpy(scb->ssp_task.ssp_cmd.cdb, task->ssp_task.cmd->cmnd,
+	       task->ssp_task.cmd->cmd_len);
 
 	scb->ssp_task.sister_scb = cpu_to_le16(0xFFFF);
 	scb->ssp_task.conn_handle = cpu_to_le16(

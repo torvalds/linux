@@ -183,14 +183,15 @@ static int snd_usb_caiaq_substream_close(struct snd_pcm_substream *substream)
 static int snd_usb_caiaq_pcm_hw_params(struct snd_pcm_substream *sub,
 				       struct snd_pcm_hw_params *hw_params)
 {
-	return snd_pcm_lib_malloc_pages(sub, params_buffer_bytes(hw_params));
+	return snd_pcm_lib_alloc_vmalloc_buffer(sub,
+						params_buffer_bytes(hw_params));
 }
 
 static int snd_usb_caiaq_pcm_hw_free(struct snd_pcm_substream *sub)
 {
 	struct snd_usb_caiaqdev *cdev = snd_pcm_substream_chip(sub);
 	deactivate_substream(cdev, sub);
-	return snd_pcm_lib_free_pages(sub);
+	return snd_pcm_lib_free_vmalloc_buffer(sub);
 }
 
 /* this should probably go upstream */
@@ -345,7 +346,9 @@ static struct snd_pcm_ops snd_usb_caiaq_ops = {
 	.hw_free =	snd_usb_caiaq_pcm_hw_free,
 	.prepare =	snd_usb_caiaq_pcm_prepare,
 	.trigger =	snd_usb_caiaq_pcm_trigger,
-	.pointer =	snd_usb_caiaq_pcm_pointer
+	.pointer =	snd_usb_caiaq_pcm_pointer,
+	.page =		snd_pcm_lib_get_vmalloc_page,
+	.mmap =		snd_pcm_lib_mmap_vmalloc,
 };
 
 static void check_for_elapsed_periods(struct snd_usb_caiaqdev *cdev,
@@ -851,11 +854,6 @@ int snd_usb_caiaq_audio_init(struct snd_usb_caiaqdev *cdev)
 				&snd_usb_caiaq_ops);
 	snd_pcm_set_ops(cdev->pcm, SNDRV_PCM_STREAM_CAPTURE,
 				&snd_usb_caiaq_ops);
-
-	snd_pcm_lib_preallocate_pages_for_all(cdev->pcm,
-					SNDRV_DMA_TYPE_CONTINUOUS,
-					snd_dma_continuous_data(GFP_KERNEL),
-					MAX_BUFFER_SIZE, MAX_BUFFER_SIZE);
 
 	cdev->data_cb_info =
 		kmalloc(sizeof(struct snd_usb_caiaq_cb_info) * N_URBS,

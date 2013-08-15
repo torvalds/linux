@@ -18,7 +18,7 @@ struct tcf_common {
 	struct tcf_t			tcfc_tm;
 	struct gnet_stats_basic_packed	tcfc_bstats;
 	struct gnet_stats_queue		tcfc_qstats;
-	struct gnet_stats_rate_est	tcfc_rate_est;
+	struct gnet_stats_rate_est64	tcfc_rate_est;
 	spinlock_t			tcfc_lock;
 	struct rcu_head			tcfc_rcu;
 };

@@ -945,7 +945,7 @@ int cx231xx_enum_input(struct file *file, void *priv,
 			     struct v4l2_input *i);
 int cx231xx_g_input(struct file *file, void *priv, unsigned int *i);
 int cx231xx_s_input(struct file *file, void *priv, unsigned int i);
-int cx231xx_g_chip_ident(struct file *file, void *fh, struct v4l2_dbg_chip_ident *chip);
+int cx231xx_g_chip_info(struct file *file, void *fh, struct v4l2_dbg_chip_info *chip);
 int cx231xx_g_register(struct file *file, void *priv,
 			     struct v4l2_dbg_register *reg);
 int cx231xx_s_register(struct file *file, void *priv,

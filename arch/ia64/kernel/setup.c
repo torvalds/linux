@@ -748,7 +748,7 @@ const struct seq_operations cpuinfo_op = {
 #define MAX_BRANDS	8
 static char brandname[MAX_BRANDS][128];
 
-static char * __cpuinit
+static char *
 get_model_name(__u8 family, __u8 model)
 {
 	static int overflow;
@@ -778,7 +778,7 @@ get_model_name(__u8 family, __u8 model)
 	return "Unknown";
 }
 
-static void __cpuinit
+static void
 identify_cpu (struct cpuinfo_ia64 *c)
 {
 	union {
@@ -850,7 +850,7 @@ identify_cpu (struct cpuinfo_ia64 *c)
  * 2. the minimum of the i-cache stride sizes for "flush_icache_range()".
  * 3. the minimum of the cache stride sizes for "clflush_cache_range()".
  */
-static void __cpuinit
+static void
 get_cache_info(void)
 {
 	unsigned long line_size, max = 1;
@@ -915,10 +915,10 @@ get_cache_info(void)
  * cpu_init() initializes state that is per-CPU.  This function acts
  * as a 'CPU state barrier', nothing should get across.
  */
-void __cpuinit
+void
 cpu_init (void)
 {
-	extern void __cpuinit ia64_mmu_init (void *);
+	extern void ia64_mmu_init(void *);
 	static unsigned long max_num_phys_stacked = IA64_NUM_PHYS_STACK_REG;
 	unsigned long num_phys_stacked;
 	pal_vm_info_2_u_t vmi;

@@ -18,10 +18,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the          *
  *  GNU General Public License for more details.                           *
  *                                                                         *
- *  You should have received a copy of the GNU General Public License      *
- *  along with this program; if not, write to the Free Software            *
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.              *
- *                                                                         *
  ***************************************************************************/
 /*
 
@@ -375,15 +371,13 @@ static int __unioxx5_subdev_init(struct comedi_device *dev,
 	int i, to, ndef_flag = 0;
 	int ret;
 
-	usp = kzalloc(sizeof(*usp), GFP_KERNEL);
-	if (usp == NULL)
+	usp = comedi_alloc_spriv(s, sizeof(*usp));
+	if (!usp)
 		return -ENOMEM;
 
 	ret = __comedi_request_region(dev, iobase, UNIOXX5_SIZE);
-	if (ret) {
-		kfree(usp);
+	if (ret)
 		return ret;
-	}
 	usp->usp_iobase = iobase;
 
 	/* defining modules types */
@@ -417,7 +411,6 @@ static int __unioxx5_subdev_init(struct comedi_device *dev,
 
 	/* initial subdevice for digital or analog i/o */
 	s->type = COMEDI_SUBD_DIO;
-	s->private = usp;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 	s->n_chan = UNIOXX5_NUM_OF_CHANS;
 	s->maxdata = 0xFFF;
@@ -478,15 +471,15 @@ static int unioxx5_attach(struct comedi_device *dev,
 
 static void unioxx5_detach(struct comedi_device *dev)
 {
+	struct comedi_subdevice *s;
+	struct unioxx5_subd_priv *spriv;
 	int i;
-	struct comedi_subdevice *subdev;
-	struct unioxx5_subd_priv *usp;
 
 	for (i = 0; i < dev->n_subdevices; i++) {
-		subdev = &dev->subdevices[i];
-		usp = subdev->private;
-		release_region(usp->usp_iobase, UNIOXX5_SIZE);
-		kfree(subdev->private);
+		s = &dev->subdevices[i];
+		spriv = s->private;
+		if (spriv && spriv->usp_iobase)
+			release_region(spriv->usp_iobase, UNIOXX5_SIZE);
 	}
 }
 

@@ -768,9 +768,7 @@ xfs_dir2_sf_create(
 int						/* error */
 xfs_dir2_sf_getdents(
 	xfs_inode_t		*dp,		/* incore directory inode */
-	void			*dirent,
-	xfs_off_t		*offset,
-	filldir_t		filldir)
+	struct dir_context	*ctx)
 {
 	int			i;		/* shortform entry number */
 	xfs_mount_t		*mp;		/* filesystem mount point */
@@ -802,7 +800,7 @@ xfs_dir2_sf_getdents(
 	/*
 	 * If the block number in the offset is out of range, we're done.
 	 */
-	if (xfs_dir2_dataptr_to_db(mp, *offset) > mp->m_dirdatablk)
+	if (xfs_dir2_dataptr_to_db(mp, ctx->pos) > mp->m_dirdatablk)
 		return 0;
 
 	/*
@@ -819,22 +817,20 @@ xfs_dir2_sf_getdents(
 	/*
 	 * Put . entry unless we're starting past it.
 	 */
-	if (*offset <= dot_offset) {
-		if (filldir(dirent, ".", 1, dot_offset & 0x7fffffff, dp->i_ino, DT_DIR)) {
-			*offset = dot_offset & 0x7fffffff;
+	if (ctx->pos <= dot_offset) {
+		ctx->pos = dot_offset & 0x7fffffff;
+		if (!dir_emit(ctx, ".", 1, dp->i_ino, DT_DIR))
 			return 0;
-		}
 	}
 
 	/*
 	 * Put .. entry unless we're starting past it.
 	 */
-	if (*offset <= dotdot_offset) {
+	if (ctx->pos <= dotdot_offset) {
 		ino = xfs_dir2_sf_get_parent_ino(sfp);
-		if (filldir(dirent, "..", 2, dotdot_offset & 0x7fffffff, ino, DT_DIR)) {
-			*offset = dotdot_offset & 0x7fffffff;
+		ctx->pos = dotdot_offset & 0x7fffffff;
+		if (!dir_emit(ctx, "..", 2, ino, DT_DIR))
 			return 0;
-		}
 	}
 
 	/*
@@ -845,21 +841,20 @@ xfs_dir2_sf_getdents(
 		off = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk,
 				xfs_dir2_sf_get_offset(sfep));
 
-		if (*offset > off) {
+		if (ctx->pos > off) {
 			sfep = xfs_dir2_sf_nextentry(sfp, sfep);
 			continue;
 		}
 
 		ino = xfs_dir2_sfe_get_ino(sfp, sfep);
-		if (filldir(dirent, (char *)sfep->name, sfep->namelen,
-			    off & 0x7fffffff, ino, DT_UNKNOWN)) {
-			*offset = off & 0x7fffffff;
+		ctx->pos = off & 0x7fffffff;
+		if (!dir_emit(ctx, (char *)sfep->name, sfep->namelen,
+			    ino, DT_UNKNOWN))
 			return 0;
-		}
 		sfep = xfs_dir2_sf_nextentry(sfp, sfep);
 	}
 
-	*offset = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk + 1, 0) &
+	ctx->pos = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk + 1, 0) &
 			0x7fffffff;
 	return 0;
 }

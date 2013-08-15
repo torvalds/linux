@@ -768,7 +768,8 @@ static int vivi_start_generating(struct vivi_dev *dev)
 
 	dma_q->frame = 0;
 	dma_q->ini_jiffies = jiffies;
-	dma_q->kthread = kthread_run(vivi_thread, dev, dev->v4l2_dev.name);
+	dma_q->kthread = kthread_run(vivi_thread, dev, "%s",
+				     dev->v4l2_dev.name);
 
 	if (IS_ERR(dma_q->kthread)) {
 		v4l2_err(&dev->v4l2_dev, "kernel_thread() failed\n");

@@ -214,13 +214,12 @@ static irqreturn_t s3c_ac97_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-struct snd_ac97_bus_ops soc_ac97_ops = {
+static struct snd_ac97_bus_ops s3c_ac97_ops = {
 	.read       = s3c_ac97_read,
 	.write      = s3c_ac97_write,
 	.warm_reset = s3c_ac97_warm_reset,
 	.reset      = s3c_ac97_cold_reset,
 };
-EXPORT_SYMBOL_GPL(soc_ac97_ops);
 
 static int s3c_ac97_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params *params,
@@ -417,11 +416,9 @@ static int s3c_ac97_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	if (!request_mem_region(mem_res->start,
-				resource_size(mem_res), "ac97")) {
-		dev_err(&pdev->dev, "Unable to request register region\n");
-		return -EBUSY;
-	}
+	s3c_ac97.regs = devm_ioremap_resource(&pdev->dev, mem_res);
+	if (IS_ERR(s3c_ac97.regs))
+		return PTR_ERR(s3c_ac97.regs);
 
 	s3c_ac97_pcm_out.channel = dmatx_res->start;
 	s3c_ac97_pcm_out.dma_addr = mem_res->start + S3C_AC97_PCM_DATA;
@@ -433,14 +430,7 @@ static int s3c_ac97_probe(struct platform_device *pdev)
 	init_completion(&s3c_ac97.done);
 	mutex_init(&s3c_ac97.lock);
 
-	s3c_ac97.regs = ioremap(mem_res->start, resource_size(mem_res));
-	if (s3c_ac97.regs == NULL) {
-		dev_err(&pdev->dev, "Unable to ioremap register region\n");
-		ret = -ENXIO;
-		goto err1;
-	}
-
-	s3c_ac97.ac97_clk = clk_get(&pdev->dev, "ac97");
+	s3c_ac97.ac97_clk = devm_clk_get(&pdev->dev, "ac97");
 	if (IS_ERR(s3c_ac97.ac97_clk)) {
 		dev_err(&pdev->dev, "ac97 failed to get ac97_clock\n");
 		ret = -ENODEV;
@@ -458,6 +448,12 @@ static int s3c_ac97_probe(struct platform_device *pdev)
 					0, "AC97", NULL);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "ac97: interrupt request failed.\n");
+		goto err4;
+	}
+
+	ret = snd_soc_set_ac97_ops(&s3c_ac97_ops);
+	if (ret != 0) {
+		dev_err(&pdev->dev, "Failed to set AC'97 ops: %d\n", ret);
 		goto err4;
 	}
 
@@ -480,18 +476,14 @@ err5:
 err4:
 err3:
 	clk_disable_unprepare(s3c_ac97.ac97_clk);
-	clk_put(s3c_ac97.ac97_clk);
 err2:
-	iounmap(s3c_ac97.regs);
-err1:
-	release_mem_region(mem_res->start, resource_size(mem_res));
-
+	snd_soc_set_ac97_ops(NULL);
 	return ret;
 }
 
 static int s3c_ac97_remove(struct platform_device *pdev)
 {
-	struct resource *mem_res, *irq_res;
+	struct resource *irq_res;
 
 	asoc_dma_platform_unregister(&pdev->dev);
 	snd_soc_unregister_component(&pdev->dev);
@@ -501,13 +493,7 @@ static int s3c_ac97_remove(struct platform_device *pdev)
 		free_irq(irq_res->start, NULL);
 
 	clk_disable_unprepare(s3c_ac97.ac97_clk);
-	clk_put(s3c_ac97.ac97_clk);
-
-	iounmap(s3c_ac97.regs);
-
-	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (mem_res)
-		release_mem_region(mem_res->start, resource_size(mem_res));
+	snd_soc_set_ac97_ops(NULL);
 
 	return 0;
 }

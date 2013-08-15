@@ -251,8 +251,8 @@ static int __rpipe_reset(struct wahc *wa, unsigned index)
 static struct usb_wireless_ep_comp_descriptor epc0 = {
 	.bLength = sizeof(epc0),
 	.bDescriptorType = USB_DT_WIRELESS_ENDPOINT_COMP,
-/*	.bMaxBurst = 1, */
-	.bMaxSequence = 31,
+	.bMaxBurst = 1,
+	.bMaxSequence = 2,
 };
 
 /*
@@ -317,6 +317,7 @@ static int rpipe_aim(struct wa_rpipe *rpipe, struct wahc *wa,
 	struct device *dev = &wa->usb_iface->dev;
 	struct usb_device *usb_dev = urb->dev;
 	struct usb_wireless_ep_comp_descriptor *epcd;
+	u32 ack_window, epcd_max_sequence;
 	u8 unauth;
 
 	epcd = rpipe_epc_find(dev, ep);
@@ -333,8 +334,11 @@ static int rpipe_aim(struct wa_rpipe *rpipe, struct wahc *wa,
 	rpipe->descr.wBlocks = cpu_to_le16(16);		/* given */
 	/* ep0 maxpktsize is 0x200 (WUSB1.0[4.8.1]) */
 	rpipe->descr.wMaxPacketSize = cpu_to_le16(ep->desc.wMaxPacketSize);
-	rpipe->descr.bHSHubAddress = 0;			/* reserved: zero */
-	rpipe->descr.bHSHubPort = wusb_port_no_to_idx(urb->dev->portnum);
+
+	rpipe->descr.hwa_bMaxBurst = max(min_t(unsigned int,
+				epcd->bMaxBurst, 16U), 1U);
+	rpipe->descr.hwa_bDeviceInfoIndex =
+			wusb_port_no_to_idx(urb->dev->portnum);
 	/* FIXME: use maximum speed as supported or recommended by device */
 	rpipe->descr.bSpeed = usb_pipeendpoint(urb->pipe) == 0 ?
 		UWB_PHY_RATE_53 : UWB_PHY_RATE_200;
@@ -344,26 +348,26 @@ static int rpipe_aim(struct wa_rpipe *rpipe, struct wahc *wa,
 		le16_to_cpu(rpipe->descr.wRPipeIndex),
 		usb_pipeendpoint(urb->pipe), rpipe->descr.bSpeed);
 
-	/* see security.c:wusb_update_address() */
-	if (unlikely(urb->dev->devnum == 0x80))
-		rpipe->descr.bDeviceAddress = 0;
-	else
-		rpipe->descr.bDeviceAddress = urb->dev->devnum | unauth;
+	rpipe->descr.hwa_reserved = 0;
+
 	rpipe->descr.bEndpointAddress = ep->desc.bEndpointAddress;
 	/* FIXME: bDataSequence */
 	rpipe->descr.bDataSequence = 0;
-	/* FIXME: dwCurrentWindow */
-	rpipe->descr.dwCurrentWindow = cpu_to_le32(1);
-	/* FIXME: bMaxDataSequence */
-	rpipe->descr.bMaxDataSequence = epcd->bMaxSequence - 1;
+
+	/* start with base window of hwa_bMaxBurst bits starting at 0. */
+	ack_window = 0xFFFFFFFF >> (32 - rpipe->descr.hwa_bMaxBurst);
+	rpipe->descr.dwCurrentWindow = cpu_to_le32(ack_window);
+	epcd_max_sequence = max(min_t(unsigned int,
+			epcd->bMaxSequence, 32U), 2U);
+	rpipe->descr.bMaxDataSequence = epcd_max_sequence - 1;
 	rpipe->descr.bInterval = ep->desc.bInterval;
 	/* FIXME: bOverTheAirInterval */
 	rpipe->descr.bOverTheAirInterval = 0;	/* 0 if not isoc */
 	/* FIXME: xmit power & preamble blah blah */
-	rpipe->descr.bmAttribute = ep->desc.bmAttributes & 0x03;
+	rpipe->descr.bmAttribute = (ep->desc.bmAttributes &
+					USB_ENDPOINT_XFERTYPE_MASK);
 	/* rpipe->descr.bmCharacteristics RO */
-	/* FIXME: bmRetryOptions */
-	rpipe->descr.bmRetryOptions = 15;
+	rpipe->descr.bmRetryOptions = (wa->wusb->retry_count & 0xF);
 	/* FIXME: use for assessing link quality? */
 	rpipe->descr.wNumTransactionErrors = 0;
 	result = __rpipe_set_descr(wa, &rpipe->descr,
@@ -387,10 +391,8 @@ static int rpipe_check_aim(const struct wa_rpipe *rpipe, const struct wahc *wa,
 			   const struct usb_host_endpoint *ep,
 			   const struct urb *urb, gfp_t gfp)
 {
-	int result = 0;		/* better code for lack of companion? */
+	int result = 0;
 	struct device *dev = &wa->usb_iface->dev;
-	struct usb_device *usb_dev = urb->dev;
-	u8 unauth = (usb_dev->wusb && !usb_dev->authenticated) ? 0x80 : 0;
 	u8 portnum = wusb_port_no_to_idx(urb->dev->portnum);
 
 #define AIM_CHECK(rdf, val, text)					\
@@ -403,13 +405,10 @@ static int rpipe_check_aim(const struct wa_rpipe *rpipe, const struct wahc *wa,
 			WARN_ON(1);					\
 		}							\
 	} while (0)
-	AIM_CHECK(wMaxPacketSize, cpu_to_le16(ep->desc.wMaxPacketSize),
-		  "(%u vs %u)");
-	AIM_CHECK(bHSHubPort, portnum, "(%u vs %u)");
+	AIM_CHECK(hwa_bDeviceInfoIndex, portnum, "(%u vs %u)");
 	AIM_CHECK(bSpeed, usb_pipeendpoint(urb->pipe) == 0 ?
 			UWB_PHY_RATE_53 : UWB_PHY_RATE_200,
 		  "(%u vs %u)");
-	AIM_CHECK(bDeviceAddress, urb->dev->devnum | unauth, "(%u vs %u)");
 	AIM_CHECK(bEndpointAddress, ep->desc.bEndpointAddress, "(%u vs %u)");
 	AIM_CHECK(bInterval, ep->desc.bInterval, "(%u vs %u)");
 	AIM_CHECK(bmAttribute, ep->desc.bmAttributes & 0x03, "(%u vs %u)");

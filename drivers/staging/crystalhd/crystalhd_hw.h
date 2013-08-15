@@ -46,7 +46,7 @@
 #define Cpu2HstMbx1		0x00100F04
 #define MbxStat1		0x00100F08
 #define Stream2Host_Intr_Sts	0x00100F24
-#define C011_RET_SUCCESS	0x0	/* Reutrn status of firmware command. */
+#define C011_RET_SUCCESS	0x0 /* Reutrn status of firmware command. */
 
 /* TS input status register */
 #define TS_StreamAFIFOStatus	0x0010044C
@@ -103,7 +103,7 @@
 #define BC_FWIMG_ST_ADDR	0x00000000
 /* FIXME: jarod: there's a kernel function that'll do this for us... */
 #define rotr32_1(x, n)		(((x) >> n) | ((x) << (32 - n)))
-#define bswap_32_1(x)		((rotr32_1((x), 24) & 0x00ff00ff) | (rotr32_1((x), 8) & 0xff00ff00))
+#define bswap_32_1(x) ((rotr32_1((x), 24) & 0x00ff00ff) | (rotr32_1((x), 8) & 0xff00ff00))
 
 #define DecHt_HostSwReset	0x340000
 #define BC_DRAM_FW_CFG_ADDR	0x001c2000
@@ -136,9 +136,11 @@ union intr_mask_reg {
 
 union link_misc_perst_deco_ctrl {
 	struct {
-		uint32_t	bcm7412_rst:1;		/* 1 -> BCM7412 is held in reset. Reset value 1.*/
+		uint32_t	bcm7412_rst:1;	/* 1 -> BCM7412 is held
+						in reset. Reset value 1.*/
 		uint32_t	reserved0:3;		/* Reserved.No Effect*/
-		uint32_t	stop_bcm_7412_clk:1;	/* 1 ->Stops branch of 27MHz clk used to clk BCM7412*/
+		uint32_t	stop_bcm_7412_clk:1;	/* 1 ->Stops branch of
+						27MHz clk used to clk BCM7412*/
 		uint32_t	reserved1:27;		/* Reseved. No Effect*/
 	};
 
@@ -148,13 +150,18 @@ union link_misc_perst_deco_ctrl {
 
 union link_misc_perst_clk_ctrl {
 	struct {
-		uint32_t	sel_alt_clk:1;	  /* When set, selects a 6.75MHz clock as the source of core_clk */
-		uint32_t	stop_core_clk:1;  /* When set, stops the branch of core_clk that is not needed for low power operation */
-		uint32_t	pll_pwr_dn:1;	  /* When set, powers down the main PLL. The alternate clock bit should be set
-						     to select an alternate clock before setting this bit.*/
+		uint32_t	sel_alt_clk:1;	  /* When set, selects a
+				 6.75MHz clock as the source of core_clk */
+		uint32_t	stop_core_clk:1;  /* When set, stops the branch
+		 of core_clk that is not needed for low power operation */
+		uint32_t	pll_pwr_dn:1;	  /* When set, powers down the
+			 main PLL. The alternate clock bit should be set to
+			 select an alternate clock before setting this bit.*/
 		uint32_t	reserved0:5;	  /* Reserved */
-		uint32_t	pll_mult:8;	  /* This setting controls the multiplier for the PLL. */
-		uint32_t	pll_div:4;	  /* This setting controls the divider for the PLL. */
+		uint32_t	pll_mult:8;	  /* This setting controls
+						 the multiplier for the PLL. */
+		uint32_t	pll_div:4;	  /* This setting controls
+						 the divider for the PLL. */
 		uint32_t	reserved1:12;	  /* Reserved */
 	};
 
@@ -164,9 +171,11 @@ union link_misc_perst_clk_ctrl {
 
 union link_misc_perst_decoder_ctrl {
 	struct {
-		uint32_t	bcm_7412_rst:1; /* 1 -> BCM7412 is held in reset. Reset value 1.*/
+		uint32_t	bcm_7412_rst:1; /* 1 -> BCM7412 is held
+						 in reset. Reset value 1.*/
 		uint32_t	res0:3; /* Reserved.No Effect*/
-		uint32_t	stop_7412_clk:1; /* 1 ->Stops branch of 27MHz clk used to clk BCM7412*/
+		uint32_t	stop_7412_clk:1; /* 1 ->Stops branch of 27MHz
+						 clk used to clk BCM7412*/
 		uint32_t	res1:27; /* Reseved. No Effect */
 	};
 
@@ -225,10 +234,12 @@ struct dma_descriptor {	/* 8 32-bit values */
  * The  virtual address will determine what should be freed.
  */
 struct dma_desc_mem {
-	struct dma_descriptor	*pdma_desc_start; /* 32-bytes for dma descriptor. should be first element */
-	dma_addr_t		phy_addr;	/* physical address of each DMA desc */
+	struct dma_descriptor	*pdma_desc_start; /* 32-bytes for dma
+				 descriptor. should be first element */
+	dma_addr_t		phy_addr;	/* physical address
+						 of each DMA desc */
 	uint32_t		sz;
-	struct _dma_desc_mem_	*Next;		/* points to Next Descriptor in chain */
+	struct _dma_desc_mem_	*Next; /* points to Next Descriptor in chain */
 
 };
 
@@ -323,50 +334,54 @@ struct crystalhd_hw {
 #define CLOCK_PRESET 175
 
 /* DMA engine register BIT mask wrappers.. */
-#define DMA_START_BIT		MISC1_TX_SW_DESC_LIST_CTRL_STS_TX_DMA_RUN_STOP_MASK
+#define DMA_START_BIT	MISC1_TX_SW_DESC_LIST_CTRL_STS_TX_DMA_RUN_STOP_MASK
 
-#define GET_RX_INTR_MASK (INTR_INTR_STATUS_L1_UV_RX_DMA_ERR_INTR_MASK |		\
-			  INTR_INTR_STATUS_L1_UV_RX_DMA_DONE_INTR_MASK |	\
-			  INTR_INTR_STATUS_L1_Y_RX_DMA_ERR_INTR_MASK |		\
-			  INTR_INTR_STATUS_L1_Y_RX_DMA_DONE_INTR_MASK |		\
-			  INTR_INTR_STATUS_L0_UV_RX_DMA_ERR_INTR_MASK |		\
-			  INTR_INTR_STATUS_L0_UV_RX_DMA_DONE_INTR_MASK |	\
-			  INTR_INTR_STATUS_L0_Y_RX_DMA_ERR_INTR_MASK |		\
-			  INTR_INTR_STATUS_L0_Y_RX_DMA_DONE_INTR_MASK)
+#define GET_RX_INTR_MASK (INTR_INTR_STATUS_L1_UV_RX_DMA_ERR_INTR_MASK |	\
+	INTR_INTR_STATUS_L1_UV_RX_DMA_DONE_INTR_MASK |	\
+	INTR_INTR_STATUS_L1_Y_RX_DMA_ERR_INTR_MASK |		\
+	INTR_INTR_STATUS_L1_Y_RX_DMA_DONE_INTR_MASK |		\
+	INTR_INTR_STATUS_L0_UV_RX_DMA_ERR_INTR_MASK |		\
+	INTR_INTR_STATUS_L0_UV_RX_DMA_DONE_INTR_MASK |	\
+	INTR_INTR_STATUS_L0_Y_RX_DMA_ERR_INTR_MASK |		\
+	INTR_INTR_STATUS_L0_Y_RX_DMA_DONE_INTR_MASK)
 
-#define GET_Y0_ERR_MSK (MISC1_Y_RX_ERROR_STATUS_RX_L0_OVERRUN_ERROR_MASK |		\
-			MISC1_Y_RX_ERROR_STATUS_RX_L0_UNDERRUN_ERROR_MASK |		\
-			MISC1_Y_RX_ERROR_STATUS_RX_L0_DESC_TX_ABORT_ERRORS_MASK |	\
-			MISC1_Y_RX_ERROR_STATUS_RX_L0_FIFO_FULL_ERRORS_MASK)
+#define GET_Y0_ERR_MSK (MISC1_Y_RX_ERROR_STATUS_RX_L0_OVERRUN_ERROR_MASK | \
+	MISC1_Y_RX_ERROR_STATUS_RX_L0_UNDERRUN_ERROR_MASK |		\
+	MISC1_Y_RX_ERROR_STATUS_RX_L0_DESC_TX_ABORT_ERRORS_MASK |	\
+	MISC1_Y_RX_ERROR_STATUS_RX_L0_FIFO_FULL_ERRORS_MASK)
 
-#define GET_UV0_ERR_MSK (MISC1_UV_RX_ERROR_STATUS_RX_L0_OVERRUN_ERROR_MASK |		\
-			 MISC1_UV_RX_ERROR_STATUS_RX_L0_UNDERRUN_ERROR_MASK |		\
-			 MISC1_UV_RX_ERROR_STATUS_RX_L0_DESC_TX_ABORT_ERRORS_MASK |	\
-			 MISC1_UV_RX_ERROR_STATUS_RX_L0_FIFO_FULL_ERRORS_MASK)
+#define GET_UV0_ERR_MSK (MISC1_UV_RX_ERROR_STATUS_RX_L0_OVERRUN_ERROR_MASK | \
+	MISC1_UV_RX_ERROR_STATUS_RX_L0_UNDERRUN_ERROR_MASK |		\
+	MISC1_UV_RX_ERROR_STATUS_RX_L0_DESC_TX_ABORT_ERRORS_MASK |	\
+	MISC1_UV_RX_ERROR_STATUS_RX_L0_FIFO_FULL_ERRORS_MASK)
 
-#define GET_Y1_ERR_MSK (MISC1_Y_RX_ERROR_STATUS_RX_L1_OVERRUN_ERROR_MASK |		\
-			MISC1_Y_RX_ERROR_STATUS_RX_L1_UNDERRUN_ERROR_MASK |		\
-			MISC1_Y_RX_ERROR_STATUS_RX_L1_DESC_TX_ABORT_ERRORS_MASK |	\
-			MISC1_Y_RX_ERROR_STATUS_RX_L1_FIFO_FULL_ERRORS_MASK)
+#define GET_Y1_ERR_MSK (MISC1_Y_RX_ERROR_STATUS_RX_L1_OVERRUN_ERROR_MASK | \
+	MISC1_Y_RX_ERROR_STATUS_RX_L1_UNDERRUN_ERROR_MASK |		\
+	MISC1_Y_RX_ERROR_STATUS_RX_L1_DESC_TX_ABORT_ERRORS_MASK |	\
+	MISC1_Y_RX_ERROR_STATUS_RX_L1_FIFO_FULL_ERRORS_MASK)
 
-#define GET_UV1_ERR_MSK	(MISC1_UV_RX_ERROR_STATUS_RX_L1_OVERRUN_ERROR_MASK |		\
-			 MISC1_UV_RX_ERROR_STATUS_RX_L1_UNDERRUN_ERROR_MASK |		\
-			 MISC1_UV_RX_ERROR_STATUS_RX_L1_DESC_TX_ABORT_ERRORS_MASK |	\
-			 MISC1_UV_RX_ERROR_STATUS_RX_L1_FIFO_FULL_ERRORS_MASK)
+#define GET_UV1_ERR_MSK	(MISC1_UV_RX_ERROR_STATUS_RX_L1_OVERRUN_ERROR_MASK | \
+	MISC1_UV_RX_ERROR_STATUS_RX_L1_UNDERRUN_ERROR_MASK |		\
+	MISC1_UV_RX_ERROR_STATUS_RX_L1_DESC_TX_ABORT_ERRORS_MASK |	\
+	MISC1_UV_RX_ERROR_STATUS_RX_L1_FIFO_FULL_ERRORS_MASK)
 
 
 /**** API Exposed to the other layers ****/
 enum BC_STATUS crystalhd_download_fw(struct crystalhd_adp *adp,
 			      void *buffer, uint32_t sz);
-enum BC_STATUS crystalhd_do_fw_cmd(struct crystalhd_hw *hw, struct BC_FW_CMD *fw_cmd);
-bool crystalhd_hw_interrupt(struct crystalhd_adp *adp, struct crystalhd_hw *hw);
-enum BC_STATUS crystalhd_hw_open(struct crystalhd_hw *, struct crystalhd_adp *);
+enum BC_STATUS crystalhd_do_fw_cmd(struct crystalhd_hw *hw,
+				 struct BC_FW_CMD *fw_cmd);
+bool crystalhd_hw_interrupt(struct crystalhd_adp *adp,
+				 struct crystalhd_hw *hw);
+enum BC_STATUS crystalhd_hw_open(struct crystalhd_hw *,
+				 struct crystalhd_adp *);
 enum BC_STATUS crystalhd_hw_close(struct crystalhd_hw *);
 enum BC_STATUS crystalhd_hw_setup_dma_rings(struct crystalhd_hw *);
 enum BC_STATUS crystalhd_hw_free_dma_rings(struct crystalhd_hw *);
 
 
-enum BC_STATUS crystalhd_hw_post_tx(struct crystalhd_hw *hw, struct crystalhd_dio_req *ioreq,
+enum BC_STATUS crystalhd_hw_post_tx(struct crystalhd_hw *hw,
+			     struct crystalhd_dio_req *ioreq,
 			     hw_comp_callback call_back,
 			     wait_queue_head_t *cb_event,
 			     uint32_t *list_id, uint8_t data_flags);
@@ -374,15 +389,17 @@ enum BC_STATUS crystalhd_hw_post_tx(struct crystalhd_hw *hw, struct crystalhd_di
 enum BC_STATUS crystalhd_hw_pause(struct crystalhd_hw *hw);
 enum BC_STATUS crystalhd_hw_unpause(struct crystalhd_hw *hw);
 enum BC_STATUS crystalhd_hw_suspend(struct crystalhd_hw *hw);
-enum BC_STATUS crystalhd_hw_cancel_tx(struct crystalhd_hw *hw, uint32_t list_id);
+enum BC_STATUS crystalhd_hw_cancel_tx(struct crystalhd_hw *hw,
+				 uint32_t list_id);
 enum BC_STATUS crystalhd_hw_add_cap_buffer(struct crystalhd_hw *hw,
-				    struct crystalhd_dio_req *ioreq, bool en_post);
+			 struct crystalhd_dio_req *ioreq, bool en_post);
 enum BC_STATUS crystalhd_hw_get_cap_buffer(struct crystalhd_hw *hw,
 				    struct BC_PIC_INFO_BLOCK *pib,
 				    struct crystalhd_dio_req **ioreq);
 enum BC_STATUS crystalhd_hw_stop_capture(struct crystalhd_hw *hw);
 enum BC_STATUS crystalhd_hw_start_capture(struct crystalhd_hw *hw);
-void crystalhd_hw_stats(struct crystalhd_hw *hw, struct crystalhd_hw_stats *stats);
+void crystalhd_hw_stats(struct crystalhd_hw *hw,
+			 struct crystalhd_hw_stats *stats);
 
 /* API to program the core clock on the decoder */
 enum BC_STATUS crystalhd_hw_set_core_clock(struct crystalhd_hw *);

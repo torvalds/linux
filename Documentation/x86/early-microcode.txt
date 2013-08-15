@@ -11,7 +11,8 @@ file and loaded to CPUs during boot time.
 The format of the combined initrd image is microcode in cpio format followed by
 the initrd image (maybe compressed). Kernel parses the combined initrd image
 during boot time. The microcode file in cpio name space is:
-kernel/x86/microcode/GenuineIntel.bin
+on Intel: kernel/x86/microcode/GenuineIntel.bin
+on AMD  : kernel/x86/microcode/AuthenticAMD.bin
 
 During BSP boot (before SMP starts), if the kernel finds the microcode file in
 the initrd file, it parses the microcode and saves matching microcode in memory.
@@ -34,10 +35,8 @@ original initrd image /boot/initrd-3.5.0.img.
 
 mkdir initrd
 cd initrd
-mkdir kernel
-mkdir kernel/x86
-mkdir kernel/x86/microcode
-cp ../microcode.bin kernel/x86/microcode/GenuineIntel.bin
-find .|cpio -oc >../ucode.cpio
+mkdir -p kernel/x86/microcode
+cp ../microcode.bin kernel/x86/microcode/GenuineIntel.bin (or AuthenticAMD.bin)
+find . | cpio -o -H newc >../ucode.cpio
 cd ..
 cat ucode.cpio /boot/initrd-3.5.0.img >/boot/initrd-3.5.0.ucode.img

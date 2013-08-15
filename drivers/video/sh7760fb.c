@@ -567,11 +567,10 @@ static int sh7760fb_remove(struct platform_device *dev)
 	fb_dealloc_cmap(&info->cmap);
 	sh7760fb_free_mem(info);
 	if (par->irq >= 0)
-		free_irq(par->irq, par);
+		free_irq(par->irq, &par->vsync);
 	iounmap(par->base);
 	release_mem_region(par->ioarea->start, resource_size(par->ioarea));
 	framebuffer_release(info);
-	platform_set_drvdata(dev, NULL);
 
 	return 0;
 }

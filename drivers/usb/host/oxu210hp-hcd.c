@@ -3874,7 +3874,6 @@ static int oxu_drv_probe(struct platform_device *pdev)
 
 error_init:
 	kfree(info);
-	platform_set_drvdata(pdev, NULL);
 
 error_alloc:
 	iounmap(base);
@@ -3907,7 +3906,6 @@ static int oxu_drv_remove(struct platform_device *pdev)
 	release_mem_region(memstart, memlen);
 
 	kfree(info);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

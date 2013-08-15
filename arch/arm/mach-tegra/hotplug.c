@@ -46,6 +46,17 @@ void __ref tegra_cpu_die(unsigned int cpu)
 	BUG();
 }
 
+int tegra_cpu_disable(unsigned int cpu)
+{
+	switch (tegra_chip_id) {
+	case TEGRA20:
+	case TEGRA30:
+		return cpu == 0 ? -EPERM : 0;
+	default:
+		return 0;
+	}
+}
+
 void __init tegra_hotplug_init(void)
 {
 	if (!IS_ENABLED(CONFIG_HOTPLUG_CPU))
@@ -54,5 +65,7 @@ void __init tegra_hotplug_init(void)
 	if (IS_ENABLED(CONFIG_ARCH_TEGRA_2x_SOC) && tegra_chip_id == TEGRA20)
 		tegra_hotplug_shutdown = tegra20_hotplug_shutdown;
 	if (IS_ENABLED(CONFIG_ARCH_TEGRA_3x_SOC) && tegra_chip_id == TEGRA30)
+		tegra_hotplug_shutdown = tegra30_hotplug_shutdown;
+	if (IS_ENABLED(CONFIG_ARCH_TEGRA_114_SOC) && tegra_chip_id == TEGRA114)
 		tegra_hotplug_shutdown = tegra30_hotplug_shutdown;
 }

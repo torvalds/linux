@@ -1398,16 +1398,6 @@ static struct pci_driver ioc3_driver = {
 	.remove		= ioc3_remove_one,
 };
 
-static int __init ioc3_init_module(void)
-{
-	return pci_register_driver(&ioc3_driver);
-}
-
-static void __exit ioc3_cleanup_module(void)
-{
-	pci_unregister_driver(&ioc3_driver);
-}
-
 static int ioc3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	unsigned long data;
@@ -1677,9 +1667,7 @@ static void ioc3_set_multicast_list(struct net_device *dev)
 	netif_wake_queue(dev);			/* Let us get going again. */
 }
 
+module_pci_driver(ioc3_driver);
 MODULE_AUTHOR("Ralf Baechle <ralf@linux-mips.org>");
 MODULE_DESCRIPTION("SGI IOC3 Ethernet driver");
 MODULE_LICENSE("GPL");
-
-module_init(ioc3_init_module);
-module_exit(ioc3_cleanup_module);

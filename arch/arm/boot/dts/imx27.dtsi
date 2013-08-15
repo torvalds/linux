@@ -25,6 +25,9 @@
 		gpio3 = &gpio4;
 		gpio4 = &gpio5;
 		gpio5 = &gpio6;
+		spi0 = &cspi1;
+		spi1 = &cspi2;
+		spi2 = &cspi3;
 	};
 
 	avic: avic-interrupt-controller@e0000000 {
@@ -58,6 +61,16 @@
 			reg = <0x10000000 0x20000>;
 			ranges;
 
+			dma: dma@10001000 {
+				compatible = "fsl,imx27-dma";
+				reg = <0x10001000 0x1000>;
+				interrupts = <32>;
+				clocks = <&clks 50>, <&clks 70>;
+				clock-names = "ipg", "ahb";
+				#dma-cells = <1>;
+				#dma-channels = <16>;
+			};
+
 			wdog: wdog@10002000 {
 				compatible = "fsl,imx27-wdt", "fsl,imx21-wdt";
 				reg = <0x10002000 0x1000>;
@@ -86,6 +99,14 @@
 				reg = <0x10005000 0x1000>;
 				interrupts = <24>;
 				clocks = <&clks 44>, <&clks 61>;
+				clock-names = "ipg", "per";
+			};
+
+			pwm0: pwm@10006000 {
+				compatible = "fsl,imx27-pwm";
+				reg = <0x10006000 0x1000>;
+				interrupts = <23>;
+				clocks = <&clks 34>, <&clks 61>;
 				clock-names = "ipg", "per";
 			};
 
@@ -154,6 +175,28 @@
 				reg = <0x10012000 0x1000>;
 				interrupts = <12>;
 				clocks = <&clks 40>;
+				status = "disabled";
+			};
+
+			sdhci1: sdhci@10013000 {
+				compatible = "fsl,imx27-mmc", "fsl,imx21-mmc";
+				reg = <0x10013000 0x1000>;
+				interrupts = <11>;
+				clocks = <&clks 30>, <&clks 60>;
+				clock-names = "ipg", "per";
+				dmas = <&dma 7>;
+				dma-names = "rx-tx";
+				status = "disabled";
+			};
+
+			sdhci2: sdhci@10014000 {
+				compatible = "fsl,imx27-mmc", "fsl,imx21-mmc";
+				reg = <0x10014000 0x1000>;
+				interrupts = <10>;
+				clocks = <&clks 29>, <&clks 60>;
+				clock-names = "ipg", "per";
+				dmas = <&dma 6>;
+				dma-names = "rx-tx";
 				status = "disabled";
 			};
 
@@ -272,6 +315,17 @@
 				status = "disabled";
 			};
 
+			sdhci3: sdhci@1001e000 {
+				compatible = "fsl,imx27-mmc", "fsl,imx21-mmc";
+				reg = <0x1001e000 0x1000>;
+				interrupts = <9>;
+				clocks = <&clks 28>, <&clks 60>;
+				clock-names = "ipg", "per";
+				dmas = <&dma 36>;
+				dma-names = "rx-tx";
+				status = "disabled";
+			};
+
 			gpt6: timer@1001f000 {
 				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
 				reg = <0x1001f000 0x1000>;
@@ -288,6 +342,21 @@
 			reg = <0x10020000 0x20000>;
 			ranges;
 
+			coda: coda@10023000 {
+				compatible = "fsl,imx27-vpu";
+				reg = <0x10023000 0x0200>;
+				interrupts = <53>;
+				clocks = <&clks 57>, <&clks 66>;
+				clock-names = "per", "ahb";
+				iram = <&iram>;
+			};
+
+			clks: ccm@10027000{
+				compatible = "fsl,imx27-ccm";
+				reg = <0x10027000 0x1000>;
+				#clock-cells = <1>;
+			};
+
 			fec: ethernet@1002b000 {
 				compatible = "fsl,imx27-fec";
 				reg = <0x1002b000 0x4000>;
@@ -296,19 +365,16 @@
 				clock-names = "ipg", "ahb", "ptp";
 				status = "disabled";
 			};
-
-			clks: ccm@10027000{
-				compatible = "fsl,imx27-ccm";
-				reg = <0x10027000 0x1000>;
-				#clock-cells = <1>;
-			};
 		};
 
+		iram: iram@ffff4c00 {
+			compatible = "mmio-sram";
+			reg = <0xffff4c00 0xb400>;
+		};
 
 		nfc: nand@d8000000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
-
 			compatible = "fsl,imx27-nand";
 			reg = <0xd8000000 0x1000>;
 			interrupts = <29>;

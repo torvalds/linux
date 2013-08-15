@@ -775,12 +775,10 @@ static int twl4030_madc_probe(struct platform_device *pdev)
 				   IRQF_TRIGGER_RISING, "twl4030_madc", madc);
 	if (ret) {
 		dev_dbg(&pdev->dev, "could not request irq\n");
-		goto err_irq;
+		goto err_i2c;
 	}
 	twl4030_madc = madc;
 	return 0;
-err_irq:
-	platform_set_drvdata(pdev, NULL);
 err_i2c:
 	twl4030_madc_set_current_generator(madc, 0, 0);
 err_current_generator:
@@ -796,7 +794,6 @@ static int twl4030_madc_remove(struct platform_device *pdev)
 	struct twl4030_madc_data *madc = platform_get_drvdata(pdev);
 
 	free_irq(platform_get_irq(pdev, 0), madc);
-	platform_set_drvdata(pdev, NULL);
 	twl4030_madc_set_current_generator(madc, 0, 0);
 	twl4030_madc_set_power(madc, 0);
 	kfree(madc);

@@ -303,7 +303,7 @@ static struct platform_driver ehci_orion_driver = {
 	.driver = {
 		.name	= "orion-ehci",
 		.owner  = THIS_MODULE,
-		.of_match_table = of_match_ptr(ehci_orion_dt_ids),
+		.of_match_table = ehci_orion_dt_ids,
 	},
 };
 

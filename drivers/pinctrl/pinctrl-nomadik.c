@@ -1309,7 +1309,7 @@ static int nmk_gpio_irq_map(struct irq_domain *d, unsigned int irq,
 	return 0;
 }
 
-const struct irq_domain_ops nmk_gpio_irq_simple_ops = {
+static const struct irq_domain_ops nmk_gpio_irq_simple_ops = {
 	.map = nmk_gpio_irq_map,
 	.xlate = irq_domain_xlate_twocell,
 };
@@ -1681,7 +1681,7 @@ static bool nmk_pinctrl_dt_get_config(struct device_node *np,
 	return has_config;
 }
 
-int nmk_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
+static int nmk_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		struct device_node *np,
 		struct pinctrl_map **map,
 		unsigned *reserved_maps,
@@ -1740,7 +1740,7 @@ exit:
 	return ret;
 }
 
-int nmk_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
+static int nmk_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 				 struct device_node *np_config,
 				 struct pinctrl_map **map, unsigned *num_maps)
 {
@@ -2104,15 +2104,15 @@ static struct pinctrl_desc nmk_pinctrl_desc = {
 
 static const struct of_device_id nmk_pinctrl_match[] = {
 	{
-		.compatible = "stericsson,nmk-pinctrl-stn8815",
+		.compatible = "stericsson,stn8815-pinctrl",
 		.data = (void *)PINCTRL_NMK_STN8815,
 	},
 	{
-		.compatible = "stericsson,nmk-pinctrl",
+		.compatible = "stericsson,db8500-pinctrl",
 		.data = (void *)PINCTRL_NMK_DB8500,
 	},
 	{
-		.compatible = "stericsson,nmk-pinctrl-db8540",
+		.compatible = "stericsson,db8540-pinctrl",
 		.data = (void *)PINCTRL_NMK_DB8540,
 	},
 	{},

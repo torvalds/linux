@@ -44,13 +44,24 @@
 #include <asm/clk.h>
 #include <asm/mach_desc.h>
 
+/* Timer related Aux registers */
+#define ARC_REG_TIMER0_LIMIT	0x23	/* timer 0 limit */
+#define ARC_REG_TIMER0_CTRL	0x22	/* timer 0 control */
+#define ARC_REG_TIMER0_CNT	0x21	/* timer 0 count */
+#define ARC_REG_TIMER1_LIMIT	0x102	/* timer 1 limit */
+#define ARC_REG_TIMER1_CTRL	0x101	/* timer 1 control */
+#define ARC_REG_TIMER1_CNT	0x100	/* timer 1 count */
+
+#define TIMER_CTRL_IE		(1 << 0) /* Interupt when Count reachs limit */
+#define TIMER_CTRL_NH		(1 << 1) /* Count only when CPU NOT halted */
+
 #define ARC_TIMER_MAX	0xFFFFFFFF
 
 /********** Clock Source Device *********/
 
 #ifdef CONFIG_ARC_HAS_RTSC
 
-int __cpuinit arc_counter_setup(void)
+int arc_counter_setup(void)
 {
 	/* RTSC insn taps into cpu clk, needs no setup */
 
@@ -105,7 +116,7 @@ static bool is_usable_as_clocksource(void)
 /*
  * set 32bit TIMER1 to keep counting monotonically and wraparound
  */
-int __cpuinit arc_counter_setup(void)
+int arc_counter_setup(void)
 {
 	write_aux_reg(ARC_REG_TIMER1_LIMIT, ARC_TIMER_MAX);
 	write_aux_reg(ARC_REG_TIMER1_CNT, 0);
@@ -212,7 +223,7 @@ static struct irqaction arc_timer_irq = {
  * Setup the local event timer for @cpu
  * N.B. weak so that some exotic ARC SoCs can completely override it
  */
-void __attribute__((weak)) __cpuinit arc_local_timer_setup(unsigned int cpu)
+void __attribute__((weak)) arc_local_timer_setup(unsigned int cpu)
 {
 	struct clock_event_device *clk = &per_cpu(arc_clockevent_device, cpu);
 

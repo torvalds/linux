@@ -55,10 +55,8 @@ asmlinkage void ret_from_fork(void);
  * |     ...        |
  * |    unused      |
  * |                |
- * ------------------  <==== top of Stack (thread.ksp)
- * |   UNUSED 1 word|
  * ------------------
- * |     r25        |
+ * |     r25        |   <==== top of Stack (thread.ksp)
  * ~                ~
  * |    --to--      |   (CALLEE Regs of user mode)
  * |     r13        |
@@ -76,7 +74,10 @@ asmlinkage void ret_from_fork(void);
  * |    --to--      |   (scratch Regs of user mode)
  * |     r0         |
  * ------------------
- * |   UNUSED 1 word|
+ * |      SP        |
+ * |    orig_r0     |
+ * |    event/ECR   |
+ * |    user_r25    |
  * ------------------  <===== END of PAGE
  */
 int copy_thread(unsigned long clone_flags,

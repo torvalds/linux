@@ -527,6 +527,10 @@ extern int hv_post_message(union hv_connection_id connection_id,
 
 extern u16 hv_signal_event(void *con_id);
 
+extern int hv_synic_alloc(void);
+
+extern void hv_synic_free(void);
+
 extern void hv_synic_init(void *irqarg);
 
 extern void hv_synic_cleanup(void *arg);

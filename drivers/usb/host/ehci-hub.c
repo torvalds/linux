@@ -42,6 +42,12 @@ static int ehci_hub_control(
 	u16		wLength
 );
 
+static int persist_enabled_on_companion(struct usb_device *udev, void *unused)
+{
+	return !udev->maxchild && udev->persist_enabled &&
+		udev->bus->root_hub->speed < USB_SPEED_HIGH;
+}
+
 /* After a power loss, ports that were owned by the companion must be
  * reset so that the companion can still own them.
  */
@@ -54,6 +60,16 @@ static void ehci_handover_companion_ports(struct ehci_hcd *ehci)
 	struct usb_hcd	*hcd = ehci_to_hcd(ehci);
 
 	if (!ehci->owned_ports)
+		return;
+
+	/*
+	 * USB 1.1 devices are mostly HIDs, which don't need to persist across
+	 * suspends. If we ensure that none of our companion's devices have
+	 * persist_enabled (by looking through all USB 1.1 buses in the system),
+	 * we can skip this and avoid slowing resume down. Devices without
+	 * persist will just get reenumerated shortly after resume anyway.
+	 */
+	if (!usb_for_each_dev(NULL, persist_enabled_on_companion))
 		return;
 
 	/* Make sure the ports are powered */
@@ -858,6 +874,7 @@ static int ehci_hub_control (
 				ehci->reset_done[wIndex] = jiffies
 						+ msecs_to_jiffies(20);
 				usb_hcd_start_port_resume(&hcd->self, wIndex);
+				set_bit(wIndex, &ehci->resuming_ports);
 				/* check the port again */
 				mod_timer(&ehci_to_hcd(ehci)->rh_timer,
 						ehci->reset_done[wIndex]);
@@ -876,7 +893,7 @@ static int ehci_hub_control (
 						PORT_SUSPEND | PORT_RESUME);
 				ehci_writel(ehci, temp, status_reg);
 				clear_bit(wIndex, &ehci->resuming_ports);
-				retval = handshake(ehci, status_reg,
+				retval = ehci_handshake(ehci, status_reg,
 					   PORT_RESUME, 0, 2000 /* 2msec */);
 				if (retval != 0) {
 					ehci_err(ehci,
@@ -902,7 +919,7 @@ static int ehci_hub_control (
 			/* REVISIT:  some hardware needs 550+ usec to clear
 			 * this bit; seems too long to spin routinely...
 			 */
-			retval = handshake(ehci, status_reg,
+			retval = ehci_handshake(ehci, status_reg,
 					PORT_RESET, 0, 1000);
 			if (retval != 0) {
 				ehci_err (ehci, "port %d reset error %d\n",

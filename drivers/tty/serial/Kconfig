@@ -251,7 +251,7 @@ config SERIAL_SAMSUNG_CONSOLE
 
 config SERIAL_SIRFSOC
         tristate "SiRF SoC Platform Serial port support"
-        depends on ARCH_PRIMA2
+        depends on ARCH_SIRF
         select SERIAL_CORE
         help
           Support for the on-chip UART on the CSR SiRFprimaII series,
@@ -277,7 +277,7 @@ config SERIAL_TEGRA
 	select SERIAL_CORE
 	help
 	  Support for the on-chip UARTs on the NVIDIA Tegra series SOCs
-	  providing /dev/ttyHS0, 1, 2, 3 and 4 (note, some machines may not
+	  providing /dev/ttyTHS0, 1, 2, 3 and 4 (note, some machines may not
 	  provide all of these ports, depending on how the serial port
 	  are enabled). This driver uses the APB DMA to achieve higher baudrate
 	  and better performance.
@@ -551,7 +551,7 @@ config BFIN_UART3_CTSRTS
 	  Enable hardware flow control in the driver.
 
 config SERIAL_IMX
-	bool "IMX serial port support"
+	tristate "IMX serial port support"
 	depends on ARCH_MXC
 	select SERIAL_CORE
 	select RATIONAL
@@ -561,22 +561,21 @@ config SERIAL_IMX
 
 config SERIAL_IMX_CONSOLE
 	bool "Console on IMX serial port"
-	depends on SERIAL_IMX
+	depends on SERIAL_IMX=y
 	select SERIAL_CORE_CONSOLE
 	help
-	  If you have enabled the serial port on the Motorola IMX
+	  If you have enabled the serial port on the Freescale IMX
 	  CPU you can make it the console by answering Y to this option.
 
 	  Even if you say Y here, the currently visible virtual console
 	  (/dev/tty0) will still be used as the system console by default, but
 	  you can alter that using a kernel command line option such as
-	  "console=ttySA0". (Try "man bootparam" or see the documentation of
-	  your boot loader (lilo or loadlin) about how to pass options to the
-	  kernel at boot time.)
+	  "console=ttymxc0". (Try "man bootparam" or see the documentation of
+	  your bootloader about how to pass options to the kernel at boot time.)
 
 config SERIAL_UARTLITE
 	tristate "Xilinx uartlite serial port support"
-	depends on PPC32 || MICROBLAZE || MFD_TIMBERDALE
+	depends on PPC32 || MICROBLAZE || MFD_TIMBERDALE || ARCH_ZYNQ
 	select SERIAL_CORE
 	help
 	  Say Y here if you want to use the Xilinx uartlite serial controller.
@@ -1483,6 +1482,20 @@ config SERIAL_RP2_NR_UARTS
 	help
 	  If multiple cards are present, the default limit of 32 ports may
 	  need to be increased.
+
+config SERIAL_FSL_LPUART
+	tristate "Freescale lpuart serial port support"
+	select SERIAL_CORE
+	help
+	  Support for the on-chip lpuart on some Freescale SOCs.
+
+config SERIAL_FSL_LPUART_CONSOLE
+	bool "Console on Freescale lpuart serial port"
+	depends on SERIAL_FSL_LPUART=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  If you have enabled the lpuart serial port on the Freescale SoCs,
+	  you can make it the console by answering Y to this option.
 
 endmenu
 

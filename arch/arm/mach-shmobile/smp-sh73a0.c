@@ -48,7 +48,7 @@ void __init sh73a0_register_twd(void)
 }
 #endif
 
-static int __cpuinit sh73a0_boot_secondary(unsigned int cpu, struct task_struct *idle)
+static int sh73a0_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	cpu = cpu_logical_map(cpu);
 
@@ -64,9 +64,11 @@ static void __init sh73a0_smp_prepare_cpus(unsigned int max_cpus)
 {
 	scu_enable(shmobile_scu_base);
 
-	/* Map the reset vector (in headsmp-scu.S) */
+	/* Map the reset vector (in headsmp-scu.S, headsmp.S) */
 	__raw_writel(0, APARMBAREA);      /* 4k */
-	__raw_writel(__pa(shmobile_secondary_vector_scu), SBAR);
+	__raw_writel(__pa(shmobile_boot_vector), SBAR);
+	shmobile_boot_fn = virt_to_phys(shmobile_boot_scu);
+	shmobile_boot_arg = (unsigned long)shmobile_scu_base;
 
 	/* enable cache coherency on booting CPU */
 	scu_power_mode(shmobile_scu_base, SCU_PM_NORMAL);

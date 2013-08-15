@@ -59,6 +59,7 @@ void xlp_wakeup_secondary_cpus(void);
 
 void xlp_mmu_init(void);
 void nlm_hal_init(void);
+void *xlp_dt_init(void *fdtp);
 
 #endif /* !__ASSEMBLY__ */
 #endif /* _ASM_NLM_XLP_H */

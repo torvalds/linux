@@ -86,12 +86,6 @@ static int decode_hsr(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	sign_extend = kvm_vcpu_dabt_issext(vcpu);
 	rt = kvm_vcpu_dabt_get_rd(vcpu);
 
-	if (kvm_vcpu_reg_is_pc(vcpu, rt)) {
-		/* IO memory trying to read/write pc */
-		kvm_inject_pabt(vcpu, kvm_vcpu_get_hfar(vcpu));
-		return 1;
-	}
-
 	mmio->is_write = is_write;
 	mmio->phys_addr = fault_ipa;
 	mmio->len = len;

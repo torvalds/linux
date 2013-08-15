@@ -61,7 +61,6 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-chip-ident.h>
 
 #include <linux/videodev2.h>
 
@@ -227,62 +226,9 @@ u32 v4l2_ctrl_next(const u32 * const * ctrl_classes, u32 id)
 }
 EXPORT_SYMBOL(v4l2_ctrl_next);
 
-int v4l2_chip_match_host(const struct v4l2_dbg_match *match)
-{
-	switch (match->type) {
-	case V4L2_CHIP_MATCH_BRIDGE:
-		return match->addr == 0;
-	default:
-		return 0;
-	}
-}
-EXPORT_SYMBOL(v4l2_chip_match_host);
-
-#if IS_ENABLED(CONFIG_I2C)
-int v4l2_chip_match_i2c_client(struct i2c_client *c, const struct v4l2_dbg_match *match)
-{
-	int len;
-
-	if (c == NULL || match == NULL)
-		return 0;
-
-	switch (match->type) {
-	case V4L2_CHIP_MATCH_I2C_DRIVER:
-		if (c->driver == NULL || c->driver->driver.name == NULL)
-			return 0;
-		len = strlen(c->driver->driver.name);
-		return len && !strncmp(c->driver->driver.name, match->name, len);
-	case V4L2_CHIP_MATCH_I2C_ADDR:
-		return c->addr == match->addr;
-	case V4L2_CHIP_MATCH_SUBDEV:
-		return 1;
-	default:
-		return 0;
-	}
-}
-EXPORT_SYMBOL(v4l2_chip_match_i2c_client);
-
-int v4l2_chip_ident_i2c_client(struct i2c_client *c, struct v4l2_dbg_chip_ident *chip,
-		u32 ident, u32 revision)
-{
-	if (!v4l2_chip_match_i2c_client(c, &chip->match))
-		return 0;
-	if (chip->ident == V4L2_IDENT_NONE) {
-		chip->ident = ident;
-		chip->revision = revision;
-	}
-	else {
-		chip->ident = V4L2_IDENT_AMBIGUOUS;
-		chip->revision = 0;
-	}
-	return 0;
-}
-EXPORT_SYMBOL(v4l2_chip_ident_i2c_client);
-
-/* ----------------------------------------------------------------- */
-
 /* I2C Helper functions */
 
+#if IS_ENABLED(CONFIG_I2C)
 
 void v4l2_i2c_subdev_init(struct v4l2_subdev *sd, struct i2c_client *client,
 		const struct v4l2_subdev_ops *ops)
@@ -291,6 +237,7 @@ void v4l2_i2c_subdev_init(struct v4l2_subdev *sd, struct i2c_client *client,
 	sd->flags |= V4L2_SUBDEV_FL_IS_I2C;
 	/* the owner is the same as the i2c_client's driver owner */
 	sd->owner = client->driver->driver.owner;
+	sd->dev = &client->dev;
 	/* i2c_client and v4l2_subdev point to one another */
 	v4l2_set_subdevdata(sd, client);
 	i2c_set_clientdata(client, sd);
@@ -300,8 +247,6 @@ void v4l2_i2c_subdev_init(struct v4l2_subdev *sd, struct i2c_client *client,
 		client->addr);
 }
 EXPORT_SYMBOL_GPL(v4l2_i2c_subdev_init);
-
-
 
 /* Load an i2c sub-device. */
 struct v4l2_subdev *v4l2_i2c_new_subdev_board(struct v4l2_device *v4l2_dev,
@@ -426,6 +371,7 @@ void v4l2_spi_subdev_init(struct v4l2_subdev *sd, struct spi_device *spi,
 	sd->flags |= V4L2_SUBDEV_FL_IS_SPI;
 	/* the owner is the same as the spi_device's driver owner */
 	sd->owner = spi->dev.driver->owner;
+	sd->dev = &spi->dev;
 	/* spi_device and v4l2_subdev point to one another */
 	v4l2_set_subdevdata(sd, spi);
 	spi_set_drvdata(spi, sd);

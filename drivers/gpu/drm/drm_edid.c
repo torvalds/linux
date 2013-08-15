@@ -968,6 +968,9 @@ bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid)
 	u8 csum = 0;
 	struct edid *edid = (struct edid *)raw_edid;
 
+	if (WARN_ON(!raw_edid))
+		return false;
+
 	if (edid_fixup > 8 || edid_fixup < 0)
 		edid_fixup = 6;
 
@@ -1010,15 +1013,15 @@ bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid)
 		break;
 	}
 
-	return 1;
+	return true;
 
 bad:
-	if (raw_edid && print_bad_edid) {
+	if (print_bad_edid) {
 		printk(KERN_ERR "Raw EDID:\n");
 		print_hex_dump(KERN_ERR, " \t", DUMP_PREFIX_NONE, 16, 1,
 			       raw_edid, EDID_LENGTH, false);
 	}
-	return 0;
+	return false;
 }
 EXPORT_SYMBOL(drm_edid_block_valid);
 
@@ -1706,11 +1709,11 @@ static struct drm_display_mode *drm_mode_detailed(struct drm_device *dev,
 		return NULL;
 
 	if (pt->misc & DRM_EDID_PT_STEREO) {
-		printk(KERN_WARNING "stereo mode not supported\n");
+		DRM_DEBUG_KMS("stereo mode not supported\n");
 		return NULL;
 	}
 	if (!(pt->misc & DRM_EDID_PT_SEPARATE_SYNC)) {
-		printk(KERN_WARNING "composite sync not supported\n");
+		DRM_DEBUG_KMS("composite sync not supported\n");
 	}
 
 	/* it is incorrect if hsync/vsync width is zero */
@@ -2321,6 +2324,31 @@ u8 *drm_find_cea_extension(struct edid *edid)
 }
 EXPORT_SYMBOL(drm_find_cea_extension);
 
+/*
+ * Calculate the alternate clock for the CEA mode
+ * (60Hz vs. 59.94Hz etc.)
+ */
+static unsigned int
+cea_mode_alternate_clock(const struct drm_display_mode *cea_mode)
+{
+	unsigned int clock = cea_mode->clock;
+
+	if (cea_mode->vrefresh % 6 != 0)
+		return clock;
+
+	/*
+	 * edid_cea_modes contains the 59.94Hz
+	 * variant for 240 and 480 line modes,
+	 * and the 60Hz variant otherwise.
+	 */
+	if (cea_mode->vdisplay == 240 || cea_mode->vdisplay == 480)
+		clock = clock * 1001 / 1000;
+	else
+		clock = DIV_ROUND_UP(clock * 1000, 1001);
+
+	return clock;
+}
+
 /**
  * drm_match_cea_mode - look for a CEA mode matching given mode
  * @to_match: display mode
@@ -2339,21 +2367,9 @@ u8 drm_match_cea_mode(const struct drm_display_mode *to_match)
 		const struct drm_display_mode *cea_mode = &edid_cea_modes[mode];
 		unsigned int clock1, clock2;
 
-		clock1 = clock2 = cea_mode->clock;
-
 		/* Check both 60Hz and 59.94Hz */
-		if (cea_mode->vrefresh % 6 == 0) {
-			/*
-			 * edid_cea_modes contains the 59.94Hz
-			 * variant for 240 and 480 line modes,
-			 * and the 60Hz variant otherwise.
-			 */
-			if (cea_mode->vdisplay == 240 ||
-			    cea_mode->vdisplay == 480)
-				clock1 = clock1 * 1001 / 1000;
-			else
-				clock2 = DIV_ROUND_UP(clock2 * 1000, 1001);
-		}
+		clock1 = cea_mode->clock;
+		clock2 = cea_mode_alternate_clock(cea_mode);
 
 		if ((KHZ2PICOS(to_match->clock) == KHZ2PICOS(clock1) ||
 		     KHZ2PICOS(to_match->clock) == KHZ2PICOS(clock2)) &&
@@ -2364,6 +2380,66 @@ u8 drm_match_cea_mode(const struct drm_display_mode *to_match)
 }
 EXPORT_SYMBOL(drm_match_cea_mode);
 
+static int
+add_alternate_cea_modes(struct drm_connector *connector, struct edid *edid)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_display_mode *mode, *tmp;
+	LIST_HEAD(list);
+	int modes = 0;
+
+	/* Don't add CEA modes if the CEA extension block is missing */
+	if (!drm_find_cea_extension(edid))
+		return 0;
+
+	/*
+	 * Go through all probed modes and create a new mode
+	 * with the alternate clock for certain CEA modes.
+	 */
+	list_for_each_entry(mode, &connector->probed_modes, head) {
+		const struct drm_display_mode *cea_mode;
+		struct drm_display_mode *newmode;
+		u8 cea_mode_idx = drm_match_cea_mode(mode) - 1;
+		unsigned int clock1, clock2;
+
+		if (cea_mode_idx >= ARRAY_SIZE(edid_cea_modes))
+			continue;
+
+		cea_mode = &edid_cea_modes[cea_mode_idx];
+
+		clock1 = cea_mode->clock;
+		clock2 = cea_mode_alternate_clock(cea_mode);
+
+		if (clock1 == clock2)
+			continue;
+
+		if (mode->clock != clock1 && mode->clock != clock2)
+			continue;
+
+		newmode = drm_mode_duplicate(dev, cea_mode);
+		if (!newmode)
+			continue;
+
+		/*
+		 * The current mode could be either variant. Make
+		 * sure to pick the "other" clock for the new mode.
+		 */
+		if (mode->clock != clock1)
+			newmode->clock = clock1;
+		else
+			newmode->clock = clock2;
+
+		list_add_tail(&newmode->head, &list);
+	}
+
+	list_for_each_entry_safe(mode, tmp, &list, head) {
+		list_del(&mode->head);
+		drm_mode_probed_add(connector, mode);
+		modes++;
+	}
+
+	return modes;
+}
 
 static int
 do_cea_modes (struct drm_connector *connector, u8 *db, u8 len)
@@ -2946,6 +3022,7 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 	if (edid->features & DRM_EDID_FEATURE_DEFAULT_GTF)
 		num_modes += add_inferred_modes(connector, edid);
 	num_modes += add_cea_modes(connector, edid);
+	num_modes += add_alternate_cea_modes(connector, edid);
 
 	if (quirks & (EDID_QUIRK_PREFER_LARGE_60 | EDID_QUIRK_PREFER_LARGE_75))
 		edid_fixup_preferred(connector, quirks);

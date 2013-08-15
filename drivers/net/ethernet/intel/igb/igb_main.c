@@ -1667,10 +1667,13 @@ void igb_down(struct igb_adapter *adapter)
 	wrfl();
 	msleep(10);
 
-	for (i = 0; i < adapter->num_q_vectors; i++)
-		napi_disable(&(adapter->q_vector[i]->napi));
-
 	igb_irq_disable(adapter);
+
+	for (i = 0; i < adapter->num_q_vectors; i++) {
+		napi_synchronize(&(adapter->q_vector[i]->napi));
+		napi_disable(&(adapter->q_vector[i]->napi));
+	}
+
 
 	del_timer_sync(&adapter->watchdog_timer);
 	del_timer_sync(&adapter->phy_info_timer);
@@ -3736,9 +3739,8 @@ static void igb_set_rx_mode(struct net_device *netdev)
 	rctl &= ~(E1000_RCTL_UPE | E1000_RCTL_MPE | E1000_RCTL_VFE);
 
 	if (netdev->flags & IFF_PROMISC) {
-		u32 mrqc = rd32(E1000_MRQC);
 		/* retain VLAN HW filtering if in VT mode */
-		if (mrqc & E1000_MRQC_ENABLE_VMDQ)
+		if (adapter->vfs_allocated_count)
 			rctl |= E1000_RCTL_VFE;
 		rctl |= (E1000_RCTL_UPE | E1000_RCTL_MPE);
 		vmolr |= (E1000_VMOLR_ROPE | E1000_VMOLR_MPME);
@@ -6622,7 +6624,7 @@ static void igb_process_skb_fields(struct igb_ring *rx_ring,
 
 	igb_rx_checksum(rx_ring, rx_desc, skb);
 
-	igb_ptp_rx_hwtstamp(rx_ring->q_vector, rx_desc, skb);
+	igb_ptp_rx_hwtstamp(rx_ring, rx_desc, skb);
 
 	if ((dev->features & NETIF_F_HW_VLAN_CTAG_RX) &&
 	    igb_test_staterr(rx_desc, E1000_RXD_STAT_VP)) {

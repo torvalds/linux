@@ -62,6 +62,8 @@ source "drivers/staging/line6/Kconfig"
 
 source "drivers/staging/octeon/Kconfig"
 
+source "drivers/staging/octeon-usb/Kconfig"
+
 source "drivers/staging/serqt_usb2/Kconfig"
 
 source "drivers/staging/vt6655/Kconfig"
@@ -116,10 +118,6 @@ source "drivers/staging/ozwpan/Kconfig"
 
 source "drivers/staging/gdm72xx/Kconfig"
 
-source "drivers/staging/csr/Kconfig"
-
-source "drivers/staging/ti-soc-thermal/Kconfig"
-
 source "drivers/staging/silicom/Kconfig"
 
 source "drivers/staging/ced1401/Kconfig"
@@ -139,5 +137,9 @@ source "drivers/staging/goldfish/Kconfig"
 source "drivers/staging/netlogic/Kconfig"
 
 source "drivers/staging/dwc2/Kconfig"
+
+source "drivers/staging/lustre/Kconfig"
+
+source "drivers/staging/btmtk_usb/Kconfig"
 
 endif # STAGING

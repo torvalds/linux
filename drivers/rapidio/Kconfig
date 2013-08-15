@@ -67,4 +67,9 @@ config RAPIDIO_ENUM_BASIC
 
 endchoice
 
+menu "RapidIO Switch drivers"
+	depends on RAPIDIO
+
 source "drivers/rapidio/switches/Kconfig"
+
+endmenu

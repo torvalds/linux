@@ -81,8 +81,8 @@ struct hws_data_entry {
 	unsigned int:16;
 	unsigned int prim_asn:16;   /* primary ASN                       */
 	unsigned long long ia;      /* Instruction Address               */
-	unsigned long long lpp;     /* Logical-Partition Program Param.  */
-	unsigned long long vpp;     /* Virtual-Machine Program Param.    */
+	unsigned long long gpp;     /* Guest Program Parameter		 */
+	unsigned long long hpp;     /* Host Program Parameter		 */
 };
 
 struct hws_trailer_entry {

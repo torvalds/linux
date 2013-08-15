@@ -91,6 +91,19 @@ static struct amd_chipset_info {
 
 static DEFINE_SPINLOCK(amd_lock);
 
+void sb800_prefetch(struct device *dev, int on)
+{
+	u16 misc;
+	struct pci_dev *pdev = to_pci_dev(dev);
+
+	pci_read_config_word(pdev, 0x50, &misc);
+	if (on == 0)
+		pci_write_config_word(pdev, 0x50, misc & 0xfcff);
+	else
+		pci_write_config_word(pdev, 0x50, misc | 0x0300);
+}
+EXPORT_SYMBOL_GPL(sb800_prefetch);
+
 int usb_amd_find_chipset_info(void)
 {
 	u8 rev = 0;

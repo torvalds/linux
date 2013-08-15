@@ -53,6 +53,11 @@ enum mcam_buffer_mode {
 	B_DMA_sg = 2
 };
 
+enum mcam_chip_id {
+	MCAM_CAFE,
+	MCAM_ARMADA610,
+};
+
 /*
  * Is a given buffer mode supported by the current kernel configuration?
  */
@@ -96,9 +101,10 @@ struct mcam_camera {
 	 */
 	struct i2c_adapter *i2c_adapter;
 	unsigned char __iomem *regs;
+	unsigned regs_size; /* size in bytes of the register space */
 	spinlock_t dev_lock;
 	struct device *dev; /* For messages, dma alloc */
-	unsigned int chip_id;
+	enum mcam_chip_id chip_id;
 	short int clock_speed;	/* Sensor clock speed, default 30 */
 	short int use_smbus;	/* SMBUS or straight I2c? */
 	enum mcam_buffer_mode buffer_mode;
@@ -152,7 +158,6 @@ struct mcam_camera {
 	void (*frame_complete)(struct mcam_camera *cam, int frame);
 
 	/* Current operating parameters */
-	u32 sensor_type;		/* Currently ov7670 only */
 	struct v4l2_pix_format pix_format;
 	enum v4l2_mbus_pixelcode mbus_code;
 

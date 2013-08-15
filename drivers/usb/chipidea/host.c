@@ -33,12 +33,12 @@
 
 static struct hc_driver __read_mostly ci_ehci_hc_driver;
 
-static irqreturn_t host_irq(struct ci13xxx *ci)
+static irqreturn_t host_irq(struct ci_hdrc *ci)
 {
 	return usb_hcd_irq(ci->irq, ci->hcd);
 }
 
-static int host_start(struct ci13xxx *ci)
+static int host_start(struct ci_hdrc *ci)
 {
 	struct usb_hcd *hcd;
 	struct ehci_hcd *ehci;
@@ -70,13 +70,13 @@ static int host_start(struct ci13xxx *ci)
 	else
 		ci->hcd = hcd;
 
-	if (ci->platdata->flags & CI13XXX_DISABLE_STREAMING)
+	if (ci->platdata->flags & CI_HDRC_DISABLE_STREAMING)
 		hw_write(ci, OP_USBMODE, USBMODE_CI_SDIS, USBMODE_CI_SDIS);
 
 	return ret;
 }
 
-static void host_stop(struct ci13xxx *ci)
+static void host_stop(struct ci_hdrc *ci)
 {
 	struct usb_hcd *hcd = ci->hcd;
 
@@ -84,7 +84,7 @@ static void host_stop(struct ci13xxx *ci)
 	usb_put_hcd(hcd);
 }
 
-int ci_hdrc_host_init(struct ci13xxx *ci)
+int ci_hdrc_host_init(struct ci_hdrc *ci)
 {
 	struct ci_role_driver *rdrv;
 

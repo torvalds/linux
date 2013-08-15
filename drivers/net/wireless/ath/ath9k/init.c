@@ -21,6 +21,7 @@
 #include <linux/ath9k_platform.h>
 #include <linux/module.h>
 #include <linux/relay.h>
+#include <net/ieee80211_radiotap.h>
 
 #include "ath9k.h"
 
@@ -431,6 +432,8 @@ static int ath9k_init_queues(struct ath_softc *sc)
 	sc->config.cabqReadytime = ATH_CABQ_READY_TIME;
 	ath_cabq_update(sc);
 
+	sc->tx.uapsdq = ath_txq_setup(sc, ATH9K_TX_QUEUE_UAPSD, 0);
+
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 		sc->tx.txq_map[i] = ath_txq_setup(sc, ATH9K_TX_QUEUE_DATA, i);
 		sc->tx.txq_map[i]->mac80211_qnum = i;
@@ -508,6 +511,27 @@ static void ath9k_init_misc(struct ath_softc *sc)
 	sc->spec_config.endless = false;
 	sc->spec_config.period = 0xFF;
 	sc->spec_config.fft_period = 0xF;
+}
+
+static void ath9k_init_platform(struct ath_softc *sc)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	if (common->bus_ops->ath_bus_type != ATH_PCI)
+		return;
+
+	if (sc->driver_data & (ATH9K_PCI_CUS198 |
+			       ATH9K_PCI_CUS230)) {
+		ah->config.xlna_gpio = 9;
+		ah->config.xatten_margin_cfg = true;
+
+		ath_info(common, "Set parameters for %s\n",
+			 (sc->driver_data & ATH9K_PCI_CUS198) ?
+			 "CUS198" : "CUS230");
+	} else if (sc->driver_data & ATH9K_PCI_CUS217) {
+		ath_info(common, "CUS217 card detected\n");
+	}
 }
 
 static void ath9k_eeprom_request_cb(const struct firmware *eeprom_blob,
@@ -602,6 +626,11 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	common->disable_ani = false;
 
 	/*
+	 * Platform quirks.
+	 */
+	ath9k_init_platform(sc);
+
+	/*
 	 * Enable Antenna diversity only when BTCOEX is disabled
 	 * and the user manually requests the feature.
 	 */
@@ -613,9 +642,6 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	spin_lock_init(&sc->sc_serial_rw);
 	spin_lock_init(&sc->sc_pm_lock);
 	mutex_init(&sc->mutex);
-#ifdef CONFIG_ATH9K_MAC_DEBUG
-	spin_lock_init(&sc->debug.samp_lock);
-#endif
 	tasklet_init(&sc->intr_tq, ath9k_tasklet, (unsigned long)sc);
 	tasklet_init(&sc->bcon_tasklet, ath9k_beacon_tasklet,
 		     (unsigned long)sc);
@@ -755,6 +781,15 @@ static const struct ieee80211_iface_combination if_comb[] = {
 	}
 };
 
+#ifdef CONFIG_PM
+static const struct wiphy_wowlan_support ath9k_wowlan_support = {
+	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT,
+	.n_patterns = MAX_NUM_USER_PATTERN,
+	.pattern_min_len = 1,
+	.pattern_max_len = MAX_PATTERN_SIZE,
+};
+#endif
+
 void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 {
 	struct ath_hw *ah = sc->sc_ah;
@@ -769,11 +804,18 @@ void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 		IEEE80211_HW_REPORTS_TX_ACK_STATUS |
 		IEEE80211_HW_SUPPORTS_RC_TABLE;
 
-	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT)
-		 hw->flags |= IEEE80211_HW_AMPDU_AGGREGATION;
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT) {
+		hw->flags |= IEEE80211_HW_AMPDU_AGGREGATION;
+
+		if (AR_SREV_9280_20_OR_LATER(ah))
+			hw->radiotap_mcs_details |=
+				IEEE80211_RADIOTAP_MCS_HAVE_STBC;
+	}
 
 	if (AR_SREV_9160_10_OR_LATER(sc->sc_ah) || ath9k_modparam_nohwcrypt)
 		hw->flags |= IEEE80211_HW_MFP_CAPABLE;
+
+	hw->wiphy->features |= NL80211_FEATURE_ACTIVE_MONITOR;
 
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_P2P_GO) |
@@ -794,21 +836,13 @@ void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 	hw->wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 
 #ifdef CONFIG_PM_SLEEP
-
 	if ((ah->caps.hw_caps & ATH9K_HW_WOW_DEVICE_CAPABLE) &&
-	    device_can_wakeup(sc->dev)) {
-
-		hw->wiphy->wowlan.flags = WIPHY_WOWLAN_MAGIC_PKT |
-					  WIPHY_WOWLAN_DISCONNECT;
-		hw->wiphy->wowlan.n_patterns = MAX_NUM_USER_PATTERN;
-		hw->wiphy->wowlan.pattern_min_len = 1;
-		hw->wiphy->wowlan.pattern_max_len = MAX_PATTERN_SIZE;
-
-	}
+	    (sc->driver_data & ATH9K_PCI_WOW) &&
+	    device_can_wakeup(sc->dev))
+		hw->wiphy->wowlan = &ath9k_wowlan_support;
 
 	atomic_set(&sc->wow_sleep_proc_intr, -1);
 	atomic_set(&sc->wow_got_bmiss_intr, -1);
-
 #endif
 
 	hw->queues = 4;

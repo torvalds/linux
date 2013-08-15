@@ -102,6 +102,7 @@ Exynos4 SoC and this is specified where applicable.
   sclk_spi0_isp       174     Exynos4x12
   sclk_spi1_isp       175     Exynos4x12
   sclk_uart_isp       176     Exynos4x12
+  sclk_fimg2d         177
 
 	      [Peripheral Clock Gates]
 
@@ -129,7 +130,7 @@ Exynos4 SoC and this is specified where applicable.
   smmu_mfcl           274
   smmu_mfcr           275
   g3d                 276
-  g2d                 277     Exynos4210
+  g2d                 277
   rotator             278     Exynos4210
   mdma                279     Exynos4210
   smmu_g2d            280     Exynos4210

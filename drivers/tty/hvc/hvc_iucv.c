@@ -1328,7 +1328,7 @@ out_error:
  */
 static	int __init hvc_iucv_config(char *val)
 {
-	 return strict_strtoul(val, 10, &hvc_iucv_devices);
+	 return kstrtoul(val, 10, &hvc_iucv_devices);
 }
 
 

@@ -23,7 +23,7 @@
  * Return:      NONE
  * Note:	8226 support both 20M  and 40 MHz
  *---------------------------------------------------------------------------*/
-void PHY_SetRF8256Bandwidth(struct net_device* dev , HT_CHANNEL_WIDTH Bandwidth)	//20M or 40M
+void PHY_SetRF8256Bandwidth(struct net_device *dev , HT_CHANNEL_WIDTH Bandwidth)	//20M or 40M
 {
 	u8	eRFPath;
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -34,7 +34,7 @@ void PHY_SetRF8256Bandwidth(struct net_device* dev , HT_CHANNEL_WIDTH Bandwidth)
 		if (!rtl8192_phy_CheckIsLegalRFPath(dev, eRFPath))
 				continue;
 
-		switch(Bandwidth)
+		switch (Bandwidth)
 		{
 			case HT_CHANNEL_WIDTH_20:
 				if(priv->card_8192_version == VERSION_819xU_A || priv->card_8192_version == VERSION_819xU_B)// 8256 D-cut, E-cut, xiong: consider it later!
@@ -73,7 +73,7 @@ void PHY_SetRF8256Bandwidth(struct net_device* dev , HT_CHANNEL_WIDTH Bandwidth)
 
 				break;
 			default:
-				RT_TRACE(COMP_ERR, "PHY_SetRF8256Bandwidth(): unknown Bandwidth: %#X\n",Bandwidth );
+				RT_TRACE(COMP_ERR, "PHY_SetRF8256Bandwidth(): unknown Bandwidth: %#X\n",Bandwidth);
 				break;
 
 		}
@@ -86,7 +86,7 @@ void PHY_SetRF8256Bandwidth(struct net_device* dev , HT_CHANNEL_WIDTH Bandwidth)
  * Output:      NONE
  * Return:      NONE
  *---------------------------------------------------------------------------*/
-void PHY_RF8256_Config(struct net_device* dev)
+void PHY_RF8256_Config(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	// Initialize general global value
@@ -104,7 +104,7 @@ void PHY_RF8256_Config(struct net_device* dev)
  * Output:      NONE
  * Return:      NONE
  *---------------------------------------------------------------------------*/
-void phy_RF8256_Config_ParaFile(struct net_device* dev)
+void phy_RF8256_Config_ParaFile(struct net_device *dev)
 {
 	u32	u4RegValue = 0;
 	//static s1Byte				szRadioAFile[] = RTL819X_PHY_RADIO_A;
@@ -133,7 +133,7 @@ void phy_RF8256_Config_ParaFile(struct net_device* dev)
 	//	pHalData->RfReg0Value[eRFPath] =  rtl8192_phy_QueryRFReg(dev, (RF90_RADIO_PATH_E)eRFPath, rGlobalCtrl, bMaskDWord);
 
 		/*----Store original RFENV control type----*/
-		switch(eRFPath)
+		switch (eRFPath)
 		{
 		case RF90_PATH_A:
 		case RF90_PATH_C:
@@ -168,7 +168,7 @@ void phy_RF8256_Config_ParaFile(struct net_device* dev)
 		RetryTimes = ConstRetryTimes;
 		RF3_Final_Value = 0;
 		/*----Initialize RF fom connfiguration file----*/
-		switch(eRFPath)
+		switch (eRFPath)
 		{
 		case RF90_PATH_A:
 			while(RF3_Final_Value!=RegValueToBeCheck && RetryTimes!=0)
@@ -209,7 +209,7 @@ void phy_RF8256_Config_ParaFile(struct net_device* dev)
 		}
 
 		/*----Restore RFENV control type----*/;
-		switch(eRFPath)
+		switch (eRFPath)
 		{
 		case RF90_PATH_A:
 		case RF90_PATH_C:
@@ -237,14 +237,14 @@ phy_RF8256_Config_ParaFile_Fail:
 }
 
 
-void PHY_SetRF8256CCKTxPower(struct net_device*	dev, u8	powerlevel)
+void PHY_SetRF8256CCKTxPower(struct net_device *dev, u8 powerlevel)
 {
 	u32	TxAGC=0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	//modified by vivi, 20080109
 	TxAGC = powerlevel;
 
-	if(priv->bDynamicTxLowPower == TRUE ) //cosa 05/22/2008 for scan
+	if(priv->bDynamicTxLowPower == TRUE) //cosa 05/22/2008 for scan
 	{
 		if(priv->CustomerID == RT_CID_819x_Netcore)
 			TxAGC = 0x22;
@@ -258,7 +258,7 @@ void PHY_SetRF8256CCKTxPower(struct net_device*	dev, u8	powerlevel)
 }
 
 
-void PHY_SetRF8256OFDMTxPower(struct net_device* dev, u8 powerlevel)
+void PHY_SetRF8256OFDMTxPower(struct net_device *dev, u8 powerlevel)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	//Joseph TxPower for 8192 testing

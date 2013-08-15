@@ -14,10 +14,6 @@
 #ifndef __MACH_370_XP_COHERENCY_H
 #define __MACH_370_XP_COHERENCY_H
 
-#ifdef CONFIG_SMP
-int coherency_get_cpu_count(void);
-#endif
-
 int set_cpu_coherent(int cpu_id, int smp_group_id);
 int coherency_init(void);
 

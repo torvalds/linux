@@ -221,12 +221,9 @@ done:
 		memset(skb_put(skb, padlen), 0, padlen);
 	}
 
-	netdev_dbg(
-		dev->net,
-		"Sending package with length %i and padding %i. Header: %02x:%02x:%02x:%02x:%02x:%02x.",
-		content_len, padlen, header_start[0], header_start[1],
-		header_start[2], header_start[3], header_start[4],
-		header_start[5]);
+	netdev_dbg(dev->net,
+		"Sending package with length %i and padding %i. Header: %6phC.",
+		content_len, padlen, header_start);
 
 	return skb;
 }
@@ -263,32 +260,23 @@ kalmia_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 				sizeof(EXPECTED_UNKNOWN_HEADER_1)) || !memcmp(
 				header_start, EXPECTED_UNKNOWN_HEADER_2,
 				sizeof(EXPECTED_UNKNOWN_HEADER_2))) {
-				netdev_dbg(
-					dev->net,
-					"Received expected unknown frame header: %02x:%02x:%02x:%02x:%02x:%02x. Package length: %i\n",
-					header_start[0], header_start[1],
-					header_start[2], header_start[3],
-					header_start[4], header_start[5],
+				netdev_dbg(dev->net,
+					"Received expected unknown frame header: %6phC. Package length: %i\n",
+					header_start,
 					skb->len - KALMIA_HEADER_LENGTH);
 			}
 			else {
-				netdev_err(
-					dev->net,
-					"Received unknown frame header: %02x:%02x:%02x:%02x:%02x:%02x. Package length: %i\n",
-					header_start[0], header_start[1],
-					header_start[2], header_start[3],
-					header_start[4], header_start[5],
+				netdev_err(dev->net,
+					"Received unknown frame header: %6phC. Package length: %i\n",
+					header_start,
 					skb->len - KALMIA_HEADER_LENGTH);
 				return 0;
 			}
 		}
 		else
-			netdev_dbg(
-				dev->net,
-				"Received header: %02x:%02x:%02x:%02x:%02x:%02x. Package length: %i\n",
-				header_start[0], header_start[1], header_start[2],
-				header_start[3], header_start[4], header_start[5],
-				skb->len - KALMIA_HEADER_LENGTH);
+			netdev_dbg(dev->net,
+				"Received header: %6phC. Package length: %i\n",
+				header_start, skb->len - KALMIA_HEADER_LENGTH);
 
 		/* subtract start header and end header */
 		usb_packet_length = skb->len - (2 * KALMIA_HEADER_LENGTH);
@@ -310,12 +298,9 @@ kalmia_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 				sizeof(HEADER_END_OF_USB_PACKET)) == 0);
 			if (!is_last) {
 				header_start = skb->data + ether_packet_length;
-				netdev_dbg(
-					dev->net,
-					"End header: %02x:%02x:%02x:%02x:%02x:%02x. Package length: %i\n",
-					header_start[0], header_start[1],
-					header_start[2], header_start[3],
-					header_start[4], header_start[5],
+				netdev_dbg(dev->net,
+					"End header: %6phC. Package length: %i\n",
+					header_start,
 					skb->len - KALMIA_HEADER_LENGTH);
 			}
 		}

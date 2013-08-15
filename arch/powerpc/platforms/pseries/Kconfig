@@ -19,7 +19,6 @@ config PPC_PSERIES
 	select ZLIB_DEFLATE
 	select PPC_DOORBELL
 	select HAVE_CONTEXT_TRACKING
-	select HOTPLUG if SMP
 	select HOTPLUG_CPU if SMP
 	default y
 
@@ -32,11 +31,6 @@ config PPC_SPLPAR
 	  on logically-partitioned pSeries systems which use shared
 	  processors, that is, which share physical processors between
 	  two or more partitions.
-
-config EEH
-	bool
-	depends on PPC_PSERIES && PCI
-	default y
 
 config PSERIES_MSI
        bool

@@ -1384,7 +1384,7 @@ static int cpm_uart_probe(struct platform_device *ofdev)
 	if (index >= UART_NR)
 		return -ENODEV;
 
-	dev_set_drvdata(&ofdev->dev, pinfo);
+	platform_set_drvdata(ofdev, pinfo);
 
 	/* initialize the device pointer for the port */
 	pinfo->port.dev = &ofdev->dev;
@@ -1398,7 +1398,7 @@ static int cpm_uart_probe(struct platform_device *ofdev)
 
 static int cpm_uart_remove(struct platform_device *ofdev)
 {
-	struct uart_cpm_port *pinfo = dev_get_drvdata(&ofdev->dev);
+	struct uart_cpm_port *pinfo = platform_get_drvdata(ofdev);
 	return uart_remove_one_port(&cpm_reg, &pinfo->port);
 }
 

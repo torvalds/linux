@@ -50,7 +50,7 @@ static struct pin_config {
 };
 
 /* Global list of devices (struct samsung_pinctrl_drv_data) */
-LIST_HEAD(drvdata_list);
+static LIST_HEAD(drvdata_list);
 
 static unsigned int pin_base;
 
@@ -1113,10 +1113,22 @@ static const struct of_device_id samsung_pinctrl_dt_match[] = {
 		.data = (void *)exynos4x12_pin_ctrl },
 	{ .compatible = "samsung,exynos5250-pinctrl",
 		.data = (void *)exynos5250_pin_ctrl },
+	{ .compatible = "samsung,exynos5420-pinctrl",
+		.data = (void *)exynos5420_pin_ctrl },
 #endif
 #ifdef CONFIG_PINCTRL_S3C64XX
 	{ .compatible = "samsung,s3c64xx-pinctrl",
 		.data = s3c64xx_pin_ctrl },
+#endif
+#ifdef CONFIG_PINCTRL_S3C24XX
+	{ .compatible = "samsung,s3c2412-pinctrl",
+		.data = s3c2412_pin_ctrl },
+	{ .compatible = "samsung,s3c2416-pinctrl",
+		.data = s3c2416_pin_ctrl },
+	{ .compatible = "samsung,s3c2440-pinctrl",
+		.data = s3c2440_pin_ctrl },
+	{ .compatible = "samsung,s3c2450-pinctrl",
+		.data = s3c2450_pin_ctrl },
 #endif
 	{},
 };

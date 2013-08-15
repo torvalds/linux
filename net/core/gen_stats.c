@@ -143,18 +143,30 @@ EXPORT_SYMBOL(gnet_stats_copy_basic);
 int
 gnet_stats_copy_rate_est(struct gnet_dump *d,
 			 const struct gnet_stats_basic_packed *b,
-			 struct gnet_stats_rate_est *r)
+			 struct gnet_stats_rate_est64 *r)
 {
+	struct gnet_stats_rate_est est;
+	int res;
+
 	if (b && !gen_estimator_active(b, r))
 		return 0;
 
+	est.bps = min_t(u64, UINT_MAX, r->bps);
+	/* we have some time before reaching 2^32 packets per second */
+	est.pps = r->pps;
+
 	if (d->compat_tc_stats) {
-		d->tc_stats.bps = r->bps;
-		d->tc_stats.pps = r->pps;
+		d->tc_stats.bps = est.bps;
+		d->tc_stats.pps = est.pps;
 	}
 
-	if (d->tail)
-		return gnet_stats_copy(d, TCA_STATS_RATE_EST, r, sizeof(*r));
+	if (d->tail) {
+		res = gnet_stats_copy(d, TCA_STATS_RATE_EST, &est, sizeof(est));
+		if (res < 0 || est.bps == r->bps)
+			return res;
+		/* emit 64bit stats only if needed */
+		return gnet_stats_copy(d, TCA_STATS_RATE_EST64, r, sizeof(*r));
+	}
 
 	return 0;
 }

@@ -13,13 +13,22 @@ LF='
 # First check if there is a .git to get the version from git describe
 # otherwise try to get the version from the kernel Makefile
 #
-if test -d ../../.git -o -f ../../.git &&
-	VN=$(git tag 2>/dev/null | tail -1 | grep -E "v[0-9].[0-9]*")
+CID=
+TAG=
+if test -d ../../.git -o -f ../../.git
 then
-	VN=$(echo $VN"-g"$(git log -1 --abbrev=4 --pretty=format:"%h" HEAD))
-	VN=$(echo "$VN" | sed -e 's/-/./g');
-else
-	VN=$(MAKEFLAGS= make -sC ../.. kernelversion)
+	TAG=$(git describe --abbrev=0 --match "v[0-9].[0-9]*" 2>/dev/null )
+	CID=$(git log -1 --abbrev=4 --pretty=format:"%h" 2>/dev/null) && CID="-g$CID"
+fi
+if test -z "$TAG"
+then
+	TAG=$(MAKEFLAGS= make -sC ../.. kernelversion)
+fi
+VN="$TAG$CID"
+if test -n "$CID"
+then
+	# format version string, strip trailing zero of sublevel:
+	VN=$(echo "$VN" | sed -e 's/-/./g;s/\([0-9]*[.][0-9]*\)[.]0/\1/')
 fi
 
 VN=$(expr "$VN" : v*'\(.*\)')

@@ -195,7 +195,7 @@ static void sclp_sync_callback(struct sclp_req *req, void *data)
 	complete(completion);
 }
 
-static int do_sync_request(sclp_cmdw_t cmd, void *sccb)
+int sclp_sync_request(sclp_cmdw_t cmd, void *sccb)
 {
 	struct completion completion;
 	struct sclp_req *request;
@@ -270,7 +270,7 @@ int sclp_get_cpu_info(struct sclp_cpu_info *info)
 	if (!sccb)
 		return -ENOMEM;
 	sccb->header.length = sizeof(*sccb);
-	rc = do_sync_request(SCLP_CMDW_READ_CPU_INFO, sccb);
+	rc = sclp_sync_request(SCLP_CMDW_READ_CPU_INFO, sccb);
 	if (rc)
 		goto out;
 	if (sccb->header.response_code != 0x0010) {
@@ -304,7 +304,7 @@ static int do_cpu_configure(sclp_cmdw_t cmd)
 	if (!sccb)
 		return -ENOMEM;
 	sccb->header.length = sizeof(*sccb);
-	rc = do_sync_request(cmd, sccb);
+	rc = sclp_sync_request(cmd, sccb);
 	if (rc)
 		goto out;
 	switch (sccb->header.response_code) {
@@ -374,7 +374,7 @@ static int do_assign_storage(sclp_cmdw_t cmd, u16 rn)
 		return -ENOMEM;
 	sccb->header.length = PAGE_SIZE;
 	sccb->rn = rn;
-	rc = do_sync_request(cmd, sccb);
+	rc = sclp_sync_request(cmd, sccb);
 	if (rc)
 		goto out;
 	switch (sccb->header.response_code) {
@@ -429,7 +429,7 @@ static int sclp_attach_storage(u8 id)
 	if (!sccb)
 		return -ENOMEM;
 	sccb->header.length = PAGE_SIZE;
-	rc = do_sync_request(0x00080001 | id << 8, sccb);
+	rc = sclp_sync_request(0x00080001 | id << 8, sccb);
 	if (rc)
 		goto out;
 	switch (sccb->header.response_code) {
@@ -627,7 +627,7 @@ static int __init sclp_detect_standby_memory(void)
 	for (id = 0; id <= sclp_max_storage_id; id++) {
 		memset(sccb, 0, PAGE_SIZE);
 		sccb->header.length = PAGE_SIZE;
-		rc = do_sync_request(0x00040001 | id << 8, sccb);
+		rc = sclp_sync_request(0x00040001 | id << 8, sccb);
 		if (rc)
 			goto out;
 		switch (sccb->header.response_code) {
@@ -668,7 +668,7 @@ static int __init sclp_detect_standby_memory(void)
 	if (rc)
 		goto out;
 	sclp_pdev = platform_device_register_simple("sclp_mem", -1, NULL, 0);
-	rc = IS_ERR(sclp_pdev) ? PTR_ERR(sclp_pdev) : 0;
+	rc = PTR_RET(sclp_pdev);
 	if (rc)
 		goto out_driver;
 	sclp_add_standby_memory();
@@ -714,7 +714,7 @@ static int do_pci_configure(sclp_cmdw_t cmd, u32 fid)
 	sccb->header.length = PAGE_SIZE;
 	sccb->atype = SCLP_RECONFIG_PCI_ATPYE;
 	sccb->aid = fid;
-	rc = do_sync_request(cmd, sccb);
+	rc = sclp_sync_request(cmd, sccb);
 	if (rc)
 		goto out;
 	switch (sccb->header.response_code) {
@@ -771,7 +771,7 @@ static int do_chp_configure(sclp_cmdw_t cmd)
 	if (!sccb)
 		return -ENOMEM;
 	sccb->header.length = sizeof(*sccb);
-	rc = do_sync_request(cmd, sccb);
+	rc = sclp_sync_request(cmd, sccb);
 	if (rc)
 		goto out;
 	switch (sccb->header.response_code) {
@@ -846,7 +846,7 @@ int sclp_chp_read_info(struct sclp_chp_info *info)
 	if (!sccb)
 		return -ENOMEM;
 	sccb->header.length = sizeof(*sccb);
-	rc = do_sync_request(SCLP_CMDW_READ_CHPATH_INFORMATION, sccb);
+	rc = sclp_sync_request(SCLP_CMDW_READ_CHPATH_INFORMATION, sccb);
 	if (rc)
 		goto out;
 	if (sccb->header.response_code != 0x0010) {

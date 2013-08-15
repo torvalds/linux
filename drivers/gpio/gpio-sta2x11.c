@@ -371,8 +371,12 @@ static int gsta_probe(struct platform_device *dev)
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 
 	chip = devm_kzalloc(&dev->dev, sizeof(*chip), GFP_KERNEL);
+	if (!chip)
+		return -ENOMEM;
 	chip->dev = &dev->dev;
-	chip->reg_base = devm_request_and_ioremap(&dev->dev, res);
+	chip->reg_base = devm_ioremap_resource(&dev->dev, res);
+	if (IS_ERR(chip->reg_base))
+		return PTR_ERR(chip->reg_base);
 
 	for (i = 0; i < GSTA_NR_BLOCKS; i++) {
 		chip->regs[i] = chip->reg_base + i * 4096;

@@ -140,40 +140,6 @@ struct siga_flag {
 	u8:3;
 } __attribute__ ((packed));
 
-struct chsc_ssqd_area {
-	struct chsc_header request;
-	u16:10;
-	u8 ssid:2;
-	u8 fmt:4;
-	u16 first_sch;
-	u16:16;
-	u16 last_sch;
-	u32:32;
-	struct chsc_header response;
-	u32:32;
-	struct qdio_ssqd_desc qdio_ssqd;
-} __attribute__ ((packed));
-
-struct scssc_area {
-	struct chsc_header request;
-	u16 operation_code;
-	u16:16;
-	u32:32;
-	u32:32;
-	u64 summary_indicator_addr;
-	u64 subchannel_indicator_addr;
-	u32 ks:4;
-	u32 kc:4;
-	u32:21;
-	u32 isc:3;
-	u32 word_with_d_bit;
-	u32:32;
-	struct subchannel_id schid;
-	u32 reserved[1004];
-	struct chsc_header response;
-	u32:32;
-} __attribute__ ((packed));
-
 struct qdio_dev_perf_stat {
 	unsigned int adapter_int;
 	unsigned int qdio_int;

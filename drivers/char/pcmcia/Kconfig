@@ -3,7 +3,7 @@
 #
 
 menu "PCMCIA character devices"
-	depends on HOTPLUG && PCMCIA!=n
+	depends on PCMCIA!=n
 
 config SYNCLINK_CS
 	tristate "SyncLink PC Card support"

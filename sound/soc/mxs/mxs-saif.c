@@ -24,10 +24,9 @@
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/time.h>
-#include <linux/fsl/mxs-dma.h>
-#include <linux/pinctrl/consumer.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -605,8 +604,6 @@ static int mxs_saif_dai_probe(struct snd_soc_dai *dai)
 	struct mxs_saif *saif = dev_get_drvdata(dai->dev);
 
 	snd_soc_dai_set_drvdata(dai, saif);
-	dai->playback_dma_data = &saif->dma_param;
-	dai->capture_dma_data = &saif->dma_param;
 
 	return 0;
 }
@@ -662,12 +659,38 @@ static irqreturn_t mxs_saif_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static int mxs_saif_mclk_init(struct platform_device *pdev)
+{
+	struct mxs_saif *saif = platform_get_drvdata(pdev);
+	struct device_node *np = pdev->dev.of_node;
+	struct clk *clk;
+	int ret;
+
+	clk = clk_register_divider(&pdev->dev, "mxs_saif_mclk",
+				   __clk_get_name(saif->clk), 0,
+				   saif->base + SAIF_CTRL,
+				   BP_SAIF_CTRL_BITCLK_MULT_RATE, 3,
+				   0, NULL);
+	if (IS_ERR(clk)) {
+		ret = PTR_ERR(clk);
+		if (ret == -EEXIST)
+			return 0;
+		dev_err(&pdev->dev, "failed to register mclk: %d\n", ret);
+		return PTR_ERR(clk);
+	}
+
+	ret = of_clk_add_provider(np, of_clk_src_simple_get, clk);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static int mxs_saif_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct resource *iores, *dmares;
+	struct resource *iores;
 	struct mxs_saif *saif;
-	struct pinctrl *pinctrl;
 	int ret = 0;
 	struct device_node *master;
 
@@ -707,12 +730,6 @@ static int mxs_saif_probe(struct platform_device *pdev)
 
 	mxs_saif[saif->id] = saif;
 
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl)) {
-		ret = PTR_ERR(pinctrl);
-		return ret;
-	}
-
 	saif->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(saif->clk)) {
 		ret = PTR_ERR(saif->clk);
@@ -726,22 +743,6 @@ static int mxs_saif_probe(struct platform_device *pdev)
 	saif->base = devm_ioremap_resource(&pdev->dev, iores);
 	if (IS_ERR(saif->base))
 		return PTR_ERR(saif->base);
-
-	dmares = platform_get_resource(pdev, IORESOURCE_DMA, 0);
-	if (!dmares) {
-		/*
-		 * TODO: This is a temporary solution and should be changed
-		 * to use generic DMA binding later when the helplers get in.
-		 */
-		ret = of_property_read_u32(np, "fsl,saif-dma-channel",
-					   &saif->dma_param.chan_num);
-		if (ret) {
-			dev_err(&pdev->dev, "failed to get dma channel\n");
-			return ret;
-		}
-	} else {
-		saif->dma_param.chan_num = dmares->start;
-	}
 
 	saif->irq = platform_get_irq(pdev, 0);
 	if (saif->irq < 0) {
@@ -759,15 +760,14 @@ static int mxs_saif_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	saif->dma_param.dma_data.chan_irq = platform_get_irq(pdev, 1);
-	if (saif->dma_param.dma_data.chan_irq < 0) {
-		ret = saif->dma_param.dma_data.chan_irq;
-		dev_err(&pdev->dev, "failed to get dma irq resource: %d\n",
-			ret);
-		return ret;
-	}
-
 	platform_set_drvdata(pdev, saif);
+
+	/* We only support saif0 being tx and clock master */
+	if (saif->id == 0) {
+		ret = mxs_saif_mclk_init(pdev);
+		if (ret)
+			dev_warn(&pdev->dev, "failed to init clocks\n");
+	}
 
 	ret = snd_soc_register_component(&pdev->dev, &mxs_saif_component,
 					 &mxs_saif_dai, 1);

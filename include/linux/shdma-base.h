@@ -68,6 +68,8 @@ struct shdma_chan {
 	int id;				/* Raw id of this channel */
 	int irq;			/* Channel IRQ */
 	int slave_id;			/* Client ID for slave DMA */
+	int hw_req;			/* DMA request line for slave DMA - same
+					 * as MID/RID, used with DT */
 	enum shdma_pm_state pm_state;
 };
 
@@ -122,5 +124,10 @@ void shdma_chan_remove(struct shdma_chan *schan);
 int shdma_init(struct device *dev, struct shdma_dev *sdev,
 		    int chan_num);
 void shdma_cleanup(struct shdma_dev *sdev);
+#if IS_ENABLED(CONFIG_SH_DMAE_BASE)
+bool shdma_chan_filter(struct dma_chan *chan, void *arg);
+#else
+#define shdma_chan_filter NULL
+#endif
 
 #endif

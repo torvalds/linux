@@ -56,7 +56,7 @@ int SM_SCSIIrp(struct us_data *us, struct scsi_cmnd *srb)
 	return result;
 }
 
-/* ----- SM_SCSI_Test_Unit_Ready() -------------------------------------------------- */
+/* ----- SM_SCSI_Test_Unit_Ready() ------------------------------------- */
 int SM_SCSI_Test_Unit_Ready(struct us_data *us, struct scsi_cmnd *srb)
 {
 	if (us->SM_Status.Insert && us->SM_Status.Ready)
@@ -69,21 +69,27 @@ int SM_SCSI_Test_Unit_Ready(struct us_data *us, struct scsi_cmnd *srb)
 	return USB_STOR_TRANSPORT_GOOD;
 }
 
-/* ----- SM_SCSI_Inquiry() -------------------------------------------------- */
+/* ----- SM_SCSI_Inquiry() --------------------------------------------- */
 int SM_SCSI_Inquiry(struct us_data *us, struct scsi_cmnd *srb)
 {
-	BYTE data_ptr[36] = {0x00, 0x80, 0x02, 0x00, 0x1F, 0x00, 0x00, 0x00, 0x55, 0x53, 0x42, 0x32, 0x2E, 0x30, 0x20, 0x20, 0x43, 0x61, 0x72, 0x64, 0x52, 0x65, 0x61, 0x64, 0x65, 0x72, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x30, 0x31, 0x30, 0x30};
+	BYTE data_ptr[36] = {0x00, 0x80, 0x02, 0x00, 0x1F, 0x00, 0x00, 0x00,
+				 0x55, 0x53, 0x42, 0x32, 0x2E, 0x30, 0x20,
+				 0x20, 0x43, 0x61, 0x72, 0x64, 0x52, 0x65,
+				 0x61, 0x64, 0x65, 0x72, 0x20, 0x20, 0x20,
+				 0x20, 0x20, 0x20, 0x30, 0x31, 0x30, 0x30};
 
 	usb_stor_set_xfer_buf(us, data_ptr, 36, srb, TO_XFER_BUF);
 	return USB_STOR_TRANSPORT_GOOD;
 }
 
 
-/* ----- SM_SCSI_Mode_Sense() -------------------------------------------------- */
+/* ----- SM_SCSI_Mode_Sense() ------------------------------------------ */
 int SM_SCSI_Mode_Sense(struct us_data *us, struct scsi_cmnd *srb)
 {
-	BYTE	mediaNoWP[12] = {0x0b, 0x00, 0x00, 0x08, 0x00, 0x00, 0x71, 0xc0, 0x00, 0x00, 0x02, 0x00};
-	BYTE	mediaWP[12]   = {0x0b, 0x00, 0x80, 0x08, 0x00, 0x00, 0x71, 0xc0, 0x00, 0x00, 0x02, 0x00};
+	BYTE	mediaNoWP[12] = {0x0b, 0x00, 0x00, 0x08, 0x00, 0x00,
+				0x71, 0xc0, 0x00, 0x00, 0x02, 0x00};
+	BYTE	mediaWP[12]   = {0x0b, 0x00, 0x80, 0x08, 0x00, 0x00,
+				0x71, 0xc0, 0x00, 0x00, 0x02, 0x00};
 
 	if (us->SM_Status.WtP)
 		usb_stor_set_xfer_buf(us, mediaWP, 12, srb, TO_XFER_BUF);
@@ -94,7 +100,7 @@ int SM_SCSI_Mode_Sense(struct us_data *us, struct scsi_cmnd *srb)
 	return USB_STOR_TRANSPORT_GOOD;
 }
 
-/* ----- SM_SCSI_Read_Capacity() -------------------------------------------------- */
+/* ----- SM_SCSI_Read_Capacity() --------------------------------------- */
 int SM_SCSI_Read_Capacity(struct us_data *us, struct scsi_cmnd *srb)
 {
 	unsigned int offset = 0;
@@ -103,14 +109,14 @@ int SM_SCSI_Read_Capacity(struct us_data *us, struct scsi_cmnd *srb)
 	WORD    bl_len;
 	BYTE    buf[8];
 
-	printk("SM_SCSI_Read_Capacity\n");
+	dev_dbg(&us->pusb_dev->dev, "SM_SCSI_Read_Capacity\n");
 
 	bl_len = 0x200;
 	bl_num = Ssfdc.MaxLogBlocks * Ssfdc.MaxSectors * Ssfdc.MaxZones - 1;
 
 	us->bl_num = bl_num;
-	printk("bl_len = %x\n", bl_len);
-	printk("bl_num = %x\n", bl_num);
+	dev_dbg(&us->pusb_dev->dev, "bl_len = %x\n", bl_len);
+	dev_dbg(&us->pusb_dev->dev, "bl_num = %x\n", bl_num);
 
 	buf[0] = (bl_num >> 24) & 0xff;
 	buf[1] = (bl_num >> 16) & 0xff;
@@ -131,8 +137,10 @@ int SM_SCSI_Read(struct us_data *us, struct scsi_cmnd *srb)
 {
 	int result = 0;
 	PBYTE	Cdb = srb->cmnd;
-	DWORD bn  =  ((Cdb[2] << 24) & 0xff000000) | ((Cdb[3] << 16) & 0x00ff0000) |
-		((Cdb[4] << 8) & 0x0000ff00) | ((Cdb[5] << 0) & 0x000000ff);
+	DWORD bn  =  ((Cdb[2] << 24) & 0xff000000) |
+			((Cdb[3] << 16) & 0x00ff0000) |
+			((Cdb[4] << 8) & 0x0000ff00) |
+			((Cdb[5] << 0) & 0x000000ff);
 	WORD  blen = ((Cdb[7] << 8) & 0xff00)     | ((Cdb[8] << 0) & 0x00ff);
 	DWORD	blenByte = blen * 0x200;
 	void	*buf;
@@ -161,8 +169,10 @@ int SM_SCSI_Write(struct us_data *us, struct scsi_cmnd *srb)
 {
 	int result = 0;
 	PBYTE	Cdb = srb->cmnd;
-	DWORD bn  =  ((Cdb[2] << 24) & 0xff000000) | ((Cdb[3] << 16) & 0x00ff0000) |
-		((Cdb[4] << 8) & 0x0000ff00) | ((Cdb[5] << 0) & 0x000000ff);
+	DWORD bn  =  ((Cdb[2] << 24) & 0xff000000) |
+			((Cdb[3] << 16) & 0x00ff0000) |
+			((Cdb[4] << 8) & 0x0000ff00) |
+			((Cdb[5] << 0) & 0x000000ff);
 	WORD  blen = ((Cdb[7] << 8) & 0xff00)     | ((Cdb[8] << 0) & 0x00ff);
 	DWORD	blenByte = blen * 0x200;
 	void	*buf;

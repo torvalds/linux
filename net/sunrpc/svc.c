@@ -740,7 +740,7 @@ svc_set_num_threads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 
 		__module_get(serv->sv_module);
 		task = kthread_create_on_node(serv->sv_function, rqstp,
-					      node, serv->sv_name);
+					      node, "%s", serv->sv_name);
 		if (IS_ERR(task)) {
 			error = PTR_ERR(task);
 			module_put(serv->sv_module);

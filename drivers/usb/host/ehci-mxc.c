@@ -194,7 +194,6 @@ static int ehci_mxc_drv_remove(struct platform_device *pdev)
 		clk_disable_unprepare(priv->phyclk);
 
 	usb_put_hcd(hcd);
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 

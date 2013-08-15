@@ -302,7 +302,7 @@ static int mpc5xxx_can_probe(struct platform_device *ofdev)
 		goto exit_free_mscan;
 	}
 
-	dev_set_drvdata(&ofdev->dev, dev);
+	platform_set_drvdata(ofdev, dev);
 
 	dev_info(&ofdev->dev, "MSCAN at 0x%p, irq %d, clock %d Hz\n",
 		 priv->reg_base, dev->irq, priv->can.clock.freq);
@@ -321,10 +321,8 @@ exit_unmap_mem:
 
 static int mpc5xxx_can_remove(struct platform_device *ofdev)
 {
-	struct net_device *dev = dev_get_drvdata(&ofdev->dev);
+	struct net_device *dev = platform_get_drvdata(ofdev);
 	struct mscan_priv *priv = netdev_priv(dev);
-
-	dev_set_drvdata(&ofdev->dev, NULL);
 
 	unregister_mscandev(dev);
 	iounmap(priv->reg_base);
@@ -338,7 +336,7 @@ static int mpc5xxx_can_remove(struct platform_device *ofdev)
 static struct mscan_regs saved_regs;
 static int mpc5xxx_can_suspend(struct platform_device *ofdev, pm_message_t state)
 {
-	struct net_device *dev = dev_get_drvdata(&ofdev->dev);
+	struct net_device *dev = platform_get_drvdata(ofdev);
 	struct mscan_priv *priv = netdev_priv(dev);
 	struct mscan_regs *regs = (struct mscan_regs *)priv->reg_base;
 
@@ -349,7 +347,7 @@ static int mpc5xxx_can_suspend(struct platform_device *ofdev, pm_message_t state
 
 static int mpc5xxx_can_resume(struct platform_device *ofdev)
 {
-	struct net_device *dev = dev_get_drvdata(&ofdev->dev);
+	struct net_device *dev = platform_get_drvdata(ofdev);
 	struct mscan_priv *priv = netdev_priv(dev);
 	struct mscan_regs *regs = (struct mscan_regs *)priv->reg_base;
 

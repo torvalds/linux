@@ -276,8 +276,7 @@ struct bfi_fcport_enable_req_s {
 struct bfi_fcport_set_svc_params_req_s {
 	struct bfi_mhdr_s  mh;		/*  msg header */
 	__be16	   tx_bbcredit;	/*  Tx credits */
-	u8	bb_scn;		/* BB_SC FC credit recovery */
-	u8	rsvd;
+	u8	rsvd[2];
 };
 
 /*
@@ -446,8 +445,8 @@ struct bfi_lps_login_rsp_s {
 	mac_t		fcf_mac;
 	u8		ext_status;
 	u8		brcd_switch;	/*  attached peer is brcd switch */
-	u8		bb_scn;		/* atatched port's bb_scn */
 	u8		bfa_tag;
+	u8		rsvd;
 };
 
 struct bfi_lps_logout_req_s {

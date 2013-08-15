@@ -719,10 +719,6 @@ static void reserve_oldmem(void)
 	}
 	create_mem_hole(memory_chunk, OLDMEM_BASE, OLDMEM_SIZE);
 	create_mem_hole(memory_chunk, OLDMEM_SIZE, real_size - OLDMEM_SIZE);
-	if (OLDMEM_BASE + OLDMEM_SIZE == real_size)
-		saved_max_pfn = PFN_DOWN(OLDMEM_BASE) - 1;
-	else
-		saved_max_pfn = PFN_DOWN(real_size) - 1;
 #endif
 }
 
@@ -998,6 +994,7 @@ static void __init setup_hwcaps(void)
 		strcpy(elf_platform, "z196");
 		break;
 	case 0x2827:
+	case 0x2828:
 		strcpy(elf_platform, "zEC12");
 		break;
 	}

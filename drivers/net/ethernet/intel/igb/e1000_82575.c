@@ -401,12 +401,82 @@ static s32 igb_init_mac_params_82575(struct e1000_hw *hw)
 	return 0;
 }
 
+/**
+ *  igb_set_sfp_media_type_82575 - derives SFP module media type.
+ *  @hw: pointer to the HW structure
+ *
+ *  The media type is chosen based on SFP module.
+ *  compatibility flags retrieved from SFP ID EEPROM.
+ **/
+static s32 igb_set_sfp_media_type_82575(struct e1000_hw *hw)
+{
+	s32 ret_val = E1000_ERR_CONFIG;
+	u32 ctrl_ext = 0;
+	struct e1000_dev_spec_82575 *dev_spec = &hw->dev_spec._82575;
+	struct e1000_sfp_flags *eth_flags = &dev_spec->eth_flags;
+	u8 tranceiver_type = 0;
+	s32 timeout = 3;
+
+	/* Turn I2C interface ON and power on sfp cage */
+	ctrl_ext = rd32(E1000_CTRL_EXT);
+	ctrl_ext &= ~E1000_CTRL_EXT_SDP3_DATA;
+	wr32(E1000_CTRL_EXT, ctrl_ext | E1000_CTRL_I2C_ENA);
+
+	wrfl();
+
+	/* Read SFP module data */
+	while (timeout) {
+		ret_val = igb_read_sfp_data_byte(hw,
+			E1000_I2CCMD_SFP_DATA_ADDR(E1000_SFF_IDENTIFIER_OFFSET),
+			&tranceiver_type);
+		if (ret_val == 0)
+			break;
+		msleep(100);
+		timeout--;
+	}
+	if (ret_val != 0)
+		goto out;
+
+	ret_val = igb_read_sfp_data_byte(hw,
+			E1000_I2CCMD_SFP_DATA_ADDR(E1000_SFF_ETH_FLAGS_OFFSET),
+			(u8 *)eth_flags);
+	if (ret_val != 0)
+		goto out;
+
+	/* Check if there is some SFP module plugged and powered */
+	if ((tranceiver_type == E1000_SFF_IDENTIFIER_SFP) ||
+	    (tranceiver_type == E1000_SFF_IDENTIFIER_SFF)) {
+		dev_spec->module_plugged = true;
+		if (eth_flags->e1000_base_lx || eth_flags->e1000_base_sx) {
+			hw->phy.media_type = e1000_media_type_internal_serdes;
+		} else if (eth_flags->e100_base_fx) {
+			dev_spec->sgmii_active = true;
+			hw->phy.media_type = e1000_media_type_internal_serdes;
+		} else if (eth_flags->e1000_base_t) {
+			dev_spec->sgmii_active = true;
+			hw->phy.media_type = e1000_media_type_copper;
+		} else {
+			hw->phy.media_type = e1000_media_type_unknown;
+			hw_dbg("PHY module has not been recognized\n");
+			goto out;
+		}
+	} else {
+		hw->phy.media_type = e1000_media_type_unknown;
+	}
+	ret_val = 0;
+out:
+	/* Restore I2C interface setting */
+	wr32(E1000_CTRL_EXT, ctrl_ext);
+	return ret_val;
+}
+
 static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
 	struct e1000_dev_spec_82575 * dev_spec = &hw->dev_spec._82575;
 	s32 ret_val;
 	u32 ctrl_ext = 0;
+	u32 link_mode = 0;
 
 	switch (hw->device_id) {
 	case E1000_DEV_ID_82575EB_COPPER:
@@ -470,15 +540,55 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	 */
 	hw->phy.media_type = e1000_media_type_copper;
 	dev_spec->sgmii_active = false;
+	dev_spec->module_plugged = false;
 
 	ctrl_ext = rd32(E1000_CTRL_EXT);
-	switch (ctrl_ext & E1000_CTRL_EXT_LINK_MODE_MASK) {
-	case E1000_CTRL_EXT_LINK_MODE_SGMII:
-		dev_spec->sgmii_active = true;
-		break;
+
+	link_mode = ctrl_ext & E1000_CTRL_EXT_LINK_MODE_MASK;
+	switch (link_mode) {
 	case E1000_CTRL_EXT_LINK_MODE_1000BASE_KX:
-	case E1000_CTRL_EXT_LINK_MODE_PCIE_SERDES:
 		hw->phy.media_type = e1000_media_type_internal_serdes;
+		break;
+	case E1000_CTRL_EXT_LINK_MODE_SGMII:
+		/* Get phy control interface type set (MDIO vs. I2C)*/
+		if (igb_sgmii_uses_mdio_82575(hw)) {
+			hw->phy.media_type = e1000_media_type_copper;
+			dev_spec->sgmii_active = true;
+			break;
+		}
+		/* fall through for I2C based SGMII */
+	case E1000_CTRL_EXT_LINK_MODE_PCIE_SERDES:
+		/* read media type from SFP EEPROM */
+		ret_val = igb_set_sfp_media_type_82575(hw);
+		if ((ret_val != 0) ||
+		    (hw->phy.media_type == e1000_media_type_unknown)) {
+			/* If media type was not identified then return media
+			 * type defined by the CTRL_EXT settings.
+			 */
+			hw->phy.media_type = e1000_media_type_internal_serdes;
+
+			if (link_mode == E1000_CTRL_EXT_LINK_MODE_SGMII) {
+				hw->phy.media_type = e1000_media_type_copper;
+				dev_spec->sgmii_active = true;
+			}
+
+			break;
+		}
+
+		/* do not change link mode for 100BaseFX */
+		if (dev_spec->eth_flags.e100_base_fx)
+			break;
+
+		/* change current link mode setting */
+		ctrl_ext &= ~E1000_CTRL_EXT_LINK_MODE_MASK;
+
+		if (hw->phy.media_type == e1000_media_type_copper)
+			ctrl_ext |= E1000_CTRL_EXT_LINK_MODE_SGMII;
+		else
+			ctrl_ext |= E1000_CTRL_EXT_LINK_MODE_PCIE_SERDES;
+
+		wr32(E1000_CTRL_EXT, ctrl_ext);
+
 		break;
 	default:
 		break;

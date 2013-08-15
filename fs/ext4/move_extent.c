@@ -912,7 +912,6 @@ move_extent_per_page(struct file *o_filp, struct inode *donor_inode,
 	struct page *pagep[2] = {NULL, NULL};
 	handle_t *handle;
 	ext4_lblk_t orig_blk_offset;
-	long long offs = orig_page_offset << PAGE_CACHE_SHIFT;
 	unsigned long blocksize = orig_inode->i_sb->s_blocksize;
 	unsigned int w_flags = 0;
 	unsigned int tmp_data_size, data_size, replaced_size;
@@ -939,8 +938,6 @@ again:
 
 	orig_blk_offset = orig_page_offset * blocks_per_page +
 		data_offset_in_page;
-
-	offs = (long long)orig_blk_offset << orig_inode->i_blkbits;
 
 	/* Calculate data_size */
 	if ((orig_blk_offset + block_len_in_page - 1) ==

@@ -3069,7 +3069,7 @@ static int e100_resume(struct pci_dev *pdev)
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 	/* ack any pending wake events, disable PME */
-	pci_enable_wake(pdev, 0, 0);
+	pci_enable_wake(pdev, PCI_D0, 0);
 
 	/* disable reverse auto-negotiation */
 	if (nic->phy == phy_82552_v) {
@@ -3160,7 +3160,7 @@ static void e100_io_resume(struct pci_dev *pdev)
 	struct nic *nic = netdev_priv(netdev);
 
 	/* ack any pending wake events, disable PME */
-	pci_enable_wake(pdev, 0, 0);
+	pci_enable_wake(pdev, PCI_D0, 0);
 
 	netif_device_attach(netdev);
 	if (netif_running(netdev)) {

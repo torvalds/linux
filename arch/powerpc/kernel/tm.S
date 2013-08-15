@@ -112,9 +112,18 @@ _GLOBAL(tm_reclaim)
 	std	r3, STACK_PARAM(0)(r1)
 	SAVE_NVGPRS(r1)
 
+	/* We need to setup MSR for VSX register save instructions.  Here we
+	 * also clear the MSR RI since when we do the treclaim, we won't have a
+	 * valid kernel pointer for a while.  We clear RI here as it avoids
+	 * adding another mtmsr closer to the treclaim.  This makes the region
+	 * maked as non-recoverable wider than it needs to be but it saves on
+	 * inserting another mtmsrd later.
+	 */
 	mfmsr	r14
 	mr	r15, r14
 	ori	r15, r15, MSR_FP
+	li	r16, MSR_RI
+	andc	r15, r15, r16
 	oris	r15, r15, MSR_VEC@h
 #ifdef CONFIG_VSX
 	BEGIN_FTR_SECTION
@@ -223,6 +232,16 @@ dont_backup_fp:
 	std	r4, _LINK(r7)
 	std	r5, _CCR(r7)
 	std	r6, _XER(r7)
+
+
+	/* ******************** TAR, PPR, DSCR ********** */
+	mfspr	r3, SPRN_TAR
+	mfspr	r4, SPRN_PPR
+	mfspr	r5, SPRN_DSCR
+
+	std	r3, THREAD_TM_TAR(r12)
+	std	r4, THREAD_TM_PPR(r12)
+	std	r5, THREAD_TM_DSCR(r12)
 
 	/* MSR and flags:  We don't change CRs, and we don't need to alter
 	 * MSR.
@@ -338,6 +357,16 @@ dont_restore_fp:
 	mtmsr	r6				/* FP/Vec off again! */
 
 restore_gprs:
+
+	/* ******************** TAR, PPR, DSCR ********** */
+	ld	r4, THREAD_TM_TAR(r3)
+	ld	r5, THREAD_TM_PPR(r3)
+	ld	r6, THREAD_TM_DSCR(r3)
+
+	mtspr	SPRN_TAR,	r4
+	mtspr	SPRN_PPR,	r5
+	mtspr	SPRN_DSCR,	r6
+
 	/* ******************** CR,LR,CCR,MSR ********** */
 	ld	r3, _CTR(r7)
 	ld	r4, _LINK(r7)
@@ -349,9 +378,10 @@ restore_gprs:
 	mtcr	r5
 	mtxer	r6
 
-	/* MSR and flags:  We don't change CRs, and we don't need to alter
-	 * MSR.
+	/* Clear the MSR RI since we are about to change R1.  EE is already off
 	 */
+	li	r4, 0
+	mtmsrd	r4, 1
 
 	REST_4GPRS(0, r7)			/* GPR0-3 */
 	REST_GPR(4, r7)				/* GPR4-6 */
@@ -376,6 +406,10 @@ restore_gprs:
 
 	GET_PACA(r13)
 	GET_SCRATCH0(r1)
+
+	/* R1 is restored, so we are recoverable again.  EE is still off */
+	li	r4, MSR_RI
+	mtmsrd	r4, 1
 
 	REST_NVGPRS(r1)
 

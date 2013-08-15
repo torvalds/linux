@@ -448,8 +448,6 @@ struct brcmf_sdio {
 	uint rxblen;		/* Allocated length of rxbuf */
 	u8 *rxctl;		/* Aligned pointer into rxbuf */
 	u8 *rxctl_orig;		/* pointer for freeing rxctl */
-	u8 *databuf;		/* Buffer for receiving big glom packet */
-	u8 *dataptr;		/* Aligned pointer into databuf */
 	uint rxlen;		/* Length of valid data in buffer */
 	spinlock_t rxctl_lock;	/* protection lock for ctrl frame resources */
 
@@ -473,8 +471,6 @@ struct brcmf_sdio {
 	s32 idletime;		/* Control for activity timeout */
 	s32 idlecount;	/* Activity timeout counter */
 	s32 idleclock;	/* How to set bus driver when idle */
-	s32 sd_rxchain;
-	bool use_rxchain;	/* If brcmf should use PKT chains */
 	bool rxflow_mode;	/* Rx flow control mode */
 	bool rxflow;		/* Is rx flow control on */
 	bool alp_only;		/* Don't use HT clock (ALP only) */
@@ -495,8 +491,7 @@ struct brcmf_sdio {
 
 	struct workqueue_struct *brcmf_wq;
 	struct work_struct datawork;
-	struct list_head dpc_tsklst;
-	spinlock_t dpc_tl_lock;
+	atomic_t dpc_tskcnt;
 
 	const struct firmware *firmware;
 	u32 fw_ptr;
@@ -1026,29 +1021,6 @@ static void brcmf_sdbrcm_rxfail(struct brcmf_sdio *bus, bool abort, bool rtx)
 		bus->sdiodev->bus_if->state = BRCMF_BUS_DOWN;
 }
 
-/* copy a buffer into a pkt buffer chain */
-static uint brcmf_sdbrcm_glom_from_buf(struct brcmf_sdio *bus, uint len)
-{
-	uint n, ret = 0;
-	struct sk_buff *p;
-	u8 *buf;
-
-	buf = bus->dataptr;
-
-	/* copy the data */
-	skb_queue_walk(&bus->glom, p) {
-		n = min_t(uint, p->len, len);
-		memcpy(p->data, buf, n);
-		buf += n;
-		len -= n;
-		ret += n;
-		if (!len)
-			break;
-	}
-
-	return ret;
-}
-
 /* return total length of buffer chain */
 static uint brcmf_sdbrcm_glom_len(struct brcmf_sdio *bus)
 {
@@ -1202,8 +1174,6 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 	int errcode;
 	u8 doff, sfdoff;
 
-	bool usechain = bus->use_rxchain;
-
 	struct brcmf_sdio_read rd_new;
 
 	/* If packets, issue read(s) and send up packet chain */
@@ -1238,7 +1208,6 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 			if (sublen % BRCMF_SDALIGN) {
 				brcmf_err("sublen %d not multiple of %d\n",
 					  sublen, BRCMF_SDALIGN);
-				usechain = false;
 			}
 			totlen += sublen;
 
@@ -1305,27 +1274,9 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 		 * packet and and copy into the chain.
 		 */
 		sdio_claim_host(bus->sdiodev->func[1]);
-		if (usechain) {
-			errcode = brcmf_sdcard_recv_chain(bus->sdiodev,
-					bus->sdiodev->sbwad,
-					SDIO_FUNC_2, F2SYNC, &bus->glom);
-		} else if (bus->dataptr) {
-			errcode = brcmf_sdcard_recv_buf(bus->sdiodev,
-					bus->sdiodev->sbwad,
-					SDIO_FUNC_2, F2SYNC,
-					bus->dataptr, dlen);
-			sublen = (u16) brcmf_sdbrcm_glom_from_buf(bus, dlen);
-			if (sublen != dlen) {
-				brcmf_err("FAILED TO COPY, dlen %d sublen %d\n",
-					  dlen, sublen);
-				errcode = -1;
-			}
-			pnext = NULL;
-		} else {
-			brcmf_err("COULDN'T ALLOC %d-BYTE GLOM, FORCE FAILURE\n",
-				  dlen);
-			errcode = -1;
-		}
+		errcode = brcmf_sdcard_recv_chain(bus->sdiodev,
+				bus->sdiodev->sbwad,
+				SDIO_FUNC_2, F2SYNC, &bus->glom);
 		sdio_release_host(bus->sdiodev->func[1]);
 		bus->sdcnt.f2rxdata++;
 
@@ -2061,23 +2012,6 @@ static inline void brcmf_sdbrcm_clrintr(struct brcmf_sdio *bus)
 	}
 }
 
-static inline void brcmf_sdbrcm_adddpctsk(struct brcmf_sdio *bus)
-{
-	struct list_head *new_hd;
-	unsigned long flags;
-
-	if (in_interrupt())
-		new_hd = kzalloc(sizeof(struct list_head), GFP_ATOMIC);
-	else
-		new_hd = kzalloc(sizeof(struct list_head), GFP_KERNEL);
-	if (new_hd == NULL)
-		return;
-
-	spin_lock_irqsave(&bus->dpc_tl_lock, flags);
-	list_add_tail(new_hd, &bus->dpc_tsklst);
-	spin_unlock_irqrestore(&bus->dpc_tl_lock, flags);
-}
-
 static int brcmf_sdio_intr_rstatus(struct brcmf_sdio *bus)
 {
 	u8 idx;
@@ -2312,7 +2246,7 @@ static void brcmf_sdbrcm_dpc(struct brcmf_sdio *bus)
 		   (!atomic_read(&bus->fcstate) &&
 		    brcmu_pktq_mlen(&bus->txq, ~bus->flowcontrol) &&
 		    data_ok(bus)) || PKT_AVAILABLE()) {
-		brcmf_sdbrcm_adddpctsk(bus);
+		atomic_inc(&bus->dpc_tskcnt);
 	}
 
 	/* If we're done for now, turn off clock request. */
@@ -2342,7 +2276,6 @@ static int brcmf_sdbrcm_bus_txdata(struct device *dev, struct sk_buff *pkt)
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
 	struct brcmf_sdio *bus = sdiodev->bus;
-	unsigned long flags;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -2369,26 +2302,21 @@ static int brcmf_sdbrcm_bus_txdata(struct device *dev, struct sk_buff *pkt)
 	} else {
 		ret = 0;
 	}
-	spin_unlock_bh(&bus->txqlock);
 
 	if (pktq_len(&bus->txq) >= TXHI) {
 		bus->txoff = true;
 		brcmf_txflowblock(bus->sdiodev->dev, true);
 	}
+	spin_unlock_bh(&bus->txqlock);
 
 #ifdef DEBUG
 	if (pktq_plen(&bus->txq, prec) > qcount[prec])
 		qcount[prec] = pktq_plen(&bus->txq, prec);
 #endif
 
-	spin_lock_irqsave(&bus->dpc_tl_lock, flags);
-	if (list_empty(&bus->dpc_tsklst)) {
-		spin_unlock_irqrestore(&bus->dpc_tl_lock, flags);
-
-		brcmf_sdbrcm_adddpctsk(bus);
+	if (atomic_read(&bus->dpc_tskcnt) == 0) {
+		atomic_inc(&bus->dpc_tskcnt);
 		queue_work(bus->brcmf_wq, &bus->datawork);
-	} else {
-		spin_unlock_irqrestore(&bus->dpc_tl_lock, flags);
 	}
 
 	return ret;
@@ -2525,7 +2453,6 @@ brcmf_sdbrcm_bus_txctl(struct device *dev, unsigned char *msg, uint msglen)
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
 	struct brcmf_sdio *bus = sdiodev->bus;
-	unsigned long flags;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -2612,18 +2539,13 @@ brcmf_sdbrcm_bus_txctl(struct device *dev, unsigned char *msg, uint msglen)
 		} while (ret < 0 && retries++ < TXRETRIES);
 	}
 
-	spin_lock_irqsave(&bus->dpc_tl_lock, flags);
 	if ((bus->idletime == BRCMF_IDLE_IMMEDIATE) &&
-	    list_empty(&bus->dpc_tsklst)) {
-		spin_unlock_irqrestore(&bus->dpc_tl_lock, flags);
-
+	    atomic_read(&bus->dpc_tskcnt) == 0) {
 		bus->activity = false;
 		sdio_claim_host(bus->sdiodev->func[1]);
 		brcmf_dbg(INFO, "idle\n");
 		brcmf_sdbrcm_clkctl(bus, CLK_NONE, true);
 		sdio_release_host(bus->sdiodev->func[1]);
-	} else {
-		spin_unlock_irqrestore(&bus->dpc_tl_lock, flags);
 	}
 
 	if (ret)
@@ -3451,7 +3373,7 @@ void brcmf_sdbrcm_isr(void *arg)
 	if (!bus->intr)
 		brcmf_err("isr w/o interrupt configured!\n");
 
-	brcmf_sdbrcm_adddpctsk(bus);
+	atomic_inc(&bus->dpc_tskcnt);
 	queue_work(bus->brcmf_wq, &bus->datawork);
 }
 
@@ -3460,7 +3382,6 @@ static bool brcmf_sdbrcm_bus_watchdog(struct brcmf_sdio *bus)
 #ifdef DEBUG
 	struct brcmf_bus *bus_if = dev_get_drvdata(bus->sdiodev->dev);
 #endif	/* DEBUG */
-	unsigned long flags;
 
 	brcmf_dbg(TIMER, "Enter\n");
 
@@ -3476,11 +3397,9 @@ static bool brcmf_sdbrcm_bus_watchdog(struct brcmf_sdio *bus)
 		if (!bus->intr ||
 		    (bus->sdcnt.intrcount == bus->sdcnt.lastintrs)) {
 
-			spin_lock_irqsave(&bus->dpc_tl_lock, flags);
-			if (list_empty(&bus->dpc_tsklst)) {
+			if (atomic_read(&bus->dpc_tskcnt) == 0) {
 				u8 devpend;
-				spin_unlock_irqrestore(&bus->dpc_tl_lock,
-						       flags);
+
 				sdio_claim_host(bus->sdiodev->func[1]);
 				devpend = brcmf_sdio_regrb(bus->sdiodev,
 							   SDIO_CCCR_INTx,
@@ -3489,9 +3408,6 @@ static bool brcmf_sdbrcm_bus_watchdog(struct brcmf_sdio *bus)
 				intstatus =
 				    devpend & (INTR_STATUS_FUNC1 |
 					       INTR_STATUS_FUNC2);
-			} else {
-				spin_unlock_irqrestore(&bus->dpc_tl_lock,
-						       flags);
 			}
 
 			/* If there is something, make like the ISR and
@@ -3500,7 +3416,7 @@ static bool brcmf_sdbrcm_bus_watchdog(struct brcmf_sdio *bus)
 				bus->sdcnt.pollcnt++;
 				atomic_set(&bus->ipend, 1);
 
-				brcmf_sdbrcm_adddpctsk(bus);
+				atomic_inc(&bus->dpc_tskcnt);
 				queue_work(bus->brcmf_wq, &bus->datawork);
 			}
 		}
@@ -3545,41 +3461,15 @@ static bool brcmf_sdbrcm_bus_watchdog(struct brcmf_sdio *bus)
 	return (atomic_read(&bus->ipend) > 0);
 }
 
-static bool brcmf_sdbrcm_chipmatch(u16 chipid)
-{
-	if (chipid == BCM43143_CHIP_ID)
-		return true;
-	if (chipid == BCM43241_CHIP_ID)
-		return true;
-	if (chipid == BCM4329_CHIP_ID)
-		return true;
-	if (chipid == BCM4330_CHIP_ID)
-		return true;
-	if (chipid == BCM4334_CHIP_ID)
-		return true;
-	if (chipid == BCM4335_CHIP_ID)
-		return true;
-	return false;
-}
-
 static void brcmf_sdio_dataworker(struct work_struct *work)
 {
 	struct brcmf_sdio *bus = container_of(work, struct brcmf_sdio,
 					      datawork);
-	struct list_head *cur_hd, *tmp_hd;
-	unsigned long flags;
 
-	spin_lock_irqsave(&bus->dpc_tl_lock, flags);
-	list_for_each_safe(cur_hd, tmp_hd, &bus->dpc_tsklst) {
-		spin_unlock_irqrestore(&bus->dpc_tl_lock, flags);
-
+	while (atomic_read(&bus->dpc_tskcnt)) {
 		brcmf_sdbrcm_dpc(bus);
-
-		spin_lock_irqsave(&bus->dpc_tl_lock, flags);
-		list_del(cur_hd);
-		kfree(cur_hd);
+		atomic_dec(&bus->dpc_tskcnt);
 	}
-	spin_unlock_irqrestore(&bus->dpc_tl_lock, flags);
 }
 
 static void brcmf_sdbrcm_release_malloc(struct brcmf_sdio *bus)
@@ -3589,9 +3479,6 @@ static void brcmf_sdbrcm_release_malloc(struct brcmf_sdio *bus)
 	kfree(bus->rxbuf);
 	bus->rxctl = bus->rxbuf = NULL;
 	bus->rxlen = 0;
-
-	kfree(bus->databuf);
-	bus->databuf = NULL;
 }
 
 static bool brcmf_sdbrcm_probe_malloc(struct brcmf_sdio *bus)
@@ -3604,29 +3491,10 @@ static bool brcmf_sdbrcm_probe_malloc(struct brcmf_sdio *bus)
 			    ALIGNMENT) + BRCMF_SDALIGN;
 		bus->rxbuf = kmalloc(bus->rxblen, GFP_ATOMIC);
 		if (!(bus->rxbuf))
-			goto fail;
+			return false;
 	}
-
-	/* Allocate buffer to receive glomed packet */
-	bus->databuf = kmalloc(MAX_DATA_BUF, GFP_ATOMIC);
-	if (!(bus->databuf)) {
-		/* release rxbuf which was already located as above */
-		if (!bus->rxblen)
-			kfree(bus->rxbuf);
-		goto fail;
-	}
-
-	/* Align the buffer */
-	if ((unsigned long)bus->databuf % BRCMF_SDALIGN)
-		bus->dataptr = bus->databuf + (BRCMF_SDALIGN -
-			       ((unsigned long)bus->databuf % BRCMF_SDALIGN));
-	else
-		bus->dataptr = bus->databuf;
 
 	return true;
-
-fail:
-	return false;
 }
 
 static bool
@@ -3664,11 +3532,6 @@ brcmf_sdbrcm_probe_attach(struct brcmf_sdio *bus, u32 regsva)
 
 	if (brcmf_sdio_chip_attach(bus->sdiodev, &bus->ci, regsva)) {
 		brcmf_err("brcmf_sdio_chip_attach failed!\n");
-		goto fail;
-	}
-
-	if (!brcmf_sdbrcm_chipmatch((u16) bus->ci->chip)) {
-		brcmf_err("unsupported chip: 0x%04x\n", bus->ci->chip);
 		goto fail;
 	}
 
@@ -3769,10 +3632,6 @@ static bool brcmf_sdbrcm_probe_init(struct brcmf_sdio *bus)
 	/* Query the F2 block size, set roundup accordingly */
 	bus->blocksize = bus->sdiodev->func[2]->cur_blksize;
 	bus->roundup = min(max_roundup, bus->blocksize);
-
-	/* bus module does not support packet chaining */
-	bus->use_rxchain = false;
-	bus->sd_rxchain = false;
 
 	/* SR state */
 	bus->sleeping = false;
@@ -3927,8 +3786,7 @@ void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
 		bus->watchdog_tsk = NULL;
 	}
 	/* Initialize DPC thread */
-	INIT_LIST_HEAD(&bus->dpc_tsklst);
-	spin_lock_init(&bus->dpc_tl_lock);
+	atomic_set(&bus->dpc_tskcnt, 0);
 
 	/* Assign bus interface call back */
 	bus->sdiodev->bus_if->dev = bus->sdiodev->dev;

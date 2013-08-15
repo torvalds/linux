@@ -65,16 +65,10 @@ OPTIONS
 -r::
 --realtime=::
 	Collect data with this RT SCHED_FIFO priority.
+
 -D::
 --no-delay::
 	Collect data without buffering.
--A::
---append::
-	Append to the output file to do incremental profiling.
-
--f::
---force::
-	Overwrite existing data file. (deprecated)
 
 -c::
 --count=::

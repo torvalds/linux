@@ -105,11 +105,13 @@ int rt2x00pci_probe(struct pci_dev *pci_dev, const struct rt2x00_ops *ops)
 		goto exit_release_regions;
 	}
 
+	pci_enable_msi(pci_dev);
+
 	hw = ieee80211_alloc_hw(sizeof(struct rt2x00_dev), ops->hw);
 	if (!hw) {
 		rt2x00_probe_err("Failed to allocate hardware\n");
 		retval = -ENOMEM;
-		goto exit_release_regions;
+		goto exit_disable_msi;
 	}
 
 	pci_set_drvdata(pci_dev, hw);
@@ -150,6 +152,9 @@ exit_free_reg:
 exit_free_device:
 	ieee80211_free_hw(hw);
 
+exit_disable_msi:
+	pci_disable_msi(pci_dev);
+
 exit_release_regions:
 	pci_release_regions(pci_dev);
 
@@ -173,6 +178,8 @@ void rt2x00pci_remove(struct pci_dev *pci_dev)
 	rt2x00lib_remove_dev(rt2x00dev);
 	rt2x00pci_free_reg(rt2x00dev);
 	ieee80211_free_hw(hw);
+
+	pci_disable_msi(pci_dev);
 
 	/*
 	 * Free the PCI device data.

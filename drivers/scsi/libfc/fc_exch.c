@@ -337,7 +337,7 @@ static void fc_exch_release(struct fc_exch *ep)
  * fc_exch_timer_cancel() - cancel exch timer
  * @ep:		The exchange whose timer to be canceled
  */
-static inline  void fc_exch_timer_cancel(struct fc_exch *ep)
+static inline void fc_exch_timer_cancel(struct fc_exch *ep)
 {
 	if (cancel_delayed_work(&ep->timeout_work)) {
 		FC_EXCH_DBG(ep, "Exchange timer canceled\n");
@@ -1567,7 +1567,7 @@ static void fc_exch_abts_resp(struct fc_exch *ep, struct fc_frame *fp)
 		    fc_exch_rctl_name(fh->fh_r_ctl));
 
 	if (cancel_delayed_work_sync(&ep->timeout_work)) {
-		FC_EXCH_DBG(ep, "Exchange timer canceled\n");
+		FC_EXCH_DBG(ep, "Exchange timer canceled due to ABTS response\n");
 		fc_exch_release(ep);	/* release from pending timer hold */
 	}
 

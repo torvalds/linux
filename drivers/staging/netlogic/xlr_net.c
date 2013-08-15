@@ -896,7 +896,7 @@ static int xlr_setup_mdio(struct xlr_net_priv *priv,
 		return err;
 	}
 
-	pr_info("Registerd mdio bus id : %s\n", priv->mii_bus->id);
+	pr_info("Registered mdio bus id : %s\n", priv->mii_bus->id);
 	err = xlr_mii_probe(priv);
 	if (err) {
 		mdiobus_free(priv->mii_bus);
@@ -1020,12 +1020,11 @@ static int xlr_net_probe(struct platform_device *pdev)
 		goto err_gmac;
 	}
 
-	ndev->base_addr = (unsigned long) devm_request_and_ioremap
+	ndev->base_addr = (unsigned long) devm_ioremap_resource
 		(&pdev->dev, res);
-	if (!ndev->base_addr) {
-		dev_err(&pdev->dev,
-				"devm_request_and_ioremap failed\n");
-		return -EBUSY;
+	if (IS_ERR_VALUE(ndev->base_addr)) {
+		err = ndev->base_addr;
+		goto err_gmac;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);

@@ -70,11 +70,4 @@
 #define CLPS711X_SDRAM0_BASE	(0xc0000000)
 #define CLPS711X_SDRAM1_BASE	(0xd0000000)
 
-#if defined (CONFIG_ARCH_EDB7211)
-
-/* The extra 8 lines of the keyboard matrix are wired to chip select 3 */
-#define EP7211_PHYS_EXTKBD	CS3_PHYS_BASE
-
-#endif /* CONFIG_ARCH_EDB7211 */
-
 #endif

@@ -481,7 +481,7 @@ static int mpc52xx_psc_spi_of_probe(struct platform_device *op)
 
 static int mpc52xx_psc_spi_of_remove(struct platform_device *op)
 {
-	struct spi_master *master = spi_master_get(dev_get_drvdata(&op->dev));
+	struct spi_master *master = spi_master_get(platform_get_drvdata(op));
 	struct mpc52xx_psc_spi *mps = spi_master_get_devdata(master);
 
 	flush_workqueue(mps->workqueue);

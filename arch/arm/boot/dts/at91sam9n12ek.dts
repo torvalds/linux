@@ -7,7 +7,7 @@
  * Licensed under GPLv2 or later.
  */
 /dts-v1/;
-/include/ "at91sam9n12.dtsi"
+#include "at91sam9n12.dtsi"
 
 / {
 	model = "Atmel AT91SAM9N12-EK";
@@ -55,7 +55,7 @@
 				slot@0 {
 					reg = <0>;
 					bus-width = <4>;
-					cd-gpios = <&pioA 7 0>;
+					cd-gpios = <&pioA 7 GPIO_ACTIVE_HIGH>;
 				};
 			};
 
@@ -63,7 +63,7 @@
 				mmc0 {
 					pinctrl_board_mmc0: mmc0-board {
 						atmel,pins =
-							<0 7 0x0 0x5>;	/* PA7 gpio CD pin pull up and deglitch */
+							<AT91_PIOA 7 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;	/* PA7 gpio CD pin pull up and deglitch */
 					};
 				};
 			};
@@ -76,6 +76,10 @@
 					spi-max-frequency = <50000000>;
 					reg = <0>;
 				};
+			};
+
+			watchdog@fffffe40 {
+				status = "okay";
 			};
 		};
 
@@ -95,19 +99,19 @@
 
 		d8 {
 			label = "d8";
-			gpios = <&pioB 4 1>;
+			gpios = <&pioB 4 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "mmc0";
 		};
 
 		d9 {
 			label = "d6";
-			gpios = <&pioB 5 1>;
+			gpios = <&pioB 5 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "nand-disk";
 		};
 
 		d10 {
 			label = "d7";
-			gpios = <&pioB 6 0>;
+			gpios = <&pioB 6 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
 	};
@@ -117,7 +121,7 @@
 
 		enter {
 			label = "Enter";
-			gpios = <&pioB 4 1>;
+			gpios = <&pioB 4 GPIO_ACTIVE_LOW>;
 			linux,code = <28>;
 			gpio-key,wakeup;
 		};

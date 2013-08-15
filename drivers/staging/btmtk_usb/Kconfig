@@ -1,0 +1,11 @@
+config USB_BTMTK
+	tristate "Mediatek Bluetooth support"
+	depends on USB && BT && m
+	---help---
+	  Say Y here if you wish to control a MTK USB Bluetooth.
+
+	  This option depends on 'USB' support being enabled
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called btmtk_usb.
+

@@ -29,7 +29,6 @@
 extern int usb_stor_Bulk_transport(struct scsi_cmnd *, struct us_data*);
 extern int usb_stor_Bulk_max_lun(struct us_data *);
 extern int usb_stor_Bulk_reset(struct us_data *);
-extern void usb_stor_print_cmd(struct scsi_cmnd *);
 extern void usb_stor_invoke_transport(struct scsi_cmnd *, struct us_data*);
 extern void usb_stor_stop_transport(struct us_data *);
 extern int usb_stor_control_msg(struct us_data *us, unsigned int pipe,
@@ -61,7 +60,7 @@ extern int ENE_InitMedia(struct us_data *);
 extern int ENE_SMInit(struct us_data *);
 extern int ENE_SendScsiCmd(struct us_data*, BYTE, void*, int);
 extern int ENE_LoadBinCode(struct us_data*, BYTE);
-extern int ENE_Read_BYTE(struct us_data*, WORD index, void *buf);
+extern int ene_read_byte(struct us_data*, WORD index, void *buf);
 extern int ENE_Read_Data(struct us_data*, void *buf, unsigned int length);
 extern int ENE_Write_Data(struct us_data*, void *buf, unsigned int length);
 extern void BuildSenseBuffer(struct scsi_cmnd *, int);

@@ -419,6 +419,13 @@ static void __init dmi_format_ids(char *buf, size_t len)
 			    dmi_get_system_info(DMI_BIOS_DATE));
 }
 
+/*
+ * Check for DMI/SMBIOS headers in the system firmware image.  Any
+ * SMBIOS header must start 16 bytes before the DMI header, so take a
+ * 32 byte buffer and check for DMI at offset 16 and SMBIOS at offset
+ * 0.  If the DMI header is present, set dmi_ver accordingly (SMBIOS
+ * takes precedence) and return 0.  Otherwise return 1.
+ */
 static int __init dmi_present(const u8 *buf)
 {
 	int smbios_ver;
@@ -506,6 +513,13 @@ void __init dmi_scan_machine(void)
 		if (p == NULL)
 			goto error;
 
+		/*
+		 * Iterate over all possible DMI header addresses q.
+		 * Maintain the 32 bytes around q in buf.  On the
+		 * first iteration, substitute zero for the
+		 * out-of-range bytes so there is no chance of falsely
+		 * detecting an SMBIOS header.
+		 */
 		memset(buf, 0, 16);
 		for (q = p; q < p + 0x10000; q += 16) {
 			memcpy_fromio(buf + 16, q, 16);
@@ -551,9 +565,15 @@ static bool dmi_matches(const struct dmi_system_id *dmi)
 		int s = dmi->matches[i].slot;
 		if (s == DMI_NONE)
 			break;
-		if (dmi_ident[s]
-		    && strstr(dmi_ident[s], dmi->matches[i].substr))
-			continue;
+		if (dmi_ident[s]) {
+			if (!dmi->matches[i].exact_match &&
+			    strstr(dmi_ident[s], dmi->matches[i].substr))
+				continue;
+			else if (dmi->matches[i].exact_match &&
+				 !strcmp(dmi_ident[s], dmi->matches[i].substr))
+				continue;
+		}
+
 		/* No match */
 		return false;
 	}

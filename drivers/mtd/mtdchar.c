@@ -55,25 +55,7 @@ struct mtd_file_info {
 static loff_t mtdchar_lseek(struct file *file, loff_t offset, int orig)
 {
 	struct mtd_file_info *mfi = file->private_data;
-	struct mtd_info *mtd = mfi->mtd;
-
-	switch (orig) {
-	case SEEK_SET:
-		break;
-	case SEEK_CUR:
-		offset += file->f_pos;
-		break;
-	case SEEK_END:
-		offset += mtd->size;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	if (offset >= 0 && offset <= mtd->size)
-		return file->f_pos = offset;
-
-	return -EINVAL;
+	return fixed_size_llseek(file, offset, orig, mfi->mtd->size);
 }
 
 static int count;

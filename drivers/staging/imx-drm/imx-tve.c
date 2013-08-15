@@ -22,7 +22,6 @@
 #include <linux/clk-provider.h>
 #include <linux/module.h>
 #include <linux/of_i2c.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spinlock.h>
@@ -610,15 +609,6 @@ static int imx_tve_probe(struct platform_device *pdev)
 	}
 
 	if (tve->mode == TVE_MODE_VGA) {
-		struct pinctrl *pinctrl;
-
-		pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-		if (IS_ERR(pinctrl)) {
-			ret = PTR_ERR(pinctrl);
-			dev_warn(&pdev->dev, "failed to setup pinctrl: %d", ret);
-			return ret;
-		}
-
 		ret = of_property_read_u32(np, "fsl,hsync-pin", &tve->hsync_pin);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "failed to get vsync pin\n");
@@ -638,11 +628,9 @@ static int imx_tve_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!base) {
-		dev_err(&pdev->dev, "failed to remap memory region\n");
-		return -ENOENT;
-	}
+	base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	tve_regmap_config.lock_arg = tve;
 	tve->regmap = devm_regmap_init_mmio_clk(&pdev->dev, "tve", base,

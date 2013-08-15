@@ -15,7 +15,6 @@
 
 #include <linux/kernel.h>
 #include <linux/i2c.h>
-#include <linux/module.h>
 
 
 #include "exynos_drm_drv.h"
@@ -52,6 +51,8 @@ static struct i2c_device_id ddc_idtable[] = {
 static struct of_device_id hdmiddc_match_types[] = {
 	{
 		.compatible = "samsung,exynos5-hdmiddc",
+	}, {
+		.compatible = "samsung,exynos4210-hdmiddc",
 	}, {
 		/* end node */
 	}

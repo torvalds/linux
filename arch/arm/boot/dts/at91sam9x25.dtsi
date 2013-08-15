@@ -6,7 +6,7 @@
  * Licensed under GPLv2.
  */
 
-/include/ "at91sam9x5.dtsi"
+#include "at91sam9x5.dtsi"
 
 / {
 	model = "Atmel AT91SAM9X25 SoC";
@@ -26,16 +26,16 @@
 				macb1 {
 					pinctrl_macb1_rmii: macb1_rmii-0 {
 						atmel,pins =
-							<2 16 0x2 0x0	/* PC16 periph B */
-							 2 18 0x2 0x0	/* PC18 periph B */
-							 2 19 0x2 0x0	/* PC19 periph B */
-							 2 20 0x2 0x0	/* PC20 periph B */
-							 2 21 0x2 0x0	/* PC21 periph B */
-							 2 27 0x2 0x0	/* PC27 periph B */
-							 2 28 0x2 0x0	/* PC28 periph B */
-							 2 29 0x2 0x0	/* PC29 periph B */
-							 2 30 0x2 0x0	/* PC30 periph B */
-							 2 31 0x2 0x0>;	/* PC31 periph B */
+							<AT91_PIOC 16 AT91_PERIPH_B AT91_PINCTRL_NONE	/* PC16 periph B */
+							 AT91_PIOC 18 AT91_PERIPH_B AT91_PINCTRL_NONE	/* PC18 periph B */
+							 AT91_PIOC 19 AT91_PERIPH_B AT91_PINCTRL_NONE	/* PC19 periph B */
+							 AT91_PIOC 20 AT91_PERIPH_B AT91_PINCTRL_NONE	/* PC20 periph B */
+							 AT91_PIOC 21 AT91_PERIPH_B AT91_PINCTRL_NONE	/* PC21 periph B */
+							 AT91_PIOC 27 AT91_PERIPH_B AT91_PINCTRL_NONE	/* PC27 periph B */
+							 AT91_PIOC 28 AT91_PERIPH_B AT91_PINCTRL_NONE	/* PC28 periph B */
+							 AT91_PIOC 29 AT91_PERIPH_B AT91_PINCTRL_NONE	/* PC29 periph B */
+							 AT91_PIOC 30 AT91_PERIPH_B AT91_PINCTRL_NONE	/* PC30 periph B */
+							 AT91_PIOC 31 AT91_PERIPH_B AT91_PINCTRL_NONE>;	/* PC31 periph B */
 					};
 				};
 			};

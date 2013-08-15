@@ -3706,7 +3706,7 @@ static const struct file_operations skge_debug_fops = {
 static int skge_device_event(struct notifier_block *unused,
 			     unsigned long event, void *ptr)
 {
-	struct net_device *dev = ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct skge_port *skge;
 	struct dentry *d;
 

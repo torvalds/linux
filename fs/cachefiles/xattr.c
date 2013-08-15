@@ -109,13 +109,12 @@ int cachefiles_set_object_xattr(struct cachefiles_object *object,
 	struct dentry *dentry = object->dentry;
 	int ret;
 
-	ASSERT(object->fscache.cookie);
 	ASSERT(dentry);
 
 	_enter("%p,#%d", object, auxdata->len);
 
 	/* attempt to install the cache metadata directly */
-	_debug("SET %s #%u", object->fscache.cookie->def->name, auxdata->len);
+	_debug("SET #%u", auxdata->len);
 
 	ret = vfs_setxattr(dentry, cachefiles_xattr_cache,
 			   &auxdata->type, auxdata->len,
@@ -138,13 +137,12 @@ int cachefiles_update_object_xattr(struct cachefiles_object *object,
 	struct dentry *dentry = object->dentry;
 	int ret;
 
-	ASSERT(object->fscache.cookie);
 	ASSERT(dentry);
 
 	_enter("%p,#%d", object, auxdata->len);
 
 	/* attempt to install the cache metadata directly */
-	_debug("SET %s #%u", object->fscache.cookie->def->name, auxdata->len);
+	_debug("SET #%u", auxdata->len);
 
 	ret = vfs_setxattr(dentry, cachefiles_xattr_cache,
 			   &auxdata->type, auxdata->len,

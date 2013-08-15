@@ -112,7 +112,7 @@ required reading:
 
     Other excellent descriptions of how to create patches properly are:
 	"The Perfect Patch"
-		http://userweb.kernel.org/~akpm/stuff/tpp.txt
+		http://kerneltrap.org/node/3737
 	"Linux kernel patch submission format"
 		http://linux.yyz.us/patch-format.html
 

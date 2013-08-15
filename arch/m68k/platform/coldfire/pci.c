@@ -320,7 +320,6 @@ static int __init mcf_pci_init(void)
 	pci_bus_size_bridges(rootbus);
 	pci_bus_assign_resources(rootbus);
 	pci_enable_bridges(rootbus);
-	pci_bus_add_devices(rootbus);
 	return 0;
 }
 

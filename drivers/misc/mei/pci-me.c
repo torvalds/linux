@@ -43,9 +43,6 @@
 #include "hw-me.h"
 #include "client.h"
 
-/* AMT device is a singleton on the platform */
-static struct pci_dev *mei_pdev;
-
 /* mei_pci_tbl - PCI Device ID Table */
 static DEFINE_PCI_DEVICE_TABLE(mei_me_pci_tbl) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_82946GZ)},
@@ -88,8 +85,6 @@ static DEFINE_PCI_DEVICE_TABLE(mei_me_pci_tbl) = {
 
 MODULE_DEVICE_TABLE(pci, mei_me_pci_tbl);
 
-static DEFINE_MUTEX(mei_mutex);
-
 /**
  * mei_quirk_probe - probe for devices that doesn't valid ME interface
  *
@@ -126,17 +121,12 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct mei_me_hw *hw;
 	int err;
 
-	mutex_lock(&mei_mutex);
 
 	if (!mei_me_quirk_probe(pdev, ent)) {
 		err = -ENODEV;
 		goto end;
 	}
 
-	if (mei_pdev) {
-		err = -EEXIST;
-		goto end;
-	}
 	/* enable pci dev */
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -195,12 +185,9 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto release_irq;
 
-	mei_pdev = pdev;
 	pci_set_drvdata(pdev, dev);
 
 	schedule_delayed_work(&dev->timer_work, HZ);
-
-	mutex_unlock(&mei_mutex);
 
 	pr_debug("initialization successful.\n");
 
@@ -220,7 +207,6 @@ release_regions:
 disable_device:
 	pci_disable_device(pdev);
 end:
-	mutex_unlock(&mei_mutex);
 	dev_err(&pdev->dev, "initialization failed.\n");
 	return err;
 }
@@ -238,9 +224,6 @@ static void mei_me_remove(struct pci_dev *pdev)
 	struct mei_device *dev;
 	struct mei_me_hw *hw;
 
-	if (mei_pdev != pdev)
-		return;
-
 	dev = pci_get_drvdata(pdev);
 	if (!dev)
 		return;
@@ -250,8 +233,6 @@ static void mei_me_remove(struct pci_dev *pdev)
 
 	dev_err(&pdev->dev, "stop\n");
 	mei_stop(dev);
-
-	mei_pdev = NULL;
 
 	/* disable interrupts */
 	mei_disable_interrupts(dev);

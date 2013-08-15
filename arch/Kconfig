@@ -365,6 +365,9 @@ config HAVE_IRQ_TIME_ACCOUNTING
 config HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	bool
 
+config HAVE_ARCH_SOFT_DIRTY
+	bool
+
 config HAVE_MOD_ARCH_SPECIFIC
 	bool
 	help
@@ -403,6 +406,12 @@ config CLONE_BACKWARDS2
 	bool
 	help
 	  Architecture has the first two arguments of clone(2) swapped.
+
+config CLONE_BACKWARDS3
+	bool
+	help
+	  Architecture has tls passed as the 3rd argument of clone(2),
+	  not the 5th one.
 
 config ODD_RT_SIGACTION
 	bool

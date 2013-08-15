@@ -424,10 +424,15 @@ static int atmel_spi_dma_slave_config(struct atmel_spi *as,
 	return err;
 }
 
-static bool filter(struct dma_chan *chan, void *slave)
+static bool filter(struct dma_chan *chan, void *pdata)
 {
-	struct	at_dma_slave *sl = slave;
+	struct atmel_spi_dma *sl_pdata = pdata;
+	struct at_dma_slave *sl;
 
+	if (!sl_pdata)
+		return false;
+
+	sl = &sl_pdata->dma_slave;
 	if (sl->dma_dev == chan->device->dev) {
 		chan->private = sl;
 		return true;
@@ -438,24 +443,31 @@ static bool filter(struct dma_chan *chan, void *slave)
 
 static int atmel_spi_configure_dma(struct atmel_spi *as)
 {
-	struct at_dma_slave *sdata = &as->dma.dma_slave;
 	struct dma_slave_config	slave_config;
+	struct device *dev = &as->pdev->dev;
 	int err;
 
-	if (sdata && sdata->dma_dev) {
-		dma_cap_mask_t mask;
+	dma_cap_mask_t mask;
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_SLAVE, mask);
 
-		/* Try to grab two DMA channels */
-		dma_cap_zero(mask);
-		dma_cap_set(DMA_SLAVE, mask);
-		as->dma.chan_tx = dma_request_channel(mask, filter, sdata);
-		if (as->dma.chan_tx)
-			as->dma.chan_rx =
-				dma_request_channel(mask, filter, sdata);
+	as->dma.chan_tx = dma_request_slave_channel_compat(mask, filter,
+							   &as->dma,
+							   dev, "tx");
+	if (!as->dma.chan_tx) {
+		dev_err(dev,
+			"DMA TX channel not available, SPI unable to use DMA\n");
+		err = -EBUSY;
+		goto error;
 	}
-	if (!as->dma.chan_rx || !as->dma.chan_tx) {
-		dev_err(&as->pdev->dev,
-			"DMA channel not available, SPI unable to use DMA\n");
+
+	as->dma.chan_rx = dma_request_slave_channel_compat(mask, filter,
+							   &as->dma,
+							   dev, "rx");
+
+	if (!as->dma.chan_rx) {
+		dev_err(dev,
+			"DMA RX channel not available, SPI unable to use DMA\n");
 		err = -EBUSY;
 		goto error;
 	}
@@ -1268,13 +1280,6 @@ static int atmel_spi_setup(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	if (bits < 8 || bits > 16) {
-		dev_dbg(&spi->dev,
-				"setup: invalid bits_per_word %u (8 to 16)\n",
-				bits);
-		return -EINVAL;
-	}
-
 	/* see notes above re chipselect */
 	if (!atmel_spi_is_v2(as)
 			&& spi->chip_select == 0
@@ -1515,7 +1520,7 @@ static int atmel_spi_probe(struct platform_device *pdev)
 
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
-
+	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(8, 16);
 	master->dev.of_node = pdev->dev.of_node;
 	master->bus_num = pdev->id;
 	master->num_chipselect = master->dev.of_node ? 0 : 4;

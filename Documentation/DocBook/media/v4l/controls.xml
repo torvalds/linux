@@ -3147,7 +3147,7 @@ giving priority to the center of the metered area.</entry>
 		  <entry>A multi-zone metering. The light intensity is measured
 in several points of the frame and the the results are combined. The
 algorithm of the zones selection and their significance in calculating the
-final value is device dependant.</entry>
+final value is device dependent.</entry>
 		</row>
 	      </tbody>
 	    </entrytbl>

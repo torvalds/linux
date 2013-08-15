@@ -11,7 +11,6 @@
 #include <linux/list.h>
 #include <linux/cpumask.h>
 #include <linux/init.h>
-#include <linux/irqflags.h>
 
 extern void cpu_idle(void);
 
@@ -140,17 +139,14 @@ static inline int up_smp_call_function(smp_call_func_t func, void *info)
 }
 #define smp_call_function(func, info, wait) \
 			(up_smp_call_function(func, info))
-
-static inline int on_each_cpu(smp_call_func_t func, void *info, int wait)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	func(info);
-	local_irq_restore(flags);
-	return 0;
-}
-
+#define on_each_cpu(func, info, wait)		\
+	({					\
+		unsigned long __flags;		\
+		local_irq_save(__flags);	\
+		func(info);			\
+		local_irq_restore(__flags);	\
+		0;				\
+	})
 /*
  * Note we still need to test the mask even for UP
  * because we actually can get an empty mask from

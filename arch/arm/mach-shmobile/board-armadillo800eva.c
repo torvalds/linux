@@ -42,6 +42,7 @@
 #include <linux/mmc/sh_mmcif.h>
 #include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/i2c-gpio.h>
+#include <linux/reboot.h>
 #include <mach/common.h>
 #include <mach/irqs.h>
 #include <mach/r8a7740.h>
@@ -377,7 +378,7 @@ static struct resource sh_eth_resources[] = {
 };
 
 static struct platform_device sh_eth_device = {
-	.name = "sh-eth",
+	.name = "r8a7740-gether",
 	.id = -1,
 	.dev = {
 		.platform_data = &sh_eth_platdata,
@@ -584,7 +585,7 @@ static struct regulator_init_data vcc_sdhi0_init_data = {
 static struct fixed_voltage_config vcc_sdhi0_info = {
 	.supply_name = "SDHI0 Vcc",
 	.microvolts = 3300000,
-	.gpio = GPIO_PORT75,
+	.gpio = 75,
 	.enable_high = 1,
 	.init_data = &vcc_sdhi0_init_data,
 };
@@ -615,7 +616,7 @@ static struct regulator_init_data vccq_sdhi0_init_data = {
 };
 
 static struct gpio vccq_sdhi0_gpios[] = {
-	{GPIO_PORT17, GPIOF_OUT_INIT_LOW, "vccq-sdhi0" },
+	{17, GPIOF_OUT_INIT_LOW, "vccq-sdhi0" },
 };
 
 static struct gpio_regulator_state vccq_sdhi0_states[] = {
@@ -626,7 +627,7 @@ static struct gpio_regulator_state vccq_sdhi0_states[] = {
 static struct gpio_regulator_config vccq_sdhi0_info = {
 	.supply_name = "vqmmc",
 
-	.enable_gpio = GPIO_PORT74,
+	.enable_gpio = 74,
 	.enable_high = 1,
 	.enabled_at_boot = 0,
 
@@ -664,7 +665,7 @@ static struct regulator_init_data vcc_sdhi1_init_data = {
 static struct fixed_voltage_config vcc_sdhi1_info = {
 	.supply_name = "SDHI1 Vcc",
 	.microvolts = 3300000,
-	.gpio = GPIO_PORT16,
+	.gpio = 16,
 	.enable_high = 1,
 	.init_data = &vcc_sdhi1_init_data,
 };
@@ -693,7 +694,7 @@ static struct sh_mobile_sdhi_info sdhi0_info = {
 	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
 			  MMC_CAP_POWER_OFF_CARD,
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT | TMIO_MMC_USE_GPIO_CD,
-	.cd_gpio	= GPIO_PORT167,
+	.cd_gpio	= 167,
 };
 
 static struct resource sdhi0_resources[] = {
@@ -736,7 +737,7 @@ static struct sh_mobile_sdhi_info sdhi1_info = {
 			  MMC_CAP_POWER_OFF_CARD,
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT | TMIO_MMC_USE_GPIO_CD,
 	/* Port72 cannot generate IRQs, will be used in polling mode. */
-	.cd_gpio	= GPIO_PORT72,
+	.cd_gpio	= 72,
 };
 
 static struct resource sdhi1_resources[] = {
@@ -1046,6 +1047,35 @@ static struct platform_device *eva_devices[] __initdata = {
 };
 
 static const struct pinctrl_map eva_pinctrl_map[] = {
+	/* CEU0 */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_ceu.0", "pfc-r8a7740",
+				  "ceu0_data_0_7", "ceu0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_ceu.0", "pfc-r8a7740",
+				  "ceu0_clk_0", "ceu0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_ceu.0", "pfc-r8a7740",
+				  "ceu0_sync", "ceu0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_ceu.0", "pfc-r8a7740",
+				  "ceu0_field", "ceu0"),
+	/* FSIA */
+	PIN_MAP_MUX_GROUP_DEFAULT("asoc-simple-card.0", "pfc-r8a7740",
+				  "fsia_sclk_in", "fsia"),
+	PIN_MAP_MUX_GROUP_DEFAULT("asoc-simple-card.0", "pfc-r8a7740",
+				  "fsia_mclk_out", "fsia"),
+	PIN_MAP_MUX_GROUP_DEFAULT("asoc-simple-card.0", "pfc-r8a7740",
+				  "fsia_data_in_1", "fsia"),
+	PIN_MAP_MUX_GROUP_DEFAULT("asoc-simple-card.0", "pfc-r8a7740",
+				  "fsia_data_out_0", "fsia"),
+	/* FSIB */
+	PIN_MAP_MUX_GROUP_DEFAULT("asoc-simple-card.1", "pfc-r8a7740",
+				  "fsib_mclk_in", "fsib"),
+	/* GETHER */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-eth", "pfc-r8a7740",
+				  "gether_mii", "gether"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-eth", "pfc-r8a7740",
+				  "gether_int", "gether"),
+	/* HDMI */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-mobile-hdmi", "pfc-r8a7740",
+				  "hdmi", "hdmi"),
 	/* LCD0 */
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_lcdc_fb.0", "pfc-r8a7740",
 				  "lcd0_data24_0", "lcd0"),
@@ -1058,6 +1088,9 @@ static const struct pinctrl_map eva_pinctrl_map[] = {
 				  "mmc0_data8_1", "mmc0"),
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mmcif.0", "pfc-r8a7740",
 				  "mmc0_ctrl_1", "mmc0"),
+	/* SCIFA1 */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.1", "pfc-r8a7740",
+				  "scifa1_data", "scifa1"),
 	/* SDHI0 */
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-r8a7740",
 				  "sdhi0_data4", "sdhi0"),
@@ -1065,6 +1098,12 @@ static const struct pinctrl_map eva_pinctrl_map[] = {
 				  "sdhi0_ctrl", "sdhi0"),
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-r8a7740",
 				  "sdhi0_wp", "sdhi0"),
+	/* ST1232 */
+	PIN_MAP_MUX_GROUP_DEFAULT("0-0055", "pfc-r8a7740",
+				  "intc_irq10", "intc"),
+	/* USBHS */
+	PIN_MAP_MUX_GROUP_DEFAULT("renesas_usbhs", "pfc-r8a7740",
+				  "intc_irq7_1", "intc"),
 };
 
 static void __init eva_clock_init(void)
@@ -1119,40 +1158,11 @@ static void __init eva_init(void)
 	r8a7740_pinmux_init();
 	r8a7740_meram_workaround();
 
-	/* SCIFA1 */
-	gpio_request(GPIO_FN_SCIFA1_RXD, NULL);
-	gpio_request(GPIO_FN_SCIFA1_TXD, NULL);
-
 	/* LCDC0 */
-	gpio_request(GPIO_FN_LCDC0_SELECT,	NULL);
-
 	gpio_request_one(61, GPIOF_OUT_INIT_HIGH, NULL); /* LCDDON */
 	gpio_request_one(202, GPIOF_OUT_INIT_LOW, NULL); /* LCD0_LED_CONT */
 
-	/* Touchscreen */
-	gpio_request(GPIO_FN_IRQ10,	NULL); /* TP_INT */
-
 	/* GETHER */
-	gpio_request(GPIO_FN_ET_CRS,		NULL);
-	gpio_request(GPIO_FN_ET_MDC,		NULL);
-	gpio_request(GPIO_FN_ET_MDIO,		NULL);
-	gpio_request(GPIO_FN_ET_TX_ER,		NULL);
-	gpio_request(GPIO_FN_ET_RX_ER,		NULL);
-	gpio_request(GPIO_FN_ET_ERXD0,		NULL);
-	gpio_request(GPIO_FN_ET_ERXD1,		NULL);
-	gpio_request(GPIO_FN_ET_ERXD2,		NULL);
-	gpio_request(GPIO_FN_ET_ERXD3,		NULL);
-	gpio_request(GPIO_FN_ET_TX_CLK,		NULL);
-	gpio_request(GPIO_FN_ET_TX_EN,		NULL);
-	gpio_request(GPIO_FN_ET_ETXD0,		NULL);
-	gpio_request(GPIO_FN_ET_ETXD1,		NULL);
-	gpio_request(GPIO_FN_ET_ETXD2,		NULL);
-	gpio_request(GPIO_FN_ET_ETXD3,		NULL);
-	gpio_request(GPIO_FN_ET_PHY_INT,	NULL);
-	gpio_request(GPIO_FN_ET_COL,		NULL);
-	gpio_request(GPIO_FN_ET_RX_DV,		NULL);
-	gpio_request(GPIO_FN_ET_RX_CLK,		NULL);
-
 	gpio_request_one(18, GPIOF_OUT_INIT_HIGH, NULL); /* PHY_RST */
 
 	/* USB */
@@ -1163,33 +1173,16 @@ static void __init eva_init(void)
 	} else {
 		/* USB Func */
 		/*
-		 * A1 chip has 2 IRQ7 pin and it was controled by MSEL register.
-		 * OTOH, usbhs interrupt needs its value (HI/LOW) to decide
-		 * USB connection/disconnection (usbhsf_get_vbus()).
-		 * This means we needs to select GPIO_FN_IRQ7_PORT209 first,
-		 * and select GPIO 209 here
+		 * The USBHS interrupt handlers needs to read the IRQ pin value
+		 * (HI/LOW) to diffentiate USB connection and disconnection
+		 * events (usbhsf_get_vbus()). We thus need to select both the
+		 * intc_irq7_1 pin group and GPIO 209 here.
 		 */
-		gpio_request(GPIO_FN_IRQ7_PORT209, NULL);
 		gpio_request_one(209, GPIOF_IN, NULL);
 
 		platform_device_register(&usbhsf_device);
 		usb = &usbhsf_device;
 	}
-
-	/* CEU0 */
-	gpio_request(GPIO_FN_VIO0_D7,		NULL);
-	gpio_request(GPIO_FN_VIO0_D6,		NULL);
-	gpio_request(GPIO_FN_VIO0_D5,		NULL);
-	gpio_request(GPIO_FN_VIO0_D4,		NULL);
-	gpio_request(GPIO_FN_VIO0_D3,		NULL);
-	gpio_request(GPIO_FN_VIO0_D2,		NULL);
-	gpio_request(GPIO_FN_VIO0_D1,		NULL);
-	gpio_request(GPIO_FN_VIO0_D0,		NULL);
-	gpio_request(GPIO_FN_VIO0_CLK,		NULL);
-	gpio_request(GPIO_FN_VIO0_HD,		NULL);
-	gpio_request(GPIO_FN_VIO0_VD,		NULL);
-	gpio_request(GPIO_FN_VIO0_FIELD,	NULL);
-	gpio_request(GPIO_FN_VIO_CKO,		NULL);
 
 	/* CON1/CON15 Camera */
 	gpio_request_one(173, GPIOF_OUT_INIT_LOW, NULL);  /* STANDBY */
@@ -1198,23 +1191,10 @@ static void __init eva_init(void)
 	gpio_request_one(158, GPIOF_OUT_INIT_LOW, NULL);  /* CAM_PON */
 
 	/* FSI-WM8978 */
-	gpio_request(GPIO_FN_FSIAIBT,		NULL);
-	gpio_request(GPIO_FN_FSIAILR,		NULL);
-	gpio_request(GPIO_FN_FSIAOMC,		NULL);
-	gpio_request(GPIO_FN_FSIAOSLD,		NULL);
-	gpio_request(GPIO_FN_FSIAISLD_PORT5,	NULL);
-
 	gpio_request(7, NULL);
 	gpio_request(8, NULL);
 	gpio_direction_none(GPIO_PORT7CR); /* FSIAOBT needs no direction */
 	gpio_direction_none(GPIO_PORT8CR); /* FSIAOLR needs no direction */
-
-	/* FSI-HDMI */
-	gpio_request(GPIO_FN_FSIBCK,		NULL);
-
-	/* HDMI */
-	gpio_request(GPIO_FN_HDMI_HPD,		NULL);
-	gpio_request(GPIO_FN_HDMI_CEC,		NULL);
 
 	/*
 	 * CAUTION
@@ -1277,7 +1257,7 @@ static void __init eva_add_early_devices(void)
 }
 
 #define RESCNT2 IOMEM(0xe6188020)
-static void eva_restart(char mode, const char *cmd)
+static void eva_restart(enum reboot_mode mode, const char *cmd)
 {
 	/* Do soft power on reset */
 	writel((1 << 31), RESCNT2);

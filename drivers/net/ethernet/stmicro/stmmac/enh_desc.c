@@ -33,54 +33,40 @@ static int enh_desc_get_tx_status(void *data, struct stmmac_extra_stats *x,
 	struct net_device_stats *stats = (struct net_device_stats *)data;
 
 	if (unlikely(p->des01.etx.error_summary)) {
-		CHIP_DBG(KERN_ERR "GMAC TX error... 0x%08x\n", p->des01.etx);
-		if (unlikely(p->des01.etx.jabber_timeout)) {
-			CHIP_DBG(KERN_ERR "\tjabber_timeout error\n");
+		if (unlikely(p->des01.etx.jabber_timeout))
 			x->tx_jabber++;
-		}
 
 		if (unlikely(p->des01.etx.frame_flushed)) {
-			CHIP_DBG(KERN_ERR "\tframe_flushed error\n");
 			x->tx_frame_flushed++;
 			dwmac_dma_flush_tx_fifo(ioaddr);
 		}
 
 		if (unlikely(p->des01.etx.loss_carrier)) {
-			CHIP_DBG(KERN_ERR "\tloss_carrier error\n");
 			x->tx_losscarrier++;
 			stats->tx_carrier_errors++;
 		}
 		if (unlikely(p->des01.etx.no_carrier)) {
-			CHIP_DBG(KERN_ERR "\tno_carrier error\n");
 			x->tx_carrier++;
 			stats->tx_carrier_errors++;
 		}
-		if (unlikely(p->des01.etx.late_collision)) {
-			CHIP_DBG(KERN_ERR "\tlate_collision error\n");
+		if (unlikely(p->des01.etx.late_collision))
 			stats->collisions += p->des01.etx.collision_count;
-		}
-		if (unlikely(p->des01.etx.excessive_collisions)) {
-			CHIP_DBG(KERN_ERR "\texcessive_collisions\n");
+
+		if (unlikely(p->des01.etx.excessive_collisions))
 			stats->collisions += p->des01.etx.collision_count;
-		}
-		if (unlikely(p->des01.etx.excessive_deferral)) {
-			CHIP_DBG(KERN_INFO "\texcessive tx_deferral\n");
+
+		if (unlikely(p->des01.etx.excessive_deferral))
 			x->tx_deferred++;
-		}
 
 		if (unlikely(p->des01.etx.underflow_error)) {
-			CHIP_DBG(KERN_ERR "\tunderflow error\n");
 			dwmac_dma_flush_tx_fifo(ioaddr);
 			x->tx_underflow++;
 		}
 
-		if (unlikely(p->des01.etx.ip_header_error)) {
-			CHIP_DBG(KERN_ERR "\tTX IP header csum error\n");
+		if (unlikely(p->des01.etx.ip_header_error))
 			x->tx_ip_header_error++;
-		}
 
 		if (unlikely(p->des01.etx.payload_error)) {
-			CHIP_DBG(KERN_ERR "\tAddr/Payload csum error\n");
 			x->tx_payload_error++;
 			dwmac_dma_flush_tx_fifo(ioaddr);
 		}
@@ -88,15 +74,12 @@ static int enh_desc_get_tx_status(void *data, struct stmmac_extra_stats *x,
 		ret = -1;
 	}
 
-	if (unlikely(p->des01.etx.deferred)) {
-		CHIP_DBG(KERN_INFO "GMAC TX status: tx deferred\n");
+	if (unlikely(p->des01.etx.deferred))
 		x->tx_deferred++;
-	}
+
 #ifdef STMMAC_VLAN_TAG_USED
-	if (p->des01.etx.vlan_frame) {
-		CHIP_DBG(KERN_INFO "GMAC TX status: VLAN frame\n");
+	if (p->des01.etx.vlan_frame)
 		x->tx_vlan++;
-	}
 #endif
 
 	return ret;
@@ -123,30 +106,20 @@ static int enh_desc_coe_rdes0(int ipc_err, int type, int payload_err)
 	 *      0 1 1 | COE bypassed.. no IPv4/6 frame
 	 *      0 1 0 | Reserved.
 	 */
-	if (status == 0x0) {
-		CHIP_DBG(KERN_INFO "RX Des0 status: IEEE 802.3 Type frame.\n");
+	if (status == 0x0)
 		ret = llc_snap;
-	} else if (status == 0x4) {
-		CHIP_DBG(KERN_INFO "RX Des0 status: IPv4/6 No CSUM errorS.\n");
+	else if (status == 0x4)
 		ret = good_frame;
-	} else if (status == 0x5) {
-		CHIP_DBG(KERN_ERR "RX Des0 status: IPv4/6 Payload Error.\n");
+	else if (status == 0x5)
 		ret = csum_none;
-	} else if (status == 0x6) {
-		CHIP_DBG(KERN_ERR "RX Des0 status: IPv4/6 Header Error.\n");
+	else if (status == 0x6)
 		ret = csum_none;
-	} else if (status == 0x7) {
-		CHIP_DBG(KERN_ERR
-		    "RX Des0 status: IPv4/6 Header and Payload Error.\n");
+	else if (status == 0x7)
 		ret = csum_none;
-	} else if (status == 0x1) {
-		CHIP_DBG(KERN_ERR
-		    "RX Des0 status: IPv4/6 unsupported IP PAYLOAD.\n");
+	else if (status == 0x1)
 		ret = discard_frame;
-	} else if (status == 0x3) {
-		CHIP_DBG(KERN_ERR "RX Des0 status: No IPv4, IPv6 frame.\n");
+	else if (status == 0x3)
 		ret = discard_frame;
-	}
 	return ret;
 }
 
@@ -208,36 +181,26 @@ static int enh_desc_get_rx_status(void *data, struct stmmac_extra_stats *x,
 	struct net_device_stats *stats = (struct net_device_stats *)data;
 
 	if (unlikely(p->des01.erx.error_summary)) {
-		CHIP_DBG(KERN_ERR "GMAC RX Error Summary 0x%08x\n",
-				  p->des01.erx);
 		if (unlikely(p->des01.erx.descriptor_error)) {
-			CHIP_DBG(KERN_ERR "\tdescriptor error\n");
 			x->rx_desc++;
 			stats->rx_length_errors++;
 		}
-		if (unlikely(p->des01.erx.overflow_error)) {
-			CHIP_DBG(KERN_ERR "\toverflow error\n");
+		if (unlikely(p->des01.erx.overflow_error))
 			x->rx_gmac_overflow++;
-		}
 
 		if (unlikely(p->des01.erx.ipc_csum_error))
-			CHIP_DBG(KERN_ERR "\tIPC Csum Error/Giant frame\n");
+			pr_err("\tIPC Csum Error/Giant frame\n");
 
 		if (unlikely(p->des01.erx.late_collision)) {
-			CHIP_DBG(KERN_ERR "\tlate_collision error\n");
-			stats->collisions++;
 			stats->collisions++;
 		}
-		if (unlikely(p->des01.erx.receive_watchdog)) {
-			CHIP_DBG(KERN_ERR "\treceive_watchdog error\n");
+		if (unlikely(p->des01.erx.receive_watchdog))
 			x->rx_watchdog++;
-		}
-		if (unlikely(p->des01.erx.error_gmii)) {
-			CHIP_DBG(KERN_ERR "\tReceive Error\n");
+
+		if (unlikely(p->des01.erx.error_gmii))
 			x->rx_mii++;
-		}
+
 		if (unlikely(p->des01.erx.crc_error)) {
-			CHIP_DBG(KERN_ERR "\tCRC error\n");
 			x->rx_crc++;
 			stats->rx_crc_errors++;
 		}
@@ -251,30 +214,24 @@ static int enh_desc_get_rx_status(void *data, struct stmmac_extra_stats *x,
 	ret = enh_desc_coe_rdes0(p->des01.erx.ipc_csum_error,
 		p->des01.erx.frame_type, p->des01.erx.rx_mac_addr);
 
-	if (unlikely(p->des01.erx.dribbling)) {
-		CHIP_DBG(KERN_ERR "GMAC RX: dribbling error\n");
+	if (unlikely(p->des01.erx.dribbling))
 		x->dribbling_bit++;
-	}
+
 	if (unlikely(p->des01.erx.sa_filter_fail)) {
-		CHIP_DBG(KERN_ERR "GMAC RX : Source Address filter fail\n");
 		x->sa_rx_filter_fail++;
 		ret = discard_frame;
 	}
 	if (unlikely(p->des01.erx.da_filter_fail)) {
-		CHIP_DBG(KERN_ERR "GMAC RX : Dest Address filter fail\n");
 		x->da_rx_filter_fail++;
 		ret = discard_frame;
 	}
 	if (unlikely(p->des01.erx.length_error)) {
-		CHIP_DBG(KERN_ERR "GMAC RX: length_error error\n");
 		x->rx_length++;
 		ret = discard_frame;
 	}
 #ifdef STMMAC_VLAN_TAG_USED
-	if (p->des01.erx.vlan_tag) {
-		CHIP_DBG(KERN_INFO "GMAC RX: VLAN frame tagged\n");
+	if (p->des01.erx.vlan_tag)
 		x->rx_vlan++;
-	}
 #endif
 
 	return ret;

@@ -139,7 +139,7 @@ static struct mv_sata_platform_data lschl_sata_data = {
 
 static void lschl_power_off(void)
 {
-	orion5x_restart('h', NULL);
+	orion5x_restart(REBOOT_HARD, NULL);
 }
 
 /*****************************************************************************

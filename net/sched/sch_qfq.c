@@ -113,7 +113,6 @@
 
 #define FRAC_BITS		30	/* fixed point arithmetic */
 #define ONE_FP			(1UL << FRAC_BITS)
-#define IWSUM			(ONE_FP/QFQ_MAX_WSUM)
 
 #define QFQ_MTU_SHIFT		16	/* to support TSO/GSO */
 #define QFQ_MIN_LMAX		512	/* see qfq_slot_insert */
@@ -138,7 +137,7 @@ struct qfq_class {
 
 	struct gnet_stats_basic_packed bstats;
 	struct gnet_stats_queue qstats;
-	struct gnet_stats_rate_est rate_est;
+	struct gnet_stats_rate_est64 rate_est;
 	struct Qdisc *qdisc;
 	struct list_head alist;		/* Link for active-classes list. */
 	struct qfq_aggregate *agg;	/* Parent aggregate. */
@@ -189,6 +188,7 @@ struct qfq_sched {
 	struct qfq_aggregate	*in_serv_agg;   /* Aggregate being served. */
 	u32			num_active_agg; /* Num. of active aggregates */
 	u32			wsum;		/* weight sum */
+	u32			iwsum;		/* inverse weight sum */
 
 	unsigned long bitmaps[QFQ_MAX_STATE];	    /* Group bitmaps. */
 	struct qfq_group groups[QFQ_MAX_INDEX + 1]; /* The groups. */
@@ -314,6 +314,7 @@ static void qfq_update_agg(struct qfq_sched *q, struct qfq_aggregate *agg,
 
 	q->wsum +=
 		(int) agg->class_weight * (new_num_classes - agg->num_classes);
+	q->iwsum = ONE_FP / q->wsum;
 
 	agg->num_classes = new_num_classes;
 }
@@ -340,6 +341,10 @@ static void qfq_destroy_agg(struct qfq_sched *q, struct qfq_aggregate *agg)
 {
 	if (!hlist_unhashed(&agg->nonfull_next))
 		hlist_del_init(&agg->nonfull_next);
+	q->wsum -= agg->class_weight;
+	if (q->wsum != 0)
+		q->iwsum = ONE_FP / q->wsum;
+
 	if (q->in_serv_agg == agg)
 		q->in_serv_agg = qfq_choose_next_agg(q);
 	kfree(agg);
@@ -821,44 +826,73 @@ static void qfq_make_eligible(struct qfq_sched *q)
 	unsigned long old_vslot = q->oldV >> q->min_slot_shift;
 
 	if (vslot != old_vslot) {
-		unsigned long mask = (1ULL << fls(vslot ^ old_vslot)) - 1;
+		unsigned long mask;
+		int last_flip_pos = fls(vslot ^ old_vslot);
+
+		if (last_flip_pos > 31) /* higher than the number of groups */
+			mask = ~0UL;    /* make all groups eligible */
+		else
+			mask = (1UL << last_flip_pos) - 1;
+
 		qfq_move_groups(q, mask, IR, ER);
 		qfq_move_groups(q, mask, IB, EB);
 	}
 }
 
-
 /*
- * The index of the slot in which the aggregate is to be inserted must
- * not be higher than QFQ_MAX_SLOTS-2. There is a '-2' and not a '-1'
- * because the start time of the group may be moved backward by one
- * slot after the aggregate has been inserted, and this would cause
- * non-empty slots to be right-shifted by one position.
+ * The index of the slot in which the input aggregate agg is to be
+ * inserted must not be higher than QFQ_MAX_SLOTS-2. There is a '-2'
+ * and not a '-1' because the start time of the group may be moved
+ * backward by one slot after the aggregate has been inserted, and
+ * this would cause non-empty slots to be right-shifted by one
+ * position.
  *
- * If the weight and lmax (max_pkt_size) of the classes do not change,
- * then QFQ+ does meet the above contraint according to the current
- * values of its parameters. In fact, if the weight and lmax of the
- * classes do not change, then, from the theory, QFQ+ guarantees that
- * the slot index is never higher than
- * 2 + QFQ_MAX_AGG_CLASSES * ((1<<QFQ_MTU_SHIFT)/QFQ_MIN_LMAX) *
- * (QFQ_MAX_WEIGHT/QFQ_MAX_WSUM) = 2 + 8 * 128 * (1 / 64) = 18
+ * QFQ+ fully satisfies this bound to the slot index if the parameters
+ * of the classes are not changed dynamically, and if QFQ+ never
+ * happens to postpone the service of agg unjustly, i.e., it never
+ * happens that the aggregate becomes backlogged and eligible, or just
+ * eligible, while an aggregate with a higher approximated finish time
+ * is being served. In particular, in this case QFQ+ guarantees that
+ * the timestamps of agg are low enough that the slot index is never
+ * higher than 2. Unfortunately, QFQ+ cannot provide the same
+ * guarantee if it happens to unjustly postpone the service of agg, or
+ * if the parameters of some class are changed.
  *
- * When the weight of a class is increased or the lmax of the class is
- * decreased, a new aggregate with smaller slot size than the original
- * parent aggregate of the class may happen to be activated. The
- * activation of this aggregate should be properly delayed to when the
- * service of the class has finished in the ideal system tracked by
- * QFQ+. If the activation of the aggregate is not delayed to this
- * reference time instant, then this aggregate may be unjustly served
- * before other aggregates waiting for service. This may cause the
- * above bound to the slot index to be violated for some of these
- * unlucky aggregates.
+ * As for the first event, i.e., an out-of-order service, the
+ * upper bound to the slot index guaranteed by QFQ+ grows to
+ * 2 +
+ * QFQ_MAX_AGG_CLASSES * ((1<<QFQ_MTU_SHIFT)/QFQ_MIN_LMAX) *
+ * (current_max_weight/current_wsum) <= 2 + 8 * 128 * 1.
+ *
+ * The following function deals with this problem by backward-shifting
+ * the timestamps of agg, if needed, so as to guarantee that the slot
+ * index is never higher than QFQ_MAX_SLOTS-2. This backward-shift may
+ * cause the service of other aggregates to be postponed, yet the
+ * worst-case guarantees of these aggregates are not violated.  In
+ * fact, in case of no out-of-order service, the timestamps of agg
+ * would have been even lower than they are after the backward shift,
+ * because QFQ+ would have guaranteed a maximum value equal to 2 for
+ * the slot index, and 2 < QFQ_MAX_SLOTS-2. Hence the aggregates whose
+ * service is postponed because of the backward-shift would have
+ * however waited for the service of agg before being served.
+ *
+ * The other event that may cause the slot index to be higher than 2
+ * for agg is a recent change of the parameters of some class. If the
+ * weight of a class is increased or the lmax (max_pkt_size) of the
+ * class is decreased, then a new aggregate with smaller slot size
+ * than the original parent aggregate of the class may happen to be
+ * activated. The activation of this aggregate should be properly
+ * delayed to when the service of the class has finished in the ideal
+ * system tracked by QFQ+. If the activation of the aggregate is not
+ * delayed to this reference time instant, then this aggregate may be
+ * unjustly served before other aggregates waiting for service. This
+ * may cause the above bound to the slot index to be violated for some
+ * of these unlucky aggregates.
  *
  * Instead of delaying the activation of the new aggregate, which is
- * quite complex, the following inaccurate but simple solution is used:
- * if the slot index is higher than QFQ_MAX_SLOTS-2, then the
- * timestamps of the aggregate are shifted backward so as to let the
- * slot index become equal to QFQ_MAX_SLOTS-2.
+ * quite complex, the above-discussed capping of the slot index is
+ * used to handle also the consequences of a change of the parameters
+ * of a class.
  */
 static void qfq_slot_insert(struct qfq_group *grp, struct qfq_aggregate *agg,
 			    u64 roundedS)
@@ -1003,9 +1037,61 @@ static inline void charge_actual_service(struct qfq_aggregate *agg)
 	agg->F = agg->S + (u64)service_received * agg->inv_w;
 }
 
-static inline void qfq_update_agg_ts(struct qfq_sched *q,
-				     struct qfq_aggregate *agg,
-				     enum update_reason reason);
+/* Assign a reasonable start time for a new aggregate in group i.
+ * Admissible values for \hat(F) are multiples of \sigma_i
+ * no greater than V+\sigma_i . Larger values mean that
+ * we had a wraparound so we consider the timestamp to be stale.
+ *
+ * If F is not stale and F >= V then we set S = F.
+ * Otherwise we should assign S = V, but this may violate
+ * the ordering in EB (see [2]). So, if we have groups in ER,
+ * set S to the F_j of the first group j which would be blocking us.
+ * We are guaranteed not to move S backward because
+ * otherwise our group i would still be blocked.
+ */
+static void qfq_update_start(struct qfq_sched *q, struct qfq_aggregate *agg)
+{
+	unsigned long mask;
+	u64 limit, roundedF;
+	int slot_shift = agg->grp->slot_shift;
+
+	roundedF = qfq_round_down(agg->F, slot_shift);
+	limit = qfq_round_down(q->V, slot_shift) + (1ULL << slot_shift);
+
+	if (!qfq_gt(agg->F, q->V) || qfq_gt(roundedF, limit)) {
+		/* timestamp was stale */
+		mask = mask_from(q->bitmaps[ER], agg->grp->index);
+		if (mask) {
+			struct qfq_group *next = qfq_ffs(q, mask);
+			if (qfq_gt(roundedF, next->F)) {
+				if (qfq_gt(limit, next->F))
+					agg->S = next->F;
+				else /* preserve timestamp correctness */
+					agg->S = limit;
+				return;
+			}
+		}
+		agg->S = q->V;
+	} else  /* timestamp is not stale */
+		agg->S = agg->F;
+}
+
+/* Update the timestamps of agg before scheduling/rescheduling it for
+ * service.  In particular, assign to agg->F its maximum possible
+ * value, i.e., the virtual finish time with which the aggregate
+ * should be labeled if it used all its budget once in service.
+ */
+static inline void
+qfq_update_agg_ts(struct qfq_sched *q,
+		    struct qfq_aggregate *agg, enum update_reason reason)
+{
+	if (reason != requeue)
+		qfq_update_start(q, agg);
+	else /* just charge agg for the service received */
+		agg->S = agg->F;
+
+	agg->F = agg->S + (u64)agg->budgetmax * agg->inv_w;
+}
 
 static void qfq_schedule_agg(struct qfq_sched *q, struct qfq_aggregate *agg);
 
@@ -1077,7 +1163,7 @@ static struct sk_buff *qfq_dequeue(struct Qdisc *sch)
 	else
 		in_serv_agg->budget -= len;
 
-	q->V += (u64)len * IWSUM;
+	q->V += (u64)len * q->iwsum;
 	pr_debug("qfq dequeue: len %u F %lld now %lld\n",
 		 len, (unsigned long long) in_serv_agg->F,
 		 (unsigned long long) q->V);
@@ -1127,66 +1213,6 @@ static struct qfq_aggregate *qfq_choose_next_agg(struct qfq_sched *q)
 
 	return agg;
 }
-
-/*
- * Assign a reasonable start time for a new aggregate in group i.
- * Admissible values for \hat(F) are multiples of \sigma_i
- * no greater than V+\sigma_i . Larger values mean that
- * we had a wraparound so we consider the timestamp to be stale.
- *
- * If F is not stale and F >= V then we set S = F.
- * Otherwise we should assign S = V, but this may violate
- * the ordering in EB (see [2]). So, if we have groups in ER,
- * set S to the F_j of the first group j which would be blocking us.
- * We are guaranteed not to move S backward because
- * otherwise our group i would still be blocked.
- */
-static void qfq_update_start(struct qfq_sched *q, struct qfq_aggregate *agg)
-{
-	unsigned long mask;
-	u64 limit, roundedF;
-	int slot_shift = agg->grp->slot_shift;
-
-	roundedF = qfq_round_down(agg->F, slot_shift);
-	limit = qfq_round_down(q->V, slot_shift) + (1ULL << slot_shift);
-
-	if (!qfq_gt(agg->F, q->V) || qfq_gt(roundedF, limit)) {
-		/* timestamp was stale */
-		mask = mask_from(q->bitmaps[ER], agg->grp->index);
-		if (mask) {
-			struct qfq_group *next = qfq_ffs(q, mask);
-			if (qfq_gt(roundedF, next->F)) {
-				if (qfq_gt(limit, next->F))
-					agg->S = next->F;
-				else /* preserve timestamp correctness */
-					agg->S = limit;
-				return;
-			}
-		}
-		agg->S = q->V;
-	} else  /* timestamp is not stale */
-		agg->S = agg->F;
-}
-
-/*
- * Update the timestamps of agg before scheduling/rescheduling it for
- * service.  In particular, assign to agg->F its maximum possible
- * value, i.e., the virtual finish time with which the aggregate
- * should be labeled if it used all its budget once in service.
- */
-static inline void
-qfq_update_agg_ts(struct qfq_sched *q,
-		    struct qfq_aggregate *agg, enum update_reason reason)
-{
-	if (reason != requeue)
-		qfq_update_start(q, agg);
-	else /* just charge agg for the service received */
-		agg->S = agg->F;
-
-	agg->F = agg->S + (u64)agg->budgetmax * agg->inv_w;
-}
-
-static void qfq_schedule_agg(struct qfq_sched *, struct qfq_aggregate *);
 
 static int qfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 {

@@ -401,24 +401,29 @@ static int rs_tl_turn_on_agg_for_tid(struct iwl_mvm *mvm,
 
 	load = rs_tl_get_load(lq_data, tid);
 
-	if ((iwlwifi_mod_params.auto_agg) || (load > IWL_AGG_LOAD_THRESHOLD)) {
-		IWL_DEBUG_HT(mvm, "Starting Tx agg: STA: %pM tid: %d\n",
-			     sta->addr, tid);
-		ret = ieee80211_start_tx_ba_session(sta, tid, 5000);
-		if (ret == -EAGAIN) {
-			/*
-			 * driver and mac80211 is out of sync
-			 * this might be cause by reloading firmware
-			 * stop the tx ba session here
-			 */
-			IWL_ERR(mvm, "Fail start Tx agg on tid: %d\n",
-				tid);
-			ieee80211_stop_tx_ba_session(sta, tid);
-		}
-	} else {
-		IWL_DEBUG_HT(mvm,
-			     "Aggregation not enabled for tid %d because load = %u\n",
-			     tid, load);
+	/*
+	 * Don't create TX aggregation sessions when in high
+	 * BT traffic, as they would just be disrupted by BT.
+	 */
+	if (BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD) >= 2) {
+		IWL_DEBUG_COEX(mvm, "BT traffic (%d), no aggregation allowed\n",
+			       BT_MBOX_MSG(&mvm->last_bt_notif,
+					   3, TRAFFIC_LOAD));
+		return ret;
+	}
+
+	IWL_DEBUG_HT(mvm, "Starting Tx agg: STA: %pM tid: %d\n",
+		     sta->addr, tid);
+	ret = ieee80211_start_tx_ba_session(sta, tid, 5000);
+	if (ret == -EAGAIN) {
+		/*
+		 * driver and mac80211 is out of sync
+		 * this might be cause by reloading firmware
+		 * stop the tx ba session here
+		 */
+		IWL_ERR(mvm, "Fail start Tx agg on tid: %d\n",
+			tid);
+		ieee80211_stop_tx_ba_session(sta, tid);
 	}
 	return ret;
 }
@@ -1519,6 +1524,29 @@ static int rs_move_siso_to_other(struct iwl_mvm *mvm,
 	u8 update_search_tbl_counter = 0;
 	int ret;
 
+	switch (BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD)) {
+	case IWL_BT_COEX_TRAFFIC_LOAD_NONE:
+		/* nothing */
+		break;
+	case IWL_BT_COEX_TRAFFIC_LOAD_LOW:
+		/* avoid antenna B unless MIMO */
+		if (tbl->action == IWL_SISO_SWITCH_ANTENNA2)
+			tbl->action = IWL_SISO_SWITCH_MIMO2_AB;
+		break;
+	case IWL_BT_COEX_TRAFFIC_LOAD_HIGH:
+	case IWL_BT_COEX_TRAFFIC_LOAD_CONTINUOUS:
+		/* avoid antenna B and MIMO */
+		valid_tx_ant =
+			first_antenna(iwl_fw_valid_tx_ant(mvm->fw));
+		if (tbl->action != IWL_SISO_SWITCH_ANTENNA1)
+			tbl->action = IWL_SISO_SWITCH_ANTENNA1;
+		break;
+	default:
+		IWL_ERR(mvm, "Invalid BT load %d",
+			BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD));
+		break;
+	}
+
 	start_action = tbl->action;
 	while (1) {
 		lq_sta->action_counter++;
@@ -1532,7 +1560,9 @@ static int rs_move_siso_to_other(struct iwl_mvm *mvm,
 			     tx_chains_num <= 2))
 				break;
 
-			if (window->success_ratio >= IWL_RS_GOOD_RATIO)
+			if (window->success_ratio >= IWL_RS_GOOD_RATIO &&
+			    BT_MBOX_MSG(&mvm->last_bt_notif, 3,
+					TRAFFIC_LOAD) == 0)
 				break;
 
 			memcpy(search_tbl, tbl, sz);
@@ -1653,6 +1683,28 @@ static int rs_move_mimo2_to_other(struct iwl_mvm *mvm,
 	u8 tx_chains_num = num_of_ant(valid_tx_ant);
 	u8 update_search_tbl_counter = 0;
 	int ret;
+
+	switch (BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD)) {
+	case IWL_BT_COEX_TRAFFIC_LOAD_NONE:
+		/* nothing */
+		break;
+	case IWL_BT_COEX_TRAFFIC_LOAD_HIGH:
+	case IWL_BT_COEX_TRAFFIC_LOAD_CONTINUOUS:
+		/* avoid antenna B and MIMO */
+		if (tbl->action != IWL_MIMO2_SWITCH_SISO_A)
+			tbl->action = IWL_MIMO2_SWITCH_SISO_A;
+		break;
+	case IWL_BT_COEX_TRAFFIC_LOAD_LOW:
+		/* avoid antenna B unless MIMO */
+		if (tbl->action == IWL_MIMO2_SWITCH_SISO_B ||
+		    tbl->action == IWL_MIMO2_SWITCH_SISO_C)
+			tbl->action = IWL_MIMO2_SWITCH_SISO_A;
+		break;
+	default:
+		IWL_ERR(mvm, "Invalid BT load %d",
+			BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD));
+		break;
+	}
 
 	start_action = tbl->action;
 	while (1) {
@@ -1790,6 +1842,28 @@ static int rs_move_mimo3_to_other(struct iwl_mvm *mvm,
 	u8 tx_chains_num = num_of_ant(valid_tx_ant);
 	int ret;
 	u8 update_search_tbl_counter = 0;
+
+	switch (BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD)) {
+	case IWL_BT_COEX_TRAFFIC_LOAD_NONE:
+		/* nothing */
+		break;
+	case IWL_BT_COEX_TRAFFIC_LOAD_HIGH:
+	case IWL_BT_COEX_TRAFFIC_LOAD_CONTINUOUS:
+		/* avoid antenna B and MIMO */
+		if (tbl->action != IWL_MIMO3_SWITCH_SISO_A)
+			tbl->action = IWL_MIMO3_SWITCH_SISO_A;
+		break;
+	case IWL_BT_COEX_TRAFFIC_LOAD_LOW:
+		/* avoid antenna B unless MIMO */
+		if (tbl->action == IWL_MIMO3_SWITCH_SISO_B ||
+		    tbl->action == IWL_MIMO3_SWITCH_SISO_C)
+			tbl->action = IWL_MIMO3_SWITCH_SISO_A;
+		break;
+	default:
+		IWL_ERR(mvm, "Invalid BT load %d",
+			BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD));
+		break;
+	}
 
 	start_action = tbl->action;
 	while (1) {
@@ -2302,6 +2376,32 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 	     (current_tpt > (100 * tbl->expected_tpt[low]))))
 		scale_action = 0;
 
+	if ((BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD) >=
+	     IWL_BT_COEX_TRAFFIC_LOAD_HIGH) &&
+	     (is_mimo2(tbl->lq_type) || is_mimo3(tbl->lq_type))) {
+		if (lq_sta->last_bt_traffic >
+		    BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD)) {
+			/*
+			 * don't set scale_action, don't want to scale up if
+			 * the rate scale doesn't otherwise think that is a
+			 * good idea.
+			 */
+		} else if (lq_sta->last_bt_traffic <=
+			   BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD)) {
+			scale_action = -1;
+		}
+	}
+	lq_sta->last_bt_traffic =
+		BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD);
+
+	if ((BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD) >=
+	     IWL_BT_COEX_TRAFFIC_LOAD_HIGH) &&
+	     (is_mimo2(tbl->lq_type) || is_mimo3(tbl->lq_type))) {
+		/* search for a new modulation */
+		rs_stay_in_table(lq_sta, true);
+		goto lq_update;
+	}
+
 	switch (scale_action) {
 	case -1:
 		/* Decrease starting rate, update uCode's rate table */
@@ -2783,6 +2883,13 @@ static void rs_fill_link_cmd(struct iwl_mvm *mvm,
 
 	lq_cmd->agg_time_limit =
 		cpu_to_le16(LINK_QUAL_AGG_TIME_LIMIT_DEF);
+
+	/*
+	 * overwrite if needed, pass aggregation time limit
+	 * to uCode in uSec - This is racy - but heh, at least it helps...
+	 */
+	if (mvm && BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD) >= 2)
+		lq_cmd->agg_time_limit = cpu_to_le16(1200);
 }
 
 static void *rs_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
@@ -3080,4 +3187,30 @@ int iwl_mvm_rate_control_register(void)
 void iwl_mvm_rate_control_unregister(void)
 {
 	ieee80211_rate_control_unregister(&rs_mvm_ops);
+}
+
+/**
+ * iwl_mvm_tx_protection - Gets LQ command, change it to enable/disable
+ * Tx protection, according to this rquest and previous requests,
+ * and send the LQ command.
+ * @lq: The LQ command
+ * @mvmsta: The station
+ * @enable: Enable Tx protection?
+ */
+int iwl_mvm_tx_protection(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq,
+			  struct iwl_mvm_sta *mvmsta, bool enable)
+{
+	lockdep_assert_held(&mvm->mutex);
+
+	if (enable) {
+		if (mvmsta->tx_protection == 0)
+			lq->flags |= LQ_FLAG_SET_STA_TLC_RTS_MSK;
+		mvmsta->tx_protection++;
+	} else {
+		mvmsta->tx_protection--;
+		if (mvmsta->tx_protection == 0)
+			lq->flags &= ~LQ_FLAG_SET_STA_TLC_RTS_MSK;
+	}
+
+	return iwl_mvm_send_lq_cmd(mvm, lq, CMD_ASYNC, false);
 }

@@ -1031,6 +1031,9 @@ int scsi_get_vpd_page(struct scsi_device *sdev, u8 page, unsigned char *buf,
 {
 	int i, result;
 
+	if (sdev->skip_vpd_pages)
+		goto fail;
+
 	/* Ask for all the pages supported by this device */
 	result = scsi_vpd_inquiry(sdev, buf, 0, buf_len);
 	if (result)
@@ -1070,8 +1073,8 @@ EXPORT_SYMBOL_GPL(scsi_get_vpd_page);
  * @opcode:	opcode for command to look up
  *
  * Uses the REPORT SUPPORTED OPERATION CODES to look up the given
- * opcode. Returns 0 if RSOC fails or if the command opcode is
- * unsupported. Returns 1 if the device claims to support the command.
+ * opcode. Returns -EINVAL if RSOC fails, 0 if the command opcode is
+ * unsupported and 1 if the device claims to support the command.
  */
 int scsi_report_opcode(struct scsi_device *sdev, unsigned char *buffer,
 		       unsigned int len, unsigned char opcode)
@@ -1081,7 +1084,7 @@ int scsi_report_opcode(struct scsi_device *sdev, unsigned char *buffer,
 	int result;
 
 	if (sdev->no_report_opcodes || sdev->scsi_level < SCSI_SPC_3)
-		return 0;
+		return -EINVAL;
 
 	memset(cmd, 0, 16);
 	cmd[0] = MAINTENANCE_IN;
@@ -1097,7 +1100,7 @@ int scsi_report_opcode(struct scsi_device *sdev, unsigned char *buffer,
 	if (result && scsi_sense_valid(&sshdr) &&
 	    sshdr.sense_key == ILLEGAL_REQUEST &&
 	    (sshdr.asc == 0x20 || sshdr.asc == 0x24) && sshdr.ascq == 0x00)
-		return 0;
+		return -EINVAL;
 
 	if ((buffer[1] & 3) == 3) /* Command supported */
 		return 1;

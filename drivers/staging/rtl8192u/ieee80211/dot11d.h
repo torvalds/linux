@@ -71,9 +71,9 @@ Dot11d_Reset(
 void
 Dot11d_UpdateCountryIe(
 	struct ieee80211_device *dev,
-	u8 *		pTaddr,
+	u8 *pTaddr,
 	u16	CoutryIeLen,
-	u8 * pCoutryIe
+	u8 *pCoutryIe
 	);
 
 u8
@@ -84,16 +84,16 @@ DOT11D_GetMaxTxPwrInDbm(
 
 void
 DOT11D_ScanComplete(
-	struct ieee80211_device * dev
+	struct ieee80211_device *dev
 	);
 
 int IsLegalChannel(
-	struct ieee80211_device * dev,
+	struct ieee80211_device *dev,
 	u8 channel
 );
 
 int ToLegalChannel(
-	struct ieee80211_device * dev,
+	struct ieee80211_device *dev,
 	u8 channel
 );
 #endif // #ifndef __INC_DOT11D_H

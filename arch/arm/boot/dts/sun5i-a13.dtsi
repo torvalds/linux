@@ -17,8 +17,12 @@
 	interrupt-parent = <&intc>;
 
 	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
 		cpu@0 {
+			device_type = "cpu";
 			compatible = "arm,cortex-a8";
+			reg = <0x0>;
 		};
 	};
 
@@ -95,20 +99,15 @@
 
 		ahb_gates: ahb_gates@01c20060 {
 			#clock-cells = <1>;
-			compatible = "allwinner,sun4i-ahb-gates-clk";
+			compatible = "allwinner,sun5i-a13-ahb-gates-clk";
 			reg = <0x01c20060 0x8>;
 			clocks = <&ahb>;
-			clock-output-names = "ahb_usb0", "ahb_ehci0",
-				"ahb_ohci0", "ahb_ehci1", "ahb_ohci1", "ahb_ss",
-				"ahb_dma", "ahb_bist", "ahb_mmc0", "ahb_mmc1",
-				"ahb_mmc2", "ahb_mmc3", "ahb_ms", "ahb_nand",
-				"ahb_sdram", "ahb_ace",	"ahb_emac", "ahb_ts",
-				"ahb_spi0", "ahb_spi1", "ahb_spi2", "ahb_spi3",
-				"ahb_pata", "ahb_sata", "ahb_gps", "ahb_ve",
-				"ahb_tvd", "ahb_tve0", "ahb_tve1", "ahb_lcd0",
-				"ahb_lcd1", "ahb_csi0", "ahb_csi1", "ahb_hdmi",
-				"ahb_de_be0", "ahb_de_be1", "ahb_de_fe0",
-				"ahb_de_fe1", "ahb_mp", "ahb_mali400";
+			clock-output-names = "ahb_usbotg", "ahb_ehci", "ahb_ohci",
+				"ahb_ss", "ahb_dma", "ahb_bist", "ahb_mmc0",
+				"ahb_mmc1", "ahb_mmc2", "ahb_nand", "ahb_sdram",
+				"ahb_spi0", "ahb_spi1", "ahb_spi2", "ahb_stimer",
+				"ahb_ve", "ahb_lcd", "ahb_csi", "ahb_de_be",
+				"ahb_de_fe", "ahb_iep", "ahb_mali400";
 		};
 
 		apb0: apb0@01c20054 {
@@ -120,15 +119,13 @@
 
 		apb0_gates: apb0_gates@01c20068 {
 			#clock-cells = <1>;
-			compatible = "allwinner,sun4i-apb0-gates-clk";
+			compatible = "allwinner,sun5i-a13-apb0-gates-clk";
 			reg = <0x01c20068 0x4>;
 			clocks = <&apb0>;
-			clock-output-names = "apb0_codec", "apb0_spdif",
-				"apb0_ac97", "apb0_iis", "apb0_pio", "apb0_ir0",
-				"apb0_ir1", "apb0_keypad";
+			clock-output-names = "apb0_codec", "apb0_pio", "apb0_ir";
 		};
 
-		/* dummy is pll62 */
+		/* dummy is pll6 */
 		apb1_mux: apb1_mux@01c20058 {
 			#clock-cells = <0>;
 			compatible = "allwinner,sun4i-apb1-mux-clk";
@@ -145,15 +142,11 @@
 
 		apb1_gates: apb1_gates@01c2006c {
 			#clock-cells = <1>;
-			compatible = "allwinner,sun4i-apb1-gates-clk";
+			compatible = "allwinner,sun5i-a13-apb1-gates-clk";
 			reg = <0x01c2006c 0x4>;
 			clocks = <&apb1>;
 			clock-output-names = "apb1_i2c0", "apb1_i2c1",
-				"apb1_i2c2", "apb1_can", "apb1_scr",
-				"apb1_ps20", "apb1_ps21", "apb1_uart0",
-				"apb1_uart1", "apb1_uart2", "apb1_uart3",
-				"apb1_uart4", "apb1_uart5", "apb1_uart6",
-				"apb1_uart7";
+				"apb1_i2c2", "apb1_uart1", "apb1_uart3";
 		};
 	};
 
@@ -174,8 +167,10 @@
 		pio: pinctrl@01c20800 {
 			compatible = "allwinner,sun5i-a13-pinctrl";
 			reg = <0x01c20800 0x400>;
+			interrupts = <28>;
 			clocks = <&apb0_gates 5>;
 			gpio-controller;
+			interrupt-controller;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			#gpio-cells = <3>;
@@ -190,6 +185,27 @@
 			uart1_pins_b: uart1@1 {
 				allwinner,pins = "PG3", "PG4";
 				allwinner,function = "uart1";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
+			i2c0_pins_a: i2c0@0 {
+				allwinner,pins = "PB0", "PB1";
+				allwinner,function = "i2c0";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
+			i2c1_pins_a: i2c1@0 {
+				allwinner,pins = "PB15", "PB16";
+				allwinner,function = "i2c1";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
+			i2c2_pins_a: i2c2@0 {
+				allwinner,pins = "PB17", "PB18";
+				allwinner,function = "i2c2";
 				allwinner,drive = <0>;
 				allwinner,pull = <0>;
 			};
@@ -224,6 +240,33 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&apb1_gates 19>;
+			status = "disabled";
+		};
+
+		i2c0: i2c@01c2ac00 {
+			compatible = "allwinner,sun4i-i2c";
+			reg = <0x01c2ac00 0x400>;
+			interrupts = <7>;
+			clocks = <&apb1_gates 0>;
+			clock-frequency = <100000>;
+			status = "disabled";
+		};
+
+		i2c1: i2c@01c2b000 {
+			compatible = "allwinner,sun4i-i2c";
+			reg = <0x01c2b000 0x400>;
+			interrupts = <8>;
+			clocks = <&apb1_gates 1>;
+			clock-frequency = <100000>;
+			status = "disabled";
+		};
+
+		i2c2: i2c@01c2b400 {
+			compatible = "allwinner,sun4i-i2c";
+			reg = <0x01c2b400 0x400>;
+			interrupts = <9>;
+			clocks = <&apb1_gates 2>;
+			clock-frequency = <100000>;
 			status = "disabled";
 		};
 	};

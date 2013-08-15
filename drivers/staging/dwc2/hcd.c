@@ -1563,9 +1563,9 @@ static int dwc2_hcd_hub_control(struct dwc2_hsotg *hsotg, u16 typereq,
 		break;
 
 	case GetPortStatus:
-		dev_dbg(hsotg->dev,
-			"GetPortStatus wIndex=0x%04x flags=0x%08x\n", windex,
-			hsotg->flags.d32);
+		dev_vdbg(hsotg->dev,
+			 "GetPortStatus wIndex=0x%04x flags=0x%08x\n", windex,
+			 hsotg->flags.d32);
 		if (!windex || windex > 1)
 			goto error;
 
@@ -1598,7 +1598,7 @@ static int dwc2_hcd_hub_control(struct dwc2_hsotg *hsotg, u16 typereq,
 		}
 
 		hprt0 = readl(hsotg->regs + HPRT0);
-		dev_dbg(hsotg->dev, "  HPRT0: 0x%08x\n", hprt0);
+		dev_vdbg(hsotg->dev, "  HPRT0: 0x%08x\n", hprt0);
 
 		if (hprt0 & HPRT0_CONNSTS)
 			port_status |= USB_PORT_STAT_CONNECTION;
@@ -1623,7 +1623,7 @@ static int dwc2_hcd_hub_control(struct dwc2_hsotg *hsotg, u16 typereq,
 			port_status |= USB_PORT_STAT_TEST;
 		/* USB_PORT_FEAT_INDICATOR unsupported always 0 */
 
-		dev_dbg(hsotg->dev, "port_status=%08x\n", port_status);
+		dev_vdbg(hsotg->dev, "port_status=%08x\n", port_status);
 		*(__le32 *)buf = cpu_to_le32(port_status);
 		break;
 
@@ -2533,9 +2533,8 @@ static void _dwc2_hcd_endpoint_reset(struct usb_hcd *hcd,
 static irqreturn_t _dwc2_hcd_irq(struct usb_hcd *hcd)
 {
 	struct dwc2_hsotg *hsotg = dwc2_hcd_to_hsotg(hcd);
-	int retval = dwc2_hcd_intr(hsotg);
 
-	return IRQ_RETVAL(retval);
+	return dwc2_handle_hcd_intr(hsotg);
 }
 
 /*
@@ -2702,7 +2701,7 @@ EXPORT_SYMBOL_GPL(dwc2_set_all_params);
  * a negative error on failure.
  */
 int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
-		  struct dwc2_core_params *params)
+		  const struct dwc2_core_params *params)
 {
 	struct usb_hcd *hcd;
 	struct dwc2_host_chan *channel;
@@ -2919,7 +2918,7 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 	 * allocates the DMA buffer pool, registers the USB bus, requests the
 	 * IRQ line, and calls hcd_start method.
 	 */
-	retval = usb_add_hcd(hcd, irq, IRQF_SHARED | IRQF_DISABLED);
+	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (retval < 0)
 		goto error3;
 

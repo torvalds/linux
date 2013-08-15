@@ -66,29 +66,29 @@ UASM_L_LA(_copy_pref_both)
 UASM_L_LA(_copy_pref_store)
 
 /* We need one branch and therefore one relocation per target label. */
-static struct uasm_label __cpuinitdata labels[5];
-static struct uasm_reloc __cpuinitdata relocs[5];
+static struct uasm_label labels[5];
+static struct uasm_reloc relocs[5];
 
 #define cpu_is_r4600_v1_x()	((read_c0_prid() & 0xfffffff0) == 0x00002010)
 #define cpu_is_r4600_v2_x()	((read_c0_prid() & 0xfffffff0) == 0x00002020)
 
-static int pref_bias_clear_store __cpuinitdata;
-static int pref_bias_copy_load __cpuinitdata;
-static int pref_bias_copy_store __cpuinitdata;
+static int pref_bias_clear_store;
+static int pref_bias_copy_load;
+static int pref_bias_copy_store;
 
-static u32 pref_src_mode __cpuinitdata;
-static u32 pref_dst_mode __cpuinitdata;
+static u32 pref_src_mode;
+static u32 pref_dst_mode;
 
-static int clear_word_size __cpuinitdata;
-static int copy_word_size __cpuinitdata;
+static int clear_word_size;
+static int copy_word_size;
 
-static int half_clear_loop_size __cpuinitdata;
-static int half_copy_loop_size __cpuinitdata;
+static int half_clear_loop_size;
+static int half_copy_loop_size;
 
-static int cache_line_size __cpuinitdata;
+static int cache_line_size;
 #define cache_line_mask() (cache_line_size - 1)
 
-static inline void __cpuinit
+static inline void
 pg_addiu(u32 **buf, unsigned int reg1, unsigned int reg2, unsigned int off)
 {
 	if (cpu_has_64bit_gp_regs && DADDI_WAR && r4k_daddiu_bug()) {
@@ -108,7 +108,7 @@ pg_addiu(u32 **buf, unsigned int reg1, unsigned int reg2, unsigned int off)
 	}
 }
 
-static void __cpuinit set_prefetch_parameters(void)
+static void set_prefetch_parameters(void)
 {
 	if (cpu_has_64bit_gp_regs || cpu_has_64bit_zero_reg)
 		clear_word_size = 8;
@@ -199,7 +199,7 @@ static void __cpuinit set_prefetch_parameters(void)
 				      4 * copy_word_size));
 }
 
-static void __cpuinit build_clear_store(u32 **buf, int off)
+static void build_clear_store(u32 **buf, int off)
 {
 	if (cpu_has_64bit_gp_regs || cpu_has_64bit_zero_reg) {
 		uasm_i_sd(buf, ZERO, off, A0);
@@ -208,7 +208,7 @@ static void __cpuinit build_clear_store(u32 **buf, int off)
 	}
 }
 
-static inline void __cpuinit build_clear_pref(u32 **buf, int off)
+static inline void build_clear_pref(u32 **buf, int off)
 {
 	if (off & cache_line_mask())
 		return;
@@ -232,7 +232,7 @@ static inline void __cpuinit build_clear_pref(u32 **buf, int off)
 
 			uasm_i_cache(buf, Create_Dirty_Excl_D, off, A0);
 		}
-		}
+	}
 }
 
 extern u32 __clear_page_start;
@@ -240,7 +240,7 @@ extern u32 __clear_page_end;
 extern u32 __copy_page_start;
 extern u32 __copy_page_end;
 
-void __cpuinit build_clear_page(void)
+void build_clear_page(void)
 {
 	int off;
 	u32 *buf = &__clear_page_start;
@@ -333,7 +333,7 @@ void __cpuinit build_clear_page(void)
 	pr_debug("\t.set pop\n");
 }
 
-static void __cpuinit build_copy_load(u32 **buf, int reg, int off)
+static void build_copy_load(u32 **buf, int reg, int off)
 {
 	if (cpu_has_64bit_gp_regs) {
 		uasm_i_ld(buf, reg, off, A1);
@@ -342,7 +342,7 @@ static void __cpuinit build_copy_load(u32 **buf, int reg, int off)
 	}
 }
 
-static void __cpuinit build_copy_store(u32 **buf, int reg, int off)
+static void build_copy_store(u32 **buf, int reg, int off)
 {
 	if (cpu_has_64bit_gp_regs) {
 		uasm_i_sd(buf, reg, off, A0);
@@ -387,7 +387,7 @@ static inline void build_copy_store_pref(u32 **buf, int off)
 	}
 }
 
-void __cpuinit build_copy_page(void)
+void build_copy_page(void)
 {
 	int off;
 	u32 *buf = &__copy_page_start;
