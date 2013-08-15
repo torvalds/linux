@@ -240,7 +240,7 @@ static struct flex_array *alloc_buckets(unsigned int n_buckets)
 	struct flex_array *buckets;
 	int i, err;
 
-	buckets = flex_array_alloc(sizeof(struct hlist_head *),
+	buckets = flex_array_alloc(sizeof(struct hlist_head),
 				   n_buckets, GFP_KERNEL);
 	if (!buckets)
 		return NULL;
