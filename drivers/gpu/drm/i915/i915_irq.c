@@ -942,28 +942,6 @@ static void snb_gt_irq_handler(struct drm_device *dev,
 		ivybridge_parity_error_irq_handler(dev);
 }
 
-/* Legacy way of handling PM interrupts */
-static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv,
-				 u32 pm_iir)
-{
-	/*
-	 * IIR bits should never already be set because IMR should
-	 * prevent an interrupt from being shown in IIR. The warning
-	 * displays a case where we've unsafely cleared
-	 * dev_priv->rps.pm_iir. Although missing an interrupt of the same
-	 * type is not a problem, it displays a problem in the logic.
-	 *
-	 * The mask bit in IMR is cleared by dev_priv->rps.work.
-	 */
-
-	spin_lock(&dev_priv->irq_lock);
-	dev_priv->rps.pm_iir |= pm_iir & GEN6_PM_RPS_EVENTS;
-	snb_disable_pm_irq(dev_priv, pm_iir & GEN6_PM_RPS_EVENTS);
-	spin_unlock(&dev_priv->irq_lock);
-
-	queue_work(dev_priv->wq, &dev_priv->rps.work);
-}
-
 #define HPD_STORM_DETECT_PERIOD 1000
 #define HPD_STORM_THRESHOLD 5
 
@@ -1030,13 +1008,10 @@ static void dp_aux_irq_handler(struct drm_device *dev)
 	wake_up_all(&dev_priv->gmbus_wait_queue);
 }
 
-/* Unlike gen6_rps_irq_handler() from which this function is originally derived,
- * we must be able to deal with other PM interrupts. This is complicated because
- * of the way in which we use the masks to defer the RPS work (which for
- * posterity is necessary because of forcewake).
- */
-static void hsw_pm_irq_handler(struct drm_i915_private *dev_priv,
-			       u32 pm_iir)
+/* The RPS events need forcewake, so we add them to a work queue and mask their
+ * IMR bits until the work is done. Other interrupts can be processed without
+ * the work queue. */
+static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 {
 	if (pm_iir & GEN6_PM_RPS_EVENTS) {
 		spin_lock(&dev_priv->irq_lock);
@@ -1047,12 +1022,14 @@ static void hsw_pm_irq_handler(struct drm_i915_private *dev_priv,
 		queue_work(dev_priv->wq, &dev_priv->rps.work);
 	}
 
-	if (pm_iir & PM_VEBOX_USER_INTERRUPT)
-		notify_ring(dev_priv->dev, &dev_priv->ring[VECS]);
+	if (HAS_VEBOX(dev_priv->dev)) {
+		if (pm_iir & PM_VEBOX_USER_INTERRUPT)
+			notify_ring(dev_priv->dev, &dev_priv->ring[VECS]);
 
-	if (pm_iir & PM_VEBOX_CS_ERROR_INTERRUPT) {
-		DRM_ERROR("VEBOX CS error interrupt 0x%08x\n", pm_iir);
-		i915_handle_error(dev_priv->dev, false);
+		if (pm_iir & PM_VEBOX_CS_ERROR_INTERRUPT) {
+			DRM_ERROR("VEBOX CS error interrupt 0x%08x\n", pm_iir);
+			i915_handle_error(dev_priv->dev, false);
+		}
 	}
 }
 
@@ -1427,10 +1404,7 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 	if (INTEL_INFO(dev)->gen >= 6) {
 		u32 pm_iir = I915_READ(GEN6_PMIIR);
 		if (pm_iir) {
-			if (IS_HASWELL(dev))
-				hsw_pm_irq_handler(dev_priv, pm_iir);
-			else
-				gen6_rps_irq_handler(dev_priv, pm_iir);
+			gen6_rps_irq_handler(dev_priv, pm_iir);
 			I915_WRITE(GEN6_PMIIR, pm_iir);
 			ret = IRQ_HANDLED;
 		}
