@@ -125,10 +125,13 @@ struct wa_seg {
 	u8 xfer_extra[];		/* xtra space for xfer_hdr_ctl */
 };
 
-static void wa_seg_init(struct wa_seg *seg)
+static inline void wa_seg_init(struct wa_seg *seg)
 {
-	/* usb_init_urb() repeats a lot of work, so we do it here */
-	kref_init(&seg->urb.kref);
+	usb_init_urb(&seg->urb);
+
+	/* set the remaining memory to 0. */
+	memset(((void *)seg) + sizeof(seg->urb), 0,
+		sizeof(*seg) - sizeof(seg->urb));
 }
 
 /*
@@ -731,9 +734,9 @@ static int __wa_xfer_setup_segs(struct wa_xfer *xfer, size_t xfer_hdr_size)
 	buf_itr = 0;
 	buf_size = xfer->urb->transfer_buffer_length;
 	for (cnt = 0; cnt < xfer->segs; cnt++) {
-		seg = xfer->seg[cnt] = kzalloc(alloc_size, GFP_ATOMIC);
+		seg = xfer->seg[cnt] = kmalloc(alloc_size, GFP_ATOMIC);
 		if (seg == NULL)
-			goto error_seg_kzalloc;
+			goto error_seg_kmalloc;
 		wa_seg_init(seg);
 		seg->xfer = xfer;
 		seg->index = cnt;
@@ -807,7 +810,7 @@ error_sg_alloc:
 error_dto_alloc:
 	kfree(xfer->seg[cnt]);
 	cnt--;
-error_seg_kzalloc:
+error_seg_kmalloc:
 	/* use the fact that cnt is left at were it failed */
 	for (; cnt >= 0; cnt--) {
 		if (xfer->seg[cnt] && xfer->is_inbound == 0) {
