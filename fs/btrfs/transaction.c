@@ -1311,8 +1311,26 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 					 dentry->d_name.len * 2);
 	parent_inode->i_mtime = parent_inode->i_ctime = CURRENT_TIME;
 	ret = btrfs_update_inode_fallback(trans, parent_root, parent_inode);
-	if (ret)
+	if (ret) {
 		btrfs_abort_transaction(trans, root, ret);
+		goto fail;
+	}
+	ret = btrfs_uuid_tree_add(trans, fs_info->uuid_root, new_uuid.b,
+				  BTRFS_UUID_KEY_SUBVOL, objectid);
+	if (ret) {
+		btrfs_abort_transaction(trans, root, ret);
+		goto fail;
+	}
+	if (!btrfs_is_empty_uuid(new_root_item->received_uuid)) {
+		ret = btrfs_uuid_tree_add(trans, fs_info->uuid_root,
+					  new_root_item->received_uuid,
+					  BTRFS_UUID_KEY_RECEIVED_SUBVOL,
+					  objectid);
+		if (ret && ret != -EEXIST) {
+			btrfs_abort_transaction(trans, root, ret);
+			goto fail;
+		}
+	}
 fail:
 	pending->error = ret;
 dir_item_existed:
