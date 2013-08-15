@@ -1100,7 +1100,7 @@ error_xfer_submit:
  */
 void wa_urb_enqueue_run(struct work_struct *ws)
 {
-	struct wahc *wa = container_of(ws, struct wahc, xfer_work);
+	struct wahc *wa = container_of(ws, struct wahc, xfer_enqueue_work);
 	struct wa_xfer *xfer, *next;
 	struct urb *urb;
 	LIST_HEAD(tmp_list);
@@ -1124,6 +1124,49 @@ void wa_urb_enqueue_run(struct work_struct *ws)
 	}
 }
 EXPORT_SYMBOL_GPL(wa_urb_enqueue_run);
+
+/*
+ * Process the errored transfers on the Wire Adapter outside of interrupt.
+ */
+void wa_process_errored_transfers_run(struct work_struct *ws)
+{
+	struct wahc *wa = container_of(ws, struct wahc, xfer_error_work);
+	struct wa_xfer *xfer, *next;
+	LIST_HEAD(tmp_list);
+
+	pr_info("%s: Run delayed STALL processing.\n", __func__);
+
+	/* Create a copy of the wa->xfer_errored_list while holding the lock */
+	spin_lock_irq(&wa->xfer_list_lock);
+	list_cut_position(&tmp_list, &wa->xfer_errored_list,
+			wa->xfer_errored_list.prev);
+	spin_unlock_irq(&wa->xfer_list_lock);
+
+	/*
+	 * run rpipe_clear_feature_stalled from temp list without list lock
+	 * held.
+	 */
+	list_for_each_entry_safe(xfer, next, &tmp_list, list_node) {
+		struct usb_host_endpoint *ep;
+		unsigned long flags;
+		struct wa_rpipe *rpipe;
+
+		spin_lock_irqsave(&xfer->lock, flags);
+		ep = xfer->ep;
+		rpipe = ep->hcpriv;
+		spin_unlock_irqrestore(&xfer->lock, flags);
+
+		/* clear RPIPE feature stalled without holding a lock. */
+		rpipe_clear_feature_stalled(wa, ep);
+
+		/* complete the xfer. This removes it from the tmp list. */
+		wa_xfer_completion(xfer);
+
+		/* check for work. */
+		wa_xfer_delayed_run(rpipe);
+	}
+}
+EXPORT_SYMBOL_GPL(wa_process_errored_transfers_run);
 
 /*
  * Submit a transfer to the Wire Adapter in a delayed way
@@ -1180,7 +1223,7 @@ int wa_urb_enqueue(struct wahc *wa, struct usb_host_endpoint *ep,
 		spin_lock_irqsave(&wa->xfer_list_lock, my_flags);
 		list_add_tail(&xfer->list_node, &wa->xfer_delayed_list);
 		spin_unlock_irqrestore(&wa->xfer_list_lock, my_flags);
-		queue_work(wusbd, &wa->xfer_work);
+		queue_work(wusbd, &wa->xfer_enqueue_work);
 	} else {
 		wa_urb_enqueue_b(xfer);
 	}
@@ -1222,7 +1265,8 @@ int wa_urb_dequeue(struct wahc *wa, struct urb *urb)
 
 	xfer = urb->hcpriv;
 	if (xfer == NULL) {
-		/* NOthing setup yet enqueue will see urb->status !=
+		/*
+		 * Nothing setup yet enqueue will see urb->status !=
 		 * -EINPROGRESS (by hcd layer) and bail out with
 		 * error, no need to do completion
 		 */
@@ -1360,7 +1404,7 @@ static int wa_xfer_status_to_errno(u8 status)
  *
  * inbound transfers: need to schedule a DTI read
  *
- * FIXME: this functio needs to be broken up in parts
+ * FIXME: this function needs to be broken up in parts
  */
 static void wa_xfer_result_chew(struct wahc *wa, struct wa_xfer *xfer)
 {
@@ -1482,17 +1526,37 @@ error_submit_buf_in:
 	seg->result = result;
 	kfree(wa->buf_in_urb->sg);
 error_sg_alloc:
+	__wa_xfer_abort(xfer);
 error_complete:
 	seg->status = WA_SEG_ERROR;
 	xfer->segs_done++;
 	rpipe_ready = rpipe_avail_inc(rpipe);
-	__wa_xfer_abort(xfer);
 	done = __wa_xfer_is_done(xfer);
-	spin_unlock_irqrestore(&xfer->lock, flags);
-	if (done)
-		wa_xfer_completion(xfer);
-	if (rpipe_ready)
-		wa_xfer_delayed_run(rpipe);
+	/*
+	 * queue work item to clear STALL for control endpoints.
+	 * Otherwise, let endpoint_reset take care of it.
+	 */
+	if (((usb_status & 0x3f) == WA_XFER_STATUS_HALTED) &&
+		usb_endpoint_xfer_control(&xfer->ep->desc) &&
+		done) {
+
+		dev_info(dev, "Control EP stall.  Queue delayed work.\n");
+		spin_lock_irq(&wa->xfer_list_lock);
+		/* remove xfer from xfer_list. */
+		list_del(&xfer->list_node);
+		/* add xfer to xfer_errored_list. */
+		list_add_tail(&xfer->list_node, &wa->xfer_errored_list);
+		spin_unlock_irq(&wa->xfer_list_lock);
+		spin_unlock_irqrestore(&xfer->lock, flags);
+		queue_work(wusbd, &wa->xfer_error_work);
+	} else {
+		spin_unlock_irqrestore(&xfer->lock, flags);
+		if (done)
+			wa_xfer_completion(xfer);
+		if (rpipe_ready)
+			wa_xfer_delayed_run(rpipe);
+	}
+
 	return;
 
 error_bad_seg:
