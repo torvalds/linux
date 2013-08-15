@@ -2338,7 +2338,7 @@ int radeon_asic_init(struct radeon_device *rdev)
 		switch (rdev->family) {
 		case CHIP_TAHITI:
 			rdev->cg_flags =
-				RADEON_CG_SUPPORT_GFX_MGCG |
+				/*RADEON_CG_SUPPORT_GFX_MGCG |*/
 				RADEON_CG_SUPPORT_GFX_MGLS |
 				/*RADEON_CG_SUPPORT_GFX_CGCG |*/
 				RADEON_CG_SUPPORT_GFX_CGLS |
@@ -2355,7 +2355,7 @@ int radeon_asic_init(struct radeon_device *rdev)
 			break;
 		case CHIP_PITCAIRN:
 			rdev->cg_flags =
-				RADEON_CG_SUPPORT_GFX_MGCG |
+				/*RADEON_CG_SUPPORT_GFX_MGCG |*/
 				RADEON_CG_SUPPORT_GFX_MGLS |
 				/*RADEON_CG_SUPPORT_GFX_CGCG |*/
 				RADEON_CG_SUPPORT_GFX_CGLS |
@@ -2374,7 +2374,7 @@ int radeon_asic_init(struct radeon_device *rdev)
 			break;
 		case CHIP_VERDE:
 			rdev->cg_flags =
-				RADEON_CG_SUPPORT_GFX_MGCG |
+				/*RADEON_CG_SUPPORT_GFX_MGCG |*/
 				RADEON_CG_SUPPORT_GFX_MGLS |
 				/*RADEON_CG_SUPPORT_GFX_CGCG |*/
 				RADEON_CG_SUPPORT_GFX_CGLS |
@@ -2395,7 +2395,7 @@ int radeon_asic_init(struct radeon_device *rdev)
 			break;
 		case CHIP_OLAND:
 			rdev->cg_flags =
-				RADEON_CG_SUPPORT_GFX_MGCG |
+				/*RADEON_CG_SUPPORT_GFX_MGCG |*/
 				RADEON_CG_SUPPORT_GFX_MGLS |
 				/*RADEON_CG_SUPPORT_GFX_CGCG |*/
 				RADEON_CG_SUPPORT_GFX_CGLS |
@@ -2413,7 +2413,7 @@ int radeon_asic_init(struct radeon_device *rdev)
 			break;
 		case CHIP_HAINAN:
 			rdev->cg_flags =
-				RADEON_CG_SUPPORT_GFX_MGCG |
+				/*RADEON_CG_SUPPORT_GFX_MGCG |*/
 				RADEON_CG_SUPPORT_GFX_MGLS |
 				/*RADEON_CG_SUPPORT_GFX_CGCG |*/
 				RADEON_CG_SUPPORT_GFX_CGLS |

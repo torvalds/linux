@@ -3371,17 +3371,6 @@ static int si_cp_resume(struct radeon_device *rdev)
 	u32 rb_bufsz;
 	int r;
 
-	/* Reset cp; if cp is reset, then PA, SH, VGT also need to be reset */
-	WREG32(GRBM_SOFT_RESET, (SOFT_RESET_CP |
-				 SOFT_RESET_PA |
-				 SOFT_RESET_VGT |
-				 SOFT_RESET_SPI |
-				 SOFT_RESET_SX));
-	RREG32(GRBM_SOFT_RESET);
-	mdelay(15);
-	WREG32(GRBM_SOFT_RESET, 0);
-	RREG32(GRBM_SOFT_RESET);
-
 	WREG32(CP_SEM_WAIT_TIMER, 0x0);
 	WREG32(CP_SEM_INCOMPLETE_TIMER_CNTL, 0x0);
 
@@ -4971,9 +4960,9 @@ static void si_enable_cgcg(struct radeon_device *rdev,
 
 	orig = data = RREG32(RLC_CGCG_CGLS_CTRL);
 
-	si_enable_gui_idle_interrupt(rdev, enable);
-
 	if (enable && (rdev->cg_flags & RADEON_CG_SUPPORT_GFX_CGCG)) {
+		si_enable_gui_idle_interrupt(rdev, true);
+
 		WREG32(RLC_GCPM_GENERAL_3, 0x00000080);
 
 		tmp = si_halt_rlc(rdev);
@@ -4990,6 +4979,8 @@ static void si_enable_cgcg(struct radeon_device *rdev,
 
 		data |= CGCG_EN | CGLS_EN;
 	} else {
+		si_enable_gui_idle_interrupt(rdev, false);
+
 		RREG32(CB_CGTT_SCLK_CTRL);
 		RREG32(CB_CGTT_SCLK_CTRL);
 		RREG32(CB_CGTT_SCLK_CTRL);
