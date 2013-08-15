@@ -248,8 +248,7 @@ static void x38_check(struct mem_ctl_info *mci)
 	x38_process_error_info(mci, &info);
 }
 
-
-void __iomem *x38_map_mchbar(struct pci_dev *pdev)
+static void __iomem *x38_map_mchbar(struct pci_dev *pdev)
 {
 	union {
 		u64 mchbar;
