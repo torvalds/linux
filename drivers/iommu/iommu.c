@@ -402,6 +402,8 @@ void iommu_group_remove_device(struct device *dev)
 	sysfs_remove_link(group->devices_kobj, device->name);
 	sysfs_remove_link(&dev->kobj, "iommu_group");
 
+	trace_remove_device_from_group(group->id, dev);
+
 	kfree(device->name);
 	kfree(device);
 	dev->iommu_group = NULL;
