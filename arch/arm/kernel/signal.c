@@ -8,6 +8,7 @@
  * published by the Free Software Foundation.
  */
 #include <linux/errno.h>
+#include <linux/random.h>
 #include <linux/signal.h>
 #include <linux/personality.h>
 #include <linux/uaccess.h>
@@ -15,11 +16,10 @@
 
 #include <asm/elf.h>
 #include <asm/cacheflush.h>
+#include <asm/traps.h>
 #include <asm/ucontext.h>
 #include <asm/unistd.h>
 #include <asm/vfp.h>
-
-#include "signal.h"
 
 /*
  * For ARM syscalls, we encode the syscall number into the instruction.
@@ -40,10 +40,12 @@
 #define SWI_THUMB_SIGRETURN	(0xdf00 << 16 | 0x2700 | (__NR_sigreturn - __NR_SYSCALL_BASE))
 #define SWI_THUMB_RT_SIGRETURN	(0xdf00 << 16 | 0x2700 | (__NR_rt_sigreturn - __NR_SYSCALL_BASE))
 
-const unsigned long sigreturn_codes[7] = {
+static const unsigned long sigreturn_codes[7] = {
 	MOV_R7_NR_SIGRETURN,    SWI_SYS_SIGRETURN,    SWI_THUMB_SIGRETURN,
 	MOV_R7_NR_RT_SIGRETURN, SWI_SYS_RT_SIGRETURN, SWI_THUMB_RT_SIGRETURN,
 };
+
+static unsigned long signal_return_offset;
 
 #ifdef CONFIG_CRUNCH
 static int preserve_crunch_context(struct crunch_sigframe __user *frame)
@@ -400,14 +402,20 @@ setup_return(struct pt_regs *regs, struct ksignal *ksig,
 		    __put_user(sigreturn_codes[idx+1], rc+1))
 			return 1;
 
-		if ((cpsr & MODE32_BIT) && !IS_ENABLED(CONFIG_ARM_MPU)) {
+#ifdef CONFIG_MMU
+		if (cpsr & MODE32_BIT) {
+			struct mm_struct *mm = current->mm;
+
 			/*
-			 * 32-bit code can use the new high-page
-			 * signal return code support except when the MPU has
-			 * protected the vectors page from PL0
+			 * 32-bit code can use the signal return page
+			 * except when the MPU has protected the vectors
+			 * page from PL0
 			 */
-			retcode = KERN_SIGRETURN_CODE + (idx << 2) + thumb;
-		} else {
+			retcode = mm->context.sigpage + signal_return_offset +
+				  (idx << 2) + thumb;
+		} else
+#endif
+		{
 			/*
 			 * Ensure that the instruction cache sees
 			 * the return code written onto the stack.
@@ -607,4 +615,34 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
 		thread_flags = current_thread_info()->flags;
 	} while (thread_flags & _TIF_WORK_MASK);
 	return 0;
+}
+
+struct page *get_signal_page(void)
+{
+	unsigned long ptr;
+	unsigned offset;
+	struct page *page;
+	void *addr;
+
+	page = alloc_pages(GFP_KERNEL, 0);
+
+	if (!page)
+		return NULL;
+
+	addr = page_address(page);
+
+	/* Give the signal return code some randomness */
+	offset = 0x200 + (get_random_int() & 0x7fc);
+	signal_return_offset = offset;
+
+	/*
+	 * Copy signal return handlers into the vector page, and
+	 * set sigreturn to be a pointer to these.
+	 */
+	memcpy(addr + offset, sigreturn_codes, sizeof(sigreturn_codes));
+
+	ptr = (unsigned long)addr + offset;
+	flush_icache_range(ptr, ptr + sizeof(sigreturn_codes));
+
+	return page;
 }

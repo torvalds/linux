@@ -24,6 +24,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/dmapool.h>
+#include <linux/dma-mapping.h>
 
 #include "xhci.h"
 

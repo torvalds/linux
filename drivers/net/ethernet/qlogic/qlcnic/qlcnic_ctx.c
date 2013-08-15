@@ -104,7 +104,7 @@ static u32
 qlcnic_poll_rsp(struct qlcnic_adapter *adapter)
 {
 	u32 rsp;
-	int timeout = 0;
+	int timeout = 0, err = 0;
 
 	do {
 		/* give atleast 1ms for firmware to respond */
@@ -113,7 +113,7 @@ qlcnic_poll_rsp(struct qlcnic_adapter *adapter)
 		if (++timeout > QLCNIC_OS_CRB_RETRY_COUNT)
 			return QLCNIC_CDRP_RSP_TIMEOUT;
 
-		rsp = QLCRD32(adapter, QLCNIC_CDRP_CRB_OFFSET);
+		rsp = QLCRD32(adapter, QLCNIC_CDRP_CRB_OFFSET, &err);
 	} while (!QLCNIC_CDRP_IS_RSP(rsp));
 
 	return rsp;
@@ -122,7 +122,7 @@ qlcnic_poll_rsp(struct qlcnic_adapter *adapter)
 int qlcnic_82xx_issue_cmd(struct qlcnic_adapter *adapter,
 			  struct qlcnic_cmd_args *cmd)
 {
-	int i;
+	int i, err = 0;
 	u32 rsp;
 	u32 signature;
 	struct pci_dev *pdev = adapter->pdev;
@@ -148,7 +148,7 @@ int qlcnic_82xx_issue_cmd(struct qlcnic_adapter *adapter,
 		dev_err(&pdev->dev, "card response timeout.\n");
 		cmd->rsp.arg[0] = QLCNIC_RCODE_TIMEOUT;
 	} else if (rsp == QLCNIC_CDRP_RSP_FAIL) {
-		cmd->rsp.arg[0] = QLCRD32(adapter, QLCNIC_CDRP_ARG(1));
+		cmd->rsp.arg[0] = QLCRD32(adapter, QLCNIC_CDRP_ARG(1), &err);
 		switch (cmd->rsp.arg[0]) {
 		case QLCNIC_RCODE_INVALID_ARGS:
 			fmt = "CDRP invalid args: [%d]\n";
@@ -175,7 +175,7 @@ int qlcnic_82xx_issue_cmd(struct qlcnic_adapter *adapter,
 		cmd->rsp.arg[0] = QLCNIC_RCODE_SUCCESS;
 
 	for (i = 1; i < cmd->rsp.num; i++)
-		cmd->rsp.arg[i] = QLCRD32(adapter, QLCNIC_CDRP_ARG(i));
+		cmd->rsp.arg[i] = QLCRD32(adapter, QLCNIC_CDRP_ARG(i), &err);
 
 	/* Release semaphore */
 	qlcnic_api_unlock(adapter);
@@ -210,10 +210,10 @@ int qlcnic_fw_cmd_set_drv_version(struct qlcnic_adapter *adapter, u32 fw_cmd)
 	if (err) {
 		dev_info(&adapter->pdev->dev,
 			 "Failed to set driver version in firmware\n");
-		return -EIO;
+		err = -EIO;
 	}
-
-	return 0;
+	qlcnic_free_mbx_args(&cmd);
+	return err;
 }
 
 int

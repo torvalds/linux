@@ -167,6 +167,7 @@ int radeon_msi = -1;
 int radeon_lockup_timeout = 10000;
 int radeon_fastfb = 0;
 int radeon_dpm = -1;
+int radeon_aspm = -1;
 
 MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers");
 module_param_named(no_wb, radeon_no_wb, int, 0444);
@@ -224,6 +225,9 @@ module_param_named(fastfb, radeon_fastfb, int, 0444);
 
 MODULE_PARM_DESC(dpm, "DPM support (1 = enable, 0 = disable, -1 = auto)");
 module_param_named(dpm, radeon_dpm, int, 0444);
+
+MODULE_PARM_DESC(aspm, "ASPM support (1 = enable, 0 = disable, -1 = auto)");
+module_param_named(aspm, radeon_aspm, int, 0444);
 
 static struct pci_device_id pciidlist[] = {
 	radeon_PCI_IDS
