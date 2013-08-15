@@ -171,12 +171,6 @@ static int nspire_keypad_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "missing platform resources\n");
-		return -EINVAL;
-	}
-
 	keypad = devm_kzalloc(&pdev->dev, sizeof(struct nspire_keypad),
 			      GFP_KERNEL);
 	if (!keypad) {
@@ -208,6 +202,7 @@ static int nspire_keypad_probe(struct platform_device *pdev)
 		return PTR_ERR(keypad->clk);
 	}
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	keypad->reg_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(keypad->reg_base))
 		return PTR_ERR(keypad->reg_base);
