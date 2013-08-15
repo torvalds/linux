@@ -842,6 +842,8 @@ int iommu_map(struct iommu_domain *domain, unsigned long iova,
 	/* unroll mapping in case something went wrong */
 	if (ret)
 		iommu_unmap(domain, orig_iova, orig_size - size);
+	else
+		trace_map(iova, paddr, size);
 
 	return ret;
 }
