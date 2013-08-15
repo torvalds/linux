@@ -310,7 +310,7 @@ void iser_free_rx_descriptors(struct iser_conn *ib_conn)
 	if (!ib_conn->rx_descs)
 		goto free_login_buf;
 
-	if (device && device->iser_free_rdma_reg_res)
+	if (device->iser_free_rdma_reg_res)
 		device->iser_free_rdma_reg_res(ib_conn);
 
 	rx_desc = ib_conn->rx_descs;
