@@ -34,20 +34,30 @@ Comprehensive camera device registration:
                           
 */
 static struct rkcamera_platform_data new_camera[] = { 
-    new_camera_device(RK29_CAM_SENSOR_GC2035,
-                        back,
+
+ /*   new_camera_device(RK29_CAM_SENSOR_OV2659,
+                        front,
+                        RK30_PIN3_PB3,
+                        0,
+                        0,
+                        1,
+                        0),*/
+   new_camera_device(RK29_CAM_SENSOR_GC0308,
+                        front,
                         RK30_PIN3_PB3,
                         0,
                         0,
                         1,
                         0),
+                        
     new_camera_device(RK29_CAM_SENSOR_GC0308,
-                        front,
+                        back,
                         RK30_PIN3_PD7,
                         0,
                         0,
                         1,
                         0), 
+                        
     new_camera_device_end
 };
 /*---------------- Camera Sensor Macro Define Begin  ------------------------*/
@@ -208,7 +218,7 @@ static struct rkcamera_platform_data new_camera[] = {
 #define CONFIG_SENSOR_POWERDOWN_IOCTL_USR	   0
 #define CONFIG_SENSOR_FLASH_IOCTL_USR	   0
 #else
-#define CAMERA_NAME                        "gc0308_front_4"
+#define CAMERA_NAME                        "gc0308_back_4"
 #define CONFIG_SENSOR_POWER_IOCTL_USR	   1 //define this refer to your board layout
 #define CONFIG_SENSOR_RESET_IOCTL_USR	   0
 #define CONFIG_SENSOR_POWERDOWN_IOCTL_USR  1 	    
@@ -320,6 +330,7 @@ static void rk_cif_powerdowen(int on)
                    regulator_enable(ldo_28);
                    printk(" %s set  vpll vcc28_cif=%dmV end\n", __func__, regulator_get_voltage(ldo_28));
                    regulator_put(ldo_28);
+		  
             }else{//disable camera
             	    if(regulator_is_enabled(ldo_28)>0){
 		    	printk("%s[%d]\n",__func__,__LINE__);
@@ -354,12 +365,12 @@ int camera_powerdown = res->gpio_powerdown;
 
     #if 1 //defined(CONFIG_MACH_RK2926_V86)
     int ret = 0; 
-    printk("hjc:%s,%s\n\n\n",__func__,res->dev_name);
+    printk("hjc:%s,%s,on=%d\n\n\n",__func__,res->dev_name,on);
     if(strcmp(res->dev_name,CAMERA_NAME)==0)//"gc0308_front_3") == 0)
     { 
         //如果为pmu控制的引脚，"ov5642_front_1" 根据 sensor名字 ，前后置 ， sensor序号确定 
         //具体pmu控制操作，可参考文件末尾的参考代码 
-        printk("%s.............pwm power\n",__FUNCTION__);
+        //printk("\n\n%s.............pwm power,on=%d\n",__FUNCTION__,on);
         rk_cif_powerdowen(on);
     }else{ //gpio控制的操作
          //   int camera_powerdown = res->gpio_powerdown;

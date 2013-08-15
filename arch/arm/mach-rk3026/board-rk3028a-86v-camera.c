@@ -36,14 +36,14 @@ Comprehensive camera device registration:
 static struct rkcamera_platform_data new_camera[] = { 
     new_camera_device(RK29_CAM_SENSOR_GC2035,
                         back,
-                        RK30_PIN0_PB3,
+                        RK30_PIN3_PB3,
                         0,
                         0,
                         1,
                         0),
     new_camera_device(RK29_CAM_SENSOR_GC0308,
                         front,
-                        RK30_PIN0_PB2,
+                        RK30_PIN3_PD7,
                         0,
                         0,
                         1,
@@ -210,8 +210,13 @@ static struct rkcamera_platform_data new_camera[] = {
 static void rk_cif_power(int on)
 {
     struct regulator *ldo_18,*ldo_28;
+    #if defined(CONFIG_MACH_RK3028A_86V)
 	ldo_28 = regulator_get(NULL, "ldo7");	// vcc28_cif
 	ldo_18 = regulator_get(NULL, "ldo1");	// vcc18_cif
+    #else
+        ldo_28 = regulator_get(NULL, "vaux1");   // vcc28_cif
+	ldo_18 = regulator_get(NULL, "vdig1");   // vcc18_cif
+    #endif
 	if (ldo_28 == NULL || IS_ERR(ldo_28) || ldo_18 == NULL || IS_ERR(ldo_18)){
         printk("get cif ldo failed!\n");
 		return;

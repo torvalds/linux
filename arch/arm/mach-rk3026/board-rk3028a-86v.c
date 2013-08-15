@@ -210,6 +210,7 @@ static int rk29_backlight_io_init(void)
 	int ret = 0;
 
 	iomux_set(pwm_mode[BL_PWM]);
+	msleep(50);
 #ifdef  LCD_DISP_ON_PIN
 	ret = rk_gpio_request(BL_EN_PIN, GPIOF_DIR_OUT, BL_EN_VALUE, "bl_en");
 	if(ret < 0)
@@ -665,14 +666,6 @@ static struct sensor_platform_data cm3217_info = {
 #include <plat/key.h>
 
 static struct rk29_keys_button key_button[] = {
-#ifdef RK31XX_MAINBOARD_V1
-        {
-                .desc   = "vol-",
-                .code   = KEY_VOLUMEDOWN,
-		.adc_value      = 744,
-                .gpio   = INVALID_GPIO,
-                .active_low = PRESS_LEV_LOW,
-        },
         {
                 .desc   = "play",
                 .code   = KEY_POWER,
@@ -680,74 +673,43 @@ static struct rk29_keys_button key_button[] = {
                 .active_low = PRESS_LEV_LOW,
                 .wakeup = 1,
         },
-        {
-                .desc   = "vol+",
-                .code   = KEY_VOLUMEUP,
-                .adc_value      = 558,
-                .gpio = INVALID_GPIO,
-                .active_low = PRESS_LEV_LOW,
-        },
+/* disable adc keyboard,
+ * because rk280a adc reference voltage is 3.3V, but
+ * rk30xx mainbord key's supply voltage is 2.5V and
+ * rk31xx mainbord key's supply voltage is 1.8V.
+ */
+ /*
 	{
-                .desc   = "menu",
-                .code   = EV_MENU,
-                .adc_value      = 1,
-                .gpio = INVALID_GPIO,
-                .active_low = PRESS_LEV_LOW,
-        },
-        {
-                .desc   = "home",
-                .code   = KEY_HOME,
-                .adc_value      = 354,
-                .gpio = INVALID_GPIO,
-                .active_low = PRESS_LEV_LOW,
-        },
-        {
-                .desc   = "esc",
-                .code   = KEY_BACK,
-                .adc_value      = 169,
+		.desc	= "vol+",
+		.code	= KEY_VOLUMEUP,
 		.gpio = INVALID_GPIO,
+		.adc_value	= 1,
 		.active_low = PRESS_LEV_LOW,
 	},
-#else
-        {
-                .desc   = "vol-",
-                .code   = KEY_VOLUMEDOWN,
-		.adc_value      = 900,
-                .gpio   = INVALID_GPIO,
-                .active_low = PRESS_LEV_LOW,
-        },
-        {
-                .desc   = "play",
-                .code   = KEY_POWER,
-                .gpio   = PLAY_ON_PIN,
-                .active_low = PRESS_LEV_LOW,
-                .wakeup = 1,
-        },
-        {
-                .desc   = "vol+",
-                .code   = KEY_VOLUMEUP,
-                .adc_value      = 1,
-                .gpio = INVALID_GPIO,
-                .active_low = PRESS_LEV_LOW,
-        },
 	{
-                .desc   = "menu",
-                .code   = EV_MENU,
-                .adc_value      = 133,
-                .gpio = INVALID_GPIO,
-                .active_low = PRESS_LEV_LOW,
-        },
-        {
-                .desc   = "home",
-                .code   = KEY_HOME,
-                .adc_value      = 550,
-                .gpio = INVALID_GPIO,
-                .active_low = PRESS_LEV_LOW,
-        },
-        {
-                .desc   = "esc",
-                .code   = KEY_BACK,
-                .adc_value      = 333,
+		.desc	= "vol-",
+		.code	= KEY_VOLUMEDOWN,
+		.gpio = INVALID_GPIO,
+		.adc_value	= 512,
+		.active_low = PRESS_LEV_LOW,
+	},
+	{
+        .desc   = "menu",
+        .code   = EV_MENU,
+        .adc_value      = 133,
+        .gpio = INVALID_GPIO,
+        .active_low = PRESS_LEV_LOW,
+    },
+    {
+         .code   = KEY_HOME,
+         .adc_value      = 550,
+         .gpio = INVALID_GPIO,
+         .active_low = PRESS_LEV_LOW,
+    },
+    {
+         .desc   = "esc",
+         .code   = KEY_BACK,
+         .adc_value      = 333,
 		.gpio = INVALID_GPIO,
 		.active_low = PRESS_LEV_LOW,
 	},
@@ -757,14 +719,14 @@ static struct rk29_keys_button key_button[] = {
 		.adc_value	= 742,
 		.gpio = INVALID_GPIO,
 		.active_low = PRESS_LEV_LOW,
-	},
-#endif
+	},*/
+
 };
 
 struct rk29_keys_platform_data rk29_keys_pdata = {
 	.buttons	= key_button,
 	.nbuttons	= ARRAY_SIZE(key_button),
-	.chn	= 1,  //chn: 0-7, if do not use ADC,set 'chn' -1
+	.chn	= 3,  //chn: 0-7, if do not use ADC,set 'chn' -1
 };
 
 /***********************************************************
@@ -1036,30 +998,6 @@ static struct platform_device device_ion = {
 };
 #endif
 
-#ifdef CONFIG_SND_SOC_RK3026
-struct rk3026_codec_pdata rk3026_codec_pdata_info={
-	    .spk_ctl_gpio = RK2928_PIN3_PD4,
-	    .hp_ctl_gpio = RK2928_PIN3_PD4,
-	};
-
-static struct resource resources_acodec[] = {
-	{
-		.start 	= RK2928_ACODEC_PHYS,
-		.end 	= RK2928_ACODEC_PHYS + RK2928_ACODEC_SIZE - 1,
-		.flags 	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device rk3026_codec = {
-	.name   = "rk3026-codec",
-   	.id     = -1,
-	.resource = resources_acodec,
-	.dev = {
-	       .platform_data = &rk3026_codec_pdata_info,
-		    }
-	};
-#endif
-
 /***********************************************************
 *	pwm regulator
 ************************************************************/
@@ -1265,6 +1203,29 @@ void __sramfunc board_pmu_resume(void)
 	#endif
 }
 
+#ifdef CONFIG_SND_SOC_RK3026
+struct rk3026_codec_pdata rk3026_codec_pdata_info={
+    .spk_ctl_gpio = RK2928_PIN3_PD4,
+    .hp_ctl_gpio = RK2928_PIN3_PD4,
+};
+
+static struct resource resources_acodec[] = {
+	{
+		.start 	= RK2928_ACODEC_PHYS,
+		.end 	= RK2928_ACODEC_PHYS + RK2928_ACODEC_SIZE - 1,
+		.flags 	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device rk3026_codec = {
+	.name	= "rk3026-codec",
+	.id		= -1,
+	.resource = resources_acodec,
+    	.dev = {
+        	.platform_data = &rk3026_codec_pdata_info,
+    }
+};
+#endif
 #if defined(CONFIG_GPS_RK)
 #define GPS_OSCEN_PIN 	RK2928_PIN1_PB0
 #define GPS_RXEN_PIN 	RK2928_PIN1_PB0
