@@ -321,7 +321,7 @@ enum {
 	Opt_enospc_debug, Opt_subvolrootid, Opt_defrag, Opt_inode_cache,
 	Opt_no_space_cache, Opt_recovery, Opt_skip_balance,
 	Opt_check_integrity, Opt_check_integrity_including_extent_data,
-	Opt_check_integrity_print_mask, Opt_fatal_errors,
+	Opt_check_integrity_print_mask, Opt_fatal_errors, Opt_rescan_uuid_tree,
 	Opt_commit_interval,
 	Opt_err,
 };
@@ -362,6 +362,7 @@ static match_table_t tokens = {
 	{Opt_check_integrity, "check_int"},
 	{Opt_check_integrity_including_extent_data, "check_int_data"},
 	{Opt_check_integrity_print_mask, "check_int_print_mask=%d"},
+	{Opt_rescan_uuid_tree, "rescan_uuid_tree"},
 	{Opt_fatal_errors, "fatal_errors=%s"},
 	{Opt_commit_interval, "commit=%d"},
 	{Opt_err, NULL},
@@ -571,6 +572,9 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			break;
 		case Opt_space_cache:
 			btrfs_set_opt(info->mount_opt, SPACE_CACHE);
+			break;
+		case Opt_rescan_uuid_tree:
+			btrfs_set_opt(info->mount_opt, RESCAN_UUID_TREE);
 			break;
 		case Opt_no_space_cache:
 			printk(KERN_INFO "btrfs: disabling disk space caching\n");
@@ -979,6 +983,8 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 		seq_puts(seq, ",space_cache");
 	else
 		seq_puts(seq, ",nospace_cache");
+	if (btrfs_test_opt(root, RESCAN_UUID_TREE))
+		seq_puts(seq, ",rescan_uuid_tree");
 	if (btrfs_test_opt(root, CLEAR_CACHE))
 		seq_puts(seq, ",clear_cache");
 	if (btrfs_test_opt(root, USER_SUBVOL_RM_ALLOWED))

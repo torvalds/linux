@@ -2929,7 +2929,8 @@ retry_root_backup:
 			close_ctree(tree_root);
 			return ret;
 		}
-	} else if (check_uuid_tree) {
+	} else if (check_uuid_tree ||
+		   btrfs_test_opt(tree_root, RESCAN_UUID_TREE)) {
 		pr_info("btrfs: checking UUID tree\n");
 		ret = btrfs_check_uuid_tree(fs_info);
 		if (ret) {
