@@ -61,20 +61,6 @@ xfs_ail_check(
 #endif /* DEBUG */
 
 /*
- * Return a pointer to the first item in the AIL.  If the AIL is empty, then
- * return NULL.
- */
-xfs_log_item_t *
-xfs_ail_min(
-	struct xfs_ail  *ailp)
-{
-	if (list_empty(&ailp->xa_ail))
-		return NULL;
-
-	return list_first_entry(&ailp->xa_ail, xfs_log_item_t, li_ail);
-}
-
- /*
  * Return a pointer to the last item in the AIL.  If the AIL is empty, then
  * return NULL.
  */
