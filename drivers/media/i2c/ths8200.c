@@ -133,39 +133,6 @@ static int ths8200_s_register(struct v4l2_subdev *sd,
 }
 #endif
 
-static void ths8200_print_timings(struct v4l2_subdev *sd,
-				  struct v4l2_dv_timings *timings,
-				  const char *txt, bool detailed)
-{
-	struct v4l2_bt_timings *bt = &timings->bt;
-	u32 htot, vtot;
-
-	if (timings->type != V4L2_DV_BT_656_1120)
-		return;
-
-	htot = htotal(bt);
-	vtot = vtotal(bt);
-
-	v4l2_info(sd, "%s %dx%d%s%d (%dx%d)",
-		  txt, bt->width, bt->height, bt->interlaced ? "i" : "p",
-		  (htot * vtot) > 0 ? ((u32)bt->pixelclock / (htot * vtot)) : 0,
-		  htot, vtot);
-
-	if (detailed) {
-		v4l2_info(sd, "    horizontal: fp = %d, %ssync = %d, bp = %d\n",
-			  bt->hfrontporch,
-			  (bt->polarities & V4L2_DV_HSYNC_POS_POL) ? "+" : "-",
-			  bt->hsync, bt->hbackporch);
-		v4l2_info(sd, "    vertical: fp = %d, %ssync = %d, bp = %d\n",
-			  bt->vfrontporch,
-			  (bt->polarities & V4L2_DV_VSYNC_POS_POL) ? "+" : "-",
-			  bt->vsync, bt->vbackporch);
-		v4l2_info(sd,
-			  "    pixelclock: %lld, flags: 0x%x, standards: 0x%x\n",
-			  bt->pixelclock, bt->flags, bt->standards);
-	}
-}
-
 static int ths8200_log_status(struct v4l2_subdev *sd)
 {
 	struct ths8200_state *state = to_state(sd);
@@ -182,9 +149,8 @@ static int ths8200_log_status(struct v4l2_subdev *sd)
 		  ths8200_read(sd, THS8200_DTG2_PIXEL_CNT_LSB),
 		  (ths8200_read(sd, THS8200_DTG2_LINE_CNT_MSB) & 0x07) * 256 +
 		  ths8200_read(sd, THS8200_DTG2_LINE_CNT_LSB));
-	ths8200_print_timings(sd, &state->dv_timings,
-			      "Configured format:", true);
-
+	v4l2_print_dv_timings(sd->name, "Configured format:",
+			      &state->dv_timings, true);
 	return 0;
 }
 

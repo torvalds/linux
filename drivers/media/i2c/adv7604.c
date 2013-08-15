@@ -1051,53 +1051,6 @@ static int adv7604_g_input_status(struct v4l2_subdev *sd, u32 *status)
 
 /* ----------------------------------------------------------------------- */
 
-static void adv7604_print_timings(struct v4l2_subdev *sd,
-				  struct v4l2_dv_timings *timings,
-				  const char *txt, bool detailed)
-{
-	struct v4l2_bt_timings *bt = &timings->bt;
-	u32 htot, vtot;
-
-	if (timings->type != V4L2_DV_BT_656_1120)
-		return;
-
-	htot = htotal(bt);
-	vtot = vtotal(bt);
-
-	v4l2_info(sd, "%s %dx%d%s%d (%dx%d)",
-			txt, bt->width, bt->height, bt->interlaced ? "i" : "p",
-			(htot * vtot) > 0 ? ((u32)bt->pixelclock /
-				(htot * vtot)) : 0,
-			htot, vtot);
-
-	if (!detailed)
-		return;
-
-	v4l2_info(sd, "    horizontal: fp = %d, %ssync = %d, bp = %d\n",
-			bt->hfrontporch,
-			(bt->polarities & V4L2_DV_HSYNC_POS_POL) ? "+" : "-",
-			bt->hsync, bt->hbackporch);
-	v4l2_info(sd, "    vertical: fp = %d, %ssync = %d, bp = %d\n",
-			bt->vfrontporch,
-			(bt->polarities & V4L2_DV_VSYNC_POS_POL) ? "+" : "-",
-			bt->vsync, bt->vbackporch);
-	v4l2_info(sd, "    pixelclock: %lld\n", bt->pixelclock);
-	v4l2_info(sd, "    flags (0x%x):%s%s%s%s\n", bt->flags,
-			(bt->flags & V4L2_DV_FL_REDUCED_BLANKING) ?
-			" Reduced blanking," : "",
-			(bt->flags & V4L2_DV_FL_CAN_REDUCE_FPS) ?
-			" Can reduce FPS," : "",
-			(bt->flags & V4L2_DV_FL_REDUCED_FPS) ?
-			" Reduced FPS," : "",
-			(bt->flags & V4L2_DV_FL_HALF_LINE) ?
-			" Half line," : "");
-	v4l2_info(sd, "    standards (0x%x):%s%s%s%s\n", bt->standards,
-			(bt->standards & V4L2_DV_BT_STD_CEA861) ?  " CEA," : "",
-			(bt->standards & V4L2_DV_BT_STD_DMT) ?  " DMT," : "",
-			(bt->standards & V4L2_DV_BT_STD_CVT) ?  " CVT" : "",
-			(bt->standards & V4L2_DV_BT_STD_GTF) ?  " GTF" : "");
-}
-
 struct stdi_readback {
 	u16 bl, lcf, lcvs;
 	u8 hs_pol, vs_pol;
@@ -1360,8 +1313,8 @@ found:
 	}
 
 	if (debug > 1)
-		adv7604_print_timings(sd, timings,
-				"adv7604_query_dv_timings:", true);
+		v4l2_print_dv_timings(sd->name, "adv7604_query_dv_timings: ",
+				      timings, true);
 
 	return 0;
 }
@@ -1403,8 +1356,8 @@ static int adv7604_s_dv_timings(struct v4l2_subdev *sd,
 
 
 	if (debug > 1)
-		adv7604_print_timings(sd, timings,
-				"adv7604_s_dv_timings:", true);
+		v4l2_print_dv_timings(sd->name, "adv7604_s_dv_timings: ",
+				      timings, true);
 	return 0;
 }
 
@@ -1770,8 +1723,10 @@ static int adv7604_log_status(struct v4l2_subdev *sd)
 	if (adv7604_query_dv_timings(sd, &timings))
 		v4l2_info(sd, "No video detected\n");
 	else
-		adv7604_print_timings(sd, &timings, "Detected format:", true);
-	adv7604_print_timings(sd, &state->timings, "Configured format:", true);
+		v4l2_print_dv_timings(sd->name, "Detected format: ",
+				      &timings, true);
+	v4l2_print_dv_timings(sd->name, "Configured format: ",
+			      &state->timings, true);
 
 	if (no_signal(sd))
 		return 0;

@@ -443,20 +443,11 @@ static int ad9389b_log_status(struct v4l2_subdev *sd)
 				vic_detect, vic_sent);
 		}
 	}
-	if (state->dv_timings.type == V4L2_DV_BT_656_1120) {
-		struct v4l2_bt_timings *bt = bt = &state->dv_timings.bt;
-		u32 frame_width = V4L2_DV_BT_FRAME_WIDTH(bt);
-		u32 frame_height = V4L2_DV_BT_FRAME_HEIGHT(bt);
-		u32 frame_size = frame_width * frame_height;
-
-		v4l2_info(sd, "timings: %ux%u%s%u (%ux%u). Pix freq. = %u Hz. Polarities = 0x%x\n",
-			bt->width, bt->height, bt->interlaced ? "i" : "p",
-			frame_size > 0 ?  (unsigned)bt->pixelclock / frame_size : 0,
-			frame_width, frame_height,
-			(unsigned)bt->pixelclock, bt->polarities);
-	} else {
+	if (state->dv_timings.type == V4L2_DV_BT_656_1120)
+		v4l2_print_dv_timings(sd->name, "timings: ",
+				&state->dv_timings, false);
+	else
 		v4l2_info(sd, "no timings set\n");
-	}
 	return 0;
 }
 
