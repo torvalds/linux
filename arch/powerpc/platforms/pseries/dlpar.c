@@ -83,6 +83,9 @@ static struct device_node *dlpar_parse_cc_node(struct cc_workarea *ccwa)
 		return NULL;
 	}
 
+	of_node_set_flag(dn, OF_DYNAMIC);
+	kref_init(&dn->kref);
+
 	return dn;
 }
 
@@ -256,8 +259,6 @@ int dlpar_attach_node(struct device_node *dn)
 {
 	int rc;
 
-	of_node_set_flag(dn, OF_DYNAMIC);
-	kref_init(&dn->kref);
 	dn->parent = derive_parent(dn->full_name);
 	if (!dn->parent)
 		return -ENOMEM;
