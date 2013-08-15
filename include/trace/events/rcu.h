@@ -183,8 +183,12 @@ TRACE_EVENT(rcu_grace_period_init,
  *	"WakeOvf": Wake rcuo kthread, CB list is huge.
  *	"WakeNot": Don't wake rcuo kthread.
  *	"WakeNotPoll": Don't wake rcuo kthread because it is polling.
+ *	"Poll": Start of new polling cycle for rcu_nocb_poll.
+ *	"Sleep": Sleep waiting for CBs for !rcu_nocb_poll.
  *	"WokeEmpty": rcuo kthread woke to find empty list.
  *	"WokeNonEmpty": rcuo kthread woke to find non-empty list.
+ *	"WaitQueue": Enqueue partially done, timed wait for it to complete.
+ *	"WokeQueue": Partial enqueue now complete.
  */
 TRACE_EVENT(rcu_nocb_wake,
 

@@ -2230,6 +2230,7 @@ static void rcu_nocb_wait_gp(struct rcu_data *rdp)
 static int rcu_nocb_kthread(void *arg)
 {
 	int c, cl;
+	bool firsttime = 1;
 	struct rcu_head *list;
 	struct rcu_head *next;
 	struct rcu_head **tail;
@@ -2238,8 +2239,15 @@ static int rcu_nocb_kthread(void *arg)
 	/* Each pass through this loop invokes one batch of callbacks */
 	for (;;) {
 		/* If not polling, wait for next batch of callbacks. */
-		if (!rcu_nocb_poll)
+		if (!rcu_nocb_poll) {
+			trace_rcu_nocb_wake(rdp->rsp->name, rdp->cpu,
+					    TPS("Sleep"));
 			wait_event_interruptible(rdp->nocb_wq, rdp->nocb_head);
+		} else if (firsttime) {
+			firsttime = 0;
+			trace_rcu_nocb_wake(rdp->rsp->name, rdp->cpu,
+					    TPS("Poll"));
+		}
 		list = ACCESS_ONCE(rdp->nocb_head);
 		if (!list) {
 			if (!rcu_nocb_poll)
@@ -2249,6 +2257,7 @@ static int rcu_nocb_kthread(void *arg)
 			flush_signals(current);
 			continue;
 		}
+		firsttime = 1;
 		trace_rcu_nocb_wake(rdp->rsp->name, rdp->cpu,
 				    TPS("WokeNonEmpty"));
 
@@ -2271,7 +2280,11 @@ static int rcu_nocb_kthread(void *arg)
 			next = list->next;
 			/* Wait for enqueuing to complete, if needed. */
 			while (next == NULL && &list->next != tail) {
+				trace_rcu_nocb_wake(rdp->rsp->name, rdp->cpu,
+						    TPS("WaitQueue"));
 				schedule_timeout_interruptible(1);
+				trace_rcu_nocb_wake(rdp->rsp->name, rdp->cpu,
+						    TPS("WokeQueue"));
 				next = list->next;
 			}
 			debug_rcu_head_unqueue(list);
