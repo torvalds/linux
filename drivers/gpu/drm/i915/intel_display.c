@@ -8269,9 +8269,11 @@ check_crtc_state(struct drm_device *dev)
 
 		list_for_each_entry(encoder, &dev->mode_config.encoder_list,
 				    base.head) {
+			enum pipe pipe;
 			if (encoder->base.crtc != &crtc->base)
 				continue;
-			if (encoder->get_config)
+			if (encoder->get_config &&
+			    encoder->get_hw_state(encoder, &pipe))
 				encoder->get_config(encoder, &pipe_config);
 		}
 

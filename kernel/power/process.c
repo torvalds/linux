@@ -109,6 +109,8 @@ static int try_to_freeze_tasks(bool user_only)
 
 /**
  * freeze_processes - Signal user space processes to enter the refrigerator.
+ * The current thread will not be frozen.  The same process that calls
+ * freeze_processes must later call thaw_processes.
  *
  * On success, returns 0.  On failure, -errno and system is fully thawed.
  */
@@ -119,6 +121,9 @@ int freeze_processes(void)
 	error = __usermodehelper_disable(UMH_FREEZING);
 	if (error)
 		return error;
+
+	/* Make sure this task doesn't get frozen */
+	current->flags |= PF_SUSPEND_TASK;
 
 	if (!pm_freezing)
 		atomic_inc(&system_freezing_cnt);
@@ -168,6 +173,7 @@ int freeze_kernel_threads(void)
 void thaw_processes(void)
 {
 	struct task_struct *g, *p;
+	struct task_struct *curr = current;
 
 	if (pm_freezing)
 		atomic_dec(&system_freezing_cnt);
@@ -182,9 +188,14 @@ void thaw_processes(void)
 
 	read_lock(&tasklist_lock);
 	do_each_thread(g, p) {
+		/* No other threads should have PF_SUSPEND_TASK set */
+		WARN_ON((p != curr) && (p->flags & PF_SUSPEND_TASK));
 		__thaw_task(p);
 	} while_each_thread(g, p);
 	read_unlock(&tasklist_lock);
+
+	WARN_ON(!(curr->flags & PF_SUSPEND_TASK));
+	curr->flags &= ~PF_SUSPEND_TASK;
 
 	usermodehelper_enable();
 

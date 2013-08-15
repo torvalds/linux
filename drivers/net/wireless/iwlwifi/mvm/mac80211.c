@@ -257,7 +257,11 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	if (ret)
 		return ret;
 
-	return ieee80211_register_hw(mvm->hw);
+	ret = ieee80211_register_hw(mvm->hw);
+	if (ret)
+		iwl_mvm_leds_exit(mvm);
+
+	return ret;
 }
 
 static void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
@@ -385,6 +389,7 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 	ieee80211_wake_queues(mvm->hw);
 
 	mvm->vif_count = 0;
+	mvm->rx_ba_sessions = 0;
 }
 
 static int iwl_mvm_mac_start(struct ieee80211_hw *hw)
@@ -507,6 +512,27 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 		goto out_unlock;
 
 	/*
+	 * TODO: remove this temporary code.
+	 * Currently MVM FW supports power management only on single MAC.
+	 * If new interface added, disable PM on existing interface.
+	 * P2P device is a special case, since it is handled by FW similary to
+	 * scan. If P2P deviced is added, PM remains enabled on existing
+	 * interface.
+	 * Note: the method below does not count the new interface being added
+	 * at this moment.
+	 */
+	if (vif->type != NL80211_IFTYPE_P2P_DEVICE)
+		mvm->vif_count++;
+	if (mvm->vif_count > 1) {
+		IWL_DEBUG_MAC80211(mvm,
+				   "Disable power on existing interfaces\n");
+		ieee80211_iterate_active_interfaces_atomic(
+					    mvm->hw,
+					    IEEE80211_IFACE_ITER_NORMAL,
+					    iwl_mvm_pm_disable_iterator, mvm);
+	}
+
+	/*
 	 * The AP binding flow can be done only after the beacon
 	 * template is configured (which happens only in the mac80211
 	 * start_ap() flow), and adding the broadcast station can happen
@@ -527,27 +553,6 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 		}
 
 		goto out_unlock;
-	}
-
-	/*
-	 * TODO: remove this temporary code.
-	 * Currently MVM FW supports power management only on single MAC.
-	 * If new interface added, disable PM on existing interface.
-	 * P2P device is a special case, since it is handled by FW similary to
-	 * scan. If P2P deviced is added, PM remains enabled on existing
-	 * interface.
-	 * Note: the method below does not count the new interface being added
-	 * at this moment.
-	 */
-	if (vif->type != NL80211_IFTYPE_P2P_DEVICE)
-		mvm->vif_count++;
-	if (mvm->vif_count > 1) {
-		IWL_DEBUG_MAC80211(mvm,
-				   "Disable power on existing interfaces\n");
-		ieee80211_iterate_active_interfaces_atomic(
-					    mvm->hw,
-					    IEEE80211_IFACE_ITER_NORMAL,
-					    iwl_mvm_pm_disable_iterator, mvm);
 	}
 
 	ret = iwl_mvm_mac_ctxt_add(mvm, vif);
@@ -1006,6 +1011,21 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 	mutex_lock(&mvm->mutex);
 	if (old_state == IEEE80211_STA_NOTEXIST &&
 	    new_state == IEEE80211_STA_NONE) {
+		/*
+		 * Firmware bug - it'll crash if the beacon interval is less
+		 * than 16. We can't avoid connecting at all, so refuse the
+		 * station state change, this will cause mac80211 to abandon
+		 * attempts to connect to this AP, and eventually wpa_s will
+		 * blacklist the AP...
+		 */
+		if (vif->type == NL80211_IFTYPE_STATION &&
+		    vif->bss_conf.beacon_int < 16) {
+			IWL_ERR(mvm,
+				"AP %pM beacon interval is %d, refusing due to firmware bug!\n",
+				sta->addr, vif->bss_conf.beacon_int);
+			ret = -EINVAL;
+			goto out_unlock;
+		}
 		ret = iwl_mvm_add_sta(mvm, vif, sta);
 	} else if (old_state == IEEE80211_STA_NONE &&
 		   new_state == IEEE80211_STA_AUTH) {
@@ -1038,6 +1058,7 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 	} else {
 		ret = -EIO;
 	}
+ out_unlock:
 	mutex_unlock(&mvm->mutex);
 
 	return ret;
