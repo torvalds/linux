@@ -620,7 +620,7 @@ restart:
 
 /*
  * Background scanning to trim post-EOF preallocated space. This is queued
- * based on the 'background_prealloc_discard_period' tunable (5m by default).
+ * based on the 'speculative_prealloc_lifetime' tunable (5m by default).
  */
 STATIC void
 xfs_queue_eofblocks(
@@ -1204,15 +1204,15 @@ xfs_inode_match_id(
 	struct xfs_inode	*ip,
 	struct xfs_eofblocks	*eofb)
 {
-	if (eofb->eof_flags & XFS_EOF_FLAGS_UID &&
-	    ip->i_d.di_uid != eofb->eof_uid)
+	if ((eofb->eof_flags & XFS_EOF_FLAGS_UID) &&
+	    !uid_eq(VFS_I(ip)->i_uid, eofb->eof_uid))
 		return 0;
 
-	if (eofb->eof_flags & XFS_EOF_FLAGS_GID &&
-	    ip->i_d.di_gid != eofb->eof_gid)
+	if ((eofb->eof_flags & XFS_EOF_FLAGS_GID) &&
+	    !gid_eq(VFS_I(ip)->i_gid, eofb->eof_gid))
 		return 0;
 
-	if (eofb->eof_flags & XFS_EOF_FLAGS_PRID &&
+	if ((eofb->eof_flags & XFS_EOF_FLAGS_PRID) &&
 	    xfs_get_projid(ip) != eofb->eof_prid)
 		return 0;
 

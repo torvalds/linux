@@ -1720,23 +1720,17 @@ xfs_file_ioctl(
 		return -error;
 
 	case XFS_IOC_FREE_EOFBLOCKS: {
-		struct xfs_eofblocks eofb;
+		struct xfs_fs_eofblocks eofb;
+		struct xfs_eofblocks keofb;
 
 		if (copy_from_user(&eofb, arg, sizeof(eofb)))
 			return -XFS_ERROR(EFAULT);
 
-		if (eofb.eof_version != XFS_EOFBLOCKS_VERSION)
-			return -XFS_ERROR(EINVAL);
+		error = xfs_fs_eofblocks_from_user(&eofb, &keofb);
+		if (error)
+			return -error;
 
-		if (eofb.eof_flags & ~XFS_EOF_FLAGS_VALID)
-			return -XFS_ERROR(EINVAL);
-
-		if (memchr_inv(&eofb.pad32, 0, sizeof(eofb.pad32)) ||
-		    memchr_inv(eofb.pad64, 0, sizeof(eofb.pad64)))
-			return -XFS_ERROR(EINVAL);
-
-		error = xfs_icache_free_eofblocks(mp, &eofb);
-		return -error;
+		return -xfs_icache_free_eofblocks(mp, &keofb);
 	}
 
 	default:
