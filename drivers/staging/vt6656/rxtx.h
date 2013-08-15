@@ -32,6 +32,59 @@
 #include "device.h"
 #include "wcmd.h"
 
+/* RTS buffer header */
+struct vnt_rts_g {
+	u8 bySignalField_b;
+	u8 byServiceField_b;
+	u16 wTransmitLength_b;
+	u8 bySignalField_a;
+	u8 byServiceField_a;
+	u16 wTransmitLength_a;
+	u16 wDuration_ba;
+	u16 wDuration_aa;
+	u16 wDuration_bb;
+	u16 wReserved;
+	struct ieee80211_rts data;
+} __packed;
+
+struct vnt_rts_g_fb {
+	u8 bySignalField_b;
+	u8 byServiceField_b;
+	u16 wTransmitLength_b;
+	u8 bySignalField_a;
+	u8 byServiceField_a;
+	u16 wTransmitLength_a;
+	u16 wDuration_ba;
+	u16 wDuration_aa;
+	u16 wDuration_bb;
+	u16 wReserved;
+	u16 wRTSDuration_ba_f0;
+	u16 wRTSDuration_aa_f0;
+	u16 wRTSDuration_ba_f1;
+	u16 wRTSDuration_aa_f1;
+	struct ieee80211_rts data;
+} __packed;
+
+struct vnt_rts_ab {
+	u8 bySignalField;
+	u8 byServiceField;
+	u16 wTransmitLength;
+	u16 wDuration;
+	u16 wReserved;
+	struct ieee80211_rts data;
+} __packed;
+
+struct vnt_rts_a_fb {
+	u8 bySignalField;
+	u8 byServiceField;
+	u16 wTransmitLength;
+	u16 wDuration;
+	u16 wReserved;
+	u16 wRTSDuration_f0;
+	u16 wRTSDuration_f1;
+	struct ieee80211_rts data;
+} __packed;
+
 struct vnt_tx_buffer {
 	u8 byType;
 	u8 byPKTNO;

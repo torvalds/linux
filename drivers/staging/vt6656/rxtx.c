@@ -629,7 +629,7 @@ static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
     //       Otherwise, we need to modified codes for them.
     if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
         if (byFBOption == AUTO_FB_NONE) {
-            PSRTS_g pBuf = (PSRTS_g)pvRTS;
+		struct vnt_rts_g *pBuf = (struct vnt_rts_g *)pvRTS;
             //Get SignalField,ServiceField,Length
             BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
                 (u16 *)&(wLen), (u8 *)&(pBuf->byServiceField_b), (u8 *)&(pBuf->bySignalField_b)
@@ -665,7 +665,7 @@ static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
 			memcpy(pBuf->data.ta, psEthHeader->h_source, ETH_ALEN);
         }
         else {
-           PSRTS_g_FB pBuf = (PSRTS_g_FB)pvRTS;
+		struct vnt_rts_g_fb *pBuf = (struct vnt_rts_g_fb *)pvRTS;
             //Get SignalField,ServiceField,Length
             BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
                 (u16 *)&(wLen), (u8 *)&(pBuf->byServiceField_b), (u8 *)&(pBuf->bySignalField_b)
@@ -715,7 +715,7 @@ static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
     }
     else if (byPktType == PK_TYPE_11A) {
         if (byFBOption == AUTO_FB_NONE) {
-            PSRTS_ab pBuf = (PSRTS_ab)pvRTS;
+		struct vnt_rts_ab *pBuf = (struct vnt_rts_ab *)pvRTS;
             //Get SignalField,ServiceField,Length
             BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopOFDMBasicRate, byPktType,
                 (u16 *)&(wLen), (u8 *)&(pBuf->byServiceField), (u8 *)&(pBuf->bySignalField)
@@ -741,7 +741,7 @@ static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
 			memcpy(pBuf->data.ta, psEthHeader->h_source, ETH_ALEN);
         }
         else {
-            PSRTS_a_FB pBuf = (PSRTS_a_FB)pvRTS;
+		struct vnt_rts_a_fb *pBuf = (struct vnt_rts_a_fb *)pvRTS;
             //Get SignalField,ServiceField,Length
             BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopOFDMBasicRate, byPktType,
                 (u16 *)&(wLen), (u8 *)&(pBuf->byServiceField), (u8 *)&(pBuf->bySignalField)
@@ -774,7 +774,7 @@ static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
         }
     }
     else if (byPktType == PK_TYPE_11B) {
-        PSRTS_ab pBuf = (PSRTS_ab)pvRTS;
+	struct vnt_rts_ab *pBuf = (struct vnt_rts_ab *)pvRTS;
         //Get SignalField,ServiceField,Length
         BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
             (u16 *)&(wLen), (u8 *)&(pBuf->byServiceField), (u8 *)&(pBuf->bySignalField)
@@ -1151,10 +1151,15 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
             if (bRTS == true) {//RTS_need
                 pvRrvTime = (PSRrvTime_gRTS) (pbyTxBufferAddr + wTxBufSize);
                 pMICHDR = (PSMICHDRHead) (pbyTxBufferAddr + wTxBufSize + sizeof(SRrvTime_gRTS));
-                pvRTS = (PSRTS_g) (pbyTxBufferAddr + wTxBufSize + sizeof(SRrvTime_gRTS) + cbMICHDR);
+		pvRTS = (struct vnt_rts_g *) (pbyTxBufferAddr + wTxBufSize +
+				sizeof(SRrvTime_gRTS) + cbMICHDR);
                 pvCTS = NULL;
-                pvTxDataHd = (PSTxDataHead_g) (pbyTxBufferAddr + wTxBufSize + sizeof(SRrvTime_gRTS) + cbMICHDR + sizeof(SRTS_g));
-                cbHeaderLength = wTxBufSize + sizeof(SRrvTime_gRTS) + cbMICHDR + sizeof(SRTS_g) + sizeof(STxDataHead_g);
+		pvTxDataHd = (PSTxDataHead_g) (pbyTxBufferAddr + wTxBufSize +
+			sizeof(SRrvTime_gRTS) + cbMICHDR +
+						sizeof(struct vnt_rts_g));
+		cbHeaderLength = wTxBufSize + sizeof(SRrvTime_gRTS) +
+			cbMICHDR + sizeof(struct vnt_rts_g) +
+				sizeof(STxDataHead_g);
             }
             else { //RTS_needless
                 pvRrvTime = (PSRrvTime_gCTS) (pbyTxBufferAddr + wTxBufSize);
@@ -1169,10 +1174,14 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
             if (bRTS == true) {//RTS_need
                 pvRrvTime = (PSRrvTime_gRTS) (pbyTxBufferAddr + wTxBufSize);
                 pMICHDR = (PSMICHDRHead) (pbyTxBufferAddr + wTxBufSize + sizeof(SRrvTime_gRTS));
-                pvRTS = (PSRTS_g_FB) (pbyTxBufferAddr + wTxBufSize + sizeof(SRrvTime_gRTS) + cbMICHDR);
+		pvRTS = (struct vnt_rts_g_fb *) (pbyTxBufferAddr + wTxBufSize +
+				sizeof(SRrvTime_gRTS) + cbMICHDR);
                 pvCTS = NULL;
-                pvTxDataHd = (PSTxDataHead_g_FB) (pbyTxBufferAddr + wTxBufSize + sizeof(SRrvTime_gRTS) + cbMICHDR + sizeof(SRTS_g_FB));
-                cbHeaderLength = wTxBufSize + sizeof(SRrvTime_gRTS) + cbMICHDR + sizeof(SRTS_g_FB) + sizeof(STxDataHead_g_FB);
+		pvTxDataHd = (PSTxDataHead_g_FB) (pbyTxBufferAddr + wTxBufSize +
+			sizeof(SRrvTime_gRTS) + cbMICHDR +
+					sizeof(struct vnt_rts_g_fb));
+		cbHeaderLength = wTxBufSize + sizeof(SRrvTime_gRTS) + cbMICHDR +
+			sizeof(struct vnt_rts_g_fb) + sizeof(STxDataHead_g_FB);
             }
             else if (bRTS == false) { //RTS_needless
                 pvRrvTime = (PSRrvTime_gCTS) (pbyTxBufferAddr + wTxBufSize);
@@ -1189,10 +1198,14 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
             if (bRTS == true) {//RTS_need
                 pvRrvTime = (PSRrvTime_ab) (pbyTxBufferAddr + wTxBufSize);
                 pMICHDR = (PSMICHDRHead) (pbyTxBufferAddr + wTxBufSize + sizeof(SRrvTime_ab));
-                pvRTS = (PSRTS_ab) (pbyTxBufferAddr + wTxBufSize + sizeof(SRrvTime_ab) + cbMICHDR);
+		pvRTS = (struct vnt_rts_ab *) (pbyTxBufferAddr + wTxBufSize +
+				sizeof(SRrvTime_ab) + cbMICHDR);
                 pvCTS = NULL;
-                pvTxDataHd = (PSTxDataHead_ab) (pbyTxBufferAddr + wTxBufSize + sizeof(SRrvTime_ab) + cbMICHDR + sizeof(SRTS_ab));
-                cbHeaderLength = wTxBufSize + sizeof(PSRrvTime_ab) + cbMICHDR + sizeof(SRTS_ab) + sizeof(STxDataHead_ab);
+		pvTxDataHd = (PSTxDataHead_ab) (pbyTxBufferAddr + wTxBufSize +
+			sizeof(SRrvTime_ab) + cbMICHDR +
+						sizeof(struct vnt_rts_ab));
+		cbHeaderLength = wTxBufSize + sizeof(PSRrvTime_ab) + cbMICHDR +
+			sizeof(struct vnt_rts_ab) + sizeof(STxDataHead_ab);
             }
             else if (bRTS == false) { //RTS_needless, no MICHDR
                 pvRrvTime = (PSRrvTime_ab) (pbyTxBufferAddr + wTxBufSize);
@@ -1207,10 +1220,14 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
             if (bRTS == true) {//RTS_need
                 pvRrvTime = (PSRrvTime_ab) (pbyTxBufferAddr + wTxBufSize);
                 pMICHDR = (PSMICHDRHead) (pbyTxBufferAddr + wTxBufSize + sizeof(SRrvTime_ab));
-                pvRTS = (PSRTS_a_FB) (pbyTxBufferAddr + wTxBufSize + sizeof(SRrvTime_ab) + cbMICHDR);
+		pvRTS = (struct vnt_rts_a_fb *) (pbyTxBufferAddr + wTxBufSize +
+				sizeof(SRrvTime_ab) + cbMICHDR);
                 pvCTS = NULL;
-                pvTxDataHd = (PSTxDataHead_a_FB) (pbyTxBufferAddr + wTxBufSize + sizeof(SRrvTime_ab) + cbMICHDR + sizeof(SRTS_a_FB));
-                cbHeaderLength = wTxBufSize + sizeof(PSRrvTime_ab) + cbMICHDR + sizeof(SRTS_a_FB) + sizeof(STxDataHead_a_FB);
+		pvTxDataHd = (PSTxDataHead_a_FB) (pbyTxBufferAddr + wTxBufSize +
+			sizeof(SRrvTime_ab) + cbMICHDR +
+					sizeof(struct vnt_rts_a_fb));
+		cbHeaderLength = wTxBufSize + sizeof(PSRrvTime_ab) + cbMICHDR +
+			sizeof(struct vnt_rts_a_fb) + sizeof(STxDataHead_a_FB);
             }
             else if (bRTS == false) { //RTS_needless
                 pvRrvTime = (PSRrvTime_ab) (pbyTxBufferAddr + wTxBufSize);
