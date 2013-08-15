@@ -784,18 +784,9 @@ __s32 NFC_Init(NFC_INIT_INFO *nand_info )
 
 	/*init nand control machine*/
 	ret = NFC_ChangMode( nand_info);
-	//for debug
-	#if 1
-		printk("ret of NFC_ChangMode is %x \n", ret);
-		printk("dma_hdle  is %x \n", dma_hdle);
-	#endif
 
 	/*request special dma*/
 	dma_hdle = NAND_RequestDMA(1);
-	//for debug
-	#if 1
-		printk("dma_hdle  is %x \n", dma_hdle);
-	#endif
 	if (dma_hdle == 0)
 		return -1;
 	return ret;
