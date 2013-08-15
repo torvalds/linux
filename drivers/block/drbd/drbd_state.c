@@ -1115,8 +1115,10 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 		drbd_thread_restart_nowait(&mdev->tconn->receiver);
 
 	/* Resume AL writing if we get a connection */
-	if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED)
+	if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED) {
 		drbd_resume_al(mdev);
+		mdev->tconn->connect_cnt++;
+	}
 
 	/* remember last attach time so request_timer_fn() won't
 	 * kill newly established sessions while we are still trying to thaw

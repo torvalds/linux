@@ -819,7 +819,7 @@ static void rv6xx_program_memory_timing_parameters(struct radeon_device *rdev)
 		 POWERMODE1(calculate_memory_refresh_rate(rdev,
 							  pi->hw.sclks[R600_POWER_LEVEL_MEDIUM])) |
 		 POWERMODE2(calculate_memory_refresh_rate(rdev,
-							  pi->hw.sclks[R600_POWER_LEVEL_MEDIUM])) |
+							  pi->hw.sclks[R600_POWER_LEVEL_HIGH])) |
 		 POWERMODE3(calculate_memory_refresh_rate(rdev,
 							  pi->hw.sclks[R600_POWER_LEVEL_HIGH])));
 	WREG32(ARB_RFSH_RATE, arb_refresh_rate);
@@ -1182,10 +1182,10 @@ static void rv6xx_program_display_gap(struct radeon_device *rdev)
 	u32 tmp = RREG32(CG_DISPLAY_GAP_CNTL);
 
 	tmp &= ~(DISP1_GAP_MCHG_MASK | DISP2_GAP_MCHG_MASK);
-	if (RREG32(AVIVO_D1CRTC_CONTROL) & AVIVO_CRTC_EN) {
+	if (rdev->pm.dpm.new_active_crtcs & 1) {
 		tmp |= DISP1_GAP_MCHG(R600_PM_DISPLAY_GAP_VBLANK);
 		tmp |= DISP2_GAP_MCHG(R600_PM_DISPLAY_GAP_IGNORE);
-	} else if (RREG32(AVIVO_D2CRTC_CONTROL) & AVIVO_CRTC_EN) {
+	} else if (rdev->pm.dpm.new_active_crtcs & 2) {
 		tmp |= DISP1_GAP_MCHG(R600_PM_DISPLAY_GAP_IGNORE);
 		tmp |= DISP2_GAP_MCHG(R600_PM_DISPLAY_GAP_VBLANK);
 	} else {
@@ -1670,6 +1670,8 @@ int rv6xx_dpm_set_power_state(struct radeon_device *rdev)
 	struct radeon_ps *old_ps = rdev->pm.dpm.current_ps;
 	int ret;
 
+	pi->restricted_levels = 0;
+
 	rv6xx_set_uvd_clock_before_set_eng_clock(rdev, new_ps, old_ps);
 
 	rv6xx_clear_vc(rdev);
@@ -1755,6 +1757,8 @@ int rv6xx_dpm_set_power_state(struct radeon_device *rdev)
 	rv6xx_program_at(rdev);
 
 	rv6xx_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
+
+	rdev->pm.dpm.forced_level = RADEON_DPM_FORCED_LEVEL_AUTO;
 
 	return 0;
 }
@@ -1940,9 +1944,7 @@ static int rv6xx_parse_power_table(struct radeon_device *rdev)
 
 int rv6xx_dpm_init(struct radeon_device *rdev)
 {
-	int index = GetIndexIntoMasterTable(DATA, ASIC_InternalSS_Info);
-	uint16_t data_offset, size;
-	uint8_t frev, crev;
+	struct radeon_atom_ss ss;
 	struct atom_clock_dividers dividers;
 	struct rv6xx_power_info *pi;
 	int ret;
@@ -1985,16 +1987,18 @@ int rv6xx_dpm_init(struct radeon_device *rdev)
 
 	pi->gfx_clock_gating = true;
 
-	if (atom_parse_data_header(rdev->mode_info.atom_context, index, &size,
-                                   &frev, &crev, &data_offset)) {
-		pi->sclk_ss = true;
-		pi->mclk_ss = true;
+	pi->sclk_ss = radeon_atombios_get_asic_ss_info(rdev, &ss,
+						       ASIC_INTERNAL_ENGINE_SS, 0);
+	pi->mclk_ss = radeon_atombios_get_asic_ss_info(rdev, &ss,
+						       ASIC_INTERNAL_MEMORY_SS, 0);
+
+	/* Disable sclk ss, causes hangs on a lot of systems */
+	pi->sclk_ss = false;
+
+	if (pi->sclk_ss || pi->mclk_ss)
 		pi->dynamic_ss = true;
-	} else {
-		pi->sclk_ss = false;
-		pi->mclk_ss = false;
+	else
 		pi->dynamic_ss = false;
-	}
 
 	pi->dynamic_pcie_gen2 = true;
 
@@ -2084,4 +2088,35 @@ u32 rv6xx_dpm_get_mclk(struct radeon_device *rdev, bool low)
 		return requested_state->low.mclk;
 	else
 		return requested_state->high.mclk;
+}
+
+int rv6xx_dpm_force_performance_level(struct radeon_device *rdev,
+				      enum radeon_dpm_forced_level level)
+{
+	struct rv6xx_power_info *pi = rv6xx_get_pi(rdev);
+
+	if (level == RADEON_DPM_FORCED_LEVEL_HIGH) {
+		pi->restricted_levels = 3;
+	} else if (level == RADEON_DPM_FORCED_LEVEL_LOW) {
+		pi->restricted_levels = 2;
+	} else {
+		pi->restricted_levels = 0;
+	}
+
+	rv6xx_clear_vc(rdev);
+	r600_power_level_enable(rdev, R600_POWER_LEVEL_LOW, true);
+	r600_set_at(rdev, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF);
+	r600_wait_for_power_level(rdev, R600_POWER_LEVEL_LOW);
+	r600_power_level_enable(rdev, R600_POWER_LEVEL_HIGH, false);
+	r600_power_level_enable(rdev, R600_POWER_LEVEL_MEDIUM, false);
+	rv6xx_enable_medium(rdev);
+	rv6xx_enable_high(rdev);
+	if (pi->restricted_levels == 3)
+		r600_power_level_enable(rdev, R600_POWER_LEVEL_LOW, false);
+	rv6xx_program_vc(rdev);
+	rv6xx_program_at(rdev);
+
+	rdev->pm.dpm.forced_level = level;
+
+	return 0;
 }

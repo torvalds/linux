@@ -228,23 +228,6 @@ start:		bv->bv_len	= min_t(size_t, PAGE_SIZE - bv->bv_offset,
 	}
 }
 
-int bch_bio_alloc_pages(struct bio *bio, gfp_t gfp)
-{
-	int i;
-	struct bio_vec *bv;
-
-	bio_for_each_segment(bv, bio, i) {
-		bv->bv_page = alloc_page(gfp);
-		if (!bv->bv_page) {
-			while (bv-- != bio->bi_io_vec + bio->bi_idx)
-				__free_page(bv->bv_page);
-			return -ENOMEM;
-		}
-	}
-
-	return 0;
-}
-
 /*
  * Portions Copyright (c) 1996-2001, PostgreSQL Global Development Group (Any
  * use permitted, subject to terms of PostgreSQL license; see.)

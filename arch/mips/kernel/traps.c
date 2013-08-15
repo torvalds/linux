@@ -1242,7 +1242,6 @@ asmlinkage void do_mcheck(struct pt_regs *regs)
 	panic("Caught Machine Check exception - %scaused by multiple "
 	      "matching entries in the TLB.",
 	      (multi_match) ? "" : "not ");
-	exception_exit(prev_state);
 }
 
 asmlinkage void do_mt(struct pt_regs *regs)

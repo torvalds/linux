@@ -215,4 +215,13 @@
 #define DRBD_ALWAYS_ASBP_DEF	0
 #define DRBD_USE_RLE_DEF	1
 
+#define DRBD_AL_STRIPES_MIN     1
+#define DRBD_AL_STRIPES_MAX     1024
+#define DRBD_AL_STRIPES_DEF     1
+#define DRBD_AL_STRIPES_SCALE   '1'
+
+#define DRBD_AL_STRIPE_SIZE_MIN   4
+#define DRBD_AL_STRIPE_SIZE_MAX   16777216
+#define DRBD_AL_STRIPE_SIZE_DEF   32
+#define DRBD_AL_STRIPE_SIZE_SCALE 'k' /* kilobytes */
 #endif
