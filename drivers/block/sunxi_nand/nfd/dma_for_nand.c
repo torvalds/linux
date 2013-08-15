@@ -85,8 +85,6 @@ void NAND_Config_Start_DMA(__u8 rw, __u32 buff_addr, __u32 len)
 	sw_dma_setflags(DMACH_DNAND, SW_DMAF_AUTOSTART);
 	sw_dma_config(DMACH_DNAND, &nand_hwconf);
 
-	__cpuc_flush_dcache_area((void *)buff_addr, len + (1 << 5) * 2 - 2);
-
 	nanddma_completed_flag = 0;
 	sw_dma_enqueue(DMACH_DNAND, NULL, buff_addr, len);
 }
