@@ -20,6 +20,8 @@
 #ifndef __OSAL_CLOCK_H__
 #define __OSAL_CLOCK_H__
 
+#include "bsp_display.h"
+
 /* The sun7i mach code does not define clock numbers, instead users are
    supposed to use clock names directly */
 #ifndef CONFIG_ARCH_SUN7I
