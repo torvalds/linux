@@ -272,7 +272,7 @@ static struct map *find_map(unw_word_t ip, struct unwind_info *ui)
 	struct addr_location al;
 
 	thread__find_addr_map(ui->thread, ui->machine, PERF_RECORD_MISC_USER,
-			      MAP__FUNCTION, ip, &al, NULL);
+			      MAP__FUNCTION, ip, &al);
 	return al.map;
 }
 
@@ -349,7 +349,7 @@ static int access_dso_mem(struct unwind_info *ui, unw_word_t addr,
 	ssize_t size;
 
 	thread__find_addr_map(ui->thread, ui->machine, PERF_RECORD_MISC_USER,
-			      MAP__FUNCTION, addr, &al, NULL);
+			      MAP__FUNCTION, addr, &al);
 	if (!al.map) {
 		pr_debug("unwind: no map for %lx\n", (unsigned long)addr);
 		return -1;
@@ -473,7 +473,7 @@ static int entry(u64 ip, struct thread *thread, struct machine *machine,
 
 	thread__find_addr_location(thread, machine,
 				   PERF_RECORD_MISC_USER,
-				   MAP__FUNCTION, ip, &al, NULL);
+				   MAP__FUNCTION, ip, &al);
 
 	e.ip = ip;
 	e.map = al.map;

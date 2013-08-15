@@ -1401,12 +1401,15 @@ int perf_session__process_events(struct perf_session *self,
 
 bool perf_session__has_traces(struct perf_session *session, const char *msg)
 {
-	if (!(perf_evlist__sample_type(session->evlist) & PERF_SAMPLE_RAW)) {
-		pr_err("No trace sample to read. Did you call 'perf %s'?\n", msg);
-		return false;
+	struct perf_evsel *evsel;
+
+	list_for_each_entry(evsel, &session->evlist->entries, node) {
+		if (evsel->attr.type == PERF_TYPE_TRACEPOINT)
+			return true;
 	}
 
-	return true;
+	pr_err("No trace sample to read. Did you call 'perf %s'?\n", msg);
+	return false;
 }
 
 int maps__set_kallsyms_ref_reloc_sym(struct map **maps,
@@ -1489,13 +1492,18 @@ struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 
 void perf_evsel__print_ip(struct perf_evsel *evsel, union perf_event *event,
 			  struct perf_sample *sample, struct machine *machine,
-			  int print_sym, int print_dso, int print_symoffset)
+			  unsigned int print_opts, unsigned int stack_depth)
 {
 	struct addr_location al;
 	struct callchain_cursor_node *node;
+	int print_ip = print_opts & PRINT_IP_OPT_IP;
+	int print_sym = print_opts & PRINT_IP_OPT_SYM;
+	int print_dso = print_opts & PRINT_IP_OPT_DSO;
+	int print_symoffset = print_opts & PRINT_IP_OPT_SYMOFFSET;
+	int print_oneline = print_opts & PRINT_IP_OPT_ONELINE;
+	char s = print_oneline ? ' ' : '\t';
 
-	if (perf_event__preprocess_sample(event, machine, &al, sample,
-					  NULL) < 0) {
+	if (perf_event__preprocess_sample(event, machine, &al, sample) < 0) {
 		error("problem processing %d event, skipping it.\n",
 			event->header.type);
 		return;
@@ -1511,12 +1519,14 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, union perf_event *event,
 		}
 		callchain_cursor_commit(&callchain_cursor);
 
-		while (1) {
+		while (stack_depth) {
 			node = callchain_cursor_current(&callchain_cursor);
 			if (!node)
 				break;
 
-			printf("\t%16" PRIx64, node->ip);
+			if (print_ip)
+				printf("%c%16" PRIx64, s, node->ip);
+
 			if (print_sym) {
 				printf(" ");
 				if (print_symoffset) {
@@ -1531,13 +1541,19 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, union perf_event *event,
 				map__fprintf_dsoname(node->map, stdout);
 				printf(")");
 			}
-			printf("\n");
+
+			if (!print_oneline)
+				printf("\n");
 
 			callchain_cursor_advance(&callchain_cursor);
+
+			stack_depth--;
 		}
 
 	} else {
-		printf("%16" PRIx64, sample->ip);
+		if (print_ip)
+			printf("%16" PRIx64, sample->ip);
+
 		if (print_sym) {
 			printf(" ");
 			if (print_symoffset)

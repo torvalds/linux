@@ -49,7 +49,6 @@ struct perf_report {
 	bool			mem_mode;
 	struct perf_read_values	show_threads_values;
 	const char		*pretty_printing_style;
-	symbol_filter_t		annotate_init;
 	const char		*cpu_list;
 	const char		*symbol_filter_str;
 	float			min_percent;
@@ -305,8 +304,7 @@ static int process_sample_event(struct perf_tool *tool,
 	struct addr_location al;
 	int ret;
 
-	if (perf_event__preprocess_sample(event, machine, &al, sample,
-					  rep->annotate_init) < 0) {
+	if (perf_event__preprocess_sample(event, machine, &al, sample) < 0) {
 		fprintf(stderr, "problem processing %d event, skipping it.\n",
 			event->header.type);
 		return -1;
@@ -924,7 +922,8 @@ repeat:
 	 */
 	if (use_browser == 1 && sort__has_sym) {
 		symbol_conf.priv_size = sizeof(struct annotation);
-		report.annotate_init  = symbol__annotate_init;
+		machines__set_symbol_filter(&session->machines,
+					    symbol__annotate_init);
 		/*
  		 * For searching by name on the "Browse map details".
  		 * providing it only in verbose mode not to bloat too

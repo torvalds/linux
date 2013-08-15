@@ -41,12 +41,11 @@ static inline struct map *thread__find_map(struct thread *self,
 
 void thread__find_addr_map(struct thread *thread, struct machine *machine,
 			   u8 cpumode, enum map_type type, u64 addr,
-			   struct addr_location *al, symbol_filter_t filter);
+			   struct addr_location *al);
 
 void thread__find_addr_location(struct thread *thread, struct machine *machine,
 				u8 cpumode, enum map_type type, u64 addr,
-				struct addr_location *al,
-				symbol_filter_t filter);
+				struct addr_location *al);
 
 static inline void *thread__priv(struct thread *thread)
 {
