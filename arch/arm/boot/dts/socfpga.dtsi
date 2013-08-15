@@ -75,20 +75,15 @@
 			pdma: pdma@ffe01000 {
 				compatible = "arm,pl330", "arm,primecell";
 				reg = <0xffe01000 0x1000>;
-				interrupts = <0 104 4>,
-					<0 105 4>,
-					<0 106 4>,
-					<0 107 4>,
-					<0 108 4>,
-					<0 109 4>,
-					<0 110 4>,
-					<0 111 4>;
 				#dma-cells = <1>;
 				#dma-channels = <8>;
 				#dma-requests = <32>;
-				copy-align = <3>;
+				interrupts = <0 104 4>;
+				nr-irqs = <9>;
+				nr-valid-peri = <32>;
 				clocks = <&l4_main_clk>;
 				clock-names = "apb_pclk";
+				copy-align = <3>;
 			};
 		};
 

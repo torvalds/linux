@@ -21,11 +21,7 @@
 #include <linux/resource.h>
 #include <linux/regulator/consumer.h>
 
-#ifdef CONFIG_ARCH_SOCFPGA
-#define AMBA_NR_IRQS	8
-#else
 #define AMBA_NR_IRQS	2
-#endif
 #define AMBA_CID	0xb105f00d
 
 struct clk;

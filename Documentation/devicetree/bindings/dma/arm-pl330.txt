@@ -7,7 +7,10 @@ Required properties:
   - compatible: should include both "arm,pl330" and "arm,primecell".
   - reg: physical base address of the controller and length of memory mapped
     region.
-  - interrupts: interrupt number(s) to the cpu.  A maximum of eight interrupts can be specified.
+  - interrupts: interrupt number to the cpu.
+  - nr-irqs: total number of interrupts to be combined in
+    the virtual interrupt.
+  - nr-valid-peri: number of peripherals attached to DMAC.
 
 Optional properties:
   - dma-coherent      : Present if dma operations are coherent
@@ -29,6 +32,8 @@ Example:
 		copy-align = <3>;
 		clocks = <&l4_main_clk>;
 		clock-names = "apb_pclk";
+		nr-irqs = <9>;
+		nr-valid-peri = <32>;
 	};
 
 Client drivers (device nodes requiring dma transfers from dev-to-mem or
