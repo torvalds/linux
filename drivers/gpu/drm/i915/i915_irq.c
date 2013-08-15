@@ -789,6 +789,9 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	snb_enable_pm_irq(dev_priv, GEN6_PM_RPS_EVENTS);
 	spin_unlock_irq(&dev_priv->irq_lock);
 
+	/* Make sure we didn't queue anything we're not going to process. */
+	WARN_ON(pm_iir & ~GEN6_PM_RPS_EVENTS);
+
 	if ((pm_iir & GEN6_PM_RPS_EVENTS) == 0)
 		return;
 
@@ -959,7 +962,7 @@ static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv,
 	 */
 
 	spin_lock(&dev_priv->irq_lock);
-	dev_priv->rps.pm_iir |= pm_iir;
+	dev_priv->rps.pm_iir |= pm_iir & GEN6_PM_RPS_EVENTS;
 	snb_set_pm_irq(dev_priv, dev_priv->rps.pm_iir);
 	spin_unlock(&dev_priv->irq_lock);
 
@@ -1128,7 +1131,7 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 		if (pipe_stats[0] & PIPE_GMBUS_INTERRUPT_STATUS)
 			gmbus_irq_handler(dev);
 
-		if (pm_iir & GEN6_PM_RPS_EVENTS)
+		if (pm_iir)
 			gen6_rps_irq_handler(dev_priv, pm_iir);
 
 		I915_WRITE(GTIIR, gt_iir);
@@ -1433,7 +1436,7 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 		if (pm_iir) {
 			if (IS_HASWELL(dev))
 				hsw_pm_irq_handler(dev_priv, pm_iir);
-			else if (pm_iir & GEN6_PM_RPS_EVENTS)
+			else
 				gen6_rps_irq_handler(dev_priv, pm_iir);
 			I915_WRITE(GEN6_PMIIR, pm_iir);
 			ret = IRQ_HANDLED;
