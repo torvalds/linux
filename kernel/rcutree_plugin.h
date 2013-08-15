@@ -2147,10 +2147,12 @@ static bool __call_rcu_nocb(struct rcu_data *rdp, struct rcu_head *rhp,
 	if (__is_kfree_rcu_offset((unsigned long)rhp->func))
 		trace_rcu_kfree_callback(rdp->rsp->name, rhp,
 					 (unsigned long)rhp->func,
-					 rdp->qlen_lazy, rdp->qlen);
+					 -atomic_long_read(&rdp->nocb_q_count_lazy),
+					 -atomic_long_read(&rdp->nocb_q_count));
 	else
 		trace_rcu_callback(rdp->rsp->name, rhp,
-				   rdp->qlen_lazy, rdp->qlen);
+				   -atomic_long_read(&rdp->nocb_q_count_lazy),
+				   -atomic_long_read(&rdp->nocb_q_count));
 	return 1;
 }
 
