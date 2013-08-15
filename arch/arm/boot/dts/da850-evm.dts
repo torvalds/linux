@@ -90,6 +90,12 @@
 				};
 			};
 		};
+		mdio: mdio@1e24000 {
+			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&mdio_pins>;
+			bus_freq = <2200000>;
+		};
 	};
 	nand_cs3@62000000 {
 		status = "okay";

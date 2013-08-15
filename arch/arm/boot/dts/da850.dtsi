@@ -125,6 +125,13 @@
 					0x14 0x00000010 0x000000f0
 				>;
 			};
+			mdio_pins: pinmux_mdio_pins {
+				pinctrl-single,bits = <
+					/* MDIO_CLK, MDIO_D */
+					0x10 0x00000088 0x000000ff
+				>;
+			};
+
 		};
 		serial0: serial@1c42000 {
 			compatible = "ns16550a";
@@ -215,6 +222,12 @@
 			ti,davinci-spi-intr-line = <1>;
 			interrupts = <56>;
 			status = "disabled";
+		};
+		mdio: mdio@1e24000 {
+			compatible = "ti,davinci_mdio";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x224000 0x1000>;
 		};
 	};
 	nand_cs3@62000000 {
