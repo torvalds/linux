@@ -870,63 +870,6 @@ bool arch_match_cpu_phys_id(int cpu, u64 phys_id)
 	return (int)phys_id == get_hard_smp_processor_id(cpu);
 }
 
-static bool __of_find_n_match_cpu_property(struct device_node *cpun,
-			const char *prop_name, int cpu, unsigned int *thread)
-{
-	const __be32 *cell;
-	int ac, prop_len, tid;
-	u64 hwid;
-
-	ac = of_n_addr_cells(cpun);
-	cell = of_get_property(cpun, prop_name, &prop_len);
-	if (!cell)
-		return false;
-	prop_len /= sizeof(*cell);
-	for (tid = 0; tid < prop_len; tid++) {
-		hwid = of_read_number(cell, ac);
-		if (arch_match_cpu_phys_id(cpu, hwid)) {
-			if (thread)
-				*thread = tid;
-			return true;
-		}
-		cell += ac;
-	}
-	return false;
-}
-
-/* Find the device node for a given logical cpu number, also returns the cpu
- * local thread number (index in ibm,interrupt-server#s) if relevant and
- * asked for (non NULL)
- */
-struct device_node *of_get_cpu_node(int cpu, unsigned int *thread)
-{
-	struct device_node *cpun, *cpus;
-
-	cpus = of_find_node_by_path("/cpus");
-	if (!cpus) {
-		pr_warn("Missing cpus node, bailing out\n");
-		return NULL;
-	}
-
-	for_each_child_of_node(cpus, cpun) {
-		if (of_node_cmp(cpun->type, "cpu"))
-			continue;
-
-		/* Check for non-standard "ibm,ppc-interrupt-server#s" property
-		 * for thread ids on PowerPC. If it doesn't exist fallback to
-		 * standard "reg" property.
-		 */
-		if (__of_find_n_match_cpu_property(cpun,
-				"ibm,ppc-interrupt-server#s", cpu, thread))
-			return cpun;
-
-		if (__of_find_n_match_cpu_property(cpun, "reg", cpu, thread))
-			return cpun;
-	}
-	return NULL;
-}
-EXPORT_SYMBOL(of_get_cpu_node);
-
 #if defined(CONFIG_DEBUG_FS) && defined(DEBUG)
 static struct debugfs_blob_wrapper flat_dt_blob;
 
