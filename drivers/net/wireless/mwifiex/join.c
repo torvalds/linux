@@ -1290,8 +1290,10 @@ int mwifiex_associate(struct mwifiex_private *priv,
 {
 	u8 current_bssid[ETH_ALEN];
 
-	/* Return error if the adapter or table entry is not marked as infra */
-	if ((priv->bss_mode != NL80211_IFTYPE_STATION) ||
+	/* Return error if the adapter is not STA role or table entry
+	 * is not marked as infra.
+	 */
+	if ((GET_BSS_ROLE(priv) != MWIFIEX_BSS_ROLE_STA) ||
 	    (bss_desc->bss_mode != NL80211_IFTYPE_STATION))
 		return -1;
 

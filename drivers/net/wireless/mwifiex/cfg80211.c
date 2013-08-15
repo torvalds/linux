@@ -1668,9 +1668,9 @@ mwifiex_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 	int ret;
 
-	if (priv->bss_mode != NL80211_IFTYPE_STATION) {
+	if (GET_BSS_ROLE(priv) != MWIFIEX_BSS_ROLE_STA) {
 		wiphy_err(wiphy,
-			  "%s: reject infra assoc request in non-STA mode\n",
+			  "%s: reject infra assoc request in non-STA role\n",
 			  dev->name);
 		return -EINVAL;
 	}
