@@ -271,21 +271,13 @@ static pgprot_t __init init_pgprot(ulong address)
 		return construct_pgprot(PAGE_KERNEL, PAGE_HOME_HASH);
 
 	/*
-	 * Make the w1data homed like heap to start with, to avoid
-	 * making it part of the page-striped data area when we're just
-	 * going to convert it to read-only soon anyway.
-	 */
-	if (address >= (ulong)__w1data_begin && address < (ulong)__w1data_end)
-		return construct_pgprot(PAGE_KERNEL, initial_heap_home());
-
-	/*
 	 * Otherwise we just hand out consecutive cpus.  To avoid
 	 * requiring this function to hold state, we just walk forward from
 	 * _sdata by PAGE_SIZE, skipping the readonly and init data, to reach
 	 * the requested address, while walking cpu home around kdata_mask.
 	 * This is typically no more than a dozen or so iterations.
 	 */
-	page = (((ulong)__w1data_end) + PAGE_SIZE - 1) & PAGE_MASK;
+	page = (((ulong)__end_rodata) + PAGE_SIZE - 1) & PAGE_MASK;
 	BUG_ON(address < page || address >= (ulong)_end);
 	cpu = cpumask_first(&kdata_mask);
 	for (; page < address; page += PAGE_SIZE) {
@@ -980,8 +972,7 @@ void free_initmem(void)
 	const unsigned long text_delta = MEM_SV_START - PAGE_OFFSET;
 
 	/*
-	 * Evict the dirty initdata on the boot cpu, evict the w1data
-	 * wherever it's homed, and evict all the init code everywhere.
+	 * Evict the cache on all cores to avoid incoherence.
 	 * We are guaranteed that no one will touch the init pages any more.
 	 */
 	homecache_evict(&cpu_cacheable_map);

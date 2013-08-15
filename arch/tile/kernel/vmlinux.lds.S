@@ -74,20 +74,8 @@ SECTIONS
   __init_end = .;
 
   _sdata = .;                   /* Start of data section */
-
   RO_DATA_SECTION(PAGE_SIZE)
-
-  /* initially writeable, then read-only */
-  . = ALIGN(PAGE_SIZE);
-  __w1data_begin = .;
-  .w1data : AT(ADDR(.w1data) - LOAD_OFFSET) {
-    VMLINUX_SYMBOL(__w1data_begin) = .;
-    *(.w1data)
-    VMLINUX_SYMBOL(__w1data_end) = .;
-  }
-
   RW_DATA_SECTION(L2_CACHE_BYTES, PAGE_SIZE, THREAD_SIZE)
-
   _edata = .;
 
   EXCEPTION_TABLE(L2_CACHE_BYTES)

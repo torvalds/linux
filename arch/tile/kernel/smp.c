@@ -22,7 +22,11 @@
 #include <asm/cacheflush.h>
 #include <asm/homecache.h>
 
-HV_Topology smp_topology __write_once;
+/*
+ * We write to width and height with a single store in head_NN.S,
+ * so make the variable aligned to "long".
+ */
+HV_Topology smp_topology __write_once __aligned(sizeof(long));
 EXPORT_SYMBOL(smp_topology);
 
 #if CHIP_HAS_IPI()
