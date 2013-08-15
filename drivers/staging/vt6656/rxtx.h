@@ -32,18 +32,16 @@
 #include "device.h"
 #include "wcmd.h"
 
-typedef struct tagSTX_BUFFER
-{
-    u8                            byType;
-    u8                            byPKTNO;
-    u16                            wTxByteCount;
-
+struct vnt_tx_buffer {
+	u8 byType;
+	u8 byPKTNO;
+	u16 wTxByteCount;
 	u32 adwTxKey[4];
-    u16                            wFIFOCtl;
-    u16                            wTimeStamp;
-    u16                            wFragCtl;
-    u16                            wReserved;
-} __packed TX_BUFFER, *PTX_BUFFER;
+	u16 wFIFOCtl;
+	u16 wTimeStamp;
+	u16 wFragCtl;
+	u16 wReserved;
+} __packed;
 
 typedef struct tagSBEACON_BUFFER
 {
