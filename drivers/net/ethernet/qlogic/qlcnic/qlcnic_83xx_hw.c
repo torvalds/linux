@@ -3515,6 +3515,8 @@ static inline void qlcnic_83xx_flush_mbx_queue(struct qlcnic_adapter *adapter)
 
 	while (!list_empty(head)) {
 		cmd = list_entry(head->next, struct qlcnic_cmd_args, list);
+		dev_info(&adapter->pdev->dev, "%s: Mailbox command 0x%x\n",
+			 __func__, cmd->cmd_op);
 		list_del(&cmd->list);
 		mbx->num_cmds--;
 		qlcnic_83xx_notify_cmd_completion(adapter, cmd);
@@ -3534,6 +3536,7 @@ static inline int qlcnic_83xx_check_mbx_status(struct qlcnic_adapter *adapter)
 
 	host_mbx_ctrl = QLCRDX(ahw, QLCNIC_HOST_MBX_CTRL);
 	if (host_mbx_ctrl) {
+		clear_bit(QLC_83XX_MBX_READY, &mbx->status);
 		ahw->idc.collect_dump = 1;
 		return -EIO;
 	}
@@ -3704,8 +3707,10 @@ static void qlcnic_83xx_mailbox_worker(struct work_struct *work)
 	ahw = adapter->ahw;
 
 	while (true) {
-		if (qlcnic_83xx_check_mbx_status(adapter))
+		if (qlcnic_83xx_check_mbx_status(adapter)) {
+			qlcnic_83xx_flush_mbx_queue(adapter);
 			return;
+		}
 
 		atomic_set(rsp_status, QLC_83XX_MBX_RESPONSE_WAIT);
 
