@@ -1462,9 +1462,11 @@ struct thermal_zone_device *thermal_zone_device_register(const char *type,
 
 	mutex_unlock(&thermal_governor_lock);
 
-	result = thermal_add_hwmon_sysfs(tz);
-	if (result)
-		goto unregister;
+	if (!tz->tzp || !tz->tzp->no_hwmon) {
+		result = thermal_add_hwmon_sysfs(tz);
+		if (result)
+			goto unregister;
+	}
 
 	mutex_lock(&thermal_list_lock);
 	list_add_tail(&tz->node, &thermal_tz_list);

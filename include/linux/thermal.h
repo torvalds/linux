@@ -214,6 +214,14 @@ struct thermal_bind_params {
 /* Structure to define Thermal Zone parameters */
 struct thermal_zone_params {
 	char governor_name[THERMAL_NAME_LENGTH];
+
+	/*
+	 * a boolean to indicate if the thermal to hwmon sysfs interface
+	 * is required. when no_hwmon == false, a hwmon sysfs interface
+	 * will be created. when no_hwmon == true, nothing will be done
+	 */
+	bool no_hwmon;
+
 	int num_tbps;	/* Number of tbp entries */
 	struct thermal_bind_params *tbp;
 };
