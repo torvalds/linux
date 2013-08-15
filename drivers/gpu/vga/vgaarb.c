@@ -257,9 +257,9 @@ static struct vga_device *__vga_tryget(struct vga_device *vgadev,
 		if (!conflict->bridge_has_one_vga) {
 			vga_irq_set_state(conflict, false);
 			flags |= PCI_VGA_STATE_CHANGE_DECODES;
-			if (lwants & (VGA_RSRC_LEGACY_MEM|VGA_RSRC_NORMAL_MEM))
+			if (match & (VGA_RSRC_LEGACY_MEM|VGA_RSRC_NORMAL_MEM))
 				pci_bits |= PCI_COMMAND_MEMORY;
-			if (lwants & (VGA_RSRC_LEGACY_IO|VGA_RSRC_NORMAL_IO))
+			if (match & (VGA_RSRC_LEGACY_IO|VGA_RSRC_NORMAL_IO))
 				pci_bits |= PCI_COMMAND_IO;
 		}
 
@@ -267,11 +267,11 @@ static struct vga_device *__vga_tryget(struct vga_device *vgadev,
 			flags |= PCI_VGA_STATE_CHANGE_BRIDGE;
 
 		pci_set_vga_state(conflict->pdev, false, pci_bits, flags);
-		conflict->owns &= ~lwants;
+		conflict->owns &= ~match;
 		/* If he also owned non-legacy, that is no longer the case */
-		if (lwants & VGA_RSRC_LEGACY_MEM)
+		if (match & VGA_RSRC_LEGACY_MEM)
 			conflict->owns &= ~VGA_RSRC_NORMAL_MEM;
-		if (lwants & VGA_RSRC_LEGACY_IO)
+		if (match & VGA_RSRC_LEGACY_IO)
 			conflict->owns &= ~VGA_RSRC_NORMAL_IO;
 	}
 
