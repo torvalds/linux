@@ -276,7 +276,6 @@ static int spi_bitbang_transfer_one(struct spi_master *master,
 	struct spi_bitbang 	*bitbang;
 	unsigned		nsecs;
 	struct spi_transfer	*t = NULL;
-	unsigned		tmp;
 	unsigned		cs_change;
 	int			status;
 	int			do_setup = -1;
@@ -290,7 +289,6 @@ static int spi_bitbang_transfer_one(struct spi_master *master,
 	 */
 	nsecs = 100;
 
-	tmp = 0;
 	cs_change = 1;
 	status = 0;
 
