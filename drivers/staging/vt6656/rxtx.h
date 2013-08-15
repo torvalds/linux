@@ -85,6 +85,29 @@ struct vnt_rts_a_fb {
 	struct ieee80211_rts data;
 } __packed;
 
+/* CTS buffer header */
+struct vnt_cts {
+	u8 bySignalField_b;
+	u8 byServiceField_b;
+	u16 wTransmitLength_b;
+	u16 wDuration_ba;
+	u16 wReserved;
+	struct ieee80211_cts data;
+	u16 reserved2;
+} __packed;
+
+struct vnt_cts_fb {
+	u8 bySignalField_b;
+	u8 byServiceField_b;
+	u16 wTransmitLength_b;
+	u16 wDuration_ba;
+	u16 wReserved;
+	u16 wCTSDuration_ba_f0;
+	u16 wCTSDuration_ba_f1;
+	struct ieee80211_cts data;
+	u16 reserved2;
+} __packed;
+
 struct vnt_tx_buffer {
 	u8 byType;
 	u8 byPKTNO;

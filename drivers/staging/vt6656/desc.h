@@ -33,7 +33,6 @@
 
 #include <linux/types.h>
 #include <linux/mm.h>
-#include <linux/ieee80211.h>
 
 #include "tether.h"
 
@@ -184,37 +183,6 @@ typedef struct tagSRrvTime_atim {
 SRrvTime_atim, *PSRrvTime_atim;
 
 typedef const SRrvTime_atim *PCSRrvTime_atim;
-
-/*
- * CTS buffer header
- */
-typedef struct tagSCTS {
-    u8        bySignalField_b;
-    u8        byServiceField_b;
-    u16        wTransmitLength_b;
-    u16        wDuration_ba;
-    u16        wReserved;
-	struct ieee80211_cts data;
-	u16 reserved2;
-} __attribute__ ((__packed__))
-SCTS, *PSCTS;
-
-typedef const SCTS *PCSCTS;
-
-typedef struct tagSCTS_FB {
-    u8        bySignalField_b;
-    u8        byServiceField_b;
-    u16        wTransmitLength_b;
-    u16        wDuration_ba;
-    u16        wReserved;
-    u16        wCTSDuration_ba_f0;
-    u16        wCTSDuration_ba_f1;
-	struct ieee80211_cts data;
-	u16 reserved2;
-} __attribute__ ((__packed__))
-SCTS_FB, *PSCTS_FB;
-
-typedef const SCTS_FB *PCSCTS_FB;
 
 /*
  * TX FIFO header
