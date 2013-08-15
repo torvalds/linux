@@ -685,10 +685,14 @@ EXPORT_SYMBOL_GPL(iommu_domain_free);
 
 int iommu_attach_device(struct iommu_domain *domain, struct device *dev)
 {
+	int ret;
 	if (unlikely(domain->ops->attach_dev == NULL))
 		return -ENODEV;
 
-	return domain->ops->attach_dev(domain, dev);
+	ret = domain->ops->attach_dev(domain, dev);
+	if (!ret)
+		trace_attach_device_to_domain(dev);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(iommu_attach_device);
 
