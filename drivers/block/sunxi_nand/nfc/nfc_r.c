@@ -217,53 +217,14 @@ void _enable_ecc(__u32 pipline)
 	cfg |= NFC_ECC_EN;
 	NFC_WRITE_REG(NFC_REG_ECC_CTL, cfg);
 }
-#if 0
-/**************************save and restore irq*************************/
-__s32 _save_irq(void)
-{
 
-	__u32 temp;
-
-
-	__asm{MRS temp,CPSR};
-	irq_value = temp;
-	/*diable irq*/
-	__asm{
-		ORR temp,temp,#0x80
-		MSR CPSR_c,temp
-	};
-
-
-	return 0;
-}
-
-__s32 _restore_irq(void)
-{
-	__u32 temp;
-
-	temp = irq_value;
-
-	/*enable irq*/
-	__asm{
-		MSR CPSR_c,temp
-	};
-
-	return 0;
-}
-#endif
 __s32 _enter_nand_critical(void)
 {
-    // NAND_GetPin();
-    //_save_irq();
-
 	return 0;
 }
 
 __s32 _exit_nand_critical(void)
 {
-    // _restore_irq();
-    // NAND_ReleasePin();
-
 	return 0;
 }
 
@@ -818,9 +779,6 @@ __s32 NFC_Init(NFC_INIT_INFO *nand_info )
     //init ddr_param
     for(i=0;i<8;i++)
         ddr_param[i] = 0;
-
-//	nand_board_version = NAND_GetBoardVersion();
-//	_SetCE4567(nand_board_version);
 
 	NFC_SetEccMode(0);
 

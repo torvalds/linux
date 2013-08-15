@@ -58,9 +58,6 @@
 
 extern __hdle NAND_RequestDMA(__u32 dmatype);
 extern __s32 NAND_ReleaseDMA(__hdle hDma);
-extern __s32 NAND_GetPin(void);
-extern __s32 NAND_ReleasePin(void);
-extern __u32 NAND_GetBoardVersion(void);
 extern void NAND_Config_Start_DMA(__u8 rw, __u32 buff_addr, __u32 len);
 extern __s32 NAND_WaitDmaFinish(void);
 extern void NAND_ClearRbInt(void);
