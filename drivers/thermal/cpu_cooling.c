@@ -498,8 +498,12 @@ EXPORT_SYMBOL_GPL(cpufreq_cooling_register);
  */
 void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
 {
-	struct cpufreq_cooling_device *cpufreq_dev = cdev->devdata;
+	struct cpufreq_cooling_device *cpufreq_dev;
 
+	if (!cdev)
+		return;
+
+	cpufreq_dev = cdev->devdata;
 	mutex_lock(&cooling_cpufreq_lock);
 	cpufreq_dev_count--;
 
