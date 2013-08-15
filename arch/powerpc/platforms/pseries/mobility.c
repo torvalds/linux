@@ -216,17 +216,14 @@ static int add_dt_node(u32 parent_phandle, u32 drc_index)
 	struct device_node *parent_dn;
 	int rc;
 
-	dn = dlpar_configure_connector(drc_index);
+	parent_dn = of_find_node_by_phandle(parent_phandle);
+	if (!parent_dn)
+		return -ENOENT;
+
+	dn = dlpar_configure_connector(drc_index, parent_dn);
 	if (!dn)
 		return -ENOENT;
 
-	parent_dn = of_find_node_by_phandle(parent_phandle);
-	if (!parent_dn) {
-		dlpar_free_cc_nodes(dn);
-		return -ENOENT;
-	}
-
-	dn->parent = parent_dn;
 	rc = dlpar_attach_node(dn);
 	if (rc)
 		dlpar_free_cc_nodes(dn);
