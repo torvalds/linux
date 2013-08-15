@@ -33,6 +33,24 @@ static ssize_t dpms_state_show(struct device *dev,
 			adf_interface_dpms_state(intf));
 }
 
+static ssize_t dpms_state_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct adf_interface *intf = dev_to_adf_interface(dev);
+	u8 dpms_state;
+	int err;
+
+	err = kstrtou8(buf, 0, &dpms_state);
+	if (err < 0)
+		return err;
+
+	err = adf_interface_blank(intf, dpms_state);
+	if (err < 0)
+		return err;
+
+	return count;
+}
+
 static ssize_t current_mode_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -80,7 +98,7 @@ static ssize_t hotplug_detect_show(struct device *dev,
 }
 
 static struct device_attribute adf_interface_attrs[] = {
-	__ATTR_RO(dpms_state),
+	__ATTR(dpms_state, S_IRUGO|S_IWUSR, dpms_state_show, dpms_state_store),
 	__ATTR_RO(current_mode),
 	__ATTR_RO(hotplug_detect),
 	__ATTR_RO(type),
