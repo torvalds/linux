@@ -1493,6 +1493,9 @@ enum nl80211_commands {
  * @NL80211_ATTR_CSA_C_OFF_PRESP: Offset of the channel switch counter
  *	field in the probe response (%NL80211_ATTR_PROBE_RESP).
  *
+ * @NL80211_ATTR_RXMGMT_FLAGS: flags for nl80211_send_mgmt(), u32.
+ *	As specified in the &enum nl80211_rxmgmt_flags.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -1800,6 +1803,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_CSA_IES,
 	NL80211_ATTR_CSA_C_OFF_BEACON,
 	NL80211_ATTR_CSA_C_OFF_PRESP,
+
+	NL80211_ATTR_RXMGMT_FLAGS,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -3900,5 +3905,16 @@ enum nl80211_crit_proto_id {
 
 /* maximum duration for critical protocol measures */
 #define NL80211_CRIT_PROTO_MAX_DURATION		5000 /* msec */
+
+/**
+ * enum nl80211_rxmgmt_flags - flags for received management frame.
+ *
+ * Used by cfg80211_rx_mgmt()
+ *
+ * @NL80211_RXMGMT_FLAG_ANSWERED: frame was answered by device/driver.
+ */
+enum nl80211_rxmgmt_flags {
+	NL80211_RXMGMT_FLAG_ANSWERED = 1 << 0,
+};
 
 #endif /* __LINUX_NL80211_H */
