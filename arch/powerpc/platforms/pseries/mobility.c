@@ -161,18 +161,19 @@ static int update_dt_node(u32 phandle, s32 scope)
 
 		prop_data = rtas_buf + sizeof(*upwa);
 
-		/* The first element of the buffer is the path of the node
-		 * being updated in the form of a 8 byte string length
-		 * followed by the string. Skip past this to get to the
-		 * properties being updated.
+		/* On the first call to ibm,update-properties for a node the
+		 * the first property value descriptor contains an empty
+		 * property name, the property value length encoded as u32,
+		 * and the property value is the node path being updated.
 		 */
-		vd = *prop_data++;
-		prop_data += vd;
+		if (*prop_data == 0) {
+			prop_data++;
+			vd = *(u32 *)prop_data;
+			prop_data += vd + sizeof(vd);
+			upwa->nprops--;
+		}
 
-		/* The path we skipped over is counted as one of the elements
-		 * returned so start counting at one.
-		 */
-		for (i = 1; i < upwa->nprops; i++) {
+		for (i = 0; i < upwa->nprops; i++) {
 			char *prop_name;
 
 			prop_name = prop_data;
