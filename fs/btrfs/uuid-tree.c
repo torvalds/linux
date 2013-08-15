@@ -233,3 +233,126 @@ out:
 	btrfs_free_path(path);
 	return ret;
 }
+
+static int btrfs_uuid_iter_rem(struct btrfs_root *uuid_root, u8 *uuid, u8 type,
+			       u64 subid)
+{
+	struct btrfs_trans_handle *trans;
+	int ret;
+
+	/* 1 - for the uuid item */
+	trans = btrfs_start_transaction(uuid_root, 1);
+	if (IS_ERR(trans)) {
+		ret = PTR_ERR(trans);
+		goto out;
+	}
+
+	ret = btrfs_uuid_tree_rem(trans, uuid_root, uuid, type, subid);
+	btrfs_end_transaction(trans, uuid_root);
+
+out:
+	return ret;
+}
+
+int btrfs_uuid_tree_iterate(struct btrfs_fs_info *fs_info,
+			    int (*check_func)(struct btrfs_fs_info *, u8 *, u8,
+					      u64))
+{
+	struct btrfs_root *root = fs_info->uuid_root;
+	struct btrfs_key key;
+	struct btrfs_key max_key;
+	struct btrfs_path *path;
+	int ret = 0;
+	struct extent_buffer *leaf;
+	int slot;
+	u32 item_size;
+	unsigned long offset;
+
+	path = btrfs_alloc_path();
+	if (!path) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	key.objectid = 0;
+	key.type = 0;
+	key.offset = 0;
+	max_key.objectid = (u64)-1;
+	max_key.type = (u8)-1;
+	max_key.offset = (u64)-1;
+
+again_search_slot:
+	path->keep_locks = 1;
+	ret = btrfs_search_forward(root, &key, &max_key, path, 0);
+	if (ret) {
+		if (ret > 0)
+			ret = 0;
+		goto out;
+	}
+
+	while (1) {
+		cond_resched();
+		leaf = path->nodes[0];
+		slot = path->slots[0];
+		btrfs_item_key_to_cpu(leaf, &key, slot);
+
+		if (key.type != BTRFS_UUID_KEY_SUBVOL &&
+		    key.type != BTRFS_UUID_KEY_RECEIVED_SUBVOL)
+			goto skip;
+
+		offset = btrfs_item_ptr_offset(leaf, slot);
+		item_size = btrfs_item_size_nr(leaf, slot);
+		if (!IS_ALIGNED(item_size, sizeof(u64))) {
+			pr_warn("btrfs: uuid item with illegal size %lu!\n",
+				(unsigned long)item_size);
+			goto skip;
+		}
+		while (item_size) {
+			u8 uuid[BTRFS_UUID_SIZE];
+			__le64 subid_le;
+			u64 subid_cpu;
+
+			put_unaligned_le64(key.objectid, uuid);
+			put_unaligned_le64(key.offset, uuid + sizeof(u64));
+			read_extent_buffer(leaf, &subid_le, offset,
+					   sizeof(subid_le));
+			subid_cpu = le64_to_cpu(subid_le);
+			ret = check_func(fs_info, uuid, key.type, subid_cpu);
+			if (ret < 0)
+				goto out;
+			if (ret > 0) {
+				btrfs_release_path(path);
+				ret = btrfs_uuid_iter_rem(root, uuid, key.type,
+							  subid_cpu);
+				if (ret == 0) {
+					/*
+					 * this might look inefficient, but the
+					 * justification is that it is an
+					 * exception that check_func returns 1,
+					 * and that in the regular case only one
+					 * entry per UUID exists.
+					 */
+					goto again_search_slot;
+				}
+				if (ret < 0 && ret != -ENOENT)
+					goto out;
+			}
+			item_size -= sizeof(subid_le);
+			offset += sizeof(subid_le);
+		}
+
+skip:
+		ret = btrfs_next_item(root, path);
+		if (ret == 0)
+			continue;
+		else if (ret > 0)
+			ret = 0;
+		break;
+	}
+
+out:
+	btrfs_free_path(path);
+	if (ret)
+		pr_warn("btrfs: btrfs_uuid_tree_iterate failed %d\n", ret);
+	return 0;
+}

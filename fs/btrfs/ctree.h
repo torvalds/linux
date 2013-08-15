@@ -1658,6 +1658,7 @@ struct btrfs_fs_info {
 	atomic_t mutually_exclusive_operation_running;
 
 	struct semaphore uuid_tree_rescan_sem;
+	unsigned int update_uuid_tree_gen:1;
 };
 
 /*
@@ -3511,6 +3512,9 @@ int btrfs_uuid_tree_add(struct btrfs_trans_handle *trans,
 int btrfs_uuid_tree_rem(struct btrfs_trans_handle *trans,
 			struct btrfs_root *uuid_root, u8 *uuid, u8 type,
 			u64 subid);
+int btrfs_uuid_tree_iterate(struct btrfs_fs_info *fs_info,
+			    int (*check_func)(struct btrfs_fs_info *, u8 *, u8,
+					      u64));
 
 /* dir-item.c */
 int btrfs_check_dir_item_collision(struct btrfs_root *root, u64 dir,

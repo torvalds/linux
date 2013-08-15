@@ -2120,7 +2120,8 @@ int open_ctree(struct super_block *sb,
 	int err = -EINVAL;
 	int num_backups_tried = 0;
 	int backup_index = 0;
-	bool create_uuid_tree = false;
+	bool create_uuid_tree;
+	bool check_uuid_tree;
 
 	tree_root = fs_info->tree_root = btrfs_alloc_root(fs_info);
 	chunk_root = fs_info->chunk_root = btrfs_alloc_root(fs_info);
@@ -2724,9 +2725,13 @@ retry_root_backup:
 		if (ret != -ENOENT)
 			goto recovery_tree_root;
 		create_uuid_tree = true;
+		check_uuid_tree = false;
 	} else {
 		uuid_root->track_dirty = 1;
 		fs_info->uuid_root = uuid_root;
+		create_uuid_tree = false;
+		check_uuid_tree =
+		    generation != btrfs_super_uuid_tree_generation(disk_super);
 	}
 
 	fs_info->generation = generation;
@@ -2924,6 +2929,17 @@ retry_root_backup:
 			close_ctree(tree_root);
 			return ret;
 		}
+	} else if (check_uuid_tree) {
+		pr_info("btrfs: checking UUID tree\n");
+		ret = btrfs_check_uuid_tree(fs_info);
+		if (ret) {
+			pr_warn("btrfs: failed to check the UUID tree %d\n",
+				ret);
+			close_ctree(tree_root);
+			return ret;
+		}
+	} else {
+		fs_info->update_uuid_tree_gen = 1;
 	}
 
 	return 0;
