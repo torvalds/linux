@@ -50,6 +50,7 @@ static struct iscsi_login *iscsi_login_init_conn(struct iscsi_conn *conn)
 		pr_err("Unable to allocate memory for struct iscsi_login.\n");
 		return NULL;
 	}
+	conn->login = login;
 	login->conn = conn;
 	login->first_request = 1;
 
@@ -684,7 +685,7 @@ static void iscsi_post_login_start_timers(struct iscsi_conn *conn)
 		iscsit_start_nopin_timer(conn);
 }
 
-static int iscsi_post_login_handler(
+int iscsi_post_login_handler(
 	struct iscsi_np *np,
 	struct iscsi_conn *conn,
 	u8 zero_tsih)
@@ -1124,6 +1125,77 @@ iscsit_conn_set_transport(struct iscsi_conn *conn, struct iscsit_transport *t)
 	return 0;
 }
 
+void iscsi_target_login_sess_out(struct iscsi_conn *conn,
+		struct iscsi_np *np, bool zero_tsih, bool new_sess)
+{
+	if (new_sess == false)
+		goto old_sess_out;
+
+	pr_err("iSCSI Login negotiation failed.\n");
+	iscsit_collect_login_stats(conn, ISCSI_STATUS_CLS_INITIATOR_ERR,
+				   ISCSI_LOGIN_STATUS_INIT_ERR);
+	if (!zero_tsih || !conn->sess)
+		goto old_sess_out;
+	if (conn->sess->se_sess)
+		transport_free_session(conn->sess->se_sess);
+	if (conn->sess->session_index != 0) {
+		spin_lock_bh(&sess_idr_lock);
+		idr_remove(&sess_idr, conn->sess->session_index);
+		spin_unlock_bh(&sess_idr_lock);
+	}
+	kfree(conn->sess->sess_ops);
+	kfree(conn->sess);
+
+old_sess_out:
+	iscsi_stop_login_thread_timer(np);
+	/*
+	 * If login negotiation fails check if the Time2Retain timer
+	 * needs to be restarted.
+	 */
+	if (!zero_tsih && conn->sess) {
+		spin_lock_bh(&conn->sess->conn_lock);
+		if (conn->sess->session_state == TARG_SESS_STATE_FAILED) {
+			struct se_portal_group *se_tpg =
+					&ISCSI_TPG_C(conn)->tpg_se_tpg;
+
+			atomic_set(&conn->sess->session_continuation, 0);
+			spin_unlock_bh(&conn->sess->conn_lock);
+			spin_lock_bh(&se_tpg->session_lock);
+			iscsit_start_time2retain_handler(conn->sess);
+			spin_unlock_bh(&se_tpg->session_lock);
+		} else
+			spin_unlock_bh(&conn->sess->conn_lock);
+		iscsit_dec_session_usage_count(conn->sess);
+	}
+
+	if (!IS_ERR(conn->conn_rx_hash.tfm))
+		crypto_free_hash(conn->conn_rx_hash.tfm);
+	if (!IS_ERR(conn->conn_tx_hash.tfm))
+		crypto_free_hash(conn->conn_tx_hash.tfm);
+
+	if (conn->conn_cpumask)
+		free_cpumask_var(conn->conn_cpumask);
+
+	kfree(conn->conn_ops);
+
+	if (conn->param_list) {
+		iscsi_release_param_list(conn->param_list);
+		conn->param_list = NULL;
+	}
+	iscsi_target_nego_release(conn);
+
+	if (conn->sock) {
+		sock_release(conn->sock);
+		conn->sock = NULL;
+	}
+
+	if (conn->conn_transport->iscsit_free_conn)
+		conn->conn_transport->iscsit_free_conn(conn);
+
+	iscsit_put_transport(conn->conn_transport);
+	kfree(conn);
+}
+
 static int __iscsi_target_login_thread(struct iscsi_np *np)
 {
 	u8 *buffer, zero_tsih = 0;
@@ -1132,6 +1204,8 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 	struct iscsi_login *login;
 	struct iscsi_portal_group *tpg = NULL;
 	struct iscsi_login_req *pdu;
+	struct iscsi_tpg_np *tpg_np;
+	bool new_sess = false;
 
 	flush_signals(current);
 
@@ -1273,6 +1347,7 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 		tpg = conn->tpg;
 		goto new_sess_out;
 	}
+	login->zero_tsih = zero_tsih;
 
 	tpg = conn->tpg;
 	if (!tpg) {
@@ -1288,7 +1363,8 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 			goto old_sess_out;
 	}
 
-	if (iscsi_target_start_negotiation(login, conn) < 0)
+	ret = iscsi_target_start_negotiation(login, conn);
+	if (ret < 0)
 		goto new_sess_out;
 
 	if (!conn->sess) {
@@ -1301,84 +1377,32 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 	if (signal_pending(current))
 		goto new_sess_out;
 
-	ret = iscsi_post_login_handler(np, conn, zero_tsih);
+	if (ret == 1) {
+		tpg_np = conn->tpg_np;
 
-	if (ret < 0)
-		goto new_sess_out;
+		ret = iscsi_post_login_handler(np, conn, zero_tsih);
+		if (ret < 0)
+			goto new_sess_out;
 
-	iscsit_deaccess_np(np, tpg);
+		iscsit_deaccess_np(np, tpg, tpg_np);
+	}
+
 	tpg = NULL;
+	tpg_np = NULL;
 	/* Get another socket */
 	return 1;
 
 new_sess_out:
-	pr_err("iSCSI Login negotiation failed.\n");
-	iscsit_collect_login_stats(conn, ISCSI_STATUS_CLS_INITIATOR_ERR,
-				  ISCSI_LOGIN_STATUS_INIT_ERR);
-	if (!zero_tsih || !conn->sess)
-		goto old_sess_out;
-	if (conn->sess->se_sess)
-		transport_free_session(conn->sess->se_sess);
-	if (conn->sess->session_index != 0) {
-		spin_lock_bh(&sess_idr_lock);
-		idr_remove(&sess_idr, conn->sess->session_index);
-		spin_unlock_bh(&sess_idr_lock);
-	}
-	kfree(conn->sess->sess_ops);
-	kfree(conn->sess);
+	new_sess = true;
 old_sess_out:
-	iscsi_stop_login_thread_timer(np);
-	/*
-	 * If login negotiation fails check if the Time2Retain timer
-	 * needs to be restarted.
-	 */
-	if (!zero_tsih && conn->sess) {
-		spin_lock_bh(&conn->sess->conn_lock);
-		if (conn->sess->session_state == TARG_SESS_STATE_FAILED) {
-			struct se_portal_group *se_tpg =
-					&ISCSI_TPG_C(conn)->tpg_se_tpg;
-
-			atomic_set(&conn->sess->session_continuation, 0);
-			spin_unlock_bh(&conn->sess->conn_lock);
-			spin_lock_bh(&se_tpg->session_lock);
-			iscsit_start_time2retain_handler(conn->sess);
-			spin_unlock_bh(&se_tpg->session_lock);
-		} else
-			spin_unlock_bh(&conn->sess->conn_lock);
-		iscsit_dec_session_usage_count(conn->sess);
-	}
-
-	if (!IS_ERR(conn->conn_rx_hash.tfm))
-		crypto_free_hash(conn->conn_rx_hash.tfm);
-	if (!IS_ERR(conn->conn_tx_hash.tfm))
-		crypto_free_hash(conn->conn_tx_hash.tfm);
-
-	if (conn->conn_cpumask)
-		free_cpumask_var(conn->conn_cpumask);
-
-	kfree(conn->conn_ops);
-
-	if (conn->param_list) {
-		iscsi_release_param_list(conn->param_list);
-		conn->param_list = NULL;
-	}
-	iscsi_target_nego_release(conn);
-
-	if (conn->sock) {
-		sock_release(conn->sock);
-		conn->sock = NULL;
-	}
-
-	if (conn->conn_transport->iscsit_free_conn)
-		conn->conn_transport->iscsit_free_conn(conn);
-
-	iscsit_put_transport(conn->conn_transport);
-
-	kfree(conn);
+	tpg_np = conn->tpg_np;
+	iscsi_target_login_sess_out(conn, np, zero_tsih, new_sess);
+	new_sess = false;
 
 	if (tpg) {
-		iscsit_deaccess_np(np, tpg);
+		iscsit_deaccess_np(np, tpg, tpg_np);
 		tpg = NULL;
+		tpg_np = NULL;
 	}
 
 out:

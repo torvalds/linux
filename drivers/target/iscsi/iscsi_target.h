@@ -7,13 +7,15 @@ extern void iscsit_put_tiqn_for_login(struct iscsi_tiqn *);
 extern struct iscsi_tiqn *iscsit_add_tiqn(unsigned char *);
 extern void iscsit_del_tiqn(struct iscsi_tiqn *);
 extern int iscsit_access_np(struct iscsi_np *, struct iscsi_portal_group *);
-extern int iscsit_deaccess_np(struct iscsi_np *, struct iscsi_portal_group *);
+extern void iscsit_login_kref_put(struct kref *);
+extern int iscsit_deaccess_np(struct iscsi_np *, struct iscsi_portal_group *,
+				struct iscsi_tpg_np *);
 extern bool iscsit_check_np_match(struct __kernel_sockaddr_storage *,
 				struct iscsi_np *, int);
 extern struct iscsi_np *iscsit_add_np(struct __kernel_sockaddr_storage *,
 				char *, int);
 extern int iscsit_reset_np_thread(struct iscsi_np *, struct iscsi_tpg_np *,
-				struct iscsi_portal_group *);
+				struct iscsi_portal_group *, bool);
 extern int iscsit_del_np(struct iscsi_np *);
 extern int iscsit_reject_cmd(struct iscsi_cmd *cmd, u8, unsigned char *);
 extern void iscsit_set_unsoliticed_dataout(struct iscsi_cmd *);

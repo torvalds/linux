@@ -220,11 +220,6 @@ int iscsit_access_np(struct iscsi_np *np, struct iscsi_portal_group *tpg)
 		spin_unlock_bh(&np->np_thread_lock);
 		return -1;
 	}
-	if (np->np_login_tpg) {
-		pr_err("np->np_login_tpg() is not NULL!\n");
-		spin_unlock_bh(&np->np_thread_lock);
-		return -1;
-	}
 	spin_unlock_bh(&np->np_thread_lock);
 	/*
 	 * Determine if the portal group is accepting storage traffic.
@@ -239,26 +234,38 @@ int iscsit_access_np(struct iscsi_np *np, struct iscsi_portal_group *tpg)
 	/*
 	 * Here we serialize access across the TIQN+TPG Tuple.
 	 */
-	ret = mutex_lock_interruptible(&tpg->np_login_lock);
+	ret = down_interruptible(&tpg->np_login_sem);
 	if ((ret != 0) || signal_pending(current))
 		return -1;
 
-	spin_lock_bh(&np->np_thread_lock);
-	np->np_login_tpg = tpg;
-	spin_unlock_bh(&np->np_thread_lock);
+	spin_lock_bh(&tpg->tpg_state_lock);
+	if (tpg->tpg_state != TPG_STATE_ACTIVE) {
+		spin_unlock_bh(&tpg->tpg_state_lock);
+		up(&tpg->np_login_sem);
+		return -1;
+	}
+	spin_unlock_bh(&tpg->tpg_state_lock);
 
 	return 0;
 }
 
-int iscsit_deaccess_np(struct iscsi_np *np, struct iscsi_portal_group *tpg)
+void iscsit_login_kref_put(struct kref *kref)
+{
+	struct iscsi_tpg_np *tpg_np = container_of(kref,
+				struct iscsi_tpg_np, tpg_np_kref);
+
+	complete(&tpg_np->tpg_np_comp);
+}
+
+int iscsit_deaccess_np(struct iscsi_np *np, struct iscsi_portal_group *tpg,
+		       struct iscsi_tpg_np *tpg_np)
 {
 	struct iscsi_tiqn *tiqn = tpg->tpg_tiqn;
 
-	spin_lock_bh(&np->np_thread_lock);
-	np->np_login_tpg = NULL;
-	spin_unlock_bh(&np->np_thread_lock);
+	up(&tpg->np_login_sem);
 
-	mutex_unlock(&tpg->np_login_lock);
+	if (tpg_np)
+		kref_put(&tpg_np->tpg_np_kref, iscsit_login_kref_put);
 
 	if (tiqn)
 		iscsit_put_tiqn_for_login(tiqn);
@@ -410,20 +417,10 @@ struct iscsi_np *iscsit_add_np(
 int iscsit_reset_np_thread(
 	struct iscsi_np *np,
 	struct iscsi_tpg_np *tpg_np,
-	struct iscsi_portal_group *tpg)
+	struct iscsi_portal_group *tpg,
+	bool shutdown)
 {
 	spin_lock_bh(&np->np_thread_lock);
-	if (tpg && tpg_np) {
-		/*
-		 * The reset operation need only be performed when the
-		 * passed struct iscsi_portal_group has a login in progress
-		 * to one of the network portals.
-		 */
-		if (tpg_np->tpg_np->np_login_tpg != tpg) {
-			spin_unlock_bh(&np->np_thread_lock);
-			return 0;
-		}
-	}
 	if (np->np_thread_state == ISCSI_NP_THREAD_INACTIVE) {
 		spin_unlock_bh(&np->np_thread_lock);
 		return 0;
@@ -437,6 +434,12 @@ int iscsit_reset_np_thread(
 		spin_lock_bh(&np->np_thread_lock);
 	}
 	spin_unlock_bh(&np->np_thread_lock);
+
+	if (tpg_np && shutdown) {
+		kref_put(&tpg_np->tpg_np_kref, iscsit_login_kref_put);
+
+		wait_for_completion(&tpg_np->tpg_np_comp);
+	}
 
 	return 0;
 }

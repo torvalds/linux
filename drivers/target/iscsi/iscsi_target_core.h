@@ -554,6 +554,13 @@ struct iscsi_conn {
 	struct completion	rx_half_close_comp;
 	/* socket used by this connection */
 	struct socket		*sock;
+	void			(*orig_data_ready)(struct sock *, int);
+#define LOGIN_FLAGS_READ_ACTIVE		1
+#define LOGIN_FLAGS_CLOSED		2
+#define LOGIN_FLAGS_READY		4
+	unsigned long		login_flags;
+	struct delayed_work	login_work;
+	struct iscsi_login	*login;
 	struct timer_list	nopin_timer;
 	struct timer_list	nopin_response_timer;
 	struct timer_list	transport_timer;
@@ -584,6 +591,7 @@ struct iscsi_conn {
 	void			*context;
 	struct iscsi_login_thread_s *login_thread;
 	struct iscsi_portal_group *tpg;
+	struct iscsi_tpg_np	*tpg_np;
 	/* Pointer to parent session */
 	struct iscsi_session	*sess;
 	/* Pointer to thread_set in use for this conn's threads */
@@ -682,6 +690,7 @@ struct iscsi_login {
 	u8 version_max;
 	u8 login_complete;
 	u8 login_failed;
+	bool zero_tsih;
 	char isid[6];
 	u32 cmd_sn;
 	itt_t init_task_tag;
@@ -694,6 +703,7 @@ struct iscsi_login {
 	char *req_buf;
 	char *rsp_buf;
 	struct iscsi_conn *conn;
+	struct iscsi_np *np;
 } ____cacheline_aligned;
 
 struct iscsi_node_attrib {
@@ -773,7 +783,6 @@ struct iscsi_np {
 	struct __kernel_sockaddr_storage np_sockaddr;
 	struct task_struct	*np_thread;
 	struct timer_list	np_login_timer;
-	struct iscsi_portal_group *np_login_tpg;
 	void			*np_context;
 	struct iscsit_transport *np_transport;
 	struct list_head	np_list;
@@ -788,6 +797,8 @@ struct iscsi_tpg_np {
 	struct list_head	tpg_np_parent_list;
 	struct se_tpg_np	se_tpg_np;
 	spinlock_t		tpg_np_parent_lock;
+	struct completion	tpg_np_comp;
+	struct kref		tpg_np_kref;
 };
 
 struct iscsi_portal_group {
@@ -809,7 +820,7 @@ struct iscsi_portal_group {
 	spinlock_t		tpg_state_lock;
 	struct se_portal_group tpg_se_tpg;
 	struct mutex		tpg_access_lock;
-	struct mutex		np_login_lock;
+	struct semaphore	np_login_sem;
 	struct iscsi_tpg_attrib	tpg_attrib;
 	struct iscsi_node_auth	tpg_demo_auth;
 	/* Pointer to default list of iSCSI parameters for TPG */
