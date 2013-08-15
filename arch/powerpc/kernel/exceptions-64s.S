@@ -323,32 +323,32 @@ hv_exception_trampoline:
 	 * prolog code of the PerformanceMonitor one. A little
 	 * trickery is thus necessary
 	 */
-performance_monitor_pSeries_1:
 	. = 0xf00
+performance_monitor_pseries_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	performance_monitor_pSeries
 
-altivec_unavailable_pSeries_1:
 	. = 0xf20
+altivec_unavailable_pseries_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	altivec_unavailable_pSeries
 
-vsx_unavailable_pSeries_1:
 	. = 0xf40
+vsx_unavailable_pseries_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	vsx_unavailable_pSeries
 
-facility_unavailable_trampoline:
 	. = 0xf60
+facility_unavailable_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	facility_unavailable_pSeries
 
-hv_facility_unavailable_trampoline:
 	. = 0xf80
+hv_facility_unavailable_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	facility_unavailable_hv
@@ -821,32 +821,32 @@ system_call_relon_pSeries:
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	h_doorbell_relon_hv
 
-performance_monitor_relon_pSeries_1:
 	. = 0x4f00
+performance_monitor_relon_pseries_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	performance_monitor_relon_pSeries
 
-altivec_unavailable_relon_pSeries_1:
 	. = 0x4f20
+altivec_unavailable_relon_pseries_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	altivec_unavailable_relon_pSeries
 
-vsx_unavailable_relon_pSeries_1:
 	. = 0x4f40
+vsx_unavailable_relon_pseries_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	vsx_unavailable_relon_pSeries
 
-facility_unavailable_relon_trampoline:
 	. = 0x4f60
+facility_unavailable_relon_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	facility_unavailable_relon_pSeries
 
-hv_facility_unavailable_relon_trampoline:
 	. = 0x4f80
+hv_facility_unavailable_relon_trampoline:
 	SET_SCRATCH0(r13)
 	EXCEPTION_PROLOG_0(PACA_EXGEN)
 	b	facility_unavailable_relon_hv
