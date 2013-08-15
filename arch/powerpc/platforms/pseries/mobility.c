@@ -130,7 +130,7 @@ static int update_dt_node(u32 phandle, s32 scope)
 	struct update_props_workarea *upwa;
 	struct device_node *dn;
 	struct property *prop = NULL;
-	int i, rc;
+	int i, rc, rtas_rc;
 	char *prop_data;
 	char *rtas_buf;
 	int update_properties_token;
@@ -154,9 +154,9 @@ static int update_dt_node(u32 phandle, s32 scope)
 	upwa->phandle = phandle;
 
 	do {
-		rc = mobility_rtas_call(update_properties_token, rtas_buf,
+		rtas_rc = mobility_rtas_call(update_properties_token, rtas_buf,
 					scope);
-		if (rc < 0)
+		if (rtas_rc < 0)
 			break;
 
 		prop_data = rtas_buf + sizeof(*upwa);
@@ -202,7 +202,7 @@ static int update_dt_node(u32 phandle, s32 scope)
 				prop_data += vd;
 			}
 		}
-	} while (rc == 1);
+	} while (rtas_rc == 1);
 
 	of_node_put(dn);
 	kfree(rtas_buf);
