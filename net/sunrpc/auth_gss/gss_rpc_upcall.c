@@ -120,7 +120,7 @@ static int gssp_rpc_create(struct net *net, struct rpc_clnt **_clnt)
 	if (IS_ERR(clnt)) {
 		dprintk("RPC:       failed to create AF_LOCAL gssproxy "
 				"client (errno %ld).\n", PTR_ERR(clnt));
-		result = -PTR_ERR(clnt);
+		result = PTR_ERR(clnt);
 		*_clnt = NULL;
 		goto out;
 	}
@@ -328,7 +328,6 @@ void gssp_free_upcall_data(struct gssp_upcall_data *data)
 	kfree(data->in_handle.data);
 	kfree(data->out_handle.data);
 	kfree(data->out_token.data);
-	kfree(data->mech_oid.data);
 	free_svc_cred(&data->creds);
 }
 

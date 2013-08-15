@@ -47,7 +47,7 @@ enum s390_regset {
 	REGSET_GENERAL_EXTENDED,
 };
 
-void update_per_regs(struct task_struct *task)
+void update_cr_regs(struct task_struct *task)
 {
 	struct pt_regs *regs = task_pt_regs(task);
 	struct thread_struct *thread = &task->thread;
@@ -56,17 +56,25 @@ void update_per_regs(struct task_struct *task)
 #ifdef CONFIG_64BIT
 	/* Take care of the enable/disable of transactional execution. */
 	if (MACHINE_HAS_TE) {
-		unsigned long cr0, cr0_new;
+		unsigned long cr[3], cr_new[3];
 
-		__ctl_store(cr0, 0, 0);
-		/* set or clear transaction execution bits 8 and 9. */
+		__ctl_store(cr, 0, 2);
+		cr_new[1] = cr[1];
+		/* Set or clear transaction execution TXC/PIFO bits 8 and 9. */
 		if (task->thread.per_flags & PER_FLAG_NO_TE)
-			cr0_new = cr0 & ~(3UL << 54);
+			cr_new[0] = cr[0] & ~(3UL << 54);
 		else
-			cr0_new = cr0 | (3UL << 54);
-		/* Only load control register 0 if necessary. */
-		if (cr0 != cr0_new)
-			__ctl_load(cr0_new, 0, 0);
+			cr_new[0] = cr[0] | (3UL << 54);
+		/* Set or clear transaction execution TDC bits 62 and 63. */
+		cr_new[2] = cr[2] & ~3UL;
+		if (task->thread.per_flags & PER_FLAG_TE_ABORT_RAND) {
+			if (task->thread.per_flags & PER_FLAG_TE_ABORT_RAND_TEND)
+				cr_new[2] |= 1UL;
+			else
+				cr_new[2] |= 2UL;
+		}
+		if (memcmp(&cr_new, &cr, sizeof(cr)))
+			__ctl_load(cr_new, 0, 2);
 	}
 #endif
 	/* Copy user specified PER registers */
@@ -100,14 +108,14 @@ void user_enable_single_step(struct task_struct *task)
 {
 	set_tsk_thread_flag(task, TIF_SINGLE_STEP);
 	if (task == current)
-		update_per_regs(task);
+		update_cr_regs(task);
 }
 
 void user_disable_single_step(struct task_struct *task)
 {
 	clear_tsk_thread_flag(task, TIF_SINGLE_STEP);
 	if (task == current)
-		update_per_regs(task);
+		update_cr_regs(task);
 }
 
 /*
@@ -447,6 +455,26 @@ long arch_ptrace(struct task_struct *child, long request,
 		if (!MACHINE_HAS_TE)
 			return -EIO;
 		child->thread.per_flags |= PER_FLAG_NO_TE;
+		child->thread.per_flags &= ~PER_FLAG_TE_ABORT_RAND;
+		return 0;
+	case PTRACE_TE_ABORT_RAND:
+		if (!MACHINE_HAS_TE || (child->thread.per_flags & PER_FLAG_NO_TE))
+			return -EIO;
+		switch (data) {
+		case 0UL:
+			child->thread.per_flags &= ~PER_FLAG_TE_ABORT_RAND;
+			break;
+		case 1UL:
+			child->thread.per_flags |= PER_FLAG_TE_ABORT_RAND;
+			child->thread.per_flags |= PER_FLAG_TE_ABORT_RAND_TEND;
+			break;
+		case 2UL:
+			child->thread.per_flags |= PER_FLAG_TE_ABORT_RAND;
+			child->thread.per_flags &= ~PER_FLAG_TE_ABORT_RAND_TEND;
+			break;
+		default:
+			return -EINVAL;
+		}
 		return 0;
 	default:
 		/* Removing high order bit from addr (only for 31 bit). */

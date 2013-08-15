@@ -811,18 +811,28 @@ int iosapic_fixup_irq(void *isi_obj, struct pci_dev *pcidev)
 	return pcidev->irq;
 }
 
-static struct iosapic_info *first_isi = NULL;
+static struct iosapic_info *iosapic_list;
 
 #ifdef CONFIG_64BIT
-int iosapic_serial_irq(int num)
+int iosapic_serial_irq(struct parisc_device *dev)
 {
-	struct iosapic_info *isi = first_isi;
-	struct irt_entry *irte = NULL;  /* only used if PAT PDC */
+	struct iosapic_info *isi;
+	struct irt_entry *irte;
 	struct vector_info *vi;
-	int isi_line;	/* line used by device */
+	int cnt;
+	int intin;
+
+	intin = (dev->mod_info >> 24) & 15;
 
 	/* lookup IRT entry for isi/slot/pin set */
-	irte = &irt_cell[num];
+	for (cnt = 0; cnt < irt_num_entry; cnt++) {
+		irte = &irt_cell[cnt];
+		if (COMPARE_IRTE_ADDR(irte, dev->mod0) &&
+		    irte->dest_iosapic_intin == intin)
+			break;
+	}
+	if (cnt >= irt_num_entry)
+		return 0; /* no irq found, force polling */
 
 	DBG_IRT("iosapic_serial_irq(): irte %p %x %x %x %x %x %x %x %x\n",
 		irte,
@@ -834,11 +844,17 @@ int iosapic_serial_irq(int num)
 		irte->src_seg_id,
 		irte->dest_iosapic_intin,
 		(u32) irte->dest_iosapic_addr);
-	isi_line = irte->dest_iosapic_intin;
+
+	/* search for iosapic */
+	for (isi = iosapic_list; isi; isi = isi->isi_next)
+		if (isi->isi_hpa == dev->mod0)
+			break;
+	if (!isi)
+		return 0; /* no iosapic found, force polling */
 
 	/* get vector info for this input line */
-	vi = isi->isi_vector + isi_line;
-	DBG_IRT("iosapic_serial_irq:  line %d vi 0x%p\n", isi_line, vi);
+	vi = isi->isi_vector + intin;
+	DBG_IRT("iosapic_serial_irq:  line %d vi 0x%p\n", iosapic_intin, vi);
 
 	/* If this IRQ line has already been setup, skip it */
 	if (vi->irte)
@@ -941,8 +957,8 @@ void *iosapic_register(unsigned long hpa)
 		vip->irqline = (unsigned char) cnt;
 		vip->iosapic = isi;
 	}
-	if (!first_isi)
-		first_isi = isi;
+	isi->isi_next = iosapic_list;
+	iosapic_list = isi;
 	return isi;
 }
 

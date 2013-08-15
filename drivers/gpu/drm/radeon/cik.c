@@ -22,7 +22,6 @@
  * Authors: Alex Deucher
  */
 #include <linux/firmware.h>
-#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include "drmP.h"
@@ -742,7 +741,6 @@ static int ci_mc_load_microcode(struct radeon_device *rdev)
  */
 static int cik_init_microcode(struct radeon_device *rdev)
 {
-	struct platform_device *pdev;
 	const char *chip_name;
 	size_t pfp_req_size, me_req_size, ce_req_size,
 		mec_req_size, rlc_req_size, mc_req_size,
@@ -751,13 +749,6 @@ static int cik_init_microcode(struct radeon_device *rdev)
 	int err;
 
 	DRM_DEBUG("\n");
-
-	pdev = platform_device_register_simple("radeon_cp", 0, NULL, 0);
-	err = IS_ERR(pdev);
-	if (err) {
-		printk(KERN_ERR "radeon_cp: Failed to register firmware\n");
-		return -EINVAL;
-	}
 
 	switch (rdev->family) {
 	case CHIP_BONAIRE:
@@ -794,7 +785,7 @@ static int cik_init_microcode(struct radeon_device *rdev)
 	DRM_INFO("Loading %s Microcode\n", chip_name);
 
 	snprintf(fw_name, sizeof(fw_name), "radeon/%s_pfp.bin", chip_name);
-	err = request_firmware(&rdev->pfp_fw, fw_name, &pdev->dev);
+	err = request_firmware(&rdev->pfp_fw, fw_name, rdev->dev);
 	if (err)
 		goto out;
 	if (rdev->pfp_fw->size != pfp_req_size) {
@@ -806,7 +797,7 @@ static int cik_init_microcode(struct radeon_device *rdev)
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "radeon/%s_me.bin", chip_name);
-	err = request_firmware(&rdev->me_fw, fw_name, &pdev->dev);
+	err = request_firmware(&rdev->me_fw, fw_name, rdev->dev);
 	if (err)
 		goto out;
 	if (rdev->me_fw->size != me_req_size) {
@@ -817,7 +808,7 @@ static int cik_init_microcode(struct radeon_device *rdev)
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "radeon/%s_ce.bin", chip_name);
-	err = request_firmware(&rdev->ce_fw, fw_name, &pdev->dev);
+	err = request_firmware(&rdev->ce_fw, fw_name, rdev->dev);
 	if (err)
 		goto out;
 	if (rdev->ce_fw->size != ce_req_size) {
@@ -828,7 +819,7 @@ static int cik_init_microcode(struct radeon_device *rdev)
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "radeon/%s_mec.bin", chip_name);
-	err = request_firmware(&rdev->mec_fw, fw_name, &pdev->dev);
+	err = request_firmware(&rdev->mec_fw, fw_name, rdev->dev);
 	if (err)
 		goto out;
 	if (rdev->mec_fw->size != mec_req_size) {
@@ -839,7 +830,7 @@ static int cik_init_microcode(struct radeon_device *rdev)
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "radeon/%s_rlc.bin", chip_name);
-	err = request_firmware(&rdev->rlc_fw, fw_name, &pdev->dev);
+	err = request_firmware(&rdev->rlc_fw, fw_name, rdev->dev);
 	if (err)
 		goto out;
 	if (rdev->rlc_fw->size != rlc_req_size) {
@@ -850,7 +841,7 @@ static int cik_init_microcode(struct radeon_device *rdev)
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "radeon/%s_sdma.bin", chip_name);
-	err = request_firmware(&rdev->sdma_fw, fw_name, &pdev->dev);
+	err = request_firmware(&rdev->sdma_fw, fw_name, rdev->dev);
 	if (err)
 		goto out;
 	if (rdev->sdma_fw->size != sdma_req_size) {
@@ -863,7 +854,7 @@ static int cik_init_microcode(struct radeon_device *rdev)
 	/* No MC ucode on APUs */
 	if (!(rdev->flags & RADEON_IS_IGP)) {
 		snprintf(fw_name, sizeof(fw_name), "radeon/%s_mc.bin", chip_name);
-		err = request_firmware(&rdev->mc_fw, fw_name, &pdev->dev);
+		err = request_firmware(&rdev->mc_fw, fw_name, rdev->dev);
 		if (err)
 			goto out;
 		if (rdev->mc_fw->size != mc_req_size) {
@@ -875,8 +866,6 @@ static int cik_init_microcode(struct radeon_device *rdev)
 	}
 
 out:
-	platform_device_unregister(pdev);
-
 	if (err) {
 		if (err != -EINVAL)
 			printk(KERN_ERR
@@ -2598,9 +2587,11 @@ u32 cik_compute_ring_get_rptr(struct radeon_device *rdev,
 	if (rdev->wb.enabled) {
 		rptr = le32_to_cpu(rdev->wb.wb[ring->rptr_offs/4]);
 	} else {
+		mutex_lock(&rdev->srbm_mutex);
 		cik_srbm_select(rdev, ring->me, ring->pipe, ring->queue, 0);
 		rptr = RREG32(CP_HQD_PQ_RPTR);
 		cik_srbm_select(rdev, 0, 0, 0, 0);
+		mutex_unlock(&rdev->srbm_mutex);
 	}
 	rptr = (rptr & ring->ptr_reg_mask) >> ring->ptr_reg_shift;
 
@@ -2615,9 +2606,11 @@ u32 cik_compute_ring_get_wptr(struct radeon_device *rdev,
 	if (rdev->wb.enabled) {
 		wptr = le32_to_cpu(rdev->wb.wb[ring->wptr_offs/4]);
 	} else {
+		mutex_lock(&rdev->srbm_mutex);
 		cik_srbm_select(rdev, ring->me, ring->pipe, ring->queue, 0);
 		wptr = RREG32(CP_HQD_PQ_WPTR);
 		cik_srbm_select(rdev, 0, 0, 0, 0);
+		mutex_unlock(&rdev->srbm_mutex);
 	}
 	wptr = (wptr & ring->ptr_reg_mask) >> ring->ptr_reg_shift;
 
@@ -2908,6 +2901,7 @@ static int cik_cp_compute_resume(struct radeon_device *rdev)
 	WREG32(CP_CPF_DEBUG, tmp);
 
 	/* init the pipes */
+	mutex_lock(&rdev->srbm_mutex);
 	for (i = 0; i < (rdev->mec.num_pipe * rdev->mec.num_mec); i++) {
 		int me = (i < 4) ? 1 : 2;
 		int pipe = (i < 4) ? i : (i - 4);
@@ -2930,6 +2924,7 @@ static int cik_cp_compute_resume(struct radeon_device *rdev)
 		WREG32(CP_HPD_EOP_CONTROL, tmp);
 	}
 	cik_srbm_select(rdev, 0, 0, 0, 0);
+	mutex_unlock(&rdev->srbm_mutex);
 
 	/* init the queues.  Just two for now. */
 	for (i = 0; i < 2; i++) {
@@ -2983,6 +2978,7 @@ static int cik_cp_compute_resume(struct radeon_device *rdev)
 		mqd->static_thread_mgmt23[0] = 0xffffffff;
 		mqd->static_thread_mgmt23[1] = 0xffffffff;
 
+		mutex_lock(&rdev->srbm_mutex);
 		cik_srbm_select(rdev, rdev->ring[idx].me,
 				rdev->ring[idx].pipe,
 				rdev->ring[idx].queue, 0);
@@ -3110,6 +3106,7 @@ static int cik_cp_compute_resume(struct radeon_device *rdev)
 		WREG32(CP_HQD_ACTIVE, mqd->queue_state.cp_hqd_active);
 
 		cik_srbm_select(rdev, 0, 0, 0, 0);
+		mutex_unlock(&rdev->srbm_mutex);
 
 		radeon_bo_kunmap(rdev->ring[idx].mqd_obj);
 		radeon_bo_unreserve(rdev->ring[idx].mqd_obj);
@@ -4331,6 +4328,7 @@ static int cik_pcie_gart_enable(struct radeon_device *rdev)
 
 	/* XXX SH_MEM regs */
 	/* where to put LDS, scratch, GPUVM in FSA64 space */
+	mutex_lock(&rdev->srbm_mutex);
 	for (i = 0; i < 16; i++) {
 		cik_srbm_select(rdev, 0, 0, 0, i);
 		/* CP and shaders */
@@ -4346,6 +4344,7 @@ static int cik_pcie_gart_enable(struct radeon_device *rdev)
 		/* XXX SDMA RLC - todo */
 	}
 	cik_srbm_select(rdev, 0, 0, 0, 0);
+	mutex_unlock(&rdev->srbm_mutex);
 
 	cik_pcie_gart_tlb_flush(rdev);
 	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
@@ -4450,6 +4449,29 @@ int cik_vm_init(struct radeon_device *rdev)
  */
 void cik_vm_fini(struct radeon_device *rdev)
 {
+}
+
+/**
+ * cik_vm_decode_fault - print human readable fault info
+ *
+ * @rdev: radeon_device pointer
+ * @status: VM_CONTEXT1_PROTECTION_FAULT_STATUS register value
+ * @addr: VM_CONTEXT1_PROTECTION_FAULT_ADDR register value
+ *
+ * Print human readable fault information (CIK).
+ */
+static void cik_vm_decode_fault(struct radeon_device *rdev,
+				u32 status, u32 addr, u32 mc_client)
+{
+	u32 mc_id = (status & MEMORY_CLIENT_ID_MASK) >> MEMORY_CLIENT_ID_SHIFT;
+	u32 vmid = (status & FAULT_VMID_MASK) >> FAULT_VMID_SHIFT;
+	u32 protections = (status & PROTECTIONS_MASK) >> PROTECTIONS_SHIFT;
+	char *block = (char *)&mc_client;
+
+	printk("VM fault (0x%02x, vmid %d) at page %u, %s from %s (%d)\n",
+	       protections, vmid, addr,
+	       (status & MEMORY_CLIENT_RW_MASK) ? "write" : "read",
+	       block, mc_id);
 }
 
 /**
@@ -5507,6 +5529,7 @@ int cik_irq_process(struct radeon_device *rdev)
 	u32 ring_index;
 	bool queue_hotplug = false;
 	bool queue_reset = false;
+	u32 addr, status, mc_client;
 
 	if (!rdev->ih.enabled || rdev->shutdown)
 		return IRQ_NONE;
@@ -5742,11 +5765,15 @@ restart_ih:
 			break;
 		case 146:
 		case 147:
+			addr = RREG32(VM_CONTEXT1_PROTECTION_FAULT_ADDR);
+			status = RREG32(VM_CONTEXT1_PROTECTION_FAULT_STATUS);
+			mc_client = RREG32(VM_CONTEXT1_PROTECTION_FAULT_MCCLIENT);
 			dev_err(rdev->dev, "GPU fault detected: %d 0x%08x\n", src_id, src_data);
 			dev_err(rdev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_ADDR   0x%08X\n",
-				RREG32(VM_CONTEXT1_PROTECTION_FAULT_ADDR));
+				addr);
 			dev_err(rdev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_STATUS 0x%08X\n",
-				RREG32(VM_CONTEXT1_PROTECTION_FAULT_STATUS));
+				status);
+			cik_vm_decode_fault(rdev, status, addr, mc_client);
 			/* reset addr and status */
 			WREG32_P(VM_CONTEXT1_CNTL2, 1, ~1);
 			break;
@@ -5937,6 +5964,8 @@ static int cik_startup(struct radeon_device *rdev)
 	struct radeon_ring *ring;
 	int r;
 
+	cik_mc_program(rdev);
+
 	if (rdev->flags & RADEON_IS_IGP) {
 		if (!rdev->me_fw || !rdev->pfp_fw || !rdev->ce_fw ||
 		    !rdev->mec_fw || !rdev->sdma_fw || !rdev->rlc_fw) {
@@ -5968,7 +5997,6 @@ static int cik_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	cik_mc_program(rdev);
 	r = cik_pcie_gart_enable(rdev);
 	if (r)
 		return r;
@@ -6177,7 +6205,7 @@ int cik_suspend(struct radeon_device *rdev)
 	radeon_vm_manager_fini(rdev);
 	cik_cp_enable(rdev, false);
 	cik_sdma_enable(rdev, false);
-	r600_uvd_rbc_stop(rdev);
+	r600_uvd_stop(rdev);
 	radeon_uvd_suspend(rdev);
 	cik_irq_suspend(rdev);
 	radeon_wb_disable(rdev);
@@ -6341,6 +6369,7 @@ void cik_fini(struct radeon_device *rdev)
 	radeon_vm_manager_fini(rdev);
 	radeon_ib_pool_fini(rdev);
 	radeon_irq_kms_fini(rdev);
+	r600_uvd_stop(rdev);
 	radeon_uvd_fini(rdev);
 	cik_pcie_gart_fini(rdev);
 	r600_vram_scratch_fini(rdev);

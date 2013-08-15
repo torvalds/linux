@@ -388,7 +388,7 @@ static int samsung_usb2phy_probe(struct platform_device *pdev)
 		clk = devm_clk_get(dev, "otg");
 
 	if (IS_ERR(clk)) {
-		dev_err(dev, "Failed to get otg clock\n");
+		dev_err(dev, "Failed to get usbhost/otg clock\n");
 		return PTR_ERR(clk);
 	}
 

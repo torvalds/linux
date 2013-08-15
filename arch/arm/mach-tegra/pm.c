@@ -191,7 +191,7 @@ static const char *lp_state[TEGRA_MAX_SUSPEND_MODE] = {
 	[TEGRA_SUSPEND_LP0] = "LP0",
 };
 
-static int __cpuinit tegra_suspend_enter(suspend_state_t state)
+static int tegra_suspend_enter(suspend_state_t state)
 {
 	enum tegra_suspend_mode mode = tegra_pmc_get_suspend_mode();
 
