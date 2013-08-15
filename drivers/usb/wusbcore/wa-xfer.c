@@ -804,15 +804,17 @@ static int __wa_xfer_setup_segs(struct wa_xfer *xfer, size_t xfer_hdr_size)
 	return 0;
 
 error_sg_alloc:
-	kfree(seg->dto_urb);
+	usb_free_urb(xfer->seg[cnt]->dto_urb);
 error_dto_alloc:
 	kfree(xfer->seg[cnt]);
 	cnt--;
 error_seg_kzalloc:
 	/* use the fact that cnt is left at were it failed */
 	for (; cnt >= 0; cnt--) {
-		if (xfer->seg[cnt] && xfer->is_inbound == 0)
+		if (xfer->seg[cnt] && xfer->is_inbound == 0) {
 			usb_free_urb(xfer->seg[cnt]->dto_urb);
+			kfree(xfer->seg[cnt]->dto_urb->sg);
+		}
 		kfree(xfer->seg[cnt]);
 	}
 error_segs_kzalloc:
