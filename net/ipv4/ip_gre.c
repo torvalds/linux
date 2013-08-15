@@ -534,7 +534,7 @@ static int __net_init ipgre_init_net(struct net *net)
 static void __net_exit ipgre_exit_net(struct net *net)
 {
 	struct ip_tunnel_net *itn = net_generic(net, ipgre_net_id);
-	ip_tunnel_delete_net(itn);
+	ip_tunnel_delete_net(itn, &ipgre_link_ops);
 }
 
 static struct pernet_operations ipgre_net_ops = {
@@ -767,7 +767,7 @@ static int __net_init ipgre_tap_init_net(struct net *net)
 static void __net_exit ipgre_tap_exit_net(struct net *net)
 {
 	struct ip_tunnel_net *itn = net_generic(net, gre_tap_net_id);
-	ip_tunnel_delete_net(itn);
+	ip_tunnel_delete_net(itn, &ipgre_tap_ops);
 }
 
 static struct pernet_operations ipgre_tap_net_ops = {

@@ -621,7 +621,7 @@ static int ipip6_rcv(struct sk_buff *skb)
 		tstats->rx_packets++;
 		tstats->rx_bytes += skb->len;
 
-		if (tunnel->net != dev_net(tunnel->dev))
+		if (!net_eq(tunnel->net, dev_net(tunnel->dev)))
 			skb_scrub_packet(skb);
 		netif_rx(skb);
 
@@ -860,7 +860,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 			tunnel->err_count = 0;
 	}
 
-	if (tunnel->net != dev_net(dev))
+	if (!net_eq(tunnel->net, dev_net(dev)))
 		skb_scrub_packet(skb);
 
 	/*
@@ -1589,7 +1589,7 @@ static void __net_exit sit_destroy_tunnels(struct sit_net *sitn, struct list_hea
 				/* If dev is in the same netns, it has already
 				 * been added to the list by the previous loop.
 				 */
-				if (dev_net(t->dev) != net)
+				if (!net_eq(dev_net(t->dev), net))
 					unregister_netdevice_queue(t->dev,
 								   head);
 				t = rtnl_dereference(t->next);
