@@ -171,7 +171,7 @@ void emacrx_dma_buffdone(struct sunxi_dma_params *dma, void *arg)
 	sunxi_emac_rx(dev);
 }
 
-int emacrx_dma_config_start(void *buff_addr, __u32 len)
+int emacrx_dma_inblk(dma_addr_t buff_addr, __u32 len)
 {
 	int ret;
 #if defined CONFIG_ARCH_SUN4I || defined CONFIG_ARCH_SUN5I
@@ -209,8 +209,7 @@ int emacrx_dma_config_start(void *buff_addr, __u32 len)
 	ret = sunxi_dma_config(&emacrx_dma, &emac_hwconf, 0x03030303);
 	if (ret != 0)
 		return ret;
-	__cpuc_flush_dcache_area(buff_addr, len + (1 << 5) * 2 - 2);
-	ret = sunxi_dma_enqueue(&emacrx_dma, (u32)buff_addr, len, 1);
+	ret = sunxi_dma_enqueue(&emacrx_dma, buff_addr, len, 1);
 	if (ret != 0)
 		return ret;
 	ret = sunxi_dma_start(&emacrx_dma);
@@ -232,11 +231,6 @@ sunxi_emac_reset(sunxi_emac_board_info_t *db)
 	udelay(200);
 	writel(1, db->emac_vbase + SUNXI_EMAC_CTL_REG);
 	udelay(200);
-}
-
-static int sunxi_emac_inblk_dma(void __iomem *reg, void *data, int count)
-{
-	return emacrx_dma_config_start(data, count);
 }
 
 static void sunxi_emac_outblk_32bit(void __iomem *reg, void *data, int count)
@@ -1100,6 +1094,7 @@ sunxi_emac_rx(struct net_device *dev)
 	bool GoodPacket;
 	int RxLen;
 	static int RxLen_last;
+	static dma_addr_t mapped_buf;
 	unsigned int RxStatus;
 	unsigned int reg_val, Rxcount, ret;
 
@@ -1114,6 +1109,8 @@ sunxi_emac_rx(struct net_device *dev)
 			dev_dbg(db->dev, "RXCount: %x\n", Rxcount);
 
 		if ((skb_last != NULL) && (RxLen_last > 0)) {
+			dma_unmap_single(NULL, mapped_buf, RxLen_last,
+					 DMA_FROM_DEVICE);
 			dev->stats.rx_bytes += RxLen_last;
 
 			/* Pass to upper layer */
@@ -1216,9 +1213,14 @@ sunxi_emac_rx(struct net_device *dev)
 				reg_val = readl(db->emac_vbase + SUNXI_EMAC_RX_CTL_REG);
 				reg_val |= (0x1<<2);
 				writel(reg_val, db->emac_vbase + SUNXI_EMAC_RX_CTL_REG);
-				ret = sunxi_emac_inblk_dma(db->emac_vbase + SUNXI_EMAC_RX_IO_DATA_REG, rdptr, RxLen);
+				mapped_buf = dma_map_single(NULL, rdptr, RxLen,
+							    DMA_FROM_DEVICE);
+				ret = emacrx_dma_inblk(mapped_buf, RxLen);
 				if (ret != 0) {
 					printk(KERN_ERR "[emac] sunxi_emac_inblk_dma failed,ret=%d, using cpu to read fifo!\n", ret);
+					dma_unmap_single(NULL, mapped_buf,
+							 RxLen,
+							 DMA_FROM_DEVICE);
 					reg_val = readl(db->emac_vbase + SUNXI_EMAC_RX_CTL_REG);
 					reg_val &= (~(0x1<<2));
 					writel(reg_val, db->emac_vbase + SUNXI_EMAC_RX_CTL_REG);
