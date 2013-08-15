@@ -260,10 +260,12 @@ static int au_wr_dir_cpup(struct dentry *dentry, struct dentry *parent,
 
 	err = 0;
 	if (!au_h_dptr(parent, bcpup)) {
-		if (bstart < bcpup)
+		if (bstart > bcpup)
+			err = au_cpup_dirs(dentry, bcpup);
+		else if (bstart < bcpup)
 			err = au_cpdown_dirs(dentry, bcpup);
 		else
-			err = au_cpup_dirs(dentry, bcpup);
+			BUG();
 	}
 	if (!err && add_entry) {
 		h_parent = au_h_dptr(parent, bcpup);
