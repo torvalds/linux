@@ -1256,11 +1256,18 @@ const char *getvecname(unsigned long vec)
 	case 0x700:	ret = "(Program Check)"; break;
 	case 0x800:	ret = "(FPU Unavailable)"; break;
 	case 0x900:	ret = "(Decrementer)"; break;
+	case 0x980:	ret = "(Hypervisor Decrementer)"; break;
+	case 0xa00:	ret = "(Doorbell)"; break;
 	case 0xc00:	ret = "(System Call)"; break;
 	case 0xd00:	ret = "(Single Step)"; break;
+	case 0xe40:	ret = "(Emulation Assist)"; break;
+	case 0xe60:	ret = "(HMI)"; break;
+	case 0xe80:	ret = "(Hypervisor Doorbell)"; break;
 	case 0xf00:	ret = "(Performance Monitor)"; break;
 	case 0xf20:	ret = "(Altivec Unavailable)"; break;
 	case 0x1300:	ret = "(Instruction Breakpoint)"; break;
+	case 0x1500:	ret = "(Denormalisation)"; break;
+	case 0x1700:	ret = "(Altivec Assist)"; break;
 	default: ret = "";
 	}
 	return ret;
