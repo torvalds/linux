@@ -960,6 +960,13 @@
 #       define DIG_MODE_SDVO             4
 #define DIG1_CNTL                        0x79a0
 
+#define AZ_F0_CODEC_PIN0_CONTROL_CHANNEL_SPEAKER          0x71bc
+#define		SPEAKER_ALLOCATION(x)			(((x) & 0x7f) << 0)
+#define		SPEAKER_ALLOCATION_MASK			(0x7f << 0)
+#define		SPEAKER_ALLOCATION_SHIFT		0
+#define		HDMI_CONNECTION				(1 << 16)
+#define		DP_CONNECTION				(1 << 17)
+
 /* rs6xx/rs740 and r6xx share the same HDMI blocks, however, rs6xx has only one
  * instance of the blocks while r6xx has 2.  DCE 3.0 cards are slightly
  * different due to the new DIG blocks, but also have 2 instances.

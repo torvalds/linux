@@ -283,6 +283,45 @@ void r600_audio_set_dto(struct drm_encoder *encoder, u32 clock)
 	}
 }
 
+static void dce3_2_afmt_write_speaker_allocation(struct drm_encoder *encoder)
+{
+	struct radeon_device *rdev = encoder->dev->dev_private;
+	struct drm_connector *connector;
+	struct radeon_connector *radeon_connector = NULL;
+	u32 tmp;
+	u8 *sadb;
+	int sad_count;
+
+	list_for_each_entry(connector, &encoder->dev->mode_config.connector_list, head) {
+		if (connector->encoder == encoder)
+			radeon_connector = to_radeon_connector(connector);
+	}
+
+	if (!radeon_connector) {
+		DRM_ERROR("Couldn't find encoder's connector\n");
+		return;
+	}
+
+	sad_count = drm_edid_to_speaker_allocation(radeon_connector->edid, &sadb);
+	if (sad_count < 0) {
+		DRM_ERROR("Couldn't read Speaker Allocation Data Block: %d\n", sad_count);
+		return;
+	}
+
+	/* program the speaker allocation */
+	tmp = RREG32(AZ_F0_CODEC_PIN0_CONTROL_CHANNEL_SPEAKER);
+	tmp &= ~(DP_CONNECTION | SPEAKER_ALLOCATION_MASK);
+	/* set HDMI mode */
+	tmp |= HDMI_CONNECTION;
+	if (sad_count)
+		tmp |= SPEAKER_ALLOCATION(sadb[0]);
+	else
+		tmp |= SPEAKER_ALLOCATION(5); /* stereo */
+	WREG32(AZ_F0_CODEC_PIN0_CONTROL_CHANNEL_SPEAKER, tmp);
+
+	kfree(sadb);
+}
+
 /*
  * update the info frames with the data from the current display mode
  */
@@ -326,6 +365,9 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 		       HDMI0_AUDIO_PACKETS_PER_LINE(3) | /* should be suffient for all audio modes and small enough for all hblanks */
 		       HDMI0_60958_CS_UPDATE); /* allow 60958 channel status fields to be updated */
 	}
+
+	if (ASIC_IS_DCE32(rdev))
+		dce3_2_afmt_write_speaker_allocation(encoder);
 
 	WREG32(HDMI0_ACR_PACKET_CONTROL + offset,
 	       HDMI0_ACR_AUTO_SEND | /* allow hw to sent ACR packets when required */
