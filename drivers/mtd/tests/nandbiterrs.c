@@ -102,16 +102,10 @@ static uint8_t hash(unsigned offset)
 /* Writes wbuffer to page */
 static int write_page(int log)
 {
-	int err;
-
 	if (log)
 		pr_info("write_page\n");
 
-	err = mtdtest_write(mtd, offset, mtd->writesize, wbuffer);
-	if (err)
-		pr_err("error: write failed at %#llx\n", (long long)offset);
-
-	return err;
+	return mtdtest_write(mtd, offset, mtd->writesize, wbuffer);
 }
 
 /* Re-writes the data area while leaving the OOB alone. */

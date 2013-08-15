@@ -126,11 +126,8 @@ static int do_write(void)
 	}
 	addr = eb * mtd->erasesize + offs;
 	err = mtdtest_write(mtd, addr, len, writebuf);
-	if (unlikely(err)) {
-		pr_err("error: write failed at 0x%llx\n",
-		       (long long)addr);
+	if (unlikely(err))
 		return err;
-	}
 	offs += len;
 	while (offs > mtd->erasesize) {
 		offsets[eb++] = mtd->erasesize;

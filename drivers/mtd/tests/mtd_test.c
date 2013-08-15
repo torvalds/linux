@@ -107,6 +107,8 @@ int mtdtest_write(struct mtd_info *mtd, loff_t addr, size_t size,
 	err = mtd_write(mtd, addr, size, &written, buf);
 	if (!err && written != size)
 		err = -EIO;
+	if (err)
+		pr_err("error: write failed at %#llx\n", addr);
 
 	return err;
 }

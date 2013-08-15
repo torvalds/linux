@@ -52,17 +52,11 @@ static struct rnd_state rnd_state;
 
 static int write_eraseblock(int ebnum)
 {
-	int err;
 	loff_t addr = ebnum * mtd->erasesize;
 
 	prandom_bytes_state(&rnd_state, writebuf, mtd->erasesize);
 	cond_resched();
-	err = mtdtest_write(mtd, addr, mtd->erasesize, writebuf);
-	if (err)
-		pr_err("error: write failed at %#llx\n",
-		       (long long)addr);
-
-	return err;
+	return mtdtest_write(mtd, addr, mtd->erasesize, writebuf);
 }
 
 static int verify_eraseblock(int ebnum)
@@ -232,11 +226,8 @@ static int erasecrosstest(void)
 	prandom_bytes_state(&rnd_state, writebuf, pgsize);
 	strcpy(writebuf, "There is no data like this!");
 	err = mtdtest_write(mtd, addr0, pgsize, writebuf);
-	if (err) {
-		pr_info("error: write failed at %#llx\n",
-		       (long long)addr0);
+	if (err)
 		return err;
-	}
 
 	pr_info("reading 1st page of block %d\n", ebnum);
 	memset(readbuf, 0, pgsize);
@@ -260,11 +251,8 @@ static int erasecrosstest(void)
 	prandom_bytes_state(&rnd_state, writebuf, pgsize);
 	strcpy(writebuf, "There is no data like this!");
 	err = mtdtest_write(mtd, addr0, pgsize, writebuf);
-	if (err) {
-		pr_err("error: write failed at %#llx\n",
-		       (long long)addr0);
+	if (err)
 		return err;
-	}
 
 	pr_info("erasing block %d\n", ebnum2);
 	err = mtdtest_erase_eraseblock(mtd, ebnum2);
@@ -311,11 +299,8 @@ static int erasetest(void)
 	pr_info("writing 1st page of block %d\n", ebnum);
 	prandom_bytes_state(&rnd_state, writebuf, pgsize);
 	err = mtdtest_write(mtd, addr0, pgsize, writebuf);
-	if (err) {
-		pr_err("error: write failed at %#llx\n",
-		       (long long)addr0);
+	if (err)
 		return err;
-	}
 
 	pr_info("erasing block %d\n", ebnum);
 	err = mtdtest_erase_eraseblock(mtd, ebnum);
