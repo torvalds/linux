@@ -28,6 +28,22 @@
 
 #include "pcm3008.h"
 
+static const struct snd_soc_dapm_widget pcm3008_dapm_widgets[] = {
+SND_SOC_DAPM_INPUT("VINL"),
+SND_SOC_DAPM_INPUT("VINR"),
+
+SND_SOC_DAPM_OUTPUT("VOUTL"),
+SND_SOC_DAPM_OUTPUT("VOUTR"),
+};
+
+static const struct snd_soc_dapm_route pcm3008_dapm_routes[] = {
+	{ "PCM3008 Capture", NULL, "VINL" },
+	{ "PCM3008 Capture", NULL, "VINR" },
+
+	{ "VOUTL", NULL, "PCM3008 Playback" },
+	{ "VOUTR", NULL, "PCM3008 Playback" },
+};
+
 #define PCM3008_RATES (SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |	\
 		       SNDRV_PCM_RATE_48000)
 
@@ -77,6 +93,10 @@ static int pcm3008_soc_resume(struct snd_soc_codec *codec)
 static struct snd_soc_codec_driver soc_codec_dev_pcm3008 = {
 	.suspend =	pcm3008_soc_suspend,
 	.resume =	pcm3008_soc_resume,
+	.dapm_widgets = pcm3008_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(pcm3008_dapm_widgets),
+	.dapm_routes = pcm3008_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(pcm3008_dapm_routes),
 };
 
 static int pcm3008_codec_probe(struct platform_device *pdev)
