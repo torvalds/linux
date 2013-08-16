@@ -242,6 +242,40 @@ lowpan_uncompress_addr(struct sk_buff *skb,
 	return 0;
 }
 
+/* Uncompress address function for source context
+ * based address(non-multicast).
+ */
+static int
+lowpan_uncompress_context_based_src_addr(struct sk_buff *skb,
+		struct in6_addr *ipaddr,
+		const u8 sam)
+{
+	switch (sam) {
+	case LOWPAN_IPHC_ADDR_00:
+		/* unspec address ::
+		 * Do nothing, address is already ::
+		 */
+		break;
+	case LOWPAN_IPHC_ADDR_01:
+		/* TODO */
+	case LOWPAN_IPHC_ADDR_02:
+		/* TODO */
+	case LOWPAN_IPHC_ADDR_03:
+		/* TODO */
+		netdev_warn(skb->dev, "SAM value 0x%x not supported\n", sam);
+		return -EINVAL;
+	default:
+		pr_debug("Invalid sam value: 0x%x\n", sam);
+		return -EINVAL;
+	}
+
+	lowpan_raw_dump_inline(NULL,
+			"Reconstructed context based ipv6 src addr is:\n",
+			ipaddr->s6_addr, 16);
+
+	return 0;
+}
+
 /* Uncompress function for multicast destination address,
  * when M bit is set.
  */
@@ -970,9 +1004,18 @@ lowpan_process_data(struct sk_buff *skb)
 	/* Extract SAM to the tmp variable */
 	tmp = ((iphc1 & LOWPAN_IPHC_SAM) >> LOWPAN_IPHC_SAM_BIT) & 0x03;
 
-	/* Source address uncompression */
-	pr_debug("source address stateless compression\n");
-	err = lowpan_uncompress_addr(skb, &hdr.saddr, tmp, _saddr);
+	if (iphc1 & LOWPAN_IPHC_SAC) {
+		/* Source address context based uncompression */
+		pr_debug("SAC bit is set. Handle context based source address.\n");
+		err = lowpan_uncompress_context_based_src_addr(
+				skb, &hdr.saddr, tmp);
+	} else {
+		/* Source address uncompression */
+		pr_debug("source address stateless compression\n");
+		err = lowpan_uncompress_addr(skb, &hdr.saddr, tmp, _saddr);
+	}
+
+	/* Check on error of previous branch */
 	if (err)
 		goto drop;
 
