@@ -579,7 +579,7 @@ static int cppi41_tear_down_chan(struct cppi41_channel *c)
 				WARN_ON(!c->is_tx && !(pd0 & TD_DESC_IS_RX));
 				WARN_ON((pd0 & 0x1f) != c->port_num);
 			} else {
-				__WARN();
+				WARN_ON_ONCE(1);
 			}
 			c->td_seen = 1;
 		}
