@@ -3266,6 +3266,11 @@ int qlcnic_83xx_interrupt_test(struct net_device *netdev)
 	u8 val;
 	int ret, max_sds_rings = adapter->max_sds_rings;
 
+	if (test_bit(__QLCNIC_RESETTING, &adapter->state)) {
+		netdev_info(netdev, "Device is resetting\n");
+		return -EBUSY;
+	}
+
 	if (qlcnic_get_diag_lock(adapter)) {
 		netdev_info(netdev, "Device in diagnostics mode\n");
 		return -EBUSY;
