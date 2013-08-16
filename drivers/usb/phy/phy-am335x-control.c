@@ -42,8 +42,8 @@ static void am335x_phy_power(struct phy_control *phy_ctrl, u32 id, bool on)
 		reg = AM335X_USB1_CTRL;
 		break;
 	default:
-		__WARN();
-		 return;
+		WARN_ON(1);
+		return;
 	}
 
 	val = readl(usb_ctrl->phy_reg + reg);
