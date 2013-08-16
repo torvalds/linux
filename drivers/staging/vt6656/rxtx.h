@@ -91,6 +91,16 @@ struct vnt_tx_datahead_ab {
 	u16 wTimeStampOff;
 } __packed;
 
+struct vnt_tx_datahead_a_fb {
+	u8 bySignalField;
+	u8 byServiceField;
+	u16 wTransmitLength;
+	u16 wDuration;
+	u16 wTimeStampOff;
+	u16 wDuration_f0;
+	u16 wDuration_f1;
+} __packed;
+
 /* RTS buffer header */
 struct vnt_rts_g {
 	u8 bySignalField_b;
