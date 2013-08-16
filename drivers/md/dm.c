@@ -60,6 +60,7 @@ struct dm_io {
 	struct bio *bio;
 	unsigned long start_time;
 	spinlock_t endio_lock;
+	struct dm_stats_aux stats_aux;
 };
 
 /*
@@ -198,6 +199,8 @@ struct mapped_device {
 
 	/* zero-length flush that will be cloned and submitted to targets */
 	struct bio flush_bio;
+
+	struct dm_stats stats;
 };
 
 /*
@@ -269,6 +272,7 @@ static int (*_inits[])(void) __initdata = {
 	dm_io_init,
 	dm_kcopyd_init,
 	dm_interface_init,
+	dm_statistics_init,
 };
 
 static void (*_exits[])(void) = {
@@ -279,6 +283,7 @@ static void (*_exits[])(void) = {
 	dm_io_exit,
 	dm_kcopyd_exit,
 	dm_interface_exit,
+	dm_statistics_exit,
 };
 
 static int __init dm_init(void)
@@ -384,6 +389,16 @@ int dm_lock_for_deletion(struct mapped_device *md)
 	return r;
 }
 
+sector_t dm_get_size(struct mapped_device *md)
+{
+	return get_capacity(md->disk);
+}
+
+struct dm_stats *dm_get_stats(struct mapped_device *md)
+{
+	return &md->stats;
+}
+
 static int dm_blk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 {
 	struct mapped_device *md = bdev->bd_disk->private_data;
@@ -466,8 +481,9 @@ static int md_in_flight(struct mapped_device *md)
 static void start_io_acct(struct dm_io *io)
 {
 	struct mapped_device *md = io->md;
+	struct bio *bio = io->bio;
 	int cpu;
-	int rw = bio_data_dir(io->bio);
+	int rw = bio_data_dir(bio);
 
 	io->start_time = jiffies;
 
@@ -476,6 +492,10 @@ static void start_io_acct(struct dm_io *io)
 	part_stat_unlock();
 	atomic_set(&dm_disk(md)->part0.in_flight[rw],
 		atomic_inc_return(&md->pending[rw]));
+
+	if (unlikely(dm_stats_used(&md->stats)))
+		dm_stats_account_io(&md->stats, bio->bi_rw, bio->bi_sector,
+				    bio_sectors(bio), false, 0, &io->stats_aux);
 }
 
 static void end_io_acct(struct dm_io *io)
@@ -490,6 +510,10 @@ static void end_io_acct(struct dm_io *io)
 	part_round_stats(cpu, &dm_disk(md)->part0);
 	part_stat_add(cpu, &dm_disk(md)->part0, ticks[rw], duration);
 	part_stat_unlock();
+
+	if (unlikely(dm_stats_used(&md->stats)))
+		dm_stats_account_io(&md->stats, bio->bi_rw, bio->bi_sector,
+				    bio_sectors(bio), true, duration, &io->stats_aux);
 
 	/*
 	 * After this is decremented the bio must not be touched if it is
@@ -1519,7 +1543,7 @@ static void _dm_request(struct request_queue *q, struct bio *bio)
 	return;
 }
 
-static int dm_request_based(struct mapped_device *md)
+int dm_request_based(struct mapped_device *md)
 {
 	return blk_queue_stackable(md->queue);
 }
@@ -1958,6 +1982,8 @@ static struct mapped_device *alloc_dev(int minor)
 	md->flush_bio.bi_bdev = md->bdev;
 	md->flush_bio.bi_rw = WRITE_FLUSH;
 
+	dm_stats_init(&md->stats);
+
 	/* Populate the mapping, nobody knows we exist yet */
 	spin_lock(&_minor_lock);
 	old_md = idr_replace(&_minor_idr, md, minor);
@@ -2009,6 +2035,7 @@ static void free_dev(struct mapped_device *md)
 
 	put_disk(md->disk);
 	blk_cleanup_queue(md->queue);
+	dm_stats_cleanup(&md->stats);
 	module_put(THIS_MODULE);
 	kfree(md);
 }
@@ -2150,7 +2177,7 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
 	/*
 	 * Wipe any geometry if the size of the table changed.
 	 */
-	if (size != get_capacity(md->disk))
+	if (size != dm_get_size(md))
 		memset(&md->geometry, 0, sizeof(md->geometry));
 
 	__set_size(md, size);
@@ -2694,6 +2721,38 @@ out:
 	mutex_unlock(&md->suspend_lock);
 
 	return r;
+}
+
+/*
+ * Internal suspend/resume works like userspace-driven suspend. It waits
+ * until all bios finish and prevents issuing new bios to the target drivers.
+ * It may be used only from the kernel.
+ *
+ * Internal suspend holds md->suspend_lock, which prevents interaction with
+ * userspace-driven suspend.
+ */
+
+void dm_internal_suspend(struct mapped_device *md)
+{
+	mutex_lock(&md->suspend_lock);
+	if (dm_suspended_md(md))
+		return;
+
+	set_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags);
+	synchronize_srcu(&md->io_barrier);
+	flush_workqueue(md->wq);
+	dm_wait_for_completion(md, TASK_UNINTERRUPTIBLE);
+}
+
+void dm_internal_resume(struct mapped_device *md)
+{
+	if (dm_suspended_md(md))
+		goto done;
+
+	dm_queue_flush(md);
+
+done:
+	mutex_unlock(&md->suspend_lock);
 }
 
 /*-----------------------------------------------------------------

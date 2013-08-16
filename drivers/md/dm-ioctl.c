@@ -1455,20 +1455,26 @@ static int table_status(struct dm_ioctl *param, size_t param_size)
 	return 0;
 }
 
-static bool buffer_test_overflow(char *result, unsigned maxlen)
-{
-	return !maxlen || strlen(result) + 1 >= maxlen;
-}
-
 /*
- * Process device-mapper dependent messages.
+ * Process device-mapper dependent messages.  Messages prefixed with '@'
+ * are processed by the DM core.  All others are delivered to the target.
  * Returns a number <= 1 if message was processed by device mapper.
  * Returns 2 if message should be delivered to the target.
  */
 static int message_for_md(struct mapped_device *md, unsigned argc, char **argv,
 			  char *result, unsigned maxlen)
 {
-	return 2;
+	int r;
+
+	if (**argv != '@')
+		return 2; /* no '@' prefix, deliver to target */
+
+	r = dm_stats_message(md, argc, argv, result, maxlen);
+	if (r < 2)
+		return r;
+
+	DMERR("Unsupported message sent to DM core: %s", argv[0]);
+	return -EINVAL;
 }
 
 /*
@@ -1542,7 +1548,7 @@ static int target_message(struct dm_ioctl *param, size_t param_size)
 
 	if (r == 1) {
 		param->flags |= DM_DATA_OUT_FLAG;
-		if (buffer_test_overflow(result, maxlen))
+		if (dm_message_test_buffer_overflow(result, maxlen))
 			param->flags |= DM_BUFFER_FULL_FLAG;
 		else
 			param->data_size = param->data_start + strlen(result) + 1;
