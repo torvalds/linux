@@ -24,6 +24,8 @@
 #define	__HI6421_PMIC_H
 
 #include <linux/irqdomain.h>
+#include <linux/mutex.h>
+#include <linux/time.h>
 
 #define	OCP_DEB_CTRL_REG		(0x51)
 #define	OCP_DEB_SEL_MASK		(0x0C)
@@ -66,6 +68,17 @@
 #define HI6421_IRQ_BATTERY_ON		20	/* Battery inserted */
 #define HI6421_IRQ_RESET		21	/* Reset */
 
+/**
+ * struct hi6421_pmic - Hi6421 PMIC chip-level data structure.
+ *
+ * This struct describes Hi6421 PMIC chip-level data.
+ *
+ * @enable_mutex: Used by regulators, to make sure that only one regulator is
+ *                in the turning-on phase at any time. See also @last_enabled
+ *                and hi6421_regulator_enable().
+ * @last_enabled: Used by regulators, to make sure enough distance in time
+ *                between enabling of any of two regulators.
+ */
 struct hi6421_pmic {
 	struct resource		*res;
 	struct device		*dev;
@@ -74,6 +87,8 @@ struct hi6421_pmic {
 	struct irq_domain	*domain;
 	int			irq;
 	int			gpio;
+	struct mutex		enable_mutex;
+	struct timeval		last_enabled;
 };
 
 /* Register Access Helpers */
