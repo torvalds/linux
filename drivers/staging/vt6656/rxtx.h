@@ -32,6 +32,16 @@
 #include "device.h"
 #include "wcmd.h"
 
+/* RsvTime buffer header */
+struct vnt_rrv_time_rts {
+	u16 wRTSTxRrvTime_ba;
+	u16 wRTSTxRrvTime_aa;
+	u16 wRTSTxRrvTime_bb;
+	u16 wReserved;
+	u16 wTxRrvTime_b;
+	u16 wTxRrvTime_a;
+} __packed;
+
 /* RTS buffer header */
 struct vnt_rts_g {
 	u8 bySignalField_b;
