@@ -2556,10 +2556,6 @@ static int onenand_block_isbad(struct mtd_info *mtd, loff_t ofs)
 {
 	int ret;
 
-	/* Check for invalid offset */
-	if (ofs > mtd->size)
-		return -EINVAL;
-
 	onenand_get_device(mtd, FL_READING);
 	ret = onenand_block_isbad_nolock(mtd, ofs, 0);
 	onenand_release_device(mtd);
