@@ -67,9 +67,11 @@ static void free_bitset(unsigned long *bits)
 #define MIGRATION_COUNT_WINDOW 10
 
 /*
- * The block size of the device holding cache data must be >= 32KB
+ * The block size of the device holding cache data must be
+ * between 32KB and 1GB.
  */
 #define DATA_DEV_BLOCK_SIZE_MIN_SECTORS (32 * 1024 >> SECTOR_SHIFT)
+#define DATA_DEV_BLOCK_SIZE_MAX_SECTORS (1024 * 1024 * 1024 >> SECTOR_SHIFT)
 
 /*
  * FIXME: the cache is read/write for the time being.
@@ -1687,24 +1689,25 @@ static int parse_origin_dev(struct cache_args *ca, struct dm_arg_set *as,
 static int parse_block_size(struct cache_args *ca, struct dm_arg_set *as,
 			    char **error)
 {
-	unsigned long tmp;
+	unsigned long block_size;
 
 	if (!at_least_one_arg(as, error))
 		return -EINVAL;
 
-	if (kstrtoul(dm_shift_arg(as), 10, &tmp) || !tmp ||
-	    tmp < DATA_DEV_BLOCK_SIZE_MIN_SECTORS ||
-	    tmp & (DATA_DEV_BLOCK_SIZE_MIN_SECTORS - 1)) {
+	if (kstrtoul(dm_shift_arg(as), 10, &block_size) || !block_size ||
+	    block_size < DATA_DEV_BLOCK_SIZE_MIN_SECTORS ||
+	    block_size > DATA_DEV_BLOCK_SIZE_MAX_SECTORS ||
+	    block_size & (DATA_DEV_BLOCK_SIZE_MIN_SECTORS - 1)) {
 		*error = "Invalid data block size";
 		return -EINVAL;
 	}
 
-	if (tmp > ca->cache_sectors) {
+	if (block_size > ca->cache_sectors) {
 		*error = "Data block size is larger than the cache device";
 		return -EINVAL;
 	}
 
-	ca->block_size = tmp;
+	ca->block_size = block_size;
 
 	return 0;
 }
