@@ -144,17 +144,6 @@
 #define TD_FLAGS_PS_RETRY  0x04 /* check if PS STA frame re-transmit */
 
 /*
- * RsvTime buffer header
- */
-typedef struct tagSRrvTime_atim {
-    u16        wCTSTxRrvTime_ba;
-    u16        wTxRrvTime_a;
-} __attribute__ ((__packed__))
-SRrvTime_atim, *PSRrvTime_atim;
-
-typedef const SRrvTime_atim *PCSRrvTime_atim;
-
-/*
  * TX FIFO header
  */
 typedef struct tagSTxBufHead {
