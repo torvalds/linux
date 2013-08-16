@@ -708,11 +708,6 @@ s32 igb_copper_link_setup_m88(struct e1000_hw *hw)
 		hw_dbg("Error committing the PHY changes\n");
 		goto out;
 	}
-	if (phy->type == e1000_phy_i210) {
-		ret_val = igb_set_master_slave_mode(hw);
-		if (ret_val)
-			return ret_val;
-	}
 
 out:
 	return ret_val;
@@ -806,6 +801,9 @@ s32 igb_copper_link_setup_m88_gen2(struct e1000_hw *hw)
 		hw_dbg("Error committing the PHY changes\n");
 		return ret_val;
 	}
+	ret_val = igb_set_master_slave_mode(hw);
+	if (ret_val)
+		return ret_val;
 
 	return 0;
 }
