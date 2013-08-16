@@ -214,7 +214,6 @@ static bool set_geometry_by_ecc_info(struct gpmi_nand_data *this)
 	if (geo->page_size < mtd->writesize + mtd->oobsize) {
 		of->offset = geo->page_size - mtd->writesize;
 		of->length = mtd->oobsize - of->offset;
-		mtd->oobavail = gpmi_hw_ecclayout.oobavail = of->length;
 	}
 
 	geo->payload_size = mtd->writesize;
@@ -1582,25 +1581,38 @@ static int gpmi_pre_bbt_scan(struct gpmi_nand_data  *this)
 	if (ret)
 		return ret;
 
-	/* Adjust the ECC strength according to the chip. */
-	this->nand.ecc.strength = this->bch_geometry.ecc_strength;
-	this->mtd.ecc_strength = this->bch_geometry.ecc_strength;
-	this->mtd.bitflip_threshold = this->bch_geometry.ecc_strength;
-
 	/* NAND boot init, depends on the gpmi_set_geometry(). */
 	return nand_boot_init(this);
 }
 
-static int gpmi_scan_bbt(struct mtd_info *mtd)
+static void gpmi_nfc_exit(struct gpmi_nand_data *this)
 {
+	nand_release(&this->mtd);
+	gpmi_free_dma_buffer(this);
+}
+
+static int gpmi_init_last(struct gpmi_nand_data *this)
+{
+	struct mtd_info *mtd = &this->mtd;
 	struct nand_chip *chip = mtd->priv;
-	struct gpmi_nand_data *this = chip->priv;
+	struct nand_ecc_ctrl *ecc = &chip->ecc;
+	struct bch_geometry *bch_geo = &this->bch_geometry;
 	int ret;
 
 	/* Prepare for the BBT scan. */
 	ret = gpmi_pre_bbt_scan(this);
 	if (ret)
 		return ret;
+
+	/* Init the nand_ecc_ctrl{} */
+	ecc->read_page	= gpmi_ecc_read_page;
+	ecc->write_page	= gpmi_ecc_write_page;
+	ecc->read_oob	= gpmi_ecc_read_oob;
+	ecc->write_oob	= gpmi_ecc_write_oob;
+	ecc->mode	= NAND_ECC_HW;
+	ecc->size	= bch_geo->ecc_chunk_size;
+	ecc->strength	= bch_geo->ecc_strength;
+	ecc->layout	= &gpmi_hw_ecclayout;
 
 	/*
 	 * Can we enable the extra features? such as EDO or Sync mode.
@@ -1610,14 +1622,7 @@ static int gpmi_scan_bbt(struct mtd_info *mtd)
 	 */
 	gpmi_extra_init(this);
 
-	/* use the default BBT implementation */
-	return nand_default_bbt(mtd);
-}
-
-static void gpmi_nfc_exit(struct gpmi_nand_data *this)
-{
-	nand_release(&this->mtd);
-	gpmi_free_dma_buffer(this);
+	return 0;
 }
 
 static int gpmi_nfc_init(struct gpmi_nand_data *this)
@@ -1643,33 +1648,33 @@ static int gpmi_nfc_init(struct gpmi_nand_data *this)
 	chip->read_byte		= gpmi_read_byte;
 	chip->read_buf		= gpmi_read_buf;
 	chip->write_buf		= gpmi_write_buf;
-	chip->ecc.read_page	= gpmi_ecc_read_page;
-	chip->ecc.write_page	= gpmi_ecc_write_page;
-	chip->ecc.read_oob	= gpmi_ecc_read_oob;
-	chip->ecc.write_oob	= gpmi_ecc_write_oob;
-	chip->scan_bbt		= gpmi_scan_bbt;
 	chip->badblock_pattern	= &gpmi_bbt_descr;
 	chip->block_markbad	= gpmi_block_markbad;
 	chip->options		|= NAND_NO_SUBPAGE_WRITE;
-	chip->ecc.mode		= NAND_ECC_HW;
-	chip->ecc.size		= 1;
-	chip->ecc.strength	= 8;
-	chip->ecc.layout	= &gpmi_hw_ecclayout;
 	if (of_get_nand_on_flash_bbt(this->dev->of_node))
 		chip->bbt_options |= NAND_BBT_USE_FLASH | NAND_BBT_NO_OOB;
 
-	/* Allocate a temporary DMA buffer for reading ID in the nand_scan() */
+	/*
+	 * Allocate a temporary DMA buffer for reading ID in the
+	 * nand_scan_ident().
+	 */
 	this->bch_geometry.payload_size = 1024;
 	this->bch_geometry.auxiliary_size = 128;
 	ret = gpmi_alloc_dma_buffer(this);
 	if (ret)
 		goto err_out;
 
-	ret = nand_scan(mtd, 1);
-	if (ret) {
-		pr_err("Chip scan failed\n");
+	ret = nand_scan_ident(mtd, 1, NULL);
+	if (ret)
 		goto err_out;
-	}
+
+	ret = gpmi_init_last(this);
+	if (ret)
+		goto err_out;
+
+	ret = nand_scan_tail(mtd);
+	if (ret)
+		goto err_out;
 
 	ppdata.of_node = this->pdev->dev.of_node;
 	ret = mtd_device_parse_register(mtd, NULL, &ppdata, NULL, 0);
