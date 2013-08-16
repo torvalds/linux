@@ -94,8 +94,13 @@ def main():
         configa_filename = sys.argv[1]
         configb_filename = sys.argv[2]
 
-    a = readconfig(file(configa_filename))
-    b = readconfig(file(configb_filename))
+    try:
+        a = readconfig(file(configa_filename))
+        b = readconfig(file(configb_filename))
+    except (IOError):
+        e = sys.exc_info()[1]
+        print("I/O error[%s]: %s\n" % (e.args[0],e.args[1]))
+        usage()
 
     # print items in a but not b (accumulate, sort and print)
     old = []
