@@ -166,22 +166,6 @@ typedef const STxShortBufHead *PCSTxShortBufHead;
 /*
  * TX data header
  */
-typedef struct tagSTxDataHead_g {
-    u8    bySignalField_b;
-    u8    byServiceField_b;
-    u16    wTransmitLength_b;
-    u8    bySignalField_a;
-    u8    byServiceField_a;
-    u16    wTransmitLength_a;
-    u16    wDuration_b;
-    u16    wDuration_a;
-    u16    wTimeStampOff_b;
-    u16    wTimeStampOff_a;
-} __attribute__ ((__packed__))
-STxDataHead_g, *PSTxDataHead_g;
-
-typedef const STxDataHead_g *PCSTxDataHead_g;
-
 typedef struct tagSTxDataHead_g_FB {
     u8    bySignalField_b;
     u8    byServiceField_b;

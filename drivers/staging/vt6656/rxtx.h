@@ -54,6 +54,20 @@ struct vnt_rrv_time_ab {
 	u16 wTxRrvTime;
 } __packed;
 
+/* TX data header */
+struct vnt_tx_datahead_g {
+	u8 bySignalField_b;
+	u8 byServiceField_b;
+	u16 wTransmitLength_b;
+	u8 bySignalField_a;
+	u8 byServiceField_a;
+	u16 wTransmitLength_a;
+	u16 wDuration_b;
+	u16 wDuration_a;
+	u16 wTimeStampOff_b;
+	u16 wTimeStampOff_a;
+} __packed;
+
 /* RTS buffer header */
 struct vnt_rts_g {
 	u8 bySignalField_b;

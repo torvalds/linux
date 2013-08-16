@@ -515,7 +515,8 @@ static u32 s_uFillDataHead(struct vnt_private *pDevice,
         }
         else { // DATA & MANAGE Frame
             if (byFBOption == AUTO_FB_NONE) {
-                PSTxDataHead_g pBuf = (PSTxDataHead_g)pTxDataHead;
+		struct vnt_tx_datahead_g *pBuf =
+				(struct vnt_tx_datahead_g *)pTxDataHead;
                 //Get SignalField,ServiceField,Length
                 BBvCalculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
                     (u16 *)&(pBuf->wTransmitLength_a), (u8 *)&(pBuf->byServiceField_a), (u8 *)&(pBuf->bySignalField_a)
@@ -1162,12 +1163,12 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
 		pvRTS = (struct vnt_rts_g *) (pbyTxBufferAddr + wTxBufSize +
 				sizeof(struct vnt_rrv_time_rts) + cbMICHDR);
                 pvCTS = NULL;
-		pvTxDataHd = (PSTxDataHead_g) (pbyTxBufferAddr + wTxBufSize +
-			sizeof(struct vnt_rrv_time_rts) + cbMICHDR +
-						sizeof(struct vnt_rts_g));
+		pvTxDataHd = (struct vnt_tx_datahead_g *) (pbyTxBufferAddr +
+			wTxBufSize + sizeof(struct vnt_rrv_time_rts) +
+				cbMICHDR + sizeof(struct vnt_rts_g));
 		cbHeaderLength = wTxBufSize + sizeof(struct vnt_rrv_time_rts) +
 			cbMICHDR + sizeof(struct vnt_rts_g) +
-				sizeof(STxDataHead_g);
+				sizeof(struct vnt_tx_datahead_g);
             }
             else { //RTS_needless
 		pvRrvTime = (struct vnt_rrv_time_cts *)
@@ -1177,12 +1178,12 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
                 pvRTS = NULL;
 		pvCTS = (struct vnt_cts *) (pbyTxBufferAddr + wTxBufSize +
 				sizeof(struct vnt_rrv_time_cts) + cbMICHDR);
-		pvTxDataHd = (PSTxDataHead_g) (pbyTxBufferAddr + wTxBufSize +
-			sizeof(struct vnt_rrv_time_cts) + cbMICHDR +
-						sizeof(struct vnt_cts));
+		pvTxDataHd = (struct vnt_tx_datahead_g *)(pbyTxBufferAddr +
+			wTxBufSize + sizeof(struct vnt_rrv_time_cts) +
+				cbMICHDR + sizeof(struct vnt_cts));
 		cbHeaderLength = wTxBufSize + sizeof(struct vnt_rrv_time_cts) +
 			cbMICHDR + sizeof(struct vnt_cts) +
-				sizeof(STxDataHead_g);
+				sizeof(struct vnt_tx_datahead_g);
             }
         } else {
             // Auto Fall Back
@@ -1688,10 +1689,10 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
         pvRTS = NULL;
 	pCTS = (struct vnt_cts *) (pbyTxBufferAddr + wTxBufSize +
 					sizeof(struct vnt_rrv_time_cts));
-	pvTxDataHd = (PSTxDataHead_g) (pbyTxBufferAddr + wTxBufSize +
+	pvTxDataHd = (struct vnt_tx_datahead_g *)(pbyTxBufferAddr + wTxBufSize +
 		sizeof(struct vnt_rrv_time_cts) + sizeof(struct vnt_cts));
 	cbHeaderSize = wTxBufSize + sizeof(struct vnt_rrv_time_cts) +
-		sizeof(struct vnt_cts) + sizeof(STxDataHead_g);
+		sizeof(struct vnt_cts) + sizeof(struct vnt_tx_datahead_g);
     }
     else { // 802.11a/b packet
 	pvRrvTime = (struct vnt_rrv_time_ab *) (pbyTxBufferAddr + wTxBufSize);
@@ -1784,10 +1785,12 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
         // This will cause AID-field of PS-POLL packet be incorrect (Because PS-POLL's AID field is
         // in the same place of other packet's Duration-field).
         // And it will cause Cisco-AP to issue Disassociation-packet
-        if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
-            ((PSTxDataHead_g)pvTxDataHd)->wDuration_a = cpu_to_le16(pPacket->p80211Header->sA2.wDurationID);
-            ((PSTxDataHead_g)pvTxDataHd)->wDuration_b = cpu_to_le16(pPacket->p80211Header->sA2.wDurationID);
-        } else {
+	if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
+		((struct vnt_tx_datahead_g *)pvTxDataHd)->wDuration_a =
+			cpu_to_le16(pPacket->p80211Header->sA2.wDurationID);
+		((struct vnt_tx_datahead_g *)pvTxDataHd)->wDuration_b =
+			cpu_to_le16(pPacket->p80211Header->sA2.wDurationID);
+	} else {
             ((PSTxDataHead_ab)pvTxDataHd)->wDuration = cpu_to_le16(pPacket->p80211Header->sA2.wDurationID);
         }
     }
@@ -2093,11 +2096,11 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
         pvRTS = NULL;
 	pvCTS = (struct vnt_cts *) (pbyTxBufferAddr + wTxBufSize +
 			sizeof(struct vnt_rrv_time_cts) + cbMICHDR);
-	pvTxDataHd = (PSTxDataHead_g) (pbyTxBufferAddr + wTxBufSize +
-		sizeof(struct vnt_rrv_time_cts) + cbMICHDR +
+	pvTxDataHd = (struct vnt_tx_datahead_g *) (pbyTxBufferAddr +
+		wTxBufSize + sizeof(struct vnt_rrv_time_cts) + cbMICHDR +
 					sizeof(struct vnt_cts));
 	cbHeaderSize = wTxBufSize + sizeof(struct vnt_rrv_time_cts) + cbMICHDR +
-				sizeof(struct vnt_cts) + sizeof(STxDataHead_g);
+		sizeof(struct vnt_cts) + sizeof(struct vnt_tx_datahead_g);
 
     }
     else {//802.11a/b packet
@@ -2238,10 +2241,12 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
         // This will cause AID-field of PS-POLL packet be incorrect (Because PS-POLL's AID field is
         // in the same place of other packet's Duration-field).
         // And it will cause Cisco-AP to issue Disassociation-packet
-        if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
-            ((PSTxDataHead_g)pvTxDataHd)->wDuration_a = cpu_to_le16(p80211Header->sA2.wDurationID);
-            ((PSTxDataHead_g)pvTxDataHd)->wDuration_b = cpu_to_le16(p80211Header->sA2.wDurationID);
-        } else {
+	if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
+		((struct vnt_tx_datahead_g *)pvTxDataHd)->wDuration_a =
+			cpu_to_le16(p80211Header->sA2.wDurationID);
+		((struct vnt_tx_datahead_g *)pvTxDataHd)->wDuration_b =
+			cpu_to_le16(p80211Header->sA2.wDurationID);
+	} else {
             ((PSTxDataHead_ab)pvTxDataHd)->wDuration = cpu_to_le16(p80211Header->sA2.wDurationID);
         }
     }
