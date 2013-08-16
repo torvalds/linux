@@ -398,10 +398,14 @@ int qlcnic_sriov_get_vf_vport_info(struct qlcnic_adapter *adapter,
 }
 
 static int qlcnic_sriov_set_pvid_mode(struct qlcnic_adapter *adapter,
-				      struct qlcnic_cmd_args *cmd)
+				      struct qlcnic_cmd_args *cmd, u32 cap)
 {
-	adapter->rx_pvid = (cmd->rsp.arg[1] >> 16) & 0xffff;
-	adapter->flags &= ~QLCNIC_TAGGING_ENABLED;
+	if (cap & QLC_83XX_PVID_STRIP_CAPABILITY) {
+		adapter->rx_pvid = 0;
+	} else {
+		adapter->rx_pvid = (cmd->rsp.arg[1] >> 16) & 0xffff;
+		adapter->flags &= ~QLCNIC_TAGGING_ENABLED;
+	}
 	return 0;
 }
 
@@ -432,12 +436,14 @@ static int qlcnic_sriov_set_guest_vlan_mode(struct qlcnic_adapter *adapter,
 	return 0;
 }
 
-static int qlcnic_sriov_get_vf_acl(struct qlcnic_adapter *adapter)
+static int qlcnic_sriov_get_vf_acl(struct qlcnic_adapter *adapter,
+				   struct qlcnic_info *info)
 {
 	struct qlcnic_sriov *sriov = adapter->ahw->sriov;
 	struct qlcnic_cmd_args cmd;
-	int ret;
+	int ret, cap;
 
+	cap = info->capabilities;
 	ret = qlcnic_sriov_alloc_bc_mbx_args(&cmd, QLCNIC_BC_CMD_GET_ACL);
 	if (ret)
 		return ret;
@@ -453,7 +459,7 @@ static int qlcnic_sriov_get_vf_acl(struct qlcnic_adapter *adapter)
 			ret = qlcnic_sriov_set_guest_vlan_mode(adapter, &cmd);
 			break;
 		case QLC_PVID_MODE:
-			ret = qlcnic_sriov_set_pvid_mode(adapter, &cmd);
+			ret = qlcnic_sriov_set_pvid_mode(adapter, &cmd, cap);
 			break;
 		}
 	}
@@ -476,7 +482,7 @@ static int qlcnic_sriov_vf_init_driver(struct qlcnic_adapter *adapter)
 	if (err)
 		return -EIO;
 
-	err = qlcnic_sriov_get_vf_acl(adapter);
+	err = qlcnic_sriov_get_vf_acl(adapter, &nic_info);
 	if (err)
 		return err;
 

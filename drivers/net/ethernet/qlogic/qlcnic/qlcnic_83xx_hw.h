@@ -404,6 +404,7 @@ enum qlcnic_83xx_states {
 #define QLC_83XX_MAX_MC_COUNT			38
 #define QLC_83XX_MAX_UC_COUNT			4096
 
+#define QLC_83XX_PVID_STRIP_CAPABILITY		BIT_22
 #define QLC_83XX_GET_FUNC_MODE_FROM_NPAR_INFO(val)	(val & 0x80000000)
 #define QLC_83XX_GET_LRO_CAPABILITY(val)		(val & 0x20)
 #define QLC_83XX_GET_LSO_CAPABILITY(val)		(val & 0x40)
