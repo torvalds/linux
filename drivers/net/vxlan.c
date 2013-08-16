@@ -542,12 +542,6 @@ static int vxlan_fdb_create(struct vxlan_dev *vxlan,
 	return 0;
 }
 
-static void vxlan_fdb_free_rdst(struct rcu_head *head)
-{
-	struct vxlan_rdst *rd = container_of(head, struct vxlan_rdst, rcu);
-	kfree(rd);
-}
-
 static void vxlan_fdb_free(struct rcu_head *head)
 {
 	struct vxlan_fdb *f = container_of(head, struct vxlan_fdb, rcu);
@@ -687,7 +681,7 @@ static int vxlan_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 	 */
 	if (rd && !list_is_singular(&f->remotes)) {
 		list_del_rcu(&rd->list);
-		call_rcu(&rd->rcu, vxlan_fdb_free_rdst);
+		kfree_rcu(rd, rcu);
 		goto out;
 	}
 
