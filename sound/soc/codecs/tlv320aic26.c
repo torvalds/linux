@@ -174,9 +174,9 @@ static int aic26_hw_params(struct snd_pcm_substream *substream,
 	dev_dbg(&aic26->spi->dev, "Setting PLLM to %d.%04d\n", jval, dval);
 	qval = 0;
 	reg = 0x8000 | qval << 11 | pval << 8 | jval << 2;
-	aic26_reg_write(codec, AIC26_REG_PLL_PROG1, reg);
+	snd_soc_write(codec, AIC26_REG_PLL_PROG1, reg);
 	reg = dval << 2;
-	aic26_reg_write(codec, AIC26_REG_PLL_PROG2, reg);
+	snd_soc_write(codec, AIC26_REG_PLL_PROG2, reg);
 
 	/* Audio Control 3 (master mode, fsref rate) */
 	reg = aic26_reg_read_cache(codec, AIC26_REG_AUDIO_CTRL3);
@@ -185,13 +185,13 @@ static int aic26_hw_params(struct snd_pcm_substream *substream,
 		reg |= 0x0800;
 	if (fsref == 48000)
 		reg |= 0x2000;
-	aic26_reg_write(codec, AIC26_REG_AUDIO_CTRL3, reg);
+	snd_soc_write(codec, AIC26_REG_AUDIO_CTRL3, reg);
 
 	/* Audio Control 1 (FSref divisor) */
 	reg = aic26_reg_read_cache(codec, AIC26_REG_AUDIO_CTRL1);
 	reg &= ~0x0fff;
 	reg |= wlen | aic26->datfm | (divisor << 3) | divisor;
-	aic26_reg_write(codec, AIC26_REG_AUDIO_CTRL1, reg);
+	snd_soc_write(codec, AIC26_REG_AUDIO_CTRL1, reg);
 
 	return 0;
 }
@@ -212,7 +212,7 @@ static int aic26_mute(struct snd_soc_dai *dai, int mute)
 		reg |= 0x8080;
 	else
 		reg &= ~0x8080;
-	aic26_reg_write(codec, AIC26_REG_DAC_GAIN, reg);
+	snd_soc_write(codec, AIC26_REG_DAC_GAIN, reg);
 
 	return 0;
 }
@@ -348,7 +348,7 @@ static ssize_t aic26_keyclick_set(struct device *dev,
 
 	val = aic26_reg_read_cache(aic26->codec, AIC26_REG_AUDIO_CTRL2);
 	val |= 0x8000;
-	aic26_reg_write(aic26->codec, AIC26_REG_AUDIO_CTRL2, val);
+	snd_soc_write(aic26->codec, AIC26_REG_AUDIO_CTRL2, val);
 
 	return count;
 }
@@ -368,20 +368,20 @@ static int aic26_probe(struct snd_soc_codec *codec)
 	dev_info(codec->dev, "Probing AIC26 SoC CODEC driver\n");
 
 	/* Reset the codec to power on defaults */
-	aic26_reg_write(codec, AIC26_REG_RESET, 0xBB00);
+	snd_soc_write(codec, AIC26_REG_RESET, 0xBB00);
 
 	/* Power up CODEC */
-	aic26_reg_write(codec, AIC26_REG_POWER_CTRL, 0);
+	snd_soc_write(codec, AIC26_REG_POWER_CTRL, 0);
 
 	/* Audio Control 3 (master mode, fsref rate) */
-	reg = aic26_reg_read(codec, AIC26_REG_AUDIO_CTRL3);
+	reg = snd_soc_read(codec, AIC26_REG_AUDIO_CTRL3);
 	reg &= ~0xf800;
 	reg |= 0x0800; /* set master mode */
-	aic26_reg_write(codec, AIC26_REG_AUDIO_CTRL3, reg);
+	snd_soc_write(codec, AIC26_REG_AUDIO_CTRL3, reg);
 
 	/* Fill register cache */
 	for (i = 0; i < codec->driver->reg_cache_size; i++)
-		aic26_reg_read(codec, i);
+		snd_soc_read(codec, i);
 
 	/* Register the sysfs files for debugging */
 	/* Create SysFS files */
