@@ -535,7 +535,8 @@ static u32 s_uFillDataHead(struct vnt_private *pDevice,
                 return (pBuf->wDuration_a);
              } else {
                 // Auto Fallback
-                PSTxDataHead_g_FB pBuf = (PSTxDataHead_g_FB)pTxDataHead;
+		struct vnt_tx_datahead_g_fb *pBuf =
+			(struct vnt_tx_datahead_g_fb *)pTxDataHead;
                 //Get SignalField,ServiceField,Length
                 BBvCalculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
                     (u16 *)&(pBuf->wTransmitLength_a), (u8 *)&(pBuf->byServiceField_a), (u8 *)&(pBuf->bySignalField_a)
@@ -1195,12 +1196,12 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
 		pvRTS = (struct vnt_rts_g_fb *) (pbyTxBufferAddr + wTxBufSize +
 				sizeof(struct vnt_rrv_time_rts) + cbMICHDR);
                 pvCTS = NULL;
-		pvTxDataHd = (PSTxDataHead_g_FB) (pbyTxBufferAddr + wTxBufSize +
-			sizeof(struct vnt_rrv_time_rts) + cbMICHDR +
-					sizeof(struct vnt_rts_g_fb));
+		pvTxDataHd = (struct vnt_tx_datahead_g_fb *) (pbyTxBufferAddr +
+			wTxBufSize + sizeof(struct vnt_rrv_time_rts) +
+				cbMICHDR + sizeof(struct vnt_rts_g_fb));
 		cbHeaderLength = wTxBufSize + sizeof(struct vnt_rrv_time_rts) +
 			cbMICHDR + sizeof(struct vnt_rts_g_fb) +
-				sizeof(STxDataHead_g_FB);
+				sizeof(struct vnt_tx_datahead_g_fb);
             }
             else if (bRTS == false) { //RTS_needless
 		pvRrvTime = (struct vnt_rrv_time_cts *)
@@ -1210,12 +1211,12 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
                 pvRTS = NULL;
 		pvCTS = (struct vnt_cts_fb *) (pbyTxBufferAddr + wTxBufSize +
 			sizeof(struct vnt_rrv_time_cts) + cbMICHDR);
-		pvTxDataHd = (PSTxDataHead_g_FB) (pbyTxBufferAddr +
+		pvTxDataHd = (struct vnt_tx_datahead_g_fb *) (pbyTxBufferAddr +
 			wTxBufSize + sizeof(struct vnt_rrv_time_cts) +
 				cbMICHDR + sizeof(struct vnt_cts_fb));
 		cbHeaderLength = wTxBufSize + sizeof(struct vnt_rrv_time_cts) +
 				cbMICHDR + sizeof(struct vnt_cts_fb) +
-					sizeof(STxDataHead_g_FB);
+					sizeof(struct vnt_tx_datahead_g_fb);
             }
         } // Auto Fall Back
     }
