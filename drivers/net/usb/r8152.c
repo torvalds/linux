@@ -790,6 +790,9 @@ static void read_bulk_callback(struct urb *urb)
 		return;
 
 	netdev = tp->netdev;
+
+	/* When link down, the driver would cancel all bulks. */
+	/* This avoid the re-submitting bulk */
 	if (!netif_carrier_ok(netdev))
 		return;
 
@@ -1296,6 +1299,8 @@ static void bottom_half(unsigned long data)
 	if (!test_bit(WORK_ENABLE, &tp->flags))
 		return;
 
+	/* When link down, the driver would cancel all bulks. */
+	/* This avoid the re-submitting bulk */
 	if (!netif_carrier_ok(tp->netdev))
 		return;
 
