@@ -715,10 +715,13 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 		skb_shinfo(skb)->tx_flags |= SKBTX_DEV_ZEROCOPY;
 		skb_shinfo(skb)->tx_flags |= SKBTX_SHARED_FRAG;
 	}
-	if (vlan)
+	if (vlan) {
+		local_bh_disable();
 		macvlan_start_xmit(skb, vlan->dev);
-	else
+		local_bh_enable();
+	} else {
 		kfree_skb(skb);
+	}
 	rcu_read_unlock();
 
 	return total_len;
@@ -809,8 +812,11 @@ static ssize_t macvtap_put_user(struct macvtap_queue *q,
 done:
 	rcu_read_lock();
 	vlan = rcu_dereference(q->vlan);
-	if (vlan)
+	if (vlan) {
+		preempt_disable();
 		macvlan_count_rx(vlan, copied - vnet_hdr_len, ret == 0, 0);
+		preempt_enable();
+	}
 	rcu_read_unlock();
 
 	return ret ? ret : copied;
