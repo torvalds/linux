@@ -88,15 +88,6 @@ static const u8 lowpan_unc_llconf[] = {0x0f, 0x28, 0x22, 0x20};
  */
 static const u8 lowpan_unc_ctxconf[] = {0x00, 0x88, 0x82, 0x80};
 
-/*
- * Uncompression of ctx-base
- *   0 -> 0 bits from packet
- *   1 -> 2 bytes from prefix - bunch of zeroes 5 from packet
- *   2 -> 2 bytes from prefix - zeroes + 3 from packet
- *   3 -> 2 bytes from prefix - infer 1 bytes from lladdr
- */
-static const u8 lowpan_unc_mxconf[] = {0x0f, 0x25, 0x23, 0x21};
-
 /* Link local prefix */
 static const u8 lowpan_llprefix[] = {0xfe, 0x80};
 
@@ -236,6 +227,63 @@ lowpan_uncompress_addr(struct sk_buff *skb, struct in6_addr *ipaddr,
 
 	pr_debug("uncompressing %d + %d => ", prefcount, postcount);
 	lowpan_raw_dump_inline(NULL, NULL, ipaddr->s6_addr, 16);
+
+	return 0;
+}
+
+/* Uncompress function for multicast destination address,
+ * when M bit is set.
+ */
+static int
+lowpan_uncompress_multicast_daddr(struct sk_buff *skb,
+		struct in6_addr *ipaddr,
+		const u8 dam)
+{
+	bool fail;
+
+	switch (dam) {
+	case LOWPAN_IPHC_DAM_00:
+		/* 00:  128 bits.  The full address
+		 * is carried in-line.
+		 */
+		fail = lowpan_fetch_skb(skb, ipaddr->s6_addr, 16);
+		break;
+	case LOWPAN_IPHC_DAM_01:
+		/* 01:  48 bits.  The address takes
+		 * the form ffXX::00XX:XXXX:XXXX.
+		 */
+		ipaddr->s6_addr[0] = 0xFF;
+		fail = lowpan_fetch_skb(skb, &ipaddr->s6_addr[1], 1);
+		fail |= lowpan_fetch_skb(skb, &ipaddr->s6_addr[11], 5);
+		break;
+	case LOWPAN_IPHC_DAM_10:
+		/* 10:  32 bits.  The address takes
+		 * the form ffXX::00XX:XXXX.
+		 */
+		ipaddr->s6_addr[0] = 0xFF;
+		fail = lowpan_fetch_skb(skb, &ipaddr->s6_addr[1], 1);
+		fail |= lowpan_fetch_skb(skb, &ipaddr->s6_addr[13], 3);
+		break;
+	case LOWPAN_IPHC_DAM_11:
+		/* 11:  8 bits.  The address takes
+		 * the form ff02::00XX.
+		 */
+		ipaddr->s6_addr[0] = 0xFF;
+		ipaddr->s6_addr[1] = 0x02;
+		fail = lowpan_fetch_skb(skb, &ipaddr->s6_addr[15], 1);
+		break;
+	default:
+		pr_debug("DAM value has a wrong value: 0x%x\n", dam);
+		return -EINVAL;
+	}
+
+	if (fail) {
+		pr_debug("Failed to fetch skb data\n");
+		return -EIO;
+	}
+
+	lowpan_raw_dump_inline(NULL, "Reconstructed ipv6 multicast addr is:\n",
+			ipaddr->s6_addr, 16);
 
 	return 0;
 }
@@ -927,16 +975,8 @@ lowpan_process_data(struct sk_buff *skb)
 			pr_debug("dest: context-based mcast compression\n");
 			/* TODO: implement this */
 		} else {
-			u8 prefix[] = {0xff, 0x02};
-
-			pr_debug("dest: non context-based mcast compression\n");
-			if (0 < tmp && tmp < 3) {
-				if (lowpan_fetch_skb_u8(skb, &prefix[1]))
-					goto drop;
-			}
-
-			err = lowpan_uncompress_addr(skb, &hdr.daddr, prefix,
-					lowpan_unc_mxconf[tmp], NULL);
+			err = lowpan_uncompress_multicast_daddr(
+					skb, &hdr.daddr, tmp);
 			if (err)
 				goto drop;
 		}
