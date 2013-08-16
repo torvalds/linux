@@ -521,6 +521,29 @@ void rt2800_disable_wpdma(struct rt2x00_dev *rt2x00dev)
 }
 EXPORT_SYMBOL_GPL(rt2800_disable_wpdma);
 
+void rt2800_get_txwi_rxwi_size(struct rt2x00_dev *rt2x00dev,
+			       unsigned short *txwi_size,
+			       unsigned short *rxwi_size)
+{
+	switch (rt2x00dev->chip.rt) {
+	case RT3593:
+		*txwi_size = TXWI_DESC_SIZE_4WORDS;
+		*rxwi_size = RXWI_DESC_SIZE_5WORDS;
+		break;
+
+	case RT5592:
+		*txwi_size = TXWI_DESC_SIZE_5WORDS;
+		*rxwi_size = RXWI_DESC_SIZE_6WORDS;
+		break;
+
+	default:
+		*txwi_size = TXWI_DESC_SIZE_4WORDS;
+		*rxwi_size = RXWI_DESC_SIZE_4WORDS;
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(rt2800_get_txwi_rxwi_size);
+
 static bool rt2800_check_firmware_crc(const u8 *data, const size_t len)
 {
 	u16 fw_crc;

@@ -1189,12 +1189,17 @@ static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
 
 static void rt2800pci_queue_init(struct data_queue *queue)
 {
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
+	unsigned short txwi_size, rxwi_size;
+
+	rt2800_get_txwi_rxwi_size(rt2x00dev, &txwi_size, &rxwi_size);
+
 	switch (queue->qid) {
 	case QID_RX:
 		queue->limit = 128;
 		queue->data_size = AGGREGATION_SIZE;
 		queue->desc_size = RXD_DESC_SIZE;
-		queue->winfo_size = RXWI_DESC_SIZE_4WORDS;
+		queue->winfo_size = rxwi_size;
 		queue->priv_size = sizeof(struct queue_entry_priv_mmio);
 		break;
 
@@ -1205,7 +1210,7 @@ static void rt2800pci_queue_init(struct data_queue *queue)
 		queue->limit = 64;
 		queue->data_size = AGGREGATION_SIZE;
 		queue->desc_size = TXD_DESC_SIZE;
-		queue->winfo_size = TXWI_DESC_SIZE_4WORDS;
+		queue->winfo_size = txwi_size;
 		queue->priv_size = sizeof(struct queue_entry_priv_mmio);
 		break;
 
@@ -1213,7 +1218,7 @@ static void rt2800pci_queue_init(struct data_queue *queue)
 		queue->limit = 8;
 		queue->data_size = 0; /* No DMA required for beacons */
 		queue->desc_size = TXD_DESC_SIZE;
-		queue->winfo_size = TXWI_DESC_SIZE_4WORDS;
+		queue->winfo_size = txwi_size;
 		queue->priv_size = sizeof(struct queue_entry_priv_mmio);
 		break;
 
