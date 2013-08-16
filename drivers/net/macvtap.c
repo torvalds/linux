@@ -290,9 +290,11 @@ static int macvtap_forward(struct net_device *dev, struct sk_buff *skb)
 
 	skb->dev = dev;
 	/* Apply the forward feature mask so that we perform segmentation
-	 * according to users wishes.
+	 * according to users wishes.  This only works if VNET_HDR is
+	 * enabled.
 	 */
-	features |= vlan->tap_features;
+	if (q->flags & IFF_VNET_HDR)
+		features |= vlan->tap_features;
 	if (netif_needs_gso(skb, features)) {
 		struct sk_buff *segs = __skb_gso_segment(skb, features, false);
 
