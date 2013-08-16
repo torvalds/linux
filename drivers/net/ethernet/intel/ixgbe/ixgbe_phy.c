@@ -1175,6 +1175,10 @@ s32 ixgbe_identify_qsfp_module_generic(struct ixgbe_hw *hw)
 	u8 comp_codes_10g = 0;
 	u8 oui_bytes[3] = {0, 0, 0};
 	u16 enforce_sfp = 0;
+	u8 connector = 0;
+	u8 cable_length = 0;
+	u8 device_tech = 0;
+	bool active_cable = false;
 
 	if (hw->mac.ops.get_media_type(hw) != ixgbe_media_type_fiber_qsfp) {
 		hw->phy.sfp_type = ixgbe_sfp_type_not_present;
@@ -1217,12 +1221,6 @@ s32 ixgbe_identify_qsfp_module_generic(struct ixgbe_hw *hw)
 			hw->phy.sfp_type = ixgbe_sfp_type_da_cu_core0;
 		else
 			hw->phy.sfp_type = ixgbe_sfp_type_da_cu_core1;
-	} else if (comp_codes_10g & IXGBE_SFF_QSFP_DA_ACTIVE_CABLE) {
-		hw->phy.type = ixgbe_phy_qsfp_active_unknown;
-		if (hw->bus.lan_id == 0)
-			hw->phy.sfp_type = ixgbe_sfp_type_da_act_lmt_core0;
-		else
-			hw->phy.sfp_type = ixgbe_sfp_type_da_act_lmt_core1;
 	} else if (comp_codes_10g & (IXGBE_SFF_10GBASESR_CAPABLE |
 				     IXGBE_SFF_10GBASELR_CAPABLE)) {
 		if (hw->bus.lan_id == 0)
@@ -1230,10 +1228,47 @@ s32 ixgbe_identify_qsfp_module_generic(struct ixgbe_hw *hw)
 		else
 			hw->phy.sfp_type = ixgbe_sfp_type_srlr_core1;
 	} else {
-		/* unsupported module type */
-		hw->phy.type = ixgbe_phy_sfp_unsupported;
-		status = IXGBE_ERR_SFP_NOT_SUPPORTED;
-		goto out;
+		if (comp_codes_10g & IXGBE_SFF_QSFP_DA_ACTIVE_CABLE)
+			active_cable = true;
+
+		if (!active_cable) {
+			/* check for active DA cables that pre-date
+			 * SFF-8436 v3.6
+			 */
+			hw->phy.ops.read_i2c_eeprom(hw,
+					IXGBE_SFF_QSFP_CONNECTOR,
+					&connector);
+
+			hw->phy.ops.read_i2c_eeprom(hw,
+					IXGBE_SFF_QSFP_CABLE_LENGTH,
+					&cable_length);
+
+			hw->phy.ops.read_i2c_eeprom(hw,
+					IXGBE_SFF_QSFP_DEVICE_TECH,
+					&device_tech);
+
+			if ((connector ==
+				     IXGBE_SFF_QSFP_CONNECTOR_NOT_SEPARABLE) &&
+			    (cable_length > 0) &&
+			    ((device_tech >> 4) ==
+				     IXGBE_SFF_QSFP_TRANSMITER_850NM_VCSEL))
+				active_cable = true;
+		}
+
+		if (active_cable) {
+			hw->phy.type = ixgbe_phy_qsfp_active_unknown;
+			if (hw->bus.lan_id == 0)
+				hw->phy.sfp_type =
+						ixgbe_sfp_type_da_act_lmt_core0;
+			else
+				hw->phy.sfp_type =
+						ixgbe_sfp_type_da_act_lmt_core1;
+		} else {
+			/* unsupported module type */
+			hw->phy.type = ixgbe_phy_sfp_unsupported;
+			status = IXGBE_ERR_SFP_NOT_SUPPORTED;
+			goto out;
+		}
 	}
 
 	if (hw->phy.sfp_type != stored_sfp_type)
