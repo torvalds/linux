@@ -2105,7 +2105,6 @@ static int rtl8152_probe(struct usb_interface *intf,
 
 	SET_NETDEV_DEV(netdev, &intf->dev);
 	tp = netdev_priv(netdev);
-	memset(tp, 0, sizeof(*tp));
 	tp->msg_enable = 0x7FFF;
 
 	tasklet_init(&tp->tl, bottom_half, (unsigned long)tp);
