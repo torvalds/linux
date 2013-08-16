@@ -992,7 +992,7 @@ void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc)
 		return;
 	}
 
-	beacon_base = HW_BEACON_OFFSET(entry->entry_idx);
+	beacon_base = HW_BEACON_BASE(entry->entry_idx);
 	rt2800_register_multiwrite(rt2x00dev, beacon_base, entry->skb->data,
 				   entry->skb->len + padding_len);
 
@@ -1042,7 +1042,7 @@ void rt2800_clear_beacon(struct queue_entry *entry)
 	 * Clear beacon.
 	 */
 	rt2800_clear_beacon_register(rt2x00dev,
-				     HW_BEACON_OFFSET(entry->entry_idx));
+				     HW_BEACON_BASE(entry->entry_idx));
 
 	/*
 	 * Enabled beaconing again.

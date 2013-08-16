@@ -2019,7 +2019,7 @@ struct mac_iveiv_entry {
 #define HW_BEACON_BASE6			0x5dc0
 #define HW_BEACON_BASE7			0x5bc0
 
-#define HW_BEACON_OFFSET(__index) \
+#define HW_BEACON_BASE(__index) \
 	(((__index) < 4) ? (HW_BEACON_BASE0 + (__index * 0x0200)) : \
 	  (((__index) < 6) ? (HW_BEACON_BASE4 + ((__index - 4) * 0x0200)) : \
 	  (HW_BEACON_BASE6 - ((__index - 6) * 0x0200))))
