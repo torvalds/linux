@@ -103,6 +103,8 @@ struct cache {
 	struct dm_target *ti;
 	struct dm_target_callbacks callbacks;
 
+	struct dm_cache_metadata *cmd;
+
 	/*
 	 * Metadata is written to this device.
 	 */
@@ -117,11 +119,6 @@ struct cache {
 	 * The faster of the two data devices.  Typically an SSD.
 	 */
 	struct dm_dev *cache_dev;
-
-	/*
-	 * Cache features such as write-through.
-	 */
-	struct cache_features features;
 
 	/*
 	 * Size of the origin device in _complete_ blocks and native sectors.
@@ -140,8 +137,6 @@ struct cache {
 	uint32_t sectors_per_block;
 	int sectors_per_block_shift;
 
-	struct dm_cache_metadata *cmd;
-
 	spinlock_t lock;
 	struct bio_list deferred_bios;
 	struct bio_list deferred_flush_bios;
@@ -150,8 +145,8 @@ struct cache {
 	struct list_head completed_migrations;
 	struct list_head need_commit_migrations;
 	sector_t migration_threshold;
-	atomic_t nr_migrations;
 	wait_queue_head_t migration_wait;
+	atomic_t nr_migrations;
 
 	/*
 	 * cache_size entries, dirty if set
@@ -162,9 +157,16 @@ struct cache {
 	/*
 	 * origin_blocks entries, discarded if set.
 	 */
-	uint32_t discard_block_size; /* a power of 2 times sectors per block */
 	dm_dblock_t discard_nr_blocks;
 	unsigned long *discard_bitset;
+	uint32_t discard_block_size; /* a power of 2 times sectors per block */
+
+	/*
+	 * Rather than reconstructing the table line for the status we just
+	 * save it and regurgitate.
+	 */
+	unsigned nr_ctr_args;
+	const char **ctr_args;
 
 	struct dm_kcopyd_client *copier;
 	struct workqueue_struct *wq;
@@ -189,14 +191,12 @@ struct cache {
 	bool loaded_mappings:1;
 	bool loaded_discards:1;
 
-	struct cache_stats stats;
-
 	/*
-	 * Rather than reconstructing the table line for the status we just
-	 * save it and regurgitate.
+	 * Cache features such as write-through.
 	 */
-	unsigned nr_ctr_args;
-	const char **ctr_args;
+	struct cache_features features;
+
+	struct cache_stats stats;
 };
 
 struct per_bio_data {
