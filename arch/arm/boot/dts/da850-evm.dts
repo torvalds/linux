@@ -96,6 +96,11 @@
 			pinctrl-0 = <&mdio_pins>;
 			bus_freq = <2200000>;
 		};
+		eth0: ethernet@1e20000 {
+			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&mii_pins>;
+		};
 	};
 	nand_cs3@62000000 {
 		status = "okay";
