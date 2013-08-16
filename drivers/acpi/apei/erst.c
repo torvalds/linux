@@ -958,6 +958,9 @@ static struct pstore_info erst_info = {
 #define CPER_SECTION_TYPE_DMESG						\
 	UUID_LE(0xc197e04e, 0xd545, 0x4a70, 0x9c, 0x17, 0xa5, 0x54,	\
 		0x94, 0x19, 0xeb, 0x12)
+#define CPER_SECTION_TYPE_DMESG_Z					\
+	UUID_LE(0x4f118707, 0x04dd, 0x4055, 0xb5, 0xdd, 0x95, 0x6d,	\
+		0x34, 0xdd, 0xfa, 0xc6)
 #define CPER_SECTION_TYPE_MCE						\
 	UUID_LE(0xfe08ffbe, 0x95e4, 0x4be7, 0xbc, 0x73, 0x40, 0x96,	\
 		0x04, 0x4a, 0x38, 0xfc)
@@ -1036,7 +1039,12 @@ skip:
 	}
 	memcpy(*buf, rcd->data, len - sizeof(*rcd));
 	*id = record_id;
+	*compressed = false;
 	if (uuid_le_cmp(rcd->sec_hdr.section_type,
+			CPER_SECTION_TYPE_DMESG_Z) == 0) {
+		*type = PSTORE_TYPE_DMESG;
+		*compressed = true;
+	} else if (uuid_le_cmp(rcd->sec_hdr.section_type,
 			CPER_SECTION_TYPE_DMESG) == 0)
 		*type = PSTORE_TYPE_DMESG;
 	else if (uuid_le_cmp(rcd->sec_hdr.section_type,
@@ -1087,7 +1095,10 @@ static int erst_writer(enum pstore_type_id type, enum kmsg_dump_reason reason,
 	rcd->sec_hdr.flags = CPER_SEC_PRIMARY;
 	switch (type) {
 	case PSTORE_TYPE_DMESG:
-		rcd->sec_hdr.section_type = CPER_SECTION_TYPE_DMESG;
+		if (compressed)
+			rcd->sec_hdr.section_type = CPER_SECTION_TYPE_DMESG_Z;
+		else
+			rcd->sec_hdr.section_type = CPER_SECTION_TYPE_DMESG;
 		break;
 	case PSTORE_TYPE_MCE:
 		rcd->sec_hdr.section_type = CPER_SECTION_TYPE_MCE;
