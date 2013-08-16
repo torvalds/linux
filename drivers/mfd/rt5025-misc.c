@@ -49,7 +49,6 @@ static int __devinit rt5025_misc_probe(struct platform_device *pdev)
 	struct rt5025_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct rt5025_platform_data *pdata = chip->dev->platform_data;
 	struct rt5025_misc_info *mi;
-	printk("%s,line=%d\n", __func__,__LINE__);	
 
 	mi = kzalloc(sizeof(*mi), GFP_KERNEL);
 	if (!mi)

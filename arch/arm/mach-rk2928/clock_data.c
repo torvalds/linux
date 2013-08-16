@@ -2123,7 +2123,7 @@ static struct clk_lookup clks[] = {
 	//FIXME
 	//CLK(NULL, "hclk_gps", &hclk_gps),
 
-	CLK(NULL, "cif_out_div", &clk_cif_out_div),
+	CLK(NULL, "cif0_out_div", &clk_cif_out_div),
 	CLK(NULL, "cif0_out", &clk_cif_out),
 	CLK(NULL, "pclkin_cif0", &pclkin_cif0),
 	CLK(NULL, "inv_cif0", &inv_cif0),

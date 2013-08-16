@@ -40,33 +40,40 @@ static void rt5025_work_func(struct work_struct *work)
 {
 	struct delayed_work *delayed_work = (struct delayed_work *)container_of(work, struct delayed_work, work);
 	struct rt5025_irq_info *ii = (struct rt5025_irq_info *)container_of(delayed_work, struct rt5025_irq_info, delayed_work);
-	unsigned char irq_stat[10] = {0};
+	unsigned char irq_stat[6] = {0};
 	uint32_t chg_event = 0, pwr_event = 0;
 
 	#ifdef CONFIG_POWER_RT5025
-	if (!ii->chip->power_info)
+	if (!ii->chip->power_info || !ii->chip->jeita_info || !ii->chip->battery_info)
 	{
 		queue_delayed_work(ii->wq, &ii->delayed_work, msecs_to_jiffies(1));
 		return;
 	}
 	#endif
 
-	//if (rt5025_reg_block_read(ii->i2c, RT5025_REG_IRQEN1, 10, irq_stat) >= 0)
+	#if 0
+	if (rt5025_reg_block_read(ii->i2c, RT5025_REG_IRQEN1, 10, irq_stat) >= 0)
 	{
-		irq_stat[1] = rt5025_reg_read(ii->i2c, 0x31);
-		irq_stat[3] = rt5025_reg_read(ii->i2c, 0x33);
-		irq_stat[5] = rt5025_reg_read(ii->i2c, 0x35);
-		irq_stat[7] = rt5025_reg_read(ii->i2c, 0x37);
-		irq_stat[9] = rt5025_reg_read(ii->i2c, 0x39);
-		RTINFO("irq1->%02x, irq2->%02x, irq3->%02x\n", irq_stat[1], irq_stat[3], irq_stat[5]);
-		RTINFO("irq4->%02x, irq5->%02x\n", irq_stat[7], irq_stat[9]);
+	#endif
+		irq_stat[0] = rt5025_reg_read(ii->i2c, RT5025_REG_IRQSTATUS1);
+		irq_stat[1] = rt5025_reg_read(ii->i2c, RT5025_REG_IRQSTATUS2);
+		irq_stat[2] = rt5025_reg_read(ii->i2c, RT5025_REG_IRQSTATUS3);
+		irq_stat[3] = rt5025_reg_read(ii->i2c, RT5025_REG_IRQSTATUS4);
+		irq_stat[4] = rt5025_reg_read(ii->i2c, RT5025_REG_IRQSTATUS5);
+		irq_stat[5] = rt5025_reg_read(ii->i2c, RT5025_REG_GAUGEIRQFLG);
+		RTINFO("irq1->0x%02x, irq2->0x%02x, irq3->0x%02x\n", irq_stat[0], irq_stat[1], irq_stat[2]);
+		RTINFO("irq4->0x%02x, irq5->0x%02x, irq6->0x%02x\n", irq_stat[3], irq_stat[4], irq_stat[5]);
 		RTINFO("stat value = %02x\n", rt5025_reg_read(ii->i2c, RT5025_REG_CHGSTAT));
 
-		chg_event = irq_stat[1]<<16 | irq_stat[3]<<8 | irq_stat[5];
-		pwr_event = irq_stat[7]<<8 | irq_stat[9];
+		chg_event = irq_stat[0]<<16 | irq_stat[1]<<8 | irq_stat[2];
+		pwr_event = irq_stat[3]<<8 | irq_stat[4];
 		#ifdef CONFIG_POWER_RT5025
 		if (chg_event & CHARGER_DETECT_MASK)
+		{
+			if (chg_event & CHG_EVENT_CHTERMI)
+				ii->chip->power_info->chg_term++;
 			rt5025_power_charge_detect(ii->chip->power_info);
+		}
 		#endif /* CONFIG_POWER_RT5025 */
 		if (ii->event_cb)
 		{
@@ -75,15 +82,18 @@ static void rt5025_work_func(struct work_struct *work)
 			if (pwr_event)
 				ii->event_cb->power_event_callkback(pwr_event);
 		}
-	}
 	#if 0
+	}
 	else
 		dev_err(ii->dev, "read irq stat io fail\n");
 	#endif
 	
 
 	#ifdef CONFIG_POWER_RT5025
-	rt5025_power_passirq_to_gauge(ii->chip->power_info);
+	if (irq_stat[5] & RT5025_FLG_TEMP)
+		rt5025_swjeita_irq_handler(ii->chip->jeita_info, irq_stat[5] & RT5025_FLG_TEMP);
+	if (irq_stat[5] & RT5025_FLG_VOLT)
+		rt5025_gauge_irq_handler(ii->chip->battery_info, irq_stat[5] & RT5025_FLG_VOLT);
 	#endif /* CONFIG_POWER_RT5025 */
 
 	//enable_irq(ii->irq);
@@ -170,7 +180,6 @@ static int __devinit rt5025_irq_probe(struct platform_device *pdev)
 	struct rt5025_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct rt5025_platform_data *pdata = chip->dev->platform_data;
 	struct rt5025_irq_info *ii;
-	printk("%s,line=%d\n", __func__,__LINE__);	
 
 	RTINFO("\n");
 	ii = kzalloc(sizeof(*ii), GFP_KERNEL);
@@ -201,6 +210,20 @@ static int __devexit rt5025_irq_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void rt5025_irq_shutdown(struct platform_device *pdev)
+{
+	struct rt5025_irq_info *ii = platform_get_drvdata(pdev);
+
+	if (ii->irq)
+		free_irq(ii->irq, ii);
+
+	if (ii->wq)
+	{
+		cancel_delayed_work_sync(&ii->delayed_work);
+		flush_workqueue(ii->wq);
+	}
+}
+
 static struct platform_driver rt5025_irq_driver = 
 {
 	.driver = {
@@ -209,6 +232,7 @@ static struct platform_driver rt5025_irq_driver =
 	},
 	.probe = rt5025_irq_probe,
 	.remove = __devexit_p(rt5025_irq_remove),
+	.shutdown = rt5025_irq_shutdown,
 };
 
 static int __init rt5025_irq_init(void)

@@ -31,8 +31,9 @@ static struct i2c_client *client;
 static struct dentry *debugfs_rt_dent;
 static struct dentry *debugfs_peek;
 static struct dentry *debugfs_poke;
+static struct dentry *debugfs_regs;
 
-static unsigned char read_data;
+static unsigned char read_data[10];
 
 static int reg_debug_open(struct inode *inode, struct file *file)
 {
@@ -65,12 +66,23 @@ static int get_parameters(char *buf, long int *param1, int num_of_par)
 	return 0;
 }
 
+#define LOG_FORMAT "0x%02x\n0x%02x\n0x%02x\n0x%02x\n0x%02x\n"
+
 static ssize_t reg_debug_read(struct file *filp, char __user *ubuf,
 				size_t count, loff_t *ppos)
 {
-	char lbuf[8];
-	
-	snprintf(lbuf, sizeof(lbuf), "0x%x\n", read_data);
+	char *access_str = filp->private_data;
+	char lbuf[150];
+	if (!strcmp(access_str, "regs"))
+	{
+		RTINFO("read regs file\n");
+		/* read regs */
+		snprintf(lbuf, sizeof(lbuf), LOG_FORMAT LOG_FORMAT, read_data[0], \
+		read_data[1], read_data[2], read_data[3], read_data[4], read_data[5], \
+		read_data[6], read_data[7], read_data[8], read_data[9]);
+	}
+	else
+		snprintf(lbuf, sizeof(lbuf), "0x%02x\n", read_data[0]);
 	return simple_read_from_buffer(ubuf, count, ppos, lbuf, strlen(lbuf));
 }
 
@@ -105,7 +117,26 @@ static ssize_t reg_debug_write(struct file *filp,
 		rc = get_parameters(lbuf, param, 1);
 		if ((param[0] <= 0xFF) && (rc == 0))
 		{
-			read_data = rt5025_reg_read(client, param[0]);
+			read_data[0] = rt5025_reg_read(client, param[0]);
+		}
+		else
+			rc = -EINVAL;
+	} else if (!strcmp(access_str, "regs")) {
+		/* read */
+		rc = get_parameters(lbuf, param, 1);
+		if ((param[0] <= 0xFF) && (rc == 0))
+		{
+			rt5025_reg_block_read(client, param[0], 10, read_data);
+			RTINFO("regs 0 = 0x%02x\n", read_data[0]);
+			RTINFO("regs 1 = 0x%02x\n", read_data[1]);
+			RTINFO("regs 2 = 0x%02x\n", read_data[2]);
+			RTINFO("regs 3 = 0x%02x\n", read_data[3]);
+			RTINFO("regs 4 = 0x%02x\n", read_data[4]);
+			RTINFO("regs 5 = 0x%02x\n", read_data[5]);
+			RTINFO("regs 6 = 0x%02x\n", read_data[6]);
+			RTINFO("regs 7 = 0x%02x\n", read_data[7]);
+			RTINFO("regs 8 = 0x%02x\n", read_data[8]);
+			RTINFO("regs 9 = 0x%02x\n", read_data[9]);
 		}
 		else
 			rc = -EINVAL;
@@ -145,6 +176,10 @@ static int __devinit rt5025_debug_probe(struct platform_device *pdev)
 		debugfs_poke = debugfs_create_file("poke",
 		S_IFREG | S_IRUGO, debugfs_rt_dent,
 		(void *) "poke", &reg_debug_ops);
+
+		debugfs_regs = debugfs_create_file("regs",
+		S_IFREG | S_IRUGO, debugfs_rt_dent,
+		(void *) "regs", &reg_debug_ops);
 	}
 
 	platform_set_drvdata(pdev, di);

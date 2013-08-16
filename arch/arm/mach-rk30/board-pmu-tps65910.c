@@ -307,7 +307,8 @@ static struct regulator_consumer_supply tps65910_smps1_supply[] = {
 	{
 		.supply = "vdd1",
 	},
-	#if defined(CONFIG_SOC_RK3168) || defined(CONFIG_ARCH_RK3188) || defined(CONFIG_SOC_RK3028)
+	#if defined(CONFIG_SOC_RK3168) || defined(CONFIG_ARCH_RK3188) || defined(CONFIG_SOC_RK3028) ||defined(CONFIG_MACH_RK3028A_86V)
+
 	{
 		.supply = "vdd_core",
 	},
@@ -321,10 +322,15 @@ static struct regulator_consumer_supply tps65910_smps2_supply[] = {
 	{
 		.supply = "vdd2",
 	},
-	#if defined(CONFIG_MACH_RK3168_86V) || defined(CONFIG_SOC_RK3028)||defined(CONFIG_MACH_RK_FAC)
+	#if defined(CONFIG_MACH_RK3168_86V) || defined(CONFIG_SOC_RK3028)||defined(CONFIG_MACH_RK_FAC) ||defined(CONFIG_MACH_RK3028A_86V)
+
 	{
                 .supply = "vdd_cpu",
         },
+        #else if defined(CONFIG_MACH_RK3026_86V)
+	{
+		.supply = "vdd_core",
+	},
 	#endif
 };
 static struct regulator_consumer_supply tps65910_smps3_supply[] = {
@@ -559,7 +565,7 @@ static struct regulator_init_data tps65910_ldo8 = {
 		.min_uV			= 1000000,
 		.max_uV			= 2500000,
 		.apply_uV		= 1,
-		.always_on = 1,
+//		.always_on = 1,
 		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
 		.valid_modes_mask = REGULATOR_MODE_STANDBY | REGULATOR_MODE_NORMAL,
 
