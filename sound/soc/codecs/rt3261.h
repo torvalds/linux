@@ -2121,6 +2121,11 @@ enum {
 	RT3261_DMIC2,
 };
 
+enum {
+	RT3261_ASRC_DIS,
+	RT3261_ASRC_EN,
+};
+
 struct rt3261_pll_code {
 	bool m_bp; /* Indicates bypass m code or not. */
 	int m_code;
@@ -2144,6 +2149,7 @@ struct rt3261_priv {
 	int pll_out;
 
 	int dmic_en;
+	int asrc_en;
 	int dsp_sw; /* expected parameter setting */
 	bool dsp_play_pass;
 	bool dsp_rec_pass;

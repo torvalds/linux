@@ -78,7 +78,7 @@ struct rt3261_init_reg {
 };
 
 static struct rt3261_init_reg init_list[] = {
-	{RT3261_GEN_CTRL1	, 0x3f01},//fa[12:13] = 1'b; fa[8~10]=1; fa[0]=1
+	{RT3261_GEN_CTRL1	, 0x3701},//fa[12:13] = 1'b; fa[8~10]=1; fa[0]=1
 	{RT3261_ADDA_CLK1	, 0x1114},//73[2] = 1'b
 	{RT3261_MICBIAS		, 0x3030},//93[5:4] = 11'b
 	{RT3261_CLS_D_OUT	, 0xa000},//8d[11] = 0'b
@@ -710,6 +710,51 @@ static int rt3261_dmic_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int rt3261_asrc_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct rt3261_priv *rt3261 = snd_soc_codec_get_drvdata(codec);
+
+	printk("%s\n", __FUNCTION__);
+	ucontrol->value.integer.value[0] = rt3261->asrc_en;
+
+	return 0;
+}
+
+static int rt3261_asrc_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct rt3261_priv *rt3261 = snd_soc_codec_get_drvdata(codec);
+
+	printk("%s\n", __FUNCTION__);
+	if (rt3261->asrc_en == ucontrol->value.integer.value[0])
+		return 0;
+
+	rt3261->asrc_en = ucontrol->value.integer.value[0];
+	switch (rt3261->asrc_en) {
+	case RT3261_ASRC_DIS://disable ASRC
+		printk("%s disable\n", __FUNCTION__);
+		snd_soc_write(codec, RT3261_ASRC_1, 0x0);			
+		snd_soc_write(codec, RT3261_ASRC_2, 0x0);
+		break;
+
+	case RT3261_ASRC_EN://enable ASRC
+		printk("%s enable\n", __FUNCTION__);
+		snd_soc_write(codec, RT3261_ASRC_1, 0x9800);			
+		snd_soc_write(codec, RT3261_ASRC_2, 0xF800);
+		snd_soc_update_bits(codec, RT3261_PWR_DIG1, 0x0080, 0x0080);
+		snd_soc_update_bits(codec, RT3261_PWR_DIG2, 0x8000, 0x8000);
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 //bard 8-9 s
 static int rt3261_mic1_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
@@ -1083,6 +1128,10 @@ static const SOC_ENUM_SINGLE_DECL(
 static const char *rt3261_dmic_mode[] = {"Disable", "DMIC1", "DMIC2"};
 
 static const SOC_ENUM_SINGLE_DECL(rt3261_dmic_enum, 0, 0, rt3261_dmic_mode);
+/* ASRC */
+static const char *rt3261_asrc_mode[] = {"Disable", "Enable"};
+
+static const SOC_ENUM_SINGLE_DECL(rt3261_asrc_enum, 0, 0, rt3261_asrc_mode);
 
 /* PR-3F */
 static const char *rt3261_dacr_sel_mode[] = {"IF2_DAC", "IF2_ADC"};
@@ -1245,7 +1294,9 @@ static const struct snd_kcontrol_new rt3261_snd_controls[] = {
 	/* DMIC */
 	SOC_ENUM_EXT("DMIC Switch", rt3261_dmic_enum,
 		rt3261_dmic_get, rt3261_dmic_put),
-
+	/* ASRC */
+	SOC_ENUM_EXT("ASRC Switch", rt3261_asrc_enum,
+		rt3261_asrc_get, rt3261_asrc_put),
 	/* PR-3F */
 	SOC_ENUM_EXT("DACR Select", rt3261_dacr_sel_enum,
 		rt3261_dacr_sel_get, rt3261_dacr_sel_put),
@@ -1744,18 +1795,22 @@ static int rt3261_adc_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMU:
 		//rt3261_index_update_bits(codec,
 		//	RT3261_CHOP_DAC_ADC, 0x1000, 0x1000);
+		/*bard 3-26 r
 		val = snd_soc_read(codec, RT3261_MONO_ADC_MIXER);
 		mask = RT3261_M_MONO_ADC_L1 | RT3261_M_MONO_ADC_L2 |
 			RT3261_M_MONO_ADC_R1 | RT3261_M_MONO_ADC_R2;
 		if ((val & mask) ^ mask)
 			snd_soc_update_bits(codec, RT3261_GEN_CTRL1,
 				RT3261_M_MAMIX_L | RT3261_M_MAMIX_R, 0);
+		*/
 		break;
 
 	case SND_SOC_DAPM_POST_PMD:
+		/*bard 3-26 r
 		snd_soc_update_bits(codec, RT3261_GEN_CTRL1,
 			RT3261_M_MAMIX_L | RT3261_M_MAMIX_R,
 			RT3261_M_MAMIX_L | RT3261_M_MAMIX_R);
+		*/
 		//rt3261_index_update_bits(codec,
 		//	RT3261_CHOP_DAC_ADC, 0x1000, 0x0000);
 		break;
@@ -1767,6 +1822,55 @@ static int rt3261_adc_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+//bard 3-26 s
+static int rt3261_mono_adcl_event(struct snd_soc_dapm_widget *w,
+	struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+	unsigned int val, mask;
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		snd_soc_update_bits(codec, RT3261_GEN_CTRL1,
+			RT3261_M_MAMIX_L, 0);
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		snd_soc_update_bits(codec, RT3261_GEN_CTRL1,
+			RT3261_M_MAMIX_L,
+			RT3261_M_MAMIX_L);
+		break;
+
+	default:
+		return 0;
+	}
+
+	return 0;
+}
+
+static int rt3261_mono_adcr_event(struct snd_soc_dapm_widget *w,
+	struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+	unsigned int val, mask;
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		snd_soc_update_bits(codec, RT3261_GEN_CTRL1,
+			RT3261_M_MAMIX_R, 0);
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		snd_soc_update_bits(codec, RT3261_GEN_CTRL1,
+			RT3261_M_MAMIX_R,
+			RT3261_M_MAMIX_R);
+		break;
+
+	default:
+		return 0;
+	}
+
+	return 0;
+}
+//bard 3-26 e
 static int rt3261_spk_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
@@ -2155,12 +2259,14 @@ static const struct snd_soc_dapm_widget rt3261_dapm_widgets[] = {
 		rt3261_sto_adc_r_mix, ARRAY_SIZE(rt3261_sto_adc_r_mix)),
 	SND_SOC_DAPM_SUPPLY("mono left filter", RT3261_PWR_DIG2,
 		RT3261_PWR_ADC_MF_L_BIT, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("Mono ADC MIXL", SND_SOC_NOPM, 0, 0,
-		rt3261_mono_adc_l_mix, ARRAY_SIZE(rt3261_mono_adc_l_mix)),
+	SND_SOC_DAPM_MIXER_E("Mono ADC MIXL", SND_SOC_NOPM, 0, 0,
+		rt3261_mono_adc_l_mix, ARRAY_SIZE(rt3261_mono_adc_l_mix),
+		rt3261_mono_adcl_event, SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU), //bard 3-26
 	SND_SOC_DAPM_SUPPLY("mono right filter", RT3261_PWR_DIG2,
 		RT3261_PWR_ADC_MF_R_BIT, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("Mono ADC MIXR", SND_SOC_NOPM, 0, 0,
-		rt3261_mono_adc_r_mix, ARRAY_SIZE(rt3261_mono_adc_r_mix)),
+	SND_SOC_DAPM_MIXER_E("Mono ADC MIXR", SND_SOC_NOPM, 0, 0,
+		rt3261_mono_adc_r_mix, ARRAY_SIZE(rt3261_mono_adc_r_mix),
+		rt3261_mono_adcr_event, SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU), //bard 3-26
 
 	/* IF2 Mux */
 	SND_SOC_DAPM_MUX("IF2 ADC L Mux", SND_SOC_NOPM, 0, 0,
