@@ -230,4 +230,16 @@
 					dest = 16 bit inline */
 #define LOWPAN_NHC_UDP_CS_P_11	0xF3 /* source & dest = 0xF0B + 4bit inline */
 
+static inline bool lowpan_fetch_skb(struct sk_buff *skb,
+		void *data, const unsigned int len)
+{
+	if (unlikely(!pskb_may_pull(skb, len)))
+		return true;
+
+	skb_copy_from_linear_data(skb, data, len);
+	skb_pull(skb, len);
+
+	return false;
+}
+
 #endif /* __6LOWPAN_H__ */
