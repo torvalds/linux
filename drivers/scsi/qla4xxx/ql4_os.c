@@ -2671,6 +2671,8 @@ static int qla4xxx_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	    !test_bit(AF_ONLINE, &ha->flags) ||
 	    !test_bit(AF_LINK_UP, &ha->flags) ||
 	    test_bit(AF_LOOPBACK, &ha->flags) ||
+	    test_bit(DPC_POST_IDC_ACK, &ha->dpc_flags) ||
+	    test_bit(DPC_RESTORE_ACB, &ha->dpc_flags) ||
 	    test_bit(DPC_RESET_HA_FW_CONTEXT, &ha->dpc_flags))
 		goto qc_host_busy;
 
@@ -3863,8 +3865,35 @@ static void qla4xxx_do_dpc(struct work_struct *work)
 			qla4_8xxx_device_state_handler(ha);
 		}
 
-		if (test_and_clear_bit(DPC_POST_IDC_ACK, &ha->dpc_flags))
+		if (test_bit(DPC_POST_IDC_ACK, &ha->dpc_flags)) {
+			if (is_qla8042(ha)) {
+				if (ha->idc_info.info2 &
+				    ENABLE_INTERNAL_LOOPBACK) {
+					ql4_printk(KERN_INFO, ha, "%s: Disabling ACB\n",
+						   __func__);
+					status = qla4_84xx_config_acb(ha,
+							    ACB_CONFIG_DISABLE);
+					if (status != QLA_SUCCESS) {
+						ql4_printk(KERN_INFO, ha, "%s: ACB config failed\n",
+							   __func__);
+					}
+				}
+			}
 			qla4_83xx_post_idc_ack(ha);
+			clear_bit(DPC_POST_IDC_ACK, &ha->dpc_flags);
+		}
+
+		if (is_qla8042(ha) &&
+		    test_bit(DPC_RESTORE_ACB, &ha->dpc_flags)) {
+			ql4_printk(KERN_INFO, ha, "%s: Restoring ACB\n",
+				   __func__);
+			if (qla4_84xx_config_acb(ha, ACB_CONFIG_SET) !=
+			    QLA_SUCCESS) {
+				ql4_printk(KERN_INFO, ha, "%s: ACB config failed ",
+					   __func__);
+			}
+			clear_bit(DPC_RESTORE_ACB, &ha->dpc_flags);
+		}
 
 		if (test_and_clear_bit(DPC_HA_NEED_QUIESCENT, &ha->dpc_flags)) {
 			qla4_8xxx_need_qsnt_handler(ha);

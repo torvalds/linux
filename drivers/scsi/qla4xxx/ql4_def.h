@@ -205,6 +205,7 @@
 
 #define MAX_RESET_HA_RETRIES		2
 #define FW_ALIVE_WAIT_TOV		3
+#define IDC_EXTEND_TOV			8
 
 #define CMD_SP(Cmnd)			((Cmnd)->SCp.ptr)
 
@@ -562,6 +563,7 @@ struct scsi_qla_host {
 #define DPC_HA_UNRECOVERABLE		21 /* 0x00080000 ISP-82xx only*/
 #define DPC_HA_NEED_QUIESCENT		22 /* 0x00100000 ISP-82xx only*/
 #define DPC_POST_IDC_ACK		23 /* 0x00200000 */
+#define DPC_RESTORE_ACB			24 /* 0x01000000 */
 
 	struct Scsi_Host *host; /* pointer to host data */
 	uint32_t tot_ddbs;
@@ -786,6 +788,7 @@ struct scsi_qla_host {
 							   and ISP8042 */
 	uint32_t pf_bit;
 	struct qla4_83xx_idc_information idc_info;
+	struct addr_ctrl_blk *saved_acb;
 };
 
 struct ql4_task_data {

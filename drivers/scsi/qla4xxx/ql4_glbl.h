@@ -266,6 +266,12 @@ int qla4xxx_get_default_ddb(struct scsi_qla_host *ha, uint32_t options,
 			    dma_addr_t dma_addr);
 int qla4xxx_get_uni_chap_at_index(struct scsi_qla_host *ha, char *username,
 				  char *password, uint16_t chap_index);
+int qla4xxx_disable_acb(struct scsi_qla_host *ha);
+int qla4xxx_set_acb(struct scsi_qla_host *ha, uint32_t *mbox_cmd,
+		    uint32_t *mbox_sts, dma_addr_t acb_dma);
+int qla4xxx_get_acb(struct scsi_qla_host *ha, dma_addr_t acb_dma,
+		    uint32_t acb_type, uint32_t len);
+int qla4_84xx_config_acb(struct scsi_qla_host *ha, int acb_config);
 
 extern int ql4xextended_error_logging;
 extern int ql4xdontresethba;

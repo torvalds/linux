@@ -1736,6 +1736,45 @@ int qla4xxx_conn_close_sess_logout(struct scsi_qla_host *ha,
 	return status;
 }
 
+/**
+ * qla4_84xx_extend_idc_tmo - Extend IDC Timeout.
+ * @ha: Pointer to host adapter structure.
+ * @ext_tmo: idc timeout value
+ *
+ * Requests firmware to extend the idc timeout value.
+ **/
+static int qla4_84xx_extend_idc_tmo(struct scsi_qla_host *ha, uint32_t ext_tmo)
+{
+	uint32_t mbox_cmd[MBOX_REG_COUNT];
+	uint32_t mbox_sts[MBOX_REG_COUNT];
+	int status;
+
+	memset(&mbox_cmd, 0, sizeof(mbox_cmd));
+	memset(&mbox_sts, 0, sizeof(mbox_sts));
+	ext_tmo &= 0xf;
+
+	mbox_cmd[0] = MBOX_CMD_IDC_TIME_EXTEND;
+	mbox_cmd[1] = ((ha->idc_info.request_desc & 0xfffff0ff) |
+		       (ext_tmo << 8));		/* new timeout */
+	mbox_cmd[2] = ha->idc_info.info1;
+	mbox_cmd[3] = ha->idc_info.info2;
+	mbox_cmd[4] = ha->idc_info.info3;
+
+	status = qla4xxx_mailbox_command(ha, MBOX_REG_COUNT, MBOX_REG_COUNT,
+					 mbox_cmd, mbox_sts);
+	if (status != QLA_SUCCESS) {
+		DEBUG2(ql4_printk(KERN_INFO, ha,
+				  "scsi%ld: %s: failed status %04X\n",
+				  ha->host_no, __func__, mbox_sts[0]));
+		return QLA_ERROR;
+	} else {
+		ql4_printk(KERN_INFO, ha, "%s: IDC timeout extended by %d secs\n",
+			   __func__, ext_tmo);
+	}
+
+	return QLA_SUCCESS;
+}
+
 int qla4xxx_disable_acb(struct scsi_qla_host *ha)
 {
 	uint32_t mbox_cmd[MBOX_REG_COUNT];
@@ -1752,6 +1791,23 @@ int qla4xxx_disable_acb(struct scsi_qla_host *ha)
 		DEBUG2(ql4_printk(KERN_WARNING, ha, "%s: MBOX_CMD_DISABLE_ACB "
 				  "failed w/ status %04X %04X %04X", __func__,
 				  mbox_sts[0], mbox_sts[1], mbox_sts[2]));
+	} else {
+		if (is_qla8042(ha) &&
+		    (mbox_sts[0] != MBOX_STS_COMMAND_COMPLETE)) {
+			/*
+			 * Disable ACB mailbox command takes time to complete
+			 * based on the total number of targets connected.
+			 * For 512 targets, it took approximately 5 secs to
+			 * complete. Setting the timeout value to 8, with the 3
+			 * secs buffer.
+			 */
+			qla4_84xx_extend_idc_tmo(ha, IDC_EXTEND_TOV);
+			if (!wait_for_completion_timeout(&ha->disable_acb_comp,
+							 IDC_EXTEND_TOV * HZ)) {
+				ql4_printk(KERN_WARNING, ha, "%s: Disable ACB Completion not received\n",
+					   __func__);
+			}
+		}
 	}
 	return status;
 }
@@ -2158,8 +2214,80 @@ int qla4_83xx_post_idc_ack(struct scsi_qla_host *ha)
 		ql4_printk(KERN_ERR, ha, "%s: failed status %04X\n", __func__,
 			   mbox_sts[0]);
 	else
-	       DEBUG2(ql4_printk(KERN_INFO, ha, "%s: IDC ACK posted\n",
-				 __func__));
+	       ql4_printk(KERN_INFO, ha, "%s: IDC ACK posted\n", __func__);
 
 	return status;
+}
+
+int qla4_84xx_config_acb(struct scsi_qla_host *ha, int acb_config)
+{
+	uint32_t mbox_cmd[MBOX_REG_COUNT];
+	uint32_t mbox_sts[MBOX_REG_COUNT];
+	struct addr_ctrl_blk *acb = NULL;
+	uint32_t acb_len = sizeof(struct addr_ctrl_blk);
+	int rval = QLA_SUCCESS;
+	dma_addr_t acb_dma;
+
+	acb = dma_alloc_coherent(&ha->pdev->dev,
+				 sizeof(struct addr_ctrl_blk),
+				 &acb_dma, GFP_KERNEL);
+	if (!acb) {
+		ql4_printk(KERN_ERR, ha, "%s: Unable to alloc acb\n", __func__);
+		rval = QLA_ERROR;
+		goto exit_config_acb;
+	}
+	memset(acb, 0, acb_len);
+
+	switch (acb_config) {
+	case ACB_CONFIG_DISABLE:
+		rval = qla4xxx_get_acb(ha, acb_dma, 0, acb_len);
+		if (rval != QLA_SUCCESS)
+			goto exit_free_acb;
+
+		rval = qla4xxx_disable_acb(ha);
+		if (rval != QLA_SUCCESS)
+			goto exit_free_acb;
+
+		if (!ha->saved_acb)
+			ha->saved_acb = kzalloc(acb_len, GFP_KERNEL);
+
+		if (!ha->saved_acb) {
+			ql4_printk(KERN_ERR, ha, "%s: Unable to alloc acb\n",
+				   __func__);
+			rval = QLA_ERROR;
+			goto exit_config_acb;
+		}
+		memcpy(ha->saved_acb, acb, acb_len);
+		break;
+	case ACB_CONFIG_SET:
+
+		if (!ha->saved_acb) {
+			ql4_printk(KERN_ERR, ha, "%s: Can't set ACB, Saved ACB not available\n",
+				   __func__);
+			rval = QLA_ERROR;
+			goto exit_free_acb;
+		}
+
+		memcpy(acb, ha->saved_acb, acb_len);
+		kfree(ha->saved_acb);
+		ha->saved_acb = NULL;
+
+		rval = qla4xxx_set_acb(ha, &mbox_cmd[0], &mbox_sts[0], acb_dma);
+		if (rval != QLA_SUCCESS)
+			goto exit_free_acb;
+
+		break;
+	default:
+		ql4_printk(KERN_ERR, ha, "%s: Invalid ACB Configuration\n",
+			   __func__);
+	}
+
+exit_free_acb:
+	dma_free_coherent(&ha->pdev->dev, sizeof(struct addr_ctrl_blk), acb,
+			  acb_dma);
+exit_config_acb:
+	DEBUG2(ql4_printk(KERN_INFO, ha,
+			  "%s %s\n", __func__,
+			  rval == QLA_SUCCESS ? "SUCCEEDED" : "FAILED"));
+	return rval;
 }

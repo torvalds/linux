@@ -745,17 +745,23 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 			 * mbox_sts[3] = new ACB state */
 			if ((mbox_sts[3] == ACB_STATE_VALID) &&
 			    ((mbox_sts[2] == ACB_STATE_TENTATIVE) ||
-			    (mbox_sts[2] == ACB_STATE_ACQUIRING)))
+			    (mbox_sts[2] == ACB_STATE_ACQUIRING))) {
 				set_bit(DPC_GET_DHCP_IP_ADDR, &ha->dpc_flags);
-			else if ((mbox_sts[3] == ACB_STATE_ACQUIRING) &&
-				 (mbox_sts[2] == ACB_STATE_VALID)) {
+			} else if ((mbox_sts[3] == ACB_STATE_ACQUIRING) &&
+				   (mbox_sts[2] == ACB_STATE_VALID)) {
 				if (is_qla80XX(ha))
 					set_bit(DPC_RESET_HA_FW_CONTEXT,
 						&ha->dpc_flags);
 				else
 					set_bit(DPC_RESET_HA, &ha->dpc_flags);
-			} else if ((mbox_sts[3] == ACB_STATE_UNCONFIGURED))
+			} else if (mbox_sts[3] == ACB_STATE_DISABLING) {
+				ql4_printk(KERN_INFO, ha, "scsi%ld: %s: ACB in disabling state\n",
+					   ha->host_no, __func__);
+			} else if ((mbox_sts[3] == ACB_STATE_UNCONFIGURED)) {
 				complete(&ha->disable_acb_comp);
+				ql4_printk(KERN_INFO, ha, "scsi%ld: %s: ACB state unconfigured\n",
+					   ha->host_no, __func__);
+			}
 			break;
 
 		case MBOX_ASTS_MAC_ADDRESS_CHANGED:
@@ -869,10 +875,15 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 						  "scsi:%ld: AEN %04x IDC Complete notification\n",
 						  ha->host_no, mbox_sts[0]));
 
-				if (qla4_83xx_loopback_in_progress(ha))
+				if (qla4_83xx_loopback_in_progress(ha)) {
 					set_bit(AF_LOOPBACK, &ha->flags);
-				else
+				} else {
 					clear_bit(AF_LOOPBACK, &ha->flags);
+					if (ha->saved_acb)
+						set_bit(DPC_RESTORE_ACB,
+							&ha->dpc_flags);
+				}
+				qla4xxx_wake_dpc(ha);
 			}
 			break;
 
@@ -884,6 +895,17 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 					  mbox_sts[5]));
 			DEBUG2(ql4_printk(KERN_INFO, ha,
 					  "scsi%ld: AEN %04x Received IPv6 default router changed notification\n",
+					  ha->host_no, mbox_sts[0]));
+			break;
+
+		case MBOX_ASTS_IDC_TIME_EXTEND_NOTIFICATION:
+			DEBUG2(ql4_printk(KERN_INFO, ha,
+					  "scsi%ld: AEN %04x, mbox_sts[1]=%08x, mbox_sts[2]=%08x, mbox_sts[3]=%08x, mbox_sts[4]=%08x mbox_sts[5]=%08x\n",
+					  ha->host_no, mbox_sts[0], mbox_sts[1],
+					  mbox_sts[2], mbox_sts[3], mbox_sts[4],
+					  mbox_sts[5]));
+			DEBUG2(ql4_printk(KERN_INFO, ha,
+					  "scsi%ld: AEN %04x Received IDC Extend Timeout notification\n",
 					  ha->host_no, mbox_sts[0]));
 			break;
 
