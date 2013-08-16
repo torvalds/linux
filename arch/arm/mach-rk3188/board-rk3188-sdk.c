@@ -436,6 +436,48 @@ static struct sensor_platform_data akm8975_info =
 
 #endif
 
+#if defined (CONFIG_COMPASS_AK8963)
+static struct sensor_platform_data akm8963_info =
+{
+	.type = SENSOR_TYPE_COMPASS,
+	.irq_enable = 1,
+	.poll_delay_ms = 30,
+	.layout = 8,
+	.m_layout = 
+	{
+		//compass
+		{
+			{0, 1, 0},
+			{-1, 0, 0},
+			{0, 0, 1},
+		},
+		
+		{
+			{1, 0, 0},
+			{0, 1, 0},
+			{0, 0, 1},
+		},
+		
+		//gsensor
+		{
+			{0, -1, 0},
+			{1, 0, 0},
+			{0, 0, -1},
+		},
+		
+		{
+			{1, 0, 0},
+			{0, 1, 0},
+			{0, 0, 1},
+		},
+
+		
+	}
+};
+
+#endif
+
+
 #if defined(CONFIG_GYRO_L3G4200D)
 
 #include <linux/l3g4200d.h>
@@ -1482,6 +1524,16 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 		.platform_data = &akm8975_info,
 	},
 #endif
+#if defined (CONFIG_COMPASS_AK8963)
+	{
+		.type          = "ak8963",
+		.addr          = 0x0d,
+		.flags         = 0,
+		.irq           = RK30_PIN3_PD7,	
+		.platform_data = &akm8963_info,
+	},
+#endif
+
 #if defined (CONFIG_GYRO_L3G4200D)
 	{
 		.type          = "l3g4200d_gryo",
