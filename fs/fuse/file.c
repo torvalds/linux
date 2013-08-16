@@ -1590,6 +1590,7 @@ struct fuse_fill_wb_data {
 	struct fuse_req *req;
 	struct fuse_file *ff;
 	struct inode *inode;
+	struct page **orig_pages;
 };
 
 static void fuse_writepages_send(struct fuse_fill_wb_data *data)
@@ -1598,12 +1599,17 @@ static void fuse_writepages_send(struct fuse_fill_wb_data *data)
 	struct inode *inode = data->inode;
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_inode *fi = get_fuse_inode(inode);
+	int num_pages = req->num_pages;
+	int i;
 
 	req->ff = fuse_file_get(data->ff);
 	spin_lock(&fc->lock);
 	list_add_tail(&req->list, &fi->queued_writes);
 	fuse_flush_writepages(inode);
 	spin_unlock(&fc->lock);
+
+	for (i = 0; i < num_pages; i++)
+		end_page_writeback(data->orig_pages[i]);
 }
 
 static int fuse_writepages_fill(struct page *page,
@@ -1684,7 +1690,7 @@ static int fuse_writepages_fill(struct page *page,
 
 	inc_bdi_stat(page->mapping->backing_dev_info, BDI_WRITEBACK);
 	inc_zone_page_state(tmp_page, NR_WRITEBACK_TEMP);
-	end_page_writeback(page);
+	data->orig_pages[req->num_pages] = page;
 
 	/*
 	 * Protected by fc->lock against concurrent access by
@@ -1716,6 +1722,13 @@ static int fuse_writepages(struct address_space *mapping,
 	data.req = NULL;
 	data.ff = NULL;
 
+	err = -ENOMEM;
+	data.orig_pages = kzalloc(sizeof(struct page *) *
+				  FUSE_MAX_PAGES_PER_REQ,
+				  GFP_NOFS);
+	if (!data.orig_pages)
+		goto out;
+
 	err = write_cache_pages(mapping, wbc, fuse_writepages_fill, &data);
 	if (data.req) {
 		/* Ignore errors if we can write at least one page */
@@ -1725,6 +1738,8 @@ static int fuse_writepages(struct address_space *mapping,
 	}
 	if (data.ff)
 		fuse_file_put(data.ff, false);
+
+	kfree(data.orig_pages);
 out:
 	return err;
 }
