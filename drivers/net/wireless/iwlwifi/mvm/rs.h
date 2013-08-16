@@ -38,14 +38,8 @@ struct iwl_rs_rate_info {
 	u8 plcp;	/* uCode API:  IWL_RATE_6M_PLCP, etc. */
 	u8 plcp_siso;	/* uCode API:  IWL_RATE_SISO_6M_PLCP, etc. */
 	u8 plcp_mimo2;	/* uCode API:  IWL_RATE_MIMO2_6M_PLCP, etc. */
-	u8 plcp_mimo3;  /* uCode API:  IWL_RATE_MIMO3_6M_PLCP, etc. */
-	u8 ieee;	/* MAC header:  IWL_RATE_6M_IEEE, etc. */
-	u8 prev_ieee;    /* previous rate in IEEE speeds */
-	u8 next_ieee;    /* next rate in IEEE speeds */
 	u8 prev_rs;      /* previous rate used in rs algo */
 	u8 next_rs;      /* next rate used in rs algo */
-	u8 prev_rs_tgg;  /* previous rate used in TGG rs algo */
-	u8 next_rs_tgg;  /* next rate used in TGG rs algo */
 };
 
 #define IWL_RATE_60M_PLCP 3
@@ -120,23 +114,6 @@ enum {
 	IWL_RATE_MIMO3_INVM_PLCP = IWL_RATE_SISO_INVM_PLCP,
 };
 
-/* MAC header values for bit rates */
-enum {
-	IWL_RATE_6M_IEEE  = 12,
-	IWL_RATE_9M_IEEE  = 18,
-	IWL_RATE_12M_IEEE = 24,
-	IWL_RATE_18M_IEEE = 36,
-	IWL_RATE_24M_IEEE = 48,
-	IWL_RATE_36M_IEEE = 72,
-	IWL_RATE_48M_IEEE = 96,
-	IWL_RATE_54M_IEEE = 108,
-	IWL_RATE_60M_IEEE = 120,
-	IWL_RATE_1M_IEEE  = 2,
-	IWL_RATE_2M_IEEE  = 4,
-	IWL_RATE_5M_IEEE  = 11,
-	IWL_RATE_11M_IEEE = 22,
-};
-
 #define IWL_RATES_MASK ((1 << IWL_RATE_COUNT) - 1)
 
 #define IWL_INVALID_VALUE    -1
@@ -165,47 +142,22 @@ enum {
 #define IWL_LEGACY_SWITCH_ANTENNA1      0
 #define IWL_LEGACY_SWITCH_ANTENNA2      1
 #define IWL_LEGACY_SWITCH_SISO          2
-#define IWL_LEGACY_SWITCH_MIMO2_AB      3
-#define IWL_LEGACY_SWITCH_MIMO2_AC      4
-#define IWL_LEGACY_SWITCH_MIMO2_BC      5
-#define IWL_LEGACY_SWITCH_MIMO3_ABC     6
+#define IWL_LEGACY_SWITCH_MIMO2         3
 
 /* possible actions when in siso mode */
 #define IWL_SISO_SWITCH_ANTENNA1        0
 #define IWL_SISO_SWITCH_ANTENNA2        1
-#define IWL_SISO_SWITCH_MIMO2_AB        2
-#define IWL_SISO_SWITCH_MIMO2_AC        3
-#define IWL_SISO_SWITCH_MIMO2_BC        4
-#define IWL_SISO_SWITCH_GI              5
-#define IWL_SISO_SWITCH_MIMO3_ABC       6
-
+#define IWL_SISO_SWITCH_MIMO2           2
+#define IWL_SISO_SWITCH_GI              3
 
 /* possible actions when in mimo mode */
 #define IWL_MIMO2_SWITCH_ANTENNA1       0
 #define IWL_MIMO2_SWITCH_ANTENNA2       1
 #define IWL_MIMO2_SWITCH_SISO_A         2
 #define IWL_MIMO2_SWITCH_SISO_B         3
-#define IWL_MIMO2_SWITCH_SISO_C         4
-#define IWL_MIMO2_SWITCH_GI             5
-#define IWL_MIMO2_SWITCH_MIMO3_ABC      6
+#define IWL_MIMO2_SWITCH_GI             4
 
-
-/* possible actions when in mimo3 mode */
-#define IWL_MIMO3_SWITCH_ANTENNA1       0
-#define IWL_MIMO3_SWITCH_ANTENNA2       1
-#define IWL_MIMO3_SWITCH_SISO_A         2
-#define IWL_MIMO3_SWITCH_SISO_B         3
-#define IWL_MIMO3_SWITCH_SISO_C         4
-#define IWL_MIMO3_SWITCH_MIMO2_AB       5
-#define IWL_MIMO3_SWITCH_MIMO2_AC       6
-#define IWL_MIMO3_SWITCH_MIMO2_BC       7
-#define IWL_MIMO3_SWITCH_GI             8
-
-
-#define IWL_MAX_11N_MIMO3_SEARCH IWL_MIMO3_SWITCH_GI
-#define IWL_MAX_SEARCH IWL_MIMO2_SWITCH_MIMO3_ABC
-
-/*FIXME:RS:add possible actions for MIMO3*/
+#define IWL_MAX_SEARCH IWL_MIMO2_SWITCH_GI
 
 #define IWL_ACTION_LIMIT		3	/* # possible actions */
 
@@ -240,15 +192,13 @@ enum iwl_table_type {
 	LQ_A,
 	LQ_SISO,	/* high-throughput types */
 	LQ_MIMO2,
-	LQ_MIMO3,
 	LQ_MAX,
 };
 
 #define is_legacy(tbl) (((tbl) == LQ_G) || ((tbl) == LQ_A))
 #define is_siso(tbl) ((tbl) == LQ_SISO)
 #define is_mimo2(tbl) ((tbl) == LQ_MIMO2)
-#define is_mimo3(tbl) ((tbl) == LQ_MIMO3)
-#define is_mimo(tbl) (is_mimo2(tbl) || is_mimo3(tbl))
+#define is_mimo(tbl) is_mimo2(tbl)
 #define is_Ht(tbl) (is_siso(tbl) || is_mimo(tbl))
 #define is_a_band(tbl) ((tbl) == LQ_A)
 #define is_g_and(tbl) ((tbl) == LQ_G)
@@ -320,7 +270,6 @@ struct iwl_lq_sta {
 	u16 active_legacy_rate;
 	u16 active_siso_rate;
 	u16 active_mimo2_rate;
-	u16 active_mimo3_rate;
 	s8 max_rate_idx;     /* Max rate set by user */
 	u8 missed_rate_counter;
 
@@ -330,7 +279,6 @@ struct iwl_lq_sta {
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct dentry *rs_sta_dbgfs_scale_table_file;
 	struct dentry *rs_sta_dbgfs_stats_table_file;
-	struct dentry *rs_sta_dbgfs_rate_scale_data_file;
 	struct dentry *rs_sta_dbgfs_tx_agg_tid_en_file;
 	u32 dbg_fixed_rate;
 #endif
