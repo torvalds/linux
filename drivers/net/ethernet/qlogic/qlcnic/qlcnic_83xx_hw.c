@@ -860,9 +860,9 @@ static void qlcnic_83xx_handle_idc_comp_aen(struct qlcnic_adapter *adapter,
 
 void __qlcnic_83xx_process_aen(struct qlcnic_adapter *adapter)
 {
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	u32 event[QLC_83XX_MBX_AEN_CNT];
 	int i;
-	struct qlcnic_hardware_context *ahw = adapter->ahw;
 
 	for (i = 0; i < QLC_83XX_MBX_AEN_CNT; i++)
 		event[i] = readl(QLCNIC_MBX_FW(ahw, i));
@@ -882,6 +882,7 @@ void __qlcnic_83xx_process_aen(struct qlcnic_adapter *adapter)
 				   &adapter->idc_aen_work, 0);
 		break;
 	case QLCNIC_MBX_TIME_EXTEND_EVENT:
+		ahw->extend_lb_time = event[1] >> 8 & 0xf;
 		break;
 	case QLCNIC_MBX_BC_EVENT:
 		qlcnic_sriov_handle_bc_event(adapter, event[1]);
@@ -1706,13 +1707,28 @@ fail_diag_alloc:
 	return ret;
 }
 
+static void qlcnic_extend_lb_idc_cmpltn_wait(struct qlcnic_adapter *adapter,
+					     u32 *max_wait_count)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	int temp;
+
+	netdev_info(adapter->netdev, "Recieved loopback IDC time extend event for 0x%x seconds\n",
+		    ahw->extend_lb_time);
+	temp = ahw->extend_lb_time * 1000;
+	*max_wait_count += temp / QLC_83XX_LB_MSLEEP_COUNT;
+	ahw->extend_lb_time = 0;
+}
+
 int qlcnic_83xx_set_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	struct net_device *netdev = adapter->netdev;
+	u32 config, max_wait_count;
 	int status = 0, loop = 0;
-	u32 config;
 
+	ahw->extend_lb_time = 0;
+	max_wait_count = QLC_83XX_LB_WAIT_COUNT;
 	status = qlcnic_83xx_get_port_config(adapter);
 	if (status)
 		return status;
@@ -1754,9 +1770,14 @@ int qlcnic_83xx_set_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 			clear_bit(QLC_83XX_IDC_COMP_AEN, &ahw->idc.status);
 			return -EBUSY;
 		}
-		if (loop++ > QLC_83XX_LB_WAIT_COUNT) {
-			netdev_err(netdev,
-				   "Did not receive IDC completion AEN\n");
+
+		if (ahw->extend_lb_time)
+			qlcnic_extend_lb_idc_cmpltn_wait(adapter,
+							 &max_wait_count);
+
+		if (loop++ > max_wait_count) {
+			netdev_err(netdev, "%s: Did not receive loopback IDC completion AEN\n",
+				   __func__);
 			clear_bit(QLC_83XX_IDC_COMP_AEN, &ahw->idc.status);
 			qlcnic_83xx_clear_lb_mode(adapter, mode);
 			return -ETIMEDOUT;
@@ -1771,10 +1792,12 @@ int qlcnic_83xx_set_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 int qlcnic_83xx_clear_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	u32 config = ahw->port_config, max_wait_count;
 	struct net_device *netdev = adapter->netdev;
 	int status = 0, loop = 0;
-	u32 config = ahw->port_config;
 
+	ahw->extend_lb_time = 0;
+	max_wait_count = QLC_83XX_LB_WAIT_COUNT;
 	set_bit(QLC_83XX_IDC_COMP_AEN, &ahw->idc.status);
 	if (mode == QLCNIC_ILB_MODE)
 		ahw->port_config &= ~QLC_83XX_CFG_LOOPBACK_HSS;
@@ -1802,9 +1825,13 @@ int qlcnic_83xx_clear_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 			return -EBUSY;
 		}
 
-		if (loop++ > QLC_83XX_LB_WAIT_COUNT) {
-			netdev_err(netdev,
-				   "Did not receive IDC completion AEN\n");
+		if (ahw->extend_lb_time)
+			qlcnic_extend_lb_idc_cmpltn_wait(adapter,
+							 &max_wait_count);
+
+		if (loop++ > max_wait_count) {
+			netdev_err(netdev, "%s: Did not receive loopback IDC completion AEN\n",
+				   __func__);
 			clear_bit(QLC_83XX_IDC_COMP_AEN, &ahw->idc.status);
 			return -ETIMEDOUT;
 		}

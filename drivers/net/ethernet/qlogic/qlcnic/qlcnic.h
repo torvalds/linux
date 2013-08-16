@@ -467,6 +467,7 @@ struct qlcnic_hardware_context {
 	u32 mbox_aen[QLC_83XX_MBX_AEN_CNT];
 	u32 mbox_reg[4];
 	struct qlcnic_mailbox *mailbox;
+	u8 extend_lb_time;
 };
 
 struct qlcnic_adapter_stats {
