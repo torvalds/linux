@@ -1948,12 +1948,36 @@ static void qlcnic_83xx_init_hw(struct qlcnic_adapter *p_dev)
 		dev_err(&p_dev->pdev->dev, "%s: failed\n", __func__);
 }
 
+static inline void qlcnic_83xx_get_fw_file_name(struct qlcnic_adapter *adapter,
+						char *file_name)
+{
+	struct pci_dev *pdev = adapter->pdev;
+
+	memset(file_name, 0, QLC_FW_FILE_NAME_LEN);
+
+	switch (pdev->device) {
+	case PCI_DEVICE_ID_QLOGIC_QLE834X:
+		strncpy(file_name, QLC_83XX_FW_FILE_NAME,
+			QLC_FW_FILE_NAME_LEN);
+		break;
+	case PCI_DEVICE_ID_QLOGIC_QLE844X:
+		strncpy(file_name, QLC_84XX_FW_FILE_NAME,
+			QLC_FW_FILE_NAME_LEN);
+		break;
+	default:
+		dev_err(&pdev->dev, "%s: Invalid device id\n",
+			__func__);
+	}
+}
+
 static int qlcnic_83xx_load_fw_image_from_host(struct qlcnic_adapter *adapter)
 {
+	char fw_file_name[QLC_FW_FILE_NAME_LEN];
 	int err = -EIO;
 
-	if (request_firmware(&adapter->ahw->fw_info.fw,
-			     QLC_83XX_FW_FILE_NAME, &(adapter->pdev->dev))) {
+	qlcnic_83xx_get_fw_file_name(adapter, fw_file_name);
+	if (request_firmware(&adapter->ahw->fw_info.fw, fw_file_name,
+			     &(adapter->pdev->dev))) {
 		dev_err(&adapter->pdev->dev,
 			"No file FW image, loading flash FW image.\n");
 		QLC_SHARED_REG_WR32(adapter, QLCNIC_FW_IMG_VALID,
