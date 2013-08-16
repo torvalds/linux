@@ -529,7 +529,7 @@ arch_initcall(activate_jump_labels);
 #ifdef CONFIG_PARAVIRT_SPINLOCKS
 
 /* Kick a cpu by its apicid. Used to wake up a halted vcpu */
-void kvm_kick_cpu(int cpu)
+static void kvm_kick_cpu(int cpu)
 {
 	int apicid;
 	unsigned long flags = 0;
