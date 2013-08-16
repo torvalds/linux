@@ -1201,8 +1201,6 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 
 	if ((changed & IEEE80211_CONF_CHANGE_CHANNEL) || reset_channel) {
 		struct ieee80211_channel *curchan = hw->conf.chandef.chan;
-		enum nl80211_channel_type channel_type =
-			cfg80211_get_chandef_type(&conf->chandef);
 		int pos = curchan->hw_value;
 		int old_pos = -1;
 		unsigned long flags;
@@ -1210,8 +1208,8 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		if (ah->curchan)
 			old_pos = ah->curchan - &ah->channels[0];
 
-		ath_dbg(common, CONFIG, "Set channel: %d MHz type: %d\n",
-			curchan->center_freq, channel_type);
+		ath_dbg(common, CONFIG, "Set channel: %d MHz width: %d\n",
+			curchan->center_freq, hw->conf.chandef.width);
 
 		/* update survey stats for the old channel before switching */
 		spin_lock_irqsave(&common->cc_lock, flags);
@@ -1219,7 +1217,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		spin_unlock_irqrestore(&common->cc_lock, flags);
 
 		ath9k_cmn_update_ichannel(&sc->sc_ah->channels[pos],
-					  curchan, channel_type);
+					  &conf->chandef);
 
 		/*
 		 * If the operating channel changes, change the survey in-use flags

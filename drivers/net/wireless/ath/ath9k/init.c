@@ -726,13 +726,15 @@ static void ath9k_init_band_txpower(struct ath_softc *sc, int band)
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *chan;
 	struct ath_hw *ah = sc->sc_ah;
+	struct cfg80211_chan_def chandef;
 	int i;
 
 	sband = &sc->sbands[band];
 	for (i = 0; i < sband->n_channels; i++) {
 		chan = &sband->channels[i];
 		ah->curchan = &ah->channels[chan->hw_value];
-		ath9k_cmn_update_ichannel(ah->curchan, chan, NL80211_CHAN_HT20);
+		cfg80211_chandef_create(&chandef, chan, NL80211_CHAN_HT20);
+		ath9k_cmn_update_ichannel(ah->curchan, &chandef);
 		ath9k_hw_set_txpowerlimit(ah, MAX_RATE_POWER, true);
 	}
 }

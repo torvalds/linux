@@ -1326,8 +1326,8 @@ static void ath_rate_update(void *priv, struct ieee80211_supported_band *sband,
 		ath_rc_init(sc, priv_sta);
 
 		ath_dbg(ath9k_hw_common(sc->sc_ah), CONFIG,
-			"Operating HT Bandwidth changed to: %d\n",
-			cfg80211_get_chandef_type(&sc->hw->conf.chandef));
+			"Operating Bandwidth changed to: %d\n",
+			sc->hw->conf.chandef.width);
 	}
 }
 
