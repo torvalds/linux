@@ -300,45 +300,9 @@ void __init udbg_init_40x_realmode(void)
 
 #ifdef CONFIG_PPC_EARLY_DEBUG_WSP
 
-static void udbg_wsp_flush(void)
-{
-	if (udbg_comport) {
-		while ((readb(&udbg_comport->lsr) & LSR_THRE) == 0)
-			/* wait for idle */;
-	}
-}
-
-static void udbg_wsp_putc(char c)
-{
-	if (udbg_comport) {
-		if (c == '\n')
-			udbg_wsp_putc('\r');
-		udbg_wsp_flush();
-		writeb(c, &udbg_comport->thr); eieio();
-	}
-}
-
-static int udbg_wsp_getc(void)
-{
-	if (udbg_comport) {
-		while ((readb(&udbg_comport->lsr) & LSR_DR) == 0)
-			; /* wait for char */
-		return readb(&udbg_comport->rbr);
-	}
-	return -1;
-}
-
-static int udbg_wsp_getc_poll(void)
-{
-	if (udbg_comport)
-		if (readb(&udbg_comport->lsr) & LSR_DR)
-			return readb(&udbg_comport->rbr);
-	return -1;
-}
-
 void __init udbg_init_wsp(void)
 {
-	udbg_uart_init_mmio(WSP_UART_VIRT, 1);
+	udbg_uart_init_mmio((void *)WSP_UART_VIRT, 1);
 	udbg_uart_setup(57600, 50000000);
 }
 
