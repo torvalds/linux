@@ -21,8 +21,6 @@
  */
 
 #include "nfc_i.h"
-//#include "dma_for_nand.h"
-#include <plat/dma.h>
 #include <linux/dma-mapping.h>
 
 __u32	nand_board_version;
@@ -279,7 +277,7 @@ __s32 _read_in_page_mode(NFC_CMD_LIST  *rcmd,void *mainbuf,void *sparebuf,__u8 d
 	this_dma_handle = dma_map_single(NULL, mainbuf, pagesize,
 					 DMA_FROM_DEVICE);
 
-	NAND_Config_Start_DMA(0, (__u32)mainbuf, pagesize);
+	NAND_Config_Start_DMA(0, this_dma_handle, pagesize);
 
 	/*wait cmd fifo free*/
 	ret = _wait_cmdfifo_free();

@@ -118,7 +118,7 @@ __s32 NFC_Write( NFC_CMD_LIST  *wcmd, void *mainbuf, void *sparebuf,  __u8 dma_w
 
 	this_dma_handle = dma_map_single(NULL, mainbuf, pagesize,
 					 DMA_TO_DEVICE);
-	NAND_Config_Start_DMA(1, (__u32)mainbuf, pagesize);
+	NAND_Config_Start_DMA(1, this_dma_handle, pagesize);
 
 	/*wait cmd fifo free*/
 	ret = _wait_cmdfifo_free();
@@ -217,7 +217,7 @@ __s32 NFC_Write_Seq( NFC_CMD_LIST  *wcmd, void *mainbuf, void *sparebuf,  __u8 d
 
 	this_dma_handle = dma_map_single(NULL, mainbuf, pagesize,
 					 DMA_TO_DEVICE);
-	NAND_Config_Start_DMA(1, (__u32)mainbuf, pagesize);
+	NAND_Config_Start_DMA(1, this_dma_handle, pagesize);
 
 	/*wait cmd fifo free*/
 	ret = _wait_cmdfifo_free();
@@ -329,7 +329,7 @@ __s32 NFC_Write_1K( NFC_CMD_LIST  *wcmd, void *mainbuf, void *sparebuf,  __u8 dm
 
 	this_dma_handle = dma_map_single(NULL, mainbuf, 1024,
 					 DMA_TO_DEVICE);
-	NAND_Config_Start_DMA(1, (__u32)mainbuf, 1024);
+	NAND_Config_Start_DMA(1, this_dma_handle, 1024);
 
 	/*wait cmd fifo free*/
 	ret = _wait_cmdfifo_free();
@@ -524,7 +524,7 @@ __s32 _read_in_page_mode_seq(NFC_CMD_LIST  *rcmd,void *mainbuf,void *sparebuf,__
 //		attr = 0x2800293;
 	this_dma_handle = dma_map_single(NULL, mainbuf, pagesize,
 					 DMA_FROM_DEVICE);
-	NAND_Config_Start_DMA(0, (__u32)mainbuf, pagesize);
+	NAND_Config_Start_DMA(0, this_dma_handle, pagesize);
 
 	/*wait cmd fifo free*/
 	ret = _wait_cmdfifo_free();
@@ -634,7 +634,7 @@ __s32 _read_in_page_mode_1K(NFC_CMD_LIST  *rcmd,void *mainbuf,void *sparebuf,__u
 	//	attr = 0x2800293;
 	this_dma_handle = dma_map_single(NULL, mainbuf, 1024,
 					 DMA_FROM_DEVICE);
-	NAND_Config_Start_DMA(0, (__u32)mainbuf, 1024);
+	NAND_Config_Start_DMA(0, this_dma_handle, 1024);
 
 	/*wait cmd fifo free*/
 	ret = _wait_cmdfifo_free();
@@ -743,7 +743,7 @@ __s32 _read_in_page_mode_spare(NFC_CMD_LIST  *rcmd,void *mainbuf,void *sparebuf,
 	//	attr = 0x2800293;
 	this_dma_handle = dma_map_single(NULL, mainbuf, 2048,
 					 DMA_FROM_DEVICE);
-	NAND_Config_Start_DMA(0, (__u32)mainbuf, 2048);
+	NAND_Config_Start_DMA(0, this_dma_handle, 2048);
 
 	/*wait cmd fifo free*/
 	ret = _wait_cmdfifo_free();

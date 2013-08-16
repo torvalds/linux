@@ -557,7 +557,7 @@ config BLK_DEV_RBD
 
 config SUNXI_NAND
 	depends on BLOCK
-	depends on ARCH_SUN4I || ARCH_SUN5I
+	depends on ARCH_SUN4I || ARCH_SUN5I || ARCH_SUN7I
 	select SUNXI_NAND_PARTITION
 	tristate "SUNXI Nandflash Driver"
 
