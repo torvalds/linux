@@ -2794,6 +2794,12 @@ static void nand_set_defaults(struct nand_chip *chip, int busw)
 	if (!chip->select_chip)
 		chip->select_chip = nand_select_chip;
 
+	/* set for ONFI nand */
+	if (!chip->onfi_set_features)
+		chip->onfi_set_features = nand_onfi_set_features;
+	if (!chip->onfi_get_features)
+		chip->onfi_get_features = nand_onfi_get_features;
+
 	/* If called twice, pointers that depend on busw may need to be reset */
 	if (!chip->read_byte || chip->read_byte == nand_read_byte)
 		chip->read_byte = busw ? nand_read_byte16 : nand_read_byte;
@@ -3559,12 +3565,6 @@ int nand_scan_tail(struct mtd_info *mtd)
 
 	if (!chip->write_page)
 		chip->write_page = nand_write_page;
-
-	/* set for ONFI nand */
-	if (!chip->onfi_set_features)
-		chip->onfi_set_features = nand_onfi_set_features;
-	if (!chip->onfi_get_features)
-		chip->onfi_get_features = nand_onfi_get_features;
 
 	/*
 	 * Check ECC mode, default to software if 3byte/512byte hardware ECC is
