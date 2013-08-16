@@ -273,12 +273,20 @@ static void __init xen_smp_prepare_boot_cpu(void)
 	BUG_ON(smp_processor_id() != 0);
 	native_smp_prepare_boot_cpu();
 
-	/* We've switched to the "real" per-cpu gdt, so make sure the
-	   old memory can be recycled */
-	make_lowmem_page_readwrite(xen_initial_gdt);
+	if (xen_pv_domain()) {
+		/* We've switched to the "real" per-cpu gdt, so make sure the
+		   old memory can be recycled */
+		make_lowmem_page_readwrite(xen_initial_gdt);
 
-	xen_filter_cpu_maps();
-	xen_setup_vcpu_info_placement();
+		xen_filter_cpu_maps();
+		xen_setup_vcpu_info_placement();
+	}
+	/*
+	 * The alternative logic (which patches the unlock/lock) runs before
+	 * the smp bootup up code is activated. Hence we need to set this up
+	 * the core kernel is being patched. Otherwise we will have only
+	 * modules patched but not core code.
+	 */
 	xen_init_spinlocks();
 }
 
@@ -737,4 +745,5 @@ void __init xen_hvm_smp_init(void)
 	smp_ops.cpu_die = xen_hvm_cpu_die;
 	smp_ops.send_call_func_ipi = xen_smp_send_call_function_ipi;
 	smp_ops.send_call_func_single_ipi = xen_smp_send_call_function_single_ipi;
+	smp_ops.smp_prepare_boot_cpu = xen_smp_prepare_boot_cpu;
 }
