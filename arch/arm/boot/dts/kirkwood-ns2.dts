@@ -1,6 +1,6 @@
 /dts-v1/;
 
-/include/ "kirkwood-ns2-common.dtsi"
+#include "kirkwood-ns2-common.dtsi"
 
 / {
 	model = "LaCie Network Space v2";

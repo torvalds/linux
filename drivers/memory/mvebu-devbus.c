@@ -44,14 +44,6 @@
 #define READ_PARAM_OFFSET	0x0
 #define WRITE_PARAM_OFFSET	0x4
 
-static const char * const devbus_wins[] = {
-	"devbus-boot",
-	"devbus-cs0",
-	"devbus-cs1",
-	"devbus-cs2",
-	"devbus-cs3",
-};
-
 struct devbus_read_params {
 	u32 bus_width;
 	u32 badr_skew;
@@ -208,16 +200,11 @@ static int mvebu_devbus_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *node = pdev->dev.of_node;
-	struct device_node *parent;
 	struct devbus *devbus;
 	struct resource *res;
 	struct clk *clk;
 	unsigned long rate;
-	const __be32 *ranges;
-	int err, cs;
-	int addr_cells, p_addr_cells, size_cells;
-	int ranges_len, tuple_len;
-	u32 base, size;
+	int err;
 
 	devbus = devm_kzalloc(&pdev->dev, sizeof(struct devbus), GFP_KERNEL);
 	if (!devbus)
@@ -248,68 +235,13 @@ static int mvebu_devbus_probe(struct platform_device *pdev)
 		return err;
 
 	/*
-	 * Allocate an address window for this device.
-	 * If the device probing fails, then we won't be able to
-	 * remove the allocated address decoding window.
-	 *
-	 * FIXME: This is only a temporary hack! We need to do this here
-	 * because we still don't have device tree bindings for mbus.
-	 * Once that support is added, we will declare these address windows
-	 * statically in the device tree, and remove the window configuration
-	 * from here.
-	 */
-
-	/*
-	 * Get the CS to choose the window string.
-	 * This is a bit hacky, but it will be removed once the
-	 * address windows are declared in the device tree.
-	 */
-	cs = (((unsigned long)devbus->base) % 0x400) / 8;
-
-	/*
-	 * Parse 'ranges' property to obtain a (base,size) window tuple.
-	 * This will be removed once the address windows
-	 * are declared in the device tree.
-	 */
-	parent = of_get_parent(node);
-	if (!parent)
-		return -EINVAL;
-
-	p_addr_cells = of_n_addr_cells(parent);
-	of_node_put(parent);
-
-	addr_cells = of_n_addr_cells(node);
-	size_cells = of_n_size_cells(node);
-	tuple_len = (p_addr_cells + addr_cells + size_cells) * sizeof(__be32);
-
-	ranges = of_get_property(node, "ranges", &ranges_len);
-	if (ranges == NULL || ranges_len != tuple_len)
-		return -EINVAL;
-
-	base = of_translate_address(node, ranges + addr_cells);
-	if (base == OF_BAD_ADDR)
-		return -EINVAL;
-	size = of_read_number(ranges + addr_cells + p_addr_cells, size_cells);
-
-	/*
-	 * Create an mbus address windows.
-	 * FIXME: Remove this, together with the above code, once the
-	 * address windows are declared in the device tree.
-	 */
-	err = mvebu_mbus_add_window(devbus_wins[cs], base, size);
-	if (err < 0)
-		return err;
-
-	/*
 	 * We need to create a child device explicitly from here to
 	 * guarantee that the child will be probed after the timing
 	 * parameters for the bus are written.
 	 */
 	err = of_platform_populate(node, NULL, NULL, dev);
-	if (err < 0) {
-		mvebu_mbus_del_window(base, size);
+	if (err < 0)
 		return err;
-	}
 
 	return 0;
 }
