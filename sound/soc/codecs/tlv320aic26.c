@@ -365,8 +365,6 @@ static int aic26_probe(struct snd_soc_codec *codec)
 
 	aic26->codec = codec;
 
-	dev_info(codec->dev, "Probing AIC26 SoC CODEC driver\n");
-
 	/* Reset the codec to power on defaults */
 	snd_soc_write(codec, AIC26_REG_RESET, 0xBB00);
 
