@@ -1133,25 +1133,19 @@ r8152_tx_csum(struct r8152 *tp, struct tx_desc *desc, struct sk_buff *skb)
 
 static void rx_bottom(struct r8152 *tp)
 {
-	struct net_device_stats *stats;
-	struct net_device *netdev;
-	struct rx_agg *agg;
-	struct rx_desc *rx_desc;
 	unsigned long flags;
 	struct list_head *cursor, *next;
-	struct sk_buff *skb;
-	struct urb *urb;
-	unsigned pkt_len;
-	int len_used;
-	u8 *rx_data;
-	int ret;
-
-	netdev = tp->netdev;
-
-	stats = rtl8152_get_stats(netdev);
 
 	spin_lock_irqsave(&tp->rx_lock, flags);
 	list_for_each_safe(cursor, next, &tp->rx_done) {
+		struct rx_desc *rx_desc;
+		struct rx_agg *agg;
+		unsigned pkt_len;
+		int len_used = 0;
+		struct urb *urb;
+		u8 *rx_data;
+		int ret;
+
 		list_del_init(cursor);
 		spin_unlock_irqrestore(&tp->rx_lock, flags);
 
@@ -1160,15 +1154,20 @@ static void rx_bottom(struct r8152 *tp)
 		if (urb->actual_length < ETH_ZLEN)
 			goto submit;
 
-		len_used = 0;
 		rx_desc = agg->head;
 		rx_data = agg->head;
 		pkt_len = le32_to_cpu(rx_desc->opts1) & RX_LEN_MASK;
 		len_used += sizeof(struct rx_desc) + pkt_len;
 
 		while (urb->actual_length >= len_used) {
+			struct net_device *netdev = tp->netdev;
+			struct net_device_stats *stats;
+			struct sk_buff *skb;
+
 			if (pkt_len < ETH_ZLEN)
 				break;
+
+			stats = rtl8152_get_stats(netdev);
 
 			pkt_len -= 4; /* CRC */
 			rx_data += sizeof(struct rx_desc);
