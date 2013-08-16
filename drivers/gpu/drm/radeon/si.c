@@ -1663,9 +1663,13 @@ static int si_init_microcode(struct radeon_device *rdev)
 
 	snprintf(fw_name, sizeof(fw_name), "radeon/%s_smc.bin", chip_name);
 	err = request_firmware(&rdev->smc_fw, fw_name, rdev->dev);
-	if (err)
-		goto out;
-	if (rdev->smc_fw->size != smc_req_size) {
+	if (err) {
+		printk(KERN_ERR
+		       "smc: error loading firmware \"%s\"\n",
+		       fw_name);
+		release_firmware(rdev->smc_fw);
+		rdev->smc_fw = NULL;
+	} else if (rdev->smc_fw->size != smc_req_size) {
 		printk(KERN_ERR
 		       "si_smc: Bogus length %zu in firmware \"%s\"\n",
 		       rdev->smc_fw->size, fw_name);
@@ -6418,6 +6422,8 @@ static int si_startup(struct radeon_device *rdev)
 	/* enable aspm */
 	si_program_aspm(rdev);
 
+	si_mc_program(rdev);
+
 	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->ce_fw ||
 	    !rdev->rlc_fw || !rdev->mc_fw) {
 		r = si_init_microcode(rdev);
@@ -6437,7 +6443,6 @@ static int si_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	si_mc_program(rdev);
 	r = si_pcie_gart_enable(rdev);
 	if (r)
 		return r;
@@ -6621,7 +6626,7 @@ int si_suspend(struct radeon_device *rdev)
 	si_cp_enable(rdev, false);
 	cayman_dma_stop(rdev);
 	if (rdev->has_uvd) {
-		r600_uvd_rbc_stop(rdev);
+		r600_uvd_stop(rdev);
 		radeon_uvd_suspend(rdev);
 	}
 	si_irq_suspend(rdev);
@@ -6763,8 +6768,10 @@ void si_fini(struct radeon_device *rdev)
 	radeon_vm_manager_fini(rdev);
 	radeon_ib_pool_fini(rdev);
 	radeon_irq_kms_fini(rdev);
-	if (rdev->has_uvd)
+	if (rdev->has_uvd) {
+		r600_uvd_stop(rdev);
 		radeon_uvd_fini(rdev);
+	}
 	si_pcie_gart_fini(rdev);
 	r600_vram_scratch_fini(rdev);
 	radeon_gem_fini(rdev);

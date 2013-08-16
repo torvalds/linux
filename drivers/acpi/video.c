@@ -689,7 +689,7 @@ static int acpi_video_bqc_quirk(struct acpi_video_device *device,
 	 * Some systems always report current brightness level as maximum
 	 * through _BQC, we need to test another value for them.
 	 */
-	test_level = current_level == max_level ? br->levels[2] : max_level;
+	test_level = current_level == max_level ? br->levels[3] : max_level;
 
 	result = acpi_video_device_lcd_set_level(device, test_level);
 	if (result)
