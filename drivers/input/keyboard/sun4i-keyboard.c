@@ -29,6 +29,7 @@
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <linux/timer.h>
+#include <plat/sys_config.h>
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
     #include <linux/pm.h>
@@ -347,6 +348,12 @@ static int __init sun4ikbd_init(void)
 {
 	int i;
 	int err =0;
+
+#ifdef CONFIG_KEYBOARD_SUN4I_KEYBOARD_FEX
+	err = script_parser_fetch("tabletkeys_para", "tabletkeys_used", &i, 1);
+	if (err != 0 || i == 0)
+		return -ENODEV;
+#endif
 
 #ifdef KEY_DEBUG
 	printk("sun4ikbd_init \n");

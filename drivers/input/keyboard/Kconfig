@@ -599,6 +599,17 @@ config KEYBOARD_SUN4I_KEYBOARD
 	  To compile this driver as a module, choose M here: the
 	  module will be called sun4i-keyboard.
 
+config KEYBOARD_SUN4I_KEYBOARD_FEX
+	bool "sunxi tablet keys on adc0 controlled throuh fex"
+	default n
+	depends on KEYBOARD_SUN4I_KEYBOARD
+	help
+	  Say Y here to only have the "sunxi tablet keys" input device
+	  register itself when the sunxi fex file contains a "tabletkeys_para"
+	  section with "tabletkeys_used = 1" in there.
+
+	  If unsure, say N.
+
 config KEYBOARD_HV2605_KEYBOARD
         tristate "SUN4I HV2605 KEY BOARD support"
         depends on I2C
