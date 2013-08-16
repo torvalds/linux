@@ -1008,7 +1008,6 @@ void tlb_table_flush(struct mmu_gather *tlb)
 	struct mmu_table_batch **batch = &tlb->batch;
 
 	if (*batch) {
-		__tlb_flush_mm(tlb->mm);
 		call_rcu_sched(&(*batch)->rcu, tlb_remove_table_rcu);
 		*batch = NULL;
 	}
@@ -1018,11 +1017,12 @@ void tlb_remove_table(struct mmu_gather *tlb, void *table)
 {
 	struct mmu_table_batch **batch = &tlb->batch;
 
+	tlb->mm->context.flush_mm = 1;
 	if (*batch == NULL) {
 		*batch = (struct mmu_table_batch *)
 			__get_free_page(GFP_NOWAIT | __GFP_NOWARN);
 		if (*batch == NULL) {
-			__tlb_flush_mm(tlb->mm);
+			__tlb_flush_mm_lazy(tlb->mm);
 			tlb_remove_table_one(table);
 			return;
 		}
@@ -1030,7 +1030,7 @@ void tlb_remove_table(struct mmu_gather *tlb, void *table)
 	}
 	(*batch)->tables[(*batch)->nr++] = table;
 	if ((*batch)->nr == MAX_TABLE_BATCH)
-		tlb_table_flush(tlb);
+		tlb_flush_mmu(tlb);
 }
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
