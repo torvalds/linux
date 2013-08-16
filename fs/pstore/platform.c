@@ -162,6 +162,36 @@ error:
 	return ret;
 }
 
+/* Derived from logfs_uncompress */
+static int pstore_decompress(void *in, void *out, size_t inlen, size_t outlen)
+{
+	int err, ret;
+
+	ret = -EIO;
+	err = zlib_inflateInit(&stream);
+	if (err != Z_OK)
+		goto error;
+
+	stream.next_in = in;
+	stream.avail_in = inlen;
+	stream.total_in = 0;
+	stream.next_out = out;
+	stream.avail_out = outlen;
+	stream.total_out = 0;
+
+	err = zlib_inflate(&stream, Z_FINISH);
+	if (err != Z_STREAM_END)
+		goto error;
+
+	err = zlib_inflateEnd(&stream);
+	if (err != Z_OK)
+		goto error;
+
+	ret = stream.total_out;
+error:
+	return ret;
+}
+
 static void allocate_buf_for_compression(void)
 {
 	size_t size;
@@ -429,6 +459,7 @@ void pstore_get_records(int quiet)
 	struct timespec		time;
 	int			failed = 0, rc;
 	bool			compressed;
+	int			unzipped_len = -1;
 
 	if (!psi)
 		return;
@@ -439,10 +470,28 @@ void pstore_get_records(int quiet)
 
 	while ((size = psi->read(&id, &type, &count, &time, &buf, &compressed,
 				psi)) > 0) {
+		if (compressed && (type == PSTORE_TYPE_DMESG)) {
+			if (big_oops_buf)
+				unzipped_len = pstore_decompress(buf,
+							big_oops_buf, size,
+							big_oops_buf_sz);
+
+			if (unzipped_len > 0) {
+				buf = big_oops_buf;
+				size = unzipped_len;
+			} else {
+				pr_err("pstore: decompression failed;"
+					"returned %d\n", unzipped_len);
+			}
+		}
 		rc = pstore_mkfile(type, psi->name, id, count, buf,
 				  (size_t)size, time, psi);
-		kfree(buf);
-		buf = NULL;
+		if (unzipped_len < 0) {
+			/* Free buffer other than big oops */
+			kfree(buf);
+			buf = NULL;
+		} else
+			unzipped_len = -1;
 		if (rc && (rc != -EEXIST || !quiet))
 			failed++;
 	}
