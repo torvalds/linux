@@ -408,3 +408,5 @@ void imx_pcm_fiq_exit(struct platform_device *pdev)
 	snd_soc_unregister_platform(&pdev->dev);
 }
 EXPORT_SYMBOL_GPL(imx_pcm_fiq_exit);
+
+MODULE_LICENSE("GPL");
