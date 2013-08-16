@@ -248,6 +248,13 @@ config SPI_FSL_SPI
 	  This also enables using the Aeroflex Gaisler GRLIB SPI controller in
 	  master mode.
 
+config SPI_FSL_DSPI
+	tristate "Freescale DSPI controller"
+	select SPI_BITBANG
+	help
+	  This enables support for the Freescale DSPI controller in master
+	  mode. VF610 platform uses the controller.
+
 config SPI_FSL_ESPI
 	bool "Freescale eSPI controller"
 	depends on FSL_SOC
