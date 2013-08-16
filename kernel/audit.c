@@ -607,9 +607,8 @@ static int audit_netlink_ok(struct sk_buff *skb, u16 msg_type)
 {
 	int err = 0;
 
-	/* Only support the initial namespaces for now. */
-	if ((current_user_ns() != &init_user_ns) ||
-	    (task_active_pid_ns(current) != &init_pid_ns))
+	/* Only support initial user namespace for now. */
+	if ((current_user_ns() != &init_user_ns))
 		return -EPERM;
 
 	switch (msg_type) {
@@ -629,6 +628,11 @@ static int audit_netlink_ok(struct sk_buff *skb, u16 msg_type)
 	case AUDIT_TTY_SET:
 	case AUDIT_TRIM:
 	case AUDIT_MAKE_EQUIV:
+		/* Only support auditd and auditctl in initial pid namespace
+		 * for now. */
+		if ((task_active_pid_ns(current) != &init_pid_ns))
+			return -EPERM;
+
 		if (!capable(CAP_AUDIT_CONTROL))
 			err = -EPERM;
 		break;
