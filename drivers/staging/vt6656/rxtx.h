@@ -42,6 +42,13 @@ struct vnt_rrv_time_rts {
 	u16 wTxRrvTime_a;
 } __packed;
 
+struct vnt_rrv_time_cts {
+	u16 wCTSTxRrvTime_ba;
+	u16 wReserved;
+	u16 wTxRrvTime_b;
+	u16 wTxRrvTime_a;
+} __packed;
+
 /* RTS buffer header */
 struct vnt_rts_g {
 	u8 bySignalField_b;

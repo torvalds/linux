@@ -146,16 +146,6 @@
 /*
  * RsvTime buffer header
  */
-typedef struct tagSRrvTime_gCTS {
-    u16        wCTSTxRrvTime_ba;
-    u16        wReserved;
-    u16        wTxRrvTime_b;
-    u16        wTxRrvTime_a;
-} __attribute__ ((__packed__))
-SRrvTime_gCTS, *PSRrvTime_gCTS;
-
-typedef const SRrvTime_gCTS *PCSRrvTime_gCTS;
-
 typedef struct tagSRrvTime_ab {
     u16        wRTSTxRrvTime;
     u16        wTxRrvTime;

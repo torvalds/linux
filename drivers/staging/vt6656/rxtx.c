@@ -934,7 +934,8 @@ static void s_vGenerateTxParameter(struct vnt_private *pDevice,
 
             //Fill RsvTime
             if (pvRrvTime) {
-                PSRrvTime_gCTS pBuf = (PSRrvTime_gCTS)pvRrvTime;
+		struct vnt_rrv_time_cts *pBuf =
+				(struct vnt_rrv_time_cts *)pvRrvTime;
                 pBuf->wTxRrvTime_a = cpu_to_le16((u16)s_uGetTxRsvTime(pDevice, byPktType, cbFrameSize, wCurrentRate, bNeedACK));//2.4G OFDM
                 pBuf->wTxRrvTime_b = cpu_to_le16((u16)s_uGetTxRsvTime(pDevice, PK_TYPE_11B, cbFrameSize, pDevice->byTopCCKBasicRate, bNeedACK));//1:CCK
                 pBuf->wCTSTxRrvTime_ba = cpu_to_le16((u16)s_uGetRTSCTSRsvTime(pDevice, 3, byPktType, cbFrameSize, wCurrentRate));//3:CTSTxRrvTime_Ba, 1:2.4GHz
@@ -1165,16 +1166,19 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
 				sizeof(STxDataHead_g);
             }
             else { //RTS_needless
-                pvRrvTime = (PSRrvTime_gCTS) (pbyTxBufferAddr + wTxBufSize);
-                pMICHDR = (PSMICHDRHead) (pbyTxBufferAddr + wTxBufSize + sizeof(SRrvTime_gCTS));
+		pvRrvTime = (struct vnt_rrv_time_cts *)
+				(pbyTxBufferAddr + wTxBufSize);
+		pMICHDR = (PSMICHDRHead) (pbyTxBufferAddr + wTxBufSize +
+			sizeof(struct vnt_rrv_time_cts));
                 pvRTS = NULL;
 		pvCTS = (struct vnt_cts *) (pbyTxBufferAddr + wTxBufSize +
-				sizeof(SRrvTime_gCTS) + cbMICHDR);
+				sizeof(struct vnt_rrv_time_cts) + cbMICHDR);
 		pvTxDataHd = (PSTxDataHead_g) (pbyTxBufferAddr + wTxBufSize +
-			sizeof(SRrvTime_gCTS) + cbMICHDR +
+			sizeof(struct vnt_rrv_time_cts) + cbMICHDR +
 						sizeof(struct vnt_cts));
-		cbHeaderLength = wTxBufSize + sizeof(SRrvTime_gCTS) + cbMICHDR +
-			sizeof(struct vnt_cts) + sizeof(STxDataHead_g);
+		cbHeaderLength = wTxBufSize + sizeof(struct vnt_rrv_time_cts) +
+			cbMICHDR + sizeof(struct vnt_cts) +
+				sizeof(STxDataHead_g);
             }
         } else {
             // Auto Fall Back
@@ -1194,15 +1198,17 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
 				sizeof(STxDataHead_g_FB);
             }
             else if (bRTS == false) { //RTS_needless
-                pvRrvTime = (PSRrvTime_gCTS) (pbyTxBufferAddr + wTxBufSize);
-                pMICHDR = (PSMICHDRHead) (pbyTxBufferAddr + wTxBufSize + sizeof(SRrvTime_gCTS));
+		pvRrvTime = (struct vnt_rrv_time_cts *)
+				(pbyTxBufferAddr + wTxBufSize);
+		pMICHDR = (PSMICHDRHead) (pbyTxBufferAddr + wTxBufSize +
+				sizeof(struct vnt_rrv_time_cts));
                 pvRTS = NULL;
 		pvCTS = (struct vnt_cts_fb *) (pbyTxBufferAddr + wTxBufSize +
-					sizeof(SRrvTime_gCTS) + cbMICHDR);
+			sizeof(struct vnt_rrv_time_cts) + cbMICHDR);
 		pvTxDataHd = (PSTxDataHead_g_FB) (pbyTxBufferAddr +
-			wTxBufSize + sizeof(SRrvTime_gCTS) + cbMICHDR +
-						sizeof(struct vnt_cts_fb));
-		cbHeaderLength = wTxBufSize + sizeof(SRrvTime_gCTS) +
+			wTxBufSize + sizeof(struct vnt_rrv_time_cts) +
+				cbMICHDR + sizeof(struct vnt_cts_fb));
+		cbHeaderLength = wTxBufSize + sizeof(struct vnt_rrv_time_cts) +
 				cbMICHDR + sizeof(struct vnt_cts_fb) +
 					sizeof(STxDataHead_g_FB);
             }
@@ -1659,14 +1665,14 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
     //Set RrvTime/RTS/CTS Buffer
     if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {//802.11g packet
 
-        pvRrvTime = (PSRrvTime_gCTS) (pbyTxBufferAddr + wTxBufSize);
+	pvRrvTime = (struct vnt_rrv_time_cts *) (pbyTxBufferAddr + wTxBufSize);
         pMICHDR = NULL;
         pvRTS = NULL;
 	pCTS = (struct vnt_cts *) (pbyTxBufferAddr + wTxBufSize +
-						sizeof(SRrvTime_gCTS));
+					sizeof(struct vnt_rrv_time_cts));
 	pvTxDataHd = (PSTxDataHead_g) (pbyTxBufferAddr + wTxBufSize +
-		sizeof(SRrvTime_gCTS) + sizeof(struct vnt_cts));
-	cbHeaderSize = wTxBufSize + sizeof(SRrvTime_gCTS) +
+		sizeof(struct vnt_rrv_time_cts) + sizeof(struct vnt_cts));
+	cbHeaderSize = wTxBufSize + sizeof(struct vnt_rrv_time_cts) +
 		sizeof(struct vnt_cts) + sizeof(STxDataHead_g);
     }
     else { // 802.11a/b packet
@@ -2061,15 +2067,16 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
     //the rest of pTxBufHead->wFragCtl:FragTyp will be set later in s_vFillFragParameter()
 
     if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {//802.11g packet
-
-        pvRrvTime = (PSRrvTime_gCTS) (pbyTxBufferAddr + wTxBufSize);
-        pMICHDR = (PSMICHDRHead) (pbyTxBufferAddr + wTxBufSize + sizeof(SRrvTime_gCTS));
+	pvRrvTime = (struct vnt_rrv_time_cts *) (pbyTxBufferAddr + wTxBufSize);
+	pMICHDR = (PSMICHDRHead) (pbyTxBufferAddr + wTxBufSize +
+					sizeof(struct vnt_rrv_time_cts));
         pvRTS = NULL;
 	pvCTS = (struct vnt_cts *) (pbyTxBufferAddr + wTxBufSize +
-			sizeof(SRrvTime_gCTS) + cbMICHDR);
+			sizeof(struct vnt_rrv_time_cts) + cbMICHDR);
 	pvTxDataHd = (PSTxDataHead_g) (pbyTxBufferAddr + wTxBufSize +
-		sizeof(SRrvTime_gCTS) + cbMICHDR + sizeof(struct vnt_cts));
-	cbHeaderSize = wTxBufSize + sizeof(SRrvTime_gCTS) + cbMICHDR +
+		sizeof(struct vnt_rrv_time_cts) + cbMICHDR +
+					sizeof(struct vnt_cts));
+	cbHeaderSize = wTxBufSize + sizeof(struct vnt_rrv_time_cts) + cbMICHDR +
 				sizeof(struct vnt_cts) + sizeof(STxDataHead_g);
 
     }
