@@ -479,13 +479,15 @@ void pstore_get_records(int quiet)
 			if (unzipped_len > 0) {
 				buf = big_oops_buf;
 				size = unzipped_len;
+				compressed = false;
 			} else {
 				pr_err("pstore: decompression failed;"
 					"returned %d\n", unzipped_len);
+				compressed = true;
 			}
 		}
 		rc = pstore_mkfile(type, psi->name, id, count, buf,
-				  (size_t)size, time, psi);
+				  compressed, (size_t)size, time, psi);
 		if (unzipped_len < 0) {
 			/* Free buffer other than big oops */
 			kfree(buf);
