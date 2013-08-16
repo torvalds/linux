@@ -24,6 +24,7 @@
 #include <asm/unaligned.h>
 
 #include "xhci.h"
+#include "xhci-trace.h"
 
 #define	PORT_WAKE_BITS	(PORT_WKOC_E | PORT_WKDISC_E | PORT_WKCONN_E)
 #define	PORT_RWC_BITS	(PORT_CSC | PORT_PEC | PORT_WRC | PORT_OCC | \
@@ -535,8 +536,10 @@ void xhci_del_comp_mod_timer(struct xhci_hcd *xhci, u32 status, u16 wIndex)
 		xhci->port_status_u0 |= 1 << wIndex;
 		if (xhci->port_status_u0 == all_ports_seen_u0) {
 			del_timer_sync(&xhci->comp_mode_recovery_timer);
-			xhci_dbg(xhci, "All USB3 ports have entered U0 already!\n");
-			xhci_dbg(xhci, "Compliance Mode Recovery Timer Deleted.\n");
+			xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+				"All USB3 ports have entered U0 already!");
+			xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+				"Compliance Mode Recovery Timer Deleted.");
 		}
 	}
 }

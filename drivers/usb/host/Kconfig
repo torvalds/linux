@@ -29,15 +29,6 @@ if USB_XHCI_HCD
 config USB_XHCI_PLATFORM
 	tristate
 
-config USB_XHCI_HCD_DEBUGGING
-	bool "Debugging for the xHCI host controller"
-	---help---
-	  Say 'Y' to turn on debugging for the xHCI host controller driver.
-	  This will spew debugging output, even in interrupt context.
-	  This should only be used for debugging xHCI driver bugs.
-
-	  If unsure, say N.
-
 endif # USB_XHCI_HCD
 
 config USB_EHCI_HCD
