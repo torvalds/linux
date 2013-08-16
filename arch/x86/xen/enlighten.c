@@ -1713,6 +1713,8 @@ static void __init xen_hvm_guest_init(void)
 
 	xen_hvm_init_shared_info();
 
+	xen_panic_handler_init();
+
 	if (xen_feature(XENFEAT_hvm_callback_vector))
 		xen_have_vector_callback = 1;
 	xen_hvm_smp_init();
