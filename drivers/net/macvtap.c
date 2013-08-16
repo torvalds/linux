@@ -1163,10 +1163,6 @@ static long macvtap_ioctl(struct file *file, unsigned int cmd,
 			    TUN_F_TSO_ECN | TUN_F_UFO))
 			return -EINVAL;
 
-		/* TODO: only accept frames with the features that
-			 got enabled for forwarded frames */
-		if (!(q->flags & IFF_VNET_HDR))
-			return  -EINVAL;
 		rtnl_lock();
 		ret = set_offload(q, arg);
 		rtnl_unlock();
