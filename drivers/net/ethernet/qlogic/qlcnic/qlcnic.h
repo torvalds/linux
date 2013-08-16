@@ -1972,9 +1972,11 @@ extern const struct ethtool_ops qlcnic_ethtool_failed_ops;
 			__func__, ##_args);		\
 	} while (0)
 
-#define PCI_DEVICE_ID_QLOGIC_QLE834X    0x8030
+#define PCI_DEVICE_ID_QLOGIC_QLE824X		0x8020
+#define PCI_DEVICE_ID_QLOGIC_QLE834X		0x8030
 #define PCI_DEVICE_ID_QLOGIC_VF_QLE834X	0x8430
-#define PCI_DEVICE_ID_QLOGIC_QLE824X	0x8020
+#define PCI_DEVICE_ID_QLOGIC_QLE844X		0x8040
+#define PCI_DEVICE_ID_QLOGIC_VF_QLE844X	0x8440
 
 static inline bool qlcnic_82xx_check(struct qlcnic_adapter *adapter)
 {
@@ -1988,6 +1990,8 @@ static inline bool qlcnic_83xx_check(struct qlcnic_adapter *adapter)
 	bool status;
 
 	status = ((device == PCI_DEVICE_ID_QLOGIC_QLE834X) ||
+		  (device == PCI_DEVICE_ID_QLOGIC_QLE844X) ||
+		  (device == PCI_DEVICE_ID_QLOGIC_VF_QLE844X) ||
 		  (device == PCI_DEVICE_ID_QLOGIC_VF_QLE834X)) ? true : false;
 
 	return status;
@@ -2001,7 +2005,11 @@ static inline bool qlcnic_sriov_pf_check(struct qlcnic_adapter *adapter)
 static inline bool qlcnic_sriov_vf_check(struct qlcnic_adapter *adapter)
 {
 	unsigned short device = adapter->pdev->device;
+	bool status;
 
-	return (device == PCI_DEVICE_ID_QLOGIC_VF_QLE834X) ? true : false;
+	status = ((device == PCI_DEVICE_ID_QLOGIC_VF_QLE834X) ||
+		  (device == PCI_DEVICE_ID_QLOGIC_VF_QLE844X)) ? true : false;
+
+	return status;
 }
 #endif				/* __QLCNIC_H_ */

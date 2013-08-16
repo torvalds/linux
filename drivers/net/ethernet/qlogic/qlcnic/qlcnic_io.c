@@ -147,10 +147,7 @@ static inline u8 qlcnic_mac_hash(u64 mac)
 static inline u32 qlcnic_get_ref_handle(struct qlcnic_adapter *adapter,
 					u16 handle, u8 ring_id)
 {
-	unsigned short device = adapter->pdev->device;
-
-	if ((device == PCI_DEVICE_ID_QLOGIC_QLE834X) ||
-	    (device == PCI_DEVICE_ID_QLOGIC_VF_QLE834X))
+	if (qlcnic_83xx_check(adapter))
 		return handle | (ring_id << 15);
 	else
 		return handle;
