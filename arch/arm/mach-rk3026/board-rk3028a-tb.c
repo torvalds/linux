@@ -816,6 +816,7 @@ static struct platform_device device_ion = {
 struct rk3026_codec_pdata rk3026_codec_pdata_info={
 	    .spk_ctl_gpio = INVALID_GPIO,
 	    .hp_ctl_gpio = RK2928_PIN3_PD4,
+		.delay_time = 10,
 	};
 
 static struct resource resources_acodec[] = {

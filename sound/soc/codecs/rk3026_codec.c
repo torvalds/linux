@@ -34,6 +34,8 @@
 #include "../../../drivers/headset_observe/rk_headset.h"
 #endif
 
+
+
 #if 0
 #define	DBG(x...)	printk(x)
 #else
@@ -56,6 +58,8 @@
 */
 #define CAP_VOL	   17//0-31
 
+//with capacity or  not
+#define WITH_CAP
 
 struct rk3026_codec_priv {
 	struct snd_soc_codec *codec;
@@ -68,6 +72,7 @@ struct rk3026_codec_priv {
 
 	int spk_ctl_gpio;
 	int hp_ctl_gpio;
+	int delay_time;
 
 	long int playback_path;
 	long int capture_path;
@@ -378,9 +383,9 @@ static int rk3026_hw_write(const struct i2c_client *client, const char *buf, int
 
 static int rk3026_reset(struct snd_soc_codec *codec)
 {
-	writel(0xfc, rk3026_priv->regbase+RK3026_RESET);
+	writel(0x00, rk3026_priv->regbase+RK3026_RESET);
 	mdelay(10);
-	writel(0x43, rk3026_priv->regbase+RK3026_RESET);
+	writel(0x03, rk3026_priv->regbase+RK3026_RESET);
 	mdelay(10);
 
 	memcpy(codec->reg_cache, rk3026_reg_defaults,
@@ -1553,21 +1558,21 @@ static int rk3026_digital_mute(struct snd_soc_dai *dai, int mute)
 		    is_hp_pd) {
 			DBG("%s : set hp ctl gpio LOW\n", __func__);
 			gpio_set_value(rk3026_priv->hp_ctl_gpio, GPIO_LOW);
+			msleep(rk3026_priv->delay_time);
 			}
 
 	} else {
 		if (rk3026_priv && rk3026_priv->hp_ctl_gpio != INVALID_GPIO &&
 		    is_hp_pd) {
-			msleep(10);
 			DBG("%s : set hp ctl gpio HIGH\n", __func__);
 			gpio_set_value(rk3026_priv->hp_ctl_gpio, GPIO_HIGH);
+			msleep(rk3026_priv->delay_time);
 		}
 	}
 	return 0;
 }
 
 static struct rk3026_reg_val_typ playback_power_up_list[] = {
-	{0xbc,0x28},
 	{0x18,0x32},
 	{0xa0,0x40},
 	{0xa0,0x62},
@@ -1589,21 +1594,21 @@ static struct rk3026_reg_val_typ playback_power_up_list[] = {
 #define RK3026_CODEC_PLAYBACK_POWER_UP_LIST_LEN ARRAY_SIZE(playback_power_up_list)
 
 static struct rk3026_reg_val_typ playback_power_down_list[] = {
-	{0xb4,0x00},
-	{0xb8,0x00},
-	{0xa0,0x62},
 	{0xb0,0xdb},
 	{0xa8,0x44},
 	{0xac,0x00},
 	{0xb0,0x92},
+	{0xa0,0x22},
 	{0xb0,0x00},
 	{0xa8,0x00},
 	{0xa4,0x00},
-	{0xa0,0x40},
 	{0xa0,0x00},
 	{0x18,0x22},
-	//{0xbc,0x08},
-
+#ifdef WITH_CAP
+	{0xbc,0x08},
+#endif
+	{0xb4,0x0},
+	{0xb8,0x0},	
 };
 #define RK3026_CODEC_PLAYBACK_POWER_DOWN_LIST_LEN ARRAY_SIZE(playback_power_down_list)
 
@@ -1612,11 +1617,11 @@ static struct rk3026_reg_val_typ capture_power_up_list[] = {
 	{0x88, 0xc0},
 	{0x88, 0xc7},
 	{0x9c, 0x88},
-	{0x8c, 0x40},
+	{0x8c, 0x04},
 	{0x90, 0x66},
 	{0x9c, 0xcc},
 	{0x9c, 0xee},
-	{0x8c, 0x70},
+	{0x8c, 0x07},
 	{0x90, 0x77},
 	{0x94, 0x20 | CAP_VOL},
 	{0x98, CAP_VOL},
@@ -1633,6 +1638,7 @@ static struct rk3026_reg_val_typ capture_power_down_list[] = {
 	{0x88, 0xc7},
 	{0x88, 0xc0},
 	{0x88, 0x80},
+	{0x8c, 0x00},
 	{0X94, 0x0c},
 	{0X98, 0x0c},
 };
@@ -1678,9 +1684,6 @@ static int rk3026_codec_power_down(int type)
 		return -EINVAL;
 	}
 	
-//	if (rk3026_priv->playback_active <= 0 && rk3026_priv->capture_active <= 0)
-//		type = RK3026_CODEC_ALL;
-
 	printk("%s : power down %s%s%s\n", __func__,
 		type == RK3026_CODEC_PLAYBACK ? "playback" : "",
 		type == RK3026_CODEC_CAPTURE ? "capture" : "",
@@ -1692,10 +1695,21 @@ static int rk3026_codec_power_down(int type)
 				capture_power_down_list[i].value);
 		}
 	} else if (type == RK3026_CODEC_PLAYBACK) {
+#if 0
+		snd_soc_write(codec, 0xa0,0x62);
+		for ( i = OUT_VOLUME; i >= 0; i--)
+		{
+			snd_soc_write(codec, 0xb4,i);
+			snd_soc_write(codec, 0xb8,i);
+		}
+		msleep(20);
+#endif
 		for (i = 0; i < RK3026_CODEC_PLAYBACK_POWER_DOWN_LIST_LEN; i++) {
 			snd_soc_write(codec, playback_power_down_list[i].reg,
 				playback_power_down_list[i].value);
+
 		}
+
 	} else if (type == RK3026_CODEC_ALL) {
 		rk3026_reset(codec);
 	}
@@ -1916,6 +1930,7 @@ static int rk3026_suspend(struct snd_soc_codec *codec, pm_message_t state)
 		if (rk3026_codec_work_capture_type != RK3026_CODEC_WORK_NULL) {
 			rk3026_codec_work_capture_type = RK3026_CODEC_WORK_NULL;
 		}
+		rk3026_codec_power_down(RK3026_CODEC_PLAYBACK);
 		rk3026_codec_power_down(RK3026_CODEC_ALL);
 	}
 	else
@@ -1939,7 +1954,6 @@ static int rk3026_probe(struct snd_soc_codec *codec)
 	struct resource *res, *mem;
 	int ret;
 	unsigned int val;
-
 
 	DBG("%s\n", __func__);
 
@@ -2000,6 +2014,14 @@ static int rk3026_probe(struct snd_soc_codec *codec)
 		rk3026->hp_ctl_gpio = INVALID_GPIO;
 	}
 
+	if (rk3026_plt->delay_time) {
+		rk3026->delay_time = rk3026_plt->delay_time;
+	} else {
+		printk("%s : rk3026 or pdata or delay_time is NULL!\n", __func__);
+		rk3026->delay_time = 10;
+	}
+
+
 	if (rk3026_for_mid)
 	{
 		rk3026->playback_active = 0;
@@ -2040,16 +2062,17 @@ static int rk3026_probe(struct snd_soc_codec *codec)
 		rk3026_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	}
 
+#ifdef   WITH_CAP
 	//set for capacity output,clear up noise
 	snd_soc_write(codec, 0xbc,0x1e);
 	snd_soc_write(codec, 0xbc,0x3e);
 	//snd_soc_write(codec, 0xbc,0x28);
-
-	// select  i2s sdi from  acodec
+#endif
+	// select  i2s sdi from  acodec  soc_con[0] bit 10
 	val = readl(RK2928_GRF_BASE+GRF_SOC_CON0);
 	writel(val | 0x04000400,RK2928_GRF_BASE+GRF_SOC_CON0);
 	val = readl(RK2928_GRF_BASE+GRF_SOC_CON0);
-	printk("%s : i2s sdi from acodec val=%u\n",__func__,val);
+	printk("%s : i2s sdi from acodec val=0x%x,soc_con[0] bit 10 =1 is correct\n",__func__,val);
 	return 0;
 
 err__:

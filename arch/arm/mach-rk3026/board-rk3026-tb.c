@@ -940,6 +940,7 @@ void __sramfunc board_pmu_resume(void)
 struct rk3026_codec_pdata rk3026_codec_pdata_info={
     .spk_ctl_gpio = INVALID_GPIO,
     .hp_ctl_gpio = RK2928_PIN1_PA0,
+	.delay_time = 10,
 };
 
 static struct resource resources_acodec[] = {
