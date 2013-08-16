@@ -18,6 +18,8 @@
 #include <linux/usb.h>
 #include <linux/list.h>
 
+#include "gdm_tty.h"
+
 #define PM_NORMAL 0
 #define PM_SUSPEND 1
 
@@ -57,7 +59,10 @@ struct mux_rx {
 	void *mux_dev;
 	u32 offset;
 	u32 len;
-	int (*callback)(void *data, int len, int tty_index, int minor,
+	int (*callback)(void *data,
+			int len,
+			int tty_index,
+			struct tty_dev *tty_dev,
 			int complete);
 };
 
@@ -78,10 +83,13 @@ struct mux_dev {
 	struct delayed_work work_rx;
 	struct usb_interface *intf;
 	int usb_state;
-	int (*rx_cb)(void *data, int len, int tty_index, int minor,
+	int (*rx_cb)(void *data,
+		     int len,
+		     int tty_index,
+		     struct tty_dev *tty_dev,
 		     int complete);
 	spinlock_t write_lock;
-	u8 minor[2];
+	struct tty_dev *tty_dev;
 };
 
 #endif /* _GDM_MUX_H_ */

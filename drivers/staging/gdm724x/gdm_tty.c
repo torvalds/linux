@@ -89,19 +89,22 @@ static int gdm_tty_install(struct tty_driver *driver, struct tty_struct *tty)
 
 	mutex_lock(&gdm_table_lock);
 	gdm = gdm_table[i][j];
-	mutex_unlock(&gdm_table_lock);
-	if (gdm == NULL)
+	if (gdm == NULL) {
+		mutex_unlock(&gdm_table_lock);
 		return -ENODEV;
+	}
 
 	tty_port_get(&gdm->port);
 
 	ret = tty_standard_install(driver, tty);
 	if (ret) {
 		tty_port_put(&gdm->port);
+		mutex_unlock(&gdm_table_lock);
 		return ret;
 	}
 
 	tty->driver_data = gdm;
+	mutex_unlock(&gdm_table_lock);
 
 	return 0;
 }
@@ -130,14 +133,13 @@ static void gdm_tty_close(struct tty_struct *tty, struct file *filp)
 	tty_port_close(&gdm->port, tty, filp);
 }
 
-static int gdm_tty_recv_complete(void *data, int len, int index, int minor, int complete)
+static int gdm_tty_recv_complete(void *data,
+				 int len,
+				 int index,
+				 struct tty_dev *tty_dev,
+				 int complete)
 {
-	struct gdm *gdm;
-
-	mutex_lock(&gdm_table_lock);
-	gdm = gdm_table[index][minor];
-	mutex_unlock(&gdm_table_lock);
-
+	struct gdm *gdm = tty_dev->gdm[index];
 	if (!GDM_TTY_READY(gdm)) {
 		if (complete == RECV_PACKET_PROCESS_COMPLETE)
 			gdm_tty_recv(gdm, gdm_tty_recv_complete);
@@ -223,31 +225,29 @@ int register_lte_tty_device(struct tty_dev *tty_dev, struct device *device)
 			return -ENOMEM;
 
 		mutex_lock(&gdm_table_lock);
-
 		for (j = 0; j < GDM_TTY_MINOR; j++) {
 			if (!gdm_table[i][j])
 				break;
 		}
 
 		if (j == GDM_TTY_MINOR) {
-			tty_dev->minor[i] = GDM_TTY_MINOR;
+			kfree(gdm);
 			mutex_unlock(&gdm_table_lock);
 			return -EINVAL;
 		}
 
 		gdm_table[i][j] = gdm;
-
 		mutex_unlock(&gdm_table_lock);
 
-		tty_dev->minor[i] = j;
-
+		tty_dev->gdm[i] = gdm;
 		tty_port_init(&gdm->port);
+
 		gdm->port.ops = &gdm_port_ops;
 		gdm->index = i;
 		gdm->minor = j;
 		gdm->tty_dev = tty_dev;
 
-		tty_port_register_device(&gdm->port, gdm_driver[i], j, device);
+		tty_port_register_device(&gdm->port, gdm_driver[i], gdm->minor, device);
 	}
 
 	for (i = 0; i < MAX_ISSUE_NUM; i++)
@@ -261,21 +261,15 @@ void unregister_lte_tty_device(struct tty_dev *tty_dev)
 	struct gdm *gdm;
 	struct tty_struct *tty;
 	int i;
-	int j;
 
 	for (i = 0; i < TTY_MAX_COUNT; i++) {
-
-		j = tty_dev->minor[i];
-
-		if (j >= GDM_TTY_MINOR)
+		gdm = tty_dev->gdm[i];
+		if (!gdm)
 			continue;
 
 		mutex_lock(&gdm_table_lock);
-		gdm = gdm_table[i][j];
+		gdm_table[gdm->index][gdm->minor] = NULL;
 		mutex_unlock(&gdm_table_lock);
-
-		if (!gdm)
-			continue;
 
 		tty = tty_port_tty_get(&gdm->port);
 		if (tty) {
@@ -283,9 +277,8 @@ void unregister_lte_tty_device(struct tty_dev *tty_dev)
 			tty_kref_put(tty);
 		}
 
-		tty_unregister_device(gdm_driver[i], j);
+		tty_unregister_device(gdm_driver[i], gdm->minor);
 		tty_port_put(&gdm->port);
-
 	}
 }
 

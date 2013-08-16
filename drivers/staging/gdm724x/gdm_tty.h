@@ -33,22 +33,33 @@ enum RECV_PACKET_PROCESS {
 	RECV_PACKET_PROCESS_CONTINUE = 1,
 };
 
-struct tty_dev {
-	void *priv_dev;
-	int (*send_func)(void *priv_dev, void *data, int len, int tty_index,
-			void (*cb)(void *cb_data), void *cb_data);
-	int (*recv_func)(void *priv_dev, int (*cb)(void *data, int len,
-			 int tty_index, int minor, int complete));
-	int (*send_control)(void *priv_dev, int request, int value, void *data,
-			    int len);
-	u8 minor[2];
-};
-
 struct gdm {
 	struct tty_dev *tty_dev;
 	struct tty_port port;
 	unsigned int index;
 	unsigned int minor;
+};
+
+struct tty_dev {
+	void *priv_dev;
+	int (*send_func)(void *priv_dev,
+			 void *data,
+			 int len,
+			 int tty_index,
+			 void (*cb)(void *cb_data),
+			 void *cb_data);
+	int (*recv_func)(void *priv_dev,
+			 int (*cb)(void *data,
+				   int len,
+				   int tty_index,
+				   struct tty_dev *tty_dev,
+				   int complete));
+	int (*send_control)(void *priv_dev,
+			    int request,
+			    int value,
+			    void *data,
+			    int len);
+	struct gdm *gdm[2];
 };
 
 int register_lte_tty_driver(void);

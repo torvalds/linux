@@ -25,7 +25,6 @@
 #include <linux/usb/cdc.h>
 
 #include "gdm_mux.h"
-#include "gdm_tty.h"
 
 struct workqueue_struct *mux_rx_wq;
 
@@ -196,7 +195,7 @@ static int up_to_host(struct mux_rx *r)
 		ret = r->callback(mux_header->data,
 				payload_size,
 				index,
-				mux_dev->minor[index],
+				mux_dev->tty_dev,
 				RECV_PACKET_PROCESS_CONTINUE
 				);
 		if (ret == TO_HOST_BUFFER_REQUEST_FAIL) {
@@ -209,7 +208,7 @@ static int up_to_host(struct mux_rx *r)
 			ret = r->callback(NULL,
 					0,
 					index,
-					mux_dev->minor[index],
+					mux_dev->tty_dev,
 					RECV_PACKET_PROCESS_COMPLETE
 					);
 			break;
@@ -283,7 +282,7 @@ static void gdm_mux_rcv_complete(struct urb *urb)
 }
 
 static int gdm_mux_recv(void *priv_dev,
-			int (*cb)(void *data, int len, int tty_index, int minor, int complete)
+			int (*cb)(void *data, int len, int tty_index, struct tty_dev *tty_dev, int complete)
 			)
 {
 	struct mux_dev *mux_dev = priv_dev;
@@ -562,7 +561,7 @@ static int gdm_mux_probe(struct usb_interface *intf, const struct usb_device_id 
 		goto out;
 	}
 	for (i = 0; i < TTY_MAX_COUNT; i++)
-		mux_dev->minor[i] = tty_dev->minor[i];
+		mux_dev->tty_dev = tty_dev;
 
 out:
 	if (ret < 0) {
