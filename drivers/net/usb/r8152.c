@@ -329,10 +329,12 @@ struct tx_desc {
 #define IPV6_CS			(1 << 28) /* Calculate IPv6 checksum */
 };
 
+struct r8152;
+
 struct rx_agg {
 	struct list_head list;
 	struct urb *urb;
-	void *context;
+	struct r8152 *context;
 	void *buffer;
 	void *head;
 };
@@ -340,7 +342,7 @@ struct rx_agg {
 struct tx_agg {
 	struct list_head list;
 	struct urb *urb;
-	void *context;
+	struct r8152 *context;
 	void *buffer;
 	void *head;
 	u32 skb_num;
