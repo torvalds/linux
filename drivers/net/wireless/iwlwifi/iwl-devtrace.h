@@ -33,10 +33,11 @@
 static inline bool iwl_trace_data(struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (void *)skb->data;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
-	if (ieee80211_is_data(hdr->frame_control))
-		return skb->protocol != cpu_to_be16(ETH_P_PAE);
-	return false;
+	if (!ieee80211_is_data(hdr->frame_control))
+		return false;
+	return !(info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO);
 }
 
 static inline size_t iwl_rx_trace_len(const struct iwl_trans *trans,

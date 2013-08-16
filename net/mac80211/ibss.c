@@ -34,6 +34,170 @@
 
 #define IEEE80211_IBSS_MAX_STA_ENTRIES 128
 
+static struct beacon_data *
+ieee80211_ibss_build_presp(struct ieee80211_sub_if_data *sdata,
+			   const int beacon_int, const u32 basic_rates,
+			   const u16 capability, u64 tsf,
+			   struct cfg80211_chan_def *chandef,
+			   bool *have_higher_than_11mbit)
+{
+	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
+	struct ieee80211_local *local = sdata->local;
+	int rates_n = 0, i, ri;
+	struct ieee80211_mgmt *mgmt;
+	u8 *pos;
+	struct ieee80211_supported_band *sband;
+	u32 rate_flags, rates = 0, rates_added = 0;
+	struct beacon_data *presp;
+	int frame_len;
+	int shift;
+
+	/* Build IBSS probe response */
+	frame_len = sizeof(struct ieee80211_hdr_3addr) +
+		    12 /* struct ieee80211_mgmt.u.beacon */ +
+		    2 + IEEE80211_MAX_SSID_LEN /* max SSID */ +
+		    2 + 8 /* max Supported Rates */ +
+		    3 /* max DS params */ +
+		    4 /* IBSS params */ +
+		    2 + (IEEE80211_MAX_SUPP_RATES - 8) +
+		    2 + sizeof(struct ieee80211_ht_cap) +
+		    2 + sizeof(struct ieee80211_ht_operation) +
+		    ifibss->ie_len;
+	presp = kzalloc(sizeof(*presp) + frame_len, GFP_KERNEL);
+	if (!presp)
+		return NULL;
+
+	presp->head = (void *)(presp + 1);
+
+	mgmt = (void *) presp->head;
+	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+					  IEEE80211_STYPE_PROBE_RESP);
+	eth_broadcast_addr(mgmt->da);
+	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
+	memcpy(mgmt->bssid, ifibss->bssid, ETH_ALEN);
+	mgmt->u.beacon.beacon_int = cpu_to_le16(beacon_int);
+	mgmt->u.beacon.timestamp = cpu_to_le64(tsf);
+	mgmt->u.beacon.capab_info = cpu_to_le16(capability);
+
+	pos = (u8 *)mgmt + offsetof(struct ieee80211_mgmt, u.beacon.variable);
+
+	*pos++ = WLAN_EID_SSID;
+	*pos++ = ifibss->ssid_len;
+	memcpy(pos, ifibss->ssid, ifibss->ssid_len);
+	pos += ifibss->ssid_len;
+
+	sband = local->hw.wiphy->bands[chandef->chan->band];
+	rate_flags = ieee80211_chandef_rate_flags(chandef);
+	shift = ieee80211_chandef_get_shift(chandef);
+	rates_n = 0;
+	if (have_higher_than_11mbit)
+		*have_higher_than_11mbit = false;
+
+	for (i = 0; i < sband->n_bitrates; i++) {
+		if ((rate_flags & sband->bitrates[i].flags) != rate_flags)
+			continue;
+		if (sband->bitrates[i].bitrate > 110 &&
+		    have_higher_than_11mbit)
+			*have_higher_than_11mbit = true;
+
+		rates |= BIT(i);
+		rates_n++;
+	}
+
+	*pos++ = WLAN_EID_SUPP_RATES;
+	*pos++ = min_t(int, 8, rates_n);
+	for (ri = 0; ri < sband->n_bitrates; ri++) {
+		int rate = DIV_ROUND_UP(sband->bitrates[ri].bitrate,
+					5 * (1 << shift));
+		u8 basic = 0;
+		if (!(rates & BIT(ri)))
+			continue;
+
+		if (basic_rates & BIT(ri))
+			basic = 0x80;
+		*pos++ = basic | (u8) rate;
+		if (++rates_added == 8) {
+			ri++; /* continue at next rate for EXT_SUPP_RATES */
+			break;
+		}
+	}
+
+	if (sband->band == IEEE80211_BAND_2GHZ) {
+		*pos++ = WLAN_EID_DS_PARAMS;
+		*pos++ = 1;
+		*pos++ = ieee80211_frequency_to_channel(
+				chandef->chan->center_freq);
+	}
+
+	*pos++ = WLAN_EID_IBSS_PARAMS;
+	*pos++ = 2;
+	/* FIX: set ATIM window based on scan results */
+	*pos++ = 0;
+	*pos++ = 0;
+
+	/* put the remaining rates in WLAN_EID_EXT_SUPP_RATES */
+	if (rates_n > 8) {
+		*pos++ = WLAN_EID_EXT_SUPP_RATES;
+		*pos++ = rates_n - 8;
+		for (; ri < sband->n_bitrates; ri++) {
+			int rate = DIV_ROUND_UP(sband->bitrates[ri].bitrate,
+						5 * (1 << shift));
+			u8 basic = 0;
+			if (!(rates & BIT(ri)))
+				continue;
+
+			if (basic_rates & BIT(ri))
+				basic = 0x80;
+			*pos++ = basic | (u8) rate;
+		}
+	}
+
+	if (ifibss->ie_len) {
+		memcpy(pos, ifibss->ie, ifibss->ie_len);
+		pos += ifibss->ie_len;
+	}
+
+	/* add HT capability and information IEs */
+	if (chandef->width != NL80211_CHAN_WIDTH_20_NOHT &&
+	    chandef->width != NL80211_CHAN_WIDTH_5 &&
+	    chandef->width != NL80211_CHAN_WIDTH_10 &&
+	    sband->ht_cap.ht_supported) {
+		struct ieee80211_sta_ht_cap ht_cap;
+
+		memcpy(&ht_cap, &sband->ht_cap, sizeof(ht_cap));
+		ieee80211_apply_htcap_overrides(sdata, &ht_cap);
+
+		pos = ieee80211_ie_build_ht_cap(pos, &ht_cap, ht_cap.cap);
+		/*
+		 * Note: According to 802.11n-2009 9.13.3.1, HT Protection
+		 * field and RIFS Mode are reserved in IBSS mode, therefore
+		 * keep them at 0
+		 */
+		pos = ieee80211_ie_build_ht_oper(pos, &sband->ht_cap,
+						 chandef, 0);
+	}
+
+	if (local->hw.queues >= IEEE80211_NUM_ACS) {
+		*pos++ = WLAN_EID_VENDOR_SPECIFIC;
+		*pos++ = 7; /* len */
+		*pos++ = 0x00; /* Microsoft OUI 00:50:F2 */
+		*pos++ = 0x50;
+		*pos++ = 0xf2;
+		*pos++ = 2; /* WME */
+		*pos++ = 0; /* WME info */
+		*pos++ = 1; /* WME ver */
+		*pos++ = 0; /* U-APSD no in use */
+	}
+
+	presp->head_len = pos - presp->head;
+	if (WARN_ON(presp->head_len > frame_len))
+		goto error;
+
+	return presp;
+error:
+	kfree(presp);
+	return NULL;
+}
 
 static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 				      const u8 *bssid, const int beacon_int,
@@ -44,18 +208,14 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 	struct ieee80211_local *local = sdata->local;
-	int rates_n = 0, i, ri;
-	struct ieee80211_mgmt *mgmt;
-	u8 *pos;
 	struct ieee80211_supported_band *sband;
+	struct ieee80211_mgmt *mgmt;
 	struct cfg80211_bss *bss;
-	u32 bss_change, rate_flags, rates = 0, rates_added = 0;
+	u32 bss_change;
 	struct cfg80211_chan_def chandef;
-	enum nl80211_bss_scan_width scan_width;
-	bool have_higher_than_11mbit = false;
 	struct beacon_data *presp;
-	int frame_len;
-	int shift;
+	enum nl80211_bss_scan_width scan_width;
+	bool have_higher_than_11mbit;
 
 	sdata_assert_lock(sdata);
 
@@ -110,142 +270,15 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	memcpy(ifibss->bssid, bssid, ETH_ALEN);
 
 	sband = local->hw.wiphy->bands[chan->band];
-	shift = ieee80211_vif_get_shift(&sdata->vif);
 
-	/* Build IBSS probe response */
-	frame_len = sizeof(struct ieee80211_hdr_3addr) +
-		    12 /* struct ieee80211_mgmt.u.beacon */ +
-		    2 + IEEE80211_MAX_SSID_LEN /* max SSID */ +
-		    2 + 8 /* max Supported Rates */ +
-		    3 /* max DS params */ +
-		    4 /* IBSS params */ +
-		    2 + (IEEE80211_MAX_SUPP_RATES - 8) +
-		    2 + sizeof(struct ieee80211_ht_cap) +
-		    2 + sizeof(struct ieee80211_ht_operation) +
-		    ifibss->ie_len;
-	presp = kzalloc(sizeof(*presp) + frame_len, GFP_KERNEL);
+	presp = ieee80211_ibss_build_presp(sdata, beacon_int, basic_rates,
+					   capability, tsf, &chandef,
+					   &have_higher_than_11mbit);
 	if (!presp)
 		return;
 
-	presp->head = (void *)(presp + 1);
-
-	mgmt = (void *) presp->head;
-	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
-					  IEEE80211_STYPE_PROBE_RESP);
-	eth_broadcast_addr(mgmt->da);
-	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
-	memcpy(mgmt->bssid, ifibss->bssid, ETH_ALEN);
-	mgmt->u.beacon.beacon_int = cpu_to_le16(beacon_int);
-	mgmt->u.beacon.timestamp = cpu_to_le64(tsf);
-	mgmt->u.beacon.capab_info = cpu_to_le16(capability);
-
-	pos = (u8 *)mgmt + offsetof(struct ieee80211_mgmt, u.beacon.variable);
-
-	*pos++ = WLAN_EID_SSID;
-	*pos++ = ifibss->ssid_len;
-	memcpy(pos, ifibss->ssid, ifibss->ssid_len);
-	pos += ifibss->ssid_len;
-
-	rate_flags = ieee80211_chandef_rate_flags(&chandef);
-	for (i = 0; i < sband->n_bitrates; i++) {
-		if ((rate_flags & sband->bitrates[i].flags) != rate_flags)
-			continue;
-		if (sband->bitrates[i].bitrate > 110)
-			have_higher_than_11mbit = true;
-
-		rates |= BIT(i);
-		rates_n++;
-	}
-
-	*pos++ = WLAN_EID_SUPP_RATES;
-	*pos++ = min_t(int, 8, rates_n);
-	for (ri = 0; ri < sband->n_bitrates; ri++) {
-		int rate = DIV_ROUND_UP(sband->bitrates[ri].bitrate,
-					5 * (1 << shift));
-		u8 basic = 0;
-		if (!(rates & BIT(ri)))
-			continue;
-
-		if (basic_rates & BIT(ri))
-			basic = 0x80;
-		*pos++ = basic | (u8) rate;
-		if (++rates_added == 8) {
-			ri++; /* continue at next rate for EXT_SUPP_RATES */
-			break;
-		}
-	}
-
-	if (sband->band == IEEE80211_BAND_2GHZ) {
-		*pos++ = WLAN_EID_DS_PARAMS;
-		*pos++ = 1;
-		*pos++ = ieee80211_frequency_to_channel(chan->center_freq);
-	}
-
-	*pos++ = WLAN_EID_IBSS_PARAMS;
-	*pos++ = 2;
-	/* FIX: set ATIM window based on scan results */
-	*pos++ = 0;
-	*pos++ = 0;
-
-	/* put the remaining rates in WLAN_EID_EXT_SUPP_RATES */
-	if (rates_n > 8) {
-		*pos++ = WLAN_EID_EXT_SUPP_RATES;
-		*pos++ = rates_n - 8;
-		for (; ri < sband->n_bitrates; ri++) {
-			int rate = DIV_ROUND_UP(sband->bitrates[ri].bitrate,
-						5 * (1 << shift));
-			u8 basic = 0;
-			if (!(rates & BIT(ri)))
-				continue;
-
-			if (basic_rates & BIT(ri))
-				basic = 0x80;
-			*pos++ = basic | (u8) rate;
-		}
-	}
-
-	if (ifibss->ie_len) {
-		memcpy(pos, ifibss->ie, ifibss->ie_len);
-		pos += ifibss->ie_len;
-	}
-
-	/* add HT capability and information IEs */
-	if (chandef.width != NL80211_CHAN_WIDTH_20_NOHT &&
-	    chandef.width != NL80211_CHAN_WIDTH_5 &&
-	    chandef.width != NL80211_CHAN_WIDTH_10 &&
-	    sband->ht_cap.ht_supported) {
-		struct ieee80211_sta_ht_cap ht_cap;
-
-		memcpy(&ht_cap, &sband->ht_cap, sizeof(ht_cap));
-		ieee80211_apply_htcap_overrides(sdata, &ht_cap);
-
-		pos = ieee80211_ie_build_ht_cap(pos, &ht_cap, ht_cap.cap);
-		/*
-		 * Note: According to 802.11n-2009 9.13.3.1, HT Protection
-		 * field and RIFS Mode are reserved in IBSS mode, therefore
-		 * keep them at 0
-		 */
-		pos = ieee80211_ie_build_ht_oper(pos, &sband->ht_cap,
-						 &chandef, 0);
-	}
-
-	if (local->hw.queues >= IEEE80211_NUM_ACS) {
-		*pos++ = WLAN_EID_VENDOR_SPECIFIC;
-		*pos++ = 7; /* len */
-		*pos++ = 0x00; /* Microsoft OUI 00:50:F2 */
-		*pos++ = 0x50;
-		*pos++ = 0xf2;
-		*pos++ = 2; /* WME */
-		*pos++ = 0; /* WME info */
-		*pos++ = 1; /* WME ver */
-		*pos++ = 0; /* U-APSD no in use */
-	}
-
-	presp->head_len = pos - presp->head;
-	if (WARN_ON(presp->head_len > frame_len))
-		return;
-
 	rcu_assign_pointer(ifibss->presp, presp);
+	mgmt = (void *)presp->head;
 
 	sdata->vif.bss_conf.enable_beacon = true;
 	sdata->vif.bss_conf.beacon_int = beacon_int;
@@ -890,6 +923,17 @@ static void ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 		ieee80211_rx_bss_put(local, bss);
 		return;
 	}
+
+	/* if a fixed bssid and a fixed freq have been provided create the IBSS
+	 * directly and do not waste time scanning
+	 */
+	if (ifibss->fixed_bssid && ifibss->fixed_channel) {
+		sdata_info(sdata, "Created IBSS using preconfigured BSSID %pM\n",
+			   bssid);
+		ieee80211_sta_create_ibss(sdata);
+		return;
+	}
+
 
 	ibss_dbg(sdata, "sta_find_ibss: did not try to join ibss\n");
 
