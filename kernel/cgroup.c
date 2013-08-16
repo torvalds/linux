@@ -4494,7 +4494,7 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 		struct cgroup_subsys_state *css = css_ar[ss->subsys_id];
 
 		dget(dentry);
-		percpu_ref_get(&css->parent->refcnt);
+		css_get(css->parent);
 	}
 
 	/* hold a ref to the parent's dentry */
