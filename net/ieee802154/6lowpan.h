@@ -193,10 +193,12 @@
 /* Values of fields within the IPHC encoding second byte */
 #define LOWPAN_IPHC_CID		0x80
 
+#define LOWPAN_IPHC_ADDR_00	0x00
+#define LOWPAN_IPHC_ADDR_01	0x01
+#define LOWPAN_IPHC_ADDR_02	0x02
+#define LOWPAN_IPHC_ADDR_03	0x03
+
 #define LOWPAN_IPHC_SAC		0x40
-#define LOWPAN_IPHC_SAM_00	0x00
-#define LOWPAN_IPHC_SAM_01	0x10
-#define LOWPAN_IPHC_SAM_10	0x20
 #define LOWPAN_IPHC_SAM		0x30
 
 #define LOWPAN_IPHC_SAM_BIT	4
