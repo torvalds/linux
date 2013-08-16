@@ -698,6 +698,12 @@ lowpan_alloc_new_frame(struct sk_buff *skb, u16 len, u16 tag)
 	skb_reserve(frame->skb, sizeof(struct ipv6hdr));
 	skb_put(frame->skb, frame->length);
 
+	/* copy the first control block to keep a
+	 * trace of the link-layer addresses in case
+	 * of a link-local compressed address
+	 */
+	memcpy(frame->skb->cb, skb->cb, sizeof(skb->cb));
+
 	init_timer(&frame->timer);
 	/* time out is the same as for ipv6 - 60 sec */
 	frame->timer.expires = jiffies + LOWPAN_FRAG_TIMEOUT;
