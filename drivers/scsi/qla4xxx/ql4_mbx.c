@@ -53,7 +53,7 @@ static int qla4xxx_is_intr_poll_mode(struct scsi_qla_host *ha)
 {
 	int rval = 1;
 
-	if (is_qla8032(ha)) {
+	if (is_qla8032(ha) || is_qla8042(ha)) {
 		if (test_bit(AF_IRQ_ATTACHED, &ha->flags) &&
 		    test_bit(AF_83XX_MBOX_INTR_ON, &ha->flags))
 			rval = 0;
@@ -224,7 +224,7 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 			qla4_82xx_wr_32(ha, QLA82XX_CRB_NIU + 0x98,
 					CRB_NIU_XG_PAUSE_CTL_P0 |
 					CRB_NIU_XG_PAUSE_CTL_P1);
-		} else if (is_qla8032(ha)) {
+		} else if (is_qla8032(ha) || is_qla8042(ha)) {
 			ql4_printk(KERN_INFO, ha, " %s: disabling pause transmit on port 0 & 1.\n",
 				   __func__);
 			qla4_83xx_disable_pause(ha);

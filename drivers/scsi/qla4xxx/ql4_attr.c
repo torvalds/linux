@@ -83,7 +83,7 @@ qla4_8xxx_sysfs_write_fw_dump(struct file *filep, struct kobject *kobj,
 			qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DEV_STATE,
 					    QLA8XXX_DEV_NEED_RESET);
 			if (is_qla8022(ha) ||
-			    (is_qla8032(ha) &&
+			    ((is_qla8032(ha) || is_qla8042(ha)) &&
 			     qla4_83xx_can_perform_reset(ha))) {
 				set_bit(AF_8XXX_RST_OWNER, &ha->flags);
 				set_bit(AF_FW_RECOVERY, &ha->flags);

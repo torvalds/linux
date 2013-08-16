@@ -1473,9 +1473,9 @@ int qla4_83xx_isp_reset(struct scsi_qla_host *ha)
 				  __func__));
 	}
 
-	/* For ISP8324, Reset owner is NIC, iSCSI or FCOE based on priority
-	 * and which drivers are present. Unlike ISP8022, the function setting
-	 * NEED_RESET, may not be the Reset owner. */
+	/* For ISP8324 and ISP8042, Reset owner is NIC, iSCSI or FCOE based on
+	 * priority and which drivers are present. Unlike ISP8022, the function
+	 * setting NEED_RESET, may not be the Reset owner. */
 	if (qla4_83xx_can_perform_reset(ha))
 		set_bit(AF_8XXX_RST_OWNER, &ha->flags);
 

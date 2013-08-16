@@ -588,7 +588,7 @@ static int qla4_83xx_loopback_in_progress(struct scsi_qla_host *ha)
 {
 	int rval = 1;
 
-	if (is_qla8032(ha)) {
+	if (is_qla8032(ha) || is_qla8042(ha)) {
 		if ((ha->idc_info.info2 & ENABLE_INTERNAL_LOOPBACK) ||
 		    (ha->idc_info.info2 & ENABLE_EXTERNAL_LOOPBACK)) {
 			DEBUG2(ql4_printk(KERN_INFO, ha,
@@ -621,7 +621,7 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 	uint32_t mbox_sts[MBOX_AEN_REG_COUNT];
 	__le32 __iomem *mailbox_out;
 
-	if (is_qla8032(ha))
+	if (is_qla8032(ha) || is_qla8042(ha))
 		mailbox_out = &ha->qla4_83xx_reg->mailbox_out[0];
 	else if (is_qla8022(ha))
 		mailbox_out = &ha->qla4_82xx_reg->mailbox_out[0];
@@ -665,7 +665,8 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 			qla4xxx_dump_registers(ha);
 
 			if ((is_qla8022(ha) && ql4xdontresethba) ||
-			    (is_qla8032(ha) && qla4_83xx_idc_dontreset(ha))) {
+			    ((is_qla8032(ha) || is_qla8042(ha)) &&
+			     qla4_83xx_idc_dontreset(ha))) {
 				DEBUG2(printk("scsi%ld: %s:Don't Reset HBA\n",
 				    ha->host_no, __func__));
 			} else {
@@ -836,7 +837,7 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 		case MBOX_ASTS_IDC_REQUEST_NOTIFICATION:
 		{
 			uint32_t opcode;
-			if (is_qla8032(ha)) {
+			if (is_qla8032(ha) || is_qla8042(ha)) {
 				DEBUG2(ql4_printk(KERN_INFO, ha,
 						  "scsi%ld: AEN %04x, mbox_sts[1]=%08x, mbox_sts[2]=%08x, mbox_sts[3]=%08x, mbox_sts[4]=%08x\n",
 						  ha->host_no, mbox_sts[0],
@@ -858,7 +859,7 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 		}
 
 		case MBOX_ASTS_IDC_COMPLETE:
-			if (is_qla8032(ha)) {
+			if (is_qla8032(ha) || is_qla8042(ha)) {
 				DEBUG2(ql4_printk(KERN_INFO, ha,
 						  "scsi%ld: AEN %04x, mbox_sts[1]=%08x, mbox_sts[2]=%08x, mbox_sts[3]=%08x, mbox_sts[4]=%08x\n",
 						  ha->host_no, mbox_sts[0],
@@ -1297,7 +1298,7 @@ qla4_8xxx_default_intr_handler(int irq, void *dev_id)
 	uint32_t intr_status;
 	uint8_t reqs_count = 0;
 
-	if (is_qla8032(ha)) {
+	if (is_qla8032(ha) || is_qla8042(ha)) {
 		qla4_83xx_mailbox_intr_handler(irq, dev_id);
 	} else {
 		spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -1334,7 +1335,7 @@ qla4_8xxx_msix_rsp_q(int irq, void *dev_id)
 	uint32_t ival = 0;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	if (is_qla8032(ha)) {
+	if (is_qla8032(ha) || is_qla8042(ha)) {
 		ival = readl(&ha->qla4_83xx_reg->iocb_int_mask);
 		if (ival == 0) {
 			ql4_printk(KERN_INFO, ha, "%s: It is a spurious iocb interrupt!\n",
@@ -1425,10 +1426,10 @@ int qla4xxx_request_irqs(struct scsi_qla_host *ha)
 		goto try_intx;
 
 	if (ql4xenablemsix == 2) {
-		/* Note: MSI Interrupts not supported for ISP8324 */
-		if (is_qla8032(ha)) {
-			ql4_printk(KERN_INFO, ha, "%s: MSI Interrupts not supported for ISP8324, Falling back-to INTx mode\n",
-				   __func__);
+		/* Note: MSI Interrupts not supported for ISP8324 and ISP8042 */
+		if (is_qla8032(ha) || is_qla8042(ha)) {
+			ql4_printk(KERN_INFO, ha, "%s: MSI Interrupts not supported for ISP%04x, Falling back-to INTx mode\n",
+				   __func__, ha->pdev->device);
 			goto try_intx;
 		}
 		goto try_msi;
@@ -1444,9 +1445,9 @@ int qla4xxx_request_irqs(struct scsi_qla_host *ha)
 		    "MSI-X: Enabled (0x%X).\n", ha->revision_id));
 		goto irq_attached;
 	} else {
-		if (is_qla8032(ha)) {
-			ql4_printk(KERN_INFO, ha, "%s: ISP8324: MSI-X: Falling back-to INTx mode. ret = %d\n",
-				   __func__, ret);
+		if (is_qla8032(ha) || is_qla8042(ha)) {
+			ql4_printk(KERN_INFO, ha, "%s: ISP%04x: MSI-X: Falling back-to INTx mode. ret = %d\n",
+				   __func__, ha->pdev->device, ret);
 			goto try_intx;
 		}
 	}

@@ -64,6 +64,10 @@
 #define PCI_DEVICE_ID_QLOGIC_ISP8324	0x8032
 #endif
 
+#ifndef PCI_DEVICE_ID_QLOGIC_ISP8042
+#define PCI_DEVICE_ID_QLOGIC_ISP8042	0x8042
+#endif
+
 #define ISP4XXX_PCI_FN_1	0x1
 #define ISP4XXX_PCI_FN_2	0x3
 
@@ -778,7 +782,8 @@ struct scsi_qla_host {
 	uint32_t *reg_tbl;
 	struct qla4_83xx_reset_template reset_tmplt;
 	struct device_reg_83xx  __iomem *qla4_83xx_reg; /* Base I/O address
-							   for ISP8324 */
+							   for ISP8324 and
+							   and ISP8042 */
 	uint32_t pf_bit;
 	struct qla4_83xx_idc_information idc_info;
 };
@@ -848,9 +853,14 @@ static inline int is_qla8032(struct scsi_qla_host *ha)
 	return ha->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP8324;
 }
 
+static inline int is_qla8042(struct scsi_qla_host *ha)
+{
+	return ha->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP8042;
+}
+
 static inline int is_qla80XX(struct scsi_qla_host *ha)
 {
-	return is_qla8022(ha) || is_qla8032(ha);
+	return is_qla8022(ha) || is_qla8032(ha) || is_qla8042(ha);
 }
 
 static inline int is_aer_supported(struct scsi_qla_host *ha)

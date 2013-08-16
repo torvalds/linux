@@ -1514,11 +1514,11 @@ qla4_8xxx_set_drv_active(struct scsi_qla_host *ha)
 	drv_active = qla4_8xxx_rd_direct(ha, QLA8XXX_CRB_DRV_ACTIVE);
 
 	/*
-	 * For ISP8324, drv_active register has 1 bit per function,
+	 * For ISP8324 and ISP8042, drv_active register has 1 bit per function,
 	 * shift 1 by func_num to set a bit for the function.
 	 * For ISP8022, drv_active has 4 bits per function
 	 */
-	if (is_qla8032(ha))
+	if (is_qla8032(ha) || is_qla8042(ha))
 		drv_active |= (1 << ha->func_num);
 	else
 		drv_active |= (1 << (ha->func_num * 4));
@@ -1536,11 +1536,11 @@ qla4_8xxx_clear_drv_active(struct scsi_qla_host *ha)
 	drv_active = qla4_8xxx_rd_direct(ha, QLA8XXX_CRB_DRV_ACTIVE);
 
 	/*
-	 * For ISP8324, drv_active register has 1 bit per function,
+	 * For ISP8324 and ISP8042, drv_active register has 1 bit per function,
 	 * shift 1 by func_num to set a bit for the function.
 	 * For ISP8022, drv_active has 4 bits per function
 	 */
-	if (is_qla8032(ha))
+	if (is_qla8032(ha) || is_qla8042(ha))
 		drv_active &= ~(1 << (ha->func_num));
 	else
 		drv_active &= ~(1 << (ha->func_num * 4));
@@ -1559,11 +1559,11 @@ inline int qla4_8xxx_need_reset(struct scsi_qla_host *ha)
 	drv_state = qla4_8xxx_rd_direct(ha, QLA8XXX_CRB_DRV_STATE);
 
 	/*
-	 * For ISP8324, drv_active register has 1 bit per function,
+	 * For ISP8324 and ISP8042, drv_active register has 1 bit per function,
 	 * shift 1 by func_num to set a bit for the function.
 	 * For ISP8022, drv_active has 4 bits per function
 	 */
-	if (is_qla8032(ha))
+	if (is_qla8032(ha) || is_qla8042(ha))
 		rval = drv_state & (1 << ha->func_num);
 	else
 		rval = drv_state & (1 << (ha->func_num * 4));
@@ -1581,11 +1581,11 @@ void qla4_8xxx_set_rst_ready(struct scsi_qla_host *ha)
 	drv_state = qla4_8xxx_rd_direct(ha, QLA8XXX_CRB_DRV_STATE);
 
 	/*
-	 * For ISP8324, drv_active register has 1 bit per function,
+	 * For ISP8324 and ISP8042, drv_active register has 1 bit per function,
 	 * shift 1 by func_num to set a bit for the function.
 	 * For ISP8022, drv_active has 4 bits per function
 	 */
-	if (is_qla8032(ha))
+	if (is_qla8032(ha) || is_qla8042(ha))
 		drv_state |= (1 << ha->func_num);
 	else
 		drv_state |= (1 << (ha->func_num * 4));
@@ -1602,11 +1602,11 @@ void qla4_8xxx_clear_rst_ready(struct scsi_qla_host *ha)
 	drv_state = qla4_8xxx_rd_direct(ha, QLA8XXX_CRB_DRV_STATE);
 
 	/*
-	 * For ISP8324, drv_active register has 1 bit per function,
+	 * For ISP8324 and ISP8042, drv_active register has 1 bit per function,
 	 * shift 1 by func_num to set a bit for the function.
 	 * For ISP8022, drv_active has 4 bits per function
 	 */
-	if (is_qla8032(ha))
+	if (is_qla8032(ha) || is_qla8042(ha))
 		drv_state &= ~(1 << ha->func_num);
 	else
 		drv_state &= ~(1 << (ha->func_num * 4));
@@ -1624,11 +1624,11 @@ qla4_8xxx_set_qsnt_ready(struct scsi_qla_host *ha)
 	qsnt_state = qla4_8xxx_rd_direct(ha, QLA8XXX_CRB_DRV_STATE);
 
 	/*
-	 * For ISP8324, drv_active register has 1 bit per function,
+	 * For ISP8324 and ISP8042, drv_active register has 1 bit per function,
 	 * shift 1 by func_num to set a bit for the function.
 	 * For ISP8022, drv_active has 4 bits per function.
 	 */
-	if (is_qla8032(ha))
+	if (is_qla8032(ha) || is_qla8042(ha))
 		qsnt_state |= (1 << ha->func_num);
 	else
 		qsnt_state |= (2 << (ha->func_num * 4));
@@ -2398,7 +2398,7 @@ static int qla4_8xxx_collect_md_data(struct scsi_qla_host *ha)
 					(((uint8_t *)ha->fw_dump_tmplt_hdr) +
 					 tmplt_hdr->first_entry_offset);
 
-	if (is_qla8032(ha))
+	if (is_qla8032(ha) || is_qla8042(ha))
 		tmplt_hdr->saved_state_array[QLA83XX_SS_OCM_WNDREG_INDEX] =
 					tmplt_hdr->ocm_window_reg[ha->func_num];
 
@@ -2455,7 +2455,7 @@ static int qla4_8xxx_collect_md_data(struct scsi_qla_host *ha)
 			if (is_qla8022(ha)) {
 				qla4_82xx_minidump_process_rdrom(ha, entry_hdr,
 								 &data_ptr);
-			} else if (is_qla8032(ha)) {
+			} else if (is_qla8032(ha) || is_qla8042(ha)) {
 				rval = qla4_83xx_minidump_process_rdrom(ha,
 								    entry_hdr,
 								    &data_ptr);
@@ -2496,7 +2496,7 @@ static int qla4_8xxx_collect_md_data(struct scsi_qla_host *ha)
 							 &data_ptr);
 			break;
 		case QLA83XX_POLLRD:
-			if (!is_qla8032(ha)) {
+			if (is_qla8022(ha)) {
 				qla4_8xxx_mark_entry_skipped(ha, entry_hdr, i);
 				break;
 			}
@@ -2506,7 +2506,7 @@ static int qla4_8xxx_collect_md_data(struct scsi_qla_host *ha)
 				qla4_8xxx_mark_entry_skipped(ha, entry_hdr, i);
 			break;
 		case QLA83XX_RDMUX2:
-			if (!is_qla8032(ha)) {
+			if (is_qla8022(ha)) {
 				qla4_8xxx_mark_entry_skipped(ha, entry_hdr, i);
 				break;
 			}
@@ -2514,7 +2514,7 @@ static int qla4_8xxx_collect_md_data(struct scsi_qla_host *ha)
 							&data_ptr);
 			break;
 		case QLA83XX_POLLRDMWR:
-			if (!is_qla8032(ha)) {
+			if (is_qla8022(ha)) {
 				qla4_8xxx_mark_entry_skipped(ha, entry_hdr, i);
 				break;
 			}
@@ -2642,10 +2642,10 @@ dev_initialize:
 			    QLA8XXX_DEV_INITIALIZING);
 
 	/*
-	 * For ISP8324, if IDC_CTRL GRACEFUL_RESET_BIT1 is set, reset it after
-	 * device goes to INIT state.
+	 * For ISP8324 and ISP8042, if IDC_CTRL GRACEFUL_RESET_BIT1 is set,
+	 * reset it after device goes to INIT state.
 	 */
-	if (is_qla8032(ha)) {
+	if (is_qla8032(ha) || is_qla8042(ha)) {
 		idc_ctrl = qla4_83xx_rd_reg(ha, QLA83XX_IDC_DRV_CTRL);
 		if (idc_ctrl & GRACEFUL_RESET_BIT1) {
 			qla4_83xx_wr_reg(ha, QLA83XX_IDC_DRV_CTRL,
@@ -2846,7 +2846,7 @@ int qla4_8xxx_update_idc_reg(struct scsi_qla_host *ha)
 	 * If we are the first driver to load and
 	 * ql4xdontresethba is not set, clear IDC_CTRL BIT0.
 	 */
-	if (is_qla8032(ha)) {
+	if (is_qla8032(ha) || is_qla8042(ha)) {
 		drv_active = qla4_8xxx_rd_direct(ha, QLA8XXX_CRB_DRV_ACTIVE);
 		if ((drv_active == (1 << ha->func_num)) && !ql4xdontresethba)
 			qla4_83xx_clear_idc_dontreset(ha);
@@ -2854,7 +2854,7 @@ int qla4_8xxx_update_idc_reg(struct scsi_qla_host *ha)
 
 	if (is_qla8022(ha)) {
 		qla4_82xx_set_idc_ver(ha);
-	} else if (is_qla8032(ha)) {
+	} else if (is_qla8032(ha) || is_qla8042(ha)) {
 		rval = qla4_83xx_set_idc_ver(ha);
 		if (rval == QLA_ERROR)
 			qla4_8xxx_clear_drv_active(ha);
@@ -2922,11 +2922,11 @@ int qla4_8xxx_device_state_handler(struct scsi_qla_host *ha)
 			break;
 		case QLA8XXX_DEV_NEED_RESET:
 			/*
-			 * For ISP8324, if NEED_RESET is set by any driver,
-			 * it should be honored, irrespective of IDC_CTRL
-			 * DONTRESET_BIT0
+			 * For ISP8324 and ISP8042, if NEED_RESET is set by any
+			 * driver, it should be honored, irrespective of
+			 * IDC_CTRL DONTRESET_BIT0
 			 */
-			if (is_qla8032(ha)) {
+			if (is_qla8032(ha) || is_qla8042(ha)) {
 				qla4_83xx_need_reset_handler(ha);
 			} else if (is_qla8022(ha)) {
 				if (!ql4xdontresethba) {
@@ -2976,7 +2976,7 @@ int qla4_8xxx_load_risc(struct scsi_qla_host *ha)
 	int retval;
 
 	/* clear the interrupt */
-	if (is_qla8032(ha)) {
+	if (is_qla8032(ha) || is_qla8042(ha)) {
 		writel(0, &ha->qla4_83xx_reg->risc_intr);
 		readl(&ha->qla4_83xx_reg->risc_intr);
 	} else if (is_qla8022(ha)) {
@@ -3094,7 +3094,7 @@ qla4_8xxx_get_flt_info(struct scsi_qla_host *ha, uint32_t flt_addr)
 	if (is_qla8022(ha)) {
 		qla4_82xx_read_optrom_data(ha, (uint8_t *)ha->request_ring,
 					   flt_addr << 2, OPTROM_BURST_SIZE);
-	} else if (is_qla8032(ha)) {
+	} else if (is_qla8032(ha) || is_qla8042(ha)) {
 		status = qla4_83xx_flash_read_u32(ha, flt_addr << 2,
 						  (uint8_t *)ha->request_ring,
 						  0x400);
@@ -3326,7 +3326,7 @@ qla4_8xxx_get_flash_info(struct scsi_qla_host *ha)
 	if (is_qla8022(ha)) {
 		qla4_82xx_get_fdt_info(ha);
 		qla4_82xx_get_idc_param(ha);
-	} else if (is_qla8032(ha)) {
+	} else if (is_qla8032(ha) || is_qla8042(ha)) {
 		qla4_83xx_get_idc_param(ha);
 	}
 
@@ -3436,7 +3436,7 @@ int qla4_8xxx_get_sys_info(struct scsi_qla_host *ha)
 	}
 
 	/* Make sure we receive the minimum required data to cache internally */
-	if ((is_qla8032(ha) ? mbox_sts[3] : mbox_sts[4]) <
+	if (((is_qla8032(ha) || is_qla8042(ha)) ? mbox_sts[3] : mbox_sts[4]) <
 	    offsetof(struct mbx_sys_info, reserved)) {
 		DEBUG2(printk("scsi%ld: %s: GET_SYS_INFO data receive"
 		    " error (%x)\n", ha->host_no, __func__, mbox_sts[4]));
