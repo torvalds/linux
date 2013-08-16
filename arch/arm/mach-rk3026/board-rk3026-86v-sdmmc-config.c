@@ -57,7 +57,7 @@ int rk31sdk_get_sdmmc0_pin_io_voltage(void)
 /*
 * define the card-detect-pin.
 */
-#define RK29SDK_SD_CARD_DETECT_N                RK30_PIN3_PB0  //According to your own project to set the value of card-detect-pin.
+#define RK29SDK_SD_CARD_DETECT_N                RK30_PIN2_PA7  //According to your own project to set the value of card-detect-pin.
 #define RK29SDK_SD_CARD_INSERT_LEVEL            GPIO_LOW       // set the voltage of insert-card. Please pay attention to the default setting.
 
 /*
