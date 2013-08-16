@@ -1011,10 +1011,13 @@ void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc)
 EXPORT_SYMBOL_GPL(rt2800_write_beacon);
 
 static inline void rt2800_clear_beacon_register(struct rt2x00_dev *rt2x00dev,
-						unsigned int beacon_base)
+						unsigned int index)
 {
 	int i;
 	const int txwi_desc_size = rt2x00dev->bcn->winfo_size;
+	unsigned int beacon_base;
+
+	beacon_base = HW_BEACON_BASE(index);
 
 	/*
 	 * For the Beacon base registers we only need to clear
@@ -1041,8 +1044,7 @@ void rt2800_clear_beacon(struct queue_entry *entry)
 	/*
 	 * Clear beacon.
 	 */
-	rt2800_clear_beacon_register(rt2x00dev,
-				     HW_BEACON_BASE(entry->entry_idx));
+	rt2800_clear_beacon_register(rt2x00dev, entry->entry_idx);
 
 	/*
 	 * Enabled beaconing again.
@@ -4803,14 +4805,8 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Clear all beacons
 	 */
-	rt2800_clear_beacon_register(rt2x00dev, HW_BEACON_BASE0);
-	rt2800_clear_beacon_register(rt2x00dev, HW_BEACON_BASE1);
-	rt2800_clear_beacon_register(rt2x00dev, HW_BEACON_BASE2);
-	rt2800_clear_beacon_register(rt2x00dev, HW_BEACON_BASE3);
-	rt2800_clear_beacon_register(rt2x00dev, HW_BEACON_BASE4);
-	rt2800_clear_beacon_register(rt2x00dev, HW_BEACON_BASE5);
-	rt2800_clear_beacon_register(rt2x00dev, HW_BEACON_BASE6);
-	rt2800_clear_beacon_register(rt2x00dev, HW_BEACON_BASE7);
+	for (i = 0; i < 8; i++)
+		rt2800_clear_beacon_register(rt2x00dev, i);
 
 	if (rt2x00_is_usb(rt2x00dev)) {
 		rt2800_register_read(rt2x00dev, US_CYC_CNT, &reg);
