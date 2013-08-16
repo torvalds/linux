@@ -2393,7 +2393,6 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 	int check_caps = 0;
 	int wake = 0;
 	int writeback = 0;
-	int revoked_rdcache = 0;
 	int queue_invalidate = 0;
 	int deleted_inode = 0;
 
@@ -2410,9 +2409,7 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 	if (((cap->issued & ~newcaps) & CEPH_CAP_FILE_CACHE) &&
 	    (newcaps & CEPH_CAP_FILE_LAZYIO) == 0 &&
 	    !ci->i_wrbuffer_ref) {
-		if (try_nonblocking_invalidate(inode) == 0) {
-			revoked_rdcache = 1;
-		} else {
+		if (try_nonblocking_invalidate(inode)) {
 			/* there were locked pages.. invalidate later
 			   in a separate thread. */
 			if (ci->i_rdcache_revoking != ci->i_rdcache_gen) {
