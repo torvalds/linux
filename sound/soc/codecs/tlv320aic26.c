@@ -119,6 +119,22 @@ static int aic26_reg_write(struct snd_soc_codec *codec, unsigned int reg,
 	return 0;
 }
 
+static const struct snd_soc_dapm_widget tlv320aic26_dapm_widgets[] = {
+SND_SOC_DAPM_INPUT("MICIN"),
+SND_SOC_DAPM_INPUT("AUX"),
+
+SND_SOC_DAPM_OUTPUT("HPL"),
+SND_SOC_DAPM_OUTPUT("HPR"),
+};
+
+static const struct snd_soc_dapm_route tlv320aic26_dapm_routes[] = {
+	{ "Capture", NULL, "MICIN" },
+	{ "Capture", NULL, "AUX" },
+
+	{ "HPL", NULL, "Playback" },
+	{ "HPR", NULL, "Playback" },
+};
+
 /* ---------------------------------------------------------------------
  * Digital Audio Interface Operations
  */
@@ -402,6 +418,10 @@ static struct snd_soc_codec_driver aic26_soc_codec_dev = {
 	.write = aic26_reg_write,
 	.reg_cache_size = AIC26_NUM_REGS,
 	.reg_word_size = sizeof(u16),
+	.dapm_widgets = tlv320aic26_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(tlv320aic26_dapm_widgets),
+	.dapm_routes = tlv320aic26_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(tlv320aic26_dapm_routes),
 };
 
 /* ---------------------------------------------------------------------
