@@ -278,9 +278,9 @@ bool r600_dynamicpm_enabled(struct radeon_device *rdev)
 void r600_enable_sclk_control(struct radeon_device *rdev, bool enable)
 {
 	if (enable)
-		WREG32_P(GENERAL_PWRMGT, 0, ~SCLK_PWRMGT_OFF);
+		WREG32_P(SCLK_PWRMGT_CNTL, 0, ~SCLK_PWRMGT_OFF);
 	else
-		WREG32_P(GENERAL_PWRMGT, SCLK_PWRMGT_OFF, ~SCLK_PWRMGT_OFF);
+		WREG32_P(SCLK_PWRMGT_CNTL, SCLK_PWRMGT_OFF, ~SCLK_PWRMGT_OFF);
 }
 
 void r600_enable_mclk_control(struct radeon_device *rdev, bool enable)

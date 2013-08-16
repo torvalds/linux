@@ -532,11 +532,11 @@ config BLK_DEV_RBD
 	  If unsure, say N.
 
 config BLK_DEV_RSXX
-	tristate "IBM FlashSystem 70/80 PCIe SSD Device Driver"
+	tristate "IBM Flash Adapter 900GB Full Height PCIe Device Driver"
 	depends on PCI
 	help
 	  Device driver for IBM's high speed PCIe SSD
-	  storage devices: FlashSystem-70 and FlashSystem-80.
+	  storage device: Flash Adapter 900GB Full Height.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rsxx.

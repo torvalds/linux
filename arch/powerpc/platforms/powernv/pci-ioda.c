@@ -1266,7 +1266,7 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np,
 		opal_pci_set_pe(phb_id, 0, 0, 7, 1, 1 , OPAL_MAP_PE);
 }
 
-void pnv_pci_init_ioda2_phb(struct device_node *np)
+void __init pnv_pci_init_ioda2_phb(struct device_node *np)
 {
 	pnv_pci_init_ioda_phb(np, 0, PNV_PHB_IODA2);
 }

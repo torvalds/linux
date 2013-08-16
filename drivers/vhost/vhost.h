@@ -103,14 +103,8 @@ struct vhost_virtqueue {
 	struct iovec iov[UIO_MAXIOV];
 	struct iovec *indirect;
 	struct vring_used_elem *heads;
-	/* We use a kind of RCU to access private pointer.
-	 * All readers access it from worker, which makes it possible to
-	 * flush the vhost_work instead of synchronize_rcu. Therefore readers do
-	 * not need to call rcu_read_lock/rcu_read_unlock: the beginning of
-	 * vhost_work execution acts instead of rcu_read_lock() and the end of
-	 * vhost_work execution acts instead of rcu_read_unlock().
-	 * Writers use virtqueue mutex. */
-	void __rcu *private_data;
+	/* Protected by virtqueue mutex. */
+	void *private_data;
 	/* Log write descriptors */
 	void __user *log_base;
 	struct vhost_log *log;

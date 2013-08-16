@@ -25,6 +25,7 @@
 #include <mach/regs-pmu.h>
 
 #include <plat/cpu.h>
+#include <plat/pm.h>
 
 #include "common.h"
 
