@@ -44,10 +44,11 @@ struct tty_dev {
 	u8 minor[2];
 };
 
-struct tty_str {
+struct gdm {
 	struct tty_dev *tty_dev;
-	int tty_drv_index;
 	struct tty_port port;
+	unsigned int index;
+	unsigned int minor;
 };
 
 int register_lte_tty_driver(void);
