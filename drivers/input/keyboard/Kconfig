@@ -581,20 +581,23 @@ config KEYBOARD_W90P910
 	  module will be called w90p910_keypad.
 
 config KEYBOARD_SUN4IKEYPAD
-        tristate "Sun4i MATRIX Keypad support"
-        help
-          Say Y here to enable the matrix keypad on evaluation board
-          based on sun4i.
+	tristate "sunxi matrix keypad support"
+	help
+	  Say Y here to enable matrix keypad support for sunxi devices using
+	  the same keypad wiring as the sunxi evaluation boards.
 
-          To compile this driver as a module, choose M here: the
-          module will be called sun4i.
-
+	  To compile this driver as a module, choose M here: the
+	  module will be called sun4i-keypad.
 
 config KEYBOARD_SUN4I_KEYBOARD
-        tristate "SUN4I KEY BOARD support"
-        help
-          Say Y here to enable the keyboard, support 7 keys.
-          based on verify board.      
+	tristate "sunxi tablet keys on adc0 support"
+	help
+	  Say Y here to enable support for tablet keys (vol up/down, menu,
+	  home, search, enter, esc.), wired to adc0 through a resistor
+	  array, such as used on the sunxi evaluation boards.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sun4i-keyboard.
 
 config KEYBOARD_HV2605_KEYBOARD
         tristate "SUN4I HV2605 KEY BOARD support"
