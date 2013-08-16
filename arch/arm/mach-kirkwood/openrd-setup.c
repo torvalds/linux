@@ -158,7 +158,8 @@ static void __init openrd_init(void)
 	kirkwood_mpp_conf(openrd_mpp_config);
 
 	kirkwood_uart0_init();
-	kirkwood_nand_init(ARRAY_AND_SIZE(openrd_nand_parts), 25);
+	kirkwood_nand_init(openrd_nand_parts, ARRAY_SIZE(openrd_nand_parts),
+			   25);
 
 	kirkwood_ehci_init();
 

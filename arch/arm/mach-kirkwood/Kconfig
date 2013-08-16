@@ -12,41 +12,6 @@ config MACH_D2NET_V2
 	  Say 'Y' here if you want your kernel to support the
 	  LaCie d2 Network v2 NAS.
 
-config MACH_DOCKSTAR
-	bool "Seagate FreeAgent DockStar"
-	select KIRKWOOD_LEGACY
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  Seagate FreeAgent DockStar.
-
-config MACH_ESATA_SHEEVAPLUG
-	bool "Marvell eSATA SheevaPlug Reference Board"
-	select KIRKWOOD_LEGACY
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  Marvell eSATA SheevaPlug Reference Board.
-
-config MACH_GURUPLUG
-	bool "Marvell GuruPlug Reference Board"
-	select KIRKWOOD_LEGACY
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  Marvell GuruPlug Reference Board.
-
-config MACH_INETSPACE_V2
-	bool "LaCie Internet Space v2 NAS Board"
-	select KIRKWOOD_LEGACY
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  LaCie Internet Space v2 NAS.
-
-config MACH_MV88F6281GTW_GE
-	bool "Marvell 88F6281 GTW GE Board"
-	select KIRKWOOD_LEGACY
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  Marvell 88F6281 GTW GE Board.
-
 config MACH_NET2BIG_V2
 	bool "LaCie 2Big Network v2 NAS Board"
 	select KIRKWOOD_LEGACY
@@ -60,20 +25,6 @@ config MACH_NET5BIG_V2
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  LaCie 5Big Network v2 NAS.
-
-config MACH_NETSPACE_MAX_V2
-	bool "LaCie Network Space Max v2 NAS Board"
-	select KIRKWOOD_LEGACY
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  LaCie Network Space Max v2 NAS.
-
-config MACH_NETSPACE_V2
-	bool "LaCie Network Space v2 NAS Board"
-	select KIRKWOOD_LEGACY
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  LaCie Network Space v2 NAS.
 
 config MACH_OPENRD
 	select KIRKWOOD_LEGACY
@@ -114,13 +65,6 @@ config MACH_RD88F6281
 	  Say 'Y' here if you want your kernel to support the
 	  Marvell RD-88F6281 Reference Board.
 
-config MACH_SHEEVAPLUG
-	bool "Marvell SheevaPlug Reference Board"
-	select KIRKWOOD_LEGACY
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  Marvell SheevaPlug Reference Board.
-
 config MACH_T5325
 	bool "HP t5325 Thin Client"
 	select KIRKWOOD_LEGACY
@@ -149,6 +93,7 @@ comment "Device tree entries"
 config ARCH_KIRKWOOD_DT
 	bool "Marvell Kirkwood Flattened Device Tree"
 	select KIRKWOOD_CLK
+	select OF_IRQ
 	select ORION_IRQCHIP
 	select ORION_TIMER
 	select POWER_SUPPLY
@@ -161,13 +106,12 @@ config ARCH_KIRKWOOD_DT
 	  Say 'Y' here if you want your kernel to support the
 	  Marvell Kirkwood using flattened device tree.
 
-config MACH_DLINK_KIRKWOOD_DT
-	bool "D-Link Kirkwood-based NAS (Flattened Device Tree)"
-	select ARCH_KIRKWOOD_DT
+config MACH_MV88F6281GTW_GE_DT
+	bool "Marvell 88F6281 GTW GE Board (Flattened Device Tree)"
+	depends on ARCH_KIRKWOOD_DT
 	help
 	  Say 'Y' here if you want your kernel to support the
-	  Kirkwood-based D-Link NASes such as DNS-320 & DNS-325,
-	  using Flattened Device Tree.
+	  Marvell 88F6281 GTW GE Board (Flattened Device Tree).
 
 endmenu
 

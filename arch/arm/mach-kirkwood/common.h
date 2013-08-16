@@ -59,10 +59,10 @@ void kirkwood_restart(enum reboot_mode, const char *);
 void kirkwood_clk_init(void);
 
 /* board init functions for boards not fully converted to fdt */
-#ifdef CONFIG_MACH_DLINK_KIRKWOOD_DT
-void dnskw_init(void);
+#ifdef CONFIG_MACH_MV88F6281GTW_GE_DT
+void mv88f6281gtw_ge_init(void);
 #else
-static inline void dnskw_init(void) {};
+static inline void mv88f6281gtw_ge_init(void) {};
 #endif
 
 /* early init functions not converted to fdt yet */
