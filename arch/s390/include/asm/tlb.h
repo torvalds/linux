@@ -32,7 +32,7 @@ struct mmu_gather {
 	struct mm_struct *mm;
 	struct mmu_table_batch *batch;
 	unsigned int fullmm;
-	unsigned long start, unsigned long end;
+	unsigned long start, end;
 };
 
 struct mmu_table_batch {
