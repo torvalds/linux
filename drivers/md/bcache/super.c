@@ -761,11 +761,10 @@ static int bcache_device_init(struct bcache_device *d, unsigned block_size,
 	struct request_queue *q;
 	size_t n;
 
-	if (!d->stripe_size_bits)
-		d->stripe_size_bits = 31;
+	if (!d->stripe_size)
+		d->stripe_size = 1 << 31;
 
-	d->nr_stripes = round_up(sectors, 1 << d->stripe_size_bits) >>
-		d->stripe_size_bits;
+	d->nr_stripes = DIV_ROUND_UP_ULL(sectors, d->stripe_size);
 
 	if (!d->nr_stripes || d->nr_stripes > SIZE_MAX / sizeof(atomic_t))
 		return -ENOMEM;

@@ -437,7 +437,7 @@ struct bcache_device {
 	int			flush_done;
 
 	uint64_t		nr_stripes;
-	unsigned		stripe_size_bits;
+	unsigned		stripe_size;
 	atomic_t		*stripe_sectors_dirty;
 
 	unsigned long		sectors_dirty_last;

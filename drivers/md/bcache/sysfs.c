@@ -157,7 +157,7 @@ SHOW(__bch_cached_dev)
 	sysfs_hprint(dirty_data,
 		     bcache_dev_sectors_dirty(&dc->disk) << 9);
 
-	sysfs_hprint(stripe_size,	(1 << dc->disk.stripe_size_bits) << 9);
+	sysfs_hprint(stripe_size,	dc->disk.stripe_size << 9);
 	var_printf(partial_stripes_expensive,	"%u");
 
 	var_printf(sequential_merge,	"%i");

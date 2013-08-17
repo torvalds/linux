@@ -18,16 +18,18 @@ static inline bool bcache_dev_stripe_dirty(struct bcache_device *d,
 					   uint64_t offset,
 					   unsigned nr_sectors)
 {
-	uint64_t stripe = offset >> d->stripe_size_bits;
+	uint64_t stripe = offset;
+
+	do_div(stripe, d->stripe_size);
 
 	while (1) {
 		if (atomic_read(d->stripe_sectors_dirty + stripe))
 			return true;
 
-		if (nr_sectors <= 1 << d->stripe_size_bits)
+		if (nr_sectors <= d->stripe_size)
 			return false;
 
-		nr_sectors -= 1 << d->stripe_size_bits;
+		nr_sectors -= d->stripe_size;
 		stripe++;
 	}
 }

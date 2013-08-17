@@ -114,25 +114,25 @@ static bool dirty_pred(struct keybuf *buf, struct bkey *k)
 
 static bool dirty_full_stripe_pred(struct keybuf *buf, struct bkey *k)
 {
-	uint64_t stripe;
+	uint64_t stripe = KEY_START(k);
 	unsigned nr_sectors = KEY_SIZE(k);
 	struct cached_dev *dc = container_of(buf, struct cached_dev,
 					     writeback_keys);
-	unsigned stripe_size = 1 << dc->disk.stripe_size_bits;
 
 	if (!KEY_DIRTY(k))
 		return false;
 
-	stripe = KEY_START(k) >> dc->disk.stripe_size_bits;
-	while (1) {
-		if (atomic_read(dc->disk.stripe_sectors_dirty + stripe) !=
-		    stripe_size)
-			return false;
+	do_div(stripe, dc->disk.stripe_size);
 
-		if (nr_sectors <= stripe_size)
+	while (1) {
+		if (atomic_read(dc->disk.stripe_sectors_dirty + stripe) ==
+		    dc->disk.stripe_size)
 			return true;
 
-		nr_sectors -= stripe_size;
+		if (nr_sectors <= dc->disk.stripe_size)
+			return false;
+
+		nr_sectors -= dc->disk.stripe_size;
 		stripe++;
 	}
 }
@@ -186,11 +186,12 @@ static void refill_dirty(struct closure *cl)
 
 		for (i = 0; i < dc->disk.nr_stripes; i++)
 			if (atomic_read(dc->disk.stripe_sectors_dirty + i) ==
-			    1 << dc->disk.stripe_size_bits)
+			    dc->disk.stripe_size)
 				goto full_stripes;
 
 		goto normal_refill;
 full_stripes:
+		searched_from_start = false;	/* not searching entire btree */
 		bch_refill_keybuf(dc->disk.c, buf, &end,
 				  dirty_full_stripe_pred);
 	} else {
@@ -252,19 +253,19 @@ void bcache_dev_sectors_dirty_add(struct cache_set *c, unsigned inode,
 				  uint64_t offset, int nr_sectors)
 {
 	struct bcache_device *d = c->devices[inode];
-	unsigned stripe_size, stripe_offset;
-	uint64_t stripe;
+	unsigned stripe_offset;
+	uint64_t stripe = offset;
 
 	if (!d)
 		return;
 
-	stripe_size = 1 << d->stripe_size_bits;
-	stripe = offset >> d->stripe_size_bits;
-	stripe_offset = offset & (stripe_size - 1);
+	do_div(stripe, d->stripe_size);
+
+	stripe_offset = offset & (d->stripe_size - 1);
 
 	while (nr_sectors) {
 		int s = min_t(unsigned, abs(nr_sectors),
-			      stripe_size - stripe_offset);
+			      d->stripe_size - stripe_offset);
 
 		if (nr_sectors < 0)
 			s = -s;
