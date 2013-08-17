@@ -77,7 +77,6 @@ static struct resource sh_eth0_resources[] = {
 static struct sh_eth_plat_data sh7757_eth0_pdata = {
 	.phy = 1,
 	.edmac_endian = EDMAC_LITTLE_ENDIAN,
-	.register_type = SH_ETH_REG_FAST_SH4,
 	.set_mdio_gate = sh7757_eth_set_mdio_gate,
 };
 
@@ -106,7 +105,6 @@ static struct resource sh_eth1_resources[] = {
 static struct sh_eth_plat_data sh7757_eth1_pdata = {
 	.phy = 1,
 	.edmac_endian = EDMAC_LITTLE_ENDIAN,
-	.register_type = SH_ETH_REG_FAST_SH4,
 	.set_mdio_gate = sh7757_eth_set_mdio_gate,
 };
 
@@ -151,7 +149,6 @@ static struct resource sh_eth_giga0_resources[] = {
 static struct sh_eth_plat_data sh7757_eth_giga0_pdata = {
 	.phy = 18,
 	.edmac_endian = EDMAC_LITTLE_ENDIAN,
-	.register_type = SH_ETH_REG_GIGABIT,
 	.set_mdio_gate = sh7757_eth_giga_set_mdio_gate,
 	.phy_interface = PHY_INTERFACE_MODE_RGMII_ID,
 };
@@ -186,7 +183,6 @@ static struct resource sh_eth_giga1_resources[] = {
 static struct sh_eth_plat_data sh7757_eth_giga1_pdata = {
 	.phy = 19,
 	.edmac_endian = EDMAC_LITTLE_ENDIAN,
-	.register_type = SH_ETH_REG_GIGABIT,
 	.set_mdio_gate = sh7757_eth_giga_set_mdio_gate,
 	.phy_interface = PHY_INTERFACE_MODE_RGMII_ID,
 };
