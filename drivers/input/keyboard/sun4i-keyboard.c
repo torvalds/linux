@@ -346,13 +346,20 @@ static irqreturn_t sun4i_isr_key(int irq, void *dummy)
 
 static int __init sun4ikbd_init(void)
 {
-	int i;
-	int err =0;
+	int i, val, err = 0;
+	char key[16];
 
 #ifdef CONFIG_KEYBOARD_SUN4I_KEYBOARD_FEX
 	err = script_parser_fetch("tabletkeys_para", "tabletkeys_used", &i, 1);
 	if (err != 0 || i == 0)
 		return -ENODEV;
+
+	for (i = 0; i < KEY_MAX_CNT; i++) {
+		snprintf(key, sizeof(key), "key%d_code", i);
+		err = script_parser_fetch("tabletkeys_para", key, &val, 1);
+		if (err == 0)
+			sun4i_scankeycodes[i] = val;
+	}
 #endif
 
 #ifdef KEY_DEBUG
