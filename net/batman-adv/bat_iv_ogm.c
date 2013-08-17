@@ -28,6 +28,22 @@
 #include "bat_algo.h"
 #include "network-coding.h"
 
+
+/**
+ * batadv_dup_status - duplicate status
+ * @BATADV_NO_DUP: the packet is a duplicate
+ * @BATADV_ORIG_DUP: OGM is a duplicate in the originator (but not for the
+ *  neighbor)
+ * @BATADV_NEIGH_DUP: OGM is a duplicate for the neighbor
+ * @BATADV_PROTECTED: originator is currently protected (after reboot)
+ */
+enum batadv_dup_status {
+	BATADV_NO_DUP = 0,
+	BATADV_ORIG_DUP,
+	BATADV_NEIGH_DUP,
+	BATADV_PROTECTED,
+};
+
 /**
  * batadv_ring_buffer_set - update the ring buffer with the given value
  * @lq_recv: pointer to the ring buffer
@@ -70,21 +86,6 @@ static uint8_t batadv_ring_buffer_avg(const uint8_t lq_recv[])
 
 	return (uint8_t)(sum / count);
 }
-
-/*
- * batadv_dup_status - duplicate status
- * @BATADV_NO_DUP: the packet is a duplicate
- * @BATADV_ORIG_DUP: OGM is a duplicate in the originator (but not for the
- *  neighbor)
- * @BATADV_NEIGH_DUP: OGM is a duplicate for the neighbor
- * @BATADV_PROTECTED: originator is currently protected (after reboot)
- */
-enum batadv_dup_status {
-	BATADV_NO_DUP = 0,
-	BATADV_ORIG_DUP,
-	BATADV_NEIGH_DUP,
-	BATADV_PROTECTED,
-};
 
 static struct batadv_neigh_node *
 batadv_iv_ogm_neigh_new(struct batadv_hard_iface *hard_iface,
