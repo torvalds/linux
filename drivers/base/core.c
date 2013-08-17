@@ -36,7 +36,7 @@ long sysfs_deprecated = 1;
 #else
 long sysfs_deprecated = 0;
 #endif
-static __init int sysfs_deprecated_setup(char *arg)
+static int __init sysfs_deprecated_setup(char *arg)
 {
 	return kstrtol(arg, 10, &sysfs_deprecated);
 }
