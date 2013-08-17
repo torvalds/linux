@@ -1,0 +1,69 @@
+menuconfig ISDN_DRV_GIGASET
+	tristate "Siemens Gigaset support"
+	select CRC_CCITT
+	select BITREVERSE
+	help
+	  This driver supports the Siemens Gigaset SX205/255 family of
+	  ISDN DECT bases, including the predecessors Gigaset 3070/3075
+	  and 4170/4175 and their T-Com versions Sinus 45isdn and Sinus
+	  721X.
+	  If you have one of these devices, say M here and for at least
+	  one of the connection specific parts that follow.
+	  This will build a module called "gigaset".
+	  Note: If you build your ISDN subsystem (ISDN_CAPI or ISDN_I4L)
+	  as a module, you have to build this driver as a module too,
+	  otherwise the Gigaset device won't show up as an ISDN device.
+
+if ISDN_DRV_GIGASET
+
+config GIGASET_CAPI
+	bool "Gigaset CAPI support"
+	depends on ISDN_CAPI='y'||(ISDN_CAPI='m'&&ISDN_DRV_GIGASET='m')
+	default ISDN_I4L='n'
+	help
+	  Build the Gigaset driver as a CAPI 2.0 driver interfacing with
+	  the Kernel CAPI subsystem. To use it with the old ISDN4Linux
+	  subsystem you'll have to enable the capidrv glue driver.
+	  (select ISDN_CAPI_CAPIDRV.)
+	  Say N to build the old native ISDN4Linux variant.
+	  If unsure, say Y.
+
+config GIGASET_I4L
+	bool
+	depends on ISDN_I4L='y'||(ISDN_I4L='m'&&ISDN_DRV_GIGASET='m')
+	default !GIGASET_CAPI
+
+config GIGASET_DUMMYLL
+	bool
+	default !GIGASET_CAPI&&!GIGASET_I4L
+
+config GIGASET_BASE
+	tristate "Gigaset base station support"
+	depends on USB
+	help
+	  Say M here if you want to use the USB interface of the Gigaset
+	  base for connection to your system.
+	  This will build a module called "bas_gigaset".
+
+config GIGASET_M105
+	tristate "Gigaset M105 support"
+	depends on USB
+	help
+	  Say M here if you want to connect to the Gigaset base via DECT
+	  using a Gigaset M105 (Sinus 45 Data 2) USB DECT device.
+	  This will build a module called "usb_gigaset".
+
+config GIGASET_M101
+	tristate "Gigaset M101 support"
+	help
+	  Say M here if you want to connect to the Gigaset base via DECT
+	  using a Gigaset M101 (Sinus 45 Data 1) RS232 DECT device.
+	  This will build a module called "ser_gigaset".
+
+config GIGASET_DEBUG
+	bool "Gigaset debugging"
+	help
+	  This enables debugging code in the Gigaset drivers.
+	  If in doubt, say yes.
+
+endif # ISDN_DRV_GIGASET

@@ -1,0 +1,308 @@
+config MICROBLAZE
+	def_bool y
+	select HAVE_MEMBLOCK
+	select HAVE_MEMBLOCK_NODE_MAP
+	select HAVE_FUNCTION_TRACER
+	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
+	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_DYNAMIC_FTRACE
+	select HAVE_FTRACE_MCOUNT_RECORD
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select HAVE_OPROFILE
+	select HAVE_ARCH_KGDB
+	select HAVE_DMA_ATTRS
+	select HAVE_DMA_API_DEBUG
+	select TRACING_SUPPORT
+	select OF
+	select OF_EARLY_FLATTREE
+	select IRQ_DOMAIN
+	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_IRQ_PROBE
+	select GENERIC_IRQ_SHOW
+	select GENERIC_PCI_IOMAP
+	select GENERIC_CPU_DEVICES
+	select GENERIC_ATOMIC64
+
+config SWAP
+	def_bool n
+
+config RWSEM_GENERIC_SPINLOCK
+	def_bool y
+
+config ZONE_DMA
+	def_bool y
+
+config ARCH_POPULATES_NODE_MAP
+	def_bool y
+
+config RWSEM_XCHGADD_ALGORITHM
+	bool
+
+config ARCH_HAS_ILOG2_U32
+	def_bool n
+
+config ARCH_HAS_ILOG2_U64
+	def_bool n
+
+config GENERIC_HWEIGHT
+	def_bool y
+
+config GENERIC_CALIBRATE_DELAY
+	def_bool y
+
+config GENERIC_TIME_VSYSCALL
+	def_bool n
+
+config GENERIC_CLOCKEVENTS
+	def_bool y
+
+config GENERIC_GPIO
+	bool
+
+config GENERIC_CSUM
+	def_bool y
+
+config STACKTRACE_SUPPORT
+	def_bool y
+
+config LOCKDEP_SUPPORT
+	def_bool y
+
+config HAVE_LATENCYTOP_SUPPORT
+	def_bool y
+
+source "init/Kconfig"
+
+source "kernel/Kconfig.freezer"
+
+source "arch/microblaze/platform/Kconfig.platform"
+
+menu "Processor type and features"
+
+source "kernel/time/Kconfig"
+
+source "kernel/Kconfig.preempt"
+
+source "kernel/Kconfig.hz"
+
+config MMU
+	bool "MMU support"
+	default n
+
+config NO_MMU
+	bool
+	depends on !MMU
+	default y
+
+comment "Boot options"
+
+config CMDLINE_BOOL
+	bool "Default bootloader kernel arguments"
+
+config CMDLINE
+	string "Default kernel command string"
+	depends on CMDLINE_BOOL
+	default "console=ttyUL0,115200"
+	help
+	  On some architectures there is currently no way for the boot loader
+	  to pass arguments to the kernel. For these architectures, you should
+	  supply some command-line options at build time by entering them
+	  here.
+
+config CMDLINE_FORCE
+	bool "Force default kernel command string"
+	depends on CMDLINE_BOOL
+	default n
+	help
+	  Set this to have arguments from the default kernel command string
+	  override those passed by the boot loader.
+
+config SECCOMP
+	bool "Enable seccomp to safely compute untrusted bytecode"
+	depends on PROC_FS
+	default y
+	help
+	  This kernel feature is useful for number crunching applications
+	  that may need to compute untrusted bytecode during their
+	  execution. By using pipes or other transports made available to
+	  the process as file descriptors supporting the read/write
+	  syscalls, it's possible to isolate those applications in
+	  their own address space using seccomp. Once seccomp is
+	  enabled via /proc/<pid>/seccomp, it cannot be disabled
+	  and the task is only allowed to execute a few safe syscalls
+	  defined by each seccomp mode.
+
+	  If unsure, say Y. Only embedded should say N here.
+
+endmenu
+
+menu "Advanced setup"
+
+config ADVANCED_OPTIONS
+	bool "Prompt for advanced kernel configuration options"
+	help
+	  This option will enable prompting for a variety of advanced kernel
+	  configuration options.  These options can cause the kernel to not
+	  work if they are set incorrectly, but can be used to optimize certain
+	  aspects of kernel memory management.
+
+	  Unless you know what you are doing, say N here.
+
+comment "Default settings for advanced configuration options are used"
+	depends on !ADVANCED_OPTIONS
+
+config XILINX_UNCACHED_SHADOW
+	bool "Are you using uncached shadow for RAM ?"
+	depends on ADVANCED_OPTIONS && !MMU
+	default n
+	help
+	  This is needed to be able to allocate uncachable memory regions.
+	  The feature requires the design to define the RAM memory controller
+	  window to be twice as large as the actual physical memory.
+
+config HIGHMEM
+	bool "High memory support"
+	depends on MMU
+	help
+	  The address space of Microblaze processors is only 4 Gigabytes large
+	  and it has to accommodate user address space, kernel address
+	  space as well as some memory mapped IO. That means that, if you
+	  have a large amount of physical memory and/or IO, not all of the
+	  memory can be "permanently mapped" by the kernel. The physical
+	  memory that is not permanently mapped is called "high memory".
+
+	  If unsure, say n.
+
+config LOWMEM_SIZE_BOOL
+	bool "Set maximum low memory"
+	depends on ADVANCED_OPTIONS && MMU
+	help
+	  This option allows you to set the maximum amount of memory which
+	  will be used as "low memory", that is, memory which the kernel can
+	  access directly, without having to set up a kernel virtual mapping.
+	  This can be useful in optimizing the layout of kernel virtual
+	  memory.
+
+	  Say N here unless you know what you are doing.
+
+config LOWMEM_SIZE
+	hex "Maximum low memory size (in bytes)" if LOWMEM_SIZE_BOOL
+	default "0x30000000"
+
+config MANUAL_RESET_VECTOR
+	hex "Microblaze reset vector address setup"
+	default "0x0"
+	help
+	  Set this option to have the kernel override the CPU Reset vector.
+	  If zero, no change will be made to the MicroBlaze reset vector at
+	  address 0x0.
+	  If non-zero, a jump instruction to this address, will be written
+	  to the reset vector at address 0x0.
+	  If you are unsure, set it to default value 0x0.
+
+config KERNEL_START_BOOL
+	bool "Set custom kernel base address"
+	depends on ADVANCED_OPTIONS
+	help
+	  This option allows you to set the kernel virtual address at which
+	  the kernel will map low memory (the kernel image will be linked at
+	  this address).  This can be useful in optimizing the virtual memory
+	  layout of the system.
+
+	  Say N here unless you know what you are doing.
+
+config KERNEL_START
+	hex "Virtual address of kernel base" if KERNEL_START_BOOL
+	default "0xc0000000" if MMU
+	default KERNEL_BASE_ADDR if !MMU
+
+config TASK_SIZE_BOOL
+	bool "Set custom user task size"
+	depends on ADVANCED_OPTIONS && MMU
+	help
+	  This option allows you to set the amount of virtual address space
+	  allocated to user tasks.  This can be useful in optimizing the
+	  virtual memory layout of the system.
+
+	  Say N here unless you know what you are doing.
+
+config TASK_SIZE
+	hex "Size of user task space" if TASK_SIZE_BOOL
+	default "0x80000000"
+
+choice
+	prompt "Page size"
+	default MICROBLAZE_4K_PAGES
+	depends on ADVANCED_OPTIONS && !MMU
+	help
+	  Select the kernel logical page size. Increasing the page size
+	  will reduce software overhead at each page boundary, allow
+	  hardware prefetch mechanisms to be more effective, and allow
+	  larger dma transfers increasing IO efficiency and reducing
+	  overhead. However the utilization of memory will increase.
+	  For example, each cached file will using a multiple of the
+	  page size to hold its contents and the difference between the
+	  end of file and the end of page is wasted.
+
+	  If unsure, choose 4K_PAGES.
+
+config MICROBLAZE_4K_PAGES
+	bool "4k page size"
+
+config MICROBLAZE_8K_PAGES
+	bool "8k page size"
+
+config MICROBLAZE_16K_PAGES
+	bool "16k page size"
+
+config MICROBLAZE_32K_PAGES
+	bool "32k page size"
+
+endchoice
+
+config KERNEL_PAD
+	hex "Kernel PAD for unpacking" if ADVANCED_OPTIONS
+	default "0x80000" if MMU
+
+endmenu
+
+source "mm/Kconfig"
+
+menu "Executable file formats"
+
+source "fs/Kconfig.binfmt"
+
+endmenu
+
+menu "Bus Options"
+
+config PCI
+	bool "PCI support"
+
+config PCI_DOMAINS
+	def_bool PCI
+
+config PCI_SYSCALL
+	def_bool PCI
+
+config PCI_XILINX
+	bool "Xilinx PCI host bridge support"
+	depends on PCI
+
+source "drivers/pci/Kconfig"
+
+endmenu
+
+source "net/Kconfig"
+
+source "drivers/Kconfig"
+
+source "fs/Kconfig"
+
+source "arch/microblaze/Kconfig.debug"
+
+source "security/Kconfig"
+
+source "crypto/Kconfig"
+
+source "lib/Kconfig"

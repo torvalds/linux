@@ -1,0 +1,45 @@
+
+Format of embedded V4L2_MPEG_STREAM_VBI_FMT_IVTV VBI data
+=========================================================
+
+This document describes the V4L2_MPEG_STREAM_VBI_FMT_IVTV format of the VBI data
+embedded in an MPEG-2 program stream. This format is in part dictated by some
+hardware limitations of the ivtv driver (the driver for the Conexant cx23415/6
+chips), in particular a maximum size for the VBI data. Anything longer is cut
+off when the MPEG stream is played back through the cx23415.
+
+The advantage of this format is it is very compact and that all VBI data for
+all lines can be stored while still fitting within the maximum allowed size.
+
+The stream ID of the VBI data is 0xBD. The maximum size of the embedded data is
+4 + 43 * 36, which is 4 bytes for a header and 2 * 18 VBI lines with a 1 byte
+header and a 42 bytes payload each. Anything beyond this limit is cut off by
+the cx23415/6 firmware. Besides the data for the VBI lines we also need 36 bits
+for a bitmask determining which lines are captured and 4 bytes for a magic cookie,
+signifying that this data package contains V4L2_MPEG_STREAM_VBI_FMT_IVTV VBI data.
+If all lines are used, then there is no longer room for the bitmask. To solve this
+two different magic numbers were introduced:
+
+'itv0': After this magic number two unsigned longs follow. Bits 0-17 of the first
+unsigned long denote which lines of the first field are captured. Bits 18-31 of
+the first unsigned long and bits 0-3 of the second unsigned long are used for the
+second field.
+
+'ITV0': This magic number assumes all VBI lines are captured, i.e. it implicitly
+implies that the bitmasks are 0xffffffff and 0xf.
+
+After these magic cookies (and the 8 byte bitmask in case of cookie 'itv0') the
+captured VBI lines start:
+
+For each line the least significant 4 bits of the first byte contain the data type.
+Possible values are shown in the table below. The payload is in the following 42
+bytes.
+
+Here is the list of possible data types:
+
+#define IVTV_SLICED_TYPE_TELETEXT       0x1     // Teletext (uses lines 6-22 for PAL)
+#define IVTV_SLICED_TYPE_CC             0x4     // Closed Captions (line 21 NTSC)
+#define IVTV_SLICED_TYPE_WSS            0x5     // Wide Screen Signal (line 23 PAL)
+#define IVTV_SLICED_TYPE_VPS            0x7     // Video Programming System (PAL) (line 16)
+
+Hans Verkuil <hverkuil@xs4all.nl>

@@ -1,0 +1,49 @@
+#
+# Kernel configuration file for the OSD scsi protocol
+#
+# Copyright (C) 2008 Panasas Inc.  All rights reserved.
+#
+# Authors:
+#   Boaz Harrosh <bharrosh@panasas.com>
+#   Benny Halevy <bhalevy@panasas.com>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public version 2 License as
+# published by the Free Software Foundation
+#
+config SCSI_OSD_INITIATOR
+	tristate "OSD-Initiator library"
+	depends on SCSI
+	help
+		Enable the OSD-Initiator library (libosd.ko).
+		NOTE: You must also select CRYPTO_SHA1 + CRYPTO_HMAC and their
+		dependencies
+
+config SCSI_OSD_ULD
+	tristate "OSD Upper Level driver"
+	depends on SCSI_OSD_INITIATOR
+	help
+		Build a SCSI upper layer driver that exports /dev/osdX devices
+		to user-mode for testing and controlling OSD devices. It is also
+		needed by exofs, for mounting an OSD based file system.
+
+config SCSI_OSD_DPRINT_SENSE
+    int "(0-2) When sense is returned, DEBUG print all sense descriptors"
+    default 1
+    depends on SCSI_OSD_INITIATOR
+    help
+        When a CHECK_CONDITION status is returned from a target, and a
+        sense-buffer is retrieved, turning this on will dump a full
+        sense-decoding message. Setting to 2 will also print recoverable
+        errors that might be regularly returned for some filesystem
+        operations.
+
+config SCSI_OSD_DEBUG
+	bool "Compile All OSD modules with lots of DEBUG prints"
+	default n
+	depends on SCSI_OSD_INITIATOR
+	help
+		OSD Code is populated with lots of OSD_DEBUG(..) printouts to
+		dmesg. Enable this if you found a bug and you want to help us
+		track the problem (see also MAINTAINERS). Setting this will also
+		force SCSI_OSD_DPRINT_SENSE=2.

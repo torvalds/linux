@@ -1,0 +1,63 @@
+
+	Linux I2O Support	(c) Copyright 1999 Red Hat Software
+					and others.
+
+	This program is free software; you can redistribute it and/or
+	modify it under the terms of the GNU General Public License
+	as published by the Free Software Foundation; either version
+	2 of the License, or (at your option) any later version.
+
+AUTHORS (so far)
+
+Alan Cox, Building Number Three Ltd.
+	Core code, SCSI and Block OSMs
+
+Steve Ralston, LSI Logic Corp.
+	Debugging SCSI and Block OSM
+
+Deepak Saxena, Intel Corp.
+	Various core/block extensions
+	/proc interface, bug fixes
+	Ioctl interfaces for control
+	Debugging LAN OSM
+
+Philip Rumpf
+	Fixed assorted dumb SMP locking bugs
+
+Juha Sievanen, University of Helsinki Finland
+	LAN OSM code
+	/proc interface to LAN class
+	Bug fixes
+	Core code extensions
+
+Auvo Häkkinen, University of Helsinki Finland
+	LAN OSM code
+	/Proc interface to LAN class
+	Bug fixes
+	Core code extensions
+
+Taneli Vähäkangas, University of Helsinki Finland
+	Fixes to i2o_config
+
+CREDITS
+
+	This work was made possible by
+
+Red Hat Software
+	Funding for the Building #3 part of the project
+
+Symbios Logic (Now LSI)
+	Host adapters, hints, known to work platforms when I hit
+	compatibility problems
+
+BoxHill Corporation
+	Loan of initial FibreChannel disk array used for development work.
+
+European Commission
+	Funding the work done by the University of Helsinki
+
+SysKonnect
+        Loan of FDDI and Gigabit Ethernet cards
+
+ASUSTeK
+        Loan of I2O motherboard

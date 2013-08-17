@@ -1,0 +1,219 @@
+#
+# General architecture dependent options
+#
+
+config OPROFILE
+	tristate "OProfile system profiling"
+	depends on PROFILING
+	depends on HAVE_OPROFILE
+	select RING_BUFFER
+	select RING_BUFFER_ALLOW_SWAP
+	help
+	  OProfile is a profiling system capable of profiling the
+	  whole system, include the kernel, kernel modules, libraries,
+	  and applications.
+
+	  If unsure, say N.
+
+config OPROFILE_EVENT_MULTIPLEX
+	bool "OProfile multiplexing support (EXPERIMENTAL)"
+	default n
+	depends on OPROFILE && X86
+	help
+	  The number of hardware counters is limited. The multiplexing
+	  feature enables OProfile to gather more events than counters
+	  are provided by the hardware. This is realized by switching
+	  between events at an user specified time interval.
+
+	  If unsure, say N.
+
+config HAVE_OPROFILE
+	bool
+
+config OPROFILE_NMI_TIMER
+	def_bool y
+	depends on PERF_EVENTS && HAVE_PERF_EVENTS_NMI
+
+config KPROBES
+	bool "Kprobes"
+	depends on MODULES
+	depends on HAVE_KPROBES
+	select KALLSYMS
+	help
+	  Kprobes allows you to trap at almost any kernel address and
+	  execute a callback function.  register_kprobe() establishes
+	  a probepoint and specifies the callback.  Kprobes is useful
+	  for kernel debugging, non-intrusive instrumentation and testing.
+	  If in doubt, say "N".
+
+config JUMP_LABEL
+       bool "Optimize very unlikely/likely branches"
+       depends on HAVE_ARCH_JUMP_LABEL
+       help
+         This option enables a transparent branch optimization that
+	 makes certain almost-always-true or almost-always-false branch
+	 conditions even cheaper to execute within the kernel.
+
+	 Certain performance-sensitive kernel code, such as trace points,
+	 scheduler functionality, networking code and KVM have such
+	 branches and include support for this optimization technique.
+
+         If it is detected that the compiler has support for "asm goto",
+	 the kernel will compile such branches with just a nop
+	 instruction. When the condition flag is toggled to true, the
+	 nop will be converted to a jump instruction to execute the
+	 conditional block of instructions.
+
+	 This technique lowers overhead and stress on the branch prediction
+	 of the processor and generally makes the kernel faster. The update
+	 of the condition is slower, but those are always very rare.
+
+	 ( On 32-bit x86, the necessary options added to the compiler
+	   flags may increase the size of the kernel slightly. )
+
+config OPTPROBES
+	def_bool y
+	depends on KPROBES && HAVE_OPTPROBES
+	depends on !PREEMPT
+
+config HAVE_EFFICIENT_UNALIGNED_ACCESS
+	bool
+	help
+	  Some architectures are unable to perform unaligned accesses
+	  without the use of get_unaligned/put_unaligned. Others are
+	  unable to perform such accesses efficiently (e.g. trap on
+	  unaligned access and require fixing it up in the exception
+	  handler.)
+
+	  This symbol should be selected by an architecture if it can
+	  perform unaligned accesses efficiently to allow different
+	  code paths to be selected for these cases. Some network
+	  drivers, for example, could opt to not fix up alignment
+	  problems with received packets if doing so would not help
+	  much.
+
+	  See Documentation/unaligned-memory-access.txt for more
+	  information on the topic of unaligned memory accesses.
+
+config HAVE_SYSCALL_WRAPPERS
+	bool
+
+config KRETPROBES
+	def_bool y
+	depends on KPROBES && HAVE_KRETPROBES
+
+config USER_RETURN_NOTIFIER
+	bool
+	depends on HAVE_USER_RETURN_NOTIFIER
+	help
+	  Provide a kernel-internal notification when a cpu is about to
+	  switch to user mode.
+
+config HAVE_IOREMAP_PROT
+	bool
+
+config HAVE_KPROBES
+	bool
+
+config HAVE_KRETPROBES
+	bool
+
+config HAVE_OPTPROBES
+	bool
+
+config HAVE_NMI_WATCHDOG
+	bool
+#
+# An arch should select this if it provides all these things:
+#
+#	task_pt_regs()		in asm/processor.h or asm/ptrace.h
+#	arch_has_single_step()	if there is hardware single-step support
+#	arch_has_block_step()	if there is hardware block-step support
+#	asm/syscall.h		supplying asm-generic/syscall.h interface
+#	linux/regset.h		user_regset interfaces
+#	CORE_DUMP_USE_REGSET	#define'd in linux/elf.h
+#	TIF_SYSCALL_TRACE	calls tracehook_report_syscall_{entry,exit}
+#	TIF_NOTIFY_RESUME	calls tracehook_notify_resume()
+#	signal delivery		calls tracehook_signal_handler()
+#
+config HAVE_ARCH_TRACEHOOK
+	bool
+
+config HAVE_DMA_ATTRS
+	bool
+
+config USE_GENERIC_SMP_HELPERS
+	bool
+
+config HAVE_REGS_AND_STACK_ACCESS_API
+	bool
+	help
+	  This symbol should be selected by an architecure if it supports
+	  the API needed to access registers and stack entries from pt_regs,
+	  declared in asm/ptrace.h
+	  For example the kprobes-based event tracer needs this API.
+
+config HAVE_CLK
+	bool
+	help
+	  The <linux/clk.h> calls support software clock gating and
+	  thus are a key power management tool on many systems.
+
+config HAVE_DMA_API_DEBUG
+	bool
+
+config HAVE_HW_BREAKPOINT
+	bool
+	depends on PERF_EVENTS
+
+config HAVE_MIXED_BREAKPOINTS_REGS
+	bool
+	depends on HAVE_HW_BREAKPOINT
+	help
+	  Depending on the arch implementation of hardware breakpoints,
+	  some of them have separate registers for data and instruction
+	  breakpoints addresses, others have mixed registers to store
+	  them but define the access type in a control register.
+	  Select this option if your arch implements breakpoints under the
+	  latter fashion.
+
+config HAVE_USER_RETURN_NOTIFIER
+	bool
+
+config HAVE_PERF_EVENTS_NMI
+	bool
+	help
+	  System hardware can generate an NMI using the perf event
+	  subsystem.  Also has support for calculating CPU cycle events
+	  to determine how many clock cycles in a given period.
+
+config HAVE_ARCH_JUMP_LABEL
+	bool
+
+config HAVE_ARCH_MUTEX_CPU_RELAX
+	bool
+
+config HAVE_RCU_TABLE_FREE
+	bool
+
+config ARCH_HAVE_NMI_SAFE_CMPXCHG
+	bool
+
+config HAVE_ALIGNED_STRUCT_PAGE
+	bool
+	help
+	  This makes sure that struct pages are double word aligned and that
+	  e.g. the SLUB allocator can perform double word atomic operations
+	  on a struct page for better performance. However selecting this
+	  might increase the size of a struct page by a word.
+
+config HAVE_CMPXCHG_LOCAL
+	bool
+
+config HAVE_CMPXCHG_DOUBLE
+	bool
+
+config ARCH_WANT_OLD_COMPAT_IPC
+	bool
+
+source "kernel/gcov/Kconfig"

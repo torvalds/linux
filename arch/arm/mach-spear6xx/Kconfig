@@ -1,0 +1,22 @@
+#
+# SPEAr6XX Machine configuration file
+#
+
+if ARCH_SPEAR6XX
+
+menu "SPEAr6xx Implementations"
+config BOARD_SPEAR600_DT
+	bool "SPEAr600 generic board configured via device-tree"
+	select MACH_SPEAR600
+	select USE_OF
+	help
+	  Supports ST SPEAr600 boards configured via the device-tree
+
+endmenu
+
+config MACH_SPEAR600
+	bool "SPEAr600"
+	help
+	  Supports ST SPEAr600 Machine
+
+endif #ARCH_SPEAR6XX

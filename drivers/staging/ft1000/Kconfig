@@ -1,0 +1,22 @@
+config FT1000
+	tristate "Drivers for Flarion ft1000 devices"
+
+if FT1000
+
+config FT1000_USB
+	tristate "Driver for ft1000 usb devices."
+	depends on USB
+	depends on NET
+	help
+	  Say Y if you want to have support for Qleadtek FLASH-OFDM USB Modem [LR7F04],
+	  Qleadtek Express Card or Leadtek Multi-band modem HSDPA.
+
+config FT1000_PCMCIA
+	tristate "Driver for ft1000 pcmcia device."
+	depends on PCMCIA
+	depends on NET
+	help
+	  Say Y if you want to have support for Flarion card also called
+	  Multimedia Net Card.
+
+endif

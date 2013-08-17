@@ -1,0 +1,98 @@
+#!/bin/sh
+# Before running this script please ensure that your PATH is
+# typical as you use for compilation/istallation. I use
+# /bin /sbin /usr/bin /usr/sbin /usr/local/bin, but it may
+# differ on your system.
+#
+echo 'If some fields are empty or look unusual you may have an old version.'
+echo 'Compare to the current minimal requirements in Documentation/Changes.'
+echo ' '
+
+uname -a
+echo ' '
+
+gcc -dumpversion 2>&1| awk \
+'NR==1{print "Gnu C                 ", $1}'
+
+make --version 2>&1 | awk -F, '{print $1}' | awk \
+      '/GNU Make/{print "Gnu make              ",$NF}'
+
+echo "binutils               $(ld -v | egrep -o '[0-9]+\.[0-9\.]+')"
+
+echo -n "util-linux             "
+fdformat --version | awk '{print $NF}' | sed -e s/^util-linux-// -e s/\)$//
+
+echo -n "mount                  "
+mount --version | awk '{print $NF}' | sed -e s/^mount-// -e s/\)$//
+
+depmod -V  2>&1 | awk 'NR==1 {print "module-init-tools     ",$NF}'
+
+tune2fs 2>&1 | grep "^tune2fs" | sed 's/,//' |  awk \
+'NR==1 {print "e2fsprogs             ", $2}'
+
+fsck.jfs -V 2>&1 | grep version | sed 's/,//' |  awk \
+'NR==1 {print "jfsutils              ", $3}'
+
+reiserfsck -V 2>&1 | grep ^reiserfsck | awk \
+'NR==1{print "reiserfsprogs         ", $2}'
+
+fsck.reiser4 -V 2>&1 | grep ^fsck.reiser4 | awk \
+'NR==1{print "reiser4progs          ", $2}'
+
+xfs_db -V 2>&1 | grep version | awk \
+'NR==1{print "xfsprogs              ", $3}'
+
+pccardctl -V 2>&1| grep pcmciautils | awk '{print "pcmciautils           ", $2}'
+
+cardmgr -V 2>&1| grep version | awk \
+'NR==1{print "pcmcia-cs             ", $3}'
+
+quota -V 2>&1 | grep version | awk \
+'NR==1{print "quota-tools           ", $NF}'
+
+pppd --version 2>&1| grep version | awk \
+'NR==1{print "PPP                   ", $3}'
+
+isdnctrl 2>&1 | grep version | awk \
+'NR==1{print "isdn4k-utils          ", $NF}'
+
+showmount --version 2>&1 | grep nfs-utils | awk \
+'NR==1{print "nfs-utils             ", $NF}'
+
+echo -n "Linux C Library        "
+sed -n -e '/^.*\/libc-\([^/]*\)\.so$/{s//\1/;p;q}' < /proc/self/maps
+
+ldd -v > /dev/null 2>&1 && ldd -v || ldd --version |head -n 1 | awk \
+'NR==1{print "Dynamic linker (ldd)  ", $NF}'
+
+ls -l /usr/lib/libg++.so /usr/lib/libstdc++.so  2>/dev/null | awk -F. \
+       '{print "Linux C++ Library      " $4"."$5"."$6}'
+
+ps --version 2>&1 | grep version | awk \
+'NR==1{print "Procps                ", $NF}'
+
+ifconfig --version 2>&1 | grep tools | awk \
+'NR==1{print "Net-tools             ", $NF}'
+
+# Kbd needs 'loadkeys -h',
+loadkeys -h 2>&1 | awk \
+'(NR==1 && ($3 !~ /option/)) {print "Kbd                   ", $3}'
+
+# while console-tools needs 'loadkeys -V'.
+loadkeys -V 2>&1 | awk \
+'(NR==1 && ($2 ~ /console-tools/)) {print "Console-tools         ", $3}'
+
+oprofiled --version 2>&1 | awk \
+'(NR==1 && ($2 == "oprofile")) {print "oprofile              ", $3}'
+
+expr --v 2>&1 | awk 'NR==1{print "Sh-utils              ", $NF}'
+
+udevinfo -V 2>&1 | grep version | awk '{print "udev                  ", $3}'
+
+iwconfig --version 2>&1 | awk \
+'(NR==1 && ($3 == "version")) {print "wireless-tools        ",$4}'
+
+if [ -e /proc/modules ]; then
+    X=`cat /proc/modules | sed -e "s/ .*$//"`
+    echo "Modules Loaded         "$X
+fi

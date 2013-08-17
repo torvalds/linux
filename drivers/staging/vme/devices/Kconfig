@@ -1,0 +1,21 @@
+comment "VME Device Drivers"
+
+config VME_USER
+	tristate "VME user space access driver"
+	help
+	  If you say Y here you want to be able to access a limited number of
+	  VME windows in a manner at least semi-compatible with the interface
+	  provided with the original driver at http://vmelinux.org/.
+
+config VME_PIO2
+	tristate "GE PIO2 VME"
+	depends on GPIOLIB
+	help
+	  Say Y here to include support for the GE PIO2. The PIO2 is a 6U VME
+	  slave card, implementing 32 solid-state relay switched IO lines, in
+	  4 groups of 8. Each bank of IO lines is built to function as input,
+	  output or both depending on the variant of the card.
+
+	  To compile this driver as a module, choose M here. The module will
+	  be called vme_pio2. If unsure, say N.
+

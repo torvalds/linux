@@ -1,0 +1,34 @@
+config PPC_MPC512x
+	bool "512x-based boards"
+	depends on 6xx
+	select FSL_SOC
+	select IPIC
+	select PPC_CLOCK
+	select PPC_PCI_CHOICE
+	select FSL_PCI if PCI
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+
+config MPC5121_ADS
+	bool "Freescale MPC5121E ADS"
+	depends on PPC_MPC512x
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the MPC5121E ADS board.
+
+config MPC5121_GENERIC
+	bool "Generic support for simple MPC5121 based boards"
+	depends on PPC_MPC512x
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for simple MPC5121 based boards
+	  which do not need custom platform specific setup.
+
+	  Compatible boards include:  Protonic LVT base boards (ZANMCU
+	  and VICVT2).
+
+config PDM360NG
+	bool "ifm PDM360NG board"
+	depends on PPC_MPC512x
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the PDM360NG board.

@@ -1,0 +1,115 @@
+#
+# This list is used by git-shortlog to fix a few botched name translations
+# in the git archive, either because the author's full name was messed up
+# and/or not always written the same way, making contributions from the
+# same person appearing not to be so or badly displayed.
+#
+# repo-abbrev: /pub/scm/linux/kernel/git/
+#
+
+Aaron Durbin <adurbin@google.com>
+Adam Oldham <oldhamca@gmail.com>
+Adam Radford <aradford@gmail.com>
+Adrian Bunk <bunk@stusta.de>
+Alan Cox <alan@lxorguk.ukuu.org.uk>
+Alan Cox <root@hraefn.swansea.linux.org.uk>
+Aleksey Gorelov <aleksey_gorelov@phoenix.com>
+Al Viro <viro@ftp.linux.org.uk>
+Al Viro <viro@zenIV.linux.org.uk>
+Andreas Herrmann <aherrman@de.ibm.com>
+Andrew Morton <akpm@osdl.org>
+Andrew Vasquez <andrew.vasquez@qlogic.com>
+Andy Adamson <andros@citi.umich.edu>
+Archit Taneja <archit@ti.com>
+Arnaud Patard <arnaud.patard@rtp-net.org>
+Arnd Bergmann <arnd@arndb.de>
+Axel Dyks <xl@xlsigned.net>
+Axel Lin <axel.lin@gmail.com>
+Ben Gardner <bgardner@wabtec.com>
+Ben M Cahill <ben.m.cahill@intel.com>
+Björn Steinbrink <B.Steinbrink@gmx.de>
+Brian Avery <b.avery@hp.com>
+Brian King <brking@us.ibm.com>
+Christoph Hellwig <hch@lst.de>
+Corey Minyard <minyard@acm.org>
+Damian Hobson-Garcia <dhobsong@igel.co.jp>
+David Brownell <david-b@pacbell.net>
+David Woodhouse <dwmw2@shinybook.infradead.org>
+Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
+Domen Puncer <domen@coderock.org>
+Douglas Gilbert <dougg@torque.net>
+Ed L. Cashin <ecashin@coraid.com>
+Evgeniy Polyakov <johnpol@2ka.mipt.ru>
+Felipe W Damasio <felipewd@terra.com.br>
+Felix Kuhling <fxkuehl@gmx.de>
+Felix Moeller <felix@derklecks.de>
+Filipe Lautert <filipe@icewall.org>
+Franck Bui-Huu <vagabon.xyz@gmail.com>
+Frank Zago <fzago@systemfabricworks.com>
+Greg Kroah-Hartman <greg@echidna.(none)>
+Greg Kroah-Hartman <gregkh@suse.de>
+Greg Kroah-Hartman <greg@kroah.com>
+Henk Vergonet <Henk.Vergonet@gmail.com>
+Henrik Kretzschmar <henne@nachtwindheim.de>
+Herbert Xu <herbert@gondor.apana.org.au>
+Jacob Shin <Jacob.Shin@amd.com>
+James Bottomley <jejb@mulgrave.(none)>
+James Bottomley <jejb@titanic.il.steeleye.com>
+James E Wilson <wilson@specifix.com>
+James Ketrenos <jketreno@io.(none)>
+Jean Tourrilhes <jt@hpl.hp.com>
+Jeff Garzik <jgarzik@pretzel.yyz.us>
+Jens Axboe <axboe@suse.de>
+Jens Osterkamp <Jens.Osterkamp@de.ibm.com>
+John Stultz <johnstul@us.ibm.com>
+Juha Yrjola <at solidboot.com>
+Juha Yrjola <juha.yrjola@nokia.com>
+Juha Yrjola <juha.yrjola@solidboot.com>
+Kay Sievers <kay.sievers@vrfy.org>
+Kenneth W Chen <kenneth.w.chen@intel.com>
+Koushik <raghavendra.koushik@neterion.com>
+Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+Leonid I Ananiev <leonid.i.ananiev@intel.com>
+Linas Vepstas <linas@austin.ibm.com>
+Mark Brown <broonie@sirena.org.uk>
+Matthieu CASTET <castet.matthieu@free.fr>
+Mayuresh Janorkar <mayur@ti.com>
+Michael Buesch <m@bues.ch>
+Michel Dänzer <michel@tungstengraphics.com>
+Mitesh shah <mshah@teja.com>
+Morten Welinder <terra@gnome.org>
+Morten Welinder <welinder@anemone.rentec.com>
+Morten Welinder <welinder@darter.rentec.com>
+Morten Welinder <welinder@troll.com>
+Mythri P K <mythripk@ti.com>
+Nguyen Anh Quynh <aquynh@gmail.com>
+Paolo 'Blaisorblade' Giarrusso <blaisorblade@yahoo.it>
+Patrick Mochel <mochel@digitalimplant.org>
+Peter A Jonsson <pj@ludd.ltu.se>
+Peter Oruba <peter@oruba.de>
+Peter Oruba <peter.oruba@amd.com>
+Praveen BP <praveenbp@ti.com>
+Rajesh Shah <rajesh.shah@intel.com>
+Ralf Baechle <ralf@linux-mips.org>
+Ralf Wildenhues <Ralf.Wildenhues@gmx.de>
+Rémi Denis-Courmont <rdenis@simphalempin.com>
+Rudolf Marek <R.Marek@sh.cvut.cz>
+Rui Saraiva <rmps@joel.ist.utl.pt>
+Sachin P Sant <ssant@in.ibm.com>
+Sam Ravnborg <sam@mars.ravnborg.org>
+Sascha Hauer <s.hauer@pengutronix.de>
+S.Çağlar Onur <caglar@pardus.org.tr>
+Simon Kelley <simon@thekelleys.org.uk>
+Stéphane Witzmann <stephane.witzmann@ubpmes.univ-bpclermont.fr>
+Stephen Hemminger <shemminger@osdl.org>
+Sumit Semwal <sumit.semwal@ti.com>
+Tejun Heo <htejun@gmail.com>
+Thomas Graf <tgraf@suug.ch>
+Tony Luck <tony.luck@intel.com>
+Tsuneo Yoshioka <Tsuneo.Yoshioka@f-secure.com>
+Uwe Kleine-König <ukleinek@informatik.uni-freiburg.de>
+Uwe Kleine-König <ukl@pengutronix.de>
+Uwe Kleine-König <Uwe.Kleine-Koenig@digi.com>
+Valdis Kletnieks <Valdis.Kletnieks@vt.edu>
+Takashi YOSHII <takashi.yoshii.zj@renesas.com>
+Yusuke Goda <goda.yusuke@renesas.com>

@@ -1,0 +1,84 @@
+NOTE:
+This is Japanese translated version of "Documentation/stable_kernel_rules.txt".
+This one is maintained by Tsugikazu Shibata <tshibata@ab.jp.nec.com>
+and JF Project team <www.linux.or.jp/JF>.
+If you find difference with original file or problem in translation,
+please contact maintainer of this file or JF project.
+
+Please also note that purpose of this file is easier to read for non
+English natives and do no intended to fork. So, if you have any
+comment or update of this file, please try to update Original(English)
+file at first.
+
+==================================
+これは、
+linux-2.6.29/Documentation/stable_kernel_rules.txt
+の和訳です。
+
+翻訳団体： JF プロジェクト < http://www.linux.or.jp/JF/ >
+翻訳日： 2009/1/14
+翻訳者： Tsugikazu Shibata <tshibata at ab dot jp dot nec dot com>
+校正者： 武井伸光さん、<takei at webmasters dot gr dot jp>
+         かねこさん (Seiji Kaneko) <skaneko at a2 dot mbn dot or dot jp>
+         小林 雅典さん (Masanori Kobayasi) <zap03216 at nifty dot ne dot jp>
+         野口さん (Kenji Noguchi) <tokyo246 at gmail dot com>
+         神宮信太郎さん <jin at libjingu dot jp>
+==================================
+
+ずっと知りたかった Linux 2.6 -stable リリースの全て
+
+"-stable" ツリーにどのような種類のパッチが受け入れられるか、どのような
+ものが受け入れられないか、についての規則-
+
+ - 明らかに正しく、テストされているものでなければならない。
+ - 文脈(変更行の前後)を含めて 100 行より大きくてはいけない。
+ - ただ一個のことだけを修正しているべき。
+ - 皆を悩ませている本物のバグを修正しなければならない。("これはバグで
+   あるかもしれないが..." のようなものではない)
+ - ビルドエラー(CONFIG_BROKENになっているものを除く), oops, ハング、デー
+   タ破壊、現実のセキュリティ問題、その他 "ああ、これはダメだね"という
+   ようなものを修正しなければならない。短く言えば、重大な問題。
+ - 新しい device ID とクオークも受け入れられる。
+ - どのように競合状態が発生するかの説明も一緒に書かれていない限り、
+   "理論的には競合状態になる"ようなものは不可。
+ - いかなる些細な修正も含めることはできない。(スペルの修正、空白のクリー
+   ンアップなど)
+ - Documentation/SubmittingPatches の規則に従ったものでなければならない。
+ - パッチ自体か同等の修正が Linus のツリーに既に存在しなければならない。
+　 Linus のツリーでのコミットID を -stable へのパッチ投稿の際に引用す
+   ること。
+
+-stable ツリーにパッチを送付する手続き-
+
+ - 上記の規則に従っているかを確認した後に、stable@kernel.org にパッチ
+   を送る。
+ - 送信者はパッチがキューに受け付けられた際には ACK を、却下された場合
+   には NAK を受け取る。この反応は開発者たちのスケジュールによって、数
+   日かかる場合がある。
+ - もし受け取られたら、パッチは他の開発者たちと関連するサブシステムの
+   メンテナーによるレビューのために -stable キューに追加される。
+ - パッチに stable@kernel.org のアドレスが付加されているときには、それ
+   が Linus のツリーに入る時に自動的に stable チームに email される。
+ - セキュリティパッチはこのエイリアス (stable@kernel.org) に送られるべ
+   きではなく、代わりに security@kernel.org のアドレスに送られる。
+
+レビューサイクル-
+
+ - -stable メンテナがレビューサイクルを決めるとき、パッチはレビュー委
+   員会とパッチが影響する領域のメンテナ(提供者がその領域のメンテナで無
+   い限り)に送られ、linux-kernel メーリングリストにCCされる。
+ - レビュー委員会は 48時間の間に ACK か NAK を出す。
+ - もしパッチが委員会のメンバから却下されるか、メンテナ達やメンバが気付
+   かなかった問題が持ちあがり、linux-kernel メンバがパッチに異議を唱え
+   た場合には、パッチはキューから削除される。
+ - レビューサイクルの最後に、ACK を受けたパッチは最新の -stable リリー
+   スに追加され、その後に新しい -stable リリースが行われる。
+ - セキュリティパッチは、通常のレビューサイクルを通らず、セキュリティ
+   カーネルチームから直接 -stable ツリーに受け付けられる。
+   この手続きの詳細については kernel security チームに問い合わせること。
+
+レビュー委員会-
+
+ - この委員会は、このタスクについて活動する多くのボランティアと、少数の
+   非ボランティアのカーネル開発者達で構成されている。
+

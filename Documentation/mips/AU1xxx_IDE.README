@@ -1,0 +1,122 @@
+README for MIPS AU1XXX IDE driver - Released 2005-07-15
+
+ABOUT
+-----
+This file describes the 'drivers/ide/mips/au1xxx-ide.c', related files and the
+services they provide.
+
+If you are short in patience and just want to know how to add your hard disc to
+the white or black list, go to the 'ADD NEW HARD DISC TO WHITE OR BLACK LIST'
+section.
+
+
+LICENSE
+-------
+
+Copyright (c) 2003-2005 AMD, Personal Connectivity Solutions
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2 of the License, or (at your option) any later
+version.
+
+THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR
+BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc.,
+675 Mass Ave, Cambridge, MA 02139, USA.
+
+Note: for more information, please refer "AMD Alchemy Au1200/Au1550 IDE
+      Interface and Linux Device Driver" Application Note.
+
+
+FILES, CONFIGS AND COMPATIBILITY
+--------------------------------
+
+Two files are introduced:
+
+  a) 'arch/mips/include/asm/mach-au1x00/au1xxx_ide.h'
+     contains : struct _auide_hwif
+                 timing parameters for PIO mode 0/1/2/3/4
+                 timing parameters for MWDMA 0/1/2
+
+  b) 'drivers/ide/mips/au1xxx-ide.c'
+     contains the functionality of the AU1XXX IDE driver
+
+Following extra configs variables are introduced:
+
+  CONFIG_BLK_DEV_IDE_AU1XXX_PIO_DBDMA    - enable the PIO+DBDMA mode
+  CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA  - enable the MWDMA mode
+  CONFIG_BLK_DEV_IDE_AU1XXX_BURSTABLE_ON - set Burstable FIFO in DBDMA
+                                           controller
+
+
+SUPPORTED IDE MODES
+-------------------
+
+The AU1XXX IDE driver supported all PIO modes - PIO mode 0/1/2/3/4 - and all
+MWDMA modes - MWDMA 0/1/2 -. There is no support for SWDMA and UDMA mode.
+
+To change the PIO mode use the program hdparm with option -p, e.g.
+'hdparm -p0 [device]' for PIO mode 0. To enable the MWDMA mode use the option
+-X, e.g. 'hdparm -X32 [device]' for MWDMA mode 0.
+
+
+PERFORMANCE CONFIGURATIONS
+--------------------------
+
+If the used system doesn't need USB support enable the following kernel configs:
+
+CONFIG_IDE=y
+CONFIG_BLK_DEV_IDE=y
+CONFIG_IDE_GENERIC=y
+CONFIG_BLK_DEV_IDEPCI=y
+CONFIG_BLK_DEV_GENERIC=y
+CONFIG_BLK_DEV_IDEDMA_PCI=y
+CONFIG_IDEDMA_PCI_AUTO=y
+CONFIG_BLK_DEV_IDE_AU1XXX=y
+CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA=y
+CONFIG_BLK_DEV_IDEDMA=y
+CONFIG_IDEDMA_AUTO=y
+
+Also define 'IDE_AU1XXX_BURSTMODE' in 'drivers/ide/mips/au1xxx-ide.c' to enable
+the burst support on DBDMA controller.
+
+If the used system need the USB support enable the following kernel configs for
+high IDE to USB throughput.
+
+CONFIG_BLK_DEV_IDEDISK=y
+CONFIG_IDE_GENERIC=y
+CONFIG_BLK_DEV_IDEPCI=y
+CONFIG_BLK_DEV_GENERIC=y
+CONFIG_BLK_DEV_IDEDMA_PCI=y
+CONFIG_IDEDMA_PCI_AUTO=y
+CONFIG_BLK_DEV_IDE_AU1XXX=y
+CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA=y
+CONFIG_BLK_DEV_IDEDMA=y
+CONFIG_IDEDMA_AUTO=y
+
+Also undefine 'IDE_AU1XXX_BURSTMODE' in 'drivers/ide/mips/au1xxx-ide.c' to
+disable the burst support on DBDMA controller.
+
+
+ACKNOWLEDGMENTS
+---------------
+
+These drivers wouldn't have been done without the base of kernel 2.4.x AU1XXX
+IDE driver from AMD.
+
+Additional input also from:
+Matthias Lenk <matthias.lenk@amd.com>
+
+Happy hacking!
+Enrico Walther <enrico.walther@amd.com>

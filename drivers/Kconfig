@@ -1,0 +1,143 @@
+menu "Device Drivers"
+
+source "drivers/base/Kconfig"
+
+source "drivers/connector/Kconfig"
+
+source "drivers/mtd/Kconfig"
+
+source "drivers/of/Kconfig"
+
+source "drivers/parport/Kconfig"
+
+source "drivers/pnp/Kconfig"
+
+source "drivers/block/Kconfig"
+
+# misc before ide - BLK_DEV_SGIIOC4 depends on SGI_IOC4
+
+source "drivers/misc/Kconfig"
+
+source "drivers/ide/Kconfig"
+
+source "drivers/scsi/Kconfig"
+
+source "drivers/ata/Kconfig"
+
+source "drivers/md/Kconfig"
+
+source "drivers/target/Kconfig"
+
+source "drivers/message/fusion/Kconfig"
+
+source "drivers/firewire/Kconfig"
+
+source "drivers/message/i2o/Kconfig"
+
+source "drivers/macintosh/Kconfig"
+
+source "drivers/net/Kconfig"
+
+source "drivers/isdn/Kconfig"
+
+# input before char - char/joystick depends on it. As does USB.
+
+source "drivers/input/Kconfig"
+
+source "drivers/char/Kconfig"
+
+source "drivers/i2c/Kconfig"
+
+source "drivers/spi/Kconfig"
+
+source "drivers/hsi/Kconfig"
+
+source "drivers/pps/Kconfig"
+
+source "drivers/ptp/Kconfig"
+
+source "drivers/pinctrl/Kconfig"
+
+source "drivers/gpio/Kconfig"
+
+source "drivers/w1/Kconfig"
+
+source "drivers/power/Kconfig"
+
+source "drivers/hwmon/Kconfig"
+
+source "drivers/thermal/Kconfig"
+
+source "drivers/watchdog/Kconfig"
+
+source "drivers/ssb/Kconfig"
+
+source "drivers/bcma/Kconfig"
+
+source "drivers/mfd/Kconfig"
+
+source "drivers/regulator/Kconfig"
+
+source "drivers/media/Kconfig"
+
+source "drivers/video/Kconfig"
+
+source "sound/Kconfig"
+
+source "drivers/hid/Kconfig"
+
+source "drivers/usb/Kconfig"
+
+source "drivers/uwb/Kconfig"
+
+source "drivers/mmc/Kconfig"
+
+source "drivers/memstick/Kconfig"
+
+source "drivers/leds/Kconfig"
+
+source "drivers/accessibility/Kconfig"
+
+source "drivers/infiniband/Kconfig"
+
+source "drivers/edac/Kconfig"
+
+source "drivers/rtc/Kconfig"
+
+source "drivers/dma/Kconfig"
+
+source "drivers/dca/Kconfig"
+
+source "drivers/auxdisplay/Kconfig"
+
+source "drivers/uio/Kconfig"
+
+source "drivers/vlynq/Kconfig"
+
+source "drivers/virtio/Kconfig"
+
+source "drivers/hv/Kconfig"
+
+source "drivers/xen/Kconfig"
+
+source "drivers/staging/Kconfig"
+
+source "drivers/platform/Kconfig"
+
+source "drivers/clk/Kconfig"
+
+source "drivers/hwspinlock/Kconfig"
+
+source "drivers/clocksource/Kconfig"
+
+source "drivers/iommu/Kconfig"
+
+source "drivers/remoteproc/Kconfig"
+
+source "drivers/rpmsg/Kconfig"
+
+source "drivers/virt/Kconfig"
+
+source "drivers/devfreq/Kconfig"
+
+endmenu

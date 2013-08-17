@@ -1,0 +1,28 @@
+
+config RDS
+	tristate "The RDS Protocol (EXPERIMENTAL)"
+	depends on INET && EXPERIMENTAL
+	---help---
+	  The RDS (Reliable Datagram Sockets) protocol provides reliable,
+	  sequenced delivery of datagrams over Infiniband, iWARP,
+	  or TCP.
+
+config RDS_RDMA
+	tristate "RDS over Infiniband and iWARP"
+	depends on RDS && INFINIBAND && INFINIBAND_ADDR_TRANS
+	---help---
+	  Allow RDS to use Infiniband and iWARP as a transport.
+	  This transport supports RDMA operations.
+
+config RDS_TCP
+	tristate "RDS over TCP"
+	depends on RDS
+	---help---
+	  Allow RDS to use TCP as a transport.
+	  This transport does not support RDMA operations.
+
+config RDS_DEBUG
+        bool "RDS debugging messages"
+	depends on RDS
+        default n
+

@@ -1,0 +1,40 @@
+Samsung Exynos4 GPIO Controller
+
+Required properties:
+- compatible: Compatible property value should be "samsung,exynos4-gpio>".
+
+- reg: Physical base address of the controller and length of memory mapped
+  region.
+
+- #gpio-cells: Should be 4. The syntax of the gpio specifier used by client nodes
+  should be the following with values derived from the SoC user manual.
+     <[phandle of the gpio controller node]
+      [pin number within the gpio controller]
+      [mux function]
+      [pull up/down]
+      [drive strength]>
+
+  Values for gpio specifier:
+  - Pin number: is a value between 0 to 7.
+  - Pull Up/Down: 0 - Pull Up/Down Disabled.
+                  1 - Pull Down Enabled.
+                  3 - Pull Up Enabled.
+  - Drive Strength: 0 - 1x,
+                    1 - 3x,
+                    2 - 2x,
+                    3 - 4x
+
+- gpio-controller: Specifies that the node is a gpio controller.
+- #address-cells: should be 1.
+- #size-cells: should be 1.
+
+Example:
+
+	gpa0: gpio-controller@11400000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "samsung,exynos4-gpio";
+		reg = <0x11400000 0x20>;
+		#gpio-cells = <4>;
+		gpio-controller;
+	};

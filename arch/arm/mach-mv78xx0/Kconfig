@@ -1,0 +1,25 @@
+if ARCH_MV78XX0
+
+menu "Marvell MV78xx0 Implementations"
+
+config MACH_DB78X00_BP
+	bool "Marvell DB-78x00-BP Development Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell DB-78x00-BP Development Board.
+
+config MACH_RD78X00_MASA
+	bool "Marvell RD-78x00-mASA Reference Design"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell RD-78x00-mASA Reference Design.
+
+config MACH_TERASTATION_WXL
+	bool "Buffalo WLX (Terastation Duo) NAS"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Buffalo WXL Nas.
+
+endmenu
+
+endif

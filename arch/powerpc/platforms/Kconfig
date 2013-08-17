@@ -1,0 +1,373 @@
+menu "Platform support"
+
+source "arch/powerpc/platforms/powernv/Kconfig"
+source "arch/powerpc/platforms/pseries/Kconfig"
+source "arch/powerpc/platforms/chrp/Kconfig"
+source "arch/powerpc/platforms/512x/Kconfig"
+source "arch/powerpc/platforms/52xx/Kconfig"
+source "arch/powerpc/platforms/powermac/Kconfig"
+source "arch/powerpc/platforms/prep/Kconfig"
+source "arch/powerpc/platforms/maple/Kconfig"
+source "arch/powerpc/platforms/pasemi/Kconfig"
+source "arch/powerpc/platforms/ps3/Kconfig"
+source "arch/powerpc/platforms/cell/Kconfig"
+source "arch/powerpc/platforms/8xx/Kconfig"
+source "arch/powerpc/platforms/82xx/Kconfig"
+source "arch/powerpc/platforms/83xx/Kconfig"
+source "arch/powerpc/platforms/85xx/Kconfig"
+source "arch/powerpc/platforms/86xx/Kconfig"
+source "arch/powerpc/platforms/embedded6xx/Kconfig"
+source "arch/powerpc/platforms/44x/Kconfig"
+source "arch/powerpc/platforms/40x/Kconfig"
+source "arch/powerpc/platforms/amigaone/Kconfig"
+source "arch/powerpc/platforms/wsp/Kconfig"
+
+config KVM_GUEST
+	bool "KVM Guest support"
+	default n
+	---help---
+	  This option enables various optimizations for running under the KVM
+	  hypervisor. Overhead for the kernel when not running inside KVM should
+	  be minimal.
+
+	  In case of doubt, say Y
+
+config PPC_NATIVE
+	bool
+	depends on 6xx || PPC64
+	help
+	  Support for running natively on the hardware, i.e. without
+	  a hypervisor. This option is not user-selectable but should
+	  be selected by all platforms that need it.
+
+config PPC_OF_BOOT_TRAMPOLINE
+	bool "Support booting from Open Firmware or yaboot"
+	depends on 6xx || PPC64
+	default y
+	help
+	  Support from booting from Open Firmware or yaboot using an
+	  Open Firmware client interface. This enables the kernel to
+	  communicate with open firmware to retrieve system information
+	  such as the device tree.
+
+	  In case of doubt, say Y
+
+config UDBG_RTAS_CONSOLE
+	bool "RTAS based debug console"
+	depends on PPC_RTAS
+	default n
+
+config PPC_SMP_MUXED_IPI
+	bool
+	help
+	  Select this opton if your platform supports SMP and your
+	  interrupt controller provides less than 4 interrupts to each
+	  cpu.	This will enable the generic code to multiplex the 4
+	  messages on to one ipi.
+
+config PPC_UDBG_BEAT
+	bool "BEAT based debug console"
+	depends on PPC_CELLEB
+	default n
+
+config IPIC
+	bool
+	default n
+
+config MPIC
+	bool
+	default n
+
+config PPC_EPAPR_HV_PIC
+	bool
+	default n
+
+config MPIC_WEIRD
+	bool
+	default n
+
+config MPIC_MSGR
+	bool "MPIC message register support"
+	depends on MPIC
+	default n
+	help
+	  Enables support for the MPIC message registers.  These
+	  registers are used for inter-processor communication.
+
+config PPC_I8259
+	bool
+	default n
+
+config U3_DART
+	bool
+	depends on PPC64
+	default n
+
+config PPC_RTAS
+	bool
+	default n
+
+config RTAS_ERROR_LOGGING
+	bool
+	depends on PPC_RTAS
+	default n
+
+config PPC_RTAS_DAEMON
+	bool
+	depends on PPC_RTAS
+	default n
+
+config RTAS_PROC
+	bool "Proc interface to RTAS"
+	depends on PPC_RTAS
+	default y
+
+config RTAS_FLASH
+	tristate "Firmware flash interface"
+	depends on PPC64 && RTAS_PROC
+
+config MMIO_NVRAM
+	bool
+	default n
+
+config MPIC_U3_HT_IRQS
+	bool
+	default n
+
+config MPIC_BROKEN_REGREAD
+	bool
+	depends on MPIC
+	help
+	  This option enables a MPIC driver workaround for some chips
+	  that have a bug that causes some interrupt source information
+	  to not read back properly. It is safe to use on other chips as
+	  well, but enabling it uses about 8KB of memory to keep copies
+	  of the register contents in software.
+
+config IBMVIO
+	depends on PPC_PSERIES
+	bool
+	default y
+
+config IBMEBUS
+	depends on PPC_PSERIES
+	bool "Support for GX bus based adapters"
+	help
+	  Bus device driver for GX bus based adapters.
+
+config PPC_MPC106
+	bool
+	default n
+
+config PPC_970_NAP
+	bool
+	default n
+
+config PPC_P7_NAP
+	bool
+	default n
+
+config PPC_INDIRECT_IO
+	bool
+	select GENERIC_IOMAP
+
+config PPC_INDIRECT_PIO
+	bool
+	select PPC_INDIRECT_IO
+
+config PPC_INDIRECT_MMIO
+	bool
+	select PPC_INDIRECT_IO
+
+config PPC_IO_WORKAROUNDS
+	bool
+
+source "drivers/cpufreq/Kconfig"
+
+menu "CPU Frequency drivers"
+	depends on CPU_FREQ
+
+config CPU_FREQ_PMAC
+	bool "Support for Apple PowerBooks"
+	depends on ADB_PMU && PPC32
+	select CPU_FREQ_TABLE
+	help
+	  This adds support for frequency switching on Apple PowerBooks,
+	  this currently includes some models of iBook & Titanium
+	  PowerBook.
+
+config CPU_FREQ_PMAC64
+	bool "Support for some Apple G5s"
+	depends on PPC_PMAC && PPC64
+	select CPU_FREQ_TABLE
+	help
+	  This adds support for frequency switching on Apple iMac G5,
+	  and some of the more recent desktop G5 machines as well.
+
+config PPC_PASEMI_CPUFREQ
+	bool "Support for PA Semi PWRficient"
+	depends on PPC_PASEMI
+	default y
+	select CPU_FREQ_TABLE
+	help
+	  This adds the support for frequency switching on PA Semi
+	  PWRficient processors.
+
+endmenu
+
+menu "CPUIdle driver"
+
+source "drivers/cpuidle/Kconfig"
+
+endmenu
+
+config PPC601_SYNC_FIX
+	bool "Workarounds for PPC601 bugs"
+	depends on 6xx && (PPC_PREP || PPC_PMAC)
+	help
+	  Some versions of the PPC601 (the first PowerPC chip) have bugs which
+	  mean that extra synchronization instructions are required near
+	  certain instructions, typically those that make major changes to the
+	  CPU state.  These extra instructions reduce performance slightly.
+	  If you say N here, these extra instructions will not be included,
+	  resulting in a kernel which will run faster but may not run at all
+	  on some systems with the PPC601 chip.
+
+	  If in doubt, say Y here.
+
+config TAU
+	bool "On-chip CPU temperature sensor support"
+	depends on 6xx
+	help
+	  G3 and G4 processors have an on-chip temperature sensor called the
+	  'Thermal Assist Unit (TAU)', which, in theory, can measure the on-die
+	  temperature within 2-4 degrees Celsius. This option shows the current
+	  on-die temperature in /proc/cpuinfo if the cpu supports it.
+
+	  Unfortunately, on some chip revisions, this sensor is very inaccurate
+	  and in many cases, does not work at all, so don't assume the cpu
+	  temp is actually what /proc/cpuinfo says it is.
+
+config TAU_INT
+	bool "Interrupt driven TAU driver (DANGEROUS)"
+	depends on TAU
+	---help---
+	  The TAU supports an interrupt driven mode which causes an interrupt
+	  whenever the temperature goes out of range. This is the fastest way
+	  to get notified the temp has exceeded a range. With this option off,
+	  a timer is used to re-check the temperature periodically.
+
+	  However, on some cpus it appears that the TAU interrupt hardware
+	  is buggy and can cause a situation which would lead unexplained hard
+	  lockups.
+
+	  Unless you are extending the TAU driver, or enjoy kernel/hardware
+	  debugging, leave this option off.
+
+config TAU_AVERAGE
+	bool "Average high and low temp"
+	depends on TAU
+	---help---
+	  The TAU hardware can compare the temperature to an upper and lower
+	  bound.  The default behavior is to show both the upper and lower
+	  bound in /proc/cpuinfo. If the range is large, the temperature is
+	  either changing a lot, or the TAU hardware is broken (likely on some
+	  G4's). If the range is small (around 4 degrees), the temperature is
+	  relatively stable.  If you say Y here, a single temperature value,
+	  halfway between the upper and lower bounds, will be reported in
+	  /proc/cpuinfo.
+
+	  If in doubt, say N here.
+
+config QUICC_ENGINE
+	bool "Freescale QUICC Engine (QE) Support"
+	depends on FSL_SOC && PPC32
+	select PPC_LIB_RHEAP
+	select CRC32
+	help
+	  The QUICC Engine (QE) is a new generation of communications
+	  coprocessors on Freescale embedded CPUs (akin to CPM in older chips).
+	  Selecting this option means that you wish to build a kernel
+	  for a machine with a QE coprocessor.
+
+config QE_GPIO
+	bool "QE GPIO support"
+	depends on QUICC_ENGINE
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  Say Y here if you're going to use hardware that connects to the
+	  QE GPIOs.
+
+config CPM2
+	bool "Enable support for the CPM2 (Communications Processor Module)"
+	depends on (FSL_SOC_BOOKE && PPC32) || 8260
+	select CPM
+	select PPC_LIB_RHEAP
+	select PPC_PCI_CHOICE
+	select ARCH_REQUIRE_GPIOLIB
+	select GENERIC_GPIO
+	help
+	  The CPM2 (Communications Processor Module) is a coprocessor on
+	  embedded CPUs made by Freescale.  Selecting this option means that
+	  you wish to build a kernel for a machine with a CPM2 coprocessor
+	  on it (826x, 827x, 8560).
+
+config AXON_RAM
+	tristate "Axon DDR2 memory device driver"
+	depends on PPC_IBM_CELL_BLADE && BLOCK
+	default m
+	help
+	  It registers one block device per Axon's DDR2 memory bank found
+	  on a system. Block devices are called axonram?, their major and
+	  minor numbers are available in /proc/devices, /proc/partitions or
+	  in /sys/block/axonram?/dev.
+
+config FSL_ULI1575
+	bool
+	default n
+	select GENERIC_ISA_DMA
+	help
+	  Supports for the ULI1575 PCIe south bridge that exists on some
+	  Freescale reference boards. The boards all use the ULI in pretty
+	  much the same way.
+
+config CPM
+	bool
+	select PPC_CLOCK
+
+config OF_RTC
+	bool
+	help
+	  Uses information from the OF or flattened device tree to instantiate
+	  platform devices for direct mapped RTC chips like the DS1742 or DS1743.
+
+source "arch/powerpc/sysdev/bestcomm/Kconfig"
+
+config SIMPLE_GPIO
+	bool "Support for simple, memory-mapped GPIO controllers"
+	depends on PPC
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  Say Y here to support simple, memory-mapped GPIO controllers.
+	  These are usually BCSRs used to control board's switches, LEDs,
+	  chip-selects, Ethernet/USB PHY's power and various other small
+	  on-board peripherals.
+
+config MCU_MPC8349EMITX
+	bool "MPC8349E-mITX MCU driver"
+	depends on I2C=y && PPC_83xx
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  Say Y here to enable soft power-off functionality on the Freescale
+	  boards with the MPC8349E-mITX-compatible MCU chips. This driver will
+	  also register MCU GPIOs with the generic GPIO API, so you'll able
+	  to use MCU pins as GPIOs.
+
+config XILINX_PCI
+	bool "Xilinx PCI host bridge support"
+	depends on PCI && XILINX_VIRTEX
+
+endmenu

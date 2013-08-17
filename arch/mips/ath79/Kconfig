@@ -1,0 +1,87 @@
+if ATH79
+
+menu "Atheros AR71XX/AR724X/AR913X machine selection"
+
+config ATH79_MACH_AP121
+	bool "Atheros AP121 reference board"
+	select SOC_AR933X
+	select ATH79_DEV_GPIO_BUTTONS
+	select ATH79_DEV_LEDS_GPIO
+	select ATH79_DEV_SPI
+	select ATH79_DEV_USB
+	select ATH79_DEV_WMAC
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Atheros AP121 reference board.
+
+config ATH79_MACH_AP81
+	bool "Atheros AP81 reference board"
+	select SOC_AR913X
+	select ATH79_DEV_GPIO_BUTTONS
+	select ATH79_DEV_LEDS_GPIO
+	select ATH79_DEV_SPI
+	select ATH79_DEV_USB
+	select ATH79_DEV_WMAC
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Atheros AP81 reference board.
+
+config ATH79_MACH_PB44
+	bool "Atheros PB44 reference board"
+	select SOC_AR71XX
+	select ATH79_DEV_GPIO_BUTTONS
+	select ATH79_DEV_LEDS_GPIO
+	select ATH79_DEV_SPI
+	select ATH79_DEV_USB
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Atheros PB44 reference board.
+
+config ATH79_MACH_UBNT_XM
+	bool "Ubiquiti Networks XM (rev 1.0) board"
+	select SOC_AR724X
+	select ATH79_DEV_GPIO_BUTTONS
+	select ATH79_DEV_LEDS_GPIO
+	select ATH79_DEV_SPI
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Ubiquiti Networks XM (rev 1.0) board.
+
+endmenu
+
+config SOC_AR71XX
+	select USB_ARCH_HAS_EHCI
+	select USB_ARCH_HAS_OHCI
+	def_bool n
+
+config SOC_AR724X
+	select USB_ARCH_HAS_EHCI
+	select USB_ARCH_HAS_OHCI
+	select HW_HAS_PCI
+	def_bool n
+
+config SOC_AR913X
+	select USB_ARCH_HAS_EHCI
+	def_bool n
+
+config SOC_AR933X
+	select USB_ARCH_HAS_EHCI
+	def_bool n
+
+config ATH79_DEV_GPIO_BUTTONS
+	def_bool n
+
+config ATH79_DEV_LEDS_GPIO
+	def_bool n
+
+config ATH79_DEV_SPI
+	def_bool n
+
+config ATH79_DEV_USB
+	def_bool n
+
+config ATH79_DEV_WMAC
+	depends on (SOC_AR913X || SOC_AR933X)
+	def_bool n
+
+endif

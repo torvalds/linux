@@ -1,0 +1,118 @@
+#!/bin/sh
+
+#
+# buildtar 0.0.4
+#
+# (C) 2004-2006 by Jan-Benedict Glaw <jbglaw@lug-owl.de>
+#
+# This script is used to compile a tarball from the currently
+# prepared kernel. Based upon the builddeb script from
+# Wichert Akkerman <wichert@wiggy.net>.
+#
+
+set -e
+
+#
+# Some variables and settings used throughout the script
+#
+tmpdir="${objtree}/tar-install"
+tarball="${objtree}/linux-${KERNELRELEASE}.tar"
+
+
+#
+# Figure out how to compress, if requested at all
+#
+case "${1}" in
+	tar-pkg)
+		compress="cat"
+		file_ext=""
+		;;
+	targz-pkg)
+		compress="gzip -c9"
+		file_ext=".gz"
+		;;
+	tarbz2-pkg)
+		compress="bzip2 -c9"
+		file_ext=".bz2"
+		;;
+	tarxz-pkg)
+		compress="xz -c9"
+		file_ext=".xz"
+		;;
+	*)
+		echo "Unknown tarball target \"${1}\" requested, please add it to ${0}." >&2
+		exit 1
+		;;
+esac
+
+
+#
+# Clean-up and re-create the temporary directory
+#
+rm -rf -- "${tmpdir}"
+mkdir -p -- "${tmpdir}/boot"
+
+
+#
+# Try to install modules
+#
+if grep -q '^CONFIG_MODULES=y' "${objtree}/.config"; then
+	make ARCH="${ARCH}" O="${objtree}" KBUILD_SRC= INSTALL_MOD_PATH="${tmpdir}" modules_install
+fi
+
+
+#
+# Install basic kernel files
+#
+cp -v -- "${objtree}/System.map" "${tmpdir}/boot/System.map-${KERNELRELEASE}"
+cp -v -- "${objtree}/.config" "${tmpdir}/boot/config-${KERNELRELEASE}"
+cp -v -- "${objtree}/vmlinux" "${tmpdir}/boot/vmlinux-${KERNELRELEASE}"
+
+
+#
+# Install arch-specific kernel image(s)
+#
+case "${ARCH}" in
+	x86|i386|x86_64)
+		[ -f "${objtree}/arch/x86/boot/bzImage" ] && cp -v -- "${objtree}/arch/x86/boot/bzImage" "${tmpdir}/boot/vmlinuz-${KERNELRELEASE}"
+		;;
+	alpha)
+		[ -f "${objtree}/arch/alpha/boot/vmlinux.gz" ] && cp -v -- "${objtree}/arch/alpha/boot/vmlinux.gz" "${tmpdir}/boot/vmlinuz-${KERNELRELEASE}"
+		;;
+	parisc*)
+		[ -f "${KBUILD_IMAGE}" ] && cp -v -- "${KBUILD_IMAGE}" "${tmpdir}/boot/vmlinux-${KERNELRELEASE}"
+		[ -f "${objtree}/lifimage" ] && cp -v -- "${objtree}/lifimage" "${tmpdir}/boot/lifimage-${KERNELRELEASE}"
+		;;
+	vax)
+		[ -f "${objtree}/vmlinux.SYS" ] && cp -v -- "${objtree}/vmlinux.SYS" "${tmpdir}/boot/vmlinux-${KERNELRELEASE}.SYS"
+		[ -f "${objtree}/vmlinux.dsk" ] && cp -v -- "${objtree}/vmlinux.dsk" "${tmpdir}/boot/vmlinux-${KERNELRELEASE}.dsk"
+		;;
+	*)
+		[ -f "${KBUILD_IMAGE}" ] && cp -v -- "${KBUILD_IMAGE}" "${tmpdir}/boot/vmlinux-kbuild-${KERNELRELEASE}"
+		echo "" >&2
+		echo '** ** **  WARNING  ** ** **' >&2
+		echo "" >&2
+		echo "Your architecture did not define any architecture-dependent files" >&2
+		echo "to be placed into the tarball. Please add those to ${0} ..." >&2
+		echo "" >&2
+		sleep 5
+		;;
+esac
+
+
+#
+# Create the tarball
+#
+(
+	cd "${tmpdir}"
+	opts=
+	if tar --owner=root --group=root --help >/dev/null 2>&1; then
+		opts="--owner=root --group=root"
+	fi
+	tar cf - . $opts | ${compress} > "${tarball}${file_ext}"
+)
+
+echo "Tarball successfully created in ${tarball}${file_ext}"
+
+exit 0
+

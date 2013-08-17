@@ -1,0 +1,84 @@
+
+
+		Supporting multiple CPU idle levels in kernel
+
+				cpuidle sysfs
+
+System global cpuidle related information and tunables are under
+/sys/devices/system/cpu/cpuidle
+
+The current interfaces in this directory has self-explanatory names:
+* current_driver
+* current_governor_ro
+
+With cpuidle_sysfs_switch boot option (meant for developer testing)
+following objects are visible instead.
+* current_driver
+* available_governors
+* current_governor
+In this case users can switch the governor at run time by writing
+to current_governor.
+
+
+Per logical CPU specific cpuidle information are under
+/sys/devices/system/cpu/cpuX/cpuidle
+for each online cpu X
+
+--------------------------------------------------------------------------------
+# ls -lR /sys/devices/system/cpu/cpu0/cpuidle/
+/sys/devices/system/cpu/cpu0/cpuidle/:
+total 0
+drwxr-xr-x 2 root root 0 Feb  8 10:42 state0
+drwxr-xr-x 2 root root 0 Feb  8 10:42 state1
+drwxr-xr-x 2 root root 0 Feb  8 10:42 state2
+drwxr-xr-x 2 root root 0 Feb  8 10:42 state3
+
+/sys/devices/system/cpu/cpu0/cpuidle/state0:
+total 0
+-r--r--r-- 1 root root 4096 Feb  8 10:42 desc
+-rw-r--r-- 1 root root 4096 Feb  8 10:42 disable
+-r--r--r-- 1 root root 4096 Feb  8 10:42 latency
+-r--r--r-- 1 root root 4096 Feb  8 10:42 name
+-r--r--r-- 1 root root 4096 Feb  8 10:42 power
+-r--r--r-- 1 root root 4096 Feb  8 10:42 time
+-r--r--r-- 1 root root 4096 Feb  8 10:42 usage
+
+/sys/devices/system/cpu/cpu0/cpuidle/state1:
+total 0
+-r--r--r-- 1 root root 4096 Feb  8 10:42 desc
+-rw-r--r-- 1 root root 4096 Feb  8 10:42 disable
+-r--r--r-- 1 root root 4096 Feb  8 10:42 latency
+-r--r--r-- 1 root root 4096 Feb  8 10:42 name
+-r--r--r-- 1 root root 4096 Feb  8 10:42 power
+-r--r--r-- 1 root root 4096 Feb  8 10:42 time
+-r--r--r-- 1 root root 4096 Feb  8 10:42 usage
+
+/sys/devices/system/cpu/cpu0/cpuidle/state2:
+total 0
+-r--r--r-- 1 root root 4096 Feb  8 10:42 desc
+-rw-r--r-- 1 root root 4096 Feb  8 10:42 disable
+-r--r--r-- 1 root root 4096 Feb  8 10:42 latency
+-r--r--r-- 1 root root 4096 Feb  8 10:42 name
+-r--r--r-- 1 root root 4096 Feb  8 10:42 power
+-r--r--r-- 1 root root 4096 Feb  8 10:42 time
+-r--r--r-- 1 root root 4096 Feb  8 10:42 usage
+
+/sys/devices/system/cpu/cpu0/cpuidle/state3:
+total 0
+-r--r--r-- 1 root root 4096 Feb  8 10:42 desc
+-rw-r--r-- 1 root root 4096 Feb  8 10:42 disable
+-r--r--r-- 1 root root 4096 Feb  8 10:42 latency
+-r--r--r-- 1 root root 4096 Feb  8 10:42 name
+-r--r--r-- 1 root root 4096 Feb  8 10:42 power
+-r--r--r-- 1 root root 4096 Feb  8 10:42 time
+-r--r--r-- 1 root root 4096 Feb  8 10:42 usage
+--------------------------------------------------------------------------------
+
+
+* desc : Small description about the idle state (string)
+* disable : Option to disable this idle state (bool)
+* latency : Latency to exit out of this idle state (in microseconds)
+* name : Name of the idle state (string)
+* power : Power consumed while in this idle state (in milliwatts)
+* time : Total time spent in this idle state (in microseconds)
+* usage : Number of times this state was entered (count)

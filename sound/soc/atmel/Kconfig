@@ -1,0 +1,33 @@
+config SND_ATMEL_SOC
+	tristate "SoC Audio for the Atmel System-on-Chip"
+	depends on ARCH_AT91
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the ATMEL SSC interface. You will also need
+	  to select the audio interfaces to support below.
+
+config SND_ATMEL_SOC_SSC
+	tristate
+	depends on SND_ATMEL_SOC
+	help
+	  Say Y or M if you want to add support for codecs the
+	  ATMEL SSC interface. You will also needs to select the individual
+	  machine drivers to support below.
+
+config SND_AT91_SOC_SAM9G20_WM8731
+	tristate "SoC Audio support for WM8731-based At91sam9g20 evaluation board"
+	depends on ATMEL_SSC && ARCH_AT91SAM9G20 && SND_ATMEL_SOC && \
+                   AT91_PROGRAMMABLE_CLOCKS
+	select SND_ATMEL_SOC_SSC
+	select SND_SOC_WM8731
+	help
+	  Say Y if you want to add support for SoC audio on WM8731-based
+	  AT91sam9g20 evaluation board.
+
+config SND_AT91_SOC_AFEB9260
+	tristate "SoC Audio support for AFEB9260 board"
+	depends on ATMEL_SSC && ARCH_AT91 && MACH_AFEB9260 && SND_ATMEL_SOC
+	select SND_ATMEL_SOC_SSC
+	select SND_SOC_TLV320AIC23
+	help
+	  Say Y here to support sound on AFEB9260 board.

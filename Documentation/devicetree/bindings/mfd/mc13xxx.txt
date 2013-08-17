@@ -1,0 +1,78 @@
+* Freescale MC13783/MC13892 Power Management Integrated Circuit (PMIC)
+
+Required properties:
+- compatible : Should be "fsl,mc13783" or "fsl,mc13892"
+
+Optional properties:
+- fsl,mc13xxx-uses-adc : Indicate the ADC is being used
+- fsl,mc13xxx-uses-codec : Indicate the Audio Codec is being used
+- fsl,mc13xxx-uses-rtc : Indicate the RTC is being used
+- fsl,mc13xxx-uses-touch : Indicate the touchscreen controller is being used
+
+Sub-nodes:
+- regulators : Contain the regulator nodes.  The MC13892 regulators are
+  bound using their names as listed below with their registers and bits
+  for enabling.
+
+    vcoincell : regulator VCOINCELL (register 13, bit 23)
+    sw1       : regulator SW1	    (register 24, bit 0)
+    sw2       : regulator SW2	    (register 25, bit 0)
+    sw3       : regulator SW3	    (register 26, bit 0)
+    sw4       : regulator SW4	    (register 27, bit 0)
+    swbst     : regulator SWBST	    (register 29, bit 20)
+    vgen1     : regulator VGEN1	    (register 32, bit 0)
+    viohi     : regulator VIOHI	    (register 32, bit 3)
+    vdig      : regulator VDIG	    (register 32, bit 9)
+    vgen2     : regulator VGEN2	    (register 32, bit 12)
+    vpll      : regulator VPLL	    (register 32, bit 15)
+    vusb2     : regulator VUSB2	    (register 32, bit 18)
+    vgen3     : regulator VGEN3	    (register 33, bit 0)
+    vcam      : regulator VCAM	    (register 33, bit 6)
+    vvideo    : regulator VVIDEO    (register 33, bit 12)
+    vaudio    : regulator VAUDIO    (register 33, bit 15)
+    vsd       : regulator VSD	    (register 33, bit 18)
+    gpo1      : regulator GPO1	    (register 34, bit 6)
+    gpo2      : regulator GPO2	    (register 34, bit 8)
+    gpo3      : regulator GPO3	    (register 34, bit 10)
+    gpo4      : regulator GPO4	    (register 34, bit 12)
+    pwgt1spi  : regulator PWGT1SPI  (register 34, bit 15)
+    pwgt2spi  : regulator PWGT2SPI  (register 34, bit 16)
+    vusb      : regulator VUSB	    (register 50, bit 3)
+
+  The bindings details of individual regulator device can be found in:
+  Documentation/devicetree/bindings/regulator/regulator.txt
+
+Examples:
+
+ecspi@70010000 { /* ECSPI1 */
+	fsl,spi-num-chipselects = <2>;
+	cs-gpios = <&gpio3 24 0>, /* GPIO4_24 */
+		   <&gpio3 25 0>; /* GPIO4_25 */
+	status = "okay";
+
+	pmic: mc13892@0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "fsl,mc13892";
+		spi-max-frequency = <6000000>;
+		reg = <0>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <8>;
+
+		regulators {
+			sw1_reg: mc13892__sw1 {
+				regulator-min-microvolt = <600000>;
+				regulator-max-microvolt = <1375000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			sw2_reg: mc13892__sw2 {
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <1850000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+		};
+	};
+};

@@ -1,0 +1,193 @@
+perf-top(1)
+===========
+
+NAME
+----
+perf-top - System profiling tool.
+
+SYNOPSIS
+--------
+[verse]
+'perf top' [-e <EVENT> | --event=EVENT] [<options>]
+
+DESCRIPTION
+-----------
+This command generates and displays a performance counter profile in real time.
+
+
+OPTIONS
+-------
+-a::
+--all-cpus::
+        System-wide collection.  (default)
+
+-c <count>::
+--count=<count>::
+	Event period to sample.
+
+-C <cpu-list>::
+--cpu=<cpu>::
+Monitor only on the list of CPUs provided. Multiple CPUs can be provided as a
+comma-separated list with no space: 0,1. Ranges of CPUs are specified with -: 0-2.
+Default is to monitor all CPUS.
+
+-d <seconds>::
+--delay=<seconds>::
+	Number of seconds to delay between refreshes.
+
+-e <event>::
+--event=<event>::
+	Select the PMU event. Selection can be a symbolic event name
+	(use 'perf list' to list all events) or a raw PMU
+	event (eventsel+umask) in the form of rNNN where NNN is a
+	hexadecimal event descriptor.
+
+-E <entries>::
+--entries=<entries>::
+	Display this many functions.
+
+-f <count>::
+--count-filter=<count>::
+	Only display functions with more events than this.
+
+-g::
+--group::
+        Put the counters into a counter group.
+
+-F <freq>::
+--freq=<freq>::
+	Profile at this frequency.
+
+-i::
+--inherit::
+	Child tasks inherit counters, only makes sens with -p option.
+
+-k <path>::
+--vmlinux=<path>::
+	Path to vmlinux.  Required for annotation functionality.
+
+-m <pages>::
+--mmap-pages=<pages>::
+	Number of mmapped data pages.
+
+-p <pid>::
+--pid=<pid>::
+	Profile events on existing Process ID (comma separated list).
+
+-t <tid>::
+--tid=<tid>::
+        Profile events on existing thread ID (comma separated list).
+
+-u::
+--uid=::
+        Record events in threads owned by uid. Name or number.
+
+-r <priority>::
+--realtime=<priority>::
+	Collect data with this RT SCHED_FIFO priority.
+
+-s <symbol>::
+--sym-annotate=<symbol>::
+        Annotate this symbol.
+
+-K::
+--hide_kernel_symbols::
+        Hide kernel symbols.
+
+-U::
+--hide_user_symbols::
+        Hide user symbols.
+
+-D::
+--dump-symtab::
+        Dump the symbol table used for profiling.
+
+-v::
+--verbose::
+	Be more verbose (show counter open errors, etc).
+
+-z::
+--zero::
+	Zero history across display updates.
+
+-s::
+--sort::
+	Sort by key(s): pid, comm, dso, symbol, parent
+
+-n::
+--show-nr-samples::
+	Show a column with the number of samples.
+
+--show-total-period::
+	Show a column with the sum of periods.
+
+--dsos::
+	Only consider symbols in these dsos.
+
+--comms::
+	Only consider symbols in these comms.
+
+--symbols::
+	Only consider these symbols.
+
+-M::
+--disassembler-style=:: Set disassembler style for objdump.
+
+--source::
+	Interleave source code with assembly code. Enabled by default,
+	disable with --no-source.
+
+--asm-raw::
+	Show raw instruction encoding of assembly instructions.
+
+-G [type,min,order]::
+--call-graph::
+        Display call chains using type, min percent threshold and order.
+	type can be either:
+	- flat: single column, linear exposure of call chains.
+	- graph: use a graph tree, displaying absolute overhead rates.
+	- fractal: like graph, but displays relative rates. Each branch of
+		 the tree is considered as a new profiled object.
+
+	order can be either:
+	- callee: callee based call graph.
+	- caller: inverted caller based call graph.
+
+	Default: fractal,0.5,callee.
+
+INTERACTIVE PROMPTING KEYS
+--------------------------
+
+[d]::
+	Display refresh delay.
+
+[e]::
+	Number of entries to display.
+
+[E]::
+	Event to display when multiple counters are active.
+
+[f]::
+	Profile display filter (>= hit count).
+
+[F]::
+	Annotation display filter (>= % of total).
+
+[s]::
+	Annotate symbol.
+
+[S]::
+	Stop annotation, return to full profile display.
+
+[z]::
+	Toggle event count zeroing across display updates.
+
+[qQ]::
+	Quit.
+
+Pressing any unmapped key displays a menu, and prompts for input.
+
+
+SEE ALSO
+--------
+linkperf:perf-stat[1], linkperf:perf-list[1]

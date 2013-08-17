@@ -1,0 +1,98 @@
+menu "EEPROM support"
+
+config EEPROM_AT24
+	tristate "I2C EEPROMs from most vendors"
+	depends on I2C && SYSFS
+	help
+	  Enable this driver to get read/write support to most I2C EEPROMs,
+	  after you configure the driver to know about each EEPROM on
+	  your target board.  Use these generic chip names, instead of
+	  vendor-specific ones like at24c64 or 24lc02:
+
+	     24c00, 24c01, 24c02, spd (readonly 24c02), 24c04, 24c08,
+	     24c16, 24c32, 24c64, 24c128, 24c256, 24c512, 24c1024
+
+	  Unless you like data loss puzzles, always be sure that any chip
+	  you configure as a 24c32 (32 kbit) or larger is NOT really a
+	  24c16 (16 kbit) or smaller, and vice versa. Marking the chip
+	  as read-only won't help recover from this. Also, if your chip
+	  has any software write-protect mechanism you may want to review the
+	  code to make sure this driver won't turn it on by accident.
+
+	  If you use this with an SMBus adapter instead of an I2C adapter,
+	  full functionality is not available.  Only smaller devices are
+	  supported (24c16 and below, max 4 kByte).
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called at24.
+
+config EEPROM_AT25
+	tristate "SPI EEPROMs from most vendors"
+	depends on SPI && SYSFS
+	help
+	  Enable this driver to get read/write support to most SPI EEPROMs,
+	  after you configure the board init code to know about each eeprom
+	  on your target board.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called at25.
+
+config EEPROM_LEGACY
+	tristate "Old I2C EEPROM reader"
+	depends on I2C && SYSFS
+	help
+	  If you say yes here you get read-only access to the EEPROM data
+	  available on modern memory DIMMs and Sony Vaio laptops via I2C. Such
+	  EEPROMs could theoretically be available on other devices as well.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called eeprom.
+
+config EEPROM_MAX6875
+	tristate "Maxim MAX6874/5 power supply supervisor"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get read-only support for the user EEPROM of
+	  the Maxim MAX6874/5 EEPROM-programmable, quad power-supply
+	  sequencer/supervisor.
+
+	  All other features of this chip should be accessed via i2c-dev.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called max6875.
+
+
+config EEPROM_93CX6
+	tristate "EEPROM 93CX6 support"
+	help
+	  This is a driver for the EEPROM chipsets 93c46 and 93c66.
+	  The driver supports both read as well as write commands.
+
+	  If unsure, say N.
+
+config EEPROM_93XX46
+	tristate "Microwire EEPROM 93XX46 support"
+	depends on SPI && SYSFS
+	help
+	  Driver for the microwire EEPROM chipsets 93xx46x. The driver
+	  supports both read and write commands and also the command to
+	  erase the whole EEPROM.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called eeprom_93xx46.
+
+	  If unsure, say N.
+
+config EEPROM_DIGSY_MTC_CFG
+	bool "DigsyMTC display configuration EEPROMs device"
+	depends on GPIO_MPC5200 && SPI_GPIO
+	help
+	  This option enables access to display configuration EEPROMs
+	  on digsy_mtc board. You have to additionally select Microwire
+	  EEPROM 93XX46 driver. sysfs entries will be created for that
+	  EEPROM allowing to read/write the configuration data or to
+	  erase the whole EEPROM.
+
+	  If unsure, say N.
+
+endmenu

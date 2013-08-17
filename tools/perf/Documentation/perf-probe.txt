@@ -1,0 +1,188 @@
+perf-probe(1)
+=============
+
+NAME
+----
+perf-probe - Define new dynamic tracepoints
+
+SYNOPSIS
+--------
+[verse]
+'perf probe' [options] --add='PROBE' [...]
+or
+'perf probe' [options] PROBE
+or
+'perf probe' [options] --del='[GROUP:]EVENT' [...]
+or
+'perf probe' --list
+or
+'perf probe' [options] --line='LINE'
+or
+'perf probe' [options] --vars='PROBEPOINT'
+
+DESCRIPTION
+-----------
+This command defines dynamic tracepoint events, by symbol and registers
+without debuginfo, or by C expressions (C line numbers, C function names,
+and C local variables) with debuginfo.
+
+
+OPTIONS
+-------
+-k::
+--vmlinux=PATH::
+	Specify vmlinux path which has debuginfo (Dwarf binary).
+
+-m::
+--module=MODNAME|PATH::
+	Specify module name in which perf-probe searches probe points
+	or lines. If a path of module file is passed, perf-probe
+	treat it as an offline module (this means you can add a probe on
+        a module which has not been loaded yet).
+
+-s::
+--source=PATH::
+	Specify path to kernel source.
+
+-v::
+--verbose::
+        Be more verbose (show parsed arguments, etc).
+
+-a::
+--add=::
+	Define a probe event (see PROBE SYNTAX for detail).
+
+-d::
+--del=::
+	Delete probe events. This accepts glob wildcards('*', '?') and character
+	classes(e.g. [a-z], [!A-Z]).
+
+-l::
+--list::
+	List up current probe events.
+
+-L::
+--line=::
+	Show source code lines which can be probed. This needs an argument
+	which specifies a range of the source code. (see LINE SYNTAX for detail)
+
+-V::
+--vars=::
+	Show available local variables at given probe point. The argument
+	syntax is same as PROBE SYNTAX, but NO ARGs.
+
+--externs::
+	(Only for --vars) Show external defined variables in addition to local
+	variables.
+
+-F::
+--funcs::
+	Show available functions in given module or kernel.
+
+--filter=FILTER::
+	(Only for --vars and --funcs) Set filter. FILTER is a combination of glob
+	pattern, see FILTER PATTERN for detail.
+	Default FILTER is "!__k???tab_* & !__crc_*" for --vars, and "!_*"
+	for --funcs.
+	If several filters are specified, only the last filter is used.
+
+-f::
+--force::
+	Forcibly add events with existing name.
+
+-n::
+--dry-run::
+	Dry run. With this option, --add and --del doesn't execute actual
+	adding and removal operations.
+
+--max-probes::
+	Set the maximum number of probe points for an event. Default is 128.
+
+PROBE SYNTAX
+------------
+Probe points are defined by following syntax.
+
+    1) Define event based on function name
+     [EVENT=]FUNC[@SRC][:RLN|+OFFS|%return|;PTN] [ARG ...]
+
+    2) Define event based on source file with line number
+     [EVENT=]SRC:ALN [ARG ...]
+
+    3) Define event based on source file with lazy pattern
+     [EVENT=]SRC;PTN [ARG ...]
+
+
+'EVENT' specifies the name of new event, if omitted, it will be set the name of the probed function. Currently, event group name is set as 'probe'.
+'FUNC' specifies a probed function name, and it may have one of the following options; '+OFFS' is the offset from function entry address in bytes, ':RLN' is the relative-line number from function entry line, and '%return' means that it probes function return. And ';PTN' means lazy matching pattern (see LAZY MATCHING). Note that ';PTN' must be the end of the probe point definition.  In addition, '@SRC' specifies a source file which has that function.
+It is also possible to specify a probe point by the source line number or lazy matching by using 'SRC:ALN' or 'SRC;PTN' syntax, where 'SRC' is the source file path, ':ALN' is the line number and ';PTN' is the lazy matching pattern.
+'ARG' specifies the arguments of this probe point, (see PROBE ARGUMENT).
+
+PROBE ARGUMENT
+--------------
+Each probe argument follows below syntax.
+
+ [NAME=]LOCALVAR|$retval|%REG|@SYMBOL[:TYPE]
+
+'NAME' specifies the name of this argument (optional). You can use the name of local variable, local data structure member (e.g. var->field, var.field2), local array with fixed index (e.g. array[1], var->array[0], var->pointer[2]), or kprobe-tracer argument format (e.g. $retval, %ax, etc). Note that the name of this argument will be set as the last member name if you specify a local data structure member (e.g. field2 for 'var->field1.field2'.)
+'TYPE' casts the type of this argument (optional). If omitted, perf probe automatically set the type based on debuginfo. You can specify 'string' type only for the local variable or structure member which is an array of or a pointer to 'char' or 'unsigned char' type.
+
+LINE SYNTAX
+-----------
+Line range is described by following syntax.
+
+ "FUNC[@SRC][:RLN[+NUM|-RLN2]]|SRC[:ALN[+NUM|-ALN2]]"
+
+FUNC specifies the function name of showing lines. 'RLN' is the start line
+number from function entry line, and 'RLN2' is the end line number. As same as
+probe syntax, 'SRC' means the source file path, 'ALN' is start line number,
+and 'ALN2' is end line number in the file. It is also possible to specify how
+many lines to show by using 'NUM'. Moreover, 'FUNC@SRC' combination is good
+for searching a specific function when several functions share same name.
+So, "source.c:100-120" shows lines between 100th to l20th in source.c file. And "func:10+20" shows 20 lines from 10th line of func function.
+
+LAZY MATCHING
+-------------
+ The lazy line matching is similar to glob matching but ignoring spaces in both of pattern and target. So this accepts wildcards('*', '?') and character classes(e.g. [a-z], [!A-Z]).
+
+e.g.
+ 'a=*' can matches 'a=b', 'a = b', 'a == b' and so on.
+
+This provides some sort of flexibility and robustness to probe point definitions against minor code changes. For example, actual 10th line of schedule() can be moved easily by modifying schedule(), but the same line matching 'rq=cpu_rq*' may still exist in the function.)
+
+FILTER PATTERN
+--------------
+ The filter pattern is a glob matching pattern(s) to filter variables.
+ In addition, you can use "!" for specifying filter-out rule. You also can give several rules combined with "&" or "|", and fold those rules as one rule by using "(" ")".
+
+e.g.
+ With --filter "foo* | bar*", perf probe -V shows variables which start with "foo" or "bar".
+ With --filter "!foo* & *bar", perf probe -V shows variables which don't start with "foo" and end with "bar", like "fizzbar". But "foobar" is filtered out.
+
+EXAMPLES
+--------
+Display which lines in schedule() can be probed:
+
+ ./perf probe --line schedule
+
+Add a probe on schedule() function 12th line with recording cpu local variable:
+
+ ./perf probe schedule:12 cpu
+ or
+ ./perf probe --add='schedule:12 cpu'
+
+ this will add one or more probes which has the name start with "schedule".
+
+ Add probes on lines in schedule() function which calls update_rq_clock().
+
+ ./perf probe 'schedule;update_rq_clock*'
+ or
+ ./perf probe --add='schedule;update_rq_clock*'
+
+Delete all probes on schedule().
+
+ ./perf probe --del='schedule*'
+
+
+SEE ALSO
+--------
+linkperf:perf-trace[1], linkperf:perf-record[1]

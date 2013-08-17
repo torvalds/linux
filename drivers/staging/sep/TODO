@@ -1,0 +1,3 @@
+Todo's so far (from Alan Cox)
+- Clean up unused ioctls
+- Clean up unused fields in ioctl structures

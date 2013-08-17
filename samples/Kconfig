@@ -1,0 +1,72 @@
+menuconfig SAMPLES
+	bool "Sample kernel code"
+	help
+	  You can build and test sample kernel code here.
+
+if SAMPLES
+
+config SAMPLE_TRACEPOINTS
+	tristate "Build tracepoints examples -- loadable modules only"
+	depends on TRACEPOINTS && m
+	help
+	  This build tracepoints example modules.
+
+config SAMPLE_TRACE_EVENTS
+	tristate "Build trace_events examples -- loadable modules only"
+	depends on EVENT_TRACING && m
+	help
+	  This build trace event example modules.
+
+config SAMPLE_KOBJECT
+	tristate "Build kobject examples -- loadable modules only"
+	depends on m
+	help
+	  This config option will allow you to build a number of
+	  different kobject sample modules showing how to use kobjects,
+	  ksets, and ktypes properly.
+
+	  If in doubt, say "N" here.
+
+config SAMPLE_KPROBES
+	tristate "Build kprobes examples -- loadable modules only"
+	depends on KPROBES && m
+	help
+	  This build several kprobes example modules.
+
+config SAMPLE_KRETPROBES
+	tristate "Build kretprobes example -- loadable modules only"
+	default m
+	depends on SAMPLE_KPROBES && KRETPROBES
+
+config SAMPLE_HW_BREAKPOINT
+	tristate "Build kernel hardware breakpoint examples -- loadable module only"
+	depends on HAVE_HW_BREAKPOINT && m
+	help
+	  This builds kernel hardware breakpoint example modules.
+
+config SAMPLE_KFIFO
+	tristate "Build kfifo examples -- loadable modules only"
+	depends on m
+	help
+	  This config option will allow you to build a number of
+	  different kfifo sample modules showing how to use the
+	  generic kfifo API.
+
+	  If in doubt, say "N" here.
+
+config SAMPLE_KDB
+	tristate "Build kdb command example -- loadable modules only"
+	depends on KGDB_KDB && m
+	help
+	  Build an example of how to dynamically add the hello
+	  command to the kdb shell.
+
+config SAMPLE_RPMSG_CLIENT
+	tristate "Build rpmsg client sample -- loadable modules only"
+	depends on RPMSG && m
+	help
+	  Build an rpmsg client sample driver, which demonstrates how
+	  to communicate with an AMP-configured remote processor over
+	  the rpmsg bus.
+
+endif # SAMPLES

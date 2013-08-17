@@ -1,0 +1,398 @@
+#
+# ACPI Configuration
+#
+
+menuconfig ACPI
+	bool "ACPI (Advanced Configuration and Power Interface) Support"
+	depends on !IA64_HP_SIM
+	depends on IA64 || X86
+	depends on PCI
+	select PNP
+	default y
+	help
+	  Advanced Configuration and Power Interface (ACPI) support for 
+	  Linux requires an ACPI-compliant platform (hardware/firmware),
+	  and assumes the presence of OS-directed configuration and power
+	  management (OSPM) software.  This option will enlarge your 
+	  kernel by about 70K.
+
+	  Linux ACPI provides a robust functional replacement for several 
+	  legacy configuration and power management interfaces, including
+	  the Plug-and-Play BIOS specification (PnP BIOS), the 
+	  MultiProcessor Specification (MPS), and the Advanced Power 
+	  Management (APM) specification.  If both ACPI and APM support 
+	  are configured, ACPI is used.
+
+	  The project home page for the Linux ACPI subsystem is here:
+	  <http://www.lesswatts.org/projects/acpi/>
+
+	  Linux support for ACPI is based on Intel Corporation's ACPI
+	  Component Architecture (ACPI CA).  For more information on the
+	  ACPI CA, see:
+	  <http://acpica.org/>
+
+	  ACPI is an open industry specification co-developed by
+	  Hewlett-Packard, Intel, Microsoft, Phoenix, and Toshiba.
+	  The specification is available at:
+	  <http://www.acpi.info>
+
+if ACPI
+
+config ACPI_SLEEP
+	bool
+	depends on SUSPEND || HIBERNATION
+	default y
+
+config ACPI_PROCFS
+	bool "Deprecated /proc/acpi files"
+	depends on PROC_FS
+	help
+	  For backwards compatibility, this option allows
+	  deprecated /proc/acpi/ files to exist, even when
+	  they have been replaced by functions in /sys.
+
+	  This option has no effect on /proc/acpi/ files
+	  and functions which do not yet exist in /sys.
+
+	  Say N to delete /proc/acpi/ files that have moved to /sys/
+
+config ACPI_PROCFS_POWER
+	bool "Deprecated power /proc/acpi directories"
+	depends on PROC_FS
+	help
+	  For backwards compatibility, this option allows
+          deprecated power /proc/acpi/ directories to exist, even when
+          they have been replaced by functions in /sys.
+          The deprecated directories (and their replacements) include:
+	  /proc/acpi/battery/* (/sys/class/power_supply/*)
+	  /proc/acpi/ac_adapter/* (sys/class/power_supply/*)
+	  This option has no effect on /proc/acpi/ directories
+	  and functions, which do not yet exist in /sys
+	  This option, together with the proc directories, will be
+	  deleted in 2.6.39.
+
+	  Say N to delete power /proc/acpi/ directories that have moved to /sys/
+
+config ACPI_EC_DEBUGFS
+	tristate "EC read/write access through /sys/kernel/debug/ec"
+	default n
+	help
+	  Say N to disable Embedded Controller /sys/kernel/debug interface
+
+	  Be aware that using this interface can confuse your Embedded
+	  Controller in a way that a normal reboot is not enough. You then
+	  have to power off your system, and remove the laptop battery for
+	  some seconds.
+	  An Embedded Controller typically is available on laptops and reads
+	  sensor values like battery state and temperature.
+	  The kernel accesses the EC through ACPI parsed code provided by BIOS
+	  tables. This option allows to access the EC directly without ACPI
+	  code being involved.
+	  Thus this option is a debug option that helps to write ACPI drivers
+	  and can be used to identify ACPI code or EC firmware bugs.
+
+config ACPI_PROC_EVENT
+	bool "Deprecated /proc/acpi/event support"
+	depends on PROC_FS
+	default y
+	help
+	  A user-space daemon, acpid, typically reads /proc/acpi/event
+	  and handles all ACPI-generated events.
+
+	  These events are now delivered to user-space either
+	  via the input layer or as netlink events.
+
+	  This build option enables the old code for legacy
+	  user-space implementation.  After some time, this will
+	  be moved under CONFIG_ACPI_PROCFS, and then deleted.
+
+	  Say Y here to retain the old behaviour.  Say N if your
+	  user-space is newer than kernel 2.6.23 (September 2007).
+
+config ACPI_AC
+	tristate "AC Adapter"
+	depends on X86
+	select POWER_SUPPLY
+	default y
+	help
+	  This driver supports the AC Adapter object, which indicates
+	  whether a system is on AC or not.  If you have a system that can
+	  switch between A/C and battery, say Y.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called ac.
+
+config ACPI_BATTERY
+	tristate "Battery"
+	depends on X86
+	select POWER_SUPPLY
+	default y
+	help
+	  This driver adds support for battery information through
+	  /proc/acpi/battery. If you have a mobile system with a battery, 
+	  say Y.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called battery.
+
+config ACPI_BUTTON
+	tristate "Button"
+	depends on INPUT
+	default y
+	help
+	  This driver handles events on the power, sleep, and lid buttons.
+	  A daemon reads /proc/acpi/event and perform user-defined actions
+	  such as shutting down the system.  This is necessary for
+	  software-controlled poweroff.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called button.
+
+config ACPI_VIDEO
+	tristate "Video"
+	depends on X86 && BACKLIGHT_CLASS_DEVICE && VIDEO_OUTPUT_CONTROL
+	depends on INPUT
+	select THERMAL
+	help
+	  This driver implements the ACPI Extensions For Display Adapters
+	  for integrated graphics devices on motherboard, as specified in
+	  ACPI 2.0 Specification, Appendix B.  This supports basic operations
+	  such as defining the video POST device, retrieving EDID information,
+	  and setting up a video output.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called video.
+
+config ACPI_FAN
+	tristate "Fan"
+	select THERMAL
+	default y
+	help
+	  This driver supports ACPI fan devices, allowing user-mode
+	  applications to perform basic fan control (on, off, status).
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called fan.
+
+config ACPI_DOCK
+	bool "Dock"
+	depends on EXPERIMENTAL
+	help
+	  This driver supports ACPI-controlled docking stations and removable
+	  drive bays such as the IBM Ultrabay and the Dell Module Bay.
+
+config ACPI_PROCESSOR
+	tristate "Processor"
+	select THERMAL
+	select CPU_IDLE
+	default y
+	help
+	  This driver installs ACPI as the idle handler for Linux and uses
+	  ACPI C2 and C3 processor states to save power on systems that
+	  support it.  It is required by several flavors of cpufreq
+	  performance-state drivers.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called processor.
+config ACPI_IPMI
+	tristate "IPMI"
+	depends on EXPERIMENTAL && IPMI_SI && IPMI_HANDLER
+	default n
+	help
+	  This driver enables the ACPI to access the BMC controller. And it
+	  uses the IPMI request/response message to communicate with BMC
+	  controller, which can be found on on the server.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called as acpi_ipmi.
+
+config ACPI_HOTPLUG_CPU
+	bool
+	depends on ACPI_PROCESSOR && HOTPLUG_CPU
+	select ACPI_CONTAINER
+	default y
+
+config ACPI_PROCESSOR_AGGREGATOR
+	tristate "Processor Aggregator"
+	depends on ACPI_PROCESSOR
+	depends on EXPERIMENTAL
+	depends on X86
+	help
+	  ACPI 4.0 defines processor Aggregator, which enables OS to perform
+	  specific processor configuration and control that applies to all
+	  processors in the platform. Currently only logical processor idling
+	  is defined, which is to reduce power consumption. This driver
+	  supports the new device.
+
+config ACPI_THERMAL
+	tristate "Thermal Zone"
+	depends on ACPI_PROCESSOR
+	select THERMAL
+	default y
+	help
+	  This driver supports ACPI thermal zones.  Most mobile and
+	  some desktop systems support ACPI thermal zones.  It is HIGHLY
+	  recommended that this option be enabled, as your processor(s)
+	  may be damaged without it.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called thermal.
+
+config ACPI_NUMA
+	bool "NUMA support"
+	depends on NUMA
+	depends on (X86 || IA64)
+	default y if IA64_GENERIC || IA64_SGI_SN2
+
+config ACPI_CUSTOM_DSDT_FILE
+	string "Custom DSDT Table file to include"
+	default ""
+	depends on !STANDALONE
+	help
+	  This option supports a custom DSDT by linking it into the kernel.
+	  See Documentation/acpi/dsdt-override.txt
+
+	  Enter the full path name to the file which includes the AmlCode
+	  declaration.
+
+	  If unsure, don't enter a file name.
+
+config ACPI_CUSTOM_DSDT
+	bool
+	default ACPI_CUSTOM_DSDT_FILE != ""
+
+config ACPI_BLACKLIST_YEAR
+	int "Disable ACPI for systems before Jan 1st this year" if X86_32
+	default 0
+	help
+	  Enter a 4-digit year, e.g., 2001, to disable ACPI by default
+	  on platforms with DMI BIOS date before January 1st that year.
+	  "acpi=force" can be used to override this mechanism.
+
+	  Enter 0 to disable this mechanism and allow ACPI to
+	  run by default no matter what the year.  (default)
+
+config ACPI_DEBUG
+	bool "Debug Statements"
+	default n
+	help
+	  The ACPI subsystem can produce debug output.  Saying Y enables this
+	  output and increases the kernel size by around 50K.
+
+	  Use the acpi.debug_layer and acpi.debug_level kernel command-line
+	  parameters documented in Documentation/acpi/debug.txt and
+	  Documentation/kernel-parameters.txt to control the type and
+	  amount of debug output.
+
+config ACPI_DEBUG_FUNC_TRACE
+	bool "Additionally enable ACPI function tracing"
+	default n
+	depends on ACPI_DEBUG
+	help
+	  ACPI Debug Statements slow down ACPI processing. Function trace
+	  is about half of the penalty and is rarely useful.
+
+config ACPI_PCI_SLOT
+	tristate "PCI slot detection driver"
+	depends on SYSFS
+	default n
+	help
+	  This driver creates entries in /sys/bus/pci/slots/ for all PCI
+	  slots in the system.  This can help correlate PCI bus addresses,
+	  i.e., segment/bus/device/function tuples, with physical slots in
+	  the system.  If you are unsure, say N.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called pci_slot.
+
+config X86_PM_TIMER
+	bool "Power Management Timer Support" if EXPERT
+	depends on X86
+	default y
+	help
+	  The Power Management Timer is available on all ACPI-capable,
+	  in most cases even if ACPI is unusable or blacklisted.
+
+	  This timing source is not affected by power management features
+	  like aggressive processor idling, throttling, frequency and/or
+	  voltage scaling, unlike the commonly used Time Stamp Counter
+	  (TSC) timing source.
+
+	  You should nearly always say Y here because many modern
+	  systems require this timer. 
+
+config ACPI_CONTAINER
+	tristate "Container and Module Devices (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	default (ACPI_HOTPLUG_MEMORY || ACPI_HOTPLUG_CPU || ACPI_HOTPLUG_IO)
+	help
+	  This driver supports ACPI Container and Module devices (IDs
+	  ACPI0004, PNP0A05, and PNP0A06).
+
+	  This helps support hotplug of nodes, CPUs, and memory.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called container.
+
+config ACPI_HOTPLUG_MEMORY
+	tristate "Memory Hotplug"
+	depends on MEMORY_HOTPLUG
+	default n
+	help
+	  This driver supports ACPI memory hotplug.  The driver
+	  fields notifications on ACPI memory devices (PNP0C80),
+	  which represent memory ranges that may be onlined or
+	  offlined during runtime.
+
+	  If your hardware and firmware do not support adding or
+	  removing memory devices at runtime, you need not enable
+	  this driver.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called acpi_memhotplug.
+
+config ACPI_SBS
+	tristate "Smart Battery System"
+	depends on X86
+	select POWER_SUPPLY
+	help
+	  This driver supports the Smart Battery System, another
+	  type of access to battery information, found on some laptops.
+
+	  To compile this driver as a module, choose M here:
+	  the modules will be called sbs and sbshc.
+
+config ACPI_HED
+	tristate "Hardware Error Device"
+	help
+	  This driver supports the Hardware Error Device (PNP0C33),
+	  which is used to report some hardware errors notified via
+	  SCI, mainly the corrected errors.
+
+config ACPI_CUSTOM_METHOD
+	tristate "Allow ACPI methods to be inserted/replaced at run time"
+	depends on DEBUG_FS
+	default n
+	help
+	  This debug facility allows ACPI AML methods to be inserted and/or
+	  replaced without rebooting the system. For details refer to:
+	  Documentation/acpi/method-customizing.txt.
+
+	  NOTE: This option is security sensitive, because it allows arbitrary
+	  kernel memory to be written to by root (uid=0) users, allowing them
+	  to bypass certain security measures (e.g. if root is not allowed to
+	  load additional kernel modules after boot, this feature may be used
+	  to override that restriction).
+
+config ACPI_BGRT
+        tristate "Boottime Graphics Resource Table support"
+        default n
+        help
+	  This driver adds support for exposing the ACPI Boottime Graphics
+	  Resource Table, which allows the operating system to obtain
+	  data from the firmware boot splash. It will appear under
+	  /sys/firmware/acpi/bgrt/ .
+
+source "drivers/acpi/apei/Kconfig"
+
+endif	# ACPI

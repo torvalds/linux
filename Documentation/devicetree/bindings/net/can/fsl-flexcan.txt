@@ -1,0 +1,24 @@
+Flexcan CAN contoller on Freescale's ARM and PowerPC system-on-a-chip (SOC).
+
+Required properties:
+
+- compatible : Should be "fsl,<processor>-flexcan"
+
+  An implementation should also claim any of the following compatibles
+  that it is fully backwards compatible with:
+
+  - fsl,p1010-flexcan
+
+- reg : Offset and length of the register set for this device
+- interrupts : Interrupt tuple for this device
+- clock-frequency : The oscillator frequency driving the flexcan device
+
+Example:
+
+	can@1c000 {
+		compatible = "fsl,p1010-flexcan";
+		reg = <0x1c000 0x1000>;
+		interrupts = <48 0x2>;
+		interrupt-parent = <&mpic>;
+		clock-frequency = <200000000>; // filled in by bootloader
+	};

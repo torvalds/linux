@@ -1,0 +1,47 @@
+menu "Kernel hacking"
+
+source "lib/Kconfig.debug"
+
+config STRICT_DEVMEM
+	bool "Filter access to /dev/mem"
+	depends on MMU
+	---help---
+	  If this option is disabled, you allow userspace (root) access to all
+	  of memory, including kernel and userspace memory. Accidental
+	  access to this is obviously disastrous, but specific access can
+	  be used by people debugging the kernel.
+
+	  If this option is switched on, the /dev/mem file only allows
+	  userspace access to memory mapped peripherals.
+
+          If in doubt, say Y.
+
+config EARLY_PRINTK
+	def_bool DEBUG_OCD
+	help
+	  Write kernel log output directly into the ocd or to a serial port.
+
+	  This is useful for kernel debugging when your machine crashes very
+	  early before the console code is initialized. For normal operation
+	  it is not recommended because it looks ugly and doesn't cooperate
+	  with klogd/syslogd or the X server. You should normally N here,
+	  unless you want to debug such a crash.
+
+# These options are only for real kernel hackers who want to get their hands dirty.
+config DEBUG_LL
+	bool "Kernel low-level debugging functions"
+	depends on DEBUG_KERNEL
+	help
+	  Say Y here to include definitions of printascii, printch, printhex
+	  in the kernel.  This is helpful if you are debugging code that
+	  executes before the console is initialized.
+
+config DEBUG_OCD
+	bool "Kernel low-level debugging via On-Chip-Debugger"
+	depends on DEBUG_LL
+	default y
+	help
+	  Say Y here if you want the debug print routines to direct their
+	  output to the UniCore On-Chip-Debugger channel using CP #1.
+
+endmenu

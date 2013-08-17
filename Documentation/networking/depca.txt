@@ -1,0 +1,92 @@
+
+DE10x
+=====
+
+Memory Addresses:
+
+	SW1	SW2	SW3	SW4
+64K	on	on	on	on	d0000	dbfff
+	off	on	on	on	c0000	cbfff
+	off	off	on	on	e0000	ebfff
+
+32K	on	on	off	on	d8000	dbfff
+	off	on	off	on	c8000	cbfff
+	off	off	off	on	e8000	ebfff
+
+DBR ROM	on	on			dc000	dffff
+	off	on			cc000	cffff
+	off	off			ec000	effff
+
+Note  that the 2K  mode   is set  by   SW3/SW4  on/off or  off/off.  Address
+assignment is through the RBSA register.
+
+I/O Address:
+	SW5
+0x300	on
+0x200	off
+
+Remote Boot:
+	SW6
+Disable	on
+Enable	off
+
+Remote Boot Timeout:
+	SW7
+2.5min	on
+30s	off
+
+IRQ:
+	SW8	SW9	SW10	SW11	SW12
+2	on	off	off	off	off
+3	off	on	off	off	off
+4	off	off	on	off	off
+5	off	off	off	on	off
+7	off	off	off	off	on
+
+DE20x
+=====
+
+Memory Size:
+
+	SW3	SW4
+64K	on	on
+32K	off	on
+2K	on 	off
+2K	off	off
+
+Start Addresses:
+
+	SW1	SW2	SW3	SW4
+64K	on	on	on	on	c0000	cffff
+	on	off	on	on	d0000	dffff
+	off	on	on	on	e0000	effff
+
+32K	on	on	off	off	c8000	cffff
+	on	off	off	off	d8000	dffff
+	off	on	off	off	e8000	effff
+
+Illegal	off	off	 -	 -	  -	  -
+
+I/O Address:
+	SW5
+0x300	on
+0x200	off
+
+Remote Boot:
+	SW6
+Disable	on
+Enable	off
+
+Remote Boot Timeout:
+	SW7
+2.5min	on
+30s	off
+
+IRQ:
+	SW8	SW9	SW10	SW11	SW12
+5	on	off	off	off	off
+9	off	on	off	off	off
+10	off	off	on	off	off
+11	off	off	off	on	off
+15	off	off	off	off	on
+

@@ -1,0 +1,150 @@
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/kconfig-language.txt.
+#
+
+menu "Firmware Drivers"
+
+config EDD
+	tristate "BIOS Enhanced Disk Drive calls determine boot disk"
+	depends on X86
+	help
+	  Say Y or M here if you want to enable BIOS Enhanced Disk Drive
+	  Services real mode BIOS calls to determine which disk
+	  BIOS tries boot from.  This information is then exported via sysfs.
+
+	  This option is experimental and is known to fail to boot on some
+          obscure configurations. Most disk controller BIOS vendors do
+          not yet implement this feature.
+
+config EDD_OFF
+	bool "Sets default behavior for EDD detection to off"
+	depends on EDD
+	default n
+	help
+	  Say Y if you want EDD disabled by default, even though it is compiled into the
+	  kernel. Say N if you want EDD enabled by default. EDD can be dynamically set
+	  using the kernel parameter 'edd={on|skipmbr|off}'.
+
+config FIRMWARE_MEMMAP
+    bool "Add firmware-provided memory map to sysfs" if EXPERT
+    default X86
+    help
+      Add the firmware-provided (unmodified) memory map to /sys/firmware/memmap.
+      That memory map is used for example by kexec to set up parameter area
+      for the next kernel, but can also be used for debugging purposes.
+
+      See also Documentation/ABI/testing/sysfs-firmware-memmap.
+
+config EFI_VARS
+	tristate "EFI Variable Support via sysfs"
+	depends on EFI
+	default n
+	help
+	  If you say Y here, you are able to get EFI (Extensible Firmware
+	  Interface) variable information via sysfs.  You may read,
+	  write, create, and destroy EFI variables through this interface.
+
+	  Note that using this driver in concert with efibootmgr requires
+	  at least test release version 0.5.0-test3 or later, which is
+	  available from Matt Domsch's website located at:
+	  <http://linux.dell.com/efibootmgr/testing/efibootmgr-0.5.0-test3.tar.gz>
+
+	  Subsequent efibootmgr releases may be found at:
+	  <http://linux.dell.com/efibootmgr>
+
+config EFI_PCDP
+	bool "Console device selection via EFI PCDP or HCDP table"
+	depends on ACPI && EFI && IA64
+	default y if IA64
+	help
+	  If your firmware supplies the PCDP table, and you want to
+	  automatically use the primary console device it describes
+	  as the Linux console, say Y here.
+
+	  If your firmware supplies the HCDP table, and you want to
+	  use the first serial port it describes as the Linux console,
+	  say Y here.  If your EFI ConOut path contains only a UART
+	  device, it will become the console automatically.  Otherwise,
+	  you must specify the "console=hcdp" kernel boot argument.
+
+	  Neither the PCDP nor the HCDP affects naming of serial devices,
+	  so a serial console may be /dev/ttyS0, /dev/ttyS1, etc, depending
+	  on how the driver discovers devices.
+
+	  You must also enable the appropriate drivers (serial, VGA, etc.)
+
+	  See DIG64_HCDPv20_042804.pdf available from
+	  <http://www.dig64.org/specifications/> 
+
+config DELL_RBU
+	tristate "BIOS update support for DELL systems via sysfs"
+	depends on X86
+	select FW_LOADER
+	help
+	 Say m if you want to have the option of updating the BIOS for your
+	 DELL system. Note you need a Dell OpenManage or Dell Update package (DUP)
+	 supporting application to communicate with the BIOS regarding the new
+	 image for the image update to take effect.
+	 See <file:Documentation/dell_rbu.txt> for more details on the driver.
+
+config DCDBAS
+	tristate "Dell Systems Management Base Driver"
+	depends on X86
+	help
+	  The Dell Systems Management Base Driver provides a sysfs interface
+	  for systems management software to perform System Management
+	  Interrupts (SMIs) and Host Control Actions (system power cycle or
+	  power off after OS shutdown) on certain Dell systems.
+
+	  See <file:Documentation/dcdbas.txt> for more details on the driver
+	  and the Dell systems on which Dell systems management software makes
+	  use of this driver.
+
+	  Say Y or M here to enable the driver for use by Dell systems
+	  management software such as Dell OpenManage.
+
+config DMIID
+    bool "Export DMI identification via sysfs to userspace"
+    depends on DMI
+    default y
+	help
+	  Say Y here if you want to query SMBIOS/DMI system identification
+	  information from userspace through /sys/class/dmi/id/ or if you want
+	  DMI-based module auto-loading.
+
+config DMI_SYSFS
+	tristate "DMI table support in sysfs"
+	depends on SYSFS && DMI
+	default n
+	help
+	  Say Y or M here to enable the exporting of the raw DMI table
+	  data via sysfs.  This is useful for consuming the data without
+	  requiring any access to /dev/mem at all.  Tables are found
+	  under /sys/firmware/dmi when this option is enabled and
+	  loaded.
+
+config ISCSI_IBFT_FIND
+	bool "iSCSI Boot Firmware Table Attributes"
+	depends on X86
+	default n
+	help
+	  This option enables the kernel to find the region of memory
+	  in which the ISCSI Boot Firmware Table (iBFT) resides. This
+	  is necessary for iSCSI Boot Firmware Table Attributes module to work
+	  properly.
+
+config ISCSI_IBFT
+	tristate "iSCSI Boot Firmware Table Attributes module"
+	select ISCSI_BOOT_SYSFS
+	depends on ISCSI_IBFT_FIND && SCSI && SCSI_LOWLEVEL
+	default	n
+	help
+	  This option enables support for detection and exposing of iSCSI
+	  Boot Firmware Table (iBFT) via sysfs to userspace. If you wish to
+	  detect iSCSI boot parameters dynamically during system boot, say Y.
+	  Otherwise, say N.
+
+source "drivers/firmware/google/Kconfig"
+
+endmenu

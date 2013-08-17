@@ -1,0 +1,173 @@
+perf-report(1)
+==============
+
+NAME
+----
+perf-report - Read perf.data (created by perf record) and display the profile
+
+SYNOPSIS
+--------
+[verse]
+'perf report' [-i <file> | --input=file]
+
+DESCRIPTION
+-----------
+This command displays the performance counter profile information recorded
+via perf record.
+
+OPTIONS
+-------
+-i::
+--input=::
+        Input file name. (default: perf.data unless stdin is a fifo)
+
+-v::
+--verbose::
+        Be more verbose. (show symbol address, etc)
+
+-d::
+--dsos=::
+	Only consider symbols in these dsos. CSV that understands
+	file://filename entries.
+-n::
+--show-nr-samples::
+	Show the number of samples for each symbol
+
+--showcpuutilization::
+        Show sample percentage for different cpu modes.
+
+-T::
+--threads::
+	Show per-thread event counters
+-c::
+--comms=::
+	Only consider symbols in these comms. CSV that understands
+	file://filename entries.
+-S::
+--symbols=::
+	Only consider these symbols. CSV that understands
+	file://filename entries.
+
+--symbol-filter=::
+	Only show symbols that match (partially) with this filter.
+
+-U::
+--hide-unresolved::
+        Only display entries resolved to a symbol.
+
+-s::
+--sort=::
+	Sort by key(s): pid, comm, dso, symbol, parent.
+
+-p::
+--parent=<regex>::
+        regex filter to identify parent, see: '--sort parent'
+
+-x::
+--exclude-other::
+        Only display entries with parent-match.
+
+-w::
+--column-widths=<width[,width...]>::
+	Force each column width to the provided list, for large terminal
+	readability.
+
+-t::
+--field-separator=::
+
+	Use a special separator character and don't pad with spaces, replacing
+	all occurrences of this separator in symbol names (and other output)
+	with a '.' character, that thus it's the only non valid separator.
+
+-D::
+--dump-raw-trace::
+        Dump raw trace in ASCII.
+
+-g [type,min[,limit],order]::
+--call-graph::
+        Display call chains using type, min percent threshold, optional print
+	limit and order.
+	type can be either:
+	- flat: single column, linear exposure of call chains.
+	- graph: use a graph tree, displaying absolute overhead rates.
+	- fractal: like graph, but displays relative rates. Each branch of
+		 the tree is considered as a new profiled object. +
+
+	order can be either:
+	- callee: callee based call graph.
+	- caller: inverted caller based call graph.
+
+	Default: fractal,0.5,callee.
+
+-G::
+--inverted::
+        alias for inverted caller based call graph.
+
+--pretty=<key>::
+        Pretty printing style.  key: normal, raw
+
+--stdio:: Use the stdio interface.
+
+--tui:: Use the TUI interface, that is integrated with annotate and allows
+        zooming into DSOs or threads, among other features. Use of --tui
+	requires a tty, if one is not present, as when piping to other
+	commands, the stdio interface is used.
+
+--gtk:: Use the GTK2 interface.
+
+-k::
+--vmlinux=<file>::
+        vmlinux pathname
+
+--kallsyms=<file>::
+        kallsyms pathname
+
+-m::
+--modules::
+        Load module symbols. WARNING: This should only be used with -k and
+        a LIVE kernel.
+
+-f::
+--force::
+        Don't complain, do it.
+
+--symfs=<directory>::
+        Look for files with symbols relative to this directory.
+
+-C::
+--cpu:: Only report samples for the list of CPUs provided. Multiple CPUs can
+	be provided as a comma-separated list with no space: 0,1. Ranges of
+	CPUs are specified with -: 0-2. Default is to report samples on all
+	CPUs.
+
+-M::
+--disassembler-style=:: Set disassembler style for objdump.
+
+--source::
+	Interleave source code with assembly code. Enabled by default,
+	disable with --no-source.
+
+--asm-raw::
+	Show raw instruction encoding of assembly instructions.
+
+--show-total-period:: Show a column with the sum of periods.
+
+-I::
+--show-info::
+	Display extended information about the perf.data file. This adds
+	information which may be very large and thus may clutter the display.
+	It currently includes: cpu and numa topology of the host system.
+
+-b::
+--branch-stack::
+	Use the addresses of sampled taken branches instead of the instruction
+	address to build the histograms. To generate meaningful output, the
+	perf.data file must have been obtained using perf record -b or
+	perf record --branch-filter xxx where xxx is a branch filter option.
+	perf report is able to auto-detect whether a perf.data file contains
+	branch stacks and it will automatically switch to the branch view mode,
+	unless --no-branch-stack is used.
+
+SEE ALSO
+--------
+linkperf:perf-stat[1], linkperf:perf-annotate[1]

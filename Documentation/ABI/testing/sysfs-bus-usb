@@ -1,0 +1,195 @@
+What:		/sys/bus/usb/devices/.../power/autosuspend
+Date:		March 2007
+KernelVersion:	2.6.21
+Contact:	Alan Stern <stern@rowland.harvard.edu>
+Description:
+		Each USB device directory will contain a file named
+		power/autosuspend.  This file holds the time (in seconds)
+		the device must be idle before it will be autosuspended.
+		0 means the device will be autosuspended as soon as
+		possible.  Negative values will prevent the device from
+		being autosuspended at all, and writing a negative value
+		will resume the device if it is already suspended.
+
+		The autosuspend delay for newly-created devices is set to
+		the value of the usbcore.autosuspend module parameter.
+
+What:		/sys/bus/usb/devices/.../power/persist
+Date:		May 2007
+KernelVersion:	2.6.23
+Contact:	Alan Stern <stern@rowland.harvard.edu>
+Description:
+		If CONFIG_USB_PERSIST is set, then each USB device directory
+		will contain a file named power/persist.  The file holds a
+		boolean value (0 or 1) indicating whether or not the
+		"USB-Persist" facility is enabled for the device.  Since the
+		facility is inherently dangerous, it is disabled by default
+		for all devices except hubs.  For more information, see
+		Documentation/usb/persist.txt.
+
+What:		/sys/bus/usb/device/.../power/connected_duration
+Date:		January 2008
+KernelVersion:	2.6.25
+Contact:	Sarah Sharp <sarah.a.sharp@intel.com>
+Description:
+		If CONFIG_PM and CONFIG_USB_SUSPEND are enabled, then this file
+		is present.  When read, it returns the total time (in msec)
+		that the USB device has been connected to the machine.  This
+		file is read-only.
+Users:
+		PowerTOP <power@bughost.org>
+		http://www.lesswatts.org/projects/powertop/
+
+What:		/sys/bus/usb/device/.../power/active_duration
+Date:		January 2008
+KernelVersion:	2.6.25
+Contact:	Sarah Sharp <sarah.a.sharp@intel.com>
+Description:
+		If CONFIG_PM and CONFIG_USB_SUSPEND are enabled, then this file
+		is present.  When read, it returns the total time (in msec)
+		that the USB device has been active, i.e. not in a suspended
+		state.  This file is read-only.
+
+		Tools can use this file and the connected_duration file to
+		compute the percentage of time that a device has been active.
+		For example,
+		echo $((100 * `cat active_duration` / `cat connected_duration`))
+		will give an integer percentage.  Note that this does not
+		account for counter wrap.
+Users:
+		PowerTOP <power@bughost.org>
+		http://www.lesswatts.org/projects/powertop/
+
+What:		/sys/bus/usb/device/<busnum>-<devnum>...:<config num>-<interface num>/supports_autosuspend
+Date:		January 2008
+KernelVersion:	2.6.27
+Contact:	Sarah Sharp <sarah.a.sharp@intel.com>
+Description:
+		When read, this file returns 1 if the interface driver
+		for this interface supports autosuspend.  It also
+		returns 1 if no driver has claimed this interface, as an
+		unclaimed interface will not stop the device from being
+		autosuspended if all other interface drivers are idle.
+		The file returns 0 if autosuspend support has not been
+		added to the driver.
+Users:
+		USB PM tool
+		git://git.moblin.org/users/sarah/usb-pm-tool/
+
+What:		/sys/bus/usb/device/.../authorized
+Date:		July 2008
+KernelVersion:	2.6.26
+Contact:	David Vrabel <david.vrabel@csr.com>
+Description:
+		Authorized devices are available for use by device
+		drivers, non-authorized one are not.  By default, wired
+		USB devices are authorized.
+
+		Certified Wireless USB devices are not authorized
+		initially and should be (by writing 1) after the
+		device has been authenticated.
+
+What:		/sys/bus/usb/device/.../wusb_cdid
+Date:		July 2008
+KernelVersion:	2.6.27
+Contact:	David Vrabel <david.vrabel@csr.com>
+Description:
+		For Certified Wireless USB devices only.
+
+		A devices's CDID, as 16 space-separated hex octets.
+
+What:		/sys/bus/usb/device/.../wusb_ck
+Date:		July 2008
+KernelVersion:	2.6.27
+Contact:	David Vrabel <david.vrabel@csr.com>
+Description:
+		For Certified Wireless USB devices only.
+
+		Write the device's connection key (CK) to start the
+		authentication of the device.  The CK is 16
+		space-separated hex octets.
+
+What:		/sys/bus/usb/device/.../wusb_disconnect
+Date:		July 2008
+KernelVersion:	2.6.27
+Contact:	David Vrabel <david.vrabel@csr.com>
+Description:
+		For Certified Wireless USB devices only.
+
+		Write a 1 to force the device to disconnect
+		(equivalent to unplugging a wired USB device).
+
+What:		/sys/bus/usb/drivers/.../new_id
+Date:		October 2011
+Contact:	linux-usb@vger.kernel.org
+Description:
+		Writing a device ID to this file will attempt to
+		dynamically add a new device ID to a USB device driver.
+		This may allow the driver to support more hardware than
+		was included in the driver's static device ID support
+		table at compile time. The format for the device ID is:
+		idVendor idProduct bInterfaceClass.
+		The vendor ID and device ID fields are required, the
+		interface class is optional.
+		Upon successfully adding an ID, the driver will probe
+		for the device and attempt to bind to it.  For example:
+		# echo "8086 10f5" > /sys/bus/usb/drivers/foo/new_id
+
+What:		/sys/bus/usb-serial/drivers/.../new_id
+Date:		October 2011
+Contact:	linux-usb@vger.kernel.org
+Description:
+		For serial USB drivers, this attribute appears under the
+		extra bus folder "usb-serial" in sysfs; apart from that
+		difference, all descriptions from the entry
+		"/sys/bus/usb/drivers/.../new_id" apply.
+
+What:		/sys/bus/usb/drivers/.../remove_id
+Date:		November 2009
+Contact:	CHENG Renquan <rqcheng@smu.edu.sg>
+Description:
+		Writing a device ID to this file will remove an ID
+		that was dynamically added via the new_id sysfs entry.
+		The format for the device ID is:
+		idVendor idProduct.	After successfully
+		removing an ID, the driver will no longer support the
+		device.  This is useful to ensure auto probing won't
+		match the driver to the device.  For example:
+		# echo "046d c315" > /sys/bus/usb/drivers/foo/remove_id
+
+What:		/sys/bus/usb/device/.../avoid_reset_quirk
+Date:		December 2009
+Contact:	Oliver Neukum <oliver@neukum.org>
+Description:
+		Writing 1 to this file tells the kernel that this
+		device will morph into another mode when it is reset.
+		Drivers will not use reset for error handling for
+		such devices.
+Users:
+		usb_modeswitch
+
+What:		/sys/bus/usb/devices/.../power/usb2_hardware_lpm
+Date:		September 2011
+Contact:	Andiry Xu <andiry.xu@amd.com>
+Description:
+		If CONFIG_USB_SUSPEND is set and a USB 2.0 lpm-capable device
+		is plugged in to a xHCI host which support link PM, it will
+		perform a LPM test; if the test is passed and host supports
+		USB2 hardware LPM (xHCI 1.0 feature), USB2 hardware LPM will
+		be enabled for the device and the USB device directory will
+		contain a file named power/usb2_hardware_lpm.  The file holds
+		a string value (enable or disable) indicating whether or not
+		USB2 hardware LPM is enabled for the device. Developer can
+		write y/Y/1 or n/N/0 to the file to enable/disable the
+		feature.
+
+What:		/sys/bus/usb/devices/.../removable
+Date:		February 2012
+Contact:	Matthew Garrett <mjg@redhat.com>
+Description:
+		Some information about whether a given USB device is
+		physically fixed to the platform can be inferred from a
+		combination of hub decriptor bits and platform-specific data
+		such as ACPI. This file will read either "removable" or
+		"fixed" if the information is available, and "unknown"
+		otherwise.

@@ -1,0 +1,270 @@
+
+	      ZC0301 and ZC0301P Image Processor and Control Chip
+				Driver for Linux
+	      ===================================================
+
+			       - Documentation -
+
+
+Index
+=====
+1.  Copyright
+2.  Disclaimer
+3.  License
+4.  Overview and features
+5.  Module dependencies
+6.  Module loading
+7.  Module parameters
+8.  Supported devices
+9.  Notes for V4L2 application developers
+10. Contact information
+11. Credits
+
+
+1. Copyright
+============
+Copyright (C) 2006-2007 by Luca Risolia <luca.risolia@studio.unibo.it>
+
+
+2. Disclaimer
+=============
+This software is not developed or sponsored by Z-Star Microelectronics Corp.
+Trademarks are property of their respective owner.
+
+
+3. License
+==========
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+
+4. Overview and features
+========================
+This driver supports the video interface of the devices mounting the ZC0301 or
+ZC0301P Image Processors and Control Chips.
+
+The driver relies on the Video4Linux2 and USB core modules. It has been
+designed to run properly on SMP systems as well.
+
+The latest version of the ZC0301[P] driver can be found at the following URL:
+http://www.linux-projects.org/
+
+Some of the features of the driver are:
+
+- full compliance with the Video4Linux2 API (see also "Notes for V4L2
+  application developers" paragraph);
+- available mmap or read/poll methods for video streaming through isochronous
+  data transfers;
+- automatic detection of image sensor;
+- video format is standard JPEG;
+- dynamic driver control thanks to various module parameters (see "Module
+  parameters" paragraph);
+- up to 64 cameras can be handled at the same time; they can be connected and
+  disconnected from the host many times without turning off the computer, if
+  the system supports hotplugging;
+
+
+5. Module dependencies
+======================
+For it to work properly, the driver needs kernel support for Video4Linux and
+USB.
+
+The following options of the kernel configuration file must be enabled and
+corresponding modules must be compiled:
+
+	# Multimedia devices
+	#
+	CONFIG_VIDEO_DEV=m
+
+	# USB support
+	#
+	CONFIG_USB=m
+
+In addition, depending on the hardware being used, the modules below are
+necessary:
+
+	# USB Host Controller Drivers
+	#
+	CONFIG_USB_EHCI_HCD=m
+	CONFIG_USB_UHCI_HCD=m
+	CONFIG_USB_OHCI_HCD=m
+
+The ZC0301 controller also provides a built-in microphone interface. It is
+supported by the USB Audio driver thanks to the ALSA API:
+
+	# Sound
+	#
+	CONFIG_SOUND=y
+
+	# Advanced Linux Sound Architecture
+	#
+	CONFIG_SND=m
+
+	# USB devices
+	#
+	CONFIG_SND_USB_AUDIO=m
+
+And finally:
+
+	# V4L USB devices
+	#
+	CONFIG_USB_ZC0301=m
+
+
+6. Module loading
+=================
+To use the driver, it is necessary to load the "zc0301" module into memory
+after every other module required: "videodev", "v4l2_common", "compat_ioctl32",
+"usbcore" and, depending on the USB host controller you have, "ehci-hcd",
+"uhci-hcd" or "ohci-hcd".
+
+Loading can be done as shown below:
+
+	[root@localhost home]# modprobe zc0301
+
+At this point the devices should be recognized. You can invoke "dmesg" to
+analyze kernel messages and verify that the loading process has gone well:
+
+	[user@localhost home]$ dmesg
+
+
+7. Module parameters
+====================
+Module parameters are listed below:
+-------------------------------------------------------------------------------
+Name:           video_nr
+Type:           short array (min = 0, max = 64)
+Syntax:         <-1|n[,...]>
+Description:    Specify V4L2 minor mode number:
+		-1 = use next available
+		 n = use minor number n
+		You can specify up to 64 cameras this way.
+		For example:
+		video_nr=-1,2,-1 would assign minor number 2 to the second
+		registered camera and use auto for the first one and for every
+		other camera.
+Default:        -1
+-------------------------------------------------------------------------------
+Name:           force_munmap
+Type:           bool array (min = 0, max = 64)
+Syntax:         <0|1[,...]>
+Description:    Force the application to unmap previously mapped buffer memory
+		before calling any VIDIOC_S_CROP or VIDIOC_S_FMT ioctl's. Not
+		all the applications support this feature. This parameter is
+		specific for each detected camera.
+		0 = do not force memory unmapping
+		1 = force memory unmapping (save memory)
+Default:        0
+-------------------------------------------------------------------------------
+Name:           frame_timeout
+Type:           uint array (min = 0, max = 64)
+Syntax:         <n[,...]>
+Description:    Timeout for a video frame in seconds. This parameter is
+		specific for each detected camera. This parameter can be
+		changed at runtime thanks to the /sys filesystem interface.
+Default:        2
+-------------------------------------------------------------------------------
+Name:           debug
+Type:           ushort
+Syntax:         <n>
+Description:    Debugging information level, from 0 to 3:
+		0 = none (use carefully)
+		1 = critical errors
+		2 = significant information
+		3 = more verbose messages
+		Level 3 is useful for testing only, when only one device
+		is used at the same time. It also shows some information
+		about the hardware being detected. This module parameter can be
+		changed at runtime thanks to the /sys filesystem interface.
+Default:        2
+-------------------------------------------------------------------------------
+
+
+8. Supported devices
+====================
+None of the names of the companies as well as their products will be mentioned
+here. They have never collaborated with the author, so no advertising.
+
+From the point of view of a driver, what unambiguously identify a device are
+its vendor and product USB identifiers. Below is a list of known identifiers of
+devices mounting the ZC0301 Image Processor and Control Chips:
+
+Vendor ID  Product ID
+---------  ----------
+0x041e     0x4017
+0x041e     0x401c
+0x041e     0x401e
+0x041e     0x401f
+0x041e     0x4022
+0x041e     0x4034
+0x041e     0x4035
+0x041e     0x4036
+0x041e     0x403a
+0x0458     0x7007
+0x0458     0x700c
+0x0458     0x700f
+0x046d     0x08ae
+0x055f     0xd003
+0x055f     0xd004
+0x0ac8     0x0301
+0x0ac8     0x301b
+0x0ac8     0x303b
+0x10fd     0x0128
+0x10fd     0x8050
+0x10fd     0x804e
+
+The list above does not imply that all those devices work with this driver: up
+until now only the ones that mount the following image sensors are supported;
+kernel messages will always tell you whether this is the case:
+
+Model       Manufacturer
+-----       ------------
+PAS202BCB   PixArt Imaging, Inc.
+PB-0330     Photobit Corporation
+
+
+9. Notes for V4L2 application developers
+========================================
+This driver follows the V4L2 API specifications. In particular, it enforces two
+rules:
+
+- exactly one I/O method, either "mmap" or "read", is associated with each
+file descriptor. Once it is selected, the application must close and reopen the
+device to switch to the other I/O method;
+
+- although it is not mandatory, previously mapped buffer memory should always
+be unmapped before calling any "VIDIOC_S_CROP" or "VIDIOC_S_FMT" ioctl's.
+The same number of buffers as before will be allocated again to match the size
+of the new video frames, so you have to map the buffers again before any I/O
+attempts on them.
+
+
+10. Contact information
+=======================
+The author may be contacted by e-mail at <luca.risolia@studio.unibo.it>.
+
+GPG/PGP encrypted e-mail's are accepted. The GPG key ID of the author is
+'FCE635A4'; the public 1024-bit key should be available at any keyserver;
+the fingerprint is: '88E8 F32F 7244 68BA 3958  5D40 99DA 5D2A FCE6 35A4'.
+
+
+11. Credits
+===========
+- Information about the chip internals needed to enable the I2C protocol have
+  been taken from the documentation of the ZC030x Video4Linux1 driver written
+  by Andrew Birkett <andy@nobugs.org>;
+- The initialization values of the ZC0301 controller connected to the PAS202BCB
+  and PB-0330 image sensors have been taken from the SPCA5XX driver maintained
+  by Michel Xhaard <mxhaard@magic.fr>;
+- Stanislav Lechev donated one camera.

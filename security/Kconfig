@@ -1,0 +1,237 @@
+#
+# Security configuration
+#
+
+menu "Security options"
+
+config KEYS
+	bool "Enable access key retention support"
+	help
+	  This option provides support for retaining authentication tokens and
+	  access keys in the kernel.
+
+	  It also includes provision of methods by which such keys might be
+	  associated with a process so that network filesystems, encryption
+	  support and the like can find them.
+
+	  Furthermore, a special type of key is available that acts as keyring:
+	  a searchable sequence of keys. Each process is equipped with access
+	  to five standard keyrings: UID-specific, GID-specific, session,
+	  process and thread.
+
+	  If you are unsure as to whether this is required, answer N.
+
+config TRUSTED_KEYS
+	tristate "TRUSTED KEYS"
+	depends on KEYS && TCG_TPM
+	select CRYPTO
+	select CRYPTO_HMAC
+	select CRYPTO_SHA1
+	help
+	  This option provides support for creating, sealing, and unsealing
+	  keys in the kernel. Trusted keys are random number symmetric keys,
+	  generated and RSA-sealed by the TPM. The TPM only unseals the keys,
+	  if the boot PCRs and other criteria match.  Userspace will only ever
+	  see encrypted blobs.
+
+	  If you are unsure as to whether this is required, answer N.
+
+config ENCRYPTED_KEYS
+	tristate "ENCRYPTED KEYS"
+	depends on KEYS
+	select CRYPTO
+	select CRYPTO_HMAC
+	select CRYPTO_AES
+	select CRYPTO_CBC
+	select CRYPTO_SHA256
+	select CRYPTO_RNG
+	help
+	  This option provides support for create/encrypting/decrypting keys
+	  in the kernel.  Encrypted keys are kernel generated random numbers,
+	  which are encrypted/decrypted with a 'master' symmetric key. The
+	  'master' key can be either a trusted-key or user-key type.
+	  Userspace only ever sees/stores encrypted blobs.
+
+	  If you are unsure as to whether this is required, answer N.
+
+config KEYS_DEBUG_PROC_KEYS
+	bool "Enable the /proc/keys file by which keys may be viewed"
+	depends on KEYS
+	help
+	  This option turns on support for the /proc/keys file - through which
+	  can be listed all the keys on the system that are viewable by the
+	  reading process.
+
+	  The only keys included in the list are those that grant View
+	  permission to the reading process whether or not it possesses them.
+	  Note that LSM security checks are still performed, and may further
+	  filter out keys that the current process is not authorised to view.
+
+	  Only key attributes are listed here; key payloads are not included in
+	  the resulting table.
+
+	  If you are unsure as to whether this is required, answer N.
+
+config SECURITY_DMESG_RESTRICT
+	bool "Restrict unprivileged access to the kernel syslog"
+	default n
+	help
+	  This enforces restrictions on unprivileged users reading the kernel
+	  syslog via dmesg(8).
+
+	  If this option is not selected, no restrictions will be enforced
+	  unless the dmesg_restrict sysctl is explicitly set to (1).
+
+	  If you are unsure how to answer this question, answer N.
+
+config SECURITY
+	bool "Enable different security models"
+	depends on SYSFS
+	help
+	  This allows you to choose different security modules to be
+	  configured into your kernel.
+
+	  If this option is not selected, the default Linux security
+	  model will be used.
+
+	  If you are unsure how to answer this question, answer N.
+
+config SECURITYFS
+	bool "Enable the securityfs filesystem"
+	help
+	  This will build the securityfs filesystem.  It is currently used by
+	  the TPM bios character driver and IMA, an integrity provider.  It is
+	  not used by SELinux or SMACK.
+
+	  If you are unsure how to answer this question, answer N.
+
+config SECURITY_NETWORK
+	bool "Socket and Networking Security Hooks"
+	depends on SECURITY
+	help
+	  This enables the socket and networking security hooks.
+	  If enabled, a security module can use these hooks to
+	  implement socket and networking access controls.
+	  If you are unsure how to answer this question, answer N.
+
+config SECURITY_NETWORK_XFRM
+	bool "XFRM (IPSec) Networking Security Hooks"
+	depends on XFRM && SECURITY_NETWORK
+	help
+	  This enables the XFRM (IPSec) networking security hooks.
+	  If enabled, a security module can use these hooks to
+	  implement per-packet access controls based on labels
+	  derived from IPSec policy.  Non-IPSec communications are
+	  designated as unlabelled, and only sockets authorized
+	  to communicate unlabelled data can send without using
+	  IPSec.
+	  If you are unsure how to answer this question, answer N.
+
+config SECURITY_PATH
+	bool "Security hooks for pathname based access control"
+	depends on SECURITY
+	help
+	  This enables the security hooks for pathname based access control.
+	  If enabled, a security module can use these hooks to
+	  implement pathname based access controls.
+	  If you are unsure how to answer this question, answer N.
+
+config INTEL_TXT
+	bool "Enable Intel(R) Trusted Execution Technology (Intel(R) TXT)"
+	depends on HAVE_INTEL_TXT
+	help
+	  This option enables support for booting the kernel with the
+	  Trusted Boot (tboot) module. This will utilize
+	  Intel(R) Trusted Execution Technology to perform a measured launch
+	  of the kernel. If the system does not support Intel(R) TXT, this
+	  will have no effect.
+
+	  Intel TXT will provide higher assurance of system configuration and
+	  initial state as well as data reset protection.  This is used to
+	  create a robust initial kernel measurement and verification, which
+	  helps to ensure that kernel security mechanisms are functioning
+	  correctly. This level of protection requires a root of trust outside
+	  of the kernel itself.
+
+	  Intel TXT also helps solve real end user concerns about having
+	  confidence that their hardware is running the VMM or kernel that
+	  it was configured with, especially since they may be responsible for
+	  providing such assurances to VMs and services running on it.
+
+	  See <http://www.intel.com/technology/security/> for more information
+	  about Intel(R) TXT.
+	  See <http://tboot.sourceforge.net> for more information about tboot.
+	  See Documentation/intel_txt.txt for a description of how to enable
+	  Intel TXT support in a kernel boot.
+
+	  If you are unsure as to whether this is required, answer N.
+
+config LSM_MMAP_MIN_ADDR
+	int "Low address space for LSM to protect from user allocation"
+	depends on SECURITY && SECURITY_SELINUX
+	default 32768 if ARM
+	default 65536
+	help
+	  This is the portion of low virtual memory which should be protected
+	  from userspace allocation.  Keeping a user from writing to low pages
+	  can help reduce the impact of kernel NULL pointer bugs.
+
+	  For most ia64, ppc64 and x86 users with lots of address space
+	  a value of 65536 is reasonable and should cause no problems.
+	  On arm and other archs it should not be higher than 32768.
+	  Programs which use vm86 functionality or have some need to map
+	  this low address space will need the permission specific to the
+	  systems running LSM.
+
+source security/selinux/Kconfig
+source security/smack/Kconfig
+source security/tomoyo/Kconfig
+source security/apparmor/Kconfig
+source security/yama/Kconfig
+
+source security/integrity/Kconfig
+
+choice
+	prompt "Default security module"
+	default DEFAULT_SECURITY_SELINUX if SECURITY_SELINUX
+	default DEFAULT_SECURITY_SMACK if SECURITY_SMACK
+	default DEFAULT_SECURITY_TOMOYO if SECURITY_TOMOYO
+	default DEFAULT_SECURITY_APPARMOR if SECURITY_APPARMOR
+	default DEFAULT_SECURITY_YAMA if SECURITY_YAMA
+	default DEFAULT_SECURITY_DAC
+
+	help
+	  Select the security module that will be used by default if the
+	  kernel parameter security= is not specified.
+
+	config DEFAULT_SECURITY_SELINUX
+		bool "SELinux" if SECURITY_SELINUX=y
+
+	config DEFAULT_SECURITY_SMACK
+		bool "Simplified Mandatory Access Control" if SECURITY_SMACK=y
+
+	config DEFAULT_SECURITY_TOMOYO
+		bool "TOMOYO" if SECURITY_TOMOYO=y
+
+	config DEFAULT_SECURITY_APPARMOR
+		bool "AppArmor" if SECURITY_APPARMOR=y
+
+	config DEFAULT_SECURITY_YAMA
+		bool "Yama" if SECURITY_YAMA=y
+
+	config DEFAULT_SECURITY_DAC
+		bool "Unix Discretionary Access Controls"
+
+endchoice
+
+config DEFAULT_SECURITY
+	string
+	default "selinux" if DEFAULT_SECURITY_SELINUX
+	default "smack" if DEFAULT_SECURITY_SMACK
+	default "tomoyo" if DEFAULT_SECURITY_TOMOYO
+	default "apparmor" if DEFAULT_SECURITY_APPARMOR
+	default "yama" if DEFAULT_SECURITY_YAMA
+	default "" if DEFAULT_SECURITY_DAC
+
+endmenu
+

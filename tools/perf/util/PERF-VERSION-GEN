@@ -1,0 +1,42 @@
+#!/bin/sh
+
+if [ $# -eq 1 ]  ; then
+	OUTPUT=$1
+fi
+
+GVF=${OUTPUT}PERF-VERSION-FILE
+
+LF='
+'
+
+# First check if there is a .git to get the version from git describe
+# otherwise try to get the version from the kernel makefile
+if test -d ../../.git -o -f ../../.git &&
+	VN=$(git describe --abbrev=4 HEAD 2>/dev/null) &&
+	case "$VN" in
+	*$LF*) (exit 1) ;;
+	v[0-9]*)
+		git update-index -q --refresh
+		test -z "$(git diff-index --name-only HEAD --)" ||
+		VN="$VN-dirty" ;;
+	esac
+then
+	VN=$(echo "$VN" | sed -e 's/-/./g');
+else
+	VN=$(MAKEFLAGS= make -sC ../.. kernelversion)
+fi
+
+VN=$(expr "$VN" : v*'\(.*\)')
+
+if test -r $GVF
+then
+	VC=$(sed -e 's/^PERF_VERSION = //' <$GVF)
+else
+	VC=unset
+fi
+test "$VN" = "$VC" || {
+	echo >&2 "PERF_VERSION = $VN"
+	echo "PERF_VERSION = $VN" >$GVF
+}
+
+

@@ -1,0 +1,587 @@
+comment "Machine Types"
+
+if M68KCLASSIC
+
+config AMIGA
+	bool "Amiga support"
+	depends on MMU
+	select MMU_MOTOROLA if MMU
+	help
+	  This option enables support for the Amiga series of computers. If
+	  you plan to use this kernel on an Amiga, say Y here and browse the
+	  material available in <file:Documentation/m68k>; otherwise say N.
+
+config ATARI
+	bool "Atari support"
+	depends on MMU
+	select MMU_MOTOROLA if MMU
+	help
+	  This option enables support for the 68000-based Atari series of
+	  computers (including the TT, Falcon and Medusa). If you plan to use
+	  this kernel on an Atari, say Y here and browse the material
+	  available in <file:Documentation/m68k>; otherwise say N.
+
+config MAC
+	bool "Macintosh support"
+	depends on MMU
+	select MMU_MOTOROLA if MMU
+	help
+	  This option enables support for the Apple Macintosh series of
+	  computers (yes, there is experimental support now, at least for part
+	  of the series).
+
+	  Say N unless you're willing to code the remaining necessary support.
+	  ;)
+
+config APOLLO
+	bool "Apollo support"
+	depends on MMU
+	select MMU_MOTOROLA if MMU
+	help
+	  Say Y here if you want to run Linux on an MC680x0-based Apollo
+	  Domain workstation such as the DN3500.
+
+config VME
+	bool "VME (Motorola and BVM) support"
+	depends on MMU
+	select MMU_MOTOROLA if MMU
+	help
+	  Say Y here if you want to build a kernel for a 680x0 based VME
+	  board.  Boards currently supported include Motorola boards MVME147,
+	  MVME162, MVME166, MVME167, MVME172, and MVME177.  BVME4000 and
+	  BVME6000 boards from BVM Ltd are also supported.
+
+config MVME147
+	bool "MVME147 support"
+	depends on MMU
+	depends on VME
+	help
+	  Say Y to include support for early Motorola VME boards.  This will
+	  build a kernel which can run on MVME147 single-board computers.  If
+	  you select this option you will have to select the appropriate
+	  drivers for SCSI, Ethernet and serial ports later on.
+
+config MVME16x
+	bool "MVME162, 166 and 167 support"
+	depends on MMU
+	depends on VME
+	help
+	  Say Y to include support for Motorola VME boards.  This will build a
+	  kernel which can run on MVME162, MVME166, MVME167, MVME172, and
+	  MVME177 boards.  If you select this option you will have to select
+	  the appropriate drivers for SCSI, Ethernet and serial ports later
+	  on.
+
+config BVME6000
+	bool "BVME4000 and BVME6000 support"
+	depends on MMU
+	depends on VME
+	help
+	  Say Y to include support for VME boards from BVM Ltd.  This will
+	  build a kernel which can run on BVME4000 and BVME6000 boards.  If
+	  you select this option you will have to select the appropriate
+	  drivers for SCSI, Ethernet and serial ports later on.
+
+config HP300
+	bool "HP9000/300 and HP9000/400 support"
+	depends on MMU
+	select MMU_MOTOROLA if MMU
+	help
+	  This option enables support for the HP9000/300 and HP9000/400 series
+	  of workstations. Support for these machines is still somewhat
+	  experimental. If you plan to try to use the kernel on such a machine
+	  say Y here.
+	  Everybody else says N.
+
+config SUN3X
+	bool "Sun3x support"
+	depends on MMU
+	select MMU_MOTOROLA if MMU
+	select M68030
+	help
+	  This option enables support for the Sun 3x series of workstations.
+	  Be warned that this support is very experimental.
+	  Note that Sun 3x kernels are not compatible with Sun 3 hardware.
+	  General Linux information on the Sun 3x series (now discontinued)
+	  is at <http://www.angelfire.com/ca2/tech68k/sun3.html>.
+
+	  If you don't want to compile a kernel for a Sun 3x, say N.
+
+config Q40
+	bool "Q40/Q60 support"
+	depends on MMU
+	select MMU_MOTOROLA if MMU
+	help
+	  The Q40 is a Motorola 68040-based successor to the Sinclair QL
+	  manufactured in Germany.  There is an official Q40 home page at
+	  <http://www.q40.de/>.  This option enables support for the Q40 and
+	  Q60. Select your CPU below.  For 68LC060 don't forget to enable FPU
+	  emulation.
+
+config SUN3
+	bool "Sun3 support"
+	depends on MMU
+	depends on !MMU_MOTOROLA
+	select MMU_SUN3 if MMU
+	select M68020
+	help
+	  This option enables support for the Sun 3 series of workstations
+	  (3/50, 3/60, 3/1xx, 3/2xx systems). Enabling this option requires
+	  that all other hardware types must be disabled, as Sun 3 kernels
+	  are incompatible with all other m68k targets (including Sun 3x!).
+
+	  If you don't want to compile a kernel exclusively for a Sun 3, say N.
+
+endif # M68KCLASSIC
+
+config PILOT
+	bool
+
+config PILOT3
+	bool "Pilot 1000/5000, PalmPilot Personal/Pro, or PalmIII support"
+	depends on M68328
+	select PILOT
+	help
+	  Support for the Palm Pilot 1000/5000, Personal/Pro and PalmIII.
+
+config XCOPILOT_BUGS
+	bool "(X)Copilot support"
+	depends on PILOT3
+	help
+	  Support the bugs of Xcopilot.
+
+config UC5272
+	bool "Arcturus Networks uC5272 dimm board support"
+	depends on M5272
+	help
+	  Support for the Arcturus Networks uC5272 dimm board.
+
+config UC5282
+	bool "Arcturus Networks uC5282 board support"
+	depends on M528x
+	help
+	  Support for the Arcturus Networks uC5282 dimm board.
+
+config UCSIMM
+	bool "uCsimm module support"
+	depends on M68EZ328
+	help
+	  Support for the Arcturus Networks uCsimm module.
+
+config UCDIMM
+	bool "uDsimm module support"
+	depends on M68VZ328
+	help
+	  Support for the Arcturus Networks uDsimm module.
+
+config DRAGEN2
+	bool "DragenEngine II board support"
+	depends on M68VZ328
+	help
+	  Support for the DragenEngine II board.
+
+config DIRECT_IO_ACCESS
+	bool "Allow user to access IO directly"
+	depends on (UCSIMM || UCDIMM || DRAGEN2)
+	help
+	  Disable the CPU internal registers protection in user mode,
+	  to allow a user application to read/write them.
+
+config INIT_LCD
+	bool "Initialize LCD"
+	depends on (UCSIMM || UCDIMM || DRAGEN2)
+	help
+	  Initialize the LCD controller of the 68x328 processor.
+
+config MEMORY_RESERVE
+	int "Memory reservation (MiB)"
+	depends on (UCSIMM || UCDIMM)
+	help
+	  Reserve certain memory regions on 68x328 based boards.
+
+config UCQUICC
+	bool "Lineo uCquicc board support"
+	depends on M68360
+	help
+	  Support for the Lineo uCquicc board.
+
+config ARNEWSH
+	bool
+
+config ARN5206
+	bool "Arnewsh 5206 board support"
+	depends on M5206
+	select ARNEWSH
+	help
+	  Support for the Arnewsh 5206 board.
+
+config FREESCALE
+	bool
+
+config M5206eC3
+	bool "Motorola M5206eC3 board support"
+	depends on M5206e
+	select FREESCALE
+	help
+	  Support for the Motorola M5206eC3 board.
+
+config ELITE
+	bool "Motorola M5206eLITE board support"
+	depends on M5206e
+	help
+	  Support for the Motorola M5206eLITE board.
+
+config M5208EVB
+	bool "Freescale M5208EVB board support"
+	depends on M520x
+	select FREESCALE
+	help
+	  Support for the Freescale Coldfire M5208EVB.
+
+config M5235EVB
+	bool "Freescale M5235EVB support"
+	depends on M523x
+	select FREESCALE
+	help
+	  Support for the Freescale M5235EVB board.
+
+config M5249C3
+	bool "Motorola M5249C3 board support"
+	depends on M5249
+	select FREESCALE
+	help
+	  Support for the Motorola M5249C3 board.
+
+config M5271EVB
+	bool "Freescale (Motorola) M5271EVB board support"
+	depends on M5271
+	select FREESCALE
+	help
+	  Support for the Freescale (Motorola) M5271EVB board.
+
+config M5275EVB
+	bool "Freescale (Motorola) M5275EVB board support"
+	depends on M5275
+	select FREESCALE
+	help
+	  Support for the Freescale (Motorola) M5275EVB board.
+
+config M5272C3
+	bool "Motorola M5272C3 board support"
+	depends on M5272
+	select FREESCALE
+	help
+	  Support for the Motorola M5272C3 board.
+
+config senTec
+	bool
+
+config COBRA5272
+	bool "senTec COBRA5272 board support"
+	depends on M5272
+	select senTec
+	help
+	  Support for the senTec COBRA5272 board.
+
+config AVNET
+	bool
+
+config AVNET5282
+	bool "Avnet 5282 board support"
+	depends on M528x
+	select AVNET
+	help
+	  Support for the Avnet 5282 board.
+
+config M5282EVB
+	bool "Motorola M5282EVB board support"
+	depends on M528x
+	select FREESCALE
+	help
+	  Support for the Motorola M5282EVB board.
+
+config COBRA5282
+	bool "senTec COBRA5282 board support"
+	depends on M528x
+	select senTec
+	help
+	  Support for the senTec COBRA5282 board.
+
+config SOM5282EM
+	bool "EMAC.Inc SOM5282EM board support"
+	depends on M528x
+	select EMAC_INC
+	help
+	  Support for the EMAC.Inc SOM5282EM module.
+
+config WILDFIRE
+	bool "Intec Automation Inc. WildFire board support"
+	depends on M528x
+	help
+	  Support for the Intec Automation Inc. WildFire.
+
+config WILDFIREMOD
+	bool "Intec Automation Inc. WildFire module support"
+	depends on M528x
+	help
+	  Support for the Intec Automation Inc. WildFire module.
+
+config ARN5307
+	bool "Arnewsh 5307 board support"
+	depends on M5307
+	select ARNEWSH
+	help
+	  Support for the Arnewsh 5307 board.
+
+config M5307C3
+	bool "Motorola M5307C3 board support"
+	depends on M5307
+	select FREESCALE
+	help
+	  Support for the Motorola M5307C3 board.
+
+config SECUREEDGEMP3
+	bool "SnapGear SecureEdge/MP3 platform support"
+	depends on M5307
+	help
+	  Support for the SnapGear SecureEdge/MP3 platform.
+
+config M5329EVB
+	bool "Freescale (Motorola) M5329EVB board support"
+	depends on M532x
+	select FREESCALE
+	help
+	  Support for the Freescale (Motorola) M5329EVB board.
+
+config COBRA5329
+	bool "senTec COBRA5329 board support"
+	depends on M532x
+	help
+	  Support for the senTec COBRA5329 board.
+
+config M5407C3
+	bool "Motorola M5407C3 board support"
+	depends on M5407
+	select FREESCALE
+	help
+	  Support for the Motorola M5407C3 board.
+
+config FIREBEE
+	bool "FireBee board support"
+	depends on M547x
+	help
+	  Support for the FireBee ColdFire 5475 based board.
+
+config CLEOPATRA
+	bool "Feith CLEOPATRA board support"
+	depends on (M5307 || M5407)
+	help
+	  Support for the Feith Cleopatra boards.
+
+config CANCam
+	bool "Feith CANCam board support"
+	depends on M5272
+	help
+	  Support for the Feith CANCam board.
+
+config SCALES
+	bool "Feith SCALES board support"
+	depends on M5272
+	help
+	  Support for the Feith SCALES board.
+
+config NETtel
+	bool "SecureEdge/NETtel board support"
+	depends on (M5206e || M5272 || M5307)
+	help
+	  Support for the SnapGear NETtel/SecureEdge/SnapGear boards.
+
+config SNAPGEAR
+	bool "SnapGear router board support"
+	depends on NETtel
+	help
+	  Special additional support for SnapGear router boards.
+
+config SNEHA
+	bool
+
+config CPU16B
+	bool "Sneha Technologies S.L. Sarasvati board support"
+	depends on M5272
+	select SNEHA
+	help
+	  Support for the SNEHA CPU16B board.
+
+config MOD5272
+	bool "Netburner MOD-5272 board support"
+	depends on M5272
+	help
+	  Support for the Netburner MOD-5272 board.
+
+config SAVANT
+	bool
+
+config SAVANTrosie1
+	bool "Savant Rosie1 board support"
+	depends on M523x
+	select SAVANT
+	help
+	  Support for the Savant Rosie1 board.
+
+
+if !MMU || COLDFIRE
+
+comment "Machine Options"
+
+config UBOOT
+	bool "Support for U-Boot command line parameters"
+	help
+	  If you say Y here kernel will try to collect command
+	  line parameters from the initial u-boot stack.
+	default n
+
+config 4KSTACKS
+	bool "Use 4Kb for kernel stacks instead of 8Kb"
+	default y
+	help
+	  If you say Y here the kernel will use a 4Kb stacksize for the
+	  kernel stack attached to each process/thread. This facilitates
+	  running more threads on a system and also reduces the pressure
+	  on the VM subsystem for higher order allocations.
+
+comment "RAM configuration"
+
+config RAMBASE
+	hex "Address of the base of RAM"
+	default "0"
+	help
+	  Define the address that RAM starts at. On many platforms this is
+	  0, the base of the address space. And this is the default. Some
+	  platforms choose to setup their RAM at other addresses within the
+	  processor address space.
+
+config RAMSIZE
+	hex "Size of RAM (in bytes), or 0 for automatic"
+	default "0x400000"
+	help
+	  Define the size of the system RAM. If you select 0 then the
+	  kernel will try to probe the RAM size at runtime. This is not
+	  supported on all CPU types.
+
+config VECTORBASE
+	hex "Address of the base of system vectors"
+	default "0"
+	help
+	  Define the address of the system vectors. Commonly this is
+	  put at the start of RAM, but it doesn't have to be. On ColdFire
+	  platforms this address is programmed into the VBR register, thus
+	  actually setting the address to use.
+
+config MBAR
+	hex "Address of the MBAR (internal peripherals)"
+	default "0x10000000"
+	depends on HAVE_MBAR
+	help
+	  Define the address of the internal system peripherals. This value
+	  is set in the processors MBAR register. This is generally setup by
+	  the boot loader, and will not be written by the kernel. By far most
+	  ColdFire boards use the default 0x10000000 value, so if unsure then
+	  use this.
+
+config IPSBAR
+	hex "Address of the IPSBAR (internal peripherals)"
+	default "0x40000000"
+	depends on HAVE_IPSBAR
+	help
+	  Define the address of the internal system peripherals. This value
+	  is set in the processors IPSBAR register. This is generally setup by
+	  the boot loader, and will not be written by the kernel. By far most
+	  ColdFire boards use the default 0x40000000 value, so if unsure then
+	  use this.
+
+config KERNELBASE
+	hex "Address of the base of kernel code"
+	default "0x400"
+	help
+	  Typically on m68k systems the kernel will not start at the base
+	  of RAM, but usually some small offset from it. Define the start
+	  address of the kernel here. The most common setup will have the
+	  processor vectors at the base of RAM and then the start of the
+	  kernel. On some platforms some RAM is reserved for boot loaders
+	  and the kernel starts after that. The 0x400 default was based on
+	  a system with the RAM based at address 0, and leaving enough room
+	  for the theoretical maximum number of 256 vectors.
+
+comment "ROM configuration"
+
+config ROM
+	bool "Specify ROM linker regions"
+	default n
+	help
+	  Define a ROM region for the linker script. This creates a kernel
+	  that can be stored in flash, with possibly the text, and data
+	  regions being copied out to RAM at startup.
+
+config ROMBASE
+	hex "Address of the base of ROM device"
+	default "0"
+	depends on ROM
+	help
+	  Define the address that the ROM region starts at. Some platforms
+	  use this to set their chip select region accordingly for the boot
+	  device.
+
+config ROMVEC
+	hex "Address of the base of the ROM vectors"
+	default "0"
+	depends on ROM
+	help
+	  This is almost always the same as the base of the ROM. Since on all
+	  68000 type variants the vectors are at the base of the boot device
+	  on system startup.
+
+config ROMVECSIZE
+	hex "Size of ROM vector region (in bytes)"
+	default "0x400"
+	depends on ROM
+	help
+	  Define the size of the vector region in ROM. For most 68000
+	  variants this would be 0x400 bytes in size. Set to 0 if you do
+	  not want a vector region at the start of the ROM.
+
+config ROMSTART
+	hex "Address of the base of system image in ROM"
+	default "0x400"
+	depends on ROM
+	help
+	  Define the start address of the system image in ROM. Commonly this
+	  is strait after the ROM vectors.
+
+config ROMSIZE
+	hex "Size of the ROM device"
+	default "0x100000"
+	depends on ROM
+	help
+	  Size of the ROM device. On some platforms this is used to setup
+	  the chip select that controls the boot ROM device.
+
+choice
+	prompt "Kernel executes from"
+	---help---
+	  Choose the memory type that the kernel will be running in.
+
+config RAMKERNEL
+	bool "RAM"
+	help
+	  The kernel will be resident in RAM when running.
+
+config ROMKERNEL
+	bool "ROM"
+	help
+	  The kernel will be resident in FLASH/ROM when running. This is
+	  often referred to as Execute-in-Place (XIP), since the kernel
+	  code executes from the position it is stored in the FLASH/ROM.
+
+endchoice
+
+endif

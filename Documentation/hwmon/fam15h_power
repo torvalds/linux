@@ -1,0 +1,37 @@
+Kernel driver fam15h_power
+==========================
+
+Supported chips:
+* AMD Family 15h Processors
+
+  Prefix: 'fam15h_power'
+  Addresses scanned: PCI space
+  Datasheets:
+  BIOS and Kernel Developer's Guide (BKDG) For AMD Family 15h Processors
+    (not yet published)
+
+Author: Andreas Herrmann <andreas.herrmann3@amd.com>
+
+Description
+-----------
+
+This driver permits reading of registers providing power information
+of AMD Family 15h processors.
+
+For AMD Family 15h processors the following power values can be
+calculated using different processor northbridge function registers:
+
+* BasePwrWatts: Specifies in watts the maximum amount of power
+  consumed by the processor for NB and logic external to the core.
+* ProcessorPwrWatts: Specifies in watts the maximum amount of power
+  the processor can support.
+* CurrPwrWatts: Specifies in watts the current amount of power being
+  consumed by the processor.
+
+This driver provides ProcessorPwrWatts and CurrPwrWatts:
+* power1_crit (ProcessorPwrWatts)
+* power1_input (CurrPwrWatts)
+
+On multi-node processors the calculated value is for the entire
+package and not for a single node. Thus the driver creates sysfs
+attributes only for internal node0 of a multi-node processor.

@@ -1,0 +1,219 @@
+# ALSA soundcard-configuration
+config SND_TIMER
+	tristate
+
+config SND_PCM
+	tristate
+	select SND_TIMER
+
+config SND_HWDEP
+	tristate
+
+config SND_RAWMIDI
+	tristate
+
+config SND_COMPRESS_OFFLOAD
+	tristate
+
+# To be effective this also requires INPUT - users should say:
+#    select SND_JACK if INPUT=y || INPUT=SND
+# to avoid having to force INPUT on.
+config SND_JACK
+	bool
+
+config SND_SEQUENCER
+	tristate "Sequencer support"
+	select SND_TIMER
+	help
+	  Say Y or M to enable MIDI sequencer and router support.  This
+	  feature allows routing and enqueueing of MIDI events.  Events
+	  can be processed at a given time.
+
+	  Many programs require this feature, so you should enable it
+	  unless you know what you're doing.
+
+config SND_SEQ_DUMMY
+	tristate "Sequencer dummy client"
+	depends on SND_SEQUENCER
+	help
+	  Say Y here to enable the dummy sequencer client.  This client
+	  is a simple MIDI-through client: all normal input events are
+	  redirected to the output port immediately.
+
+	  You don't need this unless you want to connect many MIDI
+	  devices or applications together.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-seq-dummy.
+
+config SND_OSSEMUL
+	select SOUND_OSS_CORE
+	bool
+
+config SND_MIXER_OSS
+	tristate "OSS Mixer API"
+	select SND_OSSEMUL
+	help
+	  To enable OSS mixer API emulation (/dev/mixer*), say Y here
+	  and read <file:Documentation/sound/alsa/OSS-Emulation.txt>.
+
+	  Many programs still use the OSS API, so say Y.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-mixer-oss.
+
+config SND_PCM_OSS
+	tristate "OSS PCM (digital audio) API"
+	select SND_OSSEMUL
+	select SND_PCM
+	help
+	  To enable OSS digital audio (PCM) emulation (/dev/dsp*), say Y
+	  here and read <file:Documentation/sound/alsa/OSS-Emulation.txt>.
+
+	  Many programs still use the OSS API, so say Y.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-pcm-oss.
+
+config SND_PCM_OSS_PLUGINS
+	bool "OSS PCM (digital audio) API - Include plugin system"
+	depends on SND_PCM_OSS
+        default y
+	help
+          If you disable this option, the ALSA's OSS PCM API will not
+          support conversion of channels, formats and rates. It will
+          behave like most of new OSS/Free drivers in 2.4/2.6 kernels.
+
+config SND_SEQUENCER_OSS
+	bool "OSS Sequencer API"
+	depends on SND_SEQUENCER
+	select SND_OSSEMUL
+	help
+	  Say Y here to enable OSS sequencer emulation (both
+	  /dev/sequencer and /dev/music interfaces).
+
+	  Many programs still use the OSS API, so say Y.
+
+	  If you choose M in "Sequencer support" (SND_SEQUENCER),
+	  this will be compiled as a module. The module will be called
+	  snd-seq-oss.
+
+config SND_HRTIMER
+	tristate "HR-timer backend support"
+	depends on HIGH_RES_TIMERS
+	select SND_TIMER
+	help
+	  Say Y here to enable HR-timer backend for ALSA timer.  ALSA uses
+	  the hrtimer as a precise timing source. The ALSA sequencer code
+	  also can use this timing source.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-hrtimer.
+
+config SND_SEQ_HRTIMER_DEFAULT
+	bool "Use HR-timer as default sequencer timer"
+	depends on SND_HRTIMER && SND_SEQUENCER
+	default y
+	help
+	  Say Y here to use the HR-timer backend as the default sequencer
+	  timer.
+
+config SND_RTCTIMER
+	tristate "RTC Timer support"
+	depends on RTC
+	select SND_TIMER
+	help
+	  Say Y here to enable RTC timer support for ALSA.  ALSA uses
+	  the RTC timer as a precise timing source and maps the RTC
+	  timer to ALSA's timer interface.  The ALSA sequencer code also
+	  can use this timing source.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-rtctimer.
+
+	  Note that this option is exclusive with the new RTC drivers
+	  (CONFIG_RTC_CLASS) since this requires the old API.
+
+config SND_SEQ_RTCTIMER_DEFAULT
+	bool "Use RTC as default sequencer timer"
+	depends on SND_RTCTIMER && SND_SEQUENCER
+	depends on !SND_SEQ_HRTIMER_DEFAULT
+	default y
+	help
+	  Say Y here to use the RTC timer as the default sequencer
+	  timer.  This is strongly recommended because it ensures
+	  precise MIDI timing even when the system timer runs at less
+	  than 1000 Hz.
+
+	  If in doubt, say Y.
+
+config SND_DYNAMIC_MINORS
+	bool "Dynamic device file minor numbers"
+	help
+	  If you say Y here, the minor numbers of ALSA device files in
+	  /dev/snd/ are allocated dynamically.  This allows you to have
+	  more than 8 sound cards, but requires a dynamic device file
+	  system like udev.
+
+	  If you are unsure about this, say N here.
+
+config SND_SUPPORT_OLD_API
+	bool "Support old ALSA API"
+	default y
+	help
+	  Say Y here to support the obsolete ALSA PCM API (ver.0.9.0 rc3
+	  or older).
+
+config SND_VERBOSE_PROCFS
+	bool "Verbose procfs contents"
+	depends on PROC_FS
+	default y
+	help
+	  Say Y here to include code for verbose procfs contents (provides
+          useful information to developers when a problem occurs).  On the
+          other side, it makes the ALSA subsystem larger.
+
+config SND_VERBOSE_PRINTK
+	bool "Verbose printk"
+	help
+	  Say Y here to enable verbose log messages.  These messages
+	  will help to identify source file and position containing
+	  printed messages.
+
+	  You don't need this unless you're debugging ALSA.
+
+config SND_DEBUG
+	bool "Debug"
+	help
+	  Say Y here to enable ALSA debug code.
+
+config SND_DEBUG_VERBOSE
+	bool "More verbose debug"
+	depends on SND_DEBUG
+	help
+	  Say Y here to enable extra-verbose debugging messages.
+	  
+	  Let me repeat: it enables EXTRA-VERBOSE DEBUGGING messages.
+	  So, say Y only if you are ready to be annoyed.
+
+config SND_PCM_XRUN_DEBUG
+	bool "Enable PCM ring buffer overrun/underrun debugging"
+	default n
+	depends on SND_DEBUG && SND_VERBOSE_PROCFS
+	help
+	  Say Y to enable the PCM ring buffer overrun/underrun debugging.
+	  It is usually not required, but if you have trouble with
+	  sound clicking when system is loaded, it may help to determine
+	  the process or driver which causes the scheduling gaps.
+
+config SND_VMASTER
+	bool
+
+config SND_KCTL_JACK
+	bool
+
+config SND_DMA_SGBUF
+	def_bool y
+	depends on X86
+
+source "sound/core/seq/Kconfig"

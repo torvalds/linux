@@ -1,0 +1,109 @@
+menu "Machine selection"
+
+config SCORE
+       def_bool y
+       select HAVE_GENERIC_HARDIRQS
+       select GENERIC_IRQ_SHOW
+       select GENERIC_IOMAP
+       select HAVE_MEMBLOCK
+       select HAVE_MEMBLOCK_NODE_MAP
+       select ARCH_DISCARD_MEMBLOCK
+       select GENERIC_CPU_DEVICES
+
+choice
+	prompt "System type"
+	default MACH_SPCT6600
+
+config ARCH_SCORE7
+	bool "SCORE7 processor"
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select CPU_SCORE7
+	select GENERIC_HAS_IOMAP
+
+config MACH_SPCT6600
+	bool "SPCT6600 series based machines"
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select CPU_SCORE7
+	select GENERIC_HAS_IOMAP
+
+config SCORE_SIM
+	bool "Score simulator"
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select CPU_SCORE7
+	select GENERIC_HAS_IOMAP
+endchoice
+
+endmenu
+
+config CPU_SCORE7
+	bool
+
+config NO_DMA
+	bool
+	default y
+
+config RWSEM_GENERIC_SPINLOCK
+	def_bool y
+
+config GENERIC_HWEIGHT
+	def_bool y
+
+config GENERIC_CALIBRATE_DELAY
+	def_bool y
+
+config GENERIC_CLOCKEVENTS
+	def_bool y
+
+menu "Kernel type"
+
+config 32BIT
+	def_bool y
+
+config ARCH_FLATMEM_ENABLE
+	def_bool y
+
+source "mm/Kconfig"
+
+config MEMORY_START
+	hex
+	default	0xa0000000
+
+source "kernel/time/Kconfig"
+source "kernel/Kconfig.hz"
+source "kernel/Kconfig.preempt"
+
+endmenu
+
+config RWSEM_GENERIC_SPINLOCK
+	def_bool y
+
+config LOCKDEP_SUPPORT
+	def_bool y
+
+config STACKTRACE_SUPPORT
+	def_bool y
+
+source "init/Kconfig"
+
+config MMU
+	def_bool y
+
+menu "Executable file formats"
+
+source "fs/Kconfig.binfmt"
+
+endmenu
+
+source "net/Kconfig"
+
+source "drivers/Kconfig"
+
+source "fs/Kconfig"
+
+source "arch/score/Kconfig.debug"
+
+source "security/Kconfig"
+
+source "crypto/Kconfig"
+
+source "lib/Kconfig"

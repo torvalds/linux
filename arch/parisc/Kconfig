@@ -1,0 +1,286 @@
+config PARISC
+	def_bool y
+	select HAVE_IDE
+	select HAVE_OPROFILE
+	select HAVE_FUNCTION_TRACER if 64BIT
+	select HAVE_FUNCTION_GRAPH_TRACER if 64BIT
+	select HAVE_FUNCTION_TRACE_MCOUNT_TEST if 64BIT
+	select RTC_CLASS
+	select RTC_DRV_GENERIC
+	select INIT_ALL_POSSIBLE
+	select BUG
+	select HAVE_IRQ_WORK
+	select HAVE_PERF_EVENTS
+	select GENERIC_ATOMIC64 if !64BIT
+	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_IRQ_PROBE
+	select GENERIC_PCI_IOMAP
+	select IRQ_PER_CPU
+	select ARCH_HAVE_NMI_SAFE_CMPXCHG
+
+	help
+	  The PA-RISC microprocessor is designed by Hewlett-Packard and used
+	  in many of their workstations & servers (HP9000 700 and 800 series,
+	  and later HP3000 series).  The PA-RISC Linux project home page is
+	  at <http://www.parisc-linux.org/>.
+
+config MMU
+	def_bool y
+
+config STACK_GROWSUP
+	def_bool y
+
+config GENERIC_LOCKBREAK
+	bool
+	default y
+	depends on SMP && PREEMPT
+
+config RWSEM_GENERIC_SPINLOCK
+	def_bool y
+
+config RWSEM_XCHGADD_ALGORITHM
+	bool
+
+config ARCH_HAS_ILOG2_U32
+	bool
+	default n
+
+config ARCH_HAS_ILOG2_U64
+	bool
+	default n
+
+config GENERIC_BUG
+	bool
+	default y
+	depends on BUG
+
+config GENERIC_HWEIGHT
+	bool
+	default y
+
+config GENERIC_CALIBRATE_DELAY
+	bool
+	default y
+
+config TIME_LOW_RES
+	bool
+	depends on SMP
+	default y
+
+config HAVE_LATENCYTOP_SUPPORT
+        def_bool y
+
+# unless you want to implement ACPI on PA-RISC ... ;-)
+config PM
+	bool
+
+config STACKTRACE_SUPPORT
+	def_bool y
+
+config NEED_DMA_MAP_STATE
+	def_bool y
+
+config NEED_SG_DMA_LENGTH
+	def_bool y
+
+config ISA_DMA_API
+	bool
+
+config ARCH_MAY_HAVE_PC_FDC
+	bool
+	depends on BROKEN
+	default y
+
+source "init/Kconfig"
+
+source "kernel/Kconfig.freezer"
+
+
+menu "Processor type and features"
+
+choice
+	prompt "Processor type"
+	default PA7000
+
+config PA7000
+	bool "PA7000/PA7100"
+	---help---
+	  This is the processor type of your CPU.  This information is
+	  used for optimizing purposes.  In order to compile a kernel
+	  that can run on all 32-bit PA CPUs (albeit not optimally fast),
+	  you can specify "PA7000" here.
+
+	  Specifying "PA8000" here will allow you to select a 64-bit kernel
+	  which is required on some machines.
+
+config PA7100LC
+	bool "PA7100LC"
+	help
+	  Select this option for the PCX-L processor, as used in the
+	  712, 715/64, 715/80, 715/100, 715/100XC, 725/100, 743, 748,
+	  D200, D210, D300, D310 and E-class
+
+config PA7200
+	bool "PA7200"
+	help
+	  Select this option for the PCX-T' processor, as used in the
+	  C100, C110, J100, J110, J210XC, D250, D260, D350, D360,
+	  K100, K200, K210, K220, K400, K410 and K420
+
+config PA7300LC
+	bool "PA7300LC"
+	help
+	  Select this option for the PCX-L2 processor, as used in the
+	  744, A180, B132L, B160L, B180L, C132L, C160L, C180L,
+	  D220, D230, D320 and D330.
+
+config PA8X00
+	bool "PA8000 and up"
+	help
+	  Select this option for PCX-U to PCX-W2 processors.
+
+endchoice
+
+# Define implied options from the CPU selection here
+
+config PA20
+	def_bool y
+	depends on PA8X00
+
+config PA11
+	def_bool y
+	depends on PA7000 || PA7100LC || PA7200 || PA7300LC
+
+config PREFETCH
+	def_bool y
+	depends on PA8X00 || PA7200
+
+config 64BIT
+	bool "64-bit kernel"
+	depends on PA8X00
+	help
+	  Enable this if you want to support 64bit kernel on PA-RISC platform.
+
+	  At the moment, only people willing to use more than 2GB of RAM,
+	  or having a 64bit-only capable PA-RISC machine should say Y here.
+
+	  Since there is no 64bit userland on PA-RISC, there is no point to
+	  enable this option otherwise. The 64bit kernel is significantly bigger
+	  and slower than the 32bit one.
+
+choice
+	prompt "Kernel page size"
+	default PARISC_PAGE_SIZE_4KB
+
+config PARISC_PAGE_SIZE_4KB
+	bool "4KB"
+	help
+	  This lets you select the page size of the kernel.  For best
+	  performance, a page size of 16KB is recommended.  For best
+	  compatibility with 32bit applications, a page size of 4KB should be
+	  selected (the vast majority of 32bit binaries work perfectly fine
+	  with a larger page size).
+
+	  4KB                For best 32bit compatibility
+	  16KB               For best performance
+	  64KB               For best performance, might give more overhead.
+
+	  If you don't know what to do, choose 4KB.
+
+config PARISC_PAGE_SIZE_16KB
+	bool "16KB (EXPERIMENTAL)"
+	depends on PA8X00 && EXPERIMENTAL
+
+config PARISC_PAGE_SIZE_64KB
+	bool "64KB (EXPERIMENTAL)"
+	depends on PA8X00 && EXPERIMENTAL
+
+endchoice
+
+config SMP
+	bool "Symmetric multi-processing support"
+	select USE_GENERIC_SMP_HELPERS
+	---help---
+	  This enables support for systems with more than one CPU. If you have
+	  a system with only one CPU, like most personal computers, say N. If
+	  you have a system with more than one CPU, say Y.
+
+	  If you say N here, the kernel will run on single and multiprocessor
+	  machines, but will use only one CPU of a multiprocessor machine. If
+	  you say Y here, the kernel will run on many, but not all,
+	  singleprocessor machines. On a singleprocessor machine, the kernel
+	  will run faster if you say N here.
+
+	  See also <file:Documentation/nmi_watchdog.txt> and the SMP-HOWTO
+	  available at <http://www.tldp.org/docs.html#howto>.
+
+	  If you don't know what to do here, say N.
+
+config HOTPLUG_CPU
+	bool
+	default y if SMP
+	select HOTPLUG
+
+config ARCH_SELECT_MEMORY_MODEL
+	def_bool y
+	depends on 64BIT
+
+config ARCH_DISCONTIGMEM_ENABLE
+	def_bool y
+	depends on 64BIT
+
+config ARCH_FLATMEM_ENABLE
+	def_bool y
+
+config ARCH_DISCONTIGMEM_DEFAULT
+	def_bool y
+	depends on ARCH_DISCONTIGMEM_ENABLE
+
+config NODES_SHIFT
+	int
+	default "3"
+	depends on NEED_MULTIPLE_NODES
+
+source "kernel/Kconfig.preempt"
+source "kernel/Kconfig.hz"
+source "mm/Kconfig"
+
+config COMPAT
+	def_bool y
+	depends on 64BIT
+
+config HPUX
+	bool "Support for HP-UX binaries"
+	depends on !64BIT
+
+config NR_CPUS
+	int "Maximum number of CPUs (2-32)"
+	range 2 32
+	depends on SMP
+	default "32"
+
+endmenu
+
+
+source "drivers/parisc/Kconfig"
+
+
+menu "Executable file formats"
+
+source "fs/Kconfig.binfmt"
+
+endmenu
+
+source "net/Kconfig"
+
+source "drivers/Kconfig"
+
+source "fs/Kconfig"
+
+source "arch/parisc/Kconfig.debug"
+
+source "security/Kconfig"
+
+source "crypto/Kconfig"
+
+source "lib/Kconfig"

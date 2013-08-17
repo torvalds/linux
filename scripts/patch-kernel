@@ -1,0 +1,331 @@
+#! /bin/sh
+# Script to apply kernel patches.
+#   usage: patch-kernel [ sourcedir [ patchdir [ stopversion ] [ -acxx ] ] ]
+#     The source directory defaults to /usr/src/linux, and the patch
+#     directory defaults to the current directory.
+# e.g.
+#   scripts/patch-kernel . ..
+#      Update the kernel tree in the current directory using patches in the
+#      directory above to the latest Linus kernel
+#   scripts/patch-kernel . .. -ac
+#      Get the latest Linux kernel and patch it with the latest ac patch
+#   scripts/patch-kernel . .. 2.4.9
+#      Gets standard kernel 2.4.9
+#   scripts/patch-kernel . .. 2.4.9 -ac
+#      Gets 2.4.9 with latest ac patches
+#   scripts/patch-kernel . .. 2.4.9 -ac11
+#      Gets 2.4.9 with ac patch ac11
+#   Note: It uses the patches relative to the Linus kernels, not the
+#   ac to ac relative patches
+#
+# It determines the current kernel version from the top-level Makefile.
+# It then looks for patches for the next sublevel in the patch directory.
+# This is applied using "patch -p1 -s" from within the kernel directory.
+# A check is then made for "*.rej" files to see if the patch was
+# successful.  If it is, then all of the "*.orig" files are removed.
+#
+#       Nick Holloway <Nick.Holloway@alfie.demon.co.uk>, 2nd January 1995.
+#
+# Added support for handling multiple types of compression. What includes
+# gzip, bzip, bzip2, zip, compress, and plaintext. 
+#
+#       Adam Sulmicki <adam@cfar.umd.edu>, 1st January 1997.
+#
+# Added ability to stop at a given version number
+# Put the full version number (i.e. 2.3.31) as the last parameter
+#       Dave Gilbert <linux@treblig.org>, 11th December 1999.
+
+# Fixed previous patch so that if we are already at the correct version
+# not to patch up.
+#
+# Added -ac option, use -ac or -ac9 (say) to stop at a particular version
+#       Dave Gilbert <linux@treblig.org>, 29th September 2001.
+#
+# Add support for (use of) EXTRAVERSION (to support 2.6.8.x, e.g.);
+# update usage message;
+# fix some whitespace damage;
+# be smarter about stopping when current version is larger than requested;
+#	Randy Dunlap <rdunlap@xenotime.net>, 2004-AUG-18.
+#
+# Add better support for (non-incremental) 2.6.x.y patches;
+# If an ending version number if not specified, the script automatically
+# increments the SUBLEVEL (x in 2.6.x.y) until no more patch files are found;
+# however, EXTRAVERSION (y in 2.6.x.y) is never automatically incremented
+# but must be specified fully.
+#
+# patch-kernel does not normally support reverse patching, but does so when
+# applying EXTRAVERSION (x.y) patches, so that moving from 2.6.11.y to 2.6.11.z
+# is easy and handled by the script (reverse 2.6.11.y and apply 2.6.11.z).
+#	Randy Dunlap <rdunlap@xenotime.net>, 2005-APR-08.
+
+PNAME=patch-kernel
+
+# Set directories from arguments, or use defaults.
+sourcedir=${1-/usr/src/linux}
+patchdir=${2-.}
+stopvers=${3-default}
+
+if [ "$1" = -h -o "$1" = --help -o ! -r "$sourcedir/Makefile" ]; then
+cat << USAGE
+usage: $PNAME [-h] [ sourcedir [ patchdir [ stopversion ] [ -acxx ] ] ]
+  source directory defaults to /usr/src/linux,
+  patch directory defaults to the current directory,
+  stopversion defaults to <all in patchdir>.
+USAGE
+exit 1
+fi
+
+# See if we have any -ac options
+for PARM in $*
+do
+  case $PARM in
+	  -ac*)
+		  gotac=$PARM;
+
+	esac;
+done
+
+# ---------------------------------------------------------------------------
+# arg1 is filename
+noFile () {
+	echo "cannot find patch file: ${patch}"
+	exit 1
+}
+
+# ---------------------------------------------------------------------------
+backwards () {
+	echo "$PNAME does not support reverse patching"
+	exit 1
+}
+
+# ---------------------------------------------------------------------------
+# Find a file, first parameter is basename of file
+# it tries many compression mechanisms and sets variables to say how to get it
+findFile () {
+  filebase=$1;
+
+  if [ -r ${filebase}.gz ]; then
+		ext=".gz"
+		name="gzip"
+		uncomp="gunzip -dc"
+  elif [ -r ${filebase}.bz  ]; then
+		ext=".bz"
+		name="bzip"
+		uncomp="bunzip -dc"
+  elif [ -r ${filebase}.bz2 ]; then
+		ext=".bz2"
+		name="bzip2"
+		uncomp="bunzip2 -dc"
+  elif [ -r ${filebase}.xz ]; then
+                ext=".xz"
+                name="xz"
+                uncomp="xz -dc"
+  elif [ -r ${filebase}.zip ]; then
+		ext=".zip"
+		name="zip"
+		uncomp="unzip -d"
+  elif [ -r ${filebase}.Z ]; then
+		ext=".Z"
+		name="uncompress"
+		uncomp="uncompress -c"
+  elif [ -r ${filebase} ]; then
+		ext=""
+		name="plaintext"
+		uncomp="cat"
+  else
+	return 1;
+  fi
+
+  return 0;
+}
+
+# ---------------------------------------------------------------------------
+# Apply a patch and check it goes in cleanly
+# First param is patch name (e.g. patch-2.4.9-ac5) - without path or extension
+
+applyPatch () {
+  echo -n "Applying $1 (${name})... "
+  if $uncomp ${patchdir}/$1${ext} | patch -p1 -s -N -E -d $sourcedir
+  then
+    echo "done."
+  else
+    echo "failed.  Clean up yourself."
+    return 1;
+  fi
+  if [ "`find $sourcedir/ '(' -name '*.rej' -o -name '.*.rej' ')' -print`" ]
+  then
+    echo "Aborting.  Reject files found."
+    return 1;
+  fi
+  # Remove backup files
+  find $sourcedir/ '(' -name '*.orig' -o -name '.*.orig' ')' -exec rm -f {} \;
+ 
+  return 0;
+}
+
+# ---------------------------------------------------------------------------
+# arg1 is patch filename
+reversePatch () {
+	echo -n "Reversing $1 (${name}) ... "
+	if $uncomp ${patchdir}/"$1"${ext} | patch -p1 -Rs -N -E -d $sourcedir
+	then
+		echo "done."
+	else
+		echo "failed.  Clean it up."
+		exit 1
+	fi
+	if [ "`find $sourcedir/ '(' -name '*.rej' -o -name '.*.rej' ')' -print`" ]
+	then
+		echo "Aborting.  Reject files found."
+		return 1
+	fi
+	# Remove backup files
+	find $sourcedir/ '(' -name '*.orig' -o -name '.*.orig' ')' -exec rm -f {} \;
+
+	return 0
+}
+
+# set current VERSION, PATCHLEVEL, SUBLEVEL, EXTRAVERSION
+# force $TMPFILEs below to be in local directory: a slash character prevents
+# the dot command from using the search path.
+TMPFILE=`mktemp ./.tmpver.XXXXXX` || { echo "cannot make temp file" ; exit 1; }
+grep -E "^(VERSION|PATCHLEVEL|SUBLEVEL|EXTRAVERSION)" $sourcedir/Makefile > $TMPFILE
+tr -d [:blank:] < $TMPFILE > $TMPFILE.1
+. $TMPFILE.1
+rm -f $TMPFILE*
+if [ -z "$VERSION" -o -z "$PATCHLEVEL" -o -z "$SUBLEVEL" ]
+then
+    echo "unable to determine current kernel version" >&2
+    exit 1
+fi
+
+NAME=`grep ^NAME $sourcedir/Makefile`
+NAME=${NAME##*=}
+
+echo "Current kernel version is $VERSION.$PATCHLEVEL.$SUBLEVEL${EXTRAVERSION} ($NAME)"
+
+# strip EXTRAVERSION to just a number (drop leading '.' and trailing additions)
+EXTRAVER=
+if [ x$EXTRAVERSION != "x" ]
+then
+	EXTRAVER=${EXTRAVERSION#.}
+	EXTRAVER=${EXTRAVER%%[[:punct:]]*}
+	#echo "$PNAME: changing EXTRAVERSION from $EXTRAVERSION to $EXTRAVER"
+fi
+
+#echo "stopvers=$stopvers"
+if [ $stopvers != "default" ]; then
+	STOPSUBLEVEL=`echo $stopvers | cut -d. -f3`
+	STOPEXTRA=`echo $stopvers | cut -d. -f4`
+	STOPFULLVERSION=${stopvers%%.$STOPEXTRA}
+	#echo "#___STOPSUBLEVEL=/$STOPSUBLEVEL/, STOPEXTRA=/$STOPEXTRA/"
+else
+	STOPSUBLEVEL=9999
+	STOPEXTRA=9999
+fi
+
+# This all assumes a 2.6.x[.y] kernel tree.
+# Don't allow backwards/reverse patching.
+if [ $STOPSUBLEVEL -lt $SUBLEVEL ]; then
+	backwards
+fi
+
+if [ x$EXTRAVER != "x" ]; then
+	CURRENTFULLVERSION="$VERSION.$PATCHLEVEL.$SUBLEVEL.$EXTRAVER"
+else
+	CURRENTFULLVERSION="$VERSION.$PATCHLEVEL.$SUBLEVEL"
+fi
+
+if [ x$EXTRAVER != "x" ]; then
+	echo "backing up to: $VERSION.$PATCHLEVEL.$SUBLEVEL"
+	patch="patch-${CURRENTFULLVERSION}"
+	findFile $patchdir/${patch} || noFile ${patch}
+	reversePatch ${patch} || exit 1
+fi
+
+# now current is 2.6.x, with no EXTRA applied,
+# so update to target SUBLEVEL (2.6.SUBLEVEL)
+# and then to target EXTRAVER (2.6.SUB.EXTRAVER) if requested.
+# If not ending sublevel is specified, it is incremented until
+# no further sublevels are found.
+
+if [ $STOPSUBLEVEL -gt $SUBLEVEL ]; then
+while :				# incrementing SUBLEVEL (s in v.p.s)
+do
+    CURRENTFULLVERSION="$VERSION.$PATCHLEVEL.$SUBLEVEL"
+    EXTRAVER=
+    if [ x$STOPFULLVERSION = x$CURRENTFULLVERSION ]; then
+        echo "Stopping at $CURRENTFULLVERSION base as requested."
+        break
+    fi
+
+    SUBLEVEL=$(($SUBLEVEL + 1))
+    FULLVERSION="$VERSION.$PATCHLEVEL.$SUBLEVEL"
+    #echo "#___ trying $FULLVERSION ___"
+
+    if [ $(($SUBLEVEL)) -gt $(($STOPSUBLEVEL)) ]; then
+	echo "Stopping since sublevel ($SUBLEVEL) is beyond stop-sublevel ($STOPSUBLEVEL)"
+	exit 1
+    fi
+
+    patch=patch-$FULLVERSION
+    # See if the file exists and find extension
+    findFile $patchdir/${patch} || noFile ${patch}
+
+    # Apply the patch and check all is OK
+    applyPatch $patch || break
+done
+#echo "#___sublevel all done"
+fi
+
+# There is no incremental searching for extraversion...
+if [ "$STOPEXTRA" != "" ]; then
+while :				# just to allow break
+do
+# apply STOPEXTRA directly (not incrementally) (x in v.p.s.x)
+	FULLVERSION="$VERSION.$PATCHLEVEL.$SUBLEVEL.$STOPEXTRA"
+	#echo "#... trying $FULLVERSION ..."
+	patch=patch-$FULLVERSION
+
+	# See if the file exists and find extension
+	findFile $patchdir/${patch} || noFile ${patch}
+
+	# Apply the patch and check all is OK
+	applyPatch $patch || break
+	#echo "#___extraver all done"
+	break
+done
+fi
+
+if [ x$gotac != x ]; then
+  # Out great user wants the -ac patches
+	# They could have done -ac (get latest) or -acxx where xx=version they want
+	if [ $gotac = "-ac" ]; then
+	  # They want the latest version
+		HIGHESTPATCH=0
+		for PATCHNAMES in $patchdir/patch-${CURRENTFULLVERSION}-ac*\.*
+		do
+			ACVALUE=`echo $PATCHNAMES | sed -e 's/^.*patch-[0-9.]*-ac\([0-9]*\).*/\1/'`
+			# Check it is actually a recognised patch type
+			findFile $patchdir/patch-${CURRENTFULLVERSION}-ac${ACVALUE} || break
+
+		  if [ $ACVALUE -gt $HIGHESTPATCH ]; then
+			  HIGHESTPATCH=$ACVALUE
+		  fi
+		done
+
+		if [ $HIGHESTPATCH -ne 0 ]; then
+			findFile $patchdir/patch-${CURRENTFULLVERSION}-ac${HIGHESTPATCH} || break
+			applyPatch patch-${CURRENTFULLVERSION}-ac${HIGHESTPATCH}
+		else
+		  echo "No -ac patches found"
+		fi
+	else
+	  # They want an exact version
+		findFile $patchdir/patch-${CURRENTFULLVERSION}${gotac} || {
+		  echo "Sorry, I couldn't find the $gotac patch for $CURRENTFULLVERSION.  Hohum."
+			exit 1
+		}
+		applyPatch patch-${CURRENTFULLVERSION}${gotac}
+	fi
+fi

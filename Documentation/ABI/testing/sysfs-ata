@@ -1,0 +1,99 @@
+What:		/sys/class/ata_...
+Date:		August 2008
+Contact:	Gwendal Grignou<gwendal@google.com>
+Description:
+
+Provide a place in sysfs for storing the ATA topology of the system.  This allows
+retrieving various information about ATA objects.
+
+Files under /sys/class/ata_port
+-------------------------------
+
+	For each port, a directory ataX is created where X is the ata_port_id of
+	the port. The device parent is the ata host device.
+
+idle_irq (read)
+
+	Number of IRQ received by the port while idle [some ata HBA only].
+
+nr_pmp_links (read)
+
+	If a SATA Port Multiplier (PM) is connected, number of link behind it.
+
+Files under /sys/class/ata_link
+-------------------------------
+
+	Behind each port, there is a ata_link. If there is a SATA PM in the
+	topology, 15 ata_link objects are created.
+
+	If a link is behind a port, the directory name is linkX, where X is
+	ata_port_id of the port.
+	If a link is behind a PM, its name is linkX.Y where X is ata_port_id
+	of the parent port and Y the PM port.
+
+hw_sata_spd_limit
+
+	Maximum speed supported by the connected SATA device.
+
+sata_spd_limit
+
+	Maximum speed imposed by libata.
+
+sata_spd
+
+	Current speed of the link [1.5, 3Gps,...].
+
+Files under /sys/class/ata_device
+---------------------------------
+
+	Behind each link, up to two ata device are created.
+	The name of the directory is devX[.Y].Z where:
+	- X is ata_port_id of the port where the device is connected,
+	- Y the port of the PM if any, and
+	- Z the device id: for PATA, there is usually 2 devices [0,1],
+	only 1 for SATA.
+
+class
+	Device class. Can be "ata" for disk, "atapi" for packet device,
+	"pmp" for PM, or "none" if no device was found behind the link.
+
+dma_mode
+
+	Transfer modes supported by the device when in DMA mode.
+	Mostly used by PATA device.
+
+pio_mode
+
+	Transfer modes supported by the device when in PIO mode.
+	Mostly used by PATA device.
+
+xfer_mode
+
+	Current transfer mode.
+
+id
+
+	Cached result of IDENTIFY command, as described in ATA8 7.16 and 7.17.
+	Only valid if the device is not a PM.
+
+gscr
+
+	Cached result of the dump of PM GSCR register.
+	Valid registers are:
+	0: 	SATA_PMP_GSCR_PROD_ID,
+	1: 	SATA_PMP_GSCR_REV,
+	2: 	SATA_PMP_GSCR_PORT_INFO,
+	32:	SATA_PMP_GSCR_ERROR,
+	33:	SATA_PMP_GSCR_ERROR_EN,
+	64:	SATA_PMP_GSCR_FEAT,
+	96:	SATA_PMP_GSCR_FEAT_EN,
+	130:	SATA_PMP_GSCR_SII_GPIO
+	Only valid if the device is a PM.
+
+spdn_cnt
+
+	Number of time libata decided to lower the speed of link due to errors.
+
+ering
+
+	Formatted output of the error ring of the device.

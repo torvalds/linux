@@ -1,0 +1,14 @@
+config IRLAN
+	tristate "IrLAN protocol"
+	depends on IRDA
+	help
+	  Say Y here if you want to build support for the IrLAN protocol.
+	  To compile it as a module, choose M here: the module will be called
+	  irlan.  IrLAN emulates an Ethernet and makes it possible to put up
+	  a wireless LAN using infrared beams.
+
+	  The IrLAN protocol can be used to talk with infrared access points
+	  like the HP NetbeamIR, or the ESI JetEye NET.  You can also connect
+	  to another Linux machine running the IrLAN protocol for ad-hoc
+	  networking!
+

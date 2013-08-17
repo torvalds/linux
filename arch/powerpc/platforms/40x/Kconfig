@@ -1,0 +1,169 @@
+config ACADIA
+	bool "Acadia"
+	depends on 40x
+	default n
+	select PPC40x_SIMPLE
+	select 405EZ
+	help
+	  This option enables support for the AMCC 405EZ Acadia evaluation board.
+
+config EP405
+	bool "EP405/EP405PC"
+	depends on 40x
+	default n
+	select 405GP
+	select PCI
+	help
+	  This option enables support for the EP405/EP405PC boards.
+
+config HOTFOOT
+        bool "Hotfoot"
+	depends on 40x
+	default n
+	select 405EP
+	select PPC40x_SIMPLE
+	select PCI
+        help
+	 This option enables support for the ESTEEM 195E Hotfoot board.
+
+config KILAUEA
+	bool "Kilauea"
+	depends on 40x
+	default n
+	select 405EX
+	select PPC40x_SIMPLE
+	select PPC4xx_PCI_EXPRESS
+	select PCI_MSI
+	select PPC4xx_MSI
+	help
+	  This option enables support for the AMCC PPC405EX evaluation board.
+
+config MAKALU
+	bool "Makalu"
+	depends on 40x
+	default n
+	select 405EX
+	select PCI
+	select PPC4xx_PCI_EXPRESS
+	select PPC40x_SIMPLE
+	help
+	  This option enables support for the AMCC PPC405EX board.
+
+config WALNUT
+	bool "Walnut"
+	depends on 40x
+	default y
+	select 405GP
+	select PCI
+	select OF_RTC
+	help
+	  This option enables support for the IBM PPC405GP evaluation board.
+
+config XILINX_VIRTEX_GENERIC_BOARD
+	bool "Generic Xilinx Virtex board"
+	depends on 40x
+	default n
+	select XILINX_VIRTEX_II_PRO
+	select XILINX_VIRTEX_4_FX
+	help
+	  This option enables generic support for Xilinx Virtex based boards.
+
+	  The generic virtex board support matches any device tree which
+	  specifies 'xilinx,virtex' in its compatible field.  This includes
+	  the Xilinx ML3xx and ML4xx reference designs using the powerpc
+	  core.
+
+	  Most Virtex designs should use this unless it needs to do some
+	  special configuration at board probe time.
+
+config OBS600
+	bool "OpenBlockS 600"
+	depends on 40x
+	default n
+	select 405EX
+	select PPC40x_SIMPLE
+	help
+	  This option enables support for PlatHome OpenBlockS 600 server
+
+
+config PPC40x_SIMPLE
+	bool "Simple PowerPC 40x board support"
+	depends on 40x
+	default n
+	help
+	  This option enables the simple PowerPC 40x platform support.
+
+# OAK doesn't exist but wanted to keep this around for any future 403GCX boards
+config 403GCX
+	bool
+	#depends on OAK
+	select IBM405_ERR51
+
+config 405GP
+	bool
+	select IBM405_ERR77
+	select IBM405_ERR51
+	select IBM_EMAC_ZMII
+
+config 405EP
+	bool
+
+config 405EX
+	bool
+	select IBM_EMAC_EMAC4
+	select IBM_EMAC_RGMII
+
+config 405EZ
+	bool
+	select IBM_EMAC_NO_FLOW_CTRL
+	select IBM_EMAC_MAL_CLR_ICINTSTAT
+	select IBM_EMAC_MAL_COMMON_ERR
+
+config 405GPR
+	bool
+
+config XILINX_VIRTEX
+	bool
+	select DEFAULT_UIMAGE
+
+config XILINX_VIRTEX_II_PRO
+	bool
+	select XILINX_VIRTEX
+	select IBM405_ERR77
+	select IBM405_ERR51
+
+config XILINX_VIRTEX_4_FX
+	bool
+	select XILINX_VIRTEX
+
+config STB03xxx
+	bool
+	select IBM405_ERR77
+	select IBM405_ERR51
+
+config PPC4xx_GPIO
+	bool "PPC4xx GPIO support"
+	depends on 40x
+	select ARCH_REQUIRE_GPIOLIB
+	select GENERIC_GPIO
+	help
+	  Enable gpiolib support for ppc40x based boards
+
+# 40x errata/workaround config symbols, selected by the CPU models above
+
+# All 405-based cores up until the 405GPR and 405EP have this errata.
+config IBM405_ERR77
+	bool
+
+# All 40x-based cores, up until the 405GPR and 405EP have this errata.
+config IBM405_ERR51
+	bool
+
+config APM8018X
+	bool "APM8018X"
+	depends on 40x
+	default n
+	select PPC40x_SIMPLE
+	help
+	  This option enables support for the AppliedMicro APM8018X evaluation
+	  board.

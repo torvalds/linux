@@ -1,0 +1,149 @@
+if ARCH_KIRKWOOD
+
+menu "Marvell Kirkwood Implementations"
+
+config MACH_DB88F6281_BP
+	bool "Marvell DB-88F6281-BP Development Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell DB-88F6281-BP Development Board.
+
+config MACH_RD88F6192_NAS
+	bool "Marvell RD-88F6192-NAS Reference Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell RD-88F6192-NAS Reference Board.
+
+config MACH_RD88F6281
+	bool "Marvell RD-88F6281 Reference Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell RD-88F6281 Reference Board.
+
+config MACH_MV88F6281GTW_GE
+	bool "Marvell 88F6281 GTW GE Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell 88F6281 GTW GE Board.
+
+config MACH_SHEEVAPLUG
+	bool "Marvell SheevaPlug Reference Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell SheevaPlug Reference Board.
+
+config MACH_ESATA_SHEEVAPLUG
+	bool "Marvell eSATA SheevaPlug Reference Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell eSATA SheevaPlug Reference Board.
+
+config MACH_GURUPLUG
+	bool "Marvell GuruPlug Reference Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell GuruPlug Reference Board.
+
+config ARCH_KIRKWOOD_DT
+	bool "Marvell Kirkwood Flattened Device Tree"
+	select USE_OF
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell Kirkwood using flattened device tree.
+
+config MACH_DREAMPLUG_DT
+	bool "Marvell DreamPlug (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell DreamPlug (Flattened Device Tree).
+
+config MACH_TS219
+	bool "QNAP TS-110, TS-119, TS-119P+, TS-210, TS-219, TS-219P and TS-219P+ Turbo NAS"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  QNAP TS-110, TS-119, TS-119P+, TS-210, TS-219, TS-219P and
+	  TS-219P+ Turbo NAS devices.
+
+config MACH_TS41X
+	bool "QNAP TS-410, TS-410U, TS-419P, TS-419P+ and TS-419U Turbo NAS"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  QNAP TS-410, TS-410U, TS-419P, TS-419P+ and TS-419U Turbo
+	  NAS devices.
+
+config MACH_DOCKSTAR
+	bool "Seagate FreeAgent DockStar"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Seagate FreeAgent DockStar.
+
+config MACH_OPENRD
+        bool
+
+config MACH_OPENRD_BASE
+	bool "Marvell OpenRD Base Board"
+	select MACH_OPENRD
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell OpenRD Base Board.
+
+config MACH_OPENRD_CLIENT
+	bool "Marvell OpenRD Client Board"
+	select MACH_OPENRD
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell OpenRD Client Board.
+
+config MACH_OPENRD_ULTIMATE
+	bool "Marvell OpenRD Ultimate Board"
+	select MACH_OPENRD
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell OpenRD Ultimate Board.
+
+config MACH_NETSPACE_V2
+	bool "LaCie Network Space v2 NAS Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  LaCie Network Space v2 NAS.
+
+config MACH_INETSPACE_V2
+	bool "LaCie Internet Space v2 NAS Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  LaCie Internet Space v2 NAS.
+
+config MACH_NETSPACE_MAX_V2
+	bool "LaCie Network Space Max v2 NAS Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  LaCie Network Space Max v2 NAS.
+
+config MACH_D2NET_V2
+	bool "LaCie d2 Network v2 NAS Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  LaCie d2 Network v2 NAS.
+
+config MACH_NET2BIG_V2
+	bool "LaCie 2Big Network v2 NAS Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  LaCie 2Big Network v2 NAS.
+
+config MACH_NET5BIG_V2
+	bool "LaCie 5Big Network v2 NAS Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  LaCie 5Big Network v2 NAS.
+
+config MACH_T5325
+	bool "HP t5325 Thin Client"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  HP t5325 Thin Client.
+
+endmenu
+
+endif

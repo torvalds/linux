@@ -1,0 +1,186 @@
+menu "Bus options (PCI, PCMCIA, EISA, GSC, ISA)"
+
+config GSC
+	bool "VSC/GSC/HSC bus support"
+	default y
+	help
+	  The VSC, GSC and HSC busses were used from the earliest 700-series
+	  workstations up to and including the C360/J2240 workstations.  They
+	  were also used in servers from the E-class to the K-class.  They
+	  are not found in B1000, C3000, J5000, A500, L1000, N4000 and upwards.
+	  If in doubt, say "Y".
+
+config HPPB
+	bool "HP-PB bus support"
+	depends on GSC
+	help
+	  The HP-PB bus was used in the Nova class and K-class servers.
+	  If in doubt, say "Y"
+
+config IOMMU_CCIO
+	bool "U2/Uturn I/O MMU"
+	depends on GSC
+	help
+	  Say Y here to enable DMA management routines for the first
+	  generation of PA-RISC cache-coherent machines.  Programs the
+	  U2/Uturn chip in "Virtual Mode" and use the I/O MMU.
+
+config GSC_LASI
+	bool "Lasi I/O support"
+	depends on GSC
+	help
+	  Say Y here to support the Lasi multifunction chip found in
+	  many PA-RISC workstations & servers.	It includes interfaces
+	  for a parallel port, serial port, NCR 53c710 SCSI, Apricot
+	  Ethernet, Harmony audio, PS/2 keyboard & mouse, ISDN, telephony
+	  and floppy.  Note that you must still enable all the individual
+	  drivers for these chips.
+
+config GSC_WAX
+	bool "Wax I/O support"
+	depends on GSC
+	help
+	  Say Y here to support the Wax multifunction chip found in some
+	  older systems, including B/C/D/R class and 715/64, 715/80 and
+	  715/100.  Wax includes an EISA adapter, a serial port (not always
+	  used), a HIL interface chip and is also known to be used as the
+	  GSC bridge for an X.25 GSC card.
+
+config EISA
+	bool "EISA support"
+	depends on GSC
+	help
+	  Say Y here if you have an EISA bus in your machine.  This code
+	  supports both the Mongoose & Wax EISA adapters.  It is sadly
+	  incomplete and lacks support for card-to-host DMA.
+
+source "drivers/eisa/Kconfig"
+
+config ISA
+	bool "ISA support"
+	depends on EISA
+	help
+	  If you want to plug an ISA card into your EISA bus, say Y here.
+	  Most people should say N.
+
+config PCI
+	bool "PCI support"
+	help
+	  All recent HP machines have PCI slots, and you should say Y here
+	  if you have a recent machine.  If you are convinced you do not have
+	  PCI slots in your machine (eg a 712), then you may say "N" here.
+	  Beware that some GSC cards have a Dino onboard and PCI inside them,
+	  so it may be safest to say "Y" anyway.
+
+source "drivers/pci/Kconfig"
+
+config GSC_DINO
+	bool "GSCtoPCI/Dino PCI support"
+	depends on PCI && GSC
+	help
+	  Say Y here to support the Dino & Cujo GSC to PCI bridges found in
+	  machines from the B132 to the C360, the J2240 and the A180.  Some
+	  GSC/HSC cards (eg gigabit & dual 100 Mbit Ethernet) have a Dino on
+	  the card, and you also need to say Y here if you have such a card.
+	  Note that Dino also supplies one of the serial ports on certain
+	  machines.  If in doubt, say Y.
+
+config PCI_LBA
+	bool "LBA/Elroy PCI support"
+	depends on PCI
+	help
+	  Say Y here to support the Elroy PCI Lower Bus Adapter.  This is
+	  present on B, C, J, L and N-class machines with 4-digit model
+	  numbers and the A400/A500.
+
+config IOSAPIC
+	bool
+	depends on PCI_LBA
+	default PCI_LBA
+
+config IOMMU_SBA
+	bool
+	depends on PCI_LBA
+	default PCI_LBA
+
+config IOMMU_HELPER
+	bool
+	depends on IOMMU_SBA || IOMMU_CCIO
+	default y
+
+source "drivers/pcmcia/Kconfig"
+
+source "drivers/pci/hotplug/Kconfig"
+
+endmenu
+
+menu "PA-RISC specific drivers"
+
+config SUPERIO
+	bool "SuperIO (SuckyIO) support"
+	depends on PCI_LBA
+	default y
+	help
+	  Say Y here to support the SuperIO chip found in Bxxxx, C3xxx and
+	  J5xxx+ machines. This enables IDE, Floppy, Parallel Port, and
+	  Serial port on those machines.
+
+config CHASSIS_LCD_LED
+	bool "Chassis LCD and LED support"
+	default y
+	help
+	  Say Y here if you want to enable support for the Heartbeat,
+	  Disk/Network activities LEDs on some PA-RISC machines,
+	  or support for the LCD that can be found on recent material.
+	
+	  This has nothing to do with LED State support for A and E class.
+	
+	  If unsure, say Y.
+
+config PDC_CHASSIS
+	bool "PDC chassis state codes support"
+	default y
+	help
+	  Say Y here if you want to enable support for Chassis codes.
+	  That includes support for LED State front panel as found on E
+	  class, and support for the GSP Virtual Front Panel (LED State and
+	  message logging)  as found on high end servers such as A, L and
+	  N-class.
+	  This driver will also display progress messages on LCD display,
+	  such as "INI", "RUN" and "FLT", and might thus clobber messages
+	  shown by the LED/LCD driver.
+	  This driver updates the state panel (LED and/or LCD) upon system
+	  state change (eg: boot, shutdown or panic).
+	  
+	  If unsure, say Y.
+
+
+config PDC_CHASSIS_WARN
+	bool "PDC chassis warnings support"
+	depends on PROC_FS
+	default y
+	help
+	  Say Y here if you want to enable support for Chassis warnings.
+	  This will add a proc entry '/proc/chassis' giving some information
+	  about the overall health state of the system.
+	  This includes NVRAM battery level, overtemp or failures such as
+	  fans or power units.
+
+	  If unsure, say Y.
+
+
+config PDC_STABLE
+	tristate "PDC Stable Storage support"
+	depends on SYSFS
+	default y
+	help
+	  Say Y here if you want to enable support for accessing Stable Storage
+	  variables (PDC non volatile variables such as Primary Boot Path,
+	  Console Path, Autoboot, Autosearch, etc) through SysFS.
+	
+	  If unsure, say Y.
+	
+	  To compile this driver as a module, choose M here.
+	  The module will be called pdc_stable.
+
+endmenu

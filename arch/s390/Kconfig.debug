@@ -1,0 +1,37 @@
+menu "Kernel hacking"
+
+config TRACE_IRQFLAGS_SUPPORT
+	def_bool y
+
+source "lib/Kconfig.debug"
+
+config STRICT_DEVMEM
+	def_bool y
+	prompt "Filter access to /dev/mem"
+	---help---
+	  This option restricts access to /dev/mem.  If this option is
+	  disabled, you allow userspace access to all memory, including
+	  kernel and userspace memory. Accidental memory access is likely
+	  to be disastrous.
+	  Memory access is required for experts who want to debug the kernel.
+
+	  If you are unsure, say Y.
+
+config DEBUG_STRICT_USER_COPY_CHECKS
+	def_bool n
+	prompt "Strict user copy size checks"
+	---help---
+	  Enabling this option turns a certain set of sanity checks for user
+	  copy operations into compile time warnings.
+
+	  The copy_from_user() etc checks are there to help test if there
+	  are sufficient security checks on the length argument of
+	  the copy operation, by having gcc prove that the argument is
+	  within bounds.
+
+	  If unsure, or if you run an older (pre 4.4) gcc, say N.
+
+config DEBUG_SET_MODULE_RONX
+	def_bool y
+	depends on MODULES
+endmenu

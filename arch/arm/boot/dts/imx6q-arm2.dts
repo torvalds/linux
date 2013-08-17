@@ -1,0 +1,76 @@
+/*
+ * Copyright 2011 Freescale Semiconductor, Inc.
+ * Copyright 2011 Linaro Ltd.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+/include/ "imx6q.dtsi"
+
+/ {
+	model = "Freescale i.MX6 Quad Armadillo2 Board";
+	compatible = "fsl,imx6q-arm2", "fsl,imx6q";
+
+	chosen {
+		bootargs = "console=ttymxc0,115200 root=/dev/mmcblk3p3 rootwait";
+	};
+
+	memory {
+		reg = <0x10000000 0x80000000>;
+	};
+
+	soc {
+		aips-bus@02100000 { /* AIPS2 */
+			enet@02188000 {
+				phy-mode = "rgmii";
+				local-mac-address = [00 04 9F 01 1B 61];
+				status = "okay";
+			};
+
+			usdhc@02198000 { /* uSDHC3 */
+				cd-gpios = <&gpio6 11 0>;
+				wp-gpios = <&gpio6 14 0>;
+				vmmc-supply = <&reg_3p3v>;
+				status = "okay";
+			};
+
+			usdhc@0219c000 { /* uSDHC4 */
+				fsl,card-wired;
+				vmmc-supply = <&reg_3p3v>;
+				status = "okay";
+			};
+
+			uart4: uart@021f0000 {
+				status = "okay";
+			};
+		};
+	};
+
+	regulators {
+		compatible = "simple-bus";
+
+		reg_3p3v: 3p3v {
+			compatible = "regulator-fixed";
+			regulator-name = "3P3V";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		debug-led {
+			label = "Heartbeat";
+			gpios = <&gpio3 25 0>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+};

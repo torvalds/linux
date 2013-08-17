@@ -1,0 +1,25 @@
+What:		/sys/block/dm-<num>/dm/name
+Date:		January 2009
+KernelVersion:	2.6.29
+Contact:	dm-devel@redhat.com
+Description:	Device-mapper device name.
+		Read-only string containing mapped device name.
+Users:		util-linux, device-mapper udev rules
+
+What:		/sys/block/dm-<num>/dm/uuid
+Date:		January 2009
+KernelVersion:	2.6.29
+Contact:	dm-devel@redhat.com
+Description:	Device-mapper device UUID.
+		Read-only string containing DM-UUID or empty string
+		if DM-UUID is not set.
+Users:		util-linux, device-mapper udev rules
+
+What:		/sys/block/dm-<num>/dm/suspended
+Date:		June 2009
+KernelVersion:	2.6.31
+Contact:	dm-devel@redhat.com
+Description:	Device-mapper device suspend state.
+		Contains the value 1 while the device is suspended.
+		Otherwise it contains 0. Read-only attribute.
+Users:		util-linux, device-mapper udev rules

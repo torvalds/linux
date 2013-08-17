@@ -1,0 +1,86 @@
+#!/bin/bash
+# Translate the bits making up a GFP mask
+# (c) 2009, Mel Gorman <mel@csn.ul.ie>
+# Licensed under the terms of the GNU GPL License version 2
+SOURCE=
+GFPMASK=none
+
+# Helper function to report failures and exit
+die() {
+	echo ERROR: $@
+	if [ "$TMPFILE" != "" ]; then
+		rm -f $TMPFILE
+	fi
+	exit -1
+}
+
+usage() {
+	echo "usage: gfp-translate [-h] [ --source DIRECTORY ] gfpmask"
+	exit 0
+}
+
+# Parse command-line arguments
+while [ $# -gt 0 ]; do
+	case $1 in
+		--source)
+			SOURCE=$2
+			shift 2
+			;;
+		-h)
+			usage
+			;;
+		--help)
+			usage
+			;;
+		*)
+			GFPMASK=$1
+			shift
+			;;
+	esac
+done
+
+# Guess the kernel source directory if it's not set. Preference is in order of
+# o current directory
+# o /usr/src/linux
+if [ "$SOURCE" = "" ]; then
+	if [ -r "/usr/src/linux/Makefile" ]; then
+		SOURCE=/usr/src/linux
+	fi
+	if [ -r "`pwd`/Makefile" ]; then
+		SOURCE=`pwd`
+	fi
+fi
+
+# Confirm that a source directory exists
+if [ ! -r "$SOURCE/Makefile" ]; then
+	die "Could not locate kernel source directory or it is invalid"
+fi
+
+# Confirm that a GFP mask has been specified
+if [ "$GFPMASK" = "none" ]; then
+	usage
+fi
+
+# Extract GFP flags from the kernel source
+TMPFILE=`mktemp -t gfptranslate-XXXXXX` || exit 1
+grep -q ___GFP $SOURCE/include/linux/gfp.h
+if [ $? -eq 0 ]; then
+	grep "^#define ___GFP" $SOURCE/include/linux/gfp.h | sed -e 's/u$//' | grep -v GFP_BITS > $TMPFILE
+else
+	grep "^#define __GFP" $SOURCE/include/linux/gfp.h | sed -e 's/(__force gfp_t)//' | sed -e 's/u)/)/' | grep -v GFP_BITS | sed -e 's/)\//) \//' > $TMPFILE
+fi
+
+# Parse the flags
+IFS="
+"
+echo Source: $SOURCE
+echo Parsing: $GFPMASK
+for LINE in `cat $TMPFILE`; do
+	MASK=`echo $LINE | awk '{print $3}'`
+	if [ $(($GFPMASK&$MASK)) -ne 0 ]; then
+		echo $LINE
+	fi
+done
+
+rm -f $TMPFILE
+exit 0

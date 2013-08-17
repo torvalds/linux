@@ -1,0 +1,37 @@
+
+ - support asynchronous operation -- add a per-fs 'reserved_space' count,
+   let each outstanding write reserve the _maximum_ amount of physical
+   space it could take. Let GC flush the outstanding writes because the
+   reservations will necessarily be pessimistic. With this we could even
+   do shared writable mmap, if we can have a fs hook for do_wp_page() to
+   make the reservation.
+ - disable compression in commit_write()?
+ - fine-tune the allocation / GC thresholds
+ - chattr support - turning on/off and tuning compression per-inode
+ - checkpointing (do we need this? scan is quite fast)
+ - make the scan code populate real inodes so read_inode just after 
+	mount doesn't have to read the flash twice for large files.
+	Make this a per-inode option, changeable with chattr, so you can
+	decide which inodes should be in-core immediately after mount.
+ - test, test, test
+
+ - NAND flash support:
+	- almost done :)
+	- use bad block check instead of the hardwired byte check
+
+ - Optimisations:
+   - Split writes so they go to two separate blocks rather than just c->nextblock.
+	By writing _new_ nodes to one block, and garbage-collected REF_PRISTINE
+	nodes to a different one, we can separate clean nodes from those which
+	are likely to become dirty, and end up with blocks which are each far
+	closer to 100% or 0% clean, hence speeding up later GC progress dramatically.
+   - Stop keeping name in-core with struct jffs2_full_dirent. If we keep the hash in 
+     the full dirent, we only need to go to the flash in lookup() when we think we've
+     got a match, and in readdir(). 
+   - Doubly-linked next_in_ino list to allow us to free obsoleted raw_node_refs immediately?
+   - Remove size from jffs2_raw_node_frag. 
+
+dedekind:
+1. __jffs2_flush_wbuf() has a strange 'pad' parameter. Eliminate.
+2. get_sb()->build_fs()->scan() path... Why get_sb() removes scan()'s crap in
+   case of failure? scan() does not clean everything. Fix.

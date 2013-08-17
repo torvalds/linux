@@ -1,0 +1,4 @@
+generic-y += bug.h cputime.h device.h emergency-restart.h futex.h hardirq.h
+generic-y += hw_irq.h irq_regs.h kdebug.h percpu.h sections.h topology.h xor.h
+generic-y += ftrace.h pci.h io.h param.h delay.h mutex.h current.h exec.h
+generic-y += switch_to.h

@@ -1,0 +1,63 @@
+menuconfig MTD_UBI
+	tristate "Enable UBI - Unsorted block images"
+	select CRC32
+	help
+	  UBI is a software layer above MTD layer which admits of LVM-like
+	  logical volumes on top of MTD devices, hides some complexities of
+	  flash chips like wear and bad blocks and provides some other useful
+	  capabilities. Please, consult the MTD web site for more details
+	  (www.linux-mtd.infradead.org).
+
+if MTD_UBI
+
+config MTD_UBI_WL_THRESHOLD
+	int "UBI wear-leveling threshold"
+	default 4096
+	range 2 65536
+	help
+	  This parameter defines the maximum difference between the highest
+	  erase counter value and the lowest erase counter value of eraseblocks
+	  of UBI devices. When this threshold is exceeded, UBI starts performing
+	  wear leveling by means of moving data from eraseblock with low erase
+	  counter to eraseblocks with high erase counter.
+
+	  The default value should be OK for SLC NAND flashes, NOR flashes and
+	  other flashes which have eraseblock life-cycle 100000 or more.
+	  However, in case of MLC NAND flashes which typically have eraseblock
+	  life-cycle less than 10000, the threshold should be lessened (e.g.,
+	  to 128 or 256, although it does not have to be power of 2).
+
+config MTD_UBI_BEB_RESERVE
+	int "Percentage of reserved eraseblocks for bad eraseblocks handling"
+	default 1
+	range 0 25
+	help
+	  If the MTD device admits of bad eraseblocks (e.g. NAND flash), UBI
+	  reserves some amount of physical eraseblocks to handle new bad
+	  eraseblocks. For example, if a flash physical eraseblock becomes bad,
+	  UBI uses these reserved physical eraseblocks to relocate the bad one.
+	  This option specifies how many physical eraseblocks will be reserved
+	  for bad eraseblock handling (percents of total number of good flash
+	  eraseblocks). If the underlying flash does not admit of bad
+	  eraseblocks (e.g. NOR flash), this value is ignored and nothing is
+	  reserved. Leave the default value if unsure.
+
+config MTD_UBI_GLUEBI
+	tristate "MTD devices emulation driver (gluebi)"
+	help
+	   This option enables gluebi - an additional driver which emulates MTD
+	   devices on top of UBI volumes: for each UBI volumes an MTD device is
+	   created, and all I/O to this MTD device is redirected to the UBI
+	   volume. This is handy to make MTD-oriented software (like JFFS2)
+	   work on top of UBI. Do not enable this unless you use legacy
+	   software.
+
+config MTD_UBI_DEBUG
+	bool "UBI debugging"
+	depends on SYSFS
+	select DEBUG_FS
+	select KALLSYMS
+	help
+	  This option enables UBI debugging.
+
+endif # MTD_UBI

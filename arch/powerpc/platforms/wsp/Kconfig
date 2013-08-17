@@ -1,0 +1,35 @@
+config PPC_WSP
+	bool
+	select PPC_A2
+	select GENERIC_TBSYNC
+	select PPC_ICSWX
+	select PPC_SCOM
+	select PPC_XICS
+	select PPC_ICP_NATIVE
+	select PCI
+	select PPC_IO_WORKAROUNDS if PCI
+	select PPC_INDIRECT_PIO if PCI
+	select PPC_WSP_COPRO
+	default n
+
+menu "WSP platform selection"
+	depends on PPC_BOOK3E_64
+
+config PPC_PSR2
+	bool "PowerEN System Reference Platform 2"
+	select EPAPR_BOOT
+	select PPC_WSP
+	default y
+
+config PPC_CHROMA
+	bool "PowerEN PCIe Chroma Card"
+	select EPAPR_BOOT
+	select PPC_WSP
+	select OF_DYNAMIC
+	default y
+
+endmenu
+
+config PPC_A2_DD2
+	bool "Support for DD2 based A2/WSP systems"
+	depends on PPC_A2

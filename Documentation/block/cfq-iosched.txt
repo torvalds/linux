@@ -1,0 +1,116 @@
+CFQ ioscheduler tunables
+========================
+
+slice_idle
+----------
+This specifies how long CFQ should idle for next request on certain cfq queues
+(for sequential workloads) and service trees (for random workloads) before
+queue is expired and CFQ selects next queue to dispatch from.
+
+By default slice_idle is a non-zero value. That means by default we idle on
+queues/service trees. This can be very helpful on highly seeky media like
+single spindle SATA/SAS disks where we can cut down on overall number of
+seeks and see improved throughput.
+
+Setting slice_idle to 0 will remove all the idling on queues/service tree
+level and one should see an overall improved throughput on faster storage
+devices like multiple SATA/SAS disks in hardware RAID configuration. The down
+side is that isolation provided from WRITES also goes down and notion of
+IO priority becomes weaker.
+
+So depending on storage and workload, it might be useful to set slice_idle=0.
+In general I think for SATA/SAS disks and software RAID of SATA/SAS disks
+keeping slice_idle enabled should be useful. For any configurations where
+there are multiple spindles behind single LUN (Host based hardware RAID
+controller or for storage arrays), setting slice_idle=0 might end up in better
+throughput and acceptable latencies.
+
+CFQ IOPS Mode for group scheduling
+===================================
+Basic CFQ design is to provide priority based time slices. Higher priority
+process gets bigger time slice and lower priority process gets smaller time
+slice. Measuring time becomes harder if storage is fast and supports NCQ and
+it would be better to dispatch multiple requests from multiple cfq queues in
+request queue at a time. In such scenario, it is not possible to measure time
+consumed by single queue accurately.
+
+What is possible though is to measure number of requests dispatched from a
+single queue and also allow dispatch from multiple cfq queue at the same time.
+This effectively becomes the fairness in terms of IOPS (IO operations per
+second).
+
+If one sets slice_idle=0 and if storage supports NCQ, CFQ internally switches
+to IOPS mode and starts providing fairness in terms of number of requests
+dispatched. Note that this mode switching takes effect only for group
+scheduling. For non-cgroup users nothing should change.
+
+CFQ IO scheduler Idling Theory
+===============================
+Idling on a queue is primarily about waiting for the next request to come
+on same queue after completion of a request. In this process CFQ will not
+dispatch requests from other cfq queues even if requests are pending there.
+
+The rationale behind idling is that it can cut down on number of seeks
+on rotational media. For example, if a process is doing dependent
+sequential reads (next read will come on only after completion of previous
+one), then not dispatching request from other queue should help as we
+did not move the disk head and kept on dispatching sequential IO from
+one queue.
+
+CFQ has following service trees and various queues are put on these trees.
+
+	sync-idle	sync-noidle	async
+
+All cfq queues doing synchronous sequential IO go on to sync-idle tree.
+On this tree we idle on each queue individually.
+
+All synchronous non-sequential queues go on sync-noidle tree. Also any
+request which are marked with REQ_NOIDLE go on this service tree. On this
+tree we do not idle on individual queues instead idle on the whole group
+of queues or the tree. So if there are 4 queues waiting for IO to dispatch
+we will idle only once last queue has dispatched the IO and there is
+no more IO on this service tree.
+
+All async writes go on async service tree. There is no idling on async
+queues.
+
+CFQ has some optimizations for SSDs and if it detects a non-rotational
+media which can support higher queue depth (multiple requests at in
+flight at a time), then it cuts down on idling of individual queues and
+all the queues move to sync-noidle tree and only tree idle remains. This
+tree idling provides isolation with buffered write queues on async tree.
+
+FAQ
+===
+Q1. Why to idle at all on queues marked with REQ_NOIDLE.
+
+A1. We only do tree idle (all queues on sync-noidle tree) on queues marked
+    with REQ_NOIDLE. This helps in providing isolation with all the sync-idle
+    queues. Otherwise in presence of many sequential readers, other
+    synchronous IO might not get fair share of disk.
+
+    For example, if there are 10 sequential readers doing IO and they get
+    100ms each. If a REQ_NOIDLE request comes in, it will be scheduled
+    roughly after 1 second. If after completion of REQ_NOIDLE request we
+    do not idle, and after a couple of milli seconds a another REQ_NOIDLE
+    request comes in, again it will be scheduled after 1second. Repeat it
+    and notice how a workload can lose its disk share and suffer due to
+    multiple sequential readers.
+
+    fsync can generate dependent IO where bunch of data is written in the
+    context of fsync, and later some journaling data is written. Journaling
+    data comes in only after fsync has finished its IO (atleast for ext4
+    that seemed to be the case). Now if one decides not to idle on fsync
+    thread due to REQ_NOIDLE, then next journaling write will not get
+    scheduled for another second. A process doing small fsync, will suffer
+    badly in presence of multiple sequential readers.
+
+    Hence doing tree idling on threads using REQ_NOIDLE flag on requests
+    provides isolation from multiple sequential readers and at the same
+    time we do not idle on individual threads.
+
+Q2. When to specify REQ_NOIDLE
+A2. I would think whenever one is doing synchronous write and not expecting
+    more writes to be dispatched from same context soon, should be able
+    to specify REQ_NOIDLE on writes and that probably should work well for
+    most of the cases.

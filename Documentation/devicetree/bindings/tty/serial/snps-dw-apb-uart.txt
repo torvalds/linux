@@ -1,0 +1,25 @@
+* Synopsys DesignWare ABP UART
+
+Required properties:
+- compatible : "snps,dw-apb-uart"
+- reg : offset and length of the register set for the device.
+- interrupts : should contain uart interrupt.
+- clock-frequency : the input clock frequency for the UART.
+
+Optional properties:
+- reg-shift : quantity to shift the register offsets by.  If this property is
+  not present then the register offsets are not shifted.
+- reg-io-width : the size (in bytes) of the IO accesses that should be
+  performed on the device.  If this property is not present then single byte
+  accesses are used.
+
+Example:
+
+	uart@80230000 {
+		compatible = "snps,dw-apb-uart";
+		reg = <0x80230000 0x100>;
+		clock-frequency = <3686400>;
+		interrupts = <10>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+	};

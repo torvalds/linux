@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN"
+	"http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd" []>
+
+<book id="MCAGuide">
+ <bookinfo>
+  <title>MCA Driver Programming Interface</title>
+  
+  <authorgroup>
+   <author>
+    <firstname>Alan</firstname>
+    <surname>Cox</surname>
+    <affiliation>
+     <address>
+      <email>alan@lxorguk.ukuu.org.uk</email>
+     </address>
+    </affiliation>
+   </author>
+   <author>
+    <firstname>David</firstname>
+    <surname>Weinehall</surname>
+   </author>
+   <author>
+    <firstname>Chris</firstname>
+    <surname>Beauregard</surname>
+   </author>
+  </authorgroup>
+
+  <copyright>
+   <year>2000</year>
+   <holder>Alan Cox</holder>
+   <holder>David Weinehall</holder>
+   <holder>Chris Beauregard</holder>
+  </copyright>
+
+  <legalnotice>
+   <para>
+     This documentation is free software; you can redistribute
+     it and/or modify it under the terms of the GNU General Public
+     License as published by the Free Software Foundation; either
+     version 2 of the License, or (at your option) any later
+     version.
+   </para>
+      
+   <para>
+     This program is distributed in the hope that it will be
+     useful, but WITHOUT ANY WARRANTY; without even the implied
+     warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+     See the GNU General Public License for more details.
+   </para>
+      
+   <para>
+     You should have received a copy of the GNU General Public
+     License along with this program; if not, write to the Free
+     Software Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+     MA 02111-1307 USA
+   </para>
+      
+   <para>
+     For more details see the file COPYING in the source
+     distribution of Linux.
+   </para>
+  </legalnotice>
+ </bookinfo>
+
+<toc></toc>
+
+  <chapter id="intro">
+      <title>Introduction</title>
+  <para>
+	The MCA bus functions provide a generalised interface to find MCA
+	bus cards, to claim them for a driver, and to read and manipulate POS 
+	registers without being aware of the motherboard internals or 
+	certain deep magic specific to onboard devices.
+  </para>
+  <para>
+	The basic interface to the MCA bus devices is the slot. Each slot
+	is numbered and virtual slot numbers are assigned to the internal
+	devices. Using a pci_dev as other busses do does not really make
+	sense in the MCA context as the MCA bus resources require card
+	specific interpretation.
+  </para>
+  <para>
+	Finally the MCA bus functions provide a parallel set of DMA
+	functions mimicing the ISA bus DMA functions as closely as possible,
+	although also supporting the additional DMA functionality on the
+	MCA bus controllers.
+  </para>
+  </chapter>
+  <chapter id="bugs">
+     <title>Known Bugs And Assumptions</title>
+  <para>
+	None.	
+  </para>
+  </chapter>
+
+  <chapter id="pubfunctions">
+     <title>Public Functions Provided</title>
+!Edrivers/mca/mca-legacy.c
+  </chapter>
+
+  <chapter id="dmafunctions">
+     <title>DMA Functions Provided</title>
+!Iarch/x86/include/asm/mca_dma.h
+  </chapter>
+
+</book>

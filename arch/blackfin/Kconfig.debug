@@ -1,0 +1,256 @@
+menu "Kernel hacking"
+
+source "lib/Kconfig.debug"
+
+config DEBUG_STACKOVERFLOW
+	bool "Check for stack overflows"
+	depends on DEBUG_KERNEL
+	help
+	  This option will cause messages to be printed if free stack space
+	  drops below a certain limit.
+
+config DEBUG_VERBOSE
+	bool "Verbose fault messages"
+	default y
+	select PRINTK
+	help
+	  When a program crashes due to an exception, or the kernel detects
+	  an internal error, the kernel can print a not so brief message
+	  explaining what the problem was. This debugging information is
+	  useful to developers and kernel hackers when tracking down problems,
+	  but mostly meaningless to other people. This is always helpful for
+	  debugging but serves no purpose on a production system.
+	  Most people should say N here.
+
+config DEBUG_MMRS
+	tristate "Generate Blackfin MMR tree"
+	select DEBUG_FS
+	help
+	  Create a tree of Blackfin MMRs via the debugfs tree.  If
+	  you enable this, you will find all MMRs laid out in the
+	  /sys/kernel/debug/blackfin/ directory where you can read/write
+	  MMRs directly from userspace.  This is obviously just a debug
+	  feature.
+
+config DEBUG_HWERR
+	bool "Hardware error interrupt debugging"
+	depends on DEBUG_KERNEL
+	help
+	  When enabled, the hardware error interrupt is never disabled, and
+	  will happen immediately when an error condition occurs.  This comes
+	  at a slight cost in code size, but is necessary if you are getting
+	  hardware error interrupts and need to know where they are coming
+	  from.
+
+config EXACT_HWERR
+	bool "Try to make Hardware errors exact"
+	depends on DEBUG_HWERR
+	help
+	  By default, the Blackfin hardware errors are not exact - the error
+          be reported multiple cycles after the error happens. This delay
+	  can cause the wrong application, or even the kernel to receive a
+	  signal to be killed. If you are getting HW errors in your system,
+	  try turning this on to ensure they are at least coming from the
+	  proper thread.
+
+	  On production systems, it is safe (and a small optimization) to say N.
+
+config DEBUG_DOUBLEFAULT
+	bool "Debug Double Faults"
+	default n
+	help
+	  If an exception is caused while executing code within the exception
+	  handler, the NMI handler, the reset vector, or in emulator mode,
+	  a double fault occurs. On the Blackfin, this is a unrecoverable
+	  event. You have two options:
+	  - RESET exactly when double fault occurs. The excepting
+	    instruction address is stored in RETX, where the next kernel
+	    boot will print it out.
+	  - Print debug message. This is much more error prone, although
+	    easier to handle. It is error prone since:
+	    - The excepting instruction is not committed.
+	    - All writebacks from the instruction are prevented.
+	    - The generated exception is not taken.
+	    - The EXCAUSE field is updated with an unrecoverable event
+	    The only way to check this is to see if EXCAUSE contains the
+	    unrecoverable event value at every exception return. By selecting
+	    this option, you are skipping over the faulting instruction, and 
+	    hoping things stay together enough to print out a debug message.
+
+	  This does add a little kernel code, but is the only method to debug
+	  double faults - if unsure say "Y"
+
+choice
+	prompt "Double Fault Failure Method"
+	default DEBUG_DOUBLEFAULT_PRINT
+	depends on DEBUG_DOUBLEFAULT
+
+config DEBUG_DOUBLEFAULT_PRINT
+	bool "Print"
+
+config DEBUG_DOUBLEFAULT_RESET
+	bool "Reset"
+
+endchoice
+
+config DEBUG_HUNT_FOR_ZERO
+	bool "Catch NULL pointer reads/writes"
+	default y
+	help
+	  Say Y here to catch reads/writes to anywhere in the memory range
+	  from 0x0000 - 0x0FFF (the first 4k) of memory.  This is useful in
+	  catching common programming errors such as NULL pointer dereferences.
+
+	  Misbehaving applications will be killed (generate a SEGV) while the
+	  kernel will trigger a panic.
+
+	  Enabling this option will take up an extra entry in CPLB table.
+	  Otherwise, there is no extra overhead.
+
+config DEBUG_BFIN_HWTRACE_ON
+	bool "Turn on Blackfin's Hardware Trace"
+	default y
+	help
+	  All Blackfins include a Trace Unit which stores a history of the last
+	  16 changes in program flow taken by the program sequencer. The history
+	  allows the user to recreate the program sequencer’s recent path. This
+	  can be handy when an application dies - we print out the execution
+	  path of how it got to the offending instruction.
+
+	  By turning this off, you may save a tiny amount of power.
+
+choice
+	prompt "Omit loop Tracing"
+	default DEBUG_BFIN_HWTRACE_COMPRESSION_OFF
+	depends on DEBUG_BFIN_HWTRACE_ON
+	help
+	  The trace buffer can be configured to omit recording of changes in
+	  program flow that match either the last entry or one of the last
+	  two entries. Omitting one of these entries from the record prevents
+	  the trace buffer from overflowing because of any sort of loop (for, do
+	  while, etc) in the program.
+
+	  Because zero-overhead Hardware loops are not recorded in the trace buffer,
+	  this feature can be used to prevent trace overflow from loops that
+	  are nested four deep.
+
+config DEBUG_BFIN_HWTRACE_COMPRESSION_OFF
+	bool "Trace all Loops"
+	help
+	  The trace buffer records all changes of flow 
+
+config DEBUG_BFIN_HWTRACE_COMPRESSION_ONE
+	bool "Compress single-level loops"
+	help
+	  The trace buffer does not record single loops - helpful if trace 
+	  is spinning on a while or do loop.
+
+config DEBUG_BFIN_HWTRACE_COMPRESSION_TWO
+	bool "Compress two-level loops"
+	help
+	  The trace buffer does not record loops two levels deep. Helpful if
+	  the trace is spinning in a nested loop
+
+endchoice
+
+config DEBUG_BFIN_HWTRACE_COMPRESSION
+	int
+	depends on DEBUG_BFIN_HWTRACE_ON
+	default 0 if DEBUG_BFIN_HWTRACE_COMPRESSION_OFF
+	default 1 if DEBUG_BFIN_HWTRACE_COMPRESSION_ONE
+	default 2 if DEBUG_BFIN_HWTRACE_COMPRESSION_TWO
+
+
+config DEBUG_BFIN_HWTRACE_EXPAND
+	bool "Expand Trace Buffer greater than 16 entries"
+	depends on DEBUG_BFIN_HWTRACE_ON
+	default n
+	help
+	  By selecting this option, every time the 16 hardware entries in
+	  the Blackfin's HW Trace buffer are full, the kernel will move them
+	  into a software buffer, for dumping when there is an issue. This 
+	  has a great impact on performance, (an interrupt every 16 change of 
+	  flows) and should normally be turned off, except in those nasty
+	  debugging sessions
+
+config DEBUG_BFIN_HWTRACE_EXPAND_LEN
+	int "Size of Trace buffer (in power of 2k)"
+	range 0 4
+	depends on DEBUG_BFIN_HWTRACE_EXPAND
+	default 1
+	help
+	  This sets the size of the software buffer that the trace information
+	  is kept in.
+	  0 for (2^0)  1k, or 256 entries,
+	  1 for (2^1)  2k, or 512 entries,
+	  2 for (2^2)  4k, or 1024 entries,
+	  3 for (2^3)  8k, or 2048 entries,
+	  4 for (2^4) 16k, or 4096 entries
+
+config DEBUG_BFIN_NO_KERN_HWTRACE
+	bool "Turn off hwtrace in CPLB handlers"
+	depends on DEBUG_BFIN_HWTRACE_ON
+	default y
+	help
+	  The CPLB error handler contains a lot of flow changes which can
+	  quickly fill up the hardware trace buffer.  When debugging crashes,
+	  the hardware trace may indicate that the problem lies in kernel
+	  space when in reality an application is buggy.
+
+	  Say Y here to disable hardware tracing in some known "jumpy" pieces
+	  of code so that the trace buffer will extend further back.
+
+config EARLY_PRINTK
+	bool "Early printk" 
+	default n
+	select SERIAL_CORE_CONSOLE
+	help
+	  This option enables special console drivers which allow the kernel
+	  to print messages very early in the bootup process.
+
+	  This is useful for kernel debugging when your machine crashes very
+	  early before the console code is initialized. After enabling this
+	  feature, you must add "earlyprintk=serial,uart0,57600" to the
+	  command line (bootargs). It is safe to say Y here in all cases, as
+	  all of this lives in the init section and is thrown away after the
+	  kernel boots completely.
+
+config NMI_WATCHDOG
+	bool "Enable NMI watchdog to help debugging lockup on SMP"
+	default n
+	depends on SMP
+	help
+	  If any CPU in the system does not execute the period local timer
+	  interrupt for more than 5 seconds, then the NMI handler dumps debug
+	  information. This information can be used to debug the lockup.
+
+config CPLB_INFO
+	bool "Display the CPLB information"
+	help
+	  Display the CPLB information via /proc/cplbinfo.
+
+config ACCESS_CHECK
+	bool "Check the user pointer address"
+	default y
+	help
+	  Usually the pointer transfer from user space is checked to see if its
+	  address is in the kernel space.
+
+	  Say N here to disable that check to improve the performance.
+
+config BFIN_ISRAM_SELF_TEST
+	bool "isram boot self tests"
+	default n
+	help
+	  Run some self tests of the isram driver code at boot.
+
+config BFIN_PSEUDODBG_INSNS
+	bool "Support pseudo debug instructions"
+	default n
+	help
+	  This option allows the kernel to emulate some pseudo instructions which
+	  allow simulator test cases to be run under Linux with no changes.
+
+	  Most people should say N here.
+
+endmenu

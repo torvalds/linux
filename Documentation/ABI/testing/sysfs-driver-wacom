@@ -1,0 +1,73 @@
+What:		/sys/class/hidraw/hidraw*/device/speed
+Date:		April 2010
+Kernel Version:	2.6.35
+Contact:	linux-bluetooth@vger.kernel.org
+Description:
+		The /sys/class/hidraw/hidraw*/device/speed file controls
+		reporting speed of Wacom bluetooth tablet. Reading from
+		this file returns 1 if tablet reports in high speed mode
+		or 0 otherwise. Writing to this file one of these values
+		switches reporting speed.
+
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<cfg>.<intf>/wacom_led/led
+Date:		August 2011
+Contact:	linux-input@vger.kernel.org
+Description:
+		Attribute group for control of the status LEDs and the OLEDs.
+		This attribute group is only available for Intuos 4 M, L,
+		and XL (with LEDs and OLEDs) and Cintiq 21UX2 and Cintiq 24HD
+		(LEDs only). Therefore its presence implicitly signifies the
+		presence of said LEDs and OLEDs on the tablet device.
+
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<cfg>.<intf>/wacom_led/status0_luminance
+Date:		August 2011
+Contact:	linux-input@vger.kernel.org
+Description:
+		Writing to this file sets the status LED luminance (1..127)
+		when the stylus does not touch the tablet surface, and no
+		button is pressed on the stylus. This luminance level is
+		normally lower than the level when a button is pressed.
+
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<cfg>.<intf>/wacom_led/status1_luminance
+Date:		August 2011
+Contact:	linux-input@vger.kernel.org
+Description:
+		Writing to this file sets the status LED luminance (1..127)
+		when the stylus touches the tablet surface, or any button is
+		pressed on the stylus.
+
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<cfg>.<intf>/wacom_led/status_led0_select
+Date:		August 2011
+Contact:	linux-input@vger.kernel.org
+Description:
+		Writing to this file sets which one of the four (for Intuos 4)
+		or of the right four (for Cintiq 21UX2 and Cintiq 24HD) status
+		LEDs is active (0..3). The other three LEDs on the same side are
+		always inactive.
+
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<cfg>.<intf>/wacom_led/status_led1_select
+Date:		September 2011
+Contact:	linux-input@vger.kernel.org
+Description:
+		Writing to this file sets which one of the left four (for Cintiq 21UX2
+		and Cintiq 24HD) status LEDs is active (0..3). The other three LEDs on
+		the left are always inactive.
+
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<cfg>.<intf>/wacom_led/buttons_luminance
+Date:		August 2011
+Contact:	linux-input@vger.kernel.org
+Description:
+		Writing to this file sets the overall luminance level (0..15)
+		of all eight button OLED displays.
+
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<cfg>.<intf>/wacom_led/button<n>_rawimg
+Date:		August 2011
+Contact:	linux-input@vger.kernel.org
+Description:
+		When writing a 1024 byte raw image in Wacom Intuos 4
+		interleaving format to the file, the image shows up on Button N
+		of the device. The image is a 64x32 pixel 4-bit gray image. The
+		1024 byte binary is split up into 16x 64 byte chunks. Each 64
+		byte chunk encodes the image data for two consecutive lines on
+		the display. The low nibble of each byte contains the first
+		line, and the high nibble contains the second line.

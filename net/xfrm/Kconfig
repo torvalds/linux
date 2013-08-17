@@ -1,0 +1,80 @@
+#
+# XFRM configuration
+#
+config XFRM
+       bool
+       select CRYPTO
+       depends on NET
+
+config XFRM_USER
+	tristate "Transformation user configuration interface"
+	depends on INET && XFRM
+	---help---
+	  Support for Transformation(XFRM) user configuration interface
+	  like IPsec used by native Linux tools.
+
+	  If unsure, say Y.
+
+config XFRM_SUB_POLICY
+	bool "Transformation sub policy support (EXPERIMENTAL)"
+	depends on XFRM && EXPERIMENTAL
+	---help---
+	  Support sub policy for developers. By using sub policy with main
+	  one, two policies can be applied to the same packet at once.
+	  Policy which lives shorter time in kernel should be a sub.
+
+	  If unsure, say N.
+
+config XFRM_MIGRATE
+	bool "Transformation migrate database (EXPERIMENTAL)"
+	depends on XFRM && EXPERIMENTAL
+	---help---
+	  A feature to update locator(s) of a given IPsec security
+	  association dynamically.  This feature is required, for
+	  instance, in a Mobile IPv6 environment with IPsec configuration
+	  where mobile nodes change their attachment point to the Internet.
+
+	  If unsure, say N.
+
+config XFRM_STATISTICS
+	bool "Transformation statistics (EXPERIMENTAL)"
+	depends on INET && XFRM && PROC_FS && EXPERIMENTAL
+	---help---
+	  This statistics is not a SNMP/MIB specification but shows
+	  statistics about transformation error (or almost error) factor
+	  at packet processing for developer.
+
+	  If unsure, say N.
+
+config XFRM_IPCOMP
+	tristate
+	select XFRM
+	select CRYPTO
+	select CRYPTO_DEFLATE
+
+config NET_KEY
+	tristate "PF_KEY sockets"
+	select XFRM
+	---help---
+	  PF_KEYv2 socket family, compatible to KAME ones.
+	  They are required if you are going to use IPsec tools ported
+	  from KAME.
+
+	  Say Y unless you know what you are doing.
+
+config NET_KEY_MIGRATE
+	bool "PF_KEY MIGRATE (EXPERIMENTAL)"
+	depends on NET_KEY && EXPERIMENTAL
+	select XFRM_MIGRATE
+	---help---
+	  Add a PF_KEY MIGRATE message to PF_KEYv2 socket family.
+	  The PF_KEY MIGRATE message is used to dynamically update
+	  locator(s) of a given IPsec security association.
+	  This feature is required, for instance, in a Mobile IPv6
+	  environment with IPsec configuration where mobile nodes
+	  change their attachment point to the Internet.  Detail
+	  information can be found in the internet-draft
+	  <draft-sugimoto-mip6-pfkey-migrate>.
+
+	  If unsure, say N.
+

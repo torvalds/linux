@@ -1,0 +1,135 @@
+<refentry id="vidioc-g-priority">
+  <refmeta>
+    <refentrytitle>ioctl VIDIOC_G_PRIORITY, VIDIOC_S_PRIORITY</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>VIDIOC_G_PRIORITY</refname>
+    <refname>VIDIOC_S_PRIORITY</refname>
+    <refpurpose>Query or request the access priority associated with a
+file descriptor</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>enum v4l2_priority *<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>const enum v4l2_priority *<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>VIDIOC_G_PRIORITY, VIDIOC_S_PRIORITY</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para>Pointer to an enum v4l2_priority type.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>To query the current access priority
+applications call the <constant>VIDIOC_G_PRIORITY</constant> ioctl
+with a pointer to an enum v4l2_priority variable where the driver stores
+the current priority.</para>
+
+    <para>To request an access priority applications store the
+desired priority in an enum v4l2_priority variable and call
+<constant>VIDIOC_S_PRIORITY</constant> ioctl with a pointer to this
+variable.</para>
+
+    <table frame="none" pgwide="1" id="v4l2-priority">
+      <title>enum v4l2_priority</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_PRIORITY_UNSET</constant></entry>
+	    <entry>0</entry>
+	    <entry></entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_PRIORITY_BACKGROUND</constant></entry>
+	    <entry>1</entry>
+	    <entry>Lowest priority, usually applications running in
+background, for example monitoring VBI transmissions. A proxy
+application running in user space will be necessary if multiple
+applications want to read from a device at this priority.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_PRIORITY_INTERACTIVE</constant></entry>
+	    <entry>2</entry>
+	    <entry></entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_PRIORITY_DEFAULT</constant></entry>
+	    <entry>2</entry>
+	    <entry>Medium priority, usually applications started and
+interactively controlled by the user. For example TV viewers, Teletext
+browsers, or just "panel" applications to change the channel or video
+controls. This is the default priority unless an application requests
+another.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_PRIORITY_RECORD</constant></entry>
+	    <entry>3</entry>
+	    <entry>Highest priority. Only one file descriptor can have
+this priority, it blocks any other fd from changing device properties.
+Usually applications which must not be interrupted, like video
+recording.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+  </refsect1>
+
+  <refsect1>
+    &return-value;
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EINVAL</errorcode></term>
+	<listitem>
+	  <para>The requested priority value is invalid.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EBUSY</errorcode></term>
+	<listitem>
+	  <para>Another application already requested higher
+priority.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>

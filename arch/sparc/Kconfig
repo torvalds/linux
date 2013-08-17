@@ -1,0 +1,606 @@
+config 64BIT
+	bool "64-bit kernel" if ARCH = "sparc"
+	default ARCH = "sparc64"
+	help
+	  SPARC is a family of RISC microprocessors designed and marketed by
+	  Sun Microsystems, incorporated.  They are very widely found in Sun
+	  workstations and clones.
+
+	  Say yes to build a 64-bit kernel - formerly known as sparc64
+	  Say no to build a 32-bit kernel - formerly known as sparc
+
+config SPARC
+	bool
+	default y
+	select OF
+	select OF_PROMTREE
+	select HAVE_IDE
+	select HAVE_OPROFILE
+	select HAVE_ARCH_KGDB if !SMP || SPARC64
+	select HAVE_ARCH_TRACEHOOK
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select RTC_CLASS
+	select RTC_DRV_M48T59
+	select HAVE_IRQ_WORK
+	select HAVE_DMA_ATTRS
+	select HAVE_DMA_API_DEBUG
+	select HAVE_ARCH_JUMP_LABEL
+	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_IRQ_SHOW
+	select USE_GENERIC_SMP_HELPERS if SMP
+	select GENERIC_PCI_IOMAP
+	select HAVE_NMI_WATCHDOG if SPARC64
+
+config SPARC32
+	def_bool !64BIT
+	select GENERIC_ATOMIC64
+	select CLZ_TAB
+
+config SPARC64
+	def_bool 64BIT
+	select ARCH_SUPPORTS_MSI
+	select HAVE_FUNCTION_TRACER
+	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_FUNCTION_GRAPH_FP_TEST
+	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
+	select HAVE_KRETPROBES
+	select HAVE_KPROBES
+	select HAVE_RCU_TABLE_FREE if SMP
+	select HAVE_MEMBLOCK
+	select HAVE_MEMBLOCK_NODE_MAP
+	select HAVE_SYSCALL_WRAPPERS
+	select HAVE_DYNAMIC_FTRACE
+	select HAVE_FTRACE_MCOUNT_RECORD
+	select HAVE_SYSCALL_TRACEPOINTS
+	select RTC_DRV_CMOS
+	select RTC_DRV_BQ4802
+	select RTC_DRV_SUN4V
+	select RTC_DRV_STARFIRE
+	select HAVE_PERF_EVENTS
+	select PERF_USE_VMALLOC
+	select IRQ_PREFLOW_FASTEOI
+	select ARCH_HAVE_NMI_SAFE_CMPXCHG
+	select HAVE_C_RECORDMCOUNT
+
+config ARCH_DEFCONFIG
+	string
+	default "arch/sparc/configs/sparc32_defconfig" if SPARC32
+	default "arch/sparc/configs/sparc64_defconfig" if SPARC64
+
+# CONFIG_BITS can be used at source level to get 32/64 bits
+config BITS
+	int
+	default 32 if SPARC32
+	default 64 if SPARC64
+
+config ARCH_USES_GETTIMEOFFSET
+	bool
+	default y if SPARC32
+
+config GENERIC_CMOS_UPDATE
+	bool
+	default y
+
+config GENERIC_CLOCKEVENTS
+	bool
+	default y if SPARC64
+
+config IOMMU_HELPER
+	bool
+	default y if SPARC64
+
+config STACKTRACE_SUPPORT
+	bool
+	default y if SPARC64
+
+config LOCKDEP_SUPPORT
+	bool
+	default y if SPARC64
+
+config HAVE_LATENCYTOP_SUPPORT
+	bool
+	default y if SPARC64
+
+config AUDIT_ARCH
+	bool
+	default y
+
+config HAVE_SETUP_PER_CPU_AREA
+	def_bool y if SPARC64
+
+config NEED_PER_CPU_EMBED_FIRST_CHUNK
+	def_bool y if SPARC64
+
+config NEED_PER_CPU_PAGE_FIRST_CHUNK
+	def_bool y if SPARC64
+
+config MMU
+	bool
+	default y
+
+config HIGHMEM
+	bool
+	default y if SPARC32
+
+config ZONE_DMA
+	bool
+	default y if SPARC32
+
+config NEED_DMA_MAP_STATE
+	def_bool y
+
+config NEED_SG_DMA_LENGTH
+	def_bool y
+
+config GENERIC_ISA_DMA
+	bool
+	default y if SPARC32
+
+config GENERIC_GPIO
+	bool
+	help
+	  Generic GPIO API support
+
+config ARCH_NO_VIRT_TO_BUS
+	def_bool y
+
+config ARCH_SUPPORTS_DEBUG_PAGEALLOC
+	def_bool y if SPARC64
+
+source "init/Kconfig"
+
+source "kernel/Kconfig.freezer"
+
+menu "Processor type and features"
+
+config SMP
+	bool "Symmetric multi-processing support (does not work on sun4/sun4c)"
+	---help---
+	  This enables support for systems with more than one CPU. If you have
+	  a system with only one CPU, say N. If you have a system with more
+	  than one CPU, say Y.
+
+	  If you say N here, the kernel will run on single and multiprocessor
+	  machines, but will use only one CPU of a multiprocessor machine. If
+	  you say Y here, the kernel will run on many, but not all,
+	  singleprocessor machines. On a singleprocessor machine, the kernel
+	  will run faster if you say N here.
+
+	  People using multiprocessor machines who say Y here should also say
+	  Y to "Enhanced Real Time Clock Support", below. The "Advanced Power
+	  Management" code will be disabled if you say Y here.
+
+	  See also <file:Documentation/nmi_watchdog.txt> and the SMP-HOWTO
+	  available at <http://www.tldp.org/docs.html#howto>.
+
+	  If you don't know what to do here, say N.
+
+config NR_CPUS
+	int "Maximum number of CPUs"
+	depends on SMP
+	range 2 32 if SPARC32
+	range 2 1024 if SPARC64
+	default 32 if SPARC32
+	default 64 if SPARC64
+
+source kernel/Kconfig.hz
+
+config RWSEM_GENERIC_SPINLOCK
+	bool
+	default y if SPARC32
+
+config RWSEM_XCHGADD_ALGORITHM
+	bool
+	default y if SPARC64
+
+config GENERIC_HWEIGHT
+	bool
+	default y if !ULTRA_HAS_POPULATION_COUNT
+
+config GENERIC_CALIBRATE_DELAY
+	bool
+	default y
+
+config ARCH_MAY_HAVE_PC_FDC
+	bool
+	default y
+
+config EMULATED_CMPXCHG
+	bool
+	default y if SPARC32
+	help
+	  Sparc32 does not have a CAS instruction like sparc64. cmpxchg()
+	  is emulated, and therefore it is not completely atomic.
+
+# Makefile helpers
+config SPARC32_SMP
+	bool
+	default y
+	depends on SPARC32 && SMP
+
+config SPARC64_SMP
+	bool
+	default y
+	depends on SPARC64 && SMP
+
+config EARLYFB
+	bool "Support for early boot text console"
+	default y
+	depends on SPARC64
+	help
+	  Say Y here to enable a faster early framebuffer boot console.
+
+choice
+	prompt "Kernel page size" if SPARC64
+	default SPARC64_PAGE_SIZE_8KB
+
+config SPARC64_PAGE_SIZE_8KB
+	bool "8KB"
+	help
+	  This lets you select the page size of the kernel.
+
+	  8KB and 64KB work quite well, since SPARC ELF sections
+	  provide for up to 64KB alignment.
+
+	  If you don't know what to do, choose 8KB.
+
+config SPARC64_PAGE_SIZE_64KB
+	bool "64KB"
+
+endchoice
+
+config SECCOMP
+	bool "Enable seccomp to safely compute untrusted bytecode"
+	depends on SPARC64 && PROC_FS
+	default y
+	help
+	  This kernel feature is useful for number crunching applications
+	  that may need to compute untrusted bytecode during their
+	  execution. By using pipes or other transports made available to
+	  the process as file descriptors supporting the read/write
+	  syscalls, it's possible to isolate those applications in
+	  their own address space using seccomp. Once seccomp is
+	  enabled via /proc/<pid>/seccomp, it cannot be disabled
+	  and the task is only allowed to execute a few safe syscalls
+	  defined by each seccomp mode.
+
+	  If unsure, say Y. Only embedded should say N here.
+
+config HOTPLUG_CPU
+	bool "Support for hot-pluggable CPUs"
+	depends on SPARC64 && SMP
+	select HOTPLUG
+	help
+	  Say Y here to experiment with turning CPUs off and on.  CPUs
+	  can be controlled through /sys/devices/system/cpu/cpu#.
+	  Say N if you want to disable CPU hotplug.
+
+source "kernel/time/Kconfig"
+
+if SPARC64
+source "drivers/cpufreq/Kconfig"
+
+config US3_FREQ
+	tristate "UltraSPARC-III CPU Frequency driver"
+	depends on CPU_FREQ
+	select CPU_FREQ_TABLE
+	help
+	  This adds the CPUFreq driver for UltraSPARC-III processors.
+
+	  For details, take a look at <file:Documentation/cpu-freq>.
+
+	  If in doubt, say N.
+
+config US2E_FREQ
+	tristate "UltraSPARC-IIe CPU Frequency driver"
+	depends on CPU_FREQ
+	select CPU_FREQ_TABLE
+	help
+	  This adds the CPUFreq driver for UltraSPARC-IIe processors.
+
+	  For details, take a look at <file:Documentation/cpu-freq>.
+
+	  If in doubt, say N.
+
+endif
+
+config US3_MC
+	tristate "UltraSPARC-III Memory Controller driver"
+	depends on SPARC64
+	default y
+	help
+	  This adds a driver for the UltraSPARC-III memory controller.
+	  Loading this driver allows exact mnemonic strings to be
+	  printed in the event of a memory error, so that the faulty DIMM
+	  on the motherboard can be matched to the error.
+
+	  If in doubt, say Y, as this information can be very useful.
+
+# Global things across all Sun machines.
+config GENERIC_LOCKBREAK
+	bool
+	default y
+	depends on SPARC64 && SMP && PREEMPT
+
+choice
+	prompt "SPARC64 Huge TLB Page Size"
+	depends on SPARC64 && HUGETLB_PAGE
+	default HUGETLB_PAGE_SIZE_4MB
+
+config HUGETLB_PAGE_SIZE_4MB
+	bool "4MB"
+
+config HUGETLB_PAGE_SIZE_512K
+	bool "512K"
+
+config HUGETLB_PAGE_SIZE_64K
+	depends on !SPARC64_PAGE_SIZE_64KB
+	bool "64K"
+
+endchoice
+
+config NUMA
+	bool "NUMA support"
+	depends on SPARC64 && SMP
+
+config NODES_SHIFT
+	int
+	default "4"
+	depends on NEED_MULTIPLE_NODES
+
+# Some NUMA nodes have memory ranges that span
+# other nodes.  Even though a pfn is valid and
+# between a node's start and end pfns, it may not
+# reside on that node.  See memmap_init_zone()
+# for details.
+config NODES_SPAN_OTHER_NODES
+	def_bool y
+	depends on NEED_MULTIPLE_NODES
+
+config ARCH_SELECT_MEMORY_MODEL
+	def_bool y if SPARC64
+
+config ARCH_SPARSEMEM_ENABLE
+	def_bool y if SPARC64
+	select SPARSEMEM_VMEMMAP_ENABLE
+
+config ARCH_SPARSEMEM_DEFAULT
+	def_bool y if SPARC64
+
+source "mm/Kconfig"
+
+config SCHED_SMT
+	bool "SMT (Hyperthreading) scheduler support"
+	depends on SPARC64 && SMP
+	default y
+	help
+	  SMT scheduler support improves the CPU scheduler's decision making
+	  when dealing with SPARC cpus at a cost of slightly increased overhead
+	  in some places. If unsure say N here.
+
+config SCHED_MC
+	bool "Multi-core scheduler support"
+	depends on SPARC64 && SMP
+	default y
+	help
+	  Multi-core scheduler support improves the CPU scheduler's decision
+	  making when dealing with multi-core CPU chips at a cost of slightly
+	  increased overhead in some places. If unsure say N here.
+
+source "kernel/Kconfig.preempt"
+
+config CMDLINE_BOOL
+	bool "Default bootloader kernel arguments"
+	depends on SPARC64
+
+config CMDLINE
+	string "Initial kernel command string"
+	depends on CMDLINE_BOOL
+	default "console=ttyS0,9600 root=/dev/sda1"
+	help
+	  Say Y here if you want to be able to pass default arguments to
+	  the kernel. This will be overridden by the bootloader, if you
+	  use one (such as SILO). This is most useful if you want to boot
+	  a kernel from TFTP, and want default options to be available
+	  with having them passed on the command line.
+
+	  NOTE: This option WILL override the PROM bootargs setting!
+
+config SUN_PM
+	bool
+	default y if SPARC32
+	help
+	  Enable power management and CPU standby features on supported
+	  SPARC platforms.
+
+config SPARC_LED
+	tristate "Sun4m LED driver"
+	depends on SPARC32
+	help
+	  This driver toggles the front-panel LED on sun4m systems
+	  in a user-specifiable manner.  Its state can be probed
+	  by reading /proc/led and its blinking mode can be changed
+	  via writes to /proc/led
+
+config SERIAL_CONSOLE
+	bool
+	depends on SPARC32
+	default y
+	---help---
+	  If you say Y here, it will be possible to use a serial port as the
+	  system console (the system console is the device which receives all
+	  kernel messages and warnings and which allows logins in single user
+	  mode). This could be useful if some terminal or printer is connected
+	  to that serial port.
+
+	  Even if you say Y here, the currently visible virtual console
+	  (/dev/tty0) will still be used as the system console by default, but
+	  you can alter that using a kernel command line option such as
+	  "console=ttyS1". (Try "man bootparam" or see the documentation of
+	  your boot loader (silo) about how to pass options to the kernel at
+	  boot time.)
+
+	  If you don't have a graphics card installed and you say Y here, the
+	  kernel will automatically use the first serial line, /dev/ttyS0, as
+	  system console.
+
+	  If unsure, say N.
+
+config SPARC_LEON
+	bool "Sparc Leon processor family"
+	depends on SPARC32
+	---help---
+	  If you say Y here if you are running on a SPARC-LEON processor.
+	  The LEON processor is a synthesizable VHDL model of the
+	  SPARC-v8 standard. LEON is  part of the GRLIB collection of
+	  IP cores that are distributed under GPL. GRLIB can be downloaded
+	  from www.gaisler.com. You can download a sparc-linux cross-compilation
+	  toolchain at www.gaisler.com.
+
+if SPARC_LEON
+menu "U-Boot options"
+
+config UBOOT_LOAD_ADDR
+	hex "uImage Load Address"
+	default 0x40004000
+	---help---
+	 U-Boot kernel load address, the address in physical address space
+	 where u-boot will place the Linux kernel before booting it.
+	 This address is normally the base address of main memory + 0x4000.
+
+config UBOOT_FLASH_ADDR
+	hex "uImage.o Load Address"
+	default 0x00080000
+	---help---
+	 Optional setting only affecting the uImage.o ELF-image used to
+	 download the uImage file to the target using a ELF-loader other than
+	 U-Boot. It may for example be used to download an uImage to FLASH with
+	 the GRMON utility before even starting u-boot.
+
+config UBOOT_ENTRY_ADDR
+	hex "uImage Entry Address"
+	default 0xf0004000
+	---help---
+	 Do not change this unless you know what you're doing. This is
+	 hardcoded by the SPARC32 and LEON port.
+
+	 This is the virtual address u-boot jumps to when booting the Linux
+	 Kernel.
+
+endmenu
+endif
+
+endmenu
+
+menu "Bus options (PCI etc.)"
+config SBUS
+	bool
+	default y
+
+config SBUSCHAR
+	bool
+	default y
+
+config SUN_LDOMS
+	bool "Sun Logical Domains support"
+	depends on SPARC64
+	help
+	  Say Y here is you want to support virtual devices via
+	  Logical Domains.
+
+config PCI
+	bool "Support for PCI and PS/2 keyboard/mouse"
+	help
+	  Find out whether your system includes a PCI bus. PCI is the name of
+	  a bus system, i.e. the way the CPU talks to the other stuff inside
+	  your box.  If you say Y here, the kernel will include drivers and
+	  infrastructure code to support PCI bus devices.
+
+	  CONFIG_PCI is needed for all JavaStation's (including MrCoffee),
+	  CP-1200, JavaEngine-1, Corona, Red October, and Serengeti SGSC.
+	  All of these platforms are extremely obscure, so say N if unsure.
+
+config PCI_DOMAINS
+	def_bool PCI if SPARC64
+
+config PCI_SYSCALL
+	def_bool PCI
+
+config PCIC_PCI
+	bool
+	depends on PCI && SPARC32 && !SPARC_LEON
+	default y
+
+config LEON_PCI
+	bool
+	depends on PCI && SPARC_LEON
+	default y
+
+config GRPCI2
+	bool "GRPCI2 Host Bridge Support"
+	depends on LEON_PCI
+	default y
+	help
+	  Say Y here to include the GRPCI2 Host Bridge Driver.
+
+source "drivers/pci/Kconfig"
+
+source "drivers/pcmcia/Kconfig"
+
+config SUN_OPENPROMFS
+	tristate "Openprom tree appears in /proc/openprom"
+	help
+	  If you say Y, the OpenPROM device tree will be available as a
+	  virtual file system, which you can mount to /proc/openprom by "mount
+	  -t openpromfs none /proc/openprom".
+
+	  To compile the /proc/openprom support as a module, choose M here: the
+	  module will be called openpromfs.
+
+	  Only choose N if you know in advance that you will not need to modify
+	  OpenPROM settings on the running system.
+
+# Makefile helper
+config SPARC64_PCI
+	bool
+	default y
+	depends on SPARC64 && PCI
+
+endmenu
+
+menu "Executable file formats"
+
+source "fs/Kconfig.binfmt"
+
+config COMPAT
+	bool
+	depends on SPARC64
+	default y
+	select COMPAT_BINFMT_ELF
+	select ARCH_WANT_OLD_COMPAT_IPC
+
+config SYSVIPC_COMPAT
+	bool
+	depends on COMPAT && SYSVIPC
+	default y
+
+config KEYS_COMPAT
+	def_bool y if COMPAT && KEYS
+
+endmenu
+
+source "net/Kconfig"
+
+source "drivers/Kconfig"
+
+source "drivers/sbus/char/Kconfig"
+
+source "fs/Kconfig"
+
+source "arch/sparc/Kconfig.debug"
+
+source "security/Kconfig"
+
+source "crypto/Kconfig"
+
+source "lib/Kconfig"

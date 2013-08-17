@@ -1,0 +1,342 @@
+                    DMA Buffer Sharing API Guide
+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+                            Sumit Semwal
+                <sumit dot semwal at linaro dot org>
+                 <sumit dot semwal at ti dot com>
+
+This document serves as a guide to device-driver writers on what is the dma-buf
+buffer sharing API, how to use it for exporting and using shared buffers.
+
+Any device driver which wishes to be a part of DMA buffer sharing, can do so as
+either the 'exporter' of buffers, or the 'user' of buffers.
+
+Say a driver A wants to use buffers created by driver B, then we call B as the
+exporter, and A as buffer-user.
+
+The exporter
+- implements and manages operations[1] for the buffer
+- allows other users to share the buffer by using dma_buf sharing APIs,
+- manages the details of buffer allocation,
+- decides about the actual backing storage where this allocation happens,
+- takes care of any migration of scatterlist - for all (shared) users of this
+   buffer,
+
+The buffer-user
+- is one of (many) sharing users of the buffer.
+- doesn't need to worry about how the buffer is allocated, or where.
+- needs a mechanism to get access to the scatterlist that makes up this buffer
+   in memory, mapped into its own address space, so it can access the same area
+   of memory.
+
+*IMPORTANT*: [see https://lkml.org/lkml/2011/12/20/211 for more details]
+For this first version, A buffer shared using the dma_buf sharing API:
+- *may* be exported to user space using "mmap" *ONLY* by exporter, outside of
+  this framework.
+- with this new iteration of the dma-buf api cpu access from the kernel has been
+  enable, see below for the details.
+
+dma-buf operations for device dma only
+--------------------------------------
+
+The dma_buf buffer sharing API usage contains the following steps:
+
+1. Exporter announces that it wishes to export a buffer
+2. Userspace gets the file descriptor associated with the exported buffer, and
+   passes it around to potential buffer-users based on use case
+3. Each buffer-user 'connects' itself to the buffer
+4. When needed, buffer-user requests access to the buffer from exporter
+5. When finished with its use, the buffer-user notifies end-of-DMA to exporter
+6. when buffer-user is done using this buffer completely, it 'disconnects'
+   itself from the buffer.
+
+
+1. Exporter's announcement of buffer export
+
+   The buffer exporter announces its wish to export a buffer. In this, it
+   connects its own private buffer data, provides implementation for operations
+   that can be performed on the exported dma_buf, and flags for the file
+   associated with this buffer.
+
+   Interface:
+      struct dma_buf *dma_buf_export(void *priv, struct dma_buf_ops *ops,
+				     size_t size, int flags)
+
+   If this succeeds, dma_buf_export allocates a dma_buf structure, and returns a
+   pointer to the same. It also associates an anonymous file with this buffer,
+   so it can be exported. On failure to allocate the dma_buf object, it returns
+   NULL.
+
+2. Userspace gets a handle to pass around to potential buffer-users
+
+   Userspace entity requests for a file-descriptor (fd) which is a handle to the
+   anonymous file associated with the buffer. It can then share the fd with other
+   drivers and/or processes.
+
+   Interface:
+      int dma_buf_fd(struct dma_buf *dmabuf)
+
+   This API installs an fd for the anonymous file associated with this buffer;
+   returns either 'fd', or error.
+
+3. Each buffer-user 'connects' itself to the buffer
+
+   Each buffer-user now gets a reference to the buffer, using the fd passed to
+   it.
+
+   Interface:
+      struct dma_buf *dma_buf_get(int fd)
+
+   This API will return a reference to the dma_buf, and increment refcount for
+   it.
+
+   After this, the buffer-user needs to attach its device with the buffer, which
+   helps the exporter to know of device buffer constraints.
+
+   Interface:
+      struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
+                                                struct device *dev)
+
+   This API returns reference to an attachment structure, which is then used
+   for scatterlist operations. It will optionally call the 'attach' dma_buf
+   operation, if provided by the exporter.
+
+   The dma-buf sharing framework does the bookkeeping bits related to managing
+   the list of all attachments to a buffer.
+
+Until this stage, the buffer-exporter has the option to choose not to actually
+allocate the backing storage for this buffer, but wait for the first buffer-user
+to request use of buffer for allocation.
+
+
+4. When needed, buffer-user requests access to the buffer
+
+   Whenever a buffer-user wants to use the buffer for any DMA, it asks for
+   access to the buffer using dma_buf_map_attachment API. At least one attach to
+   the buffer must have happened before map_dma_buf can be called.
+
+   Interface:
+      struct sg_table * dma_buf_map_attachment(struct dma_buf_attachment *,
+                                         enum dma_data_direction);
+
+   This is a wrapper to dma_buf->ops->map_dma_buf operation, which hides the
+   "dma_buf->ops->" indirection from the users of this interface.
+
+   In struct dma_buf_ops, map_dma_buf is defined as
+      struct sg_table * (*map_dma_buf)(struct dma_buf_attachment *,
+                                                enum dma_data_direction);
+
+   It is one of the buffer operations that must be implemented by the exporter.
+   It should return the sg_table containing scatterlist for this buffer, mapped
+   into caller's address space.
+
+   If this is being called for the first time, the exporter can now choose to
+   scan through the list of attachments for this buffer, collate the requirements
+   of the attached devices, and choose an appropriate backing storage for the
+   buffer.
+
+   Based on enum dma_data_direction, it might be possible to have multiple users
+   accessing at the same time (for reading, maybe), or any other kind of sharing
+   that the exporter might wish to make available to buffer-users.
+
+   map_dma_buf() operation can return -EINTR if it is interrupted by a signal.
+
+
+5. When finished, the buffer-user notifies end-of-DMA to exporter
+
+   Once the DMA for the current buffer-user is over, it signals 'end-of-DMA' to
+   the exporter using the dma_buf_unmap_attachment API.
+
+   Interface:
+      void dma_buf_unmap_attachment(struct dma_buf_attachment *,
+                                    struct sg_table *);
+
+   This is a wrapper to dma_buf->ops->unmap_dma_buf() operation, which hides the
+   "dma_buf->ops->" indirection from the users of this interface.
+
+   In struct dma_buf_ops, unmap_dma_buf is defined as
+      void (*unmap_dma_buf)(struct dma_buf_attachment *, struct sg_table *);
+
+   unmap_dma_buf signifies the end-of-DMA for the attachment provided. Like
+   map_dma_buf, this API also must be implemented by the exporter.
+
+
+6. when buffer-user is done using this buffer, it 'disconnects' itself from the
+   buffer.
+
+   After the buffer-user has no more interest in using this buffer, it should
+   disconnect itself from the buffer:
+
+   - it first detaches itself from the buffer.
+
+   Interface:
+      void dma_buf_detach(struct dma_buf *dmabuf,
+                          struct dma_buf_attachment *dmabuf_attach);
+
+   This API removes the attachment from the list in dmabuf, and optionally calls
+   dma_buf->ops->detach(), if provided by exporter, for any housekeeping bits.
+
+   - Then, the buffer-user returns the buffer reference to exporter.
+
+   Interface:
+     void dma_buf_put(struct dma_buf *dmabuf);
+
+   This API then reduces the refcount for this buffer.
+
+   If, as a result of this call, the refcount becomes 0, the 'release' file
+   operation related to this fd is called. It calls the dmabuf->ops->release()
+   operation in turn, and frees the memory allocated for dmabuf when exported.
+
+NOTES:
+- Importance of attach-detach and {map,unmap}_dma_buf operation pairs
+   The attach-detach calls allow the exporter to figure out backing-storage
+   constraints for the currently-interested devices. This allows preferential
+   allocation, and/or migration of pages across different types of storage
+   available, if possible.
+
+   Bracketing of DMA access with {map,unmap}_dma_buf operations is essential
+   to allow just-in-time backing of storage, and migration mid-way through a
+   use-case.
+
+- Migration of backing storage if needed
+   If after
+   - at least one map_dma_buf has happened,
+   - and the backing storage has been allocated for this buffer,
+   another new buffer-user intends to attach itself to this buffer, it might
+   be allowed, if possible for the exporter.
+
+   In case it is allowed by the exporter:
+    if the new buffer-user has stricter 'backing-storage constraints', and the
+    exporter can handle these constraints, the exporter can just stall on the
+    map_dma_buf until all outstanding access is completed (as signalled by
+    unmap_dma_buf).
+    Once all users have finished accessing and have unmapped this buffer, the
+    exporter could potentially move the buffer to the stricter backing-storage,
+    and then allow further {map,unmap}_dma_buf operations from any buffer-user
+    from the migrated backing-storage.
+
+   If the exporter cannot fulfil the backing-storage constraints of the new
+   buffer-user device as requested, dma_buf_attach() would return an error to
+   denote non-compatibility of the new buffer-sharing request with the current
+   buffer.
+
+   If the exporter chooses not to allow an attach() operation once a
+   map_dma_buf() API has been called, it simply returns an error.
+
+Kernel cpu access to a dma-buf buffer object
+--------------------------------------------
+
+The motivation to allow cpu access from the kernel to a dma-buf object from the
+importers side are:
+- fallback operations, e.g. if the devices is connected to a usb bus and the
+  kernel needs to shuffle the data around first before sending it away.
+- full transparency for existing users on the importer side, i.e. userspace
+  should not notice the difference between a normal object from that subsystem
+  and an imported one backed by a dma-buf. This is really important for drm
+  opengl drivers that expect to still use all the existing upload/download
+  paths.
+
+Access to a dma_buf from the kernel context involves three steps:
+
+1. Prepare access, which invalidate any necessary caches and make the object
+   available for cpu access.
+2. Access the object page-by-page with the dma_buf map apis
+3. Finish access, which will flush any necessary cpu caches and free reserved
+   resources.
+
+1. Prepare access
+
+   Before an importer can access a dma_buf object with the cpu from the kernel
+   context, it needs to notify the exporter of the access that is about to
+   happen.
+
+   Interface:
+      int dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
+				   size_t start, size_t len,
+				   enum dma_data_direction direction)
+
+   This allows the exporter to ensure that the memory is actually available for
+   cpu access - the exporter might need to allocate or swap-in and pin the
+   backing storage. The exporter also needs to ensure that cpu access is
+   coherent for the given range and access direction. The range and access
+   direction can be used by the exporter to optimize the cache flushing, i.e.
+   access outside of the range or with a different direction (read instead of
+   write) might return stale or even bogus data (e.g. when the exporter needs to
+   copy the data to temporary storage).
+
+   This step might fail, e.g. in oom conditions.
+
+2. Accessing the buffer
+
+   To support dma_buf objects residing in highmem cpu access is page-based using
+   an api similar to kmap. Accessing a dma_buf is done in aligned chunks of
+   PAGE_SIZE size. Before accessing a chunk it needs to be mapped, which returns
+   a pointer in kernel virtual address space. Afterwards the chunk needs to be
+   unmapped again. There is no limit on how often a given chunk can be mapped
+   and unmapped, i.e. the importer does not need to call begin_cpu_access again
+   before mapping the same chunk again.
+
+   Interfaces:
+      void *dma_buf_kmap(struct dma_buf *, unsigned long);
+      void dma_buf_kunmap(struct dma_buf *, unsigned long, void *);
+
+   There are also atomic variants of these interfaces. Like for kmap they
+   facilitate non-blocking fast-paths. Neither the importer nor the exporter (in
+   the callback) is allowed to block when using these.
+
+   Interfaces:
+      void *dma_buf_kmap_atomic(struct dma_buf *, unsigned long);
+      void dma_buf_kunmap_atomic(struct dma_buf *, unsigned long, void *);
+
+   For importers all the restrictions of using kmap apply, like the limited
+   supply of kmap_atomic slots. Hence an importer shall only hold onto at most 2
+   atomic dma_buf kmaps at the same time (in any given process context).
+
+   dma_buf kmap calls outside of the range specified in begin_cpu_access are
+   undefined. If the range is not PAGE_SIZE aligned, kmap needs to succeed on
+   the partial chunks at the beginning and end but may return stale or bogus
+   data outside of the range (in these partial chunks).
+
+   Note that these calls need to always succeed. The exporter needs to complete
+   any preparations that might fail in begin_cpu_access.
+
+3. Finish access
+
+   When the importer is done accessing the range specified in begin_cpu_access,
+   it needs to announce this to the exporter (to facilitate cache flushing and
+   unpinning of any pinned resources). The result of of any dma_buf kmap calls
+   after end_cpu_access is undefined.
+
+   Interface:
+      void dma_buf_end_cpu_access(struct dma_buf *dma_buf,
+				  size_t start, size_t len,
+				  enum dma_data_direction dir);
+
+
+Miscellaneous notes
+-------------------
+
+- Any exporters or users of the dma-buf buffer sharing framework must have
+  a 'select DMA_SHARED_BUFFER' in their respective Kconfigs.
+
+- In order to avoid fd leaks on exec, the FD_CLOEXEC flag must be set
+  on the file descriptor.  This is not just a resource leak, but a
+  potential security hole.  It could give the newly exec'd application
+  access to buffers, via the leaked fd, to which it should otherwise
+  not be permitted access.
+
+  The problem with doing this via a separate fcntl() call, versus doing it
+  atomically when the fd is created, is that this is inherently racy in a
+  multi-threaded app[3].  The issue is made worse when it is library code
+  opening/creating the file descriptor, as the application may not even be
+  aware of the fd's.
+
+  To avoid this problem, userspace must have a way to request O_CLOEXEC
+  flag be set when the dma-buf fd is created.  So any API provided by
+  the exporting driver to create a dmabuf fd must provide a way to let
+  userspace control setting of O_CLOEXEC flag passed in to dma_buf_fd().
+
+References:
+[1] struct dma_buf_ops in include/linux/dma-buf.h
+[2] All interfaces mentioned above defined in include/linux/dma-buf.h
+[3] https://lwn.net/Articles/236486/

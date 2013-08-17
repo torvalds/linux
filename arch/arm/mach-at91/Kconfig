@@ -1,0 +1,555 @@
+if ARCH_AT91
+
+config HAVE_AT91_DATAFLASH_CARD
+	bool
+
+config HAVE_AT91_DBGU0
+	bool
+
+config HAVE_AT91_DBGU1
+	bool
+
+config HAVE_AT91_USART3
+	bool
+
+config HAVE_AT91_USART4
+	bool
+
+config HAVE_AT91_USART5
+	bool
+
+config AT91_SAM9_ALT_RESET
+	bool
+	default !ARCH_AT91X40
+
+config AT91_SAM9G45_RESET
+	bool
+	default !ARCH_AT91X40
+
+menu "Atmel AT91 System-on-Chip"
+
+choice
+	prompt "Atmel AT91 Processor"
+
+config ARCH_AT91RM9200
+	bool "AT91RM9200"
+	select CPU_ARM920T
+	select GENERIC_CLOCKEVENTS
+	select HAVE_AT91_DBGU0
+	select HAVE_AT91_USART3
+
+config ARCH_AT91SAM9260
+	bool "AT91SAM9260 or AT91SAM9XE"
+	select CPU_ARM926T
+	select GENERIC_CLOCKEVENTS
+	select HAVE_AT91_DBGU0
+	select HAVE_AT91_USART3
+	select HAVE_AT91_USART4
+	select HAVE_AT91_USART5
+	select HAVE_NET_MACB
+
+config ARCH_AT91SAM9261
+	bool "AT91SAM9261"
+	select CPU_ARM926T
+	select GENERIC_CLOCKEVENTS
+	select HAVE_FB_ATMEL
+	select HAVE_AT91_DBGU0
+
+config ARCH_AT91SAM9G10
+	bool "AT91SAM9G10"
+	select CPU_ARM926T
+	select GENERIC_CLOCKEVENTS
+	select HAVE_AT91_DBGU0
+	select HAVE_FB_ATMEL
+
+config ARCH_AT91SAM9263
+	bool "AT91SAM9263"
+	select CPU_ARM926T
+	select GENERIC_CLOCKEVENTS
+	select HAVE_FB_ATMEL
+	select HAVE_NET_MACB
+	select HAVE_AT91_DBGU1
+
+config ARCH_AT91SAM9RL
+	bool "AT91SAM9RL"
+	select CPU_ARM926T
+	select GENERIC_CLOCKEVENTS
+	select HAVE_AT91_USART3
+	select HAVE_FB_ATMEL
+	select HAVE_AT91_DBGU0
+
+config ARCH_AT91SAM9G20
+	bool "AT91SAM9G20"
+	select CPU_ARM926T
+	select GENERIC_CLOCKEVENTS
+	select HAVE_AT91_DBGU0
+	select HAVE_AT91_USART3
+	select HAVE_AT91_USART4
+	select HAVE_AT91_USART5
+	select HAVE_NET_MACB
+
+config ARCH_AT91SAM9G45
+	bool "AT91SAM9G45"
+	select CPU_ARM926T
+	select GENERIC_CLOCKEVENTS
+	select HAVE_AT91_USART3
+	select HAVE_FB_ATMEL
+	select HAVE_NET_MACB
+	select HAVE_AT91_DBGU1
+
+config ARCH_AT91SAM9X5
+	bool "AT91SAM9x5 family"
+	select CPU_ARM926T
+	select GENERIC_CLOCKEVENTS
+	select HAVE_FB_ATMEL
+	select HAVE_NET_MACB
+	select HAVE_AT91_DBGU0
+
+config ARCH_AT91X40
+	bool "AT91x40"
+	select ARCH_USES_GETTIMEOFFSET
+
+endchoice
+
+config AT91_PMC_UNIT
+	bool
+	default !ARCH_AT91X40
+
+# ----------------------------------------------------------
+
+if ARCH_AT91RM9200
+
+comment "AT91RM9200 Board Type"
+
+config MACH_ONEARM
+	bool "Ajeco 1ARM Single Board Computer"
+	help
+	  Select this if you are using Ajeco's 1ARM Single Board Computer.
+	  <http://www.ajeco.fi/>
+
+config ARCH_AT91RM9200DK
+	bool "Atmel AT91RM9200-DK Development board"
+	select HAVE_AT91_DATAFLASH_CARD
+	help
+	  Select this if you are using Atmel's AT91RM9200-DK Development board.
+	  (Discontinued)
+
+config MACH_AT91RM9200EK
+	bool "Atmel AT91RM9200-EK Evaluation Kit"
+	select HAVE_AT91_DATAFLASH_CARD
+	help
+	  Select this if you are using Atmel's AT91RM9200-EK Evaluation Kit.
+	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=3507>
+
+config MACH_CSB337
+	bool "Cogent CSB337"
+	help
+	  Select this if you are using Cogent's CSB337 board.
+	  <http://www.cogcomp.com/csb_csb337.htm>
+
+config MACH_CSB637
+	bool "Cogent CSB637"
+	help
+	  Select this if you are using Cogent's CSB637 board.
+	  <http://www.cogcomp.com/csb_csb637.htm>
+
+config MACH_CARMEVA
+	bool "Conitec ARM&EVA"
+	help
+	  Select this if you are using Conitec's AT91RM9200-MCU-Module.
+	  <http://www.conitec.net/english/linuxboard.php>
+
+config MACH_ATEB9200
+	bool "Embest ATEB9200"
+	help
+	  Select this if you are using Embest's ATEB9200 board.
+	  <http://www.embedinfo.com/english/product/ATEB9200.asp>
+
+config MACH_KB9200
+	bool "KwikByte KB920x"
+	help
+	  Select this if you are using KwikByte's KB920x board.
+	  <http://www.kwikbyte.com/KB9202.html>
+
+config MACH_PICOTUX2XX
+	bool "picotux 200"
+	help
+	  Select this if you are using a picotux 200.
+	  <http://www.picotux.com/>
+
+config MACH_KAFA
+	bool "Sperry-Sun KAFA board"
+	help
+	  Select this if you are using Sperry-Sun's KAFA board.
+
+config MACH_ECBAT91
+	bool "emQbit ECB_AT91 SBC"
+	select HAVE_AT91_DATAFLASH_CARD
+	help
+	  Select this if you are using emQbit's ECB_AT91 board.
+	  <http://wiki.emqbit.com/free-ecb-at91>
+
+config MACH_YL9200
+	bool "ucDragon YL-9200"
+	help
+	  Select this if you are using the ucDragon YL-9200 board.
+
+config MACH_CPUAT91
+	bool "Eukrea CPUAT91"
+	help
+	  Select this if you are using the Eukrea Electromatique's
+	  CPUAT91 board <http://www.eukrea.com/>.
+
+config MACH_ECO920
+	bool "eco920"
+	help
+	  Select this if you are using the eco920 board
+
+config MACH_RSI_EWS
+	bool "RSI Embedded Webserver"
+	depends on ARCH_AT91RM9200
+	help
+	  Select this if you are using RSIs EWS board.
+endif
+
+# ----------------------------------------------------------
+
+if ARCH_AT91SAM9260
+
+comment "AT91SAM9260 Variants"
+
+comment "AT91SAM9260 / AT91SAM9XE Board Type"
+
+config MACH_AT91SAM9260EK
+	bool "Atmel AT91SAM9260-EK / AT91SAM9XE Evaluation Kit"
+	select HAVE_AT91_DATAFLASH_CARD
+	help
+	  Select this if you are using Atmel's AT91SAM9260-EK or AT91SAM9XE Evaluation Kit
+	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=3933>
+
+config MACH_CAM60
+	bool "KwikByte KB9260 (CAM60) board"
+	help
+	  Select this if you are using KwikByte's KB9260 (CAM60) board based on the Atmel AT91SAM9260.
+	  <http://www.kwikbyte.com/KB9260.html>
+
+config MACH_SAM9_L9260
+	bool "Olimex SAM9-L9260 board"
+	select HAVE_AT91_DATAFLASH_CARD
+	help
+	  Select this if you are using Olimex's SAM9-L9260 board based on the Atmel AT91SAM9260.
+	  <http://www.olimex.com/dev/sam9-L9260.html>
+
+config MACH_AFEB9260
+	bool "Custom afeb9260 board v1"
+	help
+	  Select this if you are using custom afeb9260 board based on
+	  open hardware design. Select this for revision 1 of the board.
+	  <svn://194.85.238.22/home/users/george/svn/arm9eb>
+	  <http://groups.google.com/group/arm9fpga-evolution-board>
+
+config MACH_USB_A9260
+	bool "CALAO USB-A9260"
+	help
+	  Select this if you are using a Calao Systems USB-A9260.
+	  <http://www.calao-systems.com>
+
+config MACH_QIL_A9260
+	bool "CALAO QIL-A9260 board"
+	help
+	  Select this if you are using a Calao Systems QIL-A9260 Board.
+	  <http://www.calao-systems.com>
+
+config MACH_CPU9260
+	bool "Eukrea CPU9260 board"
+	help
+	  Select this if you are using a Eukrea Electromatique's
+	  CPU9260 Board <http://www.eukrea.com/>
+
+config MACH_FLEXIBITY
+	bool "Flexibity Connect board"
+	help
+	  Select this if you are using Flexibity Connect board
+	  <http://www.flexibity.com>
+
+endif
+
+# ----------------------------------------------------------
+
+if ARCH_AT91SAM9261
+
+comment "AT91SAM9261 Board Type"
+
+config MACH_AT91SAM9261EK
+	bool "Atmel AT91SAM9261-EK Evaluation Kit"
+	select HAVE_AT91_DATAFLASH_CARD
+	help
+	  Select this if you are using Atmel's AT91SAM9261-EK Evaluation Kit.
+	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=3820>
+
+endif
+
+# ----------------------------------------------------------
+
+if ARCH_AT91SAM9G10
+
+comment "AT91SAM9G10 Board Type"
+
+config MACH_AT91SAM9G10EK
+	bool "Atmel AT91SAM9G10-EK Evaluation Kit"
+	select HAVE_AT91_DATAFLASH_CARD
+	help
+	  Select this if you are using Atmel's AT91SAM9G10-EK Evaluation Kit.
+	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=4588>
+
+endif
+
+# ----------------------------------------------------------
+
+if ARCH_AT91SAM9263
+
+comment "AT91SAM9263 Board Type"
+
+config MACH_AT91SAM9263EK
+	bool "Atmel AT91SAM9263-EK Evaluation Kit"
+	select HAVE_AT91_DATAFLASH_CARD
+	help
+	  Select this if you are using Atmel's AT91SAM9263-EK Evaluation Kit.
+	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=4057>
+
+config MACH_USB_A9263
+	bool "CALAO USB-A9263"
+	help
+	  Select this if you are using a Calao Systems USB-A9263.
+	  <http://www.calao-systems.com>
+
+config MACH_NEOCORE926
+	bool "Adeneo NEOCORE926"
+	select HAVE_AT91_DATAFLASH_CARD
+	help
+	  Select this if you are using the Adeneo Neocore 926 board.
+
+endif
+
+# ----------------------------------------------------------
+
+if ARCH_AT91SAM9RL
+
+comment "AT91SAM9RL Board Type"
+
+config MACH_AT91SAM9RLEK
+	bool "Atmel AT91SAM9RL-EK Evaluation Kit"
+	help
+	  Select this if you are using Atmel's AT91SAM9RL-EK Evaluation Kit.
+
+endif
+
+# ----------------------------------------------------------
+
+if ARCH_AT91SAM9G20
+
+comment "AT91SAM9G20 Board Type"
+
+config MACH_AT91SAM9G20EK
+	bool "Atmel AT91SAM9G20-EK Evaluation Kit"
+	select HAVE_AT91_DATAFLASH_CARD
+	help
+	  Select this if you are using Atmel's AT91SAM9G20-EK Evaluation Kit
+	  that embeds only one SD/MMC slot.
+
+config MACH_AT91SAM9G20EK_2MMC
+	depends on MACH_AT91SAM9G20EK
+	bool "Atmel AT91SAM9G20-EK Evaluation Kit with 2 SD/MMC Slots"
+	help
+	  Select this if you are using an Atmel AT91SAM9G20-EK Evaluation Kit
+	  with 2 SD/MMC Slots. This is the case for AT91SAM9G20-EK rev. C and
+	  onwards.
+
+config MACH_CPU9G20
+	bool "Eukrea CPU9G20 board"
+	help
+	  Select this if you are using a Eukrea Electromatique's
+	  CPU9G20 Board <http://www.eukrea.com/>
+
+config MACH_ACMENETUSFOXG20
+	bool "Acme Systems srl FOX Board G20"
+	help
+	  Select this if you are using Acme Systems
+	  FOX Board G20 <http://www.acmesystems.it>
+
+config MACH_PORTUXG20
+	bool "taskit PortuxG20"
+	help
+	  Select this if you are using taskit's PortuxG20.
+	  <http://www.taskit.de/en/>
+
+config MACH_STAMP9G20
+	bool "taskit Stamp9G20 CPU module"
+	help
+	  Select this if you are using taskit's Stamp9G20 CPU module on its
+	  evaluation board.
+	  <http://www.taskit.de/en/>
+
+config MACH_PCONTROL_G20
+	bool "PControl G20 CPU module"
+	help
+	  Select this if you are using taskit's Stamp9G20 CPU module on this
+	  carrier board, beeing the decentralized unit of a building automation
+	  system; featuring nvram, eth-switch, iso-rs485, display, io
+
+config MACH_GSIA18S
+	bool "GS_IA18_S board"
+	help
+	  This enables support for the GS_IA18_S board
+	  produced by GeoSIG Ltd company. This is an internet accelerograph.
+	  <http://www.geosig.com>
+
+config MACH_USB_A9G20
+	bool "CALAO USB-A9G20"
+	depends on ARCH_AT91SAM9G20
+	help
+	  Select this if you are using a Calao Systems USB-A9G20.
+	  <http://www.calao-systems.com>
+
+endif
+
+if (ARCH_AT91SAM9260 || ARCH_AT91SAM9G20)
+comment "AT91SAM9260/AT91SAM9G20 boards"
+
+config MACH_SNAPPER_9260
+        bool "Bluewater Systems Snapper 9260/9G20 module"
+        help
+          Select this if you are using the Bluewater Systems Snapper 9260 or
+          Snapper 9G20 modules.
+          <http://www.bluewatersys.com/>
+endif
+
+# ----------------------------------------------------------
+
+if ARCH_AT91SAM9G45
+
+comment "AT91SAM9G45 Board Type"
+
+config MACH_AT91SAM9M10G45EK
+	bool "Atmel AT91SAM9M10G45-EK Evaluation Kits"
+	help
+	  Select this if you are using Atmel's AT91SAM9G45-EKES Evaluation Kit.
+	  "ES" at the end of the name means that this board is an
+	  Engineering Sample.
+
+endif
+
+# ----------------------------------------------------------
+
+if ARCH_AT91X40
+
+comment "AT91X40 Board Type"
+
+config MACH_AT91EB01
+	bool "Atmel AT91EB01 Evaluation Kit"
+	help
+	  Select this if you are using Atmel's AT91EB01 Evaluation Kit.
+	  It is also a popular target for simulators such as GDB's
+	  ARM simulator (commonly known as the ARMulator) and the
+	  Skyeye simulator.
+
+endif
+
+# ----------------------------------------------------------
+
+comment "Generic Board Type"
+
+config MACH_AT91SAM_DT
+	bool "Atmel AT91SAM Evaluation Kits with device-tree support"
+	select USE_OF
+	help
+	  Select this if you want to experiment device-tree with
+	  an Atmel Evaluation Kit.
+
+# ----------------------------------------------------------
+
+comment "AT91 Board Options"
+
+config MTD_AT91_DATAFLASH_CARD
+	bool "Enable DataFlash Card support"
+	depends on HAVE_AT91_DATAFLASH_CARD
+	help
+	  Enable support for the DataFlash card.
+
+# ----------------------------------------------------------
+
+comment "AT91 Feature Selections"
+
+config AT91_PROGRAMMABLE_CLOCKS
+	bool "Programmable Clocks"
+	help
+	  Select this if you need to program one or more of the PCK0..PCK3
+	  programmable clock outputs.
+
+config AT91_SLOW_CLOCK
+	bool "Suspend-to-RAM disables main oscillator"
+	depends on SUSPEND
+	help
+	  Select this if you want Suspend-to-RAM to save the most power
+	  possible (without powering off the CPU) by disabling the PLLs
+	  and main oscillator so that only the 32 KiHz clock is available.
+
+	  When only that slow-clock is available, some peripherals lose
+	  functionality.  Many can't issue wakeup events unless faster
+	  clocks are available.  Some lose their operating state and
+	  need to be completely re-initialized.
+
+config AT91_TIMER_HZ
+       int "Kernel HZ (jiffies per second)"
+       range 32 1024
+       depends on ARCH_AT91
+       default "128" if ARCH_AT91RM9200
+       default "100"
+       help
+	  On AT91rm9200 chips where you're using a system clock derived
+	  from the 32768 Hz hardware clock, this tick rate should divide
+	  it exactly: use a power-of-two value, such as 128 or 256, to
+	  reduce timing errors caused by rounding.
+
+	  On AT91sam926x chips, or otherwise when using a higher precision
+	  system clock (of at least several MHz), rounding is less of a
+	  problem so it can be safer to use a decimal values like 100.
+
+choice
+	prompt "Select a UART for early kernel messages"
+
+config AT91_EARLY_DBGU0
+	bool "DBGU on rm9200, 9260/9g20, 9261/9g10 and 9rl"
+	depends on HAVE_AT91_DBGU0
+
+config AT91_EARLY_DBGU1
+	bool "DBGU on 9263 and 9g45"
+	depends on HAVE_AT91_DBGU1
+
+config AT91_EARLY_USART0
+	bool "USART0"
+
+config AT91_EARLY_USART1
+	bool "USART1"
+
+config AT91_EARLY_USART2
+	bool "USART2"
+	depends on ! ARCH_AT91X40
+
+config AT91_EARLY_USART3
+	bool "USART3"
+	depends on HAVE_AT91_USART3
+
+config AT91_EARLY_USART4
+	bool "USART4"
+	depends on HAVE_AT91_USART4
+
+config AT91_EARLY_USART5
+	bool "USART5"
+	depends on HAVE_AT91_USART5
+
+endchoice
+
+endmenu
+
+endif

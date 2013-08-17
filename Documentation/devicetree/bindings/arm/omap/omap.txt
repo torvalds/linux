@@ -1,0 +1,49 @@
+* Texas Instruments OMAP
+
+OMAP is currently using a static file per SoC family to describe the
+IPs present in the SoC.
+On top of that an omap_device is created to extend the platform_device
+capabilities and to allow binding with one or several hwmods.
+The hwmods will contain all the information to build the device:
+address range, irq lines, dma lines, interconnect, PRCM register,
+clock domain, input clocks.
+For the moment just point to the existing hwmod, the next step will be
+to move data from hwmod to device-tree representation.
+
+
+Required properties:
+- compatible: Every devices present in OMAP SoC should be in the
+  form: "ti,XXX"
+- ti,hwmods: list of hwmod names (ascii strings), that comes from the OMAP
+  HW documentation, attached to a device. Must contain at least
+  one hwmod.
+
+Optional properties:
+- ti,no_idle_on_suspend: When present, it prevents the PM to idle the module
+  during suspend.
+
+
+Example:
+
+spinlock@1 {
+    compatible = "ti,omap4-spinlock";
+    ti,hwmods = "spinlock";
+};
+
+
+Boards:
+
+- OMAP3 BeagleBoard : Low cost community board
+  compatible = "ti,omap3-beagle", "ti,omap3"
+
+- OMAP4 SDP : Software Developement Board
+  compatible = "ti,omap4-sdp", "ti,omap4430"
+
+- OMAP4 PandaBoard : Low cost community board
+  compatible = "ti,omap4-panda", "ti,omap4430"
+
+- OMAP3 EVM : Software Developement Board for OMAP35x, AM/DM37x
+  compatible = "ti,omap3-evm", "ti,omap3"
+
+- AM335X EVM : Software Developement Board for AM335x
+  compatible = "ti,am335x-evm", "ti,am33xx", "ti,omap3"

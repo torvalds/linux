@@ -1,0 +1,203 @@
+Released 1994-06-13
+
+
+	CONTENTS:
+
+	1. Introduction.
+	2. License.
+	3. Files in this release.
+	4. Installation.
+	5. Problems and tuning.
+	6. Using the drivers with earlier releases.
+	7. Acknowledgments.
+
+
+	1. INTRODUCTION.
+
+	This is a set of Ethernet drivers for the D-Link DE-600/DE-620
+	pocket adapters, for the parallel port on a Linux based machine.
+	Some adapter "clones" will also work.  Xircom is _not_ a clone...
+	These drivers _can_ be used as loadable modules,
+	and were developed for use on Linux 1.1.13 and above.
+	For use on Linux 1.0.X, or earlier releases, see below.
+
+	I have used these drivers for NFS, ftp, telnet and X-clients on
+	remote machines. Transmissions with ftp seems to work as
+	good as can be expected (i.e. > 80k bytes/sec) from a
+	parallel port...:-)  Receive speeds will be about 60-80% of this.
+	Depending on your machine, somewhat higher speeds can be achieved.
+
+	All comments/fixes to Bjorn Ekwall (bj0rn@blox.se).
+
+
+	2. LICENSE.
+
+	This program is free software; you can redistribute it
+	and/or modify it under the terms of the GNU General Public
+	License as published by the Free Software Foundation; either
+	version 2, or (at your option) any later version.
+
+	This program is distributed in the hope that it will be
+	useful, but WITHOUT ANY WARRANTY; without even the implied
+	warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+	PURPOSE. See the GNU General Public License for more
+	details.
+
+	You should have received a copy of the GNU General Public
+	License along with this program; if not, write to the Free
+	Software Foundation, Inc., 675 Mass Ave, Cambridge, MA
+	02139, USA.
+
+
+	3. FILES IN THIS RELEASE.
+
+	README.DLINK  This file.
+	de600.c       The Source (may it be with You :-) for the DE-600
+	de620.c       ditto for the DE-620
+	de620.h       Macros for de620.c
+
+	If you are upgrading from the d-link tar release, there will
+	also be a "dlink-patches" file that will patch Linux 1.1.18:
+		linux/drivers/net/Makefile
+		linux/drivers/net/CONFIG
+		linux/drivers/net/MODULES
+		linux/drivers/net/Space.c
+		linux/config.in
+	Apply the patch by:
+	"cd /usr/src; patch -p0 < linux/drivers/net/dlink-patches"
+	The old source, "linux/drivers/net/d_link.c", can be removed.
+
+
+	4. INSTALLATION.
+
+	o Get the latest net binaries, according to current net.wisdom.
+
+	o Read the NET-2 and Ethernet HOWTOs and modify your setup.
+
+	o If your parallel port has a strange address or irq,
+	  modify "linux/drivers/net/CONFIG" accordingly, or adjust
+	  the parameters in the "tuning" section in the sources.
+
+	If you are going to use the drivers as loadable modules, do _not_
+	enable them while doing "make config", but instead make sure that
+	the drivers are included in "linux/drivers/net/MODULES".
+
+	If you are _not_ going to use the driver(s) as loadable modules,
+	but instead have them included in the kernel, remember to enable
+	the drivers while doing "make config".
+
+	o To include networking and DE600/DE620 support in your kernel:
+	  # cd /linux
+	  (as modules:)
+	  #  make config (answer yes on CONFIG_NET and CONFIG_INET)
+	  (else included in the kernel:)
+	  #  make config (answer yes on CONFIG _NET, _INET and _DE600 or _DE620)
+	  # make clean
+	  # make zImage (or whatever magic you usually do)
+
+	o I use lilo to boot multiple kernels, so that I at least
+	  can have one working kernel :-). If you do too, append
+	  these lines to /etc/lilo/config:
+
+		image = /linux/zImage
+		label = newlinux
+		root = /dev/hda2 (or whatever YOU have...)
+
+	  # /etc/lilo/install
+
+	o Do "sync" and reboot the new kernel with a D-Link
+	  DE-600/DE-620 pocket adapter connected.
+
+	o The adapter can be configured with ifconfig eth?
+	  where the actual number is decided by the kernel
+	  when the drivers are initialized.
+
+
+	5. "PROBLEMS" AND TUNING,
+
+	o If you see error messages from the driver, and if the traffic
+	  stops on the adapter, try to do "ifconfig" and "route" once
+	  more, just as in "rc.inet1".  This should take care of most
+	  problems, including effects from power loss, or adapters that
+	  aren't connected to the printer port in some way or another.
+	  You can somewhat change the behaviour by enabling/disabling
+	  the macro  SHUTDOWN_WHEN_LOST  in the "tuning" section.
+	  For the DE-600 there is another macro, CHECK_LOST_DE600,
+	  that you might want to read about in the "tuning" section.
+
+	o Some machines have trouble handling the parallel port and
+	  the adapter at high speed. If you experience problems:
+
+	  DE-600:
+	  - The adapter is not recognized at boot, i.e. an Ethernet
+	    address of 00:80:c8:... is not shown, try to add another
+	      "; SLOW_DOWN_IO"
+	    at DE600_SLOW_DOWN in the "tuning" section. As a last resort,
+	    uncomment: "#define REALLY_SLOW_IO" (see <asm/io.h> for hints).
+
+	  - You experience "timeout" messages: first try to add another
+	      "; SLOW_DOWN_IO"
+	    at DE600_SLOW_DOWN in the "tuning" section, _then_ try to
+	    increase the value (original value: 5) at
+	    "if (tickssofar < 5)" near line 422.
+
+	  DE-620:
+	  - Your parallel port might be "sluggish".  To cater for
+	    this, there are the macros LOWSPEED and READ_DELAY/WRITE_DELAY
+	    in the "tuning" section. Your first step should be to enable
+	    LOWSPEED, and after that you can "tune" the XXX_DELAY values.
+
+	o If the adapter _is_ recognized at boot but you get messages
+	  about "Network Unreachable", then the problem is probably
+	  _not_ with the driver.  Check your net configuration instead
+	  (ifconfig and route) in "rc.inet1".
+
+	o There is some rudimentary support for debugging, look at
+	  the source. Use "-DDE600_DEBUG=3" or "-DDE620_DEBUG=3"
+	  when compiling, or include it in "linux/drivers/net/CONFIG".
+	  IF YOU HAVE PROBLEMS YOU CAN'T SOLVE: PLEASE COMPILE THE DRIVER
+	  WITH DEBUGGING ENABLED, AND SEND ME THE RESULTING OUTPUT!
+
+
+	6. USING THE DRIVERS WITH EARLIER RELEASES.
+
+	The later 1.1.X releases of the Linux kernel include some
+	changes in the networking layer (a.k.a. NET3). This affects
+	these drivers in a few places.  The hints that follow are
+	_not_ tested by me, since I don't have the disk space to keep
+	all releases on-line.
+	Known needed changes to date:
+	- release patchfile: some patches will fail, but they should
+	  be easy to apply "by hand", since they are trivial.
+	  (Space.c: d_link_init() is now called de600_probe())
+	- de600.c: change  "mark_bh(NET_BH)" to  "mark_bh(INET_BH)".
+	- de620.c: (maybe) change the code around "netif_rx(skb);" to be
+		   similar to the code around "dev_rint(...)" in de600.c
+
+
+	7. ACKNOWLEDGMENTS.
+
+	These drivers wouldn't have been done without the base
+	(and support) from Ross Biro, and D-Link Systems Inc.
+	The driver relies upon GPL-ed source from D-Link Systems Inc.
+	and from Russel Nelson at Crynwr Software <nelson@crynwr.com>.
+
+	Additional input also from:
+	Donald Becker <becker@super.org>, Alan Cox <A.Cox@swansea.ac.uk>
+	and Fred N. van Kempen <waltje@uWalt.NL.Mugnet.ORG>
+
+	DE-600 alpha release primary victim^H^H^H^H^H^Htester:
+	- Erik Proper <erikp@cs.kun.nl>.
+	Good input also from several users, most notably
+	- Mark Burton <markb@ordern.demon.co.uk>.
+
+	DE-620 alpha release victims^H^H^H^H^H^H^Htesters:
+	- J. Joshua Kopper <kopper@rtsg.mot.com>
+	- Olav Kvittem <Olav.Kvittem@uninett.no>
+	- Germano Caronni <caronni@nessie.cs.id.ethz.ch>
+	- Jeremy Fitzhardinge <jeremy@suite.sw.oz.au>
+
+
+	Happy hacking!
+
+	Bjorn Ekwall == bj0rn@blox.se

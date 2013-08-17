@@ -1,0 +1,18 @@
+  <title>Codec Interface</title>
+
+  <note>
+    <title>Suspended</title>
+
+    <para>This interface has been be suspended from the V4L2 API
+implemented in Linux 2.6 until we have more experience with codec
+device interfaces.</para>
+  </note>
+
+  <para>A V4L2 codec can compress, decompress, transform, or otherwise
+convert video data from one format into another format, in memory.
+Applications send data to be converted to the driver through a
+&func-write; call, and receive the converted data through a
+&func-read; call. For efficiency a driver may also support streaming
+I/O.</para>
+
+  <para>[to do]</para>

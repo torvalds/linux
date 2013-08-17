@@ -1,0 +1,134 @@
+menu "CAN Device Drivers"
+	depends on CAN
+
+config CAN_VCAN
+	tristate "Virtual Local CAN Interface (vcan)"
+	depends on CAN
+	---help---
+	  Similar to the network loopback devices, vcan offers a
+	  virtual local CAN interface.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called vcan.
+
+config CAN_SLCAN
+	tristate "Serial / USB serial CAN Adaptors (slcan)"
+	depends on CAN
+	---help---
+	  CAN driver for several 'low cost' CAN interfaces that are attached
+	  via serial lines or via USB-to-serial adapters using the LAWICEL
+	  ASCII protocol. The driver implements the tty linediscipline N_SLCAN.
+
+	  As only the sending and receiving of CAN frames is implemented, this
+	  driver should work with the (serial/USB) CAN hardware from:
+	  www.canusb.com / www.can232.com / www.mictronics.de / www.canhack.de
+
+	  Userspace tools to attach the SLCAN line discipline (slcan_attach,
+	  slcand) can be found in the can-utils at the SocketCAN SVN, see
+	  http://developer.berlios.de/projects/socketcan for details.
+
+	  The slcan driver supports up to 10 CAN netdevices by default which
+	  can be changed by the 'maxdev=xx' module option. This driver can
+	  also be built as a module. If so, the module will be called slcan.
+
+config CAN_DEV
+	tristate "Platform CAN drivers with Netlink support"
+	depends on CAN
+	default y
+	---help---
+	  Enables the common framework for platform CAN drivers with Netlink
+	  support. This is the standard library for CAN drivers.
+	  If unsure, say Y.
+
+config CAN_CALC_BITTIMING
+	bool "CAN bit-timing calculation"
+	depends on CAN_DEV
+	default y
+	---help---
+	  If enabled, CAN bit-timing parameters will be calculated for the
+	  bit-rate specified via Netlink argument "bitrate" when the device
+	  get started. This works fine for the most common CAN controllers
+	  with standard bit-rates but may fail for exotic bit-rates or CAN
+	  source clock frequencies. Disabling saves some space, but then the
+	  bit-timing parameters must be specified directly using the Netlink
+	  arguments "tq", "prop_seg", "phase_seg1", "phase_seg2" and "sjw".
+	  If unsure, say Y.
+
+config CAN_AT91
+	tristate "Atmel AT91 onchip CAN controller"
+	depends on CAN_DEV && (ARCH_AT91SAM9263 || ARCH_AT91SAM9X5)
+	---help---
+	  This is a driver for the SoC CAN controller in Atmel's AT91SAM9263
+	  and AT91SAM9X5 processors.
+
+config CAN_TI_HECC
+	depends on CAN_DEV && ARCH_OMAP3
+	tristate "TI High End CAN Controller"
+	---help---
+	  Driver for TI HECC (High End CAN Controller) module found on many
+	  TI devices. The device specifications are available from www.ti.com
+
+config CAN_MCP251X
+	tristate "Microchip MCP251x SPI CAN controllers"
+	depends on CAN_DEV && SPI && HAS_DMA
+	---help---
+	  Driver for the Microchip MCP251x SPI CAN controllers.
+
+config CAN_BFIN
+	depends on CAN_DEV && (BF534 || BF536 || BF537 || BF538 || BF539 || BF54x)
+	tristate "Analog Devices Blackfin on-chip CAN"
+	---help---
+	  Driver for the Analog Devices Blackfin on-chip CAN controllers
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bfin_can.
+
+config CAN_JANZ_ICAN3
+	tristate "Janz VMOD-ICAN3 Intelligent CAN controller"
+	depends on CAN_DEV && MFD_JANZ_CMODIO
+	---help---
+	  Driver for Janz VMOD-ICAN3 Intelligent CAN controller module, which
+	  connects to a MODULbus carrier board.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called janz-ican3.ko.
+
+config HAVE_CAN_FLEXCAN
+	bool
+
+config CAN_FLEXCAN
+	tristate "Support for Freescale FLEXCAN based chips"
+	depends on CAN_DEV && HAVE_CAN_FLEXCAN
+	---help---
+	  Say Y here if you want to support for Freescale FlexCAN.
+
+config PCH_CAN
+	tristate "Intel EG20T PCH CAN controller"
+	depends on CAN_DEV && PCI
+	---help---
+	  This driver is for PCH CAN of Topcliff (Intel EG20T PCH) which
+	  is an IOH for x86 embedded processor (Intel Atom E6xx series).
+	  This driver can access CAN bus.
+
+source "drivers/net/can/mscan/Kconfig"
+
+source "drivers/net/can/sja1000/Kconfig"
+
+source "drivers/net/can/c_can/Kconfig"
+
+source "drivers/net/can/cc770/Kconfig"
+
+source "drivers/net/can/usb/Kconfig"
+
+source "drivers/net/can/softing/Kconfig"
+
+config CAN_DEBUG_DEVICES
+	bool "CAN devices debugging messages"
+	depends on CAN
+	---help---
+	  Say Y here if you want the CAN device drivers to produce a bunch of
+	  debug messages to the system log.  Select this if you are having
+	  a problem with CAN support and want to see more of what is going
+	  on.
+
+endmenu

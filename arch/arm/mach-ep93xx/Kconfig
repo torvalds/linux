@@ -1,0 +1,208 @@
+if ARCH_EP93XX
+
+menu "Cirrus EP93xx Implementation Options"
+
+config CRUNCH
+	bool "Support for MaverickCrunch"
+	help
+	  Enable kernel support for MaverickCrunch.
+
+comment "EP93xx Platforms"
+
+choice
+	prompt "EP93xx first SDRAM bank selection"
+	default EP93XX_SDCE3_SYNC_PHYS_OFFSET
+
+config EP93XX_SDCE3_SYNC_PHYS_OFFSET
+	bool "0x00000000 - SDCE3/SyncBoot"
+	help
+	  Select this option if you want support for EP93xx boards with the
+	  first SDRAM bank at 0x00000000.
+
+config EP93XX_SDCE0_PHYS_OFFSET
+	bool "0xc0000000 - SDCEO"
+	help
+	  Select this option if you want support for EP93xx boards with the
+	  first SDRAM bank at 0xc0000000.
+
+config EP93XX_SDCE1_PHYS_OFFSET
+	bool "0xd0000000 - SDCE1"
+	help
+	  Select this option if you want support for EP93xx boards with the
+	  first SDRAM bank at 0xd0000000.
+
+config EP93XX_SDCE2_PHYS_OFFSET
+	bool "0xe0000000 - SDCE2"
+	help
+	  Select this option if you want support for EP93xx boards with the
+	  first SDRAM bank at 0xe0000000.
+
+config EP93XX_SDCE3_ASYNC_PHYS_OFFSET
+	bool "0xf0000000 - SDCE3/AsyncBoot"
+	help
+	  Select this option if you want support for EP93xx boards with the
+	  first SDRAM bank at 0xf0000000.
+
+endchoice
+
+config MACH_ADSSPHERE
+	bool "Support ADS Sphere"
+	depends on EP93XX_SDCE3_SYNC_PHYS_OFFSET
+	help
+	  Say 'Y' here if you want your kernel to support the ADS
+	  Sphere board.
+
+config MACH_EDB93XX
+	bool
+
+config MACH_EDB9301
+	bool "Support Cirrus Logic EDB9301"
+	depends on EP93XX_SDCE3_SYNC_PHYS_OFFSET
+	select MACH_EDB93XX
+	help
+	  Say 'Y' here if you want your kernel to support the Cirrus
+	  Logic EDB9301 Evaluation Board.
+
+config MACH_EDB9302
+	bool "Support Cirrus Logic EDB9302"
+	depends on EP93XX_SDCE3_SYNC_PHYS_OFFSET
+	select MACH_EDB93XX
+	help
+	  Say 'Y' here if you want your kernel to support the Cirrus
+	  Logic EDB9302 Evaluation Board.
+
+config MACH_EDB9302A
+	bool "Support Cirrus Logic EDB9302A"
+	depends on EP93XX_SDCE0_PHYS_OFFSET
+	select MACH_EDB93XX
+	help
+	  Say 'Y' here if you want your kernel to support the Cirrus
+	  Logic EDB9302A Evaluation Board.
+
+config MACH_EDB9307
+	bool "Support Cirrus Logic EDB9307"
+	depends on EP93XX_SDCE3_SYNC_PHYS_OFFSET
+	select MACH_EDB93XX
+	help
+	  Say 'Y' here if you want your kernel to support the Cirrus
+	  Logic EDB9307 Evaluation Board.
+
+config MACH_EDB9307A
+	bool "Support Cirrus Logic EDB9307A"
+	depends on EP93XX_SDCE0_PHYS_OFFSET
+	select MACH_EDB93XX
+	help
+	  Say 'Y' here if you want your kernel to support the Cirrus
+	  Logic EDB9307A Evaluation Board.
+
+config MACH_EDB9312
+	bool "Support Cirrus Logic EDB9312"
+	depends on EP93XX_SDCE3_SYNC_PHYS_OFFSET
+	select MACH_EDB93XX
+	help
+	  Say 'Y' here if you want your kernel to support the Cirrus
+	  Logic EDB9312 Evaluation Board.
+
+config MACH_EDB9315
+	bool "Support Cirrus Logic EDB9315"
+	depends on EP93XX_SDCE3_SYNC_PHYS_OFFSET
+	select MACH_EDB93XX
+	help
+	  Say 'Y' here if you want your kernel to support the Cirrus
+	  Logic EDB9315 Evaluation Board.
+
+config MACH_EDB9315A
+	bool "Support Cirrus Logic EDB9315A"
+	depends on EP93XX_SDCE0_PHYS_OFFSET
+	select MACH_EDB93XX
+	help
+	  Say 'Y' here if you want your kernel to support the Cirrus
+	  Logic EDB9315A Evaluation Board.
+
+config MACH_GESBC9312
+	depends on EP93XX_SDCE3_SYNC_PHYS_OFFSET
+	bool "Support Glomation GESBC-9312-sx"
+	help
+	  Say 'Y' here if you want your kernel to support the Glomation
+	  GESBC-9312-sx board.
+
+config MACH_MICRO9
+	bool
+
+config MACH_MICRO9H
+	bool "Support Contec Micro9-High"
+	depends on EP93XX_SDCE3_SYNC_PHYS_OFFSET
+	select MACH_MICRO9
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Contec Micro9-High board.
+
+config MACH_MICRO9M
+	bool "Support Contec Micro9-Mid"
+	depends on EP93XX_SDCE3_ASYNC_PHYS_OFFSET
+	select MACH_MICRO9
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Contec Micro9-Mid board.
+
+config MACH_MICRO9L
+	bool "Support Contec Micro9-Lite"
+	depends on EP93XX_SDCE3_SYNC_PHYS_OFFSET
+	select MACH_MICRO9
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Contec Micro9-Lite board.
+
+config MACH_MICRO9S
+	bool "Support Contec Micro9-Slim"
+	depends on EP93XX_SDCE3_ASYNC_PHYS_OFFSET
+	select MACH_MICRO9
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Contec Micro9-Slim board.
+
+config MACH_SIM_ONE
+        bool "Support Simplemachines Sim.One board"
+        depends on EP93XX_SDCE0_PHYS_OFFSET
+        help
+          Say 'Y' here if you want your kernel to support the
+          Simplemachines Sim.One board.
+
+config MACH_SNAPPER_CL15
+	bool "Support Bluewater Systems Snapper CL15 Module"
+	depends on EP93XX_SDCE0_PHYS_OFFSET
+	help
+	  Say 'Y' here if you want your kernel to support the Bluewater
+	  Systems Snapper CL15 Module.
+
+config MACH_TS72XX
+	bool "Support Technologic Systems TS-72xx SBC"
+	depends on EP93XX_SDCE3_SYNC_PHYS_OFFSET
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Technologic Systems TS-72xx board.
+
+config MACH_VISION_EP9307
+	bool "Support Vision Engraving Systems EP9307 SoM"
+	depends on EP93XX_SDCE0_PHYS_OFFSET
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Vision Engraving Systems EP9307 SoM.
+
+choice
+	prompt "Select a UART for early kernel messages"
+
+config EP93XX_EARLY_UART1
+	bool "UART1"
+
+config EP93XX_EARLY_UART2
+	bool "UART2"
+
+config EP93XX_EARLY_UART3
+	bool "UART3"
+
+endchoice
+
+endmenu
+
+endif

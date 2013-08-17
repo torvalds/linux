@@ -1,0 +1,83 @@
+config PPC_86xx
+menuconfig PPC_86xx
+	bool "86xx-based boards"
+	depends on 6xx
+	select FSL_SOC
+	select ALTIVEC
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	help
+	  The Freescale E600 SoCs have 74xx cores.
+
+if PPC_86xx
+
+config MPC8641_HPCN
+	bool "Freescale MPC8641 HPCN"
+	select PPC_I8259
+	select DEFAULT_UIMAGE
+	select FSL_ULI1575 if PCI
+	select HAS_RAPIDIO
+	select SWIOTLB
+	help
+	  This option enables support for the MPC8641 HPCN board.
+
+config SBC8641D
+	bool "Wind River SBC8641D"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the WRS SBC8641D board.
+
+config MPC8610_HPCD
+	bool "Freescale MPC8610 HPCD"
+	select DEFAULT_UIMAGE
+	select FSL_ULI1575 if PCI
+	help
+	  This option enables support for the MPC8610 HPCD board.
+
+config GEF_PPC9A
+	bool "GE PPC9A"
+	select DEFAULT_UIMAGE
+	select MMIO_NVRAM
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	select GE_FPGA
+	help
+	  This option enables support for the GE PPC9A.
+
+config GEF_SBC310
+	bool "GE SBC310"
+	select DEFAULT_UIMAGE
+	select MMIO_NVRAM
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	select GE_FPGA
+	help
+	  This option enables support for the GE SBC310.
+
+config GEF_SBC610
+	bool "GE SBC610"
+	select DEFAULT_UIMAGE
+	select MMIO_NVRAM
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	select GE_FPGA
+	select HAS_RAPIDIO
+	help
+	  This option enables support for the GE SBC610.
+
+endif
+
+config MPC8641
+	bool
+	select PPC_PCI_CHOICE
+	select FSL_PCI if PCI
+	select PPC_UDBG_16550
+	select MPIC
+	default y if MPC8641_HPCN || SBC8641D || GEF_SBC610 || GEF_SBC310 || GEF_PPC9A
+
+config MPC8610
+	bool
+	select PPC_PCI_CHOICE
+	select FSL_PCI if PCI
+	select PPC_UDBG_16550
+	select MPIC
+	default y if MPC8610_HPCD

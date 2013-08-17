@@ -1,0 +1,10 @@
+config SCSI_CXGB3_ISCSI
+	tristate "Chelsio T3 iSCSI support"
+	depends on PCI && INET
+	select NETDEVICES
+	select ETHERNET
+	select NET_VENDOR_CHELSIO
+	select CHELSIO_T3
+	select SCSI_ISCSI_ATTRS
+	---help---
+	  This driver supports iSCSI offload for the Chelsio T3 devices.

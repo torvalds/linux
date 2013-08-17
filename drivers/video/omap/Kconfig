@@ -1,0 +1,71 @@
+config FB_OMAP
+	tristate "OMAP frame buffer support (EXPERIMENTAL)"
+	depends on FB
+	depends on ARCH_OMAP1
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+          Frame buffer driver for OMAP based boards.
+
+config FB_OMAP_LCDC_EXTERNAL
+	bool "External LCD controller support"
+	depends on FB_OMAP
+	help
+	  Say Y here, if you want to have support for boards with an
+	  external LCD controller connected to the SoSSI/RFBI interface.
+
+config FB_OMAP_LCDC_HWA742
+	bool "Epson HWA742 LCD controller support"
+	depends on FB_OMAP && FB_OMAP_LCDC_EXTERNAL
+	help
+	  Say Y here if you want to have support for the external
+	  Epson HWA742 LCD controller.
+
+config FB_OMAP_MANUAL_UPDATE
+	bool "Default to manual update mode"
+	depends on FB_OMAP && FB_OMAP_LCDC_EXTERNAL
+	help
+	  Say Y here, if your user-space applications are capable of
+	  notifying the frame buffer driver when a change has occurred in
+	  the frame buffer content and thus a reload of the image data to
+	  the external frame buffer is required. If unsure, say N.
+
+config FB_OMAP_LCD_MIPID
+	bool "MIPI DBI-C/DCS compatible LCD support"
+	depends on FB_OMAP && SPI_MASTER
+	help
+	  Say Y here if you want to have support for LCDs compatible with
+	  the Mobile Industry Processor Interface DBI-C/DCS
+	  specification. (Supported LCDs: Philips LPH8923, Sharp LS041Y3)
+
+config FB_OMAP_BOOTLOADER_INIT
+	bool "Check bootloader initialization"
+	depends on FB_OMAP
+	help
+	  Say Y here if you want to enable checking if the bootloader has
+	  already initialized the display controller. In this case the
+	  driver will skip the initialization.
+
+config FB_OMAP_CONSISTENT_DMA_SIZE
+	int "Consistent DMA memory size (MB)"
+	depends on FB_OMAP
+	range 1 14
+	default 2
+	help
+	  Increase the DMA consistent memory size according to your video
+	  memory needs, for example if you want to use multiple planes.
+	  The size must be 2MB aligned.
+	  If unsure say 1.
+
+config FB_OMAP_DMA_TUNE
+        bool "Set DMA SDRAM access priority high"
+        depends on FB_OMAP
+        help
+          On systems in which video memory is in system memory
+          (SDRAM) this will speed up graphics DMA operations.
+          If you have such a system and want to use rotation
+          answer yes. Answer no if you have a dedicated video
+          memory, or don't use any of the accelerated features.
+
+

@@ -1,0 +1,308 @@
+<refentry id="vidioc-g-selection">
+
+  <refmeta>
+    <refentrytitle>ioctl VIDIOC_G_SELECTION, VIDIOC_S_SELECTION</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>VIDIOC_G_SELECTION</refname>
+    <refname>VIDIOC_S_SELECTION</refname>
+    <refpurpose>Get or set one of the selection rectangles</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>struct v4l2_selection *<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>VIDIOC_G_SELECTION, VIDIOC_S_SELECTION</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <note>
+      <title>Experimental</title>
+      <para>This is an <link linkend="experimental"> experimental </link>
+      interface and may change in the future.</para>
+    </note>
+
+    <para>The ioctls are used to query and configure selection rectangles.</para>
+
+<para> To query the cropping (composing) rectangle set &v4l2-selection;
+<structfield> type </structfield> field to the respective buffer type.
+Do not use multiplanar buffers.  Use <constant> V4L2_BUF_TYPE_VIDEO_CAPTURE
+</constant> instead of <constant> V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE
+</constant>.  Use <constant> V4L2_BUF_TYPE_VIDEO_OUTPUT </constant> instead of
+<constant> V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE </constant>.  The next step is
+setting the value of &v4l2-selection; <structfield>target</structfield> field
+to <constant> V4L2_SEL_TGT_CROP_ACTIVE </constant> (<constant>
+V4L2_SEL_TGT_COMPOSE_ACTIVE </constant>).  Please refer to table <xref
+linkend="v4l2-sel-target" /> or <xref linkend="selection-api" /> for additional
+targets.  The <structfield>flags</structfield> and <structfield>reserved
+</structfield> fields of &v4l2-selection; are ignored and they must be filled
+with zeros.  The driver fills the rest of the structure or
+returns &EINVAL; if incorrect buffer type or target was used. If cropping
+(composing) is not supported then the active rectangle is not mutable and it is
+always equal to the bounds rectangle.  Finally, the &v4l2-rect;
+<structfield>r</structfield> rectangle is filled with the current cropping
+(composing) coordinates. The coordinates are expressed in driver-dependent
+units. The only exception are rectangles for images in raw formats, whose
+coordinates are always expressed in pixels.  </para>
+
+<para> To change the cropping (composing) rectangle set the &v4l2-selection;
+<structfield>type</structfield> field to the respective buffer type.  Do not
+use multiplanar buffers.  Use <constant> V4L2_BUF_TYPE_VIDEO_CAPTURE
+</constant> instead of <constant> V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE
+</constant>.  Use <constant> V4L2_BUF_TYPE_VIDEO_OUTPUT </constant> instead of
+<constant> V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE </constant>.  The next step is
+setting the value of &v4l2-selection; <structfield>target</structfield> to
+<constant>V4L2_SEL_TGT_CROP_ACTIVE</constant> (<constant>
+V4L2_SEL_TGT_COMPOSE_ACTIVE </constant>). Please refer to table <xref
+linkend="v4l2-sel-target" /> or <xref linkend="selection-api" /> for additional
+targets.  The &v4l2-rect; <structfield>r</structfield> rectangle need to be
+set to the desired active area. Field &v4l2-selection; <structfield> reserved
+</structfield> is ignored and must be filled with zeros.  The driver may adjust
+coordinates of the requested rectangle. An application may
+introduce constraints to control rounding behaviour. The &v4l2-selection;
+<structfield>flags</structfield> field must be set to one of the following:
+
+<itemizedlist>
+  <listitem>
+<para><constant>0</constant> - The driver can adjust the rectangle size freely
+and shall choose a crop/compose rectangle as close as possible to the requested
+one.</para>
+  </listitem>
+  <listitem>
+<para><constant>V4L2_SEL_FLAG_GE</constant> - The driver is not allowed to
+shrink the rectangle.  The original rectangle must lay inside the adjusted
+one.</para>
+  </listitem>
+  <listitem>
+<para><constant>V4L2_SEL_FLAG_LE</constant> - The driver is not allowed to
+enlarge the rectangle.  The adjusted rectangle must lay inside the original
+one.</para>
+  </listitem>
+  <listitem>
+<para><constant>V4L2_SEL_FLAG_GE | V4L2_SEL_FLAG_LE</constant> - The driver
+must choose the size exactly the same as in the requested rectangle.</para>
+  </listitem>
+</itemizedlist>
+
+Please refer to <xref linkend="sel-const-adjust" />.
+
+</para>
+
+<para> The driver may have to adjusts the requested dimensions against hardware
+limits and other parts as the pipeline, i.e. the bounds given by the
+capture/output window or TV display. The closest possible values of horizontal
+and vertical offset and sizes are chosen according to following priority:
+
+<orderedlist>
+  <listitem>
+    <para>Satisfy constraints from &v4l2-selection; <structfield>flags</structfield>.</para>
+  </listitem>
+  <listitem>
+    <para>Adjust width, height, left, and top to hardware limits and alignments.</para>
+  </listitem>
+  <listitem>
+    <para>Keep center of adjusted rectangle as close as possible to the original one.</para>
+  </listitem>
+  <listitem>
+    <para>Keep width and height as close as possible to original ones.</para>
+  </listitem>
+  <listitem>
+    <para>Keep horizontal and vertical offset as close as possible to original ones.</para>
+  </listitem>
+</orderedlist>
+
+On success the &v4l2-rect; <structfield>r</structfield> field contains
+the adjusted rectangle. When the parameters are unsuitable the application may
+modify the cropping (composing) or image parameters and repeat the cycle until
+satisfactory parameters have been negotiated. If constraints flags have to be
+violated at then ERANGE is returned. The error indicates that <emphasis> there
+exist no rectangle </emphasis> that satisfies the constraints.</para>
+
+  </refsect1>
+
+  <refsect1>
+    <table frame="none" pgwide="1" id="v4l2-sel-target">
+      <title>Selection targets.</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+            <entry><constant>V4L2_SEL_TGT_CROP_ACTIVE</constant></entry>
+            <entry>0x0000</entry>
+            <entry>The area that is currently cropped by hardware.</entry>
+	  </row>
+	  <row>
+            <entry><constant>V4L2_SEL_TGT_CROP_DEFAULT</constant></entry>
+            <entry>0x0001</entry>
+            <entry>Suggested cropping rectangle that covers the "whole picture".</entry>
+	  </row>
+	  <row>
+            <entry><constant>V4L2_SEL_TGT_CROP_BOUNDS</constant></entry>
+            <entry>0x0002</entry>
+            <entry>Limits for the cropping rectangle.</entry>
+	  </row>
+	  <row>
+            <entry><constant>V4L2_SEL_TGT_COMPOSE_ACTIVE</constant></entry>
+            <entry>0x0100</entry>
+            <entry>The area to which data is composed by hardware.</entry>
+	  </row>
+	  <row>
+            <entry><constant>V4L2_SEL_TGT_COMPOSE_DEFAULT</constant></entry>
+            <entry>0x0101</entry>
+            <entry>Suggested composing rectangle that covers the "whole picture".</entry>
+	  </row>
+	  <row>
+            <entry><constant>V4L2_SEL_TGT_COMPOSE_BOUNDS</constant></entry>
+            <entry>0x0102</entry>
+            <entry>Limits for the composing rectangle.</entry>
+	  </row>
+	  <row>
+            <entry><constant>V4L2_SEL_TGT_COMPOSE_PADDED</constant></entry>
+            <entry>0x0103</entry>
+            <entry>The active area and all padding pixels that are inserted or modified by hardware.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+  </refsect1>
+
+  <refsect1>
+    <table frame="none" pgwide="1" id="v4l2-sel-flags">
+      <title>Selection constraint flags</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+            <entry><constant>V4L2_SEL_FLAG_GE</constant></entry>
+            <entry>0x00000001</entry>
+            <entry>Indicates that the adjusted rectangle must contain the original
+	    &v4l2-selection; <structfield>r</structfield> rectangle.</entry>
+	  </row>
+	  <row>
+            <entry><constant>V4L2_SEL_FLAG_LE</constant></entry>
+            <entry>0x00000002</entry>
+            <entry>Indicates that the adjusted rectangle must be inside the original
+	    &v4l2-rect; <structfield>r</structfield> rectangle.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+  </refsect1>
+
+    <section>
+      <figure id="sel-const-adjust">
+	<title>Size adjustments with constraint flags.</title>
+	<mediaobject>
+	  <imageobject>
+	    <imagedata fileref="constraints.png" format="PNG" />
+	  </imageobject>
+	  <textobject>
+	    <phrase>Behaviour of rectangle adjustment for different constraint
+            flags.</phrase>
+	  </textobject>
+	</mediaobject>
+      </figure>
+    </section>
+
+  <refsect1>
+    <table pgwide="1" frame="none" id="v4l2-selection">
+      <title>struct <structname>v4l2_selection</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>type</structfield></entry>
+	    <entry>Type of the buffer (from &v4l2-buf-type;).</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>target</structfield></entry>
+            <entry>Used to select between <link linkend="v4l2-sel-target"> cropping
+	    and composing rectangles</link>.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>flags</structfield></entry>
+            <entry>Flags controlling the selection rectangle adjustments, refer to
+	    <link linkend="v4l2-sel-flags">selection flags</link>.</entry>
+	  </row>
+	  <row>
+	    <entry>&v4l2-rect;</entry>
+	    <entry><structfield>r</structfield></entry>
+	    <entry>The selection rectangle.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved[9]</structfield></entry>
+	    <entry>Reserved fields for future use.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+  </refsect1>
+
+  <refsect1>
+    &return-value;
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EINVAL</errorcode></term>
+	<listitem>
+	  <para>Given buffer type <structfield>type</structfield> or
+the selection target <structfield>target</structfield> is not supported,
+or the <structfield>flags</structfield> argument is not valid.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>ERANGE</errorcode></term>
+	<listitem>
+	  <para>It is not possible to adjust &v4l2-rect; <structfield>
+r</structfield> rectangle to satisfy all contraints given in the
+<structfield>flags</structfield> argument.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EBUSY</errorcode></term>
+	<listitem>
+	  <para>It is not possible to apply change of the selection rectangle
+at the moment. Usually because streaming is in progress.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+</refentry>

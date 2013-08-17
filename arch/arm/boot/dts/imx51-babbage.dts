@@ -1,0 +1,221 @@
+/*
+ * Copyright 2011 Freescale Semiconductor, Inc.
+ * Copyright 2011 Linaro Ltd.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+/include/ "imx51.dtsi"
+
+/ {
+	model = "Freescale i.MX51 Babbage Board";
+	compatible = "fsl,imx51-babbage", "fsl,imx51";
+
+	chosen {
+		bootargs = "console=ttymxc0,115200 root=/dev/mmcblk0p3 rootwait";
+	};
+
+	memory {
+		reg = <0x90000000 0x20000000>;
+	};
+
+	soc {
+		aips@70000000 { /* aips-1 */
+			spba@70000000 {
+				esdhc@70004000 { /* ESDHC1 */
+					fsl,cd-internal;
+					fsl,wp-internal;
+					status = "okay";
+				};
+
+				esdhc@70008000 { /* ESDHC2 */
+					cd-gpios = <&gpio1 6 0>;
+					wp-gpios = <&gpio1 5 0>;
+					status = "okay";
+				};
+
+				uart3: uart@7000c000 {
+					fsl,uart-has-rtscts;
+					status = "okay";
+				};
+
+				ecspi@70010000 { /* ECSPI1 */
+					fsl,spi-num-chipselects = <2>;
+					cs-gpios = <&gpio4 24 0>, <&gpio4 25 0>;
+					status = "okay";
+
+					pmic: mc13892@0 {
+						#address-cells = <1>;
+						#size-cells = <0>;
+						compatible = "fsl,mc13892";
+						spi-max-frequency = <6000000>;
+						reg = <0>;
+						interrupt-parent = <&gpio1>;
+						interrupts = <8>;
+
+						regulators {
+							sw1_reg: sw1 {
+								regulator-min-microvolt = <600000>;
+								regulator-max-microvolt = <1375000>;
+								regulator-boot-on;
+								regulator-always-on;
+							};
+
+							sw2_reg: sw2 {
+								regulator-min-microvolt = <900000>;
+								regulator-max-microvolt = <1850000>;
+								regulator-boot-on;
+								regulator-always-on;
+							};
+
+							sw3_reg: sw3 {
+								regulator-min-microvolt = <1100000>;
+								regulator-max-microvolt = <1850000>;
+								regulator-boot-on;
+								regulator-always-on;
+							};
+
+							sw4_reg: sw4 {
+								regulator-min-microvolt = <1100000>;
+								regulator-max-microvolt = <1850000>;
+								regulator-boot-on;
+								regulator-always-on;
+							};
+
+							vpll_reg: vpll {
+								regulator-min-microvolt = <1050000>;
+								regulator-max-microvolt = <1800000>;
+								regulator-boot-on;
+								regulator-always-on;
+							};
+
+							vdig_reg: vdig {
+								regulator-min-microvolt = <1650000>;
+								regulator-max-microvolt = <1650000>;
+								regulator-boot-on;
+							};
+
+							vsd_reg: vsd {
+								regulator-min-microvolt = <1800000>;
+								regulator-max-microvolt = <3150000>;
+							};
+
+							vusb2_reg: vusb2 {
+								regulator-min-microvolt = <2400000>;
+								regulator-max-microvolt = <2775000>;
+								regulator-boot-on;
+								regulator-always-on;
+							};
+
+							vvideo_reg: vvideo {
+								regulator-min-microvolt = <2775000>;
+								regulator-max-microvolt = <2775000>;
+							};
+
+							vaudio_reg: vaudio {
+								regulator-min-microvolt = <2300000>;
+								regulator-max-microvolt = <3000000>;
+							};
+
+							vcam_reg: vcam {
+								regulator-min-microvolt = <2500000>;
+								regulator-max-microvolt = <3000000>;
+							};
+
+							vgen1_reg: vgen1 {
+								regulator-min-microvolt = <1200000>;
+								regulator-max-microvolt = <1200000>;
+							};
+
+							vgen2_reg: vgen2 {
+								regulator-min-microvolt = <1200000>;
+								regulator-max-microvolt = <3150000>;
+								regulator-always-on;
+							};
+
+							vgen3_reg: vgen3 {
+								regulator-min-microvolt = <1800000>;
+								regulator-max-microvolt = <2900000>;
+								regulator-always-on;
+							};
+						};
+					};
+
+					flash: at45db321d@1 {
+						#address-cells = <1>;
+						#size-cells = <1>;
+						compatible = "atmel,at45db321d", "atmel,at45", "atmel,dataflash";
+						spi-max-frequency = <25000000>;
+						reg = <1>;
+
+						partition@0 {
+							label = "U-Boot";
+							reg = <0x0 0x40000>;
+							read-only;
+						};
+
+						partition@40000 {
+							label = "Kernel";
+							reg = <0x40000 0x3c0000>;
+						};
+					};
+				};
+			};
+
+			wdog@73f98000 { /* WDOG1 */
+				status = "okay";
+			};
+
+			iomuxc@73fa8000 {
+				compatible = "fsl,imx51-iomuxc-babbage";
+				reg = <0x73fa8000 0x4000>;
+			};
+
+			uart1: uart@73fbc000 {
+				fsl,uart-has-rtscts;
+				status = "okay";
+			};
+
+			uart2: uart@73fc0000 {
+				status = "okay";
+			};
+		};
+
+		aips@80000000 {	/* aips-2 */
+			sdma@83fb0000 {
+				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx51.bin";
+			};
+
+			i2c@83fc4000 { /* I2C2 */
+				status = "okay";
+
+				codec: sgtl5000@0a {
+					compatible = "fsl,sgtl5000";
+					reg = <0x0a>;
+				};
+			};
+
+			fec@83fec000 {
+				phy-mode = "mii";
+				status = "okay";
+			};
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		power {
+			label = "Power Button";
+			gpios = <&gpio2 21 0>;
+			linux,code = <116>; /* KEY_POWER */
+			gpio-key,wakeup;
+		};
+	};
+};

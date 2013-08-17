@@ -1,0 +1,452 @@
+/*
+ * MPC8569E MDS Device Tree Source
+ *
+ * Copyright (C) 2009 Freescale Semiconductor Inc.
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
+
+/include/ "fsl/mpc8569si-pre.dtsi"
+
+/ {
+	model = "MPC8569EMDS";
+	compatible = "fsl,MPC8569EMDS";
+	#address-cells = <2>;
+	#size-cells = <2>;
+	interrupt-parent = <&mpic>;
+
+	aliases {
+		ethernet2 = &enet2;
+		ethernet3 = &enet3;
+		ethernet5 = &enet5;
+		ethernet7 = &enet7;
+		rapidio0 = &rio;
+	};
+
+	memory {
+		device_type = "memory";
+	};
+
+	lbc: localbus@e0005000 {
+		reg = <0x0 0xe0005000 0x0 0x1000>;
+
+		ranges = <0x0 0x0 0x0 0xfe000000 0x02000000
+			  0x1 0x0 0x0 0xf8000000 0x00008000
+			  0x2 0x0 0x0 0xf0000000 0x04000000
+			  0x3 0x0 0x0 0xfc000000 0x00008000
+			  0x4 0x0 0x0 0xf8008000 0x00008000
+			  0x5 0x0 0x0 0xf8010000 0x00008000>;
+
+		nor@0,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "cfi-flash";
+			reg = <0x0 0x0 0x02000000>;
+			bank-width = <1>;
+			device-width = <1>;
+			partition@0 {
+				label = "ramdisk";
+				reg = <0x00000000 0x01c00000>;
+			};
+			partition@1c00000 {
+				label = "kernel";
+				reg = <0x01c00000 0x002e0000>;
+			};
+			partiton@1ee0000 {
+				label = "dtb";
+				reg = <0x01ee0000 0x00020000>;
+			};
+			partition@1f00000 {
+				label = "firmware";
+				reg = <0x01f00000 0x00080000>;
+				read-only;
+			};
+			partition@1f80000 {
+				label = "u-boot";
+				reg = <0x01f80000 0x00080000>;
+				read-only;
+			};
+		};
+
+		bcsr@1,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,mpc8569mds-bcsr";
+			reg = <1 0 0x8000>;
+			ranges = <0 1 0 0x8000>;
+
+			bcsr17: gpio-controller@11 {
+				#gpio-cells = <2>;
+				compatible = "fsl,mpc8569mds-bcsr-gpio";
+				reg = <0x11 0x1>;
+				gpio-controller;
+			};
+		};
+
+		nand@3,0 {
+			compatible = "fsl,mpc8569-fcm-nand",
+				     "fsl,elbc-fcm-nand";
+			reg = <3 0 0x8000>;
+		};
+
+		pib@4,0 {
+			compatible = "fsl,mpc8569mds-pib";
+			reg = <4 0 0x8000>;
+		};
+
+		pib@5,0 {
+			compatible = "fsl,mpc8569mds-pib";
+			reg = <5 0 0x8000>;
+		};
+	};
+
+	soc: soc@e0000000 {
+		ranges = <0x0 0x0 0xe0000000 0x100000>;
+
+		i2c-sleep-nexus {
+			i2c@3000 {
+				rtc@68 {
+					compatible = "dallas,ds1374";
+					reg = <0x68>;
+					interrupts = <3 1 0 0>;
+				};
+			};
+		};
+
+		sdhc@2e000 {
+			status = "disabled";
+			sdhci,1-bit-only;
+		};
+
+		par_io@e0100 {
+			num-ports = <7>;
+
+			qe_pio_e: gpio-controller@80 {
+				#gpio-cells = <2>;
+				compatible = "fsl,mpc8569-qe-pario-bank",
+					     "fsl,mpc8323-qe-pario-bank";
+				reg = <0x80 0x18>;
+				gpio-controller;
+			};
+
+			qe_pio_f: gpio-controller@a0 {
+				#gpio-cells = <2>;
+				compatible = "fsl,mpc8569-qe-pario-bank",
+					     "fsl,mpc8323-qe-pario-bank";
+				reg = <0xa0 0x18>;
+				gpio-controller;
+			};
+
+			pio1: ucc_pin@01 {
+				pio-map = <
+			/* port  pin  dir  open_drain  assignment  has_irq */
+					0x2  0x1f 0x1  0x0  0x1  0x0	/* QE_MUX_MDC */
+					0x2  0x1e 0x3  0x0  0x2  0x0	/* QE_MUX_MDIO */
+					0x2  0x0b 0x2  0x0  0x1  0x0	/* CLK12*/
+					0x0  0x0  0x1  0x0  0x3  0x0	/* ENET1_TXD0_SER1_TXD0 */
+					0x0  0x1  0x1  0x0  0x3  0x0	/* ENET1_TXD1_SER1_TXD1 */
+					0x0  0x2  0x1  0x0  0x1  0x0	/* ENET1_TXD2_SER1_TXD2 */
+					0x0  0x3  0x1  0x0  0x2  0x0	/* ENET1_TXD3_SER1_TXD3 */
+					0x0  0x6  0x2  0x0  0x3  0x0	/* ENET1_RXD0_SER1_RXD0	*/
+					0x0  0x7  0x2  0x0  0x1  0x0	/* ENET1_RXD1_SER1_RXD1	*/
+					0x0  0x8  0x2  0x0  0x2  0x0	/* ENET1_RXD2_SER1_RXD2	*/
+					0x0  0x9  0x2  0x0  0x2  0x0	/* ENET1_RXD3_SER1_RXD3	*/
+					0x0  0x4  0x1  0x0  0x2  0x0	/* ENET1_TX_EN_SER1_RTS_B */
+					0x0  0xc  0x2  0x0  0x3  0x0	/* ENET1_RX_DV_SER1_CTS_B */
+					0x2  0x8  0x2  0x0  0x1  0x0	/* ENET1_GRXCLK	*/
+					0x2  0x14 0x1  0x0  0x2  0x0>;	/* ENET1_GTXCLK	*/
+			};
+
+			pio2: ucc_pin@02 {
+				pio-map = <
+			/* port  pin  dir  open_drain  assignment  has_irq */
+					0x2  0x1f 0x1  0x0  0x1  0x0	/* QE_MUX_MDC */
+					0x2  0x1e 0x3  0x0  0x2  0x0	/* QE_MUX_MDIO */
+					0x2  0x10 0x2  0x0  0x3  0x0	/* CLK17 */
+					0x0  0xe  0x1  0x0  0x2  0x0	/* ENET2_TXD0_SER2_TXD0 */
+					0x0  0xf  0x1  0x0  0x2  0x0	/* ENET2_TXD1_SER2_TXD1 */
+					0x0  0x10 0x1  0x0  0x1  0x0	/* ENET2_TXD2_SER2_TXD2 */
+					0x0  0x11 0x1  0x0  0x1  0x0	/* ENET2_TXD3_SER2_TXD3 */
+					0x0  0x14 0x2  0x0  0x2  0x0	/* ENET2_RXD0_SER2_RXD0	*/
+					0x0  0x15 0x2  0x0  0x1  0x0	/* ENET2_RXD1_SER2_RXD1	*/
+					0x0  0x16 0x2  0x0  0x1  0x0	/* ENET2_RXD2_SER2_RXD2	*/
+					0x0  0x17 0x2  0x0  0x1  0x0	/* ENET2_RXD3_SER2_RXD3	*/
+					0x0  0x12 0x1  0x0  0x2  0x0	/* ENET2_TX_EN_SER2_RTS_B */
+					0x0  0x1a 0x2  0x0  0x3  0x0	/* ENET2_RX_DV_SER2_CTS_B */
+					0x2  0x3  0x2  0x0  0x1  0x0	/* ENET2_GRXCLK	*/
+					0x2  0x2 0x1  0x0  0x2  0x0>;	/* ENET2_GTXCLK	*/
+			};
+
+			pio3: ucc_pin@03 {
+				pio-map = <
+			/* port  pin  dir  open_drain  assignment  has_irq */
+					0x2  0x1f 0x1  0x0  0x1  0x0	/* QE_MUX_MDC */
+					0x2  0x1e 0x3  0x0  0x2  0x0	/* QE_MUX_MDIO */
+					0x2  0x0b 0x2  0x0  0x1  0x0	/* CLK12*/
+					0x0  0x1d 0x1  0x0  0x2  0x0	/* ENET3_TXD0_SER3_TXD0 */
+					0x0  0x1e 0x1  0x0  0x3  0x0	/* ENET3_TXD1_SER3_TXD1 */
+					0x0  0x1f 0x1  0x0  0x2  0x0	/* ENET3_TXD2_SER3_TXD2 */
+					0x1  0x0  0x1  0x0  0x3  0x0	/* ENET3_TXD3_SER3_TXD3 */
+					0x1  0x3  0x2  0x0  0x3  0x0	/* ENET3_RXD0_SER3_RXD0	*/
+					0x1  0x4  0x2  0x0  0x1  0x0	/* ENET3_RXD1_SER3_RXD1	*/
+					0x1  0x5  0x2  0x0  0x2  0x0	/* ENET3_RXD2_SER3_RXD2	*/
+					0x1  0x6  0x2  0x0  0x3  0x0	/* ENET3_RXD3_SER3_RXD3	*/
+					0x1  0x1  0x1  0x0  0x1  0x0	/* ENET3_TX_EN_SER3_RTS_B */
+					0x1  0x9  0x2  0x0  0x3  0x0	/* ENET3_RX_DV_SER3_CTS_B */
+					0x2  0x9  0x2  0x0  0x2  0x0	/* ENET3_GRXCLK	*/
+					0x2  0x19 0x1  0x0  0x2  0x0>;	/* ENET3_GTXCLK	*/
+			};
+
+			pio4: ucc_pin@04 {
+				pio-map = <
+			/* port  pin  dir  open_drain  assignment  has_irq */
+					0x2  0x1f 0x1  0x0  0x1  0x0	/* QE_MUX_MDC */
+					0x2  0x1e 0x3  0x0  0x2  0x0	/* QE_MUX_MDIO */
+					0x2  0x10 0x2  0x0  0x3  0x0	/* CLK17 */
+					0x1  0xc  0x1  0x0  0x2  0x0	/* ENET4_TXD0_SER4_TXD0 */
+					0x1  0xd  0x1  0x0  0x2  0x0	/* ENET4_TXD1_SER4_TXD1 */
+					0x1  0xe  0x1  0x0  0x1  0x0	/* ENET4_TXD2_SER4_TXD2 */
+					0x1  0xf  0x1  0x0  0x2  0x0	/* ENET4_TXD3_SER4_TXD3 */
+					0x1  0x12 0x2  0x0  0x2  0x0	/* ENET4_RXD0_SER4_RXD0	*/
+					0x1  0x13 0x2  0x0  0x1  0x0	/* ENET4_RXD1_SER4_RXD1	*/
+					0x1  0x14 0x2  0x0  0x1  0x0	/* ENET4_RXD2_SER4_RXD2	*/
+					0x1  0x15 0x2  0x0  0x2  0x0	/* ENET4_RXD3_SER4_RXD3	*/
+					0x1  0x10 0x1  0x0  0x2  0x0	/* ENET4_TX_EN_SER4_RTS_B */
+					0x1  0x18 0x2  0x0  0x3  0x0	/* ENET4_RX_DV_SER4_CTS_B */
+					0x2  0x11 0x2  0x0  0x2  0x0	/* ENET4_GRXCLK	*/
+					0x2  0x18 0x1  0x0  0x2  0x0>;	/* ENET4_GTXCLK	*/
+			};
+		};
+	};
+
+	qe: qe@e0080000 {
+		ranges = <0x0 0x0 0xe0080000 0x40000>;
+		reg = <0x0 0xe0080000 0x0 0x480>;
+
+		spi@4c0 {
+			gpios = <&qe_pio_e 30 0>;
+			mode = "cpu-qe";
+
+			serial-flash@0 {
+				compatible = "stm,m25p40";
+				reg = <0>;
+				spi-max-frequency = <25000000>;
+			};
+		};
+
+		spi@500 {
+			mode = "cpu";
+		};
+
+		usb@6c0 {
+			fsl,fullspeed-clock = "clk5";
+			fsl,lowspeed-clock = "brg10";
+			gpios = <&qe_pio_f 3 0   /* USBOE */
+				 &qe_pio_f 4 0   /* USBTP */
+				 &qe_pio_f 5 0   /* USBTN */
+				 &qe_pio_f 6 0   /* USBRP */
+				 &qe_pio_f 8 0   /* USBRN */
+				 &bcsr17   1 0   /* SPEED */
+				 &bcsr17   2 0>; /* POWER */
+		};
+
+		enet0: ucc@2000 {
+			device_type = "network";
+			compatible = "ucc_geth";
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			rx-clock-name = "none";
+			tx-clock-name = "clk12";
+			pio-handle = <&pio1>;
+			tbi-handle = <&tbi1>;
+			phy-handle = <&qe_phy0>;
+			phy-connection-type = "rgmii-id";
+		};
+
+		mdio@2120 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x2120 0x18>;
+			compatible = "fsl,ucc-mdio";
+
+			qe_phy0: ethernet-phy@07 {
+				interrupt-parent = <&mpic>;
+				interrupts = <1 1 0 0>;
+				reg = <0x7>;
+				device_type = "ethernet-phy";
+			};
+			qe_phy1: ethernet-phy@01 {
+				interrupt-parent = <&mpic>;
+				interrupts = <2 1 0 0>;
+				reg = <0x1>;
+				device_type = "ethernet-phy";
+			};
+			qe_phy2: ethernet-phy@02 {
+				interrupt-parent = <&mpic>;
+				interrupts = <3 1 0 0>;
+				reg = <0x2>;
+				device_type = "ethernet-phy";
+			};
+			qe_phy3: ethernet-phy@03 {
+				interrupt-parent = <&mpic>;
+				interrupts = <4 1 0 0>;
+				reg = <0x3>;
+				device_type = "ethernet-phy";
+			};
+			qe_phy5: ethernet-phy@04 {
+				reg = <0x04>;
+				device_type = "ethernet-phy";
+			};
+			qe_phy7: ethernet-phy@06 {
+				reg = <0x6>;
+				device_type = "ethernet-phy";
+			};
+			tbi1: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
+		};
+		mdio@3520 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x3520 0x18>;
+			compatible = "fsl,ucc-mdio";
+
+			tbi6: tbi-phy@15 {
+			reg = <0x15>;
+			device_type = "tbi-phy";
+			};
+		};
+		mdio@3720 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x3720 0x38>;
+			compatible = "fsl,ucc-mdio";
+			tbi8: tbi-phy@17 {
+				reg = <0x17>;
+				device_type = "tbi-phy";
+			};
+		};
+
+		enet2: ucc@2200 {
+			device_type = "network";
+			compatible = "ucc_geth";
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			rx-clock-name = "none";
+			tx-clock-name = "clk12";
+			pio-handle = <&pio3>;
+			tbi-handle = <&tbi3>;
+			phy-handle = <&qe_phy2>;
+			phy-connection-type = "rgmii-id";
+		};
+
+		mdio@2320 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x2320 0x18>;
+			compatible = "fsl,ucc-mdio";
+			tbi3: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
+		};
+
+		enet1: ucc@3000 {
+			device_type = "network";
+			compatible = "ucc_geth";
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			rx-clock-name = "none";
+			tx-clock-name = "clk17";
+			pio-handle = <&pio2>;
+			tbi-handle = <&tbi2>;
+			phy-handle = <&qe_phy1>;
+			phy-connection-type = "rgmii-id";
+		};
+
+		mdio@3120 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x3120 0x18>;
+			compatible = "fsl,ucc-mdio";
+			tbi2: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
+		};
+
+		enet3: ucc@3200 {
+			device_type = "network";
+			compatible = "ucc_geth";
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			rx-clock-name = "none";
+			tx-clock-name = "clk17";
+			pio-handle = <&pio4>;
+			tbi-handle = <&tbi4>;
+			phy-handle = <&qe_phy3>;
+			phy-connection-type = "rgmii-id";
+		};
+
+		mdio@3320 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x3320 0x18>;
+			compatible = "fsl,ucc-mdio";
+			tbi4: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
+		};
+
+		enet5: ucc@3400 {
+			device_type = "network";
+			compatible = "ucc_geth";
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			rx-clock-name = "none";
+			tx-clock-name = "none";
+			tbi-handle = <&tbi6>;
+			phy-handle = <&qe_phy5>;
+			phy-connection-type = "sgmii";
+		};
+
+		enet7: ucc@3600 {
+			device_type = "network";
+			compatible = "ucc_geth";
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			rx-clock-name = "none";
+			tx-clock-name = "none";
+			tbi-handle = <&tbi8>;
+			phy-handle = <&qe_phy7>;
+			phy-connection-type = "sgmii";
+		};
+	};
+
+	/* PCI Express */
+	pci1: pcie@e000a000 {
+		reg = <0x0 0xe000a000 0x0 0x1000>;
+		ranges = <0x2000000 0x0 0xa0000000 0 0xa0000000 0x0 0x10000000
+			  0x1000000 0x0 0x00000000 0 0xe2800000 0x0 0x00800000>;
+		pcie@0 {
+			ranges = <0x2000000 0x0 0xa0000000
+				  0x2000000 0x0 0xa0000000
+				  0x0 0x10000000
+
+				  0x1000000 0x0 0x0
+				  0x1000000 0x0 0x0
+				  0x0 0x800000>;
+		};
+	};
+
+	rio: rapidio@e00c00000 {
+		reg = <0x0 0xe00c0000 0x0 0x20000>;
+		port1 {
+			ranges = <0x0 0x0 0x0 0xc0000000 0x0 0x20000000>;
+		};
+		port2 {
+			status = "disabled";
+		};
+	};
+};
+
+/include/ "fsl/mpc8569si-post.dtsi"

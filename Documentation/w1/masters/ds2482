@@ -1,0 +1,31 @@
+Kernel driver ds2482
+====================
+
+Supported chips:
+  * Maxim DS2482-100, Maxim DS2482-800
+    Prefix: 'ds2482'
+    Addresses scanned: None
+    Datasheets:
+        http://datasheets.maxim-ic.com/en/ds/DS2482-100.pdf
+        http://datasheets.maxim-ic.com/en/ds/DS2482-800.pdf
+
+Author: Ben Gardner <bgardner@wabtec.com>
+
+
+Description
+-----------
+
+The Maxim/Dallas Semiconductor DS2482 is a I2C device that provides
+one (DS2482-100) or eight (DS2482-800) 1-wire busses.
+
+
+General Remarks
+---------------
+
+Valid addresses are 0x18, 0x19, 0x1a, and 0x1b.
+However, the device cannot be detected without writing to the i2c bus, so no
+detection is done. You should instantiate the device explicitly.
+
+$ modprobe ds2482
+$ echo ds2482 0x18 > /sys/bus/i2c/devices/i2c-0/new_device
+

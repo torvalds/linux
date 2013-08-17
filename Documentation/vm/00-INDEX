@@ -1,0 +1,36 @@
+00-INDEX
+	- this file.
+active_mm.txt
+	- An explanation from Linus about tsk->active_mm vs tsk->mm.
+balance
+	- various information on memory balancing.
+hugepage-mmap.c
+	- Example app using huge page memory with the mmap system call.
+hugepage-shm.c
+	- Example app using huge page memory with Sys V shared memory system calls.
+hugetlbpage.txt
+	- a brief summary of hugetlbpage support in the Linux kernel.
+hwpoison.txt
+	- explains what hwpoison is
+ksm.txt
+	- how to use the Kernel Samepage Merging feature.
+locking
+	- info on how locking and synchronization is done in the Linux vm code.
+map_hugetlb.c
+	- an example program that uses the MAP_HUGETLB mmap flag.
+numa
+	- information about NUMA specific code in the Linux vm.
+numa_memory_policy.txt
+	- documentation of concepts and APIs of the 2.6 memory policy support.
+overcommit-accounting
+	- description of the Linux kernels overcommit handling modes.
+page-types.c
+	- Tool for querying page flags
+page_migration
+	- description of page migration in NUMA systems.
+pagemap.txt
+	- pagemap, from the userspace perspective
+slub.txt
+	- a short users guide for SLUB.
+unevictable-lru.txt
+	- Unevictable LRU infrastructure

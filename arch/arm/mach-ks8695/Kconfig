@@ -1,0 +1,26 @@
+if ARCH_KS8695
+
+menu "Kendin/Micrel KS8695 Implementations"
+
+config MACH_KS8695
+	bool "KS8695 development board"
+	select MIGHT_HAVE_PCI
+	help
+	  Say 'Y' here if you want your kernel to run on the original
+	  Kendin-Micrel KS8695 development board.
+
+config MACH_DSM320
+	bool "DSM-320 Wireless Media Player"
+	help
+	  Say 'Y' here if you want your kernel to run on the D-Link
+	  DSM-320 Wireless Media Player.
+
+config MACH_ACS5K
+	bool "Brivo Systems LLC, ACS-5000 Master board"
+	help
+	  say 'Y' here if you want your kernel to run on the Brivo
+	  Systems LLC, ACS-5000 Master board.
+
+endmenu
+
+endif

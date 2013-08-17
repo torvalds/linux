@@ -1,0 +1,156 @@
+#!/bin/bash
+# Manipulate options in a .config file from the command line
+
+usage() {
+	cat >&2 <<EOL
+Manipulate options in a .config file from the command line.
+Usage:
+config options command ...
+commands:
+	--enable|-e option   Enable option
+	--disable|-d option  Disable option
+	--module|-m option   Turn option into a module
+	--set-str option string
+	                     Set option to "string"
+	--set-val option value
+	                     Set option to value
+	--state|-s option    Print state of option (n,y,m,undef)
+
+	--enable-after|-E beforeopt option
+                             Enable option directly after other option
+	--disable-after|-D beforeopt option
+                             Disable option directly after other option
+	--module-after|-M beforeopt option
+                             Turn option into module directly after other option
+
+	commands can be repeated multiple times
+
+options:
+	--file .config file to change (default .config)
+
+config doesn't check the validity of the .config file. This is done at next
+ make time.
+EOL
+	exit 1
+}
+
+checkarg() {
+	ARG="$1"
+	if [ "$ARG" = "" ] ; then
+		usage
+	fi
+	case "$ARG" in
+	CONFIG_*)
+		ARG="${ARG/CONFIG_/}"
+		;;
+	esac
+	ARG="`echo $ARG | tr a-z A-Z`"
+}
+
+set_var() {
+	local name=$1 new=$2 before=$3
+
+	name_re="^($name=|# $name is not set)"
+	before_re="^($before=|# $before is not set)"
+	if test -n "$before" && grep -Eq "$before_re" "$FN"; then
+		sed -ri "/$before_re/a $new" "$FN"
+	elif grep -Eq "$name_re" "$FN"; then
+		sed -ri "s:$name_re.*:$new:" "$FN"
+	else
+		echo "$new" >>"$FN"
+	fi
+}
+
+if [ "$1" = "--file" ]; then
+	FN="$2"
+	if [ "$FN" = "" ] ; then
+		usage
+	fi
+	shift 2
+else
+	FN=.config
+fi
+
+if [ "$1" = "" ] ; then
+	usage
+fi
+
+while [ "$1" != "" ] ; do
+	CMD="$1"
+	shift
+	case "$CMD" in
+	--refresh)
+		;;
+	--*-after)
+		checkarg "$1"
+		A=$ARG
+		checkarg "$2"
+		B=$ARG
+		shift 2
+		;;
+	-*)
+		checkarg "$1"
+		shift
+		;;
+	esac
+	case "$CMD" in
+	--enable|-e)
+		set_var "CONFIG_$ARG" "CONFIG_$ARG=y"
+		;;
+
+	--disable|-d)
+		set_var "CONFIG_$ARG" "# CONFIG_$ARG is not set"
+		;;
+
+	--module|-m)
+		set_var "CONFIG_$ARG" "CONFIG_$ARG=m"
+		;;
+
+	--set-str)
+		set_var "CONFIG_$ARG" "CONFIG_$ARG=\"$1\""
+		shift
+		;;
+
+	--set-val)
+		set_var "CONFIG_$ARG" "CONFIG_$ARG=$1"
+		shift
+		;;
+
+	--state|-s)
+		if grep -q "# CONFIG_$ARG is not set" $FN ; then
+			echo n
+		else
+			V="$(grep "^CONFIG_$ARG=" $FN)"
+			if [ $? != 0 ] ; then
+				echo undef
+			else
+				V="${V/CONFIG_$ARG=/}"
+				V="${V/\"/}"
+				echo "$V"
+			fi
+		fi
+		;;
+
+	--enable-after|-E)
+		set_var "CONFIG_$B" "CONFIG_$B=y" "CONFIG_$A"
+		;;
+
+	--disable-after|-D)
+		set_var "CONFIG_$B" "# CONFIG_$B is not set" "CONFIG_$A"
+		;;
+
+	--module-after|-M)
+		set_var "CONFIG_$B" "CONFIG_$B=m" "CONFIG_$A"
+		;;
+
+	# undocumented because it ignores --file (fixme)
+	--refresh)
+		yes "" | make oldconfig
+		;;
+
+	*)
+		usage
+		;;
+	esac
+done
+

@@ -1,0 +1,25 @@
+#
+# List of known perf commands.
+# command name			category [deprecated] [common]
+#
+perf-annotate			mainporcelain common
+perf-archive			mainporcelain common
+perf-bench			mainporcelain common
+perf-buildid-cache		mainporcelain common
+perf-buildid-list		mainporcelain common
+perf-diff			mainporcelain common
+perf-evlist			mainporcelain common
+perf-inject			mainporcelain common
+perf-list			mainporcelain common
+perf-sched			mainporcelain common
+perf-record			mainporcelain common
+perf-report			mainporcelain common
+perf-stat			mainporcelain common
+perf-timechart			mainporcelain common
+perf-top			mainporcelain common
+perf-script			mainporcelain common
+perf-probe			mainporcelain common
+perf-kmem			mainporcelain common
+perf-lock			mainporcelain common
+perf-kvm			mainporcelain common
+perf-test			mainporcelain common

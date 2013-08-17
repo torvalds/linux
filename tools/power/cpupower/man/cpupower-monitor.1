@@ -1,0 +1,179 @@
+.TH CPUPOWER\-MONITOR "1" "22/02/2011" "" "cpupower Manual"
+.SH NAME
+cpupower\-monitor \- Report processor frequency and idle statistics
+.SH SYNOPSIS
+.ft B
+.B cpupower monitor
+.RB "\-l"
+
+.B cpupower monitor
+.RB [ "\-m <mon1>," [ "<mon2>,..." ] ]
+.RB [ "\-i seconds" ]
+.br
+.B cpupower monitor
+.RB [ "\-m <mon1>," [ "<mon2>,..." ] ]
+.RB command
+.br
+.SH DESCRIPTION
+\fBcpupower-monitor \fP reports processor topology, frequency and idle power
+state statistics. Either \fBcommand\fP is forked and
+statistics are printed upon its completion, or statistics are printed periodically.
+
+\fBcpupower-monitor \fP implements independent processor sleep state and
+frequency counters. Some are retrieved from kernel statistics, some are
+directly reading out hardware registers. Use \-l to get an overview which are
+supported on your system.
+
+.SH Options
+.PP
+\-l
+.RS 4
+List available monitors on your system. Additional details about each monitor
+are shown:
+.RS 2
+.IP \(bu
+The name in quotation marks which can be passed to the \-m parameter.
+.IP \(bu
+The number of different counters the monitor supports in brackets.
+.IP \(bu
+The amount of time in seconds the counters might overflow, due to
+implementation constraints.
+.IP \(bu
+The name and a description of each counter and its processor hierarchy level
+coverage in square brackets:
+.RS 4
+.IP \(bu
+[T] \-> Thread
+.IP \(bu
+[C] \-> Core
+.IP \(bu
+[P] \-> Processor Package (Socket)
+.IP \(bu
+[M] \-> Machine/Platform wide counter
+.RE
+.RE
+.RE
+.PP
+\-m <mon1>,<mon2>,...
+.RS 4
+Only display specific monitors. Use the monitor string(s) provided by \-l option.
+.RE
+.PP
+\-i seconds
+.RS 4
+Measure intervall.
+.RE
+.PP
+command
+.RS 4
+Measure idle and frequency characteristics of an arbitrary command/workload.
+The executable \fBcommand\fP is forked and upon its exit, statistics gathered since it was
+forked are displayed.
+.RE
+.PP
+\-v
+.RS 4
+Increase verbosity if the binary was compiled with the DEBUG option set.
+.RE
+
+.SH MONITOR DESCRIPTIONS
+.SS "Idle_Stats"
+Shows statistics of the cpuidle kernel subsystem. Values are retrieved from
+/sys/devices/system/cpu/cpu*/cpuidle/state*/.
+The kernel updates these values every time an idle state is entered or
+left. Therefore there can be some inaccuracy when cores are in an idle
+state for some time when the measure starts or ends. In worst case it can happen
+that one core stayed in an idle state for the whole measure time and the idle
+state usage time as exported by the kernel did not get updated. In this case
+a state residency of 0 percent is shown while it was 100.
+
+.SS "Mperf"
+The name comes from the aperf/mperf (average and maximum) MSR registers used
+which are available on recent X86 processors. It shows the average frequency
+(including boost frequencies).
+The fact that on all recent hardware the mperf timer stops ticking in any idle
+state it is also used to show C0 (processor is active) and Cx (processor is in
+any sleep state) times. These counters do not have the inaccuracy restrictions
+the "Idle_Stats" counters may show.
+May work poorly on Linux-2.6.20 through 2.6.29, as the \fBacpi-cpufreq \fP
+kernel frequency driver periodically cleared aperf/mperf registers in those
+kernels.
+
+.SS "Nehalem" "SandyBridge"
+Intel Core and Package sleep state counters.
+Threads (hyperthreaded cores) may not be able to enter deeper core states if
+its sibling is utilized.
+Deepest package sleep states may in reality show up as machine/platform wide
+sleep states and can only be entered if all cores are idle. Look up Intel
+manuals (some are provided in the References section) for further details.
+
+.SS "Fam_12h" "Fam_14h"
+AMD laptop and desktop processor (family 12h and 14h) sleep state counters.
+The registers are accessed via PCI and therefore can still be read out while
+cores have been offlined.
+
+There is one special counter: NBP1 (North Bridge P1).
+This one always returns 0 or 1, depending on whether the North Bridge P1
+power state got entered at least once during measure time.
+Being able to enter NBP1 state also depends on graphics power management.
+Therefore this counter can be used to verify whether the graphics' driver
+power management is working as expected.
+
+.SH EXAMPLES
+
+cpupower monitor -l" may show:
+.RS 4
+Monitor "Mperf" (3 states) \- Might overflow after 922000000 s
+
+   ...
+
+Monitor "Idle_Stats" (3 states) \- Might overflow after 4294967295 s
+
+   ...
+
+.RE
+cpupower monitor \-m "Idle_Stats,Mperf" scp /tmp/test /nfs/tmp
+
+Monitor the scp command, show both Mperf and Idle_Stats states counter
+statistics, but in exchanged order.
+
+
+
+.RE
+Be careful that the typical command to fully utilize one CPU by doing:
+
+cpupower monitor cat /dev/zero >/dev/null
+
+Does not work as expected, because the measured output is redirected to
+/dev/null. This could get workarounded by putting the line into an own, tiny
+shell script. Hit CTRL\-c to terminate the command and get the measure output
+displayed.
+
+.SH REFERENCES
+"BIOS and Kernel Developer’s Guide (BKDG) for AMD Family 14h Processors"
+http://support.amd.com/us/Processor_TechDocs/43170.pdf
+
+"Intel® Turbo Boost Technology
+in Intel® Core™ Microarchitecture (Nehalem) Based Processors"
+http://download.intel.com/design/processor/applnots/320354.pdf
+
+"Intel® 64 and IA-32 Architectures Software Developer's Manual
+Volume 3B: System Programming Guide"
+http://www.intel.com/products/processor/manuals
+
+.SH FILES
+.ta
+.nf
+/dev/cpu/*/msr
+/sys/devices/system/cpu/cpu*/cpuidle/state*/.
+.fi
+
+.SH "SEE ALSO"
+powertop(8), msr(4), vmstat(8)
+.PP
+.SH AUTHORS
+.nf
+Written by Thomas Renninger <trenn@suse.de>
+
+Nehalem, SandyBridge monitors and command passing
+based on turbostat.8 from Len Brown <len.brown@intel.com>

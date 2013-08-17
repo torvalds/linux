@@ -1,0 +1,100 @@
+config STMMAC_ETH
+	tristate "STMicroelectronics 10/100/1000 Ethernet driver"
+	depends on HAS_IOMEM
+	select NET_CORE
+	select MII
+	select PHYLIB
+	select CRC32
+	---help---
+	  This is the driver for the Ethernet IPs are built around a
+	  Synopsys IP Core and only tested on the STMicroelectronics
+	  platforms.
+
+if STMMAC_ETH
+
+config STMMAC_PLATFORM
+	tristate "STMMAC platform bus support"
+	depends on STMMAC_ETH
+	default y
+	---help---
+	  This selects the platform specific bus support for
+	  the stmmac device driver. This is the driver used
+	  on many embedded STM platforms based on ARM and SuperH
+	  processors.
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
+config STMMAC_PCI
+	tristate "STMMAC support on PCI bus (EXPERIMENTAL)"
+	depends on STMMAC_ETH && PCI && EXPERIMENTAL
+	---help---
+	  This is to select the Synopsys DWMAC available on PCI devices,
+	  if you have a controller with this interface, say Y or M here.
+
+	  This PCI support is tested on XLINX XC2V3000 FF1152AMT0221
+	  D1215994A VIRTEX FPGA board.
+
+	  If unsure, say N.
+
+config STMMAC_DEBUG_FS
+	bool "Enable monitoring via sysFS "
+	default n
+	depends on STMMAC_ETH && DEBUG_FS
+	---help---
+	  The stmmac entry in /sys reports DMA TX/RX rings
+	  or (if supported) the HW cap register.
+
+config STMMAC_DA
+	bool "STMMAC DMA arbitration scheme"
+	default n
+	---help---
+	  Selecting this option, rx has priority over Tx (only for Giga
+	  Ethernet device).
+	  By default, the DMA arbitration scheme is based on Round-robin
+	  (rx:tx priority is 1:1).
+
+config STMMAC_TIMER
+	bool "STMMAC Timer optimisation"
+	default n
+	depends on RTC_HCTOSYS_DEVICE
+	---help---
+	  Use an external timer for mitigating the number of network
+	  interrupts. Currently, for SH architectures, it is possible
+	  to use the TMU channel 2 and the SH-RTC device.
+
+choice
+        prompt "Select Timer device"
+        depends on STMMAC_TIMER
+
+config STMMAC_TMU_TIMER
+        bool "TMU channel 2"
+        depends on CPU_SH4
+	---help---
+
+config STMMAC_RTC_TIMER
+        bool "Real time clock"
+        depends on RTC_CLASS
+	---help---
+
+endchoice
+
+choice
+	prompt "Select the DMA TX/RX descriptor operating modes"
+	depends on STMMAC_ETH
+	---help---
+	  This driver supports DMA descriptor to operate both in dual buffer
+	  (RING) and linked-list(CHAINED) mode. In RING mode each descriptor
+	  points to two data buffer pointers whereas in CHAINED mode they
+	  points to only one data buffer pointer.
+
+config STMMAC_RING
+	bool "Enable Descriptor Ring Mode"
+
+config STMMAC_CHAINED
+	bool "Enable Descriptor Chained Mode"
+
+endchoice
+
+
+endif

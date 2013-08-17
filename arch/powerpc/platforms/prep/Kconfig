@@ -1,0 +1,23 @@
+config PPC_PREP
+	bool "PowerPC Reference Platform (PReP) based machines"
+	depends on 6xx && BROKEN
+	select HAVE_PCSPKR_PLATFORM
+	select MPIC
+	select PPC_I8259
+	select PPC_INDIRECT_PCI
+	select PPC_UDBG_16550
+	select PPC_NATIVE
+	default n
+
+config PREP_RESIDUAL
+	bool "Support for PReP Residual Data"
+	depends on PPC_PREP
+	help
+	  Some PReP systems have residual data passed to the kernel by the
+	  firmware.  This allows detection of memory size, devices present and
+	  other useful pieces of information.  Sometimes this information is
+	  not present or incorrect, in which case it could lead to the machine 
+	  behaving incorrectly.  If this happens, either disable PREP_RESIDUAL
+	  or pass the 'noresidual' option to the kernel.
+
+	  If you are running a PReP system, say Y here, otherwise say N.

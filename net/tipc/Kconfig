@@ -1,0 +1,69 @@
+#
+# TIPC configuration
+#
+
+menuconfig TIPC
+	tristate "The TIPC Protocol (EXPERIMENTAL)"
+	depends on INET && EXPERIMENTAL
+	---help---
+	  The Transparent Inter Process Communication (TIPC) protocol is
+	  specially designed for intra cluster communication. This protocol
+	  originates from Ericsson where it has been used in carrier grade
+	  cluster applications for many years.
+
+	  For more information about TIPC, see http://tipc.sourceforge.net.
+
+	  This protocol support is also available as a module ( = code which
+	  can be inserted in and removed from the running kernel whenever you
+	  want). The module will be called tipc. If you want to compile it
+	  as a module, say M here and read <file:Documentation/kbuild/modules.txt>.
+
+	  If in doubt, say N.
+
+if TIPC
+
+config TIPC_ADVANCED
+	bool "Advanced TIPC configuration"
+	default n
+	help
+	  Saying Y here will open some advanced configuration for TIPC.
+	  Most users do not need to bother; if unsure, just say N.
+
+config TIPC_PORTS
+	int "Maximum number of ports in a node"
+	depends on TIPC_ADVANCED
+	range 127 65535
+	default "8191"
+	help
+	  Specifies how many ports can be supported by a node.
+	  Can range from 127 to 65535 ports; default is 8191.
+
+	  Setting this to a smaller value saves some memory,
+	  setting it to higher allows for more ports.
+
+config TIPC_LOG
+	int "Size of log buffer"
+	depends on TIPC_ADVANCED
+	range 0 32768
+	default "0"
+	help
+	  Size (in bytes) of TIPC's internal log buffer, which records the
+	  occurrence of significant events.  Can range from 0 to 32768 bytes;
+	  default is 0.
+
+	  There is no need to enable the log buffer unless the node will be
+	  managed remotely via TIPC.
+
+config TIPC_DEBUG
+	bool "Enable debugging support"
+	default n
+	help
+	  Saying Y here enables TIPC debugging capabilities used by developers.
+	  Most users do not need to bother; if unsure, just say N.
+
+	  Enabling debugging support causes TIPC to display data about its
+	  internal state when certain abnormal conditions occur. It also
+	  makes it easy for developers to capture additional information of
+	  interest using the dbg() or msg_dbg() macros.
+
+endif # TIPC

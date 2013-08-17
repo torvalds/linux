@@ -1,0 +1,200 @@
+  <bibliography>
+    <title>References</title>
+
+    <biblioentry id="eia608">
+      <abbrev>EIA&nbsp;608-B</abbrev>
+      <authorgroup>
+	<corpauthor>Electronic Industries Alliance (<ulink
+url="http://www.eia.org">http://www.eia.org</ulink>)</corpauthor>
+      </authorgroup>
+      <title>EIA 608-B "Recommended Practice for Line 21 Data
+Service"</title>
+    </biblioentry>
+
+    <biblioentry id="en300294">
+      <abbrev>EN&nbsp;300&nbsp;294</abbrev>
+      <authorgroup>
+	<corpauthor>European Telecommunication Standards Institute
+(<ulink url="http://www.etsi.org">http://www.etsi.org</ulink>)</corpauthor>
+      </authorgroup>
+      <title>EN 300 294 "625-line television Wide Screen Signalling
+(WSS)"</title>
+    </biblioentry>
+
+    <biblioentry id="ets300231">
+      <abbrev>ETS&nbsp;300&nbsp;231</abbrev>
+      <authorgroup>
+	<corpauthor>European Telecommunication Standards Institute
+(<ulink
+url="http://www.etsi.org">http://www.etsi.org</ulink>)</corpauthor>
+      </authorgroup>
+      <title>ETS 300 231 "Specification of the domestic video
+Programme Delivery Control system (PDC)"</title>
+    </biblioentry>
+
+    <biblioentry id="ets300706">
+      <abbrev>ETS&nbsp;300&nbsp;706</abbrev>
+      <authorgroup>
+	<corpauthor>European Telecommunication Standards Institute
+(<ulink url="http://www.etsi.org">http://www.etsi.org</ulink>)</corpauthor>
+      </authorgroup>
+      <title>ETS 300 706 "Enhanced Teletext specification"</title>
+    </biblioentry>
+
+    <biblioentry id="mpeg2part1">
+      <abbrev>ISO&nbsp;13818-1</abbrev>
+      <authorgroup>
+	<corpauthor>International Telecommunication Union (<ulink
+url="http://www.itu.ch">http://www.itu.ch</ulink>), International
+Organisation for Standardisation (<ulink
+url="http://www.iso.ch">http://www.iso.ch</ulink>)</corpauthor>
+      </authorgroup>
+      <title>ITU-T Rec. H.222.0 | ISO/IEC 13818-1 "Information
+technology &mdash; Generic coding of moving pictures and associated
+audio information: Systems"</title>
+    </biblioentry>
+
+    <biblioentry id="mpeg2part2">
+      <abbrev>ISO&nbsp;13818-2</abbrev>
+      <authorgroup>
+	<corpauthor>International Telecommunication Union (<ulink
+url="http://www.itu.ch">http://www.itu.ch</ulink>), International
+Organisation for Standardisation (<ulink
+url="http://www.iso.ch">http://www.iso.ch</ulink>)</corpauthor>
+      </authorgroup>
+      <title>ITU-T Rec. H.262 | ISO/IEC 13818-2 "Information
+technology &mdash; Generic coding of moving pictures and associated
+audio information: Video"</title>
+    </biblioentry>
+
+    <biblioentry id="itu470">
+      <abbrev>ITU&nbsp;BT.470</abbrev>
+      <authorgroup>
+	<corpauthor>International Telecommunication Union (<ulink
+url="http://www.itu.ch">http://www.itu.ch</ulink>)</corpauthor>
+      </authorgroup>
+      <title>ITU-R Recommendation BT.470-6 "Conventional Television
+Systems"</title>
+    </biblioentry>
+
+    <biblioentry id="itu601">
+      <abbrev>ITU&nbsp;BT.601</abbrev>
+      <authorgroup>
+	<corpauthor>International Telecommunication Union (<ulink
+url="http://www.itu.ch">http://www.itu.ch</ulink>)</corpauthor>
+      </authorgroup>
+      <title>ITU-R Recommendation BT.601-5 "Studio Encoding Parameters
+of Digital Television for Standard 4:3 and Wide-Screen 16:9 Aspect
+Ratios"</title>
+    </biblioentry>
+
+    <biblioentry id="itu653">
+      <abbrev>ITU&nbsp;BT.653</abbrev>
+      <authorgroup>
+	<corpauthor>International Telecommunication Union (<ulink
+url="http://www.itu.ch">http://www.itu.ch</ulink>)</corpauthor>
+      </authorgroup>
+      <title>ITU-R Recommendation BT.653-3 "Teletext systems"</title>
+    </biblioentry>
+
+    <biblioentry id="itu709">
+      <abbrev>ITU&nbsp;BT.709</abbrev>
+      <authorgroup>
+	<corpauthor>International Telecommunication Union (<ulink
+url="http://www.itu.ch">http://www.itu.ch</ulink>)</corpauthor>
+      </authorgroup>
+      <title>ITU-R Recommendation BT.709-5 "Parameter values for the
+HDTV standards for production and international programme
+exchange"</title>
+    </biblioentry>
+
+    <biblioentry id="itu1119">
+      <abbrev>ITU&nbsp;BT.1119</abbrev>
+      <authorgroup>
+	<corpauthor>International Telecommunication Union (<ulink
+url="http://www.itu.ch">http://www.itu.ch</ulink>)</corpauthor>
+      </authorgroup>
+      <title>ITU-R Recommendation BT.1119 "625-line
+television Wide Screen Signalling (WSS)"</title>
+    </biblioentry>
+
+    <biblioentry id="jfif">
+      <abbrev>JFIF</abbrev>
+      <authorgroup>
+	<corpauthor>Independent JPEG Group (<ulink
+url="http://www.ijg.org">http://www.ijg.org</ulink>)</corpauthor>
+      </authorgroup>
+      <title>JPEG File Interchange Format</title>
+      <subtitle>Version 1.02</subtitle>
+    </biblioentry>
+
+    <biblioentry id="itu-t81">
+      <abbrev>ITU-T.81</abbrev>
+      <authorgroup>
+	<corpauthor>International Telecommunication Union
+(<ulink url="http://www.itu.int">http://www.itu.int</ulink>)</corpauthor>
+      </authorgroup>
+      <title>ITU-T Recommendation T.81
+"Information Technology &mdash; Digital Compression and Coding of Continous-Tone
+Still Images &mdash; Requirements and Guidelines"</title>
+    </biblioentry>
+
+    <biblioentry id="w3c-jpeg-jfif">
+      <abbrev>W3C JPEG JFIF</abbrev>
+      <authorgroup>
+	<corpauthor>The World Wide Web Consortium (<ulink
+url="http://www.w3.org/Graphics/JPEG">http://www.w3.org</ulink>)</corpauthor>
+      </authorgroup>
+      <title>JPEG JFIF</title>
+    </biblioentry>
+
+    <biblioentry id="smpte12m">
+      <abbrev>SMPTE&nbsp;12M</abbrev>
+      <authorgroup>
+	<corpauthor>Society of Motion Picture and Television Engineers
+(<ulink url="http://www.smpte.org">http://www.smpte.org</ulink>)</corpauthor>
+      </authorgroup>
+      <title>SMPTE 12M-1999 "Television, Audio and Film - Time and
+Control Code"</title>
+    </biblioentry>
+
+    <biblioentry id="smpte170m">
+      <abbrev>SMPTE&nbsp;170M</abbrev>
+      <authorgroup>
+	<corpauthor>Society of Motion Picture and Television Engineers
+(<ulink url="http://www.smpte.org">http://www.smpte.org</ulink>)</corpauthor>
+      </authorgroup>
+      <title>SMPTE 170M-1999 "Television - Composite Analog Video
+Signal - NTSC for Studio Applications"</title>
+    </biblioentry>
+
+    <biblioentry id="smpte240m">
+      <abbrev>SMPTE&nbsp;240M</abbrev>
+      <authorgroup>
+	<corpauthor>Society of Motion Picture and Television Engineers
+(<ulink url="http://www.smpte.org">http://www.smpte.org</ulink>)</corpauthor>
+      </authorgroup>
+      <title>SMPTE 240M-1999 "Television - Signal Parameters -
+1125-Line High-Definition Production"</title>
+    </biblioentry>
+
+    <biblioentry id="en50067">
+      <abbrev>EN&nbsp;50067</abbrev>
+      <authorgroup>
+	<corpauthor>European Committee for Electrotechnical Standardization
+(<ulink url="http://www.cenelec.eu">http://www.cenelec.eu</ulink>)</corpauthor>
+      </authorgroup>
+      <title>Specification of the radio data system (RDS) for VHF/FM sound broadcasting
+in the frequency range from 87,5 to 108,0 MHz</title>
+    </biblioentry>
+
+    <biblioentry id="nrsc4">
+      <abbrev>NRSC-4</abbrev>
+      <authorgroup>
+	<corpauthor>National Radio Systems Committee
+(<ulink url="http://www.nrscstandards.org">http://www.nrscstandards.org</ulink>)</corpauthor>
+      </authorgroup>
+      <title>NTSC-4: United States RBDS Standard</title>
+    </biblioentry>
+
+  </bibliography>

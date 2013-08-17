@@ -1,0 +1,162 @@
+Pro Audio Spectrum 16 for 2.3.99 and later
+=========================================
+by Thomas Molina (tmolina@home.com)
+last modified 3 Mar 2001
+Acknowledgement to Axel Boldt (boldt@math.ucsb.edu) for stuff taken
+from Configure.help, Riccardo Facchetti for stuff from README.OSS,
+and others whose names I could not find.
+
+This documentation is relevant for the PAS16 driver (pas2_card.c and
+friends) under kernel version 2.3.99 and later.  If you are
+unfamiliar with configuring sound under Linux, please read the
+Sound-HOWTO, Documentation/sound/oss/Introduction and other
+relevant docs first.
+
+The following information is relevant information from README.OSS
+and legacy docs for the Pro Audio Spectrum 16 (PAS16):
+==================================================================
+
+The pas2_card.c driver supports the following cards --
+Pro Audio Spectrum 16 (PAS16) and compatibles:
+        Pro Audio Spectrum 16
+        Pro Audio Studio 16
+        Logitech Sound Man 16
+        NOTE! The original Pro Audio Spectrum as well as the PAS+ are not
+              and will not be supported by the driver.
+
+The sound driver configuration dialog
+-------------------------------------
+
+Sound configuration starts by making some yes/no questions. Be careful
+when answering to these questions since answering y to a question may
+prevent some later ones from being asked. For example don't answer y to
+the question about (PAS16) if you don't really have a PAS16.  Sound
+configuration may also be made modular by answering m to configuration
+options presented. 
+
+Note also that all questions may not be asked. The configuration program
+may disable some questions depending on the earlier choices. It may also
+select some options automatically as well.
+
+  "ProAudioSpectrum 16 support",
+        - Answer 'y'_ONLY_ if you have a Pro Audio Spectrum _16_,
+          Pro Audio Studio 16 or Logitech SoundMan 16 (be sure that
+          you read the above list correctly). Don't answer 'y' if you
+          have some other card made by Media Vision or Logitech since they
+          are not PAS16 compatible.
+          NOTE! Since 3.5-beta10 you need to enable SB support (next question)
+          if you want to use the SB emulation of PAS16. It's also possible to
+          the emulation if you want to use a true SB card together with PAS16
+          (there is another question about this that is asked later).
+
+  "Generic OPL2/OPL3 FM synthesizer support",
+        - Answer 'y' if your card has a FM chip made by Yamaha (OPL2/OPL3/OPL4).
+	  The PAS16 has an OPL3-compatible FM chip.
+
+With PAS16 you can use two audio device files at the same time. /dev/dsp (and
+/dev/audio) is connected to the 8/16 bit native codec and the /dev/dsp1 (and
+/dev/audio1) is connected to the SB emulation (8 bit mono only).
+
+
+The new stuff for 2.3.99 and later
+============================================================================
+The following configuration options are relevant to configuring the PAS16:
+
+Sound card support
+CONFIG_SOUND
+  If you have a sound card in your computer, i.e. if it can say more
+  than an occasional beep, say Y. Be sure to have all the information
+  about your sound card and its configuration down (I/O port,
+  interrupt and DMA channel), because you will be asked for it.
+
+  You want to read the Sound-HOWTO, available from
+  http://www.tldp.org/docs.html#howto . General information
+  about the modular sound system is contained in the files
+  Documentation/sound/oss/Introduction. The file
+  Documentation/sound/oss/README.OSS contains some slightly outdated but
+  still useful information as well.
+
+OSS sound modules
+CONFIG_SOUND_OSS
+  OSS is the Open Sound System suite of sound card drivers. They make
+  sound programming easier since they provide a common API. Say Y or M
+  here (the module will be called sound.o) if you haven't found a
+  driver for your sound card above, then pick your driver from the
+  list below.
+
+Persistent DMA buffers
+CONFIG_SOUND_DMAP
+  Linux can often have problems allocating DMA buffers for ISA sound
+  cards on machines with more than 16MB of RAM. This is because ISA
+  DMA buffers must exist below the 16MB boundary and it is quite
+  possible that a large enough free block in this region cannot be
+  found after the machine has been running for a while. If you say Y
+  here the DMA buffers (64Kb) will be allocated at boot time and kept
+  until the shutdown. This option is only useful if you said Y to
+  "OSS sound modules", above. If you said M to "OSS sound modules"
+  then you can get the persistent DMA buffer functionality by passing
+  the command-line argument "dmabuf=1" to the sound.o module.
+
+  Say y here for PAS16.
+
+ProAudioSpectrum 16 support
+CONFIG_SOUND_PAS
+  Answer Y only if you have a Pro Audio Spectrum 16, ProAudio Studio
+  16 or Logitech SoundMan 16 sound card. Don't answer Y if you have
+  some other card made by Media Vision or Logitech since they are not
+  PAS16 compatible.  It is not necessary to enable the  separate
+  Sound Blaster support; it is included in the PAS driver.
+
+  If you compile the driver into the kernel, you have to add
+  "pas2=<io>,<irq>,<dma>,<dma2>,<sbio>,<sbirq>,<sbdma>,<sbdma2>
+  to the kernel command line.
+
+FM Synthesizer (YM3812/OPL-3) support
+CONFIG_SOUND_YM3812
+  Answer Y if your card has a FM chip made by Yamaha (OPL2/OPL3/OPL4).
+  Answering Y is usually a safe and recommended choice, however some
+  cards may have software (TSR) FM emulation. Enabling FM support with
+  these cards may cause trouble (I don't currently know of any such
+  cards, however).
+  Please read the file Documentation/sound/oss/OPL3 if your card has an
+  OPL3 chip.
+  If you compile the driver into the kernel, you have to add
+  "opl3=<io>" to the kernel command line.
+
+  If you compile your drivers into the kernel, you MUST configure 
+  OPL3 support as a module for PAS16 support to work properly.
+  You can then get OPL3 functionality by issuing the command:
+  insmod opl3
+  In addition, you must either add the following line to 
+  /etc/modprobe.d/*.conf:
+  options opl3 io=0x388
+  or else add the following line to /etc/lilo.conf:
+  opl3=0x388
+
+
+EXAMPLES
+===================================================================
+To use the PAS16 in my computer I have enabled the following sound
+configuration options:
+
+CONFIG_SOUND=y
+CONFIG_SOUND_OSS=y
+CONFIG_SOUND_TRACEINIT=y
+CONFIG_SOUND_DMAP=y
+CONFIG_SOUND_PAS=y
+CONFIG_SOUND_SB=n
+CONFIG_SOUND_YM3812=m
+
+I have also included the following append line in /etc/lilo.conf:
+append="pas2=0x388,10,3,-1,0x220,5,1,-1 sb=0x220,5,1,-1 opl3=0x388"
+
+The io address of 0x388 is default configuration on the PAS16.  The
+irq of 10 and dma of 3 may not match your installation.  The above 
+configuration enables PAS16, 8-bit Soundblaster and OPL3
+functionality.  If Soundblaster functionality is not desired, the
+following line would be appropriate:
+append="pas2=0x388,10,3,-1,0,-1,-1,-1 opl3=0x388"
+
+If sound is built totally modular, the above options may be 
+specified in /etc/modprobe.d/*.conf for pas2, sb and opl3
+respectively. 

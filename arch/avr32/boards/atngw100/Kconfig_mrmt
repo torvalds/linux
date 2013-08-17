@@ -1,0 +1,80 @@
+# RMT for NGW100 customization
+
+choice
+	prompt "RMT Version"
+	help
+	  Select the RMTx board version.
+
+config BOARD_MRMT_REV1
+	bool "RMT1"
+config BOARD_MRMT_REV2
+	bool "RMT2"
+
+endchoice
+
+config BOARD_MRMT_AC97
+	bool "Enable AC97 CODEC"
+	help
+	  Enable the UCB1400 AC97 CODEC driver.
+
+choice
+	prompt "Touchscreen Driver"
+	default BOARD_MRMT_ADS7846_TS
+
+config BOARD_MRMT_UCB1400_TS
+	bool "Use UCB1400 Touchscreen"
+
+config BOARD_MRMT_ADS7846_TS
+	bool "Use ADS7846 Touchscreen"
+
+endchoice
+
+choice
+	prompt "RMTx LCD Selection"
+	default BOARD_MRMT_LCD_DISABLE
+
+config BOARD_MRMT_LCD_DISABLE
+	bool "LCD Disabled"
+
+config BOARD_MRMT_LCD_LQ043T3DX0X
+	bool "Sharp LQ043T3DX0x or compatible"
+	help
+	  If using RMT2, be sure to load the resistor pack selectors accordingly
+
+if BOARD_MRMT_REV2
+config BOARD_MRMT_LCD_KWH043GM08
+	bool "Formike KWH043GM08 or compatible"
+	help
+	  Be sure to load the RMT2 resistor pack selectors accordingly
+endif
+
+endchoice
+
+if !BOARD_MRMT_LCD_DISABLE
+config BOARD_MRMT_BL_PWM
+	bool "Use PWM control for LCD Backlight"
+	help
+		Use PWM driver for controlling LCD Backlight.
+		Otherwise, LCD Backlight is always on.
+endif
+
+config BOARD_MRMT_RTC_I2C
+	bool "Use External RTC on I2C Bus"
+	help
+		RMT1 has an optional RTC device on the I2C bus.
+		It is a SII S35390A.  Be sure to select the
+		matching RTC driver.
+
+choice
+	prompt "Wireless Module on ttyS2"
+	default BOARD_MRMT_WIRELESS_ZB
+
+config BOARD_MRMT_WIRELESS_ZB
+	bool "Use ZigBee/802.15.4 Module"
+
+config BOARD_MRMT_WIRELESS_BT
+	bool "Use Bluetooth (HCI) Module"
+
+config BOARD_MRMT_WIRELESS_NONE
+	bool "Not Installed"
+endchoice

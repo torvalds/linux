@@ -1,0 +1,74 @@
+if ARCH_U300
+
+menu "ST-Ericsson AB U300/U330/U335/U365 Platform"
+
+comment "ST-Ericsson Mobile Platform Products"
+
+config MACH_U300
+	bool "U300"
+	select PINCTRL
+	select PINCTRL_U300
+	select PINCTRL_COH901
+
+comment "ST-Ericsson U300/U330/U335/U365 Feature Selections"
+
+choice
+	prompt "U300/U330/U335/U365 system type"
+	default MACH_U300_BS2X
+	---help---
+	You need to select the target system, i.e. the
+	U300/U330/U335/U365 board that you want to compile your kernel
+	for.
+
+config MACH_U300_BS2X
+	bool "S26/S26/B25/B26 Test Products"
+	depends on MACH_U300
+	help
+		Select this if you're developing on the
+		S26/S25 test products. (Also works on
+		B26/B25 big boards.)
+
+config MACH_U300_BS330
+	bool "S330/B330 Test Products"
+	depends on MACH_U300
+	help
+		Select this if you're developing on the
+		S330/B330 test products.
+
+config MACH_U300_BS335
+	bool "S335/B335 Test Products"
+	depends on MACH_U300
+	help
+		Select this if you're developing on the
+		S335/B335 test products.
+
+config MACH_U300_BS365
+	bool "S365/B365 Test Products"
+	depends on MACH_U300
+	help
+		Select this if you're developing on the
+		S365/B365 test products.
+
+endchoice
+
+config U300_DEBUG
+	bool "Debug support for U300"
+	depends on PM
+	help
+		Debug support for U300 in sysfs, procfs etc.
+
+config MACH_U300_SPIDUMMY
+	bool "SSP/SPI dummy chip"
+	select SPI
+	select SPI_MASTER
+	select SPI_PL022
+	help
+		This creates a small kernel module that creates a dummy
+		SPI device to be used for loopback tests. Regularly used
+		to test reference designs. If you're not testing SPI,
+		you don't need it. Selecting this will activate the
+		SPI framework and ARM PL022 support.
+
+endmenu
+
+endif

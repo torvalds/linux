@@ -1,0 +1,77 @@
+Kernel driver lm87
+==================
+
+Supported chips:
+  * National Semiconductor LM87
+    Prefix: 'lm87'
+    Addresses scanned: I2C 0x2c - 0x2e
+    Datasheet: http://www.national.com/pf/LM/LM87.html
+  * Analog Devices ADM1024
+    Prefix: 'adm1024'
+    Addresses scanned: I2C 0x2c - 0x2e
+    Datasheet: http://www.analog.com/en/prod/0,2877,ADM1024,00.html
+
+Authors:
+        Frodo Looijaard <frodol@dds.nl>,
+        Philip Edelbrock <phil@netroedge.com>,
+        Mark Studebaker <mdsxyz123@yahoo.com>,
+        Stephen Rousset <stephen.rousset@rocketlogix.com>,
+        Dan Eaton <dan.eaton@rocketlogix.com>,
+        Jean Delvare <khali@linux-fr.org>,
+        Original 2.6 port Jeff Oliver
+
+Description
+-----------
+
+This driver implements support for the National Semiconductor LM87
+and the Analog Devices ADM1024.
+
+The LM87 implements up to three temperature sensors, up to two fan
+rotation speed sensors, up to seven voltage sensors, alarms, and some
+miscellaneous stuff. The ADM1024 is fully compatible.
+
+Temperatures are measured in degrees Celsius. Each input has a high
+and low alarm settings. A high limit produces an alarm when the value
+goes above it, and an alarm is also produced when the value goes below
+the low limit.
+
+Fan rotation speeds are reported in RPM (rotations per minute). An alarm is
+triggered if the rotation speed has dropped below a programmable limit. Fan
+readings can be divided by a programmable divider (1, 2, 4 or 8) to give
+the readings more range or accuracy. Not all RPM values can accurately be
+represented, so some rounding is done. With a divider of 2, the lowest
+representable value is around 2600 RPM.
+
+Voltage sensors (also known as IN sensors) report their values in
+volts. An alarm is triggered if the voltage has crossed a programmable
+minimum or maximum limit. Note that minimum in this case always means
+'closest to zero'; this is important for negative voltage measurements.
+
+If an alarm triggers, it will remain triggered until the hardware register
+is read at least once. This means that the cause for the alarm may
+already have disappeared! Note that in the current implementation, all
+hardware registers are read whenever any data is read (unless it is less
+than 1.0 seconds since the last update). This means that you can easily
+miss once-only alarms.
+
+The lm87 driver only updates its values each 1.0 seconds; reading it more
+often will do no harm, but will return 'old' values.
+
+
+Hardware Configurations
+-----------------------
+
+The LM87 has four pins which can serve one of two possible functions,
+depending on the hardware configuration.
+
+Some functions share pins, so not all functions are available at the same
+time. Which are depends on the hardware setup. This driver normally
+assumes that firmware configured the chip correctly. Where this is not
+the case, platform code must set the I2C client's platform_data to point
+to a u8 value to be written to the channel register.
+
+For reference, here is the list of exclusive functions:
+ - in0+in5 (default) or temp3
+ - fan1 (default) or in6
+ - fan2 (default) or in7
+ - VID lines (default) or IRQ lines (not handled by this driver)

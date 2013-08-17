@@ -1,0 +1,179 @@
+
+LOCK STATISTICS
+
+- WHAT
+
+As the name suggests, it provides statistics on locks.
+
+- WHY
+
+Because things like lock contention can severely impact performance.
+
+- HOW
+
+Lockdep already has hooks in the lock functions and maps lock instances to
+lock classes. We build on that (see Documentation/lockdep-design.txt).
+The graph below shows the relation between the lock functions and the various
+hooks therein.
+
+        __acquire
+            |
+           lock _____
+            |        \
+            |    __contended
+            |         |
+            |       <wait>
+            | _______/
+            |/
+            |
+       __acquired
+            |
+            .
+          <hold>
+            .
+            |
+       __release
+            |
+         unlock
+
+lock, unlock	- the regular lock functions
+__*		- the hooks
+<> 		- states
+
+With these hooks we provide the following statistics:
+
+ con-bounces       - number of lock contention that involved x-cpu data
+ contentions       - number of lock acquisitions that had to wait
+ wait time min     - shortest (non-0) time we ever had to wait for a lock
+           max     - longest time we ever had to wait for a lock
+           total   - total time we spend waiting on this lock
+ acq-bounces       - number of lock acquisitions that involved x-cpu data
+ acquisitions      - number of times we took the lock
+ hold time min     - shortest (non-0) time we ever held the lock
+           max     - longest time we ever held the lock
+           total   - total time this lock was held
+
+From these number various other statistics can be derived, such as:
+
+ hold time average = hold time total / acquisitions
+
+These numbers are gathered per lock class, per read/write state (when
+applicable).
+
+It also tracks 4 contention points per class. A contention point is a call site
+that had to wait on lock acquisition.
+
+ - CONFIGURATION
+
+Lock statistics are enabled via CONFIG_LOCK_STATS.
+
+ - USAGE
+
+Enable collection of statistics:
+
+# echo 1 >/proc/sys/kernel/lock_stat
+
+Disable collection of statistics:
+
+# echo 0 >/proc/sys/kernel/lock_stat
+
+Look at the current lock statistics:
+
+( line numbers not part of actual output, done for clarity in the explanation
+  below )
+
+# less /proc/lock_stat
+
+01 lock_stat version 0.3
+02 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+03                               class name    con-bounces    contentions   waittime-min   waittime-max waittime-total    acq-bounces   acquisitions   holdtime-min   holdtime-max holdtime-total
+04 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+05
+06                          &mm->mmap_sem-W:           233            538 18446744073708       22924.27      607243.51           1342          45806           1.71        8595.89     1180582.34
+07                          &mm->mmap_sem-R:           205            587 18446744073708       28403.36      731975.00           1940         412426           0.58      187825.45     6307502.88
+08                          ---------------
+09                            &mm->mmap_sem            487          [<ffffffff8053491f>] do_page_fault+0x466/0x928
+10                            &mm->mmap_sem            179          [<ffffffff802a6200>] sys_mprotect+0xcd/0x21d
+11                            &mm->mmap_sem            279          [<ffffffff80210a57>] sys_mmap+0x75/0xce
+12                            &mm->mmap_sem             76          [<ffffffff802a490b>] sys_munmap+0x32/0x59
+13                          ---------------
+14                            &mm->mmap_sem            270          [<ffffffff80210a57>] sys_mmap+0x75/0xce
+15                            &mm->mmap_sem            431          [<ffffffff8053491f>] do_page_fault+0x466/0x928
+16                            &mm->mmap_sem            138          [<ffffffff802a490b>] sys_munmap+0x32/0x59
+17                            &mm->mmap_sem            145          [<ffffffff802a6200>] sys_mprotect+0xcd/0x21d
+18
+19 ...............................................................................................................................................................................................
+20
+21                              dcache_lock:           621            623           0.52         118.26        1053.02           6745          91930           0.29         316.29      118423.41
+22                              -----------
+23                              dcache_lock            179          [<ffffffff80378274>] _atomic_dec_and_lock+0x34/0x54
+24                              dcache_lock            113          [<ffffffff802cc17b>] d_alloc+0x19a/0x1eb
+25                              dcache_lock             99          [<ffffffff802ca0dc>] d_rehash+0x1b/0x44
+26                              dcache_lock            104          [<ffffffff802cbca0>] d_instantiate+0x36/0x8a
+27                              -----------
+28                              dcache_lock            192          [<ffffffff80378274>] _atomic_dec_and_lock+0x34/0x54
+29                              dcache_lock             98          [<ffffffff802ca0dc>] d_rehash+0x1b/0x44
+30                              dcache_lock             72          [<ffffffff802cc17b>] d_alloc+0x19a/0x1eb
+31                              dcache_lock            112          [<ffffffff802cbca0>] d_instantiate+0x36/0x8a
+
+This excerpt shows the first two lock class statistics. Line 01 shows the
+output version - each time the format changes this will be updated. Line 02-04
+show the header with column descriptions. Lines 05-18 and 20-31 show the actual
+statistics. These statistics come in two parts; the actual stats separated by a
+short separator (line 08, 13) from the contention points.
+
+The first lock (05-18) is a read/write lock, and shows two lines above the
+short separator. The contention points don't match the column descriptors,
+they have two: contentions and [<IP>] symbol. The second set of contention
+points are the points we're contending with.
+
+The integer part of the time values is in us.
+
+Dealing with nested locks, subclasses may appear:
+
+32...............................................................................................................................................................................................
+33
+34                               &rq->lock:         13128          13128           0.43         190.53      103881.26          97454        3453404           0.00         401.11    13224683.11
+35                               ---------
+36                               &rq->lock            645          [<ffffffff8103bfc4>] task_rq_lock+0x43/0x75
+37                               &rq->lock            297          [<ffffffff8104ba65>] try_to_wake_up+0x127/0x25a
+38                               &rq->lock            360          [<ffffffff8103c4c5>] select_task_rq_fair+0x1f0/0x74a
+39                               &rq->lock            428          [<ffffffff81045f98>] scheduler_tick+0x46/0x1fb
+40                               ---------
+41                               &rq->lock             77          [<ffffffff8103bfc4>] task_rq_lock+0x43/0x75
+42                               &rq->lock            174          [<ffffffff8104ba65>] try_to_wake_up+0x127/0x25a
+43                               &rq->lock           4715          [<ffffffff8103ed4b>] double_rq_lock+0x42/0x54
+44                               &rq->lock            893          [<ffffffff81340524>] schedule+0x157/0x7b8
+45
+46...............................................................................................................................................................................................
+47
+48                             &rq->lock/1:         11526          11488           0.33         388.73      136294.31          21461          38404           0.00          37.93      109388.53
+49                             -----------
+50                             &rq->lock/1          11526          [<ffffffff8103ed58>] double_rq_lock+0x4f/0x54
+51                             -----------
+52                             &rq->lock/1           5645          [<ffffffff8103ed4b>] double_rq_lock+0x42/0x54
+53                             &rq->lock/1           1224          [<ffffffff81340524>] schedule+0x157/0x7b8
+54                             &rq->lock/1           4336          [<ffffffff8103ed58>] double_rq_lock+0x4f/0x54
+55                             &rq->lock/1            181          [<ffffffff8104ba65>] try_to_wake_up+0x127/0x25a
+
+Line 48 shows statistics for the second subclass (/1) of &rq->lock class
+(subclass starts from 0), since in this case, as line 50 suggests,
+double_rq_lock actually acquires a nested lock of two spinlocks.
+
+View the top contending locks:
+
+# grep : /proc/lock_stat | head
+              &inode->i_data.tree_lock-W:            15          21657           0.18     1093295.30 11547131054.85             58          10415           0.16          87.51        6387.60
+              &inode->i_data.tree_lock-R:             0              0           0.00           0.00           0.00          23302         231198           0.25           8.45       98023.38
+                             dcache_lock:          1037           1161           0.38          45.32         774.51           6611         243371           0.15         306.48       77387.24
+                         &inode->i_mutex:           161            286 18446744073709       62882.54     1244614.55           3653          20598 18446744073709       62318.60     1693822.74
+                         &zone->lru_lock:            94             94           0.53           7.33          92.10           4366          32690           0.29          59.81       16350.06
+              &inode->i_data.i_mmap_mutex:            79             79           0.40           3.77          53.03          11779          87755           0.28         116.93       29898.44
+                        &q->__queue_lock:            48             50           0.52          31.62          86.31            774          13131           0.17         113.08       12277.52
+                        &rq->rq_lock_key:            43             47           0.74          68.50         170.63           3706          33929           0.22         107.99       17460.62
+                      &rq->rq_lock_key#2:            39             46           0.75           6.68          49.03           2979          32292           0.17         125.17       17137.63
+                         tasklist_lock-W:            15             15           1.45          10.87          32.70           1201           7390           0.58          62.55       13648.47
+
+Clear the statistics:
+
+# echo 0 > /proc/lock_stat

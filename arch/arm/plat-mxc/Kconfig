@@ -1,0 +1,95 @@
+if ARCH_MXC
+
+source "arch/arm/plat-mxc/devices/Kconfig"
+
+menu "Freescale MXC Implementations"
+
+choice
+	prompt "Freescale CPU family:"
+	default ARCH_IMX_V6_V7
+
+config ARCH_IMX_V4_V5
+	bool "i.MX1, i.MX21, i.MX25, i.MX27"
+	select AUTO_ZRELADDR if !ZBOOT_ROM
+	select ARM_PATCH_PHYS_VIRT
+	help
+	  This enables support for systems based on the Freescale i.MX ARMv4
+	  and ARMv5 SoCs
+
+config ARCH_IMX_V6_V7
+	bool "i.MX3, i.MX5, i.MX6"
+	select AUTO_ZRELADDR if !ZBOOT_ROM
+	select ARM_PATCH_PHYS_VIRT
+	select MIGHT_HAVE_CACHE_L2X0
+	help
+	  This enables support for systems based on the Freescale i.MX3, i.MX5
+	  and i.MX6 family.
+
+endchoice
+
+source "arch/arm/mach-imx/Kconfig"
+
+endmenu
+
+config MXC_IRQ_PRIOR
+	bool "Use IRQ priority"
+	help
+	  Select this if you want to use prioritized IRQ handling.
+	  This feature prevents higher priority ISR to be interrupted
+	  by lower priority IRQ even IRQF_DISABLED flag is not set.
+	  This may be useful in embedded applications, where are strong
+	  requirements for timing.
+	  Say N here, unless you have a specialized requirement.
+
+config MXC_TZIC
+	bool
+
+config MXC_AVIC
+	bool
+
+config MXC_PWM
+	tristate "Enable PWM driver"
+	select HAVE_PWM
+	help
+	  Enable support for the i.MX PWM controller(s).
+
+config MXC_DEBUG_BOARD
+	bool "Enable MXC debug board(for 3-stack)"
+	help
+	  The debug board is an integral part of the MXC 3-stack(PDK)
+	  platforms, it can be attached or removed from the peripheral
+	  board. On debug board, several debug devices(ethernet, UART,
+	  buttons, LEDs and JTAG) are implemented. Between the MCU and
+	  these devices, a CPLD is added as a bridge which performs
+	  data/address de-multiplexing and decode, signal level shift,
+	  interrupt control and various board functions.
+
+config HAVE_EPIT
+	bool
+
+config MXC_USE_EPIT
+	bool "Use EPIT instead of GPT"
+	depends on HAVE_EPIT
+	help
+	  Use EPIT as the system timer on systems that have it. Normally you
+	  don't have a reason to do so as the EPIT has the same features and
+	  uses the same clocks as the GPT. Anyway, on some systems the GPT
+	  may be in use for other purposes.
+
+config MXC_ULPI
+	bool
+
+config ARCH_HAS_RNGA
+	bool
+
+config IMX_HAVE_IOMUX_V1
+	bool
+
+config ARCH_MXC_IOMUX_V3
+	bool
+
+config IRAM_ALLOC
+	bool
+	select GENERIC_ALLOCATOR
+
+endif

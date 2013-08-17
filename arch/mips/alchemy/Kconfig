@@ -1,0 +1,106 @@
+# au1000-style gpio and interrupt controllers
+config ALCHEMY_GPIOINT_AU1000
+	bool
+
+# au1300-style GPIO/INT controller
+config ALCHEMY_GPIOINT_AU1300
+	bool
+
+# select this in your board config if you don't want to use the gpio
+# namespace as documented in the manuals.  In this case however you need
+# to create the necessary gpio_* functions in your board code/headers!
+# see arch/mips/include/asm/mach-au1x00/gpio.h   for more information.
+config ALCHEMY_GPIO_INDIRECT
+	def_bool n
+
+choice
+	prompt "Machine type"
+	depends on MIPS_ALCHEMY
+	default MIPS_DB1000
+
+config MIPS_MTX1
+	bool "4G Systems MTX-1 board"
+	select DMA_NONCOHERENT
+	select HW_HAS_PCI
+	select ALCHEMY_GPIOINT_AU1000
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_EARLY_PRINTK
+
+config MIPS_DB1000
+	bool "Alchemy DB1000/DB1500/DB1100 boards"
+	select ALCHEMY_GPIOINT_AU1000
+	select DMA_NONCOHERENT
+	select HW_HAS_PCI
+	select MIPS_DISABLE_OBSOLETE_IDE
+	select SYS_SUPPORTS_BIG_ENDIAN
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_EARLY_PRINTK
+
+config MIPS_DB1200
+	bool "Alchemy DB1200/PB1200 board"
+	select ALCHEMY_GPIOINT_AU1000
+	select DMA_COHERENT
+	select MIPS_DISABLE_OBSOLETE_IDE
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_EARLY_PRINTK
+
+config MIPS_DB1300
+	bool "NetLogic DB1300 board"
+	select ALCHEMY_GPIOINT_AU1300
+	select DMA_COHERENT
+	select MIPS_DISABLE_OBSOLETE_IDE
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_EARLY_PRINTK
+
+config MIPS_DB1550
+	bool "Alchemy DB1550 board"
+	select ALCHEMY_GPIOINT_AU1000
+	select HW_HAS_PCI
+	select DMA_COHERENT
+	select MIPS_DISABLE_OBSOLETE_IDE
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_EARLY_PRINTK
+
+config MIPS_PB1100
+	bool "Alchemy PB1100 board"
+	select ALCHEMY_GPIOINT_AU1000
+	select DMA_NONCOHERENT
+	select HW_HAS_PCI
+	select SWAP_IO_SPACE
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_EARLY_PRINTK
+
+config MIPS_PB1500
+	bool "Alchemy PB1500 board"
+	select ALCHEMY_GPIOINT_AU1000
+	select DMA_NONCOHERENT
+	select HW_HAS_PCI
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_EARLY_PRINTK
+
+config MIPS_PB1550
+	bool "Alchemy PB1550 board"
+	select ALCHEMY_GPIOINT_AU1000
+	select DMA_NONCOHERENT
+	select HW_HAS_PCI
+	select MIPS_DISABLE_OBSOLETE_IDE
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_EARLY_PRINTK
+
+config MIPS_XXS1500
+	bool "MyCable XXS1500 board"
+	select DMA_NONCOHERENT
+	select ALCHEMY_GPIOINT_AU1000
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_EARLY_PRINTK
+
+config MIPS_GPR
+	bool "Trapeze ITS GPR board"
+	select ALCHEMY_GPIOINT_AU1000
+	select HW_HAS_PCI
+	select DMA_NONCOHERENT
+	select MIPS_DISABLE_OBSOLETE_IDE
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_HAS_EARLY_PRINTK
+
+endchoice

@@ -1,0 +1,35 @@
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/kconfig-language.txt.
+#
+
+config PPC4xx_PCI_EXPRESS
+	bool
+	depends on PCI && 4xx
+	default n
+
+config PPC4xx_MSI
+	bool
+	depends on PCI_MSI
+	depends on PCI && 4xx
+	default n
+
+config PPC_MSI_BITMAP
+	bool
+	depends on PCI_MSI
+	default y if MPIC
+	default y if FSL_PCI
+	default y if PPC4xx_MSI
+
+source "arch/powerpc/sysdev/xics/Kconfig"
+
+config PPC_SCOM
+	bool
+
+config SCOM_DEBUGFS
+	bool "Expose SCOM controllers via debugfs"
+	depends on PPC_SCOM
+	default n
+
+config GE_FPGA
+	bool
+	default n

@@ -1,0 +1,509 @@
+#
+# Misc strange devices
+#
+
+menu "Misc devices"
+
+config SENSORS_LIS3LV02D
+	tristate
+	depends on INPUT
+	select INPUT_POLLDEV
+	default n
+
+config AD525X_DPOT
+	tristate "Analog Devices Digital Potentiometers"
+	depends on (I2C || SPI) && SYSFS
+	help
+	  If you say yes here, you get support for the Analog Devices
+	  AD5258, AD5259, AD5251, AD5252, AD5253, AD5254, AD5255
+	  AD5160, AD5161, AD5162, AD5165, AD5200, AD5201, AD5203,
+	  AD5204, AD5206, AD5207, AD5231, AD5232, AD5233, AD5235,
+	  AD5260, AD5262, AD5263, AD5290, AD5291, AD5292, AD5293,
+	  AD7376, AD8400, AD8402, AD8403, ADN2850, AD5241, AD5242,
+	  AD5243, AD5245, AD5246, AD5247, AD5248, AD5280, AD5282,
+	  ADN2860, AD5273, AD5171, AD5170, AD5172, AD5173, AD5270,
+	  AD5271, AD5272, AD5274
+	  digital potentiometer chips.
+
+	  See Documentation/misc-devices/ad525x_dpot.txt for the
+	  userspace interface.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called ad525x_dpot.
+
+config AD525X_DPOT_I2C
+	tristate "support I2C bus connection"
+	depends on AD525X_DPOT && I2C
+	help
+	  Say Y here if you have a digital potentiometers hooked to an I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad525x_dpot-i2c.
+
+config AD525X_DPOT_SPI
+	tristate "support SPI bus connection"
+	depends on AD525X_DPOT && SPI_MASTER
+	help
+	  Say Y here if you have a digital potentiometers hooked to an SPI bus.
+
+	  If unsure, say N (but it's safe to say "Y").
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad525x_dpot-spi.
+
+config ATMEL_PWM
+	tristate "Atmel AT32/AT91 PWM support"
+	depends on HAVE_CLK
+	help
+	  This option enables device driver support for the PWM channels
+	  on certain Atmel processors.  Pulse Width Modulation is used for
+	  purposes including software controlled power-efficient backlights
+	  on LCD displays, motor control, and waveform generation.
+
+config AB8500_PWM
+	bool "AB8500 PWM support"
+	depends on AB8500_CORE && ARCH_U8500
+	select HAVE_PWM
+	help
+	  This driver exports functions to enable/disble/config/free Pulse
+	  Width Modulation in the Analog Baseband Chip AB8500.
+	  It is used by led and backlight driver to control the intensity.
+
+config ATMEL_TCLIB
+	bool "Atmel AT32/AT91 Timer/Counter Library"
+	depends on (AVR32 || ARCH_AT91)
+	help
+	  Select this if you want a library to allocate the Timer/Counter
+	  blocks found on many Atmel processors.  This facilitates using
+	  these blocks by different drivers despite processor differences.
+
+config ATMEL_TCB_CLKSRC
+	bool "TC Block Clocksource"
+	depends on ATMEL_TCLIB
+	default y
+	help
+	  Select this to get a high precision clocksource based on a
+	  TC block with a 5+ MHz base clock rate.  Two timer channels
+	  are combined to make a single 32-bit timer.
+
+	  When GENERIC_CLOCKEVENTS is defined, the third timer channel
+	  may be used as a clock event device supporting oneshot mode
+	  (delays of up to two seconds) based on the 32 KiHz clock.
+
+config ATMEL_TCB_CLKSRC_BLOCK
+	int
+	depends on ATMEL_TCB_CLKSRC
+	prompt "TC Block" if ARCH_AT91RM9200 || ARCH_AT91SAM9260 || CPU_AT32AP700X
+	default 0
+	range 0 1
+	help
+	  Some chips provide more than one TC block, so you have the
+	  choice of which one to use for the clock framework.  The other
+	  TC can be used for other purposes, such as PWM generation and
+	  interval timing.
+
+config IBM_ASM
+	tristate "Device driver for IBM RSA service processor"
+	depends on X86 && PCI && INPUT && EXPERIMENTAL
+	---help---
+	  This option enables device driver support for in-band access to the
+	  IBM RSA (Condor) service processor in eServer xSeries systems.
+	  The ibmasm device driver allows user space application to access
+	  ASM (Advanced Systems Management) functions on the service
+	  processor. The driver is meant to be used in conjunction with
+	  a user space API.
+	  The ibmasm driver also enables the OS to use the UART on the
+	  service processor board as a regular serial port. To make use of
+	  this feature serial driver support (CONFIG_SERIAL_8250) must be
+	  enabled.
+
+	  WARNING: This software may not be supported or function
+	  correctly on your IBM server. Please consult the IBM ServerProven
+	  website <http://www-03.ibm.com/systems/info/x86servers/serverproven/compat/us/>
+	  for information on the specific driver level and support statement
+	  for your IBM server.
+
+config PHANTOM
+	tristate "Sensable PHANToM (PCI)"
+	depends on PCI
+	help
+	  Say Y here if you want to build a driver for Sensable PHANToM device.
+
+	  This driver is only for PCI PHANToMs.
+
+	  If you choose to build module, its name will be phantom. If unsure,
+	  say N here.
+
+config INTEL_MID_PTI
+	tristate "Parallel Trace Interface for MIPI P1149.7 cJTAG standard"
+	depends on PCI
+	default n
+	help
+	  The PTI (Parallel Trace Interface) driver directs
+	  trace data routed from various parts in the system out
+	  through an Intel Penwell PTI port and out of the mobile
+	  device for analysis with a debugging tool (Lauterbach or Fido).
+
+	  You should select this driver if the target kernel is meant for
+	  an Intel Atom (non-netbook) mobile device containing a MIPI
+	  P1149.7 standard implementation.
+
+config SGI_IOC4
+	tristate "SGI IOC4 Base IO support"
+	depends on PCI
+	---help---
+	  This option enables basic support for the IOC4 chip on certain
+	  SGI IO controller cards (IO9, IO10, and PCI-RT).  This option
+	  does not enable any specific functions on such a card, but provides
+	  necessary infrastructure for other drivers to utilize.
+
+	  If you have an SGI Altix with an IOC4-based card say Y.
+	  Otherwise say N.
+
+config TIFM_CORE
+	tristate "TI Flash Media interface support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && PCI
+	help
+	  If you want support for Texas Instruments(R) Flash Media adapters
+	  you should select this option and then also choose an appropriate
+	  host adapter, such as 'TI Flash Media PCI74xx/PCI76xx host adapter
+	  support', if you have a TI PCI74xx compatible card reader, for
+	  example.
+	  You will also have to select some flash card format drivers. MMC/SD
+	  cards are supported via 'MMC/SD Card support: TI Flash Media MMC/SD
+	  Interface support (MMC_TIFM_SD)'.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called tifm_core.
+
+config TIFM_7XX1
+	tristate "TI Flash Media PCI74xx/PCI76xx host adapter support (EXPERIMENTAL)"
+	depends on PCI && TIFM_CORE && EXPERIMENTAL
+	default TIFM_CORE
+	help
+	  This option enables support for Texas Instruments(R) PCI74xx and
+	  PCI76xx families of Flash Media adapters, found in many laptops.
+	  To make actual use of the device, you will have to select some
+	  flash card format drivers, as outlined in the TIFM_CORE Help.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called tifm_7xx1.
+
+config ICS932S401
+	tristate "Integrated Circuits ICS932S401"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the Integrated Circuits
+	  ICS932S401 clock control chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called ics932s401.
+
+config ATMEL_SSC
+	tristate "Device driver for Atmel SSC peripheral"
+	depends on AVR32 || ARCH_AT91
+	---help---
+	  This option enables device driver support for Atmel Synchronized
+	  Serial Communication peripheral (SSC).
+
+	  The SSC peripheral supports a wide variety of serial frame based
+	  communications, i.e. I2S, SPI, etc.
+
+	  If unsure, say N.
+
+config ENCLOSURE_SERVICES
+	tristate "Enclosure Services"
+	default n
+	help
+	  Provides support for intelligent enclosures (bays which
+	  contain storage devices).  You also need either a host
+	  driver (SCSI/ATA) which supports enclosures
+	  or a SCSI enclosure device (SES) to use these services.
+
+config SGI_XP
+	tristate "Support communication between SGI SSIs"
+	depends on NET
+	depends on (IA64_GENERIC || IA64_SGI_SN2 || IA64_SGI_UV || X86_UV) && SMP
+	select IA64_UNCACHED_ALLOCATOR if IA64_GENERIC || IA64_SGI_SN2
+	select GENERIC_ALLOCATOR if IA64_GENERIC || IA64_SGI_SN2
+	select SGI_GRU if X86_64 && SMP
+	---help---
+	  An SGI machine can be divided into multiple Single System
+	  Images which act independently of each other and have
+	  hardware based memory protection from the others.  Enabling
+	  this feature will allow for direct communication between SSIs
+	  based on a network adapter and DMA messaging.
+
+config CS5535_MFGPT
+	tristate "CS5535/CS5536 Geode Multi-Function General Purpose Timer (MFGPT) support"
+	depends on PCI && X86 && MFD_CS5535
+	default n
+	help
+	  This driver provides access to MFGPT functionality for other
+	  drivers that need timers.  MFGPTs are available in the CS5535 and
+	  CS5536 companion chips that are found in AMD Geode and several
+	  other platforms.  They have a better resolution and max interval
+	  than the generic PIT, and are suitable for use as high-res timers.
+	  You probably don't want to enable this manually; other drivers that
+	  make use of it should enable it.
+
+config CS5535_MFGPT_DEFAULT_IRQ
+	int
+	depends on CS5535_MFGPT
+	default 7
+	help
+	  MFGPTs on the CS5535 require an interrupt.  The selected IRQ
+	  can be overridden as a module option as well as by driver that
+	  use the cs5535_mfgpt_ API; however, different architectures might
+	  want to use a different IRQ by default.  This is here for
+	  architectures to set as necessary.
+
+config CS5535_CLOCK_EVENT_SRC
+	tristate "CS5535/CS5536 high-res timer (MFGPT) events"
+	depends on GENERIC_CLOCKEVENTS && CS5535_MFGPT
+	help
+	  This driver provides a clock event source based on the MFGPT
+	  timer(s) in the CS5535 and CS5536 companion chips.
+	  MFGPTs have a better resolution and max interval than the
+	  generic PIT, and are suitable for use as high-res timers.
+
+config HP_ILO
+	tristate "Channel interface driver for the HP iLO processor"
+	depends on PCI
+	default n
+	help
+	  The channel interface driver allows applications to communicate
+	  with iLO management processors present on HP ProLiant servers.
+	  Upon loading, the driver creates /dev/hpilo/dXccbN files, which
+	  can be used to gather data from the management processor, via
+	  read and write system calls.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hpilo.
+
+config SGI_GRU
+	tristate "SGI GRU driver"
+	depends on X86_UV && SMP
+	default n
+	select MMU_NOTIFIER
+	---help---
+	The GRU is a hardware resource located in the system chipset. The GRU
+	contains memory that can be mmapped into the user address space. This memory is
+	used to communicate with the GRU to perform functions such as load/store,
+	scatter/gather, bcopy, AMOs, etc.  The GRU is directly accessed by user
+	instructions using user virtual addresses. GRU instructions (ex., bcopy) use
+	user virtual addresses for operands.
+
+	If you are not running on a SGI UV system, say N.
+
+config SGI_GRU_DEBUG
+	bool  "SGI GRU driver debug"
+	depends on SGI_GRU
+	default n
+	---help---
+	This option enables addition debugging code for the SGI GRU driver. If
+	you are unsure, say N.
+
+config APDS9802ALS
+	tristate "Medfield Avago APDS9802 ALS Sensor module"
+	depends on I2C
+	help
+	  If you say yes here you get support for the ALS APDS9802 ambient
+	  light sensor.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called apds9802als.
+
+config ISL29003
+	tristate "Intersil ISL29003 ambient light sensor"
+	depends on I2C && SYSFS
+	help
+	  If you say yes here you get support for the Intersil ISL29003
+	  ambient light sensor.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called isl29003.
+
+config ISL29020
+	tristate "Intersil ISL29020 ambient light sensor"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Intersil ISL29020
+	  ambient light sensor.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called isl29020.
+
+config SENSORS_TSL2550
+	tristate "Taos TSL2550 ambient light sensor"
+	depends on I2C && SYSFS
+	help
+	  If you say yes here you get support for the Taos TSL2550
+	  ambient light sensor.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called tsl2550.
+
+config SENSORS_BH1780
+	tristate "ROHM BH1780GLI ambient light sensor"
+	depends on I2C && SYSFS
+	help
+	  If you say yes here you get support for the ROHM BH1780GLI
+	  ambient light sensor.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called bh1780gli.
+
+config SENSORS_BH1770
+         tristate "BH1770GLC / SFH7770 combined ALS - Proximity sensor"
+         depends on I2C
+         ---help---
+           Say Y here if you want to build a driver for BH1770GLC (ROHM) or
+	   SFH7770 (Osram) combined ambient light and proximity sensor chip.
+
+           To compile this driver as a module, choose M here: the
+           module will be called bh1770glc. If unsure, say N here.
+
+config SENSORS_APDS990X
+	 tristate "APDS990X combined als and proximity sensors"
+	 depends on I2C
+	 default n
+	 ---help---
+	   Say Y here if you want to build a driver for Avago APDS990x
+	   combined ambient light and proximity sensor chip.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called apds990x. If unsure, say N here.
+
+config HMC6352
+	tristate "Honeywell HMC6352 compass"
+	depends on I2C
+	help
+	  This driver provides support for the Honeywell HMC6352 compass,
+	  providing configuration and heading data via sysfs.
+
+config EP93XX_PWM
+	tristate "EP93xx PWM support"
+	depends on ARCH_EP93XX
+	help
+	  This option enables device driver support for the PWM channels
+	  on the Cirrus EP93xx processors.  The EP9307 chip only has one
+	  PWM channel all the others have two, the second channel is an
+	  alternate function of the EGPIO14 pin.  A sysfs interface is
+	  provided to control the PWM channels.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called ep93xx_pwm.
+
+config DS1682
+	tristate "Dallas DS1682 Total Elapsed Time Recorder with Alarm"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for Dallas Semiconductor
+	  DS1682 Total Elapsed Time Recorder.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called ds1682.
+
+config SPEAR13XX_PCIE_GADGET
+	bool "PCIe gadget support for SPEAr13XX platform"
+	depends on ARCH_SPEAR13XX
+	default n
+	help
+	 This option enables gadget support for PCIe controller. If
+	 board file defines any controller as PCIe endpoint then a sysfs
+	 entry will be created for that controller. User can use these
+	 sysfs node to configure PCIe EP as per his requirements.
+
+config TI_DAC7512
+	tristate "Texas Instruments DAC7512"
+	depends on SPI && SYSFS
+	help
+	  If you say yes here you get support for the Texas Instruments
+	  DAC7512 16-bit digital-to-analog converter.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called ti_dac7512.
+
+config VMWARE_BALLOON
+	tristate "VMware Balloon Driver"
+	depends on X86
+	help
+	  This is VMware physical memory management driver which acts
+	  like a "balloon" that can be inflated to reclaim physical pages
+	  by reserving them in the guest and invalidating them in the
+	  monitor, freeing up the underlying machine pages so they can
+	  be allocated to other guests. The balloon can also be deflated
+	  to allow the guest to use more physical memory.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called vmw_balloon.
+
+config ARM_CHARLCD
+	bool "ARM Ltd. Character LCD Driver"
+	depends on PLAT_VERSATILE
+	help
+	  This is a driver for the character LCD found on the ARM Ltd.
+	  Versatile and RealView Platform Baseboards. It doesn't do
+	  very much more than display the text "ARM Linux" on the first
+	  line and the Linux version on the second line, but that's
+	  still useful.
+
+config BMP085
+	tristate "BMP085 digital pressure sensor"
+	depends on I2C && SYSFS
+	help
+	  If you say yes here you get support for the Bosch Sensortec
+	  BMP085 digital pressure sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bmp085.
+
+config PCH_PHUB
+	tristate "Intel EG20T PCH/LAPIS Semicon IOH(ML7213/ML7223/ML7831) PHUB"
+	depends on PCI
+	help
+	  This driver is for PCH(Platform controller Hub) PHUB(Packet Hub) of
+	  Intel Topcliff which is an IOH(Input/Output Hub) for x86 embedded
+	  processor. The Topcliff has MAC address and Option ROM data in SROM.
+	  This driver can access MAC address and Option ROM data in SROM.
+
+	  This driver also can be used for LAPIS Semiconductor's IOH,
+	  ML7213/ML7223/ML7831.
+	  ML7213 which is for IVI(In-Vehicle Infotainment) use.
+	  ML7223 IOH is for MP(Media Phone) use.
+	  ML7831 IOH is for general purpose use.
+	  ML7213/ML7223/ML7831 is companion chip for Intel Atom E6xx series.
+	  ML7213/ML7223/ML7831 is completely compatible for Intel EG20T PCH.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called pch_phub.
+
+config USB_SWITCH_FSA9480
+	tristate "FSA9480 USB Switch"
+	depends on I2C
+	help
+	  The FSA9480 is a USB port accessory detector and switch.
+	  The FSA9480 is fully controlled using I2C and enables USB data,
+	  stereo and mono audio, video, microphone and UART data to use
+	  a common connector port.
+
+config MAX8997_MUIC
+	tristate "MAX8997 MUIC Support"
+	depends on MFD_MAX8997
+	help
+	  If you say yes here you get support for the MUIC device of
+	  Maxim MAX8997 PMIC.
+	  The MAX8997 MUIC is a USB port accessory detector and switch.
+
+source "drivers/misc/c2port/Kconfig"
+source "drivers/misc/eeprom/Kconfig"
+source "drivers/misc/cb710/Kconfig"
+source "drivers/misc/iwmc3200top/Kconfig"
+source "drivers/misc/ti-st/Kconfig"
+source "drivers/misc/lis3lv02d/Kconfig"
+source "drivers/misc/carma/Kconfig"
+source "drivers/misc/altera-stapl/Kconfig"
+endmenu

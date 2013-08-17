@@ -1,0 +1,146 @@
+/*
+ * Lite5200B board Device Tree Source
+ *
+ * Copyright 2006-2007 Secret Lab Technologies Ltd.
+ * Grant Likely <grant.likely@secretlab.ca>
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
+
+/include/ "mpc5200b.dtsi"
+
+/ {
+	model = "fsl,lite5200b";
+	compatible = "fsl,lite5200b";
+
+	memory {
+		reg = <0x00000000 0x10000000>;	// 256MB
+	};
+
+	soc5200@f0000000 {
+		timer@600 {	// General Purpose Timer
+			fsl,has-wdt;
+		};
+
+		psc@2000 {		// PSC1
+			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
+			cell-index = <0>;
+		};
+
+		psc@2200 {		// PSC2
+			status = "disabled";
+		};
+
+		psc@2400 {		// PSC3
+			status = "disabled";
+		};
+
+		psc@2600 {		// PSC4
+			status = "disabled";
+		};
+
+		psc@2800 {		// PSC5
+			status = "disabled";
+		};
+
+		psc@2c00 {		// PSC6
+			status = "disabled";
+		};
+
+		// PSC2 in ac97 mode example
+		//ac97@2200 {		// PSC2
+		//	compatible = "fsl,mpc5200b-psc-ac97","fsl,mpc5200-psc-ac97";
+		//	cell-index = <1>;
+		//};
+
+		// PSC3 in CODEC mode example
+		//i2s@2400 {		// PSC3
+		//	compatible = "fsl,mpc5200b-psc-i2s"; //not 5200 compatible
+		//	cell-index = <2>;
+		//};
+
+		// PSC6 in spi mode example
+		//spi@2c00 {		// PSC6
+		//	compatible = "fsl,mpc5200b-psc-spi","fsl,mpc5200-psc-spi";
+		//	cell-index = <5>;
+		//};
+
+		ethernet@3000 {
+			phy-handle = <&phy0>;
+		};
+
+		mdio@3000 {
+			phy0: ethernet-phy@0 {
+				reg = <0>;
+			};
+		};
+
+		i2c@3d40 {
+			eeprom@50 {
+				compatible = "atmel,24c02";
+				reg = <0x50>;
+			};
+		};
+
+		sram@8000 {
+			compatible = "fsl,mpc5200b-sram","fsl,mpc5200-sram";
+			reg = <0x8000 0x4000>;
+		};
+	};
+
+	pci@f0000d00 {
+		interrupt-map-mask = <0xf800 0 0 7>;
+		interrupt-map = <0xc000 0 0 1 &mpc5200_pic 0 0 3 // 1st slot
+				 0xc000 0 0 2 &mpc5200_pic 1 1 3
+				 0xc000 0 0 3 &mpc5200_pic 1 2 3
+				 0xc000 0 0 4 &mpc5200_pic 1 3 3
+
+				 0xc800 0 0 1 &mpc5200_pic 1 1 3 // 2nd slot
+				 0xc800 0 0 2 &mpc5200_pic 1 2 3
+				 0xc800 0 0 3 &mpc5200_pic 1 3 3
+				 0xc800 0 0 4 &mpc5200_pic 0 0 3>;
+		clock-frequency = <0>; // From boot loader
+		interrupts = <2 8 0 2 9 0 2 10 0>;
+		bus-range = <0 0>;
+		ranges = <0x42000000 0 0x80000000 0x80000000 0 0x20000000
+			  0x02000000 0 0xa0000000 0xa0000000 0 0x10000000
+			  0x01000000 0 0x00000000 0xb0000000 0 0x01000000>;
+	};
+
+	localbus {
+		ranges = <0 0 0xfe000000 0x02000000>;
+
+		flash@0,0 {
+			compatible = "cfi-flash";
+			reg = <0 0 0x02000000>;
+			bank-width = <1>;
+			#size-cells = <1>;
+			#address-cells = <1>;
+
+			partition@0 {
+				label = "kernel";
+				reg = <0x00000000 0x00200000>;
+			};
+			partition@200000 {
+				label = "rootfs";
+				reg = <0x00200000 0x01d00000>;
+			};
+			partition@1f00000 {
+				label = "u-boot";
+				reg = <0x01f00000 0x00060000>;
+			};
+			partition@1f60000 {
+				label = "u-boot-env";
+				reg = <0x01f60000 0x00020000>;
+			};
+			partition@1f80000 {
+				label = "dtb";
+				reg = <0x01f80000 0x00080000>;
+			};
+		};
+	};
+
+};

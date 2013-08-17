@@ -1,0 +1,19 @@
+
+The cpufreq-nforce2 driver changes the FSB on nVidia nForce2 platforms.
+
+This works better than on other platforms, because the FSB of the CPU
+can be controlled independently from the PCI/AGP clock.
+
+The module has two options:
+
+	fid: 	 multiplier * 10 (for example 8.5 = 85)
+	min_fsb: minimum FSB
+
+If not set, fid is calculated from the current CPU speed and the FSB.
+min_fsb defaults to FSB at boot time - 50 MHz.
+
+IMPORTANT: The available range is limited downwards!
+           Also the minimum available FSB can differ, for systems 
+           booting with 200 MHz, 150 should always work.
+
+

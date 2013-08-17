@@ -1,0 +1,63 @@
+Kernel driver ds1621
+====================
+
+Supported chips:
+  * Dallas Semiconductor DS1621
+    Prefix: 'ds1621'
+    Addresses scanned: I2C 0x48 - 0x4f
+    Datasheet: Publicly available at the Dallas Semiconductor website
+               http://www.dalsemi.com/
+  * Dallas Semiconductor DS1625
+    Prefix: 'ds1621'
+    Addresses scanned: I2C 0x48 - 0x4f
+    Datasheet: Publicly available at the Dallas Semiconductor website
+               http://www.dalsemi.com/
+
+Authors:
+        Christian W. Zuckschwerdt <zany@triq.net>
+        valuable contributions by Jan M. Sendler <sendler@sendler.de>
+        ported to 2.6 by Aurelien Jarno <aurelien@aurel32.net>
+        with the help of Jean Delvare <khali@linux-fr.org>
+
+Module Parameters
+------------------
+
+* polarity int
+  Output's polarity: 0 = active high, 1 = active low
+
+Description
+-----------
+
+The DS1621 is a (one instance) digital thermometer and thermostat. It has
+both high and low temperature limits which can be user defined (i.e.
+programmed into non-volatile on-chip registers). Temperature range is -55
+degree Celsius to +125 in 0.5 increments. You may convert this into a
+Fahrenheit range of -67 to +257 degrees with 0.9 steps. If polarity
+parameter is not provided, original value is used.
+
+As for the thermostat, behavior can also be programmed using the polarity
+toggle. On the one hand ("heater"), the thermostat output of the chip,
+Tout, will trigger when the low limit temperature is met or underrun and
+stays high until the high limit is met or exceeded. On the other hand
+("cooler"), vice versa. That way "heater" equals "active low", whereas
+"conditioner" equals "active high". Please note that the DS1621 data sheet
+is somewhat misleading in this point since setting the polarity bit does
+not simply invert Tout.
+
+A second thing is that, during extensive testing, Tout showed a tolerance
+of up to +/- 0.5 degrees even when compared against precise temperature
+readings. Be sure to have a high vs. low temperature limit gap of al least
+1.0 degree Celsius to avoid Tout "bouncing", though!
+
+The alarm bits are set when the high or low limits are met or exceeded and
+are reset by the module as soon as the respective temperature ranges are
+left.
+
+The alarm registers are in no way suitable to find out about the actual
+status of Tout. They will only tell you about its history, whether or not
+any of the limits have ever been met or exceeded since last power-up or
+reset. Be aware: When testing, it showed that the status of Tout can change
+with neither of the alarms set.
+
+Temperature conversion of the DS1621 takes up to 1000ms; internal access to
+non-volatile registers may last for 10ms or below.

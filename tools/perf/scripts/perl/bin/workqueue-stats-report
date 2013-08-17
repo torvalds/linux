@@ -1,0 +1,3 @@
+#!/bin/bash
+# description: workqueue stats (ins/exe/create/destroy)
+perf script $@ -s "$PERF_EXEC_PATH"/scripts/perl/workqueue-stats.pl

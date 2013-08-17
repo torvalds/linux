@@ -1,0 +1,114 @@
+menuconfig UIO
+	tristate "Userspace I/O drivers"
+	depends on !S390
+	help
+	  Enable this to allow the userspace driver core code to be
+	  built.  This code allows userspace programs easy access to
+	  kernel interrupts and memory locations, allowing some drivers
+	  to be written in userspace.  Note that a small kernel driver
+	  is also required for interrupt handling to work properly.
+
+	  If you don't know what to do here, say N.
+
+if UIO
+
+config UIO_CIF
+	tristate "generic Hilscher CIF Card driver"
+	depends on PCI
+	help
+	  Driver for Hilscher CIF DeviceNet and Profibus cards.  This
+  	  driver requires a userspace component called cif that handles
+	  all of the heavy lifting and can be found at:
+	        <http://www.osadl.org/projects/downloads/UIO/user/>
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called uio_cif.
+
+config UIO_PDRV
+	tristate "Userspace I/O platform driver"
+	help
+	  Generic platform driver for Userspace I/O devices.
+
+	  If you don't know what to do here, say N.
+
+config UIO_PDRV_GENIRQ
+	tristate "Userspace I/O platform driver with generic IRQ handling"
+	help
+	  Platform driver for Userspace I/O devices, including generic
+	  interrupt handling code. Shared interrupts are not supported.
+
+	  This kernel driver requires that the matching userspace driver
+	  handles interrupts in a special way. Userspace is responsible
+	  for acknowledging the hardware device if needed, and re-enabling
+	  interrupts in the interrupt controller using the write() syscall.
+
+	  If you don't know what to do here, say N.
+
+config UIO_AEC
+	tristate "AEC video timestamp device"
+	depends on PCI
+	help
+
+	  UIO driver for the Adrienne Electronics Corporation PCI time
+	  code device.
+
+	  This device differs from other UIO devices since it uses I/O
+	  ports instead of memory mapped I/O. In order to make it
+	  possible for UIO to work with this device a utility, uioport,
+	  can be used to read and write the ports:
+
+	    git clone git://ifup.org/philips/uioport.git
+
+	  If you compile this as a module, it will be called uio_aec.
+
+config UIO_SERCOS3
+	tristate "Automata Sercos III PCI card driver"
+	depends on PCI
+	help
+	  Userspace I/O interface for the Sercos III PCI card from
+	  Automata GmbH. The userspace part of this driver will be
+	  available for download from the Automata GmbH web site.
+
+	  Automata GmbH:        http://www.automataweb.com
+	  Sercos III interface: http://www.sercos.com
+
+	  If you compile this as a module, it will be called uio_sercos3.
+
+config UIO_PCI_GENERIC
+	tristate "Generic driver for PCI 2.3 and PCI Express cards"
+	depends on PCI
+	help
+	  Generic driver that you can bind, dynamically, to any
+	  PCI 2.3 compliant and PCI Express card. It is useful,
+	  primarily, for virtualization scenarios.
+	  If you compile this as a module, it will be called uio_pci_generic.
+
+config UIO_NETX
+	tristate "Hilscher NetX Card driver"
+	depends on PCI
+	help
+	  Driver for Hilscher NetX based fieldbus cards (cifX, comX).
+	  This driver requires a userspace component that comes with the card
+	  or is available from Hilscher (http://www.hilscher.com).
+
+	  To compile this driver as a module, choose M here; the module
+	  will be called uio_netx.
+
+config UIO_PRUSS
+	tristate "Texas Instruments PRUSS driver"
+	depends on ARCH_DAVINCI_DA850
+	help
+	  PRUSS driver for OMAPL138/DA850/AM18XX devices
+	  PRUSS driver requires user space components, examples and user space
+	  driver is available from below SVN repo - you may use anonymous login
+
+	  https://gforge.ti.com/gf/project/pru_sw/
+
+	  More info on API is available at below wiki
+
+	  http://processors.wiki.ti.com/index.php/PRU_Linux_Application_Loader
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called uio_pruss.
+
+endif

@@ -1,0 +1,87 @@
+* Freescale MSI interrupt controller
+
+Required properties:
+- compatible : compatible list, contains 2 entries,
+  first is "fsl,CHIP-msi", where CHIP is the processor(mpc8610, mpc8572,
+  etc.) and the second is "fsl,mpic-msi" or "fsl,ipic-msi" depending on
+  the parent type.
+
+- reg : It may contain one or two regions. The first region should contain
+  the address and the length of the shared message interrupt register set.
+  The second region should contain the address of aliased MSIIR register for
+  platforms that have such an alias.
+
+- msi-available-ranges: use <start count> style section to define which
+  msi interrupt can be used in the 256 msi interrupts. This property is
+  optional, without this, all the 256 MSI interrupts can be used.
+  Each available range must begin and end on a multiple of 32 (i.e.
+  no splitting an individual MSI register or the associated PIC interrupt).
+
+- interrupts : each one of the interrupts here is one entry per 32 MSIs,
+  and routed to the host interrupt controller. the interrupts should
+  be set as edge sensitive.  If msi-available-ranges is present, only
+  the interrupts that correspond to available ranges shall be present.
+
+- interrupt-parent: the phandle for the interrupt controller
+  that services interrupts for this device. for 83xx cpu, the interrupts
+  are routed to IPIC, and for 85xx/86xx cpu the interrupts are routed
+  to MPIC.
+
+Optional properties:
+- msi-address-64: 64-bit PCI address of the MSIIR register. The MSIIR register
+  is used for MSI messaging.  The address of MSIIR in PCI address space is
+  the MSI message address.
+
+  This property may be used in virtualized environments where the hypervisor
+  has created an alternate mapping for the MSIR block.  See below for an
+  explanation.
+
+
+Example:
+	msi@41600 {
+		compatible = "fsl,mpc8610-msi", "fsl,mpic-msi";
+		reg = <0x41600 0x80>;
+		msi-available-ranges = <0 0x100>;
+		interrupts = <
+			0xe0 0
+			0xe1 0
+			0xe2 0
+			0xe3 0
+			0xe4 0
+			0xe5 0
+			0xe6 0
+			0xe7 0>;
+		interrupt-parent = <&mpic>;
+	};
+
+The Freescale hypervisor and msi-address-64
+-------------------------------------------
+Normally, PCI devices have access to all of CCSR via an ATMU mapping.  The
+Freescale MSI driver calculates the address of MSIIR (in the MSI register
+block) and sets that address as the MSI message address.
+
+In a virtualized environment, the hypervisor may need to create an IOMMU
+mapping for MSIIR.  The Freescale ePAPR hypervisor has this requirement
+because of hardware limitations of the Peripheral Access Management Unit
+(PAMU), which is currently the only IOMMU that the hypervisor supports.
+The ATMU is programmed with the guest physical address, and the PAMU
+intercepts transactions and reroutes them to the true physical address.
+
+In the PAMU, each PCI controller is given only one primary window.  The
+PAMU restricts DMA operations so that they can only occur within a window.
+Because PCI devices must be able to DMA to memory, the primary window must
+be used to cover all of the guest's memory space.
+
+PAMU primary windows can be divided into 256 subwindows, and each
+subwindow can have its own address mapping ("guest physical" to "true
+physical").  However, each subwindow has to have the same alignment, which
+means they cannot be located at just any address.  Because of these
+restrictions, it is usually impossible to create a 4KB subwindow that
+covers MSIIR where it's normally located.
+
+Therefore, the hypervisor has to create a subwindow inside the same
+primary window used for memory, but mapped to the MSIR block (where MSIIR
+lives).  The first subwindow after the end of guest memory is used for
+this.  The address specified in the msi-address-64 property is the PCI
+address of MSIIR.  The hypervisor configures the PAMU to map that address to
+the true physical address of MSIIR.

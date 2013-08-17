@@ -1,0 +1,56 @@
+#
+# SoC audio configuration
+#
+
+menuconfig SND_SOC
+	tristate "ALSA for SoC audio support"
+	select SND_PCM
+	select AC97_BUS if SND_SOC_AC97_BUS
+	select SND_JACK if INPUT=y || INPUT=SND
+	select REGMAP_I2C if I2C
+	select REGMAP_SPI if SPI_MASTER
+	---help---
+
+	  If you want ASoC support, you should say Y here and also to the
+	  specific driver for your SoC platform below.
+	  
+	  ASoC provides power efficient ALSA support for embedded battery powered
+	  SoC based systems like PDA's, Phones and Personal Media Players.
+
+	  This ASoC audio support can also be built as a module.  If so, the module
+	  will be called snd-soc-core.
+
+if SND_SOC
+
+config SND_SOC_AC97_BUS
+	bool
+
+config SND_SOC_DMAENGINE_PCM
+	bool
+
+# All the supported SoCs
+source "sound/soc/atmel/Kconfig"
+source "sound/soc/au1x/Kconfig"
+source "sound/soc/blackfin/Kconfig"
+source "sound/soc/davinci/Kconfig"
+source "sound/soc/ep93xx/Kconfig"
+source "sound/soc/fsl/Kconfig"
+source "sound/soc/imx/Kconfig"
+source "sound/soc/jz4740/Kconfig"
+source "sound/soc/nuc900/Kconfig"
+source "sound/soc/omap/Kconfig"
+source "sound/soc/kirkwood/Kconfig"
+source "sound/soc/mid-x86/Kconfig"
+source "sound/soc/mxs/Kconfig"
+source "sound/soc/pxa/Kconfig"
+source "sound/soc/samsung/Kconfig"
+source "sound/soc/s6000/Kconfig"
+source "sound/soc/sh/Kconfig"
+source "sound/soc/tegra/Kconfig"
+source "sound/soc/txx9/Kconfig"
+
+# Supported codecs
+source "sound/soc/codecs/Kconfig"
+
+endif	# SND_SOC
+

@@ -1,0 +1,54 @@
+Some properties contain an ordered list of 1 or more datum which are
+normally accessed by index.  However, some devices will have multiple
+values which are more naturally accessed by name.  Device nodes can
+include a supplemental property for assigning names to each of the list
+items.  The names property consists of a list of strings in the same
+order as the data in the resource property.
+
+The following supplemental names properties are defined.
+
+Resource Property	Supplemental Names Property
+-----------------	---------------------------
+reg			reg-names
+clocks			clock-names
+interrupts		interrupt-names
+
+Usage:
+
+The -names property must be used in conjunction with the normal resource
+property. If not it will be ignored.
+
+Examples:
+
+l4-abe {
+	compatible = "simple-bus";
+	#address-cells = <2>;
+	#size-cells = <1>;
+	ranges = <0 0 0x48000000 0x00001000>, /* MPU path */
+		 <1 0 0x49000000 0x00001000>; /* L3 path */
+	mcasp {
+		compatible = "ti,mcasp";
+		reg = <0 0x10 0x10>, <0 0x20 0x10>,
+		      <1 0x10 0x10>, <1 0x20 0x10>;
+		reg-names = "mpu", "dat",
+			    "dma", "dma_dat";
+		interrupts = <11>, <12>;
+		interrupt-names = "rx", "tx";
+	};
+
+	timer {
+		compatible = "ti,timer";
+		reg = <0 0x40 0x10>, <1 0x40 0x10>;
+		reg-names = "mpu", "dma";
+	};
+};
+
+
+usb {
+	compatible = "ti,usb-host";
+	reg = <0x4a064000 0x800>, <0x4a064800 0x200>,
+	      <0x4a064c00 0x200>;
+	reg-names = "config", "ohci", "ehci";
+	interrupts = <14>, <15>;
+	interrupt-names = "ohci", "ehci";
+};

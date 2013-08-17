@@ -1,0 +1,78 @@
+#
+# LIRC driver(s) configuration
+#
+menuconfig LIRC_STAGING
+	bool "Linux Infrared Remote Control IR receiver/transmitter drivers"
+	depends on LIRC
+	help
+	  Say Y here, and all supported Linux Infrared Remote Control IR and
+	  RF receiver and transmitter drivers will be displayed. When paired
+	  with a remote control and the lirc daemon, the receiver drivers
+	  allow control of your Linux system via remote control.
+
+if LIRC_STAGING
+
+config LIRC_BT829
+        tristate "BT829 based hardware"
+	depends on LIRC && PCI
+	help
+	  Driver for the IR interface on BT829-based hardware
+
+config LIRC_IGORPLUGUSB
+	tristate "Igor Cesko's USB IR Receiver"
+	depends on LIRC && USB
+	help
+	  Driver for Igor Cesko's USB IR Receiver
+
+config LIRC_IMON
+	tristate "Legacy SoundGraph iMON Receiver and Display"
+	depends on LIRC && USB
+	help
+	  Driver for the original SoundGraph iMON IR Receiver and Display
+
+	  Current generation iMON devices use the input layer imon driver.
+
+config LIRC_PARALLEL
+	tristate "Homebrew Parallel Port Receiver"
+	depends on LIRC && PARPORT
+	help
+	  Driver for Homebrew Parallel Port Receivers
+
+config LIRC_SASEM
+	tristate "Sasem USB IR Remote"
+	depends on LIRC && USB
+	help
+	  Driver for the Sasem OnAir Remocon-V or Dign HV5 HTPC IR/VFD Module
+
+config LIRC_SERIAL
+	tristate "Homebrew Serial Port Receiver"
+	depends on LIRC
+	help
+	  Driver for Homebrew Serial Port Receivers
+
+config LIRC_SERIAL_TRANSMITTER
+	bool "Serial Port Transmitter"
+	default y
+	depends on LIRC_SERIAL
+	help
+	  Serial Port Transmitter support
+
+config LIRC_SIR
+	tristate "Built-in SIR IrDA port"
+	depends on LIRC
+	help
+	  Driver for the SIR IrDA port
+
+config LIRC_TTUSBIR
+	tristate "Technotrend USB IR Receiver"
+	depends on LIRC && USB
+	help
+	  Driver for the Technotrend USB IR Receiver
+
+config LIRC_ZILOG
+	tristate "Zilog/Hauppauge IR Transmitter"
+	depends on LIRC && I2C
+	help
+	  Driver for the Zilog/Hauppauge IR Transmitter, found on
+	  PVR-150/500, HVR-1200/1250/1700/1800, HD-PVR and other cards
+endif

@@ -1,0 +1,88 @@
+#
+# Freescale device configuration
+#
+
+config NET_VENDOR_FREESCALE
+	bool "Freescale devices"
+	default y
+	depends on FSL_SOC || QUICC_ENGINE || CPM1 || CPM2 || PPC_MPC512x || \
+		   M523x || M527x || M5272 || M528x || M520x || M532x || \
+		   ARCH_MXC || ARCH_MXS || (PPC_MPC52xx && PPC_BESTCOMM)
+	---help---
+	  If you have a network (Ethernet) card belonging to this class, say Y
+	  and read the Ethernet-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about Freescale devices. If you say Y, you will be
+	  asked for your specific card in the following questions.
+
+if NET_VENDOR_FREESCALE
+
+config FEC
+	tristate "FEC ethernet controller (of ColdFire and some i.MX CPUs)"
+	depends on (M523x || M527x || M5272 || M528x || M520x || M532x || \
+		   ARCH_MXC || SOC_IMX28)
+	default ARCH_MXC || SOC_IMX28 if ARM
+	select PHYLIB
+	---help---
+	  Say Y here if you want to use the built-in 10/100 Fast ethernet
+	  controller on some Motorola ColdFire and Freescale i.MX processors.
+
+config FEC_MPC52xx
+	tristate "FEC MPC52xx driver"
+	depends on PPC_MPC52xx && PPC_BESTCOMM
+	select CRC32
+	select PHYLIB
+	select PPC_BESTCOMM_FEC
+	---help---
+	  This option enables support for the MPC5200's on-chip
+	  Fast Ethernet Controller
+	  If compiled as module, it will be called fec_mpc52xx.
+
+config FEC_MPC52xx_MDIO
+	bool "FEC MPC52xx MDIO bus driver"
+	depends on FEC_MPC52xx
+	default y
+	---help---
+	  The MPC5200's FEC can connect to the Ethernet either with
+	  an external MII PHY chip or 10 Mbps 7-wire interface
+	  (Motorola? industry standard).
+	  If your board uses an external PHY connected to FEC, enable this.
+	  If not sure, enable.
+	  If compiled as module, it will be called fec_mpc52xx_phy.
+
+source "drivers/net/ethernet/freescale/fs_enet/Kconfig"
+
+config FSL_PQ_MDIO
+	tristate "Freescale PQ MDIO"
+	depends on FSL_SOC
+	select PHYLIB
+	---help---
+	  This driver supports the MDIO bus used by the gianfar and UCC drivers.
+
+config UCC_GETH
+	tristate "Freescale QE Gigabit Ethernet"
+	depends on QUICC_ENGINE
+	select FSL_PQ_MDIO
+	select PHYLIB
+	---help---
+	  This driver supports the Gigabit Ethernet mode of the QUICC Engine,
+	  which is available on some Freescale SOCs.
+
+config UGETH_TX_ON_DEMAND
+	bool "Transmit on Demand support"
+	depends on UCC_GETH
+
+config GIANFAR
+	tristate "Gianfar Ethernet"
+	depends on FSL_SOC
+	select FSL_PQ_MDIO
+	select PHYLIB
+	select CRC32
+	---help---
+	  This driver supports the Gigabit TSEC on the MPC83xx, MPC85xx,
+	  and MPC86xx family of chips, and the FEC on the 8540.
+
+endif # NET_VENDOR_FREESCALE

@@ -1,0 +1,162 @@
+config WIRELESS_EXT
+	bool
+
+config WEXT_CORE
+	def_bool y
+	depends on CFG80211_WEXT || WIRELESS_EXT
+
+config WEXT_PROC
+	def_bool y
+	depends on PROC_FS
+	depends on WEXT_CORE
+
+config WEXT_SPY
+	bool
+
+config WEXT_PRIV
+	bool
+
+config CFG80211
+	tristate "cfg80211 - wireless configuration API"
+	depends on RFKILL || !RFKILL
+	---help---
+	  cfg80211 is the Linux wireless LAN (802.11) configuration API.
+	  Enable this if you have a wireless device.
+
+	  For more information refer to documentation on the wireless wiki:
+
+	  http://wireless.kernel.org/en/developers/Documentation/cfg80211
+
+	  When built as a module it will be called cfg80211.
+
+config NL80211_TESTMODE
+	bool "nl80211 testmode command"
+	depends on CFG80211
+	help
+	  The nl80211 testmode command helps implementing things like
+	  factory calibration or validation tools for wireless chips.
+
+	  Select this option ONLY for kernels that are specifically
+	  built for such purposes.
+
+	  Debugging tools that are supposed to end up in the hands of
+	  users should better be implemented with debugfs.
+
+	  Say N.
+
+config CFG80211_DEVELOPER_WARNINGS
+	bool "enable developer warnings"
+	depends on CFG80211
+	default n
+	help
+	  This option enables some additional warnings that help
+	  cfg80211 developers and driver developers, but that can
+	  trigger due to races with userspace.
+
+	  For example, when a driver reports that it was disconnected
+	  from the AP, but the user disconnects manually at the same
+	  time, the warning might trigger spuriously due to races.
+
+	  Say Y only if you are developing cfg80211 or a driver based
+	  on it (or mac80211).
+
+
+config CFG80211_REG_DEBUG
+	bool "cfg80211 regulatory debugging"
+	depends on CFG80211
+	default n
+	---help---
+	  You can enable this if you want to debug regulatory changes.
+	  For more information on cfg80211 regulatory refer to the wireless
+	  wiki:
+
+	  http://wireless.kernel.org/en/developers/Regulatory
+
+	  If unsure, say N.
+
+config CFG80211_DEFAULT_PS
+	bool "enable powersave by default"
+	depends on CFG80211
+	default y
+	help
+	  This option enables powersave mode by default.
+
+	  If this causes your applications to misbehave you should fix your
+	  applications instead -- they need to register their network
+	  latency requirement, see Documentation/power/pm_qos_interface.txt.
+
+config CFG80211_DEBUGFS
+	bool "cfg80211 DebugFS entries"
+	depends on CFG80211
+	depends on DEBUG_FS
+	---help---
+	  You can enable this if you want to debugfs entries for cfg80211.
+
+	  If unsure, say N.
+
+config CFG80211_INTERNAL_REGDB
+	bool "use statically compiled regulatory rules database" if EXPERT
+	default n
+	depends on CFG80211
+	---help---
+	  This option generates an internal data structure representing
+	  the wireless regulatory rules described in net/wireless/db.txt
+	  and includes code to query that database.  This is an alternative
+	  to using CRDA for defining regulatory rules for the kernel.
+
+	  For details see:
+
+	  http://wireless.kernel.org/en/developers/Regulatory
+
+	  Most distributions have a CRDA package.  So if unsure, say N.
+
+config CFG80211_WEXT
+	bool "cfg80211 wireless extensions compatibility"
+	depends on CFG80211
+	select WEXT_CORE
+	default y
+	help
+	  Enable this option if you need old userspace for wireless
+	  extensions with cfg80211-based drivers.
+
+config WIRELESS_EXT_SYSFS
+	bool "Wireless extensions sysfs files"
+	depends on WEXT_CORE && SYSFS
+	help
+	  This option enables the deprecated wireless statistics
+	  files in /sys/class/net/*/wireless/. The same information
+	  is available via the ioctls as well.
+
+	  Say N. If you know you have ancient tools requiring it,
+	  like very old versions of hal (prior to 0.5.12 release),
+	  say Y and update the tools as soon as possible as this
+	  option will be removed soon.
+
+config LIB80211
+	tristate "Common routines for IEEE802.11 drivers"
+	default n
+	help
+	  This options enables a library of common routines used
+	  by IEEE802.11 wireless LAN drivers.
+
+	  Drivers should select this themselves if needed.  Say Y if
+	  you want this built into your kernel.
+
+config LIB80211_CRYPT_WEP
+	tristate
+
+config LIB80211_CRYPT_CCMP
+	tristate
+
+config LIB80211_CRYPT_TKIP
+	tristate
+
+config LIB80211_DEBUG
+	bool "lib80211 debugging messages"
+	depends on LIB80211
+	default n
+	---help---
+	  You can enable this if you want verbose debugging messages
+	  from lib80211.
+
+	  If unsure, say N.

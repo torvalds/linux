@@ -1,0 +1,16 @@
+if PLAT_VERSATILE
+
+config PLAT_VERSATILE_CLCD
+	bool
+
+config PLAT_VERSATILE_FPGA_IRQ
+	bool
+
+config PLAT_VERSATILE_LEDS
+	def_bool y if LEDS_CLASS
+	depends on ARCH_REALVIEW || ARCH_VERSATILE
+
+config PLAT_VERSATILE_SCHED_CLOCK
+	def_bool y
+
+endif

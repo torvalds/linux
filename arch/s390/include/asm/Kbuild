@@ -1,0 +1,15 @@
+include include/asm-generic/Kbuild.asm
+
+header-y += chpid.h
+header-y += chsc.h
+header-y += cmb.h
+header-y += dasd.h
+header-y += debug.h
+header-y += kvm_virtio.h
+header-y += monwriter.h
+header-y += qeth.h
+header-y += schid.h
+header-y += tape390.h
+header-y += ucontext.h
+header-y += vtoc.h
+header-y += zcrypt.h

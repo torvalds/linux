@@ -1,0 +1,442 @@
+#!/bin/sh
+
+# Copyright (C) 2006 Paul Mackerras, IBM Corporation <paulus@samba.org>
+# This program may be used under the terms of version 2 of the GNU
+# General Public License.
+
+# This script takes a kernel binary and optionally an initrd image
+# and/or a device-tree blob, and creates a bootable zImage for a
+# given platform.
+
+# Options:
+# -o zImage	specify output file
+# -p platform	specify platform (links in $platform.o)
+# -i initrd	specify initrd file
+# -d devtree	specify device-tree blob
+# -s tree.dts	specify device-tree source file (needs dtc installed)
+# -c		cache $kernel.strip.gz (use if present & newer, else make)
+# -C prefix	specify command prefix for cross-building tools
+#		(strip, objcopy, ld)
+# -D dir	specify directory containing data files used by script
+#		(default ./arch/powerpc/boot)
+# -W dir	specify working directory for temporary files (default .)
+
+# Stop execution if any command fails
+set -e
+
+# Allow for verbose output
+if [ "$V" = 1 ]; then
+    set -x
+fi
+
+# defaults
+kernel=
+ofile=zImage
+platform=of
+initrd=
+dtb=
+dts=
+cacheit=
+binary=
+gzip=.gz
+pie=
+
+# cross-compilation prefix
+CROSS=
+
+# mkimage wrapper script
+MKIMAGE=$srctree/scripts/mkuboot.sh
+
+# directory for object and other files used by this script
+object=arch/powerpc/boot
+objbin=$object
+dtc=scripts/dtc/dtc
+
+# directory for working files
+tmpdir=.
+
+usage() {
+    echo 'Usage: wrapper [-o output] [-p platform] [-i initrd]' >&2
+    echo '       [-d devtree] [-s tree.dts] [-c] [-C cross-prefix]' >&2
+    echo '       [-D datadir] [-W workingdir] [--no-gzip] [vmlinux]' >&2
+    exit 1
+}
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+    -o)
+	shift
+	[ "$#" -gt 0 ] || usage
+	ofile="$1"
+	;;
+    -p)
+	shift
+	[ "$#" -gt 0 ] || usage
+	platform="$1"
+	;;
+    -i)
+	shift
+	[ "$#" -gt 0 ] || usage
+	initrd="$1"
+	;;
+    -d)
+	shift
+	[ "$#" -gt 0 ] || usage
+	dtb="$1"
+	;;
+    -s)
+	shift
+	[ "$#" -gt 0 ] || usage
+	dts="$1"
+	;;
+    -c)
+	cacheit=y
+	;;
+    -C)
+	shift
+	[ "$#" -gt 0 ] || usage
+	CROSS="$1"
+	;;
+    -D)
+	shift
+	[ "$#" -gt 0 ] || usage
+	object="$1"
+	objbin="$1"
+	;;
+    -W)
+	shift
+	[ "$#" -gt 0 ] || usage
+	tmpdir="$1"
+	;;
+    --no-gzip)
+        gzip=
+        ;;
+    -?)
+	usage
+	;;
+    *)
+	[ -z "$kernel" ] || usage
+	kernel="$1"
+	;;
+    esac
+    shift
+done
+
+if [ -n "$dts" ]; then
+    if [ ! -r "$dts" -a -r "$object/dts/$dts" ]; then
+	dts="$object/dts/$dts"
+    fi
+    if [ -z "$dtb" ]; then
+	dtb="$platform.dtb"
+    fi
+    $dtc -O dtb -o "$dtb" -b 0 "$dts"
+fi
+
+if [ -z "$kernel" ]; then
+    kernel=vmlinux
+fi
+
+platformo=$object/"$platform".o
+lds=$object/zImage.lds
+ext=strip
+objflags=-S
+tmp=$tmpdir/zImage.$$.o
+ksection=.kernel:vmlinux.strip
+isection=.kernel:initrd
+link_address='0x400000'
+make_space=y
+
+case "$platform" in
+pseries)
+    platformo=$object/of.o
+    link_address='0x4000000'
+    ;;
+maple)
+    platformo=$object/of.o
+    link_address='0x400000'
+    ;;
+pmac|chrp)
+    platformo=$object/of.o
+    ;;
+coff)
+    platformo="$object/crt0.o $object/of.o"
+    lds=$object/zImage.coff.lds
+    link_address='0x500000'
+    pie=
+    ;;
+miboot|uboot*)
+    # miboot and U-boot want just the bare bits, not an ELF binary
+    ext=bin
+    objflags="-O binary"
+    tmp="$ofile"
+    ksection=image
+    isection=initrd
+    ;;
+cuboot*)
+    binary=y
+    gzip=
+    case "$platform" in
+    *-mpc866ads|*-mpc885ads|*-adder875*|*-ep88xc)
+        platformo=$object/cuboot-8xx.o
+        ;;
+    *5200*|*-motionpro)
+        platformo=$object/cuboot-52xx.o
+        ;;
+    *-pq2fads|*-ep8248e|*-mpc8272*|*-storcenter)
+        platformo=$object/cuboot-pq2.o
+        ;;
+    *-mpc824*)
+        platformo=$object/cuboot-824x.o
+        ;;
+    *-mpc83*|*-asp834x*)
+        platformo=$object/cuboot-83xx.o
+        ;;
+    *-tqm8541|*-mpc8560*|*-tqm8560|*-tqm8555|*-ksi8560*)
+        platformo=$object/cuboot-85xx-cpm2.o
+        ;;
+    *-mpc85*|*-tqm85*|*-sbc85*)
+        platformo=$object/cuboot-85xx.o
+        ;;
+    *-amigaone)
+        link_address='0x800000'
+        ;;
+    esac
+    ;;
+ps3)
+    platformo="$object/ps3-head.o $object/ps3-hvcall.o $object/ps3.o"
+    lds=$object/zImage.ps3.lds
+    gzip=
+    ext=bin
+    objflags="-O binary --set-section-flags=.bss=contents,alloc,load,data"
+    ksection=.kernel:vmlinux.bin
+    isection=.kernel:initrd
+    link_address=''
+    make_space=n
+    pie=
+    ;;
+ep88xc|ep405|ep8248e)
+    platformo="$object/fixed-head.o $object/$platform.o"
+    binary=y
+    ;;
+adder875-redboot)
+    platformo="$object/fixed-head.o $object/redboot-8xx.o"
+    binary=y
+    ;;
+simpleboot-virtex405-*)
+    platformo="$object/virtex405-head.o $object/simpleboot.o $object/virtex.o"
+    binary=y
+    ;;
+simpleboot-virtex440-*)
+    platformo="$object/fixed-head.o $object/simpleboot.o $object/virtex.o"
+    binary=y
+    ;;
+simpleboot-*)
+    platformo="$object/fixed-head.o $object/simpleboot.o"
+    binary=y
+    ;;
+asp834x-redboot)
+    platformo="$object/fixed-head.o $object/redboot-83xx.o"
+    binary=y
+    ;;
+xpedite52*)
+    link_address='0x1400000'
+    platformo=$object/cuboot-85xx.o
+    ;;
+gamecube|wii)
+    link_address='0x600000'
+    platformo="$object/$platform-head.o $object/$platform.o"
+    ;;
+treeboot-currituck)
+    link_address='0x1000000'
+    ;;
+treeboot-iss4xx-mpic)
+    platformo="$object/treeboot-iss4xx.o"
+    ;;
+epapr)
+    link_address='0x20000000'
+    pie=-pie
+    ;;
+esac
+
+vmz="$tmpdir/`basename \"$kernel\"`.$ext"
+if [ -z "$cacheit" -o ! -f "$vmz$gzip" -o "$vmz$gzip" -ot "$kernel" ]; then
+    ${CROSS}objcopy $objflags "$kernel" "$vmz.$$"
+
+    strip_size=$(stat -c %s $vmz.$$)
+
+    if [ -n "$gzip" ]; then
+        gzip -n -f -9 "$vmz.$$"
+    fi
+
+    if [ -n "$cacheit" ]; then
+	mv -f "$vmz.$$$gzip" "$vmz$gzip"
+    else
+	vmz="$vmz.$$"
+    fi
+else
+    # Calculate the vmlinux.strip size
+    ${CROSS}objcopy $objflags "$kernel" "$vmz.$$"
+    strip_size=$(stat -c %s $vmz.$$)
+    rm -f $vmz.$$
+fi
+
+if [ "$make_space" = "y" ]; then
+	# Round the size to next higher MB limit
+	round_size=$(((strip_size + 0xfffff) & 0xfff00000))
+
+	round_size=0x$(printf "%x" $round_size)
+	link_addr=$(printf "%d" $link_address)
+
+	if [ $link_addr -lt $strip_size ]; then
+	    echo "INFO: Uncompressed kernel (size 0x$(printf "%x\n" $strip_size))" \
+			"overlaps the address of the wrapper($link_address)"
+	    echo "INFO: Fixing the link_address of wrapper to ($round_size)"
+	    link_address=$round_size
+	fi
+fi
+
+vmz="$vmz$gzip"
+
+# Extract kernel version information, some platforms want to include
+# it in the image header
+version=`${CROSS}strings "$kernel" | grep '^Linux version [-0-9.]' | \
+    cut -d' ' -f3`
+if [ -n "$version" ]; then
+    uboot_version="-n Linux-$version"
+fi
+
+# physical offset of kernel image
+membase=`${CROSS}objdump -p "$kernel" | grep -m 1 LOAD | awk '{print $7}'`
+
+case "$platform" in
+uboot)
+    rm -f "$ofile"
+    ${MKIMAGE} -A ppc -O linux -T kernel -C gzip -a $membase -e $membase \
+	$uboot_version -d "$vmz" "$ofile"
+    if [ -z "$cacheit" ]; then
+	rm -f "$vmz"
+    fi
+    exit 0
+    ;;
+uboot-obs600)
+    rm -f "$ofile"
+    # obs600 wants a multi image with an initrd, so we need to put a fake
+    # one in even when building a "normal" image.
+    if [ -n "$initrd" ]; then
+	real_rd="$initrd"
+    else
+	real_rd=`mktemp`
+	echo "\0" >>"$real_rd"
+    fi
+    ${MKIMAGE} -A ppc -O linux -T multi -C gzip -a $membase -e $membase \
+	$uboot_version -d "$vmz":"$real_rd":"$dtb" "$ofile"
+    if [ -z "$initrd" ]; then
+	rm -f "$real_rd"
+    fi
+    if [ -z "$cacheit" ]; then
+	rm -f "$vmz"
+    fi
+    exit 0
+    ;;
+esac
+
+addsec() {
+    ${CROSS}objcopy $4 $1 \
+	--add-section=$3="$2" \
+	--set-section-flags=$3=contents,alloc,load,readonly,data
+}
+
+addsec $tmp "$vmz" $ksection $object/empty.o
+if [ -z "$cacheit" ]; then
+    rm -f "$vmz"
+fi
+
+if [ -n "$initrd" ]; then
+    addsec $tmp "$initrd" $isection
+fi
+
+if [ -n "$dtb" ]; then
+    addsec $tmp "$dtb" .kernel:dtb
+    if [ -n "$dts" ]; then
+	rm $dtb
+    fi
+fi
+
+if [ "$platform" != "miboot" ]; then
+    if [ -n "$link_address" ] ; then
+        text_start="-Ttext $link_address"
+    fi
+    ${CROSS}ld -m elf32ppc -T $lds $text_start $pie -o "$ofile" \
+	$platformo $tmp $object/wrapper.a
+    rm $tmp
+fi
+
+# Some platforms need the zImage's entry point and base address
+base=0x`${CROSS}nm "$ofile" | grep ' _start$' | cut -d' ' -f1`
+entry=`${CROSS}objdump -f "$ofile" | grep '^start address ' | cut -d' ' -f3`
+
+if [ -n "$binary" ]; then
+    mv "$ofile" "$ofile".elf
+    ${CROSS}objcopy -O binary "$ofile".elf "$ofile"
+fi
+
+# post-processing needed for some platforms
+case "$platform" in
+pseries|chrp|maple)
+    $objbin/addnote "$ofile"
+    ;;
+coff)
+    ${CROSS}objcopy -O aixcoff-rs6000 --set-start "$entry" "$ofile"
+    $objbin/hack-coff "$ofile"
+    ;;
+cuboot*)
+    gzip -n -f -9 "$ofile"
+    ${MKIMAGE} -A ppc -O linux -T kernel -C gzip -a "$base" -e "$entry" \
+            $uboot_version -d "$ofile".gz "$ofile"
+    ;;
+treeboot*)
+    mv "$ofile" "$ofile.elf"
+    $objbin/mktree "$ofile.elf" "$ofile" "$base" "$entry"
+    if [ -z "$cacheit" ]; then
+	rm -f "$ofile.elf"
+    fi
+    exit 0
+    ;;
+ps3)
+    # The ps3's loader supports loading a gzipped binary image from flash
+    # rom to ram addr zero. The loader then enters the system reset
+    # vector at addr 0x100.  A bootwrapper overlay is used to arrange for
+    # a binary image of the kernel to be at addr zero, and yet have a
+    # suitable bootwrapper entry at 0x100.  To construct the final rom
+    # image 512 bytes from offset 0x100 is copied to the bootwrapper
+    # place holder at symbol __system_reset_kernel.  The 512 bytes of the
+    # bootwrapper entry code at symbol __system_reset_overlay is then
+    # copied to offset 0x100.  At runtime the bootwrapper program copies
+    # the data at __system_reset_kernel back to addr 0x100.
+
+    system_reset_overlay=0x`${CROSS}nm "$ofile" \
+        | grep ' __system_reset_overlay$'       \
+        | cut -d' ' -f1`
+    system_reset_overlay=`printf "%d" $system_reset_overlay`
+    system_reset_kernel=0x`${CROSS}nm "$ofile" \
+        | grep ' __system_reset_kernel$'       \
+        | cut -d' ' -f1`
+    system_reset_kernel=`printf "%d" $system_reset_kernel`
+    overlay_dest="256"
+    overlay_size="512"
+
+    ${CROSS}objcopy -O binary "$ofile" "$ofile.bin"
+
+    dd if="$ofile.bin" of="$ofile.bin" conv=notrunc   \
+        skip=$overlay_dest seek=$system_reset_kernel  \
+        count=$overlay_size bs=1
+
+    dd if="$ofile.bin" of="$ofile.bin" conv=notrunc   \
+        skip=$system_reset_overlay seek=$overlay_dest \
+        count=$overlay_size bs=1
+
+    odir="$(dirname "$ofile.bin")"
+    rm -f "$odir/otheros.bld"
+    gzip -n --force -9 --stdout "$ofile.bin" > "$odir/otheros.bld"
+    ;;
+esac

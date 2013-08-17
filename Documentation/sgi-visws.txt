@@ -1,0 +1,13 @@
+
+The SGI Visual Workstations (models 320 and 540) are based around
+the Cobalt, Lithium, and Arsenic ASICs.  The Cobalt ASIC is the
+main system ASIC which interfaces the 1-4 IA32 cpus, the memory
+system, and the I/O system in the Lithium ASIC.  The Cobalt ASIC
+also contains the 3D gfx rendering engine which renders to main
+system memory -- part of which is used as the frame buffer which
+is DMA'ed to a video connector using the Arsenic ASIC.  A PIIX4
+chip and NS87307 are used to provide legacy device support (IDE,
+serial, floppy, and parallel).
+
+The Visual Workstation chipset largely conforms to the PC architecture
+with some notable exceptions such as interrupt handling.

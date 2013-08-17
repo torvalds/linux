@@ -1,0 +1,125 @@
+#
+# Appletalk driver configuration
+#
+config ATALK
+	tristate "Appletalk protocol support"
+	select LLC
+	---help---
+	  AppleTalk is the protocol that Apple computers can use to communicate
+	  on a network.  If your Linux box is connected to such a network and you
+	  wish to connect to it, say Y.  You will need to use the netatalk package
+	  so that your Linux box can act as a print and file server for Macs as
+	  well as access AppleTalk printers.  Check out
+	  <http://www.zettabyte.net/netatalk/> on the WWW for details.
+	  EtherTalk is the name used for AppleTalk over Ethernet and the
+	  cheaper and slower LocalTalk is AppleTalk over a proprietary Apple
+	  network using serial links.  EtherTalk and LocalTalk are fully
+	  supported by Linux.
+
+	  General information about how to connect Linux, Windows machines and
+	  Macs is on the WWW at <http://www.eats.com/linux_mac_win.html>.  The
+	  NET3-4-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>, contains valuable
+	  information as well.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called appletalk. You almost certainly want to compile it as a
+	  module so you can restart your AppleTalk stack without rebooting
+	  your machine. I hear that the GNU boycott of Apple is over, so
+	  even politically correct people are allowed to say Y here.
+
+config DEV_APPLETALK
+	tristate "Appletalk interfaces support"
+	depends on ATALK
+	help
+	  AppleTalk is the protocol that Apple computers can use to communicate
+	  on a network.  If your Linux box is connected to such a network, and wish
+	  to do IP over it, or you have a LocalTalk card and wish to use it to
+	  connect to the AppleTalk network, say Y.
+	  
+
+config LTPC
+	tristate "Apple/Farallon LocalTalk PC support"
+	depends on DEV_APPLETALK && (ISA || EISA) && ISA_DMA_API
+	help
+	  This allows you to use the AppleTalk PC card to connect to LocalTalk
+	  networks. The card is also known as the Farallon PhoneNet PC card.
+	  If you are in doubt, this card is the one with the 65C02 chip on it.
+	  You also need version 1.3.3 or later of the netatalk package.
+	  This driver is experimental, which means that it may not work.
+	  See the file <file:Documentation/networking/ltpc.txt>.
+
+config COPS
+	tristate "COPS LocalTalk PC support"
+	depends on DEV_APPLETALK && (ISA || EISA)
+	help
+	  This allows you to use COPS AppleTalk cards to connect to LocalTalk
+	  networks. You also need version 1.3.3 or later of the netatalk
+	  package. This driver is experimental, which means that it may not
+	  work. This driver will only work if you choose "AppleTalk DDP"
+	  networking support, above.
+	  Please read the file <file:Documentation/networking/cops.txt>.
+
+config COPS_DAYNA
+	bool "Dayna firmware support"
+	depends on COPS
+	help
+	  Support COPS compatible cards with Dayna style firmware (Dayna
+	  DL2000/ Daynatalk/PC (half length), COPS LT-95, Farallon PhoneNET PC
+	  III, Farallon PhoneNET PC II).
+
+config COPS_TANGENT
+	bool "Tangent firmware support"
+	depends on COPS
+	help
+	  Support COPS compatible cards with Tangent style firmware (Tangent
+	  ATB_II, Novell NL-1000, Daystar Digital LT-200.
+
+config IPDDP
+	tristate "Appletalk-IP driver support"
+	depends on DEV_APPLETALK && ATALK
+	---help---
+	  This allows IP networking for users who only have AppleTalk
+	  networking available. This feature is experimental. With this
+	  driver, you can encapsulate IP inside AppleTalk (e.g. if your Linux
+	  box is stuck on an AppleTalk only network) or decapsulate (e.g. if
+	  you want your Linux box to act as an Internet gateway for a zoo of
+	  AppleTalk connected Macs). Please see the file
+	  <file:Documentation/networking/ipddp.txt> for more information.
+
+	  If you say Y here, the AppleTalk-IP support will be compiled into
+	  the kernel. In this case, you can either use encapsulation or
+	  decapsulation, but not both. With the following two questions, you
+	  decide which one you want.
+
+	  To compile the AppleTalk-IP support as a module, choose M here: the
+	  module will be called ipddp.
+	  In this case, you will be able to use both encapsulation and
+	  decapsulation simultaneously, by loading two copies of the module
+	  and specifying different values for the module option ipddp_mode.
+
+config IPDDP_ENCAP
+	bool "IP to Appletalk-IP Encapsulation support"
+	depends on IPDDP
+	help
+	  If you say Y here, the AppleTalk-IP code will be able to encapsulate
+	  IP packets inside AppleTalk frames; this is useful if your Linux box
+	  is stuck on an AppleTalk network (which hopefully contains a
+	  decapsulator somewhere). Please see
+	  <file:Documentation/networking/ipddp.txt> for more information. If
+	  you said Y to "AppleTalk-IP driver support" above and you say Y
+	  here, then you cannot say Y to "AppleTalk-IP to IP Decapsulation
+	  support", below.
+
+config IPDDP_DECAP
+	bool "Appletalk-IP to IP Decapsulation support"
+	depends on IPDDP
+	help
+	  If you say Y here, the AppleTalk-IP code will be able to decapsulate
+	  AppleTalk-IP frames to IP packets; this is useful if you want your
+	  Linux box to act as an Internet gateway for an AppleTalk network.
+	  Please see <file:Documentation/networking/ipddp.txt> for more
+	  information.  If you said Y to "AppleTalk-IP driver support" above
+	  and you say Y here, then you cannot say Y to "IP to AppleTalk-IP
+	  Encapsulation support", above.
+

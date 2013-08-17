@@ -1,0 +1,328 @@
+Kernel driver dme1737
+=====================
+
+Supported chips:
+  * SMSC DME1737 and compatibles (like Asus A8000)
+    Prefix: 'dme1737'
+    Addresses scanned: I2C 0x2c, 0x2d, 0x2e
+    Datasheet: Provided by SMSC upon request and under NDA
+  * SMSC SCH3112, SCH3114, SCH3116
+    Prefix: 'sch311x'
+    Addresses scanned: none, address read from Super-I/O config space
+    Datasheet: Available on the Internet
+  * SMSC SCH5027
+    Prefix: 'sch5027'
+    Addresses scanned: I2C 0x2c, 0x2d, 0x2e
+    Datasheet: Provided by SMSC upon request and under NDA
+  * SMSC SCH5127
+    Prefix: 'sch5127'
+    Addresses scanned: none, address read from Super-I/O config space
+    Datasheet: Provided by SMSC upon request and under NDA
+
+Authors:
+    Juerg Haefliger <juergh@gmail.com>
+
+
+Module Parameters
+-----------------
+
+* force_start: bool	Enables the monitoring of voltage, fan and temp inputs
+			and PWM output control functions. Using this parameter
+			shouldn't be required since the BIOS usually takes care
+			of this.
+* probe_all_addr: bool	Include non-standard LPC addresses 0x162e and 0x164e
+			when probing for ISA devices. This is required for the
+			following boards:
+			- VIA EPIA SN18000
+
+
+Description
+-----------
+
+This driver implements support for the hardware monitoring capabilities of the
+SMSC DME1737 and Asus A8000 (which are the same), SMSC SCH5027, SCH311x,
+and SCH5127 Super-I/O chips. These chips feature monitoring of 3 temp sensors
+temp[1-3] (2 remote diodes and 1 internal), 8 voltages in[0-7] (7 external and
+1 internal) and up to 6 fan speeds fan[1-6]. Additionally, the chips implement
+up to 5 PWM outputs pwm[1-3,5-6] for controlling fan speeds both manually and
+automatically.
+
+For the DME1737, A8000 and SCH5027, fan[1-2] and pwm[1-2] are always present.
+Fan[3-6] and pwm[3,5-6] are optional features and their availability depends on
+the configuration of the chip. The driver will detect which features are
+present during initialization and create the sysfs attributes accordingly.
+
+For the SCH311x and SCH5127, fan[1-3] and pwm[1-3] are always present and
+fan[4-6] and pwm[5-6] don't exist.
+
+The hardware monitoring features of the DME1737, A8000, and SCH5027 are only
+accessible via SMBus, while the SCH311x and SCH5127 only provide access via
+the ISA bus. The driver will therefore register itself as an I2C client driver
+if it detects a DME1737, A8000, or SCH5027 and as a platform driver if it
+detects a SCH311x or SCH5127 chip.
+
+
+Voltage Monitoring
+------------------
+
+The voltage inputs are sampled with 12-bit resolution and have internal
+scaling resistors. The values returned by the driver therefore reflect true
+millivolts and don't need scaling. The voltage inputs are mapped as follows
+(the last column indicates the input ranges):
+
+DME1737, A8000:
+	in0: +5VTR	(+5V standby)		0V - 6.64V
+	in1: Vccp	(processor core)	0V - 3V
+	in2: VCC	(internal +3.3V)	0V - 4.38V
+	in3: +5V				0V - 6.64V
+	in4: +12V				0V - 16V
+	in5: VTR	(+3.3V standby)		0V - 4.38V
+	in6: Vbat	(+3.0V)			0V - 4.38V
+
+SCH311x:
+	in0: +2.5V				0V - 3.32V
+	in1: Vccp	(processor core)	0V - 2V
+	in2: VCC	(internal +3.3V)	0V - 4.38V
+	in3: +5V				0V - 6.64V
+	in4: +12V				0V - 16V
+	in5: VTR	(+3.3V standby)		0V - 4.38V
+	in6: Vbat	(+3.0V)			0V - 4.38V
+
+SCH5027:
+	in0: +5VTR	(+5V standby)		0V - 6.64V
+	in1: Vccp	(processor core)	0V - 3V
+	in2: VCC	(internal +3.3V)	0V - 4.38V
+	in3: V2_IN				0V - 1.5V
+	in4: V1_IN				0V - 1.5V
+	in5: VTR	(+3.3V standby)		0V - 4.38V
+	in6: Vbat	(+3.0V)			0V - 4.38V
+
+SCH5127:
+	in0: +2.5				0V - 3.32V
+	in1: Vccp	(processor core)	0V - 3V
+	in2: VCC	(internal +3.3V)	0V - 4.38V
+	in3: V2_IN				0V - 1.5V
+	in4: V1_IN				0V - 1.5V
+	in5: VTR	(+3.3V standby)		0V - 4.38V
+	in6: Vbat	(+3.0V)			0V - 4.38V
+	in7: Vtrip	(+1.5V)			0V - 1.99V
+
+Each voltage input has associated min and max limits which trigger an alarm
+when crossed.
+
+
+Temperature Monitoring
+----------------------
+
+Temperatures are measured with 12-bit resolution and reported in millidegree
+Celsius. The chip also features offsets for all 3 temperature inputs which -
+when programmed - get added to the input readings. The chip does all the
+scaling by itself and the driver therefore reports true temperatures that don't
+need any user-space adjustments. The temperature inputs are mapped as follows
+(the last column indicates the input ranges):
+
+	temp1: Remote diode 1 (3904 type) temperature	-127C - +127C
+	temp2: DME1737 internal temperature		-127C - +127C
+	temp3: Remote diode 2 (3904 type) temperature	-127C - +127C
+
+Each temperature input has associated min and max limits which trigger an alarm
+when crossed. Additionally, each temperature input has a fault attribute that
+returns 1 when a faulty diode or an unconnected input is detected and 0
+otherwise.
+
+
+Fan Monitoring
+--------------
+
+Fan RPMs are measured with 16-bit resolution. The chip provides inputs for 6
+fan tachometers. All 6 inputs have an associated min limit which triggers an
+alarm when crossed. Fan inputs 1-4 provide type attributes that need to be set
+to the number of pulses per fan revolution that the connected tachometer
+generates. Supported values are 1, 2, and 4. Fan inputs 5-6 only support fans
+that generate 2 pulses per revolution. Fan inputs 5-6 also provide a max
+attribute that needs to be set to the maximum attainable RPM (fan at 100% duty-
+cycle) of the input. The chip adjusts the sampling rate based on this value.
+
+
+PWM Output Control
+------------------
+
+This chip features 5 PWM outputs. PWM outputs 1-3 are associated with fan
+inputs 1-3 and PWM outputs 5-6 are associated with fan inputs 5-6. PWM outputs
+1-3 can be configured to operate either in manual or automatic mode by setting
+the appropriate enable attribute accordingly. PWM outputs 5-6 can only operate
+in manual mode, their enable attributes are therefore read-only. When set to
+manual mode, the fan speed is set by writing the duty-cycle value to the
+appropriate PWM attribute. In automatic mode, the PWM attribute returns the
+current duty-cycle as set by the fan controller in the chip. All PWM outputs
+support the setting of the output frequency via the freq attribute.
+
+In automatic mode, the chip supports the setting of the PWM ramp rate which
+defines how fast the PWM output is adjusting to changes of the associated
+temperature input. Associating PWM outputs to temperature inputs is done via
+temperature zones. The chip features 3 zones whose assignments to temperature
+inputs is static and determined during initialization. These assignments can
+be retrieved via the zone[1-3]_auto_channels_temp attributes. Each PWM output
+is assigned to one (or hottest of multiple) temperature zone(s) through the
+pwm[1-3]_auto_channels_zone attributes. Each PWM output has 3 distinct output
+duty-cycles: full, low, and min. Full is internally hard-wired to 255 (100%)
+and low and min can be programmed via pwm[1-3]_auto_point1_pwm and
+pwm[1-3]_auto_pwm_min, respectively. The thermal thresholds of the zones are
+programmed via zone[1-3]_auto_point[1-3]_temp and
+zone[1-3]_auto_point1_temp_hyst:
+
+	pwm[1-3]_auto_point2_pwm	full-speed duty-cycle (255, i.e., 100%)
+	pwm[1-3]_auto_point1_pwm	low-speed duty-cycle
+	pwm[1-3]_auto_pwm_min		min-speed duty-cycle
+
+	zone[1-3]_auto_point3_temp	full-speed temp (all outputs)
+	zone[1-3]_auto_point2_temp	full-speed temp
+	zone[1-3]_auto_point1_temp	low-speed temp
+	zone[1-3]_auto_point1_temp_hyst	min-speed temp
+
+The chip adjusts the output duty-cycle linearly in the range of auto_point1_pwm
+to auto_point2_pwm if the temperature of the associated zone is between
+auto_point1_temp and auto_point2_temp. If the temperature drops below the
+auto_point1_temp_hyst value, the output duty-cycle is set to the auto_pwm_min
+value which only supports two values: 0 or auto_point1_pwm. That means that the
+fan either turns completely off or keeps spinning with the low-speed
+duty-cycle. If any of the temperatures rise above the auto_point3_temp value,
+all PWM outputs are set to 100% duty-cycle.
+
+Following is another representation of how the chip sets the output duty-cycle
+based on the temperature of the associated thermal zone:
+
+			Duty-Cycle	Duty-Cycle
+	Temperature	Rising Temp	Falling Temp
+	-----------	-----------	------------
+	full-speed	full-speed	full-speed
+
+			< linearly adjusted duty-cycle >
+
+	low-speed	low-speed	low-speed
+			min-speed	low-speed
+	min-speed	min-speed	min-speed
+			min-speed	min-speed
+
+
+Sysfs Attributes
+----------------
+
+Following is a list of all sysfs attributes that the driver provides, their
+permissions and a short description:
+
+Name				Perm	Description
+----				----	-----------
+cpu0_vid			RO	CPU core reference voltage in
+					millivolts.
+vrm				RW	Voltage regulator module version
+					number.
+
+in[0-7]_input			RO	Measured voltage in millivolts.
+in[0-7]_min			RW	Low limit for voltage input.
+in[0-7]_max			RW	High limit for voltage input.
+in[0-7]_alarm			RO	Voltage input alarm. Returns 1 if
+					voltage input is or went outside the
+					associated min-max range, 0 otherwise.
+
+temp[1-3]_input			RO	Measured temperature in millidegree
+					Celsius.
+temp[1-3]_min			RW	Low limit for temp input.
+temp[1-3]_max			RW	High limit for temp input.
+temp[1-3]_offset		RW	Offset for temp input. This value will
+					be added by the chip to the measured
+					temperature.
+temp[1-3]_alarm			RO	Alarm for temp input. Returns 1 if temp
+					input is or went outside the associated
+					min-max range, 0 otherwise.
+temp[1-3]_fault			RO	Temp input fault. Returns 1 if the chip
+					detects a faulty thermal diode or an
+					unconnected temp input, 0 otherwise.
+
+zone[1-3]_auto_channels_temp	RO	Temperature zone to temperature input
+					mapping. This attribute is a bitfield
+					and supports the following values:
+						1: temp1
+						2: temp2
+						4: temp3
+zone[1-3]_auto_point1_temp_hyst	RW	Auto PWM temp point1 hysteresis. The
+					output of the corresponding PWM is set
+					to the pwm_auto_min value if the temp
+					falls below the auto_point1_temp_hyst
+					value.
+zone[1-3]_auto_point[1-3]_temp	RW	Auto PWM temp points. Auto_point1 is
+					the low-speed temp, auto_point2 is the
+					full-speed temp, and auto_point3 is the
+					temp at which all PWM outputs are set
+					to full-speed (100% duty-cycle).
+
+fan[1-6]_input			RO	Measured fan speed in RPM.
+fan[1-6]_min			RW	Low limit for fan input.
+fan[1-6]_alarm			RO	Alarm for fan input. Returns 1 if fan
+					input is or went below the associated
+					min value, 0 otherwise.
+fan[1-4]_type			RW	Type of attached fan. Expressed in
+					number of pulses per revolution that
+					the fan generates. Supported values are
+					1, 2, and 4.
+fan[5-6]_max			RW	Max attainable RPM at 100% duty-cycle.
+					Required for chip to adjust the
+					sampling rate accordingly.
+
+pmw[1-3,5-6]			RO/RW	Duty-cycle of PWM output. Supported
+					values are 0-255 (0%-100%). Only
+					writeable if the associated PWM is in
+					manual mode.
+pwm[1-3]_enable			RW	Enable of PWM outputs 1-3. Supported
+					values are:
+						 0: turned off (output @ 100%)
+						 1: manual mode
+						 2: automatic mode
+pwm[5-6]_enable			RO	Enable of PWM outputs 5-6. Always
+					returns 1 since these 2 outputs are
+					hard-wired to manual mode.
+pmw[1-3,5-6]_freq		RW	Frequency of PWM output. Supported
+					values are in the range 11Hz-30000Hz
+					(default is 25000Hz).
+pmw[1-3]_ramp_rate		RW	Ramp rate of PWM output. Determines how
+					fast the PWM duty-cycle will change
+					when the PWM is in automatic mode.
+					Expressed in ms per PWM step. Supported
+					values are in the range 0ms-206ms
+					(default is 0, which means the duty-
+					cycle changes instantly).
+pwm[1-3]_auto_channels_zone	RW	PWM output to temperature zone mapping.
+					This attribute is a bitfield and
+					supports the following values:
+						1: zone1
+						2: zone2
+						4: zone3
+						6: highest of zone[2-3]
+						7: highest of zone[1-3]
+pwm[1-3]_auto_pwm_min		RW	Auto PWM min pwm. Minimum PWM duty-
+					cycle. Supported values are 0 or
+					auto_point1_pwm.
+pwm[1-3]_auto_point1_pwm	RW	Auto PWM pwm point. Auto_point1 is the
+					low-speed duty-cycle.
+pwm[1-3]_auto_point2_pwm	RO	Auto PWM pwm point. Auto_point2 is the
+					full-speed duty-cycle which is hard-
+					wired to 255 (100% duty-cycle).
+
+Chip Differences
+----------------
+
+Feature			dme1737	sch311x	sch5027	sch5127
+-------------------------------------------------------
+temp[1-3]_offset	yes	yes
+vid			yes
+zone3			yes	yes	yes
+zone[1-3]_hyst		yes	yes
+pwm min/off		yes	yes
+fan3			opt	yes	opt	yes
+pwm3			opt	yes	opt	yes
+fan4			opt		opt
+fan5			opt		opt
+pwm5			opt		opt
+fan6			opt		opt
+pwm6			opt		opt
+in7						yes

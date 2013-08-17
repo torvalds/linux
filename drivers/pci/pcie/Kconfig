@@ -1,0 +1,85 @@
+#
+# PCI Express Port Bus Configuration
+#
+config PCIEPORTBUS
+	bool "PCI Express support"
+	depends on PCI
+	help
+	  This automatically enables PCI Express Port Bus support. Users can
+	  choose Native Hot-Plug support, Advanced Error Reporting support,
+	  Power Management Event support and Virtual Channel support to run
+	  on PCI Express Ports (Root or Switch).
+
+#
+# Include service Kconfig here
+#
+config HOTPLUG_PCI_PCIE
+	tristate "PCI Express Hotplug driver"
+	depends on HOTPLUG_PCI && PCIEPORTBUS
+	help
+	  Say Y here if you have a motherboard that supports PCI Express Native
+	  Hotplug
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pciehp.
+
+	  When in doubt, say N.
+
+source "drivers/pci/pcie/aer/Kconfig"
+
+#
+# PCI Express ASPM
+#
+config PCIEASPM
+	bool "PCI Express ASPM control" if EXPERT
+	depends on PCI && PCIEPORTBUS
+	default y
+	help
+	  This enables OS control over PCI Express ASPM (Active State
+	  Power Management) and Clock Power Management. ASPM supports
+	  state L0/L0s/L1.
+
+	  ASPM is initially set up by the firmware. With this option enabled,
+	  Linux can modify this state in order to disable ASPM on known-bad
+	  hardware or configurations and enable it when known-safe.
+
+	  ASPM can be disabled or enabled at runtime via
+	  /sys/module/pcie_aspm/parameters/policy
+
+	  When in doubt, say Y.
+config PCIEASPM_DEBUG
+	bool "Debug PCI Express ASPM"
+	depends on PCIEASPM
+	default n
+	help
+	  This enables PCI Express ASPM debug support. It will add per-device
+	  interface to control ASPM.
+
+choice
+	prompt "Default ASPM policy"
+	default PCIEASPM_DEFAULT
+	depends on PCIEASPM
+
+config PCIEASPM_DEFAULT
+        bool "BIOS default"
+	depends on PCIEASPM
+	help
+	  Use the BIOS defaults for PCI Express ASPM.
+
+config PCIEASPM_POWERSAVE
+        bool "Powersave"
+	depends on PCIEASPM
+	help
+	  Enable PCI Express ASPM L0s and L1 where possible, even if the
+	  BIOS did not.
+
+config PCIEASPM_PERFORMANCE
+        bool "Performance"
+	depends on PCIEASPM
+	help
+	  Disable PCI Express ASPM L0s and L1, even if the BIOS enabled them.
+endchoice
+
+config PCIE_PME
+	def_bool y
+	depends on PCIEPORTBUS && PM_RUNTIME && EXPERIMENTAL && ACPI

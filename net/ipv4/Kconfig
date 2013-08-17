@@ -1,0 +1,632 @@
+#
+# IP configuration
+#
+config IP_MULTICAST
+	bool "IP: multicasting"
+	help
+	  This is code for addressing several networked computers at once,
+	  enlarging your kernel by about 2 KB. You need multicasting if you
+	  intend to participate in the MBONE, a high bandwidth network on top
+	  of the Internet which carries audio and video broadcasts. More
+	  information about the MBONE is on the WWW at
+	  <http://www.savetz.com/mbone/>. Information about the multicast
+	  capabilities of the various network cards is contained in
+	  <file:Documentation/networking/multicast.txt>. For most people, it's
+	  safe to say N.
+
+config IP_ADVANCED_ROUTER
+	bool "IP: advanced router"
+	---help---
+	  If you intend to run your Linux box mostly as a router, i.e. as a
+	  computer that forwards and redistributes network packets, say Y; you
+	  will then be presented with several options that allow more precise
+	  control about the routing process.
+
+	  The answer to this question won't directly affect the kernel:
+	  answering N will just cause the configurator to skip all the
+	  questions about advanced routing.
+
+	  Note that your box can only act as a router if you enable IP
+	  forwarding in your kernel; you can do that by saying Y to "/proc
+	  file system support" and "Sysctl support" below and executing the
+	  line
+
+	  echo "1" > /proc/sys/net/ipv4/ip_forward
+
+	  at boot time after the /proc file system has been mounted.
+
+	  If you turn on IP forwarding, you should consider the rp_filter, which
+	  automatically rejects incoming packets if the routing table entry
+	  for their source address doesn't match the network interface they're
+	  arriving on. This has security advantages because it prevents the
+	  so-called IP spoofing, however it can pose problems if you use
+	  asymmetric routing (packets from you to a host take a different path
+	  than packets from that host to you) or if you operate a non-routing
+	  host which has several IP addresses on different interfaces. To turn
+	  rp_filter on use:
+
+	  echo 1 > /proc/sys/net/ipv4/conf/<device>/rp_filter
+	   or
+	  echo 1 > /proc/sys/net/ipv4/conf/all/rp_filter
+
+	  Note that some distributions enable it in startup scripts.
+	  For details about rp_filter strict and loose mode read
+	  <file:Documentation/networking/ip-sysctl.txt>.
+
+	  If unsure, say N here.
+
+config IP_FIB_TRIE_STATS
+	bool "FIB TRIE statistics"
+	depends on IP_ADVANCED_ROUTER
+	---help---
+	  Keep track of statistics on structure of FIB TRIE table.
+	  Useful for testing and measuring TRIE performance.
+
+config IP_MULTIPLE_TABLES
+	bool "IP: policy routing"
+	depends on IP_ADVANCED_ROUTER
+	select FIB_RULES
+	---help---
+	  Normally, a router decides what to do with a received packet based
+	  solely on the packet's final destination address. If you say Y here,
+	  the Linux router will also be able to take the packet's source
+	  address into account. Furthermore, the TOS (Type-Of-Service) field
+	  of the packet can be used for routing decisions as well.
+
+	  If you are interested in this, please see the preliminary
+	  documentation at <http://www.compendium.com.ar/policy-routing.txt>
+	  and <ftp://post.tepkom.ru/pub/vol2/Linux/docs/advanced-routing.tex>.
+	  You will need supporting software from
+	  <ftp://ftp.tux.org/pub/net/ip-routing/>.
+
+	  If unsure, say N.
+
+config IP_ROUTE_MULTIPATH
+	bool "IP: equal cost multipath"
+	depends on IP_ADVANCED_ROUTER
+	help
+	  Normally, the routing tables specify a single action to be taken in
+	  a deterministic manner for a given packet. If you say Y here
+	  however, it becomes possible to attach several actions to a packet
+	  pattern, in effect specifying several alternative paths to travel
+	  for those packets. The router considers all these paths to be of
+	  equal "cost" and chooses one of them in a non-deterministic fashion
+	  if a matching packet arrives.
+
+config IP_ROUTE_VERBOSE
+	bool "IP: verbose route monitoring"
+	depends on IP_ADVANCED_ROUTER
+	help
+	  If you say Y here, which is recommended, then the kernel will print
+	  verbose messages regarding the routing, for example warnings about
+	  received packets which look strange and could be evidence of an
+	  attack or a misconfigured system somewhere. The information is
+	  handled by the klogd daemon which is responsible for kernel messages
+	  ("man klogd").
+
+config IP_ROUTE_CLASSID
+	bool
+
+config IP_PNP
+	bool "IP: kernel level autoconfiguration"
+	help
+	  This enables automatic configuration of IP addresses of devices and
+	  of the routing table during kernel boot, based on either information
+	  supplied on the kernel command line or by BOOTP or RARP protocols.
+	  You need to say Y only for diskless machines requiring network
+	  access to boot (in which case you want to say Y to "Root file system
+	  on NFS" as well), because all other machines configure the network
+	  in their startup scripts.
+
+config IP_PNP_DHCP
+	bool "IP: DHCP support"
+	depends on IP_PNP
+	---help---
+	  If you want your Linux box to mount its whole root file system (the
+	  one containing the directory /) from some other computer over the
+	  net via NFS and you want the IP address of your computer to be
+	  discovered automatically at boot time using the DHCP protocol (a
+	  special protocol designed for doing this job), say Y here. In case
+	  the boot ROM of your network card was designed for booting Linux and
+	  does DHCP itself, providing all necessary information on the kernel
+	  command line, you can say N here.
+
+	  If unsure, say Y. Note that if you want to use DHCP, a DHCP server
+	  must be operating on your network.  Read
+	  <file:Documentation/filesystems/nfs/nfsroot.txt> for details.
+
+config IP_PNP_BOOTP
+	bool "IP: BOOTP support"
+	depends on IP_PNP
+	---help---
+	  If you want your Linux box to mount its whole root file system (the
+	  one containing the directory /) from some other computer over the
+	  net via NFS and you want the IP address of your computer to be
+	  discovered automatically at boot time using the BOOTP protocol (a
+	  special protocol designed for doing this job), say Y here. In case
+	  the boot ROM of your network card was designed for booting Linux and
+	  does BOOTP itself, providing all necessary information on the kernel
+	  command line, you can say N here. If unsure, say Y. Note that if you
+	  want to use BOOTP, a BOOTP server must be operating on your network.
+	  Read <file:Documentation/filesystems/nfs/nfsroot.txt> for details.
+
+config IP_PNP_RARP
+	bool "IP: RARP support"
+	depends on IP_PNP
+	help
+	  If you want your Linux box to mount its whole root file system (the
+	  one containing the directory /) from some other computer over the
+	  net via NFS and you want the IP address of your computer to be
+	  discovered automatically at boot time using the RARP protocol (an
+	  older protocol which is being obsoleted by BOOTP and DHCP), say Y
+	  here. Note that if you want to use RARP, a RARP server must be
+	  operating on your network. Read
+	  <file:Documentation/filesystems/nfs/nfsroot.txt> for details.
+
+config NET_IPIP
+	tristate "IP: tunneling"
+	select INET_TUNNEL
+	---help---
+	  Tunneling means encapsulating data of one protocol type within
+	  another protocol and sending it over a channel that understands the
+	  encapsulating protocol. This particular tunneling driver implements
+	  encapsulation of IP within IP, which sounds kind of pointless, but
+	  can be useful if you want to make your (or some other) machine
+	  appear on a different network than it physically is, or to use
+	  mobile-IP facilities (allowing laptops to seamlessly move between
+	  networks without changing their IP addresses).
+
+	  Saying Y to this option will produce two modules ( = code which can
+	  be inserted in and removed from the running kernel whenever you
+	  want). Most people won't need this and can say N.
+
+config NET_IPGRE_DEMUX
+	tristate "IP: GRE demultiplexer"
+	help
+	 This is helper module to demultiplex GRE packets on GRE version field criteria.
+	 Required by ip_gre and pptp modules.
+
+config NET_IPGRE
+	tristate "IP: GRE tunnels over IP"
+	depends on (IPV6 || IPV6=n) && NET_IPGRE_DEMUX
+	help
+	  Tunneling means encapsulating data of one protocol type within
+	  another protocol and sending it over a channel that understands the
+	  encapsulating protocol. This particular tunneling driver implements
+	  GRE (Generic Routing Encapsulation) and at this time allows
+	  encapsulating of IPv4 or IPv6 over existing IPv4 infrastructure.
+	  This driver is useful if the other endpoint is a Cisco router: Cisco
+	  likes GRE much better than the other Linux tunneling driver ("IP
+	  tunneling" above). In addition, GRE allows multicast redistribution
+	  through the tunnel.
+
+config NET_IPGRE_BROADCAST
+	bool "IP: broadcast GRE over IP"
+	depends on IP_MULTICAST && NET_IPGRE
+	help
+	  One application of GRE/IP is to construct a broadcast WAN (Wide Area
+	  Network), which looks like a normal Ethernet LAN (Local Area
+	  Network), but can be distributed all over the Internet. If you want
+	  to do that, say Y here and to "IP multicast routing" below.
+
+config IP_MROUTE
+	bool "IP: multicast routing"
+	depends on IP_MULTICAST
+	help
+	  This is used if you want your machine to act as a router for IP
+	  packets that have several destination addresses. It is needed on the
+	  MBONE, a high bandwidth network on top of the Internet which carries
+	  audio and video broadcasts. In order to do that, you would most
+	  likely run the program mrouted. Information about the multicast
+	  capabilities of the various network cards is contained in
+	  <file:Documentation/networking/multicast.txt>. If you haven't heard
+	  about it, you don't need it.
+
+config IP_MROUTE_MULTIPLE_TABLES
+	bool "IP: multicast policy routing"
+	depends on IP_MROUTE && IP_ADVANCED_ROUTER
+	select FIB_RULES
+	help
+	  Normally, a multicast router runs a userspace daemon and decides
+	  what to do with a multicast packet based on the source and
+	  destination addresses. If you say Y here, the multicast router
+	  will also be able to take interfaces and packet marks into
+	  account and run multiple instances of userspace daemons
+	  simultaneously, each one handling a single table.
+
+	  If unsure, say N.
+
+config IP_PIMSM_V1
+	bool "IP: PIM-SM version 1 support"
+	depends on IP_MROUTE
+	help
+	  Kernel side support for Sparse Mode PIM (Protocol Independent
+	  Multicast) version 1. This multicast routing protocol is used widely
+	  because Cisco supports it. You need special software to use it
+	  (pimd-v1). Please see <http://netweb.usc.edu/pim/> for more
+	  information about PIM.
+
+	  Say Y if you want to use PIM-SM v1. Note that you can say N here if
+	  you just want to use Dense Mode PIM.
+
+config IP_PIMSM_V2
+	bool "IP: PIM-SM version 2 support"
+	depends on IP_MROUTE
+	help
+	  Kernel side support for Sparse Mode PIM version 2. In order to use
+	  this, you need an experimental routing daemon supporting it (pimd or
+	  gated-5). This routing protocol is not used widely, so say N unless
+	  you want to play with it.
+
+config ARPD
+	bool "IP: ARP daemon support"
+	---help---
+	  The kernel maintains an internal cache which maps IP addresses to
+	  hardware addresses on the local network, so that Ethernet/Token Ring/
+	  etc. frames are sent to the proper address on the physical networking
+	  layer. Normally, kernel uses the ARP protocol to resolve these
+	  mappings.
+
+	  Saying Y here adds support to have an user space daemon to do this
+	  resolution instead. This is useful for implementing an alternate
+	  address resolution protocol (e.g. NHRP on mGRE tunnels) and also for
+	  testing purposes.
+
+	  If unsure, say N.
+
+config SYN_COOKIES
+	bool "IP: TCP syncookie support"
+	---help---
+	  Normal TCP/IP networking is open to an attack known as "SYN
+	  flooding". This denial-of-service attack prevents legitimate remote
+	  users from being able to connect to your computer during an ongoing
+	  attack and requires very little work from the attacker, who can
+	  operate from anywhere on the Internet.
+
+	  SYN cookies provide protection against this type of attack. If you
+	  say Y here, the TCP/IP stack will use a cryptographic challenge
+	  protocol known as "SYN cookies" to enable legitimate users to
+	  continue to connect, even when your machine is under attack. There
+	  is no need for the legitimate users to change their TCP/IP software;
+	  SYN cookies work transparently to them. For technical information
+	  about SYN cookies, check out <http://cr.yp.to/syncookies.html>.
+
+	  If you are SYN flooded, the source address reported by the kernel is
+	  likely to have been forged by the attacker; it is only reported as
+	  an aid in tracing the packets to their actual source and should not
+	  be taken as absolute truth.
+
+	  SYN cookies may prevent correct error reporting on clients when the
+	  server is really overloaded. If this happens frequently better turn
+	  them off.
+
+	  If you say Y here, you can disable SYN cookies at run time by
+	  saying Y to "/proc file system support" and
+	  "Sysctl support" below and executing the command
+
+	  echo 0 > /proc/sys/net/ipv4/tcp_syncookies
+
+	  after the /proc file system has been mounted.
+
+	  If unsure, say N.
+
+config INET_AH
+	tristate "IP: AH transformation"
+	select XFRM
+	select CRYPTO
+	select CRYPTO_HMAC
+	select CRYPTO_MD5
+	select CRYPTO_SHA1
+	---help---
+	  Support for IPsec AH.
+
+	  If unsure, say Y.
+
+config INET_ESP
+	tristate "IP: ESP transformation"
+	select XFRM
+	select CRYPTO
+	select CRYPTO_AUTHENC
+	select CRYPTO_HMAC
+	select CRYPTO_MD5
+	select CRYPTO_CBC
+	select CRYPTO_SHA1
+	select CRYPTO_DES
+	---help---
+	  Support for IPsec ESP.
+
+	  If unsure, say Y.
+
+config INET_IPCOMP
+	tristate "IP: IPComp transformation"
+	select INET_XFRM_TUNNEL
+	select XFRM_IPCOMP
+	---help---
+	  Support for IP Payload Compression Protocol (IPComp) (RFC3173),
+	  typically needed for IPsec.
+
+	  If unsure, say Y.
+
+config INET_XFRM_TUNNEL
+	tristate
+	select INET_TUNNEL
+	default n
+
+config INET_TUNNEL
+	tristate
+	default n
+
+config INET_XFRM_MODE_TRANSPORT
+	tristate "IP: IPsec transport mode"
+	default y
+	select XFRM
+	---help---
+	  Support for IPsec transport mode.
+
+	  If unsure, say Y.
+
+config INET_XFRM_MODE_TUNNEL
+	tristate "IP: IPsec tunnel mode"
+	default y
+	select XFRM
+	---help---
+	  Support for IPsec tunnel mode.
+
+	  If unsure, say Y.
+
+config INET_XFRM_MODE_BEET
+	tristate "IP: IPsec BEET mode"
+	default y
+	select XFRM
+	---help---
+	  Support for IPsec BEET mode.
+
+	  If unsure, say Y.
+
+config INET_LRO
+	tristate "Large Receive Offload (ipv4/tcp)"
+	default y
+	---help---
+	  Support for Large Receive Offload (ipv4/tcp).
+
+	  If unsure, say Y.
+
+config INET_DIAG
+	tristate "INET: socket monitoring interface"
+	default y
+	---help---
+	  Support for INET (TCP, DCCP, etc) socket monitoring interface used by
+	  native Linux tools such as ss. ss is included in iproute2, currently
+	  downloadable at:
+	  
+	    http://www.linuxfoundation.org/collaborate/workgroups/networking/iproute2
+
+	  If unsure, say Y.
+
+config INET_TCP_DIAG
+	depends on INET_DIAG
+	def_tristate INET_DIAG
+
+config INET_UDP_DIAG
+	tristate "UDP: socket monitoring interface"
+	depends on INET_DIAG && (IPV6 || IPV6=n)
+	default n
+	---help---
+	  Support for UDP socket monitoring interface used by the ss tool.
+	  If unsure, say Y.
+
+menuconfig TCP_CONG_ADVANCED
+	bool "TCP: advanced congestion control"
+	---help---
+	  Support for selection of various TCP congestion control
+	  modules.
+
+	  Nearly all users can safely say no here, and a safe default
+	  selection will be made (CUBIC with new Reno as a fallback).
+
+	  If unsure, say N.
+
+if TCP_CONG_ADVANCED
+
+config TCP_CONG_BIC
+	tristate "Binary Increase Congestion (BIC) control"
+	default m
+	---help---
+	BIC-TCP is a sender-side only change that ensures a linear RTT
+	fairness under large windows while offering both scalability and
+	bounded TCP-friendliness. The protocol combines two schemes
+	called additive increase and binary search increase. When the
+	congestion window is large, additive increase with a large
+	increment ensures linear RTT fairness as well as good
+	scalability. Under small congestion windows, binary search
+	increase provides TCP friendliness.
+	See http://www.csc.ncsu.edu/faculty/rhee/export/bitcp/
+
+config TCP_CONG_CUBIC
+	tristate "CUBIC TCP"
+	default y
+	---help---
+	This is version 2.0 of BIC-TCP which uses a cubic growth function
+	among other techniques.
+	See http://www.csc.ncsu.edu/faculty/rhee/export/bitcp/cubic-paper.pdf
+
+config TCP_CONG_WESTWOOD
+	tristate "TCP Westwood+"
+	default m
+	---help---
+	TCP Westwood+ is a sender-side only modification of the TCP Reno
+	protocol stack that optimizes the performance of TCP congestion
+	control. It is based on end-to-end bandwidth estimation to set
+	congestion window and slow start threshold after a congestion
+	episode. Using this estimation, TCP Westwood+ adaptively sets a
+	slow start threshold and a congestion window which takes into
+	account the bandwidth used  at the time congestion is experienced.
+	TCP Westwood+ significantly increases fairness wrt TCP Reno in
+	wired networks and throughput over wireless links.
+
+config TCP_CONG_HTCP
+        tristate "H-TCP"
+        default m
+	---help---
+	H-TCP is a send-side only modifications of the TCP Reno
+	protocol stack that optimizes the performance of TCP
+	congestion control for high speed network links. It uses a
+	modeswitch to change the alpha and beta parameters of TCP Reno
+	based on network conditions and in a way so as to be fair with
+	other Reno and H-TCP flows.
+
+config TCP_CONG_HSTCP
+	tristate "High Speed TCP"
+	depends on EXPERIMENTAL
+	default n
+	---help---
+	Sally Floyd's High Speed TCP (RFC 3649) congestion control.
+	A modification to TCP's congestion control mechanism for use
+	with large congestion windows. A table indicates how much to
+	increase the congestion window by when an ACK is received.
+ 	For more detail	see http://www.icir.org/floyd/hstcp.html
+
+config TCP_CONG_HYBLA
+	tristate "TCP-Hybla congestion control algorithm"
+	depends on EXPERIMENTAL
+	default n
+	---help---
+	TCP-Hybla is a sender-side only change that eliminates penalization of
+	long-RTT, large-bandwidth connections, like when satellite legs are
+	involved, especially when sharing a common bottleneck with normal
+	terrestrial connections.
+
+config TCP_CONG_VEGAS
+	tristate "TCP Vegas"
+	depends on EXPERIMENTAL
+	default n
+	---help---
+	TCP Vegas is a sender-side only change to TCP that anticipates
+	the onset of congestion by estimating the bandwidth. TCP Vegas
+	adjusts the sending rate by modifying the congestion
+	window. TCP Vegas should provide less packet loss, but it is
+	not as aggressive as TCP Reno.
+
+config TCP_CONG_SCALABLE
+	tristate "Scalable TCP"
+	depends on EXPERIMENTAL
+	default n
+	---help---
+	Scalable TCP is a sender-side only change to TCP which uses a
+	MIMD congestion control algorithm which has some nice scaling
+	properties, though is known to have fairness issues.
+	See http://www.deneholme.net/tom/scalable/
+
+config TCP_CONG_LP
+	tristate "TCP Low Priority"
+	depends on EXPERIMENTAL
+	default n
+	---help---
+	TCP Low Priority (TCP-LP), a distributed algorithm whose goal is
+	to utilize only the excess network bandwidth as compared to the
+	``fair share`` of bandwidth as targeted by TCP.
+	See http://www-ece.rice.edu/networks/TCP-LP/
+
+config TCP_CONG_VENO
+	tristate "TCP Veno"
+	depends on EXPERIMENTAL
+	default n
+	---help---
+	TCP Veno is a sender-side only enhancement of TCP to obtain better
+	throughput over wireless networks. TCP Veno makes use of state
+	distinguishing to circumvent the difficult judgment of the packet loss
+	type. TCP Veno cuts down less congestion window in response to random
+	loss packets.
+	See <http://ieeexplore.ieee.org/xpl/freeabs_all.jsp?arnumber=1177186> 
+
+config TCP_CONG_YEAH
+	tristate "YeAH TCP"
+	depends on EXPERIMENTAL
+	select TCP_CONG_VEGAS
+	default n
+	---help---
+	YeAH-TCP is a sender-side high-speed enabled TCP congestion control
+	algorithm, which uses a mixed loss/delay approach to compute the
+	congestion window. It's design goals target high efficiency,
+	internal, RTT and Reno fairness, resilience to link loss while
+	keeping network elements load as low as possible.
+
+	For further details look here:
+	  http://wil.cs.caltech.edu/pfldnet2007/paper/YeAH_TCP.pdf
+
+config TCP_CONG_ILLINOIS
+	tristate "TCP Illinois"
+	depends on EXPERIMENTAL
+	default n
+	---help---
+	TCP-Illinois is a sender-side modification of TCP Reno for
+	high speed long delay links. It uses round-trip-time to
+	adjust the alpha and beta parameters to achieve a higher average
+	throughput and maintain fairness.
+
+	For further details see:
+	  http://www.ews.uiuc.edu/~shaoliu/tcpillinois/index.html
+
+choice
+	prompt "Default TCP congestion control"
+	default DEFAULT_CUBIC
+	help
+	  Select the TCP congestion control that will be used by default
+	  for all connections.
+
+	config DEFAULT_BIC
+		bool "Bic" if TCP_CONG_BIC=y
+
+	config DEFAULT_CUBIC
+		bool "Cubic" if TCP_CONG_CUBIC=y
+
+	config DEFAULT_HTCP
+		bool "Htcp" if TCP_CONG_HTCP=y
+
+	config DEFAULT_HYBLA
+		bool "Hybla" if TCP_CONG_HYBLA=y
+
+	config DEFAULT_VEGAS
+		bool "Vegas" if TCP_CONG_VEGAS=y
+
+	config DEFAULT_VENO
+		bool "Veno" if TCP_CONG_VENO=y
+
+	config DEFAULT_WESTWOOD
+		bool "Westwood" if TCP_CONG_WESTWOOD=y
+
+	config DEFAULT_RENO
+		bool "Reno"
+
+endchoice
+
+endif
+
+config TCP_CONG_CUBIC
+	tristate
+	depends on !TCP_CONG_ADVANCED
+	default y
+
+config DEFAULT_TCP_CONG
+	string
+	default "bic" if DEFAULT_BIC
+	default "cubic" if DEFAULT_CUBIC
+	default "htcp" if DEFAULT_HTCP
+	default "hybla" if DEFAULT_HYBLA
+	default "vegas" if DEFAULT_VEGAS
+	default "westwood" if DEFAULT_WESTWOOD
+	default "veno" if DEFAULT_VENO
+	default "reno" if DEFAULT_RENO
+	default "cubic"
+
+config TCP_MD5SIG
+	bool "TCP: MD5 Signature Option support (RFC2385) (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	select CRYPTO
+	select CRYPTO_MD5
+	---help---
+	  RFC2385 specifies a method of giving MD5 protection to TCP sessions.
+	  Its main (only?) use is to protect BGP sessions between core routers
+	  on the Internet.
+
+	  If unsure, say N.

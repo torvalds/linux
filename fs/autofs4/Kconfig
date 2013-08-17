@@ -1,0 +1,20 @@
+config AUTOFS4_FS
+	tristate "Kernel automounter version 4 support (also supports v3)"
+	help
+	  The automounter is a tool to automatically mount remote file systems
+	  on demand. This implementation is partially kernel-based to reduce
+	  overhead in the already-mounted case; this is unlike the BSD
+	  automounter (amd), which is a pure user space daemon.
+
+	  To use the automounter you need the user-space tools from
+	  <ftp://ftp.kernel.org/pub/linux/daemons/autofs/v4/>; you also
+	  want to answer Y to "NFS file system support", below.
+
+	  To compile this support as a module, choose M here: the module will be
+	  called autofs4.  You will need to add "alias autofs autofs4" to your
+	  modules configuration file.
+
+	  If you are not a part of a fairly large, distributed network or
+	  don't have a laptop which needs to dynamically reconfigure to the
+	  local network, you probably do not need an automounter, and can say
+	  N here.

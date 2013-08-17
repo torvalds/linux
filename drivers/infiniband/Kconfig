@@ -1,0 +1,62 @@
+menuconfig INFINIBAND
+	tristate "InfiniBand support"
+	depends on PCI || BROKEN
+	depends on HAS_IOMEM
+	depends on NET
+	---help---
+	  Core support for InfiniBand (IB).  Make sure to also select
+	  any protocols you wish to use as well as drivers for your
+	  InfiniBand hardware.
+
+if INFINIBAND
+
+config INFINIBAND_USER_MAD
+	tristate "InfiniBand userspace MAD support"
+	depends on INFINIBAND
+	---help---
+	  Userspace InfiniBand Management Datagram (MAD) support.  This
+	  is the kernel side of the userspace MAD support, which allows
+	  userspace processes to send and receive MADs. You will also
+	  need libibumad from <http://www.openfabrics.org/downloads/management/>.
+
+config INFINIBAND_USER_ACCESS
+	tristate "InfiniBand userspace access (verbs and CM)"
+	select ANON_INODES
+	---help---
+	  Userspace InfiniBand access support.  This enables the
+	  kernel side of userspace verbs and the userspace
+	  communication manager (CM).  This allows userspace processes
+	  to set up connections and directly access InfiniBand
+	  hardware for fast-path operations.  You will also need
+	  libibverbs, libibcm and a hardware driver library from
+	  <http://www.openfabrics.org/git/>.
+
+config INFINIBAND_USER_MEM
+	bool
+	depends on INFINIBAND_USER_ACCESS != n
+	default y
+
+config INFINIBAND_ADDR_TRANS
+	bool
+	depends on INET
+	depends on !(INFINIBAND = y && IPV6 = m)
+	default y
+
+source "drivers/infiniband/hw/mthca/Kconfig"
+source "drivers/infiniband/hw/ipath/Kconfig"
+source "drivers/infiniband/hw/qib/Kconfig"
+source "drivers/infiniband/hw/ehca/Kconfig"
+source "drivers/infiniband/hw/amso1100/Kconfig"
+source "drivers/infiniband/hw/cxgb3/Kconfig"
+source "drivers/infiniband/hw/cxgb4/Kconfig"
+source "drivers/infiniband/hw/mlx4/Kconfig"
+source "drivers/infiniband/hw/nes/Kconfig"
+
+source "drivers/infiniband/ulp/ipoib/Kconfig"
+
+source "drivers/infiniband/ulp/srp/Kconfig"
+source "drivers/infiniband/ulp/srpt/Kconfig"
+
+source "drivers/infiniband/ulp/iser/Kconfig"
+
+endif # INFINIBAND

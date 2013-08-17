@@ -1,0 +1,2306 @@
+config ARM
+	bool
+	default y
+	select HAVE_AOUT
+	select HAVE_DMA_API_DEBUG
+	select HAVE_IDE if PCI || ISA || PCMCIA
+	select HAVE_MEMBLOCK
+	select RTC_LIB
+	select SYS_SUPPORTS_APM_EMULATION
+	select GENERIC_ATOMIC64 if (CPU_V6 || !CPU_32v6K || !AEABI)
+	select HAVE_OPROFILE if (HAVE_PERF_EVENTS)
+	select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL
+	select HAVE_ARCH_KGDB
+	select HAVE_KPROBES if !XIP_KERNEL
+	select HAVE_KRETPROBES if (HAVE_KPROBES)
+	select HAVE_FUNCTION_TRACER if (!XIP_KERNEL)
+	select HAVE_FTRACE_MCOUNT_RECORD if (!XIP_KERNEL)
+	select HAVE_DYNAMIC_FTRACE if (!XIP_KERNEL)
+	select HAVE_FUNCTION_GRAPH_TRACER if (!THUMB2_KERNEL)
+	select ARCH_BINFMT_ELF_RANDOMIZE_PIE
+	select HAVE_GENERIC_DMA_COHERENT
+	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_LZO
+	select HAVE_KERNEL_LZMA
+	select HAVE_KERNEL_XZ
+	select HAVE_IRQ_WORK
+	select HAVE_PERF_EVENTS
+	select PERF_USE_VMALLOC
+	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_HW_BREAKPOINT if (PERF_EVENTS && (CPU_V6 || CPU_V6K || CPU_V7))
+	select HAVE_C_RECORDMCOUNT
+	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_IRQ_SHOW
+	select CPU_PM if (SUSPEND || CPU_IDLE)
+	select GENERIC_PCI_IOMAP
+	select HAVE_BPF_JIT if NET
+	help
+	  The ARM series is a line of low-power-consumption RISC chip designs
+	  licensed by ARM Ltd and targeted at embedded applications and
+	  handhelds such as the Compaq IPAQ.  ARM-based PCs are no longer
+	  manufactured, but legacy ARM-based PC hardware remains popular in
+	  Europe.  There is an ARM Linux project with a web page at
+	  <http://www.arm.linux.org.uk/>.
+
+config ARM_HAS_SG_CHAIN
+	bool
+
+config HAVE_PWM
+	bool
+
+config MIGHT_HAVE_PCI
+	bool
+
+config SYS_SUPPORTS_APM_EMULATION
+	bool
+
+config GENERIC_GPIO
+	bool
+
+config ARCH_USES_GETTIMEOFFSET
+	bool
+	default n
+
+config GENERIC_CLOCKEVENTS
+	bool
+
+config GENERIC_CLOCKEVENTS_BROADCAST
+	bool
+	depends on GENERIC_CLOCKEVENTS
+	default y if SMP
+
+config KTIME_SCALAR
+	bool
+	default y
+
+config HAVE_TCM
+	bool
+	select GENERIC_ALLOCATOR
+
+config HAVE_PROC_CPU
+	bool
+
+config NO_IOPORT
+	bool
+
+config EISA
+	bool
+	---help---
+	  The Extended Industry Standard Architecture (EISA) bus was
+	  developed as an open alternative to the IBM MicroChannel bus.
+
+	  The EISA bus provided some of the features of the IBM MicroChannel
+	  bus while maintaining backward compatibility with cards made for
+	  the older ISA bus.  The EISA bus saw limited use between 1988 and
+	  1995 when it was made obsolete by the PCI bus.
+
+	  Say Y here if you are building a kernel for an EISA-based machine.
+
+	  Otherwise, say N.
+
+config SBUS
+	bool
+
+config MCA
+	bool
+	help
+	  MicroChannel Architecture is found in some IBM PS/2 machines and
+	  laptops.  It is a bus system similar to PCI or ISA. See
+	  <file:Documentation/mca.txt> (and especially the web page given
+	  there) before attempting to build an MCA bus kernel.
+
+config STACKTRACE_SUPPORT
+	bool
+	default y
+
+config HAVE_LATENCYTOP_SUPPORT
+	bool
+	depends on !SMP
+	default y
+
+config LOCKDEP_SUPPORT
+	bool
+	default y
+
+config TRACE_IRQFLAGS_SUPPORT
+	bool
+	default y
+
+config HARDIRQS_SW_RESEND
+	bool
+	default y
+
+config GENERIC_IRQ_PROBE
+	bool
+	default y
+
+config GENERIC_LOCKBREAK
+	bool
+	default y
+	depends on SMP && PREEMPT
+
+config RWSEM_GENERIC_SPINLOCK
+	bool
+	default y
+
+config RWSEM_XCHGADD_ALGORITHM
+	bool
+
+config ARCH_HAS_ILOG2_U32
+	bool
+
+config ARCH_HAS_ILOG2_U64
+	bool
+
+config ARCH_HAS_CPUFREQ
+	bool
+	help
+	  Internal node to signify that the ARCH has CPUFREQ support
+	  and that the relevant menu configurations are displayed for
+	  it.
+
+config ARCH_HAS_CPU_IDLE_WAIT
+       def_bool y
+
+config GENERIC_HWEIGHT
+	bool
+	default y
+
+config GENERIC_CALIBRATE_DELAY
+	bool
+	default y
+
+config ARCH_MAY_HAVE_PC_FDC
+	bool
+
+config ZONE_DMA
+	bool
+
+config NEED_DMA_MAP_STATE
+       def_bool y
+
+config ARCH_HAS_DMA_SET_COHERENT_MASK
+	bool
+
+config GENERIC_ISA_DMA
+	bool
+
+config FIQ
+	bool
+
+config NEED_RET_TO_USER
+	bool
+
+config ARCH_MTD_XIP
+	bool
+
+config VECTORS_BASE
+	hex
+	default 0xffff0000 if MMU || CPU_HIGH_VECTOR
+	default DRAM_BASE if REMAP_VECTORS_TO_RAM
+	default 0x00000000
+	help
+	  The base address of exception vectors.
+
+config ARM_PATCH_PHYS_VIRT
+	bool "Patch physical to virtual translations at runtime" if EMBEDDED
+	default y
+	depends on !XIP_KERNEL && MMU
+	depends on !ARCH_REALVIEW || !SPARSEMEM
+	help
+	  Patch phys-to-virt and virt-to-phys translation functions at
+	  boot and module load time according to the position of the
+	  kernel in system memory.
+
+	  This can only be used with non-XIP MMU kernels where the base
+	  of physical memory is at a 16MB boundary.
+
+	  Only disable this option if you know that you do not require
+	  this feature (eg, building a kernel for a single machine) and
+	  you need to shrink the kernel to the minimal size.
+
+config NEED_MACH_IO_H
+	bool
+	help
+	  Select this when mach/io.h is required to provide special
+	  definitions for this platform.  The need for mach/io.h should
+	  be avoided when possible.
+
+config NEED_MACH_MEMORY_H
+	bool
+	help
+	  Select this when mach/memory.h is required to provide special
+	  definitions for this platform.  The need for mach/memory.h should
+	  be avoided when possible.
+
+config PHYS_OFFSET
+	hex "Physical address of main memory" if MMU
+	depends on !ARM_PATCH_PHYS_VIRT && !NEED_MACH_MEMORY_H
+	default DRAM_BASE if !MMU
+	help
+	  Please provide the physical address corresponding to the
+	  location of main memory in your system.
+
+config GENERIC_BUG
+	def_bool y
+	depends on BUG
+
+source "init/Kconfig"
+
+source "kernel/Kconfig.freezer"
+
+menu "System Type"
+
+config MMU
+	bool "MMU-based Paged Memory Management Support"
+	default y
+	help
+	  Select if you want MMU-based virtualised addressing space
+	  support by paged memory management. If unsure, say 'Y'.
+
+#
+# The "ARM system type" choice list is ordered alphabetically by option
+# text.  Please add new entries in the option alphabetic order.
+#
+choice
+	prompt "ARM system type"
+	default ARCH_VERSATILE
+
+config ARCH_INTEGRATOR
+	bool "ARM Ltd. Integrator family"
+	select ARM_AMBA
+	select ARCH_HAS_CPUFREQ
+	select CLKDEV_LOOKUP
+	select HAVE_MACH_CLKDEV
+	select HAVE_TCM
+	select ICST
+	select GENERIC_CLOCKEVENTS
+	select PLAT_VERSATILE
+	select PLAT_VERSATILE_FPGA_IRQ
+	select NEED_MACH_IO_H
+	select NEED_MACH_MEMORY_H
+	select SPARSE_IRQ
+	help
+	  Support for ARM's Integrator platform.
+
+config ARCH_REALVIEW
+	bool "ARM Ltd. RealView family"
+	select ARM_AMBA
+	select CLKDEV_LOOKUP
+	select HAVE_MACH_CLKDEV
+	select ICST
+	select GENERIC_CLOCKEVENTS
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select PLAT_VERSATILE
+	select PLAT_VERSATILE_CLCD
+	select ARM_TIMER_SP804
+	select GPIO_PL061 if GPIOLIB
+	select NEED_MACH_MEMORY_H
+	help
+	  This enables support for ARM Ltd RealView boards.
+
+config ARCH_VERSATILE
+	bool "ARM Ltd. Versatile family"
+	select ARM_AMBA
+	select ARM_VIC
+	select CLKDEV_LOOKUP
+	select HAVE_MACH_CLKDEV
+	select ICST
+	select GENERIC_CLOCKEVENTS
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select PLAT_VERSATILE
+	select PLAT_VERSATILE_CLCD
+	select PLAT_VERSATILE_FPGA_IRQ
+	select ARM_TIMER_SP804
+	help
+	  This enables support for ARM Ltd Versatile board.
+
+config ARCH_VEXPRESS
+	bool "ARM Ltd. Versatile Express family"
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARM_AMBA
+	select ARM_TIMER_SP804
+	select CLKDEV_LOOKUP
+	select HAVE_MACH_CLKDEV
+	select GENERIC_CLOCKEVENTS
+	select HAVE_CLK
+	select HAVE_PATA_PLATFORM
+	select ICST
+	select NO_IOPORT
+	select PLAT_VERSATILE
+	select PLAT_VERSATILE_CLCD
+	help
+	  This enables support for the ARM Ltd Versatile Express boards.
+
+config ARCH_AT91
+	bool "Atmel AT91"
+	select ARCH_REQUIRE_GPIOLIB
+	select HAVE_CLK
+	select CLKDEV_LOOKUP
+	select IRQ_DOMAIN
+	select NEED_MACH_IO_H if PCCARD
+	help
+	  This enables support for systems based on the Atmel AT91RM9200,
+	  AT91SAM9 processors.
+
+config ARCH_BCMRING
+	bool "Broadcom BCMRING"
+	depends on MMU
+	select CPU_V6
+	select ARM_AMBA
+	select ARM_TIMER_SP804
+	select CLKDEV_LOOKUP
+	select GENERIC_CLOCKEVENTS
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	help
+	  Support for Broadcom's BCMRing platform.
+
+config ARCH_HIGHBANK
+	bool "Calxeda Highbank-based"
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARM_AMBA
+	select ARM_GIC
+	select ARM_TIMER_SP804
+	select CACHE_L2X0
+	select CLKDEV_LOOKUP
+	select CPU_V7
+	select GENERIC_CLOCKEVENTS
+	select HAVE_ARM_SCU
+	select HAVE_SMP
+	select SPARSE_IRQ
+	select USE_OF
+	help
+	  Support for the Calxeda Highbank SoC based boards.
+
+config ARCH_CLPS711X
+	bool "Cirrus Logic CLPS711x/EP721x-based"
+	select CPU_ARM720T
+	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_MEMORY_H
+	help
+	  Support for Cirrus Logic 711x/721x based boards.
+
+config ARCH_CNS3XXX
+	bool "Cavium Networks CNS3XXX family"
+	select CPU_V6K
+	select GENERIC_CLOCKEVENTS
+	select ARM_GIC
+	select MIGHT_HAVE_CACHE_L2X0
+	select MIGHT_HAVE_PCI
+	select PCI_DOMAINS if PCI
+	help
+	  Support for Cavium Networks CNS3XXX platform.
+
+config ARCH_GEMINI
+	bool "Cortina Systems Gemini"
+	select CPU_FA526
+	select ARCH_REQUIRE_GPIOLIB
+	select ARCH_USES_GETTIMEOFFSET
+	help
+	  Support for the Cortina Systems Gemini family SoCs
+
+config ARCH_PRIMA2
+	bool "CSR SiRFSoC PRIMA2 ARM Cortex A9 Platform"
+	select CPU_V7
+	select NO_IOPORT
+	select GENERIC_CLOCKEVENTS
+	select CLKDEV_LOOKUP
+	select GENERIC_IRQ_CHIP
+	select MIGHT_HAVE_CACHE_L2X0
+	select USE_OF
+	select ZONE_DMA
+	help
+          Support for CSR SiRFSoC ARM Cortex A9 Platform
+
+config ARCH_EBSA110
+	bool "EBSA-110"
+	select CPU_SA110
+	select ISA
+	select NO_IOPORT
+	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_IO_H
+	select NEED_MACH_MEMORY_H
+	help
+	  This is an evaluation board for the StrongARM processor available
+	  from Digital. It has limited hardware on-board, including an
+	  Ethernet interface, two PCMCIA sockets, two serial ports and a
+	  parallel port.
+
+config ARCH_EP93XX
+	bool "EP93xx-based"
+	select CPU_ARM920T
+	select ARM_AMBA
+	select ARM_VIC
+	select CLKDEV_LOOKUP
+	select ARCH_REQUIRE_GPIOLIB
+	select ARCH_HAS_HOLES_MEMORYMODEL
+	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_MEMORY_H
+	help
+	  This enables support for the Cirrus EP93xx series of CPUs.
+
+config ARCH_FOOTBRIDGE
+	bool "FootBridge"
+	select CPU_SA110
+	select FOOTBRIDGE
+	select GENERIC_CLOCKEVENTS
+	select HAVE_IDE
+	select NEED_MACH_IO_H
+	select NEED_MACH_MEMORY_H
+	help
+	  Support for systems based on the DC21285 companion chip
+	  ("FootBridge"), such as the Simtec CATS and the Rebel NetWinder.
+
+config ARCH_MXC
+	bool "Freescale MXC/iMX-based"
+	select GENERIC_CLOCKEVENTS
+	select ARCH_REQUIRE_GPIOLIB
+	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
+	select GENERIC_IRQ_CHIP
+	select MULTI_IRQ_HANDLER
+	help
+	  Support for Freescale MXC/iMX-based family of processors
+
+config ARCH_MXS
+	bool "Freescale MXS-based"
+	select GENERIC_CLOCKEVENTS
+	select ARCH_REQUIRE_GPIOLIB
+	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
+	select HAVE_CLK_PREPARE
+	help
+	  Support for Freescale MXS-based family of processors
+
+config ARCH_NETX
+	bool "Hilscher NetX based"
+	select CLKSRC_MMIO
+	select CPU_ARM926T
+	select ARM_VIC
+	select GENERIC_CLOCKEVENTS
+	help
+	  This enables support for systems based on the Hilscher NetX Soc
+
+config ARCH_H720X
+	bool "Hynix HMS720x-based"
+	select CPU_ARM720T
+	select ISA_DMA_API
+	select ARCH_USES_GETTIMEOFFSET
+	help
+	  This enables support for systems based on the Hynix HMS720x
+
+config ARCH_IOP13XX
+	bool "IOP13xx-based"
+	depends on MMU
+	select CPU_XSC3
+	select PLAT_IOP
+	select PCI
+	select ARCH_SUPPORTS_MSI
+	select VMSPLIT_1G
+	select NEED_MACH_IO_H
+	select NEED_MACH_MEMORY_H
+	select NEED_RET_TO_USER
+	help
+	  Support for Intel's IOP13XX (XScale) family of processors.
+
+config ARCH_IOP32X
+	bool "IOP32x-based"
+	depends on MMU
+	select CPU_XSCALE
+	select NEED_MACH_IO_H
+	select NEED_RET_TO_USER
+	select PLAT_IOP
+	select PCI
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  Support for Intel's 80219 and IOP32X (XScale) family of
+	  processors.
+
+config ARCH_IOP33X
+	bool "IOP33x-based"
+	depends on MMU
+	select CPU_XSCALE
+	select NEED_MACH_IO_H
+	select NEED_RET_TO_USER
+	select PLAT_IOP
+	select PCI
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  Support for Intel's IOP33X (XScale) family of processors.
+
+config ARCH_IXP23XX
+ 	bool "IXP23XX-based"
+	depends on MMU
+	select CPU_XSC3
+ 	select PCI
+	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_IO_H
+	select NEED_MACH_MEMORY_H
+	help
+	  Support for Intel's IXP23xx (XScale) family of processors.
+
+config ARCH_IXP2000
+	bool "IXP2400/2800-based"
+	depends on MMU
+	select CPU_XSCALE
+	select PCI
+	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_IO_H
+	select NEED_MACH_MEMORY_H
+	help
+	  Support for Intel's IXP2400/2800 (XScale) family of processors.
+
+config ARCH_IXP4XX
+	bool "IXP4xx-based"
+	depends on MMU
+	select ARCH_HAS_DMA_SET_COHERENT_MASK
+	select CLKSRC_MMIO
+	select CPU_XSCALE
+	select ARCH_REQUIRE_GPIOLIB
+	select GENERIC_CLOCKEVENTS
+	select MIGHT_HAVE_PCI
+	select NEED_MACH_IO_H
+	select DMABOUNCE if PCI
+	help
+	  Support for Intel's IXP4XX (XScale) family of processors.
+
+config ARCH_DOVE
+	bool "Marvell Dove"
+	select CPU_V7
+	select PCI
+	select ARCH_REQUIRE_GPIOLIB
+	select GENERIC_CLOCKEVENTS
+	select NEED_MACH_IO_H
+	select PLAT_ORION
+	help
+	  Support for the Marvell Dove SoC 88AP510
+
+config ARCH_KIRKWOOD
+	bool "Marvell Kirkwood"
+	select CPU_FEROCEON
+	select PCI
+	select ARCH_REQUIRE_GPIOLIB
+	select GENERIC_CLOCKEVENTS
+	select NEED_MACH_IO_H
+	select PLAT_ORION
+	help
+	  Support for the following Marvell Kirkwood series SoCs:
+	  88F6180, 88F6192 and 88F6281.
+
+config ARCH_LPC32XX
+	bool "NXP LPC32XX"
+	select CLKSRC_MMIO
+	select CPU_ARM926T
+	select ARCH_REQUIRE_GPIOLIB
+	select HAVE_IDE
+	select ARM_AMBA
+	select USB_ARCH_HAS_OHCI
+	select CLKDEV_LOOKUP
+	select GENERIC_CLOCKEVENTS
+	help
+	  Support for the NXP LPC32XX family of processors
+
+config ARCH_MV78XX0
+	bool "Marvell MV78xx0"
+	select CPU_FEROCEON
+	select PCI
+	select ARCH_REQUIRE_GPIOLIB
+	select GENERIC_CLOCKEVENTS
+	select NEED_MACH_IO_H
+	select PLAT_ORION
+	help
+	  Support for the following Marvell MV78xx0 series SoCs:
+	  MV781x0, MV782x0.
+
+config ARCH_ORION5X
+	bool "Marvell Orion"
+	depends on MMU
+	select CPU_FEROCEON
+	select PCI
+	select ARCH_REQUIRE_GPIOLIB
+	select GENERIC_CLOCKEVENTS
+	select PLAT_ORION
+	help
+	  Support for the following Marvell Orion 5x series SoCs:
+	  Orion-1 (5181), Orion-VoIP (5181L), Orion-NAS (5182),
+	  Orion-2 (5281), Orion-1-90 (6183).
+
+config ARCH_MMP
+	bool "Marvell PXA168/910/MMP2"
+	depends on MMU
+	select ARCH_REQUIRE_GPIOLIB
+	select CLKDEV_LOOKUP
+	select GENERIC_CLOCKEVENTS
+	select GPIO_PXA
+	select TICK_ONESHOT
+	select PLAT_PXA
+	select SPARSE_IRQ
+	select GENERIC_ALLOCATOR
+	help
+	  Support for Marvell's PXA168/PXA910(MMP) and MMP2 processor line.
+
+config ARCH_KS8695
+	bool "Micrel/Kendin KS8695"
+	select CPU_ARM922T
+	select ARCH_REQUIRE_GPIOLIB
+	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_MEMORY_H
+	help
+	  Support for Micrel/Kendin KS8695 "Centaur" (ARM922T) based
+	  System-on-Chip devices.
+
+config ARCH_W90X900
+	bool "Nuvoton W90X900 CPU"
+	select CPU_ARM926T
+	select ARCH_REQUIRE_GPIOLIB
+	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
+	select GENERIC_CLOCKEVENTS
+	help
+	  Support for Nuvoton (Winbond logic dept.) ARM9 processor,
+	  At present, the w90x900 has been renamed nuc900, regarding
+	  the ARM series product line, you can login the following
+	  link address to know more.
+
+	  <http://www.nuvoton.com/hq/enu/ProductAndSales/ProductLines/
+		ConsumerElectronicsIC/ARMMicrocontroller/ARMMicrocontroller>
+
+config ARCH_TEGRA
+	bool "NVIDIA Tegra"
+	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_GPIO
+	select HAVE_CLK
+	select HAVE_SMP
+	select MIGHT_HAVE_CACHE_L2X0
+	select NEED_MACH_IO_H if PCI
+	select ARCH_HAS_CPUFREQ
+	help
+	  This enables support for NVIDIA Tegra based systems (Tegra APX,
+	  Tegra 6xx and Tegra 2 series).
+
+config ARCH_PICOXCELL
+	bool "Picochip picoXcell"
+	select ARCH_REQUIRE_GPIOLIB
+	select ARM_PATCH_PHYS_VIRT
+	select ARM_VIC
+	select CPU_V6K
+	select DW_APB_TIMER
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_GPIO
+	select HAVE_TCM
+	select NO_IOPORT
+	select SPARSE_IRQ
+	select USE_OF
+	help
+	  This enables support for systems based on the Picochip picoXcell
+	  family of Femtocell devices.  The picoxcell support requires device tree
+	  for all boards.
+
+config ARCH_PNX4008
+	bool "Philips Nexperia PNX4008 Mobile"
+	select CPU_ARM926T
+	select CLKDEV_LOOKUP
+	select ARCH_USES_GETTIMEOFFSET
+	help
+	  This enables support for Philips PNX4008 mobile platform.
+
+config ARCH_PXA
+	bool "PXA2xx/PXA3xx-based"
+	depends on MMU
+	select ARCH_MTD_XIP
+	select ARCH_HAS_CPUFREQ
+	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
+	select ARCH_REQUIRE_GPIOLIB
+	select GENERIC_CLOCKEVENTS
+	select GPIO_PXA
+	select TICK_ONESHOT
+	select PLAT_PXA
+	select SPARSE_IRQ
+	select AUTO_ZRELADDR
+	select MULTI_IRQ_HANDLER
+	select ARM_CPU_SUSPEND if PM
+	select HAVE_IDE
+	help
+	  Support for Intel/Marvell's PXA2xx/PXA3xx processor line.
+
+config ARCH_MSM
+	bool "Qualcomm MSM"
+	select HAVE_CLK
+	select GENERIC_CLOCKEVENTS
+	select ARCH_REQUIRE_GPIOLIB
+	select CLKDEV_LOOKUP
+	help
+	  Support for Qualcomm MSM/QSD based systems.  This runs on the
+	  apps processor of the MSM/QSD and depends on a shared memory
+	  interface to the modem processor which runs the baseband
+	  stack and controls some vital subsystems
+	  (clock and power control, etc).
+
+config ARCH_SHMOBILE
+	bool "Renesas SH-Mobile / R-Mobile"
+	select HAVE_CLK
+	select CLKDEV_LOOKUP
+	select HAVE_MACH_CLKDEV
+	select HAVE_SMP
+	select GENERIC_CLOCKEVENTS
+	select MIGHT_HAVE_CACHE_L2X0
+	select NO_IOPORT
+	select SPARSE_IRQ
+	select MULTI_IRQ_HANDLER
+	select PM_GENERIC_DOMAINS if PM
+	select NEED_MACH_MEMORY_H
+	help
+	  Support for Renesas's SH-Mobile and R-Mobile ARM platforms.
+
+config ARCH_RPC
+	bool "RiscPC"
+	select ARCH_ACORN
+	select FIQ
+	select ARCH_MAY_HAVE_PC_FDC
+	select HAVE_PATA_PLATFORM
+	select ISA_DMA_API
+	select NO_IOPORT
+	select ARCH_SPARSEMEM_ENABLE
+	select ARCH_USES_GETTIMEOFFSET
+	select HAVE_IDE
+	select NEED_MACH_IO_H
+	select NEED_MACH_MEMORY_H
+	help
+	  On the Acorn Risc-PC, Linux can support the internal IDE disk and
+	  CD-ROM interface, serial and parallel port, and the floppy drive.
+
+config ARCH_SA1100
+	bool "SA1100-based"
+	select CLKSRC_MMIO
+	select CPU_SA1100
+	select ISA
+	select ARCH_SPARSEMEM_ENABLE
+	select ARCH_MTD_XIP
+	select ARCH_HAS_CPUFREQ
+	select CPU_FREQ
+	select GENERIC_CLOCKEVENTS
+	select CLKDEV_LOOKUP
+	select TICK_ONESHOT
+	select ARCH_REQUIRE_GPIOLIB
+	select HAVE_IDE
+	select NEED_MACH_MEMORY_H
+	select SPARSE_IRQ
+	help
+	  Support for StrongARM 11x0 based boards.
+
+config ARCH_S3C24XX
+	bool "Samsung S3C24XX SoCs"
+	select GENERIC_GPIO
+	select ARCH_HAS_CPUFREQ
+	select HAVE_CLK
+	select CLKDEV_LOOKUP
+	select ARCH_USES_GETTIMEOFFSET
+	select HAVE_S3C2410_I2C if I2C
+	select HAVE_S3C_RTC if RTC_CLASS
+	select HAVE_S3C2410_WATCHDOG if WATCHDOG
+	select NEED_MACH_IO_H
+	help
+	  Samsung S3C2410, S3C2412, S3C2413, S3C2416, S3C2440, S3C2442, S3C2443
+	  and S3C2450 SoCs based systems, such as the Simtec Electronics BAST
+	  (<http://www.simtec.co.uk/products/EB110ITX/>), the IPAQ 1940 or the
+	  Samsung SMDK2410 development board (and derivatives).
+
+config ARCH_S3C64XX
+	bool "Samsung S3C64XX"
+	select PLAT_SAMSUNG
+	select CPU_V6
+	select ARM_VIC
+	select HAVE_CLK
+	select HAVE_TCM
+	select CLKDEV_LOOKUP
+	select NO_IOPORT
+	select ARCH_USES_GETTIMEOFFSET
+	select ARCH_HAS_CPUFREQ
+	select ARCH_REQUIRE_GPIOLIB
+	select SAMSUNG_CLKSRC
+	select SAMSUNG_IRQ_VIC_TIMER
+	select S3C_GPIO_TRACK
+	select S3C_DEV_NAND
+	select USB_ARCH_HAS_OHCI
+	select SAMSUNG_GPIOLIB_4BIT
+	select HAVE_S3C2410_I2C if I2C
+	select HAVE_S3C2410_WATCHDOG if WATCHDOG
+	help
+	  Samsung S3C64XX series based systems
+
+config ARCH_S5P64X0
+	bool "Samsung S5P6440 S5P6450"
+	select CPU_V6
+	select GENERIC_GPIO
+	select HAVE_CLK
+	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
+	select HAVE_S3C2410_WATCHDOG if WATCHDOG
+	select GENERIC_CLOCKEVENTS
+	select HAVE_S3C2410_I2C if I2C
+	select HAVE_S3C_RTC if RTC_CLASS
+	help
+	  Samsung S5P64X0 CPU based systems, such as the Samsung SMDK6440,
+	  SMDK6450.
+
+config ARCH_S5PC100
+	bool "Samsung S5PC100"
+	select GENERIC_GPIO
+	select HAVE_CLK
+	select CLKDEV_LOOKUP
+	select CPU_V7
+	select ARCH_USES_GETTIMEOFFSET
+	select HAVE_S3C2410_I2C if I2C
+	select HAVE_S3C_RTC if RTC_CLASS
+	select HAVE_S3C2410_WATCHDOG if WATCHDOG
+	help
+	  Samsung S5PC100 series based systems
+
+config ARCH_S5PV210
+	bool "Samsung S5PV210/S5PC110"
+	select CPU_V7
+	select ARCH_SPARSEMEM_ENABLE
+	select ARCH_HAS_HOLES_MEMORYMODEL
+	select GENERIC_GPIO
+	select HAVE_CLK
+	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
+	select ARCH_HAS_CPUFREQ
+	select GENERIC_CLOCKEVENTS
+	select HAVE_S3C2410_I2C if I2C
+	select HAVE_S3C_RTC if RTC_CLASS
+	select HAVE_S3C2410_WATCHDOG if WATCHDOG
+	select NEED_MACH_MEMORY_H
+	help
+	  Samsung S5PV210/S5PC110 series based systems
+
+config ARCH_EXYNOS
+	bool "SAMSUNG EXYNOS"
+	select CPU_V7
+	select ARCH_SPARSEMEM_ENABLE
+	select ARCH_HAS_HOLES_MEMORYMODEL
+	select GENERIC_GPIO
+	select HAVE_CLK
+	select CLKDEV_LOOKUP
+	select ARCH_HAS_CPUFREQ
+	select GENERIC_CLOCKEVENTS
+	select HAVE_S3C_RTC if RTC_CLASS
+	select HAVE_S3C2410_I2C if I2C
+	select HAVE_S3C2410_WATCHDOG if WATCHDOG
+	select NEED_MACH_MEMORY_H
+	help
+	  Support for SAMSUNG's EXYNOS SoCs (EXYNOS4/5)
+
+config ARCH_SHARK
+	bool "Shark"
+	select CPU_SA110
+	select ISA
+	select ISA_DMA
+	select ZONE_DMA
+	select PCI
+	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_MEMORY_H
+	select NEED_MACH_IO_H
+	help
+	  Support for the StrongARM based Digital DNARD machine, also known
+	  as "Shark" (<http://www.shark-linux.de/shark.html>).
+
+config ARCH_U300
+	bool "ST-Ericsson U300 Series"
+	depends on MMU
+	select CLKSRC_MMIO
+	select CPU_ARM926T
+	select HAVE_TCM
+	select ARM_AMBA
+	select ARM_PATCH_PHYS_VIRT
+	select ARM_VIC
+	select GENERIC_CLOCKEVENTS
+	select CLKDEV_LOOKUP
+	select HAVE_MACH_CLKDEV
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  Support for ST-Ericsson U300 series mobile platforms.
+
+config ARCH_U8500
+	bool "ST-Ericsson U8500 Series"
+	depends on MMU
+	select CPU_V7
+	select ARM_AMBA
+	select GENERIC_CLOCKEVENTS
+	select CLKDEV_LOOKUP
+	select ARCH_REQUIRE_GPIOLIB
+	select ARCH_HAS_CPUFREQ
+	select HAVE_SMP
+	select MIGHT_HAVE_CACHE_L2X0
+	help
+	  Support for ST-Ericsson's Ux500 architecture
+
+config ARCH_NOMADIK
+	bool "STMicroelectronics Nomadik"
+	select ARM_AMBA
+	select ARM_VIC
+	select CPU_ARM926T
+	select CLKDEV_LOOKUP
+	select GENERIC_CLOCKEVENTS
+	select MIGHT_HAVE_CACHE_L2X0
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  Support for the Nomadik platform by ST-Ericsson
+
+config ARCH_DAVINCI
+	bool "TI DaVinci"
+	select GENERIC_CLOCKEVENTS
+	select ARCH_REQUIRE_GPIOLIB
+	select ZONE_DMA
+	select HAVE_IDE
+	select CLKDEV_LOOKUP
+	select GENERIC_ALLOCATOR
+	select GENERIC_IRQ_CHIP
+	select ARCH_HAS_HOLES_MEMORYMODEL
+	help
+	  Support for TI's DaVinci platform.
+
+config ARCH_OMAP
+	bool "TI OMAP"
+	select HAVE_CLK
+	select ARCH_REQUIRE_GPIOLIB
+	select ARCH_HAS_CPUFREQ
+	select CLKSRC_MMIO
+	select GENERIC_CLOCKEVENTS
+	select ARCH_HAS_HOLES_MEMORYMODEL
+	help
+	  Support for TI's OMAP platform (OMAP1/2/3/4).
+
+config PLAT_SPEAR
+	bool "ST SPEAr"
+	select ARM_AMBA
+	select ARCH_REQUIRE_GPIOLIB
+	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
+	select GENERIC_CLOCKEVENTS
+	select HAVE_CLK
+	help
+	  Support for ST's SPEAr platform (SPEAr3xx, SPEAr6xx and SPEAr13xx).
+
+config ARCH_VT8500
+	bool "VIA/WonderMedia 85xx"
+	select CPU_ARM926T
+	select GENERIC_GPIO
+	select ARCH_HAS_CPUFREQ
+	select GENERIC_CLOCKEVENTS
+	select ARCH_REQUIRE_GPIOLIB
+	select HAVE_PWM
+	help
+	  Support for VIA/WonderMedia VT8500/WM85xx System-on-Chip.
+
+config ARCH_ZYNQ
+	bool "Xilinx Zynq ARM Cortex A9 Platform"
+	select CPU_V7
+	select GENERIC_CLOCKEVENTS
+	select CLKDEV_LOOKUP
+	select ARM_GIC
+	select ARM_AMBA
+	select ICST
+	select MIGHT_HAVE_CACHE_L2X0
+	select USE_OF
+	help
+	  Support for Xilinx Zynq ARM Cortex A9 Platform
+endchoice
+
+#
+# This is sorted alphabetically by mach-* pathname.  However, plat-*
+# Kconfigs may be included either alphabetically (according to the
+# plat- suffix) or along side the corresponding mach-* source.
+#
+source "arch/arm/mach-at91/Kconfig"
+
+source "arch/arm/mach-bcmring/Kconfig"
+
+source "arch/arm/mach-clps711x/Kconfig"
+
+source "arch/arm/mach-cns3xxx/Kconfig"
+
+source "arch/arm/mach-davinci/Kconfig"
+
+source "arch/arm/mach-dove/Kconfig"
+
+source "arch/arm/mach-ep93xx/Kconfig"
+
+source "arch/arm/mach-footbridge/Kconfig"
+
+source "arch/arm/mach-gemini/Kconfig"
+
+source "arch/arm/mach-h720x/Kconfig"
+
+source "arch/arm/mach-integrator/Kconfig"
+
+source "arch/arm/mach-iop32x/Kconfig"
+
+source "arch/arm/mach-iop33x/Kconfig"
+
+source "arch/arm/mach-iop13xx/Kconfig"
+
+source "arch/arm/mach-ixp4xx/Kconfig"
+
+source "arch/arm/mach-ixp2000/Kconfig"
+
+source "arch/arm/mach-ixp23xx/Kconfig"
+
+source "arch/arm/mach-kirkwood/Kconfig"
+
+source "arch/arm/mach-ks8695/Kconfig"
+
+source "arch/arm/mach-lpc32xx/Kconfig"
+
+source "arch/arm/mach-msm/Kconfig"
+
+source "arch/arm/mach-mv78xx0/Kconfig"
+
+source "arch/arm/plat-mxc/Kconfig"
+
+source "arch/arm/mach-mxs/Kconfig"
+
+source "arch/arm/mach-netx/Kconfig"
+
+source "arch/arm/mach-nomadik/Kconfig"
+source "arch/arm/plat-nomadik/Kconfig"
+
+source "arch/arm/plat-omap/Kconfig"
+
+source "arch/arm/mach-omap1/Kconfig"
+
+source "arch/arm/mach-omap2/Kconfig"
+
+source "arch/arm/mach-orion5x/Kconfig"
+
+source "arch/arm/mach-pxa/Kconfig"
+source "arch/arm/plat-pxa/Kconfig"
+
+source "arch/arm/mach-mmp/Kconfig"
+
+source "arch/arm/mach-realview/Kconfig"
+
+source "arch/arm/mach-sa1100/Kconfig"
+
+source "arch/arm/plat-samsung/Kconfig"
+source "arch/arm/plat-s3c24xx/Kconfig"
+source "arch/arm/plat-s5p/Kconfig"
+
+source "arch/arm/plat-spear/Kconfig"
+
+source "arch/arm/mach-s3c24xx/Kconfig"
+if ARCH_S3C24XX
+source "arch/arm/mach-s3c2412/Kconfig"
+source "arch/arm/mach-s3c2440/Kconfig"
+endif
+
+if ARCH_S3C64XX
+source "arch/arm/mach-s3c64xx/Kconfig"
+endif
+
+source "arch/arm/mach-s5p64x0/Kconfig"
+
+source "arch/arm/mach-s5pc100/Kconfig"
+
+source "arch/arm/mach-s5pv210/Kconfig"
+
+source "arch/arm/mach-exynos/Kconfig"
+
+source "arch/arm/mach-shmobile/Kconfig"
+
+source "arch/arm/mach-tegra/Kconfig"
+
+source "arch/arm/mach-u300/Kconfig"
+
+source "arch/arm/mach-ux500/Kconfig"
+
+source "arch/arm/mach-versatile/Kconfig"
+
+source "arch/arm/mach-vexpress/Kconfig"
+source "arch/arm/plat-versatile/Kconfig"
+
+source "arch/arm/mach-vt8500/Kconfig"
+
+source "arch/arm/mach-w90x900/Kconfig"
+
+# Definitions to make life easier
+config ARCH_ACORN
+	bool
+
+config PLAT_IOP
+	bool
+	select GENERIC_CLOCKEVENTS
+
+config PLAT_ORION
+	bool
+	select CLKSRC_MMIO
+	select GENERIC_IRQ_CHIP
+
+config PLAT_PXA
+	bool
+
+config PLAT_VERSATILE
+	bool
+
+config ARM_TIMER_SP804
+	bool
+	select CLKSRC_MMIO
+	select HAVE_SCHED_CLOCK
+
+source arch/arm/mm/Kconfig
+
+config ARM_NR_BANKS
+	int
+	default 16 if ARCH_EP93XX
+	default 8
+
+config IWMMXT
+	bool "Enable iWMMXt support"
+	depends on CPU_XSCALE || CPU_XSC3 || CPU_MOHAWK || CPU_PJ4
+	default y if PXA27x || PXA3xx || PXA95x || ARCH_MMP
+	help
+	  Enable support for iWMMXt context switching at run time if
+	  running on a CPU that supports it.
+
+config XSCALE_PMU
+	bool
+	depends on CPU_XSCALE
+	default y
+
+config CPU_HAS_PMU
+	depends on (CPU_V6 || CPU_V6K || CPU_V7 || XSCALE_PMU) && \
+		   (!ARCH_OMAP3 || OMAP3_EMU)
+	default y
+	bool
+
+config MULTI_IRQ_HANDLER
+	bool
+	help
+	  Allow each machine to specify it's own IRQ handler at run time.
+
+if !MMU
+source "arch/arm/Kconfig-nommu"
+endif
+
+config ARM_ERRATA_326103
+	bool "ARM errata: FSR write bit incorrect on a SWP to read-only memory"
+	depends on CPU_V6
+	help
+	  Executing a SWP instruction to read-only memory does not set bit 11
+	  of the FSR on the ARM 1136 prior to r1p0. This causes the kernel to
+	  treat the access as a read, preventing a COW from occurring and
+	  causing the faulting task to livelock.
+
+config ARM_ERRATA_411920
+	bool "ARM errata: Invalidation of the Instruction Cache operation can fail"
+	depends on CPU_V6 || CPU_V6K
+	help
+	  Invalidation of the Instruction Cache operation can
+	  fail. This erratum is present in 1136 (before r1p4), 1156 and 1176.
+	  It does not affect the MPCore. This option enables the ARM Ltd.
+	  recommended workaround.
+
+config ARM_ERRATA_430973
+	bool "ARM errata: Stale prediction on replaced interworking branch"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 430973 Cortex-A8
+	  (r1p0..r1p2) erratum. If a code sequence containing an ARM/Thumb
+	  interworking branch is replaced with another code sequence at the
+	  same virtual address, whether due to self-modifying code or virtual
+	  to physical address re-mapping, Cortex-A8 does not recover from the
+	  stale interworking branch prediction. This results in Cortex-A8
+	  executing the new code sequence in the incorrect ARM or Thumb state.
+	  The workaround enables the BTB/BTAC operations by setting ACTLR.IBE
+	  and also flushes the branch target cache at every context switch.
+	  Note that setting specific bits in the ACTLR register may not be
+	  available in non-secure mode.
+
+config ARM_ERRATA_458693
+	bool "ARM errata: Processor deadlock when a false hazard is created"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 458693 Cortex-A8 (r2p0)
+	  erratum. For very specific sequences of memory operations, it is
+	  possible for a hazard condition intended for a cache line to instead
+	  be incorrectly associated with a different cache line. This false
+	  hazard might then cause a processor deadlock. The workaround enables
+	  the L1 caching of the NEON accesses and disables the PLD instruction
+	  in the ACTLR register. Note that setting specific bits in the ACTLR
+	  register may not be available in non-secure mode.
+
+config ARM_ERRATA_460075
+	bool "ARM errata: Data written to the L2 cache can be overwritten with stale data"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 460075 Cortex-A8 (r2p0)
+	  erratum. Any asynchronous access to the L2 cache may encounter a
+	  situation in which recent store transactions to the L2 cache are lost
+	  and overwritten with stale memory contents from external memory. The
+	  workaround disables the write-allocate mode for the L2 cache via the
+	  ACTLR register. Note that setting specific bits in the ACTLR register
+	  may not be available in non-secure mode.
+
+config ARM_ERRATA_742230
+	bool "ARM errata: DMB operation may be faulty"
+	depends on CPU_V7 && SMP
+	help
+	  This option enables the workaround for the 742230 Cortex-A9
+	  (r1p0..r2p2) erratum. Under rare circumstances, a DMB instruction
+	  between two write operations may not ensure the correct visibility
+	  ordering of the two writes. This workaround sets a specific bit in
+	  the diagnostic register of the Cortex-A9 which causes the DMB
+	  instruction to behave as a DSB, ensuring the correct behaviour of
+	  the two writes.
+
+config ARM_ERRATA_742231
+	bool "ARM errata: Incorrect hazard handling in the SCU may lead to data corruption"
+	depends on CPU_V7 && SMP
+	help
+	  This option enables the workaround for the 742231 Cortex-A9
+	  (r2p0..r2p2) erratum. Under certain conditions, specific to the
+	  Cortex-A9 MPCore micro-architecture, two CPUs working in SMP mode,
+	  accessing some data located in the same cache line, may get corrupted
+	  data due to bad handling of the address hazard when the line gets
+	  replaced from one of the CPUs at the same time as another CPU is
+	  accessing it. This workaround sets specific bits in the diagnostic
+	  register of the Cortex-A9 which reduces the linefill issuing
+	  capabilities of the processor.
+
+config PL310_ERRATA_588369
+	bool "PL310 errata: Clean & Invalidate maintenance operations do not invalidate clean lines"
+	depends on CACHE_L2X0
+	help
+	   The PL310 L2 cache controller implements three types of Clean &
+	   Invalidate maintenance operations: by Physical Address
+	   (offset 0x7F0), by Index/Way (0x7F8) and by Way (0x7FC).
+	   They are architecturally defined to behave as the execution of a
+	   clean operation followed immediately by an invalidate operation,
+	   both performing to the same memory location. This functionality
+	   is not correctly implemented in PL310 as clean lines are not
+	   invalidated as a result of these operations.
+
+config ARM_ERRATA_720789
+	bool "ARM errata: TLBIASIDIS and TLBIMVAIS operations can broadcast a faulty ASID"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 720789 Cortex-A9 (prior to
+	  r2p0) erratum. A faulty ASID can be sent to the other CPUs for the
+	  broadcasted CP15 TLB maintenance operations TLBIASIDIS and TLBIMVAIS.
+	  As a consequence of this erratum, some TLB entries which should be
+	  invalidated are not, resulting in an incoherency in the system page
+	  tables. The workaround changes the TLB flushing routines to invalidate
+	  entries regardless of the ASID.
+
+config PL310_ERRATA_727915
+	bool "PL310 errata: Background Clean & Invalidate by Way operation can cause data corruption"
+	depends on CACHE_L2X0
+	help
+	  PL310 implements the Clean & Invalidate by Way L2 cache maintenance
+	  operation (offset 0x7FC). This operation runs in background so that
+	  PL310 can handle normal accesses while it is in progress. Under very
+	  rare circumstances, due to this erratum, write data can be lost when
+	  PL310 treats a cacheable write transaction during a Clean &
+	  Invalidate by Way operation.
+
+config ARM_ERRATA_743622
+	bool "ARM errata: Faulty hazard checking in the Store Buffer may lead to data corruption"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 743622 Cortex-A9
+	  (r2p*) erratum. Under very rare conditions, a faulty
+	  optimisation in the Cortex-A9 Store Buffer may lead to data
+	  corruption. This workaround sets a specific bit in the diagnostic
+	  register of the Cortex-A9 which disables the Store Buffer
+	  optimisation, preventing the defect from occurring. This has no
+	  visible impact on the overall performance or power consumption of the
+	  processor.
+
+config ARM_ERRATA_751472
+	bool "ARM errata: Interrupted ICIALLUIS may prevent completion of broadcasted operation"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 751472 Cortex-A9 (prior
+	  to r3p0) erratum. An interrupted ICIALLUIS operation may prevent the
+	  completion of a following broadcasted operation if the second
+	  operation is received by a CPU before the ICIALLUIS has completed,
+	  potentially leading to corrupted entries in the cache or TLB.
+
+config PL310_ERRATA_753970
+	bool "PL310 errata: cache sync operation may be faulty"
+	depends on CACHE_PL310
+	help
+	  This option enables the workaround for the 753970 PL310 (r3p0) erratum.
+
+	  Under some condition the effect of cache sync operation on
+	  the store buffer still remains when the operation completes.
+	  This means that the store buffer is always asked to drain and
+	  this prevents it from merging any further writes. The workaround
+	  is to replace the normal offset of cache sync operation (0x730)
+	  by another offset targeting an unmapped PL310 register 0x740.
+	  This has the same effect as the cache sync operation: store buffer
+	  drain and waiting for all buffers empty.
+
+config ARM_ERRATA_754322
+	bool "ARM errata: possible faulty MMU translations following an ASID switch"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 754322 Cortex-A9 (r2p*,
+	  r3p*) erratum. A speculative memory access may cause a page table walk
+	  which starts prior to an ASID switch but completes afterwards. This
+	  can populate the micro-TLB with a stale entry which may be hit with
+	  the new ASID. This workaround places two dsb instructions in the mm
+	  switching code so that no page table walks can cross the ASID switch.
+
+config ARM_ERRATA_754327
+	bool "ARM errata: no automatic Store Buffer drain"
+	depends on CPU_V7 && SMP
+	help
+	  This option enables the workaround for the 754327 Cortex-A9 (prior to
+	  r2p0) erratum. The Store Buffer does not have any automatic draining
+	  mechanism and therefore a livelock may occur if an external agent
+	  continuously polls a memory location waiting to observe an update.
+	  This workaround defines cpu_relax() as smp_mb(), preventing correctly
+	  written polling loops from denying visibility of updates to memory.
+
+config ARM_ERRATA_364296
+	bool "ARM errata: Possible cache data corruption with hit-under-miss enabled"
+	depends on CPU_V6 && !SMP
+	help
+	  This options enables the workaround for the 364296 ARM1136
+	  r0p2 erratum (possible cache data corruption with
+	  hit-under-miss enabled). It sets the undocumented bit 31 in
+	  the auxiliary control register and the FI bit in the control
+	  register, thus disabling hit-under-miss without putting the
+	  processor into full low interrupt latency mode. ARM11MPCore
+	  is not affected.
+
+config ARM_ERRATA_764369
+	bool "ARM errata: Data cache line maintenance operation by MVA may not succeed"
+	depends on CPU_V7 && SMP
+	help
+	  This option enables the workaround for erratum 764369
+	  affecting Cortex-A9 MPCore with two or more processors (all
+	  current revisions). Under certain timing circumstances, a data
+	  cache line maintenance operation by MVA targeting an Inner
+	  Shareable memory region may fail to proceed up to either the
+	  Point of Coherency or to the Point of Unification of the
+	  system. This workaround adds a DSB instruction before the
+	  relevant cache maintenance functions and sets a specific bit
+	  in the diagnostic control register of the SCU.
+
+config PL310_ERRATA_769419
+	bool "PL310 errata: no automatic Store Buffer drain"
+	depends on CACHE_L2X0
+	help
+	  On revisions of the PL310 prior to r3p2, the Store Buffer does
+	  not automatically drain. This can cause normal, non-cacheable
+	  writes to be retained when the memory system is idle, leading
+	  to suboptimal I/O performance for drivers using coherent DMA.
+	  This option adds a write barrier to the cpu_idle loop so that,
+	  on systems with an outer cache, the store buffer is drained
+	  explicitly.
+
+endmenu
+
+source "arch/arm/common/Kconfig"
+
+menu "Bus support"
+
+config ARM_AMBA
+	bool
+
+config ISA
+	bool
+	help
+	  Find out whether you have ISA slots on your motherboard.  ISA is the
+	  name of a bus system, i.e. the way the CPU talks to the other stuff
+	  inside your box.  Other bus systems are PCI, EISA, MicroChannel
+	  (MCA) or VESA.  ISA is an older system, now being displaced by PCI;
+	  newer boards don't support it.  If you have ISA, say Y, otherwise N.
+
+# Select ISA DMA controller support
+config ISA_DMA
+	bool
+	select ISA_DMA_API
+
+# Select ISA DMA interface
+config ISA_DMA_API
+	bool
+
+config PCI
+	bool "PCI support" if MIGHT_HAVE_PCI
+	help
+	  Find out whether you have a PCI motherboard. PCI is the name of a
+	  bus system, i.e. the way the CPU talks to the other stuff inside
+	  your box. Other bus systems are ISA, EISA, MicroChannel (MCA) or
+	  VESA. If you have PCI, say Y, otherwise N.
+
+config PCI_DOMAINS
+	bool
+	depends on PCI
+
+config PCI_NANOENGINE
+	bool "BSE nanoEngine PCI support"
+	depends on SA1100_NANOENGINE
+	help
+	  Enable PCI on the BSE nanoEngine board.
+
+config PCI_SYSCALL
+	def_bool PCI
+
+# Select the host bridge type
+config PCI_HOST_VIA82C505
+	bool
+	depends on PCI && ARCH_SHARK
+	default y
+
+config PCI_HOST_ITE8152
+	bool
+	depends on PCI && MACH_ARMCORE
+	default y
+	select DMABOUNCE
+
+source "drivers/pci/Kconfig"
+
+source "drivers/pcmcia/Kconfig"
+
+endmenu
+
+menu "Kernel Features"
+
+source "kernel/time/Kconfig"
+
+config HAVE_SMP
+	bool
+	help
+	  This option should be selected by machines which have an SMP-
+	  capable CPU.
+
+	  The only effect of this option is to make the SMP-related
+	  options available to the user for configuration.
+
+config SMP
+	bool "Symmetric Multi-Processing"
+	depends on CPU_V6K || CPU_V7
+	depends on GENERIC_CLOCKEVENTS
+	depends on HAVE_SMP
+	depends on MMU
+	select USE_GENERIC_SMP_HELPERS
+	select HAVE_ARM_SCU if !ARCH_MSM_SCORPIONMP
+	help
+	  This enables support for systems with more than one CPU. If you have
+	  a system with only one CPU, like most personal computers, say N. If
+	  you have a system with more than one CPU, say Y.
+
+	  If you say N here, the kernel will run on single and multiprocessor
+	  machines, but will use only one CPU of a multiprocessor machine. If
+	  you say Y here, the kernel will run on many, but not all, single
+	  processor machines. On a single processor machine, the kernel will
+	  run faster if you say N here.
+
+	  See also <file:Documentation/x86/i386/IO-APIC.txt>,
+	  <file:Documentation/nmi_watchdog.txt> and the SMP-HOWTO available at
+	  <http://tldp.org/HOWTO/SMP-HOWTO.html>.
+
+	  If you don't know what to do here, say N.
+
+config SMP_ON_UP
+	bool "Allow booting SMP kernel on uniprocessor systems (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	depends on SMP && !XIP_KERNEL
+	default y
+	help
+	  SMP kernels contain instructions which fail on non-SMP processors.
+	  Enabling this option allows the kernel to modify itself to make
+	  these instructions safe.  Disabling it allows about 1K of space
+	  savings.
+
+	  If you don't know what to do here, say Y.
+
+config ARM_CPU_TOPOLOGY
+	bool "Support cpu topology definition"
+	depends on SMP && CPU_V7
+	default y
+	help
+	  Support ARM cpu topology definition. The MPIDR register defines
+	  affinity between processors which is then used to describe the cpu
+	  topology of an ARM System.
+
+config SCHED_MC
+	bool "Multi-core scheduler support"
+	depends on ARM_CPU_TOPOLOGY
+	help
+	  Multi-core scheduler support improves the CPU scheduler's decision
+	  making when dealing with multi-core CPU chips at a cost of slightly
+	  increased overhead in some places. If unsure say N here.
+
+config SCHED_SMT
+	bool "SMT scheduler support"
+	depends on ARM_CPU_TOPOLOGY
+	help
+	  Improves the CPU scheduler's decision making when dealing with
+	  MultiThreading at a cost of slightly increased overhead in some
+	  places. If unsure say N here.
+
+config HAVE_ARM_SCU
+	bool
+	help
+	  This option enables support for the ARM system coherency unit
+
+config HAVE_ARM_TWD
+	bool
+	depends on SMP
+	select TICK_ONESHOT
+	help
+	  This options enables support for the ARM timer and watchdog unit
+
+choice
+	prompt "Memory split"
+	default VMSPLIT_3G
+	help
+	  Select the desired split between kernel and user memory.
+
+	  If you are not absolutely sure what you are doing, leave this
+	  option alone!
+
+	config VMSPLIT_3G
+		bool "3G/1G user/kernel split"
+	config VMSPLIT_2G
+		bool "2G/2G user/kernel split"
+	config VMSPLIT_1G
+		bool "1G/3G user/kernel split"
+endchoice
+
+config PAGE_OFFSET
+	hex
+	default 0x40000000 if VMSPLIT_1G
+	default 0x80000000 if VMSPLIT_2G
+	default 0xC0000000
+
+config NR_CPUS
+	int "Maximum number of CPUs (2-32)"
+	range 2 32
+	depends on SMP
+	default "4"
+
+config HOTPLUG_CPU
+	bool "Support for hot-pluggable CPUs (EXPERIMENTAL)"
+	depends on SMP && HOTPLUG && EXPERIMENTAL
+	help
+	  Say Y here to experiment with turning CPUs off and on.  CPUs
+	  can be controlled through /sys/devices/system/cpu.
+
+config LOCAL_TIMERS
+	bool "Use local timer interrupts"
+	depends on SMP
+	default y
+	select HAVE_ARM_TWD if (!ARCH_MSM_SCORPIONMP && !EXYNOS4_MCT)
+	help
+	  Enable support for local timers on SMP platforms, rather then the
+	  legacy IPI broadcast method.  Local timers allows the system
+	  accounting to be spread across the timer interval, preventing a
+	  "thundering herd" at every timer tick.
+
+config ARCH_NR_GPIO
+	int
+	default 1024 if ARCH_SHMOBILE || ARCH_TEGRA
+	default 355 if ARCH_U8500
+	default 264 if MACH_H4700
+	default 0
+	help
+	  Maximum number of GPIOs in the system.
+
+	  If unsure, leave the default value.
+
+source kernel/Kconfig.preempt
+
+config HZ
+	int
+	default 200 if ARCH_EBSA110 || ARCH_S3C24XX || ARCH_S5P64X0 || \
+		ARCH_S5PV210 || ARCH_EXYNOS4
+	default OMAP_32K_TIMER_HZ if ARCH_OMAP && OMAP_32K_TIMER
+	default AT91_TIMER_HZ if ARCH_AT91
+	default SHMOBILE_TIMER_HZ if ARCH_SHMOBILE
+	default 100
+
+config THUMB2_KERNEL
+	bool "Compile the kernel in Thumb-2 mode (EXPERIMENTAL)"
+	depends on CPU_V7 && !CPU_V6 && !CPU_V6K && EXPERIMENTAL
+	select AEABI
+	select ARM_ASM_UNIFIED
+	select ARM_UNWIND
+	help
+	  By enabling this option, the kernel will be compiled in
+	  Thumb-2 mode. A compiler/assembler that understand the unified
+	  ARM-Thumb syntax is needed.
+
+	  If unsure, say N.
+
+config THUMB2_AVOID_R_ARM_THM_JUMP11
+	bool "Work around buggy Thumb-2 short branch relocations in gas"
+	depends on THUMB2_KERNEL && MODULES
+	default y
+	help
+	  Various binutils versions can resolve Thumb-2 branches to
+	  locally-defined, preemptible global symbols as short-range "b.n"
+	  branch instructions.
+
+	  This is a problem, because there's no guarantee the final
+	  destination of the symbol, or any candidate locations for a
+	  trampoline, are within range of the branch.  For this reason, the
+	  kernel does not support fixing up the R_ARM_THM_JUMP11 (102)
+	  relocation in modules at all, and it makes little sense to add
+	  support.
+
+	  The symptom is that the kernel fails with an "unsupported
+	  relocation" error when loading some modules.
+
+	  Until fixed tools are available, passing
+	  -fno-optimize-sibling-calls to gcc should prevent gcc generating
+	  code which hits this problem, at the cost of a bit of extra runtime
+	  stack usage in some cases.
+
+	  The problem is described in more detail at:
+	      https://bugs.launchpad.net/binutils-linaro/+bug/725126
+
+	  Only Thumb-2 kernels are affected.
+
+	  Unless you are sure your tools don't have this problem, say Y.
+
+config ARM_ASM_UNIFIED
+	bool
+
+config AEABI
+	bool "Use the ARM EABI to compile the kernel"
+	help
+	  This option allows for the kernel to be compiled using the latest
+	  ARM ABI (aka EABI).  This is only useful if you are using a user
+	  space environment that is also compiled with EABI.
+
+	  Since there are major incompatibilities between the legacy ABI and
+	  EABI, especially with regard to structure member alignment, this
+	  option also changes the kernel syscall calling convention to
+	  disambiguate both ABIs and allow for backward compatibility support
+	  (selected with CONFIG_OABI_COMPAT).
+
+	  To use this you need GCC version 4.0.0 or later.
+
+config OABI_COMPAT
+	bool "Allow old ABI binaries to run with this kernel (EXPERIMENTAL)"
+	depends on AEABI && EXPERIMENTAL && !THUMB2_KERNEL
+	default y
+	help
+	  This option preserves the old syscall interface along with the
+	  new (ARM EABI) one. It also provides a compatibility layer to
+	  intercept syscalls that have structure arguments which layout
+	  in memory differs between the legacy ABI and the new ARM EABI
+	  (only for non "thumb" binaries). This option adds a tiny
+	  overhead to all syscalls and produces a slightly larger kernel.
+	  If you know you'll be using only pure EABI user space then you
+	  can say N here. If this option is not selected and you attempt
+	  to execute a legacy ABI binary then the result will be
+	  UNPREDICTABLE (in fact it can be predicted that it won't work
+	  at all). If in doubt say Y.
+
+config ARCH_HAS_HOLES_MEMORYMODEL
+	bool
+
+config ARCH_SPARSEMEM_ENABLE
+	bool
+
+config ARCH_SPARSEMEM_DEFAULT
+	def_bool ARCH_SPARSEMEM_ENABLE
+
+config ARCH_SELECT_MEMORY_MODEL
+	def_bool ARCH_SPARSEMEM_ENABLE
+
+config HAVE_ARCH_PFN_VALID
+	def_bool ARCH_HAS_HOLES_MEMORYMODEL || !SPARSEMEM
+
+config HIGHMEM
+	bool "High Memory Support"
+	depends on MMU
+	help
+	  The address space of ARM processors is only 4 Gigabytes large
+	  and it has to accommodate user address space, kernel address
+	  space as well as some memory mapped IO. That means that, if you
+	  have a large amount of physical memory and/or IO, not all of the
+	  memory can be "permanently mapped" by the kernel. The physical
+	  memory that is not permanently mapped is called "high memory".
+
+	  Depending on the selected kernel/user memory split, minimum
+	  vmalloc space and actual amount of RAM, you may not need this
+	  option which should result in a slightly faster kernel.
+
+	  If unsure, say n.
+
+config HIGHPTE
+	bool "Allocate 2nd-level pagetables from highmem"
+	depends on HIGHMEM
+
+config HW_PERF_EVENTS
+	bool "Enable hardware performance counter support for perf events"
+	depends on PERF_EVENTS && CPU_HAS_PMU
+	default y
+	help
+	  Enable hardware performance counter support for perf events. If
+	  disabled, perf events will use software events only.
+
+source "mm/Kconfig"
+
+config FORCE_MAX_ZONEORDER
+	int "Maximum zone order" if ARCH_SHMOBILE
+	range 11 64 if ARCH_SHMOBILE
+	default "9" if SA1111
+	default "11"
+	help
+	  The kernel memory allocator divides physically contiguous memory
+	  blocks into "zones", where each zone is a power of two number of
+	  pages.  This option selects the largest power of two that the kernel
+	  keeps in the memory allocator.  If you need to allocate very large
+	  blocks of physically contiguous memory, then you may need to
+	  increase this value.
+
+	  This config option is actually maximum order plus one. For example,
+	  a value of 11 means that the largest free memory block is 2^10 pages.
+
+config LEDS
+	bool "Timer and CPU usage LEDs"
+	depends on ARCH_CDB89712 || ARCH_EBSA110 || \
+		   ARCH_EBSA285 || ARCH_INTEGRATOR || \
+		   ARCH_LUBBOCK || MACH_MAINSTONE || ARCH_NETWINDER || \
+		   ARCH_OMAP || ARCH_P720T || ARCH_PXA_IDP || \
+		   ARCH_SA1100 || ARCH_SHARK || ARCH_VERSATILE || \
+		   ARCH_AT91 || ARCH_DAVINCI || \
+		   ARCH_KS8695 || MACH_RD88F5182 || ARCH_REALVIEW
+	help
+	  If you say Y here, the LEDs on your machine will be used
+	  to provide useful information about your current system status.
+
+	  If you are compiling a kernel for a NetWinder or EBSA-285, you will
+	  be able to select which LEDs are active using the options below. If
+	  you are compiling a kernel for the EBSA-110 or the LART however, the
+	  red LED will simply flash regularly to indicate that the system is
+	  still functional. It is safe to say Y here if you have a CATS
+	  system, but the driver will do nothing.
+
+config LEDS_TIMER
+	bool "Timer LED" if (!ARCH_CDB89712 && !ARCH_OMAP) || \
+			    OMAP_OSK_MISTRAL || MACH_OMAP_H2 \
+			    || MACH_OMAP_PERSEUS2
+	depends on LEDS
+	depends on !GENERIC_CLOCKEVENTS
+	default y if ARCH_EBSA110
+	help
+	  If you say Y here, one of the system LEDs (the green one on the
+	  NetWinder, the amber one on the EBSA285, or the red one on the LART)
+	  will flash regularly to indicate that the system is still
+	  operational. This is mainly useful to kernel hackers who are
+	  debugging unstable kernels.
+
+	  The LART uses the same LED for both Timer LED and CPU usage LED
+	  functions. You may choose to use both, but the Timer LED function
+	  will overrule the CPU usage LED.
+
+config LEDS_CPU
+	bool "CPU usage LED" if (!ARCH_CDB89712 && !ARCH_EBSA110 && \
+			!ARCH_OMAP) \
+			|| OMAP_OSK_MISTRAL || MACH_OMAP_H2 \
+			|| MACH_OMAP_PERSEUS2
+	depends on LEDS
+	help
+	  If you say Y here, the red LED will be used to give a good real
+	  time indication of CPU usage, by lighting whenever the idle task
+	  is not currently executing.
+
+	  The LART uses the same LED for both Timer LED and CPU usage LED
+	  functions. You may choose to use both, but the Timer LED function
+	  will overrule the CPU usage LED.
+
+config ALIGNMENT_TRAP
+	bool
+	depends on CPU_CP15_MMU
+	default y if !ARCH_EBSA110
+	select HAVE_PROC_CPU if PROC_FS
+	help
+	  ARM processors cannot fetch/store information which is not
+	  naturally aligned on the bus, i.e., a 4 byte fetch must start at an
+	  address divisible by 4. On 32-bit ARM processors, these non-aligned
+	  fetch/store instructions will be emulated in software if you say
+	  here, which has a severe performance impact. This is necessary for
+	  correct operation of some network protocols. With an IP-only
+	  configuration it is safe to say N, otherwise say Y.
+
+config UACCESS_WITH_MEMCPY
+	bool "Use kernel mem{cpy,set}() for {copy_to,clear}_user() (EXPERIMENTAL)"
+	depends on MMU && EXPERIMENTAL
+	default y if CPU_FEROCEON
+	help
+	  Implement faster copy_to_user and clear_user methods for CPU
+	  cores where a 8-word STM instruction give significantly higher
+	  memory write throughput than a sequence of individual 32bit stores.
+
+	  A possible side effect is a slight increase in scheduling latency
+	  between threads sharing the same address space if they invoke
+	  such copy operations with large buffers.
+
+	  However, if the CPU data cache is using a write-allocate mode,
+	  this option is unlikely to provide any performance gain.
+
+config SECCOMP
+	bool
+	prompt "Enable seccomp to safely compute untrusted bytecode"
+	---help---
+	  This kernel feature is useful for number crunching applications
+	  that may need to compute untrusted bytecode during their
+	  execution. By using pipes or other transports made available to
+	  the process as file descriptors supporting the read/write
+	  syscalls, it's possible to isolate those applications in
+	  their own address space using seccomp. Once seccomp is
+	  enabled via prctl(PR_SET_SECCOMP), it cannot be disabled
+	  and the task is only allowed to execute a few safe syscalls
+	  defined by each seccomp mode.
+
+config CC_STACKPROTECTOR
+	bool "Enable -fstack-protector buffer overflow detection (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
+	  This option turns on the -fstack-protector GCC feature. This
+	  feature puts, at the beginning of functions, a canary value on
+	  the stack just before the return address, and validates
+	  the value just before actually returning.  Stack based buffer
+	  overflows (that need to overwrite this return address) now also
+	  overwrite the canary, which gets detected and the attack is then
+	  neutralized via a kernel panic.
+	  This feature requires gcc version 4.2 or above.
+
+config DEPRECATED_PARAM_STRUCT
+	bool "Provide old way to pass kernel parameters"
+	help
+	  This was deprecated in 2001 and announced to live on for 5 years.
+	  Some old boot loaders still use this way.
+
+endmenu
+
+menu "Boot options"
+
+config USE_OF
+	bool "Flattened Device Tree support"
+	select OF
+	select OF_EARLY_FLATTREE
+	select IRQ_DOMAIN
+	help
+	  Include support for flattened device tree machine descriptions.
+
+# Compressed boot loader in ROM.  Yes, we really want to ask about
+# TEXT and BSS so we preserve their values in the config files.
+config ZBOOT_ROM_TEXT
+	hex "Compressed ROM boot loader base address"
+	default "0"
+	help
+	  The physical address at which the ROM-able zImage is to be
+	  placed in the target.  Platforms which normally make use of
+	  ROM-able zImage formats normally set this to a suitable
+	  value in their defconfig file.
+
+	  If ZBOOT_ROM is not enabled, this has no effect.
+
+config ZBOOT_ROM_BSS
+	hex "Compressed ROM boot loader BSS address"
+	default "0"
+	help
+	  The base address of an area of read/write memory in the target
+	  for the ROM-able zImage which must be available while the
+	  decompressor is running. It must be large enough to hold the
+	  entire decompressed kernel plus an additional 128 KiB.
+	  Platforms which normally make use of ROM-able zImage formats
+	  normally set this to a suitable value in their defconfig file.
+
+	  If ZBOOT_ROM is not enabled, this has no effect.
+
+config ZBOOT_ROM
+	bool "Compressed boot loader in ROM/flash"
+	depends on ZBOOT_ROM_TEXT != ZBOOT_ROM_BSS
+	help
+	  Say Y here if you intend to execute your compressed kernel image
+	  (zImage) directly from ROM or flash.  If unsure, say N.
+
+choice
+	prompt "Include SD/MMC loader in zImage (EXPERIMENTAL)"
+	depends on ZBOOT_ROM && ARCH_SH7372 && EXPERIMENTAL
+	default ZBOOT_ROM_NONE
+	help
+	  Include experimental SD/MMC loading code in the ROM-able zImage.
+	  With this enabled it is possible to write the the ROM-able zImage
+	  kernel image to an MMC or SD card and boot the kernel straight
+	  from the reset vector. At reset the processor Mask ROM will load
+	  the first part of the the ROM-able zImage which in turn loads the
+	  rest the kernel image to RAM.
+
+config ZBOOT_ROM_NONE
+	bool "No SD/MMC loader in zImage (EXPERIMENTAL)"
+	help
+	  Do not load image from SD or MMC
+
+config ZBOOT_ROM_MMCIF
+	bool "Include MMCIF loader in zImage (EXPERIMENTAL)"
+	help
+	  Load image from MMCIF hardware block.
+
+config ZBOOT_ROM_SH_MOBILE_SDHI
+	bool "Include SuperH Mobile SDHI loader in zImage (EXPERIMENTAL)"
+	help
+	  Load image from SDHI hardware block
+
+endchoice
+
+config ARM_APPENDED_DTB
+	bool "Use appended device tree blob to zImage (EXPERIMENTAL)"
+	depends on OF && !ZBOOT_ROM && EXPERIMENTAL
+	help
+	  With this option, the boot code will look for a device tree binary
+	  (DTB) appended to zImage
+	  (e.g. cat zImage <filename>.dtb > zImage_w_dtb).
+
+	  This is meant as a backward compatibility convenience for those
+	  systems with a bootloader that can't be upgraded to accommodate
+	  the documented boot protocol using a device tree.
+
+	  Beware that there is very little in terms of protection against
+	  this option being confused by leftover garbage in memory that might
+	  look like a DTB header after a reboot if no actual DTB is appended
+	  to zImage.  Do not leave this option active in a production kernel
+	  if you don't intend to always append a DTB.  Proper passing of the
+	  location into r2 of a bootloader provided DTB is always preferable
+	  to this option.
+
+config ARM_ATAG_DTB_COMPAT
+	bool "Supplement the appended DTB with traditional ATAG information"
+	depends on ARM_APPENDED_DTB
+	help
+	  Some old bootloaders can't be updated to a DTB capable one, yet
+	  they provide ATAGs with memory configuration, the ramdisk address,
+	  the kernel cmdline string, etc.  Such information is dynamically
+	  provided by the bootloader and can't always be stored in a static
+	  DTB.  To allow a device tree enabled kernel to be used with such
+	  bootloaders, this option allows zImage to extract the information
+	  from the ATAG list and store it at run time into the appended DTB.
+
+config CMDLINE
+	string "Default kernel command string"
+	default ""
+	help
+	  On some architectures (EBSA110 and CATS), there is currently no way
+	  for the boot loader to pass arguments to the kernel. For these
+	  architectures, you should supply some command-line options at build
+	  time by entering them here. As a minimum, you should specify the
+	  memory size and the root device (e.g., mem=64M root=/dev/nfs).
+
+choice
+	prompt "Kernel command line type" if CMDLINE != ""
+	default CMDLINE_FROM_BOOTLOADER
+
+config CMDLINE_FROM_BOOTLOADER
+	bool "Use bootloader kernel arguments if available"
+	help
+	  Uses the command-line options passed by the boot loader. If
+	  the boot loader doesn't provide any, the default kernel command
+	  string provided in CMDLINE will be used.
+
+config CMDLINE_EXTEND
+	bool "Extend bootloader kernel arguments"
+	help
+	  The command-line arguments provided by the boot loader will be
+	  appended to the default kernel command string.
+
+config CMDLINE_FORCE
+	bool "Always use the default kernel command string"
+	help
+	  Always use the default kernel command string, even if the boot
+	  loader passes other arguments to the kernel.
+	  This is useful if you cannot or don't want to change the
+	  command-line options your boot loader passes to the kernel.
+endchoice
+
+config XIP_KERNEL
+	bool "Kernel Execute-In-Place from ROM"
+	depends on !ZBOOT_ROM && !ARM_LPAE
+	help
+	  Execute-In-Place allows the kernel to run from non-volatile storage
+	  directly addressable by the CPU, such as NOR flash. This saves RAM
+	  space since the text section of the kernel is not loaded from flash
+	  to RAM.  Read-write sections, such as the data section and stack,
+	  are still copied to RAM.  The XIP kernel is not compressed since
+	  it has to run directly from flash, so it will take more space to
+	  store it.  The flash address used to link the kernel object files,
+	  and for storing it, is configuration dependent. Therefore, if you
+	  say Y here, you must know the proper physical address where to
+	  store the kernel image depending on your own flash memory usage.
+
+	  Also note that the make target becomes "make xipImage" rather than
+	  "make zImage" or "make Image".  The final kernel binary to put in
+	  ROM memory will be arch/arm/boot/xipImage.
+
+	  If unsure, say N.
+
+config XIP_PHYS_ADDR
+	hex "XIP Kernel Physical Location"
+	depends on XIP_KERNEL
+	default "0x00080000"
+	help
+	  This is the physical address in your flash memory the kernel will
+	  be linked for and stored to.  This address is dependent on your
+	  own flash usage.
+
+config KEXEC
+	bool "Kexec system call (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && (!SMP || HOTPLUG_CPU)
+	help
+	  kexec is a system call that implements the ability to shutdown your
+	  current kernel, and to start another kernel.  It is like a reboot
+	  but it is independent of the system firmware.   And like a reboot
+	  you can start any kernel with it, not just Linux.
+
+	  It is an ongoing process to be certain the hardware in a machine
+	  is properly shutdown, so do not be surprised if this code does not
+	  initially work for you.  It may help to enable device hotplugging
+	  support.
+
+config ATAGS_PROC
+	bool "Export atags in procfs"
+	depends on KEXEC
+	default y
+	help
+	  Should the atags used to boot the kernel be exported in an "atags"
+	  file in procfs. Useful with kexec.
+
+config CRASH_DUMP
+	bool "Build kdump crash kernel (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
+	  Generate crash dump after being started by kexec. This should
+	  be normally only set in special crash dump kernels which are
+	  loaded in the main kernel with kexec-tools into a specially
+	  reserved region and then later executed after a crash by
+	  kdump/kexec. The crash dump kernel must be compiled to a
+	  memory address not used by the main kernel
+
+	  For more details see Documentation/kdump/kdump.txt
+
+config AUTO_ZRELADDR
+	bool "Auto calculation of the decompressed kernel image address"
+	depends on !ZBOOT_ROM && !ARCH_U300
+	help
+	  ZRELADDR is the physical address where the decompressed kernel
+	  image will be placed. If AUTO_ZRELADDR is selected, the address
+	  will be determined at run-time by masking the current IP with
+	  0xf8000000. This assumes the zImage being placed in the first 128MB
+	  from start of memory.
+
+endmenu
+
+menu "CPU Power Management"
+
+if ARCH_HAS_CPUFREQ
+
+source "drivers/cpufreq/Kconfig"
+
+config CPU_FREQ_IMX
+	tristate "CPUfreq driver for i.MX CPUs"
+	depends on ARCH_MXC && CPU_FREQ
+	help
+	  This enables the CPUfreq driver for i.MX CPUs.
+
+config CPU_FREQ_SA1100
+	bool
+
+config CPU_FREQ_SA1110
+	bool
+
+config CPU_FREQ_INTEGRATOR
+	tristate "CPUfreq driver for ARM Integrator CPUs"
+	depends on ARCH_INTEGRATOR && CPU_FREQ
+	default y
+	help
+	  This enables the CPUfreq driver for ARM Integrator CPUs.
+
+	  For details, take a look at <file:Documentation/cpu-freq>.
+
+	  If in doubt, say Y.
+
+config CPU_FREQ_PXA
+	bool
+	depends on CPU_FREQ && ARCH_PXA && PXA25x
+	default y
+	select CPU_FREQ_TABLE
+	select CPU_FREQ_DEFAULT_GOV_USERSPACE
+
+config CPU_FREQ_S3C
+	bool
+	help
+	  Internal configuration node for common cpufreq on Samsung SoC
+
+config CPU_FREQ_S3C24XX
+	bool "CPUfreq driver for Samsung S3C24XX series CPUs (EXPERIMENTAL)"
+	depends on ARCH_S3C24XX && CPU_FREQ && EXPERIMENTAL
+	select CPU_FREQ_S3C
+	help
+	  This enables the CPUfreq driver for the Samsung S3C24XX family
+	  of CPUs.
+
+	  For details, take a look at <file:Documentation/cpu-freq>.
+
+	  If in doubt, say N.
+
+config CPU_FREQ_S3C24XX_PLL
+	bool "Support CPUfreq changing of PLL frequency (EXPERIMENTAL)"
+	depends on CPU_FREQ_S3C24XX && EXPERIMENTAL
+	help
+	  Compile in support for changing the PLL frequency from the
+	  S3C24XX series CPUfreq driver. The PLL takes time to settle
+	  after a frequency change, so by default it is not enabled.
+
+	  This also means that the PLL tables for the selected CPU(s) will
+	  be built which may increase the size of the kernel image.
+
+config CPU_FREQ_S3C24XX_DEBUG
+	bool "Debug CPUfreq Samsung driver core"
+	depends on CPU_FREQ_S3C24XX
+	help
+	  Enable s3c_freq_dbg for the Samsung S3C CPUfreq core
+
+config CPU_FREQ_S3C24XX_IODEBUG
+	bool "Debug CPUfreq Samsung driver IO timing"
+	depends on CPU_FREQ_S3C24XX
+	help
+	  Enable s3c_freq_iodbg for the Samsung S3C CPUfreq core
+
+config CPU_FREQ_S3C24XX_DEBUGFS
+	bool "Export debugfs for CPUFreq"
+	depends on CPU_FREQ_S3C24XX && DEBUG_FS
+	help
+	  Export status information via debugfs.
+
+endif
+
+source "drivers/cpuidle/Kconfig"
+
+endmenu
+
+menu "Floating point emulation"
+
+comment "At least one emulation must be selected"
+
+config FPE_NWFPE
+	bool "NWFPE math emulation"
+	depends on (!AEABI || OABI_COMPAT) && !THUMB2_KERNEL
+	---help---
+	  Say Y to include the NWFPE floating point emulator in the kernel.
+	  This is necessary to run most binaries. Linux does not currently
+	  support floating point hardware so you need to say Y here even if
+	  your machine has an FPA or floating point co-processor podule.
+
+	  You may say N here if you are going to load the Acorn FPEmulator
+	  early in the bootup.
+
+config FPE_NWFPE_XP
+	bool "Support extended precision"
+	depends on FPE_NWFPE
+	help
+	  Say Y to include 80-bit support in the kernel floating-point
+	  emulator.  Otherwise, only 32 and 64-bit support is compiled in.
+	  Note that gcc does not generate 80-bit operations by default,
+	  so in most cases this option only enlarges the size of the
+	  floating point emulator without any good reason.
+
+	  You almost surely want to say N here.
+
+config FPE_FASTFPE
+	bool "FastFPE math emulation (EXPERIMENTAL)"
+	depends on (!AEABI || OABI_COMPAT) && !CPU_32v3 && EXPERIMENTAL
+	---help---
+	  Say Y here to include the FAST floating point emulator in the kernel.
+	  This is an experimental much faster emulator which now also has full
+	  precision for the mantissa.  It does not support any exceptions.
+	  It is very simple, and approximately 3-6 times faster than NWFPE.
+
+	  It should be sufficient for most programs.  It may be not suitable
+	  for scientific calculations, but you have to check this for yourself.
+	  If you do not feel you need a faster FP emulation you should better
+	  choose NWFPE.
+
+config VFP
+	bool "VFP-format floating point maths"
+	depends on CPU_V6 || CPU_V6K || CPU_ARM926T || CPU_V7 || CPU_FEROCEON
+	help
+	  Say Y to include VFP support code in the kernel. This is needed
+	  if your hardware includes a VFP unit.
+
+	  Please see <file:Documentation/arm/VFP/release-notes.txt> for
+	  release notes and additional status information.
+
+	  Say N if your target does not have VFP hardware.
+
+config VFPv3
+	bool
+	depends on VFP
+	default y if CPU_V7
+
+config NEON
+	bool "Advanced SIMD (NEON) Extension support"
+	depends on VFPv3 && CPU_V7
+	help
+	  Say Y to include support code for NEON, the ARMv7 Advanced SIMD
+	  Extension.
+
+endmenu
+
+menu "Userspace binary formats"
+
+source "fs/Kconfig.binfmt"
+
+config ARTHUR
+	tristate "RISC OS personality"
+	depends on !AEABI
+	help
+	  Say Y here to include the kernel code necessary if you want to run
+	  Acorn RISC OS/Arthur binaries under Linux. This code is still very
+	  experimental; if this sounds frightening, say N and sleep in peace.
+	  You can also say M here to compile this support as a module (which
+	  will be called arthur).
+
+endmenu
+
+menu "Power management options"
+
+source "kernel/power/Kconfig"
+
+config ARCH_SUSPEND_POSSIBLE
+	depends on !ARCH_S5PC100
+	depends on CPU_ARM920T || CPU_ARM926T || CPU_SA1100 || \
+		CPU_V6 || CPU_V6K || CPU_V7 || CPU_XSC3 || CPU_XSCALE
+	def_bool y
+
+config ARM_CPU_SUSPEND
+	def_bool PM_SLEEP
+
+endmenu
+
+source "net/Kconfig"
+
+source "drivers/Kconfig"
+
+source "fs/Kconfig"
+
+source "arch/arm/Kconfig.debug"
+
+source "security/Kconfig"
+
+source "crypto/Kconfig"
+
+source "lib/Kconfig"

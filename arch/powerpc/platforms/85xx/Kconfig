@@ -1,0 +1,269 @@
+menuconfig FSL_SOC_BOOKE
+	bool "Freescale Book-E Machine Type"
+	depends on PPC_85xx || PPC_BOOK3E
+	select FSL_SOC
+	select PPC_UDBG_16550
+	select MPIC
+	select PPC_PCI_CHOICE
+	select FSL_PCI if PCI
+	select SERIAL_8250_EXTENDED if SERIAL_8250
+	select SERIAL_8250_SHARE_IRQ if SERIAL_8250
+	default y
+
+if FSL_SOC_BOOKE
+
+if PPC32
+
+config FSL_85XX_CACHE_SRAM
+	bool
+	select PPC_LIB_RHEAP
+	help
+	  When selected, this option enables cache-sram support
+	  for memory allocation on P1/P2 QorIQ platforms.
+	  cache-sram-size and cache-sram-offset kernel boot
+	  parameters should be passed when this option is enabled.
+
+config MPC8540_ADS
+	bool "Freescale MPC8540 ADS"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the MPC 8540 ADS board
+
+config MPC8560_ADS
+	bool "Freescale MPC8560 ADS"
+	select DEFAULT_UIMAGE
+	select CPM2
+	help
+	  This option enables support for the MPC 8560 ADS board
+
+config MPC85xx_CDS
+	bool "Freescale MPC85xx CDS"
+	select DEFAULT_UIMAGE
+	select PPC_I8259
+	select HAS_RAPIDIO
+	help
+	  This option enables support for the MPC85xx CDS board
+
+config MPC85xx_MDS
+	bool "Freescale MPC85xx MDS"
+	select DEFAULT_UIMAGE
+	select PHYLIB
+	select HAS_RAPIDIO
+	select SWIOTLB
+	help
+	  This option enables support for the MPC85xx MDS board
+
+config MPC8536_DS
+	bool "Freescale MPC8536 DS"
+	select DEFAULT_UIMAGE
+	select SWIOTLB
+	help
+	  This option enables support for the MPC8536 DS board
+
+config MPC85xx_DS
+	bool "Freescale MPC85xx DS"
+	select PPC_I8259
+	select DEFAULT_UIMAGE
+	select FSL_ULI1575 if PCI
+	select SWIOTLB
+	help
+	  This option enables support for the MPC85xx DS (MPC8544 DS) board
+
+config MPC85xx_RDB
+	bool "Freescale MPC85xx RDB"
+	select PPC_I8259
+	select DEFAULT_UIMAGE
+	select FSL_ULI1575 if PCI
+	select SWIOTLB
+	help
+	  This option enables support for the MPC85xx RDB (P2020 RDB) board
+
+config P1010_RDB
+	bool "Freescale P1010RDB"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the MPC85xx RDB (P1010 RDB) board
+
+	  P1010RDB contains P1010Si, which provides CPU performance up to 800
+	  MHz and 1600 DMIPS, additional functionality and faster interfaces
+	  (DDR3/3L, SATA II, and PCI  Express).
+
+config P1022_DS
+	bool "Freescale P1022 DS"
+	select DEFAULT_UIMAGE
+	select SWIOTLB
+	help
+	  This option enables support for the Freescale P1022DS reference board.
+
+config P1023_RDS
+	bool "Freescale P1023 RDS"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the P1023 RDS board
+
+config SOCRATES
+	bool "Socrates"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the Socrates board.
+
+config KSI8560
+        bool "Emerson KSI8560"
+        select DEFAULT_UIMAGE
+        help
+          This option enables support for the Emerson KSI8560 board
+
+config XES_MPC85xx
+	bool "X-ES single-board computer"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the various single-board
+	  computers from Extreme Engineering Solutions (X-ES) based on
+	  Freescale MPC85xx processors.
+	  Manufacturer: Extreme Engineering Solutions, Inc.
+	  URL: <http://www.xes-inc.com/>
+
+config STX_GP3
+	bool "Silicon Turnkey Express GP3"
+	help
+	  This option enables support for the Silicon Turnkey Express GP3
+	  board.
+	select CPM2
+	select DEFAULT_UIMAGE
+
+config TQM8540
+	bool "TQ Components TQM8540"
+	help
+	  This option enables support for the TQ Components TQM8540 board.
+	select DEFAULT_UIMAGE
+	select TQM85xx
+
+config TQM8541
+	bool "TQ Components TQM8541"
+	help
+	  This option enables support for the TQ Components TQM8541 board.
+	select DEFAULT_UIMAGE
+	select TQM85xx
+	select CPM2
+
+config TQM8548
+	bool "TQ Components TQM8548"
+	help
+	  This option enables support for the TQ Components TQM8548 board.
+	select DEFAULT_UIMAGE
+	select TQM85xx
+
+config TQM8555
+	bool "TQ Components TQM8555"
+	help
+	  This option enables support for the TQ Components TQM8555 board.
+	select DEFAULT_UIMAGE
+	select TQM85xx
+	select CPM2
+
+config TQM8560
+	bool "TQ Components TQM8560"
+	help
+	  This option enables support for the TQ Components TQM8560 board.
+	select DEFAULT_UIMAGE
+	select TQM85xx
+	select CPM2
+
+config SBC8548
+	bool "Wind River SBC8548"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the Wind River SBC8548 board
+
+config SBC8560
+	bool "Wind River SBC8560"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the Wind River SBC8560 board
+
+config GE_IMP3A
+	bool "GE Intelligent Platforms IMP3A"
+	select DEFAULT_UIMAGE
+	select SWIOTLB
+	select MMIO_NVRAM
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	select GE_FPGA
+	help
+	  This option enables support for the GE Intelligent Platforms IMP3A
+	  board.
+
+	  This board is a 3U CompactPCI Single Board Computer with a Freescale
+	  P2020 processor.
+
+config P2041_RDB
+	bool "Freescale P2041 RDB"
+	select DEFAULT_UIMAGE
+	select PPC_E500MC
+	select PHYS_64BIT
+	select SWIOTLB
+	select ARCH_REQUIRE_GPIOLIB
+	select GPIO_MPC8XXX
+	select HAS_RAPIDIO
+	select PPC_EPAPR_HV_PIC
+	help
+	  This option enables support for the P2041 RDB board
+
+config P3041_DS
+	bool "Freescale P3041 DS"
+	select DEFAULT_UIMAGE
+	select PPC_E500MC
+	select PHYS_64BIT
+	select SWIOTLB
+	select ARCH_REQUIRE_GPIOLIB
+	select GPIO_MPC8XXX
+	select HAS_RAPIDIO
+	select PPC_EPAPR_HV_PIC
+	help
+	  This option enables support for the P3041 DS board
+
+config P3060_QDS
+	bool "Freescale P3060 QDS"
+	select DEFAULT_UIMAGE
+	select PPC_E500MC
+	select PHYS_64BIT
+	select SWIOTLB
+	select GPIO_MPC8XXX
+	select HAS_RAPIDIO
+	select PPC_EPAPR_HV_PIC
+	help
+	  This option enables support for the P3060 QDS board
+
+config P4080_DS
+	bool "Freescale P4080 DS"
+	select DEFAULT_UIMAGE
+	select PPC_E500MC
+	select PHYS_64BIT
+	select SWIOTLB
+	select ARCH_REQUIRE_GPIOLIB
+	select GPIO_MPC8XXX
+	select HAS_RAPIDIO
+	select PPC_EPAPR_HV_PIC
+	help
+	  This option enables support for the P4080 DS board
+
+endif # PPC32
+
+config P5020_DS
+	bool "Freescale P5020 DS"
+	select DEFAULT_UIMAGE
+	select E500
+	select PPC_E500MC
+	select PHYS_64BIT
+	select SWIOTLB
+	select ARCH_REQUIRE_GPIOLIB
+	select GPIO_MPC8XXX
+	select HAS_RAPIDIO
+	select PPC_EPAPR_HV_PIC
+	help
+	  This option enables support for the P5020 DS board
+
+endif # FSL_SOC_BOOKE
+
+config TQM85xx
+	bool

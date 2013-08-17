@@ -1,0 +1,64 @@
+* I2C
+
+Required properties :
+
+ - reg : Offset and length of the register set for the device
+ - compatible : should be "fsl,CHIP-i2c" where CHIP is the name of a
+   compatible processor, e.g. mpc8313, mpc8543, mpc8544, mpc5121,
+   mpc5200 or mpc5200b. For the mpc5121, an additional node
+   "fsl,mpc5121-i2c-ctrl" is required as shown in the example below.
+
+Recommended properties :
+
+ - interrupts : <a b> where a is the interrupt number and b is a
+   field that represents an encoding of the sense and level
+   information for the interrupt.  This should be encoded based on
+   the information in section 2) depending on the type of interrupt
+   controller you have.
+ - interrupt-parent : the phandle for the interrupt controller that
+   services interrupts for this device.
+ - fsl,preserve-clocking : boolean; if defined, the clock settings
+   from the bootloader are preserved (not touched).
+ - clock-frequency : desired I2C bus clock frequency in Hz.
+ - fsl,timeout : I2C bus timeout in microseconds.
+
+Examples :
+
+	/* MPC5121 based board */
+	i2c@1740 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "fsl,mpc5121-i2c", "fsl-i2c";
+		reg = <0x1740 0x20>;
+		interrupts = <11 0x8>;
+		interrupt-parent = <&ipic>;
+		clock-frequency = <100000>;
+	};
+
+	i2ccontrol@1760 {
+		compatible = "fsl,mpc5121-i2c-ctrl";
+		reg = <0x1760 0x8>;
+	};
+
+	/* MPC5200B based board */
+	i2c@3d00 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "fsl,mpc5200b-i2c","fsl,mpc5200-i2c","fsl-i2c";
+		reg = <0x3d00 0x40>;
+		interrupts = <2 15 0>;
+		interrupt-parent = <&mpc5200_pic>;
+		fsl,preserve-clocking;
+	};
+
+	/* MPC8544 base board */
+	i2c@3100 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "fsl,mpc8544-i2c", "fsl-i2c";
+		reg = <0x3100 0x100>;
+		interrupts = <43 2>;
+		interrupt-parent = <&mpic>;
+		clock-frequency = <400000>;
+		fsl,timeout = <10000>;
+	};

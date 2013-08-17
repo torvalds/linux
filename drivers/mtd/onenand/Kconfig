@@ -1,0 +1,77 @@
+menuconfig MTD_ONENAND
+	tristate "OneNAND Device Support"
+	depends on MTD
+	depends on HAS_IOMEM
+	help
+	  This enables support for accessing all type of OneNAND flash
+	  devices. For further information see
+	  <http://www.samsung.com/Products/Semiconductor/OneNAND/index.htm>
+
+if MTD_ONENAND
+
+config MTD_ONENAND_VERIFY_WRITE
+	bool "Verify OneNAND page writes"
+	help
+	  This adds an extra check when data is written to the flash. The
+	  OneNAND flash device internally checks only bits transitioning
+	  from 1 to 0. There is a rare possibility that even though the
+	  device thinks the write was successful, a bit could have been
+	  flipped accidentally due to device wear or something else.
+
+config MTD_ONENAND_GENERIC
+	tristate "OneNAND Flash device via platform device driver"
+	help
+	  Support for OneNAND flash via platform device driver.
+
+config MTD_ONENAND_OMAP2
+	tristate "OneNAND on OMAP2/OMAP3 support"
+	depends on ARCH_OMAP2 || ARCH_OMAP3
+	help
+	  Support for a OneNAND flash device connected to an OMAP2/OMAP3 CPU
+	  via the GPMC memory controller.
+
+config MTD_ONENAND_SAMSUNG
+        tristate "OneNAND on Samsung SOC controller support"
+        depends on ARCH_S3C64XX || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_EXYNOS4
+        help
+          Support for a OneNAND flash device connected to an Samsung SOC.
+          S3C64XX/S5PC100 use command mapping method.
+          S5PC110/S5PC210 use generic OneNAND method.
+
+config MTD_ONENAND_OTP
+	bool "OneNAND OTP Support"
+	select HAVE_MTD_OTP
+	help
+	  One Block of the NAND Flash Array memory is reserved as
+	  a One-Time Programmable Block memory area.
+	  Also, 1st Block of NAND Flash Array can be used as OTP.
+
+	  The OTP block can be read, programmed and locked using the same
+	  operations as any other NAND Flash Array memory block.
+	  OTP block cannot be erased.
+
+	  OTP block is fully-guaranteed to be a valid block.
+
+config MTD_ONENAND_2X_PROGRAM
+	bool "OneNAND 2X program support"
+	help
+	  The 2X Program is an extension of Program Operation.
+	  Since the device is equipped with two DataRAMs, and two-plane NAND
+	  Flash memory array, these two component enables simultaneous program
+	  of 4KiB. Plane1 has only even blocks such as block0, block2, block4
+	  while Plane2 has only odd blocks such as block1, block3, block5.
+	  So MTD regards it as 4KiB page size and 256KiB block size
+
+	  Now the following chips support it. (KFXXX16Q2M)
+	    Demux: KFG2G16Q2M, KFH4G16Q2M, KFW8G16Q2M,
+	    Mux:   KFM2G16Q2M, KFN4G16Q2M,
+
+	  And more recent chips
+
+config MTD_ONENAND_SIM
+	tristate "OneNAND simulator support"
+	help
+	  The simulator may simulate various OneNAND flash chips for the
+	  OneNAND MTD layer.
+
+endif # MTD_ONENAND

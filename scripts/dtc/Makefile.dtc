@@ -1,0 +1,9 @@
+# Makefile.dtc
+#
+# This is not a complete Makefile of itself.  Instead, it is designed to
+# be easily embeddable into other systems of Makefiles.
+#
+DTC_SRCS = dtc.c flattree.c fstree.c data.c livetree.c treesource.c srcpos.c \
+	checks.c
+DTC_GEN_SRCS = dtc-lexer.lex.c dtc-parser.tab.c
+DTC_OBJS = $(DTC_SRCS:%.c=%.o) $(DTC_GEN_SRCS:%.c=%.o)

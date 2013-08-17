@@ -1,0 +1,45 @@
+config VIDEO_IVTV
+	tristate "Conexant cx23416/cx23415 MPEG encoder/decoder support"
+	depends on VIDEO_V4L2 && PCI && I2C
+	select I2C_ALGOBIT
+	depends on RC_CORE
+	select VIDEO_TUNER
+	select VIDEO_TVEEPROM
+	select VIDEO_CX2341X
+	select VIDEO_CX25840
+	select VIDEO_MSP3400
+	select VIDEO_SAA711X
+	select VIDEO_SAA717X
+	select VIDEO_SAA7127
+	select VIDEO_CS53L32A
+	select VIDEO_M52790
+	select VIDEO_WM8775
+	select VIDEO_WM8739
+	select VIDEO_VP27SMPX
+	select VIDEO_UPD64031A
+	select VIDEO_UPD64083
+	---help---
+	  This is a video4linux driver for Conexant cx23416 or cx23415 based
+	  PCI personal video recorder devices.
+
+	  This is used in devices such as the Hauppauge PVR-150/250/350/500
+	  cards. There is a driver homepage at <http://www.ivtvdriver.org>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ivtv.
+
+config VIDEO_FB_IVTV
+	tristate "Conexant cx23415 framebuffer support"
+	depends on VIDEO_IVTV && FB
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	---help---
+	  This is a framebuffer driver for the Conexant cx23415 MPEG
+	  encoder/decoder.
+
+	  This is used in the Hauppauge PVR-350 card. There is a driver
+	  homepage at <http://www.ivtvdriver.org>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ivtvfb.

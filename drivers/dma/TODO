@@ -1,0 +1,13 @@
+TODO for slave dma
+
+1. Move remaining drivers to use new slave interface
+2. Remove old slave pointer machansim
+3. Make issue_pending to start the transaction in below drivers
+	- mpc512x_dma
+	- imx-dma
+	- imx-sdma
+	- mxs-dma.c
+	- dw_dmac
+	- intel_mid_dma
+4. Check other subsystems for dma drivers and merge/move to dmaengine
+5. Remove dma_slave_config's dma direction.

@@ -1,0 +1,31 @@
+config CLKSRC_I8253
+	bool
+
+config CLKEVT_I8253
+	bool
+
+config I8253_LOCK
+	bool
+
+config CLKBLD_I8253
+	def_bool y if CLKSRC_I8253 || CLKEVT_I8253 || I8253_LOCK
+
+config CLKSRC_MMIO
+	bool
+
+config DW_APB_TIMER
+	bool
+
+config CLKSRC_DBX500_PRCMU
+	bool "Clocksource PRCMU Timer"
+	depends on UX500_SOC_DB5500 || UX500_SOC_DB8500
+	default y
+	help
+	  Use the always on PRCMU Timer as clocksource
+
+config CLKSRC_DBX500_PRCMU_SCHED_CLOCK
+	bool "Clocksource PRCMU Timer sched_clock"
+	depends on (CLKSRC_DBX500_PRCMU && !NOMADIK_MTU_SCHED_CLOCK)
+	default y
+	help
+	  Use the always on PRCMU Timer as sched_clock

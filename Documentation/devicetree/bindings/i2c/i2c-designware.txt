@@ -1,0 +1,22 @@
+* Synopsys DesignWare I2C
+
+Required properties :
+
+ - compatible : should be "snps,designware-i2c"
+ - reg : Offset and length of the register set for the device
+ - interrupts : <IRQ> where IRQ is the interrupt number.
+
+Recommended properties :
+
+ - clock-frequency : desired I2C bus clock frequency in Hz.
+
+Example :
+
+	i2c@f0000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "snps,designware-i2c";
+		reg = <0xf0000 0x1000>;
+		interrupts = <11>;
+		clock-frequency = <400000>;
+	};

@@ -1,0 +1,20 @@
+menu "TI VLYNQ"
+	depends on AR7 && EXPERIMENTAL
+
+config VLYNQ
+	bool "TI VLYNQ bus support"
+	help
+	  Support for Texas Instruments(R) VLYNQ bus.
+	  The VLYNQ bus is a high-speed, serial and packetized
+	  data bus which allows external peripherals of a SoC
+	  to appear into the system's main memory.
+
+	  If unsure, say N
+
+config VLYNQ_DEBUG
+	bool "VLYNQ bus debug"
+	depends on VLYNQ && DEBUG_KERNEL
+	help
+	  Turn on VLYNQ bus debugging.
+
+endmenu

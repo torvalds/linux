@@ -1,0 +1,77 @@
+if ARCH_CLPS711X
+
+menu "CLPS711X/EP721X Implementations"
+
+config ARCH_AUTCPU12
+	bool "AUTCPU12"
+	help
+	  Say Y if you intend to run the kernel on the autronix autcpu12
+	  board. This board is based on a Cirrus Logic CS89712.
+
+config ARCH_CDB89712
+	bool "CDB89712"
+	select ISA
+	help
+	  This is an evaluation board from Cirrus for the CS89712 processor.
+	  The board includes 2 serial ports, Ethernet, IRDA, and expansion
+	  headers.  It comes with 16 MB SDRAM and 8 MB flash ROM.
+
+config ARCH_CEIVA
+	bool "CEIVA"
+	help
+	  Say Y here if you intend to run this kernel on the Ceiva/Polaroid
+	  PhotoMax Digital Picture Frame.
+
+config ARCH_CLEP7312
+	bool "CLEP7312"
+	help
+	  Boards based on the Cirrus Logic 7212/7312 chips.
+
+config ARCH_EDB7211
+	bool "EDB7211"
+	select ISA
+	select ARCH_SPARSEMEM_ENABLE
+	select ARCH_SELECT_MEMORY_MODEL
+	help
+	  Say Y here if you intend to run this kernel on a Cirrus Logic EDB-7211
+	  evaluation board.
+
+config ARCH_P720T
+	bool "P720T"
+	help
+	  Say Y here if you intend to run this kernel on the ARM Prospector
+	  720T.
+
+config ARCH_FORTUNET
+	bool "FORTUNET"
+
+# XXX Maybe these should indicate register compatibility
+# instead of being mutually exclusive.
+config ARCH_EP7211
+	bool
+	depends on ARCH_EDB7211
+	default y
+
+config ARCH_EP7212
+	bool
+	depends on ARCH_P720T || ARCH_CEIVA
+	default y
+
+config EP72XX_ROM_BOOT
+	bool "EP72xx ROM boot"
+	depends on ARCH_EP7211 || ARCH_EP7212
+	---help---
+	  If you say Y here, your CLPS711x-based kernel will use the bootstrap
+	  mode memory map instead of the normal memory map.
+
+	  Processors derived from the Cirrus CLPS-711X core support two boot
+	  modes.  Normal mode boots from the external memory device at CS0.
+	  Bootstrap mode rearranges parts of the memory map, placing an
+	  internal 128 byte bootstrap ROM at CS0.  This option performs the
+	  address map changes required to support booting in this mode.
+
+	  You almost surely want to say N here.
+
+endmenu
+
+endif

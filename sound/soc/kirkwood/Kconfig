@@ -1,0 +1,30 @@
+config SND_KIRKWOOD_SOC
+	tristate "SoC Audio for the Marvell Kirkwood chip"
+	depends on ARCH_KIRKWOOD
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the Kirkwood I2S interface. You will also need to select the
+	  audio interfaces to support below.
+
+config SND_KIRKWOOD_SOC_I2S
+	tristate
+
+config SND_KIRKWOOD_SOC_OPENRD
+	tristate "SoC Audio support for Kirkwood Openrd Client"
+	depends on SND_KIRKWOOD_SOC && (MACH_OPENRD_CLIENT || MACH_OPENRD_ULTIMATE)
+	depends on I2C
+	select SND_KIRKWOOD_SOC_I2S
+	select SND_SOC_CS42L51
+	help
+	  Say Y if you want to add support for SoC audio on
+	  Openrd Client.
+
+config SND_KIRKWOOD_SOC_T5325
+	tristate "SoC Audio support for HP t5325"
+	depends on SND_KIRKWOOD_SOC && MACH_T5325 && I2C
+	select SND_KIRKWOOD_SOC_I2S
+	select SND_SOC_ALC5623
+	help
+	  Say Y if you want to add support for SoC audio on
+	  the HP t5325 thin client.
+

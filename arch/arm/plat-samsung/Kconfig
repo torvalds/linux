@@ -1,0 +1,369 @@
+# arch/arm/plat-samsung/Kconfig
+#
+# Copyright 2009 Simtec Electronics
+#
+# Licensed under GPLv2
+
+config PLAT_SAMSUNG
+	bool
+	depends on PLAT_S3C24XX || ARCH_S3C64XX || PLAT_S5P
+	select NO_IOPORT
+	select GENERIC_IRQ_CHIP
+	default y
+	help
+	  Base platform code for all Samsung SoC based systems
+
+if PLAT_SAMSUNG
+
+# boot configurations
+
+comment "Boot options"
+
+config S3C_BOOT_WATCHDOG
+	bool "S3C Initialisation watchdog"
+	depends on S3C2410_WATCHDOG
+	help
+	  Say y to enable the watchdog during the kernel decompression
+	  stage. If the kernel fails to uncompress, then the watchdog
+	  will trigger a reset and the system should restart.
+
+config S3C_BOOT_ERROR_RESET
+	bool "S3C Reboot on decompression error"
+	help
+	  Say y here to use the watchdog to reset the system if the
+	  kernel decompressor detects an error during decompression.
+
+config S3C_BOOT_UART_FORCE_FIFO
+       bool "Force UART FIFO on during boot process"
+       default y
+       help
+         Say Y here to force the UART FIFOs on during the kernel
+	 uncompressor
+
+
+config S3C_LOWLEVEL_UART_PORT
+	int "S3C UART to use for low-level messages"
+	default 0
+	help
+	  Choice of which UART port to use for the low-level messages,
+	  such as the `Uncompressing...` at start time. The value of
+	  this configuration should be between zero and two. The port
+	  must have been initialised by the boot-loader before use.
+
+# clock options
+
+config SAMSUNG_CLKSRC
+	bool
+	help
+	  Select the clock code for the clksrc implementation
+	  used by newer systems such as the S3C64XX.
+
+# options for IRQ support
+
+config SAMSUNG_IRQ_VIC_TIMER
+       bool
+       help
+         Internal configuration to build the VIC timer interrupt code.
+
+# options for gpio configuration support
+
+config SAMSUNG_GPIOLIB_4BIT
+	bool
+	help
+	  GPIOlib file contains the 4 bit modification functions for gpio
+	  configuration. GPIOlib shall be compiled only for S3C64XX and S5P
+	  series of processors.
+
+config S3C_GPIO_CFG_S3C64XX
+	bool
+	help
+	  Internal configuration to enable S3C64XX style GPIO configuration
+	  functions.
+
+config S5P_GPIO_DRVSTR
+	bool
+	help
+	  Internal configuration to get and set correct GPIO driver strength
+	  helper
+
+config SAMSUNG_GPIO_EXTRA
+	int "Number of additional GPIO pins"
+	default 128 if SAMSUNG_GPIO_EXTRA128
+	default 64 if SAMSUNG_GPIO_EXTRA64
+	default 0
+	help
+	  Use additional GPIO space in addition to the GPIO's the SOC
+	  provides. This allows expanding the GPIO space for use with
+	  GPIO expanders.
+
+config SAMSUNG_GPIO_EXTRA64
+	bool
+
+config SAMSUNG_GPIO_EXTRA128
+	bool
+
+config S3C_GPIO_SPACE
+	int "Space between gpio banks"
+	default 0
+	help
+	  Add a number of spare GPIO entries between each bank for debugging
+	  purposes. This allows any problems where an counter overflows from
+	  one bank to another to be caught, at the expense of using a little
+	  more memory.
+
+config S3C_GPIO_TRACK
+	bool
+	help
+	  Internal configuration option to enable the s3c specific gpio
+	  chip tracking if the platform requires it.
+
+# ADC driver
+
+config S3C_ADC
+	bool "ADC common driver support"
+	help
+	  Core support for the ADC block found in the Samsung SoC systems
+	  for drivers such as the touchscreen and hwmon to use to share
+	  this resource.
+
+# device definitions to compile in
+
+config S3C_DEV_HSMMC
+	bool
+	help
+	  Compile in platform device definitions for HSMMC code
+
+config S3C_DEV_HSMMC1
+	bool
+	help
+	  Compile in platform device definitions for HSMMC channel 1
+
+config S3C_DEV_HSMMC2
+	bool
+	help
+	  Compile in platform device definitions for HSMMC channel 2
+
+config S3C_DEV_HSMMC3
+	bool
+	help
+	  Compile in platform device definitions for HSMMC channel 3
+
+config S3C_DEV_HWMON
+	bool
+	help
+	    Compile in platform device definitions for HWMON
+
+config S3C_DEV_I2C1
+	bool
+	help
+	  Compile in platform device definitions for I2C channel 1
+
+config S3C_DEV_I2C2
+	bool
+	help
+	  Compile in platform device definitions for I2C channel 2
+
+config S3C_DEV_I2C3
+	bool
+	help
+	  Compile in platform device definition for I2C controller 3
+
+config S3C_DEV_I2C4
+	bool
+	help
+	  Compile in platform device definition for I2C controller 4
+
+config S3C_DEV_I2C5
+	bool
+	help
+	  Compile in platform device definition for I2C controller 5
+
+config S3C_DEV_I2C6
+	bool
+	help
+	  Compile in platform device definition for I2C controller 6
+
+config S3C_DEV_I2C7
+	bool
+	help
+	  Compile in platform device definition for I2C controller 7
+
+config S3C_DEV_FB
+	bool
+	help
+	  Compile in platform device definition for framebuffer
+
+config S3C_DEV_USB_HOST
+	bool
+	help
+	  Compile in platform device definition for USB host.
+
+config S3C_DEV_USB_HSOTG
+	bool
+	help
+	  Compile in platform device definition for USB high-speed OtG
+
+config S3C_DEV_WDT
+	bool
+	default y if ARCH_S3C24XX
+	help
+	  Complie in platform device definition for Watchdog Timer
+
+config S3C_DEV_NAND
+	bool
+	help
+	  Compile in platform device definition for NAND controller
+
+config S3C_DEV_ONENAND
+	bool
+	help
+	  Compile in platform device definition for OneNAND controller
+
+config S3C_DEV_RTC
+	bool
+	help
+	  Complie in platform device definition for RTC
+
+config SAMSUNG_DEV_ADC
+	bool
+	help
+	  Compile in platform device definition for ADC controller
+
+config SAMSUNG_DEV_IDE
+	bool
+	help
+	  Compile in platform device definitions for IDE
+
+config S3C64XX_DEV_SPI0
+	bool
+	help
+	  Compile in platform device definitions for S3C64XX's type
+	  SPI controller 0
+
+config S3C64XX_DEV_SPI1
+	bool
+	help
+	  Compile in platform device definitions for S3C64XX's type
+	  SPI controller 1
+
+config S3C64XX_DEV_SPI2
+	bool
+	help
+	  Compile in platform device definitions for S3C64XX's type
+	  SPI controller 2
+
+config SAMSUNG_DEV_TS
+	bool
+	help
+	    Common in platform device definitions for touchscreen device
+
+config SAMSUNG_DEV_KEYPAD
+	bool
+	help
+	  Compile in platform device definitions for keypad
+
+config SAMSUNG_DEV_PWM
+	bool
+	default y if ARCH_S3C24XX
+	help
+	  Compile in platform device definition for PWM Timer
+
+config SAMSUNG_DEV_BACKLIGHT
+	bool
+	depends on SAMSUNG_DEV_PWM
+	help
+	  Compile in platform device definition LCD backlight with PWM Timer
+
+config S3C24XX_PWM
+	bool "PWM device support"
+	select HAVE_PWM
+	help
+	  Support for exporting the PWM timer blocks via the pwm device
+	  system
+
+# DMA
+
+config S3C_DMA
+	bool
+	help
+	  Internal configuration for S3C DMA core
+
+config SAMSUNG_DMADEV
+	bool
+	select DMADEVICES
+	select PL330_DMA if (CPU_EXYNOS4210 || CPU_S5PV210 || CPU_S5PC100 || \
+					CPU_S5P6450 || CPU_S5P6440)
+	select ARM_AMBA
+	help
+	  Use DMA device engine for PL330 DMAC.
+
+comment "Power management"
+
+config SAMSUNG_PM_DEBUG
+	bool "S3C2410 PM Suspend debug"
+	depends on PM
+	select DEBUG_LL
+	help
+	  Say Y here if you want verbose debugging from the PM Suspend and
+	  Resume code. See <file:Documentation/arm/Samsung-S3C24XX/Suspend.txt>
+	  for more information.
+
+config S3C_PM_DEBUG_LED_SMDK
+       bool "SMDK LED suspend/resume debugging"
+       depends on PM && (MACH_SMDK6410)
+       help
+         Say Y here to enable the use of the SMDK LEDs on the baseboard
+	 for debugging of the state of the suspend and resume process.
+
+	 Note, this currently only works for S3C64XX based SMDK boards.
+
+config SAMSUNG_PM_CHECK
+	bool "S3C2410 PM Suspend Memory CRC"
+	depends on PM && CRC32
+	help
+	  Enable the PM code's memory area checksum over sleep. This option
+	  will generate CRCs of all blocks of memory, and store them before
+	  going to sleep. The blocks are then checked on resume for any
+	  errors.
+
+	  Note, this can take several seconds depending on memory size
+	  and CPU speed.
+
+	  See <file:Documentation/arm/Samsung-S3C24XX/Suspend.txt>
+
+config SAMSUNG_PM_CHECK_CHUNKSIZE
+	int "S3C2410 PM Suspend CRC Chunksize (KiB)"
+	depends on PM && SAMSUNG_PM_CHECK
+	default 64
+	help
+	  Set the chunksize in Kilobytes of the CRC for checking memory
+	  corruption over suspend and resume. A smaller value will mean that
+	  the CRC data block will take more memory, but wil identify any
+	  faults with better precision.
+
+	  See <file:Documentation/arm/Samsung-S3C24XX/Suspend.txt>
+
+config SAMSUNG_WAKEMASK
+	bool
+	depends on PM
+	help
+	  Compile support for wakeup-mask controls found on the S3C6400
+	  and above. This code allows a set of interrupt to wakeup-mask
+	  mappings. See <plat/wakeup-mask.h>
+
+comment "Power Domain"
+
+config SAMSUNG_PD
+	bool "Samsung Power Domain"
+	depends on PM_RUNTIME
+	help
+	  Say Y here if you want to control Power Domain by Runtime PM.
+
+config DEBUG_S3C_UART
+	depends on PLAT_SAMSUNG
+	int
+	default "0" if DEBUG_S3C_UART0
+	default "1" if DEBUG_S3C_UART1
+	default "2" if DEBUG_S3C_UART2
+
+endif

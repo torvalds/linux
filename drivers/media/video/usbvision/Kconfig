@@ -1,0 +1,12 @@
+config VIDEO_USBVISION
+	tristate "USB video devices based on Nogatech NT1003/1004/1005"
+	depends on I2C && VIDEO_V4L2
+	select VIDEO_TUNER
+	select VIDEO_SAA711X if VIDEO_HELPER_CHIPS_AUTO
+	---help---
+	  There are more than 50 different USB video devices based on
+	  NT1003/1004/1005 USB Bridges. This driver enables using those
+	  devices.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called usbvision.

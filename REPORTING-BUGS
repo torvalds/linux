@@ -1,0 +1,68 @@
+[Some of this is taken from Frohwalt Egerer's original linux-kernel FAQ]
+
+     What follows is a suggested procedure for reporting Linux bugs. You
+aren't obliged to use the bug reporting format, it is provided as a guide
+to the kind of information that can be useful to developers - no more.
+
+     If the failure includes an "OOPS:" type message in your log or on
+screen please read "Documentation/oops-tracing.txt" before posting your
+bug report. This explains what you should do with the "Oops" information
+to make it useful to the recipient.
+
+      Send the output to the maintainer of the kernel area that seems to
+be involved with the problem, and cc the relevant mailing list. Don't
+worry too much about getting the wrong person. If you are unsure send it
+to the person responsible for the code relevant to what you were doing.
+If it occurs repeatably try and describe how to recreate it. That is
+worth even more than the oops itself.  The list of maintainers and
+mailing lists is in the MAINTAINERS file in this directory.  If you
+know the file name that causes the problem you can use the following
+command in this directory to find some of the maintainers of that file:
+     perl scripts/get_maintainer.pl -f <filename>
+
+      If it is a security bug, please copy the Security Contact listed
+in the MAINTAINERS file.  They can help coordinate bugfix and disclosure.
+See Documentation/SecurityBugs for more information.
+
+      If you are totally stumped as to whom to send the report, send it to
+linux-kernel@vger.kernel.org. (For more information on the linux-kernel
+mailing list see http://www.tux.org/lkml/).
+
+This is a suggested format for a bug report sent to the Linux kernel mailing
+list. Having a standardized bug report form makes it easier for you not to
+overlook things, and easier for the developers to find the pieces of
+information they're really interested in. Don't feel you have to follow it.
+
+      First run the ver_linux script included as scripts/ver_linux, which
+reports the version of some important subsystems.  Run this script with
+the command "sh scripts/ver_linux".
+
+Use that information to fill in all fields of the bug report form, and
+post it to the mailing list with a subject of "PROBLEM: <one line
+summary from [1.]>" for easy identification by the developers.
+
+[1.] One line summary of the problem:
+[2.] Full description of the problem/report:
+[3.] Keywords (i.e., modules, networking, kernel):
+[4.] Kernel information
+[4.1.] Kernel version (from /proc/version):
+[4.2.] Kernel .config file:
+[5.] Most recent kernel version which did not have the bug:
+[6.] Output of Oops.. message (if applicable) with symbolic information
+     resolved (see Documentation/oops-tracing.txt)
+[7.] A small shell script or example program which triggers the
+     problem (if possible)
+[8.] Environment
+[8.1.] Software (add the output of the ver_linux script here)
+[8.2.] Processor information (from /proc/cpuinfo):
+[8.3.] Module information (from /proc/modules):
+[8.4.] Loaded driver and hardware information (/proc/ioports, /proc/iomem)
+[8.5.] PCI information ('lspci -vvv' as root)
+[8.6.] SCSI information (from /proc/scsi/scsi)
+[8.7.] Other information that might be relevant to the problem
+       (please look in /proc and include all information that you
+       think to be relevant):
+[X.] Other notes, patches, fixes, workarounds:
+
+
+Thank you

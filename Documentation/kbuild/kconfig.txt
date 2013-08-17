@@ -1,0 +1,191 @@
+This file contains some assistance for using "make *config".
+
+Use "make help" to list all of the possible configuration targets.
+
+The xconfig ('qconf') and menuconfig ('mconf') programs also
+have embedded help text.  Be sure to check it for navigation,
+search, and other general help text.
+
+======================================================================
+General
+--------------------------------------------------
+
+New kernel releases often introduce new config symbols.  Often more
+important, new kernel releases may rename config symbols.  When
+this happens, using a previously working .config file and running
+"make oldconfig" won't necessarily produce a working new kernel
+for you, so you may find that you need to see what NEW kernel
+symbols have been introduced.
+
+To see a list of new config symbols when using "make oldconfig", use
+
+	cp user/some/old.config .config
+	yes "" | make oldconfig >conf.new
+
+and the config program will list as (NEW) any new symbols that have
+unknown values.  Of course, the .config file is also updated with
+new (default) values, so you can use:
+
+	grep "(NEW)" conf.new
+
+to see the new config symbols or you can use diffconfig to see the
+differences between the previous and new .config files:
+
+	scripts/diffconfig .config.old .config | less
+
+______________________________________________________________________
+Environment variables for '*config'
+
+KCONFIG_CONFIG
+--------------------------------------------------
+This environment variable can be used to specify a default kernel config
+file name to override the default name of ".config".
+
+KCONFIG_OVERWRITECONFIG
+--------------------------------------------------
+If you set KCONFIG_OVERWRITECONFIG in the environment, Kconfig will not
+break symlinks when .config is a symlink to somewhere else.
+
+______________________________________________________________________
+Environment variables for '{allyes/allmod/allno/rand}config'
+
+KCONFIG_ALLCONFIG
+--------------------------------------------------
+(partially based on lkml email from/by Rob Landley, re: miniconfig)
+--------------------------------------------------
+The allyesconfig/allmodconfig/allnoconfig/randconfig variants can
+also use the environment variable KCONFIG_ALLCONFIG as a flag or a
+filename that contains config symbols that the user requires to be
+set to a specific value.  If KCONFIG_ALLCONFIG is used without a
+filename, "make *config" checks for a file named
+"all{yes/mod/no/def/random}.config" (corresponding to the *config command
+that was used) for symbol values that are to be forced.  If this file
+is not found, it checks for a file named "all.config" to contain forced
+values.
+
+This enables you to create "miniature" config (miniconfig) or custom
+config files containing just the config symbols that you are interested
+in.  Then the kernel config system generates the full .config file,
+including symbols of your miniconfig file.
+
+This 'KCONFIG_ALLCONFIG' file is a config file which contains
+(usually a subset of all) preset config symbols.  These variable
+settings are still subject to normal dependency checks.
+
+Examples:
+	KCONFIG_ALLCONFIG=custom-notebook.config make allnoconfig
+or
+	KCONFIG_ALLCONFIG=mini.config make allnoconfig
+or
+	make KCONFIG_ALLCONFIG=mini.config allnoconfig
+
+These examples will disable most options (allnoconfig) but enable or
+disable the options that are explicitly listed in the specified
+mini-config files.
+
+______________________________________________________________________
+Environment variables for 'silentoldconfig'
+
+KCONFIG_NOSILENTUPDATE
+--------------------------------------------------
+If this variable has a non-blank value, it prevents silent kernel
+config updates (requires explicit updates).
+
+KCONFIG_AUTOCONFIG
+--------------------------------------------------
+This environment variable can be set to specify the path & name of the
+"auto.conf" file.  Its default value is "include/config/auto.conf".
+
+KCONFIG_TRISTATE
+--------------------------------------------------
+This environment variable can be set to specify the path & name of the
+"tristate.conf" file.  Its default value is "include/config/tristate.conf".
+
+KCONFIG_AUTOHEADER
+--------------------------------------------------
+This environment variable can be set to specify the path & name of the
+"autoconf.h" (header) file.
+Its default value is "include/generated/autoconf.h".
+
+
+======================================================================
+menuconfig
+--------------------------------------------------
+
+SEARCHING for CONFIG symbols
+
+Searching in menuconfig:
+
+	The Search function searches for kernel configuration symbol
+	names, so you have to know something close to what you are
+	looking for.
+
+	Example:
+		/hotplug
+		This lists all config symbols that contain "hotplug",
+		e.g., HOTPLUG, HOTPLUG_CPU, MEMORY_HOTPLUG.
+
+	For search help, enter / followed TAB-TAB-TAB (to highlight
+	<Help>) and Enter.  This will tell you that you can also use
+	regular expressions (regexes) in the search string, so if you
+	are not interested in MEMORY_HOTPLUG, you could try
+
+		/^hotplug
+
+______________________________________________________________________
+User interface options for 'menuconfig'
+
+MENUCONFIG_COLOR
+--------------------------------------------------
+It is possible to select different color themes using the variable
+MENUCONFIG_COLOR.  To select a theme use:
+
+	make MENUCONFIG_COLOR=<theme> menuconfig
+
+Available themes are:
+  mono       => selects colors suitable for monochrome displays
+  blackbg    => selects a color scheme with black background
+  classic    => theme with blue background. The classic look
+  bluetitle  => a LCD friendly version of classic. (default)
+
+MENUCONFIG_MODE
+--------------------------------------------------
+This mode shows all sub-menus in one large tree.
+
+Example:
+	make MENUCONFIG_MODE=single_menu menuconfig
+
+
+======================================================================
+xconfig
+--------------------------------------------------
+
+Searching in xconfig:
+
+	The Search function searches for kernel configuration symbol
+	names, so you have to know something close to what you are
+	looking for.
+
+	Example:
+		Ctrl-F hotplug
+	or
+		Menu: File, Search, hotplug
+
+	lists all config symbol entries that contain "hotplug" in
+	the symbol name.  In this Search dialog, you may change the
+	config setting for any of the entries that are not grayed out.
+	You can also enter a different search string without having
+	to return to the main menu.
+
+
+======================================================================
+gconfig
+--------------------------------------------------
+
+Searching in gconfig:
+
+	None (gconfig isn't maintained as well as xconfig or menuconfig);
+	however, gconfig does have a few more viewing choices than
+	xconfig does.
+
+###

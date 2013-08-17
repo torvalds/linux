@@ -1,0 +1,194 @@
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/kconfig-language.txt.
+#
+
+config OPENRISC
+	def_bool y
+	select OF
+	select OF_EARLY_FLATTREE
+	select HAVE_MEMBLOCK
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+        select HAVE_ARCH_TRACEHOOK
+	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_IRQ_CHIP
+	select GENERIC_IRQ_PROBE
+	select GENERIC_IRQ_SHOW
+	select GENERIC_IOMAP
+	select GENERIC_CPU_DEVICES
+	select GENERIC_ATOMIC64
+
+config MMU
+	def_bool y
+
+config SYMBOL_PREFIX
+        string
+        default ""
+
+config HAVE_DMA_ATTRS
+	def_bool y
+
+config UID16
+	def_bool y
+
+config RWSEM_GENERIC_SPINLOCK
+	def_bool y
+
+config RWSEM_XCHGADD_ALGORITHM
+	def_bool n
+
+config GENERIC_HWEIGHT
+	def_bool y
+
+config NO_IOPORT
+	def_bool y
+
+config GENERIC_GPIO
+	def_bool y
+
+config GENERIC_CLOCKEVENTS
+	def_bool y
+
+config TRACE_IRQFLAGS_SUPPORT
+        def_bool y
+
+# For now, use generic checksum functions
+#These can be reimplemented in assembly later if so inclined
+config GENERIC_CSUM
+        def_bool y
+
+config GENERIC_FIND_NEXT_BIT
+	def_bool y
+
+source "init/Kconfig"
+
+
+menu "Processor type and features"
+
+choice
+	prompt "Subarchitecture"
+	default OR1K_1200
+
+config OR1K_1200
+	bool "OR1200"
+	help
+	  Generic OpenRISC 1200 architecture
+
+endchoice
+
+config OPENRISC_BUILTIN_DTB
+        string "Builtin DTB"
+        default ""
+
+menu "Class II Instructions"
+
+config OPENRISC_HAVE_INST_FF1
+	bool "Have instruction l.ff1"
+	default y
+	help
+	  Select this if your implementation has the Class II instruction l.ff1
+
+config OPENRISC_HAVE_INST_FL1
+	bool "Have instruction l.fl1"
+	default y
+	help
+	  Select this if your implementation has the Class II instruction l.fl1
+
+config OPENRISC_HAVE_INST_MUL
+	bool "Have instruction l.mul for hardware multiply"
+	default y
+	help
+	  Select this if your implementation has a hardware multiply instruction
+
+config OPENRISC_HAVE_INST_DIV
+	bool "Have instruction l.div for hardware divide"
+	default y
+	help
+	  Select this if your implementation has a hardware divide instruction
+endmenu
+
+
+source "kernel/time/Kconfig"
+source kernel/Kconfig.hz
+source kernel/Kconfig.preempt
+source "mm/Kconfig"
+
+config OPENRISC_NO_SPR_SR_DSX
+	bool "use SPR_SR_DSX software emulation" if OR1K_1200
+	default y
+	help
+	  SPR_SR_DSX bit is status register bit indicating whether
+	  the last exception has happened in delay slot.
+
+	  OpenRISC architecture makes it optional to have it implemented
+	  in hardware and the OR1200 does not have it.
+
+	  Say N here if you know that your OpenRISC processor has
+	  SPR_SR_DSX bit implemented. Say Y if you are unsure.
+
+config CMDLINE
+        string "Default kernel command string"
+        default ""
+        help
+          On some architectures there is currently no way for the boot loader
+          to pass arguments to the kernel. For these architectures, you should
+          supply some command-line options at build time by entering them
+          here.
+
+menu "Debugging options"
+
+config DEBUG_STACKOVERFLOW
+	bool "Check for kernel stack overflow"
+	default y
+	help
+	  Make extra checks for space avaliable on stack in some
+          critical functions. This will cause kernel to run a bit slower,
+	  but will catch most of kernel stack overruns and exit gracefuly.
+
+	  Say Y if you are unsure.
+
+config JUMP_UPON_UNHANDLED_EXCEPTION
+	bool "Try to die gracefully"
+	default y
+	help
+	  Now this puts kernel into infinite loop after first oops. Till
+	  your kernel crashes this doesn't have any influence.
+
+	  Say Y if you are unsure.
+
+config OPENRISC_ESR_EXCEPTION_BUG_CHECK
+	bool "Check for possible ESR exception bug"
+	default n
+	help
+	  This option enables some checks that might expose some problems
+          in kernel.
+
+	  Say N if you are unsure.
+
+endmenu
+
+endmenu
+
+menu "Executable file formats"
+
+source "fs/Kconfig.binfmt"
+
+endmenu
+
+source "net/Kconfig"
+
+source "drivers/Kconfig"
+
+source "fs/Kconfig"
+
+source "security/Kconfig"
+
+source "crypto/Kconfig"
+
+source "lib/Kconfig"
+
+menu "Kernel hacking"
+
+source "lib/Kconfig.debug"
+
+endmenu

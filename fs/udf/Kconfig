@@ -1,0 +1,18 @@
+config UDF_FS
+	tristate "UDF file system support"
+	select CRC_ITU_T
+	help
+	  This is the new file system used on some CD-ROMs and DVDs. Say Y if
+	  you intend to mount DVD discs or CDRW's written in packet mode, or
+	  if written to by other UDF utilities, such as DirectCD.
+	  Please read <file:Documentation/filesystems/udf.txt>.
+
+	  To compile this file system support as a module, choose M here: the
+	  module will be called udf.
+
+	  If unsure, say N.
+
+config UDF_NLS
+	bool
+	default y
+	depends on (UDF_FS=m && NLS) || (UDF_FS=y && NLS=y)

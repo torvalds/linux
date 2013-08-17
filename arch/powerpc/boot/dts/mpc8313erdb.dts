@@ -1,0 +1,410 @@
+/*
+ * MPC8313E RDB Device Tree Source
+ *
+ * Copyright 2005, 2006, 2007 Freescale Semiconductor Inc.
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
+
+/dts-v1/;
+
+/ {
+	model = "MPC8313ERDB";
+	compatible = "MPC8313ERDB", "MPC831xRDB", "MPC83xxRDB";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	aliases {
+		ethernet0 = &enet0;
+		ethernet1 = &enet1;
+		serial0 = &serial0;
+		serial1 = &serial1;
+		pci0 = &pci0;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		PowerPC,8313@0 {
+			device_type = "cpu";
+			reg = <0x0>;
+			d-cache-line-size = <32>;
+			i-cache-line-size = <32>;
+			d-cache-size = <16384>;
+			i-cache-size = <16384>;
+			timebase-frequency = <0>;	// from bootloader
+			bus-frequency = <0>;		// from bootloader
+			clock-frequency = <0>;		// from bootloader
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x08000000>;	// 128MB at 0
+	};
+
+	localbus@e0005000 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		compatible = "fsl,mpc8313-elbc", "fsl,elbc", "simple-bus";
+		reg = <0xe0005000 0x1000>;
+		interrupts = <77 0x8>;
+		interrupt-parent = <&ipic>;
+
+		// CS0 and CS1 are swapped when
+		// booting from nand, but the
+		// addresses are the same.
+		ranges = <0x0 0x0 0xfe000000 0x00800000
+		          0x1 0x0 0xe2800000 0x00008000
+		          0x2 0x0 0xf0000000 0x00020000
+		          0x3 0x0 0xfa000000 0x00008000>;
+
+		flash@0,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "cfi-flash";
+			reg = <0x0 0x0 0x800000>;
+			bank-width = <2>;
+			device-width = <1>;
+		};
+
+		nand@1,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,mpc8313-fcm-nand",
+			             "fsl,elbc-fcm-nand";
+			reg = <0x1 0x0 0x2000>;
+
+			u-boot@0 {
+				reg = <0x0 0x100000>;
+				read-only;
+			};
+
+			kernel@100000 {
+				reg = <0x100000 0x300000>;
+			};
+
+			fs@400000 {
+				reg = <0x400000 0x1c00000>;
+			};
+		};
+	};
+
+	soc8313@e0000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		device_type = "soc";
+		compatible = "simple-bus";
+		ranges = <0x0 0xe0000000 0x00100000>;
+		reg = <0xe0000000 0x00000200>;
+		bus-frequency = <0>;
+
+		wdt@200 {
+			device_type = "watchdog";
+			compatible = "mpc83xx_wdt";
+			reg = <0x200 0x100>;
+		};
+
+		sleep-nexus {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "simple-bus";
+			sleep = <&pmc 0x03000000>;
+			ranges;
+
+			i2c@3000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				cell-index = <0>;
+				compatible = "fsl-i2c";
+				reg = <0x3000 0x100>;
+				interrupts = <14 0x8>;
+				interrupt-parent = <&ipic>;
+				dfsrr;
+				rtc@68 {
+					compatible = "dallas,ds1339";
+					reg = <0x68>;
+				};
+			};
+
+			crypto@30000 {
+				compatible = "fsl,sec2.2", "fsl,sec2.1",
+				             "fsl,sec2.0";
+				reg = <0x30000 0x10000>;
+				interrupts = <11 0x8>;
+				interrupt-parent = <&ipic>;
+				fsl,num-channels = <1>;
+				fsl,channel-fifo-len = <24>;
+				fsl,exec-units-mask = <0x4c>;
+				fsl,descriptor-types-mask = <0x0122003f>;
+			};
+		};
+
+		i2c@3100 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <1>;
+			compatible = "fsl-i2c";
+			reg = <0x3100 0x100>;
+			interrupts = <15 0x8>;
+			interrupt-parent = <&ipic>;
+			dfsrr;
+		};
+
+		spi@7000 {
+			cell-index = <0>;
+			compatible = "fsl,spi";
+			reg = <0x7000 0x1000>;
+			interrupts = <16 0x8>;
+			interrupt-parent = <&ipic>;
+			mode = "cpu";
+		};
+
+		/* phy type (ULPI, UTMI, UTMI_WIDE, SERIAL) */
+		usb@23000 {
+			compatible = "fsl-usb2-dr";
+			reg = <0x23000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupt-parent = <&ipic>;
+			interrupts = <38 0x8>;
+			phy_type = "utmi_wide";
+			sleep = <&pmc 0x00300000>;
+		};
+
+		ptp_clock@24E00 {
+			compatible = "fsl,etsec-ptp";
+			reg = <0x24E00 0xB0>;
+			interrupts = <12 0x8 13 0x8>;
+			interrupt-parent = < &ipic >;
+			fsl,tclk-period = <10>;
+			fsl,tmr-prsc    = <100>;
+			fsl,tmr-add     = <0x999999A4>;
+			fsl,tmr-fiper1  = <0x3B9AC9F6>;
+			fsl,tmr-fiper2  = <0x00018696>;
+			fsl,max-adj     = <659999998>;
+		};
+
+		enet0: ethernet@24000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			sleep = <&pmc 0x20000000>;
+			ranges = <0x0 0x24000 0x1000>;
+
+			cell-index = <0>;
+			device_type = "network";
+			model = "eTSEC";
+			compatible = "gianfar";
+			reg = <0x24000 0x1000>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			interrupts = <37 0x8 36 0x8 35 0x8>;
+			interrupt-parent = <&ipic>;
+			tbi-handle = < &tbi0 >;
+			/* Vitesse 7385 isn't on the MDIO bus */
+			fixed-link = <1 1 1000 0 0>;
+			fsl,magic-packet;
+
+			mdio@520 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,gianfar-mdio";
+				reg = <0x520 0x20>;
+				phy4: ethernet-phy@4 {
+					interrupt-parent = <&ipic>;
+					interrupts = <20 0x8>;
+					reg = <0x4>;
+					device_type = "ethernet-phy";
+				};
+				tbi0: tbi-phy@11 {
+					reg = <0x11>;
+					device_type = "tbi-phy";
+				};
+			};
+		};
+
+		enet1: ethernet@25000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			cell-index = <1>;
+			device_type = "network";
+			model = "eTSEC";
+			compatible = "gianfar";
+			reg = <0x25000 0x1000>;
+			ranges = <0x0 0x25000 0x1000>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			interrupts = <34 0x8 33 0x8 32 0x8>;
+			interrupt-parent = <&ipic>;
+			tbi-handle = < &tbi1 >;
+			phy-handle = < &phy4 >;
+			sleep = <&pmc 0x10000000>;
+			fsl,magic-packet;
+
+			mdio@520 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,gianfar-tbi";
+				reg = <0x520 0x20>;
+
+				tbi1: tbi-phy@11 {
+					reg = <0x11>;
+					device_type = "tbi-phy";
+				};
+			};
+
+
+		};
+
+		serial0: serial@4500 {
+			cell-index = <0>;
+			device_type = "serial";
+			compatible = "fsl,ns16550", "ns16550";
+			reg = <0x4500 0x100>;
+			clock-frequency = <0>;
+			interrupts = <9 0x8>;
+			interrupt-parent = <&ipic>;
+		};
+
+		serial1: serial@4600 {
+			cell-index = <1>;
+			device_type = "serial";
+			compatible = "fsl,ns16550", "ns16550";
+			reg = <0x4600 0x100>;
+			clock-frequency = <0>;
+			interrupts = <10 0x8>;
+			interrupt-parent = <&ipic>;
+		};
+
+		/* IPIC
+		 * interrupts cell = <intr #, sense>
+		 * sense values match linux IORESOURCE_IRQ_* defines:
+		 * sense == 8: Level, low assertion
+		 * sense == 2: Edge, high-to-low change
+		 */
+		ipic: pic@700 {
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <2>;
+			reg = <0x700 0x100>;
+			device_type = "ipic";
+		};
+
+		pmc: power@b00 {
+			compatible = "fsl,mpc8313-pmc", "fsl,mpc8349-pmc";
+			reg = <0xb00 0x100 0xa00 0x100>;
+			interrupts = <80 8>;
+			interrupt-parent = <&ipic>;
+			fsl,mpc8313-wakeup-timer = <&gtm1>;
+
+			/* Remove this (or change to "okay") if you have
+			 * a REVA3 or later board, if you apply one of the
+			 * workarounds listed in section 8.5 of the board
+			 * manual, or if you are adapting this device tree
+			 * to a different board.
+			 */
+			status = "fail";
+		};
+
+		gtm1: timer@500 {
+			compatible = "fsl,mpc8313-gtm", "fsl,gtm";
+			reg = <0x500 0x100>;
+			interrupts = <90 8 78 8 84 8 72 8>;
+			interrupt-parent = <&ipic>;
+		};
+
+		timer@600 {
+			compatible = "fsl,mpc8313-gtm", "fsl,gtm";
+			reg = <0x600 0x100>;
+			interrupts = <91 8 79 8 85 8 73 8>;
+			interrupt-parent = <&ipic>;
+		};
+	};
+
+	sleep-nexus {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		sleep = <&pmc 0x00010000>;
+		ranges;
+
+		pci0: pci@e0008500 {
+			cell-index = <1>;
+			interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
+			interrupt-map = <
+					/* IDSEL 0x0E -mini PCI */
+					 0x7000 0x0 0x0 0x1 &ipic 18 0x8
+					 0x7000 0x0 0x0 0x2 &ipic 18 0x8
+					 0x7000 0x0 0x0 0x3 &ipic 18 0x8
+					 0x7000 0x0 0x0 0x4 &ipic 18 0x8
+
+					/* IDSEL 0x0F - PCI slot */
+					 0x7800 0x0 0x0 0x1 &ipic 17 0x8
+					 0x7800 0x0 0x0 0x2 &ipic 18 0x8
+					 0x7800 0x0 0x0 0x3 &ipic 17 0x8
+					 0x7800 0x0 0x0 0x4 &ipic 18 0x8>;
+			interrupt-parent = <&ipic>;
+			interrupts = <66 0x8>;
+			bus-range = <0x0 0x0>;
+			ranges = <0x02000000 0x0 0x90000000 0x90000000 0x0 0x10000000
+				  0x42000000 0x0 0x80000000 0x80000000 0x0 0x10000000
+				  0x01000000 0x0 0x00000000 0xe2000000 0x0 0x00100000>;
+			clock-frequency = <66666666>;
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+			reg = <0xe0008500 0x100		/* internal registers */
+			       0xe0008300 0x8>;		/* config space access registers */
+			compatible = "fsl,mpc8349-pci";
+			device_type = "pci";
+		};
+
+		dma@82a8 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,mpc8313-dma", "fsl,elo-dma";
+			reg = <0xe00082a8 4>;
+			ranges = <0 0xe0008100 0x1a8>;
+			interrupt-parent = <&ipic>;
+			interrupts = <71 8>;
+
+			dma-channel@0 {
+				compatible = "fsl,mpc8313-dma-channel",
+				             "fsl,elo-dma-channel";
+				reg = <0 0x28>;
+				interrupt-parent = <&ipic>;
+				interrupts = <71 8>;
+				cell-index = <0>;
+			};
+
+			dma-channel@80 {
+				compatible = "fsl,mpc8313-dma-channel",
+				             "fsl,elo-dma-channel";
+				reg = <0x80 0x28>;
+				interrupt-parent = <&ipic>;
+				interrupts = <71 8>;
+				cell-index = <1>;
+			};
+
+			dma-channel@100 {
+				compatible = "fsl,mpc8313-dma-channel",
+				             "fsl,elo-dma-channel";
+				reg = <0x100 0x28>;
+				interrupt-parent = <&ipic>;
+				interrupts = <71 8>;
+				cell-index = <2>;
+			};
+
+			dma-channel@180 {
+				compatible = "fsl,mpc8313-dma-channel",
+				             "fsl,elo-dma-channel";
+				reg = <0x180 0x28>;
+				interrupt-parent = <&ipic>;
+				interrupts = <71 8>;
+				cell-index = <3>;
+			};
+		};
+	};
+};

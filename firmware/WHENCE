@@ -1,0 +1,902 @@
+             **********
+             * WHENCE *
+             **********
+
+This file attempts to document the origin and licensing information,
+if known, for each piece of firmware distributed for use with the Linux
+kernel.
+
+--------------------------------------------------------------------------
+
+Driver: ambassador -- Madge Ambassador (Collage PCI 155 Server) ATM NIC.
+
+File: firmware/atmsar11.fw
+
+Licence: Allegedly GPLv2+, but no source visible. Marked:
+
+  Madge Ambassador ATM Adapter microcode.
+  Copyright (C) 1995-1999  Madge Networks Ltd.
+
+  This microcode data is placed under the terms of the GNU General
+  Public License. The GPL is contained in /usr/doc/copyright/GPL on a
+  Debian system and in the file COPYING in the Linux kernel source.
+
+  We would prefer you not to distribute modified versions without
+  consultation and not to ask for assembly/other microcode source.
+
+--------------------------------------------------------------------------
+
+Driver: korg1212 -- Korg 1212 IO audio device
+
+File: korg/k1212.dsp
+
+Licence: Unknown
+
+Found in alsa-firmware package in hex form; no licensing information.
+
+--------------------------------------------------------------------------
+
+Driver: maestro3 -- ESS Allegro Maestro3 audio device
+
+File: ess/maestro3_assp_kernel.fw
+File: ess/maestro3_assp_minisrc.fw
+
+Licence: Unknown
+
+Found in alsa-firmware package in hex form with a comment claiming to
+be GPLv2+, but without source -- and with another comment saying "ESS
+drops binary dsp code images on our heads, but we don't get to see
+specs on the dsp."
+
+--------------------------------------------------------------------------
+
+Driver: ymfpci -- Yamaha YMF724/740/744/754 audio devices
+
+File: yamaha/ds1_ctrl.fw
+File: yamaha/ds1_dsp.fw
+File: yamaha/ds1e_ctrl.fw
+
+Licence: Unknown
+
+Found alsa-firmware package in hex form, with the following comment:
+   Copyright (c) 1997-1999 Yamaha Corporation. All Rights Reserved.
+
+--------------------------------------------------------------------------
+
+Driver: SCSI_ADVANSYS - AdvanSys SCSI
+
+File: advansys/mcode.bin
+File: advansys/3550.bin
+File: advansys/38C0800.bin
+File: advansys/38C1600.bin
+
+Licence: BSD, no source available.
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: SCSI_QLOGIC_1280 - Qlogic QLA 1240/1x80/1x160 SCSI support
+
+File: qlogic/1040.bin
+File: qlogic/1280.bin
+File: qlogic/12160.bin
+
+Licence: Allegedly GPLv2+, but no source visible. Marked:
+
+                   QLOGIC LINUX SOFTWARE
+  QLogic ISP1280/ device driver for Linux 2.2.x and 2.4.x
+  Copyright (C) 2001 Qlogic Corporation (www.qlogic.com)
+
+--------------------------------------------------------------------------
+Driver: smctr -- SMC ISA/MCA Token Ring adapter
+
+File: tr_smctr.bin
+Info: MCT.BIN v6.3C1 03/01/95
+
+Original licence info:
+
+ * This firmware is licensed to you strictly for use in conjunction
+ * with the use of SMC TokenRing adapters. There is no waranty
+ * expressed or implied about its fitness for any purpose.
+
+--------------------------------------------------------------------------
+
+Driver: kaweth -- USB KLSI KL5USB101-based Ethernet device
+
+File: kaweth/new_code.bin
+File: kaweth/new_code_fix.bin
+File: kaweth/trigger_code.bin
+File: kaweth/trigger_code_fix.bin
+
+Licence: Unknown
+
+Found in hex form in the kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: ttusb-budget -- Technotrend/Hauppauge Nova-USB devices
+
+File: ttusb-budget/dspbootcode.bin
+
+Licence: Unknown
+
+Found in hex form in the kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: keyspan -- USB Keyspan USA-xxx serial device
+
+File: keyspan/mpr.fw
+File: keyspan/usa18x.fw
+File: keyspan/usa19.fw
+File: keyspan/usa19qi.fw
+File: keyspan/usa19qw.fw
+File: keyspan/usa19w.fw
+File: keyspan/usa28.fw
+File: keyspan/usa28xa.fw
+File: keyspan/usa28xb.fw
+File: keyspan/usa28x.fw
+File: keyspan/usa49w.fw
+File: keyspan/usa49wlc.fw
+
+Converted from Intel HEX files, used in our binary representation of ihex.
+
+Original licence information:
+
+		Copyright (C) 1999-2001
+		Keyspan, A division of InnoSys Incorporated ("Keyspan")
+
+	as an unpublished work. This notice does not imply unrestricted or
+	public access to the source code from which this firmware image is
+	derived.  Except as noted below this firmware image may not be
+	reproduced, used, sold or transferred to any third party without
+	Keyspan's prior written consent.  All Rights Reserved.
+
+	Permission is hereby granted for the distribution of this firmware
+	image as part of a Linux or other Open Source operating system kernel
+	in text or binary form as required.
+
+	This firmware may not be modified and may only be used with
+	Keyspan hardware.  Distribution and/or Modification of the
+	keyspan.c driver which includes this firmware, in whole or in
+	part, requires the inclusion of this statement."
+
+--------------------------------------------------------------------------
+
+Driver: keyspan_pda -- USB Keyspan PDA single-port serial device
+
+File: keyspan_pda/keyspan_pda.fw
+Source: keyspan_pda/keyspan_pda.S
+
+File: keyspan_pda/xircom_pgs.fw
+Source: keyspan_pda/xircom_pgs.S
+
+Licence: GPLv2+
+
+Compiled from original 8051 source into Intel HEX, used in our binary ihex form.
+
+--------------------------------------------------------------------------
+
+Driver: emi26 -- EMI 2|6 USB Audio interface
+
+File: emi26/bitstream.fw
+Info: VERSION=1.1.1.131 DATE=2001dec06
+
+File: emi26/firmware.fw
+Info: VERSION=1.0.2.916 DATE=12.02.2002
+
+File: emi26/loader.fw
+
+Converted from Intel HEX files, used in our binary representation of ihex.
+
+Original licence information:
+/*
+ * This firmware is for the Emagic EMI 2|6 Audio Interface
+ *
+ * The firmware contained herein is Copyright (c) 1999-2002 Emagic
+ * as an unpublished work. This notice does not imply unrestricted
+ * or public access to this firmware which is a trade secret of Emagic,
+ * and which may not be reproduced, used, sold or transferred to
+ * any third party without Emagic's written consent. All Rights Reserved.
+ *
+ * Permission is hereby granted for the distribution of this firmware
+ * image as part of a Linux or other Open Source operating system kernel
+ * in text or binary form as required.
+ *
+ * This firmware may not be modified and may only be used with the
+ * Emagic EMI 2|6 Audio Interface. Distribution and/or Modification of
+ * any driver which includes this firmware, in whole or in part,
+ * requires the inclusion of this statement.
+ */
+
+--------------------------------------------------------------------------
+
+Driver: emi62 -- EMI 6|2m USB Audio interface
+
+File: emi62/bitstream.fw
+Info: VERSION=1.0.0.191 DATE= 2002oct28
+
+File: emi62/loader.fw
+Source: EMILOAD.HEX
+Info: VERSION=1.0.2.002 DATE=10.01.2002
+
+File: emi62/midi.fw
+Source: EMI62MFW.HEX
+Info: VERSION=1.04.062 DATE=16.10.2002
+
+File: emi62/spdif.fw
+Source: EMI62SFW.HEX
+Info: VERSION=1.04.062 DATE=16.10.2002
+
+Converted from Intel HEX files, used in our binary representation of ihex.
+
+Original licence information: None
+
+--------------------------------------------------------------------------
+
+Driver: ti_usb_3410_5052 -- USB TI 3410/5052 serial device
+
+File: ti_3410.fw
+Info: firmware 9/10/04 FW3410_Special_StartWdogOnStartPort
+
+File: ti_5052.fw
+Info: firmware 9/18/04
+
+Licence: Allegedly GPLv2+, but no source visible. Marked:
+	 Copyright (C) 2004 Texas Instruments
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: ti_usb_3410_5052 -- Multi-Tech USB cell modems
+
+File: mts_cdma.fw
+File: mts_gsm.fw
+File: mts_edge.fw
+
+Licence: "all firmware components are redistributable in binary form"
+         per support@multitech.com
+	 Copyright (C) 2005 Multi-Tech Systems, Inc.
+
+Found in hex form in ftp://ftp.multitech.com/wireless/wireless_linux.zip
+
+--------------------------------------------------------------------------
+
+Driver: whiteheat -- USB ConnectTech WhiteHEAT serial device
+
+File: whiteheat.fw
+Version: 4.06
+
+File: whiteheat_loader.fw
+File: whiteheat_loader_debug.fw
+
+Licence: Allegedly GPLv2, but no source visible. Marked:
+	 Copyright (C) 2000-2002  ConnectTech Inc
+
+Debug loader claims the following behaviour:
+	Port 1 LED flashes when the vend_ax program is running
+	Port 2 LED flashes when any SETUP command arrives
+	Port 3 LED flashes when any valid VENDOR request occurs
+	Port 4 LED flashes when the EXTERNAL RAM DOWNLOAD request occurs
+
+Converted from Intel HEX files, used in our binary representation of ihex.
+
+--------------------------------------------------------------------------
+
+Driver: ip2 -- Computone IntelliPort Plus serial device
+
+File: intelliport2.bin
+
+Licence: Unknown
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: CPiA2 -- cameras based on Vision's CPiA2
+
+File: cpia2/stv0672_vp4.bin
+
+Licence: Allegedly GPLv2+, but no source visible. Marked:
+	Copyright (C) 2001 STMicroelectronics, Inc.
+	Contact:  steve.miller@st.com
+	Description: This file contains patch data for the CPiA2 (stv0672) VP4.
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: DABUSB -- Digital Audio Broadcasting (DAB) Receiver for USB and Linux
+
+File: dabusb/firmware.fw
+File: dabusb/bitstream.bin
+
+Licence: Distributable
+
+ * Copyright (C) 1999 BayCom GmbH
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that redistributions of source
+ * code retain the above copyright notice and this comment without
+ * modification.
+
+--------------------------------------------------------------------------
+
+Driver: USB_VICAM -- USB 3com HomeConnect (aka vicam)
+
+File: vicam/firmware.fw
+
+Licence: Unknown
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: USB_SERIAL_EDGEPORT - USB Inside Out Edgeport Serial Driver
+
+File: edgeport/boot.fw
+File: edgeport/boot2.fw
+File: edgeport/down.fw
+File: edgeport/down2.fw
+
+Licence: Allegedly GPLv2+, but no source visible. Marked:
+//**************************************************************
+//* Edgeport/4 Binary Image
+//* Generated by HEX2C v1.06
+//* Copyright (C) 1998 Inside Out Networks, All rights reserved.
+//**************************************************************
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: USB_SERIAL_EDGEPORT_TI - USB Inside Out Edgeport Serial Driver
+(TI Devices)
+
+File: edgeport/down3.bin
+
+Licence:
+//**************************************************************
+//* Edgeport Binary Image (for TI based products)
+//* Generated by TIBin2C v2.00 (watchport)
+//* Copyright (C) 2001 Inside Out Networks, All rights reserved.
+//**************************************************************
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: ATARI_DSP56K - Atari DSP56k support
+
+File: dsp56k/bootstrap.bin
+Source: dsp56k/bootstrap.asm
+
+Licence: GPLv2 or later
+
+DSP56001 assembler, possibly buildable with a56 from 
+http://www.zdomain.com/a56.html
+
+--------------------------------------------------------------------------
+
+Driver: SND_SB16_CSP - Sound Blaster 16/AWE CSP support
+
+File: sb16/mulaw_main.csp
+File: sb16/alaw_main.csp
+File: sb16/ima_adpcm_init.csp
+File: sb16/ima_adpcm_playback.csp
+File: sb16/ima_adpcm_capture.csp
+
+Licence: Allegedly GPLv2+, but no source visible. Marked:
+/*
+ *  Copyright (c) 1994 Creative Technology Ltd.
+ *  Microcode files for SB16 Advanced Signal Processor
+ */
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: CASSINI - Sun Cassini
+
+File: sun/cassini.bin
+
+Licence: Unknown
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: cxgb3 - Chelsio Terminator 3 1G/10G Ethernet adapter
+
+File: cxgb3/t3b_psram-1.1.0.bin.ihex
+File: cxgb3/t3c_psram-1.1.0.bin.ihex
+file: cxgb3/t3fw-7.4.0.bin.ihex
+
+License: GPLv2 or OpenIB.org BSD license, no source visible
+
+--------------------------------------------------------------------------
+
+Driver: cxgb3 - Chelsio Terminator 3 1G/10G Ethernet adapter
+
+File: cxgb3/ael2005_opt_edc.bin.ihex
+File: cxgb3/ael2005_twx_edc.bin.ihex
+File: cxgb3/ael2020_twx_edc.bin.ihex
+
+Licence:
+ *	Copyright (c) 2007-2009 NetLogic Microsystems, Inc.
+ *
+ *	Permission is hereby granted for the distribution of this firmware
+ *	data in hexadecimal or equivalent format, provided this copyright
+ *	notice is accompanying it.
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: e100 -- Intel PRO/100 Ethernet NIC
+
+File: e100/d101m_ucode.bin
+File: e100/d101s_ucode.bin
+File: e100/d102e_ucode.bin
+
+Licence: Unknown
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: acenic -- Alteon AceNIC Gigabit Ethernet card
+
+File: acenic/tg1.bin
+File: acenic/tg2.bin
+
+Licence: Unknown
+
+Found in hex form in kernel source, but source allegedly available at
+http://alteon.shareable.org/
+
+--------------------------------------------------------------------------
+
+Driver: tigon3 -- Broadcom Tigon3 based gigabit Ethernet cards
+
+File: tigon/tg3.bin
+File: tigon/tg3_tso.bin
+File: tigon/tg3_tso5.bin
+
+Licence:
+ * Firmware is:
+ *	Derived from proprietary unpublished source code,
+ *	Copyright (C) 2000-2003 Broadcom Corporation.
+ *
+ *	Permission is hereby granted for the distribution of this firmware
+ *	data in hexadecimal or equivalent format, provided this copyright
+ *	notice is accompanying it.
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: ADAPTEC_STARFIRE - Adaptec Starfire/DuraLAN support
+
+File: adaptec/starfire_rx.bin
+File: adaptec/starfire_tx.bin
+
+Licence: Allegedly GPLv2, but no source visible.
+
+Found in hex form in kernel source, with the following notice:
+
+ BECAUSE THE PROGRAM IS LICENSED FREE OF CHARGE IT IS LICENSED "AS IS" AND
+ THERE IS NO WARRANTY FOR THE PROGRAM, INCLUDING BUT NOT LIMITED TO THE
+ IMPLIED WARRANTIES OF MERCHANTIBILITY OR FITNESS FOR A PARTICULAR PURPOSE
+ (TO THE EXTENT PERMITTED BY APPLICABLE LAW). USE OF THE PROGRAM IS AT YOUR
+ OWN RISK. IN NO EVENT WILL ADAPTEC OR ITS LICENSORS BE LIABLE TO YOU FOR
+ DAMAGES, INCLUDING ANY GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES
+ ARISING OUT OF THE USE OR INABILITY TO USE THE PROGRAM.
+
+--------------------------------------------------------------------------
+
+Driver: TEHUTI - Tehuti Networks 10G Ethernet
+
+File: tehuti/bdx.bin
+
+Licence:
+
+ Copyright (C) 2007 Tehuti Networks Ltd.
+
+ Permission is hereby granted for the distribution of this firmware data
+ in hexadecimal or equivalent format, provided this copyright notice is
+ accompanying it.
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: TYPHOON - 3cr990 series Typhoon
+
+File: 3com/typhoon.bin
+
+Licence:
+/*
+ * Copyright 1999-2004 3Com Corporation.  All Rights Reserved.
+ *
+ * Redistribution and use in source and binary forms of the 3c990img.h
+ * microcode software are permitted provided that the following conditions
+ * are met:
+ * 1. Redistribution of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistribution in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. The name of 3Com may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission
+ *
+ * THIS SOFTWARE IS PROVIDED BY 3COM ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * USER ACKNOWLEDGES AND AGREES THAT PURCHASE OR USE OF THE 3c990img.h
+ * MICROCODE SOFTWARE WILL NOT CREATE OR GIVE GROUNDS FOR A LICENSE BY
+ * IMPLICATION, ESTOPPEL, OR OTHERWISE IN ANY INTELLECTUAL PROPERTY RIGHTS
+ * (PATENT, COPYRIGHT, TRADE SECRET, MASK WORK, OR OTHER PROPRIETARY RIGHT)
+ * EMBODIED IN ANY OTHER 3COM HARDWARE OR SOFTWARE EITHER SOLELY OR IN
+ * COMBINATION WITH THE 3c990img.h MICROCODE SOFTWARE
+ */
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: YAM - YAM driver for AX.25
+
+File: yam/1200.bin
+File: yam/9600.bin
+
+Licence:
+ * (C) F6FBB 1998
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: 3C359 - 3Com 3C359 Token Link Velocity XL adapter
+
+File: 3com/3C359.bin
+
+Licence:
+/*
+ * The firmware this driver downloads into the tokenring card is a
+ * separate program and is not GPL'd source code, even though the Linux
+ * side driver and the routine that loads this data into the card are.
+ *
+ * This firmware is licensed to you strictly for use in conjunction
+ * with the use of 3Com 3C359 TokenRing adapters. There is no
+ * waranty expressed or implied about its fitness for any purpose.
+ */
+/* 3c359_microcode.mac: 3Com 3C359 Tokenring microcode.
+ *
+ * Notes:
+ *  - Loaded from xl_init upon adapter initialization.
+ *
+ * Available from 3Com as part of their standard 3C359 driver.
+ */
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: PCMCIA_PCNET - NE2000 compatible PCMCIA adapter
+
+File: cis/LA-PCM.cis
+      cis/PCMLM28.cis
+      cis/DP83903.cis
+      cis/NE2K.cis
+      cis/tamarack.cis
+      cis/PE-200.cis
+      cis/PE520.cis
+
+Licence: GPL
+
+Originally developed by the pcmcia-cs project
+
+--------------------------------------------------------------------------
+
+Driver: PCMCIA_3C589 - 3Com PCMCIA adapter
+
+File: cis/3CXEM556.cis
+
+Licence: GPL
+
+Originally developed by the pcmcia-cs project
+
+--------------------------------------------------------------------------
+
+Driver: PCMCIA_3C574 - 3Com PCMCIA adapter
+
+File: cis/3CCFEM556.cis
+
+Licence: GPL
+
+Originally developed by the pcmcia-cs project
+
+--------------------------------------------------------------------------
+
+Driver: SERIAL_8250_CS - Serial PCMCIA adapter
+
+File: cis/MT5634ZLX.cis
+      cis/RS-COM-2P.cis
+      cis/COMpad2.cis
+      cis/COMpad4.cis
+      cis/SW_555_SER.cis
+      cis/SW_7xx_SER.cis
+      cis/SW_8xx_SER.cis
+
+Licence: GPL
+
+Originally developed by the pcmcia-cs project
+
+--------------------------------------------------------------------------
+
+Driver: PCMCIA_SMC91C92 - SMC 91Cxx PCMCIA
+
+File: ositech/Xilinx7OD.bin
+
+Licence: Allegedly GPL, but no source visible. Marked:
+    This file contains the firmware of Seven of Diamonds from OSITECH.
+    (Special thanks to Kevin MacPherson of OSITECH)
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: SCSI_QLOGICPTI - PTI Qlogic, ISP Driver
+
+File: qlogic/isp1000.bin
+
+Licence: Unknown
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: MYRI_SBUS - MyriCOM Gigabit Ethernet
+
+File: myricom/lanai.bin
+
+Licence: Unknown
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: bnx2x: Broadcom Everest
+
+File: bnx2x/bnx2x-e1-6.2.9.0.fw
+File: bnx2x/bnx2x-e1h-6.2.9.0.fw
+File: bnx2x/bnx2x-e2-6.2.9.0.fw
+
+License:
+  Copyright (c) 2007-2011 Broadcom Corporation
+
+  This file contains firmware data derived from proprietary unpublished
+  source code, Copyright (c) 2007-2011 Broadcom Corporation.
+
+  Permission is hereby granted for the distribution of this firmware data
+  in hexadecimal or equivalent format, provided this copyright notice is
+  accompanying it.
+
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: BNX2 - Broadcom NetXtremeII
+
+File: bnx2/bnx2-mips-06-6.2.1.fw
+File: bnx2/bnx2-rv2p-06-6.0.15.fw
+File: bnx2/bnx2-mips-09-6.2.1a.fw
+File: bnx2/bnx2-rv2p-09-6.0.17.fw
+File: bnx2/bnx2-rv2p-09ax-6.0.17.fw
+
+Licence:
+
+ This file contains firmware data derived from proprietary unpublished
+ source code, Copyright (c) 2004 - 2010 Broadcom Corporation.
+
+ Permission is hereby granted for the distribution of this firmware data
+ in hexadecimal or equivalent format, provided this copyright notice is
+ accompanying it.
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: DVB AV7110 -- AV7110 cards
+
+File: av7110/bootcode.bin
+
+Licence: GPLv2 or later
+
+ARM assembly source code available at http://www.linuxtv.org/downloads/firmware/Boot.S
+
+--------------------------------------------------------------------------
+
+Driver: wavefront - ISA WaveFront sound card
+
+File: yamaha/yss225_registers.bin
+
+Licence: Allegedly GPLv2+, but no source visible.
+
+Found in hex form in kernel source, with the following comment:
+   Copyright (c) 1998-2002 by Paul Davis <pbd@op.net>
+
+--------------------------------------------------------------------------
+
+Driver: mga - Matrox G200/G400/G550
+
+File: matrox/g200_warp.fw
+File: matrox/g400_warp.fw
+
+Licence:
+
+Copyright 1999 Matrox Graphics Inc.
+All Rights Reserved.
+
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the "Software"),
+to deal in the Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, sublicense,
+and/or sell copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included
+in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+MATROX GRAPHICS INC., OR ANY OTHER CONTRIBUTORS BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: r128 - ATI Rage 128
+
+File: r128/r128_cce.bin
+
+Licence:
+
+Copyright 2000 Advanced Micro Devices, Inc.
+
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * PRECISION INSIGHT AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+
+Found in decimal form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: radeon - ATI Radeon
+
+File: radeon/R100_cp.bin
+File: radeon/R200_cp.bin
+File: radeon/R300_cp.bin
+File: radeon/R420_cp.bin
+File: radeon/RS600_cp.bin
+File: radeon/RS690_cp.bin
+File: radeon/R520_cp.bin
+File: radeon/R600_pfp.bin
+File: radeon/R600_me.bin
+File: radeon/RV610_pfp.bin
+File: radeon/RV610_me.bin
+File: radeon/RV630_pfp.bin
+File: radeon/RV630_me.bin
+File: radeon/RV620_pfp.bin
+File: radeon/RV620_me.bin
+File: radeon/RV635_pfp.bin
+File: radeon/RV635_me.bin
+File: radeon/RV670_pfp.bin
+File: radeon/RV670_me.bin
+File: radeon/RS780_pfp.bin
+File: radeon/RS780_me.bin
+File: radeon/RV770_pfp.bin
+File: radeon/RV770_me.bin
+File: radeon/RV730_pfp.bin
+File: radeon/RV730_me.bin
+File: radeon/RV710_pfp.bin
+File: radeon/RV710_me.bin
+
+Licence:
+
+ * Copyright 2007-2009 Advanced Micro Devices, Inc.
+ * All Rights Reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
+ * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+ * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: ib_qib - QLogic Infiniband
+
+File: qlogic/sd7220.fw
+
+Licence:
+
+ * Copyright (c) 2007, 2008 QLogic Corporation. All rights reserved.
+ *
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and/or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------

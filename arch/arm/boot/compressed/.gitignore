@@ -1,0 +1,18 @@
+ashldi3.S
+font.c
+lib1funcs.S
+piggy.gzip
+piggy.lzo
+piggy.lzma
+piggy.xzkern
+vmlinux
+vmlinux.lds
+
+# borrowed libfdt files
+fdt.c
+fdt.h
+fdt_ro.c
+fdt_rw.c
+fdt_wip.c
+libfdt.h
+libfdt_internal.h

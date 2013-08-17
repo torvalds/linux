@@ -1,0 +1,98 @@
+#!/bin/sh
+# Disassemble the Code: line in Linux oopses
+# usage: decodecode < oops.file
+#
+# options: set env. variable AFLAGS=options to pass options to "as";
+# e.g., to decode an i386 oops on an x86_64 system, use:
+# AFLAGS=--32 decodecode < 386.oops
+
+cleanup() {
+	rm -f $T $T.s $T.o $T.oo $T.aa $T.dis
+	exit 1
+}
+
+die() {
+	echo "$@"
+	exit 1
+}
+
+trap cleanup EXIT
+
+T=`mktemp` || die "cannot create temp file"
+code=
+
+while read i ; do
+
+case "$i" in
+*Code:*)
+	code=$i
+	;;
+esac
+
+done
+
+if [ -z "$code" ]; then
+	rm $T
+	exit
+fi
+
+echo $code
+code=`echo $code | sed -e 's/.*Code: //'`
+
+width=`expr index "$code" ' '`
+width=$((($width-1)/2))
+case $width in
+1) type=byte ;;
+2) type=2byte ;;
+4) type=4byte ;;
+esac
+
+disas() {
+	${CROSS_COMPILE}as $AFLAGS -o $1.o $1.s > /dev/null 2>&1
+
+	if [ "$ARCH" = "arm" ]; then
+		if [ $width -eq 2 ]; then
+			OBJDUMPFLAGS="-M force-thumb"
+		fi
+
+		${CROSS_COMPILE}strip $1.o
+	fi
+
+	${CROSS_COMPILE}objdump $OBJDUMPFLAGS -S $1.o | \
+		grep -v "/tmp\|Disassembly\|\.text\|^$" > $1.dis 2>&1
+}
+
+marker=`expr index "$code" "\<"`
+if [ $marker -eq 0 ]; then
+	marker=`expr index "$code" "\("`
+fi
+
+touch $T.oo
+if [ $marker -ne 0 ]; then
+	echo All code >> $T.oo
+	echo ======== >> $T.oo
+	beforemark=`echo "$code"`
+	echo -n "	.$type 0x" > $T.s
+	echo $beforemark | sed -e 's/ /,0x/g; s/[<>()]//g' >> $T.s
+	disas $T
+	cat $T.dis >> $T.oo
+	rm -f $T.o $T.s $T.dis
+
+# and fix code at-and-after marker
+	code=`echo "$code" | cut -c$((${marker} + 1))-`
+fi
+echo Code starting with the faulting instruction  > $T.aa
+echo =========================================== >> $T.aa
+code=`echo $code | sed -e 's/ [<(]/ /;s/[>)] / /;s/ /,0x/g; s/[>)]$//'`
+echo -n "	.$type 0x" > $T.s
+echo $code >> $T.s
+disas $T
+cat $T.dis >> $T.aa
+
+faultline=`cat $T.dis | head -1 | cut -d":" -f2`
+faultline=`echo "$faultline" | sed -e 's/\[/\\\[/g; s/\]/\\\]/g'`
+
+cat $T.oo | sed -e "s/\($faultline\)/\*\1     <-- trapping instruction/g"
+echo
+cat $T.aa
+cleanup

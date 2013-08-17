@@ -1,0 +1,124 @@
+#!/bin/sh
+#
+#	Output a simple RPM spec file that uses no fancy features requiring
+#	RPM v4. This is intended to work with any RPM distro.
+#
+#	The only gothic bit here is redefining install_post to avoid
+#	stripping the symbols from files in the kernel which we want
+#
+#	Patched for non-x86 by Opencon (L) 2002 <opencon@rio.skydome.net>
+#
+
+# how we were called determines which rpms we build and how we build them
+if [ "$1" = "prebuilt" ]; then
+	PREBUILT=true
+else
+	PREBUILT=false
+fi
+
+# starting to output the spec
+if [ "`grep CONFIG_DRM=y .config | cut -f2 -d\=`" = "y" ]; then
+	PROVIDES=kernel-drm
+fi
+
+PROVIDES="$PROVIDES kernel-$KERNELRELEASE"
+__KERNELRELEASE=`echo $KERNELRELEASE | sed -e "s/-/_/g"`
+
+echo "Name: kernel"
+echo "Summary: The Linux Kernel"
+echo "Version: $__KERNELRELEASE"
+# we need to determine the NEXT version number so that uname and
+# rpm -q will agree
+echo "Release: `. $srctree/scripts/mkversion`"
+echo "License: GPL"
+echo "Group: System Environment/Kernel"
+echo "Vendor: The Linux Community"
+echo "URL: http://www.kernel.org"
+
+if ! $PREBUILT; then
+echo "Source: kernel-$__KERNELRELEASE.tar.gz"
+fi
+
+echo "BuildRoot: %{_tmppath}/%{name}-%{PACKAGE_VERSION}-root"
+echo "Provides: $PROVIDES"
+echo "%define __spec_install_post /usr/lib/rpm/brp-compress || :"
+echo "%define debug_package %{nil}"
+echo ""
+echo "%description"
+echo "The Linux Kernel, the operating system core itself"
+echo ""
+echo "%package headers"
+echo "Summary: Header files for the Linux kernel for use by glibc"
+echo "Group: Development/System"
+echo "Obsoletes: kernel-headers"
+echo "Provides: kernel-headers = %{version}"
+echo "%description headers"
+echo "Kernel-headers includes the C header files that specify the interface"
+echo "between the Linux kernel and userspace libraries and programs.  The"
+echo "header files define structures and constants that are needed for"
+echo "building most standard programs and are also needed for rebuilding the"
+echo "glibc package."
+echo ""
+
+if ! $PREBUILT; then
+echo "%prep"
+echo "%setup -q"
+echo ""
+fi
+
+echo "%build"
+
+if ! $PREBUILT; then
+echo "make clean && make %{?_smp_mflags}"
+echo ""
+fi
+
+echo "%install"
+echo "%ifarch ia64"
+echo 'mkdir -p $RPM_BUILD_ROOT/boot/efi $RPM_BUILD_ROOT/lib/modules'
+echo 'mkdir -p $RPM_BUILD_ROOT/lib/firmware'
+echo "%else"
+echo 'mkdir -p $RPM_BUILD_ROOT/boot $RPM_BUILD_ROOT/lib/modules'
+echo 'mkdir -p $RPM_BUILD_ROOT/lib/firmware'
+echo "%endif"
+
+echo 'INSTALL_MOD_PATH=$RPM_BUILD_ROOT make %{?_smp_mflags} KBUILD_SRC= modules_install'
+echo "%ifarch ia64"
+echo 'cp $KBUILD_IMAGE $RPM_BUILD_ROOT'"/boot/efi/vmlinuz-$KERNELRELEASE"
+echo 'ln -s '"efi/vmlinuz-$KERNELRELEASE" '$RPM_BUILD_ROOT'"/boot/"
+echo "%else"
+echo "%ifarch ppc64"
+echo "cp vmlinux arch/powerpc/boot"
+echo "cp arch/powerpc/boot/"'$KBUILD_IMAGE $RPM_BUILD_ROOT'"/boot/vmlinuz-$KERNELRELEASE"
+echo "%else"
+echo 'cp $KBUILD_IMAGE $RPM_BUILD_ROOT'"/boot/vmlinuz-$KERNELRELEASE"
+echo "%endif"
+echo "%endif"
+
+echo 'make %{?_smp_mflags} INSTALL_HDR_PATH=$RPM_BUILD_ROOT/usr headers_install'
+echo 'cp System.map $RPM_BUILD_ROOT'"/boot/System.map-$KERNELRELEASE"
+
+echo 'cp .config $RPM_BUILD_ROOT'"/boot/config-$KERNELRELEASE"
+
+echo "%ifnarch ppc64"
+echo 'cp vmlinux vmlinux.orig'
+echo 'bzip2 -9 vmlinux'
+echo 'mv vmlinux.bz2 $RPM_BUILD_ROOT'"/boot/vmlinux-$KERNELRELEASE.bz2"
+echo 'mv vmlinux.orig vmlinux'
+echo "%endif"
+
+echo ""
+echo "%clean"
+echo 'rm -rf $RPM_BUILD_ROOT'
+echo ""
+echo "%files"
+echo '%defattr (-, root, root)'
+echo "%dir /lib/modules"
+echo "/lib/modules/$KERNELRELEASE"
+echo "/lib/firmware"
+echo "/boot/*"
+echo ""
+echo "%files headers"
+echo '%defattr (-, root, root)'
+echo "/usr/include"
+echo ""

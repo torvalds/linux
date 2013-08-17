@@ -1,0 +1,230 @@
+<refentry id="vidioc-enum-dv-presets">
+  <refmeta>
+    <refentrytitle>ioctl VIDIOC_ENUM_DV_PRESETS</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>VIDIOC_ENUM_DV_PRESETS</refname>
+    <refpurpose>Enumerate supported Digital Video presets</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>struct v4l2_dv_enum_preset *<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>VIDIOC_ENUM_DV_PRESETS</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>To query the attributes of a DV preset, applications initialize the
+<structfield>index</structfield> field and zero the reserved array of &v4l2-dv-enum-preset;
+and call the <constant>VIDIOC_ENUM_DV_PRESETS</constant> ioctl with a pointer to this
+structure. Drivers fill the rest of the structure or return an
+&EINVAL; when the index is out of bounds. To enumerate all DV Presets supported,
+applications shall begin at index zero, incrementing by one until the
+driver returns <errorcode>EINVAL</errorcode>. Drivers may enumerate a
+different set of DV presets after switching the video input or
+output.</para>
+
+    <table pgwide="1" frame="none" id="v4l2-dv-enum-preset">
+      <title>struct <structname>v4l2_dv_enum_presets</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>index</structfield></entry>
+	    <entry>Number of the DV preset, set by the
+application.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>preset</structfield></entry>
+	    <entry>This field identifies one of the DV preset values listed in <xref linkend="v4l2-dv-presets-vals"/>.</entry>
+	  </row>
+	  <row>
+	    <entry>__u8</entry>
+	    <entry><structfield>name</structfield>[24]</entry>
+	    <entry>Name of the preset, a NUL-terminated ASCII string, for example: "720P-60", "1080I-60". This information is
+intended for the user.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>width</structfield></entry>
+	    <entry>Width of the active video in pixels for the DV preset.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>height</structfield></entry>
+	    <entry>Height of the active video in lines for the DV preset.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved</structfield>[4]</entry>
+	    <entry>Reserved for future extensions. Drivers must set the array to zero.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table pgwide="1" frame="none" id="v4l2-dv-presets-vals">
+      <title>struct <structname>DV Presets</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>Preset</entry>
+	    <entry>Preset value</entry>
+	    <entry>Description</entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry></entry>
+	    <entry></entry>
+	  </row>
+	  <row>
+	    <entry>V4L2_DV_INVALID</entry>
+	    <entry>0</entry>
+	    <entry>Invalid preset value.</entry>
+	  </row>
+	  <row>
+	    <entry>V4L2_DV_480P59_94</entry>
+	    <entry>1</entry>
+	    <entry>720x480 progressive video at 59.94 fps as per BT.1362.</entry>
+	  </row>
+	  <row>
+	    <entry>V4L2_DV_576P50</entry>
+	    <entry>2</entry>
+	    <entry>720x576 progressive video at 50 fps as per BT.1362.</entry>
+	  </row>
+	  <row>
+	    <entry>V4L2_DV_720P24</entry>
+	    <entry>3</entry>
+	    <entry>1280x720 progressive video at 24 fps as per SMPTE 296M.</entry>
+	  </row>
+	  <row>
+	    <entry>V4L2_DV_720P25</entry>
+	    <entry>4</entry>
+	    <entry>1280x720 progressive video at 25 fps as per SMPTE 296M.</entry>
+	  </row>
+	  <row>
+	    <entry>V4L2_DV_720P30</entry>
+	    <entry>5</entry>
+	    <entry>1280x720 progressive video at 30 fps as per SMPTE 296M.</entry>
+	  </row>
+	  <row>
+	    <entry>V4L2_DV_720P50</entry>
+	    <entry>6</entry>
+	    <entry>1280x720 progressive video at 50 fps as per SMPTE 296M.</entry>
+	  </row>
+	  <row>
+	    <entry>V4L2_DV_720P59_94</entry>
+	    <entry>7</entry>
+	    <entry>1280x720 progressive video at 59.94 fps as per SMPTE 274M.</entry>
+	  </row>
+	  <row>
+	    <entry>V4L2_DV_720P60</entry>
+	    <entry>8</entry>
+	    <entry>1280x720 progressive video at 60 fps as per SMPTE 274M/296M.</entry>
+	  </row>
+	  <row>
+	    <entry>V4L2_DV_1080I29_97</entry>
+	    <entry>9</entry>
+	    <entry>1920x1080 interlaced video at 29.97 fps as per BT.1120/SMPTE 274M.</entry>
+	  </row>
+	  <row>
+	    <entry>V4L2_DV_1080I30</entry>
+	    <entry>10</entry>
+	    <entry>1920x1080 interlaced video at 30 fps as per BT.1120/SMPTE 274M.</entry>
+	  </row>
+	  <row>
+	    <entry>V4L2_DV_1080I25</entry>
+	    <entry>11</entry>
+	    <entry>1920x1080 interlaced video at 25 fps as per BT.1120.</entry>
+	  </row>
+	  <row>
+	    <entry>V4L2_DV_1080I50</entry>
+	    <entry>12</entry>
+	    <entry>1920x1080 interlaced video at 50 fps as per SMPTE 296M.</entry>
+	  </row>
+	  <row>
+	    <entry>V4L2_DV_1080I60</entry>
+	    <entry>13</entry>
+	    <entry>1920x1080 interlaced video at 60 fps as per SMPTE 296M.</entry>
+	  </row>
+	  <row>
+	    <entry>V4L2_DV_1080P24</entry>
+	    <entry>14</entry>
+	    <entry>1920x1080 progressive video at 24 fps as per SMPTE 296M.</entry>
+	  </row>
+	  <row>
+	    <entry>V4L2_DV_1080P25</entry>
+	    <entry>15</entry>
+	    <entry>1920x1080 progressive video at 25 fps as per SMPTE 296M.</entry>
+	  </row>
+	  <row>
+	    <entry>V4L2_DV_1080P30</entry>
+	    <entry>16</entry>
+	    <entry>1920x1080 progressive video at 30 fps as per SMPTE 296M.</entry>
+	  </row>
+	  <row>
+	    <entry>V4L2_DV_1080P50</entry>
+	    <entry>17</entry>
+	    <entry>1920x1080 progressive video at 50 fps as per BT.1120.</entry>
+	  </row>
+	  <row>
+	    <entry>V4L2_DV_1080P60</entry>
+	    <entry>18</entry>
+	    <entry>1920x1080 progressive video at 60 fps as per BT.1120.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+  </refsect1>
+
+  <refsect1>
+    &return-value;
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EINVAL</errorcode></term>
+	<listitem>
+	  <para>The &v4l2-dv-enum-preset; <structfield>index</structfield>
+is out of bounds.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>

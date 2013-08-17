@@ -1,0 +1,89 @@
+config EXT3_FS
+	tristate "Ext3 journalling file system support"
+	select JBD
+	help
+	  This is the journalling version of the Second extended file system
+	  (often called ext3), the de facto standard Linux file system
+	  (method to organize files on a storage device) for hard disks.
+
+	  The journalling code included in this driver means you do not have
+	  to run e2fsck (file system checker) on your file systems after a
+	  crash.  The journal keeps track of any changes that were being made
+	  at the time the system crashed, and can ensure that your file system
+	  is consistent without the need for a lengthy check.
+
+	  Other than adding the journal to the file system, the on-disk format
+	  of ext3 is identical to ext2.  It is possible to freely switch
+	  between using the ext3 driver and the ext2 driver, as long as the
+	  file system has been cleanly unmounted, or e2fsck is run on the file
+	  system.
+
+	  To add a journal on an existing ext2 file system or change the
+	  behavior of ext3 file systems, you can use the tune2fs utility ("man
+	  tune2fs").  To modify attributes of files and directories on ext3
+	  file systems, use chattr ("man chattr").  You need to be using
+	  e2fsprogs version 1.20 or later in order to create ext3 journals
+	  (available at <http://sourceforge.net/projects/e2fsprogs/>).
+
+	  To compile this file system support as a module, choose M here: the
+	  module will be called ext3.
+
+config EXT3_DEFAULTS_TO_ORDERED
+	bool "Default to 'data=ordered' in ext3"
+	depends on EXT3_FS
+	default y
+	help
+	  The journal mode options for ext3 have different tradeoffs
+	  between when data is guaranteed to be on disk and
+	  performance.	The use of "data=writeback" can cause
+	  unwritten data to appear in files after an system crash or
+	  power failure, which can be a security issue.	 However,
+	  "data=ordered" mode can also result in major performance
+	  problems, including seconds-long delays before an fsync()
+	  call returns.	 For details, see:
+
+	  http://ext4.wiki.kernel.org/index.php/Ext3_data_mode_tradeoffs
+
+	  If you have been historically happy with ext3's performance,
+	  data=ordered mode will be a safe choice and you should
+	  answer 'y' here.  If you understand the reliability and data
+	  privacy issues of data=writeback and are willing to make
+	  that trade off, answer 'n'.
+
+config EXT3_FS_XATTR
+	bool "Ext3 extended attributes"
+	depends on EXT3_FS
+	default y
+	help
+	  Extended attributes are name:value pairs associated with inodes by
+	  the kernel or by users (see the attr(5) manual page, or visit
+	  <http://acl.bestbits.at/> for details).
+
+	  If unsure, say N.
+
+	  You need this for POSIX ACL support on ext3.
+
+config EXT3_FS_POSIX_ACL
+	bool "Ext3 POSIX Access Control Lists"
+	depends on EXT3_FS_XATTR
+	select FS_POSIX_ACL
+	help
+	  Posix Access Control Lists (ACLs) support permissions for users and
+	  groups beyond the owner/group/world scheme.
+
+	  To learn more about Access Control Lists, visit the Posix ACLs for
+	  Linux website <http://acl.bestbits.at/>.
+
+	  If you don't know what Access Control Lists are, say N
+
+config EXT3_FS_SECURITY
+	bool "Ext3 Security Labels"
+	depends on EXT3_FS_XATTR
+	help
+	  Security labels support alternative access control models
+	  implemented by security modules like SELinux.  This option
+	  enables an extended attribute handler for file security
+	  labels in the ext3 filesystem.
+
+	  If you are not using a security module that requires using
+	  extended attributes for file security labels, say N.

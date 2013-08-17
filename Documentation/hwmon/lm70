@@ -1,0 +1,41 @@
+Kernel driver lm70
+==================
+
+Supported chips:
+  * National Semiconductor LM70
+    Datasheet: http://www.national.com/pf/LM/LM70.html
+  * Texas Instruments TMP121/TMP123
+    Information: http://focus.ti.com/docs/prod/folders/print/tmp121.html
+
+Author:
+        Kaiwan N Billimoria <kaiwan@designergraphix.com>
+
+Description
+-----------
+
+This driver implements support for the National Semiconductor LM70
+temperature sensor.
+
+The LM70 temperature sensor chip supports a single temperature sensor.
+It communicates with a host processor (or microcontroller) via an
+SPI/Microwire Bus interface.
+
+Communication with the LM70 is simple: when the temperature is to be sensed,
+the driver accesses the LM70 using SPI communication: 16 SCLK cycles
+comprise the MOSI/MISO loop. At the end of the transfer, the 11-bit 2's
+complement digital temperature (sent via the SIO line), is available in the
+driver for interpretation. This driver makes use of the kernel's in-core
+SPI support.
+
+As a real (in-tree) example of this "SPI protocol driver" interfacing
+with a "SPI master controller driver", see drivers/spi/spi_lm70llp.c
+and its associated documentation.
+
+The TMP121/TMP123 are very similar; main differences are 4 wire SPI inter-
+face (read only) and 13-bit temperature data (0.0625 degrees celsius reso-
+lution).
+
+Thanks to
+---------
+Jean Delvare <khali@linux-fr.org> for mentoring the hwmon-side driver
+development.

@@ -1,0 +1,8 @@
+# Makefile.libfdt
+#
+# This is not a complete Makefile of itself.  Instead, it is designed to
+# be easily embeddable into other systems of Makefiles.
+#
+LIBFDT_INCLUDES = fdt.h libfdt.h
+LIBFDT_SRCS = fdt.c fdt_ro.c fdt_wip.c fdt_sw.c fdt_rw.c fdt_strerror.c
+LIBFDT_OBJS = $(LIBFDT_SRCS:%.c=%.o)

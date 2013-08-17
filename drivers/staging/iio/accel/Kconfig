@@ -1,0 +1,105 @@
+#
+# Accelerometer drivers
+#
+menu "Accelerometers"
+
+config ADIS16201
+	tristate "Analog Devices ADIS16201 Dual-Axis Digital Inclinometer and Accelerometer"
+	depends on SPI
+	select IIO_TRIGGER if IIO_BUFFER
+	select IIO_SW_RING if IIO_BUFFER
+	help
+	  Say yes here to build support for Analog Devices adis16201 dual-axis
+	  digital inclinometer and accelerometer.
+
+config ADIS16203
+	tristate "Analog Devices ADIS16203 Programmable 360 Degrees Inclinometer"
+	depends on SPI
+	select IIO_TRIGGER if IIO_BUFFER
+	select IIO_SW_RING if IIO_BUFFER
+	help
+	  Say yes here to build support for Analog Devices adis16203 Programmable
+	  360 Degrees Inclinometer.
+
+config ADIS16204
+	tristate "Analog Devices ADIS16204 Programmable High-g Digital Impact Sensor and Recorder"
+	depends on SPI
+	select IIO_TRIGGER if IIO_BUFFER
+	select IIO_SW_RING if IIO_BUFFER
+	help
+	  Say yes here to build support for Analog Devices adis16204 Programmable
+	  High-g Digital Impact Sensor and Recorder.
+
+config ADIS16209
+	tristate "Analog Devices ADIS16209 Dual-Axis Digital Inclinometer and Accelerometer"
+	depends on SPI
+	select IIO_TRIGGER if IIO_BUFFER
+	select IIO_SW_RING if IIO_BUFFER
+	help
+	  Say yes here to build support for Analog Devices adis16209 dual-axis digital inclinometer
+	  and accelerometer.
+
+config ADIS16220
+	tristate "Analog Devices ADIS16220 Programmable Digital Vibration Sensor"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices adis16220 programmable
+	  digital vibration sensor.
+
+config ADIS16240
+	tristate "Analog Devices ADIS16240 Programmable Impact Sensor and Recorder"
+	depends on SPI
+	select IIO_TRIGGER if IIO_BUFFER
+	select IIO_SW_RING if IIO_BUFFER
+	help
+	  Say yes here to build support for Analog Devices adis16240 programmable
+	  impact Sensor and recorder.
+
+config KXSD9
+	tristate "Kionix KXSD9 Accelerometer Driver"
+	depends on SPI
+	help
+	  Say yes here to build support for the Kionix KXSD9 accelerometer.
+	  Currently this only supports the device via an SPI interface.
+
+config LIS3L02DQ
+	tristate "ST Microelectronics LIS3L02DQ Accelerometer Driver"
+	depends on SPI
+	select IIO_TRIGGER if IIO_BUFFER
+	depends on !IIO_BUFFER || IIO_KFIFO_BUF || IIO_SW_RING
+	depends on GENERIC_GPIO
+	help
+	  Say yes here to build SPI support for the ST microelectronics
+	  accelerometer. The driver supplies direct access via sysfs files
+	  and an event interface via a character device.
+
+choice
+	prompt "Buffer type"
+       	depends on LIS3L02DQ && IIO_BUFFER
+
+config LIS3L02DQ_BUF_KFIFO
+       depends on IIO_KFIFO_BUF
+       bool "Simple FIFO"
+       help
+         Kfifo based FIFO.  Does not provide any events so it is up
+	 to userspace to ensure it reads often enough that data is not
+	 lost.
+
+config LIS3L02DQ_BUF_RING_SW
+       depends on IIO_SW_RING
+       bool "IIO Software Ring"
+       help
+         Original IIO ring buffer implementation.  Provides simple
+	 buffer events, half full etc.
+
+endchoice
+
+config SCA3000
+	depends on IIO_BUFFER
+	depends on SPI
+	tristate "VTI SCA3000 series accelerometers"
+	help
+	  Say yes here to build support for the VTI SCA3000 series of SPI
+	  accelerometers. These devices use a hardware ring buffer.
+
+endmenu

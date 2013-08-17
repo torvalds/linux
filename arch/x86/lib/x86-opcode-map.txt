@@ -1,0 +1,955 @@
+# x86 Opcode Maps
+#
+# This is (mostly) based on following documentations.
+# - Intel(R) 64 and IA-32 Architectures Software Developer's Manual Vol.2
+#   (#325383-040US, October 2011)
+# - Intel(R) Advanced Vector Extensions Programming Reference
+#   (#319433-011,JUNE 2011).
+#
+#<Opcode maps>
+# Table: table-name
+# Referrer: escaped-name
+# AVXcode: avx-code
+# opcode: mnemonic|GrpXXX [operand1[,operand2...]] [(extra1)[,(extra2)...] [| 2nd-mnemonic ...]
+# (or)
+# opcode: escape # escaped-name
+# EndTable
+#
+#<group maps>
+# GrpTable: GrpXXX
+# reg:  mnemonic [operand1[,operand2...]] [(extra1)[,(extra2)...] [| 2nd-mnemonic ...]
+# EndTable
+#
+# AVX Superscripts
+#  (v): this opcode requires VEX prefix.
+#  (v1): this opcode only supports 128bit VEX.
+#
+# Last Prefix Superscripts
+#  - (66): the last prefix is 0x66
+#  - (F3): the last prefix is 0xF3
+#  - (F2): the last prefix is 0xF2
+#
+
+Table: one byte opcode
+Referrer:
+AVXcode:
+# 0x00 - 0x0f
+00: ADD Eb,Gb
+01: ADD Ev,Gv
+02: ADD Gb,Eb
+03: ADD Gv,Ev
+04: ADD AL,Ib
+05: ADD rAX,Iz
+06: PUSH ES (i64)
+07: POP ES (i64)
+08: OR Eb,Gb
+09: OR Ev,Gv
+0a: OR Gb,Eb
+0b: OR Gv,Ev
+0c: OR AL,Ib
+0d: OR rAX,Iz
+0e: PUSH CS (i64)
+0f: escape # 2-byte escape
+# 0x10 - 0x1f
+10: ADC Eb,Gb
+11: ADC Ev,Gv
+12: ADC Gb,Eb
+13: ADC Gv,Ev
+14: ADC AL,Ib
+15: ADC rAX,Iz
+16: PUSH SS (i64)
+17: POP SS (i64)
+18: SBB Eb,Gb
+19: SBB Ev,Gv
+1a: SBB Gb,Eb
+1b: SBB Gv,Ev
+1c: SBB AL,Ib
+1d: SBB rAX,Iz
+1e: PUSH DS (i64)
+1f: POP DS (i64)
+# 0x20 - 0x2f
+20: AND Eb,Gb
+21: AND Ev,Gv
+22: AND Gb,Eb
+23: AND Gv,Ev
+24: AND AL,Ib
+25: AND rAx,Iz
+26: SEG=ES (Prefix)
+27: DAA (i64)
+28: SUB Eb,Gb
+29: SUB Ev,Gv
+2a: SUB Gb,Eb
+2b: SUB Gv,Ev
+2c: SUB AL,Ib
+2d: SUB rAX,Iz
+2e: SEG=CS (Prefix)
+2f: DAS (i64)
+# 0x30 - 0x3f
+30: XOR Eb,Gb
+31: XOR Ev,Gv
+32: XOR Gb,Eb
+33: XOR Gv,Ev
+34: XOR AL,Ib
+35: XOR rAX,Iz
+36: SEG=SS (Prefix)
+37: AAA (i64)
+38: CMP Eb,Gb
+39: CMP Ev,Gv
+3a: CMP Gb,Eb
+3b: CMP Gv,Ev
+3c: CMP AL,Ib
+3d: CMP rAX,Iz
+3e: SEG=DS (Prefix)
+3f: AAS (i64)
+# 0x40 - 0x4f
+40: INC eAX (i64) | REX (o64)
+41: INC eCX (i64) | REX.B (o64)
+42: INC eDX (i64) | REX.X (o64)
+43: INC eBX (i64) | REX.XB (o64)
+44: INC eSP (i64) | REX.R (o64)
+45: INC eBP (i64) | REX.RB (o64)
+46: INC eSI (i64) | REX.RX (o64)
+47: INC eDI (i64) | REX.RXB (o64)
+48: DEC eAX (i64) | REX.W (o64)
+49: DEC eCX (i64) | REX.WB (o64)
+4a: DEC eDX (i64) | REX.WX (o64)
+4b: DEC eBX (i64) | REX.WXB (o64)
+4c: DEC eSP (i64) | REX.WR (o64)
+4d: DEC eBP (i64) | REX.WRB (o64)
+4e: DEC eSI (i64) | REX.WRX (o64)
+4f: DEC eDI (i64) | REX.WRXB (o64)
+# 0x50 - 0x5f
+50: PUSH rAX/r8 (d64)
+51: PUSH rCX/r9 (d64)
+52: PUSH rDX/r10 (d64)
+53: PUSH rBX/r11 (d64)
+54: PUSH rSP/r12 (d64)
+55: PUSH rBP/r13 (d64)
+56: PUSH rSI/r14 (d64)
+57: PUSH rDI/r15 (d64)
+58: POP rAX/r8 (d64)
+59: POP rCX/r9 (d64)
+5a: POP rDX/r10 (d64)
+5b: POP rBX/r11 (d64)
+5c: POP rSP/r12 (d64)
+5d: POP rBP/r13 (d64)
+5e: POP rSI/r14 (d64)
+5f: POP rDI/r15 (d64)
+# 0x60 - 0x6f
+60: PUSHA/PUSHAD (i64)
+61: POPA/POPAD (i64)
+62: BOUND Gv,Ma (i64)
+63: ARPL Ew,Gw (i64) | MOVSXD Gv,Ev (o64)
+64: SEG=FS (Prefix)
+65: SEG=GS (Prefix)
+66: Operand-Size (Prefix)
+67: Address-Size (Prefix)
+68: PUSH Iz (d64)
+69: IMUL Gv,Ev,Iz
+6a: PUSH Ib (d64)
+6b: IMUL Gv,Ev,Ib
+6c: INS/INSB Yb,DX
+6d: INS/INSW/INSD Yz,DX
+6e: OUTS/OUTSB DX,Xb
+6f: OUTS/OUTSW/OUTSD DX,Xz
+# 0x70 - 0x7f
+70: JO Jb
+71: JNO Jb
+72: JB/JNAE/JC Jb
+73: JNB/JAE/JNC Jb
+74: JZ/JE Jb
+75: JNZ/JNE Jb
+76: JBE/JNA Jb
+77: JNBE/JA Jb
+78: JS Jb
+79: JNS Jb
+7a: JP/JPE Jb
+7b: JNP/JPO Jb
+7c: JL/JNGE Jb
+7d: JNL/JGE Jb
+7e: JLE/JNG Jb
+7f: JNLE/JG Jb
+# 0x80 - 0x8f
+80: Grp1 Eb,Ib (1A)
+81: Grp1 Ev,Iz (1A)
+82: Grp1 Eb,Ib (1A),(i64)
+83: Grp1 Ev,Ib (1A)
+84: TEST Eb,Gb
+85: TEST Ev,Gv
+86: XCHG Eb,Gb
+87: XCHG Ev,Gv
+88: MOV Eb,Gb
+89: MOV Ev,Gv
+8a: MOV Gb,Eb
+8b: MOV Gv,Ev
+8c: MOV Ev,Sw
+8d: LEA Gv,M
+8e: MOV Sw,Ew
+8f: Grp1A (1A) | POP Ev (d64)
+# 0x90 - 0x9f
+90: NOP | PAUSE (F3) | XCHG r8,rAX
+91: XCHG rCX/r9,rAX
+92: XCHG rDX/r10,rAX
+93: XCHG rBX/r11,rAX
+94: XCHG rSP/r12,rAX
+95: XCHG rBP/r13,rAX
+96: XCHG rSI/r14,rAX
+97: XCHG rDI/r15,rAX
+98: CBW/CWDE/CDQE
+99: CWD/CDQ/CQO
+9a: CALLF Ap (i64)
+9b: FWAIT/WAIT
+9c: PUSHF/D/Q Fv (d64)
+9d: POPF/D/Q Fv (d64)
+9e: SAHF
+9f: LAHF
+# 0xa0 - 0xaf
+a0: MOV AL,Ob
+a1: MOV rAX,Ov
+a2: MOV Ob,AL
+a3: MOV Ov,rAX
+a4: MOVS/B Yb,Xb
+a5: MOVS/W/D/Q Yv,Xv
+a6: CMPS/B Xb,Yb
+a7: CMPS/W/D Xv,Yv
+a8: TEST AL,Ib
+a9: TEST rAX,Iz
+aa: STOS/B Yb,AL
+ab: STOS/W/D/Q Yv,rAX
+ac: LODS/B AL,Xb
+ad: LODS/W/D/Q rAX,Xv
+ae: SCAS/B AL,Yb
+# Note: The May 2011 Intel manual shows Xv for the second parameter of the
+# next instruction but Yv is correct
+af: SCAS/W/D/Q rAX,Yv
+# 0xb0 - 0xbf
+b0: MOV AL/R8L,Ib
+b1: MOV CL/R9L,Ib
+b2: MOV DL/R10L,Ib
+b3: MOV BL/R11L,Ib
+b4: MOV AH/R12L,Ib
+b5: MOV CH/R13L,Ib
+b6: MOV DH/R14L,Ib
+b7: MOV BH/R15L,Ib
+b8: MOV rAX/r8,Iv
+b9: MOV rCX/r9,Iv
+ba: MOV rDX/r10,Iv
+bb: MOV rBX/r11,Iv
+bc: MOV rSP/r12,Iv
+bd: MOV rBP/r13,Iv
+be: MOV rSI/r14,Iv
+bf: MOV rDI/r15,Iv
+# 0xc0 - 0xcf
+c0: Grp2 Eb,Ib (1A)
+c1: Grp2 Ev,Ib (1A)
+c2: RETN Iw (f64)
+c3: RETN
+c4: LES Gz,Mp (i64) | VEX+2byte (Prefix)
+c5: LDS Gz,Mp (i64) | VEX+1byte (Prefix)
+c6: Grp11 Eb,Ib (1A)
+c7: Grp11 Ev,Iz (1A)
+c8: ENTER Iw,Ib
+c9: LEAVE (d64)
+ca: RETF Iw
+cb: RETF
+cc: INT3
+cd: INT Ib
+ce: INTO (i64)
+cf: IRET/D/Q
+# 0xd0 - 0xdf
+d0: Grp2 Eb,1 (1A)
+d1: Grp2 Ev,1 (1A)
+d2: Grp2 Eb,CL (1A)
+d3: Grp2 Ev,CL (1A)
+d4: AAM Ib (i64)
+d5: AAD Ib (i64)
+d6:
+d7: XLAT/XLATB
+d8: ESC
+d9: ESC
+da: ESC
+db: ESC
+dc: ESC
+dd: ESC
+de: ESC
+df: ESC
+# 0xe0 - 0xef
+e0: LOOPNE/LOOPNZ Jb (f64)
+e1: LOOPE/LOOPZ Jb (f64)
+e2: LOOP Jb (f64)
+e3: JrCXZ Jb (f64)
+e4: IN AL,Ib
+e5: IN eAX,Ib
+e6: OUT Ib,AL
+e7: OUT Ib,eAX
+e8: CALL Jz (f64)
+e9: JMP-near Jz (f64)
+ea: JMP-far Ap (i64)
+eb: JMP-short Jb (f64)
+ec: IN AL,DX
+ed: IN eAX,DX
+ee: OUT DX,AL
+ef: OUT DX,eAX
+# 0xf0 - 0xff
+f0: LOCK (Prefix)
+f1:
+f2: REPNE (Prefix)
+f3: REP/REPE (Prefix)
+f4: HLT
+f5: CMC
+f6: Grp3_1 Eb (1A)
+f7: Grp3_2 Ev (1A)
+f8: CLC
+f9: STC
+fa: CLI
+fb: STI
+fc: CLD
+fd: STD
+fe: Grp4 (1A)
+ff: Grp5 (1A)
+EndTable
+
+Table: 2-byte opcode (0x0f)
+Referrer: 2-byte escape
+AVXcode: 1
+# 0x0f 0x00-0x0f
+00: Grp6 (1A)
+01: Grp7 (1A)
+02: LAR Gv,Ew
+03: LSL Gv,Ew
+04:
+05: SYSCALL (o64)
+06: CLTS
+07: SYSRET (o64)
+08: INVD
+09: WBINVD
+0a:
+0b: UD2 (1B)
+0c:
+0d: NOP Ev | GrpP
+0e: FEMMS
+# 3DNow! uses the last imm byte as opcode extension.
+0f: 3DNow! Pq,Qq,Ib
+# 0x0f 0x10-0x1f
+# NOTE: According to Intel SDM opcode map, vmovups and vmovupd has no operands
+# but it actually has operands. And also, vmovss and vmovsd only accept 128bit.
+# MOVSS/MOVSD has too many forms(3) on SDM. This map just shows a typical form.
+# Many AVX instructions lack v1 superscript, according to Intel AVX-Prgramming
+# Reference A.1
+10: vmovups Vps,Wps | vmovupd Vpd,Wpd (66) | vmovss Vx,Hx,Wss (F3),(v1) | vmovsd Vx,Hx,Wsd (F2),(v1)
+11: vmovups Wps,Vps | vmovupd Wpd,Vpd (66) | vmovss Wss,Hx,Vss (F3),(v1) | vmovsd Wsd,Hx,Vsd (F2),(v1)
+12: vmovlps Vq,Hq,Mq (v1) | vmovhlps Vq,Hq,Uq (v1) | vmovlpd Vq,Hq,Mq (66),(v1) | vmovsldup Vx,Wx (F3) | vmovddup Vx,Wx (F2)
+13: vmovlps Mq,Vq (v1) | vmovlpd Mq,Vq (66),(v1)
+14: vunpcklps Vx,Hx,Wx | vunpcklpd Vx,Hx,Wx (66)
+15: vunpckhps Vx,Hx,Wx | vunpckhpd Vx,Hx,Wx (66)
+16: vmovhps Vdq,Hq,Mq (v1) | vmovlhps Vdq,Hq,Uq (v1) | vmovhpd Vdq,Hq,Mq (66),(v1) | vmovshdup Vx,Wx (F3)
+17: vmovhps Mq,Vq (v1) | vmovhpd Mq,Vq (66),(v1)
+18: Grp16 (1A)
+19:
+1a:
+1b:
+1c:
+1d:
+1e:
+1f: NOP Ev
+# 0x0f 0x20-0x2f
+20: MOV Rd,Cd
+21: MOV Rd,Dd
+22: MOV Cd,Rd
+23: MOV Dd,Rd
+24:
+25:
+26:
+27:
+28: vmovaps Vps,Wps | vmovapd Vpd,Wpd (66)
+29: vmovaps Wps,Vps | vmovapd Wpd,Vpd (66)
+2a: cvtpi2ps Vps,Qpi | cvtpi2pd Vpd,Qpi (66) | vcvtsi2ss Vss,Hss,Ey (F3),(v1) | vcvtsi2sd Vsd,Hsd,Ey (F2),(v1)
+2b: vmovntps Mps,Vps | vmovntpd Mpd,Vpd (66)
+2c: cvttps2pi Ppi,Wps | cvttpd2pi Ppi,Wpd (66) | vcvttss2si Gy,Wss (F3),(v1) | vcvttsd2si Gy,Wsd (F2),(v1)
+2d: cvtps2pi Ppi,Wps | cvtpd2pi Qpi,Wpd (66) | vcvtss2si Gy,Wss (F3),(v1) | vcvtsd2si Gy,Wsd (F2),(v1)
+2e: vucomiss Vss,Wss (v1) | vucomisd  Vsd,Wsd (66),(v1)
+2f: vcomiss Vss,Wss (v1) | vcomisd  Vsd,Wsd (66),(v1)
+# 0x0f 0x30-0x3f
+30: WRMSR
+31: RDTSC
+32: RDMSR
+33: RDPMC
+34: SYSENTER
+35: SYSEXIT
+36:
+37: GETSEC
+38: escape # 3-byte escape 1
+39:
+3a: escape # 3-byte escape 2
+3b:
+3c:
+3d:
+3e:
+3f:
+# 0x0f 0x40-0x4f
+40: CMOVO Gv,Ev
+41: CMOVNO Gv,Ev
+42: CMOVB/C/NAE Gv,Ev
+43: CMOVAE/NB/NC Gv,Ev
+44: CMOVE/Z Gv,Ev
+45: CMOVNE/NZ Gv,Ev
+46: CMOVBE/NA Gv,Ev
+47: CMOVA/NBE Gv,Ev
+48: CMOVS Gv,Ev
+49: CMOVNS Gv,Ev
+4a: CMOVP/PE Gv,Ev
+4b: CMOVNP/PO Gv,Ev
+4c: CMOVL/NGE Gv,Ev
+4d: CMOVNL/GE Gv,Ev
+4e: CMOVLE/NG Gv,Ev
+4f: CMOVNLE/G Gv,Ev
+# 0x0f 0x50-0x5f
+50: vmovmskps Gy,Ups | vmovmskpd Gy,Upd (66)
+51: vsqrtps Vps,Wps | vsqrtpd Vpd,Wpd (66) | vsqrtss Vss,Hss,Wss (F3),(v1) | vsqrtsd Vsd,Hsd,Wsd (F2),(v1)
+52: vrsqrtps Vps,Wps | vrsqrtss Vss,Hss,Wss (F3),(v1)
+53: vrcpps Vps,Wps | vrcpss Vss,Hss,Wss (F3),(v1)
+54: vandps Vps,Hps,Wps | vandpd Vpd,Hpd,Wpd (66)
+55: vandnps Vps,Hps,Wps | vandnpd Vpd,Hpd,Wpd (66)
+56: vorps Vps,Hps,Wps | vorpd Vpd,Hpd,Wpd (66)
+57: vxorps Vps,Hps,Wps | vxorpd Vpd,Hpd,Wpd (66)
+58: vaddps Vps,Hps,Wps | vaddpd Vpd,Hpd,Wpd (66) | vaddss Vss,Hss,Wss (F3),(v1) | vaddsd Vsd,Hsd,Wsd (F2),(v1)
+59: vmulps Vps,Hps,Wps | vmulpd Vpd,Hpd,Wpd (66) | vmulss Vss,Hss,Wss (F3),(v1) | vmulsd Vsd,Hsd,Wsd (F2),(v1)
+5a: vcvtps2pd Vpd,Wps | vcvtpd2ps Vps,Wpd (66) | vcvtss2sd Vsd,Hx,Wss (F3),(v1) | vcvtsd2ss Vss,Hx,Wsd (F2),(v1)
+5b: vcvtdq2ps Vps,Wdq | vcvtps2dq Vdq,Wps (66) | vcvttps2dq Vdq,Wps (F3)
+5c: vsubps Vps,Hps,Wps | vsubpd Vpd,Hpd,Wpd (66) | vsubss Vss,Hss,Wss (F3),(v1) | vsubsd Vsd,Hsd,Wsd (F2),(v1)
+5d: vminps Vps,Hps,Wps | vminpd Vpd,Hpd,Wpd (66) | vminss Vss,Hss,Wss (F3),(v1) | vminsd Vsd,Hsd,Wsd (F2),(v1)
+5e: vdivps Vps,Hps,Wps | vdivpd Vpd,Hpd,Wpd (66) | vdivss Vss,Hss,Wss (F3),(v1) | vdivsd Vsd,Hsd,Wsd (F2),(v1)
+5f: vmaxps Vps,Hps,Wps | vmaxpd Vpd,Hpd,Wpd (66) | vmaxss Vss,Hss,Wss (F3),(v1) | vmaxsd Vsd,Hsd,Wsd (F2),(v1)
+# 0x0f 0x60-0x6f
+60: punpcklbw Pq,Qd | vpunpcklbw Vx,Hx,Wx (66),(v1)
+61: punpcklwd Pq,Qd | vpunpcklwd Vx,Hx,Wx (66),(v1)
+62: punpckldq Pq,Qd | vpunpckldq Vx,Hx,Wx (66),(v1)
+63: packsswb Pq,Qq | vpacksswb Vx,Hx,Wx (66),(v1)
+64: pcmpgtb Pq,Qq | vpcmpgtb Vx,Hx,Wx (66),(v1)
+65: pcmpgtw Pq,Qq | vpcmpgtw Vx,Hx,Wx (66),(v1)
+66: pcmpgtd Pq,Qq | vpcmpgtd Vx,Hx,Wx (66),(v1)
+67: packuswb Pq,Qq | vpackuswb Vx,Hx,Wx (66),(v1)
+68: punpckhbw Pq,Qd | vpunpckhbw Vx,Hx,Wx (66),(v1)
+69: punpckhwd Pq,Qd | vpunpckhwd Vx,Hx,Wx (66),(v1)
+6a: punpckhdq Pq,Qd | vpunpckhdq Vx,Hx,Wx (66),(v1)
+6b: packssdw Pq,Qd | vpackssdw Vx,Hx,Wx (66),(v1)
+6c: vpunpcklqdq Vx,Hx,Wx (66),(v1)
+6d: vpunpckhqdq Vx,Hx,Wx (66),(v1)
+6e: movd/q Pd,Ey | vmovd/q Vy,Ey (66),(v1)
+6f: movq Pq,Qq | vmovdqa Vx,Wx (66) | vmovdqu Vx,Wx (F3)
+# 0x0f 0x70-0x7f
+70: pshufw Pq,Qq,Ib | vpshufd Vx,Wx,Ib (66),(v1) | vpshufhw Vx,Wx,Ib (F3),(v1) | vpshuflw Vx,Wx,Ib (F2),(v1)
+71: Grp12 (1A)
+72: Grp13 (1A)
+73: Grp14 (1A)
+74: pcmpeqb Pq,Qq | vpcmpeqb Vx,Hx,Wx (66),(v1)
+75: pcmpeqw Pq,Qq | vpcmpeqw Vx,Hx,Wx (66),(v1)
+76: pcmpeqd Pq,Qq | vpcmpeqd Vx,Hx,Wx (66),(v1)
+# Note: Remove (v), because vzeroall and vzeroupper becomes emms without VEX.
+77: emms | vzeroupper | vzeroall
+78: VMREAD Ey,Gy
+79: VMWRITE Gy,Ey
+7a:
+7b:
+7c: vhaddpd Vpd,Hpd,Wpd (66) | vhaddps Vps,Hps,Wps (F2)
+7d: vhsubpd Vpd,Hpd,Wpd (66) | vhsubps Vps,Hps,Wps (F2)
+7e: movd/q Ey,Pd | vmovd/q Ey,Vy (66),(v1) | vmovq Vq,Wq (F3),(v1)
+7f: movq Qq,Pq | vmovdqa Wx,Vx (66) | vmovdqu Wx,Vx (F3)
+# 0x0f 0x80-0x8f
+80: JO Jz (f64)
+81: JNO Jz (f64)
+82: JB/JC/JNAE Jz (f64)
+83: JAE/JNB/JNC Jz (f64)
+84: JE/JZ Jz (f64)
+85: JNE/JNZ Jz (f64)
+86: JBE/JNA Jz (f64)
+87: JA/JNBE Jz (f64)
+88: JS Jz (f64)
+89: JNS Jz (f64)
+8a: JP/JPE Jz (f64)
+8b: JNP/JPO Jz (f64)
+8c: JL/JNGE Jz (f64)
+8d: JNL/JGE Jz (f64)
+8e: JLE/JNG Jz (f64)
+8f: JNLE/JG Jz (f64)
+# 0x0f 0x90-0x9f
+90: SETO Eb
+91: SETNO Eb
+92: SETB/C/NAE Eb
+93: SETAE/NB/NC Eb
+94: SETE/Z Eb
+95: SETNE/NZ Eb
+96: SETBE/NA Eb
+97: SETA/NBE Eb
+98: SETS Eb
+99: SETNS Eb
+9a: SETP/PE Eb
+9b: SETNP/PO Eb
+9c: SETL/NGE Eb
+9d: SETNL/GE Eb
+9e: SETLE/NG Eb
+9f: SETNLE/G Eb
+# 0x0f 0xa0-0xaf
+a0: PUSH FS (d64)
+a1: POP FS (d64)
+a2: CPUID
+a3: BT Ev,Gv
+a4: SHLD Ev,Gv,Ib
+a5: SHLD Ev,Gv,CL
+a6: GrpPDLK
+a7: GrpRNG
+a8: PUSH GS (d64)
+a9: POP GS (d64)
+aa: RSM
+ab: BTS Ev,Gv
+ac: SHRD Ev,Gv,Ib
+ad: SHRD Ev,Gv,CL
+ae: Grp15 (1A),(1C)
+af: IMUL Gv,Ev
+# 0x0f 0xb0-0xbf
+b0: CMPXCHG Eb,Gb
+b1: CMPXCHG Ev,Gv
+b2: LSS Gv,Mp
+b3: BTR Ev,Gv
+b4: LFS Gv,Mp
+b5: LGS Gv,Mp
+b6: MOVZX Gv,Eb
+b7: MOVZX Gv,Ew
+b8: JMPE | POPCNT Gv,Ev (F3)
+b9: Grp10 (1A)
+ba: Grp8 Ev,Ib (1A)
+bb: BTC Ev,Gv
+bc: BSF Gv,Ev | TZCNT Gv,Ev (F3)
+bd: BSR Gv,Ev | LZCNT Gv,Ev (F3)
+be: MOVSX Gv,Eb
+bf: MOVSX Gv,Ew
+# 0x0f 0xc0-0xcf
+c0: XADD Eb,Gb
+c1: XADD Ev,Gv
+c2: vcmpps Vps,Hps,Wps,Ib | vcmppd Vpd,Hpd,Wpd,Ib (66) | vcmpss Vss,Hss,Wss,Ib (F3),(v1) | vcmpsd Vsd,Hsd,Wsd,Ib (F2),(v1)
+c3: movnti My,Gy
+c4: pinsrw Pq,Ry/Mw,Ib | vpinsrw Vdq,Hdq,Ry/Mw,Ib (66),(v1)
+c5: pextrw Gd,Nq,Ib | vpextrw Gd,Udq,Ib (66),(v1)
+c6: vshufps Vps,Hps,Wps,Ib | vshufpd Vpd,Hpd,Wpd,Ib (66)
+c7: Grp9 (1A)
+c8: BSWAP RAX/EAX/R8/R8D
+c9: BSWAP RCX/ECX/R9/R9D
+ca: BSWAP RDX/EDX/R10/R10D
+cb: BSWAP RBX/EBX/R11/R11D
+cc: BSWAP RSP/ESP/R12/R12D
+cd: BSWAP RBP/EBP/R13/R13D
+ce: BSWAP RSI/ESI/R14/R14D
+cf: BSWAP RDI/EDI/R15/R15D
+# 0x0f 0xd0-0xdf
+d0: vaddsubpd Vpd,Hpd,Wpd (66) | vaddsubps Vps,Hps,Wps (F2)
+d1: psrlw Pq,Qq | vpsrlw Vx,Hx,Wx (66),(v1)
+d2: psrld Pq,Qq | vpsrld Vx,Hx,Wx (66),(v1)
+d3: psrlq Pq,Qq | vpsrlq Vx,Hx,Wx (66),(v1)
+d4: paddq Pq,Qq | vpaddq Vx,Hx,Wx (66),(v1)
+d5: pmullw Pq,Qq | vpmullw Vx,Hx,Wx (66),(v1)
+d6: vmovq Wq,Vq (66),(v1) | movq2dq Vdq,Nq (F3) | movdq2q Pq,Uq (F2)
+d7: pmovmskb Gd,Nq | vpmovmskb Gd,Ux (66),(v1)
+d8: psubusb Pq,Qq | vpsubusb Vx,Hx,Wx (66),(v1)
+d9: psubusw Pq,Qq | vpsubusw Vx,Hx,Wx (66),(v1)
+da: pminub Pq,Qq | vpminub Vx,Hx,Wx (66),(v1)
+db: pand Pq,Qq | vpand Vx,Hx,Wx (66),(v1)
+dc: paddusb Pq,Qq | vpaddusb Vx,Hx,Wx (66),(v1)
+dd: paddusw Pq,Qq | vpaddusw Vx,Hx,Wx (66),(v1)
+de: pmaxub Pq,Qq | vpmaxub Vx,Hx,Wx (66),(v1)
+df: pandn Pq,Qq | vpandn Vx,Hx,Wx (66),(v1)
+# 0x0f 0xe0-0xef
+e0: pavgb Pq,Qq | vpavgb Vx,Hx,Wx (66),(v1)
+e1: psraw Pq,Qq | vpsraw Vx,Hx,Wx (66),(v1)
+e2: psrad Pq,Qq | vpsrad Vx,Hx,Wx (66),(v1)
+e3: pavgw Pq,Qq | vpavgw Vx,Hx,Wx (66),(v1)
+e4: pmulhuw Pq,Qq | vpmulhuw Vx,Hx,Wx (66),(v1)
+e5: pmulhw Pq,Qq | vpmulhw Vx,Hx,Wx (66),(v1)
+e6: vcvttpd2dq Vx,Wpd (66) | vcvtdq2pd Vx,Wdq (F3) | vcvtpd2dq Vx,Wpd (F2)
+e7: movntq Mq,Pq | vmovntdq Mx,Vx (66)
+e8: psubsb Pq,Qq | vpsubsb Vx,Hx,Wx (66),(v1)
+e9: psubsw Pq,Qq | vpsubsw Vx,Hx,Wx (66),(v1)
+ea: pminsw Pq,Qq | vpminsw Vx,Hx,Wx (66),(v1)
+eb: por Pq,Qq | vpor Vx,Hx,Wx (66),(v1)
+ec: paddsb Pq,Qq | vpaddsb Vx,Hx,Wx (66),(v1)
+ed: paddsw Pq,Qq | vpaddsw Vx,Hx,Wx (66),(v1)
+ee: pmaxsw Pq,Qq | vpmaxsw Vx,Hx,Wx (66),(v1)
+ef: pxor Pq,Qq | vpxor Vx,Hx,Wx (66),(v1)
+# 0x0f 0xf0-0xff
+f0: vlddqu Vx,Mx (F2)
+f1: psllw Pq,Qq | vpsllw Vx,Hx,Wx (66),(v1)
+f2: pslld Pq,Qq | vpslld Vx,Hx,Wx (66),(v1)
+f3: psllq Pq,Qq | vpsllq Vx,Hx,Wx (66),(v1)
+f4: pmuludq Pq,Qq | vpmuludq Vx,Hx,Wx (66),(v1)
+f5: pmaddwd Pq,Qq | vpmaddwd Vx,Hx,Wx (66),(v1)
+f6: psadbw Pq,Qq | vpsadbw Vx,Hx,Wx (66),(v1)
+f7: maskmovq Pq,Nq | vmaskmovdqu Vx,Ux (66),(v1)
+f8: psubb Pq,Qq | vpsubb Vx,Hx,Wx (66),(v1)
+f9: psubw Pq,Qq | vpsubw Vx,Hx,Wx (66),(v1)
+fa: psubd Pq,Qq | vpsubd Vx,Hx,Wx (66),(v1)
+fb: psubq Pq,Qq | vpsubq Vx,Hx,Wx (66),(v1)
+fc: paddb Pq,Qq | vpaddb Vx,Hx,Wx (66),(v1)
+fd: paddw Pq,Qq | vpaddw Vx,Hx,Wx (66),(v1)
+fe: paddd Pq,Qq | vpaddd Vx,Hx,Wx (66),(v1)
+ff:
+EndTable
+
+Table: 3-byte opcode 1 (0x0f 0x38)
+Referrer: 3-byte escape 1
+AVXcode: 2
+# 0x0f 0x38 0x00-0x0f
+00: pshufb Pq,Qq | vpshufb Vx,Hx,Wx (66),(v1)
+01: phaddw Pq,Qq | vphaddw Vx,Hx,Wx (66),(v1)
+02: phaddd Pq,Qq | vphaddd Vx,Hx,Wx (66),(v1)
+03: phaddsw Pq,Qq | vphaddsw Vx,Hx,Wx (66),(v1)
+04: pmaddubsw Pq,Qq | vpmaddubsw Vx,Hx,Wx (66),(v1)
+05: phsubw Pq,Qq | vphsubw Vx,Hx,Wx (66),(v1)
+06: phsubd Pq,Qq | vphsubd Vx,Hx,Wx (66),(v1)
+07: phsubsw Pq,Qq | vphsubsw Vx,Hx,Wx (66),(v1)
+08: psignb Pq,Qq | vpsignb Vx,Hx,Wx (66),(v1)
+09: psignw Pq,Qq | vpsignw Vx,Hx,Wx (66),(v1)
+0a: psignd Pq,Qq | vpsignd Vx,Hx,Wx (66),(v1)
+0b: pmulhrsw Pq,Qq | vpmulhrsw Vx,Hx,Wx (66),(v1)
+0c: vpermilps Vx,Hx,Wx (66),(v)
+0d: vpermilpd Vx,Hx,Wx (66),(v)
+0e: vtestps Vx,Wx (66),(v)
+0f: vtestpd Vx,Wx (66),(v)
+# 0x0f 0x38 0x10-0x1f
+10: pblendvb Vdq,Wdq (66)
+11:
+12:
+13: vcvtph2ps Vx,Wx,Ib (66),(v)
+14: blendvps Vdq,Wdq (66)
+15: blendvpd Vdq,Wdq (66)
+16: vpermps Vqq,Hqq,Wqq (66),(v)
+17: vptest Vx,Wx (66)
+18: vbroadcastss Vx,Wd (66),(v)
+19: vbroadcastsd Vqq,Wq (66),(v)
+1a: vbroadcastf128 Vqq,Mdq (66),(v)
+1b:
+1c: pabsb Pq,Qq | vpabsb Vx,Wx (66),(v1)
+1d: pabsw Pq,Qq | vpabsw Vx,Wx (66),(v1)
+1e: pabsd Pq,Qq | vpabsd Vx,Wx (66),(v1)
+1f:
+# 0x0f 0x38 0x20-0x2f
+20: vpmovsxbw Vx,Ux/Mq (66),(v1)
+21: vpmovsxbd Vx,Ux/Md (66),(v1)
+22: vpmovsxbq Vx,Ux/Mw (66),(v1)
+23: vpmovsxwd Vx,Ux/Mq (66),(v1)
+24: vpmovsxwq Vx,Ux/Md (66),(v1)
+25: vpmovsxdq Vx,Ux/Mq (66),(v1)
+26:
+27:
+28: vpmuldq Vx,Hx,Wx (66),(v1)
+29: vpcmpeqq Vx,Hx,Wx (66),(v1)
+2a: vmovntdqa Vx,Mx (66),(v1)
+2b: vpackusdw Vx,Hx,Wx (66),(v1)
+2c: vmaskmovps Vx,Hx,Mx (66),(v)
+2d: vmaskmovpd Vx,Hx,Mx (66),(v)
+2e: vmaskmovps Mx,Hx,Vx (66),(v)
+2f: vmaskmovpd Mx,Hx,Vx (66),(v)
+# 0x0f 0x38 0x30-0x3f
+30: vpmovzxbw Vx,Ux/Mq (66),(v1)
+31: vpmovzxbd Vx,Ux/Md (66),(v1)
+32: vpmovzxbq Vx,Ux/Mw (66),(v1)
+33: vpmovzxwd Vx,Ux/Mq (66),(v1)
+34: vpmovzxwq Vx,Ux/Md (66),(v1)
+35: vpmovzxdq Vx,Ux/Mq (66),(v1)
+36: vpermd Vqq,Hqq,Wqq (66),(v)
+37: vpcmpgtq Vx,Hx,Wx (66),(v1)
+38: vpminsb Vx,Hx,Wx (66),(v1)
+39: vpminsd Vx,Hx,Wx (66),(v1)
+3a: vpminuw Vx,Hx,Wx (66),(v1)
+3b: vpminud Vx,Hx,Wx (66),(v1)
+3c: vpmaxsb Vx,Hx,Wx (66),(v1)
+3d: vpmaxsd Vx,Hx,Wx (66),(v1)
+3e: vpmaxuw Vx,Hx,Wx (66),(v1)
+3f: vpmaxud Vx,Hx,Wx (66),(v1)
+# 0x0f 0x38 0x40-0x8f
+40: vpmulld Vx,Hx,Wx (66),(v1)
+41: vphminposuw Vdq,Wdq (66),(v1)
+42:
+43:
+44:
+45: vpsrlvd/q Vx,Hx,Wx (66),(v)
+46: vpsravd Vx,Hx,Wx (66),(v)
+47: vpsllvd/q Vx,Hx,Wx (66),(v)
+# Skip 0x48-0x57
+58: vpbroadcastd Vx,Wx (66),(v)
+59: vpbroadcastq Vx,Wx (66),(v)
+5a: vbroadcasti128 Vqq,Mdq (66),(v)
+# Skip 0x5b-0x77
+78: vpbroadcastb Vx,Wx (66),(v)
+79: vpbroadcastw Vx,Wx (66),(v)
+# Skip 0x7a-0x7f
+80: INVEPT Gy,Mdq (66)
+81: INVPID Gy,Mdq (66)
+82: INVPCID Gy,Mdq (66)
+8c: vpmaskmovd/q Vx,Hx,Mx (66),(v)
+8e: vpmaskmovd/q Mx,Vx,Hx (66),(v)
+# 0x0f 0x38 0x90-0xbf (FMA)
+90: vgatherdd/q Vx,Hx,Wx (66),(v)
+91: vgatherqd/q Vx,Hx,Wx (66),(v)
+92: vgatherdps/d Vx,Hx,Wx (66),(v)
+93: vgatherqps/d Vx,Hx,Wx (66),(v)
+94:
+95:
+96: vfmaddsub132ps/d Vx,Hx,Wx (66),(v)
+97: vfmsubadd132ps/d Vx,Hx,Wx (66),(v)
+98: vfmadd132ps/d Vx,Hx,Wx (66),(v)
+99: vfmadd132ss/d Vx,Hx,Wx (66),(v),(v1)
+9a: vfmsub132ps/d Vx,Hx,Wx (66),(v)
+9b: vfmsub132ss/d Vx,Hx,Wx (66),(v),(v1)
+9c: vfnmadd132ps/d Vx,Hx,Wx (66),(v)
+9d: vfnmadd132ss/d Vx,Hx,Wx (66),(v),(v1)
+9e: vfnmsub132ps/d Vx,Hx,Wx (66),(v)
+9f: vfnmsub132ss/d Vx,Hx,Wx (66),(v),(v1)
+a6: vfmaddsub213ps/d Vx,Hx,Wx (66),(v)
+a7: vfmsubadd213ps/d Vx,Hx,Wx (66),(v)
+a8: vfmadd213ps/d Vx,Hx,Wx (66),(v)
+a9: vfmadd213ss/d Vx,Hx,Wx (66),(v),(v1)
+aa: vfmsub213ps/d Vx,Hx,Wx (66),(v)
+ab: vfmsub213ss/d Vx,Hx,Wx (66),(v),(v1)
+ac: vfnmadd213ps/d Vx,Hx,Wx (66),(v)
+ad: vfnmadd213ss/d Vx,Hx,Wx (66),(v),(v1)
+ae: vfnmsub213ps/d Vx,Hx,Wx (66),(v)
+af: vfnmsub213ss/d Vx,Hx,Wx (66),(v),(v1)
+b6: vfmaddsub231ps/d Vx,Hx,Wx (66),(v)
+b7: vfmsubadd231ps/d Vx,Hx,Wx (66),(v)
+b8: vfmadd231ps/d Vx,Hx,Wx (66),(v)
+b9: vfmadd231ss/d Vx,Hx,Wx (66),(v),(v1)
+ba: vfmsub231ps/d Vx,Hx,Wx (66),(v)
+bb: vfmsub231ss/d Vx,Hx,Wx (66),(v),(v1)
+bc: vfnmadd231ps/d Vx,Hx,Wx (66),(v)
+bd: vfnmadd231ss/d Vx,Hx,Wx (66),(v),(v1)
+be: vfnmsub231ps/d Vx,Hx,Wx (66),(v)
+bf: vfnmsub231ss/d Vx,Hx,Wx (66),(v),(v1)
+# 0x0f 0x38 0xc0-0xff
+db: VAESIMC Vdq,Wdq (66),(v1)
+dc: VAESENC Vdq,Hdq,Wdq (66),(v1)
+dd: VAESENCLAST Vdq,Hdq,Wdq (66),(v1)
+de: VAESDEC Vdq,Hdq,Wdq (66),(v1)
+df: VAESDECLAST Vdq,Hdq,Wdq (66),(v1)
+f0: MOVBE Gy,My | MOVBE Gw,Mw (66) | CRC32 Gd,Eb (F2)
+f1: MOVBE My,Gy | MOVBE Mw,Gw (66) | CRC32 Gd,Ey (F2)
+f2: ANDN Gy,By,Ey (v)
+f3: Grp17 (1A)
+f5: BZHI Gy,Ey,By (v) | PEXT Gy,By,Ey (F3),(v) | PDEP Gy,By,Ey (F2),(v)
+f6: MULX By,Gy,rDX,Ey (F2),(v)
+f7: BEXTR Gy,Ey,By (v) | SHLX Gy,Ey,By (66),(v) | SARX Gy,Ey,By (F3),(v) | SHRX Gy,Ey,By (F2),(v)
+EndTable
+
+Table: 3-byte opcode 2 (0x0f 0x3a)
+Referrer: 3-byte escape 2
+AVXcode: 3
+# 0x0f 0x3a 0x00-0xff
+00: vpermq Vqq,Wqq,Ib (66),(v)
+01: vpermpd Vqq,Wqq,Ib (66),(v)
+02: vpblendd Vx,Hx,Wx,Ib (66),(v)
+03:
+04: vpermilps Vx,Wx,Ib (66),(v)
+05: vpermilpd Vx,Wx,Ib (66),(v)
+06: vperm2f128 Vqq,Hqq,Wqq,Ib (66),(v)
+07:
+08: vroundps Vx,Wx,Ib (66)
+09: vroundpd Vx,Wx,Ib (66)
+0a: vroundss Vss,Wss,Ib (66),(v1)
+0b: vroundsd Vsd,Wsd,Ib (66),(v1)
+0c: vblendps Vx,Hx,Wx,Ib (66)
+0d: vblendpd Vx,Hx,Wx,Ib (66)
+0e: vpblendw Vx,Hx,Wx,Ib (66),(v1)
+0f: palignr Pq,Qq,Ib | vpalignr Vx,Hx,Wx,Ib (66),(v1)
+14: vpextrb Rd/Mb,Vdq,Ib (66),(v1)
+15: vpextrw Rd/Mw,Vdq,Ib (66),(v1)
+16: vpextrd/q Ey,Vdq,Ib (66),(v1)
+17: vextractps Ed,Vdq,Ib (66),(v1)
+18: vinsertf128 Vqq,Hqq,Wqq,Ib (66),(v)
+19: vextractf128 Wdq,Vqq,Ib (66),(v)
+1d: vcvtps2ph Wx,Vx,Ib (66),(v)
+20: vpinsrb Vdq,Hdq,Ry/Mb,Ib (66),(v1)
+21: vinsertps Vdq,Hdq,Udq/Md,Ib (66),(v1)
+22: vpinsrd/q Vdq,Hdq,Ey,Ib (66),(v1)
+38: vinserti128 Vqq,Hqq,Wqq,Ib (66),(v)
+39: vextracti128 Wdq,Vqq,Ib (66),(v)
+40: vdpps Vx,Hx,Wx,Ib (66)
+41: vdppd Vdq,Hdq,Wdq,Ib (66),(v1)
+42: vmpsadbw Vx,Hx,Wx,Ib (66),(v1)
+44: vpclmulqdq Vdq,Hdq,Wdq,Ib (66),(v1)
+46: vperm2i128 Vqq,Hqq,Wqq,Ib (66),(v)
+4a: vblendvps Vx,Hx,Wx,Lx (66),(v)
+4b: vblendvpd Vx,Hx,Wx,Lx (66),(v)
+4c: vpblendvb Vx,Hx,Wx,Lx (66),(v1)
+60: vpcmpestrm Vdq,Wdq,Ib (66),(v1)
+61: vpcmpestri Vdq,Wdq,Ib (66),(v1)
+62: vpcmpistrm Vdq,Wdq,Ib (66),(v1)
+63: vpcmpistri Vdq,Wdq,Ib (66),(v1)
+df: VAESKEYGEN Vdq,Wdq,Ib (66),(v1)
+f0: RORX Gy,Ey,Ib (F2),(v)
+EndTable
+
+GrpTable: Grp1
+0: ADD
+1: OR
+2: ADC
+3: SBB
+4: AND
+5: SUB
+6: XOR
+7: CMP
+EndTable
+
+GrpTable: Grp1A
+0: POP
+EndTable
+
+GrpTable: Grp2
+0: ROL
+1: ROR
+2: RCL
+3: RCR
+4: SHL/SAL
+5: SHR
+6:
+7: SAR
+EndTable
+
+GrpTable: Grp3_1
+0: TEST Eb,Ib
+1:
+2: NOT Eb
+3: NEG Eb
+4: MUL AL,Eb
+5: IMUL AL,Eb
+6: DIV AL,Eb
+7: IDIV AL,Eb
+EndTable
+
+GrpTable: Grp3_2
+0: TEST Ev,Iz
+1:
+2: NOT Ev
+3: NEG Ev
+4: MUL rAX,Ev
+5: IMUL rAX,Ev
+6: DIV rAX,Ev
+7: IDIV rAX,Ev
+EndTable
+
+GrpTable: Grp4
+0: INC Eb
+1: DEC Eb
+EndTable
+
+GrpTable: Grp5
+0: INC Ev
+1: DEC Ev
+2: CALLN Ev (f64)
+3: CALLF Ep
+4: JMPN Ev (f64)
+5: JMPF Mp
+6: PUSH Ev (d64)
+7:
+EndTable
+
+GrpTable: Grp6
+0: SLDT Rv/Mw
+1: STR Rv/Mw
+2: LLDT Ew
+3: LTR Ew
+4: VERR Ew
+5: VERW Ew
+EndTable
+
+GrpTable: Grp7
+0: SGDT Ms | VMCALL (001),(11B) | VMLAUNCH (010),(11B) | VMRESUME (011),(11B) | VMXOFF (100),(11B)
+1: SIDT Ms | MONITOR (000),(11B) | MWAIT (001)
+2: LGDT Ms | XGETBV (000),(11B) | XSETBV (001),(11B) | VMFUNC (100),(11B)
+3: LIDT Ms
+4: SMSW Mw/Rv
+5:
+6: LMSW Ew
+7: INVLPG Mb | SWAPGS (o64),(000),(11B) | RDTSCP (001),(11B)
+EndTable
+
+GrpTable: Grp8
+4: BT
+5: BTS
+6: BTR
+7: BTC
+EndTable
+
+GrpTable: Grp9
+1: CMPXCHG8B/16B Mq/Mdq
+6: VMPTRLD Mq | VMCLEAR Mq (66) | VMXON Mq (F3) | RDRAND Rv (11B)
+7: VMPTRST Mq | VMPTRST Mq (F3)
+EndTable
+
+GrpTable: Grp10
+EndTable
+
+GrpTable: Grp11
+# Note: the operands are given by group opcode
+0: MOV
+EndTable
+
+GrpTable: Grp12
+2: psrlw Nq,Ib (11B) | vpsrlw Hx,Ux,Ib (66),(11B),(v1)
+4: psraw Nq,Ib (11B) | vpsraw Hx,Ux,Ib (66),(11B),(v1)
+6: psllw Nq,Ib (11B) | vpsllw Hx,Ux,Ib (66),(11B),(v1)
+EndTable
+
+GrpTable: Grp13
+2: psrld Nq,Ib (11B) | vpsrld Hx,Ux,Ib (66),(11B),(v1)
+4: psrad Nq,Ib (11B) | vpsrad Hx,Ux,Ib (66),(11B),(v1)
+6: pslld Nq,Ib (11B) | vpslld Hx,Ux,Ib (66),(11B),(v1)
+EndTable
+
+GrpTable: Grp14
+2: psrlq Nq,Ib (11B) | vpsrlq Hx,Ux,Ib (66),(11B),(v1)
+3: vpsrldq Hx,Ux,Ib (66),(11B),(v1)
+6: psllq Nq,Ib (11B) | vpsllq Hx,Ux,Ib (66),(11B),(v1)
+7: vpslldq Hx,Ux,Ib (66),(11B),(v1)
+EndTable
+
+GrpTable: Grp15
+0: fxsave | RDFSBASE Ry (F3),(11B)
+1: fxstor | RDGSBASE Ry (F3),(11B)
+2: vldmxcsr Md (v1) | WRFSBASE Ry (F3),(11B)
+3: vstmxcsr Md (v1) | WRGSBASE Ry (F3),(11B)
+4: XSAVE
+5: XRSTOR | lfence (11B)
+6: XSAVEOPT | mfence (11B)
+7: clflush | sfence (11B)
+EndTable
+
+GrpTable: Grp16
+0: prefetch NTA
+1: prefetch T0
+2: prefetch T1
+3: prefetch T2
+EndTable
+
+GrpTable: Grp17
+1: BLSR By,Ey (v)
+2: BLSMSK By,Ey (v)
+3: BLSI By,Ey (v)
+EndTable
+
+# AMD's Prefetch Group
+GrpTable: GrpP
+0: PREFETCH
+1: PREFETCHW
+EndTable
+
+GrpTable: GrpPDLK
+0: MONTMUL
+1: XSHA1
+2: XSHA2
+EndTable
+
+GrpTable: GrpRNG
+0: xstore-rng
+1: xcrypt-ecb
+2: xcrypt-cbc
+4: xcrypt-cfb
+5: xcrypt-ofb
+EndTable

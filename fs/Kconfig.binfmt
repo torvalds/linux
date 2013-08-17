@@ -1,0 +1,166 @@
+config BINFMT_ELF
+	bool "Kernel support for ELF binaries"
+	depends on MMU && (BROKEN || !FRV)
+	default y
+	---help---
+	  ELF (Executable and Linkable Format) is a format for libraries and
+	  executables used across different architectures and operating
+	  systems. Saying Y here will enable your kernel to run ELF binaries
+	  and enlarge it by about 13 KB. ELF support under Linux has now all
+	  but replaced the traditional Linux a.out formats (QMAGIC and ZMAGIC)
+	  because it is portable (this does *not* mean that you will be able
+	  to run executables from different architectures or operating systems
+	  however) and makes building run-time libraries very easy. Many new
+	  executables are distributed solely in ELF format. You definitely
+	  want to say Y here.
+
+	  Information about ELF is contained in the ELF HOWTO available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  If you find that after upgrading from Linux kernel 1.2 and saying Y
+	  here, you still can't run any ELF binaries (they just crash), then
+	  you'll have to install the newest ELF runtime libraries, including
+	  ld.so (check the file <file:Documentation/Changes> for location and
+	  latest version).
+
+config COMPAT_BINFMT_ELF
+	bool
+	depends on COMPAT && BINFMT_ELF
+
+config ARCH_BINFMT_ELF_RANDOMIZE_PIE
+	bool
+
+config BINFMT_ELF_FDPIC
+	bool "Kernel support for FDPIC ELF binaries"
+	default y
+	depends on (FRV || BLACKFIN || (SUPERH32 && !MMU))
+	help
+	  ELF FDPIC binaries are based on ELF, but allow the individual load
+	  segments of a binary to be located in memory independently of each
+	  other. This makes this format ideal for use in environments where no
+	  MMU is available as it still permits text segments to be shared,
+	  even if data segments are not.
+
+	  It is also possible to run FDPIC ELF binaries on MMU linux also.
+
+config CORE_DUMP_DEFAULT_ELF_HEADERS
+	bool "Write ELF core dumps with partial segments"
+	default y
+	depends on BINFMT_ELF && ELF_CORE
+	help
+	  ELF core dump files describe each memory mapping of the crashed
+	  process, and can contain or omit the memory contents of each one.
+	  The contents of an unmodified text mapping are omitted by default.
+
+	  For an unmodified text mapping of an ELF object, including just
+	  the first page of the file in a core dump makes it possible to
+	  identify the build ID bits in the file, without paying the i/o
+	  cost and disk space to dump all the text.  However, versions of
+	  GDB before 6.7 are confused by ELF core dump files in this format.
+
+	  The core dump behavior can be controlled per process using
+	  the /proc/PID/coredump_filter pseudo-file; this setting is
+	  inherited.  See Documentation/filesystems/proc.txt for details.
+
+	  This config option changes the default setting of coredump_filter
+	  seen at boot time.  If unsure, say Y.
+
+config BINFMT_FLAT
+	bool "Kernel support for flat binaries"
+	depends on !MMU && (!FRV || BROKEN)
+	help
+	  Support uClinux FLAT format binaries.
+
+config BINFMT_ZFLAT
+	bool "Enable ZFLAT support"
+	depends on BINFMT_FLAT
+	select ZLIB_INFLATE
+	help
+	  Support FLAT format compressed binaries
+
+config BINFMT_SHARED_FLAT
+	bool "Enable shared FLAT support"
+	depends on BINFMT_FLAT
+	help
+	  Support FLAT shared libraries
+
+config HAVE_AOUT
+       def_bool n
+
+config BINFMT_AOUT
+	tristate "Kernel support for a.out and ECOFF binaries"
+	depends on HAVE_AOUT
+	---help---
+	  A.out (Assembler.OUTput) is a set of formats for libraries and
+	  executables used in the earliest versions of UNIX.  Linux used
+	  the a.out formats QMAGIC and ZMAGIC until they were replaced
+	  with the ELF format.
+
+	  The conversion to ELF started in 1995.  This option is primarily
+	  provided for historical interest and for the benefit of those
+	  who need to run binaries from that era.
+
+	  Most people should answer N here.  If you think you may have
+	  occasional use for this format, enable module support above
+	  and answer M here to compile this support as a module called
+	  binfmt_aout.
+
+	  If any crucial components of your system (such as /sbin/init
+	  or /lib/ld.so) are still in a.out format, you will have to
+	  say Y here.
+
+config OSF4_COMPAT
+	bool "OSF/1 v4 readv/writev compatibility"
+	depends on ALPHA && BINFMT_AOUT
+	help
+	  Say Y if you are using OSF/1 binaries (like Netscape and Acrobat)
+	  with v4 shared libraries freely available from Compaq. If you're
+	  going to use shared libraries from Tru64 version 5.0 or later, say N.
+
+config BINFMT_EM86
+	tristate "Kernel support for Linux/Intel ELF binaries"
+	depends on ALPHA
+	---help---
+	  Say Y here if you want to be able to execute Linux/Intel ELF
+	  binaries just like native Alpha binaries on your Alpha machine. For
+	  this to work, you need to have the emulator /usr/bin/em86 in place.
+
+	  You can get the same functionality by saying N here and saying Y to
+	  "Kernel support for MISC binaries".
+
+	  You may answer M to compile the emulation support as a module and
+	  later load the module when you want to use a Linux/Intel binary. The
+	  module will be called binfmt_em86. If unsure, say Y.
+
+config BINFMT_SOM
+	tristate "Kernel support for SOM binaries"
+	depends on PARISC && HPUX
+	help
+	  SOM is a binary executable format inherited from HP/UX.  Say
+	  Y here to be able to load and execute SOM binaries directly.
+
+config BINFMT_MISC
+	tristate "Kernel support for MISC binaries"
+	---help---
+	  If you say Y here, it will be possible to plug wrapper-driven binary
+	  formats into the kernel. You will like this especially when you use
+	  programs that need an interpreter to run like Java, Python, .NET or
+	  Emacs-Lisp. It's also useful if you often run DOS executables under
+	  the Linux DOS emulator DOSEMU (read the DOSEMU-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>). Once you have
+	  registered such a binary class with the kernel, you can start one of
+	  those programs simply by typing in its name at a shell prompt; Linux
+	  will automatically feed it to the correct interpreter.
+
+	  You can do other nice things, too. Read the file
+	  <file:Documentation/binfmt_misc.txt> to learn how to use this
+	  feature, <file:Documentation/java.txt> for information about how
+	  to include Java support. and <file:Documentation/mono.txt> for
+          information about how to include Mono-based .NET support.
+
+          To use binfmt_misc, you will need to mount it:
+		mount binfmt_misc -t binfmt_misc /proc/sys/fs/binfmt_misc
+
+	  You may say M here for module support and later load the module when
+	  you have use for it; the module is called binfmt_misc. If you
+	  don't know what to answer at this point, say Y.

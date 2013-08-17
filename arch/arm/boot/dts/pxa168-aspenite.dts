@@ -1,0 +1,38 @@
+/*
+ *  Copyright (C) 2012 Marvell Technology Group Ltd.
+ *  Author: Haojian Zhuang <haojian.zhuang@marvell.com>
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License version 2 as
+ *  publishhed by the Free Software Foundation.
+ */
+
+/dts-v1/;
+/include/ "pxa168.dtsi"
+
+/ {
+	model = "Marvell PXA168 Aspenite Development Board";
+	compatible = "mrvl,pxa168-aspenite", "mrvl,pxa168";
+
+	chosen {
+		bootargs = "console=ttyS0,115200 root=/dev/nfs nfsroot=192.168.1.100:/nfsroot/ ip=192.168.1.101:192.168.1.100::255.255.255.0::eth0:on";
+	};
+
+	memory {
+		reg = <0x00000000 0x04000000>;
+	};
+
+	soc {
+		apb@d4000000 {
+			uart1: uart@d4017000 {
+				status = "okay";
+			};
+			twsi1: i2c@d4011000 {
+				status = "okay";
+			};
+			rtc: rtc@d4010000 {
+				status = "okay";
+			};
+		};
+	};
+};

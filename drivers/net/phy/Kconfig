@@ -1,0 +1,142 @@
+#
+# PHY Layer Configuration
+#
+
+menuconfig PHYLIB
+	tristate "PHY Device support and infrastructure"
+	depends on !S390
+	depends on NETDEVICES
+	help
+	  Ethernet controllers are usually attached to PHY
+	  devices.  This option provides infrastructure for
+	  managing PHY devices.
+
+if PHYLIB
+
+comment "MII PHY device drivers"
+
+config AMD_PHY
+	tristate "Drivers for the AMD PHYs"
+	---help---
+	  Currently supports the am79c874
+
+config MARVELL_PHY
+	tristate "Drivers for Marvell PHYs"
+	---help---
+	  Currently has a driver for the 88E1011S
+	
+config DAVICOM_PHY
+	tristate "Drivers for Davicom PHYs"
+	---help---
+	  Currently supports dm9161e and dm9131
+
+config QSEMI_PHY
+	tristate "Drivers for Quality Semiconductor PHYs"
+	---help---
+	  Currently supports the qs6612
+
+config LXT_PHY
+	tristate "Drivers for the Intel LXT PHYs"
+	---help---
+	  Currently supports the lxt970, lxt971
+
+config CICADA_PHY
+	tristate "Drivers for the Cicada PHYs"
+	---help---
+	  Currently supports the cis8204
+
+config VITESSE_PHY
+        tristate "Drivers for the Vitesse PHYs"
+        ---help---
+          Currently supports the vsc8244
+
+config SMSC_PHY
+	tristate "Drivers for SMSC PHYs"
+	---help---
+	  Currently supports the LAN83C185, LAN8187 and LAN8700 PHYs
+
+config BROADCOM_PHY
+	tristate "Drivers for Broadcom PHYs"
+	---help---
+	  Currently supports the BCM5411, BCM5421, BCM5461, BCM5464, BCM5481
+	  and BCM5482 PHYs.
+
+config BCM63XX_PHY
+	tristate "Drivers for Broadcom 63xx SOCs internal PHY"
+	depends on BCM63XX
+	---help---
+	  Currently supports the 6348 and 6358 PHYs.
+
+config ICPLUS_PHY
+	tristate "Drivers for ICPlus PHYs"
+	---help---
+	  Currently supports the IP175C and IP1001 PHYs.
+
+config REALTEK_PHY
+	tristate "Drivers for Realtek PHYs"
+	---help---
+	  Supports the Realtek 821x PHY.
+
+config NATIONAL_PHY
+	tristate "Drivers for National Semiconductor PHYs"
+	---help---
+	  Currently supports the DP83865 PHY.
+
+config STE10XP
+	tristate "Driver for STMicroelectronics STe10Xp PHYs"
+	---help---
+	  This is the driver for the STe100p and STe101p PHYs.
+
+config LSI_ET1011C_PHY
+	tristate "Driver for LSI ET1011C PHY"
+	---help---
+	  Supports the LSI ET1011C PHY.
+
+config MICREL_PHY
+	tristate "Driver for Micrel PHYs"
+	---help---
+	  Supports the KSZ9021, VSC8201, KS8001 PHYs.
+
+config FIXED_PHY
+	bool "Driver for MDIO Bus/PHY emulation with fixed speed/link PHYs"
+	depends on PHYLIB=y
+	---help---
+	  Adds the platform "fixed" MDIO Bus to cover the boards that use
+	  PHYs that are not connected to the real MDIO bus.
+
+	  Currently tested with mpc866ads and mpc8349e-mitx.
+
+config MDIO_BITBANG
+	tristate "Support for bitbanged MDIO buses"
+	help
+	  This module implements the MDIO bus protocol in software,
+	  for use by low level drivers that export the ability to
+	  drive the relevant pins.
+
+	  If in doubt, say N.
+
+config MDIO_GPIO
+	tristate "Support for GPIO lib-based bitbanged MDIO buses"
+	depends on MDIO_BITBANG && GENERIC_GPIO
+	---help---
+	  Supports GPIO lib-based MDIO busses.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called mdio-gpio.
+
+config MDIO_OCTEON
+	tristate "Support for MDIO buses on Octeon SOCs"
+	depends on  CPU_CAVIUM_OCTEON
+	default y
+	help
+
+	  This module provides a driver for the Octeon MDIO busses.
+	  It is required by the Octeon Ethernet device drivers.
+
+	  If in doubt, say Y.
+
+endif # PHYLIB
+
+config MICREL_KS8995MA
+	tristate "Micrel KS8995MA 5-ports 10/100 managed Ethernet switch"
+	depends on SPI

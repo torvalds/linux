@@ -1,0 +1,7 @@
+Xilinx Zynq EP107 Emulation Platform board
+
+This board is an emulation platform for the Zynq product which is
+based on an ARM Cortex A9 processor.
+
+Required root node properties:
+    - compatible = "xlnx,zynq-ep107";

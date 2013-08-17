@@ -1,0 +1,18 @@
+config IEEE802154
+	tristate "IEEE Std 802.15.4 Low-Rate Wireless Personal Area Networks support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	---help---
+	  IEEE Std 802.15.4 defines a low data rate, low power and low
+	  complexity short range wireless personal area networks. It was
+	  designed to organise networks of sensors, switches, etc automation
+	  devices. Maximum allowed data rate is 250 kb/s and typical personal
+	  operating space around 10m.
+
+	  Say Y here to compile LR-WPAN support into the kernel or say M to
+	  compile it as modules.
+
+config IEEE802154_6LOWPAN
+	tristate "6lowpan support over IEEE 802.15.4"
+	depends on IEEE802154 && IPV6
+	---help---
+	IPv6 compression over IEEE 802.15.4.

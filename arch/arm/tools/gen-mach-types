@@ -1,0 +1,72 @@
+#!/bin/awk
+#
+# Awk script to generate include/generated/mach-types.h
+#
+BEGIN	{ nr = 0 }
+/^#/	{ next }
+/^[ 	]*$/ { next }
+
+NF == 4 {
+	  machine_is[nr] = "machine_is_"$1;
+	  config[nr] = "CONFIG_"$2;
+	  mach_type[nr] = "MACH_TYPE_"$3;
+	  num[nr] = $4; nr++
+	}
+
+NF == 3 {
+	  machine_is[nr] = "machine_is_"$1;
+	  config[nr] = "CONFIG_"$2;
+	  mach_type[nr] = "MACH_TYPE_"$3;
+	  num[nr] = ""; nr++
+	}
+
+
+END	{
+	  printf("/*\n");
+	  printf(" * This was automagically generated from %s!\n", FILENAME);
+	  printf(" * Do NOT edit\n");
+	  printf(" */\n\n");
+	  printf("#ifndef __ASM_ARM_MACH_TYPE_H\n");
+	  printf("#define __ASM_ARM_MACH_TYPE_H\n\n");
+	  printf("#ifndef __ASSEMBLY__\n");
+	  printf("/* The type of machine we're running on */\n");
+	  printf("extern unsigned int __machine_arch_type;\n");
+	  printf("#endif\n\n");
+
+	  printf("/* see arch/arm/kernel/arch.c for a description of these */\n");
+	  for (i = 0; i < nr; i++)
+	    if (num[i] ~ /..*/)
+	      printf("#define %-30s %d\n", mach_type[i], num[i]);
+
+	  printf("\n");
+
+	  for (i = 0; i < nr; i++)
+	    if (num[i] ~ /..*/) {
+	      printf("#ifdef %s\n", config[i]);
+	      printf("# ifdef machine_arch_type\n");
+	      printf("#  undef machine_arch_type\n");
+	      printf("#  define machine_arch_type\t__machine_arch_type\n");
+	      printf("# else\n");
+	      printf("#  define machine_arch_type\t%s\n", mach_type[i]);
+	      printf("# endif\n");
+	      printf("# define %s()\t(machine_arch_type == %s)\n", machine_is[i], mach_type[i]);
+	      printf("#else\n");
+	      printf("# define %s()\t(0)\n", machine_is[i]);
+	      printf("#endif\n\n");
+	    }
+
+	  printf("/*\n * These have not yet been registered\n */\n");
+	  for (i = 0; i < nr; i++)
+	    if (num[i] !~ /..*/)
+	      printf("/* #define %-30s <<not registered>> */\n", mach_type[i]);
+
+	  for (i = 0; i < nr; i++)
+	    if (num[i] !~ /..*/) {
+	      printf("#define %s()\t(0)\n", machine_is[i]);
+	    }
+
+	  printf("\n#ifndef machine_arch_type\n");
+	  printf("#define machine_arch_type\t__machine_arch_type\n");
+	  printf("#endif\n\n");
+	  printf("#endif\n");
+	}

@@ -1,0 +1,593 @@
+#
+# Input misc drivers configuration
+#
+menuconfig INPUT_MISC
+	bool "Miscellaneous devices"
+	help
+	  Say Y here, and a list of miscellaneous input drivers will be displayed.
+	  Everything that didn't fit into the other categories is here. This option
+	  doesn't affect the kernel.
+
+	  If unsure, say Y.
+
+if INPUT_MISC
+
+config INPUT_88PM860X_ONKEY
+	tristate "88PM860x ONKEY support"
+	depends on MFD_88PM860X
+	help
+	  Support the ONKEY of Marvell 88PM860x PMICs as an input device
+	  reporting power button status.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called 88pm860x_onkey.
+
+config INPUT_AB8500_PONKEY
+	tristate "AB8500 Pon (PowerOn) Key"
+	depends on AB8500_CORE
+	help
+	  Say Y here to use the PowerOn Key for ST-Ericsson's AB8500
+	  Mix-Sig PMIC.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ab8500-ponkey.
+
+config INPUT_AD714X
+	tristate "Analog Devices AD714x Capacitance Touch Sensor"
+	help
+	  Say Y here if you want to support an AD7142/3/7/8/7A touch sensor.
+
+	  You should select a bus connection too.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad714x.
+
+config INPUT_AD714X_I2C
+	tristate "support I2C bus connection"
+	depends on INPUT_AD714X && I2C
+	default y
+	help
+	  Say Y here if you have AD7142/AD7147 hooked to an I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad714x-i2c.
+
+config INPUT_AD714X_SPI
+	tristate "support SPI bus connection"
+	depends on INPUT_AD714X && SPI
+	default y
+	help
+	  Say Y here if you have AD7142/AD7147 hooked to a SPI bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad714x-spi.
+
+config INPUT_BMA150
+	tristate "BMA150/SMB380 acceleration sensor support"
+	depends on I2C
+	select INPUT_POLLDEV
+	help
+	  Say Y here if you have Bosch Sensortec's BMA150 or SMB380
+	  acceleration sensor hooked to an I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bma150.
+
+config INPUT_PCSPKR
+	tristate "PC Speaker support"
+	depends on PCSPKR_PLATFORM
+	help
+	  Say Y here if you want the standard PC Speaker to be used for
+	  bells and whistles.
+
+	  If unsure, say Y.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pcspkr.
+
+config INPUT_PM8XXX_VIBRATOR
+	tristate "Qualcomm PM8XXX vibrator support"
+	depends on MFD_PM8XXX
+	select INPUT_FF_MEMLESS
+	help
+	  This option enables device driver support for the vibrator
+	  on Qualcomm PM8xxx chip. This driver supports ff-memless interface
+	  from input framework.
+
+	  To compile this driver as module, choose M here: the
+	  module will be called pm8xxx-vibrator.
+
+config INPUT_PMIC8XXX_PWRKEY
+	tristate "PMIC8XXX power key support"
+	depends on MFD_PM8XXX
+	help
+	  Say Y here if you want support for the PMIC8XXX power key.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pmic8xxx-pwrkey.
+
+config INPUT_SPARCSPKR
+	tristate "SPARC Speaker support"
+	depends on PCI && SPARC64
+	help
+	  Say Y here if you want the standard Speaker on Sparc PCI systems
+	  to be used for bells and whistles.
+
+	  If unsure, say Y.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sparcspkr.
+
+config INPUT_M68K_BEEP
+	tristate "M68k Beeper support"
+	depends on M68K
+
+config INPUT_MAX8925_ONKEY
+	tristate "MAX8925 ONKEY support"
+	depends on MFD_MAX8925
+	help
+	  Support the ONKEY of MAX8925 PMICs as an input device
+	  reporting power button status.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called max8925_onkey.
+
+config INPUT_MAX8997_HAPTIC
+	tristate "MAXIM MAX8997 haptic controller support"
+	depends on HAVE_PWM && MFD_MAX8997
+	select INPUT_FF_MEMLESS
+	help
+	  This option enables device driver support for the haptic controller
+	  on MAXIM MAX8997 chip. This driver supports ff-memless interface
+	  from input framework.
+
+	  To compile this driver as module, choose M here: the
+	  module will be called max8997-haptic.
+
+config INPUT_MC13783_PWRBUTTON
+	tristate "MC13783 ON buttons"
+	depends on MFD_MC13783
+	help
+	  Support the ON buttons of MC13783 PMIC as an input device
+	  reporting power button status.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called mc13783-pwrbutton.
+
+config INPUT_MMA8450
+	tristate "MMA8450 - Freescale's 3-Axis, 8/12-bit Digital Accelerometer"
+	depends on I2C
+	select INPUT_POLLDEV
+	help
+	  Say Y here if you want to support Freescale's MMA8450 Accelerometer
+	  through I2C interface.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mma8450.
+
+config INPUT_MPU3050
+	tristate "MPU3050 Triaxial gyroscope sensor"
+	depends on I2C
+	help
+	  Say Y here if you want to support InvenSense MPU3050
+	  connected via an I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mpu3050.
+
+config INPUT_APANEL
+	tristate "Fujitsu Lifebook Application Panel buttons"
+	depends on X86 && I2C && LEDS_CLASS
+	select INPUT_POLLDEV
+	select CHECK_SIGNATURE
+	help
+	 Say Y here for support of the Application Panel buttons, used on
+	 Fujitsu Lifebook. These are attached to the mainboard through
+	 an SMBus interface managed by the I2C Intel ICH (i801) driver,
+	 which you should also build for this kernel.
+
+	 To compile this driver as a module, choose M here: the module will
+	 be called apanel.
+
+config INPUT_GP2A
+	tristate "Sharp GP2AP002A00F I2C Proximity/Opto sensor driver"
+	depends on I2C
+	depends on GENERIC_GPIO
+	help
+	  Say Y here if you have a Sharp GP2AP002A00F proximity/als combo-chip
+	  hooked to an I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gp2ap002a00f.
+
+config INPUT_GPIO_TILT_POLLED
+	tristate "Polled GPIO tilt switch"
+	depends on GENERIC_GPIO
+	select INPUT_POLLDEV
+	help
+	  This driver implements support for tilt switches connected
+	  to GPIO pins that are not capable of generating interrupts.
+
+	  The list of gpios to use and the mapping of their states
+	  to specific angles is done via platform data.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gpio_tilt_polled.
+
+config INPUT_IXP4XX_BEEPER
+	tristate "IXP4XX Beeper support"
+	depends on ARCH_IXP4XX
+	help
+	  If you say yes here, you can connect a beeper to the
+	  ixp4xx gpio pins. This is used by the LinkSys NSLU2.
+
+	  If unsure, say Y.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ixp4xx-beeper.
+
+config INPUT_COBALT_BTNS
+	tristate "Cobalt button interface"
+	depends on MIPS_COBALT
+	select INPUT_POLLDEV
+	help
+	  Say Y here if you want to support MIPS Cobalt button interface.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cobalt_btns.
+
+config INPUT_WISTRON_BTNS
+	tristate "x86 Wistron laptop button interface"
+	depends on X86 && !X86_64
+	select INPUT_POLLDEV
+	select INPUT_SPARSEKMAP
+	select NEW_LEDS
+	select LEDS_CLASS
+	select CHECK_SIGNATURE
+	help
+	  Say Y here for support of Wistron laptop button interfaces, used on
+	  laptops of various brands, including Acer and Fujitsu-Siemens. If
+	  available, mail and wifi LEDs will be controllable via /sys/class/leds.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called wistron_btns.
+
+config INPUT_ATLAS_BTNS
+	tristate "x86 Atlas button interface"
+	depends on X86 && ACPI
+	help
+	  Say Y here for support of Atlas wallmount touchscreen buttons.
+	  The events will show up as scancodes F1 through F9 via evdev.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called atlas_btns.
+
+config INPUT_ATI_REMOTE2
+	tristate "ATI / Philips USB RF remote control"
+	depends on USB_ARCH_HAS_HCD
+	select USB
+	help
+	  Say Y here if you want to use an ATI or Philips USB RF remote control.
+	  These are RF remotes with USB receivers.
+	  ATI Remote Wonder II comes with some ATI's All-In-Wonder video cards
+	  and is also available as a separate product.
+	  This driver provides mouse pointer, left and right mouse buttons,
+	  and maps all the other remote buttons to keypress events.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ati_remote2.
+
+config INPUT_KEYSPAN_REMOTE
+	tristate "Keyspan DMR USB remote control (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	depends on USB_ARCH_HAS_HCD
+	select USB
+	help
+	  Say Y here if you want to use a Keyspan DMR USB remote control.
+	  Currently only the UIA-11 type of receiver has been tested.  The tag
+	  on the receiver that connects to the USB port should have a P/N that
+	  will tell you what type of DMR you have.  The UIA-10 type is not
+	  supported at this time.  This driver maps all buttons to keypress
+	  events.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called keyspan_remote.
+
+config INPUT_KXTJ9
+	tristate "Kionix KXTJ9 tri-axis digital accelerometer"
+	depends on I2C
+	help
+	  Say Y here to enable support for the Kionix KXTJ9 digital tri-axis
+	  accelerometer.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called kxtj9.
+
+config INPUT_KXTJ9_POLLED_MODE
+	bool "Enable polling mode support"
+	depends on INPUT_KXTJ9
+	select INPUT_POLLDEV
+	help
+	  Say Y here if you need accelerometer to work in polling mode.
+
+config INPUT_POWERMATE
+	tristate "Griffin PowerMate and Contour Jog support"
+	depends on USB_ARCH_HAS_HCD
+	select USB
+	help
+	  Say Y here if you want to use Griffin PowerMate or Contour Jog devices.
+	  These are aluminum dials which can measure clockwise and anticlockwise
+	  rotation.  The dial also acts as a pushbutton.  The base contains an LED
+	  which can be instructed to pulse or to switch to a particular intensity.
+
+	  You can download userspace tools from
+	  <http://sowerbutts.com/powermate/>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called powermate.
+
+config INPUT_YEALINK
+	tristate "Yealink usb-p1k voip phone"
+	depends on EXPERIMENTAL
+	depends on USB_ARCH_HAS_HCD
+	select USB
+	help
+	  Say Y here if you want to enable keyboard and LCD functions of the
+	  Yealink usb-p1k usb phones. The audio part is enabled by the generic
+	  usb sound driver, so you might want to enable that as well.
+
+	  For information about how to use these additional functions, see
+	  <file:Documentation/input/yealink.txt>.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called yealink.
+
+config INPUT_CM109
+	tristate "C-Media CM109 USB I/O Controller"
+	depends on EXPERIMENTAL
+	depends on USB_ARCH_HAS_HCD
+	select USB
+	help
+	  Say Y here if you want to enable keyboard and buzzer functions of the
+	  C-Media CM109 usb phones. The audio part is enabled by the generic
+	  usb sound driver, so you might want to enable that as well.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called cm109.
+
+config INPUT_TWL4030_PWRBUTTON
+	tristate "TWL4030 Power button Driver"
+	depends on TWL4030_CORE
+	help
+	  Say Y here if you want to enable power key reporting via the
+	  TWL4030 family of chips.
+
+	  To compile this driver as a module, choose M here. The module will
+	  be called twl4030_pwrbutton.
+
+config INPUT_TWL4030_VIBRA
+	tristate "Support for TWL4030 Vibrator"
+	depends on TWL4030_CORE
+	select MFD_TWL4030_AUDIO
+	select INPUT_FF_MEMLESS
+	help
+	  This option enables support for TWL4030 Vibrator Driver.
+
+	  To compile this driver as a module, choose M here. The module will
+	  be called twl4030_vibra.
+
+config INPUT_TWL6040_VIBRA
+	tristate "Support for TWL6040 Vibrator"
+	depends on TWL6040_CORE
+	select INPUT_FF_MEMLESS
+	help
+	  This option enables support for TWL6040 Vibrator Driver.
+
+	  To compile this driver as a module, choose M here. The module will
+	  be called twl6040_vibra.
+
+config INPUT_UINPUT
+	tristate "User level driver support"
+	help
+	  Say Y here if you want to support user level drivers for input
+	  subsystem accessible under char device 10:223 - /dev/input/uinput.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called uinput.
+
+config INPUT_SGI_BTNS
+	tristate "SGI Indy/O2 volume button interface"
+	depends on SGI_IP22 || SGI_IP32
+	select INPUT_POLLDEV
+	help
+	  Say Y here if you want to support SGI Indy/O2 volume button interface.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sgi_btns.
+
+config HP_SDC_RTC
+	tristate "HP SDC Real Time Clock"
+	depends on (GSC || HP300) && SERIO
+	select HP_SDC
+	help
+	  Say Y here if you want to support the built-in real time clock
+	  of the HP SDC controller.
+
+config INPUT_PCF50633_PMU
+	tristate "PCF50633 PMU events"
+	depends on MFD_PCF50633
+	help
+	 Say Y to include support for delivering  PMU events via  input
+	 layer on NXP PCF50633.
+
+config INPUT_PCF8574
+	tristate "PCF8574 Keypad input device"
+	depends on I2C && EXPERIMENTAL
+	help
+	  Say Y here if you want to support a keypad connected via I2C
+	  with a PCF8574.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pcf8574_keypad.
+
+config INPUT_PWM_BEEPER
+	tristate "PWM beeper support"
+	depends on HAVE_PWM
+	help
+	  Say Y here to get support for PWM based beeper devices.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called pwm-beeper.
+
+config INPUT_GPIO_ROTARY_ENCODER
+	tristate "Rotary encoders connected to GPIO pins"
+	depends on GPIOLIB && GENERIC_GPIO
+	help
+	  Say Y here to add support for rotary encoders connected to GPIO lines.
+	  Check file:Documentation/input/rotary-encoder.txt for more
+	  information.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rotary_encoder.
+
+config INPUT_RB532_BUTTON
+	tristate "Mikrotik Routerboard 532 button interface"
+	depends on MIKROTIK_RB532
+	depends on GPIOLIB && GENERIC_GPIO
+	select INPUT_POLLDEV
+	help
+	  Say Y here if you want support for the S1 button built into
+	  Mikrotik's Routerboard 532.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rb532_button.
+
+config INPUT_DA9052_ONKEY
+	tristate "Dialog DA9052/DA9053 Onkey"
+	depends on PMIC_DA9052
+	help
+	  Support the ONKEY of Dialog DA9052 PMICs as an input device
+	  reporting power button status.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called da9052_onkey.
+
+config INPUT_DM355EVM
+	tristate "TI DaVinci DM355 EVM Keypad and IR Remote"
+	depends on MFD_DM355EVM_MSP
+	select INPUT_SPARSEKMAP
+	help
+	  Supports the pushbuttons and IR remote used with
+	  the DM355 EVM board.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called dm355evm_keys.
+
+config INPUT_BFIN_ROTARY
+	tristate "Blackfin Rotary support"
+	depends on BF54x || BF52x
+	help
+	  Say Y here if you want to use the Blackfin Rotary.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bfin-rotary.
+
+config INPUT_WM831X_ON
+	tristate "WM831X ON pin"
+	depends on MFD_WM831X
+	help
+	  Support the ON pin of WM831X PMICs as an input device
+	  reporting power button status.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called wm831x_on.
+
+config INPUT_PCAP
+	tristate "Motorola EZX PCAP misc input events"
+	depends on EZX_PCAP
+	help
+	  Say Y here if you want to use Power key and Headphone button
+	  on Motorola EZX phones.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pcap_keys.
+
+config INPUT_ADXL34X
+	tristate "Analog Devices ADXL34x Three-Axis Digital Accelerometer"
+	default n
+	help
+	  Say Y here if you have a Accelerometer interface using the
+	  ADXL345/6 controller, and your board-specific initialization
+	  code includes that in its table of devices.
+
+	  This driver can use either I2C or SPI communication to the
+	  ADXL345/6 controller.  Select the appropriate method for
+	  your system.
+
+	  If unsure, say N (but it's safe to say "Y").
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called adxl34x.
+
+config INPUT_ADXL34X_I2C
+	tristate "support I2C bus connection"
+	depends on INPUT_ADXL34X && I2C
+	default y
+	help
+	  Say Y here if you have ADXL345/6 hooked to an I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called adxl34x-i2c.
+
+config INPUT_ADXL34X_SPI
+	tristate "support SPI bus connection"
+	depends on INPUT_ADXL34X && SPI
+	default y
+	help
+	  Say Y here if you have ADXL345/6 hooked to a SPI bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called adxl34x-spi.
+
+config INPUT_CMA3000
+	tristate "VTI CMA3000 Tri-axis accelerometer"
+	help
+	  Say Y here if you want to use VTI CMA3000_D0x Accelerometer
+	  driver
+
+	  This driver currently only supports I2C interface to the
+	  controller. Also select the I2C method.
+
+	  If unsure, say N
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cma3000_d0x.
+
+config INPUT_CMA3000_I2C
+	tristate "Support I2C bus connection"
+	depends on INPUT_CMA3000 && I2C
+	help
+	  Say Y here if you want to use VTI CMA3000_D0x Accelerometer
+	  through I2C interface.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cma3000_d0x_i2c.
+
+config INPUT_XEN_KBDDEV_FRONTEND
+	tristate "Xen virtual keyboard and mouse support"
+	depends on XEN
+	default y
+	select XEN_XENBUS_FRONTEND
+	help
+	  This driver implements the front-end of the Xen virtual
+	  keyboard and mouse device driver.  It communicates with a back-end
+	  in another domain.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called xen-kbdfront.
+
+endif

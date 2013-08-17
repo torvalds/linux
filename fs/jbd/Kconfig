@@ -1,0 +1,30 @@
+config JBD
+	tristate
+	help
+	  This is a generic journalling layer for block devices.  It is
+	  currently used by the ext3 file system, but it could also be
+	  used to add journal support to other file systems or block
+	  devices such as RAID or LVM.
+
+	  If you are using the ext3 file system, you need to say Y here.
+	  If you are not using ext3 then you will probably want to say N.
+
+	  To compile this device as a module, choose M here: the module will be
+	  called jbd.  If you are compiling ext3 into the kernel, you
+	  cannot compile this code as a module.
+
+config JBD_DEBUG
+	bool "JBD (ext3) debugging support"
+	depends on JBD && DEBUG_FS
+	help
+	  If you are using the ext3 journaled file system (or potentially any
+	  other file system/device using JBD), this option allows you to
+	  enable debugging output while the system is running, in order to
+	  help track down any problems you are having.  By default the
+	  debugging output will be turned off.
+
+	  If you select Y here, then you will be able to turn on debugging
+	  with "echo N > /sys/kernel/debug/jbd/jbd-debug", where N is a
+	  number between 1 and 5, the higher the number, the more debugging
+	  output is generated.  To turn debugging off again, do
+	  "echo 0 > /sys/kernel/debug/jbd/jbd-debug".

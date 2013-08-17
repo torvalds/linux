@@ -1,0 +1,14 @@
+config SND_AOA_SOUNDBUS
+	tristate "Apple Soundbus support"
+	select SND_PCM
+	---help---
+	This option enables the generic driver for the soundbus
+	support on Apple machines.
+	
+	It is required for the sound bus implementations.
+
+config SND_AOA_SOUNDBUS_I2S
+	tristate "I2S bus support"
+	depends on SND_AOA_SOUNDBUS && PCI
+	---help---
+	This option enables support for Apple I2S busses.

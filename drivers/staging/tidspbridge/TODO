@@ -1,0 +1,18 @@
+* Migrate to (and if necessary, extend) existing upstream code such as 
+  iommu, wdt, mcbsp, gptimers
+* Decouple hardware-specific code (e.g. bridge_brd_start/stop/delete/monitor)
+* DOFF binary loader: consider pushing to user space. at the very least
+  eliminate the direct filesystem access
+* Eliminate general services and libraries - use or extend existing kernel
+  libraries instead (e.g. gcf/lcm in nldr.c, global helpers in gen/)
+* Eliminate direct manipulation of OMAP_SYSC_BASE
+* Eliminate DSP_SUCCEEDED macros and their imposed redundant indentations
+  (adopt the kernel way of checking for return values)
+* Audit interfaces exposed to user space
+* Audit and clean up header files folder
+* Use kernel coding style
+* checkpatch.pl fixes
+* allocate ext_mem_pool from consistent memory instead of using ioremap
+
+Please send any patches to Greg Kroah-Hartman <greg@kroah.com>
+and Omar Ramirez Luna <omar.ramirez@ti.com>.

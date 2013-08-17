@@ -1,0 +1,75 @@
+What:		/sys/bus/xen-backend/devices/*/devtype
+Date:		Feb 2009
+KernelVersion:	2.6.38
+Contact:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Description:
+                The type of the device.  e.g., one of: 'vbd' (block),
+                'vif' (network), or 'vfb' (framebuffer).
+
+What:		/sys/bus/xen-backend/devices/*/nodename
+Date:		Feb 2009
+KernelVersion:	2.6.38
+Contact:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Description:
+                XenStore node (under /local/domain/NNN/) for this
+                backend device.
+
+What:		/sys/bus/xen-backend/devices/vbd-*/physical_device
+Date:		April 2011
+KernelVersion:	3.0
+Contact:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Description:
+                The major:minor number (in hexidecimal) of the
+                physical device providing the storage for this backend
+                block device.
+
+What:		/sys/bus/xen-backend/devices/vbd-*/mode
+Date:		April 2011
+KernelVersion:	3.0
+Contact:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Description:
+                Whether the block device is read-only ('r') or
+                read-write ('w').
+
+What:		/sys/bus/xen-backend/devices/vbd-*/statistics/f_req
+Date:		April 2011
+KernelVersion:	3.0
+Contact:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Description:
+                Number of flush requests from the frontend.
+
+What:		/sys/bus/xen-backend/devices/vbd-*/statistics/oo_req
+Date:		April 2011
+KernelVersion:	3.0
+Contact:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Description:
+                Number of requests delayed because the backend was too
+                busy processing previous requests.
+
+What:		/sys/bus/xen-backend/devices/vbd-*/statistics/rd_req
+Date:		April 2011
+KernelVersion:	3.0
+Contact:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Description:
+                Number of read requests from the frontend.
+
+What:		/sys/bus/xen-backend/devices/vbd-*/statistics/rd_sect
+Date:		April 2011
+KernelVersion:	3.0
+Contact:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Description:
+                Number of sectors read by the frontend.
+
+What:		/sys/bus/xen-backend/devices/vbd-*/statistics/wr_req
+Date:		April 2011
+KernelVersion:	3.0
+Contact:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Description:
+                Number of write requests from the frontend.
+
+What:		/sys/bus/xen-backend/devices/vbd-*/statistics/wr_sect
+Date:		April 2011
+KernelVersion:	3.0
+Contact:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Description:
+                Number of sectors written by the frontend.

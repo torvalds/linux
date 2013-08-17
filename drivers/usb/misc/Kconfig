@@ -1,0 +1,246 @@
+#
+# USB Miscellaneous driver configuration
+#
+comment "USB Miscellaneous drivers"
+	depends on USB
+
+config USB_EMI62
+	tristate "EMI 6|2m USB Audio interface support"
+	depends on USB
+	---help---
+	  This driver loads firmware to Emagic EMI 6|2m low latency USB
+	  Audio and Midi interface.
+
+	  After firmware load the device is handled with standard linux
+	  USB Audio driver.
+
+	  This code is also available as a module ( = code which can be
+	  inserted in and removed from the running kernel whenever you want).
+	  The module will be called audio. If you want to compile it as a
+	  module, say M here and read <file:Documentation/kbuild/modules.txt>.
+
+config USB_EMI26
+	tristate "EMI 2|6 USB Audio interface support"
+	depends on USB
+	---help---
+	  This driver loads firmware to Emagic EMI 2|6 low latency USB
+	  Audio interface.
+
+	  After firmware load the device is handled with standard linux
+	  USB Audio driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called emi26.
+
+config USB_ADUTUX
+	tristate "ADU devices from Ontrak Control Systems"
+	depends on USB
+	help
+	  Say Y if you want to use an ADU device from Ontrak Control
+	  Systems.
+
+	  To compile this driver as a module, choose M here.  The module
+	  will be called adutux.
+
+config USB_SEVSEG
+	tristate "USB 7-Segment LED Display"
+	depends on USB
+	help
+	  Say Y here if you have a USB 7-Segment Display by Delcom
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called usbsevseg.
+
+config USB_RIO500
+	tristate "USB Diamond Rio500 support"
+	depends on USB
+	help
+	  Say Y here if you want to connect a USB Rio500 mp3 player to your
+	  computer's USB port. Please read <file:Documentation/usb/rio.txt>
+	  for more information.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rio500.
+
+config USB_LEGOTOWER
+	tristate "USB Lego Infrared Tower support"
+	depends on USB
+	help
+	  Say Y here if you want to connect a USB Lego Infrared Tower to your
+	  computer's USB port.
+
+	  This code is also available as a module ( = code which can be
+	  inserted in and removed from the running kernel whenever you want).
+	  The module will be called legousbtower. If you want to compile it as
+	  a module, say M here and read
+	  <file:Documentation/kbuild/modules.txt>.
+
+config USB_LCD
+	tristate "USB LCD driver support"
+	depends on USB
+	help
+	  Say Y here if you want to connect an USBLCD to your computer's
+	  USB port. The USBLCD is a small USB interface board for
+	  alphanumeric LCD modules. See <http://www.usblcd.de/> for more
+	  information.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called usblcd.
+
+config USB_LED
+	tristate "USB LED driver support"
+	depends on USB
+	help
+	  Say Y here if you want to connect an USBLED device to your 
+	  computer's USB port.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called usbled.
+
+config USB_CYPRESS_CY7C63
+	tristate "Cypress CY7C63xxx USB driver support"
+	depends on USB
+	help
+	  Say Y here if you want to connect a Cypress CY7C63xxx
+	  micro controller to your computer's USB port. Currently this
+	  driver supports the pre-programmed devices (incl. firmware)
+	  by AK Modul-Bus Computer GmbH.
+
+	  Please see: http://www.ak-modul-bus.de/stat/mikrocontroller.html
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cypress_cy7c63.
+
+config USB_CYTHERM
+	tristate "Cypress USB thermometer driver support"
+	depends on USB
+	help
+	  Say Y here if you want to connect a Cypress USB thermometer
+	  device to your computer's USB port. This device is also known
+	  as the Cypress USB Starter kit or demo board. The Elektor
+	  magazine published a modified version of this device in issue 
+	  #291.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cytherm.
+
+config USB_IDMOUSE
+	tristate "Siemens ID USB Mouse Fingerprint sensor support"
+	depends on USB
+	help
+	  Say Y here if you want to use the fingerprint sensor on
+	  the Siemens ID Mouse. There is also a Siemens ID Mouse
+	  _Professional_, which has not been tested with this driver,
+	  but uses the same sensor and may therefore work.
+
+	  This driver creates an entry "/dev/idmouseX" or "/dev/usb/idmouseX",
+	  which can be used by, e.g.,"cat /dev/idmouse0 > fingerprint.pnm".
+
+	  See also <http://www.fs.tum.de/~echtler/idmouse/>.
+
+config USB_FTDI_ELAN
+	tristate "Elan PCMCIA CardBus Adapter USB Client"
+	depends on USB
+	default M
+	help
+	  ELAN's Uxxx series of adapters are USB to PCMCIA CardBus adapters.
+	  Currently only the U132 adapter is available.
+
+	  The U132 is specifically designed for CardBus PC cards that contain
+	  an OHCI host controller. Typical PC cards are the Orange Mobile 3G
+	  Option GlobeTrotter Fusion card. The U132 adapter will *NOT* work
+	  with PC cards that do not contain an OHCI controller. To use a U132
+	  adapter you will need this "ftdi-elan" module as well as the "u132-hcd"
+	  module which is a USB host controller driver that talks to the OHCI
+	  controller within CardBus card that are inserted in the U132 adapter.
+
+	  This driver has been tested with a CardBus OHCI USB adapter, and
+	  worked with a USB PEN Drive inserted into the first USB port of
+	  the PCCARD. A rather pointless thing to do, but useful for testing.
+
+	  See also the USB_U132_HCD entry "Elan U132 Adapter Host Controller"
+
+	  It is safe to say M here.
+
+config USB_APPLEDISPLAY
+	tristate "Apple Cinema Display support"
+	depends on USB
+	select BACKLIGHT_LCD_SUPPORT
+	select BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to control the backlight of Apple Cinema
+	  Displays over USB. This driver provides a sysfs interface.
+
+source "drivers/usb/misc/sisusbvga/Kconfig"
+
+config USB_LD
+	tristate "USB LD driver"
+	depends on USB
+	help
+	  This driver is for generic USB devices that use interrupt transfers,
+	  like LD Didactic's USB devices.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ldusb.
+
+config USB_TRANCEVIBRATOR
+	tristate "PlayStation 2 Trance Vibrator driver support"
+	depends on USB
+	help
+	  Say Y here if you want to connect a PlayStation 2 Trance Vibrator
+	  device to your computer's USB port.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called trancevibrator.
+
+config USB_IOWARRIOR
+	tristate "IO Warrior driver support"
+	depends on USB
+	help
+	  Say Y here if you want to support the IO Warrior devices from Code
+	  Mercenaries.  This includes support for the following devices:
+	  	IO Warrior 40
+		IO Warrior 24
+		IO Warrior 56
+		IO Warrior 24 Power Vampire
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called iowarrior.
+
+config USB_TEST
+	tristate "USB testing driver"
+	depends on USB
+	help
+	  This driver is for testing host controller software.  It is used
+	  with specialized device firmware for regression and stress testing,
+	  to help prevent problems from cropping up with "real" drivers.
+
+	  See <http://www.linux-usb.org/usbtest/> for more information,
+	  including sample test device firmware and "how to use it".
+
+config USB_ISIGHTFW
+	tristate "iSight firmware loading support"
+	depends on USB
+	select FW_LOADER
+	help
+	  This driver loads firmware for USB Apple iSight cameras, allowing
+	  them to be driven by the USB video class driver available at
+	  http://linux-uvc.berlios.de
+
+	  The firmware for this driver must be extracted from the MacOS
+	  driver beforehand. Tools for doing so are available at
+	  http://bersace03.free.fr
+
+config USB_YUREX
+	tristate "USB YUREX driver support"
+	depends on USB
+	help
+	  Say Y here if you want to connect a YUREX to your computer's
+	  USB port. The YUREX is a leg-shakes sensor. See
+	  <http://bbu.kayac.com/en/> for further information.
+	  This driver supports read/write of leg-shakes counter and
+	  fasync for the counter update via a device file /dev/yurex*.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called yurex.
+

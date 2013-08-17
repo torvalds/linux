@@ -1,0 +1,1153 @@
+menu "Core Netfilter Configuration"
+	depends on NET && INET && NETFILTER
+
+config NETFILTER_NETLINK
+	tristate
+
+config NETFILTER_NETLINK_ACCT
+tristate "Netfilter NFACCT over NFNETLINK interface"
+	depends on NETFILTER_ADVANCED
+	select NETFILTER_NETLINK
+	help
+	  If this option is enabled, the kernel will include support
+	  for extended accounting via NFNETLINK.
+
+config NETFILTER_NETLINK_QUEUE
+	tristate "Netfilter NFQUEUE over NFNETLINK interface"
+	depends on NETFILTER_ADVANCED
+	select NETFILTER_NETLINK
+	help
+	  If this option is enabled, the kernel will include support
+	  for queueing packets via NFNETLINK.
+	  
+config NETFILTER_NETLINK_LOG
+	tristate "Netfilter LOG over NFNETLINK interface"
+	default m if NETFILTER_ADVANCED=n
+	select NETFILTER_NETLINK
+	help
+	  If this option is enabled, the kernel will include support
+	  for logging packets via NFNETLINK.
+
+	  This obsoletes the existing ipt_ULOG and ebg_ulog mechanisms,
+	  and is also scheduled to replace the old syslog-based ipt_LOG
+	  and ip6t_LOG modules.
+
+config NF_CONNTRACK
+	tristate "Netfilter connection tracking support"
+	default m if NETFILTER_ADVANCED=n
+	help
+	  Connection tracking keeps a record of what packets have passed
+	  through your machine, in order to figure out how they are related
+	  into connections.
+
+	  This is required to do Masquerading or other kinds of Network
+	  Address Translation.  It can also be used to enhance packet
+	  filtering (see `Connection state match support' below).
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+if NF_CONNTRACK
+
+config NF_CONNTRACK_MARK
+	bool  'Connection mark tracking support'
+	depends on NETFILTER_ADVANCED
+	help
+	  This option enables support for connection marks, used by the
+	  `CONNMARK' target and `connmark' match. Similar to the mark value
+	  of packets, but this mark value is kept in the conntrack session
+	  instead of the individual packets.
+
+config NF_CONNTRACK_SECMARK
+	bool  'Connection tracking security mark support'
+	depends on NETWORK_SECMARK
+	default m if NETFILTER_ADVANCED=n
+	help
+	  This option enables security markings to be applied to
+	  connections.  Typically they are copied to connections from
+	  packets using the CONNSECMARK target and copied back from
+	  connections to packets with the same target, with the packets
+	  being originally labeled via SECMARK.
+
+	  If unsure, say 'N'.
+
+config NF_CONNTRACK_ZONES
+	bool  'Connection tracking zones'
+	depends on NETFILTER_ADVANCED
+	depends on NETFILTER_XT_TARGET_CT
+	help
+	  This option enables support for connection tracking zones.
+	  Normally, each connection needs to have a unique system wide
+	  identity. Connection tracking zones allow to have multiple
+	  connections using the same identity, as long as they are
+	  contained in different zones.
+
+	  If unsure, say `N'.
+
+config NF_CONNTRACK_PROCFS
+	bool "Supply CT list in procfs (OBSOLETE)"
+	default y
+	depends on PROC_FS
+	---help---
+	This option enables for the list of known conntrack entries
+	to be shown in procfs under net/netfilter/nf_conntrack. This
+	is considered obsolete in favor of using the conntrack(8)
+	tool which uses Netlink.
+
+config NF_CONNTRACK_EVENTS
+	bool "Connection tracking events"
+	depends on NETFILTER_ADVANCED
+	help
+	  If this option is enabled, the connection tracking code will
+	  provide a notifier chain that can be used by other kernel code
+	  to get notified about changes in the connection tracking state.
+
+	  If unsure, say `N'.
+
+config NF_CONNTRACK_TIMEOUT
+	bool  'Connection tracking timeout'
+	depends on NETFILTER_ADVANCED
+	help
+	  This option enables support for connection tracking timeout
+	  extension. This allows you to attach timeout policies to flow
+	  via the CT target.
+
+	  If unsure, say `N'.
+
+config NF_CONNTRACK_TIMESTAMP
+	bool  'Connection tracking timestamping'
+	depends on NETFILTER_ADVANCED
+	help
+	  This option enables support for connection tracking timestamping.
+	  This allows you to store the flow start-time and to obtain
+	  the flow-stop time (once it has been destroyed) via Connection
+	  tracking events.
+
+	  If unsure, say `N'.
+
+config NF_CT_PROTO_DCCP
+	tristate 'DCCP protocol connection tracking support (EXPERIMENTAL)'
+	depends on EXPERIMENTAL
+	depends on NETFILTER_ADVANCED
+	default IP_DCCP
+	help
+	  With this option enabled, the layer 3 independent connection
+	  tracking code will be able to do state tracking on DCCP connections.
+
+	  If unsure, say 'N'.
+
+config NF_CT_PROTO_GRE
+	tristate
+
+config NF_CT_PROTO_SCTP
+	tristate 'SCTP protocol connection tracking support (EXPERIMENTAL)'
+	depends on EXPERIMENTAL
+	depends on NETFILTER_ADVANCED
+	default IP_SCTP
+	help
+	  With this option enabled, the layer 3 independent connection
+	  tracking code will be able to do state tracking on SCTP connections.
+
+	  If you want to compile it as a module, say M here and read
+	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+
+config NF_CT_PROTO_UDPLITE
+	tristate 'UDP-Lite protocol connection tracking support'
+	depends on NETFILTER_ADVANCED
+	help
+	  With this option enabled, the layer 3 independent connection
+	  tracking code will be able to do state tracking on UDP-Lite
+	  connections.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NF_CONNTRACK_AMANDA
+	tristate "Amanda backup protocol support"
+	depends on NETFILTER_ADVANCED
+	select TEXTSEARCH
+	select TEXTSEARCH_KMP
+	help
+	  If you are running the Amanda backup package <http://www.amanda.org/>
+	  on this machine or machines that will be MASQUERADED through this
+	  machine, then you may want to enable this feature.  This allows the
+	  connection tracking and natting code to allow the sub-channels that
+	  Amanda requires for communication of the backup data, messages and
+	  index.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NF_CONNTRACK_FTP
+	tristate "FTP protocol support"
+	default m if NETFILTER_ADVANCED=n
+	help
+	  Tracking FTP connections is problematic: special helpers are
+	  required for tracking them, and doing masquerading and other forms
+	  of Network Address Translation on them.
+
+	  This is FTP support on Layer 3 independent connection tracking.
+	  Layer 3 independent connection tracking is experimental scheme
+	  which generalize ip_conntrack to support other layer 3 protocols.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NF_CONNTRACK_H323
+	tristate "H.323 protocol support"
+	depends on (IPV6 || IPV6=n)
+	depends on NETFILTER_ADVANCED
+	help
+	  H.323 is a VoIP signalling protocol from ITU-T. As one of the most
+	  important VoIP protocols, it is widely used by voice hardware and
+	  software including voice gateways, IP phones, Netmeeting, OpenPhone,
+	  Gnomemeeting, etc.
+
+	  With this module you can support H.323 on a connection tracking/NAT
+	  firewall.
+
+	  This module supports RAS, Fast Start, H.245 Tunnelling, Call
+	  Forwarding, RTP/RTCP and T.120 based audio, video, fax, chat,
+	  whiteboard, file transfer, etc. For more information, please
+	  visit http://nath323.sourceforge.net/.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NF_CONNTRACK_IRC
+	tristate "IRC protocol support"
+	default m if NETFILTER_ADVANCED=n
+	help
+	  There is a commonly-used extension to IRC called
+	  Direct Client-to-Client Protocol (DCC).  This enables users to send
+	  files to each other, and also chat to each other without the need
+	  of a server.  DCC Sending is used anywhere you send files over IRC,
+	  and DCC Chat is most commonly used by Eggdrop bots.  If you are
+	  using NAT, this extension will enable you to send files and initiate
+	  chats.  Note that you do NOT need this extension to get files or
+	  have others initiate chats, or everything else in IRC.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NF_CONNTRACK_BROADCAST
+	tristate
+
+config NF_CONNTRACK_NETBIOS_NS
+	tristate "NetBIOS name service protocol support"
+	select NF_CONNTRACK_BROADCAST
+	help
+	  NetBIOS name service requests are sent as broadcast messages from an
+	  unprivileged port and responded to with unicast messages to the
+	  same port. This make them hard to firewall properly because connection
+	  tracking doesn't deal with broadcasts. This helper tracks locally
+	  originating NetBIOS name service requests and the corresponding
+	  responses. It relies on correct IP address configuration, specifically
+	  netmask and broadcast address. When properly configured, the output
+	  of "ip address show" should look similar to this:
+
+	  $ ip -4 address show eth0
+	  4: eth0: <BROADCAST,MULTICAST,UP> mtu 1500 qdisc pfifo_fast qlen 1000
+	      inet 172.16.2.252/24 brd 172.16.2.255 scope global eth0
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NF_CONNTRACK_SNMP
+	tristate "SNMP service protocol support"
+	depends on NETFILTER_ADVANCED
+	select NF_CONNTRACK_BROADCAST
+	help
+	  SNMP service requests are sent as broadcast messages from an
+	  unprivileged port and responded to with unicast messages to the
+	  same port. This make them hard to firewall properly because connection
+	  tracking doesn't deal with broadcasts. This helper tracks locally
+	  originating SNMP service requests and the corresponding
+	  responses. It relies on correct IP address configuration, specifically
+	  netmask and broadcast address.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NF_CONNTRACK_PPTP
+	tristate "PPtP protocol support"
+	depends on NETFILTER_ADVANCED
+	select NF_CT_PROTO_GRE
+	help
+	  This module adds support for PPTP (Point to Point Tunnelling
+	  Protocol, RFC2637) connection tracking and NAT.
+
+	  If you are running PPTP sessions over a stateful firewall or NAT
+	  box, you may want to enable this feature.
+
+	  Please note that not all PPTP modes of operation are supported yet.
+	  Specifically these limitations exist:
+	    - Blindly assumes that control connections are always established
+	      in PNS->PAC direction. This is a violation of RFC2637.
+	    - Only supports a single call within each session
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NF_CONNTRACK_SANE
+	tristate "SANE protocol support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	depends on NETFILTER_ADVANCED
+	help
+	  SANE is a protocol for remote access to scanners as implemented
+	  by the 'saned' daemon. Like FTP, it uses separate control and
+	  data connections.
+
+	  With this module you can support SANE on a connection tracking
+	  firewall.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NF_CONNTRACK_SIP
+	tristate "SIP protocol support"
+	default m if NETFILTER_ADVANCED=n
+	help
+	  SIP is an application-layer control protocol that can establish,
+	  modify, and terminate multimedia sessions (conferences) such as
+	  Internet telephony calls. With the ip_conntrack_sip and
+	  the nf_nat_sip modules you can support the protocol on a connection
+	  tracking/NATing firewall.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NF_CONNTRACK_TFTP
+	tristate "TFTP protocol support"
+	depends on NETFILTER_ADVANCED
+	help
+	  TFTP connection tracking helper, this is required depending
+	  on how restrictive your ruleset is.
+	  If you are using a tftp client behind -j SNAT or -j MASQUERADING
+	  you will need this.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NF_CT_NETLINK
+	tristate 'Connection tracking netlink interface'
+	select NETFILTER_NETLINK
+	default m if NETFILTER_ADVANCED=n
+	help
+	  This option enables support for a netlink-based userspace interface
+
+config NF_CT_NETLINK_TIMEOUT
+	tristate  'Connection tracking timeout tuning via Netlink'
+	select NETFILTER_NETLINK
+	depends on NETFILTER_ADVANCED
+	help
+	  This option enables support for connection tracking timeout
+	  fine-grain tuning. This allows you to attach specific timeout
+	  policies to flows, instead of using the global timeout policy.
+
+	  If unsure, say `N'.
+
+endif # NF_CONNTRACK
+
+# transparent proxy support
+config NETFILTER_TPROXY
+	tristate "Transparent proxying support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	depends on IP_NF_MANGLE
+	depends on NETFILTER_ADVANCED
+	help
+	  This option enables transparent proxying support, that is,
+	  support for handling non-locally bound IPv4 TCP and UDP sockets.
+	  For it to work you will have to configure certain iptables rules
+	  and use policy routing. For more information on how to set it up
+	  see Documentation/networking/tproxy.txt.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XTABLES
+	tristate "Netfilter Xtables support (required for ip_tables)"
+	default m if NETFILTER_ADVANCED=n
+	help
+	  This is required if you intend to use any of ip_tables,
+	  ip6_tables or arp_tables.
+
+if NETFILTER_XTABLES
+
+comment "Xtables combined modules"
+
+config NETFILTER_XT_MARK
+	tristate 'nfmark target and match support'
+	default m if NETFILTER_ADVANCED=n
+	---help---
+	This option adds the "MARK" target and "mark" match.
+
+	Netfilter mark matching allows you to match packets based on the
+	"nfmark" value in the packet.
+	The target allows you to create rules in the "mangle" table which alter
+	the netfilter mark (nfmark) field associated with the packet.
+
+	Prior to routing, the nfmark can influence the routing method (see
+	"Use netfilter MARK value as routing key") and can also be used by
+	other subsystems to change their behavior.
+
+config NETFILTER_XT_CONNMARK
+	tristate 'ctmark target and match support'
+	depends on NF_CONNTRACK
+	depends on NETFILTER_ADVANCED
+	select NF_CONNTRACK_MARK
+	---help---
+	This option adds the "CONNMARK" target and "connmark" match.
+
+	Netfilter allows you to store a mark value per connection (a.k.a.
+	ctmark), similarly to the packet mark (nfmark). Using this
+	target and match, you can set and match on this mark.
+
+config NETFILTER_XT_SET
+	tristate 'set target and match support'
+	depends on IP_SET
+	depends on NETFILTER_ADVANCED
+	help
+	  This option adds the "SET" target and "set" match.
+
+	  Using this target and match, you can add/delete and match
+	  elements in the sets created by ipset(8).
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+# alphabetically ordered list of targets
+
+comment "Xtables targets"
+
+config NETFILTER_XT_TARGET_AUDIT
+	tristate "AUDIT target support"
+	depends on AUDIT
+	depends on NETFILTER_ADVANCED
+	---help---
+	  This option adds a 'AUDIT' target, which can be used to create
+	  audit records for packets dropped/accepted.
+
+	  To compileit as a module, choose M here. If unsure, say N.
+
+config NETFILTER_XT_TARGET_CHECKSUM
+	tristate "CHECKSUM target support"
+	depends on IP_NF_MANGLE || IP6_NF_MANGLE
+	depends on NETFILTER_ADVANCED
+	---help---
+	  This option adds a `CHECKSUM' target, which can be used in the iptables mangle
+	  table.
+
+	  You can use this target to compute and fill in the checksum in
+	  a packet that lacks a checksum.  This is particularly useful,
+	  if you need to work around old applications such as dhcp clients,
+	  that do not work well with checksum offloads, but don't want to disable
+	  checksum offload in your device.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_TARGET_CLASSIFY
+	tristate '"CLASSIFY" target support'
+	depends on NETFILTER_ADVANCED
+	help
+	  This option adds a `CLASSIFY' target, which enables the user to set
+	  the priority of a packet. Some qdiscs can use this value for
+	  classification, among these are:
+
+  	  atm, cbq, dsmark, pfifo_fast, htb, prio
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_TARGET_CONNMARK
+	tristate  '"CONNMARK" target support'
+	depends on NF_CONNTRACK
+	depends on NETFILTER_ADVANCED
+	select NETFILTER_XT_CONNMARK
+	---help---
+	This is a backwards-compat option for the user's convenience
+	(e.g. when running oldconfig). It selects
+	CONFIG_NETFILTER_XT_CONNMARK (combined connmark/CONNMARK module).
+
+config NETFILTER_XT_TARGET_CONNSECMARK
+	tristate '"CONNSECMARK" target support'
+	depends on NF_CONNTRACK && NF_CONNTRACK_SECMARK
+	default m if NETFILTER_ADVANCED=n
+	help
+	  The CONNSECMARK target copies security markings from packets
+	  to connections, and restores security markings from connections
+	  to packets (if the packets are not already marked).  This would
+	  normally be used in conjunction with the SECMARK target.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_TARGET_CT
+	tristate '"CT" target support'
+	depends on NF_CONNTRACK
+	depends on IP_NF_RAW || IP6_NF_RAW
+	depends on NETFILTER_ADVANCED
+	help
+	  This options adds a `CT' target, which allows to specify initial
+	  connection tracking parameters like events to be delivered and
+	  the helper to be used.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_TARGET_DSCP
+	tristate '"DSCP" and "TOS" target support'
+	depends on IP_NF_MANGLE || IP6_NF_MANGLE
+	depends on NETFILTER_ADVANCED
+	help
+	  This option adds a `DSCP' target, which allows you to manipulate
+	  the IPv4/IPv6 header DSCP field (differentiated services codepoint).
+
+	  The DSCP field can have any value between 0x0 and 0x3f inclusive.
+
+	  It also adds the "TOS" target, which allows you to create rules in
+	  the "mangle" table which alter the Type Of Service field of an IPv4
+	  or the Priority field of an IPv6 packet, prior to routing.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_TARGET_HL
+	tristate '"HL" hoplimit target support'
+	depends on IP_NF_MANGLE || IP6_NF_MANGLE
+	depends on NETFILTER_ADVANCED
+	---help---
+	This option adds the "HL" (for IPv6) and "TTL" (for IPv4)
+	targets, which enable the user to change the
+	hoplimit/time-to-live value of the IP header.
+
+	While it is safe to decrement the hoplimit/TTL value, the
+	modules also allow to increment and set the hoplimit value of
+	the header to arbitrary values. This is EXTREMELY DANGEROUS
+	since you can easily create immortal packets that loop
+	forever on the network.
+
+config NETFILTER_XT_TARGET_IDLETIMER
+	tristate  "IDLETIMER target support"
+	depends on NETFILTER_ADVANCED
+	help
+
+	  This option adds the `IDLETIMER' target.  Each matching packet
+	  resets the timer associated with label specified when the rule is
+	  added.  When the timer expires, it triggers a sysfs notification.
+	  The remaining time for expiration can be read via sysfs.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_TARGET_LED
+	tristate '"LED" target support'
+	depends on LEDS_CLASS && LEDS_TRIGGERS
+	depends on NETFILTER_ADVANCED
+	help
+	  This option adds a `LED' target, which allows you to blink LEDs in
+	  response to particular packets passing through your machine.
+
+	  This can be used to turn a spare LED into a network activity LED,
+	  which only flashes in response to FTP transfers, for example.  Or
+	  you could have an LED which lights up for a minute or two every time
+	  somebody connects to your machine via SSH.
+
+	  You will need support for the "led" class to make this work.
+
+	  To create an LED trigger for incoming SSH traffic:
+	    iptables -A INPUT -p tcp --dport 22 -j LED --led-trigger-id ssh --led-delay 1000
+
+	  Then attach the new trigger to an LED on your system:
+	    echo netfilter-ssh > /sys/class/leds/<ledname>/trigger
+
+	  For more information on the LEDs available on your system, see
+	  Documentation/leds/leds-class.txt
+
+config NETFILTER_XT_TARGET_LOG
+	tristate "LOG target support"
+	default m if NETFILTER_ADVANCED=n
+	help
+	  This option adds a `LOG' target, which allows you to create rules in
+	  any iptables table which records the packet header to the syslog.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_TARGET_MARK
+	tristate '"MARK" target support'
+	depends on NETFILTER_ADVANCED
+	select NETFILTER_XT_MARK
+	---help---
+	This is a backwards-compat option for the user's convenience
+	(e.g. when running oldconfig). It selects
+	CONFIG_NETFILTER_XT_MARK (combined mark/MARK module).
+
+config NETFILTER_XT_TARGET_NFLOG
+	tristate '"NFLOG" target support'
+	default m if NETFILTER_ADVANCED=n
+	select NETFILTER_NETLINK_LOG
+	help
+	  This option enables the NFLOG target, which allows to LOG
+	  messages through nfnetlink_log.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_TARGET_NFQUEUE
+	tristate '"NFQUEUE" target Support'
+	depends on NETFILTER_ADVANCED
+	select NETFILTER_NETLINK_QUEUE
+	help
+	  This target replaced the old obsolete QUEUE target.
+
+	  As opposed to QUEUE, it supports 65535 different queues,
+	  not just one.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_TARGET_NOTRACK
+	tristate  '"NOTRACK" target support'
+	depends on IP_NF_RAW || IP6_NF_RAW
+	depends on NF_CONNTRACK
+	help
+	  The NOTRACK target allows a select rule to specify
+	  which packets *not* to enter the conntrack/NAT
+	  subsystem with all the consequences (no ICMP error tracking,
+	  no protocol helpers for the selected packets).
+
+	  If you want to compile it as a module, say M here and read
+	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+
+config NETFILTER_XT_TARGET_RATEEST
+	tristate '"RATEEST" target support'
+	depends on NETFILTER_ADVANCED
+	help
+	  This option adds a `RATEEST' target, which allows to measure
+	  rates similar to TC estimators. The `rateest' match can be
+	  used to match on the measured rates.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_TARGET_TEE
+	tristate '"TEE" - packet cloning to alternate destination'
+	depends on NETFILTER_ADVANCED
+	depends on (IPV6 || IPV6=n)
+	depends on !NF_CONNTRACK || NF_CONNTRACK
+	---help---
+	This option adds a "TEE" target with which a packet can be cloned and
+	this clone be rerouted to another nexthop.
+
+config NETFILTER_XT_TARGET_TPROXY
+	tristate '"TPROXY" target support (EXPERIMENTAL)'
+	depends on EXPERIMENTAL
+	depends on NETFILTER_TPROXY
+	depends on NETFILTER_XTABLES
+	depends on NETFILTER_ADVANCED
+	select NF_DEFRAG_IPV4
+	select NF_DEFRAG_IPV6 if IP6_NF_IPTABLES
+	help
+	  This option adds a `TPROXY' target, which is somewhat similar to
+	  REDIRECT.  It can only be used in the mangle table and is useful
+	  to redirect traffic to a transparent proxy.  It does _not_ depend
+	  on Netfilter connection tracking and NAT, unlike REDIRECT.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_TARGET_TRACE
+	tristate  '"TRACE" target support'
+	depends on IP_NF_RAW || IP6_NF_RAW
+	depends on NETFILTER_ADVANCED
+	help
+	  The TRACE target allows you to mark packets so that the kernel
+	  will log every rule which match the packets as those traverse
+	  the tables, chains, rules.
+
+	  If you want to compile it as a module, say M here and read
+	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+
+config NETFILTER_XT_TARGET_SECMARK
+	tristate '"SECMARK" target support'
+	depends on NETWORK_SECMARK
+	default m if NETFILTER_ADVANCED=n
+	help
+	  The SECMARK target allows security marking of network
+	  packets, for use with security subsystems.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_TARGET_TCPMSS
+	tristate '"TCPMSS" target support'
+	depends on (IPV6 || IPV6=n)
+	default m if NETFILTER_ADVANCED=n
+	---help---
+	  This option adds a `TCPMSS' target, which allows you to alter the
+	  MSS value of TCP SYN packets, to control the maximum size for that
+	  connection (usually limiting it to your outgoing interface's MTU
+	  minus 40).
+
+	  This is used to overcome criminally braindead ISPs or servers which
+	  block ICMP Fragmentation Needed packets.  The symptoms of this
+	  problem are that everything works fine from your Linux
+	  firewall/router, but machines behind it can never exchange large
+	  packets:
+	        1) Web browsers connect, then hang with no data received.
+	        2) Small mail works fine, but large emails hang.
+	        3) ssh works fine, but scp hangs after initial handshaking.
+
+	  Workaround: activate this option and add a rule to your firewall
+	  configuration like:
+
+	  iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN \
+	                 -j TCPMSS --clamp-mss-to-pmtu
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_TARGET_TCPOPTSTRIP
+	tristate '"TCPOPTSTRIP" target support (EXPERIMENTAL)'
+	depends on EXPERIMENTAL
+	depends on IP_NF_MANGLE || IP6_NF_MANGLE
+	depends on NETFILTER_ADVANCED
+	help
+	  This option adds a "TCPOPTSTRIP" target, which allows you to strip
+	  TCP options from TCP packets.
+
+# alphabetically ordered list of matches
+
+comment "Xtables matches"
+
+config NETFILTER_XT_MATCH_ADDRTYPE
+	tristate '"addrtype" address type match support'
+	depends on NETFILTER_ADVANCED
+	---help---
+	  This option allows you to match what routing thinks of an address,
+	  eg. UNICAST, LOCAL, BROADCAST, ...
+
+	  If you want to compile it as a module, say M here and read
+	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+
+config NETFILTER_XT_MATCH_CLUSTER
+	tristate '"cluster" match support'
+	depends on NF_CONNTRACK
+	depends on NETFILTER_ADVANCED
+	---help---
+	  This option allows you to build work-load-sharing clusters of
+	  network servers/stateful firewalls without having a dedicated
+	  load-balancing router/server/switch. Basically, this match returns
+	  true when the packet must be handled by this cluster node. Thus,
+	  all nodes see all packets and this match decides which node handles
+	  what packets. The work-load sharing algorithm is based on source
+	  address hashing.
+
+	  If you say Y or M here, try `iptables -m cluster --help` for
+	  more information.
+
+config NETFILTER_XT_MATCH_COMMENT
+	tristate  '"comment" match support'
+	depends on NETFILTER_ADVANCED
+	help
+	  This option adds a `comment' dummy-match, which allows you to put
+	  comments in your iptables ruleset.
+
+	  If you want to compile it as a module, say M here and read
+	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+
+config NETFILTER_XT_MATCH_CONNBYTES
+	tristate  '"connbytes" per-connection counter match support'
+	depends on NF_CONNTRACK
+	depends on NETFILTER_ADVANCED
+	help
+	  This option adds a `connbytes' match, which allows you to match the
+	  number of bytes and/or packets for each direction within a connection.
+
+	  If you want to compile it as a module, say M here and read
+	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+
+config NETFILTER_XT_MATCH_CONNLIMIT
+	tristate '"connlimit" match support"'
+	depends on NF_CONNTRACK
+	depends on NETFILTER_ADVANCED
+	---help---
+	  This match allows you to match against the number of parallel
+	  connections to a server per client IP address (or address block).
+
+config NETFILTER_XT_MATCH_CONNMARK
+	tristate  '"connmark" connection mark match support'
+	depends on NF_CONNTRACK
+	depends on NETFILTER_ADVANCED
+	select NETFILTER_XT_CONNMARK
+	---help---
+	This is a backwards-compat option for the user's convenience
+	(e.g. when running oldconfig). It selects
+	CONFIG_NETFILTER_XT_CONNMARK (combined connmark/CONNMARK module).
+
+config NETFILTER_XT_MATCH_CONNTRACK
+	tristate '"conntrack" connection tracking match support'
+	depends on NF_CONNTRACK
+	default m if NETFILTER_ADVANCED=n
+	help
+	  This is a general conntrack match module, a superset of the state match.
+
+	  It allows matching on additional conntrack information, which is
+	  useful in complex configurations, such as NAT gateways with multiple
+	  internet links or tunnels.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_CPU
+	tristate '"cpu" match support'
+	depends on NETFILTER_ADVANCED
+	help
+	  CPU matching allows you to match packets based on the CPU
+	  currently handling the packet.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_DCCP
+	tristate '"dccp" protocol match support'
+	depends on NETFILTER_ADVANCED
+	default IP_DCCP
+	help
+	  With this option enabled, you will be able to use the iptables
+	  `dccp' match in order to match on DCCP source/destination ports
+	  and DCCP flags.
+
+	  If you want to compile it as a module, say M here and read
+	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+
+config NETFILTER_XT_MATCH_DEVGROUP
+	tristate '"devgroup" match support'
+	depends on NETFILTER_ADVANCED
+	help
+	  This options adds a `devgroup' match, which allows to match on the
+	  device group a network device is assigned to.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_DSCP
+	tristate '"dscp" and "tos" match support'
+	depends on NETFILTER_ADVANCED
+	help
+	  This option adds a `DSCP' match, which allows you to match against
+	  the IPv4/IPv6 header DSCP field (differentiated services codepoint).
+
+	  The DSCP field can have any value between 0x0 and 0x3f inclusive.
+
+	  It will also add a "tos" match, which allows you to match packets
+	  based on the Type Of Service fields of the IPv4 packet (which share
+	  the same bits as DSCP).
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_ECN
+	tristate '"ecn" match support'
+	depends on NETFILTER_ADVANCED
+	---help---
+	This option adds an "ECN" match, which allows you to match against
+	the IPv4 and TCP header ECN fields.
+
+	To compile it as a module, choose M here. If unsure, say N.
+
+config NETFILTER_XT_MATCH_ESP
+	tristate '"esp" match support'
+	depends on NETFILTER_ADVANCED
+	help
+	  This match extension allows you to match a range of SPIs
+	  inside ESP header of IPSec packets.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_HASHLIMIT
+	tristate '"hashlimit" match support'
+	depends on (IP6_NF_IPTABLES || IP6_NF_IPTABLES=n)
+	depends on NETFILTER_ADVANCED
+	help
+	  This option adds a `hashlimit' match.
+
+	  As opposed to `limit', this match dynamically creates a hash table
+	  of limit buckets, based on your selection of source/destination
+	  addresses and/or ports.
+
+	  It enables you to express policies like `10kpps for any given
+	  destination address' or `500pps from any given source address'
+	  with a single rule.
+
+config NETFILTER_XT_MATCH_HELPER
+	tristate '"helper" match support'
+	depends on NF_CONNTRACK
+	depends on NETFILTER_ADVANCED
+	help
+	  Helper matching allows you to match packets in dynamic connections
+	  tracked by a conntrack-helper, ie. ip_conntrack_ftp
+
+	  To compile it as a module, choose M here.  If unsure, say Y.
+
+config NETFILTER_XT_MATCH_HL
+	tristate '"hl" hoplimit/TTL match support'
+	depends on NETFILTER_ADVANCED
+	---help---
+	HL matching allows you to match packets based on the hoplimit
+	in the IPv6 header, or the time-to-live field in the IPv4
+	header of the packet.
+
+config NETFILTER_XT_MATCH_IPRANGE
+	tristate '"iprange" address range match support'
+	depends on NETFILTER_ADVANCED
+	---help---
+	This option adds a "iprange" match, which allows you to match based on
+	an IP address range. (Normal iptables only matches on single addresses
+	with an optional mask.)
+
+	If unsure, say M.
+
+config NETFILTER_XT_MATCH_IPVS
+	tristate '"ipvs" match support'
+	depends on IP_VS
+	depends on NETFILTER_ADVANCED
+	depends on NF_CONNTRACK
+	help
+	  This option allows you to match against IPVS properties of a packet.
+
+	  If unsure, say N.
+
+config NETFILTER_XT_MATCH_LENGTH
+	tristate '"length" match support'
+	depends on NETFILTER_ADVANCED
+	help
+	  This option allows you to match the length of a packet against a
+	  specific value or range of values.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_LIMIT
+	tristate '"limit" match support'
+	depends on NETFILTER_ADVANCED
+	help
+	  limit matching allows you to control the rate at which a rule can be
+	  matched: mainly useful in combination with the LOG target ("LOG
+	  target support", below) and to avoid some Denial of Service attacks.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_MAC
+	tristate '"mac" address match support'
+	depends on NETFILTER_ADVANCED
+	help
+	  MAC matching allows you to match packets based on the source
+	  Ethernet address of the packet.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_MARK
+	tristate '"mark" match support'
+	depends on NETFILTER_ADVANCED
+	select NETFILTER_XT_MARK
+	---help---
+	This is a backwards-compat option for the user's convenience
+	(e.g. when running oldconfig). It selects
+	CONFIG_NETFILTER_XT_MARK (combined mark/MARK module).
+
+config NETFILTER_XT_MATCH_MULTIPORT
+	tristate '"multiport" Multiple port match support'
+	depends on NETFILTER_ADVANCED
+	help
+	  Multiport matching allows you to match TCP or UDP packets based on
+	  a series of source or destination ports: normally a rule can only
+	  match a single range of ports.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_NFACCT
+	tristate '"nfacct" match support'
+	depends on NETFILTER_ADVANCED
+	select NETFILTER_NETLINK_ACCT
+	help
+	  This option allows you to use the extended accounting through
+	  nfnetlink_acct.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_OSF
+	tristate '"osf" Passive OS fingerprint match'
+	depends on NETFILTER_ADVANCED && NETFILTER_NETLINK
+	help
+	  This option selects the Passive OS Fingerprinting match module
+	  that allows to passively match the remote operating system by
+	  analyzing incoming TCP SYN packets.
+
+	  Rules and loading software can be downloaded from
+	  http://www.ioremap.net/projects/osf
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_OWNER
+	tristate '"owner" match support'
+	depends on NETFILTER_ADVANCED
+	---help---
+	Socket owner matching allows you to match locally-generated packets
+	based on who created the socket: the user or group. It is also
+	possible to check whether a socket actually exists.
+
+config NETFILTER_XT_MATCH_POLICY
+	tristate 'IPsec "policy" match support'
+	depends on XFRM
+	default m if NETFILTER_ADVANCED=n
+	help
+	  Policy matching allows you to match packets based on the
+	  IPsec policy that was used during decapsulation/will
+	  be used during encapsulation.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_PHYSDEV
+	tristate '"physdev" match support'
+	depends on BRIDGE && BRIDGE_NETFILTER
+	depends on NETFILTER_ADVANCED
+	help
+	  Physdev packet matching matches against the physical bridge ports
+	  the IP packet arrived on or will leave by.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_PKTTYPE
+	tristate '"pkttype" packet type match support'
+	depends on NETFILTER_ADVANCED
+	help
+	  Packet type matching allows you to match a packet by
+	  its "class", eg. BROADCAST, MULTICAST, ...
+
+	  Typical usage:
+	  iptables -A INPUT -m pkttype --pkt-type broadcast -j LOG
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_QUOTA
+	tristate '"quota" match support'
+	depends on NETFILTER_ADVANCED
+	help
+	  This option adds a `quota' match, which allows to match on a
+	  byte counter.
+
+	  If you want to compile it as a module, say M here and read
+	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+
+config NETFILTER_XT_MATCH_RATEEST
+	tristate '"rateest" match support'
+	depends on NETFILTER_ADVANCED
+	select NETFILTER_XT_TARGET_RATEEST
+	help
+	  This option adds a `rateest' match, which allows to match on the
+	  rate estimated by the RATEEST target.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_REALM
+	tristate  '"realm" match support'
+	depends on NETFILTER_ADVANCED
+	select IP_ROUTE_CLASSID
+	help
+	  This option adds a `realm' match, which allows you to use the realm
+	  key from the routing subsystem inside iptables.
+
+	  This match pretty much resembles the CONFIG_NET_CLS_ROUTE4 option 
+	  in tc world.
+
+	  If you want to compile it as a module, say M here and read
+	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+
+config NETFILTER_XT_MATCH_RECENT
+	tristate '"recent" match support'
+	depends on NETFILTER_ADVANCED
+	---help---
+	This match is used for creating one or many lists of recently
+	used addresses and then matching against that/those list(s).
+
+	Short options are available by using 'iptables -m recent -h'
+	Official Website: <http://snowman.net/projects/ipt_recent/>
+
+config NETFILTER_XT_MATCH_SCTP
+	tristate  '"sctp" protocol match support (EXPERIMENTAL)'
+	depends on EXPERIMENTAL
+	depends on NETFILTER_ADVANCED
+	default IP_SCTP
+	help
+	  With this option enabled, you will be able to use the 
+	  `sctp' match in order to match on SCTP source/destination ports
+	  and SCTP chunk types.
+
+	  If you want to compile it as a module, say M here and read
+	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+
+config NETFILTER_XT_MATCH_SOCKET
+	tristate '"socket" match support (EXPERIMENTAL)'
+	depends on EXPERIMENTAL
+	depends on NETFILTER_TPROXY
+	depends on NETFILTER_XTABLES
+	depends on NETFILTER_ADVANCED
+	depends on !NF_CONNTRACK || NF_CONNTRACK
+	select NF_DEFRAG_IPV4
+	select NF_DEFRAG_IPV6 if IP6_NF_IPTABLES
+	help
+	  This option adds a `socket' match, which can be used to match
+	  packets for which a TCP or UDP socket lookup finds a valid socket.
+	  It can be used in combination with the MARK target and policy
+	  routing to implement full featured non-locally bound sockets.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_STATE
+	tristate '"state" match support'
+	depends on NF_CONNTRACK
+	default m if NETFILTER_ADVANCED=n
+	help
+	  Connection state matching allows you to match packets based on their
+	  relationship to a tracked connection (ie. previous packets).  This
+	  is a powerful tool for packet classification.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_STATISTIC
+	tristate '"statistic" match support'
+	depends on NETFILTER_ADVANCED
+	help
+	  This option adds a `statistic' match, which allows you to match
+	  on packets periodically or randomly with a given percentage.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_STRING
+	tristate  '"string" match support'
+	depends on NETFILTER_ADVANCED
+	select TEXTSEARCH
+	select TEXTSEARCH_KMP
+	select TEXTSEARCH_BM
+	select TEXTSEARCH_FSM
+	help
+	  This option adds a `string' match, which allows you to look for
+	  pattern matchings in packets.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_TCPMSS
+	tristate '"tcpmss" match support'
+	depends on NETFILTER_ADVANCED
+	help
+	  This option adds a `tcpmss' match, which allows you to examine the
+	  MSS value of TCP SYN packets, which control the maximum packet size
+	  for that connection.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_TIME
+	tristate '"time" match support'
+	depends on NETFILTER_ADVANCED
+	---help---
+	  This option adds a "time" match, which allows you to match based on
+	  the packet arrival time (at the machine which netfilter is running)
+	  on) or departure time/date (for locally generated packets).
+
+	  If you say Y here, try `iptables -m time --help` for
+	  more information.
+
+	  If you want to compile it as a module, say M here.
+	  If unsure, say N.
+
+config NETFILTER_XT_MATCH_U32
+	tristate '"u32" match support'
+	depends on NETFILTER_ADVANCED
+	---help---
+	  u32 allows you to extract quantities of up to 4 bytes from a packet,
+	  AND them with specified masks, shift them by specified amounts and
+	  test whether the results are in any of a set of specified ranges.
+	  The specification of what to extract is general enough to skip over
+	  headers with lengths stored in the packet, as in IP or TCP header
+	  lengths.
+
+	  Details and examples are in the kernel module source.
+
+endif # NETFILTER_XTABLES
+
+endmenu
+
+source "net/netfilter/ipset/Kconfig"
+
+source "net/netfilter/ipvs/Kconfig"

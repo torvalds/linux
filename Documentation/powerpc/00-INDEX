@@ -1,0 +1,23 @@
+Index of files in Documentation/powerpc.  If you think something about
+Linux/PPC needs an entry here, needs correction or you've written one
+please mail me.
+                                        Cort Dougan (cort@fsmlabs.com)
+
+00-INDEX
+	- this file
+cpu_features.txt
+	- info on how we support a variety of CPUs with minimal compile-time
+	options.
+eeh-pci-error-recovery.txt
+	- info on PCI Bus EEH Error Recovery
+hvcs.txt
+	- IBM "Hypervisor Virtual Console Server" Installation Guide
+mpc52xx.txt
+	- Linux 2.6.x on MPC52xx family
+sound.txt
+	- info on sound support under Linux/PPC
+zImage_layout.txt
+	- info on the kernel images for Linux/PPC
+qe_firmware.txt
+	- describes the layout of firmware binaries for the Freescale QUICC
+	  Engine and the code that parses and uploads the microcode therein.

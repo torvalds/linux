@@ -1,0 +1,27 @@
+What:		/sys/class/gpio/
+Date:		July 2008
+KernelVersion:	2.6.27
+Contact:	David Brownell <dbrownell@users.sourceforge.net>
+Description:
+
+  As a Kconfig option, individual GPIO signals may be accessed from
+  userspace.  GPIOs are only made available to userspace by an explicit
+  "export" operation.  If a given GPIO is not claimed for use by
+  kernel code, it may be exported by userspace (and unexported later).
+  Kernel code may export it for complete or partial access.
+
+  GPIOs are identified as they are inside the kernel, using integers in
+  the range 0..INT_MAX.  See Documentation/gpio.txt for more information.
+
+    /sys/class/gpio
+	/export ... asks the kernel to export a GPIO to userspace
+	/unexport ... to return a GPIO to the kernel
+	/gpioN ... for each exported GPIO #N
+	    /value ... always readable, writes fail for input GPIOs
+	    /direction ... r/w as: in, out (default low); write: high, low
+	    /edge ... r/w as: none, falling, rising, both
+	/gpiochipN ... for each gpiochip; #N is its first GPIO
+	    /base ... (r/o) same as N
+	    /label ... (r/o) descriptive, not necessarily unique
+	    /ngpio ... (r/o) number of GPIOs; numbered N to N + (ngpio - 1)
+

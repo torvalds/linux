@@ -1,0 +1,117 @@
+#
+# USB Dual Role (OTG-ready) Controller Drivers
+# for silicon based on Mentor Graphics INVENTRA designs
+#
+
+# (M)HDRC = (Multipoint) Highspeed Dual-Role Controller
+config USB_MUSB_HDRC
+	tristate 'Inventra Highspeed Dual Role Controller (TI, ADI, ...)'
+	depends on USB && USB_GADGET
+	select NOP_USB_XCEIV if (ARCH_DAVINCI || MACH_OMAP3EVM || BLACKFIN)
+	select TWL4030_USB if MACH_OMAP_3430SDP
+	select TWL6030_USB if MACH_OMAP_4430SDP || MACH_OMAP4_PANDA
+	select USB_OTG_UTILS
+	select USB_GADGET_DUALSPEED
+	help
+	  Say Y here if your system has a dual role high speed USB
+	  controller based on the Mentor Graphics silicon IP.  Then
+	  configure options to match your silicon and the board
+	  it's being used with, including the USB peripheral role,
+	  or the USB host role, or both.
+
+	  Texas Instruments familiies using this IP include DaVinci
+	  (35x, 644x ...), OMAP 243x, OMAP 3, and TUSB 6010.
+
+	  Analog Devices parts using this IP include Blackfin BF54x,
+	  BF525 and BF527.
+
+	  If you do not know what this is, please say N.
+
+	  To compile this driver as a module, choose M here; the
+	  module will be called "musb-hdrc".
+
+if USB_MUSB_HDRC
+
+choice
+	prompt "Platform Glue Layer"
+
+config USB_MUSB_DAVINCI
+	tristate "DaVinci"
+	depends on ARCH_DAVINCI_DMx
+
+config USB_MUSB_DA8XX
+	tristate "DA8xx/OMAP-L1x"
+	depends on ARCH_DAVINCI_DA8XX
+
+config USB_MUSB_TUSB6010
+	tristate "TUSB6010"
+
+config USB_MUSB_OMAP2PLUS
+	tristate "OMAP2430 and onwards"
+	depends on ARCH_OMAP2PLUS
+
+config USB_MUSB_AM35X
+	tristate "AM35x"
+	depends on ARCH_OMAP
+
+config USB_MUSB_BLACKFIN
+	tristate "Blackfin"
+	depends on (BF54x && !BF544) || (BF52x && ! BF522 && !BF523)
+
+config USB_MUSB_UX500
+	tristate "U8500 and U5500"
+	depends on (ARCH_U8500 && AB8500_USB)
+
+endchoice
+
+choice
+	prompt 'MUSB DMA mode'
+	default USB_UX500_DMA if USB_MUSB_UX500
+	default USB_INVENTRA_DMA if USB_MUSB_OMAP2PLUS || USB_MUSB_BLACKFIN
+	default USB_TI_CPPI_DMA if USB_MUSB_DAVINCI
+	default USB_TUSB_OMAP_DMA if USB_MUSB_TUSB6010
+	default MUSB_PIO_ONLY if USB_MUSB_TUSB6010 || USB_MUSB_DA8XX || USB_MUSB_AM35X
+	help
+	  Unfortunately, only one option can be enabled here. Ideally one
+	  should be able to build all these drivers into one kernel to
+	  allow using DMA on multiplatform kernels.
+
+config USB_UX500_DMA
+	bool 'ST Ericsson U8500 and U5500'
+	depends on USB_MUSB_UX500
+	help
+	  Enable DMA transfers on UX500 platforms.
+
+config USB_INVENTRA_DMA
+	bool 'Inventra'
+	depends on USB_MUSB_OMAP2PLUS || USB_MUSB_BLACKFIN
+	help
+	  Enable DMA transfers using Mentor's engine.
+
+config USB_TI_CPPI_DMA
+	bool 'TI CPPI (Davinci)'
+	depends on USB_MUSB_DAVINCI
+	help
+	  Enable DMA transfers when TI CPPI DMA is available.
+
+config USB_TUSB_OMAP_DMA
+	bool 'TUSB 6010'
+	depends on USB_MUSB_TUSB6010
+	depends on ARCH_OMAP
+	help
+	  Enable DMA transfers on TUSB 6010 when OMAP DMA is available.
+
+config MUSB_PIO_ONLY
+	bool 'Disable DMA (always use PIO)'
+	help
+	  All data is copied between memory and FIFO by the CPU.
+	  DMA controllers are ignored.
+
+	  Do not choose this unless DMA support for your SOC or board
+	  is unavailable (or unstable).  When DMA is enabled at compile time,
+	  you can still disable it at run time using the "use_dma=n" module
+	  parameter.
+
+endchoice
+
+endif # USB_MUSB_HDRC

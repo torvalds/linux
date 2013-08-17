@@ -1,0 +1,28 @@
+include include/asm-generic/Kbuild.asm
+
+header-y += boot.h
+header-y += bootparam.h
+header-y += debugreg.h
+header-y += e820.h
+header-y += hw_breakpoint.h
+header-y += hyperv.h
+header-y += ist.h
+header-y += ldt.h
+header-y += mce.h
+header-y += msr-index.h
+header-y += msr.h
+header-y += mtrr.h
+header-y += posix_types_32.h
+header-y += posix_types_64.h
+header-y += posix_types_x32.h
+header-y += prctl.h
+header-y += processor-flags.h
+header-y += ptrace-abi.h
+header-y += sigcontext32.h
+header-y += ucontext.h
+header-y += vm86.h
+header-y += vsyscall.h
+
+genhdr-y += unistd_32.h
+genhdr-y += unistd_64.h
+genhdr-y += unistd_x32.h

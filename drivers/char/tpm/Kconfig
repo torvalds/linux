@@ -1,0 +1,65 @@
+#
+# TPM device configuration
+#
+
+menuconfig TCG_TPM
+	tristate "TPM Hardware Support"
+	depends on HAS_IOMEM
+	select SECURITYFS
+	---help---
+	  If you have a TPM security chip in your system, which
+	  implements the Trusted Computing Group's specification,
+	  say Yes and it will be accessible from within Linux.  For
+	  more information see <http://www.trustedcomputinggroup.org>. 
+	  An implementation of the Trusted Software Stack (TSS), the 
+	  userspace enablement piece of the specification, can be 
+	  obtained at: <http://sourceforge.net/projects/trousers>.  To 
+	  compile this driver as a module, choose M here; the module 
+	  will be called tpm. If unsure, say N.
+	  Notes:
+	  1) For more TPM drivers enable CONFIG_PNP, CONFIG_ACPI
+	  and CONFIG_PNPACPI.
+	  2) Without ACPI enabled, the BIOS event log won't be accessible,
+	  which is required to validate the PCR 0-7 values.
+
+if TCG_TPM
+
+config TCG_TIS
+	tristate "TPM Interface Specification 1.2 Interface"
+	depends on X86
+	---help---
+	  If you have a TPM security chip that is compliant with the
+	  TCG TIS 1.2 TPM specification say Yes and it will be accessible
+	  from within Linux.  To compile this driver as a module, choose
+	  M here; the module will be called tpm_tis.
+
+config TCG_NSC
+	tristate "National Semiconductor TPM Interface"
+	depends on X86
+	---help---
+	  If you have a TPM security chip from National Semiconductor 
+	  say Yes and it will be accessible from within Linux.  To 
+	  compile this driver as a module, choose M here; the module 
+	  will be called tpm_nsc.
+
+config TCG_ATMEL
+	tristate "Atmel TPM Interface"
+	depends on PPC64 || HAS_IOPORT
+	---help---
+	  If you have a TPM security chip from Atmel say Yes and it 
+	  will be accessible from within Linux.  To compile this driver 
+	  as a module, choose M here; the module will be called tpm_atmel.
+
+config TCG_INFINEON
+	tristate "Infineon Technologies TPM Interface"
+	depends on PNP
+	---help---
+	  If you have a TPM security chip from Infineon Technologies
+	  (either SLD 9630 TT 1.1 or SLB 9635 TT 1.2) say Yes and it
+	  will be accessible from within Linux.
+	  To compile this driver as a module, choose M here; the module
+	  will be called tpm_infineon.
+	  Further information on this driver and the supported hardware
+	  can be found at http://www.trust.rub.de/projects/linux-device-driver-infineon-tpm/ 
+
+endif # TCG_TPM

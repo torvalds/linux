@@ -1,0 +1,402 @@
+/*
+ * TQM 8560 Device Tree Source
+ *
+ * Copyright 2008 Freescale Semiconductor Inc.
+ * Copyright 2008 Wolfgang Grandegger <wg@grandegger.com>
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
+
+/dts-v1/;
+
+/ {
+	model = "tqc,tqm8560";
+	compatible = "tqc,tqm8560";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	aliases {
+		ethernet0 = &enet0;
+		ethernet1 = &enet1;
+		ethernet2 = &enet2;
+		serial0 = &serial0;
+		serial1 = &serial1;
+		pci0 = &pci0;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		PowerPC,8560@0 {
+			device_type = "cpu";
+			reg = <0>;
+			d-cache-line-size = <32>;
+			i-cache-line-size = <32>;
+			d-cache-size = <32768>;
+			i-cache-size = <32768>;
+			timebase-frequency = <0>;
+			bus-frequency = <0>;
+			clock-frequency = <0>;
+			next-level-cache = <&L2>;
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x10000000>;
+	};
+
+	soc@e0000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		device_type = "soc";
+		ranges = <0x0 0xe0000000 0x100000>;
+		bus-frequency = <0>;
+		compatible = "fsl,mpc8560-immr", "simple-bus";
+
+		ecm-law@0 {
+			compatible = "fsl,ecm-law";
+			reg = <0x0 0x1000>;
+			fsl,num-laws = <8>;
+		};
+
+		ecm@1000 {
+			compatible = "fsl,mpc8560-ecm", "fsl,ecm";
+			reg = <0x1000 0x1000>;
+			interrupts = <17 2>;
+			interrupt-parent = <&mpic>;
+		};
+
+		memory-controller@2000 {
+			compatible = "fsl,mpc8540-memory-controller";
+			reg = <0x2000 0x1000>;
+			interrupt-parent = <&mpic>;
+			interrupts = <18 2>;
+		};
+
+		L2: l2-cache-controller@20000 {
+			compatible = "fsl,mpc8540-l2-cache-controller";
+			reg = <0x20000 0x1000>;
+			cache-line-size = <32>;
+			cache-size = <0x40000>;	// L2, 256K
+			interrupt-parent = <&mpic>;
+			interrupts = <16 2>;
+		};
+
+		i2c@3000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <0>;
+			compatible = "fsl-i2c";
+			reg = <0x3000 0x100>;
+			interrupts = <43 2>;
+			interrupt-parent = <&mpic>;
+			dfsrr;
+
+			dtt@48 {
+				compatible = "national,lm75";
+				reg = <0x48>;
+			};
+
+			rtc@68 {
+				compatible = "dallas,ds1337";
+				reg = <0x68>;
+			};
+		};
+
+		dma@21300 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,mpc8560-dma", "fsl,eloplus-dma";
+			reg = <0x21300 0x4>;
+			ranges = <0x0 0x21100 0x200>;
+			cell-index = <0>;
+			dma-channel@0 {
+				compatible = "fsl,mpc8560-dma-channel",
+						"fsl,eloplus-dma-channel";
+				reg = <0x0 0x80>;
+				cell-index = <0>;
+				interrupt-parent = <&mpic>;
+				interrupts = <20 2>;
+			};
+			dma-channel@80 {
+				compatible = "fsl,mpc8560-dma-channel",
+						"fsl,eloplus-dma-channel";
+				reg = <0x80 0x80>;
+				cell-index = <1>;
+				interrupt-parent = <&mpic>;
+				interrupts = <21 2>;
+			};
+			dma-channel@100 {
+				compatible = "fsl,mpc8560-dma-channel",
+						"fsl,eloplus-dma-channel";
+				reg = <0x100 0x80>;
+				cell-index = <2>;
+				interrupt-parent = <&mpic>;
+				interrupts = <22 2>;
+			};
+			dma-channel@180 {
+				compatible = "fsl,mpc8560-dma-channel",
+						"fsl,eloplus-dma-channel";
+				reg = <0x180 0x80>;
+				cell-index = <3>;
+				interrupt-parent = <&mpic>;
+				interrupts = <23 2>;
+			};
+		};
+
+		enet0: ethernet@24000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			cell-index = <0>;
+			device_type = "network";
+			model = "TSEC";
+			compatible = "gianfar";
+			reg = <0x24000 0x1000>;
+			ranges = <0x0 0x24000 0x1000>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			interrupts = <29 2 30 2 34 2>;
+			interrupt-parent = <&mpic>;
+			tbi-handle = <&tbi0>;
+			phy-handle = <&phy2>;
+
+			mdio@520 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,gianfar-mdio";
+				reg = <0x520 0x20>;
+
+				phy1: ethernet-phy@1 {
+					interrupt-parent = <&mpic>;
+					interrupts = <8 1>;
+					reg = <1>;
+					device_type = "ethernet-phy";
+				};
+				phy2: ethernet-phy@2 {
+					interrupt-parent = <&mpic>;
+					interrupts = <8 1>;
+					reg = <2>;
+					device_type = "ethernet-phy";
+				};
+				phy3: ethernet-phy@3 {
+					interrupt-parent = <&mpic>;
+					interrupts = <8 1>;
+					reg = <3>;
+					device_type = "ethernet-phy";
+				};
+				tbi0: tbi-phy@11 {
+					reg = <0x11>;
+					device_type = "tbi-phy";
+				};
+			};
+		};
+
+		enet1: ethernet@25000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			cell-index = <1>;
+			device_type = "network";
+			model = "TSEC";
+			compatible = "gianfar";
+			reg = <0x25000 0x1000>;
+			ranges = <0x0 0x25000 0x1000>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			interrupts = <35 2 36 2 40 2>;
+			interrupt-parent = <&mpic>;
+			tbi-handle = <&tbi1>;
+			phy-handle = <&phy1>;
+
+			mdio@520 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,gianfar-tbi";
+				reg = <0x520 0x20>;
+
+				tbi1: tbi-phy@11 {
+					reg = <0x11>;
+					device_type = "tbi-phy";
+				};
+			};
+		};
+
+		mpic: pic@40000 {
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <2>;
+			reg = <0x40000 0x40000>;
+			device_type = "open-pic";
+			compatible = "chrp,open-pic";
+		};
+
+		cpm@919c0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,mpc8560-cpm", "fsl,cpm2", "simple-bus";
+			reg = <0x919c0 0x30>;
+			ranges;
+
+			muram@80000 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x80000 0x10000>;
+
+				data@0 {
+					compatible = "fsl,cpm-muram-data";
+					reg = <0 0x4000 0x9000 0x2000>;
+				};
+			};
+
+			brg@919f0 {
+				compatible = "fsl,mpc8560-brg",
+				             "fsl,cpm2-brg",
+				             "fsl,cpm-brg";
+				reg = <0x919f0 0x10 0x915f0 0x10>;
+				clock-frequency = <0>;
+			};
+
+			cpmpic: pic@90c00 {
+				interrupt-controller;
+				#address-cells = <0>;
+				#interrupt-cells = <2>;
+				interrupts = <46 2>;
+				interrupt-parent = <&mpic>;
+				reg = <0x90c00 0x80>;
+				compatible = "fsl,mpc8560-cpm-pic", "fsl,cpm2-pic";
+			};
+
+			serial0: serial@91a00 {
+				device_type = "serial";
+				compatible = "fsl,mpc8560-scc-uart",
+				             "fsl,cpm2-scc-uart";
+				reg = <0x91a00 0x20 0x88000 0x100>;
+				fsl,cpm-brg = <1>;
+				fsl,cpm-command = <0x800000>;
+				current-speed = <115200>;
+				interrupts = <40 8>;
+				interrupt-parent = <&cpmpic>;
+			};
+
+			serial1: serial@91a20 {
+				device_type = "serial";
+				compatible = "fsl,mpc8560-scc-uart",
+				             "fsl,cpm2-scc-uart";
+				reg = <0x91a20 0x20 0x88100 0x100>;
+				fsl,cpm-brg = <2>;
+				fsl,cpm-command = <0x4a00000>;
+				current-speed = <115200>;
+				interrupts = <41 8>;
+				interrupt-parent = <&cpmpic>;
+			};
+
+			enet2: ethernet@91340 {
+				device_type = "network";
+				compatible = "fsl,mpc8560-fcc-enet",
+				             "fsl,cpm2-fcc-enet";
+				reg = <0x91340 0x20 0x88600 0x100 0x913d0 0x1>;
+				local-mac-address = [ 00 00 00 00 00 00 ];
+				fsl,cpm-command = <0x1a400300>;
+				interrupts = <34 8>;
+				interrupt-parent = <&cpmpic>;
+				phy-handle = <&phy3>;
+			};
+		};
+	};
+
+	localbus@e0005000 {
+		compatible = "fsl,mpc8560-localbus", "fsl,pq3-localbus",
+			     "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		reg = <0xe0005000 0x100>;	// BRx, ORx, etc.
+		interrupt-parent = <&mpic>;
+		interrupts = <19 2>;
+
+		ranges = <
+			0 0x0 0xfc000000 0x04000000	// NOR FLASH bank 1
+			1 0x0 0xf8000000 0x08000000	// NOR FLASH bank 0
+			2 0x0 0xe3000000 0x00008000	// CAN (2 x i82527)
+		>;
+
+		flash@1,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "cfi-flash";
+			reg = <1 0x0 0x8000000>;
+			bank-width = <4>;
+			device-width = <1>;
+
+			partition@0 {
+				label = "kernel";
+				reg = <0x00000000 0x00200000>;
+			};
+			partition@200000 {
+				label = "root";
+				reg = <0x00200000 0x00300000>;
+			};
+			partition@500000 {
+				label = "user";
+				reg = <0x00500000 0x07a00000>;
+			};
+			partition@7f00000 {
+				label = "env1";
+				reg = <0x07f00000 0x00040000>;
+			};
+			partition@7f40000 {
+				label = "env2";
+				reg = <0x07f40000 0x00040000>;
+			};
+			partition@7f80000 {
+				label = "u-boot";
+				reg = <0x07f80000 0x00080000>;
+				read-only;
+			};
+		};
+
+		/* Note: CAN support needs be enabled in U-Boot */
+		can0@2,0 {
+			compatible = "intel,82527"; // Bosch CC770
+			reg = <2 0x0 0x100>;
+			interrupts = <4 1>;
+			interrupt-parent = <&mpic>;
+		};
+
+		can1@2,100 {
+			compatible = "intel,82527"; // Bosch CC770
+			reg = <2 0x100 0x100>;
+			interrupts = <4 1>;
+			interrupt-parent = <&mpic>;
+		};
+	};
+
+	pci0: pci@e0008000 {
+		#interrupt-cells = <1>;
+		#size-cells = <2>;
+		#address-cells = <3>;
+		compatible = "fsl,mpc8540-pcix", "fsl,mpc8540-pci";
+		device_type = "pci";
+		reg = <0xe0008000 0x1000>;
+		clock-frequency = <66666666>;
+		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
+		interrupt-map = <
+				/* IDSEL 28 */
+				 0xe000 0 0 1 &mpic 2 1
+				 0xe000 0 0 2 &mpic 3 1
+				 0xe000 0 0 3 &mpic 6 1
+				 0xe000 0 0 4 &mpic 5 1
+
+				/* IDSEL 11 */
+				 0x5800 0 0 1 &mpic 6 1
+				 0x5800 0 0 2 &mpic 5 1
+				 >;
+
+		interrupt-parent = <&mpic>;
+		interrupts = <24 2>;
+		bus-range = <0 0>;
+		ranges = <0x02000000 0 0x80000000 0x80000000 0 0x20000000
+			  0x01000000 0 0x00000000 0xe2000000 0 0x01000000>;
+	};
+};

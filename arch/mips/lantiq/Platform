@@ -1,0 +1,8 @@
+#
+# Lantiq
+#
+
+platform-$(CONFIG_LANTIQ)	+= lantiq/
+cflags-$(CONFIG_LANTIQ)		+= -I$(srctree)/arch/mips/include/asm/mach-lantiq
+load-$(CONFIG_LANTIQ)		= 0xffffffff80002000
+cflags-$(CONFIG_SOC_TYPE_XWAY)	+= -I$(srctree)/arch/mips/include/asm/mach-lantiq/xway

@@ -1,0 +1,299 @@
+
+menuconfig CRYPTO_HW
+	bool "Hardware crypto devices"
+	default y
+	---help---
+	  Say Y here to get to see options for hardware crypto devices and
+	  processors. This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and disabled.
+
+if CRYPTO_HW
+
+config CRYPTO_DEV_PADLOCK
+	tristate "Support for VIA PadLock ACE"
+	depends on X86 && !UML
+	help
+	  Some VIA processors come with an integrated crypto engine
+	  (so called VIA PadLock ACE, Advanced Cryptography Engine)
+	  that provides instructions for very fast cryptographic
+	  operations with supported algorithms.
+	  
+	  The instructions are used only when the CPU supports them.
+	  Otherwise software encryption is used.
+
+config CRYPTO_DEV_PADLOCK_AES
+	tristate "PadLock driver for AES algorithm"
+	depends on CRYPTO_DEV_PADLOCK
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_AES
+	help
+	  Use VIA PadLock for AES algorithm.
+
+	  Available in VIA C3 and newer CPUs.
+
+	  If unsure say M. The compiled module will be
+	  called padlock-aes.
+
+config CRYPTO_DEV_PADLOCK_SHA
+	tristate "PadLock driver for SHA1 and SHA256 algorithms"
+	depends on CRYPTO_DEV_PADLOCK
+	select CRYPTO_HASH
+	select CRYPTO_SHA1
+	select CRYPTO_SHA256
+	help
+	  Use VIA PadLock for SHA1/SHA256 algorithms.
+
+	  Available in VIA C7 and newer processors.
+
+	  If unsure say M. The compiled module will be
+	  called padlock-sha.
+
+config CRYPTO_DEV_GEODE
+	tristate "Support for the Geode LX AES engine"
+	depends on X86_32 && PCI
+	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
+	help
+	  Say 'Y' here to use the AMD Geode LX processor on-board AES
+	  engine for the CryptoAPI AES algorithm.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called geode-aes.
+
+config ZCRYPT
+	tristate "Support for PCI-attached cryptographic adapters"
+	depends on S390
+	select HW_RANDOM
+	help
+	  Select this option if you want to use a PCI-attached cryptographic
+	  adapter like:
+	  + PCI Cryptographic Accelerator (PCICA)
+	  + PCI Cryptographic Coprocessor (PCICC)
+	  + PCI-X Cryptographic Coprocessor (PCIXCC)
+	  + Crypto Express2 Coprocessor (CEX2C)
+	  + Crypto Express2 Accelerator (CEX2A)
+	  + Crypto Express3 Coprocessor (CEX3C)
+	  + Crypto Express3 Accelerator (CEX3A)
+
+config CRYPTO_SHA1_S390
+	tristate "SHA1 digest algorithm"
+	depends on S390
+	select CRYPTO_HASH
+	help
+	  This is the s390 hardware accelerated implementation of the
+	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
+
+	  It is available as of z990.
+
+config CRYPTO_SHA256_S390
+	tristate "SHA256 digest algorithm"
+	depends on S390
+	select CRYPTO_HASH
+	help
+	  This is the s390 hardware accelerated implementation of the
+	  SHA256 secure hash standard (DFIPS 180-2).
+
+	  It is available as of z9.
+
+config CRYPTO_SHA512_S390
+	tristate "SHA384 and SHA512 digest algorithm"
+	depends on S390
+	select CRYPTO_HASH
+	help
+	  This is the s390 hardware accelerated implementation of the
+	  SHA512 secure hash standard.
+
+	  It is available as of z10.
+
+config CRYPTO_DES_S390
+	tristate "DES and Triple DES cipher algorithms"
+	depends on S390
+	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
+	help
+	  This is the s390 hardware accelerated implementation of the
+	  DES cipher algorithm (FIPS 46-2), and Triple DES EDE (FIPS 46-3).
+
+	  As of z990 the ECB and CBC mode are hardware accelerated.
+	  As of z196 the CTR mode is hardware accelerated.
+
+config CRYPTO_AES_S390
+	tristate "AES cipher algorithms"
+	depends on S390
+	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
+	help
+	  This is the s390 hardware accelerated implementation of the
+	  AES cipher algorithms (FIPS-197).
+
+	  As of z9 the ECB and CBC modes are hardware accelerated
+	  for 128 bit keys.
+	  As of z10 the ECB and CBC modes are hardware accelerated
+	  for all AES key sizes.
+	  As of z196 the CTR mode is hardware accelerated for all AES
+	  key sizes and XTS mode is hardware accelerated for 256 and
+	  512 bit keys.
+
+config S390_PRNG
+	tristate "Pseudo random number generator device driver"
+	depends on S390
+	default "m"
+	help
+	  Select this option if you want to use the s390 pseudo random number
+	  generator. The PRNG is part of the cryptographic processor functions
+	  and uses triple-DES to generate secure random numbers like the
+	  ANSI X9.17 standard. User-space programs access the
+	  pseudo-random-number device through the char device /dev/prandom.
+
+	  It is available as of z9.
+
+config CRYPTO_GHASH_S390
+	tristate "GHASH digest algorithm"
+	depends on S390
+	select CRYPTO_HASH
+	help
+	  This is the s390 hardware accelerated implementation of the
+	  GHASH message digest algorithm for GCM (Galois/Counter Mode).
+
+	  It is available as of z196.
+
+config CRYPTO_DEV_MV_CESA
+	tristate "Marvell's Cryptographic Engine"
+	depends on PLAT_ORION
+	select CRYPTO_ALGAPI
+	select CRYPTO_AES
+	select CRYPTO_BLKCIPHER2
+	select CRYPTO_HASH
+	help
+	  This driver allows you to utilize the Cryptographic Engines and
+	  Security Accelerator (CESA) which can be found on the Marvell Orion
+	  and Kirkwood SoCs, such as QNAP's TS-209.
+
+	  Currently the driver supports AES in ECB and CBC mode without DMA.
+
+config CRYPTO_DEV_NIAGARA2
+       tristate "Niagara2 Stream Processing Unit driver"
+       select CRYPTO_DES
+       select CRYPTO_ALGAPI
+       depends on SPARC64
+       help
+	  Each core of a Niagara2 processor contains a Stream
+	  Processing Unit, which itself contains several cryptographic
+	  sub-units.  One set provides the Modular Arithmetic Unit,
+	  used for SSL offload.  The other set provides the Cipher
+	  Group, which can perform encryption, decryption, hashing,
+	  checksumming, and raw copies.
+
+config CRYPTO_DEV_HIFN_795X
+	tristate "Driver HIFN 795x crypto accelerator chips"
+	select CRYPTO_DES
+	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
+	select HW_RANDOM if CRYPTO_DEV_HIFN_795X_RNG
+	depends on PCI
+	depends on !ARCH_DMA_ADDR_T_64BIT
+	help
+	  This option allows you to have support for HIFN 795x crypto adapters.
+
+config CRYPTO_DEV_HIFN_795X_RNG
+	bool "HIFN 795x random number generator"
+	depends on CRYPTO_DEV_HIFN_795X
+	help
+	  Select this option if you want to enable the random number generator
+	  on the HIFN 795x crypto adapters.
+
+source drivers/crypto/caam/Kconfig
+
+config CRYPTO_DEV_TALITOS
+	tristate "Talitos Freescale Security Engine (SEC)"
+	select CRYPTO_ALGAPI
+	select CRYPTO_AUTHENC
+	select HW_RANDOM
+	depends on FSL_SOC
+	help
+	  Say 'Y' here to use the Freescale Security Engine (SEC)
+	  to offload cryptographic algorithm computation.
+
+	  The Freescale SEC is present on PowerQUICC 'E' processors, such
+	  as the MPC8349E and MPC8548E.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called talitos.
+
+config CRYPTO_DEV_IXP4XX
+	tristate "Driver for IXP4xx crypto hardware acceleration"
+	depends on ARCH_IXP4XX
+	select CRYPTO_DES
+	select CRYPTO_ALGAPI
+	select CRYPTO_AUTHENC
+	select CRYPTO_BLKCIPHER
+	help
+	  Driver for the IXP4xx NPE crypto engine.
+
+config CRYPTO_DEV_PPC4XX
+	tristate "Driver AMCC PPC4xx crypto accelerator"
+	depends on PPC && 4xx
+	select CRYPTO_HASH
+	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
+	help
+	  This option allows you to have support for AMCC crypto acceleration.
+
+config CRYPTO_DEV_OMAP_SHAM
+	tristate "Support for OMAP SHA1/MD5 hw accelerator"
+	depends on ARCH_OMAP2 || ARCH_OMAP3
+	select CRYPTO_SHA1
+	select CRYPTO_MD5
+	help
+	  OMAP processors have SHA1/MD5 hw accelerator. Select this if you
+	  want to use the OMAP module for SHA1/MD5 algorithms.
+
+config CRYPTO_DEV_OMAP_AES
+	tristate "Support for OMAP AES hw engine"
+	depends on ARCH_OMAP2 || ARCH_OMAP3
+	select CRYPTO_AES
+	help
+	  OMAP processors have AES module accelerator. Select this if you
+	  want to use the OMAP module for AES algorithms.
+
+config CRYPTO_DEV_PICOXCELL
+	tristate "Support for picoXcell IPSEC and Layer2 crypto engines"
+	depends on ARCH_PICOXCELL && HAVE_CLK
+	select CRYPTO_AES
+	select CRYPTO_AUTHENC
+	select CRYPTO_ALGAPI
+	select CRYPTO_DES
+	select CRYPTO_CBC
+	select CRYPTO_ECB
+	select CRYPTO_SEQIV
+	help
+	  This option enables support for the hardware offload engines in the
+	  Picochip picoXcell SoC devices. Select this for IPSEC ESP offload
+	  and for 3gpp Layer 2 ciphering support.
+
+	  Saying m here will build a module named pipcoxcell_crypto.
+
+config CRYPTO_DEV_S5P
+	tristate "Support for Samsung S5PV210 crypto accelerator"
+	depends on ARCH_S5PV210
+	select CRYPTO_AES
+	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
+	help
+	  This option allows you to have support for S5P crypto acceleration.
+	  Select this to offload Samsung S5PV210 or S5PC110 from AES
+	  algorithms execution.
+
+config CRYPTO_DEV_TEGRA_AES
+	tristate "Support for TEGRA AES hw engine"
+	depends on ARCH_TEGRA
+	select CRYPTO_AES
+	help
+	  TEGRA processors have AES module accelerator. Select this if you
+	  want to use the TEGRA module for AES algorithms.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called tegra-aes.
+
+endif # CRYPTO_HW

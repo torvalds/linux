@@ -1,0 +1,119 @@
+/*
+ * Copyright 2011 Freescale Semiconductor, Inc.
+ * Copyright 2011 Linaro Ltd.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+/include/ "imx53.dtsi"
+
+/ {
+	model = "Freescale i.MX53 Evaluation Kit";
+	compatible = "fsl,imx53-evk", "fsl,imx53";
+
+	chosen {
+		bootargs = "console=ttymxc0,115200 root=/dev/mmcblk0p3 rootwait";
+	};
+
+	memory {
+		reg = <0x70000000 0x80000000>;
+	};
+
+	soc {
+		aips@50000000 { /* AIPS1 */
+			spba@50000000 {
+				esdhc@50004000 { /* ESDHC1 */
+					cd-gpios = <&gpio3 13 0>;
+					wp-gpios = <&gpio3 14 0>;
+					status = "okay";
+				};
+
+				ecspi@50010000 { /* ECSPI1 */
+					fsl,spi-num-chipselects = <2>;
+					cs-gpios = <&gpio2 30 0>, <&gpio3 19 0>;
+					status = "okay";
+
+					flash: at45db321d@1 {
+						#address-cells = <1>;
+						#size-cells = <1>;
+						compatible = "atmel,at45db321d", "atmel,at45", "atmel,dataflash";
+						spi-max-frequency = <25000000>;
+						reg = <1>;
+
+						partition@0 {
+							label = "U-Boot";
+							reg = <0x0 0x40000>;
+							read-only;
+						};
+
+						partition@40000 {
+							label = "Kernel";
+							reg = <0x40000 0x3c0000>;
+						};
+					};
+				};
+
+				esdhc@50020000 { /* ESDHC3 */
+					cd-gpios = <&gpio3 11 0>;
+					wp-gpios = <&gpio3 12 0>;
+					status = "okay";
+				};
+			};
+
+			wdog@53f98000 { /* WDOG1 */
+				status = "okay";
+			};
+
+			iomuxc@53fa8000 {
+				compatible = "fsl,imx53-iomuxc-evk";
+				reg = <0x53fa8000 0x4000>;
+			};
+
+			uart1: uart@53fbc000 {
+				status = "okay";
+			};
+		};
+
+		aips@60000000 {	/* AIPS2 */
+			sdma@63fb0000 {
+				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx53.bin";
+			};
+
+			i2c@63fc4000 { /* I2C2 */
+				status = "okay";
+
+				pmic: mc13892@08 {
+					compatible = "fsl,mc13892", "fsl,mc13xxx";
+					reg = <0x08>;
+				};
+
+				codec: sgtl5000@0a {
+					compatible = "fsl,sgtl5000";
+					reg = <0x0a>;
+				};
+			};
+
+			fec@63fec000 {
+				phy-mode = "rmii";
+				phy-reset-gpios = <&gpio7 6 0>;
+				status = "okay";
+			};
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		green {
+			label = "Heartbeat";
+			gpios = <&gpio7 7 0>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+};

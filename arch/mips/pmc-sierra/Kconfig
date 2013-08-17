@@ -1,0 +1,52 @@
+choice
+	prompt "PMC-Sierra MSP SOC type"
+	depends on PMC_MSP
+
+config PMC_MSP4200_EVAL
+	bool "PMC-Sierra MSP4200 Eval Board"
+	select IRQ_MSP_SLP
+	select HW_HAS_PCI
+
+config PMC_MSP4200_GW
+	bool "PMC-Sierra MSP4200 VoIP Gateway"
+	select IRQ_MSP_SLP
+	select HW_HAS_PCI
+
+config PMC_MSP7120_EVAL
+	bool "PMC-Sierra MSP7120 Eval Board"
+	select SYS_SUPPORTS_MULTITHREADING
+	select IRQ_MSP_CIC
+	select HW_HAS_PCI
+
+config PMC_MSP7120_GW
+	bool "PMC-Sierra MSP7120 Residential Gateway"
+	select SYS_SUPPORTS_MULTITHREADING
+	select IRQ_MSP_CIC
+	select HW_HAS_PCI
+	select MSP_HAS_USB
+	select MSP_ETH
+
+config PMC_MSP7120_FPGA
+	bool "PMC-Sierra MSP7120 FPGA"
+	select SYS_SUPPORTS_MULTITHREADING
+	select IRQ_MSP_CIC
+	select HW_HAS_PCI
+
+endchoice
+
+config HYPERTRANSPORT
+	bool "Hypertransport Support for PMC-Sierra Yosemite"
+	depends on PMC_YOSEMITE
+
+config MSP_HAS_USB
+	boolean
+	depends on PMC_MSP
+
+config MSP_ETH
+	boolean
+	select MSP_HAS_MAC
+	depends on PMC_MSP
+
+config MSP_HAS_MAC
+	boolean
+	depends on PMC_MSP

@@ -1,0 +1,11 @@
+config INFINIBAND_IPATH
+	tristate "QLogic HTX HCA support"
+	depends on 64BIT && NET && HT_IRQ
+	---help---
+	This is a driver for the obsolete QLogic Hyper-Transport
+	IB host channel adapter (model QHT7140),
+	including InfiniBand verbs support.  This driver allows these
+	devices to be used with both kernel upper level protocols such
+	as IP-over-InfiniBand as well as with userspace applications
+	(in conjunction with InfiniBand userspace access).
+	For QLogic PCIe QLE based cards, use the QIB driver instead.

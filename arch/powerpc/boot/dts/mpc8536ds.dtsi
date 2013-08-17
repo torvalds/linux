@@ -1,0 +1,234 @@
+/*
+ * MPC8536DS Device Tree Source stub (no addresses or top-level ranges)
+ *
+ * Copyright 2011 Freescale Semiconductor Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of Freescale Semiconductor nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
+ *
+ *
+ * ALTERNATIVELY, this software may be distributed under the terms of the
+ * GNU General Public License ("GPL") as published by the Free Software
+ * Foundation, either version 2 of that License or (at your option) any
+ * later version.
+ *
+ * THIS SOFTWARE IS PROVIDED BY Freescale Semiconductor ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+&lbc {
+	nor@0,0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "cfi-flash";
+		reg = <0x0 0x0 0x8000000>;
+		bank-width = <2>;
+		device-width = <1>;
+
+		partition@0 {
+			reg = <0x0 0x03000000>;
+			label = "ramdisk-nor";
+		};
+
+		partition@3000000 {
+			reg = <0x03000000 0x00e00000>;
+			label = "diagnostic-nor";
+			read-only;
+		};
+
+		partition@3e00000 {
+			reg = <0x03e00000 0x00200000>;
+			label = "dink-nor";
+			read-only;
+		};
+
+		partition@4000000 {
+			reg = <0x04000000 0x00400000>;
+			label = "kernel-nor";
+		};
+
+		partition@4400000 {
+			reg = <0x04400000 0x03b00000>;
+			label = "fs-nor";
+		};
+
+		partition@7f00000 {
+			reg = <0x07f00000 0x00080000>;
+			label = "dtb-nor";
+		};
+
+		partition@7f80000 {
+			reg = <0x07f80000 0x00080000>;
+			label = "u-boot-nor";
+			read-only;
+		};
+	};
+
+	nand@2,0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "fsl,mpc8536-fcm-nand",
+			     "fsl,elbc-fcm-nand";
+		reg = <0x2 0x0 0x40000>;
+
+		partition@0 {
+			reg = <0x0 0x02000000>;
+			label = "u-boot-nand";
+			read-only;
+		};
+
+		partition@2000000 {
+			reg = <0x02000000 0x10000000>;
+			label = "fs-nand";
+		};
+
+		partition@12000000 {
+			reg = <0x12000000 0x08000000>;
+			label = "ramdisk-nand";
+		};
+
+		partition@1a000000 {
+			reg = <0x1a000000 0x04000000>;
+			label = "kernel-nand";
+		};
+
+		partition@1e000000 {
+			reg = <0x1e000000 0x01000000>;
+			label = "dtb-nand";
+		};
+
+		partition@1f000000 {
+			reg = <0x1f000000 0x21000000>;
+			label = "empty-nand";
+		};
+	};
+
+	board-control@3,0 {
+		compatible = "fsl,mpc8536ds-fpga-pixis";
+		reg = <0x3 0x0 0x8000>;
+	};
+};
+
+&board_soc {
+	i2c@3100 {
+		rtc@68 {
+			compatible = "dallas,ds3232";
+			reg = <0x68>;
+			interrupts = <0 0x1 0 0>;
+		};
+	};
+
+	spi@7000 {
+		flash@0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "spansion,s25sl12801";
+			reg = <0>;
+			spi-max-frequency = <40000000>;
+			partition@u-boot {
+				label = "u-boot";
+				reg = <0x00000000 0x00100000>;
+				read-only;
+			};
+			partition@kernel {
+				label = "kernel";
+				reg = <0x00100000 0x00500000>;
+				read-only;
+			};
+			partition@dtb {
+				label = "dtb";
+				reg = <0x00600000 0x00100000>;
+				read-only;
+			};
+			partition@fs {
+				label = "file system";
+				reg = <0x00700000 0x00900000>;
+			};
+		};
+		flash@1 {
+			compatible = "spansion,s25sl12801";
+			reg = <1>;
+			spi-max-frequency = <40000000>;
+		};
+		flash@2 {
+			compatible = "spansion,s25sl12801";
+			reg = <2>;
+			spi-max-frequency = <40000000>;
+		};
+		flash@3 {
+			compatible = "spansion,s25sl12801";
+			reg = <3>;
+			spi-max-frequency = <40000000>;
+		};
+	};
+
+	usb@22000 {
+		phy_type = "ulpi";
+	};
+
+	usb@23000 {
+		phy_type = "ulpi";
+	};
+
+	enet0: ethernet@24000 {
+		tbi-handle = <&tbi0>;
+		phy-handle = <&phy1>;
+		phy-connection-type = "rgmii-id";
+	};
+
+	mdio@24520 {
+		phy0: ethernet-phy@0 {
+			interrupts = <10 0x1 0 0>;
+			reg = <0>;
+			device_type = "ethernet-phy";
+		};
+		phy1: ethernet-phy@1 {
+			interrupts = <10 0x1 0 0>;
+			reg = <1>;
+			device_type = "ethernet-phy";
+		};
+		tbi0: tbi-phy@11 {
+			reg = <0x11>;
+			device_type = "tbi-phy";
+		};
+	};
+
+	enet2: ethernet@26000 {
+		tbi-handle = <&tbi1>;
+		phy-handle = <&phy0>;
+		phy-connection-type = "rgmii-id";
+	};
+
+	mdio@26520 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "fsl,gianfar-tbi";
+		reg = <0x26520 0x20>;
+
+		tbi1: tbi-phy@11 {
+			reg = <0x11>;
+			device_type = "tbi-phy";
+		};
+	};
+
+	usb@2b000 {
+		dr_mode = "peripheral";
+		phy_type = "ulpi";
+	};
+};

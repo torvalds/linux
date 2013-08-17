@@ -1,0 +1,53 @@
+#
+# KVM configuration
+#
+
+source "virt/kvm/Kconfig"
+
+menuconfig VIRTUALIZATION
+	bool "Virtualization"
+	depends on HAVE_KVM || IA64
+	default y
+	---help---
+	  Say Y here to get to see options for using your Linux host to run other
+	  operating systems inside virtual machines (guests).
+	  This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and disabled.
+
+if VIRTUALIZATION
+
+config KVM
+	tristate "Kernel-based Virtual Machine (KVM) support"
+	depends on HAVE_KVM && MODULES && EXPERIMENTAL
+	# for device assignment:
+	depends on PCI
+	select PREEMPT_NOTIFIERS
+	select ANON_INODES
+	select HAVE_KVM_IRQCHIP
+	select KVM_APIC_ARCHITECTURE
+	select KVM_MMIO
+	---help---
+	  Support hosting fully virtualized guest machines using hardware
+	  virtualization extensions.  You will need a fairly recent
+	  processor equipped with virtualization extensions. You will also
+	  need to select one or more of the processor modules below.
+
+	  This module provides access to the hardware capabilities through
+	  a character device node named /dev/kvm.
+
+	  To compile this as a module, choose M here: the module
+	  will be called kvm.
+
+	  If unsure, say N.
+
+config KVM_INTEL
+	tristate "KVM for Intel Itanium 2 processors support"
+	depends on KVM && m
+	---help---
+	  Provides support for KVM on Itanium 2 processors equipped with the VT
+	  extensions.
+
+source drivers/vhost/Kconfig
+
+endif # VIRTUALIZATION

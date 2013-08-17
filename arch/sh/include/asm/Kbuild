@@ -1,0 +1,11 @@
+include include/asm-generic/Kbuild.asm
+
+header-y += cachectl.h
+header-y += cpu-features.h
+header-y += hw_breakpoint.h
+header-y += posix_types_32.h
+header-y += posix_types_64.h
+header-y += ptrace_32.h
+header-y += ptrace_64.h
+header-y += unistd_32.h
+header-y += unistd_64.h

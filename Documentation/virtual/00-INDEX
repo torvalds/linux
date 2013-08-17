@@ -1,0 +1,11 @@
+Virtualization support in the Linux kernel.
+
+00-INDEX
+	- this file.
+kvm/
+	- Kernel Virtual Machine.  See also http://linux-kvm.org
+uml/
+	- User Mode Linux, builds/runs Linux kernel as a userspace program.
+virtio.txt
+	- Text version of draft virtio spec.
+          See http://ozlabs.org/~rusty/virtio-spec

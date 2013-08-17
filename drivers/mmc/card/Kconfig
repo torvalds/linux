@@ -1,0 +1,69 @@
+#
+# MMC/SD card drivers
+#
+
+comment "MMC/SD/SDIO Card Drivers"
+
+config MMC_BLOCK
+	tristate "MMC block device driver"
+	depends on BLOCK
+	default y
+	help
+	  Say Y here to enable the MMC block device driver support.
+	  This provides a block device driver, which you can use to
+	  mount the filesystem. Almost everyone wishing MMC support
+	  should say Y or M here.
+
+config MMC_BLOCK_MINORS
+	int "Number of minors per block device"
+	depends on MMC_BLOCK
+	range 4 256
+	default 8
+	help
+	  Number of minors per block device. One is needed for every
+	  partition on the disk (plus one for the whole disk).
+
+	  Number of total MMC minors available is 256, so your number
+	  of supported block devices will be limited to 256 divided
+	  by this number.
+
+	  Default is 8 to be backwards compatible with previous
+	  hardwired device numbering.
+
+	  If unsure, say 8 here.
+
+config MMC_BLOCK_BOUNCE
+	bool "Use bounce buffer for simple hosts"
+	depends on MMC_BLOCK
+	default y
+	help
+	  SD/MMC is a high latency protocol where it is crucial to
+	  send large requests in order to get high performance. Many
+	  controllers, however, are restricted to continuous memory
+	  (i.e. they can't do scatter-gather), something the kernel
+	  rarely can provide.
+
+	  Say Y here to help these restricted hosts by bouncing
+	  requests back and forth from a large buffer. You will get
+	  a big performance gain at the cost of up to 64 KiB of
+	  physical memory.
+
+	  If unsure, say Y here.
+
+config SDIO_UART
+	tristate "SDIO UART/GPS class support"
+	help
+	  SDIO function driver for SDIO cards that implements the UART
+	  class, as well as the GPS class which appears like a UART.
+
+config MMC_TEST
+	tristate "MMC host test driver"
+	help
+	  Development driver that performs a series of reads and writes
+	  to a memory card in order to expose certain well known bugs
+	  in host controllers. The tests are executed by writing to the
+	  "test" file in debugfs under each card. Note that whatever is
+	  on your card will be overwritten by these tests.
+
+	  This driver is only of interest to those developing or
+	  testing a host driver. Most people should say N here.

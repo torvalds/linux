@@ -1,0 +1,209 @@
+/*
+ * Copyright 2011 Calxeda, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/dts-v1/;
+
+/* First 4KB has pen for secondary cores. */
+/memreserve/ 0x00000000 0x0001000;
+
+/ {
+	model = "Calxeda Highbank";
+	compatible = "calxeda,highbank";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "arm,cortex-a9";
+			reg = <0>;
+			next-level-cache = <&L2>;
+		};
+
+		cpu@1 {
+			compatible = "arm,cortex-a9";
+			reg = <1>;
+			next-level-cache = <&L2>;
+		};
+
+		cpu@2 {
+			compatible = "arm,cortex-a9";
+			reg = <2>;
+			next-level-cache = <&L2>;
+		};
+
+		cpu@3 {
+			compatible = "arm,cortex-a9";
+			reg = <3>;
+			next-level-cache = <&L2>;
+		};
+	};
+
+	memory {
+		name = "memory";
+		device_type = "memory";
+		reg = <0x00000000 0xff900000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyAMA0";
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		interrupt-parent = <&intc>;
+		ranges;
+
+		timer@fff10600 {
+			compatible = "arm,cortex-a9-twd-timer";
+			reg = <0xfff10600 0x20>;
+			interrupts = <1 13 0xf01>;
+		};
+
+		watchdog@fff10620 {
+			compatible = "arm,cortex-a9-twd-wdt";
+			reg = <0xfff10620 0x20>;
+			interrupts = <1 14 0xf01>;
+		};
+
+		intc: interrupt-controller@fff11000 {
+			compatible = "arm,cortex-a9-gic";
+			#interrupt-cells = <3>;
+			#size-cells = <0>;
+			#address-cells = <1>;
+			interrupt-controller;
+			reg = <0xfff11000 0x1000>,
+			      <0xfff10100 0x100>;
+		};
+
+		L2: l2-cache {
+			compatible = "arm,pl310-cache";
+			reg = <0xfff12000 0x1000>;
+			interrupts = <0 70 4>;
+			cache-unified;
+			cache-level = <2>;
+		};
+
+		pmu {
+			compatible = "arm,cortex-a9-pmu";
+			interrupts = <0 76 4  0 75 4  0 74 4  0 73 4>;
+		};
+
+		sata@ffe08000 {
+			compatible = "calxeda,hb-ahci";
+			reg = <0xffe08000 0x10000>;
+			interrupts = <0 83 4>;
+		};
+
+		sdhci@ffe0e000 {
+			compatible = "calxeda,hb-sdhci";
+			reg = <0xffe0e000 0x1000>;
+			interrupts = <0 90 4>;
+		};
+
+		ipc@fff20000 {
+			compatible = "arm,pl320", "arm,primecell";
+			reg = <0xfff20000 0x1000>;
+			interrupts = <0 7 4>;
+		};
+
+		gpioe: gpio@fff30000 {
+			#gpio-cells = <2>;
+			compatible = "arm,pl061", "arm,primecell";
+			gpio-controller;
+			reg = <0xfff30000 0x1000>;
+			interrupts = <0 14 4>;
+		};
+
+		gpiof: gpio@fff31000 {
+			#gpio-cells = <2>;
+			compatible = "arm,pl061", "arm,primecell";
+			gpio-controller;
+			reg = <0xfff31000 0x1000>;
+			interrupts = <0 15 4>;
+		};
+
+		gpiog: gpio@fff32000 {
+			#gpio-cells = <2>;
+			compatible = "arm,pl061", "arm,primecell";
+			gpio-controller;
+			reg = <0xfff32000 0x1000>;
+			interrupts = <0 16 4>;
+		};
+
+		gpioh: gpio@fff33000 {
+			#gpio-cells = <2>;
+			compatible = "arm,pl061", "arm,primecell";
+			gpio-controller;
+			reg = <0xfff33000 0x1000>;
+			interrupts = <0 17 4>;
+		};
+
+		timer {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0xfff34000 0x1000>;
+			interrupts = <0 18 4>;
+		};
+
+		rtc@fff35000 {
+			compatible = "arm,pl031", "arm,primecell";
+			reg = <0xfff35000 0x1000>;
+			interrupts = <0 19 4>;
+		};
+
+		serial@fff36000 {
+			compatible = "arm,pl011", "arm,primecell";
+			reg = <0xfff36000 0x1000>;
+			interrupts = <0 20 4>;
+		};
+
+		smic@fff3a000 {
+			compatible = "ipmi-smic";
+			device_type = "ipmi";
+			reg = <0xfff3a000 0x1000>;
+			interrupts = <0 24 4>;
+			reg-size = <4>;
+			reg-spacing = <4>;
+		};
+
+		sregs@fff3c000 {
+			compatible = "calxeda,hb-sregs";
+			reg = <0xfff3c000 0x1000>;
+		};
+
+		dma@fff3d000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0xfff3d000 0x1000>;
+			interrupts = <0 92 4>;
+		};
+
+		ethernet@fff50000 {
+			compatible = "calxeda,hb-xgmac";
+			reg = <0xfff50000 0x1000>;
+			interrupts = <0 77 4  0 78 4  0 79 4>;
+		};
+
+		ethernet@fff51000 {
+			compatible = "calxeda,hb-xgmac";
+			reg = <0xfff51000 0x1000>;
+			interrupts = <0 80 4  0 81 4  0 82 4>;
+		};
+	};
+};

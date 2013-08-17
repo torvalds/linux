@@ -1,0 +1,189 @@
+.TH TURBOSTAT 8
+.SH NAME
+turbostat \- Report processor frequency and idle statistics
+.SH SYNOPSIS
+.ft B
+.B turbostat
+.RB [ "\-s" ]
+.RB [ "\-v" ]
+.RB [ "\-M MSR#" ]
+.RB command
+.br
+.B turbostat
+.RB [ "\-s" ]
+.RB [ "\-v" ]
+.RB [ "\-M MSR#" ]
+.RB [ "\-i interval_sec" ]
+.SH DESCRIPTION
+\fBturbostat \fP reports processor topology, frequency
+and idle power state statistics on modern X86 processors.
+Either \fBcommand\fP is forked and statistics are printed
+upon its completion, or statistics are printed periodically.
+
+\fBturbostat \fP
+requires that the processor
+supports an "invariant" TSC, plus the APERF and MPERF MSRs.
+\fBturbostat \fP will report idle cpu power state residency
+on processors that additionally support C-state residency counters.
+
+.SS Options
+The \fB-s\fP option prints only a 1-line summary for each sample interval.
+.PP
+The \fB-v\fP option increases verbosity.
+.PP
+The \fB-M MSR#\fP option dumps the specified MSR,
+in addition to the usual frequency and idle statistics.
+.PP
+The \fB-i interval_sec\fP option prints statistics every \fiinterval_sec\fP seconds.
+The default is 5 seconds.
+.PP
+The \fBcommand\fP parameter forks \fBcommand\fP and upon its exit,
+displays the statistics gathered since it was forked.
+.PP
+.SH FIELD DESCRIPTIONS
+.nf
+\fBpk\fP processor package number.
+\fBcor\fP processor core number.
+\fBCPU\fP Linux CPU (logical processor) number.
+Note that multiple CPUs per core indicate support for Intel(R) Hyper-Threading Technology.
+\fB%c0\fP percent of the interval that the CPU retired instructions.
+\fBGHz\fP average clock rate while the CPU was in c0 state.
+\fBTSC\fP average GHz that the TSC ran during the entire interval.
+\fB%c1, %c3, %c6, %c7\fP show the percentage residency in hardware core idle states.
+\fB%pc2, %pc3, %pc6, %pc7\fP percentage residency in hardware package idle states.
+.fi
+.PP
+.SH EXAMPLE
+Without any parameters, turbostat prints out counters ever 5 seconds.
+(override interval with "-i sec" option, or specify a command
+for turbostat to fork).
+
+The first row of statistics is a summary for the entire system.
+Note that the summary is a weighted average.
+Subsequent rows show per-CPU statistics.
+
+.nf
+[root@x980]# ./turbostat
+cor CPU    %c0  GHz  TSC    %c1    %c3    %c6   %pc3   %pc6
+          0.60 1.63 3.38   2.91   0.00  96.49   0.00  76.64
+  0   0   0.59 1.62 3.38   4.51   0.00  94.90   0.00  76.64
+  0   6   1.13 1.64 3.38   3.97   0.00  94.90   0.00  76.64
+  1   2   0.08 1.62 3.38   0.07   0.00  99.85   0.00  76.64
+  1   8   0.03 1.62 3.38   0.12   0.00  99.85   0.00  76.64
+  2   4   0.01 1.62 3.38   0.06   0.00  99.93   0.00  76.64
+  2  10   0.04 1.62 3.38   0.02   0.00  99.93   0.00  76.64
+  8   1   2.85 1.62 3.38  11.71   0.00  85.44   0.00  76.64
+  8   7   1.98 1.62 3.38  12.58   0.00  85.44   0.00  76.64
+  9   3   0.36 1.62 3.38   0.71   0.00  98.93   0.00  76.64
+  9   9   0.09 1.62 3.38   0.98   0.00  98.93   0.00  76.64
+ 10   5   0.03 1.62 3.38   0.09   0.00  99.87   0.00  76.64
+ 10  11   0.07 1.62 3.38   0.06   0.00  99.87   0.00  76.64
+.fi
+.SH SUMMARY EXAMPLE
+The "-s" option prints the column headers just once,
+and then the one line system summary for each sample interval.
+
+.nf
+[root@x980]# ./turbostat -s
+   %c0  GHz  TSC    %c1    %c3    %c6   %pc3   %pc6
+  0.61 1.89 3.38   5.95   0.00  93.44   0.00  66.33
+  0.52 1.62 3.38   6.83   0.00  92.65   0.00  61.11
+  0.62 1.92 3.38   5.47   0.00  93.91   0.00  67.31
+.fi
+.SH VERBOSE EXAMPLE
+The "-v" option adds verbosity to the output:
+
+.nf
+GenuineIntel 11 CPUID levels; family:model:stepping 0x6:2c:2 (6:44:2)
+12 * 133 = 1600 MHz max efficiency
+25 * 133 = 3333 MHz TSC frequency
+26 * 133 = 3467 MHz max turbo 4 active cores
+26 * 133 = 3467 MHz max turbo 3 active cores
+27 * 133 = 3600 MHz max turbo 2 active cores
+27 * 133 = 3600 MHz max turbo 1 active cores
+
+.fi
+The \fBmax efficiency\fP frequency, a.k.a. Low Frequency Mode, is the frequency
+available at the minimum package voltage.  The \fBTSC frequency\fP is the nominal
+maximum frequency of the processor if turbo-mode were not available.  This frequency
+should be sustainable on all CPUs indefinitely, given nominal power and cooling.
+The remaining rows show what maximum turbo frequency is possible
+depending on the number of idle cores.  Note that this information is
+not available on all processors.
+.SH FORK EXAMPLE
+If turbostat is invoked with a command, it will fork that command
+and output the statistics gathered when the command exits.
+eg. Here a cycle soaker is run on 1 CPU (see %c0) for a few seconds
+until ^C while the other CPUs are mostly idle:
+
+.nf
+[root@x980 lenb]# ./turbostat cat /dev/zero > /dev/null
+^C
+cor CPU    %c0  GHz  TSC    %c1    %c3    %c6   %pc3   %pc6
+          8.63 3.64 3.38  14.46   0.49  76.42   0.00   0.00
+  0   0   0.34 3.36 3.38  99.66   0.00   0.00   0.00   0.00
+  0   6  99.96 3.64 3.38   0.04   0.00   0.00   0.00   0.00
+  1   2   0.14 3.50 3.38   1.75   2.04  96.07   0.00   0.00
+  1   8   0.38 3.57 3.38   1.51   2.04  96.07   0.00   0.00
+  2   4   0.01 2.65 3.38   0.06   0.00  99.93   0.00   0.00
+  2  10   0.03 2.12 3.38   0.04   0.00  99.93   0.00   0.00
+  8   1   0.91 3.59 3.38  35.27   0.92  62.90   0.00   0.00
+  8   7   1.61 3.63 3.38  34.57   0.92  62.90   0.00   0.00
+  9   3   0.04 3.38 3.38   0.20   0.00  99.76   0.00   0.00
+  9   9   0.04 3.29 3.38   0.20   0.00  99.76   0.00   0.00
+ 10   5   0.03 3.08 3.38   0.12   0.00  99.85   0.00   0.00
+ 10  11   0.05 3.07 3.38   0.10   0.00  99.85   0.00   0.00
+4.907015 sec
+
+.fi
+Above the cycle soaker drives cpu6 up 3.6 Ghz turbo limit
+while the other processors are generally in various states of idle.
+
+Note that cpu0 is an HT sibling sharing core0
+with cpu6, and thus it is unable to get to an idle state
+deeper than c1 while cpu6 is busy.
+
+Note that turbostat reports average GHz of 3.64, while
+the arithmetic average of the GHz column above is lower.
+This is a weighted average, where the weight is %c0.  ie. it is the total number of
+un-halted cycles elapsed per time divided by the number of CPUs.
+.SH NOTES
+
+.B "turbostat "
+must be run as root.
+
+.B "turbostat "
+reads hardware counters, but doesn't write them.
+So it will not interfere with the OS or other programs, including
+multiple invocations of itself.
+
+\fBturbostat \fP
+may work poorly on Linux-2.6.20 through 2.6.29,
+as \fBacpi-cpufreq \fPperiodically cleared the APERF and MPERF
+in those kernels.
+
+The APERF, MPERF MSRs are defined to count non-halted cycles.
+Although it is not guaranteed by the architecture, turbostat assumes
+that they count at TSC rate, which is true on all processors tested to date.
+
+.SH REFERENCES
+"Intel® Turbo Boost Technology
+in Intel® Core™ Microarchitecture (Nehalem) Based Processors"
+http://download.intel.com/design/processor/applnots/320354.pdf
+
+"Intel® 64 and IA-32 Architectures Software Developer's Manual
+Volume 3B: System Programming Guide"
+http://www.intel.com/products/processor/manuals/
+
+.SH FILES
+.ta
+.nf
+/dev/cpu/*/msr
+.fi
+
+.SH "SEE ALSO"
+msr(4), vmstat(8)
+.PP
+.SH AUTHOR
+.nf
+Written by Len Brown <len.brown@intel.com>

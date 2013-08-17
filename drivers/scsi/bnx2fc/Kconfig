@@ -1,0 +1,12 @@
+config SCSI_BNX2X_FCOE
+	tristate "Broadcom NetXtreme II FCoE support"
+	depends on PCI
+	select NETDEVICES
+	select ETHERNET
+	select NET_VENDOR_BROADCOM
+	select LIBFC
+	select LIBFCOE
+	select CNIC
+	---help---
+	This driver supports FCoE offload for the Broadcom NetXtreme II
+	devices.

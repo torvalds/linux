@@ -1,0 +1,180 @@
+=======================================================================
+WLAN driver for cards using the HERMES II and HERMES II.5 chipset
+
+HERMES II Card
+
+PCMCIA Info: "Agere Systems" "Wireless PC Card Model 0110"
+             Manufacture ID: 0156,0003
+
+HERMES II.5 Card
+
+PCMCIA Info: "Linksys" "WCF54G_Wireless-G_CompactFlash_Card"
+             Manufacture ID: 0156,0004
+
+Based on Agere Systems Linux LKM Wireless Driver Source Code,
+Version 7.22; complies with Open Source BSD License.
+=======================================================================
+
+DESCRIPTION
+
+The software is a modified version of wl_lkm_722_abg.tar.gz from the
+Agere Systems website, addapted for Ubuntu 9.04.
+
+Modified for kernel 2.6 by Henk de Groot <pe1dnn@amsat.org>
+Based on 7.18 version by Andrey Borzenkov <arvidjaar@mail.ru> $Revision: 39 $
+
+INSTALLATION
+
+Unpack in a new directory.
+
+Open a terminal screen.
+
+Change directory to the source directory
+
+Type command
+
+make
+
+and wait until it is finshed. Now you have build the module
+wlags49_h2_cs; this module is meant for a HERMES II card.
+
+The driver is tested with a Thomson SpeedTouch 110 Wireless PC Card.
+For the test Station mode was used with WEP. The driver is supposed
+to support WAP and as accesspoint that is NOT tested.
+
+If you have a card using the HERMES II.5 chip you have to make
+changes to the Makefile and uncomment -DHERMES25. This will build
+driver wlags49_h25_cs.
+
+Note: You can detemine the type with command "pccardctrl info"
+        MANIFID: 0156,0002 = HERMES - not supported by this driver
+        MANIFID: 0156,0003 = HERMES II   (Wireless B)
+        MANIFID: 0156,0004 = HERMES II.5 (Wireless B/G)
+
+After succesfull compile type command
+
+sudo make install
+
+to install the module.
+
+Now the card should be recognized. It should be able to configure
+and use the card with NetworkManager. Wpa_supplicant also works, as does
+manual configuration using the iwconfig/iwlist programs.
+
+Note: I only tested Station mode with WEP but if I didn't break anything
+WPA and AP mode should also work; note however that WPA was experimental
+in the original Agere driver!
+
+Note: to compile as AP change the makefile and remove the line
+-DSTA_ONLY \
+
+(or comment it, but in that case make sure to move it after all the
+ flags you want to use)
+
+CHANGES
+
+The HCF functions to control the card are virtually unchanged, the only
+changes are meant to fix compiler warnings. The only real change is in
+HCF_WAIT_WHILE which now has a udelay(2) added to give a small delay.
+
+The linux driver files (wl_xxxx.c) are changed in the following ways:
+- Addaptations of Andrey Borzenkov applied to 7.22 source
+- Alterations to avoid most HCF_ASSERTs
+-- Switching interrupts off and on in the HCF
+-- Bugfixes, things that were aparently wrong like reporting link status
+   change which checked a variable that was not changed in HCF anymore.
+-- Used on WEP but setting keys via SIOCSIWENCODEEXT was not supported
+-- Recovery actions added
+
+The major problem was the order in which calls can be made. The original
+looks like a traditonal UNIX driver. To call an "ioctl" function you
+have to "open" the device first to get a handle and after "close" no
+"ioctl" function can be called anymore. With the 2.6 driver this all
+changed; the former ioctl functions are now called before "open" and
+after "close", which was not expected. One of the problems was enable/
+disable of interrupts in the HCF. Interrupt handling starts at "open"
+so if a former "ioctl" routinge is called before "open" or after "close"
+then nothing should be done with interrupt switching in the HCF. Once
+this was solved most HCF_ASSERTS went away.
+
+The last point, recovery actions added, needs some clarification.
+Starting the card works most of the time, but unfortunately not always.
+At a few times recovery code was added; when the card starts to
+misbehave or the communication between the HCF and the card is
+out of sync and the HCF enters DEFUNCT mode everything is reset and
+reinitialized. Note, hcf.c contains a lot of documentation. It takes
+some time but slowly some things become clear. Also some unresolved
+issues are mentioned in hcf.c, so there are still unknown bugs.
+
+The card problems are almost in all cases when starting up and before
+the first association with an AP, once the card is in operation it
+seems to stay that way; when debugging no HCF_ASSERTS appear anymore.
+Note: some HCF_ASSERTS still appear, in a number of cases it is a real
+error, for example at card removal the missing card is detected.
+
+LICENSE
+
+The Agere Systems license applies. This is why I include the original
+README.wlags49. The instructions in that file are bogus now. I also
+include the man page. Even though setting parameters on the module
+does not work anymore but it provides some information about all the
+settings.
+
+I have not have personal contact with Agere, but others have. Agere
+agreed to make their software available under the BSD licence.
+This driver is based on the 7.22 version.
+
+The following was mailed by Agere to Andrey Borzenkov about this:
+
+    --- Begin Message ---
+
+        * From: TJ <tj@xxxxxxxxxxx>
+        * Date: Mon, 05 Feb 2007 19:28:59 +0000
+
+    Hi Andrey,
+
+    I've got some good news for you/us/the world of Hermes :)
+
+    I got a reply from the legal representative at Agere confirming that
+    their source-code is BSD licensed, and I've included the contents of the
+    email here.
+
+    I hope this re-assures you so that your excellent work on the drivers
+    can be made widely available for other hackers to work with.
+
+    Regards,
+
+    TJ.
+
+    ---------
+    On Mon, 2007-02-05 at 13:54 -0500, Pathare, Viren M (Viren) wrote:
+
+
+    "I would like to confirm that the two drivers; Linux LKM Wireless Driver
+    Source Code, Version 7.18 and Linux LKM Wireless Driver Source Code,
+    Version 7.22 comply with Open Source BSD License. Therefore the source
+    code can be distributed in unmodified or modified form consistent with
+    the terms of the license.
+
+    The Linux driver architecture was based on two modules, the MSF (Module
+    specific functions) and the HCF (Hardware Control Functions). Included
+    in the HCF is run-time firmware (binary format) which is downloaded into
+    the RAM of the Hermes 1/2/2.5 WMAC.
+
+    This hex coded firmware is not based on any open source software and
+    hence it is not subject to any Open Source License. The firmware was
+    developed by Agere and runs on the DISC processor embedded within the
+    Hermes 1/2/2.5 Wireless MAC devices.
+
+    Hope this helps.
+
+    Sincerely,
+
+    Viren Pathare
+    Intellectual Property Licensing Manager
+    Agere"
+
+
+
+    --- End Message ---
+

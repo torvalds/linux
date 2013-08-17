@@ -1,0 +1,551 @@
+The following is a list of files and features that are going to be
+removed in the kernel source tree.  Every entry should contain what
+exactly is going away, why it is happening, and who is going to be doing
+the work.  When the feature is removed from the kernel, it should also
+be removed from this file.
+
+---------------------------
+
+What:	CONFIG_APM_CPU_IDLE, and its ability to call APM BIOS in idle
+When:	2012
+Why:	This optional sub-feature of APM is of dubious reliability,
+	and ancient APM laptops are likely better served by calling HLT.
+	Deleting CONFIG_APM_CPU_IDLE allows x86 to stop exporting
+	the pm_idle function pointer to modules.
+Who:	Len Brown <len.brown@intel.com>
+
+----------------------------
+
+What:	x86_32 "no-hlt" cmdline param
+When:	2012
+Why:	remove a branch from idle path, simplify code used by everybody.
+	This option disabled the use of HLT in idle and machine_halt()
+	for hardware that was flakey 15-years ago.  Today we have
+	"idle=poll" that removed HLT from idle, and so if such a machine
+	is still running the upstream kernel, "idle=poll" is likely sufficient.
+Who:	Len Brown <len.brown@intel.com>
+
+----------------------------
+
+What:	x86 "idle=mwait" cmdline param
+When:	2012
+Why:	simplify x86 idle code
+Who:	Len Brown <len.brown@intel.com>
+
+----------------------------
+
+What:	PRISM54
+When:	2.6.34
+
+Why:	prism54 FullMAC PCI / Cardbus devices used to be supported only by the
+	prism54 wireless driver. After Intersil stopped selling these
+	devices in preference for the newer more flexible SoftMAC devices
+	a SoftMAC device driver was required and prism54 did not support
+	them. The p54pci driver now exists and has been present in the kernel for
+	a while. This driver supports both SoftMAC devices and FullMAC devices.
+	The main difference between these devices was the amount of memory which
+	could be used for the firmware. The SoftMAC devices support a smaller
+	amount of memory. Because of this the SoftMAC firmware fits into FullMAC
+	devices's memory. p54pci supports not only PCI / Cardbus but also USB
+	and SPI. Since p54pci supports all devices prism54 supports
+	you will have a conflict. I'm not quite sure how distributions are
+	handling this conflict right now. prism54 was kept around due to
+	claims users may experience issues when using the SoftMAC driver.
+	Time has passed users have not reported issues. If you use prism54
+	and for whatever reason you cannot use p54pci please let us know!
+	E-mail us at: linux-wireless@vger.kernel.org
+
+	For more information see the p54 wiki page:
+
+	http://wireless.kernel.org/en/users/Drivers/p54
+
+Who:	Luis R. Rodriguez <lrodriguez@atheros.com>
+
+---------------------------
+
+What:	IRQF_SAMPLE_RANDOM
+Check:	IRQF_SAMPLE_RANDOM
+When:	July 2009
+
+Why:	Many of IRQF_SAMPLE_RANDOM users are technically bogus as entropy
+	sources in the kernel's current entropy model. To resolve this, every
+	input point to the kernel's entropy pool needs to better document the
+	type of entropy source it actually is. This will be replaced with
+	additional add_*_randomness functions in drivers/char/random.c
+
+Who:	Robin Getz <rgetz@blackfin.uclinux.org> & Matt Mackall <mpm@selenic.com>
+
+---------------------------
+
+What:	The ieee80211_regdom module parameter
+When:	March 2010 / desktop catchup
+
+Why:	This was inherited by the CONFIG_WIRELESS_OLD_REGULATORY code,
+	and currently serves as an option for users to define an
+	ISO / IEC 3166 alpha2 code for the country they are currently
+	present in. Although there are userspace API replacements for this
+	through nl80211 distributions haven't yet caught up with implementing
+	decent alternatives through standard GUIs. Although available as an
+	option through iw or wpa_supplicant its just a matter of time before
+	distributions pick up good GUI options for this. The ideal solution
+	would actually consist of intelligent designs which would do this for
+	the user automatically even when travelling through different countries.
+	Until then we leave this module parameter as a compromise.
+
+	When userspace improves with reasonable widely-available alternatives for
+	this we will no longer need this module parameter. This entry hopes that
+	by the super-futuristically looking date of "March 2010" we will have
+	such replacements widely available.
+
+Who:	Luis R. Rodriguez <lrodriguez@atheros.com>
+
+---------------------------
+
+What:	dev->power.power_state
+When:	July 2007
+Why:	Broken design for runtime control over driver power states, confusing
+	driver-internal runtime power management with:  mechanisms to support
+	system-wide sleep state transitions; event codes that distinguish
+	different phases of swsusp "sleep" transitions; and userspace policy
+	inputs.  This framework was never widely used, and most attempts to
+	use it were broken.  Drivers should instead be exposing domain-specific
+	interfaces either to kernel or to userspace.
+Who:	Pavel Machek <pavel@ucw.cz>
+
+---------------------------
+
+What:	/proc/<pid>/oom_adj
+When:	August 2012
+Why:	/proc/<pid>/oom_adj allows userspace to influence the oom killer's
+	badness heuristic used to determine which task to kill when the kernel
+	is out of memory.
+
+	The badness heuristic has since been rewritten since the introduction of
+	this tunable such that its meaning is deprecated.  The value was
+	implemented as a bitshift on a score generated by the badness()
+	function that did not have any precise units of measure.  With the
+	rewrite, the score is given as a proportion of available memory to the
+	task allocating pages, so using a bitshift which grows the score
+	exponentially is, thus, impossible to tune with fine granularity.
+
+	A much more powerful interface, /proc/<pid>/oom_score_adj, was
+	introduced with the oom killer rewrite that allows users to increase or
+	decrease the badness score linearly.  This interface will replace
+	/proc/<pid>/oom_adj.
+
+	A warning will be emitted to the kernel log if an application uses this
+	deprecated interface.  After it is printed once, future warnings will be
+	suppressed until the kernel is rebooted.
+
+---------------------------
+
+What:	remove EXPORT_SYMBOL(kernel_thread)
+When:	August 2006
+Files:	arch/*/kernel/*_ksyms.c
+Check:	kernel_thread
+Why:	kernel_thread is a low-level implementation detail.  Drivers should
+        use the <linux/kthread.h> API instead which shields them from
+	implementation details and provides a higherlevel interface that
+	prevents bugs and code duplication
+Who:	Christoph Hellwig <hch@lst.de>
+
+---------------------------
+
+What:	Unused EXPORT_SYMBOL/EXPORT_SYMBOL_GPL exports
+	(temporary transition config option provided until then)
+	The transition config option will also be removed at the same time.
+When:	before 2.6.19
+Why:	Unused symbols are both increasing the size of the kernel binary
+	and are often a sign of "wrong API"
+Who:	Arjan van de Ven <arjan@linux.intel.com>
+
+---------------------------
+
+What:	PHYSDEVPATH, PHYSDEVBUS, PHYSDEVDRIVER in the uevent environment
+When:	October 2008
+Why:	The stacking of class devices makes these values misleading and
+	inconsistent.
+	Class devices should not carry any of these properties, and bus
+	devices have SUBSYTEM and DRIVER as a replacement.
+Who:	Kay Sievers <kay.sievers@suse.de>
+
+---------------------------
+
+What:	ACPI procfs interface
+When:	July 2008
+Why:	ACPI sysfs conversion should be finished by January 2008.
+	ACPI procfs interface will be removed in July 2008 so that
+	there is enough time for the user space to catch up.
+Who:	Zhang Rui <rui.zhang@intel.com>
+
+---------------------------
+
+What:	CONFIG_ACPI_PROCFS_POWER
+When:	2.6.39
+Why:	sysfs I/F for ACPI power devices, including AC and Battery,
+        has been working in upstream kernel since 2.6.24, Sep 2007.
+	In 2.6.37, we make the sysfs I/F always built in and this option
+	disabled by default.
+	Remove this option and the ACPI power procfs interface in 2.6.39.
+Who:	Zhang Rui <rui.zhang@intel.com>
+
+---------------------------
+
+What:	/proc/acpi/event
+When:	February 2008
+Why:	/proc/acpi/event has been replaced by events via the input layer
+	and netlink since 2.6.23.
+Who:	Len Brown <len.brown@intel.com>
+
+---------------------------
+
+What:	i386/x86_64 bzImage symlinks
+When:	April 2010
+
+Why:	The i386/x86_64 merge provides a symlink to the old bzImage
+	location so not yet updated user space tools, e.g. package
+	scripts, do not break.
+Who:	Thomas Gleixner <tglx@linutronix.de>
+
+---------------------------
+
+What:	GPIO autorequest on gpio_direction_{input,output}() in gpiolib
+When:	February 2010
+Why:	All callers should use explicit gpio_request()/gpio_free().
+	The autorequest mechanism in gpiolib was provided mostly as a
+	migration aid for legacy GPIO interfaces (for SOC based GPIOs).
+	Those users have now largely migrated.  Platforms implementing
+	the GPIO interfaces without using gpiolib will see no changes.
+Who:	David Brownell <dbrownell@users.sourceforge.net>
+---------------------------
+
+What:	b43 support for firmware revision < 410
+When:	The schedule was July 2008, but it was decided that we are going to keep the
+        code as long as there are no major maintanance headaches.
+	So it _could_ be removed _any_ time now, if it conflicts with something new.
+Why:	The support code for the old firmware hurts code readability/maintainability
+	and slightly hurts runtime performance. Bugfixes for the old firmware
+	are not provided by Broadcom anymore.
+Who:	Michael Buesch <m@bues.ch>
+
+---------------------------
+
+What:	Ability for non root users to shm_get hugetlb pages based on mlock
+	resource limits
+When:	2.6.31
+Why:	Non root users need to be part of /proc/sys/vm/hugetlb_shm_group or
+	have CAP_IPC_LOCK to be able to allocate shm segments backed by
+	huge pages.  The mlock based rlimit check to allow shm hugetlb is
+	inconsistent with mmap based allocations.  Hence it is being
+	deprecated.
+Who:	Ravikiran Thirumalai <kiran@scalex86.org>
+
+---------------------------
+
+What:	Code that is now under CONFIG_WIRELESS_EXT_SYSFS
+	(in net/core/net-sysfs.c)
+When:	3.5
+Why:	Over 1K .text/.data size reduction, data is available in other
+	ways (ioctls)
+Who:	Johannes Berg <johannes@sipsolutions.net>
+
+---------------------------
+
+What:	sysfs ui for changing p4-clockmod parameters
+When:	September 2009
+Why:	See commits 129f8ae9b1b5be94517da76009ea956e89104ce8 and
+	e088e4c9cdb618675874becb91b2fd581ee707e6.
+	Removal is subject to fixing any remaining bugs in ACPI which may
+	cause the thermal throttling not to happen at the right time.
+Who:	Dave Jones <davej@redhat.com>, Matthew Garrett <mjg@redhat.com>
+
+-----------------------------
+
+What:	fakephp and associated sysfs files in /sys/bus/pci/slots/
+When:	2011
+Why:	In 2.6.27, the semantics of /sys/bus/pci/slots was redefined to
+	represent a machine's physical PCI slots. The change in semantics
+	had userspace implications, as the hotplug core no longer allowed
+	drivers to create multiple sysfs files per physical slot (required
+	for multi-function devices, e.g.). fakephp was seen as a developer's
+	tool only, and its interface changed. Too late, we learned that
+	there were some users of the fakephp interface.
+
+	In 2.6.30, the original fakephp interface was restored. At the same
+	time, the PCI core gained the ability that fakephp provided, namely
+	function-level hot-remove and hot-add.
+
+	Since the PCI core now provides the same functionality, exposed in:
+
+		/sys/bus/pci/rescan
+		/sys/bus/pci/devices/.../remove
+		/sys/bus/pci/devices/.../rescan
+
+	there is no functional reason to maintain fakephp as well.
+
+	We will keep the existing module so that 'modprobe fakephp' will
+	present the old /sys/bus/pci/slots/... interface for compatibility,
+	but users are urged to migrate their applications to the API above.
+
+	After a reasonable transition period, we will remove the legacy
+	fakephp interface.
+Who:	Alex Chiang <achiang@hp.com>
+
+---------------------------
+
+What:	CONFIG_RFKILL_INPUT
+When:	2.6.33
+Why:	Should be implemented in userspace, policy daemon.
+Who:	Johannes Berg <johannes@sipsolutions.net>
+
+----------------------------
+
+What:	sound-slot/service-* module aliases and related clutters in
+	sound/sound_core.c
+When:	August 2010
+Why:	OSS sound_core grabs all legacy minors (0-255) of SOUND_MAJOR
+	(14) and requests modules using custom sound-slot/service-*
+	module aliases.  The only benefit of doing this is allowing
+	use of custom module aliases which might as well be considered
+	a bug at this point.  This preemptive claiming prevents
+	alternative OSS implementations.
+
+	Till the feature is removed, the kernel will be requesting
+	both sound-slot/service-* and the standard char-major-* module
+	aliases and allow turning off the pre-claiming selectively via
+	CONFIG_SOUND_OSS_CORE_PRECLAIM and soundcore.preclaim_oss
+	kernel parameter.
+
+	After the transition phase is complete, both the custom module
+	aliases and switches to disable it will go away.  This removal
+	will also allow making ALSA OSS emulation independent of
+	sound_core.  The dependency will be broken then too.
+Who:	Tejun Heo <tj@kernel.org>
+
+----------------------------
+
+What:	sysfs-class-rfkill state file
+When:	Feb 2014
+Files:	net/rfkill/core.c
+Why: 	Documented as obsolete since Feb 2010. This file is limited to 3
+	states while the rfkill drivers can have 4 states.
+Who: 	anybody or Florian Mickler <florian@mickler.org>
+
+----------------------------
+
+What: 	sysfs-class-rfkill claim file
+When:	Feb 2012
+Files:	net/rfkill/core.c
+Why:	It is not possible to claim an rfkill driver since 2007. This is
+	Documented as obsolete since Feb 2010.
+Who: 	anybody or Florian Mickler <florian@mickler.org>
+
+----------------------------
+
+What:	iwlwifi 50XX module parameters
+When:	3.0
+Why:	The "..50" modules parameters were used to configure 5000 series and
+	up devices; different set of module parameters also available for 4965
+	with same functionalities. Consolidate both set into single place
+	in drivers/net/wireless/iwlwifi/iwl-agn.c
+
+Who:	Wey-Yi Guy <wey-yi.w.guy@intel.com>
+
+----------------------------
+
+What:	iwl4965 alias support
+When:	3.0
+Why:	Internal alias support has been present in module-init-tools for some
+	time, the MODULE_ALIAS("iwl4965") boilerplate aliases can be removed
+	with no impact.
+
+Who:	Wey-Yi Guy <wey-yi.w.guy@intel.com>
+
+---------------------------
+
+What:	xt_NOTRACK
+Files:	net/netfilter/xt_NOTRACK.c
+When:	April 2011
+Why:	Superseded by xt_CT
+Who:	Netfilter developer team <netfilter-devel@vger.kernel.org>
+
+----------------------------
+
+What:	IRQF_DISABLED
+When:	2.6.36
+Why:	The flag is a NOOP as we run interrupt handlers with interrupts disabled
+Who:	Thomas Gleixner <tglx@linutronix.de>
+
+----------------------------
+
+What: 	PCI DMA unmap state API
+When:	August 2012
+Why:	PCI DMA unmap state API (include/linux/pci-dma.h) was replaced
+	with DMA unmap state API (DMA unmap state API can be used for
+	any bus).
+Who:	FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
+
+----------------------------
+
+What:	iwlwifi disable_hw_scan module parameters
+When:	3.0
+Why:	Hareware scan is the prefer method for iwlwifi devices for
+	scanning operation. Remove software scan support for all the
+	iwlwifi devices.
+
+Who:	Wey-Yi Guy <wey-yi.w.guy@intel.com>
+
+----------------------------
+
+What:	Legacy, non-standard chassis intrusion detection interface.
+When:	June 2011
+Why:	The adm9240, w83792d and w83793 hardware monitoring drivers have
+	legacy interfaces for chassis intrusion detection. A standard
+	interface has been added to each driver, so the legacy interface
+	can be removed.
+Who:	Jean Delvare <khali@linux-fr.org>
+
+----------------------------
+
+What:	xt_connlimit rev 0
+When:	2012
+Who:	Jan Engelhardt <jengelh@medozas.de>
+Files:	net/netfilter/xt_connlimit.c
+
+----------------------------
+
+What:	ipt_addrtype match include file
+When:	2012
+Why:	superseded by xt_addrtype
+Who:	Florian Westphal <fw@strlen.de>
+Files:	include/linux/netfilter_ipv4/ipt_addrtype.h
+
+----------------------------
+
+What:	i2c_driver.attach_adapter
+	i2c_driver.detach_adapter
+When:	September 2011
+Why:	These legacy callbacks should no longer be used as i2c-core offers
+	a variety of preferable alternative ways to instantiate I2C devices.
+Who:	Jean Delvare <khali@linux-fr.org>
+
+----------------------------
+
+What:	Opening a radio device node will no longer automatically switch the
+	tuner mode from tv to radio.
+When:	3.3
+Why:	Just opening a V4L device should not change the state of the hardware
+	like that. It's very unexpected and against the V4L spec. Instead, you
+	switch to radio mode by calling VIDIOC_S_FREQUENCY. This is the second
+	and last step of the move to consistent handling of tv and radio tuners.
+Who:	Hans Verkuil <hans.verkuil@cisco.com>
+
+----------------------------
+
+What:	g_file_storage driver
+When:	3.8
+Why:	This driver has been superseded by g_mass_storage.
+Who:	Alan Stern <stern@rowland.harvard.edu>
+
+----------------------------
+
+What:   threeg and interface sysfs files in /sys/devices/platform/acer-wmi
+When:   2012
+Why:    In 3.0, we can now autodetect internal 3G device and already have
+	the threeg rfkill device. So, we plan to remove threeg sysfs support
+	for it's no longer necessary.
+
+	We also plan to remove interface sysfs file that exposed which ACPI-WMI
+	interface that was used by acer-wmi driver. It will replaced by
+	information log when acer-wmi initial.
+Who:    Lee, Chun-Yi <jlee@novell.com>
+
+---------------------------
+
+What:	/sys/devices/platform/_UDC_/udc/_UDC_/is_dualspeed file and
+	is_dualspeed line in /sys/devices/platform/ci13xxx_*/udc/device file.
+When:	3.8
+Why:	The is_dualspeed file is superseded by maximum_speed in the same
+	directory and is_dualspeed line in device file is superseded by
+	max_speed line in the same file.
+
+	The maximum_speed/max_speed specifies maximum speed supported by UDC.
+	To check if dualspeeed is supported, check if the value is >= 3.
+	Various possible speeds are defined in <linux/usb/ch9.h>.
+Who:	Michal Nazarewicz <mina86@mina86.com>
+
+----------------------------
+
+What:	The XFS nodelaylog mount option
+When:	3.3
+Why:	The delaylog mode that has been the default since 2.6.39 has proven
+	stable, and the old code is in the way of additional improvements in
+	the log code.
+Who:	Christoph Hellwig <hch@lst.de>
+
+----------------------------
+
+What:	iwlagn alias support
+When:	3.5
+Why:	The iwlagn module has been renamed iwlwifi.  The alias will be around
+	for backward compatibility for several cycles and then dropped.
+Who:	Don Fry <donald.h.fry@intel.com>
+
+----------------------------
+
+What:	pci_scan_bus_parented()
+When:	3.5
+Why:	The pci_scan_bus_parented() interface creates a new root bus.  The
+	bus is created with default resources (ioport_resource and
+	iomem_resource) that are always wrong, so we rely on arch code to
+	correct them later.  Callers of pci_scan_bus_parented() should
+	convert to using pci_scan_root_bus() so they can supply a list of
+	bus resources when the bus is created.
+Who:	Bjorn Helgaas <bhelgaas@google.com>
+
+----------------------------
+
+What:	Low Performance USB Block driver ("CONFIG_BLK_DEV_UB")
+When:	3.6
+Why:	This driver provides support for USB storage devices like "USB
+	sticks". As of now, it is deactivated in Debian, Fedora and
+        Ubuntu. All current users can switch over to usb-storage
+        (CONFIG_USB_STORAGE) which only drawback is the additional SCSI
+        stack.
+Who:	Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
+
+----------------------------
+
+What:	kmap_atomic(page, km_type)
+When:	3.5
+Why:	The old kmap_atomic() with two arguments is deprecated, we only
+	keep it for backward compatibility for few cycles and then drop it.
+Who:	Cong Wang <amwang@redhat.com>
+
+----------------------------
+
+What:	get_robust_list syscall
+When:	2013
+Why:	There appear to be no production users of the get_robust_list syscall,
+	and it runs the risk of leaking address locations, allowing the bypass
+	of ASLR. It was only ever intended for debugging, so it should be
+	removed.
+Who:	Kees Cook <keescook@chromium.org>
+
+----------------------------
+
+What:	setitimer accepts user NULL pointer (value)
+When:	3.6
+Why:	setitimer is not returning -EFAULT if user pointer is NULL. This
+	violates the spec.
+Who:	Sasikantha Babu <sasikanth.v19@gmail.com>
+
+----------------------------
+
+What:	V4L2_CID_HCENTER, V4L2_CID_VCENTER V4L2 controls
+When:	3.7
+Why:	The V4L2_CID_VCENTER, V4L2_CID_HCENTER controls have been deprecated
+	for about 4 years and they are not used by any mainline driver.
+	There are newer controls (V4L2_CID_PAN*, V4L2_CID_TILT*) that provide
+	similar	functionality.
+Who:	Sylwester Nawrocki <sylvester.nawrocki@gmail.com>

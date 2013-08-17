@@ -1,0 +1,38 @@
+00-INDEX
+	- this file
+Booting
+	- requirements for booting
+Interrupts
+	- ARM Interrupt subsystem documentation
+IXP2000
+	- Release Notes for Linux on Intel's IXP2000 Network Processor
+msm
+	- MSM specific documentation
+Netwinder
+	- Netwinder specific documentation
+Porting
+       - Symbol definitions for porting Linux to a new ARM machine.
+Setup
+       - Kernel initialization parameters on ARM Linux
+README
+	- General ARM documentation
+SA1100/
+	- SA1100 documentation
+Samsung-S3C24XX
+	- S3C24XX ARM Linux Overview
+Sharp-LH
+	- Linux on Sharp LH79524 and LH7A40X System On a Chip (SOC)
+SPEAr
+	- ST SPEAr platform Linux Overview
+VFP/
+	- Release notes for Linux Kernel Vector Floating Point support code
+empeg/
+	- Ltd's Empeg MP3 Car Audio Player
+mem_alignment
+	- alignment abort handler documentation
+memory.txt
+	- description of the virtual memory layout
+nwfpe/
+	- NWFPE floating point emulator documentation
+swp_emulation
+	- SWP/SWPB emulation handler/logging description

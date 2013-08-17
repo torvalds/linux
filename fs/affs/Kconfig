@@ -1,0 +1,21 @@
+config AFFS_FS
+	tristate "Amiga FFS file system support (EXPERIMENTAL)"
+	depends on BLOCK && EXPERIMENTAL
+	help
+	  The Fast File System (FFS) is the common file system used on hard
+	  disks by Amiga(tm) systems since AmigaOS Version 1.3 (34.20).  Say Y
+	  if you want to be able to read and write files from and to an Amiga
+	  FFS partition on your hard drive.  Amiga floppies however cannot be
+	  read with this driver due to an incompatibility of the floppy
+	  controller used in an Amiga and the standard floppy controller in
+	  PCs and workstations. Read <file:Documentation/filesystems/affs.txt>
+	  and <file:fs/affs/Changes>.
+
+	  With this driver you can also mount disk files used by Bernd
+	  Schmidt's Un*X Amiga Emulator
+	  (<http://www.freiburg.linux.de/~uae/>).
+	  If you want to do this, you will also need to say Y or M to "Loop
+	  device support", above.
+
+	  To compile this file system support as a module, choose M here: the
+	  module will be called affs.  If unsure, say N.

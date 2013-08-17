@@ -1,0 +1,41 @@
+IBM's Journaled File System (JFS) for Linux
+
+JFS Homepage:  http://jfs.sourceforge.net/
+
+The following mount options are supported:
+
+iocharset=name	Character set to use for converting from Unicode to
+		ASCII.  The default is to do no conversion.  Use
+		iocharset=utf8 for UTF-8 translations.  This requires
+		CONFIG_NLS_UTF8 to be set in the kernel .config file.
+		iocharset=none specifies the default behavior explicitly.
+
+resize=value	Resize the volume to <value> blocks.  JFS only supports
+		growing a volume, not shrinking it.  This option is only
+		valid during a remount, when the volume is mounted
+		read-write.  The resize keyword with no value will grow
+		the volume to the full size of the partition.
+
+nointegrity	Do not write to the journal.  The primary use of this option
+		is to allow for higher performance when restoring a volume
+		from backup media.  The integrity of the volume is not
+		guaranteed if the system abnormally abends.
+
+integrity	Default.  Commit metadata changes to the journal.  Use this
+		option to remount a volume where the nointegrity option was
+		previously specified in order to restore normal behavior.
+
+errors=continue		Keep going on a filesystem error.
+errors=remount-ro	Default. Remount the filesystem read-only on an error.
+errors=panic		Panic and halt the machine if an error occurs.
+
+uid=value	Override on-disk uid with specified value
+gid=value	Override on-disk gid with specified value
+umask=value	Override on-disk umask with specified octal value.  For
+		directories, the execute bit will be set if the corresponding
+		read bit is set.
+
+Please send bugs, comments, cards and letters to shaggy@linux.vnet.ibm.com.
+
+The JFS mailing list can be subscribed to by using the link labeled
+"Mail list Subscribe" at our web page http://jfs.sourceforge.net/

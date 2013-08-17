@@ -1,0 +1,279 @@
+#
+# File system configuration
+#
+
+menu "File systems"
+
+# Use unaligned word dcache accesses
+config DCACHE_WORD_ACCESS
+       bool
+
+if BLOCK
+
+source "fs/ext2/Kconfig"
+source "fs/ext3/Kconfig"
+source "fs/ext4/Kconfig"
+
+config FS_XIP
+# execute in place
+	bool
+	depends on EXT2_FS_XIP
+	default y
+
+source "fs/jbd/Kconfig"
+source "fs/jbd2/Kconfig"
+
+config FS_MBCACHE
+# Meta block cache for Extended Attributes (ext2/ext3/ext4)
+	tristate
+	default y if EXT2_FS=y && EXT2_FS_XATTR
+	default y if EXT3_FS=y && EXT3_FS_XATTR
+	default y if EXT4_FS=y && EXT4_FS_XATTR
+	default m if EXT2_FS_XATTR || EXT3_FS_XATTR || EXT4_FS_XATTR
+
+source "fs/reiserfs/Kconfig"
+source "fs/jfs/Kconfig"
+
+source "fs/xfs/Kconfig"
+source "fs/gfs2/Kconfig"
+source "fs/ocfs2/Kconfig"
+source "fs/btrfs/Kconfig"
+source "fs/nilfs2/Kconfig"
+
+endif # BLOCK
+
+# Posix ACL utility routines
+#
+# Note: Posix ACLs can be implemented without these helpers.  Never use
+# this symbol for ifdefs in core code.
+#
+config FS_POSIX_ACL
+	def_bool n
+
+config EXPORTFS
+	tristate
+
+config FILE_LOCKING
+	bool "Enable POSIX file locking API" if EXPERT
+	default y
+	help
+	  This option enables standard file locking support, required
+          for filesystems like NFS and for the flock() system
+          call. Disabling this option saves about 11k.
+
+source "fs/notify/Kconfig"
+
+source "fs/quota/Kconfig"
+
+source "fs/autofs4/Kconfig"
+source "fs/fuse/Kconfig"
+
+config CUSE
+	tristate "Character device in Userspace support"
+	depends on FUSE_FS
+	help
+	  This FUSE extension allows character devices to be
+	  implemented in userspace.
+
+	  If you want to develop or use userspace character device
+	  based on CUSE, answer Y or M.
+
+config GENERIC_ACL
+	bool
+	select FS_POSIX_ACL
+
+menu "Caches"
+
+source "fs/fscache/Kconfig"
+source "fs/cachefiles/Kconfig"
+
+endmenu
+
+if BLOCK
+menu "CD-ROM/DVD Filesystems"
+
+source "fs/isofs/Kconfig"
+source "fs/udf/Kconfig"
+
+endmenu
+endif # BLOCK
+
+if BLOCK
+menu "DOS/FAT/NT Filesystems"
+
+source "fs/fat/Kconfig"
+source "fs/ntfs/Kconfig"
+
+endmenu
+endif # BLOCK
+
+menu "Pseudo filesystems"
+
+source "fs/proc/Kconfig"
+source "fs/sysfs/Kconfig"
+
+config TMPFS
+	bool "Tmpfs virtual memory file system support (former shm fs)"
+	depends on SHMEM
+	help
+	  Tmpfs is a file system which keeps all files in virtual memory.
+
+	  Everything in tmpfs is temporary in the sense that no files will be
+	  created on your hard drive. The files live in memory and swap
+	  space. If you unmount a tmpfs instance, everything stored therein is
+	  lost.
+
+	  See <file:Documentation/filesystems/tmpfs.txt> for details.
+
+config TMPFS_POSIX_ACL
+	bool "Tmpfs POSIX Access Control Lists"
+	depends on TMPFS
+	select TMPFS_XATTR
+	select GENERIC_ACL
+	help
+	  POSIX Access Control Lists (ACLs) support additional access rights
+	  for users and groups beyond the standard owner/group/world scheme,
+	  and this option selects support for ACLs specifically for tmpfs
+	  filesystems.
+
+	  If you've selected TMPFS, it's possible that you'll also need
+	  this option as there are a number of Linux distros that require
+	  POSIX ACL support under /dev for certain features to work properly.
+	  For example, some distros need this feature for ALSA-related /dev
+	  files for sound to work properly.  In short, if you're not sure,
+	  say Y.
+
+	  To learn more about Access Control Lists, visit the POSIX ACLs for
+	  Linux website <http://acl.bestbits.at/>.
+
+config TMPFS_XATTR
+	bool "Tmpfs extended attributes"
+	depends on TMPFS
+	default n
+	help
+	  Extended attributes are name:value pairs associated with inodes by
+	  the kernel or by users (see the attr(5) manual page, or visit
+	  <http://acl.bestbits.at/> for details).
+
+	  Currently this enables support for the trusted.* and
+	  security.* namespaces.
+
+	  You need this for POSIX ACL support on tmpfs.
+
+	  If unsure, say N.
+
+config HUGETLBFS
+	bool "HugeTLB file system support"
+	depends on X86 || IA64 || SPARC64 || (S390 && 64BIT) || \
+		   SYS_SUPPORTS_HUGETLBFS || BROKEN
+	help
+	  hugetlbfs is a filesystem backing for HugeTLB pages, based on
+	  ramfs. For architectures that support it, say Y here and read
+	  <file:Documentation/vm/hugetlbpage.txt> for details.
+
+	  If unsure, say N.
+
+config HUGETLB_PAGE
+	def_bool HUGETLBFS
+
+source "fs/configfs/Kconfig"
+
+endmenu
+
+menuconfig MISC_FILESYSTEMS
+	bool "Miscellaneous filesystems"
+	default y
+	---help---
+	  Say Y here to get to see options for various miscellaneous
+	  filesystems, such as filesystems that came from other
+	  operating systems.
+
+	  This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and
+	  disabled; if unsure, say Y here.
+
+if MISC_FILESYSTEMS
+
+source "fs/adfs/Kconfig"
+source "fs/affs/Kconfig"
+source "fs/ecryptfs/Kconfig"
+source "fs/hfs/Kconfig"
+source "fs/hfsplus/Kconfig"
+source "fs/befs/Kconfig"
+source "fs/bfs/Kconfig"
+source "fs/efs/Kconfig"
+source "fs/jffs2/Kconfig"
+# UBIFS File system configuration
+source "fs/ubifs/Kconfig"
+source "fs/logfs/Kconfig"
+source "fs/cramfs/Kconfig"
+source "fs/squashfs/Kconfig"
+source "fs/freevxfs/Kconfig"
+source "fs/minix/Kconfig"
+source "fs/omfs/Kconfig"
+source "fs/hpfs/Kconfig"
+source "fs/qnx4/Kconfig"
+source "fs/qnx6/Kconfig"
+source "fs/romfs/Kconfig"
+source "fs/pstore/Kconfig"
+source "fs/sysv/Kconfig"
+source "fs/ufs/Kconfig"
+source "fs/exofs/Kconfig"
+
+endif # MISC_FILESYSTEMS
+
+source "fs/exofs/Kconfig.ore"
+
+menuconfig NETWORK_FILESYSTEMS
+	bool "Network File Systems"
+	default y
+	depends on NET
+	---help---
+	  Say Y here to get to see options for network filesystems and
+	  filesystem-related networking code, such as NFS daemon and
+	  RPCSEC security modules.
+
+	  This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and
+	  disabled; if unsure, say Y here.
+
+if NETWORK_FILESYSTEMS
+
+source "fs/nfs/Kconfig"
+source "fs/nfsd/Kconfig"
+
+config LOCKD
+	tristate
+	depends on FILE_LOCKING
+
+config LOCKD_V4
+	bool
+	depends on NFSD_V3 || NFS_V3
+	depends on FILE_LOCKING
+	default y
+
+config NFS_ACL_SUPPORT
+	tristate
+	select FS_POSIX_ACL
+
+config NFS_COMMON
+	bool
+	depends on NFSD || NFS_FS
+	default y
+
+source "net/sunrpc/Kconfig"
+source "fs/ceph/Kconfig"
+source "fs/cifs/Kconfig"
+source "fs/ncpfs/Kconfig"
+source "fs/coda/Kconfig"
+source "fs/afs/Kconfig"
+source "fs/9p/Kconfig"
+
+endif # NETWORK_FILESYSTEMS
+
+source "fs/nls/Kconfig"
+source "fs/dlm/Kconfig"
+
+endmenu

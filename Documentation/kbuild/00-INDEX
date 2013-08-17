@@ -1,0 +1,12 @@
+00-INDEX
+	- this file: info on the kernel build process
+kbuild.txt
+	- developer information on kbuild
+kconfig.txt
+	- usage help for make *config
+kconfig-language.txt
+	- specification of Config Language, the language in Kconfig files
+makefiles.txt
+	- developer information for linux kernel makefiles
+modules.txt
+	- how to build modules and to install them

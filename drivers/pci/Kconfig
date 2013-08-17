@@ -1,0 +1,122 @@
+#
+# PCI configuration
+#
+config ARCH_SUPPORTS_MSI
+	bool
+	default n
+
+config PCI_MSI
+	bool "Message Signaled Interrupts (MSI and MSI-X)"
+	depends on PCI
+	depends on ARCH_SUPPORTS_MSI
+	help
+	   This allows device drivers to enable MSI (Message Signaled
+	   Interrupts).  Message Signaled Interrupts enable a device to
+	   generate an interrupt using an inbound Memory Write on its
+	   PCI bus instead of asserting a device IRQ pin.
+
+	   Use of PCI MSI interrupts can be disabled at kernel boot time
+	   by using the 'pci=nomsi' option.  This disables MSI for the
+	   entire system.
+
+	   If you don't know what to do here, say Y.
+
+config PCI_DEBUG
+	bool "PCI Debugging"
+	depends on PCI && DEBUG_KERNEL
+	help
+	  Say Y here if you want the PCI core to produce a bunch of debug
+	  messages to the system log.  Select this if you are having a
+	  problem with PCI support and want to see more of what is going on.
+
+	  When in doubt, say N.
+
+config PCI_REALLOC_ENABLE_AUTO
+	bool "Enable PCI resource re-allocation detection"
+	depends on PCI
+	help
+	  Say Y here if you want the PCI core to detect if PCI resource
+	  re-allocation needs to be enabled. You can always use pci=realloc=on
+          or pci=realloc=off to override it.  Note this feature is a no-op
+          unless PCI_IOV support is also enabled; in that case it will
+          automatically re-allocate PCI resources if SR-IOV BARs have not
+          been allocated by the BIOS.
+
+	  When in doubt, say N.
+
+config PCI_STUB
+	tristate "PCI Stub driver"
+	depends on PCI
+	help
+	  Say Y or M here if you want be able to reserve a PCI device
+	  when it is going to be assigned to a guest operating system.
+
+	  When in doubt, say N.
+
+config XEN_PCIDEV_FRONTEND
+        tristate "Xen PCI Frontend"
+        depends on PCI && X86 && XEN
+        select HOTPLUG
+        select PCI_XEN
+	select XEN_XENBUS_FRONTEND
+        default y
+        help
+          The PCI device frontend driver allows the kernel to import arbitrary
+          PCI devices from a PCI backend to support PCI driver domains.
+
+config HT_IRQ
+	bool "Interrupts on hypertransport devices"
+	default y
+	depends on PCI && X86_LOCAL_APIC && X86_IO_APIC
+	help
+	   This allows native hypertransport devices to use interrupts.
+
+	   If unsure say Y.
+
+config PCI_ATS
+	bool
+
+config PCI_IOV
+	bool "PCI IOV support"
+	depends on PCI
+	select PCI_ATS
+	help
+	  I/O Virtualization is a PCI feature supported by some devices
+	  which allows them to create virtual devices which share their
+	  physical resources.
+
+	  If unsure, say N.
+
+config PCI_PRI
+	bool "PCI PRI support"
+	depends on PCI
+	select PCI_ATS
+	help
+	  PRI is the PCI Page Request Interface. It allows PCI devices that are
+	  behind an IOMMU to recover from page faults.
+
+	  If unsure, say N.
+
+config PCI_PASID
+	bool "PCI PASID support"
+	depends on PCI
+	select PCI_ATS
+	help
+	  Process Address Space Identifiers (PASIDs) can be used by PCI devices
+	  to access more than one IO address space at the same time. To make
+	  use of this feature an IOMMU is required which also supports PASIDs.
+	  Select this option if you have such an IOMMU and want to compile the
+	  driver for it into your kernel.
+
+	  If unsure, say N.
+
+config PCI_IOAPIC
+	tristate "PCI IO-APIC hotplug support" if X86
+	depends on PCI
+	depends on ACPI
+	depends on HOTPLUG
+	default !X86
+
+config PCI_LABEL
+	def_bool y if (DMI || ACPI)
+	select NLS

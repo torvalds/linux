@@ -1,0 +1,80 @@
+
+System Power Management States
+
+
+The kernel supports three power management states generically, though
+each is dependent on platform support code to implement the low-level
+details for each state. This file describes each state, what they are
+commonly called, what ACPI state they map to, and what string to write
+to /sys/power/state to enter that state
+
+
+State:		Standby / Power-On Suspend
+ACPI State:	S1
+String:		"standby"
+
+This state offers minimal, though real, power savings, while providing
+a very low-latency transition back to a working system. No operating
+state is lost (the CPU retains power), so the system easily starts up
+again where it left off. 
+
+We try to put devices in a low-power state equivalent to D1, which
+also offers low power savings, but low resume latency. Not all devices
+support D1, and those that don't are left on. 
+
+A transition from Standby to the On state should take about 1-2
+seconds. 
+
+
+State:		Suspend-to-RAM
+ACPI State:	S3
+String:		"mem"
+
+This state offers significant power savings as everything in the
+system is put into a low-power state, except for memory, which is
+placed in self-refresh mode to retain its contents. 
+
+System and device state is saved and kept in memory. All devices are
+suspended and put into D3. In many cases, all peripheral buses lose
+power when entering STR, so devices must be able to handle the
+transition back to the On state. 
+
+For at least ACPI, STR requires some minimal boot-strapping code to
+resume the system from STR. This may be true on other platforms. 
+
+A transition from Suspend-to-RAM to the On state should take about
+3-5 seconds. 
+
+
+State:		Suspend-to-disk
+ACPI State:	S4
+String:		"disk"
+
+This state offers the greatest power savings, and can be used even in
+the absence of low-level platform support for power management. This
+state operates similarly to Suspend-to-RAM, but includes a final step
+of writing memory contents to disk. On resume, this is read and memory
+is restored to its pre-suspend state. 
+
+STD can be handled by the firmware or the kernel. If it is handled by
+the firmware, it usually requires a dedicated partition that must be
+setup via another operating system for it to use. Despite the
+inconvenience, this method requires minimal work by the kernel, since
+the firmware will also handle restoring memory contents on resume. 
+
+For suspend-to-disk, a mechanism called 'swsusp' (Swap Suspend) is used
+to write memory contents to free swap space. swsusp has some restrictive
+requirements, but should work in most cases. Some, albeit outdated,
+documentation can be found in Documentation/power/swsusp.txt.
+Alternatively, userspace can do most of the actual suspend to disk work,
+see userland-swsusp.txt.
+
+Once memory state is written to disk, the system may either enter a
+low-power state (like ACPI S4), or it may simply power down. Powering
+down offers greater savings, and allows this mechanism to work on any
+system. However, entering a real low-power state allows the user to
+trigger wake up events (e.g. pressing a key or opening a laptop lid).
+
+A transition from Suspend-to-Disk to the On state should take about 30
+seconds, though it's typically a bit more with the current
+implementation. 

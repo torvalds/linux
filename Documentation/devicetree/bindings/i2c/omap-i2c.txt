@@ -1,0 +1,30 @@
+I2C for OMAP platforms
+
+Required properties :
+- compatible : Must be "ti,omap3-i2c" or "ti,omap4-i2c"
+- ti,hwmods : Must be "i2c<n>", n being the instance number (1-based)
+- #address-cells = <1>;
+- #size-cells = <0>;
+
+Recommended properties :
+- clock-frequency : Desired I2C bus clock frequency in Hz. Otherwise
+  the default 100 kHz frequency will be used.
+
+Optional properties:
+- Child nodes conforming to i2c bus binding
+
+Note: Current implementation will fetch base address, irq and dma
+from omap hwmod data base during device registration.
+Future plan is to migrate hwmod data base contents into device tree
+blob so that, all the required data will be used from device tree dts
+file.
+
+Examples :
+
+i2c1: i2c@0 {
+    compatible = "ti,omap3-i2c";
+    #address-cells = <1>;
+    #size-cells = <0>;
+    ti,hwmods = "i2c1";
+    clock-frequency = <400000>;
+};

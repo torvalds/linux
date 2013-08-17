@@ -1,0 +1,195 @@
+#
+# AMD network device configuration
+#
+
+config NET_VENDOR_AMD
+	bool "AMD devices"
+	default y
+	depends on DIO || MACH_DECSTATION || MVME147 || ATARI || SUN3 || \
+		   SUN3X || SBUS || PCI || ZORRO || (ISA && ISA_DMA_API) || \
+		   (ARM && ARCH_EBSA110) || ISA || EISA || MCA || PCMCIA
+	---help---
+	  If you have a network (Ethernet) chipset belonging to this class,
+	  say Y.
+
+	  Note that the answer to this question does not directly affect
+	  the kernel: saying N will just case the configurator to skip all
+	  the questions regarding AMD chipsets. If you say Y, you will be asked
+	  for your specific chipset/driver in the following questions.
+
+if NET_VENDOR_AMD
+
+config A2065
+	tristate "A2065 support"
+	depends on ZORRO
+	select CRC32
+	---help---
+	  If you have a Commodore A2065 Ethernet adapter, say Y. Otherwise,
+	  say N.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called a2065.
+
+config AMD8111_ETH
+	tristate "AMD 8111 (new PCI LANCE) support"
+	depends on PCI
+	select CRC32
+	select NET_CORE
+	select MII
+	---help---
+	  If you have an AMD 8111-based PCI LANCE ethernet card,
+	  answer Y here and read the Ethernet-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called amd8111e.
+
+config LANCE
+	tristate "AMD LANCE and PCnet (AT1500 and NE2100) support"
+	depends on ISA && ISA_DMA_API
+	---help---
+	  If you have a network (Ethernet) card of this type, say Y and read
+	  the Ethernet-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>. Some LinkSys cards are
+	  of this type.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called lance.  This is recommended.
+
+config PCNET32
+	tristate "AMD PCnet32 PCI support"
+	depends on PCI
+	select CRC32
+	select NET_CORE
+	select MII
+	---help---
+	  If you have a PCnet32 or PCnetPCI based network (Ethernet) card,
+	  answer Y here and read the Ethernet-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called pcnet32.
+
+config ARIADNE
+	tristate "Ariadne support"
+	depends on ZORRO
+	---help---
+	  If you have a Village Tronic Ariadne Ethernet adapter, say Y.
+	  Otherwise, say N.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ariadne.
+
+config ARM_AM79C961A
+	bool "ARM EBSA110 AM79C961A support"
+	depends on ARM && ARCH_EBSA110
+	select CRC32
+	---help---
+	  If you wish to compile a kernel for the EBSA-110, then you should
+	  always answer Y to this.
+
+config ATARILANCE
+	tristate "Atari LANCE support"
+	depends on ATARI
+	---help---
+	  Say Y to include support for several Atari Ethernet adapters based
+	  on the AMD LANCE chipset: RieblCard (with or without battery), or
+	  PAMCard VME (also the version by Rhotron, with different addresses).
+
+config DECLANCE
+	tristate "DEC LANCE ethernet controller support"
+	depends on MACH_DECSTATION
+	select CRC32
+	---help---
+	  This driver is for the series of Ethernet controllers produced by
+	  DEC (now Compaq) based on the AMD LANCE chipset, including the
+	  DEPCA series.  (This chipset is better known via the NE2100 cards.)
+
+config DEPCA
+	tristate "DEPCA, DE10x, DE200, DE201, DE202, DE422 support"
+	depends on (ISA || EISA || MCA)
+	select CRC32
+	---help---
+	  If you have a network (Ethernet) card of this type, say Y and read
+	  the Ethernet-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto> as well as
+	  <file:drivers/net/ethernet/amd/depca.c>.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called depca.
+
+config HPLANCE
+	bool "HP on-board LANCE support"
+	depends on DIO
+	select CRC32
+	---help---
+	  If you want to use the builtin "LANCE" Ethernet controller on an
+	  HP300 machine, say Y here.
+
+config MIPS_AU1X00_ENET
+	tristate "MIPS AU1000 Ethernet support"
+	depends on MIPS_ALCHEMY
+	select PHYLIB
+	select CRC32
+	---help---
+	  If you have an Alchemy Semi AU1X00 based system
+	  say Y.  Otherwise, say N.
+
+config MVME147_NET
+	tristate "MVME147 (LANCE) Ethernet support"
+	depends on MVME147
+	select CRC32
+	---help---
+	  Support for the on-board Ethernet interface on the Motorola MVME147
+	  single-board computer.  Say Y here to include the
+	  driver for this chip in your kernel.
+	  To compile this driver as a module, choose M here.
+
+config PCMCIA_NMCLAN
+	tristate "New Media PCMCIA support"
+	depends on PCMCIA
+	help
+	  Say Y here if you intend to attach a New Media Ethernet or LiveWire
+	  PCMCIA (PC-card) Ethernet card to your computer.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called nmclan_cs.  If unsure, say N.
+
+config NI65
+	tristate "NI6510 support"
+	depends on ISA && ISA_DMA_API
+	---help---
+	  If you have a network (Ethernet) card of this type, say Y and read
+	  the Ethernet-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called ni65.
+
+config SUN3LANCE
+	tristate "Sun3/Sun3x on-board LANCE support"
+	depends on (SUN3 || SUN3X)
+	---help---
+	  Most Sun3 and Sun3x motherboards (including the 3/50, 3/60 and 3/80)
+	  featured an AMD LANCE 10Mbit Ethernet controller on board; say Y
+	  here to compile in the Linux driver for this and enable Ethernet.
+	  General Linux information on the Sun 3 and 3x series (now
+	  discontinued) is at
+	  <http://www.angelfire.com/ca2/tech68k/sun3.html>.
+
+	  If you're not building a kernel for a Sun 3, say N.
+
+config SUNLANCE
+	tristate "Sun LANCE support"
+	depends on SBUS
+	select CRC32
+	---help---
+	  This driver supports the "le" interface present on all 32-bit Sparc
+	  systems, on some older Ultra systems and as an Sbus option.  These
+	  cards are based on the AMD LANCE chipset, which is better known
+	  via the NE2100 cards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sunlance.
+
+endif # NET_VENDOR_AMD

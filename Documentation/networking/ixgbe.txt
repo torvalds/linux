@@ -1,0 +1,260 @@
+Linux Base Driver for 10 Gigabit PCI Express Intel(R) Network Connection
+========================================================================
+
+Intel Gigabit Linux driver.
+Copyright(c) 1999 - 2010 Intel Corporation.
+
+Contents
+========
+
+- Identifying Your Adapter
+- Additional Configurations
+- Performance Tuning
+- Known Issues
+- Support
+
+Identifying Your Adapter
+========================
+
+The driver in this release is compatible with 82598 and 82599-based Intel
+Network Connections.
+
+For more information on how to identify your adapter, go to the Adapter &
+Driver ID Guide at:
+
+    http://support.intel.com/support/network/sb/CS-012904.htm
+
+SFP+ Devices with Pluggable Optics
+----------------------------------
+
+82599-BASED ADAPTERS
+
+NOTES: If your 82599-based Intel(R) Network Adapter came with Intel optics, or
+is an Intel(R) Ethernet Server Adapter X520-2, then it only supports Intel
+optics and/or the direct attach cables listed below.
+
+When 82599-based SFP+ devices are connected back to back, they should be set to
+the same Speed setting via ethtool. Results may vary if you mix speed settings.
+82598-based adapters support all passive direct attach cables that comply
+with SFF-8431 v4.1 and SFF-8472 v10.4 specifications. Active direct attach
+cables are not supported.
+
+Supplier    Type                                             Part Numbers
+
+SR Modules
+Intel       DUAL RATE 1G/10G SFP+ SR (bailed)                FTLX8571D3BCV-IT
+Intel       DUAL RATE 1G/10G SFP+ SR (bailed)                AFBR-703SDDZ-IN1
+Intel       DUAL RATE 1G/10G SFP+ SR (bailed)                AFBR-703SDZ-IN2
+LR Modules
+Intel       DUAL RATE 1G/10G SFP+ LR (bailed)                FTLX1471D3BCV-IT
+Intel       DUAL RATE 1G/10G SFP+ LR (bailed)                AFCT-701SDDZ-IN1
+Intel       DUAL RATE 1G/10G SFP+ LR (bailed)                AFCT-701SDZ-IN2
+
+The following is a list of 3rd party SFP+ modules and direct attach cables that
+have received some testing. Not all modules are applicable to all devices.
+
+Supplier   Type                                              Part Numbers
+
+Finisar    SFP+ SR bailed, 10g single rate                   FTLX8571D3BCL
+Avago      SFP+ SR bailed, 10g single rate                   AFBR-700SDZ
+Finisar    SFP+ LR bailed, 10g single rate                   FTLX1471D3BCL
+
+Finisar    DUAL RATE 1G/10G SFP+ SR (No Bail)                FTLX8571D3QCV-IT
+Avago      DUAL RATE 1G/10G SFP+ SR (No Bail)                AFBR-703SDZ-IN1
+Finisar    DUAL RATE 1G/10G SFP+ LR (No Bail)                FTLX1471D3QCV-IT
+Avago      DUAL RATE 1G/10G SFP+ LR (No Bail)                AFCT-701SDZ-IN1
+Finistar   1000BASE-T SFP                                    FCLF8522P2BTL
+Avago      1000BASE-T SFP                                    ABCU-5710RZ
+
+82599-based adapters support all passive and active limiting direct attach
+cables that comply with SFF-8431 v4.1 and SFF-8472 v10.4 specifications.
+
+Laser turns off for SFP+ when ifconfig down
+-------------------------------------------
+"ifconfig down" turns off the laser for 82599-based SFP+ fiber adapters.
+"ifconfig up" turns on the later.
+
+
+82598-BASED ADAPTERS
+
+NOTES for 82598-Based Adapters:
+- Intel(R) Network Adapters that support removable optical modules only support
+  their original module type (i.e., the Intel(R) 10 Gigabit SR Dual Port
+  Express Module only supports SR optical modules). If you plug in a different
+  type of module, the driver will not load.
+- Hot Swapping/hot plugging optical modules is not supported.
+- Only single speed, 10 gigabit modules are supported.
+- LAN on Motherboard (LOMs) may support DA, SR, or LR modules. Other module
+  types are not supported. Please see your system documentation for details.
+
+The following is a list of 3rd party SFP+ modules and direct attach cables that
+have received some testing. Not all modules are applicable to all devices.
+
+Supplier   Type                                              Part Numbers
+
+Finisar    SFP+ SR bailed, 10g single rate                   FTLX8571D3BCL
+Avago      SFP+ SR bailed, 10g single rate                   AFBR-700SDZ
+Finisar    SFP+ LR bailed, 10g single rate                   FTLX1471D3BCL
+
+82598-based adapters support all passive direct attach cables that comply
+with SFF-8431 v4.1 and SFF-8472 v10.4 specifications. Active direct attach
+cables are not supported.
+
+
+Flow Control
+------------
+Ethernet Flow Control (IEEE 802.3x) can be configured with ethtool to enable
+receiving and transmitting pause frames for ixgbe. When TX is enabled, PAUSE
+frames are generated when the receive packet buffer crosses a predefined
+threshold.  When rx is enabled, the transmit unit will halt for the time delay
+specified when a PAUSE frame is received.
+
+Flow Control is enabled by default. If you want to disable a flow control
+capable link partner, use ethtool:
+
+     ethtool -A eth? autoneg off RX off TX off
+
+NOTE: For 82598 backplane cards entering 1 gig mode, flow control default
+behavior is changed to off.  Flow control in 1 gig mode on these devices can
+lead to Tx hangs.
+
+Additional Configurations
+=========================
+
+  Jumbo Frames
+  ------------
+  The driver supports Jumbo Frames for all adapters. Jumbo Frames support is
+  enabled by changing the MTU to a value larger than the default of 1500.
+  The maximum value for the MTU is 16110.  Use the ifconfig command to
+  increase the MTU size.  For example:
+
+        ifconfig ethx mtu 9000 up
+
+  The maximum MTU setting for Jumbo Frames is 16110.  This value coincides
+  with the maximum Jumbo Frames size of 16128.
+
+  Generic Receive Offload, aka GRO
+  --------------------------------
+  The driver supports the in-kernel software implementation of GRO.  GRO has
+  shown that by coalescing Rx traffic into larger chunks of data, CPU
+  utilization can be significantly reduced when under large Rx load.  GRO is an
+  evolution of the previously-used LRO interface.  GRO is able to coalesce
+  other protocols besides TCP.  It's also safe to use with configurations that
+  are problematic for LRO, namely bridging and iSCSI.
+
+  Data Center Bridging, aka DCB
+  -----------------------------
+  DCB is a configuration Quality of Service implementation in hardware.
+  It uses the VLAN priority tag (802.1p) to filter traffic.  That means
+  that there are 8 different priorities that traffic can be filtered into.
+  It also enables priority flow control which can limit or eliminate the
+  number of dropped packets during network stress.  Bandwidth can be
+  allocated to each of these priorities, which is enforced at the hardware
+  level.
+
+  To enable DCB support in ixgbe, you must enable the DCB netlink layer to
+  allow the userspace tools (see below) to communicate with the driver.
+  This can be found in the kernel configuration here:
+
+        -> Networking support
+          -> Networking options
+            -> Data Center Bridging support
+
+  Once this is selected, DCB support must be selected for ixgbe.  This can
+  be found here:
+
+        -> Device Drivers
+          -> Network device support (NETDEVICES [=y])
+            -> Ethernet (10000 Mbit) (NETDEV_10000 [=y])
+              -> Intel(R) 10GbE PCI Express adapters support
+                -> Data Center Bridging (DCB) Support
+
+  After these options are selected, you must rebuild your kernel and your
+  modules.
+
+  In order to use DCB, userspace tools must be downloaded and installed.
+  The dcbd tools can be found at:
+
+        http://e1000.sf.net
+
+  Ethtool
+  -------
+  The driver utilizes the ethtool interface for driver configuration and
+  diagnostics, as well as displaying statistical information. The latest
+  ethtool version is required for this functionality.
+
+  The latest release of ethtool can be found from
+  http://ftp.kernel.org/pub/software/network/ethtool/
+
+  FCoE
+  ----
+  This release of the ixgbe driver contains new code to enable users to use
+  Fiber Channel over Ethernet (FCoE) and Data Center Bridging (DCB)
+  functionality that is supported by the 82598-based hardware.  This code has
+  no default effect on the regular driver operation, and configuring DCB and
+  FCoE is outside the scope of this driver README. Refer to
+  http://www.open-fcoe.org/ for FCoE project information and contact
+  e1000-eedc@lists.sourceforge.net for DCB information.
+
+  MAC and VLAN anti-spoofing feature
+  ----------------------------------
+  When a malicious driver attempts to send a spoofed packet, it is dropped by
+  the hardware and not transmitted.  An interrupt is sent to the PF driver
+  notifying it of the spoof attempt.
+
+  When a spoofed packet is detected the PF driver will send the following
+  message to the system log (displayed by  the "dmesg" command):
+
+  Spoof event(s) detected on VF (n)
+
+  Where n=the VF that attempted to do the spoofing.
+
+
+Performance Tuning
+==================
+
+An excellent article on performance tuning can be found at:
+
+http://www.redhat.com/promo/summit/2008/downloads/pdf/Thursday/Mark_Wagner.pdf
+
+
+Known Issues
+============
+
+  Enabling SR-IOV in a 32-bit Microsoft* Windows* Server 2008 Guest OS using
+  Intel (R) 82576-based GbE or Intel (R) 82599-based 10GbE controller under KVM
+  -----------------------------------------------------------------------------
+  KVM Hypervisor/VMM supports direct assignment of a PCIe device to a VM.  This
+  includes traditional PCIe devices, as well as SR-IOV-capable devices using
+  Intel 82576-based and 82599-based controllers.
+
+  While direct assignment of a PCIe device or an SR-IOV Virtual Function (VF)
+  to a Linux-based VM running 2.6.32 or later kernel works fine, there is a
+  known issue with Microsoft Windows Server 2008 VM that results in a "yellow
+  bang" error. This problem is within the KVM VMM itself, not the Intel driver,
+  or the SR-IOV logic of the VMM, but rather that KVM emulates an older CPU
+  model for the guests, and this older CPU model does not support MSI-X
+  interrupts, which is a requirement for Intel SR-IOV.
+
+  If you wish to use the Intel 82576 or 82599-based controllers in SR-IOV mode
+  with KVM and a Microsoft Windows Server 2008 guest try the following
+  workaround. The workaround is to tell KVM to emulate a different model of CPU
+  when using qemu to create the KVM guest:
+
+       "-cpu qemu64,model=13"
+
+
+Support
+=======
+
+For general information, go to the Intel support website at:
+
+    http://support.intel.com
+
+or the Intel Wired Networking project hosted by Sourceforge at:
+
+    http://e1000.sourceforge.net
+
+If an issue is identified with the released source code on the supported
+kernel with a supported adapter, email the specific information related
+to the issue to e1000-devel@lists.sf.net

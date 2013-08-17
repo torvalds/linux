@@ -1,0 +1,261 @@
+menuconfig SND_HDA_INTEL
+	tristate "Intel HD Audio"
+	select SND_PCM
+	select SND_VMASTER
+	select SND_KCTL_JACK
+	help
+	  Say Y here to include support for Intel "High Definition
+	  Audio" (Azalia) and its compatible devices.
+
+	  This option enables the HD-audio controller.  Don't forget
+	  to choose the appropriate codec options below.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-hda-intel.
+
+if SND_HDA_INTEL
+
+config SND_HDA_PREALLOC_SIZE
+	int "Pre-allocated buffer size for HD-audio driver"
+	range 0 32768
+	default 64
+	help
+	  Specifies the default pre-allocated buffer-size in kB for the
+	  HD-audio driver.  A larger buffer (e.g. 2048) is preferred
+	  for systems using PulseAudio.  The default 64 is chosen just
+	  for compatibility reasons.
+
+	  Note that the pre-allocation size can be changed dynamically
+	  via a proc file (/proc/asound/card*/pcm*/sub*/prealloc), too.
+
+config SND_HDA_HWDEP
+	bool "Build hwdep interface for HD-audio driver"
+	select SND_HWDEP
+	help
+	  Say Y here to build a hwdep interface for HD-audio driver.
+	  This interface can be used for out-of-band communication
+	  with codecs for debugging purposes.
+
+config SND_HDA_RECONFIG
+	bool "Allow dynamic codec reconfiguration (EXPERIMENTAL)"
+	depends on SND_HDA_HWDEP && EXPERIMENTAL
+	help
+	  Say Y here to enable the HD-audio codec re-configuration feature.
+	  This adds the sysfs interfaces to allow user to clear the whole
+	  codec configuration, change the codec setup, add extra verbs,
+	  and re-configure the codec dynamically.
+
+config SND_HDA_INPUT_BEEP
+	bool "Support digital beep via input layer"
+	depends on INPUT=y || INPUT=SND_HDA_INTEL
+	help
+	  Say Y here to build a digital beep interface for HD-audio
+	  driver. This interface is used to generate digital beeps.
+
+config SND_HDA_INPUT_BEEP_MODE
+	int "Digital beep registration mode (0=off, 1=on, 2=mute sw on/off)"
+	depends on SND_HDA_INPUT_BEEP=y
+	default "1"
+	range 0 2
+	help
+	  Set 0 to disable the digital beep interface for HD-audio by default.
+	  Set 1 to always enable the digital beep interface for HD-audio by
+	  default. Set 2 to control the beep device registration to input
+	  layer using a "Beep Switch" in mixer applications.
+
+config SND_HDA_INPUT_JACK
+	bool "Support jack plugging notification via input layer"
+	depends on INPUT=y || INPUT=SND
+	select SND_JACK
+	help
+	  Say Y here to enable the jack plugging notification via
+	  input layer.
+
+config SND_HDA_PATCH_LOADER
+	bool "Support initialization patch loading for HD-audio"
+	depends on EXPERIMENTAL
+	select FW_LOADER
+	select SND_HDA_HWDEP
+	select SND_HDA_RECONFIG
+	help
+	  Say Y here to allow the HD-audio driver to load a pseudo
+	  firmware file ("patch") for overriding the BIOS setup at
+	  start up.  The "patch" file can be specified via patch module
+	  option, such as patch=hda-init.
+
+	  This option turns on hwdep and reconfig features automatically.
+
+config SND_HDA_CODEC_REALTEK
+	bool "Build Realtek HD-audio codec support"
+	default y
+	help
+	  Say Y here to include Realtek HD-audio codec support in
+	  snd-hda-intel driver, such as ALC880.
+
+	  When the HD-audio driver is built as a module, the codec
+	  support code is also built as another module,
+	  snd-hda-codec-realtek.
+	  This module is automatically loaded at probing.
+
+config SND_HDA_ENABLE_REALTEK_QUIRKS
+	bool "Build static quirks for Realtek codecs"
+	depends on SND_HDA_CODEC_REALTEK
+	default y
+	help
+	  Say Y here to build the static quirks codes for Realtek codecs.
+	  If you need the "model" preset that the default BIOS auto-parser
+	  can't handle, turn this option on.
+
+	  If your device works with model=auto option, basically you don't
+	  need the quirk code.  By turning this off, you can reduce the
+	  module size quite a lot.
+
+config SND_HDA_CODEC_ANALOG
+	bool "Build Analog Device HD-audio codec support"
+	default y
+	help
+	  Say Y here to include Analog Device HD-audio codec support in
+	  snd-hda-intel driver, such as AD1986A.
+
+	  When the HD-audio driver is built as a module, the codec
+	  support code is also built as another module,
+	  snd-hda-codec-analog.
+	  This module is automatically loaded at probing.
+
+config SND_HDA_CODEC_SIGMATEL
+	bool "Build IDT/Sigmatel HD-audio codec support"
+	default y
+	help
+	  Say Y here to include IDT (Sigmatel) HD-audio codec support in
+	  snd-hda-intel driver, such as STAC9200.
+
+	  When the HD-audio driver is built as a module, the codec
+	  support code is also built as another module,
+	  snd-hda-codec-idt.
+	  This module is automatically loaded at probing.
+
+config SND_HDA_CODEC_VIA
+	bool "Build VIA HD-audio codec support"
+	default y
+	help
+	  Say Y here to include VIA HD-audio codec support in
+	  snd-hda-intel driver, such as VT1708.
+
+	  When the HD-audio driver is built as a module, the codec
+	  support code is also built as another module,
+	  snd-hda-codec-via.
+	  This module is automatically loaded at probing.
+
+config SND_HDA_CODEC_HDMI
+	bool "Build HDMI/DisplayPort HD-audio codec support"
+	select SND_DYNAMIC_MINORS
+	default y
+	help
+	  Say Y here to include HDMI and DisplayPort HD-audio codec
+	  support in snd-hda-intel driver.  This includes all AMD/ATI,
+	  Intel and Nvidia HDMI/DisplayPort codecs.
+
+	  When the HD-audio driver is built as a module, the codec
+	  support code is also built as another module,
+	  snd-hda-codec-hdmi.
+	  This module is automatically loaded at probing.
+
+config SND_HDA_CODEC_CIRRUS
+	bool "Build Cirrus Logic codec support"
+	depends on SND_HDA_INTEL
+	default y
+	help
+	  Say Y here to include Cirrus Logic codec support in
+	  snd-hda-intel driver, such as CS4206.
+
+	  When the HD-audio driver is built as a module, the codec
+	  support code is also built as another module,
+	  snd-hda-codec-cirrus.
+	  This module is automatically loaded at probing.
+
+config SND_HDA_CODEC_CONEXANT
+	bool "Build Conexant HD-audio codec support"
+	default y
+	help
+	  Say Y here to include Conexant HD-audio codec support in
+	  snd-hda-intel driver, such as CX20549.
+
+	  When the HD-audio driver is built as a module, the codec
+	  support code is also built as another module,
+	  snd-hda-codec-conexant.
+	  This module is automatically loaded at probing.
+
+config SND_HDA_CODEC_CA0110
+	bool "Build Creative CA0110-IBG codec support"
+	depends on SND_HDA_INTEL
+	default y
+	help
+	  Say Y here to include Creative CA0110-IBG codec support in
+	  snd-hda-intel driver, found on some Creative X-Fi cards.
+
+	  When the HD-audio driver is built as a module, the codec
+	  support code is also built as another module,
+	  snd-hda-codec-ca0110.
+	  This module is automatically loaded at probing.
+
+config SND_HDA_CODEC_CA0132
+	bool "Build Creative CA0132 codec support"
+	depends on SND_HDA_INTEL
+	default y
+	help
+	  Say Y here to include Creative CA0132 codec support in
+	  snd-hda-intel driver.
+
+	  When the HD-audio driver is built as a module, the codec
+	  support code is also built as another module,
+	  snd-hda-codec-ca0132.
+	  This module is automatically loaded at probing.
+
+config SND_HDA_CODEC_CMEDIA
+	bool "Build C-Media HD-audio codec support"
+	default y
+	help
+	  Say Y here to include C-Media HD-audio codec support in
+	  snd-hda-intel driver, such as CMI9880.
+
+	  When the HD-audio driver is built as a module, the codec
+	  support code is also built as another module,
+	  snd-hda-codec-cmedia.
+	  This module is automatically loaded at probing.
+
+config SND_HDA_CODEC_SI3054
+	bool "Build Silicon Labs 3054 HD-modem codec support"
+	default y
+	help
+	  Say Y here to include Silicon Labs 3054 HD-modem codec
+	  (and compatibles) support in snd-hda-intel driver.
+
+	  When the HD-audio driver is built as a module, the codec
+	  support code is also built as another module,
+	  snd-hda-codec-si3054.
+	  This module is automatically loaded at probing.
+
+config SND_HDA_GENERIC
+	bool "Enable generic HD-audio codec parser"
+	default y
+	help
+	  Say Y here to enable the generic HD-audio codec parser
+	  in snd-hda-intel driver.
+
+config SND_HDA_POWER_SAVE
+	bool "Aggressive power-saving on HD-audio"
+	depends on PM
+	help
+	  Say Y here to enable more aggressive power-saving mode on
+	  HD-audio driver.  The power-saving timeout can be configured
+	  via power_save option or over sysfs on-the-fly.
+
+config SND_HDA_POWER_SAVE_DEFAULT
+	int "Default time-out for HD-audio power-save mode"
+	depends on SND_HDA_POWER_SAVE
+	default 0
+	help
+	  The default time-out value in seconds for HD-audio automatic
+	  power-save mode.  0 means to disable the power-save mode.
+
+endif

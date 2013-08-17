@@ -1,0 +1,24 @@
+perf(1)
+=======
+
+NAME
+----
+perf - Performance analysis tools for Linux
+
+SYNOPSIS
+--------
+[verse]
+'perf' [--version] [--help] COMMAND [ARGS]
+
+DESCRIPTION
+-----------
+Performance counters for Linux are a new kernel-based subsystem
+that provide a framework for all things performance analysis. It
+covers hardware level (CPU/PMU, Performance Monitoring Unit) features
+and software features (software counters, tracepoints) as well.
+
+SEE ALSO
+--------
+linkperf:perf-stat[1], linkperf:perf-top[1],
+linkperf:perf-record[1], linkperf:perf-report[1],
+linkperf:perf-list[1]

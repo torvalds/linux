@@ -1,0 +1,174 @@
+What:		/sys/power/
+Date:		August 2006
+Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Description:
+		The /sys/power directory will contain files that will
+		provide a unified interface to the power management
+		subsystem.
+
+What:		/sys/power/state
+Date:		August 2006
+Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Description:
+		The /sys/power/state file controls the system power state.
+		Reading from this file returns what states are supported,
+		which is hard-coded to 'standby' (Power-On Suspend), 'mem'
+		(Suspend-to-RAM), and 'disk' (Suspend-to-Disk).
+
+		Writing to this file one of these strings causes the system to
+		transition into that state. Please see the file
+		Documentation/power/states.txt for a description of each of
+		these states.
+
+What:		/sys/power/disk
+Date:		September 2006
+Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Description:
+		The /sys/power/disk file controls the operating mode of the
+		suspend-to-disk mechanism.  Reading from this file returns
+		the name of the method by which the system will be put to
+		sleep on the next suspend.  There are four methods supported:
+		'firmware' - means that the memory image will be saved to disk
+		by some firmware, in which case we also assume that the
+		firmware will handle the system suspend.
+		'platform' - the memory image will be saved by the kernel and
+		the system will be put to sleep by the platform driver (e.g.
+		ACPI or other PM registers).
+		'shutdown' - the memory image will be saved by the kernel and
+		the system will be powered off.
+		'reboot' - the memory image will be saved by the kernel and
+		the system will be rebooted.
+
+		Additionally, /sys/power/disk can be used to turn on one of the
+		two testing modes of the suspend-to-disk mechanism: 'testproc'
+		or 'test'.  If the suspend-to-disk mechanism is in the
+		'testproc' mode, writing 'disk' to /sys/power/state will cause
+		the kernel to disable nonboot CPUs and freeze tasks, wait for 5
+		seconds, unfreeze tasks and enable nonboot CPUs.  If it is in
+		the 'test' mode, writing 'disk' to /sys/power/state will cause
+		the kernel to disable nonboot CPUs and freeze tasks, shrink
+		memory, suspend devices, wait for 5 seconds, resume devices,
+		unfreeze tasks and enable nonboot CPUs.  Then, we are able to
+		look in the log messages and work out, for example, which code
+		is being slow and which device drivers are misbehaving.
+
+		The suspend-to-disk method may be chosen by writing to this
+		file one of the accepted strings:
+
+		'firmware'
+		'platform'
+		'shutdown'
+		'reboot'
+		'testproc'
+		'test'
+
+		It will only change to 'firmware' or 'platform' if the system
+		supports that.
+
+What:		/sys/power/image_size
+Date:		August 2006
+Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Description:
+		The /sys/power/image_size file controls the size of the image
+		created by the suspend-to-disk mechanism.  It can be written a
+		string representing a non-negative integer that will be used
+		as an upper limit of the image size, in bytes.  The kernel's
+		suspend-to-disk code will do its best to ensure the image size
+		will not exceed this number.  However, if it turns out to be
+		impossible, the kernel will try to suspend anyway using the
+		smallest image possible.  In particular, if "0" is written to
+		this file, the suspend image will be as small as possible.
+
+		Reading from this file will display the current image size
+		limit, which is set to 500 MB by default.
+
+What:		/sys/power/pm_trace
+Date:		August 2006
+Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Description:
+		The /sys/power/pm_trace file controls the code which saves the
+		last PM event point in the RTC across reboots, so that you can
+		debug a machine that just hangs during suspend (or more
+		commonly, during resume).  Namely, the RTC is only used to save
+		the last PM event point if this file contains '1'.  Initially
+		it contains '0' which may be changed to '1' by writing a
+		string representing a nonzero integer into it.
+
+		To use this debugging feature you should attempt to suspend
+		the machine, then reboot it and run
+
+		dmesg -s 1000000 | grep 'hash matches'
+
+		If you do not get any matches (or they appear to be false
+		positives), it is possible that the last PM event point
+		referred to a device created by a loadable kernel module.  In
+		this case cat /sys/power/pm_trace_dev_match (see below) after
+		your system is started up and the kernel modules are loaded.
+
+		CAUTION: Using it will cause your machine's real-time (CMOS)
+		clock to be set to a random invalid time after a resume.
+
+What;		/sys/power/pm_trace_dev_match
+Date:		October 2010
+Contact:	James Hogan <james@albanarts.com>
+Description:
+		The /sys/power/pm_trace_dev_match file contains the name of the
+		device associated with the last PM event point saved in the RTC
+		across reboots when pm_trace has been used.  More precisely it
+		contains the list of current devices (including those
+		registered by loadable kernel modules since boot) which match
+		the device hash in the RTC at boot, with a newline after each
+		one.
+
+		The advantage of this file over the hash matches printed to the
+		kernel log (see /sys/power/pm_trace), is that it includes
+		devices created after boot by loadable kernel modules.
+
+		Due to the small hash size necessary to fit in the RTC, it is
+		possible that more than one device matches the hash, in which
+		case further investigation is required to determine which
+		device is causing the problem.  Note that genuine RTC clock
+		values (such as when pm_trace has not been used), can still
+		match a device and output it's name here.
+
+What:		/sys/power/pm_async
+Date:		January 2009
+Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Description:
+		The /sys/power/pm_async file controls the switch allowing the
+		user space to enable or disable asynchronous suspend and resume
+		of devices.  If enabled, this feature will cause some device
+		drivers' suspend and resume callbacks to be executed in parallel
+		with each other and with the main suspend thread.  It is enabled
+		if this file contains "1", which is the default.  It may be
+		disabled by writing "0" to this file, in which case all devices
+		will be suspended and resumed synchronously.
+
+What:		/sys/power/wakeup_count
+Date:		July 2010
+Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Description:
+		The /sys/power/wakeup_count file allows user space to put the
+		system into a sleep state while taking into account the
+		concurrent arrival of wakeup events.  Reading from it returns
+		the current number of registered wakeup events and it blocks if
+		some wakeup events are being processed at the time the file is
+		read from.  Writing to it will only succeed if the current
+		number of wakeup events is equal to the written value and, if
+		successful, will make the kernel abort a subsequent transition
+		to a sleep state if any wakeup events are reported after the
+		write has returned.
+
+What:		/sys/power/reserved_size
+Date:		May 2011
+Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Description:
+		The /sys/power/reserved_size file allows user space to control
+		the amount of memory reserved for allocations made by device
+		drivers during the "device freeze" stage of hibernation.  It can
+		be written a string representing a non-negative integer that
+		will be used as the amount of memory to reserve for allocations
+		made by device drivers' "freeze" callbacks, in bytes.
+
+		Reading from this file will display the current value, which is
+		set to 1 MB by default.

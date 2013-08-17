@@ -1,0 +1,278 @@
+menu "Memory management options"
+
+config QUICKLIST
+	def_bool y
+
+config MMU
+        bool "Support for memory management hardware"
+	depends on !CPU_SH2
+	default y
+	help
+	  Some SH processors (such as SH-2/SH-2A) lack an MMU. In order to
+	  boot on these systems, this option must not be set.
+
+	  On other systems (such as the SH-3 and 4) where an MMU exists,
+	  turning this off will boot the kernel on these machines with the
+	  MMU implicitly switched off.
+
+config PAGE_OFFSET
+	hex
+	default "0x80000000" if MMU && SUPERH32
+	default "0x20000000" if MMU && SUPERH64
+	default "0x00000000"
+
+config FORCE_MAX_ZONEORDER
+	int "Maximum zone order"
+	range 9 64 if PAGE_SIZE_16KB
+	default "9" if PAGE_SIZE_16KB
+	range 7 64 if PAGE_SIZE_64KB
+	default "7" if PAGE_SIZE_64KB
+	range 11 64
+	default "14" if !MMU
+	default "11"
+	help
+	  The kernel memory allocator divides physically contiguous memory
+	  blocks into "zones", where each zone is a power of two number of
+	  pages.  This option selects the largest power of two that the kernel
+	  keeps in the memory allocator.  If you need to allocate very large
+	  blocks of physically contiguous memory, then you may need to
+	  increase this value.
+
+	  This config option is actually maximum order plus one. For example,
+	  a value of 11 means that the largest free memory block is 2^10 pages.
+
+	  The page size is not necessarily 4KB. Keep this in mind when
+	  choosing a value for this option.
+
+config MEMORY_START
+	hex "Physical memory start address"
+	default "0x08000000"
+	---help---
+	  Computers built with Hitachi SuperH processors always
+	  map the ROM starting at address zero.  But the processor
+	  does not specify the range that RAM takes.
+
+	  The physical memory (RAM) start address will be automatically
+	  set to 08000000. Other platforms, such as the Solution Engine
+	  boards typically map RAM at 0C000000.
+
+	  Tweak this only when porting to a new machine which does not
+	  already have a defconfig. Changing it from the known correct
+	  value on any of the known systems will only lead to disaster.
+
+config MEMORY_SIZE
+	hex "Physical memory size"
+	default "0x04000000"
+	help
+	  This sets the default memory size assumed by your SH kernel. It can
+	  be overridden as normal by the 'mem=' argument on the kernel command
+	  line. If unsure, consult your board specifications or just leave it
+	  as 0x04000000 which was the default value before this became
+	  configurable.
+
+# Physical addressing modes
+
+config 29BIT
+	def_bool !32BIT
+	depends on SUPERH32
+	select UNCACHED_MAPPING
+
+config 32BIT
+	bool
+	default y if CPU_SH5 || !MMU
+
+config PMB
+	bool "Support 32-bit physical addressing through PMB"
+	depends on MMU && EXPERIMENTAL && CPU_SH4A && !CPU_SH4AL_DSP
+	select 32BIT
+	select UNCACHED_MAPPING
+	help
+	  If you say Y here, physical addressing will be extended to
+	  32-bits through the SH-4A PMB. If this is not set, legacy
+	  29-bit physical addressing will be used.
+
+config X2TLB
+	def_bool y
+	depends on (CPU_SHX2 || CPU_SHX3) && MMU
+
+config VSYSCALL
+	bool "Support vsyscall page"
+	depends on MMU && (CPU_SH3 || CPU_SH4)
+	default y
+	help
+	  This will enable support for the kernel mapping a vDSO page
+	  in process space, and subsequently handing down the entry point
+	  to the libc through the ELF auxiliary vector.
+
+	  From the kernel side this is used for the signal trampoline.
+	  For systems with an MMU that can afford to give up a page,
+	  (the default value) say Y.
+
+config NUMA
+	bool "Non Uniform Memory Access (NUMA) Support"
+	depends on MMU && SYS_SUPPORTS_NUMA && EXPERIMENTAL
+	default n
+	help
+	  Some SH systems have many various memories scattered around
+	  the address space, each with varying latencies. This enables
+	  support for these blocks by binding them to nodes and allowing
+	  memory policies to be used for prioritizing and controlling
+	  allocation behaviour.
+
+config NODES_SHIFT
+	int
+	default "3" if CPU_SUBTYPE_SHX3
+	default "1"
+	depends on NEED_MULTIPLE_NODES
+
+config ARCH_FLATMEM_ENABLE
+	def_bool y
+	depends on !NUMA
+
+config ARCH_SPARSEMEM_ENABLE
+	def_bool y
+	select SPARSEMEM_STATIC
+
+config ARCH_SPARSEMEM_DEFAULT
+	def_bool y
+
+config MAX_ACTIVE_REGIONS
+	int
+	default "6" if (CPU_SUBTYPE_SHX3 && SPARSEMEM)
+	default "2" if SPARSEMEM && (CPU_SUBTYPE_SH7722 || \
+		       CPU_SUBTYPE_SH7785)
+	default "1"
+
+config ARCH_SELECT_MEMORY_MODEL
+	def_bool y
+
+config ARCH_ENABLE_MEMORY_HOTPLUG
+	def_bool y
+	depends on SPARSEMEM && MMU
+
+config ARCH_ENABLE_MEMORY_HOTREMOVE
+	def_bool y
+	depends on SPARSEMEM && MMU
+
+config ARCH_MEMORY_PROBE
+	def_bool y
+	depends on MEMORY_HOTPLUG
+
+config IOREMAP_FIXED
+       def_bool y
+       depends on X2TLB || SUPERH64
+
+config UNCACHED_MAPPING
+	bool
+
+config HAVE_SRAM_POOL
+	bool
+	select GENERIC_ALLOCATOR
+
+choice
+	prompt "Kernel page size"
+	default PAGE_SIZE_4KB
+
+config PAGE_SIZE_4KB
+	bool "4kB"
+	help
+	  This is the default page size used by all SuperH CPUs.
+
+config PAGE_SIZE_8KB
+	bool "8kB"
+	depends on !MMU || X2TLB
+	help
+	  This enables 8kB pages as supported by SH-X2 and later MMUs.
+
+config PAGE_SIZE_16KB
+	bool "16kB"
+	depends on !MMU
+	help
+	  This enables 16kB pages on MMU-less SH systems.
+
+config PAGE_SIZE_64KB
+	bool "64kB"
+	depends on !MMU || CPU_SH4 || CPU_SH5
+	help
+	  This enables support for 64kB pages, possible on all SH-4
+	  CPUs and later.
+
+endchoice
+
+choice
+	prompt "HugeTLB page size"
+	depends on HUGETLB_PAGE
+	default HUGETLB_PAGE_SIZE_1MB if PAGE_SIZE_64KB
+	default HUGETLB_PAGE_SIZE_64K
+
+config HUGETLB_PAGE_SIZE_64K
+	bool "64kB"
+	depends on !PAGE_SIZE_64KB
+
+config HUGETLB_PAGE_SIZE_256K
+	bool "256kB"
+	depends on X2TLB
+
+config HUGETLB_PAGE_SIZE_1MB
+	bool "1MB"
+
+config HUGETLB_PAGE_SIZE_4MB
+	bool "4MB"
+	depends on X2TLB
+
+config HUGETLB_PAGE_SIZE_64MB
+	bool "64MB"
+	depends on X2TLB
+
+config HUGETLB_PAGE_SIZE_512MB
+	bool "512MB"
+	depends on CPU_SH5
+
+endchoice
+
+source "mm/Kconfig"
+
+config SCHED_MC
+	bool "Multi-core scheduler support"
+	depends on SMP
+	default y
+	help
+	  Multi-core scheduler support improves the CPU scheduler's decision
+	  making when dealing with multi-core CPU chips at a cost of slightly
+	  increased overhead in some places. If unsure say N here.
+
+endmenu
+
+menu "Cache configuration"
+
+config SH7705_CACHE_32KB
+	bool "Enable 32KB cache size for SH7705"
+	depends on CPU_SUBTYPE_SH7705
+	default y
+
+choice
+	prompt "Cache mode"
+	default CACHE_WRITEBACK if CPU_SH2A || CPU_SH3 || CPU_SH4 || CPU_SH5
+	default CACHE_WRITETHROUGH if (CPU_SH2 && !CPU_SH2A)
+
+config CACHE_WRITEBACK
+	bool "Write-back"
+
+config CACHE_WRITETHROUGH
+	bool "Write-through"
+	help
+	  Selecting this option will configure the caches in write-through
+	  mode, as opposed to the default write-back configuration.
+
+	  Since there's sill some aliasing issues on SH-4, this option will
+	  unfortunately still require the majority of flushing functions to
+	  be implemented to deal with aliasing.
+
+	  If unsure, say N.
+
+config CACHE_OFF
+	bool "Off"
+
+endchoice
+
+endmenu

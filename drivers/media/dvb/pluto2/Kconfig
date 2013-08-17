@@ -1,0 +1,15 @@
+config DVB_PLUTO2
+	tristate "Pluto2 cards"
+	depends on DVB_CORE && PCI && I2C
+	select I2C_ALGOBIT
+	select DVB_TDA1004X
+	help
+	  Support for PCI cards based on the Pluto2 FPGA like the Satelco
+	  Easywatch Mobile Terrestrial DVB-T Receiver.
+
+	  Since these cards have no MPEG decoder onboard, they transmit
+	  only compressed MPEG data over the PCI bus, so you need
+	  an external software decoder to watch TV on your computer.
+
+	  Say Y or M if you own such a device and want to use it.
+

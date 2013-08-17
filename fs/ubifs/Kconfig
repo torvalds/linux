@@ -1,0 +1,60 @@
+config UBIFS_FS
+	tristate "UBIFS file system support"
+	select CRC16
+	select CRC32
+	select CRYPTO if UBIFS_FS_ADVANCED_COMPR
+	select CRYPTO if UBIFS_FS_LZO
+	select CRYPTO if UBIFS_FS_ZLIB
+	select CRYPTO_LZO if UBIFS_FS_LZO
+	select CRYPTO_DEFLATE if UBIFS_FS_ZLIB
+	depends on MTD_UBI
+	help
+	  UBIFS is a file system for flash devices which works on top of UBI.
+
+config UBIFS_FS_XATTR
+	bool "Extended attributes support"
+	depends on UBIFS_FS
+	help
+	  This option enables support of extended attributes.
+
+config UBIFS_FS_ADVANCED_COMPR
+	bool "Advanced compression options"
+	depends on UBIFS_FS
+	help
+	  This option allows to explicitly choose which compressions, if any,
+	  are enabled in UBIFS. Removing compressors means inability to read
+	  existing file systems.
+
+	  If unsure, say 'N'.
+
+config UBIFS_FS_LZO
+	bool "LZO compression support" if UBIFS_FS_ADVANCED_COMPR
+	depends on UBIFS_FS
+	default y
+	help
+	   LZO compressor is generally faster than zlib but compresses worse.
+	   Say 'Y' if unsure.
+
+config UBIFS_FS_ZLIB
+	bool "ZLIB compression support" if UBIFS_FS_ADVANCED_COMPR
+	depends on UBIFS_FS
+	default y
+	help
+	  Zlib compresses better than LZO but it is slower. Say 'Y' if unsure.
+
+# Debugging-related stuff
+config UBIFS_FS_DEBUG
+	bool "Enable debugging support"
+	depends on UBIFS_FS
+	select DEBUG_FS
+	select KALLSYMS
+	help
+	  This option enables UBIFS debugging support. It makes sure various
+	  assertions, self-checks, debugging messages and test modes are compiled
+	  in (this all is compiled out otherwise). Assertions are light-weight
+	  and this option also enables them. Self-checks, debugging messages and
+	  test modes are switched off by default. Thus, it is safe and actually
+	  recommended to have debugging support enabled, and it should not slow
+	  down UBIFS. You can then further enable / disable individual  debugging
+	  features using UBIFS module parameters and the corresponding sysfs
+	  interfaces.

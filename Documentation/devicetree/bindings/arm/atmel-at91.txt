@@ -1,0 +1,92 @@
+Atmel AT91 device tree bindings.
+================================
+
+PIT Timer required properties:
+- compatible: Should be "atmel,at91sam9260-pit"
+- reg: Should contain registers location and length
+- interrupts: Should contain interrupt for the PIT which is the IRQ line
+  shared across all System Controller members.
+
+TC/TCLIB Timer required properties:
+- compatible: Should be "atmel,<chip>-pit".
+  <chip> can be "at91rm9200" or "at91sam9x5"
+- reg: Should contain registers location and length
+- interrupts: Should contain all interrupts for the TC block
+  Note that you can specify several interrupt cells if the TC
+  block has one interrupt per channel.
+
+Examples:
+
+One interrupt per TC block:
+	tcb0: timer@fff7c000 {
+		compatible = "atmel,at91rm9200-tcb";
+		reg = <0xfff7c000 0x100>;
+		interrupts = <18 4>;
+	};
+
+One interrupt per TC channel in a TC block:
+	tcb1: timer@fffdc000 {
+		compatible = "atmel,at91rm9200-tcb";
+		reg = <0xfffdc000 0x100>;
+		interrupts = <26 4 27 4 28 4>;
+	};
+
+RSTC Reset Controller required properties:
+- compatible: Should be "atmel,<chip>-rstc".
+  <chip> can be "at91sam9260" or "at91sam9g45"
+- reg: Should contain registers location and length
+
+Example:
+
+	rstc@fffffd00 {
+		compatible = "atmel,at91sam9260-rstc";
+		reg = <0xfffffd00 0x10>;
+	};
+
+RAMC SDRAM/DDR Controller required properties:
+- compatible: Should be "atmel,at91sam9260-sdramc",
+			"atmel,at91sam9g45-ddramc",
+- reg: Should contain registers location and length
+  For at91sam9263 and at91sam9g45 you must specify 2 entries.
+
+Examples:
+
+	ramc0: ramc@ffffe800 {
+		compatible = "atmel,at91sam9g45-ddramc";
+		reg = <0xffffe800 0x200>;
+	};
+
+	ramc0: ramc@ffffe400 {
+		compatible = "atmel,at91sam9g45-ddramc";
+		reg = <0xffffe400 0x200
+		       0xffffe600 0x200>;
+	};
+
+SHDWC Shutdown Controller
+
+required properties:
+- compatible: Should be "atmel,<chip>-shdwc".
+  <chip> can be "at91sam9260", "at91sam9rl" or "at91sam9x5".
+- reg: Should contain registers location and length
+
+optional properties:
+- atmel,wakeup-mode: String, operation mode of the wakeup mode.
+  Supported values are: "none", "high", "low", "any".
+- atmel,wakeup-counter: Counter on Wake-up 0 (between 0x0 and 0xf).
+
+optional at91sam9260 properties:
+- atmel,wakeup-rtt-timer: boolean to enable Real-time Timer Wake-up.
+
+optional at91sam9rl properties:
+- atmel,wakeup-rtc-timer: boolean to enable Real-time Clock Wake-up.
+- atmel,wakeup-rtt-timer: boolean to enable Real-time Timer Wake-up.
+
+optional at91sam9x5 properties:
+- atmel,wakeup-rtc-timer: boolean to enable Real-time Clock Wake-up.
+
+Example:
+
+	rstc@fffffd00 {
+		compatible = "atmel,at91sam9260-rstc";
+		reg = <0xfffffd00 0x10>;
+	};

@@ -1,0 +1,156 @@
+
+    Driver for Asus OLED display present in some Asus laptops.
+
+    The code of this driver is based on 'asusoled' program taken from
+    <http://lapsus.berlios.de/asus_oled.html>. I just wanted to have a simple
+    kernel driver for controlling this device, but I didn't know how
+    to do that. Now I know ;) Also, that program can not be used
+    with usbhid loaded, which means no USB mouse/keyboard while
+    controlling OLED display :(
+
+    It has been tested on Asus G1 and didn't cause any problems,
+    but I don't guarantee that it won't do anything wrong :)
+
+    It can (and probably does) have errors. It is usable
+    in my case, and I hope others will find it useful too!
+
+*******
+
+Building the module
+
+   To build the module you need kernel 2.6 include files and some C compiler.
+
+   Just run:
+   make
+   make install (as a root)
+
+   It will build (hopefully) the module and install it in
+   /lib/modules/'uname -r'/extra/asus_oled.ko.
+
+   To load it just use:
+   modprobe asus_oled
+
+   You can check if it has detected your OLED display by looking into dmesg output.
+   There should be something like this:
+   asus-oled 2-7:1.0: Attached Asus OLED device
+
+   If it doesn't find your display, you can try removing usbhid module.
+   If you add asus_oled into the list of modules loaded during system boot
+   before usbhid, it will work even when usbhid is present.
+
+   If it still doesn't detect your hardware, check lsusb output.
+   There should be similar line:
+   Bus 002 Device 005: ID 0b05:1726 ASUSTek Computer, Inc.
+
+   If you don't see any lines with '0b05:1726' it means that you have different
+   type of hardware that is not detected (it may or may not work, but the driver
+   knows only '0b05:1726' device).
+
+*******
+
+Configuration
+
+   There is only one option: start_off.
+   You can use it by: 'modprobe asus_oled start_off=1', or by adding this
+   line to /etc/modprobe.d/asus_oled.conf:
+   options asus_oled start_off=1
+
+   With this option provided, asus_oled driver will switch off the display
+   when it is detected and attached. It is nice feature to just switch off the 'ASUS'
+   logo. If you don't use the display, it is probably the good idea to switch it off,
+   to protect OLEDs from "wearing off".
+
+*******
+
+Usage
+
+   This module can be controlled with two special files:
+   /sys/class/asus_oled/oled_N/enabled
+   /sys/class/asus_oled/oled_N/picture
+
+   (N is the device number, the first, and probably the only, has number 1,
+    so it is /sys/class/asus_oled/oled_1/enabled
+    and /sys/class/asus_oled/oled_1/picture)
+
+   'enabled' files is for reading and writing, 'picture' is writeable only.
+
+   You can write 0 or 1 to 'enabled' file, which will switch
+   on and off the display. Reading from this file will tell you the last
+   status set, either 0 or 1. By default it is 1, so if the device was set to 'off',
+   and the computer was rebooted without power-off, this file will contain wrong
+   value - because the device is off, but hasn't been disabled this time and is
+   assumed to be on...
+
+   To 'picture' file you write pictures to be displayed by the OLED device.
+   The format of the file:
+   <M:WxH>
+   00001110010111000
+   00010101010101010
+   ....
+
+   First line is a configuration parameter. Meaning of fields in <M:WxH>:
+   M - picture mode. It can be either 's' for static pictures,
+       'r' for rolling pictures, and 'f' for flashing pictures.
+   W - width of the picture. May be between 1 and 1792
+   H - height of the picture. May be between 1 and 32
+
+   For example <s:128x32> means static picture, 128 pixels long and 32 pixels high.
+
+   The physical size of the display is 128x32 pixels. Static and flashing pictures
+   can't be larger than that (actually they can, but only part of them will be displayed ;) )
+
+   If the picture is smaller than 128x32 it will be centered. Rolling pictures wider than
+   128 pixels will be centered too, unless their width = n*128. Vertically they will be
+   centered just like static pictures, if their height is smaller than 32.
+
+   Flashing pictures will be centered horizontally if their width < 128, but they were
+   centered vertically in a different way. If their height < 16, they will be centered
+   in the upper half of the display (rows 0-15). This is because only the first half
+   of flashing pictures is used for flashing. When the picture with heigh = 32 is
+   displayed in flashing mode, its upper 16 rows will be flashing in the upper half
+   of the display, and the lower half will be empty. After few seconds upper part will
+   stop flashing (but that part of the picture will remain there), and the lower
+   half of the display will start displayin the lower half of the picture
+   in rolling mode, unless it is empty, or the picture was small enough to fit in
+   upper part. It is not mine idea, this is just the way Asus' display work ;)
+   So if you need just flashing, use at most 128x16 picture. If you need flashing and
+   rolling, use whole size of the display.
+
+   Lines following the first, configuration, line are picture data. Each '1' means
+   that the pixel is lit, and '0' means that it is not. You can also use '#' as ON,
+   and ' ' (space) as OFF. Empty lines and all other characters are ignored.
+
+   It is possible to write everything in one line <M:WxH>01010101010101010...,
+   and W*H characters will be used. If there is not enough characters, nothing will be
+   displayed. However, the 'line mode' is easier to read (and write), and it also
+   lets to omit parts of data. Whenever End-Of-Line character is found, but
+   the line is not W characters long, it is assumed that all missing characters
+   are equal to the last character in the line.
+
+   Following line represents '0', '1' and a lots of '0's, dependng on the width of the picture
+   provided in configuration data:
+   010
+
+   So if you need empty line, it is sufficient to write line with only one '0' in it.
+   The same works with '1' (or ' ' and '#').
+
+   If there are too many data in the file, they will be ignored. If you are not sure
+   how many characters you are missing, you can add few lines with one zero in each of them.
+
+   There are some example pictures in .txt format, that can be used as follows:
+   cat foo.txt > /sys/class/asus_oled/oled_1/picture
+
+   If the display is switched off you also need to run:
+   echo 1 > /sys/class/asus_oled/oled_1/enabled
+   To switch it off, just use:
+   echo 0 > /sys/class/asus_oled/oled_1/enabled
+
+
+*******
+
+   For any additional info please have a look at http://lapsus.berlios.de/asus_oled.html
+
+
+
+   Jakub Schmidtke (sjakub@gmail.com)
+

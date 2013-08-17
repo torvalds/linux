@@ -1,0 +1,228 @@
+#
+# Video configuration
+#
+
+menu "Console display driver support"
+
+config VGA_CONSOLE
+	bool "VGA text console" if EXPERT || !X86
+	depends on !4xx && !8xx && !SPARC && !M68K && !PARISC && !FRV && !SUPERH && !BLACKFIN && !AVR32 && !MN10300 && (!ARM || ARCH_FOOTBRIDGE || ARCH_INTEGRATOR || ARCH_NETWINDER)
+	default y
+	help
+	  Saying Y here will allow you to use Linux in text mode through a
+	  display that complies with the generic VGA standard. Virtually
+	  everyone wants that.
+
+	  The program SVGATextMode can be used to utilize SVGA video cards to
+	  their full potential in text mode. Download it from
+	  <ftp://ibiblio.org/pub/Linux/utils/console/>.
+
+	  Say Y.
+
+config VGACON_SOFT_SCROLLBACK
+       bool "Enable Scrollback Buffer in System RAM"
+       depends on VGA_CONSOLE
+       default n
+       help
+         The scrollback buffer of the standard VGA console is located in
+	 the VGA RAM.  The size of this RAM is fixed and is quite small.
+	 If you require a larger scrollback buffer, this can be placed in
+	 System RAM which is dynamically allocated during initialization.
+	 Placing the scrollback buffer in System RAM will slightly slow
+	 down the console.
+
+	 If you want this feature, say 'Y' here and enter the amount of
+	 RAM to allocate for this buffer.  If unsure, say 'N'.
+
+config VGACON_SOFT_SCROLLBACK_SIZE
+       int "Scrollback Buffer Size (in KB)"
+       depends on VGACON_SOFT_SCROLLBACK
+       range 1 1024
+       default "64"
+       help
+         Enter the amount of System RAM to allocate for the scrollback
+	 buffer.  Each 64KB will give you approximately 16 80x25
+	 screenfuls of scrollback buffer
+
+config MDA_CONSOLE
+	depends on !M68K && !PARISC && ISA
+	tristate "MDA text console (dual-headed) (EXPERIMENTAL)"
+	---help---
+	  Say Y here if you have an old MDA or monochrome Hercules graphics
+	  adapter in your system acting as a second head ( = video card). You
+	  will then be able to use two monitors with your Linux system. Do not
+	  say Y here if your MDA card is the primary card in your system; the
+	  normal VGA driver will handle it.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mdacon.
+
+	  If unsure, say N.
+
+config SGI_NEWPORT_CONSOLE
+        tristate "SGI Newport Console support"
+        depends on SGI_IP22 
+        help
+          Say Y here if you want the console on the Newport aka XL graphics
+          card of your Indy.  Most people say Y here.
+
+config DUMMY_CONSOLE
+	bool
+	depends on VGA_CONSOLE!=y || SGI_NEWPORT_CONSOLE!=y 
+	default y
+
+config DUMMY_CONSOLE_COLUMNS
+        int "Initial number of console screen columns"
+        depends on PARISC && DUMMY_CONSOLE
+        default "160"
+        help
+          The default value is 160, which should fit a 1280x1024 monitor.
+          Select 80 if you use a 640x480 resolution by default.
+
+config DUMMY_CONSOLE_ROWS
+        int "Initial number of console screen rows"
+        depends on PARISC && DUMMY_CONSOLE
+        default "64"
+        help
+          The default value is 64, which should fit a 1280x1024 monitor.
+          Select 25 if you use a 640x480 resolution by default.
+
+config FRAMEBUFFER_CONSOLE
+	tristate "Framebuffer Console support"
+	depends on FB
+	select CRC32
+	help
+	  Low-level framebuffer-based console driver.
+
+config FRAMEBUFFER_CONSOLE_DETECT_PRIMARY
+       bool "Map the console to the primary display device"
+       depends on FRAMEBUFFER_CONSOLE
+       default n
+       ---help---
+         If this option is selected, the framebuffer console will
+         automatically select the primary display device (if the architecture
+	 supports this feature).  Otherwise, the framebuffer console will
+         always select the first framebuffer driver that is loaded. The latter
+         is the default behavior.
+
+	 You can always override the automatic selection of the primary device
+	 by using the fbcon=map: boot option.
+
+	 If unsure, select n.
+
+config FRAMEBUFFER_CONSOLE_ROTATION
+       bool "Framebuffer Console Rotation"
+       depends on FRAMEBUFFER_CONSOLE
+       help
+         Enable display rotation for the framebuffer console.  This is done
+         in software and may be significantly slower than a normally oriented
+         display.  Note that the rotation is done at the console level only
+         such that other users of the framebuffer will remain normally
+         oriented.
+
+config STI_CONSOLE
+        bool "STI text console"
+        depends on PARISC
+        default y
+        help
+          The STI console is the builtin display/keyboard on HP-PARISC
+          machines.  Say Y here to build support for it into your kernel.
+          The alternative is to use your primary serial port as a console.
+
+config FONTS
+	bool "Select compiled-in fonts"
+	depends on FRAMEBUFFER_CONSOLE || STI_CONSOLE
+	help
+	  Say Y here if you would like to use fonts other than the default
+	  your frame buffer console usually use.
+
+	  Note that the answer to this question won't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about foreign fonts.
+
+	  If unsure, say N (the default choices are safe).
+
+config FONT_8x8
+	bool "VGA 8x8 font" if FONTS
+	depends on FRAMEBUFFER_CONSOLE || STI_CONSOLE
+	default y if !SPARC && !FONTS
+	help
+	  This is the "high resolution" font for the VGA frame buffer (the one
+	  provided by the text console 80x50 (and higher) modes).
+
+	  Note that this is a poor quality font. The VGA 8x16 font is quite a
+	  lot more readable.
+
+	  Given the resolution provided by the frame buffer device, answer N
+	  here is safe.
+
+config FONT_8x16
+	bool "VGA 8x16 font" if FONTS
+	depends on FRAMEBUFFER_CONSOLE || SGI_NEWPORT_CONSOLE || STI_CONSOLE || USB_SISUSBVGA_CON
+	default y if !SPARC && !FONTS
+	help
+	  This is the "high resolution" font for the VGA frame buffer (the one
+	  provided by the VGA text console 80x25 mode.
+
+	  If unsure, say Y.
+
+config FONT_6x11
+	bool "Mac console 6x11 font (not supported by all drivers)" if FONTS
+	depends on FRAMEBUFFER_CONSOLE || STI_CONSOLE
+	default y if !SPARC && !FONTS && MAC
+	help
+	  Small console font with Macintosh-style high-half glyphs.  Some Mac
+	  framebuffer drivers don't support this one at all.
+
+config FONT_7x14
+	bool "console 7x14 font (not supported by all drivers)" if FONTS
+	depends on FRAMEBUFFER_CONSOLE
+	help
+	  Console font with characters just a bit smaller than the default.
+	  If the standard 8x16 font is a little too big for you, say Y.
+	  Otherwise, say N.
+
+config FONT_PEARL_8x8
+	bool "Pearl (old m68k) console 8x8 font" if FONTS
+	depends on FRAMEBUFFER_CONSOLE
+	default y if !SPARC && !FONTS && AMIGA
+	help
+	  Small console font with PC-style control-character and high-half
+	  glyphs.
+
+config FONT_ACORN_8x8
+	bool "Acorn console 8x8 font" if FONTS
+	depends on FRAMEBUFFER_CONSOLE
+	default y if !SPARC && !FONTS && ARM && ARCH_ACORN
+	help
+	  Small console font with PC-style control characters and high-half
+	  glyphs.
+
+config FONT_MINI_4x6
+	bool "Mini 4x6 font"
+	depends on !SPARC && FONTS
+
+config FONT_SUN8x16
+	bool "Sparc console 8x16 font"
+	depends on FRAMEBUFFER_CONSOLE && (!SPARC && FONTS || SPARC)
+	help
+	  This is the high resolution console font for Sun machines. Say Y.
+
+config FONT_SUN12x22
+	bool "Sparc console 12x22 font (not supported by all drivers)"
+	depends on FRAMEBUFFER_CONSOLE && (!SPARC && FONTS || SPARC)
+	help
+	  This is the high resolution console font for Sun machines with very
+	  big letters (like the letters used in the SPARC PROM). If the
+	  standard font is unreadable for you, say Y, otherwise say N.
+
+config FONT_10x18
+	bool "console 10x18 font (not supported by all drivers)" if FONTS
+	depends on FRAMEBUFFER_CONSOLE
+	help
+	  This is a high resolution console font for machines with very
+	  big letters. It fits between the sun 12x22 and the normal 8x16 font.
+	  If other fonts are too big or too small for you, say Y, otherwise say N.
+
+endmenu
+

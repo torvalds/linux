@@ -1,0 +1,195 @@
+menu "Generic Driver Options"
+
+config UEVENT_HELPER_PATH
+	string "path to uevent helper"
+	depends on HOTPLUG
+	default ""
+	help
+	  Path to uevent helper program forked by the kernel for
+	  every uevent.
+	  Before the switch to the netlink-based uevent source, this was
+	  used to hook hotplug scripts into kernel device events. It
+	  usually pointed to a shell script at /sbin/hotplug.
+	  This should not be used today, because usual systems create
+	  many events at bootup or device discovery in a very short time
+	  frame. One forked process per event can create so many processes
+	  that it creates a high system load, or on smaller systems
+	  it is known to create out-of-memory situations during bootup.
+
+	  To disable user space helper program execution at early boot
+	  time specify an empty string here. This setting can be altered
+	  via /proc/sys/kernel/hotplug or via /sys/kernel/uevent_helper
+	  later at runtime.
+
+config DEVTMPFS
+	bool "Maintain a devtmpfs filesystem to mount at /dev"
+	depends on HOTPLUG
+	help
+	  This creates a tmpfs/ramfs filesystem instance early at bootup.
+	  In this filesystem, the kernel driver core maintains device
+	  nodes with their default names and permissions for all
+	  registered devices with an assigned major/minor number.
+	  Userspace can modify the filesystem content as needed, add
+	  symlinks, and apply needed permissions.
+	  It provides a fully functional /dev directory, where usually
+	  udev runs on top, managing permissions and adding meaningful
+	  symlinks.
+	  In very limited environments, it may provide a sufficient
+	  functional /dev without any further help. It also allows simple
+	  rescue systems, and reliably handles dynamic major/minor numbers.
+
+	  Notice: if CONFIG_TMPFS isn't enabled, the simpler ramfs
+	  file system will be used instead.
+
+config DEVTMPFS_MOUNT
+	bool "Automount devtmpfs at /dev, after the kernel mounted the rootfs"
+	depends on DEVTMPFS
+	help
+	  This will instruct the kernel to automatically mount the
+	  devtmpfs filesystem at /dev, directly after the kernel has
+	  mounted the root filesystem. The behavior can be overridden
+	  with the commandline parameter: devtmpfs.mount=0|1.
+	  This option does not affect initramfs based booting, here
+	  the devtmpfs filesystem always needs to be mounted manually
+	  after the roots is mounted.
+	  With this option enabled, it allows to bring up a system in
+	  rescue mode with init=/bin/sh, even when the /dev directory
+	  on the rootfs is completely empty.
+
+config STANDALONE
+	bool "Select only drivers that don't need compile-time external firmware" if EXPERIMENTAL
+	default y
+	help
+	  Select this option if you don't have magic firmware for drivers that
+	  need it.
+
+	  If unsure, say Y.
+
+config PREVENT_FIRMWARE_BUILD
+	bool "Prevent firmware from being built"
+	default y
+	help
+	  Say yes to avoid building firmware. Firmware is usually shipped
+	  with the driver and only when updating the firmware should a
+	  rebuild be made.
+	  If unsure, say Y here.
+
+config FW_LOADER
+	tristate "Userspace firmware loading support" if EXPERT
+	default y
+	---help---
+	  This option is provided for the case where none of the in-tree modules
+	  require userspace firmware loading support, but a module built
+	  out-of-tree does.
+
+config FIRMWARE_IN_KERNEL
+	bool "Include in-kernel firmware blobs in kernel binary"
+	depends on FW_LOADER
+	default y
+	help
+	  The kernel source tree includes a number of firmware 'blobs'
+	  that are used by various drivers. The recommended way to
+	  use these is to run "make firmware_install", which, after
+	  converting ihex files to binary, copies all of the needed
+	  binary files in firmware/ to /lib/firmware/ on your system so
+	  that they can be loaded by userspace helpers on request.
+
+	  Enabling this option will build each required firmware blob
+	  into the kernel directly, where request_firmware() will find
+	  them without having to call out to userspace. This may be
+	  useful if your root file system requires a device that uses
+	  such firmware and do not wish to use an initrd.
+
+	  This single option controls the inclusion of firmware for
+	  every driver that uses request_firmware() and ships its
+	  firmware in the kernel source tree, which avoids a
+	  proliferation of 'Include firmware for xxx device' options.
+
+	  Say 'N' and let firmware be loaded from userspace.
+
+config EXTRA_FIRMWARE
+	string "External firmware blobs to build into the kernel binary"
+	depends on FW_LOADER
+	help
+	  This option allows firmware to be built into the kernel for the case
+	  where the user either cannot or doesn't want to provide it from
+	  userspace at runtime (for example, when the firmware in question is
+	  required for accessing the boot device, and the user doesn't want to
+	  use an initrd).
+
+	  This option is a string and takes the (space-separated) names of the
+	  firmware files -- the same names that appear in MODULE_FIRMWARE()
+	  and request_firmware() in the source. These files should exist under
+	  the directory specified by the EXTRA_FIRMWARE_DIR option, which is
+	  by default the firmware subdirectory of the kernel source tree.
+
+	  For example, you might set CONFIG_EXTRA_FIRMWARE="usb8388.bin", copy
+	  the usb8388.bin file into the firmware directory, and build the kernel.
+	  Then any request_firmware("usb8388.bin") will be satisfied internally
+	  without needing to call out to userspace.
+
+	  WARNING: If you include additional firmware files into your binary
+	  kernel image that are not available under the terms of the GPL,
+	  then it may be a violation of the GPL to distribute the resulting
+	  image since it combines both GPL and non-GPL work. You should
+	  consult a lawyer of your own before distributing such an image.
+
+config EXTRA_FIRMWARE_DIR
+	string "Firmware blobs root directory"
+	depends on EXTRA_FIRMWARE != ""
+	default "firmware"
+	help
+	  This option controls the directory in which the kernel build system
+	  looks for the firmware files listed in the EXTRA_FIRMWARE option.
+	  The default is firmware/ in the kernel source tree, but by changing
+	  this option you can point it elsewhere, such as /lib/firmware/ or
+	  some other directory containing the firmware files.
+
+config DEBUG_DRIVER
+	bool "Driver Core verbose debug messages"
+	depends on DEBUG_KERNEL
+	help
+	  Say Y here if you want the Driver core to produce a bunch of
+	  debug messages to the system log. Select this if you are having a
+	  problem with the driver core and want to see more of what is
+	  going on.
+
+	  If you are unsure about this, say N here.
+
+config DEBUG_DEVRES
+	bool "Managed device resources verbose debug messages"
+	depends on DEBUG_KERNEL
+	help
+	  This option enables kernel parameter devres.log. If set to
+	  non-zero, devres debug messages are printed. Select this if
+	  you are having a problem with devres or want to debug
+	  resource management for a managed device. devres.log can be
+	  switched on and off from sysfs node.
+
+	  If you are unsure about this, Say N here.
+
+config SYS_HYPERVISOR
+	bool
+	default n
+
+config GENERIC_CPU_DEVICES
+	bool
+	default n
+
+config SOC_BUS
+	bool
+
+source "drivers/base/regmap/Kconfig"
+
+config DMA_SHARED_BUFFER
+	bool
+	default n
+	select ANON_INODES
+	depends on EXPERIMENTAL
+	help
+	  This option enables the framework for buffer-sharing between
+	  multiple drivers. A buffer is associated with a file using driver
+	  APIs extension; the file's descriptor can then be passed on to other
+	  driver.
+
+endmenu

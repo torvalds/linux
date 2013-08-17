@@ -1,0 +1,169 @@
+if ARCH_SHMOBILE
+
+comment "SH-Mobile System Type"
+
+config ARCH_SH7367
+	bool "SH-Mobile G3 (SH7367)"
+	select CPU_V6
+	select SH_CLK_CPG
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+
+config ARCH_SH7377
+	bool "SH-Mobile G4 (SH7377)"
+	select CPU_V7
+	select SH_CLK_CPG
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+
+config ARCH_SH7372
+	bool "SH-Mobile AP4 (SH7372)"
+	select CPU_V7
+	select SH_CLK_CPG
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+
+config ARCH_SH73A0
+	bool "SH-Mobile AG5 (R8A73A00)"
+	select CPU_V7
+	select SH_CLK_CPG
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARM_GIC
+	select I2C
+
+config ARCH_R8A7740
+	bool "R-Mobile A1 (R8A77400)"
+	select CPU_V7
+	select SH_CLK_CPG
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+
+config ARCH_R8A7779
+	bool "R-Car H1 (R8A77790)"
+	select CPU_V7
+	select SH_CLK_CPG
+	select ARM_GIC
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+
+comment "SH-Mobile Board Type"
+
+config MACH_G3EVM
+	bool "G3EVM board"
+	depends on ARCH_SH7367
+	select ARCH_REQUIRE_GPIOLIB
+
+config MACH_G4EVM
+	bool "G4EVM board"
+	depends on ARCH_SH7377
+	select ARCH_REQUIRE_GPIOLIB
+
+config MACH_AP4EVB
+	bool "AP4EVB board"
+	depends on ARCH_SH7372
+	select ARCH_REQUIRE_GPIOLIB
+	select SH_LCD_MIPI_DSI
+
+choice
+	prompt "AP4EVB LCD panel selection"
+	default AP4EVB_QHD
+	depends on MACH_AP4EVB
+
+config AP4EVB_QHD
+	bool "MIPI-DSI QHD (960x540)"
+
+config AP4EVB_WVGA
+	bool "Parallel WVGA (800x480)"
+
+endchoice
+
+config MACH_AG5EVM
+	bool "AG5EVM board"
+	select ARCH_REQUIRE_GPIOLIB
+	select SH_LCD_MIPI_DSI
+	depends on ARCH_SH73A0
+
+config MACH_MACKEREL
+	bool "mackerel board"
+	depends on ARCH_SH7372
+	select ARCH_REQUIRE_GPIOLIB
+
+config MACH_KOTA2
+	bool "KOTA2 board"
+	select ARCH_REQUIRE_GPIOLIB
+	depends on ARCH_SH73A0
+
+config MACH_BONITO
+	bool "bonito board"
+	select ARCH_REQUIRE_GPIOLIB
+	depends on ARCH_R8A7740
+
+config MACH_MARZEN
+	bool "MARZEN board"
+	depends on ARCH_R8A7779
+	select ARCH_REQUIRE_GPIOLIB
+
+comment "SH-Mobile System Configuration"
+
+config CPU_HAS_INTEVT
+        bool
+	default y
+
+menu "Memory configuration"
+
+config MEMORY_START
+	hex "Physical memory start address"
+	default "0x50000000" if MACH_G3EVM
+	default "0x40000000" if MACH_G4EVM || MACH_AP4EVB || MACH_AG5EVM || \
+				MACH_MACKEREL || MACH_BONITO
+	default "0x41000000" if MACH_KOTA2
+	default "0x00000000"
+	---help---
+	  Tweak this only when porting to a new machine which does not
+	  already have a defconfig. Changing it from the known correct
+	  value on any of the known systems will only lead to disaster.
+
+config MEMORY_SIZE
+	hex "Physical memory size"
+	default "0x08000000" if MACH_G3EVM
+	default "0x08000000" if MACH_G4EVM
+	default "0x20000000" if MACH_AG5EVM || MACH_BONITO
+	default "0x1e000000" if MACH_KOTA2
+	default "0x10000000" if MACH_AP4EVB || MACH_MACKEREL
+	default "0x04000000"
+	help
+	  This sets the default memory size assumed by your kernel. It can
+	  be overridden as normal by the 'mem=' argument on the kernel command
+	  line.
+
+endmenu
+
+menu "Timer and clock configuration"
+
+config SHMOBILE_TIMER_HZ
+	int "Kernel HZ (jiffies per second)"
+	range 32 1024
+	default "128"
+	help
+	  Allows the configuration of the timer frequency. It is customary
+	  to have the timer interrupt run at 1000 Hz or 100 Hz, but in the
+	  case of low timer frequencies other values may be more suitable.
+	  SH-Mobile systems using a 32768 Hz RCLK for clock events may want
+	  to select a HZ value such as 128 that can evenly divide RCLK.
+	  A HZ value that does not divide evenly may cause timer drift.
+
+config SH_TIMER_CMT
+	bool "CMT timer driver"
+	default y
+	help
+	  This enables build of the CMT timer driver.
+
+config SH_TIMER_TMU
+	bool "TMU timer driver"
+	default y
+	help
+	  This enables build of the TMU timer driver.
+
+endmenu
+
+config SH_CLK_CPG
+	bool
+
+source "drivers/sh/Kconfig"
+
+endif

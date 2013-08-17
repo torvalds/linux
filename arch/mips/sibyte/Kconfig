@@ -1,0 +1,170 @@
+config SIBYTE_SB1250
+	bool
+	select CEVT_SB1250
+	select CSRC_SB1250
+	select HW_HAS_PCI
+	select IRQ_CPU
+	select SIBYTE_ENABLE_LDT_IF_PCI
+	select SIBYTE_HAS_ZBUS_PROFILING
+	select SIBYTE_SB1xxx_SOC
+	select SYS_SUPPORTS_SMP
+
+config SIBYTE_BCM1120
+	bool
+	select CEVT_SB1250
+	select CSRC_SB1250
+	select IRQ_CPU
+	select SIBYTE_BCM112X
+	select SIBYTE_HAS_ZBUS_PROFILING
+	select SIBYTE_SB1xxx_SOC
+
+config SIBYTE_BCM1125
+	bool
+	select CEVT_SB1250
+	select CSRC_SB1250
+	select HW_HAS_PCI
+	select IRQ_CPU
+	select SIBYTE_BCM112X
+	select SIBYTE_HAS_ZBUS_PROFILING
+	select SIBYTE_SB1xxx_SOC
+
+config SIBYTE_BCM1125H
+	bool
+	select CEVT_SB1250
+	select CSRC_SB1250
+	select HW_HAS_PCI
+	select IRQ_CPU
+	select SIBYTE_BCM112X
+	select SIBYTE_ENABLE_LDT_IF_PCI
+	select SIBYTE_HAS_ZBUS_PROFILING
+	select SIBYTE_SB1xxx_SOC
+
+config SIBYTE_BCM112X
+	bool
+	select CEVT_SB1250
+	select CSRC_SB1250
+	select IRQ_CPU
+	select SIBYTE_SB1xxx_SOC
+	select SIBYTE_HAS_ZBUS_PROFILING
+
+config SIBYTE_BCM1x80
+	bool
+	select CEVT_BCM1480
+	select CSRC_BCM1480
+	select HW_HAS_PCI
+	select IRQ_CPU
+	select SIBYTE_HAS_ZBUS_PROFILING
+	select SIBYTE_SB1xxx_SOC
+	select SYS_SUPPORTS_SMP
+
+config SIBYTE_BCM1x55
+	bool
+	select CEVT_BCM1480
+	select CSRC_BCM1480
+	select HW_HAS_PCI
+	select IRQ_CPU
+	select SIBYTE_SB1xxx_SOC
+	select SIBYTE_HAS_ZBUS_PROFILING
+	select SYS_SUPPORTS_SMP
+
+config SIBYTE_SB1xxx_SOC
+	bool
+	select DMA_COHERENT
+	select IRQ_CPU
+	select SWAP_IO_SPACE
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_64BIT_KERNEL
+	select CFE
+	select SYS_HAS_EARLY_PRINTK
+
+choice
+	prompt "SiByte SOC Stepping"
+	depends on SIBYTE_SB1xxx_SOC
+
+config CPU_SB1_PASS_1
+	bool "1250 Pass1"
+	depends on SIBYTE_SB1250
+	select CPU_HAS_PREFETCH
+
+config CPU_SB1_PASS_2_1250
+	bool "1250 An"
+	depends on SIBYTE_SB1250
+	select CPU_SB1_PASS_2
+	help
+	  Also called BCM1250 Pass 2
+
+config CPU_SB1_PASS_2_2
+	bool "1250 Bn"
+	depends on SIBYTE_SB1250
+	select CPU_HAS_PREFETCH
+	help
+	  Also called BCM1250 Pass 2.2
+
+config CPU_SB1_PASS_4
+	bool "1250 Cn"
+	depends on SIBYTE_SB1250
+	select CPU_HAS_PREFETCH
+	help
+	  Also called BCM1250 Pass 3
+
+config CPU_SB1_PASS_2_112x
+	bool "112x Hybrid"
+	depends on SIBYTE_BCM112X
+	select CPU_SB1_PASS_2
+
+config CPU_SB1_PASS_3
+	bool "112x An"
+	depends on SIBYTE_BCM112X
+	select CPU_HAS_PREFETCH
+
+endchoice
+
+config CPU_SB1_PASS_2
+	bool
+
+config SIBYTE_HAS_LDT
+	bool
+
+config SIBYTE_ENABLE_LDT_IF_PCI
+	bool
+	select SIBYTE_HAS_LDT if PCI
+
+config SB1_CEX_ALWAYS_FATAL
+	bool "All cache exceptions considered fatal (no recovery attempted)"
+	depends on SIBYTE_SB1xxx_SOC
+
+config SB1_CERR_STALL
+	bool "Stall (rather than panic) on fatal cache error"
+	depends on SIBYTE_SB1xxx_SOC
+
+config SIBYTE_CFE_CONSOLE
+	bool "Use firmware console"
+	depends on SIBYTE_SB1xxx_SOC
+	help
+	  Use the CFE API's console write routines during boot.  Other console
+	  options (VT console, sb1250 duart console, etc.) should not be
+	  configured.
+
+config SIBYTE_BUS_WATCHER
+	bool "Support for Bus Watcher statistics"
+	depends on SIBYTE_SB1xxx_SOC
+	help
+	  Handle and keep statistics on the bus error interrupts (COR_ECC,
+	  BAD_ECC, IO_BUS).
+
+config SIBYTE_BW_TRACE
+	bool "Capture bus trace before bus error"
+	depends on SIBYTE_BUS_WATCHER
+	help
+	  Run a continuous bus trace, dumping the raw data as soon as
+	  a ZBbus error is detected.  Cannot work if ZBbus profiling
+	  is turned on, and also will interfere with JTAG-based trace
+	  buffer activity.  Raw buffer data is dumped to console, and
+	  must be processed off-line.
+
+config SIBYTE_TBPROF
+	tristate "Support for ZBbus profiling"
+	depends on SIBYTE_HAS_ZBUS_PROFILING
+
+config SIBYTE_HAS_ZBUS_PROFILING
+	bool

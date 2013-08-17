@@ -1,0 +1,369 @@
+Note these changes relate to Hannu's code and don't include the changes
+made outside of this for modularising the sound
+
+Changelog for version 3.8o
+--------------------------
+
+Since 3.8h
+- Included support for OPL3-SA1 and SoftOSS
+
+Since 3.8
+- Fixed SNDCTL_DSP_GETOSPACE
+- Compatibility fixes for Linux 2.1.47
+
+Since 3.8-beta21
+- Fixed all known bugs (I think).
+
+Since 3.8-beta8
+- Lot of fixes to audio playback code in dmabuf.c
+
+Since 3.8-beta6
+- Fixed the famous Quake delay bug.
+
+Since 3.8-beta5
+- Fixed many bugs in audio playback.
+
+Since 3.8-beta4
+- Just minor changes.
+
+Since 3.8-beta1
+- Major rewrite of audio playback handling.
+- Added AWE32 support by Takashi Iwai (in ./lowlevel/).
+
+Since 3.7-beta#
+- Passing of ioctl() parameters between soundcard.c and other modules has been
+changed so that arg always points to kernel space.
+- Some bugfixes.
+
+Since 3.7-beta5
+- Disabled MIDI input with GUS PnP (Interwave). There seems to be constant
+stream of received 0x00 bytes when the MIDI receiver is enabled.
+
+Since 3.5
+- Changes almost everywhere.
+- Support for OPTi 82C924-based sound cards.
+
+Since 3.5.4-beta8
+- Fixed a bug in handling of non-fragment sized writes in 16 bit/stereo mode
+  with GUS.
+- Limited minimum fragment size with some audio devices (GUS=512 and
+  SB=32). These devices require more time to "recover" from processing
+  of each fragment. 
+
+Since 3.5.4-beta6/7
+- There seems to be problems in the OPTi 82C930 so cards based on this
+  chip don't necessarily work yet. There are problems in detecting the 
+  MIDI interface. Also mixer volumes may be seriously wrong on some systems.
+  You can safely use this driver version with C930 if it looks to work.
+  However please don't complain if you have problems with it. C930 support
+  should be fixed in future releases.
+- Got initialization of GUS PnP to work. With this version GUS PnP should
+  work in GUS compatible mode after initialization using isapnptools.
+- Fixed a bug in handling of full duplex cards in write only mode. This has
+  been causing "audio device opening" errors with RealAudio player.
+
+Since 3.5.4.beta5
+- Changes to OPTi 82C930 driver.
+- Major changes to the Soundscape driver. The driver requires now just one
+  DMA channel. The extra audio/dsp device (the "Not functional" one) used
+  for code download in the earlier versions has been eliminated. There is now
+  just one /dev/dsp# device which is used both for code download and audio.
+
+Since 3.5.4.beta4
+- Minor changes.
+
+Since 3.5.4-beta2
+- Fixed silent playback with ESS 688/1688.
+- Got SB16 to work without the 16 bit DMA channel (only the 8 bit one
+  is required for 8 and 16 bit modes).
+- Added the "lowlevel" subdirectory for additional low level drivers that
+  are not part of USS core. See lowlevel/README for more info.
+- Included support for ACI mixer (by Markus Kuhn). ACI is a mixer used in
+  miroPCM sound cards. See lowlevel/aci.readme for more info.
+- Support for Aztech Washington chipset (AZT2316 ASIC).
+
+Since 3.5.4-beta1
+- Reduced clicking with AD1848.
+- Support for OPTi 82C930. Only half duplex at this time. 16 bit playback
+  is sometimes just white noise (occurs randomly).
+
+Since 3.5.2
+- Major changes to the SB/Jazz16/ESS driver (most parts rewritten).
+  The most noticeable new feature is support for multiple SB cards at the same
+  time.
+- Renamed sb16_midi.c to uart401.c. Also modified it to work also with
+  other MPU401 UART compatible cards than SB16/ESS/Jazz.
+- Some changes which reduce clicking in audio playback.
+- Copying policy is now GPL.
+
+Since 3.5.1
+- TB Maui initialization support
+Since 3.5
+- Improved handling of playback underrun situations.
+
+Since 3.5-beta10
+- Bug fixing
+
+Since 3.5-beta9
+- Fixed for compatibility with Linux 1.3.70 and later.
+- Changed boot time passing of 16 bit DMA channel number to SB driver.
+
+Since 3.5-beta8
+- Minor changes
+
+Since 3.5-beta7
+- enhancements to configure program (by Jeff Tranter):
+  - prompts are in same format as 1.3.x Linux kernel config program
+  - on-line help for each question
+  - fixed some compile warnings detected by gcc/g++ -Wall
+  - minor grammatical changes to prompts
+
+Since 3.5-beta6
+- Fixed bugs in mmap() support.
+- Minor changes to Maui driver.
+
+Since 3.5-beta5
+- Fixed crash after recording with ESS688. It's generally a good
+  idea to stop inbound DMA transfers before freeing the memory
+  buffer. 
+- Fixed handling of AD1845 codec (for example Shuttle Sound System).
+- Few other fixes.
+
+Since 3.5-beta4
+- Fixed bug in handling of uninitialized instruments with GUS.
+
+Since 3.5-beta3
+- Few changes which decrease popping at end/beginning of audio playback.
+
+Since 3.5-beta2
+- Removed MAD16+CS4231 hack made in previous version since it didn't
+  help.
+- Fixed the above bug in proper way and in proper place. Many thanks
+  to James Hightower.
+
+Since 3.5-beta1
+- Bug fixes.
+- Full duplex audio with MAD16+CS4231 may work now. The driver configures
+  SB DMA of MAD16 so that it doesn't conflict with codec's DMA channels.
+  The side effect is that all 8 bit DMA channels (0,1,3) are populated in 
+  duplex mode.
+
+Since 3.5-alpha9
+- Bug fixes (mostly in Jazz16 and ESS1688/688 supports).
+- Temporarily disabled recording with ESS1688/688 since it causes crash.
+- Changed audio buffer partitioning algorithm so that it selects
+  smaller fragment size than earlier. This improves real time capabilities
+  of the driver and makes recording to disk to work better. Unfortunately
+  this change breaks some programs which assume that fragments cannot be
+  shorter than 4096 bytes.
+
+Since 3.5-alpha8
+- Bug fixes
+
+Since 3.5-alpha7
+- Linux kernel compatible configuration (_EXPERIMENTAL_). Enable
+  using command "cd /linux/drivers/sound;make script" and then
+  just run kernel's make config normally.
+- Minor fixes to the SB support. Hopefully the driver works with
+  all SB models now.
+- Added support for ESS ES1688 "AudioDrive" based cards.
+
+Since 3.5-alpha6
+- SB Pro and SB16 supports are no longer separately selectable options.
+  Enabling SB enables them too.
+- Changed all #ifndef EXCLUDE_xx stuff to #ifdef CONFIG_xx. Modified
+configure to handle this. 
+- Removed initialization messages from the
+modularized version. They can be enabled by using init_trace=1 in
+the insmod command line (insmod sound init_trace=1).
+- More AIX stuff.
+- Added support for synchronizing dsp/audio devices with /dev/sequencer.
+- mmap() support for dsp/audio devices.
+
+Since 3.5-alpha5
+- AIX port.
+- Changed some xxx_PATCH macros in soundcard.h to work with
+  big endian machines.
+
+Since 3.5-alpha4
+- Removed the 'setfx' stuff from the version distributed with kernel
+  sources. Running 'setfx' is required again.
+
+Since 3.5-alpha3
+- Moved stuff from the 'setfx' program to the AudioTrix Pro driver.
+
+Since 3.5-alpha2
+- Modifications to makefile and configure.c. Unnecessary sources
+  are no longer compiled. Newly created local.h is also copied to
+  /etc/soundconf. "make oldconfig" reads /etc/soundconf and produces
+  new local.h which is compatible with current version of the driver.
+- Some fixes to the SB16 support.
+- Fixed random protection fault in gus_wave.c
+
+Since 3.5-alpha1
+- Modified to work with Linux-1.3.33 and later
+- Some minor changes
+
+Since 3.0.2
+- Support for CS4232 based PnP cards (AcerMagic S23 etc).
+- Full duplex support for some CS4231, CS4232 and AD1845 based cards
+(GUS MAX, AudioTrix Pro, AcerMagic S23 and many MAD16/Mozart cards
+having a codec mentioned above).
+- Almost fully rewritten loadable modules support.
+- Fixed some bugs.
+- Huge amount of testing (more testing is still required).
+- mmap() support (works with some cards). Requires much more testing.
+- Sample/patch/program loading for TB Maui/Tropez. No initialization
+since TB doesn't allow me to release that code.
+- Using CS4231 compatible codecs as timer for /dev/music.
+
+Since 3.0.1
+- Added allocation of I/O ports, DMA channels and interrupts
+to the initialization code. This may break modules support since
+the driver may not free some resources on unload. Should be fixed soon.
+
+Since 3.0
+- Some important bug fixes. 
+- select() for /dev/dsp and /dev/audio (Linux only).
+(To use select() with read, you have to call read() to start
+the recording. Calling write() kills recording immediately so
+use select() carefully when you are writing a half duplex app.
+Full duplex mode is not implemented yet.) Select works also with
+/dev/sequencer and /dev/music. Maybe with /dev/midi## too.
+
+Since 3.0-beta2
+- Minor fixes.
+- Added Readme.cards
+
+Since 3.0-beta1
+- Minor fixes to the modules support.
+- Eliminated call to sb_free_irq() in ad1848.c
+- Rewritten MAD16&Mozart support (not tested with MAD16 Pro).
+- Fix to DMA initialization of PSS cards.
+- Some fixes to ad1848/cs42xx mixer support (GUS MAX, MSS, etc.)
+- Fixed some bugs in the PSS driver which caused I/O errors with
+  the MSS mode (/dev/dsp).
+
+Since 3.0-950506
+- Recording with GUS MAX fixed. It works when the driver is configured
+  to use two DMA channels with GUS MAX (16 bit ones recommended).
+
+Since 3.0-94xxxx
+- Too many changes
+
+Since 3.0-940818
+- Fixes for Linux 1.1.4x.
+- Disables Disney Sound System with SG NX Pro 16 (less noise).
+
+Since 2.90-2
+- Fixes to soundcard.h
+- Non blocking mode to /dev/sequencer
+- Experimental detection code for Ensoniq Soundscape.
+
+Since 2.90
+- Minor and major bug fixes
+
+Since pre-3.0-940712
+- GUS MAX support
+- Partially working MSS/WSS support (could work with some cards).
+- Hardware u-Law and A-Law support with AD1848/CS4248 and CS4231 codecs
+  (GUS MAX, GUS16, WSS etc). Hardware ADPCM is possible with GUS16 and
+  GUS MAX, but it doesn't work yet.
+Since pre-3.0-940426
+- AD1848/CS4248/CS4231 codec support (MSS, GUS MAX, Aztec, Orchid etc).
+This codec chip is used in various sound cards. This version is developed
+for the 16 bit daughtercard of GUS. It should work with other cards also
+if the following requirements are met:
+	- The I/O, IRQ and DMA settings are jumper selectable or
+	the card is initialized by booting DOS before booting Linux (etc.).
+	- You add the IO, IRQ and DMA settings manually to the local.h.
+	  (Just define GUS16_BASE, GUS16_IRQ and GUS16_DMA). Note that
+	the base address bust be the base address of the codec chip not the
+	card itself. For the GUS16 these are the same but most MSS compatible
+	cards have the codec located at card_base+4.
+- Some minor changes
+
+Since 2.5 (******* MAJOR REWRITE ***********)
+
+This version is based on v2.3. I have tried to maintain two versions
+together so that this one should have the same features than v2.5.
+Something may still be missing. If you notice such things, please let me
+know.
+
+The Readme.v30 contains more details.
+
+- /dev/midi## devices.
+- /dev/sequencer2
+
+Since 2.5-beta2
+- Some fine tuning to the GUS v3.7 mixer code.
+- Fixed speed limits for the plain SB (1.0 to 2.0).
+
+Since 2.5-beta
+- Fixed OPL-3 detection with SB. Caused problems with PAS16.
+- GUS v3.7 mixer support.
+
+Since 2.4
+- Mixer support for Sound Galaxy NX Pro (define __SGNXPRO__ on your local.h).
+- Fixed truncated sound on /dev/dsp when the device is closed.
+- Linear volume mode for GUS
+- Pitch bends larger than +/- 2 octaves.
+- MIDI recording for SB and SB Pro. (Untested).
+- Some other fixes.
+- SB16 MIDI and DSP drivers only initialized if SB16 actually installed.
+- Implemented better detection for OPL-3. This should be useful if you
+  have an old SB Pro (the non-OPL-3 one) or a SB 2.0 clone which has a OPL-3.
+- SVR4.2 support by Ian Hartas. Initial ALPHA TEST version (untested).
+
+Since 2.3b
+- Fixed bug which made it impossible to make long recordings to disk.
+  Recording was not restarted after a buffer overflow situation.
+- Limited mixer support for GUS.
+- Numerous improvements to the GUS driver by Andrew Robinson. Including
+  some click removal etc.
+
+Since 2.3
+- Fixed some minor bugs in the SB16 driver.
+
+Since 2.2b
+- Full SB16 DSP support. 8/16 bit, mono/stereo
+- The SCO and FreeBSD versions should be in sync now. There are some
+  problems with SB16 and GUS in the FreeBSD versions.
+  The DMA buffer allocation of the SCO version has been polished but
+  there could still be some problems. At least it hogs memory.
+  The DMA channel
+  configuration method used in the SCO/System is a hack.
+- Support for the MPU emulation of the SB16.
+- Some big arrays are now allocated boot time. This makes the BSS segment
+  smaller which makes it possible to use the full driver with
+  NetBSD. These arrays are not allocated if no suitable sound card is available.
+- Fixed a bug in the compute_and_set_volume in gus_wave.c
+- Fixed the too fast mono playback problem of SB Pro and PAS16.
+
+Since 2.2
+- Stereo recording for SB Pro. Somehow it was missing and nobody
+  had noticed it earlier.
+- Minor polishing.
+- Interpreting of boot time arguments (sound=) for Linux.
+- Breakup of sb_dsp.c. Parts of the code has been moved to
+  sb_mixer.c and sb_midi.c
+
+Since 2.1
+- Preliminary support for SB16. 
+  - The SB16 mixer is supported in its native mode.
+  - Digitized voice capability up to 44.1 kHz/8 bit/mono
+    (16 bit and stereo support coming in the next release).
+- Fixed some bugs in the digitized voice driver for PAS16.
+- Proper initialization of the SB emulation of latest PAS16 models.
+
+- Significantly improved /dev/dsp and /dev/audio support.
+  - Now supports half duplex mode. It's now possible to record and
+    playback without closing and reopening the device.
+  - It's possible to use smaller buffers than earlier. There is a new
+    ioctl(fd, SNDCTL_DSP_SUBDIVIDE, &n) where n should be 1, 2 or 4.
+    This call instructs the driver to use smaller buffers. The default
+    buffer size (0.5 to 1.0 seconds) is divided by n. Should be called
+    immediately after opening the device.
+
+Since 2.0
+Just cosmetic changes. 

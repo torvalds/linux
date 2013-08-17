@@ -1,0 +1,41 @@
+=================================================================================
+MO_OUTPUT_FORMAT (0x310164)
+
+  Previous default from DScaler: 0x1c1f0008
+  Digit 8: 31-28
+  28: PREVREMOD = 1
+
+  Digit 7: 27-24 (0xc = 12 = b1100 )
+  27: COMBALT = 1
+  26: PAL_INV_PHASE
+    (DScaler apparently set this to 1, resulted in sucky picture)
+
+  Digits 6,5: 23-16
+  25-16: COMB_RANGE = 0x1f [default] (9 bits -> max 512)
+
+  Digit 4: 15-12
+  15: DISIFX = 0
+  14: INVCBF = 0
+  13: DISADAPT = 0
+  12: NARROWADAPT = 0
+
+  Digit 3: 11-8
+  11: FORCE2H
+  10: FORCEREMD
+  9: NCHROMAEN
+  8: NREMODEN
+
+  Digit 2: 7-4
+  7-6: YCORE
+  5-4: CCORE
+
+  Digit 1: 3-0
+  3: RANGE = 1
+  2: HACTEXT
+  1: HSFMT
+
+0x47 is the sync byte for MPEG-2 transport stream packets.
+Datasheet incorrectly states to use 47 decimal. 188 is the length.
+All DVB compliant frontends output packets with this start code.
+
+=================================================================================

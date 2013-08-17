@@ -1,0 +1,8 @@
+In order to use the Ethernet bridging functionality, you'll need the
+userspace tools. These programs and documentation are available
+at http://www.linuxfoundation.org/en/Net:Bridge.  The download page is
+http://prdownloads.sourceforge.net/bridge.
+
+If you still have questions, don't hesitate to post to the mailing list 
+(more info https://lists.linux-foundation.org/mailman/listinfo/bridge).
+

@@ -1,0 +1,47 @@
+          Information about the Linux/PPC kernel images
+=====================================================================
+
+Please mail me (Cort Dougan, cort@fsmlabs.com) if you have questions,
+comments or corrections.
+
+This document is meant to answer several questions I've had about how
+the PReP system boots and how Linux/PPC interacts with that mechanism.
+It would be nice if we could have information on how other architectures
+boot here as well.  If you have anything to contribute, please
+let me know.
+
+
+1. PReP boot file
+
+  This is the file necessary to boot PReP systems from floppy or
+  hard drive.  The firmware reads the PReP partition table entry
+  and will load the image accordingly.
+
+  To boot the zImage, copy it onto a floppy with dd if=zImage of=/dev/fd0h1440
+  or onto a PReP hard drive partition with dd if=zImage of=/dev/sda4
+  assuming you've created a PReP partition (type 0x41) with fdisk on
+  /dev/sda4.
+
+  The layout of the image format is:
+
+  0x0     +------------+
+          |            | PReP partition table entry
+          |            |
+  0x400   +------------+
+          |            | Bootstrap program code + data
+          |            |
+          |            |
+          +------------+
+          |            | compressed kernel, elf header removed
+          +------------+
+          |            | initrd (if loaded)
+          +------------+
+          |            | Elf section table for bootstrap program
+          +------------+
+
+
+2. MBX boot file
+
+  The MBX boards can load an elf image, and relocate it to the
+  proper location in memory - it copies the image to the location it was
+  linked at.

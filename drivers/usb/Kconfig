@@ -1,0 +1,186 @@
+#
+# USB device configuration
+#
+
+# many non-PCI SOC chips embed OHCI
+config USB_ARCH_HAS_OHCI
+	boolean
+	# ARM:
+	default y if SA1111
+	default y if ARCH_OMAP
+	default y if ARCH_S3C24XX
+	default y if PXA27x
+	default y if PXA3xx
+	default y if ARCH_EP93XX
+	default y if ARCH_AT91
+	default y if ARCH_PNX4008 && I2C
+	default y if MFD_TC6393XB
+	default y if ARCH_W90X900
+	default y if ARCH_DAVINCI_DA8XX
+	default y if ARCH_CNS3XXX
+	default y if PLAT_SPEAR
+	default y if ARCH_EXYNOS
+	# PPC:
+	default y if STB03xxx
+	default y if PPC_MPC52xx
+	# MIPS:
+	default y if MIPS_ALCHEMY
+	default y if MACH_JZ4740
+	# more:
+	default PCI
+
+# some non-PCI hcds implement EHCI
+config USB_ARCH_HAS_EHCI
+	boolean
+	default y if FSL_SOC
+	default y if PPC_MPC512x
+	default y if ARCH_IXP4XX
+	default y if ARCH_W90X900
+	default y if ARCH_AT91
+	default y if ARCH_MXC
+	default y if ARCH_OMAP3
+	default y if ARCH_CNS3XXX
+	default y if ARCH_VT8500
+	default y if PLAT_SPEAR
+	default y if PLAT_S5P
+	default y if ARCH_MSM
+	default y if MICROBLAZE
+	default y if SPARC_LEON
+	default y if ARCH_MMP
+	default y if MACH_LOONGSON1
+	default PCI
+
+# some non-PCI HCDs implement xHCI
+config USB_ARCH_HAS_XHCI
+	boolean
+	default PCI
+
+menuconfig USB_SUPPORT
+	bool "USB support"
+	depends on HAS_IOMEM
+	default y
+	---help---
+	  This option adds core support for Universal Serial Bus (USB).
+	  You will also need drivers from the following menu to make use of it.
+
+if USB_SUPPORT
+
+config USB_COMMON
+	tristate
+	default y
+	depends on USB || USB_GADGET
+
+# Host-side USB depends on having a host controller
+# NOTE:  dummy_hcd is always an option, but it's ignored here ...
+# NOTE:  SL-811 option should be board-specific ...
+config USB_ARCH_HAS_HCD
+	boolean
+	default y if USB_ARCH_HAS_OHCI
+	default y if USB_ARCH_HAS_EHCI
+	default y if USB_ARCH_HAS_XHCI
+	default y if PCMCIA && !M32R			# sl811_cs
+	default y if ARM				# SL-811
+	default y if BLACKFIN				# SL-811
+	default y if SUPERH				# r8a66597-hcd
+	default PCI
+
+# ARM SA1111 chips have a non-PCI based "OHCI-compatible" USB host interface.
+config USB
+	tristate "Support for Host-side USB"
+	depends on USB_ARCH_HAS_HCD
+	select NLS  # for UTF-8 strings
+	---help---
+	  Universal Serial Bus (USB) is a specification for a serial bus
+	  subsystem which offers higher speeds and more features than the
+	  traditional PC serial port.  The bus supplies power to peripherals
+	  and allows for hot swapping.  Up to 127 USB peripherals can be
+	  connected to a single USB host in a tree structure.
+	  
+	  The USB host is the root of the tree, the peripherals are the
+	  leaves and the inner nodes are special USB devices called hubs.
+	  Most PCs now have USB host ports, used to connect peripherals
+	  such as scanners, keyboards, mice, modems, cameras, disks,
+	  flash memory, network links, and printers to the PC.
+
+	  Say Y here if your computer has a host-side USB port and you want
+	  to use USB devices.  You then need to say Y to at least one of the
+	  Host Controller Driver (HCD) options below.  Choose a USB 1.1
+	  controller, such as "UHCI HCD support" or "OHCI HCD support",
+	  and "EHCI HCD (USB 2.0) support" except for older systems that
+	  do not have USB 2.0 support.  It doesn't normally hurt to select
+	  them all if you are not certain.
+
+	  If your system has a device-side USB port, used in the peripheral
+	  side of the USB protocol, see the "USB Gadget" framework instead.
+
+	  After choosing your HCD, then select drivers for the USB peripherals
+	  you'll be using.  You may want to check out the information provided
+	  in <file:Documentation/usb/> and especially the links given in
+	  <file:Documentation/usb/usb-help.txt>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called usbcore.
+
+source "drivers/usb/core/Kconfig"
+
+source "drivers/usb/dwc3/Kconfig"
+
+source "drivers/usb/mon/Kconfig"
+
+source "drivers/usb/wusbcore/Kconfig"
+
+source "drivers/usb/host/Kconfig"
+
+source "drivers/usb/musb/Kconfig"
+
+source "drivers/usb/renesas_usbhs/Kconfig"
+
+source "drivers/usb/class/Kconfig"
+
+source "drivers/usb/storage/Kconfig"
+
+source "drivers/usb/image/Kconfig"
+
+comment "USB port drivers"
+	depends on USB
+
+config USB_USS720
+	tristate "USS720 parport driver"
+	depends on USB && PARPORT
+	select PARPORT_NOT_PC
+	---help---
+	  This driver is for USB parallel port adapters that use the Lucent
+	  Technologies USS-720 chip. These cables are plugged into your USB
+	  port and provide USB compatibility to peripherals designed with
+	  parallel port interfaces.
+
+	  The chip has two modes: automatic mode and manual mode. In automatic
+	  mode, it looks to the computer like a standard USB printer. Only
+	  printers may be connected to the USS-720 in this mode. The generic
+	  USB printer driver ("USB Printer support", above) may be used in
+	  that mode, and you can say N here if you want to use the chip only
+	  in this mode.
+
+	  Manual mode is not limited to printers, any parallel port
+	  device should work. This driver utilizes manual mode.
+	  Note however that some operations are three orders of magnitude
+	  slower than on a PCI/ISA Parallel Port, so timing critical
+	  applications might not work.
+
+	  Say Y here if you own an USS-720 USB->Parport cable and intend to
+	  connect anything other than a printer to it.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called uss720.
+
+source "drivers/usb/serial/Kconfig"
+
+source "drivers/usb/misc/Kconfig"
+
+source "drivers/usb/atm/Kconfig"
+
+source "drivers/usb/gadget/Kconfig"
+
+source "drivers/usb/otg/Kconfig"
+
+endif # USB_SUPPORT

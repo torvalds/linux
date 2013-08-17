@@ -1,0 +1,98 @@
+config DTC
+	bool
+
+config OF
+	bool
+
+menu "Device Tree and Open Firmware support"
+	depends on OF
+
+config PROC_DEVICETREE
+	bool "Support for device tree in /proc"
+	depends on PROC_FS && !SPARC
+	help
+	  This option adds a device-tree directory under /proc which contains
+	  an image of the device tree that the kernel copies from Open
+	  Firmware or other boot firmware. If unsure, say Y here.
+
+config OF_SELFTEST
+	bool "Device Tree Runtime self tests"
+	help
+	  This option builds in test cases for the device tree infrastructure
+	  that are executed one at boot time, and the results dumped to the
+	  console.
+
+	  If unsure, say N here, but this option is safe to enable.
+
+config OF_FLATTREE
+	bool
+	select DTC
+
+config OF_EARLY_FLATTREE
+	bool
+	select OF_FLATTREE
+
+config OF_PROMTREE
+	bool
+
+# Hardly any platforms need this.  It is safe to select, but only do so if you
+# need it.
+config OF_DYNAMIC
+	bool
+
+config OF_ADDRESS
+	def_bool y
+	depends on !SPARC
+
+config OF_IRQ
+	def_bool y
+	depends on !SPARC
+
+config OF_DEVICE
+	def_bool y
+
+config OF_GPIO
+	def_bool y
+	depends on GPIOLIB && !SPARC
+	help
+	  OpenFirmware GPIO accessors
+
+config OF_I2C
+	def_tristate I2C
+	depends on I2C && !SPARC
+	help
+	  OpenFirmware I2C accessors
+
+config OF_NET
+	depends on NETDEVICES
+	def_bool y
+
+config OF_SPI
+	def_tristate SPI
+	depends on SPI && !SPARC
+	help
+	  OpenFirmware SPI accessors
+
+config OF_MDIO
+	def_tristate PHYLIB
+	depends on PHYLIB
+	help
+	  OpenFirmware MDIO bus (Ethernet PHY) accessors
+
+config OF_PCI
+	def_tristate PCI
+	depends on PCI
+	help
+	  OpenFirmware PCI bus accessors
+
+config OF_PCI_IRQ
+	def_tristate PCI
+	depends on OF_PCI && OF_IRQ
+	help
+	  OpenFirmware PCI IRQ routing helpers
+
+config OF_MTD
+	depends on MTD
+	def_bool y
+
+endmenu # OF
