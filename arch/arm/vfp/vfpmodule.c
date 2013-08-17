@@ -79,8 +79,8 @@ static void vfp_force_reload(unsigned int cpu, struct thread_info *thread)
 {
 	if (vfp_state_in_hw(cpu, thread)) {
 		fmxr(FPEXC, fmrx(FPEXC) & ~FPEXC_EN);
-		vfp_current_hw_state[cpu] = NULL;
 	}
+	vfp_current_hw_state[cpu] = NULL;
 #ifdef CONFIG_SMP
 	thread->vfpstate.hard.cpu = NR_CPUS;
 #endif
@@ -457,10 +457,16 @@ static int vfp_pm_suspend(void)
 
 		/* disable, just in case */
 		fmxr(FPEXC, fmrx(FPEXC) & ~FPEXC_EN);
+	} else if (vfp_current_hw_state[ti->cpu]) {
+#ifndef CONFIG_SMP
+		fmxr(FPEXC, fpexc | FPEXC_EN);
+		vfp_save_state(vfp_current_hw_state[ti->cpu], fpexc);
+		fmxr(FPEXC, fpexc);
+#endif
 	}
 
 	/* clear any information we had about last context state */
-	memset(vfp_current_hw_state, 0, sizeof(vfp_current_hw_state));
+	vfp_current_hw_state[ti->cpu] = NULL;
 
 	return 0;
 }
@@ -636,7 +642,8 @@ static int vfp_hotplug(struct notifier_block *b, unsigned long action,
 	void *hcpu)
 {
 	if (action == CPU_DYING || action == CPU_DYING_FROZEN) {
-		vfp_force_reload((long)hcpu, current_thread_info());
+		unsigned int cpu = (long)hcpu;
+		vfp_current_hw_state[cpu] = NULL;
 	} else if (action == CPU_STARTING || action == CPU_STARTING_FROZEN)
 		vfp_enable(NULL);
 	return NOTIFY_OK;

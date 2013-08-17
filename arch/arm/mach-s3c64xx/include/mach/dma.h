@@ -67,6 +67,11 @@ static inline bool samsung_dma_is_dmadev(void)
 {
 	return false;
 }
+
+static inline bool samsung_dma_has_infiniteloop(void)
+{
+	return false;
+}
 #define S3C2410_DMAF_CIRCULAR		(1 << 0)
 
 #include <plat/dma.h>

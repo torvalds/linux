@@ -63,6 +63,31 @@
 #define S3C2410_ADCDAT1_XY_PST		(0x3<<12)
 #define S3C2410_ADCDAT1_YPDATA_MASK	(0x03FF)
 
+/* ADCDLY Register Bits */
+#define S3C2410_ADCDLY_DELAY(x)		(((x)&0xFFFF)<<0)
+
+
+/* 2nd ADC HW in EXYNOS series */
+#define SAMSUNG_ADC2_CON1	(0x00)
+#define SAMSUNG_ADC2_CON2	(0x04)
+#define SAMSUNG_ADC2_STATUS	(0x08)
+#define SAMSUNG_ADC2_DAT	(0x0c)
+#define SAMSUNG_ADC2_INT_EN	(0x10)
+#define SAMSUNG_ADC2_INT_STATUS	(0x14)
+#define SAMSUNG_ADC2_VERSION	(0x20)
+
+#define SAMSUNG_ADC2_CON1_SOFT_RESET	(0x2<<1)
+#define SAMSUNG_ADC2_CON1_STC_EN	(0x1<<0)
+
+#define SAMSUNG_ADC2_CON2_OSEL		(0x1<<10)
+#define SAMSUNG_ADC2_CON2_ESEL		(0x1<<9)
+#define SAMSUNG_ADC2_CON2_HIGHF		(0x1<<8)
+#define SAMSUNG_ADC2_CON2_C_TIME(x)	(((x)&7)<<4)
+#define SAMSUNG_ADC2_CON2_ACH_SEL(x)	(((x)&0xf)<<0)
+#define SAMSUNG_ADC2_CON2_ACH_MASK	(0xf<<0)
+
+#define SAMSUNG_ADC2_STATUS_FLAG	(1<<2)
+
 #endif /* __ASM_ARCH_REGS_ADC_H */
 
 

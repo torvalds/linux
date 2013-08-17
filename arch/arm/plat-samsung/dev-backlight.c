@@ -20,13 +20,9 @@
 #include <plat/gpio-cfg.h>
 #include <plat/backlight.h>
 
-static int samsung_bl_init(struct device *dev)
+static int __init samsung_bl_init(struct samsung_bl_gpio_info *bl_gpio_info)
 {
 	int ret = 0;
-	struct platform_device *timer_dev =
-			container_of(dev->parent, struct platform_device, dev);
-	struct samsung_bl_gpio_info *bl_gpio_info =
-			timer_dev->dev.platform_data;
 
 	ret = gpio_request(bl_gpio_info->no, "Backlight");
 	if (ret) {
@@ -38,17 +34,6 @@ static int samsung_bl_init(struct device *dev)
 	s3c_gpio_cfgpin(bl_gpio_info->no, bl_gpio_info->func);
 
 	return 0;
-}
-
-static void samsung_bl_exit(struct device *dev)
-{
-	struct platform_device *timer_dev =
-			container_of(dev->parent, struct platform_device, dev);
-	struct samsung_bl_gpio_info *bl_gpio_info =
-			timer_dev->dev.platform_data;
-
-	s3c_gpio_cfgpin(bl_gpio_info->no, S3C_GPIO_OUTPUT);
-	gpio_free(bl_gpio_info->no);
 }
 
 /* Initialize few important fields of platform_pwm_backlight_data
@@ -64,8 +49,6 @@ static struct platform_pwm_backlight_data samsung_dfl_bl_data __initdata = {
 	.max_brightness = 255,
 	.dft_brightness = 255,
 	.pwm_period_ns  = 78770,
-	.init           = samsung_bl_init,
-	.exit           = samsung_bl_exit,
 };
 
 static struct platform_device samsung_dfl_bl_device __initdata = {
@@ -83,6 +66,10 @@ void __init samsung_bl_set(struct samsung_bl_gpio_info *gpio_info,
 	int ret = 0;
 	struct platform_device *samsung_bl_device;
 	struct platform_pwm_backlight_data *samsung_bl_data;
+
+	ret = samsung_bl_init(gpio_info);
+	if (ret)
+		return;
 
 	samsung_bl_device = kmemdup(&samsung_dfl_bl_device,
 			sizeof(struct platform_device), GFP_KERNEL);
@@ -121,9 +108,6 @@ void __init samsung_bl_set(struct samsung_bl_gpio_info *gpio_info,
 		samsung_bl_data->exit = bl_data->exit;
 	if (bl_data->check_fb)
 		samsung_bl_data->check_fb = bl_data->check_fb;
-
-	/* Keep the GPIO info for future use */
-	s3c_device_timer[samsung_bl_data->pwm_id].dev.platform_data = gpio_info;
 
 	/* Register the specific PWM timer dev for Backlight control */
 	ret = platform_device_register(

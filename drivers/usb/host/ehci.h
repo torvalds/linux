@@ -602,6 +602,23 @@ ehci_port_speed(struct ehci_hcd *ehci, unsigned int portsc)
 #define	ehci_port_speed(ehci, portsc)	USB_PORT_STAT_HIGH_SPEED
 #endif
 
+#ifdef CONFIG_HOST_COMPLIANT_TEST
+static struct list_head *qh_urb_transaction(
+		struct ehci_hcd *ehci,
+		struct urb *urb,
+		struct list_head *head,
+		gfp_t flags);
+
+static int submit_async(
+		struct ehci_hcd *ehci,
+		struct urb *urb,
+		struct list_head *qtd_list,
+		gfp_t mem_flags);
+
+static inline void ehci_qtd_free(
+		struct ehci_hcd *ehci,
+		struct ehci_qtd *qtd);
+#endif
 /*-------------------------------------------------------------------------*/
 
 #ifdef CONFIG_PPC_83xx

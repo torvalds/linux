@@ -1,0 +1,59 @@
+config VIDEO_S5K6B2
+	bool "S5K6B2 2MP sensor support"
+	depends on VIDEO_V4L2 && ((VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS) && VIDEO_EXYNOS_FIMC_IS) || VIDEO_EXYNOS5_FIMC_IS
+	---help---
+	  This driver supports S5K6B2 camera sensor for vision mode
+
+choice
+depends on VIDEO_S5K6B2
+prompt "MIPI Camera port for S5K6B2"
+default S5K6B2_CSI_E
+config S5K6B2_CSI_C
+	bool "CSI Camera A port"
+	depends on (VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS || VIDEO_EXYNOS5_FIMC_IS)
+	help
+	  This enables CSI A port for 6B2 sensor
+	  CSI is camera sensor interface
+	  currenly there is A and B
+	  This is only for internal ISP, FIMC-IS
+config S5K6B2_CSI_D
+	bool "CSI Camera B port"
+	depends on (VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS || VIDEO_EXYNOS5_FIMC_IS)
+	help
+	  This enables CSI B port for 6B2 sensor
+	  CSI is camera sensor interface
+	  currenly there is A and B
+	  This is only for internal ISP, FIMC-IS
+config S5K6B2_CSI_E
+	bool "CSI Camera C port"
+	depends on ((VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS || VIDEO_EXYNOS5_FIMC_IS) && SOC_EXYNOS5410)
+	help
+	  This enables CSI C port for 6B2 sensor
+	  CSI is camera sensor interface
+	  currenly there is A, B and C
+	  This is only for internal ISP, FIMC-IS
+endchoice
+
+choice
+depends on (VIDEO_S5K6B2 && VIDEO_EXYNOS5_FIMC_IS)
+prompt "Camera position for S5K6B2"
+default S5K6B2_POSITION_FRONT
+config S5K6B2_POSITION_FRONT
+	bool "front camera"
+	depends on VIDEO_EXYNOS5_FIMC_IS
+	help
+	  This set as front camera
+config S5K6B2_POSITION_REAR
+	bool "rear camera"
+	depends on VIDEO_EXYNOS5_FIMC_IS
+	help
+	  This set as rear camera
+endchoice
+
+config VISION_MODE
+	bool "Enable Vision mode"
+	depends on (VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS ||\
+			VIDEO_EXYNOS_MIPI_CSIS) && VIDEO_S5K6B2 &&\
+			VIDEO_EXYNOS5_FIMC_IS_SENSOR
+	---help---
+	  This enables support for Vision mode

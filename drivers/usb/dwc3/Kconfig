@@ -12,17 +12,53 @@ config USB_DWC3
 	  If you choose to build this driver is a dynamically linked
 	  module, the module will be called dwc3.ko.
 
-if USB_DWC3
+config USB_EXYNOS_DRD
+	bool "Exynos SuperSpeed USB3.0 DRD core"
+	depends on EXYNOS5_DEV_USB3_DRD
+	select USB_OTG_UTILS
+	help
+	  Say Y here if your system has an Exynos SuperSpeed USB3.0
+	  Dual Role Device controller based on DesignWare USB3 IP
+	  Core.
+
+if USB_EXYNOS_DRD
+
+choice
+	prompt "EXYNOS DesignWare USB3 DRD channel (temporarily)"
+	depends on SOC_EXYNOS5410
+	default USB_EXYNOS5_USB3_DRD_CH0
+	help
+	  Samsung S5E5410 SoC has two DRD channels. This option allows to activate
+	  one of the DRD channels.
+
+	  NOTE: this is temporarily and will be removed once multiple channels
+	  operation has been fully tested.
+
+config USB_EXYNOS5_USB3_DRD_CH0
+	boolean "Channel0"
+	help
+	  Use DRD channel 0.
+
+config USB_EXYNOS5_USB3_DRD_CH1
+	boolean "Channel1"
+	help
+	  Use DRD channel 1.
+endchoice
+
+endif
+
+if (USB_DWC3 || USB_EXYNOS_DRD)
 
 config USB_DWC3_DEBUG
-	bool "Enable Debugging Messages"
+	bool "Enable DWC3/Exynos DRD core Debugging Messages"
 	help
-	  Say Y here to enable debugging messages on DWC3 Driver.
+	  Say Y here to enable debugging messages on DWC3/Exynos DRD Driver.
 
 config USB_DWC3_VERBOSE
-	bool "Enable Verbose Debugging Messages"
+	bool "Enable DWC3/Exynos DRD core Verbose Debugging Messages"
 	depends on USB_DWC3_DEBUG
 	help
-	  Say Y here to enable verbose debugging messages on DWC3 Driver.
+	  Say Y here to enable verbose debugging messages on DWC3/Exynos DRD
+	  Driver.
 
 endif

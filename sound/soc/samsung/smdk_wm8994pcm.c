@@ -10,6 +10,8 @@
  *  option) any later version.
  */
 #include <linux/module.h>
+#include <linux/clk.h>
+
 #include <sound/soc.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -47,6 +49,26 @@
 /* SMDK has a 16.9344MHZ crystal attached to WM8994 */
 #define SMDK_WM8994_FREQ 16934400
 
+static int set_epll_rate(unsigned long rate)
+{
+	struct clk *fout_epll;
+
+	fout_epll = clk_get(NULL, "fout_epll");
+	if (IS_ERR(fout_epll)) {
+		printk(KERN_ERR "%s: failed to get fout_epll\n", __func__);
+		return PTR_ERR(fout_epll);
+	}
+
+	if (rate == clk_get_rate(fout_epll))
+		goto out;
+
+	clk_set_rate(fout_epll, rate);
+out:
+	clk_put(fout_epll);
+
+	return 0;
+}
+
 static int smdk_wm8994_pcm_hw_params(struct snd_pcm_substream *substream,
 			      struct snd_pcm_hw_params *params)
 {
@@ -54,11 +76,19 @@ static int smdk_wm8994_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	unsigned long mclk_freq;
-	int rfs, ret;
+	unsigned long epll_out_rate;
+	int bfs, rfs, ret;
+
+	bfs = (params_format(params) == SNDRV_PCM_FORMAT_S24_LE) ? 48 : 32;
 
 	switch(params_rate(params)) {
 	case 8000:
+		epll_out_rate = 49152000;
 		rfs = 512;
+		break;
+	case 44100:
+		epll_out_rate = 67737600;
+		rfs = 256;
 		break;
 	default:
 		dev_err(cpu_dai->dev, "%s:%d Sampling Rate %u not supported!\n",
@@ -77,29 +107,35 @@ static int smdk_wm8994_pcm_hw_params(struct snd_pcm_substream *substream,
 
 	/* Set the cpu DAI configuration */
 	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_DSP_B
+				| SND_SOC_DAIFMT_CONT
 				| SND_SOC_DAIFMT_IB_NF
 				| SND_SOC_DAIFMT_CBS_CFS);
 	if (ret < 0)
 		return ret;
 
+	/*
+	 * Samsung SoCs PCM has no MCLK(rclk) output support, so codec
+	 * should have to make its own BCLK with FLL(or PLL) from other
+	 * clock source.
+	 */
 	ret = snd_soc_dai_set_sysclk(codec_dai, WM8994_SYSCLK_FLL1,
 					mclk_freq, SND_SOC_CLOCK_IN);
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_dai_set_pll(codec_dai, WM8994_FLL1, WM8994_FLL_SRC_MCLK1,
-					SMDK_WM8994_FREQ, mclk_freq);
+	ret = snd_soc_dai_set_pll(codec_dai, WM8994_FLL1, WM8994_FLL_SRC_BCLK,
+					mclk_freq, mclk_freq);
 	if (ret < 0)
 		return ret;
 
-	/* Set PCM source clock on CPU */
-	ret = snd_soc_dai_set_sysclk(cpu_dai, S3C_PCM_CLKSRC_MUX,
-					mclk_freq, SND_SOC_CLOCK_IN);
+	/* Set EPLL clock rate */
+	ret = set_epll_rate(epll_out_rate);
+
 	if (ret < 0)
 		return ret;
 
 	/* Set SCLK_DIV for making bclk */
-	ret = snd_soc_dai_set_clkdiv(cpu_dai, S3C_PCM_SCLK_PER_FS, rfs);
+	ret = snd_soc_dai_set_clkdiv(cpu_dai, S3C_PCM_SCLK_PER_FS, bfs);
 	if (ret < 0)
 		return ret;
 

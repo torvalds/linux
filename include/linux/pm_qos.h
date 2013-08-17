@@ -14,7 +14,12 @@ enum {
 	PM_QOS_RESERVED = 0,
 	PM_QOS_CPU_DMA_LATENCY,
 	PM_QOS_NETWORK_LATENCY,
+	PM_QOS_MEMORY_THROUGHPUT,
+	PM_QOS_DEVICE_THROUGHPUT,
+	PM_QOS_BUS_THROUGHPUT,
 	PM_QOS_NETWORK_THROUGHPUT,
+	PM_QOS_CPU_FREQ_MIN,
+	PM_QOS_CPU_FREQ_MAX,
 
 	/* insert new class ID */
 	PM_QOS_NUM_CLASSES,
@@ -24,8 +29,13 @@ enum {
 
 #define PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE	(2000 * USEC_PER_SEC)
 #define PM_QOS_NETWORK_LAT_DEFAULT_VALUE	(2000 * USEC_PER_SEC)
+#define PM_QOS_MEMORY_THROUGHPUT_DEFAULT_VALUE	0
+#define PM_QOS_DEVICE_THROUGHPUT_DEFAULT_VALUE	0
+#define PM_QOS_BUS_THROUGHPUT_DEFAULT_VALUE	0
 #define PM_QOS_NETWORK_THROUGHPUT_DEFAULT_VALUE	0
 #define PM_QOS_DEV_LAT_DEFAULT_VALUE		0
+#define PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE	0
+#define PM_QOS_CPU_FREQ_MAX_DEFAULT_VALUE	PM_QOS_DEFAULT_VALUE
 
 struct pm_qos_request {
 	struct plist_node node;
@@ -41,7 +51,9 @@ struct dev_pm_qos_request {
 enum pm_qos_type {
 	PM_QOS_UNITIALIZED,
 	PM_QOS_MAX,		/* return the largest value */
-	PM_QOS_MIN		/* return the smallest value */
+	PM_QOS_MIN,		/* return the smallest value */
+	PM_QOS_SUM,		/* return sum of values greater than zero */
+	PM_QOS_FORCE_MAX,
 };
 
 /*

@@ -33,6 +33,23 @@ ENTRY(v7_flush_icache_all)
 ENDPROC(v7_flush_icache_all)
 
 /*
+ *	v7_flush_dcache_level(level)
+ *
+ *	Flush the D-cache up to the level passed as first input parameter.
+ *
+ * 	r0 - cache level
+ *
+ *	Corrupted registers: r0-r7, r9-r11 (r6 only in Thumb mode)
+ */
+
+ENTRY(v7_flush_dcache_level)
+	dmb
+	mov	r3, r0, lsl #1			@ level * 2
+	mrc	p15, 1, r0, c0, c0, 1		@ read clidr
+	b	__flush_level
+ENDPROC(v7_flush_dcache_level)
+
+/*
  *	v7_flush_dcache_all()
  *
  *	Flush the whole D-cache.
@@ -47,6 +64,7 @@ ENTRY(v7_flush_dcache_all)
 	ands	r3, r0, #0x7000000		@ extract loc from clidr
 	mov	r3, r3, lsr #23			@ left align loc bit field
 	beq	finished			@ if loc is 0, then no need to clean
+__flush_level:
 	mov	r10, #0				@ start clean at cache level 0
 loop1:
 	add	r2, r10, r10, lsr #1		@ work out 3x current cache level
@@ -118,6 +136,29 @@ ENTRY(v7_flush_kern_cache_all)
  THUMB(	ldmfd	sp!, {r4-r7, r9-r11, lr}	)
 	mov	pc, lr
 ENDPROC(v7_flush_kern_cache_all)
+
+/*
+ *	v7_flush_kern_dcache_level(int level)
+ *      level - upper level that should be cleaned/invalidated
+ *		[valid values (-1,7)]
+ *              level == -1 forces a flush_kern_cache_all
+ *              level == 0 is a nop
+ *              1 < level <=7 flush dcache up to level
+ *	Flush the data cache up to a level passed as a platform
+ *	specific parameter
+ */
+ENTRY(v7_flush_kern_dcache_level)
+	cmp	r0, #-1				@ -1 defaults to flush all
+	beq	v7_flush_kern_cache_all
+ ARM(	stmfd	sp!, {r4-r5, r7, r9-r11, lr}	)
+ THUMB(	stmfd	sp!, {r4-r7, r9-r11, lr}	)
+	sub	r2, r0, #1
+	cmp	r2, #6
+	blls	v7_flush_dcache_level		@ jump if 0 < level <=7
+ ARM(	ldmfd	sp!, {r4-r5, r7, r9-r11, lr}	)
+ THUMB(	ldmfd	sp!, {r4-r7, r9-r11, lr}	)
+	mov	pc, lr
+ENDPROC(v7_flush_kern_dcache_level)
 
 /*
  *	v7_flush_cache_all()
@@ -352,4 +393,4 @@ ENDPROC(v7_dma_unmap_area)
 	__INITDATA
 
 	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
-	define_cache_functions v7
+	define_cache_functions v7, cachelevel=1

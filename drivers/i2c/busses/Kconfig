@@ -605,6 +605,20 @@ config I2C_S3C2410
 	  Say Y here to include support for I2C controller in the
 	  Samsung SoCs.
 
+config HAVE_EXYNOS5_HSI2C
+	bool
+	help
+	  This will include HS-I2C support for Exynos5 series SoCs. If you want to
+	  include HS-I2C support for any Exynos5 machine, kindly select this in the
+	  respective Kconfig file.
+
+config I2C_EXYNOS5
+	tristate "Exynos5 HS-I2C Driver"
+	depends on HAVE_EXYNOS5_HSI2C
+	help
+	  Say Y here to include support for HS-I2C controller in the
+	  Exynos5 series SoCs.
+
 config I2C_S6000
 	tristate "S6000 I2C support"
 	depends on XTENSA_VARIANT_S6000

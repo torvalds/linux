@@ -57,6 +57,25 @@
 
 #define DESCRIPTOR_DATA				5
 
+/* vendor specific data block */
+#define VSDB_LATENCY_FIELD		7
+#define VSDB_LATENCY_FIELD_MASK		(1 << 7)
+#define VSDB_I_LATENCY_FIELD		6
+#define VSDB_I_LATENCY_FIELD_MASK	(1 << 6)
+#define VSDB_VIDEO_PRESENT		5
+#define VSDB_VIDEO_PRESENT_MASK		(1 << 5)
+#define VSDB_VIC_LEN			5
+#define VSDB_VIC_LEN_MASK		(0x7 << 5)
+#define VSDB_VIC_ORDER			4
+#define VSDB_VIC_ORDER_MASK		(0xf << 4)
+#define VSDB_3D_MASK			2
+#define VSDB_3D_LEN_MASK		0x1f
+#define VSDB_3D_STRUCTURE_MASK		0xf
+#define VSDB_3D_PRESENT			7
+#define VSDB_3D_PRESENT_MASK		(1 << 7)
+#define VSDB_3D_MT_PRESENT		5
+#define VSDB_3D_MT_PRESENT_MASK		(0x3 << 5)
+
 #define UPPER_NIBBLE( x ) \
         (((128|64|32|16) & (x)) >> 4)
 

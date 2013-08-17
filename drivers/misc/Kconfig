@@ -382,6 +382,14 @@ config HMC6352
 	  This driver provides support for the Honeywell HMC6352 compass,
 	  providing configuration and heading data via sysfs.
 
+config SENSORS_AK8975
+	tristate "AK8975 compass support"
+	default n
+	depends on I2C
+	help
+	  If you say yes here you get support for Asahi Kasei's
+	  orientation sensor AK8975.
+
 config EP93XX_PWM
 	tristate "EP93xx PWM support"
 	depends on ARCH_EP93XX
@@ -424,6 +432,10 @@ config TI_DAC7512
 
 	  This driver can also be built as a module. If so, the module
 	  will be called ti_dac7512.
+
+config UID_STAT
+	bool "UID based statistics tracking exported to /proc/uid_stat"
+	default n
 
 config VMWARE_BALLOON
 	tristate "VMware Balloon Driver"
@@ -498,6 +510,14 @@ config MAX8997_MUIC
 	  Maxim MAX8997 PMIC.
 	  The MAX8997 MUIC is a USB port accessory detector and switch.
 
+config WL127X_RFKILL
+	tristate "Bluetooth power control driver for TI wl127x"
+	depends on RFKILL
+	default n
+	---help---
+	 Creates an rfkill entry in sysfs for power control of Bluetooth
+	 TI wl127x chips.
+	 
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"

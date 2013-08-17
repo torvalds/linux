@@ -152,6 +152,8 @@ struct mxr_layer_ops {
 struct mxr_layer {
 	/** parent mixer device */
 	struct mxr_device *mdev;
+	/** frame buffer emulator */
+	void *fb;
 	/** layer index (unique identifier) */
 	int idx;
 	/** callbacks for layer methods */

@@ -20,7 +20,8 @@
 #include <sound/pcm_params.h>
 
 #include <plat/audio.h>
-#include <plat/dma.h>
+
+#include <mach/dma.h>
 
 #include "dma.h"
 #include "pcm.h"
@@ -127,6 +128,8 @@ struct s3c_pcm_info {
 
 	struct clk	*pclk;
 	struct clk	*cclk;
+	struct clk	*sclk_audio;
+	struct clk	*mout_epll;
 
 	struct s3c_dma_params	*dma_playback;
 	struct s3c_dma_params	*dma_capture;
@@ -307,6 +310,9 @@ static int s3c_pcm_hw_params(struct snd_pcm_substream *substream,
 		clk = pcm->pclk;
 	else
 		clk = pcm->cclk;
+
+	if (clk_get_rate(clk) != pcm->sclk_per_fs*params_rate(params))
+		clk_set_rate(clk, pcm->sclk_per_fs*params_rate(params));
 
 	/* Set the SCLK divider */
 	sclk_div = clk_get_rate(clk) / pcm->sclk_per_fs /
@@ -524,11 +530,6 @@ static __devinit int s3c_pcm_dev_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	if (pcm_pdata && pcm_pdata->cfg_gpio && pcm_pdata->cfg_gpio(pdev)) {
-		dev_err(&pdev->dev, "Unable to configure gpio\n");
-		return -EINVAL;
-	}
-
 	pcm = &s3c_pcm[pdev->id];
 	pcm->dev = &pdev->dev;
 
@@ -537,12 +538,29 @@ static __devinit int s3c_pcm_dev_probe(struct platform_device *pdev)
 	/* Default is 128fs */
 	pcm->sclk_per_fs = 128;
 
-	pcm->cclk = clk_get(&pdev->dev, "audio-bus");
+	pcm->cclk = clk_get(&pdev->dev, "sclk_pcm");
 	if (IS_ERR(pcm->cclk)) {
-		dev_err(&pdev->dev, "failed to get audio-bus\n");
+		dev_err(&pdev->dev, "failed to get sclk_pcm\n");
 		ret = PTR_ERR(pcm->cclk);
+		goto err0;
+	}
+
+	pcm->sclk_audio = clk_get(&pdev->dev, "sclk_audio");
+	if (IS_ERR(pcm->sclk_audio)) {
+		dev_err(&pdev->dev, "failed to get sclk_audio\n");
+		ret = PTR_ERR(pcm->sclk_audio);
 		goto err1;
 	}
+
+	pcm->mout_epll = clk_get(&pdev->dev, "mout_epll");
+	if (IS_ERR(pcm->mout_epll)) {
+		dev_err(&pdev->dev, "failed to get mout_epll\n");
+		ret = PTR_ERR(pcm->mout_epll);
+		goto err2;
+	}
+
+	clk_set_parent(pcm->sclk_audio, pcm->mout_epll);
+	clk_set_parent(pcm->cclk, pcm->sclk_audio);
 	clk_enable(pcm->cclk);
 
 	/* record our pcm structure for later use in the callbacks */
@@ -552,23 +570,29 @@ static __devinit int s3c_pcm_dev_probe(struct platform_device *pdev)
 				resource_size(mem_res), "samsung-pcm")) {
 		dev_err(&pdev->dev, "Unable to request register region\n");
 		ret = -EBUSY;
-		goto err2;
+		goto err3;
 	}
 
 	pcm->regs = ioremap(mem_res->start, 0x100);
 	if (pcm->regs == NULL) {
 		dev_err(&pdev->dev, "cannot ioremap registers\n");
 		ret = -ENXIO;
-		goto err3;
+		goto err4;
 	}
 
 	pcm->pclk = clk_get(&pdev->dev, "pcm");
 	if (IS_ERR(pcm->pclk)) {
 		dev_err(&pdev->dev, "failed to get pcm_clock\n");
 		ret = -ENOENT;
-		goto err4;
+		goto err5;
 	}
 	clk_enable(pcm->pclk);
+
+	if (pcm_pdata && pcm_pdata->cfg_gpio && pcm_pdata->cfg_gpio(pdev)) {
+		dev_err(&pdev->dev, "Unable to configure gpio\n");
+		ret = -EINVAL;
+		goto err6;
+	}
 
 	s3c_pcm_stereo_in[pdev->id].dma_addr = mem_res->start
 							+ S3C_PCM_RXFIFO;
@@ -586,22 +610,28 @@ static __devinit int s3c_pcm_dev_probe(struct platform_device *pdev)
 	ret = snd_soc_register_dai(&pdev->dev, &s3c_pcm_dai[pdev->id]);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "failed to get register DAI: %d\n", ret);
-		goto err5;
+		goto err6;
 	}
 
 	return 0;
 
-err5:
+err6:
 	clk_disable(pcm->pclk);
 	clk_put(pcm->pclk);
-err4:
+err5:
 	iounmap(pcm->regs);
-err3:
+err4:
 	release_mem_region(mem_res->start, resource_size(mem_res));
+err3:
+	clk_disable(pcm->mout_epll);
+	clk_put(pcm->mout_epll);
 err2:
+	clk_disable(pcm->sclk_audio);
+	clk_put(pcm->sclk_audio);
+err1:
 	clk_disable(pcm->cclk);
 	clk_put(pcm->cclk);
-err1:
+err0:
 	return ret;
 }
 

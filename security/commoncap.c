@@ -31,6 +31,10 @@
 #include <linux/binfmts.h>
 #include <linux/personality.h>
 
+#ifdef CONFIG_ANDROID_PARANOID_NETWORK
+#include <linux/android_aid.h>
+#endif
+
 /*
  * If a non-root user executes a setuid-root binary in
  * !secure(SECURE_NOROOT) mode, then we raise capabilities.
@@ -76,6 +80,13 @@ int cap_netlink_send(struct sock *sk, struct sk_buff *skb)
 int cap_capable(const struct cred *cred, struct user_namespace *targ_ns,
 		int cap, int audit)
 {
+#ifdef CONFIG_ANDROID_PARANOID_NETWORK
+	if (cap == CAP_NET_RAW && in_egroup_p(AID_NET_RAW))
+		return 0;
+	if (cap == CAP_NET_ADMIN && in_egroup_p(AID_NET_ADMIN))
+		return 0;
+#endif
+
 	for (;;) {
 		/* The creator of the user namespace has all caps. */
 		if (targ_ns != &init_user_ns && targ_ns->creator == cred->user)

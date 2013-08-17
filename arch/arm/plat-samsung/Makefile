@@ -31,6 +31,9 @@ obj-y				+= platformdata.o
 obj-y				+= devs.o
 obj-y				+= dev-uart.o
 
+obj-$(CONFIG_FB_MIPI_DSIM)	+= dev-mipidsim.o
+obj-$(CONFIG_S5P_DEV_DP)	+= dev-dp.o
+
 obj-$(CONFIG_SAMSUNG_DEV_BACKLIGHT)	+= dev-backlight.o
 
 # DMA support
@@ -47,10 +50,14 @@ obj-$(CONFIG_SAMSUNG_PM_CHECK)	+= pm-check.o
 
 obj-$(CONFIG_SAMSUNG_WAKEMASK)	+= wakeup-mask.o
 
-# PD support
-
-obj-$(CONFIG_SAMSUNG_PD)	+= pd.o
-
 # PWM support
 
 obj-$(CONFIG_HAVE_PWM)		+= pwm.o
+
+obj-$(CONFIG_S5P_DEV_FIMG2D)	+= dev-fimg2d.o
+obj-$(CONFIG_S5P_DEV_BTS)	+= bts.o
+
+obj-$(CONFIG_SAMSUNG_CORE_TEST)	+= core_test.o
+# BW monitor support
+
+obj-$(CONFIG_SAMSUNG_BW_MONITOR)	+= monitor.o

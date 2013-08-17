@@ -309,6 +309,10 @@ static void close_delayed_work(struct work_struct *work)
 		codec_dai->pop_wait = 0;
 		snd_soc_dapm_stream_event(rtd, SNDRV_PCM_STREAM_PLAYBACK,
 					  codec_dai, SND_SOC_DAPM_STREAM_STOP);
+#ifdef CONFIG_SND_SOC_SAMSUNG_SMDK_WM8994
+		snd_soc_dapm_stream_event(rtd, SNDRV_PCM_STREAM_CAPTURE,
+					  codec_dai, SND_SOC_DAPM_STREAM_STOP);
+#endif
 	}
 
 	mutex_unlock(&rtd->pcm_mutex);
@@ -351,13 +355,15 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 	/* Muting the DAC suppresses artifacts caused during digital
 	 * shutdown, for example from stopping clocks.
 	 */
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK
+				&& !codec_dai->playback_active)
 		snd_soc_dai_digital_mute(codec_dai, 1);
 
 	if (cpu_dai->driver->ops->shutdown)
 		cpu_dai->driver->ops->shutdown(substream, cpu_dai);
 
-	if (codec_dai->driver->ops->shutdown)
+	if (codec_dai->driver->ops->shutdown
+				&& !codec_dai->playback_active)
 		codec_dai->driver->ops->shutdown(substream, codec_dai);
 
 	if (rtd->dai_link->ops && rtd->dai_link->ops->shutdown)
@@ -367,24 +373,32 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 		platform->driver->ops->close(substream);
 	cpu_dai->runtime = NULL;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		if (!rtd->pmdown_time || codec->ignore_pmdown_time ||
-		    rtd->dai_link->ignore_pmdown_time) {
-			/* powered down playback stream now */
-			snd_soc_dapm_stream_event(rtd,
+	if (!codec_dai->active) {
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			if (!rtd->pmdown_time || codec->ignore_pmdown_time ||
+			    rtd->dai_link->ignore_pmdown_time) {
+				/* powered down playback stream now */
+				snd_soc_dapm_stream_event(rtd,
 						  SNDRV_PCM_STREAM_PLAYBACK,
 						  codec_dai,
 						  SND_SOC_DAPM_STREAM_STOP);
+			} else {
+				/* start delayed pop wq here for playback streams */
+				codec_dai->pop_wait = 1;
+				schedule_delayed_work(&rtd->delayed_work,
+					msecs_to_jiffies(rtd->pmdown_time));
+			}
 		} else {
-			/* start delayed pop wq here for playback streams */
+#ifdef CONFIG_SND_SOC_SAMSUNG_SMDK_WM8994
 			codec_dai->pop_wait = 1;
 			schedule_delayed_work(&rtd->delayed_work,
 				msecs_to_jiffies(rtd->pmdown_time));
-		}
-	} else {
-		/* capture streams can be powered down now */
-		snd_soc_dapm_stream_event(rtd, SNDRV_PCM_STREAM_CAPTURE,
+#else
+			/* capture streams can be powered down now */
+			snd_soc_dapm_stream_event(rtd, SNDRV_PCM_STREAM_CAPTURE,
 					  codec_dai, SND_SOC_DAPM_STREAM_STOP);
+#endif
+		}
 	}
 
 	mutex_unlock(&rtd->pcm_mutex);

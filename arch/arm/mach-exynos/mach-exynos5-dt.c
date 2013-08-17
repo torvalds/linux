@@ -34,7 +34,7 @@
  * at some point, the drivers should be capable of parsing all the platform
  * data from the device tree.
  */
-static const struct of_dev_auxdata exynos5250_auxdata_lookup[] __initconst = {
+static const struct of_dev_auxdata exynos5_auxdata_lookup[] __initconst = {
 	OF_DEV_AUXDATA("samsung,exynos4210-uart", EXYNOS5_PA_UART0,
 				"exynos4210-uart.0", NULL),
 	OF_DEV_AUXDATA("samsung,exynos4210-uart", EXYNOS5_PA_UART1,
@@ -49,30 +49,31 @@ static const struct of_dev_auxdata exynos5250_auxdata_lookup[] __initconst = {
 	{},
 };
 
-static void __init exynos5250_dt_map_io(void)
+static void __init exynos5_dt_map_io(void)
 {
 	exynos_init_io(NULL, 0);
 	s3c24xx_init_clocks(24000000);
 }
 
-static void __init exynos5250_dt_machine_init(void)
+static void __init exynos5_dt_machine_init(void)
 {
 	of_platform_populate(NULL, of_default_bus_match_table,
-				exynos5250_auxdata_lookup, NULL);
+				exynos5_auxdata_lookup, NULL);
 }
 
-static char const *exynos5250_dt_compat[] __initdata = {
+static char const *exynos5_dt_compat[] __initdata = {
 	"samsung,exynos5250",
+	"samsung,exynos5410",
 	NULL
 };
 
 DT_MACHINE_START(EXYNOS5_DT, "SAMSUNG EXYNOS5 (Flattened Device Tree)")
 	/* Maintainer: Kukjin Kim <kgene.kim@samsung.com> */
 	.init_irq	= exynos5_init_irq,
-	.map_io		= exynos5250_dt_map_io,
+	.map_io		= exynos5_dt_map_io,
 	.handle_irq	= gic_handle_irq,
-	.init_machine	= exynos5250_dt_machine_init,
+	.init_machine	= exynos5_dt_machine_init,
 	.timer		= &exynos4_timer,
-	.dt_compat	= exynos5250_dt_compat,
+	.dt_compat	= exynos5_dt_compat,
 	.restart        = exynos5_restart,
 MACHINE_END

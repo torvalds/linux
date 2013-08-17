@@ -53,6 +53,7 @@ config USB_ARCH_HAS_EHCI
 # some non-PCI HCDs implement xHCI
 config USB_ARCH_HAS_XHCI
 	boolean
+	default y if ARCH_EXYNOS
 	default PCI
 
 menuconfig USB_SUPPORT

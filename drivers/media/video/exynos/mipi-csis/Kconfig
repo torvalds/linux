@@ -1,0 +1,8 @@
+config VIDEO_EXYNOS_MIPI_CSIS
+	bool "Exynos MIPI-CSIS driver"
+	depends on VIDEO_EXYNOS && VIDEO_EXYNOS_FIMC_LITE &&\
+		(ARCH_EXYNOS4 || ARCH_EXYNOS5)
+	select MEDIA_EXYNOS
+	default n
+	help
+	  This is a v4l2 driver for exynos mipi-csis interface device.

@@ -1201,6 +1201,9 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 				 * UGCI) cram a lot of unrelated inputs into the
 				 * same interface. */
 				hidinput->report = report;
+				if (hid->driver->input_register &&
+						hid->driver->input_register(hid, hidinput))
+					goto out_cleanup;
 				if (input_register_device(hidinput->input))
 					goto out_cleanup;
 				hidinput = NULL;
@@ -1214,6 +1217,10 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 			goto out_cleanup;
 		goto out_unwind;
 	}
+
+	if (hidinput && hid->driver->input_register &&
+			hid->driver->input_register(hid, hidinput))
+		goto out_cleanup;
 
 	if (hidinput && input_register_device(hidinput->input))
 		goto out_cleanup;

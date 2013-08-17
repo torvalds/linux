@@ -7,6 +7,7 @@ obj-y				:= dma-mapping.o extable.o fault.o init.o \
 
 obj-$(CONFIG_MMU)		+= fault-armv.o flush.o idmap.o ioremap.o \
 				   mmap.o pgd.o mmu.o vmregion.o
+obj-$(CONFIG_DEBUG_RODATA)	+= rodata.o
 
 ifneq ($(CONFIG_MMU),y)
 obj-y				+= nommu.o
@@ -94,7 +95,8 @@ obj-$(CONFIG_CPU_V6K)		+= proc-v6.o
 obj-$(CONFIG_CPU_V7)		+= proc-v7.o
 
 AFLAGS_proc-v6.o	:=-Wa,-march=armv6
-AFLAGS_proc-v7.o	:=-Wa,-march=armv7-a
+plus_sec := $(call as-instr,.arch_extension sec,+sec)
+AFLAGS_proc-v7.o	:=-Wa,-march=armv7-a$(plus_sec)
 
 obj-$(CONFIG_CACHE_FEROCEON_L2)	+= cache-feroceon-l2.o
 obj-$(CONFIG_CACHE_L2X0)	+= cache-l2x0.o

@@ -10,3 +10,4 @@ mmc_core-y			:= core.o bus.o host.o \
 				   quirks.o cd-gpio.o
 
 mmc_core-$(CONFIG_DEBUG_FS)	+= debugfs.o
+mmc_core-$(CONFIG_BLK_DEV_IO_TRACE) += mmc_trace.o

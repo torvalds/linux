@@ -1,8 +1,8 @@
 /*
  * Samsung S5P/EXYNOS4 SoC series camera interface (camera capture) driver
  *
- * Copyright (C) 2010 - 2011 Samsung Electronics Co., Ltd.
- * Author: Sylwester Nawrocki, <s.nawrocki@samsung.com>
+ * Copyright (C) 2010 - 2012 Samsung Electronics Co., Ltd.
+ * Sylwester Nawrocki <s.nawrocki@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -29,38 +29,50 @@
 
 #include "fimc-mdevice.h"
 #include "fimc-core.h"
+#include "fimc-reg.h"
 
-static int fimc_init_capture(struct fimc_dev *fimc)
+static int fimc_capture_hw_init(struct fimc_dev *fimc)
 {
 	struct fimc_ctx *ctx = fimc->vid_cap.ctx;
+	struct fimc_pipeline *p = &fimc->pipeline;
 	struct fimc_sensor_info *sensor;
 	unsigned long flags;
+	struct fimc_frame *ff = &ctx->d_frame;
 	int ret = 0;
 
-	if (fimc->pipeline.sensor == NULL || ctx == NULL)
+	if (p->subdevs[IDX_SENSOR] == NULL || ctx == NULL)
 		return -ENXIO;
 	if (ctx->s_frame.fmt == NULL)
 		return -EINVAL;
 
-	sensor = v4l2_get_subdev_hostdata(fimc->pipeline.sensor);
+	sensor = v4l2_get_subdev_hostdata(p->subdevs[IDX_SENSOR]);
+
+	if (sensor->pdata.is_sensor_info)
+		fimc_hwset_sysreg_camblk_isp_wb(fimc);
 
 	spin_lock_irqsave(&fimc->slock, flags);
 	fimc_prepare_dma_offset(ctx, &ctx->d_frame);
 	fimc_set_yuv_order(ctx);
 
-	fimc_hw_set_camera_polarity(fimc, sensor->pdata);
-	fimc_hw_set_camera_type(fimc, sensor->pdata);
-	fimc_hw_set_camera_source(fimc, sensor->pdata);
-	fimc_hw_set_camera_offset(fimc, &ctx->s_frame);
+	fimc_hw_set_camera_polarity(fimc, &sensor->pdata);
+	fimc_hw_set_camera_type(fimc, &sensor->pdata);
+	fimc_hw_set_enable_lastend(fimc);
 
-	ret = fimc_set_scaler_info(ctx);
+	if (!fimc_fmt_is_interleaved(ff->fmt->color))
+		ret = fimc_set_scaler_info(ctx);
 	if (!ret) {
 		fimc_hw_set_input_path(ctx);
-		fimc_hw_set_prescaler(ctx);
-		fimc_hw_set_mainscaler(ctx);
+		if (!fimc_fmt_is_interleaved(ff->fmt->color)) {
+			fimc_hw_set_camera_source(fimc, &sensor->pdata);
+			fimc_hw_set_camera_offset(fimc, &ctx->s_frame);
+			fimc_hw_set_prescaler(ctx);
+			fimc_hw_set_mainscaler(ctx);
+		} else {
+			fimc_hw_set_scaler_bypass(ctx);
+		}
 		fimc_hw_set_target_format(ctx);
 		fimc_hw_set_rotation(ctx);
-		fimc_hw_set_effect(ctx, false);
+		fimc_hw_set_effect(ctx);
 		fimc_hw_set_output_path(ctx);
 		fimc_hw_set_out_dma(ctx);
 		if (fimc->variant->has_alpha)
@@ -71,6 +83,14 @@ static int fimc_init_capture(struct fimc_dev *fimc)
 	return ret;
 }
 
+/*
+ * Reinitialize the driver so it is ready to start the streaming again.
+ * Set fimc->state to indicate stream off and the hardware shut down state.
+ * If not suspending (@suspend is false), return any buffers to videobuf2.
+ * Otherwise put any owned buffers onto the pending buffers queue, so they
+ * can be re-spun when the device is being resumed. Also perform FIMC
+ * software reset and disable streaming on the whole pipeline if required.
+ */
 static int fimc_capture_state_cleanup(struct fimc_dev *fimc, bool suspend)
 {
 	struct fimc_vid_cap *cap = &fimc->vid_cap;
@@ -83,7 +103,9 @@ static int fimc_capture_state_cleanup(struct fimc_dev *fimc, bool suspend)
 
 	fimc->state &= ~(1 << ST_CAPT_RUN | 1 << ST_CAPT_SHUT |
 			 1 << ST_CAPT_STREAM | 1 << ST_CAPT_ISP_STREAM);
-	if (!suspend)
+	if (suspend)
+		fimc->state |= (1 << ST_CAPT_SUSPENDED);
+	else
 		fimc->state &= ~(1 << ST_CAPT_PEND | 1 << ST_CAPT_SUSPENDED);
 
 	/* Release unused buffers */
@@ -99,7 +121,6 @@ static int fimc_capture_state_cleanup(struct fimc_dev *fimc, bool suspend)
 		else
 			vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
 	}
-	set_bit(ST_CAPT_SUSPENDED, &fimc->state);
 
 	fimc_hw_reset(fimc);
 	cap->buf_index = 0;
@@ -107,7 +128,8 @@ static int fimc_capture_state_cleanup(struct fimc_dev *fimc, bool suspend)
 	spin_unlock_irqrestore(&fimc->slock, flags);
 
 	if (streaming)
-		return fimc_pipeline_s_stream(fimc, 0);
+		return fimc_pipeline_call(fimc, set_stream,
+					  &fimc->pipeline, 0);
 	else
 		return 0;
 }
@@ -138,31 +160,122 @@ static int fimc_stop_capture(struct fimc_dev *fimc, bool suspend)
  * spinlock held. It updates the camera pixel crop, rotation and
  * image flip in H/W.
  */
-int fimc_capture_config_update(struct fimc_ctx *ctx)
+static int fimc_capture_config_update(struct fimc_ctx *ctx)
 {
 	struct fimc_dev *fimc = ctx->fimc_dev;
 	int ret;
 
-	if (!test_bit(ST_CAPT_APPLY_CFG, &fimc->state))
-		return 0;
-
-	spin_lock(&ctx->slock);
 	fimc_hw_set_camera_offset(fimc, &ctx->s_frame);
+
 	ret = fimc_set_scaler_info(ctx);
-	if (ret == 0) {
-		fimc_hw_set_prescaler(ctx);
-		fimc_hw_set_mainscaler(ctx);
-		fimc_hw_set_target_format(ctx);
-		fimc_hw_set_rotation(ctx);
-		fimc_prepare_dma_offset(ctx, &ctx->d_frame);
-		fimc_hw_set_out_dma(ctx);
-		if (fimc->variant->has_alpha)
-			fimc_hw_set_rgb_alpha(ctx);
-		clear_bit(ST_CAPT_APPLY_CFG, &fimc->state);
-	}
-	spin_unlock(&ctx->slock);
+	if (ret)
+		return ret;
+
+	fimc_hw_set_prescaler(ctx);
+	fimc_hw_set_mainscaler(ctx);
+	fimc_hw_set_target_format(ctx);
+	fimc_hw_set_rotation(ctx);
+	fimc_hw_set_effect(ctx);
+	fimc_prepare_dma_offset(ctx, &ctx->d_frame);
+	fimc_hw_set_out_dma(ctx);
+	if (fimc->variant->has_alpha)
+		fimc_hw_set_rgb_alpha(ctx);
+
+	clear_bit(ST_CAPT_APPLY_CFG, &fimc->state);
 	return ret;
 }
+
+void fimc_capture_irq_handler(struct fimc_dev *fimc, int deq_buf)
+{
+	struct v4l2_subdev *csis = fimc->pipeline.subdevs[IDX_CSIS];
+	struct fimc_vid_cap *cap = &fimc->vid_cap;
+	struct fimc_frame *f = &cap->ctx->d_frame;
+	struct fimc_vid_buffer *v_buf;
+	struct timeval *tv;
+	struct timespec ts;
+
+	if (test_and_clear_bit(ST_CAPT_SHUT, &fimc->state)) {
+		wake_up(&fimc->irq_queue);
+		goto done;
+	}
+
+	if (!list_empty(&cap->active_buf_q) &&
+	    test_bit(ST_CAPT_RUN, &fimc->state) && deq_buf) {
+		ktime_get_real_ts(&ts);
+
+		v_buf = fimc_active_queue_pop(cap);
+
+		tv = &v_buf->vb.v4l2_buf.timestamp;
+		tv->tv_sec = ts.tv_sec;
+		tv->tv_usec = ts.tv_nsec / NSEC_PER_USEC;
+		v_buf->vb.v4l2_buf.sequence = cap->frame_count++;
+		if (fimc_fmt_is_interleaved(cap->ctx->s_frame.fmt->color)) {
+			struct v4l2_subdev *csis =
+				fimc->pipeline.subdevs[IDX_CSIS];
+			v4l2_subdev_call(csis, core, ioctl, 0,
+					(void *)v_buf->paddr.cb_kva);
+		}
+
+		vb2_buffer_done(&v_buf->vb, VB2_BUF_STATE_DONE);
+	}
+
+	if (!list_empty(&cap->pending_buf_q)) {
+
+		v_buf = fimc_pending_queue_pop(cap);
+		fimc_hw_set_output_addr(fimc, &v_buf->paddr, cap->buf_index);
+		v_buf->index = cap->buf_index;
+
+		/* Move the buffer to the capture active queue */
+		fimc_active_queue_add(cap, v_buf);
+
+		dbg("next frame: %d, done frame: %d",
+		    fimc_hw_get_frame_index(fimc), v_buf->index);
+
+		if (++cap->buf_index >= FIMC_MAX_OUT_BUFS)
+			cap->buf_index = 0;
+	}
+	/*
+	 * Set up a buffer at MIPI-CSIS if current image format
+	 * requires the frame embedded data capture.
+	 */
+	if (f->fmt->mdataplanes && !list_empty(&cap->active_buf_q)) {
+		unsigned int plane = ffs(f->fmt->mdataplanes) - 1;
+		unsigned int size = f->payload[plane];
+		s32 index = fimc_hw_get_frame_index(fimc);
+		void *vaddr;
+
+		list_for_each_entry(v_buf, &cap->active_buf_q, list) {
+			if (v_buf->index != index)
+				continue;
+			vaddr = vb2_plane_vaddr(&v_buf->vb, plane);
+			v4l2_subdev_call(csis, video, s_rx_buffer,
+					 vaddr, &size);
+			break;
+		}
+	}
+
+	if (cap->active_buf_cnt == 0) {
+		if (deq_buf)
+			clear_bit(ST_CAPT_RUN, &fimc->state);
+
+		if (++cap->buf_index >= FIMC_MAX_OUT_BUFS)
+			cap->buf_index = 0;
+	} else {
+		set_bit(ST_CAPT_RUN, &fimc->state);
+	}
+
+	if (test_bit(ST_CAPT_APPLY_CFG, &fimc->state))
+		fimc_capture_config_update(cap->ctx);
+done:
+	if (cap->active_buf_cnt == 1) {
+		fimc_deactivate_capture(fimc);
+		clear_bit(ST_CAPT_STREAM, &fimc->state);
+	}
+
+	dbg("frame: %d, active_buf_cnt: %d",
+	    fimc_hw_get_frame_index(fimc), cap->active_buf_cnt);
+}
+
 
 static int start_streaming(struct vb2_queue *q, unsigned int count)
 {
@@ -174,9 +287,11 @@ static int start_streaming(struct vb2_queue *q, unsigned int count)
 
 	vid_cap->frame_count = 0;
 
-	ret = fimc_init_capture(fimc);
-	if (ret)
-		goto error;
+	ret = fimc_capture_hw_init(fimc);
+	if (ret) {
+		fimc_capture_state_cleanup(fimc, false);
+		return ret;
+	}
 
 	set_bit(ST_CAPT_PEND, &fimc->state);
 
@@ -187,13 +302,11 @@ static int start_streaming(struct vb2_queue *q, unsigned int count)
 		fimc_activate_capture(ctx);
 
 		if (!test_and_set_bit(ST_CAPT_ISP_STREAM, &fimc->state))
-			fimc_pipeline_s_stream(fimc, 1);
+			fimc_pipeline_call(fimc, set_stream,
+					   &fimc->pipeline, 1);
 	}
 
 	return 0;
-error:
-	fimc_capture_state_cleanup(fimc, false);
-	return ret;
 }
 
 static int stop_streaming(struct vb2_queue *q)
@@ -214,7 +327,7 @@ int fimc_capture_suspend(struct fimc_dev *fimc)
 	int ret = fimc_stop_capture(fimc, suspend);
 	if (ret)
 		return ret;
-	return fimc_pipeline_shutdown(fimc);
+	return fimc_pipeline_call(fimc, close, &fimc->pipeline);
 }
 
 static void buffer_queue(struct vb2_buffer *vb);
@@ -230,9 +343,9 @@ int fimc_capture_resume(struct fimc_dev *fimc)
 
 	INIT_LIST_HEAD(&fimc->vid_cap.active_buf_q);
 	vid_cap->buf_index = 0;
-	fimc_pipeline_initialize(fimc, &fimc->vid_cap.vfd->entity,
-				 false);
-	fimc_init_capture(fimc);
+	fimc_pipeline_call(fimc, open, &fimc->pipeline,
+			   &vid_cap->vfd.entity, false);
+	fimc_capture_hw_init(fimc);
 
 	clear_bit(ST_CAPT_SUSPENDED, &fimc->state);
 
@@ -272,11 +385,19 @@ static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *pfmt,
 	*num_planes = fmt->memplanes;
 
 	for (i = 0; i < fmt->memplanes; i++) {
-		unsigned int size = (wh * fmt->depth[i]) / 8;
+		unsigned int size;
+		if (fimc_fmt_is_interleaved(fmt->color))
+			size = fmt->depth[i];
+		else
+			size = (wh * fmt->depth[i]) / 8;
+
 		if (pixm)
 			sizes[i] = max(size, pixm->plane_fmt[i].sizeimage);
+		else if (fimc_fmt_is_user_defined(fmt->color))
+			sizes[i] = frame->payload[i];
 		else
-			sizes[i] = size;
+			sizes[i] = max_t(u32, size, frame->payload[i]);
+
 		allocators[i] = ctx->fimc_dev->alloc_ctx;
 	}
 
@@ -296,7 +417,7 @@ static int buffer_prepare(struct vb2_buffer *vb)
 		unsigned long size = ctx->d_frame.payload[i];
 
 		if (vb2_plane_size(vb, i) < size) {
-			v4l2_err(ctx->fimc_dev->vid_cap.vfd,
+			v4l2_err(&ctx->fimc_dev->vid_cap.vfd,
 				 "User buffer too small (%ld < %ld)\n",
 				 vb2_plane_size(vb, i), size);
 			return -EINVAL;
@@ -347,7 +468,8 @@ static void buffer_queue(struct vb2_buffer *vb)
 		spin_unlock_irqrestore(&fimc->slock, flags);
 
 		if (!test_and_set_bit(ST_CAPT_ISP_STREAM, &fimc->state))
-			fimc_pipeline_s_stream(fimc, 1);
+			fimc_pipeline_call(fimc, set_stream,
+					   &fimc->pipeline, 1);
 		return;
 	}
 	spin_unlock_irqrestore(&fimc->slock, flags);
@@ -389,15 +511,20 @@ int fimc_capture_ctrls_create(struct fimc_dev *fimc)
 
 	if (WARN_ON(vid_cap->ctx == NULL))
 		return -ENXIO;
-	if (vid_cap->ctx->ctrls_rdy)
+	if (vid_cap->ctx->ctrls.ready)
 		return 0;
 
 	ret = fimc_ctrls_create(vid_cap->ctx);
-	if (ret || vid_cap->user_subdev_api)
+	if (ret || vid_cap->user_subdev_api || !vid_cap->ctx->ctrls.ready)
 		return ret;
 
-	return v4l2_ctrl_add_handler(&vid_cap->ctx->ctrl_handler,
-				    fimc->pipeline.sensor->ctrl_handler);
+	if (fimc->pipeline.subdevs[IDX_IS_ISP])
+		ret = v4l2_ctrl_add_handler(&vid_cap->ctx->ctrls.handler,
+			fimc->pipeline.subdevs[IDX_IS_ISP]->ctrl_handler);
+	else if (fimc->pipeline.subdevs[IDX_SENSOR])
+		ret = v4l2_ctrl_add_handler(&vid_cap->ctx->ctrls.handler,
+			fimc->pipeline.subdevs[IDX_SENSOR]->ctrl_handler);
+	return ret;
 }
 
 static int fimc_capture_set_default_format(struct fimc_dev *fimc);
@@ -405,50 +532,57 @@ static int fimc_capture_set_default_format(struct fimc_dev *fimc);
 static int fimc_capture_open(struct file *file)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
-	int ret = v4l2_fh_open(file);
-
-	if (ret)
-		return ret;
+	int ret = -EBUSY;
 
 	dbg("pid: %d, state: 0x%lx", task_pid_nr(current), fimc->state);
 
-	/* Return if the corresponding video mem2mem node is already opened. */
 	if (fimc_m2m_active(fimc))
-		return -EBUSY;
+		goto out;
 
 	set_bit(ST_CAPT_BUSY, &fimc->state);
-	pm_runtime_get_sync(&fimc->pdev->dev);
+	fimc->vid_cap.user_subdev_api = true;
+	ret = pm_runtime_get_sync(&fimc->pdev->dev);
+	if (ret < 0)
+		goto out;
+
+	ret = v4l2_fh_open(file);
+	if (ret) {
+		pm_runtime_put(&fimc->pdev->dev);
+		goto out;
+	}
 
 	if (++fimc->vid_cap.refcnt == 1) {
-		ret = fimc_pipeline_initialize(fimc,
-			       &fimc->vid_cap.vfd->entity, true);
-		if (ret < 0) {
-			dev_err(&fimc->pdev->dev,
-				"Video pipeline initialization failed\n");
-			pm_runtime_put_sync(&fimc->pdev->dev);
-			fimc->vid_cap.refcnt--;
-			v4l2_fh_release(file);
-			clear_bit(ST_CAPT_BUSY, &fimc->state);
-			return ret;
-		}
-		ret = fimc_capture_ctrls_create(fimc);
+		ret = fimc_pipeline_call(fimc, open, &fimc->pipeline,
+					 &fimc->vid_cap.vfd.entity, true);
 
 		if (!ret && !fimc->vid_cap.user_subdev_api)
 			ret = fimc_capture_set_default_format(fimc);
+
+		if (!ret)
+			ret = fimc_capture_ctrls_create(fimc);
+
+		if (ret < 0) {
+			clear_bit(ST_CAPT_BUSY, &fimc->state);
+			pm_runtime_put_sync(&fimc->pdev->dev);
+			fimc->vid_cap.refcnt--;
+			v4l2_fh_release(file);
+		}
 	}
+out:
 	return ret;
 }
 
 static int fimc_capture_close(struct file *file)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
+	int ret;
 
 	dbg("pid: %d, state: 0x%lx", task_pid_nr(current), fimc->state);
 
 	if (--fimc->vid_cap.refcnt == 0) {
 		clear_bit(ST_CAPT_BUSY, &fimc->state);
 		fimc_stop_capture(fimc, false);
-		fimc_pipeline_shutdown(fimc);
+		fimc_pipeline_call(fimc, close, &fimc->pipeline);
 		clear_bit(ST_CAPT_SUSPENDED, &fimc->state);
 	}
 
@@ -458,22 +592,31 @@ static int fimc_capture_close(struct file *file)
 		vb2_queue_release(&fimc->vid_cap.vbq);
 		fimc_ctrls_delete(fimc->vid_cap.ctx);
 	}
-	return v4l2_fh_release(file);
+
+	ret = v4l2_fh_release(file);
+
+	return ret;
 }
 
 static unsigned int fimc_capture_poll(struct file *file,
 				      struct poll_table_struct *wait)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
+	int ret;
 
-	return vb2_poll(&fimc->vid_cap.vbq, file, wait);
+	ret = vb2_poll(&fimc->vid_cap.vbq, file, wait);
+
+	return ret;
 }
 
 static int fimc_capture_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
+	int ret;
 
-	return vb2_mmap(&fimc->vid_cap.vbq, vma);
+	ret = vb2_mmap(&fimc->vid_cap.vbq, vma);
+
+	return ret;
 }
 
 static const struct v4l2_file_operations fimc_capture_fops = {
@@ -495,19 +638,25 @@ static struct fimc_fmt *fimc_capture_try_format(struct fimc_ctx *ctx,
 {
 	bool rotation = ctx->rotation == 90 || ctx->rotation == 270;
 	struct fimc_dev *fimc = ctx->fimc_dev;
-	struct samsung_fimc_variant *var = fimc->variant;
+	struct fimc_variant *var = fimc->variant;
 	struct fimc_pix_limit *pl = var->pix_limit;
 	struct fimc_frame *dst = &ctx->d_frame;
 	u32 depth, min_w, max_w, min_h, align_h = 3;
 	u32 mask = FMT_FLAGS_CAM;
 	struct fimc_fmt *ffmt;
 
-	/* Color conversion from/to JPEG is not supported */
+	/* Conversion from/to JPEG or User Defined format is not supported */
 	if (code && ctx->s_frame.fmt && pad == FIMC_SD_PAD_SOURCE &&
-	    fimc_fmt_is_jpeg(ctx->s_frame.fmt->color))
-		*code = V4L2_MBUS_FMT_JPEG_1X8;
+	    fimc_fmt_is_user_defined(ctx->s_frame.fmt->color))
+		*code = ctx->s_frame.fmt->mbus_code;
 
-	if (fourcc && *fourcc != V4L2_PIX_FMT_JPEG && pad != FIMC_SD_PAD_SINK)
+	/* Color conversion from/to interleaved data is not supported */
+	if (code && ctx->s_frame.fmt && pad == FIMC_SD_PAD_SOURCE &&
+	    fimc_fmt_is_interleaved(ctx->s_frame.fmt->color))
+		*code = V4L2_MBUS_FMT_INTERLEAVED;
+
+	if (fourcc && *fourcc != V4L2_PIX_FMT_JPEG && *fourcc !=
+			V4L2_PIX_FMT_INTERLEAVED && pad != FIMC_SD_PAD_SINK)
 		mask |= FMT_FLAGS_M2M;
 
 	ffmt = fimc_find_format(fourcc, code, mask, 0);
@@ -519,18 +668,19 @@ static struct fimc_fmt *fimc_capture_try_format(struct fimc_ctx *ctx,
 		*fourcc = ffmt->fourcc;
 
 	if (pad == FIMC_SD_PAD_SINK) {
-		max_w = fimc_fmt_is_jpeg(ffmt->color) ?
+		max_w = (fimc_fmt_is_user_defined(ffmt->color) ||
+				fimc_fmt_is_interleaved(ffmt->color)) ?
 			pl->scaler_dis_w : pl->scaler_en_w;
 		/* Apply the camera input interface pixel constraints */
 		v4l_bound_align_image(width, max_t(u32, *width, 32), max_w, 4,
-				      height, max_t(u32, *height, 32),
-				      FIMC_CAMIF_MAX_HEIGHT,
-				      fimc_fmt_is_jpeg(ffmt->color) ? 3 : 1,
-				      0);
+			height, max_t(u32, *height, 32), FIMC_CAMIF_MAX_HEIGHT,
+			(fimc_fmt_is_user_defined(ffmt->color) ||
+			fimc_fmt_is_interleaved(ffmt->color)) ? 3 : 1, 0);
 		return ffmt;
 	}
 	/* Can't scale or crop in transparent (JPEG) transfer mode */
-	if (fimc_fmt_is_jpeg(ffmt->color)) {
+	if (fimc_fmt_is_user_defined(ffmt->color) ||
+		fimc_fmt_is_interleaved(ffmt->color)) {
 		*width  = ctx->s_frame.f_width;
 		*height = ctx->s_frame.f_height;
 		return ffmt;
@@ -539,6 +689,7 @@ static struct fimc_fmt *fimc_capture_try_format(struct fimc_ctx *ctx,
 	max_w = rotation ? pl->out_rot_en_w : pl->out_rot_dis_w;
 	min_w = ctx->state & FIMC_DST_CROP ? dst->width : var->min_out_pixsize;
 	min_h = ctx->state & FIMC_DST_CROP ? dst->height : var->min_out_pixsize;
+
 	if (var->min_vsize_align == 1 && !rotation)
 		align_h = fimc_fmt_is_rgb(ffmt->color) ? 0 : 1;
 
@@ -561,7 +712,7 @@ static void fimc_capture_try_crop(struct fimc_ctx *ctx, struct v4l2_rect *r,
 {
 	bool rotate = ctx->rotation == 90 || ctx->rotation == 270;
 	struct fimc_dev *fimc = ctx->fimc_dev;
-	struct samsung_fimc_variant *var = fimc->variant;
+	struct fimc_variant *var = fimc->variant;
 	struct fimc_pix_limit *pl = var->pix_limit;
 	struct fimc_frame *sink = &ctx->s_frame;
 	u32 max_w, max_h, min_w = 0, min_h = 0, min_sz;
@@ -569,7 +720,8 @@ static void fimc_capture_try_crop(struct fimc_ctx *ctx, struct v4l2_rect *r,
 	u32 max_sc_h, max_sc_v;
 
 	/* In JPEG transparent transfer mode cropping is not supported */
-	if (fimc_fmt_is_jpeg(ctx->d_frame.fmt->color)) {
+	if (fimc_fmt_is_user_defined(ctx->d_frame.fmt->color) ||
+		fimc_fmt_is_interleaved(ctx->d_frame.fmt->color)) {
 		r->width  = sink->f_width;
 		r->height = sink->f_height;
 		r->left   = r->top = 0;
@@ -602,6 +754,7 @@ static void fimc_capture_try_crop(struct fimc_ctx *ctx, struct v4l2_rect *r,
 		      rotate ? pl->out_rot_en_w : pl->out_rot_dis_w,
 		      rotate ? sink->f_height : sink->f_width);
 	max_h = min_t(u32, FIMC_CAMIF_MAX_HEIGHT, sink->f_height);
+
 	if (pad == FIMC_SD_PAD_SOURCE) {
 		min_w = min_t(u32, max_w, sink->f_width / max_sc_h);
 		min_h = min_t(u32, max_h, sink->f_height / max_sc_v);
@@ -669,9 +822,11 @@ static int fimc_pipeline_try_format(struct fimc_ctx *ctx,
 				    bool set)
 {
 	struct fimc_dev *fimc = ctx->fimc_dev;
-	struct v4l2_subdev *sd = fimc->pipeline.sensor;
-	struct v4l2_subdev *csis = fimc->pipeline.csis;
-	struct v4l2_subdev_format sfmt;
+	struct v4l2_subdev *sd = fimc->pipeline.subdevs[IDX_SENSOR];
+	struct v4l2_subdev *csis = fimc->pipeline.subdevs[IDX_CSIS];
+	struct v4l2_subdev *lite = fimc->pipeline.subdevs[IDX_FLITE];
+	struct v4l2_subdev *is = fimc->pipeline.subdevs[IDX_IS_ISP];
+	struct v4l2_subdev_format sfmt, sfmt_cac;
 	struct v4l2_mbus_framefmt *mf = &sfmt.format;
 	struct fimc_fmt *ffmt = NULL;
 	int ret, i = 0;
@@ -695,33 +850,62 @@ static int fimc_pipeline_try_format(struct fimc_ctx *ctx,
 		}
 		mf->code = tfmt->code = ffmt->mbus_code;
 
-		ret = v4l2_subdev_call(sd, pad, set_fmt, NULL, &sfmt);
-		if (ret)
-			return ret;
-		if (mf->code != tfmt->code) {
-			mf->code = 0;
-			continue;
-		}
-		if (mf->width != tfmt->width || mf->height != tfmt->height) {
-			u32 fcc = ffmt->fourcc;
-			tfmt->width  = mf->width;
-			tfmt->height = mf->height;
-			ffmt = fimc_capture_try_format(ctx,
-					       &tfmt->width, &tfmt->height,
-					       NULL, &fcc, FIMC_SD_PAD_SOURCE);
-			if (ffmt && ffmt->mbus_code)
-				mf->code = ffmt->mbus_code;
-			if (mf->width != tfmt->width ||
-			    mf->height != tfmt->height)
+		if (!is) {
+			ret = v4l2_subdev_call(sd, pad, set_fmt, NULL, &sfmt);
+			if (ret)
+				return ret;
+			if (mf->code != tfmt->code) {
+				mf->code = 0;
 				continue;
-			tfmt->code = mf->code;
-		}
-		if (csis)
-			ret = v4l2_subdev_call(csis, pad, set_fmt, NULL, &sfmt);
+			}
+			if (mf->width != tfmt->width ||
+						mf->height != tfmt->height) {
+				u32 fcc = ffmt->fourcc;
+				tfmt->width  = mf->width;
+				tfmt->height = mf->height;
+				ffmt = fimc_capture_try_format(ctx,
+					&tfmt->width, &tfmt->height,
+					NULL, &fcc, FIMC_SD_PAD_SOURCE);
+				if (ffmt && ffmt->mbus_code)
+					mf->code = ffmt->mbus_code;
+				if (mf->width != tfmt->width ||
+				    mf->height != tfmt->height)
+					continue;
+				tfmt->code = mf->code;
+			}
+			if (csis)
+				ret = v4l2_subdev_call(csis, pad,
+							set_fmt, NULL, &sfmt);
 
-		if (mf->code == tfmt->code &&
-		    mf->width == tfmt->width && mf->height == tfmt->height)
+			if (mf->code == tfmt->code &&
+			    mf->width == tfmt->width &&
+			    mf->height == tfmt->height)
+				break;
+		} else {
+			ret = v4l2_subdev_call(is, pad, set_fmt, NULL, &sfmt);
+			if (ret)
+				return ret;
+			sfmt_cac = sfmt;
+			sfmt_cac.format.width = sfmt.format.width + 16;
+			sfmt_cac.format.height = sfmt.format.height + 12;
+			ret = v4l2_subdev_call(sd, pad,
+						set_fmt, NULL, &sfmt_cac);
+			if (ret)
+				return ret;
+
+			if (csis)
+				ret = v4l2_subdev_call(csis, pad,
+						set_fmt, NULL, &sfmt_cac);
+			if (ret)
+				return ret;
+
+			if (lite)
+				ret = v4l2_subdev_call(lite, pad,
+						set_fmt, NULL, &sfmt_cac);
+			if (ret)
+				return ret;
 			break;
+		}
 	}
 
 	if (fmt_id && ffmt)
@@ -738,9 +922,6 @@ static int fimc_cap_g_fmt_mplane(struct file *file, void *fh,
 	struct fimc_dev *fimc = video_drvdata(file);
 	struct fimc_ctx *ctx = fimc->vid_cap.ctx;
 
-	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
-		return -EINVAL;
-
 	return fimc_fill_format(&ctx->d_frame, f);
 }
 
@@ -753,10 +934,7 @@ static int fimc_cap_try_fmt_mplane(struct file *file, void *fh,
 	struct v4l2_mbus_framefmt mf;
 	struct fimc_fmt *ffmt = NULL;
 
-	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
-		return -EINVAL;
-
-	if (pix->pixelformat == V4L2_PIX_FMT_JPEG) {
+	if (fimc_jpeg_fourcc(pix->pixelformat)) {
 		fimc_capture_try_format(ctx, &pix->width, &pix->height,
 					NULL, &pix->pixelformat,
 					FIMC_SD_PAD_SINK);
@@ -770,29 +948,33 @@ static int fimc_cap_try_fmt_mplane(struct file *file, void *fh,
 		return -EINVAL;
 
 	if (!fimc->vid_cap.user_subdev_api) {
-		mf.width  = pix->width;
+		mf.width = pix->width;
 		mf.height = pix->height;
-		mf.code   = ffmt->mbus_code;
+		mf.code = ffmt->mbus_code;
 		fimc_md_graph_lock(fimc);
 		fimc_pipeline_try_format(ctx, &mf, &ffmt, false);
 		fimc_md_graph_unlock(fimc);
-
-		pix->width	 = mf.width;
-		pix->height	 = mf.height;
+		pix->width = mf.width;
+		pix->height = mf.height;
 		if (ffmt)
 			pix->pixelformat = ffmt->fourcc;
 	}
 
 	fimc_adjust_mplane_format(ffmt, pix->width, pix->height, pix);
+
 	return 0;
 }
 
-static void fimc_capture_mark_jpeg_xfer(struct fimc_ctx *ctx, bool jpeg)
+static void fimc_capture_mark_jpeg_xfer(struct fimc_ctx *ctx,
+					enum fimc_color_fmt color)
 {
+	bool jpeg = (fimc_fmt_is_user_defined(color) ||
+			fimc_fmt_is_interleaved(color));
+
 	ctx->scaler.enabled = !jpeg;
 	fimc_ctrls_activate(ctx, !jpeg);
 
-	if (jpeg)
+	if (fimc_fmt_is_user_defined(color))
 		set_bit(ST_CAPT_JPEG, &ctx->fimc_dev->state);
 	else
 		clear_bit(ST_CAPT_JPEG, &ctx->fimc_dev->state);
@@ -807,13 +989,12 @@ static int fimc_capture_set_format(struct fimc_dev *fimc, struct v4l2_format *f)
 	struct fimc_fmt *s_fmt = NULL;
 	int ret, i;
 
-	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
-		return -EINVAL;
 	if (vb2_is_busy(&fimc->vid_cap.vbq))
 		return -EBUSY;
 
 	/* Pre-configure format at camera interface input, for JPEG only */
-	if (pix->pixelformat == V4L2_PIX_FMT_JPEG) {
+	if (fimc_jpeg_fourcc(pix->pixelformat) ||
+		(pix->pixelformat == V4L2_PIX_FMT_INTERLEAVED)) {
 		fimc_capture_try_format(ctx, &pix->width, &pix->height,
 					NULL, &pix->pixelformat,
 					FIMC_SD_PAD_SINK);
@@ -844,17 +1025,23 @@ static int fimc_capture_set_format(struct fimc_dev *fimc, struct v4l2_format *f)
 		pix->width  = mf->width;
 		pix->height = mf->height;
 	}
+
 	fimc_adjust_mplane_format(ff->fmt, pix->width, pix->height, pix);
-	for (i = 0; i < ff->fmt->colplanes; i++)
-		ff->payload[i] =
-			(pix->width * pix->height * ff->fmt->depth[i]) / 8;
+
+	if (fimc_fmt_is_interleaved(ff->fmt->color)) {
+		for (i = 0; i < ff->fmt->colplanes; i++)
+			ff->payload[i] = ff->fmt->depth[i];
+	} else {
+		for (i = 0; i < ff->fmt->memplanes; i++)
+			ff->payload[i] = pix->plane_fmt[i].sizeimage;
+	}
 
 	set_frame_bounds(ff, pix->width, pix->height);
 	/* Reset the composition rectangle if not yet configured */
 	if (!(ctx->state & FIMC_DST_CROP))
 		set_frame_crop(ff, 0, 0, pix->width, pix->height);
 
-	fimc_capture_mark_jpeg_xfer(ctx, fimc_fmt_is_jpeg(ff->fmt->color));
+	fimc_capture_mark_jpeg_xfer(ctx, ff->fmt->color);
 
 	/* Reset cropping and set format at the camera interface input */
 	if (!fimc->vid_cap.user_subdev_api) {
@@ -878,7 +1065,7 @@ static int fimc_cap_enum_input(struct file *file, void *priv,
 			       struct v4l2_input *i)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
-	struct v4l2_subdev *sd = fimc->pipeline.sensor;
+	struct v4l2_subdev *sd = fimc->pipeline.subdevs[IDX_SENSOR];
 
 	if (i->index != 0)
 		return -EINVAL;
@@ -921,13 +1108,14 @@ static int fimc_pipeline_validate(struct fimc_dev *fimc)
 	/* FIMC.{N} subdevice */
 	sd = media_entity_to_v4l2_subdev(pad->entity);
 
+	dbg("fimc sd name : %s", sd->name);
 	while (1) {
 		/* Retrieve format at the sink pad */
 		pad = &sd->entity.pads[0];
 		if (!(pad->flags & MEDIA_PAD_FL_SINK))
 			break;
 		/* Don't call FIMC subdev operation to avoid nested locking */
-		if (sd == fimc->vid_cap.subdev) {
+		if (sd == &fimc->vid_cap.subdev) {
 			struct fimc_frame *ff = &vid_cap->ctx->s_frame;
 			sink_fmt.format.width = ff->f_width;
 			sink_fmt.format.height = ff->f_height;
@@ -935,7 +1123,8 @@ static int fimc_pipeline_validate(struct fimc_dev *fimc)
 		} else {
 			sink_fmt.pad = pad->index;
 			sink_fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-			ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &sink_fmt);
+			ret = v4l2_subdev_call(sd, pad, get_fmt, NULL,
+								&sink_fmt);
 			if (ret < 0 && ret != -ENOIOCTLCMD)
 				return -EPIPE;
 		}
@@ -946,11 +1135,19 @@ static int fimc_pipeline_validate(struct fimc_dev *fimc)
 			break;
 
 		sd = media_entity_to_v4l2_subdev(pad->entity);
+		dbg("sd name : %s", sd->name);
 		src_fmt.pad = pad->index;
 		src_fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 		ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &src_fmt);
 		if (ret < 0 && ret != -ENOIOCTLCMD)
 			return -EPIPE;
+
+		dbg("src_width : %d, src_height : %d, src_code : %d",
+			src_fmt.format.width, src_fmt.format.height,
+			src_fmt.format.code);
+		dbg("sink_width : %d, sink_height : %d, sink_code : %d",
+			sink_fmt.format.width, sink_fmt.format.height,
+			sink_fmt.format.code);
 
 		if (src_fmt.format.width != sink_fmt.format.width ||
 		    src_fmt.format.height != sink_fmt.format.height ||
@@ -965,17 +1162,20 @@ static int fimc_cap_streamon(struct file *file, void *priv,
 {
 	struct fimc_dev *fimc = video_drvdata(file);
 	struct fimc_pipeline *p = &fimc->pipeline;
+	struct v4l2_subdev *sd = p->subdevs[IDX_SENSOR];
 	int ret;
 
 	if (fimc_capture_active(fimc))
 		return -EBUSY;
 
-	media_entity_pipeline_start(&p->sensor->entity, p->pipe);
+	media_entity_pipeline_start(&sd->entity, p->m_pipeline);
 
 	if (fimc->vid_cap.user_subdev_api) {
 		ret = fimc_pipeline_validate(fimc);
-		if (ret)
+		if (ret < 0) {
+			media_entity_pipeline_stop(&sd->entity);
 			return ret;
+		}
 	}
 	return vb2_streamon(&fimc->vid_cap.vbq, type);
 }
@@ -984,7 +1184,7 @@ static int fimc_cap_streamoff(struct file *file, void *priv,
 			    enum v4l2_buf_type type)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
-	struct v4l2_subdev *sd = fimc->pipeline.sensor;
+	struct v4l2_subdev *sd = fimc->pipeline.subdevs[IDX_SENSOR];
 	int ret;
 
 	ret = vb2_streamoff(&fimc->vid_cap.vbq, type);
@@ -1080,7 +1280,7 @@ static int fimc_cap_g_selection(struct file *file, void *fh,
 }
 
 /* Return 1 if rectangle a is enclosed in rectangle b, or 0 otherwise. */
-int enclosed_rectangle(struct v4l2_rect *a, struct v4l2_rect *b)
+static int enclosed_rectangle(struct v4l2_rect *a, struct v4l2_rect *b)
 {
 	if (a->left < b->left || a->top < b->top)
 		return 0;
@@ -1121,7 +1321,6 @@ static int fimc_cap_s_selection(struct file *file, void *fh,
 	default:
 		return -EINVAL;
 	}
-
 	fimc_capture_try_crop(ctx, &rect, pad);
 
 	if (s->flags & V4L2_SEL_FLAG_LE &&
@@ -1243,7 +1442,7 @@ void fimc_sensor_notify(struct v4l2_subdev *sd, unsigned int notification,
 					 struct fimc_vid_buffer, list);
 			vb2_set_plane_payload(&buf->vb, 0, *((u32 *)arg));
 		}
-		fimc_capture_irq_handler(fimc, true);
+		fimc_capture_irq_handler(fimc, 1);
 		fimc_deactivate_capture(fimc);
 		spin_unlock_irqrestore(&fimc->slock, irq_flags);
 	}
@@ -1323,7 +1522,7 @@ static int fimc_subdev_set_fmt(struct v4l2_subdev *sd,
 	/* Update RGB Alpha control state and value range */
 	fimc_alpha_ctrl_update(ctx);
 
-	fimc_capture_mark_jpeg_xfer(ctx, fimc_fmt_is_jpeg(ffmt->color));
+	fimc_capture_mark_jpeg_xfer(ctx, ffmt->color);
 
 	ff = fmt->pad == FIMC_SD_PAD_SINK ?
 		&ctx->s_frame : &ctx->d_frame;
@@ -1360,9 +1559,9 @@ static int fimc_subdev_get_crop(struct v4l2_subdev *sd,
 		&ctx->s_frame : &ctx->d_frame;
 
 	mutex_lock(&fimc->lock);
-	r->left	  = ff->offs_h;
-	r->top	  = ff->offs_v;
-	r->width  = ff->width;
+	r->left = ff->offs_h;
+	r->top = ff->offs_v;
+	r->width = ff->width;
 	r->height = ff->height;
 	mutex_unlock(&fimc->lock);
 
@@ -1393,7 +1592,6 @@ static int fimc_subdev_set_crop(struct v4l2_subdev *sd,
 
 	if (crop->which == V4L2_SUBDEV_FORMAT_TRY) {
 		mutex_unlock(&fimc->lock);
-		*v4l2_subdev_get_try_crop(fh, crop->pad) = *r;
 		return 0;
 	}
 	spin_lock_irqsave(&fimc->slock, flags);
@@ -1423,53 +1621,6 @@ static struct v4l2_subdev_ops fimc_subdev_ops = {
 	.pad = &fimc_subdev_pad_ops,
 };
 
-static int fimc_create_capture_subdev(struct fimc_dev *fimc,
-				      struct v4l2_device *v4l2_dev)
-{
-	struct v4l2_subdev *sd;
-	int ret;
-
-	sd = kzalloc(sizeof(*sd), GFP_KERNEL);
-	if (!sd)
-		return -ENOMEM;
-
-	v4l2_subdev_init(sd, &fimc_subdev_ops);
-	sd->flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
-	snprintf(sd->name, sizeof(sd->name), "FIMC.%d", fimc->pdev->id);
-
-	fimc->vid_cap.sd_pads[FIMC_SD_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
-	fimc->vid_cap.sd_pads[FIMC_SD_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
-	ret = media_entity_init(&sd->entity, FIMC_SD_PADS_NUM,
-				fimc->vid_cap.sd_pads, 0);
-	if (ret)
-		goto me_err;
-	ret = v4l2_device_register_subdev(v4l2_dev, sd);
-	if (ret)
-		goto sd_err;
-
-	fimc->vid_cap.subdev = sd;
-	v4l2_set_subdevdata(sd, fimc);
-	sd->entity.ops = &fimc_sd_media_ops;
-	return 0;
-sd_err:
-	media_entity_cleanup(&sd->entity);
-me_err:
-	kfree(sd);
-	return ret;
-}
-
-static void fimc_destroy_capture_subdev(struct fimc_dev *fimc)
-{
-	struct v4l2_subdev *sd = fimc->vid_cap.subdev;
-
-	if (!sd)
-		return;
-	media_entity_cleanup(&sd->entity);
-	v4l2_device_unregister_subdev(sd);
-	kfree(sd);
-	fimc->vid_cap.subdev = NULL;
-}
-
 /* Set default format at the sensor and host interface */
 static int fimc_capture_set_default_format(struct fimc_dev *fimc)
 {
@@ -1488,96 +1639,148 @@ static int fimc_capture_set_default_format(struct fimc_dev *fimc)
 }
 
 /* fimc->lock must be already initialized */
-int fimc_register_capture_device(struct fimc_dev *fimc,
+static int fimc_register_capture_device(struct fimc_dev *fimc,
 				 struct v4l2_device *v4l2_dev)
 {
-	struct video_device *vfd;
+	struct video_device *vfd = &fimc->vid_cap.vfd;
 	struct fimc_vid_cap *vid_cap;
 	struct fimc_ctx *ctx;
 	struct vb2_queue *q;
 	int ret = -ENOMEM;
 
-	ctx = kzalloc(sizeof *ctx, GFP_KERNEL);
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
 	ctx->fimc_dev	 = fimc;
-	ctx->in_path	 = FIMC_CAMERA;
-	ctx->out_path	 = FIMC_DMA;
+	ctx->in_path	 = FIMC_IO_CAMERA;
+	ctx->out_path	 = FIMC_IO_DMA;
 	ctx->state	 = FIMC_CTX_CAP;
 	ctx->s_frame.fmt = fimc_find_format(NULL, NULL, FMT_FLAGS_CAM, 0);
-	ctx->d_frame.fmt = fimc_find_format(NULL, NULL, FMT_FLAGS_CAM, 0);
+	ctx->d_frame.fmt = ctx->s_frame.fmt;
 
-	vfd = video_device_alloc();
-	if (!vfd) {
-		v4l2_err(v4l2_dev, "Failed to allocate video device\n");
-		goto err_vd_alloc;
-	}
-
-	snprintf(vfd->name, sizeof(vfd->name), "%s.capture",
-		 dev_name(&fimc->pdev->dev));
+	memset(vfd, 0, sizeof(*vfd));
+	snprintf(vfd->name, sizeof(vfd->name), "fimc.%d.capture", fimc->id);
 
 	vfd->fops	= &fimc_capture_fops;
 	vfd->ioctl_ops	= &fimc_capture_ioctl_ops;
 	vfd->v4l2_dev	= v4l2_dev;
 	vfd->minor	= -1;
-	vfd->release	= video_device_release;
+	vfd->release	= video_device_release_empty;
 	vfd->lock	= &fimc->lock;
+
 	video_set_drvdata(vfd, fimc);
 
 	vid_cap = &fimc->vid_cap;
-	vid_cap->vfd = vfd;
 	vid_cap->active_buf_cnt = 0;
 	vid_cap->reqbufs_count  = 0;
 	vid_cap->refcnt = 0;
 
 	INIT_LIST_HEAD(&vid_cap->pending_buf_q);
 	INIT_LIST_HEAD(&vid_cap->active_buf_q);
-	spin_lock_init(&ctx->slock);
 	vid_cap->ctx = ctx;
 
 	q = &fimc->vid_cap.vbq;
 	memset(q, 0, sizeof(*q));
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-	q->io_modes = VB2_MMAP | VB2_USERPTR;
+	q->io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
 	q->drv_priv = fimc->vid_cap.ctx;
 	q->ops = &fimc_capture_qops;
-	q->mem_ops = &vb2_dma_contig_memops;
+	q->mem_ops = ctx->fimc_dev->vb2->ops;
 	q->buf_struct_size = sizeof(struct fimc_vid_buffer);
 
 	vb2_queue_init(q);
 
-	fimc->vid_cap.vd_pad.flags = MEDIA_PAD_FL_SINK;
-	ret = media_entity_init(&vfd->entity, 1, &fimc->vid_cap.vd_pad, 0);
+	vid_cap->vd_pad.flags = MEDIA_PAD_FL_SINK;
+	ret = media_entity_init(&vfd->entity, 1, &vid_cap->vd_pad, 0);
 	if (ret)
 		goto err_ent;
-	ret = fimc_create_capture_subdev(fimc, v4l2_dev);
-	if (ret)
-		goto err_sd_reg;
 
-	vfd->ctrl_handler = &ctx->ctrl_handler;
+	ret = video_register_device(vfd, VFL_TYPE_GRABBER,
+			S5P_VIDEONODE_FIMC_CAP(fimc->id));
+	if (ret)
+		goto err_vd;
+
+	v4l2_info(v4l2_dev, "Registered %s as /dev/%s\n",
+		  vfd->name, video_device_node_name(vfd));
+
+	vfd->ctrl_handler = &ctx->ctrls.handler;
 	return 0;
 
-err_sd_reg:
+err_vd:
 	media_entity_cleanup(&vfd->entity);
 err_ent:
-	video_device_release(vfd);
-err_vd_alloc:
 	kfree(ctx);
 	return ret;
 }
 
-void fimc_unregister_capture_device(struct fimc_dev *fimc)
+static int fimc_capture_subdev_registered(struct v4l2_subdev *sd)
 {
-	struct video_device *vfd = fimc->vid_cap.vfd;
+	struct fimc_dev *fimc = v4l2_get_subdevdata(sd);
+	int ret;
 
-	if (vfd) {
-		media_entity_cleanup(&vfd->entity);
-		/* Can also be called if video device was
-		   not registered */
-		video_unregister_device(vfd);
+	if (fimc == NULL)
+		return -ENXIO;
+	ret = fimc_register_m2m_device(fimc, sd->v4l2_dev);
+	if (ret)
+		return ret;
+
+	ret = fimc_register_capture_device(fimc, sd->v4l2_dev);
+	if (ret)
+		fimc_unregister_m2m_device(fimc);
+
+	return ret;
+}
+
+static void fimc_capture_subdev_unregistered(struct v4l2_subdev *sd)
+{
+	struct fimc_dev *fimc = v4l2_get_subdevdata(sd);
+
+	if (fimc == NULL)
+		return;
+
+	fimc_unregister_m2m_device(fimc);
+
+	if (video_is_registered(&fimc->vid_cap.vfd)) {
+		video_unregister_device(&fimc->vid_cap.vfd);
+		media_entity_cleanup(&fimc->vid_cap.vfd.entity);
 	}
-	fimc_destroy_capture_subdev(fimc);
 	kfree(fimc->vid_cap.ctx);
 	fimc->vid_cap.ctx = NULL;
+}
+
+static const struct v4l2_subdev_internal_ops fimc_capture_sd_internal_ops = {
+	.registered = fimc_capture_subdev_registered,
+	.unregistered = fimc_capture_subdev_unregistered,
+};
+
+int fimc_initialize_capture_subdev(struct fimc_dev *fimc)
+{
+	struct v4l2_subdev *sd = &fimc->vid_cap.subdev;
+	int ret;
+
+	v4l2_subdev_init(sd, &fimc_subdev_ops);
+	sd->flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
+	snprintf(sd->name, sizeof(sd->name), "FIMC.%d", fimc->pdev->id);
+
+	fimc->vid_cap.sd_pads[FIMC_SD_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
+	fimc->vid_cap.sd_pads[FIMC_SD_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
+	ret = media_entity_init(&sd->entity, FIMC_SD_PADS_NUM,
+				fimc->vid_cap.sd_pads, 0);
+	if (ret)
+		return ret;
+
+	sd->entity.ops = &fimc_sd_media_ops;
+	sd->internal_ops = &fimc_capture_sd_internal_ops;
+	v4l2_set_subdevdata(sd, fimc);
+	return 0;
+}
+
+void fimc_unregister_capture_subdev(struct fimc_dev *fimc)
+{
+	struct v4l2_subdev *sd = &fimc->vid_cap.subdev;
+
+	v4l2_device_unregister_subdev(sd);
+	media_entity_cleanup(&sd->entity);
+	v4l2_set_subdevdata(sd, NULL);
 }

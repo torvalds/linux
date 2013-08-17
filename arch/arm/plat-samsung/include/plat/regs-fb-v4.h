@@ -30,22 +30,37 @@
 #define VIDCON1_FSTATUS_EVEN	(1 << 15)
 
 /* Video timing controls */
+#ifdef CONFIG_FB_EXYNOS_FIMD_V8
+#define VIDTCON0				(0x20010)
+#define VIDTCON1				(0x20014)
+#define VIDTCON2				(0x20018)
+#define VIDTCON3				(0x2001C)
+#else
 #define VIDTCON0				(0x10)
 #define VIDTCON1				(0x14)
 #define VIDTCON2				(0x18)
+#define VIDTCON3				(0x1C)
+#endif
 
 /* Window position controls */
 
 #define WINCON(_win)				(0x20 + ((_win) * 4))
+
+/* Window rgborder controls */
+
+#define WIN_RGB_ORDER(_win)				(0x2020 + ((_win) * 4))
 
 /* OSD1 and OSD4 do not have register D */
 
 #define VIDOSD_BASE				(0x40)
 
 #define VIDINTCON0				(0x130)
+#define VIDINTCON1				(0x134)
 
 /* WINCONx */
 
+#define WINCONx_CSC_CON_EQ709			(1 << 28)
+#define WINCONx_CSC_CON_EQ601			(0 << 28)
 #define WINCONx_CSCWIDTH_MASK			(0x3 << 26)
 #define WINCONx_CSCWIDTH_SHIFT			(26)
 #define WINCONx_CSCWIDTH_WIDE			(0x0 << 26)
@@ -157,3 +172,6 @@
  * 1110		-none-	 -none-	  -none-   -none-    -none-
  * 1111		-none-	 -none-   -none-   -none-    -none-
 */
+
+/* IP's version */
+#define FIMD_VERSION_4X				(0x40000000)

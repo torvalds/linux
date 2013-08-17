@@ -244,7 +244,7 @@ static int mmc_dbg_card_status_get(void *data, u64 *val)
 
 	mmc_claim_host(card->host);
 
-	ret = mmc_send_status(data, &status);
+	ret = mmc_send_status(data, &status, 0);
 	if (!ret)
 		*val = status;
 

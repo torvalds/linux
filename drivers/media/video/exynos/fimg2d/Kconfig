@@ -1,0 +1,20 @@
+# drivers/media/video/exynos/fimg2d/Kconfig
+#
+# Copyright (c) 2011 Samsung Electronics Co., Ltd.
+#	http://www.samsung.com/
+#
+# Licensed under GPLv2
+
+config VIDEO_EXYNOS_FIMG2D
+	bool "Samsung Graphics 2D Driver"
+	depends on VIDEO_EXYNOS && (ARCH_EXYNOS4 || ARCH_EXYNOS5)
+	default n
+	---help---
+	  This is a graphics 2D driver for Samsung ARM based SoC.
+
+config FIMG2D_CCI_SNOOP
+	bool "Enables CCI snoop control"
+	depends on VIDEO_EXYNOS_FIMG2D && EXYNOS5_CCI
+	default n
+	---help---
+	  This enables CCI snoop control for cache coherency.

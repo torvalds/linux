@@ -73,6 +73,9 @@ struct gether {
 /* netdev setup/teardown as directed by the gadget driver */
 int gether_setup(struct usb_gadget *g, u8 ethaddr[ETH_ALEN]);
 void gether_cleanup(void);
+/* variant of gether_setup that allows customizing network device name */
+int gether_setup_name(struct usb_gadget *g, u8 ethaddr[ETH_ALEN],
+		const char *netname);
 
 /* connect/disconnect is handled by individual functions */
 struct net_device *gether_connect(struct gether *);
@@ -100,11 +103,20 @@ int eem_bind_config(struct usb_configuration *c);
 #ifdef USB_ETH_RNDIS
 
 int rndis_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN]);
+int rndis_bind_config_vendor(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
+				u32 vendorID, const char *manufacturer);
 
 #else
 
 static inline int
 rndis_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
+{
+	return 0;
+}
+
+static inline int
+rndis_bind_config_vendor(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
+				u32 vendorID, const char *manufacturer)
 {
 	return 0;
 }

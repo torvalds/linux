@@ -125,6 +125,37 @@ config LCD_AMS369FG06
 	  If you have an AMS369FG06 AMOLED Panel, say Y to enable its
 	  LCD control driver.
 
+config LCD_MIPI_S6E8AB0
+	tristate "1280 X 800 S6E8AB0 AMOLED MIPI LCD Driver"
+	depends on BACKLIGHT_CLASS_DEVICE
+	default n
+	help
+	  If you have an S6E8AB0 MIPI LCD Panel, say Y to enable its
+	  LCD control driver.
+
+config LCD_MIPI_TC358764
+        tristate "1280 X 800 TC358764 AMOLED MIPI LCD Driver"
+        depends on BACKLIGHT_CLASS_DEVICE
+        default n
+        help
+          If you have an TC358764 MIPI LCD Panel, say Y to enable its
+          LCD control driver.
+
+config LCD_MIPI_S6E8AA0
+	tristate "800 X 1280 S6E8AA0 AMOLED LCD Driver"
+	depends on BACKLIGHT_CLASS_DEVICE
+	default n
+	help
+	  If you have an LCD_MIPI_S6E8AA0 MIPI LCD Panel, say Y to enable its
+	  LCD control driver.
+
+config LCD_LMS501KF03
+	tristate "480 X 800  LMS501KF03 TFT LCD Driver(RGB I/F)"
+	default n
+	help
+	  If you have an LMS501KF03 AMOLED Panel, say Y to enable its
+	  LCD control driver.
+
 endif # LCD_CLASS_DEVICE
 
 #

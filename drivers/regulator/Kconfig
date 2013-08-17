@@ -149,6 +149,15 @@ config REGULATOR_MAX1586
 	  regulator via I2C bus. The provided regulator is suitable
 	  for PXA27x chips to control VCC_CORE and VCC_USIM voltages.
 
+config REGULATOR_MAX77686
+	tristate "Maxim 77686 regulator"
+	depends on MFD_MAX77686
+	help
+	  This driver controls a Maxim 77686 regulator via I2C bus or 3 GPIO ports
+	  to control BUCK2, BUCK3, BUCK4.
+	  The provided regulator is suitable for Exynos-4 and Exynos-5
+	  chips to control VARM, VINT voltages and the other LDOs.
+
 config REGULATOR_MAX8649
 	tristate "Maxim 8649 voltage regulator"
 	depends on I2C
@@ -195,6 +204,14 @@ config REGULATOR_MAX8998
 	  via I2C bus. The provided regulator is suitable for S3C6410
 	  and S5PC1XX chips to control VCC_CORE and VCC_USIM voltages.
 
+config REGULATOR_MAX77802
+	tristate "Maxim 77802 regulator"
+	depends on MFD_MAX77802
+	help
+	  This driver controls a Maxim 77686 regulator
+	  via I2C bus. The provided regulator is suitable for
+	  Exynos-4 chips to control VARM and VINT voltages.
+
 config REGULATOR_PCAP
 	tristate "Motorola PCAP2 regulator driver"
 	depends on EZX_PCAP
@@ -225,11 +242,20 @@ config REGULATOR_PCF50633
 
 config REGULATOR_S5M8767
 	tristate "Samsung S5M8767A voltage regulator"
-	depends on MFD_S5M_CORE
+	depends on MFD_SEC_CORE
 	help
 	 This driver supports a Samsung S5M8767A voltage output regulator
 	 via I2C bus. S5M8767A have 9 Bucks and 28 LDOs output and
 	 supports DVS mode with 8bits of output voltage control.
+
+config REGULATOR_S2MPS11
+	tristate "Samsung S2MPS11 voltage regulator"
+	depends on MFD_SEC_CORE
+	help
+	 This driver controls a Samsung S2MPS11 voltage output regulator
+	 via I2C bus. S2MPS11 have 10 Bucks and 38 LDOs output.
+	 S2MPS11 provide stable power to the ARM core/cache, internal logic,
+	 memory, camera processor, and sub-regulators
 
 config REGULATOR_AB3100
 	tristate "ST-Ericsson AB3100 Regulator functions"

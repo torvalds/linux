@@ -1,0 +1,23 @@
+# Location of default kernels
+KDIR-odroida:=/projects/pr297/linux/odroid-a/current/linux
+KDIR-odroidpc:=/projects/pr297/linux/odroid-pc/current/linux
+KDIR-odroidq:=/projects/pr297/linux/odroid-q/current/linux
+KDIR-orion:=/projects/pr297/linux/orion/current/linux
+KDIR-pegasus:=/projects/pr297/linux/pegasus-smdk/current/linux
+KDIR-tcc8900:=/projects/pr297/linux/tcc8900/current/linux
+KDIR-pb11mp:=/projects/pr297/linux/pb11mp/current/linux
+KDIR-vea9:=/projects/pr297/linux/vea9/current/linux
+KDIR-snowball:=/no/default/kernel/yet
+
+# Name of platform directory with platform specific code (should be built into kernel on a real system) 
+MALI_PLATFORM-odroida=exynos4
+MALI_PLATFORM-odroidpc=exynos4
+MALI_PLATFORM-odroidq=exynos4
+MALI_PLATFORM-orion=exynos4
+MALI_PLATFORM-pegasus=exynos4
+# MALI_SEC 
+MALI_PLATFORM-pegasus-m400=pegasus-m400
+MALI_PLATFORM-tcc8900=tcc8900
+MALI_PLATFORM-pb11mp=arm
+MALI_PLATFORM-vea9=arm
+MALI_PLATFORM-snowball=ux500

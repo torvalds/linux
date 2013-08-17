@@ -1,0 +1,18 @@
+config VIDEO_EXYNOS_FIMC_LITE
+	bool "Exynos Camera Interface(FIMC-Lite) driver"
+	depends on VIDEO_EXYNOS && (ARCH_EXYNOS4 || ARCH_EXYNOS5)
+	select MEDIA_EXYNOS
+	default n
+	help
+	  This is a v4l2 driver for exynos camera interface device.
+
+if VIDEO_EXYNOS_FIMC_LITE && VIDEOBUF2_CMA_PHYS
+comment "Reserved memory configurations"
+config VIDEO_SAMSUNG_MEMSIZE_FLITE0
+	int "Memory size in kbytes for FLITE0"
+	default "10240"
+
+config VIDEO_SAMSUNG_MEMSIZE_FLITE1
+	int "Memory size in kbytes for FLITE1"
+	default "10240"
+endif

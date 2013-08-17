@@ -1,0 +1,16 @@
+source "drivers/gpu/arm/mali400/mali/Kconfig"
+
+config VIDEO_SAMSUNG
+	bool "Samsung Multimedia Devices"
+	depends on VIDEO_CAPTURE_DRIVERS && VIDEO_V4L2
+	select VIDEO_FIXED_MINOR_RANGES
+	default n
+	help
+	  This is a representative video4linux configuration for Samsung multimedia devices.
+
+config VIDEO_SAMSUNG_V4L2
+	bool "V4L2 API for digital camera to be contributed by samsung"
+	depends on VIDEO_DEV && VIDEO_SAMSUNG
+	default n
+	help
+	  This feature is for new V4L2 APIs all about digital camera

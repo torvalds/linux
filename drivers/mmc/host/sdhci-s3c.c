@@ -568,8 +568,10 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 		break;
 	}
 
-	if (pdata->pm_caps)
+	if (pdata->pm_caps) {
 		host->mmc->pm_caps |= pdata->pm_caps;
+		host->mmc->pm_flags = host->mmc->pm_caps;
+	}
 
 	host->quirks |= (SDHCI_QUIRK_32BIT_DMA_ADDR |
 			 SDHCI_QUIRK_32BIT_DMA_SIZE);
@@ -676,6 +678,8 @@ static int sdhci_s3c_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
 
+	if (host->mmc)
+		host->mmc->pm_flags |= host->mmc->pm_caps;
 	return sdhci_suspend_host(host);
 }
 

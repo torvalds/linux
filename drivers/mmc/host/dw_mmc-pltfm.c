@@ -21,7 +21,7 @@
 #include <linux/mmc/dw_mmc.h>
 #include "dw_mmc.h"
 
-static int dw_mci_pltfm_probe(struct platform_device *pdev)
+static int __init dw_mci_pltfm_probe(struct platform_device *pdev)
 {
 	struct dw_mci *host;
 	struct resource	*regs;
@@ -100,9 +100,20 @@ static int dw_mci_pltfm_resume(struct device *dev)
 
 	return 0;
 }
+
+static void dw_mci_pltfm_shutdown(struct device *dev)
+{
+	struct dw_mci *host = dev_get_drvdata(dev);
+
+	if (host->pdata->cd_type == DW_MCI_CD_PERMANENT)
+		dw_mci_shutdown(host);
+}
+
+
 #else
 #define dw_mci_pltfm_suspend	NULL
 #define dw_mci_pltfm_resume	NULL
+#define dw_mci_pltfm_shutdown	NULL
 #endif /* CONFIG_PM_SLEEP */
 
 static SIMPLE_DEV_PM_OPS(dw_mci_pltfm_pmops, dw_mci_pltfm_suspend, dw_mci_pltfm_resume);
@@ -112,6 +123,7 @@ static struct platform_driver dw_mci_pltfm_driver = {
 	.driver		= {
 		.name		= "dw_mmc",
 		.pm		= &dw_mci_pltfm_pmops,
+		.shutdown	= dw_mci_pltfm_shutdown,
 	},
 };
 

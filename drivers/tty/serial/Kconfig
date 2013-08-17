@@ -187,6 +187,13 @@ config SERIAL_SAMSUNG
 	  provide all of these ports, depending on how the serial port
 	  pins are configured.
 
+config SERIAL_SAMSUNG_DMA
+	bool "Support UART DMA Mode"
+	depends on SERIAL_SAMSUNG
+	default n
+	help
+	  Support UART DMA Mode
+
 config SERIAL_SAMSUNG_UARTS_4
 	bool
 	depends on ARM && PLAT_SAMSUNG

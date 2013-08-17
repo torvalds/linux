@@ -81,6 +81,44 @@
 #define USB_PORT_FEAT_REMOTE_WAKE_DISCONNECT	(1 << 9)
 #define USB_PORT_FEAT_REMOTE_WAKE_OVER_CURRENT	(1 << 10)
 
+#ifdef CONFIG_HOST_COMPLIANT_TEST
+/*
+ * Hub Port Test Mode Selector Codes
+ * See USB 2.0 spec Table 11-24
+ */
+#define USB_PORT_TEST_J			0x01
+#define USB_PORT_TEST_K			0x02
+#define USB_PORT_TEST_SE0_NAK		0x03
+#define USB_PORT_TEST_PACKET		0x04
+#define USB_PORT_TEST_FORCE_ENABLE	0x05
+
+/*
+ * Product IDs used to trigger USB Hi-Speed Host Electrical Tests
+ * on the root hub. See USB 2.0 spec 7.1.20 and the
+ * Embedded High-speed Host Electrical Test Procedure.
+ */
+#define EHSET_TEST_SE0_NAK			0x0101
+#define EHSET_TEST_J				0x0102
+#define EHSET_TEST_K				0x0103
+#define EHSET_TEST_PACKET			0x0104
+/* Note that the FORCE ENABLE test is no longer used in the EHSET spec. */
+#define EHSET_TEST_FORCE_ENABLE			0x0105
+#define EHSET_HS_HOST_PORT_SUSPEND_RESUME	0x0106
+#define EHSET_SINGLE_STEP_GET_DEV_DESC		0x0107
+#define EHSET_SINGLE_STEP_SET_FEATURE		0x0108
+#define LOW_LEVEL_TEST_J			0x010a
+#define LOW_LEVEL_TEST_K			0x010b
+#define LOW_LEVEL_SE0_NAK			0x010c
+#define LOW_LEVEL_TEST_PACKET			0x010d
+
+/*
+ * This is used for the Hi-Speed Host Electrical Tests
+ * on the root hub. See USB 2.0 spec 7.1.20 and the
+ * Embedded High-speed Host Electrical Test Procedure.
+ */
+#define USB_PORT_TEST_SINGLE_STEP_SET_FEATURE	0x00
+
+#endif
 /*
  * Hub Status and Hub Change results
  * See USB 2.0 spec Table 11-19 and Table 11-20

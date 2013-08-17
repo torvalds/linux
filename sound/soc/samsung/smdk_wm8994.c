@@ -10,7 +10,10 @@
 #include "../codecs/wm8994.h"
 #include <sound/pcm_params.h>
 #include <linux/module.h>
+#include <linux/clk.h>
 
+#include "i2s.h"
+#include "i2s-regs.h"
  /*
   * Default CFG switch settings to use this driver:
   *	SMDKV310: CFG5-1000, CFG7-111111
@@ -35,7 +38,126 @@
 
 /* SMDK has a 16.934MHZ crystal attached to WM8994 */
 #define SMDK_WM8994_FREQ 16934000
+#ifdef CONFIG_SND_SAMSUNG_I2S_MASTER
+static int set_epll_rate(unsigned long rate)
+{
+	struct clk *fout_epll;
 
+	fout_epll = clk_get(NULL, "fout_epll");
+	if (IS_ERR(fout_epll)) {
+		pr_err("%s: failed to get fout_epll\n", __func__);
+		return PTR_ERR(fout_epll);
+	}
+
+	if (rate == clk_get_rate(fout_epll))
+		goto out;
+
+	clk_set_rate(fout_epll, rate);
+out:
+	clk_put(fout_epll);
+
+	return 0;
+}
+
+static int smdk_hw_params(struct snd_pcm_substream *substream,
+	struct snd_pcm_hw_params *params)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	int bfs, rfs, ret;
+	unsigned long rclk, epll_clk = 180633600;
+
+	switch (params_format(params)) {
+	case SNDRV_PCM_FORMAT_U24:
+	case SNDRV_PCM_FORMAT_S24:
+		bfs = 48;
+		break;
+	case SNDRV_PCM_FORMAT_U16_LE:
+	case SNDRV_PCM_FORMAT_S16_LE:
+		bfs = 32;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	switch (params_rate(params)) {
+	case 16000:
+	case 22050:
+	case 24000:
+	case 32000:
+	case 44100:
+	case 48000:
+	case 88200:
+	case 96000:
+		if (bfs == 48)
+			rfs = 384;
+		else
+			rfs = 512;
+		break;
+	case 64000:
+		rfs = 384;
+		break;
+	case 8000:
+	case 11025:
+	case 12000:
+		if (bfs == 48)
+			rfs = 768;
+		else
+			rfs = 512;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	rclk = params_rate(params) * rfs;
+
+	if (epll_clk % rclk != 0) {
+		pr_err("Not yet supported!\n");
+		return -EINVAL;
+	}
+
+	set_epll_rate(epll_clk);
+
+	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S
+					| SND_SOC_DAIFMT_NB_NF
+					| SND_SOC_DAIFMT_CBS_CFS);
+	if (ret < 0)
+		return ret;
+
+	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S
+					| SND_SOC_DAIFMT_NB_NF
+					| SND_SOC_DAIFMT_CBS_CFS);
+	if (ret < 0)
+		return ret;
+
+	ret = snd_soc_dai_set_sysclk(cpu_dai, SAMSUNG_I2S_OPCLK,
+					0, MOD_OPCLK_PCLK);
+	if (ret < 0)
+		return ret;
+
+	ret = snd_soc_dai_set_sysclk(cpu_dai, SAMSUNG_I2S_RCLKSRC_1,
+					rclk, SND_SOC_CLOCK_OUT);
+	if (ret < 0)
+		return ret;
+
+	ret = snd_soc_dai_set_sysclk(cpu_dai, SAMSUNG_I2S_CDCLK,
+					rfs, SND_SOC_CLOCK_OUT);
+	if (ret < 0)
+		return ret;
+
+	ret = snd_soc_dai_set_clkdiv(cpu_dai, SAMSUNG_I2S_DIV_BCLK, bfs);
+	if (ret < 0)
+		return ret;
+pr_err("rclk=%luHz\n", rclk);
+	ret = snd_soc_dai_set_sysclk(codec_dai, WM8994_SYSCLK_MCLK1,
+					rclk, SND_SOC_CLOCK_IN);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+#else
 static int smdk_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
@@ -75,9 +197,14 @@ static int smdk_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
+	ret = snd_soc_dai_set_sysclk(cpu_dai, SAMSUNG_I2S_OPCLK,
+					0, MOD_OPCLK_PCLK);
+	if (ret < 0)
+		return ret;
+
 	return 0;
 }
-
+#endif
 /*
  * SMDK WM8994 DAI operations.
  */
@@ -122,7 +249,7 @@ static int smdk_wm8994_init_paiftx(struct snd_soc_pcm_runtime *rtd)
 }
 
 static struct snd_soc_dai_link smdk_dai[] = {
-	{ /* Primary DAI i/f */
+	{  /* Primary DAI i/f */
 		.name = "WM8994 AIF1",
 		.stream_name = "Pri_Dai",
 		.cpu_dai_name = "samsung-i2s.0",
@@ -136,7 +263,11 @@ static struct snd_soc_dai_link smdk_dai[] = {
 		.stream_name = "Sec_Dai",
 		.cpu_dai_name = "samsung-i2s.4",
 		.codec_dai_name = "wm8994-aif1",
+#ifdef CONFIG_SND_SAMSUNG_USE_IDMA
+		.platform_name = "samsung-idma",
+#else
 		.platform_name = "samsung-audio",
+#endif
 		.codec_name = "wm8994-codec",
 		.ops = &smdk_ops,
 	},
@@ -155,7 +286,7 @@ static int __init smdk_audio_init(void)
 {
 	int ret;
 
-	smdk_snd_device = platform_device_alloc("soc-audio", -1);
+	smdk_snd_device = platform_device_alloc("soc-audio", 0);
 	if (!smdk_snd_device)
 		return -ENOMEM;
 

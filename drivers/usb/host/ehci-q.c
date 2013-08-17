@@ -287,11 +287,16 @@ __acquires(ehci->lock)
 		urb->actual_length, urb->transfer_buffer_length);
 #endif
 
+#ifdef CONFIG_HOST_COMPLIANT_TEST
+	if (likely(urb->transfer_flags == URB_HCD_DRIVER_TEST))
+		ehci_dbg(ehci, "USB_TEST : URB_HCD_DRIVER_TEST\n");
+#else
 	/* complete() can reenter this HCD */
 	usb_hcd_unlink_urb_from_ep(ehci_to_hcd(ehci), urb);
 	spin_unlock (&ehci->lock);
 	usb_hcd_giveback_urb(ehci_to_hcd(ehci), urb, status);
 	spin_lock (&ehci->lock);
+#endif
 }
 
 static void start_unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh);

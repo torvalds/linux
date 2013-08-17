@@ -241,6 +241,12 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		"Grass Green",
 		"Skin Whiten",
 		"Vivid",
+		"Aqua",
+		"Art Freeze",
+		"Silhouette",
+		"Solarization",
+		"Antique",
+		"Set Cb/Cr",
 		NULL
 	};
 	static const char * const tune_preemphasis[] = {
@@ -493,6 +499,7 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_MIN_BUFFERS_FOR_CAPTURE:	return "Min Number of Capture Buffers";
 	case V4L2_CID_MIN_BUFFERS_FOR_OUTPUT:	return "Min Number of Output Buffers";
 	case V4L2_CID_ALPHA_COMPONENT:		return "Alpha Component";
+	case V4L2_CID_COLORFX_CBCR:		return "Color Effects, CbCr";
 
 	/* MPEG controls */
 	/* Keep the order of the 'case's the same as in videodev2.h! */

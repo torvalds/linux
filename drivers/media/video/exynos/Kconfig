@@ -1,0 +1,38 @@
+#
+# Exynos multimedia device drivers
+#
+config VIDEO_EXYNOS
+	bool "Exynos Multimedia Devices"
+	depends on ARCH_EXYNOS4 || ARCH_EXYNOS5
+	default n
+	select VIDEO_FIXED_MINOR_RANGES
+	help
+	  This is a representative exynos multimedia device.
+
+if VIDEO_EXYNOS
+	source "drivers/media/video/exynos/mdev/Kconfig"
+	source "drivers/media/video/exynos/fimc-lite/Kconfig"
+	source "drivers/media/video/exynos/mipi-csis/Kconfig"
+	source "drivers/media/video/exynos/gsc/Kconfig"
+	source "drivers/media/video/exynos/scaler/Kconfig"
+	source "drivers/media/video/exynos/jpeg/Kconfig"
+	source "drivers/media/video/exynos/jpeg_hx/Kconfig"
+	source "drivers/media/video/exynos/fimg2d/Kconfig"
+	source "drivers/media/video/exynos/mfc/Kconfig"
+	source "drivers/media/video/exynos/tv/Kconfig"
+	source "drivers/media/video/exynos/rotator/Kconfig"
+	source "drivers/media/video/exynos/fimc-is-mc2/Kconfig"
+
+config VIDEO_EXYNOS5_FIMC_IS_SENSOR
+	bool "Exynos FIMC-IS-SENSOR driver"
+	depends on VIDEO_EXYNOS || VIDEO_EXYNOS5_FIMC_IS
+	select MEDIA_EXYNOS
+	default n
+	help
+	  This is a v4l2 driver for exynos FIMC-IS-SENSOR device.
+endif
+
+config MEDIA_EXYNOS
+	bool
+	help
+	  Compile mdev to use exynos5 media device driver.

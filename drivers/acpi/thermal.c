@@ -845,7 +845,7 @@ static int acpi_thermal_register_thermal_zone(struct acpi_thermal *tz)
 
 	if (tz->trips.passive.flags.valid)
 		tz->thermal_zone =
-			thermal_zone_device_register("acpitz", trips, tz,
+			thermal_zone_device_register("acpitz", trips, 0, tz,
 						     &acpi_thermal_zone_ops,
 						     tz->trips.passive.tc1,
 						     tz->trips.passive.tc2,
@@ -853,7 +853,7 @@ static int acpi_thermal_register_thermal_zone(struct acpi_thermal *tz)
 						     tz->polling_frequency*100);
 	else
 		tz->thermal_zone =
-			thermal_zone_device_register("acpitz", trips, tz,
+			thermal_zone_device_register("acpitz", trips, 0, tz,
 						     &acpi_thermal_zone_ops,
 						     0, 0, 0,
 						     tz->polling_frequency*100);

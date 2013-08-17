@@ -17,6 +17,8 @@
 #include <asm/pgtable-hwdef.h>
 #include <asm/pgtable.h>
 
+#include <mach/smc.h>
+
 #include "proc-macros.S"
 
 #ifdef CONFIG_ARM_LPAE
@@ -125,9 +127,16 @@ ENTRY(cpu_v7_do_resume)
 	mcr	p15, 0, r1, c2, c0, 0	@ TTB 0
 	mcr	p15, 0, r7, c2, c0, 1	@ TTB 1
 	mcr	p15, 0, r11, c2, c0, 2	@ TTB control register
+#ifdef CONFIG_BL_SWITCHER
+	sub	r4, r0, #8
+	stmia	r4, {r0-r3, r5, r6, r10, lr}
+	bl	cpu_v7_setup_cp15
+	ldmia	r4, {r0-r3, r5, r6, r10, lr}
+#else
 	mrc	p15, 0, r4, c1, c0, 1	@ Read Auxiliary control register
 	teq	r4, r9			@ Is it already set?
 	mcrne	p15, 0, r9, c1, c0, 1	@ No, so write it
+#endif
 	mcr	p15, 0, r10, c1, c0, 2	@ Co-processor access control
 	ldr	r4, =PRRR		@ PRRR
 	ldr	r5, =NMRR		@ NMRR
@@ -140,41 +149,7 @@ ENTRY(cpu_v7_do_resume)
 ENDPROC(cpu_v7_do_resume)
 #endif
 
-	__CPUINIT
-
-/*
- *	__v7_setup
- *
- *	Initialise TLB, Caches, and MMU state ready to switch the MMU
- *	on.  Return in r0 the new CP15 C1 control register setting.
- *
- *	This should be able to cover all ARMv7 cores.
- *
- *	It is assumed that:
- *	- cache type register is implemented
- */
-__v7_ca5mp_setup:
-__v7_ca9mp_setup:
-	mov	r10, #(1 << 0)			@ TLB ops broadcasting
-	b	1f
-__v7_ca7mp_setup:
-__v7_ca15mp_setup:
-	mov	r10, #0
-1:
-#ifdef CONFIG_SMP
-	ALT_SMP(mrc	p15, 0, r0, c1, c0, 1)
-	ALT_UP(mov	r0, #(1 << 6))		@ fake it for UP
-	tst	r0, #(1 << 6)			@ SMP/nAMP mode enabled?
-	orreq	r0, r0, #(1 << 6)		@ Enable SMP/nAMP mode
-	orreq	r0, r0, r10			@ Enable CPU-specific SMP bits
-	mcreq	p15, 0, r0, c1, c0, 1
-#endif
-__v7_setup:
-	adr	r12, __v7_setup_stack		@ the local stack
-	stmia	r12, {r0-r5, r7, r9, r11, lr}
-	bl	v7_flush_dcache_all
-	ldmia	r12, {r0-r5, r7, r9, r11, lr}
-
+ENTRY(cpu_v7_setup_cp15)
 	mrc	p15, 0, r0, c0, c0, 0		@ read main ID register
 	and	r10, r0, #0xff000000		@ ARM?
 	teq	r10, #0x41000000
@@ -208,12 +183,13 @@ __v7_setup:
 	orreq	r10, r10, #(1 << 22)		@ set the Write Allocate disable bit
 	mcreq	p15, 1, r10, c9, c0, 2		@ write the L2 cache aux ctrl register
 #endif
-	b	3f
+	b	4f
 
 	/* Cortex-A9 Errata */
 2:	ldr	r10, =0x00000c09		@ Cortex-A9 primary part number
 	teq	r0, r10
 	bne	3f
+#ifndef CONFIG_ARM_TRUSTZONE
 #ifdef CONFIG_ARM_ERRATA_742230
 	cmp	r6, #0x22			@ only present up to r2p2
 	mrcle	p15, 0, r10, c15, c0, 1		@ read diagnostic register
@@ -229,6 +205,11 @@ __v7_setup:
 	orreq	r10, r10, #1 << 22		@ set bit #22
 	mcreq	p15, 0, r10, c15, c0, 1		@ write diagnostic register
 #endif
+#ifdef CONFIG_ARM_ERRATA_761320
+	mrc	p15, 0, r10, c15, c0, 1		@ read diagnostic register
+	orr	r10, r10, #1 << 21		@ set bit #21
+	mcr	p15, 0, r10, c15, c0, 1		@ write diagnostic register
+#endif
 #ifdef CONFIG_ARM_ERRATA_743622
 	teq	r5, #0x00200000			@ only present in r2p*
 	mrceq	p15, 0, r10, c15, c0, 1		@ read diagnostic register
@@ -243,8 +224,100 @@ __v7_setup:
 	mcrlt	p15, 0, r10, c15, c0, 1		@ write diagnostic register
 1:
 #endif
+#endif
+	b	4f
 
-3:	mov	r10, #0
+	/* Cortex-A15 Errata */
+3:	ldr	r10, =0x00000c0f		@ Cortex-A15 primary part number
+	teq	r0, r10
+	bne	4f
+
+#ifdef CONFIG_ARM_TRUSTZONE
+	mov	r3, #0
+#endif
+/* Enable Non-cacheable streaming enhancement */
+	mrc	p15, 0, r10, c1, c0, 1		@ read aux control register
+	orr	r10, r10, #1 << 24		@ set bit #24
+#ifdef CONFIG_ARM_TRUSTZONE
+	ldr	r0, =SMC_CMD_REG
+	ldr	r1, =SMC_REG_ID_CP15(1, 0, 0, 1)
+	mov	r2, r10
+	smc	0
+#else
+	mcr	p15, 0, r10, c1, c0, 1		@ write aux control register
+#endif
+#ifdef CONFIG_ARM_ERRATA_773022
+	teq	r6, #0x4			@ present in r0p4
+	mrceq	p15, 0, r10, c1, c0, 1		@ read aux control register
+	orreq	r10, r10, #1 << 1		@ set bit #1
+#ifdef CONFIG_ARM_TRUSTZONE
+	ldreq	r0, =SMC_CMD_REG
+	ldreq	r1, =SMC_REG_ID_CP15(1, 0, 0, 1)
+	moveq	r2, r10
+	smceq	0
+#else
+	mcreq	p15, 0, r10, c1, c0, 1		@ write aux control register
+#endif
+#endif
+#ifdef CONFIG_ARM_ERRATA_774769
+	teq	r6, #0x4			@ present in r0p4
+	mrceq	p15, 0, r10, c1, c0, 1		@ read aux control register
+	orreq	r10, r10, #1 << 25		@ set bit #25
+#ifdef CONFIG_ARM_TRUSTZONE
+	ldreq	r0, =SMC_CMD_REG
+	ldreq	r1, =SMC_REG_ID_CP15(1, 0, 0, 1)
+	moveq	r2, r10
+	smceq	0
+#else
+	mcreq	p15, 0, r10, c1, c0, 1		@ write aux control register
+#endif
+#endif
+4:
+	mov	pc, lr
+ENDPROC(cpu_v7_setup_cp15)
+
+	__CPUINIT
+
+/*
+ *	__v7_setup
+ *
+ *	Initialise TLB, Caches, and MMU state ready to switch the MMU
+ *	on.  Return in r0 the new CP15 C1 control register setting.
+ *
+ *	This should be able to cover all ARMv7 cores.
+ *
+ *	It is assumed that:
+ *	- cache type register is implemented
+ */
+__v7_ca5mp_setup:
+__v7_ca9mp_setup:
+	mov	r10, #(1 << 0)			@ TLB ops broadcasting
+	b	1f
+__v7_ca7mp_setup:
+__v7_ca15mp_setup:
+	mov	r10, #0
+1:
+#ifdef CONFIG_SMP
+	ALT_SMP(mrc	p15, 0, r0, c1, c0, 1)
+	ALT_UP(mov	r0, #(1 << 6))		@ fake it for UP
+	tst	r0, #(1 << 6)			@ SMP/nAMP mode enabled?
+	orreq	r0, r0, #(1 << 6)		@ Enable SMP/nAMP mode
+	orreq	r0, r0, r10			@ Enable CPU-specific SMP bits
+	mcreq	p15, 0, r0, c1, c0, 1
+#endif
+__v7_setup:
+	adr	r12, __v7_setup_stack		@ the local stack
+	stmia	r12, {r0-r5, r7, r9, r11, lr}
+	mrc     p15, 1, r0, c0, c0, 1
+	ubfx    r0, r0, #21, #3
+	bl      v7_flush_dcache_level
+	ldmia	r12, {r0-r5, r7, r9, r11, lr}
+
+	stmia	r12, {r0-r3, r5, r6, r10, lr}
+	bl	cpu_v7_setup_cp15
+	ldmia	r12, {r0-r3, r5, r6, r10, lr}
+
+	mov	r10, #0
 	mcr	p15, 0, r10, c7, c5, 0		@ I+BTB cache invalidate
 	dsb
 #ifdef CONFIG_MMU

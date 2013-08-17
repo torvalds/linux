@@ -38,6 +38,20 @@ config ANDROID_RAM_CONSOLE
 	select ANDROID_PERSISTENT_RAM
 	default n
 
+config PERSISTENT_TRACER
+	bool "Persistent function tracer"
+	depends on HAVE_FUNCTION_TRACER
+	select FUNCTION_TRACER
+	select ANDROID_PERSISTENT_RAM
+	help
+	  persistent_trace traces function calls into a persistent ram
+	  buffer that can be decoded and dumped after reboot through
+	  /sys/kernel/debug/persistent_trace.  It can be used to
+	  determine what function was last called before a reset or
+	  panic.
+
+	  If unsure, say N.
+
 config ANDROID_TIMED_OUTPUT
 	bool "Timed output class driver"
 	default y
@@ -53,33 +67,25 @@ config ANDROID_LOW_MEMORY_KILLER
 	---help---
 	  Register processes to be killed when memory is low
 
+config ANDROID_LOW_MEMORY_KILLER_AUTODETECT_OOM_ADJ_VALUES
+	bool "Android Low Memory Killer: detect oom_adj values"
+	depends on ANDROID_LOW_MEMORY_KILLER
+	default y
+	---help---
+	  Detect oom_adj values written to
+	  /sys/module/lowmemorykiller/parameters/adj and convert them
+	  to oom_score_adj values.
+
 source "drivers/staging/android/switch/Kconfig"
 
-config ANDROID_INTF_ALARM
+config ANDROID_INTF_ALARM_DEV
 	bool "Android alarm driver"
 	depends on RTC_CLASS
 	default n
 	help
 	  Provides non-wakeup and rtc backed wakeup alarms based on rtc or
 	  elapsed realtime, and a non-wakeup alarm on the monotonic clock.
-	  Also provides an interface to set the wall time which must be used
-	  for elapsed realtime to work.
-
-config ANDROID_INTF_ALARM_DEV
-	bool "Android alarm device"
-	depends on ANDROID_INTF_ALARM
-	default y
-	help
-	  Exports the alarm interface to user-space.
-
-config ANDROID_ALARM_OLDDRV_COMPAT
-	bool "Android Alarm compatability with old drivers"
-	depends on ANDROID_INTF_ALARM
-	default n
-	help
-	  Provides preprocessor alias to aid compatability with
-	  older out-of-tree drivers that use the Android Alarm
-	  in-kernel API. This will be removed eventually.
+	  Also exports the alarm interface to user-space.
 
 endif # if ANDROID
 

@@ -80,7 +80,7 @@ out1:
 static int set_audio_clock_rate(unsigned long epll_rate,
 				unsigned long audio_rate)
 {
-	struct clk *fout_epll, *sclk_spdif;
+	struct clk *fout_epll, *sclk_audio;
 
 	fout_epll = clk_get(NULL, "fout_epll");
 	if (IS_ERR(fout_epll)) {
@@ -91,14 +91,14 @@ static int set_audio_clock_rate(unsigned long epll_rate,
 	clk_set_rate(fout_epll, epll_rate);
 	clk_put(fout_epll);
 
-	sclk_spdif = clk_get(NULL, "sclk_spdif");
-	if (IS_ERR(sclk_spdif)) {
-		printk(KERN_ERR "%s: failed to get sclk_spdif\n", __func__);
+	sclk_audio = clk_get(NULL, "sclk_audio");
+	if (IS_ERR(sclk_audio)) {
+		printk(KERN_ERR "%s: failed to get sclk_audio\n", __func__);
 		return -ENOENT;
 	}
 
-	clk_set_rate(sclk_spdif, audio_rate);
-	clk_put(sclk_spdif);
+	clk_set_rate(sclk_audio, audio_rate);
+	clk_put(sclk_audio);
 
 	return 0;
 }
@@ -108,17 +108,14 @@ static int smdk_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	unsigned long pll_out, rclk_rate;
+	unsigned long pll_out = 180633600, rclk_rate;
 	int ret, ratio;
 
 	switch (params_rate(params)) {
 	case 44100:
-		pll_out = 45158400;
-		break;
 	case 32000:
 	case 48000:
 	case 96000:
-		pll_out = 49152000;
 		break;
 	default:
 		return -EINVAL;
@@ -180,7 +177,7 @@ static int __init smdk_init(void)
 	if (ret)
 		goto err1;
 
-	smdk_snd_spdif_device = platform_device_alloc("soc-audio", -1);
+	smdk_snd_spdif_device = platform_device_alloc("soc-audio", 1);
 	if (!smdk_snd_spdif_device) {
 		ret = -ENOMEM;
 		goto err2;

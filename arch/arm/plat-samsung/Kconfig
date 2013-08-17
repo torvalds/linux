@@ -126,6 +126,13 @@ config S3C_ADC
 	  for drivers such as the touchscreen and hwmon to use to share
 	  this resource.
 
+# Busfreq driver
+
+config EXYNOS_BUSFREQ_OPP
+	bool "Support DVFS for BUS & Device"
+	depends on ARCH_EXYNOS4 && REGULATOR
+	default n
+
 # device definitions to compile in
 
 config S3C_DEV_HSMMC
@@ -252,6 +259,12 @@ config S3C64XX_DEV_SPI2
 	  Compile in platform device definitions for S3C64XX's type
 	  SPI controller 2
 
+config S3C64XX_DEV_SPI3
+	bool
+	help
+	  Compile in platform device definitions for S3C64XX's type
+	  SPI controller 3
+
 config SAMSUNG_DEV_TS
 	bool
 	help
@@ -281,6 +294,84 @@ config S3C24XX_PWM
 	  Support for exporting the PWM timer blocks via the pwm device
 	  system
 
+config S5P_DEV_MIPI_DSIM0
+	bool
+	depends on FB_MIPI_DSIM && S5P_DEV_FIMD0
+	default y
+	help
+	  Compile in platform device definitions for MIPI_DSIM0
+	  to support mainlile style fimd
+
+config S5P_DEV_MIPI_DSIM1
+	bool
+	depends on FB_MIPI_DSIM && S5P_DEV_FIMD1
+	default y
+	help
+	  Compile in platform device definitions for MIPI_DSIM1
+	  to support mainlile style fimd
+
+config S5P_DEV_DP
+	bool
+	depends on S5P_DP
+	default y
+	help
+	  Compile in platform device definitions for DP controller
+
+config S5P_DEV_FIMG2D
+	bool
+	help
+	  Compile in platform device definitions for FIMG2D controller
+
+config S5P_DEV_BTS
+	bool
+	default n
+	help
+	  Compile in platform device definitions for BTS devices
+
+config S5P_DEV_FIMC0
+	bool
+	help
+	  Compile in platform device definitions for FIMC controller 0
+
+config S5P_DEV_FIMC1
+	bool
+	help
+	  Compile in platform device definitions for FIMC controller 1
+
+config S5P_DEV_FIMC2
+	bool
+	help
+	  Compile in platform device definitions for FIMC controller 2
+
+config S5P_DEV_FIMC3
+	bool
+	help
+	  Compile in platform device definitions for FIMC controller 3
+
+config S5P_DEV_CSIS0
+	bool
+	help
+	  Compile in platform device definitions for MIPI-CSIS channel 0
+
+config S5P_DEV_CSIS1
+	bool
+	help
+	  Compile in platform device definitions for MIPI-CSIS channel 1
+
+config S5P_DEV_CSIS2
+	bool
+	help
+	  Compile in platform device definitions for MIPI-CSIS channel 2
+
+config S5P_DEV_FLITE0
+	bool
+	help
+	  Compile in platform device definitions for FIMC-LITE channel 0
+
+config S5P_DEV_FLITE1
+	bool
+	help
+	  Compile in platform device definitions for FIMC-LITE channel 1
 # DMA
 
 config S3C_DMA
@@ -291,7 +382,7 @@ config S3C_DMA
 config SAMSUNG_DMADEV
 	bool
 	select DMADEVICES
-	select PL330_DMA if (CPU_EXYNOS4210 || CPU_S5PV210 || CPU_S5PC100 || \
+	select PL330_DMA if (ARCH_EXYNOS5 || ARCH_EXYNOS4 || CPU_S5PV210 || CPU_S5PC100 || \
 					CPU_S5P6450 || CPU_S5P6440)
 	select ARM_AMBA
 	help
@@ -351,14 +442,6 @@ config SAMSUNG_WAKEMASK
 	  and above. This code allows a set of interrupt to wakeup-mask
 	  mappings. See <plat/wakeup-mask.h>
 
-comment "Power Domain"
-
-config SAMSUNG_PD
-	bool "Samsung Power Domain"
-	depends on PM_RUNTIME
-	help
-	  Say Y here if you want to control Power Domain by Runtime PM.
-
 config DEBUG_S3C_UART
 	depends on PLAT_SAMSUNG
 	int
@@ -366,4 +449,14 @@ config DEBUG_S3C_UART
 	default "1" if DEBUG_S3C_UART1
 	default "2" if DEBUG_S3C_UART2
 
+config SAMSUNG_CORE_TEST
+	tristate "core configuration debugging"
+	depends on SOC_EXYNOS5410
+	help
+		Debug core configuration.
+
+config SAMSUNG_BW_MONITOR
+	bool
+	help
+	  Compile support for monitoring system traffic.
 endif

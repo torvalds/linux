@@ -286,10 +286,6 @@ static int s3c_pm_enter(suspend_state_t state)
 
 	pm_cpu_prep();
 
-	/* flush cache back to ram */
-
-	flush_cache_all();
-
 	s3c_pm_check_store();
 
 	/* send the cpu to sleep... */

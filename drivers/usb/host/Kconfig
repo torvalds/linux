@@ -41,6 +41,13 @@ config USB_XHCI_HCD_DEBUGGING
 
 	  If unsure, say N.
 
+config USB_XHCI_EXYNOS
+	boolean "EXYNOS XHCI support"
+	depends on USB_XHCI_HCD && USB_EXYNOS_DRD
+	help
+	  The Samsung Exynos xHCI host controller integrated into the Exynos5
+	  series SoC.
+
 config USB_EHCI_HCD
 	tristate "EHCI HCD (USB 2.0) support"
 	depends on USB && USB_ARCH_HAS_EHCI

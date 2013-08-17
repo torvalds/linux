@@ -44,8 +44,8 @@ static const struct snd_pcm_hardware dma_hardware = {
 	.channels_min		= 2,
 	.channels_max		= 2,
 	.buffer_bytes_max	= 128*1024,
-	.period_bytes_min	= PAGE_SIZE,
-	.period_bytes_max	= PAGE_SIZE*2,
+	.period_bytes_min	= 128,
+	.period_bytes_max	= 64*1024,
 	.periods_min		= 2,
 	.periods_max		= 128,
 	.fifo_size		= 32,
@@ -74,7 +74,7 @@ static void dma_enqueue(struct snd_pcm_substream *substream)
 	struct runtime_data *prtd = substream->runtime->private_data;
 	dma_addr_t pos = prtd->dma_pos;
 	unsigned int limit;
-	struct samsung_dma_prep_info dma_info;
+	struct samsung_dma_prep dma_info;
 
 	pr_debug("Entered %s\n", __func__);
 
@@ -92,25 +92,31 @@ static void dma_enqueue(struct snd_pcm_substream *substream)
 	dma_info.period = prtd->dma_period;
 	dma_info.len = prtd->dma_period*limit;
 
-	while (prtd->dma_loaded < limit) {
-		pr_debug("dma_loaded: %d\n", prtd->dma_loaded);
-
-		if ((pos + dma_info.period) > prtd->dma_end) {
-			dma_info.period  = prtd->dma_end - pos;
-			pr_debug("%s: corrected dma len %ld\n",
-					__func__, dma_info.period);
-		}
-
-		dma_info.buf = pos;
+	if (samsung_dma_has_infiniteloop()) {
+		dma_info.buf = prtd->dma_pos;
+		dma_info.infiniteloop = limit;
 		prtd->params->ops->prepare(prtd->params->ch, &dma_info);
+	} else {
+		dma_info.infiniteloop = 0;
+		while (prtd->dma_loaded < limit) {
+			pr_debug("dma_loaded: %d\n", prtd->dma_loaded);
 
-		prtd->dma_loaded++;
-		pos += prtd->dma_period;
-		if (pos >= prtd->dma_end)
-			pos = prtd->dma_start;
+			if ((pos + dma_info.period) > prtd->dma_end) {
+				dma_info.period  = prtd->dma_end - pos;
+				pr_debug("%s: corrected dma len %ld\n",
+						__func__, dma_info.period);
+			}
+
+			dma_info.buf = pos;
+			prtd->params->ops->prepare(prtd->params->ch, &dma_info);
+
+			prtd->dma_loaded++;
+			pos += prtd->dma_period;
+			if (pos >= prtd->dma_end)
+				pos = prtd->dma_start;
+		}
+		prtd->dma_pos = pos;
 	}
-
-	prtd->dma_pos = pos;
 }
 
 static void audio_buffdone(void *data)
@@ -120,22 +126,17 @@ static void audio_buffdone(void *data)
 
 	pr_debug("Entered %s\n", __func__);
 
-	if (prtd->state & ST_RUNNING) {
-		prtd->dma_pos += prtd->dma_period;
-		if (prtd->dma_pos >= prtd->dma_end)
-			prtd->dma_pos = prtd->dma_start;
+	snd_pcm_period_elapsed(substream);
 
-		if (substream)
-			snd_pcm_period_elapsed(substream);
-
-		spin_lock(&prtd->lock);
-		if (!samsung_dma_has_circular()) {
-			prtd->dma_loaded--;
+	spin_lock(&prtd->lock);
+	if (!samsung_dma_has_circular()) {
+		prtd->dma_loaded--;
+		if (!samsung_dma_has_infiniteloop())
 			dma_enqueue(substream);
-		}
-		spin_unlock(&prtd->lock);
 	}
+	spin_unlock(&prtd->lock);
 }
+
 
 static int dma_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
@@ -146,7 +147,8 @@ static int dma_hw_params(struct snd_pcm_substream *substream,
 	unsigned long totbytes = params_buffer_bytes(params);
 	struct s3c_dma_params *dma =
 		snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
-	struct samsung_dma_info dma_info;
+	struct samsung_dma_req req;
+	struct samsung_dma_config config;
 
 	pr_debug("Entered %s\n", __func__);
 
@@ -166,16 +168,18 @@ static int dma_hw_params(struct snd_pcm_substream *substream,
 
 		prtd->params->ops = samsung_dma_get_ops();
 
-		dma_info.cap = (samsung_dma_has_circular() ?
+		req.cap = (samsung_dma_has_circular() ?
 			DMA_CYCLIC : DMA_SLAVE);
-		dma_info.client = prtd->params->client;
-		dma_info.direction =
+		req.client = prtd->params->client;
+		config.direction =
 			(substream->stream == SNDRV_PCM_STREAM_PLAYBACK
 			? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM);
-		dma_info.width = prtd->params->dma_size;
-		dma_info.fifo = prtd->params->dma_addr;
+		config.width = prtd->params->dma_size;
+		config.maxburst = 1;
+		config.fifo = prtd->params->dma_addr;
 		prtd->params->ch = prtd->params->ops->request(
-				prtd->params->channel, &dma_info);
+				prtd->params->channel, &req);
+		prtd->params->ops->config(prtd->params->ch, &config);
 	}
 
 	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
@@ -275,10 +279,16 @@ dma_pointer(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct runtime_data *prtd = runtime->private_data;
 	unsigned long res;
+	dma_addr_t src, dst;
 
 	pr_debug("Entered %s\n", __func__);
 
-	res = prtd->dma_pos - prtd->dma_start;
+	prtd->params->ops->getposition(prtd->params->ch, &src, &dst);
+
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+		res = dst - prtd->dma_start;
+	else
+		res = src - prtd->dma_start;
 
 	pr_debug("Pointer offset: %lu\n", res);
 

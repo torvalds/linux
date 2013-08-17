@@ -28,7 +28,7 @@ static int __s5p_mipi_phy_control(struct platform_device *pdev,
 
 	pid = (pdev->id == -1) ? 0 : pdev->id;
 
-	if (pid != 0 && pid != 1)
+	if (pid != 0 && pid != 1 && pid != 2)
 		return -EINVAL;
 
 	addr = S5P_MIPI_DPHY_CONTROL(pid);

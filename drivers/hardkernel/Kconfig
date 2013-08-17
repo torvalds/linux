@@ -1,0 +1,18 @@
+menu "ODROID Specific Hardware"
+
+config ODROIDXU_FAN
+	bool "Enable the PWM Controlled FAN on ODROID-XU"
+	depends on MACH_ODROIDXU
+	default y
+	---help---
+		Enables the PWM Controlled FAN on ODROID-XU
+
+config ODROIDXU_SP
+	bool "Enable the INA231 Sensor on ODROID-XU"
+	depends on MACH_ODROIDXU
+	default n
+	---help---
+		Enables the INA231 Sensor on ODROID-XU
+
+endmenu
+

@@ -309,6 +309,89 @@ static void parse_vendor_block(unsigned char *block, struct fb_monspecs *specs)
 	DPRINTK("   Year: %u Week %u\n", specs->year, specs->week);
 }
 
+static void parse_vendor_specific_block(struct fb_vendor *vsdb,
+					unsigned char *svsdb, u8 length)
+{
+	unsigned int offset = 0;
+	int i;
+
+	DPRINTK("Vendor Specific Data Block (VSDB)\n");
+	vsdb->ieee_reg = svsdb[offset + 1]
+			| (svsdb[offset + 2] << 8)
+			| (svsdb[offset + 3] << 16);
+	vsdb->phy_addr = svsdb[offset + 4] << 8;
+	vsdb->phy_addr |= svsdb[offset + 5];
+
+	DPRINTK("   ieee_reg: 0x%06x\n", vsdb->ieee_reg);
+	DPRINTK("   physical address: 0x%08x\n", vsdb->phy_addr);
+	if (length < 8)
+		return;
+
+	vsdb->video_present = (svsdb[offset + 8] & VSDB_VIDEO_PRESENT_MASK)
+					>> VSDB_VIDEO_PRESENT;
+	vsdb->i_latency_field = (svsdb[offset + 8] & VSDB_I_LATENCY_FIELD_MASK)
+					>> VSDB_I_LATENCY_FIELD;
+	vsdb->latency_field = (svsdb[offset + 8] & VSDB_LATENCY_FIELD_MASK)
+					>> VSDB_LATENCY_FIELD;
+
+	offset += (vsdb->latency_field * 2 + vsdb->i_latency_field * 2);
+
+	DPRINTK("   video present: %d\n", vsdb->video_present);
+	if (!vsdb->video_present)
+		return;
+
+	vsdb->s3d_present = (svsdb[offset + 9] & VSDB_3D_PRESENT_MASK)
+					>> VSDB_3D_PRESENT;
+	vsdb->s3d_multi_present = (svsdb[offset + 9] & VSDB_3D_MT_PRESENT_MASK)
+					>> VSDB_3D_MT_PRESENT;
+	vsdb->vic_len = (svsdb[offset + 10] & VSDB_VIC_LEN_MASK)
+					>> VSDB_VIC_LEN;
+	vsdb->s3d_len = svsdb[offset + 10] & VSDB_3D_LEN_MASK;
+
+	DPRINTK("   HDMI VIC LEN: %d\n", vsdb->vic_len);
+	DPRINTK("   HDMI 3D LEN: %d\n", vsdb->s3d_len);
+	DPRINTK("   3D present: %d\n", vsdb->s3d_present);
+	DPRINTK("   3D multi present: %d\n", vsdb->s3d_multi_present);
+
+	offset += vsdb->vic_len;
+	if (vsdb->s3d_multi_present) {
+		vsdb->s3d_structure_all = svsdb[offset + 11] << 8;
+		vsdb->s3d_structure_all |= svsdb[offset + 12];
+		DPRINTK("   3D structure all: 0x%08x\n",
+				vsdb->s3d_structure_all);
+		offset += 2;
+		vsdb->s3d_field = vsdb->s3d_len - 2;
+		if (vsdb->s3d_multi_present == VSDB_3D_MASK) {
+			vsdb->s3d_structure_mask = svsdb[offset + 11] << 8;
+			vsdb->s3d_structure_mask |= svsdb[offset + 12];
+			DPRINTK("   3D structure mask: 0x%08x\n",
+					vsdb->s3d_structure_mask);
+			offset += 2;
+			vsdb->s3d_field = vsdb->s3d_field - 2;
+		}
+	}
+
+	/*
+	 * s3d_field is used to indicate that
+	 * additional blocks are present in the VSDB.
+	 */
+	if (vsdb->s3d_field) {
+		for (i = 0; i < vsdb->s3d_field; i++, offset++) {
+			vsdb->vic_order[i] =
+				(svsdb[offset + 11] & VSDB_VIC_ORDER_MASK)
+						>> VSDB_VIC_ORDER;
+			vsdb->s3d_structure[i] =
+				svsdb[offset + 11] & VSDB_3D_STRUCTURE_MASK;
+			DPRINTK("   2D vic order[%d]: %d\n",
+					i, vsdb->vic_order[i]);
+			DPRINTK("   3D structure[%d]: %d\n",
+					i, vsdb->s3d_structure[i]);
+			if (vsdb->s3d_structure[i] > 7)
+				offset++;
+		}
+	}
+}
+
 static void get_dpms_capabilities(unsigned char flags,
 				  struct fb_monspecs *specs)
 {
@@ -551,6 +634,9 @@ static int get_dst_timing(unsigned char *block,
 static void get_detailed_timing(unsigned char *block,
 				struct fb_videomode *mode)
 {
+	int v_size = V_SIZE;
+	int h_size = H_SIZE;
+
 	mode->xres = H_ACTIVE;
 	mode->yres = V_ACTIVE;
 	mode->pixclock = PIXEL_CLOCK;
@@ -579,11 +665,18 @@ static void get_detailed_timing(unsigned char *block,
 	}
 	mode->flag = FB_MODE_IS_DETAILED;
 
+	/* get aspect ratio */
+	if (h_size * 18 > v_size * 31 && h_size * 18 < v_size * 33)
+		mode->flag |= FB_FLAG_RATIO_16_9;
+	if (h_size * 18 > v_size * 23 && h_size * 18 < v_size * 25)
+		mode->flag |= FB_FLAG_RATIO_4_3;
+
 	DPRINTK("      %d MHz ",  PIXEL_CLOCK/1000000);
 	DPRINTK("%d %d %d %d ", H_ACTIVE, H_ACTIVE + H_SYNC_OFFSET,
 	       H_ACTIVE + H_SYNC_OFFSET + H_SYNC_WIDTH, H_ACTIVE + H_BLANKING);
 	DPRINTK("%d %d %d %d ", V_ACTIVE, V_ACTIVE + V_SYNC_OFFSET,
 	       V_ACTIVE + V_SYNC_OFFSET + V_SYNC_WIDTH, V_ACTIVE + V_BLANKING);
+	DPRINTK("%dmm %dmm ", H_SIZE, V_SIZE);
 	DPRINTK("%sHSync %sVSync\n\n", (HSYNC_POSITIVE) ? "+" : "-",
 	       (VSYNC_POSITIVE) ? "+" : "-");
 }
@@ -665,15 +758,33 @@ static struct fb_videomode *fb_create_modedb(unsigned char *edid, int *dbsize)
 }
 
 /**
- * fb_destroy_modedb - destroys mode database
+ * fb_destroy_xxdb - destroys databases
  * @modedb: mode database to destroy
+ * @audiodb: audio database to destroy
+ * @videodb: video database to destroy
+ * @vsdb: vendor specific data blcok database to destroy
  *
  * DESCRIPTION:
- * Destroy mode database created by fb_create_modedb
+ * Destroy databases created by fb_create_modedb or fb_edid_add_monspecs
  */
 void fb_destroy_modedb(struct fb_videomode *modedb)
 {
 	kfree(modedb);
+}
+
+void fb_destroy_audiodb(struct fb_audio *audiodb)
+{
+	kfree(audiodb);
+}
+
+void fb_destroy_videodb(struct fb_video *videodb)
+{
+	kfree(videodb);
+}
+
+void fb_destroy_vsdb(struct fb_vendor *vsdb)
+{
+	kfree(vsdb);
 }
 
 static int fb_get_monitor_limits(unsigned char *edid, struct fb_monspecs *specs)
@@ -983,41 +1094,186 @@ void fb_edid_to_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 }
 
 /**
+ * fb_edid_get_cea_sample_rates() - convert from CEA sample rate format
+ * @cea_sample_rates:	sample rate bitfield
+ *
+ * DESCRIPTION:
+ *
+ * This function converts from the sample rates bitfield given in
+ * SAD byte 2 of the Audio Data Block from the CEA EDID Timing
+ * Extension v3 to something that can be understood here.
+ */
+static u8 fb_edid_get_cea_sample_rates(u8 cea_sample_rates)
+{
+	u8 rates = 0;
+
+	if (cea_sample_rates & (1 << 0))
+		rates |= FB_AUDIO_32KHZ;
+	if (cea_sample_rates & (1 << 1))
+		rates |= FB_AUDIO_44KHZ;
+	if (cea_sample_rates & (1 << 2))
+		rates |= FB_AUDIO_48KHZ;
+	if (cea_sample_rates & (1 << 3))
+		rates |= FB_AUDIO_88KHZ;
+	if (cea_sample_rates & (1 << 4))
+		rates |= FB_AUDIO_96KHZ;
+	if (cea_sample_rates & (1 << 5))
+		rates |= FB_AUDIO_176KHZ;
+	if (cea_sample_rates & (1 << 6))
+		rates |= FB_AUDIO_192KHZ;
+
+	return rates;
+}
+
+/**
+ * fb_edid_get_cea_bit_rates() - convert from CEA bit rate format
+ * @cea_bit_rates:	bit rate bitfield
+ *
+ * DESCRIPTION:
+ *
+ * This function converts from the bit rate bitfield given in
+ * SAD byte 3 of the Audio Data Block from the CEA EDID Timing
+ * Extension v3 to something that can be understood here.
+ */
+static u8 fb_edid_get_cea_bit_rates(u8 cea_bit_rates)
+{
+	u8 rates = 0;
+
+	if (cea_bit_rates & (1 << 0))
+		rates |= FB_AUDIO_16BIT;
+	if (cea_bit_rates & (1 << 1))
+		rates |= FB_AUDIO_20BIT;
+	if (cea_bit_rates & (1 << 2))
+		rates |= FB_AUDIO_24BIT;
+
+	return rates;
+}
+
+/**
  * fb_edid_add_monspecs() - add monitor video modes from E-EDID data
  * @edid:	128 byte array with an E-EDID block
- * @spacs:	monitor specs to be extended
+ * @specs:	monitor specs to be extended
  */
-void fb_edid_add_monspecs(unsigned char *edid, struct fb_monspecs *specs)
+int fb_edid_add_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 {
 	unsigned char *block;
-	struct fb_videomode *m;
+	struct fb_videomode *m = NULL;
+	struct fb_video *videodb = NULL;
+	struct fb_audio *audiodb = NULL;
+	struct fb_vendor *vsdb = NULL;
 	int num = 0, i;
-	u8 svd[64], edt[(128 - 4) / DETAILED_TIMING_DESCRIPTION_SIZE];
-	u8 pos = 4, svd_n = 0;
+	u8 sad[128 - 5], svd[64], svsdb[128 - 5];
+	u8 edt[(128 - 4) / DETAILED_TIMING_DESCRIPTION_SIZE];
+	u8 pos = 4, sad_n = 0, svd_n = 0, svsdb_n = 0;
 
 	if (!edid)
-		return;
+		return 1;
 
 	if (!edid_checksum(edid))
-		return;
+		return 1;
 
-	if (edid[0] != 0x2 ||
+	if (edid[0] != 0x2 || edid[1] != 0x3 ||
 	    edid[2] < 4 || edid[2] > 128 - DETAILED_TIMING_DESCRIPTION_SIZE)
-		return;
+		return 1;
 
-	DPRINTK("  Short Video Descriptors\n");
+	DPRINTK("  Data Block Collection\n");
 
 	while (pos < edid[2]) {
 		u8 len = edid[pos] & 0x1f, type = (edid[pos] >> 5) & 7;
 		pr_debug("Data block %u of %u bytes\n", type, len);
-		if (type == 2)
+
+		if (len == 0)
+			break;
+
+		pos++;
+		if (type == 1) {
+			/* Short Audio Descriptors */
+			for (i = pos; i < pos + len; i += 3) {
+				if (((edid[i] >> 3) & 0xf) != 1)
+					continue; /* skip non-lpcm */
+
+				pr_debug("LPCM ch=%d\n", (edid[i] & 7) + 1);
+
+				sad[sad_n++] = (edid[i] & 7) + 1;
+				sad[sad_n++] = edid[i + 1];
+				sad[sad_n++] = edid[i + 2];
+			}
+		} else if (type == 2) {
+			/* Short Video Descriptors */
 			for (i = pos; i < pos + len; i++) {
-				u8 idx = edid[pos + i] & 0x7f;
+				u8 idx = edid[i] & 0x7f;
 				svd[svd_n++] = idx;
 				pr_debug("N%sative mode #%d\n",
-					 edid[pos + i] & 0x80 ? "" : "on-n", idx);
+					 edid[i] & 0x80 ? "" : "on-n", idx);
 			}
-		pos += len + 1;
+		} else if (type == 3 && len >= 3) {
+			/* Vendor Specific Data Block */
+			for (i = pos; i < pos + len; i++)
+				svsdb[++svsdb_n] = edid[i];
+		}
+
+		pos += len;
+	}
+
+	if (sad_n > 0) {
+		/* Short audio descriptors are in blocks of 3 bytes */
+		sad_n /= 3;
+		pr_debug("Found %d lpcm audio blocks\n", sad_n);
+		audiodb = kzalloc(sad_n * sizeof(struct fb_audio), GFP_KERNEL);
+		if (!audiodb)
+			goto fail_audiodb;
+
+		for (i = 0; i < sad_n; i++) {
+			audiodb[i].format = FB_AUDIO_LPCM;
+			audiodb[i].channel_count = sad[i * 3];
+			audiodb[i].sample_rates =
+				fb_edid_get_cea_sample_rates(sad[i * 3 + 1]);
+			audiodb[i].bit_rates =
+				fb_edid_get_cea_bit_rates(sad[i * 3 + 2]);
+		}
+
+		kfree(specs->audiodb);
+		specs->audiodb = audiodb;
+		specs->audiodb_len = sad_n;
+	} else {
+		kfree(specs->audiodb);
+		specs->audiodb_len = 0;
+	}
+
+	if (svd_n > 0) {
+		videodb = kzalloc(svd_n * sizeof(struct fb_video), GFP_KERNEL);
+		if (!videodb)
+			goto fail_videodb;
+
+		for (i = 0; i < svd_n; i++) {
+			videodb[i].vic_idx = svd[i];
+			videodb[i].xres = cea_modes[svd[i]].xres;
+			videodb[i].yres = cea_modes[svd[i]].yres;
+			videodb[i].refresh = cea_modes[svd[i]].refresh;
+			videodb[i].vmode = cea_modes[svd[i]].vmode;
+		}
+
+		kfree(specs->videodb);
+		specs->videodb = videodb;
+		specs->videodb_len = svd_n;
+	} else {
+		kfree(specs->videodb);
+		specs->videodb_len = 0;
+	}
+
+	if (svsdb_n > 0) {
+		vsdb = kzalloc(sizeof(struct fb_vendor), GFP_KERNEL);
+		if (!vsdb)
+			goto fail_vsdb;
+
+		parse_vendor_specific_block(vsdb, svsdb, svsdb_n);
+		if (vsdb->ieee_reg == 0x000c03)
+			specs->misc |= FB_MISC_HDMI;
+
+		kfree(specs->vsdb);
+		specs->vsdb = vsdb;
+	} else {
+		kfree(specs->vsdb);
 	}
 
 	block = edid + edid[2];
@@ -1029,15 +1285,15 @@ void fb_edid_add_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 		if (PIXEL_CLOCK)
 			edt[num++] = block - edid;
 
-	/* Yikes, EDID data is totally useless */
+	/* No video descriptors, so nothing more to do */
 	if (!(num + svd_n))
-		return;
+		return 1;
 
 	m = kzalloc((specs->modedb_len + num + svd_n) *
 		       sizeof(struct fb_videomode), GFP_KERNEL);
 
 	if (!m)
-		return;
+		goto fail_modedb;
 
 	memcpy(m, specs->modedb, specs->modedb_len * sizeof(struct fb_videomode));
 
@@ -1050,10 +1306,8 @@ void fb_edid_add_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 
 	for (i = specs->modedb_len + num; i < specs->modedb_len + num + svd_n; i++) {
 		int idx = svd[i - specs->modedb_len - num];
-		if (!idx || idx > 63) {
+		if (!idx || idx > (CEA_MODEDB_SIZE - 1)) {
 			pr_warning("Reserved SVD code %d\n", idx);
-		} else if (idx > ARRAY_SIZE(cea_modes) || !cea_modes[idx].xres) {
-			pr_warning("Unimplemented SVD code %d\n", idx);
 		} else {
 			memcpy(&m[i], cea_modes + idx, sizeof(m[i]));
 			pr_debug("Adding SVD #%d: %ux%u@%u\n", idx,
@@ -1064,6 +1318,20 @@ void fb_edid_add_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 	kfree(specs->modedb);
 	specs->modedb = m;
 	specs->modedb_len = specs->modedb_len + num + svd_n;
+
+	return 1;
+
+fail_modedb:
+	kfree(vsdb);
+
+fail_vsdb:
+	kfree(videodb);
+
+fail_videodb:
+	kfree(audiodb);
+
+fail_audiodb:
+	return -ENOMEM;
 }
 
 /*
@@ -1382,10 +1650,19 @@ void fb_edid_to_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 {
 	specs = NULL;
 }
-void fb_edid_add_monspecs(unsigned char *edid, struct fb_monspecs *specs)
+int fb_edid_add_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 {
 }
 void fb_destroy_modedb(struct fb_videomode *modedb)
+{
+}
+void fb_destroy_audiodb(struct fb_audio *audiodb)
+{
+}
+void fb_destroy_videodb(struct fb_video *videodb)
+{
+}
+void fb_destroy_vsdb(struct fb_vendor *vsdb)
 {
 }
 int fb_get_mode(int flags, u32 val, struct fb_var_screeninfo *var,
@@ -1496,3 +1773,6 @@ EXPORT_SYMBOL(fb_edid_add_monspecs);
 EXPORT_SYMBOL(fb_get_mode);
 EXPORT_SYMBOL(fb_validate_mode);
 EXPORT_SYMBOL(fb_destroy_modedb);
+EXPORT_SYMBOL(fb_destroy_audiodb);
+EXPORT_SYMBOL(fb_destroy_videodb);
+EXPORT_SYMBOL(fb_destroy_vsdb);

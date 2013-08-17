@@ -1,0 +1,35 @@
+config PVR_SGX
+	tristate "PowerVR SGX support"
+	depends on (ARCH_S5PV210 || SOC_EXYNOS5410)
+	default y
+	help
+	  Enable this option to build support for the PowerVR SGX 3D core.
+
+	  To compile this driver as a module, choose M here:
+	  this will generate two modules, called pvrsrvkm and s3c_lcd.
+
+choice
+	prompt "PowerVR build type"
+	depends on PVR_SGX
+	default PVR_BUILD_RELEASE
+
+config PVR_BUILD_RELEASE
+	bool "Release"
+
+config PVR_BUILD_DEBUG
+	bool "Debug"
+endchoice
+
+config PVR_SGX_DVFS
+	bool "Enables DVFS for SGX"
+	depends on PVR_SGX
+	default y
+	help
+	  This enables DVFS for SGX.
+
+config PVR_SGX_ACTIVE_POWER_MANAGEMENT
+	bool "Enables Active Power Management for SGX"
+	depends on PVR_SGX
+	default y
+	help
+	  This enables active power management for SGX.

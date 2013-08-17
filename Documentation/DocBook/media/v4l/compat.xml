@@ -2410,6 +2410,35 @@ details.</para>
       </orderedlist>
     </section>
 
+    <section>
+      <title>V4L2 in Linux 3.5</title>
+      <orderedlist>
+        <listitem>
+	  <para>Added integer menus, the new type will be
+	  V4L2_CTRL_TYPE_INTEGER_MENU.</para>
+        </listitem>
+        <listitem>
+	  <para>Added selection API for V4L2 subdev interface:
+	  &VIDIOC-SUBDEV-G-SELECTION; and
+	  &VIDIOC-SUBDEV-S-SELECTION;.</para>
+        </listitem>
+        <listitem>
+	  <para> Added <constant>V4L2_COLORFX_ANTIQUE</constant>,
+	  <constant>V4L2_COLORFX_ART_FREEZE</constant>,
+	  <constant>V4L2_COLORFX_AQUA</constant>,
+	  <constant>V4L2_COLORFX_SILHOUETTE</constant>,
+	  <constant>V4L2_COLORFX_SOLARIZATION</constant>,
+	  <constant>V4L2_COLORFX_VIVID</constant> and
+	  <constant>V4L2_COLORFX_ARBITRARY_CBCR</constant> menu items
+	  to the <constant>V4L2_CID_COLORFX</constant> control.</para>
+        </listitem>
+        <listitem>
+	  <para> Added <constant>V4L2_CID_COLORFX_CBCR</constant> control.</para>
+        </listitem>
+      </orderedlist>
+    </section>
+
+>>>>>>> 6491d1a... [media] V4L: Extend V4L2_CID_COLORFX with more image effects
     <section id="other">
       <title>Relation of V4L2 to other Linux multimedia APIs</title>
 

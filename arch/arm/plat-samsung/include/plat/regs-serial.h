@@ -192,9 +192,43 @@
 #define S3C64XX_UINTM		0x38
 
 #define S3C64XX_UINTM_RXD	(0)
+#define S3C64XX_UINTM_ERR	(1)
 #define S3C64XX_UINTM_TXD	(2)
 #define S3C64XX_UINTM_RXD_MSK	(1 << S3C64XX_UINTM_RXD)
+#define S3C64XX_UINTM_ERR_MSK	(1 << S3C64XX_UINTM_ERR)
 #define S3C64XX_UINTM_TXD_MSK	(1 << S3C64XX_UINTM_TXD)
+
+/* Following are specific to EXYNOS5 */
+#define EXYNOS5_UCON_TXBURST_SZ         (20)
+#define EXYNOS5_UCON_RXBURST_SZ         (16)
+#define EXYNOS5_UCON_TIMEOUT_VAL        (12)
+#define EXYNOS5_UCON_EMPTYINT_EN        (11)
+#define EXYNOS5_UCON_DMASUS_EN          (10)
+#define EXYNOS5_UCON_TIMEOUT_EN         (7)
+#define EXYNOS5_UCON_TXDMA_MODE         (2<<2)
+#define EXYNOS5_UCON_TXCPU_MODE         (1<<2)
+#define EXYNOS5_UCON_RXDMA_MODE         (2<<0)
+#define EXYNOS5_UCON_RXCPU_MODE         (1<<0)
+#define EXYNOS5_UCON_TXMODE_CL          (3<<2)
+#define EXYNOS5_UCON_RXMODE_CL          (3<<0)
+
+#define EXYNOS5_UTRSTAT_TIMEOUT         (1<<3)
+
+/* Following are specific to DMA MODE */
+#define UCON_TXBURST_SZ         EXYNOS5_UCON_TXBURST_SZ
+#define UCON_RXBURST_SZ         EXYNOS5_UCON_RXBURST_SZ
+#define UCON_TIMEOUT_VAL        EXYNOS5_UCON_TIMEOUT_VAL
+#define UCON_EMPTYINT_EN        EXYNOS5_UCON_EMPTYINT_EN
+#define UCON_DMASUS_EN          EXYNOS5_UCON_DMASUS_EN
+#define UCON_TIMEOUT_EN         EXYNOS5_UCON_TIMEOUT_EN
+#define UCON_TXDMA_MODE         EXYNOS5_UCON_TXDMA_MODE
+#define UCON_TXCPU_MODE         EXYNOS5_UCON_TXCPU_MODE
+#define UCON_RXDMA_MODE         EXYNOS5_UCON_RXDMA_MODE
+#define UCON_RXCPU_MODE         EXYNOS5_UCON_RXCPU_MODE
+#define UCON_TXMODE_CL          EXYNOS5_UCON_TXMODE_CL
+#define UCON_RXMODE_CL          EXYNOS5_UCON_RXMODE_CL
+
+#define UTRSTAT_TIMEOUT         EXYNOS5_UTRSTAT_TIMEOUT
 
 /* Following are specific to S5PV210 */
 #define S5PV210_UCON_CLKMASK	(1<<10)
@@ -246,6 +280,8 @@
 
 #ifndef __ASSEMBLY__
 
+struct uart_port;
+
 /* configuration structure for per-machine configurations for the
  * serial port
  *
@@ -265,6 +301,8 @@ struct s3c2410_uartcfg {
 	unsigned long	   ucon;	 /* value of ucon for port */
 	unsigned long	   ulcon;	 /* value of ulcon for port */
 	unsigned long	   ufcon;	 /* value of ufcon for port */
+
+	void (*wake_peer)(struct uart_port *);
 };
 
 /* s3c24xx_uart_devs

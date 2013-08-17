@@ -231,6 +231,10 @@ struct fb_bitfield {
 #define FB_VMODE_SMOOTH_XPAN	512	/* smooth xpan possible (internally used) */
 #define FB_VMODE_CONUPDATE	512	/* don't update x/yoffset	*/
 
+#define FB_FLAG_RATIO_4_3	64
+#define FB_FLAG_RATIO_16_9	128
+#define FB_FLAG_PIXEL_REPEAT	256
+
 /*
  * Display rotation support
  */
@@ -444,6 +448,8 @@ struct file;
 
 #define FB_MISC_PRIM_COLOR	1
 #define FB_MISC_1ST_DETAIL	2	/* First Detailed Timing is preferred */
+#define FB_MISC_HDMI		4	/* display supports HDMI signaling */
+
 struct fb_chroma {
 	__u32 redx;	/* in fraction of 1024 */
 	__u32 greenx;
@@ -483,6 +489,11 @@ struct fb_monspecs {
 	__u8  revision;			/* ...and revision */
 	__u8  max_x;			/* Maximum horizontal size (cm) */
 	__u8  max_y;			/* Maximum vertical size (cm) */
+	struct fb_video *videodb;	/* video database */
+	__u32 videodb_len;		/* video database length */
+	struct fb_audio *audiodb;	/* audio database */
+	__u32 audiodb_len;		/* audio database length */
+	struct fb_vendor *vsdb;		/* video specific database */
 };
 
 struct fb_cmap_user {
@@ -1102,14 +1113,18 @@ extern int fb_parse_edid(unsigned char *edid, struct fb_var_screeninfo *var);
 extern const unsigned char *fb_firmware_edid(struct device *device);
 extern void fb_edid_to_monspecs(unsigned char *edid,
 				struct fb_monspecs *specs);
-extern void fb_edid_add_monspecs(unsigned char *edid,
+extern int fb_edid_add_monspecs(unsigned char *edid,
 				 struct fb_monspecs *specs);
 extern void fb_destroy_modedb(struct fb_videomode *modedb);
+extern void fb_destroy_audiodb(struct fb_audio *audiodb);
+extern void fb_destroy_videodb(struct fb_video *videodb);
+extern void fb_destroy_vsdb(struct fb_vendor *vsdb);
 extern int fb_find_mode_cvt(struct fb_videomode *mode, int margins, int rb);
 extern unsigned char *fb_ddc_read(struct i2c_adapter *adapter);
 
 /* drivers/video/modedb.c */
 #define VESA_MODEDB_SIZE 34
+#define CEA_MODEDB_SIZE 65
 extern void fb_var_to_videomode(struct fb_videomode *mode,
 				const struct fb_var_screeninfo *var);
 extern void fb_videomode_to_var(struct fb_var_screeninfo *var,
@@ -1160,9 +1175,56 @@ struct fb_videomode {
 	u32 flag;
 };
 
+#define FB_AUDIO_LPCM	1
+
+#define FB_AUDIO_192KHZ	(1 << 6)
+#define FB_AUDIO_176KHZ	(1 << 5)
+#define FB_AUDIO_96KHZ	(1 << 4)
+#define FB_AUDIO_88KHZ	(1 << 3)
+#define FB_AUDIO_48KHZ	(1 << 2)
+#define FB_AUDIO_44KHZ	(1 << 1)
+#define FB_AUDIO_32KHZ	(1 << 0)
+
+#define FB_AUDIO_24BIT	(1 << 2)
+#define FB_AUDIO_20BIT	(1 << 1)
+#define FB_AUDIO_16BIT	(1 << 0)
+
+struct fb_video {
+	u8 vic_idx;
+	u32 refresh;
+	u32 xres;
+	u32 yres;
+	u32 vmode;
+};
+
+struct fb_audio {
+	u8 format;
+	u8 channel_count;
+	u8 sample_rates;
+	u8 bit_rates;
+};
+
+struct fb_vendor {
+	u32 ieee_reg;
+	u32 phy_addr;
+	u8 video_present;
+	u8 i_latency_field;
+	u8 latency_field;
+	u8 s3d_present;
+	u8 s3d_multi_present;
+	u8 vic_len;
+	u8 s3d_len;
+	u32 s3d_structure_all;
+	u32 s3d_structure_mask;
+	u8 s3d_field;
+	u8 vic_order[16];
+	u8 s3d_structure[16];
+	u8 s3d_detail[16];
+};
+
 extern const char *fb_mode_option;
 extern const struct fb_videomode vesa_modes[];
-extern const struct fb_videomode cea_modes[64];
+extern const struct fb_videomode cea_modes[];
 
 struct fb_modelist {
 	struct list_head list;

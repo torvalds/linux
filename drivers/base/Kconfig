@@ -192,4 +192,31 @@ config DMA_SHARED_BUFFER
 	  APIs extension; the file's descriptor can then be passed on to other
 	  driver.
 
+config SYNC
+	bool "Synchronization framework"
+	default n
+	select ANON_INODES
+	help
+	  This option enables the framework for synchronization between multiple
+	  drivers.  Sync implementations can take advantage of hardware
+	  synchronization built into devices like GPUs.
+
+config SW_SYNC
+	bool "Software synchronization objects"
+	default n
+	depends on SYNC
+	help
+	  A sync object driver that uses a 32bit counter to coordinate
+	  syncrhronization.  Useful when there is no hardware primitive backing
+	  the synchronization.
+
+config SW_SYNC_USER
+       bool "Userspace API for SW_SYNC"
+       default n
+       depends on SW_SYNC
+       help
+         Provides a user space API to the sw sync object.
+         *WARNING* improper use of this can result in deadlocking kernel
+	 drivers from userspace.
+
 endmenu

@@ -50,6 +50,13 @@ config VIDEOBUF2_CORE
 config VIDEOBUF2_MEMOPS
 	tristate
 
+config VIDEOBUF2_FB
+	depends on VIDEOBUF2_CORE && !ANDROID_PARANOID_NETWORK
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	tristate
+
 config VIDEOBUF2_DMA_CONTIG
 	select VIDEOBUF2_CORE
 	select VIDEOBUF2_MEMOPS
@@ -66,6 +73,27 @@ config VIDEOBUF2_DMA_SG
 	select VIDEOBUF2_CORE
 	select VIDEOBUF2_MEMOPS
 	tristate
+
+choice
+prompt "Video Buffer 2 for Exynos platforms"
+default VIDEOBUF2_ION
+config VIDEOBUF2_CMA_PHYS
+	bool "CMA"
+	depends on CMA
+	select VIDEOBUF2_CORE
+	select VIDEOBUF2_MEMOPS
+	help
+	  Internal memory management for Video Buffer 2 by CMA
+
+config  VIDEOBUF2_ION
+	bool "Android ION"
+	depends on ION_EXYNOS
+	select VIDEOBUF2_CORE
+	select VIDEOBUF2_MEMOPS
+	help
+	  Internal memory management for Video Buffer 2 by ION
+endchoice
+
 #
 # Multimedia Video device configuration
 #
@@ -547,7 +575,187 @@ config VIDEO_NOON010PC30
 	---help---
 	  This driver supports NOON010PC30 CIF camera from Siliconfile
 
+config VIDEO_S5K3H7
+	tristate "S5K3H7 sensor support"
+	depends on VIDEO_V4L2 && (VIDEO_S5P_MIPI_CSIS && (VIDEO_EXYNOS4_FIMC_IS || VIDEO_EXYNOS5_FIMC_IS || VIDEO_EXYNOS5_FIMC_IS2))
+        ---help---
+          This driver supports S5K3H7 sensor.
+choice
+depends on VIDEO_S5K3H7
+prompt "MIPI Camera port for S5K3H7"
+default S5K3H7_CSI_C
+config S5K3H7_CSI_C
+	bool "CSI Camera A port"
+	help
+	  This enables CSI A port for 3H7 sensor
+	  CSI is camera sensor interface
+	  currenly there is A and B
+	  This is only for internal ISP, FIMC-IS
+
+config S5K3H7_CSI_D
+	bool "CSI Camera B port"
+	help
+	  This enables CSI B port for 3H7 sensor
+	  CSI is camera sensor interface
+	  currenly there is A and B
+	  This is only for internal ISP, FIMC-IS
+endchoice
+
+choice
+depends on VIDEO_S5K3H7
+prompt "Camera position for S5K3H7"
+default S5K3H7_POSITION_REAR
+config S5K3H7_POSITION_FRONT
+	bool "front camera"
+	help
+	  This set as front camera
+	  This set as front camera
+	  This set as front camera
+	  This set as front camera
+
+config S5K3H7_POSITION_REAR
+	bool "rear camera"
+	help
+	  This set as rear camera
+	  This set as rear camera
+	  This set as rear camera
+	  This set as rear camera
+endchoice
+
+config VIDEO_S5K4E5
+        tristate "S5K4E5 sensor support"
+	depends on VIDEO_V4L2 && (VIDEO_S5P_MIPI_CSIS && (VIDEO_EXYNOS4_FIMC_IS || VIDEO_EXYNOS5_FIMC_IS || VIDEO_EXYNOS5_FIMC_IS2))
+        ---help---
+          This driver supports S5K4E5 sensor.
+choice
+depends on VIDEO_S5K4E5
+prompt "MIPI Camera port for S5K4E5"
+default S5K4E5_CSI_C
+config S5K4E5_CSI_C
+	bool "CSI Camera A port"
+	help
+	  This enables CSI A port for 4E5 sensor
+	  CSI is camera sensor interface
+	  currenly there is A and B
+	  This is only for internal ISP, FIMC-IS
+
+config S5K4E5_CSI_D
+	bool "CSI Camera B port"
+	help
+	  This enables CSI B port for 4E5 sensor
+	  CSI is camera sensor interface
+	  currenly there is A and B
+	  This is only for internal ISP, FIMC-IS
+endchoice
+
+choice
+depends on VIDEO_S5K4E5
+prompt "Camera position for S5K4E5"
+default S5K4E5_POSITION_REAR
+config S5K4E5_POSITION_FRONT
+	bool "front camera"
+	help
+	  This set as front camera
+	  This set as front camera
+	  This set as front camera
+	  This set as front camera
+
+config S5K4E5_POSITION_REAR
+	bool "rear camera"
+	help
+	  This set as rear camera
+	  This set as rear camera
+	  This set as rear camera
+	  This set as rear camera
+endchoice
+
+config VIDEO_S5K6A3
+	tristate "S5K6A3 sensor support"
+	depends on VIDEO_V4L2 && (VIDEO_S5P_MIPI_CSIS && (VIDEO_EXYNOS4_FIMC_IS || VIDEO_EXYNOS5_FIMC_IS || VIDEO_EXYNOS5_FIMC_IS2))
+	help
+	  This driver supports S5K6A3 sensor.
+choice
+depends on VIDEO_S5K6A3
+prompt "MIPI Camera port for S5K6A3"
+default S5K6A3_CSI_D
+config S5K6A3_CSI_C
+	bool "CSI Camera A port"
+	help
+	  This enables CSI A port for 6A3 sensor
+	  CSI is camera sensor interface
+	  currenly there is A and B
+	  This is only for internal ISP, FIMC-IS
+config S5K6A3_CSI_D
+	bool "CSI Camera B port"
+	help
+	  This enables CSI B port for 6A3 sensor
+	  CSI is camera sensor interface
+	  currenly there is A and B
+	  This is only for internal ISP, FIMC-IS
+endchoice
+
+choice
+depends on VIDEO_S5K6A3
+prompt "Camera position for S5K6A3"
+default S5K6A3_POSITION_FRONT
+
+config S5K6A3_POSITION_FRONT
+	bool "front camera"
+	help
+	  This set as front camera
+	  This set as front camera
+	  This set as front camera
+	  This set as front camera
+
+config S5K6A3_POSITION_REAR
+	bool "rear camera"
+	help
+	  This set as rear camera
+	  This set as rear camera
+	  This set as rear camera
+	  This set as rear camera
+
+endchoice
+
+source "drivers/media/video/exynos/fimc-is-sensor/Kconfig"
 source "drivers/media/video/m5mols/Kconfig"
+
+choice
+depends on VIDEO_S5K4BA || VIDEO_S5K4EA || VIDEO_M5MO || VIDEO_M5MOLS
+prompt "Select ITU / MIPI Camera port"
+default ITU_A
+config ITU_A
+	bool "ITU Camera A port"
+	depends on !(VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS ||\
+			VIDEO_EXYNOS_MIPI_CSIS)
+	help
+	  This enables support for ITU A port
+config ITU_B
+	bool "ITU Camera B port"
+	depends on !(VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS ||\
+			VIDEO_EXYNOS_MIPI_CSIS)
+	help
+	  This enables support for ITU B port
+config CSI_C
+	bool "CSI Camera A port"
+	depends on (VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS ||\
+			VIDEO_EXYNOS_MIPI_CSIS)
+	help
+	  This enables support for CSI A port
+config CSI_D
+	bool "CSI Camera B port"
+	depends on (VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS ||\
+			VIDEO_EXYNOS_MIPI_CSIS)
+	help
+	  This enables support for CSI B port
+config CSI_E
+	bool "CSI Camera C port"
+	depends on ((VIDEO_FIMC_MIPI || VIDEO_S5P_MIPI_CSIS || \
+			VIDEO_EXYNOS_MIPI_CSIS) && \
+			SOC_EXYNOS5410)
+	help
+	  This enables support for CSI C port
+endchoice
 
 config VIDEO_S5K6AA
 	tristate "Samsung S5K6AAFX sensor support"
@@ -1127,19 +1335,6 @@ config VIDEO_MX2
 	  This is a v4l2 driver for the i.MX27 and the i.MX25 Camera Sensor
 	  Interface
 
-config  VIDEO_SAMSUNG_S5P_FIMC
-	tristate "Samsung S5P and EXYNOS4 camera interface driver (EXPERIMENTAL)"
-	depends on VIDEO_V4L2 && I2C && PLAT_S5P && PM_RUNTIME && \
-		VIDEO_V4L2_SUBDEV_API && EXPERIMENTAL
-	select VIDEOBUF2_DMA_CONTIG
-	select V4L2_MEM2MEM_DEV
-	---help---
-	  This is a v4l2 driver for Samsung S5P and EXYNOS4 camera
-	  host interface and video postprocessor.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called s5p-fimc.
-
 config VIDEO_ATMEL_ISI
 	tristate "ATMEL Image Sensor Interface (ISI) support"
 	depends on VIDEO_DEV && SOC_CAMERA && ARCH_AT91
@@ -1148,19 +1343,13 @@ config VIDEO_ATMEL_ISI
 	  This module makes the ATMEL Image Sensor Interface available
 	  as a v4l2 device.
 
-config VIDEO_S5P_MIPI_CSIS
-	tristate "Samsung S5P and EXYNOS4 MIPI CSI receiver driver"
-	depends on VIDEO_V4L2 && PM_RUNTIME && PLAT_S5P
-	depends on VIDEO_V4L2_SUBDEV_API && REGULATOR
-	---help---
-	  This is a v4l2 driver for Samsung S5P/EXYNOS4 MIPI-CSI receiver.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called s5p-csis.
-
+source "drivers/media/video/s5p-fimc/Kconfig"
 source "drivers/media/video/s5p-tv/Kconfig"
 
 endif # V4L_PLATFORM_DRIVERS
+
+source "drivers/media/video/exynos/Kconfig"
+
 endif # VIDEO_CAPTURE_DRIVERS
 
 menuconfig V4L_MEM2MEM_DRIVERS

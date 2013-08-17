@@ -27,6 +27,9 @@
 #define OFFS_CON	(0x00)
 #define OFFS_DAT	(0x04)
 #define OFFS_UP		(0x08)
+#define OFFS_DRV_SR	(0x0C)
+#define OFFS_CONPDN	(0x10)
+#define OFFS_PUDPDN	(0x14)
 
 static void samsung_gpio_pm_1bit_save(struct samsung_gpio_chip *chip)
 {
@@ -198,6 +201,9 @@ static void samsung_gpio_pm_4bit_save(struct samsung_gpio_chip *chip)
 	chip->pm_save[1] = __raw_readl(chip->base + OFFS_CON);
 	chip->pm_save[2] = __raw_readl(chip->base + OFFS_DAT);
 	chip->pm_save[3] = __raw_readl(chip->base + OFFS_UP);
+	chip->pm_save[4] = __raw_readl(chip->base + OFFS_DRV_SR);
+	chip->pm_save[5] = __raw_readl(chip->base + OFFS_CONPDN);
+	chip->pm_save[6] = __raw_readl(chip->base + OFFS_PUDPDN);
 
 	if (chip->chip.ngpio > 8)
 		chip->pm_save[0] = __raw_readl(chip->base - 4);
@@ -296,6 +302,10 @@ static void samsung_gpio_pm_4bit_resume(struct samsung_gpio_chip *chip)
 			  chip->chip.label, old_gpcon[1],
 			  __raw_readl(base + OFFS_CON),
 			  old_gpdat, gps_gpdat);
+
+	__raw_writel(chip->pm_save[4], base + OFFS_DRV_SR);
+	__raw_writel(chip->pm_save[5], base + OFFS_CONPDN);
+	__raw_writel(chip->pm_save[6], base + OFFS_PUDPDN);
 }
 
 struct samsung_gpio_pm samsung_gpio_pm_4bit = {

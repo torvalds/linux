@@ -2,7 +2,7 @@
  * Samsung S5P/EXYNOS4 SoC series MIPI-CSI receiver driver
  *
  * Copyright (C) 2011 - 2012 Samsung Electronics Co., Ltd.
- * Sylwester Nawrocki, <s.nawrocki@samsung.com>
+ * Sylwester Nawrocki <s.nawrocki@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -31,7 +31,7 @@
 
 static int debug;
 module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Debug level (0-1)");
+MODULE_PARM_DESC(debug, "Debug level (0-2)");
 
 /* Register map definition */
 
@@ -60,15 +60,55 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 #define S5PCSIS_CFG_FMT_MASK		(0x3f << 2)
 #define S5PCSIS_CFG_NR_LANE_MASK	3
 
-/* Interrupt mask. */
+/* Interrupt mask */
 #define S5PCSIS_INTMSK			0x10
-#define S5PCSIS_INTMSK_EN_ALL		0xf000003f
+#define S5PCSIS_INTMSK_EN_ALL		0xf000103f
+#define S5PCSIS_INTMSK_EVEN_BEFORE	(1 << 31)
+#define S5PCSIS_INTMSK_EVEN_AFTER	(1 << 30)
+#define S5PCSIS_INTMSK_ODD_BEFORE	(1 << 29)
+#define S5PCSIS_INTMSK_ODD_AFTER	(1 << 28)
+#define S5PCSIS_INTMSK_ERR_SOT_HS	(1 << 12)
+#define S5PCSIS_INTMSK_ERR_LOST_FS	(1 << 5)
+#define S5PCSIS_INTMSK_ERR_LOST_FE	(1 << 4)
+#define S5PCSIS_INTMSK_ERR_OVER		(1 << 3)
+#define S5PCSIS_INTMSK_ERR_ECC		(1 << 2)
+#define S5PCSIS_INTMSK_ERR_CRC		(1 << 1)
+#define S5PCSIS_INTMSK_ERR_UNKNOWN	(1 << 0)
+
+/* Interrupt source */
 #define S5PCSIS_INTSRC			0x14
+#define S5PCSIS_INTSRC_EVEN_BEFORE	(1 << 31)
+#define S5PCSIS_INTSRC_EVEN_AFTER	(1 << 30)
+#define S5PCSIS_INTSRC_EVEN		(0x3 << 30)
+#define S5PCSIS_INTSRC_ODD_BEFORE	(1 << 29)
+#define S5PCSIS_INTSRC_ODD_AFTER	(1 << 28)
+#define S5PCSIS_INTSRC_ODD		(0x3 << 28)
+#define S5PCSIS_INTSRC_NON_IMAGE_DATA	(0xff << 28)
+#define S5PCSIS_INTSRC_ERR_SOT_HS	(0xf << 12)
+#define S5PCSIS_INTSRC_ERR_LOST_FS	(1 << 5)
+#define S5PCSIS_INTSRC_ERR_LOST_FE	(1 << 4)
+#define S5PCSIS_INTSRC_ERR_OVER		(1 << 3)
+#define S5PCSIS_INTSRC_ERR_ECC		(1 << 2)
+#define S5PCSIS_INTSRC_ERR_CRC		(1 << 1)
+#define S5PCSIS_INTSRC_ERR_UNKNOWN	(1 << 0)
+#define S5PCSIS_INTSRC_ERRORS		0xf03f
 
 /* Pixel resolution */
 #define S5PCSIS_RESOL			0x2c
 #define CSIS_MAX_PIX_WIDTH		0xffff
 #define CSIS_MAX_PIX_HEIGHT		0xffff
+
+/* Non-image packet data buffers */
+#define S5PCSIS_PKTDATA_ODD		0x2000
+#define S5PCSIS_PKTDATA_EVEN		0x3000
+#define S5PCSIS_PKTDATA_SIZE		SZ_4K
+
+/* Packet data */
+#define S5PCSIS_PKTDATA_ODD		0x2000
+#define S5PCSIS_PKTDATA_EVEN		0x3000
+
+#define CSIS_SRC_CLK			"mout_mpll_user"
+#define CSIS_PACKET_SIZE		4096
 
 enum {
 	CSIS_CLK_MUX,
@@ -82,8 +122,7 @@ static char *csi_clock_name[] = {
 #define NUM_CSIS_CLOCKS	ARRAY_SIZE(csi_clock_name)
 
 static const char * const csis_supply_name[] = {
-	"vdd11", /* 1.1V or 1.2V (s5pc100) MIPI CSI suppply */
-	"vdd18", /* VDD 1.8V and MIPI CSI PLL supply */
+	"vdd11",  /* CSIS Core (1.0V, 1.1V or 1.2V) suppply */
 };
 #define CSIS_NUM_SUPPLIES ARRAY_SIZE(csis_supply_name)
 
@@ -93,24 +132,58 @@ enum {
 	ST_SUSPENDED	= 4,
 };
 
+struct s5pcsis_event {
+	u32 mask;
+	const char * const name;
+	unsigned int counter;
+};
+
+static const struct s5pcsis_event s5pcsis_events[] = {
+	/* Errors */
+	{ S5PCSIS_INTSRC_ERR_SOT_HS,	"SOT Error" },
+	{ S5PCSIS_INTSRC_ERR_LOST_FS,	"Lost Frame Start Error" },
+	{ S5PCSIS_INTSRC_ERR_LOST_FE,	"Lost Frame End Error" },
+	{ S5PCSIS_INTSRC_ERR_OVER,	"FIFO Overflow Error" },
+	{ S5PCSIS_INTSRC_ERR_ECC,	"ECC Error" },
+	{ S5PCSIS_INTSRC_ERR_CRC,	"CRC Error" },
+	{ S5PCSIS_INTSRC_ERR_UNKNOWN,	"Unknown Error" },
+	/* Non-image data receive events */
+	{ S5PCSIS_INTSRC_EVEN_BEFORE,	"Non-image data before even frame" },
+	{ S5PCSIS_INTSRC_EVEN_AFTER,	"Non-image data after even frame" },
+	{ S5PCSIS_INTSRC_ODD_BEFORE,	"Non-image data before odd frame" },
+	{ S5PCSIS_INTSRC_ODD_AFTER,	"Non-image data after odd frame" },
+};
+#define S5PCSIS_NUM_EVENTS ARRAY_SIZE(s5pcsis_events)
+
+struct csis_pktbuf {
+	u32 *data;
+	unsigned int len;
+};
+
 /**
  * struct csis_state - the driver's internal state data structure
  * @lock: mutex serializing the subdev and power management operations,
  *        protecting @format and @flags members
  * @pads: CSIS pads array
  * @sd: v4l2_subdev associated with CSIS device instance
+ * @index: the hardware instance index
  * @pdev: CSIS platform device
  * @regs: mmaped I/O registers memory
+ * @supplies: CSIS regulator supplies
  * @clock: CSIS clocks
  * @irq: requested s5p-mipi-csis irq number
  * @flags: the state variable for power and streaming control
  * @csis_fmt: current CSIS pixel format
  * @format: common media bus format for the source and sink pad
+ * @slock: spinlock protecting structure members below
+ * @pkt_buf: the frame embedded (non-image) data buffer
+ * @events: MIPI-CSIS event (error) counters
  */
 struct csis_state {
 	struct mutex lock;
 	struct media_pad pads[CSIS_PADS_NUM];
 	struct v4l2_subdev sd;
+	u8 index;
 	struct platform_device *pdev;
 	void __iomem *regs;
 	struct regulator_bulk_data supplies[CSIS_NUM_SUPPLIES];
@@ -119,6 +192,11 @@ struct csis_state {
 	u32 flags;
 	const struct csis_pix_format *csis_fmt;
 	struct v4l2_mbus_framefmt format;
+
+	struct spinlock slock;
+	struct csis_pktbuf pkt_buf;
+	struct s5pcsis_event events[S5PCSIS_NUM_EVENTS];
+	u32 pktdata[CSIS_PACKET_SIZE / 4];
 };
 
 /**
@@ -127,25 +205,60 @@ struct csis_state {
  *                       multiple of 2^pix_width_alignment
  * @code: corresponding media bus code
  * @fmt_reg: S5PCSIS_CONFIG register value
+ * @data_alignment: MIPI-CSI data alignment in bits
  */
 struct csis_pix_format {
 	unsigned int pix_width_alignment;
 	enum v4l2_mbus_pixelcode code;
 	u32 fmt_reg;
+	u8 data_alignment;
 };
 
 static const struct csis_pix_format s5pcsis_formats[] = {
 	{
 		.code = V4L2_MBUS_FMT_VYUY8_2X8,
 		.fmt_reg = S5PCSIS_CFG_FMT_YCBCR422_8BIT,
+		.data_alignment = 32,
 	}, {
 		.code = V4L2_MBUS_FMT_JPEG_1X8,
 		.fmt_reg = S5PCSIS_CFG_FMT_USER(1),
-	},
+		.data_alignment = 32,
+	}, {
+		.code = V4L2_MBUS_FMT_S5C_UYVY_JPEG_1X8,
+		.fmt_reg = S5PCSIS_CFG_FMT_USER(1),
+		.data_alignment = 32,
+	}, {
+		.code = V4L2_MBUS_FMT_INTERLEAVED,
+		.fmt_reg = S5PCSIS_CFG_FMT_USER(1),
+		.data_alignment = 32,
+	}, {
+		.code = V4L2_MBUS_FMT_SGRBG8_1X8,
+		.fmt_reg = S5PCSIS_CFG_FMT_RAW8,
+		.data_alignment = 24,
+	}, {
+		.code = V4L2_MBUS_FMT_SGRBG10_1X10,
+		.fmt_reg = S5PCSIS_CFG_FMT_RAW10,
+		.data_alignment = 24,
+	}, {
+		.code = V4L2_MBUS_FMT_SGRBG12_1X12,
+		.fmt_reg = S5PCSIS_CFG_FMT_RAW12,
+		.data_alignment = 24,
+	}
 };
 
 #define s5pcsis_write(__csis, __r, __v) writel(__v, __csis->regs + __r)
 #define s5pcsis_read(__csis, __r) readl(__csis->regs + __r)
+
+#define s5pcsis_odd(__csis) (__csis->regs + S5PCSIS_PKTDATA_ODD)
+#define s5pcsis_even(__csis) (__csis->regs + S5PCSIS_PKTDATA_EVEN)
+#define is_interleaved(__csis) (__csis->csis_fmt->code == \
+		V4L2_MBUS_FMT_INTERLEAVED)
+
+#ifndef CONFIG_PM_RUNTIME
+#define pm_runtime_get_sync(x)	s5pcsis_pm_resume(x, true);
+#define pm_runtime_put_sync(x)	s5pcsis_pm_suspend(x, true);
+#define pm_runtime_put(x)	s5pcsis_pm_suspend(x, true);
+#endif
 
 static struct csis_state *sd_to_csis_state(struct v4l2_subdev *sdev)
 {
@@ -205,7 +318,7 @@ static void __s5pcsis_set_format(struct csis_state *state)
 	struct v4l2_mbus_framefmt *mf = &state->format;
 	u32 val;
 
-	v4l2_dbg(1, debug, &state->sd, "fmt: %d, %d x %d\n",
+	v4l2_dbg(1, debug, &state->sd, "fmt: %#x, %d x %d\n",
 		 mf->code, mf->width, mf->height);
 
 	/* Color format */
@@ -239,12 +352,14 @@ static void s5pcsis_set_params(struct csis_state *state)
 	s5pcsis_set_hsync_settle(state, pdata->hs_settle);
 
 	val = s5pcsis_read(state, S5PCSIS_CTRL);
-	if (pdata->alignment == 32)
+	if (state->csis_fmt->data_alignment == 32)
 		val |= S5PCSIS_CTRL_ALIGN_32BIT;
 	else /* 24-bits */
 		val &= ~S5PCSIS_CTRL_ALIGN_32BIT;
-	/* Not using external clock. */
+
 	val &= ~S5PCSIS_CTRL_WCLK_EXTCLK;
+	if (pdata->wclk_source)
+		val |= S5PCSIS_CTRL_WCLK_EXTCLK;
 	s5pcsis_write(state, S5PCSIS_CTRL, val);
 
 	/* Update the shadow register. */
@@ -288,17 +403,6 @@ err:
 	return -ENXIO;
 }
 
-static int s5pcsis_s_power(struct v4l2_subdev *sd, int on)
-{
-	struct csis_state *state = sd_to_csis_state(sd);
-	struct device *dev = &state->pdev->dev;
-
-	if (on)
-		return pm_runtime_get_sync(dev);
-
-	return pm_runtime_put_sync(dev);
-}
-
 static void s5pcsis_start_stream(struct csis_state *state)
 {
 	s5pcsis_reset(state);
@@ -313,7 +417,129 @@ static void s5pcsis_stop_stream(struct csis_state *state)
 	s5pcsis_system_enable(state, false);
 }
 
-/* v4l2_subdev operations */
+static int s5pcsis_pm_suspend(struct device *dev, bool runtime)
+{
+	struct s5p_platform_mipi_csis *pdata = dev->platform_data;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
+	struct csis_state *state = sd_to_csis_state(sd);
+	int ret = 0;
+
+	v4l2_dbg(1, debug, sd, "%s: flags: 0x%x\n",
+		 __func__, state->flags);
+
+	mutex_lock(&state->lock);
+	if (state->flags & ST_POWERED) {
+		s5pcsis_stop_stream(state);
+		ret = pdata->phy_enable(state->pdev, false);
+		if (ret)
+			goto unlock;
+		ret = regulator_bulk_disable(CSIS_NUM_SUPPLIES,
+					     state->supplies);
+		if (ret)
+			goto unlock;
+		clk_disable(state->clock[CSIS_CLK_GATE]);
+		state->flags &= ~ST_POWERED;
+		if (!runtime)
+			state->flags |= ST_SUSPENDED;
+	}
+unlock:
+	mutex_unlock(&state->lock);
+	return ret ? -EAGAIN : 0;
+}
+
+static int s5pcsis_pm_resume(struct device *dev, bool runtime)
+{
+	struct s5p_platform_mipi_csis *pdata = dev->platform_data;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
+	struct csis_state *state = sd_to_csis_state(sd);
+	int ret = 0;
+
+	v4l2_dbg(1, debug, sd, "%s: flags: 0x%x\n",
+		 __func__, state->flags);
+
+	mutex_lock(&state->lock);
+	if (!runtime && !(state->flags & ST_SUSPENDED))
+		goto unlock;
+
+	if (!(state->flags & ST_POWERED)) {
+		ret = regulator_bulk_enable(CSIS_NUM_SUPPLIES,
+					    state->supplies);
+		if (ret)
+			goto unlock;
+		ret = pdata->phy_enable(state->pdev, true);
+		if (!ret) {
+			state->flags |= ST_POWERED;
+		} else {
+			regulator_bulk_disable(CSIS_NUM_SUPPLIES,
+					       state->supplies);
+			goto unlock;
+		}
+		clk_enable(state->clock[CSIS_CLK_GATE]);
+	}
+	if (state->flags & ST_STREAMING)
+		s5pcsis_start_stream(state);
+
+	state->flags &= ~ST_SUSPENDED;
+unlock:
+	mutex_unlock(&state->lock);
+	return ret ? -EAGAIN : 0;
+}
+
+static int s5pcsis_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct csis_state *state = sd_to_csis_state(sd);
+	struct device *dev = &state->pdev->dev;
+
+	if (on)
+		return pm_runtime_get_sync(dev);
+
+	return pm_runtime_put_sync(dev);
+}
+
+/*
+ * This function could transfer pkdata from csis to fimc.
+ */
+static long s5pcsis_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+{
+	struct csis_state *state = sd_to_csis_state(sd);
+
+	memcpy(arg, state->pktdata, CSIS_PACKET_SIZE);
+
+	return 0;
+}
+
+static void s5pcsis_clear_counters(struct csis_state *state)
+{
+	unsigned long flags;
+	int i;
+
+	spin_lock_irqsave(&state->slock, flags);
+	for (i = 0; i < S5PCSIS_NUM_EVENTS; i++)
+		state->events[i].counter = 0;
+	spin_unlock_irqrestore(&state->slock, flags);
+}
+
+static void s5pcsis_log_counters(struct csis_state *state, bool non_errors)
+{
+	int i = non_errors ? S5PCSIS_NUM_EVENTS : S5PCSIS_NUM_EVENTS - 4;
+	unsigned long flags;
+
+	spin_lock_irqsave(&state->slock, flags);
+
+	for (i--; i >= 0; i--)
+		if (state->events[i].counter >= 0)
+			v4l2_info(&state->sd, "%s events: %d\n",
+				  state->events[i].name,
+				  state->events[i].counter);
+
+	spin_unlock_irqrestore(&state->slock, flags);
+}
+
+/*
+ * V4L2 subdev operations
+ */
 static int s5pcsis_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct csis_state *state = sd_to_csis_state(sd);
@@ -323,10 +549,12 @@ static int s5pcsis_s_stream(struct v4l2_subdev *sd, int enable)
 		 __func__, enable, state->flags);
 
 	if (enable) {
+		s5pcsis_clear_counters(state);
 		ret = pm_runtime_get_sync(&state->pdev->dev);
 		if (ret && ret != 1)
 			return ret;
 	}
+
 	mutex_lock(&state->lock);
 	if (enable) {
 		if (state->flags & ST_SUSPENDED) {
@@ -338,6 +566,8 @@ static int s5pcsis_s_stream(struct v4l2_subdev *sd, int enable)
 	} else {
 		s5pcsis_stop_stream(state);
 		state->flags &= ~ST_STREAMING;
+		if (debug > 0)
+			s5pcsis_log_counters(state, true);
 	}
 unlock:
 	mutex_unlock(&state->lock);
@@ -435,6 +665,30 @@ static int s5pcsis_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	return 0;
 }
 
+static int s5pcsis_s_rx_buffer(struct v4l2_subdev *sd, void *buf,
+			       unsigned int *size)
+{
+	struct csis_state *state = sd_to_csis_state(sd);
+	unsigned long flags;
+
+	*size = min_t(unsigned int, *size, S5PCSIS_PKTDATA_SIZE);
+
+	spin_lock_irqsave(&state->slock, flags);
+	state->pkt_buf.data = buf;
+	state->pkt_buf.len = *size;
+	spin_unlock_irqrestore(&state->slock, flags);
+
+	return 0;
+}
+
+static int s5pcsis_log_status(struct v4l2_subdev *sd)
+{
+	struct csis_state *state = sd_to_csis_state(sd);
+
+	s5pcsis_log_counters(state, true);
+	return 0;
+}
+
 static int s5pcsis_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct v4l2_mbus_framefmt *format = v4l2_subdev_get_try_format(fh, 0);
@@ -454,6 +708,8 @@ static const struct v4l2_subdev_internal_ops s5pcsis_sd_internal_ops = {
 
 static struct v4l2_subdev_core_ops s5pcsis_core_ops = {
 	.s_power = s5pcsis_s_power,
+	.log_status = s5pcsis_log_status,
+	.ioctl = s5pcsis_ioctl,
 };
 
 static struct v4l2_subdev_pad_ops s5pcsis_pad_ops = {
@@ -463,6 +719,7 @@ static struct v4l2_subdev_pad_ops s5pcsis_pad_ops = {
 };
 
 static struct v4l2_subdev_video_ops s5pcsis_video_ops = {
+	.s_rx_buffer = s5pcsis_s_rx_buffer,
 	.s_stream = s5pcsis_s_stream,
 };
 
@@ -477,10 +734,27 @@ static irqreturn_t s5pcsis_irq_handler(int irq, void *dev_id)
 	struct csis_state *state = dev_id;
 	u32 val;
 
-	/* Just clear the interrupt pending bits. */
 	val = s5pcsis_read(state, S5PCSIS_INTSRC);
 	s5pcsis_write(state, S5PCSIS_INTSRC, val);
-
+	if (is_interleaved(state)) {
+		if (val & S5PCSIS_INTSRC_ODD_BEFORE) {
+			v4l2_dbg(1, debug, &state->sd, "odd before\n");
+			memcpy_fromio(state->pktdata, s5pcsis_odd(state),
+					CSIS_PACKET_SIZE);
+		} else if (val & S5PCSIS_INTSRC_ODD_AFTER) {
+			v4l2_dbg(1, debug, &state->sd, "odd after\n");
+			memcpy_fromio(state->pktdata, s5pcsis_odd(state),
+					CSIS_PACKET_SIZE);
+		} else if (val & S5PCSIS_INTSRC_EVEN_BEFORE) {
+			v4l2_dbg(1, debug, &state->sd, "even before\n");
+			memcpy_fromio(state->pktdata, s5pcsis_even(state),
+					CSIS_PACKET_SIZE);
+		} else if (val & S5PCSIS_INTSRC_EVEN_AFTER) {
+			v4l2_dbg(1, debug, &state->sd, "even after\n");
+			memcpy_fromio(state->pktdata, s5pcsis_even(state),
+					CSIS_PACKET_SIZE);
+		}
+	}
 	return IRQ_HANDLED;
 }
 
@@ -497,15 +771,18 @@ static int __devinit s5pcsis_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mutex_init(&state->lock);
+	spin_lock_init(&state->slock);
+
 	state->pdev = pdev;
+	state->index = max(0, pdev->id);
 
 	pdata = pdev->dev.platform_data;
-	if (pdata == NULL || pdata->phy_enable == NULL) {
+	if (pdata == NULL) {
 		dev_err(&pdev->dev, "Platform data not fully specified\n");
 		return -EINVAL;
 	}
 
-	if ((pdev->id == 1 && pdata->lanes > CSIS1_MAX_LANES) ||
+	if ((state->index == 1 && pdata->lanes > CSIS1_MAX_LANES) ||
 	    pdata->lanes > CSIS0_MAX_LANES) {
 		dev_err(&pdev->dev, "Unsupported number of data lanes: %d\n",
 			pdata->lanes);
@@ -537,11 +814,20 @@ static int __devinit s5pcsis_probe(struct platform_device *pdev)
 	if (ret)
 		goto e_clkput;
 
-	clk_enable(state->clock[CSIS_CLK_MUX]);
-	if (pdata->clk_rate)
+	if (pdata->clk_rate) {
+		struct clk *srclk;
+		srclk = clk_get(&state->pdev->dev, CSIS_SRC_CLK);
+		if (IS_ERR_OR_NULL(srclk)) {
+			dev_err(&state->pdev->dev, "failed to get csis src clk\n");
+			goto e_clkput;
+		}
+		clk_set_parent(state->clock[CSIS_CLK_MUX], srclk);
+		clk_put(srclk);
 		clk_set_rate(state->clock[CSIS_CLK_MUX], pdata->clk_rate);
-	else
+		clk_enable(state->clock[CSIS_CLK_MUX]);
+	} else {
 		dev_WARN(&pdev->dev, "No clock frequency specified!\n");
+	}
 
 	ret = devm_request_irq(&pdev->dev, state->irq, s5pcsis_irq_handler,
 			       0, dev_name(&pdev->dev), state);
@@ -573,7 +859,11 @@ static int __devinit s5pcsis_probe(struct platform_device *pdev)
 	/* .. and a pointer to the subdev. */
 	platform_set_drvdata(pdev, &state->sd);
 
+	memcpy(state->events, s5pcsis_events, sizeof(state->events));
+
 	pm_runtime_enable(&pdev->dev);
+	dev_dbg(&pdev->dev, "mipi-csis%d is probed success\n", pdev->id);
+
 	return 0;
 
 e_regput:
@@ -582,76 +872,6 @@ e_clkput:
 	clk_disable(state->clock[CSIS_CLK_MUX]);
 	s5pcsis_clk_put(state);
 	return ret;
-}
-
-static int s5pcsis_pm_suspend(struct device *dev, bool runtime)
-{
-	struct s5p_platform_mipi_csis *pdata = dev->platform_data;
-	struct platform_device *pdev = to_platform_device(dev);
-	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
-	struct csis_state *state = sd_to_csis_state(sd);
-	int ret = 0;
-
-	v4l2_dbg(1, debug, sd, "%s: flags: 0x%x\n",
-		 __func__, state->flags);
-
-	mutex_lock(&state->lock);
-	if (state->flags & ST_POWERED) {
-		s5pcsis_stop_stream(state);
-		ret = pdata->phy_enable(state->pdev, false);
-		if (ret)
-			goto unlock;
-		ret = regulator_bulk_disable(CSIS_NUM_SUPPLIES,
-					     state->supplies);
-		if (ret)
-			goto unlock;
-		clk_disable(state->clock[CSIS_CLK_GATE]);
-		state->flags &= ~ST_POWERED;
-		if (!runtime)
-			state->flags |= ST_SUSPENDED;
-	}
- unlock:
-	mutex_unlock(&state->lock);
-	return ret ? -EAGAIN : 0;
-}
-
-static int s5pcsis_pm_resume(struct device *dev, bool runtime)
-{
-	struct s5p_platform_mipi_csis *pdata = dev->platform_data;
-	struct platform_device *pdev = to_platform_device(dev);
-	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
-	struct csis_state *state = sd_to_csis_state(sd);
-	int ret = 0;
-
-	v4l2_dbg(1, debug, sd, "%s: flags: 0x%x\n",
-		 __func__, state->flags);
-
-	mutex_lock(&state->lock);
-	if (!runtime && !(state->flags & ST_SUSPENDED))
-		goto unlock;
-
-	if (!(state->flags & ST_POWERED)) {
-		ret = regulator_bulk_enable(CSIS_NUM_SUPPLIES,
-					    state->supplies);
-		if (ret)
-			goto unlock;
-		ret = pdata->phy_enable(state->pdev, true);
-		if (!ret) {
-			state->flags |= ST_POWERED;
-		} else {
-			regulator_bulk_disable(CSIS_NUM_SUPPLIES,
-					       state->supplies);
-			goto unlock;
-		}
-		clk_enable(state->clock[CSIS_CLK_GATE]);
-	}
-	if (state->flags & ST_STREAMING)
-		s5pcsis_start_stream(state);
-
-	state->flags &= ~ST_SUSPENDED;
- unlock:
-	mutex_unlock(&state->lock);
-	return ret ? -EAGAIN : 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -711,19 +931,8 @@ static struct platform_driver s5pcsis_driver = {
 	},
 };
 
-static int __init s5pcsis_init(void)
-{
-	return platform_driver_probe(&s5pcsis_driver, s5pcsis_probe);
-}
-
-static void __exit s5pcsis_exit(void)
-{
-	platform_driver_unregister(&s5pcsis_driver);
-}
-
-module_init(s5pcsis_init);
-module_exit(s5pcsis_exit);
+module_platform_driver(s5pcsis_driver);
 
 MODULE_AUTHOR("Sylwester Nawrocki <s.nawrocki@samsung.com>");
-MODULE_DESCRIPTION("S5P/EXYNOS4 MIPI CSI receiver driver");
+MODULE_DESCRIPTION("Samsung S5P/EXYNOS SoC MIPI-CSI2 receiver driver");
 MODULE_LICENSE("GPL");

@@ -35,9 +35,9 @@ static void arch_detect_cpu(void)
 	 *
 	 */
 	chip_id >>= 20;
-	chip_id &= 0xf;
+	chip_id &= 0xff;
 
-	if (chip_id == 0x5)
+	if ((chip_id & 0x0f) == 0x5 || (chip_id & 0xf0) == 0x50)
 		uart_base = (volatile u8 *)EXYNOS5_PA_UART + (S3C_UART_OFFSET * CONFIG_S3C_LOWLEVEL_UART_PORT);
 	else
 		uart_base = (volatile u8 *)EXYNOS4_PA_UART + (S3C_UART_OFFSET * CONFIG_S3C_LOWLEVEL_UART_PORT);

@@ -1,0 +1,64 @@
+menuconfig ION
+	tristate "Ion Memory Manager"
+	select GENERIC_ALLOCATOR
+	select DMA_SHARED_BUFFER
+	help
+	  Chose this option to enable the ION Memory Manager.
+
+config ION_TEGRA
+	tristate "Ion for Tegra"
+	depends on ARCH_TEGRA && ION
+	help
+	  Choose this option if you wish to use ion on an nVidia Tegra.
+
+config ION_EXYNOS
+	tristate "Ion for Exynos"
+	depends on ARCH_EXYNOS && ION
+	select CMA
+	help
+	  Choose this option if you wish to use ion on a Samsung Exynos.
+
+config ION_EXYNOS_CONTIGHEAP_SIZE
+	int "Size in Kilobytes of memory pool of EXYNOS_CONTIG_HEAP"
+	depends on ION_EXYNOS && CMA
+	default 45056
+
+config ION_EXYNOS_DRM_MFC_SH
+	bool "ION Heap for drm mfc sh"
+	depends on EXYNOS_CONTENT_PATH_PROTECTION
+	default y
+
+config ION_EXYNOS_DRM_MSGBOX_SH
+	bool "ION Heap for drm msgbox sh"
+	depends on EXYNOS_CONTENT_PATH_PROTECTION
+	default y
+
+config ION_EXYNOS_DRM_MFC_FW
+	bool "ION Heap for drm fw"
+	depends on EXYNOS_CONTENT_PATH_PROTECTION
+	default y
+
+config ION_EXYNOS_DRM_SECTBL
+	bool "ION Heap for drm sectbl"
+	depends on EXYNOS_CONTENT_PATH_PROTECTION
+	default y
+
+config ION_EXYNOS_DRM_MEMSIZE_FIMD_VIDEO
+	int "Reserved memsize in kilobytes for FIMD VIDEO"
+	depends on EXYNOS_CONTENT_PATH_PROTECTION
+	default 98304
+
+config ION_EXYNOS_DRM_MEMSIZE_MFC_OUTPUT
+	int "Reserved memsize in kilobytes for MFC OUTPUT"
+	depends on EXYNOS_CONTENT_PATH_PROTECTION
+	default 60416
+
+config ION_EXYNOS_DRM_MEMSIZE_MFC_INPUT
+	int "Reserved memsize in kilobytes for MFC INPUT"
+	depends on EXYNOS_CONTENT_PATH_PROTECTION
+	default 16384
+
+config ION_EXYNOS_DRM_MEMSIZE_G2D_WFD
+	int "Reserved memsize in kilobytes for G2D WFD"
+	depends on EXYNOS_CONTENT_PATH_PROTECTION
+	default 12288

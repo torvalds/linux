@@ -14,10 +14,12 @@
 #ifndef __ASM_PLAT_FIMC_CORE_H
 #define __ASM_PLAT_FIMC_CORE_H __FILE__
 
-/*
- * These functions are only for use with the core support code, such as
- * the CPU-specific initialization code.
- */
+#include <plat/devs.h>
+
+struct s5p_platform_fimc {
+	struct s5p_fimc_isp_info *isp_info;
+	int num_clients;
+};
 
 /* Re-define device name to differentiate the subsystem in various SoCs. */
 static inline void s3c_fimc_setname(int id, char *name)

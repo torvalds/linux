@@ -18,11 +18,11 @@
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
+#include <linux/mmc/mmc_trace.h>
 #include "queue.h"
 
 #define MMC_QUEUE_BOUNCESZ	65536
 
-#define MMC_QUEUE_SUSPENDED	(1 << 0)
 
 /*
  * Prepare a MMC request. This just filters out odd stuff.
@@ -66,8 +66,30 @@ static int mmc_queue_thread(void *d)
 		spin_unlock_irq(q->queue_lock);
 
 		if (req || mq->mqrq_prev->req) {
+			if (mq->flags & MMC_QUEUE_NEW_REQUEST) {
+				mmc_add_trace(__MMC_TA_ASYNC_REQ_FETCH,
+							mq->mqrq_cur);
+				mq->flags &= ~MMC_QUEUE_NEW_REQUEST;
+			} else {
+				if (req)
+					mmc_add_trace(__MMC_TA_REQ_FETCH,
+								mq->mqrq_cur);
+			}
+
 			set_current_state(TASK_RUNNING);
 			mq->issue_fn(mq, req);
+			if (mq->flags & MMC_QUEUE_NEW_REQUEST)
+				continue; /* fetch again */
+
+			/*
+			 * Current request becomes previous request
+			 * and vice versa.
+			 */
+			mq->mqrq_prev->brq.mrq.data = NULL;
+			mq->mqrq_prev->req = NULL;
+			tmp = mq->mqrq_prev;
+			mq->mqrq_prev = mq->mqrq_cur;
+			mq->mqrq_cur = tmp;
 		} else {
 			if (kthread_should_stop()) {
 				set_current_state(TASK_RUNNING);
@@ -77,13 +99,6 @@ static int mmc_queue_thread(void *d)
 			schedule();
 			down(&mq->thread_sem);
 		}
-
-		/* Current request becomes previous request and vice versa. */
-		mq->mqrq_prev->brq.mrq.data = NULL;
-		mq->mqrq_prev->req = NULL;
-		tmp = mq->mqrq_prev;
-		mq->mqrq_prev = mq->mqrq_cur;
-		mq->mqrq_cur = tmp;
 	} while (1);
 	up(&mq->thread_sem);
 
@@ -100,6 +115,8 @@ static void mmc_request(struct request_queue *q)
 {
 	struct mmc_queue *mq = q->queuedata;
 	struct request *req;
+	unsigned long flags;
+	struct mmc_context_info *cntx;
 
 	if (!mq) {
 		while ((req = blk_fetch_request(q)) != NULL) {
@@ -109,7 +126,20 @@ static void mmc_request(struct request_queue *q)
 		return;
 	}
 
-	if (!mq->mqrq_cur->req && !mq->mqrq_prev->req)
+	cntx = &mq->card->host->context_info;
+	if (!mq->mqrq_cur->req && mq->mqrq_prev->req) {
+		/*
+		 * New MMC request arrived when MMC thread may be
+		 * blocked on the previous request to be complete
+		 * with no current request fetched
+		 */
+		spin_lock_irqsave(&cntx->lock, flags);
+		if (cntx->is_waiting_last_req) {
+			cntx->is_new_req = true;
+			wake_up_interruptible(&cntx->wait);
+		}
+		spin_unlock_irqrestore(&cntx->lock, flags);
+	} else if (!mq->mqrq_cur->req && !mq->mqrq_prev->req)
 		wake_up_process(mq->thread);
 }
 
@@ -166,6 +196,7 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
 	int ret;
 	struct mmc_queue_req *mqrq_cur = &mq->mqrq[0];
 	struct mmc_queue_req *mqrq_prev = &mq->mqrq[1];
+	struct mmc_queue_req *mqrq_hdr = &mq->mqrq[2];
 
 	if (mmc_dev(host)->dma_mask && *mmc_dev(host)->dma_mask)
 		limit = *mmc_dev(host)->dma_mask;
@@ -177,8 +208,15 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
 
 	memset(&mq->mqrq_cur, 0, sizeof(mq->mqrq_cur));
 	memset(&mq->mqrq_prev, 0, sizeof(mq->mqrq_prev));
+	memset(&mq->mqrq_hdr, 0, sizeof(mq->mqrq_hdr));
+
+	INIT_LIST_HEAD(&mqrq_cur->packed_list);
+	INIT_LIST_HEAD(&mqrq_prev->packed_list);
+	INIT_LIST_HEAD(&mqrq_hdr->packed_list);
+
 	mq->mqrq_cur = mqrq_cur;
 	mq->mqrq_prev = mqrq_prev;
+	mq->mqrq_hdr = mqrq_hdr;
 	mq->queue->queuedata = mq;
 
 	blk_queue_prep_rq(mq->queue, mmc_prep_request);
@@ -214,9 +252,21 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
 				kfree(mqrq_cur->bounce_buf);
 				mqrq_cur->bounce_buf = NULL;
 			}
+
+			mqrq_hdr->bounce_buf = kmalloc(bouncesz, GFP_KERNEL);
+			if (!mqrq_hdr->bounce_buf) {
+				printk(KERN_WARNING "%s: unable to "
+						"allocate bounce hdr buffer\n",
+						mmc_card_name(card));
+				kfree(mqrq_cur->bounce_buf);
+				mqrq_cur->bounce_buf = NULL;
+				kfree(mqrq_prev->bounce_buf);
+				mqrq_prev->bounce_buf = NULL;
+			}
 		}
 
-		if (mqrq_cur->bounce_buf && mqrq_prev->bounce_buf) {
+		if (mqrq_cur->bounce_buf && mqrq_prev->bounce_buf &&
+				mqrq_hdr->bounce_buf) {
 			blk_queue_bounce_limit(mq->queue, BLK_BOUNCE_ANY);
 			blk_queue_max_hw_sectors(mq->queue, bouncesz / 512);
 			blk_queue_max_segments(mq->queue, bouncesz / 512);
@@ -239,11 +289,21 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
 				mmc_alloc_sg(bouncesz / 512, &ret);
 			if (ret)
 				goto cleanup_queue;
+
+			mqrq_hdr->sg = mmc_alloc_sg(1, &ret);
+			if (ret)
+				goto cleanup_queue;
+
+			mqrq_hdr->bounce_sg =
+				mmc_alloc_sg(bouncesz / 512, &ret);
+			if (ret)
+				goto cleanup_queue;
 		}
 	}
 #endif
 
-	if (!mqrq_cur->bounce_buf && !mqrq_prev->bounce_buf) {
+	if (!mqrq_cur->bounce_buf && !mqrq_prev->bounce_buf &&
+			!mqrq_hdr->bounce_buf) {
 		blk_queue_bounce_limit(mq->queue, limit);
 		blk_queue_max_hw_sectors(mq->queue,
 			min(host->max_blk_count, host->max_req_size / 512));
@@ -254,8 +314,11 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
 		if (ret)
 			goto cleanup_queue;
 
-
 		mqrq_prev->sg = mmc_alloc_sg(host->max_segs, &ret);
+		if (ret)
+			goto cleanup_queue;
+
+		mqrq_hdr->sg = mmc_alloc_sg(host->max_segs, &ret);
 		if (ret)
 			goto cleanup_queue;
 	}
@@ -276,6 +339,8 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
 	mqrq_cur->bounce_sg = NULL;
 	kfree(mqrq_prev->bounce_sg);
 	mqrq_prev->bounce_sg = NULL;
+	kfree(mqrq_hdr->bounce_sg);
+	mqrq_hdr->bounce_sg = NULL;
 
  cleanup_queue:
 	kfree(mqrq_cur->sg);
@@ -288,6 +353,11 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
 	kfree(mqrq_prev->bounce_buf);
 	mqrq_prev->bounce_buf = NULL;
 
+	kfree(mqrq_hdr->sg);
+	mqrq_hdr->sg = NULL;
+	kfree(mqrq_hdr->bounce_buf);
+	mqrq_hdr->bounce_buf = NULL;
+
 	blk_cleanup_queue(mq->queue);
 	return ret;
 }
@@ -298,6 +368,7 @@ void mmc_cleanup_queue(struct mmc_queue *mq)
 	unsigned long flags;
 	struct mmc_queue_req *mqrq_cur = mq->mqrq_cur;
 	struct mmc_queue_req *mqrq_prev = mq->mqrq_prev;
+	struct mmc_queue_req *mqrq_hdr = mq->mqrq_hdr;
 
 	/* Make sure the queue isn't suspended, as that will deadlock */
 	mmc_queue_resume(mq);
@@ -327,6 +398,15 @@ void mmc_cleanup_queue(struct mmc_queue *mq)
 	mqrq_prev->sg = NULL;
 
 	kfree(mqrq_prev->bounce_buf);
+	mqrq_prev->bounce_buf = NULL;
+
+	kfree(mqrq_hdr->bounce_sg);
+	mqrq_prev->bounce_sg = NULL;
+
+	kfree(mqrq_hdr->sg);
+	mqrq_prev->sg = NULL;
+
+	kfree(mqrq_hdr->bounce_buf);
 	mqrq_prev->bounce_buf = NULL;
 
 	mq->card = NULL;
@@ -377,6 +457,37 @@ void mmc_queue_resume(struct mmc_queue *mq)
 	}
 }
 
+static unsigned int mmc_queue_packed_map_sg(struct mmc_queue *mq,
+					    struct mmc_queue_req *mqrq,
+					    struct scatterlist *sg)
+{
+	struct scatterlist *__sg;
+	unsigned int sg_len = 0;
+	struct request *req;
+	enum mmc_packed_sg_flag sg_flag = mqrq->packed_sg_flag;
+
+	if (sg_flag == MMC_PACKED_HDR_SG || sg_flag == MMC_PACKED_WR_SG) {
+		__sg = sg;
+		sg_set_buf(__sg, mqrq->packed_cmd_hdr,
+				sizeof(mqrq->packed_cmd_hdr));
+		sg_len++;
+		if (sg_flag == MMC_PACKED_HDR_SG) {
+			sg_mark_end(__sg);
+			return sg_len;
+		}
+		__sg->page_link &= ~0x02;
+	}
+
+	__sg = sg + sg_len;
+	list_for_each_entry(req, &mqrq->packed_list, queuelist) {
+		sg_len += blk_rq_map_sg(mq->queue, req, __sg);
+		__sg = sg + (sg_len - 1);
+		(__sg++)->page_link &= ~0x02;
+	}
+	sg_mark_end(sg + (sg_len - 1));
+	return sg_len;
+}
+
 /*
  * Prepare the sg list(s) to be handed of to the host driver
  */
@@ -385,14 +496,22 @@ unsigned int mmc_queue_map_sg(struct mmc_queue *mq, struct mmc_queue_req *mqrq)
 	unsigned int sg_len;
 	size_t buflen;
 	struct scatterlist *sg;
+	enum mmc_packed_sg_flag sg_flag = mqrq->packed_sg_flag;
 	int i;
 
-	if (!mqrq->bounce_buf)
-		return blk_rq_map_sg(mq->queue, mqrq->req, mqrq->sg);
+	if (!mqrq->bounce_buf) {
+		if (sg_flag != MMC_PACKED_NONE_SG)
+			return mmc_queue_packed_map_sg(mq, mqrq, mqrq->sg);
+		else
+			return blk_rq_map_sg(mq->queue, mqrq->req, mqrq->sg);
+	}
 
 	BUG_ON(!mqrq->bounce_sg);
 
-	sg_len = blk_rq_map_sg(mq->queue, mqrq->req, mqrq->bounce_sg);
+	if (sg_flag != MMC_PACKED_NONE_SG)
+		sg_len = mmc_queue_packed_map_sg(mq, mqrq, mqrq->bounce_sg);
+	else
+		sg_len = blk_rq_map_sg(mq->queue, mqrq->req, mqrq->bounce_sg);
 
 	mqrq->bounce_sg_len = sg_len;
 
@@ -414,7 +533,8 @@ void mmc_queue_bounce_pre(struct mmc_queue_req *mqrq)
 	if (!mqrq->bounce_buf)
 		return;
 
-	if (rq_data_dir(mqrq->req) != WRITE)
+	if (rq_data_dir(mqrq->req) != WRITE &&
+			mqrq->packed_cmd != MMC_PACKED_WR_HDR)
 		return;
 
 	sg_copy_to_buffer(mqrq->bounce_sg, mqrq->bounce_sg_len,

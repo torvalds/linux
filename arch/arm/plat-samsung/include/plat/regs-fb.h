@@ -38,6 +38,7 @@
 #define VIDCON0_VIDOUT_TV			(0x1 << 26)
 #define VIDCON0_VIDOUT_I80_LDI0			(0x2 << 26)
 #define VIDCON0_VIDOUT_I80_LDI1			(0x3 << 26)
+#define VIDCON0_VIDOUT_WB			(0x4 << 26)
 
 #define VIDCON0_L1_DATA_MASK			(0x7 << 23)
 #define VIDCON0_L1_DATA_SHIFT			(23)
@@ -81,7 +82,12 @@
 #define VIDCON0_ENVID				(1 << 1)
 #define VIDCON0_ENVID_F				(1 << 0)
 
+#ifdef CONFIG_FB_EXYNOS_FIMD_V8
+#define VIDCON1					(0x20004)
+#else
 #define VIDCON1					(0x04)
+#endif
+
 #define VIDCON1_LINECNT_MASK			(0x7ff << 16)
 #define VIDCON1_LINECNT_SHIFT			(16)
 #define VIDCON1_LINECNT_GET(_v)			(((_v) >> 16) & 0x7ff)
@@ -90,7 +96,7 @@
 #define VIDCON1_VSTATUS_VSYNC			(0x0 << 13)
 #define VIDCON1_VSTATUS_BACKPORCH		(0x1 << 13)
 #define VIDCON1_VSTATUS_ACTIVE			(0x2 << 13)
-#define VIDCON1_VSTATUS_FRONTPORCH		(0x0 << 13)
+#define VIDCON1_VSTATUS_FRONTPORCH		(0x3 << 13)
 #define VIDCON1_VCLK_MASK			(0x3 << 9)
 #define VIDCON1_VCLK_HOLD			(0x0 << 9)
 #define VIDCON1_VCLK_RUN			(0x1 << 9)
@@ -104,13 +110,31 @@
 
 #define VIDCON2					(0x08)
 #define VIDCON2_EN601				(1 << 23)
-#define VIDCON2_TVFMTSEL_SW			(1 << 14)
-
-#define VIDCON2_TVFMTSEL1_MASK			(0x3 << 12)
-#define VIDCON2_TVFMTSEL1_SHIFT			(12)
-#define VIDCON2_TVFMTSEL1_RGB			(0x0 << 12)
-#define VIDCON2_TVFMTSEL1_YUV422		(0x1 << 12)
-#define VIDCON2_TVFMTSEL1_YUV444		(0x2 << 12)
+#define VIDCON2_RGB_ORDER_E_MASK	(0x7 << 19)
+#define VIDCON2_RGB_ORDER_E_RGB		(0x0 << 19)
+#define VIDCON2_RGB_ORDER_E_GBR		(0x1 << 19)
+#define VIDCON2_RGB_ORDER_E_BRG		(0x2 << 19)
+#define VIDCON2_RGB_ORDER_E_BGR		(0x4 << 19)
+#define VIDCON2_RGB_ORDER_E_RBG		(0x5 << 19)
+#define VIDCON2_RGB_ORDER_E_GRB		(0x6 << 19)
+#define VIDCON2_RGB_ORDER_O_MASK	(0x7 << 16)
+#define VIDCON2_RGB_ORDER_O_RGB		(0x0 << 16)
+#define VIDCON2_RGB_ORDER_O_GBR		(0x1 << 16)
+#define VIDCON2_RGB_ORDER_O_BRG		(0x2 << 16)
+#define VIDCON2_RGB_ORDER_O_BGR		(0x4 << 16)
+#define VIDCON2_RGB_ORDER_O_RBG		(0x5 << 16)
+#define VIDCON2_RGB_ORDER_O_GRB		(0x6 << 16)
+#define VIDCON2_WB_DISABLE		(0 << 15)
+#define VIDCON2_WB_ENABLE		(1 << 15)
+#define VIDCON2_WB_MASK			(1 << 15)
+#define VIDCON2_TVFORMATSEL_HW		(0 << 14)
+#define VIDCON2_TVFORMATSEL_SW		(1 << 14)
+#define VIDCON2_TVFORMATSEL_HW_SW_MASK	(1 << 14)
+#define VIDCON2_TVFORMATSEL_MASK	(0x3 << 12)
+#define VIDCON2_TVFORMATSEL_SHIFT	(12)
+#define VIDCON2_TVFORMATSEL_RGB		(0x0 << 12)
+#define VIDCON2_TVFORMATSEL_YUV422	(0x1 << 12)
+#define VIDCON2_TVFORMATSEL_YUV444	(0x2 << 12)
 
 #define VIDCON2_ORGYCbCr			(1 << 8)
 #define VIDCON2_YUVORDCrCb			(1 << 7)
@@ -166,7 +190,6 @@
 #define VIDTCON1_HSPW_LIMIT			(0xff)
 #define VIDTCON1_HSPW(_x)			((_x) << 0)
 
-#define VIDTCON2				(0x18)
 #define VIDTCON2_LINEVAL_E(_x)			((((_x) & 0x800) >> 11) << 23)
 #define VIDTCON2_LINEVAL_MASK			(0x7ff << 11)
 #define VIDTCON2_LINEVAL_SHIFT			(11)
@@ -181,11 +204,13 @@
 
 /* WINCONx */
 
-
 #define WINCONx_BITSWP				(1 << 18)
 #define WINCONx_BYTSWP				(1 << 17)
 #define WINCONx_HAWSWP				(1 << 16)
 #define WINCONx_WSWP				(1 << 15)
+#define WINCONx_ENLOCAL_MASK			(0xf << 15)
+#define WINCONx_INRGB_RGB			(0 << 13)
+#define WINCONx_INRGB_YCBCR			(1 << 13)
 #define WINCONx_BURSTLEN_MASK			(0x3 << 9)
 #define WINCONx_BURSTLEN_SHIFT			(9)
 #define WINCONx_BURSTLEN_16WORD			(0x0 << 9)
@@ -205,6 +230,7 @@
 #define WINCON0_BPPMODE_24BPP_888		(0xb << 2)
 
 #define WINCON1_BLD_PIX				(1 << 6)
+#define WINCON1_BLD_PLANE			(0 << 6)
 
 #define WINCON1_ALPHA_SEL			(1 << 1)
 #define WINCON1_BPPMODE_MASK			(0xf << 2)
@@ -224,7 +250,13 @@
 #define WINCON1_BPPMODE_24BPP_A1887		(0xc << 2)
 #define WINCON1_BPPMODE_25BPP_A1888		(0xd << 2)
 #define WINCON1_BPPMODE_28BPP_A4888		(0xd << 2)
+#define WINCON1_BPPMODE_13BPP_A1444		(0xe << 2)
+#define WINCON1_BPPMODE_16BPP_A4444		(0xe << 2)
 
+/* WIN_RGB_ORDERx */
+
+#define WIN_RGB_ORDER_BGR			(1 << 11)
+#define WIN_RGB_ORDER_RGB			(0 << 11)
 /* S5PV210 */
 #define SHADOWCON				(0x34)
 #define SHADOWCON_WINx_PROTECT(_win)		(1 << (10 + (_win)))
@@ -257,28 +289,21 @@
 #define VIDOSDxB_BOTRIGHT_Y_LIMIT		(0x7ff)
 #define VIDOSDxB_BOTRIGHT_Y(_x)			(((_x) & 0x7ff) << 0)
 
-/* For VIDOSD[1..4]C */
-#define VIDISD14C_ALPHA0_R(_x)			((_x) << 20)
-#define VIDISD14C_ALPHA0_G_MASK			(0xf << 16)
-#define VIDISD14C_ALPHA0_G_SHIFT		(16)
-#define VIDISD14C_ALPHA0_G_LIMIT		(0xf)
-#define VIDISD14C_ALPHA0_G(_x)			((_x) << 16)
-#define VIDISD14C_ALPHA0_B_MASK			(0xf << 12)
-#define VIDISD14C_ALPHA0_B_SHIFT		(12)
-#define VIDISD14C_ALPHA0_B_LIMIT		(0xf)
-#define VIDISD14C_ALPHA0_B(_x)			((_x) << 12)
-#define VIDISD14C_ALPHA1_R_MASK			(0xf << 8)
-#define VIDISD14C_ALPHA1_R_SHIFT		(8)
-#define VIDISD14C_ALPHA1_R_LIMIT		(0xf)
-#define VIDISD14C_ALPHA1_R(_x)			((_x) << 8)
-#define VIDISD14C_ALPHA1_G_MASK			(0xf << 4)
-#define VIDISD14C_ALPHA1_G_SHIFT		(4)
-#define VIDISD14C_ALPHA1_G_LIMIT		(0xf)
-#define VIDISD14C_ALPHA1_G(_x)			((_x) << 4)
-#define VIDISD14C_ALPHA1_B_MASK			(0xf << 0)
-#define VIDISD14C_ALPHA1_B_SHIFT		(0)
-#define VIDISD14C_ALPHA1_B_LIMIT		(0xf)
-#define VIDISD14C_ALPHA1_B(_x)			((_x) << 0)
+/* alpha when !win->variant.has_osd_alpha */
+#define VIDWxALPHAx_R(_x)			(((_x) & 0xFF) << 16)
+#define VIDWxALPHAx_G(_x)			(((_x) & 0xFF) << 8)
+#define VIDWxALPHAx_B(_x)			(((_x) & 0xFF) << 0)
+
+/* alpha when win->variant.has_osd_alpha */
+#define VIDOSDxC_ALPHA0_R_H(_x)			(((_x) & 0xF0) << 16)
+#define VIDOSDxC_ALPHA0_G_H(_x)			(((_x) & 0xF0) << 12)
+#define VIDOSDxC_ALPHA0_B_H(_x)			(((_x) & 0xF0) << 8)
+#define VIDOSDxC_ALPHA1_R_H(_x)			(((_x) & 0xF0) << 4)
+#define VIDOSDxC_ALPHA1_G_H(_x)			(((_x) & 0xF0) << 0)
+#define VIDOSDxC_ALPHA1_B_H(_x)			(((_x) & 0xF0) >> 4)
+#define VIDWxALPHAx_R_L(_x)			(((_x) & 0x0F) << 16)
+#define VIDWxALPHAx_G_L(_x)			(((_x) & 0x0F) << 8)
+#define VIDWxALPHAx_B_L(_x)			(((_x) & 0x0F) << 0)
 
 /* Video buffer addresses */
 #define VIDW_BUF_START(_buff)			(0xA0 + ((_buff) * 8))
@@ -298,6 +323,10 @@
 #define VIDW_BUF_SIZE_PAGEWIDTH_SHIFT		(0)
 #define VIDW_BUF_SIZE_PAGEWIDTH_LIMIT		(0x1fff)
 #define VIDW_BUF_SIZE_PAGEWIDTH(_x)		(((_x) & 0x1fff) << 0)
+
+#define SHD_VIDW_BUF_START(_buff)		(0x40A0 + ((_buff) * 8))
+#define SHD_VIDW_BUF_END(_buff)			(0x40D0 + ((_buff) * 8))
+#define SHD_VIDW_BUF_SIZE(_buff)		(0x4100 + ((_buff) * 8))
 
 /* Interrupt controls and status */
 
@@ -330,6 +359,7 @@
 #define VIDINTCON0_FIFIOSEL_WINDOW0		(0x1 << 5)
 #define VIDINTCON0_FIFIOSEL_WINDOW1		(0x2 << 5)
 
+#define VIDINTCON0_INT_FIFO			(1 << 1)
 #define VIDINTCON0_FIFOLEVEL_MASK		(0x7 << 2)
 #define VIDINTCON0_FIFOLEVEL_SHIFT		(2)
 #define VIDINTCON0_FIFOLEVEL_TO25PC		(0x0 << 2)
@@ -395,9 +425,47 @@
 #define WPALCON_W0PAL_16BPP_A555		(0x5 << 0)
 #define WPALCON_W0PAL_16BPP_565			(0x6 << 0)
 
+/* Clock gate mode control */
+#define REG_CLKGATE_MODE			(0x1b0)
+#define REG_CLKGATE_MODE_AUTO_CLOCK_GATE	(0 << 0)
+#define REG_CLKGATE_MODE_NON_CLOCK_GATE		(1 << 0)
+
+/* Blending equation */
+#define BLENDEQ(_x)				(0x240 + (_x) * 4)
+#define BLENDEQ_COEF_ZERO			0x0
+#define BLENDEQ_COEF_ONE			0x1
+#define BLENDEQ_COEF_ALPHA_A			0x2
+#define BLENDEQ_COEF_ONE_MINUS_ALPHA_A		0x3
+#define BLENDEQ_COEF_ALPHA_B			0x4
+#define BLENDEQ_COEF_ONE_MINUS_ALPHA_B		0x5
+#define BLENDEQ_COEF_ALPHA0			0x6
+#define BLENDEQ_COEF_A				0xA
+#define BLENDEQ_COEF_ONE_MINUS_A		0xB
+#define BLENDEQ_COEF_B				0xC
+#define BLENDEQ_COEF_ONE_MINUS_B		0xD
+#define BLENDEQ_Q_FUNC(_x)			((_x) << 18)
+#define BLENDEQ_Q_FUNC_MASK			BLENDEQ_Q_FUNC(0xF)
+#define BLENDEQ_P_FUNC(_x)			((_x) << 12)
+#define BLENDEQ_P_FUNC_MASK			BLENDEQ_P_FUNC(0xF)
+#define BLENDEQ_B_FUNC(_x)			((_x) << 6)
+#define BLENDEQ_B_FUNC_MASK			BLENDEQ_B_FUNC(0xF)
+#define BLENDEQ_A_FUNC(_x)			((_x) << 0)
+#define BLENDEQ_A_FUNC_MASK			BLENDEQ_A_FUNC(0xF)
+
 /* Blending equation control */
 #define BLENDCON				(0x260)
 #define BLENDCON_NEW_MASK			(1 << 0)
 #define BLENDCON_NEW_8BIT_ALPHA_VALUE		(1 << 0)
 #define BLENDCON_NEW_4BIT_ALPHA_VALUE		(0 << 0)
 
+/* DP clock control */
+#define DPCLKCON				(0x27c)
+#define DPCLKCON_ENABLE				(1 << 1)
+
+/* Window alpha control */
+#define VIDW_ALPHA0(_x)				(0x21C + ((_x) * 8))
+#define VIDW_ALPHA1(_x)				(0x220 + ((_x) * 8))
+
+/* IP's version */
+#define FIMD_VERSION				(0x20274)
+#define EXYNOS5_813				(0x80000013)

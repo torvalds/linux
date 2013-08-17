@@ -45,3 +45,10 @@ ifneq ($(CONFIG_PCI),)
 	obj-$(CONFIG_USB_DWC3)		+= dwc3-pci.o
 endif
 
+##
+# For Exynos USB3 DRD
+##
+
+ccflags-$(CONFIG_USB_EXYNOS_DRD) += -Idrivers/usb/host
+obj-$(CONFIG_USB_EXYNOS_DRD)	+= exynos-drd.o exynos-drd-switch.o
+

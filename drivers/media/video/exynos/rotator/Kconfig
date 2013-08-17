@@ -1,0 +1,7 @@
+config VIDEO_EXYNOS_ROTATOR
+	bool "Exynos image rotator driver"
+	depends on VIDEO_EXYNOS && (ARCH_EXYNOS4 || ARCH_EXYNOS5)
+	select V4L2_MEM2MEM_DEV
+	default n
+	help
+	  This is a v4l2 driver for EXYNOS Image Rotator device.

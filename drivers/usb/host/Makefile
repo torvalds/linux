@@ -14,6 +14,7 @@ fhci-$(CONFIG_FHCI_DEBUG) += fhci-dbg.o
 xhci-hcd-y := xhci.o xhci-mem.o
 xhci-hcd-y += xhci-ring.o xhci-hub.o xhci-dbg.o
 xhci-hcd-$(CONFIG_PCI)	+= xhci-pci.o
+xhci-hcd-$(CONFIG_USB_XHCI_EXYNOS)	+= xhci-exynos.o
 
 ifneq ($(CONFIG_USB_XHCI_PLATFORM), )
 	xhci-hcd-y		+= xhci-plat.o

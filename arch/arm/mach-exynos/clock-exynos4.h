@@ -9,8 +9,8 @@
  * published by the Free Software Foundation.
 */
 
-#ifndef __ASM_ARCH_CLOCK_H
-#define __ASM_ARCH_CLOCK_H __FILE__
+#ifndef __ASM_ARCH_CLOCK_EXYNOS4_H
+#define __ASM_ARCH_CLOCK_EXYNOS4_H __FILE__
 
 #include <linux/clk.h>
 
@@ -23,8 +23,15 @@ extern struct clksrc_sources exynos4_clkset_group;
 extern struct clk *exynos4_clkset_aclk_top_list[];
 extern struct clk *exynos4_clkset_group_list[];
 
+extern struct clksrc_clk exynos4_clk_aclk_200;
+#if defined(CONFIG_SOC_EXYNOS4212) || defined(CONFIG_SOC_EXYNOS4412)
+extern struct clksrc_clk exynos4212_clk_aclk_400_mcuisp;
+extern struct clksrc_clk exynos4212_clk_aclk_266;
+#endif
+
 extern int exynos4_clksrc_mask_fsys_ctrl(struct clk *clk, int enable);
 extern int exynos4_clk_ip_fsys_ctrl(struct clk *clk, int enable);
 extern int exynos4_clk_ip_lcd1_ctrl(struct clk *clk, int enable);
+extern int exynos4_clk_ip_dmc_ctrl(struct clk *clk, int enable);
 
-#endif /* __ASM_ARCH_CLOCK_H */
+#endif /* __ASM_ARCH_CLOCK_EXYNOS4_H */

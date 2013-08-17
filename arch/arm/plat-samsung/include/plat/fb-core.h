@@ -35,6 +35,12 @@ static inline void s5p_fb_setname(int id, char *name)
 		s5p_device_fimd0.name = name;
 	break;
 #endif
+
+#ifdef CONFIG_S5P_DEV_FIMD1
+	case 1:
+		s5p_device_fimd1.name = name;
+	break;
+#endif
 	default:
 		printk(KERN_ERR "%s: invalid device id(%d)\n", __func__, id);
 	break;

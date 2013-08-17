@@ -50,39 +50,11 @@ config S5P_PM
 	  Common code for power management support on S5P and newer SoCs
 	  Note: Do not select this for S5P6440 and S5P6450.
 
-comment "System MMU"
-
-config S5P_SYSTEM_MMU
-	bool "S5P SYSTEM MMU"
-	depends on ARCH_EXYNOS4
-	help
-	  Say Y here if you want to enable System MMU
-
 config S5P_SLEEP
 	bool
 	help
 	  Internal config node to apply common S5P sleep management code.
 	  Can be selected by S5P and newer SoCs with similar sleep procedure.
-
-config S5P_DEV_FIMC0
-	bool
-	help
-	  Compile in platform device definitions for FIMC controller 0
-
-config S5P_DEV_FIMC1
-	bool
-	help
-	  Compile in platform device definitions for FIMC controller 1
-
-config S5P_DEV_FIMC2
-	bool
-	help
-	  Compile in platform device definitions for FIMC controller 2
-
-config S5P_DEV_FIMC3
-	bool
-	help
-	  Compile in platform device definitions for FIMC controller 3
 
 config S5P_DEV_JPEG
 	bool
@@ -99,6 +71,11 @@ config S5P_DEV_FIMD0
 	help
 	  Compile in platform device definitions for FIMD controller 0
 
+config S5P_DEV_FIMD1
+	bool
+	help
+	  Compile in platform device definitions for FIMD controller 1
+
 config S5P_DEV_I2C_HDMIPHY
 	bool
 	help
@@ -114,16 +91,6 @@ config S5P_DEV_ONENAND
 	help
 	  Compile in platform device definition for OneNAND controller
 
-config S5P_DEV_CSIS0
-	bool
-	help
-	  Compile in platform device definitions for MIPI-CSIS channel 0
-
-config S5P_DEV_CSIS1
-	bool
-	help
-	  Compile in platform device definitions for MIPI-CSIS channel 1
-
 config S5P_DEV_TV
 	bool
 	help
@@ -136,5 +103,12 @@ config S5P_DEV_USB_EHCI
 
 config S5P_SETUP_MIPIPHY
 	bool
+	depends on (VIDEO_S5P_MIPI_CSIS || VIDEO_EXYNOS_MIPI_CSIS)
+	default y
 	help
 	  Compile in common setup code for MIPI-CSIS and MIPI-DSIM devices
+
+config S5P_DEV_ACE
+	bool
+	help
+	  Compile in common setup code for Crypto Engine devices.

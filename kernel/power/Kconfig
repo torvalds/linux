@@ -18,6 +18,14 @@ config SUSPEND_FREEZER
 
 	  Turning OFF this setting is NOT recommended! If in doubt, say Y.
 
+config HAS_WAKELOCK
+	bool
+	default y
+
+config WAKELOCK
+	bool
+	default y
+
 config HIBERNATE_CALLBACKS
 	bool
 
@@ -102,6 +110,33 @@ config PM_SLEEP_SMP
 	depends on PM_SLEEP
 	select HOTPLUG
 	select HOTPLUG_CPU
+
+config PM_AUTOSLEEP
+	bool "Opportunistic sleep"
+	depends on PM_SLEEP
+	default n
+	---help---
+	Allow the kernel to trigger a system transition into a global sleep
+	state automatically whenever there are no active wakeup sources.
+
+config PM_WAKELOCKS
+	bool "User space wakeup sources interface"
+	depends on PM_SLEEP
+	default n
+	---help---
+	Allow user space to create, activate and deactivate wakeup source
+	objects with the help of a sysfs-based interface.
+
+config PM_WAKELOCKS_LIMIT
+	int "Maximum number of user space wakeup sources (0 = no limit)"
+	range 0 100000
+	default 100
+	depends on PM_WAKELOCKS
+
+config PM_WAKELOCKS_GC
+	bool "Garbage collector for user space wakeup sources"
+	depends on PM_WAKELOCKS
+	default y
 
 config PM_RUNTIME
 	bool "Run-time PM core functionality"
@@ -243,3 +278,10 @@ config PM_GENERIC_DOMAINS_RUNTIME
 config CPU_PM
 	bool
 	depends on SUSPEND || CPU_IDLE
+
+config SUSPEND_TIME
+	bool "Log time spent in suspend"
+	---help---
+	  Prints the time spent in suspend in the kernel log, and
+	  keeps statistics on the time spent in suspend in
+	  /sys/kernel/debug/suspend_time

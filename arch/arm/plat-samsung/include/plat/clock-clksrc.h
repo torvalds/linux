@@ -60,6 +60,7 @@ struct clksrc_clk {
 	struct clksrc_sources	*sources;
 
 	struct clksrc_reg	reg_src;
+	struct clksrc_reg	reg_src_stat;
 	struct clksrc_reg	reg_div;
 };
 
@@ -81,3 +82,15 @@ extern void s3c_set_clksrc(struct clksrc_clk *clk, bool announce);
  * Initialise and register the array of clocks described by @srcs.
  */
 extern void s3c_register_clksrc(struct clksrc_clk *srcs, int size);
+
+static inline struct clksrc_clk *to_clksrc(struct clk *clk)
+{
+	return container_of(clk, struct clksrc_clk, clk);
+}
+
+static inline u32 bit_mask(u32 shift, u32 nr_bits)
+{
+	u32 mask = 0xffffffff >> (32 - nr_bits);
+
+	return mask << shift;
+}

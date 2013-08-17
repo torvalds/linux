@@ -21,9 +21,14 @@ struct platform_device; /* don't need the contents */
 void s3c_i2c0_cfg_gpio(struct platform_device *dev)
 {
 	if (soc_is_exynos5250())
-		/* will be implemented with gpio function */
-		return;
+		s3c_gpio_cfgall_range(EXYNOS5_GPB3(0), 2,
+				      S3C_GPIO_SFN(2), S3C_GPIO_PULL_UP);
 
-	s3c_gpio_cfgall_range(EXYNOS4_GPD1(0), 2,
-			      S3C_GPIO_SFN(2), S3C_GPIO_PULL_UP);
+	else if (soc_is_exynos5410())
+		s3c_gpio_cfgall_range(EXYNOS5410_GPB3(0), 2,
+				      S3C_GPIO_SFN(2), S3C_GPIO_PULL_UP);
+
+	else	/* EXYNOS4210, EXYNOS4212, and EXYNOS4412 */
+		s3c_gpio_cfgall_range(EXYNOS4_GPD1(0), 2,
+				      S3C_GPIO_SFN(2), S3C_GPIO_PULL_UP);
 }

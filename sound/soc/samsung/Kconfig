@@ -1,6 +1,6 @@
 config SND_SOC_SAMSUNG
 	tristate "ASoC support for Samsung"
-	depends on ARCH_S3C24XX || ARCH_S3C64XX || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_S5P64X0 || ARCH_EXYNOS4
+	depends on PLAT_SAMSUNG
 	select S3C64XX_DMA if ARCH_S3C64XX
 	select S3C2410_DMA if ARCH_S3C24XX
 	help
@@ -63,13 +63,43 @@ config SND_SOC_SAMSUNG_SMDK_WM8580
 
 config SND_SOC_SAMSUNG_SMDK_WM8994
 	tristate "SoC I2S Audio support for WM8994 on SMDK"
-	depends on SND_SOC_SAMSUNG && (MACH_SMDKV310 || MACH_SMDKC210 || MACH_SMDK4212)
+	depends on SND_SOC_SAMSUNG && (MACH_SMDKV310 || MACH_SMDKC210 || \
+MACH_SMDK4212 || MACH_SMDK5250 || MACH_SMDK5410)
 	depends on I2C=y && GENERIC_HARDIRQS
 	select MFD_WM8994
 	select SND_SOC_WM8994
 	select SND_SAMSUNG_I2S
 	help
 		Say Y if you want to add support for SoC audio on the SMDKs.
+
+config SND_SOC_ODROID_MAX98090
+	tristate "SoC I2S Audio support for MAX98090 on ODROID"
+	depends on SND_SOC_SAMSUNG && (MACH_ODROIDXU)
+	select SND_SOC_MAX98090
+	select SND_SAMSUNG_I2S
+	help
+		Say Y if you want to add support for SoC audio on the ODROID.
+
+menuconfig SND_SAMSUNG_USE_IDMA
+	bool "Lower power audio support"
+	depends on SND_SAMSUNG_I2S && (ARCH_EXYNOS4 || ARCH_EXYNOS5)
+	default y
+	help
+	  Say Y if you want to enable internal dma.
+
+config SND_SAMSUNG_ALP
+	bool "Advanced Low Power audio support with SRP core"
+	depends on SND_SAMSUNG_USE_IDMA
+	default y
+	help
+	  Say Y if you want to support ALP audio.
+
+# For support ALP audio
+source "sound/soc/samsung/srp_alp/Kconfig"
+
+config SND_SAMSUNG_I2S_MASTER
+	bool "I2S Master Mode"
+	depends on SND_SAMSUNG_I2S
 
 config SND_SOC_SAMSUNG_SMDK2443_WM9710
 	tristate "SoC AC97 Audio support for SMDK2443 - WM9710"
@@ -162,7 +192,9 @@ config SND_SOC_GONI_AQUILA_WM8994
 
 config SND_SOC_SAMSUNG_SMDK_SPDIF
 	tristate "SoC S/PDIF Audio support for SMDK"
-	depends on SND_SOC_SAMSUNG && (MACH_SMDKC100 || MACH_SMDKC110 || MACH_SMDKV210 || MACH_SMDKV310 || MACH_SMDK4212)
+	depends on SND_SOC_SAMSUNG && (MACH_SMDKC100 || MACH_SMDKC110 || \
+MACH_SMDKV210 || MACH_SMDKV310 || MACH_SMDK4212 || MACH_SMDK5250 || \
+MACH_SMDK5410 || MACH_ODROIDXU)
 	select SND_SAMSUNG_SPDIF
 	help
 	  Say Y if you want to add support for SoC S/PDIF audio on the SMDK.
@@ -177,7 +209,8 @@ config SND_SOC_SMDK_WM8580_PCM
 
 config SND_SOC_SMDK_WM8994_PCM
 	tristate "SoC PCM Audio support for WM8994 on SMDK"
-	depends on SND_SOC_SAMSUNG && (MACH_SMDKC210 || MACH_SMDKV310 || MACH_SMDK4212)
+	depends on SND_SOC_SAMSUNG && (MACH_SMDKC210 || MACH_SMDKV310 || \
+MACH_SMDK4212 || MACH_SMDK5250 || MACH_SMDK5410)
 	depends on I2C=y && GENERIC_HARDIRQS
 	select MFD_WM8994
 	select SND_SOC_WM8994
@@ -212,3 +245,9 @@ config SND_SOC_LITTLEMILL
 	select SND_SAMSUNG_I2S
 	select MFD_WM8994
 	select SND_SOC_WM8994
+
+config MAX98090_HEADSET
+	bool "MAX98090 HeadSet detect"
+	depends on SND_SOC_ODROID_MAX98090
+	help
+	  Provides support for detecting max98090 jack_sw

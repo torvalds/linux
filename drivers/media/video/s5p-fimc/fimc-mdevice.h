@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Samsung Electronics Co., Ltd.
+ * Copyright (C) 2011 - 2012 Samsung Electronics Co., Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -18,15 +18,29 @@
 #include <media/v4l2-subdev.h>
 
 #include "fimc-core.h"
+#include "fimc-lite.h"
 #include "mipi-csis.h"
+#include "fimc-is.h"
+#include "fimc-isp.h"
 
-/* Group IDs of sensor, MIPI CSIS and the writeback subdevs. */
+/* Group IDs of sensor, MIPI-CSIS, FIMC-LITE and the writeback subdevs. */
 #define SENSOR_GROUP_ID		(1 << 8)
 #define CSIS_GROUP_ID		(1 << 9)
 #define WRITEBACK_GROUP_ID	(1 << 10)
+#define FIMC_GROUP_ID		(1 << 11)
+#define FLITE_GROUP_ID		(1 << 12)
+#define FIMC_IS_SENSOR_GROUP_ID	(1 << 13)
+#define FIMC_IS_GROUP_ID	(1 << 14)
 
 #define FIMC_MAX_SENSORS	8
 #define FIMC_MAX_CAMCLKS	2
+
+/* LCD/ISP Writeback clocks (PIXELASYNCMx) */
+enum {
+	CLK_IDX_WB_A,
+	CLK_IDX_WB_B,
+	FIMC_MAX_WBCLKS
+};
 
 struct fimc_csis_info {
 	struct v4l2_subdev *sd;
@@ -44,15 +58,13 @@ struct fimc_camclk_info {
  * @pdata: sensor's atrributes passed as media device's platform data
  * @subdev: image sensor v4l2 subdev
  * @host: fimc device the sensor is currently linked to
- * @clk_on: sclk_cam clock's state associated with this subdev
  *
  * This data structure applies to image sensor and the writeback subdevs.
  */
 struct fimc_sensor_info {
-	struct s5p_fimc_isp_info *pdata;
+	struct s5p_fimc_isp_info pdata;
 	struct v4l2_subdev *subdev;
 	struct fimc_dev *host;
-	bool clk_on;
 };
 
 /**
@@ -73,7 +85,10 @@ struct fimc_md {
 	struct fimc_sensor_info sensor[FIMC_MAX_SENSORS];
 	int num_sensors;
 	struct fimc_camclk_info camclk[FIMC_MAX_CAMCLKS];
+	struct clk *wbclk[FIMC_MAX_WBCLKS];
+	struct fimc_lite *fimc_lite[FIMC_LITE_MAX_DEVS];
 	struct fimc_dev *fimc[FIMC_MAX_DEVS];
+	struct fimc_is *fimc_is;
 	struct media_device media_dev;
 	struct v4l2_device v4l2_dev;
 	struct platform_device *pdev;
@@ -97,22 +112,14 @@ static inline struct fimc_md *entity_to_fimc_mdev(struct media_entity *me)
 
 static inline void fimc_md_graph_lock(struct fimc_dev *fimc)
 {
-	BUG_ON(fimc->vid_cap.vfd == NULL);
-	mutex_lock(&fimc->vid_cap.vfd->entity.parent->graph_mutex);
+	mutex_lock(&fimc->vid_cap.vfd.entity.parent->graph_mutex);
 }
 
 static inline void fimc_md_graph_unlock(struct fimc_dev *fimc)
 {
-	BUG_ON(fimc->vid_cap.vfd == NULL);
-	mutex_unlock(&fimc->vid_cap.vfd->entity.parent->graph_mutex);
+	mutex_unlock(&fimc->vid_cap.vfd.entity.parent->graph_mutex);
 }
 
 int fimc_md_set_camclk(struct v4l2_subdev *sd, bool on);
-void fimc_pipeline_prepare(struct fimc_dev *fimc, struct media_entity *me);
-int fimc_pipeline_initialize(struct fimc_dev *fimc, struct media_entity *me,
-			     bool resume);
-int fimc_pipeline_shutdown(struct fimc_dev *fimc);
-int fimc_pipeline_s_power(struct fimc_dev *fimc, int state);
-int fimc_pipeline_s_stream(struct fimc_dev *fimc, int state);
 
 #endif

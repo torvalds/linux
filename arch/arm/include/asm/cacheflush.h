@@ -16,6 +16,7 @@
 #include <asm/shmparam.h>
 #include <asm/cachetype.h>
 #include <asm/outercache.h>
+#include <asm/rodata.h>
 
 #define CACHE_COLOUR(vaddr)	((vaddr & (SHMLBA - 1)) >> PAGE_SHIFT)
 
@@ -48,6 +49,10 @@
  *	flush_kern_all()
  *
  *		Unconditionally clean and invalidate the entire cache.
+ *
+ *	flush_kern_dcache_level(level)
+ *
+ *		Flush data cache levels up to the level input parameter.
  *
  *	flush_user_all()
  *
@@ -97,6 +102,7 @@
 struct cpu_cache_fns {
 	void (*flush_icache_all)(void);
 	void (*flush_kern_all)(void);
+	void (*flush_kern_dcache_level)(int);
 	void (*flush_user_all)(void);
 	void (*flush_user_range)(unsigned long, unsigned long, unsigned int);
 
@@ -199,12 +205,51 @@ extern void copy_to_user_page(struct vm_area_struct *, struct page *,
 #define __flush_icache_preferred	__flush_icache_all_generic
 #endif
 
+#if __LINUX_ARM_ARCH__ >= 7
+/*
+ * Hotplug and CPU idle code requires to flush only cache levels
+ * impacted by power down operations. In v7 the upper level is
+ * retrieved by reading LoUIS field of CLIDR, since inner shareability
+ * represents the cache boundaries affected by per-CPU shutdown
+ * operations in the most common platforms.
+ */
+#define __cache_level_v7_uis ({ \
+	u32 val; \
+	asm volatile("mrc p15, 1, %0, c0, c0, 1" : "=r"(val)); \
+	((val & 0xe00000) >> 21); })
+
+#define flush_cache_level_preferred()		__cache_level_v7_uis
+#else
+#define flush_cache_level_preferred()		(-1)
+#endif
+
+static inline int flush_cache_level_cpu(void)
+{
+	return flush_cache_level_preferred();
+}
+/*
+ * Flush data cache up to a certain cache level
+ * level -	upper cache level to clean
+ *		if level == -1, default to flush_kern_all
+ */
+#ifdef MULTI_CACHE
+#define flush_dcache_level(level)	cpu_cache.flush_kern_dcache_level(level)
+#else
+#define flush_dcache_level(level)	__cpuc_flush_kern_all()
+#endif
+
 static inline void __flush_icache_all(void)
 {
 	__flush_icache_preferred();
 }
 
 #define flush_cache_all()		__cpuc_flush_kern_all()
+
+#ifndef CONFIG_SMP
+#define flush_all_cpu_caches()		flush_cache_all()
+#else
+extern void flush_all_cpu_caches(void);
+#endif
 
 static inline void vivt_flush_cache_mm(struct mm_struct *mm)
 {

@@ -1,0 +1,9 @@
+#!/bin/bash
+rmmod 8192cu
+rmmod 8192ce
+rmmod 8192du
+rmmod 8192de
+
+rmmod rtl8192cu
+rmmod rtl8192c_common
+rmmod rtlwifi

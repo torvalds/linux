@@ -18,7 +18,7 @@ config CRYPTO_DEV_PADLOCK
 	  (so called VIA PadLock ACE, Advanced Cryptography Engine)
 	  that provides instructions for very fast cryptographic
 	  operations with supported algorithms.
-	  
+
 	  The instructions are used only when the CPU supports them.
 	  Otherwise software encryption is used.
 
@@ -284,6 +284,61 @@ config CRYPTO_DEV_S5P
 	  This option allows you to have support for S5P crypto acceleration.
 	  Select this to offload Samsung S5PV210 or S5PC110 from AES
 	  algorithms execution.
+
+config CRYPTO_S5P_DEV_ACE
+	tristate "Support for Samsung ACE (Advanced Crypto Engine)"
+	depends on ARCH_EXYNOS4 || ARCH_EXYNOS5 || ARCH_S5PV210
+	select S5P_DEV_ACE
+	select CRYPTO_ALGAPI
+	help
+	  Use ACE for AES (ECB, CBC, CTR) and SHA1/SHA256.
+	  Available in EXYNOS4/S5PV210/S5PC110 and newer CPUs.
+
+config ACE_BC
+	bool "Support for AES block cipher (ECB, CBC, CTR mode)"
+	depends on CRYPTO_S5P_DEV_ACE
+	select CRYPTO_AES
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_ECB
+	select CRYPTO_CTR
+	select CRYPTO_CBC
+	default y
+	help
+	  Use ACE for ACE (ECB, CBC, CTR) for Samsung Hardware Crypto engine.
+
+config ACE_BC_ASYNC
+	bool "Support for AES async mode"
+	default y
+	depends on ACE_BC
+
+config ACE_BC_IRQMODE
+	bool "Support for AES IRQ mode"
+	default n
+	depends on ACE_BC_ASYNC
+
+config ACE_HASH_SHA1
+	bool "Support for SHA1 hash algorithm"
+	depends on CRYPTO_S5P_DEV_ACE
+	select CRYPTO_HASH
+	select CRYPTO_SHA1
+	default y
+	help
+	  Use SHA1 hash algorithm for Samsung Hardware Crypto engine
+
+config ACE_HASH_SHA256
+	bool "Support for SHA256 hash algorithm"
+	depends on CRYPTO_S5P_DEV_ACE && ARCH_EXYNOS
+	select CRYPTO_HASH
+	select CRYPTO_SHA256
+	default y
+	help
+	  Use SHA256 hash algorithm for Samsung Hardware Crypto engine
+
+config ACE_DEBUG
+	bool "Debug message for crypto driver"
+	depends on CRYPTO_S5P_DEV_ACE
+	help
+	  This option allows you to check the debug print message for crypto driver.
 
 config CRYPTO_DEV_TEGRA_AES
 	tristate "Support for TEGRA AES hw engine"

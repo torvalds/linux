@@ -188,8 +188,7 @@ EXPORT_SYMBOL_GPL(sdio_set_block_size);
  */
 static inline unsigned int sdio_max_byte_size(struct sdio_func *func)
 {
-	unsigned mval =	min(func->card->host->max_seg_size,
-			    func->card->host->max_blk_size);
+	unsigned mval = func->card->host->max_blk_size;
 
 	if (mmc_blksz_for_byte_mode(func->card))
 		mval = min(mval, func->cur_blksize);
@@ -311,11 +310,8 @@ static int sdio_io_rw_ext_helper(struct sdio_func *func, int write,
 	/* Do the bulk of the transfer using block mode (if supported). */
 	if (func->card->cccr.multi_block && (size > sdio_max_byte_size(func))) {
 		/* Blocks per command is limited by host count, host transfer
-		 * size (we only use a single sg entry) and the maximum for
-		 * IO_RW_EXTENDED of 511 blocks. */
-		max_blocks = min(func->card->host->max_blk_count,
-			func->card->host->max_seg_size / func->cur_blksize);
-		max_blocks = min(max_blocks, 511u);
+		 * size and the maximum for IO_RW_EXTENDED of 511 blocks. */
+		max_blocks = min(func->card->host->max_blk_count, 511u);
 
 		while (remainder >= func->cur_blksize) {
 			unsigned blocks;
@@ -386,6 +382,39 @@ u8 sdio_readb(struct sdio_func *func, unsigned int addr, int *err_ret)
 	return val;
 }
 EXPORT_SYMBOL_GPL(sdio_readb);
+
+/**
+ *	sdio_readb_ext - read a single byte from a SDIO function
+ *	@func: SDIO function to access
+ *	@addr: address to read
+ *	@err_ret: optional status value from transfer
+ *	@in: value to add to argument
+ *
+ *	Reads a single byte from the address space of a given SDIO
+ *	function. If there is a problem reading the address, 0xff
+ *	is returned and @err_ret will contain the error code.
+ */
+unsigned char sdio_readb_ext(struct sdio_func *func, unsigned int addr,
+	int *err_ret, unsigned in)
+{
+	int ret;
+	unsigned char val;
+
+	BUG_ON(!func);
+
+	if (err_ret)
+		*err_ret = 0;
+
+	ret = mmc_io_rw_direct(func->card, 0, func->num, addr, (u8)in, &val);
+	if (ret) {
+		if (err_ret)
+			*err_ret = ret;
+		return 0xFF;
+	}
+
+	return val;
+}
+EXPORT_SYMBOL_GPL(sdio_readb_ext);
 
 /**
  *	sdio_writeb - write a single byte to a SDIO function

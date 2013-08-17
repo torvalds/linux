@@ -285,18 +285,92 @@ minimum value disables backlight compensation.</entry>
 	  <row id="v4l2-colorfx">
 	    <entry><constant>V4L2_CID_COLORFX</constant></entry>
 	    <entry>enum</entry>
-	    <entry>Selects a color effect. Possible values for
-<constant>enum v4l2_colorfx</constant> are:
-<constant>V4L2_COLORFX_NONE</constant> (0),
-<constant>V4L2_COLORFX_BW</constant> (1),
-<constant>V4L2_COLORFX_SEPIA</constant> (2),
-<constant>V4L2_COLORFX_NEGATIVE</constant> (3),
-<constant>V4L2_COLORFX_EMBOSS</constant> (4),
-<constant>V4L2_COLORFX_SKETCH</constant> (5),
-<constant>V4L2_COLORFX_SKY_BLUE</constant> (6),
-<constant>V4L2_COLORFX_GRASS_GREEN</constant> (7),
-<constant>V4L2_COLORFX_SKIN_WHITEN</constant> (8) and
-<constant>V4L2_COLORFX_VIVID</constant> (9).</entry>
+	    <entry>Selects a color effect. The following values are defined:
+	    </entry>
+	  </row><row>
+	  <entry></entry>
+	  <entry></entry>
+	    <entrytbl spanname="descr" cols="2">
+	      <tbody valign="top">
+		<row>
+		  <entry><constant>V4L2_COLORFX_NONE</constant>&nbsp;</entry>
+		  <entry>Color effect is disabled.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_ANTIQUE</constant>&nbsp;</entry>
+		  <entry>An aging (old photo) effect.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_ART_FREEZE</constant>&nbsp;</entry>
+		  <entry>Frost color effect.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_AQUA</constant>&nbsp;</entry>
+		  <entry>Water color, cool tone.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_BW</constant>&nbsp;</entry>
+		  <entry>Black and white.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_EMBOSS</constant>&nbsp;</entry>
+		  <entry>Emboss, the highlights and shadows replace light/dark boundaries
+		  and low contrast areas are set to a gray background.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_GRASS_GREEN</constant>&nbsp;</entry>
+		  <entry>Grass green.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_NEGATIVE</constant>&nbsp;</entry>
+		  <entry>Negative.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_SEPIA</constant>&nbsp;</entry>
+		  <entry>Sepia tone.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_SKETCH</constant>&nbsp;</entry>
+		  <entry>Sketch.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_SKIN_WHITEN</constant>&nbsp;</entry>
+		  <entry>Skin whiten.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_SKY_BLUE</constant>&nbsp;</entry>
+		  <entry>Sky blue.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_SOLARIZATION</constant>&nbsp;</entry>
+		  <entry>Solarization, the image is partially reversed in tone,
+		  only color values above or below a certain threshold are inverted.
+		  </entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_SILHOUETTE</constant>&nbsp;</entry>
+		  <entry>Silhouette (outline).</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_VIVID</constant>&nbsp;</entry>
+		  <entry>Vivid colors.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_COLORFX_SET_CBCR</constant>&nbsp;</entry>
+		  <entry>The Cb and Cr chroma components are replaced by fixed
+		  coefficients determined by <constant>V4L2_CID_COLORFX_CBCR</constant>
+		  control.</entry>
+		</row>
+	      </tbody>
+	    </entrytbl>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CID_COLORFX_CBCR</constant></entry>
+	    <entry>integer</entry>
+	    <entry>Determines the Cb and Cr coefficients for <constant>V4L2_COLORFX_SET_CBCR</constant>
+	    color effect. Bits [7:0] of the supplied 32 bit value are interpreted as
+	    Cr component, bits [15:8] as Cb component and bits [31:16] must be zero.
+	  </entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_CID_ROTATE</constant></entry>

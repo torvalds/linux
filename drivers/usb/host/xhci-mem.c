@@ -2065,7 +2065,7 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 			addr, port_offset, port_count, major_revision);
 	/* Port count includes the current port offset */
 	if (port_offset == 0 || (port_offset + port_count - 1) > num_ports)
-		/* WTF? "Valid values are ‘1’ to MaxPorts" */
+		/* WTF? "Valid values are ????to MaxPorts" */
 		return;
 
 	/* Check the host's USB2 LPM capability */
@@ -2209,6 +2209,11 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 		if (!xhci->usb2_ports)
 			return -ENOMEM;
 
+		xhci->usb2_portpmsc = kmalloc(sizeof(*xhci->usb2_portpmsc)*
+				xhci->num_usb2_ports, flags);
+		if (!xhci->usb2_portpmsc)
+			return -ENOMEM;
+
 		port_index = 0;
 		for (i = 0; i < num_ports; i++) {
 			if (xhci->port_array[i] == 0x03 ||
@@ -2222,6 +2227,14 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 			xhci_dbg(xhci, "USB 2.0 port at index %u, "
 					"addr = %p\n", i,
 					xhci->usb2_ports[port_index]);
+
+			xhci->usb2_portpmsc[port_index] =
+				&xhci->op_regs->port_power_base +
+				NUM_PORT_REGS*i;
+			xhci_dbg(xhci, "USB 2.0 port pmsc at index %u, "
+					"addr = %p\n", i,
+					xhci->usb2_portpmsc[port_index]);
+
 			port_index++;
 			if (port_index == xhci->num_usb2_ports)
 				break;
@@ -2233,6 +2246,11 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 		if (!xhci->usb3_ports)
 			return -ENOMEM;
 
+		xhci->usb3_portpmsc = kmalloc(sizeof(*xhci->usb3_portpmsc)*
+				xhci->num_usb3_ports, flags);
+		if (!xhci->usb3_portpmsc)
+			return -ENOMEM;
+
 		port_index = 0;
 		for (i = 0; i < num_ports; i++)
 			if (xhci->port_array[i] == 0x03) {
@@ -2242,6 +2260,14 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 				xhci_dbg(xhci, "USB 3.0 port at index %u, "
 						"addr = %p\n", i,
 						xhci->usb3_ports[port_index]);
+
+				xhci->usb3_portpmsc[port_index] =
+					&xhci->op_regs->port_power_base +
+					NUM_PORT_REGS*i;
+				xhci_dbg(xhci, "USB 3.0 port pmsc at index %u, "
+					"addr = %p\n", i,
+					xhci->usb3_portpmsc[port_index]);
+
 				port_index++;
 				if (port_index == xhci->num_usb3_ports)
 					break;

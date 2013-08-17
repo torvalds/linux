@@ -1,0 +1,161 @@
+#
+# (C) COPYRIGHT 2012 ARM Limited. All rights reserved.
+#
+# This program is free software and is provided to you under the terms of the GNU General Public License version 2
+# as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+#
+# A copy of the licence is included with the program, and can also be obtained from Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#
+#
+
+
+menuconfig MALI_T6XX
+	tristate "Mali-T6XX support"
+	default n
+	help
+	  Enable this option to build support for the ARM Mali-T6XX GPU.
+
+	  To compile this driver as a module, choose M here:
+	  this will generate a single module, called mali_kbase.
+
+config MALI_GATOR_SUPPORT
+	bool "Streamline Debug support"
+	depends on MALI_T6XX=m
+	default n
+	help
+	  Adds diagnostic support for use with the ARM Streamline Performance Analyzer.
+	  You will need the Gator device driver already loaded before loading this driver when enabling
+	  Streamline debug support.
+
+config MALI_T6XX_DVFS
+	bool "Enable DVFS"
+	depends on MALI_T6XX && MACH_MANTA
+	default n
+	help
+	  Choose this option to enable DVFS on MALI T6XX DDK.
+
+config MALI_T6XX_DEMAND_POLICY
+	bool "Enable demand power policy by default"
+	depends on MALI_T6XX
+	default n
+	help
+	  Sets the default power policy to "demand"
+
+config MALI_T6XX_RT_PM
+	bool "Enable Runtime power management"
+	depends on MALI_T6XX
+	depends on PM_RUNTIME
+	default n
+	help
+	  Choose this option to enable runtime power management on vithar DDK.
+
+config MALI_T6XX_ENABLE_TRACE
+       bool "Enable kbase tracing"
+       depends on MALI_T6XX
+       default n
+       help
+         Enables tracing in the kbase.  Trace log available through
+	 the "mali_trace" debugfs file, when the CONFIG_DEBUG_FS is enabled
+
+config MALI_T6XX_DEBUG_SYS
+       bool "Enable sysfs for mali t6xx"
+       depends on MALI_T6XX && SYSFS
+       default n
+       help
+         Enables sysfs for mali t6xx device. Set/Monitor Mali T6xx Device
+
+# MALI_EXPERT configuration options
+
+menuconfig MALI_EXPERT
+	depends on MALI_T6XX
+	bool "Enable Expert Settings"
+	default n
+	help
+	  Enabling this option and modifying the default settings may produce a driver with performance or
+	  other limitations.
+
+config MALI_PLATFORM_FAKE
+	bool "Enable fake platform device support"
+	depends on MALI_T6XX && MALI_EXPERT
+	default n
+	help
+	  When you start to work with the Mali-T600 Series device driver the platform-specific code of
+	  the Linux kernel for your platform may not be complete. In this situation the kernel device driver
+	  supports creating the platform device outside of the Linux platform-specific code.
+	  Enable this option if would like to use a platform device configuration from within the device driver.
+
+choice
+	prompt "Platform configuration"
+	depends on MALI_T6XX && (MALI_PLATFORM_FAKE && MALI_EXPERT)
+	default MALI_PLATFORM_VEXPRESS
+	help
+	  Select the SOC platform that contains a Mali-T6XX
+
+config MALI_PLATFORM_VEXPRESS
+	depends on ARCH_VEXPRESS && (ARCH_VEXPRESS_CA9X4 || ARCH_VEXPRESS_CA15X4)
+	bool "Versatile Express"
+config MALI_PLATFORM_GOLDFISH
+	depends on ARCH_GOLDFISH
+	bool "Android Goldfish virtual CPU"
+config MALI_PLATFORM_PBX
+	depends on ARCH_REALVIEW && REALVIEW_EB_A9MP && MACH_REALVIEW_PBX
+	bool "Realview PBX-A9"
+config MALI_PLATFORM_THIRDPARTY
+	bool "Third Party Platform"
+endchoice
+
+config MALI_PLATFORM_THIRDPARTY_NAME
+	depends on MALI_T6XX && MALI_PLATFORM_THIRDPARTY && (MALI_PLATFORM_FAKE && MALI_EXPERT)
+	string "Third party platform name"
+	help
+	  Enter the name of a third party platform that is supported. The third part configuration
+	  file must be in kbase/src/linux/config/tpip/mali_kbase_config_xxx.c where xxx is the name
+	  specifed here.
+
+
+config MALI_DEBUG
+	bool "Debug build"
+	depends on MALI_T6XX && MALI_EXPERT
+	default n
+	help
+	  Select this option for increased checking and reporting of errors.
+
+config MALI_UNCACHED
+	bool "Disable CPU caching for GPU memory regions"
+	depends on MALI_T6XX && MALI_EXPERT
+	default n
+	help
+	  Select this option to disable CPU caching for all GPU memory regions.
+
+config MALI_QA_LEAK
+	bool "Enable the tracking of memory leaks"
+	depends on MALI_T6XX && MALI_EXPERT
+	default n
+	help
+	  Enables additional memory leak tracking diagnostics.
+config MALI_QA_RESFAIL
+	bool "Enable simulated failures"
+	depends on MALI_T6XX && MALI_EXPERT
+	default n
+	help
+	  Enables forced failures in APIs for additional test coverage
+
+config MALI_NO_MALI
+	bool "No Mali"
+	depends on MALI_T6XX && MALI_EXPERT
+	default n
+	help
+	  This can be used to test the driver in a simulated environment
+	  whereby the hardware is not physically present. If the hardware is physically
+	  present it will not be used. This can be used to test the majority of the
+	  driver without needing actual hardware or for software benchmarking.
+	  All calls to the simulated hardware will complete immediatly as if the hardware
+	  completed the task.
+
+config MALI_ERROR_INJECT
+	bool "Error injection"
+	depends on MALI_T6XX && MALI_EXPERT && MALI_NO_MALI
+	default n
+	help
+	  Enables insertion of errors to test module failure and recovery mechanisms.

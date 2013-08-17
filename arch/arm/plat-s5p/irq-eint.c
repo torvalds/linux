@@ -115,6 +115,11 @@ static int s5p_irq_eint_set_type(struct irq_data *data, unsigned int type)
 	else
 		printk(KERN_ERR "No such irq number %d", offs);
 
+	if (type & IRQ_TYPE_EDGE_BOTH)
+		__irq_set_handler_locked(data->irq, handle_edge_irq);
+	else
+		__irq_set_handler_locked(data->irq, handle_level_irq);
+
 	return 0;
 }
 

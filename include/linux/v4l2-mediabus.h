@@ -46,6 +46,7 @@ enum v4l2_mbus_pixelcode {
 	V4L2_MBUS_FMT_BGR565_2X8_LE = 0x1006,
 	V4L2_MBUS_FMT_RGB565_2X8_BE = 0x1007,
 	V4L2_MBUS_FMT_RGB565_2X8_LE = 0x1008,
+	V4L2_MBUS_FMT_XRGB8888_4X8_LE = 0x1009,
 
 	/* YUV (including grey) - next is 0x2014 */
 	V4L2_MBUS_FMT_Y8_1X8 = 0x2001,
@@ -65,6 +66,7 @@ enum v4l2_mbus_pixelcode {
 	V4L2_MBUS_FMT_VYUY8_1X16 = 0x2010,
 	V4L2_MBUS_FMT_YUYV8_1X16 = 0x2011,
 	V4L2_MBUS_FMT_YVYU8_1X16 = 0x2012,
+	V4L2_MBUS_FMT_YUV8_1X24	= 0x2014,
 	V4L2_MBUS_FMT_YUYV10_1X20 = 0x200d,
 	V4L2_MBUS_FMT_YVYU10_1X20 = 0x200e,
 
@@ -92,6 +94,10 @@ enum v4l2_mbus_pixelcode {
 
 	/* JPEG compressed formats - next is 0x4002 */
 	V4L2_MBUS_FMT_JPEG_1X8 = 0x4001,
+	V4L2_MBUS_FMT_INTERLEAVED = 0x4002,
+
+	/* S5C73M3 sensor specific interleaved UYVY and JPEG */
+	V4L2_MBUS_FMT_S5C_UYVY_JPEG_1X8 = 0x5001,
 };
 
 /**

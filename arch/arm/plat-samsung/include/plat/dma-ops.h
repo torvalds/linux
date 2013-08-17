@@ -16,7 +16,13 @@
 #include <linux/dmaengine.h>
 #include <mach/dma.h>
 
-struct samsung_dma_prep_info {
+struct samsung_dma_req {
+	enum dma_transaction_type cap;
+	struct property *dt_dmach_prop;
+	struct s3c2410_dma_client *client;
+};
+
+struct samsung_dma_prep {
 	enum dma_transaction_type cap;
 	enum dma_transfer_direction direction;
 	dma_addr_t buf;
@@ -24,23 +30,24 @@ struct samsung_dma_prep_info {
 	unsigned long len;
 	void (*fp)(void *data);
 	void *fp_param;
+	unsigned int infiniteloop;
 };
 
-struct samsung_dma_info {
-	enum dma_transaction_type cap;
+struct samsung_dma_config {
 	enum dma_transfer_direction direction;
 	enum dma_slave_buswidth width;
+	u32 maxburst;
 	dma_addr_t fifo;
-	struct s3c2410_dma_client *client;
-	struct property *dt_dmach_prop;
 };
 
 struct samsung_dma_ops {
-	unsigned (*request)(enum dma_ch ch, struct samsung_dma_info *info);
-	int (*release)(unsigned ch, struct s3c2410_dma_client *client);
-	int (*prepare)(unsigned ch, struct samsung_dma_prep_info *info);
+	unsigned (*request)(enum dma_ch ch, struct samsung_dma_req *param);
+	int (*release)(unsigned ch, void *param);
+	int (*config)(unsigned ch, struct samsung_dma_config *param);
+	int (*prepare)(unsigned ch, struct samsung_dma_prep *param);
 	int (*trigger)(unsigned ch);
 	int (*started)(unsigned ch);
+	int (*getposition)(unsigned ch, dma_addr_t *src, dma_addr_t *dst);
 	int (*flush)(unsigned ch);
 	int (*stop)(unsigned ch);
 };

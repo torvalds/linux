@@ -141,6 +141,13 @@ fw-shipped-$(CONFIG_USB_VICAM) += vicam/firmware.fw
 fw-shipped-$(CONFIG_VIDEO_CPIA2) += cpia2/stv0672_vp4.bin
 fw-shipped-$(CONFIG_YAM) += yam/1200.bin yam/9600.bin
 
+TSPFIRMWARE_DIRECTORY = firmware/tsp_atmel
+ifeq ($(shell test -d $(TSPFIRMWARE_DIRECTORY) && echo yes),yes)
+fw-shipped-$(CONFIG_TOUCHSCREEN_MXT540E) += tsp_atmel/mXT540E.fw
+else
+$(warning '$(TSPFIRMWARE_DIRECTORY)' directory dose not exist)
+endif
+
 fw-shipped-all := $(fw-shipped-y) $(fw-shipped-m) $(fw-shipped-)
 
 # Directories which we _might_ need to create, so we have a rule for them.

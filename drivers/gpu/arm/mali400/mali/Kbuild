@@ -1,0 +1,190 @@
+#
+# Copyright (C) 2011-2012 ARM Limited. All rights reserved.
+#
+# This program is free software and is provided to you under the terms of the GNU General Public License version 2
+# as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+#
+# A copy of the licence is included with the program, and can also be obtained from Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#
+
+# This file is called by the Linux build system.
+
+# set up defaults if not defined by the user
+TIMESTAMP ?= default
+OS_MEMORY_KERNEL_BUFFER_SIZE_IN_MB ?= 16
+USING_GPU_UTILIZATION ?= 1
+PROFILING_SKIP_PP_JOBS ?= 0
+PROFILING_SKIP_PP_AND_GP_JOBS ?= 0
+MALI_PP_SCHEDULER_FORCE_NO_JOB_OVERLAP ?= 0
+MALI_PP_SCHEDULER_KEEP_SUB_JOB_STARTS_ALIGNED ?= 0
+MALI_PP_SCHEDULER_FORCE_NO_JOB_OVERLAP_BETWEEN_APPS ?= 0
+MALI_UPPER_HALF_SCHEDULING ?= 1
+# MALI_SEC 
+# Include the mapping between TARGET_PLATFORM and KDIR + MALI_PLATFORM
+TARGET_PLATFORM=pegasus-m400
+include $(src)/MALI_CONFIGURATION
+MALI_PLATFORM = $(MALI_PLATFORM-$(TARGET_PLATFORM))
+EXTRA_DEFINES += -DMALI_FAKE_PLATFORM_DEVICE=1
+MALI_PLATFORM_FILES = $(subst $(src)/,,$(wildcard $(src)/platform/$(MALI_PLATFORM)/*.c))
+
+# For customer releases the Linux Device Drivers will be provided as ARM proprietary and GPL releases:
+# The ARM proprietary product will only include the license/proprietary directory
+# The GPL product will only include the license/gpl directory
+ifeq ($(wildcard $(src)/linux/license/gpl/*),)
+    ccflags-y += -I$(src)/linux/license/proprietary
+    ifeq ($(CONFIG_MALI400_PROFILING),y)
+        $(error Profiling is incompatible with non-GPL license)
+    endif
+    ifeq ($(CONFIG_PM_RUNTIME),y)
+        $(error Runtime PM is incompatible with non-GPL license)
+    endif
+    ifeq ($(CONFIG_DMA_SHARED_BUFFER),y)
+        $(error DMA-BUF is incompatible with non-GPL license)
+    endif
+    $(error Linux Device integration is incompatible with non-GPL license)
+else
+    ccflags-y += -I$(src)/linux/license/gpl
+endif
+
+mali-y += \
+	linux/mali_osk_atomics.o \
+	linux/mali_osk_irq.o \
+	linux/mali_osk_wq.o \
+	linux/mali_osk_locks.o \
+	linux/mali_osk_wait_queue.o \
+	linux/mali_osk_low_level_mem.o \
+	linux/mali_osk_math.o \
+	linux/mali_osk_memory.o \
+	linux/mali_osk_misc.o \
+	linux/mali_osk_mali.o \
+	linux/mali_osk_notification.o \
+	linux/mali_osk_time.o \
+	linux/mali_osk_timers.o
+
+mali-y += \
+	linux/mali_ukk_mem.o \
+	linux/mali_ukk_gp.o \
+	linux/mali_ukk_pp.o \
+	linux/mali_ukk_core.o
+
+# Source files which always are included in a build
+mali-y += \
+	common/mali_kernel_core.o \
+	linux/mali_kernel_linux.o \
+	common/mali_kernel_descriptor_mapping.o \
+	common/mali_session.o \
+	common/mali_device_pause_resume.o \
+	common/mali_kernel_vsync.o \
+	linux/mali_ukk_vsync.o \
+	linux/mali_kernel_sysfs.o \
+	common/mali_mmu.o \
+	common/mali_mmu_page_directory.o \
+	common/mali_memory.o \
+	common/mali_kernel_memory_engine.o \
+	common/mali_block_allocator.o \
+	common/mali_kernel_mem_os.o \
+	common/mali_mem_validation.o \
+	common/mali_hw_core.o \
+	common/mali_gp.o \
+	common/mali_pp.o \
+	common/mali_pp_job.o \
+	common/mali_gp_job.o \
+	common/mali_scheduler.o \
+	common/mali_gp_scheduler.o \
+	common/mali_pp_scheduler.o \
+	common/mali_group.o \
+	common/mali_dlbu.o \
+	common/mali_broadcast.o \
+	common/mali_pm.o \
+	common/mali_pmu.o \
+	common/mali_user_settings_db.o \
+	common/mali_kernel_utilization.o \
+	common/mali_l2_cache.o \
+	linux/mali_osk_pm.o \
+	linux/mali_pmu_power_up_down.o \
+	__malidrv_build_info.o
+
+ifneq ($(MALI_PLATFORM_FILES),)
+	mali-y += $(MALI_PLATFORM_FILES:.c=.o)
+endif
+
+mali-$(CONFIG_MALI400_PROFILING) += linux/mali_ukk_profiling.o
+mali-$(CONFIG_MALI400_PROFILING) += linux/mali_osk_profiling.o
+
+mali-$(CONFIG_MALI400_INTERNAL_PROFILING) += linux/mali_profiling_internal.o timestamp-$(TIMESTAMP)/mali_timestamp.o
+ccflags-$(CONFIG_MALI400_INTERNAL_PROFILING) += -I$(src)/timestamp-$(TIMESTAMP)
+
+mali-$(CONFIG_DMA_SHARED_BUFFER) += linux/mali_dma_buf.o
+mali-$(CONFIG_SYNC) += linux/mali_sync.o linux/mali_sync_user.o
+
+# Tell the Linux build system from which .o file to create the kernel module
+obj-$(CONFIG_MALI400) := mali.o
+
+ccflags-y += $(EXTRA_DEFINES)
+
+# Set up our defines, which will be passed to gcc
+ccflags-y += -DPROFILING_SKIP_PP_JOBS=$(PROFILING_SKIP_PP_JOBS)
+ccflags-y += -DPROFILING_SKIP_PP_AND_GP_JOBS=$(PROFILING_SKIP_PP_AND_GP_JOBS)
+
+ccflags-y += -DMALI_PP_SCHEDULER_FORCE_NO_JOB_OVERLAP=$(MALI_PP_SCHEDULER_FORCE_NO_JOB_OVERLAP)
+ccflags-y += -DMALI_PP_SCHEDULER_KEEP_SUB_JOB_STARTS_ALIGNED=$(MALI_PP_SCHEDULER_KEEP_SUB_JOB_STARTS_ALIGNED)
+ccflags-y += -DMALI_PP_SCHEDULER_FORCE_NO_JOB_OVERLAP_BETWEEN_APPS=$(MALI_PP_SCHEDULER_FORCE_NO_JOB_OVERLAP_BETWEEN_APPS)
+ccflags-y += -DMALI_STATE_TRACKING=1
+ccflags-y += -DMALI_OS_MEMORY_KERNEL_BUFFER_SIZE_IN_MB=$(OS_MEMORY_KERNEL_BUFFER_SIZE_IN_MB)
+ccflags-y += -DUSING_GPU_UTILIZATION=$(USING_GPU_UTILIZATION)
+
+ifeq ($(MALI_UPPER_HALF_SCHEDULING),1)
+	ccflags-y += -DMALI_UPPER_HALF_SCHEDULING
+endif
+
+ccflags-$(CONFIG_MALI400_UMP) += -I$(src)/../../ump/include/ump
+ccflags-$(CONFIG_MALI400_DEBUG) += -DDEBUG
+
+# Use our defines when compiling
+ccflags-y += -I$(src) -I$(src)/include -I$(src)/common -I$(src)/linux -I$(src)/platform
+# MALI_SEC 
+ccflags-y += -I$(src)/../ump/include
+
+# Get subversion revision number, fall back to only ${MALI_RELEASE_NAME} if no svn info is available
+MALI_RELEASE_NAME=$(shell cat $(src)/.version 2> /dev/null)
+
+SVN_INFO = (cd $(src); (svn info || git svn info || \
+	echo -e "\nURL: $(MALI_RELEASE_NAME)\n" \
+	"Last Changed Rev: $(MALI_RELEASE_NAME)\n" \
+	"Last Changed Date: $(MALI_RELEASE_NAME)") 2>/dev/null)
+
+SVN_REV := $(shell (cd $(src); echo "$(SVN_INFO)" | grep '^Revision: '| sed -e 's/^Revision: //' ) 2>/dev/null )
+ifeq ($(SVN_REV),)
+SVN_REV := $(MALI_RELEASE_NAME)
+else
+SVN_REV := $(MALI_RELEASE_NAME)-r$(SVN_REV)
+endif
+
+ccflags-y += -DSVN_REV_STRING=\"$(SVN_REV)\"
+
+VERSION_STRINGS :=
+VERSION_STRINGS += API_VERSION=$(shell cd $(src); grep "\#define _MALI_API_VERSION" $(FILES_PREFIX)include/linux/mali/mali_utgard_uk_types.h | cut -d' ' -f 3 )
+VERSION_STRINGS += REPO_URL=$(shell $(SVN_INFO) | grep '^URL: ' | cut -d: -f2- | cut -b2-)
+VERSION_STRINGS += REVISION=$(SVN_REV)
+VERSION_STRINGS += CHANGED_REVISION=$(shell $(SVN_INFO) | grep '^Last Changed Rev: ' | cut -d: -f2- | cut -b2-)
+VERSION_STRINGS += CHANGE_DATE=$(shell $(SVN_INFO) | grep '^Last Changed Date: ' | cut -d: -f2- | cut -b2-)
+VERSION_STRINGS += BUILD_DATE=$(shell date)
+ifdef CONFIG_MALI400_DEBUG
+VERSION_STRINGS += BUILD=debug
+else
+VERSION_STRINGS += BUILD=release
+endif
+VERSION_STRINGS += TARGET_PLATFORM=$(TARGET_PLATFORM)
+VERSION_STRINGS += MALI_PLATFORM=$(MALI_PLATFORM)
+VERSION_STRINGS += KDIR=$(KDIR)
+VERSION_STRINGS += OS_MEMORY_KERNEL_BUFFER_SIZE_IN_MB=$(OS_MEMORY_KERNEL_BUFFER_SIZE_IN_MB)
+VERSION_STRINGS += USING_UMP=$(CONFIG_MALI400_UMP)
+VERSION_STRINGS += USING_PROFILING=$(CONFIG_MALI400_PROFILING)
+VERSION_STRINGS += USING_INTERNAL_PROFILING=$(CONFIG_MALI400_INTERNAL_PROFILING)
+VERSION_STRINGS += USING_GPU_UTILIZATION=$(USING_GPU_UTILIZATION)
+VERSION_STRINGS += MALI_UPPER_HALF_SCHEDULING=$(MALI_UPPER_HALF_SCHEDULING)
+
+# Create file with Mali driver configuration
+$(src)/__malidrv_build_info.c:
+	@echo 'const char *__malidrv_build_info(void) { return "malidrv: $(VERSION_STRINGS)";}' > $(src)/__malidrv_build_info.c

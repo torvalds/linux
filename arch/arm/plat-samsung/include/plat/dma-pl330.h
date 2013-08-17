@@ -90,6 +90,7 @@ enum dma_ch {
 	DMACH_MIPI_HSI5,
 	DMACH_MIPI_HSI6,
 	DMACH_MIPI_HSI7,
+	DMACH_DISP1,
 	DMACH_MTOM_0,
 	DMACH_MTOM_1,
 	DMACH_MTOM_2,
@@ -112,6 +113,11 @@ static inline bool samsung_dma_has_circular(void)
 }
 
 static inline bool samsung_dma_is_dmadev(void)
+{
+	return true;
+}
+
+static inline bool samsung_dma_has_infiniteloop(void)
 {
 	return true;
 }

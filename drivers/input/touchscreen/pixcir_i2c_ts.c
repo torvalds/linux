@@ -57,10 +57,13 @@ static void pixcir_ts_poscheck(struct pixcir_i2c_ts_data *data)
 
 	touch = rdbuf[0];
 	if (touch) {
-		u16 posx1 = (rdbuf[3] << 8) | rdbuf[2];
-		u16 posy1 = (rdbuf[5] << 8) | rdbuf[4];
-		u16 posx2 = (rdbuf[7] << 8) | rdbuf[6];
-		u16 posy2 = (rdbuf[9] << 8) | rdbuf[8];
+		u16 posx1 = (rdbuf[5] << 8) | rdbuf[4];
+		u16 posy1 = (rdbuf[3] << 8) | rdbuf[2];
+		u16 posx2 = (rdbuf[9] << 8) | rdbuf[8];
+		u16 posy2 = (rdbuf[7] << 8) | rdbuf[6];
+
+		posx1 = tsdata->chip->x_max - posx1;
+		posx2 = tsdata->chip->x_max - posx2;
 
 		input_report_key(tsdata->input, BTN_TOUCH, 1);
 		input_report_abs(tsdata->input, ABS_X, posx1);

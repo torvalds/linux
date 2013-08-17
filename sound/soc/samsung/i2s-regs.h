@@ -31,6 +31,7 @@
 #define I2SLVL1ADDR	0x34
 #define I2SLVL2ADDR	0x38
 #define I2SLVL3ADDR	0x3c
+#define I2SSTR1		0x40
 
 #define CON_RSTCLR		(1 << 31)
 #define CON_FRXOFSTATUS		(1 << 26)

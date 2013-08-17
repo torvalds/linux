@@ -26,6 +26,8 @@
 #include <asm/asm-offsets.h>
 #include <asm/hardware/cache-l2x0.h>
 
+#include <mach/smc.h>
+
 /*
  *	 The following code is located into the .data section. This is to
  *	 allow l2x0_regs_phys to be accessed with a relative load while we
@@ -44,6 +46,11 @@
 
 	.word	0x2bedf00d
 
+	.global scu_save
+scu_save:
+	.word   0
+	.word   0
+
 	/*
 	 * s3c_cpu_resume
 	 *
@@ -51,13 +58,57 @@
 	 */
 
 ENTRY(s3c_cpu_resume)
+#ifdef CONFIG_ARCH_EXYNOS4
+	/* SCU enable */
+	ldr     r1, =0x10500000
+	adr     r0, scu_save
+
+	ldr     r5, [r0]
+	ldr     r6, [r0, #4]
+
+	str     r5, [r1, #0x30]
+	str     r6, [r1]
+#endif
 #ifdef CONFIG_CACHE_L2X0
 	adr	r0, l2x0_regs_phys
 	ldr	r0, [r0]
 	ldr	r1, [r0, #L2X0_R_PHY_BASE]
 	ldr	r2, [r1, #L2X0_CTRL]
 	tst	r2, #0x1
-	bne	resume_l2on
+#if CONFIG_ARM_TRUSTZONE
+	ldr	r5, [r0, #L2X0_R_TAG_LATENCY]
+	ldr	r6, [r0, #L2X0_R_DATA_LATENCY]
+	ldr	r7, [r0, #L2X0_R_PREFETCH_CTRL]
+
+	mov	r1, r5
+	mov	r2, r6
+	mov	r3, r7
+
+	ldr	r0, =SMC_CMD_L2X0SETUP1
+
+	smc	0
+
+	ldr	r0, =SMC_CMD_L2X0SETUP2
+	ldr	r1, =0x3
+	ldr	r2, =0x7C470001
+	ldr	r3, =0xC200FFFF
+
+	smc	0
+
+	ldr	r0, =SMC_CMD_L2X0INVALL
+	ldr	r1, =0x0
+	ldr	r2, =0x0
+	ldr	r3, =0x0
+
+	smc	0
+
+	ldr	r0, =SMC_CMD_L2X0CTRL
+	ldr	r1, =0x1
+	ldr	r2, =0x0
+	ldr	r3, =0x0
+
+	smc	0
+#else
 	ldr	r2, [r0, #L2X0_R_AUX_CTRL]
 	str	r2, [r1, #L2X0_AUX_CTRL]
 	ldr	r2, [r0, #L2X0_R_TAG_LATENCY]
@@ -70,6 +121,7 @@ ENTRY(s3c_cpu_resume)
 	str	r2, [r1, #L2X0_POWER_CTRL]
 	mov	r2, #1
 	str	r2, [r1, #L2X0_CTRL]
+#endif
 resume_l2on:
 #endif
 	b	cpu_resume

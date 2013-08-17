@@ -1,0 +1,58 @@
+/*
+ * SAMSUNG SMDK5410 board device tree source
+ *
+ * Copyright (c) 2012 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+*/
+
+/dts-v1/;
+/include/ "exynos5410.dtsi"
+
+/ {
+	model = "SAMSUNG SMDK5410 board based on EXYNOS5410";
+	compatible = "samsung,smdk5410", "samsung,exynos5410";
+
+	memory {
+		reg = <0x40000000 0x80000000>;
+	};
+
+	chosen {
+		bootargs = "root=/dev/ram0 rw ramdisk=8192 initrd=0x41000000,8M console=ttySAC2,115200 init=/linuxrc mem=512M";
+	};
+
+	i2c@12C60000 {
+		status = "disabled";
+	};
+
+	i2c@12C70000 {
+		status = "disabled";
+	};
+
+	i2c@12C80000 {
+		status = "disabled";
+	};
+
+	i2c@12C90000 {
+		status = "disabled";
+	};
+
+	i2c@12CA0000 {
+		status = "disabled";
+	};
+
+	i2c@12CB0000 {
+		status = "disabled";
+	};
+
+	i2c@12CC0000 {
+		status = "disabled";
+	};
+
+	i2c@12CD0000 {
+		status = "disabled";
+	};
+};

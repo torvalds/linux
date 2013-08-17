@@ -880,8 +880,6 @@ config ARCH_S5PV210
 config ARCH_EXYNOS
 	bool "SAMSUNG EXYNOS"
 	select CPU_V7
-	select ARCH_SPARSEMEM_ENABLE
-	select ARCH_HAS_HOLES_MEMORYMODEL
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select CLKDEV_LOOKUP
@@ -1155,7 +1153,7 @@ source arch/arm/mm/Kconfig
 
 config ARM_NR_BANKS
 	int
-	default 16 if ARCH_EP93XX
+	default 16 if ARCH_EP93XX || ARCH_EXYNOS
 	default 8
 
 config IWMMXT
@@ -1405,6 +1403,43 @@ config PL310_ERRATA_769419
 	  on systems with an outer cache, the store buffer is drained
 	  explicitly.
 
+config ARM_ERRATA_761320
+	bool "ARM errata: no direct eviction"
+	depends on CPU_V7 && SMP
+	help
+	  This option enables the workaround for the 761320 Cortex-A9 erratum.
+
+config ARM_ERRATA_766421
+	bool "ARM errata: Strongly-Ordered/Device load or NC LDREX could return incorrect data"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 766421 Cortex-A15 erratum.
+	  In certain situations, a strongly ordered or device load instruction,
+	  or a non-cacheable normal memory load-exclusive instruction could
+	  match multiple fill buffers and return incorrect data.
+	  This workaround is add DMB instruction when making any change to the
+	  translation regime and before doing any new loads/stores/preloads
+	  in the new translation regime.
+
+config ARM_ERRATA_773022
+	bool "ARM errata: incorrect instructions may be executed from loop buffer"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 773022 Cortex-A15 erratum.
+	  In certain rare sequences of code, the loop buffer may deliver
+	  incorrect instructions.
+	  This workaround is to disable loop buffer.
+
+config ARM_ERRATA_774769
+	bool "ARM errata: data corruption may occur with store streaming in a system"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the erratum 774769.
+	  External memory may be corrupted on erratum 774769.
+	  The workaround is to configure write streaming on versions of A15
+	  affected by this erratum such that no streaming-write ever allocates
+	  into the L2 cache.
+
 endmenu
 
 source "arch/arm/common/Kconfig"
@@ -1559,6 +1594,24 @@ config HAVE_ARM_TWD
 	help
 	  This options enables support for the ARM timer and watchdog unit
 
+config BL_SWITCHER
+	bool "big.LITTLE switcher support (experimental)"
+	depends on CPU_V7 && EXPERIMENTAL
+	select CPU_PM
+	select ARM_CPU_SUSPEND
+	help
+	  The big.LITTLE "switcher" provides the core functionality to
+	  transparently handle transition between a cluster of A15's
+	  and a cluster of A7's in a big.LITTLE system.
+
+config BL_SWITCHER_DUMMY_IF
+	bool "Simple big.LITTLE switcher user interface"
+	depends on BL_SWITCHER
+	help
+	  This is a simple and dummy char dev interface to control
+	  the big.LITTLE switcher core code.  It is meant for
+	  debugging purposes only.
+
 choice
 	prompt "Memory split"
 	default VMSPLIT_3G
@@ -1622,7 +1675,7 @@ source kernel/Kconfig.preempt
 config HZ
 	int
 	default 200 if ARCH_EBSA110 || ARCH_S3C24XX || ARCH_S5P64X0 || \
-		ARCH_S5PV210 || ARCH_EXYNOS4
+		ARCH_S5PV210 || ARCH_EXYNOS
 	default OMAP_32K_TIMER_HZ if ARCH_OMAP && OMAP_32K_TIMER
 	default AT91_TIMER_HZ if ARCH_AT91
 	default SHMOBILE_TIMER_HZ if ARCH_SHMOBILE
@@ -1721,6 +1774,16 @@ config ARCH_SELECT_MEMORY_MODEL
 
 config HAVE_ARCH_PFN_VALID
 	def_bool ARCH_HAS_HOLES_MEMORYMODEL || !SPARSEMEM
+
+config ARCH_SKIP_SECONDARY_CALIBRATE
+	bool "Skip secondary CPU calibration"
+	depends on SMP
+	help
+	  On some architectures, secondary cores shares clock with primiary
+	  core and hence scale together. Hence secondary core lpj calibration
+	  is not necessary and can be skipped to save considerable time.
+
+	  If unsure, say n.
 
 config HIGHMEM
 	bool "High Memory Support"
@@ -1884,6 +1947,15 @@ config DEPRECATED_PARAM_STRUCT
 	help
 	  This was deprecated in 2001 and announced to live on for 5 years.
 	  Some old boot loaders still use this way.
+
+config ARM_FLUSH_CONSOLE_ON_RESTART
+	bool "Force flush the console on restart"
+	help
+	  If the console is locked while the system is rebooted, the messages
+	  in the temporary logbuffer would not have propogated to all the
+	  console drivers. This option forces the console lock to be
+	  released if it failed to be acquired, which will cause all the
+	  pending messages to be flushed.
 
 endmenu
 

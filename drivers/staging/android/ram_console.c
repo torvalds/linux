@@ -16,12 +16,12 @@
 #include <linux/console.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/persistent_ram.h>
 #include <linux/platform_device.h>
 #include <linux/proc_fs.h>
 #include <linux/string.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
-#include "persistent_ram.h"
 #include "ram_console.h"
 
 static struct persistent_ram_zone *ram_console_zone;
@@ -50,7 +50,7 @@ void ram_console_enable_console(int enabled)
 		ram_console.flags &= ~CON_ENABLED;
 }
 
-static int __init ram_console_probe(struct platform_device *pdev)
+static int __devinit ram_console_probe(struct platform_device *pdev)
 {
 	struct ram_console_platform_data *pdata = pdev->dev.platform_data;
 	struct persistent_ram_zone *prz;
@@ -78,11 +78,12 @@ static struct platform_driver ram_console_driver = {
 	.driver		= {
 		.name	= "ram_console",
 	},
+	.probe = ram_console_probe,
 };
 
 static int __init ram_console_module_init(void)
 {
-	return platform_driver_probe(&ram_console_driver, ram_console_probe);
+	return platform_driver_register(&ram_console_driver);
 }
 
 #ifndef CONFIG_PRINTK
@@ -99,9 +100,6 @@ static ssize_t ram_console_read_old(struct file *file, char __user *buf,
 	const char *old_log = persistent_ram_old(prz);
 	char *str;
 	int ret;
-
-	if (dmesg_restrict && !capable(CAP_SYSLOG))
-		return -EPERM;
 
 	/* Main last_kmsg log */
 	if (pos < old_log_size) {

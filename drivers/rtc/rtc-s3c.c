@@ -172,7 +172,7 @@ static int s3c_rtc_setfreq(struct device *dev, int freq)
 
 /* Time read/write */
 
-static int s3c_rtc_gettime(struct device *dev, struct rtc_time *rtc_tm)
+static int s3c_rtc_gettime_internal(struct rtc_time *rtc_tm)
 {
 	unsigned int have_retried = 0;
 	void __iomem *base = s3c_rtc_base;
@@ -213,6 +213,11 @@ static int s3c_rtc_gettime(struct device *dev, struct rtc_time *rtc_tm)
 
 	clk_disable(rtc_clk);
 	return rtc_valid_tm(rtc_tm);
+}
+
+static int s3c_rtc_gettime(struct device *dev, struct rtc_time *rtc_tm)
+{
+	return s3c_rtc_gettime_internal(rtc_tm);
 }
 
 static int s3c_rtc_settime(struct device *dev, struct rtc_time *tm)
@@ -423,6 +428,25 @@ static void s3c_rtc_enable(struct platform_device *pdev, int en)
 	clk_disable(rtc_clk);
 }
 
+/**
+ * read_persistent_clock -  Return time from a persistent clock.
+ */
+void read_persistent_clock(struct timespec *ts)
+{
+	struct rtc_time rtc_tm;
+	unsigned long time;
+
+	if ((s3c_rtc_base == NULL) || s3c_rtc_gettime_internal(&rtc_tm)) {
+		ts->tv_sec = 0;
+		ts->tv_nsec = 0;
+		return;
+	}
+
+	rtc_tm_to_time(&rtc_tm, &time);
+	ts->tv_sec = time;
+	ts->tv_nsec = 0;
+}
+
 static int __devexit s3c_rtc_remove(struct platform_device *dev)
 {
 	struct rtc_device *rtc = platform_get_drvdata(dev);
@@ -521,12 +545,13 @@ static int __devinit s3c_rtc_probe(struct platform_device *pdev)
 	}
 
 	clk_enable(rtc_clk);
+	s3c_rtc_cpu_type = s3c_rtc_get_driver_data(pdev);
 
 	/* check to see if everything is setup correctly */
 
 	s3c_rtc_enable(pdev, 1);
 
-	pr_debug("s3c2410_rtc: RTCCON=%02x\n",
+	pr_debug("s3c2410_rtc: RTCCON=%04x\n",
 		 readw(s3c_rtc_base + S3C2410_RTCCON));
 
 	device_init_wakeup(&pdev->dev, 1);
@@ -541,8 +566,6 @@ static int __devinit s3c_rtc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(rtc);
 		goto err_nortc;
 	}
-
-	s3c_rtc_cpu_type = s3c_rtc_get_driver_data(pdev);
 
 	/* Check RTC Time */
 
@@ -627,10 +650,12 @@ static int s3c_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	clk_enable(rtc_clk);
 	/* save TICNT for anyone using periodic interrupts */
-	ticnt_save = readb(s3c_rtc_base + S3C2410_TICNT);
 	if (s3c_rtc_cpu_type == TYPE_S3C64XX) {
 		ticnt_en_save = readw(s3c_rtc_base + S3C2410_RTCCON);
 		ticnt_en_save &= S3C64XX_RTCCON_TICEN;
+		ticnt_save = readl(s3c_rtc_base + S3C2410_TICNT);
+	} else {
+		ticnt_save = readb(s3c_rtc_base + S3C2410_TICNT);
 	}
 	s3c_rtc_enable(pdev, 0);
 
@@ -651,10 +676,16 @@ static int s3c_rtc_resume(struct platform_device *pdev)
 
 	clk_enable(rtc_clk);
 	s3c_rtc_enable(pdev, 1);
-	writeb(ticnt_save, s3c_rtc_base + S3C2410_TICNT);
-	if (s3c_rtc_cpu_type == TYPE_S3C64XX && ticnt_en_save) {
-		tmp = readw(s3c_rtc_base + S3C2410_RTCCON);
-		writew(tmp | ticnt_en_save, s3c_rtc_base + S3C2410_RTCCON);
+	if (s3c_rtc_cpu_type == TYPE_S3C64XX) {
+		writel(ticnt_save, s3c_rtc_base + S3C2410_TICNT);
+
+		if (ticnt_en_save) {
+			tmp = readw(s3c_rtc_base + S3C2410_RTCCON);
+			writew(tmp | ticnt_en_save,
+			       s3c_rtc_base + S3C2410_RTCCON);
+		}
+	} else {
+		writeb(ticnt_save, s3c_rtc_base + S3C2410_TICNT);
 	}
 
 	if (device_may_wakeup(&pdev->dev) && wake_en) {
@@ -670,6 +701,7 @@ static int s3c_rtc_resume(struct platform_device *pdev)
 #define s3c_rtc_resume  NULL
 #endif
 
+#ifdef CONFIG_OF
 static struct s3c_rtc_drv_data s3c_rtc_drv_data_array[] = {
 	[TYPE_S3C2410] = { TYPE_S3C2410 },
 	[TYPE_S3C2416] = { TYPE_S3C2416 },
@@ -677,7 +709,6 @@ static struct s3c_rtc_drv_data s3c_rtc_drv_data_array[] = {
 	[TYPE_S3C64XX] = { TYPE_S3C64XX },
 };
 
-#ifdef CONFIG_OF
 static const struct of_device_id s3c_rtc_dt_match[] = {
 	{
 		.compatible = "samsung,s3c2410-rtc",

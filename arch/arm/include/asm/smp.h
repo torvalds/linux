@@ -90,7 +90,11 @@ extern void platform_cpu_die(unsigned int cpu);
 extern int platform_cpu_kill(unsigned int cpu);
 extern void platform_cpu_enable(unsigned int cpu);
 
+extern void arm_send_ping_ipi(int cpu);
+
 extern void arch_send_call_function_single_ipi(int cpu);
 extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
+
+extern void smp_send_all_cpu_backtrace(void);
 
 #endif /* ifndef __ASM_ARM_SMP_H */

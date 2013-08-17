@@ -20,6 +20,7 @@
 #include <asm/mach/irq.h>
 #include <mach/hardware.h>
 #include <mach/map.h>
+#include <mach/dma.h>
 
 #include <plat/devs.h>
 
@@ -27,6 +28,8 @@
 static struct resource exynos##_series##_uart##_nr##_resource[] = {	\
 	[0] = DEFINE_RES_MEM(EXYNOS##_series##_PA_UART##_nr, EXYNOS##_series##_SZ_UART),	\
 	[1] = DEFINE_RES_IRQ(EXYNOS##_series##_IRQ_UART##_nr),	\
+	[2] = DEFINE_RES_DMA(DMACH_UART##_nr##_TX),	\
+	[3] = DEFINE_RES_DMA(DMACH_UART##_nr##_RX),	\
 };
 
 EXYNOS_UART_RESOURCE(4, 0)

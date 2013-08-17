@@ -625,7 +625,7 @@ static int ohci_start_port_reset (struct usb_hcd *hcd, unsigned port)
  * The short timeout is safe for non-root hubs, and is backward-compatible
  * with earlier Linux hosts.
  */
-#ifdef	CONFIG_USB_SUSPEND
+#if (defined(CONFIG_USB_SUSPEND)&&!defined(CONFIG_MACH_ODROIDXU))
 #define	PORT_RESET_MSEC		50
 #else
 #define	PORT_RESET_MSEC		10

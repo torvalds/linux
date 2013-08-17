@@ -241,6 +241,10 @@ static const struct usb_device_id usbtouch_devices[] = {
 		.driver_info = DEVTYPE_NEXIO},
 	{USB_DEVICE_AND_INTERFACE_INFO(0x1870, 0x0001, 0x0a, 0x00, 0x00),
 		.driver_info = DEVTYPE_NEXIO},
+#if defined(CONFIG_TOUCHSCREEN_NEXIO_USB)
+	{USB_DEVICE(0x1870, 0x0100), .driver_info = DEVTYPE_NEXIO},
+#endif
+	
 #endif
 
 #ifdef CONFIG_TOUCHSCREEN_USB_ELO
@@ -771,7 +775,11 @@ static int zytronic_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 #ifdef CONFIG_TOUCHSCREEN_USB_NEXIO
 
 #define NEXIO_TIMEOUT	5000
-#define NEXIO_BUFSIZE	1024
+#if defined(CONFIG_TOUCHSCREEN_NEXIO_USB)
+    #define NEXIO_BUFSIZE	16
+#else
+    #define NEXIO_BUFSIZE	1024
+#endif
 #define NEXIO_THRESHOLD	50
 
 struct nexio_priv {
@@ -826,6 +834,16 @@ out_buf:
 	return ret;
 }
 
+#if defined(CONFIG_TOUCHSCREEN_NEXIO_USB)
+	#define	NEXIO_USB_TOUCH_VENDOR	0x1870
+	#define	NEXIO_USB_TOUCH_PRODUCT	0x0100
+
+	unsigned char	nexio_touch_driver_open = false;
+	extern	void	nexio_touch_report_data(void *data, unsigned short dsize);
+
+	EXPORT_SYMBOL(nexio_touch_driver_open);
+#endif
+
 static int nexio_init(struct usbtouch_usb *usbtouch)
 {
 	struct usb_device *dev = interface_to_usbdev(usbtouch->interface);
@@ -853,6 +871,9 @@ static int nexio_init(struct usbtouch_usb *usbtouch)
 	if (!buf)
 		goto out_buf;
 
+#if defined(CONFIG_TOUCHSCREEN_NEXIO_USB)
+    printk(KERN_INFO "Nexio USB Touchscreen Devuce (0x%04X:0x%04X\n", NEXIO_USB_TOUCH_VENDOR, NEXIO_USB_TOUCH_PRODUCT);
+#else
 	/* two empty reads */
 	for (i = 0; i < 2; i++) {
 		ret = usb_bulk_msg(dev, usb_rcvbulkpipe(dev, input_ep),
@@ -889,9 +910,9 @@ static int nexio_init(struct usbtouch_usb *usbtouch)
 			break;
 		}
 	}
-
-	printk(KERN_INFO "Nexio device: %s, firmware version: %s\n",
-	       device_name, firmware_ver);
+    printk(KERN_INFO "Nexio device: %s, firmware version: %s\n",
+    	       device_name, firmware_ver);
+#endif
 
 	kfree(firmware_ver);
 	kfree(device_name);
@@ -918,6 +939,14 @@ static void nexio_exit(struct usbtouch_usb *usbtouch)
 
 static int nexio_read_data(struct usbtouch_usb *usbtouch, unsigned char *pkt)
 {
+#if defined(CONFIG_TOUCHSCREEN_NEXIO_USB)
+	struct nexio_priv *priv = usbtouch->priv;
+
+    if(nexio_touch_driver_open)
+        nexio_touch_report_data((void *)pkt, 14);
+    usb_submit_urb(priv->ack, GFP_ATOMIC);
+    return  0;
+#else
 	struct nexio_touch_packet *packet = (void *) pkt;
 	struct nexio_priv *priv = usbtouch->priv;
 	unsigned int data_len = be16_to_cpu(packet->data_len);
@@ -997,6 +1026,7 @@ static int nexio_read_data(struct usbtouch_usb *usbtouch, unsigned char *pkt)
 
 	}
 	return 0;
+#endif
 }
 #endif
 
@@ -1218,7 +1248,11 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 
 #ifdef CONFIG_TOUCHSCREEN_USB_NEXIO
 	[DEVTYPE_NEXIO] = {
+#if defined(CONFIG_TOUCHSCREEN_NEXIO_USB)
+		.rept_size	= 16,
+#else
 		.rept_size	= 1024,
+#endif
 		.irq_always	= true,
 		.read_data	= nexio_read_data,
 		.alloc		= nexio_alloc,

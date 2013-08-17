@@ -62,7 +62,7 @@ enum s3c24xx_i2c_type {
 struct s3c24xx_i2c {
 	spinlock_t		lock;
 	wait_queue_head_t	wait;
-	unsigned int		suspended:1;
+	bool			is_suspended;
 
 	struct i2c_msg		*msg;
 	unsigned int		msg_num;
@@ -86,9 +86,21 @@ struct s3c24xx_i2c {
 #ifdef CONFIG_CPU_FREQ
 	struct notifier_block	freq_transition;
 #endif
+	unsigned int freq;
 };
 
 /* default platform data removed, dev should always carry data. */
+
+static inline void dump_i2c_register(struct s3c24xx_i2c *i2c)
+{
+	dev_dbg(i2c->dev, "Register dump(%d) : %x %x %x %x %x\n"
+		, i2c->is_suspended
+		, readl(i2c->regs + S3C2410_IICCON)
+		, readl(i2c->regs + S3C2410_IICSTAT)
+		, readl(i2c->regs + S3C2410_IICADD)
+		, readl(i2c->regs + S3C2410_IICDS)
+		, readl(i2c->regs + S3C2440_IICLC));
+}
 
 /* s3c24xx_i2c_is2440()
  *
@@ -212,18 +224,29 @@ static void s3c24xx_i2c_message_start(struct s3c24xx_i2c *i2c,
 
 static inline void s3c24xx_i2c_stop(struct s3c24xx_i2c *i2c, int ret)
 {
-	unsigned long iicstat = readl(i2c->regs + S3C2410_IICSTAT);
+	unsigned long iicstat;
+	unsigned long iiccon;
 
 	dev_dbg(i2c->dev, "STOP\n");
 
 	/* stop the transfer */
+
+	/* Disable irq */
+	s3c24xx_i2c_disable_irq(i2c);
+
+	/* STOP signal generation : MTx(0xD0) */
+	iicstat = readl(i2c->regs + S3C2410_IICSTAT);
 	iicstat &= ~S3C2410_IICSTAT_START;
 	writel(iicstat, i2c->regs + S3C2410_IICSTAT);
 
-	i2c->state = STATE_STOP;
+	/* Clear pending bit */
+	iiccon = readl(i2c->regs + S3C2410_IICCON);
+	iiccon &= ~S3C2410_IICCON_IRQPEND;
+	writel(iiccon, i2c->regs + S3C2410_IICCON);
 
 	s3c24xx_i2c_master_complete(i2c, ret);
-	s3c24xx_i2c_disable_irq(i2c);
+
+	i2c->state = STATE_STOP;
 }
 
 /* helper functions to determine the current state in the set of
@@ -435,6 +458,8 @@ static irqreturn_t s3c24xx_i2c_irq(int irqno, void *dev_id)
 	unsigned long status;
 	unsigned long tmp;
 
+	spin_lock(&i2c->lock);
+
 	status = readl(i2c->regs + S3C2410_IICSTAT);
 
 	if (status & S3C2410_IICSTAT_ARBITR) {
@@ -457,6 +482,8 @@ static irqreturn_t s3c24xx_i2c_irq(int irqno, void *dev_id)
 	i2c_s3c_irq_nextbyte(i2c, status);
 
  out:
+	spin_unlock(&i2c->lock);
+
 	return IRQ_HANDLED;
 }
 
@@ -477,7 +504,7 @@ static int s3c24xx_i2c_set_master(struct s3c24xx_i2c *i2c)
 		if (!(iicstat & S3C2410_IICSTAT_BUSBUSY))
 			return 0;
 
-		msleep(1);
+		usleep_range(1000, 2000);
 	}
 
 	return -ETIMEDOUT;
@@ -495,12 +522,13 @@ static int s3c24xx_i2c_doxfer(struct s3c24xx_i2c *i2c,
 	int spins = 20;
 	int ret;
 
-	if (i2c->suspended)
+	if (i2c->is_suspended)
 		return -EIO;
 
 	ret = s3c24xx_i2c_set_master(i2c);
 	if (ret != 0) {
 		dev_err(i2c->dev, "cannot get bus (error %d)\n", ret);
+		dump_i2c_register(i2c);
 		ret = -EAGAIN;
 		goto out;
 	}
@@ -524,10 +552,13 @@ static int s3c24xx_i2c_doxfer(struct s3c24xx_i2c *i2c,
 	/* having these next two as dev_err() makes life very
 	 * noisy when doing an i2cdetect */
 
-	if (timeout == 0)
+	if (timeout == 0) {
 		dev_dbg(i2c->dev, "timeout\n");
-	else if (ret != num)
+		dump_i2c_register(i2c);
+	} else if (ret != num) {
 		dev_dbg(i2c->dev, "incomplete xfer (%d)\n", ret);
+		dump_i2c_register(i2c);
+	}
 
 	/* ensure the stop has been through the bus */
 
@@ -537,16 +568,32 @@ static int s3c24xx_i2c_doxfer(struct s3c24xx_i2c *i2c,
 	do {
 		cpu_relax();
 		iicstat = readl(i2c->regs + S3C2410_IICSTAT);
-	} while ((iicstat & S3C2410_IICSTAT_START) && --spins);
+	} while ((iicstat & S3C2410_IICSTAT_BUSBUSY) && --spins);
 
 	/* if that timed out sleep */
 	if (!spins) {
-		msleep(1);
+		usleep_range(1000, 2000);
 		iicstat = readl(i2c->regs + S3C2410_IICSTAT);
 	}
 
-	if (iicstat & S3C2410_IICSTAT_START)
-		dev_warn(i2c->dev, "timeout waiting for bus idle\n");
+	/* if still not finished, clean it up */
+	spin_lock_irq(&i2c->lock);
+	if (iicstat & S3C2410_IICSTAT_BUSBUSY) {
+		dev_dbg(i2c->dev, "timeout waiting for bus idle\n");
+		dump_i2c_register(i2c);
+
+		if (i2c->state != STATE_STOP) {
+			dev_dbg(i2c->dev,
+				"timeout : i2c interrupt hasn't occurred\n");
+			s3c24xx_i2c_stop(i2c, 0);
+		}
+
+		/* Disable Serial Out : To forcely terminate the connection */
+		iicstat = readl(i2c->regs + S3C2410_IICSTAT);
+		iicstat &= ~S3C2410_IICSTAT_TXRXEN;
+		writel(iicstat, i2c->regs + S3C2410_IICSTAT);
+	}
+	spin_unlock_irq(&i2c->lock);
 
  out:
 	return ret;
@@ -564,6 +611,12 @@ static int s3c24xx_i2c_xfer(struct i2c_adapter *adap,
 	struct s3c24xx_i2c *i2c = (struct s3c24xx_i2c *)adap->algo_data;
 	int retry;
 	int ret;
+
+	if (i2c->is_suspended) {
+		dev_err(i2c->dev, "I2C is not initialzed.\n");
+		dump_i2c_register(i2c);
+		return -EIO;
+	}
 
 	pm_runtime_get_sync(&adap->dev);
 	clk_enable(i2c->clk);
@@ -638,7 +691,7 @@ static int s3c24xx_i2c_calcdivisor(unsigned long clkin, unsigned int wanted,
  * range of frequencies until something is found
 */
 
-static int s3c24xx_i2c_clockrate(struct s3c24xx_i2c *i2c, unsigned int *got)
+static int s3c24xx_i2c_clockrate(struct s3c24xx_i2c *i2c)
 {
 	struct s3c2410_platform_i2c *pdata = i2c->pdata;
 	unsigned long clkin = clk_get_rate(i2c->clk);
@@ -665,7 +718,7 @@ static int s3c24xx_i2c_clockrate(struct s3c24xx_i2c *i2c, unsigned int *got)
 		return -EINVAL;
 	}
 
-	*got = freq;
+	i2c->freq = freq;
 
 	iiccon = readl(i2c->regs + S3C2410_IICCON);
 	iiccon &= ~(S3C2410_IICCON_SCALEMASK | S3C2410_IICCON_TXDIV_512);
@@ -719,13 +772,13 @@ static int s3c24xx_i2c_cpufreq_transition(struct notifier_block *nb,
 	if ((val == CPUFREQ_POSTCHANGE && delta_f < 0) ||
 	    (val == CPUFREQ_PRECHANGE && delta_f > 0)) {
 		spin_lock_irqsave(&i2c->lock, flags);
-		ret = s3c24xx_i2c_clockrate(i2c, &got);
+		ret = s3c24xx_i2c_clockrate(i2c);
 		spin_unlock_irqrestore(&i2c->lock, flags);
 
 		if (ret < 0)
 			dev_err(i2c->dev, "cannot find frequency\n");
 		else
-			dev_info(i2c->dev, "setting freq %d\n", got);
+			dev_info(i2c->dev, "setting freq %d\n", i2c->freq);
 	}
 
 	return 0;
@@ -808,7 +861,6 @@ static int s3c24xx_i2c_init(struct s3c24xx_i2c *i2c)
 {
 	unsigned long iicon = S3C2410_IICCON_IRQEN | S3C2410_IICCON_ACKEN;
 	struct s3c2410_platform_i2c *pdata;
-	unsigned int freq;
 
 	/* get the plafrom data */
 
@@ -826,13 +878,11 @@ static int s3c24xx_i2c_init(struct s3c24xx_i2c *i2c)
 
 	writeb(pdata->slave_addr, i2c->regs + S3C2410_IICADD);
 
-	dev_info(i2c->dev, "slave address 0x%02x\n", pdata->slave_addr);
-
 	writel(iicon, i2c->regs + S3C2410_IICCON);
 
 	/* we need to work out the divisors for the clock... */
 
-	if (s3c24xx_i2c_clockrate(i2c, &freq) != 0) {
+	if (s3c24xx_i2c_clockrate(i2c) != 0) {
 		writel(0, i2c->regs + S3C2410_IICCON);
 		dev_err(i2c->dev, "cannot meet bus frequency required\n");
 		return -EINVAL;
@@ -840,7 +890,6 @@ static int s3c24xx_i2c_init(struct s3c24xx_i2c *i2c)
 
 	/* todo - check that the i2c lines aren't being dragged anywhere */
 
-	dev_info(i2c->dev, "bus frequency set to %d KHz\n", freq);
 	dev_dbg(i2c->dev, "S3C2410_IICCON=0x%02lx\n", iicon);
 
 	return 0;
@@ -1021,6 +1070,8 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	pm_runtime_enable(&i2c->adap.dev);
 
 	dev_info(&pdev->dev, "%s: S3C I2C adapter\n", dev_name(&i2c->adap.dev));
+	dev_info(i2c->dev, "slave address 0x%02x\n", pdata->slave_addr);
+	dev_info(i2c->dev, "bus frequency set to %d KHz\n", i2c->freq);
 	clk_disable(i2c->clk);
 	return 0;
 
@@ -1080,27 +1131,42 @@ static int s3c24xx_i2c_suspend_noirq(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct s3c24xx_i2c *i2c = platform_get_drvdata(pdev);
 
-	i2c->suspended = 1;
+	i2c_lock_adapter(&i2c->adap);
+	i2c->is_suspended = true;
+	i2c_unlock_adapter(&i2c->adap);
 
 	return 0;
 }
 
-static int s3c24xx_i2c_resume(struct device *dev)
+static int s3c24xx_i2c_resume_noirq(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct s3c24xx_i2c *i2c = platform_get_drvdata(pdev);
+	int ret;
 
-	i2c->suspended = 0;
+	i2c_lock_adapter(&i2c->adap);
+
 	clk_enable(i2c->clk);
-	s3c24xx_i2c_init(i2c);
+
+	ret = s3c24xx_i2c_init(i2c);
+	if (ret) {
+		i2c_unlock_adapter(&i2c->adap);
+		clk_disable(i2c->clk);
+		return ret;
+	}
+
 	clk_disable(i2c->clk);
+
+	i2c->is_suspended = false;
+
+	i2c_unlock_adapter(&i2c->adap);
 
 	return 0;
 }
 
 static const struct dev_pm_ops s3c24xx_i2c_dev_pm_ops = {
 	.suspend_noirq = s3c24xx_i2c_suspend_noirq,
-	.resume = s3c24xx_i2c_resume,
+	.resume_noirq = s3c24xx_i2c_resume_noirq,
 };
 
 #define S3C24XX_DEV_PM_OPS (&s3c24xx_i2c_dev_pm_ops)

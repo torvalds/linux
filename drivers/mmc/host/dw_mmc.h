@@ -15,6 +15,7 @@
 #define _DW_MMC_H_
 
 #define DW_MMC_240A		0x240a
+#define DW_MMC_260A		0x260a
 
 #define SDMMC_CTRL		0x000
 #define SDMMC_PWREN		0x004
@@ -53,6 +54,8 @@
 #define SDMMC_IDINTEN		0x090
 #define SDMMC_DSCADDR		0x094
 #define SDMMC_BUFADDR		0x098
+#define SDMMC_CLKSEL		0x09c
+#define SDMMC_CDTHRCTL		0x100
 #define SDMMC_DATA(x)		(x)
 
 /*
@@ -98,6 +101,7 @@
 #define SDMMC_INT_HLE			BIT(12)
 #define SDMMC_INT_FRUN			BIT(11)
 #define SDMMC_INT_HTO			BIT(10)
+#define SDMMC_INT_VOLT_SW		BIT(10)
 #define SDMMC_INT_DTO			BIT(9)
 #define SDMMC_INT_RTO			BIT(8)
 #define SDMMC_INT_DCRC			BIT(7)
@@ -111,6 +115,8 @@
 #define SDMMC_INT_ERROR			0xbfc2
 /* Command register defines */
 #define SDMMC_CMD_START			BIT(31)
+#define SDMMC_USE_HOLD_REG		BIT(29)
+#define SDMMC_VOLT_SWITCH		BIT(28)
 #define SDMMC_CMD_CCS_EXP		BIT(23)
 #define SDMMC_CMD_CEATA_RD		BIT(22)
 #define SDMMC_CMD_UPD_CLK		BIT(21)
@@ -126,7 +132,9 @@
 #define SDMMC_CMD_RESP_EXP		BIT(6)
 #define SDMMC_CMD_INDX(n)		((n) & 0x1F)
 /* Status register defines */
+#define SDMMC_STATUS_DMA_REQ 		BIT(31)
 #define SDMMC_GET_FCNT(x)		(((x)>>17) & 0x1FFF)
+#define SDMMC_DATA_BUSY			BIT(9)
 /* Internal DMAC interrupt defines */
 #define SDMMC_IDMAC_INT_AI		BIT(9)
 #define SDMMC_IDMAC_INT_NI		BIT(8)
@@ -180,6 +188,7 @@ extern void dw_mci_remove(struct dw_mci *host);
 #ifdef CONFIG_PM
 extern int dw_mci_suspend(struct dw_mci *host);
 extern int dw_mci_resume(struct dw_mci *host);
+extern void dw_mci_shutdown(struct dw_mci *host);
 #endif
 
 #endif /* _DW_MMC_H_ */

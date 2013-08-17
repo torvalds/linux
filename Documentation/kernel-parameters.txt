@@ -2372,6 +2372,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	resume=		[SWSUSP]
 			Specify the partition device for software suspend
+			Format:
+			{/dev/<dev> | PARTUUID=<uuid> | <int>:<int> | <hex>}
 
 	resume_offset=	[SWSUSP]
 			Specify the offset from the beginning of the partition

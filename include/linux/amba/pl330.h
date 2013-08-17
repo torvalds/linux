@@ -29,7 +29,11 @@ struct dma_pl330_platdata {
 	dma_cap_mask_t cap_mask;
 	/* Bytes to allocate for MC buffer */
 	unsigned mcbuf_sz;
+	/* Copy alignment */
+	u8 copy_align;
 };
 
 extern bool pl330_filter(struct dma_chan *chan, void *param);
+extern int pl330_dma_getposition(struct dma_chan *chan,
+		dma_addr_t *src, dma_addr_t *dst);
 #endif	/* __AMBA_PL330_H_ */

@@ -1,0 +1,7 @@
+config VIDEO_EXYNOS5_FIMC_IS
+	bool "Exynos FIMC-IS (Image Subsystem) driver"
+	depends on VIDEO_EXYNOS && ARCH_EXYNOS5
+	select MEDIA_EXYNOS
+	default n
+	help
+	  This is a v4l2 driver for exynos FIMC-IS device.

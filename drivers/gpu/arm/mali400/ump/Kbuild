@@ -1,0 +1,76 @@
+#
+# Copyright (C) 2011-2012 ARM Limited. All rights reserved.
+#
+# This program is free software and is provided to you under the terms of the GNU General Public License version 2
+# as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+#
+# A copy of the licence is included with the program, and can also be obtained from Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#
+
+# Set default configuration to use, if Makefile didn't provide one.
+# Change this to use a different config.h
+# MALI_SEC
+# CONFIG ?= os_memory_64m
+CONFIG ?= release
+
+# Validate selected config
+ifneq ($(shell [ -d $(src)/arch-$(CONFIG) ] && [ -f  $(src)/arch-$(CONFIG)/config.h ] && echo "OK"), OK)
+$(warning Current directory is $(src))
+$(error No configuration found for config $(CONFIG). Check that arch-$(CONFIG)/config.h exists)
+else
+# Link arch to the selected arch-config directory
+$(shell [ -L $(src)/arch ] && rm $(src)/arch)
+$(shell ln -sf arch-$(CONFIG) $(src)/arch)
+$(shell touch $(src)/arch/config.h)
+endif
+
+UDD_FILE_PREFIX = ../mali/
+
+# Get subversion revision number, fall back to 0000 if no svn info is available
+SVN_REV := $(shell ((svnversion | grep -qv exported && echo -n 'Revision: ' && svnversion) || git svn info | sed -e 's/$$$$/M/' | grep '^Revision: ' || echo ${MALI_RELEASE_NAME}) 2>/dev/null | sed -e 's/^Revision: //')
+
+ccflags-y += -DSVN_REV=$(SVN_REV)
+ccflags-y += -DSVN_REV_STRING=\"$(SVN_REV)\"
+
+ccflags-y += -I$(src) -I$(src)/common -I$(src)/linux -I$(src)/../mali/common -I$(src)/../mali/linux -I$(src)/../../ump/include/ump
+# MALI_SEC
+ccflags-y += -I$(src)/include
+ccflags-y += -DUSING_MEMORY=1 -DUMP_MEM_SIZE=512
+
+ccflags-y += -DMALI_STATE_TRACKING=0
+ccflags-$(CONFIG_UMP_DEBUG) += -DDEBUG
+
+# For customer releases the Linux Device Drivers will be provided as ARM proprietary and GPL releases:
+# The ARM proprietary product will only include the license/proprietary directory
+# The GPL product will only include the license/gpl directory
+
+ifeq ($(wildcard $(src)/linux/license/gpl/*),)
+ccflags-y += -I$(src)/linux/license/proprietary
+else
+ccflags-y += -I$(src)/linux/license/gpl
+endif
+
+ump-y = common/ump_kernel_common.o \
+	common/ump_kernel_descriptor_mapping.o \
+	common/ump_kernel_api.o \
+	common/ump_kernel_ref_drv.o \
+	linux/ump_kernel_linux.o \
+	linux/ump_kernel_memory_backend_os.o \
+	linux/ump_kernel_memory_backend_dedicated.o \
+	linux/ump_memory_backend.o \
+	linux/ump_ukk_wrappers.o \
+	linux/ump_ukk_ref_wrappers.o \
+	linux/ump_osk_atomics.o \
+	linux/ump_osk_low_level_mem.o \
+	linux/ump_osk_misc.o
+
+# MALI_SEC
+#	$(UDD_FILE_PREFIX)linux/mali_osk_atomics.o \
+#	$(UDD_FILE_PREFIX)linux/mali_osk_locks.o \
+#	$(UDD_FILE_PREFIX)linux/mali_osk_memory.o \
+#	$(UDD_FILE_PREFIX)linux/mali_osk_math.o \
+#	$(UDD_FILE_PREFIX)linux/mali_osk_misc.o
+
+obj-$(CONFIG_MALI400_UMP) := ump.o
+

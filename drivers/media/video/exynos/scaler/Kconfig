@@ -1,0 +1,7 @@
+config VIDEO_EXYNOS_SCALER
+	bool "EXYNOS Scaler Driver"
+	depends on VIDEO_EXYNOS && ARCH_EXYNOS5
+	select V4L2_MEM2MEM_DEV
+	default n
+	help
+	  This is a v4l2 driver for EXYNOS Scaler device.

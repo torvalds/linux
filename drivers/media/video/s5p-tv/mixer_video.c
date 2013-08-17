@@ -15,6 +15,7 @@
 
 #include <media/v4l2-ioctl.h>
 #include <linux/videodev2.h>
+#include <media/videobuf2-fb.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/version.h>
@@ -306,6 +307,8 @@ static int mxr_g_fmt(struct file *file, void *priv,
 	pix->pixelformat = layer->fmt->fourcc;
 	pix->colorspace = layer->fmt->colorspace;
 	mxr_mplane_fill(pix->plane_fmt, layer->fmt, pix->width, pix->height);
+
+	f->fmt.pix_mp.plane_fmt[0].sizeimage = f->fmt.pix.width * f->fmt.pix.height * 2;
 
 	return 0;
 }
@@ -1015,11 +1018,19 @@ int mxr_base_layer_register(struct mxr_layer *layer)
 	else
 		mxr_info(mdev, "registered layer %s as /dev/video%d\n",
 			layer->vfd.name, layer->vfd.num);
+
+	layer->fb = vb2_fb_register(&layer->vb_queue, &layer->vfd);
+	if (PTR_ERR(layer->fb))
+		layer->fb = NULL;
+	
 	return ret;
 }
 
 void mxr_base_layer_unregister(struct mxr_layer *layer)
 {
+	if (layer->fb)
+		vb2_fb_unregister(layer->fb);
+
 	video_unregister_device(&layer->vfd);
 }
 

@@ -20,6 +20,8 @@
 #include <mach/map.h>
 #include <mach/regs-clock.h>
 #include <mach/cpufreq.h>
+#include <mach/asv-exynos.h>
+#include <mach/exynos5_bus.h>
 
 #define CPUFREQ_LEVEL_END	(L15 + 1)
 
@@ -29,6 +31,8 @@ static struct clk *cpu_clk;
 static struct clk *moutcore;
 static struct clk *mout_mpll;
 static struct clk *mout_apll;
+static struct clk *fout_apll;
+static struct exynos5_bus_mif_handle *mif_bus_freq;
 
 struct cpufreq_clkdiv {
 	unsigned int	index;
@@ -58,217 +62,75 @@ static struct cpufreq_frequency_table exynos5250_freq_table[] = {
 	{0, CPUFREQ_TABLE_END},
 };
 
-static struct cpufreq_clkdiv exynos5250_clkdiv_table[CPUFREQ_LEVEL_END];
-
-static unsigned int clkdiv_cpu0_5250[CPUFREQ_LEVEL_END][8] = {
-	/*
-	 * Clock divider value for following
-	 * { ARM, CPUD, ACP, PERIPH, ATB, PCLK_DBG, APLL, ARM2 }
-	 */
-	{ 0, 3, 7, 7, 6, 1, 3, 0 },	/* 1700 MHz - N/A */
-	{ 0, 3, 7, 7, 6, 1, 3, 0 },	/* 1600 MHz - N/A */
-	{ 0, 3, 7, 7, 5, 1, 3, 0 },	/* 1500 MHz - N/A */
-	{ 0, 3, 7, 7, 6, 1, 3, 0 },	/* 1400 MHz */
-	{ 0, 3, 7, 7, 6, 1, 3, 0 },	/* 1300 MHz */
-	{ 0, 3, 7, 7, 5, 1, 3, 0 },	/* 1200 MHz */
-	{ 0, 2, 7, 7, 5, 1, 2, 0 },	/* 1100 MHz */
-	{ 0, 2, 7, 7, 4, 1, 2, 0 },	/* 1000 MHz */
-	{ 0, 2, 7, 7, 4, 1, 2, 0 },	/* 900 MHz */
-	{ 0, 2, 7, 7, 3, 1, 1, 0 },	/* 800 MHz */
-	{ 0, 1, 7, 7, 3, 1, 1, 0 },	/* 700 MHz */
-	{ 0, 1, 7, 7, 2, 1, 1, 0 },	/* 600 MHz */
-	{ 0, 1, 7, 7, 2, 1, 1, 0 },	/* 500 MHz */
-	{ 0, 1, 7, 7, 1, 1, 1, 0 },	/* 400 MHz */
-	{ 0, 1, 7, 7, 1, 1, 1, 0 },	/* 300 MHz */
-	{ 0, 1, 7, 7, 1, 1, 1, 0 },	/* 200 MHz */
+/* Minimum memory throughput in megabytes per second */
+static int exynos5250_bus_table[CPUFREQ_LEVEL_END] = {
+	800000, /* 1.7 GHz */
+	800000, /* 1.6 GHz */
+	800000, /* 1.5 GHz */
+	800000, /* 1.4 GHz */
+	667000, /* 1.3 GHz */
+	667000, /* 1.2 GHz */
+	667000, /* 1.1 GHz */
+	400000, /* 1.0 GHz */
+	400000, /* 900 MHz */
+	400000,  /* 800 MHz */
+	160000,  /* 700 MHz */
+	160000,  /* 600 MHz */
+	160000,  /* 500 MHz */
+	0,  /* 400 MHz */
+	0,  /* 300 MHz */
+	0,    /* 200 MHz */
 };
 
-static unsigned int clkdiv_cpu1_5250[CPUFREQ_LEVEL_END][2] = {
-	/* Clock divider value for following
-	 * { COPY, HPM }
-	 */
-	{ 0, 2 },	/* 1700 MHz - N/A */
-	{ 0, 2 },	/* 1600 MHz - N/A */
-	{ 0, 2 },	/* 1500 MHz - N/A */
-	{ 0, 2 },	/* 1400 MHz */
-	{ 0, 2 },	/* 1300 MHz */
-	{ 0, 2 },	/* 1200 MHz */
-	{ 0, 2 },	/* 1100 MHz */
-	{ 0, 2 },	/* 1000 MHz */
-	{ 0, 2 },	/* 900 MHz */
-	{ 0, 2 },	/* 800 MHz */
-	{ 0, 2 },	/* 700 MHz */
-	{ 0, 2 },	/* 600 MHz */
-	{ 0, 2 },	/* 500 MHz */
-	{ 0, 2 },	/* 400 MHz */
-	{ 0, 2 },	/* 300 MHz */
-	{ 0, 2 },	/* 200 MHz */
-};
-
-static unsigned int exynos5_apll_pms_table[CPUFREQ_LEVEL_END] = {
-	(0),				/* 1700 MHz - N/A */
-	(0),				/* 1600 MHz - N/A */
-	(0),				/* 1500 MHz - N/A */
-	(0),				/* 1400 MHz */
-	((325 << 16) | (6 << 8) | 0),	/* 1300 MHz */
-	((200 << 16) | (4 << 8) | 0),	/* 1200 MHz */
-	((275 << 16) | (6 << 8) | 0),	/* 1100 MHz */
-	((125 << 16) | (3 << 8) | 0),	/* 1000 MHz */
-	((150 << 16) | (4 << 8) | 0),	/* 900 MHz */
-	((100 << 16) | (3 << 8) | 0),	/* 800 MHz */
-	((175 << 16) | (3 << 8) | 1),	/* 700 MHz */
-	((200 << 16) | (4 << 8) | 1),	/* 600 MHz */
-	((125 << 16) | (3 << 8) | 1),	/* 500 MHz */
-	((100 << 16) | (3 << 8) | 1),	/* 400 MHz */
-	((200 << 16) | (4 << 8) | 2),	/* 300 MHz */
-	((100 << 16) | (3 << 8) | 2),	/* 200 MHz */
-};
-
-/* ASV group voltage table */
-static const unsigned int asv_voltage_5250[CPUFREQ_LEVEL_END] = {
-	0, 0, 0, 0, 0, 0, 0,	/* 1700 MHz ~ 1100 MHz Not supported */
-	1175000, 1125000, 1075000, 1050000, 1000000,
-	950000, 925000, 925000, 900000
-};
-
-static void set_clkdiv(unsigned int div_index)
-{
-	unsigned int tmp;
-
-	/* Change Divider - CPU0 */
-
-	tmp = exynos5250_clkdiv_table[div_index].clkdiv;
-
-	__raw_writel(tmp, EXYNOS5_CLKDIV_CPU0);
-
-	while (__raw_readl(EXYNOS5_CLKDIV_STATCPU0) & 0x11111111)
-		cpu_relax();
-
-	/* Change Divider - CPU1 */
-	tmp = exynos5250_clkdiv_table[div_index].clkdiv1;
-
-	__raw_writel(tmp, EXYNOS5_CLKDIV_CPU1);
-
-	while (__raw_readl(EXYNOS5_CLKDIV_STATCPU1) & 0x11)
-		cpu_relax();
-}
-
-static void set_apll(unsigned int new_index,
-			     unsigned int old_index)
-{
-	unsigned int tmp, pdiv;
-
-	/* 1. MUX_CORE_SEL = MPLL, ARMCLK uses MPLL for lock time */
-	clk_set_parent(moutcore, mout_mpll);
-
-	do {
-		cpu_relax();
-		tmp = (__raw_readl(EXYNOS5_CLKMUX_STATCPU) >> 16);
-		tmp &= 0x7;
-	} while (tmp != 0x2);
-
-	/* 2. Set APLL Lock time */
-	pdiv = ((exynos5_apll_pms_table[new_index] >> 8) & 0x3f);
-
-	__raw_writel((pdiv * 250), EXYNOS5_APLL_LOCK);
-
-	/* 3. Change PLL PMS values */
-	tmp = __raw_readl(EXYNOS5_APLL_CON0);
-	tmp &= ~((0x3ff << 16) | (0x3f << 8) | (0x7 << 0));
-	tmp |= exynos5_apll_pms_table[new_index];
-	__raw_writel(tmp, EXYNOS5_APLL_CON0);
-
-	/* 4. wait_lock_time */
-	do {
-		cpu_relax();
-		tmp = __raw_readl(EXYNOS5_APLL_CON0);
-	} while (!(tmp & (0x1 << 29)));
-
-	/* 5. MUX_CORE_SEL = APLL */
-	clk_set_parent(moutcore, mout_apll);
-
-	do {
-		cpu_relax();
-		tmp = __raw_readl(EXYNOS5_CLKMUX_STATCPU);
-		tmp &= (0x7 << 16);
-	} while (tmp != (0x1 << 16));
-
-}
-
-bool exynos5250_pms_change(unsigned int old_index, unsigned int new_index)
-{
-	unsigned int old_pm = (exynos5_apll_pms_table[old_index] >> 8);
-	unsigned int new_pm = (exynos5_apll_pms_table[new_index] >> 8);
-
-	return (old_pm == new_pm) ? 0 : 1;
-}
-
-static void exynos5250_set_frequency(unsigned int old_index,
-				  unsigned int new_index)
-{
-	unsigned int tmp;
-
-	if (old_index > new_index) {
-		if (!exynos5250_pms_change(old_index, new_index)) {
-			/* 1. Change the system clock divider values */
-			set_clkdiv(new_index);
-			/* 2. Change just s value in apll m,p,s value */
-			tmp = __raw_readl(EXYNOS5_APLL_CON0);
-			tmp &= ~(0x7 << 0);
-			tmp |= (exynos5_apll_pms_table[new_index] & 0x7);
-			__raw_writel(tmp, EXYNOS5_APLL_CON0);
-
-		} else {
-			/* Clock Configuration Procedure */
-			/* 1. Change the system clock divider values */
-			set_clkdiv(new_index);
-			/* 2. Change the apll m,p,s value */
-			set_apll(new_index, old_index);
-		}
-	} else if (old_index < new_index) {
-		if (!exynos5250_pms_change(old_index, new_index)) {
-			/* 1. Change just s value in apll m,p,s value */
-			tmp = __raw_readl(EXYNOS5_APLL_CON0);
-			tmp &= ~(0x7 << 0);
-			tmp |= (exynos5_apll_pms_table[new_index] & 0x7);
-			__raw_writel(tmp, EXYNOS5_APLL_CON0);
-			/* 2. Change the system clock divider values */
-			set_clkdiv(new_index);
-		} else {
-			/* Clock Configuration Procedure */
-			/* 1. Change the apll m,p,s value */
-			set_apll(new_index, old_index);
-			/* 2. Change the system clock divider values */
-			set_clkdiv(new_index);
-		}
-	}
-}
-
-static void __init set_volt_table(void)
+static int __init set_volt_table(void)
 {
 	unsigned int i;
 
-	exynos5250_freq_table[L0].frequency = CPUFREQ_ENTRY_INVALID;
-	exynos5250_freq_table[L1].frequency = CPUFREQ_ENTRY_INVALID;
-	exynos5250_freq_table[L2].frequency = CPUFREQ_ENTRY_INVALID;
-	exynos5250_freq_table[L3].frequency = CPUFREQ_ENTRY_INVALID;
-	exynos5250_freq_table[L4].frequency = CPUFREQ_ENTRY_INVALID;
-	exynos5250_freq_table[L5].frequency = CPUFREQ_ENTRY_INVALID;
-	exynos5250_freq_table[L6].frequency = CPUFREQ_ENTRY_INVALID;
+	max_support_idx = L0;
 
-	max_support_idx = L7;
+	for (i = 0; i < CPUFREQ_LEVEL_END; i++) {
+		exynos5250_volt_table[i] = asv_get_volt(ID_ARM, exynos5250_freq_table[i].frequency);
+		if (exynos5250_volt_table[i] == 0) {
+			pr_err("%s: invalid value\n", __func__);
+			return -EINVAL;
+		}
+	}
 
-	for (i = 0 ; i < CPUFREQ_LEVEL_END ; i++)
-		exynos5250_volt_table[i] = asv_voltage_5250[i];
+	return 0;
 }
 
-int exynos5250_cpufreq_init(struct exynos_dvfs_info *info)
+static void exynos5250_set_frequency(unsigned int old_index,
+	unsigned int new_index)
 {
-	int i;
-	unsigned int tmp;
+	/* MUX_CORE_SEL = MPLL, ARMCLK uses MPLL for lock time */
+	clk_set_parent(moutcore, mout_mpll);
+
+	if (old_index >= new_index)
+		exynos5_bus_mif_update(mif_bus_freq, exynos5250_bus_table[new_index]);
+
+	clk_set_rate(fout_apll,
+		exynos5250_freq_table[new_index].frequency * 1000);
+
+	if (old_index < new_index)
+		exynos5_bus_mif_update(mif_bus_freq, exynos5250_bus_table[new_index]);
+
+	/* MUX_CORE_SEL = APLL */
+	clk_set_parent(moutcore, mout_apll);
+}
+
+static bool exynos5250_pms_change(unsigned int old_index,
+	unsigned int new_index)
+{
+	/* Skip the apll change optimization, it won't happen very often */
+	return true;
+}
+
+int __init exynos5250_cpufreq_init(struct exynos_dvfs_info *info)
+{
 	unsigned long rate;
 
-	set_volt_table();
+	if (set_volt_table())
+		return -EINVAL;
 
 	cpu_clk = clk_get(NULL, "armclk");
 	if (IS_ERR(cpu_clk))
@@ -288,36 +150,11 @@ int exynos5250_cpufreq_init(struct exynos_dvfs_info *info)
 	if (IS_ERR(mout_apll))
 		goto err_mout_apll;
 
-	for (i = L0; i < CPUFREQ_LEVEL_END; i++) {
+	fout_apll = clk_get(NULL, "fout_apll");
+	if (IS_ERR(fout_apll))
+		goto err_fout_apll;
 
-		exynos5250_clkdiv_table[i].index = i;
-
-		tmp = __raw_readl(EXYNOS5_CLKDIV_CPU0);
-
-		tmp &= ~((0x7 << 0) | (0x7 << 4) | (0x7 << 8) |
-			(0x7 << 12) | (0x7 << 16) | (0x7 << 20) |
-			(0x7 << 24) | (0x7 << 28));
-
-		tmp |= ((clkdiv_cpu0_5250[i][0] << 0) |
-			(clkdiv_cpu0_5250[i][1] << 4) |
-			(clkdiv_cpu0_5250[i][2] << 8) |
-			(clkdiv_cpu0_5250[i][3] << 12) |
-			(clkdiv_cpu0_5250[i][4] << 16) |
-			(clkdiv_cpu0_5250[i][5] << 20) |
-			(clkdiv_cpu0_5250[i][6] << 24) |
-			(clkdiv_cpu0_5250[i][7] << 28));
-
-		exynos5250_clkdiv_table[i].clkdiv = tmp;
-
-		tmp = __raw_readl(EXYNOS5_CLKDIV_CPU1);
-
-		tmp &= ~((0x7 << 0) | (0x7 << 4));
-
-		tmp |= ((clkdiv_cpu1_5250[i][0] << 0) |
-			(clkdiv_cpu1_5250[i][1] << 4));
-
-		exynos5250_clkdiv_table[i].clkdiv1 = tmp;
-	}
+	mif_bus_freq = exynos5_bus_mif_min(0);
 
 	info->mpll_freq_khz = rate;
 	/* 1000Mhz */
@@ -334,6 +171,8 @@ int exynos5250_cpufreq_init(struct exynos_dvfs_info *info)
 
 	return 0;
 
+err_fout_apll:
+	clk_put(mout_apll);
 err_mout_apll:
 	clk_put(mout_mpll);
 err_mout_mpll:

@@ -321,3 +321,64 @@ static inline unsigned long s5p_get_pll65xx(unsigned long baseclk, u32 pll_con)
 
 	return (unsigned long)fvco;
 }
+
+/*EXYNOS5410 VPLL/EPLL  PLL TYPE*/
+#define PLL2650_KDIV_MASK      (0xFFFF)
+#define PLL2650_MDIV_MASK      (0x3FF)
+#define PLL2650_PDIV_MASK      (0x3F)
+#define PLL2650_SDIV_MASK      (0x7)
+#define PLL2650_MDIV_SHIFT     (16)
+#define PLL2650_PDIV_SHIFT     (8)
+#define PLL2650_SDIV_SHIFT     (0)
+
+static inline unsigned long s5p_get_pll2650(unsigned long baseclk,
+						u32 pll_con0, u32 pll_con1)
+{
+	unsigned long result;
+	u32 mdiv, pdiv, sdiv, kdiv;
+	u64 tmp;
+
+	mdiv = (pll_con0 >> PLL2650_MDIV_SHIFT) & PLL2650_MDIV_MASK;
+	pdiv = (pll_con0 >> PLL2650_PDIV_SHIFT) & PLL2650_PDIV_MASK;
+	sdiv = (pll_con0 >> PLL2650_SDIV_SHIFT) & PLL2650_SDIV_MASK;
+	kdiv = pll_con1 & PLL2650_KDIV_MASK;
+
+	tmp = baseclk;
+
+	tmp *= (mdiv << 16) + kdiv;
+	do_div(tmp, (pdiv << sdiv));
+	result = tmp >> 16;
+
+	return result;
+}
+
+struct pll_div_data {
+	u32 rate;
+	u32 pdiv;
+	u32 mdiv;
+	u32 sdiv;
+	u32 mfr;
+	u32 mrr;
+	u32 vsel;
+};
+
+/* For vpll  */
+struct vpll_div_data {
+	u32 rate;
+	u32 pdiv;
+	u32 mdiv;
+	u32 sdiv;
+	u32 k;
+	u32 mfr;
+	u32 mrr;
+	u32 vsel;
+};
+
+/* EXYNOS5410 BPLL PLL TYPE */
+#define PLL2550_MDIV_MASK	(0xFFF)
+#define PLL2550_PDIV_MASK	(0x3F)
+#define PLL2550_SDIV_MASK	(0x7)
+#define PLL2550_LOCKED		(29)
+#define PLL2550_MDIV_SHIFT	(16)
+#define PLL2550_PDIV_SHIFT	(8)
+#define PLL2550_SDIV_SHIFT	(0)

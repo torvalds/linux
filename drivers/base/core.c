@@ -1753,25 +1753,25 @@ int device_move(struct device *dev, struct device *new_parent,
 		set_dev_node(dev, dev_to_node(new_parent));
 	}
 
-	if (!dev->class)
-		goto out_put;
-	error = device_move_class_links(dev, old_parent, new_parent);
-	if (error) {
-		/* We ignore errors on cleanup since we're hosed anyway... */
-		device_move_class_links(dev, new_parent, old_parent);
-		if (!kobject_move(&dev->kobj, &old_parent->kobj)) {
-			if (new_parent)
-				klist_remove(&dev->p->knode_parent);
-			dev->parent = old_parent;
-			if (old_parent) {
-				klist_add_tail(&dev->p->knode_parent,
-					       &old_parent->p->klist_children);
-				set_dev_node(dev, dev_to_node(old_parent));
+	if (dev->class) {
+		error = device_move_class_links(dev, old_parent, new_parent);
+		if (error) {
+			/* We ignore errors on cleanup since we're hosed anyway... */
+			device_move_class_links(dev, new_parent, old_parent);
+			if (!kobject_move(&dev->kobj, &old_parent->kobj)) {
+				if (new_parent)
+					klist_remove(&dev->p->knode_parent);
+				dev->parent = old_parent;
+				if (old_parent) {
+					klist_add_tail(&dev->p->knode_parent,
+						       &old_parent->p->klist_children);
+					set_dev_node(dev, dev_to_node(old_parent));
+				}
 			}
+			cleanup_glue_dir(dev, new_parent_kobj);
+			put_device(new_parent);
+			goto out;
 		}
-		cleanup_glue_dir(dev, new_parent_kobj);
-		put_device(new_parent);
-		goto out;
 	}
 	switch (dpm_order) {
 	case DPM_ORDER_NONE:
@@ -1786,7 +1786,7 @@ int device_move(struct device *dev, struct device *new_parent,
 		device_pm_move_last(dev);
 		break;
 	}
-out_put:
+
 	put_device(old_parent);
 out:
 	device_pm_unlock();

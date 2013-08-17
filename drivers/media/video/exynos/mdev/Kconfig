@@ -1,0 +1,8 @@
+config EXYNOS_MEDIA_DEVICE
+	bool
+	depends on MEDIA_EXYNOS
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	default y
+	help
+	  This is a v4l2 driver for exynos media device.
