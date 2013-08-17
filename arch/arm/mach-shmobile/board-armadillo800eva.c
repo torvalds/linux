@@ -359,7 +359,6 @@ static struct platform_device usbhsf_device = {
 static struct sh_eth_plat_data sh_eth_platdata = {
 	.phy			= 0x00, /* LAN8710A */
 	.edmac_endian		= EDMAC_LITTLE_ENDIAN,
-	.register_type		= SH_ETH_REG_GIGABIT,
 	.phy_interface		= PHY_INTERFACE_MODE_MII,
 };
 

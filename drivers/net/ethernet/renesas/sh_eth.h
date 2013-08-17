@@ -157,6 +157,13 @@ enum {
 	SH_ETH_MAX_REGISTER_OFFSET,
 };
 
+enum {
+	SH_ETH_REG_GIGABIT,
+	SH_ETH_REG_FAST_RCAR,
+	SH_ETH_REG_FAST_SH4,
+	SH_ETH_REG_FAST_SH3_SH2
+};
+
 /* Driver's parameters */
 #if defined(CONFIG_CPU_SH4) || defined(CONFIG_ARCH_SHMOBILE)
 #define SH4_SKB_RX_ALIGN	32

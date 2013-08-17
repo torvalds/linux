@@ -104,7 +104,6 @@ static struct resource sdhi0_resources[] __initdata = {
 static struct sh_eth_plat_data ether_platform_data __initdata = {
 	.phy		= 0x01,
 	.edmac_endian	= EDMAC_LITTLE_ENDIAN,
-	.register_type	= SH_ETH_REG_FAST_RCAR,
 	.phy_interface	= PHY_INTERFACE_MODE_RMII,
 	/*
 	 * Although the LINK signal is available on the board, it's connected to
