@@ -1890,6 +1890,26 @@ static int ext4_writepage(struct page *page,
 	return ret;
 }
 
+static int mpage_submit_page(struct mpage_da_data *mpd, struct page *page)
+{
+	int len;
+	loff_t size = i_size_read(mpd->inode);
+	int err;
+
+	BUG_ON(page->index != mpd->first_page);
+	if (page->index == size >> PAGE_CACHE_SHIFT)
+		len = size & ~PAGE_CACHE_MASK;
+	else
+		len = PAGE_CACHE_SIZE;
+	clear_page_dirty_for_io(page);
+	err = ext4_bio_write_page(&mpd->io_submit, page, len, mpd->wbc);
+	if (!err)
+		mpd->wbc->nr_to_write--;
+	mpd->first_page++;
+
+	return err;
+}
+
 #define BH_FLAGS ((1 << BH_Unwritten) | (1 << BH_Delay))
 
 /*
@@ -1948,12 +1968,29 @@ static bool mpage_add_bh_to_extent(struct mpage_da_data *mpd, ext4_lblk_t lblk,
 	return false;
 }
 
-static bool add_page_bufs_to_extent(struct mpage_da_data *mpd,
-				    struct buffer_head *head,
-				    struct buffer_head *bh,
-				    ext4_lblk_t lblk)
+/*
+ * mpage_process_page_bufs - submit page buffers for IO or add them to extent
+ *
+ * @mpd - extent of blocks for mapping
+ * @head - the first buffer in the page
+ * @bh - buffer we should start processing from
+ * @lblk - logical number of the block in the file corresponding to @bh
+ *
+ * Walk through page buffers from @bh upto @head (exclusive) and either submit
+ * the page for IO if all buffers in this page were mapped and there's no
+ * accumulated extent of buffers to map or add buffers in the page to the
+ * extent of buffers to map. The function returns 1 if the caller can continue
+ * by processing the next page, 0 if it should stop adding buffers to the
+ * extent to map because we cannot extend it anymore. It can also return value
+ * < 0 in case of error during IO submission.
+ */
+static int mpage_process_page_bufs(struct mpage_da_data *mpd,
+				   struct buffer_head *head,
+				   struct buffer_head *bh,
+				   ext4_lblk_t lblk)
 {
 	struct inode *inode = mpd->inode;
+	int err;
 	ext4_lblk_t blocks = (i_size_read(inode) + (1 << inode->i_blkbits) - 1)
 							>> inode->i_blkbits;
 
@@ -1963,32 +2000,18 @@ static bool add_page_bufs_to_extent(struct mpage_da_data *mpd,
 		if (lblk >= blocks || !mpage_add_bh_to_extent(mpd, lblk, bh)) {
 			/* Found extent to map? */
 			if (mpd->map.m_len)
-				return false;
+				return 0;
 			/* Everything mapped so far and we hit EOF */
-			return true;
+			break;
 		}
 	} while (lblk++, (bh = bh->b_this_page) != head);
-	return true;
-}
-
-static int mpage_submit_page(struct mpage_da_data *mpd, struct page *page)
-{
-	int len;
-	loff_t size = i_size_read(mpd->inode);
-	int err;
-
-	BUG_ON(page->index != mpd->first_page);
-	if (page->index == size >> PAGE_CACHE_SHIFT)
-		len = size & ~PAGE_CACHE_MASK;
-	else
-		len = PAGE_CACHE_SIZE;
-	clear_page_dirty_for_io(page);
-	err = ext4_bio_write_page(&mpd->io_submit, page, len, mpd->wbc);
-	if (!err)
-		mpd->wbc->nr_to_write--;
-	mpd->first_page++;
-
-	return err;
+	/* So far everything mapped? Submit the page for IO. */
+	if (mpd->map.m_len == 0) {
+		err = mpage_submit_page(mpd, head->b_page);
+		if (err < 0)
+			return err;
+	}
+	return lblk < blocks;
 }
 
 /*
@@ -2012,8 +2035,6 @@ static int mpage_map_and_submit_buffers(struct mpage_da_data *mpd)
 	struct inode *inode = mpd->inode;
 	struct buffer_head *head, *bh;
 	int bpp_bits = PAGE_CACHE_SHIFT - inode->i_blkbits;
-	ext4_lblk_t blocks = (i_size_read(inode) + (1 << inode->i_blkbits) - 1)
-							>> inode->i_blkbits;
 	pgoff_t start, end;
 	ext4_lblk_t lblk;
 	sector_t pblock;
@@ -2048,18 +2069,26 @@ static int mpage_map_and_submit_buffers(struct mpage_da_data *mpd)
 					 */
 					mpd->map.m_len = 0;
 					mpd->map.m_flags = 0;
-					add_page_bufs_to_extent(mpd, head, bh,
-								lblk);
+					/*
+					 * FIXME: If dioread_nolock supports
+					 * blocksize < pagesize, we need to make
+					 * sure we add size mapped so far to
+					 * io_end->size as the following call
+					 * can submit the page for IO.
+					 */
+					err = mpage_process_page_bufs(mpd, head,
+								      bh, lblk);
 					pagevec_release(&pvec);
-					return 0;
+					if (err > 0)
+						err = 0;
+					return err;
 				}
 				if (buffer_delay(bh)) {
 					clear_buffer_delay(bh);
 					bh->b_blocknr = pblock++;
 				}
 				clear_buffer_unwritten(bh);
-			} while (++lblk < blocks &&
-				 (bh = bh->b_this_page) != head);
+			} while (lblk++, (bh = bh->b_this_page) != head);
 
 			/*
 			 * FIXME: This is going to break if dioread_nolock
@@ -2328,14 +2357,10 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
 			lblk = ((ext4_lblk_t)page->index) <<
 				(PAGE_CACHE_SHIFT - blkbits);
 			head = page_buffers(page);
-			if (!add_page_bufs_to_extent(mpd, head, head, lblk))
+			err = mpage_process_page_bufs(mpd, head, head, lblk);
+			if (err <= 0)
 				goto out;
-			/* So far everything mapped? Submit the page for IO. */
-			if (mpd->map.m_len == 0) {
-				err = mpage_submit_page(mpd, page);
-				if (err < 0)
-					goto out;
-			}
+			err = 0;
 
 			/*
 			 * Accumulated enough dirty pages? This doesn't apply
