@@ -63,7 +63,6 @@ spinlock_t sess_idr_lock;
 
 struct iscsit_global *iscsit_global;
 
-struct kmem_cache *lio_cmd_cache;
 struct kmem_cache *lio_qr_cache;
 struct kmem_cache *lio_dr_cache;
 struct kmem_cache *lio_ooo_cache;
@@ -500,7 +499,6 @@ static struct iscsit_transport iscsi_target_transport = {
 	.iscsit_setup_np	= iscsit_setup_np,
 	.iscsit_accept_np	= iscsit_accept_np,
 	.iscsit_free_np		= iscsit_free_np,
-	.iscsit_alloc_cmd	= iscsit_alloc_cmd,
 	.iscsit_get_login_rx	= iscsit_get_login_rx,
 	.iscsit_put_login_tx	= iscsit_put_login_tx,
 	.iscsit_get_dataout	= iscsit_build_r2ts_for_cmd,
@@ -541,22 +539,13 @@ static int __init iscsi_target_init_module(void)
 		goto ts_out1;
 	}
 
-	lio_cmd_cache = kmem_cache_create("lio_cmd_cache",
-			sizeof(struct iscsi_cmd), __alignof__(struct iscsi_cmd),
-			0, NULL);
-	if (!lio_cmd_cache) {
-		pr_err("Unable to kmem_cache_create() for"
-				" lio_cmd_cache\n");
-		goto ts_out2;
-	}
-
 	lio_qr_cache = kmem_cache_create("lio_qr_cache",
 			sizeof(struct iscsi_queue_req),
 			__alignof__(struct iscsi_queue_req), 0, NULL);
 	if (!lio_qr_cache) {
 		pr_err("nable to kmem_cache_create() for"
 				" lio_qr_cache\n");
-		goto cmd_out;
+		goto ts_out2;
 	}
 
 	lio_dr_cache = kmem_cache_create("lio_dr_cache",
@@ -600,8 +589,6 @@ dr_out:
 	kmem_cache_destroy(lio_dr_cache);
 qr_out:
 	kmem_cache_destroy(lio_qr_cache);
-cmd_out:
-	kmem_cache_destroy(lio_cmd_cache);
 ts_out2:
 	iscsi_deallocate_thread_sets();
 ts_out1:
@@ -619,7 +606,6 @@ static void __exit iscsi_target_cleanup_module(void)
 	iscsi_thread_set_free();
 	iscsit_release_discovery_tpg();
 	iscsit_unregister_transport(&iscsi_target_transport);
-	kmem_cache_destroy(lio_cmd_cache);
 	kmem_cache_destroy(lio_qr_cache);
 	kmem_cache_destroy(lio_dr_cache);
 	kmem_cache_destroy(lio_ooo_cache);

@@ -67,7 +67,7 @@ struct isert_cmd {
 	u32			write_va_off;
 	u32			rdma_wr_num;
 	struct isert_conn	*conn;
-	struct iscsi_cmd	iscsi_cmd;
+	struct iscsi_cmd	*iscsi_cmd;
 	struct ib_sge		*ib_sge;
 	struct iser_tx_desc	tx_desc;
 	struct isert_rdma_wr	rdma_wr;

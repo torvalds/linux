@@ -1925,7 +1925,7 @@ static void lio_release_cmd(struct se_cmd *se_cmd)
 	struct iscsi_cmd *cmd = container_of(se_cmd, struct iscsi_cmd, se_cmd);
 
 	pr_debug("Entering lio_release_cmd for se_cmd: %p\n", se_cmd);
-	cmd->release_cmd(cmd);
+	iscsit_release_cmd(cmd);
 }
 
 /* End functions for target_core_fabric_ops */

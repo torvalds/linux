@@ -39,7 +39,6 @@ static DEFINE_MUTEX(device_list_mutex);
 static LIST_HEAD(device_list);
 static struct workqueue_struct *isert_rx_wq;
 static struct workqueue_struct *isert_comp_wq;
-static struct kmem_cache *isert_cmd_cache;
 
 static void
 isert_qp_event_callback(struct ib_event *e, void *context)
@@ -876,43 +875,30 @@ isert_rx_login_req(struct iser_rx_desc *rx_desc, int rx_buflen,
 	schedule_delayed_work(&conn->login_work, 0);
 }
 
-static void
-isert_release_cmd(struct iscsi_cmd *cmd)
-{
-	struct isert_cmd *isert_cmd = container_of(cmd, struct isert_cmd,
-						   iscsi_cmd);
-
-	pr_debug("Entering isert_release_cmd %p >>>>>>>>>>>>>>>.\n", isert_cmd);
-
-	kfree(cmd->buf_ptr);
-	kfree(cmd->tmr_req);
-
-	kmem_cache_free(isert_cmd_cache, isert_cmd);
-}
-
 static struct iscsi_cmd
-*isert_alloc_cmd(struct iscsi_conn *conn, gfp_t gfp)
+*isert_allocate_cmd(struct iscsi_conn *conn, gfp_t gfp)
 {
 	struct isert_conn *isert_conn = (struct isert_conn *)conn->context;
 	struct isert_cmd *isert_cmd;
+	struct iscsi_cmd *cmd;
 
-	isert_cmd = kmem_cache_zalloc(isert_cmd_cache, gfp);
-	if (!isert_cmd) {
-		pr_err("Unable to allocate isert_cmd\n");
+	cmd = iscsit_allocate_cmd(conn, gfp);
+	if (!cmd) {
+		pr_err("Unable to allocate iscsi_cmd + isert_cmd\n");
 		return NULL;
 	}
+	isert_cmd = iscsit_priv_cmd(cmd);
 	isert_cmd->conn = isert_conn;
-	isert_cmd->iscsi_cmd.release_cmd = &isert_release_cmd;
+	isert_cmd->iscsi_cmd = cmd;
 
-	return &isert_cmd->iscsi_cmd;
+	return cmd;
 }
 
 static int
 isert_handle_scsi_cmd(struct isert_conn *isert_conn,
-		      struct isert_cmd *isert_cmd, struct iser_rx_desc *rx_desc,
-		      unsigned char *buf)
+		      struct isert_cmd *isert_cmd, struct iscsi_cmd *cmd,
+		      struct iser_rx_desc *rx_desc, unsigned char *buf)
 {
-	struct iscsi_cmd *cmd = &isert_cmd->iscsi_cmd;
 	struct iscsi_conn *conn = isert_conn->conn;
 	struct iscsi_scsi_req *hdr = (struct iscsi_scsi_req *)buf;
 	struct scatterlist *sg;
@@ -1019,9 +1005,9 @@ isert_handle_iscsi_dataout(struct isert_conn *isert_conn,
 
 static int
 isert_handle_nop_out(struct isert_conn *isert_conn, struct isert_cmd *isert_cmd,
-		     struct iser_rx_desc *rx_desc, unsigned char *buf)
+		     struct iscsi_cmd *cmd, struct iser_rx_desc *rx_desc,
+		     unsigned char *buf)
 {
-	struct iscsi_cmd *cmd = &isert_cmd->iscsi_cmd;
 	struct iscsi_conn *conn = isert_conn->conn;
 	struct iscsi_nopout *hdr = (struct iscsi_nopout *)buf;
 	int rc;
@@ -1038,9 +1024,9 @@ isert_handle_nop_out(struct isert_conn *isert_conn, struct isert_cmd *isert_cmd,
 
 static int
 isert_handle_text_cmd(struct isert_conn *isert_conn, struct isert_cmd *isert_cmd,
-		      struct iser_rx_desc *rx_desc, struct iscsi_text *hdr)
+		      struct iscsi_cmd *cmd, struct iser_rx_desc *rx_desc,
+		      struct iscsi_text *hdr)
 {
-	struct iscsi_cmd *cmd = &isert_cmd->iscsi_cmd;
 	struct iscsi_conn *conn = isert_conn->conn;
 	u32 payload_length = ntoh24(hdr->dlength);
 	int rc;
@@ -1085,26 +1071,26 @@ isert_rx_opcode(struct isert_conn *isert_conn, struct iser_rx_desc *rx_desc,
 
 	switch (opcode) {
 	case ISCSI_OP_SCSI_CMD:
-		cmd = iscsit_allocate_cmd(conn, GFP_KERNEL);
+		cmd = isert_allocate_cmd(conn, GFP_KERNEL);
 		if (!cmd)
 			break;
 
-		isert_cmd = container_of(cmd, struct isert_cmd, iscsi_cmd);
+		isert_cmd = iscsit_priv_cmd(cmd);
 		isert_cmd->read_stag = read_stag;
 		isert_cmd->read_va = read_va;
 		isert_cmd->write_stag = write_stag;
 		isert_cmd->write_va = write_va;
 
-		ret = isert_handle_scsi_cmd(isert_conn, isert_cmd,
+		ret = isert_handle_scsi_cmd(isert_conn, isert_cmd, cmd,
 					rx_desc, (unsigned char *)hdr);
 		break;
 	case ISCSI_OP_NOOP_OUT:
-		cmd = iscsit_allocate_cmd(conn, GFP_KERNEL);
+		cmd = isert_allocate_cmd(conn, GFP_KERNEL);
 		if (!cmd)
 			break;
 
-		isert_cmd = container_of(cmd, struct isert_cmd, iscsi_cmd);
-		ret = isert_handle_nop_out(isert_conn, isert_cmd,
+		isert_cmd = iscsit_priv_cmd(cmd);
+		ret = isert_handle_nop_out(isert_conn, isert_cmd, cmd,
 					   rx_desc, (unsigned char *)hdr);
 		break;
 	case ISCSI_OP_SCSI_DATA_OUT:
@@ -1112,7 +1098,7 @@ isert_rx_opcode(struct isert_conn *isert_conn, struct iser_rx_desc *rx_desc,
 						(unsigned char *)hdr);
 		break;
 	case ISCSI_OP_SCSI_TMFUNC:
-		cmd = iscsit_allocate_cmd(conn, GFP_KERNEL);
+		cmd = isert_allocate_cmd(conn, GFP_KERNEL);
 		if (!cmd)
 			break;
 
@@ -1120,7 +1106,7 @@ isert_rx_opcode(struct isert_conn *isert_conn, struct iser_rx_desc *rx_desc,
 						(unsigned char *)hdr);
 		break;
 	case ISCSI_OP_LOGOUT:
-		cmd = iscsit_allocate_cmd(conn, GFP_KERNEL);
+		cmd = isert_allocate_cmd(conn, GFP_KERNEL);
 		if (!cmd)
 			break;
 
@@ -1131,12 +1117,12 @@ isert_rx_opcode(struct isert_conn *isert_conn, struct iser_rx_desc *rx_desc,
 						    HZ);
 		break;
 	case ISCSI_OP_TEXT:
-		cmd = iscsit_allocate_cmd(conn, GFP_KERNEL);
+		cmd = isert_allocate_cmd(conn, GFP_KERNEL);
 		if (!cmd)
 			break;
 
-		isert_cmd = container_of(cmd, struct isert_cmd, iscsi_cmd);
-		ret = isert_handle_text_cmd(isert_conn, isert_cmd,
+		isert_cmd = iscsit_priv_cmd(cmd);
+		ret = isert_handle_text_cmd(isert_conn, isert_cmd, cmd,
 					    rx_desc, (struct iscsi_text *)hdr);
 		break;
 	default:
@@ -1264,7 +1250,7 @@ isert_unmap_cmd(struct isert_cmd *isert_cmd, struct isert_conn *isert_conn)
 static void
 isert_put_cmd(struct isert_cmd *isert_cmd)
 {
-	struct iscsi_cmd *cmd = &isert_cmd->iscsi_cmd;
+	struct iscsi_cmd *cmd = isert_cmd->iscsi_cmd;
 	struct isert_conn *isert_conn = isert_cmd->conn;
 	struct iscsi_conn *conn = isert_conn->conn;
 
@@ -1315,7 +1301,7 @@ isert_put_cmd(struct isert_cmd *isert_cmd)
 		 * Fall-through
 		 */
 	default:
-		isert_release_cmd(cmd);
+		iscsit_release_cmd(cmd);
 		break;
 	}
 }
@@ -1351,7 +1337,7 @@ isert_completion_rdma_read(struct iser_tx_desc *tx_desc,
 			   struct isert_cmd *isert_cmd)
 {
 	struct isert_rdma_wr *wr = &isert_cmd->rdma_wr;
-	struct iscsi_cmd *cmd = &isert_cmd->iscsi_cmd;
+	struct iscsi_cmd *cmd = isert_cmd->iscsi_cmd;
 	struct se_cmd *se_cmd = &cmd->se_cmd;
 	struct ib_device *ib_dev = isert_cmd->conn->conn_cm_id->device;
 
@@ -1387,7 +1373,7 @@ isert_do_control_comp(struct work_struct *work)
 			struct isert_cmd, comp_work);
 	struct isert_conn *isert_conn = isert_cmd->conn;
 	struct ib_device *ib_dev = isert_conn->conn_cm_id->device;
-	struct iscsi_cmd *cmd = &isert_cmd->iscsi_cmd;
+	struct iscsi_cmd *cmd = isert_cmd->iscsi_cmd;
 
 	switch (cmd->i_state) {
 	case ISTATE_SEND_TASKMGTRSP:
@@ -1433,7 +1419,7 @@ isert_response_completion(struct iser_tx_desc *tx_desc,
 			  struct isert_conn *isert_conn,
 			  struct ib_device *ib_dev)
 {
-	struct iscsi_cmd *cmd = &isert_cmd->iscsi_cmd;
+	struct iscsi_cmd *cmd = isert_cmd->iscsi_cmd;
 
 	if (cmd->i_state == ISTATE_SEND_TASKMGTRSP ||
 	    cmd->i_state == ISTATE_SEND_LOGOUTRSP ||
@@ -1625,8 +1611,7 @@ isert_post_response(struct isert_conn *isert_conn, struct isert_cmd *isert_cmd)
 static int
 isert_put_response(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
 {
-	struct isert_cmd *isert_cmd = container_of(cmd,
-					struct isert_cmd, iscsi_cmd);
+	struct isert_cmd *isert_cmd = iscsit_priv_cmd(cmd);
 	struct isert_conn *isert_conn = (struct isert_conn *)conn->context;
 	struct ib_send_wr *send_wr = &isert_cmd->tx_desc.send_wr;
 	struct iscsi_scsi_rsp *hdr = (struct iscsi_scsi_rsp *)
@@ -1675,8 +1660,7 @@ static int
 isert_put_nopin(struct iscsi_cmd *cmd, struct iscsi_conn *conn,
 		bool nopout_response)
 {
-	struct isert_cmd *isert_cmd = container_of(cmd,
-				struct isert_cmd, iscsi_cmd);
+	struct isert_cmd *isert_cmd = iscsit_priv_cmd(cmd);
 	struct isert_conn *isert_conn = (struct isert_conn *)conn->context;
 	struct ib_send_wr *send_wr = &isert_cmd->tx_desc.send_wr;
 
@@ -1695,8 +1679,7 @@ isert_put_nopin(struct iscsi_cmd *cmd, struct iscsi_conn *conn,
 static int
 isert_put_logout_rsp(struct iscsi_cmd *cmd, struct iscsi_conn *conn)
 {
-	struct isert_cmd *isert_cmd = container_of(cmd,
-				struct isert_cmd, iscsi_cmd);
+	struct isert_cmd *isert_cmd = iscsit_priv_cmd(cmd);
 	struct isert_conn *isert_conn = (struct isert_conn *)conn->context;
 	struct ib_send_wr *send_wr = &isert_cmd->tx_desc.send_wr;
 
@@ -1714,8 +1697,7 @@ isert_put_logout_rsp(struct iscsi_cmd *cmd, struct iscsi_conn *conn)
 static int
 isert_put_tm_rsp(struct iscsi_cmd *cmd, struct iscsi_conn *conn)
 {
-	struct isert_cmd *isert_cmd = container_of(cmd,
-				struct isert_cmd, iscsi_cmd);
+	struct isert_cmd *isert_cmd = iscsit_priv_cmd(cmd);
 	struct isert_conn *isert_conn = (struct isert_conn *)conn->context;
 	struct ib_send_wr *send_wr = &isert_cmd->tx_desc.send_wr;
 
@@ -1733,8 +1715,7 @@ isert_put_tm_rsp(struct iscsi_cmd *cmd, struct iscsi_conn *conn)
 static int
 isert_put_reject(struct iscsi_cmd *cmd, struct iscsi_conn *conn)
 {
-	struct isert_cmd *isert_cmd = container_of(cmd,
-				struct isert_cmd, iscsi_cmd);
+	struct isert_cmd *isert_cmd = iscsit_priv_cmd(cmd);
 	struct isert_conn *isert_conn = (struct isert_conn *)conn->context;
 	struct ib_send_wr *send_wr = &isert_cmd->tx_desc.send_wr;
 	struct ib_device *ib_dev = isert_conn->conn_cm_id->device;
@@ -1766,8 +1747,7 @@ isert_put_reject(struct iscsi_cmd *cmd, struct iscsi_conn *conn)
 static int
 isert_put_text_rsp(struct iscsi_cmd *cmd, struct iscsi_conn *conn)
 {
-	struct isert_cmd *isert_cmd = container_of(cmd,
-				struct isert_cmd, iscsi_cmd);
+	struct isert_cmd *isert_cmd = iscsit_priv_cmd(cmd);
 	struct isert_conn *isert_conn = (struct isert_conn *)conn->context;
 	struct ib_send_wr *send_wr = &isert_cmd->tx_desc.send_wr;
 	struct iscsi_text_rsp *hdr =
@@ -1809,7 +1789,7 @@ isert_build_rdma_wr(struct isert_conn *isert_conn, struct isert_cmd *isert_cmd,
 		    struct ib_sge *ib_sge, struct ib_send_wr *send_wr,
 		    u32 data_left, u32 offset)
 {
-	struct iscsi_cmd *cmd = &isert_cmd->iscsi_cmd;
+	struct iscsi_cmd *cmd = isert_cmd->iscsi_cmd;
 	struct scatterlist *sg_start, *tmp_sg;
 	struct ib_device *ib_dev = isert_conn->conn_cm_id->device;
 	u32 sg_off, page_off;
@@ -1854,8 +1834,7 @@ static int
 isert_put_datain(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
 {
 	struct se_cmd *se_cmd = &cmd->se_cmd;
-	struct isert_cmd *isert_cmd = container_of(cmd,
-					struct isert_cmd, iscsi_cmd);
+	struct isert_cmd *isert_cmd = iscsit_priv_cmd(cmd);
 	struct isert_rdma_wr *wr = &isert_cmd->rdma_wr;
 	struct isert_conn *isert_conn = (struct isert_conn *)conn->context;
 	struct ib_send_wr *wr_failed, *send_wr;
@@ -1958,8 +1937,7 @@ static int
 isert_get_dataout(struct iscsi_conn *conn, struct iscsi_cmd *cmd, bool recovery)
 {
 	struct se_cmd *se_cmd = &cmd->se_cmd;
-	struct isert_cmd *isert_cmd = container_of(cmd,
-					struct isert_cmd, iscsi_cmd);
+	struct isert_cmd *isert_cmd = iscsit_priv_cmd(cmd);
 	struct isert_rdma_wr *wr = &isert_cmd->rdma_wr;
 	struct isert_conn *isert_conn = (struct isert_conn *)conn->context;
 	struct ib_send_wr *wr_failed, *send_wr;
@@ -2405,12 +2383,12 @@ static void isert_free_conn(struct iscsi_conn *conn)
 static struct iscsit_transport iser_target_transport = {
 	.name			= "IB/iSER",
 	.transport_type		= ISCSI_INFINIBAND,
+	.priv_size		= sizeof(struct isert_cmd),
 	.owner			= THIS_MODULE,
 	.iscsit_setup_np	= isert_setup_np,
 	.iscsit_accept_np	= isert_accept_np,
 	.iscsit_free_np		= isert_free_np,
 	.iscsit_free_conn	= isert_free_conn,
-	.iscsit_alloc_cmd	= isert_alloc_cmd,
 	.iscsit_get_login_rx	= isert_get_login_rx,
 	.iscsit_put_login_tx	= isert_put_login_tx,
 	.iscsit_immediate_queue	= isert_immediate_queue,
@@ -2437,21 +2415,10 @@ static int __init isert_init(void)
 		goto destroy_rx_wq;
 	}
 
-	isert_cmd_cache = kmem_cache_create("isert_cmd_cache",
-			sizeof(struct isert_cmd), __alignof__(struct isert_cmd),
-			0, NULL);
-	if (!isert_cmd_cache) {
-		pr_err("Unable to create isert_cmd_cache\n");
-		ret = -ENOMEM;
-		goto destroy_tx_cq;
-	}
-
 	iscsit_register_transport(&iser_target_transport);
 	pr_debug("iSER_TARGET[0] - Loaded iser_target_transport\n");
 	return 0;
 
-destroy_tx_cq:
-	destroy_workqueue(isert_comp_wq);
 destroy_rx_wq:
 	destroy_workqueue(isert_rx_wq);
 	return ret;
@@ -2459,7 +2426,6 @@ destroy_rx_wq:
 
 static void __exit isert_exit(void)
 {
-	kmem_cache_destroy(isert_cmd_cache);
 	destroy_workqueue(isert_comp_wq);
 	destroy_workqueue(isert_rx_wq);
 	iscsit_unregister_transport(&iser_target_transport);

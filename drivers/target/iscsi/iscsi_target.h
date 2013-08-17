@@ -39,7 +39,6 @@ extern struct target_fabric_configfs *lio_target_fabric_configfs;
 
 extern struct kmem_cache *lio_dr_cache;
 extern struct kmem_cache *lio_ooo_cache;
-extern struct kmem_cache *lio_cmd_cache;
 extern struct kmem_cache *lio_qr_cache;
 extern struct kmem_cache *lio_r2t_cache;
 

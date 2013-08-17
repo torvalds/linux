@@ -149,18 +149,6 @@ void iscsit_free_r2ts_from_list(struct iscsi_cmd *cmd)
 	spin_unlock_bh(&cmd->r2t_lock);
 }
 
-struct iscsi_cmd *iscsit_alloc_cmd(struct iscsi_conn *conn, gfp_t gfp_mask)
-{
-	struct iscsi_cmd *cmd;
-
-	cmd = kmem_cache_zalloc(lio_cmd_cache, gfp_mask);
-	if (!cmd)
-		return NULL;
-
-	cmd->release_cmd = &iscsit_release_cmd;
-	return cmd;
-}
-
 /*
  * May be called from software interrupt (timer) context for allocating
  * iSCSI NopINs.
@@ -168,8 +156,9 @@ struct iscsi_cmd *iscsit_alloc_cmd(struct iscsi_conn *conn, gfp_t gfp_mask)
 struct iscsi_cmd *iscsit_allocate_cmd(struct iscsi_conn *conn, gfp_t gfp_mask)
 {
 	struct iscsi_cmd *cmd;
+	int priv_size = conn->conn_transport->priv_size;
 
-	cmd = conn->conn_transport->iscsit_alloc_cmd(conn, gfp_mask);
+	cmd = kzalloc(sizeof(struct iscsi_cmd) + priv_size, gfp_mask);
 	if (!cmd) {
 		pr_err("Unable to allocate memory for struct iscsi_cmd.\n");
 		return NULL;
@@ -696,8 +685,9 @@ void iscsit_release_cmd(struct iscsi_cmd *cmd)
 	kfree(cmd->iov_data);
 	kfree(cmd->text_in_ptr);
 
-	kmem_cache_free(lio_cmd_cache, cmd);
+	kfree(cmd);
 }
+EXPORT_SYMBOL(iscsit_release_cmd);
 
 static void __iscsit_free_cmd(struct iscsi_cmd *cmd, bool scsi_cmd,
 			      bool check_queues)
@@ -761,7 +751,7 @@ void iscsit_free_cmd(struct iscsi_cmd *cmd, bool shutdown)
 		/* Fall-through */
 	default:
 		__iscsit_free_cmd(cmd, false, shutdown);
-		cmd->release_cmd(cmd);
+		iscsit_release_cmd(cmd);
 		break;
 	}
 }
