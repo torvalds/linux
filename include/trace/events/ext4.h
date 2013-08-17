@@ -2192,7 +2192,7 @@ TRACE_EVENT(ext4_ext_remove_space_done,
 		  (unsigned short) __entry->eh_entries)
 );
 
-TRACE_EVENT(ext4_es_insert_extent,
+DECLARE_EVENT_CLASS(ext4__es_extent,
 	TP_PROTO(struct inode *inode, struct extent_status *es),
 
 	TP_ARGS(inode, es),
@@ -2220,6 +2220,18 @@ TRACE_EVENT(ext4_es_insert_extent,
 		  (unsigned long) __entry->ino,
 		  __entry->lblk, __entry->len,
 		  __entry->pblk, show_extent_status(__entry->status))
+);
+
+DEFINE_EVENT(ext4__es_extent, ext4_es_insert_extent,
+	TP_PROTO(struct inode *inode, struct extent_status *es),
+
+	TP_ARGS(inode, es)
+);
+
+DEFINE_EVENT(ext4__es_extent, ext4_es_cache_extent,
+	TP_PROTO(struct inode *inode, struct extent_status *es),
+
+	TP_ARGS(inode, es)
 );
 
 TRACE_EVENT(ext4_es_remove_extent,

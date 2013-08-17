@@ -37,7 +37,7 @@ get_ext_path(struct inode *inode, ext4_lblk_t lblock,
 	int ret = 0;
 	struct ext4_ext_path *path;
 
-	path = ext4_ext_find_extent(inode, lblock, *orig_path);
+	path = ext4_ext_find_extent(inode, lblock, *orig_path, EXT4_EX_NOCACHE);
 	if (IS_ERR(path))
 		ret = PTR_ERR(path);
 	else if (path[ext_depth(inode)].p_ext == NULL)

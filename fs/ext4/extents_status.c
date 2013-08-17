@@ -419,7 +419,7 @@ static void ext4_es_insert_extent_ext_check(struct inode *inode,
 	unsigned short ee_len;
 	int depth, ee_status, es_status;
 
-	path = ext4_ext_find_extent(inode, es->es_lblk, NULL);
+	path = ext4_ext_find_extent(inode, es->es_lblk, NULL, EXT4_EX_NOCACHE);
 	if (IS_ERR(path))
 		return;
 
@@ -681,6 +681,41 @@ error:
 	ext4_es_print_tree(inode);
 
 	return err;
+}
+
+/*
+ * ext4_es_cache_extent() inserts information into the extent status
+ * tree if and only if there isn't information about the range in
+ * question already.
+ */
+void ext4_es_cache_extent(struct inode *inode, ext4_lblk_t lblk,
+			  ext4_lblk_t len, ext4_fsblk_t pblk,
+			  unsigned int status)
+{
+	struct extent_status *es;
+	struct extent_status newes;
+	ext4_lblk_t end = lblk + len - 1;
+
+	newes.es_lblk = lblk;
+	newes.es_len = len;
+	ext4_es_store_pblock(&newes, pblk);
+	ext4_es_store_status(&newes, status);
+	trace_ext4_es_cache_extent(inode, &newes);
+
+	if (!len)
+		return;
+
+	BUG_ON(end < lblk);
+
+	write_lock(&EXT4_I(inode)->i_es_lock);
+
+	es = __es_tree_search(&EXT4_I(inode)->i_es_tree.root, lblk);
+	if (es && ((es->es_lblk <= lblk) || (es->es_lblk <= end)))
+		goto out;
+
+	__es_insert_extent(inode, &newes);
+out:
+	write_unlock(&EXT4_I(inode)->i_es_lock);
 }
 
 /*
