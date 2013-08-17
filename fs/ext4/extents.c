@@ -482,7 +482,7 @@ __read_extent_tree_block(const char *function, unsigned int line,
 		if (err < 0)
 			goto errout;
 	}
-	if (buffer_verified(bh))
+	if (buffer_verified(bh) && !(flags & EXT4_EX_FORCE_CACHE))
 		return bh;
 	err = __ext4_ext_check(function, line, inode,
 			       ext_block_hdr(bh), depth, pblk);
@@ -525,6 +525,71 @@ errout:
 #define read_extent_tree_block(inode, pblk, depth, flags)		\
 	__read_extent_tree_block(__func__, __LINE__, (inode), (pblk),   \
 				 (depth), (flags))
+
+/*
+ * This function is called to cache a file's extent information in the
+ * extent status tree
+ */
+int ext4_ext_precache(struct inode *inode)
+{
+	struct ext4_inode_info *ei = EXT4_I(inode);
+	struct ext4_ext_path *path = NULL;
+	struct buffer_head *bh;
+	int i = 0, depth, ret = 0;
+
+	if (!ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))
+		return 0;	/* not an extent-mapped inode */
+
+	down_read(&ei->i_data_sem);
+	depth = ext_depth(inode);
+
+	path = kzalloc(sizeof(struct ext4_ext_path) * (depth + 1),
+		       GFP_NOFS);
+	if (path == NULL) {
+		up_read(&ei->i_data_sem);
+		return -ENOMEM;
+	}
+
+	/* Don't cache anything if there are no external extent blocks */
+	if (depth == 0)
+		goto out;
+	path[0].p_hdr = ext_inode_hdr(inode);
+	ret = ext4_ext_check(inode, path[0].p_hdr, depth, 0);
+	if (ret)
+		goto out;
+	path[0].p_idx = EXT_FIRST_INDEX(path[0].p_hdr);
+	while (i >= 0) {
+		/*
+		 * If this is a leaf block or we've reached the end of
+		 * the index block, go up
+		 */
+		if ((i == depth) ||
+		    path[i].p_idx > EXT_LAST_INDEX(path[i].p_hdr)) {
+			brelse(path[i].p_bh);
+			path[i].p_bh = NULL;
+			i--;
+			continue;
+		}
+		bh = read_extent_tree_block(inode,
+					    ext4_idx_pblock(path[i].p_idx++),
+					    depth - i - 1,
+					    EXT4_EX_FORCE_CACHE);
+		if (IS_ERR(bh)) {
+			ret = PTR_ERR(bh);
+			break;
+		}
+		i++;
+		path[i].p_bh = bh;
+		path[i].p_hdr = ext_block_hdr(bh);
+		path[i].p_idx = EXT_FIRST_INDEX(path[i].p_hdr);
+	}
+	ext4_set_inode_state(inode, EXT4_STATE_EXT_PRECACHED);
+out:
+	up_read(&ei->i_data_sem);
+	ext4_ext_drop_refs(path);
+	kfree(path);
+	return ret;
+}
 
 #ifdef EXT_DEBUG
 static void ext4_ext_show_path(struct inode *inode, struct ext4_ext_path *path)
@@ -4763,6 +4828,12 @@ int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		error = ext4_inline_data_fiemap(inode, fieinfo, &has_inline);
 
 		if (has_inline)
+			return error;
+	}
+
+	if (fieinfo->fi_flags & FIEMAP_FLAG_CACHE) {
+		error = ext4_ext_precache(inode);
+		if (error)
 			return error;
 	}
 

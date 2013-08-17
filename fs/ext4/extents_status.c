@@ -710,11 +710,8 @@ void ext4_es_cache_extent(struct inode *inode, ext4_lblk_t lblk,
 	write_lock(&EXT4_I(inode)->i_es_lock);
 
 	es = __es_tree_search(&EXT4_I(inode)->i_es_tree.root, lblk);
-	if (es && ((es->es_lblk <= lblk) || (es->es_lblk <= end)))
-		goto out;
-
-	__es_insert_extent(inode, &newes);
-out:
+	if (!es || es->es_lblk > end)
+		__es_insert_extent(inode, &newes);
 	write_unlock(&EXT4_I(inode)->i_es_lock);
 }
 
@@ -930,6 +927,12 @@ static int ext4_inode_touch_time_cmp(void *priv, struct list_head *a,
 	eia = list_entry(a, struct ext4_inode_info, i_es_lru);
 	eib = list_entry(b, struct ext4_inode_info, i_es_lru);
 
+	if (ext4_test_inode_state(&eia->vfs_inode, EXT4_STATE_EXT_PRECACHED) &&
+	    !ext4_test_inode_state(&eib->vfs_inode, EXT4_STATE_EXT_PRECACHED))
+		return 1;
+	if (!ext4_test_inode_state(&eia->vfs_inode, EXT4_STATE_EXT_PRECACHED) &&
+	    ext4_test_inode_state(&eib->vfs_inode, EXT4_STATE_EXT_PRECACHED))
+		return -1;
 	if (eia->i_touch_when == eib->i_touch_when)
 		return 0;
 	if (time_after(eia->i_touch_when, eib->i_touch_when))
@@ -943,21 +946,13 @@ static int __ext4_es_shrink(struct ext4_sb_info *sbi, int nr_to_scan,
 {
 	struct ext4_inode_info *ei;
 	struct list_head *cur, *tmp;
-	LIST_HEAD(skiped);
+	LIST_HEAD(skipped);
 	int ret, nr_shrunk = 0;
+	int retried = 0, skip_precached = 1, nr_skipped = 0;
 
 	spin_lock(&sbi->s_es_lru_lock);
 
-	/*
-	 * If the inode that is at the head of LRU list is newer than
-	 * last_sorted time, that means that we need to sort this list.
-	 */
-	ei = list_first_entry(&sbi->s_es_lru, struct ext4_inode_info, i_es_lru);
-	if (sbi->s_es_last_sorted < ei->i_touch_when) {
-		list_sort(NULL, &sbi->s_es_lru, ext4_inode_touch_time_cmp);
-		sbi->s_es_last_sorted = jiffies;
-	}
-
+retry:
 	list_for_each_safe(cur, tmp, &sbi->s_es_lru) {
 		/*
 		 * If we have already reclaimed all extents from extent
@@ -968,9 +963,16 @@ static int __ext4_es_shrink(struct ext4_sb_info *sbi, int nr_to_scan,
 
 		ei = list_entry(cur, struct ext4_inode_info, i_es_lru);
 
-		/* Skip the inode that is newer than the last_sorted time */
-		if (sbi->s_es_last_sorted < ei->i_touch_when) {
-			list_move_tail(cur, &skiped);
+		/*
+		 * Skip the inode that is newer than the last_sorted
+		 * time.  Normally we try hard to avoid shrinking
+		 * precached inodes, but we will as a last resort.
+		 */
+		if ((sbi->s_es_last_sorted < ei->i_touch_when) ||
+		    (skip_precached && ext4_test_inode_state(&ei->vfs_inode,
+						EXT4_STATE_EXT_PRECACHED))) {
+			nr_skipped++;
+			list_move_tail(cur, &skipped);
 			continue;
 		}
 
@@ -990,11 +992,33 @@ static int __ext4_es_shrink(struct ext4_sb_info *sbi, int nr_to_scan,
 	}
 
 	/* Move the newer inodes into the tail of the LRU list. */
-	list_splice_tail(&skiped, &sbi->s_es_lru);
+	list_splice_tail(&skipped, &sbi->s_es_lru);
+	INIT_LIST_HEAD(&skipped);
+
+	/*
+	 * If we skipped any inodes, and we weren't able to make any
+	 * forward progress, sort the list and try again.
+	 */
+	if ((nr_shrunk == 0) && nr_skipped && !retried) {
+		retried++;
+		list_sort(NULL, &sbi->s_es_lru, ext4_inode_touch_time_cmp);
+		sbi->s_es_last_sorted = jiffies;
+		ei = list_first_entry(&sbi->s_es_lru, struct ext4_inode_info,
+				      i_es_lru);
+		/*
+		 * If there are no non-precached inodes left on the
+		 * list, start releasing precached extents.
+		 */
+		if (ext4_test_inode_state(&ei->vfs_inode,
+					  EXT4_STATE_EXT_PRECACHED))
+			skip_precached = 0;
+		goto retry;
+	}
+
 	spin_unlock(&sbi->s_es_lru_lock);
 
 	if (locked_ei && nr_shrunk == 0)
-		nr_shrunk = __es_try_to_reclaim_extents(ei, nr_to_scan);
+		nr_shrunk = __es_try_to_reclaim_extents(locked_ei, nr_to_scan);
 
 	return nr_shrunk;
 }
@@ -1069,9 +1093,15 @@ static int __es_try_to_reclaim_extents(struct ext4_inode_info *ei,
 	struct rb_node *node;
 	struct extent_status *es;
 	int nr_shrunk = 0;
+	static DEFINE_RATELIMIT_STATE(_rs, DEFAULT_RATELIMIT_INTERVAL,
+				      DEFAULT_RATELIMIT_BURST);
 
 	if (ei->i_es_lru_nr == 0)
 		return 0;
+
+	if (ext4_test_inode_state(inode, EXT4_STATE_EXT_PRECACHED) &&
+	    __ratelimit(&_rs))
+		ext4_warning(inode->i_sb, "forced shrink of precached extents");
 
 	node = rb_first(&tree->root);
 	while (node != NULL) {
