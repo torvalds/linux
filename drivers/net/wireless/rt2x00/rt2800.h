@@ -2794,6 +2794,7 @@ enum rt2800_eeprom_word {
 #define MCU_RADAR			0x60
 #define MCU_BOOT_SIGNAL			0x72
 #define MCU_ANT_SELECT			0X73
+#define MCU_FREQ_OFFSET			0x74
 #define MCU_BBP_SIGNAL			0x80
 #define MCU_POWER_SAVE			0x83
 #define MCU_BAND_SELECT		0x91

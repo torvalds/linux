@@ -2509,7 +2509,11 @@ static void rt2800_adjust_freq_offset(struct rt2x00_dev *rt2x00dev)
 	if (rfcsr == prev_rfcsr)
 		return;
 
-	rt2800_rfcsr_write(rt2x00dev, 17, rfcsr);
+	if (rt2x00_is_usb(rt2x00dev))
+		rt2800_mcu_request(rt2x00dev, MCU_FREQ_OFFSET, 0xff,
+				   freq_offset, prev_rfcsr);
+	else
+		rt2800_rfcsr_write(rt2x00dev, 17, rfcsr);
 }
 
 static void rt2800_config_channel_rf3290(struct rt2x00_dev *rt2x00dev,
