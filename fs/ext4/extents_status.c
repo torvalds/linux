@@ -263,7 +263,7 @@ void ext4_es_find_delayed_extent_range(struct inode *inode,
 	if (tree->cache_es) {
 		es1 = tree->cache_es;
 		if (in_range(lblk, es1->es_lblk, es1->es_len)) {
-			es_debug("%u cached by [%u/%u) %llu %llx\n",
+			es_debug("%u cached by [%u/%u) %llu %x\n",
 				 lblk, es1->es_lblk, es1->es_len,
 				 ext4_es_pblock(es1), ext4_es_status(es1));
 			goto out;
@@ -641,13 +641,13 @@ out:
  */
 int ext4_es_insert_extent(struct inode *inode, ext4_lblk_t lblk,
 			  ext4_lblk_t len, ext4_fsblk_t pblk,
-			  unsigned long long status)
+			  unsigned int status)
 {
 	struct extent_status newes;
 	ext4_lblk_t end = lblk + len - 1;
 	int err = 0;
 
-	es_debug("add [%u/%u) %llu %llx to extent status tree of inode %lu\n",
+	es_debug("add [%u/%u) %llu %x to extent status tree of inode %lu\n",
 		 lblk, len, pblk, status, inode->i_ino);
 
 	if (!len)

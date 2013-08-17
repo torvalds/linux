@@ -553,7 +553,7 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 	}
 	if (retval > 0) {
 		int ret;
-		unsigned long long status;
+		unsigned int status;
 
 		if (unlikely(retval != map->m_len)) {
 			ext4_warning(inode->i_sb,
@@ -653,7 +653,7 @@ found:
 
 	if (retval > 0) {
 		int ret;
-		unsigned long long status;
+		unsigned int status;
 
 		if (unlikely(retval != map->m_len)) {
 			ext4_warning(inode->i_sb,
@@ -1633,7 +1633,7 @@ add_delayed:
 		set_buffer_delay(bh);
 	} else if (retval > 0) {
 		int ret;
-		unsigned long long status;
+		unsigned int status;
 
 		if (unlikely(retval != map->m_len)) {
 			ext4_warning(inode->i_sb,
