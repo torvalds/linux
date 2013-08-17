@@ -2497,13 +2497,18 @@ static void rt2800_config_channel_rf3053(struct rt2x00_dev *rt2x00dev,
 static void rt2800_adjust_freq_offset(struct rt2x00_dev *rt2x00dev)
 {
 	u8 freq_offset;
-	u8 rfcsr;
+	u8 rfcsr, prev_rfcsr;
 
 	freq_offset = rt2x00_get_field8(rt2x00dev->freq_offset, RFCSR17_CODE);
 	freq_offset = min_t(u8, freq_offset, FREQ_OFFSET_BOUND);
 
 	rt2800_rfcsr_read(rt2x00dev, 17, &rfcsr);
+	prev_rfcsr = rfcsr;
+
 	rt2x00_set_field8(&rfcsr, RFCSR17_CODE, freq_offset);
+	if (rfcsr == prev_rfcsr)
+		return;
+
 	rt2800_rfcsr_write(rt2x00dev, 17, rfcsr);
 }
 
