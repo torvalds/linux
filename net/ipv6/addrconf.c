@@ -99,9 +99,9 @@
 #define ACONF_DEBUG 2
 
 #if ACONF_DEBUG >= 3
-#define ADBG(x) printk x
+#define ADBG(fmt, ...) printk(fmt, ##__VA_ARGS__)
 #else
-#define ADBG(x)
+#define ADBG(fmt, ...) do { if (0) printk(fmt, ##__VA_ARGS__); } while (0)
 #endif
 
 #define	INFINITY_LIFE_TIME	0xFFFFFFFF
@@ -374,9 +374,9 @@ static struct inet6_dev *ipv6_add_dev(struct net_device *dev)
 	dev_hold(dev);
 
 	if (snmp6_alloc_dev(ndev) < 0) {
-		ADBG((KERN_WARNING
+		ADBG(KERN_WARNING
 			"%s: cannot allocate memory for statistics; dev=%s.\n",
-			__func__, dev->name));
+			__func__, dev->name);
 		neigh_parms_release(&nd_tbl, ndev->nd_parms);
 		dev_put(dev);
 		kfree(ndev);
@@ -384,9 +384,9 @@ static struct inet6_dev *ipv6_add_dev(struct net_device *dev)
 	}
 
 	if (snmp6_register_dev(ndev) < 0) {
-		ADBG((KERN_WARNING
+		ADBG(KERN_WARNING
 			"%s: cannot create /proc/net/dev_snmp6/%s\n",
-			__func__, dev->name));
+			__func__, dev->name);
 		neigh_parms_release(&nd_tbl, ndev->nd_parms);
 		ndev->dead = 1;
 		in6_dev_finish_destroy(ndev);
@@ -849,7 +849,7 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr,
 
 	/* Ignore adding duplicate addresses on an interface */
 	if (ipv6_chk_same_addr(dev_net(idev->dev), addr, idev->dev)) {
-		ADBG(("ipv6_add_addr: already assigned\n"));
+		ADBG("ipv6_add_addr: already assigned\n");
 		err = -EEXIST;
 		goto out;
 	}
@@ -857,7 +857,7 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr,
 	ifa = kzalloc(sizeof(struct inet6_ifaddr), GFP_ATOMIC);
 
 	if (ifa == NULL) {
-		ADBG(("ipv6_add_addr: malloc failed\n"));
+		ADBG("ipv6_add_addr: malloc failed\n");
 		err = -ENOBUFS;
 		goto out;
 	}
@@ -2057,7 +2057,7 @@ void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len, bool sllao)
 	pinfo = (struct prefix_info *) opt;
 
 	if (len < sizeof(struct prefix_info)) {
-		ADBG(("addrconf: prefix option too short\n"));
+		ADBG("addrconf: prefix option too short\n");
 		return;
 	}
 
@@ -3637,8 +3637,8 @@ restart:
 	if (time_before(next_sched, jiffies + ADDRCONF_TIMER_FUZZ_MAX))
 		next_sched = jiffies + ADDRCONF_TIMER_FUZZ_MAX;
 
-	ADBG((KERN_DEBUG "now = %lu, schedule = %lu, rounded schedule = %lu => %lu\n",
-	      now, next, next_sec, next_sched));
+	ADBG(KERN_DEBUG "now = %lu, schedule = %lu, rounded schedule = %lu => %lu\n",
+	      now, next, next_sec, next_sched);
 
 	addr_chk_timer.expires = next_sched;
 	add_timer(&addr_chk_timer);
