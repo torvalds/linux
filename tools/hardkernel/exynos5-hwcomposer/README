@@ -1,1 +1,20 @@
-Exynos5 H/W Composer
+This is the Exynos5 HW Composer that Copies that from the framebuffer to the
+HDMI.
+
+This piece of software is needed to use the HDMI on newer Exynos5
+processors.
+
+Its original author is Samsung LSI. Kindly modified by Dongjin Kim to work
+on Linux.
+
+
+
+
+Usage:
+sh autogen.sh
+make
+make install
+
+
+make sure that exynos5-hwcomposer is running and started as a service for
+HDMI to work.
