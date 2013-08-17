@@ -454,6 +454,7 @@ struct sh_eth_cpu_data {
 	void (*set_rate)(struct net_device *ndev);
 
 	/* mandatory initialize value */
+	int register_type;
 	unsigned long eesipr_value;
 
 	/* optional initialize value */
