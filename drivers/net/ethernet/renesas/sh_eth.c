@@ -378,6 +378,8 @@ static struct sh_eth_cpu_data r8a777x_data = {
 	.set_duplex	= sh_eth_set_duplex,
 	.set_rate	= sh_eth_set_rate_r8a777x,
 
+	.register_type	= SH_ETH_REG_FAST_RCAR,
+
 	.ecsr_value	= ECSR_PSRTO | ECSR_LCHNG | ECSR_ICD,
 	.ecsipr_value	= ECSIPR_PSRTOIP | ECSIPR_LCHNGIP | ECSIPR_ICDIP,
 	.eesipr_value	= 0x01ff009f,
@@ -397,6 +399,8 @@ static struct sh_eth_cpu_data r8a777x_data = {
 static struct sh_eth_cpu_data r8a7790_data = {
 	.set_duplex	= sh_eth_set_duplex,
 	.set_rate	= sh_eth_set_rate_r8a777x,
+
+	.register_type	= SH_ETH_REG_FAST_RCAR,
 
 	.ecsr_value	= ECSR_PSRTO | ECSR_LCHNG | ECSR_ICD,
 	.ecsipr_value	= ECSIPR_PSRTOIP | ECSIPR_LCHNGIP | ECSIPR_ICDIP,
@@ -435,6 +439,8 @@ static struct sh_eth_cpu_data sh7724_data = {
 	.set_duplex	= sh_eth_set_duplex,
 	.set_rate	= sh_eth_set_rate_sh7724,
 
+	.register_type	= SH_ETH_REG_FAST_SH4,
+
 	.ecsr_value	= ECSR_PSRTO | ECSR_LCHNG | ECSR_ICD,
 	.ecsipr_value	= ECSIPR_PSRTOIP | ECSIPR_LCHNGIP | ECSIPR_ICDIP,
 	.eesipr_value	= 0x01ff009f,
@@ -472,6 +478,8 @@ static void sh_eth_set_rate_sh7757(struct net_device *ndev)
 static struct sh_eth_cpu_data sh7757_data = {
 	.set_duplex	= sh_eth_set_duplex,
 	.set_rate	= sh_eth_set_rate_sh7757,
+
+	.register_type	= SH_ETH_REG_FAST_SH4,
 
 	.eesipr_value	= DMAC_M_RFRMER | DMAC_M_ECI | 0x003fffff,
 	.rmcr_value	= 0x00000001,
@@ -541,6 +549,8 @@ static struct sh_eth_cpu_data sh7757_data_giga = {
 	.set_duplex	= sh_eth_set_duplex,
 	.set_rate	= sh_eth_set_rate_giga,
 
+	.register_type	= SH_ETH_REG_GIGABIT,
+
 	.ecsr_value	= ECSR_ICD | ECSR_MPD,
 	.ecsipr_value	= ECSIPR_LCHNGIP | ECSIPR_ICDIP | ECSIPR_MPDIP,
 	.eesipr_value	= DMAC_M_RFRMER | DMAC_M_ECI | 0x003fffff,
@@ -599,6 +609,8 @@ static struct sh_eth_cpu_data sh7734_data = {
 	.set_duplex	= sh_eth_set_duplex,
 	.set_rate	= sh_eth_set_rate_gether,
 
+	.register_type	= SH_ETH_REG_GIGABIT,
+
 	.ecsr_value	= ECSR_ICD | ECSR_MPD,
 	.ecsipr_value	= ECSIPR_LCHNGIP | ECSIPR_ICDIP | ECSIPR_MPDIP,
 	.eesipr_value	= DMAC_M_RFRMER | DMAC_M_ECI | 0x003fffff,
@@ -625,6 +637,8 @@ static struct sh_eth_cpu_data sh7763_data = {
 	.chip_reset	= sh_eth_chip_reset,
 	.set_duplex	= sh_eth_set_duplex,
 	.set_rate	= sh_eth_set_rate_gether,
+
+	.register_type	= SH_ETH_REG_GIGABIT,
 
 	.ecsr_value	= ECSR_ICD | ECSR_MPD,
 	.ecsipr_value	= ECSIPR_LCHNGIP | ECSIPR_ICDIP | ECSIPR_MPDIP,
@@ -663,6 +677,8 @@ static struct sh_eth_cpu_data r8a7740_data = {
 	.set_duplex	= sh_eth_set_duplex,
 	.set_rate	= sh_eth_set_rate_gether,
 
+	.register_type	= SH_ETH_REG_GIGABIT,
+
 	.ecsr_value	= ECSR_ICD | ECSR_MPD,
 	.ecsipr_value	= ECSIPR_LCHNGIP | ECSIPR_ICDIP | ECSIPR_MPDIP,
 	.eesipr_value	= DMAC_M_RFRMER | DMAC_M_ECI | 0x003fffff,
@@ -685,6 +701,8 @@ static struct sh_eth_cpu_data r8a7740_data = {
 };
 
 static struct sh_eth_cpu_data sh7619_data = {
+	.register_type	= SH_ETH_REG_FAST_SH3_SH2,
+
 	.eesipr_value	= DMAC_M_RFRMER | DMAC_M_ECI | 0x003fffff,
 
 	.apr		= 1,
@@ -694,6 +712,8 @@ static struct sh_eth_cpu_data sh7619_data = {
 };
 
 static struct sh_eth_cpu_data sh771x_data = {
+	.register_type	= SH_ETH_REG_FAST_SH3_SH2,
+
 	.eesipr_value	= DMAC_M_RFRMER | DMAC_M_ECI | 0x003fffff,
 	.tsu		= 1,
 };
@@ -2643,10 +2663,10 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	mdp->edmac_endian = pd->edmac_endian;
 	mdp->no_ether_link = pd->no_ether_link;
 	mdp->ether_link_active_low = pd->ether_link_active_low;
-	mdp->reg_offset = sh_eth_get_register_offset(pd->register_type);
 
 	/* set cpu data */
 	mdp->cd = (struct sh_eth_cpu_data *)id->driver_data;
+	mdp->reg_offset = sh_eth_get_register_offset(mdp->cd->register_type);
 	sh_eth_set_default_cpu_data(mdp->cd);
 
 	/* set function */
