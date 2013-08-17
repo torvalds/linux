@@ -217,8 +217,8 @@ static int w83627hf_init(struct watchdog_device *wdog, enum chips chip)
 	t = superio_inb(cr_wdt_control) & ~0x0C;
 	superio_outb(cr_wdt_control, t);
 
-	/* disable keyboard & mouse turning off watchdog */
-	t = superio_inb(0xF7) & ~0xC0;
+	/* reset trigger, disable keyboard & mouse turning off watchdog */
+	t = superio_inb(0xF7) & ~0xD0;
 	superio_outb(0xF7, t);
 
 	superio_exit();
