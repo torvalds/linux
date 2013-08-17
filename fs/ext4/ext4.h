@@ -2432,16 +2432,32 @@ do {								\
 #define EXT4_FREECLUSTERS_WATERMARK 0
 #endif
 
+/* Update i_disksize. Requires i_mutex to avoid races with truncate */
 static inline void ext4_update_i_disksize(struct inode *inode, loff_t newsize)
 {
-	/*
-	 * XXX: replace with spinlock if seen contended -bzzz
-	 */
+	WARN_ON_ONCE(S_ISREG(inode->i_mode) &&
+		     !mutex_is_locked(&inode->i_mutex));
 	down_write(&EXT4_I(inode)->i_data_sem);
 	if (newsize > EXT4_I(inode)->i_disksize)
 		EXT4_I(inode)->i_disksize = newsize;
 	up_write(&EXT4_I(inode)->i_data_sem);
-	return ;
+}
+
+/*
+ * Update i_disksize after writeback has been started. Races with truncate
+ * are avoided by checking i_size under i_data_sem.
+ */
+static inline void ext4_wb_update_i_disksize(struct inode *inode, loff_t newsize)
+{
+	loff_t i_size;
+
+	down_write(&EXT4_I(inode)->i_data_sem);
+	i_size = i_size_read(inode);
+	if (newsize > i_size)
+		newsize = i_size;
+	if (newsize > EXT4_I(inode)->i_disksize)
+		EXT4_I(inode)->i_disksize = newsize;
+	up_write(&EXT4_I(inode)->i_data_sem);
 }
 
 struct ext4_group_info {

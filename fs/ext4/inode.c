@@ -2237,12 +2237,10 @@ static int mpage_map_and_submit_extent(handle_t *handle,
 
 	/* Update on-disk size after IO is submitted */
 	disksize = ((loff_t)mpd->first_page) << PAGE_CACHE_SHIFT;
-	if (disksize > i_size_read(inode))
-		disksize = i_size_read(inode);
 	if (disksize > EXT4_I(inode)->i_disksize) {
 		int err2;
 
-		ext4_update_i_disksize(inode, disksize);
+		ext4_wb_update_i_disksize(inode, disksize);
 		err2 = ext4_mark_inode_dirty(handle, inode);
 		if (err2)
 			ext4_error(inode->i_sb,
@@ -4627,18 +4625,27 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 				error = ext4_orphan_add(handle, inode);
 				orphan = 1;
 			}
+			down_write(&EXT4_I(inode)->i_data_sem);
 			EXT4_I(inode)->i_disksize = attr->ia_size;
 			rc = ext4_mark_inode_dirty(handle, inode);
 			if (!error)
 				error = rc;
+			/*
+			 * We have to update i_size under i_data_sem together
+			 * with i_disksize to avoid races with writeback code
+			 * running ext4_wb_update_i_disksize().
+			 */
+			if (!error)
+				i_size_write(inode, attr->ia_size);
+			up_write(&EXT4_I(inode)->i_data_sem);
 			ext4_journal_stop(handle);
 			if (error) {
 				ext4_orphan_del(NULL, inode);
 				goto err_out;
 			}
-		}
+		} else
+			i_size_write(inode, attr->ia_size);
 
-		i_size_write(inode, attr->ia_size);
 		/*
 		 * Blocks are going to be removed from the inode. Wait
 		 * for dio in flight.  Temporarily disable
