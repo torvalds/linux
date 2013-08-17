@@ -320,7 +320,8 @@ static int au_mvd_args_parent(const unsigned char verbose,
 	if (unlikely((bindex >= 0 && bindex < a->mvd_bdst)
 		     || (a->bopq != -1 && a->bopq < a->mvd_bdst))) {
 		err = -EINVAL;
-		AU_MVD_PR(verbose, "parent dir is opaque b%d, b%d\n",
+		a->mvdown.au_errno = EAU_MVDOWN_OPAQUE;
+		AU_MVD_PR(verbose, "ancestor is opaque b%d, b%d\n",
 			  a->bopq, a->mvd_bdst);
 	}
 
@@ -398,10 +399,12 @@ static int au_mvd_args_intermediate(const unsigned char verbose,
 	    && a->mvd_bsrc < a->bwh
 	    && a->bwh != -1
 	    && a->bwh < a->mvd_bdst) {
+		a->mvdown.au_errno = EAU_MVDOWN_WHITEOUT;
 		AU_MVD_PR(verbose, "bsrc %d, bdst %d, bfound %d, bwh %d\n",
 			  a->mvd_bsrc, a->mvd_bdst, a->bfound, a->bwh);
 		goto out;
 	} else if (a->bfound != -1 && a->bfound < a->mvd_bdst) {
+		a->mvdown.au_errno = EAU_MVDOWN_UPPER;
 		AU_MVD_PR(verbose, "bdst %d, bfound %d\n",
 			  a->mvd_bdst, a->bfound);
 		goto out;
@@ -435,6 +438,7 @@ static int au_mvd_args(const unsigned char verbose, struct au_mvd_args *a)
 	err = -EINVAL;
 	a->mvd_bsrc = au_ibstart(a->inode);
 	if (unlikely(a->mvd_bsrc == au_sbend(a->sb))) {
+		a->mvdown.au_errno = EAU_MVDOWN_BOTTOM;
 		AU_MVD_PR(verbose, "on the bottom\n");
 		goto out;
 	}
@@ -446,6 +450,7 @@ static int au_mvd_args(const unsigned char verbose, struct au_mvd_args *a)
 	err = -EINVAL;
 	a->mvd_bdst = find_lower_writable(a->sb, a->mvd_bsrc);
 	if (unlikely(a->mvd_bdst < 0)) {
+		a->mvdown.au_errno = EAU_MVDOWN_BOTTOM;
 		AU_MVD_PR(verbose, "no writable lower branch\n");
 		goto out;
 	}
@@ -467,9 +472,12 @@ out:
 
 int au_mvdown(struct dentry *dentry, struct aufs_mvdown __user *uarg)
 {
-	int err;
+	int err, e;
 	unsigned char verbose;
 	struct au_mvd_args args = {
+		.mvdown	= {
+			.au_errno = 0
+		},
 		.dentry = dentry,
 		.inode	= dentry->d_inode,
 		.sb	= dentry->d_sb
@@ -480,13 +488,17 @@ int au_mvdown(struct dentry *dentry, struct aufs_mvdown __user *uarg)
 		goto out;
 
 	err = copy_from_user(&args.mvdown, uarg, sizeof(args.mvdown));
+	if (!err)
+		err = !access_ok(VERIFY_WRITE, &uarg->au_errno,
+				 sizeof(uarg->au_errno));
 	if (unlikely(err)) {
 		err = -EFAULT;
+		AuTraceErr(err);
 		goto out;
 	}
 	AuDbg("flags 0x%x\n", args.mvdown.flags);
 
-	err = -EBUSY;
+	err = -ENOENT;
 	verbose = !!(args.mvdown.flags & AUFS_MVDOWN_VERBOSE);
 	args.parent = dget_parent(dentry);
 	args.dir = args.parent->d_inode;
@@ -528,6 +540,9 @@ out_inode:
 out_dir:
 	mutex_unlock(&args.dir->i_mutex);
 out:
+	e = __put_user(args.mvdown.au_errno, &uarg->au_errno);
+	if (unlikely(e))
+		err = -EFAULT;
 	AuTraceErr(err);
 	return err;
 }
