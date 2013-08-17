@@ -464,25 +464,39 @@ int ext4_ext_check_inode(struct inode *inode)
 	return ext4_ext_check(inode, ext_inode_hdr(inode), ext_depth(inode));
 }
 
-static int __ext4_ext_check_block(const char *function, unsigned int line,
-				  struct inode *inode,
-				  struct ext4_extent_header *eh,
-				  int depth,
-				  struct buffer_head *bh)
+static struct buffer_head *
+__read_extent_tree_block(const char *function, unsigned int line,
+			 struct inode *inode, ext4_fsblk_t pblk, int depth)
 {
-	int ret;
+	struct buffer_head		*bh;
+	int				err;
 
+	bh = sb_getblk(inode->i_sb, pblk);
+	if (unlikely(!bh))
+		return ERR_PTR(-ENOMEM);
+
+	if (!bh_uptodate_or_lock(bh)) {
+		trace_ext4_ext_load_extent(inode, pblk, _RET_IP_);
+		err = bh_submit_read(bh);
+		if (err < 0)
+			goto errout;
+	}
 	if (buffer_verified(bh))
-		return 0;
-	ret = ext4_ext_check(inode, eh, depth);
-	if (ret)
-		return ret;
+		return bh;
+	err = __ext4_ext_check(function, line, inode,
+			       ext_block_hdr(bh), depth);
+	if (err)
+		goto errout;
 	set_buffer_verified(bh);
-	return ret;
+	return bh;
+errout:
+	put_bh(bh);
+	return ERR_PTR(err);
+
 }
 
-#define ext4_ext_check_block(inode, eh, depth, bh)	\
-	__ext4_ext_check_block(__func__, __LINE__, inode, eh, depth, bh)
+#define read_extent_tree_block(inode, pblk, depth)		\
+	__read_extent_tree_block(__func__, __LINE__, (inode), (pblk), (depth))
 
 #ifdef EXT_DEBUG
 static void ext4_ext_show_path(struct inode *inode, struct ext4_ext_path *path)
@@ -748,20 +762,12 @@ ext4_ext_find_extent(struct inode *inode, ext4_lblk_t block,
 		path[ppos].p_depth = i;
 		path[ppos].p_ext = NULL;
 
-		bh = sb_getblk(inode->i_sb, path[ppos].p_block);
-		if (unlikely(!bh)) {
-			ret = -ENOMEM;
+		bh = read_extent_tree_block(inode, path[ppos].p_block, --i);
+		if (IS_ERR(bh)) {
+			ret = PTR_ERR(bh);
 			goto err;
 		}
-		if (!bh_uptodate_or_lock(bh)) {
-			trace_ext4_ext_load_extent(inode, block,
-						path[ppos].p_block);
-			ret = bh_submit_read(bh);
-			if (ret < 0) {
-				put_bh(bh);
-				goto err;
-			}
-		}
+
 		eh = ext_block_hdr(bh);
 		ppos++;
 		if (unlikely(ppos > depth)) {
@@ -773,11 +779,6 @@ ext4_ext_find_extent(struct inode *inode, ext4_lblk_t block,
 		}
 		path[ppos].p_bh = bh;
 		path[ppos].p_hdr = eh;
-		i--;
-
-		ret = ext4_ext_check_block(inode, eh, i, bh);
-		if (ret < 0)
-			goto err;
 	}
 
 	path[ppos].p_depth = i;
@@ -1412,29 +1413,21 @@ got_index:
 	ix++;
 	block = ext4_idx_pblock(ix);
 	while (++depth < path->p_depth) {
-		bh = sb_bread(inode->i_sb, block);
-		if (bh == NULL)
-			return -EIO;
-		eh = ext_block_hdr(bh);
 		/* subtract from p_depth to get proper eh_depth */
-		if (ext4_ext_check_block(inode, eh,
-					 path->p_depth - depth, bh)) {
-			put_bh(bh);
-			return -EIO;
-		}
+		bh = read_extent_tree_block(inode, block,
+					    path->p_depth - depth);
+		if (IS_ERR(bh))
+			return PTR_ERR(bh);
+		eh = ext_block_hdr(bh);
 		ix = EXT_FIRST_INDEX(eh);
 		block = ext4_idx_pblock(ix);
 		put_bh(bh);
 	}
 
-	bh = sb_bread(inode->i_sb, block);
-	if (bh == NULL)
-		return -EIO;
+	bh = read_extent_tree_block(inode, block, path->p_depth - depth);
+	if (IS_ERR(bh))
+		return PTR_ERR(bh);
 	eh = ext_block_hdr(bh);
-	if (ext4_ext_check_block(inode, eh, path->p_depth - depth, bh)) {
-		put_bh(bh);
-		return -EIO;
-	}
 	ex = EXT_FIRST_EXTENT(eh);
 found_extent:
 	*logical = le32_to_cpu(ex->ee_block);
@@ -2829,21 +2822,17 @@ again:
 			ext_debug("move to level %d (block %llu)\n",
 				  i + 1, ext4_idx_pblock(path[i].p_idx));
 			memset(path + i + 1, 0, sizeof(*path));
-			bh = sb_bread(sb, ext4_idx_pblock(path[i].p_idx));
-			if (!bh) {
+			bh = read_extent_tree_block(inode,
+				ext4_idx_pblock(path[i].p_idx), depth - i - 1);
+			if (IS_ERR(bh)) {
 				/* should we reset i_size? */
-				err = -EIO;
+				err = PTR_ERR(bh);
 				break;
 			}
 			/* Yield here to deal with large extent trees.
 			 * Should be a no-op if we did IO above. */
 			cond_resched();
 			if (WARN_ON(i + 1 > depth)) {
-				err = -EIO;
-				break;
-			}
-			if (ext4_ext_check_block(inode, ext_block_hdr(bh),
-							depth - i - 1, bh)) {
 				err = -EIO;
 				break;
 			}
