@@ -1054,7 +1054,7 @@ void __init early_platform_driver_register_all(char *class_str)
  * @epdrv: early platform driver structure
  * @id: id to match against
  */
-static  __init struct platform_device *
+static struct platform_device * __init
 early_platform_match(struct early_platform_driver *epdrv, int id)
 {
 	struct platform_device *pd;
@@ -1072,7 +1072,7 @@ early_platform_match(struct early_platform_driver *epdrv, int id)
  * @epdrv: early platform driver structure
  * @id: return true if id or above exists
  */
-static  __init int early_platform_left(struct early_platform_driver *epdrv,
+static int __init early_platform_left(struct early_platform_driver *epdrv,
 				       int id)
 {
 	struct platform_device *pd;
