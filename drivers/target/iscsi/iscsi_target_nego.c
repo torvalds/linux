@@ -983,8 +983,9 @@ int iscsi_target_locate_portal(
 	struct iscsi_tiqn *tiqn;
 	struct iscsi_tpg_np *tpg_np = NULL;
 	struct iscsi_login_req *login_req;
-	u32 payload_length;
-	int sessiontype = 0, ret = 0;
+	struct se_node_acl *se_nacl;
+	u32 payload_length, queue_depth = 0;
+	int sessiontype = 0, ret = 0, tag_num, tag_size;
 
 	INIT_DELAYED_WORK(&conn->login_work, iscsi_target_do_login_rx);
 	INIT_DELAYED_WORK(&conn->login_cleanup_work, iscsi_target_do_cleanup);
@@ -1084,7 +1085,7 @@ int iscsi_target_locate_portal(
 			goto out;
 		}
 		ret = 0;
-		goto out;
+		goto alloc_tags;
 	}
 
 get_target:
@@ -1181,8 +1182,27 @@ get_target:
 		ret = -1;
 		goto out;
 	}
+	se_nacl = sess->se_sess->se_node_acl;
+	queue_depth = se_nacl->queue_depth;
+	/*
+	 * Setup pre-allocated tags based upon allowed per NodeACL CmdSN
+	 * depth for non immediate commands, plus extra tags for immediate
+	 * commands.
+	 *
+	 * Also enforce a ISCSIT_MIN_TAGS to prevent unnecessary contention
+	 * in per-cpu-ida tag allocation logic + small queue_depth.
+	 */
+alloc_tags:
+	tag_num = max_t(u32, ISCSIT_MIN_TAGS, queue_depth);
+	tag_num += ISCSIT_EXTRA_TAGS;
+	tag_size = sizeof(struct iscsi_cmd) + conn->conn_transport->priv_size;
 
-	ret = 0;
+	ret = transport_alloc_session_tags(sess->se_sess, tag_num, tag_size);
+	if (ret < 0) {
+		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
+				    ISCSI_LOGIN_STATUS_NO_RESOURCES);
+		ret = -1;
+	}
 out:
 	kfree(tmpbuf);
 	return ret;

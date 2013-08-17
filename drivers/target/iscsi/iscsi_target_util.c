@@ -19,6 +19,7 @@
  ******************************************************************************/
 
 #include <linux/list.h>
+#include <linux/percpu_ida.h>
 #include <scsi/scsi_tcq.h>
 #include <scsi/iscsi_proto.h>
 #include <target/target_core_base.h>
@@ -156,13 +157,15 @@ void iscsit_free_r2ts_from_list(struct iscsi_cmd *cmd)
 struct iscsi_cmd *iscsit_allocate_cmd(struct iscsi_conn *conn, gfp_t gfp_mask)
 {
 	struct iscsi_cmd *cmd;
-	int priv_size = conn->conn_transport->priv_size;
+	struct se_session *se_sess = conn->sess->se_sess;
+	int size, tag;
 
-	cmd = kzalloc(sizeof(struct iscsi_cmd) + priv_size, gfp_mask);
-	if (!cmd) {
-		pr_err("Unable to allocate memory for struct iscsi_cmd.\n");
-		return NULL;
-	}
+	tag = percpu_ida_alloc(&se_sess->sess_tag_pool, gfp_mask);
+	size = sizeof(struct iscsi_cmd) + conn->conn_transport->priv_size;
+	cmd = (struct iscsi_cmd *)(se_sess->sess_cmd_map + (tag * size));
+	memset(cmd, 0, size);
+
+	cmd->se_cmd.map_tag = tag;
 	cmd->conn = conn;
 	INIT_LIST_HEAD(&cmd->i_conn_node);
 	INIT_LIST_HEAD(&cmd->datain_list);
@@ -678,6 +681,16 @@ void iscsit_free_queue_reqs_for_conn(struct iscsi_conn *conn)
 
 void iscsit_release_cmd(struct iscsi_cmd *cmd)
 {
+	struct iscsi_session *sess;
+	struct se_cmd *se_cmd = &cmd->se_cmd;
+
+	if (cmd->conn)
+		sess = cmd->conn->sess;
+	else
+		sess = cmd->sess;
+
+	BUG_ON(!sess || !sess->se_sess);
+
 	kfree(cmd->buf_ptr);
 	kfree(cmd->pdu_list);
 	kfree(cmd->seq_list);
@@ -685,7 +698,7 @@ void iscsit_release_cmd(struct iscsi_cmd *cmd)
 	kfree(cmd->iov_data);
 	kfree(cmd->text_in_ptr);
 
-	kfree(cmd);
+	percpu_ida_free(&sess->se_sess->sess_tag_pool, se_cmd->map_tag);
 }
 EXPORT_SYMBOL(iscsit_release_cmd);
 

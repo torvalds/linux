@@ -17,6 +17,8 @@
 #define SECONDS_FOR_ASYNC_TEXT		10
 #define SECONDS_FOR_LOGOUT_COMP		15
 #define WHITE_SPACE			" \t\v\f\n\r"
+#define ISCSIT_MIN_TAGS			16
+#define ISCSIT_EXTRA_TAGS		8
 
 /* struct iscsi_node_attrib sanity values */
 #define NA_DATAOUT_TIMEOUT		3
