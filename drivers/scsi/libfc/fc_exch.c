@@ -836,8 +836,10 @@ static struct fc_exch *fc_exch_find(struct fc_exch_mgr *mp, u16 xid)
 		pool = per_cpu_ptr(mp->pool, xid & fc_cpu_mask);
 		spin_lock_bh(&pool->lock);
 		ep = fc_exch_ptr_get(pool, (xid - mp->min_xid) >> fc_cpu_order);
-		if (ep && ep->xid == xid)
+		if (ep) {
+			WARN_ON(ep->xid != xid);
 			fc_exch_hold(ep);
+		}
 		spin_unlock_bh(&pool->lock);
 	}
 	return ep;
