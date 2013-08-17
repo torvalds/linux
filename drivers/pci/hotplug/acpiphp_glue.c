@@ -340,6 +340,7 @@ static acpi_status register_slot(acpi_handle handle, u32 lvl, void *data,
 
 		retval = acpiphp_register_hotplug_slot(slot, sun);
 		if (retval) {
+			slot->slot = NULL;
 			bridge->nr_slots--;
 			if (retval == -EBUSY)
 				warn("Slot %llu already registered by another "
@@ -429,7 +430,8 @@ static void cleanup_bridge(struct acpiphp_bridge *bridge)
 					err("failed to remove notify handler\n");
 			}
 		}
-		acpiphp_unregister_hotplug_slot(slot);
+		if (slot->slot)
+			acpiphp_unregister_hotplug_slot(slot);
 	}
 
 	mutex_lock(&bridge_mutex);
