@@ -2496,7 +2496,7 @@ static void rt2800_config_channel_rf3053(struct rt2x00_dev *rt2x00dev,
 
 static void rt2800_adjust_freq_offset(struct rt2x00_dev *rt2x00dev)
 {
-	u8 freq_offset;
+	u8 freq_offset, prev_freq_offset;
 	u8 rfcsr, prev_rfcsr;
 
 	freq_offset = rt2x00_get_field8(rt2x00dev->freq_offset, RFCSR17_CODE);
@@ -2509,11 +2509,24 @@ static void rt2800_adjust_freq_offset(struct rt2x00_dev *rt2x00dev)
 	if (rfcsr == prev_rfcsr)
 		return;
 
-	if (rt2x00_is_usb(rt2x00dev))
+	if (rt2x00_is_usb(rt2x00dev)) {
 		rt2800_mcu_request(rt2x00dev, MCU_FREQ_OFFSET, 0xff,
 				   freq_offset, prev_rfcsr);
-	else
+		return;
+	}
+
+	prev_freq_offset = rt2x00_get_field8(prev_rfcsr, RFCSR17_CODE);
+	while (prev_freq_offset != freq_offset) {
+		if (prev_freq_offset < freq_offset)
+			prev_freq_offset++;
+		else
+			prev_freq_offset--;
+
+		rt2x00_set_field8(&rfcsr, RFCSR17_CODE, prev_freq_offset);
 		rt2800_rfcsr_write(rt2x00dev, 17, rfcsr);
+
+		usleep_range(1000, 1500);
+	}
 }
 
 static void rt2800_config_channel_rf3290(struct rt2x00_dev *rt2x00dev,
