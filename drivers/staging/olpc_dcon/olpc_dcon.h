@@ -30,7 +30,7 @@
 #define DCON_REG_VSYNC_WIDTH	0x7
 #define DCON_REG_TIMEOUT	0x8
 #define DCON_REG_SCAN_INT	0x9
-#define DCON_REG_BRIGHT		0x10
+#define DCON_REG_BRIGHT		0xa
 #define DCON_REG_MEM_OPT_A	0x41
 #define DCON_REG_MEM_OPT_B	0x42
 
