@@ -187,7 +187,7 @@ config USB_FSL_USB2
 
 config USB_FUSB300
 	tristate "Faraday FUSB300 USB Peripheral Controller"
-	depends on !PHYS_ADDR_T_64BIT
+	depends on !PHYS_ADDR_T_64BIT && HAS_DMA
 	help
 	   Faraday usb device controller FUSB300 driver
 
