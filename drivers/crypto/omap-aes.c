@@ -1207,7 +1207,7 @@ static int omap_aes_probe(struct platform_device *pdev)
 			goto err_irq;
 		}
 
-		err = request_irq(irq, omap_aes_irq, 0,
+		err = devm_request_irq(dev, irq, omap_aes_irq, 0,
 				dev_name(dev), dd);
 		if (err) {
 			dev_err(dev, "Unable to grab omap-aes IRQ\n");
@@ -1242,9 +1242,7 @@ err_algs:
 		for (j = dd->pdata->algs_info[i].registered - 1; j >= 0; j--)
 			crypto_unregister_alg(
 					&dd->pdata->algs_info[i].algs_list[j]);
-	if (dd->pio_only)
-		free_irq(irq, dd);
-	else
+	if (!dd->pio_only)
 		omap_aes_dma_cleanup(dd);
 err_irq:
 	tasklet_kill(&dd->done_task);
