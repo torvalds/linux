@@ -60,6 +60,7 @@ struct davinci_gpio_controller {
 	void __iomem		*set_data;
 	void __iomem		*clr_data;
 	void __iomem		*in_data;
+	unsigned		gpio_irq;
 };
 
 /* The __gpio_to_controller() and __gpio_mask() functions inline to constants
