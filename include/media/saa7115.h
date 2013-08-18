@@ -47,9 +47,11 @@
 #define SAA7111_FMT_YUV411 	0xc0
 
 /* config flags */
-/* Register 0x85 should set bit 0 to 0 (it's 1 by default). This bit
+/*
+ * Register 0x85 should set bit 0 to 0 (it's 1 by default). This bit
  * controls the IDQ signal polarity which is set to 'inverted' if the bit
- * it 1 and to 'default' if it is 0. */
+ * it 1 and to 'default' if it is 0.
+ */
 #define SAA7115_IDQ_IS_DEFAULT  (1 << 0)
 
 /* s_crystal_freq values and flags */
@@ -84,11 +86,13 @@ enum saa7113_r10_ofts {
 	SAA7113_OFTS_VFLAG_BY_DATA_TYPE
 };
 
-/* Register 0x12 "Output control" [Bit 0..3 Or Bit 4..7]:
+/*
+ * Register 0x12 "Output control" [Bit 0..3 Or Bit 4..7]:
  * This is used to select what data is output on the RTS0 and RTS1 pins.
  * RTS1 [Bit 4..7] Defaults to DOT_IN. (This value can not be set for RTS0)
  * RTS0 [Bit 0..3] Defaults to VIPB in gm7113c_init as specified
- * in the datasheet, but is set to HREF_HS in the saa7113_init table. */
+ * in the datasheet, but is set to HREF_HS in the saa7113_init table.
+ */
 enum saa7113_r12_rts {
 	SAA7113_RTS_DOT_IN = 0,		/* OBS: Only for RTS1 (Default RTS1) */
 	SAA7113_RTS_VIPB,		/* Default RTS0 For gm7113c_init */
@@ -108,24 +112,29 @@ enum saa7113_r12_rts {
 	SAA7113_RTS_FID
 };
 
+/**
+ * struct saa7115_platform_data - Allow overriding default initialization
+ *
+ * @saa7113_force_gm7113c_init:	Force the use of the gm7113c_init table
+ *				instead of saa7113_init table
+ *				(saa7113 only)
+ * @saa7113_r08_htc:		[R_08 - Bit 3..4]
+ * @saa7113_r10_vrln:		[R_10 - Bit 3]
+ *				default: Disabled for gm7113c_init
+ *					 Enabled for saa7113c_init
+ * @saa7113_r10_ofts:		[R_10 - Bit 6..7]
+ * @saa7113_r12_rts0:		[R_12 - Bit 0..3]
+ * @saa7113_r12_rts1:		[R_12 - Bit 4..7]
+ * @saa7113_r13_adlsb:		[R_13 - Bit 7] - default: disabled
+ */
 struct saa7115_platform_data {
-	/* saa7113 only: Force the use of the gm7113c_init table,
-	 * instead of the old saa7113_init table. */
 	bool saa7113_force_gm7113c_init;
-
-	/* SAA7113/GM7113C Specific configurations */
-	enum saa7113_r08_htc *saa7113_r08_htc;	/* [R_08 - Bit 3..4] */
-
-	bool *saa7113_r10_vrln;			/* [R_10 - Bit 3]
-						   Disabled for gm7113c_init
-						   Enabled for saa7113c_init */
-	enum saa7113_r10_ofts *saa7113_r10_ofts;	/* [R_10 - Bit 6..7] */
-
-	enum saa7113_r12_rts *saa7113_r12_rts0;		/* [R_12 - Bit 0..3] */
-	enum saa7113_r12_rts *saa7113_r12_rts1;		/* [R_12 - Bit 4..7] */
-
-	bool *saa7113_r13_adlsb;			/* [R_13 - Bit 7]
-							   Default disabled */
+	enum saa7113_r08_htc *saa7113_r08_htc;
+	bool *saa7113_r10_vrln;
+	enum saa7113_r10_ofts *saa7113_r10_ofts;
+	enum saa7113_r12_rts *saa7113_r12_rts0;
+	enum saa7113_r12_rts *saa7113_r12_rts1;
+	bool *saa7113_r13_adlsb;
 };
 
 #endif

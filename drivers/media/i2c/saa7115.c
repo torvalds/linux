@@ -225,12 +225,14 @@ static const unsigned char saa7111_init[] = {
 	0x00, 0x00
 };
 
-/* This table has one illegal value, and some values that are not
-   correct according to the datasheet initialization table.
-
-   If you need a table with legal/default values tell the driver in
-   i2c_board_info.platform_data, and you will get the gm7113c_init
-   table instead. */
+/*
+ * This table has one illegal value, and some values that are not
+ * correct according to the datasheet initialization table.
+ *
+ *  If you need a table with legal/default values tell the driver in
+ *  i2c_board_info.platform_data, and you will get the gm7113c_init
+ *  table instead.
+ */
 
 /* SAA7113 Init codes */
 static const unsigned char saa7113_init[] = {
@@ -265,10 +267,12 @@ static const unsigned char saa7113_init[] = {
 	0x00, 0x00
 };
 
-/* GM7113C is a clone of the SAA7113 chip
-   This init table is copied out of the saa7113 datasheet.
-   In R_08 we enable "Automatic Field Detection" [AUFD],
-   this is disabled when saa711x_set_v4lstd is called. */
+/*
+ * GM7113C is a clone of the SAA7113 chip
+ *  This init table is copied out of the saa7113 datasheet.
+ *  In R_08 we enable "Automatic Field Detection" [AUFD],
+ *  this is disabled when saa711x_set_v4lstd is called.
+ */
 static const unsigned char gm7113c_init[] = {
 	R_01_INC_DELAY, 0x08,
 	R_02_INPUT_CNTL_1, 0xc0,
