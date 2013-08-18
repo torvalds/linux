@@ -21,8 +21,6 @@
 #include <mach/irqs.h>
 #include <mach/common.h>
 
-#define DAVINCI_GPIO_BASE 0x01C67000
-
 enum davinci_gpio_type {
 	GPIO_TYPE_DAVINCI = 0,
 	GPIO_TYPE_TNETV107X,
