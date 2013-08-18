@@ -13,7 +13,9 @@
  *
  */
 
-#define pr_fmt(fmt) "%s: " fmt, __func__
+#define pr_fmt(fmt) "%20s: " fmt, __func__
+#define prn(num) pr_debug(#num "=%d\n", num)
+#define prx(num) pr_debug(#num "=%x\n", num)
 
 #include <linux/err.h>
 #include <linux/module.h>
@@ -172,16 +174,36 @@ struct omap_aes_dev {
 static LIST_HEAD(dev_list);
 static DEFINE_SPINLOCK(list_lock);
 
+#ifdef DEBUG
+#define omap_aes_read(dd, offset)				\
+({								\
+	int _read_ret;						\
+	_read_ret = __raw_readl(dd->io_base + offset);		\
+	pr_debug("omap_aes_read(" #offset "=%#x)= %#x\n",	\
+		 offset, _read_ret);				\
+	_read_ret;						\
+})
+#else
 static inline u32 omap_aes_read(struct omap_aes_dev *dd, u32 offset)
 {
 	return __raw_readl(dd->io_base + offset);
 }
+#endif
 
+#ifdef DEBUG
+#define omap_aes_write(dd, offset, value)				\
+	do {								\
+		pr_debug("omap_aes_write(" #offset "=%#x) value=%#x\n",	\
+			 offset, value);				\
+		__raw_writel(value, dd->io_base + offset);		\
+	} while (0)
+#else
 static inline void omap_aes_write(struct omap_aes_dev *dd, u32 offset,
 				  u32 value)
 {
 	__raw_writel(value, dd->io_base + offset);
 }
+#endif
 
 static inline void omap_aes_write_mask(struct omap_aes_dev *dd, u32 offset,
 					u32 value, u32 mask)
