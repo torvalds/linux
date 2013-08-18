@@ -29,7 +29,7 @@ static const struct usb_device_id vendor##_id_table[] = {	\
 static struct usb_serial_driver vendor##_device = {		\
 	.driver = {						\
 		.owner =	THIS_MODULE,			\
-		.name =		"stringify(vendor)",		\
+		.name =		#vendor,			\
 	},							\
 	.id_table =		vendor##_id_table,		\
 	.num_ports =		1,				\
