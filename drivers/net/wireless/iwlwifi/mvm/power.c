@@ -297,11 +297,6 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 	}
 
 	if (cmd->flags & cpu_to_le16(POWER_FLAGS_ADVANCE_PM_ENA_MSK)) {
-		cmd->rx_data_timeout_uapsd =
-			cpu_to_le32(IWL_MVM_UAPSD_RX_DATA_TIMEOUT);
-		cmd->tx_data_timeout_uapsd =
-			cpu_to_le32(IWL_MVM_UAPSD_TX_DATA_TIMEOUT);
-
 		if (cmd->uapsd_ac_flags == (BIT(IEEE80211_AC_VO) |
 					    BIT(IEEE80211_AC_VI) |
 					    BIT(IEEE80211_AC_BE) |
@@ -316,10 +311,31 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 		}
 
 		cmd->uapsd_max_sp = IWL_UAPSD_MAX_SP;
-		cmd->heavy_tx_thld_packets =
-			IWL_MVM_PS_HEAVY_TX_THLD_PACKETS;
-		cmd->heavy_rx_thld_packets =
-			IWL_MVM_PS_HEAVY_RX_THLD_PACKETS;
+
+		if (mvm->cur_ucode == IWL_UCODE_WOWLAN || cmd->flags &
+		    cpu_to_le16(POWER_FLAGS_SNOOZE_ENA_MSK)) {
+			cmd->rx_data_timeout_uapsd =
+				cpu_to_le32(IWL_MVM_WOWLAN_PS_RX_DATA_TIMEOUT);
+			cmd->tx_data_timeout_uapsd =
+				cpu_to_le32(IWL_MVM_WOWLAN_PS_TX_DATA_TIMEOUT);
+		} else {
+			cmd->rx_data_timeout_uapsd =
+				cpu_to_le32(IWL_MVM_UAPSD_RX_DATA_TIMEOUT);
+			cmd->tx_data_timeout_uapsd =
+				cpu_to_le32(IWL_MVM_UAPSD_TX_DATA_TIMEOUT);
+		}
+
+		if (cmd->flags & cpu_to_le16(POWER_FLAGS_SNOOZE_ENA_MSK)) {
+			cmd->heavy_tx_thld_packets =
+				IWL_MVM_PS_SNOOZE_HEAVY_TX_THLD_PACKETS;
+			cmd->heavy_rx_thld_packets =
+				IWL_MVM_PS_SNOOZE_HEAVY_RX_THLD_PACKETS;
+		} else {
+			cmd->heavy_tx_thld_packets =
+				IWL_MVM_PS_HEAVY_TX_THLD_PACKETS;
+			cmd->heavy_rx_thld_packets =
+				IWL_MVM_PS_HEAVY_RX_THLD_PACKETS;
+		}
 		cmd->heavy_tx_thld_percentage =
 			IWL_MVM_PS_HEAVY_TX_THLD_PERCENT;
 		cmd->heavy_rx_thld_percentage =

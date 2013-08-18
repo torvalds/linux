@@ -290,7 +290,7 @@ struct iwl_beacon_filter_cmd {
 #define IWL_BF_ESCAPE_TIMER_MIN 0
 
 #define IWL_BA_ESCAPE_TIMER_DEFAULT 6
-#define IWL_BA_ESCAPE_TIMER_D3 6
+#define IWL_BA_ESCAPE_TIMER_D3 9
 #define IWL_BA_ESCAPE_TIMER_MAX 1024
 #define IWL_BA_ESCAPE_TIMER_MIN 0
 
