@@ -314,6 +314,7 @@ static int moxart_mac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	unsigned int len;
 	unsigned int tx_head = priv->tx_head;
 	u32 txdes1;
+	int ret = NETDEV_TX_BUSY;
 
 	desc = priv->tx_desc_base + (TX_REG_DESC_SIZE * tx_head);
 
@@ -321,7 +322,7 @@ static int moxart_mac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	if (readl(desc + TX_REG_OFFSET_DESC0) & TX_DESC0_DMA_OWN) {
 		net_dbg_ratelimited("no TX space for packet\n");
 		priv->stats.tx_dropped++;
-		return NETDEV_TX_BUSY;
+		goto out_unlock;
 	}
 
 	len = skb->len > TX_BUF_SIZE ? TX_BUF_SIZE : skb->len;
@@ -330,7 +331,7 @@ static int moxart_mac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 						   len, DMA_TO_DEVICE);
 	if (dma_mapping_error(&ndev->dev, priv->tx_mapping[tx_head])) {
 		netdev_err(ndev, "DMA mapping error\n");
-		return NETDEV_TX_BUSY;
+		goto out_unlock;
 	}
 
 	priv->tx_len[tx_head] = len;
@@ -360,10 +361,11 @@ static int moxart_mac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	priv->tx_head = TX_NEXT(tx_head);
 
 	ndev->trans_start = jiffies;
-
+	ret = NETDEV_TX_OK;
+out_unlock:
 	spin_unlock_irq(&priv->txlock);
 
-	return NETDEV_TX_OK;
+	return ret;
 }
 
 static struct net_device_stats *moxart_mac_get_stats(struct net_device *ndev)
