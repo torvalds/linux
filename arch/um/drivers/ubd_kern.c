@@ -1252,12 +1252,28 @@ static void prepare_flush_request(struct request *req,
 	io_req->op = UBD_FLUSH;
 }
 
+static bool submit_request(struct io_thread_req *io_req, struct ubd *dev)
+{
+	int n = os_write_file(thread_fd, &io_req,
+			     sizeof(io_req));
+	if (n != sizeof(io_req)) {
+		if (n != -EAGAIN)
+			printk("write to io thread failed, "
+			       "errno = %d\n", -n);
+		else if (list_empty(&dev->restart))
+			list_add(&dev->restart, &restart);
+
+		kfree(io_req);
+		return false;
+	}
+	return true;
+}
+
 /* Called with dev->lock held */
 static void do_ubd_request(struct request_queue *q)
 {
 	struct io_thread_req *io_req;
 	struct request *req;
-	int n;
 
 	while(1){
 		struct ubd *dev = q->queuedata;
@@ -1283,8 +1299,7 @@ static void do_ubd_request(struct request_queue *q)
 				return;
 			}
 			prepare_flush_request(req, io_req);
-			os_write_file(thread_fd, &io_req,
-					  sizeof(struct io_thread_req *));
+			submit_request(io_req, dev);
 		}
 
 		while(dev->start_sg < dev->end_sg){
@@ -1301,17 +1316,8 @@ static void do_ubd_request(struct request_queue *q)
 					(unsigned long long)dev->rq_pos << 9,
 					sg->offset, sg->length, sg_page(sg));
 
-			n = os_write_file(thread_fd, &io_req,
-					  sizeof(struct io_thread_req *));
-			if(n != sizeof(struct io_thread_req *)){
-				if(n != -EAGAIN)
-					printk("write to io thread failed, "
-					       "errno = %d\n", -n);
-				else if(list_empty(&dev->restart))
-					list_add(&dev->restart, &restart);
-				kfree(io_req);
+			if (submit_request(io_req, dev) == false)
 				return;
-			}
 
 			dev->rq_pos += sg->length >> 9;
 			dev->start_sg++;
