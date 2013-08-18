@@ -1075,7 +1075,7 @@ static int omap_aes_probe(struct platform_device *pdev)
 	struct omap_aes_dev *dd;
 	struct crypto_alg *algp;
 	struct resource res;
-	int err = -ENOMEM, i, j;
+	int err = -ENOMEM, i, j, irq = -1;
 	u32 reg;
 
 	dd = kzalloc(sizeof(struct omap_aes_dev), GFP_KERNEL);
@@ -1118,8 +1118,23 @@ static int omap_aes_probe(struct platform_device *pdev)
 	tasklet_init(&dd->queue_task, omap_aes_queue_task, (unsigned long)dd);
 
 	err = omap_aes_dma_init(dd);
-	if (err)
-		goto err_dma;
+	if (err && AES_REG_IRQ_STATUS(dd) && AES_REG_IRQ_ENABLE(dd)) {
+		dd->pio_only = 1;
+
+		irq = platform_get_irq(pdev, 0);
+		if (irq < 0) {
+			dev_err(dev, "can't get IRQ resource\n");
+			goto err_irq;
+		}
+
+		err = request_irq(irq, omap_aes_irq, 0,
+				dev_name(dev), dd);
+		if (err) {
+			dev_err(dev, "Unable to grab omap-aes IRQ\n");
+			goto err_irq;
+		}
+	}
+
 
 	INIT_LIST_HEAD(&dd->list);
 	spin_lock(&list_lock);
@@ -1147,8 +1162,11 @@ err_algs:
 		for (j = dd->pdata->algs_info[i].registered - 1; j >= 0; j--)
 			crypto_unregister_alg(
 					&dd->pdata->algs_info[i].algs_list[j]);
-	omap_aes_dma_cleanup(dd);
-err_dma:
+	if (dd->pio_only)
+		free_irq(irq, dd);
+	else
+		omap_aes_dma_cleanup(dd);
+err_irq:
 	tasklet_kill(&dd->done_task);
 	tasklet_kill(&dd->queue_task);
 	pm_runtime_disable(dev);
