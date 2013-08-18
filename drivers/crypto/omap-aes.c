@@ -1158,7 +1158,7 @@ static int omap_aes_probe(struct platform_device *pdev)
 	int err = -ENOMEM, i, j, irq = -1;
 	u32 reg;
 
-	dd = kzalloc(sizeof(struct omap_aes_dev), GFP_KERNEL);
+	dd = devm_kzalloc(dev, sizeof(struct omap_aes_dev), GFP_KERNEL);
 	if (dd == NULL) {
 		dev_err(dev, "unable to alloc data struct.\n");
 		goto err_data;
@@ -1251,7 +1251,6 @@ err_irq:
 	tasklet_kill(&dd->queue_task);
 	pm_runtime_disable(dev);
 err_res:
-	kfree(dd);
 	dd = NULL;
 err_data:
 	dev_err(dev, "initialization failed.\n");
@@ -1279,7 +1278,6 @@ static int omap_aes_remove(struct platform_device *pdev)
 	tasklet_kill(&dd->queue_task);
 	omap_aes_dma_cleanup(dd);
 	pm_runtime_disable(dd->dev);
-	kfree(dd);
 	dd = NULL;
 
 	return 0;
