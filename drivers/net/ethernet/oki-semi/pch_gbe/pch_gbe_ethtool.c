@@ -118,6 +118,7 @@ static int pch_gbe_set_settings(struct net_device *netdev,
 	 * filled by get_settings() on a down link, speed is -1: */
 	if (speed == UINT_MAX) {
 		speed = SPEED_1000;
+		ethtool_cmd_speed_set(ecmd, speed);
 		ecmd->duplex = DUPLEX_FULL;
 	}
 	ret = mii_ethtool_sset(&adapter->mii, ecmd);
