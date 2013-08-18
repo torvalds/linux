@@ -59,10 +59,12 @@ static void xfrm6_local_rxpmtu(struct sk_buff *skb, u32 mtu)
 void xfrm6_local_error(struct sk_buff *skb, u32 mtu)
 {
 	struct flowi6 fl6;
+	const struct ipv6hdr *hdr;
 	struct sock *sk = skb->sk;
 
+	hdr = skb->encapsulation ? inner_ipv6_hdr(skb) : ipv6_hdr(skb);
 	fl6.fl6_dport = inet_sk(sk)->inet_dport;
-	fl6.daddr = ipv6_hdr(skb)->daddr;
+	fl6.daddr = hdr->daddr;
 
 	ipv6_local_error(sk, EMSGSIZE, &fl6, mtu);
 }
