@@ -392,6 +392,8 @@ static int pinctrl_get_device_gpio_range(unsigned gpio,
 {
 	struct pinctrl_dev *pctldev = NULL;
 
+	mutex_lock(&pinctrldev_list_mutex);
+
 	/* Loop over the pin controllers */
 	list_for_each_entry(pctldev, &pinctrldev_list, node) {
 		struct pinctrl_gpio_range *range;
@@ -400,9 +402,12 @@ static int pinctrl_get_device_gpio_range(unsigned gpio,
 		if (range != NULL) {
 			*outdev = pctldev;
 			*outrange = range;
+			mutex_unlock(&pinctrldev_list_mutex);
 			return 0;
 		}
 	}
+
+	mutex_unlock(&pinctrldev_list_mutex);
 
 	return -EPROBE_DEFER;
 }
