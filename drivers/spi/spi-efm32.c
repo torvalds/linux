@@ -396,7 +396,6 @@ static int efm32_spi_probe(struct platform_device *pdev)
 	ddata->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(ddata->base)) {
 		ret = PTR_ERR(ddata->base);
-		dev_err(&pdev->dev, "failed to remap memory\n");
 		goto err;
 	}
 
