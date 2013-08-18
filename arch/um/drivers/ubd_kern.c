@@ -1476,7 +1476,8 @@ int io_thread(void *arg)
 	struct io_thread_req *req;
 	int n;
 
-	ignore_sigwinch_sig();
+	os_fix_helper_signals();
+
 	while(1){
 		n = os_read_file(kernel_fd, &req,
 				 sizeof(struct io_thread_req *));
