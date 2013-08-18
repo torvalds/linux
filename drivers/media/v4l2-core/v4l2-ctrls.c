@@ -1763,9 +1763,9 @@ struct v4l2_ctrl *v4l2_ctrl_new_std_menu(struct v4l2_ctrl_handler *hdl,
 {
 	const char * const *qmenu = NULL;
 	const s64 *qmenu_int = NULL;
+	unsigned int qmenu_int_len = 0;
 	const char *name;
 	enum v4l2_ctrl_type type;
-	unsigned int qmenu_int_len;
 	s32 min;
 	s32 step;
 	u32 flags;
