@@ -484,6 +484,8 @@ static int omap_aes_crypt_dma(struct crypto_tfm *tfm,
 	struct dma_slave_config cfg;
 	int ret;
 
+	dma_sync_sg_for_device(dd->dev, dd->in_sg, in_sg_len, DMA_TO_DEVICE);
+
 	memset(&cfg, 0, sizeof(cfg));
 
 	cfg.src_addr = dd->phys_base + AES_REG_DATA_N(dd, 0);
@@ -669,6 +671,8 @@ static void omap_aes_done_task(unsigned long data)
 	struct omap_aes_dev *dd = (struct omap_aes_dev *)data;
 
 	pr_debug("enter done_task\n");
+
+	dma_sync_sg_for_cpu(dd->dev, dd->in_sg, dd->in_sg_len, DMA_FROM_DEVICE);
 
 	omap_aes_crypt_dma_stop(dd);
 	omap_aes_finish_req(dd, 0);
