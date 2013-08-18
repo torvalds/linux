@@ -595,13 +595,12 @@ static void sh_mobile_ceu_remove_device(struct soc_camera_device *icd)
 static int sh_mobile_ceu_clock_start(struct soc_camera_host *ici)
 {
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
-	int ret;
 
 	pm_runtime_get_sync(ici->v4l2_dev.dev);
 
 	pcdev->buf_total = 0;
 
-	ret = sh_mobile_ceu_soft_reset(pcdev);
+	sh_mobile_ceu_soft_reset(pcdev);
 
 	return 0;
 }
