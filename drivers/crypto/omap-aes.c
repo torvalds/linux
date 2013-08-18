@@ -150,25 +150,13 @@ struct omap_aes_dev {
 	struct ablkcipher_request	*req;
 	size_t				total;
 	struct scatterlist		*in_sg;
-	struct scatterlist		in_sgl;
-	size_t				in_offset;
 	struct scatterlist		*out_sg;
-	struct scatterlist		out_sgl;
-	size_t				out_offset;
-
-	size_t			buflen;
-	void			*buf_in;
-	size_t			dma_size;
 	int			dma_in;
 	struct dma_chan		*dma_lch_in;
-	dma_addr_t		dma_addr_in;
-	void			*buf_out;
 	int			dma_out;
 	struct dma_chan		*dma_lch_out;
 	int			in_sg_len;
 	int			out_sg_len;
-	dma_addr_t		dma_addr_out;
-
 	const struct omap_aes_pdata	*pdata;
 };
 
@@ -347,33 +335,6 @@ static int omap_aes_dma_init(struct omap_aes_dev *dd)
 	dd->dma_lch_out = NULL;
 	dd->dma_lch_in = NULL;
 
-	dd->buf_in = (void *)__get_free_pages(GFP_KERNEL, OMAP_AES_CACHE_SIZE);
-	dd->buf_out = (void *)__get_free_pages(GFP_KERNEL, OMAP_AES_CACHE_SIZE);
-	dd->buflen = PAGE_SIZE << OMAP_AES_CACHE_SIZE;
-	dd->buflen &= ~(AES_BLOCK_SIZE - 1);
-
-	if (!dd->buf_in || !dd->buf_out) {
-		dev_err(dd->dev, "unable to alloc pages.\n");
-		goto err_alloc;
-	}
-
-	/* MAP here */
-	dd->dma_addr_in = dma_map_single(dd->dev, dd->buf_in, dd->buflen,
-					 DMA_TO_DEVICE);
-	if (dma_mapping_error(dd->dev, dd->dma_addr_in)) {
-		dev_err(dd->dev, "dma %d bytes error\n", dd->buflen);
-		err = -EINVAL;
-		goto err_map_in;
-	}
-
-	dd->dma_addr_out = dma_map_single(dd->dev, dd->buf_out, dd->buflen,
-					  DMA_FROM_DEVICE);
-	if (dma_mapping_error(dd->dev, dd->dma_addr_out)) {
-		dev_err(dd->dev, "dma %d bytes error\n", dd->buflen);
-		err = -EINVAL;
-		goto err_map_out;
-	}
-
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
@@ -400,14 +361,6 @@ static int omap_aes_dma_init(struct omap_aes_dev *dd)
 err_dma_out:
 	dma_release_channel(dd->dma_lch_in);
 err_dma_in:
-	dma_unmap_single(dd->dev, dd->dma_addr_out, dd->buflen,
-			 DMA_FROM_DEVICE);
-err_map_out:
-	dma_unmap_single(dd->dev, dd->dma_addr_in, dd->buflen, DMA_TO_DEVICE);
-err_map_in:
-	free_pages((unsigned long)dd->buf_out, OMAP_AES_CACHE_SIZE);
-	free_pages((unsigned long)dd->buf_in, OMAP_AES_CACHE_SIZE);
-err_alloc:
 	if (err)
 		pr_err("error: %d\n", err);
 	return err;
@@ -417,11 +370,6 @@ static void omap_aes_dma_cleanup(struct omap_aes_dev *dd)
 {
 	dma_release_channel(dd->dma_lch_out);
 	dma_release_channel(dd->dma_lch_in);
-	dma_unmap_single(dd->dev, dd->dma_addr_out, dd->buflen,
-			 DMA_FROM_DEVICE);
-	dma_unmap_single(dd->dev, dd->dma_addr_in, dd->buflen, DMA_TO_DEVICE);
-	free_pages((unsigned long)dd->buf_out, OMAP_AES_CACHE_SIZE);
-	free_pages((unsigned long)dd->buf_in, OMAP_AES_CACHE_SIZE);
 }
 
 static void sg_copy_buf(void *buf, struct scatterlist *sg,
@@ -436,42 +384,6 @@ static void sg_copy_buf(void *buf, struct scatterlist *sg,
 	scatterwalk_advance(&walk, start);
 	scatterwalk_copychunks(buf, &walk, nbytes, out);
 	scatterwalk_done(&walk, out, 0);
-}
-
-static int sg_copy(struct scatterlist **sg, size_t *offset, void *buf,
-		   size_t buflen, size_t total, int out)
-{
-	unsigned int count, off = 0;
-
-	while (buflen && total) {
-		count = min((*sg)->length - *offset, total);
-		count = min(count, buflen);
-
-		if (!count)
-			return off;
-
-		/*
-		 * buflen and total are AES_BLOCK_SIZE size aligned,
-		 * so count should be also aligned
-		 */
-
-		sg_copy_buf(buf + off, *sg, *offset, count, out);
-
-		off += count;
-		buflen -= count;
-		*offset += count;
-		total -= count;
-
-		if (*offset == (*sg)->length) {
-			*sg = sg_next(*sg);
-			if (*sg)
-				*offset = 0;
-			else
-				total = 0;
-		}
-	}
-
-	return off;
 }
 
 static int omap_aes_crypt_dma(struct crypto_tfm *tfm,
@@ -637,9 +549,7 @@ static int omap_aes_handle_queue(struct omap_aes_dev *dd,
 	/* assign new request to device */
 	dd->req = req;
 	dd->total = req->nbytes;
-	dd->in_offset = 0;
 	dd->in_sg = req->src;
-	dd->out_offset = 0;
 	dd->out_sg = req->dst;
 
 	dd->in_sg_len = scatterwalk_bytes_sglen(dd->in_sg, dd->total);
