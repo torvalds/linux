@@ -81,7 +81,7 @@ int __init foo_probe(void)
 	struct pinctrl_dev *pctl;
 
 	pctl = pinctrl_register(&foo_desc, <PARENT>, NULL);
-	if (IS_ERR(pctl))
+	if (!pctl)
 		pr_err("could not register foo pin driver\n");
 }
 
