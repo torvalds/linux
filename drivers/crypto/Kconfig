@@ -255,7 +255,7 @@ config CRYPTO_DEV_OMAP_SHAM
 
 config CRYPTO_DEV_OMAP_AES
 	tristate "Support for OMAP AES hw engine"
-	depends on ARCH_OMAP2 || ARCH_OMAP3
+	depends on ARCH_OMAP2 || ARCH_OMAP3 || ARCH_OMAP2PLUS
 	select CRYPTO_AES
 	select CRYPTO_BLKCIPHER2
 	help
