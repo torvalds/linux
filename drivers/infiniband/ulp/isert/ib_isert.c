@@ -869,7 +869,11 @@ isert_rx_login_req(struct iser_rx_desc *rx_desc, int rx_buflen,
 		 size, rx_buflen, MAX_KEY_VALUE_PAIRS);
 	memcpy(login->req_buf, &rx_desc->data[0], size);
 
-	complete(&isert_conn->conn_login_comp);
+	if (login->first_request) {
+		complete(&isert_conn->conn_login_comp);
+		return;
+	}
+	schedule_delayed_work(&conn->login_work, 0);
 }
 
 static void
@@ -2224,6 +2228,14 @@ isert_get_login_rx(struct iscsi_conn *conn, struct iscsi_login *login)
 	int ret;
 
 	pr_debug("isert_get_login_rx before conn_login_comp conn: %p\n", conn);
+	/*
+	 * For login requests after the first PDU, isert_rx_login_req() will
+	 * kick schedule_delayed_work(&conn->login_work) as the packet is
+	 * received, which turns this callback from iscsi_target_do_login_rx()
+	 * into a NOP.
+	 */
+	if (!login->first_request)
+		return 0;
 
 	ret = wait_for_completion_interruptible(&isert_conn->conn_login_comp);
 	if (ret)
