@@ -96,7 +96,8 @@ static int au_do_lock(const unsigned char dmsg, struct au_mvd_args *a)
 	a->mvd_h_dst_sb = au_sbr_sb(a->sb, a->mvd_bdst);
 	if (a->mvd_h_src_sb != a->mvd_h_dst_sb) {
 		a->rename_lock = 0;
-		err = au_pin(&a->pin, a->dentry, a->mvd_bdst, au_opt_udba(a->sb),
+		err = au_pin(&a->pin, a->dentry, a->mvd_bdst,
+			     au_opt_udba(a->sb),
 			     AuPin_MNT_WRITE | AuPin_DI_LOCKED);
 		if (!err) {
 			a->mvd_h_src_dir = a->mvd_h_src_parent->d_inode;
