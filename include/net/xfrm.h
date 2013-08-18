@@ -1728,9 +1728,9 @@ static inline int xfrm_skb_dst_mtu(struct sk_buff *skb)
 {
 	struct sock *sk = skb->sk;
 
-	if (sk && sk->sk_family == AF_INET6)
+	if (sk && skb->protocol == htons(ETH_P_IPV6))
 		return ip6_skb_dst_mtu(skb);
-	else if (sk && sk->sk_family == AF_INET)
+	else if (sk && skb->protocol == htons(ETH_P_IP))
 		return ip_skb_dst_mtu(skb);
 	return dst_mtu(skb_dst(skb));
 }

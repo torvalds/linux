@@ -216,9 +216,17 @@ int xfrm_inner_extract_output(struct xfrm_state *x, struct sk_buff *skb)
 
 void xfrm_local_error(struct sk_buff *skb, int mtu)
 {
+	unsigned int proto;
 	struct xfrm_state_afinfo *afinfo;
 
-	afinfo = xfrm_state_get_afinfo(skb->sk->sk_family);
+	if (skb->protocol == htons(ETH_P_IP))
+		proto = AF_INET;
+	else if (skb->protocol == htons(ETH_P_IPV6))
+		proto = AF_INET6;
+	else
+		return;
+
+	afinfo = xfrm_state_get_afinfo(proto);
 	if (!afinfo)
 		return;
 
