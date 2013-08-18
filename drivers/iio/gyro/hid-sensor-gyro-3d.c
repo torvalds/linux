@@ -175,18 +175,10 @@ static int gyro_3d_write_raw(struct iio_dev *indio_dev,
 	return ret;
 }
 
-static int gyro_3d_write_raw_get_fmt(struct iio_dev *indio_dev,
-			       struct iio_chan_spec const *chan,
-			       long mask)
-{
-	return IIO_VAL_INT_PLUS_MICRO;
-}
-
 static const struct iio_info gyro_3d_info = {
 	.driver_module = THIS_MODULE,
 	.read_raw = &gyro_3d_read_raw,
 	.write_raw = &gyro_3d_write_raw,
-	.write_raw_get_fmt = &gyro_3d_write_raw_get_fmt,
 };
 
 /* Function to push data to buffer */

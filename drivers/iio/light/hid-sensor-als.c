@@ -154,18 +154,10 @@ static int als_write_raw(struct iio_dev *indio_dev,
 	return ret;
 }
 
-static int als_write_raw_get_fmt(struct iio_dev *indio_dev,
-			       struct iio_chan_spec const *chan,
-			       long mask)
-{
-	return IIO_VAL_INT_PLUS_MICRO;
-}
-
 static const struct iio_info als_info = {
 	.driver_module = THIS_MODULE,
 	.read_raw = &als_read_raw,
 	.write_raw = &als_write_raw,
-	.write_raw_get_fmt = &als_write_raw_get_fmt,
 };
 
 /* Function to push data to buffer */
