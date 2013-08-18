@@ -386,7 +386,7 @@ config USB_NET2272
 
 config USB_NET2272_DMA
 	boolean "Support external DMA controller"
-	depends on USB_NET2272
+	depends on USB_NET2272 && HAS_DMA
 	help
 	  The NET2272 part can optionally support an external DMA
 	  controller, but your board has to have support in the
