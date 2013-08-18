@@ -591,17 +591,17 @@ TRACE_EVENT(rcu_invoke_kfree_callback,
 TRACE_EVENT(rcu_batch_end,
 
 	TP_PROTO(const char *rcuname, int callbacks_invoked,
-		 bool cb, bool nr, bool iit, bool risk),
+		 char cb, char nr, char iit, char risk),
 
 	TP_ARGS(rcuname, callbacks_invoked, cb, nr, iit, risk),
 
 	TP_STRUCT__entry(
 		__field(const char *, rcuname)
 		__field(int, callbacks_invoked)
-		__field(bool, cb)
-		__field(bool, nr)
-		__field(bool, iit)
-		__field(bool, risk)
+		__field(char, cb)
+		__field(char, nr)
+		__field(char, iit)
+		__field(char, risk)
 	),
 
 	TP_fast_assign(

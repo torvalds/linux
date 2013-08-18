@@ -273,7 +273,7 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp)
 	if (&rcp->rcucblist == rcp->donetail) {
 		RCU_TRACE(trace_rcu_batch_start(rcp->name, 0, 0, -1));
 		RCU_TRACE(trace_rcu_batch_end(rcp->name, 0,
-					      ACCESS_ONCE(rcp->rcucblist),
+					      !!ACCESS_ONCE(rcp->rcucblist),
 					      need_resched(),
 					      is_idle_task(current),
 					      false));
