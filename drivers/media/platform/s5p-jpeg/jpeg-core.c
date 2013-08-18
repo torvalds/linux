@@ -17,6 +17,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
@@ -1428,10 +1429,20 @@ static const struct dev_pm_ops s5p_jpeg_pm_ops = {
 	.runtime_resume	 = s5p_jpeg_runtime_resume,
 };
 
+#ifdef CONFIG_OF
+static const struct of_device_id s5p_jpeg_of_match[] = {
+	{ .compatible = "samsung,s5pv210-jpeg" },
+	{ .compatible = "samsung,exynos4210-jpeg" },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, s5p_jpeg_of_match);
+#endif
+
 static struct platform_driver s5p_jpeg_driver = {
 	.probe = s5p_jpeg_probe,
 	.remove = s5p_jpeg_remove,
 	.driver = {
+		.of_match_table = of_match_ptr(s5p_jpeg_of_match),
 		.owner = THIS_MODULE,
 		.name = S5P_JPEG_M2M_NAME,
 		.pm = &s5p_jpeg_pm_ops,
@@ -1443,4 +1454,3 @@ module_platform_driver(s5p_jpeg_driver);
 MODULE_AUTHOR("Andrzej Pietrasiewicz <andrzej.p@samsung.com>");
 MODULE_DESCRIPTION("Samsung JPEG codec driver");
 MODULE_LICENSE("GPL");
-
