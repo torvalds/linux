@@ -475,78 +475,80 @@ int au_mvdown(struct dentry *dentry, struct aufs_mvdown __user *uarg)
 {
 	int err, e;
 	unsigned char dmsg;
-	struct au_mvd_args args = {
-		.mvdown	= {
-			.output = {
-				.au_errno = 0
-			}
-		},
-		.dentry = dentry,
-		.inode	= dentry->d_inode,
-		.sb	= dentry->d_sb
-	};
+	struct au_mvd_args *args;
 
 	err = -EPERM;
 	if (unlikely(!capable(CAP_SYS_ADMIN)))
 		goto out;
 
-	err = copy_from_user(&args.mvdown, uarg, sizeof(args.mvdown));
+	err = -ENOMEM;
+	args = kmalloc(sizeof(*args), GFP_NOFS);
+	if (unlikely(!args))
+		goto out;
+
+	err = copy_from_user(&args->mvdown, uarg, sizeof(args->mvdown));
 	if (!err)
 		err = !access_ok(VERIFY_WRITE, &uarg->output,
 				 sizeof(uarg->output));
 	if (unlikely(err)) {
 		err = -EFAULT;
 		AuTraceErr(err);
-		goto out;
+		goto out_free;
 	}
-	AuDbg("flags 0x%x\n", args.mvdown.flags);
+	AuDbg("flags 0x%x\n", args->mvdown.flags);
+	args->mvdown.output.au_errno = 0;
+	args->dentry = dentry;
+	args->inode = dentry->d_inode;
+	args->sb = dentry->d_sb;
 
 	err = -ENOENT;
-	dmsg = !!(args.mvdown.flags & AUFS_MVDOWN_DMSG);
-	args.parent = dget_parent(dentry);
-	args.dir = args.parent->d_inode;
-	mutex_lock_nested(&args.dir->i_mutex, I_MUTEX_PARENT);
-	dput(args.parent);
-	if (unlikely(args.parent != dentry->d_parent)) {
+	dmsg = !!(args->mvdown.flags & AUFS_MVDOWN_DMSG);
+	args->parent = dget_parent(dentry);
+	args->dir = args->parent->d_inode;
+	mutex_lock_nested(&args->dir->i_mutex, I_MUTEX_PARENT);
+	dput(args->parent);
+	if (unlikely(args->parent != dentry->d_parent)) {
 		AU_MVD_PR(dmsg, "parent dir is moved\n");
 		goto out_dir;
 	}
 
-	mutex_lock_nested(&args.inode->i_mutex, I_MUTEX_CHILD);
+	mutex_lock_nested(&args->inode->i_mutex, I_MUTEX_CHILD);
 	err = aufs_read_lock(dentry, AuLock_DW | AuLock_FLUSH);
 	if (unlikely(err))
 		goto out_inode;
 
-	di_write_lock_parent(args.parent);
-	err = au_mvd_args(dmsg, &args);
+	di_write_lock_parent(args->parent);
+	err = au_mvd_args(dmsg, args);
 	if (unlikely(err))
 		goto out_parent;
 
 	AuDbgDentry(dentry);
-	AuDbgInode(args.inode);
-	err = au_do_mvdown(dmsg, &args);
+	AuDbgInode(args->inode);
+	err = au_do_mvdown(dmsg, args);
 	if (unlikely(err))
 		goto out_parent;
 	AuDbgDentry(dentry);
-	AuDbgInode(args.inode);
+	AuDbgInode(args->inode);
 
-	au_cpup_attr_timesizes(args.dir);
-	au_cpup_attr_timesizes(args.inode);
-	au_cpup_igen(args.inode, au_h_iptr(args.inode, args.mvd_bdst));
+	au_cpup_attr_timesizes(args->dir);
+	au_cpup_attr_timesizes(args->inode);
+	au_cpup_igen(args->inode, au_h_iptr(args->inode, args->mvd_bdst));
 	/* au_digen_dec(dentry); */
 
 out_parent:
-	di_write_unlock(args.parent);
+	di_write_unlock(args->parent);
 	aufs_read_unlock(dentry, AuLock_DW);
 out_inode:
-	mutex_unlock(&args.inode->i_mutex);
+	mutex_unlock(&args->inode->i_mutex);
 out_dir:
-	mutex_unlock(&args.dir->i_mutex);
-out:
-	e = copy_to_user(&uarg->output, &args.mvdown.output,
-			 sizeof(args.mvdown.output));
+	mutex_unlock(&args->dir->i_mutex);
+out_free:
+	e = copy_to_user(&uarg->output, &args->mvdown.output,
+			 sizeof(args->mvdown.output));
 	if (unlikely(e))
 		err = -EFAULT;
+	kfree(args);
+out:
 	AuTraceErr(err);
 	return err;
 }
