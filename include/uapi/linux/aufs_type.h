@@ -239,7 +239,7 @@ enum {
 };
 
 /* flags for move-down */
-#define AUFS_MVDOWN_VERBOSE	1
+#define AUFS_MVDOWN_DMSG	1
 /* will be added more */
 
 struct aufs_mvdown {
@@ -248,7 +248,10 @@ struct aufs_mvdown {
 	/* will be added more */
 
 	/* output */
-	int8_t		au_errno;
+	struct {
+		int16_t	bsrc, bdst;
+		int8_t	au_errno;
+	} output;
 } __aligned(8);
 
 /* ---------------------------------------------------------------------- */

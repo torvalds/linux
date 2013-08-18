@@ -26,7 +26,6 @@ enum {
 
 struct au_mvd_args {
 	struct {
-		aufs_bindex_t bindex;
 		struct super_block *h_sb;
 		struct dentry *h_parent;
 		struct au_hinode *hdir;
@@ -42,13 +41,15 @@ struct au_mvd_args {
 	struct au_pin pin;
 };
 
-#define mvd_bsrc		info[AUFS_MVDOWN_SRC].bindex
+#define mvd_errno		mvdown.output.au_errno
+#define mvd_bsrc		mvdown.output.bsrc
+#define mvd_bdst		mvdown.output.bdst
+
 #define mvd_h_src_sb		info[AUFS_MVDOWN_SRC].h_sb
 #define mvd_h_src_parent	info[AUFS_MVDOWN_SRC].h_parent
 #define mvd_hdir_src		info[AUFS_MVDOWN_SRC].hdir
 #define mvd_h_src_dir		info[AUFS_MVDOWN_SRC].h_dir
 
-#define mvd_bdst		info[AUFS_MVDOWN_DST].bindex
 #define mvd_h_dst_sb		info[AUFS_MVDOWN_DST].h_sb
 #define mvd_h_dst_parent	info[AUFS_MVDOWN_DST].h_parent
 #define mvd_hdir_dst		info[AUFS_MVDOWN_DST].hdir
@@ -60,7 +61,7 @@ struct au_mvd_args {
 	} while (0)
 
 /* make the parent dir on bdst */
-static int au_do_mkdir(const unsigned char verbose, struct au_mvd_args *a)
+static int au_do_mkdir(const unsigned char dmsg, struct au_mvd_args *a)
 {
 	int err;
 
@@ -74,7 +75,7 @@ static int au_do_mkdir(const unsigned char verbose, struct au_mvd_args *a)
 	if (!a->mvd_h_dst_parent) {
 		err = au_cpdown_dirs(a->dentry, a->mvd_bdst);
 		if (unlikely(err)) {
-			AU_MVD_PR(verbose, "cpdown_dirs failed\n");
+			AU_MVD_PR(dmsg, "cpdown_dirs failed\n");
 			goto out;
 		}
 		a->mvd_h_dst_parent = au_h_dptr(a->parent, a->mvd_bdst);
@@ -86,7 +87,7 @@ out:
 }
 
 /* lock them all */
-static int au_do_lock(const unsigned char verbose, struct au_mvd_args *a)
+static int au_do_lock(const unsigned char dmsg, struct au_mvd_args *a)
 {
 	int err;
 	struct dentry *h_trap;
@@ -102,7 +103,7 @@ static int au_do_lock(const unsigned char verbose, struct au_mvd_args *a)
 			mutex_lock_nested(&a->mvd_h_src_dir->i_mutex,
 					  AuLsc_I_PARENT3);
 		} else
-			AU_MVD_PR(verbose, "pin failed\n");
+			AU_MVD_PR(dmsg, "pin failed\n");
 		goto out;
 	}
 
@@ -122,7 +123,7 @@ out:
 	return err;
 }
 
-static void au_do_unlock(const unsigned char verbose, struct au_mvd_args *a)
+static void au_do_unlock(const unsigned char dmsg, struct au_mvd_args *a)
 {
 	if (!a->rename_lock) {
 		mutex_unlock(&a->mvd_h_src_dir->i_mutex);
@@ -133,7 +134,7 @@ static void au_do_unlock(const unsigned char verbose, struct au_mvd_args *a)
 }
 
 /* copy-down the file */
-static int au_do_cpdown(const unsigned char verbose, struct au_mvd_args *a)
+static int au_do_cpdown(const unsigned char dmsg, struct au_mvd_args *a)
 {
 	int err;
 	struct au_cp_generic cpg = {
@@ -148,7 +149,7 @@ static int au_do_cpdown(const unsigned char verbose, struct au_mvd_args *a)
 	AuDbg("b%d, b%d\n", cpg.bsrc, cpg.bdst);
 	err = au_sio_cpdown_simple(&cpg);
 	if (unlikely(err))
-		AU_MVD_PR(verbose, "cpdown failed\n");
+		AU_MVD_PR(dmsg, "cpdown failed\n");
 
 	AuTraceErr(err);
 	return err;
@@ -158,7 +159,7 @@ static int au_do_cpdown(const unsigned char verbose, struct au_mvd_args *a)
  * unlink the whiteout on bdst if exist which may be created by UDBA while we
  * were sleeping
  */
-static int au_do_unlink_wh(const unsigned char verbose, struct au_mvd_args *a)
+static int au_do_unlink_wh(const unsigned char dmsg, struct au_mvd_args *a)
 {
 	int err;
 	struct path h_path;
@@ -168,7 +169,7 @@ static int au_do_unlink_wh(const unsigned char verbose, struct au_mvd_args *a)
 	h_path.dentry = au_wh_lkup(a->mvd_h_dst_parent, &a->dentry->d_name, br);
 	err = PTR_ERR(h_path.dentry);
 	if (IS_ERR(h_path.dentry)) {
-		AU_MVD_PR(verbose, "wh_lkup failed\n");
+		AU_MVD_PR(dmsg, "wh_lkup failed\n");
 		goto out;
 	}
 
@@ -178,7 +179,7 @@ static int au_do_unlink_wh(const unsigned char verbose, struct au_mvd_args *a)
 		err = vfsub_unlink(a->mvd_h_dst_parent->d_inode, &h_path,
 				   /*force*/0);
 		if (unlikely(err))
-			AU_MVD_PR(verbose, "wh_unlink failed\n");
+			AU_MVD_PR(dmsg, "wh_unlink failed\n");
 	}
 	dput(h_path.dentry);
 
@@ -192,7 +193,7 @@ out:
  * Note: the target file MAY be modified by UDBA between this mutex_unlock() and
  *	mutex_lock() in vfs_unlink(). in this case, such changes may be lost.
  */
-static int au_do_unlink(const unsigned char verbose, struct au_mvd_args *a)
+static int au_do_unlink(const unsigned char dmsg, struct au_mvd_args *a)
 {
 	int err;
 	struct path h_path;
@@ -201,7 +202,7 @@ static int au_do_unlink(const unsigned char verbose, struct au_mvd_args *a)
 	h_path.dentry = au_h_dptr(a->dentry, a->mvd_bsrc);
 	err = vfsub_unlink(a->mvd_h_src_dir, &h_path, /*force*/0);
 	if (unlikely(err))
-		AU_MVD_PR(verbose, "unlink failed\n");
+		AU_MVD_PR(dmsg, "unlink failed\n");
 
 	AuTraceErr(err);
 	return err;
@@ -213,13 +214,13 @@ static int au_do_unlink(const unsigned char verbose, struct au_mvd_args *a)
  * - copy-down the file (with whtmp name and rename)
  * - unlink the bsrc file
  */
-static int au_do_mvdown(const unsigned char verbose, struct au_mvd_args *a)
+static int au_do_mvdown(const unsigned char dmsg, struct au_mvd_args *a)
 {
 	int err;
 
-	err = au_do_mkdir(verbose, a);
+	err = au_do_mkdir(dmsg, a);
 	if (!err)
-		err = au_do_lock(verbose, a);
+		err = au_do_lock(dmsg, a);
 	if (unlikely(err))
 		goto out;
 
@@ -228,11 +229,11 @@ static int au_do_mvdown(const unsigned char verbose, struct au_mvd_args *a)
 	 * harmless in aufs.
 	 */
 
-	err = au_do_cpdown(verbose, a);
+	err = au_do_cpdown(dmsg, a);
 	if (!err)
-		err = au_do_unlink_wh(verbose, a);
+		err = au_do_unlink_wh(dmsg, a);
 	if (!err)
-		err = au_do_unlink(verbose, a);
+		err = au_do_unlink(dmsg, a);
 	if (unlikely(err))
 		goto out_unlock;
 
@@ -247,7 +248,7 @@ static int au_do_mvdown(const unsigned char verbose, struct au_mvd_args *a)
 		au_set_ibend(a->inode, a->mvd_bdst);
 
 out_unlock:
-	au_do_unlock(verbose, a);
+	au_do_unlock(dmsg, a);
 out:
 	AuTraceErr(err);
 	return err;
@@ -271,7 +272,7 @@ static int find_lower_writable(struct super_block *sb, aufs_bindex_t bindex)
 }
 
 /* make sure the file is idle */
-static int au_mvd_args_busy(const unsigned char verbose, struct au_mvd_args *a)
+static int au_mvd_args_busy(const unsigned char dmsg, struct au_mvd_args *a)
 {
 	int err, plinked;
 	struct inode *h_src_inode;
@@ -288,7 +289,7 @@ static int au_mvd_args_busy(const unsigned char verbose, struct au_mvd_args *a)
 		goto out;
 
 	err = -EBUSY;
-	AU_MVD_PR(verbose,
+	AU_MVD_PR(dmsg,
 		  "b%d, d{b%d, c%u?}, i{c%d?, l%u}, hi{l%u}, p{%d, %d}\n",
 		  a->mvd_bsrc, au_dbstart(a->dentry), a->dentry->d_count,
 		  atomic_read(&a->inode->i_count), a->inode->i_nlink,
@@ -301,7 +302,7 @@ out:
 }
 
 /* make sure the parent dir is fine */
-static int au_mvd_args_parent(const unsigned char verbose,
+static int au_mvd_args_parent(const unsigned char dmsg,
 			      struct au_mvd_args *a)
 {
 	int err;
@@ -310,7 +311,7 @@ static int au_mvd_args_parent(const unsigned char verbose,
 	err = 0;
 	if (unlikely(au_alive_dir(a->parent))) {
 		err = -ENOENT;
-		AU_MVD_PR(verbose, "parent dir is dead\n");
+		AU_MVD_PR(dmsg, "parent dir is dead\n");
 		goto out;
 	}
 
@@ -320,8 +321,8 @@ static int au_mvd_args_parent(const unsigned char verbose,
 	if (unlikely((bindex >= 0 && bindex < a->mvd_bdst)
 		     || (a->bopq != -1 && a->bopq < a->mvd_bdst))) {
 		err = -EINVAL;
-		a->mvdown.au_errno = EAU_MVDOWN_OPAQUE;
-		AU_MVD_PR(verbose, "ancestor is opaque b%d, b%d\n",
+		a->mvd_errno = EAU_MVDOWN_OPAQUE;
+		AU_MVD_PR(dmsg, "ancestor is opaque b%d, b%d\n",
 			  a->bopq, a->mvd_bdst);
 	}
 
@@ -330,7 +331,7 @@ out:
 	return err;
 }
 
-static int au_mvd_args_intermediate(const unsigned char verbose,
+static int au_mvd_args_intermediate(const unsigned char dmsg,
 				    struct au_mvd_args *a)
 {
 	int err;
@@ -359,7 +360,7 @@ static int au_mvd_args_intermediate(const unsigned char verbose,
 	au_rw_write_unlock(&tmp->di_rwsem);
 	au_di_free(tmp);
 	if (unlikely(err < 0))
-		AU_MVD_PR(verbose, "failed look-up lower\n");
+		AU_MVD_PR(dmsg, "failed look-up lower\n");
 
 	/*
 	 * here, we have these cases.
@@ -399,13 +400,13 @@ static int au_mvd_args_intermediate(const unsigned char verbose,
 	    && a->mvd_bsrc < a->bwh
 	    && a->bwh != -1
 	    && a->bwh < a->mvd_bdst) {
-		a->mvdown.au_errno = EAU_MVDOWN_WHITEOUT;
-		AU_MVD_PR(verbose, "bsrc %d, bdst %d, bfound %d, bwh %d\n",
+		a->mvd_errno = EAU_MVDOWN_WHITEOUT;
+		AU_MVD_PR(dmsg, "bsrc %d, bdst %d, bfound %d, bwh %d\n",
 			  a->mvd_bsrc, a->mvd_bdst, a->bfound, a->bwh);
 		goto out;
 	} else if (a->bfound != -1 && a->bfound < a->mvd_bdst) {
-		a->mvdown.au_errno = EAU_MVDOWN_UPPER;
-		AU_MVD_PR(verbose, "bdst %d, bfound %d\n",
+		a->mvd_errno = EAU_MVDOWN_UPPER;
+		AU_MVD_PR(dmsg, "bdst %d, bfound %d\n",
 			  a->mvd_bdst, a->bfound);
 		goto out;
 	}
@@ -417,7 +418,7 @@ out:
 	return err;
 }
 
-static int au_mvd_args_exist(const unsigned char verbose, struct au_mvd_args *a)
+static int au_mvd_args_exist(const unsigned char dmsg, struct au_mvd_args *a)
 {
 	int err;
 
@@ -426,7 +427,7 @@ static int au_mvd_args_exist(const unsigned char verbose, struct au_mvd_args *a)
 	return err;
 }
 
-static int au_mvd_args(const unsigned char verbose, struct au_mvd_args *a)
+static int au_mvd_args(const unsigned char dmsg, struct au_mvd_args *a)
 {
 	int err;
 	struct au_branch *br;
@@ -438,8 +439,8 @@ static int au_mvd_args(const unsigned char verbose, struct au_mvd_args *a)
 	err = -EINVAL;
 	a->mvd_bsrc = au_ibstart(a->inode);
 	if (unlikely(a->mvd_bsrc == au_sbend(a->sb))) {
-		a->mvdown.au_errno = EAU_MVDOWN_BOTTOM;
-		AU_MVD_PR(verbose, "on the bottom\n");
+		a->mvd_errno = EAU_MVDOWN_BOTTOM;
+		AU_MVD_PR(dmsg, "on the bottom\n");
 		goto out;
 	}
 	br = au_sbr(a->sb, a->mvd_bsrc);
@@ -450,18 +451,18 @@ static int au_mvd_args(const unsigned char verbose, struct au_mvd_args *a)
 	err = -EINVAL;
 	a->mvd_bdst = find_lower_writable(a->sb, a->mvd_bsrc);
 	if (unlikely(a->mvd_bdst < 0)) {
-		a->mvdown.au_errno = EAU_MVDOWN_BOTTOM;
-		AU_MVD_PR(verbose, "no writable lower branch\n");
+		a->mvd_errno = EAU_MVDOWN_BOTTOM;
+		AU_MVD_PR(dmsg, "no writable lower branch\n");
 		goto out;
 	}
 
-	err = au_mvd_args_busy(verbose, a);
+	err = au_mvd_args_busy(dmsg, a);
 	if (!err)
-		err = au_mvd_args_parent(verbose, a);
+		err = au_mvd_args_parent(dmsg, a);
 	if (!err)
-		err = au_mvd_args_intermediate(verbose, a);
+		err = au_mvd_args_intermediate(dmsg, a);
 	if (!err)
-		err = au_mvd_args_exist(verbose, a);
+		err = au_mvd_args_exist(dmsg, a);
 	if (!err)
 		AuDbg("b%d, b%d\n", a->mvd_bsrc, a->mvd_bdst);
 
@@ -473,10 +474,12 @@ out:
 int au_mvdown(struct dentry *dentry, struct aufs_mvdown __user *uarg)
 {
 	int err, e;
-	unsigned char verbose;
+	unsigned char dmsg;
 	struct au_mvd_args args = {
 		.mvdown	= {
-			.au_errno = 0
+			.output = {
+				.au_errno = 0
+			}
 		},
 		.dentry = dentry,
 		.inode	= dentry->d_inode,
@@ -489,8 +492,8 @@ int au_mvdown(struct dentry *dentry, struct aufs_mvdown __user *uarg)
 
 	err = copy_from_user(&args.mvdown, uarg, sizeof(args.mvdown));
 	if (!err)
-		err = !access_ok(VERIFY_WRITE, &uarg->au_errno,
-				 sizeof(uarg->au_errno));
+		err = !access_ok(VERIFY_WRITE, &uarg->output,
+				 sizeof(uarg->output));
 	if (unlikely(err)) {
 		err = -EFAULT;
 		AuTraceErr(err);
@@ -499,13 +502,13 @@ int au_mvdown(struct dentry *dentry, struct aufs_mvdown __user *uarg)
 	AuDbg("flags 0x%x\n", args.mvdown.flags);
 
 	err = -ENOENT;
-	verbose = !!(args.mvdown.flags & AUFS_MVDOWN_VERBOSE);
+	dmsg = !!(args.mvdown.flags & AUFS_MVDOWN_DMSG);
 	args.parent = dget_parent(dentry);
 	args.dir = args.parent->d_inode;
 	mutex_lock_nested(&args.dir->i_mutex, I_MUTEX_PARENT);
 	dput(args.parent);
 	if (unlikely(args.parent != dentry->d_parent)) {
-		AU_MVD_PR(verbose, "parent dir is moved\n");
+		AU_MVD_PR(dmsg, "parent dir is moved\n");
 		goto out_dir;
 	}
 
@@ -515,13 +518,13 @@ int au_mvdown(struct dentry *dentry, struct aufs_mvdown __user *uarg)
 		goto out_inode;
 
 	di_write_lock_parent(args.parent);
-	err = au_mvd_args(verbose, &args);
+	err = au_mvd_args(dmsg, &args);
 	if (unlikely(err))
 		goto out_parent;
 
 	AuDbgDentry(dentry);
 	AuDbgInode(args.inode);
-	err = au_do_mvdown(verbose, &args);
+	err = au_do_mvdown(dmsg, &args);
 	if (unlikely(err))
 		goto out_parent;
 	AuDbgDentry(dentry);
@@ -540,7 +543,8 @@ out_inode:
 out_dir:
 	mutex_unlock(&args.dir->i_mutex);
 out:
-	e = __put_user(args.mvdown.au_errno, &uarg->au_errno);
+	e = copy_to_user(&uarg->output, &args.mvdown.output,
+			 sizeof(args.mvdown.output));
 	if (unlikely(e))
 		err = -EFAULT;
 	AuTraceErr(err);
