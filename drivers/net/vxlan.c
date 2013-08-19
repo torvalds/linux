@@ -57,6 +57,7 @@
 #define VXLAN_VID_MASK	(VXLAN_N_VID - 1)
 /* IP header + UDP + VXLAN + Ethernet header */
 #define VXLAN_HEADROOM (20 + 8 + 8 + 14)
+#define VXLAN_HLEN (sizeof(struct udphdr) + sizeof(struct vxlanhdr))
 
 #define VXLAN_FLAGS 0x08000000	/* struct vxlanhdr.vx_flags required value. */
 
@@ -868,23 +869,18 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	__u32 vni;
 	int err;
 
-	/* pop off outer UDP header */
-	__skb_pull(skb, sizeof(struct udphdr));
-
 	/* Need Vxlan and inner Ethernet header to be present */
-	if (!pskb_may_pull(skb, sizeof(struct vxlanhdr)))
+	if (!pskb_may_pull(skb, VXLAN_HLEN))
 		goto error;
 
-	/* Drop packets with reserved bits set */
-	vxh = (struct vxlanhdr *) skb->data;
+	/* Return packets with reserved bits set */
+	vxh = (struct vxlanhdr *)(udp_hdr(skb) + 1);
 	if (vxh->vx_flags != htonl(VXLAN_FLAGS) ||
 	    (vxh->vx_vni & htonl(0xff))) {
 		netdev_dbg(skb->dev, "invalid vxlan flags=%#x vni=%#x\n",
 			   ntohl(vxh->vx_flags), ntohl(vxh->vx_vni));
 		goto error;
 	}
-
-	__skb_pull(skb, sizeof(struct vxlanhdr));
 
 	/* Is this VNI defined? */
 	vni = ntohl(vxh->vx_vni) >> 8;
@@ -896,7 +892,7 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		goto drop;
 	}
 
-	if (!pskb_may_pull(skb, ETH_HLEN)) {
+	if (iptunnel_pull_header(skb, VXLAN_HLEN, htons(ETH_P_TEB))) {
 		vxlan->dev->stats.rx_length_errors++;
 		vxlan->dev->stats.rx_errors++;
 		goto drop;
@@ -904,8 +900,6 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 
 	skb_reset_mac_header(skb);
 
-	/* Re-examine inner Ethernet packet */
-	oip = ip_hdr(skb);
 	skb->protocol = eth_type_trans(skb, vxlan->dev);
 
 	/* Ignore packet loops (and multicast echo) */
@@ -913,11 +907,12 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 			       vxlan->dev->dev_addr) == 0)
 		goto drop;
 
+	/* Re-examine inner Ethernet packet */
+	oip = ip_hdr(skb);
 	if ((vxlan->flags & VXLAN_F_LEARN) &&
 	    vxlan_snoop(skb->dev, oip->saddr, eth_hdr(skb)->h_source))
 		goto drop;
 
-	__skb_tunnel_rx(skb, vxlan->dev);
 	skb_reset_network_header(skb);
 
 	/* If the NIC driver gave us an encapsulated packet with
@@ -953,9 +948,6 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 
 	return 0;
 error:
-	/* Put UDP header back */
-	__skb_push(skb, sizeof(struct udphdr));
-
 	return 1;
 drop:
 	/* Consume bad packet */
