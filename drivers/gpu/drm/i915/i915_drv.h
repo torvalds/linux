@@ -1562,8 +1562,6 @@ struct drm_i915_file_private {
 #define SUPPORTS_EDP(dev)		(IS_IRONLAKE_M(dev))
 #define SUPPORTS_TV(dev)		(INTEL_INFO(dev)->supports_tv)
 #define I915_HAS_HOTPLUG(dev)		 (INTEL_INFO(dev)->has_hotplug)
-/* dsparb controlled by hw only */
-#define DSPARB_HWCONTROL(dev) (IS_G4X(dev) || IS_IRONLAKE(dev))
 
 #define HAS_FW_BLC(dev) (INTEL_INFO(dev)->gen > 2)
 #define HAS_PIPE_CXSR(dev) (INTEL_INFO(dev)->has_pipe_cxsr)
