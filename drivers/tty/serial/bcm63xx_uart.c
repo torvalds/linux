@@ -302,7 +302,9 @@ static void bcm_uart_do_rx(struct uart_port *port)
 
 	} while (--max_count);
 
+	spin_unlock(&port->lock);
 	tty_flip_buffer_push(tty_port);
+	spin_lock(&port->lock);
 }
 
 /*
