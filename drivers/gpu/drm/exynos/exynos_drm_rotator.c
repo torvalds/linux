@@ -472,10 +472,8 @@ static int rotator_init_prop_list(struct exynos_drm_ippdrv *ippdrv)
 	struct drm_exynos_ipp_prop_list *prop_list;
 
 	prop_list = devm_kzalloc(ippdrv->dev, sizeof(*prop_list), GFP_KERNEL);
-	if (!prop_list) {
-		DRM_ERROR("failed to alloc property list.\n");
+	if (!prop_list)
 		return -ENOMEM;
-	}
 
 	prop_list->version = 1;
 	prop_list->flip = (1 << EXYNOS_DRM_FLIP_VERTICAL) |
@@ -713,10 +711,8 @@ static int rotator_probe(struct platform_device *pdev)
 	}
 
 	rot = devm_kzalloc(dev, sizeof(*rot), GFP_KERNEL);
-	if (!rot) {
-		dev_err(dev, "failed to allocate rot\n");
+	if (!rot)
 		return -ENOMEM;
-	}
 
 	match = of_match_node(exynos_rotator_match, dev->of_node);
 	if (!match) {

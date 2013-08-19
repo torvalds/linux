@@ -191,10 +191,8 @@ struct exynos_drm_gem_obj *exynos_drm_gem_init(struct drm_device *dev,
 	int ret;
 
 	exynos_gem_obj = kzalloc(sizeof(*exynos_gem_obj), GFP_KERNEL);
-	if (!exynos_gem_obj) {
-		DRM_ERROR("failed to allocate exynos gem object\n");
+	if (!exynos_gem_obj)
 		return NULL;
-	}
 
 	exynos_gem_obj->size = size;
 	obj = &exynos_gem_obj->base;

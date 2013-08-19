@@ -447,10 +447,8 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
 	}
 
 	g2d_userptr = kzalloc(sizeof(*g2d_userptr), GFP_KERNEL);
-	if (!g2d_userptr) {
-		DRM_ERROR("failed to allocate g2d_userptr.\n");
+	if (!g2d_userptr)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	atomic_set(&g2d_userptr->refcount, 1);
 
@@ -500,7 +498,6 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
 
 	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
 	if (!sgt) {
-		DRM_ERROR("failed to allocate sg table.\n");
 		ret = -ENOMEM;
 		goto err_free_userptr;
 	}
@@ -1087,8 +1084,6 @@ int exynos_g2d_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
 
 		e = kzalloc(sizeof(*node->event), GFP_KERNEL);
 		if (!e) {
-			dev_err(dev, "failed to allocate event\n");
-
 			spin_lock_irqsave(&drm_dev->event_lock, flags);
 			file->event_space += sizeof(e->event);
 			spin_unlock_irqrestore(&drm_dev->event_lock, flags);
@@ -1318,10 +1313,8 @@ static int g2d_open(struct drm_device *drm_dev, struct device *dev,
 	struct exynos_drm_g2d_private *g2d_priv;
 
 	g2d_priv = kzalloc(sizeof(*g2d_priv), GFP_KERNEL);
-	if (!g2d_priv) {
-		dev_err(dev, "failed to allocate g2d private data\n");
+	if (!g2d_priv)
 		return -ENOMEM;
-	}
 
 	g2d_priv->dev = dev;
 	file_priv->g2d_priv = g2d_priv;
@@ -1377,10 +1370,8 @@ static int g2d_probe(struct platform_device *pdev)
 	int ret;
 
 	g2d = devm_kzalloc(dev, sizeof(*g2d), GFP_KERNEL);
-	if (!g2d) {
-		dev_err(dev, "failed to allocate driver data\n");
+	if (!g2d)
 		return -ENOMEM;
-	}
 
 	g2d->runqueue_slab = kmem_cache_create("g2d_runqueue_slab",
 			sizeof(struct g2d_runqueue_node), 0, 0, NULL);

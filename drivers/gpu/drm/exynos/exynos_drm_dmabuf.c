@@ -231,7 +231,6 @@ struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
 
 	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
 	if (!buffer) {
-		DRM_ERROR("failed to allocate exynos_drm_gem_buf.\n");
 		ret = -ENOMEM;
 		goto err_unmap_attach;
 	}

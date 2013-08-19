@@ -248,10 +248,8 @@ int exynos_drm_fbdev_init(struct drm_device *dev)
 		return 0;
 
 	fbdev = kzalloc(sizeof(*fbdev), GFP_KERNEL);
-	if (!fbdev) {
-		DRM_ERROR("failed to allocate drm fbdev.\n");
+	if (!fbdev)
 		return -ENOMEM;
-	}
 
 	private->fb_helper = helper = &fbdev->drm_fb_helper;
 	helper->funcs = &exynos_drm_fb_helper_funcs;

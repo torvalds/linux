@@ -1825,10 +1825,8 @@ static int hdmi_resources_init(struct hdmi_context *hdata)
 
 	res->regul_bulk = devm_kzalloc(dev, ARRAY_SIZE(supply) *
 		sizeof(res->regul_bulk[0]), GFP_KERNEL);
-	if (!res->regul_bulk) {
-		DRM_ERROR("failed to get memory for regulators\n");
+	if (!res->regul_bulk)
 		goto fail;
-	}
 	for (i = 0; i < ARRAY_SIZE(supply); ++i) {
 		res->regul_bulk[i].supply = supply[i];
 		res->regul_bulk[i].consumer = NULL;
@@ -1869,10 +1867,8 @@ static struct s5p_hdmi_platform_data *drm_hdmi_dt_parse_pdata
 	u32 value;
 
 	pd = devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
-	if (!pd) {
-		DRM_ERROR("memory allocation for pdata failed\n");
+	if (!pd)
 		goto err_data;
-	}
 
 	if (!of_find_property(np, "hpd-gpio", &value)) {
 		DRM_ERROR("no hpd gpio property found\n");
@@ -1952,17 +1948,13 @@ static int hdmi_probe(struct platform_device *pdev)
 
 	drm_hdmi_ctx = devm_kzalloc(dev, sizeof(*drm_hdmi_ctx),
 								GFP_KERNEL);
-	if (!drm_hdmi_ctx) {
-		DRM_ERROR("failed to allocate common hdmi context.\n");
+	if (!drm_hdmi_ctx)
 		return -ENOMEM;
-	}
 
 	hdata = devm_kzalloc(dev, sizeof(struct hdmi_context),
 								GFP_KERNEL);
-	if (!hdata) {
-		DRM_ERROR("out of memory\n");
+	if (!hdata)
 		return -ENOMEM;
-	}
 
 	mutex_init(&hdata->hdmi_mutex);
 
