@@ -235,18 +235,20 @@ static int au_do_mvdown(const unsigned char dmsg, struct au_mvd_args *a)
 	err = au_do_cpdown(dmsg, a);
 	if (!err)
 		err = au_do_unlink_wh(dmsg, a);
-	if (!err)
+	if (!err && !(a->mvdown.flags & AUFS_MVDOWN_KUPPER))
 		err = au_do_unlink(dmsg, a);
 	if (unlikely(err))
 		goto out_unlock;
 
 	/* maintain internal array */
-	au_set_h_dptr(a->dentry, a->mvd_bsrc, NULL);
-	au_set_dbstart(a->dentry, a->mvd_bdst);
+	if (!(a->mvdown.flags & AUFS_MVDOWN_KUPPER)) {
+		au_set_h_dptr(a->dentry, a->mvd_bsrc, NULL);
+		au_set_dbstart(a->dentry, a->mvd_bdst);
+		au_set_h_iptr(a->inode, a->mvd_bsrc, NULL, /*flags*/0);
+		au_set_ibstart(a->inode, a->mvd_bdst);
+	}
 	if (au_dbend(a->dentry) < a->mvd_bdst)
 		au_set_dbend(a->dentry, a->mvd_bdst);
-	au_set_h_iptr(a->inode, a->mvd_bsrc, NULL, /*flags*/0);
-	au_set_ibstart(a->inode, a->mvd_bdst);
 	if (au_ibend(a->inode) < a->mvd_bdst)
 		au_set_ibend(a->inode, a->mvd_bdst);
 
