@@ -935,8 +935,7 @@ static int mcp251x_open(struct net_device *net)
 {
 	struct mcp251x_priv *priv = netdev_priv(net);
 	struct spi_device *spi = priv->spi;
-	struct mcp251x_platform_data *pdata = spi->dev.platform_data;
-	unsigned long flags;
+	unsigned long flags = IRQF_ONESHOT | IRQF_TRIGGER_FALLING;
 	int ret;
 
 	ret = open_candev(net);
@@ -951,12 +950,6 @@ static int mcp251x_open(struct net_device *net)
 	priv->force_quit = 0;
 	priv->tx_skb = NULL;
 	priv->tx_len = 0;
-
-	flags = IRQF_ONESHOT;
-	if (pdata->irq_flags)
-		flags |= pdata->irq_flags;
-	else
-		flags |= IRQF_TRIGGER_FALLING;
 
 	ret = request_threaded_irq(spi->irq, NULL, mcp251x_can_ist,
 				   flags, DEVICE_NAME, priv);
