@@ -61,24 +61,23 @@
 #define PRCMU_PLLSOC1  	 	43
 #define PRCMU_ARMSS  	 	44
 #define PRCMU_PLLDDR  	 	45
-#define PRCMU_BML8580CLK        46
 
 /* DSI Clocks */
-#define PRCMU_PLLDSI  	 	47
-#define PRCMU_DSI0CLK 	  	48
-#define PRCMU_DSI1CLK  	 	49
-#define PRCMU_DSI0ESCCLK  	50
-#define PRCMU_DSI1ESCCLK  	51
-#define PRCMU_DSI2ESCCLK  	52
+#define PRCMU_PLLDSI  	 	46
+#define PRCMU_DSI0CLK 	  	47
+#define PRCMU_DSI1CLK  	 	48
+#define PRCMU_DSI0ESCCLK  	49
+#define PRCMU_DSI1ESCCLK  	50
+#define PRCMU_DSI2ESCCLK  	51
 
 /* LCD DSI PLL - Ux540 only */
-#define PRCMU_PLLDSI_LCD        53
-#define PRCMU_DSI0CLK_LCD       54
-#define PRCMU_DSI1CLK_LCD       55
-#define PRCMU_DSI0ESCCLK_LCD    56
-#define PRCMU_DSI1ESCCLK_LCD    57
-#define PRCMU_DSI2ESCCLK_LCD    58
+#define PRCMU_PLLDSI_LCD        52
+#define PRCMU_DSI0CLK_LCD       53
+#define PRCMU_DSI1CLK_LCD       54
+#define PRCMU_DSI0ESCCLK_LCD    55
+#define PRCMU_DSI1ESCCLK_LCD    56
+#define PRCMU_DSI2ESCCLK_LCD    57
 
-#define PRCMU_NUM_CLKS  	59
+#define PRCMU_NUM_CLKS  	58
 
 #endif
