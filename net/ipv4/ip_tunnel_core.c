@@ -76,9 +76,7 @@ int iptunnel_xmit(struct net *net, struct rtable *rt,
 	iph->daddr	=	dst;
 	iph->saddr	=	src;
 	iph->ttl	=	ttl;
-	tunnel_ip_select_ident(skb,
-			       (const struct iphdr *)skb_inner_network_header(skb),
-			       &rt->dst);
+	__ip_select_ident(iph, &rt->dst, (skb_shinfo(skb)->gso_segs ?: 1) - 1);
 
 	err = ip_local_out(skb);
 	if (unlikely(net_xmit_eval(err)))
