@@ -4914,7 +4914,8 @@ sd_parent_degenerate(struct sched_domain *sd, struct sched_domain *parent)
 				SD_BALANCE_FORK |
 				SD_BALANCE_EXEC |
 				SD_SHARE_CPUPOWER |
-				SD_SHARE_PKG_RESOURCES);
+				SD_SHARE_PKG_RESOURCES |
+				SD_PREFER_SIBLING);
 		if (nr_node_ids == 1)
 			pflags &= ~SD_SERIALIZE;
 	}
@@ -5118,6 +5119,13 @@ cpu_attach_domain(struct sched_domain *sd, struct root_domain *rd, int cpu)
 			tmp->parent = parent->parent;
 			if (parent->parent)
 				parent->parent->child = tmp;
+			/*
+			 * Transfer SD_PREFER_SIBLING down in case of a
+			 * degenerate parent; the spans match for this
+			 * so the property transfers.
+			 */
+			if (parent->flags & SD_PREFER_SIBLING)
+				tmp->flags |= SD_PREFER_SIBLING;
 			destroy_sched_domain(parent, cpu);
 		} else
 			tmp = tmp->parent;
