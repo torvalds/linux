@@ -5581,9 +5581,9 @@ S:	Maintained
 F:	drivers/media/tuners/mxl5007t.*
 
 MYRICOM MYRI-10G 10GbE DRIVER (MYRI10GE)
-M:	Andrew Gallatin <gallatin@myri.com>
+M:	Hyong-Youb Kim <hykim@myri.com>
 L:	netdev@vger.kernel.org
-W:	http://www.myri.com/scs/download-Myri10GE.html
+W:	https://www.myricom.com/support/downloads/myri10ge.html
 S:	Supported
 F:	drivers/net/ethernet/myricom/myri10ge/
 
@@ -7366,7 +7366,6 @@ F:	drivers/net/ethernet/sfc/
 
 SGI GRU DRIVER
 M:	Dimitri Sivanich <sivanich@sgi.com>
-M:	Robin Holt <holt@sgi.com>
 S:	Maintained
 F:	drivers/misc/sgi-gru/
 
@@ -7386,7 +7385,8 @@ S:	Maintained for 2.6.
 F:	Documentation/sgi-visws.txt
 
 SGI XP/XPC/XPNET DRIVER
-M:	Robin Holt <holt@sgi.com>
+M:	Cliff Whickman <cpw@sgi.com>
+M:	Robin Holt <robinmholt@gmail.com>
 S:	Maintained
 F:	drivers/misc/sgi-xp/
 

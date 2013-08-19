@@ -84,17 +84,13 @@ int show_fiq_list(struct seq_file *p, int prec)
 
 void set_fiq_handler(void *start, unsigned int length)
 {
-#if defined(CONFIG_CPU_USE_DOMAINS)
-	void *base = (void *)0xffff0000;
-#else
 	void *base = vectors_page;
-#endif
 	unsigned offset = FIQ_OFFSET;
 
 	memcpy(base + offset, start, length);
+	if (!cache_is_vipt_nonaliasing())
+		flush_icache_range(base + offset, offset + length);
 	flush_icache_range(0xffff0000 + offset, 0xffff0000 + offset + length);
-	if (!vectors_high())
-		flush_icache_range(offset, offset + length);
 }
 
 int claim_fiq(struct fiq_handler *f)

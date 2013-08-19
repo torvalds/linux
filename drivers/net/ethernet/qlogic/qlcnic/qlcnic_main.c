@@ -2165,7 +2165,8 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto err_out_disable_mbx_intr;
 
-	qlcnic_set_drv_version(adapter);
+	if (adapter->portnum == 0)
+		qlcnic_set_drv_version(adapter);
 
 	pci_set_drvdata(pdev, adapter);
 
@@ -3085,7 +3086,8 @@ done:
 	adapter->fw_fail_cnt = 0;
 	adapter->flags &= ~QLCNIC_FW_HANG;
 	clear_bit(__QLCNIC_RESETTING, &adapter->state);
-	qlcnic_set_drv_version(adapter);
+	if (adapter->portnum == 0)
+		qlcnic_set_drv_version(adapter);
 
 	if (!qlcnic_clr_drv_state(adapter))
 		qlcnic_schedule_work(adapter, qlcnic_fw_poll_work,
