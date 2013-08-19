@@ -2666,6 +2666,10 @@ enum ieee80211_roc_type {
  *	zero using ieee80211_csa_is_complete() after the beacon has been
  *	transmitted and then call ieee80211_csa_finish().
  *
+ * @join_ibss: Join an IBSS (on an IBSS interface); this is called after all
+ *	information in bss_conf is set up and the beacon can be retrieved. A
+ *	channel context is bound before this is called.
+ * @leave_ibss: Leave the IBSS again.
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw,
@@ -2857,6 +2861,9 @@ struct ieee80211_ops {
 	void (*channel_switch_beacon)(struct ieee80211_hw *hw,
 				      struct ieee80211_vif *vif,
 				      struct cfg80211_chan_def *chandef);
+
+	int (*join_ibss)(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
+	void (*leave_ibss)(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 };
 
 /**

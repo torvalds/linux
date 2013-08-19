@@ -229,6 +229,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	struct beacon_data *presp;
 	enum nl80211_bss_scan_width scan_width;
 	bool have_higher_than_11mbit;
+	int err;
 
 	sdata_assert_lock(sdata);
 
@@ -247,6 +248,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		ieee80211_bss_info_change_notify(sdata,
 						 BSS_CHANGED_IBSS |
 						 BSS_CHANGED_BEACON_ENABLED);
+		drv_leave_ibss(local, sdata);
 	}
 
 	presp = rcu_dereference_protected(ifibss->presp,
@@ -329,11 +331,26 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	else
 		sdata->flags &= ~IEEE80211_SDATA_OPERATING_GMODE;
 
+	ieee80211_set_wmm_default(sdata, true);
+
 	sdata->vif.bss_conf.ibss_joined = true;
 	sdata->vif.bss_conf.ibss_creator = creator;
-	ieee80211_bss_info_change_notify(sdata, bss_change);
 
-	ieee80211_set_wmm_default(sdata, true);
+	err = drv_join_ibss(local, sdata);
+	if (err) {
+		sdata->vif.bss_conf.ibss_joined = false;
+		sdata->vif.bss_conf.ibss_creator = false;
+		sdata->vif.bss_conf.enable_beacon = false;
+		sdata->vif.bss_conf.ssid_len = 0;
+		RCU_INIT_POINTER(ifibss->presp, NULL);
+		kfree_rcu(presp, rcu_head);
+		ieee80211_vif_release_channel(sdata);
+		sdata_info(sdata, "Failed to join IBSS, driver failure: %d\n",
+			   err);
+		return;
+	}
+
+	ieee80211_bss_info_change_notify(sdata, bss_change);
 
 	ifibss->state = IEEE80211_IBSS_MLME_JOINED;
 	mod_timer(&ifibss->timer,
@@ -761,6 +778,7 @@ static void ieee80211_ibss_disconnect(struct ieee80211_sub_if_data *sdata)
 	clear_bit(SDATA_STATE_OFFCHANNEL_BEACON_STOPPED, &sdata->state);
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED |
 						BSS_CHANGED_IBSS);
+	drv_leave_ibss(local, sdata);
 	ieee80211_vif_release_channel(sdata);
 }
 
