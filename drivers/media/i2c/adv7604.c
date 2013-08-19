@@ -1162,7 +1162,7 @@ static int adv7604_dv_timings_cap(struct v4l2_subdev *sd,
 	cap->type = V4L2_DV_BT_656_1120;
 	cap->bt.max_width = 1920;
 	cap->bt.max_height = 1200;
-	cap->bt.min_pixelclock = 27000000;
+	cap->bt.min_pixelclock = 25000000;
 	if (DIGITAL_INPUT)
 		cap->bt.max_pixelclock = 225000000;
 	else

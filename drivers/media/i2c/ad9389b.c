@@ -631,7 +631,7 @@ static const struct v4l2_dv_timings_cap ad9389b_timings_cap = {
 	.bt = {
 		.max_width = 1920,
 		.max_height = 1200,
-		.min_pixelclock = 27000000,
+		.min_pixelclock = 25000000,
 		.max_pixelclock = 170000000,
 		.standards = V4L2_DV_BT_STD_CEA861 | V4L2_DV_BT_STD_DMT |
 			V4L2_DV_BT_STD_GTF | V4L2_DV_BT_STD_CVT,
