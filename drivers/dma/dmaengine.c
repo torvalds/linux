@@ -376,20 +376,30 @@ void dma_issue_pending_all(void)
 EXPORT_SYMBOL(dma_issue_pending_all);
 
 /**
- * nth_chan - returns the nth channel of the given capability
- * @cap: capability to match
- * @n: nth channel desired
- *
- * Defaults to returning the channel with the desired capability and the
- * lowest reference count when 'n' cannot be satisfied.  Must be called
- * under dma_list_mutex.
+ * dma_chan_is_local - returns true if the channel is in the same numa-node as the cpu
  */
-static struct dma_chan *nth_chan(enum dma_transaction_type cap, int n)
+static bool dma_chan_is_local(struct dma_chan *chan, int cpu)
+{
+	int node = dev_to_node(chan->device->dev);
+	return node == -1 || cpumask_test_cpu(cpu, cpumask_of_node(node));
+}
+
+/**
+ * min_chan - returns the channel with min count and in the same numa-node as the cpu
+ * @cap: capability to match
+ * @cpu: cpu index which the channel should be close to
+ *
+ * If some channels are close to the given cpu, the one with the lowest
+ * reference count is returned. Otherwise, cpu is ignored and only the
+ * reference count is taken into account.
+ * Must be called under dma_list_mutex.
+ */
+static struct dma_chan *min_chan(enum dma_transaction_type cap, int cpu)
 {
 	struct dma_device *device;
 	struct dma_chan *chan;
-	struct dma_chan *ret = NULL;
 	struct dma_chan *min = NULL;
+	struct dma_chan *localmin = NULL;
 
 	list_for_each_entry(device, &dma_device_list, global_node) {
 		if (!dma_has_cap(cap, device->cap_mask) ||
@@ -398,27 +408,22 @@ static struct dma_chan *nth_chan(enum dma_transaction_type cap, int n)
 		list_for_each_entry(chan, &device->channels, device_node) {
 			if (!chan->client_count)
 				continue;
-			if (!min)
-				min = chan;
-			else if (chan->table_count < min->table_count)
+			if (!min || chan->table_count < min->table_count)
 				min = chan;
 
-			if (n-- == 0) {
-				ret = chan;
-				break; /* done */
-			}
+			if (dma_chan_is_local(chan, cpu))
+				if (!localmin ||
+				    chan->table_count < localmin->table_count)
+					localmin = chan;
 		}
-		if (ret)
-			break; /* done */
 	}
 
-	if (!ret)
-		ret = min;
+	chan = localmin ? localmin : min;
 
-	if (ret)
-		ret->table_count++;
+	if (chan)
+		chan->table_count++;
 
-	return ret;
+	return chan;
 }
 
 /**
@@ -435,7 +440,6 @@ static void dma_channel_rebalance(void)
 	struct dma_device *device;
 	int cpu;
 	int cap;
-	int n;
 
 	/* undo the last distribution */
 	for_each_dma_cap_mask(cap, dma_cap_mask_all)
@@ -454,14 +458,9 @@ static void dma_channel_rebalance(void)
 		return;
 
 	/* redistribute available channels */
-	n = 0;
 	for_each_dma_cap_mask(cap, dma_cap_mask_all)
 		for_each_online_cpu(cpu) {
-			if (num_possible_cpus() > 1)
-				chan = nth_chan(cap, n++);
-			else
-				chan = nth_chan(cap, -1);
-
+			chan = min_chan(cap, cpu);
 			per_cpu_ptr(channel_table[cap], cpu)->chan = chan;
 		}
 }
