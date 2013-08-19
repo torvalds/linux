@@ -338,6 +338,12 @@ struct sirfsoc_uart_register sirfsoc_uart = {
 				 uint_st->sirfsoc_rxfifo_thd |\
 				 uint_st->sirfsoc_rxfifo_full)
 #define SIRFUART_CTS_INT_ST(uint_st)	(uint_st->sirfsoc_cts)
+#define SIRFUART_RX_DMA_INT_EN(port, uint_en)				\
+				(uint_en->sirfsoc_rx_timeout_en |\
+				 uint_en->sirfsoc_frm_err_en |\
+				 uint_en->sirfsoc_rx_oflow_en |\
+				 uint_en->sirfsoc_rxd_brk_en |\
+		((port->line > 2) ? 0 : uint_en->sirfsoc_parity_err_en))
 /* Generic Definitions */
 #define SIRFSOC_UART_NAME			"ttySiRF"
 #define SIRFSOC_UART_MAJOR			0
@@ -356,10 +362,50 @@ struct sirfsoc_uart_register sirfsoc_uart = {
 #define SIRF_SAMPLE_DIV_MASK			0x3f0000
 #define SIRF_BAUD_RATE_SUPPORT_NR		18
 
+/* Uart Common Use Macro*/
+#define SIRFSOC_RX_DMA_BUF_SIZE	256
+#define BYTES_TO_ALIGN(dma_addr)	((unsigned long)(dma_addr) & 0x3)
+#define LOOP_DMA_BUFA_FILL	1
+#define LOOP_DMA_BUFB_FILL	2
+#define TX_TRAN_PIO		1
+#define TX_TRAN_DMA		2
+/* Uart Fifo Level Chk */
+#define SIRFUART_TX_FIFO_SC_OFFSET	0
+#define SIRFUART_TX_FIFO_LC_OFFSET	10
+#define SIRFUART_TX_FIFO_HC_OFFSET	20
+#define SIRFUART_TX_FIFO_CHK_SC(line, value) ((((line) == 1) ? (value & 0x3) :\
+				(value & 0x1f)) << SIRFUART_TX_FIFO_SC_OFFSET)
+#define SIRFUART_TX_FIFO_CHK_LC(line, value) ((((line) == 1) ? (value & 0x3) :\
+				(value & 0x1f)) << SIRFUART_TX_FIFO_LC_OFFSET)
+#define SIRFUART_TX_FIFO_CHK_HC(line, value) ((((line) == 1) ? (value & 0x3) :\
+				(value & 0x1f)) << SIRFUART_TX_FIFO_HC_OFFSET)
+
+#define SIRFUART_RX_FIFO_CHK_SC SIRFUART_TX_FIFO_CHK_SC
+#define	SIRFUART_RX_FIFO_CHK_LC SIRFUART_TX_FIFO_CHK_LC
+#define SIRFUART_RX_FIFO_CHK_HC SIRFUART_TX_FIFO_CHK_HC
+/* Indicate how many buffers used */
+#define SIRFSOC_RX_LOOP_BUF_CNT		2
+
+/* Indicate if DMA channel valid */
+#define IS_DMA_CHAN_VALID(x)	((x) != -1)
+#define UNVALID_DMA_CHAN	-1
 /* For Fast Baud Rate Calculation */
 struct sirfsoc_baudrate_to_regv {
 	unsigned int baud_rate;
 	unsigned int reg_val;
+};
+
+enum sirfsoc_tx_state {
+	TX_DMA_IDLE,
+	TX_DMA_RUNNING,
+	TX_DMA_PAUSE,
+};
+
+struct sirfsoc_loop_buffer {
+	struct circ_buf			xmit;
+	dma_cookie_t			cookie;
+	struct dma_async_tx_descriptor	*desc;
+	dma_addr_t			dma_addr;
 };
 
 struct sirfsoc_uart_port {
@@ -371,8 +417,25 @@ struct sirfsoc_uart_port {
 	/* for SiRFmarco, there are SET/CLR for UART_INT_EN */
 	bool				is_marco;
 	struct sirfsoc_uart_register	*uart_reg;
+	int				rx_dma_no;
+	int				tx_dma_no;
+	struct dma_chan			*rx_dma_chan;
+	struct dma_chan			*tx_dma_chan;
+	dma_addr_t			tx_dma_addr;
+	struct dma_async_tx_descriptor	*tx_dma_desc;
+	spinlock_t			rx_lock;
+	spinlock_t			tx_lock;
+	struct tasklet_struct		rx_dma_complete_tasklet;
+	struct tasklet_struct		rx_tmo_process_tasklet;
+	unsigned int			rx_io_count;
+	unsigned long			transfer_size;
+	enum sirfsoc_tx_state		tx_dma_state;
 	unsigned int			cts_gpio;
 	unsigned int			rts_gpio;
+
+	struct sirfsoc_loop_buffer	rx_dma_items[SIRFSOC_RX_LOOP_BUF_CNT];
+	int				rx_completed;
+	int				rx_issued;
 };
 
 /* Hardware Flow Control */
