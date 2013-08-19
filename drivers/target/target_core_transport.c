@@ -2791,6 +2791,15 @@ transport_send_check_condition_and_sense(struct se_cmd *cmd,
 		buffer[SPC_ASC_KEY_OFFSET] = asc;
 		buffer[SPC_ASCQ_KEY_OFFSET] = ascq;
 		break;
+	case TCM_MISCOMPARE_VERIFY:
+		/* CURRENT ERROR */
+		buffer[0] = 0x70;
+		buffer[SPC_ADD_SENSE_LEN_OFFSET] = 10;
+		buffer[SPC_SENSE_KEY_OFFSET] = MISCOMPARE;
+		/* MISCOMPARE DURING VERIFY OPERATION */
+		buffer[SPC_ASC_KEY_OFFSET] = 0x1d;
+		buffer[SPC_ASCQ_KEY_OFFSET] = 0x00;
+		break;
 	case TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE:
 	default:
 		/* CURRENT ERROR */

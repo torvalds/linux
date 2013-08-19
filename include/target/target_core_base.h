@@ -197,6 +197,7 @@ enum tcm_sense_reason_table {
 	TCM_ADDRESS_OUT_OF_RANGE		= R(0x11),
 	TCM_OUT_OF_RESOURCES			= R(0x12),
 	TCM_PARAMETER_LIST_LENGTH_ERROR		= R(0x13),
+	TCM_MISCOMPARE_VERIFY			= R(0x14),
 #undef R
 };
 
