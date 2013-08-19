@@ -2373,10 +2373,11 @@ EXPORT_SYMBOL(drm_match_cea_mode);
 
 
 static int
-do_cea_modes (struct drm_connector *connector, u8 *db, u8 len)
+do_cea_modes(struct drm_connector *connector, const u8 *db, u8 len)
 {
 	struct drm_device *dev = connector->dev;
-	u8 * mode, cea_mode;
+	const u8 *mode;
+	u8 cea_mode;
 	int modes = 0;
 
 	for (mode = db; mode < db + len; mode++) {
@@ -2433,8 +2434,9 @@ cea_db_offsets(const u8 *cea, int *start, int *end)
 static int
 add_cea_modes(struct drm_connector *connector, struct edid *edid)
 {
-	u8 * cea = drm_find_cea_extension(edid);
-	u8 * db, dbl;
+	const u8 *cea = drm_find_cea_extension(edid);
+	const u8 *db;
+	u8 dbl;
 	int modes = 0;
 
 	if (cea && cea_revision(cea) >= 3) {
@@ -2448,7 +2450,7 @@ add_cea_modes(struct drm_connector *connector, struct edid *edid)
 			dbl = cea_db_payload_len(db);
 
 			if (cea_db_tag(db) == VIDEO_BLOCK)
-				modes += do_cea_modes (connector, db+1, dbl);
+				modes += do_cea_modes(connector, db + 1, dbl);
 		}
 	}
 
