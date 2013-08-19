@@ -1548,12 +1548,6 @@ xfs_icsb_init_counters(
 	if (mp->m_sb_cnts == NULL)
 		return -ENOMEM;
 
-#ifdef CONFIG_HOTPLUG_CPU
-	mp->m_icsb_notifier.notifier_call = xfs_icsb_cpu_notify;
-	mp->m_icsb_notifier.priority = 0;
-	register_hotcpu_notifier(&mp->m_icsb_notifier);
-#endif /* CONFIG_HOTPLUG_CPU */
-
 	for_each_online_cpu(i) {
 		cntp = (xfs_icsb_cnts_t *)per_cpu_ptr(mp->m_sb_cnts, i);
 		memset(cntp, 0, sizeof(xfs_icsb_cnts_t));
@@ -1566,6 +1560,13 @@ xfs_icsb_init_counters(
 	 * initial balance kicks us off correctly
 	 */
 	mp->m_icsb_counters = -1;
+
+#ifdef CONFIG_HOTPLUG_CPU
+	mp->m_icsb_notifier.notifier_call = xfs_icsb_cpu_notify;
+	mp->m_icsb_notifier.priority = 0;
+	register_hotcpu_notifier(&mp->m_icsb_notifier);
+#endif /* CONFIG_HOTPLUG_CPU */
+
 	return 0;
 }
 
