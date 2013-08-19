@@ -1747,11 +1747,8 @@ void bnx2x_iov_init_dq(struct bnx2x *bp)
 
 void bnx2x_iov_init_dmae(struct bnx2x *bp)
 {
-	DP(BNX2X_MSG_IOV, "SRIOV is %s\n", IS_SRIOV(bp) ? "ON" : "OFF");
-	if (!IS_SRIOV(bp))
-		return;
-
-	REG_WR(bp, DMAE_REG_BACKWARD_COMP_EN, 0);
+	if (pci_find_ext_capability(bp->pdev, PCI_EXT_CAP_ID_SRIOV))
+		REG_WR(bp, DMAE_REG_BACKWARD_COMP_EN, 0);
 }
 
 static int bnx2x_vf_bus(struct bnx2x *bp, int vfid)
