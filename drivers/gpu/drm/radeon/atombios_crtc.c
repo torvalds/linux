@@ -1955,7 +1955,9 @@ static void atombios_crtc_disable(struct drm_crtc *crtc)
 		break;
 	case ATOM_PPLL0:
 		/* disable the ppll */
-		if ((rdev->family == CHIP_ARUBA) || (rdev->family == CHIP_BONAIRE))
+		if ((rdev->family == CHIP_ARUBA) ||
+		    (rdev->family == CHIP_BONAIRE) ||
+		    (rdev->family == CHIP_HAWAII))
 			atombios_crtc_program_pll(crtc, radeon_crtc->crtc_id, radeon_crtc->pll_id,
 						  0, 0, ATOM_DISABLE, 0, 0, 0, 0, 0, false, &ss);
 		break;
