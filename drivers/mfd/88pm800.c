@@ -333,9 +333,11 @@ static int device_rtc_init(struct pm80x_chip *chip,
 {
 	int ret;
 
-	rtc_devs[0].platform_data = pdata->rtc;
-	rtc_devs[0].pdata_size =
-			pdata->rtc ? sizeof(struct pm80x_rtc_pdata) : 0;
+	if (pdata) {
+		rtc_devs[0].platform_data = pdata->rtc;
+		rtc_devs[0].pdata_size =
+				pdata->rtc ? sizeof(struct pm80x_rtc_pdata) : 0;
+	}
 	ret = mfd_add_devices(chip->dev, 0, &rtc_devs[0],
 			      ARRAY_SIZE(rtc_devs), NULL, 0, NULL);
 	if (ret) {
@@ -578,7 +580,7 @@ static int pm800_probe(struct i2c_client *client,
 		goto err_device_init;
 	}
 
-	if (pdata->plat_config)
+	if (pdata && pdata->plat_config)
 		pdata->plat_config(chip, pdata);
 
 	return 0;
