@@ -1480,6 +1480,15 @@ bool radeon_atombios_get_asic_ss_info(struct radeon_device *rdev,
 	uint8_t frev, crev;
 	int i, num_indices;
 
+	if (id == ASIC_INTERNAL_MEMORY_SS) {
+		if (!(rdev->mode_info.firmware_flags & ATOM_BIOS_INFO_MEMORY_CLOCK_SS_SUPPORT))
+			return false;
+	}
+	if (id == ASIC_INTERNAL_ENGINE_SS) {
+		if (!(rdev->mode_info.firmware_flags & ATOM_BIOS_INFO_ENGINE_CLOCK_SS_SUPPORT))
+			return false;
+	}
+
 	memset(ss, 0, sizeof(struct radeon_atom_ss));
 	if (atom_parse_data_header(mode_info->atom_context, index, &size,
 				   &frev, &crev, &data_offset)) {
