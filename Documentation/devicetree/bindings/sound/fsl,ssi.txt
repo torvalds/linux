@@ -43,6 +43,10 @@ Required properties:
                     together.  This would still allow different sample sizes,
                     but not different sample rates.
 
+Required are also ac97 link bindings if ac97 is used. See
+Documentation/devicetree/bindings/sound/soc-ac97link.txt for the necessary
+bindings.
+
 Optional properties:
 - codec-handle:     Phandle to a 'codec' node that defines an audio
                     codec connected to this SSI.  This node is typically
