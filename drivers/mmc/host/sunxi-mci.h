@@ -24,6 +24,19 @@
 			" Compiled in " __DATE__ " at " __TIME__ ""
 
 /*========== platform define ==========*/
+/*---------- for sun5i ----------*/
+#ifdef CONFIG_ARCH_SUN5I
+#define REG_FIFO_OS		(0x100)
+#define SMC_IRQNO(x)		(SW_INT_IRQNO_SDMC0 + (x))
+
+#define MMC_SRCCLK_HOSC		"hosc"
+#define MMC_SRCCLK_PLL5		"sdram_pll_p"
+#define MMC_SRCCLK_PLL6		"sata_pll_2"
+#define MMC_AHBCLK_PREFIX	"ahb_sdc"
+#define MMC_MODCLK_PREFIX	"sdc"
+#define MMC3_DMA_TL		(0x20070008)
+#endif
+
 /*---------- for sun6i ----------*/
 #ifdef CONFIG_ARCH_SUN6I
 #define REG_FIFO_OS	            (0x200)

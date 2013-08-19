@@ -2087,11 +2087,12 @@ static int __init sw_mci_get_mmcinfo(int i)
 	}
 	/* get buswidth information */
 	r = script_parser_fetch(p, "sdc_buswidth", &val, 1);
-	if (r != 0) {
-		SMC_MSG(NULL, "get mmc%d's buswidth failed\n", i);
-		goto fail;
+	if (r == 0) {
+		mmcinfo->width = val;
+	} else {
+		/* No bus_width info, use old driver hardcoded defaults */
+		mmcinfo->width = 4;
 	}
-	mmcinfo->width = val;
 
 	/* get mmc IOs information */
 	for (j = 0; j < mmcinfo->width + 2; j++) {
