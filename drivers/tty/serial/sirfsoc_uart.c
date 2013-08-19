@@ -421,7 +421,10 @@ sirfsoc_uart_pio_rx_chars(struct uart_port *port, unsigned int max_rx_count)
 
 	sirfport->rx_io_count += rx_count;
 	port->icount.rx += rx_count;
+
+	spin_unlock(&port->lock);
 	tty_flip_buffer_push(&port->state->port);
+	spin_lock(&port->lock);
 
 	return rx_count;
 }
