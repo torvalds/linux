@@ -3173,19 +3173,19 @@ static int hdspm_tco_ltc_frames(struct hdspm *hdspm)
 					HDSPM_TCO1_LTC_Format_MSB)) {
 		case 0:
 			/* 24 fps */
-			ret = 1;
+			ret = fps_24;
 			break;
 		case HDSPM_TCO1_LTC_Format_LSB:
 			/* 25 fps */
-			ret = 2;
+			ret = fps_25;
 			break;
 		case HDSPM_TCO1_LTC_Format_MSB:
-			/* 25 fps */
-			ret = 3;
+			/* 29.97 fps */
+			ret = fps_2997;
 			break;
 		default:
 			/* 30 fps */
-			ret = 4;
+			ret = fps_30;
 			break;
 		}
 	}
