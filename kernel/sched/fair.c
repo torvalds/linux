@@ -3602,6 +3602,8 @@ static struct sched_entity *hmp_get_heaviest_task(
 		hmp = hmp_faster_domain(cpu_of(se->cfs_rq->rq));
 		hmp_target_mask = &hmp->cpus;
 	}
+	/* The currently running task is not on the runqueue */
+	se = __pick_first_entity(cfs_rq_of(se));
 
 	while (num_tasks && se) {
 		if (entity_is_task(se) &&
@@ -3630,10 +3632,11 @@ static struct sched_entity *hmp_get_lightest_task(
 		struct hmp_domain *hmp;
 		if (hmp_cpu_is_slowest(cpu_of(se->cfs_rq->rq)))
 			return min_se;
-
 		hmp = hmp_slower_domain(cpu_of(se->cfs_rq->rq));
 		hmp_target_mask = &hmp->cpus;
 	}
+	/* The currently running task is not on the runqueue */
+	se = __pick_first_entity(cfs_rq_of(se));
 
 	while (num_tasks && se) {
 		if (entity_is_task(se) &&
