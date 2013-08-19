@@ -540,12 +540,9 @@ static void allocate_segment_by_default(struct f2fs_sb_info *sbi,
 {
 	struct curseg_info *curseg = CURSEG_I(sbi, type);
 
-	if (force) {
+	if (force)
 		new_curseg(sbi, type, true);
-		goto out;
-	}
-
-	if (type == CURSEG_WARM_NODE)
+	else if (type == CURSEG_WARM_NODE)
 		new_curseg(sbi, type, false);
 	else if (curseg->alloc_type == LFS && is_next_segment_free(sbi, type))
 		new_curseg(sbi, type, false);
@@ -553,7 +550,6 @@ static void allocate_segment_by_default(struct f2fs_sb_info *sbi,
 		change_curseg(sbi, type, true);
 	else
 		new_curseg(sbi, type, false);
-out:
 #ifdef CONFIG_F2FS_STAT_FS
 	sbi->segment_count[curseg->alloc_type]++;
 #endif
