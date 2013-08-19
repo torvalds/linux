@@ -141,9 +141,9 @@ module_param_named(fastboot, i915_fastboot, bool, 0600);
 MODULE_PARM_DESC(fastboot, "Try to skip unnecessary mode sets at boot time "
 		 "(default: false)");
 
-int i915_enable_pc8 __read_mostly = 0;
+int i915_enable_pc8 __read_mostly = 1;
 module_param_named(enable_pc8, i915_enable_pc8, int, 0600);
-MODULE_PARM_DESC(enable_pc8, "Enable support for low power package C states (PC8+) (default: false)");
+MODULE_PARM_DESC(enable_pc8, "Enable support for low power package C states (PC8+) (default: true)");
 
 int i915_pc8_timeout __read_mostly = 5000;
 module_param_named(pc8_timeout, i915_pc8_timeout, int, 0600);
