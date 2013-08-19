@@ -539,7 +539,7 @@ static void tegra_hdmi_setup_audio_infoframe(struct tegra_hdmi *hdmi)
 
 static void tegra_hdmi_setup_stereo_infoframe(struct tegra_hdmi *hdmi)
 {
-	struct hdmi_hdmi_infoframe frame;
+	struct hdmi_vendor_infoframe frame;
 	unsigned long value;
 	u8 buffer[10];
 	ssize_t err;
@@ -551,10 +551,10 @@ static void tegra_hdmi_setup_stereo_infoframe(struct tegra_hdmi *hdmi)
 		return;
 	}
 
-	hdmi_hdmi_infoframe_init(&frame);
+	hdmi_vendor_infoframe_init(&frame);
 	frame.s3d_struct = HDMI_3D_STRUCTURE_FRAME_PACKING;
 
-	err = hdmi_hdmi_infoframe_pack(&frame, buffer, sizeof(buffer));
+	err = hdmi_vendor_infoframe_pack(&frame, buffer, sizeof(buffer));
 	if (err < 0) {
 		dev_err(hdmi->dev, "failed to pack vendor infoframe: %zd\n",
 			err);

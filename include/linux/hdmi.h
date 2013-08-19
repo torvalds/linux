@@ -237,7 +237,8 @@ enum hdmi_3d_structure {
 	HDMI_3D_STRUCTURE_SIDE_BY_SIDE_HALF = 8,
 };
 
-struct hdmi_hdmi_infoframe {
+
+struct hdmi_vendor_infoframe {
 	enum hdmi_infoframe_type type;
 	unsigned char version;
 	unsigned char length;
@@ -247,25 +248,25 @@ struct hdmi_hdmi_infoframe {
 	unsigned int s3d_ext_data;
 };
 
-int hdmi_hdmi_infoframe_init(struct hdmi_hdmi_infoframe *frame);
-ssize_t hdmi_hdmi_infoframe_pack(struct hdmi_hdmi_infoframe *frame,
-				 void *buffer, size_t size);
+int hdmi_vendor_infoframe_init(struct hdmi_vendor_infoframe *frame);
+ssize_t hdmi_vendor_infoframe_pack(struct hdmi_vendor_infoframe *frame,
+				   void *buffer, size_t size);
 
-union hdmi_vendor_infoframe {
+union hdmi_vendor_any_infoframe {
 	struct {
 		enum hdmi_infoframe_type type;
 		unsigned char version;
 		unsigned char length;
 		unsigned int oui;
 	} any;
-	struct hdmi_hdmi_infoframe hdmi;
+	struct hdmi_vendor_infoframe hdmi;
 };
 
 union hdmi_infoframe {
 	struct hdmi_any_infoframe any;
 	struct hdmi_avi_infoframe avi;
 	struct hdmi_spd_infoframe spd;
-	union hdmi_vendor_infoframe vendor;
+	union hdmi_vendor_any_infoframe vendor;
 	struct hdmi_audio_infoframe audio;
 };
 
