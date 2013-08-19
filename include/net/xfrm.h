@@ -1508,6 +1508,8 @@ int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler, unsigned short family);
 void xfrm4_local_error(struct sk_buff *skb, u32 mtu);
 int xfrm4_mode_tunnel_input_register(struct xfrm_tunnel_notifier *handler);
 int xfrm4_mode_tunnel_input_deregister(struct xfrm_tunnel_notifier *handler);
+int xfrm6_mode_tunnel_input_register(struct xfrm_tunnel_notifier *handler);
+int xfrm6_mode_tunnel_input_deregister(struct xfrm_tunnel_notifier *handler);
 int xfrm6_extract_header(struct sk_buff *skb);
 int xfrm6_extract_input(struct xfrm_state *x, struct sk_buff *skb);
 int xfrm6_rcv_spi(struct sk_buff *skb, int nexthdr, __be32 spi);
