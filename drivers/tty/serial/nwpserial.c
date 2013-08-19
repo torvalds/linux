@@ -149,7 +149,10 @@ static irqreturn_t nwpserial_interrupt(int irq, void *dev_id)
 			tty_insert_flip_char(port, ch, TTY_NORMAL);
 	} while (dcr_read(up->dcr_host, UART_LSR) & UART_LSR_DR);
 
+	spin_unlock(&up->port.lock);
 	tty_flip_buffer_push(port);
+	spin_lock(&up->port.lock);
+
 	ret = IRQ_HANDLED;
 
 	/* clear interrupt */
