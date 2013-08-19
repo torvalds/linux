@@ -494,8 +494,6 @@ struct drm_encoder_funcs {
 	void (*destroy)(struct drm_encoder *encoder);
 };
 
-#define DRM_CONNECTOR_MAX_UMODES 16
-#define DRM_CONNECTOR_LEN 32
 #define DRM_CONNECTOR_MAX_ENCODER 3
 
 /**
