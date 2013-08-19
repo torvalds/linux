@@ -2597,7 +2597,7 @@ static void ivb_manual_fdi_link_train(struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
-	u32 reg, temp, i;
+	u32 reg, temp, i, j;
 
 	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
 	   for train result */
@@ -2613,97 +2613,99 @@ static void ivb_manual_fdi_link_train(struct drm_crtc *crtc)
 	DRM_DEBUG_KMS("FDI_RX_IIR before link train 0x%x\n",
 		      I915_READ(FDI_RX_IIR(pipe)));
 
-	/* enable CPU FDI TX and PCH FDI RX */
-	reg = FDI_TX_CTL(pipe);
-	temp = I915_READ(reg);
-	temp &= ~FDI_DP_PORT_WIDTH_MASK;
-	temp |= FDI_DP_PORT_WIDTH(intel_crtc->config.fdi_lanes);
-	temp &= ~(FDI_LINK_TRAIN_AUTO | FDI_LINK_TRAIN_NONE_IVB);
-	temp |= FDI_LINK_TRAIN_PATTERN_1_IVB;
-	temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
-	temp |= FDI_LINK_TRAIN_400MV_0DB_SNB_B;
-	temp |= FDI_COMPOSITE_SYNC;
-	I915_WRITE(reg, temp | FDI_TX_ENABLE);
-
-	I915_WRITE(FDI_RX_MISC(pipe),
-		   FDI_RX_TP1_TO_TP2_48 | FDI_RX_FDI_DELAY_90);
-
-	reg = FDI_RX_CTL(pipe);
-	temp = I915_READ(reg);
-	temp &= ~FDI_LINK_TRAIN_AUTO;
-	temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
-	temp |= FDI_LINK_TRAIN_PATTERN_1_CPT;
-	temp |= FDI_COMPOSITE_SYNC;
-	I915_WRITE(reg, temp | FDI_RX_ENABLE);
-
-	POSTING_READ(reg);
-	udelay(150);
-
-	for (i = 0; i < 4; i++) {
+	/* Try each vswing and preemphasis setting twice before moving on */
+	for (j = 0; j < ARRAY_SIZE(snb_b_fdi_train_param) * 2; j++) {
+		/* disable first in case we need to retry */
 		reg = FDI_TX_CTL(pipe);
 		temp = I915_READ(reg);
+		temp &= ~(FDI_LINK_TRAIN_AUTO | FDI_LINK_TRAIN_NONE_IVB);
+		temp &= ~FDI_TX_ENABLE;
+		I915_WRITE(reg, temp);
+
+		reg = FDI_RX_CTL(pipe);
+		temp = I915_READ(reg);
+		temp &= ~FDI_LINK_TRAIN_AUTO;
+		temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
+		temp &= ~FDI_RX_ENABLE;
+		I915_WRITE(reg, temp);
+
+		/* enable CPU FDI TX and PCH FDI RX */
+		reg = FDI_TX_CTL(pipe);
+		temp = I915_READ(reg);
+		temp &= ~FDI_DP_PORT_WIDTH_MASK;
+		temp |= FDI_DP_PORT_WIDTH(intel_crtc->config.fdi_lanes);
+		temp |= FDI_LINK_TRAIN_PATTERN_1_IVB;
 		temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
-		temp |= snb_b_fdi_train_param[i];
+		temp |= snb_b_fdi_train_param[j/2];
+		temp |= FDI_COMPOSITE_SYNC;
+		I915_WRITE(reg, temp | FDI_TX_ENABLE);
+
+		I915_WRITE(FDI_RX_MISC(pipe),
+			   FDI_RX_TP1_TO_TP2_48 | FDI_RX_FDI_DELAY_90);
+
+		reg = FDI_RX_CTL(pipe);
+		temp = I915_READ(reg);
+		temp |= FDI_LINK_TRAIN_PATTERN_1_CPT;
+		temp |= FDI_COMPOSITE_SYNC;
+		I915_WRITE(reg, temp | FDI_RX_ENABLE);
+
+		POSTING_READ(reg);
+		udelay(1); /* should be 0.5us */
+
+		for (i = 0; i < 4; i++) {
+			reg = FDI_RX_IIR(pipe);
+			temp = I915_READ(reg);
+			DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n", temp);
+
+			if (temp & FDI_RX_BIT_LOCK ||
+			    (I915_READ(reg) & FDI_RX_BIT_LOCK)) {
+				I915_WRITE(reg, temp | FDI_RX_BIT_LOCK);
+				DRM_DEBUG_KMS("FDI train 1 done, level %i.\n",
+					      i);
+				break;
+			}
+			udelay(1); /* should be 0.5us */
+		}
+		if (i == 4) {
+			DRM_DEBUG_KMS("FDI train 1 fail on vswing %d\n", j / 2);
+			continue;
+		}
+
+		/* Train 2 */
+		reg = FDI_TX_CTL(pipe);
+		temp = I915_READ(reg);
+		temp &= ~FDI_LINK_TRAIN_NONE_IVB;
+		temp |= FDI_LINK_TRAIN_PATTERN_2_IVB;
+		I915_WRITE(reg, temp);
+
+		reg = FDI_RX_CTL(pipe);
+		temp = I915_READ(reg);
+		temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
+		temp |= FDI_LINK_TRAIN_PATTERN_2_CPT;
 		I915_WRITE(reg, temp);
 
 		POSTING_READ(reg);
-		udelay(500);
+		udelay(2); /* should be 1.5us */
 
-		reg = FDI_RX_IIR(pipe);
-		temp = I915_READ(reg);
-		DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n", temp);
+		for (i = 0; i < 4; i++) {
+			reg = FDI_RX_IIR(pipe);
+			temp = I915_READ(reg);
+			DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n", temp);
 
-		if (temp & FDI_RX_BIT_LOCK ||
-		    (I915_READ(reg) & FDI_RX_BIT_LOCK)) {
-			I915_WRITE(reg, temp | FDI_RX_BIT_LOCK);
-			DRM_DEBUG_KMS("FDI train 1 done, level %i.\n", i);
-			break;
+			if (temp & FDI_RX_SYMBOL_LOCK ||
+			    (I915_READ(reg) & FDI_RX_SYMBOL_LOCK)) {
+				I915_WRITE(reg, temp | FDI_RX_SYMBOL_LOCK);
+				DRM_DEBUG_KMS("FDI train 2 done, level %i.\n",
+					      i);
+				goto train_done;
+			}
+			udelay(2); /* should be 1.5us */
 		}
+		if (i == 4)
+			DRM_DEBUG_KMS("FDI train 2 fail on vswing %d\n", j / 2);
 	}
-	if (i == 4)
-		DRM_ERROR("FDI train 1 fail!\n");
 
-	/* Train 2 */
-	reg = FDI_TX_CTL(pipe);
-	temp = I915_READ(reg);
-	temp &= ~FDI_LINK_TRAIN_NONE_IVB;
-	temp |= FDI_LINK_TRAIN_PATTERN_2_IVB;
-	temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
-	temp |= FDI_LINK_TRAIN_400MV_0DB_SNB_B;
-	I915_WRITE(reg, temp);
-
-	reg = FDI_RX_CTL(pipe);
-	temp = I915_READ(reg);
-	temp &= ~FDI_LINK_TRAIN_PATTERN_MASK_CPT;
-	temp |= FDI_LINK_TRAIN_PATTERN_2_CPT;
-	I915_WRITE(reg, temp);
-
-	POSTING_READ(reg);
-	udelay(150);
-
-	for (i = 0; i < 4; i++) {
-		reg = FDI_TX_CTL(pipe);
-		temp = I915_READ(reg);
-		temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
-		temp |= snb_b_fdi_train_param[i];
-		I915_WRITE(reg, temp);
-
-		POSTING_READ(reg);
-		udelay(500);
-
-		reg = FDI_RX_IIR(pipe);
-		temp = I915_READ(reg);
-		DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n", temp);
-
-		if (temp & FDI_RX_SYMBOL_LOCK) {
-			I915_WRITE(reg, temp | FDI_RX_SYMBOL_LOCK);
-			DRM_DEBUG_KMS("FDI train 2 done, level %i.\n", i);
-			break;
-		}
-	}
-	if (i == 4)
-		DRM_ERROR("FDI train 2 fail!\n");
-
+train_done:
 	DRM_DEBUG_KMS("FDI train done.\n");
 }
 
