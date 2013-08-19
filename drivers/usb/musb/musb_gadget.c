@@ -1937,7 +1937,8 @@ static int musb_gadget_stop(struct usb_gadget *g,
 	stop_activity(musb, driver);
 	otg_set_peripheral(musb->xceiv->otg, NULL);
 
-	dev_dbg(musb->controller, "unregistering driver %s\n", driver->function);
+	dev_dbg(musb->controller, "unregistering driver %s\n",
+				  driver ? driver->function : "(removed)");
 
 	musb->is_active = 0;
 	musb->gadget_driver = NULL;
