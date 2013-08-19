@@ -416,6 +416,8 @@ static struct sock *sco_sock_alloc(struct net *net, struct socket *sock, int pro
 	sk->sk_protocol = proto;
 	sk->sk_state    = BT_OPEN;
 
+	sco_pi(sk)->setting = BT_VOICE_CVSD_16BIT;
+
 	setup_timer(&sk->sk_timer, sco_sock_timeout, (unsigned long)sk);
 
 	bt_sock_link(&sco_sk_list, sk);
@@ -709,7 +711,8 @@ static int sco_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 static int sco_sock_setsockopt(struct socket *sock, int level, int optname, char __user *optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
-	int err = 0;
+	int len, err = 0;
+	struct bt_voice voice;
 	u32 opt;
 
 	BT_DBG("sk %p", sk);
@@ -733,6 +736,31 @@ static int sco_sock_setsockopt(struct socket *sock, int level, int optname, char
 			set_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags);
 		else
 			clear_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags);
+		break;
+
+	case BT_VOICE:
+		if (sk->sk_state != BT_OPEN && sk->sk_state != BT_BOUND &&
+		    sk->sk_state != BT_CONNECT2) {
+			err = -EINVAL;
+			break;
+		}
+
+		voice.setting = sco_pi(sk)->setting;
+
+		len = min_t(unsigned int, sizeof(voice), optlen);
+		if (copy_from_user((char *) &voice, optval, len)) {
+			err = -EFAULT;
+			break;
+		}
+
+		/* Explicitly check for these values */
+		if (voice.setting != BT_VOICE_TRANSPARENT &&
+		    voice.setting != BT_VOICE_CVSD_16BIT) {
+			err = -EINVAL;
+			break;
+		}
+
+		sco_pi(sk)->setting = voice.setting;
 		break;
 
 	default:
@@ -808,6 +836,7 @@ static int sco_sock_getsockopt(struct socket *sock, int level, int optname, char
 {
 	struct sock *sk = sock->sk;
 	int len, err = 0;
+	struct bt_voice voice;
 
 	BT_DBG("sk %p", sk);
 
@@ -829,6 +858,15 @@ static int sco_sock_getsockopt(struct socket *sock, int level, int optname, char
 
 		if (put_user(test_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags),
 			     (u32 __user *) optval))
+			err = -EFAULT;
+
+		break;
+
+	case BT_VOICE:
+		voice.setting = sco_pi(sk)->setting;
+
+		len = min_t(unsigned int, len, sizeof(voice));
+		if (copy_to_user(optval, (char *)&voice, len))
 			err = -EFAULT;
 
 		break;
