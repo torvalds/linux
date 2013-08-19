@@ -74,6 +74,8 @@ static u32 g4x_infoframe_index(enum hdmi_infoframe_type type)
 		return VIDEO_DIP_SELECT_AVI;
 	case HDMI_INFOFRAME_TYPE_SPD:
 		return VIDEO_DIP_SELECT_SPD;
+	case HDMI_INFOFRAME_TYPE_VENDOR:
+		return VIDEO_DIP_SELECT_VENDOR;
 	default:
 		DRM_DEBUG_DRIVER("unknown info frame type %d\n", type);
 		return 0;
@@ -87,6 +89,8 @@ static u32 g4x_infoframe_enable(enum hdmi_infoframe_type type)
 		return VIDEO_DIP_ENABLE_AVI;
 	case HDMI_INFOFRAME_TYPE_SPD:
 		return VIDEO_DIP_ENABLE_SPD;
+	case HDMI_INFOFRAME_TYPE_VENDOR:
+		return VIDEO_DIP_ENABLE_VENDOR;
 	default:
 		DRM_DEBUG_DRIVER("unknown info frame type %d\n", type);
 		return 0;
@@ -100,6 +104,8 @@ static u32 hsw_infoframe_enable(enum hdmi_infoframe_type type)
 		return VIDEO_DIP_ENABLE_AVI_HSW;
 	case HDMI_INFOFRAME_TYPE_SPD:
 		return VIDEO_DIP_ENABLE_SPD_HSW;
+	case HDMI_INFOFRAME_TYPE_VENDOR:
+		return VIDEO_DIP_ENABLE_VS_HSW;
 	default:
 		DRM_DEBUG_DRIVER("unknown info frame type %d\n", type);
 		return 0;
@@ -114,6 +120,8 @@ static u32 hsw_infoframe_data_reg(enum hdmi_infoframe_type type,
 		return HSW_TVIDEO_DIP_AVI_DATA(cpu_transcoder);
 	case HDMI_INFOFRAME_TYPE_SPD:
 		return HSW_TVIDEO_DIP_SPD_DATA(cpu_transcoder);
+	case HDMI_INFOFRAME_TYPE_VENDOR:
+		return HSW_TVIDEO_DIP_VS_DATA(cpu_transcoder);
 	default:
 		DRM_DEBUG_DRIVER("unknown info frame type %d\n", type);
 		return 0;
@@ -392,6 +400,21 @@ static void intel_hdmi_set_spd_infoframe(struct drm_encoder *encoder)
 	intel_write_infoframe(encoder, &frame);
 }
 
+static void
+intel_hdmi_set_hdmi_infoframe(struct drm_encoder *encoder,
+			      struct drm_display_mode *adjusted_mode)
+{
+	union hdmi_infoframe frame;
+	int ret;
+
+	ret = drm_hdmi_vendor_infoframe_from_display_mode(&frame.vendor.hdmi,
+							  adjusted_mode);
+	if (ret < 0)
+		return;
+
+	intel_write_infoframe(encoder, &frame);
+}
+
 static void g4x_set_infoframes(struct drm_encoder *encoder,
 			       struct drm_display_mode *adjusted_mode)
 {
@@ -454,6 +477,7 @@ static void g4x_set_infoframes(struct drm_encoder *encoder,
 
 	intel_hdmi_set_avi_infoframe(encoder, adjusted_mode);
 	intel_hdmi_set_spd_infoframe(encoder);
+	intel_hdmi_set_hdmi_infoframe(encoder, adjusted_mode);
 }
 
 static void ibx_set_infoframes(struct drm_encoder *encoder,
@@ -515,6 +539,7 @@ static void ibx_set_infoframes(struct drm_encoder *encoder,
 
 	intel_hdmi_set_avi_infoframe(encoder, adjusted_mode);
 	intel_hdmi_set_spd_infoframe(encoder);
+	intel_hdmi_set_hdmi_infoframe(encoder, adjusted_mode);
 }
 
 static void cpt_set_infoframes(struct drm_encoder *encoder,
@@ -550,6 +575,7 @@ static void cpt_set_infoframes(struct drm_encoder *encoder,
 
 	intel_hdmi_set_avi_infoframe(encoder, adjusted_mode);
 	intel_hdmi_set_spd_infoframe(encoder);
+	intel_hdmi_set_hdmi_infoframe(encoder, adjusted_mode);
 }
 
 static void vlv_set_infoframes(struct drm_encoder *encoder,
@@ -584,6 +610,7 @@ static void vlv_set_infoframes(struct drm_encoder *encoder,
 
 	intel_hdmi_set_avi_infoframe(encoder, adjusted_mode);
 	intel_hdmi_set_spd_infoframe(encoder);
+	intel_hdmi_set_hdmi_infoframe(encoder, adjusted_mode);
 }
 
 static void hsw_set_infoframes(struct drm_encoder *encoder,
@@ -611,6 +638,7 @@ static void hsw_set_infoframes(struct drm_encoder *encoder,
 
 	intel_hdmi_set_avi_infoframe(encoder, adjusted_mode);
 	intel_hdmi_set_spd_infoframe(encoder);
+	intel_hdmi_set_hdmi_infoframe(encoder, adjusted_mode);
 }
 
 static void intel_hdmi_mode_set(struct intel_encoder *encoder)
