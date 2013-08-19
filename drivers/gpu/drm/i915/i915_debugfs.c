@@ -1788,6 +1788,31 @@ static int i915_energy_uJ(struct seq_file *m, void *data)
 	power *= units;
 
 	seq_printf(m, "%llu", (long long unsigned)power);
+
+	return 0;
+}
+
+static int i915_pc8_status(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!IS_HASWELL(dev)) {
+		seq_puts(m, "not supported\n");
+		return 0;
+	}
+
+	mutex_lock(&dev_priv->pc8.lock);
+	seq_printf(m, "Requirements met: %s\n",
+		   yesno(dev_priv->pc8.requirements_met));
+	seq_printf(m, "GPU idle: %s\n", yesno(dev_priv->pc8.gpu_idle));
+	seq_printf(m, "Disable count: %d\n", dev_priv->pc8.disable_count);
+	seq_printf(m, "IRQs disabled: %s\n",
+		   yesno(dev_priv->pc8.irqs_disabled));
+	seq_printf(m, "Enabled: %s\n", yesno(dev_priv->pc8.enabled));
+	mutex_unlock(&dev_priv->pc8.lock);
+
 	return 0;
 }
 
@@ -2231,6 +2256,7 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_llc", i915_llc, 0},
 	{"i915_edp_psr_status", i915_edp_psr_status, 0},
 	{"i915_energy_uJ", i915_energy_uJ, 0},
+	{"i915_pc8_status", i915_pc8_status, 0},
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 
