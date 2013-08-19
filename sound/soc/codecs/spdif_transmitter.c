@@ -33,7 +33,7 @@ static const struct snd_soc_dapm_widget dit_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("spdif-out"),
 };
 
-static const const struct snd_soc_dapm_route dit_routes[] = {
+static const struct snd_soc_dapm_route dit_routes[] = {
 	{ "spdif-out", NULL, "Playback" },
 };
 
