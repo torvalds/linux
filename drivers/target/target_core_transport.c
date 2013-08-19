@@ -1904,10 +1904,24 @@ static void target_complete_ok_work(struct work_struct *work)
 	}
 	/*
 	 * Check for a callback, used by amongst other things
-	 * XDWRITE_READ_10 emulation.
+	 * XDWRITE_READ_10 and COMPARE_AND_WRITE emulation.
 	 */
-	if (cmd->transport_complete_callback)
-		cmd->transport_complete_callback(cmd);
+	if (cmd->transport_complete_callback) {
+		sense_reason_t rc;
+
+		rc = cmd->transport_complete_callback(cmd);
+		if (!rc)
+			return;
+
+		ret = transport_send_check_condition_and_sense(cmd,
+					rc, 0);
+		if (ret == -EAGAIN || ret == -ENOMEM)
+			goto queue_full;
+
+		transport_lun_remove_cmd(cmd);
+		transport_cmd_check_stop_to_fabric(cmd);
+		return;
+	}
 
 	switch (cmd->data_direction) {
 	case DMA_FROM_DEVICE:

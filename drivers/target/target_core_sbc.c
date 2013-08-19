@@ -280,13 +280,13 @@ sbc_setup_write_same(struct se_cmd *cmd, unsigned char *flags, struct sbc_ops *o
 	return 0;
 }
 
-static void xdreadwrite_callback(struct se_cmd *cmd)
+static sense_reason_t xdreadwrite_callback(struct se_cmd *cmd)
 {
 	unsigned char *buf, *addr;
 	struct scatterlist *sg;
 	unsigned int offset;
-	int i;
-	int count;
+	sense_reason_t ret = TCM_NO_SENSE;
+	int i, count;
 	/*
 	 * From sbc3r22.pdf section 5.48 XDWRITEREAD (10) command
 	 *
@@ -301,7 +301,7 @@ static void xdreadwrite_callback(struct se_cmd *cmd)
 	buf = kmalloc(cmd->data_length, GFP_KERNEL);
 	if (!buf) {
 		pr_err("Unable to allocate xor_callback buf\n");
-		return;
+		return TCM_OUT_OF_RESOURCES;
 	}
 	/*
 	 * Copy the scatterlist WRITE buffer located at cmd->t_data_sg
@@ -320,8 +320,10 @@ static void xdreadwrite_callback(struct se_cmd *cmd)
 	offset = 0;
 	for_each_sg(cmd->t_bidi_data_sg, sg, cmd->t_bidi_data_nents, count) {
 		addr = kmap_atomic(sg_page(sg));
-		if (!addr)
+		if (!addr) {
+			ret = TCM_OUT_OF_RESOURCES;
 			goto out;
+		}
 
 		for (i = 0; i < sg->length; i++)
 			*(addr + sg->offset + i) ^= *(buf + offset + i);
@@ -332,6 +334,7 @@ static void xdreadwrite_callback(struct se_cmd *cmd)
 
 out:
 	kfree(buf);
+	return ret;
 }
 
 sense_reason_t
