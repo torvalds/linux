@@ -314,6 +314,7 @@ struct ath9k_ops_config {
 	u32 xlna_gpio;
 	u32 ant_ctrl_comm2g_switch_enable;
 	bool xatten_margin_cfg;
+	bool alt_mingainidx;
 };
 
 enum ath9k_int {

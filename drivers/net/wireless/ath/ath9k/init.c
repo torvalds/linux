@@ -534,6 +534,7 @@ static void ath9k_init_platform(struct ath_softc *sc)
 			       ATH9K_PCI_CUS230)) {
 		ah->config.xlna_gpio = 9;
 		ah->config.xatten_margin_cfg = true;
+		ah->config.alt_mingainidx = true;
 		ah->config.ant_ctrl_comm2g_switch_enable = 0x000BBB88;
 		sc->ant_comb.low_rssi_thresh = 20;
 		sc->ant_comb.fast_div_bias = 3;

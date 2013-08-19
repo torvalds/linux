@@ -3825,6 +3825,11 @@ static void ar9003_hw_atten_apply(struct ath_hw *ah, struct ath9k_channel *chan)
 			else
 				value = ar9003_hw_atten_chain_get_margin(ah, i, chan);
 
+			if (ah->config.alt_mingainidx)
+				REG_RMW_FIELD(ah, AR_PHY_EXT_ATTEN_CTL_0,
+					      AR_PHY_EXT_ATTEN_CTL_XATTEN1_MARGIN,
+					      value);
+
 			REG_RMW_FIELD(ah, ext_atten_reg[i],
 				      AR_PHY_EXT_ATTEN_CTL_XATTEN1_MARGIN,
 				      value);
