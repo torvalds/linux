@@ -1876,7 +1876,7 @@ static loff_t xillybus_llseek(struct file *filp, loff_t offset, int whence)
 	/*
 	 * Take both mutexes not allowing interrupts, since it seems like
 	 * common applications don't expect an -EINTR here. Besides, multiple
-	 * access to a single file desriptor on seekable devices is a mess
+	 * access to a single file descriptor on seekable devices is a mess
 	 * anyhow.
 	 */
 
@@ -2171,8 +2171,8 @@ int xillybus_endpoint_discovery(struct xilly_endpoint *endpoint)
 	INIT_LIST_HEAD(&tmpmem.to_unmap);
 
 	/*
-	 * Writing the value 0x00000001 to Endianess register signals which
-	 * endianess this processor is using, so the FPGA can swap words as
+	 * Writing the value 0x00000001 to Endianness register signals which
+	 * endianness this processor is using, so the FPGA can swap words as
 	 * necessary.
 	 */
 
