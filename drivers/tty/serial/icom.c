@@ -834,7 +834,10 @@ ignore_char:
 		status = cpu_to_le16(icom_port->statStg->rcv[rcv_buff].flags);
 	}
 	icom_port->next_rcv = rcv_buff;
+
+	spin_unlock(&icom_port->uart_port.lock);
 	tty_flip_buffer_push(port);
+	spin_lock(&icom_port->uart_port.lock);
 }
 
 static void process_interrupt(u16 port_int_reg,
