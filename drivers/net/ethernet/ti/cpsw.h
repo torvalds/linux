@@ -1,11 +1,10 @@
-/*
- * Texas Instruments Ethernet Switch Driver
+/* Texas Instruments Ethernet Switch Driver
  *
- * Copyright (C) 2012 Texas Instruments
+ * Copyright (C) 2013 Texas Instruments
  *
  * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
+ * modify it under the terms of the GNU General Public License
+ * version 2 as published by the Free Software Foundation.
  *
  * This program is distributed "as is" WITHOUT ANY WARRANTY of any
  * kind, whether express or implied; without even the implied warranty
@@ -22,14 +21,13 @@ struct cpsw_slave_data {
 	int		phy_if;
 	u8		mac_addr[ETH_ALEN];
 	u16		dual_emac_res_vlan;	/* Reserved VLAN for DualEMAC */
-
 };
 
 struct cpsw_platform_data {
+	struct cpsw_slave_data	*slave_data;
 	u32	ss_reg_ofs;	/* Subsystem control register offset */
 	u32	channels;	/* number of cpdma channels (symmetric) */
 	u32	slaves;		/* number of slave cpgmac ports */
-	struct cpsw_slave_data	*slave_data;
 	u32	active_slave; /* time stamping, ethtool and SIOCGMIIPHY slave */
 	u32	cpts_clock_mult;  /* convert input clock ticks to nanoseconds */
 	u32	cpts_clock_shift; /* convert input clock ticks to nanoseconds */

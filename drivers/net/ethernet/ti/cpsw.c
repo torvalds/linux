@@ -34,9 +34,9 @@
 #include <linux/of_device.h>
 #include <linux/if_vlan.h>
 
-#include <linux/platform_data/cpsw.h>
 #include <linux/pinctrl/consumer.h>
 
+#include "cpsw.h"
 #include "cpsw_ale.h"
 #include "cpts.h"
 #include "davinci_cpdma.h"
