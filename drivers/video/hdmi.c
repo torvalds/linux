@@ -103,10 +103,11 @@ ssize_t hdmi_avi_infoframe_pack(struct hdmi_avi_infoframe *frame, void *buffer,
 	if (frame->active_aspect & 0xf)
 		ptr[0] |= BIT(4);
 
-	if (frame->horizontal_bar_valid)
+	/* Bit 3 and 2 indicate if we transmit horizontal/vertical bar data */
+	if (frame->top_bar || frame->bottom_bar)
 		ptr[0] |= BIT(3);
 
-	if (frame->vertical_bar_valid)
+	if (frame->left_bar || frame->right_bar)
 		ptr[0] |= BIT(2);
 
 	ptr[1] = ((frame->colorimetry & 0x3) << 6) |
