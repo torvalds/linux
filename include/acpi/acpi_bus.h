@@ -274,14 +274,11 @@ struct acpi_device_wakeup {
 };
 
 struct acpi_device_physical_node {
-	u8 node_id;
+	unsigned int node_id;
 	struct list_head node;
 	struct device *dev;
 	bool put_online:1;
 };
-
-/* set maximum of physical nodes to 32 for expansibility */
-#define ACPI_MAX_PHYSICAL_NODE	32
 
 /* Device */
 struct acpi_device {
@@ -302,10 +299,9 @@ struct acpi_device {
 	struct acpi_driver *driver;
 	void *driver_data;
 	struct device dev;
-	u8 physical_node_count;
+	unsigned int physical_node_count;
 	struct list_head physical_node_list;
 	struct mutex physical_node_lock;
-	DECLARE_BITMAP(physical_node_id_bitmap, ACPI_MAX_PHYSICAL_NODE);
 	struct list_head power_dependent;
 	void (*remove)(struct acpi_device *);
 };
@@ -445,7 +441,11 @@ struct acpi_pci_root {
 };
 
 /* helper */
-acpi_handle acpi_get_child(acpi_handle, u64);
+acpi_handle acpi_find_child(acpi_handle, u64, bool);
+static inline acpi_handle acpi_get_child(acpi_handle handle, u64 addr)
+{
+	return acpi_find_child(handle, addr, false);
+}
 int acpi_is_root_bridge(acpi_handle);
 struct acpi_pci_root *acpi_pci_find_root(acpi_handle handle);
 #define DEVICE_ACPI_HANDLE(dev) ((acpi_handle)ACPI_HANDLE(dev))
