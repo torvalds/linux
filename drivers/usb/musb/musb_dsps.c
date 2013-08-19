@@ -361,8 +361,8 @@ static int dsps_musb_init(struct musb *musb)
 		return -EINVAL;
 
 	reg_base = devm_ioremap_resource(dev, r);
-	if (!musb->ctrl_base)
-		return -EINVAL;
+	if (IS_ERR(reg_base))
+		return PTR_ERR(reg_base);
 	musb->ctrl_base = reg_base;
 
 	/* NOP driver needs change if supporting dual instance */
