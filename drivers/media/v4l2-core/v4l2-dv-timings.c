@@ -408,6 +408,7 @@ bool v4l2_detect_cvt(unsigned frame_height, unsigned hfreq, unsigned vsync,
 		h_fp = h_blank - hsync - h_bp;
 	}
 
+	fmt->type = V4L2_DV_BT_656_1120;
 	fmt->bt.polarities = polarities;
 	fmt->bt.width = image_width;
 	fmt->bt.height = image_height;
@@ -527,6 +528,7 @@ bool v4l2_detect_gtf(unsigned frame_height,
 
 	h_fp = h_blank / 2 - hsync;
 
+	fmt->type = V4L2_DV_BT_656_1120;
 	fmt->bt.polarities = polarities;
 	fmt->bt.width = image_width;
 	fmt->bt.height = image_height;
