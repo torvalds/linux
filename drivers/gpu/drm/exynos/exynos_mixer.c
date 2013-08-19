@@ -23,7 +23,6 @@
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 #include <linux/i2c.h>
-#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
