@@ -176,7 +176,7 @@ static int sco_connect(struct sock *sk)
 	else
 		type = SCO_LINK;
 
-	hcon = hci_connect_sco(hdev, type, dst);
+	hcon = hci_connect_sco(hdev, type, dst, sco_pi(sk)->setting);
 	if (IS_ERR(hcon)) {
 		err = PTR_ERR(hcon);
 		goto done;

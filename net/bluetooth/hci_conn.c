@@ -185,13 +185,24 @@ void hci_setup_sync(struct hci_conn *conn, __u16 handle)
 	conn->attempt++;
 
 	cp.handle   = cpu_to_le16(handle);
-	cp.pkt_type = cpu_to_le16(conn->pkt_type);
 
 	cp.tx_bandwidth   = __constant_cpu_to_le32(0x00001f40);
 	cp.rx_bandwidth   = __constant_cpu_to_le32(0x00001f40);
-	cp.max_latency    = __constant_cpu_to_le16(0xffff);
-	cp.voice_setting  = cpu_to_le16(hdev->voice_setting);
-	cp.retrans_effort = 0xff;
+	cp.voice_setting  = cpu_to_le16(conn->setting);
+
+	switch (conn->setting & SCO_AIRMODE_MASK) {
+	case SCO_AIRMODE_TRANSP:
+		cp.pkt_type = __constant_cpu_to_le16(EDR_ESCO_MASK &
+						     ~ESCO_2EV3);
+		cp.max_latency = __constant_cpu_to_le16(0x000d);
+		cp.retrans_effort = 0x02;
+		break;
+	case SCO_AIRMODE_CVSD:
+		cp.pkt_type = cpu_to_le16(conn->pkt_type);
+		cp.max_latency = __constant_cpu_to_le16(0xffff);
+		cp.retrans_effort = 0xff;
+		break;
+	}
 
 	hci_send_cmd(hdev, HCI_OP_SETUP_SYNC_CONN, sizeof(cp), &cp);
 }
@@ -560,7 +571,8 @@ static struct hci_conn *hci_connect_acl(struct hci_dev *hdev, bdaddr_t *dst,
 	return acl;
 }
 
-struct hci_conn *hci_connect_sco(struct hci_dev *hdev, int type, bdaddr_t *dst)
+struct hci_conn *hci_connect_sco(struct hci_dev *hdev, int type, bdaddr_t *dst,
+				 __u16 setting)
 {
 	struct hci_conn *acl;
 	struct hci_conn *sco;
@@ -582,6 +594,8 @@ struct hci_conn *hci_connect_sco(struct hci_dev *hdev, int type, bdaddr_t *dst)
 	sco->link = acl;
 
 	hci_conn_hold(sco);
+
+	sco->setting = setting;
 
 	if (acl->state == BT_CONNECTED &&
 	    (sco->state == BT_OPEN || sco->state == BT_CLOSED)) {
