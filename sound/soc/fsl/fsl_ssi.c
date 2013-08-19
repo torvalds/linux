@@ -941,18 +941,6 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	if (ssi_private->use_dma) {
-		/* The 'name' should not have any slashes in it. */
-		ret = devm_request_irq(&pdev->dev, ssi_private->irq,
-					fsl_ssi_isr, 0, ssi_private->name,
-					ssi_private);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "could not claim irq %u\n",
-					ssi_private->irq);
-			goto error_irqmap;
-		}
-	}
-
 	/* Are the RX and the TX clocks locked? */
 	if (!of_find_property(np, "fsl,ssi-asynchronous", NULL))
 		ssi_private->cpu_dai_drv.symmetric_rates = 1;
@@ -1020,6 +1008,16 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 			dma_events[0], shared ? IMX_DMATYPE_SSI_SP : IMX_DMATYPE_SSI);
 		imx_pcm_dma_params_init_data(&ssi_private->filter_data_rx,
 			dma_events[1], shared ? IMX_DMATYPE_SSI_SP : IMX_DMATYPE_SSI);
+	} else if (ssi_private->use_dma) {
+		/* The 'name' should not have any slashes in it. */
+		ret = devm_request_irq(&pdev->dev, ssi_private->irq,
+					fsl_ssi_isr, 0, ssi_private->name,
+					ssi_private);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "could not claim irq %u\n",
+					ssi_private->irq);
+			goto error_irqmap;
+		}
 	}
 
 	/* Initialize the the device_attribute structure */
