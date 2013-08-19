@@ -30,6 +30,10 @@ OPTIONS
 --expr::
 	List of events to show, currently only syscall names.
 
+-o::
+--output=::
+	Output file name.
+
 -p::
 --pid=::
 	Record events on existing process ID (comma separated list).
