@@ -148,6 +148,8 @@ static int au_do_cpdown(const unsigned char dmsg, struct au_mvd_args *a)
 	};
 
 	AuDbg("b%d, b%d\n", cpg.bsrc, cpg.bdst);
+	if (a->mvdown.flags & AUFS_MVDOWN_OWLOWER)
+		au_fset_cpup(cpg.flags, OVERWRITE);
 	err = au_sio_cpdown_simple(&cpg);
 	if (unlikely(err))
 		AU_MVD_PR(dmsg, "cpdown failed\n");
@@ -423,7 +425,10 @@ static int au_mvd_args_exist(const unsigned char dmsg, struct au_mvd_args *a)
 {
 	int err;
 
-	err = (a->bfound != a->mvd_bdst) ? 0 : -EEXIST;
+	err = 0;
+	if (!(a->mvdown.flags & AUFS_MVDOWN_OWLOWER)
+	    && a->bfound == a->mvd_bdst)
+		err = -EEXIST;
 	AuTraceErr(err);
 	return err;
 }

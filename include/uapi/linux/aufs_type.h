@@ -240,6 +240,7 @@ enum {
 
 /* flags for move-down */
 #define AUFS_MVDOWN_DMSG	1
+#define AUFS_MVDOWN_OWLOWER	(1 << 1)	/* overwrite lower */
 /* will be added more */
 
 struct aufs_mvdown {
