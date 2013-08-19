@@ -53,23 +53,6 @@
 #include "board-mop500.h"
 #include "board-mop500-regulators.h"
 
-static struct fixed_voltage_config snowball_gpio_en_3v3_data = {
-       .supply_name            = "EN-3V3",
-       .gpio                   = SNOWBALL_EN_3V3_ETH_GPIO,
-       .microvolts             = 3300000,
-       .enable_high            = 1,
-       .init_data              = &gpio_en_3v3_regulator,
-       .startup_delay          = 5000, /* 1200us */
-};
-
-static struct platform_device snowball_gpio_en_3v3_regulator_dev = {
-       .name   = "reg-fixed-voltage",
-       .id     = 1,
-       .dev    = {
-               .platform_data  = &snowball_gpio_en_3v3_data,
-       },
-};
-
 /* Dynamically populated. */
 static struct gpio sdi0_reg_gpios[] = {
 	{ 0, GPIOF_OUT_INIT_LOW, "mmci_vsel" },
@@ -377,7 +360,6 @@ static void __init u8500_cryp1_hash1_init(struct device *parent)
 }
 
 static struct platform_device *snowball_platform_devs[] __initdata = {
-	&snowball_gpio_en_3v3_regulator_dev,
 	&u8500_cpufreq_cooling_device,
 	&sdi0_regulator,
 };
