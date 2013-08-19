@@ -1449,7 +1449,7 @@ static void ar9003_hw_set_bt_ant_diversity(struct ath_hw *ah, bool enable)
 	regval |= (ant_div_ctl1 & 0x3f) << AR_ANT_DIV_CTRL_ALL_S;
 	REG_WRITE(ah, AR_PHY_MC_GAIN_CTRL, regval);
 
-	if (AR_SREV_9485_11(ah)) {
+	if (AR_SREV_9485_11_OR_LATER(ah)) {
 		/*
 		 * Enable LNA diversity.
 		 */
