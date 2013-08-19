@@ -118,67 +118,6 @@ static struct ab8500_codec_platform_data ab8500_codec_pdata = {
 	.ear_cmv = EAR_CMV_0_95V
 };
 
-static struct gpio_keys_button snowball_key_array[] = {
-	{
-		.gpio           = 32,
-		.type           = EV_KEY,
-		.code           = KEY_1,
-		.desc           = "userpb",
-		.active_low     = 1,
-		.debounce_interval = 50,
-		.wakeup         = 1,
-	},
-	{
-		.gpio           = 151,
-		.type           = EV_KEY,
-		.code           = KEY_2,
-		.desc           = "extkb1",
-		.active_low     = 1,
-		.debounce_interval = 50,
-		.wakeup         = 1,
-	},
-	{
-		.gpio           = 152,
-		.type           = EV_KEY,
-		.code           = KEY_3,
-		.desc           = "extkb2",
-		.active_low     = 1,
-		.debounce_interval = 50,
-		.wakeup         = 1,
-	},
-	{
-		.gpio           = 161,
-		.type           = EV_KEY,
-		.code           = KEY_4,
-		.desc           = "extkb3",
-		.active_low     = 1,
-		.debounce_interval = 50,
-		.wakeup         = 1,
-	},
-	{
-		.gpio           = 162,
-		.type           = EV_KEY,
-		.code           = KEY_5,
-		.desc           = "extkb4",
-		.active_low     = 1,
-		.debounce_interval = 50,
-		.wakeup         = 1,
-	},
-};
-
-static struct gpio_keys_platform_data snowball_key_data = {
-	.buttons        = snowball_key_array,
-	.nbuttons       = ARRAY_SIZE(snowball_key_array),
-};
-
-static struct platform_device snowball_key_dev = {
-	.name           = "gpio-keys",
-	.id             = -1,
-	.dev            = {
-		.platform_data  = &snowball_key_data,
-	}
-};
-
 static struct smsc911x_platform_config snowball_sbnet_cfg = {
 	.irq_polarity = SMSC911X_IRQ_POLARITY_ACTIVE_HIGH,
 	.irq_type = SMSC911X_IRQ_TYPE_PUSH_PULL,
@@ -469,7 +408,6 @@ static void __init u8500_cryp1_hash1_init(struct device *parent)
 }
 
 static struct platform_device *snowball_platform_devs[] __initdata = {
-	&snowball_key_dev,
 	&snowball_sbnet_dev,
 	&snowball_gpio_en_3v3_regulator_dev,
 	&u8500_cpufreq_cooling_device,
