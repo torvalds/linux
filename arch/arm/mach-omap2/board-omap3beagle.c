@@ -33,7 +33,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/mmc/host.h>
 #include <linux/usb/phy.h>
-#include <linux/usb/nop-usb-xceiv.h>
+#include <linux/usb/usb_phy_gen_xceiv.h>
 
 #include <linux/regulator/machine.h>
 #include <linux/i2c/twl.h>
@@ -279,7 +279,7 @@ static struct regulator_consumer_supply beagle_vsim_supply[] = {
 static struct gpio_led gpio_leds[];
 
 /* PHY's VCC regulator might be added later, so flag that we need it */
-static struct nop_usb_xceiv_platform_data hsusb2_phy_data = {
+static struct usb_phy_gen_xceiv_platform_data hsusb2_phy_data = {
 	.needs_vcc = true,
 };
 

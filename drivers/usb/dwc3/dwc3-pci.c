@@ -43,7 +43,7 @@
 #include <linux/platform_device.h>
 
 #include <linux/usb/otg.h>
-#include <linux/usb/nop-usb-xceiv.h>
+#include <linux/usb/usb_phy_gen_xceiv.h>
 
 /* FIXME define these in <linux/pci_ids.h> */
 #define PCI_VENDOR_ID_SYNOPSYS		0x16c3
@@ -58,13 +58,13 @@ struct dwc3_pci {
 
 static int dwc3_pci_register_phys(struct dwc3_pci *glue)
 {
-	struct nop_usb_xceiv_platform_data pdata;
+	struct usb_phy_gen_xceiv_platform_data pdata;
 	struct platform_device	*pdev;
 	int			ret;
 
 	memset(&pdata, 0x00, sizeof(pdata));
 
-	pdev = platform_device_alloc("nop_usb_xceiv", 0);
+	pdev = platform_device_alloc("usb_phy_gen_xceiv", 0);
 	if (!pdev)
 		return -ENOMEM;
 
@@ -75,7 +75,7 @@ static int dwc3_pci_register_phys(struct dwc3_pci *glue)
 	if (ret)
 		goto err1;
 
-	pdev = platform_device_alloc("nop_usb_xceiv", 1);
+	pdev = platform_device_alloc("usb_phy_gen_xceiv", 1);
 	if (!pdev) {
 		ret = -ENOMEM;
 		goto err1;

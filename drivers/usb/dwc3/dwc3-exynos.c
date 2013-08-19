@@ -20,7 +20,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/clk.h>
 #include <linux/usb/otg.h>
-#include <linux/usb/nop-usb-xceiv.h>
+#include <linux/usb/usb_phy_gen_xceiv.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 
@@ -34,13 +34,13 @@ struct dwc3_exynos {
 
 static int dwc3_exynos_register_phys(struct dwc3_exynos *exynos)
 {
-	struct nop_usb_xceiv_platform_data pdata;
+	struct usb_phy_gen_xceiv_platform_data pdata;
 	struct platform_device	*pdev;
 	int			ret;
 
 	memset(&pdata, 0x00, sizeof(pdata));
 
-	pdev = platform_device_alloc("nop_usb_xceiv", PLATFORM_DEVID_AUTO);
+	pdev = platform_device_alloc("usb_phy_gen_xceiv", PLATFORM_DEVID_AUTO);
 	if (!pdev)
 		return -ENOMEM;
 
@@ -51,7 +51,7 @@ static int dwc3_exynos_register_phys(struct dwc3_exynos *exynos)
 	if (ret)
 		goto err1;
 
-	pdev = platform_device_alloc("nop_usb_xceiv", PLATFORM_DEVID_AUTO);
+	pdev = platform_device_alloc("usb_phy_gen_xceiv", PLATFORM_DEVID_AUTO);
 	if (!pdev) {
 		ret = -ENOMEM;
 		goto err1;

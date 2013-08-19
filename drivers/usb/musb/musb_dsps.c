@@ -36,7 +36,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
 #include <linux/module.h>
-#include <linux/usb/nop-usb-xceiv.h>
+#include <linux/usb/usb_phy_gen_xceiv.h>
 #include <linux/platform_data/usb-omap.h>
 #include <linux/sizes.h>
 
