@@ -468,6 +468,8 @@ int snd_soc_new_ac97_codec(struct snd_soc_codec *codec,
 void snd_soc_free_ac97_codec(struct snd_soc_codec *codec);
 
 int snd_soc_set_ac97_ops(struct snd_ac97_bus_ops *ops);
+int snd_soc_set_ac97_ops_of_reset(struct snd_ac97_bus_ops *ops,
+		struct platform_device *pdev);
 
 /*
  *Controls
