@@ -30,6 +30,8 @@
 //a represents a generic_sensor type point
 #define to_specific_sensor(a) (container_of(a, struct specific_sensor, common_sensor))
 
+#define SENSOR_CROP_PERCENT   0         // Redefine this macro in sensor driver if user want to crop
+
 #define SENSOR_INIT_IS_ERR	 (0x00<<28)
 #define SENSOR_INIT_IS_OK	 (0x01<<28)
 
@@ -242,21 +244,23 @@ struct	rk_flash_timer{
 struct generic_sensor
 {
     char dev_name[32];
-	struct v4l2_subdev subdev;
-	struct i2c_client *client;
-	rk_sensor_info_priv_t info_priv;
-	int model;	/* V4L2_IDENT_OV* codes from v4l2-chip-ident.h */
-	
-	bool is_need_tasklock;
-	atomic_t tasklock_cnt;
-	struct soc_camera_ops *sensor_ops; 
-	struct v4l2_queryctrl* sensor_controls;  
-	struct sensor_v4l2ctrl_info_s *ctrls;
-	struct rk_flash_timer flash_off_timer;
-	struct sensor_ops_cb_s sensor_cb;
-	struct rk_sensor_focus_op_s sensor_focus;
-	struct rk29camera_platform_data *sensor_io_request;
-	struct rk29camera_gpio_res *sensor_gpio_res;
+    struct v4l2_subdev subdev;
+    struct i2c_client *client;
+    rk_sensor_info_priv_t info_priv;
+    int model;	/* V4L2_IDENT_OV* codes from v4l2-chip-ident.h */
+
+    int crop_percent;
+
+    bool is_need_tasklock;
+    atomic_t tasklock_cnt;
+    struct soc_camera_ops *sensor_ops; 
+    struct v4l2_queryctrl* sensor_controls;  
+    struct sensor_v4l2ctrl_info_s *ctrls;
+    struct rk_flash_timer flash_off_timer;
+    struct sensor_ops_cb_s sensor_cb;
+    struct rk_sensor_focus_op_s sensor_focus;
+    struct rk29camera_platform_data *sensor_io_request;
+    struct rk29camera_gpio_res *sensor_gpio_res;
 	
 };
 
@@ -295,6 +299,7 @@ extern int generic_sensor_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_c
 extern int generic_sensor_af_workqueue_set(struct soc_camera_device *icd, enum rk_sensor_focus_wq_cmd cmd, int var, bool wait);
 extern int generic_sensor_s_stream(struct v4l2_subdev *sd, int enable);
 extern int generic_sensor_writebuf(struct i2c_client *client, char *buf, int buf_size);
+extern int generic_sensor_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *cc);
 
 static inline int sensor_get_full_width_height(int full_resolution, unsigned short *w, unsigned short *h)
 {
@@ -704,6 +709,7 @@ static inline int sensor_face_detect_default_cb(struct soc_camera_device *icd, s
     struct rk_sensor_reg *reg_data; \
     int config_flash = 0;\
     int sensor_config;\
+ 	struct soc_camera_ops* sensor_ops_p = NULL;\
  \
     if (pdata == NULL) {\
         printk("WARNING: Camera sensor device is registered in board by CONFIG_SENSOR_XX,\n"\
@@ -773,6 +779,7 @@ static inline int sensor_face_detect_default_cb(struct soc_camera_device *icd, s
     } else {  \
         spsensor->common_sensor.info_priv.sensor_series = sensor_series;  \
         spsensor->common_sensor.info_priv.num_series = num;  \
+        spsensor->common_sensor.crop_percent = SENSOR_CROP_PERCENT;\
  \
         sensor_series->gSeq_info.w = SENSOR_PREVIEW_W;  \
         sensor_series->gSeq_info.h = SENSOR_PREVIEW_H;  \
@@ -914,8 +921,13 @@ static inline int sensor_face_detect_default_cb(struct soc_camera_device *icd, s
         BUG();  \
     }  \
     spsensor->common_sensor.sensor_controls = controls;  \
-    sensor_ops.controls = controls;  \
-    sensor_ops.num_controls = num;  \
+    sensor_ops_p = (struct soc_camera_ops*)kzalloc(sizeof(struct soc_camera_ops),GFP_KERNEL);  \
+	if (sensor_ops_p == NULL) {  \
+		SENSOR_TR("kzalloc struct soc_camera_ops failed");	\
+		BUG();	\
+	}  \
+    sensor_ops_p->controls = controls;  \
+    sensor_ops_p->num_controls = num;  \
   \
     ctrls = (struct sensor_v4l2ctrl_info_s*)kzalloc(sizeof(struct sensor_v4l2ctrl_info_s)*num,GFP_KERNEL);  \
     if (ctrls == NULL) {  \
@@ -940,13 +952,13 @@ static inline int sensor_face_detect_default_cb(struct soc_camera_device *icd, s
         SENSOR_TR("kzalloc struct v4l2_querymenu(%d) failed",num);  \
         BUG();  \
     }  \
-    sensor_ops.menus = menus;  \
-    sensor_ops.num_menus = num;  \
+    sensor_ops_p->menus = menus;  \
+    sensor_ops_p->num_menus = num;  \
  \
-    sensor_ops.suspend = sensor_suspend;  \
-    sensor_ops.resume = sensor_resume;  \
-    sensor_ops.set_bus_param = generic_sensor_set_bus_param;  \
-	sensor_ops.query_bus_param = generic_sensor_query_bus_param;  \
+    sensor_ops_p->suspend = sensor_suspend;  \
+    sensor_ops_p->resume = sensor_resume;  \
+    sensor_ops_p->set_bus_param = generic_sensor_set_bus_param;  \
+	sensor_ops_p->query_bus_param = generic_sensor_query_bus_param;  \
  \
     if (sizeof(sensor_ZoomSeqe)/sizeof(struct rk_sensor_reg *))\
         sensor_ZoomSeqe[0] = NULL;\
@@ -1111,8 +1123,8 @@ static inline int sensor_face_detect_default_cb(struct soc_camera_device *icd, s
     }  \
  \
     for (i=0; i<(sizeof(sensor_menus)/sizeof(struct v4l2_querymenu)); i++) { \
-        num = sensor_ops.num_menus - sizeof(sensor_menus)/sizeof(struct v4l2_querymenu); \
-        menu = sensor_ops.menus; \
+        num = sensor_ops_p->num_menus - sizeof(sensor_menus)/sizeof(struct v4l2_querymenu); \
+        menu = sensor_ops_p->menus; \
         while (num--) { \
             if (menu->id == sensor_menus[i].id) { \
                 menu->id = 0xffffffff; \
@@ -1126,8 +1138,8 @@ static inline int sensor_face_detect_default_cb(struct soc_camera_device *icd, s
  \
 	spsensor->common_sensor.info_priv.datafmt = sensor_colour_fmts;  \
 	spsensor->common_sensor.info_priv.num_datafmt = ARRAY_SIZE(sensor_colour_fmts);  \
-	spsensor->common_sensor.sensor_ops = &sensor_ops;  \
-	icd->ops		= &sensor_ops;  \
+	spsensor->common_sensor.sensor_ops = sensor_ops_p;  \
+	icd->ops		= sensor_ops_p;  \
 	spsensor->common_sensor.info_priv.curfmt= sensor_colour_fmts[0];  \
  \
     if (config_flash) { \
@@ -1179,6 +1191,7 @@ static inline int sensor_face_detect_default_cb(struct soc_camera_device *icd, s
 static struct v4l2_subdev_video_ops sensor_subdev_video_ops = {\
 	.s_mbus_fmt = generic_sensor_s_fmt,\
 	.g_mbus_fmt = generic_sensor_g_fmt,\
+    .cropcap = generic_sensor_cropcap,\
 	.try_mbus_fmt	= generic_sensor_try_fmt,\
 	.enum_mbus_fmt	= generic_sensor_enum_fmt,\
 	.enum_frameintervals = generic_sensor_enum_frameintervals,\
@@ -1248,6 +1261,7 @@ sensor_probe_end:\
                 kfree(icd->ops->menus);\
                 icd->ops->menus = NULL;\
             }\
+            kfree(icd->ops);\
     	    icd->ops = NULL;\
         }\
         i2c_set_clientdata(client, NULL);\
@@ -1283,6 +1297,7 @@ sensor_probe_end:\
             kfree(icd->ops->menus);\
             icd->ops->menus = NULL;\
         }\
+	    kfree(icd->ops);\
 	    icd->ops = NULL;\
     }\
 	i2c_set_clientdata(client, NULL);\

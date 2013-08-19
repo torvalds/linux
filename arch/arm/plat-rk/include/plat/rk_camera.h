@@ -113,7 +113,7 @@
                           flash_attach,\
                           mir,\
                           i2c_chl,\
-                          cif_chl)    \
+                          cif_chl)\
     new_camera_device_ex(sensor_name,\
                         face,\
                         INVALID_VALUE,\
@@ -130,6 +130,85 @@
                         CONS(sensor_name,_I2C_ADDR),\
                         cif_chl,\
                         24)
+
+#define new_camera_device_raw_ex(sensor_name,\
+                             face,\
+                             ori,\
+                             pwr_io,\
+                             pwr_active,\
+                             rst_io,\
+                             rst_active,\
+                             pwdn_io,\
+                             pwdn_active,\
+                             flash_attach,\
+                             res,\
+                             mir,\
+                             i2c_chl,\
+                             i2c_spd,\
+                             i2c_addr,\
+                             cif_chl,\
+                             mclk)\
+            .dev = {\
+                .i2c_cam_info = {\
+                    I2C_BOARD_INFO(STR(sensor_name), i2c_addr>>1),\
+                },\
+                .link_info = {\
+                	.bus_id= RK29_CAM_PLATFORM_DEV_ID+cif_chl,\
+                	.i2c_adapter_id = i2c_chl,\
+                	.module_name	= STR(sensor_name),\
+                },\
+                .device_info = {\
+                	.name = "soc-camera-pdrv",\
+                	.dev	= {\
+                		.init_name = STR(CONS(_CONS(sensor_name,_),face)),\
+                	},\
+                },\
+            },\
+            .io = {\
+                .gpio_power = pwr_io,\
+                .gpio_reset = rst_io,\
+                .gpio_powerdown = pwdn_io,\
+                .gpio_flash = INVALID_GPIO,\
+                .gpio_flag = ((pwr_active&0x01)<<RK29_CAM_POWERACTIVE_BITPOS)|((rst_active&0x01)<<RK29_CAM_RESETACTIVE_BITPOS)|((pwdn_active&0x01)<<RK29_CAM_POWERDNACTIVE_BITPOS),\
+            },\
+            .orientation = ori,\
+            .resolution = res,\
+            .mirror = mir,\
+            .i2c_rate = i2c_spd,\
+            .flash = flash_attach,\
+            .pwdn_info = ((pwdn_active&0x10)|0x01),\
+            .powerup_sequence = CONS(sensor_name,_PWRSEQ),\
+            .mclk_rate = mclk,\
+
+
+#define new_camera_device_raw(sensor_name,\
+                          face,\
+                          pwdn_io,\
+                          flash_attach,\
+                          mir,\
+                          i2c_chl,\
+                          cif_chl)\
+    new_camera_device_raw_ex(sensor_name,\
+                        face,\
+                        INVALID_VALUE,\
+                        INVALID_VALUE,\
+                        INVALID_VALUE,\
+                        INVALID_VALUE,\
+                        INVALID_VALUE,\
+                        pwdn_io,\
+                        CONS(sensor_name,_PWRDN_ACTIVE),\
+                        flash_attach,\
+                        CONS(sensor_name,_FULL_RESOLUTION),\
+                        mir,i2c_chl,\
+                        100000,\
+                        CONS(sensor_name,_I2C_ADDR),\
+                        cif_chl,\
+                        24)
+
+#define new_camera_device_fov(a,b)\
+    .fov_h = a,\
+    .fov_v = b,
+                                
 
 #define new_camera_device_end new_camera_device_ex(end,end,\
                                     INVALID_VALUE,INVALID_VALUE,INVALID_VALUE,INVALID_VALUE,\
@@ -505,6 +584,9 @@
 #define Sensor_HasBeen_PwrOff(a)            (a&0x01)
 #define Sensor_Support_DirectResume(a)      ((a&0x10)==0x10)
 
+#define Sensor_CropSet(a,b)                  a->reserved[1] = b;
+#define Sensor_CropGet(a)                    a->reserved[1]
+
 enum rk29camera_ioctrl_cmd
 {
 	Cam_Power,
@@ -603,7 +685,9 @@ struct rkcamera_platform_data {
                                     bit4-bit7 --- power up sequence second step;
                                      .....
                                   */
-    int mclk_rate;       /* MHz : 24/48 */                                  
+    int mclk_rate;       /* MHz : 24/48 */ 
+    int fov_h;           /* fied of view horizontal */
+    int fov_v;           /* fied of view vertical */
                       
 };
 

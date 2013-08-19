@@ -313,10 +313,14 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 *v0.3.b:  
 *         1. this verison is support for 3188M, the version has been revert in v0.3.d;
 *v0.3.d:
-*         1. this version is support foe rk3028a;
+*         1. this version is support for rk3028a;
+*
+*v0.3.f:  
+*         1. this version is support query fov orientation; 
+*         2. support cropcap , setcrop, getcrop;
 */
 
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 3, 0xd)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 3, 0xf)
 static int version = RK_CAM_VERSION_CODE;
 module_param(version, int, S_IRUGO);
 
@@ -335,11 +339,13 @@ module_param(version, int, S_IRUGO);
 
 #define RK_CAM_W_MIN        48
 #define RK_CAM_H_MIN        32
-#define RK_CAM_W_MAX        3856            /* ddl@rock-chips.com : 10M Pixel */
+#define RK_CAM_W_MAX        3856                /* ddl@rock-chips.com : 10M Pixel */
 #define RK_CAM_H_MAX        2764
-#define RK_CAM_FRAME_INVAL_INIT 3
-#define RK_CAM_FRAME_INVAL_DC 3          /* ddl@rock-chips.com :  */
-#define RK30_CAM_FRAME_MEASURE  5
+#define RK_CAM_FRAME_INVAL_INIT      3
+#define RK_CAM_FRAME_INVAL_DC        3          /* ddl@rock-chips.com :  */
+#define RK30_CAM_FRAME_MEASURE       5
+
+
 extern void videobuf_dma_contig_free(struct videobuf_queue *q, struct videobuf_buffer *buf);
 extern dma_addr_t videobuf_to_dma_contig(struct videobuf_buffer *buf);
 /* buffer for one video frame */
@@ -421,6 +427,13 @@ struct rk_cif_clk
     bool on;
 };
 
+struct rk_cif_crop
+{
+    spinlock_t lock;
+    struct v4l2_rect c;
+    struct v4l2_rect bounds;
+};
+
 struct rk_camera_dev
 {
 	struct soc_camera_host	soc_host;
@@ -452,6 +465,8 @@ struct rk_camera_dev
 	int hostid;
     int icd_width;
     int icd_height;
+
+    struct rk_cif_crop cropinfo;
 
 	struct rk29camera_platform_data *pdata;
 	struct resource		*res;
@@ -1522,6 +1537,9 @@ static int rk_camera_add_device(struct soc_camera_device *icd)
     struct v4l2_subdev *sd;
     int ret,i,icd_catch;
     struct rk_camera_frmivalenum *fival_list,*fival_nxt;
+    struct v4l2_cropcap cropcap;
+    struct v4l2_mbus_framefmt mf;
+    const struct soc_camera_format_xlate *xlate = NULL;
     
     mutex_lock(&camera_lock);
 
@@ -1557,6 +1575,23 @@ static int rk_camera_add_device(struct soc_camera_device *icd)
             goto ebusy;
         #endif
         v4l2_subdev_call(sd, core, ioctl, RK29_CAM_SUBDEV_CB_REGISTER,(void*)(&pcdev->icd_cb));
+
+        if (v4l2_subdev_call(sd, video, cropcap, &cropcap) == 0) {
+            memcpy(&pcdev->cropinfo.bounds ,&cropcap.bounds,sizeof(struct v4l2_rect));
+        } else {
+            xlate = soc_camera_xlate_by_fourcc(icd, V4L2_PIX_FMT_NV12);
+            mf.width = 10000;
+            mf.height = 10000;
+            mf.field = V4L2_FIELD_NONE;
+            mf.code = xlate->code;
+            mf.reserved[6] = 0xfefe5a5a;
+            v4l2_subdev_call(sd, video, try_mbus_fmt, &mf);
+
+            pcdev->cropinfo.bounds.left = 0;
+            pcdev->cropinfo.bounds.top = 0;
+            pcdev->cropinfo.bounds.width = mf.width;
+            pcdev->cropinfo.bounds.height = mf.height;
+        }
     }
     pcdev->icd = icd;
     pcdev->icd_init = 0;
@@ -1997,38 +2032,41 @@ static void rk_camera_put_formats(struct soc_camera_device *icd)
 {
 	return;
 }
-
-static int rk_camera_set_crop(struct soc_camera_device *icd,
-			       struct v4l2_crop *a)
+static int rk_camera_cropcap(struct soc_camera_device *icd, struct v4l2_cropcap *cropcap)
 {
     struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-	struct v4l2_mbus_framefmt mf;
-	u32 fourcc = icd->current_fmt->host_fmt->fourcc;
-    int ret;
+    int ret=0;
 
-    ret = v4l2_subdev_call(sd, video, g_mbus_fmt, &mf);
-    if (ret < 0)
-        return ret;
+    ret = v4l2_subdev_call(sd, video, cropcap, cropcap);
+    if (ret != 0)
+        goto end;
+    /* ddl@rock-chips.com: driver decide the cropping rectangle */
+    memset(&cropcap->defrect,0x00,sizeof(struct v4l2_rect));
+end:    
+    return ret;
+}
+static int rk_camera_get_crop(struct soc_camera_device *icd,struct v4l2_crop *crop)
+{
+    struct soc_camera_host *ici =to_soc_camera_host(icd->dev.parent);
+    struct rk_camera_dev *pcdev = ici->priv;
 
-    if ((mf.width < (a->c.left + a->c.width)) || (mf.height < (a->c.top + a->c.height)))  {
+    spin_lock(&pcdev->cropinfo.lock);
+    memcpy(&crop->c,&pcdev->cropinfo.c,sizeof(struct v4l2_rect));
+    spin_unlock(&pcdev->cropinfo.lock);
+    
+    return 0;
+}
+static int rk_camera_set_crop(struct soc_camera_device *icd,
+			       struct v4l2_crop *crop)
+{
+    struct soc_camera_host *ici =to_soc_camera_host(icd->dev.parent);
+    struct rk_camera_dev *pcdev = ici->priv;
 
-        mf.width = a->c.left + a->c.width;
-        mf.height = a->c.top + a->c.height;
+    spin_lock(&pcdev->cropinfo.lock);
+    memcpy(&pcdev->cropinfo.c,&crop->c,sizeof(struct v4l2_rect));
+    spin_unlock(&pcdev->cropinfo.lock);
 
-        v4l_bound_align_image(&mf.width, RK_CAM_W_MIN, RK_CAM_W_MAX, 1,
-            &mf.height, RK_CAM_H_MIN, RK_CAM_H_MAX, 0,
-            fourcc == V4L2_PIX_FMT_NV16 ?4 : 0);
-
-        ret = v4l2_subdev_call(sd, video, s_mbus_fmt, &mf);
-        if (ret < 0)
-            return ret;
-    }
-
-    rk_camera_setup_format(icd, fourcc, mf.code, &a->c);
-
-    icd->user_width = mf.width;
-    icd->user_height = mf.height;
-
+    
     return 0;
 }
 static bool rk_camera_fmt_capturechk(struct v4l2_format *f)
@@ -2068,8 +2106,9 @@ static int rk_camera_set_fmt(struct soc_camera_device *icd,
     struct v4l2_pix_format *pix = &f->fmt.pix;
     struct v4l2_mbus_framefmt mf;
     struct v4l2_rect rect;
-    int ret,usr_w,usr_h;
+    int ret,usr_w,usr_h,sensor_w,sensor_h;
     int stream_on = 0;
+    int ratio, bounds_aspect;
     
 	usr_w = pix->width;
 	usr_h = pix->height;
@@ -2092,20 +2131,51 @@ static int rk_camera_set_fmt(struct soc_camera_device *icd,
     if (stream_on & ENABLE_CAPTURE)
         write_cif_reg(pcdev->base,CIF_CIF_CTRL, (stream_on & (~ENABLE_CAPTURE)));
 
-	mf.width	= pix->width;
-	mf.height	= pix->height;
-	mf.field	= pix->field;
-	mf.colorspace	= pix->colorspace;
-	mf.code		= xlate->code;
+    mf.width	= pix->width;
+    mf.height	= pix->height;
+    mf.field	= pix->field;
+    mf.colorspace	= pix->colorspace;
+    mf.code		= xlate->code;
     mf.reserved[0] = pix->priv;              /* ddl@rock-chips.com : v0.3.3 */
-    
-	ret = v4l2_subdev_call(sd, video, s_mbus_fmt, &mf);
-	if (mf.code != xlate->code)
-		return -EINVAL;
-    
+    mf.reserved[1] = 0;
+
+    ret = v4l2_subdev_call(sd, video, s_mbus_fmt, &mf);
+    if (mf.code != xlate->code)
+		return -EINVAL;    		
+
+    if ((pcdev->cropinfo.c.width == pcdev->cropinfo.bounds.width) && 
+        (pcdev->cropinfo.c.height == pcdev->cropinfo.bounds.height)) {
+        bounds_aspect = (pcdev->cropinfo.bounds.width*10/pcdev->cropinfo.bounds.height);
+        if ((mf.width*10/mf.height) != bounds_aspect) {
+            RKCAMERA_DG("User request fov unchanged in %dx%d, But sensor %dx%d is croped, so switch to full resolution %dx%d\n",
+                        usr_w,usr_h,mf.width, mf.height,pcdev->cropinfo.bounds.width,pcdev->cropinfo.bounds.height);
+            
+            mf.width	= pcdev->cropinfo.bounds.width/4;
+            mf.height	= pcdev->cropinfo.bounds.height/4;
+
+            mf.field	= pix->field;
+            mf.colorspace	= pix->colorspace;
+            mf.code		= xlate->code;
+            mf.reserved[0] = pix->priv; 
+            mf.reserved[1] = 0;
+
+            ret = v4l2_subdev_call(sd, video, s_mbus_fmt, &mf);
+            if (mf.code != xlate->code)
+            	return -EINVAL; 
+        }
+    }
+
+    sensor_w = mf.width;
+    sensor_h = mf.height;
+
+    ratio = ((mf.width*mf.reserved[1])/100)&(~0x03);      // 4 align
+    mf.width -= ratio;
+
+    ratio = ((ratio*mf.height/mf.width)+1)&(~0x01);       // 2 align
+    mf.height -= ratio;
 
 	if ((mf.width != usr_w) || (mf.height != usr_h)) {
-	  int ratio;
+        
         if (unlikely((mf.width <16) || (mf.width > 8190) || (mf.height < 16) || (mf.height > 8190))) {
     		RKCAMERA_TR("Senor and IPP both invalid source resolution(%dx%d)\n",mf.width,mf.height);
     		ret = -EINVAL;
@@ -2116,37 +2186,73 @@ static int rk_camera_set_fmt(struct soc_camera_device *icd,
     		ret = -EINVAL;
             goto RK_CAMERA_SET_FMT_END;
         }
-		//need crop ?
-		if((mf.width*10/mf.height) != (usr_w*10/usr_h)){
-			ratio = ((mf.width*10/usr_w) >= (mf.height*10/usr_h))?(mf.height*10/usr_h):(mf.width*10/usr_w);
-			pcdev->host_width = ratio*usr_w/10;
-			pcdev->host_height = ratio*usr_h/10;
-            //for ipp ,need 4 bit alligned.
-        	pcdev->host_width &= ~CROP_ALIGN_BYTES;
-        	pcdev->host_height &= ~CROP_ALIGN_BYTES;
-			RKCAMERA_DG("ratio = %d ,host:%d*%d\n",ratio,pcdev->host_width,pcdev->host_height);
-        } else { // needn't crop ,just scaled by ipp
-			pcdev->host_width = mf.width;
-			pcdev->host_height = mf.height;
+        
+		spin_lock(&pcdev->cropinfo.lock);
+		if (((mf.width*10/mf.height) != (usr_w*10/usr_h))) {  
+            if ((pcdev->cropinfo.c.width == 0)&&(pcdev->cropinfo.c.height == 0)) {        
+                //Scale + Crop center is for keep aspect ratio unchange
+                ratio = ((mf.width*10/usr_w) >= (mf.height*10/usr_h))?(mf.height*10/usr_h):(mf.width*10/usr_w);
+                pcdev->host_width = ratio*usr_w/10;
+                pcdev->host_height = ratio*usr_h/10;
+                pcdev->host_width &= ~CROP_ALIGN_BYTES;
+                pcdev->host_height &= ~CROP_ALIGN_BYTES;
+
+                pcdev->host_left = ((sensor_w-pcdev->host_width )>>1);
+                pcdev->host_top = ((sensor_h-pcdev->host_height)>>1);
+            } else {    
+                //Scale + crop(user define)
+                pcdev->host_width = pcdev->cropinfo.c.width*mf.width/pcdev->cropinfo.bounds.width;
+                pcdev->host_height = pcdev->cropinfo.c.height*mf.height/pcdev->cropinfo.bounds.height;
+                pcdev->host_left = (pcdev->cropinfo.c.left*mf.width/pcdev->cropinfo.bounds.width);
+                pcdev->host_top = (pcdev->cropinfo.c.top*mf.height/pcdev->cropinfo.bounds.height);
+            }
+
+            pcdev->host_left &= (~0x01);
+            pcdev->host_top &= (~0x01);
+        } else { 
+            if ((pcdev->cropinfo.c.width == 0)&&(pcdev->cropinfo.c.height == 0)) {
+                //Crop Center for cif can work , then scale
+                pcdev->host_width = mf.width;
+                pcdev->host_height = mf.height;
+                pcdev->host_left = ((sensor_w - mf.width)>>1)&(~0x01);
+                pcdev->host_top = ((sensor_h - mf.height)>>1)&(~0x01);
+            } else {
+                //Crop center for cif can work + crop(user define), then scale 
+                pcdev->host_width = pcdev->cropinfo.c.width*mf.width/pcdev->cropinfo.bounds.width;
+                pcdev->host_height = pcdev->cropinfo.c.height*mf.height/pcdev->cropinfo.bounds.height;
+                pcdev->host_left = (pcdev->cropinfo.c.left*mf.width/pcdev->cropinfo.bounds.width)+((sensor_w - mf.width)>>1);
+                pcdev->host_top = (pcdev->cropinfo.c.top*mf.height/pcdev->cropinfo.bounds.height)+((sensor_h - mf.height)>>1);
+            }
+
+            pcdev->host_left &= (~0x01);
+            pcdev->host_top &= (~0x01);
         }
+        spin_unlock(&pcdev->cropinfo.lock);
     } else {
-        pcdev->host_width = usr_w;
-        pcdev->host_height = usr_h;
+        spin_lock(&pcdev->cropinfo.lock);
+        if ((pcdev->cropinfo.c.width == 0)&&(pcdev->cropinfo.c.height == 0)) {
+            pcdev->host_width = mf.width;
+            pcdev->host_height = mf.height;
+            pcdev->host_left = 0;
+            pcdev->host_top = 0;
+        } else {
+            pcdev->host_width = pcdev->cropinfo.c.width*mf.width/pcdev->cropinfo.bounds.width;
+            pcdev->host_height = pcdev->cropinfo.c.height*mf.height/pcdev->cropinfo.bounds.height;
+            pcdev->host_left = (pcdev->cropinfo.c.left*mf.width/pcdev->cropinfo.bounds.width);
+            pcdev->host_top = (pcdev->cropinfo.c.top*mf.height/pcdev->cropinfo.bounds.height);
+        }
+        spin_unlock(&pcdev->cropinfo.lock);
     }
     
     icd->sense = NULL;
     if (!ret) {
-        RKCAMERA_DG("host:%d*%d , sensor output:%d*%d,user demand:%d*%d\n",
-	  	pcdev->host_width,pcdev->host_height,mf.width,mf.height,usr_w,usr_h);
         rect.width = pcdev->host_width;
         rect.height = pcdev->host_height;
-    	rect.left = ((mf.width-pcdev->host_width )>>1)&(~0x01);
-    	rect.top = ((mf.height-pcdev->host_height)>>1)&(~0x01);
-    	pcdev->host_left = rect.left;
-    	pcdev->host_top = rect.top;
+    	rect.left = pcdev->host_left;
+    	rect.top = pcdev->host_top;
         
         down(&pcdev->zoominfo.sem);
-#if CIF_DO_CROP
+#if CIF_DO_CROP   // this crop is only for digital zoom
         pcdev->zoominfo.a.c.left = 0;
         pcdev->zoominfo.a.c.top = 0;
         pcdev->zoominfo.a.c.width = pcdev->host_width*100/pcdev->zoominfo.zoom_rate;
@@ -2194,9 +2300,15 @@ static int rk_camera_set_fmt(struct soc_camera_device *icd,
                 }
             }
         }
-        RKCAMERA_DG(" %s icd width:%d  user width:%d (zoom: %dx%d@(%d,%d)->%dx%d)\n",xlate->host_fmt->name,
-			           rect.width, pix->width, pcdev->zoominfo.a.c.width,pcdev->zoominfo.a.c.height, pcdev->zoominfo.a.c.left,pcdev->zoominfo.a.c.top,
+        
+        RKCAMERA_DG("%s CIF Host:%dx%d@(%d,%d) Sensor:%dx%d->%dx%d User crop:(%d,%d,%d,%d)in(%d,%d) (zoom: %dx%d@(%d,%d)->%dx%d)\n",xlate->host_fmt->name,
+			           pcdev->host_width,pcdev->host_height,pcdev->host_left,pcdev->host_top,
+			           sensor_w,sensor_h,mf.width,mf.height,
+			           pcdev->cropinfo.c.left,pcdev->cropinfo.c.top,pcdev->cropinfo.c.width,pcdev->cropinfo.c.height,
+			           pcdev->cropinfo.bounds.width,pcdev->cropinfo.bounds.height,
+			           pcdev->zoominfo.a.c.width,pcdev->zoominfo.a.c.height, pcdev->zoominfo.a.c.left,pcdev->zoominfo.a.c.top,
 			           pix->width, pix->height);
+			           
         rk_camera_setup_format(icd, pix->pixelformat, mf.code, &rect); 
         
 		if (CAM_IPPWORK_IS_EN()) {
@@ -2370,20 +2482,25 @@ static unsigned int rk_camera_poll(struct file *file, poll_table *pt)
 
     return 0;
 }
-
+/*
+*card:  sensor name _ facing _ device index - orientation _ fov horizontal _ fov vertical
+*           10          5           1            3              3                3         + 5 < 32           
+*/
 static int rk_camera_querycap(struct soc_camera_host *ici,
                                 struct v4l2_capability *cap)
 {
     struct rk_camera_dev *pcdev = ici->priv;
     struct rkcamera_platform_data *new_camera;
     char orientation[5];
+    char fov[9];
     int i;
 
-    strlcpy(cap->card, dev_name(pcdev->icd->pdev), sizeof(cap->card));    
+    strlcpy(cap->card, dev_name(pcdev->icd->pdev), 18);       
     memset(orientation,0x00,sizeof(orientation));
     for (i=0; i<RK_CAM_NUM;i++) {
         if ((pcdev->pdata->info[i].dev_name!=NULL) && (strcmp(dev_name(pcdev->icd->pdev), pcdev->pdata->info[i].dev_name) == 0)) {
             sprintf(orientation,"-%d",pcdev->pdata->info[i].orientation);
+            sprintf(fov,"_50_50");
         }
     }
 
@@ -2392,6 +2509,7 @@ static int rk_camera_querycap(struct soc_camera_host *ici,
     while (strstr(new_camera->dev_name,"end")==NULL) {
         if (strcmp(dev_name(pcdev->icd->pdev), new_camera->dev_name) == 0) {
             sprintf(orientation,"-%d",new_camera->orientation);
+            sprintf(fov,"_%d_%d",new_camera->fov_h,new_camera->fov_v);
         }
         new_camera++;
     }
@@ -2405,6 +2523,8 @@ static int rk_camera_querycap(struct soc_camera_host *ici,
     } else {
         strcat(cap->card,orientation); 
     }
+    
+    strcat(cap->card,fov);                          /* ddl@rock-chips.com: v0.3.f */
     cap->version = RK_CAM_VERSION_CODE;
     cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 
@@ -2942,7 +3062,9 @@ static struct soc_camera_host_ops rk_soc_camera_host_ops =
     .suspend	= rk_camera_suspend,
     .resume		= rk_camera_resume,
     .enum_frameinervals = rk_camera_enum_frameintervals,
+    .cropcap    = rk_camera_cropcap,
     .set_crop	= rk_camera_set_crop,
+    .get_crop   = rk_camera_get_crop,
     .get_formats	= rk_camera_get_formats, 
     .put_formats	= rk_camera_put_formats,
     .set_fmt	= rk_camera_set_fmt,
@@ -3062,13 +3184,14 @@ static int rk_camera_probe(struct platform_device *pdev)
         goto exit_alloc;
     }
 
-	pcdev->zoominfo.zoom_rate = 100;
-	pcdev->hostid = pdev->id;
-	#ifdef CONFIG_SOC_RK3028
-	pcdev->chip_id = rk3028_version_val();
-	#else
-	pcdev->chip_id = -1;
-	#endif
+    pcdev->zoominfo.zoom_rate = 100;
+    pcdev->hostid = pdev->id;
+    #ifdef CONFIG_SOC_RK3028
+    pcdev->chip_id = rk3028_version_val();
+    #else
+    pcdev->chip_id = -1;
+    #endif
+
 	
     if (IS_CIF0()) {
         clk = &cif_clk[0];
@@ -3136,6 +3259,9 @@ static int rk_camera_probe(struct platform_device *pdev)
     INIT_LIST_HEAD(&pcdev->camera_work_queue);
     spin_lock_init(&pcdev->lock);
     spin_lock_init(&pcdev->camera_work_lock);
+
+    memset(&pcdev->cropinfo.c,0x00,sizeof(struct v4l2_rect));
+    spin_lock_init(&pcdev->cropinfo.lock);
     sema_init(&pcdev->zoominfo.sem,1);
 
     /*

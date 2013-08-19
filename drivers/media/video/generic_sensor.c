@@ -25,8 +25,12 @@
 *        fix use v4l2_mbus_framefmt.reserved array overflow in generic_sensor_s_fmt;  
 *v0.1.9:
 *        fix sensor_find_ctrl may be overflow;
+*v0.1.b:
+*        1. support sensor driver crop by redefine SENSOR_CROP_PERCENT;
+*        2. fix sensor_ops which is independent for driver;
+*        3. support cropcap;
 */
-static int version = KERNEL_VERSION(0,1,9);
+static int version = KERNEL_VERSION(0,1,0xb);
 module_param(version, int, S_IRUGO);
 
 
@@ -549,11 +553,11 @@ int generic_sensor_try_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf
         SENSOR_DG("Query resolution: %dx%d",mf->width, mf->height);
         goto generic_sensor_try_fmt_end;
     }
- //use this to filter unsupported resolutions
-   if (sensor->sensor_cb.sensor_try_fmt_cb_th){
-   	ret = sensor->sensor_cb.sensor_try_fmt_cb_th(client, mf);
-	if(ret < 0)
-		goto generic_sensor_try_fmt_end;
+    //use this to filter unsupported resolutions
+    if (sensor->sensor_cb.sensor_try_fmt_cb_th){
+   	    ret = sensor->sensor_cb.sensor_try_fmt_cb_th(client, mf);
+	    if(ret < 0)
+		    goto generic_sensor_try_fmt_end;
    	}
     if (mf->height > sensor->info_priv.max_res.h)
         mf->height = sensor->info_priv.max_res.h;
@@ -572,6 +576,23 @@ int generic_sensor_try_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf
     mf->colorspace = fmt->colorspace;
     SENSOR_DG("%dx%d is the closest for %dx%d",ori_w,ori_h,set_w,set_h);
 generic_sensor_try_fmt_end:
+    return ret;
+}
+
+int generic_sensor_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *cc)
+{
+    struct i2c_client *client = v4l2_get_subdevdata(sd);
+    struct generic_sensor *sensor = to_generic_sensor(client);
+    int ret=0;
+
+    cc->bounds.left = 0;
+    cc->bounds.top = 0;
+    cc->bounds.width = sensor->info_priv.max_res.w;
+    cc->bounds.height = sensor->info_priv.max_res.h;
+    
+    cc->pixelaspect.denominator = sensor->info_priv.max_res.w;
+    cc->pixelaspect.numerator = sensor->info_priv.max_res.h;
+
     return ret;
 }
 
@@ -904,6 +925,7 @@ int generic_sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 	 
 //video or capture special process
 sensor_s_fmt_end:
+    Sensor_CropSet(mf,sensor->crop_percent);    /* ddl@rock-chips.com: v0.1.b */
 	return ret;
 }
  int generic_sensor_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *id)

@@ -266,8 +266,11 @@
 *v0.0.1: this driver is compatible with generic_sensor
 *v0.1.1:
 *        Cam_Power return success in rk_sensor_ioctrl when power io havn't config;
+*v0.1.3:
+*        1. this version support fov configuration in new_camera_device;
+*        2. Reduce delay time after power off or power down camera;
 */
-static int camio_version = KERNEL_VERSION(0,1,1);
+static int camio_version = KERNEL_VERSION(0,1,3);
 module_param(camio_version, int, S_IRUGO);
 
 
@@ -1618,7 +1621,7 @@ static int rk_sensor_power(struct device *dev, int on)
             rk_sensor_ioctrl(dev,Cam_Mclk, 0);
         }
 
-        msleep(500);
+        mdelay(10);/* ddl@rock-chips.com: v0.1.3 */
     }
     return ret;
 }
@@ -1727,6 +1730,12 @@ int rk_sensor_register(void)
                 new_camera[i].orientation = 270;
             }
         }
+        /* ddl@rock-chips.com: v0.1.3 */
+        if ((new_camera[i].fov_h <= 0) || (new_camera[i].fov_h>360))
+            new_camera[i].fov_h = 100;
+        
+        if ((new_camera[i].fov_v <= 0) || (new_camera[i].fov_v>360))
+            new_camera[i].fov_v = 100;        
 
         new_camera[i].dev.link_info.power = rk_sensor_power;
         new_camera[i].dev.link_info.powerdown = rk_sensor_powerdown; 
