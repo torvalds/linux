@@ -171,6 +171,20 @@ config TI_AM335X_ADC
 	  Say yes here to build support for Texas Instruments ADC
 	  driver which is also a MFD client.
 
+config TWL6030_GPADC
+	tristate "TWL6030 GPADC (General Purpose A/D Converter) Support"
+	depends on TWL4030_CORE
+	default n
+	help
+	  Say yes here if you want support for the TWL6030/TWL6032 General
+	  Purpose A/D Converter. This will add support for battery type
+	  detection, battery voltage and temperature measurement, die
+	  temperature measurement, system supply voltage, audio accessory,
+	  USB ID detection.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called twl6030-gpadc.
+
 config VIPERBOARD_ADC
 	tristate "Viperboard ADC support"
 	depends on MFD_VIPERBOARD && USB

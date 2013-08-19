@@ -175,18 +175,10 @@ static int gyro_3d_write_raw(struct iio_dev *indio_dev,
 	return ret;
 }
 
-static int gyro_3d_write_raw_get_fmt(struct iio_dev *indio_dev,
-			       struct iio_chan_spec const *chan,
-			       long mask)
-{
-	return IIO_VAL_INT_PLUS_MICRO;
-}
-
 static const struct iio_info gyro_3d_info = {
 	.driver_module = THIS_MODULE,
 	.read_raw = &gyro_3d_read_raw,
 	.write_raw = &gyro_3d_write_raw,
-	.write_raw_get_fmt = &gyro_3d_write_raw_get_fmt,
 };
 
 /* Function to push data to buffer */
@@ -282,11 +274,9 @@ static int hid_gyro_3d_probe(struct platform_device *pdev)
 	struct hid_sensor_hub_device *hsdev = pdev->dev.platform_data;
 	struct iio_chan_spec *channels;
 
-	indio_dev = iio_device_alloc(sizeof(struct gyro_3d_state));
-	if (indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*gyro_state));
+	if (!indio_dev)
+		return -ENOMEM;
 	platform_set_drvdata(pdev, indio_dev);
 
 	gyro_state = iio_priv(indio_dev);
@@ -298,15 +288,14 @@ static int hid_gyro_3d_probe(struct platform_device *pdev)
 						&gyro_state->common_attributes);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to setup common attributes\n");
-		goto error_free_dev;
+		return ret;
 	}
 
 	channels = kmemdup(gyro_3d_channels, sizeof(gyro_3d_channels),
 			   GFP_KERNEL);
 	if (!channels) {
-		ret = -ENOMEM;
 		dev_err(&pdev->dev, "failed to duplicate channels\n");
-		goto error_free_dev;
+		return -ENOMEM;
 	}
 
 	ret = gyro_3d_parse_report(pdev, hsdev, channels,
@@ -363,9 +352,6 @@ error_unreg_buffer_funcs:
 	iio_triggered_buffer_cleanup(indio_dev);
 error_free_dev_mem:
 	kfree(indio_dev->channels);
-error_free_dev:
-	iio_device_free(indio_dev);
-error_ret:
 	return ret;
 }
 
@@ -380,7 +366,6 @@ static int hid_gyro_3d_remove(struct platform_device *pdev)
 	hid_sensor_remove_trigger(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
 	kfree(indio_dev->channels);
-	iio_device_free(indio_dev);
 
 	return 0;
 }
