@@ -262,7 +262,7 @@ config PINCTRL_EXYNOS5440
 	select PINCONF
 
 config PINCTRL_PALMAS
-	bool "Pinctrl driver for the PALMA Series MFD devices"
+	bool "Pinctrl driver for the PALMAS Series MFD devices"
 	depends on OF && MFD_PALMAS
 	select GENERIC_PINCONF
 	help
