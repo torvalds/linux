@@ -1343,7 +1343,7 @@ out:
 static int invalidate_fastmap(struct ubi_device *ubi,
 			      struct ubi_fastmap_layout *fm)
 {
-	int ret, i;
+	int ret;
 	struct ubi_vid_hdr *vh;
 
 	ret = erase_block(ubi, fm->e[0]->pnum);
@@ -1359,9 +1359,6 @@ static int invalidate_fastmap(struct ubi_device *ubi,
 	 * back to scanning mode in any case */
 	vh->sqnum = cpu_to_be64(ubi_next_sqnum(ubi));
 	ret = ubi_io_write_vid_hdr(ubi, fm->e[0]->pnum, vh);
-
-	for (i = 0; i < fm->used_blocks; i++)
-		ubi_wl_put_fm_peb(ubi, fm->e[i], i, fm->to_be_tortured[i]);
 
 	return ret;
 }
