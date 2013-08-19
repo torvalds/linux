@@ -125,13 +125,6 @@ static const struct drm_prop_enum_list drm_scaling_mode_enum_list[] =
 	{ DRM_MODE_SCALE_ASPECT, "Full aspect" },
 };
 
-static const struct drm_prop_enum_list drm_dithering_mode_enum_list[] =
-{
-	{ DRM_MODE_DITHERING_OFF, "Off" },
-	{ DRM_MODE_DITHERING_ON, "On" },
-	{ DRM_MODE_DITHERING_AUTO, "Automatic" },
-};
-
 /*
  * Non-global properties, but "required" for certain connectors.
  */
@@ -1159,30 +1152,6 @@ int drm_mode_create_scaling_mode_property(struct drm_device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(drm_mode_create_scaling_mode_property);
-
-/**
- * drm_mode_create_dithering_property - create dithering property
- * @dev: DRM device
- *
- * Called by a driver the first time it's needed, must be attached to desired
- * connectors.
- */
-int drm_mode_create_dithering_property(struct drm_device *dev)
-{
-	struct drm_property *dithering_mode;
-
-	if (dev->mode_config.dithering_mode_property)
-		return 0;
-
-	dithering_mode =
-		drm_property_create_enum(dev, 0, "dithering",
-				drm_dithering_mode_enum_list,
-				    ARRAY_SIZE(drm_dithering_mode_enum_list));
-	dev->mode_config.dithering_mode_property = dithering_mode;
-
-	return 0;
-}
-EXPORT_SYMBOL(drm_mode_create_dithering_property);
 
 /**
  * drm_mode_create_dirty_property - create dirty property

@@ -982,7 +982,6 @@ extern int drm_mode_create_dvi_i_properties(struct drm_device *dev);
 extern int drm_mode_create_tv_properties(struct drm_device *dev, int num_formats,
 				     char *formats[]);
 extern int drm_mode_create_scaling_mode_property(struct drm_device *dev);
-extern int drm_mode_create_dithering_property(struct drm_device *dev);
 extern int drm_mode_create_dirty_info_property(struct drm_device *dev);
 extern const char *drm_get_encoder_name(const struct drm_encoder *encoder);
 
