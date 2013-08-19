@@ -421,8 +421,7 @@ bail_out:
 
 static int davinci_mdio_remove(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-	struct davinci_mdio_data *data = dev_get_drvdata(dev);
+	struct davinci_mdio_data *data = platform_get_drvdata(pdev);
 
 	if (data->bus) {
 		mdiobus_unregister(data->bus);
