@@ -49,11 +49,14 @@ struct au_cp_generic {
 };
 
 /* cpup flags */
-#define AuCpup_DTIME	1		/* do dtime_store/revert */
-#define AuCpup_KEEPLINO	(1 << 1)	/* do not clear the lower xino,
-					   for link(2) */
-#define AuCpup_RENAME	(1 << 2)	/* rename after cpup */
-#define AuCpup_HOPEN	(1 << 3)	/* call h_open_pre/post() in cpup */
+#define AuCpup_DTIME		1		/* do dtime_store/revert */
+#define AuCpup_KEEPLINO		(1 << 1)	/* do not clear the lower xino,
+						   for link(2) */
+#define AuCpup_RENAME		(1 << 2)	/* rename after cpup */
+#define AuCpup_HOPEN		(1 << 3)	/* call h_open_pre/post() in
+						   cpup */
+#define AuCpup_OVERWRITE	(1 << 4)	/* allow overwriting the
+						   existing entry */
 
 #define au_ftest_cpup(flags, name)	((flags) & AuCpup_##name)
 #define au_fset_cpup(flags, name) \
