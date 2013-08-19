@@ -100,6 +100,33 @@ static struct rt3261_init_reg init_list[] = {
 	{RT3261_OUTPUT      	, 0x8888},//unmute OUTVOLL/R
 	{RT3261_SPO_CLSD_RATIO 	, 0x0001},
 	{RT3261_I2S1_SDP	, 0xd000},
+	
+	// huangcun 20130816 s
+	#if 1
+	/*speaker*/
+	{RT3261_DSP_PATH2	, 0x0000},
+	{RT3261_PRIV_INDEX	, 0x003f},//PR3d[14] = 0'b; 
+	{RT3261_PRIV_DATA	, 0x0000},
+	{RT3261_DAC2_CTRL	, 0x0000},
+	{RT3261_MONO_DAC_MIXER, 0x4444},
+	{RT3261_SPK_L_MIXER,  0x003a},
+	{RT3261_SPK_R_MIXER,  0x003a},
+	{RT3261_SPO_L_MIXER,  0xc800},
+	/*headphone*/
+	{RT3261_OUT_L3_MIXER, 0x01fd},
+	{RT3261_OUT_R3_MIXER, 0x01fd},
+	{RT3261_HPO_MIXER,    0xc000},
+	#endif
+	#if 1
+	/*capture*/
+	{RT3261_IN1_IN2, 	  0x2080},//boost1 = 24db
+	{RT3261_REC_R2_MIXER, 0x007d},
+	{RT3261_MONO_ADC_MIXER,0x7030},
+	//{RT3261_GEN_CTRL1	, 0x2701},//¿ªÆôÂ¼Òô½µÔë£¬regfa[13]=0
+	{RT3261_DSP_PATH2	, 0x0400},
+	{RT3261_DIG_INF_DATA, 0x0300},//right copy to left
+	#endif
+	// huangcun 20130816 e
 };
 #define RT3261_INIT_REG_LEN ARRAY_SIZE(init_list)
 
