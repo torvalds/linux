@@ -2292,7 +2292,6 @@ add_detailed_modes(struct drm_connector *connector, struct edid *edid,
 	return closure.modes;
 }
 
-#define HDMI_IDENTIFIER 0x000C03
 #define AUDIO_BLOCK	0x01
 #define VIDEO_BLOCK     0x02
 #define VENDOR_BLOCK    0x03
