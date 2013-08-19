@@ -5932,11 +5932,7 @@ static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
 	struct intel_ddi_plls *plls = &dev_priv->ddi_plls;
 	struct intel_crtc *crtc;
 	unsigned long irqflags;
-	uint32_t val, pch_hpd_mask;
-
-	pch_hpd_mask = SDE_PORTB_HOTPLUG_CPT | SDE_PORTC_HOTPLUG_CPT;
-	if (!(dev_priv->pch_id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE))
-		pch_hpd_mask |= SDE_PORTD_HOTPLUG_CPT | SDE_CRT_HOTPLUG_CPT;
+	uint32_t val;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head)
 		WARN(crtc->base.enabled, "CRTC for pipe %c enabled\n",
@@ -5962,7 +5958,7 @@ static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
 	WARN((val & ~DE_PCH_EVENT_IVB) != val,
 	     "Unexpected DEIMR bits enabled: 0x%x\n", val);
 	val = I915_READ(SDEIMR);
-	WARN((val & ~pch_hpd_mask) != val,
+	WARN((val | SDE_HOTPLUG_MASK_CPT) != 0xffffffff,
 	     "Unexpected SDEIMR bits enabled: 0x%x\n", val);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
