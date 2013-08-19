@@ -9655,6 +9655,12 @@ sp_rtnl_not_reset:
 			       &bp->sp_rtnl_state))
 		bnx2x_pf_set_vfs_vlan(bp);
 
+	if (test_and_clear_bit(BNX2X_SP_RTNL_TX_STOP, &bp->sp_rtnl_state))
+		bnx2x_dcbx_stop_hw_tx(bp);
+
+	if (test_and_clear_bit(BNX2X_SP_RTNL_TX_RESUME, &bp->sp_rtnl_state))
+		bnx2x_dcbx_resume_hw_tx(bp);
+
 	/* work which needs rtnl lock not-taken (as it takes the lock itself and
 	 * can be called from other contexts as well)
 	 */
