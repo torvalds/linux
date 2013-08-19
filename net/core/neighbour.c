@@ -1441,16 +1441,18 @@ struct neigh_parms *neigh_parms_alloc(struct net_device *dev,
 		atomic_set(&p->refcnt, 1);
 		p->reachable_time =
 				neigh_rand_reach_time(p->base_reachable_time);
-
-		if (ops->ndo_neigh_setup && ops->ndo_neigh_setup(dev, p)) {
-			kfree(p);
-			return NULL;
-		}
-
 		dev_hold(dev);
 		p->dev = dev;
 		write_pnet(&p->net, hold_net(net));
 		p->sysctl_table = NULL;
+
+		if (ops->ndo_neigh_setup && ops->ndo_neigh_setup(dev, p)) {
+			release_net(net);
+			dev_put(dev);
+			kfree(p);
+			return NULL;
+		}
+
 		write_lock_bh(&tbl->lock);
 		p->next		= tbl->parms.next;
 		tbl->parms.next = p;
