@@ -653,7 +653,7 @@ static int sco_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	return err;
 }
 
-static void sco_conn_defer_accept(struct hci_conn *conn)
+static void sco_conn_defer_accept(struct hci_conn *conn, u16 setting)
 {
 	struct hci_dev *hdev = conn->hdev;
 
@@ -676,9 +676,21 @@ static void sco_conn_defer_accept(struct hci_conn *conn)
 
 		cp.tx_bandwidth   = __constant_cpu_to_le32(0x00001f40);
 		cp.rx_bandwidth   = __constant_cpu_to_le32(0x00001f40);
-		cp.max_latency    = __constant_cpu_to_le16(0xffff);
-		cp.content_format = cpu_to_le16(hdev->voice_setting);
-		cp.retrans_effort = 0xff;
+		cp.content_format = cpu_to_le16(setting);
+
+		switch (setting & SCO_AIRMODE_MASK) {
+		case SCO_AIRMODE_TRANSP:
+			if (conn->pkt_type & ESCO_2EV3)
+				cp.max_latency = __constant_cpu_to_le16(0x0008);
+			else
+				cp.max_latency = __constant_cpu_to_le16(0x000D);
+			cp.retrans_effort = 0x02;
+			break;
+		case SCO_AIRMODE_CVSD:
+			cp.max_latency = __constant_cpu_to_le16(0xffff);
+			cp.retrans_effort = 0xff;
+			break;
+		}
 
 		hci_send_cmd(hdev, HCI_OP_ACCEPT_SYNC_CONN_REQ,
 			     sizeof(cp), &cp);
@@ -695,7 +707,7 @@ static int sco_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	if (sk->sk_state == BT_CONNECT2 &&
 	    test_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags)) {
-		sco_conn_defer_accept(pi->conn->hcon);
+		sco_conn_defer_accept(pi->conn->hcon, pi->setting);
 		sk->sk_state = BT_CONFIG;
 		msg->msg_namelen = 0;
 
