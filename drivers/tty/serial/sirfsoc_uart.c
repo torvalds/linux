@@ -915,20 +915,20 @@ static int sirfsoc_uart_probe(struct platform_device *pdev)
 			 !gpio_is_valid(sirfport->rts_gpio))) {
 			ret = -EINVAL;
 			dev_err(&pdev->dev,
-				"Usp flow control must have rfs and tfs gpio");
+				"Usp flow control must have cts and rts gpio");
 			goto err;
 		}
 		ret = devm_gpio_request(&pdev->dev, sirfport->cts_gpio,
-				"usp-rfs-gpio");
+				"usp-cts-gpio");
 		if (ret) {
-			dev_err(&pdev->dev, "Unable request rfs gpio");
+			dev_err(&pdev->dev, "Unable request cts gpio");
 			goto err;
 		}
 		gpio_direction_input(sirfport->cts_gpio);
 		ret = devm_gpio_request(&pdev->dev, sirfport->rts_gpio,
-				"usp-tfs-gpio");
+				"usp-rts-gpio");
 		if (ret) {
-			dev_err(&pdev->dev, "Unable request tfs gpio");
+			dev_err(&pdev->dev, "Unable request rts gpio");
 			goto err;
 		}
 		gpio_direction_output(sirfport->rts_gpio, 1);
