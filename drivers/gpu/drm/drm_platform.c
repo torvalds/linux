@@ -28,7 +28,7 @@
 #include <linux/export.h>
 #include <drm/drmP.h>
 
-/**
+/*
  * Register.
  *
  * \param platdev - Platform device struture
@@ -39,8 +39,8 @@
  * Try and register, if we fail to register, backout previous work.
  */
 
-int drm_get_platform_dev(struct platform_device *platdev,
-			 struct drm_driver *driver)
+static int drm_get_platform_dev(struct platform_device *platdev,
+				struct drm_driver *driver)
 {
 	struct drm_device *dev;
 	int ret;
@@ -107,7 +107,6 @@ err_g1:
 	mutex_unlock(&drm_global_mutex);
 	return ret;
 }
-EXPORT_SYMBOL(drm_get_platform_dev);
 
 static int drm_platform_get_irq(struct drm_device *dev)
 {

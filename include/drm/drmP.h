@@ -1657,9 +1657,6 @@ extern int drm_pcie_get_speed_cap_mask(struct drm_device *dev, u32 *speed_mask);
 extern int drm_platform_init(struct drm_driver *driver, struct platform_device *platform_device);
 extern void drm_platform_exit(struct drm_driver *driver, struct platform_device *platform_device);
 
-extern int drm_get_platform_dev(struct platform_device *pdev,
-				struct drm_driver *driver);
-
 /* returns true if currently okay to sleep */
 static __inline__ bool drm_can_sleep(void)
 {
