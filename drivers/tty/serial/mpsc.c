@@ -934,7 +934,7 @@ static int serial_polled;
  ******************************************************************************
  */
 
-static int mpsc_rx_intr(struct mpsc_port_info *pi)
+static int mpsc_rx_intr(struct mpsc_port_info *pi, unsigned long *flags)
 {
 	struct mpsc_rx_desc *rxre;
 	struct tty_port *port = &pi->port.state->port;
@@ -969,8 +969,11 @@ static int mpsc_rx_intr(struct mpsc_port_info *pi)
 #endif
 		/* Following use of tty struct directly is deprecated */
 		if (tty_buffer_request_room(port, bytes_in) < bytes_in) {
-			if (port->low_latency)
+			if (port->low_latency) {
+				spin_unlock_irqrestore(&pi->port.lock, *flags);
 				tty_flip_buffer_push(port);
+				spin_lock_irqsave(&pi->port.lock, *flags);
+			}
 			/*
 			 * If this failed then we will throw away the bytes
 			 * but must do so to clear interrupts.
@@ -1080,7 +1083,9 @@ next_frame:
 	if ((readl(pi->sdma_base + SDMA_SDCM) & SDMA_SDCM_ERD) == 0)
 		mpsc_start_rx(pi);
 
+	spin_unlock_irqrestore(&pi->port.lock, *flags);
 	tty_flip_buffer_push(port);
+	spin_lock_irqsave(&pi->port.lock, *flags);
 	return rc;
 }
 
@@ -1222,7 +1227,7 @@ static irqreturn_t mpsc_sdma_intr(int irq, void *dev_id)
 
 	spin_lock_irqsave(&pi->port.lock, iflags);
 	mpsc_sdma_intr_ack(pi);
-	if (mpsc_rx_intr(pi))
+	if (mpsc_rx_intr(pi, &iflags))
 		rc = IRQ_HANDLED;
 	if (mpsc_tx_intr(pi))
 		rc = IRQ_HANDLED;
