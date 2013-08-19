@@ -686,20 +686,19 @@ void drm_mode_probed_add(struct drm_connector *connector,
 }
 EXPORT_SYMBOL(drm_mode_probed_add);
 
-/**
+/*
  * drm_mode_remove - remove and free a mode
  * @connector: connector list to modify
  * @mode: mode to remove
  *
  * Remove @mode from @connector's mode list, then free it.
  */
-void drm_mode_remove(struct drm_connector *connector,
-		     struct drm_display_mode *mode)
+static void drm_mode_remove(struct drm_connector *connector,
+			    struct drm_display_mode *mode)
 {
 	list_del(&mode->head);
 	drm_mode_destroy(connector->dev, mode);
 }
-EXPORT_SYMBOL(drm_mode_remove);
 
 /**
  * drm_connector_init - Init a preallocated connector
