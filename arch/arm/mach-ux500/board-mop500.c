@@ -33,7 +33,6 @@
 #include <linux/mfd/abx500/ab8500-codec.h>
 #include <linux/platform_data/leds-lp55xx.h>
 #include <linux/input.h>
-#include <linux/smsc911x.h>
 #include <linux/gpio_keys.h>
 #include <linux/delay.h>
 #include <linux/leds.h>
@@ -116,36 +115,6 @@ static struct ab8500_codec_platform_data ab8500_codec_pdata = {
 		.mic2_micbias = AMIC_MICBIAS_VAMIC2
 	},
 	.ear_cmv = EAR_CMV_0_95V
-};
-
-static struct smsc911x_platform_config snowball_sbnet_cfg = {
-	.irq_polarity = SMSC911X_IRQ_POLARITY_ACTIVE_HIGH,
-	.irq_type = SMSC911X_IRQ_TYPE_PUSH_PULL,
-	.flags = SMSC911X_USE_16BIT | SMSC911X_FORCE_INTERNAL_PHY,
-	.shift = 1,
-};
-
-static struct resource sbnet_res[] = {
-	{
-		.name = "smsc911x-memory",
-		.start = (0x5000 << 16),
-		.end  =  (0x5000 << 16) + 0xffff,
-		.flags = IORESOURCE_MEM,
-	},
-	{
-		.start = NOMADIK_GPIO_TO_IRQ(140),
-		.end = NOMADIK_GPIO_TO_IRQ(140),
-		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
-	},
-};
-
-static struct platform_device snowball_sbnet_dev = {
-	.name           = "smsc911x",
-	.num_resources  = ARRAY_SIZE(sbnet_res),
-	.resource       = sbnet_res,
-	.dev            = {
-		.platform_data = &snowball_sbnet_cfg,
-	},
 };
 
 struct ab8500_platform_data ab8500_platdata = {
@@ -408,7 +377,6 @@ static void __init u8500_cryp1_hash1_init(struct device *parent)
 }
 
 static struct platform_device *snowball_platform_devs[] __initdata = {
-	&snowball_sbnet_dev,
 	&snowball_gpio_en_3v3_regulator_dev,
 	&u8500_cpufreq_cooling_device,
 	&sdi0_regulator,
