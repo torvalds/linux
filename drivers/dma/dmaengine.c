@@ -514,16 +514,16 @@ struct dma_chan *dma_get_slave_channel(struct dma_chan *chan)
 	/* lock against __dma_request_channel */
 	mutex_lock(&dma_list_mutex);
 
-	if (chan->client_count == 0)
+	if (chan->client_count == 0) {
 		err = dma_chan_get(chan);
-	else
+		if (err)
+			pr_debug("%s: failed to get %s: (%d)\n",
+				__func__, dma_chan_name(chan), err);
+	} else
 		chan = NULL;
 
 	mutex_unlock(&dma_list_mutex);
 
-	if (err)
-		pr_debug("%s: failed to get %s: (%d)\n",
-			__func__, dma_chan_name(chan), err);
 
 	return chan;
 }
