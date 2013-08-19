@@ -424,15 +424,12 @@ static int fsl_ssi_setup(struct fsl_ssi_private *ssi_private)
 		write_ssi(0x300, &ssi->saccen);
 
 		/*
-		 * Enable SSI
+		 * Enable SSI, Transmit and Receive
 		 */
-		write_ssi_mask(&ssi->scr, 0, CCSR_SSI_SCR_SSIEN);
-		write_ssi(CCSR_SSI_SOR_WAIT(3), &ssi->sor);
+		write_ssi_mask(&ssi->scr, 0, CCSR_SSI_SCR_SSIEN |
+				CCSR_SSI_SCR_TE | CCSR_SSI_SCR_RE);
 
-		/*
-		 * Enable Transmit and Receive
-		 */
-		write_ssi_mask(&ssi->scr, 0, CCSR_SSI_SCR_TE | CCSR_SSI_SCR_RE);
+		write_ssi(CCSR_SSI_SOR_WAIT(3), &ssi->sor);
 	}
 
 	return 0;
