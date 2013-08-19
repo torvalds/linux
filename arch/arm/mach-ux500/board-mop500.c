@@ -107,10 +107,6 @@ struct ab8500_platform_data ab8500_platdata = {
 	.codec		= &ab8500_codec_pdata,
 };
 
-static struct platform_device u8500_cpufreq_cooling_device = {
-	.name           = "db8500-cpufreq-cooling",
-};
-
 /*
  * TC35892
  */
@@ -360,7 +356,6 @@ static void __init u8500_cryp1_hash1_init(struct device *parent)
 }
 
 static struct platform_device *snowball_platform_devs[] __initdata = {
-	&u8500_cpufreq_cooling_device,
 	&sdi0_regulator,
 };
 
