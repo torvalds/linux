@@ -929,7 +929,9 @@ static const struct of_device_id l2x0_ids[] __initconst = {
 	  .data = (void *)&aurora_no_outer_data},
 	{ .compatible = "marvell,aurora-outer-cache",
 	  .data = (void *)&aurora_with_outer_data},
-	{ .compatible = "bcm,bcm11351-a2-pl310-cache",
+	{ .compatible = "brcm,bcm11351-a2-pl310-cache",
+	  .data = (void *)&bcm_l2x0_data},
+	{ .compatible = "bcm,bcm11351-a2-pl310-cache", /* deprecated name */
 	  .data = (void *)&bcm_l2x0_data},
 	{}
 };
