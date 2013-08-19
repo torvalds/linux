@@ -28,6 +28,7 @@
 #include "originator.h"
 #include "hash.h"
 #include "bridge_loop_avoidance.h"
+#include "gateway_client.h"
 
 #include <linux/if_arp.h>
 #include <linux/if_ether.h>
@@ -535,8 +536,12 @@ void batadv_hardif_disable_interface(struct batadv_hard_iface *hard_iface,
 	dev_put(hard_iface->soft_iface);
 
 	/* nobody uses this interface anymore */
-	if (!bat_priv->num_ifaces && autodel == BATADV_IF_CLEANUP_AUTO)
-		batadv_softif_destroy_sysfs(hard_iface->soft_iface);
+	if (!bat_priv->num_ifaces) {
+		batadv_gw_check_client_stop(bat_priv);
+
+		if (autodel == BATADV_IF_CLEANUP_AUTO)
+			batadv_softif_destroy_sysfs(hard_iface->soft_iface);
+	}
 
 	netdev_upper_dev_unlink(hard_iface->net_dev, hard_iface->soft_iface);
 	hard_iface->soft_iface = NULL;
