@@ -131,7 +131,7 @@ const struct v4l2_dv_timings v4l2_dv_timings_presets[] = {
 };
 EXPORT_SYMBOL_GPL(v4l2_dv_timings_presets);
 
-bool v4l2_dv_valid_timings(const struct v4l2_dv_timings *t,
+bool v4l2_valid_dv_timings(const struct v4l2_dv_timings *t,
 			   const struct v4l2_dv_timings_cap *dvcap)
 {
 	const struct v4l2_bt_timings *bt = &t->bt;
@@ -153,7 +153,7 @@ bool v4l2_dv_valid_timings(const struct v4l2_dv_timings *t,
 		return false;
 	return true;
 }
-EXPORT_SYMBOL_GPL(v4l2_dv_valid_timings);
+EXPORT_SYMBOL_GPL(v4l2_valid_dv_timings);
 
 int v4l2_enum_dv_timings_cap(struct v4l2_enum_dv_timings *t,
 			     const struct v4l2_dv_timings_cap *cap)
@@ -162,7 +162,7 @@ int v4l2_enum_dv_timings_cap(struct v4l2_enum_dv_timings *t,
 
 	memset(t->reserved, 0, sizeof(t->reserved));
 	for (i = idx = 0; v4l2_dv_timings_presets[i].bt.width; i++) {
-		if (v4l2_dv_valid_timings(v4l2_dv_timings_presets + i, cap) &&
+		if (v4l2_valid_dv_timings(v4l2_dv_timings_presets + i, cap) &&
 		    idx++ == t->index) {
 			t->timings = v4l2_dv_timings_presets[i];
 			return 0;
@@ -178,11 +178,11 @@ bool v4l2_find_dv_timings_cap(struct v4l2_dv_timings *t,
 {
 	int i;
 
-	if (!v4l2_dv_valid_timings(t, cap))
+	if (!v4l2_valid_dv_timings(t, cap))
 		return false;
 
 	for (i = 0; i < v4l2_dv_timings_presets[i].bt.width; i++) {
-		if (v4l2_dv_valid_timings(v4l2_dv_timings_presets + i, cap) &&
+		if (v4l2_valid_dv_timings(v4l2_dv_timings_presets + i, cap) &&
 		    v4l2_match_dv_timings(t, v4l2_dv_timings_presets + i, pclock_delta)) {
 			*t = v4l2_dv_timings_presets[i];
 			return true;

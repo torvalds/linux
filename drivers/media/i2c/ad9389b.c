@@ -648,7 +648,7 @@ static int ad9389b_s_dv_timings(struct v4l2_subdev *sd,
 	v4l2_dbg(1, debug, sd, "%s:\n", __func__);
 
 	/* quick sanity check */
-	if (!v4l2_dv_valid_timings(timings, &ad9389b_timings_cap))
+	if (!v4l2_valid_dv_timings(timings, &ad9389b_timings_cap))
 		return -EINVAL;
 
 	/* Fill the optional fields .standards and .flags in struct v4l2_dv_timings

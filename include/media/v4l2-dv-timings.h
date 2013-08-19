@@ -27,14 +27,14 @@
  */
 extern const struct v4l2_dv_timings v4l2_dv_timings_presets[];
 
-/** v4l2_dv_valid_timings() - are these timings valid?
+/** v4l2_valid_dv_timings() - are these timings valid?
   * @t:	  the v4l2_dv_timings struct.
   * @cap: the v4l2_dv_timings_cap capabilities.
   *
   * Returns true if the given dv_timings struct is supported by the
   * hardware capabilities, returns false otherwise.
   */
-bool v4l2_dv_valid_timings(const struct v4l2_dv_timings *t,
+bool v4l2_valid_dv_timings(const struct v4l2_dv_timings *t,
 			   const struct v4l2_dv_timings_cap *cap);
 
 /** v4l2_enum_dv_timings_cap() - Helper function to enumerate possible DV timings based on capabilities
