@@ -690,29 +690,6 @@
 	{0x102b, 0x2527, PCI_ANY_ID, PCI_ANY_ID, 0, 0, MGA_CARD_TYPE_G550}, \
 	{0, 0, 0}
 
-#define mach64_PCI_IDS \
-	{0x1002, 0x4749, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
-	{0x1002, 0x4750, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
-	{0x1002, 0x4751, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
-	{0x1002, 0x4742, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
-	{0x1002, 0x4744, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
-	{0x1002, 0x4c49, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
-	{0x1002, 0x4c50, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
-	{0x1002, 0x4c51, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
-	{0x1002, 0x4c42, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
-	{0x1002, 0x4c44, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
-	{0x1002, 0x474c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
-	{0x1002, 0x474f, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
-	{0x1002, 0x4752, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
-	{0x1002, 0x4753, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
-	{0x1002, 0x474d, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
-	{0x1002, 0x474e, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
-	{0x1002, 0x4c52, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
-	{0x1002, 0x4c53, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
-	{0x1002, 0x4c4d, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
-	{0x1002, 0x4c4e, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
-	{0, 0, 0}
-
 #define sisdrv_PCI_IDS \
 	{0x1039, 0x0300, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
 	{0x1039, 0x5300, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
@@ -752,10 +729,6 @@
 	{0x8086, 0x1132, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
 	{0, 0, 0}
 
-#define gamma_PCI_IDS \
-	{0x3d3d, 0x0008, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, \
-	{0, 0, 0}
-
 #define savage_PCI_IDS \
 	{0x5333, 0x8a20, PCI_ANY_ID, PCI_ANY_ID, 0, 0, S3_SAVAGE3D}, \
 	{0x5333, 0x8a21, PCI_ANY_ID, PCI_ANY_ID, 0, 0, S3_SAVAGE3D}, \
@@ -780,7 +753,4 @@
 	{0x5333, 0x8d02, PCI_ANY_ID, PCI_ANY_ID, 0, 0, S3_TWISTER}, \
 	{0x5333, 0x8d03, PCI_ANY_ID, PCI_ANY_ID, 0, 0, S3_PROSAVAGEDDR}, \
 	{0x5333, 0x8d04, PCI_ANY_ID, PCI_ANY_ID, 0, 0, S3_PROSAVAGEDDR}, \
-	{0, 0, 0}
-
-#define ffb_PCI_IDS \
 	{0, 0, 0}
