@@ -223,7 +223,6 @@ static void pcf857x_irq_domain_cleanup(struct pcf857x *gpio)
 }
 
 static int pcf857x_irq_domain_init(struct pcf857x *gpio,
-				   struct pcf857x_platform_data *pdata,
 				   struct i2c_client *client)
 {
 	int status;
@@ -286,8 +285,8 @@ static int pcf857x_probe(struct i2c_client *client,
 	gpio->chip.ngpio		= id->driver_data;
 
 	/* enable gpio_to_irq() if platform has settings */
-	if (pdata && client->irq) {
-		status = pcf857x_irq_domain_init(gpio, pdata, client);
+	if (client->irq) {
+		status = pcf857x_irq_domain_init(gpio, client);
 		if (status < 0) {
 			dev_err(&client->dev, "irq_domain init failed\n");
 			goto fail;
@@ -388,7 +387,7 @@ fail:
 	dev_dbg(&client->dev, "probe error %d for '%s'\n",
 			status, client->name);
 
-	if (pdata && client->irq)
+	if (client->irq)
 		pcf857x_irq_domain_cleanup(gpio);
 
 	return status;
@@ -411,7 +410,7 @@ static int pcf857x_remove(struct i2c_client *client)
 		}
 	}
 
-	if (pdata && client->irq)
+	if (client->irq)
 		pcf857x_irq_domain_cleanup(gpio);
 
 	status = gpiochip_remove(&gpio->chip);
