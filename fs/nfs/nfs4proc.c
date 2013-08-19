@@ -3071,15 +3071,13 @@ struct rpc_clnt *
 nfs4_proc_lookup_mountpoint(struct inode *dir, struct qstr *name,
 			    struct nfs_fh *fhandle, struct nfs_fattr *fattr)
 {
+	struct rpc_clnt *client = NFS_CLIENT(dir);
 	int status;
-	struct rpc_clnt *client = rpc_clone_client(NFS_CLIENT(dir));
 
 	status = nfs4_proc_lookup_common(&client, dir, name, fhandle, fattr, NULL);
-	if (status < 0) {
-		rpc_shutdown_client(client);
+	if (status < 0)
 		return ERR_PTR(status);
-	}
-	return client;
+	return (client == NFS_CLIENT(dir)) ? rpc_clone_client(client) : client;
 }
 
 static int _nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry)

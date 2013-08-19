@@ -484,7 +484,7 @@ static bool is_ebb_event(struct perf_event *event)
 	 * use bit 63 of the event code for something else if they wish.
 	 */
 	return (ppmu->flags & PPMU_EBB) &&
-	       ((event->attr.config >> EVENT_CONFIG_EBB_SHIFT) & 1);
+	       ((event->attr.config >> PERF_EVENT_CONFIG_EBB_SHIFT) & 1);
 }
 
 static int ebb_event_check(struct perf_event *event)

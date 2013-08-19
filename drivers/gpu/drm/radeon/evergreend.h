@@ -497,6 +497,9 @@
 #define DCCG_AUDIO_DTO0_MODULE            0x05b4
 #define DCCG_AUDIO_DTO0_LOAD              0x05b8
 #define DCCG_AUDIO_DTO0_CNTL              0x05bc
+#       define DCCG_AUDIO_DTO_WALLCLOCK_RATIO(x) (((x) & 7) << 0)
+#       define DCCG_AUDIO_DTO_WALLCLOCK_RATIO_MASK 7
+#       define DCCG_AUDIO_DTO_WALLCLOCK_RATIO_SHIFT 0
 
 #define DCCG_AUDIO_DTO1_PHASE             0x05c0
 #define DCCG_AUDIO_DTO1_MODULE            0x05c4

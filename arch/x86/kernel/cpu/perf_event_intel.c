@@ -2270,6 +2270,7 @@ __init int intel_pmu_init(void)
 	case 70:
 	case 71:
 	case 63:
+	case 69:
 		x86_pmu.late_ack = true;
 		memcpy(hw_cache_event_ids, snb_hw_cache_event_ids, sizeof(hw_cache_event_ids));
 		memcpy(hw_cache_extra_regs, snb_hw_cache_extra_regs, sizeof(hw_cache_extra_regs));
