@@ -26,7 +26,7 @@
 #include <linux/v4l2-dv-timings.h>
 #include <media/v4l2-dv-timings.h>
 
-static const struct v4l2_dv_timings timings[] = {
+const struct v4l2_dv_timings v4l2_dv_timings_presets[] = {
 	V4L2_DV_BT_CEA_640X480P59_94,
 	V4L2_DV_BT_CEA_720X480I59_94,
 	V4L2_DV_BT_CEA_720X480P59_94,
@@ -127,7 +127,9 @@ static const struct v4l2_dv_timings timings[] = {
 	V4L2_DV_BT_DMT_2560X1600P75,
 	V4L2_DV_BT_DMT_2560X1600P85,
 	V4L2_DV_BT_DMT_2560X1600P120_RB,
+	{ }
 };
+EXPORT_SYMBOL_GPL(v4l2_dv_timings_presets);
 
 bool v4l2_dv_valid_timings(const struct v4l2_dv_timings *t,
 			   const struct v4l2_dv_timings_cap *dvcap)
@@ -159,10 +161,10 @@ int v4l2_enum_dv_timings_cap(struct v4l2_enum_dv_timings *t,
 	u32 i, idx;
 
 	memset(t->reserved, 0, sizeof(t->reserved));
-	for (i = idx = 0; i < ARRAY_SIZE(timings); i++) {
-		if (v4l2_dv_valid_timings(timings + i, cap) &&
+	for (i = idx = 0; v4l2_dv_timings_presets[i].bt.width; i++) {
+		if (v4l2_dv_valid_timings(v4l2_dv_timings_presets + i, cap) &&
 		    idx++ == t->index) {
-			t->timings = timings[i];
+			t->timings = v4l2_dv_timings_presets[i];
 			return 0;
 		}
 	}
@@ -179,10 +181,10 @@ bool v4l2_find_dv_timings_cap(struct v4l2_dv_timings *t,
 	if (!v4l2_dv_valid_timings(t, cap))
 		return false;
 
-	for (i = 0; i < ARRAY_SIZE(timings); i++) {
-		if (v4l2_dv_valid_timings(timings + i, cap) &&
-		    v4l2_match_dv_timings(t, timings + i, pclock_delta)) {
-			*t = timings[i];
+	for (i = 0; i < v4l2_dv_timings_presets[i].bt.width; i++) {
+		if (v4l2_dv_valid_timings(v4l2_dv_timings_presets + i, cap) &&
+		    v4l2_match_dv_timings(t, v4l2_dv_timings_presets + i, pclock_delta)) {
+			*t = v4l2_dv_timings_presets[i];
 			return true;
 		}
 	}
