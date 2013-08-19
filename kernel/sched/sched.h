@@ -605,6 +605,7 @@ struct sched_group_power {
 	 */
 	unsigned int power, power_orig;
 	unsigned long next_update;
+	int imbalance; /* XXX unrelated to power but shared group state */
 	/*
 	 * Number of busy cpus in this group.
 	 */
