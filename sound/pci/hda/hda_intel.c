@@ -3855,11 +3855,13 @@ static int azx_probe_continue(struct azx *chip)
 
 	/* Request power well for Haswell HDA controller and codec */
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
+#ifdef CONFIG_SND_HDA_I915
 		err = hda_i915_init();
 		if (err < 0) {
 			snd_printk(KERN_ERR SFX "Error request power-well from i915\n");
 			goto out_free;
 		}
+#endif
 		hda_display_power(true);
 	}
 
