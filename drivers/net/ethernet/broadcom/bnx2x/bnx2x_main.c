@@ -11163,6 +11163,9 @@ static bool bnx2x_get_dropless_info(struct bnx2x *bp)
 	int tmp;
 	u32 cfg;
 
+	if (IS_VF(bp))
+		return 0;
+
 	if (IS_MF(bp) && !CHIP_IS_E1x(bp)) {
 		/* Take function: tmp = func */
 		tmp = BP_ABS_FUNC(bp);
