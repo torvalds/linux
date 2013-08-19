@@ -13,3 +13,7 @@ openvswitch-y := \
 	vport-gre.o \
 	vport-internal_dev.o \
 	vport-netdev.o
+
+ifneq ($(CONFIG_OPENVSWITCH_VXLAN),)
+openvswitch-y += vport-vxlan.o
+endif
