@@ -927,8 +927,6 @@ extern int drm_mode_height(const struct drm_display_mode *mode);
 /* for us by fb module */
 extern struct drm_display_mode *drm_mode_create(struct drm_device *dev);
 extern void drm_mode_destroy(struct drm_device *dev, struct drm_display_mode *mode);
-extern void drm_mode_list_concat(struct list_head *head,
-				 struct list_head *new);
 extern void drm_mode_validate_size(struct drm_device *dev,
 				   struct list_head *mode_list,
 				   int maxX, int maxY, int maxPitch);

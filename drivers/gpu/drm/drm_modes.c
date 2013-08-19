@@ -596,27 +596,6 @@ void drm_mode_set_name(struct drm_display_mode *mode)
 EXPORT_SYMBOL(drm_mode_set_name);
 
 /**
- * drm_mode_list_concat - move modes from one list to another
- * @head: source list
- * @new: dst list
- *
- * LOCKING:
- * Caller must ensure both lists are locked.
- *
- * Move all the modes from @head to @new.
- */
-void drm_mode_list_concat(struct list_head *head, struct list_head *new)
-{
-
-	struct list_head *entry, *tmp;
-
-	list_for_each_safe(entry, tmp, head) {
-		list_move_tail(entry, new);
-	}
-}
-EXPORT_SYMBOL(drm_mode_list_concat);
-
-/**
  * drm_mode_width - get the width of a mode
  * @mode: mode
  *
