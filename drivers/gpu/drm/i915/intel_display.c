@@ -6033,6 +6033,10 @@ void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 		    LCPLL_POWER_DOWN_ALLOW)) == LCPLL_PLL_LOCK)
 		return;
 
+	/* Make sure we're not on PC8 state before disabling PC8, otherwise
+	 * we'll hang the machine! */
+	dev_priv->uncore.funcs.force_wake_get(dev_priv);
+
 	if (val & LCPLL_POWER_DOWN_ALLOW) {
 		val &= ~LCPLL_POWER_DOWN_ALLOW;
 		I915_WRITE(LCPLL_CTL, val);
@@ -6060,6 +6064,8 @@ void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 					LCPLL_CD_SOURCE_FCLK_DONE) == 0, 1))
 			DRM_ERROR("Switching back to LCPLL failed\n");
 	}
+
+	dev_priv->uncore.funcs.force_wake_put(dev_priv);
 }
 
 static void haswell_modeset_global_resources(struct drm_device *dev)
