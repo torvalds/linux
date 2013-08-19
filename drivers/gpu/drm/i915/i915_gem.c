@@ -1005,6 +1005,8 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 	bool wait_forever = true;
 	int ret;
 
+	WARN(dev_priv->pc8.irqs_disabled, "IRQs disabled\n");
+
 	if (i915_seqno_passed(ring->get_seqno(ring, true), seqno))
 		return 0;
 

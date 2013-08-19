@@ -3607,7 +3607,7 @@ static void gen6_enable_rps(struct drm_device *dev)
 	gen6_gt_force_wake_put(dev_priv);
 }
 
-static void gen6_update_ring_freq(struct drm_device *dev)
+void gen6_update_ring_freq(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int min_freq = 15;
@@ -5396,6 +5396,17 @@ void intel_init_power_well(struct drm_device *dev)
 	 * the driver is in charge now. */
 	if (I915_READ(HSW_PWR_WELL_BIOS) & HSW_PWR_WELL_ENABLE_REQUEST)
 		I915_WRITE(HSW_PWR_WELL_BIOS, 0);
+}
+
+/* Disables PC8 so we can use the GMBUS and DP AUX interrupts. */
+void intel_aux_display_runtime_get(struct drm_i915_private *dev_priv)
+{
+	hsw_disable_package_c8(dev_priv);
+}
+
+void intel_aux_display_runtime_put(struct drm_i915_private *dev_priv)
+{
+	hsw_enable_package_c8(dev_priv);
 }
 
 /* Set up chip specific power management-related functions */

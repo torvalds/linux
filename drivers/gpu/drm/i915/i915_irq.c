@@ -85,6 +85,12 @@ ironlake_enable_display_irq(drm_i915_private_t *dev_priv, u32 mask)
 {
 	assert_spin_locked(&dev_priv->irq_lock);
 
+	if (dev_priv->pc8.irqs_disabled) {
+		WARN(1, "IRQs disabled\n");
+		dev_priv->pc8.regsave.deimr &= ~mask;
+		return;
+	}
+
 	if ((dev_priv->irq_mask & mask) != 0) {
 		dev_priv->irq_mask &= ~mask;
 		I915_WRITE(DEIMR, dev_priv->irq_mask);
@@ -96,6 +102,12 @@ static void
 ironlake_disable_display_irq(drm_i915_private_t *dev_priv, u32 mask)
 {
 	assert_spin_locked(&dev_priv->irq_lock);
+
+	if (dev_priv->pc8.irqs_disabled) {
+		WARN(1, "IRQs disabled\n");
+		dev_priv->pc8.regsave.deimr |= mask;
+		return;
+	}
 
 	if ((dev_priv->irq_mask & mask) != mask) {
 		dev_priv->irq_mask |= mask;
@@ -115,6 +127,14 @@ static void ilk_update_gt_irq(struct drm_i915_private *dev_priv,
 			      uint32_t enabled_irq_mask)
 {
 	assert_spin_locked(&dev_priv->irq_lock);
+
+	if (dev_priv->pc8.irqs_disabled) {
+		WARN(1, "IRQs disabled\n");
+		dev_priv->pc8.regsave.gtimr &= ~interrupt_mask;
+		dev_priv->pc8.regsave.gtimr |= (~enabled_irq_mask &
+						interrupt_mask);
+		return;
+	}
 
 	dev_priv->gt_irq_mask &= ~interrupt_mask;
 	dev_priv->gt_irq_mask |= (~enabled_irq_mask & interrupt_mask);
@@ -145,6 +165,14 @@ static void snb_update_pm_irq(struct drm_i915_private *dev_priv,
 	uint32_t new_val;
 
 	assert_spin_locked(&dev_priv->irq_lock);
+
+	if (dev_priv->pc8.irqs_disabled) {
+		WARN(1, "IRQs disabled\n");
+		dev_priv->pc8.regsave.gen6_pmimr &= ~interrupt_mask;
+		dev_priv->pc8.regsave.gen6_pmimr |= (~enabled_irq_mask &
+						     interrupt_mask);
+		return;
+	}
 
 	new_val = dev_priv->pm_irq_mask;
 	new_val &= ~interrupt_mask;
@@ -256,6 +284,15 @@ static void ibx_display_interrupt_update(struct drm_i915_private *dev_priv,
 	sdeimr |= (~enabled_irq_mask & interrupt_mask);
 
 	assert_spin_locked(&dev_priv->irq_lock);
+
+	if (dev_priv->pc8.irqs_disabled &&
+	    (interrupt_mask & SDE_HOTPLUG_MASK_CPT)) {
+		WARN(1, "IRQs disabled\n");
+		dev_priv->pc8.regsave.sdeimr &= ~interrupt_mask;
+		dev_priv->pc8.regsave.sdeimr |= (~enabled_irq_mask &
+						 interrupt_mask);
+		return;
+	}
 
 	I915_WRITE(SDEIMR, sdeimr);
 	POSTING_READ(SDEIMR);
@@ -3111,5 +3148,69 @@ void intel_hpd_init(struct drm_device *dev)
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	if (dev_priv->display.hpd_irq_setup)
 		dev_priv->display.hpd_irq_setup(dev);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+}
+
+/* Disable interrupts so we can allow Package C8+. */
+void hsw_pc8_disable_interrupts(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+
+	dev_priv->pc8.regsave.deimr = I915_READ(DEIMR);
+	dev_priv->pc8.regsave.sdeimr = I915_READ(SDEIMR);
+	dev_priv->pc8.regsave.gtimr = I915_READ(GTIMR);
+	dev_priv->pc8.regsave.gtier = I915_READ(GTIER);
+	dev_priv->pc8.regsave.gen6_pmimr = I915_READ(GEN6_PMIMR);
+
+	ironlake_disable_display_irq(dev_priv, ~DE_PCH_EVENT_IVB);
+	ibx_disable_display_interrupt(dev_priv, ~SDE_HOTPLUG_MASK_CPT);
+	ilk_disable_gt_irq(dev_priv, 0xffffffff);
+	snb_disable_pm_irq(dev_priv, 0xffffffff);
+
+	dev_priv->pc8.irqs_disabled = true;
+
+	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+}
+
+/* Restore interrupts so we can recover from Package C8+. */
+void hsw_pc8_restore_interrupts(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long irqflags;
+	uint32_t val, expected;
+
+	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+
+	val = I915_READ(DEIMR);
+	expected = ~DE_PCH_EVENT_IVB;
+	WARN(val != expected, "DEIMR is 0x%08x, not 0x%08x\n", val, expected);
+
+	val = I915_READ(SDEIMR) & ~SDE_HOTPLUG_MASK_CPT;
+	expected = ~SDE_HOTPLUG_MASK_CPT;
+	WARN(val != expected, "SDEIMR non-HPD bits are 0x%08x, not 0x%08x\n",
+	     val, expected);
+
+	val = I915_READ(GTIMR);
+	expected = 0xffffffff;
+	WARN(val != expected, "GTIMR is 0x%08x, not 0x%08x\n", val, expected);
+
+	val = I915_READ(GEN6_PMIMR);
+	expected = 0xffffffff;
+	WARN(val != expected, "GEN6_PMIMR is 0x%08x, not 0x%08x\n", val,
+	     expected);
+
+	dev_priv->pc8.irqs_disabled = false;
+
+	ironlake_enable_display_irq(dev_priv, ~dev_priv->pc8.regsave.deimr);
+	ibx_enable_display_interrupt(dev_priv,
+				     ~dev_priv->pc8.regsave.sdeimr &
+				     ~SDE_HOTPLUG_MASK_CPT);
+	ilk_enable_gt_irq(dev_priv, ~dev_priv->pc8.regsave.gtimr);
+	snb_enable_pm_irq(dev_priv, ~dev_priv->pc8.regsave.gen6_pmimr);
+	I915_WRITE(GTIER, dev_priv->pc8.regsave.gtier);
+
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
