@@ -893,11 +893,9 @@ static int twl6030_gpadc_probe(struct platform_device *pdev)
 
 	pdata = match->data;
 
-	indio_dev = iio_device_alloc(sizeof(*gpadc));
-	if (!indio_dev) {
-		dev_err(dev, "failed allocating iio device\n");
-		ret = -ENOMEM;
-	}
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*gpadc));
+	if (!indio_dev)
+		return -ENOMEM;
 
 	gpadc = iio_priv(indio_dev);
 
@@ -905,7 +903,7 @@ static int twl6030_gpadc_probe(struct platform_device *pdev)
 					sizeof(*gpadc->twl6030_cal_tbl) *
 					pdata->nchannels, GFP_KERNEL);
 	if (!gpadc->twl6030_cal_tbl)
-		goto err_free_device;
+		return -ENOMEM;
 
 	gpadc->dev = dev;
 	gpadc->pdata = pdata;
@@ -917,33 +915,30 @@ static int twl6030_gpadc_probe(struct platform_device *pdev)
 	ret = pdata->calibrate(gpadc);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to read calibration registers\n");
-		goto err_free_device;
+		return ret;
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(&pdev->dev, "failed to get irq\n");
-		goto err_free_device;
+		return irq;
 	}
 
-	ret = request_threaded_irq(irq, NULL, twl6030_gpadc_irq_handler,
+	ret = devm_request_threaded_irq(dev, irq, NULL,
+				twl6030_gpadc_irq_handler,
 				IRQF_ONESHOT, "twl6030_gpadc", indio_dev);
-	if (ret) {
-		dev_dbg(&pdev->dev, "could not request irq\n");
-		goto err_free_device;
-	}
 
 	ret = twl6030_gpadc_enable_irq(TWL6030_GPADC_RT_SW1_EOC_MASK);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to enable GPADC interrupt\n");
-		goto err_free_irq;
+		return ret;
 	}
 
 	ret = twl_i2c_write_u8(TWL6030_MODULE_ID1, TWL6030_GPADCS,
 					TWL6030_REG_TOGGLE1);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to enable GPADC module\n");
-		goto err_free_irq;
+		return ret;
 	}
 
 	indio_dev->name = DRIVER_NAME;
@@ -954,15 +949,6 @@ static int twl6030_gpadc_probe(struct platform_device *pdev)
 	indio_dev->num_channels = pdata->nchannels;
 
 	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto err_free_irq;
-
-	return ret;
-
-err_free_irq:
-	free_irq(irq, indio_dev);
-err_free_device:
-	iio_device_free(indio_dev);
 
 	return ret;
 }
@@ -972,9 +958,7 @@ static int twl6030_gpadc_remove(struct platform_device *pdev)
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 
 	twl6030_gpadc_disable_irq(TWL6030_GPADC_RT_SW1_EOC_MASK);
-	free_irq(platform_get_irq(pdev, 0), indio_dev);
 	iio_device_unregister(indio_dev);
-	iio_device_free(indio_dev);
 
 	return 0;
 }
