@@ -7367,8 +7367,8 @@ static u32 dce8_line_buffer_adjust(struct radeon_device *rdev,
 				   struct radeon_crtc *radeon_crtc,
 				   struct drm_display_mode *mode)
 {
-	u32 tmp;
-
+	u32 tmp, buffer_alloc, i;
+	u32 pipe_offset = radeon_crtc->crtc_id * 0x20;
 	/*
 	 * Line Buffer Setup
 	 * There are 6 line buffers, one for each display controllers.
@@ -7378,21 +7378,36 @@ static u32 dce8_line_buffer_adjust(struct radeon_device *rdev,
 	 * them using the stereo blender.
 	 */
 	if (radeon_crtc->base.enabled && mode) {
-		if (mode->crtc_hdisplay < 1920)
+		if (mode->crtc_hdisplay < 1920) {
 			tmp = 1;
-		else if (mode->crtc_hdisplay < 2560)
+			buffer_alloc = 2;
+		} else if (mode->crtc_hdisplay < 2560) {
 			tmp = 2;
-		else if (mode->crtc_hdisplay < 4096)
+			buffer_alloc = 2;
+		} else if (mode->crtc_hdisplay < 4096) {
 			tmp = 0;
-		else {
+			buffer_alloc = (rdev->flags & RADEON_IS_IGP) ? 2 : 4;
+		} else {
 			DRM_DEBUG_KMS("Mode too big for LB!\n");
 			tmp = 0;
+			buffer_alloc = (rdev->flags & RADEON_IS_IGP) ? 2 : 4;
 		}
-	} else
+	} else {
 		tmp = 1;
+		buffer_alloc = 0;
+	}
 
 	WREG32(LB_MEMORY_CTRL + radeon_crtc->crtc_offset,
 	       LB_MEMORY_CONFIG(tmp) | LB_MEMORY_SIZE(0x6B0));
+
+	WREG32(PIPE0_DMIF_BUFFER_CONTROL + pipe_offset,
+	       DMIF_BUFFERS_ALLOCATED(buffer_alloc));
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		if (RREG32(PIPE0_DMIF_BUFFER_CONTROL + pipe_offset) &
+		    DMIF_BUFFERS_ALLOCATED_COMPLETED)
+			break;
+		udelay(1);
+	}
 
 	if (radeon_crtc->base.enabled && mode) {
 		switch (tmp) {
