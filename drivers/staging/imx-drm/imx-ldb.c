@@ -623,3 +623,4 @@ module_platform_driver(imx_ldb_driver);
 MODULE_DESCRIPTION("i.MX LVDS driver");
 MODULE_AUTHOR("Sascha Hauer, Pengutronix");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:" DRIVER_NAME);
