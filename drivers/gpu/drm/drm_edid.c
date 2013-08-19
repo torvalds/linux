@@ -3274,3 +3274,39 @@ drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
 	return 0;
 }
 EXPORT_SYMBOL(drm_hdmi_avi_infoframe_from_display_mode);
+
+/**
+ * drm_hdmi_vendor_infoframe_from_display_mode() - fill an HDMI infoframe with
+ * data from a DRM display mode
+ * @frame: HDMI vendor infoframe
+ * @mode: DRM display mode
+ *
+ * Note that there's is a need to send HDMI vendor infoframes only when using a
+ * 4k or stereoscopic 3D mode. So when giving any other mode as input this
+ * function will return -EINVAL, error that can be safely ignored.
+ *
+ * Returns 0 on success or a negative error code on failure.
+ */
+int
+drm_hdmi_vendor_infoframe_from_display_mode(struct hdmi_vendor_infoframe *frame,
+					    const struct drm_display_mode *mode)
+{
+	int err;
+	u8 vic;
+
+	if (!frame || !mode)
+		return -EINVAL;
+
+	vic = drm_match_hdmi_mode(mode);
+	if (!vic)
+		return -EINVAL;
+
+	err = hdmi_vendor_infoframe_init(frame);
+	if (err < 0)
+		return err;
+
+	frame->vic = vic;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_hdmi_vendor_infoframe_from_display_mode);
