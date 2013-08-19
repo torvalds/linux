@@ -249,6 +249,8 @@ s3c24xx_serial_rx_chars(int irq, void *dev_id)
 					ufcon |= S3C2410_UFCON_RESETRX;
 					wr_regl(port, S3C2410_UFCON, ufcon);
 					rx_enabled(port) = 1;
+					spin_unlock_irqrestore(&port->lock,
+							flags);
 					goto out;
 				}
 				continue;
@@ -297,10 +299,11 @@ s3c24xx_serial_rx_chars(int irq, void *dev_id)
  ignore_char:
 		continue;
 	}
+
+	spin_unlock_irqrestore(&port->lock, flags);
 	tty_flip_buffer_push(&port->state->port);
 
  out:
-	spin_unlock_irqrestore(&port->lock, flags);
 	return IRQ_HANDLED;
 }
 
