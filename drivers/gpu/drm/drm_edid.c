@@ -2532,7 +2532,7 @@ static bool cea_db_is_hdmi_vsdb(const u8 *db)
 
 	hdmi_id = db[1] | (db[2] << 8) | (db[3] << 16);
 
-	return hdmi_id == HDMI_IDENTIFIER;
+	return hdmi_id == HDMI_IEEE_OUI;
 }
 
 #define for_each_cea_db(cea, i, start, end) \

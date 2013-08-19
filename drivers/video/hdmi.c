@@ -300,7 +300,7 @@ int hdmi_vendor_infoframe_init(struct hdmi_vendor_infoframe *frame)
 	frame->type = HDMI_INFOFRAME_TYPE_VENDOR;
 	frame->version = 1;
 
-	frame->oui = HDMI_IDENTIFIER;
+	frame->oui = HDMI_IEEE_OUI;
 
 	/*
 	 * 0 is a valid value for s3d_struct, so we use a special "not set"
@@ -387,7 +387,7 @@ hdmi_vendor_any_infoframe_pack(union hdmi_vendor_any_infoframe *frame,
 			   void *buffer, size_t size)
 {
 	/* we only know about HDMI vendor infoframes */
-	if (frame->any.oui != HDMI_IDENTIFIER)
+	if (frame->any.oui != HDMI_IEEE_OUI)
 		return -EINVAL;
 
 	return hdmi_vendor_infoframe_pack(&frame->hdmi, buffer, size);
