@@ -648,12 +648,12 @@ static int ad9389b_s_dv_timings(struct v4l2_subdev *sd,
 	v4l2_dbg(1, debug, sd, "%s:\n", __func__);
 
 	/* quick sanity check */
-	if (!v4l2_valid_dv_timings(timings, &ad9389b_timings_cap))
+	if (!v4l2_valid_dv_timings(timings, &ad9389b_timings_cap, NULL, NULL))
 		return -EINVAL;
 
 	/* Fill the optional fields .standards and .flags in struct v4l2_dv_timings
 	   if the format is one of the CEA or DMT timings. */
-	v4l2_find_dv_timings_cap(timings, &ad9389b_timings_cap, 0);
+	v4l2_find_dv_timings_cap(timings, &ad9389b_timings_cap, 0, NULL, NULL);
 
 	timings->bt.flags &= ~V4L2_DV_FL_REDUCED_FPS;
 
@@ -691,7 +691,8 @@ static int ad9389b_g_dv_timings(struct v4l2_subdev *sd,
 static int ad9389b_enum_dv_timings(struct v4l2_subdev *sd,
 			struct v4l2_enum_dv_timings *timings)
 {
-	return v4l2_enum_dv_timings_cap(timings, &ad9389b_timings_cap);
+	return v4l2_enum_dv_timings_cap(timings, &ad9389b_timings_cap,
+			NULL, NULL);
 }
 
 static int ad9389b_dv_timings_cap(struct v4l2_subdev *sd,

@@ -132,7 +132,9 @@ const struct v4l2_dv_timings v4l2_dv_timings_presets[] = {
 EXPORT_SYMBOL_GPL(v4l2_dv_timings_presets);
 
 bool v4l2_valid_dv_timings(const struct v4l2_dv_timings *t,
-			   const struct v4l2_dv_timings_cap *dvcap)
+			   const struct v4l2_dv_timings_cap *dvcap,
+			   v4l2_check_dv_timings_fnc fnc,
+			   void *fnc_handle)
 {
 	const struct v4l2_bt_timings *bt = &t->bt;
 	const struct v4l2_bt_timings_cap *cap = &dvcap->bt;
@@ -151,18 +153,21 @@ bool v4l2_valid_dv_timings(const struct v4l2_dv_timings *t,
 	    (bt->interlaced && !(caps & V4L2_DV_BT_CAP_INTERLACED)) ||
 	    (!bt->interlaced && !(caps & V4L2_DV_BT_CAP_PROGRESSIVE)))
 		return false;
-	return true;
+	return fnc == NULL || fnc(t, fnc_handle);
 }
 EXPORT_SYMBOL_GPL(v4l2_valid_dv_timings);
 
 int v4l2_enum_dv_timings_cap(struct v4l2_enum_dv_timings *t,
-			     const struct v4l2_dv_timings_cap *cap)
+			     const struct v4l2_dv_timings_cap *cap,
+			     v4l2_check_dv_timings_fnc fnc,
+			     void *fnc_handle)
 {
 	u32 i, idx;
 
 	memset(t->reserved, 0, sizeof(t->reserved));
 	for (i = idx = 0; v4l2_dv_timings_presets[i].bt.width; i++) {
-		if (v4l2_valid_dv_timings(v4l2_dv_timings_presets + i, cap) &&
+		if (v4l2_valid_dv_timings(v4l2_dv_timings_presets + i, cap,
+					  fnc, fnc_handle) &&
 		    idx++ == t->index) {
 			t->timings = v4l2_dv_timings_presets[i];
 			return 0;
@@ -174,16 +179,20 @@ EXPORT_SYMBOL_GPL(v4l2_enum_dv_timings_cap);
 
 bool v4l2_find_dv_timings_cap(struct v4l2_dv_timings *t,
 			      const struct v4l2_dv_timings_cap *cap,
-			      unsigned pclock_delta)
+			      unsigned pclock_delta,
+			      v4l2_check_dv_timings_fnc fnc,
+			      void *fnc_handle)
 {
 	int i;
 
-	if (!v4l2_valid_dv_timings(t, cap))
+	if (!v4l2_valid_dv_timings(t, cap, fnc, fnc_handle))
 		return false;
 
 	for (i = 0; i < v4l2_dv_timings_presets[i].bt.width; i++) {
-		if (v4l2_valid_dv_timings(v4l2_dv_timings_presets + i, cap) &&
-		    v4l2_match_dv_timings(t, v4l2_dv_timings_presets + i, pclock_delta)) {
+		if (v4l2_valid_dv_timings(v4l2_dv_timings_presets + i, cap,
+					  fnc, fnc_handle) &&
+		    v4l2_match_dv_timings(t, v4l2_dv_timings_presets + i,
+					  pclock_delta)) {
 			*t = v4l2_dv_timings_presets[i];
 			return true;
 		}

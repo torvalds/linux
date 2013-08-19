@@ -378,10 +378,12 @@ static int ths8200_s_dv_timings(struct v4l2_subdev *sd,
 
 	v4l2_dbg(1, debug, sd, "%s:\n", __func__);
 
-	if (!v4l2_valid_dv_timings(timings, &ths8200_timings_cap))
+	if (!v4l2_valid_dv_timings(timings, &ths8200_timings_cap,
+				NULL, NULL))
 		return -EINVAL;
 
-	if (!v4l2_find_dv_timings_cap(timings, &ths8200_timings_cap, 10)) {
+	if (!v4l2_find_dv_timings_cap(timings, &ths8200_timings_cap, 10,
+				NULL, NULL)) {
 		v4l2_dbg(1, debug, sd, "Unsupported format\n");
 		return -EINVAL;
 	}
@@ -411,7 +413,8 @@ static int ths8200_g_dv_timings(struct v4l2_subdev *sd,
 static int ths8200_enum_dv_timings(struct v4l2_subdev *sd,
 				   struct v4l2_enum_dv_timings *timings)
 {
-	return v4l2_enum_dv_timings_cap(timings, &ths8200_timings_cap);
+	return v4l2_enum_dv_timings_cap(timings, &ths8200_timings_cap,
+			NULL, NULL);
 }
 
 static int ths8200_dv_timings_cap(struct v4l2_subdev *sd,
