@@ -6311,7 +6311,7 @@ static int snd_hdspm_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 				ltc.format = fps_2997;
 				break;
 			default:
-				ltc.format = 30;
+				ltc.format = fps_30;
 				break;
 			}
 			if (i & HDSPM_TCO1_set_drop_frame_flag) {
