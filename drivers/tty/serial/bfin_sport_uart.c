@@ -161,10 +161,11 @@ static irqreturn_t sport_uart_rx_irq(int irq, void *dev_id)
 		if (!uart_handle_sysrq_char(&up->port, ch))
 			tty_insert_flip_char(port, ch, TTY_NORMAL);
 	}
-	/* XXX this won't deadlock with lowlat? */
-	tty_flip_buffer_push(port);
 
 	spin_unlock(&up->port.lock);
+
+	/* XXX this won't deadlock with lowlat? */
+	tty_flip_buffer_push(port);
 
 	return IRQ_HANDLED;
 }
