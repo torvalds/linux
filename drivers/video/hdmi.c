@@ -300,6 +300,8 @@ int hdmi_hdmi_infoframe_init(struct hdmi_hdmi_infoframe *frame)
 	frame->type = HDMI_INFOFRAME_TYPE_VENDOR;
 	frame->version = 1;
 
+	frame->oui = HDMI_IDENTIFIER;
+
 	/*
 	 * 0 is a valid value for s3d_struct, so we use a special "not set"
 	 * value
@@ -377,46 +379,18 @@ ssize_t hdmi_hdmi_infoframe_pack(struct hdmi_hdmi_infoframe *frame,
 }
 EXPORT_SYMBOL(hdmi_hdmi_infoframe_pack);
 
-/**
- * hdmi_vendor_infoframe_pack() - write a HDMI vendor infoframe to binary
- *                                buffer
- * @frame: HDMI vendor infoframe
- * @buffer: destination buffer
- * @size: size of buffer
- *
- * Packs the information contained in the @frame structure into a binary
- * representation that can be written into the corresponding controller
- * registers. Also computes the checksum as required by section 5.3.5 of
- * the HDMI 1.4 specification.
- *
- * Returns the number of bytes packed into the binary buffer or a negative
- * error code on failure.
+/*
+ * hdmi_vendor_infoframe_pack() - write a vendor infoframe to binary buffer
  */
-ssize_t hdmi_vendor_infoframe_pack(struct hdmi_vendor_infoframe *frame,
-				   void *buffer, size_t size)
+static ssize_t hdmi_vendor_infoframe_pack(union hdmi_vendor_infoframe *frame,
+					  void *buffer, size_t size)
 {
-	u8 *ptr = buffer;
-	size_t length;
+	/* we only know about HDMI vendor infoframes */
+	if (frame->any.oui != HDMI_IDENTIFIER)
+		return -EINVAL;
 
-	length = HDMI_INFOFRAME_HEADER_SIZE + frame->length;
-
-	if (size < length)
-		return -ENOSPC;
-
-	memset(buffer, 0, length);
-
-	ptr[0] = frame->type;
-	ptr[1] = frame->version;
-	ptr[2] = frame->length;
-	ptr[3] = 0; /* checksum */
-
-	memcpy(&ptr[HDMI_INFOFRAME_HEADER_SIZE], frame->data, frame->length);
-
-	hdmi_infoframe_checksum(buffer, length);
-
-	return length;
+	return hdmi_hdmi_infoframe_pack(&frame->hdmi, buffer, size);
 }
-EXPORT_SYMBOL(hdmi_vendor_infoframe_pack);
 
 /**
  * hdmi_infoframe_pack() - write a HDMI infoframe to binary buffer
