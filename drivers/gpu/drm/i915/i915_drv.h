@@ -1505,7 +1505,6 @@ struct drm_i915_file_private {
 #define IS_PINEVIEW_M(dev)	((dev)->pci_device == 0xa011)
 #define IS_PINEVIEW(dev)	(INTEL_INFO(dev)->is_pineview)
 #define IS_G33(dev)		(INTEL_INFO(dev)->is_g33)
-#define IS_IRONLAKE_D(dev)	((dev)->pci_device == 0x0042)
 #define IS_IRONLAKE_M(dev)	((dev)->pci_device == 0x0046)
 #define IS_IVYBRIDGE(dev)	(INTEL_INFO(dev)->is_ivybridge)
 #define IS_IVB_GT1(dev)		((dev)->pci_device == 0x0156 || \
