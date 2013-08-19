@@ -305,7 +305,7 @@ int iser_create_frwr_pool(struct iser_conn *ib_conn, unsigned cmds_max)
 		if (IS_ERR(desc->data_frpl)) {
 			ret = PTR_ERR(desc->data_frpl);
 			iser_err("Failed to allocate ib_fast_reg_page_list err=%d\n", ret);
-			goto err;
+			goto fast_reg_page_failure;
 		}
 
 		desc->data_mr = ib_alloc_fast_reg_mr(device->pd,
@@ -313,8 +313,7 @@ int iser_create_frwr_pool(struct iser_conn *ib_conn, unsigned cmds_max)
 		if (IS_ERR(desc->data_mr)) {
 			ret = PTR_ERR(desc->data_mr);
 			iser_err("Failed to allocate ib_fast_reg_mr err=%d\n", ret);
-			ib_free_fast_reg_page_list(desc->data_frpl);
-			goto err;
+			goto fast_reg_mr_failure;
 		}
 		desc->valid = true;
 		list_add_tail(&desc->list, &ib_conn->fastreg.frwr.pool);
@@ -322,6 +321,11 @@ int iser_create_frwr_pool(struct iser_conn *ib_conn, unsigned cmds_max)
 	}
 
 	return 0;
+
+fast_reg_mr_failure:
+	ib_free_fast_reg_page_list(desc->data_frpl);
+fast_reg_page_failure:
+	kfree(desc);
 err:
 	iser_free_frwr_pool(ib_conn);
 	return ret;
