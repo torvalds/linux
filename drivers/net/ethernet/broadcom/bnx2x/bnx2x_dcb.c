@@ -2391,21 +2391,24 @@ static u8 bnx2x_dcbnl_get_featcfg(struct net_device *netdev, int featid,
 		case DCB_FEATCFG_ATTR_PG:
 			if (bp->dcbx_local_feat.ets.enabled)
 				*flags |= DCB_FEATCFG_ENABLE;
-			if (bp->dcbx_error & DCBX_LOCAL_ETS_ERROR)
+			if (bp->dcbx_error & (DCBX_LOCAL_ETS_ERROR |
+					      DCBX_REMOTE_MIB_ERROR))
 				*flags |= DCB_FEATCFG_ERROR;
 			break;
 		case DCB_FEATCFG_ATTR_PFC:
 			if (bp->dcbx_local_feat.pfc.enabled)
 				*flags |= DCB_FEATCFG_ENABLE;
 			if (bp->dcbx_error & (DCBX_LOCAL_PFC_ERROR |
-			    DCBX_LOCAL_PFC_MISMATCH))
+					      DCBX_LOCAL_PFC_MISMATCH |
+					      DCBX_REMOTE_MIB_ERROR))
 				*flags |= DCB_FEATCFG_ERROR;
 			break;
 		case DCB_FEATCFG_ATTR_APP:
 			if (bp->dcbx_local_feat.app.enabled)
 				*flags |= DCB_FEATCFG_ENABLE;
 			if (bp->dcbx_error & (DCBX_LOCAL_APP_ERROR |
-			    DCBX_LOCAL_APP_MISMATCH))
+					      DCBX_LOCAL_APP_MISMATCH |
+					      DCBX_REMOTE_MIB_ERROR))
 				*flags |= DCB_FEATCFG_ERROR;
 			break;
 		default:
