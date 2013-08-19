@@ -481,7 +481,6 @@ static irqreturn_t exynos_tmu_irq(int irq, void *id)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id exynos_tmu_match[] = {
 	{
 		.compatible = "samsung,exynos4210-tmu",
@@ -502,27 +501,22 @@ static const struct of_device_id exynos_tmu_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, exynos_tmu_match);
-#endif
 
 static inline struct  exynos_tmu_platform_data *exynos_get_driver_data(
 			struct platform_device *pdev, int id)
 {
-#ifdef CONFIG_OF
 	struct  exynos_tmu_init_data *data_table;
 	struct exynos_tmu_platform_data *tmu_data;
-	if (pdev->dev.of_node) {
-		const struct of_device_id *match;
-		match = of_match_node(exynos_tmu_match, pdev->dev.of_node);
-		if (!match)
-			return NULL;
-		data_table = (struct exynos_tmu_init_data *) match->data;
-		if (!data_table || id >= data_table->tmu_count)
-			return NULL;
-		tmu_data = data_table->tmu_data;
-		return (struct exynos_tmu_platform_data *) (tmu_data + id);
-	}
-#endif
-	return NULL;
+	const struct of_device_id *match;
+
+	match = of_match_node(exynos_tmu_match, pdev->dev.of_node);
+	if (!match)
+		return NULL;
+	data_table = (struct exynos_tmu_init_data *) match->data;
+	if (!data_table || id >= data_table->tmu_count)
+		return NULL;
+	tmu_data = data_table->tmu_data;
+	return (struct exynos_tmu_platform_data *) (tmu_data + id);
 }
 
 static int exynos_map_dt_data(struct platform_device *pdev)
@@ -532,7 +526,7 @@ static int exynos_map_dt_data(struct platform_device *pdev)
 	struct resource res;
 	int ret;
 
-	if (!data)
+	if (!data || !pdev->dev.of_node)
 		return -ENODEV;
 
 	/*
@@ -754,7 +748,7 @@ static struct platform_driver exynos_tmu_driver = {
 		.name   = "exynos-tmu",
 		.owner  = THIS_MODULE,
 		.pm     = EXYNOS_TMU_PM,
-		.of_match_table = of_match_ptr(exynos_tmu_match),
+		.of_match_table = exynos_tmu_match,
 	},
 	.probe = exynos_tmu_probe,
 	.remove	= exynos_tmu_remove,
