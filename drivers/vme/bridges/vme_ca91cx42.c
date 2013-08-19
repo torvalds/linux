@@ -856,7 +856,7 @@ static ssize_t ca91cx42_master_read(struct vme_master_resource *image,
 	void *buf, size_t count, loff_t offset)
 {
 	ssize_t retval;
-	void *addr = image->kern_base + offset;
+	void __iomem *addr = image->kern_base + offset;
 	unsigned int done = 0;
 	unsigned int count32;
 
@@ -916,7 +916,7 @@ static ssize_t ca91cx42_master_write(struct vme_master_resource *image,
 	void *buf, size_t count, loff_t offset)
 {
 	ssize_t retval;
-	void *addr = image->kern_base + offset;
+	void __iomem *addr = image->kern_base + offset;
 	unsigned int done = 0;
 	unsigned int count32;
 
