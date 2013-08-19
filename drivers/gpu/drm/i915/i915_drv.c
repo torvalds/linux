@@ -145,6 +145,10 @@ int i915_enable_pc8 __read_mostly = 0;
 module_param_named(enable_pc8, i915_enable_pc8, int, 0600);
 MODULE_PARM_DESC(enable_pc8, "Enable support for low power package C states (PC8+) (default: false)");
 
+int i915_pc8_timeout __read_mostly = 5000;
+module_param_named(pc8_timeout, i915_pc8_timeout, int, 0600);
+MODULE_PARM_DESC(pc8_timeout, "Number of msecs of idleness required to enter PC8+ (default: 5000)");
+
 bool i915_prefault_disable __read_mostly;
 module_param_named(prefault_disable, i915_prefault_disable, bool, 0600);
 MODULE_PARM_DESC(prefault_disable,
