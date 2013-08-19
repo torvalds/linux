@@ -111,7 +111,7 @@ struct hdspm_ltc {
 	enum hdspm_ltc_input_format input_format;
 };
 
-#define SNDRV_HDSPM_IOCTL_GET_LTC _IOR('H', 0x46, struct hdspm_mixer_ioctl)
+#define SNDRV_HDSPM_IOCTL_GET_LTC _IOR('H', 0x46, struct hdspm_ltc)
 
 /**
  * The status data reflects the device's current state
