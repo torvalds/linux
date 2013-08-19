@@ -268,9 +268,9 @@ static irqreturn_t efm32_uart_rxirq(int irq, void *data)
 		handled = IRQ_HANDLED;
 	}
 
-	tty_flip_buffer_push(tport);
-
 	spin_unlock(&port->lock);
+
+	tty_flip_buffer_push(tport);
 
 	return handled;
 }
