@@ -6101,7 +6101,7 @@ static void __hsw_enable_package_c8(struct drm_i915_private *dev_priv)
 		return;
 
 	schedule_delayed_work(&dev_priv->pc8.enable_work,
-			      msecs_to_jiffies(5 * 1000));
+			      msecs_to_jiffies(i915_pc8_timeout));
 }
 
 static void __hsw_disable_package_c8(struct drm_i915_private *dev_priv)
