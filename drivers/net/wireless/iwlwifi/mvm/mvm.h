@@ -470,6 +470,9 @@ struct iwl_mvm {
 	enum iwl_scan_status scan_status;
 	struct iwl_scan_cmd *scan_cmd;
 
+	/* rx chain antennas set through debugfs for the scan command */
+	u8 scan_rx_ant;
+
 	/* Internal station */
 	struct iwl_mvm_int_sta aux_sta;
 

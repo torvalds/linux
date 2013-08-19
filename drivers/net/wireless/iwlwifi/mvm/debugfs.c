@@ -757,6 +757,59 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct file *file,
 	return count;
 }
 
+static ssize_t
+iwl_dbgfs_scan_ant_rxchain_read(struct file *file,
+				char __user *user_buf,
+				size_t count, loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+	int pos = 0;
+	char buf[32];
+	const size_t bufsz = sizeof(buf);
+
+	/* print which antennas were set for the scan command by the user */
+	pos += scnprintf(buf + pos, bufsz - pos, "Antennas for scan: ");
+	if (mvm->scan_rx_ant & ANT_A)
+		pos += scnprintf(buf + pos, bufsz - pos, "A");
+	if (mvm->scan_rx_ant & ANT_B)
+		pos += scnprintf(buf + pos, bufsz - pos, "B");
+	if (mvm->scan_rx_ant & ANT_C)
+		pos += scnprintf(buf + pos, bufsz - pos, "C");
+	pos += scnprintf(buf + pos, bufsz - pos, " (%hhx)\n", mvm->scan_rx_ant);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
+static ssize_t
+iwl_dbgfs_scan_ant_rxchain_write(struct file *file,
+				 const char __user *user_buf,
+				 size_t count, loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+	char buf[8];
+	int buf_size;
+	u8 scan_rx_ant;
+
+	memset(buf, 0, sizeof(buf));
+	buf_size = min(count, sizeof(buf) - 1);
+
+	/* get the argument from the user and check if it is valid */
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+	if (sscanf(buf, "%hhx", &scan_rx_ant) != 1)
+		return -EINVAL;
+	if (scan_rx_ant > ANT_ABC)
+		return -EINVAL;
+	if (scan_rx_ant & ~iwl_fw_valid_rx_ant(mvm->fw))
+		return -EINVAL;
+
+	/* change the rx antennas for scan command */
+	mvm->scan_rx_ant = scan_rx_ant;
+
+	return count;
+}
+
+
 static void iwl_dbgfs_update_bf(struct ieee80211_vif *vif,
 				enum iwl_dbgfs_bf_mask param, int value)
 {
@@ -1067,6 +1120,8 @@ MVM_DEBUGFS_WRITE_FILE_OPS(power_down_allow);
 MVM_DEBUGFS_WRITE_FILE_OPS(power_down_d3_allow);
 MVM_DEBUGFS_READ_FILE_OPS(fw_rx_stats);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_restart);
+MVM_DEBUGFS_READ_WRITE_FILE_OPS(scan_ant_rxchain);
+
 #ifdef CONFIG_PM_SLEEP
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(d3_sram);
 #endif
@@ -1091,6 +1146,8 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(power_down_d3_allow, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(fw_rx_stats, mvm->debugfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(fw_restart, mvm->debugfs_dir, S_IWUSR);
+	MVM_DEBUGFS_ADD_FILE(scan_ant_rxchain, mvm->debugfs_dir,
+			     S_IWUSR | S_IRUSR);
 #ifdef CONFIG_PM_SLEEP
 	MVM_DEBUGFS_ADD_FILE(d3_sram, mvm->debugfs_dir, S_IRUSR | S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(d3_test, mvm->debugfs_dir, S_IRUSR);
