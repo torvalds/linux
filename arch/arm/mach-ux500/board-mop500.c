@@ -54,26 +54,6 @@
 #include "board-mop500.h"
 #include "board-mop500-regulators.h"
 
-static struct gpio_led snowball_led_array[] = {
-	{
-		.name = "user_led",
-		.default_trigger = "heartbeat",
-		.gpio = 142,
-	},
-};
-
-static struct gpio_led_platform_data snowball_led_data = {
-	.leds = snowball_led_array,
-	.num_leds = ARRAY_SIZE(snowball_led_array),
-};
-
-static struct platform_device snowball_led_dev = {
-	.name = "leds-gpio",
-	.dev = {
-		.platform_data = &snowball_led_data,
-	},
-};
-
 static struct fixed_voltage_config snowball_gpio_en_3v3_data = {
        .supply_name            = "EN-3V3",
        .gpio                   = SNOWBALL_EN_3V3_ETH_GPIO,
@@ -489,7 +469,6 @@ static void __init u8500_cryp1_hash1_init(struct device *parent)
 }
 
 static struct platform_device *snowball_platform_devs[] __initdata = {
-	&snowball_led_dev,
 	&snowball_key_dev,
 	&snowball_sbnet_dev,
 	&snowball_gpio_en_3v3_regulator_dev,
