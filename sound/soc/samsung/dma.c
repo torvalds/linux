@@ -437,17 +437,17 @@ static struct snd_soc_platform_driver samsung_asoc_platform = {
 	.pcm_free	= dma_free_dma_buffers,
 };
 
-int asoc_dma_platform_register(struct device *dev)
+int samsung_asoc_dma_platform_register(struct device *dev)
 {
 	return snd_soc_register_platform(dev, &samsung_asoc_platform);
 }
-EXPORT_SYMBOL_GPL(asoc_dma_platform_register);
+EXPORT_SYMBOL_GPL(samsung_asoc_dma_platform_register);
 
-void asoc_dma_platform_unregister(struct device *dev)
+void samsung_asoc_dma_platform_unregister(struct device *dev)
 {
 	snd_soc_unregister_platform(dev);
 }
-EXPORT_SYMBOL_GPL(asoc_dma_platform_unregister);
+EXPORT_SYMBOL_GPL(samsung_asoc_dma_platform_unregister);
 
 MODULE_AUTHOR("Ben Dooks, <ben@simtec.co.uk>");
 MODULE_DESCRIPTION("Samsung ASoC DMA Driver");
