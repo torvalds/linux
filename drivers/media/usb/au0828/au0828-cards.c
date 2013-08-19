@@ -270,18 +270,25 @@ void au0828_gpio_setup(struct au0828_dev *dev)
 		 * 9 - XC5000 Tuner
 		 */
 
-		/* Into reset */
+		/* Set relevant GPIOs as outputs (leave the EEPROM W/P
+		   as an input since we will never touch it and it has
+		   a pullup) */
 		au0828_write(dev, REG_003, 0x02);
 		au0828_write(dev, REG_002, 0x80 | 0x20 | 0x10);
+
+		/* Into reset */
 		au0828_write(dev, REG_001, 0x0);
 		au0828_write(dev, REG_000, 0x0);
-		msleep(100);
+		msleep(50);
 
-		/* Out of reset (leave the cs5340 in reset until needed) */
-		au0828_write(dev, REG_003, 0x02);
-		au0828_write(dev, REG_001, 0x02);
-		au0828_write(dev, REG_002, 0x80 | 0x20 | 0x10);
-		au0828_write(dev, REG_000, 0x80 | 0x40 | 0x20);
+		/* Bring power supply out of reset */
+		au0828_write(dev, REG_000, 0x80);
+		msleep(50);
+
+		/* Bring xc5000 and au8522 out of reset (leave the
+		   cs5340 in reset until needed) */
+		au0828_write(dev, REG_001, 0x02); /* xc5000 */
+		au0828_write(dev, REG_000, 0x80 | 0x20); /* PS + au8522 */
 
 		msleep(250);
 		break;
