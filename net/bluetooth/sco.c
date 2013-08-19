@@ -176,6 +176,12 @@ static int sco_connect(struct sock *sk)
 	else
 		type = SCO_LINK;
 
+	if (sco_pi(sk)->setting == BT_VOICE_TRANSPARENT &&
+	    (!lmp_transp_capable(hdev) || !lmp_esco_capable(hdev))) {
+		err = -EOPNOTSUPP;
+		goto done;
+	}
+
 	hcon = hci_connect_sco(hdev, type, dst, sco_pi(sk)->setting);
 	if (IS_ERR(hcon)) {
 		err = PTR_ERR(hcon);
