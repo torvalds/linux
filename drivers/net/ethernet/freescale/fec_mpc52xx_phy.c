@@ -123,8 +123,7 @@ static int mpc52xx_fec_mdio_probe(struct platform_device *of)
 
 static int mpc52xx_fec_mdio_remove(struct platform_device *of)
 {
-	struct device *dev = &of->dev;
-	struct mii_bus *bus = dev_get_drvdata(dev);
+	struct mii_bus *bus = platform_get_drvdata(of);
 	struct mpc52xx_fec_mdio_priv *priv = bus->priv;
 
 	mdiobus_unregister(bus);
