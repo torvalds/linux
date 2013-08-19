@@ -43,6 +43,8 @@
 #include "internal.h"
 #include "fscache.h"
 
+#include "nfstrace.h"
+
 /* #define NFS_DEBUG_VERBOSE 1 */
 
 static int nfs_opendir(struct inode *, struct file *);
@@ -2178,9 +2180,11 @@ static int nfs_do_access(struct inode *inode, struct rpc_cred *cred, int mask)
 	struct nfs_access_entry cache;
 	int status;
 
+	trace_nfs_access_enter(inode);
+
 	status = nfs_access_get_cached(inode, cred, &cache);
 	if (status == 0)
-		goto out;
+		goto out_cached;
 
 	/* Be clever: ask server to check for all possible rights */
 	cache.mask = MAY_EXEC | MAY_WRITE | MAY_READ;
@@ -2193,13 +2197,15 @@ static int nfs_do_access(struct inode *inode, struct rpc_cred *cred, int mask)
 			if (!S_ISDIR(inode->i_mode))
 				set_bit(NFS_INO_STALE, &NFS_I(inode)->flags);
 		}
-		return status;
+		goto out;
 	}
 	nfs_access_add_cache(inode, &cache);
+out_cached:
+	if ((mask & ~cache.mask & (MAY_READ | MAY_WRITE | MAY_EXEC)) != 0)
+		status = -EACCES;
 out:
-	if ((mask & ~cache.mask & (MAY_READ | MAY_WRITE | MAY_EXEC)) == 0)
-		return 0;
-	return -EACCES;
+	trace_nfs_access_exit(inode, status);
+	return status;
 }
 
 static int nfs_open_permission_mask(int openflags)

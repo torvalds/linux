@@ -31,6 +31,8 @@
 #include "fscache.h"
 #include "pnfs.h"
 
+#include "nfstrace.h"
+
 #define NFSDBG_FACILITY		NFSDBG_PAGECACHE
 
 #define MIN_POOL_WRITE		(32)
@@ -1732,8 +1734,14 @@ int nfs_wb_all(struct inode *inode)
 		.range_start = 0,
 		.range_end = LLONG_MAX,
 	};
+	int ret;
 
-	return sync_inode(inode, &wbc);
+	trace_nfs_writeback_inode_enter(inode);
+
+	ret = sync_inode(inode, &wbc);
+
+	trace_nfs_writeback_inode_exit(inode, ret);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(nfs_wb_all);
 
@@ -1781,6 +1789,8 @@ int nfs_wb_page(struct inode *inode, struct page *page)
 	};
 	int ret;
 
+	trace_nfs_writeback_page_enter(inode);
+
 	for (;;) {
 		wait_on_page_writeback(page);
 		if (clear_page_dirty_for_io(page)) {
@@ -1789,14 +1799,15 @@ int nfs_wb_page(struct inode *inode, struct page *page)
 				goto out_error;
 			continue;
 		}
+		ret = 0;
 		if (!PagePrivate(page))
 			break;
 		ret = nfs_commit_inode(inode, FLUSH_SYNC);
 		if (ret < 0)
 			goto out_error;
 	}
-	return 0;
 out_error:
+	trace_nfs_writeback_page_exit(inode, ret);
 	return ret;
 }
 

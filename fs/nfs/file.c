@@ -37,6 +37,8 @@
 #include "iostat.h"
 #include "fscache.h"
 
+#include "nfstrace.h"
+
 #define NFSDBG_FACILITY		NFSDBG_FILE
 
 static const struct vm_operations_struct nfs_file_vm_ops;
@@ -294,6 +296,8 @@ nfs_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	int ret;
 	struct inode *inode = file_inode(file);
 
+	trace_nfs_fsync_enter(inode);
+
 	do {
 		ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
 		if (ret != 0)
@@ -310,6 +314,7 @@ nfs_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 		end = LLONG_MAX;
 	} while (ret == -EAGAIN);
 
+	trace_nfs_fsync_exit(inode, ret);
 	return ret;
 }
 
