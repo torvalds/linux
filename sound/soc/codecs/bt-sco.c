@@ -50,6 +50,9 @@ static struct platform_device_id bt_sco_driver_ids[] = {
 	{
 		.name		= "dfbmcs320",
 	},
+	{
+		.name		= "bt-sco",
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(platform, bt_sco_driver_ids);
