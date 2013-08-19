@@ -745,6 +745,7 @@ extern void intel_set_power_well(struct drm_device *dev, bool enable);
 extern void intel_enable_gt_powersave(struct drm_device *dev);
 extern void intel_disable_gt_powersave(struct drm_device *dev);
 extern void ironlake_teardown_rc6(struct drm_device *dev);
+void gen6_update_ring_freq(struct drm_device *dev);
 
 extern bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
 				   enum pipe *pipe);
@@ -784,5 +785,12 @@ extern void ilk_disable_gt_irq(struct drm_i915_private *dev_priv,
 extern void snb_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 extern void snb_disable_pm_irq(struct drm_i915_private *dev_priv,
 			       uint32_t mask);
+extern void hsw_enable_pc8_work(struct work_struct *__work);
+extern void hsw_enable_package_c8(struct drm_i915_private *dev_priv);
+extern void hsw_disable_package_c8(struct drm_i915_private *dev_priv);
+extern void hsw_pc8_disable_interrupts(struct drm_device *dev);
+extern void hsw_pc8_restore_interrupts(struct drm_device *dev);
+extern void intel_aux_display_runtime_get(struct drm_i915_private *dev_priv);
+extern void intel_aux_display_runtime_put(struct drm_i915_private *dev_priv);
 
 #endif /* __INTEL_DRV_H__ */

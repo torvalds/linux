@@ -141,6 +141,10 @@ module_param_named(fastboot, i915_fastboot, bool, 0600);
 MODULE_PARM_DESC(fastboot, "Try to skip unnecessary mode sets at boot time "
 		 "(default: false)");
 
+int i915_enable_pc8 __read_mostly = 0;
+module_param_named(enable_pc8, i915_enable_pc8, int, 0600);
+MODULE_PARM_DESC(enable_pc8, "Enable support for low power package C states (PC8+) (default: false)");
+
 bool i915_prefault_disable __read_mostly;
 module_param_named(prefault_disable, i915_prefault_disable, bool, 0600);
 MODULE_PARM_DESC(prefault_disable,
@@ -557,6 +561,9 @@ static int i915_drm_freeze(struct drm_device *dev)
 	dev_priv->modeset_restore = MODESET_SUSPENDED;
 	mutex_unlock(&dev_priv->modeset_restore_lock);
 
+	/* We do a lot of poking in a lot of registers, make sure they work
+	 * properly. */
+	hsw_disable_package_c8(dev_priv);
 	intel_set_power_well(dev, true);
 
 	drm_kms_helper_poll_disable(dev);
@@ -712,6 +719,10 @@ static int __i915_drm_thaw(struct drm_device *dev)
 	} else {
 		schedule_work(&dev_priv->console_resume_work);
 	}
+
+	/* Undo what we did at i915_drm_freeze so the refcount goes back to the
+	 * expected level. */
+	hsw_enable_package_c8(dev_priv);
 
 	mutex_lock(&dev_priv->modeset_restore_lock);
 	dev_priv->modeset_restore = MODESET_DONE;

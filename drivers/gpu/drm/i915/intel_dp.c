@@ -344,6 +344,8 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	else
 		precharge = 5;
 
+	intel_aux_display_runtime_get(dev_priv);
+
 	/* Try to wait for any previous AUX channel activity */
 	for (try = 0; try < 3; try++) {
 		status = I915_READ_NOTRACE(ch_ctl);
@@ -434,6 +436,7 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	ret = recv_bytes;
 out:
 	pm_qos_update_request(&dev_priv->pm_qos, PM_QOS_DEFAULT_VALUE);
+	intel_aux_display_runtime_put(dev_priv);
 
 	return ret;
 }

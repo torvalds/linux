@@ -6064,6 +6064,166 @@ void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 	dev_priv->uncore.funcs.force_wake_put(dev_priv);
 }
 
+void hsw_enable_pc8_work(struct work_struct *__work)
+{
+	struct drm_i915_private *dev_priv =
+		container_of(to_delayed_work(__work), struct drm_i915_private,
+			     pc8.enable_work);
+	struct drm_device *dev = dev_priv->dev;
+	uint32_t val;
+
+	if (dev_priv->pc8.enabled)
+		return;
+
+	DRM_DEBUG_KMS("Enabling package C8+\n");
+
+	dev_priv->pc8.enabled = true;
+
+	if (dev_priv->pch_id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE) {
+		val = I915_READ(SOUTH_DSPCLK_GATE_D);
+		val &= ~PCH_LP_PARTITION_LEVEL_DISABLE;
+		I915_WRITE(SOUTH_DSPCLK_GATE_D, val);
+	}
+
+	lpt_disable_clkout_dp(dev);
+	hsw_pc8_disable_interrupts(dev);
+	hsw_disable_lcpll(dev_priv, true, true);
+}
+
+static void __hsw_enable_package_c8(struct drm_i915_private *dev_priv)
+{
+	WARN_ON(!mutex_is_locked(&dev_priv->pc8.lock));
+	WARN(dev_priv->pc8.disable_count < 1,
+	     "pc8.disable_count: %d\n", dev_priv->pc8.disable_count);
+
+	dev_priv->pc8.disable_count--;
+	if (dev_priv->pc8.disable_count != 0)
+		return;
+
+	schedule_delayed_work(&dev_priv->pc8.enable_work,
+			      msecs_to_jiffies(5 * 1000));
+}
+
+static void __hsw_disable_package_c8(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+	uint32_t val;
+
+	WARN_ON(!mutex_is_locked(&dev_priv->pc8.lock));
+	WARN(dev_priv->pc8.disable_count < 0,
+	     "pc8.disable_count: %d\n", dev_priv->pc8.disable_count);
+
+	dev_priv->pc8.disable_count++;
+	if (dev_priv->pc8.disable_count != 1)
+		return;
+
+	cancel_delayed_work_sync(&dev_priv->pc8.enable_work);
+	if (!dev_priv->pc8.enabled)
+		return;
+
+	DRM_DEBUG_KMS("Disabling package C8+\n");
+
+	hsw_restore_lcpll(dev_priv);
+	hsw_pc8_restore_interrupts(dev);
+	lpt_init_pch_refclk(dev);
+
+	if (dev_priv->pch_id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE) {
+		val = I915_READ(SOUTH_DSPCLK_GATE_D);
+		val |= PCH_LP_PARTITION_LEVEL_DISABLE;
+		I915_WRITE(SOUTH_DSPCLK_GATE_D, val);
+	}
+
+	intel_prepare_ddi(dev);
+	i915_gem_init_swizzling(dev);
+	mutex_lock(&dev_priv->rps.hw_lock);
+	gen6_update_ring_freq(dev);
+	mutex_unlock(&dev_priv->rps.hw_lock);
+	dev_priv->pc8.enabled = false;
+}
+
+void hsw_enable_package_c8(struct drm_i915_private *dev_priv)
+{
+	mutex_lock(&dev_priv->pc8.lock);
+	__hsw_enable_package_c8(dev_priv);
+	mutex_unlock(&dev_priv->pc8.lock);
+}
+
+void hsw_disable_package_c8(struct drm_i915_private *dev_priv)
+{
+	mutex_lock(&dev_priv->pc8.lock);
+	__hsw_disable_package_c8(dev_priv);
+	mutex_unlock(&dev_priv->pc8.lock);
+}
+
+static bool hsw_can_enable_package_c8(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+	struct intel_crtc *crtc;
+	uint32_t val;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head)
+		if (crtc->base.enabled)
+			return false;
+
+	/* This case is still possible since we have the i915.disable_power_well
+	 * parameter and also the KVMr or something else might be requesting the
+	 * power well. */
+	val = I915_READ(HSW_PWR_WELL_DRIVER);
+	if (val != 0) {
+		DRM_DEBUG_KMS("Not enabling PC8: power well on\n");
+		return false;
+	}
+
+	return true;
+}
+
+/* Since we're called from modeset_global_resources there's no way to
+ * symmetrically increase and decrease the refcount, so we use
+ * dev_priv->pc8.requirements_met to track whether we already have the refcount
+ * or not.
+ */
+static void hsw_update_package_c8(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	bool allow;
+
+	if (!i915_enable_pc8)
+		return;
+
+	mutex_lock(&dev_priv->pc8.lock);
+
+	allow = hsw_can_enable_package_c8(dev_priv);
+
+	if (allow == dev_priv->pc8.requirements_met)
+		goto done;
+
+	dev_priv->pc8.requirements_met = allow;
+
+	if (allow)
+		__hsw_enable_package_c8(dev_priv);
+	else
+		__hsw_disable_package_c8(dev_priv);
+
+done:
+	mutex_unlock(&dev_priv->pc8.lock);
+}
+
+static void hsw_package_c8_gpu_idle(struct drm_i915_private *dev_priv)
+{
+	if (!dev_priv->pc8.gpu_idle) {
+		dev_priv->pc8.gpu_idle = true;
+		hsw_enable_package_c8(dev_priv);
+	}
+}
+
+static void hsw_package_c8_gpu_busy(struct drm_i915_private *dev_priv)
+{
+	if (dev_priv->pc8.gpu_idle) {
+		dev_priv->pc8.gpu_idle = false;
+		hsw_disable_package_c8(dev_priv);
+	}
+}
+
 static void haswell_modeset_global_resources(struct drm_device *dev)
 {
 	bool enable = false;
@@ -6079,6 +6239,8 @@ static void haswell_modeset_global_resources(struct drm_device *dev)
 	}
 
 	intel_set_power_well(dev, enable);
+
+	hsw_update_package_c8(dev);
 }
 
 static int haswell_crtc_mode_set(struct drm_crtc *crtc,
@@ -7314,12 +7476,18 @@ static void intel_decrease_pllclock(struct drm_crtc *crtc)
 
 void intel_mark_busy(struct drm_device *dev)
 {
-	i915_update_gfx_val(dev->dev_private);
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	hsw_package_c8_gpu_busy(dev_priv);
+	i915_update_gfx_val(dev_priv);
 }
 
 void intel_mark_idle(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
+
+	hsw_package_c8_gpu_idle(dev_priv);
 
 	if (!i915_powersave)
 		return;

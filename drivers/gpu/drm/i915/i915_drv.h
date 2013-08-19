@@ -1076,6 +1076,75 @@ struct intel_wm_level {
 	uint32_t fbc_val;
 };
 
+/*
+ * This struct tracks the state needed for the Package C8+ feature.
+ *
+ * Package states C8 and deeper are really deep PC states that can only be
+ * reached when all the devices on the system allow it, so even if the graphics
+ * device allows PC8+, it doesn't mean the system will actually get to these
+ * states.
+ *
+ * Our driver only allows PC8+ when all the outputs are disabled, the power well
+ * is disabled and the GPU is idle. When these conditions are met, we manually
+ * do the other conditions: disable the interrupts, clocks and switch LCPLL
+ * refclk to Fclk.
+ *
+ * When we really reach PC8 or deeper states (not just when we allow it) we lose
+ * the state of some registers, so when we come back from PC8+ we need to
+ * restore this state. We don't get into PC8+ if we're not in RC6, so we don't
+ * need to take care of the registers kept by RC6.
+ *
+ * The interrupt disabling is part of the requirements. We can only leave the
+ * PCH HPD interrupts enabled. If we're in PC8+ and we get another interrupt we
+ * can lock the machine.
+ *
+ * Ideally every piece of our code that needs PC8+ disabled would call
+ * hsw_disable_package_c8, which would increment disable_count and prevent the
+ * system from reaching PC8+. But we don't have a symmetric way to do this for
+ * everything, so we have the requirements_met and gpu_idle variables. When we
+ * switch requirements_met or gpu_idle to true we decrease disable_count, and
+ * increase it in the opposite case. The requirements_met variable is true when
+ * all the CRTCs, encoders and the power well are disabled. The gpu_idle
+ * variable is true when the GPU is idle.
+ *
+ * In addition to everything, we only actually enable PC8+ if disable_count
+ * stays at zero for at least some seconds. This is implemented with the
+ * enable_work variable. We do this so we don't enable/disable PC8 dozens of
+ * consecutive times when all screens are disabled and some background app
+ * queries the state of our connectors, or we have some application constantly
+ * waking up to use the GPU. Only after the enable_work function actually
+ * enables PC8+ the "enable" variable will become true, which means that it can
+ * be false even if disable_count is 0.
+ *
+ * The irqs_disabled variable becomes true exactly after we disable the IRQs and
+ * goes back to false exactly before we reenable the IRQs. We use this variable
+ * to check if someone is trying to enable/disable IRQs while they're supposed
+ * to be disabled. This shouldn't happen and we'll print some error messages in
+ * case it happens, but if it actually happens we'll also update the variables
+ * inside struct regsave so when we restore the IRQs they will contain the
+ * latest expected values.
+ *
+ * For more, read "Display Sequences for Package C8" on our documentation.
+ */
+struct i915_package_c8 {
+	bool requirements_met;
+	bool gpu_idle;
+	bool irqs_disabled;
+	/* Only true after the delayed work task actually enables it. */
+	bool enabled;
+	int disable_count;
+	struct mutex lock;
+	struct delayed_work enable_work;
+
+	struct {
+		uint32_t deimr;
+		uint32_t sdeimr;
+		uint32_t gtimr;
+		uint32_t gtier;
+		uint32_t gen6_pmimr;
+	} regsave;
+};
+
 typedef struct drm_i915_private {
 	struct drm_device *dev;
 	struct kmem_cache *slab;
@@ -1259,6 +1328,8 @@ typedef struct drm_i915_private {
 		/* cursor */
 		uint16_t cur_latency[5];
 	} wm;
+
+	struct i915_package_c8 pc8;
 
 	/* Old dri1 support infrastructure, beware the dragons ya fools entering
 	 * here! */
@@ -1635,6 +1706,7 @@ extern unsigned int i915_preliminary_hw_support __read_mostly;
 extern int i915_disable_power_well __read_mostly;
 extern int i915_enable_ips __read_mostly;
 extern bool i915_fastboot __read_mostly;
+extern int i915_enable_pc8 __read_mostly;
 extern bool i915_prefault_disable __read_mostly;
 
 extern int i915_suspend(struct drm_device *dev, pm_message_t state);
