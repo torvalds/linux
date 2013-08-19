@@ -897,8 +897,9 @@ static int i2c_hid_acpi_pdata(struct i2c_client *client,
 	params[1].integer.value = 1;
 	params[2].type = ACPI_TYPE_INTEGER;
 	params[2].integer.value = 1; /* HID function */
-	params[3].type = ACPI_TYPE_INTEGER;
-	params[3].integer.value = 0;
+	params[3].type = ACPI_TYPE_PACKAGE;
+	params[3].package.count = 0;
+	params[3].package.elements = NULL;
 
 	if (ACPI_FAILURE(acpi_evaluate_object(handle, "_DSM", &input, &buf))) {
 		dev_err(&client->dev, "device _DSM execution failed\n");
