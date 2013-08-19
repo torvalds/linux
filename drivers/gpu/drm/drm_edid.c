@@ -2414,6 +2414,54 @@ u8 drm_match_cea_mode(const struct drm_display_mode *to_match)
 }
 EXPORT_SYMBOL(drm_match_cea_mode);
 
+/*
+ * Calculate the alternate clock for HDMI modes (those from the HDMI vendor
+ * specific block).
+ *
+ * It's almost like cea_mode_alternate_clock(), we just need to add an
+ * exception for the VIC 4 mode (4096x2160@24Hz): no alternate clock for this
+ * one.
+ */
+static unsigned int
+hdmi_mode_alternate_clock(const struct drm_display_mode *hdmi_mode)
+{
+	if (hdmi_mode->vdisplay == 4096 && hdmi_mode->hdisplay == 2160)
+		return hdmi_mode->clock;
+
+	return cea_mode_alternate_clock(hdmi_mode);
+}
+
+/*
+ * drm_match_hdmi_mode - look for a HDMI mode matching given mode
+ * @to_match: display mode
+ *
+ * An HDMI mode is one defined in the HDMI vendor specific block.
+ *
+ * Returns the HDMI Video ID (VIC) of the mode or 0 if it isn't one.
+ */
+static u8 drm_match_hdmi_mode(const struct drm_display_mode *to_match)
+{
+	u8 mode;
+
+	if (!to_match->clock)
+		return 0;
+
+	for (mode = 0; mode < ARRAY_SIZE(edid_4k_modes); mode++) {
+		const struct drm_display_mode *hdmi_mode = &edid_4k_modes[mode];
+		unsigned int clock1, clock2;
+
+		/* Make sure to also match alternate clocks */
+		clock1 = hdmi_mode->clock;
+		clock2 = hdmi_mode_alternate_clock(hdmi_mode);
+
+		if ((KHZ2PICOS(to_match->clock) == KHZ2PICOS(clock1) ||
+		     KHZ2PICOS(to_match->clock) == KHZ2PICOS(clock2)) &&
+		    drm_mode_equal_no_clocks(to_match, hdmi_mode))
+			return mode + 1;
+	}
+	return 0;
+}
+
 static int
 add_alternate_cea_modes(struct drm_connector *connector, struct edid *edid)
 {
@@ -2431,18 +2479,26 @@ add_alternate_cea_modes(struct drm_connector *connector, struct edid *edid)
 	 * with the alternate clock for certain CEA modes.
 	 */
 	list_for_each_entry(mode, &connector->probed_modes, head) {
-		const struct drm_display_mode *cea_mode;
+		const struct drm_display_mode *cea_mode = NULL;
 		struct drm_display_mode *newmode;
-		u8 cea_mode_idx = drm_match_cea_mode(mode) - 1;
+		u8 mode_idx = drm_match_cea_mode(mode) - 1;
 		unsigned int clock1, clock2;
 
-		if (cea_mode_idx >= ARRAY_SIZE(edid_cea_modes))
+		if (mode_idx < ARRAY_SIZE(edid_cea_modes)) {
+			cea_mode = &edid_cea_modes[mode_idx];
+			clock2 = cea_mode_alternate_clock(cea_mode);
+		} else {
+			mode_idx = drm_match_hdmi_mode(mode) - 1;
+			if (mode_idx < ARRAY_SIZE(edid_4k_modes)) {
+				cea_mode = &edid_4k_modes[mode_idx];
+				clock2 = hdmi_mode_alternate_clock(cea_mode);
+			}
+		}
+
+		if (!cea_mode)
 			continue;
 
-		cea_mode = &edid_cea_modes[cea_mode_idx];
-
 		clock1 = cea_mode->clock;
-		clock2 = cea_mode_alternate_clock(cea_mode);
 
 		if (clock1 == clock2)
 			continue;
