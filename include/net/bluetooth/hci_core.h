@@ -570,7 +570,7 @@ static inline struct hci_conn *hci_conn_hash_lookup_state(struct hci_dev *hdev,
 }
 
 void hci_disconnect(struct hci_conn *conn, __u8 reason);
-void hci_setup_sync(struct hci_conn *conn, __u16 handle);
+bool hci_setup_sync(struct hci_conn *conn, __u16 handle);
 void hci_sco_setup(struct hci_conn *conn, __u8 status);
 
 struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst);

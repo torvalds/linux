@@ -31,6 +31,24 @@
 #include <net/bluetooth/a2mp.h>
 #include <net/bluetooth/smp.h>
 
+struct sco_param {
+	u16 pkt_type;
+	u16 max_latency;
+};
+
+static const struct sco_param sco_param_cvsd[] = {
+	{ EDR_ESCO_MASK & ~ESCO_2EV3, 0x000a }, /* S3 */
+	{ EDR_ESCO_MASK & ~ESCO_2EV3, 0x0007 }, /* S2 */
+	{ EDR_ESCO_MASK | ESCO_EV3,   0x0007 }, /* S1 */
+	{ EDR_ESCO_MASK | ESCO_HV3,   0xffff }, /* D1 */
+	{ EDR_ESCO_MASK | ESCO_HV1,   0xffff }, /* D0 */
+};
+
+static const struct sco_param sco_param_wideband[] = {
+	{ EDR_ESCO_MASK & ~ESCO_2EV3, 0x000d }, /* T2 */
+	{ EDR_ESCO_MASK | ESCO_EV3,   0x0008 }, /* T1 */
+};
+
 static void hci_le_create_connection(struct hci_conn *conn)
 {
 	struct hci_dev *hdev = conn->hdev;
@@ -172,10 +190,11 @@ static void hci_add_sco(struct hci_conn *conn, __u16 handle)
 	hci_send_cmd(hdev, HCI_OP_ADD_SCO, sizeof(cp), &cp);
 }
 
-void hci_setup_sync(struct hci_conn *conn, __u16 handle)
+bool hci_setup_sync(struct hci_conn *conn, __u16 handle)
 {
 	struct hci_dev *hdev = conn->hdev;
 	struct hci_cp_setup_sync_conn cp;
+	const struct sco_param *param;
 
 	BT_DBG("hcon %p", conn);
 
@@ -192,19 +211,28 @@ void hci_setup_sync(struct hci_conn *conn, __u16 handle)
 
 	switch (conn->setting & SCO_AIRMODE_MASK) {
 	case SCO_AIRMODE_TRANSP:
-		cp.pkt_type = __constant_cpu_to_le16(EDR_ESCO_MASK &
-						     ~ESCO_2EV3);
-		cp.max_latency = __constant_cpu_to_le16(0x000d);
+		if (conn->attempt > ARRAY_SIZE(sco_param_wideband))
+			return false;
 		cp.retrans_effort = 0x02;
+		param = &sco_param_wideband[conn->attempt - 1];
 		break;
 	case SCO_AIRMODE_CVSD:
-		cp.pkt_type = cpu_to_le16(conn->pkt_type);
-		cp.max_latency = __constant_cpu_to_le16(0xffff);
-		cp.retrans_effort = 0xff;
+		if (conn->attempt > ARRAY_SIZE(sco_param_cvsd))
+			return false;
+		cp.retrans_effort = 0x01;
+		param = &sco_param_cvsd[conn->attempt - 1];
 		break;
+	default:
+		return false;
 	}
 
-	hci_send_cmd(hdev, HCI_OP_SETUP_SYNC_CONN, sizeof(cp), &cp);
+	cp.pkt_type = __cpu_to_le16(param->pkt_type);
+	cp.max_latency = __cpu_to_le16(param->max_latency);
+
+	if (hci_send_cmd(hdev, HCI_OP_SETUP_SYNC_CONN, sizeof(cp), &cp) < 0)
+		return false;
+
+	return true;
 }
 
 void hci_le_conn_update(struct hci_conn *conn, u16 min, u16 max,
