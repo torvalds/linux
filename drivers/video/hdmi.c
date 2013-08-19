@@ -288,12 +288,12 @@ ssize_t hdmi_audio_infoframe_pack(struct hdmi_audio_infoframe *frame,
 EXPORT_SYMBOL(hdmi_audio_infoframe_pack);
 
 /**
- * hdmi_hdmi_infoframe_init() - initialize an HDMI vendor infoframe
+ * hdmi_vendor_infoframe_init() - initialize an HDMI vendor infoframe
  * @frame: HDMI vendor infoframe
  *
  * Returns 0 on success or a negative error code on failure.
  */
-int hdmi_hdmi_infoframe_init(struct hdmi_hdmi_infoframe *frame)
+int hdmi_vendor_infoframe_init(struct hdmi_vendor_infoframe *frame)
 {
 	memset(frame, 0, sizeof(*frame));
 
@@ -310,10 +310,10 @@ int hdmi_hdmi_infoframe_init(struct hdmi_hdmi_infoframe *frame)
 
 	return 0;
 }
-EXPORT_SYMBOL(hdmi_hdmi_infoframe_init);
+EXPORT_SYMBOL(hdmi_vendor_infoframe_init);
 
 /**
- * hdmi_hdmi_infoframe_pack() - write a HDMI vendor infoframe to binary buffer
+ * hdmi_vendor_infoframe_pack() - write a HDMI vendor infoframe to binary buffer
  * @frame: HDMI infoframe
  * @buffer: destination buffer
  * @size: size of buffer
@@ -326,7 +326,7 @@ EXPORT_SYMBOL(hdmi_hdmi_infoframe_init);
  * Returns the number of bytes packed into the binary buffer or a negative
  * error code on failure.
  */
-ssize_t hdmi_hdmi_infoframe_pack(struct hdmi_hdmi_infoframe *frame,
+ssize_t hdmi_vendor_infoframe_pack(struct hdmi_vendor_infoframe *frame,
 				 void *buffer, size_t size)
 {
 	u8 *ptr = buffer;
@@ -377,19 +377,20 @@ ssize_t hdmi_hdmi_infoframe_pack(struct hdmi_hdmi_infoframe *frame,
 
 	return length;
 }
-EXPORT_SYMBOL(hdmi_hdmi_infoframe_pack);
+EXPORT_SYMBOL(hdmi_vendor_infoframe_pack);
 
 /*
- * hdmi_vendor_infoframe_pack() - write a vendor infoframe to binary buffer
+ * hdmi_vendor_any_infoframe_pack() - write a vendor infoframe to binary buffer
  */
-static ssize_t hdmi_vendor_infoframe_pack(union hdmi_vendor_infoframe *frame,
-					  void *buffer, size_t size)
+static ssize_t
+hdmi_vendor_any_infoframe_pack(union hdmi_vendor_any_infoframe *frame,
+			   void *buffer, size_t size)
 {
 	/* we only know about HDMI vendor infoframes */
 	if (frame->any.oui != HDMI_IDENTIFIER)
 		return -EINVAL;
 
-	return hdmi_hdmi_infoframe_pack(&frame->hdmi, buffer, size);
+	return hdmi_vendor_infoframe_pack(&frame->hdmi, buffer, size);
 }
 
 /**
@@ -422,8 +423,8 @@ hdmi_infoframe_pack(union hdmi_infoframe *frame, void *buffer, size_t size)
 		length = hdmi_audio_infoframe_pack(&frame->audio, buffer, size);
 		break;
 	case HDMI_INFOFRAME_TYPE_VENDOR:
-		length = hdmi_vendor_infoframe_pack(&frame->vendor,
-						    buffer, size);
+		length = hdmi_vendor_any_infoframe_pack(&frame->vendor,
+							buffer, size);
 		break;
 	default:
 		WARN(1, "Bad infoframe type %d\n", frame->any.type);
