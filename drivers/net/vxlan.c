@@ -1130,12 +1130,21 @@ int vxlan_xmit_skb(struct net *net, struct vxlan_sock *vs,
 {
 	struct vxlanhdr *vxh;
 	struct udphdr *uh;
+	int min_headroom;
 	int err;
 
 	if (!skb->encapsulation) {
 		skb_reset_inner_headers(skb);
 		skb->encapsulation = 1;
 	}
+
+	min_headroom = LL_RESERVED_SPACE(rt->dst.dev) + rt->dst.header_len
+			+ VXLAN_HLEN + sizeof(struct iphdr);
+
+	/* Need space for new headers (invalidates iph ptr) */
+	err = skb_cow_head(skb, min_headroom);
+	if (unlikely(err))
+		return err;
 
 	vxh = (struct vxlanhdr *) __skb_push(skb, sizeof(*vxh));
 	vxh->vx_flags = htonl(VXLAN_FLAGS);
@@ -1219,10 +1228,6 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		}
 		goto drop;
 	}
-
-	/* Need space for new headers (invalidates iph ptr) */
-	if (skb_cow_head(skb, VXLAN_HEADROOM))
-		goto drop;
 
 	old_iph = ip_hdr(skb);
 
