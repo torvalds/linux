@@ -562,10 +562,14 @@ int pinctrl_request_gpio(unsigned gpio)
 		return ret;
 	}
 
+	mutex_lock(&pctldev->mutex);
+
 	/* Convert to the pin controllers number space */
 	pin = gpio_to_pin(range, gpio);
 
 	ret = pinmux_request_gpio(pctldev, range, pin, gpio);
+
+	mutex_unlock(&pctldev->mutex);
 
 	return ret;
 }
