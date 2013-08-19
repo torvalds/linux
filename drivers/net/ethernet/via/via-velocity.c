@@ -2100,7 +2100,7 @@ static int velocity_receive_frame(struct velocity_info *vptr, int idx)
 
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vid);
 	}
-	netif_rx(skb);
+	netif_receive_skb(skb);
 
 	stats->rx_bytes += pkt_len;
 	stats->rx_packets++;
@@ -2884,6 +2884,7 @@ out:
 	return ret;
 
 err_iounmap:
+	netif_napi_del(&vptr->napi);
 	iounmap(regs);
 err_free_dev:
 	free_netdev(netdev);
@@ -2904,6 +2905,7 @@ static int velocity_remove(struct device *dev)
 	struct velocity_info *vptr = netdev_priv(netdev);
 
 	unregister_netdev(netdev);
+	netif_napi_del(&vptr->napi);
 	iounmap(vptr->mac_regs);
 	free_netdev(netdev);
 	velocity_nics--;

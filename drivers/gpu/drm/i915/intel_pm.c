@@ -5063,8 +5063,26 @@ static void __intel_set_power_well(struct drm_device *dev, bool enable)
 		}
 	} else {
 		if (enable_requested) {
+			unsigned long irqflags;
+			enum pipe p;
+
 			I915_WRITE(HSW_PWR_WELL_DRIVER, 0);
+			POSTING_READ(HSW_PWR_WELL_DRIVER);
 			DRM_DEBUG_KMS("Requesting to disable the power well\n");
+
+			/*
+			 * After this, the registers on the pipes that are part
+			 * of the power well will become zero, so we have to
+			 * adjust our counters according to that.
+			 *
+			 * FIXME: Should we do this in general in
+			 * drm_vblank_post_modeset?
+			 */
+			spin_lock_irqsave(&dev->vbl_lock, irqflags);
+			for_each_pipe(p)
+				if (p != PIPE_A)
+					dev->last_vblank[p] = 0;
+			spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 		}
 	}
 }

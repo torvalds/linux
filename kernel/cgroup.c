@@ -4335,8 +4335,10 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 		}
 
 		err = percpu_ref_init(&css->refcnt, css_release);
-		if (err)
+		if (err) {
+			ss->css_free(cgrp);
 			goto err_free_all;
+		}
 
 		init_cgroup_css(css, ss, cgrp);
 
