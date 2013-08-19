@@ -109,7 +109,6 @@ struct hdmi_avi_infoframe {
 	unsigned char version;
 	unsigned char length;
 	enum hdmi_colorspace colorspace;
-	bool active_info_valid;
 	bool horizontal_bar_valid;
 	bool vertical_bar_valid;
 	enum hdmi_scan_mode scan_mode;

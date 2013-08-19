@@ -96,7 +96,11 @@ ssize_t hdmi_avi_infoframe_pack(struct hdmi_avi_infoframe *frame, void *buffer,
 
 	ptr[0] = ((frame->colorspace & 0x3) << 5) | (frame->scan_mode & 0x3);
 
-	if (frame->active_info_valid)
+	/*
+	 * Data byte 1, bit 4 has to be set if we provide the active format
+	 * aspect ratio
+	 */
+	if (frame->active_aspect & 0xf)
 		ptr[0] |= BIT(4);
 
 	if (frame->horizontal_bar_valid)
