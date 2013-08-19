@@ -1569,8 +1569,6 @@ struct drm_i915_file_private {
 
 #define HAS_IPS(dev)		(IS_ULT(dev))
 
-#define HAS_PIPE_CONTROL(dev) (INTEL_INFO(dev)->gen >= 5)
-
 #define HAS_DDI(dev)		(INTEL_INFO(dev)->has_ddi)
 #define HAS_POWER_WELL(dev)	(IS_HASWELL(dev))
 #define HAS_FPGA_DBG_UNCLAIMED(dev)	(INTEL_INFO(dev)->has_fpga_dbg)
