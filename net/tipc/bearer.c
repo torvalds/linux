@@ -460,6 +460,7 @@ static void bearer_disable(struct tipc_bearer *b_ptr)
 {
 	struct tipc_link *l_ptr;
 	struct tipc_link *temp_l_ptr;
+	struct tipc_link_req *temp_req;
 
 	pr_info("Disabling bearer <%s>\n", b_ptr->name);
 	spin_lock_bh(&b_ptr->lock);
@@ -468,9 +469,13 @@ static void bearer_disable(struct tipc_bearer *b_ptr)
 	list_for_each_entry_safe(l_ptr, temp_l_ptr, &b_ptr->links, link_list) {
 		tipc_link_delete(l_ptr);
 	}
-	if (b_ptr->link_req)
-		tipc_disc_delete(b_ptr->link_req);
+	temp_req = b_ptr->link_req;
+	b_ptr->link_req = NULL;
 	spin_unlock_bh(&b_ptr->lock);
+
+	if (temp_req)
+		tipc_disc_delete(temp_req);
+
 	memset(b_ptr, 0, sizeof(struct tipc_bearer));
 }
 
