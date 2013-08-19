@@ -665,26 +665,20 @@ static int asc_init_port(struct asc_port *ascport,
 			  struct platform_device *pdev)
 {
 	struct uart_port *port = &ascport->port;
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	if (!res) {
-		dev_err(&pdev->dev, "Unable to get io resource\n");
-		return -ENODEV;
-	}
+	struct resource *res;
 
 	port->iotype	= UPIO_MEM;
 	port->flags	= UPF_BOOT_AUTOCONF;
 	port->ops	= &asc_uart_ops;
 	port->fifosize	= ASC_FIFO_SIZE;
 	port->dev	= &pdev->dev;
-	port->mapbase	= res->start;
 	port->irq	= platform_get_irq(pdev, 0);
 
-	port->membase = devm_request_and_ioremap(&pdev->dev, res);
-	if (!port->membase) {
-		dev_err(&pdev->dev, "Unable to request io memory\n");
-		return -ENODEV;
-	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	port->membase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(port->membase))
+		return PTR_ERR(port->membase);
+	port->mapbase = res->start;
 
 	spin_lock_init(&port->lock);
 
