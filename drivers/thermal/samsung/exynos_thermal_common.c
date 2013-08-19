@@ -53,7 +53,7 @@ static int exynos_set_mode(struct thermal_zone_device *thermal,
 {
 	struct exynos_thermal_zone *th_zone = thermal->devdata;
 	if (!th_zone) {
-		dev_err(th_zone->sensor_conf->dev,
+		dev_err(&thermal->device,
 			"thermal zone not registered\n");
 		return 0;
 	}
@@ -231,7 +231,7 @@ static int exynos_get_temp(struct thermal_zone_device *thermal,
 	void *data;
 
 	if (!th_zone->sensor_conf) {
-		dev_err(th_zone->sensor_conf->dev,
+		dev_err(&thermal->device,
 			"Temperature sensor not initialised\n");
 		return -EINVAL;
 	}
@@ -251,7 +251,7 @@ static int exynos_set_emul_temp(struct thermal_zone_device *thermal,
 	struct exynos_thermal_zone *th_zone = thermal->devdata;
 
 	if (!th_zone->sensor_conf) {
-		dev_err(th_zone->sensor_conf->dev,
+		dev_err(&thermal->device,
 			"Temperature sensor not initialised\n");
 		return -EINVAL;
 	}
