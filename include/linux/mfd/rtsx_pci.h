@@ -184,11 +184,26 @@
 #define CARD_SHARE_BAROSSA_SD		0x01
 #define CARD_SHARE_BAROSSA_MS		0x02
 
+/* CARD_DRIVE_SEL */
+#define MS_DRIVE_8mA			(0x01 << 6)
+#define MMC_DRIVE_8mA			(0x01 << 4)
+#define XD_DRIVE_8mA			(0x01 << 2)
+#define GPIO_DRIVE_8mA			0x01
+#define RTS5209_CARD_DRIVE_DEFAULT	(MS_DRIVE_8mA | MMC_DRIVE_8mA |\
+						XD_DRIVE_8mA | GPIO_DRIVE_8mA)
+#define RTL8411_CARD_DRIVE_DEFAULT	(MS_DRIVE_8mA | MMC_DRIVE_8mA |\
+						XD_DRIVE_8mA)
+#define RTSX_CARD_DRIVE_DEFAULT		(MS_DRIVE_8mA | GPIO_DRIVE_8mA)
+
 /* SD30_DRIVE_SEL */
 #define DRIVER_TYPE_A			0x05
 #define DRIVER_TYPE_B			0x03
 #define DRIVER_TYPE_C			0x02
 #define DRIVER_TYPE_D			0x01
+#define CFG_DRIVER_TYPE_A		0x02
+#define CFG_DRIVER_TYPE_B		0x03
+#define CFG_DRIVER_TYPE_C		0x01
+#define CFG_DRIVER_TYPE_D		0x00
 
 /* FPDCTL */
 #define SSC_POWER_DOWN			0x01
@@ -684,6 +699,8 @@
 
 #define DUMMY_REG_RESET_0		0xFE90
 
+#define AUTOLOAD_CFG_BASE		0xFF00
+
 /* Memory mapping */
 #define SRAM_BASE			0xE600
 #define RBUF_BASE			0xF400
@@ -726,6 +743,11 @@
 #define PHY_FLD4			0x1E
 #define PHY_DUM_REG			0x1F
 
+#define LCTLR				0x80
+#define PCR_SETTING_REG1		0x724
+#define PCR_SETTING_REG2		0x814
+#define PCR_SETTING_REG3		0x747
+
 #define rtsx_pci_init_cmd(pcr)		((pcr)->ci = 0)
 
 struct rtsx_pcr;
@@ -747,6 +769,7 @@ struct pcr_ops {
 						u8 voltage);
 	unsigned int	(*cd_deglitch)(struct rtsx_pcr *pcr);
 	int		(*conv_clk_and_div_n)(int clk, int dir);
+	void		(*fetch_vendor_settings)(struct rtsx_pcr *pcr);
 };
 
 enum PDEV_STAT  {PDEV_STAT_IDLE, PDEV_STAT_RUN};
@@ -788,7 +811,6 @@ struct rtsx_pcr {
 	struct completion		*finish_me;
 
 	unsigned int			cur_clock;
-	bool				ms_pmos;
 	bool				remove_pci;
 	bool				msi_en;
 
@@ -805,6 +827,16 @@ struct rtsx_pcr {
 #define IC_VER_C			2
 #define IC_VER_D			3
 	u8				ic_version;
+
+	u8				sd30_drive_sel_1v8;
+	u8				sd30_drive_sel_3v3;
+	u8				card_drive_sel;
+#define ASPM_L1_EN			0x02
+	u8				aspm_en;
+
+#define PCR_MS_PMOS			(1 << 0)
+#define PCR_REVERSE_SOCKET		(1 << 1)
+	u32				flags;
 
 	const u32			*sd_pull_ctl_enable_tbl;
 	const u32			*sd_pull_ctl_disable_tbl;
