@@ -439,7 +439,7 @@ static noinline int create_subvol(struct inode *dir,
 	write_extent_buffer(leaf, root->fs_info->fsid, btrfs_header_fsid(leaf),
 			    BTRFS_FSID_SIZE);
 	write_extent_buffer(leaf, root->fs_info->chunk_tree_uuid,
-			    (unsigned long)btrfs_header_chunk_tree_uuid(leaf),
+			    btrfs_header_chunk_tree_uuid(leaf),
 			    BTRFS_UUID_SIZE);
 	btrfs_mark_buffer_dirty(leaf);
 

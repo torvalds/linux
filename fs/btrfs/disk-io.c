@@ -1294,7 +1294,7 @@ struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 	write_extent_buffer(leaf, fs_info->fsid, btrfs_header_fsid(leaf),
 			    BTRFS_FSID_SIZE);
 	write_extent_buffer(leaf, fs_info->chunk_tree_uuid,
-			    (unsigned long)btrfs_header_chunk_tree_uuid(leaf),
+			    btrfs_header_chunk_tree_uuid(leaf),
 			    BTRFS_UUID_SIZE);
 	btrfs_mark_buffer_dirty(leaf);
 
@@ -2629,8 +2629,7 @@ int open_ctree(struct super_block *sb,
 	chunk_root->commit_root = btrfs_root_node(chunk_root);
 
 	read_extent_buffer(chunk_root->node, fs_info->chunk_tree_uuid,
-	   (unsigned long)btrfs_header_chunk_tree_uuid(chunk_root->node),
-	   BTRFS_UUID_SIZE);
+	   btrfs_header_chunk_tree_uuid(chunk_root->node), BTRFS_UUID_SIZE);
 
 	ret = btrfs_read_chunk_tree(chunk_root);
 	if (ret) {

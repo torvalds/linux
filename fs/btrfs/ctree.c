@@ -3111,8 +3111,7 @@ static noinline int insert_new_root(struct btrfs_trans_handle *trans,
 			    BTRFS_FSID_SIZE);
 
 	write_extent_buffer(c, root->fs_info->chunk_tree_uuid,
-			    (unsigned long)btrfs_header_chunk_tree_uuid(c),
-			    BTRFS_UUID_SIZE);
+			    btrfs_header_chunk_tree_uuid(c), BTRFS_UUID_SIZE);
 
 	btrfs_set_node_key(c, &lower_key, 0);
 	btrfs_set_node_blockptr(c, 0, lower->start);
@@ -3249,7 +3248,7 @@ static noinline int split_node(struct btrfs_trans_handle *trans,
 	write_extent_buffer(split, root->fs_info->fsid,
 			    btrfs_header_fsid(split), BTRFS_FSID_SIZE);
 	write_extent_buffer(split, root->fs_info->chunk_tree_uuid,
-			    (unsigned long)btrfs_header_chunk_tree_uuid(split),
+			    btrfs_header_chunk_tree_uuid(split),
 			    BTRFS_UUID_SIZE);
 
 	tree_mod_log_eb_copy(root->fs_info, split, c, 0, mid, c_nritems - mid);
@@ -4005,7 +4004,7 @@ again:
 			    btrfs_header_fsid(right), BTRFS_FSID_SIZE);
 
 	write_extent_buffer(right, root->fs_info->chunk_tree_uuid,
-			    (unsigned long)btrfs_header_chunk_tree_uuid(right),
+			    btrfs_header_chunk_tree_uuid(right),
 			    BTRFS_UUID_SIZE);
 
 	if (split == 0) {
