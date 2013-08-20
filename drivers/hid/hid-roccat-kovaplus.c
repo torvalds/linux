@@ -197,31 +197,25 @@ KOVAPLUS_SYSFS_W(thingy, THINGY) \
 KOVAPLUS_SYSFS_R(thingy, THINGY)
 
 #define KOVAPLUS_BIN_ATTRIBUTE_RW(thingy, THINGY) \
-{ \
+KOVAPLUS_SYSFS_RW(thingy, THINGY); \
+static struct bin_attribute bin_attr_##thingy = { \
 	.attr = { .name = #thingy, .mode = 0660 }, \
 	.size = KOVAPLUS_SIZE_ ## THINGY, \
 	.read = kovaplus_sysfs_read_ ## thingy, \
 	.write = kovaplus_sysfs_write_ ## thingy \
 }
 
-#define KOVAPLUS_BIN_ATTRIBUTE_R(thingy, THINGY) \
-{ \
-	.attr = { .name = #thingy, .mode = 0440 }, \
-	.size = KOVAPLUS_SIZE_ ## THINGY, \
-	.read = kovaplus_sysfs_read_ ## thingy, \
-}
-
 #define KOVAPLUS_BIN_ATTRIBUTE_W(thingy, THINGY) \
-{ \
+KOVAPLUS_SYSFS_W(thingy, THINGY); \
+static struct bin_attribute bin_attr_##thingy = { \
 	.attr = { .name = #thingy, .mode = 0220 }, \
 	.size = KOVAPLUS_SIZE_ ## THINGY, \
 	.write = kovaplus_sysfs_write_ ## thingy \
 }
-
-KOVAPLUS_SYSFS_W(control, CONTROL)
-KOVAPLUS_SYSFS_RW(info, INFO)
-KOVAPLUS_SYSFS_RW(profile_settings, PROFILE_SETTINGS)
-KOVAPLUS_SYSFS_RW(profile_buttons, PROFILE_BUTTONS)
+KOVAPLUS_BIN_ATTRIBUTE_W(control, CONTROL);
+KOVAPLUS_BIN_ATTRIBUTE_RW(info, INFO);
+KOVAPLUS_BIN_ATTRIBUTE_RW(profile_settings, PROFILE_SETTINGS);
+KOVAPLUS_BIN_ATTRIBUTE_RW(profile_buttons, PROFILE_BUTTONS);
 
 static ssize_t kovaplus_sysfs_read_profilex_settings(struct file *fp,
 		struct kobject *kobj, struct bin_attribute *attr, char *buf,
@@ -260,6 +254,25 @@ static ssize_t kovaplus_sysfs_read_profilex_buttons(struct file *fp,
 			KOVAPLUS_SIZE_PROFILE_BUTTONS,
 			KOVAPLUS_COMMAND_PROFILE_BUTTONS);
 }
+
+#define PROFILE_ATTR(number)						\
+static struct bin_attribute bin_attr_profile##number##_settings = {	\
+	.attr = { .name = "profile##number##_settings", .mode = 0440 },	\
+	.size = KOVAPLUS_SIZE_PROFILE_SETTINGS,				\
+	.read = kovaplus_sysfs_read_profilex_settings,			\
+	.private = &profile_numbers[number-1],				\
+};									\
+static struct bin_attribute bin_attr_profile##number##_buttons = {	\
+	.attr = { .name = "profile##number##_buttons", .mode = 0440 },	\
+	.size = KOVAPLUS_SIZE_PROFILE_BUTTONS,				\
+	.read = kovaplus_sysfs_read_profilex_buttons,			\
+	.private = &profile_numbers[number-1],				\
+};
+PROFILE_ATTR(1);
+PROFILE_ATTR(2);
+PROFILE_ATTR(3);
+PROFILE_ATTR(4);
+PROFILE_ATTR(5);
 
 static ssize_t kovaplus_sysfs_show_actual_profile(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -372,74 +385,33 @@ static struct attribute *kovaplus_attrs[] = {
 	&dev_attr_actual_sensitivity_y.attr,
 	NULL,
 };
-ATTRIBUTE_GROUPS(kovaplus);
 
-static struct bin_attribute kovaplus_bin_attributes[] = {
-	KOVAPLUS_BIN_ATTRIBUTE_W(control, CONTROL),
-	KOVAPLUS_BIN_ATTRIBUTE_RW(info, INFO),
-	KOVAPLUS_BIN_ATTRIBUTE_RW(profile_settings, PROFILE_SETTINGS),
-	KOVAPLUS_BIN_ATTRIBUTE_RW(profile_buttons, PROFILE_BUTTONS),
-	{
-		.attr = { .name = "profile1_settings", .mode = 0440 },
-		.size = KOVAPLUS_SIZE_PROFILE_SETTINGS,
-		.read = kovaplus_sysfs_read_profilex_settings,
-		.private = &profile_numbers[0]
-	},
-	{
-		.attr = { .name = "profile2_settings", .mode = 0440 },
-		.size = KOVAPLUS_SIZE_PROFILE_SETTINGS,
-		.read = kovaplus_sysfs_read_profilex_settings,
-		.private = &profile_numbers[1]
-	},
-	{
-		.attr = { .name = "profile3_settings", .mode = 0440 },
-		.size = KOVAPLUS_SIZE_PROFILE_SETTINGS,
-		.read = kovaplus_sysfs_read_profilex_settings,
-		.private = &profile_numbers[2]
-	},
-	{
-		.attr = { .name = "profile4_settings", .mode = 0440 },
-		.size = KOVAPLUS_SIZE_PROFILE_SETTINGS,
-		.read = kovaplus_sysfs_read_profilex_settings,
-		.private = &profile_numbers[3]
-	},
-	{
-		.attr = { .name = "profile5_settings", .mode = 0440 },
-		.size = KOVAPLUS_SIZE_PROFILE_SETTINGS,
-		.read = kovaplus_sysfs_read_profilex_settings,
-		.private = &profile_numbers[4]
-	},
-	{
-		.attr = { .name = "profile1_buttons", .mode = 0440 },
-		.size = KOVAPLUS_SIZE_PROFILE_BUTTONS,
-		.read = kovaplus_sysfs_read_profilex_buttons,
-		.private = &profile_numbers[0]
-	},
-	{
-		.attr = { .name = "profile2_buttons", .mode = 0440 },
-		.size = KOVAPLUS_SIZE_PROFILE_BUTTONS,
-		.read = kovaplus_sysfs_read_profilex_buttons,
-		.private = &profile_numbers[1]
-	},
-	{
-		.attr = { .name = "profile3_buttons", .mode = 0440 },
-		.size = KOVAPLUS_SIZE_PROFILE_BUTTONS,
-		.read = kovaplus_sysfs_read_profilex_buttons,
-		.private = &profile_numbers[2]
-	},
-	{
-		.attr = { .name = "profile4_buttons", .mode = 0440 },
-		.size = KOVAPLUS_SIZE_PROFILE_BUTTONS,
-		.read = kovaplus_sysfs_read_profilex_buttons,
-		.private = &profile_numbers[3]
-	},
-	{
-		.attr = { .name = "profile5_buttons", .mode = 0440 },
-		.size = KOVAPLUS_SIZE_PROFILE_BUTTONS,
-		.read = kovaplus_sysfs_read_profilex_buttons,
-		.private = &profile_numbers[4]
-	},
-	__ATTR_NULL
+static struct bin_attribute *kovaplus_bin_attributes[] = {
+	&bin_attr_control,
+	&bin_attr_info,
+	&bin_attr_profile_settings,
+	&bin_attr_profile_buttons,
+	&bin_attr_profile1_settings,
+	&bin_attr_profile2_settings,
+	&bin_attr_profile3_settings,
+	&bin_attr_profile4_settings,
+	&bin_attr_profile5_settings,
+	&bin_attr_profile1_buttons,
+	&bin_attr_profile2_buttons,
+	&bin_attr_profile3_buttons,
+	&bin_attr_profile4_buttons,
+	&bin_attr_profile5_buttons,
+	NULL,
+};
+
+static const struct attribute_group kovaplus_group = {
+	.attrs = kovaplus_attrs,
+	.bin_attrs = kovaplus_bin_attributes,
+};
+
+static const struct attribute_group *kovaplus_groups[] = {
+	&kovaplus_group,
+	NULL,
 };
 
 static int kovaplus_init_kovaplus_device_struct(struct usb_device *usb_dev,
@@ -668,7 +640,6 @@ static int __init kovaplus_init(void)
 	if (IS_ERR(kovaplus_class))
 		return PTR_ERR(kovaplus_class);
 	kovaplus_class->dev_groups = kovaplus_groups;
-	kovaplus_class->dev_bin_attrs = kovaplus_bin_attributes;
 
 	retval = hid_register_driver(&kovaplus_driver);
 	if (retval)
