@@ -1447,6 +1447,8 @@
 #define   MCH_SSKPD_WM0_MASK		0x3f
 #define   MCH_SSKPD_WM0_VAL		0xc
 
+#define MCH_SECP_NRG_STTS		(MCHBAR_MIRROR_BASE_SNB + 0x592c)
+
 /* Clocking configuration register */
 #define CLKCFG			0x10c00
 #define CLKCFG_FSB_400					(5 << 0)	/* hrawclk 100 */
