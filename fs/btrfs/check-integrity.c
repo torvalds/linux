@@ -1236,8 +1236,7 @@ static void btrfsic_read_from_block_data(
 	unsigned long i = (start_offset + offset) >> PAGE_CACHE_SHIFT;
 
 	WARN_ON(offset + len > block_ctx->len);
-	offset_in_page = (start_offset + offset) &
-			 ((unsigned long)PAGE_CACHE_SIZE - 1);
+	offset_in_page = (start_offset + offset) & (PAGE_CACHE_SIZE - 1);
 
 	while (len > 0) {
 		cur = min(len, ((size_t)PAGE_CACHE_SIZE - offset_in_page));
@@ -3122,19 +3121,19 @@ int btrfsic_mount(struct btrfs_root *root,
 	if (root->nodesize & ((u64)PAGE_CACHE_SIZE - 1)) {
 		printk(KERN_INFO
 		       "btrfsic: cannot handle nodesize %d not being a multiple of PAGE_CACHE_SIZE %ld!\n",
-		       root->nodesize, (unsigned long)PAGE_CACHE_SIZE);
+		       root->nodesize, PAGE_CACHE_SIZE);
 		return -1;
 	}
 	if (root->leafsize & ((u64)PAGE_CACHE_SIZE - 1)) {
 		printk(KERN_INFO
 		       "btrfsic: cannot handle leafsize %d not being a multiple of PAGE_CACHE_SIZE %ld!\n",
-		       root->leafsize, (unsigned long)PAGE_CACHE_SIZE);
+		       root->leafsize, PAGE_CACHE_SIZE);
 		return -1;
 	}
 	if (root->sectorsize & ((u64)PAGE_CACHE_SIZE - 1)) {
 		printk(KERN_INFO
 		       "btrfsic: cannot handle sectorsize %d not being a multiple of PAGE_CACHE_SIZE %ld!\n",
-		       root->sectorsize, (unsigned long)PAGE_CACHE_SIZE);
+		       root->sectorsize, PAGE_CACHE_SIZE);
 		return -1;
 	}
 	state = kzalloc(sizeof(*state), GFP_NOFS);
