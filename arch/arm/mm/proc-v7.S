@@ -329,7 +329,19 @@ __v7_setup:
 1:
 #endif
 
-3:	mov	r10, #0
+	/* Cortex-A15 Errata */
+3:	ldr	r10, =0x00000c0f		@ Cortex-A15 primary part number
+	teq	r0, r10
+	bne	4f
+
+#ifdef CONFIG_ARM_ERRATA_773022
+	cmp	r6, #0x4			@ only present up to r0p4
+	mrcle	p15, 0, r10, c1, c0, 1		@ read aux control register
+	orrle	r10, r10, #1 << 1		@ disable loop buffer
+	mcrle	p15, 0, r10, c1, c0, 1		@ write aux control register
+#endif
+
+4:	mov	r10, #0
 	mcr	p15, 0, r10, c7, c5, 0		@ I+BTB cache invalidate
 	dsb
 #ifdef CONFIG_MMU

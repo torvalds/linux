@@ -1373,6 +1373,15 @@ config ARM_ERRATA_798181
 	  which sends an IPI to the CPUs that are running the same ASID
 	  as the one being invalidated.
 
+config ARM_ERRATA_773022
+	bool "ARM errata: incorrect instructions may be executed from loop buffer"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 773022 Cortex-A15
+	  (up to r0p4) erratum. In certain rare sequences of code, the
+	  loop buffer may deliver incorrect instructions. This
+	  workaround disables the loop buffer to avoid the erratum.
+
 endmenu
 
 source "arch/arm/common/Kconfig"
