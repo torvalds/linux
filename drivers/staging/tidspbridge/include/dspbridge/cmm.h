@@ -293,7 +293,7 @@ extern int cmm_xlator_free_buf(struct cmm_xlatorobject *xlator,
  *  ======== cmm_xlator_info ========
  *  Purpose:
  *      Set/Get process specific "translator" address info.
- *      This is used to perform fast virtaul address translation
+ *      This is used to perform fast virtual address translation
  *      for shared memory buffers between the GPP and DSP.
  *  Parameters:
  *     xlator:     handle to translator.
