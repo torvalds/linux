@@ -30,8 +30,6 @@
 	pr_debug("offset_before=%d, offset_after=%d, correction_pos=%u\n", \
 		 x->offset_before, x->offset_after, x->correction_pos);
 
-static DEFINE_SPINLOCK(nf_nat_seqofs_lock);
-
 /* Setup TCP sequence correction given this change at this sequence */
 static inline void
 adjust_tcp_sequence(u32 seq,
@@ -49,7 +47,7 @@ adjust_tcp_sequence(u32 seq,
 	pr_debug("adjust_tcp_sequence: Seq_offset before: ");
 	DUMP_OFFSET(this_way);
 
-	spin_lock_bh(&nf_nat_seqofs_lock);
+	spin_lock_bh(&ct->lock);
 
 	/* SYN adjust. If it's uninitialized, or this is after last
 	 * correction, record it: we don't handle more than one
@@ -61,31 +59,26 @@ adjust_tcp_sequence(u32 seq,
 		this_way->offset_before = this_way->offset_after;
 		this_way->offset_after += sizediff;
 	}
-	spin_unlock_bh(&nf_nat_seqofs_lock);
+	spin_unlock_bh(&ct->lock);
 
 	pr_debug("adjust_tcp_sequence: Seq_offset after: ");
 	DUMP_OFFSET(this_way);
 }
 
-/* Get the offset value, for conntrack */
-s16 nf_nat_get_offset(const struct nf_conn *ct,
+/* Get the offset value, for conntrack. Caller must have the conntrack locked */
+s32 nf_nat_get_offset(const struct nf_conn *ct,
 		      enum ip_conntrack_dir dir,
 		      u32 seq)
 {
 	struct nf_conn_nat *nat = nfct_nat(ct);
 	struct nf_nat_seq *this_way;
-	s16 offset;
 
 	if (!nat)
 		return 0;
 
 	this_way = &nat->seq[dir];
-	spin_lock_bh(&nf_nat_seqofs_lock);
-	offset = after(seq, this_way->correction_pos)
+	return after(seq, this_way->correction_pos)
 		 ? this_way->offset_after : this_way->offset_before;
-	spin_unlock_bh(&nf_nat_seqofs_lock);
-
-	return offset;
 }
 
 /* Frobs data inside this packet, which is linear. */
@@ -143,7 +136,7 @@ static int enlarge_skb(struct sk_buff *skb, unsigned int extra)
 }
 
 void nf_nat_set_seq_adjust(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
-			   __be32 seq, s16 off)
+			   __be32 seq, s32 off)
 {
 	if (!off)
 		return;
@@ -370,9 +363,10 @@ nf_nat_seq_adjust(struct sk_buff *skb,
 	struct tcphdr *tcph;
 	int dir;
 	__be32 newseq, newack;
-	s16 seqoff, ackoff;
+	s32 seqoff, ackoff;
 	struct nf_conn_nat *nat = nfct_nat(ct);
 	struct nf_nat_seq *this_way, *other_way;
+	int res;
 
 	dir = CTINFO2DIR(ctinfo);
 
@@ -383,6 +377,7 @@ nf_nat_seq_adjust(struct sk_buff *skb,
 		return 0;
 
 	tcph = (void *)skb->data + protoff;
+	spin_lock_bh(&ct->lock);
 	if (after(ntohl(tcph->seq), this_way->correction_pos))
 		seqoff = this_way->offset_after;
 	else
@@ -407,7 +402,10 @@ nf_nat_seq_adjust(struct sk_buff *skb,
 	tcph->seq = newseq;
 	tcph->ack_seq = newack;
 
-	return nf_nat_sack_adjust(skb, protoff, tcph, ct, ctinfo);
+	res = nf_nat_sack_adjust(skb, protoff, tcph, ct, ctinfo);
+	spin_unlock_bh(&ct->lock);
+
+	return res;
 }
 
 /* Setup NAT on this expected conntrack so it follows master. */

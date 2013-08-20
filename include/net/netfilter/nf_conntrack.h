@@ -181,8 +181,7 @@ __nf_conntrack_find(struct net *net, u16 zone,
 		    const struct nf_conntrack_tuple *tuple);
 
 extern int nf_conntrack_hash_check_insert(struct nf_conn *ct);
-extern void nf_ct_delete_from_lists(struct nf_conn *ct);
-extern void nf_ct_dying_timeout(struct nf_conn *ct);
+bool nf_ct_delete(struct nf_conn *ct, u32 pid, int report);
 
 extern void nf_conntrack_flush_report(struct net *net, u32 portid, int report);
 
@@ -235,7 +234,7 @@ static inline bool nf_ct_kill(struct nf_conn *ct)
 }
 
 /* These are for NAT.  Icky. */
-extern s16 (*nf_ct_nat_offset)(const struct nf_conn *ct,
+extern s32 (*nf_ct_nat_offset)(const struct nf_conn *ct,
 			       enum ip_conntrack_dir dir,
 			       u32 seq);
 
@@ -249,7 +248,9 @@ extern void nf_ct_untracked_status_or(unsigned long bits);
 
 /* Iterate over all conntracks: if iter returns true, it's deleted. */
 extern void
-nf_ct_iterate_cleanup(struct net *net, int (*iter)(struct nf_conn *i, void *data), void *data);
+nf_ct_iterate_cleanup(struct net *net,
+		      int (*iter)(struct nf_conn *i, void *data),
+		      void *data, u32 portid, int report);
 extern void nf_conntrack_free(struct nf_conn *ct);
 extern struct nf_conn *
 nf_conntrack_alloc(struct net *net, u16 zone,
