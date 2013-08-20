@@ -131,7 +131,20 @@
 				status = "okay";
 			};
 
+			usb-phy@47401b00 {
+				status = "okay";
+			};
+
 			usb@47401000 {
+				status = "okay";
+			};
+
+			usb@47401800 {
+				status = "okay";
+				dr_mode = "host";
+			};
+
+			dma-controller@07402000  {
 				status = "okay";
 			};
 		};
