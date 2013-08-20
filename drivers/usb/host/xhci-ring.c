@@ -1732,6 +1732,19 @@ static void handle_port_status(struct xhci_hcd *xhci,
 		}
 	}
 
+	/*
+	 * Check to see if xhci-hub.c is waiting on RExit to U0 transition (or
+	 * RExit to a disconnect state).  If so, let the the driver know it's
+	 * out of the RExit state.
+	 */
+	if (!DEV_SUPERSPEED(temp) &&
+			test_and_clear_bit(faked_port_index,
+				&bus_state->rexit_ports)) {
+		complete(&bus_state->rexit_done[faked_port_index]);
+		bogus_port_status = true;
+		goto cleanup;
+	}
+
 	if (hcd->speed != HCD_USB3)
 		xhci_test_and_clear_bit(xhci, port_array, faked_port_index,
 					PORT_PLC);

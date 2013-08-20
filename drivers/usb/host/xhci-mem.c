@@ -2448,6 +2448,8 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	for (i = 0; i < USB_MAXCHILDREN; ++i) {
 		xhci->bus_state[0].resume_done[i] = 0;
 		xhci->bus_state[1].resume_done[i] = 0;
+		/* Only the USB 2.0 completions will ever be used. */
+		init_completion(&xhci->bus_state[1].rexit_done[i]);
 	}
 
 	if (scratchpad_alloc(xhci, flags))
