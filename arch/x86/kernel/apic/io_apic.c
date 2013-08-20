@@ -1534,6 +1534,11 @@ void intel_ir_io_apic_print_entries(unsigned int apic,
 	}
 }
 
+void ioapic_zap_locks(void)
+{
+	raw_spin_lock_init(&ioapic_lock);
+}
+
 __apicdebuginit(void) print_IO_APIC(int ioapic_idx)
 {
 	union IO_APIC_reg_00 reg_00;
