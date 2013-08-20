@@ -140,16 +140,6 @@ static inline void omap_rng_write(struct omap_rng_dev *priv, u16 reg,
 	__raw_writel(val, priv->base + priv->pdata->regs[reg]);
 }
 
-static inline u32 omap2_rng_data_present(struct omap_rng_dev *priv)
-{
-	return omap_rng_read(priv, RNG_STATUS_REG) ? 0 : 1;
-}
-
-static inline u32 omap4_rng_data_present(struct omap_rng_dev *priv)
-{
-	return omap_rng_read(priv, RNG_STATUS_REG) & RNG_REG_STATUS_RDY;
-}
-
 static int omap_rng_data_present(struct hwrng *rng, int wait)
 {
 	struct omap_rng_dev *priv;
@@ -187,6 +177,60 @@ static int omap_rng_data_read(struct hwrng *rng, u32 *data)
 	return data_size;
 }
 
+static int omap_rng_init(struct hwrng *rng)
+{
+	struct omap_rng_dev *priv;
+
+	priv = (struct omap_rng_dev *)rng->priv;
+	return priv->pdata->init(priv);
+}
+
+static void omap_rng_cleanup(struct hwrng *rng)
+{
+	struct omap_rng_dev *priv;
+
+	priv = (struct omap_rng_dev *)rng->priv;
+	priv->pdata->cleanup(priv);
+}
+
+static struct hwrng omap_rng_ops = {
+	.name		= "omap",
+	.data_present	= omap_rng_data_present,
+	.data_read	= omap_rng_data_read,
+	.init		= omap_rng_init,
+	.cleanup	= omap_rng_cleanup,
+};
+
+static inline u32 omap2_rng_data_present(struct omap_rng_dev *priv)
+{
+	return omap_rng_read(priv, RNG_STATUS_REG) ? 0 : 1;
+}
+
+static int omap2_rng_init(struct omap_rng_dev *priv)
+{
+	omap_rng_write(priv, RNG_SYSCONFIG_REG, 0x1);
+	return 0;
+}
+
+static void omap2_rng_cleanup(struct omap_rng_dev *priv)
+{
+	omap_rng_write(priv, RNG_SYSCONFIG_REG, 0x0);
+}
+
+static struct omap_rng_pdata omap2_rng_pdata = {
+	.regs		= (u16 *)reg_map_omap2,
+	.data_size	= OMAP2_RNG_OUTPUT_SIZE,
+	.data_present	= omap2_rng_data_present,
+	.init		= omap2_rng_init,
+	.cleanup	= omap2_rng_cleanup,
+};
+
+#if defined(CONFIG_OF)
+static inline u32 omap4_rng_data_present(struct omap_rng_dev *priv)
+{
+	return omap_rng_read(priv, RNG_STATUS_REG) & RNG_REG_STATUS_RDY;
+}
+
 static int omap4_rng_init(struct omap_rng_dev *priv)
 {
 	u32 val;
@@ -221,33 +265,6 @@ static void omap4_rng_cleanup(struct omap_rng_dev *priv)
 	omap_rng_write(priv, RNG_CONFIG_REG, val);
 }
 
-static int omap2_rng_init(struct omap_rng_dev *priv)
-{
-	omap_rng_write(priv, RNG_SYSCONFIG_REG, 0x1);
-	return 0;
-}
-
-static void omap2_rng_cleanup(struct omap_rng_dev *priv)
-{
-	omap_rng_write(priv, RNG_SYSCONFIG_REG, 0x0);
-}
-
-static int omap_rng_init(struct hwrng *rng)
-{
-	struct omap_rng_dev *priv;
-
-	priv = (struct omap_rng_dev *)rng->priv;
-	return priv->pdata->init(priv);
-}
-
-static void omap_rng_cleanup(struct hwrng *rng)
-{
-	struct omap_rng_dev *priv;
-
-	priv = (struct omap_rng_dev *)rng->priv;
-	priv->pdata->cleanup(priv);
-}
-
 static irqreturn_t omap4_rng_irq(int irq, void *dev_id)
 {
 	struct omap_rng_dev *priv = dev_id;
@@ -275,23 +292,6 @@ static irqreturn_t omap4_rng_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct hwrng omap_rng_ops = {
-	.name		= "omap",
-	.data_present	= omap_rng_data_present,
-	.data_read	= omap_rng_data_read,
-	.init		= omap_rng_init,
-	.cleanup	= omap_rng_cleanup,
-};
-
-static struct omap_rng_pdata omap2_rng_pdata = {
-	.regs		= (u16 *)reg_map_omap2,
-	.data_size	= OMAP2_RNG_OUTPUT_SIZE,
-	.data_present	= omap2_rng_data_present,
-	.init		= omap2_rng_init,
-	.cleanup	= omap2_rng_cleanup,
-};
-
-#if defined(CONFIG_OF)
 static struct omap_rng_pdata omap4_rng_pdata = {
 	.regs		= (u16 *)reg_map_omap4,
 	.data_size	= OMAP4_RNG_OUTPUT_SIZE,
