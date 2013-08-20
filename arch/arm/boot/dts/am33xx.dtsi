@@ -470,7 +470,7 @@
 					0x47402000 0x1000
 					0x47403000 0x1000
 					0x47404000 0x4000>;
-				reg-names = "glue controller scheduler queuemgr";
+				reg-names = "glue", "controller", "scheduler", "queuemgr";
 				interrupts = <17>;
 				interrupt-names = "glue";
 				#dma-cells = <2>;
