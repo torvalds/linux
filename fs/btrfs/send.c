@@ -3920,7 +3920,8 @@ static int is_extent_unchanged(struct send_ctx *sctx,
 	btrfs_item_key_to_cpu(eb, &found_key, slot);
 	if (found_key.objectid != key.objectid ||
 	    found_key.type != key.type) {
-		ret = 0;
+		/* If we're a hole then just pretend nothing changed */
+		ret = (left_disknr) ? 0 : 1;
 		goto out;
 	}
 
@@ -3946,7 +3947,8 @@ static int is_extent_unchanged(struct send_ctx *sctx,
 		 * This may only happen on the first iteration.
 		 */
 		if (found_key.offset + right_len <= ekey->offset) {
-			ret = 0;
+			/* If we're a hole just pretend nothing changed */
+			ret = (left_disknr) ? 0 : 1;
 			goto out;
 		}
 
@@ -4011,8 +4013,8 @@ static int process_extent(struct send_ctx *sctx,
 			  struct btrfs_path *path,
 			  struct btrfs_key *key)
 {
-	int ret = 0;
 	struct clone_root *found_clone = NULL;
+	int ret = 0;
 
 	if (S_ISLNK(sctx->cur_inode_mode))
 		return 0;
@@ -4024,6 +4026,32 @@ static int process_extent(struct send_ctx *sctx,
 		if (ret) {
 			ret = 0;
 			goto out;
+		}
+	} else {
+		struct btrfs_file_extent_item *ei;
+		u8 type;
+
+		ei = btrfs_item_ptr(path->nodes[0], path->slots[0],
+				    struct btrfs_file_extent_item);
+		type = btrfs_file_extent_type(path->nodes[0], ei);
+		if (type == BTRFS_FILE_EXTENT_PREALLOC ||
+		    type == BTRFS_FILE_EXTENT_REG) {
+			/*
+			 * The send spec does not have a prealloc command yet,
+			 * so just leave a hole for prealloc'ed extents until
+			 * we have enough commands queued up to justify rev'ing
+			 * the send spec.
+			 */
+			if (type == BTRFS_FILE_EXTENT_PREALLOC) {
+				ret = 0;
+				goto out;
+			}
+
+			/* Have a hole, just skip it. */
+			if (btrfs_file_extent_disk_bytenr(path->nodes[0], ei) == 0) {
+				ret = 0;
+				goto out;
+			}
 		}
 	}
 
