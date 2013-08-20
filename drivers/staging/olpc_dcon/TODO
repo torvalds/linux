@@ -2,10 +2,6 @@ TODO:
 	- see if vx855 gpio API can be made similar enough to cs5535 so we can
 	  share more code
 	- allow simultaneous XO-1 and XO-1.5 support
-	- console event notifier support
-	- audit code for unnecessary code; old unsupported prototype
-	  workarounds, ancient variables (noaa?), etc
-	- verify sane i2c API usage, update to new stuff if necessary
 
 Please send patches to Greg Kroah-Hartman <greg@kroah.com> and
 copy:
