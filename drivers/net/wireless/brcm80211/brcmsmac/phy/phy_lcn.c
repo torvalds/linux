@@ -4282,13 +4282,10 @@ wlc_lcnphy_load_tx_gain_table(struct brcms_phy *pi,
 	u16 pa_gain;
 	u16 gm_gain;
 
-	if (CHSPEC_IS5G(pi->radio_chanspec))
-		pa_gain = 0x70;
-	else
-		pa_gain = 0x70;
-
 	if (pi->sh->boardflags & BFL_FEM)
 		pa_gain = 0x10;
+	else
+		pa_gain = 0x60;
 	tab.tbl_id = LCNPHY_TBL_ID_TXPWRCTL;
 	tab.tbl_width = 32;
 	tab.tbl_len = 1;
