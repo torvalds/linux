@@ -114,6 +114,8 @@ static int rtl8411b_extra_init_hw(struct rtsx_pcr *pcr)
 			0xFF, pcr->sd30_drive_sel_3v3);
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, CD_PAD_CTL,
 			CD_DISABLE_MASK | CD_AUTO_DISABLE, CD_ENABLE);
+	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, FUNC_FORCE_CTL,
+			0x06, 0x00);
 
 	return rtsx_pci_send_cmd(pcr, 100);
 }
