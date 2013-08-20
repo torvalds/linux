@@ -602,31 +602,30 @@ static int init_memory_block(struct memory_block **memory,
 	return ret;
 }
 
-static int add_memory_section(struct mem_section *section,
-			struct memory_block **mem_p)
+static int add_memory_block(int base_section_nr)
 {
-	struct memory_block *mem = NULL;
-	int scn_nr = __section_nr(section);
-	int ret = 0;
+	struct memory_block *mem;
+	int i, ret, section_count = 0, section_nr;
 
-	if (mem_p && *mem_p) {
-		if (scn_nr >= (*mem_p)->start_section_nr &&
-		    scn_nr <= (*mem_p)->end_section_nr) {
-			mem = *mem_p;
-		}
+	for (i = base_section_nr;
+	     (i < base_section_nr + sections_per_block) && i < NR_MEM_SECTIONS;
+	     i++) {
+		if (!present_section_nr(i))
+			continue;
+		if (section_count == 0)
+			section_nr = i;
+		section_count++;
 	}
 
-	if (mem)
-		mem->section_count++;
-	else {
-		ret = init_memory_block(&mem, section, MEM_ONLINE);
-		/* store memory_block pointer for next loop */
-		if (!ret && mem_p)
-			*mem_p = mem;
-	}
-
-	return ret;
+	if (section_count == 0)
+		return 0;
+	ret = init_memory_block(&mem, __nr_to_section(section_nr), MEM_ONLINE);
+	if (ret)
+		return ret;
+	mem->section_count = section_count;
+	return 0;
 }
+
 
 /*
  * need an interface for the VM to add new memory regions,
@@ -733,7 +732,6 @@ int __init memory_dev_init(void)
 	int ret;
 	int err;
 	unsigned long block_sz;
-	struct memory_block *mem = NULL;
 
 	ret = subsys_system_register(&memory_subsys, memory_root_attr_groups);
 	if (ret)
@@ -747,12 +745,8 @@ int __init memory_dev_init(void)
 	 * during boot and have been initialized
 	 */
 	mutex_lock(&mem_sysfs_mutex);
-	for (i = 0; i < NR_MEM_SECTIONS; i++) {
-		if (!present_section_nr(i))
-			continue;
-		/* don't need to reuse memory_block if only one per block */
-		err = add_memory_section(__nr_to_section(i),
-				 (sections_per_block == 1) ? NULL : &mem);
+	for (i = 0; i < NR_MEM_SECTIONS; i += sections_per_block) {
+		err = add_memory_block(i);
 		if (!ret)
 			ret = err;
 	}
