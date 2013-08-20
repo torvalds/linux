@@ -574,23 +574,35 @@ int cpup_entry(struct au_cp_generic *cpg, struct dentry *dst_parent,
 	return err;
 }
 
-static int au_do_ren_after_cpup(struct dentry *dentry, aufs_bindex_t bdst,
-				struct path *h_path)
+static int au_do_ren_after_cpup(struct au_cp_generic *cpg, struct path *h_path)
 {
 	int err;
-	struct dentry *h_dentry, *h_parent;
+	struct dentry *dentry, *h_dentry, *h_parent, *parent;
 	struct inode *h_dir;
+	aufs_bindex_t bdst;
 
-	h_dentry = dget(au_h_dptr(dentry, bdst));
-	au_set_h_dptr(dentry, bdst, NULL);
-	err = au_lkup_neg(dentry, bdst, /*wh*/0);
-	if (unlikely(err)) {
+	dentry = cpg->dentry;
+	bdst = cpg->bdst;
+	h_dentry = au_h_dptr(dentry, bdst);
+	if (!au_ftest_cpup(cpg->flags, OVERWRITE)) {
+		dget(h_dentry);
+		au_set_h_dptr(dentry, bdst, NULL);
+		err = au_lkup_neg(dentry, bdst, /*wh*/0);
+		if (!err)
+			h_path->dentry = dget(au_h_dptr(dentry, bdst));
 		au_set_h_dptr(dentry, bdst, h_dentry);
-		goto out;
+	} else {
+		err = 0;
+		parent = dget_parent(dentry);
+		h_parent = au_h_dptr(parent, bdst);
+		dput(parent);
+		h_path->dentry = vfsub_lkup_one(&dentry->d_name, h_parent);
+		if (IS_ERR(h_path->dentry))
+			err = PTR_ERR(h_path->dentry);
 	}
+	if (unlikely(err))
+		goto out;
 
-	h_path->dentry = dget(au_h_dptr(dentry, bdst));
-	au_set_h_dptr(dentry, bdst, h_dentry);
 	h_parent = h_dentry->d_parent; /* dir inode is locked */
 	h_dir = h_parent->d_inode;
 	IMustLock(h_dir);
@@ -682,8 +694,7 @@ static int au_cpup_single(struct au_cp_generic *cpg, struct dentry *dst_parent)
 			a->h_path.dentry = h_dst;
 			err = vfsub_link(h_src, h_dir, &a->h_path);
 			if (!err && au_ftest_cpup(cpg->flags, RENAME))
-				err = au_do_ren_after_cpup
-					(cpg->dentry, cpg->bdst, &a->h_path);
+				err = au_do_ren_after_cpup(cpg, &a->h_path);
 			if (do_dt)
 				au_dtime_revert(&a->dt);
 			dput(h_src);
@@ -741,7 +752,7 @@ static int au_cpup_single(struct au_cp_generic *cpg, struct dentry *dst_parent)
 
 	if (au_ftest_cpup(cpg->flags, RENAME)) {
 		a->h_path.dentry = h_dst;
-		err = au_do_ren_after_cpup(cpg->dentry, cpg->bdst, &a->h_path);
+		err = au_do_ren_after_cpup(cpg, &a->h_path);
 	}
 	if (!err)
 		goto out_parent; /* success */
