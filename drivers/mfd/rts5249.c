@@ -17,7 +17,6 @@
  *
  * Author:
  *   Wei WANG <wei_wang@realsil.com.cn>
- *   No. 128, West Shenhu Road, Suzhou Industry Park, Suzhou, China
  */
 
 #include <linux/module.h>
