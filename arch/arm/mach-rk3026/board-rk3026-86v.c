@@ -923,19 +923,67 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 #endif //endif--#ifdef CONFIG_SDMMC1_RK29
 
 #ifdef CONFIG_BATTERY_RK30_ADC_FAC
+
+#define DC_DET_PIN RK30_PIN1_PA5
+#define CHARGE_OK_PIN   INVALID_GPIO//RK30_PIN0_PC6
+
+static int rk30_adc_battery_io_init(void){
+	//dc charge detect pin
+	int ret=0;
+	if (DC_DET_PIN != INVALID_GPIO){
+	    	ret = gpio_request(RK30_PIN1_PA5, NULL);
+	    	if (ret) {
+	    		printk("failed to request dc_det gpio\n");
+	    	}
+	
+	    	gpio_pull_updown(DC_DET_PIN, PullDisable);//important
+	    	ret = gpio_direction_input(DC_DET_PIN);
+	    	if (ret) {
+	    		printk("failed to set gpio dc_det input\n");
+	    	}
+	}
+	
+	//charge ok detect
+	if (CHARGE_OK_PIN != INVALID_GPIO){
+ 		ret = gpio_request(RK30_PIN0_PC6, NULL);
+	    	if (ret) {
+	    		printk("failed to request charge_ok gpio\n");
+	    	}
+	
+	    	gpio_pull_updown(CHARGE_OK_PIN, GPIOPullUp);//important
+	    	ret = gpio_direction_input(CHARGE_OK_PIN);
+	    	if (ret) {
+	    		printk("failed to set gpio charge_ok input\n");
+	    	}
+	}
+ 		ret = gpio_request(RK30_PIN3_PD6, NULL);
+	    	if (ret) {
+	    		printk("failed to request charge_ok gpio\n");
+	    	}
+	
+	    	gpio_pull_updown(RK30_PIN3_PD6, GPIOPullUp);//important
+	    //	ret = gpio_direction_input(RK30_PIN3_PD6);
+	    //	if (ret) {
+	    //		printk("failed to set gpio charge_ok input\n");
+	    //	}
+	
+
+}
+
 static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
         .dc_det_pin      = RK30_PIN1_PA5,
         .batt_low_pin    = INVALID_GPIO, 
         .charge_set_pin  = INVALID_GPIO,
-        .charge_ok_pin   = RK30_PIN1_PA0,
+        .charge_ok_pin   = INVALID_GPIO,//RK30_PIN1_PA0,
 	 .usb_det_pin = INVALID_GPIO,
         .dc_det_level    = GPIO_LOW,
         .charge_ok_level = GPIO_HIGH,
 
 	.reference_voltage = 3300, // the rK2928 is 3300;RK3066 and rk29 are 2500;rk3066B is 1800;
        .pull_up_res = 200,     //divider resistance ,  pull-up resistor
-       .pull_down_res = 120, //divider resistance , pull-down resistor
+       .pull_down_res = 200, //divider resistance , pull-down resistor
 
+	  .io_init = rk30_adc_battery_io_init,
 	.is_reboot_charging = 1,
         .save_capacity   = 1 ,
         .low_voltage_protection = 3600,    
