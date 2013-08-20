@@ -530,7 +530,6 @@ static int __exit tps65010_remove(struct i2c_client *client)
 		free_irq(client->irq, tps);
 	cancel_delayed_work_sync(&tps->work);
 	debugfs_remove(tps->file);
-	kfree(tps);
 	the_tps = NULL;
 	return 0;
 }
@@ -550,7 +549,7 @@ static int tps65010_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EINVAL;
 
-	tps = kzalloc(sizeof *tps, GFP_KERNEL);
+	tps = devm_kzalloc(&client->dev, sizeof(*tps), GFP_KERNEL);
 	if (!tps)
 		return -ENOMEM;
 
@@ -568,7 +567,7 @@ static int tps65010_probe(struct i2c_client *client,
 		if (status < 0) {
 			dev_dbg(&client->dev, "can't get IRQ %d, err %d\n",
 					client->irq, status);
-			goto fail1;
+			return status;
 		}
 		/* annoying race here, ideally we'd have an option
 		 * to claim the irq now and enable it later.
@@ -668,9 +667,6 @@ static int tps65010_probe(struct i2c_client *client,
 	}
 
 	return 0;
-fail1:
-	kfree(tps);
-	return status;
 }
 
 static const struct i2c_device_id tps65010_id[] = {
