@@ -559,8 +559,12 @@ static void iwl_mvm_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 		cmd->qos_flags |= cpu_to_le32(MAC_QOS_FLG_UPDATE_EDCA);
 
 	/* Don't use cts to self as the fw doesn't support it currently. */
-	if (vif->bss_conf.use_cts_prot)
+	if (vif->bss_conf.use_cts_prot) {
 		cmd->protection_flags |= cpu_to_le32(MAC_PROT_FLG_TGG_PROTECT);
+		if (IWL_UCODE_API(mvm->fw->ucode_ver) >= 8)
+			cmd->protection_flags |=
+				cpu_to_le32(MAC_PROT_FLG_SELF_CTS_EN);
+	}
 
 	/*
 	 * I think that we should enable these 2 flags regardless the HT PROT
