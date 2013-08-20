@@ -1812,6 +1812,8 @@ err:
 
 void musb_gadget_cleanup(struct musb *musb)
 {
+	if (musb->port_mode == MUSB_PORT_MODE_HOST)
+		return;
 	usb_del_gadget_udc(&musb->g);
 }
 
