@@ -613,8 +613,6 @@ static int add_memory_section(int nid, struct mem_section *section,
 	int scn_nr = __section_nr(section);
 	int ret = 0;
 
-	mutex_lock(&mem_sysfs_mutex);
-
 	if (context == BOOT) {
 		/* same memory block ? */
 		if (mem_p && *mem_p)
@@ -643,7 +641,6 @@ static int add_memory_section(int nid, struct mem_section *section,
 			ret = register_mem_sect_under_node(mem, nid);
 	}
 
-	mutex_unlock(&mem_sysfs_mutex);
 	return ret;
 }
 
@@ -653,7 +650,13 @@ static int add_memory_section(int nid, struct mem_section *section,
  */
 int register_new_memory(int nid, struct mem_section *section)
 {
-	return add_memory_section(nid, section, NULL, MEM_OFFLINE, HOTPLUG);
+	int ret;
+
+	mutex_lock(&mem_sysfs_mutex);
+	ret = add_memory_section(nid, section, NULL, MEM_OFFLINE, HOTPLUG);
+	mutex_unlock(&mem_sysfs_mutex);
+
+	return ret;
 }
 
 #ifdef CONFIG_MEMORY_HOTREMOVE
@@ -746,6 +749,7 @@ int __init memory_dev_init(void)
 	 * Create entries for memory sections that were found
 	 * during boot and have been initialized
 	 */
+	mutex_lock(&mem_sysfs_mutex);
 	for (i = 0; i < NR_MEM_SECTIONS; i++) {
 		if (!present_section_nr(i))
 			continue;
@@ -757,6 +761,7 @@ int __init memory_dev_init(void)
 		if (!ret)
 			ret = err;
 	}
+	mutex_unlock(&mem_sysfs_mutex);
 
 out:
 	if (ret)
