@@ -177,8 +177,7 @@
 		};
 
 		usb_per5@a03e0000 {
-			compatible = "stericsson,db8500-musb",
-				"mentor,musb";
+			compatible = "stericsson,db8500-musb";
 			reg = <0xa03e0000 0x10000>;
 			interrupts = <0 23 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "mc";
