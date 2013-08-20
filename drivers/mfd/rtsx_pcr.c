@@ -939,7 +939,7 @@ static void rtsx_pci_power_off(struct rtsx_pcr *pcr, u8 pm_state)
 	rtsx_pci_write_register(pcr, HOST_SLEEP_STATE, 0x03, pm_state);
 
 	if (pcr->ops->force_power_down)
-		pcr->ops->force_power_down(pcr);
+		pcr->ops->force_power_down(pcr, pm_state);
 }
 
 static int rtsx_pci_init_hw(struct rtsx_pcr *pcr)

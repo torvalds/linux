@@ -56,7 +56,7 @@ static void rts5229_fetch_vendor_settings(struct rtsx_pcr *pcr)
 		map_sd_drive(rtsx_reg_to_sd30_drive_sel_3v3(reg));
 }
 
-static void rts5229_force_power_down(struct rtsx_pcr *pcr)
+static void rts5229_force_power_down(struct rtsx_pcr *pcr, u8 pm_state)
 {
 	rtsx_pci_write_register(pcr, FPDCTL, 0x03, 0x03);
 }

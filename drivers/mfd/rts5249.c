@@ -88,12 +88,15 @@ static void rts5249_fetch_vendor_settings(struct rtsx_pcr *pcr)
 		pcr->flags |= PCR_REVERSE_SOCKET;
 }
 
-static void rts5249_force_power_down(struct rtsx_pcr *pcr)
+static void rts5249_force_power_down(struct rtsx_pcr *pcr, u8 pm_state)
 {
 	/* Set relink_time to 0 */
 	rtsx_pci_write_register(pcr, AUTOLOAD_CFG_BASE + 1, 0xFF, 0);
 	rtsx_pci_write_register(pcr, AUTOLOAD_CFG_BASE + 2, 0xFF, 0);
 	rtsx_pci_write_register(pcr, AUTOLOAD_CFG_BASE + 3, 0x01, 0);
+
+	if (pm_state == HOST_ENTER_S3)
+		rtsx_pci_write_register(pcr, PM_CTRL3, 0x10, 0x10);
 
 	rtsx_pci_write_register(pcr, FPDCTL, 0x03, 0x03);
 }
@@ -119,6 +122,7 @@ static int rts5249_extra_init_hw(struct rtsx_pcr *pcr)
 	else
 		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD,
 				AUTOLOAD_CFG_BASE + 3, 0xB0, 0x80);
+	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, PM_CTRL3, 0x10, 0x00);
 
 	return rtsx_pci_send_cmd(pcr, 100);
 }
