@@ -1426,7 +1426,7 @@ static int btrfs_add_device(struct btrfs_trans_handle *trans,
 
 	ptr = btrfs_device_uuid(dev_item);
 	write_extent_buffer(leaf, device->uuid, ptr, BTRFS_UUID_SIZE);
-	ptr = (unsigned long)btrfs_device_fsid(dev_item);
+	ptr = btrfs_device_fsid(dev_item);
 	write_extent_buffer(leaf, root->fs_info->fsid, ptr, BTRFS_UUID_SIZE);
 	btrfs_mark_buffer_dirty(leaf);
 
@@ -1926,8 +1926,7 @@ next_slot:
 		devid = btrfs_device_id(leaf, dev_item);
 		read_extent_buffer(leaf, dev_uuid, btrfs_device_uuid(dev_item),
 				   BTRFS_UUID_SIZE);
-		read_extent_buffer(leaf, fs_uuid,
-				   (unsigned long)btrfs_device_fsid(dev_item),
+		read_extent_buffer(leaf, fs_uuid, btrfs_device_fsid(dev_item),
 				   BTRFS_UUID_SIZE);
 		device = btrfs_find_device(root->fs_info, devid, dev_uuid,
 					   fs_uuid);
@@ -5824,8 +5823,7 @@ static int read_one_dev(struct btrfs_root *root,
 	devid = btrfs_device_id(leaf, dev_item);
 	read_extent_buffer(leaf, dev_uuid, btrfs_device_uuid(dev_item),
 			   BTRFS_UUID_SIZE);
-	read_extent_buffer(leaf, fs_uuid,
-			   (unsigned long)btrfs_device_fsid(dev_item),
+	read_extent_buffer(leaf, fs_uuid, btrfs_device_fsid(dev_item),
 			   BTRFS_UUID_SIZE);
 
 	if (memcmp(fs_uuid, root->fs_info->fsid, BTRFS_UUID_SIZE)) {

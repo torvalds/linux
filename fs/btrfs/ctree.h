@@ -2169,9 +2169,9 @@ static inline unsigned long btrfs_device_uuid(struct btrfs_dev_item *d)
 	return (unsigned long)d + offsetof(struct btrfs_dev_item, uuid);
 }
 
-static inline char *btrfs_device_fsid(struct btrfs_dev_item *d)
+static inline unsigned long btrfs_device_fsid(struct btrfs_dev_item *d)
 {
-	return (char *)d + offsetof(struct btrfs_dev_item, fsid);
+	return (unsigned long)d + offsetof(struct btrfs_dev_item, fsid);
 }
 
 BTRFS_SETGET_FUNCS(chunk_length, struct btrfs_chunk, length, 64);
