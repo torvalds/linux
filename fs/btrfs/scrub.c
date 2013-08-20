@@ -3170,9 +3170,9 @@ static void copy_nocow_pages_worker(struct btrfs_work *work)
 					  copy_nocow_pages_for_inode,
 					  nocow_ctx);
 	if (ret != 0 && ret != -ENOENT) {
-		pr_warn("iterate_inodes_from_logical() failed: log %llu, phys %llu, len %llu, mir %llu, ret %d\n",
-			logical, physical_for_dev_replace, len,
-			(unsigned long long)mirror_num, ret);
+		pr_warn("iterate_inodes_from_logical() failed: log %llu, phys %llu, len %llu, mir %u, ret %d\n",
+			logical, physical_for_dev_replace, len, mirror_num,
+			ret);
 		not_written = 1;
 		goto out;
 	}
