@@ -5019,6 +5019,8 @@ void wlc_phy_chanspec_set_lcnphy(struct brcms_phy *pi, u16 chanspec)
 		wlc_lcnphy_load_tx_iir_filter(pi, true, 3);
 
 	mod_phy_reg(pi, 0x4eb, (0x7 << 3), (1) << 3);
+	if (wlc_lcnphy_tssi_based_pwr_ctrl_enabled(pi))
+		wlc_lcnphy_tssi_setup(pi);
 }
 
 void wlc_phy_detach_lcnphy(struct brcms_phy *pi)
