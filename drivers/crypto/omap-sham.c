@@ -225,6 +225,7 @@ struct omap_sham_dev {
 	unsigned int		dma;
 	struct dma_chan		*dma_lch;
 	struct tasklet_struct	done_task;
+	u8			polling_mode;
 
 	unsigned long		flags;
 	struct crypto_queue	queue;
@@ -510,7 +511,7 @@ static int omap_sham_xmit_cpu(struct omap_sham_dev *dd, const u8 *buf,
 			      size_t length, int final)
 {
 	struct omap_sham_reqctx *ctx = ahash_request_ctx(dd->req);
-	int count, len32;
+	int count, len32, bs32, offset = 0;
 	const u32 *buffer = (const u32 *)buf;
 
 	dev_dbg(dd->dev, "xmit_cpu: digcnt: %d, length: %d, final: %d\n",
@@ -522,18 +523,23 @@ static int omap_sham_xmit_cpu(struct omap_sham_dev *dd, const u8 *buf,
 	/* should be non-zero before next lines to disable clocks later */
 	ctx->digcnt += length;
 
-	if (dd->pdata->poll_irq(dd))
-		return -ETIMEDOUT;
-
 	if (final)
 		set_bit(FLAGS_FINAL, &dd->flags); /* catch last interrupt */
 
 	set_bit(FLAGS_CPU, &dd->flags);
 
 	len32 = DIV_ROUND_UP(length, sizeof(u32));
+	bs32 = get_block_size(ctx) / sizeof(u32);
 
-	for (count = 0; count < len32; count++)
-		omap_sham_write(dd, SHA_REG_DIN(dd, count), buffer[count]);
+	while (len32) {
+		if (dd->pdata->poll_irq(dd))
+			return -ETIMEDOUT;
+
+		for (count = 0; count < min(len32, bs32); count++, offset++)
+			omap_sham_write(dd, SHA_REG_DIN(dd, count),
+					buffer[offset]);
+		len32 -= min(len32, bs32);
+	}
 
 	return -EINPROGRESS;
 }
@@ -774,13 +780,22 @@ static int omap_sham_update_dma_start(struct omap_sham_dev *dd)
 static int omap_sham_update_cpu(struct omap_sham_dev *dd)
 {
 	struct omap_sham_reqctx *ctx = ahash_request_ctx(dd->req);
-	int bufcnt;
+	int bufcnt, final;
+
+	if (!ctx->total)
+		return 0;
 
 	omap_sham_append_sg(ctx);
+
+	final = (ctx->flags & BIT(FLAGS_FINUP)) && !ctx->total;
+
+	dev_dbg(dd->dev, "cpu: bufcnt: %u, digcnt: %d, final: %d\n",
+		ctx->bufcnt, ctx->digcnt, final);
+
 	bufcnt = ctx->bufcnt;
 	ctx->bufcnt = 0;
 
-	return omap_sham_xmit_cpu(dd, ctx->buffer, bufcnt, 1);
+	return omap_sham_xmit_cpu(dd, ctx->buffer, bufcnt, final);
 }
 
 static int omap_sham_update_dma_stop(struct omap_sham_dev *dd)
@@ -903,8 +918,11 @@ static int omap_sham_final_req(struct omap_sham_dev *dd)
 	struct omap_sham_reqctx *ctx = ahash_request_ctx(req);
 	int err = 0, use_dma = 1;
 
-	if (ctx->bufcnt <= DMA_MIN)
-		/* faster to handle last block with cpu */
+	if ((ctx->bufcnt <= get_block_size(ctx)) || dd->polling_mode)
+		/*
+		 * faster to handle last block with cpu or
+		 * use cpu when dma is not present.
+		 */
 		use_dma = 0;
 
 	if (use_dma)
@@ -1056,6 +1074,7 @@ static int omap_sham_enqueue(struct ahash_request *req, unsigned int op)
 static int omap_sham_update(struct ahash_request *req)
 {
 	struct omap_sham_reqctx *ctx = ahash_request_ctx(req);
+	struct omap_sham_dev *dd = ctx->dd;
 	int bs = get_block_size(ctx);
 
 	if (!req->nbytes)
@@ -1074,10 +1093,12 @@ static int omap_sham_update(struct ahash_request *req)
 			*/
 			omap_sham_append_sg(ctx);
 			return 0;
-		} else if (ctx->bufcnt + ctx->total <= bs) {
+		} else if ((ctx->bufcnt + ctx->total <= bs) ||
+			   dd->polling_mode) {
 			/*
-			* faster to use CPU for short transfers
-			*/
+			 * faster to use CPU for short transfers or
+			 * use cpu when dma is not present.
+			 */
 			ctx->flags |= BIT(FLAGS_CPU);
 		}
 	} else if (ctx->bufcnt + ctx->total < ctx->buflen) {
@@ -1589,8 +1610,12 @@ static void omap_sham_done_task(unsigned long data)
 	}
 
 	if (test_bit(FLAGS_CPU, &dd->flags)) {
-		if (test_and_clear_bit(FLAGS_OUTPUT_READY, &dd->flags))
-			goto finish;
+		if (test_and_clear_bit(FLAGS_OUTPUT_READY, &dd->flags)) {
+			/* hash or semi-hash ready */
+			err = omap_sham_update_cpu(dd);
+			if (err != -EINPROGRESS)
+				goto finish;
+		}
 	} else if (test_bit(FLAGS_DMA_READY, &dd->flags)) {
 		if (test_and_clear_bit(FLAGS_DMA_ACTIVE, &dd->flags)) {
 			omap_sham_update_dma_stop(dd);
@@ -1910,10 +1935,8 @@ static int omap_sham_probe(struct platform_device *pdev)
 	dd->dma_lch = dma_request_slave_channel_compat(mask, omap_dma_filter_fn,
 						       &dd->dma, dev, "rx");
 	if (!dd->dma_lch) {
-		dev_err(dev, "unable to obtain RX DMA engine channel %u\n",
-			dd->dma);
-		err = -ENXIO;
-		goto data_err;
+		dd->polling_mode = 1;
+		dev_dbg(dev, "using polling mode instead of dma\n");
 	}
 
 	dd->flags |= dd->pdata->flags;
