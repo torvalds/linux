@@ -604,7 +604,7 @@ static void setup_modinfo_##field(struct module *mod, const char *s)  \
 static ssize_t show_modinfo_##field(struct module_attribute *mattr,   \
 			struct module_kobject *mk, char *buffer)      \
 {                                                                     \
-	return sprintf(buffer, "%s\n", mk->mod->field);               \
+	return scnprintf(buffer, PAGE_SIZE, "%s\n", mk->mod->field);  \
 }                                                                     \
 static int modinfo_##field##_exists(struct module *mod)               \
 {                                                                     \
