@@ -2164,9 +2164,9 @@ BTRFS_SETGET_STACK_FUNCS(stack_device_bandwidth, struct btrfs_dev_item,
 BTRFS_SETGET_STACK_FUNCS(stack_device_generation, struct btrfs_dev_item,
 			 generation, 64);
 
-static inline char *btrfs_device_uuid(struct btrfs_dev_item *d)
+static inline unsigned long btrfs_device_uuid(struct btrfs_dev_item *d)
 {
-	return (char *)d + offsetof(struct btrfs_dev_item, uuid);
+	return (unsigned long)d + offsetof(struct btrfs_dev_item, uuid);
 }
 
 static inline char *btrfs_device_fsid(struct btrfs_dev_item *d)

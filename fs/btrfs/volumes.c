@@ -1424,7 +1424,7 @@ static int btrfs_add_device(struct btrfs_trans_handle *trans,
 	btrfs_set_device_bandwidth(leaf, dev_item, 0);
 	btrfs_set_device_start_offset(leaf, dev_item, 0);
 
-	ptr = (unsigned long)btrfs_device_uuid(dev_item);
+	ptr = btrfs_device_uuid(dev_item);
 	write_extent_buffer(leaf, device->uuid, ptr, BTRFS_UUID_SIZE);
 	ptr = (unsigned long)btrfs_device_fsid(dev_item);
 	write_extent_buffer(leaf, root->fs_info->fsid, ptr, BTRFS_UUID_SIZE);
@@ -1924,8 +1924,7 @@ next_slot:
 		dev_item = btrfs_item_ptr(leaf, path->slots[0],
 					  struct btrfs_dev_item);
 		devid = btrfs_device_id(leaf, dev_item);
-		read_extent_buffer(leaf, dev_uuid,
-				   (unsigned long)btrfs_device_uuid(dev_item),
+		read_extent_buffer(leaf, dev_uuid, btrfs_device_uuid(dev_item),
 				   BTRFS_UUID_SIZE);
 		read_extent_buffer(leaf, fs_uuid,
 				   (unsigned long)btrfs_device_fsid(dev_item),
@@ -5760,7 +5759,7 @@ static void fill_device_from_item(struct extent_buffer *leaf,
 	WARN_ON(device->devid == BTRFS_DEV_REPLACE_DEVID);
 	device->is_tgtdev_for_dev_replace = 0;
 
-	ptr = (unsigned long)btrfs_device_uuid(dev_item);
+	ptr = btrfs_device_uuid(dev_item);
 	read_extent_buffer(leaf, device->uuid, ptr, BTRFS_UUID_SIZE);
 }
 
@@ -5823,8 +5822,7 @@ static int read_one_dev(struct btrfs_root *root,
 	u8 dev_uuid[BTRFS_UUID_SIZE];
 
 	devid = btrfs_device_id(leaf, dev_item);
-	read_extent_buffer(leaf, dev_uuid,
-			   (unsigned long)btrfs_device_uuid(dev_item),
+	read_extent_buffer(leaf, dev_uuid, btrfs_device_uuid(dev_item),
 			   BTRFS_UUID_SIZE);
 	read_extent_buffer(leaf, fs_uuid,
 			   (unsigned long)btrfs_device_fsid(dev_item),
