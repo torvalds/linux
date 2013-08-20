@@ -40,3 +40,16 @@ config OPENVSWITCH_GRE
 	  Say N to exclude this support and reduce the binary size.
 
 	  If unsure, say Y.
+
+config OPENVSWITCH_VXLAN
+	bool "Open vSwitch VXLAN tunneling support"
+	depends on INET
+	depends on OPENVSWITCH
+	depends on VXLAN && !(OPENVSWITCH=y && VXLAN=m)
+	default y
+	---help---
+	  If you say Y here, then the Open vSwitch will be able create vxlan vport.
+
+	  Say N to exclude this support and reduce the binary size.
+
+	  If unsure, say Y.
