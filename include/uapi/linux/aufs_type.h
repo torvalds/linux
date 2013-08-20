@@ -228,13 +228,32 @@ struct aufs_ibusy {
 
 /* ---------------------------------------------------------------------- */
 
+/* error code for move-down */
+/* the actual message strings are implemented in aufs-util.git */
+enum {
+	EAU_MVDOWN_OPAQUE = 1,
+	EAU_MVDOWN_WHITEOUT,
+	EAU_MVDOWN_UPPER,
+	EAU_MVDOWN_BOTTOM,
+	EAU_Last
+};
+
 /* flags for move-down */
-#define AUFS_MVDOWN_VERBOSE	1
+#define AUFS_MVDOWN_DMSG	1
+#define AUFS_MVDOWN_OWLOWER	(1 << 1)	/* overwrite lower */
+#define AUFS_MVDOWN_KUPPER	(1 << 2)	/* keep upper */
 /* will be added more */
 
 struct aufs_mvdown {
+	/* input */
 	uint8_t		flags;
 	/* will be added more */
+
+	/* output */
+	struct {
+		int16_t	bsrc, bdst;
+		int8_t	au_errno;
+	} output;
 } __aligned(8);
 
 /* ---------------------------------------------------------------------- */
@@ -245,7 +264,7 @@ struct aufs_mvdown {
 #define AUFS_CTL_WBR_FD		_IOW(AuCtlType, AuCtl_WBR_FD, \
 				     struct aufs_wbr_fd)
 #define AUFS_CTL_IBUSY		_IOWR(AuCtlType, AuCtl_IBUSY, struct aufs_ibusy)
-#define AUFS_CTL_MVDOWN		_IOR(AuCtlType, AuCtl_MVDOWN, \
-				     struct aufs_mvdown)
+#define AUFS_CTL_MVDOWN		_IOWR(AuCtlType, AuCtl_MVDOWN, \
+				      struct aufs_mvdown)
 
 #endif /* __AUFS_TYPE_H__ */
