@@ -1013,6 +1013,10 @@ static int __qbuf_userptr(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 
 		/* Check if the provided plane buffer is large enough */
 		if (planes[plane].length < q->plane_sizes[plane]) {
+			dprintk(1, "qbuf: provided buffer size %u is less than "
+						"setup size %u for plane %d\n",
+						planes[plane].length,
+						q->plane_sizes[plane], plane);
 			ret = -EINVAL;
 			goto err;
 		}
