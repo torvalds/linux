@@ -943,7 +943,7 @@ static void dgnc_mbuf(struct board_t *brd, const char *fmt, ...) {
 
 	memcpy(brd->msgbuf, buf, strlen(buf));
 	brd->msgbuf += strlen(buf);
-	*brd->msgbuf = (char) NULL;
+	*brd->msgbuf = '\0';
 
 	DGNC_UNLOCK(dgnc_global_lock, flags);
 }
