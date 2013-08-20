@@ -1197,7 +1197,7 @@ static int menelaus_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	menelaus = kzalloc(sizeof *menelaus, GFP_KERNEL);
+	menelaus = devm_kzalloc(&client->dev, sizeof(*menelaus), GFP_KERNEL);
 	if (!menelaus)
 		return -ENOMEM;
 
@@ -1210,8 +1210,7 @@ static int menelaus_probe(struct i2c_client *client,
 	rev = menelaus_read_reg(MENELAUS_REV);
 	if (rev < 0) {
 		pr_err(DRIVER_NAME ": device not found");
-		err = -ENODEV;
-		goto fail1;
+		return -ENODEV;
 	}
 
 	/* Ack and disable all Menelaus interrupts */
@@ -1231,7 +1230,7 @@ static int menelaus_probe(struct i2c_client *client,
 		if (err) {
 			dev_dbg(&client->dev,  "can't get IRQ %d, err %d\n",
 					client->irq, err);
-			goto fail1;
+			return err;
 		}
 	}
 
@@ -1242,7 +1241,7 @@ static int menelaus_probe(struct i2c_client *client,
 
 	val = menelaus_read_reg(MENELAUS_VCORE_CTRL1);
 	if (val < 0)
-		goto fail2;
+		goto fail;
 	if (val & (1 << 7))
 		menelaus->vcore_hw_mode = 1;
 	else
@@ -1251,17 +1250,15 @@ static int menelaus_probe(struct i2c_client *client,
 	if (menelaus_pdata != NULL && menelaus_pdata->late_init != NULL) {
 		err = menelaus_pdata->late_init(&client->dev);
 		if (err < 0)
-			goto fail2;
+			goto fail;
 	}
 
 	menelaus_rtc_init(menelaus);
 
 	return 0;
-fail2:
+fail:
 	free_irq(client->irq, menelaus);
 	flush_work(&menelaus->work);
-fail1:
-	kfree(menelaus);
 	return err;
 }
 
@@ -1271,7 +1268,6 @@ static int __exit menelaus_remove(struct i2c_client *client)
 
 	free_irq(client->irq, menelaus);
 	flush_work(&menelaus->work);
-	kfree(menelaus);
 	the_menelaus = NULL;
 	return 0;
 }
