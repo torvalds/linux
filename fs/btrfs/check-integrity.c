@@ -2959,11 +2959,9 @@ int btrfsic_submit_bh(int rw, struct buffer_head *bh)
 		    BTRFSIC_PRINT_MASK_SUBMIT_BIO_BH)
 			printk(KERN_INFO
 			       "submit_bh(rw=0x%x, blocknr=%llu (bytenr %llu),"
-			       " size=%lu, data=%p, bdev=%p)\n",
+			       " size=%zu, data=%p, bdev=%p)\n",
 			       rw, (unsigned long long)bh->b_blocknr,
-			       dev_bytenr,
-			       (unsigned long)bh->b_size, bh->b_data,
-			       bh->b_bdev);
+			       dev_bytenr, bh->b_size, bh->b_data, bh->b_bdev);
 		btrfsic_process_written_block(dev_state, dev_bytenr,
 					      &bh->b_data, 1, NULL,
 					      NULL, bh, rw);
