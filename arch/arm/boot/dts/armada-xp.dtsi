@@ -70,6 +70,8 @@
 
 			timer@20300 {
 				compatible = "marvell,armada-xp-timer";
+				clocks = <&coreclk 2>, <&refclk>;
+				clock-names = "nbclk", "fixed";
 			};
 
 			coreclk: mvebu-sar@18230 {
