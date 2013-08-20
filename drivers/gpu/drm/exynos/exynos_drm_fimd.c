@@ -91,6 +91,7 @@ struct fimd_win_data {
 	unsigned int		fb_width;
 	unsigned int		fb_height;
 	unsigned int		bpp;
+	unsigned int		pixel_format;
 	dma_addr_t		dma_addr;
 	unsigned int		buf_offsize;
 	unsigned int		line_size;	/* bytes */
@@ -397,6 +398,7 @@ static void fimd_win_mode_set(struct device *dev,
 	win_data->fb_height = overlay->fb_height;
 	win_data->dma_addr = overlay->dma_addr[0] + offset;
 	win_data->bpp = overlay->bpp;
+	win_data->pixel_format = overlay->pixel_format;
 	win_data->buf_offsize = (overlay->fb_width - overlay->crtc_width) *
 				(overlay->bpp >> 3);
 	win_data->line_size = overlay->crtc_width * (overlay->bpp >> 3);
@@ -418,39 +420,29 @@ static void fimd_win_set_pixfmt(struct device *dev, unsigned int win)
 
 	val = WINCONx_ENWIN;
 
-	switch (win_data->bpp) {
-	case 1:
-		val |= WINCON0_BPPMODE_1BPP;
-		val |= WINCONx_BITSWP;
-		val |= WINCONx_BURSTLEN_4WORD;
-		break;
-	case 2:
-		val |= WINCON0_BPPMODE_2BPP;
-		val |= WINCONx_BITSWP;
-		val |= WINCONx_BURSTLEN_8WORD;
-		break;
-	case 4:
-		val |= WINCON0_BPPMODE_4BPP;
-		val |= WINCONx_BITSWP;
-		val |= WINCONx_BURSTLEN_8WORD;
-		break;
-	case 8:
+	switch (win_data->pixel_format) {
+	case DRM_FORMAT_C8:
 		val |= WINCON0_BPPMODE_8BPP_PALETTE;
 		val |= WINCONx_BURSTLEN_8WORD;
 		val |= WINCONx_BYTSWP;
 		break;
-	case 16:
+	case DRM_FORMAT_XRGB1555:
+		val |= WINCON0_BPPMODE_16BPP_1555;
+		val |= WINCONx_HAWSWP;
+		val |= WINCONx_BURSTLEN_16WORD;
+		break;
+	case DRM_FORMAT_RGB565:
 		val |= WINCON0_BPPMODE_16BPP_565;
 		val |= WINCONx_HAWSWP;
 		val |= WINCONx_BURSTLEN_16WORD;
 		break;
-	case 24:
+	case DRM_FORMAT_XRGB8888:
 		val |= WINCON0_BPPMODE_24BPP_888;
 		val |= WINCONx_WSWP;
 		val |= WINCONx_BURSTLEN_16WORD;
 		break;
-	case 32:
-		val |= WINCON1_BPPMODE_28BPP_A4888
+	case DRM_FORMAT_ARGB8888:
+		val |= WINCON1_BPPMODE_25BPP_A1888
 			| WINCON1_BLD_PIX | WINCON1_ALPHA_SEL;
 		val |= WINCONx_WSWP;
 		val |= WINCONx_BURSTLEN_16WORD;
