@@ -66,11 +66,13 @@ struct fimd_driver_data {
 
 	unsigned int has_shadowcon:1;
 	unsigned int has_clksel:1;
+	unsigned int has_limited_fmt:1;
 };
 
 static struct fimd_driver_data s3c64xx_fimd_driver_data = {
 	.timing_base = 0x0,
 	.has_clksel = 1,
+	.has_limited_fmt = 1,
 };
 
 static struct fimd_driver_data exynos4_fimd_driver_data = {
@@ -419,6 +421,15 @@ static void fimd_win_set_pixfmt(struct device *dev, unsigned int win)
 	unsigned long val;
 
 	val = WINCONx_ENWIN;
+
+	/*
+	 * In case of s3c64xx, window 0 doesn't support alpha channel.
+	 * So the request format is ARGB8888 then change it to XRGB8888.
+	 */
+	if (ctx->driver_data->has_limited_fmt && !win) {
+		if (win_data->pixel_format == DRM_FORMAT_ARGB8888)
+			win_data->pixel_format = DRM_FORMAT_XRGB8888;
+	}
 
 	switch (win_data->pixel_format) {
 	case DRM_FORMAT_C8:
