@@ -1648,6 +1648,10 @@ int pcibios_set_pcie_reset_state(struct pci_dev *dev,
 int pcibios_add_device(struct pci_dev *dev);
 void pcibios_release_device(struct pci_dev *dev);
 
+#ifdef CONFIG_HIBERNATE_CALLBACKS
+extern struct dev_pm_ops pcibios_pm_ops;
+#endif
+
 #ifdef CONFIG_PCI_MMCONFIG
 void __init pci_mmcfg_early_init(void);
 void __init pci_mmcfg_late_init(void);
