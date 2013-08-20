@@ -160,7 +160,6 @@ static int pm8921_probe(struct platform_device *pdev)
 
 err:
 	mfd_remove_devices(pmic->dev);
-	platform_set_drvdata(pdev, NULL);
 err_read_rev:
 	kfree(pmic);
 	return rc;
@@ -180,7 +179,6 @@ static int pm8921_remove(struct platform_device *pdev)
 		pm8xxx_irq_exit(pmic->irq_chip);
 		pmic->irq_chip = NULL;
 	}
-	platform_set_drvdata(pdev, NULL);
 	kfree(pmic);
 
 	return 0;
