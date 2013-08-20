@@ -140,7 +140,23 @@ struct goodix_platform_data goodix_info = {
 };
 #endif
 
+#ifdef CONFIG_SND_RK29_SOC_AK4396
+static struct rk29xx_spi_chip spi_ak4399_chip = {
+		.enable_dma = 1,
+};
+#endif
+
 static struct spi_board_info board_spi_devices[] = {
+#ifdef CONFIG_SND_RK29_SOC_AK4396
+    {
+        .modalias = "AK4396",
+        .mode = SPI_MODE_0,
+        .max_speed_hz = 3*1000*1000,
+        .bus_num = 1,
+        .chip_select = 0,
+        //.controller_data = &spi_ak4399_chip,
+    },
+#endif
 };
 
 /***********************************************************
