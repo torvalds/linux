@@ -192,6 +192,7 @@
 
 			usb@47401800 {
 				status = "okay";
+				dr_mode = "host";
 			};
 
 			dma-controller@07402000  {
