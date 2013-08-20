@@ -324,6 +324,8 @@ static ssize_t kone_sysfs_write_settings(struct file *fp, struct kobject *kobj,
 
 	return sizeof(struct kone_settings);
 }
+static BIN_ATTR(settings, 0660, kone_sysfs_read_settings,
+		kone_sysfs_write_settings, sizeof(struct kone_settings));
 
 static ssize_t kone_sysfs_read_profilex(struct file *fp,
 		struct kobject *kobj, struct bin_attribute *attr,
@@ -378,6 +380,19 @@ static ssize_t kone_sysfs_write_profilex(struct file *fp,
 
 	return sizeof(struct kone_profile);
 }
+#define PROFILE_ATTR(number)					\
+static struct bin_attribute bin_attr_profile##number = {	\
+	.attr = { .name = "profile##number", .mode = 0660 },	\
+	.size = sizeof(struct kone_profile),			\
+	.read = kone_sysfs_read_profilex,			\
+	.write = kone_sysfs_write_profilex,			\
+	.private = &profile_numbers[number],			\
+};
+PROFILE_ATTR(1);
+PROFILE_ATTR(2);
+PROFILE_ATTR(3);
+PROFILE_ATTR(4);
+PROFILE_ATTR(5);
 
 static ssize_t kone_sysfs_show_actual_profile(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -616,51 +631,25 @@ static struct attribute *kone_attrs[] = {
 	&dev_attr_startup_profile.attr,
 	NULL,
 };
-ATTRIBUTE_GROUPS(kone);
 
-static struct bin_attribute kone_bin_attributes[] = {
-	{
-		.attr = { .name = "settings", .mode = 0660 },
-		.size = sizeof(struct kone_settings),
-		.read = kone_sysfs_read_settings,
-		.write = kone_sysfs_write_settings
-	},
-	{
-		.attr = { .name = "profile1", .mode = 0660 },
-		.size = sizeof(struct kone_profile),
-		.read = kone_sysfs_read_profilex,
-		.write = kone_sysfs_write_profilex,
-		.private = &profile_numbers[0]
-	},
-	{
-		.attr = { .name = "profile2", .mode = 0660 },
-		.size = sizeof(struct kone_profile),
-		.read = kone_sysfs_read_profilex,
-		.write = kone_sysfs_write_profilex,
-		.private = &profile_numbers[1]
-	},
-	{
-		.attr = { .name = "profile3", .mode = 0660 },
-		.size = sizeof(struct kone_profile),
-		.read = kone_sysfs_read_profilex,
-		.write = kone_sysfs_write_profilex,
-		.private = &profile_numbers[2]
-	},
-	{
-		.attr = { .name = "profile4", .mode = 0660 },
-		.size = sizeof(struct kone_profile),
-		.read = kone_sysfs_read_profilex,
-		.write = kone_sysfs_write_profilex,
-		.private = &profile_numbers[3]
-	},
-	{
-		.attr = { .name = "profile5", .mode = 0660 },
-		.size = sizeof(struct kone_profile),
-		.read = kone_sysfs_read_profilex,
-		.write = kone_sysfs_write_profilex,
-		.private = &profile_numbers[4]
-	},
-	__ATTR_NULL
+static struct bin_attribute *kone_bin_attributes[] = {
+	&bin_attr_settings,
+	&bin_attr_profile1,
+	&bin_attr_profile2,
+	&bin_attr_profile3,
+	&bin_attr_profile4,
+	&bin_attr_profile5,
+	NULL,
+};
+
+static const struct attribute_group kone_group = {
+	.attrs = kone_attrs,
+	.bin_attrs = kone_bin_attributes,
+};
+
+static const struct attribute_group *kone_groups[] = {
+	&kone_group,
+	NULL,
 };
 
 static int kone_init_kone_device_struct(struct usb_device *usb_dev,
@@ -898,7 +887,6 @@ static int __init kone_init(void)
 	if (IS_ERR(kone_class))
 		return PTR_ERR(kone_class);
 	kone_class->dev_groups = kone_groups;
-	kone_class->dev_bin_attrs = kone_bin_attributes;
 
 	retval = hid_register_driver(&kone_driver);
 	if (retval)
