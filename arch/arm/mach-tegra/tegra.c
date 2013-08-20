@@ -35,17 +35,78 @@
 #include <linux/usb/tegra_usb_phy.h>
 #include <linux/clk-provider.h>
 #include <linux/clk/tegra.h>
+#include <linux/irqchip.h>
 
+#include <asm/hardware/cache-l2x0.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/setup.h>
 
+#include "apbio.h"
 #include "board.h"
 #include "common.h"
+#include "cpuidle.h"
 #include "fuse.h"
 #include "iomap.h"
+#include "irq.h"
 #include "pmc.h"
+#include "pm.h"
+#include "reset.h"
+#include "sleep.h"
+
+/*
+ * Storage for debug-macro.S's state.
+ *
+ * This must be in .data not .bss so that it gets initialized each time the
+ * kernel is loaded. The data is declared here rather than debug-macro.S so
+ * that multiple inclusions of debug-macro.S point at the same data.
+ */
+u32 tegra_uart_config[4] = {
+	/* Debug UART initialization required */
+	1,
+	/* Debug UART physical address */
+	0,
+	/* Debug UART virtual address */
+	0,
+	/* Scratch space for debug macro */
+	0,
+};
+
+static void __init tegra_init_cache(void)
+{
+#ifdef CONFIG_CACHE_L2X0
+	int ret;
+	void __iomem *p = IO_ADDRESS(TEGRA_ARM_PERIF_BASE) + 0x3000;
+	u32 aux_ctrl, cache_type;
+
+	cache_type = readl(p + L2X0_CACHE_TYPE);
+	aux_ctrl = (cache_type & 0x700) << (17-8);
+	aux_ctrl |= 0x7C400001;
+
+	ret = l2x0_of_init(aux_ctrl, 0x8200c3fe);
+	if (!ret)
+		l2x0_saved_regs_addr = virt_to_phys(&l2x0_saved_regs);
+#endif
+}
+
+static void __init tegra_init_early(void)
+{
+	tegra_cpu_reset_handler_init();
+	tegra_apb_io_init();
+	tegra_init_fuse();
+	tegra_init_cache();
+	tegra_powergate_init();
+	tegra_hotplug_init();
+}
+
+static void __init tegra_dt_init_irq(void)
+{
+	tegra_pmc_init_irq();
+	tegra_init_irq();
+	irqchip_init();
+	tegra_legacy_irq_syscore_init();
+}
 
 static void __init tegra_dt_init(void)
 {
@@ -107,7 +168,9 @@ static void __init tegra_dt_init_late(void)
 {
 	int i;
 
-	tegra_init_late();
+	tegra_init_suspend();
+	tegra_cpuidle_init();
+	tegra_powergate_debugfs_init();
 
 	for (i = 0; i < ARRAY_SIZE(board_init_funcs); i++) {
 		if (of_machine_is_compatible(board_init_funcs[i].machine)) {
@@ -132,6 +195,6 @@ DT_MACHINE_START(TEGRA_DT, "NVIDIA Tegra SoC (Flattened Device Tree)")
 	.init_time	= tegra_dt_init_time,
 	.init_machine	= tegra_dt_init,
 	.init_late	= tegra_dt_init_late,
-	.restart	= tegra_assert_system_reset,
+	.restart	= tegra_pmc_restart,
 	.dt_compat	= tegra_dt_board_compat,
 MACHINE_END

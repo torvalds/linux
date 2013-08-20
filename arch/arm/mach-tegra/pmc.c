@@ -166,6 +166,15 @@ int tegra_pmc_cpu_remove_clamping(int cpuid)
 	return tegra_pmc_powergate_remove_clamping(id);
 }
 
+void tegra_pmc_restart(enum reboot_mode mode, const char *cmd)
+{
+	u32 val;
+
+	val = tegra_pmc_readl(0);
+	val |= 0x10;
+	tegra_pmc_writel(val, 0);
+}
+
 #ifdef CONFIG_PM_SLEEP
 static void set_power_timers(u32 us_on, u32 us_off, unsigned long rate)
 {
