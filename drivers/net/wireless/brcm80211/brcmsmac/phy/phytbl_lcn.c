@@ -2044,6 +2044,73 @@ static const u16 dot11lcn_sw_ctrl_tbl_4313_rev0[] = {
 	0x0005,
 };
 
+static const u16 dot11lcn_sw_ctrl_tbl_4313_ipa_rev0_combo[] = {
+	0x0005,
+	0x0006,
+	0x0009,
+	0x000a,
+	0x0005,
+	0x0006,
+	0x0009,
+	0x000a,
+	0x0005,
+	0x0006,
+	0x0009,
+	0x000a,
+	0x0005,
+	0x0006,
+	0x0009,
+	0x000a,
+	0x0005,
+	0x0006,
+	0x0009,
+	0x000a,
+	0x0005,
+	0x0006,
+	0x0009,
+	0x000a,
+	0x0005,
+	0x0006,
+	0x0009,
+	0x000a,
+	0x0005,
+	0x0006,
+	0x0009,
+	0x000a,
+	0x0005,
+	0x0006,
+	0x0009,
+	0x000a,
+	0x0005,
+	0x0006,
+	0x0009,
+	0x000a,
+	0x0005,
+	0x0006,
+	0x0009,
+	0x000a,
+	0x0005,
+	0x0006,
+	0x0009,
+	0x000a,
+	0x0005,
+	0x0006,
+	0x0009,
+	0x000a,
+	0x0005,
+	0x0006,
+	0x0009,
+	0x000a,
+	0x0005,
+	0x0006,
+	0x0009,
+	0x000a,
+	0x0005,
+	0x0006,
+	0x0009,
+	0x000a,
+};
+
 static const u16 dot11lcn_sw_ctrl_tbl_rev0[] = {
 	0x0004,
 	0x0004,
@@ -2806,6 +2873,11 @@ const struct phytbl_info dot11lcnphytbl_info_rev0[] = {
 const struct phytbl_info dot11lcn_sw_ctrl_tbl_info_4313 = {
 	&dot11lcn_sw_ctrl_tbl_4313_rev0,
 	ARRAY_SIZE(dot11lcn_sw_ctrl_tbl_4313_rev0), 15, 0, 16
+};
+
+const struct phytbl_info dot11lcn_sw_ctrl_tbl_info_4313_bt_ipa = {
+	&dot11lcn_sw_ctrl_tbl_4313_ipa_rev0_combo,
+	ARRAY_SIZE(dot11lcn_sw_ctrl_tbl_4313_ipa_rev0_combo), 15, 0, 16
 };
 
 const struct phytbl_info dot11lcn_sw_ctrl_tbl_info_4313_epa = {

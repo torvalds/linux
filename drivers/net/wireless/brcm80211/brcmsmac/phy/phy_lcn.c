@@ -4573,6 +4573,7 @@ static void wlc_lcnphy_tbl_init(struct brcms_phy *pi)
 	uint idx;
 	u8 phybw40;
 	struct phytbl_info tab;
+	const struct phytbl_info *tb;
 	u32 val;
 
 	phybw40 = CHSPEC_IS40(pi->radio_chanspec);
@@ -4619,7 +4620,6 @@ static void wlc_lcnphy_tbl_init(struct brcms_phy *pi)
 	}
 
 	if (LCNREV_IS(pi->pubpi.phy_rev, 2)) {
-		const struct phytbl_info *tb;
 		int l;
 
 		if (CHSPEC_IS2G(pi->radio_chanspec)) {
@@ -4640,21 +4640,22 @@ static void wlc_lcnphy_tbl_init(struct brcms_phy *pi)
 			wlc_lcnphy_write_table(pi, &tb[idx]);
 	}
 
-	if ((pi->sh->boardflags & BFL_FEM)
-	    && !(pi->sh->boardflags & BFL_FEM_BT))
-		wlc_lcnphy_write_table(pi, &dot11lcn_sw_ctrl_tbl_info_4313_epa);
-	else if (pi->sh->boardflags & BFL_FEM_BT) {
-		if (pi->sh->boardrev < 0x1250)
-			wlc_lcnphy_write_table(
-				pi,
-				&dot11lcn_sw_ctrl_tbl_info_4313_bt_epa);
+	if (pi->sh->boardflags & BFL_FEM) {
+		if (pi->sh->boardflags & BFL_FEM_BT) {
+			if (pi->sh->boardrev < 0x1250)
+				tb = &dot11lcn_sw_ctrl_tbl_info_4313_bt_epa;
+			else
+				tb = &dot11lcn_sw_ctrl_tbl_info_4313_bt_epa_p250;
+		} else {
+			tb = &dot11lcn_sw_ctrl_tbl_info_4313_epa;
+		}
+	} else {
+		if (pi->sh->boardflags & BFL_FEM_BT)
+			tb = &dot11lcn_sw_ctrl_tbl_info_4313_bt_ipa;
 		else
-			wlc_lcnphy_write_table(
-				pi,
-				&dot11lcn_sw_ctrl_tbl_info_4313_bt_epa_p250);
-	} else
-		wlc_lcnphy_write_table(pi, &dot11lcn_sw_ctrl_tbl_info_4313);
-
+			tb = &dot11lcn_sw_ctrl_tbl_info_4313;
+	}
+	wlc_lcnphy_write_table(pi, tb);
 	wlc_lcnphy_load_rfpower(pi);
 
 	wlc_lcnphy_clear_papd_comptable(pi);
