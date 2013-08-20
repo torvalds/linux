@@ -11,6 +11,7 @@
 
 #include <libaudit.h>
 #include <stdlib.h>
+#include <sys/mman.h>
 
 static size_t syscall_arg__scnprintf_hex(char *bf, size_t size, unsigned long arg)
 {
@@ -18,6 +19,36 @@ static size_t syscall_arg__scnprintf_hex(char *bf, size_t size, unsigned long ar
 }
 
 #define SCA_HEX syscall_arg__scnprintf_hex
+
+static size_t syscall_arg__scnprintf_mmap_prot(char *bf, size_t size, unsigned long arg)
+{
+	int printed = 0, prot = arg;
+
+	if (prot == PROT_NONE)
+		return scnprintf(bf, size, "NONE");
+#define	P_MMAP_PROT(n) \
+	if (prot & PROT_##n) { \
+		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", #n); \
+		prot &= ~PROT_##n; \
+	}
+
+	P_MMAP_PROT(EXEC);
+	P_MMAP_PROT(READ);
+	P_MMAP_PROT(WRITE);
+#ifdef PROT_SEM
+	P_MMAP_PROT(SEM);
+#endif
+	P_MMAP_PROT(GROWSDOWN);
+	P_MMAP_PROT(GROWSUP);
+#undef P_MMAP_PROT
+
+	if (prot)
+		printed += scnprintf(bf + printed, size - printed, "%s%#x", printed ? "|" : "", prot);
+
+	return printed;
+}
+
+#define SCA_MMAP_PROT syscall_arg__scnprintf_mmap_prot
 
 static struct syscall_fmt {
 	const char *name;
@@ -40,10 +71,14 @@ static struct syscall_fmt {
 	  .arg_scnprintf = { [2] = SCA_HEX, /* arg */ }, },
 	{ .name	    = "lstat",	    .errmsg = true, .alias = "newlstat", },
 	{ .name	    = "mmap",	    .hexret = true,
-	  .arg_scnprintf = { [0] = SCA_HEX, /* addr */ }, },
+	  .arg_scnprintf = { [0] = SCA_HEX,	  /* addr */
+			     [2] = SCA_MMAP_PROT, /* prot */ }, },
 	{ .name	    = "mprotect",   .errmsg = true,
-	  .arg_scnprintf = { [0] = SCA_HEX, /* addr */ }, },
-	{ .name	    = "mremap",	    .hexret = true, },
+	  .arg_scnprintf = { [0] = SCA_HEX, /* start */
+			     [2] = SCA_MMAP_PROT, /* prot */ }, },
+	{ .name	    = "mremap",	    .hexret = true,
+	  .arg_scnprintf = { [0] = SCA_HEX, /* addr */
+			     [4] = SCA_HEX, /* new_addr */ }, },
 	{ .name	    = "munmap",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_HEX, /* addr */ }, },
 	{ .name	    = "open",	    .errmsg = true, },
