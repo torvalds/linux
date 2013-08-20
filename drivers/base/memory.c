@@ -616,14 +616,14 @@ static int add_memory_section(int nid, struct mem_section *section,
 			if (scn_nr >= (*mem_p)->start_section_nr &&
 			    scn_nr <= (*mem_p)->end_section_nr) {
 				mem = *mem_p;
-				kobject_get(&mem->dev.kobj);
+				get_device(&mem->dev);
 			}
 	} else
 		mem = find_memory_block(section);
 
 	if (mem) {
 		mem->section_count++;
-		kobject_put(&mem->dev.kobj);
+		put_device(&mem->dev);
 	} else {
 		ret = init_memory_block(&mem, section, state);
 		/* store memory_block pointer for next loop */
@@ -663,7 +663,7 @@ unregister_memory(struct memory_block *memory)
 	BUG_ON(memory->dev.bus != &memory_subsys);
 
 	/* drop the ref. we got in remove_memory_block() */
-	kobject_put(&memory->dev.kobj);
+	put_device(&memory->dev);
 	device_unregister(&memory->dev);
 }
 
@@ -680,7 +680,7 @@ static int remove_memory_block(unsigned long node_id,
 	if (mem->section_count == 0)
 		unregister_memory(mem);
 	else
-		kobject_put(&mem->dev.kobj);
+		put_device(&mem->dev);
 
 	mutex_unlock(&mem_sysfs_mutex);
 	return 0;
