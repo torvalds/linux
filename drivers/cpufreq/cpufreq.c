@@ -1719,8 +1719,6 @@ static int __cpufreq_governor(struct cpufreq_policy *policy,
 	if ((!policy->governor_enabled && (event == CPUFREQ_GOV_STOP)) ||
 	    (policy->governor_enabled && (event == CPUFREQ_GOV_START))) {
 		mutex_unlock(&cpufreq_governor_lock);
-		if (event == CPUFREQ_GOV_POLICY_INIT)
-			module_put(policy->governor->owner);
 		return -EBUSY;
 	}
 
