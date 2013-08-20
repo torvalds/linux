@@ -144,7 +144,7 @@ static int query_import_device(int sockfd, char *busid)
 		return -1;
 	}
 
-	/* recieve a reply */
+	/* receive a reply */
 	rc = usbip_net_recv_op_common(sockfd, &code);
 	if (rc < 0) {
 		err("recv op_common");
