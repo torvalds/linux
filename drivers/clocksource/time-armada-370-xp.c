@@ -294,8 +294,11 @@ static void __init armada_370_xp_timer_common_init(struct device_node *np)
 
 static void __init armada_xp_timer_init(struct device_node *np)
 {
-	/* The fixed 25MHz timer is required, timer25Mhz is true by default */
-	timer_clk = 25000000;
+	struct clk *clk = of_clk_get_by_name(np, "fixed");
+
+	/* The 25Mhz fixed clock is mandatory, and must always be available */
+	BUG_ON(IS_ERR(clk));
+	timer_clk = clk_get_rate(clk);
 
 	armada_370_xp_timer_common_init(np);
 }
