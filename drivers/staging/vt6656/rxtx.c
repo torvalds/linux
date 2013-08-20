@@ -52,7 +52,6 @@
 #include "card.h"
 #include "bssdb.h"
 #include "mac.h"
-#include "baseband.h"
 #include "michael.h"
 #include "tkip.h"
 #include "tcrc.h"
@@ -503,12 +502,10 @@ static u32 s_uFillDataHead(struct vnt_private *pDevice,
 		struct vnt_tx_datahead_g *pBuf =
 				(struct vnt_tx_datahead_g *)pTxDataHead;
                 //Get SignalField,ServiceField,Length
-                BBvCalculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
-                    (u16 *)&(pBuf->wTransmitLength_a), (u8 *)&(pBuf->byServiceField_a), (u8 *)&(pBuf->bySignalField_a)
-                );
-                BBvCalculateParameter(pDevice, cbFrameLength, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
-                    (u16 *)&(pBuf->wTransmitLength_b), (u8 *)&(pBuf->byServiceField_b), (u8 *)&(pBuf->bySignalField_b)
-                );
+		BBvCalculateParameter(pDevice, cbFrameLength, wCurrentRate,
+			byPktType, &pBuf->a);
+		BBvCalculateParameter(pDevice, cbFrameLength,
+			pDevice->byTopCCKBasicRate, PK_TYPE_11B, &pBuf->b);
                 //Get Duration and TimeStamp
 		pBuf->wDuration_a = (u16)s_uGetDataDuration(pDevice, DATADUR_A,
 							byPktType, bNeedAck);
@@ -523,12 +520,10 @@ static u32 s_uFillDataHead(struct vnt_private *pDevice,
 		struct vnt_tx_datahead_g_fb *pBuf =
 			(struct vnt_tx_datahead_g_fb *)pTxDataHead;
                 //Get SignalField,ServiceField,Length
-                BBvCalculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
-                    (u16 *)&(pBuf->wTransmitLength_a), (u8 *)&(pBuf->byServiceField_a), (u8 *)&(pBuf->bySignalField_a)
-                );
-                BBvCalculateParameter(pDevice, cbFrameLength, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
-                    (u16 *)&(pBuf->wTransmitLength_b), (u8 *)&(pBuf->byServiceField_b), (u8 *)&(pBuf->bySignalField_b)
-                );
+		BBvCalculateParameter(pDevice, cbFrameLength, wCurrentRate,
+			byPktType, &pBuf->a);
+		BBvCalculateParameter(pDevice, cbFrameLength,
+			pDevice->byTopCCKBasicRate, PK_TYPE_11B, &pBuf->b);
                 //Get Duration and TimeStamp
 		pBuf->wDuration_a = (u16)s_uGetDataDuration(pDevice, DATADUR_A,
 							byPktType, bNeedAck);
@@ -548,9 +543,8 @@ static u32 s_uFillDataHead(struct vnt_private *pDevice,
 		struct vnt_tx_datahead_a_fb *pBuf =
 			(struct vnt_tx_datahead_a_fb *)pTxDataHead;
             //Get SignalField,ServiceField,Length
-            BBvCalculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
-                (u16 *)&(pBuf->wTransmitLength), (u8 *)&(pBuf->byServiceField), (u8 *)&(pBuf->bySignalField)
-            );
+		BBvCalculateParameter(pDevice, cbFrameLength, wCurrentRate,
+			byPktType, &pBuf->a);
             //Get Duration and TimeStampOff
 		pBuf->wDuration = (u16)s_uGetDataDuration(pDevice, DATADUR_A,
 					byPktType, bNeedAck);
@@ -564,9 +558,8 @@ static u32 s_uFillDataHead(struct vnt_private *pDevice,
 		struct vnt_tx_datahead_ab *pBuf =
 			(struct vnt_tx_datahead_ab *)pTxDataHead;
             //Get SignalField,ServiceField,Length
-            BBvCalculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
-                (u16 *)&(pBuf->wTransmitLength), (u8 *)&(pBuf->byServiceField), (u8 *)&(pBuf->bySignalField)
-            );
+		BBvCalculateParameter(pDevice, cbFrameLength, wCurrentRate,
+			byPktType, &pBuf->ab);
             //Get Duration and TimeStampOff
 		pBuf->wDuration = (u16)s_uGetDataDuration(pDevice, DATADUR_A,
 				byPktType, bNeedAck);
@@ -579,9 +572,8 @@ static u32 s_uFillDataHead(struct vnt_private *pDevice,
 		struct vnt_tx_datahead_ab *pBuf =
 			(struct vnt_tx_datahead_ab *)pTxDataHead;
             //Get SignalField,ServiceField,Length
-            BBvCalculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
-                (u16 *)&(pBuf->wTransmitLength), (u8 *)&(pBuf->byServiceField), (u8 *)&(pBuf->bySignalField)
-            );
+		BBvCalculateParameter(pDevice, cbFrameLength, wCurrentRate,
+			byPktType, &pBuf->ab);
             //Get Duration and TimeStampOff
 		pBuf->wDuration = (u16)s_uGetDataDuration(pDevice, DATADUR_B,
 				byPktType, bNeedAck);
@@ -597,7 +589,6 @@ static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
 	struct ethhdr *psEthHeader, u16 wCurrentRate, u8 byFBOption)
 {
 	u32 uRTSFrameLen = 20;
-	u16 wLen = 0;
 
     if (pvRTS == NULL)
     	return;
@@ -614,12 +605,10 @@ static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
         if (byFBOption == AUTO_FB_NONE) {
 		struct vnt_rts_g *pBuf = (struct vnt_rts_g *)pvRTS;
             //Get SignalField,ServiceField,Length
-            BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
-                (u16 *)&(wLen), (u8 *)&(pBuf->byServiceField_b), (u8 *)&(pBuf->bySignalField_b)
-            );
-            BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopOFDMBasicRate, byPktType,
-                (u16 *)&(wLen), (u8 *)&(pBuf->byServiceField_a), (u8 *)&(pBuf->bySignalField_a)
-            );
+		BBvCalculateParameter(pDevice, uRTSFrameLen,
+			pDevice->byTopCCKBasicRate, PK_TYPE_11B, &pBuf->b);
+		BBvCalculateParameter(pDevice, uRTSFrameLen,
+			pDevice->byTopOFDMBasicRate, byPktType, &pBuf->a);
             //Get Duration
 		pBuf->wDuration_bb = s_uGetRTSCTSDuration(pDevice, RTSDUR_BB,
 			cbFrameLength, PK_TYPE_11B,
@@ -648,12 +637,10 @@ static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
         else {
 		struct vnt_rts_g_fb *pBuf = (struct vnt_rts_g_fb *)pvRTS;
             //Get SignalField,ServiceField,Length
-            BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
-                (u16 *)&(wLen), (u8 *)&(pBuf->byServiceField_b), (u8 *)&(pBuf->bySignalField_b)
-            );
-            BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopOFDMBasicRate, byPktType,
-                (u16 *)&(wLen), (u8 *)&(pBuf->byServiceField_a), (u8 *)&(pBuf->bySignalField_a)
-            );
+		BBvCalculateParameter(pDevice, uRTSFrameLen,
+			pDevice->byTopCCKBasicRate, PK_TYPE_11B, &pBuf->b);
+		BBvCalculateParameter(pDevice, uRTSFrameLen,
+			pDevice->byTopOFDMBasicRate, byPktType, &pBuf->a);
             //Get Duration
 		pBuf->wDuration_bb = s_uGetRTSCTSDuration(pDevice, RTSDUR_BB,
 			cbFrameLength, PK_TYPE_11B,
@@ -696,9 +683,8 @@ static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
         if (byFBOption == AUTO_FB_NONE) {
 		struct vnt_rts_ab *pBuf = (struct vnt_rts_ab *)pvRTS;
             //Get SignalField,ServiceField,Length
-            BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopOFDMBasicRate, byPktType,
-                (u16 *)&(wLen), (u8 *)&(pBuf->byServiceField), (u8 *)&(pBuf->bySignalField)
-            );
+		BBvCalculateParameter(pDevice, uRTSFrameLen,
+			pDevice->byTopOFDMBasicRate, byPktType, &pBuf->ab);
             //Get Duration
 		pBuf->wDuration = s_uGetRTSCTSDuration(pDevice, RTSDUR_AA,
 			cbFrameLength, byPktType, wCurrentRate,
@@ -721,9 +707,8 @@ static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
         else {
 		struct vnt_rts_a_fb *pBuf = (struct vnt_rts_a_fb *)pvRTS;
             //Get SignalField,ServiceField,Length
-            BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopOFDMBasicRate, byPktType,
-                (u16 *)&(wLen), (u8 *)&(pBuf->byServiceField), (u8 *)&(pBuf->bySignalField)
-            );
+		BBvCalculateParameter(pDevice, uRTSFrameLen,
+			pDevice->byTopOFDMBasicRate, byPktType, &pBuf->a);
             //Get Duration
 		pBuf->wDuration = s_uGetRTSCTSDuration(pDevice, RTSDUR_AA,
 			cbFrameLength, byPktType, wCurrentRate,
@@ -753,9 +738,8 @@ static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
     else if (byPktType == PK_TYPE_11B) {
 	struct vnt_rts_ab *pBuf = (struct vnt_rts_ab *)pvRTS;
         //Get SignalField,ServiceField,Length
-        BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
-            (u16 *)&(wLen), (u8 *)&(pBuf->byServiceField), (u8 *)&(pBuf->bySignalField)
-        );
+	BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopCCKBasicRate,
+		PK_TYPE_11B, &pBuf->ab);
         //Get Duration
 	pBuf->wDuration = s_uGetRTSCTSDuration(pDevice, RTSDUR_BB,
 		cbFrameLength, byPktType, wCurrentRate,
@@ -783,7 +767,6 @@ static void s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
 	int bDisCRC, u16 wCurrentRate, u8 byFBOption)
 {
 	u32 uCTSFrameLen = 14;
-	u16 wLen = 0;
 
     if (pvCTS == NULL) {
         return;
@@ -799,10 +782,9 @@ static void s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
 	if (byFBOption != AUTO_FB_NONE) {
 		/* Auto Fall back */
 		struct vnt_cts_fb *pBuf = (struct vnt_cts_fb *)pvCTS;
-            //Get SignalField,ServiceField,Length
-            BBvCalculateParameter(pDevice, uCTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
-                (u16 *)&(wLen), (u8 *)&(pBuf->byServiceField_b), (u8 *)&(pBuf->bySignalField_b)
-            );
+		/* Get SignalField,ServiceField,Length */
+		BBvCalculateParameter(pDevice, uCTSFrameLen,
+			pDevice->byTopCCKBasicRate, PK_TYPE_11B, &pBuf->b);
 		pBuf->wDuration_ba = s_uGetRTSCTSDuration(pDevice, CTSDUR_BA,
 			cbFrameLength, byPktType,
 			wCurrentRate, bNeedAck, byFBOption);
@@ -820,10 +802,9 @@ static void s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
 		memcpy(pBuf->data.ra, pDevice->abyCurrentNetAddr, ETH_ALEN);
 	} else {
 		struct vnt_cts *pBuf = (struct vnt_cts *)pvCTS;
-            //Get SignalField,ServiceField,Length
-            BBvCalculateParameter(pDevice, uCTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
-                (u16 *)&(wLen), (u8 *)&(pBuf->byServiceField_b), (u8 *)&(pBuf->bySignalField_b)
-            );
+		/* Get SignalField,ServiceField,Length */
+		BBvCalculateParameter(pDevice, uCTSFrameLen,
+			pDevice->byTopCCKBasicRate, PK_TYPE_11B, &pBuf->b);
 		/* Get CTSDuration_ba */
 		pBuf->wDuration_ba = s_uGetRTSCTSDuration(pDevice,
 			CTSDUR_BA, cbFrameLength, byPktType,
@@ -1821,9 +1802,8 @@ CMD_STATUS csBeacon_xmit(struct vnt_private *pDevice,
 	pTxDataHead = (struct vnt_tx_datahead_ab *)
 			(pbyTxBufferAddr + wTxBufSize);
         //Get SignalField,ServiceField,Length
-        BBvCalculateParameter(pDevice, cbFrameSize, wCurrentRate, PK_TYPE_11A,
-            (u16 *)&(pTxDataHead->wTransmitLength), (u8 *)&(pTxDataHead->byServiceField), (u8 *)&(pTxDataHead->bySignalField)
-        );
+	BBvCalculateParameter(pDevice, cbFrameSize, wCurrentRate, PK_TYPE_11A,
+							&pTxDataHead->ab);
         //Get Duration and TimeStampOff
 	pTxDataHead->wDuration = cpu_to_le16((u16)s_uGetDataDuration(pDevice,
 				DATADUR_A, PK_TYPE_11A, false));
@@ -1835,9 +1815,8 @@ CMD_STATUS csBeacon_xmit(struct vnt_private *pDevice,
 	pTxDataHead = (struct vnt_tx_datahead_ab *)
 				(pbyTxBufferAddr + wTxBufSize);
         //Get SignalField,ServiceField,Length
-        BBvCalculateParameter(pDevice, cbFrameSize, wCurrentRate, PK_TYPE_11B,
-            (u16 *)&(pTxDataHead->wTransmitLength), (u8 *)&(pTxDataHead->byServiceField), (u8 *)&(pTxDataHead->bySignalField)
-        );
+	BBvCalculateParameter(pDevice, cbFrameSize, wCurrentRate, PK_TYPE_11B,
+							&pTxDataHead->ab);
         //Get Duration and TimeStampOff
 	pTxDataHead->wDuration = cpu_to_le16((u16)s_uGetDataDuration(pDevice,
 				DATADUR_B, PK_TYPE_11B, false));

@@ -31,6 +31,7 @@
 
 #include "device.h"
 #include "wcmd.h"
+#include "baseband.h"
 
 /* RsvTime buffer header */
 struct vnt_rrv_time_rts {
@@ -56,12 +57,8 @@ struct vnt_rrv_time_ab {
 
 /* TX data header */
 struct vnt_tx_datahead_g {
-	u8 bySignalField_b;
-	u8 byServiceField_b;
-	u16 wTransmitLength_b;
-	u8 bySignalField_a;
-	u8 byServiceField_a;
-	u16 wTransmitLength_a;
+	struct vnt_phy_field b;
+	struct vnt_phy_field a;
 	u16 wDuration_b;
 	u16 wDuration_a;
 	u16 wTimeStampOff_b;
@@ -69,12 +66,8 @@ struct vnt_tx_datahead_g {
 } __packed;
 
 struct vnt_tx_datahead_g_fb {
-	u8 bySignalField_b;
-	u8 byServiceField_b;
-	u16 wTransmitLength_b;
-	u8 bySignalField_a;
-	u8 byServiceField_a;
-	u16 wTransmitLength_a;
+	struct vnt_phy_field b;
+	struct vnt_phy_field a;
 	u16 wDuration_b;
 	u16 wDuration_a;
 	u16 wDuration_a_f0;
@@ -84,17 +77,13 @@ struct vnt_tx_datahead_g_fb {
 } __packed;
 
 struct vnt_tx_datahead_ab {
-	u8 bySignalField;
-	u8 byServiceField;
-	u16 wTransmitLength;
+	struct vnt_phy_field ab;
 	u16 wDuration;
 	u16 wTimeStampOff;
 } __packed;
 
 struct vnt_tx_datahead_a_fb {
-	u8 bySignalField;
-	u8 byServiceField;
-	u16 wTransmitLength;
+	struct vnt_phy_field a;
 	u16 wDuration;
 	u16 wTimeStampOff;
 	u16 wDuration_f0;
@@ -103,12 +92,8 @@ struct vnt_tx_datahead_a_fb {
 
 /* RTS buffer header */
 struct vnt_rts_g {
-	u8 bySignalField_b;
-	u8 byServiceField_b;
-	u16 wTransmitLength_b;
-	u8 bySignalField_a;
-	u8 byServiceField_a;
-	u16 wTransmitLength_a;
+	struct vnt_phy_field b;
+	struct vnt_phy_field a;
 	u16 wDuration_ba;
 	u16 wDuration_aa;
 	u16 wDuration_bb;
@@ -117,12 +102,8 @@ struct vnt_rts_g {
 } __packed;
 
 struct vnt_rts_g_fb {
-	u8 bySignalField_b;
-	u8 byServiceField_b;
-	u16 wTransmitLength_b;
-	u8 bySignalField_a;
-	u8 byServiceField_a;
-	u16 wTransmitLength_a;
+	struct vnt_phy_field b;
+	struct vnt_phy_field a;
 	u16 wDuration_ba;
 	u16 wDuration_aa;
 	u16 wDuration_bb;
@@ -135,18 +116,14 @@ struct vnt_rts_g_fb {
 } __packed;
 
 struct vnt_rts_ab {
-	u8 bySignalField;
-	u8 byServiceField;
-	u16 wTransmitLength;
+	struct vnt_phy_field ab;
 	u16 wDuration;
 	u16 wReserved;
 	struct ieee80211_rts data;
 } __packed;
 
 struct vnt_rts_a_fb {
-	u8 bySignalField;
-	u8 byServiceField;
-	u16 wTransmitLength;
+	struct vnt_phy_field a;
 	u16 wDuration;
 	u16 wReserved;
 	u16 wRTSDuration_f0;
@@ -156,9 +133,7 @@ struct vnt_rts_a_fb {
 
 /* CTS buffer header */
 struct vnt_cts {
-	u8 bySignalField_b;
-	u8 byServiceField_b;
-	u16 wTransmitLength_b;
+	struct vnt_phy_field b;
 	u16 wDuration_ba;
 	u16 wReserved;
 	struct ieee80211_cts data;
@@ -166,9 +141,7 @@ struct vnt_cts {
 } __packed;
 
 struct vnt_cts_fb {
-	u8 bySignalField_b;
-	u8 byServiceField_b;
-	u16 wTransmitLength_b;
+	struct vnt_phy_field b;
 	u16 wDuration_ba;
 	u16 wReserved;
 	u16 wCTSDuration_ba_f0;
