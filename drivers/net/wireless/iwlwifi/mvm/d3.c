@@ -67,6 +67,7 @@
 #include <net/cfg80211.h>
 #include <net/ipv6.h>
 #include <net/tcp.h>
+#include <net/addrconf.h>
 #include "iwl-modparams.h"
 #include "fw-api.h"
 #include "mvm.h"
@@ -381,14 +382,74 @@ static int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 	union {
 		struct iwl_proto_offload_cmd_v1 v1;
 		struct iwl_proto_offload_cmd_v2 v2;
+		struct iwl_proto_offload_cmd_v3_small v3s;
+		struct iwl_proto_offload_cmd_v3_large v3l;
 	} cmd = {};
+	struct iwl_host_cmd hcmd = {
+		.id = PROT_OFFLOAD_CONFIG_CMD,
+		.flags = CMD_SYNC,
+		.data[0] = &cmd,
+		.dataflags[0] = IWL_HCMD_DFL_DUP,
+	};
 	struct iwl_proto_offload_cmd_common *common;
 	u32 enabled = 0, size;
+	u32 capa_flags = mvm->fw->ucode_capa.flags;
 #if IS_ENABLED(CONFIG_IPV6)
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int i;
 
-	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_D3_6_IPV6_ADDRS) {
+	if (capa_flags & IWL_UCODE_TLV_FLAGS_NEW_NSOFFL_SMALL ||
+	    capa_flags & IWL_UCODE_TLV_FLAGS_NEW_NSOFFL_LARGE) {
+		struct iwl_ns_config *nsc;
+		struct iwl_targ_addr *addrs;
+		int n_nsc, n_addrs;
+		int c;
+
+		if (capa_flags & IWL_UCODE_TLV_FLAGS_NEW_NSOFFL_SMALL) {
+			nsc = cmd.v3s.ns_config;
+			n_nsc = IWL_PROTO_OFFLOAD_NUM_NS_CONFIG_V3S;
+			addrs = cmd.v3s.targ_addrs;
+			n_addrs = IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V3S;
+		} else {
+			nsc = cmd.v3l.ns_config;
+			n_nsc = IWL_PROTO_OFFLOAD_NUM_NS_CONFIG_V3L;
+			addrs = cmd.v3l.targ_addrs;
+			n_addrs = IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V3L;
+		}
+
+		if (mvmvif->num_target_ipv6_addrs)
+			enabled |= IWL_D3_PROTO_OFFLOAD_NS;
+
+		/*
+		 * For each address we have (and that will fit) fill a target
+		 * address struct and combine for NS offload structs with the
+		 * solicited node addresses.
+		 */
+		for (i = 0, c = 0;
+		     i < mvmvif->num_target_ipv6_addrs &&
+		     i < n_addrs && c < n_nsc; i++) {
+			struct in6_addr solicited_addr;
+			int j;
+
+			addrconf_addr_solict_mult(&mvmvif->target_ipv6_addrs[i],
+						  &solicited_addr);
+			for (j = 0; j < c; j++)
+				if (ipv6_addr_cmp(&nsc[j].dest_ipv6_addr,
+						  &solicited_addr) == 0)
+					break;
+			if (j == c)
+				c++;
+			addrs[i].addr = mvmvif->target_ipv6_addrs[i];
+			addrs[i].config_num = cpu_to_le32(j);
+			nsc[j].dest_ipv6_addr = solicited_addr;
+			memcpy(nsc[j].target_mac_addr, vif->addr, ETH_ALEN);
+		}
+
+		if (capa_flags & IWL_UCODE_TLV_FLAGS_NEW_NSOFFL_SMALL)
+			cmd.v3s.num_valid_ipv6_addrs = cpu_to_le32(i);
+		else
+			cmd.v3l.num_valid_ipv6_addrs = cpu_to_le32(i);
+	} else if (capa_flags & IWL_UCODE_TLV_FLAGS_D3_6_IPV6_ADDRS) {
 		if (mvmvif->num_target_ipv6_addrs) {
 			enabled |= IWL_D3_PROTO_OFFLOAD_NS;
 			memcpy(cmd.v2.ndp_mac_addr, vif->addr, ETH_ALEN);
@@ -419,7 +480,13 @@ static int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 	}
 #endif
 
-	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_D3_6_IPV6_ADDRS) {
+	if (capa_flags & IWL_UCODE_TLV_FLAGS_NEW_NSOFFL_SMALL) {
+		common = &cmd.v3s.common;
+		size = sizeof(cmd.v3s);
+	} else if (capa_flags & IWL_UCODE_TLV_FLAGS_NEW_NSOFFL_LARGE) {
+		common = &cmd.v3l.common;
+		size = sizeof(cmd.v3l);
+	} else if (capa_flags & IWL_UCODE_TLV_FLAGS_D3_6_IPV6_ADDRS) {
 		common = &cmd.v2.common;
 		size = sizeof(cmd.v2);
 	} else {
@@ -438,8 +505,8 @@ static int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 
 	common->enabled = cpu_to_le32(enabled);
 
-	return iwl_mvm_send_cmd_pdu(mvm, PROT_OFFLOAD_CONFIG_CMD, CMD_SYNC,
-				    size, &cmd);
+	hcmd.len[0] = size;
+	return iwl_mvm_send_cmd(mvm, &hcmd);
 }
 
 enum iwl_mvm_tcp_packet_type {

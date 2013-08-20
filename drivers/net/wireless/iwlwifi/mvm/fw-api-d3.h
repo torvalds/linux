@@ -100,7 +100,12 @@ enum iwl_proto_offloads {
 
 #define IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V1	2
 #define IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V2	6
-#define IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_MAX	6
+#define IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V3L	12
+#define IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V3S	4
+#define IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_MAX	12
+
+#define IWL_PROTO_OFFLOAD_NUM_NS_CONFIG_V3L	4
+#define IWL_PROTO_OFFLOAD_NUM_NS_CONFIG_V3S	2
 
 /**
  * struct iwl_proto_offload_cmd_common - ARP/NS offload common part
@@ -155,6 +160,43 @@ struct iwl_proto_offload_cmd_v2 {
 	u8 reserved2[3];
 } __packed; /* PROT_OFFLOAD_CONFIG_CMD_DB_S_VER_2 */
 
+struct iwl_ns_config {
+	struct in6_addr source_ipv6_addr;
+	struct in6_addr dest_ipv6_addr;
+	u8 target_mac_addr[ETH_ALEN];
+	__le16 reserved;
+} __packed; /* NS_OFFLOAD_CONFIG */
+
+struct iwl_targ_addr {
+	struct in6_addr addr;
+	__le32 config_num;
+} __packed; /* TARGET_IPV6_ADDRESS */
+
+/**
+ * struct iwl_proto_offload_cmd_v3_small - ARP/NS offload configuration
+ * @common: common/IPv4 configuration
+ * @target_ipv6_addr: target IPv6 addresses
+ * @ns_config: NS offload configurations
+ */
+struct iwl_proto_offload_cmd_v3_small {
+	struct iwl_proto_offload_cmd_common common;
+	__le32 num_valid_ipv6_addrs;
+	struct iwl_targ_addr targ_addrs[IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V3S];
+	struct iwl_ns_config ns_config[IWL_PROTO_OFFLOAD_NUM_NS_CONFIG_V3S];
+} __packed; /* PROT_OFFLOAD_CONFIG_CMD_DB_S_VER_3 */
+
+/**
+ * struct iwl_proto_offload_cmd_v3_large - ARP/NS offload configuration
+ * @common: common/IPv4 configuration
+ * @target_ipv6_addr: target IPv6 addresses
+ * @ns_config: NS offload configurations
+ */
+struct iwl_proto_offload_cmd_v3_large {
+	struct iwl_proto_offload_cmd_common common;
+	__le32 num_valid_ipv6_addrs;
+	struct iwl_targ_addr targ_addrs[IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V3L];
+	struct iwl_ns_config ns_config[IWL_PROTO_OFFLOAD_NUM_NS_CONFIG_V3L];
+} __packed; /* PROT_OFFLOAD_CONFIG_CMD_DB_S_VER_3 */
 
 /*
  * WOWLAN_PATTERNS
