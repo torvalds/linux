@@ -36,7 +36,8 @@ struct bcm_kona_smc_data {
 };
 
 static const struct of_device_id bcm_kona_smc_ids[] __initconst = {
-	{.compatible = "bcm,kona-smc"},
+	{.compatible = "brcm,kona-smc"},
+	{.compatible = "bcm,kona-smc"}, /* deprecated name */
 	{},
 };
 

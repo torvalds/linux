@@ -99,7 +99,8 @@ kona_timer_get_counter(void *timer_base, uint32_t *msw, uint32_t *lsw)
 }
 
 static const struct of_device_id bcm_timer_ids[] __initconst = {
-	{.compatible = "bcm,kona-timer"},
+	{.compatible = "brcm,kona-timer"},
+	{.compatible = "bcm,kona-timer"}, /* deprecated name */
 	{},
 };
 
@@ -201,4 +202,9 @@ static void __init kona_timer_init(struct device_node *node)
 	kona_timer_set_next_event((arch_timer_rate / HZ), NULL);
 }
 
+CLOCKSOURCE_OF_DECLARE(brcm_kona, "brcm,kona-timer", kona_timer_init);
+/*
+ * bcm,kona-timer is deprecated by brcm,kona-timer
+ * being kept here for driver compatibility
+ */
 CLOCKSOURCE_OF_DECLARE(bcm_kona, "bcm,kona-timer", kona_timer_init);

@@ -44,7 +44,7 @@ static void bcm_board_setup_restart(void)
 {
 	struct device_node *np;
 
-	np = of_find_compatible_node(NULL, NULL, "bcm,bcm11351");
+	np = of_find_compatible_node(NULL, NULL, "brcm,bcm11351");
 	if (np) {
 		if (of_device_is_available(np))
 			bcm_kona_setup_restart();
@@ -63,7 +63,7 @@ static void __init board_init(void)
 	kona_l2_cache_init();
 }
 
-static const char * const bcm11351_dt_compat[] = { "bcm,bcm11351", NULL, };
+static const char * const bcm11351_dt_compat[] = { "brcm,bcm11351", NULL, };
 
 DT_MACHINE_START(BCM11351_DT, "Broadcom Application Processor")
 	.init_time = clocksource_of_init,

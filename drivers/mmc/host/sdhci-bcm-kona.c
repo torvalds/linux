@@ -222,7 +222,8 @@ static struct sdhci_pltfm_data sdhci_pltfm_data_kona = {
 };
 
 static struct __initconst of_device_id sdhci_bcm_kona_of_match[] = {
-	{ .compatible = "bcm,kona-sdhci"},
+	{ .compatible = "brcm,kona-sdhci"},
+	{ .compatible = "bcm,kona-sdhci"}, /* deprecated name */
 	{}
 };
 MODULE_DEVICE_TABLE(of, sdhci_bcm_kona_of_match);
