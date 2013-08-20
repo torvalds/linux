@@ -153,7 +153,7 @@ struct bin_attribute {
 
 #define __BIN_ATTR_RW(_name, _size) __BIN_ATTR(_name,			\
 				   (S_IWUSR | S_IRUGO), _name##_read,	\
-				   _name##_write)
+				   _name##_write, _size)
 
 #define __BIN_ATTR_NULL __ATTR_NULL
 
