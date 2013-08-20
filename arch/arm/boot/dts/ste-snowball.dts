@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 ST-Ericsson AB
+ * Copyright 2011 ST-Ericsson AB
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -9,12 +9,26 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-#include <dt-bindings/interrupt-controller/irq.h>
-#include "dbx5x0.dtsi"
+/dts-v1/;
+#include "ste-dbx5x0.dtsi"
 
 / {
+	model = "Calao Systems Snowball platform with device tree";
+	compatible = "calaosystems,snowball-a9500", "st-ericsson,u9500";
+
 	memory {
 		reg = <0x00000000 0x20000000>;
+	};
+
+	en_3v3_reg: en_3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "en-3v3-fixed-supply";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		/* AB8500 GPIOs start from 1 - offset 25 is GPIO26. */
+		gpio = <&ab8500_gpio 25 0x4>;
+		startup-delay-us = <5000>;
+		enable-active-high;
 	};
 
 	gpio_keys {
@@ -23,87 +37,94 @@
 		#size-cells = <0>;
 
 		button@1 {
-			linux,code = <11>;
-			label = "SFH7741 Proximity Sensor";
+			debounce_interval = <50>;
+			wakeup = <1>;
+			linux,code = <2>;
+			label = "userpb";
+			gpios = <&gpio1 0 0x4>;
+		};
+		button@2 {
+			debounce_interval = <50>;
+			wakeup = <1>;
+			linux,code = <3>;
+			label = "extkb1";
+			gpios = <&gpio4 23 0x4>;
+		};
+		button@3 {
+			debounce_interval = <50>;
+			wakeup = <1>;
+			linux,code = <4>;
+			label = "extkb2";
+			gpios = <&gpio4 24 0x4>;
+		};
+		button@4 {
+			debounce_interval = <50>;
+			wakeup = <1>;
+			linux,code = <5>;
+			label = "extkb3";
+			gpios = <&gpio5 1 0x4>;
+		};
+		button@5 {
+			debounce_interval = <50>;
+			wakeup = <1>;
+			linux,code = <6>;
+			label = "extkb4";
+			gpios = <&gpio5 2 0x4>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		used-led {
+			label = "user_led";
+			gpios = <&gpio4 14 0x4>;
+			default-state = "on";
+			linux,default-trigger = "heartbeat";
 		};
 	};
 
 	soc {
-		uart@80120000 {
+
+		sound {
+			compatible = "stericsson,snd-soc-mop500";
+
+			stericsson,cpu-dai = <&msp1 &msp3>;
+			stericsson,audio-codec = <&codec>;
+		};
+
+		msp1: msp@80124000 {
 			status = "okay";
 		};
 
-		uart@80121000 {
+		msp3: msp@80125000 {
 			status = "okay";
 		};
 
-		uart@80007000 {
+		external-bus@50000000 {
 			status = "okay";
-		};
 
-		i2c@80004000 {
-			tc3589x@42 {
-				compatible = "tc3589x";
-				reg = <0x42>;
-				interrupt-parent = <&gpio6>;
-				interrupts = <25 IRQ_TYPE_EDGE_RISING>;
+			ethernet@0 {
+				compatible = "smsc,lan9115";
+				reg = <0 0x10000>;
+				interrupts = <12 IRQ_TYPE_EDGE_RISING>;
+				interrupt-parent = <&gpio4>;
+				vdd33a-supply = <&en_3v3_reg>;
+				vddvario-supply = <&db8500_vape_reg>;
 
-				interrupt-controller;
-				#interrupt-cells = <2>;
 
-				tc3589x_gpio: tc3589x_gpio {
-					compatible = "tc3589x-gpio";
-					interrupts = <0 IRQ_TYPE_EDGE_RISING>;
-
-					interrupt-controller;
-					#interrupt-cells = <2>;
-					gpio-controller;
-					#gpio-cells = <2>;
-				};
+				reg-shift = <1>;
+				reg-io-width = <2>;
+				smsc,force-internal-phy;
+				smsc,irq-active-high;
+				smsc,irq-push-pull;
 			};
 		};
 
-		i2c@80128000 {
-			lp5521@33 {
-				compatible = "national,lp5521";
-				reg = <0x33>;
-				label = "lp5521_pri";
-				clock-mode = /bits/ 8 <2>;
-				chan0 {
-					led-cur = /bits/ 8 <0x2f>;
-					max-cur = /bits/ 8 <0x5f>;
-				};
-				chan1 {
-					led-cur = /bits/ 8 <0x2f>;
-					max-cur = /bits/ 8 <0x5f>;
-				};
-				chan2 {
-					led-cur = /bits/ 8 <0x2f>;
-					max-cur = /bits/ 8 <0x5f>;
-				};
-			};
-			lp5521@34 {
-				compatible = "national,lp5521";
-				reg = <0x34>;
-				label = "lp5521_sec";
-				clock-mode = /bits/ 8 <2>;
-				chan0 {
-					led-cur = /bits/ 8 <0x2f>;
-					max-cur = /bits/ 8 <0x5f>;
-				};
-				chan1 {
-					led-cur = /bits/ 8 <0x2f>;
-					max-cur = /bits/ 8 <0x5f>;
-				};
-				chan2 {
-					led-cur = /bits/ 8 <0x2f>;
-					max-cur = /bits/ 8 <0x5f>;
-				};
-			};
-			bh1780@29 {
-				compatible = "rohm,bh1780gli";
-				reg = <0x33>;
-			};
+		vmmci: regulator-gpio {
+			gpios = <&gpio6 25 0x4>;
+			enable-gpio = <&gpio7 4 0x4>;
+
+			status = "okay";
 		};
 
 		// External Micro SD slot
@@ -111,31 +132,12 @@
 			arm,primecell-periphid = <0x10480180>;
 			max-frequency = <100000000>;
 			bus-width = <4>;
-			mmc-cap-sd-highspeed;
 			mmc-cap-mmc-highspeed;
 			vmmc-supply = <&ab8500_ldo_aux3_reg>;
 			vqmmc-supply = <&vmmci>;
 
-			cd-gpios  = <&tc3589x_gpio 3 0x4>;
-
-			status = "okay";
-		};
-
-		// WLAN SDIO channel
-		sdi1_per2@80118000 {
-			arm,primecell-periphid = <0x10480180>;
-			max-frequency = <100000000>;
-			bus-width = <4>;
-
-			status = "okay";
-		};
-
-		// PoP:ed eMMC
-		sdi2_per3@80005000 {
-			arm,primecell-periphid = <0x10480180>;
-			max-frequency = <100000000>;
-			bus-width = <8>;
-			mmc-cap-mmc-highspeed;
+			cd-gpios  = <&gpio6 26 0x4>; // 218
+			cd-inverted;
 
 			status = "okay";
 		};
@@ -151,18 +153,19 @@
 			status = "okay";
 		};
 
-		sound {
-			compatible = "stericsson,snd-soc-mop500";
-
-			stericsson,cpu-dai = <&msp1 &msp3>;
-			stericsson,audio-codec = <&codec>;
-		};
-
-		msp1: msp@80124000 {
+		uart@80120000 {
 			status = "okay";
 		};
 
-		msp3: msp@80125000 {
+		uart@80121000 {
+			status = "okay";
+		};
+
+		uart@80007000 {
+			status = "okay";
+		};
+
+		cpufreq-cooling {
 			status = "okay";
 		};
 
@@ -249,7 +252,50 @@
 				};
 			};
 
+			thermal@801573c0 {
+				num-trips = <4>;
+
+				trip0-temp = <70000>;
+				trip0-type = "active";
+				trip0-cdev-num = <1>;
+				trip0-cdev-name0 = "thermal-cpufreq-0";
+
+				trip1-temp = <75000>;
+				trip1-type = "active";
+				trip1-cdev-num = <1>;
+				trip1-cdev-name0 = "thermal-cpufreq-0";
+
+				trip2-temp = <80000>;
+				trip2-type = "active";
+				trip2-cdev-num = <1>;
+				trip2-cdev-name0 = "thermal-cpufreq-0";
+
+				trip3-temp = <85000>;
+				trip3-type = "critical";
+				trip3-cdev-num = <0>;
+
+				status = "okay";
+			};
+
 			ab8500 {
+				ab8500-gpio {
+					compatible = "stericsson,ab8500-gpio";
+				};
+
+				ext_regulators: ab8500-ext-regulators {
+					ab8500_ext1_reg: ab8500_ext1 {
+						regulator-name = "ab8500-ext-supply1";
+					};
+
+					ab8500_ext2_reg_reg: ab8500_ext2 {
+						regulator-name = "ab8500-ext-supply2";
+					};
+
+					ab8500_ext3_reg_reg: ab8500_ext3 {
+						regulator-name = "ab8500-ext-supply3";
+					};
+				};
+
 				ab8500-regulators {
 					ab8500_ldo_aux1_reg: ab8500_ldo_aux1 {
 						regulator-name = "V-DISPLAY";

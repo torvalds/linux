@@ -176,11 +176,11 @@ dtb-$(CONFIG_ARCH_OMAP2PLUS) += omap2420-h4.dtb \
 	am43x-epos-evm.dtb
 dtb-$(CONFIG_ARCH_ORION5X) += orion5x-lacie-ethernet-disk-mini-v2.dtb
 dtb-$(CONFIG_ARCH_PRIMA2) += prima2-evb.dtb
-dtb-$(CONFIG_ARCH_U8500) += snowball.dtb \
-	hrefprev60.dtb \
-	hrefv60plus.dtb \
-	ccu8540.dtb \
-	ccu9540.dtb
+dtb-$(CONFIG_ARCH_U8500) += ste-snowball.dtb \
+	ste-hrefprev60.dtb \
+	ste-hrefv60plus.dtb \
+	ste-ccu8540.dtb \
+	ste-ccu9540.dtb
 dtb-$(CONFIG_ARCH_S3C24XX) += s3c2416-smdk2416.dtb
 dtb-$(CONFIG_ARCH_SHMOBILE) += emev2-kzm9d.dtb \
 	emev2-kzm9d-reference.dtb \
