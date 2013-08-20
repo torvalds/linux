@@ -39,7 +39,8 @@ struct se_subsystem_api {
 };
 
 struct sbc_ops {
-	sense_reason_t (*execute_rw)(struct se_cmd *cmd);
+	sense_reason_t (*execute_rw)(struct se_cmd *cmd, struct scatterlist *,
+				     u32, enum dma_data_direction);
 	sense_reason_t (*execute_sync_cache)(struct se_cmd *cmd);
 	sense_reason_t (*execute_write_same)(struct se_cmd *cmd);
 	sense_reason_t (*execute_write_same_unmap)(struct se_cmd *cmd);
