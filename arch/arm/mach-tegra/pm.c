@@ -263,10 +263,10 @@ static void tegra_suspend_enter_lp1(void)
 	tegra_pmc_suspend();
 
 	/* copy the reset vector & SDRAM shutdown code into IRAM */
-	memcpy(iram_save_addr, IO_ADDRESS(TEGRA_IRAM_CODE_AREA),
+	memcpy(iram_save_addr, IO_ADDRESS(TEGRA_IRAM_LPx_RESUME_AREA),
 		iram_save_size);
-	memcpy(IO_ADDRESS(TEGRA_IRAM_CODE_AREA), tegra_lp1_iram.start_addr,
-		iram_save_size);
+	memcpy(IO_ADDRESS(TEGRA_IRAM_LPx_RESUME_AREA),
+		tegra_lp1_iram.start_addr, iram_save_size);
 
 	*((u32 *)tegra_cpu_lp1_mask) = 1;
 }
@@ -276,7 +276,7 @@ static void tegra_suspend_exit_lp1(void)
 	tegra_pmc_resume();
 
 	/* restore IRAM */
-	memcpy(IO_ADDRESS(TEGRA_IRAM_CODE_AREA), iram_save_addr,
+	memcpy(IO_ADDRESS(TEGRA_IRAM_LPx_RESUME_AREA), iram_save_addr,
 		iram_save_size);
 
 	*(u32 *)tegra_cpu_lp1_mask = 0;
