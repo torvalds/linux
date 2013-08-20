@@ -1004,21 +1004,33 @@ static int __init init_f2fs_fs(void)
 		goto fail;
 	err = create_node_manager_caches();
 	if (err)
-		goto fail;
+		goto free_inodecache;
 	err = create_gc_caches();
 	if (err)
-		goto fail;
+		goto free_node_manager_caches;
 	err = create_checkpoint_caches();
 	if (err)
-		goto fail;
+		goto free_gc_caches;
 	f2fs_kset = kset_create_and_add("f2fs", NULL, fs_kobj);
 	if (!f2fs_kset)
-		goto fail;
+		goto free_checkpoint_caches;
 	err = register_filesystem(&f2fs_fs_type);
 	if (err)
-		goto fail;
+		goto free_kset;
 	f2fs_create_root_stats();
 	f2fs_proc_root = proc_mkdir("fs/f2fs", NULL);
+	return 0;
+
+free_kset:
+	kset_unregister(f2fs_kset);
+free_checkpoint_caches:
+	destroy_checkpoint_caches();
+free_gc_caches:
+	destroy_gc_caches();
+free_node_manager_caches:
+	destroy_node_manager_caches();
+free_inodecache:
+	destroy_inodecache();
 fail:
 	return err;
 }
