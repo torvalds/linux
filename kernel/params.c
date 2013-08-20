@@ -241,7 +241,8 @@ int parse_args(const char *doing,
 	}								\
 	int param_get_##name(char *buffer, const struct kernel_param *kp) \
 	{								\
-		return sprintf(buffer, format, *((type *)kp->arg));	\
+		return scnprintf(buffer, PAGE_SIZE, format,		\
+				*((type *)kp->arg));			\
 	}								\
 	struct kernel_param_ops param_ops_##name = {			\
 		.set = param_set_##name,				\
@@ -285,7 +286,7 @@ EXPORT_SYMBOL(param_set_charp);
 
 int param_get_charp(char *buffer, const struct kernel_param *kp)
 {
-	return sprintf(buffer, "%s", *((char **)kp->arg));
+	return scnprintf(buffer, PAGE_SIZE, "%s", *((char **)kp->arg));
 }
 EXPORT_SYMBOL(param_get_charp);
 
@@ -829,7 +830,7 @@ ssize_t __modver_version_show(struct module_attribute *mattr,
 	struct module_version_attribute *vattr =
 		container_of(mattr, struct module_version_attribute, mattr);
 
-	return sprintf(buf, "%s\n", vattr->version);
+	return scnprintf(buf, PAGE_SIZE, "%s\n", vattr->version);
 }
 
 extern const struct module_version_attribute *__start___modver[];
