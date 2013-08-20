@@ -36,7 +36,7 @@
 /*
 * define sdcard PowerEn-pin
 */
-#define RK29SDK_SD_CARD_PWR_EN                  RK30_PIN3_PA1
+#define RK29SDK_SD_CARD_PWR_EN                  INVALID_GPIO
 #define RK29SDK_SD_CARD_PWR_EN_LEVEL            GPIO_LOW 
 int rk31sdk_get_sdmmc0_pin_io_voltage(void)
 {
