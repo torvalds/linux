@@ -306,7 +306,7 @@ static void __init armada_370_timer_init(struct device_node *np)
 {
 	struct clk *clk = of_clk_get(np, 0);
 
-	WARN_ON(IS_ERR(clk));
+	BUG_ON(IS_ERR(clk));
 	timer_clk = clk_get_rate(clk) / TIMER_DIVIDER;
 	timer25Mhz = false;
 
