@@ -386,7 +386,7 @@ static struct bin_attribute bin_attr_profile##number = {	\
 	.size = sizeof(struct kone_profile),			\
 	.read = kone_sysfs_read_profilex,			\
 	.write = kone_sysfs_write_profilex,			\
-	.private = &profile_numbers[number],			\
+	.private = &profile_numbers[number-1],			\
 };
 PROFILE_ATTR(1);
 PROFILE_ATTR(2);
