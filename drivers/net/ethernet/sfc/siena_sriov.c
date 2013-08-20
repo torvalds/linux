@@ -248,11 +248,11 @@ static int efx_sriov_memcpy(struct efx_nic *efx, struct efx_memcpy_req *req,
 	mb();	/* Finish writing source/reading dest before DMA starts */
 
 	used = MC_CMD_MEMCPY_IN_LEN(count);
-	if (WARN_ON(used > MCDI_CTL_SDU_LEN_MAX))
+	if (WARN_ON(used > MCDI_CTL_SDU_LEN_MAX_V1))
 		return -ENOBUFS;
 
 	/* Allocate room for the largest request */
-	inbuf = kzalloc(MCDI_CTL_SDU_LEN_MAX, GFP_KERNEL);
+	inbuf = kzalloc(MCDI_CTL_SDU_LEN_MAX_V1, GFP_KERNEL);
 	if (inbuf == NULL)
 		return -ENOMEM;
 
@@ -270,7 +270,8 @@ static int efx_sriov_memcpy(struct efx_nic *efx, struct efx_memcpy_req *req,
 			from_lo = (u32)req->from_addr;
 			from_hi = (u32)(req->from_addr >> 32);
 		} else {
-			if (WARN_ON(used + req->length > MCDI_CTL_SDU_LEN_MAX)) {
+			if (WARN_ON(used + req->length >
+				    MCDI_CTL_SDU_LEN_MAX_V1)) {
 				rc = -ENOBUFS;
 				goto out;
 			}

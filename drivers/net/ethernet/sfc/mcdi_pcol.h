@@ -100,7 +100,9 @@
 #define MCDI_HEADER_XFLAGS_EVREQ 0x01
 
 /* Maximum number of payload bytes */
-#define MCDI_CTL_SDU_LEN_MAX 0xfc
+#define MCDI_CTL_SDU_LEN_MAX_V1 0xfc
+
+#define MCDI_CTL_SDU_LEN_MAX MCDI_CTL_SDU_LEN_MAX_V1
 
 /* The MC can generate events for two reasons:
  *   - To complete a shared memory request if XFLAGS_EVREQ was set
