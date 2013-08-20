@@ -6277,6 +6277,7 @@ static int si_parse_power_table(struct radeon_device *rdev)
 	rdev->pm.dpm.backbias_response_time = le16_to_cpu(power_info->pplib.usBackbiasTime);
 	rdev->pm.dpm.voltage_response_time = le16_to_cpu(power_info->pplib.usVoltageTime);
 	for (i = 0; i < state_array->ucNumEntries; i++) {
+		u8 *idx;
 		power_state = (union pplib_power_state *)power_state_offset;
 		non_clock_array_index = power_state->v2.nonClockInfoIndex;
 		non_clock_info = (struct _ATOM_PPLIB_NONCLOCK_INFO *)
@@ -6293,14 +6294,16 @@ static int si_parse_power_table(struct radeon_device *rdev)
 					      non_clock_info,
 					      non_clock_info_array->ucEntrySize);
 		k = 0;
+		idx = (u8 *)&power_state->v2.clockInfoIndex[0];
 		for (j = 0; j < power_state->v2.ucNumDPMLevels; j++) {
-			clock_array_index = power_state->v2.clockInfoIndex[j];
+			clock_array_index = idx[j];
 			if (clock_array_index >= clock_info_array->ucNumEntries)
 				continue;
 			if (k >= SISLANDS_MAX_HARDWARE_POWERLEVELS)
 				break;
 			clock_info = (union pplib_clock_info *)
-				&clock_info_array->clockInfo[clock_array_index * clock_info_array->ucEntrySize];
+				((u8 *)&clock_info_array->clockInfo[0] +
+				 (clock_array_index * clock_info_array->ucEntrySize));
 			si_parse_pplib_clock_info(rdev,
 						  &rdev->pm.dpm.ps[i], k,
 						  clock_info);
