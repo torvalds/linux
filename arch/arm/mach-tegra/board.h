@@ -28,12 +28,6 @@
 void __init tegra_map_common_io(void);
 void __init tegra_init_irq(void);
 
-#ifdef CONFIG_DEBUG_FS
-int tegra_clk_debugfs_init(void);
-#else
-static inline int tegra_clk_debugfs_init(void) { return 0; }
-#endif
-
 int __init tegra_powergate_init(void);
 #if defined(CONFIG_ARCH_TEGRA_2x_SOC) && defined(CONFIG_DEBUG_FS)
 int __init tegra_powergate_debugfs_init(void);
