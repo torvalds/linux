@@ -1055,13 +1055,14 @@ static int m25p_probe(struct spi_device *spi)
 	flash->page_size = info->page_size;
 	flash->mtd.writebufsize = flash->page_size;
 
-	flash->fast_read = false;
-	if (np && of_property_read_bool(np, "m25p,fast-read"))
+	if (np)
+		/* If we were instantiated by DT, use it */
+		flash->fast_read = of_property_read_bool(np, "m25p,fast-read");
+	else
+		/* If we weren't instantiated by DT, default to fast-read */
 		flash->fast_read = true;
 
-#ifdef CONFIG_M25PXX_USE_FAST_READ
-	flash->fast_read = true;
-#endif
+	/* Some devices cannot do fast-read, no matter what DT tells us */
 	if (info->flags & M25P_NO_FR)
 		flash->fast_read = false;
 
