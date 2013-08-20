@@ -1558,9 +1558,9 @@ static int usbdux_alloc_usb_buffers(struct comedi_device *dev)
 	devpriv->dux_commands = kzalloc(SIZEOFDUXBUFFER, GFP_KERNEL);
 	devpriv->in_buf = kzalloc(SIZEINBUF, GFP_KERNEL);
 	devpriv->insn_buf = kzalloc(SIZEINSNBUF, GFP_KERNEL);
-	devpriv->ai_urbs = kcalloc(devpriv->n_ai_urbs, sizeof(*urb),
+	devpriv->ai_urbs = kcalloc(devpriv->n_ai_urbs, sizeof(void *),
 				   GFP_KERNEL);
-	devpriv->ao_urbs = kcalloc(devpriv->n_ao_urbs, sizeof(*urb),
+	devpriv->ao_urbs = kcalloc(devpriv->n_ao_urbs, sizeof(void *),
 				   GFP_KERNEL);
 	if (!devpriv->dux_commands || !devpriv->in_buf || !devpriv->insn_buf ||
 	    !devpriv->ai_urbs || !devpriv->ao_urbs)
