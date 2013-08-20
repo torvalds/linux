@@ -493,9 +493,9 @@ static ssize_t taos_power_state_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	unsigned long value;
+	int value;
 
-	if (strict_strtoul(buf, 0, &value))
+	if (kstrtoint(buf, 0, &value))
 		return -EINVAL;
 
 	if (value == 0)
@@ -536,9 +536,9 @@ static ssize_t taos_gain_store(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
-	unsigned long value;
+	int value;
 
-	if (strict_strtoul(buf, 0, &value))
+	if (kstrtoint(buf, 0, &value))
 		return -EINVAL;
 
 	switch (value) {
@@ -582,9 +582,9 @@ static ssize_t taos_als_time_store(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
-	unsigned long value;
+	int value;
 
-	if (strict_strtoul(buf, 0, &value))
+	if (kstrtoint(buf, 0, &value))
 		return -EINVAL;
 
 	if ((value < 50) || (value > 650))
@@ -619,9 +619,9 @@ static ssize_t taos_als_trim_store(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
-	unsigned long value;
+	int value;
 
-	if (strict_strtoul(buf, 0, &value))
+	if (kstrtoint(buf, 0, &value))
 		return -EINVAL;
 
 	if (value)
@@ -644,9 +644,9 @@ static ssize_t taos_als_cal_target_store(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
-	unsigned long value;
+	int value;
 
-	if (strict_strtoul(buf, 0, &value))
+	if (kstrtoint(buf, 0, &value))
 		return -EINVAL;
 
 	if (value)
@@ -671,9 +671,9 @@ static ssize_t taos_do_calibrate(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	unsigned long value;
+	int value;
 
-	if (strict_strtoul(buf, 0, &value))
+	if (kstrtoint(buf, 0, &value))
 		return -EINVAL;
 
 	if (value == 1)

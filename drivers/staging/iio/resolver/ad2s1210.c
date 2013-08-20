@@ -206,10 +206,10 @@ static ssize_t ad2s1210_store_fclkin(struct device *dev,
 				     size_t len)
 {
 	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
-	unsigned long fclkin;
+	unsigned int fclkin;
 	int ret;
 
-	ret = strict_strtoul(buf, 10, &fclkin);
+	ret = kstrtouint(buf, 10, &fclkin);
 	if (ret)
 		return ret;
 	if (fclkin < AD2S1210_MIN_CLKIN || fclkin > AD2S1210_MAX_CLKIN) {
@@ -243,10 +243,10 @@ static ssize_t ad2s1210_store_fexcit(struct device *dev,
 				     const char *buf, size_t len)
 {
 	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
-	unsigned long fexcit;
+	unsigned int fexcit;
 	int ret;
 
-	ret = strict_strtoul(buf, 10, &fexcit);
+	ret = kstrtouint(buf, 10, &fexcit);
 	if (ret < 0)
 		return ret;
 	if (fexcit < AD2S1210_MIN_EXCIT || fexcit > AD2S1210_MAX_EXCIT) {
@@ -282,11 +282,11 @@ static ssize_t ad2s1210_store_control(struct device *dev,
 			const char *buf, size_t len)
 {
 	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
-	unsigned long udata;
+	unsigned char udata;
 	unsigned char data;
 	int ret;
 
-	ret = strict_strtoul(buf, 16, &udata);
+	ret = kstrtou8(buf, 16, &udata);
 	if (ret)
 		return -EINVAL;
 
@@ -337,10 +337,10 @@ static ssize_t ad2s1210_store_resolution(struct device *dev,
 {
 	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
 	unsigned char data;
-	unsigned long udata;
+	unsigned char udata;
 	int ret;
 
-	ret = strict_strtoul(buf, 10, &udata);
+	ret = kstrtou8(buf, 10, &udata);
 	if (ret || udata < 10 || udata > 16) {
 		pr_err("ad2s1210: resolution out of range\n");
 		return -EINVAL;
@@ -438,11 +438,11 @@ static ssize_t ad2s1210_store_reg(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t len)
 {
 	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
-	unsigned long data;
+	unsigned char data;
 	int ret;
 	struct iio_dev_attr *iattr = to_iio_dev_attr(attr);
 
-	ret = strict_strtoul(buf, 10, &data);
+	ret = kstrtou8(buf, 10, &data);
 	if (ret)
 		return -EINVAL;
 	mutex_lock(&st->lock);
