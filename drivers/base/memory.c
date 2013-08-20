@@ -613,14 +613,12 @@ static int add_memory_section(struct mem_section *section,
 		if (scn_nr >= (*mem_p)->start_section_nr &&
 		    scn_nr <= (*mem_p)->end_section_nr) {
 			mem = *mem_p;
-			get_device(&mem->dev);
 		}
 	}
 
-	if (mem) {
+	if (mem)
 		mem->section_count++;
-		put_device(&mem->dev);
-	} else {
+	else {
 		ret = init_memory_block(&mem, section, MEM_ONLINE);
 		/* store memory_block pointer for next loop */
 		if (!ret && mem_p)
