@@ -135,7 +135,7 @@ default behaviour.
 	If the memory cost of 8 log buffers is too high on small
 	systems, then it may be reduced at some cost to performance
 	on metadata intensive workloads. The logbsize option below
-	controls the size of each buffer and so is also relevent to
+	controls the size of each buffer and so is also relevant to
 	this case.
 
   logbsize=value
