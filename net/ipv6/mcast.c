@@ -107,8 +107,11 @@ static int ip6_mc_add_src(struct inet6_dev *idev, const struct in6_addr *pmca,
 static int ip6_mc_leave_src(struct sock *sk, struct ipv6_mc_socklist *iml,
 			    struct inet6_dev *idev);
 
-
 #define MLD_QRV_DEFAULT		2
+
+/* RFC3810, 8.1 Query Version Distinctions */
+#define MLD_V1_QUERY_LEN	24
+#define MLD_V2_QUERY_LEN_MIN	28
 
 #define MLD_V1_SEEN(idev) (dev_net((idev)->dev)->ipv6.devconf_all->force_mld_version == 1 || \
 		(idev)->cnf.force_mld_version == 1 || \
@@ -1146,7 +1149,7 @@ int igmp6_event_query(struct sk_buff *skb)
 	    !(group_type&IPV6_ADDR_MULTICAST))
 		return -EINVAL;
 
-	if (len == 24) {
+	if (len == MLD_V1_QUERY_LEN) {
 		int switchback;
 		/* MLDv1 router present */
 
@@ -1160,7 +1163,7 @@ int igmp6_event_query(struct sk_buff *skb)
 			__in6_dev_put(idev);
 		/* clear deleted report items */
 		mld_clear_delrec(idev);
-	} else if (len >= 28) {
+	} else if (len >= MLD_V2_QUERY_LEN_MIN) {
 		int srcs_offset = sizeof(struct mld2_query) -
 				  sizeof(struct icmp6hdr);
 		if (!pskb_may_pull(skb, srcs_offset))
