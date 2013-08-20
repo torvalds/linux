@@ -237,6 +237,8 @@ static ssize_t arvo_sysfs_write_button(struct file *fp,
 	return arvo_sysfs_write(fp, kobj, buf, off, count,
 			sizeof(struct arvo_button), ARVO_COMMAND_BUTTON);
 }
+static BIN_ATTR(button, 0220, NULL, arvo_sysfs_write_button,
+		sizeof(struct arvo_button));
 
 static ssize_t arvo_sysfs_read_info(struct file *fp,
 		struct kobject *kobj, struct bin_attribute *attr, char *buf,
@@ -245,6 +247,8 @@ static ssize_t arvo_sysfs_read_info(struct file *fp,
 	return arvo_sysfs_read(fp, kobj, buf, off, count,
 			sizeof(struct arvo_info), ARVO_COMMAND_INFO);
 }
+static BIN_ATTR(info, 0440, arvo_sysfs_read_info, NULL,
+		sizeof(struct arvo_info));
 
 static struct attribute *arvo_attrs[] = {
 	&dev_attr_mode_key.attr,
@@ -252,20 +256,21 @@ static struct attribute *arvo_attrs[] = {
 	&dev_attr_actual_profile.attr,
 	NULL,
 };
-ATTRIBUTE_GROUPS(arvo);
 
-static struct bin_attribute arvo_bin_attributes[] = {
-	{
-		.attr = { .name = "button", .mode = 0220 },
-		.size = sizeof(struct arvo_button),
-		.write = arvo_sysfs_write_button
-	},
-	{
-		.attr = { .name = "info", .mode = 0440 },
-		.size = sizeof(struct arvo_info),
-		.read = arvo_sysfs_read_info
-	},
-	__ATTR_NULL
+static struct bin_attribute *arvo_bin_attributes[] = {
+	&bin_attr_button,
+	&bin_attr_info,
+	NULL,
+};
+
+static const struct attribute_group arvo_group = {
+	.attrs = arvo_attrs,
+	.bin_attrs = arvo_bin_attributes,
+};
+
+static const struct attribute_group *arvo_groups[] = {
+	&arvo_group,
+	NULL,
 };
 
 static int arvo_init_arvo_device_struct(struct usb_device *usb_dev,
@@ -434,7 +439,6 @@ static int __init arvo_init(void)
 	if (IS_ERR(arvo_class))
 		return PTR_ERR(arvo_class);
 	arvo_class->dev_groups = arvo_groups;
-	arvo_class->dev_bin_attrs = arvo_bin_attributes;
 
 	retval = hid_register_driver(&arvo_driver);
 	if (retval)
