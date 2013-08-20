@@ -3897,7 +3897,6 @@ static void wlc_lcnphy_txpwrtbl_iqlo_cal(struct brcms_phy *pi)
 	target_gains.pad_gain = 21;
 	target_gains.dac_gain = 0;
 	wlc_lcnphy_set_tx_gain(pi, &target_gains);
-	wlc_lcnphy_set_tx_pwr_by_index(pi, 16);
 
 	if (LCNREV_IS(pi->pubpi.phy_rev, 1) || pi_lcn->lcnphy_hw_iqcal_en) {
 
@@ -3908,6 +3907,7 @@ static void wlc_lcnphy_txpwrtbl_iqlo_cal(struct brcms_phy *pi)
 					lcnphy_recal ? LCNPHY_CAL_RECAL :
 					LCNPHY_CAL_FULL), false);
 	} else {
+		wlc_lcnphy_set_tx_pwr_by_index(pi, 16);
 		wlc_lcnphy_tx_iqlo_soft_cal_full(pi);
 	}
 
