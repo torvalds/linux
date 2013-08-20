@@ -870,16 +870,15 @@ void BBvCalculateParameter(struct vnt_private *pDevice, u32 cbFrameLength,
         break;
     }
 
-    if (byPacketType == PK_TYPE_11B) {
-        *pbyPhySrv = 0x00;
-        if (bExtBit)
-            *pbyPhySrv = *pbyPhySrv | 0x80;
-        *pwPhyLen = (u16) cbUsCount;
-    }
-    else {
-        *pbyPhySrv = 0x00;
-        *pwPhyLen = (u16)cbFrameLength;
-    }
+	if (byPacketType == PK_TYPE_11B) {
+		*pbyPhySrv = 0x00;
+		if (bExtBit)
+			*pbyPhySrv = *pbyPhySrv | 0x80;
+		*pwPhyLen = cpu_to_le16((u16)cbUsCount);
+	} else {
+		*pbyPhySrv = 0x00;
+		*pwPhyLen = cpu_to_le16((u16)cbFrameLength);
+	}
 }
 
 /*

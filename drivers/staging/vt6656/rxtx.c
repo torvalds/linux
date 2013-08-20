@@ -617,11 +617,9 @@ static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
             BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
                 (u16 *)&(wLen), (u8 *)&(pBuf->byServiceField_b), (u8 *)&(pBuf->bySignalField_b)
             );
-            pBuf->wTransmitLength_b = cpu_to_le16(wLen);
             BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopOFDMBasicRate, byPktType,
                 (u16 *)&(wLen), (u8 *)&(pBuf->byServiceField_a), (u8 *)&(pBuf->bySignalField_a)
             );
-            pBuf->wTransmitLength_a = cpu_to_le16(wLen);
             //Get Duration
 		pBuf->wDuration_bb = s_uGetRTSCTSDuration(pDevice, RTSDUR_BB,
 			cbFrameLength, PK_TYPE_11B,
@@ -653,11 +651,9 @@ static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
             BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
                 (u16 *)&(wLen), (u8 *)&(pBuf->byServiceField_b), (u8 *)&(pBuf->bySignalField_b)
             );
-            pBuf->wTransmitLength_b = cpu_to_le16(wLen);
             BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopOFDMBasicRate, byPktType,
                 (u16 *)&(wLen), (u8 *)&(pBuf->byServiceField_a), (u8 *)&(pBuf->bySignalField_a)
             );
-            pBuf->wTransmitLength_a = cpu_to_le16(wLen);
             //Get Duration
 		pBuf->wDuration_bb = s_uGetRTSCTSDuration(pDevice, RTSDUR_BB,
 			cbFrameLength, PK_TYPE_11B,
@@ -703,7 +699,6 @@ static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
             BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopOFDMBasicRate, byPktType,
                 (u16 *)&(wLen), (u8 *)&(pBuf->byServiceField), (u8 *)&(pBuf->bySignalField)
             );
-            pBuf->wTransmitLength = cpu_to_le16(wLen);
             //Get Duration
 		pBuf->wDuration = s_uGetRTSCTSDuration(pDevice, RTSDUR_AA,
 			cbFrameLength, byPktType, wCurrentRate,
@@ -729,7 +724,6 @@ static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
             BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopOFDMBasicRate, byPktType,
                 (u16 *)&(wLen), (u8 *)&(pBuf->byServiceField), (u8 *)&(pBuf->bySignalField)
             );
-            pBuf->wTransmitLength = cpu_to_le16(wLen);
             //Get Duration
 		pBuf->wDuration = s_uGetRTSCTSDuration(pDevice, RTSDUR_AA,
 			cbFrameLength, byPktType, wCurrentRate,
@@ -762,7 +756,6 @@ static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
         BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
             (u16 *)&(wLen), (u8 *)&(pBuf->byServiceField), (u8 *)&(pBuf->bySignalField)
         );
-        pBuf->wTransmitLength = cpu_to_le16(wLen);
         //Get Duration
 	pBuf->wDuration = s_uGetRTSCTSDuration(pDevice, RTSDUR_BB,
 		cbFrameLength, byPktType, wCurrentRate,
@@ -810,7 +803,6 @@ static void s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
             BBvCalculateParameter(pDevice, uCTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
                 (u16 *)&(wLen), (u8 *)&(pBuf->byServiceField_b), (u8 *)&(pBuf->bySignalField_b)
             );
-            pBuf->wTransmitLength_b = cpu_to_le16(wLen);
 		pBuf->wDuration_ba = s_uGetRTSCTSDuration(pDevice, CTSDUR_BA,
 			cbFrameLength, byPktType,
 			wCurrentRate, bNeedAck, byFBOption);
@@ -832,7 +824,6 @@ static void s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
             BBvCalculateParameter(pDevice, uCTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
                 (u16 *)&(wLen), (u8 *)&(pBuf->byServiceField_b), (u8 *)&(pBuf->bySignalField_b)
             );
-            pBuf->wTransmitLength_b = cpu_to_le16(wLen);
 		/* Get CTSDuration_ba */
 		pBuf->wDuration_ba = s_uGetRTSCTSDuration(pDevice,
 			CTSDUR_BA, cbFrameLength, byPktType,

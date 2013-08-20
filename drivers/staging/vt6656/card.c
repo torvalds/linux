@@ -421,23 +421,19 @@ void CARDvSetRSPINF(struct vnt_private *pDevice, u8 byBBType)
                                  &abyTxRate[8],
                                  &abyRsvTime[8]);
 
-    abyData[0] = (u8)(awLen[0]&0xFF);
-    abyData[1] = (u8)(awLen[0]>>8);
+	put_unaligned(awLen[0], (u16 *)&abyData[0]);
     abyData[2] = abySignal[0];
     abyData[3] = abyServ[0];
 
-    abyData[4] = (u8)(awLen[1]&0xFF);
-    abyData[5] = (u8)(awLen[1]>>8);
+	put_unaligned(awLen[1], (u16 *)&abyData[4]);
     abyData[6] = abySignal[1];
     abyData[7] = abyServ[1];
 
-    abyData[8] = (u8)(awLen[2]&0xFF);
-    abyData[9] = (u8)(awLen[2]>>8);
+	put_unaligned(awLen[2], (u16 *)&abyData[8]);
     abyData[10] = abySignal[2];
     abyData[11] = abyServ[2];
 
-    abyData[12] = (u8)(awLen[3]&0xFF);
-    abyData[13] = (u8)(awLen[3]>>8);
+	put_unaligned(awLen[3], (u16 *)&abyData[12]);
     abyData[14] = abySignal[3];
     abyData[15] = abyServ[3];
 
