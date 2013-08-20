@@ -23,6 +23,7 @@ analysis phases.
 OPTIONS
 -------
 
+-a::
 --all-cpus::
         System-wide collection from all CPUs.
 
@@ -38,18 +39,23 @@ OPTIONS
 --pid=::
 	Record events on existing process ID (comma separated list).
 
+-t::
 --tid=::
         Record events on existing thread ID (comma separated list).
 
+-u::
 --uid=::
         Record events in threads owned by uid. Name or number.
 
+-i::
 --no-inherit::
 	Child tasks do not inherit counters.
 
+-m::
 --mmap-pages=::
 	Number of mmap data pages. Must be a power of two.
 
+-C::
 --cpu::
 Collect samples only on the list of CPUs provided. Multiple CPUs can be provided as a
 comma-separated list with no space: 0,1. Ranges of CPUs are specified with -: 0-2.
