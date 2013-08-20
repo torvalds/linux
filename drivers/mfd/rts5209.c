@@ -70,6 +70,10 @@ static int rts5209_extra_init_hw(struct rtsx_pcr *pcr)
 
 	/* Turn off LED */
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, CARD_GPIO, 0xFF, 0x03);
+	/* Reset ASPM state to default value */
+	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, ASPM_FORCE_CTL, 0x3F, 0);
+	/* Force CLKREQ# PIN to drive 0 to request clock */
+	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, PETXCFG, 0x08, 0x08);
 	/* Configure GPIO as output */
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, CARD_GPIO_DIR, 0xFF, 0x03);
 	/* Configure driving */
