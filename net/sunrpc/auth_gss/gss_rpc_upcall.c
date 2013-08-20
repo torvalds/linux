@@ -213,6 +213,30 @@ static int gssp_call(struct net *net, struct rpc_message *msg)
 	return status;
 }
 
+static void gssp_free_receive_pages(struct gssx_arg_accept_sec_context *arg)
+{
+	int i;
+
+	for (i = 0; i < arg->npages && arg->pages[i]; i++)
+		__free_page(arg->pages[i]);
+}
+
+static int gssp_alloc_receive_pages(struct gssx_arg_accept_sec_context *arg)
+{
+	int i;
+
+	arg->npages = DIV_ROUND_UP(NGROUPS_MAX * 4, PAGE_SIZE);
+	arg->pages = kzalloc(arg->npages * sizeof(struct page *), GFP_KERNEL);
+
+	for (i=0; i < arg->npages; i++) {
+		arg->pages[i] = alloc_page(GFP_KERNEL);
+		if (arg->pages[i] == NULL) {
+			gssp_free_receive_pages(arg);
+			return -ENOMEM;
+		}
+	}
+	return 0;
+}
 
 /*
  * Public functions
@@ -261,9 +285,15 @@ int gssp_accept_sec_context_upcall(struct net *net,
 		arg.context_handle = &ctxh;
 	res.output_token->len = GSSX_max_output_token_sz;
 
+	ret = gssp_alloc_receive_pages(&arg);
+	if (ret)
+		return ret;
+
 	/* use nfs/ for targ_name ? */
 
 	ret = gssp_call(net, &msg);
+
+	gssp_free_receive_pages(&arg);
 
 	/* we need to fetch all data even in case of error so
 	 * that we can free special strctures is they have been allocated */
