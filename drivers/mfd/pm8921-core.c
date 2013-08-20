@@ -118,7 +118,7 @@ static int pm8921_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	pmic = kzalloc(sizeof(struct pm8921), GFP_KERNEL);
+	pmic = devm_kzalloc(&pdev->dev, sizeof(struct pm8921), GFP_KERNEL);
 	if (!pmic) {
 		pr_err("Cannot alloc pm8921 struct\n");
 		return -ENOMEM;
@@ -128,7 +128,7 @@ static int pm8921_probe(struct platform_device *pdev)
 	rc = ssbi_read(pdev->dev.parent, REG_HWREV, &val, sizeof(val));
 	if (rc) {
 		pr_err("Failed to read hw rev reg %d:rc=%d\n", REG_HWREV, rc);
-		goto err_read_rev;
+		return rc;
 	}
 	pr_info("PMIC revision 1: %02X\n", val);
 	rev = val;
@@ -138,7 +138,7 @@ static int pm8921_probe(struct platform_device *pdev)
 	if (rc) {
 		pr_err("Failed to read hw rev 2 reg %d:rc=%d\n",
 			REG_HWREV_2, rc);
-		goto err_read_rev;
+		return rc;
 	}
 	pr_info("PMIC revision 2: %02X\n", val);
 	rev |= val << BITS_PER_BYTE;
@@ -160,8 +160,6 @@ static int pm8921_probe(struct platform_device *pdev)
 
 err:
 	mfd_remove_devices(pmic->dev);
-err_read_rev:
-	kfree(pmic);
 	return rc;
 }
 
@@ -179,7 +177,6 @@ static int pm8921_remove(struct platform_device *pdev)
 		pm8xxx_irq_exit(pmic->irq_chip);
 		pmic->irq_chip = NULL;
 	}
-	kfree(pmic);
 
 	return 0;
 }
