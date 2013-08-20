@@ -31,6 +31,7 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 #include <linux/list_sort.h>
+#include <asm/msr-index.h>
 #include <drm/drmP.h>
 #include "intel_drv.h"
 #include "intel_ringbuffer.h"
@@ -1769,6 +1770,27 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int i915_energy_uJ(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u64 power;
+	u32 units;
+
+	if (INTEL_INFO(dev)->gen < 6)
+		return -ENODEV;
+
+	rdmsrl(MSR_RAPL_POWER_UNIT, power);
+	power = (power & 0x1f00) >> 8;
+	units = 1000000 / (1 << power); /* convert to uJ */
+	power = I915_READ(MCH_SECP_NRG_STTS);
+	power *= units;
+
+	seq_printf(m, "%llu", (long long unsigned)power);
+	return 0;
+}
+
 static int
 i915_wedged_get(void *data, u64 *val)
 {
@@ -2208,6 +2230,7 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_dpio", i915_dpio_info, 0},
 	{"i915_llc", i915_llc, 0},
 	{"i915_edp_psr_status", i915_edp_psr_status, 0},
+	{"i915_energy_uJ", i915_energy_uJ, 0},
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 
