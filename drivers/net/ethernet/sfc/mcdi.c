@@ -593,6 +593,7 @@ int efx_mcdi_drv_attach(struct efx_nic *efx, bool driver_operating,
 	MCDI_SET_DWORD(inbuf, DRV_ATTACH_IN_NEW_STATE,
 		       driver_operating ? 1 : 0);
 	MCDI_SET_DWORD(inbuf, DRV_ATTACH_IN_UPDATE, 1);
+	MCDI_SET_DWORD(inbuf, DRV_ATTACH_IN_FIRMWARE_ID, MC_CMD_FW_LOW_LATENCY);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_DRV_ATTACH, inbuf, sizeof(inbuf),
 			  outbuf, sizeof(outbuf), &outlen);

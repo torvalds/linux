@@ -111,7 +111,8 @@ static int efx_mcdi_loopback_modes(struct efx_nic *efx, u64 *loopback_modes)
 	if (rc)
 		goto fail;
 
-	if (outlen < MC_CMD_GET_LOOPBACK_MODES_OUT_LEN) {
+	if (outlen < (MC_CMD_GET_LOOPBACK_MODES_OUT_SUGGESTED_OFST +
+		      MC_CMD_GET_LOOPBACK_MODES_OUT_SUGGESTED_LEN)) {
 		rc = -EIO;
 		goto fail;
 	}
