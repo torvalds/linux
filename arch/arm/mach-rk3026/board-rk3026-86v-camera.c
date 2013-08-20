@@ -49,7 +49,7 @@ static struct rkcamera_platform_data new_camera[] = {
                         0,
                         1,
                         0),
-                        
+    /*                    
     new_camera_device(RK29_CAM_SENSOR_GC0308,
                         back,
                         RK30_PIN3_PD7,
@@ -57,7 +57,7 @@ static struct rkcamera_platform_data new_camera[] = {
                         0,
                         1,
                         0), 
-                        
+        */                
     new_camera_device_end
 };
 /*---------------- Camera Sensor Macro Define Begin  ------------------------*/
