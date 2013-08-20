@@ -478,7 +478,9 @@ struct se_cmd {
 	struct work_struct	work;
 
 	struct scatterlist	*t_data_sg;
+	struct scatterlist	*t_data_sg_orig;
 	unsigned int		t_data_nents;
+	unsigned int		t_data_nents_orig;
 	void			*t_data_vmap;
 	struct scatterlist	*t_bidi_data_sg;
 	unsigned int		t_bidi_data_nents;

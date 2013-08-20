@@ -1991,10 +1991,29 @@ static inline void transport_free_sgl(struct scatterlist *sgl, int nents)
 	kfree(sgl);
 }
 
+static inline void transport_reset_sgl_orig(struct se_cmd *cmd)
+{
+	/*
+	 * Check for saved t_data_sg that may be used for COMPARE_AND_WRITE
+	 * emulation, and free + reset pointers if necessary..
+	 */
+	if (!cmd->t_data_sg_orig)
+		return;
+
+	kfree(cmd->t_data_sg);
+	cmd->t_data_sg = cmd->t_data_sg_orig;
+	cmd->t_data_sg_orig = NULL;
+	cmd->t_data_nents = cmd->t_data_nents_orig;
+	cmd->t_data_nents_orig = 0;
+}
+
 static inline void transport_free_pages(struct se_cmd *cmd)
 {
-	if (cmd->se_cmd_flags & SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC)
+	if (cmd->se_cmd_flags & SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC) {
+		transport_reset_sgl_orig(cmd);
 		return;
+	}
+	transport_reset_sgl_orig(cmd);
 
 	transport_free_sgl(cmd->t_data_sg, cmd->t_data_nents);
 	cmd->t_data_sg = NULL;
