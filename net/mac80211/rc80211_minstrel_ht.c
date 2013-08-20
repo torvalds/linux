@@ -828,6 +828,9 @@ minstrel_ht_update_cck(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	if (sband->band != IEEE80211_BAND_2GHZ)
 		return;
 
+	if (!(mp->hw->flags & IEEE80211_HW_SUPPORTS_HT_CCK_RATES))
+		return;
+
 	mi->cck_supported = 0;
 	mi->cck_supported_short = 0;
 	for (i = 0; i < 4; i++) {
