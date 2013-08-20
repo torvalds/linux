@@ -4159,6 +4159,11 @@ void i915_gem_vma_destroy(struct i915_vma *vma)
 {
 	WARN_ON(vma->node.allocated);
 	list_del(&vma->vma_link);
+
+	/* Keep the vma as a placeholder in the execbuffer reservation lists */
+	if (!list_empty(&vma->exec_list))
+		return;
+
 	kfree(vma);
 }
 
