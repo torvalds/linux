@@ -25,8 +25,7 @@
 
 #include <linux/sched.h>
 #include <linux/pci.h>
-
-#include "rtsx_common.h"
+#include <linux/mfd/rtsx_common.h>
 
 #define MAX_RW_REG_CNT			1024
 
@@ -536,6 +535,10 @@
 #define SAMPLE_VAR_CLK0			(0x01 << 4)
 #define SAMPLE_VAR_CLK1			(0x02 << 4)
 
+/* HOST_SLEEP_STATE */
+#define HOST_ENTER_S1			1
+#define HOST_ENTER_S3			2
+
 #define MS_CFG				0xFD40
 #define MS_TPC				0xFD41
 #define MS_TRANS_CFG			0xFD42
@@ -701,6 +704,11 @@
 
 #define AUTOLOAD_CFG_BASE		0xFF00
 
+#define PM_CTRL1			0xFF44
+#define PM_CTRL2			0xFF45
+#define PM_CTRL3			0xFF46
+#define PM_CTRL4			0xFF47
+
 /* Memory mapping */
 #define SRAM_BASE			0xE600
 #define RBUF_BASE			0xF400
@@ -770,6 +778,7 @@ struct pcr_ops {
 	unsigned int	(*cd_deglitch)(struct rtsx_pcr *pcr);
 	int		(*conv_clk_and_div_n)(int clk, int dir);
 	void		(*fetch_vendor_settings)(struct rtsx_pcr *pcr);
+	void		(*force_power_down)(struct rtsx_pcr *pcr);
 };
 
 enum PDEV_STAT  {PDEV_STAT_IDLE, PDEV_STAT_RUN};

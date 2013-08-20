@@ -86,6 +86,11 @@ static void rtl8411b_fetch_vendor_settings(struct rtsx_pcr *pcr)
 		map_sd_drive(rtl8411b_reg_to_sd30_drive_sel_3v3(reg));
 }
 
+static void rtl8411_force_power_down(struct rtsx_pcr *pcr)
+{
+	rtsx_pci_write_register(pcr, FPDCTL, 0x07, 0x07);
+}
+
 static int rtl8411_extra_init_hw(struct rtsx_pcr *pcr)
 {
 	rtsx_pci_init_cmd(pcr);
@@ -285,6 +290,7 @@ static const struct pcr_ops rtl8411_pcr_ops = {
 	.switch_output_voltage = rtl8411_switch_output_voltage,
 	.cd_deglitch = rtl8411_cd_deglitch,
 	.conv_clk_and_div_n = rtl8411_conv_clk_and_div_n,
+	.force_power_down = rtl8411_force_power_down,
 };
 
 static const struct pcr_ops rtl8411b_pcr_ops = {
@@ -300,6 +306,7 @@ static const struct pcr_ops rtl8411b_pcr_ops = {
 	.switch_output_voltage = rtl8411_switch_output_voltage,
 	.cd_deglitch = rtl8411_cd_deglitch,
 	.conv_clk_and_div_n = rtl8411_conv_clk_and_div_n,
+	.force_power_down = rtl8411_force_power_down,
 };
 
 /* SD Pull Control Enable:

@@ -88,6 +88,16 @@ static void rts5249_fetch_vendor_settings(struct rtsx_pcr *pcr)
 		pcr->flags |= PCR_REVERSE_SOCKET;
 }
 
+static void rts5249_force_power_down(struct rtsx_pcr *pcr)
+{
+	/* Set relink_time to 0 */
+	rtsx_pci_write_register(pcr, AUTOLOAD_CFG_BASE + 1, 0xFF, 0);
+	rtsx_pci_write_register(pcr, AUTOLOAD_CFG_BASE + 2, 0xFF, 0);
+	rtsx_pci_write_register(pcr, AUTOLOAD_CFG_BASE + 3, 0x01, 0);
+
+	rtsx_pci_write_register(pcr, FPDCTL, 0x03, 0x03);
+}
+
 static int rts5249_extra_init_hw(struct rtsx_pcr *pcr)
 {
 	rtsx_pci_init_cmd(pcr);
@@ -217,6 +227,7 @@ static const struct pcr_ops rts5249_pcr_ops = {
 	.card_power_on = rts5249_card_power_on,
 	.card_power_off = rts5249_card_power_off,
 	.switch_output_voltage = rts5249_switch_output_voltage,
+	.force_power_down = rts5249_force_power_down,
 };
 
 /* SD Pull Control Enable:
