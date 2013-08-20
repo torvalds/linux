@@ -890,6 +890,19 @@ int se_dev_set_emulate_tpws(struct se_device *dev, int flag)
 	return 0;
 }
 
+int se_dev_set_emulate_caw(struct se_device *dev, int flag)
+{
+	if (flag != 0 && flag != 1) {
+		pr_err("Illegal value %d\n", flag);
+		return -EINVAL;
+	}
+	dev->dev_attrib.emulate_caw = flag;
+	pr_debug("dev[%p]: SE Device CompareAndWrite (AtomicTestandSet): %d\n",
+		 dev, flag);
+
+	return 0;
+}
+
 int se_dev_set_enforce_pr_isids(struct se_device *dev, int flag)
 {
 	if ((flag != 0) && (flag != 1)) {
@@ -1423,6 +1436,7 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	dev->dev_attrib.emulate_tas = DA_EMULATE_TAS;
 	dev->dev_attrib.emulate_tpu = DA_EMULATE_TPU;
 	dev->dev_attrib.emulate_tpws = DA_EMULATE_TPWS;
+	dev->dev_attrib.emulate_caw = DA_EMULATE_CAW;
 	dev->dev_attrib.enforce_pr_isids = DA_ENFORCE_PR_ISIDS;
 	dev->dev_attrib.is_nonrot = DA_IS_NONROT;
 	dev->dev_attrib.emulate_rest_reord = DA_EMULATE_REST_REORD;

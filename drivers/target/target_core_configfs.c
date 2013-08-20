@@ -636,6 +636,9 @@ SE_DEV_ATTR(emulate_tpu, S_IRUGO | S_IWUSR);
 DEF_DEV_ATTRIB(emulate_tpws);
 SE_DEV_ATTR(emulate_tpws, S_IRUGO | S_IWUSR);
 
+DEF_DEV_ATTRIB(emulate_caw);
+SE_DEV_ATTR(emulate_caw, S_IRUGO | S_IWUSR);
+
 DEF_DEV_ATTRIB(enforce_pr_isids);
 SE_DEV_ATTR(enforce_pr_isids, S_IRUGO | S_IWUSR);
 
@@ -693,6 +696,7 @@ static struct configfs_attribute *target_core_dev_attrib_attrs[] = {
 	&target_core_dev_attrib_emulate_tas.attr,
 	&target_core_dev_attrib_emulate_tpu.attr,
 	&target_core_dev_attrib_emulate_tpws.attr,
+	&target_core_dev_attrib_emulate_caw.attr,
 	&target_core_dev_attrib_enforce_pr_isids.attr,
 	&target_core_dev_attrib_is_nonrot.attr,
 	&target_core_dev_attrib_emulate_rest_reord.attr,

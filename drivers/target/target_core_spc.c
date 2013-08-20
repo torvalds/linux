@@ -457,6 +457,11 @@ spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 
 	/* Set WSNZ to 1 */
 	buf[4] = 0x01;
+	/*
+	 * Set MAXIMUM COMPARE AND WRITE LENGTH
+	 */
+	if (dev->dev_attrib.emulate_caw)
+		buf[5] = 0x01;
 
 	/*
 	 * Set OPTIMAL TRANSFER LENGTH GRANULARITY
