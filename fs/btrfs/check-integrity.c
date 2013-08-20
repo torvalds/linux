@@ -2958,9 +2958,10 @@ int btrfsic_submit_bh(int rw, struct buffer_head *bh)
 		if (dev_state->state->print_mask &
 		    BTRFSIC_PRINT_MASK_SUBMIT_BIO_BH)
 			printk(KERN_INFO
-			       "submit_bh(rw=0x%x, blocknr=%lu (bytenr %llu),"
+			       "submit_bh(rw=0x%x, blocknr=%llu (bytenr %llu),"
 			       " size=%lu, data=%p, bdev=%p)\n",
-			       rw, (unsigned long)bh->b_blocknr, dev_bytenr,
+			       rw, (unsigned long long)bh->b_blocknr,
+			       dev_bytenr,
 			       (unsigned long)bh->b_size, bh->b_data,
 			       bh->b_bdev);
 		btrfsic_process_written_block(dev_state, dev_bytenr,
@@ -3027,9 +3028,10 @@ void btrfsic_submit_bio(int rw, struct bio *bio)
 		    BTRFSIC_PRINT_MASK_SUBMIT_BIO_BH)
 			printk(KERN_INFO
 			       "submit_bio(rw=0x%x, bi_vcnt=%u,"
-			       " bi_sector=%lu (bytenr %llu), bi_bdev=%p)\n",
-			       rw, bio->bi_vcnt, (unsigned long)bio->bi_sector,
-			       dev_bytenr, bio->bi_bdev);
+			       " bi_sector=%llu (bytenr %llu), bi_bdev=%p)\n",
+			       rw, bio->bi_vcnt,
+			       (unsigned long long)bio->bi_sector, dev_bytenr,
+			       bio->bi_bdev);
 
 		mapped_datav = kmalloc(sizeof(*mapped_datav) * bio->bi_vcnt,
 				       GFP_NOFS);
