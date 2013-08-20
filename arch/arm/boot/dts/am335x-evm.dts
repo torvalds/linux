@@ -178,11 +178,11 @@
 				status = "okay";
 			};
 
-			phy@47401300 {
+			usb-phy@47401300 {
 				status = "okay";
 			};
 
-			phy@47401b00 {
+			usb-phy@47401b00 {
 				status = "okay";
 			};
 
@@ -194,7 +194,7 @@
 				status = "okay";
 			};
 
-			dma@07402000  {
+			dma-controller@07402000  {
 				status = "okay";
 			};
 		};

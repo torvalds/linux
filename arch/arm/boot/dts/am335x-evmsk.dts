@@ -214,7 +214,7 @@
 				status = "okay";
 			};
 
-			phy@47401300 {
+			usb-phy@47401300 {
 				status = "okay";
 			};
 
