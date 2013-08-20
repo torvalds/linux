@@ -68,7 +68,7 @@
 /* Can compare handles directly on Cray Portals */
 #define PtlHandleIsEqual(a,b) ((a) == (b))
 
-/* Diffrent error types on Cray Portals*/
+/* Different error types on Cray Portals*/
 #define ptl_err_t ptl_ni_fail_t
 
 /*
@@ -76,7 +76,7 @@
  * maximum is limited only by memory and size of the
  * int parameters (2^31-1).
  * Lustre only really require that the underyling
- * implemenation to support at least LNET_MAX_IOV,
+ * implementation to support at least LNET_MAX_IOV,
  * so for Cray portals we can safely just use that
  * value here.
  *

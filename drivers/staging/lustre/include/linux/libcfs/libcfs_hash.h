@@ -720,7 +720,7 @@ __u64 cfs_hash_size_get(cfs_hash_t *hs);
 
 /*
  * Rehash - Theta is calculated to be the average chained
- * hash depth assuming a perfectly uniform hash funcion.
+ * hash depth assuming a perfectly uniform hash function.
  */
 void cfs_hash_rehash_cancel_locked(cfs_hash_t *hs);
 void cfs_hash_rehash_cancel(cfs_hash_t *hs);

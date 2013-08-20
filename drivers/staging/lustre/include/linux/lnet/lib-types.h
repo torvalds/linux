@@ -181,11 +181,11 @@ typedef struct lnet_msg {
 	lnet_nid_t		msg_from;
 	__u32			msg_type;
 
-	/* commited for sending */
+	/* committed for sending */
 	unsigned int		msg_tx_committed:1;
 	/* CPT # this message committed for sending */
 	unsigned int		msg_tx_cpt:15;
-	/* commited for receiving */
+	/* committed for receiving */
 	unsigned int		msg_rx_committed:1;
 	/* CPT # this message committed for receiving */
 	unsigned int		msg_rx_cpt:15;
