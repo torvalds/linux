@@ -22,3 +22,5 @@ obj-$(CONFIG_PCI) += pcibios.o
 
 obj-$(CONFIG_HAS_DMA)	+= dma.o
 
+obj-$(CONFIG_KEXEC)		+= machine_kexec.o relocate_kernel.o
+
