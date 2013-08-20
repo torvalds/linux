@@ -295,10 +295,9 @@ static int __resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 	ret = btrfs_search_old_slot(root, &ref->key_for_search, path, time_seq);
 	pr_debug("search slot in root %llu (level %d, ref count %d) returned "
 		 "%d for key (%llu %u %llu)\n",
-		 (unsigned long long)ref->root_id, level, ref->count, ret,
-		 (unsigned long long)ref->key_for_search.objectid,
-		 ref->key_for_search.type,
-		 (unsigned long long)ref->key_for_search.offset);
+		 ref->root_id, level, ref->count, ret,
+		 ref->key_for_search.objectid, ref->key_for_search.type,
+		 ref->key_for_search.offset);
 	if (ret < 0)
 		goto out;
 
@@ -1328,8 +1327,7 @@ int extent_from_logical(struct btrfs_fs_info *fs_info, u64 logical,
 	     found_key->type != BTRFS_METADATA_ITEM_KEY) ||
 	    found_key->objectid > logical ||
 	    found_key->objectid + size <= logical) {
-		pr_debug("logical %llu is not within any extent\n",
-			 (unsigned long long)logical);
+		pr_debug("logical %llu is not within any extent\n", logical);
 		return -ENOENT;
 	}
 
@@ -1342,11 +1340,8 @@ int extent_from_logical(struct btrfs_fs_info *fs_info, u64 logical,
 
 	pr_debug("logical %llu is at position %llu within the extent (%llu "
 		 "EXTENT_ITEM %llu) flags %#llx size %u\n",
-		 (unsigned long long)logical,
-		 (unsigned long long)(logical - found_key->objectid),
-		 (unsigned long long)found_key->objectid,
-		 (unsigned long long)found_key->offset,
-		 (unsigned long long)flags, item_size);
+		 logical, logical - found_key->objectid, found_key->objectid,
+		 found_key->offset, flags, item_size);
 
 	WARN_ON(!flags_ret);
 	if (flags_ret) {
@@ -1518,7 +1513,7 @@ int iterate_extent_inodes(struct btrfs_fs_info *fs_info,
 		while (!ret && (root_node = ulist_next(roots, &root_uiter))) {
 			pr_debug("root %llu references leaf %llu, data list "
 				 "%#llx\n", root_node->val, ref_node->val,
-				 (long long)ref_node->aux);
+				 ref_node->aux);
 			ret = iterate_leaf_refs((struct extent_inode_elem *)
 						(uintptr_t)ref_node->aux,
 						root_node->val,
@@ -1610,9 +1605,8 @@ static int iterate_inode_refs(u64 inum, struct btrfs_root *fs_root,
 			name_len = btrfs_inode_ref_name_len(eb, iref);
 			/* path must be released before calling iterate()! */
 			pr_debug("following ref at offset %u for inode %llu in "
-				 "tree %llu\n", cur,
-				 (unsigned long long)found_key.objectid,
-				 (unsigned long long)fs_root->objectid);
+				 "tree %llu\n", cur, found_key.objectid,
+				 fs_root->objectid);
 			ret = iterate(parent, name_len,
 				      (unsigned long)(iref + 1), eb, ctx);
 			if (ret)

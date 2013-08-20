@@ -398,8 +398,7 @@ next1:
 		if (ret == -ENOENT) {
 			printk(KERN_WARNING
 				"btrfs: orphan qgroup relation 0x%llx->0x%llx\n",
-				(unsigned long long)found_key.objectid,
-				(unsigned long long)found_key.offset);
+				found_key.objectid, found_key.offset);
 			ret = 0;	/* ignore the error */
 		}
 		if (ret)
@@ -1163,7 +1162,7 @@ int btrfs_limit_qgroup(struct btrfs_trans_handle *trans,
 	if (ret) {
 		fs_info->qgroup_flags |= BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT;
 		printk(KERN_INFO "unable to update quota limit for %llu\n",
-		       (unsigned long long)qgroupid);
+		       qgroupid);
 	}
 
 	spin_lock(&fs_info->qgroup_lock);
@@ -1873,10 +1872,9 @@ qgroup_rescan_leaf(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
 					 path, 1, 0);
 
 	pr_debug("current progress key (%llu %u %llu), search_slot ret %d\n",
-		 (unsigned long long)fs_info->qgroup_rescan_progress.objectid,
+		 fs_info->qgroup_rescan_progress.objectid,
 		 fs_info->qgroup_rescan_progress.type,
-		 (unsigned long long)fs_info->qgroup_rescan_progress.offset,
-		 ret);
+		 fs_info->qgroup_rescan_progress.offset, ret);
 
 	if (ret) {
 		/*

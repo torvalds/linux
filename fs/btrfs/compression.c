@@ -132,9 +132,8 @@ static int check_compressed_csum(struct inode *inode,
 			printk(KERN_INFO "btrfs csum failed ino %llu "
 			       "extent %llu csum %u "
 			       "wanted %u mirror %d\n",
-			       (unsigned long long)btrfs_ino(inode),
-			       (unsigned long long)disk_start,
-			       csum, *cb_sum, cb->mirror_num);
+			       btrfs_ino(inode), disk_start, csum, *cb_sum,
+			       cb->mirror_num);
 			ret = -EIO;
 			goto fail;
 		}

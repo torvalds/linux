@@ -61,9 +61,8 @@ void btrfs_leak_debug_check(void)
 		state = list_entry(states.next, struct extent_state, leak_list);
 		printk(KERN_ERR "btrfs state leak: start %llu end %llu "
 		       "state %lu in tree %p refs %d\n",
-		       (unsigned long long)state->start,
-		       (unsigned long long)state->end,
-		       state->state, state->tree, atomic_read(&state->refs));
+		       state->start, state->end, state->state, state->tree,
+		       atomic_read(&state->refs));
 		list_del(&state->leak_list);
 		kmem_cache_free(extent_state_cache, state);
 	}
@@ -71,8 +70,8 @@ void btrfs_leak_debug_check(void)
 	while (!list_empty(&buffers)) {
 		eb = list_entry(buffers.next, struct extent_buffer, leak_list);
 		printk(KERN_ERR "btrfs buffer leak start %llu len %lu "
-		       "refs %d\n", (unsigned long long)eb->start,
-		       eb->len, atomic_read(&eb->refs));
+		       "refs %d\n",
+		       eb->start, eb->len, atomic_read(&eb->refs));
 		list_del(&eb->leak_list);
 		kmem_cache_free(extent_buffer_cache, eb);
 	}
@@ -88,11 +87,7 @@ static inline void __btrfs_debug_check_extent_io_range(const char *caller,
 	if (end >= PAGE_SIZE && (end % 2) == 0 && end != isize - 1) {
 		printk_ratelimited(KERN_DEBUG
 		    "btrfs: %s: ino %llu isize %llu odd range [%llu,%llu]\n",
-				caller,
-				(unsigned long long)btrfs_ino(inode),
-				(unsigned long long)isize,
-				(unsigned long long)start,
-				(unsigned long long)end);
+				caller, btrfs_ino(inode), isize, start, end);
 	}
 }
 #else
@@ -388,8 +383,7 @@ static int insert_state(struct extent_io_tree *tree,
 
 	if (end < start)
 		WARN(1, KERN_ERR "btrfs end < start %llu %llu\n",
-		       (unsigned long long)end,
-		       (unsigned long long)start);
+		       end, start);
 	state->start = start;
 	state->end = end;
 
@@ -400,9 +394,8 @@ static int insert_state(struct extent_io_tree *tree,
 		struct extent_state *found;
 		found = rb_entry(node, struct extent_state, rb_node);
 		printk(KERN_ERR "btrfs found node %llu %llu on insert of "
-		       "%llu %llu\n", (unsigned long long)found->start,
-		       (unsigned long long)found->end,
-		       (unsigned long long)start, (unsigned long long)end);
+		       "%llu %llu\n",
+		       found->start, found->end, start, end);
 		return -EEXIST;
 	}
 	state->tree = tree;
@@ -3298,8 +3291,7 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 			if (!PageWriteback(page)) {
 				printk(KERN_ERR "btrfs warning page %lu not "
 				       "writeback, cur %llu end %llu\n",
-				       page->index, (unsigned long long)cur,
-				       (unsigned long long)end);
+				       page->index, cur, end);
 			}
 
 			ret = submit_extent_page(write_flags, tree, page,
@@ -4923,8 +4915,8 @@ int map_private_extent_buffer(struct extent_buffer *eb, unsigned long start,
 
 	if (start + min_len > eb->len) {
 		WARN(1, KERN_ERR "btrfs bad mapping eb start %llu len %lu, "
-		       "wanted %lu %lu\n", (unsigned long long)eb->start,
-		       eb->len, start, min_len);
+		       "wanted %lu %lu\n",
+		       eb->start, eb->len, start, min_len);
 		return -EINVAL;
 	}
 

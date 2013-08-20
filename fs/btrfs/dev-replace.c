@@ -148,7 +148,7 @@ no_valid_dev_replace_entry_found:
 		    !btrfs_test_opt(dev_root, DEGRADED)) {
 			ret = -EIO;
 			pr_warn("btrfs: cannot mount because device replace operation is ongoing and\n" "srcdev (devid %llu) is missing, need to run 'btrfs dev scan'?\n",
-				(unsigned long long)src_devid);
+				src_devid);
 		}
 		if (!dev_replace->tgtdev &&
 		    !btrfs_test_opt(dev_root, DEGRADED)) {

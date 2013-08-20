@@ -303,9 +303,8 @@ static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
 			printk_ratelimited(KERN_INFO "btrfs: %s checksum verify "
 				       "failed on %llu wanted %X found %X "
 				       "level %d\n",
-				       root->fs_info->sb->s_id,
-				       (unsigned long long)buf->start, val, found,
-				       btrfs_header_level(buf));
+				       root->fs_info->sb->s_id, buf->start,
+				       val, found, btrfs_header_level(buf));
 			if (result != (char *)&inline_result)
 				kfree(result);
 			return 1;
@@ -346,9 +345,7 @@ static int verify_parent_transid(struct extent_io_tree *io_tree,
 	}
 	printk_ratelimited("parent transid verify failed on %llu wanted %llu "
 		       "found %llu\n",
-		       (unsigned long long)eb->start,
-		       (unsigned long long)parent_transid,
-		       (unsigned long long)btrfs_header_generation(eb));
+		       eb->start, parent_transid, btrfs_header_generation(eb));
 	ret = 1;
 	clear_extent_buffer_uptodate(eb);
 out:
@@ -513,8 +510,7 @@ static int check_tree_block_fsid(struct btrfs_root *root,
 #define CORRUPT(reason, eb, root, slot)				\
 	printk(KERN_CRIT "btrfs: corrupt leaf, %s: block=%llu,"	\
 	       "root=%llu, slot=%d\n", reason,			\
-	       (unsigned long long)btrfs_header_bytenr(eb),	\
-	       (unsigned long long)root->objectid, slot)
+	       btrfs_header_bytenr(eb),	root->objectid, slot)
 
 static noinline int check_leaf(struct btrfs_root *root,
 			       struct extent_buffer *leaf)
@@ -614,14 +610,13 @@ static int btree_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
 	if (found_start != eb->start) {
 		printk_ratelimited(KERN_INFO "btrfs bad tree block start "
 			       "%llu %llu\n",
-			       (unsigned long long)found_start,
-			       (unsigned long long)eb->start);
+			       found_start, eb->start);
 		ret = -EIO;
 		goto err;
 	}
 	if (check_tree_block_fsid(root, eb)) {
 		printk_ratelimited(KERN_INFO "btrfs bad fsid on block %llu\n",
-			       (unsigned long long)eb->start);
+			       eb->start);
 		ret = -EIO;
 		goto err;
 	}
@@ -2405,7 +2400,7 @@ int open_ctree(struct super_block *sb,
 	if (features) {
 		printk(KERN_ERR "BTRFS: couldn't mount because of "
 		       "unsupported optional features (%Lx).\n",
-		       (unsigned long long)features);
+		       features);
 		err = -EINVAL;
 		goto fail_alloc;
 	}
@@ -2475,7 +2470,7 @@ int open_ctree(struct super_block *sb,
 	if (!(sb->s_flags & MS_RDONLY) && features) {
 		printk(KERN_ERR "BTRFS: couldn't mount RDWR because of "
 		       "unsupported option features (%Lx).\n",
-		       (unsigned long long)features);
+		       features);
 		err = -EINVAL;
 		goto fail_alloc;
 	}
@@ -3681,9 +3676,7 @@ void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
 	if (transid != root->fs_info->generation)
 		WARN(1, KERN_CRIT "btrfs transid mismatch buffer %llu, "
 		       "found %llu running %llu\n",
-			(unsigned long long)buf->start,
-			(unsigned long long)transid,
-			(unsigned long long)root->fs_info->generation);
+			buf->start, transid, root->fs_info->generation);
 	was_dirty = set_extent_buffer_dirty(buf);
 	if (!was_dirty)
 		__percpu_counter_add(&root->fs_info->dirty_metadata_bytes,

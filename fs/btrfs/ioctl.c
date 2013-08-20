@@ -1421,14 +1421,13 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 			ret = -EINVAL;
 			goto out_free;
 		}
-		printk(KERN_INFO "btrfs: resizing devid %llu\n",
-		       (unsigned long long)devid);
+		printk(KERN_INFO "btrfs: resizing devid %llu\n", devid);
 	}
 
 	device = btrfs_find_device(root->fs_info, devid, NULL, NULL);
 	if (!device) {
 		printk(KERN_INFO "btrfs: resizer unable to find device %llu\n",
-		       (unsigned long long)devid);
+		       devid);
 		ret = -ENODEV;
 		goto out_free;
 	}
@@ -1436,7 +1435,7 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 	if (!device->writeable) {
 		printk(KERN_INFO "btrfs: resizer unable to apply on "
 		       "readonly device %llu\n",
-		       (unsigned long long)devid);
+		       devid);
 		ret = -EPERM;
 		goto out_free;
 	}
@@ -1488,8 +1487,7 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 	new_size *= root->sectorsize;
 
 	printk_in_rcu(KERN_INFO "btrfs: new size for %s is %llu\n",
-		      rcu_str_deref(device->name),
-		      (unsigned long long)new_size);
+		      rcu_str_deref(device->name), new_size);
 
 	if (new_size > old_size) {
 		trans = btrfs_start_transaction(root, 0);

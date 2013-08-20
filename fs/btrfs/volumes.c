@@ -914,8 +914,7 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 		printk(KERN_INFO "device fsid %pU ", disk_super->fsid);
 	}
 
-	printk(KERN_CONT "devid %llu transid %llu %s\n",
-	       (unsigned long long)devid, (unsigned long long)transid, path);
+	printk(KERN_CONT "devid %llu transid %llu %s\n", devid, transid, path);
 
 	ret = device_list_add(path, disk_super, devid, fs_devices_ret);
 	if (!ret && fs_devices_ret)
@@ -3159,7 +3158,7 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 	     (bctl->data.target & ~allowed))) {
 		printk(KERN_ERR "btrfs: unable to start balance with target "
 		       "data profile %llu\n",
-		       (unsigned long long)bctl->data.target);
+		       bctl->data.target);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -3168,7 +3167,7 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 	     (bctl->meta.target & ~allowed))) {
 		printk(KERN_ERR "btrfs: unable to start balance with target "
 		       "metadata profile %llu\n",
-		       (unsigned long long)bctl->meta.target);
+		       bctl->meta.target);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -3177,7 +3176,7 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 	     (bctl->sys.target & ~allowed))) {
 		printk(KERN_ERR "btrfs: unable to start balance with target "
 		       "system profile %llu\n",
-		       (unsigned long long)bctl->sys.target);
+		       bctl->sys.target);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -4652,8 +4651,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 
 	if (!em) {
 		btrfs_crit(fs_info, "unable to find logical %llu len %llu",
-			(unsigned long long)logical,
-			(unsigned long long)*length);
+			logical, *length);
 		return -EINVAL;
 	}
 
@@ -5524,9 +5522,7 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 
 	if (map_length < length) {
 		btrfs_crit(root->fs_info, "mapping failed logical %llu bio len %llu len %llu",
-			(unsigned long long)logical,
-			(unsigned long long)length,
-			(unsigned long long)map_length);
+			logical, length, map_length);
 		BUG();
 	}
 
@@ -5846,8 +5842,7 @@ static int read_one_dev(struct btrfs_root *root,
 			return -EIO;
 
 		if (!device) {
-			btrfs_warn(root->fs_info, "devid %llu missing",
-				(unsigned long long)devid);
+			btrfs_warn(root->fs_info, "devid %llu missing", devid);
 			device = add_missing_dev(root, devid, dev_uuid);
 			if (!device)
 				return -ENOMEM;

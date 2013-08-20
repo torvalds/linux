@@ -5718,7 +5718,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 
 			if (ret) {
 				btrfs_err(info, "umm, got %d back from search, was looking for %llu",
-					ret, (unsigned long long)bytenr);
+					ret, bytenr);
 				if (ret > 0)
 					btrfs_print_leaf(extent_root,
 							 path->nodes[0]);
@@ -5734,11 +5734,8 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 		WARN_ON(1);
 		btrfs_err(info,
 			"unable to find ref byte nr %llu parent %llu root %llu  owner %llu offset %llu",
-			(unsigned long long)bytenr,
-			(unsigned long long)parent,
-			(unsigned long long)root_objectid,
-			(unsigned long long)owner_objectid,
-			(unsigned long long)owner_offset);
+			bytenr, parent, root_objectid, owner_objectid,
+			owner_offset);
 	} else {
 		btrfs_abort_transaction(trans, extent_root, ret);
 		goto out;
@@ -5767,7 +5764,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 					-1, 1);
 		if (ret) {
 			btrfs_err(info, "umm, got %d back from search, was looking for %llu",
-				ret, (unsigned long long)bytenr);
+				ret, bytenr);
 			btrfs_print_leaf(extent_root, path->nodes[0]);
 		}
 		if (ret < 0) {
@@ -6529,19 +6526,15 @@ static void dump_space_info(struct btrfs_space_info *info, u64 bytes,
 
 	spin_lock(&info->lock);
 	printk(KERN_INFO "space_info %llu has %llu free, is %sfull\n",
-	       (unsigned long long)info->flags,
-	       (unsigned long long)(info->total_bytes - info->bytes_used -
-				    info->bytes_pinned - info->bytes_reserved -
-				    info->bytes_readonly),
+	       info->flags,
+	       info->total_bytes - info->bytes_used - info->bytes_pinned -
+	       info->bytes_reserved - info->bytes_readonly,
 	       (info->full) ? "" : "not ");
 	printk(KERN_INFO "space_info total=%llu, used=%llu, pinned=%llu, "
 	       "reserved=%llu, may_use=%llu, readonly=%llu\n",
-	       (unsigned long long)info->total_bytes,
-	       (unsigned long long)info->bytes_used,
-	       (unsigned long long)info->bytes_pinned,
-	       (unsigned long long)info->bytes_reserved,
-	       (unsigned long long)info->bytes_may_use,
-	       (unsigned long long)info->bytes_readonly);
+	       info->total_bytes, info->bytes_used, info->bytes_pinned,
+	       info->bytes_reserved, info->bytes_may_use,
+	       info->bytes_readonly);
 	spin_unlock(&info->lock);
 
 	if (!dump_block_groups)
@@ -6552,12 +6545,9 @@ again:
 	list_for_each_entry(cache, &info->block_groups[index], list) {
 		spin_lock(&cache->lock);
 		printk(KERN_INFO "block group %llu has %llu bytes, %llu used %llu pinned %llu reserved %s\n",
-		       (unsigned long long)cache->key.objectid,
-		       (unsigned long long)cache->key.offset,
-		       (unsigned long long)btrfs_block_group_used(&cache->item),
-		       (unsigned long long)cache->pinned,
-		       (unsigned long long)cache->reserved,
-		       cache->ro ? "[readonly]" : "");
+		       cache->key.objectid, cache->key.offset,
+		       btrfs_block_group_used(&cache->item), cache->pinned,
+		       cache->reserved, cache->ro ? "[readonly]" : "");
 		btrfs_dump_free_space(cache, bytes);
 		spin_unlock(&cache->lock);
 	}
@@ -6594,8 +6584,7 @@ again:
 
 			sinfo = __find_space_info(root->fs_info, flags);
 			btrfs_err(root->fs_info, "allocation failed flags %llu, wanted %llu",
-				(unsigned long long)flags,
-				(unsigned long long)num_bytes);
+				flags, num_bytes);
 			if (sinfo)
 				dump_space_info(sinfo, num_bytes, 1);
 		}
@@ -6615,7 +6604,7 @@ static int __btrfs_free_reserved_extent(struct btrfs_root *root,
 	cache = btrfs_lookup_block_group(root->fs_info, start);
 	if (!cache) {
 		btrfs_err(root->fs_info, "Unable to find block group for %llu",
-			(unsigned long long)start);
+			start);
 		return -ENOSPC;
 	}
 
@@ -6711,8 +6700,7 @@ static int alloc_reserved_file_extent(struct btrfs_trans_handle *trans,
 	ret = update_block_group(root, ins->objectid, ins->offset, 1);
 	if (ret) { /* -ENOENT, logic error */
 		btrfs_err(fs_info, "update block group failed for %llu %llu",
-			(unsigned long long)ins->objectid,
-			(unsigned long long)ins->offset);
+			ins->objectid, ins->offset);
 		BUG();
 	}
 	return ret;
@@ -6784,8 +6772,7 @@ static int alloc_reserved_tree_block(struct btrfs_trans_handle *trans,
 	ret = update_block_group(root, ins->objectid, root->leafsize, 1);
 	if (ret) { /* -ENOENT, logic error */
 		btrfs_err(fs_info, "update block group failed for %llu %llu",
-			(unsigned long long)ins->objectid,
-			(unsigned long long)ins->offset);
+			ins->objectid, ins->offset);
 		BUG();
 	}
 	return ret;

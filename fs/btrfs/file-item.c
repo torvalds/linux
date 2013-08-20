@@ -248,9 +248,7 @@ static int __btrfs_lookup_bio_sums(struct btrfs_root *root,
 				} else {
 					printk(KERN_INFO "btrfs no csum found "
 					       "for inode %llu start %llu\n",
-					       (unsigned long long)
-					       btrfs_ino(inode),
-					       (unsigned long long)offset);
+					       btrfs_ino(inode), offset);
 				}
 				item = NULL;
 				btrfs_release_path(path);

@@ -2786,8 +2786,7 @@ good:
 zeroit:
 	if (__ratelimit(&_rs))
 		btrfs_info(root->fs_info, "csum failed ino %llu off %llu csum %u expected csum %u",
-			(unsigned long long)btrfs_ino(page->mapping->host),
-			(unsigned long long)start, csum, csum_expected);
+			btrfs_ino(page->mapping->host), start, csum, csum_expected);
 	memset(kaddr + offset, 1, end - start + 1);
 	flush_dcache_page(page);
 	kunmap_atomic(kaddr);
@@ -3572,8 +3571,7 @@ static int __btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 	if (ret) {
 		btrfs_info(root->fs_info,
 			"failed to delete reference to %.*s, inode %llu parent %llu",
-			name_len, name,
-			(unsigned long long)ino, (unsigned long long)dir_ino);
+			name_len, name, ino, dir_ino);
 		btrfs_abort_transaction(trans, root, ret);
 		goto err;
 	}
@@ -6081,10 +6079,7 @@ insert:
 	btrfs_release_path(path);
 	if (em->start > start || extent_map_end(em) <= start) {
 		btrfs_err(root->fs_info, "bad extent! em: [%llu %llu] passed [%llu %llu]",
-			(unsigned long long)em->start,
-			(unsigned long long)em->len,
-			(unsigned long long)start,
-			(unsigned long long)len);
+			em->start, em->len, start, len);
 		err = -EIO;
 		goto out;
 	}
@@ -6753,9 +6748,8 @@ static void btrfs_endio_direct_read(struct bio *bio, int err)
 			flush_dcache_page(bvec->bv_page);
 			if (csum != csums[index]) {
 				btrfs_err(root->fs_info, "csum failed ino %llu off %llu csum %u expected csum %u",
-					  (unsigned long long)btrfs_ino(inode),
-					  (unsigned long long)start,
-					  csum, csums[index]);
+					  btrfs_ino(inode), start, csum,
+					  csums[index]);
 				err = -EIO;
 			}
 		}
@@ -6843,7 +6837,7 @@ static void btrfs_end_dio_bio(struct bio *bio, int err)
 	if (err) {
 		printk(KERN_ERR "btrfs direct IO failed ino %llu rw %lu "
 		      "sector %#Lx len %u err no %d\n",
-		      (unsigned long long)btrfs_ino(dip->inode), bio->bi_rw,
+		      btrfs_ino(dip->inode), bio->bi_rw,
 		      (unsigned long long)bio->bi_sector, bio->bi_size, err);
 		dip->errors = 1;
 
@@ -7775,7 +7769,7 @@ void btrfs_destroy_inode(struct inode *inode)
 	if (test_bit(BTRFS_INODE_HAS_ORPHAN_ITEM,
 		     &BTRFS_I(inode)->runtime_flags)) {
 		btrfs_info(root->fs_info, "inode %llu still on the orphan list",
-			(unsigned long long)btrfs_ino(inode));
+			btrfs_ino(inode));
 		atomic_dec(&root->orphan_inodes);
 	}
 
@@ -7785,8 +7779,7 @@ void btrfs_destroy_inode(struct inode *inode)
 			break;
 		else {
 			btrfs_err(root->fs_info, "found ordered extent %llu %llu on inode cleanup",
-				(unsigned long long)ordered->file_offset,
-				(unsigned long long)ordered->len);
+				ordered->file_offset, ordered->len);
 			btrfs_remove_ordered_extent(inode, ordered);
 			btrfs_put_ordered_extent(ordered);
 			btrfs_put_ordered_extent(ordered);

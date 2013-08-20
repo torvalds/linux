@@ -335,7 +335,7 @@ static void backref_tree_panic(struct rb_node *rb_node, int errno, u64 bytenr)
 	if (bnode->root)
 		fs_info = bnode->root->fs_info;
 	btrfs_panic(fs_info, errno, "Inconsistency in backref cache "
-		    "found at offset %llu\n", (unsigned long long)bytenr);
+		    "found at offset %llu\n", bytenr);
 }
 
 /*
@@ -4234,8 +4234,7 @@ int btrfs_relocate_block_group(struct btrfs_root *extent_root, u64 group_start)
 	}
 
 	printk(KERN_INFO "btrfs: relocating block group %llu flags %llu\n",
-	       (unsigned long long)rc->block_group->key.objectid,
-	       (unsigned long long)rc->block_group->flags);
+	       rc->block_group->key.objectid, rc->block_group->flags);
 
 	ret = btrfs_start_all_delalloc_inodes(fs_info, 0);
 	if (ret < 0) {
@@ -4257,7 +4256,7 @@ int btrfs_relocate_block_group(struct btrfs_root *extent_root, u64 group_start)
 			break;
 
 		printk(KERN_INFO "btrfs: found %llu extents\n",
-			(unsigned long long)rc->extents_found);
+			rc->extents_found);
 
 		if (rc->stage == MOVE_DATA_EXTENTS && rc->found_file_extent) {
 			btrfs_wait_ordered_range(rc->data_inode, 0, (u64)-1);

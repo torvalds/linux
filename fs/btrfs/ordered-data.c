@@ -67,7 +67,7 @@ static void ordered_data_tree_panic(struct inode *inode, int errno,
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	btrfs_panic(fs_info, errno, "Inconsistency in ordered tree at offset "
-		    "%llu\n", (unsigned long long)offset);
+		    "%llu\n", offset);
 }
 
 /*
@@ -336,14 +336,12 @@ int btrfs_dec_test_first_ordered_pending(struct inode *inode,
 	*file_offset = dec_end;
 	if (dec_start > dec_end) {
 		printk(KERN_CRIT "bad ordering dec_start %llu end %llu\n",
-		       (unsigned long long)dec_start,
-		       (unsigned long long)dec_end);
+		       dec_start, dec_end);
 	}
 	to_dec = dec_end - dec_start;
 	if (to_dec > entry->bytes_left) {
 		printk(KERN_CRIT "bad ordered accounting left %llu size %llu\n",
-		       (unsigned long long)entry->bytes_left,
-		       (unsigned long long)to_dec);
+		       entry->bytes_left, to_dec);
 	}
 	entry->bytes_left -= to_dec;
 	if (!uptodate)
@@ -403,8 +401,7 @@ have_entry:
 
 	if (io_size > entry->bytes_left) {
 		printk(KERN_CRIT "bad ordered accounting left %llu size %llu\n",
-		       (unsigned long long)entry->bytes_left,
-		       (unsigned long long)io_size);
+		       entry->bytes_left, io_size);
 	}
 	entry->bytes_left -= io_size;
 	if (!uptodate)

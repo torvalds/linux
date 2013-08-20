@@ -673,8 +673,7 @@ static int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
 		btrfs_err(root->fs_info,
 			"free space inode generation (%llu) "
 			"did not match free space cache generation (%llu)",
-			(unsigned long long)BTRFS_I(inode)->generation,
-			(unsigned long long)generation);
+			BTRFS_I(inode)->generation, generation);
 		return 0;
 	}
 
@@ -1991,8 +1990,7 @@ void btrfs_dump_free_space(struct btrfs_block_group_cache *block_group,
 		if (info->bytes >= bytes && !block_group->ro)
 			count++;
 		printk(KERN_CRIT "entry offset %llu, bytes %llu, bitmap %s\n",
-		       (unsigned long long)info->offset,
-		       (unsigned long long)info->bytes,
+		       info->offset, info->bytes,
 		       (info->bitmap) ? "yes" : "no");
 	}
 	printk(KERN_INFO "block group has cluster?: %s\n",
