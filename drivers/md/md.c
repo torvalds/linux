@@ -1180,7 +1180,7 @@ static int super_90_validate(struct mddev *mddev, struct md_rdev *rdev)
 			mddev->bitmap_info.offset =
 				mddev->bitmap_info.default_offset;
 			mddev->bitmap_info.space =
-				mddev->bitmap_info.space;
+				mddev->bitmap_info.default_space;
 		}
 
 	} else if (mddev->pers == NULL) {
