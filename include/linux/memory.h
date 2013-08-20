@@ -25,16 +25,9 @@
 struct memory_block {
 	unsigned long start_section_nr;
 	unsigned long end_section_nr;
-	unsigned long state;
-	int section_count;
-
-	/*
-	 * This serializes all state change requests.  It isn't
-	 * held during creation because the control files are
-	 * created long after the critical areas during
-	 * initialization.
-	 */
-	struct mutex state_mutex;
+	unsigned long state;		/* serialized by the dev->lock */
+	int section_count;		/* serialized by mem_sysfs_mutex */
+	int online_type;		/* for passing data to online routine */
 	int phys_device;		/* to which fru does this belong? */
 	void *hw;			/* optional pointer to fw/hw data */
 	int (*phys_callback)(struct memory_block *);
