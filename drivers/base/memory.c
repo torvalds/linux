@@ -602,40 +602,29 @@ static int init_memory_block(struct memory_block **memory,
 	return ret;
 }
 
-static int add_memory_section(int nid, struct mem_section *section,
-			struct memory_block **mem_p,
-			unsigned long state, enum mem_add_context context)
+static int add_memory_section(struct mem_section *section,
+			struct memory_block **mem_p)
 {
 	struct memory_block *mem = NULL;
 	int scn_nr = __section_nr(section);
 	int ret = 0;
 
-	if (context == BOOT) {
-		/* same memory block ? */
-		if (mem_p && *mem_p)
-			if (scn_nr >= (*mem_p)->start_section_nr &&
-			    scn_nr <= (*mem_p)->end_section_nr) {
-				mem = *mem_p;
-				get_device(&mem->dev);
-			}
-	} else
-		mem = find_memory_block(section);
+	if (mem_p && *mem_p) {
+		if (scn_nr >= (*mem_p)->start_section_nr &&
+		    scn_nr <= (*mem_p)->end_section_nr) {
+			mem = *mem_p;
+			get_device(&mem->dev);
+		}
+	}
 
 	if (mem) {
 		mem->section_count++;
 		put_device(&mem->dev);
 	} else {
-		ret = init_memory_block(&mem, section, state);
+		ret = init_memory_block(&mem, section, MEM_ONLINE);
 		/* store memory_block pointer for next loop */
-		if (!ret && context == BOOT)
-			if (mem_p)
-				*mem_p = mem;
-	}
-
-	if (!ret) {
-		if (context == HOTPLUG &&
-		    mem->section_count == sections_per_block)
-			ret = register_mem_sect_under_node(mem, nid);
+		if (!ret && mem_p)
+			*mem_p = mem;
 	}
 
 	return ret;
@@ -764,10 +753,8 @@ int __init memory_dev_init(void)
 		if (!present_section_nr(i))
 			continue;
 		/* don't need to reuse memory_block if only one per block */
-		err = add_memory_section(0, __nr_to_section(i),
-				 (sections_per_block == 1) ? NULL : &mem,
-					 MEM_ONLINE,
-					 BOOT);
+		err = add_memory_section(__nr_to_section(i),
+				 (sections_per_block == 1) ? NULL : &mem);
 		if (!ret)
 			ret = err;
 	}
