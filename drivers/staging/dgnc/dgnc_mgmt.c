@@ -125,14 +125,9 @@ int dgnc_mgmt_close(struct inode *inode, struct file *file)
  *
  * ioctl the mgmt/dpa device
  */  
-#ifdef HAVE_UNLOCKED_IOCTL
+
 long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file->f_dentry->d_inode;
-#else        
-int dgnc_mgmt_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
-{
-#endif
 	unsigned long lock_flags;
 	void __user *uarg = (void __user *) arg;
 

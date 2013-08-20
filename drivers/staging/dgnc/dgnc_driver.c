@@ -99,11 +99,7 @@ module_exit(dgnc_cleanup_module);
 static struct file_operations dgnc_BoardFops =
 {
 	.owner		=	THIS_MODULE,
-#ifdef HAVE_UNLOCKED_IOCTL
         .unlocked_ioctl =  	dgnc_mgmt_ioctl,
-#else
-        .ioctl          =       dgnc_mgmt_ioctl,
-#endif
 	.open		=	dgnc_mgmt_open,
 	.release	=	dgnc_mgmt_close
 };
