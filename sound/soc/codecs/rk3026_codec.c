@@ -1,7 +1,7 @@
 /*
  * rk3026.c  --  RK3026 CODEC ALSA SoC audio driver
  *
- * Copyright 2013 Rockship
+ * Copyright 2013 Rockchip
  * Author: chenjq <chenjq@rock-chips.com>
  */
 
@@ -1558,7 +1558,7 @@ static int rk3026_digital_mute(struct snd_soc_dai *dai, int mute)
 		    is_hp_pd) {
 			DBG("%s : set hp ctl gpio LOW\n", __func__);
 			gpio_set_value(rk3026_priv->hp_ctl_gpio, GPIO_LOW);
-			msleep(rk3026_priv->delay_time);
+			msleep(200);//rk3026_priv->delay_time);
 			}
 
 	} else {
@@ -1566,7 +1566,7 @@ static int rk3026_digital_mute(struct snd_soc_dai *dai, int mute)
 		    is_hp_pd) {
 			DBG("%s : set hp ctl gpio HIGH\n", __func__);
 			gpio_set_value(rk3026_priv->hp_ctl_gpio, GPIO_HIGH);
-			msleep(rk3026_priv->delay_time);
+			msleep(100);//rk3026_priv->delay_time);
 		}
 	}
 	return 0;
@@ -2073,6 +2073,20 @@ static int rk3026_probe(struct snd_soc_codec *codec)
 	writel(val | 0x04000400,RK2928_GRF_BASE+GRF_SOC_CON0);
 	val = readl(RK2928_GRF_BASE+GRF_SOC_CON0);
 	printk("%s : i2s sdi from acodec val=0x%x,soc_con[0] bit 10 =1 is correct\n",__func__,val);
+
+
+	if  (!rk3026_for_mid) {
+	codec->dapm.bias_level = SND_SOC_BIAS_OFF;
+	rk3026_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+
+	snd_soc_add_controls(codec, rk3026_snd_controls,
+		ARRAY_SIZE(rk3026_snd_controls));
+	snd_soc_dapm_new_controls(&codec->dapm, rk3026_dapm_widgets,
+		ARRAY_SIZE(rk3026_dapm_widgets));
+	snd_soc_dapm_add_routes(&codec->dapm, rk3026_dapm_routes,
+		ARRAY_SIZE(rk3026_dapm_routes));
+
+	}
 	return 0;
 
 err__:
@@ -2134,12 +2148,6 @@ static struct snd_soc_codec_driver soc_codec_dev_rk3026 = {
 	.volatile_register = rk3026_volatile_register,
 	.readable_register = rk3026_codec_register,
 	.reg_cache_step = sizeof(unsigned int),
-	.controls = rk3026_snd_controls,
-	.num_controls = ARRAY_SIZE(rk3026_snd_controls),
-	.dapm_widgets = rk3026_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(rk3026_dapm_widgets),
-	.dapm_routes = rk3026_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(rk3026_dapm_routes),
 };
 
 static __devinit int rk3026_platform_probe(struct platform_device *pdev)
