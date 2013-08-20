@@ -163,8 +163,8 @@ static struct radeon_i2c_bus_rec radeon_lookup_i2c_gpio(struct radeon_device *rd
 		num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
 			sizeof(ATOM_GPIO_I2C_ASSIGMENT);
 
+		gpio = &i2c_info->asGPIO_Info[0];
 		for (i = 0; i < num_indices; i++) {
-			gpio = &i2c_info->asGPIO_Info[i];
 
 			radeon_lookup_i2c_gpio_quirks(rdev, gpio, i);
 
@@ -172,6 +172,8 @@ static struct radeon_i2c_bus_rec radeon_lookup_i2c_gpio(struct radeon_device *rd
 				i2c = radeon_get_bus_rec_for_i2c_gpio(gpio);
 				break;
 			}
+			gpio = (ATOM_GPIO_I2C_ASSIGMENT *)
+				((u8 *)gpio + sizeof(ATOM_GPIO_I2C_ASSIGMENT));
 		}
 	}
 
@@ -195,9 +197,8 @@ void radeon_atombios_i2c_init(struct radeon_device *rdev)
 		num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
 			sizeof(ATOM_GPIO_I2C_ASSIGMENT);
 
+		gpio = &i2c_info->asGPIO_Info[0];
 		for (i = 0; i < num_indices; i++) {
-			gpio = &i2c_info->asGPIO_Info[i];
-
 			radeon_lookup_i2c_gpio_quirks(rdev, gpio, i);
 
 			i2c = radeon_get_bus_rec_for_i2c_gpio(gpio);
@@ -206,6 +207,8 @@ void radeon_atombios_i2c_init(struct radeon_device *rdev)
 				sprintf(stmp, "0x%x", i2c.i2c_id);
 				rdev->i2c_bus[i] = radeon_i2c_create(rdev->ddev, &i2c, stmp);
 			}
+			gpio = (ATOM_GPIO_I2C_ASSIGMENT *)
+				((u8 *)gpio + sizeof(ATOM_GPIO_I2C_ASSIGMENT));
 		}
 	}
 }
@@ -230,8 +233,8 @@ static struct radeon_gpio_rec radeon_lookup_gpio(struct radeon_device *rdev,
 		num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
 			sizeof(ATOM_GPIO_PIN_ASSIGNMENT);
 
+		pin = gpio_info->asGPIO_Pin;
 		for (i = 0; i < num_indices; i++) {
-			pin = &gpio_info->asGPIO_Pin[i];
 			if (id == pin->ucGPIO_ID) {
 				gpio.id = pin->ucGPIO_ID;
 				gpio.reg = le16_to_cpu(pin->usGpioPin_AIndex) * 4;
@@ -239,6 +242,8 @@ static struct radeon_gpio_rec radeon_lookup_gpio(struct radeon_device *rdev,
 				gpio.valid = true;
 				break;
 			}
+			pin = (ATOM_GPIO_PIN_ASSIGNMENT *)
+				((u8 *)pin + sizeof(ATOM_GPIO_PIN_ASSIGNMENT));
 		}
 	}
 
@@ -3413,10 +3418,11 @@ int radeon_atom_get_max_voltage(struct radeon_device *rdev,
 				ATOM_VOLTAGE_FORMULA_V2 *formula =
 					&voltage_object->v2.asFormula;
 				if (formula->ucNumOfVoltageEntries) {
+					VOLTAGE_LUT_ENTRY *lut = (VOLTAGE_LUT_ENTRY *)
+						((u8 *)&formula->asVIDAdjustEntries[0] +
+						 (sizeof(VOLTAGE_LUT_ENTRY) * (formula->ucNumOfVoltageEntries - 1)));
 					*max_voltage =
-						le16_to_cpu(formula->asVIDAdjustEntries[
-								    formula->ucNumOfVoltageEntries - 1
-								    ].usVoltageValue);
+						le16_to_cpu(lut->usVoltageValue);
 					return 0;
 				}
 			}
@@ -3576,11 +3582,13 @@ int radeon_atom_get_voltage_table(struct radeon_device *rdev,
 				if (voltage_object) {
 					ATOM_VOLTAGE_FORMULA_V2 *formula =
 						&voltage_object->v2.asFormula;
+					VOLTAGE_LUT_ENTRY *lut;
 					if (formula->ucNumOfVoltageEntries > MAX_VOLTAGE_ENTRIES)
 						return -EINVAL;
+					lut = &formula->asVIDAdjustEntries[0];
 					for (i = 0; i < formula->ucNumOfVoltageEntries; i++) {
 						voltage_table->entries[i].value =
-							le16_to_cpu(formula->asVIDAdjustEntries[i].usVoltageValue);
+							le16_to_cpu(lut->usVoltageValue);
 						ret = radeon_atom_get_voltage_gpio_settings(rdev,
 											    voltage_table->entries[i].value,
 											    voltage_type,
@@ -3588,6 +3596,8 @@ int radeon_atom_get_voltage_table(struct radeon_device *rdev,
 											    &voltage_table->mask_low);
 						if (ret)
 							return ret;
+						lut = (VOLTAGE_LUT_ENTRY *)
+							((u8 *)lut + sizeof(VOLTAGE_LUT_ENTRY));
 					}
 					voltage_table->count = formula->ucNumOfVoltageEntries;
 					return 0;
@@ -3607,13 +3617,17 @@ int radeon_atom_get_voltage_table(struct radeon_device *rdev,
 				if (voltage_object) {
 					ATOM_GPIO_VOLTAGE_OBJECT_V3 *gpio =
 						&voltage_object->v3.asGpioVoltageObj;
+					VOLTAGE_LUT_ENTRY_V2 *lut;
 					if (gpio->ucGpioEntryNum > MAX_VOLTAGE_ENTRIES)
 						return -EINVAL;
+					lut = &gpio->asVolGpioLut[0];
 					for (i = 0; i < gpio->ucGpioEntryNum; i++) {
 						voltage_table->entries[i].value =
-							le16_to_cpu(gpio->asVolGpioLut[i].usVoltageValue);
+							le16_to_cpu(lut->usVoltageValue);
 						voltage_table->entries[i].smio_low =
-							le32_to_cpu(gpio->asVolGpioLut[i].ulVoltageId);
+							le32_to_cpu(lut->ulVoltageId);
+						lut = (VOLTAGE_LUT_ENTRY_V2 *)
+							((u8 *)lut + sizeof(VOLTAGE_LUT_ENTRY_V2));
 					}
 					voltage_table->mask_low = le32_to_cpu(gpio->ulGpioMaskVal);
 					voltage_table->count = gpio->ucGpioEntryNum;
@@ -3739,7 +3753,6 @@ int radeon_atom_get_mclk_range_table(struct radeon_device *rdev,
 	union vram_info *vram_info;
 	u32 mem_timing_size = gddr5 ?
 		sizeof(ATOM_MEMORY_TIMING_FORMAT_V2) : sizeof(ATOM_MEMORY_TIMING_FORMAT);
-	u8 *p;
 
 	memset(mclk_range_table, 0, sizeof(struct atom_memory_clock_range_table));
 
@@ -3758,6 +3771,7 @@ int radeon_atom_get_mclk_range_table(struct radeon_device *rdev,
 				if (module_index < vram_info->v1_4.ucNumOfVRAMModule) {
 					ATOM_VRAM_MODULE_V4 *vram_module =
 						(ATOM_VRAM_MODULE_V4 *)vram_info->v1_4.aVramInfo;
+					ATOM_MEMORY_TIMING_FORMAT *format;
 
 					for (i = 0; i < module_index; i++) {
 						if (le16_to_cpu(vram_module->usModuleSize) == 0)
@@ -3768,11 +3782,11 @@ int radeon_atom_get_mclk_range_table(struct radeon_device *rdev,
 					mclk_range_table->num_entries = (u8)
 						((le16_to_cpu(vram_module->usModuleSize) - offsetof(ATOM_VRAM_MODULE_V4, asMemTiming)) /
 						 mem_timing_size);
-					p = (u8 *)&vram_module->asMemTiming[0];
+					format = &vram_module->asMemTiming[0];
 					for (i = 0; i < mclk_range_table->num_entries; i++) {
-						ATOM_MEMORY_TIMING_FORMAT *format = (ATOM_MEMORY_TIMING_FORMAT *)p;
 						mclk_range_table->mclk[i] = le32_to_cpu(format->ulClkRange);
-						p += mem_timing_size;
+						format = (ATOM_MEMORY_TIMING_FORMAT *)
+							((u8 *)format + mem_timing_size);
 					}
 				} else
 					return -EINVAL;
