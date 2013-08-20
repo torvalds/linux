@@ -191,7 +191,8 @@ static int max8997_i2c_probe(struct i2c_client *i2c,
 	struct max8997_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	int ret = 0;
 
-	max8997 = kzalloc(sizeof(struct max8997_dev), GFP_KERNEL);
+	max8997 = devm_kzalloc(&i2c->dev, sizeof(struct max8997_dev),
+				GFP_KERNEL);
 	if (max8997 == NULL)
 		return -ENOMEM;
 
@@ -203,14 +204,12 @@ static int max8997_i2c_probe(struct i2c_client *i2c,
 
 	if (max8997->dev->of_node) {
 		pdata = max8997_i2c_parse_dt_pdata(max8997->dev);
-		if (IS_ERR(pdata)) {
-			ret = PTR_ERR(pdata);
-			goto err;
-		}
+		if (IS_ERR(pdata))
+			return PTR_ERR(pdata);
 	}
 
 	if (!pdata)
-		goto err;
+		return ret;
 
 	max8997->pdata = pdata;
 	max8997->ono = pdata->ono;
@@ -250,8 +249,6 @@ err_mfd:
 	i2c_unregister_device(max8997->muic);
 	i2c_unregister_device(max8997->haptic);
 	i2c_unregister_device(max8997->rtc);
-err:
-	kfree(max8997);
 	return ret;
 }
 
@@ -263,7 +260,6 @@ static int max8997_i2c_remove(struct i2c_client *i2c)
 	i2c_unregister_device(max8997->muic);
 	i2c_unregister_device(max8997->haptic);
 	i2c_unregister_device(max8997->rtc);
-	kfree(max8997);
 
 	return 0;
 }
