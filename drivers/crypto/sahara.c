@@ -955,7 +955,7 @@ static int sahara_probe(struct platform_device *pdev)
 	dev->hw_link[0] = dma_alloc_coherent(&pdev->dev,
 			SAHARA_MAX_HW_LINK * sizeof(struct sahara_hw_link),
 			&dev->hw_phys_link[0], GFP_KERNEL);
-	if (!dev->hw_link) {
+	if (!dev->hw_link[0]) {
 		dev_err(&pdev->dev, "Could not allocate hw links\n");
 		err = -ENOMEM;
 		goto err_link;
