@@ -9,8 +9,15 @@ Required properties:
 - reg: Should contain location and length for timers register. First
   pair for the Global Timer registers, second pair for the
   local/private timers.
-- clocks: clock driving the timer hardware, only required for
-  "marvell,armada-370-timer";
+
+Clocks required for compatible = "marvell,armada-370-timer":
+- clocks : Must contain a single entry describing the clock input
+
+Clocks required for compatible = "marvell,armada-xp-timer":
+- clocks : Must contain an entry for each entry in clock-names.
+- clock-names : Must include the following entries:
+  "nbclk" (L2/coherency fabric clock),
+  "fixed" (Reference 25 MHz fixed-clock).
 
 Examples:
 
@@ -29,4 +36,6 @@ Examples:
 		compatible = "marvell,armada-xp-timer";
 		reg = <0x20300 0x30>, <0x21040 0x30>;
 		interrupts = <37>, <38>, <39>, <40>, <5>, <6>;
+		clocks = <&coreclk 2>, <&refclk>;
+		clock-names = "nbclk", "fixed";
 	};
