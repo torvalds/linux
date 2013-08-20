@@ -9,6 +9,7 @@
 #include <linux/dmapool.h>
 #include <linux/interrupt.h>
 #include <linux/of_address.h>
+#include <linux/pm_runtime.h>
 #include "dmaengine.h"
 
 #define DESC_TYPE	27
@@ -960,6 +961,11 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 		goto err_remap;
 	}
 
+	pm_runtime_enable(&pdev->dev);
+	ret = pm_runtime_get_sync(&pdev->dev);
+	if (ret)
+		goto err_get_sync;
+
 	cdd->queues_rx = glue_info->queues_rx;
 	cdd->queues_tx = glue_info->queues_tx;
 	cdd->td_queue = glue_info->td_queue;
@@ -1005,6 +1011,9 @@ err_irq:
 err_chans:
 	deinit_cpii41(pdev, cdd);
 err_init_cppi:
+	pm_runtime_put(&pdev->dev);
+err_get_sync:
+	pm_runtime_disable(&pdev->dev);
 	iounmap(cdd->usbss_mem);
 	iounmap(cdd->ctrl_mem);
 	iounmap(cdd->sched_mem);
@@ -1029,6 +1038,8 @@ static int cppi41_dma_remove(struct platform_device *pdev)
 	iounmap(cdd->ctrl_mem);
 	iounmap(cdd->sched_mem);
 	iounmap(cdd->qmgr_mem);
+	pm_runtime_put(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 	kfree(cdd);
 	return 0;
 }
