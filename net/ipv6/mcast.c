@@ -996,24 +996,24 @@ bool ipv6_chk_mcast_addr(struct net_device *dev, const struct in6_addr *group,
 
 static void mld_gq_start_timer(struct inet6_dev *idev)
 {
-	int tv = net_random() % idev->mc_maxdelay;
+	unsigned long tv = net_random() % idev->mc_maxdelay;
 
 	idev->mc_gq_running = 1;
 	if (!mod_timer(&idev->mc_gq_timer, jiffies+tv+2))
 		in6_dev_hold(idev);
 }
 
-static void mld_ifc_start_timer(struct inet6_dev *idev, int delay)
+static void mld_ifc_start_timer(struct inet6_dev *idev, unsigned long delay)
 {
-	int tv = net_random() % delay;
+	unsigned long tv = net_random() % delay;
 
 	if (!mod_timer(&idev->mc_ifc_timer, jiffies+tv+2))
 		in6_dev_hold(idev);
 }
 
-static void mld_dad_start_timer(struct inet6_dev *idev, int delay)
+static void mld_dad_start_timer(struct inet6_dev *idev, unsigned long delay)
 {
-	int tv = net_random() % delay;
+	unsigned long tv = net_random() % delay;
 
 	if (!mod_timer(&idev->mc_dad_timer, jiffies+tv+2))
 		in6_dev_hold(idev);
