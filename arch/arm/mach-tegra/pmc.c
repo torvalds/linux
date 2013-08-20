@@ -285,7 +285,28 @@ static const struct of_device_id matches[] __initconst = {
 	{ }
 };
 
-static void __init tegra_pmc_parse_dt(void)
+void __init tegra_pmc_init_irq(void)
+{
+	struct device_node *np;
+	u32 val;
+
+	np = of_find_matching_node(NULL, matches);
+	BUG_ON(!np);
+
+	tegra_pmc_base = of_iomap(np, 0);
+
+	tegra_pmc_invert_interrupt = of_property_read_bool(np,
+				     "nvidia,invert-interrupt");
+
+	val = tegra_pmc_readl(PMC_CTRL);
+	if (tegra_pmc_invert_interrupt)
+		val |= PMC_CTRL_INTR_LOW;
+	else
+		val &= ~PMC_CTRL_INTR_LOW;
+	tegra_pmc_writel(val, PMC_CTRL);
+}
+
+void __init tegra_pmc_init(void)
 {
 	struct device_node *np;
 	u32 prop;
@@ -296,10 +317,6 @@ static void __init tegra_pmc_parse_dt(void)
 	np = of_find_matching_node(NULL, matches);
 	BUG_ON(!np);
 
-	tegra_pmc_base = of_iomap(np, 0);
-
-	tegra_pmc_invert_interrupt = of_property_read_bool(np,
-				     "nvidia,invert-interrupt");
 	tegra_pclk = of_clk_get_by_name(np, "pclk");
 	WARN_ON(IS_ERR(tegra_pclk));
 
@@ -364,18 +381,4 @@ static void __init tegra_pmc_parse_dt(void)
 	pmc_pm_data.lp0_vec_size = lp0_vec[1];
 
 	pmc_pm_data.suspend_mode = suspend_mode;
-}
-
-void __init tegra_pmc_init(void)
-{
-	u32 val;
-
-	tegra_pmc_parse_dt();
-
-	val = tegra_pmc_readl(PMC_CTRL);
-	if (tegra_pmc_invert_interrupt)
-		val |= PMC_CTRL_INTR_LOW;
-	else
-		val &= ~PMC_CTRL_INTR_LOW;
-	tegra_pmc_writel(val, PMC_CTRL);
 }
