@@ -157,6 +157,201 @@ DEFINE_NFS_INODE_EVENT_DONE(nfs_fsync_exit);
 DEFINE_NFS_INODE_EVENT(nfs_access_enter);
 DEFINE_NFS_INODE_EVENT_DONE(nfs_access_exit);
 
+#define show_lookup_flags(flags) \
+	__print_flags((unsigned long)flags, "|", \
+			{ LOOKUP_AUTOMOUNT, "AUTOMOUNT" }, \
+			{ LOOKUP_DIRECTORY, "DIRECTORY" }, \
+			{ LOOKUP_OPEN, "OPEN" }, \
+			{ LOOKUP_CREATE, "CREATE" }, \
+			{ LOOKUP_EXCL, "EXCL" })
+
+DECLARE_EVENT_CLASS(nfs_lookup_event,
+		TP_PROTO(
+			const struct inode *dir,
+			const struct dentry *dentry,
+			unsigned int flags
+		),
+
+		TP_ARGS(dir, dentry, flags),
+
+		TP_STRUCT__entry(
+			__field(unsigned int, flags)
+			__field(dev_t, dev)
+			__field(u64, dir)
+			__string(name, dentry->d_name.name)
+		),
+
+		TP_fast_assign(
+			__entry->dev = dir->i_sb->s_dev;
+			__entry->dir = NFS_FILEID(dir);
+			__entry->flags = flags;
+			__assign_str(name, dentry->d_name.name);
+		),
+
+		TP_printk(
+			"flags=%u (%s) name=%02x:%02x:%llu/%s",
+			__entry->flags,
+			show_lookup_flags(__entry->flags),
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->dir,
+			__get_str(name)
+		)
+);
+
+#define DEFINE_NFS_LOOKUP_EVENT(name) \
+	DEFINE_EVENT(nfs_lookup_event, name, \
+			TP_PROTO( \
+				const struct inode *dir, \
+				const struct dentry *dentry, \
+				unsigned int flags \
+			), \
+			TP_ARGS(dir, dentry, flags))
+
+DECLARE_EVENT_CLASS(nfs_lookup_event_done,
+		TP_PROTO(
+			const struct inode *dir,
+			const struct dentry *dentry,
+			unsigned int flags,
+			int error
+		),
+
+		TP_ARGS(dir, dentry, flags, error),
+
+		TP_STRUCT__entry(
+			__field(int, error)
+			__field(unsigned int, flags)
+			__field(dev_t, dev)
+			__field(u64, dir)
+			__string(name, dentry->d_name.name)
+		),
+
+		TP_fast_assign(
+			__entry->dev = dir->i_sb->s_dev;
+			__entry->dir = NFS_FILEID(dir);
+			__entry->error = error;
+			__entry->flags = flags;
+			__assign_str(name, dentry->d_name.name);
+		),
+
+		TP_printk(
+			"error=%d flags=%u (%s) name=%02x:%02x:%llu/%s",
+			__entry->error,
+			__entry->flags,
+			show_lookup_flags(__entry->flags),
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->dir,
+			__get_str(name)
+		)
+);
+
+#define DEFINE_NFS_LOOKUP_EVENT_DONE(name) \
+	DEFINE_EVENT(nfs_lookup_event_done, name, \
+			TP_PROTO( \
+				const struct inode *dir, \
+				const struct dentry *dentry, \
+				unsigned int flags, \
+				int error \
+			), \
+			TP_ARGS(dir, dentry, flags, error))
+
+DEFINE_NFS_LOOKUP_EVENT(nfs_lookup_enter);
+DEFINE_NFS_LOOKUP_EVENT_DONE(nfs_lookup_exit);
+DEFINE_NFS_LOOKUP_EVENT(nfs_lookup_revalidate_enter);
+DEFINE_NFS_LOOKUP_EVENT_DONE(nfs_lookup_revalidate_exit);
+
+#define show_open_flags(flags) \
+	__print_flags((unsigned long)flags, "|", \
+		{ O_CREAT, "O_CREAT" }, \
+		{ O_EXCL, "O_EXCL" }, \
+		{ O_TRUNC, "O_TRUNC" }, \
+		{ O_APPEND, "O_APPEND" }, \
+		{ O_DSYNC, "O_DSYNC" }, \
+		{ O_DIRECT, "O_DIRECT" }, \
+		{ O_DIRECTORY, "O_DIRECTORY" })
+
+#define show_fmode_flags(mode) \
+	__print_flags(mode, "|", \
+		{ ((__force unsigned long)FMODE_READ), "READ" }, \
+		{ ((__force unsigned long)FMODE_WRITE), "WRITE" }, \
+		{ ((__force unsigned long)FMODE_EXEC), "EXEC" })
+
+TRACE_EVENT(nfs_atomic_open_enter,
+		TP_PROTO(
+			const struct inode *dir,
+			const struct nfs_open_context *ctx,
+			unsigned int flags
+		),
+
+		TP_ARGS(dir, ctx, flags),
+
+		TP_STRUCT__entry(
+			__field(unsigned int, flags)
+			__field(unsigned int, fmode)
+			__field(dev_t, dev)
+			__field(u64, dir)
+			__string(name, ctx->dentry->d_name.name)
+		),
+
+		TP_fast_assign(
+			__entry->dev = dir->i_sb->s_dev;
+			__entry->dir = NFS_FILEID(dir);
+			__entry->flags = flags;
+			__entry->fmode = (__force unsigned int)ctx->mode;
+			__assign_str(name, ctx->dentry->d_name.name);
+		),
+
+		TP_printk(
+			"flags=%u (%s) fmode=%s name=%02x:%02x:%llu/%s",
+			__entry->flags,
+			show_open_flags(__entry->flags),
+			show_fmode_flags(__entry->fmode),
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->dir,
+			__get_str(name)
+		)
+);
+
+TRACE_EVENT(nfs_atomic_open_exit,
+		TP_PROTO(
+			const struct inode *dir,
+			const struct nfs_open_context *ctx,
+			unsigned int flags,
+			int error
+		),
+
+		TP_ARGS(dir, ctx, flags, error),
+
+		TP_STRUCT__entry(
+			__field(int, error)
+			__field(unsigned int, flags)
+			__field(unsigned int, fmode)
+			__field(dev_t, dev)
+			__field(u64, dir)
+			__string(name, ctx->dentry->d_name.name)
+		),
+
+		TP_fast_assign(
+			__entry->error = error;
+			__entry->dev = dir->i_sb->s_dev;
+			__entry->dir = NFS_FILEID(dir);
+			__entry->flags = flags;
+			__entry->fmode = (__force unsigned int)ctx->mode;
+			__assign_str(name, ctx->dentry->d_name.name);
+		),
+
+		TP_printk(
+			"error=%d flags=%u (%s) fmode=%s "
+			"name=%02x:%02x:%llu/%s",
+			__entry->error,
+			__entry->flags,
+			show_open_flags(__entry->flags),
+			show_fmode_flags(__entry->fmode),
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->dir,
+			__get_str(name)
+		)
+);
+
 #endif /* _TRACE_NFS_H */
 
 #undef TRACE_INCLUDE_PATH
