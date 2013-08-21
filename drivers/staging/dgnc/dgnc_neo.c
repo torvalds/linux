@@ -6,12 +6,12 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2, or (at your option)
  * any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY, EXPRESS OR IMPLIED; without even the 
- * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+ * but WITHOUT ANY WARRANTY, EXPRESS OR IMPLIED; without even the
+ * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
  * PURPOSE.  See the GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
@@ -97,7 +97,7 @@ struct board_ops dgnc_neo_ops = {
 	.get_uart_bytes_left =		neo_get_uart_bytes_left,
 	.send_immediate_char =		neo_send_immediate_char
 };
-        
+
 static uint dgnc_offset_table[8] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 };
 
 
@@ -131,7 +131,7 @@ static inline void neo_set_cts_flow_control(struct channel_t *ch)
 
 	efr |= (UART_17158_EFR_ECB | UART_17158_EFR_CTSDSR);
 
-	/* Turn off auto Xon flow control */   
+	/* Turn off auto Xon flow control */
 	efr &= ~(UART_17158_EFR_IXON);
 
 	/* Why? Becuz Exar's spec says we have to zero it out before setting it */
@@ -487,7 +487,7 @@ static inline void neo_parse_isr(struct board_t *brd, uint port)
 					DGNC_UNLOCK(ch->ch_lock, lock_flags);
 				}
 				DPR_INTR(("Port %d. XON detected in incoming data\n", port));
-			} 
+			}
 			else if (cause == UART_17158_XOFF_DETECT) {
 				if (!(brd->channels[port]->ch_flags & CH_STOP)) {
 					DGNC_LOCK(ch->ch_lock, lock_flags);
@@ -665,7 +665,7 @@ static void neo_param(struct tty_struct *tty)
 		return;
 	}
 
-	ch = un->un_ch;   
+	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC) {
 		return;
 	}
@@ -677,7 +677,7 @@ static void neo_param(struct tty_struct *tty)
 
 	DPR_PARAM(("param start: tdev: %x cflags: %x oflags: %x iflags: %x\n",
 		ch->ch_tun.un_dev, ch->ch_c_cflag, ch->ch_c_oflag, ch->ch_c_iflag));
-         
+
 	/*
 	 * If baud rate is zero, flush queues, and set mval to drop DTR.
 	 */
@@ -754,7 +754,7 @@ static void neo_param(struct tty_struct *tty)
 		jindex = baud;
 
 		if ((iindex >= 0) && (iindex < 4) && (jindex >= 0) && (jindex < 16)) {
-			baud = bauds[iindex][jindex];  
+			baud = bauds[iindex][jindex];
 		} else {
 			DPR_IOCTL(("baud indices were out of range (%d)(%d)",
 				iindex, jindex));
@@ -787,12 +787,12 @@ static void neo_param(struct tty_struct *tty)
 		lcr |= UART_LCR_EPAR;
 	}
 
-	/* 
+	/*
 	 * Not all platforms support mark/space parity,
 	 * so this will hide behind an ifdef.
 	 */
 #ifdef CMSPAR
-	if (ch->ch_c_cflag & CMSPAR) 
+	if (ch->ch_c_cflag & CMSPAR)
 		lcr |= UART_LCR_SPAR;
 #endif
 
@@ -886,7 +886,7 @@ static void neo_param(struct tty_struct *tty)
 			neo_set_no_input_flow_control(ch);
 		else
 			neo_set_ixoff_flow_control(ch);
-	} 
+	}
 	else {
 		neo_set_no_input_flow_control(ch);
 	}
@@ -1125,7 +1125,7 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 			 */
 			neo_parse_isr(brd, port);
 			continue;
-                   
+
 		default:
 			/*
 			 * The UART triggered us with a bogus interrupt type.
@@ -1184,7 +1184,7 @@ static void neo_copy_data_from_uart_to_queue(struct channel_t *ch)
 	uchar linestatus = 0;
 	uchar error_mask = 0;
         int n = 0;
-        int total = 0;  
+        int total = 0;
 	ushort head;
 	ushort tail;
 	ulong lock_flags;
@@ -1243,7 +1243,7 @@ static void neo_copy_data_from_uart_to_queue(struct channel_t *ch)
 	 */
 	total = min(total, qleft);
 
-	while (total > 0) { 
+	while (total > 0) {
 
 		/*
 		 * Grab the linestatus register, we need to check
@@ -1414,7 +1414,7 @@ static int neo_drain(struct tty_struct *tty, uint seconds)
 		return (-ENXIO);
 	}
 
-	ch = un->un_ch;   
+	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC) {
 		return (-ENXIO);
 	}
@@ -1443,7 +1443,7 @@ static int neo_drain(struct tty_struct *tty, uint seconds)
 
         return (rc);
 }
-        
+
 
 /*
  * Flush the WRITE FIFO on the Neo.
@@ -1727,8 +1727,8 @@ static void neo_parse_modem(struct channel_t *ch, uchar signals)
 		ch->ch_portnum,
 		!!((ch->ch_mistat | ch->ch_mostat) & UART_MCR_DTR),
 		!!((ch->ch_mistat | ch->ch_mostat) & UART_MCR_RTS),
-		!!((ch->ch_mistat | ch->ch_mostat) & UART_MSR_CTS), 
-		!!((ch->ch_mistat | ch->ch_mostat) & UART_MSR_DSR), 
+		!!((ch->ch_mistat | ch->ch_mostat) & UART_MSR_CTS),
+		!!((ch->ch_mistat | ch->ch_mostat) & UART_MSR_DSR),
 		!!((ch->ch_mistat | ch->ch_mostat) & UART_MSR_RI),
 		!!((ch->ch_mistat | ch->ch_mostat) & UART_MSR_DCD)));
 }
@@ -1792,7 +1792,7 @@ static void neo_uart_init(struct channel_t *ch)
 	writeb(0, &ch->ch_neo_uart->ier);
 	writeb(0, &ch->ch_neo_uart->efr);
 	writeb(UART_EFR_ECB, &ch->ch_neo_uart->efr);
-        
+
 
         /* Clear out UART and FIFO */
 	readb(&ch->ch_neo_uart->txrx);
@@ -1829,7 +1829,7 @@ static uint neo_get_uart_bytes_left(struct channel_t *ch)
 
 	/* We must cache the LSR as some of the bits get reset once read... */
 	ch->ch_cached_lsr |= lsr;
- 
+
 	/* Determine whether the Transmitter is empty or not */
 	if (!(lsr & UART_LSR_TEMT)) {
 		if (ch->ch_flags & CH_TX_FIFO_EMPTY) {
@@ -1885,7 +1885,7 @@ static void neo_send_break(struct channel_t *ch, int msecs)
 /*
  * neo_send_immediate_char.
  *
- * Sends a specific character as soon as possible to the UART,   
+ * Sends a specific character as soon as possible to the UART,
  * jumping over any bytes that might be in the write queue.
  *
  * The channel lock MUST be held by the calling function.
