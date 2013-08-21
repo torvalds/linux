@@ -30,6 +30,8 @@ OPTIONS
 -e::
 --expr::
 	List of events to show, currently only syscall names.
+	Prefixing with ! shows all syscalls but the ones specified.  You may
+	need to escape it.
 
 -o::
 --output=::

@@ -114,8 +114,9 @@ struct trace {
 	struct machine		host;
 	u64			base_time;
 	FILE			*output;
-	struct strlist		*ev_qualifier;
 	unsigned long		nr_events;
+	struct strlist		*ev_qualifier;
+	bool			not_ev_qualifier;
 	bool			sched;
 	bool			multiple_threads;
 	double			duration_filter;
@@ -234,13 +235,17 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 	sc = trace->syscalls.table + id;
 	sc->name = name;
 
-	if (trace->ev_qualifier && !strlist__find(trace->ev_qualifier, name)) {
-		sc->filtered = true;
-		/*
- 		 * No need to do read tracepoint information since this will be
- 		 * filtered out.
- 		 */
-		return 0;
+	if (trace->ev_qualifier) {
+		bool in = strlist__find(trace->ev_qualifier, name) != NULL;
+
+		if (!(in ^ trace->not_ev_qualifier)) {
+			sc->filtered = true;
+			/*
+			 * No need to do read tracepoint information since this will be
+			 * filtered out.
+			 */
+			return 0;
+		}
 	}
 
 	sc->fmt  = syscall_fmt__find(sc->name);
@@ -725,7 +730,12 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	}
 
 	if (ev_qualifier_str != NULL) {
-		trace.ev_qualifier = strlist__new(true, ev_qualifier_str);
+		const char *s = ev_qualifier_str;
+
+		trace.not_ev_qualifier = *s == '!';
+		if (trace.not_ev_qualifier)
+			++s;
+		trace.ev_qualifier = strlist__new(true, s);
 		if (trace.ev_qualifier == NULL) {
 			fputs("Not enough memory to parse event qualifier",
 			      trace.output);
