@@ -17,15 +17,15 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *	NOTE TO LINUX KERNEL HACKERS:  DO NOT REFORMAT THIS CODE! 
+ *	NOTE TO LINUX KERNEL HACKERS:  DO NOT REFORMAT THIS CODE!
  *
  *	This is shared code between Digi's CVS archive and the
  *	Linux Kernel sources.
  *	Changing the source just for reformatting needlessly breaks
  *	our CVS diff history.
  *
- *	Send any bug fixes/changes to:  Eng.Linux at digi dot com. 
- *	Thank you. 
+ *	Send any bug fixes/changes to:  Eng.Linux at digi dot com.
+ *	Thank you.
  *
  */
 
@@ -107,16 +107,16 @@ void dgnc_tracef(const char *fmt, ...)
 			dgnc_trcbufi = 0;
 			initd++;
 
-			printk("dgnc: tracing enabled - " TRC_DTRC 
+			printk("dgnc: tracing enabled - " TRC_DTRC
 				" 0x%lx 0x%x\n",
-				(unsigned long)dgnc_trcbuf, 
+				(unsigned long)dgnc_trcbuf,
 				dgnc_trcbuf_size);
 		}
 
 #  if defined(TRC_ON_OVERFLOW_WRAP_AROUND)
 		/*
 		 * This is the less CPU-intensive way to do things.  We simply
-		 * wrap around before we fall off the end of the buffer.  A 
+		 * wrap around before we fall off the end of the buffer.  A
 		 * tilde (~) demarcates the current end of the trace.
 		 *
 		 * This method should be used if you are concerned about race
@@ -131,14 +131,14 @@ void dgnc_tracef(const char *fmt, ...)
 			dgnc_trcbufi = 0;
 		}
 
-		strcpy(&dgnc_trcbuf[dgnc_trcbufi], buf);	
+		strcpy(&dgnc_trcbuf[dgnc_trcbufi], buf);
 		dgnc_trcbufi += lenbuf;
 		dgnc_trcbuf[dgnc_trcbufi] = '~';
 
 #  elif defined(TRC_ON_OVERFLOW_SHIFT_BUFFER)
 		/*
 		 * This is the more CPU-intensive way to do things.  If we
-		 * venture into the last 1/8 of the buffer, we shift the 
+		 * venture into the last 1/8 of the buffer, we shift the
 		 * last 7/8 of the buffer forward, wiping out the first 1/8.
 		 * Advantage: No wrap-around, only truncation from the
 		 * beginning.
