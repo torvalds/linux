@@ -2955,8 +2955,6 @@ static int emac_remove(struct platform_device *ofdev)
 
 	DBG(dev, "remove" NL);
 
-	dev_set_drvdata(&ofdev->dev, NULL);
-
 	unregister_netdev(dev->ndev);
 
 	cancel_work_sync(&dev->reset_work);
