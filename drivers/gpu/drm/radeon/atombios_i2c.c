@@ -32,7 +32,7 @@ extern void radeon_atom_copy_swap(u8 *dst, u8 *src, u8 num_bytes, bool to_le);
 #define TARGET_HW_I2C_CLOCK 50
 
 /* these are a limitation of ProcessI2cChannelTransaction not the hw */
-#define ATOM_MAX_HW_I2C_WRITE 2
+#define ATOM_MAX_HW_I2C_WRITE 3
 #define ATOM_MAX_HW_I2C_READ  255
 
 static int radeon_process_i2c_ch(struct radeon_i2c_chan *chan,
@@ -52,20 +52,24 @@ static int radeon_process_i2c_ch(struct radeon_i2c_chan *chan,
 
 	if (flags & HW_I2C_WRITE) {
 		if (num > ATOM_MAX_HW_I2C_WRITE) {
-			DRM_ERROR("hw i2c: tried to write too many bytes (%d vs 2)\n", num);
+			DRM_ERROR("hw i2c: tried to write too many bytes (%d vs 3)\n", num);
 			return -EINVAL;
 		}
-		memcpy(&out, buf, num);
+		args.ucRegIndex = buf[0];
+		if (num > 1)
+			memcpy(&out, &buf[1], num - 1);
 		args.lpI2CDataOut = cpu_to_le16(out);
 	} else {
 		if (num > ATOM_MAX_HW_I2C_READ) {
 			DRM_ERROR("hw i2c: tried to read too many bytes (%d vs 255)\n", num);
 			return -EINVAL;
 		}
+		args.ucRegIndex = 0;
+		args.lpI2CDataOut = 0;
 	}
 
+	args.ucFlag = flags;
 	args.ucI2CSpeed = TARGET_HW_I2C_CLOCK;
-	args.ucRegIndex = 0;
 	args.ucTransBytes = num;
 	args.ucSlaveAddr = slave_addr << 1;
 	args.ucLineNumber = chan->rec.i2c_id;
