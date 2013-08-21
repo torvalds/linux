@@ -140,15 +140,33 @@ static inline unsigned long pinconf_to_config_packed(enum pin_config_param param
 #ifdef CONFIG_OF
 
 #include <linux/device.h>
+#include <linux/pinctrl/machine.h>
 struct pinctrl_dev;
 struct pinctrl_map;
 
 int pinconf_generic_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		struct device_node *np, struct pinctrl_map **map,
-		unsigned *reserved_maps, unsigned *num_maps);
+		unsigned *reserved_maps, unsigned *num_maps,
+		enum pinctrl_map_type type);
 int pinconf_generic_dt_node_to_map(struct pinctrl_dev *pctldev,
 		struct device_node *np_config, struct pinctrl_map **map,
-		unsigned *num_maps);
+		unsigned *num_maps, enum pinctrl_map_type type);
+
+static inline int pinconf_generic_dt_node_to_map_group(
+		struct pinctrl_dev *pctldev, struct device_node *np_config,
+		struct pinctrl_map **map, unsigned *num_maps)
+{
+	return pinconf_generic_dt_node_to_map(pctldev, np_config, map, num_maps,
+			PIN_MAP_TYPE_CONFIGS_GROUP);
+}
+
+static inline int pinconf_generic_dt_node_to_map_pin(
+		struct pinctrl_dev *pctldev, struct device_node *np_config,
+		struct pinctrl_map **map, unsigned *num_maps)
+{
+	return pinconf_generic_dt_node_to_map(pctldev, np_config, map, num_maps,
+			PIN_MAP_TYPE_CONFIGS_PIN);
+}
 
 #endif
 

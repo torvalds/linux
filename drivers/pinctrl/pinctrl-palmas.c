@@ -655,7 +655,7 @@ static const struct pinctrl_ops palmas_pinctrl_ops = {
 	.get_groups_count = palmas_pinctrl_get_groups_count,
 	.get_group_name = palmas_pinctrl_get_group_name,
 	.get_group_pins = palmas_pinctrl_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map,
+	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
 	.dt_free_map = pinctrl_utils_dt_free_map,
 };
 

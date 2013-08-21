@@ -240,7 +240,8 @@ out:
 
 int pinconf_generic_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		struct device_node *np, struct pinctrl_map **map,
-		unsigned *reserved_maps, unsigned *num_maps)
+		unsigned *reserved_maps, unsigned *num_maps,
+		enum pinctrl_map_type type)
 {
 	int ret;
 	const char *function;
@@ -295,7 +296,7 @@ int pinconf_generic_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		if (num_configs) {
 			ret = pinctrl_utils_add_map_configs(pctldev, map,
 					reserved_maps, num_maps, group, configs,
-					num_configs, PIN_MAP_TYPE_CONFIGS_PIN);
+					num_configs, type);
 			if (ret < 0)
 				goto exit;
 		}
@@ -310,7 +311,7 @@ EXPORT_SYMBOL_GPL(pinconf_generic_dt_subnode_to_map);
 
 int pinconf_generic_dt_node_to_map(struct pinctrl_dev *pctldev,
 		struct device_node *np_config, struct pinctrl_map **map,
-		unsigned *num_maps)
+		unsigned *num_maps, enum pinctrl_map_type type)
 {
 	unsigned reserved_maps;
 	struct device_node *np;
@@ -322,7 +323,7 @@ int pinconf_generic_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	for_each_child_of_node(np_config, np) {
 		ret = pinconf_generic_dt_subnode_to_map(pctldev, np, map,
-						&reserved_maps, num_maps);
+					&reserved_maps, num_maps, type);
 		if (ret < 0) {
 			pinctrl_utils_dt_free_map(pctldev, *map, *num_maps);
 			return ret;
