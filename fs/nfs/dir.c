@@ -1860,6 +1860,7 @@ nfs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
 		old_dentry->d_parent->d_name.name, old_dentry->d_name.name,
 		dentry->d_parent->d_name.name, dentry->d_name.name);
 
+	trace_nfs_link_enter(inode, dir, dentry);
 	NFS_PROTO(inode)->return_delegation(inode);
 
 	d_drop(dentry);
@@ -1868,6 +1869,7 @@ nfs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
 		ihold(inode);
 		d_add(dentry, inode);
 	}
+	trace_nfs_link_exit(inode, dir, dentry, error);
 	return error;
 }
 EXPORT_SYMBOL_GPL(nfs_link);

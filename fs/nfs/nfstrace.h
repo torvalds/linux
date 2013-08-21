@@ -512,6 +512,76 @@ DEFINE_NFS_DIRECTORY_EVENT_DONE(nfs_unlink_exit);
 DEFINE_NFS_DIRECTORY_EVENT(nfs_symlink_enter);
 DEFINE_NFS_DIRECTORY_EVENT_DONE(nfs_symlink_exit);
 
+TRACE_EVENT(nfs_link_enter,
+		TP_PROTO(
+			const struct inode *inode,
+			const struct inode *dir,
+			const struct dentry *dentry
+		),
+
+		TP_ARGS(inode, dir, dentry),
+
+		TP_STRUCT__entry(
+			__field(dev_t, dev)
+			__field(u64, fileid)
+			__field(u64, dir)
+			__string(name, dentry->d_name.name)
+		),
+
+		TP_fast_assign(
+			__entry->dev = inode->i_sb->s_dev;
+			__entry->fileid = NFS_FILEID(inode);
+			__entry->dir = NFS_FILEID(dir);
+			__assign_str(name, dentry->d_name.name);
+		),
+
+		TP_printk(
+			"fileid=%02x:%02x:%llu name=%02x:%02x:%llu/%s",
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			__entry->fileid,
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->dir,
+			__get_str(name)
+		)
+);
+
+TRACE_EVENT(nfs_link_exit,
+		TP_PROTO(
+			const struct inode *inode,
+			const struct inode *dir,
+			const struct dentry *dentry,
+			int error
+		),
+
+		TP_ARGS(inode, dir, dentry, error),
+
+		TP_STRUCT__entry(
+			__field(int, error)
+			__field(dev_t, dev)
+			__field(u64, fileid)
+			__field(u64, dir)
+			__string(name, dentry->d_name.name)
+		),
+
+		TP_fast_assign(
+			__entry->dev = inode->i_sb->s_dev;
+			__entry->fileid = NFS_FILEID(inode);
+			__entry->dir = NFS_FILEID(dir);
+			__entry->error = error;
+			__assign_str(name, dentry->d_name.name);
+		),
+
+		TP_printk(
+			"error=%d fileid=%02x:%02x:%llu name=%02x:%02x:%llu/%s",
+			__entry->error,
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			__entry->fileid,
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->dir,
+			__get_str(name)
+		)
+);
+
 DECLARE_EVENT_CLASS(nfs_rename_event,
 		TP_PROTO(
 			const struct inode *old_dir,
