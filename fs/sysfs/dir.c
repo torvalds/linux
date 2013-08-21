@@ -735,7 +735,7 @@ static enum kobj_ns_type sysfs_read_ns_type(struct kobject *kobj)
 
 /**
  *	sysfs_create_dir - create a directory for an object.
- *	@kobj:		object we're creating directory for. 
+ *	@kobj:		object we're creating directory for.
  */
 int sysfs_create_dir(struct kobject * kobj)
 {

@@ -59,8 +59,8 @@ struct sysfs_buffer {
  *	@buffer:	data buffer for file.
  *
  *	Allocate @buffer->page, if it hasn't been already, then call the
- *	kobject's show() method to fill the buffer with this attribute's 
- *	data. 
+ *	kobject's show() method to fill the buffer with this attribute's
+ *	data.
  *	This is called only once, on the file's first read unless an error
  *	is returned.
  */
@@ -106,7 +106,7 @@ static int fill_read_buffer(struct dentry * dentry, struct sysfs_buffer * buffer
 }
 
 /**
- *	sysfs_read_file - read an attribute. 
+ *	sysfs_read_file - read an attribute.
  *	@file:	file pointer.
  *	@buf:	buffer to fill.
  *	@count:	number of bytes to read.
@@ -154,9 +154,8 @@ out:
  *	Allocate @buffer->page if it hasn't been already, then
  *	copy the user-supplied buffer into it.
  */
-
-static int 
-fill_write_buffer(struct sysfs_buffer * buffer, const char __user * buf, size_t count)
+static int fill_write_buffer(struct sysfs_buffer * buffer,
+			     const char __user * buf, size_t count)
 {
 	int error;
 
@@ -183,10 +182,9 @@ fill_write_buffer(struct sysfs_buffer * buffer, const char __user * buf, size_t 
  *	@count:		number of bytes
  *
  *	Get the correct pointers for the kobject and the attribute we're
- *	dealing with, then call the store() method for the attribute, 
+ *	dealing with, then call the store() method for the attribute,
  *	passing the buffer that we acquired in fill_write_buffer().
  */
-
 static int
 flush_write_buffer(struct dentry * dentry, struct sysfs_buffer * buffer, size_t count)
 {
@@ -219,9 +217,9 @@ flush_write_buffer(struct dentry * dentry, struct sysfs_buffer * buffer, size_t 
  *	then push it to the kobject in flush_write_buffer().
  *	There is no easy way for us to know if userspace is only doing a partial
  *	write, so we don't support them. We expect the entire buffer to come
- *	on the first write. 
+ *	on the first write.
  *	Hint: if you're writing a value, first read the file, modify only the
- *	the value you're changing, then write entire buffer back. 
+ *	the value you're changing, then write entire buffer back.
  */
 
 static ssize_t
@@ -345,7 +343,7 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 	}
 
 	/* File needs write support.
-	 * The inode's perms must say it's ok, 
+	 * The inode's perms must say it's ok,
 	 * and we must have a store method.
 	 */
 	if (file->f_mode & FMODE_WRITE) {
@@ -566,7 +564,7 @@ int sysfs_add_file(struct sysfs_dirent *dir_sd, const struct attribute *attr,
 
 /**
  *	sysfs_create_file - create an attribute file for an object.
- *	@kobj:	object we're creating for. 
+ *	@kobj:	object we're creating for.
  *	@attr:	attribute descriptor.
  */
 int sysfs_create_file(struct kobject * kobj, const struct attribute * attr)

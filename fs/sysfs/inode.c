@@ -10,7 +10,7 @@
  * Please see Documentation/filesystems/sysfs.txt for more information.
  */
 
-#undef DEBUG 
+#undef DEBUG
 
 #include <linux/pagemap.h>
 #include <linux/namei.h>

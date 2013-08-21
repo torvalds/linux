@@ -297,7 +297,7 @@ static void *sysfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 	int error = -ENOMEM;
 	unsigned long page = get_zeroed_page(GFP_KERNEL);
 	if (page) {
-		error = sysfs_getlink(dentry, (char *) page); 
+		error = sysfs_getlink(dentry, (char *) page);
 		if (error < 0)
 			free_page((unsigned long)page);
 	}
