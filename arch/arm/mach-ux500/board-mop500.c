@@ -44,7 +44,6 @@
 #include "setup.h"
 #include "devices.h"
 #include "irqs.h"
-#include <linux/platform_data/crypto-ux500.h>
 
 #include "ste-dma40-db8500.h"
 #include "db8500-regs.h"
@@ -183,19 +182,6 @@ static void mop500_prox_deactivate(struct device *dev)
 	regulator_put(prox_regulator);
 }
 
-static struct cryp_platform_data u8500_cryp1_platform_data = {
-		.mem_to_engine = {
-				.dir = DMA_MEM_TO_DEV,
-				.dev_type = DB8500_DMA_DEV48_CAC1,
-				.mode = STEDMA40_MODE_LOGICAL,
-		},
-		.engine_to_mem = {
-				.dir = DMA_DEV_TO_MEM,
-				.dev_type = DB8500_DMA_DEV48_CAC1,
-				.mode = STEDMA40_MODE_LOGICAL,
-		}
-};
-
 static struct stedma40_chan_cfg u8500_hash_dma_cfg_tx = {
 		.dir = DMA_MEM_TO_DEV,
 		.dev_type = DB8500_DMA_DEV50_HAC1_TX,
@@ -318,7 +304,6 @@ static void __init mop500_uart_init(struct device *parent)
 
 static void __init u8500_cryp1_hash1_init(struct device *parent)
 {
-	db8500_add_cryp1(parent, &u8500_cryp1_platform_data);
 	db8500_add_hash1(parent, &u8500_hash1_platform_data);
 }
 

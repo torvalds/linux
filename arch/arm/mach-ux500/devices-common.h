@@ -13,7 +13,6 @@
 #include <linux/sys_soc.h>
 #include <linux/amba/bus.h>
 #include <linux/platform_data/i2c-nomadik.h>
-#include <linux/platform_data/crypto-ux500.h>
 
 struct spi_master_cntlr;
 
@@ -63,31 +62,6 @@ dbx500_add_rtc(struct device *parent, resource_size_t base, int irq)
 {
 	return amba_apb_device_add(parent, "rtc-pl031", base, SZ_4K, irq,
 				0, NULL, 0);
-}
-
-struct cryp_platform_data;
-
-static inline struct platform_device *
-dbx500_add_cryp1(struct device *parent, int id, resource_size_t base, int irq,
-		struct cryp_platform_data *pdata)
-{
-	struct resource res[] = {
-			DEFINE_RES_MEM(base, SZ_4K),
-			DEFINE_RES_IRQ(irq),
-	};
-
-	struct platform_device_info pdevinfo = {
-			.parent = parent,
-			.name = "cryp1",
-			.id = id,
-			.res = res,
-			.num_res = ARRAY_SIZE(res),
-			.data = pdata,
-			.size_data = sizeof(*pdata),
-			.dma_mask = DMA_BIT_MASK(32),
-	};
-
-	return platform_device_register_full(&pdevinfo);
 }
 
 struct hash_platform_data;
