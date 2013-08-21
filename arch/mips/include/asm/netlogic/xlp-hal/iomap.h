@@ -72,6 +72,12 @@
 #define XLP_IO_USB_OHCI2_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 2, 4)
 #define XLP_IO_USB_OHCI3_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 2, 5)
 
+/* XLP2xx has an updated USB block */
+#define XLP2XX_IO_USB_OFFSET(node, i)	XLP_HDR_OFFSET(node, 0, 4, i)
+#define XLP2XX_IO_USB_XHCI0_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 4, 1)
+#define XLP2XX_IO_USB_XHCI1_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 4, 2)
+#define XLP2XX_IO_USB_XHCI2_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 4, 3)
+
 #define XLP_IO_NAE_OFFSET(node)		XLP_HDR_OFFSET(node, 0, 3, 0)
 #define XLP_IO_POE_OFFSET(node)		XLP_HDR_OFFSET(node, 0, 3, 1)
 
@@ -148,6 +154,7 @@
 #define PCI_DEVICE_ID_NLM_NOR		0x1015
 #define PCI_DEVICE_ID_NLM_NAND		0x1016
 #define PCI_DEVICE_ID_NLM_MMC		0x1018
+#define PCI_DEVICE_ID_NLM_XHCI		0x101d
 
 #ifndef __ASSEMBLY__
 

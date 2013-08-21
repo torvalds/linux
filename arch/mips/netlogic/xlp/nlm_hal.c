@@ -65,30 +65,13 @@ int nlm_irq_to_irt(int irq)
 	uint64_t pcibase;
 	int devoff, irt;
 
+	devoff = 0;
 	switch (irq) {
 	case PIC_UART_0_IRQ:
 		devoff = XLP_IO_UART0_OFFSET(0);
 		break;
 	case PIC_UART_1_IRQ:
 		devoff = XLP_IO_UART1_OFFSET(0);
-		break;
-	case PIC_EHCI_0_IRQ:
-		devoff = XLP_IO_USB_EHCI0_OFFSET(0);
-		break;
-	case PIC_EHCI_1_IRQ:
-		devoff = XLP_IO_USB_EHCI1_OFFSET(0);
-		break;
-	case PIC_OHCI_0_IRQ:
-		devoff = XLP_IO_USB_OHCI0_OFFSET(0);
-		break;
-	case PIC_OHCI_1_IRQ:
-		devoff = XLP_IO_USB_OHCI1_OFFSET(0);
-		break;
-	case PIC_OHCI_2_IRQ:
-		devoff = XLP_IO_USB_OHCI2_OFFSET(0);
-		break;
-	case PIC_OHCI_3_IRQ:
-		devoff = XLP_IO_USB_OHCI3_OFFSET(0);
 		break;
 	case PIC_MMC_IRQ:
 		devoff = XLP_IO_SD_OFFSET(0);
@@ -103,8 +86,41 @@ int nlm_irq_to_irt(int irq)
 			devoff = XLP_IO_I2C0_OFFSET(0);
 		break;
 	default:
-		devoff = 0;
-		break;
+		if (cpu_is_xlpii()) {
+			switch (irq) {
+				/* XLP2XX has three XHCI USB controller */
+			case PIC_2XX_XHCI_0_IRQ:
+				devoff = XLP2XX_IO_USB_XHCI0_OFFSET(0);
+				break;
+			case PIC_2XX_XHCI_1_IRQ:
+				devoff = XLP2XX_IO_USB_XHCI1_OFFSET(0);
+				break;
+			case PIC_2XX_XHCI_2_IRQ:
+				devoff = XLP2XX_IO_USB_XHCI2_OFFSET(0);
+				break;
+			}
+		} else {
+			switch (irq) {
+			case PIC_EHCI_0_IRQ:
+				devoff = XLP_IO_USB_EHCI0_OFFSET(0);
+				break;
+			case PIC_EHCI_1_IRQ:
+				devoff = XLP_IO_USB_EHCI1_OFFSET(0);
+				break;
+			case PIC_OHCI_0_IRQ:
+				devoff = XLP_IO_USB_OHCI0_OFFSET(0);
+				break;
+			case PIC_OHCI_1_IRQ:
+				devoff = XLP_IO_USB_OHCI1_OFFSET(0);
+				break;
+			case PIC_OHCI_2_IRQ:
+				devoff = XLP_IO_USB_OHCI2_OFFSET(0);
+				break;
+			case PIC_OHCI_3_IRQ:
+				devoff = XLP_IO_USB_OHCI3_OFFSET(0);
+				break;
+			}
+		}
 	}
 
 	if (devoff != 0) {

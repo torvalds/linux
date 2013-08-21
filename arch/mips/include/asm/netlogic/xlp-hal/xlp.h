@@ -41,12 +41,17 @@
 #define PIC_PCIE_LINK_1_IRQ		20
 #define PIC_PCIE_LINK_2_IRQ		21
 #define PIC_PCIE_LINK_3_IRQ		22
+
 #define PIC_EHCI_0_IRQ			23
 #define PIC_EHCI_1_IRQ			24
 #define PIC_OHCI_0_IRQ			25
 #define PIC_OHCI_1_IRQ			26
 #define PIC_OHCI_2_IRQ			27
 #define PIC_OHCI_3_IRQ			28
+#define PIC_2XX_XHCI_0_IRQ		23
+#define PIC_2XX_XHCI_1_IRQ		24
+#define PIC_2XX_XHCI_2_IRQ		25
+
 #define PIC_MMC_IRQ			29
 #define PIC_I2C_0_IRQ			30
 #define PIC_I2C_1_IRQ			31
