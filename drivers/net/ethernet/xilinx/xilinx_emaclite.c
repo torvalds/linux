@@ -1249,7 +1249,6 @@ static int xemaclite_of_remove(struct platform_device *of_dev)
 	lp->phy_node = NULL;
 
 	xemaclite_remove_ndev(ndev, of_dev);
-	dev_set_drvdata(dev, NULL);
 
 	return 0;
 }
