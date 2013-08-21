@@ -126,8 +126,8 @@ spc_emulate_evpd_80(struct se_cmd *cmd, unsigned char *buf)
 	return 0;
 }
 
-static void spc_parse_naa_6h_vendor_specific(struct se_device *dev,
-		unsigned char *buf)
+void spc_parse_naa_6h_vendor_specific(struct se_device *dev,
+				      unsigned char *buf)
 {
 	unsigned char *p = &dev->t10_wwn.unit_serial[0];
 	int cnt;
