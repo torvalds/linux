@@ -170,8 +170,8 @@ static int mlx4_en_dcbnl_ieee_setpfc(struct net_device *dev,
 			pfc->mbc,
 			pfc->delay);
 
-	prof->rx_pause = !!pfc->pfc_en;
-	prof->tx_pause = !!pfc->pfc_en;
+	prof->rx_pause = !pfc->pfc_en;
+	prof->tx_pause = !pfc->pfc_en;
 	prof->rx_ppp = pfc->pfc_en;
 	prof->tx_ppp = pfc->pfc_en;
 
