@@ -933,7 +933,7 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct dentry *dentry,
 		p->o_arg.fh = NFS_FH(dentry->d_inode);
 	}
 	if (attrs != NULL && attrs->ia_valid != 0) {
-		__be32 verf[2];
+		__u32 verf[2];
 
 		p->o_arg.u.attrs = &p->attrs;
 		memcpy(&p->attrs, attrs, sizeof(p->attrs));
