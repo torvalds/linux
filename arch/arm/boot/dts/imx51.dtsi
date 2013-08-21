@@ -379,6 +379,14 @@
 				clocks = <&clks 107>;
 			};
 
+			owire: owire@83fa4000 {
+				compatible = "fsl,imx51-owire", "fsl,imx21-owire";
+				reg = <0x83fa4000 0x4000>;
+				interrupts = <88>;
+				clocks = <&clks 159>;
+				status = "disabled";
+			};
+
 			ecspi2: ecspi@83fac000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
