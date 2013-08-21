@@ -26,6 +26,7 @@
 #include <linux/radix-tree.h>
 #include <linux/crc32c.h>
 #include <linux/vmalloc.h>
+#include <linux/string.h>
 
 #include "send.h"
 #include "backref.h"
@@ -2601,7 +2602,6 @@ static int record_ref(struct list_head *head, u64 dir,
 		      u64 dir_gen, struct fs_path *path)
 {
 	struct recorded_ref *ref;
-	char *tmp;
 
 	ref = kmalloc(sizeof(*ref), GFP_NOFS);
 	if (!ref)
@@ -2611,20 +2611,14 @@ static int record_ref(struct list_head *head, u64 dir,
 	ref->dir_gen = dir_gen;
 	ref->full_path = path;
 
-	tmp = strrchr(ref->full_path->start, '/');
-	if (!tmp) {
-		ref->name_len = ref->full_path->end - ref->full_path->start;
-		ref->name = ref->full_path->start;
+	ref->name = (char *)kbasename(ref->full_path->start);
+	ref->name_len = ref->full_path->end - ref->name;
+	ref->dir_path = ref->full_path->start;
+	if (ref->name == ref->full_path->start)
 		ref->dir_path_len = 0;
-		ref->dir_path = ref->full_path->start;
-	} else {
-		tmp++;
-		ref->name_len = ref->full_path->end - tmp;
-		ref->name = tmp;
-		ref->dir_path = ref->full_path->start;
+	else
 		ref->dir_path_len = ref->full_path->end -
 				ref->full_path->start - 1 - ref->name_len;
-	}
 
 	list_add_tail(&ref->list, head);
 	return 0;
