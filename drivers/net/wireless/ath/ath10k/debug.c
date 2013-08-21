@@ -260,7 +260,6 @@ void ath10k_debug_read_target_stats(struct ath10k *ar,
 	}
 
 	spin_unlock_bh(&ar->data_lock);
-	mutex_unlock(&ar->conf_mutex);
 	complete(&ar->debug.event_stats_compl);
 }
 
