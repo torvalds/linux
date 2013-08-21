@@ -915,6 +915,15 @@ static int fimd_probe(struct platform_device *pdev)
 			DRM_ERROR("failed: of_get_videomode() : %d\n", ret);
 			return ret;
 		}
+
+		if (vm->flags & DISPLAY_FLAGS_VSYNC_LOW)
+			pdata->vidcon1 |= VIDCON1_INV_VSYNC;
+		if (vm->flags & DISPLAY_FLAGS_HSYNC_LOW)
+			pdata->vidcon1 |= VIDCON1_INV_HSYNC;
+		if (vm->flags & DISPLAY_FLAGS_DE_LOW)
+			pdata->vidcon1 |= VIDCON1_INV_VDEN;
+		if (vm->flags & DISPLAY_FLAGS_PIXDATA_NEGEDGE)
+			pdata->vidcon1 |= VIDCON1_INV_VCLK;
 	} else {
 		pdata = dev->platform_data;
 		if (!pdata) {
