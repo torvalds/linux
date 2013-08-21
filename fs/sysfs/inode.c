@@ -36,7 +36,7 @@ static struct backing_dev_info sysfs_backing_dev_info = {
 	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK,
 };
 
-static const struct inode_operations sysfs_inode_operations ={
+static const struct inode_operations sysfs_inode_operations = {
 	.permission	= sysfs_permission,
 	.setattr	= sysfs_setattr,
 	.getattr	= sysfs_getattr,
@@ -67,7 +67,7 @@ static struct sysfs_inode_attrs *sysfs_init_inode_attrs(struct sysfs_dirent *sd)
 	return attrs;
 }
 
-int sysfs_sd_setattr(struct sysfs_dirent *sd, struct iattr * iattr)
+int sysfs_sd_setattr(struct sysfs_dirent *sd, struct iattr *iattr)
 {
 	struct sysfs_inode_attrs *sd_attrs;
 	struct iattr *iattrs;
@@ -186,13 +186,13 @@ out:
 	return error;
 }
 
-static inline void set_default_inode_attr(struct inode * inode, umode_t mode)
+static inline void set_default_inode_attr(struct inode *inode, umode_t mode)
 {
 	inode->i_mode = mode;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 }
 
-static inline void set_inode_attr(struct inode * inode, struct iattr * iattr)
+static inline void set_inode_attr(struct inode *inode, struct iattr *iattr)
 {
 	inode->i_uid = iattr->ia_uid;
 	inode->i_gid = iattr->ia_gid;
@@ -285,7 +285,7 @@ static void sysfs_init_inode(struct sysfs_dirent *sd, struct inode *inode)
  *	RETURNS:
  *	Pointer to allocated inode on success, NULL on failure.
  */
-struct inode * sysfs_get_inode(struct super_block *sb, struct sysfs_dirent *sd)
+struct inode *sysfs_get_inode(struct super_block *sb, struct sysfs_dirent *sd)
 {
 	struct inode *inode;
 

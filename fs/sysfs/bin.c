@@ -391,7 +391,7 @@ out_unlock:
 	return rc;
 }
 
-static int open(struct inode * inode, struct file * file)
+static int open(struct inode *inode, struct file *file)
 {
 	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
 	struct bin_attribute *attr = attr_sd->s_bin_attr.bin_attr;
@@ -435,7 +435,7 @@ static int open(struct inode * inode, struct file * file)
 	return error;
 }
 
-static int release(struct inode * inode, struct file * file)
+static int release(struct inode *inode, struct file *file)
 {
 	struct bin_buffer *bb = file->private_data;
 

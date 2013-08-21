@@ -167,7 +167,7 @@ void sysfs_delete_link(struct kobject *kobj, struct kobject *targ,
  *	@kobj:	object we're acting for.
  *	@name:	name of the symlink to remove.
  */
-void sysfs_remove_link(struct kobject * kobj, const char * name)
+void sysfs_remove_link(struct kobject *kobj, const char *name)
 {
 	struct sysfs_dirent *parent_sd = NULL;
 
@@ -278,7 +278,7 @@ static int sysfs_get_target_path(struct sysfs_dirent *parent_sd,
 	return 0;
 }
 
-static int sysfs_getlink(struct dentry *dentry, char * path)
+static int sysfs_getlink(struct dentry *dentry, char *path)
 {
 	struct sysfs_dirent *sd = dentry->d_fsdata;
 	struct sysfs_dirent *parent_sd = sd->s_parent;
