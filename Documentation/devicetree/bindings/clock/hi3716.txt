@@ -1,0 +1,121 @@
+Device Tree Clock bindings for hi3716
+
+This binding uses the common clock binding[1].
+
+[1] Documentation/devicetree/bindings/clock/clock-bindings.txt
+
+Clock control register
+Required properties:
+- compatible : "hisilicon,clkbase"
+- reg : Address and size of clkbase.
+
+Device Clocks
+
+Device clocks are required to have one or both of the following sets of
+properties:
+
+
+Gated device clocks:
+
+Required properties:
+- compatible : "hisilicon,hi3716-clk-gate"
+- gate-reg : shall be the register offset from clkbase and enable bit, reset bit
+- clock-output-names : shall be reference name
+
+
+Mux device clocks:
+
+Required properties:
+- compatible : "hisilicon,hi3716-clk-mux"
+- mux-reg : shall be the register offset from clkbase and mux_shift mux_width
+- mux-table : shall be reg value to be choose clocks accordingly
+- clock-output-names : shall be reference name
+
+
+Fixed divisor device clocks:
+
+Required properties:
+- compatible : "hisilicon,hi3716-fixed-divider"
+- div-table : shall be divisor sequence
+- clock-output-names : shall be reference name according to divisor
+
+
+Fixed pll clocks:
+
+Required properties:
+- compatible : "hisilicon,hi3716-fixed-pll"
+- clock-frequency : shall be output clock frequence sequence
+- clock-output-names : shall be reference name according to clock-frequnce
+
+For example:
+	clkbase@f8a22000 {
+		compatible = "hisilicon,clkbase";
+		reg = <0xf8a22000 0x1000>;
+	};
+
+	osc24m: osc {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24000000>;
+		clock-output-names = "osc24mhz";
+	};
+
+	bpll: bpll {
+		compatible = "hisilicon,hi3716-fixed-pll";
+		#clock-cells = <1>;
+		clocks = <&osc24m>;
+		clock-frequency = <1200000000>,
+				  <600000000>,
+				  <300000000>,
+				  <200000000>,
+				  <150000000>;
+		clock-output-names = "bpll_fout0",
+				     "bpll_fout1",
+				     "bpll_fout2",
+				     "bpll_fout3",
+				     "bpll_fout4";
+	};
+
+	bpll_fout0_div: bpll_fout0_div {/* 1200Mhz */
+		compatible = "hisilicon,hi3716-fixed-divider";
+		#clock-cells = <1>;
+		clocks = <&bpll 0>;
+		div-table = <3 14 25 50>;
+		clock-output-names = "fout0_400m", "fout0_86m",
+					"fout0_48m", "fout0_24m";
+	};
+
+	bpll_fout3_div: bpll_fout3_div {
+		compatible = "hisilicon,hi3716-fixed-divider";
+		#clock-cells = <1>;
+		clocks = <&bpll 3>;
+		div-table = <2 4 5 8>;
+		clock-output-names = "fout3_100m", "fout3_50m",
+					"fout3_40m", "fout3_25m";
+	};
+
+	clk_sfc_mux: clk_sfc_mux {
+		compatible = "hisilicon,hi3716-clk-mux";
+		#clock-cells = <0>;
+		/* clks: 24M 75M 100M 150M 200M */
+		clocks = <&osc24m>, <&bpll_fout2_div>,
+		       <&bpll_fout3_div 0>, <&bpll 4>, <&bpll 3>;
+
+		/* offset mux_shift mux_width */
+		mux-reg = <0x5c 8 3>;
+		/* mux reg value to choose clks */
+		mux-table = <0 7 6 4 5>;
+
+		clock-output-names = "sfc_mux";
+	};
+
+	clk_sfc: clk_sfc {
+		compatible = "hisilicon,hi3716-clk-gate";
+		#clock-cells = <0>;
+		clocks = <&clk_sfc_mux>;
+
+		/* offset, enable, reset */
+		gate-reg = <0x5c 0 4>;
+
+		clock-output-names = "sfc";
+	};
