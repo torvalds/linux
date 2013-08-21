@@ -1110,8 +1110,8 @@ retry:
 	spin_unlock_bh(&ifp->lock);
 
 	regen_advance = idev->cnf.regen_max_retry *
-			idev->cnf.dad_transmits *
-			idev->nd_parms->retrans_time / HZ;
+	                idev->cnf.dad_transmits *
+	                idev->nd_parms->retrans_time / HZ;
 	write_unlock(&idev->lock);
 
 	/* A temporary address is created only if this calculated Preferred
@@ -2501,8 +2501,7 @@ static int inet6_addr_del(struct net *net, int ifindex, const struct in6_addr *p
 	if (!dev)
 		return -ENODEV;
 
-	idev = __in6_dev_get(dev);
-	if (!idev)
+	if ((idev = __in6_dev_get(dev)) == NULL)
 		return -ENXIO;
 
 	read_lock_bh(&idev->lock);
@@ -2641,8 +2640,7 @@ static void init_loopback(struct net_device *dev)
 
 	ASSERT_RTNL();
 
-	idev = ipv6_find_idev(dev);
-	if (!idev) {
+	if ((idev = ipv6_find_idev(dev)) == NULL) {
 		pr_debug("%s: add_dev failed\n", __func__);
 		return;
 	}
@@ -2740,8 +2738,7 @@ static void addrconf_sit_config(struct net_device *dev)
 	 * our v4 addrs in the tunnel
 	 */
 
-	idev = ipv6_find_idev(dev);
-	if (!idev) {
+	if ((idev = ipv6_find_idev(dev)) == NULL) {
 		pr_debug("%s: add_dev failed\n", __func__);
 		return;
 	}
@@ -2773,8 +2770,7 @@ static void addrconf_gre_config(struct net_device *dev)
 
 	ASSERT_RTNL();
 
-	idev = ipv6_find_idev(dev);
-	if (!idev) {
+	if ((idev = ipv6_find_idev(dev)) == NULL) {
 		pr_debug("%s: add_dev failed\n", __func__);
 		return;
 	}
@@ -2805,11 +2801,11 @@ static void ip6_tnl_add_linklocal(struct inet6_dev *idev)
 	struct net *net = dev_net(idev->dev);
 
 	/* first try to inherit the link-local address from the link device */
-	if (idev->dev->iflink)
-		link_dev = __dev_get_by_index(net, idev->dev->iflink);
-		if (link_dev && !ipv6_inherit_linklocal(idev, link_dev))
+	if (idev->dev->iflink &&
+	    (link_dev = __dev_get_by_index(net, idev->dev->iflink))) {
+		if (!ipv6_inherit_linklocal(idev, link_dev))
 			return;
-
+	}
 	/* then try to inherit it from any device */
 	for_each_netdev(net, link_dev) {
 		if (!ipv6_inherit_linklocal(idev, link_dev))
