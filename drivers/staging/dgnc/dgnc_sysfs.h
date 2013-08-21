@@ -32,7 +32,7 @@ struct un_t;
 struct pci_driver;
 struct class_device;
 
-extern void dgnc_create_ports_sysfiles(struct board_t *bd); 
+extern void dgnc_create_ports_sysfiles(struct board_t *bd);
 extern void dgnc_remove_ports_sysfiles(struct board_t *bd);
 
 extern void dgnc_create_driver_sysfiles(struct pci_driver *);
