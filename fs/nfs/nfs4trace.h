@@ -638,6 +638,55 @@ TRACE_EVENT(nfs4_delegreturn_exit,
 		)
 );
 
+#ifdef CONFIG_NFS_V4_1
+DECLARE_EVENT_CLASS(nfs4_test_stateid_event,
+		TP_PROTO(
+			const struct nfs4_state *state,
+			const struct nfs4_lock_state *lsp,
+			int error
+		),
+
+		TP_ARGS(state, lsp, error),
+
+		TP_STRUCT__entry(
+			__field(int, error)
+			__field(dev_t, dev)
+			__field(u32, fhandle)
+			__field(u64, fileid)
+		),
+
+		TP_fast_assign(
+			const struct inode *inode = state->inode;
+
+			__entry->error = error;
+			__entry->dev = inode->i_sb->s_dev;
+			__entry->fileid = NFS_FILEID(inode);
+			__entry->fhandle = nfs_fhandle_hash(NFS_FH(inode));
+		),
+
+		TP_printk(
+			"error=%d (%s) fileid=%02x:%02x:%llu fhandle=0x%08x",
+			__entry->error,
+			show_nfsv4_errors(__entry->error),
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->fileid,
+			__entry->fhandle
+		)
+);
+
+#define DEFINE_NFS4_TEST_STATEID_EVENT(name) \
+	DEFINE_EVENT(nfs4_test_stateid_event, name, \
+			TP_PROTO( \
+				const struct nfs4_state *state, \
+				const struct nfs4_lock_state *lsp, \
+				int error \
+			), \
+			TP_ARGS(state, lsp, error))
+DEFINE_NFS4_TEST_STATEID_EVENT(nfs4_test_delegation_stateid);
+DEFINE_NFS4_TEST_STATEID_EVENT(nfs4_test_open_stateid);
+DEFINE_NFS4_TEST_STATEID_EVENT(nfs4_test_lock_stateid);
+#endif /* CONFIG_NFS_V4_1 */
+
 DECLARE_EVENT_CLASS(nfs4_lookup_event,
 		TP_PROTO(
 			const struct inode *dir,

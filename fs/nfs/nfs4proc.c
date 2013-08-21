@@ -1950,6 +1950,7 @@ static void nfs41_clear_delegation_stateid(struct nfs4_state *state)
 		cred = get_rpccred(delegation->cred);
 		rcu_read_unlock();
 		status = nfs41_test_stateid(server, stateid, cred);
+		trace_nfs4_test_delegation_stateid(state, NULL, status);
 	} else
 		rcu_read_unlock();
 
@@ -1992,6 +1993,7 @@ static int nfs41_check_open_stateid(struct nfs4_state *state)
 		return -NFS4ERR_BAD_STATEID;
 
 	status = nfs41_test_stateid(server, stateid, cred);
+	trace_nfs4_test_open_stateid(state, NULL, status);
 	if (status != NFS_OK) {
 		/* Free the stateid unless the server explicitly
 		 * informs us the stateid is unrecognized. */
@@ -5472,6 +5474,7 @@ static int nfs41_check_expired_locks(struct nfs4_state *state)
 			status = nfs41_test_stateid(server,
 					&lsp->ls_stateid,
 					cred);
+			trace_nfs4_test_lock_stateid(state, lsp, status);
 			if (status != NFS_OK) {
 				/* Free the stateid unless the server
 				 * informs us the stateid is unrecognized. */
