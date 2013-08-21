@@ -6,12 +6,12 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2, or (at your option)
  * any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY, EXPRESS OR IMPLIED; without even the 
- * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+ * but WITHOUT ANY WARRANTY, EXPRESS OR IMPLIED; without even the
+ * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
  * PURPOSE.  See the GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
@@ -345,7 +345,7 @@ static int dgnc_init_pci(void)
 
 /* returns count (>= 0), or negative on error */
 static int dgnc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
-{       
+{
 	int rc;
 
 	/* wake up and enable device */
@@ -516,7 +516,7 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 		APR(("memory allocation for board msgbuf failed\n"));
 		return(-ENOMEM);
         }
-        
+
 	/* store the info for the board we've found */
 	brd->magic = DGNC_BOARD_MAGIC;
 	brd->boardnum = dgnc_NumBoards;
@@ -566,7 +566,7 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 		 * PCI Local Address (i.e. "resource" number) space
 		 * 0        PLX Memory Mapped Config
 		 * 1        PLX I/O Mapped Config
-		 * 2        I/O Mapped UARTs and Status   
+		 * 2        I/O Mapped UARTs and Status
 		 * 3        Memory Mapped VPD
 		 * 4        Memory Mapped UARTs and Status
 		 */
@@ -628,7 +628,7 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 
 		/*
 		 * This chip is set up 100% when we get to it.
-		 * No need to enable global interrupts or anything. 
+		 * No need to enable global interrupts or anything.
 		 */
 		if (brd->bd_flags & BD_IS_PCI_EXPRESS)
 			brd->dpatype = T_NEO_EXPRESS | T_PCIBUS;
@@ -784,23 +784,23 @@ static void dgnc_do_remap(struct board_t *brd)
 /*****************************************************************************
 *
 * Function:
-*                                       
+*
 *    dgnc_poll_handler
 *
 * Author:
 *
 *    Scott H Kilau
-*       
+*
 * Parameters:
 *
-*    dummy -- ignored                    
+*    dummy -- ignored
 *
 * Return Values:
 *
 *    none
 *
-* Description:   
-*                                       
+* Description:
+*
 *    As each timer expires, it determines (a) whether the "transmit"
 *    waiter needs to be woken up, and (b) whether the poller needs to
 *    be rescheduled.
