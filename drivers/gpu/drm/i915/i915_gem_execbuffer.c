@@ -172,6 +172,56 @@ static inline int use_cpu_reloc(struct drm_i915_gem_object *obj)
 }
 
 static int
+relocate_entry_cpu(struct drm_i915_gem_object *obj,
+		   struct drm_i915_gem_relocation_entry *reloc)
+{
+	uint32_t page_offset = offset_in_page(reloc->offset);
+	char *vaddr;
+	int ret = -EINVAL;
+
+	ret = i915_gem_object_set_to_cpu_domain(obj, 1);
+	if (ret)
+		return ret;
+
+	vaddr = kmap_atomic(i915_gem_object_get_page(obj,
+				reloc->offset >> PAGE_SHIFT));
+	*(uint32_t *)(vaddr + page_offset) = reloc->delta;
+	kunmap_atomic(vaddr);
+
+	return 0;
+}
+
+static int
+relocate_entry_gtt(struct drm_i915_gem_object *obj,
+		   struct drm_i915_gem_relocation_entry *reloc)
+{
+	struct drm_device *dev = obj->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t __iomem *reloc_entry;
+	void __iomem *reloc_page;
+	int ret = -EINVAL;
+
+	ret = i915_gem_object_set_to_gtt_domain(obj, true);
+	if (ret)
+		return ret;
+
+	ret = i915_gem_object_put_fence(obj);
+	if (ret)
+		return ret;
+
+	/* Map the page containing the relocation we're going to perform.  */
+	reloc->offset += i915_gem_obj_ggtt_offset(obj);
+	reloc_page = io_mapping_map_atomic_wc(dev_priv->gtt.mappable,
+			reloc->offset & PAGE_MASK);
+	reloc_entry = (uint32_t __iomem *)
+		(reloc_page + offset_in_page(reloc->offset));
+	iowrite32(reloc->delta, reloc_entry);
+	io_mapping_unmap_atomic(reloc_page);
+
+	return 0;
+}
+
+static int
 i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 				   struct eb_objects *eb,
 				   struct drm_i915_gem_relocation_entry *reloc,
@@ -255,40 +305,10 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 		return -EFAULT;
 
 	reloc->delta += target_offset;
-	if (use_cpu_reloc(obj)) {
-		uint32_t page_offset = offset_in_page(reloc->offset);
-		char *vaddr;
-
-		ret = i915_gem_object_set_to_cpu_domain(obj, 1);
-		if (ret)
-			return ret;
-
-		vaddr = kmap_atomic(i915_gem_object_get_page(obj,
-							     reloc->offset >> PAGE_SHIFT));
-		*(uint32_t *)(vaddr + page_offset) = reloc->delta;
-		kunmap_atomic(vaddr);
-	} else {
-		struct drm_i915_private *dev_priv = dev->dev_private;
-		uint32_t __iomem *reloc_entry;
-		void __iomem *reloc_page;
-
-		ret = i915_gem_object_set_to_gtt_domain(obj, true);
-		if (ret)
-			return ret;
-
-		ret = i915_gem_object_put_fence(obj);
-		if (ret)
-			return ret;
-
-		/* Map the page containing the relocation we're going to perform.  */
-		reloc->offset += i915_gem_obj_ggtt_offset(obj);
-		reloc_page = io_mapping_map_atomic_wc(dev_priv->gtt.mappable,
-						      reloc->offset & PAGE_MASK);
-		reloc_entry = (uint32_t __iomem *)
-			(reloc_page + offset_in_page(reloc->offset));
-		iowrite32(reloc->delta, reloc_entry);
-		io_mapping_unmap_atomic(reloc_page);
-	}
+	if (use_cpu_reloc(obj))
+		ret = relocate_entry_cpu(obj, reloc);
+	else
+		ret = relocate_entry_gtt(obj, reloc);
 
 	/* and update the user's relocation entry */
 	reloc->presumed_offset = target_offset;
