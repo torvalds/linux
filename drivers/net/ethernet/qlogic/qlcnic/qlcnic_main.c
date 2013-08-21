@@ -284,12 +284,15 @@ void qlcnic_free_sds_rings(struct qlcnic_recv_context *recv_ctx)
 
 int qlcnic_read_mac_addr(struct qlcnic_adapter *adapter)
 {
-	u8 mac_addr[ETH_ALEN];
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
+	u8 mac_addr[ETH_ALEN];
+	int ret;
 
-	if (qlcnic_get_mac_address(adapter, mac_addr) != 0)
-		return -EIO;
+	ret = qlcnic_get_mac_address(adapter, mac_addr,
+				     adapter->ahw->pci_func);
+	if (ret)
+		return ret;
 
 	memcpy(netdev->dev_addr, mac_addr, ETH_ALEN);
 	memcpy(adapter->mac_addr, netdev->dev_addr, netdev->addr_len);
@@ -431,6 +434,21 @@ static void qlcnic_82xx_cancel_idc_work(struct qlcnic_adapter *adapter)
 	cancel_delayed_work_sync(&adapter->fw_work);
 }
 
+static int qlcnic_get_phys_port_id(struct net_device *netdev,
+				   struct netdev_phys_port_id *ppid)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+
+	if (!(adapter->flags & QLCNIC_HAS_PHYS_PORT_ID))
+		return -EOPNOTSUPP;
+
+	ppid->id_len = sizeof(ahw->phys_port_id);
+	memcpy(ppid->id, ahw->phys_port_id, ppid->id_len);
+
+	return 0;
+}
+
 static const struct net_device_ops qlcnic_netdev_ops = {
 	.ndo_open	   = qlcnic_open,
 	.ndo_stop	   = qlcnic_close,
@@ -448,6 +466,7 @@ static const struct net_device_ops qlcnic_netdev_ops = {
 	.ndo_fdb_add		= qlcnic_fdb_add,
 	.ndo_fdb_del		= qlcnic_fdb_del,
 	.ndo_fdb_dump		= qlcnic_fdb_dump,
+	.ndo_get_phys_port_id	= qlcnic_get_phys_port_id,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = qlcnic_poll_controller,
 #endif
@@ -520,6 +539,7 @@ static struct qlcnic_hardware_ops qlcnic_hw_ops = {
 	.get_board_info			= qlcnic_82xx_get_board_info,
 	.set_mac_filter_count		= qlcnic_82xx_set_mac_filter_count,
 	.free_mac_list			= qlcnic_82xx_free_mac_list,
+	.read_phys_port_id		= qlcnic_82xx_read_phys_port_id,
 };
 
 static void qlcnic_get_multiq_capability(struct qlcnic_adapter *adapter)
@@ -2244,6 +2264,8 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (qlcnic_read_mac_addr(adapter))
 		dev_warn(&pdev->dev, "failed to read mac addr\n");
+
+	qlcnic_read_phys_port_id(adapter);
 
 	if (adapter->portnum == 0) {
 		qlcnic_get_board_name(adapter, board_name);

@@ -564,7 +564,7 @@ int qlcnic_83xx_setup_link_event(struct qlcnic_adapter *, int);
 void qlcnic_83xx_process_rcv_ring_diag(struct qlcnic_host_sds_ring *);
 int qlcnic_83xx_config_intrpt(struct qlcnic_adapter *, bool);
 int qlcnic_83xx_sre_macaddr_change(struct qlcnic_adapter *, u8 *, u16, u8);
-int qlcnic_83xx_get_mac_address(struct qlcnic_adapter *, u8 *);
+int qlcnic_83xx_get_mac_address(struct qlcnic_adapter *, u8 *, u8);
 void qlcnic_83xx_configure_mac(struct qlcnic_adapter *, u8 *, u8,
 			       struct qlcnic_cmd_args *);
 int qlcnic_83xx_alloc_mbx_args(struct qlcnic_cmd_args *,

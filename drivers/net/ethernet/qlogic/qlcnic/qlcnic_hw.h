@@ -186,7 +186,7 @@ void qlcnic_82xx_fw_cmd_del_rx_ctx(struct qlcnic_adapter *);
 void qlcnic_82xx_fw_cmd_del_tx_ctx(struct qlcnic_adapter *,
 				   struct qlcnic_host_tx_ring *);
 int qlcnic_82xx_sre_macaddr_change(struct qlcnic_adapter *, u8 *, u16, u8);
-int qlcnic_82xx_get_mac_address(struct qlcnic_adapter *, u8*);
+int qlcnic_82xx_get_mac_address(struct qlcnic_adapter *, u8*, u8);
 int qlcnic_82xx_get_nic_info(struct qlcnic_adapter *, struct qlcnic_info *, u8);
 int qlcnic_82xx_set_nic_info(struct qlcnic_adapter *, struct qlcnic_info *);
 int qlcnic_82xx_get_pci_info(struct qlcnic_adapter *, struct qlcnic_pci_info*);

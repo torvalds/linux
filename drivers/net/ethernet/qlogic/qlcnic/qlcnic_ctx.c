@@ -821,7 +821,8 @@ int qlcnic_82xx_config_intrpt(struct qlcnic_adapter *adapter, u8 op_type)
 	return err;
 }
 
-int qlcnic_82xx_get_mac_address(struct qlcnic_adapter *adapter, u8 *mac)
+int qlcnic_82xx_get_mac_address(struct qlcnic_adapter *adapter, u8 *mac,
+				u8 function)
 {
 	int err, i;
 	struct qlcnic_cmd_args cmd;
@@ -831,7 +832,7 @@ int qlcnic_82xx_get_mac_address(struct qlcnic_adapter *adapter, u8 *mac)
 	if (err)
 		return err;
 
-	cmd.req.arg[1] = adapter->ahw->pci_func | BIT_8;
+	cmd.req.arg[1] = function | BIT_8;
 	err = qlcnic_issue_cmd(adapter, &cmd);
 
 	if (err == QLCNIC_RCODE_SUCCESS) {

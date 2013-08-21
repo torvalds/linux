@@ -471,6 +471,7 @@ struct qlcnic_hardware_context {
 	u32 mbox_reg[4];
 	struct qlcnic_mailbox *mailbox;
 	u8 extend_lb_time;
+	u8 phys_port_id[ETH_ALEN];
 };
 
 struct qlcnic_adapter_stats {
@@ -926,6 +927,8 @@ struct qlcnic_ipaddr {
 #define QLCNIC_FW_LRO_MSS_CAP		0x8000
 #define QLCNIC_TX_INTR_SHARED		0x10000
 #define QLCNIC_APP_CHANGED_FLAGS	0x20000
+#define QLCNIC_HAS_PHYS_PORT_ID		0x40000
+
 #define QLCNIC_IS_MSI_FAMILY(adapter) \
 	((adapter)->flags & (QLCNIC_MSI_ENABLED | QLCNIC_MSIX_ENABLED))
 #define QLCNIC_IS_TSO_CAPABLE(adapter)  \
@@ -1510,6 +1513,7 @@ void __qlcnic_set_multi(struct net_device *, u16);
 int qlcnic_nic_add_mac(struct qlcnic_adapter *, const u8 *, u16);
 int qlcnic_nic_del_mac(struct qlcnic_adapter *, const u8 *);
 void qlcnic_82xx_free_mac_list(struct qlcnic_adapter *adapter);
+int qlcnic_82xx_read_phys_port_id(struct qlcnic_adapter *);
 
 int qlcnic_fw_cmd_set_mtu(struct qlcnic_adapter *adapter, int mtu);
 int qlcnic_fw_cmd_set_drv_version(struct qlcnic_adapter *, u32);
@@ -1679,7 +1683,7 @@ struct qlcnic_hardware_ops {
 	int (*read_reg) (struct qlcnic_adapter *, ulong, int *);
 	int (*write_reg) (struct qlcnic_adapter *, ulong, u32);
 	void (*get_ocm_win) (struct qlcnic_hardware_context *);
-	int (*get_mac_address) (struct qlcnic_adapter *, u8 *);
+	int (*get_mac_address) (struct qlcnic_adapter *, u8 *, u8);
 	int (*setup_intr) (struct qlcnic_adapter *, u8, int);
 	int (*alloc_mbx_args)(struct qlcnic_cmd_args *,
 			      struct qlcnic_adapter *, u32);
@@ -1713,6 +1717,7 @@ struct qlcnic_hardware_ops {
 	int (*get_board_info) (struct qlcnic_adapter *);
 	void (*set_mac_filter_count) (struct qlcnic_adapter *);
 	void (*free_mac_list) (struct qlcnic_adapter *);
+	int (*read_phys_port_id) (struct qlcnic_adapter *);
 };
 
 extern struct qlcnic_nic_template qlcnic_vf_ops;
@@ -1741,9 +1746,9 @@ static inline int qlcnic_hw_write_wx_2M(struct qlcnic_adapter *adapter,
 }
 
 static inline int qlcnic_get_mac_address(struct qlcnic_adapter *adapter,
-					 u8 *mac)
+					 u8 *mac, u8 function)
 {
-	return adapter->ahw->hw_ops->get_mac_address(adapter, mac);
+	return adapter->ahw->hw_ops->get_mac_address(adapter, mac, function);
 }
 
 static inline int qlcnic_setup_intr(struct qlcnic_adapter *adapter,
@@ -1938,6 +1943,12 @@ static inline void qlcnic_set_mac_filter_count(struct qlcnic_adapter *adapter)
 {
 	if (adapter->ahw->hw_ops->set_mac_filter_count)
 		adapter->ahw->hw_ops->set_mac_filter_count(adapter);
+}
+
+static inline void qlcnic_read_phys_port_id(struct qlcnic_adapter *adapter)
+{
+	if (adapter->ahw->hw_ops->read_phys_port_id)
+		adapter->ahw->hw_ops->read_phys_port_id(adapter);
 }
 
 static inline void qlcnic_dev_request_reset(struct qlcnic_adapter *adapter,
