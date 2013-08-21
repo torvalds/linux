@@ -1858,8 +1858,6 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 		goto out_put_parent;
 	}
 
-	arm_smmu_device_reset(smmu);
-
 	for (i = 0; i < smmu->num_global_irqs; ++i) {
 		err = request_irq(smmu->irqs[i],
 				  arm_smmu_global_fault,
@@ -1877,6 +1875,8 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 	spin_lock(&arm_smmu_devices_lock);
 	list_add(&smmu->list, &arm_smmu_devices);
 	spin_unlock(&arm_smmu_devices_lock);
+
+	arm_smmu_device_reset(smmu);
 	return 0;
 
 out_free_irqs:
