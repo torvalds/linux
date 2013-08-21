@@ -21,6 +21,7 @@
 
 #define _GNU_SOURCE
 #include MSRHEADER
+#include <stdarg.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -1174,27 +1175,38 @@ void free_all_buffers(void)
 }
 
 /*
+ * Parse a file containing a single int.
+ */
+int parse_int_file(const char *fmt, ...)
+{
+	va_list args;
+	char path[PATH_MAX];
+	FILE *filep;
+	int value;
+
+	va_start(args, fmt);
+	vsnprintf(path, sizeof(path), fmt, args);
+	va_end(args);
+	filep = fopen(path, "r");
+	if (!filep) {
+		perror(path);
+		exit(1);
+	}
+	if (fscanf(filep, "%d", &value) != 1) {
+		perror(path);
+		exit(1);
+	}
+	fclose(filep);
+	return value;
+}
+
+/*
  * cpu_is_first_sibling_in_core(cpu)
  * return 1 if given CPU is 1st HT sibling in the core
  */
 int cpu_is_first_sibling_in_core(int cpu)
 {
-	char path[64];
-	FILE *filep;
-	int first_cpu;
-
-	sprintf(path, "/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpu);
-	filep = fopen(path, "r");
-	if (filep == NULL) {
-		perror(path);
-		exit(1);
-	}
-	if (fscanf(filep, "%d", &first_cpu) != 1) {
-		perror(path);
-		exit(1);
-	}
-	fclose(filep);
-	return (cpu == first_cpu);
+	return cpu == parse_int_file("/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpu);
 }
 
 /*
@@ -1203,62 +1215,17 @@ int cpu_is_first_sibling_in_core(int cpu)
  */
 int cpu_is_first_core_in_package(int cpu)
 {
-	char path[64];
-	FILE *filep;
-	int first_cpu;
-
-	sprintf(path, "/sys/devices/system/cpu/cpu%d/topology/core_siblings_list", cpu);
-	filep = fopen(path, "r");
-	if (filep == NULL) {
-		perror(path);
-		exit(1);
-	}
-	if (fscanf(filep, "%d", &first_cpu) != 1) {
-		perror(path);
-		exit(1);
-	}
-	fclose(filep);
-	return (cpu == first_cpu);
+	return cpu == parse_int_file("/sys/devices/system/cpu/cpu%d/topology/core_siblings_list", cpu);
 }
 
 int get_physical_package_id(int cpu)
 {
-	char path[80];
-	FILE *filep;
-	int pkg;
-
-	sprintf(path, "/sys/devices/system/cpu/cpu%d/topology/physical_package_id", cpu);
-	filep = fopen(path, "r");
-	if (filep == NULL) {
-		perror(path);
-		exit(1);
-	}
-	if (fscanf(filep, "%d", &pkg) != 1) {
-		perror(path);
-		exit(1);
-	}
-	fclose(filep);
-	return pkg;
+	return parse_int_file("/sys/devices/system/cpu/cpu%d/topology/physical_package_id", cpu);
 }
 
 int get_core_id(int cpu)
 {
-	char path[80];
-	FILE *filep;
-	int core;
-
-	sprintf(path, "/sys/devices/system/cpu/cpu%d/topology/core_id", cpu);
-	filep = fopen(path, "r");
-	if (filep == NULL) {
-		perror(path);
-		exit(1);
-	}
-	if (fscanf(filep, "%d", &core) != 1) {
-		perror(path);
-		exit(1);
-	}
-	fclose(filep);
-	return core;
+	return parse_int_file("/sys/devices/system/cpu/cpu%d/topology/core_id", cpu);
 }
 
 int get_num_ht_siblings(int cpu)
