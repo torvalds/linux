@@ -105,6 +105,40 @@ int sysfs_create_group(struct kobject *kobj,
 }
 
 /**
+ * sysfs_create_groups - given a directory kobject, create a bunch of attribute groups
+ * @kobj:	The kobject to create the group on
+ * @groups:	The attribute groups to create, NULL terminated
+ *
+ * This function creates a bunch of attribute groups.  If an error occurs when
+ * creating a group, all previously created groups will be removed, unwinding
+ * everything back to the original state when this function was called.
+ * It will explicitly warn and error if any of the attribute files being
+ * created already exist.
+ *
+ * Returns 0 on success or error code from sysfs_create_groups on error.
+ */
+int sysfs_create_groups(struct kobject *kobj,
+			const struct attribute_group **groups)
+{
+	int error = 0;
+	int i;
+
+	if (!groups)
+		return 0;
+
+	for (i = 0; groups[i]; i++) {
+		error = sysfs_create_group(kobj, groups[i]);
+		if (error) {
+			while (--i >= 0)
+				sysfs_remove_group(kobj, groups[i]);
+			break;
+		}
+	}
+	return error;
+}
+EXPORT_SYMBOL_GPL(sysfs_create_groups);
+
+/**
  * sysfs_update_group - given a directory kobject, update an attribute group
  * @kobj:	The kobject to update the group on
  * @grp:	The attribute group to update
@@ -151,6 +185,26 @@ void sysfs_remove_group(struct kobject * kobj,
 
 	sysfs_put(sd);
 }
+
+/**
+ * sysfs_remove_groups - remove a list of groups
+ *
+ * kobj:	The kobject for the groups to be removed from
+ * groups:	NULL terminated list of groups to be removed
+ *
+ * If groups is not NULL, the all groups will be removed from the kobject
+ */
+void sysfs_remove_groups(struct kobject *kobj,
+			 const struct attribute_group **groups)
+{
+	int i;
+
+	if (!groups)
+		return;
+	for (i = 0; groups[i]; i++)
+		sysfs_remove_group(kobj, groups[i]);
+}
+EXPORT_SYMBOL_GPL(sysfs_remove_groups);
 
 /**
  * sysfs_merge_group - merge files into a pre-existing attribute group.
