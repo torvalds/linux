@@ -728,8 +728,8 @@ static struct attribute *dgnc_sysfs_tty_entries[] = {
 
 
 static struct attribute_group dgnc_tty_attribute_group = {
-        .name = NULL,
-        .attrs = dgnc_sysfs_tty_entries,
+	.name = NULL,
+	.attrs = dgnc_sysfs_tty_entries,
 };
 
 
