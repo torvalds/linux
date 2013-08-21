@@ -362,6 +362,15 @@ static void mlx4_en_process_tx_cq(struct net_device *dev, struct mlx4_en_cq *cq)
 		 */
 		rmb();
 
+		if (unlikely((cqe->owner_sr_opcode & MLX4_CQE_OPCODE_MASK) ==
+			     MLX4_CQE_OPCODE_ERROR)) {
+			struct mlx4_err_cqe *cqe_err = (struct mlx4_err_cqe *)cqe;
+
+			en_err(priv, "CQE error - vendor syndrome: 0x%x syndrome: 0x%x\n",
+			       cqe_err->vendor_err_syndrome,
+			       cqe_err->syndrome);
+		}
+
 		/* Skip over last polled CQE */
 		new_index = be16_to_cpu(cqe->wqe_index) & size_mask;
 
