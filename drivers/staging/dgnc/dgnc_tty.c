@@ -47,7 +47,7 @@
 #include <linux/tty_flip.h>
 #include <linux/serial_reg.h>
 #include <linux/slab.h>
-#include <linux/delay.h>        /* For udelay */
+#include <linux/delay.h>	/* For udelay */
 #include <asm/uaccess.h>	/* For copy_from_user/copy_to_user */
 #include <linux/pci.h>
 
@@ -61,9 +61,9 @@
 #include "dgnc_sysfs.h"
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37)
-#define init_MUTEX(sem)         sema_init(sem, 1)
+#define init_MUTEX(sem)	 sema_init(sem, 1)
 #define DECLARE_MUTEX(name)     \
-        struct semaphore name = __SEMAPHORE_INITIALIZER(name, 1)
+	struct semaphore name = __SEMAPHORE_INITIALIZER(name, 1)
 #endif
 
 /*
@@ -208,7 +208,7 @@ int dgnc_tty_register(struct board_t *brd)
 
 	DPR_INIT(("tty_register start\n"));
 
-        memset(&brd->SerialDriver, 0, sizeof(struct tty_driver));
+	memset(&brd->SerialDriver, 0, sizeof(struct tty_driver));
 	memset(&brd->PrintDriver, 0, sizeof(struct tty_driver));
 
 	brd->SerialDriver.magic = TTY_DRIVER_MAGIC;
@@ -235,9 +235,9 @@ int dgnc_tty_register(struct board_t *brd)
 		return(-ENOMEM);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
-        brd->SerialDriver.refcount = brd->TtyRefCnt;
+	brd->SerialDriver.refcount = brd->TtyRefCnt;
 #else
-        kref_init(&brd->SerialDriver.kref);
+	kref_init(&brd->SerialDriver.kref);
 #endif
 
 	brd->SerialDriver.termios = dgnc_driver_kzmalloc(brd->maxports * sizeof(struct ktermios *), GFP_KERNEL);
@@ -294,9 +294,9 @@ int dgnc_tty_register(struct board_t *brd)
 		return(-ENOMEM);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
-        brd->PrintDriver.refcount = brd->TtyRefCnt;
+	brd->PrintDriver.refcount = brd->TtyRefCnt;
 #else
-        kref_init(&brd->PrintDriver.kref);
+	kref_init(&brd->PrintDriver.kref);
 #endif
 
 	brd->PrintDriver.termios = dgnc_driver_kzmalloc(brd->maxports * sizeof(struct ktermios *), GFP_KERNEL);
@@ -317,7 +317,7 @@ int dgnc_tty_register(struct board_t *brd)
 
 	if (!brd->dgnc_Major_TransparentPrint_Registered) {
 		/* Register Transparent Print devices */
- 		rc = tty_register_driver(&brd->PrintDriver);
+		rc = tty_register_driver(&brd->PrintDriver);
 		if (rc < 0) {
 			APR(("Can't register Transparent Print device (%d)\n", rc));
 			return(rc);
@@ -493,7 +493,7 @@ void dgnc_tty_uninit(struct board_t *brd)
 	if (brd->PrintDriver.ttys) {
 		kfree(brd->PrintDriver.ttys);
 		brd->PrintDriver.ttys = NULL;
-        }
+	}
 }
 
 
@@ -666,7 +666,7 @@ static void dgnc_wmove(struct channel_t *ch, char *buf, uint n)
  *
  *      dgnc_input - Process received data.
  *
- *              ch      - Pointer to channel structure.
+ *	      ch      - Pointer to channel structure.
  *
  *=======================================================================*/
 void dgnc_input(struct channel_t *ch)
@@ -714,7 +714,7 @@ void dgnc_input(struct channel_t *ch)
 
 	/*
 	 * If the device is not open, or CREAD is off,
-         * flush input data and return immediately.
+	 * flush input data and return immediately.
 	 */
 	if (!tp || (tp->magic != TTY_MAGIC) || !(ch->ch_tun.un_flags & UN_ISOPEN) ||
 	    !(tp->termios.c_cflag & CREAD) || (ch->ch_tun.un_flags & UN_CLOSING)) {
@@ -869,8 +869,8 @@ void dgnc_carrier(struct channel_t *ch)
 {
 	struct board_t *bd;
 
-        int virt_carrier = 0;
-        int phys_carrier = 0;
+	int virt_carrier = 0;
+	int phys_carrier = 0;
 
 	DPR_CARR(("dgnc_carrier called...\n"));
 
@@ -1006,7 +1006,7 @@ static void dgnc_set_custom_speed(struct channel_t *ch, uint newrate)
 		newrate = ((ch->ch_bd->bd_dividend / 0xFFFF) + 1);
 
 	if (newrate && newrate > ch->ch_bd->bd_dividend)
-                newrate = ch->ch_bd->bd_dividend;
+		newrate = ch->ch_bd->bd_dividend;
 
 	while (newrate > 0) {
 		testdiv = ch->ch_bd->bd_dividend / newrate;
@@ -1037,7 +1037,7 @@ static void dgnc_set_custom_speed(struct channel_t *ch, uint newrate)
 
 		if (deltahigh < deltalow) {
 			newrate = testrate_high;
-                } else {
+		} else {
 			newrate = testrate_low;
 		}
 
@@ -1150,7 +1150,7 @@ void dgnc_wakeup_writes(struct channel_t *ch)
 	 * If channel now has space, wake up anyone waiting on the condition.
 	 */
 	if ((qlen = ch->ch_w_head - ch->ch_w_tail) < 0)
-                qlen += WQUEUESIZE;
+		qlen += WQUEUESIZE;
 
 	if (qlen >= (WQUEUESIZE - 256)) {
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
@@ -1159,13 +1159,13 @@ void dgnc_wakeup_writes(struct channel_t *ch)
 
 	if (ch->ch_tun.un_flags & UN_ISOPEN) {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
-                if ((ch->ch_tun.un_tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
-                        ch->ch_tun.un_tty->ldisc->ops->write_wakeup)
-                {
-                        DGNC_UNLOCK(ch->ch_lock, lock_flags);
-                        (ch->ch_tun.un_tty->ldisc->ops->write_wakeup)(ch->ch_tun.un_tty);
-                        DGNC_LOCK(ch->ch_lock, lock_flags);
-                }
+		if ((ch->ch_tun.un_tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
+			ch->ch_tun.un_tty->ldisc->ops->write_wakeup)
+		{
+			DGNC_UNLOCK(ch->ch_lock, lock_flags);
+			(ch->ch_tun.un_tty->ldisc->ops->write_wakeup)(ch->ch_tun.un_tty);
+			DGNC_LOCK(ch->ch_lock, lock_flags);
+		}
 #else
 		if ((ch->ch_tun.un_tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
 			ch->ch_tun.un_tty->ldisc.ops->write_wakeup)
@@ -1211,13 +1211,13 @@ void dgnc_wakeup_writes(struct channel_t *ch)
 
 	if (ch->ch_pun.un_flags & UN_ISOPEN) {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
-                if ((ch->ch_pun.un_tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
-                        ch->ch_pun.un_tty->ldisc->ops->write_wakeup)
-                {
-                        DGNC_UNLOCK(ch->ch_lock, lock_flags);
-                        (ch->ch_pun.un_tty->ldisc->ops->write_wakeup)(ch->ch_pun.un_tty);
-                        DGNC_LOCK(ch->ch_lock, lock_flags);
-                }
+		if ((ch->ch_pun.un_tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
+			ch->ch_pun.un_tty->ldisc->ops->write_wakeup)
+		{
+			DGNC_UNLOCK(ch->ch_lock, lock_flags);
+			(ch->ch_pun.un_tty->ldisc->ops->write_wakeup)(ch->ch_pun.un_tty);
+			DGNC_LOCK(ch->ch_lock, lock_flags);
+		}
 #else
 		if ((ch->ch_pun.un_tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
 			ch->ch_pun.un_tty->ldisc.ops->write_wakeup)
@@ -1722,8 +1722,8 @@ static void dgnc_tty_close(struct tty_struct *tty, struct file *file)
 			ch->ch_open_count, un->un_open_count));
 
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
-                return;
-        }
+		return;
+	}
 
 	/* OK, its the last close on the unit */
 	DPR_CLOSE(("dgnc_tty_close - last close on unit procedures\n"));
@@ -1735,7 +1735,7 @@ static void dgnc_tty_close(struct tty_struct *tty, struct file *file)
 
 	/*
 	 * Only officially close channel if count is 0 and
-         * DIGI_PRINTER bit is not set.
+	 * DIGI_PRINTER bit is not set.
 	 */
 	if ((ch->ch_open_count == 0) && !(ch->ch_digi.digi_flags & DIGI_PRINTER)) {
 
@@ -1820,7 +1820,7 @@ static void dgnc_tty_close(struct tty_struct *tty, struct file *file)
 
 	DGNC_UNLOCK(ch->ch_lock, lock_flags);
 
-        DPR_BASIC(("dgnc_tty_close - complete\n"));
+	DPR_BASIC(("dgnc_tty_close - complete\n"));
 }
 
 
@@ -1870,10 +1870,10 @@ static int dgnc_tty_chars_in_buffer(struct tty_struct *tty)
 			chars = thead - ttail + WQUEUESIZE;
 	}
 
- 	DPR_WRITE(("dgnc_tty_chars_in_buffer. Port: %x - %d (head: %d tail: %d)\n",
+	DPR_WRITE(("dgnc_tty_chars_in_buffer. Port: %x - %d (head: %d tail: %d)\n",
 		ch->ch_portnum, chars, thead, ttail));
 
-        return(chars);
+	return(chars);
 }
 
 
@@ -1916,7 +1916,7 @@ static int dgnc_maxcps_room(struct tty_struct *tty, int bytes_available)
 
 		if (ch->ch_cpstime < current_time) {
 			/* buffer is empty */
-			ch->ch_cpstime = current_time;            /* reset ch_cpstime */
+			ch->ch_cpstime = current_time;	    /* reset ch_cpstime */
 			cps_limit = ch->ch_digi.digi_bufsize;
 		}
 		else if (ch->ch_cpstime < buffer_time) {
@@ -1994,7 +1994,7 @@ static int dgnc_tty_write_room(struct tty_struct *tty)
 
 	DPR_WRITE(("dgnc_tty_write_room - %d tail: %d head: %d\n", ret, tail, head));
 
-        return(ret);
+	return(ret);
 }
 
 
@@ -2209,7 +2209,7 @@ static int dgnc_tty_write(struct tty_struct *tty,
 	/* Update printer buffer empty time. */
 	if ((un->un_type == DGNC_PRINT) && (ch->ch_digi.digi_maxcps > 0)
 	    && (ch->ch_digi.digi_bufsize > 0)) {
-                ch->ch_cpstime += (HZ * count) / ch->ch_digi.digi_maxcps;
+		ch->ch_cpstime += (HZ * count) / ch->ch_digi.digi_maxcps;
 	}
 
 	if (from_user) {
@@ -2295,7 +2295,7 @@ static int dgnc_tty_tiocmget(struct tty_struct *tty, struct file *file)
  */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39)
 static int dgnc_tty_tiocmset(struct tty_struct *tty,
-                unsigned int set, unsigned int clear)
+		unsigned int set, unsigned int clear)
 #else
 static int dgnc_tty_tiocmset(struct tty_struct *tty, struct file *file,
 		unsigned int set, unsigned int clear)
@@ -2329,19 +2329,19 @@ static int dgnc_tty_tiocmset(struct tty_struct *tty, struct file *file,
 
 	if (set & TIOCM_RTS) {
 		ch->ch_mostat |= UART_MCR_RTS;
-        }
+	}
 
 	if (set & TIOCM_DTR) {
 		ch->ch_mostat |= UART_MCR_DTR;
-        }
+	}
 
 	if (clear & TIOCM_RTS) {
 		ch->ch_mostat &= ~(UART_MCR_RTS);
-        }
+	}
 
 	if (clear & TIOCM_DTR) {
 		ch->ch_mostat &= ~(UART_MCR_DTR);
-        }
+	}
 
 	ch->ch_bd->bd_ops->assert_modem_signals(ch);
 
@@ -2593,37 +2593,37 @@ static int dgnc_set_modem_info(struct tty_struct *tty, unsigned int command, uns
 	case TIOCMBIS:
 		if (arg & TIOCM_RTS) {
 			ch->ch_mostat |= UART_MCR_RTS;
-        	}
+		}
 
 		if (arg & TIOCM_DTR) {
 			ch->ch_mostat |= UART_MCR_DTR;
-        	}
+		}
 
 		break;
 
 	case TIOCMBIC:
 		if (arg & TIOCM_RTS) {
 			ch->ch_mostat &= ~(UART_MCR_RTS);
-        	}
+		}
 
 		if (arg & TIOCM_DTR) {
 			ch->ch_mostat &= ~(UART_MCR_DTR);
-        	}
+		}
 
 		break;
 
-        case TIOCMSET:
+	case TIOCMSET:
 
 		if (arg & TIOCM_RTS) {
 			ch->ch_mostat |= UART_MCR_RTS;
-        	}
+		}
 		else {
 			ch->ch_mostat &= ~(UART_MCR_RTS);
 		}
 
 		if (arg & TIOCM_DTR) {
 			ch->ch_mostat |= UART_MCR_DTR;
-        	}
+		}
 		else {
 			ch->ch_mostat &= ~(UART_MCR_DTR);
 		}
@@ -2721,9 +2721,9 @@ static int dgnc_tty_digiseta(struct tty_struct *tty, struct digi_t __user *new_i
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
 		return (-EFAULT);
 
-        if (copy_from_user(&new_digi, new_info, sizeof(struct digi_t))) {
+	if (copy_from_user(&new_digi, new_info, sizeof(struct digi_t))) {
 		DPR_IOCTL(("DIGI_SETA failed copy_from_user\n"));
-                return(-EFAULT);
+		return(-EFAULT);
 	}
 
 	DGNC_LOCK(ch->ch_lock, lock_flags);
@@ -2831,9 +2831,9 @@ static void dgnc_tty_throttle(struct tty_struct *tty)
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
 		return;
 
-        ch = un->un_ch;
-        if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-                return;
+	ch = un->un_ch;
+	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+		return;
 
 	DPR_IOCTL(("dgnc_tty_throttle start\n"));
 
@@ -2860,9 +2860,9 @@ static void dgnc_tty_unthrottle(struct tty_struct *tty)
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
 		return;
 
-        ch = un->un_ch;
-        if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-                return;
+	ch = un->un_ch;
+	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+		return;
 
 	DPR_IOCTL(("dgnc_tty_unthrottle start\n"));
 
@@ -2890,9 +2890,9 @@ static void dgnc_tty_start(struct tty_struct *tty)
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
 		return;
 
-        ch = un->un_ch;
-        if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-                return;
+	ch = un->un_ch;
+	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+		return;
 
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
@@ -2924,9 +2924,9 @@ static void dgnc_tty_stop(struct tty_struct *tty)
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
 		return;
 
-        ch = un->un_ch;
-        if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-                return;
+	ch = un->un_ch;
+	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+		return;
 
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
@@ -2971,9 +2971,9 @@ static void dgnc_tty_flush_chars(struct tty_struct *tty)
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
 		return;
 
-        ch = un->un_ch;
-        if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-                return;
+	ch = un->un_ch;
+	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+		return;
 
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
@@ -3010,9 +3010,9 @@ static void dgnc_tty_flush_buffer(struct tty_struct *tty)
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
 		return;
 
-        ch = un->un_ch;
-        if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-                return;
+	ch = un->un_ch;
+	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
+		return;
 
 	DPR_IOCTL(("dgnc_tty_flush_buffer on port: %d start\n", ch->ch_portnum));
 
@@ -3130,7 +3130,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 
 	case TCSBRKP:
- 		/* support for POSIX tcsendbreak()
+		/* support for POSIX tcsendbreak()
 		 * According to POSIX.1 spec (7.2.2.1.2) breaks should be
 		 * between 0.25 and 0.5 seconds so we'll ask for something
 		 * in the middle: 0.375 seconds.
@@ -3210,7 +3210,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 	case TIOCMGET:
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
-                return(dgnc_get_modem_info(ch, uarg));
+		return(dgnc_get_modem_info(ch, uarg));
 
 	case TIOCMBIS:
 	case TIOCMBIC:
@@ -3364,7 +3364,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 			ch->ch_bd->bd_ops->param(tty);
 			DGNC_UNLOCK(ch->ch_lock, lock_flags);
 			return(0);
-                }
+		}
 
 	case DIGI_GETCUSTOMBAUD:
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
@@ -3384,7 +3384,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		ch->ch_bd->bd_ops->param(tty);
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
 		return(0);
-        }
+	}
 
 	/*
 	 * This ioctl allows insertion of a character into the front
@@ -3437,7 +3437,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	 *
 	 * This ioctl is to satify the "Event Reporting"
 	 * call that the RealPort protocol spec requires.
-         */
+	 */
 	case DIGI_REALPORT_GETEVENTS:
 	{
 		unsigned int events = 0;
@@ -3462,7 +3462,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	 * upon the values passed in by the RealPort Server.
 	 * It also passes back whether the UART Transmitter is
 	 * empty as well.
-         */
+	 */
 	case DIGI_REALPORT_GETBUFFERS:
 	{
 		struct digi_getbuffer buf;
