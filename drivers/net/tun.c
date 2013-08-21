@@ -1881,6 +1881,9 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 	case TUNGETIFF:
 		tun_get_iff(current->nsproxy->net_ns, tun, &ifr);
 
+		if (tfile->detached)
+			ifr.ifr_flags |= IFF_DETACH_QUEUE;
+
 		if (copy_to_user(argp, &ifr, ifreq_len))
 			ret = -EFAULT;
 		break;
