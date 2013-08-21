@@ -703,25 +703,32 @@ static void dma_do_tasklet(unsigned long data)
 
 	spin_lock_irqsave(&chan->desc_lock, flags);
 
-	/* update the cookie if we have some descriptors to cleanup */
-	if (!list_empty(&chan->chain_running)) {
-		dma_cookie_t cookie;
+	list_for_each_entry_safe(desc, _desc, &chan->chain_running, node) {
+		/*
+		 * move the descriptors to a temporary list so we can drop
+		 * the lock during the entire cleanup operation
+		 */
+		list_del(&desc->node);
+		list_add(&desc->node, &chain_cleanup);
 
-		desc = to_mmp_pdma_desc(chan->chain_running.prev);
-		cookie = desc->async_tx.cookie;
-		dma_cookie_complete(&desc->async_tx);
-
-		dev_dbg(chan->dev, "completed_cookie=%d\n", cookie);
+		/*
+		 * Look for the first list entry which has the ENDIRQEN flag
+		 * set. That is the descriptor we got an interrupt for, so
+		 * complete that transaction and its cookie.
+		 */
+		if (desc->desc.dcmd & DCMD_ENDIRQEN) {
+			dma_cookie_t cookie = desc->async_tx.cookie;
+			dma_cookie_complete(&desc->async_tx);
+			dev_dbg(chan->dev, "completed_cookie=%d\n", cookie);
+			break;
+		}
 	}
 
 	/*
-	 * move the descriptors to a temporary list so we can drop the lock
-	 * during the entire cleanup operation
+	 * The hardware is idle and ready for more when the
+	 * chain_running list is empty.
 	 */
-	list_splice_tail_init(&chan->chain_running, &chain_cleanup);
-
-	/* the hardware is now idle and ready for more */
-	chan->idle = true;
+	chan->idle = list_empty(&chan->chain_running);
 
 	/* Start any pending transactions automatically */
 	start_pending_queue(chan);
