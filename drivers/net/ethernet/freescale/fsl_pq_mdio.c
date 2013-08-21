@@ -468,8 +468,6 @@ static int fsl_pq_mdio_remove(struct platform_device *pdev)
 
 	mdiobus_unregister(bus);
 
-	dev_set_drvdata(device, NULL);
-
 	iounmap(priv->map);
 	mdiobus_free(bus);
 
