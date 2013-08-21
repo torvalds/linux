@@ -110,14 +110,8 @@ static int max77693_i2c_probe(struct i2c_client *i2c,
 			      const struct i2c_device_id *id)
 {
 	struct max77693_dev *max77693;
-	struct max77693_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	u8 reg_data;
 	int ret = 0;
-
-	if (!pdata) {
-		dev_err(&i2c->dev, "No platform data found.\n");
-		return -EINVAL;
-	}
 
 	max77693 = devm_kzalloc(&i2c->dev,
 			sizeof(struct max77693_dev), GFP_KERNEL);
@@ -137,8 +131,6 @@ static int max77693_i2c_probe(struct i2c_client *i2c,
 				ret);
 		return ret;
 	}
-
-	max77693->wakeup = pdata->wakeup;
 
 	ret = max77693_read_reg(max77693->regmap, MAX77693_PMIC_REG_PMIC_ID2,
 				&reg_data);
@@ -178,8 +170,6 @@ static int max77693_i2c_probe(struct i2c_client *i2c,
 			      ARRAY_SIZE(max77693_devs), NULL, 0, NULL);
 	if (ret < 0)
 		goto err_mfd;
-
-	device_init_wakeup(max77693->dev, pdata->wakeup);
 
 	return ret;
 
