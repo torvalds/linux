@@ -318,8 +318,7 @@ struct digi_getbuffer /* Struct for holding buffer use counts */
 	unsigned long txdone;
 };
 
-struct digi_getcounter
-{
+struct digi_getcounter {
 	unsigned long norun;		/* number of UART overrun errors */
 	unsigned long noflow;		/* number of buffer overflow errors */
 	unsigned long nframe;		/* number of framing errors */

@@ -282,8 +282,7 @@ struct board_ops {
 /*
  *	Per-board information
  */
-struct board_t
-{
+struct board_t {
 	int		magic;		/* Board Magic number.  */
 	int		boardnum;	/* Board number: 0-32 */
 
