@@ -242,6 +242,8 @@
 
 	ahb@80080000 {
 		usb0: usb@80080000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&usb0_id_pins_a>;
 			vbus-supply = <&reg_usb0_vbus>;
 			status = "okay";
 		};
