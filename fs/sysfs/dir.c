@@ -896,7 +896,9 @@ int sysfs_rename(struct sysfs_dirent *sd,
 		sd->s_name = new_name;
 	}
 
-	/* Move to the appropriate place in the appropriate directories rbtree. */
+	/*
+	 * Move to the appropriate place in the appropriate directories rbtree.
+	 */
 	sysfs_unlink_sibling(sd);
 	sysfs_get(new_parent_sd);
 	sysfs_put(sd->s_parent);

@@ -185,8 +185,8 @@ static int fill_write_buffer(struct sysfs_buffer *buffer,
  *	dealing with, then call the store() method for the attribute,
  *	passing the buffer that we acquired in fill_write_buffer().
  */
-static int
-flush_write_buffer(struct dentry *dentry, struct sysfs_buffer *buffer, size_t count)
+static int flush_write_buffer(struct dentry *dentry,
+			      struct sysfs_buffer *buffer, size_t count)
 {
 	struct sysfs_dirent *attr_sd = dentry->d_fsdata;
 	struct kobject *kobj = attr_sd->s_parent->s_dir.kobj;
@@ -221,9 +221,8 @@ flush_write_buffer(struct dentry *dentry, struct sysfs_buffer *buffer, size_t co
  *	Hint: if you're writing a value, first read the file, modify only the
  *	the value you're changing, then write entire buffer back.
  */
-
-static ssize_t
-sysfs_write_file(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
+static ssize_t sysfs_write_file(struct file *file, const char __user *buf,
+				size_t count, loff_t *ppos)
 {
 	struct sysfs_buffer *buffer = file->private_data;
 	ssize_t len;

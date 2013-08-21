@@ -128,7 +128,8 @@ out:
 	return error;
 }
 
-static int sysfs_sd_setsecdata(struct sysfs_dirent *sd, void **secdata, u32 *secdata_len)
+static int sysfs_sd_setsecdata(struct sysfs_dirent *sd, void **secdata,
+			       u32 *secdata_len)
 {
 	struct sysfs_inode_attrs *iattrs;
 	void *old_secdata;
@@ -220,7 +221,8 @@ static void sysfs_refresh_inode(struct sysfs_dirent *sd, struct inode *inode)
 		set_nlink(inode, sd->s_dir.subdirs + 2);
 }
 
-int sysfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
+int sysfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
+		  struct kstat *stat)
 {
 	struct sysfs_dirent *sd = dentry->d_fsdata;
 	struct inode *inode = dentry->d_inode;
@@ -312,7 +314,8 @@ void sysfs_evict_inode(struct inode *inode)
 	sysfs_put(sd);
 }
 
-int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const void *ns, const char *name)
+int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const void *ns,
+			  const char *name)
 {
 	struct sysfs_addrm_cxt acxt;
 	struct sysfs_dirent *sd;

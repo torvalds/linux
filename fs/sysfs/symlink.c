@@ -305,7 +305,8 @@ static void *sysfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 	return NULL;
 }
 
-static void sysfs_put_link(struct dentry *dentry, struct nameidata *nd, void *cookie)
+static void sysfs_put_link(struct dentry *dentry, struct nameidata *nd,
+			   void *cookie)
 {
 	char *page = nd_get_link(nd);
 	if (!IS_ERR(page))
