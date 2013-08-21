@@ -22,6 +22,7 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/bug.h>
 #include <linux/errno.h>
 #include <linux/export.h>
 #include <linux/hdmi.h>
@@ -52,7 +53,7 @@ int hdmi_avi_infoframe_init(struct hdmi_avi_infoframe *frame)
 
 	frame->type = HDMI_INFOFRAME_TYPE_AVI;
 	frame->version = 2;
-	frame->length = 13;
+	frame->length = HDMI_AVI_INFOFRAME_SIZE;
 
 	return 0;
 }
@@ -83,7 +84,7 @@ ssize_t hdmi_avi_infoframe_pack(struct hdmi_avi_infoframe *frame, void *buffer,
 	if (size < length)
 		return -ENOSPC;
 
-	memset(buffer, 0, length);
+	memset(buffer, 0, size);
 
 	ptr[0] = frame->type;
 	ptr[1] = frame->version;
@@ -151,7 +152,7 @@ int hdmi_spd_infoframe_init(struct hdmi_spd_infoframe *frame,
 
 	frame->type = HDMI_INFOFRAME_TYPE_SPD;
 	frame->version = 1;
-	frame->length = 25;
+	frame->length = HDMI_SPD_INFOFRAME_SIZE;
 
 	strncpy(frame->vendor, vendor, sizeof(frame->vendor));
 	strncpy(frame->product, product, sizeof(frame->product));
@@ -185,7 +186,7 @@ ssize_t hdmi_spd_infoframe_pack(struct hdmi_spd_infoframe *frame, void *buffer,
 	if (size < length)
 		return -ENOSPC;
 
-	memset(buffer, 0, length);
+	memset(buffer, 0, size);
 
 	ptr[0] = frame->type;
 	ptr[1] = frame->version;
@@ -218,7 +219,7 @@ int hdmi_audio_infoframe_init(struct hdmi_audio_infoframe *frame)
 
 	frame->type = HDMI_INFOFRAME_TYPE_AUDIO;
 	frame->version = 1;
-	frame->length = 10;
+	frame->length = HDMI_AUDIO_INFOFRAME_SIZE;
 
 	return 0;
 }
@@ -250,7 +251,7 @@ ssize_t hdmi_audio_infoframe_pack(struct hdmi_audio_infoframe *frame,
 	if (size < length)
 		return -ENOSPC;
 
-	memset(buffer, 0, length);
+	memset(buffer, 0, size);
 
 	if (frame->channels >= 2)
 		channels = frame->channels - 1;
@@ -307,7 +308,7 @@ ssize_t hdmi_vendor_infoframe_pack(struct hdmi_vendor_infoframe *frame,
 	if (size < length)
 		return -ENOSPC;
 
-	memset(buffer, 0, length);
+	memset(buffer, 0, size);
 
 	ptr[0] = frame->type;
 	ptr[1] = frame->version;
@@ -321,3 +322,45 @@ ssize_t hdmi_vendor_infoframe_pack(struct hdmi_vendor_infoframe *frame,
 	return length;
 }
 EXPORT_SYMBOL(hdmi_vendor_infoframe_pack);
+
+/**
+ * hdmi_infoframe_pack() - write a HDMI infoframe to binary buffer
+ * @frame: HDMI infoframe
+ * @buffer: destination buffer
+ * @size: size of buffer
+ *
+ * Packs the information contained in the @frame structure into a binary
+ * representation that can be written into the corresponding controller
+ * registers. Also computes the checksum as required by section 5.3.5 of
+ * the HDMI 1.4 specification.
+ *
+ * Returns the number of bytes packed into the binary buffer or a negative
+ * error code on failure.
+ */
+ssize_t
+hdmi_infoframe_pack(union hdmi_infoframe *frame, void *buffer, size_t size)
+{
+	ssize_t length;
+
+	switch (frame->any.type) {
+	case HDMI_INFOFRAME_TYPE_AVI:
+		length = hdmi_avi_infoframe_pack(&frame->avi, buffer, size);
+		break;
+	case HDMI_INFOFRAME_TYPE_SPD:
+		length = hdmi_spd_infoframe_pack(&frame->spd, buffer, size);
+		break;
+	case HDMI_INFOFRAME_TYPE_AUDIO:
+		length = hdmi_audio_infoframe_pack(&frame->audio, buffer, size);
+		break;
+	case HDMI_INFOFRAME_TYPE_VENDOR:
+		length = hdmi_vendor_infoframe_pack(&frame->vendor,
+						    buffer, size);
+		break;
+	default:
+		WARN(1, "Bad infoframe type %d\n", frame->any.type);
+		length = -EINVAL;
+	}
+
+	return length;
+}
+EXPORT_SYMBOL(hdmi_infoframe_pack);

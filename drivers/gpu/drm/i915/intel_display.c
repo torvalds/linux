@@ -50,6 +50,10 @@ static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 static void ironlake_crtc_clock_get(struct intel_crtc *crtc,
 				    struct intel_crtc_config *pipe_config);
 
+static int intel_set_mode(struct drm_crtc *crtc, struct drm_display_mode *mode,
+			  int x, int y, struct drm_framebuffer *old_fb);
+
+
 typedef struct {
 	int	min, max;
 } intel_range_t;
@@ -59,7 +63,6 @@ typedef struct {
 	int	p2_slow, p2_fast;
 } intel_p2_t;
 
-#define INTEL_P2_NUM		      2
 typedef struct intel_limit intel_limit_t;
 struct intel_limit {
 	intel_range_t   dot, vco, n, m, m1, m2, p, p1;
@@ -3653,8 +3656,6 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 	intel_crtc->active = true;
 	intel_update_watermarks(dev);
 
-	mutex_lock(&dev_priv->dpio_lock);
-
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_pll_enable)
 			encoder->pre_pll_enable(encoder);
@@ -3664,10 +3665,6 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_enable)
 			encoder->pre_enable(encoder);
-
-	/* VLV wants encoder enabling _before_ the pipe is up. */
-	for_each_encoder_on_crtc(dev, crtc, encoder)
-		encoder->enable(encoder);
 
 	i9xx_pfit_enable(intel_crtc);
 
@@ -3680,7 +3677,8 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 
 	intel_update_fbc(dev);
 
-	mutex_unlock(&dev_priv->dpio_lock);
+	for_each_encoder_on_crtc(dev, crtc, encoder)
+		encoder->enable(encoder);
 }
 
 static void i9xx_crtc_enable(struct drm_crtc *crtc)
@@ -3877,16 +3875,6 @@ static void intel_crtc_disable(struct drm_crtc *crtc)
 	}
 }
 
-void intel_modeset_disable(struct drm_device *dev)
-{
-	struct drm_crtc *crtc;
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (crtc->enabled)
-			intel_crtc_disable(crtc);
-	}
-}
-
 void intel_encoder_destroy(struct drm_encoder *encoder)
 {
 	struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
@@ -3895,10 +3883,10 @@ void intel_encoder_destroy(struct drm_encoder *encoder)
 	kfree(intel_encoder);
 }
 
-/* Simple dpms helper for encodres with just one connector, no cloning and only
+/* Simple dpms helper for encoders with just one connector, no cloning and only
  * one kind of off state. It clamps all !ON modes to fully OFF and changes the
  * state of the entire output pipe. */
-void intel_encoder_dpms(struct intel_encoder *encoder, int mode)
+static void intel_encoder_dpms(struct intel_encoder *encoder, int mode)
 {
 	if (mode == DRM_MODE_DPMS_ON) {
 		encoder->connectors_active = true;
@@ -4092,7 +4080,7 @@ static void hsw_compute_ips_config(struct intel_crtc *crtc,
 {
 	pipe_config->ips_enabled = i915_enable_ips &&
 				   hsw_crtc_supports_ips(crtc) &&
-				   pipe_config->pipe_bpp == 24;
+				   pipe_config->pipe_bpp <= 24;
 }
 
 static int intel_crtc_compute_config(struct intel_crtc *crtc,
@@ -4107,12 +4095,6 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 		    > IRONLAKE_FDI_FREQ * 4)
 			return -EINVAL;
 	}
-
-	/* All interlaced capable intel hw wants timings in frames. Note though
-	 * that intel_lvds_mode_fixup does some funny tricks with the crtc
-	 * timings, so we need to be careful not to clobber these.*/
-	if (!pipe_config->timings_set)
-		drm_mode_set_crtcinfo(adjusted_mode, 0);
 
 	/* Cantiga+ cannot handle modes with a hsync front porch of 0.
 	 * WaPruneModeWithIncorrectHsyncOffset:ctg,elk,ilk,snb,ivb,vlv,hsw.
@@ -6220,11 +6202,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_encoder_helper_funcs *encoder_funcs;
 	struct intel_encoder *encoder;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct drm_display_mode *adjusted_mode =
-		&intel_crtc->config.adjusted_mode;
 	struct drm_display_mode *mode = &intel_crtc->config.requested_mode;
 	int pipe = intel_crtc->pipe;
 	int ret;
@@ -6243,12 +6222,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			encoder->base.base.id,
 			drm_get_encoder_name(&encoder->base),
 			mode->base.id, mode->name);
-		if (encoder->mode_set) {
-			encoder->mode_set(encoder);
-		} else {
-			encoder_funcs = encoder->base.helper_private;
-			encoder_funcs->mode_set(&encoder->base, mode, adjusted_mode);
-		}
+		encoder->mode_set(encoder);
 	}
 
 	return 0;
@@ -8061,7 +8035,6 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 			  struct drm_display_mode *mode)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_encoder_helper_funcs *encoder_funcs;
 	struct intel_encoder *encoder;
 	struct intel_crtc_config *pipe_config;
 	int plane_bpp, ret = -EINVAL;
@@ -8082,6 +8055,19 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 		(enum transcoder) to_intel_crtc(crtc)->pipe;
 	pipe_config->shared_dpll = DPLL_ID_PRIVATE;
 
+	/*
+	 * Sanitize sync polarity flags based on requested ones. If neither
+	 * positive or negative polarity is requested, treat this as meaning
+	 * negative polarity.
+	 */
+	if (!(pipe_config->adjusted_mode.flags &
+	      (DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NHSYNC)))
+		pipe_config->adjusted_mode.flags |= DRM_MODE_FLAG_NHSYNC;
+
+	if (!(pipe_config->adjusted_mode.flags &
+	      (DRM_MODE_FLAG_PVSYNC | DRM_MODE_FLAG_NVSYNC)))
+		pipe_config->adjusted_mode.flags |= DRM_MODE_FLAG_NVSYNC;
+
 	/* Compute a starting value for pipe_config->pipe_bpp taking the source
 	 * plane pixel format and any sink constraints into account. Returns the
 	 * source plane bpp so that dithering can be selected on mismatches
@@ -8096,6 +8082,9 @@ encoder_retry:
 	pipe_config->port_clock = 0;
 	pipe_config->pixel_multiplier = 1;
 
+	/* Fill in default crtc timings, allow encoders to overwrite them. */
+	drm_mode_set_crtcinfo(&pipe_config->adjusted_mode, 0);
+
 	/* Pass our mode to the connectors and the CRTC to give them a chance to
 	 * adjust it according to limitations or connector properties, and also
 	 * a chance to reject the mode entirely.
@@ -8106,20 +8095,8 @@ encoder_retry:
 		if (&encoder->new_crtc->base != crtc)
 			continue;
 
-		if (encoder->compute_config) {
-			if (!(encoder->compute_config(encoder, pipe_config))) {
-				DRM_DEBUG_KMS("Encoder config failure\n");
-				goto fail;
-			}
-
-			continue;
-		}
-
-		encoder_funcs = encoder->base.helper_private;
-		if (!(encoder_funcs->mode_fixup(&encoder->base,
-						&pipe_config->requested_mode,
-						&pipe_config->adjusted_mode))) {
-			DRM_DEBUG_KMS("Encoder fixup failed\n");
+		if (!(encoder->compute_config(encoder, pipe_config))) {
+			DRM_DEBUG_KMS("Encoder config failure\n");
 			goto fail;
 		}
 	}
@@ -8759,9 +8736,9 @@ out:
 	return ret;
 }
 
-int intel_set_mode(struct drm_crtc *crtc,
-		     struct drm_display_mode *mode,
-		     int x, int y, struct drm_framebuffer *fb)
+static int intel_set_mode(struct drm_crtc *crtc,
+			  struct drm_display_mode *mode,
+			  int x, int y, struct drm_framebuffer *fb)
 {
 	int ret;
 
@@ -9358,8 +9335,13 @@ static void intel_setup_outputs(struct drm_device *dev)
 			intel_dp_init(dev, PCH_DP_D, PORT_D);
 	} else if (IS_VALLEYVIEW(dev)) {
 		/* Check for built-in panel first. Shares lanes with HDMI on SDVOC */
-		if (I915_READ(VLV_DISPLAY_BASE + DP_C) & DP_DETECTED)
-			intel_dp_init(dev, VLV_DISPLAY_BASE + DP_C, PORT_C);
+		if (I915_READ(VLV_DISPLAY_BASE + GEN4_HDMIC) & SDVO_DETECTED) {
+			intel_hdmi_init(dev, VLV_DISPLAY_BASE + GEN4_HDMIC,
+					PORT_C);
+			if (I915_READ(VLV_DISPLAY_BASE + DP_C) & DP_DETECTED)
+				intel_dp_init(dev, VLV_DISPLAY_BASE + DP_C,
+					      PORT_C);
+		}
 
 		if (I915_READ(VLV_DISPLAY_BASE + GEN4_HDMIB) & SDVO_DETECTED) {
 			intel_hdmi_init(dev, VLV_DISPLAY_BASE + GEN4_HDMIB,
@@ -9419,13 +9401,17 @@ static void intel_setup_outputs(struct drm_device *dev)
 	drm_helper_move_panel_connectors_to_head(dev);
 }
 
+void intel_framebuffer_fini(struct intel_framebuffer *fb)
+{
+	drm_framebuffer_cleanup(&fb->base);
+	drm_gem_object_unreference_unlocked(&fb->obj->base);
+}
+
 static void intel_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
 
-	drm_framebuffer_cleanup(fb);
-	drm_gem_object_unreference_unlocked(&intel_fb->obj->base);
-
+	intel_framebuffer_fini(intel_fb);
 	kfree(intel_fb);
 }
 

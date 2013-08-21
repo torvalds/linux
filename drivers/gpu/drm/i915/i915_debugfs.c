@@ -30,6 +30,7 @@
 #include <linux/debugfs.h>
 #include <linux/slab.h>
 #include <linux/export.h>
+#include <linux/list_sort.h>
 #include <drm/drmP.h>
 #include "intel_drv.h"
 #include "intel_ringbuffer.h"
@@ -89,13 +90,20 @@ static const char *get_tiling_flag(struct drm_i915_gem_object *obj)
 	}
 }
 
+static inline const char *get_global_flag(struct drm_i915_gem_object *obj)
+{
+	return obj->has_global_gtt_mapping ? "g" : " ";
+}
+
 static void
 describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 {
-	seq_printf(m, "%pK: %s%s %8zdKiB %02x %02x %d %d %d%s%s%s",
+	struct i915_vma *vma;
+	seq_printf(m, "%pK: %s%s%s %8zdKiB %02x %02x %d %d %d%s%s%s",
 		   &obj->base,
 		   get_pin_flag(obj),
 		   get_tiling_flag(obj),
+		   get_global_flag(obj),
 		   obj->base.size / 1024,
 		   obj->base.read_domains,
 		   obj->base.write_domain,
@@ -111,9 +119,14 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		seq_printf(m, " (pinned x %d)", obj->pin_count);
 	if (obj->fence_reg != I915_FENCE_REG_NONE)
 		seq_printf(m, " (fence: %d)", obj->fence_reg);
-	if (i915_gem_obj_ggtt_bound(obj))
-		seq_printf(m, " (gtt offset: %08lx, size: %08x)",
-			   i915_gem_obj_ggtt_offset(obj), (unsigned int)i915_gem_obj_ggtt_size(obj));
+	list_for_each_entry(vma, &obj->vma_list, vma_link) {
+		if (!i915_is_ggtt(vma->vm))
+			seq_puts(m, " (pp");
+		else
+			seq_puts(m, " (g");
+		seq_printf(m, "gtt offset: %08lx, size: %08lx)",
+			   vma->node.start, vma->node.size);
+	}
 	if (obj->stolen)
 		seq_printf(m, " (stolen: %08lx)", obj->stolen->start);
 	if (obj->pin_mappable || obj->fault_mappable) {
@@ -137,7 +150,7 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_address_space *vm = &dev_priv->gtt.base;
-	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
 	size_t total_obj_size, total_gtt_size;
 	int count, ret;
 
@@ -145,6 +158,7 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	if (ret)
 		return ret;
 
+	/* FIXME: the user of this interface might want more than just GGTT */
 	switch (list) {
 	case ACTIVE_LIST:
 		seq_puts(m, "Active:\n");
@@ -160,13 +174,74 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	}
 
 	total_obj_size = total_gtt_size = count = 0;
-	list_for_each_entry(obj, head, mm_list) {
-		seq_puts(m, "   ");
-		describe_obj(m, obj);
-		seq_putc(m, '\n');
+	list_for_each_entry(vma, head, mm_list) {
+		seq_printf(m, "   ");
+		describe_obj(m, vma->obj);
+		seq_printf(m, "\n");
+		total_obj_size += vma->obj->base.size;
+		total_gtt_size += vma->node.size;
+		count++;
+	}
+	mutex_unlock(&dev->struct_mutex);
+
+	seq_printf(m, "Total %d objects, %zu bytes, %zu GTT size\n",
+		   count, total_obj_size, total_gtt_size);
+	return 0;
+}
+
+static int obj_rank_by_stolen(void *priv,
+			      struct list_head *A, struct list_head *B)
+{
+	struct drm_i915_gem_object *a =
+		container_of(A, struct drm_i915_gem_object, exec_list);
+	struct drm_i915_gem_object *b =
+		container_of(B, struct drm_i915_gem_object, exec_list);
+
+	return a->stolen->start - b->stolen->start;
+}
+
+static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_gem_object *obj;
+	size_t total_obj_size, total_gtt_size;
+	LIST_HEAD(stolen);
+	int count, ret;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	total_obj_size = total_gtt_size = count = 0;
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
+		if (obj->stolen == NULL)
+			continue;
+
+		list_add(&obj->exec_list, &stolen);
+
 		total_obj_size += obj->base.size;
 		total_gtt_size += i915_gem_obj_ggtt_size(obj);
 		count++;
+	}
+	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_list) {
+		if (obj->stolen == NULL)
+			continue;
+
+		list_add(&obj->exec_list, &stolen);
+
+		total_obj_size += obj->base.size;
+		count++;
+	}
+	list_sort(NULL, &stolen, obj_rank_by_stolen);
+	seq_puts(m, "Stolen:\n");
+	while (!list_empty(&stolen)) {
+		obj = list_first_entry(&stolen, typeof(*obj), exec_list);
+		seq_puts(m, "   ");
+		describe_obj(m, obj);
+		seq_putc(m, '\n');
+		list_del_init(&obj->exec_list);
 	}
 	mutex_unlock(&dev->struct_mutex);
 
@@ -212,7 +287,18 @@ static int per_file_stats(int id, void *ptr, void *data)
 	return 0;
 }
 
-static int i915_gem_object_info(struct seq_file *m, void *data)
+#define count_vmas(list, member) do { \
+	list_for_each_entry(vma, list, member) { \
+		size += i915_gem_obj_ggtt_size(vma->obj); \
+		++count; \
+		if (vma->obj->map_and_fenceable) { \
+			mappable_size += i915_gem_obj_ggtt_size(vma->obj); \
+			++mappable_count; \
+		} \
+	} \
+} while (0)
+
+static int i915_gem_object_info(struct seq_file *m, void* data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -222,6 +308,7 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 	struct drm_i915_gem_object *obj;
 	struct i915_address_space *vm = &dev_priv->gtt.base;
 	struct drm_file *file;
+	struct i915_vma *vma;
 	int ret;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
@@ -238,12 +325,12 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 		   count, mappable_count, size, mappable_size);
 
 	size = count = mappable_size = mappable_count = 0;
-	count_objects(&vm->active_list, mm_list);
+	count_vmas(&vm->active_list, mm_list);
 	seq_printf(m, "  %u [%u] active objects, %zu [%zu] bytes\n",
 		   count, mappable_count, size, mappable_size);
 
 	size = count = mappable_size = mappable_count = 0;
-	count_objects(&vm->inactive_list, mm_list);
+	count_vmas(&vm->inactive_list, mm_list);
 	seq_printf(m, "  %u [%u] inactive objects, %zu [%zu] bytes\n",
 		   count, mappable_count, size, mappable_size);
 
@@ -1099,6 +1186,12 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 	} else {
 		seq_puts(m, "FBC disabled: ");
 		switch (dev_priv->fbc.no_fbc_reason) {
+		case FBC_OK:
+			seq_puts(m, "FBC actived, but currently disabled in hardware");
+			break;
+		case FBC_UNSUPPORTED:
+			seq_puts(m, "unsupported by this chipset");
+			break;
 		case FBC_NO_OUTPUT:
 			seq_puts(m, "no outputs");
 			break;
@@ -1756,7 +1849,8 @@ i915_drop_caches_set(void *data, u64 val)
 	struct drm_device *dev = data;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj, *next;
-	struct i915_address_space *vm = &dev_priv->gtt.base;
+	struct i915_address_space *vm;
+	struct i915_vma *vma, *x;
 	int ret;
 
 	DRM_DEBUG_DRIVER("Dropping caches: 0x%08llx\n", val);
@@ -1777,13 +1871,17 @@ i915_drop_caches_set(void *data, u64 val)
 		i915_gem_retire_requests(dev);
 
 	if (val & DROP_BOUND) {
-		list_for_each_entry_safe(obj, next, &vm->inactive_list,
-					 mm_list)
-			if (obj->pin_count == 0) {
-				ret = i915_gem_object_unbind(obj);
+		list_for_each_entry(vm, &dev_priv->vm_list, global_link) {
+			list_for_each_entry_safe(vma, x, &vm->inactive_list,
+						 mm_list) {
+				if (vma->obj->pin_count)
+					continue;
+
+				ret = i915_vma_unbind(vma);
 				if (ret)
 					goto unlock;
 			}
+		}
 	}
 
 	if (val & DROP_UNBOUND) {
@@ -2078,6 +2176,7 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_pinned", i915_gem_gtt_info, 0, (void *) PINNED_LIST},
 	{"i915_gem_active", i915_gem_object_list_info, 0, (void *) ACTIVE_LIST},
 	{"i915_gem_inactive", i915_gem_object_list_info, 0, (void *) INACTIVE_LIST},
+	{"i915_gem_stolen", i915_gem_stolen_list_info },
 	{"i915_gem_pageflip", i915_gem_pageflip_info, 0},
 	{"i915_gem_request", i915_gem_request_info, 0},
 	{"i915_gem_seqno", i915_gem_seqno_info, 0},
@@ -2110,7 +2209,7 @@ static struct drm_info_list i915_debugfs_list[] = {
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 
-struct i915_debugfs_files {
+static struct i915_debugfs_files {
 	const char *name;
 	const struct file_operations *fops;
 } i915_debugfs_files[] = {

@@ -304,13 +304,13 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 
 	if (error->active_bo)
 		print_error_buffers(m, "Active",
-				    error->active_bo,
-				    error->active_bo_count);
+				    error->active_bo[0],
+				    error->active_bo_count[0]);
 
 	if (error->pinned_bo)
 		print_error_buffers(m, "Pinned",
-				    error->pinned_bo,
-				    error->pinned_bo_count);
+				    error->pinned_bo[0],
+				    error->pinned_bo_count[0]);
 
 	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
 		struct drm_i915_error_object *obj;
@@ -556,11 +556,11 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 static u32 capture_active_bo(struct drm_i915_error_buffer *err,
 			     int count, struct list_head *head)
 {
-	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
 	int i = 0;
 
-	list_for_each_entry(obj, head, mm_list) {
-		capture_bo(err++, obj);
+	list_for_each_entry(vma, head, mm_list) {
+		capture_bo(err++, vma->obj);
 		if (++i == count)
 			break;
 	}
@@ -622,7 +622,8 @@ static struct drm_i915_error_object *
 i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 			     struct intel_ring_buffer *ring)
 {
-	struct i915_address_space *vm = &dev_priv->gtt.base;
+	struct i915_address_space *vm;
+	struct i915_vma *vma;
 	struct drm_i915_gem_object *obj;
 	u32 seqno;
 
@@ -642,20 +643,23 @@ i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 	}
 
 	seqno = ring->get_seqno(ring, false);
-	list_for_each_entry(obj, &vm->active_list, mm_list) {
-		if (obj->ring != ring)
-			continue;
+	list_for_each_entry(vm, &dev_priv->vm_list, global_link) {
+		list_for_each_entry(vma, &vm->active_list, mm_list) {
+			obj = vma->obj;
+			if (obj->ring != ring)
+				continue;
 
-		if (i915_seqno_passed(seqno, obj->last_read_seqno))
-			continue;
+			if (i915_seqno_passed(seqno, obj->last_read_seqno))
+				continue;
 
-		if ((obj->base.read_domains & I915_GEM_DOMAIN_COMMAND) == 0)
-			continue;
+			if ((obj->base.read_domains & I915_GEM_DOMAIN_COMMAND) == 0)
+				continue;
 
-		/* We need to copy these to an anonymous buffer as the simplest
-		 * method to avoid being overwritten by userspace.
-		 */
-		return i915_error_object_create(dev_priv, obj);
+			/* We need to copy these to an anonymous buffer as the simplest
+			 * method to avoid being overwritten by userspace.
+			 */
+			return i915_error_object_create(dev_priv, obj);
+		}
 	}
 
 	return NULL;
@@ -771,41 +775,72 @@ static void i915_gem_record_rings(struct drm_device *dev,
 	}
 }
 
-static void i915_gem_capture_buffers(struct drm_i915_private *dev_priv,
-				     struct drm_i915_error_state *error)
+/* FIXME: Since pin count/bound list is global, we duplicate what we capture per
+ * VM.
+ */
+static void i915_gem_capture_vm(struct drm_i915_private *dev_priv,
+				struct drm_i915_error_state *error,
+				struct i915_address_space *vm,
+				const int ndx)
 {
-	struct i915_address_space *vm = &dev_priv->gtt.base;
+	struct drm_i915_error_buffer *active_bo = NULL, *pinned_bo = NULL;
 	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
 	int i;
 
 	i = 0;
-	list_for_each_entry(obj, &vm->active_list, mm_list)
+	list_for_each_entry(vma, &vm->active_list, mm_list)
 		i++;
-	error->active_bo_count = i;
+	error->active_bo_count[ndx] = i;
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list)
 		if (obj->pin_count)
 			i++;
-	error->pinned_bo_count = i - error->active_bo_count;
+	error->pinned_bo_count[ndx] = i - error->active_bo_count[ndx];
 
 	if (i) {
-		error->active_bo = kmalloc(sizeof(*error->active_bo)*i,
-					   GFP_ATOMIC);
-		if (error->active_bo)
-			error->pinned_bo =
-				error->active_bo + error->active_bo_count;
+		active_bo = kmalloc(sizeof(*active_bo)*i, GFP_ATOMIC);
+		if (active_bo)
+			pinned_bo = active_bo + error->active_bo_count[ndx];
 	}
 
-	if (error->active_bo)
-		error->active_bo_count =
-			capture_active_bo(error->active_bo,
-					  error->active_bo_count,
+	if (active_bo)
+		error->active_bo_count[ndx] =
+			capture_active_bo(active_bo,
+					  error->active_bo_count[ndx],
 					  &vm->active_list);
 
-	if (error->pinned_bo)
-		error->pinned_bo_count =
-			capture_pinned_bo(error->pinned_bo,
-					  error->pinned_bo_count,
+	if (pinned_bo)
+		error->pinned_bo_count[ndx] =
+			capture_pinned_bo(pinned_bo,
+					  error->pinned_bo_count[ndx],
 					  &dev_priv->mm.bound_list);
+	error->active_bo[ndx] = active_bo;
+	error->pinned_bo[ndx] = pinned_bo;
+}
+
+static void i915_gem_capture_buffers(struct drm_i915_private *dev_priv,
+				     struct drm_i915_error_state *error)
+{
+	struct i915_address_space *vm;
+	int cnt = 0, i = 0;
+
+	list_for_each_entry(vm, &dev_priv->vm_list, global_link)
+		cnt++;
+
+	if (WARN(cnt > 1, "Multiple VMs not yet supported\n"))
+		cnt = 1;
+
+	vm = &dev_priv->gtt.base;
+
+	error->active_bo = kcalloc(cnt, sizeof(*error->active_bo), GFP_ATOMIC);
+	error->pinned_bo = kcalloc(cnt, sizeof(*error->pinned_bo), GFP_ATOMIC);
+	error->active_bo_count = kcalloc(cnt, sizeof(*error->active_bo_count),
+					 GFP_ATOMIC);
+	error->pinned_bo_count = kcalloc(cnt, sizeof(*error->pinned_bo_count),
+					 GFP_ATOMIC);
+
+	list_for_each_entry(vm, &dev_priv->vm_list, global_link)
+		i915_gem_capture_vm(dev_priv, error, vm, i++);
 }
 
 /**
@@ -938,8 +973,8 @@ const char *i915_cache_level_str(int type)
 {
 	switch (type) {
 	case I915_CACHE_NONE: return " uncached";
-	case I915_CACHE_LLC: return " snooped (LLC)";
-	case I915_CACHE_LLC_MLC: return " snooped (LLC+MLC)";
+	case I915_CACHE_LLC: return " snooped or LLC";
+	case I915_CACHE_L3_LLC: return " L3+LLC";
 	default: return "";
 	}
 }

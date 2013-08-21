@@ -155,7 +155,7 @@ create_hw_context(struct drm_device *dev,
 
 	if (INTEL_INFO(dev)->gen >= 7) {
 		ret = i915_gem_object_set_cache_level(ctx->obj,
-						      I915_CACHE_LLC_MLC);
+						      I915_CACHE_L3_LLC);
 		/* Failure shouldn't ever happen this early */
 		if (WARN_ON(ret))
 			goto err_out;
@@ -214,7 +214,7 @@ static int create_default_context(struct drm_i915_private *dev_priv)
 	 * default context.
 	 */
 	dev_priv->ring[RCS].default_context = ctx;
-	ret = i915_gem_object_pin(ctx->obj, CONTEXT_ALIGN, false, false);
+	ret = i915_gem_obj_ggtt_pin(ctx->obj, CONTEXT_ALIGN, false, false);
 	if (ret) {
 		DRM_DEBUG_DRIVER("Couldn't pin %d\n", ret);
 		goto err_destroy;
@@ -400,7 +400,7 @@ static int do_switch(struct i915_hw_context *to)
 	if (from == to)
 		return 0;
 
-	ret = i915_gem_object_pin(to->obj, CONTEXT_ALIGN, false, false);
+	ret = i915_gem_obj_ggtt_pin(to->obj, CONTEXT_ALIGN, false, false);
 	if (ret)
 		return ret;
 
@@ -436,7 +436,10 @@ static int do_switch(struct i915_hw_context *to)
 	 * MI_SET_CONTEXT instead of when the next seqno has completed.
 	 */
 	if (from != NULL) {
+		struct drm_i915_private *dev_priv = from->obj->base.dev->dev_private;
+		struct i915_address_space *ggtt = &dev_priv->gtt.base;
 		from->obj->base.read_domains = I915_GEM_DOMAIN_INSTRUCTION;
+		list_move_tail(&i915_gem_obj_to_vma(from->obj, ggtt)->mm_list, &ggtt->active_list);
 		i915_gem_object_move_to_active(from->obj, ring);
 		/* As long as MI_SET_CONTEXT is serializing, ie. it flushes the
 		 * whole damn pipeline, we don't need to explicitly mark the

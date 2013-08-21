@@ -201,7 +201,6 @@ struct intel_ddi_plls {
 #define DRIVER_MINOR		6
 #define DRIVER_PATCHLEVEL	0
 
-#define WATCH_COHERENCY	0
 #define WATCH_LISTS	0
 #define WATCH_GTT	0
 
@@ -323,8 +322,8 @@ struct drm_i915_error_state {
 		u32 purgeable:1;
 		s32 ring:4;
 		u32 cache_level:2;
-	} *active_bo, *pinned_bo;
-	u32 active_bo_count, pinned_bo_count;
+	} **active_bo, **pinned_bo;
+	u32 *active_bo_count, *pinned_bo_count;
 	struct intel_overlay_error_state *overlay;
 	struct intel_display_error_state *display;
 };
@@ -359,9 +358,10 @@ struct drm_i915_display_funcs {
 			  struct dpll *match_clock,
 			  struct dpll *best_clock);
 	void (*update_wm)(struct drm_device *dev);
-	void (*update_sprite_wm)(struct drm_device *dev, int pipe,
+	void (*update_sprite_wm)(struct drm_plane *plane,
+				 struct drm_crtc *crtc,
 				 uint32_t sprite_width, int pixel_size,
-				 bool enable);
+				 bool enable, bool scaled);
 	void (*modeset_global_resources)(struct drm_device *dev);
 	/* Returns the active state of the crtc, and if the crtc is active,
 	 * fills out the pipe-config with the hw state. */
@@ -449,8 +449,11 @@ struct intel_device_info {
 
 enum i915_cache_level {
 	I915_CACHE_NONE = 0,
-	I915_CACHE_LLC,
-	I915_CACHE_LLC_MLC, /* gen6+, in docs at least! */
+	I915_CACHE_LLC, /* also used for snoopable memory on non-LLC */
+	I915_CACHE_L3_LLC, /* gen7+, L3 sits between the domain specifc
+			      caches, eg sampler/render caches, and the
+			      large Last-Level-Cache. LLC is coherent with
+			      the CPU, but L3 is only visible to the GPU. */
 };
 
 typedef uint32_t gen6_gtt_pte_t;
@@ -542,13 +545,21 @@ struct i915_hw_ppgtt {
 	int (*enable)(struct drm_device *dev);
 };
 
-/* To make things as simple as possible (ie. no refcounting), a VMA's lifetime
+/**
+ * A VMA represents a GEM BO that is bound into an address space. Therefore, a
+ * VMA's presence cannot be guaranteed before binding, or after unbinding the
+ * object into/from the address space.
+ *
+ * To make things as simple as possible (ie. no refcounting), a VMA's lifetime
  * will always be <= an objects lifetime. So object refcounting should cover us.
  */
 struct i915_vma {
 	struct drm_mm_node node;
 	struct drm_i915_gem_object *obj;
 	struct i915_address_space *vm;
+
+	/** This object's place on the active/inactive lists */
+	struct list_head mm_list;
 
 	struct list_head vma_link; /* Link in the object's VMA list */
 };
@@ -589,7 +600,9 @@ struct i915_fbc {
 		int interval;
 	} *fbc_work;
 
-	enum {
+	enum no_fbc_reason {
+		FBC_OK, /* FBC is enabled */
+		FBC_UNSUPPORTED, /* FBC is not supported by this chipset */
 		FBC_NO_OUTPUT, /* no outputs enabled to compress */
 		FBC_STOLEN_TOO_SMALL, /* not enough space for buffers */
 		FBC_UNSUPPORTED_MODE, /* interlace or doublescanned mode */
@@ -1045,6 +1058,19 @@ struct intel_vbt_data {
 	struct child_device_config *child_dev;
 };
 
+enum intel_ddb_partitioning {
+	INTEL_DDB_PART_1_2,
+	INTEL_DDB_PART_5_6, /* IVB+ */
+};
+
+struct intel_wm_level {
+	bool enable;
+	uint32_t pri_val;
+	uint32_t spr_val;
+	uint32_t cur_val;
+	uint32_t fbc_val;
+};
+
 typedef struct drm_i915_private {
 	struct drm_device *dev;
 	struct kmem_cache *slab;
@@ -1214,12 +1240,31 @@ typedef struct drm_i915_private {
 
 	struct i915_suspend_saved_registers regfile;
 
+	struct {
+		/*
+		 * Raw watermark latency values:
+		 * in 0.1us units for WM0,
+		 * in 0.5us units for WM1+.
+		 */
+		/* primary */
+		uint16_t pri_latency[5];
+		/* sprite */
+		uint16_t spr_latency[5];
+		/* cursor */
+		uint16_t cur_latency[5];
+	} wm;
+
 	/* Old dri1 support infrastructure, beware the dragons ya fools entering
 	 * here! */
 	struct i915_dri1_state dri1;
 	/* Old ums support infrastructure, same warning applies. */
 	struct i915_ums_state ums;
 } drm_i915_private_t;
+
+static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
+{
+	return dev->dev_private;
+}
 
 /* Iterate over initialised rings */
 #define for_each_ring(ring__, dev_priv__, i__) \
@@ -1265,9 +1310,7 @@ struct drm_i915_gem_object {
 	struct drm_mm_node *stolen;
 	struct list_head global_list;
 
-	/** This object's place on the active/inactive lists */
 	struct list_head ring_list;
-	struct list_head mm_list;
 	/** This object's place in the batchbuffer or on the eviction list */
 	struct list_head exec_list;
 
@@ -1386,52 +1429,6 @@ struct drm_i915_gem_object {
 
 #define to_intel_bo(x) container_of(x, struct drm_i915_gem_object, base)
 
-/* This is a temporary define to help transition us to real VMAs. If you see
- * this, you're either reviewing code, or bisecting it. */
-static inline struct i915_vma *
-__i915_gem_obj_to_vma(struct drm_i915_gem_object *obj)
-{
-	if (list_empty(&obj->vma_list))
-		return NULL;
-	return list_first_entry(&obj->vma_list, struct i915_vma, vma_link);
-}
-
-/* Whether or not this object is currently mapped by the translation tables */
-static inline bool
-i915_gem_obj_ggtt_bound(struct drm_i915_gem_object *o)
-{
-	struct i915_vma *vma = __i915_gem_obj_to_vma(o);
-	if (vma == NULL)
-		return false;
-	return drm_mm_node_allocated(&vma->node);
-}
-
-/* Offset of the first PTE pointing to this object */
-static inline unsigned long
-i915_gem_obj_ggtt_offset(struct drm_i915_gem_object *o)
-{
-	BUG_ON(list_empty(&o->vma_list));
-	return __i915_gem_obj_to_vma(o)->node.start;
-}
-
-/* The size used in the translation tables may be larger than the actual size of
- * the object on GEN2/GEN3 because of the way tiling is handled. See
- * i915_gem_get_gtt_size() for more details.
- */
-static inline unsigned long
-i915_gem_obj_ggtt_size(struct drm_i915_gem_object *o)
-{
-	BUG_ON(list_empty(&o->vma_list));
-	return __i915_gem_obj_to_vma(o)->node.size;
-}
-
-static inline void
-i915_gem_obj_ggtt_set_color(struct drm_i915_gem_object *o,
-			    enum i915_cache_level color)
-{
-	__i915_gem_obj_to_vma(o)->node.color = color;
-}
-
 /**
  * Request queue structure.
  *
@@ -1482,7 +1479,7 @@ struct drm_i915_file_private {
 	struct i915_ctx_hang_stats hang_stats;
 };
 
-#define INTEL_INFO(dev)	(((struct drm_i915_private *) (dev)->dev_private)->info)
+#define INTEL_INFO(dev)	(to_i915(dev)->info)
 
 #define IS_I830(dev)		((dev)->pci_device == 0x3577)
 #define IS_845G(dev)		((dev)->pci_device == 0x2562)
@@ -1576,7 +1573,7 @@ struct drm_i915_file_private {
 #define INTEL_PCH_LPT_DEVICE_ID_TYPE		0x8c00
 #define INTEL_PCH_LPT_LP_DEVICE_ID_TYPE		0x9c00
 
-#define INTEL_PCH_TYPE(dev) (((struct drm_i915_private *)(dev)->dev_private)->pch_type)
+#define INTEL_PCH_TYPE(dev) (to_i915(dev)->pch_type)
 #define HAS_PCH_LPT(dev) (INTEL_PCH_TYPE(dev) == PCH_LPT)
 #define HAS_PCH_CPT(dev) (INTEL_PCH_TYPE(dev) == PCH_CPT)
 #define HAS_PCH_IBX(dev) (INTEL_PCH_TYPE(dev) == PCH_IBX)
@@ -1668,7 +1665,6 @@ extern void intel_console_resume(struct work_struct *work);
 
 /* i915_irq.c */
 void i915_queue_hangcheck(struct drm_device *dev);
-void i915_hangcheck_elapsed(unsigned long data);
 void i915_handle_error(struct drm_device *dev, bool wedged);
 
 extern void intel_irq_init(struct drm_device *dev);
@@ -1678,7 +1674,6 @@ extern void intel_pm_init(struct drm_device *dev);
 extern void intel_uncore_sanitize(struct drm_device *dev);
 extern void intel_uncore_early_sanitize(struct drm_device *dev);
 extern void intel_uncore_init(struct drm_device *dev);
-extern void intel_uncore_reset(struct drm_device *dev);
 extern void intel_uncore_clear_errors(struct drm_device *dev);
 extern void intel_uncore_check_errors(struct drm_device *dev);
 
@@ -1749,11 +1744,13 @@ struct i915_vma *i915_gem_vma_create(struct drm_i915_gem_object *obj,
 void i915_gem_vma_destroy(struct i915_vma *vma);
 
 int __must_check i915_gem_object_pin(struct drm_i915_gem_object *obj,
+				     struct i915_address_space *vm,
 				     uint32_t alignment,
 				     bool map_and_fenceable,
 				     bool nonblocking);
 void i915_gem_object_unpin(struct drm_i915_gem_object *obj);
-int __must_check i915_gem_object_unbind(struct drm_i915_gem_object *obj);
+int __must_check i915_vma_unbind(struct i915_vma *vma);
+int __must_check i915_gem_object_ggtt_unbind(struct drm_i915_gem_object *obj);
 int i915_gem_object_put_pages(struct drm_i915_gem_object *obj);
 void i915_gem_release_mmap(struct drm_i915_gem_object *obj);
 void i915_gem_lastclose(struct drm_device *dev);
@@ -1842,9 +1839,6 @@ static inline bool i915_terminally_wedged(struct i915_gpu_error *error)
 
 void i915_gem_reset(struct drm_device *dev);
 void i915_gem_clflush_object(struct drm_i915_gem_object *obj);
-int __must_check i915_gem_object_set_domain(struct drm_i915_gem_object *obj,
-					    uint32_t read_domains,
-					    uint32_t write_domain);
 int __must_check i915_gem_object_finish_gpu(struct drm_i915_gem_object *obj);
 int __must_check i915_gem_init(struct drm_device *dev);
 int __must_check i915_gem_init_hw(struct drm_device *dev);
@@ -1896,6 +1890,53 @@ struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
 				struct drm_gem_object *gem_obj, int flags);
 
 void i915_gem_restore_fences(struct drm_device *dev);
+
+unsigned long i915_gem_obj_offset(struct drm_i915_gem_object *o,
+				  struct i915_address_space *vm);
+bool i915_gem_obj_bound_any(struct drm_i915_gem_object *o);
+bool i915_gem_obj_bound(struct drm_i915_gem_object *o,
+			struct i915_address_space *vm);
+unsigned long i915_gem_obj_size(struct drm_i915_gem_object *o,
+				struct i915_address_space *vm);
+struct i915_vma *i915_gem_obj_to_vma(struct drm_i915_gem_object *obj,
+				     struct i915_address_space *vm);
+/* Some GGTT VM helpers */
+#define obj_to_ggtt(obj) \
+	(&((struct drm_i915_private *)(obj)->base.dev->dev_private)->gtt.base)
+static inline bool i915_is_ggtt(struct i915_address_space *vm)
+{
+	struct i915_address_space *ggtt =
+		&((struct drm_i915_private *)(vm)->dev->dev_private)->gtt.base;
+	return vm == ggtt;
+}
+
+static inline bool i915_gem_obj_ggtt_bound(struct drm_i915_gem_object *obj)
+{
+	return i915_gem_obj_bound(obj, obj_to_ggtt(obj));
+}
+
+static inline unsigned long
+i915_gem_obj_ggtt_offset(struct drm_i915_gem_object *obj)
+{
+	return i915_gem_obj_offset(obj, obj_to_ggtt(obj));
+}
+
+static inline unsigned long
+i915_gem_obj_ggtt_size(struct drm_i915_gem_object *obj)
+{
+	return i915_gem_obj_size(obj, obj_to_ggtt(obj));
+}
+
+static inline int __must_check
+i915_gem_obj_ggtt_pin(struct drm_i915_gem_object *obj,
+		      uint32_t alignment,
+		      bool map_and_fenceable,
+		      bool nonblocking)
+{
+	return i915_gem_object_pin(obj, obj_to_ggtt(obj), alignment,
+				   map_and_fenceable, nonblocking);
+}
+#undef obj_to_ggtt
 
 /* i915_gem_context.c */
 void i915_gem_context_init(struct drm_device *dev);
@@ -1949,7 +1990,9 @@ static inline void i915_gem_chipset_flush(struct drm_device *dev)
 
 
 /* i915_gem_evict.c */
-int __must_check i915_gem_evict_something(struct drm_device *dev, int min_size,
+int __must_check i915_gem_evict_something(struct drm_device *dev,
+					  struct i915_address_space *vm,
+					  int min_size,
 					  unsigned alignment,
 					  unsigned cache_level,
 					  bool mappable,
@@ -1971,7 +2014,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 void i915_gem_object_release_stolen(struct drm_i915_gem_object *obj);
 
 /* i915_gem_tiling.c */
-inline static bool i915_gem_object_needs_bit17_swizzle(struct drm_i915_gem_object *obj)
+static inline bool i915_gem_object_needs_bit17_swizzle(struct drm_i915_gem_object *obj)
 {
 	drm_i915_private_t *dev_priv = obj->base.dev->dev_private;
 
@@ -1984,17 +2027,11 @@ void i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj);
 void i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj);
 
 /* i915_gem_debug.c */
-void i915_gem_dump_object(struct drm_i915_gem_object *obj, int len,
-			  const char *where, uint32_t mark);
 #if WATCH_LISTS
 int i915_verify_lists(struct drm_device *dev);
 #else
 #define i915_verify_lists(dev) 0
 #endif
-void i915_gem_object_check_coherency(struct drm_i915_gem_object *obj,
-				     int handle);
-void i915_gem_dump_object(struct drm_i915_gem_object *obj, int len,
-			  const char *where, uint32_t mark);
 
 /* i915_debugfs.c */
 int i915_debugfs_init(struct drm_minor *minor);

@@ -202,15 +202,14 @@ struct intel_sdvo_connector {
 	u32	cur_dot_crawl,	max_dot_crawl;
 };
 
-static struct intel_sdvo *to_intel_sdvo(struct drm_encoder *encoder)
+static struct intel_sdvo *to_sdvo(struct intel_encoder *encoder)
 {
-	return container_of(encoder, struct intel_sdvo, base.base);
+	return container_of(encoder, struct intel_sdvo, base);
 }
 
 static struct intel_sdvo *intel_attached_sdvo(struct drm_connector *connector)
 {
-	return container_of(intel_attached_encoder(connector),
-			    struct intel_sdvo, base);
+	return to_sdvo(intel_attached_encoder(connector));
 }
 
 static struct intel_sdvo_connector *to_intel_sdvo_connector(struct drm_connector *connector)
@@ -964,30 +963,32 @@ static bool intel_sdvo_write_infoframe(struct intel_sdvo *intel_sdvo,
 static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo,
 					 const struct drm_display_mode *adjusted_mode)
 {
-	struct dip_infoframe avi_if = {
-		.type = DIP_TYPE_AVI,
-		.ver = DIP_VERSION_AVI,
-		.len = DIP_LEN_AVI,
-	};
-	uint8_t sdvo_data[4 + sizeof(avi_if.body.avi)];
-	struct intel_crtc *intel_crtc = to_intel_crtc(intel_sdvo->base.base.crtc);
+	uint8_t sdvo_data[HDMI_INFOFRAME_SIZE(AVI)];
+	struct drm_crtc *crtc = intel_sdvo->base.base.crtc;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	union hdmi_infoframe frame;
+	int ret;
+	ssize_t len;
+
+	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi,
+						       adjusted_mode);
+	if (ret < 0) {
+		DRM_ERROR("couldn't fill AVI infoframe\n");
+		return false;
+	}
 
 	if (intel_sdvo->rgb_quant_range_selectable) {
 		if (intel_crtc->config.limited_color_range)
-			avi_if.body.avi.ITC_EC_Q_SC |= DIP_AVI_RGB_QUANT_RANGE_LIMITED;
+			frame.avi.quantization_range =
+				HDMI_QUANTIZATION_RANGE_LIMITED;
 		else
-			avi_if.body.avi.ITC_EC_Q_SC |= DIP_AVI_RGB_QUANT_RANGE_FULL;
+			frame.avi.quantization_range =
+				HDMI_QUANTIZATION_RANGE_FULL;
 	}
 
-	avi_if.body.avi.VIC = drm_match_cea_mode(adjusted_mode);
-
-	intel_dip_infoframe_csum(&avi_if);
-
-	/* sdvo spec says that the ecc is handled by the hw, and it looks like
-	 * we must not send the ecc field, either. */
-	memcpy(sdvo_data, &avi_if, 3);
-	sdvo_data[3] = avi_if.checksum;
-	memcpy(&sdvo_data[4], &avi_if.body, sizeof(avi_if.body.avi));
+	len = hdmi_infoframe_pack(&frame, sdvo_data, sizeof(sdvo_data));
+	if (len < 0)
+		return false;
 
 	return intel_sdvo_write_infoframe(intel_sdvo, SDVO_HBUF_INDEX_AVI_IF,
 					  SDVO_HBUF_TX_VSYNC,
@@ -1084,7 +1085,7 @@ static void i9xx_adjust_sdvo_tv_clock(struct intel_crtc_config *pipe_config)
 static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 				      struct intel_crtc_config *pipe_config)
 {
-	struct intel_sdvo *intel_sdvo = to_intel_sdvo(&encoder->base);
+	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
 	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
 	struct drm_display_mode *mode = &pipe_config->requested_mode;
 
@@ -1154,7 +1155,7 @@ static void intel_sdvo_mode_set(struct intel_encoder *intel_encoder)
 	struct drm_display_mode *adjusted_mode =
 		&intel_crtc->config.adjusted_mode;
 	struct drm_display_mode *mode = &intel_crtc->config.requested_mode;
-	struct intel_sdvo *intel_sdvo = to_intel_sdvo(&intel_encoder->base);
+	struct intel_sdvo *intel_sdvo = to_sdvo(intel_encoder);
 	u32 sdvox;
 	struct intel_sdvo_in_out_map in_out;
 	struct intel_sdvo_dtd input_dtd, output_dtd;
@@ -1292,7 +1293,7 @@ static bool intel_sdvo_get_hw_state(struct intel_encoder *encoder,
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_sdvo *intel_sdvo = to_intel_sdvo(&encoder->base);
+	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
 	u16 active_outputs = 0;
 	u32 tmp;
 
@@ -1315,7 +1316,7 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_sdvo *intel_sdvo = to_intel_sdvo(&encoder->base);
+	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
 	struct intel_sdvo_dtd dtd;
 	int encoder_pixel_multiplier = 0;
 	u32 flags = 0, sdvox;
@@ -1380,7 +1381,7 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 static void intel_disable_sdvo(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
-	struct intel_sdvo *intel_sdvo = to_intel_sdvo(&encoder->base);
+	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
 	u32 temp;
 
 	intel_sdvo_set_active_outputs(intel_sdvo, 0);
@@ -1422,7 +1423,7 @@ static void intel_enable_sdvo(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_sdvo *intel_sdvo = to_intel_sdvo(&encoder->base);
+	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
 	u32 temp;
 	bool input1, input2;
@@ -1583,7 +1584,7 @@ static uint16_t intel_sdvo_get_hotplug_support(struct intel_sdvo *intel_sdvo)
 
 static void intel_sdvo_enable_hotplug(struct intel_encoder *encoder)
 {
-	struct intel_sdvo *intel_sdvo = to_intel_sdvo(&encoder->base);
+	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
 
 	intel_sdvo_write_cmd(intel_sdvo, SDVO_CMD_SET_ACTIVE_HOT_PLUG,
 			&intel_sdvo->hotplug_active, 2);
@@ -2190,7 +2191,7 @@ static const struct drm_connector_helper_funcs intel_sdvo_connector_helper_funcs
 
 static void intel_sdvo_enc_destroy(struct drm_encoder *encoder)
 {
-	struct intel_sdvo *intel_sdvo = to_intel_sdvo(encoder);
+	struct intel_sdvo *intel_sdvo = to_sdvo(to_intel_encoder(encoder));
 
 	if (intel_sdvo->sdvo_lvds_fixed_mode != NULL)
 		drm_mode_destroy(encoder->dev,

@@ -43,7 +43,7 @@
 #define GEN6_PTE_UNCACHED		(1 << 1)
 #define HSW_PTE_UNCACHED		(0)
 #define GEN6_PTE_CACHE_LLC		(2 << 1)
-#define GEN6_PTE_CACHE_LLC_MLC		(3 << 1)
+#define GEN7_PTE_CACHE_L3_LLC		(3 << 1)
 #define GEN6_PTE_ADDR_ENCODE(addr)	GEN6_GTT_ADDR_ENCODE(addr)
 #define HSW_PTE_ADDR_ENCODE(addr)	HSW_GTT_ADDR_ENCODE(addr)
 
@@ -52,18 +52,40 @@
  */
 #define HSW_CACHEABILITY_CONTROL(bits)	((((bits) & 0x7) << 1) | \
 					 (((bits) & 0x8) << (11 - 3)))
+#define HSW_WB_LLC_AGE3			HSW_CACHEABILITY_CONTROL(0x2)
 #define HSW_WB_LLC_AGE0			HSW_CACHEABILITY_CONTROL(0x3)
 #define HSW_WB_ELLC_LLC_AGE0		HSW_CACHEABILITY_CONTROL(0xb)
 
-static gen6_gtt_pte_t gen6_pte_encode(dma_addr_t addr,
-				      enum i915_cache_level level)
+static gen6_gtt_pte_t snb_pte_encode(dma_addr_t addr,
+				     enum i915_cache_level level)
 {
 	gen6_gtt_pte_t pte = GEN6_PTE_VALID;
 	pte |= GEN6_PTE_ADDR_ENCODE(addr);
 
 	switch (level) {
-	case I915_CACHE_LLC_MLC:
-		pte |= GEN6_PTE_CACHE_LLC_MLC;
+	case I915_CACHE_L3_LLC:
+	case I915_CACHE_LLC:
+		pte |= GEN6_PTE_CACHE_LLC;
+		break;
+	case I915_CACHE_NONE:
+		pte |= GEN6_PTE_UNCACHED;
+		break;
+	default:
+		WARN_ON(1);
+	}
+
+	return pte;
+}
+
+static gen6_gtt_pte_t ivb_pte_encode(dma_addr_t addr,
+				     enum i915_cache_level level)
+{
+	gen6_gtt_pte_t pte = GEN6_PTE_VALID;
+	pte |= GEN6_PTE_ADDR_ENCODE(addr);
+
+	switch (level) {
+	case I915_CACHE_L3_LLC:
+		pte |= GEN7_PTE_CACHE_L3_LLC;
 		break;
 	case I915_CACHE_LLC:
 		pte |= GEN6_PTE_CACHE_LLC;
@@ -72,7 +94,7 @@ static gen6_gtt_pte_t gen6_pte_encode(dma_addr_t addr,
 		pte |= GEN6_PTE_UNCACHED;
 		break;
 	default:
-		BUG();
+		WARN_ON(1);
 	}
 
 	return pte;
@@ -105,7 +127,7 @@ static gen6_gtt_pte_t hsw_pte_encode(dma_addr_t addr,
 	pte |= HSW_PTE_ADDR_ENCODE(addr);
 
 	if (level != I915_CACHE_NONE)
-		pte |= HSW_WB_LLC_AGE0;
+		pte |= HSW_WB_LLC_AGE3;
 
 	return pte;
 }
@@ -298,13 +320,7 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	 * now. */
 	first_pd_entry_in_global_pt = gtt_total_entries(dev_priv->gtt);
 
-	if (IS_HASWELL(dev)) {
-		ppgtt->base.pte_encode = hsw_pte_encode;
-	} else if (IS_VALLEYVIEW(dev)) {
-		ppgtt->base.pte_encode = byt_pte_encode;
-	} else {
-		ppgtt->base.pte_encode = gen6_pte_encode;
-	}
+	ppgtt->base.pte_encode = dev_priv->gtt.base.pte_encode;
 	ppgtt->num_pd_entries = GEN6_PPGTT_PD_ENTRIES;
 	ppgtt->enable = gen6_ppgtt_enable;
 	ppgtt->base.clear_range = gen6_ppgtt_clear_range;
@@ -648,7 +664,8 @@ void i915_gem_setup_global_gtt(struct drm_device *dev,
 	 * aperture.  One page should be enough to keep any prefetching inside
 	 * of the aperture.
 	 */
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_address_space *ggtt_vm = &dev_priv->gtt.base;
 	struct drm_mm_node *entry;
 	struct drm_i915_gem_object *obj;
 	unsigned long hole_start, hole_end;
@@ -656,19 +673,19 @@ void i915_gem_setup_global_gtt(struct drm_device *dev,
 	BUG_ON(mappable_end > end);
 
 	/* Subtract the guard page ... */
-	drm_mm_init(&dev_priv->gtt.base.mm, start, end - start - PAGE_SIZE);
+	drm_mm_init(&ggtt_vm->mm, start, end - start - PAGE_SIZE);
 	if (!HAS_LLC(dev))
 		dev_priv->gtt.base.mm.color_adjust = i915_gtt_color_adjust;
 
 	/* Mark any preallocated objects as occupied */
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
-		struct i915_vma *vma = __i915_gem_obj_to_vma(obj);
+		struct i915_vma *vma = i915_gem_obj_to_vma(obj, ggtt_vm);
 		int ret;
 		DRM_DEBUG_KMS("reserving preallocated space: %lx + %zx\n",
 			      i915_gem_obj_ggtt_offset(obj), obj->base.size);
 
 		WARN_ON(i915_gem_obj_ggtt_bound(obj));
-		ret = drm_mm_reserve_node(&dev_priv->gtt.base.mm, &vma->node);
+		ret = drm_mm_reserve_node(&ggtt_vm->mm, &vma->node);
 		if (ret)
 			DRM_DEBUG_KMS("Reservation failed\n");
 		obj->has_global_gtt_mapping = 1;
@@ -679,19 +696,15 @@ void i915_gem_setup_global_gtt(struct drm_device *dev,
 	dev_priv->gtt.base.total = end - start;
 
 	/* Clear any non-preallocated blocks */
-	drm_mm_for_each_hole(entry, &dev_priv->gtt.base.mm,
-			     hole_start, hole_end) {
+	drm_mm_for_each_hole(entry, &ggtt_vm->mm, hole_start, hole_end) {
 		const unsigned long count = (hole_end - hole_start) / PAGE_SIZE;
 		DRM_DEBUG_KMS("clearing unused GTT space: [%lx, %lx]\n",
 			      hole_start, hole_end);
-		dev_priv->gtt.base.clear_range(&dev_priv->gtt.base,
-					       hole_start / PAGE_SIZE,
-					       count);
+		ggtt_vm->clear_range(ggtt_vm, hole_start / PAGE_SIZE, count);
 	}
 
 	/* And finally clear the reserved guard page */
-	dev_priv->gtt.base.clear_range(&dev_priv->gtt.base,
-				       end / PAGE_SIZE - 1, 1);
+	ggtt_vm->clear_range(ggtt_vm, end / PAGE_SIZE - 1, 1);
 }
 
 static bool
@@ -898,8 +911,10 @@ int i915_gem_gtt_init(struct drm_device *dev)
 			gtt->base.pte_encode = hsw_pte_encode;
 		else if (IS_VALLEYVIEW(dev))
 			gtt->base.pte_encode = byt_pte_encode;
+		else if (INTEL_INFO(dev)->gen >= 7)
+			gtt->base.pte_encode = ivb_pte_encode;
 		else
-			gtt->base.pte_encode = gen6_pte_encode;
+			gtt->base.pte_encode = snb_pte_encode;
 	}
 
 	ret = gtt->gtt_probe(dev, &gtt->base.total, &gtt->stolen_size,

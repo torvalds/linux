@@ -1352,7 +1352,7 @@ void intel_setup_overlay(struct drm_device *dev)
 		}
 		overlay->flip_addr = reg_bo->phys_obj->handle->busaddr;
 	} else {
-		ret = i915_gem_object_pin(reg_bo, PAGE_SIZE, true, false);
+		ret = i915_gem_obj_ggtt_pin(reg_bo, PAGE_SIZE, true, false);
 		if (ret) {
 			DRM_ERROR("failed to pin overlay register bo\n");
 			goto out_free_bo;

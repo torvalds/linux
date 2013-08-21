@@ -38,7 +38,8 @@
 #include "i915_drv.h"
 
 static void
-vlv_update_plane(struct drm_plane *dplane, struct drm_framebuffer *fb,
+vlv_update_plane(struct drm_plane *dplane, struct drm_crtc *crtc,
+		 struct drm_framebuffer *fb,
 		 struct drm_i915_gem_object *obj, int crtc_x, int crtc_y,
 		 unsigned int crtc_w, unsigned int crtc_h,
 		 uint32_t x, uint32_t y,
@@ -108,13 +109,14 @@ vlv_update_plane(struct drm_plane *dplane, struct drm_framebuffer *fb,
 
 	sprctl |= SP_ENABLE;
 
+	intel_update_sprite_watermarks(dplane, crtc, src_w, pixel_size, true,
+				       src_w != crtc_w || src_h != crtc_h);
+
 	/* Sizes are 0 based */
 	src_w--;
 	src_h--;
 	crtc_w--;
 	crtc_h--;
-
-	intel_update_sprite_watermarks(dev, pipe, crtc_w, pixel_size, true);
 
 	I915_WRITE(SPSTRIDE(pipe, plane), fb->pitches[0]);
 	I915_WRITE(SPPOS(pipe, plane), (crtc_y << 16) | crtc_x);
@@ -139,7 +141,7 @@ vlv_update_plane(struct drm_plane *dplane, struct drm_framebuffer *fb,
 }
 
 static void
-vlv_disable_plane(struct drm_plane *dplane)
+vlv_disable_plane(struct drm_plane *dplane, struct drm_crtc *crtc)
 {
 	struct drm_device *dev = dplane->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -152,6 +154,8 @@ vlv_disable_plane(struct drm_plane *dplane)
 	/* Activate double buffered register update */
 	I915_MODIFY_DISPBASE(SPSURF(pipe, plane), 0);
 	POSTING_READ(SPSURF(pipe, plane));
+
+	intel_update_sprite_watermarks(dplane, crtc, 0, 0, false, false);
 }
 
 static int
@@ -206,7 +210,8 @@ vlv_get_colorkey(struct drm_plane *dplane,
 }
 
 static void
-ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
+ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
+		 struct drm_framebuffer *fb,
 		 struct drm_i915_gem_object *obj, int crtc_x, int crtc_y,
 		 unsigned int crtc_w, unsigned int crtc_h,
 		 uint32_t x, uint32_t y,
@@ -262,13 +267,14 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	if (IS_HASWELL(dev))
 		sprctl |= SPRITE_PIPE_CSC_ENABLE;
 
+	intel_update_sprite_watermarks(plane, crtc, src_w, pixel_size, true,
+				       src_w != crtc_w || src_h != crtc_h);
+
 	/* Sizes are 0 based */
 	src_w--;
 	src_h--;
 	crtc_w--;
 	crtc_h--;
-
-	intel_update_sprite_watermarks(dev, pipe, crtc_w, pixel_size, true);
 
 	/*
 	 * IVB workaround: must disable low power watermarks for at least
@@ -318,7 +324,7 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 }
 
 static void
-ivb_disable_plane(struct drm_plane *plane)
+ivb_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 {
 	struct drm_device *dev = plane->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -336,7 +342,7 @@ ivb_disable_plane(struct drm_plane *plane)
 
 	dev_priv->sprite_scaling_enabled &= ~(1 << pipe);
 
-	intel_update_sprite_watermarks(dev, pipe, 0, 0, false);
+	intel_update_sprite_watermarks(plane, crtc, 0, 0, false, false);
 
 	/* potentially re-enable LP watermarks */
 	if (scaling_was_enabled && !dev_priv->sprite_scaling_enabled)
@@ -398,7 +404,8 @@ ivb_get_colorkey(struct drm_plane *plane, struct drm_intel_sprite_colorkey *key)
 }
 
 static void
-ilk_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
+ilk_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
+		 struct drm_framebuffer *fb,
 		 struct drm_i915_gem_object *obj, int crtc_x, int crtc_y,
 		 unsigned int crtc_w, unsigned int crtc_h,
 		 uint32_t x, uint32_t y,
@@ -450,13 +457,14 @@ ilk_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 		dvscntr |= DVS_TRICKLE_FEED_DISABLE; /* must disable */
 	dvscntr |= DVS_ENABLE;
 
+	intel_update_sprite_watermarks(plane, crtc, src_w, pixel_size, true,
+				       src_w != crtc_w || src_h != crtc_h);
+
 	/* Sizes are 0 based */
 	src_w--;
 	src_h--;
 	crtc_w--;
 	crtc_h--;
-
-	intel_update_sprite_watermarks(dev, pipe, crtc_w, pixel_size, true);
 
 	dvsscale = 0;
 	if (IS_GEN5(dev) || crtc_w != src_w || crtc_h != src_h)
@@ -485,7 +493,7 @@ ilk_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 }
 
 static void
-ilk_disable_plane(struct drm_plane *plane)
+ilk_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 {
 	struct drm_device *dev = plane->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -498,6 +506,8 @@ ilk_disable_plane(struct drm_plane *plane)
 	/* Flush double buffered register updates */
 	I915_MODIFY_DISPBASE(DVSSURF(pipe), 0);
 	POSTING_READ(DVSSURF(pipe));
+
+	intel_update_sprite_watermarks(plane, crtc, 0, 0, false, false);
 }
 
 static void
@@ -820,11 +830,11 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		intel_enable_primary(crtc);
 
 	if (visible)
-		intel_plane->update_plane(plane, fb, obj,
+		intel_plane->update_plane(plane, crtc, fb, obj,
 					  crtc_x, crtc_y, crtc_w, crtc_h,
 					  src_x, src_y, src_w, src_h);
 	else
-		intel_plane->disable_plane(plane);
+		intel_plane->disable_plane(plane, crtc);
 
 	if (disable_primary)
 		intel_disable_primary(crtc);
@@ -857,9 +867,14 @@ intel_disable_plane(struct drm_plane *plane)
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	int ret = 0;
 
-	if (plane->crtc)
-		intel_enable_primary(plane->crtc);
-	intel_plane->disable_plane(plane);
+	if (!plane->fb)
+		return 0;
+
+	if (WARN_ON(!plane->crtc))
+		return -EINVAL;
+
+	intel_enable_primary(plane->crtc);
+	intel_plane->disable_plane(plane, plane->crtc);
 
 	if (!intel_plane->obj)
 		goto out;

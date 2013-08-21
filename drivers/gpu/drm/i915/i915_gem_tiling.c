@@ -360,17 +360,18 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 
 		obj->map_and_fenceable =
 			!i915_gem_obj_ggtt_bound(obj) ||
-			(i915_gem_obj_ggtt_offset(obj) + obj->base.size <= dev_priv->gtt.mappable_end &&
+			(i915_gem_obj_ggtt_offset(obj) +
+			 obj->base.size <= dev_priv->gtt.mappable_end &&
 			 i915_gem_object_fence_ok(obj, args->tiling_mode));
 
 		/* Rebind if we need a change of alignment */
 		if (!obj->map_and_fenceable) {
-			u32 unfenced_alignment =
+			u32 unfenced_align =
 				i915_gem_get_gtt_alignment(dev, obj->base.size,
 							    args->tiling_mode,
 							    false);
-			if (i915_gem_obj_ggtt_offset(obj) & (unfenced_alignment - 1))
-				ret = i915_gem_object_unbind(obj);
+			if (i915_gem_obj_ggtt_offset(obj) & (unfenced_align - 1))
+				ret = i915_gem_object_ggtt_unbind(obj);
 		}
 
 		if (ret == 0) {
