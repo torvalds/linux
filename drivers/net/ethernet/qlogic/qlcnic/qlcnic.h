@@ -97,6 +97,9 @@
 #define TX_STOP_THRESH		((MAX_SKB_FRAGS >> 2) + MAX_TSO_HEADER_DESC \
 							+ MGMT_CMD_DESC_RESV)
 #define QLCNIC_MAX_TX_TIMEOUTS	2
+#define QLCNIC_MAX_TX_RINGS	8
+#define QLCNIC_MAX_SDS_RINGS	8
+
 /*
  * Following are the states of the Phantom. Phantom will set them and
  * Host will read to check if the fields are correct.
@@ -515,6 +518,7 @@ struct qlcnic_host_sds_ring {
 	u32 num_desc;
 	void __iomem *crb_sts_consumer;
 
+	struct qlcnic_host_tx_ring *tx_ring;
 	struct status_desc *desc_head;
 	struct qlcnic_adapter *adapter;
 	struct napi_struct napi;
@@ -532,9 +536,17 @@ struct qlcnic_host_tx_ring {
 	void __iomem *crb_intr_mask;
 	char name[IFNAMSIZ + 12];
 	u16 ctx_id;
+
+	u32 state;
 	u32 producer;
 	u32 sw_consumer;
 	u32 num_desc;
+
+	u64 xmit_on;
+	u64 xmit_off;
+	u64 xmit_called;
+	u64 xmit_finished;
+
 	void __iomem *crb_cmd_producer;
 	struct cmd_desc_type0 *desc_head;
 	struct qlcnic_adapter *adapter;
@@ -559,7 +571,6 @@ struct qlcnic_recv_context {
 	u32 state;
 	u16 context_id;
 	u16 virt_port;
-
 };
 
 /* HW context creation */
@@ -604,6 +615,7 @@ struct qlcnic_recv_context {
 #define QLCNIC_CAP0_LRO_CONTIGUOUS	(1 << 8)
 #define QLCNIC_CAP0_VALIDOFF		(1 << 11)
 #define QLCNIC_CAP0_LRO_MSS		(1 << 21)
+#define QLCNIC_CAP0_TX_MULTI		(1 << 22)
 
 /*
  * Context state
@@ -631,7 +643,7 @@ struct qlcnic_hostrq_rds_ring {
 
 struct qlcnic_hostrq_rx_ctx {
 	__le64 host_rsp_dma_addr;	/* Response dma'd here */
-	__le32 capabilities[4];	/* Flag bit vector */
+	__le32 capabilities[4];		/* Flag bit vector */
 	__le32 host_int_crb_mode;	/* Interrupt crb usage */
 	__le32 host_rds_crb_mode;	/* RDS crb usage */
 	/* These ring offsets are relative to data[0] below */
@@ -814,6 +826,7 @@ struct qlcnic_mac_list_s {
 #define QLCNIC_FW_CAPABILITY_BDG		BIT_8
 #define QLCNIC_FW_CAPABILITY_FVLANTX		BIT_9
 #define QLCNIC_FW_CAPABILITY_HW_LRO		BIT_10
+#define QLCNIC_FW_CAPABILITY_2_MULTI_TX		BIT_4
 #define QLCNIC_FW_CAPABILITY_MULTI_LOOPBACK	BIT_27
 #define QLCNIC_FW_CAPABILITY_MORE_CAPS		BIT_31
 
@@ -922,6 +935,7 @@ struct qlcnic_ipaddr {
 #define QLCNIC_BEACON_DISABLE		0xD
 
 #define QLCNIC_DEF_NUM_STS_DESC_RINGS	4
+#define QLCNIC_DEF_NUM_TX_RINGS		4
 #define QLCNIC_MSIX_TBL_SPACE		8192
 #define QLCNIC_PCI_REG_MSIX_TBL 	0x44
 #define QLCNIC_MSIX_TBL_PGSIZE		4096
@@ -937,6 +951,7 @@ struct qlcnic_ipaddr {
 #define __QLCNIC_DIAG_RES_ALLOC		6
 #define __QLCNIC_LED_ENABLE		7
 #define __QLCNIC_ELB_INPROGRESS		8
+#define __QLCNIC_MULTI_TX_UNIQUE	9
 #define __QLCNIC_SRIOV_ENABLE		10
 #define __QLCNIC_SRIOV_CAPABLE		11
 #define __QLCNIC_MBX_POLL_ENABLE	12
@@ -1482,7 +1497,8 @@ void qlcnic_fw_destroy_ctx(struct qlcnic_adapter *adapter);
 
 void qlcnic_reset_rx_buffers_list(struct qlcnic_adapter *adapter);
 void qlcnic_release_rx_buffers(struct qlcnic_adapter *adapter);
-void qlcnic_release_tx_buffers(struct qlcnic_adapter *adapter);
+void qlcnic_release_tx_buffers(struct qlcnic_adapter *,
+			       struct qlcnic_host_tx_ring *);
 
 int qlcnic_check_fw_status(struct qlcnic_adapter *adapter);
 void qlcnic_watchdog_task(struct work_struct *work);
@@ -1543,6 +1559,7 @@ void qlcnic_free_sds_rings(struct qlcnic_recv_context *);
 void qlcnic_advert_link_change(struct qlcnic_adapter *, int);
 void qlcnic_free_tx_rings(struct qlcnic_adapter *);
 int qlcnic_alloc_tx_rings(struct qlcnic_adapter *, struct net_device *);
+void qlcnic_dump_mbx(struct qlcnic_adapter *, struct qlcnic_cmd_args *);
 
 void qlcnic_create_sysfs_entries(struct qlcnic_adapter *adapter);
 void qlcnic_remove_sysfs_entries(struct qlcnic_adapter *adapter);
@@ -1603,6 +1620,26 @@ static inline u32 qlcnic_tx_avail(struct qlcnic_host_tx_ring *tx_ring)
 	else
 		return tx_ring->sw_consumer + tx_ring->num_desc -
 				tx_ring->producer;
+}
+
+static inline int qlcnic_set_real_num_queues(struct qlcnic_adapter *adapter,
+					     struct net_device *netdev)
+{
+	int err, tx_q;
+
+	tx_q = adapter->max_drv_tx_rings;
+
+	netdev->num_tx_queues = tx_q;
+	netdev->real_num_tx_queues = tx_q;
+
+	err = netif_set_real_num_tx_queues(netdev, tx_q);
+	if (err)
+		dev_err(&adapter->pdev->dev, "failed to set %d Tx queues\n",
+			tx_q);
+	else
+		dev_info(&adapter->pdev->dev, "set %d Tx queues\n", tx_q);
+
+	return err;
 }
 
 struct qlcnic_nic_template {
@@ -1932,16 +1969,43 @@ static inline void qlcnic_config_ipaddr(struct qlcnic_adapter *adapter,
 	adapter->nic_ops->config_ipaddr(adapter, ip, cmd);
 }
 
-static inline void qlcnic_disable_int(struct qlcnic_host_sds_ring *sds_ring)
+static inline bool qlcnic_check_multi_tx(struct qlcnic_adapter *adapter)
 {
-	writel(0, sds_ring->crb_intr_mask);
+	return test_bit(__QLCNIC_MULTI_TX_UNIQUE, &adapter->state);
 }
 
+static inline void qlcnic_disable_multi_tx(struct qlcnic_adapter *adapter)
+{
+	test_and_clear_bit(__QLCNIC_MULTI_TX_UNIQUE, &adapter->state);
+	adapter->max_drv_tx_rings = 1;
+}
+
+/* When operating in a muti tx mode, driver needs to write 0x1
+ * to src register, instead of 0x0 to disable receiving interrupt.
+ */
+static inline void qlcnic_disable_int(struct qlcnic_host_sds_ring *sds_ring)
+{
+	struct qlcnic_adapter *adapter = sds_ring->adapter;
+
+	if (qlcnic_check_multi_tx(adapter) &&
+	    (adapter->flags & QLCNIC_MSIX_ENABLED))
+		writel(0x1, sds_ring->crb_intr_mask);
+	else
+		writel(0, sds_ring->crb_intr_mask);
+}
+
+/* When operating in a muti tx mode, driver needs to write 0x0
+ * to src register, instead of 0x1 to enable receiving interrupts.
+ */
 static inline void qlcnic_enable_int(struct qlcnic_host_sds_ring *sds_ring)
 {
 	struct qlcnic_adapter *adapter = sds_ring->adapter;
 
-	writel(0x1, sds_ring->crb_intr_mask);
+	if (qlcnic_check_multi_tx(adapter) &&
+	    (adapter->flags & QLCNIC_MSIX_ENABLED))
+		writel(0, sds_ring->crb_intr_mask);
+	else
+		writel(0x1, sds_ring->crb_intr_mask);
 
 	if (!QLCNIC_IS_MSI_FAMILY(adapter))
 		writel(0xfbff, adapter->tgt_mask_reg);

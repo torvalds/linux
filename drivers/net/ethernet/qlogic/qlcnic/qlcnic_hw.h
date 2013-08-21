@@ -87,6 +87,7 @@ enum qlcnic_regs {
 #define	QLCNIC_CMD_CONFIG_VPORT			0x32
 #define QLCNIC_CMD_GET_MAC_STATS		0x37
 #define QLCNIC_CMD_82XX_SET_DRV_VER		0x38
+#define QLCNIC_CMD_MQ_TX_CONFIG_INTR		0x39
 #define QLCNIC_CMD_GET_LED_STATUS		0x3C
 #define QLCNIC_CMD_CONFIGURE_RSS		0x41
 #define QLCNIC_CMD_CONFIG_INTR_COAL		0x43
@@ -177,6 +178,8 @@ int qlcnic_82xx_setup_intr(struct qlcnic_adapter *, u8);
 irqreturn_t qlcnic_82xx_clear_legacy_intr(struct qlcnic_adapter *);
 int qlcnic_82xx_issue_cmd(struct qlcnic_adapter *adapter,
 			  struct qlcnic_cmd_args *);
+int qlcnic_82xx_mq_intrpt(struct qlcnic_adapter *, int);
+int qlcnic_82xx_config_intrpt(struct qlcnic_adapter *, u8);
 int qlcnic_82xx_fw_cmd_create_rx_ctx(struct qlcnic_adapter *);
 int qlcnic_82xx_fw_cmd_create_tx_ctx(struct qlcnic_adapter *,
 				     struct qlcnic_host_tx_ring *tx_ring, int);

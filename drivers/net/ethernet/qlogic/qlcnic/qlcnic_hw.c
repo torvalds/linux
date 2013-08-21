@@ -387,7 +387,7 @@ qlcnic_send_cmd_descs(struct qlcnic_adapter *adapter,
 	if (!test_bit(__QLCNIC_FW_ATTACHED, &adapter->state))
 		return -EIO;
 
-	tx_ring = adapter->tx_ring;
+	tx_ring = &adapter->tx_ring[0];
 	__netif_tx_lock_bh(tx_ring->txq);
 
 	producer = tx_ring->producer;
