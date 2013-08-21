@@ -260,7 +260,7 @@ static inline void neo_set_ixoff_flow_control(struct channel_t *ch)
 	writeb((UART_17158_FCTR_TRGD | UART_17158_FCTR_RTS_8DELAY), &ch->ch_neo_uart->fctr);
 
 	writeb(8, &ch->ch_neo_uart->tfifo);
-        ch->ch_t_tlevel = 8;
+	ch->ch_t_tlevel = 8;
 
 	/* Tell UART what start/stop chars it should be looking for */
 	writeb(ch->ch_startc, &ch->ch_neo_uart->xonchar1);
@@ -306,10 +306,10 @@ static inline void neo_set_no_input_flow_control(struct channel_t *ch)
 	ch->ch_r_watermark = 0;
 
 	writeb(16, &ch->ch_neo_uart->tfifo);
-        ch->ch_t_tlevel = 16;
+	ch->ch_t_tlevel = 16;
 
 	writeb(16, &ch->ch_neo_uart->rfifo);
-        ch->ch_r_tlevel = 16;
+	ch->ch_r_tlevel = 16;
 
 	writeb(ier, &ch->ch_neo_uart->ier);
 
@@ -346,10 +346,10 @@ static inline void neo_set_no_output_flow_control(struct channel_t *ch)
 	ch->ch_r_watermark = 0;
 
 	writeb(16, &ch->ch_neo_uart->tfifo);
-        ch->ch_t_tlevel = 16;
+	ch->ch_t_tlevel = 16;
 
 	writeb(16, &ch->ch_neo_uart->rfifo);
-        ch->ch_r_tlevel = 16;
+	ch->ch_r_tlevel = 16;
 
 	writeb(ier, &ch->ch_neo_uart->ier);
 
@@ -397,13 +397,13 @@ static inline void neo_clear_break(struct channel_t *ch, int force)
 	if (ch->ch_flags & CH_BREAK_SENDING) {
 		if ((jiffies >= ch->ch_stop_sending_break) || force) {
 			uchar temp = readb(&ch->ch_neo_uart->lcr);
-        	        writeb((temp & ~UART_LCR_SBC), &ch->ch_neo_uart->lcr);
+			writeb((temp & ~UART_LCR_SBC), &ch->ch_neo_uart->lcr);
 			neo_pci_posting_flush(ch->ch_bd);
 			ch->ch_flags &= ~(CH_BREAK_SENDING);
 			ch->ch_stop_sending_break = 0;
 			DPR_IOCTL(("Finishing UART_LCR_SBC! finished: %lx\n", jiffies));
-                }
-        }
+		}
+	}
 	DGNC_UNLOCK(ch->ch_lock, lock_flags);
 }
 
@@ -648,11 +648,11 @@ static void neo_param(struct tty_struct *tty)
 	uchar uart_lcr = 0;
 	uchar ier = 0;
 	uchar uart_ier = 0;
-        uint baud = 9600;
+	uint baud = 9600;
 	int quot = 0;
-        struct board_t *bd;
+	struct board_t *bd;
 	struct channel_t *ch;
-        struct un_t   *un;
+	struct un_t   *un;
 
 	if (!tty || tty->magic != TTY_MAGIC) {
 		return;
@@ -827,7 +827,7 @@ static void neo_param(struct tty_struct *tty)
 		writeb((quot & 0xff), &ch->ch_neo_uart->txrx);
 		writeb((quot >> 8), &ch->ch_neo_uart->ier);
 		writeb(lcr, &ch->ch_neo_uart->lcr);
-        }
+	}
 
 	if (uart_lcr != lcr)
 		writeb(lcr, &ch->ch_neo_uart->lcr);
@@ -911,7 +911,7 @@ static void neo_param(struct tty_struct *tty)
  */
 static void neo_tasklet(unsigned long data)
 {
-        struct board_t *bd = (struct board_t *) data;
+	struct board_t *bd = (struct board_t *) data;
 	struct channel_t *ch;
 	ulong  lock_flags;
 	int i;
@@ -1077,7 +1077,7 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 		case UART_17158_RXRDY_TIMEOUT:
 			/*
 			 * RXRDY Time-out is cleared by reading data in the
-                	 * RX FIFO until it falls below the trigger level.
+			 * RX FIFO until it falls below the trigger level.
 			 */
 
 			/* Verify the port is in range. */
@@ -1178,11 +1178,11 @@ static void neo_enable_receiver(struct channel_t *ch)
 
 static void neo_copy_data_from_uart_to_queue(struct channel_t *ch)
 {
-        int qleft = 0;
+	int qleft = 0;
 	uchar linestatus = 0;
 	uchar error_mask = 0;
-        int n = 0;
-        int total = 0;
+	int n = 0;
+	int total = 0;
 	ushort head;
 	ushort tail;
 	ulong lock_flags;
@@ -1400,7 +1400,7 @@ static int neo_drain(struct tty_struct *tty, uint seconds)
 {
 	ulong lock_flags;
 	struct channel_t *ch;
-        struct un_t *un;
+	struct un_t *un;
 	int rc = 0;
 
 	if (!tty || tty->magic != TTY_MAGIC) {
@@ -1439,7 +1439,7 @@ static int neo_drain(struct tty_struct *tty, uint seconds)
 		DPR_IOCTL(("%d Drain wait finished.\n", __LINE__));
 	}
 
-        return (rc);
+	return (rc);
 }
 
 
@@ -1792,7 +1792,7 @@ static void neo_uart_init(struct channel_t *ch)
 	writeb(UART_EFR_ECB, &ch->ch_neo_uart->efr);
 
 
-        /* Clear out UART and FIFO */
+	/* Clear out UART and FIFO */
 	readb(&ch->ch_neo_uart->txrx);
 	writeb((UART_FCR_ENABLE_FIFO|UART_FCR_CLEAR_RCVR|UART_FCR_CLEAR_XMIT), &ch->ch_neo_uart->isr_fcr);
 	readb(&ch->ch_neo_uart->lsr);
@@ -1831,7 +1831,7 @@ static uint neo_get_uart_bytes_left(struct channel_t *ch)
 	/* Determine whether the Transmitter is empty or not */
 	if (!(lsr & UART_LSR_TEMT)) {
 		if (ch->ch_flags & CH_TX_FIFO_EMPTY) {
-                	tasklet_schedule(&ch->ch_bd->helper_tasklet);
+			tasklet_schedule(&ch->ch_bd->helper_tasklet);
 		}
 		left = 1;
 	} else {
@@ -1871,12 +1871,12 @@ static void neo_send_break(struct channel_t *ch, int msecs)
 	/* Tell the UART to start sending the break */
 	if (!(ch->ch_flags & CH_BREAK_SENDING)) {
 		uchar temp = readb(&ch->ch_neo_uart->lcr);
-                writeb((temp | UART_LCR_SBC), &ch->ch_neo_uart->lcr);
+		writeb((temp | UART_LCR_SBC), &ch->ch_neo_uart->lcr);
 		neo_pci_posting_flush(ch->ch_bd);
 		ch->ch_flags |= (CH_BREAK_SENDING);
 		DPR_IOCTL(("Port %d. Starting UART_LCR_SBC! start: %lx should end: %lx\n",
 			ch->ch_portnum, jiffies, ch->ch_stop_sending_break));
-        }
+	}
 }
 
 
