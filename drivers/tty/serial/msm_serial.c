@@ -422,8 +422,7 @@ static void msm_init_clock(struct uart_port *port)
 	struct msm_port *msm_port = UART_TO_MSM(port);
 
 	clk_prepare_enable(msm_port->clk);
-	if (!IS_ERR(msm_port->pclk))
-		clk_prepare_enable(msm_port->pclk);
+	clk_prepare_enable(msm_port->pclk);
 	msm_serial_set_mnd_regs(port);
 }
 
@@ -701,13 +700,11 @@ static void msm_power(struct uart_port *port, unsigned int state,
 	switch (state) {
 	case 0:
 		clk_prepare_enable(msm_port->clk);
-		if (!IS_ERR(msm_port->pclk))
-			clk_prepare_enable(msm_port->pclk);
+		clk_prepare_enable(msm_port->pclk);
 		break;
 	case 3:
 		clk_disable_unprepare(msm_port->clk);
-		if (!IS_ERR(msm_port->pclk))
-			clk_disable_unprepare(msm_port->pclk);
+		clk_disable_unprepare(msm_port->pclk);
 		break;
 	default:
 		printk(KERN_ERR "msm_serial: Unknown PM state %d\n", state);
@@ -895,18 +892,12 @@ static int __init msm_serial_probe(struct platform_device *pdev)
 	else
 		msm_port->is_uartdm = 0;
 
-	if (msm_port->is_uartdm) {
-		msm_port->clk = devm_clk_get(&pdev->dev, "gsbi_uart_clk");
-		msm_port->pclk = devm_clk_get(&pdev->dev, "gsbi_pclk");
-	} else {
-		msm_port->clk = devm_clk_get(&pdev->dev, "uart_clk");
-		msm_port->pclk = ERR_PTR(-ENOENT);
-	}
-
+	msm_port->clk = devm_clk_get(&pdev->dev, "core");
 	if (IS_ERR(msm_port->clk))
 		return PTR_ERR(msm_port->clk);
 
 	if (msm_port->is_uartdm) {
+		msm_port->pclk = devm_clk_get(&pdev->dev, "iface");
 		if (IS_ERR(msm_port->pclk))
 			return PTR_ERR(msm_port->pclk);
 
