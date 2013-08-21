@@ -57,6 +57,7 @@
 #define TUNSETVNETHDRSZ _IOW('T', 216, int)
 #define TUNSETQUEUE  _IOW('T', 217, int)
 #define TUNSETIFINDEX	_IOW('T', 218, unsigned int)
+#define TUNGETFILTER _IOR('T', 219, struct sock_fprog)
 
 /* TUNSETIFF ifr flags */
 #define IFF_TUN		0x0001
