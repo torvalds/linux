@@ -125,6 +125,7 @@ int sysfs_create_link(struct kobject *kobj, struct kobject *target,
 {
 	return sysfs_do_create_link(kobj, target, name, 1);
 }
+EXPORT_SYMBOL_GPL(sysfs_create_link);
 
 /**
  *	sysfs_create_link_nowarn - create symlink between two objects.
@@ -166,7 +167,6 @@ void sysfs_delete_link(struct kobject *kobj, struct kobject *targ,
  *	@kobj:	object we're acting for.
  *	@name:	name of the symlink to remove.
  */
-
 void sysfs_remove_link(struct kobject * kobj, const char * name)
 {
 	struct sysfs_dirent *parent_sd = NULL;
@@ -178,6 +178,7 @@ void sysfs_remove_link(struct kobject * kobj, const char * name)
 
 	sysfs_hash_and_remove(parent_sd, NULL, name);
 }
+EXPORT_SYMBOL_GPL(sysfs_remove_link);
 
 /**
  *	sysfs_rename_link - rename symlink in object's directory.
@@ -223,6 +224,7 @@ out:
 	sysfs_put(sd);
 	return result;
 }
+EXPORT_SYMBOL_GPL(sysfs_rename_link);
 
 static int sysfs_get_target_path(struct sysfs_dirent *parent_sd,
 				 struct sysfs_dirent *target_sd, char *path)
@@ -319,8 +321,3 @@ const struct inode_operations sysfs_symlink_inode_operations = {
 	.getattr	= sysfs_getattr,
 	.permission	= sysfs_permission,
 };
-
-
-EXPORT_SYMBOL_GPL(sysfs_create_link);
-EXPORT_SYMBOL_GPL(sysfs_remove_link);
-EXPORT_SYMBOL_GPL(sysfs_rename_link);

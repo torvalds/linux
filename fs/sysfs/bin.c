@@ -481,7 +481,6 @@ void unmap_bin_file(struct sysfs_dirent *attr_sd)
  *	@kobj:	object.
  *	@attr:	attribute descriptor.
  */
-
 int sysfs_create_bin_file(struct kobject *kobj,
 			  const struct bin_attribute *attr)
 {
@@ -489,19 +488,16 @@ int sysfs_create_bin_file(struct kobject *kobj,
 
 	return sysfs_add_file(kobj->sd, &attr->attr, SYSFS_KOBJ_BIN_ATTR);
 }
-
+EXPORT_SYMBOL_GPL(sysfs_create_bin_file);
 
 /**
  *	sysfs_remove_bin_file - remove binary file for object.
  *	@kobj:	object.
  *	@attr:	attribute descriptor.
  */
-
 void sysfs_remove_bin_file(struct kobject *kobj,
 			   const struct bin_attribute *attr)
 {
 	sysfs_hash_and_remove(kobj->sd, NULL, attr->attr.name);
 }
-
-EXPORT_SYMBOL_GPL(sysfs_create_bin_file);
 EXPORT_SYMBOL_GPL(sysfs_remove_bin_file);
