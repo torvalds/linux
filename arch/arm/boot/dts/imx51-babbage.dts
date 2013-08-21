@@ -95,7 +95,7 @@
 
 &uart3 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart3_1>;
+	pinctrl-0 = <&pinctrl_uart3_1 &pinctrl_uart3_rtscts_1>;
 	fsl,uart-has-rtscts;
 	status = "okay";
 };
@@ -252,7 +252,7 @@
 
 &uart1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart1_1>;
+	pinctrl-0 = <&pinctrl_uart1_1 &pinctrl_uart1_rtscts_1>;
 	fsl,uart-has-rtscts;
 	status = "okay";
 };
