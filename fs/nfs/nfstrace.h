@@ -422,6 +422,96 @@ TRACE_EVENT(nfs_create_exit,
 		)
 );
 
+DECLARE_EVENT_CLASS(nfs_directory_event,
+		TP_PROTO(
+			const struct inode *dir,
+			const struct dentry *dentry
+		),
+
+		TP_ARGS(dir, dentry),
+
+		TP_STRUCT__entry(
+			__field(dev_t, dev)
+			__field(u64, dir)
+			__string(name, dentry->d_name.name)
+		),
+
+		TP_fast_assign(
+			__entry->dev = dir->i_sb->s_dev;
+			__entry->dir = NFS_FILEID(dir);
+			__assign_str(name, dentry->d_name.name);
+		),
+
+		TP_printk(
+			"name=%02x:%02x:%llu/%s",
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->dir,
+			__get_str(name)
+		)
+);
+
+#define DEFINE_NFS_DIRECTORY_EVENT(name) \
+	DEFINE_EVENT(nfs_directory_event, name, \
+			TP_PROTO( \
+				const struct inode *dir, \
+				const struct dentry *dentry \
+			), \
+			TP_ARGS(dir, dentry))
+
+DECLARE_EVENT_CLASS(nfs_directory_event_done,
+		TP_PROTO(
+			const struct inode *dir,
+			const struct dentry *dentry,
+			int error
+		),
+
+		TP_ARGS(dir, dentry, error),
+
+		TP_STRUCT__entry(
+			__field(int, error)
+			__field(dev_t, dev)
+			__field(u64, dir)
+			__string(name, dentry->d_name.name)
+		),
+
+		TP_fast_assign(
+			__entry->dev = dir->i_sb->s_dev;
+			__entry->dir = NFS_FILEID(dir);
+			__entry->error = error;
+			__assign_str(name, dentry->d_name.name);
+		),
+
+		TP_printk(
+			"error=%d name=%02x:%02x:%llu/%s",
+			__entry->error,
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->dir,
+			__get_str(name)
+		)
+);
+
+#define DEFINE_NFS_DIRECTORY_EVENT_DONE(name) \
+	DEFINE_EVENT(nfs_directory_event_done, name, \
+			TP_PROTO( \
+				const struct inode *dir, \
+				const struct dentry *dentry, \
+				int error \
+			), \
+			TP_ARGS(dir, dentry, error))
+
+DEFINE_NFS_DIRECTORY_EVENT(nfs_mknod_enter);
+DEFINE_NFS_DIRECTORY_EVENT_DONE(nfs_mknod_exit);
+DEFINE_NFS_DIRECTORY_EVENT(nfs_mkdir_enter);
+DEFINE_NFS_DIRECTORY_EVENT_DONE(nfs_mkdir_exit);
+DEFINE_NFS_DIRECTORY_EVENT(nfs_rmdir_enter);
+DEFINE_NFS_DIRECTORY_EVENT_DONE(nfs_rmdir_exit);
+DEFINE_NFS_DIRECTORY_EVENT(nfs_remove_enter);
+DEFINE_NFS_DIRECTORY_EVENT_DONE(nfs_remove_exit);
+DEFINE_NFS_DIRECTORY_EVENT(nfs_unlink_enter);
+DEFINE_NFS_DIRECTORY_EVENT_DONE(nfs_unlink_exit);
+DEFINE_NFS_DIRECTORY_EVENT(nfs_symlink_enter);
+DEFINE_NFS_DIRECTORY_EVENT_DONE(nfs_symlink_exit);
+
 #endif /* _TRACE_NFS_H */
 
 #undef TRACE_INCLUDE_PATH

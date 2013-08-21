@@ -1642,7 +1642,9 @@ nfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t rdev)
 	attr.ia_mode = mode;
 	attr.ia_valid = ATTR_MODE;
 
+	trace_nfs_mknod_enter(dir, dentry);
 	status = NFS_PROTO(dir)->mknod(dir, dentry, &attr, rdev);
+	trace_nfs_mknod_exit(dir, dentry, status);
 	if (status != 0)
 		goto out_err;
 	return 0;
@@ -1666,7 +1668,9 @@ int nfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	attr.ia_valid = ATTR_MODE;
 	attr.ia_mode = mode | S_IFDIR;
 
+	trace_nfs_mkdir_enter(dir, dentry);
 	error = NFS_PROTO(dir)->mkdir(dir, dentry, &attr);
+	trace_nfs_mkdir_exit(dir, dentry, error);
 	if (error != 0)
 		goto out_err;
 	return 0;
@@ -1689,12 +1693,14 @@ int nfs_rmdir(struct inode *dir, struct dentry *dentry)
 	dfprintk(VFS, "NFS: rmdir(%s/%ld), %s\n",
 			dir->i_sb->s_id, dir->i_ino, dentry->d_name.name);
 
+	trace_nfs_rmdir_enter(dir, dentry);
 	error = NFS_PROTO(dir)->rmdir(dir, &dentry->d_name);
 	/* Ensure the VFS deletes this inode */
 	if (error == 0 && dentry->d_inode != NULL)
 		clear_nlink(dentry->d_inode);
 	else if (error == -ENOENT)
 		nfs_dentry_handle_enoent(dentry);
+	trace_nfs_rmdir_exit(dir, dentry, error);
 
 	return error;
 }
@@ -1722,6 +1728,7 @@ static int nfs_safe_remove(struct dentry *dentry)
 		goto out;
 	}
 
+	trace_nfs_remove_enter(dir, dentry);
 	if (inode != NULL) {
 		NFS_PROTO(inode)->return_delegation(inode);
 		error = NFS_PROTO(dir)->remove(dir, &dentry->d_name);
@@ -1731,6 +1738,7 @@ static int nfs_safe_remove(struct dentry *dentry)
 		error = NFS_PROTO(dir)->remove(dir, &dentry->d_name);
 	if (error == -ENOENT)
 		nfs_dentry_handle_enoent(dentry);
+	trace_nfs_remove_exit(dir, dentry, error);
 out:
 	return error;
 }
@@ -1748,13 +1756,14 @@ int nfs_unlink(struct inode *dir, struct dentry *dentry)
 	dfprintk(VFS, "NFS: unlink(%s/%ld, %s)\n", dir->i_sb->s_id,
 		dir->i_ino, dentry->d_name.name);
 
+	trace_nfs_unlink_enter(dir, dentry);
 	spin_lock(&dentry->d_lock);
 	if (d_count(dentry) > 1) {
 		spin_unlock(&dentry->d_lock);
 		/* Start asynchronous writeout of the inode */
 		write_inode_now(dentry->d_inode, 0);
 		error = nfs_sillyrename(dir, dentry);
-		return error;
+		goto out;
 	}
 	if (!d_unhashed(dentry)) {
 		__d_drop(dentry);
@@ -1766,6 +1775,8 @@ int nfs_unlink(struct inode *dir, struct dentry *dentry)
 		nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 	} else if (need_rehash)
 		d_rehash(dentry);
+out:
+	trace_nfs_unlink_exit(dir, dentry, error);
 	return error;
 }
 EXPORT_SYMBOL_GPL(nfs_unlink);
@@ -1812,7 +1823,9 @@ int nfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 		memset(kaddr + pathlen, 0, PAGE_SIZE - pathlen);
 	kunmap_atomic(kaddr);
 
+	trace_nfs_symlink_enter(dir, dentry);
 	error = NFS_PROTO(dir)->symlink(dir, dentry, page, pathlen, &attr);
+	trace_nfs_symlink_exit(dir, dentry, error);
 	if (error != 0) {
 		dfprintk(VFS, "NFS: symlink(%s/%ld, %s, %s) error %d\n",
 			dir->i_sb->s_id, dir->i_ino,
