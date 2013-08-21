@@ -656,7 +656,7 @@ static int qlcnic_enable_msi_legacy(struct qlcnic_adapter *adapter)
 	return err;
 }
 
-int qlcnic_82xx_setup_intr(struct qlcnic_adapter *adapter, u8 num_intr)
+int qlcnic_82xx_setup_intr(struct qlcnic_adapter *adapter, u8 num_intr, int txq)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	int num_msix, err = 0;
@@ -667,8 +667,11 @@ int qlcnic_82xx_setup_intr(struct qlcnic_adapter *adapter, u8 num_intr)
 	if (ahw->msix_supported) {
 		num_msix = rounddown_pow_of_two(min_t(int, num_online_cpus(),
 						num_intr));
-		if (qlcnic_check_multi_tx(adapter))
+		if (qlcnic_check_multi_tx(adapter)) {
+			if (txq)
+				adapter->max_drv_tx_rings = txq;
 			num_msix += adapter->max_drv_tx_rings;
+		}
 	} else {
 		num_msix = 1;
 	}
@@ -1990,11 +1993,9 @@ qlcnic_setup_netdev(struct qlcnic_adapter *adapter, struct net_device *netdev,
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 	netdev->irq = adapter->msix_entries[0].vector;
 
-	if (qlcnic_82xx_check(adapter) && qlcnic_check_multi_tx(adapter)) {
-		err = qlcnic_set_real_num_queues(adapter, netdev);
-		if (err)
-			return err;
-	}
+	err = qlcnic_set_real_num_queues(adapter, netdev);
+	if (err)
+		return err;
 
 	err = register_netdev(netdev);
 	if (err) {
@@ -2253,7 +2254,7 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			 "Device does not support MSI interrupts\n");
 
 	if (qlcnic_82xx_check(adapter)) {
-		err = qlcnic_setup_intr(adapter, 0);
+		err = qlcnic_setup_intr(adapter, 0, 0);
 		if (err) {
 			dev_err(&pdev->dev, "Failed to setup interrupt\n");
 			goto err_out_disable_msi;
@@ -3371,7 +3372,7 @@ static int qlcnic_attach_func(struct pci_dev *pdev)
 	qlcnic_clr_drv_state(adapter);
 	kfree(adapter->msix_entries);
 	adapter->msix_entries = NULL;
-	err = qlcnic_setup_intr(adapter, 0);
+	err = qlcnic_setup_intr(adapter, 0, 0);
 
 	if (err) {
 		kfree(adapter->msix_entries);
@@ -3496,12 +3497,61 @@ qlcnicvf_start_firmware(struct qlcnic_adapter *adapter)
 	return err;
 }
 
+int qlcnic_validate_max_tx_rings(struct qlcnic_adapter *adapter, int txq)
+{
+	struct net_device *netdev = adapter->netdev;
+	u8 max_hw = QLCNIC_MAX_TX_RINGS;
+	u32 max_allowed;
+
+	if (!qlcnic_82xx_check(adapter)) {
+		netdev_err(netdev, "No Multi TX-Q support\n");
+		return -EINVAL;
+	}
+
+	if (!qlcnic_use_msi_x && !qlcnic_use_msi) {
+		netdev_err(netdev, "No Multi TX-Q support in INT-x mode\n");
+		return -EINVAL;
+	}
+
+	if (!qlcnic_check_multi_tx(adapter)) {
+		netdev_err(netdev, "No Multi TX-Q support\n");
+		return -EINVAL;
+	}
+
+	if (txq > QLCNIC_MAX_TX_RINGS) {
+		netdev_err(netdev, "Invalid ring count\n");
+		return -EINVAL;
+	}
+
+	max_allowed = rounddown_pow_of_two(min_t(int, max_hw,
+						 num_online_cpus()));
+	if ((txq > max_allowed) || !is_power_of_2(txq)) {
+		if (!is_power_of_2(txq))
+			netdev_err(netdev,
+				   "TX queue should be a power of 2\n");
+		if (txq > num_online_cpus())
+			netdev_err(netdev,
+				   "Tx queue should not be higher than [%u], number of online CPUs in the system\n",
+				   num_online_cpus());
+		netdev_err(netdev, "Unable to configure %u Tx rings\n", txq);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 int qlcnic_validate_max_rss(struct qlcnic_adapter *adapter,
 				__u32 val)
 {
 	struct net_device *netdev = adapter->netdev;
 	u8 max_hw = adapter->ahw->max_rx_ques;
 	u32 max_allowed;
+
+	if (qlcnic_82xx_check(adapter) && !qlcnic_use_msi_x &&
+	    !qlcnic_use_msi) {
+		netdev_err(netdev, "No RSS support in INT-x mode\n");
+		return -EINVAL;
+	}
 
 	if (val > QLCNIC_MAX_SDS_RINGS) {
 		netdev_err(netdev, "RSS value should not be higher than %u\n",
@@ -3535,13 +3585,20 @@ int qlcnic_validate_max_rss(struct qlcnic_adapter *adapter,
 	return 0;
 }
 
-int qlcnic_set_max_rss(struct qlcnic_adapter *adapter, u8 data, size_t len)
+int qlcnic_set_max_rss(struct qlcnic_adapter *adapter, u8 data, int txq)
 {
 	int err;
 	struct net_device *netdev = adapter->netdev;
+	int num_msix;
 
 	if (test_bit(__QLCNIC_RESETTING, &adapter->state))
 		return -EBUSY;
+
+	if (qlcnic_82xx_check(adapter) && !qlcnic_use_msi_x &&
+	    !qlcnic_use_msi) {
+		netdev_err(netdev, "No RSS support in INT-x mode\n");
+		return -EINVAL;
+	}
 
 	netif_device_detach(netdev);
 	if (netif_running(netdev))
@@ -3549,13 +3606,27 @@ int qlcnic_set_max_rss(struct qlcnic_adapter *adapter, u8 data, size_t len)
 
 	qlcnic_detach(adapter);
 
+	if (qlcnic_82xx_check(adapter)) {
+		if (txq != 0)
+			adapter->max_drv_tx_rings = txq;
+
+		if (qlcnic_check_multi_tx(adapter) &&
+		    (txq > adapter->max_drv_tx_rings))
+			num_msix = adapter->max_drv_tx_rings;
+		else
+			num_msix = data;
+	}
+
 	if (qlcnic_83xx_check(adapter)) {
 		qlcnic_83xx_free_mbx_intr(adapter);
 		qlcnic_83xx_enable_mbx_poll(adapter);
 	}
 
+	netif_set_real_num_tx_queues(netdev, adapter->max_drv_tx_rings);
+
 	qlcnic_teardown_intr(adapter);
-	err = qlcnic_setup_intr(adapter, data);
+
+	err = qlcnic_setup_intr(adapter, data, txq);
 	if (err) {
 		kfree(adapter->msix_entries);
 		netdev_err(netdev, "failed to setup interrupt\n");
@@ -3583,8 +3654,7 @@ int qlcnic_set_max_rss(struct qlcnic_adapter *adapter, u8 data, size_t len)
 			goto done;
 		qlcnic_restore_indev_addr(netdev, NETDEV_UP);
 	}
-	err = len;
- done:
+done:
 	netif_device_attach(netdev);
 	clear_bit(__QLCNIC_RESETTING, &adapter->state);
 	return err;

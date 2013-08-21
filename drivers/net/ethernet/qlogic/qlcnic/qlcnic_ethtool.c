@@ -125,6 +125,14 @@ static const char qlcnic_83xx_mac_stats_strings[][ETH_GSTRING_LEN] = {
 };
 
 #define QLCNIC_STATS_LEN	ARRAY_SIZE(qlcnic_gstrings_stats)
+
+static const char qlcnic_tx_ring_stats_strings[][ETH_GSTRING_LEN] = {
+	"xmit_on",
+	"xmit_off",
+	"xmit_called",
+	"xmit_finished",
+};
+
 static const char qlcnic_83xx_rx_stats_strings[][ETH_GSTRING_LEN] = {
 	"ctx_rx_bytes",
 	"ctx_rx_pkts",
@@ -630,15 +638,15 @@ qlcnic_set_ringparam(struct net_device *dev,
 static void qlcnic_get_channels(struct net_device *dev,
 		struct ethtool_channels *channel)
 {
-	int min;
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
+	int min;
 
 	min = min_t(int, adapter->ahw->max_rx_ques, num_online_cpus());
 	channel->max_rx = rounddown_pow_of_two(min);
-	channel->max_tx = adapter->ahw->max_tx_ques;
+	channel->max_tx = min_t(int, QLCNIC_MAX_TX_RINGS, num_online_cpus());
 
 	channel->rx_count = adapter->max_sds_rings;
-	channel->tx_count = adapter->ahw->max_tx_ques;
+	channel->tx_count = adapter->max_drv_tx_rings;
 }
 
 static int qlcnic_set_channels(struct net_device *dev,
@@ -646,18 +654,27 @@ static int qlcnic_set_channels(struct net_device *dev,
 {
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
 	int err;
+	int txq = 0;
 
-	if (channel->other_count || channel->combined_count ||
-	    channel->tx_count != channel->max_tx)
+	if (channel->other_count || channel->combined_count)
 		return -EINVAL;
 
-	err = qlcnic_validate_max_rss(adapter, channel->rx_count);
-	if (err)
-		return err;
+	if (channel->rx_count) {
+		err = qlcnic_validate_max_rss(adapter, channel->rx_count);
+		if (err)
+			return err;
+	}
 
-	err = qlcnic_set_max_rss(adapter, channel->rx_count, 0);
-	netdev_info(dev, "allocated 0x%x sds rings\n",
-				 adapter->max_sds_rings);
+	if (channel->tx_count) {
+		err = qlcnic_validate_max_tx_rings(adapter, channel->tx_count);
+		if (err)
+			return err;
+		txq = channel->tx_count;
+	}
+
+	err = qlcnic_set_max_rss(adapter, channel->rx_count, txq);
+	netdev_info(dev, "allocated 0x%x sds rings and  0x%x tx rings\n",
+		    adapter->max_sds_rings, adapter->max_drv_tx_rings);
 	return err;
 }
 
@@ -893,6 +910,7 @@ free_diag_res:
 clear_diag_irq:
 	adapter->max_sds_rings = max_sds_rings;
 	clear_bit(__QLCNIC_RESETTING, &adapter->state);
+
 	return ret;
 }
 
@@ -1077,11 +1095,21 @@ qlcnic_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 		       QLCNIC_TEST_LEN * ETH_GSTRING_LEN);
 		break;
 	case ETH_SS_STATS:
+		num_stats = ARRAY_SIZE(qlcnic_tx_ring_stats_strings);
+		for (i = 0; i < adapter->max_drv_tx_rings; i++) {
+			for (index = 0; index < num_stats; index++) {
+				sprintf(data, "tx_ring_%d %s", i,
+					qlcnic_tx_ring_stats_strings[index]);
+				data += ETH_GSTRING_LEN;
+			}
+		}
+
 		for (index = 0; index < QLCNIC_STATS_LEN; index++) {
 			memcpy(data + index * ETH_GSTRING_LEN,
 			       qlcnic_gstrings_stats[index].stat_string,
 			       ETH_GSTRING_LEN);
 		}
+
 		if (qlcnic_83xx_check(adapter)) {
 			num_stats = ARRAY_SIZE(qlcnic_83xx_tx_stats_strings);
 			for (i = 0; i < num_stats; i++, index++)
@@ -1173,11 +1201,22 @@ static void qlcnic_get_ethtool_stats(struct net_device *dev,
 				     struct ethtool_stats *stats, u64 *data)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
+	struct qlcnic_host_tx_ring *tx_ring;
 	struct qlcnic_esw_statistics port_stats;
 	struct qlcnic_mac_statistics mac_stats;
-	int index, ret, length, size;
+	int index, ret, length, size, ring;
 	char *p;
 
+	memset(data, 0, adapter->max_drv_tx_rings * 4 * sizeof(u64));
+	for (ring = 0, index = 0; ring < adapter->max_drv_tx_rings; ring++) {
+		if (test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
+			tx_ring = &adapter->tx_ring[ring];
+			*data++ = tx_ring->xmit_on;
+			*data++ = tx_ring->xmit_off;
+			*data++ = tx_ring->xmit_called;
+			*data++ = tx_ring->xmit_finished;
+		}
+	}
 	memset(data, 0, stats->n_stats * sizeof(u64));
 	length = QLCNIC_STATS_LEN;
 	for (index = 0; index < length; index++) {

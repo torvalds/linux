@@ -2201,7 +2201,7 @@ int qlcnic_83xx_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 	if (err)
 		goto detach_mbx;
 
-	err = qlcnic_setup_intr(adapter, 0);
+	err = qlcnic_setup_intr(adapter, 0, 0);
 	if (err) {
 		dev_err(&adapter->pdev->dev, "Failed to setup interrupt\n");
 		goto disable_intr;

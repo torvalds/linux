@@ -1531,8 +1531,9 @@ int qlcnic_reset_context(struct qlcnic_adapter *);
 void qlcnic_diag_free_res(struct net_device *netdev, int max_sds_rings);
 int qlcnic_diag_alloc_res(struct net_device *netdev, int test);
 netdev_tx_t qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
-int qlcnic_set_max_rss(struct qlcnic_adapter *, u8, size_t);
+int qlcnic_set_max_rss(struct qlcnic_adapter *, u8, int);
 int qlcnic_validate_max_rss(struct qlcnic_adapter *, __u32);
+int qlcnic_validate_max_tx_rings(struct qlcnic_adapter *, int);
 void qlcnic_alloc_lb_filters_mem(struct qlcnic_adapter *adapter);
 void qlcnic_82xx_set_mac_filter_count(struct qlcnic_adapter *);
 int qlcnic_enable_msix(struct qlcnic_adapter *, u32);
@@ -1679,7 +1680,7 @@ struct qlcnic_hardware_ops {
 	int (*write_reg) (struct qlcnic_adapter *, ulong, u32);
 	void (*get_ocm_win) (struct qlcnic_hardware_context *);
 	int (*get_mac_address) (struct qlcnic_adapter *, u8 *);
-	int (*setup_intr) (struct qlcnic_adapter *, u8);
+	int (*setup_intr) (struct qlcnic_adapter *, u8, int);
 	int (*alloc_mbx_args)(struct qlcnic_cmd_args *,
 			      struct qlcnic_adapter *, u32);
 	int (*mbx_cmd) (struct qlcnic_adapter *, struct qlcnic_cmd_args *);
@@ -1745,9 +1746,10 @@ static inline int qlcnic_get_mac_address(struct qlcnic_adapter *adapter,
 	return adapter->ahw->hw_ops->get_mac_address(adapter, mac);
 }
 
-static inline int qlcnic_setup_intr(struct qlcnic_adapter *adapter, u8 num_intr)
+static inline int qlcnic_setup_intr(struct qlcnic_adapter *adapter,
+				    u8 num_intr, int txq)
 {
-	return adapter->ahw->hw_ops->setup_intr(adapter, num_intr);
+	return adapter->ahw->hw_ops->setup_intr(adapter, num_intr, txq);
 }
 
 static inline int qlcnic_alloc_mbx_args(struct qlcnic_cmd_args *mbx,

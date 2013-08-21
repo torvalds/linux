@@ -150,7 +150,6 @@ struct ethtool_stats;
 struct pci_device_id;
 struct qlcnic_host_sds_ring;
 struct qlcnic_host_tx_ring;
-struct qlcnic_host_tx_ring;
 struct qlcnic_hardware_context;
 struct qlcnic_adapter;
 
@@ -174,7 +173,7 @@ int qlcnic_82xx_set_lb_mode(struct qlcnic_adapter *, u8);
 void qlcnic_82xx_write_crb(struct qlcnic_adapter *, char *, loff_t, size_t);
 void qlcnic_82xx_read_crb(struct qlcnic_adapter *, char *, loff_t, size_t);
 void qlcnic_82xx_dev_request_reset(struct qlcnic_adapter *, u32);
-int qlcnic_82xx_setup_intr(struct qlcnic_adapter *, u8);
+int qlcnic_82xx_setup_intr(struct qlcnic_adapter *, u8, int);
 irqreturn_t qlcnic_82xx_clear_legacy_intr(struct qlcnic_adapter *);
 int qlcnic_82xx_issue_cmd(struct qlcnic_adapter *adapter,
 			  struct qlcnic_cmd_args *);

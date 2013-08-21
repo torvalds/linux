@@ -261,7 +261,7 @@ int qlcnic_83xx_wrt_reg_indirect(struct qlcnic_adapter *adapter, ulong addr,
 	}
 }
 
-int qlcnic_83xx_setup_intr(struct qlcnic_adapter *adapter, u8 num_intr)
+int qlcnic_83xx_setup_intr(struct qlcnic_adapter *adapter, u8 num_intr, int txq)
 {
 	int err, i, num_msix;
 	struct qlcnic_hardware_context *ahw = adapter->ahw;

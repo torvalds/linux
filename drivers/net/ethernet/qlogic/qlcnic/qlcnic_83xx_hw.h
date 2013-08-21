@@ -523,7 +523,7 @@ enum qlc_83xx_ext_regs {
 /* 83xx funcitons */
 int qlcnic_83xx_get_fw_version(struct qlcnic_adapter *);
 int qlcnic_83xx_issue_cmd(struct qlcnic_adapter *, struct qlcnic_cmd_args *);
-int qlcnic_83xx_setup_intr(struct qlcnic_adapter *, u8);
+int qlcnic_83xx_setup_intr(struct qlcnic_adapter *, u8, int);
 void qlcnic_83xx_get_func_no(struct qlcnic_adapter *);
 int qlcnic_83xx_cam_lock(struct qlcnic_adapter *);
 void qlcnic_83xx_cam_unlock(struct qlcnic_adapter *);
