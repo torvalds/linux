@@ -848,13 +848,13 @@ static void drm_update_vblank_count(struct drm_device *dev, int crtc)
  */
 int drm_vblank_get(struct drm_device *dev, int crtc)
 {
-	unsigned long irqflags, irqflags2;
+	unsigned long irqflags;
 	int ret = 0;
 
 	spin_lock_irqsave(&dev->vbl_lock, irqflags);
 	/* Going from 0->1 means we have to enable interrupts again */
 	if (atomic_add_return(1, &dev->vblank[crtc].refcount) == 1) {
-		spin_lock_irqsave(&dev->vblank_time_lock, irqflags2);
+		spin_lock(&dev->vblank_time_lock);
 		if (!dev->vblank[crtc].enabled) {
 			/* Enable vblank irqs under vblank_time_lock protection.
 			 * All vblank count & timestamp updates are held off
@@ -872,7 +872,7 @@ int drm_vblank_get(struct drm_device *dev, int crtc)
 				drm_update_vblank_count(dev, crtc);
 			}
 		}
-		spin_unlock_irqrestore(&dev->vblank_time_lock, irqflags2);
+		spin_unlock(&dev->vblank_time_lock);
 	} else {
 		if (!dev->vblank[crtc].enabled) {
 			atomic_dec(&dev->vblank[crtc].refcount);
