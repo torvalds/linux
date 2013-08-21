@@ -23,6 +23,7 @@
 #include MSRHEADER
 #include <stdarg.h>
 #include <stdio.h>
+#include <err.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -624,12 +625,10 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 	old->tsc = new->tsc - old->tsc;
 
 	/* check for TSC < 1 Mcycles over interval */
-	if (old->tsc < (1000 * 1000)) {
-		fprintf(stderr, "Insanely slow TSC rate, TSC stops in idle?\n");
-		fprintf(stderr, "You can disable all c-states by booting with \"idle=poll\"\n");
-		fprintf(stderr, "or just the deep ones with \"processor.max_cstate=1\"\n");
-		exit(-3);
-	}
+	if (old->tsc < (1000 * 1000))
+		errx(-3, "Insanely slow TSC rate, TSC stops in idle?\n"
+		     "You can disable all c-states by booting with \"idle=poll\"\n"
+		     "or just the deep ones with \"processor.max_cstate=1\"");
 
 	old->c1 = new->c1 - old->c1;
 
@@ -1180,10 +1179,8 @@ void free_all_buffers(void)
 FILE *fopen_or_die(const char *path, const char *mode)
 {
 	FILE *filep = fopen(path, "r");
-	if (!filep) {
-		perror(path);
-		exit(1);
-	}
+	if (!filep)
+		err(1, "%s: open failed", path);
 	return filep;
 }
 
@@ -1201,10 +1198,8 @@ int parse_int_file(const char *fmt, ...)
 	vsnprintf(path, sizeof(path), fmt, args);
 	va_end(args);
 	filep = fopen_or_die(path, "r");
-	if (fscanf(filep, "%d", &value) != 1) {
-		perror(path);
-		exit(1);
-	}
+	if (fscanf(filep, "%d", &value) != 1)
+		err(1, "%s: failed to parse number from file", path);
 	fclose(filep);
 	return value;
 }
@@ -1319,10 +1314,8 @@ int for_all_proc_cpus(int (func)(int))
 	fp = fopen_or_die(proc_stat, "r");
 
 	retval = fscanf(fp, "cpu %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d\n");
-	if (retval != 0) {
-		perror("/proc/stat format");
-		exit(1);
-	}
+	if (retval != 0)
+		err(1, "%s: failed to parse format", proc_stat);
 
 	while (1) {
 		retval = fscanf(fp, "cpu%u %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d\n", &cpu_num);
@@ -1426,19 +1419,15 @@ void check_dev_msr()
 {
 	struct stat sb;
 
-	if (stat("/dev/cpu/0/msr", &sb)) {
-		fprintf(stderr, "no /dev/cpu/0/msr\n");
-		fprintf(stderr, "Try \"# modprobe msr\"\n");
-		exit(-5);
-	}
+	if (stat("/dev/cpu/0/msr", &sb))
+		err(-5, "no /dev/cpu/0/msr\n"
+		    "Try \"# modprobe msr\"");
 }
 
 void check_super_user()
 {
-	if (getuid() != 0) {
-		fprintf(stderr, "must be root\n");
-		exit(-6);
-	}
+	if (getuid() != 0)
+		errx(-6, "must be root");
 }
 
 int has_nehalem_turbo_ratio_limit(unsigned int family, unsigned int model)
@@ -1979,10 +1968,8 @@ void check_cpuid()
 		fprintf(stderr, "%d CPUID levels; family:model:stepping 0x%x:%x:%x (%d:%d:%d)\n",
 			max_level, family, model, stepping, family, model, stepping);
 
-	if (!(edx & (1 << 5))) {
-		fprintf(stderr, "CPUID: no MSR\n");
-		exit(1);
-	}
+	if (!(edx & (1 << 5)))
+		errx(1, "CPUID: no MSR");
 
 	/*
 	 * check max extended function levels of CPUID.
@@ -1992,10 +1979,8 @@ void check_cpuid()
 	ebx = ecx = edx = 0;
 	__get_cpuid(0x80000000, &max_level, &ebx, &ecx, &edx);
 
-	if (max_level < 0x80000007) {
-		fprintf(stderr, "CPUID: no invariant TSC (max_level 0x%x)\n", max_level);
-		exit(1);
-	}
+	if (max_level < 0x80000007)
+		errx(1, "CPUID: no invariant TSC (max_level 0x%x)", max_level);
 
 	/*
 	 * Non-Stop TSC is advertised by CPUID.EAX=0x80000007: EDX.bit8
@@ -2004,10 +1989,8 @@ void check_cpuid()
 	__get_cpuid(0x80000007, &eax, &ebx, &ecx, &edx);
 	has_invariant_tsc = edx & (1 << 8);
 
-	if (!has_invariant_tsc) {
-		fprintf(stderr, "No invariant TSC\n");
-		exit(1);
-	}
+	if (!has_invariant_tsc)
+		errx(1, "No invariant TSC");
 
 	/*
 	 * APERF/MPERF is advertised by CPUID.EAX=0x6: ECX.bit0
@@ -2028,7 +2011,7 @@ void check_cpuid()
 			has_epb ? ", EPB": "");
 
 	if (!has_aperf)
-		exit(-1);
+		errx(-1, "No APERF");
 
 	do_nehalem_platform_info = genuine_intel && has_invariant_tsc;
 	do_nhm_cstates = genuine_intel;	/* all Intel w/ non-stop TSC have NHM counters */
@@ -2048,9 +2031,8 @@ void check_cpuid()
 
 void usage()
 {
-	fprintf(stderr, "%s: [-v][-R][-T][-p|-P|-S][-c MSR# | -s]][-C MSR#][-m MSR#][-M MSR#][-i interval_sec | command ...]\n",
-		progname);
-	exit(1);
+	errx(1, "%s: [-v][-R][-T][-p|-P|-S][-c MSR# | -s]][-C MSR#][-m MSR#][-M MSR#][-i interval_sec | command ...]\n",
+	     progname);
 }
 
 
@@ -2093,19 +2075,15 @@ void topology_probe()
 		fprintf(stderr, "num_cpus %d max_cpu_num %d\n", topo.num_cpus, topo.max_cpu_num);
 
 	cpus = calloc(1, (topo.max_cpu_num  + 1) * sizeof(struct cpu_topology));
-	if (cpus == NULL) {
-		perror("calloc cpus");
-		exit(1);
-	}
+	if (cpus == NULL)
+		err(1, "calloc cpus");
 
 	/*
 	 * Allocate and initialize cpu_present_set
 	 */
 	cpu_present_set = CPU_ALLOC((topo.max_cpu_num + 1));
-	if (cpu_present_set == NULL) {
-		perror("CPU_ALLOC");
-		exit(3);
-	}
+	if (cpu_present_set == NULL)
+		err(3, "CPU_ALLOC");
 	cpu_present_setsize = CPU_ALLOC_SIZE((topo.max_cpu_num + 1));
 	CPU_ZERO_S(cpu_present_setsize, cpu_present_set);
 	for_all_proc_cpus(mark_cpu_present);
@@ -2114,10 +2092,8 @@ void topology_probe()
 	 * Allocate and initialize cpu_affinity_set
 	 */
 	cpu_affinity_set = CPU_ALLOC((topo.max_cpu_num + 1));
-	if (cpu_affinity_set == NULL) {
-		perror("CPU_ALLOC");
-		exit(3);
-	}
+	if (cpu_affinity_set == NULL)
+		err(3, "CPU_ALLOC");
 	cpu_affinity_setsize = CPU_ALLOC_SIZE((topo.max_cpu_num + 1));
 	CPU_ZERO_S(cpu_affinity_setsize, cpu_affinity_set);
 
@@ -2201,8 +2177,7 @@ allocate_counters(struct thread_data **t, struct core_data **c, struct pkg_data 
 
 	return;
 error:
-	perror("calloc counters");
-	exit(1);
+	err(1, "calloc counters");
 }
 /*
  * init_counter()
@@ -2259,10 +2234,8 @@ void allocate_output_buffer()
 {
 	output_buffer = calloc(1, (1 + topo.num_cpus) * 256);
 	outp = output_buffer;
-	if (outp == NULL) {
-		perror("calloc");
-		exit(-1);
-	}
+	if (outp == NULL)
+		err(-1, "calloc output buffer");
 }
 
 void setup_all_buffers(void)
@@ -2316,17 +2289,13 @@ int fork_it(char **argv)
 	} else {
 
 		/* parent */
-		if (child_pid == -1) {
-			perror("fork");
-			exit(1);
-		}
+		if (child_pid == -1)
+			err(1, "fork");
 
 		signal(SIGINT, SIG_IGN);
 		signal(SIGQUIT, SIG_IGN);
-		if (waitpid(child_pid, &status, 0) == -1) {
-			perror("wait");
-			exit(status);
-		}
+		if (waitpid(child_pid, &status, 0) == -1)
+			err(status, "waitpid");
 	}
 	/*
 	 * n.b. fork_it() does not check for errors from for_all_cpus()
