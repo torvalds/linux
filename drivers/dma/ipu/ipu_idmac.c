@@ -1764,7 +1764,6 @@ static int ipu_remove(struct platform_device *pdev)
 	iounmap(ipu->reg_ic);
 	iounmap(ipu->reg_ipu);
 	tasklet_kill(&ipu->tasklet);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
