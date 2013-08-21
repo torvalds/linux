@@ -148,7 +148,7 @@ static void init_x2apic_ldr(void)
  /*
   * At CPU state changes, update the x2apic cluster sibling info.
   */
-static int __cpuinit
+static int
 update_clusterinfo(struct notifier_block *nfb, unsigned long action, void *hcpu)
 {
 	unsigned int this_cpu = (unsigned long)hcpu;

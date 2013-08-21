@@ -116,8 +116,6 @@ ENTRY(cpu_arm720_reset)
 ENDPROC(cpu_arm720_reset)
 		.popsection
 
-	__CPUINIT
-
 	.type	__arm710_setup, #function
 __arm710_setup:
 	mov	r0, #0

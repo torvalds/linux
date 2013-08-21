@@ -164,7 +164,7 @@ static irqreturn_t gt_clockevent_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __cpuinit gt_clockevents_init(struct clock_event_device *clk)
+static int gt_clockevents_init(struct clock_event_device *clk)
 {
 	int cpu = smp_processor_id();
 
@@ -221,8 +221,8 @@ static void __init gt_clocksource_init(void)
 	clocksource_register_hz(&gt_clocksource, gt_clk_rate);
 }
 
-static int __cpuinit gt_cpu_notify(struct notifier_block *self,
-					   unsigned long action, void *hcpu)
+static int gt_cpu_notify(struct notifier_block *self, unsigned long action,
+			 void *hcpu)
 {
 	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_STARTING:
@@ -235,7 +235,7 @@ static int __cpuinit gt_cpu_notify(struct notifier_block *self,
 
 	return NOTIFY_OK;
 }
-static struct notifier_block gt_cpu_nb __cpuinitdata = {
+static struct notifier_block gt_cpu_nb = {
 	.notifier_call = gt_cpu_notify,
 };
 

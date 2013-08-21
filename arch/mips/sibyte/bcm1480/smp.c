@@ -60,7 +60,7 @@ static void *mailbox_0_regs[] = {
 /*
  * SMP init and finish on secondary CPUs
  */
-void __cpuinit bcm1480_smp_init(void)
+void bcm1480_smp_init(void)
 {
 	unsigned int imask = STATUSF_IP4 | STATUSF_IP3 | STATUSF_IP2 |
 		STATUSF_IP1 | STATUSF_IP0;
@@ -95,7 +95,7 @@ static void bcm1480_send_ipi_mask(const struct cpumask *mask,
 /*
  * Code to run on secondary just after probing the CPU
  */
-static void __cpuinit bcm1480_init_secondary(void)
+static void bcm1480_init_secondary(void)
 {
 	extern void bcm1480_smp_init(void);
 
@@ -106,7 +106,7 @@ static void __cpuinit bcm1480_init_secondary(void)
  * Do any tidying up before marking online and running the idle
  * loop
  */
-static void __cpuinit bcm1480_smp_finish(void)
+static void bcm1480_smp_finish(void)
 {
 	extern void sb1480_clockevent_init(void);
 
@@ -125,7 +125,7 @@ static void bcm1480_cpus_done(void)
  * Setup the PC, SP, and GP of a secondary processor and start it
  * running!
  */
-static void __cpuinit bcm1480_boot_secondary(int cpu, struct task_struct *idle)
+static void bcm1480_boot_secondary(int cpu, struct task_struct *idle)
 {
 	int retval;
 

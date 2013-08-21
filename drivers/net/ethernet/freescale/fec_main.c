@@ -93,6 +93,20 @@ static void set_multicast_list(struct net_device *ndev);
 #define FEC_QUIRK_HAS_CSUM		(1 << 5)
 /* Controller has hardware vlan support */
 #define FEC_QUIRK_HAS_VLAN		(1 << 6)
+/* ENET IP errata ERR006358
+ *
+ * If the ready bit in the transmit buffer descriptor (TxBD[R]) is previously
+ * detected as not set during a prior frame transmission, then the
+ * ENET_TDAR[TDAR] bit is cleared at a later time, even if additional TxBDs
+ * were added to the ring and the ENET_TDAR[TDAR] bit is set. This results in
+ * If the ready bit in the transmit buffer descriptor (TxBD[R]) is previously
+ * detected as not set during a prior frame transmission, then the
+ * ENET_TDAR[TDAR] bit is cleared at a later time, even if additional TxBDs
+ * were added to the ring and the ENET_TDAR[TDAR] bit is set. This results in
+ * frames not being transmitted until there is a 0-to-1 transition on
+ * ENET_TDAR[TDAR].
+ */
+#define FEC_QUIRK_ERR006358            (1 << 7)
 
 static struct platform_device_id fec_devtype[] = {
 	{
@@ -112,7 +126,7 @@ static struct platform_device_id fec_devtype[] = {
 		.name = "imx6q-fec",
 		.driver_data = FEC_QUIRK_ENET_MAC | FEC_QUIRK_HAS_GBIT |
 				FEC_QUIRK_HAS_BUFDESC_EX | FEC_QUIRK_HAS_CSUM |
-				FEC_QUIRK_HAS_VLAN,
+				FEC_QUIRK_HAS_VLAN | FEC_QUIRK_ERR006358,
 	}, {
 		.name = "mvf600-fec",
 		.driver_data = FEC_QUIRK_ENET_MAC,
@@ -275,15 +289,10 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	const struct platform_device_id *id_entry =
 				platform_get_device_id(fep->pdev);
-	struct bufdesc *bdp;
+	struct bufdesc *bdp, *bdp_pre;
 	void *bufaddr;
 	unsigned short	status;
 	unsigned int index;
-
-	if (!fep->link) {
-		/* Link is down or auto-negotiation is in progress. */
-		return NETDEV_TX_BUSY;
-	}
 
 	/* Fill in a Tx ring entry */
 	bdp = fep->cur_tx;
@@ -370,6 +379,15 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 				ebdp->cbd_esc |= BD_ENET_TX_PINS;
 		}
 	}
+
+	bdp_pre = fec_enet_get_prevdesc(bdp, fep->bufdesc_ex);
+	if ((id_entry->driver_data & FEC_QUIRK_ERR006358) &&
+	    !(bdp_pre->cbd_sc & BD_ENET_TX_READY)) {
+		fep->delay_work.trig_tx = true;
+		schedule_delayed_work(&(fep->delay_work.delay_work),
+					msecs_to_jiffies(1));
+	}
+
 	/* If this was the last BD in the ring, start at the beginning again. */
 	if (status & BD_ENET_TX_WRAP)
 		bdp = fep->tx_bd_base;
@@ -688,6 +706,11 @@ static void fec_enet_work(struct work_struct *work)
 		fep->delay_work.timeout = false;
 		fec_restart(fep->netdev, fep->full_duplex);
 		netif_wake_queue(fep->netdev);
+	}
+
+	if (fep->delay_work.trig_tx) {
+		fep->delay_work.trig_tx = false;
+		writel(0, fep->hwp + FEC_X_DES_ACTIVE);
 	}
 }
 
@@ -2279,4 +2302,5 @@ static struct platform_driver fec_driver = {
 
 module_platform_driver(fec_driver);
 
+MODULE_ALIAS("platform:"DRIVER_NAME);
 MODULE_LICENSE("GPL");

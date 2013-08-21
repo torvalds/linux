@@ -605,12 +605,12 @@ static int max6697_init_chip(struct i2c_client *client)
 		if (ret < 0)
 			return ret;
 		ret = i2c_smbus_write_byte_data(client, MAX6581_REG_IDEALITY,
-						pdata->ideality_mask >> 1);
+						pdata->ideality_value);
 		if (ret < 0)
 			return ret;
 		ret = i2c_smbus_write_byte_data(client,
 						MAX6581_REG_IDEALITY_SELECT,
-						pdata->ideality_value);
+						pdata->ideality_mask >> 1);
 		if (ret < 0)
 			return ret;
 	}

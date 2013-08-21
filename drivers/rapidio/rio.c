@@ -1715,11 +1715,13 @@ int rio_unregister_scan(int mport_id, struct rio_scan *scan_ops)
 		    (mport_id == RIO_MPORT_ANY && port->nscan == scan_ops))
 			port->nscan = NULL;
 
-	list_for_each_entry(scan, &rio_scans, node)
+	list_for_each_entry(scan, &rio_scans, node) {
 		if (scan->mport_id == mport_id) {
 			list_del(&scan->node);
 			kfree(scan);
+			break;
 		}
+	}
 
 	mutex_unlock(&rio_mport_list_lock);
 

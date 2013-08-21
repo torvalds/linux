@@ -138,7 +138,7 @@ nouveau_user_framebuffer_create(struct drm_device *dev,
 {
 	struct nouveau_framebuffer *nouveau_fb;
 	struct drm_gem_object *gem;
-	int ret;
+	int ret = -ENOMEM;
 
 	gem = drm_gem_object_lookup(dev, file_priv, mode_cmd->handles[0]);
 	if (!gem)
@@ -146,15 +146,19 @@ nouveau_user_framebuffer_create(struct drm_device *dev,
 
 	nouveau_fb = kzalloc(sizeof(struct nouveau_framebuffer), GFP_KERNEL);
 	if (!nouveau_fb)
-		return ERR_PTR(-ENOMEM);
+		goto err_unref;
 
 	ret = nouveau_framebuffer_init(dev, nouveau_fb, mode_cmd, nouveau_gem_object(gem));
-	if (ret) {
-		drm_gem_object_unreference(gem);
-		return ERR_PTR(ret);
-	}
+	if (ret)
+		goto err;
 
 	return &nouveau_fb->base;
+
+err:
+	kfree(nouveau_fb);
+err_unref:
+	drm_gem_object_unreference(gem);
+	return ERR_PTR(ret);
 }
 
 static const struct drm_mode_config_funcs nouveau_mode_config_funcs = {
@@ -524,9 +528,12 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	struct nouveau_page_flip_state *s;
 	struct nouveau_channel *chan = NULL;
 	struct nouveau_fence *fence;
-	struct list_head res;
-	struct ttm_validate_buffer res_val[2];
+	struct ttm_validate_buffer resv[2] = {
+		{ .bo = &old_bo->bo },
+		{ .bo = &new_bo->bo },
+	};
 	struct ww_acquire_ctx ticket;
+	LIST_HEAD(res);
 	int ret;
 
 	if (!drm->channel)
@@ -545,27 +552,19 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		chan = drm->channel;
 	spin_unlock(&old_bo->bo.bdev->fence_lock);
 
-	mutex_lock(&chan->cli->mutex);
-
 	if (new_bo != old_bo) {
 		ret = nouveau_bo_pin(new_bo, TTM_PL_FLAG_VRAM);
-		if (likely(!ret)) {
-			res_val[0].bo = &old_bo->bo;
-			res_val[1].bo = &new_bo->bo;
-			INIT_LIST_HEAD(&res);
-			list_add_tail(&res_val[0].head, &res);
-			list_add_tail(&res_val[1].head, &res);
-			ret = ttm_eu_reserve_buffers(&ticket, &res);
-			if (ret)
-				nouveau_bo_unpin(new_bo);
-		}
-	} else
-		ret = ttm_bo_reserve(&new_bo->bo, false, false, false, 0);
+		if (ret)
+			goto fail_free;
 
-	if (ret) {
-		mutex_unlock(&chan->cli->mutex);
-		goto fail_free;
+		list_add(&resv[1].head, &res);
 	}
+	list_add(&resv[0].head, &res);
+
+	mutex_lock(&chan->cli->mutex);
+	ret = ttm_eu_reserve_buffers(&ticket, &res);
+	if (ret)
+		goto fail_unpin;
 
 	/* Initialize a page flip struct */
 	*s = (struct nouveau_page_flip_state)
@@ -576,10 +575,8 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	/* Emit a page flip */
 	if (nv_device(drm->device)->card_type >= NV_50) {
 		ret = nv50_display_flip_next(crtc, fb, chan, 0);
-		if (ret) {
-			mutex_unlock(&chan->cli->mutex);
+		if (ret)
 			goto fail_unreserve;
-		}
 	}
 
 	ret = nouveau_page_flip_emit(chan, old_bo, new_bo, s, &fence);
@@ -590,22 +587,18 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	/* Update the crtc struct and cleanup */
 	crtc->fb = fb;
 
-	if (old_bo != new_bo) {
-		ttm_eu_fence_buffer_objects(&ticket, &res, fence);
+	ttm_eu_fence_buffer_objects(&ticket, &res, fence);
+	if (old_bo != new_bo)
 		nouveau_bo_unpin(old_bo);
-	} else {
-		nouveau_bo_fence(new_bo, fence);
-		ttm_bo_unreserve(&new_bo->bo);
-	}
 	nouveau_fence_unref(&fence);
 	return 0;
 
 fail_unreserve:
-	if (old_bo != new_bo) {
-		ttm_eu_backoff_reservation(&ticket, &res);
+	ttm_eu_backoff_reservation(&ticket, &res);
+fail_unpin:
+	mutex_unlock(&chan->cli->mutex);
+	if (old_bo != new_bo)
 		nouveau_bo_unpin(new_bo);
-	} else
-		ttm_bo_unreserve(&new_bo->bo);
 fail_free:
 	kfree(s);
 	return ret;
