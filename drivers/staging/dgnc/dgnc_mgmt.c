@@ -35,7 +35,6 @@
  * Neo and ClassicBoard based product lines.
  *
  ************************************************************************
- * $Id: dgnc_mgmt.c,v 1.2 2010/12/14 20:08:29 markh Exp $
  */
 #include <linux/kernel.h>
 #include <linux/ctype.h>

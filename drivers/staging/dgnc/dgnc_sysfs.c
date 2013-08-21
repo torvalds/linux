@@ -27,9 +27,6 @@
  *      Send any bug fixes/changes to:  Eng.Linux at digi dot com.
  *      Thank you.
  *
- *
- *
- * $Id: dgnc_sysfs.c,v 1.1.1.1 2009/05/20 12:19:19 markh Exp $
  */
 
 

@@ -27,8 +27,6 @@
  *	Send any bug fixes/changes to:  Eng.Linux at digi dot com.
  *	Thank you.
  *
- * $Id: dgnc_driver.c,v 1.3 2011/06/23 12:47:35 markh Exp $
- *
  */
 
 

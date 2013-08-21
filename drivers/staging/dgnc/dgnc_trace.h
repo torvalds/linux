@@ -21,7 +21,6 @@
  *****************************************************************************
  * Header file for dgnc_trace.c
  *
- * $Id: dgnc_trace.h,v 1.1.1.1 2009/05/20 12:19:19 markh Exp $
  */
 
 #ifndef __DGNC_TRACE_H

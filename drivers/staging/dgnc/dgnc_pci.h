@@ -19,8 +19,6 @@
  *	NOTE: THIS IS A SHARED HEADER. DO NOT CHANGE CODING STYLE!!!
  */
 
-/* $Id: dgnc_pci.h,v 1.1.1.1 2009/05/20 12:19:19 markh Exp $ */
-
 #ifndef __DGNC_PCI_H
 #define __DGNC_PCI_H
 
