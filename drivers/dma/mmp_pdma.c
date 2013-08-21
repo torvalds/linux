@@ -985,6 +985,7 @@ static int mmp_pdma_probe(struct platform_device *op)
 	dma_cap_set(DMA_SLAVE, pdev->device.cap_mask);
 	dma_cap_set(DMA_MEMCPY, pdev->device.cap_mask);
 	dma_cap_set(DMA_CYCLIC, pdev->device.cap_mask);
+	dma_cap_set(DMA_PRIVATE, pdev->device.cap_mask);
 	pdev->device.dev = &op->dev;
 	pdev->device.device_alloc_chan_resources = mmp_pdma_alloc_chan_resources;
 	pdev->device.device_free_chan_resources = mmp_pdma_free_chan_resources;
