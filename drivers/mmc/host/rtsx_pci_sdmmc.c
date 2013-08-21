@@ -227,6 +227,7 @@ static void sd_send_cmd_get_rsp(struct realtek_pci_sdmmc *host,
 	int stat_idx = 0;
 	u8 rsp_type;
 	int rsp_len = 5;
+	bool clock_toggled = false;
 
 	dev_dbg(sdmmc_dev(host), "%s: SD/MMC CMD %d, arg = 0x%08x\n",
 			__func__, cmd_idx, arg);
@@ -270,6 +271,8 @@ static void sd_send_cmd_get_rsp(struct realtek_pci_sdmmc *host,
 				0xFF, SD_CLK_TOGGLE_EN);
 		if (err < 0)
 			goto out;
+
+		clock_toggled = true;
 	}
 
 	rtsx_pci_init_cmd(pcr);
@@ -350,6 +353,10 @@ static void sd_send_cmd_get_rsp(struct realtek_pci_sdmmc *host,
 
 out:
 	cmd->error = err;
+
+	if (err && clock_toggled)
+		rtsx_pci_write_register(pcr, SD_BUS_STAT,
+				SD_CLK_TOGGLE_EN | SD_CLK_FORCE_STOP, 0);
 }
 
 static int sd_rw_multi(struct realtek_pci_sdmmc *host, struct mmc_request *mrq)
@@ -1121,11 +1128,11 @@ static int sdmmc_switch_voltage(struct mmc_host *mmc, struct mmc_ios *ios)
 			goto out;
 	}
 
+out:
 	/* Stop toggle SD clock in idle */
 	err = rtsx_pci_write_register(pcr, SD_BUS_STAT,
 			SD_CLK_TOGGLE_EN | SD_CLK_FORCE_STOP, 0);
 
-out:
 	mutex_unlock(&pcr->pcr_mutex);
 
 	return err;
