@@ -2036,6 +2036,10 @@ int cypress_dpm_init(struct radeon_device *rdev)
 	pi->min_vddc_in_table = 0;
 	pi->max_vddc_in_table = 0;
 
+	ret = r600_get_platform_caps(rdev);
+	if (ret)
+		return ret;
+
 	ret = rv7xx_parse_power_table(rdev);
 	if (ret)
 		return ret;

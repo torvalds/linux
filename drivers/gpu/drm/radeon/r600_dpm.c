@@ -834,6 +834,26 @@ static int r600_parse_clk_voltage_dep_table(struct radeon_clock_voltage_dependen
 	return 0;
 }
 
+int r600_get_platform_caps(struct radeon_device *rdev)
+{
+	struct radeon_mode_info *mode_info = &rdev->mode_info;
+	union power_info *power_info;
+	int index = GetIndexIntoMasterTable(DATA, PowerPlayInfo);
+        u16 data_offset;
+	u8 frev, crev;
+
+	if (!atom_parse_data_header(mode_info->atom_context, index, NULL,
+				   &frev, &crev, &data_offset))
+		return -EINVAL;
+	power_info = (union power_info *)(mode_info->atom_context->bios + data_offset);
+
+	rdev->pm.dpm.platform_caps = le32_to_cpu(power_info->pplib.ulPlatformCaps);
+	rdev->pm.dpm.backbias_response_time = le16_to_cpu(power_info->pplib.usBackbiasTime);
+	rdev->pm.dpm.voltage_response_time = le16_to_cpu(power_info->pplib.usVoltageTime);
+
+	return 0;
+}
+
 /* sizeof(ATOM_PPLIB_EXTENDEDHEADER) */
 #define SIZE_OF_ATOM_PPLIB_EXTENDEDHEADER_V2 12
 #define SIZE_OF_ATOM_PPLIB_EXTENDEDHEADER_V3 14

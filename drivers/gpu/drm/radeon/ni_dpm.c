@@ -4025,9 +4025,6 @@ static int ni_parse_power_table(struct radeon_device *rdev)
 				  power_info->pplib.ucNumStates, GFP_KERNEL);
 	if (!rdev->pm.dpm.ps)
 		return -ENOMEM;
-	rdev->pm.dpm.platform_caps = le32_to_cpu(power_info->pplib.ulPlatformCaps);
-	rdev->pm.dpm.backbias_response_time = le16_to_cpu(power_info->pplib.usBackbiasTime);
-	rdev->pm.dpm.voltage_response_time = le16_to_cpu(power_info->pplib.usVoltageTime);
 
 	for (i = 0; i < power_info->pplib.ucNumStates; i++) {
 		power_state = (union pplib_power_state *)
@@ -4088,6 +4085,10 @@ int ni_dpm_init(struct radeon_device *rdev)
 	eg_pi->acpi_vddci = 0;
 	pi->min_vddc_in_table = 0;
 	pi->max_vddc_in_table = 0;
+
+	ret = r600_get_platform_caps(rdev);
+	if (ret)
+		return ret;
 
 	ret = ni_parse_power_table(rdev);
 	if (ret)
