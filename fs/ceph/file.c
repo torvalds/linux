@@ -12,6 +12,7 @@
 
 #include "super.h"
 #include "mds_client.h"
+#include "cache.h"
 
 /*
  * Ceph file operations
@@ -69,9 +70,23 @@ static int ceph_init_file(struct inode *inode, struct file *file, int fmode)
 {
 	struct ceph_file_info *cf;
 	int ret = 0;
+	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_fs_client *fsc = ceph_sb_to_client(inode->i_sb);
+	struct ceph_mds_client *mdsc = fsc->mdsc;
 
 	switch (inode->i_mode & S_IFMT) {
 	case S_IFREG:
+		/* First file open request creates the cookie, we want to keep
+		 * this cookie around for the filetime of the inode as not to
+		 * have to worry about fscache register / revoke / operation
+		 * races.
+		 *
+		 * Also, if we know the operation is going to invalidate data
+		 * (non readonly) just nuke the cache right away.
+		 */
+		ceph_fscache_register_inode_cookie(mdsc->fsc, ci);
+		if ((fmode & CEPH_FILE_MODE_WR))
+			ceph_fscache_invalidate(inode);
 	case S_IFDIR:
 		dout("init_file %p %p 0%o (regular)\n", inode, file,
 		     inode->i_mode);
@@ -182,6 +197,7 @@ int ceph_open(struct inode *inode, struct file *file)
 		spin_unlock(&ci->i_ceph_lock);
 		return ceph_init_file(inode, file, fmode);
 	}
+
 	spin_unlock(&ci->i_ceph_lock);
 
 	dout("open fmode %d wants %s\n", fmode, ceph_cap_string(wanted));
@@ -192,6 +208,7 @@ int ceph_open(struct inode *inode, struct file *file)
 	}
 	req->r_inode = inode;
 	ihold(inode);
+
 	req->r_num_caps = 1;
 	if (flags & (O_CREAT|O_TRUNC))
 		parent_inode = ceph_get_dentry_parent_inode(file->f_dentry);

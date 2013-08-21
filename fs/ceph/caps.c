@@ -10,6 +10,7 @@
 
 #include "super.h"
 #include "mds_client.h"
+#include "cache.h"
 #include <linux/ceph/decode.h>
 #include <linux/ceph/messenger.h>
 
@@ -479,8 +480,9 @@ static void __check_cap_issue(struct ceph_inode_info *ci, struct ceph_cap *cap,
 	 * i_rdcache_gen.
 	 */
 	if ((issued & (CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_LAZYIO)) &&
-	    (had & (CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_LAZYIO)) == 0)
+	    (had & (CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_LAZYIO)) == 0) {
 		ci->i_rdcache_gen++;
+	}
 
 	/*
 	 * if we are newly issued FILE_SHARED, mark dir not complete; we
@@ -2395,6 +2397,7 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 	int writeback = 0;
 	int queue_invalidate = 0;
 	int deleted_inode = 0;
+	int queue_revalidate = 0;
 
 	dout("handle_cap_grant inode %p cap %p mds%d seq %d %s\n",
 	     inode, cap, mds, seq, ceph_cap_string(newcaps));
@@ -2417,6 +2420,8 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 				ci->i_rdcache_revoking = ci->i_rdcache_gen;
 			}
 		}
+
+		ceph_fscache_invalidate(inode);
 	}
 
 	/* side effects now are allowed */
@@ -2457,6 +2462,11 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 			ci->i_xattrs.version = version;
 		}
 	}
+
+	/* Do we need to revalidate our fscache cookie. Don't bother on the
+	 * first cache cap as we already validate at cookie creation time. */
+	if ((issued & CEPH_CAP_FILE_CACHE) && ci->i_rdcache_gen > 1)
+		queue_revalidate = 1;
 
 	/* size/ctime/mtime/atime? */
 	ceph_fill_file_size(inode, issued,
@@ -2542,6 +2552,7 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 	BUG_ON(cap->issued & ~cap->implemented);
 
 	spin_unlock(&ci->i_ceph_lock);
+
 	if (writeback)
 		/*
 		 * queue inode for writeback: we can't actually call
@@ -2553,6 +2564,8 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 		ceph_queue_invalidate(inode);
 	if (deleted_inode)
 		invalidate_aliases(inode);
+	if (queue_revalidate)
+		ceph_queue_revalidate(inode);
 	if (wake)
 		wake_up_all(&ci->i_cap_wq);
 
@@ -2709,8 +2722,10 @@ static void handle_cap_trunc(struct inode *inode,
 					  truncate_seq, truncate_size, size);
 	spin_unlock(&ci->i_ceph_lock);
 
-	if (queue_trunc)
+	if (queue_trunc) {
 		ceph_queue_vmtruncate(inode);
+		ceph_fscache_invalidate(inode);
+	}
 }
 
 /*

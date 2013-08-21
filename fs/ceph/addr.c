@@ -11,6 +11,7 @@
 
 #include "super.h"
 #include "mds_client.h"
+#include "cache.h"
 #include <linux/ceph/osd_client.h>
 
 /*
@@ -144,6 +145,11 @@ static void ceph_invalidatepage(struct page *page, unsigned int offset,
 		return;
 	}
 
+	ceph_invalidate_fscache_page(inode, page);
+
+	if (!PagePrivate(page))
+		return;
+
 	/*
 	 * We can get non-dirty pages here due to races between
 	 * set_page_dirty and truncate_complete_page; just spit out a
@@ -163,14 +169,17 @@ static void ceph_invalidatepage(struct page *page, unsigned int offset,
 	ClearPagePrivate(page);
 }
 
-/* just a sanity check */
 static int ceph_releasepage(struct page *page, gfp_t g)
 {
 	struct inode *inode = page->mapping ? page->mapping->host : NULL;
 	dout("%p releasepage %p idx %lu\n", inode, page, page->index);
 	WARN_ON(PageDirty(page));
-	WARN_ON(PagePrivate(page));
-	return 0;
+
+	/* Can we release the page from the cache? */
+	if (!ceph_release_fscache_page(page, g))
+		return 0;
+
+	return !PagePrivate(page);
 }
 
 /*
@@ -180,10 +189,15 @@ static int readpage_nounlock(struct file *filp, struct page *page)
 {
 	struct inode *inode = file_inode(filp);
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_osd_client *osdc = 
+	struct ceph_osd_client *osdc =
 		&ceph_inode_to_client(inode)->client->osdc;
 	int err = 0;
 	u64 len = PAGE_CACHE_SIZE;
+
+	err = ceph_readpage_from_fscache(inode, page);
+
+	if (err == 0)
+		goto out;
 
 	dout("readpage inode %p file %p page %p index %lu\n",
 	     inode, filp, page, page->index);
@@ -201,6 +215,9 @@ static int readpage_nounlock(struct file *filp, struct page *page)
 		zero_user_segment(page, err, PAGE_CACHE_SIZE);
 	}
 	SetPageUptodate(page);
+
+	if (err == 0)
+		ceph_readpage_to_fscache(inode, page);
 
 out:
 	return err < 0 ? err : 0;
@@ -244,6 +261,7 @@ static void finish_read(struct ceph_osd_request *req, struct ceph_msg *msg)
 		     page->index);
 		flush_dcache_page(page);
 		SetPageUptodate(page);
+		ceph_readpage_to_fscache(inode, page);
 		unlock_page(page);
 		page_cache_release(page);
 		bytes -= PAGE_CACHE_SIZE;
@@ -313,7 +331,7 @@ static int start_read(struct inode *inode, struct list_head *page_list, int max)
 		page = list_entry(page_list->prev, struct page, lru);
 		BUG_ON(PageLocked(page));
 		list_del(&page->lru);
-		
+
  		dout("start_read %p adding %p idx %lu\n", inode, page,
 		     page->index);
 		if (add_to_page_cache_lru(page, &inode->i_data, page->index,
@@ -359,6 +377,12 @@ static int ceph_readpages(struct file *file, struct address_space *mapping,
 	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
 	int rc = 0;
 	int max = 0;
+
+	rc = ceph_readpages_from_fscache(mapping->host, mapping, page_list,
+					 &nr_pages);
+
+	if (rc == 0)
+		goto out;
 
 	if (fsc->mount_options->rsize >= PAGE_CACHE_SIZE)
 		max = (fsc->mount_options->rsize + PAGE_CACHE_SIZE - 1)
@@ -479,6 +503,8 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 	    CONGESTION_ON_THRESH(fsc->mount_options->congestion_kb))
 		set_bdi_congested(&fsc->backing_dev_info, BLK_RW_ASYNC);
 
+	ceph_readpage_to_fscache(inode, page);
+
 	set_page_writeback(page);
 	err = ceph_osdc_writepages(osdc, ceph_vino(inode),
 				   &ci->i_layout, snapc,
@@ -533,7 +559,6 @@ static void ceph_release_pages(struct page **pages, int num)
 	}
 	pagevec_release(&pvec);
 }
-
 
 /*
  * async writeback completion handler.
