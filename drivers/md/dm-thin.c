@@ -1086,6 +1086,7 @@ static void break_sharing(struct thin_c *tc, struct bio *bio, dm_block_t block,
 {
 	int r;
 	dm_block_t data_block;
+	struct pool *pool = tc->pool;
 
 	r = alloc_data_block(tc, &data_block);
 	switch (r) {
@@ -1095,13 +1096,14 @@ static void break_sharing(struct thin_c *tc, struct bio *bio, dm_block_t block,
 		break;
 
 	case -ENOSPC:
-		no_space(tc->pool, cell);
+		no_space(pool, cell);
 		break;
 
 	default:
 		DMERR_LIMIT("%s: alloc_data_block() failed: error = %d",
 			    __func__, r);
-		cell_error(tc->pool, cell);
+		set_pool_mode(pool, PM_READ_ONLY);
+		cell_error(pool, cell);
 		break;
 	}
 }
