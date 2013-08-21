@@ -1822,6 +1822,7 @@ struct radeon_asic {
 		void (*set_pcie_lanes)(struct radeon_device *rdev, int lanes);
 		void (*set_clock_gating)(struct radeon_device *rdev, int enable);
 		int (*set_uvd_clocks)(struct radeon_device *rdev, u32 vclk, u32 dclk);
+		int (*set_vce_clocks)(struct radeon_device *rdev, u32 evclk, u32 ecclk);
 		int (*get_temperature)(struct radeon_device *rdev);
 	} pm;
 	/* dynamic power management */
@@ -2683,6 +2684,7 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_set_pcie_lanes(rdev, l) (rdev)->asic->pm.set_pcie_lanes((rdev), (l))
 #define radeon_set_clock_gating(rdev, e) (rdev)->asic->pm.set_clock_gating((rdev), (e))
 #define radeon_set_uvd_clocks(rdev, v, d) (rdev)->asic->pm.set_uvd_clocks((rdev), (v), (d))
+#define radeon_set_vce_clocks(rdev, ev, ec) (rdev)->asic->pm.set_vce_clocks((rdev), (ev), (ec))
 #define radeon_get_temperature(rdev) (rdev)->asic->pm.get_temperature((rdev))
 #define radeon_set_surface_reg(rdev, r, f, p, o, s) ((rdev)->asic->surface.set_reg((rdev), (r), (f), (p), (o), (s)))
 #define radeon_clear_surface_reg(rdev, r) ((rdev)->asic->surface.clear_reg((rdev), (r)))
