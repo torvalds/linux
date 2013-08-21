@@ -374,7 +374,7 @@ more:
 			goto more;
 	}
 
-	if (ret >= 0) {
+	if (read > 0) {
 		ret = read;
 		/* did we bounce off eof? */
 		if (pos + left > inode->i_size)
@@ -612,6 +612,8 @@ out:
 		if (check_caps)
 			ceph_check_caps(ceph_inode(inode), CHECK_CAPS_AUTHONLY,
 					NULL);
+	} else if (ret != -EOLDSNAPC && written > 0) {
+		ret = written;
 	}
 	return ret;
 }
