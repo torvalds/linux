@@ -1103,7 +1103,7 @@ static int update_open_stateid(struct nfs4_state *state, nfs4_stateid *open_stat
 		goto no_delegation;
 
 	spin_lock(&deleg_cur->lock);
-	if (nfsi->delegation != deleg_cur ||
+	if (rcu_dereference(nfsi->delegation) != deleg_cur ||
 	   test_bit(NFS_DELEGATION_RETURNING, &deleg_cur->flags) ||
 	    (deleg_cur->type & fmode) != fmode)
 		goto no_delegation_unlock;
@@ -4632,11 +4632,11 @@ static void nfs4_init_boot_verifier(const struct nfs_client *clp,
 		/* An impossible timestamp guarantees this value
 		 * will never match a generated boot time. */
 		verf[0] = 0;
-		verf[1] = (__be32)(NSEC_PER_SEC + 1);
+		verf[1] = cpu_to_be32(NSEC_PER_SEC + 1);
 	} else {
 		struct nfs_net *nn = net_generic(clp->cl_net, nfs_net_id);
-		verf[0] = (__be32)nn->boot_time.tv_sec;
-		verf[1] = (__be32)nn->boot_time.tv_nsec;
+		verf[0] = cpu_to_be32(nn->boot_time.tv_sec);
+		verf[1] = cpu_to_be32(nn->boot_time.tv_nsec);
 	}
 	memcpy(bootverf->data, verf, sizeof(bootverf->data));
 }
@@ -7263,7 +7263,7 @@ static void nfs41_free_stateid_release(void *calldata)
 	kfree(calldata);
 }
 
-const struct rpc_call_ops nfs41_free_stateid_ops = {
+static const struct rpc_call_ops nfs41_free_stateid_ops = {
 	.rpc_call_prepare = nfs41_free_stateid_prepare,
 	.rpc_call_done = nfs41_free_stateid_done,
 	.rpc_release = nfs41_free_stateid_release,
@@ -7483,7 +7483,7 @@ const struct nfs4_minor_version_ops *nfs_v4_minor_ops[] = {
 #endif
 };
 
-const struct inode_operations nfs4_dir_inode_operations = {
+static const struct inode_operations nfs4_dir_inode_operations = {
 	.create		= nfs_create,
 	.lookup		= nfs_lookup,
 	.atomic_open	= nfs_atomic_open,
