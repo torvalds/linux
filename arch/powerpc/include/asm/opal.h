@@ -128,6 +128,7 @@ extern int opal_enter_rtas(struct rtas_args *args,
 #define OPAL_XSCOM_WRITE			66
 #define OPAL_LPC_READ				67
 #define OPAL_LPC_WRITE				68
+#define OPAL_RETURN_CPU				69
 
 #ifndef __ASSEMBLY__
 
@@ -646,6 +647,7 @@ int64_t opal_set_system_attention_led(uint8_t led_action);
 int64_t opal_pci_next_error(uint64_t phb_id, uint64_t *first_frozen_pe,
 			    uint16_t *pci_error_type, uint16_t *severity);
 int64_t opal_pci_poll(uint64_t phb_id);
+int64_t opal_return_cpu(void);
 
 int64_t opal_xscom_read(uint32_t gcid, uint32_t pcb_addr, uint64_t *val);
 int64_t opal_xscom_write(uint32_t gcid, uint32_t pcb_addr, uint64_t val);

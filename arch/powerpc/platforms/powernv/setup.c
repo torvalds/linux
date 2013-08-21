@@ -31,6 +31,7 @@
 #include <asm/xics.h>
 #include <asm/rtas.h>
 #include <asm/opal.h>
+#include <asm/kexec.h>
 
 #include "powernv.h"
 
@@ -153,6 +154,16 @@ static void pnv_shutdown(void)
 static void pnv_kexec_cpu_down(int crash_shutdown, int secondary)
 {
 	xics_kexec_teardown_cpu(secondary);
+
+	/* Return secondary CPUs to firmware on OPAL v3 */
+	if (firmware_has_feature(FW_FEATURE_OPALv3) && secondary) {
+		mb();
+		get_paca()->kexec_state = KEXEC_STATE_REAL_MODE;
+		mb();
+
+		/* Return the CPU to OPAL */
+		opal_return_cpu();
+	}
 }
 #endif /* CONFIG_KEXEC */
 
