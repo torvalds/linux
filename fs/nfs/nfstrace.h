@@ -352,6 +352,76 @@ TRACE_EVENT(nfs_atomic_open_exit,
 		)
 );
 
+TRACE_EVENT(nfs_create_enter,
+		TP_PROTO(
+			const struct inode *dir,
+			const struct dentry *dentry,
+			unsigned int flags
+		),
+
+		TP_ARGS(dir, dentry, flags),
+
+		TP_STRUCT__entry(
+			__field(unsigned int, flags)
+			__field(dev_t, dev)
+			__field(u64, dir)
+			__string(name, dentry->d_name.name)
+		),
+
+		TP_fast_assign(
+			__entry->dev = dir->i_sb->s_dev;
+			__entry->dir = NFS_FILEID(dir);
+			__entry->flags = flags;
+			__assign_str(name, dentry->d_name.name);
+		),
+
+		TP_printk(
+			"flags=%u (%s) name=%02x:%02x:%llu/%s",
+			__entry->flags,
+			show_open_flags(__entry->flags),
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->dir,
+			__get_str(name)
+		)
+);
+
+TRACE_EVENT(nfs_create_exit,
+		TP_PROTO(
+			const struct inode *dir,
+			const struct dentry *dentry,
+			unsigned int flags,
+			int error
+		),
+
+		TP_ARGS(dir, dentry, flags, error),
+
+		TP_STRUCT__entry(
+			__field(int, error)
+			__field(unsigned int, flags)
+			__field(dev_t, dev)
+			__field(u64, dir)
+			__string(name, dentry->d_name.name)
+		),
+
+		TP_fast_assign(
+			__entry->error = error;
+			__entry->dev = dir->i_sb->s_dev;
+			__entry->dir = NFS_FILEID(dir);
+			__entry->flags = flags;
+			__assign_str(name, dentry->d_name.name);
+		),
+
+		TP_printk(
+			"error=%d flags=%u (%s) name=%02x:%02x:%llu/%s",
+			__entry->error,
+			__entry->flags,
+			show_open_flags(__entry->flags),
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->dir,
+			__get_str(name)
+		)
+);
+
 #endif /* _TRACE_NFS_H */
 
 #undef TRACE_INCLUDE_PATH

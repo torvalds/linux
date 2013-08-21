@@ -1612,7 +1612,9 @@ int nfs_create(struct inode *dir, struct dentry *dentry,
 	attr.ia_mode = mode;
 	attr.ia_valid = ATTR_MODE;
 
+	trace_nfs_create_enter(dir, dentry, open_flags);
 	error = NFS_PROTO(dir)->create(dir, dentry, &attr, open_flags);
+	trace_nfs_create_exit(dir, dentry, open_flags, error);
 	if (error != 0)
 		goto out_err;
 	return 0;
