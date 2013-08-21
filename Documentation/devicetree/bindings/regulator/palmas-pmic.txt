@@ -26,11 +26,17 @@ Optional nodes:
 
 	       For ti,palmas-pmic - smps12, smps123, smps3 depending on OTP,
 	       smps45, smps457, smps7 depending on variant, smps6, smps[8-9],
-	       smps10_out2, smps10_out1, do[1-9], ldoln, ldousb.
+	       smps10_out2, smps10_out1, ldo[1-9], ldoln, ldousb.
 
 	       Optional sub-node properties:
 	       ti,warm-reset - maintain voltage during warm reset(boolean)
-	       ti,roof-floor - control voltage selection by pin(boolean)
+	       ti,roof-floor - This takes as optional argument on platform supporting
+	       the rail from desired external control. If there is no argument then
+	       it will be assume that it is controlled by NSLEEP pin.
+	       The valid value for external pins are:
+			ENABLE1 then 1,
+			ENABLE2 then 2 or
+			NSLEEP then 3.
 	       ti,mode-sleep - mode to adopt in pmic sleep 0 - off, 1 - auto,
 	       2 - eco, 3 - forced pwm
 	       ti,smps-range - OTP has the wrong range set for the hardware so override
@@ -61,7 +67,7 @@ pmic {
 			regulator-always-on;
 			regulator-boot-on;
 			ti,warm-reset;
-			ti,roof-floor;
+			ti,roof-floor = <1>; /* ENABLE1 control */
 			ti,mode-sleep = <0>;
 			ti,smps-range = <1>;
 		};
