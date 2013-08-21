@@ -1394,9 +1394,8 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 
 	if (atomic_xchg(&root->fs_info->mutually_exclusive_operation_running,
 			1)) {
-		pr_info("btrfs: dev add/delete/balance/replace/resize operation in progress\n");
 		mnt_drop_write_file(file);
-		return -EINVAL;
+		return BTRFS_ERROR_DEV_EXCL_RUN_IN_PROGRESS;
 	}
 
 	mutex_lock(&root->fs_info->volume_mutex);
@@ -2379,8 +2378,7 @@ static long btrfs_ioctl_add_dev(struct btrfs_root *root, void __user *arg)
 
 	if (atomic_xchg(&root->fs_info->mutually_exclusive_operation_running,
 			1)) {
-		pr_info("btrfs: dev add/delete/balance/replace/resize operation in progress\n");
-		return -EINVAL;
+		return BTRFS_ERROR_DEV_EXCL_RUN_IN_PROGRESS;
 	}
 
 	mutex_lock(&root->fs_info->volume_mutex);
@@ -3673,8 +3671,7 @@ static long btrfs_ioctl_dev_replace(struct btrfs_root *root, void __user *arg)
 		if (atomic_xchg(
 			&root->fs_info->mutually_exclusive_operation_running,
 			1)) {
-			pr_info("btrfs: dev add/delete/balance/replace/resize operation in progress\n");
-			ret = -EINPROGRESS;
+			ret = BTRFS_ERROR_DEV_EXCL_RUN_IN_PROGRESS;
 		} else {
 			ret = btrfs_dev_replace_start(root, p);
 			atomic_set(
@@ -3918,8 +3915,7 @@ again:
 	} else {
 		/* this is (1) */
 		mutex_unlock(&fs_info->balance_mutex);
-		pr_info("btrfs: dev add/delete/balance/replace/resize operation in progress\n");
-		ret = -EINVAL;
+		ret = BTRFS_ERROR_DEV_EXCL_RUN_IN_PROGRESS;
 		goto out;
 	}
 
