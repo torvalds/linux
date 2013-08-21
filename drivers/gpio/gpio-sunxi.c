@@ -318,7 +318,7 @@ static struct irq_chip sunxi_gpio_irq_chip = {
 
 static void __devinit sunxi_gpio_eint_probe(void)
 {
-	if (sunxi_is_a10()) {
+	if (sunxi_is_a10() || sunxi_is_a20()) {
 		/* Pins that can be used as interrupt source  */
 		/* PH0 - PH21, PI10 - PI19 (all in mux6 mode) */
 		/* A-0 B-1 C-2 D-3 E-4 F-5 G-6 H-7 I-8 S-9    */

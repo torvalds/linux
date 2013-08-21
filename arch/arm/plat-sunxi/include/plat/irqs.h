@@ -39,7 +39,7 @@
 #ifdef CONFIG_ARCH_SUN7I
 #define AW_IRQ_GIC_START	32
 #define SW_INT_START		AW_IRQ_GIC_START
-#define NR_IRQS			(AW_IRQ_GIC_START + 128)
+#define NR_IRQS			(AW_IRQ_GIC_START + 128 + 32)
 #define MAX_GIC_NR		1
 #else
 #define SW_INT_START		0
