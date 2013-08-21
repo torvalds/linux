@@ -279,25 +279,6 @@ static void mmp_pdma_free_phy(struct mmp_pdma_chan *pchan)
 	spin_unlock_irqrestore(&pdev->phy_lock, flags);
 }
 
-/* desc->tx_list ==> pending list */
-static void append_pending_queue(struct mmp_pdma_chan *chan,
-					struct mmp_pdma_desc_sw *desc)
-{
-	struct mmp_pdma_desc_sw *tail =
-				to_mmp_pdma_desc(chan->chain_pending.prev);
-
-	if (list_empty(&chan->chain_pending))
-		goto out_splice;
-
-	/* one irq per queue, even appended */
-	tail->desc.ddadr = desc->async_tx.phys;
-	tail->desc.dcmd &= ~DCMD_ENDIRQEN;
-
-	/* softly link to pending list */
-out_splice:
-	list_splice_tail_init(&desc->tx_list, &chan->chain_pending);
-}
-
 /**
  * start_pending_queue - transfer any pending transactions
  * pending list ==> running list
@@ -360,7 +341,8 @@ static dma_cookie_t mmp_pdma_tx_submit(struct dma_async_tx_descriptor *tx)
 		cookie = dma_cookie_assign(&child->async_tx);
 	}
 
-	append_pending_queue(chan, desc);
+	/* softly link to pending list - desc->tx_list ==> pending list */
+	list_splice_tail_init(&desc->tx_list, &chan->chain_pending);
 
 	spin_unlock_irqrestore(&chan->desc_lock, flags);
 
