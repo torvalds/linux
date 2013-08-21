@@ -56,7 +56,6 @@ struct realtek_pci_sdmmc {
 	bool			double_clk;
 	bool			eject;
 	bool			initial_mode;
-	bool			ddr_mode;
 	int			power_state;
 #define SDMMC_POWER_ON		1
 #define SDMMC_POWER_OFF		0
@@ -475,18 +474,24 @@ static void sd_normal_rw(struct realtek_pci_sdmmc *host,
 	kfree(buf);
 }
 
-static int sd_change_phase(struct realtek_pci_sdmmc *host, u8 sample_point)
+static int sd_change_phase(struct realtek_pci_sdmmc *host,
+		u8 sample_point, bool rx)
 {
 	struct rtsx_pcr *pcr = host->pcr;
 	int err;
 
-	dev_dbg(sdmmc_dev(host), "%s: sample_point = %d\n",
-			__func__, sample_point);
+	dev_dbg(sdmmc_dev(host), "%s(%s): sample_point = %d\n",
+			__func__, rx ? "RX" : "TX", sample_point);
 
 	rtsx_pci_init_cmd(pcr);
 
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, CLK_CTL, CHANGE_CLK, CHANGE_CLK);
-	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SD_VPRX_CTL, 0x1F, sample_point);
+	if (rx)
+		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD,
+				SD_VPRX_CTL, 0x1F, sample_point);
+	else
+		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD,
+				SD_VPTX_CTL, 0x1F, sample_point);
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SD_VPCLK0_CTL, PHASE_NOT_RESET, 0);
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SD_VPCLK0_CTL,
 			PHASE_NOT_RESET, PHASE_NOT_RESET);
@@ -602,7 +607,7 @@ static int sd_tuning_rx_cmd(struct realtek_pci_sdmmc *host,
 	int err;
 	u8 cmd[5] = {0};
 
-	err = sd_change_phase(host, sample_point);
+	err = sd_change_phase(host, sample_point, true);
 	if (err < 0)
 		return err;
 
@@ -664,7 +669,7 @@ static int sd_tuning_rx(struct realtek_pci_sdmmc *host, u8 opcode)
 		if (final_phase == 0xFF)
 			return -EINVAL;
 
-		err = sd_change_phase(host, final_phase);
+		err = sd_change_phase(host, final_phase, true);
 		if (err < 0)
 			return err;
 	} else {
@@ -833,13 +838,10 @@ static int sd_set_power_mode(struct realtek_pci_sdmmc *host,
 	return err;
 }
 
-static int sd_set_timing(struct realtek_pci_sdmmc *host,
-		unsigned char timing, bool *ddr_mode)
+static int sd_set_timing(struct realtek_pci_sdmmc *host, unsigned char timing)
 {
 	struct rtsx_pcr *pcr = host->pcr;
 	int err = 0;
-
-	*ddr_mode = false;
 
 	rtsx_pci_init_cmd(pcr);
 
@@ -857,8 +859,6 @@ static int sd_set_timing(struct realtek_pci_sdmmc *host,
 		break;
 
 	case MMC_TIMING_UHS_DDR50:
-		*ddr_mode = true;
-
 		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SD_CFG1,
 				0x0C | SD_ASYNC_FIFO_NOT_RST,
 				SD_DDR_MODE | SD_ASYNC_FIFO_NOT_RST);
@@ -926,7 +926,7 @@ static void sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	sd_set_bus_width(host, ios->bus_width);
 	sd_set_power_mode(host, ios->power_mode);
-	sd_set_timing(host, ios->timing, &host->ddr_mode);
+	sd_set_timing(host, ios->timing);
 
 	host->vpclk = false;
 	host->double_clk = true;
@@ -1148,9 +1148,35 @@ static int sdmmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 
 	rtsx_pci_start_run(pcr);
 
-	if (!host->ddr_mode)
-		err = sd_tuning_rx(host, MMC_SEND_TUNING_BLOCK);
+	/* Set initial TX phase */
+	switch (mmc->ios.timing) {
+	case MMC_TIMING_UHS_SDR104:
+		err = sd_change_phase(host, SDR104_TX_PHASE(pcr), false);
+		break;
 
+	case MMC_TIMING_UHS_SDR50:
+		err = sd_change_phase(host, SDR50_TX_PHASE(pcr), false);
+		break;
+
+	case MMC_TIMING_UHS_DDR50:
+		err = sd_change_phase(host, DDR50_TX_PHASE(pcr), false);
+		break;
+
+	default:
+		err = 0;
+	}
+
+	if (err)
+		goto out;
+
+	/* Tuning RX phase */
+	if ((mmc->ios.timing == MMC_TIMING_UHS_SDR104) ||
+			(mmc->ios.timing == MMC_TIMING_UHS_SDR50))
+		err = sd_tuning_rx(host, opcode);
+	else if (mmc->ios.timing == MMC_TIMING_UHS_DDR50)
+		err = sd_change_phase(host, DDR50_RX_PHASE(pcr), true);
+
+out:
 	mutex_unlock(&pcr->pcr_mutex);
 
 	return err;

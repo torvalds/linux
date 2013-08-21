@@ -847,6 +847,9 @@ struct rtsx_pcr {
 #define PCR_REVERSE_SOCKET		(1 << 1)
 	u32				flags;
 
+	u32				tx_initial_phase;
+	u32				rx_initial_phase;
+
 	const u32			*sd_pull_ctl_enable_tbl;
 	const u32			*sd_pull_ctl_disable_tbl;
 	const u32			*ms_pull_ctl_enable_tbl;
@@ -862,6 +865,18 @@ struct rtsx_pcr {
 #define CHK_PCI_PID(pcr, pid)		((pcr)->pci->device == (pid))
 #define PCI_VID(pcr)			((pcr)->pci->vendor)
 #define PCI_PID(pcr)			((pcr)->pci->device)
+
+#define SDR104_PHASE(val)		((val) & 0xFF)
+#define SDR50_PHASE(val)		(((val) >> 8) & 0xFF)
+#define DDR50_PHASE(val)		(((val) >> 16) & 0xFF)
+#define SDR104_TX_PHASE(pcr)		SDR104_PHASE((pcr)->tx_initial_phase)
+#define SDR50_TX_PHASE(pcr)		SDR50_PHASE((pcr)->tx_initial_phase)
+#define DDR50_TX_PHASE(pcr)		DDR50_PHASE((pcr)->tx_initial_phase)
+#define SDR104_RX_PHASE(pcr)		SDR104_PHASE((pcr)->rx_initial_phase)
+#define SDR50_RX_PHASE(pcr)		SDR50_PHASE((pcr)->rx_initial_phase)
+#define DDR50_RX_PHASE(pcr)		DDR50_PHASE((pcr)->rx_initial_phase)
+#define SET_CLOCK_PHASE(sdr104, sdr50, ddr50)	\
+				(((ddr50) << 16) | ((sdr50) << 8) | (sdr104))
 
 void rtsx_pci_start_run(struct rtsx_pcr *pcr);
 int rtsx_pci_write_register(struct rtsx_pcr *pcr, u16 addr, u8 mask, u8 data);
