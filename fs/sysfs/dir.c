@@ -990,13 +990,14 @@ static struct sysfs_dirent *sysfs_dir_next_pos(const void *ns,
 	struct sysfs_dirent *parent_sd,	ino_t ino, struct sysfs_dirent *pos)
 {
 	pos = sysfs_dir_pos(ns, parent_sd, ino, pos);
-	if (pos) do {
-		struct rb_node *node = rb_next(&pos->s_rb);
-		if (!node)
-			pos = NULL;
-		else
-			pos = to_sysfs_dirent(node);
-	} while (pos && pos->s_ns != ns);
+	if (pos)
+		do {
+			struct rb_node *node = rb_next(&pos->s_rb);
+			if (!node)
+				pos = NULL;
+			else
+				pos = to_sysfs_dirent(node);
+		} while (pos && pos->s_ns != ns);
 	return pos;
 }
 
