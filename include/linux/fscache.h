@@ -183,6 +183,7 @@ extern struct fscache_cookie *__fscache_acquire_cookie(
 	const struct fscache_cookie_def *,
 	void *);
 extern void __fscache_relinquish_cookie(struct fscache_cookie *, int);
+extern int __fscache_check_consistency(struct fscache_cookie *);
 extern void __fscache_update_cookie(struct fscache_cookie *);
 extern int __fscache_attr_changed(struct fscache_cookie *);
 extern void __fscache_invalidate(struct fscache_cookie *);
@@ -323,6 +324,25 @@ void fscache_relinquish_cookie(struct fscache_cookie *cookie, int retire)
 {
 	if (fscache_cookie_valid(cookie))
 		__fscache_relinquish_cookie(cookie, retire);
+}
+
+/**
+ * fscache_check_consistency - Request that if the cache is updated
+ * @cookie: The cookie representing the cache object
+ *
+ * Request an consistency check from fscache, which passes the request
+ * to the backing cache.
+ *
+ * Returns 0 if consistent and -ESTALE if inconsistent.  May also
+ * return -ENOMEM and -ERESTARTSYS.
+ */
+static inline
+int fscache_check_consistency(struct fscache_cookie *cookie)
+{
+	if (fscache_cookie_valid(cookie))
+		return __fscache_check_consistency(cookie);
+	else
+		return 0;
 }
 
 /**

@@ -32,7 +32,7 @@ This document contains the following sections:
 	 (9) Setting the data file size
 	(10) Page alloc/read/write
 	(11) Page uncaching
-	(12) Index and data file update
+	(12) Index and data file consistency
 	(13) Miscellaneous cookie operations
 	(14) Cookie unregistration
 	(15) Index invalidation
@@ -690,9 +690,18 @@ written to the cache and for the cache to finish with the page generally.  No
 error is returned.
 
 
-==========================
-INDEX AND DATA FILE UPDATE
-==========================
+===============================
+INDEX AND DATA FILE CONSISTENCY
+===============================
+
+To find out whether auxiliary data for an object is up to data within the
+cache, the following function can be called:
+
+	int fscache_check_consistency(struct fscache_cookie *cookie)
+
+This will call back to the netfs to check whether the auxiliary data associated
+with a cookie is correct.  It returns 0 if it is and -ESTALE if it isn't; it
+may also return -ENOMEM and -ERESTARTSYS.
 
 To request an update of the index data for an index or other object, the
 following function should be called:
