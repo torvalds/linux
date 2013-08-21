@@ -124,9 +124,9 @@ ATTRIBUTE_GROUPS(w1_slave);
 
 /* Default family */
 
-static ssize_t w1_default_write(struct file *filp, struct kobject *kobj,
-				struct bin_attribute *bin_attr,
-				char *buf, loff_t off, size_t count)
+static ssize_t rw_write(struct file *filp, struct kobject *kobj,
+			struct bin_attribute *bin_attr, char *buf, loff_t off,
+			size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
 
@@ -143,9 +143,9 @@ out_up:
 	return count;
 }
 
-static ssize_t w1_default_read(struct file *filp, struct kobject *kobj,
-			       struct bin_attribute *bin_attr,
-			       char *buf, loff_t off, size_t count)
+static ssize_t rw_read(struct file *filp, struct kobject *kobj,
+		       struct bin_attribute *bin_attr, char *buf, loff_t off,
+		       size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
 
@@ -155,29 +155,24 @@ static ssize_t w1_default_read(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute w1_default_attr = {
-      .attr = {
-              .name = "rw",
-              .mode = S_IRUGO | S_IWUSR,
-      },
-      .size = PAGE_SIZE,
-      .read = w1_default_read,
-      .write = w1_default_write,
+static BIN_ATTR_RW(rw, PAGE_SIZE);
+
+static struct bin_attribute *w1_slave_bin_attrs[] = {
+	&bin_attr_rw,
+	NULL,
 };
 
-static int w1_default_add_slave(struct w1_slave *sl)
-{
-	return sysfs_create_bin_file(&sl->dev.kobj, &w1_default_attr);
-}
+static const struct attribute_group w1_slave_default_group = {
+	.bin_attrs = w1_slave_bin_attrs,
+};
 
-static void w1_default_remove_slave(struct w1_slave *sl)
-{
-	sysfs_remove_bin_file(&sl->dev.kobj, &w1_default_attr);
-}
+static const struct attribute_group *w1_slave_default_groups[] = {
+	&w1_slave_default_group,
+	NULL,
+};
 
 static struct w1_family_ops w1_default_fops = {
-	.add_slave	= w1_default_add_slave,
-	.remove_slave	= w1_default_remove_slave,
+	.groups		= w1_slave_default_groups,
 };
 
 static struct w1_family w1_default_family = {
@@ -600,6 +595,7 @@ static int w1_bus_notify(struct notifier_block *nb, unsigned long action,
 {
 	struct device *dev = data;
 	struct w1_slave *sl;
+	struct w1_family_ops *fops;
 	int err;
 
 	/*
@@ -611,23 +607,36 @@ static int w1_bus_notify(struct notifier_block *nb, unsigned long action,
 		return 0;
 
 	sl = dev_to_w1_slave(dev);
+	fops = sl->family->fops;
 
 	switch (action) {
 	case BUS_NOTIFY_ADD_DEVICE:
 		/* if the family driver needs to initialize something... */
-		if (sl->family->fops && sl->family->fops->add_slave &&
-		    ((err = sl->family->fops->add_slave(sl)) < 0)) {
-			dev_err(&sl->dev,
-				"sysfs file creation for [%s] failed. err=%d\n",
-				dev_name(&sl->dev), err);
-			return err;
+		if (fops->add_slave) {
+			err = fops->add_slave(sl);
+			if (err < 0) {
+				dev_err(&sl->dev,
+					"add_slave() call failed. err=%d\n",
+					err);
+				return err;
+			}
+		}
+		if (fops->groups) {
+			err = sysfs_create_groups(&sl->dev.kobj, fops->groups);
+			if (err) {
+				dev_err(&sl->dev,
+					"sysfs group creation failed. err=%d\n",
+					err);
+				return err;
+			}
 		}
 
 		break;
 	case BUS_NOTIFY_DEL_DEVICE:
-		/* Remove our sysfs files */
-		if (sl->family->fops && sl->family->fops->remove_slave)
+		if (fops->remove_slave)
 			sl->family->fops->remove_slave(sl);
+		if (fops->groups)
+			sysfs_remove_groups(&sl->dev.kobj, fops->groups);
 		break;
 	}
 	return 0;
