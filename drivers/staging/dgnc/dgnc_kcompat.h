@@ -35,8 +35,8 @@
 # endif
 
 
-#if !defined(TTY_FLIPBUF_SIZE)        
-# define TTY_FLIPBUF_SIZE 512        
+#if !defined(TTY_FLIPBUF_SIZE)
+# define TTY_FLIPBUF_SIZE 512
 #endif
 
 
