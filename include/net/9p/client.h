@@ -26,6 +26,8 @@
 #ifndef NET_9P_CLIENT_H
 #define NET_9P_CLIENT_H
 
+#include <linux/utsname.h>
+
 /* Number of requests per row */
 #define P9_ROW_MAXTAG 255
 
@@ -134,6 +136,7 @@ struct p9_req_t {
  * @tagpool - transaction id accounting for session
  * @reqs - 2D array of requests
  * @max_tag - current maximum tag id allocated
+ * @name - node name used as client id
  *
  * The client structure is used to keep track of various per-client
  * state that has been instantiated.
@@ -164,6 +167,8 @@ struct p9_client {
 	struct p9_idpool *tagpool;
 	struct p9_req_t *reqs[P9_ROW_MAXTAG];
 	int max_tag;
+
+	char name[__NEW_UTS_LEN + 1];
 };
 
 /**
