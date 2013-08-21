@@ -222,7 +222,7 @@ static int octeon_mdiobus_probe(struct platform_device *pdev)
 	bus->mii_bus->read = octeon_mdiobus_read;
 	bus->mii_bus->write = octeon_mdiobus_write;
 
-	dev_set_drvdata(&pdev->dev, bus);
+	platform_set_drvdata(pdev, bus);
 
 	err = of_mdiobus_register(bus->mii_bus, pdev->dev.of_node);
 	if (err)
