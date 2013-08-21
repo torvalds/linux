@@ -3,6 +3,8 @@
  *
  * Copyright (c) 2003 Patrick Mochel
  * Copyright (c) 2003 Open Source Development Lab
+ * Copyright (c) 2013 Greg Kroah-Hartman
+ * Copyright (c) 2013 The Linux Foundation
  *
  * This file is released undert the GPL v2.
  *
