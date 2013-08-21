@@ -97,7 +97,7 @@ module_exit(dgnc_cleanup_module);
 static struct file_operations dgnc_BoardFops =
 {
 	.owner		=	THIS_MODULE,
-        .unlocked_ioctl =  	dgnc_mgmt_ioctl,
+	.unlocked_ioctl =  	dgnc_mgmt_ioctl,
 	.open		=	dgnc_mgmt_open,
 	.release	=	dgnc_mgmt_close
 };
@@ -297,9 +297,9 @@ static int dgnc_start(void)
 				MKDEV(dgnc_Major, 0),
 				NULL, "dgnc_mgmt");
 #else
-                        device_create(dgnc_class, NULL,
-                                MKDEV(dgnc_Major, 0),
-                                NULL, "dgnc_mgmt");
+			device_create(dgnc_class, NULL,
+				MKDEV(dgnc_Major, 0),
+				NULL, "dgnc_mgmt");
 #endif
 
 			dgnc_Major_Control_Registered = TRUE;
@@ -355,7 +355,7 @@ static int dgnc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		rc = dgnc_probe1(pdev, ent->driver_data);
 		if (rc == 0) {
 			dgnc_NumBoards++;
-	                DPR_INIT(("Incrementing numboards to %d\n", dgnc_NumBoards));
+			DPR_INIT(("Incrementing numboards to %d\n", dgnc_NumBoards));
 		}
 	}
 	return rc;
@@ -423,8 +423,8 @@ static void dgnc_cleanup_board(struct board_t *brd)
 {
 	int i = 0;
 
-        if(!brd || brd->magic != DGNC_BOARD_MAGIC)
-                return;
+	if(!brd || brd->magic != DGNC_BOARD_MAGIC)
+		return;
 
 	switch (brd->device) {
 	case PCI_DEVICE_CLASSIC_4_DID:
@@ -459,7 +459,7 @@ static void dgnc_cleanup_board(struct board_t *brd)
 		kfree(brd->msgbuf_head);
 		brd->msgbuf_head = NULL;
 		DGNC_UNLOCK(dgnc_global_lock, flags);
-        }
+	}
 
 	/* Free all allocated channels structs */
 	for (i = 0; i < MAXPORTS ; i++) {
@@ -481,7 +481,7 @@ static void dgnc_cleanup_board(struct board_t *brd)
 
 	dgnc_Board[brd->boardnum] = NULL;
 
-        kfree(brd);
+	kfree(brd);
 }
 
 
@@ -492,28 +492,28 @@ static void dgnc_cleanup_board(struct board_t *brd)
  */
 static int dgnc_found_board(struct pci_dev *pdev, int id)
 {
-        struct board_t *brd;
+	struct board_t *brd;
 	unsigned int pci_irq;
 	int i = 0;
 	int rc = 0;
 	unsigned long flags;
 
-        /* get the board structure and prep it */
-        brd = dgnc_Board[dgnc_NumBoards] =
-        (struct board_t *) dgnc_driver_kzmalloc(sizeof(struct board_t), GFP_KERNEL);
+	/* get the board structure and prep it */
+	brd = dgnc_Board[dgnc_NumBoards] =
+	(struct board_t *) dgnc_driver_kzmalloc(sizeof(struct board_t), GFP_KERNEL);
 	if (!brd) {
 		APR(("memory allocation for board structure failed\n"));
 		return(-ENOMEM);
 	}
 
-        /* make a temporary message buffer for the boot messages */
-        brd->msgbuf = brd->msgbuf_head =
-                (char *) dgnc_driver_kzmalloc(sizeof(char) * 8192, GFP_KERNEL);
-        if (!brd->msgbuf) {
+	/* make a temporary message buffer for the boot messages */
+	brd->msgbuf = brd->msgbuf_head =
+		(char *) dgnc_driver_kzmalloc(sizeof(char) * 8192, GFP_KERNEL);
+	if (!brd->msgbuf) {
 		kfree(brd);
 		APR(("memory allocation for board msgbuf failed\n"));
 		return(-ENOMEM);
-        }
+	}
 
 	/* store the info for the board we've found */
 	brd->magic = DGNC_BOARD_MAGIC;
@@ -557,16 +557,16 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 
 		brd->dpatype = T_CLASSIC | T_PCIBUS;
 
-                DPR_INIT(("dgnc_found_board - Classic.\n"));
+		DPR_INIT(("dgnc_found_board - Classic.\n"));
 
 		/*
 		 * For PCI ClassicBoards
 		 * PCI Local Address (i.e. "resource" number) space
-		 * 0        PLX Memory Mapped Config
-		 * 1        PLX I/O Mapped Config
-		 * 2        I/O Mapped UARTs and Status
-		 * 3        Memory Mapped VPD
-		 * 4        Memory Mapped UARTs and Status
+		 * 0	PLX Memory Mapped Config
+		 * 1	PLX I/O Mapped Config
+		 * 2	I/O Mapped UARTs and Status
+		 * 3	Memory Mapped VPD
+		 * 4	Memory Mapped UARTs and Status
 		 */
 
 
@@ -585,9 +585,9 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 		else
 			brd->membase &= ~15;
 
-		brd->iobase     = pci_resource_start(pdev, 1);
+		brd->iobase	= pci_resource_start(pdev, 1);
 		brd->iobase_end = pci_resource_end(pdev, 1);
- 		brd->iobase     = ((unsigned int) (brd->iobase)) & 0xFFFE;
+		brd->iobase	= ((unsigned int) (brd->iobase)) & 0xFFFE;
 
 		/* Assign the board_ops struct */
 		brd->bd_ops = &dgnc_cls_ops;
@@ -633,7 +633,7 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 		else
 			brd->dpatype = T_NEO | T_PCIBUS;
 
-                DPR_INIT(("dgnc_found_board - NEO.\n"));
+		DPR_INIT(("dgnc_found_board - NEO.\n"));
 
 		/* get the PCI Base Address Registers */
 		brd->membase     = pci_resource_start(pdev, 0);
@@ -730,7 +730,7 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 
 	wake_up_interruptible(&brd->state_wait);
 
-        return(0);
+	return(0);
 
 failed:
 
@@ -742,12 +742,12 @@ failed:
 static int dgnc_finalize_board_init(struct board_t *brd) {
 	int rc = 0;
 
-        DPR_INIT(("dgnc_finalize_board_init() - start\n"));
+	DPR_INIT(("dgnc_finalize_board_init() - start\n"));
 
 	if (!brd || brd->magic != DGNC_BOARD_MAGIC)
-                return(-ENODEV);
+		return(-ENODEV);
 
-        DPR_INIT(("dgnc_finalize_board_init() - start #2\n"));
+	DPR_INIT(("dgnc_finalize_board_init() - start #2\n"));
 
 	if (brd->irq) {
 		rc = request_irq(brd->irq, brd->bd_ops->intr, IRQF_SHARED, "DGNC", brd);
@@ -807,8 +807,8 @@ static void dgnc_do_remap(struct board_t *brd)
 
 static void dgnc_poll_handler(ulong dummy)
 {
-        struct board_t *brd;
-        unsigned long lock_flags;
+	struct board_t *brd;
+	unsigned long lock_flags;
 	int i;
 	unsigned long new_time;
 
@@ -877,7 +877,7 @@ static void dgnc_init_globals(void)
 	int i = 0;
 
 	dgnc_rawreadok		= rawreadok;
-        dgnc_trcbuf_size	= trcbuf_size;
+	dgnc_trcbuf_size	= trcbuf_size;
 	dgnc_debug		= debug;
 
 	for (i = 0; i < MAXBOARDS; i++) {
@@ -902,7 +902,7 @@ static void dgnc_init_globals(void)
  */
 void *dgnc_driver_kzmalloc(size_t size, int priority)
 {
- 	void *p = kmalloc(size, priority);
+	void *p = kmalloc(size, priority);
 	if(p)
 		memset(p, 0, size);
 	return(p);
