@@ -20,8 +20,8 @@
  */
 
 
-/* 
- * This structure holds data needed for the intelligent <--> nonintelligent 
+/*
+ * This structure holds data needed for the intelligent <--> nonintelligent
  * DPA translation
  */
  struct ni_info {
