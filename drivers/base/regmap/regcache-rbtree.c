@@ -332,7 +332,7 @@ regcache_rbtree_node_alloc(struct regmap *map, unsigned int reg)
 	}
 
 	if (!rbnode->blklen) {
-		rbnode->blklen = sizeof(*rbnode);
+		rbnode->blklen = 1;
 		rbnode->base_reg = reg;
 	}
 
