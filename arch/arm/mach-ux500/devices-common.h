@@ -12,7 +12,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/sys_soc.h>
 #include <linux/amba/bus.h>
-#include <linux/platform_data/i2c-nomadik.h>
 
 struct spi_master_cntlr;
 
@@ -42,19 +41,6 @@ dbx500_add_uart(struct device *parent, const char *name, resource_size_t base,
 		int irq, struct amba_pl011_data *pdata)
 {
 	return amba_ahb_device_add(parent, name, base, SZ_4K, irq, 0, pdata, 0);
-}
-
-struct nmk_i2c_controller;
-
-static inline struct amba_device *
-dbx500_add_i2c(struct device *parent, int id, resource_size_t base, int irq,
-	       struct nmk_i2c_controller *data)
-{
-	/* Conjure a name similar to what the platform device used to have */
-	char name[16];
-
-	snprintf(name, sizeof(name), "nmk-i2c.%d", id);
-	return amba_apb_device_add(parent, name, base, SZ_4K, irq, 0, data, 0);
 }
 
 static inline struct amba_device *

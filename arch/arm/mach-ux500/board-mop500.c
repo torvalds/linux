@@ -14,8 +14,6 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/io.h>
-#include <linux/i2c.h>
-#include <linux/platform_data/i2c-nomadik.h>
 #include <linux/platform_data/db8500_thermal.h>
 #include <linux/gpio.h>
 #include <linux/amba/bus.h>
@@ -52,14 +50,6 @@ struct ab8500_platform_data ab8500_platdata = {
 	.irq_base	= MOP500_AB8500_IRQ_BASE,
 	.regulator	= &ab8500_regulator_plat_data,
 };
-
-static void __init mop500_i2c_init(struct device *parent)
-{
-	db8500_add_i2c0(parent, NULL);
-	db8500_add_i2c1(parent, NULL);
-	db8500_add_i2c2(parent, NULL);
-	db8500_add_i2c3(parent, NULL);
-}
 
 #ifdef CONFIG_STE_DMA40
 static struct stedma40_chan_cfg ssp0_dma_cfg_rx = {
@@ -174,7 +164,6 @@ static void __init mop500_init_machine(void)
 	mop500_pinmaps_init();
 	parent = u8500_init_devices();
 
-	mop500_i2c_init(parent);
 	mop500_sdi_init(parent);
 	mop500_spi_init(parent);
 	mop500_uart_init(parent);
@@ -193,7 +182,6 @@ static void __init snowball_init_machine(void)
 	snowball_pinmaps_init();
 	parent = u8500_init_devices();
 
-	mop500_i2c_init(parent);
 	snowball_sdi_init(parent);
 	mop500_spi_init(parent);
 	mop500_uart_init(parent);
@@ -211,7 +199,6 @@ static void __init hrefv60_init_machine(void)
 	hrefv60_pinmaps_init();
 	parent = u8500_init_devices();
 
-	mop500_i2c_init(parent);
 	hrefv60_sdi_init(parent);
 	mop500_spi_init(parent);
 	mop500_uart_init(parent);

@@ -42,17 +42,6 @@ db8500_add_ssp(struct device *parent, const char *name, resource_size_t base,
 	return amba_ahb_device_add(parent, name, base, SZ_4K, irq, 0, pdata, 0);
 }
 
-#define db8500_add_i2c0(parent, pdata) \
-	dbx500_add_i2c(parent, 0, U8500_I2C0_BASE, IRQ_DB8500_I2C0, pdata)
-#define db8500_add_i2c1(parent, pdata) \
-	dbx500_add_i2c(parent, 1, U8500_I2C1_BASE, IRQ_DB8500_I2C1, pdata)
-#define db8500_add_i2c2(parent, pdata) \
-	dbx500_add_i2c(parent, 2, U8500_I2C2_BASE, IRQ_DB8500_I2C2, pdata)
-#define db8500_add_i2c3(parent, pdata) \
-	dbx500_add_i2c(parent, 3, U8500_I2C3_BASE, IRQ_DB8500_I2C3, pdata)
-#define db8500_add_i2c4(parent, pdata) \
-	dbx500_add_i2c(parent, 4, U8500_I2C4_BASE, IRQ_DB8500_I2C4, pdata)
-
 #define db8500_add_rtc(parent) \
 	dbx500_add_rtc(parent, U8500_RTC_BASE, IRQ_DB8500_RTC);
 
