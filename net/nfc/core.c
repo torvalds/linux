@@ -384,6 +384,19 @@ int nfc_dep_link_is_up(struct nfc_dev *dev, u32 target_idx,
 {
 	dev->dep_link_up = true;
 
+	if (!dev->active_target) {
+		struct nfc_target *target;
+
+		target = nfc_find_target(dev, target_idx);
+		if (target == NULL)
+			return -ENOTCONN;
+
+		dev->active_target = target;
+	}
+
+	dev->polling = false;
+	dev->rf_mode = rf_mode;
+
 	nfc_llcp_mac_is_up(dev, target_idx, comm_mode, rf_mode);
 
 	return nfc_genl_dep_link_up_event(dev, target_idx, comm_mode, rf_mode);
