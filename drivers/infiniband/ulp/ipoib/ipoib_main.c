@@ -1350,7 +1350,7 @@ void ipoib_setup(struct net_device *dev)
 
 	ipoib_set_ethtool_ops(dev);
 
-	netif_napi_add(dev, &priv->napi, ipoib_poll, 100);
+	netif_napi_add(dev, &priv->napi, ipoib_poll, NAPI_POLL_WEIGHT);
 
 	dev->watchdog_timeo	 = HZ;
 
