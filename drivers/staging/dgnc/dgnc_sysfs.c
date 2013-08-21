@@ -1,7 +1,7 @@
 /*
  * Copyright 2004 Digi International (www.digi.com)
  *      Scott H Kilau <Scott_Kilau at digi dot com>
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2, or (at your option)
@@ -9,14 +9,14 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY, EXPRESS OR IMPLIED; without even the
- * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+ * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
  * PURPOSE.  See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * 
+ *
  *      NOTE TO LINUX KERNEL HACKERS:  DO NOT REFORMAT THIS CODE!
  *
  *      This is shared code between Digi's CVS archive and the
@@ -28,8 +28,8 @@
  *      Thank you.
  *
  *
- * 
- * $Id: dgnc_sysfs.c,v 1.1.1.1 2009/05/20 12:19:19 markh Exp $   
+ *
+ * $Id: dgnc_sysfs.c,v 1.1.1.1 2009/05/20 12:19:19 markh Exp $
  */
 
 
@@ -41,7 +41,7 @@
 #include <linux/device.h>
 #include <linux/pci.h>
 #include <linux/kdev_t.h>
-  
+
 #include "dgnc_driver.h"
 #include "dgnc_mgmt.h"
 
@@ -129,7 +129,7 @@ void dgnc_create_driver_sysfiles(struct pci_driver *dgnc_driver)
 	rc |= driver_create_file(driverfs, &driver_attr_boards);
 	rc |= driver_create_file(driverfs, &driver_attr_maxboards);
 	rc |= driver_create_file(driverfs, &driver_attr_debug);
-	rc |= driver_create_file(driverfs, &driver_attr_rawreadok); 
+	rc |= driver_create_file(driverfs, &driver_attr_rawreadok);
 	rc |= driver_create_file(driverfs, &driver_attr_pollrate);
 	rc |= driver_create_file(driverfs, &driver_attr_pollcounter);
 	rc |= driver_create_file(driverfs, &driver_attr_state);
@@ -720,7 +720,7 @@ static struct attribute *dgnc_sysfs_tty_entries[] = {
 	&dev_attr_msignals.attr,
 	&dev_attr_iflag.attr,
 	&dev_attr_cflag.attr,
-	&dev_attr_oflag.attr,          
+	&dev_attr_oflag.attr,
 	&dev_attr_lflag.attr,
 	&dev_attr_digi_flag.attr,
 	&dev_attr_rxcount.attr,
@@ -751,7 +751,7 @@ void dgnc_create_tty_sysfs(struct un_t *un, struct device *c)
 
 }
 
- 
+
 void dgnc_remove_tty_sysfs(struct device *c)
 {
 	sysfs_remove_group(&c->kobj, &dgnc_tty_attribute_group);
