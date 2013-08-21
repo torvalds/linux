@@ -318,5 +318,6 @@
 };
 
 &usbotg {
-       status = "okay";
+	dr_mode = "peripheral";
+	status = "okay";
 };
