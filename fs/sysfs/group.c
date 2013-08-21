@@ -4,7 +4,7 @@
  * Copyright (c) 2003 Patrick Mochel
  * Copyright (c) 2003 Open Source Development Lab
  *
- * This file is released undert the GPL v2. 
+ * This file is released undert the GPL v2.
  *
  */
 
@@ -189,7 +189,7 @@ int sysfs_update_group(struct kobject *kobj,
 }
 EXPORT_SYMBOL_GPL(sysfs_update_group);
 
-void sysfs_remove_group(struct kobject * kobj, 
+void sysfs_remove_group(struct kobject * kobj,
 			const struct attribute_group * grp)
 {
 	struct sysfs_dirent *dir_sd = kobj->sd;
