@@ -24,16 +24,6 @@ dbx500_add_spi(struct device *parent, const char *name, resource_size_t base,
 				   pdata, periphid);
 }
 
-struct mmci_platform_data;
-
-static inline struct amba_device *
-dbx500_add_sdi(struct device *parent, const char *name, resource_size_t base,
-	       int irq, struct mmci_platform_data *pdata, u32 periphid)
-{
-	return amba_ahb_device_add(parent, name, base, SZ_4K, irq, 0,
-				   pdata, periphid);
-}
-
 struct amba_pl011_data;
 
 static inline struct amba_device *

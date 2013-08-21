@@ -49,25 +49,6 @@ db8500_add_ssp(struct device *parent, const char *name, resource_size_t base,
 	ux500_add_usb(parent, U8500_USBOTG_BASE, \
 		      IRQ_DB8500_USBOTG, rx_cfg, tx_cfg)
 
-#define db8500_add_sdi0(parent, pdata, pid) \
-	dbx500_add_sdi(parent, "sdi0", U8500_SDI0_BASE, \
-		       IRQ_DB8500_SDMMC0, pdata, pid)
-#define db8500_add_sdi1(parent, pdata, pid) \
-	dbx500_add_sdi(parent, "sdi1", U8500_SDI1_BASE, \
-		       IRQ_DB8500_SDMMC1, pdata, pid)
-#define db8500_add_sdi2(parent, pdata, pid) \
-	dbx500_add_sdi(parent, "sdi2", U8500_SDI2_BASE, \
-		       IRQ_DB8500_SDMMC2, pdata, pid)
-#define db8500_add_sdi3(parent, pdata, pid) \
-	dbx500_add_sdi(parent, "sdi3", U8500_SDI3_BASE, \
-		       IRQ_DB8500_SDMMC3, pdata, pid)
-#define db8500_add_sdi4(parent, pdata, pid) \
-	dbx500_add_sdi(parent, "sdi4", U8500_SDI4_BASE, \
-		       IRQ_DB8500_SDMMC4, pdata, pid)
-#define db8500_add_sdi5(parent, pdata, pid) \
-	dbx500_add_sdi(parent, "sdi5", U8500_SDI5_BASE, \
-		       IRQ_DB8500_SDMMC5, pdata, pid)
-
 #define db8500_add_ssp0(parent, pdata) \
 	db8500_add_ssp(parent, "ssp0", U8500_SSP0_BASE, \
 		       IRQ_DB8500_SSP0, pdata)
