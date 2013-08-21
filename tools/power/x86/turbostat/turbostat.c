@@ -1175,6 +1175,19 @@ void free_all_buffers(void)
 }
 
 /*
+ * Open a file, and exit on failure
+ */
+FILE *fopen_or_die(const char *path, const char *mode)
+{
+	FILE *filep = fopen(path, "r");
+	if (!filep) {
+		perror(path);
+		exit(1);
+	}
+	return filep;
+}
+
+/*
  * Parse a file containing a single int.
  */
 int parse_int_file(const char *fmt, ...)
@@ -1187,11 +1200,7 @@ int parse_int_file(const char *fmt, ...)
 	va_start(args, fmt);
 	vsnprintf(path, sizeof(path), fmt, args);
 	va_end(args);
-	filep = fopen(path, "r");
-	if (!filep) {
-		perror(path);
-		exit(1);
-	}
+	filep = fopen_or_die(path, "r");
 	if (fscanf(filep, "%d", &value) != 1) {
 		perror(path);
 		exit(1);
@@ -1237,11 +1246,7 @@ int get_num_ht_siblings(int cpu)
 	char character;
 
 	sprintf(path, "/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpu);
-	filep = fopen(path, "r");
-	if (filep == NULL) {
-		perror(path);
-		exit(1);
-	}
+	filep = fopen_or_die(path, "r");
 	/*
 	 * file format:
 	 * if a pair of number with a character between: 2 siblings (eg. 1-2, or 1,4)
@@ -1311,11 +1316,7 @@ int for_all_proc_cpus(int (func)(int))
 	int cpu_num;
 	int retval;
 
-	fp = fopen(proc_stat, "r");
-	if (fp == NULL) {
-		perror(proc_stat);
-		exit(1);
-	}
+	fp = fopen_or_die(proc_stat, "r");
 
 	retval = fscanf(fp, "cpu %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d\n");
 	if (retval != 0) {
