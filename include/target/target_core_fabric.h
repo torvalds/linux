@@ -179,4 +179,30 @@ u32	iscsi_get_pr_transport_id_len(struct se_portal_group *, struct se_node_acl *
 char	*iscsi_parse_pr_out_transport_id(struct se_portal_group *, const char *,
 		u32 *, char **);
 
+/*
+ * The LIO target core uses DMA_TO_DEVICE to mean that data is going
+ * to the target (eg handling a WRITE) and DMA_FROM_DEVICE to mean
+ * that data is coming from the target (eg handling a READ).  However,
+ * this is just the opposite of what we have to tell the DMA mapping
+ * layer -- eg when handling a READ, the HBA will have to DMA the data
+ * out of memory so it can send it to the initiator, which means we
+ * need to use DMA_TO_DEVICE when we map the data.
+ */
+static inline enum dma_data_direction
+target_reverse_dma_direction(struct se_cmd *se_cmd)
+{
+	if (se_cmd->se_cmd_flags & SCF_BIDI)
+		return DMA_BIDIRECTIONAL;
+
+	switch (se_cmd->data_direction) {
+	case DMA_TO_DEVICE:
+		return DMA_FROM_DEVICE;
+	case DMA_FROM_DEVICE:
+		return DMA_TO_DEVICE;
+	case DMA_NONE:
+	default:
+		return DMA_NONE;
+	}
+}
+
 #endif /* TARGET_CORE_FABRICH */
