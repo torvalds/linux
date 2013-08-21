@@ -512,6 +512,144 @@ DEFINE_NFS_DIRECTORY_EVENT_DONE(nfs_unlink_exit);
 DEFINE_NFS_DIRECTORY_EVENT(nfs_symlink_enter);
 DEFINE_NFS_DIRECTORY_EVENT_DONE(nfs_symlink_exit);
 
+DECLARE_EVENT_CLASS(nfs_rename_event,
+		TP_PROTO(
+			const struct inode *old_dir,
+			const struct dentry *old_dentry,
+			const struct inode *new_dir,
+			const struct dentry *new_dentry
+		),
+
+		TP_ARGS(old_dir, old_dentry, new_dir, new_dentry),
+
+		TP_STRUCT__entry(
+			__field(dev_t, dev)
+			__field(u64, old_dir)
+			__field(u64, new_dir)
+			__string(old_name, old_dentry->d_name.name)
+			__string(new_name, new_dentry->d_name.name)
+		),
+
+		TP_fast_assign(
+			__entry->dev = old_dir->i_sb->s_dev;
+			__entry->old_dir = NFS_FILEID(old_dir);
+			__entry->new_dir = NFS_FILEID(new_dir);
+			__assign_str(old_name, old_dentry->d_name.name);
+			__assign_str(new_name, new_dentry->d_name.name);
+		),
+
+		TP_printk(
+			"old_name=%02x:%02x:%llu/%s new_name=%02x:%02x:%llu/%s",
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->old_dir,
+			__get_str(old_name),
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->new_dir,
+			__get_str(new_name)
+		)
+);
+#define DEFINE_NFS_RENAME_EVENT(name) \
+	DEFINE_EVENT(nfs_rename_event, name, \
+			TP_PROTO( \
+				const struct inode *old_dir, \
+				const struct dentry *old_dentry, \
+				const struct inode *new_dir, \
+				const struct dentry *new_dentry \
+			), \
+			TP_ARGS(old_dir, old_dentry, new_dir, new_dentry))
+
+DECLARE_EVENT_CLASS(nfs_rename_event_done,
+		TP_PROTO(
+			const struct inode *old_dir,
+			const struct dentry *old_dentry,
+			const struct inode *new_dir,
+			const struct dentry *new_dentry,
+			int error
+		),
+
+		TP_ARGS(old_dir, old_dentry, new_dir, new_dentry, error),
+
+		TP_STRUCT__entry(
+			__field(dev_t, dev)
+			__field(int, error)
+			__field(u64, old_dir)
+			__string(old_name, old_dentry->d_name.name)
+			__field(u64, new_dir)
+			__string(new_name, new_dentry->d_name.name)
+		),
+
+		TP_fast_assign(
+			__entry->dev = old_dir->i_sb->s_dev;
+			__entry->old_dir = NFS_FILEID(old_dir);
+			__entry->new_dir = NFS_FILEID(new_dir);
+			__entry->error = error;
+			__assign_str(old_name, old_dentry->d_name.name);
+			__assign_str(new_name, new_dentry->d_name.name);
+		),
+
+		TP_printk(
+			"error=%d old_name=%02x:%02x:%llu/%s "
+			"new_name=%02x:%02x:%llu/%s",
+			__entry->error,
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->old_dir,
+			__get_str(old_name),
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->new_dir,
+			__get_str(new_name)
+		)
+);
+#define DEFINE_NFS_RENAME_EVENT_DONE(name) \
+	DEFINE_EVENT(nfs_rename_event_done, name, \
+			TP_PROTO( \
+				const struct inode *old_dir, \
+				const struct dentry *old_dentry, \
+				const struct inode *new_dir, \
+				const struct dentry *new_dentry, \
+				int error \
+			), \
+			TP_ARGS(old_dir, old_dentry, new_dir, \
+				new_dentry, error))
+
+DEFINE_NFS_RENAME_EVENT(nfs_rename_enter);
+DEFINE_NFS_RENAME_EVENT_DONE(nfs_rename_exit);
+
+DEFINE_NFS_RENAME_EVENT_DONE(nfs_sillyrename_rename);
+
+TRACE_EVENT(nfs_sillyrename_unlink,
+		TP_PROTO(
+			const struct nfs_unlinkdata *data,
+			int error
+		),
+
+		TP_ARGS(data, error),
+
+		TP_STRUCT__entry(
+			__field(dev_t, dev)
+			__field(int, error)
+			__field(u64, dir)
+			__dynamic_array(char, name, data->args.name.len + 1)
+		),
+
+		TP_fast_assign(
+			struct inode *dir = data->dir;
+			size_t len = data->args.name.len;
+			__entry->dev = dir->i_sb->s_dev;
+			__entry->dir = NFS_FILEID(dir);
+			__entry->error = error;
+			memcpy(__get_dynamic_array(name),
+				data->args.name.name, len);
+			((char *)__get_dynamic_array(name))[len] = 0;
+		),
+
+		TP_printk(
+			"error=%d name=%02x:%02x:%llu/%s",
+			__entry->error,
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->dir,
+			__get_str(name)
+		)
+);
 #endif /* _TRACE_NFS_H */
 
 #undef TRACE_INCLUDE_PATH
