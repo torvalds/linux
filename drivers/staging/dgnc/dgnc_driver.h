@@ -32,7 +32,7 @@
 #include <linux/interrupt.h>	/* For irqreturn_t type */
 
 #include "dgnc_types.h"		/* Additional types needed by the Digi header files */
-#include "digi.h"		/* Digi specific ioctl header */  
+#include "digi.h"		/* Digi specific ioctl header */
 #include "dgnc_kcompat.h"	/* Kernel 2.4/2.6 compat includes */
 #include "dgnc_sysfs.h"		/* Support for SYSFS */
 
@@ -54,7 +54,7 @@
  */
 #define	PROCSTR		"dgnc"			/* /proc entries	 */
 #define	DEVSTR		"/dev/dg/dgnc"		/* /dev entries		 */
-#define	DRVSTR		"dgnc"			/* Driver name string 
+#define	DRVSTR		"dgnc"			/* Driver name string
 						 * displayed by APR	 */
 #define	APR(args)	do { PRINTF_TO_KMEM(args); printk(DRVSTR": "); printk args; \
 			   } while (0)
@@ -111,7 +111,7 @@
 #endif
 
 #if defined TRC_TO_KMEM
-#define PRINTF_TO_KMEM(args) dgnc_tracef args 
+#define PRINTF_TO_KMEM(args) dgnc_tracef args
 #else //!defined TRC_TO_KMEM
 #define PRINTF_TO_KMEM(args)
 #endif
@@ -273,7 +273,7 @@ struct board_ops {
 	void (*send_immediate_char) (struct channel_t *ch, unsigned char);
 };
 
-/************************************************************************ 
+/************************************************************************
  * Device flag definitions for bd_flags.
  ************************************************************************/
 #define BD_IS_PCI_EXPRESS     0x0001          /* Is a PCI Express board */
@@ -369,7 +369,7 @@ struct board_t
 };
 
 
-/************************************************************************ 
+/************************************************************************
  * Unit flag definitions for un_flags.
  ************************************************************************/
 #define UN_ISOPEN	0x0001		/* Device is open		*/
@@ -389,7 +389,7 @@ struct board_t
 struct device;
 
 /************************************************************************
- * Structure for terminal or printer unit. 
+ * Structure for terminal or printer unit.
  ************************************************************************/
 struct un_t {
 	int	magic;		/* Unit Magic Number.			*/
@@ -405,7 +405,7 @@ struct un_t {
 };
 
 
-/************************************************************************ 
+/************************************************************************
  * Device flag definitions for ch_flags.
  ************************************************************************/
 #define CH_PRON		0x0001		/* Printer on string		*/
@@ -425,7 +425,7 @@ struct un_t {
 #define CH_LOOPBACK 0x2000		/* Channel is in lookback mode	*/
 #define CH_FLIPBUF_IN_USE 0x4000	/* Channel's flipbuf is in use	*/
 #define CH_BAUD0	0x08000		/* Used for checking B0 transitions */
-#define CH_FORCED_STOP  0x20000		/* Output is forcibly stopped	*/ 
+#define CH_FORCED_STOP  0x20000		/* Output is forcibly stopped	*/
 #define CH_FORCED_STOPI 0x40000		/* Input is forcibly stopped	*/
 
 /*
@@ -445,7 +445,7 @@ struct un_t {
 #define WQUEUESIZE	(WQUEUEMASK + 1)
 
 
-/************************************************************************ 
+/************************************************************************
  * Channel information structure.
  ************************************************************************/
 struct channel_t {
