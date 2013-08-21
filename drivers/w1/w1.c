@@ -587,6 +587,73 @@ end:
 	return err;
 }
 
+/*
+ * Handle sysfs file creation and removal here, before userspace is told that
+ * the device is added / removed from the system
+ */
+static int w1_bus_notify(struct notifier_block *nb, unsigned long action,
+			 void *data)
+{
+	struct device *dev = data;
+	struct w1_slave *sl;
+	int err;
+
+	/*
+	 * Only care about slave devices at the moment.  Yes, we should use a
+	 * separate "type" for this, but for now, look at the release function
+	 * to know which type it is...
+	 */
+	if (dev->release != w1_slave_release)
+		return 0;
+
+	sl = dev_to_w1_slave(dev);
+
+	switch (action) {
+	case BUS_NOTIFY_ADD_DEVICE:
+		/* Create our sysfs files before userspace is told about it */
+		/* Create "name" entry */
+		err = device_create_file(&sl->dev, &w1_slave_attr_name);
+		if (err < 0) {
+			dev_err(&sl->dev,
+				"sysfs file creation for [%s] failed. err=%d\n",
+				dev_name(&sl->dev), err);
+			return err;
+		}
+
+		/* Create "id" entry */
+		err = device_create_file(&sl->dev, &w1_slave_attr_id);
+		if (err < 0) {
+			dev_err(&sl->dev,
+				"sysfs file creation for [%s] failed. err=%d\n",
+				dev_name(&sl->dev), err);
+			return err;
+		}
+
+		/* if the family driver needs to initialize something... */
+		if (sl->family->fops && sl->family->fops->add_slave &&
+		    ((err = sl->family->fops->add_slave(sl)) < 0)) {
+			dev_err(&sl->dev,
+				"sysfs file creation for [%s] failed. err=%d\n",
+				dev_name(&sl->dev), err);
+			return err;
+		}
+
+		break;
+	case BUS_NOTIFY_DEL_DEVICE:
+		/* Remove our sysfs files */
+		if (sl->family->fops && sl->family->fops->remove_slave)
+			sl->family->fops->remove_slave(sl);
+		device_remove_file(&sl->dev, &w1_slave_attr_id);
+		device_remove_file(&sl->dev, &w1_slave_attr_name);
+		break;
+	}
+	return 0;
+}
+
+static struct notifier_block w1_bus_nb = {
+	.notifier_call = w1_bus_notify,
+};
+
 static int __w1_attach_slave_device(struct w1_slave *sl)
 {
 	int err;
@@ -615,44 +682,13 @@ static int __w1_attach_slave_device(struct w1_slave *sl)
 		return err;
 	}
 
-	/* Create "name" entry */
-	err = device_create_file(&sl->dev, &w1_slave_attr_name);
-	if (err < 0) {
-		dev_err(&sl->dev,
-			"sysfs file creation for [%s] failed. err=%d\n",
-			dev_name(&sl->dev), err);
-		goto out_unreg;
-	}
 
-	/* Create "id" entry */
-	err = device_create_file(&sl->dev, &w1_slave_attr_id);
-	if (err < 0) {
-		dev_err(&sl->dev,
-			"sysfs file creation for [%s] failed. err=%d\n",
-			dev_name(&sl->dev), err);
-		goto out_rem1;
-	}
-
-	/* if the family driver needs to initialize something... */
-	if (sl->family->fops && sl->family->fops->add_slave &&
-	    ((err = sl->family->fops->add_slave(sl)) < 0)) {
-		dev_err(&sl->dev,
-			"sysfs file creation for [%s] failed. err=%d\n",
-			dev_name(&sl->dev), err);
-		goto out_rem2;
-	}
+	dev_set_uevent_suppress(&sl->dev, false);
+	kobject_uevent(&sl->dev.kobj, KOBJ_ADD);
 
 	list_add_tail(&sl->w1_slave_entry, &sl->master->slist);
 
 	return 0;
-
-out_rem2:
-	device_remove_file(&sl->dev, &w1_slave_attr_id);
-out_rem1:
-	device_remove_file(&sl->dev, &w1_slave_attr_name);
-out_unreg:
-	device_unregister(&sl->dev);
-	return err;
 }
 
 static int w1_attach_slave_device(struct w1_master *dev, struct w1_reg_num *rn)
@@ -723,16 +759,11 @@ void w1_slave_detach(struct w1_slave *sl)
 
 	list_del(&sl->w1_slave_entry);
 
-	if (sl->family->fops && sl->family->fops->remove_slave)
-		sl->family->fops->remove_slave(sl);
-
 	memset(&msg, 0, sizeof(msg));
 	memcpy(msg.id.id, &sl->reg_num, sizeof(msg.id));
 	msg.type = W1_SLAVE_REMOVE;
 	w1_netlink_send(sl->master, &msg);
 
-	device_remove_file(&sl->dev, &w1_slave_attr_id);
-	device_remove_file(&sl->dev, &w1_slave_attr_name);
 	device_unregister(&sl->dev);
 
 	wait_for_completion(&sl->released);
@@ -1016,6 +1047,10 @@ static int __init w1_init(void)
 		printk(KERN_ERR "Failed to register bus. err=%d.\n", retval);
 		goto err_out_exit_init;
 	}
+
+	retval = bus_register_notifier(&w1_bus_type, &w1_bus_nb);
+	if (retval)
+		goto err_out_bus_unregister;
 
 	retval = driver_register(&w1_master_driver);
 	if (retval) {
