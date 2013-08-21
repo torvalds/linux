@@ -2027,7 +2027,9 @@ static int pn533_start_poll(struct nfc_dev *nfc_dev,
 			    u32 im_protocols, u32 tm_protocols)
 {
 	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
+	struct pn533_poll_modulations *cur_mod;
 	u8 rand_mod;
+	int rc;
 
 	dev_dbg(&dev->interface->dev,
 		"%s: im protocols 0x%x tm protocols 0x%x\n",
@@ -2060,7 +2062,15 @@ static int pn533_start_poll(struct nfc_dev *nfc_dev,
 	rand_mod %= dev->poll_mod_count;
 	dev->poll_mod_curr = rand_mod;
 
-	return pn533_send_poll_frame(dev);
+	cur_mod = dev->poll_mod_active[dev->poll_mod_curr];
+
+	rc = pn533_send_poll_frame(dev);
+
+	/* Start listen timer */
+	if (!rc && cur_mod->len == 0 && dev->poll_mod_count > 1)
+		mod_timer(&dev->listen_timer, jiffies + PN533_LISTEN_TIME * HZ);
+
+	return rc;
 }
 
 static void pn533_stop_poll(struct nfc_dev *nfc_dev)
