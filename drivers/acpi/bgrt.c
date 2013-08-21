@@ -51,20 +51,14 @@ static ssize_t show_yoffset(struct device *dev,
 }
 static DEVICE_ATTR(yoffset, S_IRUGO, show_yoffset, NULL);
 
-static ssize_t show_image(struct file *file, struct kobject *kobj,
+static ssize_t image_read(struct file *file, struct kobject *kobj,
 	       struct bin_attribute *attr, char *buf, loff_t off, size_t count)
 {
 	memcpy(buf, attr->private + off, count);
 	return count;
 }
 
-static struct bin_attribute image_attr = {
-	.attr = {
-		.name = "image",
-		.mode = S_IRUGO,
-	},
-	.read = show_image,
-};
+static BIN_ATTR_RO(image, 0);	/* size gets filled in later */
 
 static struct attribute *bgrt_attributes[] = {
 	&dev_attr_version.attr,
@@ -75,8 +69,14 @@ static struct attribute *bgrt_attributes[] = {
 	NULL,
 };
 
+static struct bin_attribute *bgrt_bin_attributes[] = {
+	&bin_attr_image,
+	NULL,
+};
+
 static struct attribute_group bgrt_attribute_group = {
 	.attrs = bgrt_attributes,
+	.bin_attrs = bgrt_bin_attributes,
 };
 
 static int __init bgrt_init(void)
@@ -87,8 +87,8 @@ static int __init bgrt_init(void)
 		return -ENODEV;
 
 	sysfs_bin_attr_init(&image_attr);
-	image_attr.private = bgrt_image;
-	image_attr.size = bgrt_image_size;
+	bin_attr_image.private = bgrt_image;
+	bin_attr_image.size = bgrt_image_size;
 
 	bgrt_kobj = kobject_create_and_add("bgrt", acpi_kobj);
 	if (!bgrt_kobj)
@@ -98,14 +98,8 @@ static int __init bgrt_init(void)
 	if (ret)
 		goto out_kobject;
 
-	ret = sysfs_create_bin_file(bgrt_kobj, &image_attr);
-	if (ret)
-		goto out_group;
-
 	return 0;
 
-out_group:
-	sysfs_remove_group(bgrt_kobj, &bgrt_attribute_group);
 out_kobject:
 	kobject_put(bgrt_kobj);
 	return ret;
