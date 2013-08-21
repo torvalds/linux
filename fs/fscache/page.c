@@ -701,6 +701,22 @@ nobufs:
 EXPORT_SYMBOL(__fscache_alloc_page);
 
 /*
+ * Unmark pages allocate in the readahead code path (via:
+ * fscache_readpages_or_alloc) after delegating to the base filesystem
+ */
+void __fscache_readpages_cancel(struct fscache_cookie *cookie,
+				struct list_head *pages)
+{
+	struct page *page;
+
+	list_for_each_entry(page, pages, lru) {
+		if (PageFsCache(page))
+			__fscache_uncache_page(cookie, page);
+	}
+}
+EXPORT_SYMBOL(__fscache_readpages_cancel);
+
+/*
  * release a write op reference
  */
 static void fscache_release_write_op(struct fscache_operation *_op)
