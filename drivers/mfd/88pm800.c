@@ -541,7 +541,7 @@ static int pm800_probe(struct i2c_client *client,
 {
 	int ret = 0;
 	struct pm80x_chip *chip;
-	struct pm80x_platform_data *pdata = client->dev.platform_data;
+	struct pm80x_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct pm80x_subchip *subchip;
 
 	ret = pm80x_init(client);

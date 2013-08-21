@@ -250,7 +250,7 @@ static int rc5t583_i2c_probe(struct i2c_client *i2c,
 			      const struct i2c_device_id *id)
 {
 	struct rc5t583 *rc5t583;
-	struct rc5t583_platform_data *pdata = i2c->dev.platform_data;
+	struct rc5t583_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	int ret;
 	bool irq_init_success = false;
 

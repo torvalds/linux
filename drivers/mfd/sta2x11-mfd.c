@@ -133,7 +133,7 @@ int sta2x11_mfd_get_regs_data(struct platform_device *dev,
 			      void __iomem **regs,
 			      spinlock_t **lock)
 {
-	struct pci_dev *pdev = *(struct pci_dev **)(dev->dev.platform_data);
+	struct pci_dev *pdev = *(struct pci_dev **)dev_get_platdata(&dev->dev);
 	struct sta2x11_mfd *mfd;
 
 	if (!pdev)
@@ -312,7 +312,7 @@ static int sta2x11_mfd_platform_probe(struct platform_device *dev,
 	const char *name = sta2x11_mfd_names[index];
 	struct regmap_config *regmap_config = sta2x11_mfd_regmap_configs[index];
 
-	pdev = dev->dev.platform_data;
+	pdev = dev_get_platdata(&dev->dev);
 	mfd = sta2x11_mfd_find(*pdev);
 	if (!mfd)
 		return -ENODEV;

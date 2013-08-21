@@ -854,7 +854,7 @@ static int ab3100_probe(struct i2c_client *client,
 {
 	struct ab3100 *ab3100;
 	struct ab3100_platform_data *ab3100_plf_data =
-		client->dev.platform_data;
+		dev_get_platdata(&client->dev);
 	int err;
 	int i;
 

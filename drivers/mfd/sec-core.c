@@ -61,7 +61,9 @@ static struct mfd_cell s5m8767_devs[] = {
 static struct mfd_cell s2mps11_devs[] = {
 	{
 		.name = "s2mps11-pmic",
-	},
+	}, {
+		.name = "s2mps11-clk",
+	}
 };
 
 #ifdef CONFIG_OF
@@ -216,7 +218,7 @@ static inline int sec_i2c_get_driver_data(struct i2c_client *i2c,
 static int sec_pmic_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
-	struct sec_platform_data *pdata = i2c->dev.platform_data;
+	struct sec_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	const struct regmap_config *regmap;
 	struct sec_pmic_dev *sec_pmic;
 	int ret;

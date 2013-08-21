@@ -840,7 +840,7 @@ static int sm501_register_uart(struct sm501_devdata *sm, int devices)
 	if (!pdev)
 		return -ENOMEM;
 
-	uart_data = pdev->dev.platform_data;
+	uart_data = dev_get_platdata(&pdev->dev);
 
 	if (devices & SM501_USE_UART0) {
 		sm501_setup_uart_data(sm, uart_data++, 0x30000);
@@ -1167,7 +1167,7 @@ static int sm501_register_gpio_i2c_instance(struct sm501_devdata *sm,
 	if (!pdev)
 		return -ENOMEM;
 
-	icd = pdev->dev.platform_data;
+	icd = dev_get_platdata(&pdev->dev);
 
 	/* We keep the pin_sda and pin_scl fields relative in case the
 	 * same platform data is passed to >1 SM501.
@@ -1403,7 +1403,7 @@ static int sm501_plat_probe(struct platform_device *dev)
 
 	sm->dev = &dev->dev;
 	sm->pdev_id = dev->id;
-	sm->platdata = dev->dev.platform_data;
+	sm->platdata = dev_get_platdata(&dev->dev);
 
 	ret = platform_get_irq(dev, 0);
 	if (ret < 0) {

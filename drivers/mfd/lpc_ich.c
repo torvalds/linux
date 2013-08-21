@@ -213,7 +213,7 @@ enum lpc_chipsets {
 	LPC_COLETO,	/* Coleto Creek */
 };
 
-struct lpc_ich_info lpc_chipset_info[] = {
+static struct lpc_ich_info lpc_chipset_info[] = {
 	[LPC_ICH] = {
 		.name = "ICH",
 		.iTCO_version = 1,
