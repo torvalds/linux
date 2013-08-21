@@ -180,12 +180,6 @@ config ACPI_DOCK
 	  This driver supports ACPI-controlled docking stations and removable
 	  drive bays such as the IBM Ultrabay and the Dell Module Bay.
 
-config ACPI_I2C
-	def_tristate I2C
-	depends on I2C
-	help
-	  ACPI I2C enumeration support.
-
 config ACPI_PROCESSOR
 	tristate "Processor"
 	select THERMAL

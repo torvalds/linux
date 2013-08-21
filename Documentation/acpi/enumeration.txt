@@ -228,18 +228,9 @@ ACPI handle like:
 I2C serial bus support
 ~~~~~~~~~~~~~~~~~~~~~~
 The slaves behind I2C bus controller only need to add the ACPI IDs like
-with the platform and SPI drivers. However the I2C bus controller driver
-needs to call acpi_i2c_register_devices() after it has added the adapter.
-
-An I2C bus (controller) driver does:
-
-	...
-	ret = i2c_add_numbered_adapter(adapter);
-	if (ret)
-		/* handle error */
-
-	/* Enumerate the slave devices behind this bus via ACPI */
-	acpi_i2c_register_devices(adapter);
+with the platform and SPI drivers. The I2C core automatically enumerates
+any slave devices behind the controller device once the adapter is
+registered.
 
 Below is an example of how to add ACPI support to the existing mpu3050
 input driver:
