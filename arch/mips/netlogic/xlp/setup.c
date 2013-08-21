@@ -73,6 +73,23 @@ static void nlm_fixup_mem(void)
 	}
 }
 
+static void __init xlp_init_mem_from_bars(void)
+{
+	uint64_t map[16];
+	int i, n;
+
+	n = xlp_get_dram_map(-1, map);	/* -1: info for all nodes */
+	for (i = 0; i < n; i += 2) {
+		/* exclude 0x1000_0000-0x2000_0000, u-boot device */
+		if (map[i] <= 0x10000000 && map[i+1] > 0x10000000)
+			map[i+1] = 0x10000000;
+		if (map[i] > 0x10000000 && map[i] < 0x20000000)
+			map[i] = 0x20000000;
+
+		add_memory_region(map[i], map[i+1] - map[i], BOOT_MEM_RAM);
+	}
+}
+
 void __init plat_mem_setup(void)
 {
 	panic_timeout	= 5;
@@ -82,6 +99,12 @@ void __init plat_mem_setup(void)
 
 	/* memory and bootargs from DT */
 	early_init_devtree(initial_boot_params);
+
+	if (boot_mem_map.nr_map == 0) {
+		pr_info("Using DRAM BARs for memory map.\n");
+		xlp_init_mem_from_bars();
+	}
+	/* Calculate and setup wired entries for mapped kernel */
 	nlm_fixup_mem();
 }
 

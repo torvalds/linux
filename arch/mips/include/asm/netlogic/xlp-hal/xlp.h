@@ -59,6 +59,9 @@ void xlp_wakeup_secondary_cpus(void);
 
 void xlp_mmu_init(void);
 void nlm_hal_init(void);
+int xlp_get_dram_map(int n, uint64_t *dram_map);
+
+/* Device tree related */
 void *xlp_dt_init(void *fdtp);
 
 #endif /* !__ASSEMBLY__ */
