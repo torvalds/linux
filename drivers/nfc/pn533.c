@@ -387,6 +387,7 @@ struct pn533 {
 	struct pn533_poll_modulations *poll_mod_active[PN533_POLL_MOD_MAX + 1];
 	u8 poll_mod_count;
 	u8 poll_mod_curr;
+	u8 poll_dep;
 	u32 poll_protocols;
 	u32 listen_protocols;
 	struct timer_list listen_timer;
@@ -1546,6 +1547,9 @@ static int pn533_start_poll_complete(struct pn533 *dev, struct sk_buff *resp)
 	u8 nbtg, tg, *tgdata;
 	int rc, tgdata_len;
 
+	/* Toggle the DEP polling */
+	dev->poll_dep = 1;
+
 	nbtg = resp->data[0];
 	tg = resp->data[1];
 	tgdata = &resp->data[2];
@@ -1767,6 +1771,117 @@ static void pn533_wq_rf(struct work_struct *work)
 	return;
 }
 
+static int pn533_poll_dep_complete(struct pn533 *dev, void *arg,
+				   struct sk_buff *resp)
+{
+	struct pn533_cmd_jump_dep_response *rsp;
+	struct nfc_target nfc_target;
+	u8 target_gt_len;
+	int rc;
+
+	if (IS_ERR(resp))
+		return PTR_ERR(resp);
+
+	rsp = (struct pn533_cmd_jump_dep_response *)resp->data;
+
+	rc = rsp->status & PN533_CMD_RET_MASK;
+	if (rc != PN533_CMD_RET_SUCCESS) {
+		/* Not target found, turn radio off */
+		queue_work(dev->wq, &dev->rf_work);
+
+		dev_kfree_skb(resp);
+		return 0;
+	}
+
+	dev_dbg(&dev->interface->dev, "Creating new target");
+
+	nfc_target.supported_protocols = NFC_PROTO_NFC_DEP_MASK;
+	nfc_target.nfcid1_len = 10;
+	memcpy(nfc_target.nfcid1, rsp->nfcid3t, nfc_target.nfcid1_len);
+	rc = nfc_targets_found(dev->nfc_dev, &nfc_target, 1);
+	if (rc)
+		goto error;
+
+	dev->tgt_available_prots = 0;
+	dev->tgt_active_prot = NFC_PROTO_NFC_DEP;
+
+	/* ATR_RES general bytes are located at offset 17 */
+	target_gt_len = resp->len - 17;
+	rc = nfc_set_remote_general_bytes(dev->nfc_dev,
+					  rsp->gt, target_gt_len);
+	if (!rc) {
+		rc = nfc_dep_link_is_up(dev->nfc_dev,
+					dev->nfc_dev->targets[0].idx,
+					0, NFC_RF_INITIATOR);
+
+		if (!rc)
+			pn533_poll_reset_mod_list(dev);
+	}
+error:
+	dev_kfree_skb(resp);
+	return rc;
+}
+
+#define PASSIVE_DATA_LEN 5
+static int pn533_poll_dep(struct nfc_dev *nfc_dev)
+{
+	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
+	struct sk_buff *skb;
+	int rc, skb_len;
+	u8 *next, nfcid3[NFC_NFCID3_MAXSIZE];
+	u8 passive_data[PASSIVE_DATA_LEN] = {0x00, 0xff, 0xff, 0x00, 0x3};
+
+	dev_dbg(&dev->interface->dev, "%s", __func__);
+
+	if (!dev->gb) {
+		dev->gb = nfc_get_local_general_bytes(nfc_dev, &dev->gb_len);
+
+		if (!dev->gb || !dev->gb_len) {
+			dev->poll_dep = 0;
+			queue_work(dev->wq, &dev->rf_work);
+		}
+	}
+
+	skb_len = 3 + dev->gb_len; /* ActPass + BR + Next */
+	skb_len += PASSIVE_DATA_LEN;
+
+	/* NFCID3 */
+	skb_len += NFC_NFCID3_MAXSIZE;
+	nfcid3[0] = 0x1;
+	nfcid3[1] = 0xfe;
+	get_random_bytes(nfcid3 + 2, 6);
+
+	skb = pn533_alloc_skb(dev, skb_len);
+	if (!skb)
+		return -ENOMEM;
+
+	*skb_put(skb, 1) = 0x01;  /* Active */
+	*skb_put(skb, 1) = 0x02;  /* 424 kbps */
+
+	next = skb_put(skb, 1);  /* Next */
+	*next = 0;
+
+	/* Copy passive data */
+	memcpy(skb_put(skb, PASSIVE_DATA_LEN), passive_data, PASSIVE_DATA_LEN);
+	*next |= 1;
+
+	/* Copy NFCID3 (which is NFCID2 from SENSF_RES) */
+	memcpy(skb_put(skb, NFC_NFCID3_MAXSIZE), nfcid3,
+	       NFC_NFCID3_MAXSIZE);
+	*next |= 2;
+
+	memcpy(skb_put(skb, dev->gb_len), dev->gb, dev->gb_len);
+	*next |= 4; /* We have some Gi */
+
+	rc = pn533_send_cmd_async(dev, PN533_CMD_IN_JUMP_FOR_DEP, skb,
+				  pn533_poll_dep_complete, NULL);
+
+	if (rc < 0)
+		dev_kfree_skb(skb);
+
+	return rc;
+}
+
 static int pn533_poll_complete(struct pn533 *dev, void *arg,
 			       struct sk_buff *resp)
 {
@@ -1852,6 +1967,11 @@ static int pn533_send_poll_frame(struct pn533 *dev)
 
 	dev_dbg(&dev->interface->dev, "%s mod len %d\n",
 		__func__, mod->len);
+
+	if (dev->poll_dep)  {
+		dev->poll_dep = 0;
+		return pn533_poll_dep(dev->nfc_dev);
+	}
 
 	if (mod->len == 0) {  /* Listen mode */
 		cmd_code = PN533_CMD_TG_INIT_AS_TARGET;
@@ -2146,7 +2266,6 @@ error:
 }
 
 static int pn533_rf_field(struct nfc_dev *nfc_dev, u8 rf);
-#define PASSIVE_DATA_LEN 5
 static int pn533_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
 			     u8 comm_mode, u8 *gb, size_t gb_len)
 {
