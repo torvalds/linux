@@ -2950,14 +2950,14 @@ int btrfs_orphan_add(struct btrfs_trans_handle *trans, struct inode *inode)
 	if (insert >= 1) {
 		ret = btrfs_insert_orphan_item(trans, root, btrfs_ino(inode));
 		if (ret) {
-			clear_bit(BTRFS_INODE_HAS_ORPHAN_ITEM,
-				  &BTRFS_I(inode)->runtime_flags);
 			if (reserve) {
 				clear_bit(BTRFS_INODE_ORPHAN_META_RESERVED,
 					  &BTRFS_I(inode)->runtime_flags);
 				btrfs_orphan_release_metadata(inode);
 			}
 			if (ret != -EEXIST) {
+				clear_bit(BTRFS_INODE_HAS_ORPHAN_ITEM,
+					  &BTRFS_I(inode)->runtime_flags);
 				btrfs_abort_transaction(trans, root, ret);
 				return ret;
 			}
