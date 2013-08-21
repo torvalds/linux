@@ -109,12 +109,13 @@ static int es8323_reg_init(struct i2c_client *client, bool main_mic)
 			main_mic ? "main mic" : "headset mic");
 		return 0;
 	}
-
-	codec_write(client,  0x08, 0x00); //slave 0x00, master 0x80
+	codec_write(client,  0x35, 0xa0);
+	codec_write(client,  0x36, 0xc8); //for 1.8V VDD
+	codec_write(client,  0x08, 0x20); //slave 0x00, master 0x80, bclk invert(bit5)
 	codec_write(client,  0x02, 0xf3);
 	codec_write(client,  0x2b, 0x80); //use ADC LRCK, slave 0x80, master 0xc0
 	codec_write(client,  0x00, 0x36); //DACMCLK is the chip master clock source
-	codec_write(client,  0x01, 0x00); //all normal
+	codec_write(client,  0x01, 0x72); //all normal
 	codec_write(client,  0x03, 0x00); //all normal
 	codec_write(client,  0x04, 0x3c); //L/R DAC power up, L/R out1 enable
 	codec_write(client,  0x05, 0x00); //normal
@@ -127,7 +128,7 @@ static int es8323_reg_init(struct i2c_client *client, bool main_mic)
 	} else {
 		codec_write(client, 0x0b,0x02);  //ADC INPUT=LIN1/RIN1 //02
 	}
-	codec_write(client,  0x0c, 0x23); //PCM,16bit,2nd
+	codec_write(client,  0x0c, 0x23); //ADC PCM(bit0-1), 18bit(bit2-4), 2nd(bit5)
 	codec_write(client,  0x0d, 0x02);
 	codec_write(client,  0x0f, 0xf0); //unmute ADC
 	codec_write(client,  0x10, 0x00);
@@ -136,8 +137,8 @@ static int es8323_reg_init(struct i2c_client *client, bool main_mic)
 	codec_write(client,  0x13, 0xC0); //ALC
 	codec_write(client,  0x14, 0x05); //ALC
 	codec_write(client,  0x15, 0x06); //ALC
-	codec_write(client,  0x16, 0xb3); //ALC
-	codec_write(client,  0x17, 0x16); //PCM, 2nd,16bit
+	codec_write(client,  0x16, 0x50); //ALC
+	codec_write(client,  0x17, 0x06); //DAC PCM(bit1-2), 16bit(bit3-5), 2nd(bit6), lr swap(bit 7)
 	codec_write(client,  0x18, 0x02); // MCLK/256
 	codec_write(client,  0x19, 0x22);
 	codec_write(client,  0x1a, 0x00); //lout digital
@@ -147,8 +148,8 @@ static int es8323_reg_init(struct i2c_client *client, bool main_mic)
 	codec_write(client,  0x28, 0x38);
 	codec_write(client,  0x29, 0x38);
 	codec_write(client,  0x2a, 0xb8); //RD2RO to right mixer
-	codec_write(client,  0x30, 0x19);
-	codec_write(client,  0x31, 0x19);
+	codec_write(client,  0x30, 0x1e);
+	codec_write(client,  0x31, 0x1e);
 	codec_write(client,  0x02, 0x00);
 
 	DBG("es8323_reg_init() set codec route with %s\n",
@@ -206,7 +207,9 @@ static const struct i2c_device_id es8323_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, es8323_i2c_id);
 
+#ifdef ES8323_PROC
 static int es8323_proc_init(void);
+#endif
 
 static int __devinit es8323_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
