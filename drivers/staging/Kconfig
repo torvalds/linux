@@ -142,4 +142,6 @@ source "drivers/staging/btmtk_usb/Kconfig"
 
 source "drivers/staging/xillybus/Kconfig"
 
+source "drivers/staging/dgnc/Kconfig"
+
 endif # STAGING
