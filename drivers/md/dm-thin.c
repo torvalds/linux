@@ -887,7 +887,8 @@ static int commit(struct pool *pool)
 
 	r = dm_pool_commit_metadata(pool->pmd);
 	if (r)
-		DMERR_LIMIT("commit failed: error = %d", r);
+		DMERR_LIMIT("%s: commit failed: error = %d",
+			    dm_device_name(pool->pool_md), r);
 
 	return r;
 }
@@ -1386,7 +1387,8 @@ static void set_pool_mode(struct pool *pool, enum pool_mode mode)
 
 	switch (mode) {
 	case PM_FAIL:
-		DMERR("switching pool to failure mode");
+		DMERR("%s: switching pool to failure mode",
+		      dm_device_name(pool->pool_md));
 		pool->process_bio = process_bio_fail;
 		pool->process_discard = process_bio_fail;
 		pool->process_prepared_mapping = process_prepared_mapping_fail;
@@ -1394,10 +1396,12 @@ static void set_pool_mode(struct pool *pool, enum pool_mode mode)
 		break;
 
 	case PM_READ_ONLY:
-		DMERR("switching pool to read-only mode");
+		DMERR("%s: switching pool to read-only mode",
+		      dm_device_name(pool->pool_md));
 		r = dm_pool_abort_metadata(pool->pmd);
 		if (r) {
-			DMERR("aborting transaction failed");
+			DMERR("%s: aborting transaction failed",
+			      dm_device_name(pool->pool_md));
 			set_pool_mode(pool, PM_FAIL);
 		} else {
 			dm_pool_metadata_read_only(pool->pmd);
@@ -2156,19 +2160,22 @@ static int maybe_resize_data_dev(struct dm_target *ti, bool *need_commit)
 
 	r = dm_pool_get_data_dev_size(pool->pmd, &sb_data_size);
 	if (r) {
-		DMERR("failed to retrieve data device size");
+		DMERR("%s: failed to retrieve data device size",
+		      dm_device_name(pool->pool_md));
 		return r;
 	}
 
 	if (data_size < sb_data_size) {
-		DMERR("pool target (%llu blocks) too small: expected %llu",
+		DMERR("%s: pool target (%llu blocks) too small: expected %llu",
+		      dm_device_name(pool->pool_md),
 		      (unsigned long long)data_size, sb_data_size);
 		return -EINVAL;
 
 	} else if (data_size > sb_data_size) {
 		r = dm_pool_resize_data_dev(pool->pmd, data_size);
 		if (r) {
-			DMERR("failed to resize data device");
+			DMERR("%s: failed to resize data device",
+			      dm_device_name(pool->pool_md));
 			set_pool_mode(pool, PM_READ_ONLY);
 			return r;
 		}
@@ -2192,19 +2199,22 @@ static int maybe_resize_metadata_dev(struct dm_target *ti, bool *need_commit)
 
 	r = dm_pool_get_metadata_dev_size(pool->pmd, &sb_metadata_dev_size);
 	if (r) {
-		DMERR("failed to retrieve data device size");
+		DMERR("%s: failed to retrieve metadata device size",
+		      dm_device_name(pool->pool_md));
 		return r;
 	}
 
 	if (metadata_dev_size < sb_metadata_dev_size) {
-		DMERR("metadata device (%llu blocks) too small: expected %llu",
+		DMERR("%s: metadata device (%llu blocks) too small: expected %llu",
+		      dm_device_name(pool->pool_md),
 		      metadata_dev_size, sb_metadata_dev_size);
 		return -EINVAL;
 
 	} else if (metadata_dev_size > sb_metadata_dev_size) {
 		r = dm_pool_resize_metadata_dev(pool->pmd, metadata_dev_size);
 		if (r) {
-			DMERR("failed to resize metadata device");
+			DMERR("%s: failed to resize metadata device",
+			      dm_device_name(pool->pool_md));
 			return r;
 		}
 
@@ -2530,37 +2540,43 @@ static void pool_status(struct dm_target *ti, status_type_t type,
 
 		r = dm_pool_get_metadata_transaction_id(pool->pmd, &transaction_id);
 		if (r) {
-			DMERR("dm_pool_get_metadata_transaction_id returned %d", r);
+			DMERR("%s: dm_pool_get_metadata_transaction_id returned %d",
+			      dm_device_name(pool->pool_md), r);
 			goto err;
 		}
 
 		r = dm_pool_get_free_metadata_block_count(pool->pmd, &nr_free_blocks_metadata);
 		if (r) {
-			DMERR("dm_pool_get_free_metadata_block_count returned %d", r);
+			DMERR("%s: dm_pool_get_free_metadata_block_count returned %d",
+			      dm_device_name(pool->pool_md), r);
 			goto err;
 		}
 
 		r = dm_pool_get_metadata_dev_size(pool->pmd, &nr_blocks_metadata);
 		if (r) {
-			DMERR("dm_pool_get_metadata_dev_size returned %d", r);
+			DMERR("%s: dm_pool_get_metadata_dev_size returned %d",
+			      dm_device_name(pool->pool_md), r);
 			goto err;
 		}
 
 		r = dm_pool_get_free_block_count(pool->pmd, &nr_free_blocks_data);
 		if (r) {
-			DMERR("dm_pool_get_free_block_count returned %d", r);
+			DMERR("%s: dm_pool_get_free_block_count returned %d",
+			      dm_device_name(pool->pool_md), r);
 			goto err;
 		}
 
 		r = dm_pool_get_data_dev_size(pool->pmd, &nr_blocks_data);
 		if (r) {
-			DMERR("dm_pool_get_data_dev_size returned %d", r);
+			DMERR("%s: dm_pool_get_data_dev_size returned %d",
+			      dm_device_name(pool->pool_md), r);
 			goto err;
 		}
 
 		r = dm_pool_get_metadata_snap(pool->pmd, &held_root);
 		if (r) {
-			DMERR("dm_pool_get_metadata_snap returned %d", r);
+			DMERR("%s: dm_pool_get_metadata_snap returned %d",
+			      dm_device_name(pool->pool_md), r);
 			goto err;
 		}
 
