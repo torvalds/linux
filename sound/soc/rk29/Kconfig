@@ -129,6 +129,15 @@ config SND_RK29_SOC_WM8900
 	help
 	  Say Y if you want to add support for SoC audio on rockchip
 	  with the WM8900.
+
+config SND_RK29_SOC_RT5512
+	tristate "SoC I2S Audio support for rockchip - RICHTEK5512"
+	depends on SND_RK29_SOC
+	select SND_SOC_RT5512
+	select SND_RK29_SOC_I2S
+	help
+		Say Y if you want to add support for SoC audio on the ODROID.
+
 config SND_RK29_SOC_RT5621
 	tristate "SoC I2S Audio support for rockchip - rt5621"
 	depends on SND_RK29_SOC

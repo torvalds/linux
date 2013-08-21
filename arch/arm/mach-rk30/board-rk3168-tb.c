@@ -1583,6 +1583,7 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 		.flags         = 0,
 	},
 #endif
+
 #if defined (CONFIG_SND_SOC_RT5631)
         {
                 .type                   = "rt5631",
@@ -1590,6 +1591,15 @@ static struct i2c_board_info __initdata i2c0_info[] = {
                 .flags                  = 0,
         },
 #endif
+
+#if defined (CONFIG_SND_SOC_RT5512)
+        {
+                .type                   = "rt5512",
+                .addr                   = 0x18,
+                .flags                  = 0,
+        },
+#endif
+
 
 #if defined (CONFIG_SND_SOC_RT5640) 
 	    {

@@ -89,6 +89,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_RT5623 if I2C
 	select SND_SOC_RT5639 if I2C
 	select SND_SOC_RT5616 if I2C
+	select SND_SOC_RT5512 if I2C
 	select SND_SOC_RK610 if I2C
 	select SND_SOC_RK616 if I2C
 	select SND_SOC_WM8903 if I2C
@@ -474,3 +475,6 @@ config SND_SOC_RK2928
 config SND_SOC_RK3026
 	tristate
 	depends on ARCH_RK3026
+
+config SND_SOC_RT5512
+       tristate
