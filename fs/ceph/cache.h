@@ -58,6 +58,13 @@ static inline int ceph_release_fscache_page(struct page *page, gfp_t gfp)
 	return fscache_maybe_release_page(ci->fscache, page, gfp);
 }
 
+static inline void ceph_fscache_readpages_cancel(struct inode *inode,
+						 struct list_head *pages)
+{
+	struct ceph_inode_info *ci = ceph_inode(inode);
+	return fscache_readpages_cancel(ci->fscache, pages);
+}
+
 #else
 
 static inline int ceph_fscache_register(void)
