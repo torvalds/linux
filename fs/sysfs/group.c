@@ -19,8 +19,8 @@
 static void remove_files(struct sysfs_dirent *dir_sd, struct kobject *kobj,
 			 const struct attribute_group *grp)
 {
-	struct attribute *const* attr;
-	struct bin_attribute *const* bin_attr;
+	struct attribute *const *attr;
+	struct bin_attribute *const *bin_attr;
 
 	if (grp->attrs)
 		for (attr = grp->attrs; *attr; attr++)
@@ -33,8 +33,8 @@ static void remove_files(struct sysfs_dirent *dir_sd, struct kobject *kobj,
 static int create_files(struct sysfs_dirent *dir_sd, struct kobject *kobj,
 			const struct attribute_group *grp, int update)
 {
-	struct attribute *const* attr;
-	struct bin_attribute *const* bin_attr;
+	struct attribute *const *attr;
+	struct bin_attribute *const *bin_attr;
 	int error = 0, i;
 
 	if (grp->attrs) {
@@ -189,8 +189,8 @@ int sysfs_update_group(struct kobject *kobj,
 }
 EXPORT_SYMBOL_GPL(sysfs_update_group);
 
-void sysfs_remove_group(struct kobject * kobj,
-			const struct attribute_group * grp)
+void sysfs_remove_group(struct kobject *kobj,
+			const struct attribute_group *grp)
 {
 	struct sysfs_dirent *dir_sd = kobj->sd;
 	struct sysfs_dirent *sd;
