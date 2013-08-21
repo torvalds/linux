@@ -127,7 +127,6 @@ static int mpc52xx_fec_mdio_remove(struct platform_device *of)
 	struct mpc52xx_fec_mdio_priv *priv = bus->priv;
 
 	mdiobus_unregister(bus);
-	dev_set_drvdata(dev, NULL);
 	iounmap(priv->regs);
 	kfree(priv);
 	mdiobus_free(bus);
