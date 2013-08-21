@@ -234,7 +234,7 @@ int get_msr(int cpu, off_t offset, unsigned long long *msr)
 	close(fd);
 
 	if (retval != sizeof *msr) {
-		fprintf(stderr, "%s offset 0x%zx read failed\n", pathname, offset);
+		fprintf(stderr, "%s offset 0x%llx read failed\n", pathname, (unsigned long long)offset);
 		return -1;
 	}
 
