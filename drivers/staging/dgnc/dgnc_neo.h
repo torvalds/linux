@@ -26,12 +26,12 @@
 #include "dgnc_types.h"
 #include "dgnc_driver.h"
 
-/************************************************************************ 
+/************************************************************************
  * Per channel/port NEO UART structure					*
  ************************************************************************
  *		Base Structure Entries Usage Meanings to Host		*
  *									*
- *	W = read write		R = read only				* 
+ *	W = read write		R = read only				*
  *			U = Unused.					*
  ************************************************************************/
 
@@ -46,7 +46,7 @@ struct neo_uart_struct {
 	volatile uchar spr;		/* WR  SPR - Scratch Pad Reg */
 	volatile uchar fctr;		/* WR  FCTR - Feature Control Reg */
 	volatile uchar efr;		/* WR  EFR - Enhanced Function Reg */
-	volatile uchar tfifo;		/* WR  TXCNT/TXTRG - Transmit FIFO Reg */	
+	volatile uchar tfifo;		/* WR  TXCNT/TXTRG - Transmit FIFO Reg */
 	volatile uchar rfifo;		/* WR  RXCNT/RXTRG - Recieve  FIFO Reg */
 	volatile uchar xoffchar1;	/* WR  XOFF 1 - XOff Character 1 Reg */
 	volatile uchar xoffchar2;	/* WR  XOFF 2 - XOff Character 2 Reg */
@@ -74,7 +74,7 @@ struct neo_uart_struct {
 #define NEO_EEREG 0x8E		/* offset to EEPROM control reg */
 
 
-#define NEO_VPD_IMAGESIZE 0x40	/* size of image to read from EEPROM in words */           
+#define NEO_VPD_IMAGESIZE 0x40	/* size of image to read from EEPROM in words */
 #define NEO_VPD_IMAGEBYTES (NEO_VPD_IMAGESIZE * 2)
 
 /*
@@ -111,8 +111,8 @@ struct neo_uart_struct {
 #define UART_17158_FCTR_BIT7		0x80
 
 /* 17158 TX/RX memmapped buffer offsets */
-#define UART_17158_RX_FIFOSIZE		64  
-#define UART_17158_TX_FIFOSIZE		64  
+#define UART_17158_RX_FIFOSIZE		64
+#define UART_17158_TX_FIFOSIZE		64
 
 /* 17158 Extended IIR's */
 #define UART_17158_IIR_RDI_TIMEOUT	0x0C	/* Receiver data TIMEOUT */
