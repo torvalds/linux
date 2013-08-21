@@ -45,19 +45,6 @@ static inline struct sunxi_gpio_chip *to_sunxi_gpio(struct gpio_chip *chip)
 	return container_of(chip, struct sunxi_gpio_chip, chip);
 }
 
-/* Check if GPIO can be EINT source and return its virtual irq */
-/* number. These irq numbers handled by separate virtual irq chip */
-static int sunxi_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
-{
-	struct sunxi_gpio_chip *sgpio = to_sunxi_gpio(chip);
-	if ((offset > chip->ngpio - 1) || (offset < 0))
-		return -EINVAL;
-
-	if ((sgpio->irq_base >= 0) && (sgpio->data[offset].eint >= 0))
-		return sgpio->irq_base + sgpio->data[offset].eint;
-
-	return -EINVAL;
-}
 
 static int sunxi_find_gpio_irq(struct gpio_chip *chip, unsigned offset)
 {
@@ -83,6 +70,24 @@ static int sunxi_find_gpio_irq(struct gpio_chip *chip, unsigned offset)
 			return i;
 		}
 	}
+
+	return -EINVAL;
+}
+
+/* Check if GPIO can be EINT source and return its virtual irq */
+/* number. These irq numbers handled by separate virtual irq chip */
+static int sunxi_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
+{
+	int eint;
+
+	struct sunxi_gpio_chip *sgpio = to_sunxi_gpio(chip);
+	if ((offset > chip->ngpio - 1) || (offset < 0))
+		return -EINVAL;
+
+	eint = sunxi_find_gpio_irq(chip, offset);
+
+	if ((sgpio->irq_base >= 0) && (eint >= 0))
+		return sgpio->irq_base + eint;
 
 	return -EINVAL;
 }
@@ -194,7 +199,6 @@ static int sunxi_gpio_request(struct gpio_chip *chip, unsigned offset)
 
 	/* Save eint in gpio data for irq -> gpio conversion */
 	eint = sunxi_find_gpio_irq(chip, offset);
-	sgpio->data[offset].eint = eint;
 	sgpio->data[offset].eint_mux = -1;
 	if (eint >= 0) {
 		sgpio->data[offset].eint_mux = gpio_eint_list[eint].mux;
@@ -541,8 +545,8 @@ static int __devinit sunxi_gpio_probe(struct platform_device *pdev)
 	if (EINT_NUM > 0) {
 		sunxi_chip->irq_base = irq_alloc_descs(-1, 0, EINT_NUM, 0);
 		if (sunxi_chip->irq_base < 0) {
-			pr_err("Couldn't allocate virq numbers. GPIO irq support disabled\n");
 			err = sunxi_chip->irq_base;
+			pr_err("Couldn't allocate virq numbers err %d. GPIO irq support disabled\n", err);
 		}
 	} else
 		pr_info("GPIO irq support disabled in this platform\n");

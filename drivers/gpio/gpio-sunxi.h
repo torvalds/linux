@@ -42,7 +42,6 @@ struct gpio_eint_data {
 struct sunxi_gpio_data {
 	unsigned gpio_handler;
 	script_gpio_set_t info;
-	int eint;
 	int eint_mux;
 	char pin_name[16];
 };
