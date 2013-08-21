@@ -884,32 +884,13 @@ static void bus_remove_attrs(struct bus_type *bus)
 static int bus_add_groups(struct bus_type *bus,
 			  const struct attribute_group **groups)
 {
-	int error = 0;
-	int i;
-
-	if (groups) {
-		for (i = 0; groups[i]; i++) {
-			error = sysfs_create_group(&bus->p->subsys.kobj,
-						   groups[i]);
-			if (error) {
-				while (--i >= 0)
-					sysfs_remove_group(&bus->p->subsys.kobj,
-							   groups[i]);
-				break;
-			}
-		}
-	}
-	return error;
+	return sysfs_create_groups(&bus->p->subsys.kobj, groups);
 }
 
 static void bus_remove_groups(struct bus_type *bus,
 			      const struct attribute_group **groups)
 {
-	int i;
-
-	if (groups)
-		for (i = 0; groups[i]; i++)
-			sysfs_remove_group(&bus->p->subsys.kobj, groups[i]);
+	sysfs_remove_groups(&bus->p->subsys.kobj, groups);
 }
 
 static void klist_devices_get(struct klist_node *n)
