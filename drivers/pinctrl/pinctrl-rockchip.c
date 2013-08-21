@@ -167,18 +167,14 @@ static const inline struct rockchip_pin_group *pinctrl_name_to_group(
 					const struct rockchip_pinctrl *info,
 					const char *name)
 {
-	const struct rockchip_pin_group *grp = NULL;
 	int i;
 
 	for (i = 0; i < info->ngroups; i++) {
-		if (strcmp(info->groups[i].name, name))
-			continue;
-
-		grp = &info->groups[i];
-		break;
+		if (!strcmp(info->groups[i].name, name))
+			return &info->groups[i];
 	}
 
-	return grp;
+	return NULL;
 }
 
 /*
@@ -204,17 +200,12 @@ static struct rockchip_pin_bank *bank_num_to_bank(
 	struct rockchip_pin_bank *b = info->ctrl->pin_banks;
 	int i;
 
-	for (i = 0; i < info->ctrl->nr_banks; i++) {
+	for (i = 0; i < info->ctrl->nr_banks; i++, b++) {
 		if (b->bank_num == num)
-			break;
-
-		b++;
+			return b;
 	}
 
-	if (b->bank_num != num)
-		return ERR_PTR(-EINVAL);
-
-	return b;
+	return ERR_PTR(-EINVAL);
 }
 
 /*
