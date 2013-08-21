@@ -1832,7 +1832,7 @@ static void transport_complete_qf(struct se_cmd *cmd)
 		ret = cmd->se_tfo->queue_data_in(cmd);
 		break;
 	case DMA_TO_DEVICE:
-		if (cmd->t_bidi_data_sg) {
+		if (cmd->se_cmd_flags & SCF_BIDI) {
 			ret = cmd->se_tfo->queue_data_in(cmd);
 			if (ret < 0)
 				break;
@@ -1947,7 +1947,7 @@ static void target_complete_ok_work(struct work_struct *work)
 		/*
 		 * Check if we need to send READ payload for BIDI-COMMAND
 		 */
-		if (cmd->t_bidi_data_sg) {
+		if (cmd->se_cmd_flags & SCF_BIDI) {
 			spin_lock(&cmd->se_lun->lun_sep_lock);
 			if (cmd->se_lun->lun_sep) {
 				cmd->se_lun->lun_sep->sep_stats.tx_data_octets +=
