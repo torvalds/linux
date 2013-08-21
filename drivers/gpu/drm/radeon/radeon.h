@@ -1259,6 +1259,15 @@ enum radeon_dpm_event_src {
 	RADEON_DPM_EVENT_SRC_DIGIAL_OR_EXTERNAL = 4
 };
 
+enum radeon_vce_level {
+	RADEON_VCE_LEVEL_AC_ALL = 0,     /* AC, All cases */
+	RADEON_VCE_LEVEL_DC_EE = 1,      /* DC, entropy encoding */
+	RADEON_VCE_LEVEL_DC_LL_LOW = 2,  /* DC, low latency queue, res <= 720 */
+	RADEON_VCE_LEVEL_DC_LL_HIGH = 3, /* DC, low latency queue, 1080 >= res > 720 */
+	RADEON_VCE_LEVEL_DC_GP_LOW = 4,  /* DC, general purpose queue, res <= 720 */
+	RADEON_VCE_LEVEL_DC_GP_HIGH = 5, /* DC, general purpose queue, 1080 >= res > 720 */
+};
+
 struct radeon_ps {
 	u32 caps; /* vbios flags */
 	u32 class; /* vbios flags */
@@ -1269,6 +1278,8 @@ struct radeon_ps {
 	/* VCE clocks */
 	u32 evclk;
 	u32 ecclk;
+	bool vce_active;
+	enum radeon_vce_level vce_level;
 	/* asic priv */
 	void *ps_priv;
 };
@@ -1480,6 +1491,7 @@ struct radeon_dpm {
 	/* special states active */
 	bool                    thermal_active;
 	bool                    uvd_active;
+	bool                    vce_active;
 	/* thermal handling */
 	struct radeon_dpm_thermal thermal;
 	/* forced levels */

@@ -826,6 +826,9 @@ static void radeon_dpm_change_power_state_locked(struct radeon_device *rdev)
 
 	/* no need to reprogram if nothing changed unless we are on BTC+ */
 	if (rdev->pm.dpm.current_ps == rdev->pm.dpm.requested_ps) {
+		/* vce just modifies an existing state so force a change */
+		if (ps->vce_active != rdev->pm.dpm.vce_active)
+			goto force;
 		if ((rdev->family < CHIP_BARTS) || (rdev->flags & RADEON_IS_IGP)) {
 			/* for pre-BTC and APUs if the num crtcs changed but state is the same,
 			 * all we need to do is update the display configuration.
@@ -862,15 +865,20 @@ static void radeon_dpm_change_power_state_locked(struct radeon_device *rdev)
 		}
 	}
 
+force:
 	if (radeon_dpm == 1) {
 		printk("switching from power state:\n");
 		radeon_dpm_print_power_state(rdev, rdev->pm.dpm.current_ps);
 		printk("switching to power state:\n");
 		radeon_dpm_print_power_state(rdev, rdev->pm.dpm.requested_ps);
 	}
+
 	mutex_lock(&rdev->ddev->struct_mutex);
 	down_write(&rdev->pm.mclk_lock);
 	mutex_lock(&rdev->ring_lock);
+
+	/* update whether vce is active */
+	ps->vce_active = rdev->pm.dpm.vce_active;
 
 	ret = radeon_dpm_pre_set_power_state(rdev);
 	if (ret)
