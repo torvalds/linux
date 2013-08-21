@@ -139,6 +139,14 @@ static void iwl_mvm_reset_phy_ctxts(struct iwl_mvm *mvm)
 	}
 }
 
+static int iwl_mvm_max_scan_ie_len(struct iwl_mvm *mvm)
+{
+	/* we create the 802.11 header and SSID element */
+	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_NO_BASIC_SSID)
+		return mvm->fw->ucode_capa.max_probe_length - 24 - 2;
+	return mvm->fw->ucode_capa.max_probe_length - 24 - 34;
+}
+
 int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 {
 	struct ieee80211_hw *hw = mvm->hw;
@@ -213,9 +221,8 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 
 	iwl_mvm_reset_phy_ctxts(mvm);
 
-	/* we create the 802.11 header and a max-length SSID element */
-	hw->wiphy->max_scan_ie_len =
-		mvm->fw->ucode_capa.max_probe_length - 24 - 34;
+	hw->wiphy->max_scan_ie_len = iwl_mvm_max_scan_ie_len(mvm);
+
 	hw->wiphy->max_scan_ssids = PROBE_OPTION_MAX;
 
 	if (mvm->nvm_data->bands[IEEE80211_BAND_2GHZ].n_channels)

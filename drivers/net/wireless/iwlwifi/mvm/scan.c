@@ -137,11 +137,12 @@ iwl_mvm_scan_rate_n_flags(struct iwl_mvm *mvm, enum ieee80211_band band,
  * request.
  */
 static void iwl_mvm_scan_fill_ssids(struct iwl_scan_cmd *cmd,
-				    struct cfg80211_scan_request *req)
+				    struct cfg80211_scan_request *req,
+				    int first)
 {
 	int fw_idx, req_idx;
 
-	for (req_idx = req->n_ssids - 1, fw_idx = 0; req_idx > 0;
+	for (req_idx = req->n_ssids - 1, fw_idx = 0; req_idx >= first;
 	     req_idx--, fw_idx++) {
 		cmd->direct_scan[fw_idx].id = WLAN_EID_SSID;
 		cmd->direct_scan[fw_idx].len = req->ssids[req_idx].ssid_len;
@@ -157,9 +158,9 @@ static void iwl_mvm_scan_fill_ssids(struct iwl_scan_cmd *cmd,
  * just to notify that this scan is active and not passive.
  * In order to notify the FW of the number of SSIDs we wish to scan (including
  * the zero-length one), we need to set the corresponding bits in chan->type,
- * one for each SSID, and set the active bit (first). The first SSID is already
- * included in the probe template, so we need to set only req->n_ssids - 1 bits
- * in addition to the first bit.
+ * one for each SSID, and set the active bit (first). If the first SSID is
+ * already included in the probe template, so we need to set only
+ * req->n_ssids - 1 bits in addition to the first bit.
  */
 static u16 iwl_mvm_get_active_dwell(enum ieee80211_band band, int n_ssids)
 {
@@ -174,7 +175,8 @@ static u16 iwl_mvm_get_passive_dwell(enum ieee80211_band band)
 }
 
 static void iwl_mvm_scan_fill_channels(struct iwl_scan_cmd *cmd,
-				       struct cfg80211_scan_request *req)
+				       struct cfg80211_scan_request *req,
+				       bool basic_ssid)
 {
 	u16 passive_dwell = iwl_mvm_get_passive_dwell(req->channels[0]->band);
 	u16 active_dwell = iwl_mvm_get_active_dwell(req->channels[0]->band,
@@ -182,10 +184,14 @@ static void iwl_mvm_scan_fill_channels(struct iwl_scan_cmd *cmd,
 	struct iwl_scan_channel *chan = (struct iwl_scan_channel *)
 		(cmd->data + le16_to_cpu(cmd->tx_cmd.len));
 	int i;
+	int type = BIT(req->n_ssids) - 1;
+
+	if (!basic_ssid)
+		type |= BIT(req->n_ssids);
 
 	for (i = 0; i < cmd->channel_count; i++) {
 		chan->channel = cpu_to_le16(req->channels[i]->hw_value);
-		chan->type = cpu_to_le32(BIT(req->n_ssids) - 1);
+		chan->type = cpu_to_le32(type);
 		if (req->channels[i]->flags & IEEE80211_CHAN_PASSIVE_SCAN)
 			chan->type &= cpu_to_le32(~SCAN_CHANNEL_TYPE_ACTIVE);
 		chan->active_dwell = cpu_to_le16(active_dwell);
@@ -272,6 +278,8 @@ int iwl_mvm_scan_request(struct iwl_mvm *mvm,
 	u32 status;
 	int ssid_len = 0;
 	u8 *ssid = NULL;
+	bool basic_ssid = !(mvm->fw->ucode_capa.flags &
+			   IWL_UCODE_TLV_FLAGS_NO_BASIC_SSID);
 
 	lockdep_assert_held(&mvm->mutex);
 	BUG_ON(mvm->scan_cmd == NULL);
@@ -306,14 +314,16 @@ int iwl_mvm_scan_request(struct iwl_mvm *mvm,
 	if (req->n_ssids > 0) {
 		cmd->passive2active = cpu_to_le16(1);
 		cmd->scan_flags |= SCAN_FLAGS_PASSIVE2ACTIVE;
-		ssid = req->ssids[0].ssid;
-		ssid_len = req->ssids[0].ssid_len;
+		if (basic_ssid) {
+			ssid = req->ssids[0].ssid;
+			ssid_len = req->ssids[0].ssid_len;
+		}
 	} else {
 		cmd->passive2active = 0;
 		cmd->scan_flags &= ~SCAN_FLAGS_PASSIVE2ACTIVE;
 	}
 
-	iwl_mvm_scan_fill_ssids(cmd, req);
+	iwl_mvm_scan_fill_ssids(cmd, req, basic_ssid ? 1 : 0);
 
 	cmd->tx_cmd.tx_flags = cpu_to_le32(TX_CMD_FLG_SEQ_CTL);
 	cmd->tx_cmd.sta_id = mvm->aux_sta.sta_id;
@@ -330,7 +340,7 @@ int iwl_mvm_scan_request(struct iwl_mvm *mvm,
 			    req->ie, req->ie_len,
 			    mvm->fw->ucode_capa.max_probe_length));
 
-	iwl_mvm_scan_fill_channels(cmd, req);
+	iwl_mvm_scan_fill_channels(cmd, req, basic_ssid);
 
 	cmd->len = cpu_to_le16(sizeof(struct iwl_scan_cmd) +
 		le16_to_cpu(cmd->tx_cmd.len) +
