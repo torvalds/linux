@@ -242,7 +242,8 @@ int qlcnic_alloc_sw_resources(struct qlcnic_adapter *adapter)
 		sds_ring->adapter = adapter;
 		sds_ring->num_desc = adapter->num_rxd;
 		if (qlcnic_82xx_check(adapter)) {
-			if (qlcnic_check_multi_tx(adapter))
+			if (qlcnic_check_multi_tx(adapter) &&
+			    !adapter->ahw->diag_test)
 				sds_ring->tx_ring = &adapter->tx_ring[ring];
 			else
 				sds_ring->tx_ring = &adapter->tx_ring[0];

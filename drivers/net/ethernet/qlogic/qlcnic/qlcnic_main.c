@@ -581,6 +581,7 @@ int qlcnic_enable_msix(struct qlcnic_adapter *adapter, u32 num_msix)
 			} else {
 				adapter->ahw->num_msix = num_msix;
 				if (qlcnic_check_multi_tx(adapter) &&
+				    !adapter->ahw->diag_test &&
 				    (adapter->max_drv_tx_rings > 1))
 					max_sds_rings = num_msix - max_tx_rings;
 				else
@@ -697,6 +698,7 @@ int qlcnic_82xx_mq_intrpt(struct qlcnic_adapter *adapter, int op_type)
 	int err, i;
 
 	if (qlcnic_check_multi_tx(adapter) &&
+	    !ahw->diag_test &&
 	    (adapter->flags & QLCNIC_MSIX_ENABLED)) {
 		ahw->intr_tbl = vzalloc(ahw->num_msix *
 					sizeof(struct qlcnic_intrpt_config));
@@ -1752,6 +1754,7 @@ void qlcnic_diag_free_res(struct net_device *netdev, int max_sds_rings)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_host_sds_ring *sds_ring;
+	int max_tx_rings = adapter->max_drv_tx_rings;
 	int ring;
 
 	clear_bit(__QLCNIC_DEV_UP, &adapter->state);
@@ -1768,6 +1771,7 @@ void qlcnic_diag_free_res(struct net_device *netdev, int max_sds_rings)
 
 	adapter->ahw->diag_test = 0;
 	adapter->max_sds_rings = max_sds_rings;
+	adapter->max_drv_tx_rings = max_tx_rings;
 
 	if (qlcnic_attach(adapter))
 		goto out;
@@ -1836,6 +1840,7 @@ int qlcnic_diag_alloc_res(struct net_device *netdev, int test)
 	adapter->max_sds_rings = 1;
 	adapter->ahw->diag_test = test;
 	adapter->ahw->linkup = 0;
+	adapter->max_drv_tx_rings = 1;
 
 	ret = qlcnic_attach(adapter);
 	if (ret) {

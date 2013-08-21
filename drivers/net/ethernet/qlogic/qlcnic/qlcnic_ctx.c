@@ -295,7 +295,8 @@ int qlcnic_82xx_fw_cmd_create_rx_ctx(struct qlcnic_adapter *adapter)
 						| QLCNIC_CAP0_VALIDOFF);
 	cap |= (QLCNIC_CAP0_JUMBO_CONTIGUOUS | QLCNIC_CAP0_LRO_CONTIGUOUS);
 
-	if (qlcnic_check_multi_tx(adapter)) {
+	if (qlcnic_check_multi_tx(adapter) &&
+	    !adapter->ahw->diag_test) {
 		cap |= QLCNIC_CAP0_TX_MULTI;
 	} else {
 		temp_u16 = offsetof(struct qlcnic_hostrq_rx_ctx, msix_handler);
@@ -338,7 +339,8 @@ int qlcnic_82xx_fw_cmd_create_rx_ctx(struct qlcnic_adapter *adapter)
 		memset(sds_ring->desc_head, 0, STATUS_DESC_RINGSIZE(sds_ring));
 		prq_sds[i].host_phys_addr = cpu_to_le64(sds_ring->phys_addr);
 		prq_sds[i].ring_size = cpu_to_le32(sds_ring->num_desc);
-		if (qlcnic_check_multi_tx(adapter))
+		if (qlcnic_check_multi_tx(adapter) &&
+		    !adapter->ahw->diag_test)
 			prq_sds[i].msi_index = cpu_to_le16(ahw->intr_tbl[i].id);
 		else
 			prq_sds[i].msi_index = cpu_to_le16(i);
@@ -374,7 +376,7 @@ int qlcnic_82xx_fw_cmd_create_rx_ctx(struct qlcnic_adapter *adapter)
 	for (i = 0; i < le16_to_cpu(prsp->num_sds_rings); i++) {
 		sds_ring = &recv_ctx->sds_rings[i];
 		reg = le32_to_cpu(prsp_sds[i].host_consumer_crb);
-		if (qlcnic_check_multi_tx(adapter))
+		if (qlcnic_check_multi_tx(adapter) && !adapter->ahw->diag_test)
 			reg2 = ahw->intr_tbl[i].src;
 		else
 			reg2 = le32_to_cpu(prsp_sds[i].interrupt_crb);
@@ -464,13 +466,13 @@ int qlcnic_82xx_fw_cmd_create_tx_ctx(struct qlcnic_adapter *adapter,
 
 	temp = (QLCNIC_CAP0_LEGACY_CONTEXT | QLCNIC_CAP0_LEGACY_MN |
 		QLCNIC_CAP0_LSO);
-	if (qlcnic_check_multi_tx(adapter))
+	if (qlcnic_check_multi_tx(adapter) && !adapter->ahw->diag_test)
 		temp |= QLCNIC_CAP0_TX_MULTI;
 
 	prq->capabilities[0] = cpu_to_le32(temp);
 
 	if (qlcnic_check_multi_tx(adapter) &&
-	    (adapter->max_drv_tx_rings > 1)) {
+	    !adapter->ahw->diag_test) {
 		temp_nsds_rings = adapter->max_sds_rings;
 		index = temp_nsds_rings + ring;
 		msix_id = ahw->intr_tbl[index].id;
@@ -506,6 +508,7 @@ int qlcnic_82xx_fw_cmd_create_tx_ctx(struct qlcnic_adapter *adapter,
 		tx_ring->crb_cmd_producer = adapter->ahw->pci_base0 + temp;
 		tx_ring->ctx_id = le16_to_cpu(prsp->context_id);
 		if (qlcnic_check_multi_tx(adapter) &&
+		    !adapter->ahw->diag_test &&
 		    (adapter->flags & QLCNIC_MSIX_ENABLED)) {
 			index = adapter->max_sds_rings + ring;
 			intr_mask = ahw->intr_tbl[index].src;
@@ -681,13 +684,14 @@ int qlcnic_fw_create_ctx(struct qlcnic_adapter *dev)
 
 err_out:
 	if (qlcnic_82xx_check(dev) && (dev->flags & QLCNIC_MSIX_ENABLED) &&
-	    qlcnic_check_multi_tx(dev))
-		qlcnic_82xx_config_intrpt(dev, 0);
+	    qlcnic_check_multi_tx(dev) && !dev->ahw->diag_test)
+			qlcnic_82xx_config_intrpt(dev, 0);
 
 	if (qlcnic_83xx_check(dev) && (dev->flags & QLCNIC_MSIX_ENABLED)) {
 		if (dev->ahw->diag_test != QLCNIC_LOOPBACK_TEST)
 			qlcnic_83xx_config_intrpt(dev, 0);
 	}
+
 	return err;
 }
 
@@ -703,8 +707,9 @@ void qlcnic_fw_destroy_ctx(struct qlcnic_adapter *adapter)
 
 		if (qlcnic_82xx_check(adapter) &&
 		    (adapter->flags & QLCNIC_MSIX_ENABLED) &&
-		    qlcnic_check_multi_tx(adapter))
-			qlcnic_82xx_config_intrpt(adapter, 0);
+		    qlcnic_check_multi_tx(adapter) &&
+		    !adapter->ahw->diag_test)
+				qlcnic_82xx_config_intrpt(adapter, 0);
 
 		if (qlcnic_83xx_check(adapter) &&
 		    (adapter->flags & QLCNIC_MSIX_ENABLED)) {

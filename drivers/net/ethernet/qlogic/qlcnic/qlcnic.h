@@ -1990,6 +1990,7 @@ static inline void qlcnic_disable_int(struct qlcnic_host_sds_ring *sds_ring)
 	struct qlcnic_adapter *adapter = sds_ring->adapter;
 
 	if (qlcnic_check_multi_tx(adapter) &&
+	    !adapter->ahw->diag_test &&
 	    (adapter->flags & QLCNIC_MSIX_ENABLED))
 		writel(0x1, sds_ring->crb_intr_mask);
 	else
@@ -2004,6 +2005,7 @@ static inline void qlcnic_enable_int(struct qlcnic_host_sds_ring *sds_ring)
 	struct qlcnic_adapter *adapter = sds_ring->adapter;
 
 	if (qlcnic_check_multi_tx(adapter) &&
+	    !adapter->ahw->diag_test &&
 	    (adapter->flags & QLCNIC_MSIX_ENABLED))
 		writel(0, sds_ring->crb_intr_mask);
 	else

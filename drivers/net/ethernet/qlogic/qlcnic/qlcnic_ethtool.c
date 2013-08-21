@@ -984,6 +984,7 @@ int qlcnic_do_lb_test(struct qlcnic_adapter *adapter, u8 mode)
 int qlcnic_loopback_test(struct net_device *netdev, u8 mode)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	int max_drv_tx_rings = adapter->max_drv_tx_rings;
 	int max_sds_rings = adapter->max_sds_rings;
 	struct qlcnic_host_sds_ring *sds_ring;
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
@@ -1043,6 +1044,7 @@ int qlcnic_loopback_test(struct net_device *netdev, u8 mode)
 
  clear_it:
 	adapter->max_sds_rings = max_sds_rings;
+	adapter->max_drv_tx_rings = max_drv_tx_rings;
 	clear_bit(__QLCNIC_RESETTING, &adapter->state);
 	return ret;
 }
