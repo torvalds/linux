@@ -1,6 +1,9 @@
 config SND_SOC_FSL_SSI
 	tristate
 
+config SND_SOC_FSL_SPDIF
+	tristate
+
 config SND_SOC_FSL_UTILS
 	tristate
 
