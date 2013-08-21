@@ -1626,7 +1626,7 @@ queue_full:
 }
 EXPORT_SYMBOL(transport_generic_request_failure);
 
-static void __target_execute_cmd(struct se_cmd *cmd)
+void __target_execute_cmd(struct se_cmd *cmd)
 {
 	sense_reason_t ret;
 
