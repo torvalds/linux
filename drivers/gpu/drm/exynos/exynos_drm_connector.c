@@ -29,35 +29,6 @@ struct exynos_drm_connector {
 	uint32_t		dpms;
 };
 
-/* convert exynos_video_timings to drm_display_mode */
-static inline void
-convert_to_display_mode(struct drm_display_mode *mode,
-			struct exynos_drm_panel_info *panel)
-{
-	struct fb_videomode *timing = &panel->timing;
-
-	mode->clock = timing->pixclock / 1000;
-	mode->vrefresh = timing->refresh;
-
-	mode->hdisplay = timing->xres;
-	mode->hsync_start = mode->hdisplay + timing->right_margin;
-	mode->hsync_end = mode->hsync_start + timing->hsync_len;
-	mode->htotal = mode->hsync_end + timing->left_margin;
-
-	mode->vdisplay = timing->yres;
-	mode->vsync_start = mode->vdisplay + timing->lower_margin;
-	mode->vsync_end = mode->vsync_start + timing->vsync_len;
-	mode->vtotal = mode->vsync_end + timing->upper_margin;
-	mode->width_mm = panel->width_mm;
-	mode->height_mm = panel->height_mm;
-
-	if (timing->vmode & FB_VMODE_INTERLACED)
-		mode->flags |= DRM_MODE_FLAG_INTERLACE;
-
-	if (timing->vmode & FB_VMODE_DOUBLE)
-		mode->flags |= DRM_MODE_FLAG_DBLSCAN;
-}
-
 static int exynos_drm_connector_get_modes(struct drm_connector *connector)
 {
 	struct exynos_drm_connector *exynos_connector =
@@ -112,7 +83,9 @@ static int exynos_drm_connector_get_modes(struct drm_connector *connector)
 			return 0;
 		}
 
-		convert_to_display_mode(mode, panel);
+		drm_display_mode_from_videomode(&panel->vm, mode);
+		mode->width_mm = panel->width_mm;
+		mode->height_mm = panel->height_mm;
 		connector->display_info.width_mm = mode->width_mm;
 		connector->display_info.height_mm = mode->height_mm;
 
