@@ -131,7 +131,6 @@ config BCM63XX
 	select IRQ_CPU
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_HAS_CPU_BMIPS4350 if !BCM63XX_CPU_6338 && !BCM63XX_CPU_6345 && !BCM63XX_CPU_6348
-	select NR_CPUS_DEFAULT_2
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_HAS_EARLY_PRINTK
@@ -609,7 +608,6 @@ config SIBYTE_SWARM
 	select BOOT_ELF32
 	select DMA_COHERENT
 	select HAVE_PATA_PLATFORM
-	select NR_CPUS_DEFAULT_2
 	select SIBYTE_SB1250
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_SB1
@@ -623,7 +621,6 @@ config SIBYTE_LITTLESUR
 	select BOOT_ELF32
 	select DMA_COHERENT
 	select HAVE_PATA_PLATFORM
-	select NR_CPUS_DEFAULT_2
 	select SIBYTE_SB1250
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_SB1
@@ -635,7 +632,6 @@ config SIBYTE_SENTOSA
 	bool "Sibyte BCM91250E-Sentosa"
 	select BOOT_ELF32
 	select DMA_COHERENT
-	select NR_CPUS_DEFAULT_2
 	select SIBYTE_SB1250
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_SB1
@@ -1862,7 +1858,6 @@ config MIPS_MT_SMP
 	select CPU_MIPSR2_IRQ_VI
 	select CPU_MIPSR2_IRQ_EI
 	select MIPS_MT
-	select NR_CPUS_DEFAULT_2
 	select SMP
 	select SYS_SUPPORTS_SCHED_SMT if SMP
 	select SYS_SUPPORTS_SMP
@@ -2173,12 +2168,6 @@ config SYS_SUPPORTS_MIPS_CMP
 config SYS_SUPPORTS_SMP
 	bool
 
-config NR_CPUS_DEFAULT_1
-	bool
-
-config NR_CPUS_DEFAULT_2
-	bool
-
 config NR_CPUS_DEFAULT_4
 	bool
 
@@ -2196,10 +2185,8 @@ config NR_CPUS_DEFAULT_64
 
 config NR_CPUS
 	int "Maximum number of CPUs (2-64)"
-	range 1 64 if NR_CPUS_DEFAULT_1
+	range 2 64
 	depends on SMP
-	default "1" if NR_CPUS_DEFAULT_1
-	default "2" if NR_CPUS_DEFAULT_2
 	default "4" if NR_CPUS_DEFAULT_4
 	default "8" if NR_CPUS_DEFAULT_8
 	default "16" if NR_CPUS_DEFAULT_16
