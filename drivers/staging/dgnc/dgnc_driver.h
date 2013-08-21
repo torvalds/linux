@@ -28,7 +28,7 @@
 #define __DGNC_DRIVER_H
 
 #include <linux/types.h>	/* To pick up the varions Linux types */
-#include <linux/tty.h>          /* To pick up the various tty structs/defines */
+#include <linux/tty.h>	  /* To pick up the various tty structs/defines */
 #include <linux/interrupt.h>	/* For irqreturn_t type */
 
 #include "dgnc_types.h"		/* Additional types needed by the Digi header files */
@@ -250,7 +250,7 @@ struct board_t;
 struct channel_t;
 
 /************************************************************************
- * Per board operations structure                                       *
+ * Per board operations structure				       *
  ************************************************************************/
 struct board_ops {
 	void (*tasklet) (unsigned long data);
@@ -276,7 +276,7 @@ struct board_ops {
 /************************************************************************
  * Device flag definitions for bd_flags.
  ************************************************************************/
-#define BD_IS_PCI_EXPRESS     0x0001          /* Is a PCI Express board */
+#define BD_IS_PCI_EXPRESS     0x0001	  /* Is a PCI Express board */
 
 
 /*
@@ -354,8 +354,8 @@ struct board_t {
 	/*
 	 *	Mgmt data.
 	 */
-        char		*msgbuf_head;
-        char		*msgbuf;
+	char		*msgbuf_head;
+	char		*msgbuf;
 
 	uint		bd_dividend;	/* Board/UARTs specific dividend */
 
@@ -451,26 +451,26 @@ struct channel_t {
 	int magic;			/* Channel Magic Number		*/
 	struct board_t	*ch_bd;		/* Board structure pointer      */
 	struct digi_t	ch_digi;	/* Transparent Print structure  */
-	struct un_t	ch_tun;		/* Terminal unit info           */
-	struct un_t	ch_pun;		/* Printer unit info            */
+	struct un_t	ch_tun;		/* Terminal unit info	   */
+	struct un_t	ch_pun;		/* Printer unit info	    */
 
 	spinlock_t	ch_lock;	/* provide for serialization */
 	wait_queue_head_t ch_flags_wait;
 
 	uint		ch_portnum;	/* Port number, 0 offset.	*/
 	uint		ch_open_count;	/* open count			*/
-	uint		ch_flags;	/* Channel flags                */
+	uint		ch_flags;	/* Channel flags		*/
 
 	ulong		ch_close_delay;	/* How long we should drop RTS/DTR for */
 
 	ulong		ch_cpstime;	/* Time for CPS calculations    */
 
-	tcflag_t	ch_c_iflag;	/* channel iflags               */
-	tcflag_t	ch_c_cflag;	/* channel cflags               */
-	tcflag_t	ch_c_oflag;	/* channel oflags               */
-	tcflag_t	ch_c_lflag;	/* channel lflags               */
-	uchar		ch_stopc;	/* Stop character               */
-	uchar		ch_startc;	/* Start character              */
+	tcflag_t	ch_c_iflag;	/* channel iflags	       */
+	tcflag_t	ch_c_cflag;	/* channel cflags	       */
+	tcflag_t	ch_c_oflag;	/* channel oflags	       */
+	tcflag_t	ch_c_lflag;	/* channel lflags	       */
+	uchar		ch_stopc;	/* Stop character	       */
+	uchar		ch_startc;	/* Start character	      */
 
 	uint		ch_old_baud;	/* Cache of the current baud */
 	uint		ch_custom_speed;/* Custom baud, if set */
@@ -530,7 +530,7 @@ struct channel_t {
 	uint ch_sniff_in;
 	uint ch_sniff_out;
 	char *ch_sniff_buf;		/* Sniff buffer for proc */
-	ulong ch_sniff_flags;		/* Channel flags                */
+	ulong ch_sniff_flags;		/* Channel flags		*/
 	wait_queue_head_t ch_sniff_wait;
 };
 
