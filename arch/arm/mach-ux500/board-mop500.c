@@ -50,14 +50,9 @@
 #include "board-mop500.h"
 #include "board-mop500-regulators.h"
 
-static struct abx500_gpio_platform_data ab8500_gpio_pdata = {
-	.gpio_base		= MOP500_AB8500_PIN_GPIO(1),
-};
-
 struct ab8500_platform_data ab8500_platdata = {
 	.irq_base	= MOP500_AB8500_IRQ_BASE,
 	.regulator	= &ab8500_regulator_plat_data,
-	.gpio		= &ab8500_gpio_pdata,
 };
 
 /*
