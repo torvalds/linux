@@ -16,9 +16,10 @@
  *
  * This is the generic async execution mechanism.  Work items as are
  * executed in process context.  The worker pool is shared and
- * automatically managed.  There is one worker pool for each CPU and
- * one extra for works which are better served by workers which are
- * not bound to any specific CPU.
+ * automatically managed.  There are two worker pools for each CPU (one for
+ * normal work items and the other for high priority ones) and some extra
+ * pools for workqueues which are not bound to any specific CPU - the
+ * number of these backing pools is dynamic.
  *
  * Please read Documentation/workqueue.txt for details.
  */
