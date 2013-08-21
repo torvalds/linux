@@ -592,14 +592,11 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct mlx4_en_tx_ring *ring;
 	struct mlx4_en_tx_desc *tx_desc;
 	struct mlx4_wqe_data_seg *data;
-	struct skb_frag_struct *frag;
 	struct mlx4_en_tx_info *tx_info;
-	struct ethhdr *ethh;
 	int tx_ind = 0;
 	int nr_txbb;
 	int desc_size;
 	int real_size;
-	dma_addr_t dma;
 	u32 index, bf_index;
 	__be32 op_own;
 	u16 vlan_tag = 0;
@@ -694,6 +691,9 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	} else {
 		/* Map fragments */
 		for (i = skb_shinfo(skb)->nr_frags - 1; i >= 0; i--) {
+			struct skb_frag_struct *frag;
+			dma_addr_t dma;
+
 			frag = &skb_shinfo(skb)->frags[i];
 			dma = skb_frag_dma_map(ddev, frag,
 					       0, skb_frag_size(frag),
@@ -711,6 +711,8 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* Map linear part */
 		if (tx_info->linear) {
 			u32 byte_count = skb_headlen(skb) - lso_header_size;
+			dma_addr_t dma;
+
 			dma = dma_map_single(ddev, skb->data +
 					     lso_header_size, byte_count,
 					     PCI_DMA_TODEVICE);
@@ -749,6 +751,8 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if (priv->flags & MLX4_EN_FLAG_ENABLE_HW_LOOPBACK) {
+		struct ethhdr *ethh;
+
 		/* Copy dst mac address to wqe. This allows loopback in eSwitch,
 		 * so that VFs and PF can communicate with each other
 		 */
