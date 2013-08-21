@@ -71,6 +71,7 @@
 #define IFF_DETACH_QUEUE 0x0400
 /* read-only flag */
 #define IFF_PERSIST	0x0800
+#define IFF_NOFILTER	0x1000
 
 /* Socket options */
 #define TUN_TX_TIMESTAMP 1

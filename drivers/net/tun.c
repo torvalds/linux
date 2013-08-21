@@ -501,7 +501,7 @@ static void tun_detach_all(struct net_device *dev)
 		module_put(THIS_MODULE);
 }
 
-static int tun_attach(struct tun_struct *tun, struct file *file)
+static int tun_attach(struct tun_struct *tun, struct file *file, bool skip_filter)
 {
 	struct tun_file *tfile = file->private_data;
 	int err;
@@ -526,7 +526,7 @@ static int tun_attach(struct tun_struct *tun, struct file *file)
 	err = 0;
 
 	/* Re-attach the filter to presist device */
-	if (tun->filter_attached == true) {
+	if (!skip_filter && (tun->filter_attached == true)) {
 		err = sk_attach_filter(&tun->fprog, tfile->socket.sk);
 		if (!err)
 			goto out;
@@ -1557,7 +1557,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		if (err < 0)
 			return err;
 
-		err = tun_attach(tun, file);
+		err = tun_attach(tun, file, ifr->ifr_flags & IFF_NOFILTER);
 		if (err < 0)
 			return err;
 
@@ -1631,7 +1631,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		dev->vlan_features = dev->features;
 
 		INIT_LIST_HEAD(&tun->disabled);
-		err = tun_attach(tun, file);
+		err = tun_attach(tun, file, false);
 		if (err < 0)
 			goto err_free_dev;
 
@@ -1795,7 +1795,7 @@ static int tun_set_queue(struct file *file, struct ifreq *ifr)
 		ret = security_tun_dev_attach_queue(tun->security);
 		if (ret < 0)
 			goto unlock;
-		ret = tun_attach(tun, file);
+		ret = tun_attach(tun, file, false);
 	} else if (ifr->ifr_flags & IFF_DETACH_QUEUE) {
 		tun = rtnl_dereference(tfile->tun);
 		if (!tun || !(tun->flags & TUN_TAP_MQ) || tfile->detached)
@@ -1883,6 +1883,8 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 
 		if (tfile->detached)
 			ifr.ifr_flags |= IFF_DETACH_QUEUE;
+		if (!tfile->socket.sk->sk_filter)
+			ifr.ifr_flags |= IFF_NOFILTER;
 
 		if (copy_to_user(argp, &ifr, ifreq_len))
 			ret = -EFAULT;
