@@ -971,7 +971,7 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
  * @get_wol: Get WoL configuration from driver state
  * @set_wol: Push WoL configuration to the NIC
  * @resume_wol: Synchronise WoL state between driver and MC (e.g. after resume)
- * @test_chip: Test registers.  Should use efx_nic_test_registers(), and is
+ * @test_chip: Test registers.  May use efx_farch_test_registers(), and is
  *	expected to reset the NIC.
  * @test_nvram: Test validity of NVRAM contents
  * @mcdi_request: Send an MCDI request with the given header and SDU.
@@ -985,6 +985,32 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
  * @mcdi_poll_reboot: Test whether the MCDI has rebooted.  If so,
  *	return an appropriate error code for aborting any current
  *	request; otherwise return 0.
+ * @irq_enable_master: Enable IRQs on the NIC.  Each event queue must
+ *	be separately enabled after this.
+ * @irq_test_generate: Generate a test IRQ
+ * @irq_disable_non_ev: Disable non-event IRQs on the NIC.  Each event
+ *	queue must be separately disabled before this.
+ * @irq_handle_msi: Handle MSI for a channel.  The @dev_id argument is
+ *	a pointer to the &struct efx_msi_context for the channel.
+ * @irq_handle_legacy: Handle legacy interrupt.  The @dev_id argument
+ *	is a pointer to the &struct efx_nic.
+ * @tx_probe: Allocate resources for TX queue
+ * @tx_init: Initialise TX queue on the NIC
+ * @tx_remove: Free resources for TX queue
+ * @tx_write: Write TX descriptors and doorbell
+ * @rx_push_indir_table: Write RSS indirection table to the NIC
+ * @rx_probe: Allocate resources for RX queue
+ * @rx_init: Initialise RX queue on the NIC
+ * @rx_remove: Free resources for RX queue
+ * @rx_write: Write RX descriptors and doorbell
+ * @rx_defer_refill: Generate a refill reminder event
+ * @ev_probe: Allocate resources for event queue
+ * @ev_init: Initialise event queue on the NIC
+ * @ev_fini: Deinitialise event queue on the NIC
+ * @ev_remove: Free resources for event queue
+ * @ev_process: Process events for a queue, up to the given NAPI quota
+ * @ev_read_ack: Acknowledge read events on a queue, rearming its IRQ
+ * @ev_test_generate: Generate a test event
  * @revision: Hardware architecture revision
  * @mem_map_size: Memory BAR mapped size
  * @txd_ptr_tbl_base: TX descriptor ring base address
@@ -1041,6 +1067,28 @@ struct efx_nic_type {
 	void (*mcdi_read_response)(struct efx_nic *efx, efx_dword_t *pdu,
 				   size_t pdu_offset, size_t pdu_len);
 	int (*mcdi_poll_reboot)(struct efx_nic *efx);
+	void (*irq_enable_master)(struct efx_nic *efx);
+	void (*irq_test_generate)(struct efx_nic *efx);
+	void (*irq_disable_non_ev)(struct efx_nic *efx);
+	irqreturn_t (*irq_handle_msi)(int irq, void *dev_id);
+	irqreturn_t (*irq_handle_legacy)(int irq, void *dev_id);
+	int (*tx_probe)(struct efx_tx_queue *tx_queue);
+	void (*tx_init)(struct efx_tx_queue *tx_queue);
+	void (*tx_remove)(struct efx_tx_queue *tx_queue);
+	void (*tx_write)(struct efx_tx_queue *tx_queue);
+	void (*rx_push_indir_table)(struct efx_nic *efx);
+	int (*rx_probe)(struct efx_rx_queue *rx_queue);
+	void (*rx_init)(struct efx_rx_queue *rx_queue);
+	void (*rx_remove)(struct efx_rx_queue *rx_queue);
+	void (*rx_write)(struct efx_rx_queue *rx_queue);
+	void (*rx_defer_refill)(struct efx_rx_queue *rx_queue);
+	int (*ev_probe)(struct efx_channel *channel);
+	void (*ev_init)(struct efx_channel *channel);
+	void (*ev_fini)(struct efx_channel *channel);
+	void (*ev_remove)(struct efx_channel *channel);
+	int (*ev_process)(struct efx_channel *channel, int quota);
+	void (*ev_read_ack)(struct efx_channel *channel);
+	void (*ev_test_generate)(struct efx_channel *channel);
 
 	int revision;
 	unsigned int mem_map_size;

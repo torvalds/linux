@@ -63,7 +63,7 @@ void siena_finish_flush(struct efx_nic *efx)
 		efx_mcdi_set_mac(efx);
 }
 
-static const struct efx_nic_register_test siena_register_tests[] = {
+static const struct efx_farch_register_test siena_register_tests[] = {
 	{ FR_AZ_ADR_REGION,
 	  EFX_OWORD32(0x0003FFFF, 0x0003FFFF, 0x0003FFFF, 0x0003FFFF) },
 	{ FR_CZ_USR_EV_CFG,
@@ -107,8 +107,8 @@ static int siena_test_chip(struct efx_nic *efx, struct efx_self_tests *tests)
 		goto out;
 
 	tests->registers =
-		efx_nic_test_registers(efx, siena_register_tests,
-				       ARRAY_SIZE(siena_register_tests))
+		efx_farch_test_registers(efx, siena_register_tests,
+					 ARRAY_SIZE(siena_register_tests))
 		? -1 : 1;
 
 	rc = efx_mcdi_reset(efx, reset_method);
@@ -184,7 +184,7 @@ static void siena_dimension_resources(struct efx_nic *efx)
 	 * the buffer table and descriptor caches.  In theory we can
 	 * map both blocks to one port, but we don't.
 	 */
-	efx_nic_dimension_resources(efx, FR_CZ_BUF_FULL_TBL_ROWS / 2);
+	efx_farch_dimension_resources(efx, FR_CZ_BUF_FULL_TBL_ROWS / 2);
 }
 
 static int siena_probe_nic(struct efx_nic *efx)
@@ -200,7 +200,7 @@ static int siena_probe_nic(struct efx_nic *efx)
 		return -ENOMEM;
 	efx->nic_data = nic_data;
 
-	if (efx_nic_fpga_ver(efx) != 0) {
+	if (efx_farch_fpga_ver(efx) != 0) {
 		netif_err(efx, probe, efx->net_dev,
 			  "Siena FPGA not supported\n");
 		rc = -ENODEV;
@@ -351,7 +351,7 @@ static int siena_init_nic(struct efx_nic *efx)
 	EFX_POPULATE_OWORD_1(temp, FRF_CZ_USREV_DIS, 1);
 	efx_writeo(efx, &temp, FR_CZ_USR_EV_CFG);
 
-	efx_nic_init_common(efx);
+	efx_farch_init_common(efx);
 	return 0;
 }
 
@@ -705,6 +705,28 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.mcdi_poll_response = siena_mcdi_poll_response,
 	.mcdi_read_response = siena_mcdi_read_response,
 	.mcdi_poll_reboot = siena_mcdi_poll_reboot,
+	.irq_enable_master = efx_farch_irq_enable_master,
+	.irq_test_generate = efx_farch_irq_test_generate,
+	.irq_disable_non_ev = efx_farch_irq_disable_master,
+	.irq_handle_msi = efx_farch_msi_interrupt,
+	.irq_handle_legacy = efx_farch_legacy_interrupt,
+	.tx_probe = efx_farch_tx_probe,
+	.tx_init = efx_farch_tx_init,
+	.tx_remove = efx_farch_tx_remove,
+	.tx_write = efx_farch_tx_write,
+	.rx_push_indir_table = efx_farch_rx_push_indir_table,
+	.rx_probe = efx_farch_rx_probe,
+	.rx_init = efx_farch_rx_init,
+	.rx_remove = efx_farch_rx_remove,
+	.rx_write = efx_farch_rx_write,
+	.rx_defer_refill = efx_farch_rx_defer_refill,
+	.ev_probe = efx_farch_ev_probe,
+	.ev_init = efx_farch_ev_init,
+	.ev_fini = efx_farch_ev_fini,
+	.ev_remove = efx_farch_ev_remove,
+	.ev_process = efx_farch_ev_process,
+	.ev_read_ack = efx_farch_ev_read_ack,
+	.ev_test_generate = efx_farch_ev_test_generate,
 
 	.revision = EFX_REV_SIENA_A0,
 	.mem_map_size = (FR_CZ_MC_TREG_SMEM +

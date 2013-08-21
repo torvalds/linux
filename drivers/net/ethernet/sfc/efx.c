@@ -1386,7 +1386,7 @@ static void efx_enable_interrupts(struct efx_nic *efx)
 		efx->eeh_disabled_legacy_irq = false;
 	}
 
-	efx_nic_enable_interrupts(efx);
+	efx->type->irq_enable_master(efx);
 
 	efx_for_each_channel(channel, efx) {
 		if (channel->type->keep_eventq)
@@ -1407,7 +1407,7 @@ static void efx_disable_interrupts(struct efx_nic *efx)
 			efx_fini_eventq(channel);
 	}
 
-	efx_nic_disable_interrupts(efx);
+	efx->type->irq_disable_non_ev(efx);
 }
 
 static void efx_remove_interrupts(struct efx_nic *efx)

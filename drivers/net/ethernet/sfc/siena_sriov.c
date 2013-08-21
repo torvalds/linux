@@ -464,8 +464,9 @@ static void __efx_sriov_push_vf_status(struct efx_vf *vf)
 			     VFDI_EV_SEQ, (vf->msg_seqno & 0xff),
 			     VFDI_EV_TYPE, VFDI_EV_TYPE_STATUS);
 	++vf->msg_seqno;
-	efx_generate_event(efx, EFX_VI_BASE + vf->index * efx_vf_size(efx),
-			      &event);
+	efx_farch_generate_event(efx,
+				 EFX_VI_BASE + vf->index * efx_vf_size(efx),
+				 &event);
 }
 
 static void efx_sriov_bufs(struct efx_nic *efx, unsigned offset,
