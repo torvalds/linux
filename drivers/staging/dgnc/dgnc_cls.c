@@ -6,12 +6,12 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2, or (at your option)
  * any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY, EXPRESS OR IMPLIED; without even the 
- * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+ * but WITHOUT ANY WARRANTY, EXPRESS OR IMPLIED; without even the
+ * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
  * PURPOSE.  See the GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
@@ -111,7 +111,7 @@ static inline void cls_set_cts_flow_control(struct channel_t *ch)
 	writeb(UART_EXAR654_ENHANCED_REGISTER_SET, &ch->ch_cls_uart->lcr);
 
 	isr_fcr = readb(&ch->ch_cls_uart->isr_fcr);
-	
+
 	/* Turn on CTS flow control, turn off IXON flow control */
 	isr_fcr |= (UART_EXAR654_EFR_ECB | UART_EXAR654_EFR_CTSDSR);
 	isr_fcr &= ~(UART_EXAR654_EFR_IXON);
@@ -153,7 +153,7 @@ static inline void cls_set_ixon_flow_control(struct channel_t *ch)
 	writeb(UART_EXAR654_ENHANCED_REGISTER_SET, &ch->ch_cls_uart->lcr);
 
 	isr_fcr = readb(&ch->ch_cls_uart->isr_fcr);
-	
+
 	/* Turn on IXON flow control, turn off CTS flow control */
 	isr_fcr |= (UART_EXAR654_EFR_ECB | UART_EXAR654_EFR_IXON);
 	isr_fcr &= ~(UART_EXAR654_EFR_CTSDSR);
@@ -199,7 +199,7 @@ static inline void cls_set_no_output_flow_control(struct channel_t *ch)
 	writeb(UART_EXAR654_ENHANCED_REGISTER_SET, &ch->ch_cls_uart->lcr);
 
 	isr_fcr = readb(&ch->ch_cls_uart->isr_fcr);
-	
+
 	/* Turn off IXON flow control, turn off CTS flow control */
 	isr_fcr |= (UART_EXAR654_EFR_ECB);
 	isr_fcr &= ~(UART_EXAR654_EFR_CTSDSR | UART_EXAR654_EFR_IXON);
@@ -243,7 +243,7 @@ static inline void cls_set_rts_flow_control(struct channel_t *ch)
 	writeb(UART_EXAR654_ENHANCED_REGISTER_SET, &ch->ch_cls_uart->lcr);
 
 	isr_fcr = readb(&ch->ch_cls_uart->isr_fcr);
-	
+
 	/* Turn on RTS flow control, turn off IXOFF flow control */
 	isr_fcr |= (UART_EXAR654_EFR_ECB | UART_EXAR654_EFR_RTSDTR);
 	isr_fcr &= ~(UART_EXAR654_EFR_IXOFF);
@@ -286,7 +286,7 @@ static inline void cls_set_ixoff_flow_control(struct channel_t *ch)
 	writeb(UART_EXAR654_ENHANCED_REGISTER_SET, &ch->ch_cls_uart->lcr);
 
 	isr_fcr = readb(&ch->ch_cls_uart->isr_fcr);
-	
+
 	/* Turn on IXOFF flow control, turn off RTS flow control */
 	isr_fcr |= (UART_EXAR654_EFR_ECB | UART_EXAR654_EFR_IXOFF);
 	isr_fcr &= ~(UART_EXAR654_EFR_RTSDTR);
@@ -331,7 +331,7 @@ static inline void cls_set_no_input_flow_control(struct channel_t *ch)
 	writeb(UART_EXAR654_ENHANCED_REGISTER_SET, &ch->ch_cls_uart->lcr);
 
 	isr_fcr = readb(&ch->ch_cls_uart->isr_fcr);
-	
+
 	/* Turn off IXOFF flow control, turn off RTS flow control */
 	isr_fcr |= (UART_EXAR654_EFR_ECB);
 	isr_fcr &= ~(UART_EXAR654_EFR_RTSDTR | UART_EXAR654_EFR_IXOFF);
@@ -492,7 +492,7 @@ static void cls_param(struct tty_struct *tty)
 		return;
 	}
 
-	ch = un->un_ch;   
+	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC) {
 		return;
 	}
@@ -581,7 +581,7 @@ static void cls_param(struct tty_struct *tty)
 		jindex = baud;
 
 		if ((iindex >= 0) && (iindex < 4) && (jindex >= 0) && (jindex < 16)) {
-			baud = bauds[iindex][jindex];  
+			baud = bauds[iindex][jindex];
 		} else {
 			DPR_IOCTL(("baud indices were out of range (%d)(%d)",
 				iindex, jindex));
@@ -620,7 +620,7 @@ static void cls_param(struct tty_struct *tty)
 	 */
 #ifdef CMSPAR
 	if (ch->ch_c_cflag & CMSPAR)
-		lcr |= UART_LCR_SPAR;    
+		lcr |= UART_LCR_SPAR;
 #endif
 
 	if (ch->ch_c_cflag & CSTOPB)
@@ -663,7 +663,7 @@ static void cls_param(struct tty_struct *tty)
 
 	if (ch->ch_c_cflag & CREAD) {
 		ier |= (UART_IER_RDI | UART_IER_RLSI);
-	}       
+	}
 	else {
 		ier &= ~(UART_IER_RDI | UART_IER_RLSI);
 	}
@@ -710,7 +710,7 @@ static void cls_param(struct tty_struct *tty)
 			cls_set_no_input_flow_control(ch);
 		else
 			cls_set_ixoff_flow_control(ch);
-	} 
+	}
 	else {
 		cls_set_no_input_flow_control(ch);
 	}
@@ -827,7 +827,7 @@ static irqreturn_t cls_intr(int irq, void *voidbrd)
 	brd->intr_count++;
 
 	/*
-	 * Check the board's global interrupt offset to see if we 
+	 * Check the board's global interrupt offset to see if we
 	 * we actually do have an interrupt pending for us.
 	 */
 	poll_reg = readb(brd->re_map_membase + UART_CLASSIC_POLL_ADDR_OFFSET);
@@ -986,7 +986,7 @@ static int cls_drain(struct tty_struct *tty, uint seconds)
 		return (-ENXIO);
 	}
 
-	ch = un->un_ch;   
+	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC) {
 		return (-ENXIO);
 	}
@@ -1006,7 +1006,7 @@ static int cls_drain(struct tty_struct *tty, uint seconds)
 
         return (rc);
 }
-        
+
 
 /* Channel lock MUST be held before calling this function! */
 static void cls_flush_uart_write(struct channel_t *ch)
@@ -1032,7 +1032,7 @@ static void cls_flush_uart_read(struct channel_t *ch)
 	/*
 	 * For complete POSIX compatibility, we should be purging the
 	 * read FIFO in the UART here.
-	 * 
+	 *
 	 * However, doing the statement below also incorrectly flushes
 	 * write data as well as just basically trashing the FIFO.
 	 *
@@ -1163,7 +1163,7 @@ static void cls_parse_modem(struct channel_t *ch, uchar signals)
 			msignals |= UART_MSR_DCD;
 		}
 	}
-                        
+
 	/* Scrub off lower bits. They signify delta's, which I don't care about */
 	signals &= 0xf0;
 
@@ -1192,8 +1192,8 @@ static void cls_parse_modem(struct channel_t *ch, uchar signals)
 		ch->ch_portnum,
 		!!((ch->ch_mistat | ch->ch_mostat) & UART_MCR_DTR),
 		!!((ch->ch_mistat | ch->ch_mostat) & UART_MCR_RTS),
-		!!((ch->ch_mistat | ch->ch_mostat) & UART_MSR_CTS), 
-		!!((ch->ch_mistat | ch->ch_mostat) & UART_MSR_DSR), 
+		!!((ch->ch_mistat | ch->ch_mostat) & UART_MSR_CTS),
+		!!((ch->ch_mistat | ch->ch_mostat) & UART_MSR_DSR),
 		!!((ch->ch_mistat | ch->ch_mostat) & UART_MSR_RI),
 		!!((ch->ch_mistat | ch->ch_mostat) & UART_MSR_DCD)));
 }
@@ -1258,7 +1258,7 @@ static void cls_uart_init(struct channel_t *ch)
 	writeb(UART_EXAR654_ENHANCED_REGISTER_SET, &ch->ch_cls_uart->lcr);
 
 	isr_fcr = readb(&ch->ch_cls_uart->isr_fcr);
-	
+
 	/* Turn on Enhanced/Extended controls */
 	isr_fcr |= (UART_EXAR654_EFR_ECB);
 
@@ -1380,7 +1380,7 @@ static void cls_send_immediate_char(struct channel_t *ch, unsigned char c)
 	writeb(c, &ch->ch_cls_uart->txrx);
 }
 
-static void cls_vpd(struct board_t *brd) 
+static void cls_vpd(struct board_t *brd)
 {
         ulong           vpdbase;        /* Start of io base of the card */
         uchar           *re_map_vpdbase;/* Remapped memory of the card */
