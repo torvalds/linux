@@ -26,12 +26,12 @@
 #include "dgnc_types.h"
 
 
-/************************************************************************ 
+/************************************************************************
  * Per channel/port Classic UART structure				*
  ************************************************************************
  *		Base Structure Entries Usage Meanings to Host		*
  *									*
- *	W = read write		R = read only				* 
+ *	W = read write		R = read only				*
  *			U = Unused.					*
  ************************************************************************/
 
@@ -82,7 +82,7 @@ struct cls_uart_struct {
 #define UART_EXAR654_IER_RTSDTR   0x40    /* Output Interrupt Enable */
 #define UART_EXAR654_IER_CTSDSR   0x80    /* Input Interrupt Enable */
 
-/* 
+/*
  * Our Global Variables
  */
 extern struct board_ops dgnc_cls_ops;
