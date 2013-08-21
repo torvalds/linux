@@ -6036,13 +6036,14 @@ void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 	if (val & LCPLL_POWER_DOWN_ALLOW) {
 		val &= ~LCPLL_POWER_DOWN_ALLOW;
 		I915_WRITE(LCPLL_CTL, val);
+		POSTING_READ(LCPLL_CTL);
 	}
 
 	val = I915_READ(D_COMP);
 	val |= D_COMP_COMP_FORCE;
 	val &= ~D_COMP_COMP_DISABLE;
 	I915_WRITE(D_COMP, val);
-	I915_READ(D_COMP);
+	POSTING_READ(D_COMP);
 
 	val = I915_READ(LCPLL_CTL);
 	val &= ~LCPLL_PLL_DISABLE;
