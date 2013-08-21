@@ -20,7 +20,7 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/limits.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "sysfs.h"
 

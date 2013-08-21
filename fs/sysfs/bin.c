@@ -22,8 +22,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/mm.h>
-
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "sysfs.h"
 
