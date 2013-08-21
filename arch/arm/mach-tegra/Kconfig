@@ -2,19 +2,27 @@ config ARCH_TEGRA
 	bool "NVIDIA Tegra" if ARCH_MULTI_V7
 	select ARCH_HAS_CPUFREQ
 	select ARCH_REQUIRE_GPIOLIB
+	select ARM_GIC
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
 	select CLKSRC_OF
 	select COMMON_CLK
+	select CPU_V7
 	select GENERIC_CLOCKEVENTS
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if LOCAL_TIMERS
 	select HAVE_CLK
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
+	select PINCTRL
 	select SOC_BUS
 	select SPARSE_IRQ
+	select USB_ARCH_HAS_EHCI if USB_SUPPORT
+	select USB_ULPI if USB_PHY
+	select USB_ULPI_VIEWPORT if USB_PHY
 	select USE_OF
+	select MIGHT_HAVE_PCI
+	select ARCH_SUPPORTS_MSI
 	help
 	  This enables support for NVIDIA Tegra based systems.
 
@@ -27,15 +35,9 @@ config ARCH_TEGRA_2x_SOC
 	select ARM_ERRATA_720789
 	select ARM_ERRATA_754327 if SMP
 	select ARM_ERRATA_764369 if SMP
-	select ARM_GIC
-	select CPU_V7
-	select PINCTRL
 	select PINCTRL_TEGRA20
 	select PL310_ERRATA_727915 if CACHE_L2X0
 	select PL310_ERRATA_769419 if CACHE_L2X0
-	select USB_ARCH_HAS_EHCI if USB_SUPPORT
-	select USB_ULPI if USB_PHY
-	select USB_ULPI_VIEWPORT if USB_PHY
 	help
 	  Support for NVIDIA Tegra AP20 and T20 processors, based on the
 	  ARM CortexA9MP CPU and the ARM PL310 L2 cache controller
@@ -44,14 +46,8 @@ config ARCH_TEGRA_3x_SOC
 	bool "Enable support for Tegra30 family"
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_764369 if SMP
-	select ARM_GIC
-	select CPU_V7
-	select PINCTRL
 	select PINCTRL_TEGRA30
 	select PL310_ERRATA_769419 if CACHE_L2X0
-	select USB_ARCH_HAS_EHCI if USB_SUPPORT
-	select USB_ULPI if USB_PHY
-	select USB_ULPI_VIEWPORT if USB_PHY
 	help
 	  Support for NVIDIA Tegra T30 processor family, based on the
 	  ARM CortexA9MP CPU and the ARM PL310 L2 cache controller
@@ -59,19 +55,12 @@ config ARCH_TEGRA_3x_SOC
 config ARCH_TEGRA_114_SOC
 	bool "Enable support for Tegra114 family"
 	select HAVE_ARM_ARCH_TIMER
-	select ARM_GIC
+	select ARM_ERRATA_798181
 	select ARM_L1_CACHE_SHIFT_6
-	select CPU_V7
-	select PINCTRL
 	select PINCTRL_TEGRA114
 	help
 	  Support for NVIDIA Tegra T114 processor family, based on the
 	  ARM CortexA15MP CPU
-
-config TEGRA_PCI
-	bool "PCI Express support"
-	depends on ARCH_TEGRA_2x_SOC
-	select PCI
 
 config TEGRA_AHB
 	bool "Enable AHB driver for NVIDIA Tegra SoCs"

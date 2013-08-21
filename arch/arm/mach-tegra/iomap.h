@@ -24,6 +24,8 @@
 #define TEGRA_IRAM_BASE			0x40000000
 #define TEGRA_IRAM_SIZE			SZ_256K
 
+#define TEGRA_IRAM_CODE_AREA		(TEGRA_IRAM_BASE + SZ_4K)
+
 #define TEGRA_HOST1X_BASE		0x50000000
 #define TEGRA_HOST1X_SIZE		0x24000
 
@@ -237,6 +239,12 @@
 #define TEGRA_KFUSE_BASE		0x7000FC00
 #define TEGRA_KFUSE_SIZE		SZ_1K
 
+#define TEGRA_EMC0_BASE			0x7001A000
+#define TEGRA_EMC0_SIZE			SZ_2K
+
+#define TEGRA_EMC1_BASE			0x7001A800
+#define TEGRA_EMC1_SIZE			SZ_2K
+
 #define TEGRA_CSITE_BASE		0x70040000
 #define TEGRA_CSITE_SIZE		SZ_256K
 
@@ -277,9 +285,6 @@
 #define IO_APB_PHYS	0x70000000
 #define IO_APB_VIRT	IOMEM(0xFE300000)
 #define IO_APB_SIZE	SZ_1M
-
-#define TEGRA_PCIE_BASE		0x80000000
-#define TEGRA_PCIE_IO_BASE	(TEGRA_PCIE_BASE + SZ_4M)
 
 #define IO_TO_VIRT_BETWEEN(p, st, sz)	((p) >= (st) && (p) < ((st) + (sz)))
 #define IO_TO_VIRT_XLATE(p, pst, vst)	(((p) - (pst) + (vst)))

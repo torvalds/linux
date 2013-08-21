@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, NVIDIA Corporation. All rights reserved.
+ * Copyright (c) 2013, NVIDIA Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -13,18 +13,22 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <linux/kernel.h>
 
-#ifndef __MACH_TEGRA_CPUIDLE_H
-#define __MACH_TEGRA_CPUIDLE_H
+#include "pm.h"
 
-#ifdef CONFIG_CPU_IDLE
-int tegra20_cpuidle_init(void);
-void tegra20_cpuidle_pcie_irqs_in_use(void);
-int tegra30_cpuidle_init(void);
-int tegra114_cpuidle_init(void);
-void tegra_cpuidle_init(void);
-#else
-static inline void tegra_cpuidle_init(void) {}
-#endif
+#ifdef CONFIG_PM_SLEEP
+extern u32 tegra30_iram_start, tegra30_iram_end;
+extern void tegra30_sleep_core_finish(unsigned long);
 
+void tegra30_lp1_iram_hook(void)
+{
+	tegra_lp1_iram.start_addr = &tegra30_iram_start;
+	tegra_lp1_iram.end_addr = &tegra30_iram_end;
+}
+
+void tegra30_sleep_core_init(void)
+{
+	tegra_sleep_core_finish = tegra30_sleep_core_finish;
+}
 #endif

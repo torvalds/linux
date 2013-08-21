@@ -40,9 +40,12 @@
  *	  re-enabling sdram.
  *
  *	r6: SoC ID
+ *	r8: CPU part number
  */
 ENTRY(tegra_resume)
-	bl	v7_invalidate_l1
+	check_cpu_part_num 0xc09, r8, r9
+	bleq	v7_invalidate_l1
+	blne	tegra_init_l2_for_a15
 
 	cpu_id	r0
 	tegra_get_soc_id TEGRA_APB_MISC_BASE, r6
@@ -70,7 +73,8 @@ no_cpu0_chk:
 	str	r1, [r2]
 1:
 
-	check_cpu_part_num 0xc09, r8, r9
+	mov32	r9, 0xc09
+	cmp	r8, r9
 	bne	not_ca9
 #ifdef CONFIG_HAVE_ARM_SCU
 	/* enable SCU */
@@ -177,6 +181,19 @@ after_errata:
 	strne	r0, [r5, #PMC_SCRATCH41]
 1:
 #endif
+
+	/* Waking up from LP1? */
+	ldr	r8, [r12, #RESET_DATA(MASK_LP1)]
+	tst	r8, r11				@ if in_lp1
+	beq	__is_not_lp1
+	cmp	r10, #0
+	bne	__die				@ only CPU0 can be here
+	ldr	lr, [r12, #RESET_DATA(STARTUP_LP1)]
+	cmp	lr, #0
+	bleq	__die				@ no LP1 startup handler
+ THUMB(	add	lr, lr, #1 )			@ switch to Thumb mode
+	bx	lr
+__is_not_lp1:
 
 	/* Waking up from LP2? */
 	ldr	r9, [r12, #RESET_DATA(MASK_LP2)]
