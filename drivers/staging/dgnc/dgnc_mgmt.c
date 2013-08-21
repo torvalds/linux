@@ -17,23 +17,23 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *
- *	NOTE TO LINUX KERNEL HACKERS:  DO NOT REFORMAT THIS CODE! 
+ *	NOTE TO LINUX KERNEL HACKERS:  DO NOT REFORMAT THIS CODE!
  *
  *	This is shared code between Digi's CVS archive and the
  *	Linux Kernel sources.
  *	Changing the source just for reformatting needlessly breaks
  *	our CVS diff history.
  *
- *	Send any bug fixes/changes to:  Eng.Linux at digi dot com. 
- *	Thank you. 
+ *	Send any bug fixes/changes to:  Eng.Linux at digi dot com.
+ *	Thank you.
  *
  */
 
 /************************************************************************
- * 
+ *
  * This file implements the mgmt functionality for the
  * Neo and ClassicBoard based product lines.
- * 
+ *
  ************************************************************************
  * $Id: dgnc_mgmt.c,v 1.2 2010/12/14 20:08:29 markh Exp $
  */
@@ -57,10 +57,10 @@ static int dgnc_mgmt_in_use[MAXMGMTDEVICES];
 
 
 /*
- * dgnc_mgmt_open()  
+ * dgnc_mgmt_open()
  *
  * Open the mgmt/downld/dpa device
- */  
+ */
 int dgnc_mgmt_open(struct inode *inode, struct file *file)
 {
 	unsigned long lock_flags;
@@ -68,23 +68,23 @@ int dgnc_mgmt_open(struct inode *inode, struct file *file)
 
 	DPR_MGMT(("dgnc_mgmt_open start.\n"));
 
-	DGNC_LOCK(dgnc_global_lock, lock_flags); 
+	DGNC_LOCK(dgnc_global_lock, lock_flags);
 
 	/* mgmt device */
 	if (minor < MAXMGMTDEVICES) {
 		/* Only allow 1 open at a time on mgmt device */
 		if (dgnc_mgmt_in_use[minor]) {
-			DGNC_UNLOCK(dgnc_global_lock, lock_flags); 
+			DGNC_UNLOCK(dgnc_global_lock, lock_flags);
 			return (-EBUSY);
 		}
 		dgnc_mgmt_in_use[minor]++;
 	}
 	else {
-		DGNC_UNLOCK(dgnc_global_lock, lock_flags); 
+		DGNC_UNLOCK(dgnc_global_lock, lock_flags);
 		return (-ENXIO);
 	}
 
-	DGNC_UNLOCK(dgnc_global_lock, lock_flags); 
+	DGNC_UNLOCK(dgnc_global_lock, lock_flags);
 
 	DPR_MGMT(("dgnc_mgmt_open finish.\n"));
 
@@ -96,7 +96,7 @@ int dgnc_mgmt_open(struct inode *inode, struct file *file)
  * dgnc_mgmt_close()
  *
  * Open the mgmt/dpa device
- */  
+ */
 int dgnc_mgmt_close(struct inode *inode, struct file *file)
 {
 	unsigned long lock_flags;
@@ -104,7 +104,7 @@ int dgnc_mgmt_close(struct inode *inode, struct file *file)
 
 	DPR_MGMT(("dgnc_mgmt_close start.\n"));
 
-	DGNC_LOCK(dgnc_global_lock, lock_flags); 
+	DGNC_LOCK(dgnc_global_lock, lock_flags);
 
 	/* mgmt device */
 	if (minor < MAXMGMTDEVICES) {
@@ -112,7 +112,7 @@ int dgnc_mgmt_close(struct inode *inode, struct file *file)
 			dgnc_mgmt_in_use[minor] = 0;
 		}
 	}
-	DGNC_UNLOCK(dgnc_global_lock, lock_flags); 
+	DGNC_UNLOCK(dgnc_global_lock, lock_flags);
 
 	DPR_MGMT(("dgnc_mgmt_close finish.\n"));
 
@@ -124,7 +124,7 @@ int dgnc_mgmt_close(struct inode *inode, struct file *file)
  * dgnc_mgmt_ioctl()
  *
  * ioctl the mgmt/dpa device
- */  
+ */
 
 long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
@@ -144,12 +144,12 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		 */
 		struct digi_dinfo ddi;
 
-		DGNC_LOCK(dgnc_global_lock, lock_flags); 
+		DGNC_LOCK(dgnc_global_lock, lock_flags);
 
 		ddi.dinfo_nboards = dgnc_NumBoards;
 		sprintf(ddi.dinfo_version, "%s", DG_PART);
 
-		DGNC_UNLOCK(dgnc_global_lock, lock_flags); 
+		DGNC_UNLOCK(dgnc_global_lock, lock_flags);
 
 		DPR_MGMT(("DIGI_GETDD returning numboards: %d version: %s\n",
 			ddi.dinfo_nboards, ddi.dinfo_version));
@@ -179,7 +179,7 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		di.info_bdnum = brd;
 
-		DGNC_LOCK(dgnc_Board[brd]->bd_lock, lock_flags); 
+		DGNC_LOCK(dgnc_Board[brd]->bd_lock, lock_flags);
 
 		di.info_bdtype = dgnc_Board[brd]->dpatype;
 		di.info_bdstate = dgnc_Board[brd]->dpastatus;
@@ -191,7 +191,7 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		else
 			di.info_nports = 0;
 
-		DGNC_UNLOCK(dgnc_Board[brd]->bd_lock, lock_flags); 
+		DGNC_UNLOCK(dgnc_Board[brd]->bd_lock, lock_flags);
 
 		DPR_MGMT(("DIGI_GETBD returning type: %x state: %x ports: %x size: %x\n",
 			di.info_bdtype, di.info_bdstate, di.info_nports, di.info_physsize));
