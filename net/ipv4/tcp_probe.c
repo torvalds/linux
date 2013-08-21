@@ -92,7 +92,7 @@ static inline int tcp_probe_avail(void)
  * Note: arguments must match tcp_rcv_established()!
  */
 static int jtcp_rcv_established(struct sock *sk, struct sk_buff *skb,
-			       struct tcphdr *th, unsigned int len)
+				const struct tcphdr *th, unsigned int len)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 	const struct inet_sock *inet = inet_sk(sk);
@@ -224,6 +224,13 @@ static const struct file_operations tcpprobe_fops = {
 static __init int tcpprobe_init(void)
 {
 	int ret = -ENOMEM;
+
+	/* Warning: if the function signature of tcp_rcv_established,
+	 * has been changed, you also have to change the signature of
+	 * jtcp_rcv_established, otherwise you end up right here!
+	 */
+	BUILD_BUG_ON(__same_type(tcp_rcv_established,
+				 jtcp_rcv_established) == 0);
 
 	init_waitqueue_head(&tcp_probe.wait);
 	spin_lock_init(&tcp_probe.lock);
