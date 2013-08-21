@@ -114,9 +114,9 @@ static int dgnc_block_til_ready(struct tty_struct *tty, struct file *file, struc
 static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg);
 static int dgnc_tty_digigeta(struct tty_struct *tty, struct digi_t __user *retinfo);
 static int dgnc_tty_digiseta(struct tty_struct *tty, struct digi_t __user *new_info);
-static int dgnc_tty_write_room(struct tty_struct* tty);
+static int dgnc_tty_write_room(struct tty_struct *tty);
 static int dgnc_tty_put_char(struct tty_struct *tty, unsigned char c);
-static int dgnc_tty_chars_in_buffer(struct tty_struct* tty);
+static int dgnc_tty_chars_in_buffer(struct tty_struct *tty);
 static void dgnc_tty_start(struct tty_struct *tty);
 static void dgnc_tty_stop(struct tty_struct *tty);
 static void dgnc_tty_throttle(struct tty_struct *tty);
