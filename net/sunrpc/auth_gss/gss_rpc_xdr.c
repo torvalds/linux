@@ -166,14 +166,14 @@ static int dummy_dec_opt_array(struct xdr_stream *xdr,
 	return 0;
 }
 
-static int get_s32(void **p, void *max, s32 *res)
+static int get_s32(struct xdr_stream *xdr, s32 *res)
 {
-	void *base = *p;
-	void *next = (void *)((char *)base + sizeof(s32));
-	if (unlikely(next > max || next < base))
+	__be32 *p;
+
+	p = xdr_inline_decode(xdr, 4);
+	if (!p)
 		return -EINVAL;
-	memcpy(res, base, sizeof(s32));
-	*p = next;
+	memcpy(res, p, sizeof(s32));
 	return 0;
 }
 
@@ -182,7 +182,6 @@ static int gssx_dec_linux_creds(struct xdr_stream *xdr,
 {
 	u32 length;
 	__be32 *p;
-	void *q, *end;
 	s32 tmp;
 	int N, i, err;
 
@@ -192,33 +191,28 @@ static int gssx_dec_linux_creds(struct xdr_stream *xdr,
 
 	length = be32_to_cpup(p);
 
-	/* FIXME: we do not want to use the scratch buffer for this one
-	 * may need to use functions that allows us to access an io vector
-	 * directly */
-	p = xdr_inline_decode(xdr, length);
-	if (unlikely(p == NULL))
+	if (length > (3 + NGROUPS_MAX) * sizeof(u32))
 		return -ENOSPC;
 
-	q = p;
-	end = q + length;
-
 	/* uid */
-	err = get_s32(&q, end, &tmp);
+	err = get_s32(xdr, &tmp);
 	if (err)
 		return err;
 	creds->cr_uid = make_kuid(&init_user_ns, tmp);
 
 	/* gid */
-	err = get_s32(&q, end, &tmp);
+	err = get_s32(xdr, &tmp);
 	if (err)
 		return err;
 	creds->cr_gid = make_kgid(&init_user_ns, tmp);
 
 	/* number of additional gid's */
-	err = get_s32(&q, end, &tmp);
+	err = get_s32(xdr, &tmp);
 	if (err)
 		return err;
 	N = tmp;
+	if ((3 + N) * sizeof(u32) != length)
+		return -EINVAL;
 	creds->cr_group_info = groups_alloc(N);
 	if (creds->cr_group_info == NULL)
 		return -ENOMEM;
@@ -226,7 +220,7 @@ static int gssx_dec_linux_creds(struct xdr_stream *xdr,
 	/* gid's */
 	for (i = 0; i < N; i++) {
 		kgid_t kgid;
-		err = get_s32(&q, end, &tmp);
+		err = get_s32(xdr, &tmp);
 		if (err)
 			goto out_free_groups;
 		err = -EINVAL;
