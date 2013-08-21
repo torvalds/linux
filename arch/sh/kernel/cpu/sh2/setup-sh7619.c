@@ -114,7 +114,7 @@ static struct platform_device scif2_device = {
 static struct sh_eth_plat_data eth_platform_data = {
 	.phy		= 1,
 	.edmac_endian	= EDMAC_LITTLE_ENDIAN,
-	.phy_interace	= PHY_INTERFACE_MODE_MII,
+	.phy_interface	= PHY_INTERFACE_MODE_MII,
 };
 
 static struct resource eth_resources[] = {
