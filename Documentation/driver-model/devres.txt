@@ -293,3 +293,6 @@ PWM
 PHY
   devm_usb_get_phy()
   devm_usb_put_phy()
+
+SLAVE DMA ENGINE
+  devm_acpi_dma_controller_register()
