@@ -189,6 +189,14 @@ int sysfs_update_group(struct kobject *kobj,
 }
 EXPORT_SYMBOL_GPL(sysfs_update_group);
 
+/**
+ * sysfs_remove_group: remove a group from a kobject
+ * @kobj:	kobject to remove the group from
+ * @grp:	group to remove
+ *
+ * This function removes a group of attributes from a kobject.  The attributes
+ * previously have to have been created for this group, otherwise it will fail.
+ */
 void sysfs_remove_group(struct kobject *kobj,
 			const struct attribute_group *grp)
 {
@@ -217,8 +225,8 @@ EXPORT_SYMBOL_GPL(sysfs_remove_group);
 /**
  * sysfs_remove_groups - remove a list of groups
  *
- * kobj:	The kobject for the groups to be removed from
- * groups:	NULL terminated list of groups to be removed
+ * @kobj:	The kobject for the groups to be removed from
+ * @groups:	NULL terminated list of groups to be removed
  *
  * If groups is not NULL, the all groups will be removed from the kobject
  */
