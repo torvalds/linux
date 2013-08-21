@@ -433,8 +433,6 @@ static int davinci_mdio_remove(struct platform_device *pdev)
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
-	dev_set_drvdata(dev, NULL);
-
 	kfree(data);
 
 	return 0;
