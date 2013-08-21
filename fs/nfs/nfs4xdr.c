@@ -4630,7 +4630,7 @@ static int decode_getfattr(struct xdr_stream *xdr, struct nfs_fattr *fattr,
 static int decode_first_pnfs_layout_type(struct xdr_stream *xdr,
 					 uint32_t *layouttype)
 {
-	uint32_t *p;
+	__be32 *p;
 	int num;
 
 	p = xdr_inline_decode(xdr, 4);
