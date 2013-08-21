@@ -1069,8 +1069,10 @@ _nfsd4_verify(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 				    cstate->current_fh.fh_dentry, &p,
 				    count, verify->ve_bmval,
 				    rqstp, 0);
-
-	/* this means that nfsd4_encode_fattr() ran out of space */
+	/*
+	 * If nfsd4_encode_fattr() ran out of space, assume that's because
+	 * the attributes are longer (hence different) than those given:
+	 */
 	if (status == nfserr_resource)
 		status = nfserr_not_same;
 	if (status)
