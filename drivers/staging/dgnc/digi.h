@@ -43,7 +43,7 @@
 #define	TIOCMODG	('d'<<8) | 250		/* get modem ctrl state	*/
 #define	TIOCMODS	('d'<<8) | 251		/* set modem ctrl state	*/
 
-#ifndef TIOCM_LE 
+#ifndef TIOCM_LE
 #define		TIOCM_LE	0x01		/* line enable		*/
 #define		TIOCM_DTR	0x02		/* data terminal ready	*/
 #define		TIOCM_RTS	0x04		/* request to send	*/
@@ -122,7 +122,7 @@ struct	digiflow_t {
 #endif
 
 /************************************************************************
- * Values for digi_flags 
+ * Values for digi_flags
  ************************************************************************/
 #define DIGI_IXON	0x0001		/* Handle IXON in the FEP	*/
 #define DIGI_FAST	0x0002		/* Fast baud rates		*/
@@ -193,8 +193,8 @@ struct rw_t {
 #define COMXI_TYPE 5     /* Board type at the designated port is a COM/Xi */
 
 			 /* Non-Zero Result codes. */
-#define RESULT_NOBDFND 1 /* A Digi product at that port is not config installed */ 
-#define RESULT_NODESCT 2 /* A memory descriptor was not obtainable */ 
+#define RESULT_NOBDFND 1 /* A Digi product at that port is not config installed */
+#define RESULT_NODESCT 2 /* A memory descriptor was not obtainable */
 #define RESULT_NOOSSIG 3 /* FEP/OS signature was not detected on the board */
 #define RESULT_TOOSML  4 /* Too small an area to shrink.  */
 #define RESULT_NOCHAN  5 /* Channel structure for the board was not found */
@@ -205,7 +205,7 @@ struct shrink_buf_struct {
 	unsigned int	shrink_buf_bseg;	/* Amount of board memory */
 	unsigned int	shrink_buf_hseg;	/* '186 Begining of Dual-Port */
 
-	unsigned int	shrink_buf_lseg;	/* '186 Begining of freed memory */ 
+	unsigned int	shrink_buf_lseg;	/* '186 Begining of freed memory */
 	unsigned int	shrink_buf_mseg;	/* Linear address from start of
 						   dual-port were freed memory
 						   begins, host viewpoint. */
@@ -220,18 +220,18 @@ struct shrink_buf_struct {
 
 	unsigned char	shrink_buf_result;	/* Reason for call failing
 						   Zero is Good return */
-	unsigned char	shrink_buf_init;	/* Non-Zero if it caused an     
+	unsigned char	shrink_buf_init;	/* Non-Zero if it caused an
 						   xxinit call. */
 
 	unsigned char	shrink_buf_anports;	/* Number of async ports  */
 	unsigned char	shrink_buf_snports; 	/* Number of sync  ports */
 	unsigned char	shrink_buf_type;	/* Board type 1 = PC/Xi,
 							      2 = PC/Xm,
-							      3 = PC/Xe  
-							      4 = MC/Xi  
+							      3 = PC/Xe
+							      4 = MC/Xi
 							      5 = COMX/i */
 	unsigned char	shrink_buf_card;	/* Card number */
-	
+
 };
 
 /************************************************************************
@@ -244,7 +244,7 @@ struct digi_dinfo {
 };
 
 #define	DIGI_GETDD	('d'<<8) | 248		/* get driver info      */
- 
+
 /************************************************************************
  * Structure used with ioctl commands for per-board information
  *
@@ -264,7 +264,7 @@ struct digi_info {
 };
 
 #define	DIGI_GETBD	('d'<<8) | 249		/* get board info          */
- 
+
 struct digi_stat {
 	unsigned int	info_chan;		/* Channel number (0 based)  */
 	unsigned int	info_brd;		/* Board number (0 based)  */
@@ -299,7 +299,7 @@ struct digi_ch {
 };
 
 /*
-* This structure is used with the DIGI_FEPCMD ioctl to 
+* This structure is used with the DIGI_FEPCMD ioctl to
 * tell the driver which port to send the command for.
 */
 struct digi_cmd {
@@ -398,16 +398,16 @@ struct digi_getcounter
 #define DIGI_REALPORT_GETEVENTS ('e'<<8 ) | 111
 
 #define EV_OPU		0x0001		//!<Output paused by client
-#define EV_OPS		0x0002		//!<Output paused by reqular sw flowctrl  
+#define EV_OPS		0x0002		//!<Output paused by reqular sw flowctrl
 #define EV_OPX		0x0004		//!<Output paused by extra sw flowctrl
 #define EV_OPH		0x0008		//!<Output paused by hw flowctrl
 #define EV_OPT		0x0800		//!<Output paused for RTS Toggle predelay
 
 #define EV_IPU		0x0010		//!<Input paused unconditionally by user
 #define EV_IPS		0x0020		//!<Input paused by high/low water marks
-//#define EV_IPH	0x0040		//!<Input paused w/ hardware  
+//#define EV_IPH	0x0040		//!<Input paused w/ hardware
 #define EV_IPA		0x0400		//!<Input paused by pattern alarm module
-                                        
+
 #define EV_TXB		0x0040		//!<Transmit break pending
 #define EV_TXI		0x0080		//!<Transmit immediate pending
 #define EV_TXF		0x0100		//!<Transmit flowctrl char pending
