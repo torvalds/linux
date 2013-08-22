@@ -1833,17 +1833,9 @@ static int dpcm_run_old_update(struct snd_soc_pcm_runtime *fe, int stream)
 /* Called by DAPM mixer/mux changes to update audio routing between PCMs and
  * any DAI links.
  */
-int soc_dpcm_runtime_update(struct snd_soc_dapm_widget *widget)
+int soc_dpcm_runtime_update(struct snd_soc_card *card)
 {
-	struct snd_soc_card *card;
 	int i, old, new, paths;
-
-	if (widget->codec)
-		card = widget->codec->card;
-	else if (widget->platform)
-		card = widget->platform->card;
-	else
-		return -EINVAL;
 
 	mutex_lock_nested(&card->mutex, SND_SOC_CARD_CLASS_RUNTIME);
 	for (i = 0; i < card->num_rtd; i++) {
