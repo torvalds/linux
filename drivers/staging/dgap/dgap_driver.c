@@ -332,11 +332,6 @@ static int dgap_start(void)
 		}
 
 		/*
-		 * Register our basic stuff in /proc/dgap
-		 */
-		dgap_proc_register_basic_prescan();
-
-		/*
 		 * Init any global tty stuff.
 		 */
 		rc = dgap_tty_preinit();
@@ -422,8 +417,6 @@ void dgap_cleanup_module(void)
 
 	/* Turn off poller right away. */
 	del_timer_sync( &dgap_poll_timer);
-
-	dgap_proc_unregister_all();
 
 	dgap_remove_driver_sysfiles(&dgap_driver);
 

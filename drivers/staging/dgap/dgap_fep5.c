@@ -135,7 +135,7 @@ int dgap_after_config_loaded(void)
 		dgap_Board[i]->flipbuf = dgap_driver_kzmalloc(MYFLIPLEN, GFP_ATOMIC);
 		dgap_Board[i]->flipflagbuf = dgap_driver_kzmalloc(MYFLIPLEN, GFP_ATOMIC);
 
-		dgap_proc_register_basic_postscan(i);
+		//dgap_proc_register_basic_postscan(i);
 	}
 
 	return (rc);

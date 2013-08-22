@@ -296,7 +296,7 @@ get_service:
 			case NEED_PROC_CREATION:
 
 				DGAP_UNLOCK(brd->bd_lock, lock_flags);
-				dgap_proc_register_channel_postscan(brd->boardnum);
+				//dgap_proc_register_channel_postscan(brd->boardnum);
 
 				ch = brd->channels[0];
 				for (j = 0; j < brd->nasync; j++, ch = brd->channels[j]) {
