@@ -123,6 +123,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM8994 if MFD_WM8994
 	select SND_SOC_WM8995 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8996 if I2C
+	select SND_SOC_WM8997 if MFD_WM8997
 	select SND_SOC_WM9081 if I2C
 	select SND_SOC_WM9090 if I2C
 	select SND_SOC_WM9705 if SND_SOC_AC97_BUS
@@ -146,8 +147,10 @@ config SND_SOC_ARIZONA
 	tristate
 	default y if SND_SOC_WM5102=y
 	default y if SND_SOC_WM5110=y
+	default y if SND_SOC_WM8997=y
 	default m if SND_SOC_WM5102=m
 	default m if SND_SOC_WM5110=m
+	default m if SND_SOC_WM8997=m
 
 config SND_SOC_WM_HUBS
 	tristate
@@ -502,6 +505,9 @@ config SND_SOC_WM8995
 	tristate
 
 config SND_SOC_WM8996
+	tristate
+
+config SND_SOC_WM8997
 	tristate
 
 config SND_SOC_WM9081

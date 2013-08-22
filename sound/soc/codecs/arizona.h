@@ -150,7 +150,8 @@ extern int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS];
 	ARIZONA_MUX(name_str " Aux 5", &name##_aux5_mux), \
 	ARIZONA_MUX(name_str " Aux 6", &name##_aux6_mux)
 
-#define ARIZONA_MUX_ROUTES(name) \
+#define ARIZONA_MUX_ROUTES(widget, name) \
+	{ widget, NULL, name " Input" }, \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Input")
 
 #define ARIZONA_MIXER_ROUTES(widget, name) \
@@ -198,6 +199,7 @@ extern const struct soc_enum arizona_lhpf3_mode;
 extern const struct soc_enum arizona_lhpf4_mode;
 
 extern const struct soc_enum arizona_ng_hold;
+extern const struct soc_enum arizona_in_dmic_osr[];
 
 extern int arizona_in_ev(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol,
@@ -242,6 +244,7 @@ extern int arizona_set_fll(struct arizona_fll *fll, int source,
 			   unsigned int Fref, unsigned int Fout);
 
 extern int arizona_init_spk(struct snd_soc_codec *codec);
+extern int arizona_init_gpio(struct snd_soc_codec *codec);
 
 extern int arizona_init_dai(struct arizona_priv *priv, int dai);
 
