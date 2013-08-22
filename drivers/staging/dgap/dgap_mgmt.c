@@ -607,7 +607,6 @@ get_service:
 
 		/* If the concentrator number is 0... */
 		if (kme.rw_conc == 0 && kme.rw_addr < 0x100000) {
-			int page = 0;   
 			int addr = kme.rw_addr;
 			int size = kme.rw_size;
 			caddr_t data = (caddr_t) kme.rw_data; 
