@@ -92,14 +92,6 @@ void __init u8500_map_io(void)
 		iotable_init(u8500_io_desc, ARRAY_SIZE(u8500_io_desc));
 }
 
-static struct resource db8500_pmu_resources[] = {
-	[0] = {
-		.start		= IRQ_DB8500_PMU,
-		.end		= IRQ_DB8500_PMU,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
 /*
  * The PMU IRQ lines of two cores are wired together into a single interrupt.
  * Bounce the interrupt to the other core if it's not ours.
@@ -122,18 +114,6 @@ static irqreturn_t db8500_pmu_handler(int irq, void *dev, irq_handler_t handler)
 
 struct arm_pmu_platdata db8500_pmu_platdata = {
 	.handle_irq		= db8500_pmu_handler,
-};
-
-static struct platform_device db8500_pmu_device = {
-	.name			= "arm-pmu",
-	.id			= -1,
-	.num_resources		= ARRAY_SIZE(db8500_pmu_resources),
-	.resource		= db8500_pmu_resources,
-	.dev.platform_data	= &db8500_pmu_platdata,
-};
-
-static struct platform_device *platform_devs[] __initdata = {
-	&db8500_pmu_device,
 };
 
 static const char *db8500_read_soc_id(void)
@@ -160,17 +140,7 @@ static struct device * __init db8500_soc_device_init(void)
  */
 struct device * __init u8500_init_devices(void)
 {
-	struct device *parent;
-	int i;
-
-	parent = db8500_soc_device_init();
-
-	for (i = 0; i < ARRAY_SIZE(platform_devs); i++)
-		platform_devs[i]->dev.parent = parent;
-
-	platform_add_devices(platform_devs, ARRAY_SIZE(platform_devs));
-
-	return parent;
+	return db8500_soc_device_init();
 }
 
 #ifdef CONFIG_MACH_UX500_DT
