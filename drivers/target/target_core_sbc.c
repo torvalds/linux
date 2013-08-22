@@ -372,6 +372,13 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd)
 	sense_reason_t ret = TCM_NO_SENSE;
 	int rc, i;
 
+	/*
+	 * Handle early failure in transport_generic_request_failure(),
+	 * which will not have taken ->caw_mutex yet..
+	 */
+	if (!cmd->t_data_sg || !cmd->t_bidi_data_sg)
+		return TCM_NO_SENSE;
+
 	buf = kzalloc(cmd->data_length, GFP_KERNEL);
 	if (!buf) {
 		pr_err("Unable to allocate compare_and_write buf\n");

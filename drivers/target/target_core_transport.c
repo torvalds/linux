@@ -1559,6 +1559,13 @@ void transport_generic_request_failure(struct se_cmd *cmd,
 	 * For SAM Task Attribute emulation for failed struct se_cmd
 	 */
 	transport_complete_task_attr(cmd);
+	/*
+	 * Handle special case for COMPARE_AND_WRITE failure, where the
+	 * callback is expected to drop the per device ->caw_mutex.
+	 */
+	if ((cmd->se_cmd_flags & SCF_COMPARE_AND_WRITE) &&
+	     cmd->transport_complete_callback)
+		cmd->transport_complete_callback(cmd);
 
 	switch (sense_reason) {
 	case TCM_NON_EXISTENT_LUN:
