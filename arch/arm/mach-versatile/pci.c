@@ -170,8 +170,8 @@ static struct pci_ops pci_versatile_ops = {
 	.write	= versatile_write_config,
 };
 
-static struct resource io_mem = {
-	.name	= "PCI I/O space",
+static struct resource unused_mem = {
+	.name	= "PCI unused",
 	.start	= VERSATILE_PCI_MEM_BASE0,
 	.end	= VERSATILE_PCI_MEM_BASE0+VERSATILE_PCI_MEM_BASE0_SIZE-1,
 	.flags	= IORESOURCE_MEM,
@@ -195,9 +195,9 @@ static int __init pci_versatile_setup_resources(struct pci_sys_data *sys)
 {
 	int ret = 0;
 
-	ret = request_resource(&iomem_resource, &io_mem);
+	ret = request_resource(&iomem_resource, &unused_mem);
 	if (ret) {
-		printk(KERN_ERR "PCI: unable to allocate I/O "
+		printk(KERN_ERR "PCI: unable to allocate unused "
 		       "memory region (%d)\n", ret);
 		goto out;
 	}
@@ -205,7 +205,7 @@ static int __init pci_versatile_setup_resources(struct pci_sys_data *sys)
 	if (ret) {
 		printk(KERN_ERR "PCI: unable to allocate non-prefetchable "
 		       "memory region (%d)\n", ret);
-		goto release_io_mem;
+		goto release_unused_mem;
 	}
 	ret = request_resource(&iomem_resource, &pre_mem);
 	if (ret) {
@@ -225,8 +225,8 @@ static int __init pci_versatile_setup_resources(struct pci_sys_data *sys)
 
  release_non_mem:
 	release_resource(&non_mem);
- release_io_mem:
-	release_resource(&io_mem);
+ release_unused_mem:
+	release_resource(&unused_mem);
  out:
 	return ret;
 }
@@ -246,7 +246,7 @@ int __init pci_versatile_setup(int nr, struct pci_sys_data *sys)
 		goto out;
 	}
 
-	ret = pci_ioremap_io(0, VERSATILE_PCI_MEM_BASE0);
+	ret = pci_ioremap_io(0, VERSATILE_PCI_IO_BASE);
 	if (ret)
 		goto out;
 
