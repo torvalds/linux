@@ -206,6 +206,28 @@ static const struct snd_soc_dai_ops pcm1681_dai_ops = {
 	.digital_mute	= pcm1681_digital_mute,
 };
 
+static const struct snd_soc_dapm_widget pcm1681_dapm_widgets[] = {
+SND_SOC_DAPM_OUTPUT("VOUT1"),
+SND_SOC_DAPM_OUTPUT("VOUT2"),
+SND_SOC_DAPM_OUTPUT("VOUT3"),
+SND_SOC_DAPM_OUTPUT("VOUT4"),
+SND_SOC_DAPM_OUTPUT("VOUT5"),
+SND_SOC_DAPM_OUTPUT("VOUT6"),
+SND_SOC_DAPM_OUTPUT("VOUT7"),
+SND_SOC_DAPM_OUTPUT("VOUT8"),
+};
+
+static const struct snd_soc_dapm_route pcm1681_dapm_routes[] = {
+	{ "VOUT1", NULL, "Playback" },
+	{ "VOUT2", NULL, "Playback" },
+	{ "VOUT3", NULL, "Playback" },
+	{ "VOUT4", NULL, "Playback" },
+	{ "VOUT5", NULL, "Playback" },
+	{ "VOUT6", NULL, "Playback" },
+	{ "VOUT7", NULL, "Playback" },
+	{ "VOUT8", NULL, "Playback" },
+};
+
 static const DECLARE_TLV_DB_SCALE(pcm1681_dac_tlv, -6350, 50, 1);
 
 static const struct snd_kcontrol_new pcm1681_controls[] = {
@@ -225,7 +247,7 @@ static const struct snd_kcontrol_new pcm1681_controls[] = {
 			    pcm1681_get_deemph, pcm1681_put_deemph),
 };
 
-struct snd_soc_dai_driver pcm1681_dai = {
+static struct snd_soc_dai_driver pcm1681_dai = {
 	.name = "pcm1681-hifi",
 	.playback = {
 		.stream_name = "Playback",
@@ -258,6 +280,10 @@ static const struct regmap_config pcm1681_regmap = {
 static struct snd_soc_codec_driver soc_codec_dev_pcm1681 = {
 	.controls		= pcm1681_controls,
 	.num_controls		= ARRAY_SIZE(pcm1681_controls),
+	.dapm_widgets		= pcm1681_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(pcm1681_dapm_widgets),
+	.dapm_routes		= pcm1681_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(pcm1681_dapm_routes),
 };
 
 static const struct i2c_device_id pcm1681_i2c_id[] = {
