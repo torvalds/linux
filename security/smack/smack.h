@@ -53,6 +53,7 @@
  */
 struct smack_known {
 	struct list_head		list;
+	struct hlist_node		smk_hashed;
 	char				*smk_known;
 	u32				smk_secid;
 	struct netlbl_lsm_secattr	smk_netlabel;	/* on wire labels */
@@ -167,9 +168,13 @@ struct smk_port_label {
 #define SMACK_CIPSO_DOI_INVALID		-1	/* Not a DOI */
 #define SMACK_CIPSO_DIRECT_DEFAULT	250	/* Arbitrary */
 #define SMACK_CIPSO_MAPPED_DEFAULT	251	/* Also arbitrary */
-#define SMACK_CIPSO_MAXCATVAL		63	/* Bigger gets harder */
 #define SMACK_CIPSO_MAXLEVEL            255     /* CIPSO 2.2 standard */
-#define SMACK_CIPSO_MAXCATNUM           239     /* CIPSO 2.2 standard */
+/*
+ * CIPSO 2.2 standard is 239, but Smack wants to use the
+ * categories in a structured way that limits the value to
+ * the bits in 23 bytes, hence the unusual number.
+ */
+#define SMACK_CIPSO_MAXCATNUM           184     /* 23 * 8 */
 
 /*
  * Flag for transmute access
@@ -222,6 +227,7 @@ char *smk_parse_smack(const char *string, int len);
 int smk_netlbl_mls(int, char *, struct netlbl_lsm_secattr *, int);
 char *smk_import(const char *, int);
 struct smack_known *smk_import_entry(const char *, int);
+void smk_insert_entry(struct smack_known *skp);
 struct smack_known *smk_find_entry(const char *);
 u32 smack_to_secid(const char *);
 
@@ -246,6 +252,9 @@ extern struct list_head smack_known_list;
 extern struct list_head smk_netlbladdr_list;
 
 extern struct security_operations smack_ops;
+
+#define SMACK_HASH_SLOTS 16
+extern struct hlist_head smack_known_hash[SMACK_HASH_SLOTS];
 
 /*
  * Is the directory transmuting?
