@@ -375,7 +375,8 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd)
 	buf = kzalloc(cmd->data_length, GFP_KERNEL);
 	if (!buf) {
 		pr_err("Unable to allocate compare_and_write buf\n");
-		return TCM_OUT_OF_RESOURCES;
+		ret = TCM_OUT_OF_RESOURCES;
+		goto out;
 	}
 
 	write_sg = kzalloc(sizeof(struct scatterlist) * cmd->t_data_nents,

@@ -1909,17 +1909,18 @@ static void target_complete_ok_work(struct work_struct *work)
 		sense_reason_t rc;
 
 		rc = cmd->transport_complete_callback(cmd);
-		if (!rc)
+		if (!rc && !(cmd->se_cmd_flags & SCF_COMPARE_AND_WRITE_POST)) {
 			return;
+		} else if (rc) {
+			ret = transport_send_check_condition_and_sense(cmd,
+						rc, 0);
+			if (ret == -EAGAIN || ret == -ENOMEM)
+				goto queue_full;
 
-		ret = transport_send_check_condition_and_sense(cmd,
-					rc, 0);
-		if (ret == -EAGAIN || ret == -ENOMEM)
-			goto queue_full;
-
-		transport_lun_remove_cmd(cmd);
-		transport_cmd_check_stop_to_fabric(cmd);
-		return;
+			transport_lun_remove_cmd(cmd);
+			transport_cmd_check_stop_to_fabric(cmd);
+			return;
+		}
 	}
 
 	switch (cmd->data_direction) {
