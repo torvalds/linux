@@ -737,29 +737,6 @@ static const struct snd_kcontrol_new rt5640_mono_mix[] = {
 			RT5640_M_BST1_MM_SFT, 1, 1),
 };
 
-/* INL/R source */
-static const char * const rt5640_inl_src[] = {
-	"IN2P", "MONOP"
-};
-
-static const SOC_ENUM_SINGLE_DECL(
-	rt5640_inl_enum, RT5640_INL_INR_VOL,
-	RT5640_INL_SEL_SFT, rt5640_inl_src);
-
-static const struct snd_kcontrol_new rt5640_inl_mux =
-	SOC_DAPM_ENUM("INL source", rt5640_inl_enum);
-
-static const char * const rt5640_inr_src[] = {
-	"IN2N", "MONON"
-};
-
-static const SOC_ENUM_SINGLE_DECL(
-	rt5640_inr_enum, RT5640_INL_INR_VOL,
-	RT5640_INR_SEL_SFT, rt5640_inr_src);
-
-static const struct snd_kcontrol_new rt5640_inr_mux =
-	SOC_DAPM_ENUM("INR source", rt5640_inr_enum);
-
 /* Stereo ADC source */
 static const char * const rt5640_stereo_adc1_src[] = {
 	"DIG MIX", "ADC"
@@ -1005,9 +982,6 @@ static const struct snd_soc_dapm_widget rt5640_dapm_widgets[] = {
 		RT5640_PWR_IN_L_BIT, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("INR VOL", RT5640_PWR_VOL,
 		RT5640_PWR_IN_R_BIT, 0, NULL, 0),
-	/* IN Mux */
-	SND_SOC_DAPM_MUX("INL Mux", SND_SOC_NOPM, 0, 0, &rt5640_inl_mux),
-	SND_SOC_DAPM_MUX("INR Mux", SND_SOC_NOPM, 0, 0, &rt5640_inr_mux),
 	/* REC Mixer */
 	SND_SOC_DAPM_MIXER("RECMIXL", RT5640_PWR_MIXER, RT5640_PWR_RM_L_BIT, 0,
 			rt5640_rec_l_mix, ARRAY_SIZE(rt5640_rec_l_mix)),
