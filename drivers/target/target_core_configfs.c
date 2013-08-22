@@ -48,6 +48,7 @@
 #include "target_core_alua.h"
 #include "target_core_pr.h"
 #include "target_core_rd.h"
+#include "target_core_xcopy.h"
 
 extern struct t10_alua_lu_gp *default_lu_gp;
 
@@ -2935,6 +2936,10 @@ static int __init target_core_init_configfs(void)
 	if (ret < 0)
 		goto out;
 
+	ret = target_xcopy_setup_pt();
+	if (ret < 0)
+		goto out;
+
 	return 0;
 
 out:
@@ -3007,6 +3012,7 @@ static void __exit target_core_exit_configfs(void)
 
 	core_dev_release_virtual_lun0();
 	rd_module_exit();
+	target_xcopy_release_pt();
 	release_se_kmem_caches();
 }
 
