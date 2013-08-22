@@ -178,6 +178,7 @@ static struct clk *_tegra_clk_register_periph(const char *name,
 {
 	struct clk *clk;
 	struct clk_init_data init;
+	struct tegra_clk_periph_regs *bank;
 
 	init.name = name;
 	init.ops = div ? &tegra_clk_periph_ops : &tegra_clk_periph_nodiv_ops;
@@ -185,12 +186,17 @@ static struct clk *_tegra_clk_register_periph(const char *name,
 	init.parent_names = parent_names;
 	init.num_parents = num_parents;
 
+	bank = get_reg_bank(periph->gate.clk_num);
+	if (!bank)
+		return ERR_PTR(-EINVAL);
+
 	/* Data in .init is copied by clk_register(), so stack variable OK */
 	periph->hw.init = &init;
 	periph->magic = TEGRA_CLK_PERIPH_MAGIC;
 	periph->mux.reg = clk_base + offset;
 	periph->divider.reg = div ? (clk_base + offset) : NULL;
 	periph->gate.clk_base = clk_base;
+	periph->gate.regs = bank;
 
 	clk = clk_register(NULL, &periph->hw);
 	if (IS_ERR(clk))

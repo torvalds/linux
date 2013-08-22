@@ -400,8 +400,7 @@ void tegra_periph_reset(struct tegra_clk_periph_gate *gate, bool assert);
 extern const struct clk_ops tegra_clk_periph_gate_ops;
 struct clk *tegra_clk_register_periph_gate(const char *name,
 		const char *parent_name, u8 gate_flags, void __iomem *clk_base,
-		unsigned long flags, int clk_num,
-		struct tegra_clk_periph_regs *pregs, int *enable_refcnt);
+		unsigned long flags, int clk_num, int *enable_refcnt);
 
 /**
  * struct clk-periph - peripheral clock
@@ -443,7 +442,7 @@ struct clk *tegra_clk_register_periph_nodiv(const char *name,
 
 #define TEGRA_CLK_PERIPH(_mux_shift, _mux_mask, _mux_flags,		\
 			 _div_shift, _div_width, _div_frac_width,	\
-			 _div_flags, _clk_num, _enb_refcnt, _regs,	\
+			 _div_flags, _clk_num, _enb_refcnt,		\
 			 _gate_flags, _table)				\
 	{								\
 		.mux = {						\
@@ -462,7 +461,6 @@ struct clk *tegra_clk_register_periph_nodiv(const char *name,
 			.flags = _gate_flags,				\
 			.clk_num = _clk_num,				\
 			.enable_refcnt = _enb_refcnt,			\
-			.regs = _regs,					\
 		},							\
 		.mux_ops = &clk_mux_ops,				\
 		.div_ops = &tegra_clk_frac_div_ops,			\
@@ -483,7 +481,7 @@ struct tegra_periph_init_data {
 
 #define TEGRA_INIT_DATA_TABLE(_name, _con_id, _dev_id, _parent_names, _offset,\
 			_mux_shift, _mux_mask, _mux_flags, _div_shift,	\
-			_div_width, _div_frac_width, _div_flags, _regs,	\
+			_div_width, _div_frac_width, _div_flags,	\
 			_clk_num, _enb_refcnt, _gate_flags, _clk_id, _table,\
 			_flags) \
 	{								\
@@ -495,7 +493,7 @@ struct tegra_periph_init_data {
 					   _mux_flags, _div_shift,	\
 					   _div_width, _div_frac_width,	\
 					   _div_flags, _clk_num,	\
-					   _enb_refcnt, _regs,		\
+					   _enb_refcnt,			\
 					   _gate_flags, _table),	\
 		.offset = _offset,					\
 		.con_id = _con_id,					\
@@ -505,12 +503,12 @@ struct tegra_periph_init_data {
 
 #define TEGRA_INIT_DATA(_name, _con_id, _dev_id, _parent_names, _offset,\
 			_mux_shift, _mux_width, _mux_flags, _div_shift,	\
-			_div_width, _div_frac_width, _div_flags, _regs,	\
+			_div_width, _div_frac_width, _div_flags, \
 			_clk_num, _enb_refcnt, _gate_flags, _clk_id)	\
 	TEGRA_INIT_DATA_TABLE(_name, _con_id, _dev_id, _parent_names, _offset,\
 			_mux_shift, BIT(_mux_width) - 1, _mux_flags,	\
 			_div_shift, _div_width, _div_frac_width, _div_flags, \
-			_regs, _clk_num, _enb_refcnt, _gate_flags, _clk_id,\
+			_clk_num, _enb_refcnt, _gate_flags, _clk_id,\
 			NULL, 0)
 
 /**
@@ -586,6 +584,9 @@ void tegra_init_from_table(struct tegra_clk_init_table *tbl,
 
 void tegra_init_dup_clks(struct tegra_clk_duplicate *dup_list,
 		struct clk *clks[], int clk_max);
+
+struct tegra_clk_periph_regs *get_reg_bank(int clkid);
+int tegra_clk_set_periph_banks(int num);
 
 void tegra114_clock_tune_cpu_trimmers_high(void);
 void tegra114_clock_tune_cpu_trimmers_low(void);
