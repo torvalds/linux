@@ -176,7 +176,7 @@ static int s3c2412_iis_dev_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = asoc_dma_platform_register(&pdev->dev);
+	ret = samsung_asoc_dma_platform_register(&pdev->dev);
 	if (ret) {
 		pr_err("failed to register the DMA: %d\n", ret);
 		goto err;
@@ -190,7 +190,7 @@ err:
 
 static int s3c2412_iis_dev_remove(struct platform_device *pdev)
 {
-	asoc_dma_platform_unregister(&pdev->dev);
+	samsung_asoc_dma_platform_unregister(&pdev->dev);
 	snd_soc_unregister_component(&pdev->dev);
 	return 0;
 }
