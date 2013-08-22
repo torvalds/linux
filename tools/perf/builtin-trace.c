@@ -298,7 +298,22 @@ static struct syscall *trace__syscall_info(struct trace *trace,
 	int id = perf_evsel__intval(evsel, sample, "id");
 
 	if (id < 0) {
-		fprintf(trace->output, "Invalid syscall %d id, skipping...\n", id);
+
+		/*
+		 * XXX: Noticed on x86_64, reproduced as far back as 3.0.36, haven't tried
+		 * before that, leaving at a higher verbosity level till that is
+		 * explained. Reproduced with plain ftrace with:
+		 *
+		 * echo 1 > /t/events/raw_syscalls/sys_exit/enable
+		 * grep "NR -1 " /t/trace_pipe
+		 *
+		 * After generating some load on the machine.
+ 		 */
+		if (verbose > 1) {
+			static u64 n;
+			fprintf(trace->output, "Invalid syscall %d id, skipping (%s, %" PRIu64 ") ...\n",
+				id, perf_evsel__name(evsel), ++n);
+		}
 		return NULL;
 	}
 
