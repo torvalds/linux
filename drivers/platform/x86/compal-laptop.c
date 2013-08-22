@@ -1083,7 +1083,6 @@ static int compal_remove(struct platform_device *pdev)
 	hwmon_device_unregister(data->hwmon_dev);
 	power_supply_unregister(&data->psy);
 
-	platform_set_drvdata(pdev, NULL);
 	kfree(data);
 
 	sysfs_remove_group(&pdev->dev.kobj, &compal_attribute_group);
