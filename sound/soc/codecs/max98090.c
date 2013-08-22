@@ -2084,8 +2084,9 @@ static irqreturn_t max98090_interrupt(int irq, void *data)
 
 		pm_wakeup_event(codec->dev, 100);
 
-		schedule_delayed_work(&max98090->jack_work,
-			msecs_to_jiffies(100));
+		queue_delayed_work(system_power_efficient_wq,
+				   &max98090->jack_work,
+				   msecs_to_jiffies(100));
 	}
 
 	if (active & M98090_DRCACT_MASK)
@@ -2132,8 +2133,9 @@ int max98090_mic_detect(struct snd_soc_codec *codec,
 	snd_soc_jack_report(max98090->jack, 0,
 			    SND_JACK_HEADSET | SND_JACK_BTN_0);
 
-	schedule_delayed_work(&max98090->jack_work,
-		msecs_to_jiffies(100));
+	queue_delayed_work(system_power_efficient_wq,
+			   &max98090->jack_work,
+			   msecs_to_jiffies(100));
 
 	return 0;
 }
