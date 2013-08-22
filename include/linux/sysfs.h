@@ -108,8 +108,6 @@ static const struct attribute_group _name##_group = {		\
 };								\
 __ATTRIBUTE_GROUPS(_name)
 
-#define attr_name(_attr) (_attr).attr.name
-
 struct file;
 struct vm_area_struct;
 

@@ -440,7 +440,7 @@ static int device_add_attributes(struct device *dev,
 	int i;
 
 	if (attrs) {
-		for (i = 0; attr_name(attrs[i]); i++) {
+		for (i = 0; attrs[i].attr.name; i++) {
 			error = device_create_file(dev, &attrs[i]);
 			if (error)
 				break;
@@ -458,7 +458,7 @@ static void device_remove_attributes(struct device *dev,
 	int i;
 
 	if (attrs)
-		for (i = 0; attr_name(attrs[i]); i++)
+		for (i = 0; attrs[i].attr.name; i++)
 			device_remove_file(dev, &attrs[i]);
 }
 
@@ -469,7 +469,7 @@ static int device_add_bin_attributes(struct device *dev,
 	int i;
 
 	if (attrs) {
-		for (i = 0; attr_name(attrs[i]); i++) {
+		for (i = 0; attrs[i].attr.name; i++) {
 			error = device_create_bin_file(dev, &attrs[i]);
 			if (error)
 				break;
@@ -487,7 +487,7 @@ static void device_remove_bin_attributes(struct device *dev,
 	int i;
 
 	if (attrs)
-		for (i = 0; attr_name(attrs[i]); i++)
+		for (i = 0; attrs[i].attr.name; i++)
 			device_remove_bin_file(dev, &attrs[i]);
 }
 
