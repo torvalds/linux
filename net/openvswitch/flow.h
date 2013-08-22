@@ -243,7 +243,7 @@ int ovs_ipv4_tun_to_nlattr(struct sk_buff *skb,
 			   const struct ovs_key_ipv4_tunnel *output);
 
 bool ovs_flow_cmp_unmasked_key(const struct sw_flow *flow,
-		const struct sw_flow_key *key, int key_len);
+		const struct sw_flow_key *key, int key_end);
 
 struct sw_flow_mask {
 	int ref_count;

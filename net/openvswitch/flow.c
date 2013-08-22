@@ -997,10 +997,11 @@ int ovs_flow_extract(struct sk_buff *skb, u16 in_port, struct sw_flow_key *key)
 	return 0;
 }
 
-static u32 ovs_flow_hash(const struct sw_flow_key *key, int key_start, int key_len)
+static u32 ovs_flow_hash(const struct sw_flow_key *key, int key_start,
+			 int key_end)
 {
 	return jhash2((u32 *)((u8 *)key + key_start),
-		      DIV_ROUND_UP(key_len - key_start, sizeof(u32)), 0);
+		      DIV_ROUND_UP(key_end - key_start, sizeof(u32)), 0);
 }
 
 static int flow_key_start(const struct sw_flow_key *key)
@@ -1012,31 +1013,31 @@ static int flow_key_start(const struct sw_flow_key *key)
 }
 
 static bool __cmp_key(const struct sw_flow_key *key1,
-		const struct sw_flow_key *key2,  int key_start, int key_len)
+		const struct sw_flow_key *key2,  int key_start, int key_end)
 {
 	return !memcmp((u8 *)key1 + key_start,
-			(u8 *)key2 + key_start, (key_len - key_start));
+			(u8 *)key2 + key_start, (key_end - key_start));
 }
 
 static bool __flow_cmp_key(const struct sw_flow *flow,
-		const struct sw_flow_key *key, int key_start, int key_len)
+		const struct sw_flow_key *key, int key_start, int key_end)
 {
-	return __cmp_key(&flow->key, key, key_start, key_len);
+	return __cmp_key(&flow->key, key, key_start, key_end);
 }
 
 static bool __flow_cmp_unmasked_key(const struct sw_flow *flow,
-		  const struct sw_flow_key *key, int key_start, int key_len)
+		  const struct sw_flow_key *key, int key_start, int key_end)
 {
-	return __cmp_key(&flow->unmasked_key, key, key_start, key_len);
+	return __cmp_key(&flow->unmasked_key, key, key_start, key_end);
 }
 
 bool ovs_flow_cmp_unmasked_key(const struct sw_flow *flow,
-		const struct sw_flow_key *key, int key_len)
+		const struct sw_flow_key *key, int key_end)
 {
 	int key_start;
 	key_start = flow_key_start(key);
 
-	return __flow_cmp_unmasked_key(flow, key, key_start, key_len);
+	return __flow_cmp_unmasked_key(flow, key, key_start, key_end);
 
 }
 
@@ -1044,11 +1045,11 @@ struct sw_flow *ovs_flow_lookup_unmasked_key(struct flow_table *table,
 				       struct sw_flow_match *match)
 {
 	struct sw_flow_key *unmasked = match->key;
-	int key_len = match->range.end;
+	int key_end = match->range.end;
 	struct sw_flow *flow;
 
 	flow = ovs_flow_lookup(table, unmasked);
-	if (flow && (!ovs_flow_cmp_unmasked_key(flow, unmasked, key_len)))
+	if (flow && (!ovs_flow_cmp_unmasked_key(flow, unmasked, key_end)))
 		flow = NULL;
 
 	return flow;
@@ -1061,16 +1062,16 @@ static struct sw_flow *ovs_masked_flow_lookup(struct flow_table *table,
 	struct sw_flow *flow;
 	struct hlist_head *head;
 	int key_start = mask->range.start;
-	int key_len = mask->range.end;
+	int key_end = mask->range.end;
 	u32 hash;
 	struct sw_flow_key masked_key;
 
 	ovs_flow_key_mask(&masked_key, flow_key, mask);
-	hash = ovs_flow_hash(&masked_key, key_start, key_len);
+	hash = ovs_flow_hash(&masked_key, key_start, key_end);
 	head = find_bucket(table, hash);
 	hlist_for_each_entry_rcu(flow, head, hash_node[table->node_ver]) {
 		if (flow->mask == mask &&
-		    __flow_cmp_key(flow, &masked_key, key_start, key_len))
+		    __flow_cmp_key(flow, &masked_key, key_start, key_end))
 			return flow;
 	}
 	return NULL;
