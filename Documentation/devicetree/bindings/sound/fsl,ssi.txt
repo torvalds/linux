@@ -43,10 +43,22 @@ Required properties:
                     together.  This would still allow different sample sizes,
                     but not different sample rates.
 
+Required are also ac97 link bindings if ac97 is used. See
+Documentation/devicetree/bindings/sound/soc-ac97link.txt for the necessary
+bindings.
+
 Optional properties:
 - codec-handle:     Phandle to a 'codec' node that defines an audio
                     codec connected to this SSI.  This node is typically
                     a child of an I2C or other control node.
+- fsl,fiq-stream-filter: Bool property. Disabled DMA and use FIQ instead to
+		    filter the codec stream. This is necessary for some boards
+		    where an incompatible codec is connected to this SSI, e.g.
+		    on pca100 and pcm043.
+- dmas:		    Generic dma devicetree binding as described in
+		    Documentation/devicetree/bindings/dma/dma.txt.
+- dma-names:	    Two dmas have to be defined, "tx" and "rx", if fsl,imx-fiq
+		    is not defined.
 
 Child 'codec' node required properties:
 - compatible:       Compatible list, contains the name of the codec
