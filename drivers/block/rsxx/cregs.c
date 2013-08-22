@@ -431,6 +431,15 @@ static int __issue_creg_rw(struct rsxx_cardinfo *card,
 	*hw_stat = completion.creg_status;
 
 	if (completion.st) {
+		/*
+		* This read is needed to verify that there has not been any
+		* extreme errors that might have occurred, i.e. EEH. The
+		* function iowrite32 will not detect EEH errors, so it is
+		* necessary that we recover if such an error is the reason
+		* for the timeout. This is a dummy read.
+		*/
+		ioread32(card->regmap + SCRATCH);
+
 		dev_warn(CARD_TO_DEV(card),
 			"creg command failed(%d x%08x)\n",
 			completion.st, addr);
@@ -726,6 +735,11 @@ void rsxx_kick_creg_queue(struct rsxx_cardinfo *card)
 int rsxx_creg_setup(struct rsxx_cardinfo *card)
 {
 	card->creg_ctrl.active_cmd = NULL;
+
+	card->creg_ctrl.creg_wq =
+			create_singlethread_workqueue(DRIVER_NAME"_creg");
+	if (!card->creg_ctrl.creg_wq)
+		return -ENOMEM;
 
 	INIT_WORK(&card->creg_ctrl.done_work, creg_cmd_done);
 	mutex_init(&card->creg_ctrl.reset_lock);

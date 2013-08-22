@@ -22,7 +22,6 @@
  * Authors: Alex Deucher
  */
 #include <linux/firmware.h>
-#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <drm/drmP.h>
@@ -684,7 +683,6 @@ int ni_mc_load_microcode(struct radeon_device *rdev)
 
 int ni_init_microcode(struct radeon_device *rdev)
 {
-	struct platform_device *pdev;
 	const char *chip_name;
 	const char *rlc_chip_name;
 	size_t pfp_req_size, me_req_size, rlc_req_size, mc_req_size;
@@ -693,13 +691,6 @@ int ni_init_microcode(struct radeon_device *rdev)
 	int err;
 
 	DRM_DEBUG("\n");
-
-	pdev = platform_device_register_simple("radeon_cp", 0, NULL, 0);
-	err = IS_ERR(pdev);
-	if (err) {
-		printk(KERN_ERR "radeon_cp: Failed to register firmware\n");
-		return -EINVAL;
-	}
 
 	switch (rdev->family) {
 	case CHIP_BARTS:
@@ -753,7 +744,7 @@ int ni_init_microcode(struct radeon_device *rdev)
 	DRM_INFO("Loading %s Microcode\n", chip_name);
 
 	snprintf(fw_name, sizeof(fw_name), "radeon/%s_pfp.bin", chip_name);
-	err = request_firmware(&rdev->pfp_fw, fw_name, &pdev->dev);
+	err = request_firmware(&rdev->pfp_fw, fw_name, rdev->dev);
 	if (err)
 		goto out;
 	if (rdev->pfp_fw->size != pfp_req_size) {
@@ -765,7 +756,7 @@ int ni_init_microcode(struct radeon_device *rdev)
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "radeon/%s_me.bin", chip_name);
-	err = request_firmware(&rdev->me_fw, fw_name, &pdev->dev);
+	err = request_firmware(&rdev->me_fw, fw_name, rdev->dev);
 	if (err)
 		goto out;
 	if (rdev->me_fw->size != me_req_size) {
@@ -776,7 +767,7 @@ int ni_init_microcode(struct radeon_device *rdev)
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "radeon/%s_rlc.bin", rlc_chip_name);
-	err = request_firmware(&rdev->rlc_fw, fw_name, &pdev->dev);
+	err = request_firmware(&rdev->rlc_fw, fw_name, rdev->dev);
 	if (err)
 		goto out;
 	if (rdev->rlc_fw->size != rlc_req_size) {
@@ -789,7 +780,7 @@ int ni_init_microcode(struct radeon_device *rdev)
 	/* no MC ucode on TN */
 	if (!(rdev->flags & RADEON_IS_IGP)) {
 		snprintf(fw_name, sizeof(fw_name), "radeon/%s_mc.bin", chip_name);
-		err = request_firmware(&rdev->mc_fw, fw_name, &pdev->dev);
+		err = request_firmware(&rdev->mc_fw, fw_name, rdev->dev);
 		if (err)
 			goto out;
 		if (rdev->mc_fw->size != mc_req_size) {
@@ -802,10 +793,14 @@ int ni_init_microcode(struct radeon_device *rdev)
 
 	if ((rdev->family >= CHIP_BARTS) && (rdev->family <= CHIP_CAYMAN)) {
 		snprintf(fw_name, sizeof(fw_name), "radeon/%s_smc.bin", chip_name);
-		err = request_firmware(&rdev->smc_fw, fw_name, &pdev->dev);
-		if (err)
-			goto out;
-		if (rdev->smc_fw->size != smc_req_size) {
+		err = request_firmware(&rdev->smc_fw, fw_name, rdev->dev);
+		if (err) {
+			printk(KERN_ERR
+			       "smc: error loading firmware \"%s\"\n",
+			       fw_name);
+			release_firmware(rdev->smc_fw);
+			rdev->smc_fw = NULL;
+		} else if (rdev->smc_fw->size != smc_req_size) {
 			printk(KERN_ERR
 			       "ni_mc: Bogus length %zu in firmware \"%s\"\n",
 			       rdev->mc_fw->size, fw_name);
@@ -814,8 +809,6 @@ int ni_init_microcode(struct radeon_device *rdev)
 	}
 
 out:
-	platform_device_unregister(pdev);
-
 	if (err) {
 		if (err != -EINVAL)
 			printk(KERN_ERR
@@ -2090,6 +2083,8 @@ static int cayman_startup(struct radeon_device *rdev)
 	/* enable aspm */
 	evergreen_program_aspm(rdev);
 
+	evergreen_mc_program(rdev);
+
 	if (rdev->flags & RADEON_IS_IGP) {
 		if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw) {
 			r = ni_init_microcode(rdev);
@@ -2118,7 +2113,6 @@ static int cayman_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	evergreen_mc_program(rdev);
 	r = cayman_pcie_gart_enable(rdev);
 	if (r)
 		return r;
@@ -2297,7 +2291,7 @@ int cayman_suspend(struct radeon_device *rdev)
 	radeon_vm_manager_fini(rdev);
 	cayman_cp_enable(rdev, false);
 	cayman_dma_stop(rdev);
-	r600_uvd_rbc_stop(rdev);
+	r600_uvd_stop(rdev);
 	radeon_uvd_suspend(rdev);
 	evergreen_irq_suspend(rdev);
 	radeon_wb_disable(rdev);
@@ -2429,6 +2423,7 @@ void cayman_fini(struct radeon_device *rdev)
 	radeon_vm_manager_fini(rdev);
 	radeon_ib_pool_fini(rdev);
 	radeon_irq_kms_fini(rdev);
+	r600_uvd_stop(rdev);
 	radeon_uvd_fini(rdev);
 	cayman_pcie_gart_fini(rdev);
 	r600_vram_scratch_fini(rdev);
@@ -2459,6 +2454,167 @@ int cayman_vm_init(struct radeon_device *rdev)
 
 void cayman_vm_fini(struct radeon_device *rdev)
 {
+}
+
+/**
+ * cayman_vm_decode_fault - print human readable fault info
+ *
+ * @rdev: radeon_device pointer
+ * @status: VM_CONTEXT1_PROTECTION_FAULT_STATUS register value
+ * @addr: VM_CONTEXT1_PROTECTION_FAULT_ADDR register value
+ *
+ * Print human readable fault information (cayman/TN).
+ */
+void cayman_vm_decode_fault(struct radeon_device *rdev,
+			    u32 status, u32 addr)
+{
+	u32 mc_id = (status & MEMORY_CLIENT_ID_MASK) >> MEMORY_CLIENT_ID_SHIFT;
+	u32 vmid = (status & FAULT_VMID_MASK) >> FAULT_VMID_SHIFT;
+	u32 protections = (status & PROTECTIONS_MASK) >> PROTECTIONS_SHIFT;
+	char *block;
+
+	switch (mc_id) {
+	case 32:
+	case 16:
+	case 96:
+	case 80:
+	case 160:
+	case 144:
+	case 224:
+	case 208:
+		block = "CB";
+		break;
+	case 33:
+	case 17:
+	case 97:
+	case 81:
+	case 161:
+	case 145:
+	case 225:
+	case 209:
+		block = "CB_FMASK";
+		break;
+	case 34:
+	case 18:
+	case 98:
+	case 82:
+	case 162:
+	case 146:
+	case 226:
+	case 210:
+		block = "CB_CMASK";
+		break;
+	case 35:
+	case 19:
+	case 99:
+	case 83:
+	case 163:
+	case 147:
+	case 227:
+	case 211:
+		block = "CB_IMMED";
+		break;
+	case 36:
+	case 20:
+	case 100:
+	case 84:
+	case 164:
+	case 148:
+	case 228:
+	case 212:
+		block = "DB";
+		break;
+	case 37:
+	case 21:
+	case 101:
+	case 85:
+	case 165:
+	case 149:
+	case 229:
+	case 213:
+		block = "DB_HTILE";
+		break;
+	case 38:
+	case 22:
+	case 102:
+	case 86:
+	case 166:
+	case 150:
+	case 230:
+	case 214:
+		block = "SX";
+		break;
+	case 39:
+	case 23:
+	case 103:
+	case 87:
+	case 167:
+	case 151:
+	case 231:
+	case 215:
+		block = "DB_STEN";
+		break;
+	case 40:
+	case 24:
+	case 104:
+	case 88:
+	case 232:
+	case 216:
+	case 168:
+	case 152:
+		block = "TC_TFETCH";
+		break;
+	case 41:
+	case 25:
+	case 105:
+	case 89:
+	case 233:
+	case 217:
+	case 169:
+	case 153:
+		block = "TC_VFETCH";
+		break;
+	case 42:
+	case 26:
+	case 106:
+	case 90:
+	case 234:
+	case 218:
+	case 170:
+	case 154:
+		block = "VC";
+		break;
+	case 112:
+		block = "CP";
+		break;
+	case 113:
+	case 114:
+		block = "SH";
+		break;
+	case 115:
+		block = "VGT";
+		break;
+	case 178:
+		block = "IH";
+		break;
+	case 51:
+		block = "RLC";
+		break;
+	case 55:
+		block = "DMA";
+		break;
+	case 56:
+		block = "HDP";
+		break;
+	default:
+		block = "unknown";
+		break;
+	}
+
+	printk("VM fault (0x%02x, vmid %d) at page %u, %s from %s (%d)\n",
+	       protections, vmid, addr,
+	       (status & MEMORY_CLIENT_RW_MASK) ? "write" : "read",
+	       block, mc_id);
 }
 
 #define R600_ENTRY_VALID   (1 << 0)

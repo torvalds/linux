@@ -139,6 +139,8 @@ void evergreen_pcie_gen2_enable(struct radeon_device *rdev);
 void evergreen_program_aspm(struct radeon_device *rdev);
 extern void cayman_cp_int_cntl_setup(struct radeon_device *rdev,
 				     int ring, u32 cp_int_cntl);
+extern void cayman_vm_decode_fault(struct radeon_device *rdev,
+				   u32 status, u32 addr);
 
 static const u32 evergreen_golden_registers[] =
 {
@@ -4586,6 +4588,7 @@ int evergreen_irq_process(struct radeon_device *rdev)
 	bool queue_hotplug = false;
 	bool queue_hdmi = false;
 	bool queue_thermal = false;
+	u32 status, addr;
 
 	if (!rdev->ih.enabled || rdev->shutdown)
 		return IRQ_NONE;
@@ -4872,11 +4875,14 @@ restart_ih:
 			break;
 		case 146:
 		case 147:
+			addr = RREG32(VM_CONTEXT1_PROTECTION_FAULT_ADDR);
+			status = RREG32(VM_CONTEXT1_PROTECTION_FAULT_STATUS);
 			dev_err(rdev->dev, "GPU fault detected: %d 0x%08x\n", src_id, src_data);
 			dev_err(rdev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_ADDR   0x%08X\n",
-				RREG32(VM_CONTEXT1_PROTECTION_FAULT_ADDR));
+				addr);
 			dev_err(rdev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_STATUS 0x%08X\n",
-				RREG32(VM_CONTEXT1_PROTECTION_FAULT_STATUS));
+				status);
+			cayman_vm_decode_fault(rdev, status, addr);
 			/* reset addr and status */
 			WREG32_P(VM_CONTEXT1_CNTL2, 1, ~1);
 			break;
@@ -5100,6 +5106,8 @@ static int evergreen_startup(struct radeon_device *rdev)
 	/* enable aspm */
 	evergreen_program_aspm(rdev);
 
+	evergreen_mc_program(rdev);
+
 	if (ASIC_IS_DCE5(rdev)) {
 		if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw || !rdev->mc_fw) {
 			r = ni_init_microcode(rdev);
@@ -5127,7 +5135,6 @@ static int evergreen_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	evergreen_mc_program(rdev);
 	if (rdev->flags & RADEON_IS_AGP) {
 		evergreen_agp_enable(rdev);
 	} else {
@@ -5285,10 +5292,10 @@ int evergreen_resume(struct radeon_device *rdev)
 int evergreen_suspend(struct radeon_device *rdev)
 {
 	r600_audio_fini(rdev);
+	r600_uvd_stop(rdev);
 	radeon_uvd_suspend(rdev);
 	r700_cp_stop(rdev);
 	r600_dma_stop(rdev);
-	r600_uvd_rbc_stop(rdev);
 	evergreen_irq_suspend(rdev);
 	radeon_wb_disable(rdev);
 	evergreen_pcie_gart_disable(rdev);
@@ -5423,6 +5430,7 @@ void evergreen_fini(struct radeon_device *rdev)
 	radeon_ib_pool_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	evergreen_pcie_gart_fini(rdev);
+	r600_uvd_stop(rdev);
 	radeon_uvd_fini(rdev);
 	r600_vram_scratch_fini(rdev);
 	radeon_gem_fini(rdev);
@@ -5508,6 +5516,9 @@ void evergreen_program_aspm(struct radeon_device *rdev)
 	 * todo: check if the system is a fusion platform.
 	 */
 	bool fusion_platform = false;
+
+	if (radeon_aspm == 0)
+		return;
 
 	if (!(rdev->flags & RADEON_IS_PCIE))
 		return;

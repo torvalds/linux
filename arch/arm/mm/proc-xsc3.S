@@ -446,8 +446,6 @@ ENTRY(cpu_xsc3_do_resume)
 ENDPROC(cpu_xsc3_do_resume)
 #endif
 
-	__CPUINIT
-
 	.type	__xsc3_setup, #function
 __xsc3_setup:
 	mov	r0, #PSR_F_BIT|PSR_I_BIT|SVC_MODE

@@ -812,7 +812,7 @@ static void set_trigger_mask(unsigned int mask)
 }
 #endif
 
-void __cpuinit per_cpu_trap_init(unsigned long cpu)
+void per_cpu_trap_init(unsigned long cpu)
 {
 	TBIRES int_context;
 	unsigned int thread = cpu_2_hwthread_id[cpu];

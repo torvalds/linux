@@ -268,7 +268,7 @@ static int mlx5_eq_int(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 		case MLX5_EVENT_TYPE_PAGE_REQUEST:
 			{
 				u16 func_id = be16_to_cpu(eqe->data.req_pages.func_id);
-				s16 npages = be16_to_cpu(eqe->data.req_pages.num_pages);
+				s32 npages = be32_to_cpu(eqe->data.req_pages.num_pages);
 
 				mlx5_core_dbg(dev, "page request for func 0x%x, napges %d\n", func_id, npages);
 				mlx5_core_req_pages_handler(dev, func_id, npages);
