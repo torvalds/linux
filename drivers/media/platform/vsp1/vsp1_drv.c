@@ -134,6 +134,8 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 
 	mdev->dev = vsp1->dev;
 	strlcpy(mdev->model, "VSP1", sizeof(mdev->model));
+	snprintf(mdev->bus_info, sizeof(mdev->bus_info), "platform:%s",
+		 dev_name(mdev->dev));
 	ret = media_device_register(mdev);
 	if (ret < 0) {
 		dev_err(vsp1->dev, "media device registration failed (%d)\n",
