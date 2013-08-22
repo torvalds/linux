@@ -685,6 +685,13 @@ static void hid_scan_input_usage(struct hid_parser *parser, u32 usage)
 		hid->group = HID_GROUP_MULTITOUCH;
 }
 
+static void hid_scan_feature_usage(struct hid_parser *parser, u32 usage)
+{
+	if (usage == 0xff0000c5 && parser->global.report_count == 256 &&
+	    parser->global.report_size == 8)
+		parser->scan_flags |= HID_SCAN_FLAG_MT_WIN_8;
+}
+
 static void hid_scan_collection(struct hid_parser *parser, unsigned type)
 {
 	struct hid_device *hid = parser->device;
@@ -714,6 +721,8 @@ static int hid_scan_main(struct hid_parser *parser, struct hid_item *item)
 	case HID_MAIN_ITEM_TAG_OUTPUT:
 		break;
 	case HID_MAIN_ITEM_TAG_FEATURE:
+		for (i = 0; i < parser->local.usage_index; i++)
+			hid_scan_feature_usage(parser, parser->local.usage[i]);
 		break;
 	}
 
@@ -756,6 +765,13 @@ static int hid_scan_report(struct hid_device *hid)
 	 */
 	while ((start = fetch_item(start, end, &item)) != NULL)
 		dispatch_type[item.type](parser, &item);
+
+	/*
+	 * Handle special flags set during scanning.
+	 */
+	if ((parser->scan_flags & HID_SCAN_FLAG_MT_WIN_8) &&
+	    (hid->group == HID_GROUP_MULTITOUCH))
+		hid->group = HID_GROUP_MULTITOUCH_WIN_8;
 
 	vfree(parser);
 	return 0;

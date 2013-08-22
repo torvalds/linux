@@ -133,6 +133,7 @@ static void mt_post_parse(struct mt_device *td);
 #define MT_CLS_NSMU				0x000a
 #define MT_CLS_DUAL_CONTACT_NUMBER		0x0010
 #define MT_CLS_DUAL_CONTACT_ID			0x0011
+#define MT_CLS_WIN_8				0x0012
 
 /* vendor specific classes */
 #define MT_CLS_3M				0x0101
@@ -205,6 +206,11 @@ static struct mt_class mt_classes[] = {
 			MT_QUIRK_CONTACT_CNT_ACCURATE |
 			MT_QUIRK_SLOT_IS_CONTACTID,
 		.maxcontacts = 2 },
+	{ .name = MT_CLS_WIN_8,
+		.quirks = MT_QUIRK_ALWAYS_VALID |
+			MT_QUIRK_IGNORE_DUPLICATES |
+			MT_QUIRK_HOVERING |
+			MT_QUIRK_CONTACT_CNT_ACCURATE },
 
 	/*
 	 * vendor specific classes
@@ -331,19 +337,6 @@ static void mt_feature_mapping(struct hid_device *hdev,
 			/* check if the maxcontacts is given by the class */
 			td->maxcontacts = td->mtclass.maxcontacts;
 
-		break;
-	case 0xff0000c5:
-		if (field->report_count == 256 && field->report_size == 8) {
-			/* Win 8 devices need special quirks */
-			__s32 *quirks = &td->mtclass.quirks;
-			*quirks |= MT_QUIRK_ALWAYS_VALID;
-			*quirks |= MT_QUIRK_IGNORE_DUPLICATES;
-			*quirks |= MT_QUIRK_HOVERING;
-			*quirks |= MT_QUIRK_CONTACT_CNT_ACCURATE;
-			*quirks &= ~MT_QUIRK_NOT_SEEN_MEANS_UP;
-			*quirks &= ~MT_QUIRK_VALID_IS_INRANGE;
-			*quirks &= ~MT_QUIRK_VALID_IS_CONFIDENCE;
-		}
 		break;
 	}
 }
@@ -1346,6 +1339,11 @@ static const struct hid_device_id mt_devices[] = {
 
 	/* Generic MT device */
 	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_MULTITOUCH, HID_ANY_ID, HID_ANY_ID) },
+
+	/* Generic Win 8 certified MT device */
+	{  .driver_data = MT_CLS_WIN_8,
+		HID_DEVICE(HID_BUS_ANY, HID_GROUP_MULTITOUCH_WIN_8,
+			HID_ANY_ID, HID_ANY_ID) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, mt_devices);
