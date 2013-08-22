@@ -837,7 +837,6 @@ struct drm_mode_config {
 
 	/* Optional properties */
 	struct drm_property *scaling_mode_property;
-	struct drm_property *dithering_mode_property;
 	struct drm_property *dirty_info_property;
 
 	/* dumb ioctl parameters */
