@@ -45,7 +45,7 @@ static inline bool should_writeback(struct cached_dev *dc, struct bio *bio,
 	unsigned in_use = dc->disk.c->gc_stats.in_use;
 
 	if (cache_mode != CACHE_MODE_WRITEBACK ||
-	    atomic_read(&dc->disk.detaching) ||
+	    test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags) ||
 	    in_use > CUTOFF_WRITEBACK_SYNC)
 		return false;
 

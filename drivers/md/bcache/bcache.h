@@ -266,12 +266,10 @@ struct bcache_device {
 
 	struct gendisk		*disk;
 
-	/* If nonzero, we're closing */
-	atomic_t		closing;
-
-	/* If nonzero, we're detaching/unregistering from cache set */
-	atomic_t		detaching;
-	int			flush_done;
+	unsigned long		flags;
+#define BCACHE_DEV_CLOSING	0
+#define BCACHE_DEV_DETACHING	1
+#define BCACHE_DEV_UNLINK_DONE	2
 
 	unsigned		nr_stripes;
 	unsigned		stripe_size;

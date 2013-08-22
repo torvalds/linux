@@ -621,7 +621,7 @@ static void prio_read(struct cache *ca, uint64_t bucket)
 static int open_dev(struct block_device *b, fmode_t mode)
 {
 	struct bcache_device *d = b->bd_disk->private_data;
-	if (atomic_read(&d->closing))
+	if (test_bit(BCACHE_DEV_CLOSING, &d->flags))
 		return -ENXIO;
 
 	closure_get(&d->cl);
@@ -650,20 +650,24 @@ static const struct block_device_operations bcache_ops = {
 
 void bcache_device_stop(struct bcache_device *d)
 {
-	if (!atomic_xchg(&d->closing, 1))
+	if (!test_and_set_bit(BCACHE_DEV_CLOSING, &d->flags))
 		closure_queue(&d->cl);
 }
 
 static void bcache_device_unlink(struct bcache_device *d)
 {
-	unsigned i;
-	struct cache *ca;
+	lockdep_assert_held(&bch_register_lock);
 
-	sysfs_remove_link(&d->c->kobj, d->name);
-	sysfs_remove_link(&d->kobj, "cache");
+	if (d->c && !test_and_set_bit(BCACHE_DEV_UNLINK_DONE, &d->flags)) {
+		unsigned i;
+		struct cache *ca;
 
-	for_each_cache(ca, d->c, i)
-		bd_unlink_disk_holder(ca->bdev, d->disk);
+		sysfs_remove_link(&d->c->kobj, d->name);
+		sysfs_remove_link(&d->kobj, "cache");
+
+		for_each_cache(ca, d->c, i)
+			bd_unlink_disk_holder(ca->bdev, d->disk);
+	}
 }
 
 static void bcache_device_link(struct bcache_device *d, struct cache_set *c,
@@ -687,19 +691,16 @@ static void bcache_device_detach(struct bcache_device *d)
 {
 	lockdep_assert_held(&bch_register_lock);
 
-	if (atomic_read(&d->detaching)) {
+	if (test_bit(BCACHE_DEV_DETACHING, &d->flags)) {
 		struct uuid_entry *u = d->c->uuids + d->id;
 
 		SET_UUID_FLASH_ONLY(u, 0);
 		memcpy(u->uuid, invalid_uuid, 16);
 		u->invalidated = cpu_to_le32(get_seconds());
 		bch_uuid_write(d->c);
-
-		atomic_set(&d->detaching, 0);
 	}
 
-	if (!d->flush_done)
-		bcache_device_unlink(d);
+	bcache_device_unlink(d);
 
 	d->c->devices[d->id] = NULL;
 	closure_put(&d->c->caching);
@@ -879,7 +880,7 @@ static void cached_dev_detach_finish(struct work_struct *w)
 	struct closure cl;
 	closure_init_stack(&cl);
 
-	BUG_ON(!atomic_read(&dc->disk.detaching));
+	BUG_ON(!test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags));
 	BUG_ON(atomic_read(&dc->count));
 
 	mutex_lock(&bch_register_lock);
@@ -893,6 +894,8 @@ static void cached_dev_detach_finish(struct work_struct *w)
 	bcache_device_detach(&dc->disk);
 	list_move(&dc->list, &uncached_devices);
 
+	clear_bit(BCACHE_DEV_DETACHING, &dc->disk.flags);
+
 	mutex_unlock(&bch_register_lock);
 
 	pr_info("Caching disabled for %s", bdevname(dc->bdev, buf));
@@ -905,10 +908,10 @@ void bch_cached_dev_detach(struct cached_dev *dc)
 {
 	lockdep_assert_held(&bch_register_lock);
 
-	if (atomic_read(&dc->disk.closing))
+	if (test_bit(BCACHE_DEV_CLOSING, &dc->disk.flags))
 		return;
 
-	if (atomic_xchg(&dc->disk.detaching, 1))
+	if (test_and_set_bit(BCACHE_DEV_DETACHING, &dc->disk.flags))
 		return;
 
 	/*
@@ -1064,11 +1067,7 @@ static void cached_dev_flush(struct closure *cl)
 	struct bcache_device *d = &dc->disk;
 
 	mutex_lock(&bch_register_lock);
-	d->flush_done = 1;
-
-	if (d->c)
-		bcache_device_unlink(d);
-
+	bcache_device_unlink(d);
 	mutex_unlock(&bch_register_lock);
 
 	bch_cache_accounting_destroy(&dc->accounting);

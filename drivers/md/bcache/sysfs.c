@@ -370,7 +370,7 @@ STORE(__bch_flash_dev)
 	}
 
 	if (attr == &sysfs_unregister) {
-		atomic_set(&d->detaching, 1);
+		set_bit(BCACHE_DEV_DETACHING, &d->flags);
 		bcache_device_stop(d);
 	}
 

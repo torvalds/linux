@@ -512,7 +512,7 @@ static bool check_should_bypass(struct cached_dev *dc, struct bio *bio)
 	struct task_struct *task = current;
 	struct io *i;
 
-	if (atomic_read(&dc->disk.detaching) ||
+	if (test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags) ||
 	    c->gc_stats.in_use > CUTOFF_CACHE_ADD ||
 	    (bio->bi_rw & REQ_DISCARD))
 		goto skip;

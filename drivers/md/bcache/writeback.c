@@ -89,7 +89,7 @@ static unsigned writeback_delay(struct cached_dev *dc, unsigned sectors)
 {
 	uint64_t ret;
 
-	if (atomic_read(&dc->disk.detaching) ||
+	if (test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags) ||
 	    !dc->writeback_percent)
 		return 0;
 
@@ -404,7 +404,7 @@ static int bch_writeback_thread(void *arg)
 	while (!kthread_should_stop()) {
 		down_write(&dc->writeback_lock);
 		if (!atomic_read(&dc->has_dirty) ||
-		    (!atomic_read(&dc->disk.detaching) &&
+		    (!test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags) &&
 		     !dc->writeback_running)) {
 			up_write(&dc->writeback_lock);
 			set_current_state(TASK_INTERRUPTIBLE);
@@ -437,7 +437,7 @@ static int bch_writeback_thread(void *arg)
 
 			while (delay &&
 			       !kthread_should_stop() &&
-			       !atomic_read(&dc->disk.detaching))
+			       !test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags))
 				delay = schedule_timeout_interruptible(delay);
 		}
 	}
