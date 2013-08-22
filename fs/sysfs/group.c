@@ -144,7 +144,7 @@ EXPORT_SYMBOL_GPL(sysfs_create_group);
  * It will explicitly warn and error if any of the attribute files being
  * created already exist.
  *
- * Returns 0 on success or error code from sysfs_create_groups on error.
+ * Returns 0 on success or error code from sysfs_create_group on error.
  */
 int sysfs_create_groups(struct kobject *kobj,
 			const struct attribute_group **groups)
@@ -230,7 +230,7 @@ EXPORT_SYMBOL_GPL(sysfs_remove_group);
  * @kobj:	The kobject for the groups to be removed from
  * @groups:	NULL terminated list of groups to be removed
  *
- * If groups is not NULL, the all groups will be removed from the kobject
+ * If groups is not NULL, remove the specified groups from the kobject.
  */
 void sysfs_remove_groups(struct kobject *kobj,
 			 const struct attribute_group **groups)
