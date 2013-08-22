@@ -326,6 +326,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 *v0.3.0x11:
 *         1. fix vb struct may be used again which have been free after stream off, some code modify in soc_camera.c,
 *            version is v0.1.1;
+*         1. fix cif clk out can't be turn off;
 * 
 */
 
@@ -1596,14 +1597,20 @@ static int rk_camera_mclk_ctrl(int cif_idx, int on, int clk_rate)
         clk->on = false;
         if(cif){
             cif_clk_out_div =  clk_get(NULL, "cif1_out_div");
-            err = clk_set_parent(clk->cif_clk_out,cif_clk_out_div);
         }else{
             cif_clk_out_div =  clk_get(NULL, "cif0_out_div");
-            if(IS_ERR_OR_NULL(cif_clk_out_div)){
+            if(IS_ERR_OR_NULL(cif_clk_out_div)) {
                 cif_clk_out_div =  clk_get(NULL, "cif_out_div");
             }
-            err = clk_set_parent(clk->cif_clk_out, cif_clk_out_div);
         }
+        
+        if(IS_ERR_OR_NULL(cif_clk_out_div)) {
+            err = clk_set_parent(clk->cif_clk_out, cif_clk_out_div);
+            clk_put(cif_clk_out_div);
+        } else {
+            err = -1;
+        }
+        
         if(err)
            RKCAMERA_TR("WARNING %s_%s_%d: camera sensor mclk maybe not close, please check!!!\n", __FILE__, __FUNCTION__, __LINE__); 
     }
