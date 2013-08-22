@@ -17,6 +17,7 @@ obj-$(CONFIG_R8187SE)		+= rtl8187se/
 obj-$(CONFIG_RTL8192U)		+= rtl8192u/
 obj-$(CONFIG_RTL8192E)		+= rtl8192e/
 obj-$(CONFIG_R8712U)		+= rtl8712/
+obj-$(CONFIG_R8188EU)		+= rtl8188eu/
 obj-$(CONFIG_RTS5139)		+= rts5139/
 obj-$(CONFIG_TRANZPORT)		+= frontier/
 obj-$(CONFIG_IDE_PHISON)	+= phison/
