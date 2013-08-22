@@ -199,6 +199,9 @@ config SND_SOC_AK4104
 config SND_SOC_AK4535
 	tristate
 
+config SND_SOC_AK4554
+	tristate
+
 config SND_SOC_AK4641
 	tristate
 
