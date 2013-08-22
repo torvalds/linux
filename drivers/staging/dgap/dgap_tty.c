@@ -881,20 +881,20 @@ void dgap_input(struct channel_t *ch)
 		if (I_PARMRK(tp) || I_BRKINT(tp) || I_INPCK(tp)) {
 			dgap_parity_scan(ch, ch->ch_bd->flipbuf, ch->ch_bd->flipflagbuf, &len);
 
-			len = tty_buffer_request_room(tp, len);
-			tty_insert_flip_string_flags(tp, ch->ch_bd->flipbuf,
+			len = tty_buffer_request_room(tp->port, len);
+			tty_insert_flip_string_flags(tp->port, ch->ch_bd->flipbuf,
 				ch->ch_bd->flipflagbuf, len);
 		}
 		else {
-			len = tty_buffer_request_room(tp, len);
-			tty_insert_flip_string(tp, ch->ch_bd->flipbuf, len);
+			len = tty_buffer_request_room(tp->port, len);
+			tty_insert_flip_string(tp->port, ch->ch_bd->flipbuf, len);
 		}
 
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
 
 		/* Tell the tty layer its okay to "eat" the data now */
-		tty_flip_buffer_push(tp);
+		tty_flip_buffer_push(tp->port);
 	}
 
 	if (ld)
