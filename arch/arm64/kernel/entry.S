@@ -476,6 +476,8 @@ el0_undef:
 	 * Undefined instruction
 	 */
 	mov	x0, sp
+	// enable interrupts before calling the main handler
+	enable_irq
 	b	do_undefinstr
 el0_dbg:
 	/*
