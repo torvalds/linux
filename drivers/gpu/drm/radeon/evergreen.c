@@ -144,6 +144,8 @@ void cik_init_cp_pg_table(struct radeon_device *rdev);
 
 extern u32 si_get_csb_size(struct radeon_device *rdev);
 extern void si_get_csb_buffer(struct radeon_device *rdev, volatile u32 *buffer);
+extern u32 cik_get_csb_size(struct radeon_device *rdev);
+extern void cik_get_csb_buffer(struct radeon_device *rdev, volatile u32 *buffer);
 
 static const u32 evergreen_golden_registers[] =
 {
@@ -3903,6 +3905,9 @@ int sumo_rlc_init(struct radeon_device *rdev)
 
 	src_ptr = rdev->rlc.reg_list;
 	dws = rdev->rlc.reg_list_size;
+	if (rdev->family >= CHIP_BONAIRE) {
+		dws += (5 * 16) + 48 + 48 + 64;
+	}
 	cs_data = rdev->rlc.cs_data;
 
 	if (src_ptr) {
@@ -3966,7 +3971,9 @@ int sumo_rlc_init(struct radeon_device *rdev)
 
 	if (cs_data) {
 		/* clear state block */
-		if (rdev->family >= CHIP_TAHITI) {
+		if (rdev->family >= CHIP_BONAIRE) {
+			rdev->rlc.clear_state_size = dws = cik_get_csb_size(rdev);
+		} else if (rdev->family >= CHIP_TAHITI) {
 			rdev->rlc.clear_state_size = si_get_csb_size(rdev);
 			dws = rdev->rlc.clear_state_size + (256 / 4);
 		} else {
@@ -4014,7 +4021,9 @@ int sumo_rlc_init(struct radeon_device *rdev)
 		}
 		/* set up the cs buffer */
 		dst_ptr = rdev->rlc.cs_ptr;
-		if (rdev->family >= CHIP_TAHITI) {
+		if (rdev->family >= CHIP_BONAIRE) {
+			cik_get_csb_buffer(rdev, dst_ptr);
+		} else if (rdev->family >= CHIP_TAHITI) {
 			reg_list_mc_addr = rdev->rlc.clear_state_gpu_addr + 256;
 			dst_ptr[0] = upper_32_bits(reg_list_mc_addr);
 			dst_ptr[1] = lower_32_bits(reg_list_mc_addr);
