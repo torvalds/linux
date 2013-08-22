@@ -146,4 +146,6 @@ source "drivers/staging/xillybus/Kconfig"
 
 source "drivers/staging/dgnc/Kconfig"
 
+source "drivers/staging/dgap/Kconfig"
+
 endif # STAGING

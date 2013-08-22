@@ -65,3 +65,4 @@ obj-$(CONFIG_LUSTRE_FS)		+= lustre/
 obj-$(CONFIG_USB_BTMTK)		+= btmtk_usb/
 obj-$(CONFIG_XILLYBUS)		+= xillybus/
 obj-$(CONFIG_DGNC)			+= dgnc/
+obj-$(CONFIG_DGAP)			+= dgap/
