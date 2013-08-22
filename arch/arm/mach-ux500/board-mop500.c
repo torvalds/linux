@@ -153,7 +153,6 @@ static void __init mop500_init_machine(void)
 
 	platform_device_register(&db8500_prcmu_device);
 
-	mop500_pinmaps_init();
 	parent = u8500_init_devices();
 
 	mop500_uart_init(parent);
@@ -169,7 +168,6 @@ static void __init snowball_init_machine(void)
 
 	platform_device_register(&db8500_prcmu_device);
 
-	snowball_pinmaps_init();
 	parent = u8500_init_devices();
 
 	mop500_uart_init(parent);
@@ -184,7 +182,6 @@ static void __init hrefv60_init_machine(void)
 
 	platform_device_register(&db8500_prcmu_device);
 
-	hrefv60_pinmaps_init();
 	parent = u8500_init_devices();
 
 	mop500_uart_init(parent);
