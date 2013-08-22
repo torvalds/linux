@@ -2836,7 +2836,6 @@ static int bcm_enetsw_remove(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(res->start, resource_size(res));
 
-	platform_set_drvdata(pdev, NULL);
 	free_netdev(dev);
 	return 0;
 }
