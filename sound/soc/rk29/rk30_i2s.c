@@ -398,54 +398,82 @@ static int rockchip_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai,
 	return 0;
 }
 
-#ifdef CONFIG_PM
-int rockchip_i2s_suspend(struct snd_soc_dai *cpu_dai)
-{
-	I2S_DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-//	clk_disable(clk);
+static int i2s_set_gpio_mode(struct snd_soc_dai *dai)
+{	
+	I2S_DBG("Enter %s, %d >>>>>>>>>>>\n", __func__, __LINE__);
+    switch(dai->id) {
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
+        case 1:
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S0_MCLK));
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S0_SCLK));
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S0_LRCKRX));
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S0_LRCKTX));
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S0_SDI));
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S0_SDO));
+            break;
+#elif defined(CONFIG_ARCH_RK30)
+        case 0:
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S0_MCLK));
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S0_SCLK));
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S0_LRCKRX));
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S0_LRCKTX));
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S0_SDI));
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S0_SDO0));
+            #ifdef CONFIG_SND_I2SO_USE_EIGHT_CHANNELS
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S0_SDO1));
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S0_SDO2));
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S0_SDO3));
+            #endif
+			break;
+        case 1:
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S1_MCLK));
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S1_SCLK));
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S1_LRCKRX));
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S1_LRCKTX));
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S1_SDI));
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S1_SDO));
+			break;
+        case 2:
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S2_MCLK));
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S2_SCLK));
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S2_LRCKRX));
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S2_LRCKTX));
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S2_SDI));
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S2_SDO));
+            break;
+#endif
+#if  defined(CONFIG_ARCH_RK2928) || defined(CONFIG_ARCH_RK3026)
+        case 0:
+        #if 0 //iomux --> gps(.ko)
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S0_MCLK));
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S0_SCLK));
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S0_LRCKRX));
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S0_LRCKTX));
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S0_SDI));
+            iomux_set_gpio_mode(iomux_mode_to_gpio(I2S0_SDO));
+        #endif
+        break;
+#endif
+        default:
+            I2S_DBG("Enter:%s, %d, Error For DevId!!!", __FUNCTION__, __LINE__);
+            return -EINVAL;
+    }
 	return 0;
 }
-
-int rockchip_i2s_resume(struct snd_soc_dai *cpu_dai)
-{
-	I2S_DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-//	clk_enable(clk);
-	return 0;
-}		
-#else
-#define rockchip_i2s_suspend NULL
-#define rockchip_i2s_resume NULL
-#endif
-
-#ifdef ANDROID_REC
-#define ROCKCHIP_I2S_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
-#else
-#define ROCKCHIP_I2S_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
-		            SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 |\
-		            SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
-#endif
-
-static struct snd_soc_dai_ops rockchip_i2s_dai_ops = {
-	.trigger = rockchip_i2s_trigger,
-	.hw_params = rockchip_i2s_hw_params,
-	.set_fmt = rockchip_i2s_set_fmt,
-	.set_clkdiv = rockchip_i2s_set_clkdiv,
-	.set_sysclk = rockchip_i2s_set_sysclk,
-};
 
 static int rockchip_i2s_dai_probe(struct snd_soc_dai *dai)
 {	
 	I2S_DBG("Enter %s, %d >>>>>>>>>>>\n", __func__, __LINE__);
-	switch(dai->id) {
+    switch(dai->id) {
 #if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
         case 1:
-                        iomux_set(I2S0_MCLK);
-                        iomux_set(I2S0_SCLK);
-                        iomux_set(I2S0_LRCKRX);
-                        iomux_set(I2S0_LRCKTX);
-                        iomux_set(I2S0_SDI);
-                        iomux_set(I2S0_SDO);
-                        break;
+            iomux_set(I2S0_MCLK);
+            iomux_set(I2S0_SCLK);
+            iomux_set(I2S0_LRCKRX);
+            iomux_set(I2S0_LRCKTX);
+            iomux_set(I2S0_SDI);
+            iomux_set(I2S0_SDO);
+            break;
 #elif defined(CONFIG_ARCH_RK30)
         case 0:
 			rk30_mux_api_set(GPIO0A7_I2S8CHSDI_NAME, GPIO0A_I2S_8CH_SDI);		
@@ -473,9 +501,9 @@ static int rockchip_i2s_dai_probe(struct snd_soc_dai *dai)
 			rk30_mux_api_set(GPIO0D1_I2S22CHSCLK_SMCWEN_NAME, GPIO0D_I2S2_2CH_SCLK);
 			rk30_mux_api_set(GPIO0D2_I2S22CHLRCKRX_SMCOEN_NAME, GPIO0D_I2S2_2CH_LRCK_RX);
 			rk30_mux_api_set(GPIO0D3_I2S22CHLRCKTX_SMCADVN_NAME, GPIO0D_I2S2_2CH_LRCK_TX);				
-            		rk30_mux_api_set(GPIO0D4_I2S22CHSDI_SMCADDR0_NAME, GPIO0D_I2S2_2CH_SDI);
-            		rk30_mux_api_set(GPIO0D5_I2S22CHSDO_SMCADDR1_NAME, GPIO0D_I2S2_2CH_SDO);
-           		break;				
+			rk30_mux_api_set(GPIO0D4_I2S22CHSDI_SMCADDR0_NAME, GPIO0D_I2S2_2CH_SDI);
+			rk30_mux_api_set(GPIO0D5_I2S22CHSDO_SMCADDR1_NAME, GPIO0D_I2S2_2CH_SDO);
+			break;
 #endif
 #if  defined(CONFIG_ARCH_RK2928) || defined(CONFIG_ARCH_RK3026)
         case 0:
@@ -487,14 +515,49 @@ static int rockchip_i2s_dai_probe(struct snd_soc_dai *dai)
                 rk30_mux_api_set(GPIO1A4_I2S_SDO_GPS_MAG_NAME, GPIO1A_I2S_SDO);
                 rk30_mux_api_set(GPIO1A5_I2S_SDI_GPS_SIGN_NAME, GPIO1A_I2S_SDI);
         #endif
-                break;
+		break;
 #endif
         default:
             I2S_DBG("Enter:%s, %d, Error For DevId!!!", __FUNCTION__, __LINE__);
             return -EINVAL;
-        }
+    }
 	return 0;
 }
+
+#ifdef CONFIG_PM
+int rockchip_i2s_suspend(struct snd_soc_dai *cpu_dai)
+{
+	I2S_DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+//	clk_disable(clk);
+	return i2s_set_gpio_mode(cpu_dai);
+}
+
+int rockchip_i2s_resume(struct snd_soc_dai *cpu_dai)
+{
+	I2S_DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+//	clk_enable(clk);
+	return rockchip_i2s_dai_probe(cpu_dai);
+}
+#else
+#define rockchip_i2s_suspend NULL
+#define rockchip_i2s_resume NULL
+#endif
+
+#ifdef ANDROID_REC
+#define ROCKCHIP_I2S_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
+#else
+#define ROCKCHIP_I2S_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
+		            SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 |\
+		            SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
+#endif
+
+static struct snd_soc_dai_ops rockchip_i2s_dai_ops = {
+	.trigger = rockchip_i2s_trigger,
+	.hw_params = rockchip_i2s_hw_params,
+	.set_fmt = rockchip_i2s_set_fmt,
+	.set_clkdiv = rockchip_i2s_set_clkdiv,
+	.set_sysclk = rockchip_i2s_set_sysclk,
+};
 
 static int rk29_i2s_probe(struct platform_device *pdev,
 			  struct snd_soc_dai_driver *dai,
