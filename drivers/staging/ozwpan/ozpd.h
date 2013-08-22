@@ -99,6 +99,7 @@ struct oz_pd {
 	u8      timeout_type;
 	struct tasklet_struct   heartbeat_tasklet;
 	struct tasklet_struct   timeout_tasklet;
+	struct work_struct workitem;
 };
 
 #define OZ_MAX_QUEUED_FRAMES	4

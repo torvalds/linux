@@ -204,18 +204,16 @@ struct oz_pd *oz_pd_alloc(const u8 *mac_addr)
 /*------------------------------------------------------------------------------
  * Context: softirq or process
  */
-void oz_pd_destroy(struct oz_pd *pd)
+void oz_pd_free(struct work_struct *work)
 {
 	struct list_head *e;
 	struct oz_tx_frame *f;
 	struct oz_isoc_stream *st;
 	struct oz_farewell *fwell;
+	struct oz_pd *pd;
 
 	oz_pd_dbg(pd, ON, "Destroying PD\n");
-	if (hrtimer_active(&pd->timeout))
-		hrtimer_cancel(&pd->timeout);
-	if (hrtimer_active(&pd->heartbeat))
-		hrtimer_cancel(&pd->heartbeat);
+	pd = container_of(work, struct oz_pd, workitem);
 	/*Disable timer tasklets*/
 	tasklet_kill(&pd->heartbeat_tasklet);
 	tasklet_kill(&pd->timeout_tasklet);
@@ -256,6 +254,26 @@ void oz_pd_destroy(struct oz_pd *pd)
 	if (pd->net_dev)
 		dev_put(pd->net_dev);
 	kfree(pd);
+}
+
+/*------------------------------------------------------------------------------
+ * Context: softirq or Process
+ */
+void oz_pd_destroy(struct oz_pd *pd)
+{
+	int ret;
+
+	if (hrtimer_active(&pd->timeout))
+		hrtimer_cancel(&pd->timeout);
+	if (hrtimer_active(&pd->heartbeat))
+		hrtimer_cancel(&pd->heartbeat);
+
+	memset(&pd->workitem, 0, sizeof(pd->workitem));
+	INIT_WORK(&pd->workitem, oz_pd_free);
+	ret = schedule_work(&pd->workitem);
+
+	if (ret)
+		oz_pd_dbg(pd, ON, "failed to schedule workitem\n");
 }
 
 /*------------------------------------------------------------------------------
