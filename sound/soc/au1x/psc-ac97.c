@@ -379,9 +379,6 @@ static int au1xpsc_ac97_drvprobe(struct platform_device *pdev)
 	mutex_init(&wd->lock);
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!iores)
-		return -ENODEV;
-
 	wd->mmio = devm_ioremap_resource(&pdev->dev, iores);
 	if (IS_ERR(wd->mmio))
 		return PTR_ERR(wd->mmio);
