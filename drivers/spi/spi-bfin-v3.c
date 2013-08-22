@@ -888,7 +888,6 @@ err_free_rx_dma:
 err_free_tx_dma:
 	free_dma(tx_dma);
 err_put_master:
-	platform_set_drvdata(pdev, NULL);
 	spi_master_put(master);
 
 	return ret;
@@ -905,7 +904,6 @@ static int bfin_spi_remove(struct platform_device *pdev)
 	free_dma(drv_data->rx_dma);
 	free_dma(drv_data->tx_dma);
 
-	platform_set_drvdata(pdev, NULL);
 	spi_unregister_master(drv_data->master);
 	return 0;
 }
