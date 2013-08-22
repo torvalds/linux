@@ -17,6 +17,7 @@
  * MA 02111-1307 USA
  */
 
+#include <mach/memory.h>
 #include "disp_layer.h"
 #include "disp_de.h"
 #include "disp_display.h"
@@ -208,9 +209,9 @@ __s32 Yuv_Channel_Set_framebuffer(__u32 sel, __disp_fb_t *pfb, __u32 xoffset,
 	yuv_src.format = img_sw_para_to_reg(0, pfb->mode, pfb->format);
 	yuv_src.mode = pfb->mode;
 	yuv_src.pixseq = img_sw_para_to_reg(1, pfb->mode, pfb->seq);
-	yuv_src.ch0_base = pfb->addr[0];
-	yuv_src.ch1_base = pfb->addr[1];
-	yuv_src.ch2_base = pfb->addr[2];
+	yuv_src.ch0_base = __phys_to_bus(pfb->addr[0]);
+	yuv_src.ch1_base = __phys_to_bus(pfb->addr[1]);
+	yuv_src.ch2_base = __phys_to_bus(pfb->addr[2]);
 	yuv_src.line_width = pfb->size.width;
 	yuv_src.offset_x = xoffset;
 	yuv_src.offset_y = yoffset;
@@ -421,7 +422,7 @@ __s32 BSP_disp_layer_set_framebuffer(__u32 sel, __u32 hid, __disp_fb_t *pfb)
 							    layer_man->para.
 							    src_win.y);
 			} else {
-				layer_fb.fb_addr = pfb->addr[0];
+				layer_fb.fb_addr = __phys_to_bus(pfb->addr[0]);
 				layer_fb.pixseq = img_sw_para_to_reg(3, 0,
 								     pfb->seq);
 				layer_fb.br_swap = pfb->br_swap;
@@ -511,7 +512,7 @@ __s32 BSP_disp_layer_set_src_window(__u32 sel, __u32 hid, __disp_rect_t *regn)
 			} else {
 				layer_src_t layer_fb;
 
-				layer_fb.fb_addr = layer_man->para.fb.addr[0];
+				layer_fb.fb_addr = __phys_to_bus(layer_man->para.fb.addr[0]);
 				layer_fb.format = layer_man->para.fb.format;
 				layer_fb.pixseq =
 				    img_sw_para_to_reg(3, 0,
@@ -795,7 +796,7 @@ __s32 BSP_disp_layer_set_para(__u32 sel, __u32 hid,
 			} else { /* normal rgb */
 				layer_src_t layer_fb;
 
-				layer_fb.fb_addr = player->fb.addr[0];
+				layer_fb.fb_addr = __phys_to_bus(player->fb.addr[0]);
 				layer_fb.format = player->fb.format;
 				layer_fb.pixseq =
 				    img_sw_para_to_reg(3, 0, player->fb.seq);

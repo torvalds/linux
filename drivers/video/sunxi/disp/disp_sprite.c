@@ -17,6 +17,7 @@
  * MA 02111-1307 USA
  */
 
+#include <mach/memory.h>
 #include "disp_sprite.h"
 #include "disp_display.h"
 #include "disp_layer.h"
@@ -291,7 +292,7 @@ static __s32 sprite_set_sprite_block_para(__u32 sel, __u32 id, __u32 next_id,
 	addr = DE_BE_Offset_To_Addr((__u32) para->fb.addr[0],
 				    para->fb.size.width,
 				    para->src_win.x, para->src_win.y, bpp);
-	DE_BE_Sprite_Block_Set_fb(sel, id, addr,
+	DE_BE_Sprite_Block_Set_fb(sel, id, __phys_to_bus(addr),
 				  para->fb.size.width * (bpp >> 3));
 	DE_BE_Sprite_Block_Set_Pos(sel, id, para->scn_win.x, para->scn_win.y);
 	DE_BE_Sprite_Block_Set_Size(sel, id, para->scn_win.width,
@@ -771,7 +772,7 @@ __s32 BSP_disp_sprite_block_set_src_win(__u32 sel, __s32 hid,
 		    DE_BE_Offset_To_Addr(node->data->address,
 					 node->data->size.width, src_win->x,
 					 src_win->y, bpp);
-		DE_BE_Sprite_Block_Set_fb(sel, id, addr,
+		DE_BE_Sprite_Block_Set_fb(sel, id, __phys_to_bus(addr),
 					  node->data->size.width * (bpp >> 3));
 
 		node->data->src_win.x = src_win->x;
@@ -824,7 +825,7 @@ __s32 BSP_disp_sprite_block_set_framebuffer(__u32 sel, __s32 hid,
 		addr = DE_BE_Offset_To_Addr(fb->addr[0], fb->size.width,
 					    node->data->src_win.x,
 					    node->data->src_win.y, bpp);
-		DE_BE_Sprite_Block_Set_fb(sel, id, addr,
+		DE_BE_Sprite_Block_Set_fb(sel, id, __phys_to_bus(addr),
 					  fb->size.width * (bpp >> 3));
 
 		node->data->address = fb->addr[0];

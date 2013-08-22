@@ -17,6 +17,7 @@
  * MA 02111-1307 USA
  */
 
+#include <mach/memory.h>
 #include "disp_scaler.h"
 #include "disp_display.h"
 #include "disp_event.h"
@@ -343,9 +344,9 @@ __s32 Scaler_Set_Framebuffer(__u32 sel, __disp_fb_t *pfb)
 	in_type.byte_seq = 0;
 	in_type.sample_method = 0;
 
-	scal_addr.ch0_addr = scaler->in_fb.addr[0];
-	scal_addr.ch1_addr = scaler->in_fb.addr[1];
-	scal_addr.ch2_addr = scaler->in_fb.addr[2];
+	scal_addr.ch0_addr = __phys_to_bus(scaler->in_fb.addr[0]);
+	scal_addr.ch1_addr = __phys_to_bus(scaler->in_fb.addr[1]);
+	scal_addr.ch2_addr = __phys_to_bus(scaler->in_fb.addr[2]);
 
 	in_size.src_width = scaler->in_fb.size.width;
 	in_size.src_height = scaler->in_fb.size.height;
@@ -391,9 +392,9 @@ __s32 Scaler_Set_Framebuffer(__u32 sel, __disp_fb_t *pfb)
 						       &out_size);
 		}
 
-		scal_addr_right.ch0_addr = scaler->in_fb.trd_right_addr[0];
-		scal_addr_right.ch1_addr = scaler->in_fb.trd_right_addr[1];
-		scal_addr_right.ch2_addr = scaler->in_fb.trd_right_addr[2];
+		scal_addr_right.ch0_addr = __phys_to_bus(scaler->in_fb.trd_right_addr[0]);
+		scal_addr_right.ch1_addr = __phys_to_bus(scaler->in_fb.trd_right_addr[1]);
+		scal_addr_right.ch2_addr = __phys_to_bus(scaler->in_fb.trd_right_addr[2]);
 
 		DE_SCAL_Set_3D_Ctrl(sel, scaler->b_trd_out, inmode, outmode);
 		DE_SCAL_Config_3D_Src(sel, &scal_addr, &in_size, &in_type,
@@ -533,9 +534,9 @@ __s32 Scaler_Set_SclRegn(__u32 sel, __disp_rect_t *scl_rect)
 	in_type.byte_seq = 0;
 	in_type.sample_method = 0;
 
-	scal_addr.ch0_addr = scaler->in_fb.addr[0];
-	scal_addr.ch1_addr = scaler->in_fb.addr[1];
-	scal_addr.ch2_addr = scaler->in_fb.addr[2];
+	scal_addr.ch0_addr = __phys_to_bus(scaler->in_fb.addr[0]);
+	scal_addr.ch1_addr = __phys_to_bus(scaler->in_fb.addr[1]);
+	scal_addr.ch2_addr = __phys_to_bus(scaler->in_fb.addr[2]);
 
 	in_size.src_width = scaler->in_fb.size.width;
 	in_size.src_height = scaler->in_fb.size.height;
@@ -580,9 +581,9 @@ __s32 Scaler_Set_SclRegn(__u32 sel, __disp_rect_t *scl_rect)
 						       &out_size);
 		}
 
-		scal_addr_right.ch0_addr = scaler->in_fb.trd_right_addr[0];
-		scal_addr_right.ch1_addr = scaler->in_fb.trd_right_addr[1];
-		scal_addr_right.ch2_addr = scaler->in_fb.trd_right_addr[2];
+		scal_addr_right.ch0_addr = __phys_to_bus(scaler->in_fb.trd_right_addr[0]);
+		scal_addr_right.ch1_addr = __phys_to_bus(scaler->in_fb.trd_right_addr[1]);
+		scal_addr_right.ch2_addr = __phys_to_bus(scaler->in_fb.trd_right_addr[2]);
 
 		DE_SCAL_Set_3D_Ctrl(sel, scaler->b_trd_out, inmode, outmode);
 		DE_SCAL_Config_3D_Src(sel, &scal_addr, &in_size, &in_type,
@@ -647,9 +648,9 @@ __s32 Scaler_Set_Para(__u32 sel, __disp_scaler_t *scl)
 	in_type.byte_seq = 0;
 	in_type.sample_method = 0;
 
-	scal_addr.ch0_addr = scaler->in_fb.addr[0];
-	scal_addr.ch1_addr = scaler->in_fb.addr[1];
-	scal_addr.ch2_addr = scaler->in_fb.addr[2];
+	scal_addr.ch0_addr = __phys_to_bus(scaler->in_fb.addr[0]);
+	scal_addr.ch1_addr = __phys_to_bus(scaler->in_fb.addr[1]);
+	scal_addr.ch2_addr = __phys_to_bus(scaler->in_fb.addr[2]);
 
 	in_size.src_width = scaler->in_fb.size.width;
 	in_size.src_height = scaler->in_fb.size.height;
@@ -694,9 +695,9 @@ __s32 Scaler_Set_Para(__u32 sel, __disp_scaler_t *scl)
 						       &out_size);
 		}
 
-		scal_addr_right.ch0_addr = scaler->in_fb.trd_right_addr[0];
-		scal_addr_right.ch1_addr = scaler->in_fb.trd_right_addr[1];
-		scal_addr_right.ch2_addr = scaler->in_fb.trd_right_addr[2];
+		scal_addr_right.ch0_addr = __phys_to_bus(scaler->in_fb.trd_right_addr[0]);
+		scal_addr_right.ch1_addr = __phys_to_bus(scaler->in_fb.trd_right_addr[1]);
+		scal_addr_right.ch2_addr = __phys_to_bus(scaler->in_fb.trd_right_addr[2]);
 
 		DE_SCAL_Set_3D_Ctrl(sel, scaler->b_trd_out, inmode, outmode);
 		DE_SCAL_Config_3D_Src(sel, &scal_addr, &in_size, &in_type,
@@ -918,9 +919,9 @@ __s32 BSP_disp_scaler_start(__u32 handle, __disp_scaler_para_t *para)
 	out_size.width = para->output_fb.size.width;
 	out_size.height = para->output_fb.size.height;
 
-	in_addr.ch0_addr = para->input_fb.addr[0];
-	in_addr.ch1_addr = para->input_fb.addr[1];
-	in_addr.ch2_addr = para->input_fb.addr[2];
+	in_addr.ch0_addr = __phys_to_bus(para->input_fb.addr[0]);
+	in_addr.ch1_addr = __phys_to_bus(para->input_fb.addr[1]);
+	in_addr.ch2_addr = __phys_to_bus(para->input_fb.addr[2]);
 
 	in_size.src_width = para->input_fb.size.width;
 	in_size.src_height = para->input_fb.size.height;
@@ -939,9 +940,9 @@ __s32 BSP_disp_scaler_start(__u32 handle, __disp_scaler_para_t *para)
 	out_scan.field = FALSE;
 	out_scan.bottom = FALSE;
 
-	out_addr.ch0_addr = para->output_fb.addr[0];
-	out_addr.ch1_addr = para->output_fb.addr[1];
-	out_addr.ch2_addr = para->output_fb.addr[2];
+	out_addr.ch0_addr = __phys_to_bus(para->output_fb.addr[0]);
+	out_addr.ch1_addr = __phys_to_bus(para->output_fb.addr[1]);
+	out_addr.ch2_addr = __phys_to_bus(para->output_fb.addr[2]);
 
 	if (para->input_fb.b_trd_src) {
 		__scal_3d_inmode_t inmode;
@@ -959,9 +960,9 @@ __s32 BSP_disp_scaler_start(__u32 handle, __disp_scaler_para_t *para)
 						       &out_size);
 		}
 
-		scal_addr_right.ch0_addr = para->input_fb.trd_right_addr[0];
-		scal_addr_right.ch1_addr = para->input_fb.trd_right_addr[1];
-		scal_addr_right.ch2_addr = para->input_fb.trd_right_addr[2];
+		scal_addr_right.ch0_addr = __phys_to_bus(para->input_fb.trd_right_addr[0]);
+		scal_addr_right.ch1_addr = __phys_to_bus(para->input_fb.trd_right_addr[1]);
+		scal_addr_right.ch2_addr = __phys_to_bus(para->input_fb.trd_right_addr[2]);
 
 		DE_SCAL_Set_3D_Ctrl(sel, para->output_fb.b_trd_src, inmode,
 				    outmode);
@@ -1027,11 +1028,11 @@ __s32 BSP_disp_scaler_start(__u32 handle, __disp_scaler_para_t *para)
 			__scal_buf_addr_t addr;
 			ret = 0;
 
-			addr.ch0_addr = out_addr.ch0_addr;
+			addr.ch0_addr = __phys_to_bus(out_addr.ch0_addr);
 			if (i == 1)
-				addr.ch0_addr = out_addr.ch1_addr;
+				addr.ch0_addr = __phys_to_bus(out_addr.ch1_addr);
 			else if (i == 2)
-				addr.ch0_addr = out_addr.ch2_addr;
+				addr.ch0_addr = __phys_to_bus(out_addr.ch2_addr);
 			DE_SCAL_Enable(sel);
 
 			DE_SCAL_Set_Writeback_Addr(sel, &addr);
@@ -1163,9 +1164,9 @@ __s32 BSP_disp_capture_screen(__u32 sel, __disp_capture_screen_para_t *para)
 	in_addr.ch1_addr = 0;
 	in_addr.ch2_addr = 0;
 
-	out_addr.ch0_addr = para->output_fb.addr[0];
-	out_addr.ch1_addr = para->output_fb.addr[1];
-	out_addr.ch2_addr = para->output_fb.addr[2];
+	out_addr.ch0_addr = __phys_to_bus(para->output_fb.addr[0]);
+	out_addr.ch1_addr = __phys_to_bus(para->output_fb.addr[1]);
+	out_addr.ch2_addr = __phys_to_bus(para->output_fb.addr[2]);
 
 	if (BSP_disp_get_output_type(sel) == DISP_OUTPUT_TYPE_NONE) {
 		DE_SCAL_Input_Select(scaler_idx, 6 + sel);
