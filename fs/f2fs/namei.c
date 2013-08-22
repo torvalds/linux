@@ -83,21 +83,11 @@ static int is_multimedia_file(const unsigned char *s, const char *sub)
 {
 	size_t slen = strlen(s);
 	size_t sublen = strlen(sub);
-	int ret;
 
 	if (sublen > slen)
 		return 0;
 
-	ret = memcmp(s + slen - sublen, sub, sublen);
-	if (ret) {	/* compare upper case */
-		int i;
-		char upper_sub[8];
-		for (i = 0; i < sublen && i < sizeof(upper_sub); i++)
-			upper_sub[i] = toupper(sub[i]);
-		return !memcmp(s + slen - sublen, upper_sub, sublen);
-	}
-
-	return !ret;
+	return !strncasecmp(s + slen - sublen, sub, sublen);
 }
 
 /*
