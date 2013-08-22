@@ -620,6 +620,7 @@
 #define E1000_EECD_SIZE_EX_SHIFT     11
 #define E1000_EECD_FLUPD_I210		0x00800000 /* Update FLASH */
 #define E1000_EECD_FLUDONE_I210		0x04000000 /* Update FLASH done*/
+#define E1000_EECD_FLASH_DETECTED_I210	0x00080000 /* FLASH detected */
 #define E1000_FLUDONE_ATTEMPTS		20000
 #define E1000_EERD_EEWR_MAX_COUNT	512 /* buffered EEPROM words rw */
 #define E1000_I210_FIFO_SEL_RX		0x00
@@ -627,6 +628,11 @@
 #define E1000_I210_FIFO_SEL_TX_LEGACY	E1000_I210_FIFO_SEL_TX_QAV(0)
 #define E1000_I210_FIFO_SEL_BMC2OS_TX	0x06
 #define E1000_I210_FIFO_SEL_BMC2OS_RX	0x01
+#define E1000_I210_FLASH_SECTOR_SIZE	0x1000 /* 4KB FLASH sector unit size */
+/* Secure FLASH mode requires removing MSb */
+#define E1000_I210_FW_PTR_MASK		0x7FFF
+/* Firmware code revision field word offset*/
+#define E1000_I210_FW_VER_OFFSET	328
 #define E1000_EECD_FLUPD_I210		0x00800000 /* Update FLASH */
 #define E1000_EECD_FLUDONE_I210		0x04000000 /* Update FLASH done*/
 #define E1000_FLUDONE_ATTEMPTS		20000
@@ -665,20 +671,26 @@
 #define NVM_INIT_CTRL_4            0x0013
 #define NVM_LED_1_CFG              0x001C
 #define NVM_LED_0_2_CFG            0x001F
-
-/* NVM version defines */
 #define NVM_ETRACK_WORD            0x0042
+#define NVM_ETRACK_HIWORD          0x0043
 #define NVM_COMB_VER_OFF           0x0083
 #define NVM_COMB_VER_PTR           0x003d
-#define NVM_MAJOR_MASK             0xF000
-#define NVM_MINOR_MASK             0x0FF0
-#define NVM_BUILD_MASK             0x000F
-#define NVM_COMB_VER_MASK          0x00FF
-#define NVM_MAJOR_SHIFT                12
-#define NVM_MINOR_SHIFT                 4
-#define NVM_COMB_VER_SHFT               8
-#define NVM_VER_INVALID            0xFFFF
-#define NVM_ETRACK_SHIFT               16
+
+/* NVM version defines */
+#define NVM_MAJOR_MASK			0xF000
+#define NVM_MINOR_MASK			0x0FF0
+#define NVM_IMAGE_ID_MASK		0x000F
+#define NVM_COMB_VER_MASK		0x00FF
+#define NVM_MAJOR_SHIFT			12
+#define NVM_MINOR_SHIFT			4
+#define NVM_COMB_VER_SHFT		8
+#define NVM_VER_INVALID			0xFFFF
+#define NVM_ETRACK_SHIFT		16
+#define NVM_ETRACK_VALID		0x8000
+#define NVM_NEW_DEC_MASK		0x0F00
+#define NVM_HEX_CONV			16
+#define NVM_HEX_TENS			10
+
 #define NVM_ETS_CFG			0x003E
 #define NVM_ETS_LTHRES_DELTA_MASK	0x07C0
 #define NVM_ETS_LTHRES_DELTA_SHIFT	6

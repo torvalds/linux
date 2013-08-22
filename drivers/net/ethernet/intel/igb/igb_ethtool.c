@@ -1335,12 +1335,23 @@ static int igb_reg_test(struct igb_adapter *adapter, u64 *data)
 
 static int igb_eeprom_test(struct igb_adapter *adapter, u64 *data)
 {
+	struct e1000_hw *hw = &adapter->hw;
+
 	*data = 0;
 
-	/* Validate eeprom on all parts but i211 */
-	if (adapter->hw.mac.type != e1000_i211) {
+	/* Validate eeprom on all parts but flashless */
+	switch (hw->mac.type) {
+	case e1000_i210:
+	case e1000_i211:
+		if (igb_get_flash_presence_i210(hw)) {
+			if (adapter->hw.nvm.ops.validate(&adapter->hw) < 0)
+				*data = 2;
+		}
+		break;
+	default:
 		if (adapter->hw.nvm.ops.validate(&adapter->hw) < 0)
 			*data = 2;
+		break;
 	}
 
 	return *data;
@@ -2672,7 +2683,9 @@ static int igb_set_eee(struct net_device *netdev,
 		igb_set_eee_i350(hw);
 
 		/* reset link */
-		if (!netif_running(netdev))
+		if (netif_running(netdev))
+			igb_reinit_locked(adapter);
+		else
 			igb_reset(adapter);
 	}
 
@@ -2771,6 +2784,90 @@ static void igb_ethtool_complete(struct net_device *netdev)
 	pm_runtime_put(&adapter->pdev->dev);
 }
 
+static u32 igb_get_rxfh_indir_size(struct net_device *netdev)
+{
+	return IGB_RETA_SIZE;
+}
+
+static int igb_get_rxfh_indir(struct net_device *netdev, u32 *indir)
+{
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	int i;
+
+	for (i = 0; i < IGB_RETA_SIZE; i++)
+		indir[i] = adapter->rss_indir_tbl[i];
+
+	return 0;
+}
+
+void igb_write_rss_indir_tbl(struct igb_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 reg = E1000_RETA(0);
+	u32 shift = 0;
+	int i = 0;
+
+	switch (hw->mac.type) {
+	case e1000_82575:
+		shift = 6;
+		break;
+	case e1000_82576:
+		/* 82576 supports 2 RSS queues for SR-IOV */
+		if (adapter->vfs_allocated_count)
+			shift = 3;
+		break;
+	default:
+		break;
+	}
+
+	while (i < IGB_RETA_SIZE) {
+		u32 val = 0;
+		int j;
+
+		for (j = 3; j >= 0; j--) {
+			val <<= 8;
+			val |= adapter->rss_indir_tbl[i + j];
+		}
+
+		wr32(reg, val << shift);
+		reg += 4;
+		i += 4;
+	}
+}
+
+static int igb_set_rxfh_indir(struct net_device *netdev, const u32 *indir)
+{
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+	int i;
+	u32 num_queues;
+
+	num_queues = adapter->rss_queues;
+
+	switch (hw->mac.type) {
+	case e1000_82576:
+		/* 82576 supports 2 RSS queues for SR-IOV */
+		if (adapter->vfs_allocated_count)
+			num_queues = 2;
+		break;
+	default:
+		break;
+	}
+
+	/* Verify user input. */
+	for (i = 0; i < IGB_RETA_SIZE; i++)
+		if (indir[i] >= num_queues)
+			return -EINVAL;
+
+
+	for (i = 0; i < IGB_RETA_SIZE; i++)
+		adapter->rss_indir_tbl[i] = indir[i];
+
+	igb_write_rss_indir_tbl(adapter);
+
+	return 0;
+}
+
 static const struct ethtool_ops igb_ethtool_ops = {
 	.get_settings		= igb_get_settings,
 	.set_settings		= igb_set_settings,
@@ -2804,6 +2901,9 @@ static const struct ethtool_ops igb_ethtool_ops = {
 	.set_eee		= igb_set_eee,
 	.get_module_info	= igb_get_module_info,
 	.get_module_eeprom	= igb_get_module_eeprom,
+	.get_rxfh_indir_size	= igb_get_rxfh_indir_size,
+	.get_rxfh_indir		= igb_get_rxfh_indir,
+	.set_rxfh_indir		= igb_set_rxfh_indir,
 	.begin			= igb_ethtool_begin,
 	.complete		= igb_ethtool_complete,
 };
