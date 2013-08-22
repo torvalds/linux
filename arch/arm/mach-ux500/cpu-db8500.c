@@ -135,14 +135,6 @@ static struct device * __init db8500_soc_device_init(void)
 	return ux500_soc_device_init(soc_id);
 }
 
-/*
- * This function is called from the board init
- */
-struct device * __init u8500_init_devices(void)
-{
-	return db8500_soc_device_init();
-}
-
 #ifdef CONFIG_MACH_UX500_DT
 static struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
 	/* Requires call-back bindings. */
