@@ -36,14 +36,18 @@ specific to ARM.
 
 	- reg
 		Usage: required
-		Value type: <prop-encoded-array>
+		Value type: Integer cells. A register entry, expressed as a pair
+			    of cells, containing base and size.
 		Definition: A standard property. Specifies base physical
 			    address of CCI control registers common to all
 			    interfaces.
 
 	- ranges:
 		Usage: required
-		Value type: <prop-encoded-array>
+		Value type: Integer cells. An array of range entries, expressed
+			    as a tuple of cells, containing child address,
+			    parent address and the size of the region in the
+			    child address space.
 		Definition: A standard property. Follow rules in the ePAPR for
 			    hierarchical bus addressing. CCI interfaces
 			    addresses refer to the parent node addressing
@@ -74,7 +78,9 @@ specific to ARM.
 
 		- reg:
 			Usage: required
-			Value type: <prop-encoded-array>
+			Value type: Integer cells. A register entry, expressed
+				    as a pair of cells, containing base and
+				    size.
 			Definition: the base address and size of the
 				    corresponding interface programming
 				    registers.
