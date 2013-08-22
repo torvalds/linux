@@ -539,8 +539,6 @@ static int sh_pfc_remove(struct platform_device *pdev)
 	if (pfc->info->ops && pfc->info->ops->exit)
 		pfc->info->ops->exit(pfc);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 
