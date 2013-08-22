@@ -1473,33 +1473,37 @@ static int __spi_async(struct spi_device *spi, struct spi_message *message)
 		 * 2. keep tx/rx_nbits is contained by mode in spi_device
 		 * 3. if SPI_3WIRE, tx/rx_nbits should be in single
 		 */
-		if (xfer->tx_nbits != SPI_NBITS_SINGLE &&
-			xfer->tx_nbits != SPI_NBITS_DUAL &&
-			xfer->tx_nbits != SPI_NBITS_QUAD)
-			return -EINVAL;
-		if ((xfer->tx_nbits == SPI_NBITS_DUAL) &&
-			!(spi->mode & (SPI_TX_DUAL | SPI_TX_QUAD)))
-			return -EINVAL;
-		if ((xfer->tx_nbits == SPI_NBITS_QUAD) &&
-			!(spi->mode & SPI_TX_QUAD))
-			return -EINVAL;
-		if ((spi->mode & SPI_3WIRE) &&
-			(xfer->tx_nbits != SPI_NBITS_SINGLE))
-			return -EINVAL;
+		if (xfer->tx_buf) {
+			if (xfer->tx_nbits != SPI_NBITS_SINGLE &&
+				xfer->tx_nbits != SPI_NBITS_DUAL &&
+				xfer->tx_nbits != SPI_NBITS_QUAD)
+				return -EINVAL;
+			if ((xfer->tx_nbits == SPI_NBITS_DUAL) &&
+				!(spi->mode & (SPI_TX_DUAL | SPI_TX_QUAD)))
+				return -EINVAL;
+			if ((xfer->tx_nbits == SPI_NBITS_QUAD) &&
+				!(spi->mode & SPI_TX_QUAD))
+				return -EINVAL;
+			if ((spi->mode & SPI_3WIRE) &&
+				(xfer->tx_nbits != SPI_NBITS_SINGLE))
+				return -EINVAL;
+		}
 		/* check transfer rx_nbits */
-		if (xfer->rx_nbits != SPI_NBITS_SINGLE &&
-			xfer->rx_nbits != SPI_NBITS_DUAL &&
-			xfer->rx_nbits != SPI_NBITS_QUAD)
-			return -EINVAL;
-		if ((xfer->rx_nbits == SPI_NBITS_DUAL) &&
-			!(spi->mode & (SPI_RX_DUAL | SPI_RX_QUAD)))
-			return -EINVAL;
-		if ((xfer->rx_nbits == SPI_NBITS_QUAD) &&
-			!(spi->mode & SPI_RX_QUAD))
-			return -EINVAL;
-		if ((spi->mode & SPI_3WIRE) &&
-			(xfer->rx_nbits != SPI_NBITS_SINGLE))
-			return -EINVAL;
+		if (xfer->rx_buf) {
+			if (xfer->rx_nbits != SPI_NBITS_SINGLE &&
+				xfer->rx_nbits != SPI_NBITS_DUAL &&
+				xfer->rx_nbits != SPI_NBITS_QUAD)
+				return -EINVAL;
+			if ((xfer->rx_nbits == SPI_NBITS_DUAL) &&
+				!(spi->mode & (SPI_RX_DUAL | SPI_RX_QUAD)))
+				return -EINVAL;
+			if ((xfer->rx_nbits == SPI_NBITS_QUAD) &&
+				!(spi->mode & SPI_RX_QUAD))
+				return -EINVAL;
+			if ((spi->mode & SPI_3WIRE) &&
+				(xfer->rx_nbits != SPI_NBITS_SINGLE))
+				return -EINVAL;
+		}
 	}
 
 	message->spi = spi;
