@@ -839,8 +839,6 @@ vsp1_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	struct vsp1_pipeline *pipe;
 	int ret;
 
-	mutex_lock(&video->lock);
-
 	if (video->queue.owner && video->queue.owner != file->private_data)
 		return -EBUSY;
 
