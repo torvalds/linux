@@ -14,15 +14,16 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/dmaengine.h>
 
 #include <sound/core.h>
 #include <sound/ac97_codec.h>
 #include <sound/soc.h>
 #include <sound/pxa2xx-lib.h>
+#include <sound/dmaengine_pcm.h>
 
 #include <mach/hardware.h>
 #include <mach/regs-ac97.h>
-#include <mach/dma.h>
 #include <mach/audio.h>
 
 #include "pxa2xx-ac97.h"
@@ -48,44 +49,44 @@ static struct snd_ac97_bus_ops pxa2xx_ac97_ops = {
 	.reset	= pxa2xx_ac97_cold_reset,
 };
 
-static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_stereo_out = {
-	.name			= "AC97 PCM Stereo out",
-	.dev_addr		= __PREG(PCDR),
-	.drcmr			= &DRCMR(12),
-	.dcmd			= DCMD_INCSRCADDR | DCMD_FLOWTRG |
-				  DCMD_BURST32 | DCMD_WIDTH4,
+static unsigned long pxa2xx_ac97_pcm_stereo_in_req = 12;
+static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_stereo_in = {
+	.addr		= __PREG(PCDR),
+	.addr_width	= DMA_SLAVE_BUSWIDTH_4_BYTES,
+	.maxburst	= 32,
+	.filter_data	= &pxa2xx_ac97_pcm_stereo_in_req,
 };
 
-static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_stereo_in = {
-	.name			= "AC97 PCM Stereo in",
-	.dev_addr		= __PREG(PCDR),
-	.drcmr			= &DRCMR(11),
-	.dcmd			= DCMD_INCTRGADDR | DCMD_FLOWSRC |
-				  DCMD_BURST32 | DCMD_WIDTH4,
+static unsigned long pxa2xx_ac97_pcm_stereo_out_req = 11;
+static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_stereo_out = {
+	.addr		= __PREG(PCDR),
+	.addr_width	= DMA_SLAVE_BUSWIDTH_4_BYTES,
+	.maxburst	= 32,
+	.filter_data	= &pxa2xx_ac97_pcm_stereo_out_req,
 };
 
-static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_aux_mono_out = {
-	.name			= "AC97 Aux PCM (Slot 5) Mono out",
-	.dev_addr		= __PREG(MODR),
-	.drcmr			= &DRCMR(10),
-	.dcmd			= DCMD_INCSRCADDR | DCMD_FLOWTRG |
-				  DCMD_BURST16 | DCMD_WIDTH2,
+static unsigned long pxa2xx_ac97_pcm_aux_mono_out_req = 10;
+static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_aux_mono_out = {
+	.addr		= __PREG(MODR),
+	.addr_width	= DMA_SLAVE_BUSWIDTH_2_BYTES,
+	.maxburst	= 16,
+	.filter_data	= &pxa2xx_ac97_pcm_aux_mono_out_req,
 };
 
-static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_aux_mono_in = {
-	.name			= "AC97 Aux PCM (Slot 5) Mono in",
-	.dev_addr		= __PREG(MODR),
-	.drcmr			= &DRCMR(9),
-	.dcmd			= DCMD_INCTRGADDR | DCMD_FLOWSRC |
-				  DCMD_BURST16 | DCMD_WIDTH2,
+static unsigned long pxa2xx_ac97_pcm_aux_mono_in_req = 9;
+static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_aux_mono_in = {
+	.addr		= __PREG(MODR),
+	.addr_width	= DMA_SLAVE_BUSWIDTH_2_BYTES,
+	.maxburst	= 16,
+	.filter_data	= &pxa2xx_ac97_pcm_aux_mono_in_req,
 };
 
-static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_mic_mono_in = {
-	.name			= "AC97 Mic PCM (Slot 6) Mono in",
-	.dev_addr		= __PREG(MCDR),
-	.drcmr			= &DRCMR(8),
-	.dcmd			= DCMD_INCTRGADDR | DCMD_FLOWSRC |
-				  DCMD_BURST16 | DCMD_WIDTH2,
+static unsigned long pxa2xx_ac97_pcm_aux_mic_mono_req = 8;
+static struct snd_dmaengine_dai_dma_data pxa2xx_ac97_pcm_mic_mono_in = {
+	.addr		= __PREG(MCDR),
+	.addr_width	= DMA_SLAVE_BUSWIDTH_2_BYTES,
+	.maxburst	= 16,
+	.filter_data	= &pxa2xx_ac97_pcm_aux_mic_mono_req,
 };
 
 #ifdef CONFIG_PM
@@ -119,7 +120,7 @@ static int pxa2xx_ac97_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
 				 struct snd_soc_dai *cpu_dai)
 {
-	struct pxa2xx_pcm_dma_params *dma_data;
+	struct snd_dmaengine_dai_dma_data *dma_data;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		dma_data = &pxa2xx_ac97_pcm_stereo_out;
@@ -135,7 +136,7 @@ static int pxa2xx_ac97_hw_aux_params(struct snd_pcm_substream *substream,
 				     struct snd_pcm_hw_params *params,
 				     struct snd_soc_dai *cpu_dai)
 {
-	struct pxa2xx_pcm_dma_params *dma_data;
+	struct snd_dmaengine_dai_dma_data *dma_data;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		dma_data = &pxa2xx_ac97_pcm_aux_mono_out;
