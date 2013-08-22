@@ -17,27 +17,36 @@
  *
  *
  ******************************************************************************/
+#ifndef _USB_VENDOR_REQUEST_H_
+#define _USB_VENDOR_REQUEST_H_
 
-/*  temporarily flag ******* */
-/*
- * Public  General Config
- */
-#define RTL871X_MODULE_NAME "88EU"
-#define DRV_NAME "rtl8188eu"
+/* 4	Set/Get Register related wIndex/Data */
+#define	RT_USB_RESET_MASK_OFF		0
+#define	RT_USB_RESET_MASK_ON		1
+#define	RT_USB_SLEEP_MASK_OFF		0
+#define	RT_USB_SLEEP_MASK_ON		1
+#define	RT_USB_LDO_ON				1
+#define	RT_USB_LDO_OFF				0
 
-/*
- * Internal  General Config
- */
+/* 4	Set/Get SYSCLK related	wValue or Data */
+#define	RT_USB_SYSCLK_32KHZ		0
+#define	RT_USB_SYSCLK_40MHZ		1
+#define	RT_USB_SYSCLK_60MHZ		2
 
-#define CONFIG_88EU_AP_MODE
 
-#define CONFIG_88EU_P2P
+enum bt_usb_request {
+	RT_USB_SET_REGISTER		= 1,
+	RT_USB_SET_SYSCLK		= 2,
+	RT_USB_GET_SYSCLK		= 3,
+	RT_USB_GET_REGISTER		= 4
+};
 
-#define RTW_NOTCH_FILTER 0 /* 0:Disable, 1:Enable, */
+enum rt_usb_wvalue {
+	RT_USB_RESET_MASK	=	1,
+	RT_USB_SLEEP_MASK	=	2,
+	RT_USB_USB_HRCPWM	=	3,
+	RT_USB_LDO			=	4,
+	RT_USB_BOOT_TYPE	=	5
+};
 
-#define CONFIG_BR_EXT_BRNAME	"br0"
-
-/*
- * Debug Related Config
- */
-#define DBG	1
+#endif
