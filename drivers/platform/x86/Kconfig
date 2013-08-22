@@ -732,6 +732,7 @@ config SAMSUNG_LAPTOP
 	tristate "Samsung Laptop driver"
 	depends on X86
 	depends on RFKILL || RFKILL = n
+	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	depends on BACKLIGHT_CLASS_DEVICE
 	select LEDS_CLASS
 	select NEW_LEDS
