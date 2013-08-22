@@ -78,4 +78,6 @@
 #define CGC_TDM			(1 << 20)
 #define CGC_RESERVED		(0x6 << 21)
 
+#define MEMORY_PM_CTRL		(BRIDGE_VIRT_BASE + 0x118)
+
 #endif
