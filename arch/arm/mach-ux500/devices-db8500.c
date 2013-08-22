@@ -57,26 +57,6 @@ struct platform_device u8500_dma40_device = {
 	.resource = dma40_resources
 };
 
-struct resource keypad_resources[] = {
-	[0] = {
-		.start = U8500_SKE_BASE,
-		.end = U8500_SKE_BASE + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = IRQ_DB8500_KB,
-		.end = IRQ_DB8500_KB,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device u8500_ske_keypad_device = {
-	.name = "nmk-ske-keypad",
-	.id = -1,
-	.num_resources = ARRAY_SIZE(keypad_resources),
-	.resource = keypad_resources,
-};
-
 struct prcmu_pdata db8500_prcmu_pdata = {
 	.ab_platdata	= &ab8500_platdata,
 	.ab_irq		= IRQ_DB8500_AB8500,
