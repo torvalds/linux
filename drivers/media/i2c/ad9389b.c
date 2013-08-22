@@ -1109,27 +1109,27 @@ static int ad9389b_probe(struct i2c_client *client, const struct i2c_device_id *
 	state->hdmi_mode_ctrl = v4l2_ctrl_new_std_menu(hdl, &ad9389b_ctrl_ops,
 			V4L2_CID_DV_TX_MODE, V4L2_DV_TX_MODE_HDMI,
 			0, V4L2_DV_TX_MODE_DVI_D);
-	state->hdmi_mode_ctrl->is_private = true;
 	state->hotplug_ctrl = v4l2_ctrl_new_std(hdl, NULL,
 			V4L2_CID_DV_TX_HOTPLUG, 0, 1, 0, 0);
-	state->hotplug_ctrl->is_private = true;
 	state->rx_sense_ctrl = v4l2_ctrl_new_std(hdl, NULL,
 			V4L2_CID_DV_TX_RXSENSE, 0, 1, 0, 0);
-	state->rx_sense_ctrl->is_private = true;
 	state->have_edid0_ctrl = v4l2_ctrl_new_std(hdl, NULL,
 			V4L2_CID_DV_TX_EDID_PRESENT, 0, 1, 0, 0);
-	state->have_edid0_ctrl->is_private = true;
 	state->rgb_quantization_range_ctrl =
 		v4l2_ctrl_new_std_menu(hdl, &ad9389b_ctrl_ops,
 			V4L2_CID_DV_TX_RGB_RANGE, V4L2_DV_RGB_RANGE_FULL,
 			0, V4L2_DV_RGB_RANGE_AUTO);
-	state->rgb_quantization_range_ctrl->is_private = true;
 	sd->ctrl_handler = hdl;
 	if (hdl->error) {
 		err = hdl->error;
 
 		goto err_hdl;
 	}
+	state->hdmi_mode_ctrl->is_private = true;
+	state->hotplug_ctrl->is_private = true;
+	state->rx_sense_ctrl->is_private = true;
+	state->have_edid0_ctrl->is_private = true;
+	state->rgb_quantization_range_ctrl->is_private = true;
 
 	state->pad.flags = MEDIA_PAD_FL_SINK;
 	err = media_entity_init(&sd->entity, 1, &state->pad, 0);
