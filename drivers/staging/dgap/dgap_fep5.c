@@ -1805,9 +1805,9 @@ static int dgap_event(struct board_t *bd)
 			if (ch->ch_tun.un_tty) {
 				/* A break has been indicated */
 				ch->ch_err_break++;
-				tty_buffer_request_room(ch->ch_tun.un_tty, 1);
-				tty_insert_flip_char(ch->ch_tun.un_tty, 0, TTY_BREAK);
-				tty_flip_buffer_push(ch->ch_tun.un_tty);
+				tty_buffer_request_room(ch->ch_tun.un_tty->port, 1);
+				tty_insert_flip_char(ch->ch_tun.un_tty->port, 0, TTY_BREAK);
+				tty_flip_buffer_push(ch->ch_tun.un_tty->port);
 			}
 		}
 
