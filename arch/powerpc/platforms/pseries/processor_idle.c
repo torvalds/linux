@@ -20,7 +20,6 @@
 #include <asm/runlatch.h>
 
 #include "plpar_wrappers.h"
-#include "pseries.h"
 
 struct cpuidle_driver pseries_idle_driver = {
 	.name             = "pseries_idle",
