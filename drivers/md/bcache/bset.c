@@ -481,16 +481,8 @@ static struct bkey *table_to_bkey(struct bset_tree *t, unsigned cacheline)
 
 static inline uint64_t shrd128(uint64_t high, uint64_t low, uint8_t shift)
 {
-#ifdef CONFIG_X86_64
-	asm("shrd %[shift],%[high],%[low]"
-	    : [low] "+Rm" (low)
-	    : [high] "R" (high),
-	    [shift] "ci" (shift)
-	    : "cc");
-#else
 	low >>= shift;
 	low  |= (high << 1) << (63U - shift);
-#endif
 	return low;
 }
 
