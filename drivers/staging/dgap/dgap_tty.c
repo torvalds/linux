@@ -737,7 +737,7 @@ void dgap_input(struct channel_t *ch)
 	 * input data and return immediately.
 	 */
 	if ((bd->state != BOARD_READY) || !tp  || (tp->magic != TTY_MAGIC) ||
-            !(ch->ch_tun.un_flags & UN_ISOPEN) || !(tp->termios->c_cflag & CREAD) ||
+            !(ch->ch_tun.un_flags & UN_ISOPEN) || !(tp->termios.c_cflag & CREAD) ||
 	    (ch->ch_tun.un_flags & UN_CLOSING)) {
 
 		DPR_READ(("input. dropping %d bytes on port %d...\n", data_len, ch->ch_portnum));
@@ -1173,12 +1173,12 @@ static int dgap_tty_open(struct tty_struct *tty, struct file *file)
 		ch->pscan_state = 0;
 		ch->pscan_savechar = 0;
 
-		ch->ch_c_cflag   = tty->termios->c_cflag;
-		ch->ch_c_iflag   = tty->termios->c_iflag;
-		ch->ch_c_oflag   = tty->termios->c_oflag;
-		ch->ch_c_lflag   = tty->termios->c_lflag;
-		ch->ch_startc = tty->termios->c_cc[VSTART];
-		ch->ch_stopc  = tty->termios->c_cc[VSTOP];
+		ch->ch_c_cflag   = tty->termios.c_cflag;
+		ch->ch_c_iflag   = tty->termios.c_iflag;
+		ch->ch_c_oflag   = tty->termios.c_oflag;
+		ch->ch_c_lflag   = tty->termios.c_lflag;
+		ch->ch_startc = tty->termios.c_cc[VSTART];
+		ch->ch_stopc  = tty->termios.c_cc[VSTOP];
 
 		/* TODO: flush our TTY struct here? */
 	}
@@ -2893,12 +2893,12 @@ static void dgap_tty_set_termios(struct tty_struct *tty, struct ktermios *old_te
 	DGAP_LOCK(bd->bd_lock, lock_flags);
 	DGAP_LOCK(ch->ch_lock, lock_flags2);
 
-	ch->ch_c_cflag   = tty->termios->c_cflag;
-	ch->ch_c_iflag   = tty->termios->c_iflag;
-	ch->ch_c_oflag   = tty->termios->c_oflag;
-	ch->ch_c_lflag   = tty->termios->c_lflag;
-	ch->ch_startc    = tty->termios->c_cc[VSTART];
-	ch->ch_stopc     = tty->termios->c_cc[VSTOP];
+	ch->ch_c_cflag   = tty->termios.c_cflag;
+	ch->ch_c_iflag   = tty->termios.c_iflag;
+	ch->ch_c_oflag   = tty->termios.c_oflag;
+	ch->ch_c_lflag   = tty->termios.c_lflag;
+	ch->ch_startc    = tty->termios.c_cc[VSTART];
+	ch->ch_stopc     = tty->termios.c_cc[VSTOP];
 
 	dgap_carrier(ch);
 	dgap_param(tty);
@@ -3361,7 +3361,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, struct file *file, unsigned in
 
 		DGAP_LOCK(bd->bd_lock, lock_flags);
 		DGAP_LOCK(ch->ch_lock, lock_flags2);
-		tty->termios->c_cflag = ((tty->termios->c_cflag & ~CLOCAL) | (arg ? CLOCAL : 0));
+		tty->termios.c_cflag = ((tty->termios.c_cflag & ~CLOCAL) | (arg ? CLOCAL : 0));
 		dgap_param(tty);
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
