@@ -2024,6 +2024,8 @@ struct mac_iveiv_entry {
 	  (((__index) < 6) ? (HW_BEACON_BASE4 + ((__index - 4) * 0x0200)) : \
 	  (HW_BEACON_BASE6 - ((__index - 6) * 0x0200))))
 
+#define BEACON_BASE_TO_OFFSET(_base)	(((_base) - 0x4000) / 64)
+
 /*
  * BBP registers.
  * The wordsize of the BBP is 8 bits.
