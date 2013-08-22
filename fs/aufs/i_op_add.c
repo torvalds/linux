@@ -425,7 +425,7 @@ static int au_cpup_or_link(struct dentry *src_dentry, struct dentry *dentry,
 		dget(a->h_path.dentry);
 		au_set_h_dptr(dentry, a->bdst, NULL);
 		dentry->d_inode = src_dentry->d_inode; /* tmp */
-		h_file = au_h_open_pre(dentry, a->bsrc);
+		h_file = au_h_open_pre(dentry, a->bsrc, /*force_wr*/0);
 		if (IS_ERR(h_file))
 			err = PTR_ERR(h_file);
 		else {
