@@ -75,6 +75,8 @@ struct sd {
 		struct v4l2_ctrl *brightness;
 	};
 
+	u8 revision;
+
 	u8 packet_nr;
 
 	char bridge;
@@ -3080,8 +3082,8 @@ static void ov518_configure(struct gspca_dev *gspca_dev)
 	};
 
 	/* First 5 bits of custom ID reg are a revision ID on OV518 */
-	PDEBUG(D_PROBE, "Device revision %d",
-		0x1f & reg_r(sd, R51x_SYS_CUST_ID));
+	sd->revision = reg_r(sd, R51x_SYS_CUST_ID) & 0x1f;
+	PDEBUG(D_PROBE, "Device revision %d", sd->revision);
 
 	write_regvals(sd, init_518, ARRAY_SIZE(init_518));
 
@@ -3657,7 +3659,11 @@ static void ov518_mode_init_regs(struct sd *sd)
 	reg_w(sd, 0x2f, 0x80);
 
 	/******** Set the framerate ********/
-	sd->clockdiv = 1;
+	if (sd->bridge == BRIDGE_OV518PLUS && sd->revision == 0 &&
+					      sd->sensor == SEN_OV7620AE)
+		sd->clockdiv = 0;
+	else
+		sd->clockdiv = 1;
 
 	/* Mode independent, but framerate dependent, regs */
 	/* 0x51: Clock divider; Only works on some cams which use 2 crystals */
@@ -3668,12 +3674,24 @@ static void ov518_mode_init_regs(struct sd *sd)
 	if (sd->bridge == BRIDGE_OV518PLUS) {
 		switch (sd->sensor) {
 		case SEN_OV7620AE:
-			if (sd->gspca_dev.width == 320) {
-				reg_w(sd, 0x20, 0x00);
-				reg_w(sd, 0x21, 0x19);
-			} else {
+			/*
+			 * HdG: 640x480 needs special handling on device
+			 * revision 2, we check for device revison > 0 to
+			 * avoid regressions, as we don't know the correct
+			 * thing todo for revision 1.
+			 *
+			 * Also this likely means we don't need to
+			 * differentiate between the OV7620 and OV7620AE,
+			 * earlier testing hitting this same problem likely
+			 * happened to be with revision < 2 cams using an
+			 * OV7620 and revision 2 cams using an OV7620AE.
+			 */
+			if (sd->revision > 0 && sd->gspca_dev.width == 640) {
 				reg_w(sd, 0x20, 0x60);
 				reg_w(sd, 0x21, 0x1f);
+			} else {
+				reg_w(sd, 0x20, 0x00);
+				reg_w(sd, 0x21, 0x19);
 			}
 			break;
 		case SEN_OV7620:
