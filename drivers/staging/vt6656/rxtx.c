@@ -121,7 +121,7 @@ static void s_vSWencryption(struct vnt_private *pDevice,
 static unsigned int s_uGetTxRsvTime(struct vnt_private *pDevice, u8 byPktType,
 	u32 cbFrameLength, u16 wRate, int bNeedAck);
 
-static u32 s_uGetRTSCTSRsvTime(struct vnt_private *pDevice, u8 byRTSRsvType,
+static u16 s_uGetRTSCTSRsvTime(struct vnt_private *pDevice, u8 byRTSRsvType,
 	u8 byPktType, u32 cbFrameLength, u16 wCurrentRate);
 
 static void s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
@@ -349,7 +349,7 @@ static u32 s_uGetTxRsvTime(struct vnt_private *pDevice, u8 byPktType,
 }
 
 //byFreqType: 0=>5GHZ 1=>2.4GHZ
-static u32 s_uGetRTSCTSRsvTime(struct vnt_private *pDevice,
+static u16 s_uGetRTSCTSRsvTime(struct vnt_private *pDevice,
 	u8 byRTSRsvType, u8 byPktType, u32 cbFrameLength, u16 wCurrentRate)
 {
 	u32 uRrvTime, uRTSTime, uCTSTime, uAckTime, uDataTime;
@@ -379,7 +379,7 @@ static u32 s_uGetRTSCTSRsvTime(struct vnt_private *pDevice,
 
     //RTSRrvTime
     uRrvTime = uRTSTime + uCTSTime + uAckTime + uDataTime + 3*pDevice->uSIFS;
-    return uRrvTime;
+	return cpu_to_le16((u16)uRrvTime);
 }
 
 //byFreqType 0: 5GHz, 1:2.4Ghz
@@ -876,9 +876,12 @@ static void s_vGenerateTxParameter(struct vnt_private *pDevice,
             if (pvRrvTime) {
 		struct vnt_rrv_time_rts *pBuf =
 			(struct vnt_rrv_time_rts *)pvRrvTime;
-                pBuf->wRTSTxRrvTime_aa = cpu_to_le16((u16)s_uGetRTSCTSRsvTime(pDevice, 2, byPktType, cbFrameSize, wCurrentRate));//2:RTSTxRrvTime_aa, 1:2.4GHz
-                pBuf->wRTSTxRrvTime_ba = cpu_to_le16((u16)s_uGetRTSCTSRsvTime(pDevice, 1, byPktType, cbFrameSize, wCurrentRate));//1:RTSTxRrvTime_ba, 1:2.4GHz
-                pBuf->wRTSTxRrvTime_bb = cpu_to_le16((u16)s_uGetRTSCTSRsvTime(pDevice, 0, byPktType, cbFrameSize, wCurrentRate));//0:RTSTxRrvTime_bb, 1:2.4GHz
+		pBuf->wRTSTxRrvTime_aa = s_uGetRTSCTSRsvTime(pDevice, 2,
+				byPktType, cbFrameSize, wCurrentRate);
+		pBuf->wRTSTxRrvTime_ba = s_uGetRTSCTSRsvTime(pDevice, 1,
+				byPktType, cbFrameSize, wCurrentRate);
+		pBuf->wRTSTxRrvTime_bb = s_uGetRTSCTSRsvTime(pDevice, 0,
+				byPktType, cbFrameSize, wCurrentRate);
                 pBuf->wTxRrvTime_a = cpu_to_le16((u16) s_uGetTxRsvTime(pDevice, byPktType, cbFrameSize, wCurrentRate, bNeedACK));//2.4G OFDM
                 pBuf->wTxRrvTime_b = cpu_to_le16((u16) s_uGetTxRsvTime(pDevice, PK_TYPE_11B, cbFrameSize, pDevice->byTopCCKBasicRate, bNeedACK));//1:CCK
             }
@@ -893,7 +896,8 @@ static void s_vGenerateTxParameter(struct vnt_private *pDevice,
 				(struct vnt_rrv_time_cts *)pvRrvTime;
                 pBuf->wTxRrvTime_a = cpu_to_le16((u16)s_uGetTxRsvTime(pDevice, byPktType, cbFrameSize, wCurrentRate, bNeedACK));//2.4G OFDM
                 pBuf->wTxRrvTime_b = cpu_to_le16((u16)s_uGetTxRsvTime(pDevice, PK_TYPE_11B, cbFrameSize, pDevice->byTopCCKBasicRate, bNeedACK));//1:CCK
-                pBuf->wCTSTxRrvTime_ba = cpu_to_le16((u16)s_uGetRTSCTSRsvTime(pDevice, 3, byPktType, cbFrameSize, wCurrentRate));//3:CTSTxRrvTime_Ba, 1:2.4GHz
+		pBuf->wCTSTxRrvTime_ba = s_uGetRTSCTSRsvTime(pDevice, 3,
+				byPktType, cbFrameSize, wCurrentRate);
             }
             //Fill CTS
             s_vFillCTSHead(pDevice, uDMAIdx, byPktType, pvCTS, cbFrameSize, bNeedACK, bDisCRC, wCurrentRate, byFBOption);
@@ -906,7 +910,8 @@ static void s_vGenerateTxParameter(struct vnt_private *pDevice,
             if (pvRrvTime) {
 		struct vnt_rrv_time_ab *pBuf =
 				(struct vnt_rrv_time_ab *)pvRrvTime;
-                pBuf->wRTSTxRrvTime = cpu_to_le16((u16)s_uGetRTSCTSRsvTime(pDevice, 2, byPktType, cbFrameSize, wCurrentRate));//2:RTSTxRrvTime_aa, 0:5GHz
+		pBuf->wRTSTxRrvTime = s_uGetRTSCTSRsvTime(pDevice, 2,
+				byPktType, cbFrameSize, wCurrentRate);
                 pBuf->wTxRrvTime = cpu_to_le16((u16)s_uGetTxRsvTime(pDevice, byPktType, cbFrameSize, wCurrentRate, bNeedACK));//0:OFDM
             }
             //Fill RTS
@@ -928,7 +933,8 @@ static void s_vGenerateTxParameter(struct vnt_private *pDevice,
             if (pvRrvTime) {
 		struct vnt_rrv_time_ab *pBuf =
 				(struct vnt_rrv_time_ab *)pvRrvTime;
-                pBuf->wRTSTxRrvTime = cpu_to_le16((u16)s_uGetRTSCTSRsvTime(pDevice, 0, byPktType, cbFrameSize, wCurrentRate));//0:RTSTxRrvTime_bb, 1:2.4GHz
+		pBuf->wRTSTxRrvTime = s_uGetRTSCTSRsvTime(pDevice, 0,
+				byPktType, cbFrameSize, wCurrentRate);
                 pBuf->wTxRrvTime = cpu_to_le16((u16)s_uGetTxRsvTime(pDevice, PK_TYPE_11B, cbFrameSize, wCurrentRate, bNeedACK));//1:CCK
             }
             //Fill RTS
