@@ -51,9 +51,9 @@ do {							\
 	static struct lock_class_key __key;		\
 							\
 	(attr)->key = &__key;				\
-} while(0)
+} while (0)
 #else
-#define sysfs_attr_init(attr) do {} while(0)
+#define sysfs_attr_init(attr) do {} while (0)
 #endif
 
 struct attribute_group {
@@ -69,7 +69,7 @@ struct attribute_group {
  * for examples..
  */
 
-#define __ATTR(_name,_mode,_show,_store) { 				\
+#define __ATTR(_name, _mode, _show, _store) {				\
 	.attr = {.name = __stringify(_name), .mode = _mode },		\
 	.show	= _show,						\
 	.store	= _store,						\
@@ -119,7 +119,7 @@ struct bin_attribute {
 	void			*private;
 	ssize_t (*read)(struct file *, struct kobject *, struct bin_attribute *,
 			char *, loff_t, size_t);
-	ssize_t (*write)(struct file *,struct kobject *, struct bin_attribute *,
+	ssize_t (*write)(struct file *, struct kobject *, struct bin_attribute *,
 			 char *, loff_t, size_t);
 	int (*mmap)(struct file *, struct kobject *, struct bin_attribute *attr,
 		    struct vm_area_struct *vma);
@@ -168,8 +168,8 @@ struct bin_attribute bin_attr_##_name = __BIN_ATTR_RO(_name, _size)
 struct bin_attribute bin_attr_##_name = __BIN_ATTR_RW(_name, _size)
 
 struct sysfs_ops {
-	ssize_t	(*show)(struct kobject *, struct attribute *,char *);
-	ssize_t	(*store)(struct kobject *,struct attribute *,const char *, size_t);
+	ssize_t	(*show)(struct kobject *, struct attribute *, char *);
+	ssize_t	(*store)(struct kobject *, struct attribute *, const char *, size_t);
 	const void *(*namespace)(struct kobject *, const struct attribute *);
 };
 
