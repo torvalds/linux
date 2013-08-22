@@ -3525,8 +3525,6 @@ int pcie_set_readrq(struct pci_dev *dev, int rq)
 	if (pcie_bus_config == PCIE_BUS_PERFORMANCE) {
 		int mps = pcie_get_mps(dev);
 
-		if (mps < 0)
-			return mps;
 		if (mps < rq)
 			rq = mps;
 	}
@@ -3543,7 +3541,6 @@ EXPORT_SYMBOL(pcie_set_readrq);
  * @dev: PCI device to query
  *
  * Returns maximum payload size in bytes
- *    or appropriate error value.
  */
 int pcie_get_mps(struct pci_dev *dev)
 {
