@@ -154,6 +154,20 @@ static const struct snd_kcontrol_new pcm1792a_controls[] = {
 			 pcm1792a_dac_tlv),
 };
 
+static const struct snd_soc_dapm_widget pcm1792a_dapm_widgets[] = {
+SND_SOC_DAPM_OUTPUT("IOUTL+"),
+SND_SOC_DAPM_OUTPUT("IOUTL-"),
+SND_SOC_DAPM_OUTPUT("IOUTR+"),
+SND_SOC_DAPM_OUTPUT("IOUTR-"),
+};
+
+static const struct snd_soc_dapm_route pcm1792a_dapm_routes[] = {
+	{ "IOUTL+", NULL, "Playback" },
+	{ "IOUTL-", NULL, "Playback" },
+	{ "IOUTR+", NULL, "Playback" },
+	{ "IOUTR-", NULL, "Playback" },
+};
+
 static struct snd_soc_dai_driver pcm1792a_dai = {
 	.name = "pcm1792a-hifi",
 	.playback = {
@@ -162,20 +176,14 @@ static struct snd_soc_dai_driver pcm1792a_dai = {
 		.channels_max = 2,
 		.rates = PCM1792A_RATES,
 		.formats = PCM1792A_FORMATS, },
-	.capture = {
-		.channels_min = 0,
-		.channels_max = 0,
-	},
 	.ops = &pcm1792a_dai_ops,
 };
 
-#ifdef CONFIG_OF
 static const struct of_device_id pcm1792a_of_match[] = {
 	{ .compatible = "ti,pcm1792a", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, pcm1792a_of_match);
-#endif
 
 static const struct regmap_config pcm1792a_regmap = {
 	.reg_bits		= 8,
@@ -190,6 +198,10 @@ static const struct regmap_config pcm1792a_regmap = {
 static struct snd_soc_codec_driver soc_codec_dev_pcm1792a = {
 	.controls		= pcm1792a_controls,
 	.num_controls		= ARRAY_SIZE(pcm1792a_controls),
+	.dapm_widgets		= pcm1792a_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(pcm1792a_dapm_widgets),
+	.dapm_routes		= pcm1792a_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(pcm1792a_dapm_routes),
 };
 
 static int pcm1792a_spi_probe(struct spi_device *spi)
@@ -231,7 +243,7 @@ static struct spi_driver pcm1792a_codec_driver = {
 	.driver = {
 		.name = "pcm1792a",
 		.owner = THIS_MODULE,
-		.of_match_table = pcm1792a_of_match,
+		.of_match_table = of_match_ptr(pcm1792a_of_match),
 	},
 	.id_table = pcm1792a_spi_ids,
 	.probe = pcm1792a_spi_probe,
