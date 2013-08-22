@@ -34,6 +34,7 @@
 #include <linux/if_arp.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
+#include <linux/sctp.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/icmp.h>
@@ -129,6 +130,7 @@ static bool ovs_match_validate(const struct sw_flow_match *match,
 			| (1 << OVS_KEY_ATTR_IPV6)
 			| (1 << OVS_KEY_ATTR_TCP)
 			| (1 << OVS_KEY_ATTR_UDP)
+			| (1 << OVS_KEY_ATTR_SCTP)
 			| (1 << OVS_KEY_ATTR_ICMP)
 			| (1 << OVS_KEY_ATTR_ICMPV6)
 			| (1 << OVS_KEY_ATTR_ARP)
@@ -159,6 +161,12 @@ static bool ovs_match_validate(const struct sw_flow_match *match,
 					mask_allowed |= 1 << OVS_KEY_ATTR_UDP;
 			}
 
+			if (match->key->ip.proto == IPPROTO_SCTP) {
+				key_expected |= 1 << OVS_KEY_ATTR_SCTP;
+				if (match->mask && (match->mask->key.ip.proto == 0xff))
+					mask_allowed |= 1 << OVS_KEY_ATTR_SCTP;
+			}
+
 			if (match->key->ip.proto == IPPROTO_TCP) {
 				key_expected |= 1 << OVS_KEY_ATTR_TCP;
 				if (match->mask && (match->mask->key.ip.proto == 0xff))
@@ -183,6 +191,12 @@ static bool ovs_match_validate(const struct sw_flow_match *match,
 				key_expected |= 1 << OVS_KEY_ATTR_UDP;
 				if (match->mask && (match->mask->key.ip.proto == 0xff))
 					mask_allowed |= 1 << OVS_KEY_ATTR_UDP;
+			}
+
+			if (match->key->ip.proto == IPPROTO_SCTP) {
+				key_expected |= 1 << OVS_KEY_ATTR_SCTP;
+				if (match->mask && (match->mask->key.ip.proto == 0xff))
+					mask_allowed |= 1 << OVS_KEY_ATTR_SCTP;
 			}
 
 			if (match->key->ip.proto == IPPROTO_TCP) {
@@ -278,6 +292,12 @@ static bool udphdr_ok(struct sk_buff *skb)
 {
 	return pskb_may_pull(skb, skb_transport_offset(skb) +
 				  sizeof(struct udphdr));
+}
+
+static bool sctphdr_ok(struct sk_buff *skb)
+{
+	return pskb_may_pull(skb, skb_transport_offset(skb) +
+				  sizeof(struct sctphdr));
 }
 
 static bool icmphdr_ok(struct sk_buff *skb)
@@ -891,6 +911,12 @@ int ovs_flow_extract(struct sk_buff *skb, u16 in_port, struct sw_flow_key *key)
 				key->ipv4.tp.src = udp->source;
 				key->ipv4.tp.dst = udp->dest;
 			}
+		} else if (key->ip.proto == IPPROTO_SCTP) {
+			if (sctphdr_ok(skb)) {
+				struct sctphdr *sctp = sctp_hdr(skb);
+				key->ipv4.tp.src = sctp->source;
+				key->ipv4.tp.dst = sctp->dest;
+			}
 		} else if (key->ip.proto == IPPROTO_ICMP) {
 			if (icmphdr_ok(skb)) {
 				struct icmphdr *icmp = icmp_hdr(skb);
@@ -952,6 +978,12 @@ int ovs_flow_extract(struct sk_buff *skb, u16 in_port, struct sw_flow_key *key)
 				struct udphdr *udp = udp_hdr(skb);
 				key->ipv6.tp.src = udp->source;
 				key->ipv6.tp.dst = udp->dest;
+			}
+		} else if (key->ip.proto == NEXTHDR_SCTP) {
+			if (sctphdr_ok(skb)) {
+				struct sctphdr *sctp = sctp_hdr(skb);
+				key->ipv6.tp.src = sctp->source;
+				key->ipv6.tp.dst = sctp->dest;
 			}
 		} else if (key->ip.proto == NEXTHDR_ICMP) {
 			if (icmp6hdr_ok(skb)) {
@@ -1087,6 +1119,7 @@ const int ovs_key_lens[OVS_KEY_ATTR_MAX + 1] = {
 	[OVS_KEY_ATTR_IPV6] = sizeof(struct ovs_key_ipv6),
 	[OVS_KEY_ATTR_TCP] = sizeof(struct ovs_key_tcp),
 	[OVS_KEY_ATTR_UDP] = sizeof(struct ovs_key_udp),
+	[OVS_KEY_ATTR_SCTP] = sizeof(struct ovs_key_sctp),
 	[OVS_KEY_ATTR_ICMP] = sizeof(struct ovs_key_icmp),
 	[OVS_KEY_ATTR_ICMPV6] = sizeof(struct ovs_key_icmpv6),
 	[OVS_KEY_ATTR_ARP] = sizeof(struct ovs_key_arp),
@@ -1500,6 +1533,24 @@ static int ovs_key_from_nlattrs(struct sw_flow_match *match,  u64 attrs,
 		attrs &= ~(1 << OVS_KEY_ATTR_UDP);
 	}
 
+	if (attrs & (1 << OVS_KEY_ATTR_SCTP)) {
+		const struct ovs_key_sctp *sctp_key;
+
+		sctp_key = nla_data(a[OVS_KEY_ATTR_SCTP]);
+		if (orig_attrs & (1 << OVS_KEY_ATTR_IPV4)) {
+			SW_FLOW_KEY_PUT(match, ipv4.tp.src,
+					sctp_key->sctp_src, is_mask);
+			SW_FLOW_KEY_PUT(match, ipv4.tp.dst,
+					sctp_key->sctp_dst, is_mask);
+		} else {
+			SW_FLOW_KEY_PUT(match, ipv6.tp.src,
+					sctp_key->sctp_src, is_mask);
+			SW_FLOW_KEY_PUT(match, ipv6.tp.dst,
+					sctp_key->sctp_dst, is_mask);
+		}
+		attrs &= ~(1 << OVS_KEY_ATTR_SCTP);
+	}
+
 	if (attrs & (1 << OVS_KEY_ATTR_ICMP)) {
 		const struct ovs_key_icmp *icmp_key;
 
@@ -1842,6 +1893,20 @@ int ovs_flow_to_nlattrs(const struct sw_flow_key *swkey,
 			} else if (swkey->eth.type == htons(ETH_P_IPV6)) {
 				udp_key->udp_src = output->ipv6.tp.src;
 				udp_key->udp_dst = output->ipv6.tp.dst;
+			}
+		} else if (swkey->ip.proto == IPPROTO_SCTP) {
+			struct ovs_key_sctp *sctp_key;
+
+			nla = nla_reserve(skb, OVS_KEY_ATTR_SCTP, sizeof(*sctp_key));
+			if (!nla)
+				goto nla_put_failure;
+			sctp_key = nla_data(nla);
+			if (swkey->eth.type == htons(ETH_P_IP)) {
+				sctp_key->sctp_src = swkey->ipv4.tp.src;
+				sctp_key->sctp_dst = swkey->ipv4.tp.dst;
+			} else if (swkey->eth.type == htons(ETH_P_IPV6)) {
+				sctp_key->sctp_src = swkey->ipv6.tp.src;
+				sctp_key->sctp_dst = swkey->ipv6.tp.dst;
 			}
 		} else if (swkey->eth.type == htons(ETH_P_IP) &&
 			   swkey->ip.proto == IPPROTO_ICMP) {

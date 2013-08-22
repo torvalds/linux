@@ -712,6 +712,12 @@ static int validate_set(const struct nlattr *a,
 
 		return validate_tp_port(flow_key);
 
+	case OVS_KEY_ATTR_SCTP:
+		if (flow_key->ip.proto != IPPROTO_SCTP)
+			return -EINVAL;
+
+		return validate_tp_port(flow_key);
+
 	default:
 		return -EINVAL;
 	}

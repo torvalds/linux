@@ -259,6 +259,7 @@ enum ovs_key_attr {
 	OVS_KEY_ATTR_ND,        /* struct ovs_key_nd */
 	OVS_KEY_ATTR_SKB_MARK,  /* u32 skb mark */
 	OVS_KEY_ATTR_TUNNEL,    /* Nested set of ovs_tunnel attributes */
+	OVS_KEY_ATTR_SCTP,      /* struct ovs_key_sctp */
 
 #ifdef __KERNEL__
 	OVS_KEY_ATTR_IPV4_TUNNEL,  /* struct ovs_key_ipv4_tunnel */
@@ -331,6 +332,11 @@ struct ovs_key_tcp {
 struct ovs_key_udp {
 	__be16 udp_src;
 	__be16 udp_dst;
+};
+
+struct ovs_key_sctp {
+	__be16 sctp_src;
+	__be16 sctp_dst;
 };
 
 struct ovs_key_icmp {
