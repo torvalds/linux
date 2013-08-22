@@ -42,20 +42,15 @@ static int ksz9021rn_phy_fixup(struct phy_device *phy)
 {
 	int value;
 
-#define GMII_RCCPSR	260
-#define GMII_RRDPSR	261
-#define GMII_ERCR	11
-#define GMII_ERDWR	12
-
 	/* Set delay values */
-	value = GMII_RCCPSR | 0x8000;
-	phy_write(phy, GMII_ERCR, value);
+	value = MICREL_KSZ9021_RGMII_CLK_CTRL_PAD_SCEW | 0x8000;
+	phy_write(phy, MICREL_KSZ9021_EXTREG_CTRL, value);
 	value = 0xF2F4;
-	phy_write(phy, GMII_ERDWR, value);
-	value = GMII_RRDPSR | 0x8000;
-	phy_write(phy, GMII_ERCR, value);
+	phy_write(phy, MICREL_KSZ9021_EXTREG_DATA_WRITE, value);
+	value = MICREL_KSZ9021_RGMII_RX_DATA_PAD_SCEW | 0x8000;
+	phy_write(phy, MICREL_KSZ9021_EXTREG_CTRL, value);
 	value = 0x2222;
-	phy_write(phy, GMII_ERDWR, value);
+	phy_write(phy, MICREL_KSZ9021_EXTREG_DATA_WRITE, value);
 
 	return 0;
 }
