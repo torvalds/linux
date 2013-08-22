@@ -17,7 +17,6 @@
 #include <linux/dmaengine.h>
 #include <linux/platform_data/dma-mmp_tdma.h>
 #include <linux/platform_data/mmp_audio.h>
-#include <linux/dmaengine.h>
 
 #include <sound/pxa2xx-lib.h>
 #include <sound/core.h>
