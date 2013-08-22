@@ -17,7 +17,6 @@
 #include <linux/platform_data/db8500_thermal.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/pl022.h>
-#include <linux/amba/serial.h>
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/regulator/ab8500.h>
 #include <linux/regulator/fixed.h>
@@ -78,75 +77,6 @@ struct pl022_ssp_controller ssp0_plat = {
 	.num_chipselect = 5,
 };
 
-#ifdef CONFIG_STE_DMA40
-static struct stedma40_chan_cfg uart0_dma_cfg_rx = {
-	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = DMA_DEV_TO_MEM,
-	.dev_type = DB8500_DMA_DEV13_UART0,
-};
-
-static struct stedma40_chan_cfg uart0_dma_cfg_tx = {
-	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = DMA_MEM_TO_DEV,
-	.dev_type = DB8500_DMA_DEV13_UART0,
-};
-
-static struct stedma40_chan_cfg uart1_dma_cfg_rx = {
-	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = DMA_DEV_TO_MEM,
-	.dev_type = DB8500_DMA_DEV12_UART1,
-};
-
-static struct stedma40_chan_cfg uart1_dma_cfg_tx = {
-	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = DMA_MEM_TO_DEV,
-	.dev_type = DB8500_DMA_DEV12_UART1,
-};
-
-static struct stedma40_chan_cfg uart2_dma_cfg_rx = {
-	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = DMA_DEV_TO_MEM,
-	.dev_type = DB8500_DMA_DEV11_UART2,
-};
-
-static struct stedma40_chan_cfg uart2_dma_cfg_tx = {
-	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = DMA_MEM_TO_DEV,
-	.dev_type = DB8500_DMA_DEV11_UART2,
-};
-#endif
-
-struct amba_pl011_data uart0_plat = {
-#ifdef CONFIG_STE_DMA40
-	.dma_filter = stedma40_filter,
-	.dma_rx_param = &uart0_dma_cfg_rx,
-	.dma_tx_param = &uart0_dma_cfg_tx,
-#endif
-};
-
-struct amba_pl011_data uart1_plat = {
-#ifdef CONFIG_STE_DMA40
-	.dma_filter = stedma40_filter,
-	.dma_rx_param = &uart1_dma_cfg_rx,
-	.dma_tx_param = &uart1_dma_cfg_tx,
-#endif
-};
-
-struct amba_pl011_data uart2_plat = {
-#ifdef CONFIG_STE_DMA40
-	.dma_filter = stedma40_filter,
-	.dma_rx_param = &uart2_dma_cfg_rx,
-	.dma_tx_param = &uart2_dma_cfg_tx,
-#endif
-};
-
-static void __init mop500_uart_init(struct device *parent)
-{
-	db8500_add_uart0(parent, &uart0_plat);
-	db8500_add_uart1(parent, &uart1_plat);
-	db8500_add_uart2(parent, &uart2_plat);
-}
-
 static void __init mop500_init_machine(void)
 {
 	struct device *parent = NULL;
@@ -154,8 +84,6 @@ static void __init mop500_init_machine(void)
 	platform_device_register(&db8500_prcmu_device);
 
 	parent = u8500_init_devices();
-
-	mop500_uart_init(parent);
 
 	/* This board has full regulator constraints */
 	regulator_has_full_constraints();
@@ -170,8 +98,6 @@ static void __init snowball_init_machine(void)
 
 	parent = u8500_init_devices();
 
-	mop500_uart_init(parent);
-
 	/* This board has full regulator constraints */
 	regulator_has_full_constraints();
 }
@@ -183,8 +109,6 @@ static void __init hrefv60_init_machine(void)
 	platform_device_register(&db8500_prcmu_device);
 
 	parent = u8500_init_devices();
-
-	mop500_uart_init(parent);
 
 	/* This board has full regulator constraints */
 	regulator_has_full_constraints();

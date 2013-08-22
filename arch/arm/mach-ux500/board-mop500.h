@@ -87,9 +87,6 @@ extern struct msp_i2s_platform_data msp0_platform_data;
 extern struct msp_i2s_platform_data msp1_platform_data;
 extern struct msp_i2s_platform_data msp2_platform_data;
 extern struct msp_i2s_platform_data msp3_platform_data;
-extern struct amba_pl011_data uart0_plat;
-extern struct amba_pl011_data uart1_plat;
-extern struct amba_pl011_data uart2_plat;
 extern struct pl022_ssp_controller ssp0_plat;
 
 void __init mop500_u8500uib_init(void);
