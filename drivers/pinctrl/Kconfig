@@ -264,6 +264,7 @@ config PINCTRL_EXYNOS5440
 config PINCTRL_PALMAS
 	bool "Pinctrl driver for the PALMAS Series MFD devices"
 	depends on OF && MFD_PALMAS
+	select PINMUX
 	select GENERIC_PINCONF
 	help
 	  Palmas device supports the configuration of pins for different
