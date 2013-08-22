@@ -717,6 +717,7 @@ u32 cik_get_xclk(struct radeon_device *rdev);
 uint32_t cik_pciep_rreg(struct radeon_device *rdev, uint32_t reg);
 void cik_pciep_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 int cik_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk);
+int cik_set_vce_clocks(struct radeon_device *rdev, u32 evclk, u32 ecclk);
 void cik_sdma_fence_ring_emit(struct radeon_device *rdev,
 			      struct radeon_fence *fence);
 bool cik_sdma_semaphore_ring_emit(struct radeon_device *rdev,

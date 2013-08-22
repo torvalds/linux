@@ -203,6 +203,12 @@
 #define		CTF_TEMP_MASK				0x0003fe00
 #define		CTF_TEMP_SHIFT				9
 
+#define CG_ECLK_CNTL                                    0xC05000AC
+#       define ECLK_DIVIDER_MASK                        0x7f
+#       define ECLK_DIR_CNTL_EN                         (1 << 8)
+#define CG_ECLK_STATUS                                  0xC05000B0
+#       define ECLK_STATUS                              (1 << 0)
+
 #define	CG_SPLL_FUNC_CNTL				0xC0500140
 #define		SPLL_RESET				(1 << 0)
 #define		SPLL_PWRON				(1 << 1)

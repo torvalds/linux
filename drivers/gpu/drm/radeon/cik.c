@@ -8925,6 +8925,41 @@ int cik_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
 	return r;
 }
 
+int cik_set_vce_clocks(struct radeon_device *rdev, u32 evclk, u32 ecclk)
+{
+	int r, i;
+	struct atom_clock_dividers dividers;
+	u32 tmp;
+
+	r = radeon_atom_get_clock_dividers(rdev, COMPUTE_GPUCLK_INPUT_FLAG_DEFAULT_GPUCLK,
+					   ecclk, false, &dividers);
+	if (r)
+		return r;
+
+	for (i = 0; i < 100; i++) {
+		if (RREG32_SMC(CG_ECLK_STATUS) & ECLK_STATUS)
+			break;
+		mdelay(10);
+	}
+	if (i == 100)
+		return -ETIMEDOUT;
+
+	tmp = RREG32_SMC(CG_ECLK_CNTL);
+	tmp &= ~(ECLK_DIR_CNTL_EN|ECLK_DIVIDER_MASK);
+	tmp |= dividers.post_divider;
+	WREG32_SMC(CG_ECLK_CNTL, tmp);
+
+	for (i = 0; i < 100; i++) {
+		if (RREG32_SMC(CG_ECLK_STATUS) & ECLK_STATUS)
+			break;
+		mdelay(10);
+	}
+	if (i == 100)
+		return -ETIMEDOUT;
+
+	return 0;
+}
+
 static void cik_pcie_gen3_enable(struct radeon_device *rdev)
 {
 	struct pci_dev *root = rdev->pdev->bus->self;
