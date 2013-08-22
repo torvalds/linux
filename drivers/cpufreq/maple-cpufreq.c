@@ -24,7 +24,7 @@
 #include <linux/completion.h>
 #include <linux/mutex.h>
 #include <linux/time.h>
-#include <linux/of.h>
+#include <linux/of_device.h>
 
 #define DBG(fmt...) pr_debug(fmt)
 
@@ -200,7 +200,6 @@ static struct cpufreq_driver maple_cpufreq_driver = {
 
 static int __init maple_cpufreq_init(void)
 {
-	struct device_node *cpus;
 	struct device_node *cpunode;
 	unsigned int psize;
 	unsigned long max_freq;
@@ -216,24 +215,11 @@ static int __init maple_cpufreq_init(void)
 	    !of_machine_is_compatible("Momentum,Apache"))
 		return 0;
 
-	cpus = of_find_node_by_path("/cpus");
-	if (cpus == NULL) {
-		DBG("No /cpus node !\n");
-		return -ENODEV;
-	}
-
 	/* Get first CPU node */
-	for (cpunode = NULL;
-	     (cpunode = of_get_next_child(cpus, cpunode)) != NULL;) {
-		const u32 *reg = of_get_property(cpunode, "reg", NULL);
-		if (reg == NULL || (*reg) != 0)
-			continue;
-		if (!strcmp(cpunode->type, "cpu"))
-			break;
-	}
+	cpunode = of_cpu_device_node_get(0);
 	if (cpunode == NULL) {
 		printk(KERN_ERR "cpufreq: Can't find any CPU 0 node\n");
-		goto bail_cpus;
+		goto bail_noprops;
 	}
 
 	/* Check 970FX for now */
@@ -289,14 +275,11 @@ static int __init maple_cpufreq_init(void)
 	rc = cpufreq_register_driver(&maple_cpufreq_driver);
 
 	of_node_put(cpunode);
-	of_node_put(cpus);
 
 	return rc;
 
 bail_noprops:
 	of_node_put(cpunode);
-bail_cpus:
-	of_node_put(cpus);
 
 	return rc;
 }
