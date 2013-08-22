@@ -22,7 +22,7 @@ struct s3c_dma_params {
 	char *ch_name;
 };
 
-int asoc_dma_platform_register(struct device *dev);
-void asoc_dma_platform_unregister(struct device *dev);
+int samsung_asoc_dma_platform_register(struct device *dev);
+void samsung_asoc_dma_platform_unregister(struct device *dev);
 
 #endif
