@@ -774,14 +774,11 @@ void dgap_input(struct channel_t *ch)
 	DPR_READ(("dgap_input start 2\n"));
 
 	/* Decide how much data we can send into the tty layer */
-	if (dgap_rawreadok && tp->real_raw)
- 		flip_len = MYFLIPLEN;
-	else
- 		flip_len = TTY_FLIPBUF_SIZE;
+	flip_len = TTY_FLIPBUF_SIZE;
 
 	/* Chop down the length, if needed */
 	len = min(data_len, flip_len);
-	len = min(len, (N_TTY_BUF_SIZE - 1) - tp->read_cnt);
+	len = min(len, (N_TTY_BUF_SIZE - 1));
 
 	ld = tty_ldisc_ref(tp);
                 
@@ -863,39 +860,23 @@ void dgap_input(struct channel_t *ch)
 	 * On the other hand, if we are not raw, we need to go through
 	 * the tty layer, which has its API more well defined.
 	 */
-        if (dgap_rawreadok && tp->real_raw) {
+	if (I_PARMRK(tp) || I_BRKINT(tp) || I_INPCK(tp)) {
+		dgap_parity_scan(ch, ch->ch_bd->flipbuf, ch->ch_bd->flipflagbuf, &len);
 
-		/* !!! WE *MUST* LET GO OF ALL LOCKS BEFORE CALLING RECEIVE BUF !!! */
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
-
-		DPR_READ(("dgap_input. %d real_raw len:%d calling receive_buf for buffer for board %d\n", 
-			 __LINE__, len, ch->ch_bd->boardnum));
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,31)
-		tp->ldisc->ops->receive_buf(tp, ch->ch_bd->flipbuf, NULL, len);
-#else
-		tp->ldisc.ops->receive_buf(tp, ch->ch_bd->flipbuf, NULL, len);
-#endif
+		len = tty_buffer_request_room(tp->port, len);
+		tty_insert_flip_string_flags(tp->port, ch->ch_bd->flipbuf,
+			ch->ch_bd->flipflagbuf, len);
 	}
 	else {
-		if (I_PARMRK(tp) || I_BRKINT(tp) || I_INPCK(tp)) {
-			dgap_parity_scan(ch, ch->ch_bd->flipbuf, ch->ch_bd->flipflagbuf, &len);
-
-			len = tty_buffer_request_room(tp->port, len);
-			tty_insert_flip_string_flags(tp->port, ch->ch_bd->flipbuf,
-				ch->ch_bd->flipflagbuf, len);
-		}
-		else {
-			len = tty_buffer_request_room(tp->port, len);
-			tty_insert_flip_string(tp->port, ch->ch_bd->flipbuf, len);
-		}
-
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
-
-		/* Tell the tty layer its okay to "eat" the data now */
-		tty_flip_buffer_push(tp->port);
+		len = tty_buffer_request_room(tp->port, len);
+		tty_insert_flip_string(tp->port, ch->ch_bd->flipbuf, len);
 	}
+
+	DGAP_UNLOCK(ch->ch_lock, lock_flags2);
+	DGAP_UNLOCK(bd->bd_lock, lock_flags);
+
+	/* Tell the tty layer its okay to "eat" the data now */
+	tty_flip_buffer_push(tp->port);
 
 	if (ld)
 		tty_ldisc_deref(ld);
