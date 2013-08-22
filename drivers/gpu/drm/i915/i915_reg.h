@@ -1705,15 +1705,26 @@
  */
 #define CCID			0x2180
 #define   CCID_EN		(1<<0)
+/*
+ * Notes on SNB/IVB/VLV context size:
+ * - Power context is saved elsewhere (LLC or stolen)
+ * - Ring/execlist context is saved on SNB, not on IVB
+ * - Extended context size already includes render context size
+ * - We always need to follow the extended context size.
+ *   SNB BSpec has comments indicating that we should use the
+ *   render context size instead if execlists are disabled, but
+ *   based on empirical testing that's just nonsense.
+ * - Pipelined/VF state is saved on SNB/IVB respectively
+ * - GT1 size just indicates how much of render context
+ *   doesn't need saving on GT1
+ */
 #define CXT_SIZE		0x21a0
 #define GEN6_CXT_POWER_SIZE(cxt_reg)	((cxt_reg >> 24) & 0x3f)
 #define GEN6_CXT_RING_SIZE(cxt_reg)	((cxt_reg >> 18) & 0x3f)
 #define GEN6_CXT_RENDER_SIZE(cxt_reg)	((cxt_reg >> 12) & 0x3f)
 #define GEN6_CXT_EXTENDED_SIZE(cxt_reg)	((cxt_reg >> 6) & 0x3f)
 #define GEN6_CXT_PIPELINE_SIZE(cxt_reg)	((cxt_reg >> 0) & 0x3f)
-#define GEN6_CXT_TOTAL_SIZE(cxt_reg)	(GEN6_CXT_POWER_SIZE(cxt_reg) + \
-					GEN6_CXT_RING_SIZE(cxt_reg) + \
-					GEN6_CXT_RENDER_SIZE(cxt_reg) + \
+#define GEN6_CXT_TOTAL_SIZE(cxt_reg)	(GEN6_CXT_RING_SIZE(cxt_reg) + \
 					GEN6_CXT_EXTENDED_SIZE(cxt_reg) + \
 					GEN6_CXT_PIPELINE_SIZE(cxt_reg))
 #define GEN7_CXT_SIZE		0x21a8
@@ -1723,11 +1734,7 @@
 #define GEN7_CXT_EXTENDED_SIZE(ctx_reg)	((ctx_reg >> 9) & 0x7f)
 #define GEN7_CXT_GT1_SIZE(ctx_reg)	((ctx_reg >> 6) & 0x7)
 #define GEN7_CXT_VFSTATE_SIZE(ctx_reg)	((ctx_reg >> 0) & 0x3f)
-#define GEN7_CXT_TOTAL_SIZE(ctx_reg)	(GEN7_CXT_POWER_SIZE(ctx_reg) + \
-					 GEN7_CXT_RING_SIZE(ctx_reg) + \
-					 GEN7_CXT_RENDER_SIZE(ctx_reg) + \
-					 GEN7_CXT_EXTENDED_SIZE(ctx_reg) + \
-					 GEN7_CXT_GT1_SIZE(ctx_reg) + \
+#define GEN7_CXT_TOTAL_SIZE(ctx_reg)	(GEN7_CXT_EXTENDED_SIZE(ctx_reg) + \
 					 GEN7_CXT_VFSTATE_SIZE(ctx_reg))
 /* Haswell does have the CXT_SIZE register however it does not appear to be
  * valid. Now, docs explain in dwords what is in the context object. The full
