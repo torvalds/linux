@@ -1491,23 +1491,23 @@ static int pcie_find_smpss(struct pci_dev *dev, void *data)
 	if (!pci_is_pcie(dev))
 		return 0;
 
-	/* For PCIE hotplug enabled slots not connected directly to a
-	 * PCI-E root port, there can be problems when hotplugging
-	 * devices.  This is due to the possibility of hotplugging a
-	 * device into the fabric with a smaller MPS that the devices
-	 * currently running have configured.  Modifying the MPS on the
-	 * running devices could cause a fatal bus error due to an
-	 * incoming frame being larger than the newly configured MPS.
-	 * To work around this, the MPS for the entire fabric must be
-	 * set to the minimum size.  Any devices hotplugged into this
-	 * fabric will have the minimum MPS set.  If the PCI hotplug
-	 * slot is directly connected to the root port and there are not
-	 * other devices on the fabric (which seems to be the most
-	 * common case), then this is not an issue and MPS discovery
-	 * will occur as normal.
+	/*
+	 * We don't have a way to change MPS settings on devices that have
+	 * drivers attached.  A hot-added device might support only the minimum
+	 * MPS setting (MPS=128).  Therefore, if the fabric contains a bridge
+	 * where devices may be hot-added, we limit the fabric MPS to 128 so
+	 * hot-added devices will work correctly.
+	 *
+	 * However, if we hot-add a device to a slot directly below a Root
+	 * Port, it's impossible for there to be other existing devices below
+	 * the port.  We don't limit the MPS in this case because we can
+	 * reconfigure MPS on both the Root Port and the hot-added device,
+	 * and there are no other devices involved.
+	 *
+	 * Note that this PCIE_BUS_SAFE path assumes no peer-to-peer DMA.
 	 */
-	if (dev->is_hotplug_bridge && (!list_is_singular(&dev->bus->devices) ||
-	    pci_pcie_type(dev) != PCI_EXP_TYPE_ROOT_PORT))
+	if (dev->is_hotplug_bridge &&
+	    pci_pcie_type(dev) != PCI_EXP_TYPE_ROOT_PORT)
 		*smpss = 0;
 
 	if (*smpss > dev->pcie_mpss)
