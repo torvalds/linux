@@ -224,7 +224,6 @@ static int pruss_remove(struct platform_device *dev)
 	struct uio_pruss_dev *gdev = platform_get_drvdata(dev);
 
 	pruss_cleanup(dev, gdev);
-	platform_set_drvdata(dev, NULL);
 	return 0;
 }
 
