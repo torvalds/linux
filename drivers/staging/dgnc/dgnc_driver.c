@@ -81,8 +81,6 @@ static int		dgnc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 static void		dgnc_remove_one(struct pci_dev *dev);
 static int		dgnc_probe1(struct pci_dev *pdev, int card_type);
 static void		dgnc_do_remap(struct board_t *brd);
-static void		dgnc_mbuf(struct board_t *brd, const char *fmt, ...);
-
 
 /* Driver load/unload functions */
 int		dgnc_init_module(void);
@@ -709,10 +707,6 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 	/* init our poll helper tasklet */
 	tasklet_init(&brd->helper_tasklet, brd->bd_ops->tasklet, (unsigned long) brd);
 
-	 /* Log the information about the board */
-	dgnc_mbuf(brd, DRVSTR": board %d: %s (rev %d), irq %d\n",
-		dgnc_NumBoards, brd->name, brd->rev, brd->irq);
-
 	DPR_INIT(("dgnc_scan(%d) - printing out the msgbuf\n", i));
 	DGNC_LOCK(dgnc_global_lock, flags);
 	brd->msgbuf = NULL;
@@ -907,40 +901,6 @@ void *dgnc_driver_kzmalloc(size_t size, int priority)
 	if(p)
 		memset(p, 0, size);
 	return(p);
-}
-
-
-/*
- * dgnc_mbuf()
- *
- * Used to print to the message buffer during board init.
- */
-static void dgnc_mbuf(struct board_t *brd, const char *fmt, ...) {
-	va_list		ap;
-	char		buf[1024];
-	int		i;
-	unsigned long	flags;
-
-	DGNC_LOCK(dgnc_global_lock, flags);
-
-	/* Format buf using fmt and arguments contained in ap. */
-	va_start(ap, fmt);
-	i = vsprintf(buf, fmt,  ap);
-	va_end(ap);
-
-	DPR((buf));
-
-	if (!brd || !brd->msgbuf) {
-		printk(buf);
-		DGNC_UNLOCK(dgnc_global_lock, flags);
-		return;
-	}
-
-	memcpy(brd->msgbuf, buf, strlen(buf));
-	brd->msgbuf += strlen(buf);
-	*brd->msgbuf = '\0';
-
-	DGNC_UNLOCK(dgnc_global_lock, flags);
 }
 
 
