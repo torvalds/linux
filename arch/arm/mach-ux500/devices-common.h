@@ -13,17 +13,6 @@
 #include <linux/sys_soc.h>
 #include <linux/amba/bus.h>
 
-struct spi_master_cntlr;
-
-static inline struct amba_device *
-dbx500_add_spi(struct device *parent, const char *name, resource_size_t base,
-	       int irq, struct spi_master_cntlr *pdata,
-	       u32 periphid)
-{
-	return amba_ahb_device_add(parent, name, base, SZ_4K, irq, 0,
-				   pdata, periphid);
-}
-
 struct amba_pl011_data;
 
 static inline struct amba_device *

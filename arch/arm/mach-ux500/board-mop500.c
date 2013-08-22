@@ -18,7 +18,6 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/pl022.h>
 #include <linux/amba/serial.h>
-#include <linux/spi/spi.h>
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/regulator/ab8500.h>
 #include <linux/regulator/fixed.h>
@@ -78,11 +77,6 @@ struct pl022_ssp_controller ssp0_plat = {
 	 */
 	.num_chipselect = 5,
 };
-
-static void __init mop500_spi_init(struct device *parent)
-{
-	db8500_add_ssp0(parent, &ssp0_plat);
-}
 
 #ifdef CONFIG_STE_DMA40
 static struct stedma40_chan_cfg uart0_dma_cfg_rx = {
@@ -162,7 +156,6 @@ static void __init mop500_init_machine(void)
 	mop500_pinmaps_init();
 	parent = u8500_init_devices();
 
-	mop500_spi_init(parent);
 	mop500_uart_init(parent);
 
 	/* This board has full regulator constraints */
@@ -179,7 +172,6 @@ static void __init snowball_init_machine(void)
 	snowball_pinmaps_init();
 	parent = u8500_init_devices();
 
-	mop500_spi_init(parent);
 	mop500_uart_init(parent);
 
 	/* This board has full regulator constraints */
@@ -195,7 +187,6 @@ static void __init hrefv60_init_machine(void)
 	hrefv60_pinmaps_init();
 	parent = u8500_init_devices();
 
-	mop500_spi_init(parent);
 	mop500_uart_init(parent);
 
 	/* This board has full regulator constraints */
