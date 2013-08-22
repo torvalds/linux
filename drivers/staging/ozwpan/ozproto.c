@@ -497,7 +497,7 @@ void oz_pd_heartbeat_handler(unsigned long data)
 	spin_unlock_bh(&g_polling_lock);
 	if (apps)
 		oz_pd_heartbeat(pd, apps);
-
+	oz_pd_put(pd);
 }
 
 /*------------------------------------------------------------------------------
@@ -519,6 +519,7 @@ void oz_pd_timeout_handler(unsigned long data)
 		oz_pd_stop(pd);
 		break;
 	}
+	oz_pd_put(pd);
 }
 
 /*------------------------------------------------------------------------------
@@ -531,6 +532,7 @@ enum hrtimer_restart oz_pd_heartbeat_event(struct hrtimer *timer)
 	pd = container_of(timer, struct oz_pd, heartbeat);
 	hrtimer_forward_now(timer, ktime_set(pd->pulse_period /
 	MSEC_PER_SEC, (pd->pulse_period % MSEC_PER_SEC) * NSEC_PER_MSEC));
+	oz_pd_get(pd);
 	tasklet_schedule(&pd->heartbeat_tasklet);
 	return HRTIMER_RESTART;
 }
@@ -543,6 +545,7 @@ enum hrtimer_restart oz_pd_timeout_event(struct hrtimer *timer)
 	struct oz_pd *pd;
 
 	pd = container_of(timer, struct oz_pd, timeout);
+	oz_pd_get(pd);
 	tasklet_schedule(&pd->timeout_tasklet);
 	return HRTIMER_NORESTART;
 }
