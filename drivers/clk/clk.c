@@ -1428,6 +1428,9 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	struct clk *top, *fail_clk;
 	int ret = 0;
 
+	if (!clk)
+		return 0;
+
 	/* prevent racing with updates to the clock topology */
 	clk_prepare_lock();
 
@@ -1567,7 +1570,10 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 	u8 p_index = 0;
 	unsigned long p_rate = 0;
 
-	if (!clk || !clk->ops)
+	if (!clk)
+		return 0;
+
+	if (!clk->ops)
 		return -EINVAL;
 
 	/* verify ops for for multi-parent clks */
