@@ -16,6 +16,7 @@
 #ifndef FS_ENET_PD_H
 #define FS_ENET_PD_H
 
+#include <linux/clk.h>
 #include <linux/string.h>
 #include <linux/of_mdio.h>
 #include <linux/if_ether.h>
@@ -143,6 +144,8 @@ struct fs_platform_info {
 
 	int use_rmii;		/* use RMII mode 	       */
 	int has_phy;            /* if the network is phy container as well...*/
+
+	struct clk *clk_per;	/* 'per' clock for register access */
 };
 struct fs_mii_fec_platform_info {
 	u32 irq[32];
