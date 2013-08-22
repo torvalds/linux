@@ -819,8 +819,9 @@ static int clk_sys_event(struct snd_soc_dapm_widget *w,
 		 * don't want false reports.
 		 */
 		if (wm8994->jackdet && !wm8994->clk_has_run) {
-			schedule_delayed_work(&wm8994->jackdet_bootstrap,
-					      msecs_to_jiffies(1000));
+			queue_delayed_work(system_power_efficient_wq,
+					   &wm8994->jackdet_bootstrap,
+					   msecs_to_jiffies(1000));
 			wm8994->clk_has_run = true;
 		}
 		break;
@@ -1432,7 +1433,7 @@ SOC_DAPM_SINGLE("AIF1.1 Switch", WM8994_DAC2_RIGHT_MIXER_ROUTING,
 
 #define WM8994_CLASS_W_SWITCH(xname, reg, shift, max, invert) \
 	SOC_SINGLE_EXT(xname, reg, shift, max, invert, \
-		snd_soc_get_volsw, wm8994_put_class_w)
+		snd_soc_dapm_get_volsw, wm8994_put_class_w)
 
 static int wm8994_put_class_w(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
@@ -3485,7 +3486,8 @@ static irqreturn_t wm8994_mic_irq(int irq, void *data)
 
 	pm_wakeup_event(codec->dev, 300);
 
-	schedule_delayed_work(&priv->mic_work, msecs_to_jiffies(250));
+	queue_delayed_work(system_power_efficient_wq,
+			   &priv->mic_work, msecs_to_jiffies(250));
 
 	return IRQ_HANDLED;
 }
@@ -3573,8 +3575,9 @@ static void wm8958_mic_id(void *data, u16 status)
 		/* If nothing present then clear our statuses */
 		dev_dbg(codec->dev, "Detected open circuit\n");
 
-		schedule_delayed_work(&wm8994->open_circuit_work,
-				      msecs_to_jiffies(2500));
+		queue_delayed_work(system_power_efficient_wq,
+				   &wm8994->open_circuit_work,
+				   msecs_to_jiffies(2500));
 		return;
 	}
 
@@ -3688,8 +3691,9 @@ static irqreturn_t wm1811_jackdet_irq(int irq, void *data)
 				    WM1811_JACKDET_DB, 0);
 
 		delay = control->pdata.micdet_delay;
-		schedule_delayed_work(&wm8994->mic_work,
-				      msecs_to_jiffies(delay));
+		queue_delayed_work(system_power_efficient_wq,
+				   &wm8994->mic_work,
+				   msecs_to_jiffies(delay));
 	} else {
 		dev_dbg(codec->dev, "Jack not detected\n");
 
@@ -3934,8 +3938,9 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 	id_delay = wm8994->wm8994->pdata.mic_id_delay;
 
 	if (wm8994->mic_detecting)
-		schedule_delayed_work(&wm8994->mic_complete_work,
-				      msecs_to_jiffies(id_delay));
+		queue_delayed_work(system_power_efficient_wq,
+				   &wm8994->mic_complete_work,
+				   msecs_to_jiffies(id_delay));
 	else
 		wm8958_button_det(codec, reg);
 
@@ -4007,9 +4012,6 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 		init_completion(&wm8994->fll_locked[i]);
 
 	wm8994->micdet_irq = control->pdata.micdet_irq;
-
-	pm_runtime_enable(codec->dev);
-	pm_runtime_idle(codec->dev);
 
 	/* By default use idle_bias_off, will override for WM8994 */
 	codec->dapm.idle_bias_off = 1;
@@ -4383,8 +4385,6 @@ static int wm8994_codec_remove(struct snd_soc_codec *codec)
 
 	wm8994_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
-	pm_runtime_disable(codec->dev);
-
 	for (i = 0; i < ARRAY_SIZE(wm8994->fll_locked); i++)
 		wm8994_free_irq(wm8994->wm8994, WM8994_IRQ_FLL1_LOCK + i,
 				&wm8994->fll_locked[i]);
@@ -4443,6 +4443,9 @@ static int wm8994_probe(struct platform_device *pdev)
 
 	wm8994->wm8994 = dev_get_drvdata(pdev->dev.parent);
 
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_idle(&pdev->dev);
+
 	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_wm8994,
 			wm8994_dai, ARRAY_SIZE(wm8994_dai));
 }
@@ -4450,6 +4453,8 @@ static int wm8994_probe(struct platform_device *pdev)
 static int wm8994_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
+
 	return 0;
 }
 
