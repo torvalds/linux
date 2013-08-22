@@ -439,13 +439,12 @@ minstrel_aggr_check(struct ieee80211_sta *pubsta, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	u16 tid;
 
 	if (unlikely(!ieee80211_is_data_qos(hdr->frame_control)))
 		return;
 
-	if (unlikely(info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO))
+	if (unlikely(skb->protocol == cpu_to_be16(ETH_P_PAE)))
 		return;
 
 	tid = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_TID_MASK;
