@@ -112,7 +112,7 @@ static struct ktermios DgapDefaultTermios =
 static int dgap_tty_open(struct tty_struct *tty, struct file *file);
 static void dgap_tty_close(struct tty_struct *tty, struct file *file);
 static int dgap_block_til_ready(struct tty_struct *tty, struct file *file, struct channel_t *ch);
-static int dgap_tty_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd, unsigned long arg);
+static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg);
 static int dgap_tty_digigeta(struct tty_struct *tty, struct digi_t __user *retinfo);
 static int dgap_tty_digiseta(struct tty_struct *tty, struct digi_t __user *new_info);
 static int dgap_tty_digigetedelay(struct tty_struct *tty, int __user *retinfo);
@@ -3164,7 +3164,7 @@ static void dgap_tty_flush_buffer(struct tty_struct *tty)
  *
  * The usual assortment of ioctl's
  */
-static int dgap_tty_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd,
+static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		unsigned long arg)
 {
 	struct board_t *bd;
@@ -3418,41 +3418,6 @@ static int dgap_tty_ioctl(struct tty_struct *tty, struct file *file, unsigned in
 		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
 		DGAP_UNLOCK(bd->bd_lock, lock_flags);
 
-		DPR_IOCTL(("dgap_tty_ioctl (LINE:%d) finish on port %d - cmd %s (%x), arg %lx\n", 
-			__LINE__, ch->ch_portnum, dgap_ioctl_name(cmd), cmd, arg));
-
-		return(-ENOIOCTLCMD);
-
-#ifdef TIOCGETP
-	case TIOCGETP:
-#endif
-	case TCGETS:
-	case TCGETA:
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,31)
-		if (tty->ldisc->ops->ioctl) {
-#else
-		if (tty->ldisc.ops->ioctl) {
-#endif
-			int retval = (-ENXIO);
-
-			DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-			DGAP_UNLOCK(bd->bd_lock, lock_flags);
-
-			if (tty->termios) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,31)
-				retval = ((tty->ldisc->ops->ioctl) (tty, file, cmd, arg));
-#else
-				retval = ((tty->ldisc.ops->ioctl) (tty, file, cmd, arg));
-#endif
-			}
-
-			DPR_IOCTL(("dgap_tty_ioctl (LINE:%d) finish on port %d - cmd %s (%x), arg %lx\n", 
-				__LINE__, ch->ch_portnum, dgap_ioctl_name(cmd), cmd, arg));
-			return(retval);
-		}
-
-		DGAP_UNLOCK(ch->ch_lock, lock_flags2);
-		DGAP_UNLOCK(bd->bd_lock, lock_flags);
 		DPR_IOCTL(("dgap_tty_ioctl (LINE:%d) finish on port %d - cmd %s (%x), arg %lx\n", 
 			__LINE__, ch->ch_portnum, dgap_ioctl_name(cmd), cmd, arg));
 
