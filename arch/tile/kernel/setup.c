@@ -1643,6 +1643,8 @@ insert_non_bus_resource(void)
 {
 	struct resource *res =
 		kzalloc(sizeof(struct resource), GFP_ATOMIC);
+	if (!res)
+		return NULL;
 	res->name = "Non-Bus Physical Address Space";
 	res->start = (1ULL << 32);
 	res->end = -1LL;
@@ -1660,6 +1662,8 @@ insert_ram_resource(u64 start_pfn, u64 end_pfn, bool reserved)
 {
 	struct resource *res =
 		kzalloc(sizeof(struct resource), GFP_ATOMIC);
+	if (!res)
+		return NULL;
 	res->name = reserved ? "Reserved" : "System RAM";
 	res->start = start_pfn << PAGE_SHIFT;
 	res->end = (end_pfn << PAGE_SHIFT) - 1;
