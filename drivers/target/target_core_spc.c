@@ -35,7 +35,7 @@
 #include "target_core_alua.h"
 #include "target_core_pr.h"
 #include "target_core_ua.h"
-
+#include "target_core_xcopy.h"
 
 static void spc_fill_alua_data(struct se_port *port, unsigned char *buf)
 {
@@ -1252,8 +1252,14 @@ spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		*size = (cdb[6] << 24) | (cdb[7] << 16) | (cdb[8] << 8) | cdb[9];
 		break;
 	case EXTENDED_COPY:
-	case READ_ATTRIBUTE:
+		*size = get_unaligned_be32(&cdb[10]);
+		cmd->execute_cmd = target_do_xcopy;
+		break;
 	case RECEIVE_COPY_RESULTS:
+		*size = get_unaligned_be32(&cdb[10]);
+		cmd->execute_cmd = target_do_receive_copy_results;
+		break;
+	case READ_ATTRIBUTE:
 	case WRITE_ATTRIBUTE:
 		*size = (cdb[10] << 24) | (cdb[11] << 16) |
 		       (cdb[12] << 8) | cdb[13];
