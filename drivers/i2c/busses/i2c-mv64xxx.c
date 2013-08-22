@@ -24,6 +24,7 @@
 #include <linux/of_i2c.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/delay.h>
 
 #define MV64XXX_I2C_ADDR_ADDR(val)			((val & 0x7f) << 1)
 #define MV64XXX_I2C_BAUD_DIV_N(val)			(val & 0x7)
@@ -147,6 +148,8 @@ struct mv64xxx_i2c_data {
 	struct i2c_msg		*msg;
 	struct i2c_adapter	adapter;
 	bool			offload_enabled;
+/* 5us delay in order to avoid repeated start timing violation */
+	bool			errata_delay;
 };
 
 static struct mv64xxx_i2c_regs mv64xxx_i2c_regs_mv64xxx = {
@@ -440,6 +443,9 @@ mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 			/* Setup for the next message */
 			mv64xxx_i2c_prepare_for_io(drv_data, drv_data->msgs);
 		}
+		if (drv_data->errata_delay)
+			udelay(5);
+
 		/*
 		 * We're never at the start of the message here, and by this
 		 * time it's already too late to do any protocol mangling.
@@ -499,6 +505,9 @@ mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 		writel(drv_data->cntl_bits | MV64XXX_I2C_REG_CONTROL_STOP,
 			drv_data->reg_base + drv_data->reg_offsets.control);
 		drv_data->block = 0;
+		if (drv_data->errata_delay)
+			udelay(5);
+
 		wake_up(&drv_data->waitq);
 		break;
 
@@ -766,10 +775,12 @@ mv64xxx_of_config(struct mv64xxx_i2c_data *drv_data,
 
 	/*
 	 * For controllers embedded in new SoCs activate the
-	 * Transaction Generator support.
+	 * Transaction Generator support and the errata fix.
 	 */
-	if (of_device_is_compatible(np, "marvell,mv78230-i2c"))
+	if (of_device_is_compatible(np, "marvell,mv78230-i2c")) {
 		drv_data->offload_enabled = true;
+		drv_data->errata_delay = true;
+	}
 
 out:
 	return rc;
