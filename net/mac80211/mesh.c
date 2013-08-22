@@ -832,6 +832,9 @@ ieee80211_mesh_rx_probe_req(struct ieee80211_sub_if_data *sdata,
 
 	ieee802_11_parse_elems(pos, len - baselen, false, &elems);
 
+	if (!elems.mesh_id)
+		return;
+
 	/* 802.11-2012 10.1.4.3.2 */
 	if ((!ether_addr_equal(mgmt->da, sdata->vif.addr) &&
 	     !is_broadcast_ether_addr(mgmt->da)) ||
