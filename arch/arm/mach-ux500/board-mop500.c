@@ -29,7 +29,6 @@
 #include <linux/mfd/tc3589x.h>
 #include <linux/mfd/tps6105x.h>
 #include <linux/mfd/abx500/ab8500-gpio.h>
-#include <linux/mfd/abx500/ab8500-codec.h>
 #include <linux/platform_data/leds-lp55xx.h>
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
@@ -55,23 +54,10 @@ static struct abx500_gpio_platform_data ab8500_gpio_pdata = {
 	.gpio_base		= MOP500_AB8500_PIN_GPIO(1),
 };
 
-/* ab8500-codec */
-static struct ab8500_codec_platform_data ab8500_codec_pdata = {
-	.amics =  {
-		.mic1_type = AMIC_TYPE_DIFFERENTIAL,
-		.mic2_type = AMIC_TYPE_DIFFERENTIAL,
-		.mic1a_micbias = AMIC_MICBIAS_VAMIC1,
-		.mic1b_micbias = AMIC_MICBIAS_VAMIC1,
-		.mic2_micbias = AMIC_MICBIAS_VAMIC2
-	},
-	.ear_cmv = EAR_CMV_0_95V
-};
-
 struct ab8500_platform_data ab8500_platdata = {
 	.irq_base	= MOP500_AB8500_IRQ_BASE,
 	.regulator	= &ab8500_regulator_plat_data,
 	.gpio		= &ab8500_gpio_pdata,
-	.codec		= &ab8500_codec_pdata,
 };
 
 /*
