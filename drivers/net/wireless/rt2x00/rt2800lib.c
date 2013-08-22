@@ -940,6 +940,12 @@ void rt2800_txdone_entry(struct queue_entry *entry, u32 status, __le32 *txwi)
 }
 EXPORT_SYMBOL_GPL(rt2800_txdone_entry);
 
+static unsigned int rt2800_hw_beacon_base(struct rt2x00_dev *rt2x00dev,
+					  unsigned int index)
+{
+	return HW_BEACON_BASE(index);
+}
+
 void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
@@ -992,7 +998,8 @@ void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc)
 		return;
 	}
 
-	beacon_base = HW_BEACON_BASE(entry->entry_idx);
+	beacon_base = rt2800_hw_beacon_base(rt2x00dev, entry->entry_idx);
+
 	rt2800_register_multiwrite(rt2x00dev, beacon_base, entry->skb->data,
 				   entry->skb->len + padding_len);
 
@@ -1017,7 +1024,7 @@ static inline void rt2800_clear_beacon_register(struct rt2x00_dev *rt2x00dev,
 	const int txwi_desc_size = rt2x00dev->bcn->winfo_size;
 	unsigned int beacon_base;
 
-	beacon_base = HW_BEACON_BASE(index);
+	beacon_base = rt2800_hw_beacon_base(rt2x00dev, index);
 
 	/*
 	 * For the Beacon base registers we only need to clear
