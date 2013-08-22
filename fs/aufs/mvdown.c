@@ -41,9 +41,9 @@ struct au_mvd_args {
 	struct au_pin pin;
 };
 
-#define mvd_errno		mvdown.output.au_errno
-#define mvd_bsrc		mvdown.output.bsrc
-#define mvd_bdst		mvdown.output.bdst
+#define mvd_errno		mvdown.au_errno
+#define mvd_bsrc		mvdown.bsrc
+#define mvd_bdst		mvdown.bdst
 
 #define mvd_h_src_sb		info[AUFS_MVDOWN_SRC].h_sb
 #define mvd_h_src_parent	info[AUFS_MVDOWN_SRC].h_parent
@@ -150,6 +150,8 @@ static int au_do_cpdown(const unsigned char dmsg, struct au_mvd_args *a)
 	AuDbg("b%d, b%d\n", cpg.bsrc, cpg.bdst);
 	if (a->mvdown.flags & AUFS_MVDOWN_OWLOWER)
 		au_fset_cpup(cpg.flags, OVERWRITE);
+	if (a->mvdown.flags & AUFS_MVDOWN_ROLOWER)
+		au_fset_cpup(cpg.flags, RWDST);
 	err = au_sio_cpdown_simple(&cpg);
 	if (unlikely(err))
 		AU_MVD_PR(dmsg, "cpdown failed\n");
@@ -261,16 +263,31 @@ out:
 
 /* ---------------------------------------------------------------------- */
 
-static int find_lower_writable(struct super_block *sb, aufs_bindex_t bindex)
+static int find_lower_writable(struct au_mvd_args *a)
 {
-	aufs_bindex_t bend;
+	struct super_block *sb;
+	aufs_bindex_t bindex, bend;
 	struct au_branch *br;
 
+	sb = a->sb;
+	bindex = a->mvd_bsrc;
 	bend = au_sbend(sb);
-	for (bindex++; bindex <= bend; bindex++) {
-		br = au_sbr(sb, bindex);
-		if (!au_br_rdonly(br))
-			return bindex;
+	if (!(a->mvdown.flags & AUFS_MVDOWN_ROLOWER)) {
+		for (bindex++; bindex <= bend; bindex++) {
+			br = au_sbr(sb, bindex);
+			if (!au_br_rdonly(br))
+				return bindex;
+		}
+	} else {
+		for (bindex++; bindex <= bend; bindex++) {
+			br = au_sbr(sb, bindex);
+			if (!(au_br_sb(br)->s_flags & MS_RDONLY)) {
+				if (au_br_rdonly(br))
+					a->mvdown.flags
+						|= AUFS_MVDOWN_ROLOWER_R;
+				return bindex;
+			}
+		}
 	}
 
 	return -1;
@@ -457,7 +474,7 @@ static int au_mvd_args(const unsigned char dmsg, struct au_mvd_args *a)
 		goto out;
 
 	err = -EINVAL;
-	a->mvd_bdst = find_lower_writable(a->sb, a->mvd_bsrc);
+	a->mvd_bdst = find_lower_writable(a);
 	if (unlikely(a->mvd_bdst < 0)) {
 		a->mvd_errno = EAU_MVDOWN_BOTTOM;
 		AU_MVD_PR(dmsg, "no writable lower branch\n");
@@ -496,15 +513,15 @@ int au_mvdown(struct dentry *dentry, struct aufs_mvdown __user *uarg)
 
 	err = copy_from_user(&args->mvdown, uarg, sizeof(args->mvdown));
 	if (!err)
-		err = !access_ok(VERIFY_WRITE, &uarg->output,
-				 sizeof(uarg->output));
+		err = !access_ok(VERIFY_WRITE, uarg, sizeof(*uarg));
 	if (unlikely(err)) {
 		err = -EFAULT;
 		AuTraceErr(err);
 		goto out_free;
 	}
 	AuDbg("flags 0x%x\n", args->mvdown.flags);
-	args->mvdown.output.au_errno = 0;
+	args->mvdown.flags &= ~AUFS_MVDOWN_ROLOWER_R;
+	args->mvdown.au_errno = 0;
 	args->dentry = dentry;
 	args->inode = dentry->d_inode;
 	args->sb = dentry->d_sb;
@@ -551,8 +568,7 @@ out_inode:
 out_dir:
 	mutex_unlock(&args->dir->i_mutex);
 out_free:
-	e = copy_to_user(&uarg->output, &args->mvdown.output,
-			 sizeof(args->mvdown.output));
+	e = copy_to_user(uarg, &args->mvdown, sizeof(args->mvdown));
 	if (unlikely(e))
 		err = -EFAULT;
 	kfree(args);

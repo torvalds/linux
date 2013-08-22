@@ -242,18 +242,15 @@ enum {
 #define AUFS_MVDOWN_DMSG	1
 #define AUFS_MVDOWN_OWLOWER	(1 << 1)	/* overwrite lower */
 #define AUFS_MVDOWN_KUPPER	(1 << 2)	/* keep upper */
+#define AUFS_MVDOWN_ROLOWER	(1 << 3)	/* do even if lower is RO */
+#define AUFS_MVDOWN_ROLOWER_R	(1 << 4)	/* did on lower RO */
 /* will be added more */
 
 struct aufs_mvdown {
-	/* input */
 	uint8_t		flags;
+	int8_t		au_errno;
+	int16_t		bsrc, bdst;
 	/* will be added more */
-
-	/* output */
-	struct {
-		int16_t	bsrc, bdst;
-		int8_t	au_errno;
-	} output;
 } __aligned(8);
 
 /* ---------------------------------------------------------------------- */
