@@ -47,6 +47,9 @@
 #include "target_core_pr.h"
 #include "target_core_ua.h"
 
+DEFINE_MUTEX(g_device_mutex);
+LIST_HEAD(g_device_list);
+
 static struct se_hba *lun0_hba;
 /* not static, needed by tpg.c */
 struct se_device *g_lun0_dev;
@@ -1406,6 +1409,7 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	INIT_LIST_HEAD(&dev->delayed_cmd_list);
 	INIT_LIST_HEAD(&dev->state_list);
 	INIT_LIST_HEAD(&dev->qf_cmd_list);
+	INIT_LIST_HEAD(&dev->g_dev_node);
 	spin_lock_init(&dev->stats_lock);
 	spin_lock_init(&dev->execute_task_lock);
 	spin_lock_init(&dev->delayed_cmd_lock);
@@ -1525,6 +1529,11 @@ int target_configure_device(struct se_device *dev)
 	spin_lock(&hba->device_lock);
 	hba->dev_count++;
 	spin_unlock(&hba->device_lock);
+
+	mutex_lock(&g_device_mutex);
+	list_add_tail(&dev->g_dev_node, &g_device_list);
+	mutex_unlock(&g_device_mutex);
+
 	return 0;
 
 out_free_alua:
@@ -1542,6 +1551,10 @@ void target_free_device(struct se_device *dev)
 
 	if (dev->dev_flags & DF_CONFIGURED) {
 		destroy_workqueue(dev->tmr_wq);
+
+		mutex_lock(&g_device_mutex);
+		list_del(&dev->g_dev_node);
+		mutex_unlock(&g_device_mutex);
 
 		spin_lock(&hba->device_lock);
 		hba->dev_count--;
