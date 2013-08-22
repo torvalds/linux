@@ -30,14 +30,113 @@
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
-#include <linux/mma8452.h>
 #include <linux/sensor-dev.h>
 
+/* Default register settings */
+#define RBUFF_SIZE		12	/* Rx buffer size */
+
+#define MMA8452_REG_STATUS   	    	0x0 //RO
+#define MMA8452_REG_X_OUT_MSB       	0x1 //RO
+#define MMA8452_REG_X_OUT_LSB       	0x2 //RO
+#define MMA8452_REG_Y_OUT_MSB       	0x3 //RO
+#define MMA8452_REG_Y_OUT_LSB       	0x4 //RO
+#define MMA8452_REG_Z_OUT_MSB       	0x5 //RO
+#define MMA8452_REG_Z_OUT_LSB       	0x6 //RO
+#define MMA8452_REG_F_SETUP		       	0x9 //RW
+
+#define MMA8452_REG_SYSMOD				0xB //RO
+#define MMA8452_REG_INTSRC	    		0xC //RO
+#define MMA8452_REG_WHO_AM_I      		0xD //RO
+#define MMA8452_REG_XYZ_DATA_CFG		0xE //RW
+#define MMA8452_REG_HP_FILTER_CUTOFF	0xF //RW
+#define MMA8452_REG_PL_STATUS			0x10 //RO
+#define MMA8452_REG_PL_CFG				0x11 //RW
+#define MMA8452_REG_PL_COUNT			0x12 //RW
+#define MMA8452_REG_PL_BF_ZCOMP			0x13 //RW
+#define MMA8452_REG_P_L_THS_REG			0x14 //RW
+#define MMA8452_REG_FF_MT_CFG			0x15 //RW
+#define MMA8452_REG_FF_MT_SRC			0x16 //RO
+#define MMA8452_REG_FF_MT_THS			0x17 //RW
+#define MMA8452_REG_FF_MT_COUNT			0x18 //RW
+#define MMA8452_REG_TRANSIENT_CFG		0x1D //RW
+#define MMA8452_REG_TRANSIENT_SRC		0x1E //RO
+#define MMA8452_REG_TRANSIENT_THS		0x1F //RW
+#define MMA8452_REG_TRANSIENT_COUNT		0x20 //RW
+#define MMA8452_REG_PULSE_CFG			0x21 //RW
+#define MMA8452_REG_PULSE_SRC			0x22 //RO
+#define MMA8452_REG_PULSE_THSX			0x23 //RW
+#define MMA8452_REG_PULSE_THSY			0x24 //RW
+#define MMA8452_REG_PULSE_THSZ			0x25 //RW
+#define MMA8452_REG_PULSE_TMLT			0x26 //RW
+#define MMA8452_REG_PULSE_LTCY			0x27 //RW
+#define MMA8452_REG_PULSE_WIND			0x28 //RW
+#define MMA8452_REG_ASLP_COUNT			0x29 //RW
+#define MMA8452_REG_CTRL_REG1			0x2A //RW
+#define MMA8452_REG_CTRL_REG2			0x2B //RW
+#define MMA8452_REG_CTRL_REG3			0x2C //RW
+#define MMA8452_REG_CTRL_REG4			0x2D //RW
+#define MMA8452_REG_CTRL_REG5			0x2E //RW
+#define MMA8452_REG_OFF_X				0x2F //RW
+#define MMA8452_REG_OFF_Y				0x30 //RW
+#define MMA8452_REG_OFF_Z				0x31 //RW
+
+/*rate*/
+#define MMA8452_RATE_800          0
+#define MMA8452_RATE_400          1
+#define MMA8452_RATE_200          2
+#define MMA8452_RATE_100          3
+#define MMA8452_RATE_50        	  4
+#define MMA8452_RATE_12P5         5
+#define MMA8452_RATE_6P25         6
+#define MMA8452_RATE_1P56         7
+#define MMA8452_RATE_SHIFT		  3
+
+
+#define MMA8452_ASLP_RATE_50          0
+#define MMA8452_ASLP_RATE_12P5        1
+#define MMA8452_ASLP_RATE_6P25        2
+#define MMA8452_ASLP_RATE_1P56        3
+#define MMA8452_ASLP_RATE_SHIFT		  6
+
+/*Auto-adapt mma845x series*/
+/*Modified by Yick @ROCKCHIP 
+  xieyi@rockchips.com*/
+/*
+  Range: unit(ug 1g=1 000 000 ug)
+  		 option(2g,4g,8g)
+		 G would be defined on android HAL
+  Precision: bit wide of valid data
+  Boundary: Max positive count
+  Gravity_step: gravity value indicated by per count
+ */
+#define FREAD_MASK				0 /* enabled(1<<1) only if reading MSB 8bits*/
+#define MMA845X_RANGE			2000000
+/* mma8451 */
+#define MMA8451_PRECISION       14
+#define MMA8451_BOUNDARY        (0x1 << (MMA8451_PRECISION - 1))
+#define MMA8451_GRAVITY_STEP    MMA845X_RANGE / MMA8451_BOUNDARY
+
+/* mma8452 */
+#define MMA8452_PRECISION       12
+#define MMA8452_BOUNDARY        (0x1 << (MMA8452_PRECISION - 1))
+#define MMA8452_GRAVITY_STEP    MMA845X_RANGE / MMA8452_BOUNDARY
+
+/* mma8453 */
+#define MMA8453_PRECISION       10
+#define MMA8453_BOUNDARY        (0x1 << (MMA8453_PRECISION - 1))
+#define MMA8453_GRAVITY_STEP    MMA845X_RANGE / MMA8453_BOUNDARY
+
+/* mma8653 */
+#define MMA8653_PRECISION       10
+#define MMA8653_BOUNDARY        (0x1 << (MMA8653_PRECISION - 1))
+#define MMA8653_GRAVITY_STEP    MMA845X_RANGE / MMA8653_BOUNDARY
 
 
 #define MMA8451_DEVID		0x1a
 #define MMA8452_DEVID		0x2a
 #define MMA8453_DEVID		0x3a
+#define MMA8653_DEVID		0x5a
+
 
 #define MMA8452_ENABLE		1
 
@@ -77,7 +176,10 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 static int sensor_init(struct i2c_client *client)
 {
 	int tmp;
-	int ret = 0;
+	int ret = 0; 
+	int i = 0;      
+	unsigned char id_reg = MMA8452_REG_WHO_AM_I;
+	unsigned char id_data = 0;
 	struct sensor_private_data *sensor =
 	    (struct sensor_private_data *) i2c_get_clientdata(client);	
 	
@@ -89,6 +191,22 @@ static int sensor_init(struct i2c_client *client)
 	}
 	
 	sensor->status_cur = SENSOR_OFF;
+
+	for(i=0; i<3; i++)
+	{
+		ret = sensor_rx_data(client, &id_reg, 1);
+		id_data = id_reg;
+		if(!ret)
+		break;
+	}
+
+	if(ret)
+	{
+		printk("%s:fail to read id,ret=%d\n",__func__, ret);
+		return ret;
+	}
+
+	sensor->devid = id_data;
 
 	/* disable FIFO  FMODE = 0*/
 	ret = sensor_write_reg(client,MMA8452_REG_F_SETUP,0);
@@ -151,7 +269,7 @@ static int sensor_convert_data(struct i2c_client *client, char high_byte, char l
 						* MMA8452_GRAVITY_STEP) + 1;
 			break;
 			
-		case MMA8453_DEVID:		
+		case MMA8453_DEVID:
 			swap(high_byte,low_byte);
 			result = ((int)high_byte << (MMA8453_PRECISION-8)) 
 					| ((int)low_byte >> (16-MMA8453_PRECISION));
@@ -160,6 +278,17 @@ static int sensor_convert_data(struct i2c_client *client, char high_byte, char l
 			else
 				result = ~( ((~result & (0x7fff>>(16-MMA8453_PRECISION)) ) + 1) 
 						* MMA8453_GRAVITY_STEP) + 1;
+			break;
+
+		case MMA8653_DEVID:
+			swap(high_byte,low_byte);
+			result = ((int)high_byte << (MMA8653_PRECISION-8)) 
+					| ((int)low_byte >> (16-MMA8653_PRECISION));
+			if (result < MMA8653_BOUNDARY)
+				result = result* MMA8653_GRAVITY_STEP;
+			else
+				result = ~( ((~result & (0x7fff>>(16-MMA8653_PRECISION)) ) + 1) 
+						* MMA8653_GRAVITY_STEP) + 1;
 			break;
 
 		default:
@@ -250,11 +379,11 @@ static int sensor_report_value(struct i2c_client *client)
 struct sensor_operate gsensor_mma8452_ops = {
 	.name				= "mma8452",
 	.type				= SENSOR_TYPE_ACCEL,			//sensor type and it should be correct
-	.id_i2c				= ACCEL_ID_MMA845X,			//i2c id number
+	.id_i2c				= ACCEL_ID_MMA845X,				//i2c id number
 	.read_reg			= MMA8452_REG_X_OUT_MSB,		//read data
-	.read_len			= 6,					//data length
-	.id_reg				= MMA8452_REG_WHO_AM_I,			//read device id from this register
-	.id_data 			= MMA8452_DEVID,			//device id
+	.read_len			= 6,							//data length
+	.id_reg				= SENSOR_UNKNOW_DATA,			//read device id from this register
+	.id_data 			= SENSOR_UNKNOW_DATA,			//device id
 	.precision			= MMA8452_PRECISION,			//12 bit
 	.ctrl_reg 			= MMA8452_REG_CTRL_REG1,		//enable or disable 	
 	.int_status_reg 		= MMA8452_REG_INTSRC,			//intterupt status register
