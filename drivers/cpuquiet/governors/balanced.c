@@ -501,7 +501,7 @@ static int balanced_start(void)
 		return err;
 
 	balanced_wq = alloc_workqueue("cpuquiet-balanced",
-			WQ_UNBOUND | WQ_RESCUER | WQ_FREEZABLE, 1);
+			WQ_UNBOUND | WQ_FREEZABLE, 1);
 	if (!balanced_wq)
 		return -ENOMEM;
 
