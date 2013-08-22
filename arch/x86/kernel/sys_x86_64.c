@@ -101,7 +101,7 @@ static void find_start_end(unsigned long flags, unsigned long *begin,
 				*begin = new_begin;
 		}
 	} else {
-		*begin = mmap_legacy_base();
+		*begin = TASK_UNMAPPED_BASE;
 		*end = TASK_SIZE;
 	}
 }
