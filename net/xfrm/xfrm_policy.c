@@ -308,7 +308,7 @@ void xfrm_policy_destroy(struct xfrm_policy *policy)
 {
 	BUG_ON(!policy->walk.dead);
 
-	if (del_timer(&policy->timer))
+	if (del_timer(&policy->timer) || del_timer(&policy->polq.hold_timer))
 		BUG();
 
 	security_xfrm_policy_free(policy->security);
@@ -2132,8 +2132,6 @@ restart:
 		 * have the xfrm_state's. We need to wait for KM to
 		 * negotiate new SA's or bail out with error.*/
 		if (net->xfrm.sysctl_larval_drop) {
-			/* EREMOTE tells the caller to generate
-			 * a one-shot blackhole route. */
 			dst_release(dst);
 			xfrm_pols_put(pols, drop_pols);
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTNOSTATES);
