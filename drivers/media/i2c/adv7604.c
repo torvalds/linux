@@ -2021,29 +2021,30 @@ static int adv7604_probe(struct i2c_client *client,
 	/* private controls */
 	state->detect_tx_5v_ctrl = v4l2_ctrl_new_std(hdl, NULL,
 			V4L2_CID_DV_RX_POWER_PRESENT, 0, 1, 0, 0);
-	state->detect_tx_5v_ctrl->is_private = true;
 	state->rgb_quantization_range_ctrl =
 		v4l2_ctrl_new_std_menu(hdl, &adv7604_ctrl_ops,
 			V4L2_CID_DV_RX_RGB_RANGE, V4L2_DV_RGB_RANGE_FULL,
 			0, V4L2_DV_RGB_RANGE_AUTO);
-	state->rgb_quantization_range_ctrl->is_private = true;
 
 	/* custom controls */
 	state->analog_sampling_phase_ctrl =
 		v4l2_ctrl_new_custom(hdl, &adv7604_ctrl_analog_sampling_phase, NULL);
-	state->analog_sampling_phase_ctrl->is_private = true;
 	state->free_run_color_manual_ctrl =
 		v4l2_ctrl_new_custom(hdl, &adv7604_ctrl_free_run_color_manual, NULL);
-	state->free_run_color_manual_ctrl->is_private = true;
 	state->free_run_color_ctrl =
 		v4l2_ctrl_new_custom(hdl, &adv7604_ctrl_free_run_color, NULL);
-	state->free_run_color_ctrl->is_private = true;
 
 	sd->ctrl_handler = hdl;
 	if (hdl->error) {
 		err = hdl->error;
 		goto err_hdl;
 	}
+	state->detect_tx_5v_ctrl->is_private = true;
+	state->rgb_quantization_range_ctrl->is_private = true;
+	state->analog_sampling_phase_ctrl->is_private = true;
+	state->free_run_color_manual_ctrl->is_private = true;
+	state->free_run_color_ctrl->is_private = true;
+
 	if (adv7604_s_detect_tx_5v_ctrl(sd)) {
 		err = -ENODEV;
 		goto err_hdl;
