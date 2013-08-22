@@ -152,14 +152,8 @@ int dgap_mgmt_close(struct inode *inode, struct file *file)
  *
  * ioctl the mgmt/dpa device
  */  
-#ifdef HAVE_UNLOCKED_IOCTL
 long dgap_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-        struct inode *inode = file->f_dentry->d_inode;
-#else
-int dgap_mgmt_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
-{
-#endif
 	unsigned long lock_flags;
 	int error = 0;
 	int i = 0;

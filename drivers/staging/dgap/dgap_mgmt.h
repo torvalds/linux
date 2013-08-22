@@ -27,12 +27,7 @@
 
 int dgap_mgmt_open(struct inode *inode, struct file *file);
 int dgap_mgmt_close(struct inode *inode, struct file *file);
-
-#ifdef HAVE_UNLOCKED_IOCTL
 long dgap_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
-#else
-int dgap_mgmt_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg);
-#endif
 
 #endif
 
