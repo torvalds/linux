@@ -99,6 +99,8 @@
 #define DA_EMULATE_TPWS				0
 /* Emulation for CompareAndWrite (AtomicTestandSet) by default */
 #define DA_EMULATE_CAW				1
+/* Emulation for 3rd Party Copy (ExtendedCopy) by default */
+#define DA_EMULATE_3PC				1
 /* No Emulation for PSCSI by default */
 #define DA_EMULATE_ALUA				0
 /* Enforce SCSI Initiator Port TransportID with 'ISID' for PR */
@@ -606,6 +608,7 @@ struct se_dev_attrib {
 	int		emulate_tpu;
 	int		emulate_tpws;
 	int		emulate_caw;
+	int		emulate_3pc;
 	int		enforce_pr_isids;
 	int		is_nonrot;
 	int		emulate_rest_reord;

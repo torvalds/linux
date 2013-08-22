@@ -95,6 +95,12 @@ spc_emulate_inquiry_std(struct se_cmd *cmd, unsigned char *buf)
 	 */
 	spc_fill_alua_data(lun->lun_sep, buf);
 
+	/*
+	 * Set Third-Party Copy (3PC) bit to indicate support for EXTENDED_COPY
+	 */
+	if (dev->dev_attrib.emulate_3pc)
+		buf[5] |= 0x8;
+
 	buf[7] = 0x2; /* CmdQue=1 */
 
 	snprintf(&buf[8], 8, "LIO-ORG");
