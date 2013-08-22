@@ -1260,7 +1260,7 @@ int dgap_param(struct tty_struct *tty)
 	DPR_PARAM(("param start: tdev: %x cflags: %x oflags: %x iflags: %x\n",
 		ch->ch_tun.un_dev, ch->ch_c_cflag, ch->ch_c_oflag, ch->ch_c_iflag));
 
-	ts = tty->termios;
+	ts = &tty->termios;
 
 	/*
 	 * If baud rate is zero, flush queues, and set mval to drop DTR.
