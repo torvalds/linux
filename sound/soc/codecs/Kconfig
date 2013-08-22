@@ -10,6 +10,7 @@ config SND_SOC_I2C_AND_SPI
 
 config SND_SOC_ALL_CODECS
 	tristate "Build all ASoC CODEC drivers"
+	depends on COMPILE_TEST
 	select SND_SOC_88PM860X if MFD_88PM860X
 	select SND_SOC_L3
 	select SND_SOC_AB8500_CODEC if ABX500_CORE
