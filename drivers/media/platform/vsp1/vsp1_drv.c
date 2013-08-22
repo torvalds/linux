@@ -290,6 +290,33 @@ static int vsp1_device_init(struct vsp1_device *vsp1)
 	return 0;
 }
 
+static int vsp1_clocks_enable(struct vsp1_device *vsp1)
+{
+	int ret;
+
+	ret = clk_prepare_enable(vsp1->clock);
+	if (ret < 0)
+		return ret;
+
+	if (IS_ERR(vsp1->rt_clock))
+		return 0;
+
+	ret = clk_prepare_enable(vsp1->rt_clock);
+	if (ret < 0) {
+		clk_disable_unprepare(vsp1->clock);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void vsp1_clocks_disable(struct vsp1_device *vsp1)
+{
+	if (!IS_ERR(vsp1->rt_clock))
+		clk_disable_unprepare(vsp1->rt_clock);
+	clk_disable_unprepare(vsp1->clock);
+}
+
 /*
  * vsp1_device_get - Acquire the VSP1 device
  *
@@ -307,7 +334,7 @@ struct vsp1_device *vsp1_device_get(struct vsp1_device *vsp1)
 	if (vsp1->ref_count > 0)
 		goto done;
 
-	ret = clk_prepare_enable(vsp1->clock);
+	ret = vsp1_clocks_enable(vsp1);
 	if (ret < 0) {
 		__vsp1 = NULL;
 		goto done;
@@ -315,7 +342,7 @@ struct vsp1_device *vsp1_device_get(struct vsp1_device *vsp1)
 
 	ret = vsp1_device_init(vsp1);
 	if (ret < 0) {
-		clk_disable_unprepare(vsp1->clock);
+		vsp1_clocks_disable(vsp1);
 		__vsp1 = NULL;
 		goto done;
 	}
@@ -339,7 +366,7 @@ void vsp1_device_put(struct vsp1_device *vsp1)
 	mutex_lock(&vsp1->lock);
 
 	if (--vsp1->ref_count == 0)
-		clk_disable_unprepare(vsp1->clock);
+		vsp1_clocks_disable(vsp1);
 
 	mutex_unlock(&vsp1->lock);
 }
@@ -358,7 +385,7 @@ static int vsp1_pm_suspend(struct device *dev)
 	if (vsp1->ref_count == 0)
 		return 0;
 
-	clk_disable_unprepare(vsp1->clock);
+	vsp1_clocks_disable(vsp1);
 	return 0;
 }
 
@@ -371,7 +398,7 @@ static int vsp1_pm_resume(struct device *dev)
 	if (vsp1->ref_count)
 		return 0;
 
-	return clk_prepare_enable(vsp1->clock);
+	return vsp1_clocks_enable(vsp1);
 }
 #endif
 
@@ -444,6 +471,9 @@ static int vsp1_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get clock\n");
 		return PTR_ERR(vsp1->clock);
 	}
+
+	/* The RT clock is optional */
+	vsp1->rt_clock = devm_clk_get(&pdev->dev, "rt");
 
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq) {
