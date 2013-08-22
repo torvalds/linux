@@ -86,7 +86,6 @@ static int __init bgrt_init(void)
 	if (!bgrt_image)
 		return -ENODEV;
 
-	sysfs_bin_attr_init(&image_attr);
 	bin_attr_image.private = bgrt_image;
 	bin_attr_image.size = bgrt_image_size;
 
