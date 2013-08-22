@@ -3447,14 +3447,24 @@ int intel_enable_rc6(const struct drm_device *dev)
 static void gen6_enable_rps_interrupts(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 enabled_intrs;
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	WARN_ON(dev_priv->rps.pm_iir);
 	snb_enable_pm_irq(dev_priv, GEN6_PM_RPS_EVENTS);
 	I915_WRITE(GEN6_PMIIR, GEN6_PM_RPS_EVENTS);
 	spin_unlock_irq(&dev_priv->irq_lock);
+
 	/* only unmask PM interrupts we need. Mask all others. */
-	I915_WRITE(GEN6_PMINTRMSK, ~GEN6_PM_RPS_EVENTS);
+	enabled_intrs = GEN6_PM_RPS_EVENTS;
+
+	/* IVB and SNB hard hangs on looping batchbuffer
+	 * if GEN6_PM_UP_EI_EXPIRED is masked.
+	 */
+	if (INTEL_INFO(dev)->gen <= 7 && !IS_HASWELL(dev))
+		enabled_intrs |= GEN6_PM_RP_UP_EI_EXPIRED;
+
+	I915_WRITE(GEN6_PMINTRMSK, ~enabled_intrs);
 }
 
 static void gen6_enable_rps(struct drm_device *dev)
