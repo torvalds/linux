@@ -533,7 +533,6 @@ static int moxart_remove(struct platform_device *pdev)
 	unregister_netdev(ndev);
 	free_irq(ndev->irq, ndev);
 	moxart_mac_free_memory(ndev);
-	platform_set_drvdata(pdev, NULL);
 	free_netdev(ndev);
 
 	return 0;
