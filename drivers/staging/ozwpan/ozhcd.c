@@ -685,7 +685,7 @@ struct oz_port *oz_hcd_pd_arrived(void *hpd)
 		struct oz_port *port = &ozhcd->ports[i];
 
 		spin_lock(&port->port_lock);
-		if (!(port->flags & OZ_PORT_F_PRESENT)) {
+		if (!(port->flags & (OZ_PORT_F_PRESENT | OZ_PORT_F_CHANGED))) {
 			oz_acquire_port(port, hpd);
 			spin_unlock(&port->port_lock);
 			break;
@@ -1818,7 +1818,8 @@ static int oz_hcd_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 	port =  &ozhcd->ports[port_ix];
 	if (port == NULL)
 		return -EPIPE;
-	if ((port->flags & OZ_PORT_F_PRESENT) == 0) {
+	if (!(port->flags & OZ_PORT_F_PRESENT) ||
+				(port->flags & OZ_PORT_F_CHANGED)) {
 		oz_dbg(ON, "Refusing URB port_ix = %d devnum = %d\n",
 		       port_ix, urb->dev->devnum);
 		return -EPIPE;
