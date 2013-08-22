@@ -451,7 +451,7 @@ static void led_work (struct work_struct *work)
 	if (hdev->state != USB_STATE_CONFIGURED || hub->quiescing)
 		return;
 
-	for (i = 0; i < hub->descriptor->bNbrPorts; i++) {
+	for (i = 0; i < hdev->maxchild; i++) {
 		unsigned	selector, mode;
 
 		/* 30%-50% duty cycle */
@@ -500,7 +500,7 @@ static void led_work (struct work_struct *work)
 	}
 	if (!changed && blinkenlights) {
 		cursor++;
-		cursor %= hub->descriptor->bNbrPorts;
+		cursor %= hdev->maxchild;
 		set_port_led(hub, cursor + 1, HUB_LED_GREEN);
 		hub->indicator[cursor] = INDICATOR_CYCLE;
 		changed++;
@@ -830,7 +830,7 @@ static unsigned hub_power_on(struct usb_hub *hub, bool do_delay)
 	else
 		dev_dbg(hub->intfdev, "trying to enable port power on "
 				"non-switchable hub\n");
-	for (port1 = 1; port1 <= hub->descriptor->bNbrPorts; port1++)
+	for (port1 = 1; port1 <= hub->hdev->maxchild; port1++)
 		if (hub->ports[port1 - 1]->power_is_on)
 			set_port_feature(hub->hdev, port1, USB_PORT_FEAT_POWER);
 		else
@@ -4648,9 +4648,7 @@ static void hub_events(void)
 		hub_dev = hub->intfdev;
 		intf = to_usb_interface(hub_dev);
 		dev_dbg(hub_dev, "state %d ports %d chg %04x evt %04x\n",
-				hdev->state, hub->descriptor
-					? hub->descriptor->bNbrPorts
-					: 0,
+				hdev->state, hdev->maxchild,
 				/* NOTE: expects max 15 ports... */
 				(u16) hub->change_bits[0],
 				(u16) hub->event_bits[0]);
@@ -4695,7 +4693,7 @@ static void hub_events(void)
 		}
 
 		/* deal with port status changes */
-		for (i = 1; i <= hub->descriptor->bNbrPorts; i++) {
+		for (i = 1; i <= hdev->maxchild; i++) {
 			if (test_bit(i, hub->busy_bits))
 				continue;
 			connect_change = test_bit(i, hub->change_bits);
