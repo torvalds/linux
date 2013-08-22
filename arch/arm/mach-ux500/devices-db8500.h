@@ -26,9 +26,6 @@ db8500_add_ssp(struct device *parent, const char *name, resource_size_t base,
 	return amba_ahb_device_add(parent, name, base, SZ_4K, irq, 0, pdata, 0);
 }
 
-#define db8500_add_rtc(parent) \
-	dbx500_add_rtc(parent, U8500_RTC_BASE, IRQ_DB8500_RTC);
-
 #define db8500_add_ssp0(parent, pdata) \
 	db8500_add_ssp(parent, "ssp0", U8500_SSP0_BASE, \
 		       IRQ_DB8500_SSP0, pdata)

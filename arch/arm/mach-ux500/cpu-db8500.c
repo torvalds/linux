@@ -191,7 +191,6 @@ struct device * __init u8500_init_devices(void)
 
 	parent = db8500_soc_device_init();
 
-	db8500_add_rtc(parent);
 	db8500_add_gpios(parent);
 
 	for (i = 0; i < ARRAY_SIZE(platform_devs); i++)
