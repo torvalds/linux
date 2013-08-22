@@ -918,6 +918,13 @@ static int alloc_data_block(struct thin_c *tc, dm_block_t *result)
 	unsigned long flags;
 	struct pool *pool = tc->pool;
 
+	/*
+	 * Once no_free_space is set we must not allow allocation to succeed.
+	 * Otherwise it is difficult to explain, debug, test and support.
+	 */
+	if (pool->no_free_space)
+		return -ENOSPC;
+
 	r = dm_pool_get_free_block_count(pool->pmd, &free_blocks);
 	if (r)
 		return r;
@@ -932,31 +939,30 @@ static int alloc_data_block(struct thin_c *tc, dm_block_t *result)
 	}
 
 	if (!free_blocks) {
-		if (pool->no_free_space)
+		/*
+		 * Try to commit to see if that will free up some
+		 * more space.
+		 */
+		(void) commit_or_fallback(pool);
+
+		r = dm_pool_get_free_block_count(pool->pmd, &free_blocks);
+		if (r)
+			return r;
+
+		/*
+		 * If we still have no space we set a flag to avoid
+		 * doing all this checking and return -ENOSPC.  This
+		 * flag serves as a latch that disallows allocations from
+		 * this pool until the admin takes action (e.g. resize or
+		 * table reload).
+		 */
+		if (!free_blocks) {
+			DMWARN("%s: no free space available.",
+			       dm_device_name(pool->pool_md));
+			spin_lock_irqsave(&pool->lock, flags);
+			pool->no_free_space = 1;
+			spin_unlock_irqrestore(&pool->lock, flags);
 			return -ENOSPC;
-		else {
-			/*
-			 * Try to commit to see if that will free up some
-			 * more space.
-			 */
-			(void) commit_or_fallback(pool);
-
-			r = dm_pool_get_free_block_count(pool->pmd, &free_blocks);
-			if (r)
-				return r;
-
-			/*
-			 * If we still have no space we set a flag to avoid
-			 * doing all this checking and return -ENOSPC.
-			 */
-			if (!free_blocks) {
-				DMWARN("%s: no free space available.",
-				       dm_device_name(pool->pool_md));
-				spin_lock_irqsave(&pool->lock, flags);
-				pool->no_free_space = 1;
-				spin_unlock_irqrestore(&pool->lock, flags);
-				return -ENOSPC;
-			}
 		}
 	}
 
@@ -2695,7 +2701,7 @@ static struct target_type pool_target = {
 	.name = "thin-pool",
 	.features = DM_TARGET_SINGLETON | DM_TARGET_ALWAYS_WRITEABLE |
 		    DM_TARGET_IMMUTABLE,
-	.version = {1, 8, 0},
+	.version = {1, 9, 0},
 	.module = THIS_MODULE,
 	.ctr = pool_ctr,
 	.dtr = pool_dtr,
@@ -2982,7 +2988,7 @@ static int thin_iterate_devices(struct dm_target *ti,
 
 static struct target_type thin_target = {
 	.name = "thin",
-	.version = {1, 8, 0},
+	.version = {1, 9, 0},
 	.module	= THIS_MODULE,
 	.ctr = thin_ctr,
 	.dtr = thin_dtr,
