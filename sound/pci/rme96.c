@@ -28,6 +28,7 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/module.h>
+#include <linux/vmalloc.h>
 
 #include <sound/core.h>
 #include <sound/info.h>
