@@ -41,8 +41,8 @@
 #include <asm/smp.h>
 #include <asm/trace.h>
 #include <asm/firmware.h>
+#include <asm/plpar_wrappers.h>
 
-#include "plpar_wrappers.h"
 #include "pseries.h"
 
 /* Flag bits for H_BULK_REMOVE */

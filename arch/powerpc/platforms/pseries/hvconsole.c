@@ -28,7 +28,7 @@
 #include <linux/errno.h>
 #include <asm/hvcall.h>
 #include <asm/hvconsole.h>
-#include "plpar_wrappers.h"
+#include <asm/plpar_wrappers.h>
 
 /**
  * hvc_get_chars - retrieve characters from firmware for denoted vterm adatper

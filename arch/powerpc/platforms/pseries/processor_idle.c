@@ -18,8 +18,7 @@
 #include <asm/machdep.h>
 #include <asm/firmware.h>
 #include <asm/runlatch.h>
-
-#include "plpar_wrappers.h"
+#include <asm/plpar_wrappers.h>
 
 struct cpuidle_driver pseries_idle_driver = {
 	.name             = "pseries_idle",

@@ -43,8 +43,8 @@
 #include <asm/cputhreads.h>
 #include <asm/xics.h>
 #include <asm/dbell.h>
+#include <asm/plpar_wrappers.h>
 
-#include "plpar_wrappers.h"
 #include "pseries.h"
 #include "offline_states.h"
 

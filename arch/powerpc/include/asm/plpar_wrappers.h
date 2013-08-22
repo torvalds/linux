@@ -1,5 +1,5 @@
-#ifndef _PSERIES_PLPAR_WRAPPERS_H
-#define _PSERIES_PLPAR_WRAPPERS_H
+#ifndef _ASM_POWERPC_PLPAR_WRAPPERS_H
+#define _ASM_POWERPC_PLPAR_WRAPPERS_H
 
 #include <linux/string.h>
 #include <linux/irqflags.h>
@@ -297,4 +297,4 @@ static inline long plapr_set_watchpoint0(unsigned long dawr0, unsigned long dawr
 	return plpar_set_mode(0, 2, dawr0, dawrx0);
 }
 
-#endif /* _PSERIES_PLPAR_WRAPPERS_H */
+#endif /* _ASM_POWERPC_PLPAR_WRAPPERS_H */
