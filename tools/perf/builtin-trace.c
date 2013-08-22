@@ -1,6 +1,7 @@
 #include <traceevent/event-parse.h>
 #include "builtin.h"
 #include "util/color.h"
+#include "util/debug.h"
 #include "util/evlist.h"
 #include "util/machine.h"
 #include "util/thread.h"
@@ -311,10 +312,12 @@ static struct syscall *trace__syscall_info(struct trace *trace,
 	return &trace->syscalls.table[id];
 
 out_cant_read:
-	fprintf(trace->output, "Problems reading syscall %d", id);
-	if (id <= trace->syscalls.max && trace->syscalls.table[id].name != NULL)
-		fprintf(trace->output, "(%s)", trace->syscalls.table[id].name);
-	fputs(" information", trace->output);
+	if (verbose) {
+		fprintf(trace->output, "Problems reading syscall %d", id);
+		if (id <= trace->syscalls.max && trace->syscalls.table[id].name != NULL)
+			fprintf(trace->output, "(%s)", trace->syscalls.table[id].name);
+		fputs(" information\n", trace->output);
+	}
 	return NULL;
 }
 
@@ -714,6 +717,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		     "show only events with duration > N.M ms",
 		     trace__set_duration),
 	OPT_BOOLEAN(0, "sched", &trace.sched, "show blocking scheduler events"),
+	OPT_INCR('v', "verbose", &verbose, "be more verbose"),
 	OPT_END()
 	};
 	int err;

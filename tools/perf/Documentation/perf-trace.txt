@@ -49,6 +49,10 @@ OPTIONS
 --uid=::
         Record events in threads owned by uid. Name or number.
 
+-v::
+--verbose=::
+        Verbosity level.
+
 -i::
 --no-inherit::
 	Child tasks do not inherit counters.
