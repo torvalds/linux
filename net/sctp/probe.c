@@ -155,13 +155,8 @@ static sctp_disposition_t jsctp_sf_eat_sack(struct net *net,
 			if (sp == asoc->peer.primary_path)
 				printl("*");
 
-			if (sp->ipaddr.sa.sa_family == AF_INET)
-				printl("%pI4 ", &sp->ipaddr.v4.sin_addr);
-			else
-				printl("%pI6 ", &sp->ipaddr.v6.sin6_addr);
-
-			printl("%2u %8u %8u %8u %8u %8u ",
-			       sp->state, sp->cwnd, sp->ssthresh,
+			printl("%pISc %2u %8u %8u %8u %8u %8u ",
+			       &sp->ipaddr, sp->state, sp->cwnd, sp->ssthresh,
 			       sp->flight_size, sp->partial_bytes_acked,
 			       sp->pathmtu);
 		}
