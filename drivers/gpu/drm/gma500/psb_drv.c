@@ -270,7 +270,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	unsigned long irqflags;
 	int ret = -ENOMEM;
 	struct drm_connector *connector;
-	struct psb_intel_encoder *psb_intel_encoder;
+	struct gma_encoder *gma_encoder;
 
 	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
 	if (dev_priv == NULL)
@@ -372,9 +372,9 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	/* Only add backlight support if we have LVDS output */
 	list_for_each_entry(connector, &dev->mode_config.connector_list,
 			    head) {
-		psb_intel_encoder = psb_intel_attached_encoder(connector);
+		gma_encoder = gma_attached_encoder(connector);
 
-		switch (psb_intel_encoder->type) {
+		switch (gma_encoder->type) {
 		case INTEL_OUTPUT_LVDS:
 		case INTEL_OUTPUT_MIPI:
 			ret = gma_backlight_init(dev);
@@ -441,7 +441,7 @@ static int psb_gamma_ioctl(struct drm_device *dev, void *data,
 	struct drm_mode_object *obj;
 	struct drm_crtc *crtc;
 	struct drm_connector *connector;
-	struct psb_intel_crtc *psb_intel_crtc;
+	struct gma_crtc *gma_crtc;
 	int i = 0;
 	int32_t obj_id;
 
@@ -454,12 +454,12 @@ static int psb_gamma_ioctl(struct drm_device *dev, void *data,
 
 	connector = obj_to_connector(obj);
 	crtc = connector->encoder->crtc;
-	psb_intel_crtc = to_psb_intel_crtc(crtc);
+	gma_crtc = to_gma_crtc(crtc);
 
 	for (i = 0; i < 256; i++)
-		psb_intel_crtc->lut_adj[i] = lut_arg->lut[i];
+		gma_crtc->lut_adj[i] = lut_arg->lut[i];
 
-	psb_intel_crtc_load_lut(crtc);
+	gma_crtc_load_lut(crtc);
 
 	return 0;
 }

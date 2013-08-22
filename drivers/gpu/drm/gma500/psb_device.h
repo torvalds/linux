@@ -1,4 +1,6 @@
-/* copyright (c) 2008, Intel Corporation
+/*
+ * Copyright © 2013 Patrik Jakobsson
+ * Copyright © 2011 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -12,14 +14,11 @@
  * You should have received a copy of the GNU General Public License along with
  * this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
- * Authors:
- * Eric Anholt <eric@anholt.net>
  */
 
-#ifndef _INTEL_DISPLAY_H_
-#define _INTEL_DISPLAY_H_
+#ifndef _PSB_DEVICE_H_
+#define _PSB_DEVICE_H_
 
-bool psb_intel_pipe_has_type(struct drm_crtc *crtc, int type);
+extern const struct gma_clock_funcs psb_clock_funcs;
 
 #endif

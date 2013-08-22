@@ -641,6 +641,7 @@ const struct psb_ops cdv_chip_ops = {
 
 	.crtc_helper = &cdv_intel_helper_funcs,
 	.crtc_funcs = &cdv_intel_crtc_funcs,
+	.clock_funcs = &cdv_clock_funcs,
 
 	.output_init = cdv_output_init,
 	.hotplug = cdv_hotplug_event,
@@ -655,4 +656,6 @@ const struct psb_ops cdv_chip_ops = {
 	.restore_regs = cdv_restore_display_registers,
 	.power_down = cdv_power_down,
 	.power_up = cdv_power_up,
+	.update_wm = cdv_update_wm,
+	.disable_sr = cdv_disable_sr,
 };
