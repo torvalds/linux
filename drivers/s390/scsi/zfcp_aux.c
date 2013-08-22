@@ -104,11 +104,11 @@ static void __init zfcp_init_device_setup(char *devstr)
 	strncpy(busid, token, ZFCP_BUS_ID_SIZE);
 
 	token = strsep(&str, ",");
-	if (!token || strict_strtoull(token, 0, (unsigned long long *) &wwpn))
+	if (!token || kstrtoull(token, 0, (unsigned long long *) &wwpn))
 		goto err_out;
 
 	token = strsep(&str, ",");
-	if (!token || strict_strtoull(token, 0, (unsigned long long *) &lun))
+	if (!token || kstrtoull(token, 0, (unsigned long long *) &lun))
 		goto err_out;
 
 	kfree(str_saved);
