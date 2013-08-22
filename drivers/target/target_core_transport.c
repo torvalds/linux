@@ -1253,7 +1253,7 @@ int transport_handle_cdb_direct(
 }
 EXPORT_SYMBOL(transport_handle_cdb_direct);
 
-static sense_reason_t
+sense_reason_t
 transport_generic_map_mem_to_cmd(struct se_cmd *cmd, struct scatterlist *sgl,
 		u32 sgl_count, struct scatterlist *sgl_bidi, u32 sgl_bidi_count)
 {
@@ -2117,7 +2117,7 @@ void transport_kunmap_data_sg(struct se_cmd *cmd)
 }
 EXPORT_SYMBOL(transport_kunmap_data_sg);
 
-static int
+int
 target_alloc_sgl(struct scatterlist **sgl, unsigned int *nents, u32 length,
 		 bool zero_page)
 {
