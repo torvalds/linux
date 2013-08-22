@@ -860,14 +860,17 @@ EXPORT_SYMBOL(dm_consume_args);
 static int dm_table_set_type(struct dm_table *t)
 {
 	unsigned i;
-	unsigned bio_based = 0, request_based = 0;
+	unsigned bio_based = 0, request_based = 0, hybrid = 0;
 	struct dm_target *tgt;
 	struct dm_dev_internal *dd;
 	struct list_head *devices;
+	unsigned live_md_type;
 
 	for (i = 0; i < t->num_targets; i++) {
 		tgt = t->targets + i;
-		if (dm_target_request_based(tgt))
+		if (dm_target_hybrid(tgt))
+			hybrid = 1;
+		else if (dm_target_request_based(tgt))
 			request_based = 1;
 		else
 			bio_based = 1;
@@ -877,6 +880,21 @@ static int dm_table_set_type(struct dm_table *t)
 			       " can't be mixed up");
 			return -EINVAL;
 		}
+	}
+
+	if (hybrid && !bio_based && !request_based) {
+		/*
+		 * The targets can work either way.
+		 * Determine the type from the live device.
+		 * Default to bio-based if device is new.
+		 */
+		dm_lock_md_type(t->md);
+		live_md_type = dm_get_md_type(t->md);
+		dm_unlock_md_type(t->md);
+		if (live_md_type == DM_TYPE_REQUEST_BASED)
+			request_based = 1;
+		else
+			bio_based = 1;
 	}
 
 	if (bio_based) {
