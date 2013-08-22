@@ -96,7 +96,6 @@ static struct resource mmcif1_resources[] __initdata = {
 static struct sh_eth_plat_data ether_pdata __initdata = {
 	.phy			= 0x1,
 	.edmac_endian		= EDMAC_LITTLE_ENDIAN,
-	.register_type		= SH_ETH_REG_FAST_RCAR,
 	.phy_interface		= PHY_INTERFACE_MODE_RMII,
 	.ether_link_active_low	= 1,
 };
