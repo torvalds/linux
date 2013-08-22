@@ -3059,18 +3059,23 @@ bool pci_check_and_unmask_intx(struct pci_dev *dev)
 EXPORT_SYMBOL_GPL(pci_check_and_unmask_intx);
 
 /**
- * pci_msi_off - disables any msi or msix capabilities
+ * pci_msi_off - disables any MSI or MSI-X capabilities
  * @dev: the PCI device to operate on
  *
- * If you want to use msi see pci_enable_msi and friends.
- * This is a lower level primitive that allows us to disable
- * msi operation at the device level.
+ * If you want to use MSI, see pci_enable_msi() and friends.
+ * This is a lower-level primitive that allows us to disable
+ * MSI operation at the device level.
  */
 void pci_msi_off(struct pci_dev *dev)
 {
 	int pos;
 	u16 control;
 
+	/*
+	 * This looks like it could go in msi.c, but we need it even when
+	 * CONFIG_PCI_MSI=n.  For the same reason, we can't use
+	 * dev->msi_cap or dev->msix_cap here.
+	 */
 	pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
 	if (pos) {
 		pci_read_config_word(dev, pos + PCI_MSI_FLAGS, &control);
