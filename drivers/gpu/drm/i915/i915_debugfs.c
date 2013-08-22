@@ -100,7 +100,7 @@ static void
 describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 {
 	struct i915_vma *vma;
-	seq_printf(m, "%pK: %s%s%s %8zdKiB %02x %02x %d %d %d%s%s%s",
+	seq_printf(m, "%pK: %s%s%s %8zdKiB %02x %02x %u %u %u%s%s%s",
 		   &obj->base,
 		   get_pin_flag(obj),
 		   get_tiling_flag(obj),
