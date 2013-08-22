@@ -753,7 +753,6 @@ static int asc_serial_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
 	return uart_remove_one_port(&asc_uart_driver, port);
 }
 
