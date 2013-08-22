@@ -1247,6 +1247,8 @@ static int oz_build_endpoints_for_interface(struct usb_hcd *hcd,
 	int request_heartbeat = 0;
 
 	oz_dbg(ON, "interface[%d] = %p\n", if_ix, intf);
+	if (if_ix >= port->num_iface || port->iface == NULL)
+		return -ENOMEM;
 	for (i = 0; i < intf->desc.bNumEndpoints; i++) {
 		struct usb_host_endpoint *hep = &intf->endpoint[i];
 		u8 ep_addr = hep->desc.bEndpointAddress;
