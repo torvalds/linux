@@ -2415,7 +2415,11 @@ snd_rme96_resume(struct pci_dev *pci)
 	struct rme96 *rme96 = card->private_data;
 
 	pci_restore_state(pci);
-	pci_enable_device(pci);
+	if (pci_enable_device(pci) < 0) {
+		printk(KERN_ERR "rme96: pci_enable_device failed, disabling device\n");
+		snd_card_disconnect(card);
+		return -EIO;
+	}
 
 	/* reset playback and record buffer pointers */
 	writel(0, rme96->iobase + RME96_IO_SET_PLAY_POS
