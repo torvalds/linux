@@ -211,11 +211,7 @@ static int _ddr_change_freq_(uint32_t nMHz,struct ddr_freq_t ddr_freq_t)
 		}
 	}
 
-#ifdef CONFIG_ARCH_RK3026
-        ret = ddr_change_freq(nMHz);
-#else
 	ret = ddr_change_freq_sram(nMHz,ddr_freq_t);
-#endif
 	set_other_cpus_pause(false);
 
 out:

@@ -23,6 +23,8 @@
 #include <mach/sram.h>
 #include <mach/ddr.h>
 
+#include <linux/rk_fb.h>
+
 typedef uint32_t uint32 ;
 
 
@@ -152,6 +154,21 @@ GRF_DDRC_STAT 可查询pctl是否接受请求 进入low power
 ********************************/
 //REG FILE registers    
 #if defined (CONFIG_ARCH_RK3026)
+//GRF_SOC_STATUS0
+#define sys_pwr_idle     (1<<27)
+#define gpu_pwr_idle     (1<<26)
+#define vpu_pwr_idle     (1<<25)
+#define vio_pwr_idle     (1<<24)
+#define peri_pwr_idle    (1<<23)
+#define core_pwr_idle     (1<<22)
+//GRF_SOC_CON2
+#define core_pwr_idlereq    (13)
+#define peri_pwr_idlereq    (12)
+#define vio_pwr_idlereq     (11)
+#define vpu_pwr_idlereq     (10)
+#define gpu_pwr_idlereq     (9)
+#define sys_pwr_idlereq     (8)
+
 typedef volatile struct tagREG_FILE
 {
     uint32 reserved0[(0xa8-0x0)/4];
@@ -1952,6 +1969,85 @@ __sramfunc void ddr_adjust_config(uint32_t dram_type)
     DDR_RESTORE_SP(save_sp);
 }
 
+#if defined (CONFIG_ARCH_RK3026)
+void __sramlocalfunc idle_port(void)
+{
+    int i;
+    uint32 clk_gate[10];
+
+    //save clock gate status
+    for(i=0;i<10;i++)
+    {
+        clk_gate[i]=pCRU_Reg->CRU_CLKGATE_CON[i];
+    }
+    //enable all clock gate for request idle
+    for(i=0;i<10;i++)
+    {
+        pCRU_Reg->CRU_CLKGATE_CON[i]=0xffff0000;
+    }
+
+    pGRF_Reg->GRF_SOC_CON[2] = (1 << (16+peri_pwr_idlereq))+(1 << peri_pwr_idlereq);         //peri   bit 12
+    dsb();
+    while( (pGRF_Reg->GRF_SOC_STATUS0 & peri_pwr_idle) == 0);//   bit 23
+
+    pGRF_Reg->GRF_SOC_CON[2] = (1 << (16+vio_pwr_idlereq))+(1 << vio_pwr_idlereq);          //vio
+    dsb();
+    while( (pGRF_Reg->GRF_SOC_STATUS0 & vio_pwr_idle) == 0);
+  
+    pGRF_Reg->GRF_SOC_CON[2] = (1 << (16+vpu_pwr_idlereq))+(1 << vpu_pwr_idlereq);          //vpu
+    dsb();
+    while( (pGRF_Reg->GRF_SOC_STATUS0 & vpu_pwr_idle) == 0);
+      
+    pGRF_Reg->GRF_SOC_CON[2] = (1 << (16+gpu_pwr_idlereq))+(1 << gpu_pwr_idlereq);          //gpu
+    dsb();
+    while( (pGRF_Reg->GRF_SOC_STATUS0 & gpu_pwr_idle) == 0);
+    
+	//resume clock gate status
+    for(i=0;i<10;i++)
+        pCRU_Reg->CRU_CLKGATE_CON[i]=  (clk_gate[i] | 0xffff0000);
+}
+
+
+void __sramlocalfunc deidle_port(void)
+{
+    int i;
+    uint32 clk_gate[10];
+
+    //save clock gate status
+    for(i=0;i<10;i++)
+    {
+        clk_gate[i]=pCRU_Reg->CRU_CLKGATE_CON[i];
+    }
+    //enable all clock gate for request idle
+    for(i=0;i<10;i++)
+    {
+        pCRU_Reg->CRU_CLKGATE_CON[i]=0xffff0000;
+    }
+   
+    pGRF_Reg->GRF_SOC_CON[2] = (1 << (16+peri_pwr_idlereq))+(0 << peri_pwr_idlereq);         //peri   bit 12
+    dsb();
+    while( (pGRF_Reg->GRF_SOC_STATUS0 & peri_pwr_idle) != 0);
+
+    pGRF_Reg->GRF_SOC_CON[2] = (1 << (16+vio_pwr_idlereq))+(0 << vio_pwr_idlereq);          //vio
+    dsb();
+    while( (pGRF_Reg->GRF_SOC_STATUS0 & vio_pwr_idle) != 0);
+      
+    pGRF_Reg->GRF_SOC_CON[2] = (1 << (16+vpu_pwr_idlereq))+(0 << vpu_pwr_idlereq);          //vpu
+    dsb();
+    while( (pGRF_Reg->GRF_SOC_STATUS0 & vpu_pwr_idle) != 0);
+        
+    pGRF_Reg->GRF_SOC_CON[2] = (1 << (16+gpu_pwr_idlereq))+(0 << gpu_pwr_idlereq);          //gpu
+    dsb();
+    while( (pGRF_Reg->GRF_SOC_STATUS0 & gpu_pwr_idle) != 0);
+    
+    //resume clock gate status
+    for(i=0;i<10;i++)
+        pCRU_Reg->CRU_CLKGATE_CON[i]=  (clk_gate[i] | 0xffff0000);
+
+}
+#endif 
+
+
 /*----------------------------------------------------------------------
 Name    : void __sramlocalfunc ddr_selfrefresh_enter(uint32 nMHz)
 Desc    : 进入自刷新
@@ -2085,7 +2181,7 @@ Params  : nMHz -> 变频的频率值
 Return  : 频率值
 Notes   :
 ----------------------------------------------------------------------*/
-uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
+uint32_t __sramfunc ddr_change_freq_sram(uint32_t nMHz, struct ddr_freq_t ddr_freq_t)
 {
     uint32_t ret;
     u32 i;
@@ -2137,7 +2233,34 @@ uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
     n= *(volatile uint32_t *)SysSrv_DdrConf;
     n= pGRF_Reg->GRF_SOC_STATUS0;
     dsb();
-    ddr_move_to_Config_state();    
+
+#if defined (CONFIG_ARCH_RK3026)
+#if defined (DDR_CHANGE_FREQ_IN_LCDC_VSYNC)  
+	n = ddr_freq_t.screen_ft_us;
+	n = ddr_freq_t.t0;
+	dsb();
+
+	if(ddr_freq_t.screen_ft_us > 0){
+
+		ddr_freq_t.t1 = cpu_clock(0);
+		ddr_freq_t.t2 = (u32)(ddr_freq_t.t1 - ddr_freq_t.t0);   //ns
+
+
+		if( (ddr_freq_t.t2 > ddr_freq_t.screen_ft_us*1000) && (ddr_freq_t.screen_ft_us != 0xfefefefe)){
+		
+		DDR_RESTORE_SP(save_sp);
+		local_fiq_enable();
+		local_irq_restore(flags);
+		return 0;
+		}else{			            
+			rk_fb_poll_wait_frame_complete();
+		}
+	}
+#endif
+
+    idle_port();
+#endif
+    ddr_move_to_Config_state();   
     ddr_freq = ret;
     ddr_change_freq_in(freq_slew);
     ddr_move_to_Lowpower_state();
@@ -2154,6 +2277,11 @@ uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
     ddr_move_to_Config_state();
     ddr_change_freq_out(freq_slew);
     ddr_move_to_Access_state();
+
+#if defined (CONFIG_ARCH_RK3026)
+    deidle_port();
+#endif
+
     ddr_dtt_check();
     /** 5. Issues a Mode Exit command   */
     DDR_RESTORE_SP(save_sp);
@@ -2162,6 +2290,14 @@ uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
 //    clk_set_rate(clk_get(NULL, "ddr_pll"), 0);    
 out:
     return ret;
+}
+
+uint32_t ddr_change_freq(uint32_t nMHz)
+{
+	struct ddr_freq_t ddr_freq_t;
+	ddr_freq_t.screen_ft_us = 0;
+
+	return ddr_change_freq_sram(nMHz,ddr_freq_t);
 }
 
 
