@@ -976,6 +976,7 @@ static enum print_line_t trace_ctxwake_bin(struct trace_iterator *iter,
 	SEQ_PUT_FIELD_RET(s, field->prev_pid);
 	SEQ_PUT_FIELD_RET(s, field->prev_prio);
 	SEQ_PUT_FIELD_RET(s, field->prev_state);
+	SEQ_PUT_FIELD_RET(s, field->next_cpu);
 	SEQ_PUT_FIELD_RET(s, field->next_pid);
 	SEQ_PUT_FIELD_RET(s, field->next_prio);
 	SEQ_PUT_FIELD_RET(s, field->next_state);
