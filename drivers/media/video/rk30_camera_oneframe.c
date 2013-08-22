@@ -63,12 +63,18 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 
 #define CAMMODULE_NAME     "rk_cam_cif"   
 
-#define dprintk(level, fmt, arg...) do {			\
+#define wprintk(level, fmt, arg...) do {			\
 	if (debug >= level) 					\
 	    printk(KERN_WARNING "%s(%d): " fmt,CAMMODULE_NAME,__LINE__,## arg); } while (0)
 
-#define RKCAMERA_TR(format, ...) printk(KERN_ERR "%s(%d):" format,CAMMODULE_NAME,__LINE__,## __VA_ARGS__)
-#define RKCAMERA_DG(format, ...) dprintk(1, format, ## __VA_ARGS__)
+#define dprintk(level, fmt, arg...) do {			\
+	if (debug >= level) 					\
+	    printk(KERN_DEBUG "%s(%d): " fmt,CAMMODULE_NAME,__LINE__,## arg); } while (0)	    
+
+#define RKCAMERA_TR(format, ...)  printk(KERN_ERR "%s(%d):" format,CAMMODULE_NAME,__LINE__,## __VA_ARGS__)
+#define RKCAMERA_DG1(format, ...) wprintk(1, format, ## __VA_ARGS__)
+#define RKCAMERA_DG2(format, ...) dprintk(2, format, ## __VA_ARGS__)
+
 // CIF Reg Offset
 #define  CIF_CIF_CTRL                       0x00
 #define  CIF_CIF_INTEN                      0x04
@@ -317,10 +323,13 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 *
 *v0.3.f:  
 *         1. this version is support query fov orientation; 
-*         2. support cropcap , setcrop, getcrop;
+*v0.3.0x11:
+*         1. fix vb struct may be used again which have been free after stream off, some code modify in soc_camera.c,
+*            version is v0.1.1;
+* 
 */
 
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 3, 0xf)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 3, 0x11)
 static int version = RK_CAM_VERSION_CODE;
 module_param(version, int, S_IRUGO);
 
@@ -397,7 +406,7 @@ struct rk_camera_zoominfo
     struct semaphore sem;
     struct v4l2_crop a;
     int vir_width;
-   int vir_height;
+    int vir_height;
     int zoom_rate;
 };
 #if CAMERA_VIDEOBUF_ARM_ACCESS
@@ -412,7 +421,7 @@ struct rk_camera_timer{
 	struct rk_camera_dev *pcdev;
 	struct hrtimer timer;
     bool istarted;
-	};
+};
 struct rk_cif_clk 
 {
     //************must modify start************/
@@ -434,67 +443,78 @@ struct rk_cif_crop
     struct v4l2_rect bounds;
 };
 
+struct rk_cif_irqinfo
+{
+    unsigned int irq;
+    unsigned long cifirq_idx;
+    unsigned long cifirq_normal_idx;
+    unsigned long cifirq_abnormal_idx;
+
+    unsigned long dmairq_idx;
+    spinlock_t lock;
+};
+
 struct rk_camera_dev
 {
-	struct soc_camera_host	soc_host;
-	struct device		*dev;
-	/* RK2827x is only supposed to handle one camera on its Quick Capture
-	 * interface. If anyone ever builds hardware to enable more than
-	 * one camera, they will have to modify this driver too */
-	struct soc_camera_device *icd;
-	void __iomem *base;
-	int frame_inval;           /* ddl@rock-chips.com : The first frames is invalidate  */
-	unsigned int irq;
-	unsigned int fps;
+    struct soc_camera_host	soc_host;    
+    struct device		*dev;
+    /* RK2827x is only supposed to handle one camera on its Quick Capture
+     * interface. If anyone ever builds hardware to enable more than
+     * one camera, they will have to modify this driver too */
+    struct soc_camera_device *icd;
+    void __iomem *base;
+    int frame_inval;           /* ddl@rock-chips.com : The first frames is invalidate  */
+
+    unsigned int fps;
     unsigned int last_fps;
     unsigned long frame_interval;
-	unsigned int pixfmt;
-	//for ipp	
-	unsigned int vipmem_phybase;
+    unsigned int pixfmt;
+    //for ipp	
+    unsigned int vipmem_phybase;
     void __iomem *vipmem_virbase;
-	unsigned int vipmem_size;
-	unsigned int vipmem_bsize;
+    unsigned int vipmem_size;
+    unsigned int vipmem_bsize;
 #if CAMERA_VIDEOBUF_ARM_ACCESS    
     struct rk29_camera_vbinfo *vbinfo;
     unsigned int vbinfo_count;
 #endif    
-	int host_width;
-	int host_height;
-	int host_left;  //sensor output size ?
-	int host_top;
-	int hostid;
+    int host_width;
+    int host_height;
+    int host_left;  //sensor output size ?
+    int host_top;
+    int hostid;
     int icd_width;
     int icd_height;
 
     struct rk_cif_crop cropinfo;
+    struct rk_cif_irqinfo irqinfo;
 
-	struct rk29camera_platform_data *pdata;
-	struct resource		*res;
-	struct list_head	capture;
-	struct rk_camera_zoominfo zoominfo;
+    struct rk29camera_platform_data *pdata;
+    struct resource		*res;
+    struct list_head	capture;
+    struct rk_camera_zoominfo zoominfo;
 
-	spinlock_t		lock;
+    spinlock_t		lock;
 
-	struct videobuf_buffer	*active;
-	struct rk_camera_reg reginfo_suspend;
-	struct workqueue_struct *camera_wq;
-	struct rk_camera_work *camera_work;
+    struct videobuf_buffer	*active;
+    struct rk_camera_reg reginfo_suspend;
+    struct workqueue_struct *camera_wq;
+    struct rk_camera_work *camera_work;
     struct list_head camera_work_queue;
     spinlock_t camera_work_lock;
-	unsigned int camera_work_count;
-	struct rk_camera_timer fps_timer;
-	struct rk_camera_work camera_reinit_work;
-	int icd_init;
-	rk29_camera_sensor_cb_s icd_cb;
-	struct rk_camera_frmivalinfo icd_frmival[2];
- //   atomic_t to_process_frames;
+    unsigned int camera_work_count;
+    struct rk_camera_timer fps_timer;
+    struct rk_camera_work camera_reinit_work;
+    int icd_init;
+    rk29_camera_sensor_cb_s icd_cb;
+    struct rk_camera_frmivalinfo icd_frmival[2];
     bool timer_get_fps;
     unsigned int reinit_times; 
     struct videobuf_queue *video_vq;
-    bool stop_cif;
+    atomic_t stop_cif;
     struct timeval first_tv;
-
-	int chip_id;
+    
+    int chip_id;
 };
 
 static const struct v4l2_queryctrl rk_camera_controls[] =
@@ -647,7 +667,7 @@ static int rk_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 #endif        
 	}
     pcdev->video_vq = vq;
-    RKCAMERA_DG("videobuf size:%d, vipmem_buf size:%d, count:%d \n",*size,pcdev->vipmem_size, *count);
+    RKCAMERA_DG1("videobuf size:%d, vipmem_buf size:%d, count:%d \n",*size,pcdev->vipmem_size, *count);
 
     return 0;
 }
@@ -668,7 +688,7 @@ static void rk_videobuf_free(struct videobuf_queue *vq, struct rk_camera_buffer 
 	 * This waits until this buffer is out of danger, i.e., until it is no
 	 * longer in STATE_QUEUED or STATE_ACTIVE
 	 */
-	//videobuf_waiton(vq, &buf->vb, 0, 0);
+	videobuf_waiton(vq, &buf->vb, 0, 0);
     videobuf_dma_contig_free(vq, &buf->vb);
     dev_dbg(&icd->dev, "%s freed\n", __func__);
     buf->vb.state = VIDEOBUF_NEEDS_INIT;
@@ -1251,8 +1271,15 @@ static void rk_camera_capture_process(struct work_struct *work)
     unsigned long flags = 0;    
     int err = 0;    
 
-    if (!CAM_WORKQUEUE_IS_EN())        
+    if (atomic_read(&pcdev->stop_cif)==true) {
+        err = -EINVAL;
         goto rk_camera_capture_process_end; 
+    }
+    
+    if (!CAM_WORKQUEUE_IS_EN()) {
+        err = -EINVAL;
+        goto rk_camera_capture_process_end; 
+    }
     
     down(&pcdev->zoominfo.sem);
     if (pcdev->icd_cb.scale_crop_cb){
@@ -1278,98 +1305,179 @@ rk_camera_capture_process_end:
     wake_up(&(camera_work->vb->done));     /* ddl@rock-chips.com : v0.3.9 */ 
     return;
 }
-static irqreturn_t rk_camera_irq(int irq, void *data)
+
+static void rk_camera_cifrest_delay(struct work_struct *work)
+{
+    struct rk_camera_work *camera_work = container_of(work, struct rk_camera_work, work);  
+    struct rk_camera_dev *pcdev = camera_work->pcdev; 
+    unsigned long flags = 0;   
+    
+    mdelay(1);
+    rk_camera_cif_reset(pcdev,false);
+
+    spin_lock_irqsave(&pcdev->camera_work_lock, flags);    
+    list_add_tail(&camera_work->queue, &pcdev->camera_work_queue);    
+    spin_unlock_irqrestore(&pcdev->camera_work_lock, flags); 
+
+    spin_lock_irqsave(&pcdev->lock,flags);
+    if (atomic_read(&pcdev->stop_cif) == false) {
+        write_cif_reg(pcdev->base,CIF_CIF_CTRL, (read_cif_reg(pcdev->base,CIF_CIF_CTRL) | ENABLE_CAPTURE));
+        RKCAMERA_DG2("After reset cif, enable capture again!\n");
+    }
+    spin_unlock_irqrestore(&pcdev->lock,flags);
+    return;
+}
+
+static inline irqreturn_t rk_camera_cifirq(int irq, void *data)
+{
+    struct rk_camera_dev *pcdev = data;
+    struct rk_camera_work *wk;
+    unsigned int reg_cifctrl,reg_lastpix,reg_lastline;
+
+    write_cif_reg(pcdev->base,CIF_CIF_INTSTAT,0x0200);  /* clear vip interrupte single  */
+    
+    reg_cifctrl = read_cif_reg(pcdev->base,CIF_CIF_CTRL);
+    reg_lastpix = read_cif_reg(pcdev->base,CIF_CIF_LAST_PIX);
+    reg_lastline = read_cif_reg(pcdev->base,CIF_CIF_LAST_LINE);
+	
+    pcdev->irqinfo.cifirq_idx++;    
+    if ((reg_lastline != pcdev->host_height) || (reg_lastpix != pcdev->host_width)) {
+        pcdev->irqinfo.cifirq_abnormal_idx = pcdev->irqinfo.cifirq_idx;
+        RKCAMERA_DG2("Cif irq-%ld is error, %dx%d != %dx%d\n",pcdev->irqinfo.cifirq_abnormal_idx,
+                    reg_lastpix,reg_lastline,pcdev->host_width,pcdev->host_height);
+    } else {
+        pcdev->irqinfo.cifirq_normal_idx = pcdev->irqinfo.cifirq_idx;
+    }
+    
+    if(reg_cifctrl & ENABLE_CAPTURE) {
+        write_cif_reg(pcdev->base,CIF_CIF_CTRL, (reg_cifctrl & ~ENABLE_CAPTURE));
+    } 
+
+    if (pcdev->irqinfo.cifirq_abnormal_idx>0) {
+        if ((pcdev->irqinfo.cifirq_idx - pcdev->irqinfo.cifirq_abnormal_idx) == 1 ) {
+            if (!list_empty(&pcdev->camera_work_queue)) {
+                RKCAMERA_DG2("Receive cif irq-%ld and queue work to cif reset\n",pcdev->irqinfo.cifirq_idx);
+                wk = list_entry(pcdev->camera_work_queue.next, struct rk_camera_work, queue);
+                list_del_init(&wk->queue);
+                INIT_WORK(&(wk->work), rk_camera_cifrest_delay);
+                wk->pcdev = pcdev;                
+                queue_work(pcdev->camera_wq, &(wk->work));
+            }  
+        }
+    }
+    
+    return IRQ_HANDLED;
+}
+
+static inline irqreturn_t rk_camera_dmairq(int irq, void *data)
 {
     struct rk_camera_dev *pcdev = data;
     struct videobuf_buffer *vb;
 	struct rk_camera_work *wk;
 	struct timeval tv;
-    unsigned long tmp_intstat;
-    unsigned long tmp_cifctrl; 
-     
-    tmp_intstat = read_cif_reg(pcdev->base,CIF_CIF_INTSTAT);
-    tmp_cifctrl = read_cif_reg(pcdev->base,CIF_CIF_CTRL);
-    if(pcdev->stop_cif == true) {
-        printk("cif has stopped by app,needn't to deal this irq\n");
-        write_cif_reg(pcdev->base,CIF_CIF_INTSTAT,0xFFFFFFFF);  /* clear vip interrupte single  */
-        return IRQ_HANDLED;
-    }
-    
-    if ((tmp_intstat & 0x0200)) {   // Cif irq
-    	write_cif_reg(pcdev->base,CIF_CIF_INTSTAT,0x0200);  /* clear vip interrupte single  */
-        if(tmp_cifctrl & ENABLE_CAPTURE)
-            write_cif_reg(pcdev->base,CIF_CIF_CTRL, (tmp_cifctrl & ~ENABLE_CAPTURE));
-         return IRQ_HANDLED;
-    }
+    unsigned long reg_cifctrl;
 
-    if ((tmp_intstat & 0x01)) {   // dma irq
-        /* ddl@rock-chps.com : Current VIP is run in One Frame Mode, Frame 1 is validate */
-        if (read_cif_reg(pcdev->base,CIF_CIF_FRAME_STATUS) & 0x01) {
-        	write_cif_reg(pcdev->base,CIF_CIF_INTSTAT,0x01);  /* clear vip interrupte single  */
-            if (!pcdev->fps) {
-                do_gettimeofday(&pcdev->first_tv);            
-            }
-    		pcdev->fps++;
-    		if (!pcdev->active)
-    			goto RK_CAMERA_IRQ_END;
-            if (pcdev->frame_inval>0) {
-                pcdev->frame_inval--;
+    reg_cifctrl = read_cif_reg(pcdev->base,CIF_CIF_CTRL);
+    /* ddl@rock-chps.com : Current VIP is run in One Frame Mode, Frame 1 is validate */
+    if (read_cif_reg(pcdev->base,CIF_CIF_FRAME_STATUS) & 0x01) {
+        write_cif_reg(pcdev->base,CIF_CIF_INTSTAT,0x01);  /* clear vip interrupte single  */
+
+        pcdev->irqinfo.dmairq_idx++;
+        if (pcdev->irqinfo.cifirq_abnormal_idx == pcdev->irqinfo.dmairq_idx) {
+            write_cif_reg(pcdev->base,CIF_CIF_FRAME_STATUS,  0x00000002);
+            goto end;
+        }
+
+        if (!pcdev->fps) {
+            do_gettimeofday(&pcdev->first_tv);            
+        }
+        pcdev->fps++;
+        if (!pcdev->active)
+            goto end;
+        if (pcdev->frame_inval>0) {
+            pcdev->frame_inval--;
+            rk_videobuf_capture(pcdev->active,pcdev);
+            goto end;
+        } else if (pcdev->frame_inval) {
+            RKCAMERA_TR("frame_inval : %0x",pcdev->frame_inval);
+            pcdev->frame_inval = 0;
+        }
+        
+        if(pcdev->fps == RK30_CAM_FRAME_MEASURE) {
+            do_gettimeofday(&tv);            
+            pcdev->frame_interval = ((tv.tv_sec*1000000 + tv.tv_usec) - (pcdev->first_tv.tv_sec*1000000 + pcdev->first_tv.tv_usec))
+                /(RK30_CAM_FRAME_MEASURE-1);
+        }
+        
+        vb = pcdev->active;
+        if (!vb) {
+            printk("no acticve buffer!!!\n");
+            goto end;
+        }
+        
+        /* ddl@rock-chips.com : this vb may be deleted from queue */
+        if ((vb->state == VIDEOBUF_QUEUED) || (vb->state == VIDEOBUF_ACTIVE)) {
+            list_del_init(&vb->queue);
+        }
+        pcdev->active = NULL;
+        if (!list_empty(&pcdev->capture)) {
+            pcdev->active = list_entry(pcdev->capture.next, struct videobuf_buffer, queue);
+            if (pcdev->active) {
+                WARN_ON(pcdev->active->state != VIDEOBUF_QUEUED);                     
                 rk_videobuf_capture(pcdev->active,pcdev);
-                goto RK_CAMERA_IRQ_END;
-            } else if (pcdev->frame_inval) {
-            	RKCAMERA_TR("frame_inval : %0x",pcdev->frame_inval);
-                pcdev->frame_inval = 0;
             }
-            if(pcdev->fps == RK30_CAM_FRAME_MEASURE) {
-                do_gettimeofday(&tv);            
-                pcdev->frame_interval = ((tv.tv_sec*1000000 + tv.tv_usec) - (pcdev->first_tv.tv_sec*1000000 + pcdev->first_tv.tv_usec))
-                                        /(RK30_CAM_FRAME_MEASURE-1);
-            }
-            vb = pcdev->active;
-            if(!vb){
-                printk("no acticve buffer!!!\n");
-                goto RK_CAMERA_IRQ_END;
-                }
-    		/* ddl@rock-chips.com : this vb may be deleted from queue */
-    		if ((vb->state == VIDEOBUF_QUEUED) || (vb->state == VIDEOBUF_ACTIVE)) {
-            	list_del_init(&vb->queue);
-    		}
-            pcdev->active = NULL;
-            if (!list_empty(&pcdev->capture)) {
-                pcdev->active = list_entry(pcdev->capture.next, struct videobuf_buffer, queue);
-    			if (pcdev->active) {
-                    WARN_ON(pcdev->active->state != VIDEOBUF_QUEUED);                     
-    				rk_videobuf_capture(pcdev->active,pcdev);
-    			}
-            }
-            if (pcdev->active == NULL) {
-    			RKCAMERA_DG("video_buf queue is empty!\n");
-    		}
+        }
+        if (pcdev->active == NULL) {
+            RKCAMERA_DG1("video_buf queue is empty!\n");
+        }
 
-            do_gettimeofday(&vb->ts);
-    		if (CAM_WORKQUEUE_IS_EN()) {
-                if (!list_empty(&pcdev->camera_work_queue)) {
-                    wk = list_entry(pcdev->camera_work_queue.next, struct rk_camera_work, queue);
-                    list_del_init(&wk->queue);
-                    INIT_WORK(&(wk->work), rk_camera_capture_process);
-    		        wk->vb = vb;
-    		        wk->pcdev = pcdev;
-    		        queue_work(pcdev->camera_wq, &(wk->work));
-                }             			
-    		} else {
-    		    if ((vb->state == VIDEOBUF_QUEUED) || (vb->state == VIDEOBUF_ACTIVE)) {
-        	        vb->state = VIDEOBUF_DONE;    	        
-        	        vb->field_count++;
-        		}
-    			wake_up(&vb->done);
-    		}
-    		
+        do_gettimeofday(&vb->ts);
+        if (CAM_WORKQUEUE_IS_EN()) {
+            if (!list_empty(&pcdev->camera_work_queue)) {
+                wk = list_entry(pcdev->camera_work_queue.next, struct rk_camera_work, queue);
+                list_del_init(&wk->queue);
+                INIT_WORK(&(wk->work), rk_camera_capture_process);
+                wk->vb = vb;
+                wk->pcdev = pcdev;
+                queue_work(pcdev->camera_wq, &(wk->work));
+            }             			
+        } else {
+            if ((vb->state == VIDEOBUF_QUEUED) || (vb->state == VIDEOBUF_ACTIVE)) {
+                vb->state = VIDEOBUF_DONE;    	        
+                vb->field_count++;
+            }
+            wake_up(&vb->done);
         }
     }
 
-RK_CAMERA_IRQ_END:
-    if((tmp_cifctrl & ENABLE_CAPTURE) == 0)
-        write_cif_reg(pcdev->base,CIF_CIF_CTRL, (tmp_cifctrl | ENABLE_CAPTURE));
+end:
+    if((reg_cifctrl & ENABLE_CAPTURE) == 0)
+        write_cif_reg(pcdev->base,CIF_CIF_CTRL, (reg_cifctrl | ENABLE_CAPTURE));
+    return IRQ_HANDLED;
+}
+
+static irqreturn_t rk_camera_irq(int irq, void *data)
+{
+    struct rk_camera_dev *pcdev = data;
+    unsigned long reg_intstat;
+
+    spin_lock(&pcdev->lock);
+
+    if(atomic_read(&pcdev->stop_cif) == true) {
+        write_cif_reg(pcdev->base,CIF_CIF_INTSTAT,0xffffffff);
+        goto end;
+    }
+
+    reg_intstat = read_cif_reg(pcdev->base,CIF_CIF_INTSTAT);
+
+    if (reg_intstat & 0x0200)
+        rk_camera_cifirq(irq,data);
+
+    if (reg_intstat & 0x01) 
+        rk_camera_dmairq(irq,data);
+
+end:    
+    spin_unlock(&pcdev->lock);
     return IRQ_HANDLED;
 }
 
@@ -1405,13 +1513,11 @@ static void rk_videobuf_release(struct videobuf_queue *vq,
             break;
     }
 #endif
-	if (vb == pcdev->active) {
-		RKCAMERA_DG("Wait for this video buf(0x%x) write finished!\n ",(unsigned int)vb);
-		interruptible_sleep_on_timeout(&vb->done, msecs_to_jiffies(500));
-		RKCAMERA_DG("This video buf(0x%x) write finished, release now!!\n",(unsigned int)vb);
-	}
 
     flush_workqueue(pcdev->camera_wq); 
+    
+    rk_videobuf_free(vq, buf);
+    
 #if CAMERA_VIDEOBUF_ARM_ACCESS
     if ((pcdev->vbinfo) && (vb->i < pcdev->vbinfo_count)) {
         vb_info = pcdev->vbinfo + vb->i;
@@ -1423,8 +1529,7 @@ static void rk_videobuf_release(struct videobuf_queue *vq,
         }       
 		
 	}
-#endif    
-    rk_videobuf_free(vq, buf);
+#endif  
 }
 
 static struct videobuf_queue_ops rk_videobuf_ops =
@@ -1506,7 +1611,6 @@ static int rk_camera_mclk_ctrl(int cif_idx, int on, int clk_rate)
 rk_camera_clk_ctrl_end:
     return err;
 }
-
 static int rk_camera_activate(struct rk_camera_dev *pcdev, struct soc_camera_device *icd)
 {
     /*
@@ -1514,7 +1618,6 @@ static int rk_camera_activate(struct rk_camera_dev *pcdev, struct soc_camera_dev
     */
     write_cif_reg(pcdev->base,CIF_CIF_CTRL,AXI_BURST_16|MODE_ONEFRAME|DISABLE_CAPTURE);   /* ddl@rock-chips.com : vip ahb burst 16 */
     write_cif_reg(pcdev->base,CIF_CIF_INTEN, 0x01);    //capture complete interrupt enable
-    RKCAMERA_DG("CIF_CIF_CTRL = 0x%x\n",read_cif_reg(pcdev->base, CIF_CIF_CTRL));
     return 0;
 }
 
@@ -1548,7 +1651,7 @@ static int rk_camera_add_device(struct soc_camera_device *icd)
         goto ebusy;
     }
 
-    RKCAMERA_DG("%s driver attached to %s\n",RK29_CAM_DRV_NAME,dev_name(icd->pdev));
+    RKCAMERA_DG1("%s driver attached to %s\n",RK29_CAM_DRV_NAME,dev_name(icd->pdev));
 
 	pcdev->frame_inval = RK_CAM_FRAME_INVAL_INIT;
     pcdev->active = NULL;
@@ -1595,7 +1698,7 @@ static int rk_camera_add_device(struct soc_camera_device *icd)
     }
     pcdev->icd = icd;
     pcdev->icd_init = 0;
-
+    
     icd_catch = 0;
     for (i=0; i<2; i++) {
         if (pcdev->icd_frmival[i].icd == icd)
@@ -1634,7 +1737,7 @@ static void rk_camera_remove_device(struct soc_camera_device *icd)
 	mutex_lock(&camera_lock);
     BUG_ON(icd != pcdev->icd);
 
-    RKCAMERA_DG("%s driver detached from %s\n",RK29_CAM_DRV_NAME,dev_name(icd->pdev));
+    RKCAMERA_DG1("%s driver detached from %s\n",RK29_CAM_DRV_NAME,dev_name(icd->pdev));
 
 	/* ddl@rock-chips.com: Application will call VIDIOC_STREAMOFF before close device, but
 	   stream may be turn on again before close device, if suspend and resume happened. */
@@ -1684,20 +1787,18 @@ static void rk_camera_remove_device(struct soc_camera_device *icd)
     INIT_LIST_HEAD(&pcdev->capture);
 
 	mutex_unlock(&camera_lock);
-	RKCAMERA_DG("%s exit\n",__FUNCTION__);
 
 	return;
 }
 static int rk_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 {
     unsigned long bus_flags, camera_flags, common_flags;
-    unsigned int cif_ctrl_val = 0;
+    unsigned int cif_for = 0;
 	const struct soc_mbus_pixelfmt *fmt;
 	int ret = 0;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct rk_camera_dev *pcdev = ici->priv;
 
-    RKCAMERA_DG("%s enter\n",__FUNCTION__);
 
 	fmt = soc_mbus_get_fmtdesc(icd->current_fmt->code);
 	if (!fmt)
@@ -1737,40 +1838,36 @@ static int rk_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
     if (ret < 0)
         goto RK_CAMERA_SET_BUS_PARAM_END;
 
-    cif_ctrl_val = read_cif_reg(pcdev->base,CIF_CIF_FOR);
-	RKCAMERA_DG("cif_ctrl_val = 0x%x\n",cif_ctrl_val);
+    cif_for = read_cif_reg(pcdev->base,CIF_CIF_FOR);
+    
     if (common_flags & SOCAM_PCLK_SAMPLE_FALLING) {
        	if(IS_CIF0()) {
     		write_cru_reg(CRU_PCLK_REG30, read_cru_reg(CRU_PCLK_REG30) | ENANABLE_INVERT_PCLK_CIF0);
-            RKCAMERA_DG("enable cif0 pclk invert\n");
         } else {
     		write_cru_reg(CRU_PCLK_REG30, read_cru_reg(CRU_PCLK_REG30) | ENANABLE_INVERT_PCLK_CIF1);
-            RKCAMERA_DG("enable cif1 pclk invert\n");
         }
     } else {
 		if(IS_CIF0()){
 			write_cru_reg(CRU_PCLK_REG30, (read_cru_reg(CRU_PCLK_REG30) & 0xFFFFEFF ) | DISABLE_INVERT_PCLK_CIF0);
-            RKCAMERA_DG("diable cif0 pclk invert\n");
         } else {
 			write_cru_reg(CRU_PCLK_REG30, (read_cru_reg(CRU_PCLK_REG30) & 0xFFFEFFF) | DISABLE_INVERT_PCLK_CIF1);
-            RKCAMERA_DG("diable cif1 pclk invert\n");
         }
     }
     if (common_flags & SOCAM_HSYNC_ACTIVE_LOW) {
-        cif_ctrl_val |= HSY_LOW_ACTIVE;
+        cif_for |= HSY_LOW_ACTIVE;
     } else {
-		cif_ctrl_val &= ~HSY_LOW_ACTIVE;
+		cif_for &= ~HSY_LOW_ACTIVE;
     }
     if (common_flags & SOCAM_VSYNC_ACTIVE_HIGH) {
-        cif_ctrl_val |= VSY_HIGH_ACTIVE;
+        cif_for |= VSY_HIGH_ACTIVE;
     } else {
-		cif_ctrl_val &= ~VSY_HIGH_ACTIVE;
+		cif_for &= ~VSY_HIGH_ACTIVE;
     }
 
     /* ddl@rock-chips.com : Don't enable capture here, enable in stream_on */
     //vip_ctrl_val |= ENABLE_CAPTURE;
-    write_cif_reg(pcdev->base,CIF_CIF_FOR, cif_ctrl_val);
-    RKCAMERA_DG("ctrl:0x%x CIF_CIF_FOR=%x  \n",cif_ctrl_val,read_cif_reg(pcdev->base,CIF_CIF_FOR));
+    write_cif_reg(pcdev->base,CIF_CIF_FOR, cif_for);
+    RKCAMERA_DG1("CIF_CIF_FOR: 0x%x \n",cif_for);
 
 RK_CAMERA_SET_BUS_PARAM_END:
 	if (ret)
@@ -1929,7 +2026,7 @@ static void rk_camera_setup_format(struct soc_camera_device *icd, __u32 host_pix
 
     //MUST bypass scale 
 	write_cif_reg(pcdev->base,CIF_CIF_SCL_CTRL,0x10);
-    RKCAMERA_DG("crop:0x%x fs:0x%x cif_fmt_val:0x%x CIF_CIF_FOR:0x%x\n",cif_crop,cif_fs,cif_fmt_val,read_cif_reg(pcdev->base,CIF_CIF_FOR));
+    RKCAMERA_DG1("CIF_CIF_CROP:0x%x  CIF_CIF_FS:0x%x  CIF_CIF_FOR:0x%x\n",cif_crop,cif_fs,cif_fmt_val);
 	return;
 }
 
@@ -2065,8 +2162,6 @@ static int rk_camera_set_crop(struct soc_camera_device *icd,
     spin_lock(&pcdev->cropinfo.lock);
     memcpy(&pcdev->cropinfo.c,&crop->c,sizeof(struct v4l2_rect));
     spin_unlock(&pcdev->cropinfo.lock);
-
-    
     return 0;
 }
 static bool rk_camera_fmt_capturechk(struct v4l2_format *f)
@@ -2092,7 +2187,7 @@ static bool rk_camera_fmt_capturechk(struct v4l2_format *f)
 	}
 
 	if (ret == true)
-		RKCAMERA_DG("%dx%d is capture format\n",f->fmt.pix.width, f->fmt.pix.height);
+		RKCAMERA_DG1("%dx%d is capture format\n",f->fmt.pix.width, f->fmt.pix.height);
 	return ret;
 }
 static int rk_camera_set_fmt(struct soc_camera_device *icd,
@@ -2113,7 +2208,7 @@ static int rk_camera_set_fmt(struct soc_camera_device *icd,
 	usr_w = pix->width;
 	usr_h = pix->height;
     
-    RKCAMERA_DG("enter width:%d  height:%d\n",usr_w,usr_h);
+    RKCAMERA_DG1("enter width:%d  height:%d\n",usr_w,usr_h);
     xlate = soc_camera_xlate_by_fourcc(icd, pix->pixelformat);
     if (!xlate) {
         dev_err(dev, "Format %x not found\n", pix->pixelformat);
@@ -2147,7 +2242,7 @@ static int rk_camera_set_fmt(struct soc_camera_device *icd,
         (pcdev->cropinfo.c.height == pcdev->cropinfo.bounds.height)) {
         bounds_aspect = (pcdev->cropinfo.bounds.width*10/pcdev->cropinfo.bounds.height);
         if ((mf.width*10/mf.height) != bounds_aspect) {
-            RKCAMERA_DG("User request fov unchanged in %dx%d, But sensor %dx%d is croped, so switch to full resolution %dx%d\n",
+            RKCAMERA_DG1("User request fov unchanged in %dx%d, But sensor %dx%d is croped, so switch to full resolution %dx%d\n",
                         usr_w,usr_h,mf.width, mf.height,pcdev->cropinfo.bounds.width,pcdev->cropinfo.bounds.height);
             
             mf.width	= pcdev->cropinfo.bounds.width/4;
@@ -2301,7 +2396,7 @@ static int rk_camera_set_fmt(struct soc_camera_device *icd,
             }
         }
         
-        RKCAMERA_DG("%s CIF Host:%dx%d@(%d,%d) Sensor:%dx%d->%dx%d User crop:(%d,%d,%d,%d)in(%d,%d) (zoom: %dx%d@(%d,%d)->%dx%d)\n",xlate->host_fmt->name,
+        RKCAMERA_DG1("%s CIF Host:%dx%d@(%d,%d) Sensor:%dx%d->%dx%d User crop:(%d,%d,%d,%d)in(%d,%d) (zoom: %dx%d@(%d,%d)->%dx%d)\n",xlate->host_fmt->name,
 			           pcdev->host_width,pcdev->host_height,pcdev->host_left,pcdev->host_top,
 			           sensor_w,sensor_h,mf.width,mf.height,
 			           pcdev->cropinfo.c.left,pcdev->cropinfo.c.top,pcdev->cropinfo.c.width,pcdev->cropinfo.c.height,
@@ -2393,10 +2488,10 @@ static int rk_camera_try_fmt(struct soc_camera_device *icd,
 	if((usr_w == 10000) && (usr_h == 10000)) {
 		pix->width = mf.width;
         pix->height = mf.height;
-        RKCAMERA_DG("Sensor resolution : %dx%d\n",mf.width,mf.height);
+        RKCAMERA_DG1("Sensor resolution : %dx%d\n",mf.width,mf.height);
 		goto RK_CAMERA_TRY_FMT_END;
 	} else {
-        RKCAMERA_DG("user demand: %dx%d  sensor output: %dx%d \n",usr_w,usr_h,mf.width,mf.height);
+        RKCAMERA_DG1("user demand: %dx%d  sensor output: %dx%d \n",usr_w,usr_h,mf.width,mf.height);
 	}    
 	    
 	if ((mf.width != usr_w) || (mf.height != usr_h)) {
@@ -2556,9 +2651,9 @@ static int rk_camera_suspend(struct soc_camera_device *icd, pm_message_t state)
 		pcdev->reginfo_suspend.Inval = Reg_Validate;
 		rk_camera_deactivate(pcdev);
 
-		RKCAMERA_DG("%s Enter Success...\n", __FUNCTION__);
+		RKCAMERA_DG1("%s Enter Success...\n", __FUNCTION__);
 	} else {
-		RKCAMERA_DG("%s icd has been deattach, don't need enter suspend\n", __FUNCTION__);
+		RKCAMERA_DG1("%s icd has been deattach, don't need enter suspend\n", __FUNCTION__);
 	}
 	mutex_unlock(&camera_lock);
     return ret;
@@ -2595,9 +2690,9 @@ static int rk_camera_resume(struct soc_camera_device *icd)
 		sd = soc_camera_to_subdev(icd);
 		v4l2_subdev_call(sd, video, s_stream, 1);
 
-		RKCAMERA_DG("%s Enter success\n",__FUNCTION__);
+		RKCAMERA_DG1("%s Enter success\n",__FUNCTION__);
 	} else {
-		RKCAMERA_DG("%s icd has been deattach, don't need enter resume\n", __FUNCTION__);
+		RKCAMERA_DG1("%s icd has been deattach, don't need enter resume\n", __FUNCTION__);
 	}
 
 rk_camera_resume_end:
@@ -2637,9 +2732,9 @@ static void rk_camera_reinit_work(struct work_struct *work)
     	RKCAMERA_TR("CIF_CIF_FRAME_STATUS = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_FRAME_STATUS));
 	}
     
-    pcdev->stop_cif = true;
+    atomic_set(&pcdev->stop_cif,true);
 	write_cif_reg(pcdev->base,CIF_CIF_CTRL, (read_cif_reg(pcdev->base,CIF_CIF_CTRL)&(~ENABLE_CAPTURE)));
-	RKCAMERA_DG("the reinit times = %d\n",pcdev->reinit_times);
+	RKCAMERA_DG1("the reinit times = %d\n",pcdev->reinit_times);
 	
     if(pcdev->video_vq && pcdev->video_vq->irqlock){
         spin_lock_irqsave(pcdev->video_vq->irqlock, flags);
@@ -2671,7 +2766,7 @@ static enum hrtimer_restart rk_camera_fps_func(struct hrtimer *timer)
     struct soc_camera_link *tmp_soc_cam_link;
     tmp_soc_cam_link = to_soc_camera_link(pcdev->icd);
 
-	RKCAMERA_DG("rk_camera_fps_func fps:0x%x\n",pcdev->fps);
+	RKCAMERA_DG1("rk_camera_fps_func fps:0x%x\n",pcdev->fps);
 	if ((pcdev->fps < 1) || (pcdev->last_fps == pcdev->fps)) {
 		RKCAMERA_TR("Camera host haven't recevie data from sensor,Reinit sensor delay,last fps = %d,pcdev->fps = %d!\n",pcdev->last_fps,pcdev->fps);
 		pcdev->camera_reinit_work.pcdev = pcdev;
@@ -2690,7 +2785,7 @@ static enum hrtimer_restart rk_camera_fps_func(struct hrtimer *timer)
         fival_pre = fival_nxt;
         while (fival_nxt != NULL) {
 
-            RKCAMERA_DG("%s %c%c%c%c %dx%d framerate : %d/%d\n", dev_name(&pcdev->icd->dev), 
+            RKCAMERA_DG1("%s %c%c%c%c %dx%d framerate : %d/%d\n", dev_name(&pcdev->icd->dev), 
                 fival_nxt->fival.pixel_format & 0xFF, (fival_nxt->fival.pixel_format >> 8) & 0xFF,
 			    (fival_nxt->fival.pixel_format >> 16) & 0xFF, (fival_nxt->fival.pixel_format >> 24),
 			    fival_nxt->fival.width, fival_nxt->fival.height, fival_nxt->fival.discrete.denominator,
@@ -2765,10 +2860,18 @@ static int rk_camera_s_stream(struct soc_camera_device *icd, int enable)
 		pcdev->fps_timer.pcdev = pcdev;
         pcdev->timer_get_fps = false;
         pcdev->reinit_times  = 0;
-        pcdev->stop_cif = false;
+
+        spin_lock_irqsave(&pcdev->lock,flags);
+        atomic_set(&pcdev->stop_cif,false);
+        pcdev->irqinfo.cifirq_idx = 0;
+        pcdev->irqinfo.cifirq_normal_idx = 0;
+        pcdev->irqinfo.cifirq_abnormal_idx = 0;
+        pcdev->irqinfo.dmairq_idx = 0;
         
 		cif_ctrl_val |= ENABLE_CAPTURE;
-        	write_cif_reg(pcdev->base,CIF_CIF_CTRL, cif_ctrl_val);
+        write_cif_reg(pcdev->base,CIF_CIF_CTRL, cif_ctrl_val);
+        spin_unlock_irqrestore(&pcdev->lock,flags);
+        
 		hrtimer_start(&(pcdev->fps_timer.timer),ktime_set(3, 0),HRTIMER_MODE_REL);
         pcdev->fps_timer.istarted = true;
 	} else {
@@ -2780,17 +2883,16 @@ static int rk_camera_s_stream(struct soc_camera_device *icd, int enable)
         cif_ctrl_val &= ~ENABLE_CAPTURE;
 		spin_lock_irqsave(&pcdev->lock, flags);
     	write_cif_reg(pcdev->base,CIF_CIF_CTRL, cif_ctrl_val);
-        pcdev->stop_cif = true;
+        atomic_set(&pcdev->stop_cif,true);
     	spin_unlock_irqrestore(&pcdev->lock, flags);
 		flush_workqueue((pcdev->camera_wq));
-		RKCAMERA_DG("STREAM_OFF cancel timer and flush work:0x%x \n", ret);
 	}
     //must be reinit,or will be somthing wrong in irq process.
     if(enable == false) {
         pcdev->active = NULL;
         INIT_LIST_HEAD(&pcdev->capture);
     }
-	RKCAMERA_DG("s_stream: enable : 0x%x , CIF_CIF_CTRL = 0x%x\n",enable,read_cif_reg(pcdev->base,CIF_CIF_CTRL));
+	RKCAMERA_DG1("s_stream: enable : 0x%x , CIF_CIF_CTRL = 0x%x\n",enable,read_cif_reg(pcdev->base,CIF_CIF_CTRL));
 	return 0;
 }
 int rk_camera_enum_frameintervals(struct soc_camera_device *icd, struct v4l2_frmivalenum *fival)
@@ -2872,7 +2974,7 @@ int rk_camera_enum_frameintervals(struct soc_camera_device *icd, struct v4l2_frm
                 
                 fival->reserved[1] = (mf.width<<16)|(mf.height);
                 
-                RKCAMERA_DG("%s %dx%d@%c%c%c%c framerate : %d/%d\n", dev_name(pcdev->icd->pdev),
+                RKCAMERA_DG1("%s %dx%d@%c%c%c%c framerate : %d/%d\n", dev_name(pcdev->icd->pdev),
                     fival->width, fival->height,
                     fival->pixel_format & 0xFF, (fival->pixel_format >> 8) & 0xFF,
     			    (fival->pixel_format >> 16) & 0xFF, (fival->pixel_format >> 24),
@@ -2885,7 +2987,7 @@ int rk_camera_enum_frameintervals(struct soc_camera_device *icd, struct v4l2_frm
         			    (fival->pixel_format >> 16) & 0xFF, (fival->pixel_format >> 24),
         			    index);
                 else
-                    RKCAMERA_DG("%s have not catch %d%d@%c%c%c%c index(%d) framerate\n",dev_name(pcdev->icd->pdev),
+                    RKCAMERA_DG1("%s have not catch %d%d@%c%c%c%c index(%d) framerate\n",dev_name(pcdev->icd->pdev),
                         fival->width,fival->height, 
                         fival->pixel_format & 0xFF, (fival->pixel_format >> 8) & 0xFF,
         			    (fival->pixel_format >> 16) & 0xFF, (fival->pixel_format >> 24),
@@ -2950,7 +3052,7 @@ static int rk_camera_set_digit_zoom(struct soc_camera_device *icd,
     a.c.height &= ~CROP_ALIGN_BYTES;
     a.c.left = (((pcdev->host_width - a.c.width)>>1)+pcdev->host_left)&(~0x01);
     a.c.top = (((pcdev->host_height - a.c.height)>>1)+pcdev->host_top)&(~0x01);
-    pcdev->stop_cif = true;
+    atomic_set(&pcdev->stop_cif,true);
     tmp_cifctrl = read_cif_reg(pcdev->base,CIF_CIF_CTRL);
     write_cif_reg(pcdev->base,CIF_CIF_CTRL, (tmp_cifctrl & ~ENABLE_CAPTURE));
     hrtimer_cancel(&(pcdev->fps_timer.timer));
@@ -2974,9 +3076,9 @@ static int rk_camera_set_digit_zoom(struct soc_camera_device *icd,
         write_cif_reg(pcdev->base,CIF_CIF_CTRL, (tmp_cifctrl | ENABLE_CAPTURE));
     up(&pcdev->zoominfo.sem);
     
-    pcdev->stop_cif = false;
+    atomic_set(&pcdev->stop_cif,false);
     hrtimer_start(&(pcdev->fps_timer.timer),ktime_set(3, 0),HRTIMER_MODE_REL);
-    RKCAMERA_DG("zoom_rate:%d (%dx%d at (%d,%d)-> %dx%d)\n", zoom_rate,a.c.width, a.c.height, a.c.left, a.c.top, icd->user_width, icd->user_height );
+    RKCAMERA_DG1("zoom_rate:%d (%dx%d at (%d,%d)-> %dx%d)\n", zoom_rate,a.c.width, a.c.height, a.c.left, a.c.top, icd->user_width, icd->user_height );
 #else
     a.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     a.c.width = pcdev->host_width*100/zoom_rate;
@@ -2995,7 +3097,7 @@ static int rk_camera_set_digit_zoom(struct soc_camera_device *icd,
     pcdev->zoominfo.vir_height= pcdev->host_height;
     up(&pcdev->zoominfo.sem);
     
-    RKCAMERA_DG("zoom_rate:%d (%dx%d at (%d,%d)-> %dx%d)\n", zoom_rate,a.c.width, a.c.height, a.c.left, a.c.top, icd->user_width, icd->user_height );
+    RKCAMERA_DG1("zoom_rate:%d (%dx%d at (%d,%d)-> %dx%d)\n", zoom_rate,a.c.width, a.c.height, a.c.left, a.c.top, icd->user_width, icd->user_height );
 #endif	
 
 	return 0;
@@ -3281,13 +3383,13 @@ static int rk_camera_probe(struct platform_device *pdev)
         }
     }
 	
-    pcdev->irq = irq;
+    pcdev->irqinfo.irq = irq;
     pcdev->dev = &pdev->dev;
 
     /* config buffer address */
     /* request irq */
     if(irq > 0){
-        err = request_irq(pcdev->irq, rk_camera_irq, 0, RK29_CAM_DRV_NAME,
+        err = request_irq(pcdev->irqinfo.irq, rk_camera_irq, 0, RK29_CAM_DRV_NAME,
                           pcdev);
         if (err) {
             dev_err(pcdev->dev, "Camera interrupt register failed \n");
@@ -3338,7 +3440,6 @@ static int rk_camera_probe(struct platform_device *pdev)
 #elif(CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_PP)
 	pcdev->icd_cb.scale_crop_cb = rk_camera_scale_crop_pp; 
 #endif
-    RKCAMERA_DG("%s exit  \n",__FUNCTION__);
     return 0;
 
 exit_free_irq:
@@ -3353,7 +3454,7 @@ exit_free_irq:
         }
     }
     
-    free_irq(pcdev->irq, pcdev);
+    free_irq(pcdev->irqinfo.irq, pcdev);
 	if (pcdev->camera_wq) {
 		destroy_workqueue(pcdev->camera_wq);
 		pcdev->camera_wq = NULL;
@@ -3394,7 +3495,7 @@ static int __devexit rk_camera_remove(struct platform_device *pdev)
     struct rk29camera_mem_res *meminfo_ptr,*meminfo_ptrr;
     int i;
     
-    free_irq(pcdev->irq, pcdev);
+    free_irq(pcdev->irqinfo.irq, pcdev);
 
 	if (pcdev->camera_wq) {
 		destroy_workqueue(pcdev->camera_wq);
