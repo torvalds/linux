@@ -163,11 +163,21 @@
 		clock-names = "watchdog";
 	};
 
+	g2d@10850000 {
+		compatible = "samsung,exynos5250-g2d";
+		reg = <0x10850000 0x1000>;
+		interrupts = <0 91 0>;
+		clocks = <&clock 345>;
+		clock-names = "fimg2d";
+	};
+
 	codec@11000000 {
 		compatible = "samsung,mfc-v6";
 		reg = <0x11000000 0x10000>;
 		interrupts = <0 96 0>;
 		samsung,power-domain = <&pd_mfc>;
+		clocks = <&clock 266>;
+		clock-names = "mfc";
 	};
 
 	rtc {
@@ -614,28 +624,20 @@
 		interrupts = <0 94 0>;
 	};
 
-	dp-controller {
-		compatible = "samsung,exynos5-dp";
-		reg = <0x145b0000 0x1000>;
-		interrupts = <10 3>;
-		interrupt-parent = <&combiner>;
-		clocks = <&clock 342>;
-		clock-names = "dp";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		dptx-phy {
-			reg = <0x10040720>;
-			samsung,enable-mask = <1>;
-		};
+	dp_phy: video-phy@10040720 {
+		compatible = "samsung,exynos5250-dp-video-phy";
+		reg = <0x10040720 4>;
+		#phy-cells = <0>;
 	};
 
-	fimd {
-		compatible = "samsung,exynos5250-fimd";
-		interrupt-parent = <&combiner>;
-		reg = <0x14400000 0x40000>;
-		interrupt-names = "fifo", "vsync", "lcd_sys";
-		interrupts = <18 4>, <18 5>, <18 6>;
+	dp-controller@145B0000 {
+		clocks = <&clock 342>;
+		clock-names = "dp";
+		phys = <&dp_phy>;
+		phy-names = "dp";
+	};
+
+	fimd@14400000 {
 		clocks = <&clock 133>, <&clock 339>;
 		clock-names = "sclk_fimd", "fimd";
 	};
