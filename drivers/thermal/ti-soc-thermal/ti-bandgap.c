@@ -1020,8 +1020,12 @@ int ti_bandgap_get_trend(struct ti_bandgap *bgp, int id, int *trend)
 
 	/* Fetch the update interval */
 	ret = ti_bandgap_read_update_interval(bgp, id, &interval);
-	if (ret || !interval)
+	if (ret)
 		goto unfreeze;
+
+	/* Set the interval to 1 ms if bandgap counter delay is not set */
+	if (interval == 0)
+		interval = 1;
 
 	*trend = (t1 - t2) / interval;
 
