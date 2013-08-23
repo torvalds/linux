@@ -20,6 +20,7 @@
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 
+#include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/fsl_devices.h>
 #include <linux/i2c.h>
@@ -66,6 +67,7 @@ struct mpc_i2c {
 #ifdef CONFIG_PM_SLEEP
 	u8 fdr, dfsrr;
 #endif
+	struct clk *clk_per;
 };
 
 struct mpc_i2c_divider {
@@ -622,6 +624,8 @@ static int fsl_i2c_probe(struct platform_device *op)
 	int result = 0;
 	int plen;
 	struct resource res;
+	struct clk *clk;
+	int err;
 
 	match = of_match_device(mpc_i2c_of_match, &op->dev);
 	if (!match)
@@ -649,6 +653,21 @@ static int fsl_i2c_probe(struct platform_device *op)
 		if (result < 0) {
 			dev_err(i2c->dev, "failed to attach interrupt\n");
 			goto fail_request;
+		}
+	}
+
+	/*
+	 * enable clock for the I2C peripheral (non fatal),
+	 * keep a reference upon successful allocation
+	 */
+	clk = devm_clk_get(&op->dev, NULL);
+	if (!IS_ERR(clk)) {
+		err = clk_prepare_enable(clk);
+		if (err) {
+			dev_err(&op->dev, "failed to enable clock\n");
+			goto fail_request;
+		} else {
+			i2c->clk_per = clk;
 		}
 	}
 
@@ -697,6 +716,8 @@ static int fsl_i2c_probe(struct platform_device *op)
 	return result;
 
  fail_add:
+	if (i2c->clk_per)
+		clk_disable_unprepare(i2c->clk_per);
 	free_irq(i2c->irq, i2c);
  fail_request:
 	irq_dispose_mapping(i2c->irq);
@@ -711,6 +732,9 @@ static int fsl_i2c_remove(struct platform_device *op)
 	struct mpc_i2c *i2c = platform_get_drvdata(op);
 
 	i2c_del_adapter(&i2c->adap);
+
+	if (i2c->clk_per)
+		clk_disable_unprepare(i2c->clk_per);
 
 	if (i2c->irq)
 		free_irq(i2c->irq, i2c);
