@@ -263,8 +263,8 @@ static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 				char buf[20];
 				int left =
 				    MAX_BOARD_NAME - strlen(devpriv->name) - 1;
-				snprintf(buf, sizeof(buf), "%d:%d ", dev->minor,
-					 bdev->subdev);
+				snprintf(buf, sizeof(buf), "%d:%d ",
+					 bdev->minor, bdev->subdev);
 				buf[sizeof(buf) - 1] = 0;
 				strncat(devpriv->name, buf, left);
 			}
