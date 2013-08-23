@@ -37,3 +37,29 @@ struct clk * __init imx_obtain_fixed_clock(
 		clk = imx_clk_fixed(name, rate);
 	return clk;
 }
+
+/*
+ * This fixups the register CCM_CSCMR1 write value.
+ * The write/read/divider values of the aclk_podf field
+ * of that register have the relationship described by
+ * the following table:
+ *
+ * write value       read value        divider
+ * 3b'000            3b'110            7
+ * 3b'001            3b'111            8
+ * 3b'010            3b'100            5
+ * 3b'011            3b'101            6
+ * 3b'100            3b'010            3
+ * 3b'101            3b'011            4
+ * 3b'110            3b'000            1
+ * 3b'111            3b'001            2(default)
+ *
+ * That's why we do the xor operation below.
+ */
+#define CSCMR1_FIXUP	0x00600000
+
+void imx_cscmr1_fixup(u32 *val)
+{
+	*val ^= CSCMR1_FIXUP;
+	return;
+}
