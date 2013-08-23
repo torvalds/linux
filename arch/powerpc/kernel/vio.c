@@ -997,21 +997,36 @@ static struct device_attribute vio_cmo_dev_attrs[] = {
 /* sysfs bus functions and data structures for CMO */
 
 #define viobus_cmo_rd_attr(name)                                        \
-static ssize_t                                                          \
-viobus_cmo_##name##_show(struct bus_type *bt, char *buf)                \
+static ssize_t cmo_##name##_show(struct bus_type *bt, char *buf)        \
 {                                                                       \
 	return sprintf(buf, "%lu\n", vio_cmo.name);                     \
-}
+}                                                                       \
+static BUS_ATTR_RO(cmo_##name)
 
 #define viobus_cmo_pool_rd_attr(name, var)                              \
 static ssize_t                                                          \
-viobus_cmo_##name##_pool_show_##var(struct bus_type *bt, char *buf)     \
+cmo_##name##_##var##_show(struct bus_type *bt, char *buf)               \
 {                                                                       \
 	return sprintf(buf, "%lu\n", vio_cmo.name.var);                 \
+}                                                                       \
+static BUS_ATTR_RO(cmo_##name##_##var)
+
+viobus_cmo_rd_attr(entitled);
+viobus_cmo_rd_attr(spare);
+viobus_cmo_rd_attr(min);
+viobus_cmo_rd_attr(desired);
+viobus_cmo_rd_attr(curr);
+viobus_cmo_pool_rd_attr(reserve, size);
+viobus_cmo_pool_rd_attr(excess, size);
+viobus_cmo_pool_rd_attr(excess, free);
+
+static ssize_t cmo_high_show(struct bus_type *bt, char *buf)
+{
+	return sprintf(buf, "%lu\n", vio_cmo.high);
 }
 
-static ssize_t viobus_cmo_high_reset(struct bus_type *bt, const char *buf,
-                                     size_t count)
+static ssize_t cmo_high_store(struct bus_type *bt, const char *buf,
+			      size_t count)
 {
 	unsigned long flags;
 
@@ -1021,35 +1036,26 @@ static ssize_t viobus_cmo_high_reset(struct bus_type *bt, const char *buf,
 
 	return count;
 }
+static BUS_ATTR_RW(cmo_high);
 
-viobus_cmo_rd_attr(entitled);
-viobus_cmo_pool_rd_attr(reserve, size);
-viobus_cmo_pool_rd_attr(excess, size);
-viobus_cmo_pool_rd_attr(excess, free);
-viobus_cmo_rd_attr(spare);
-viobus_cmo_rd_attr(min);
-viobus_cmo_rd_attr(desired);
-viobus_cmo_rd_attr(curr);
-viobus_cmo_rd_attr(high);
-
-static struct bus_attribute vio_cmo_bus_attrs[] = {
-	__ATTR(cmo_entitled, S_IRUGO, viobus_cmo_entitled_show, NULL),
-	__ATTR(cmo_reserve_size, S_IRUGO, viobus_cmo_reserve_pool_show_size, NULL),
-	__ATTR(cmo_excess_size, S_IRUGO, viobus_cmo_excess_pool_show_size, NULL),
-	__ATTR(cmo_excess_free, S_IRUGO, viobus_cmo_excess_pool_show_free, NULL),
-	__ATTR(cmo_spare,   S_IRUGO, viobus_cmo_spare_show,   NULL),
-	__ATTR(cmo_min,     S_IRUGO, viobus_cmo_min_show,     NULL),
-	__ATTR(cmo_desired, S_IRUGO, viobus_cmo_desired_show, NULL),
-	__ATTR(cmo_curr,    S_IRUGO, viobus_cmo_curr_show,    NULL),
-	__ATTR(cmo_high,    S_IWUSR|S_IRUSR|S_IWGRP|S_IRGRP|S_IROTH,
-	       viobus_cmo_high_show, viobus_cmo_high_reset),
-	__ATTR_NULL
+static struct attribute *vio_bus_attrs[] = {
+	&bus_attr_cmo_entitled.attr,
+	&bus_attr_cmo_spare.attr,
+	&bus_attr_cmo_min.attr,
+	&bus_attr_cmo_desired.attr,
+	&bus_attr_cmo_curr.attr,
+	&bus_attr_cmo_high.attr,
+	&bus_attr_cmo_reserve_size.attr,
+	&bus_attr_cmo_excess_size.attr,
+	&bus_attr_cmo_excess_free.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(vio_bus);
 
 static void vio_cmo_sysfs_init(void)
 {
 	vio_bus_type.dev_attrs = vio_cmo_dev_attrs;
-	vio_bus_type.bus_attrs = vio_cmo_bus_attrs;
+	vio_bus_type.bus_groups = vio_bus_groups;
 }
 #else /* CONFIG_PPC_SMLPAR */
 int vio_cmo_entitlement_update(size_t new_entitlement) { return 0; }
