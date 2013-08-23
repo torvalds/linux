@@ -384,7 +384,7 @@ static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 		return ASLE_BACKLIGHT_FAILED;
 
 	intel_panel_set_backlight(dev, bclp, 255);
-	iowrite32((bclp*0x64)/0xff | ASLE_CBLV_VALID, &asle->cblv);
+	iowrite32(DIV_ROUND_UP(bclp * 100, 255) | ASLE_CBLV_VALID, &asle->cblv);
 
 	return 0;
 }
