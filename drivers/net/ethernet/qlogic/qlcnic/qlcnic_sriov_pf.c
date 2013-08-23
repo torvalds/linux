@@ -1285,6 +1285,7 @@ static const int qlcnic_pf_passthru_supp_cmds[] = {
 	QLCNIC_CMD_GET_PORT_CONFIG,
 	QLCNIC_CMD_GET_LINK_STATUS,
 	QLCNIC_CMD_DCB_QUERY_CAP,
+	QLCNIC_CMD_DCB_QUERY_PARAM,
 };
 
 static const struct qlcnic_sriov_cmd_handler qlcnic_pf_bc_cmd_hdlr[] = {

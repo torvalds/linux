@@ -23,10 +23,13 @@ struct qlcnic_dcb_ops {
 	int (*query_hw_capability) (struct qlcnic_adapter *, char *);
 	int (*get_hw_capability) (struct qlcnic_adapter *);
 	void (*get_info) (struct qlcnic_adapter *);
+	int (*query_cee_param) (struct qlcnic_adapter *, char *, u8);
+	int (*get_cee_cfg) (struct qlcnic_adapter *);
 };
 
 struct qlcnic_dcb {
-	struct qlcnic_dcb_ops	*ops;
-	struct qlcnic_dcb_cfg	*cfg;
+	struct qlcnic_dcb_mbx_params	*param;
+	struct qlcnic_dcb_ops		*ops;
+	struct qlcnic_dcb_cfg		*cfg;
 };
 #endif

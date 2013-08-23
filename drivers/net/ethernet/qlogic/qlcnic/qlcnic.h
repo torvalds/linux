@@ -2142,4 +2142,25 @@ static inline void qlcnic_dcb_get_info(struct qlcnic_adapter *adapter)
 	if (dcb && dcb->ops->get_info)
 		dcb->ops->get_info(adapter);
 }
+
+static inline int
+qlcnic_dcb_query_cee_param(struct qlcnic_adapter *adapter, char *buf, u8 type)
+{
+	struct qlcnic_dcb *dcb = adapter->dcb;
+
+	if (dcb && dcb->ops->query_cee_param)
+		return dcb->ops->query_cee_param(adapter, buf, type);
+
+	return 0;
+}
+
+static inline int qlcnic_dcb_get_cee_cfg(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_dcb *dcb = adapter->dcb;
+
+	if (dcb && dcb->ops->get_cee_cfg)
+		return dcb->ops->get_cee_cfg(adapter);
+
+	return 0;
+}
 #endif				/* __QLCNIC_H_ */
