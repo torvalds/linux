@@ -899,7 +899,7 @@ err_out:
 }
 
 #define capability_attribute(name)					\
-static ssize_t show_##name(struct device *dev,				\
+static ssize_t name##_show(struct device *dev,				\
 			   struct device_attribute *attr, char *buf)	\
 {									\
 	struct usb_interface *intf = to_usb_interface(dev);		\
@@ -907,7 +907,7 @@ static ssize_t show_##name(struct device *dev,				\
 									\
 	return sprintf(buf, "%d\n", data->capabilities.name);		\
 }									\
-static DEVICE_ATTR(name, S_IRUGO, show_##name, NULL)
+static DEVICE_ATTR_RO(name)
 
 capability_attribute(interface_capabilities);
 capability_attribute(device_capabilities);
@@ -926,7 +926,7 @@ static struct attribute_group capability_attr_grp = {
 	.attrs = capability_attrs,
 };
 
-static ssize_t show_TermChar(struct device *dev,
+static ssize_t TermChar_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
 	struct usb_interface *intf = to_usb_interface(dev);
@@ -935,7 +935,7 @@ static ssize_t show_TermChar(struct device *dev,
 	return sprintf(buf, "%c\n", data->TermChar);
 }
 
-static ssize_t store_TermChar(struct device *dev,
+static ssize_t TermChar_store(struct device *dev,
 			      struct device_attribute *attr,
 			      const char *buf, size_t count)
 {
@@ -947,10 +947,10 @@ static ssize_t store_TermChar(struct device *dev,
 	data->TermChar = buf[0];
 	return count;
 }
-static DEVICE_ATTR(TermChar, S_IRUGO, show_TermChar, store_TermChar);
+static DEVICE_ATTR_RW(TermChar);
 
 #define data_attribute(name)						\
-static ssize_t show_##name(struct device *dev,				\
+static ssize_t name##_show(struct device *dev,				\
 			   struct device_attribute *attr, char *buf)	\
 {									\
 	struct usb_interface *intf = to_usb_interface(dev);		\
@@ -958,7 +958,7 @@ static ssize_t show_##name(struct device *dev,				\
 									\
 	return sprintf(buf, "%d\n", data->name);			\
 }									\
-static ssize_t store_##name(struct device *dev,				\
+static ssize_t name##_store(struct device *dev,				\
 			    struct device_attribute *attr,		\
 			    const char *buf, size_t count)		\
 {									\
@@ -976,7 +976,7 @@ static ssize_t store_##name(struct device *dev,				\
 	else								\
 		return count;						\
 }									\
-static DEVICE_ATTR(name, S_IRUGO, show_##name, store_##name)
+static DEVICE_ATTR_RW(name)
 
 data_attribute(TermCharEnabled);
 data_attribute(auto_abort);
