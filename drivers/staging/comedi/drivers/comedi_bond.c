@@ -209,17 +209,17 @@ static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 		if (minor < 0 || minor >= COMEDI_NUM_BOARD_MINORS) {
 			dev_err(dev->class_dev,
 				"Minor %d is invalid!\n", minor);
-			return 0;
+			return -EINVAL;
 		}
 		if (minor == dev->minor) {
 			dev_err(dev->class_dev,
 				"Cannot bond this driver to itself!\n");
-			return 0;
+			return -EINVAL;
 		}
 		if (devs_opened[minor]) {
 			dev_err(dev->class_dev,
 				"Minor %d specified more than once!\n", minor);
-			return 0;
+			return -EINVAL;
 		}
 
 		snprintf(file, sizeof(file), "/dev/comedi%u", minor);
@@ -230,7 +230,7 @@ static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 		if (!d) {
 			dev_err(dev->class_dev,
 				"Minor %u could not be opened\n", minor);
-			return 0;
+			return -ENODEV;
 		}
 
 		/* Do DIO, as that's all we support now.. */
@@ -241,11 +241,11 @@ static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 				dev_err(dev->class_dev,
 					"comedi_get_n_channels() returned %d on minor %u subdev %d!\n",
 					nchans, minor, sdev);
-				return 0;
+				return -EINVAL;
 			}
 			bdev = kmalloc(sizeof(*bdev), GFP_KERNEL);
 			if (!bdev)
-				return 0;
+				return -ENOMEM;
 
 			bdev->dev = d;
 			bdev->minor = minor;
@@ -272,7 +272,7 @@ static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 			if (!devpriv->devs) {
 				dev_err(dev->class_dev,
 					"Could not allocate memory. Out of memory?\n");
-				return 0;
+				return -ENOMEM;
 			}
 
 			devpriv->devs[devpriv->ndevs - 1] = bdev;
@@ -292,10 +292,10 @@ static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	if (!devpriv->nchans) {
 		dev_err(dev->class_dev, "No channels found!\n");
-		return 0;
+		return -EINVAL;
 	}
 
-	return 1;
+	return 0;
 }
 
 static int bonding_attach(struct comedi_device *dev,
@@ -312,8 +312,9 @@ static int bonding_attach(struct comedi_device *dev,
 	/*
 	 * Setup our bonding from config params.. sets up our private struct..
 	 */
-	if (!do_dev_config(dev, it))
-		return -EINVAL;
+	ret = do_dev_config(dev, it);
+	if (ret)
+		return ret;
 
 	dev->board_name = devpriv->name;
 
