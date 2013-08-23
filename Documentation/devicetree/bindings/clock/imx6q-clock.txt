@@ -215,6 +215,7 @@ clocks and IDs.
 	cko2      		200
 	cko      		201
 	vdoa      		202
+	pll4_audio_div		203
 
 Examples:
 
