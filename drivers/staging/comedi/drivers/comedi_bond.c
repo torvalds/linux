@@ -175,16 +175,6 @@ static int bonding_dio_insn_config(struct comedi_device *dev,
 	return ret;
 }
 
-static void *realloc(const void *oldmem, size_t newlen, size_t oldlen)
-{
-	void *newmem = kmalloc(newlen, GFP_KERNEL);
-
-	if (newmem && oldmem)
-		memcpy(newmem, oldmem, min(oldlen, newlen));
-	kfree(oldmem);
-	return newmem;
-}
-
 static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_bond_private *devpriv = dev->private;
@@ -201,8 +191,9 @@ static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 		char file[sizeof("/dev/comediXXXXXX")];
 		int minor = it->options[i];
 		struct comedi_device *d;
-		int sdev = -1, nchans, tmp;
-		struct bonded_device *bdev = NULL;
+		int sdev = -1, nchans;
+		struct bonded_device *bdev;
+		struct bonded_device **devs;
 
 		if (minor < 0 || minor >= COMEDI_NUM_BOARD_MINORS) {
 			dev_err(dev->class_dev,
@@ -257,17 +248,16 @@ static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 			 */
 
 			/* ergh.. ugly.. we need to realloc :(  */
-			tmp = devpriv->ndevs * sizeof(bdev);
-			devpriv->devs =
-			    realloc(devpriv->devs,
-				    ++devpriv->ndevs * sizeof(bdev), tmp);
-			if (!devpriv->devs) {
+			devs = krealloc(devpriv->devs,
+					(devpriv->ndevs + 1) * sizeof(*devs),
+					GFP_KERNEL);
+			if (!devs) {
 				dev_err(dev->class_dev,
 					"Could not allocate memory. Out of memory?\n");
 				return -ENOMEM;
 			}
-
-			devpriv->devs[devpriv->ndevs - 1] = bdev;
+			devpriv->devs = devs;
+			devpriv->devs[devpriv->ndevs++] = bdev;
 			{
 				/* Append dev:subdev to devpriv->name */
 				char buf[20];
