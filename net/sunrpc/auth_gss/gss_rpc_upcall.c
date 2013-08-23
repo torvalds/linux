@@ -223,18 +223,14 @@ static void gssp_free_receive_pages(struct gssx_arg_accept_sec_context *arg)
 
 static int gssp_alloc_receive_pages(struct gssx_arg_accept_sec_context *arg)
 {
-	int i;
-
 	arg->npages = DIV_ROUND_UP(NGROUPS_MAX * 4, PAGE_SIZE);
 	arg->pages = kzalloc(arg->npages * sizeof(struct page *), GFP_KERNEL);
-
-	for (i=0; i < arg->npages; i++) {
-		arg->pages[i] = alloc_page(GFP_KERNEL);
-		if (arg->pages[i] == NULL) {
-			gssp_free_receive_pages(arg);
-			return -ENOMEM;
-		}
-	}
+	/*
+	 * XXX: actual pages are allocated by xdr layer in
+	 * xdr_partial_copy_from_skb.
+	 */
+	if (!arg->pages)
+		return -ENOMEM;
 	return 0;
 }
 
