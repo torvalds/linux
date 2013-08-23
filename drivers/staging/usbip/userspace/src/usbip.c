@@ -152,7 +152,7 @@ int main(int argc, char *argv[])
 	usbip_use_stderr = 1;
 	opterr = 0;
 	for (;;) {
-		opt = getopt_long(argc, argv, "+dt:", opts, NULL);
+		opt = getopt_long(argc, argv, "+dlt:", opts, NULL);
 
 		if (opt == -1)
 			break;
