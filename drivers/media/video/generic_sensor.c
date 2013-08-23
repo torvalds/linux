@@ -29,8 +29,10 @@
 *        1. support sensor driver crop by redefine SENSOR_CROP_PERCENT;
 *        2. fix sensor_ops which is independent for driver;
 *        3. support cropcap;
+*v.0.1.c:
+*        1. modify generic_sensor_s_fmt, flash will work everytime when capture
 */
-static int version = KERNEL_VERSION(0,1,0xb);
+static int version = KERNEL_VERSION(0,1,0xc);
 module_param(version, int, S_IRUGO);
 
 
@@ -893,22 +895,21 @@ int generic_sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
     winseqe_set_addr = sensor->info_priv.sensor_series+ret;
 
     ret = 0;    
-    if(sensor->info_priv.winseqe_cur_addr->data != winseqe_set_addr->data){
-
-        if (sensor->sensor_cb.sensor_s_fmt_cb_th)
-            ret |= sensor->sensor_cb.sensor_s_fmt_cb_th(client, mf, is_capture);
+    if (sensor->sensor_cb.sensor_s_fmt_cb_th)
+        ret |= sensor->sensor_cb.sensor_s_fmt_cb_th(client, mf, is_capture);
         
-        v4l2ctrl_info = sensor_find_ctrl(sensor->ctrls,V4L2_CID_FLASH); /* ddl@rock-chips.com: v0.1.3 */        
-        if (v4l2ctrl_info!=NULL) {   
-            if (is_capture) { 
-                if ((v4l2ctrl_info->cur_value == 2) || (v4l2ctrl_info->cur_value == 1)) {
-                    generic_sensor_ioctrl(icd, Sensor_Flash, 1);                    
-                }
-            } else {
-                generic_sensor_ioctrl(icd, Sensor_Flash, 0); 
+    v4l2ctrl_info = sensor_find_ctrl(sensor->ctrls,V4L2_CID_FLASH); /* ddl@rock-chips.com: v0.1.3 */        
+    if (v4l2ctrl_info!=NULL) {   
+        if (is_capture) { 
+            if ((v4l2ctrl_info->cur_value == 2) || (v4l2ctrl_info->cur_value == 1)) {
+                generic_sensor_ioctrl(icd, Sensor_Flash, 1);                    
             }
+        } else {
+            generic_sensor_ioctrl(icd, Sensor_Flash, 0); 
         }
-       
+    }
+    
+    if(sensor->info_priv.winseqe_cur_addr->data != winseqe_set_addr->data){       
         ret |= generic_sensor_write_array(client, winseqe_set_addr->data);
         if (ret != 0) {
             SENSOR_TR("set format capability failed");
