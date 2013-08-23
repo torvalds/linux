@@ -166,14 +166,15 @@ static int dummy_dec_opt_array(struct xdr_stream *xdr,
 	return 0;
 }
 
-static int get_s32(struct xdr_stream *xdr, s32 *res)
+static int get_host_u32(struct xdr_stream *xdr, u32 *res)
 {
 	__be32 *p;
 
 	p = xdr_inline_decode(xdr, 4);
 	if (!p)
 		return -EINVAL;
-	memcpy(res, p, sizeof(s32));
+	/* Contents of linux creds are all host-endian: */
+	memcpy(res, p, sizeof(u32));
 	return 0;
 }
 
@@ -182,8 +183,9 @@ static int gssx_dec_linux_creds(struct xdr_stream *xdr,
 {
 	u32 length;
 	__be32 *p;
-	s32 tmp;
-	int N, i, err;
+	u32 tmp;
+	u32 N;
+	int i, err;
 
 	p = xdr_inline_decode(xdr, 4);
 	if (unlikely(p == NULL))
@@ -195,19 +197,19 @@ static int gssx_dec_linux_creds(struct xdr_stream *xdr,
 		return -ENOSPC;
 
 	/* uid */
-	err = get_s32(xdr, &tmp);
+	err = get_host_u32(xdr, &tmp);
 	if (err)
 		return err;
 	creds->cr_uid = make_kuid(&init_user_ns, tmp);
 
 	/* gid */
-	err = get_s32(xdr, &tmp);
+	err = get_host_u32(xdr, &tmp);
 	if (err)
 		return err;
 	creds->cr_gid = make_kgid(&init_user_ns, tmp);
 
 	/* number of additional gid's */
-	err = get_s32(xdr, &tmp);
+	err = get_host_u32(xdr, &tmp);
 	if (err)
 		return err;
 	N = tmp;
@@ -220,7 +222,7 @@ static int gssx_dec_linux_creds(struct xdr_stream *xdr,
 	/* gid's */
 	for (i = 0; i < N; i++) {
 		kgid_t kgid;
-		err = get_s32(xdr, &tmp);
+		err = get_host_u32(xdr, &tmp);
 		if (err)
 			goto out_free_groups;
 		err = -EINVAL;
