@@ -270,7 +270,7 @@ static int rk29_backlight_pwm_resume(void)
 
 static struct rk29_bl_info rk29_bl_info = {
 	.pwm_id = BL_PWM,
-	.min_brightness=75,
+	.min_brightness=100,
 	.max_brightness=255,
 	.brightness_mode = BRIGHTNESS_MODE_CONIC,
 	.bl_ref = PWM_EFFECT_VALUE,
@@ -1677,10 +1677,10 @@ static void __init rk30_reserve(void)
 *	clock
 ************************************************************/
 static struct cpufreq_frequency_table dvfs_arm_table[] = {
-	{.frequency = 312 * 1000,       .index = 1150 * 1000},
-	{.frequency = 504 * 1000,       .index = 1150 * 1000},
-	{.frequency = 816 * 1000,       .index = 1200 * 1000},
-	{.frequency = 1008 * 1000,      .index = 1250 * 1000},
+	{.frequency = 312 * 1000,       .index = 1200 * 1000},
+	{.frequency = 504 * 1000,       .index = 1200 * 1000},
+	{.frequency = 816 * 1000,       .index = 1250 * 1000},
+	{.frequency = 1008 * 1000,      .index = 1350 * 1000},
 	//{.frequency = 1200 * 1000,      .index = 1200 * 1000},
 	//{.frequency = 1416 * 1000,      .index = 1200 * 1000},
 	//{.frequency = 1608 * 1000,      .index = 1200 * 1000},
