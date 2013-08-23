@@ -1,49 +1,50 @@
 /*
-    comedi/drivers/comedi_bond.c
-    A Comedi driver to 'bond' or merge multiple drivers and devices as one.
+ * comedi_bond.c
+ * A Comedi driver to 'bond' or merge multiple drivers and devices as one.
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
+ * Copyright (C) 2005 Calin A. Culianu <calin@ajvar.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2000 David A. Schleef <ds@schleef.org>
-    Copyright (C) 2005 Calin A. Culianu <calin@ajvar.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
 /*
-Driver: comedi_bond
-Description: A driver to 'bond' (merge) multiple subdevices from multiple
-	     devices together as one.
-Devices:
-Author: ds
-Updated: Mon, 10 Oct 00:18:25 -0500
-Status: works
-
-This driver allows you to 'bond' (merge) multiple comedi subdevices
-(coming from possibly difference boards and/or drivers) together.  For
-example, if you had a board with 2 different DIO subdevices, and
-another with 1 DIO subdevice, you could 'bond' them with this driver
-so that they look like one big fat DIO subdevice.  This makes writing
-applications slightly easier as you don't have to worry about managing
-different subdevices in the application -- you just worry about
-indexing one linear array of channel id's.
-
-Right now only DIO subdevices are supported as that's the personal itch
-I am scratching with this driver.  If you want to add support for AI and AO
-subdevs, go right on ahead and do so!
-
-Commands aren't supported -- although it would be cool if they were.
-
-Configuration Options:
-  List of comedi-minors to bond.  All subdevices of the same type
-  within each minor will be concatenated together in the order given here.
-*/
+ * Driver: comedi_bond
+ * Description: A driver to 'bond' (merge) multiple subdevices from multiple
+ * devices together as one.
+ * Devices:
+ * Author: ds
+ * Updated: Mon, 10 Oct 00:18:25 -0500
+ * Status: works
+ *
+ * This driver allows you to 'bond' (merge) multiple comedi subdevices
+ * (coming from possibly difference boards and/or drivers) together.  For
+ * example, if you had a board with 2 different DIO subdevices, and
+ * another with 1 DIO subdevice, you could 'bond' them with this driver
+ * so that they look like one big fat DIO subdevice.  This makes writing
+ * applications slightly easier as you don't have to worry about managing
+ * different subdevices in the application -- you just worry about
+ * indexing one linear array of channel id's.
+ *
+ * Right now only DIO subdevices are supported as that's the personal itch
+ * I am scratching with this driver.  If you want to add support for AI and AO
+ * subdevs, go right on ahead and do so!
+ *
+ * Commands aren't supported -- although it would be cool if they were.
+ *
+ * Configuration Options:
+ *   List of comedi-minors to bond.  All subdevices of the same type
+ *   within each minor will be concatenated together in the order given here.
+ */
 
 #include <linux/module.h>
 #include <linux/string.h>
@@ -62,13 +63,10 @@ struct BondedDevice {
 	unsigned subdev_type;
 	unsigned nchans;
 	unsigned chanid_offset;	/* The offset into our unified linear
-				   channel-id's of chanid 0 on this
-				   subdevice. */
+				 * channel-id's of chanid 0 on this
+				 * subdevice. */
 };
 
-/* this structure is for data unique to this hardware driver.  If
-   several hardware drivers keep similar information in this structure,
-   feel free to suggest moving the variable to the struct comedi_device struct.  */
 struct comedi_bond_private {
 # define MAX_BOARD_NAME 256
 	char name[MAX_BOARD_NAME];
@@ -78,11 +76,6 @@ struct comedi_bond_private {
 	unsigned nchans;
 };
 
-/* DIO devices are slightly special.  Although it is possible to
- * implement the insn_read/insn_write interface, it is much more
- * useful to applications if you implement the insn_bits interface.
- * This allows packed reading/writing of the DIO channels.  The
- * comedi core can convert between insn_bits and insn_read/write */
 static int bonding_dio_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
@@ -94,13 +87,17 @@ static int bonding_dio_insn_bits(struct comedi_device *dev,
 	if (devpriv->nchans < nchans)
 		nchans = devpriv->nchans;
 
-	/* The insn data is a mask in data[0] and the new data
-	 * in data[1], each channel cooresponding to a bit. */
+	/*
+	 * The insn data is a mask in data[0] and the new data
+	 * in data[1], each channel cooresponding to a bit.
+	 */
 	for (i = 0; num_done < nchans && i < devpriv->ndevs; ++i) {
 		struct BondedDevice *bdev = devpriv->devs[i];
-		/* Grab the channel mask and data of only the bits corresponding
-		   to this subdevice.. need to shift them to zero position of
-		   course. */
+		/*
+		 * Grab the channel mask and data of only the bits corresponding
+		 * to this subdevice.. need to shift them to zero position of
+		 * course.
+		 */
 		/* Bits corresponding to this subdev. */
 		unsigned int subdevMask = ((1 << bdev->nchans) - 1);
 		unsigned int writeMask, dataBits;
@@ -143,10 +140,12 @@ static int bonding_dio_insn_config(struct comedi_device *dev,
 		return -EINVAL;
 	bdev = devpriv->chanIdDevMap[chan];
 
-	/* The input or output configuration of each digital line is
+	/*
+	 * The input or output configuration of each digital line is
 	 * configured by a special insn_config instruction.  chanspec
 	 * contains the channel to be changed, and data[0] contains the
-	 * value COMEDI_INPUT or COMEDI_OUTPUT. */
+	 * value COMEDI_INPUT or COMEDI_OUTPUT.
+	 */
 	switch (data[0]) {
 	case INSN_CONFIG_DIO_OUTPUT:
 		io = COMEDI_OUTPUT;	/* is this really necessary? */
@@ -170,8 +169,10 @@ static int bonding_dio_insn_config(struct comedi_device *dev,
 	ret = comedi_dio_config(bdev->dev, bdev->subdev, chan, io);
 	if (ret != 1)
 		return -EINVAL;
-	/* Finally, save the new io_bits values since we didn't get
-	   an error above. */
+	/*
+	 * Finally, save the new io_bits values since we didn't get an error
+	 * above.
+	 */
 	s->io_bits = io_bits;
 	return insn->n;
 }
@@ -194,8 +195,10 @@ static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	memset(devs_opened, 0, sizeof(devs_opened));
 	devpriv->name[0] = 0;
-	/* Loop through all comedi devices specified on the command-line,
-	   building our device list */
+	/*
+	 * Loop through all comedi devices specified on the command-line,
+	 * building our device list.
+	 */
 	for (i = 0; i < COMEDI_NDEVCONFOPTS && (!i || it->options[i]); ++i) {
 		char file[] = "/dev/comediXXXXXX";
 		int minor = it->options[i];
@@ -255,8 +258,10 @@ static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 			while (nchans--)
 				devpriv->chanIdDevMap[devpriv->nchans++] = bdev;
 
-			/* Now put bdev pointer at end of devpriv->devs array
-			 * list.. */
+			/*
+			 * Now put bdev pointer at end of devpriv->devs array
+			 * list..
+			 */
 
 			/* ergh.. ugly.. we need to realloc :(  */
 			tmp = devpriv->ndevs * sizeof(bdev);
@@ -271,7 +276,7 @@ static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 
 			devpriv->devs[devpriv->ndevs - 1] = bdev;
 			{
-	/** Append dev:subdev to devpriv->name */
+				/* Append dev:subdev to devpriv->name */
 				char buf[20];
 				int left =
 				    MAX_BOARD_NAME - strlen(devpriv->name) - 1;
