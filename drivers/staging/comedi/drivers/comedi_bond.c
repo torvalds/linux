@@ -57,7 +57,6 @@ struct bonded_device {
 	struct comedi_device *dev;
 	unsigned minor;
 	unsigned subdev;
-	unsigned subdev_type;
 	unsigned nchans;
 };
 
@@ -253,7 +252,6 @@ static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 			bdev->dev = d;
 			bdev->minor = minor;
 			bdev->subdev = sdev;
-			bdev->subdev_type = COMEDI_SUBD_DIO;
 			bdev->nchans = nchans;
 			devpriv->nchans += nchans;
 
