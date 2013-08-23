@@ -190,10 +190,10 @@ static void *realloc(const void *oldmem, size_t newlen, size_t oldlen)
 static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_bond_private *devpriv = dev->private;
+	DECLARE_BITMAP(devs_opened, COMEDI_NUM_BOARD_MINORS);
 	int i;
-	struct comedi_device *devs_opened[COMEDI_NUM_BOARD_MINORS];
 
-	memset(devs_opened, 0, sizeof(devs_opened));
+	memset(&devs_opened, 0, sizeof(devs_opened));
 	devpriv->name[0] = 0;
 	/*
 	 * Loop through all comedi devices specified on the command-line,
@@ -216,7 +216,7 @@ static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 				"Cannot bond this driver to itself!\n");
 			return -EINVAL;
 		}
-		if (devs_opened[minor]) {
+		if (test_and_set_bit(minor, devs_opened)) {
 			dev_err(dev->class_dev,
 				"Minor %d specified more than once!\n", minor);
 			return -EINVAL;
@@ -225,7 +225,7 @@ static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 		snprintf(file, sizeof(file), "/dev/comedi%u", minor);
 		file[sizeof(file) - 1] = 0;
 
-		d = devs_opened[minor] = comedi_open(file);
+		d = comedi_open(file);
 
 		if (!d) {
 			dev_err(dev->class_dev,
@@ -342,19 +342,19 @@ static int bonding_attach(struct comedi_device *dev,
 static void bonding_detach(struct comedi_device *dev)
 {
 	struct comedi_bond_private *devpriv = dev->private;
-	unsigned long devs_closed = 0;
 
 	if (devpriv) {
+		DECLARE_BITMAP(devs_closed, COMEDI_NUM_BOARD_MINORS);
+
+		memset(&devs_closed, 0, sizeof(devs_closed));
 		while (devpriv->ndevs-- && devpriv->devs) {
 			struct bonded_device *bdev;
 
 			bdev = devpriv->devs[devpriv->ndevs];
 			if (!bdev)
 				continue;
-			if (!(devs_closed & (0x1 << bdev->minor))) {
+			if (!test_and_set_bit(bdev->minor, devs_closed))
 				comedi_close(bdev->dev);
-				devs_closed |= (0x1 << bdev->minor);
-			}
 			kfree(bdev);
 		}
 		kfree(devpriv->devs);
