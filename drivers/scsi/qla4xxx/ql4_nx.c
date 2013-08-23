@@ -2765,6 +2765,7 @@ skip_nxt_entry:
 		ql4_printk(KERN_INFO, ha,
 			   "Dump data mismatch: Data collected: [0x%x], total_data_size:[0x%x]\n",
 			   data_collected, ha->fw_dump_size);
+		rval = QLA_ERROR;
 		goto md_failed;
 	}
 
