@@ -1603,7 +1603,8 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		dev_mc_add(slave_dev, lacpdu_multicast);
 	}
 
-	if (vlan_vids_add_by_dev(slave_dev, bond_dev)) {
+	res = vlan_vids_add_by_dev(slave_dev, bond_dev);
+	if (res) {
 		pr_err("%s: Error: Couldn't add bond vlan ids to %s\n",
 		       bond_dev->name, slave_dev->name);
 		goto err_close;
