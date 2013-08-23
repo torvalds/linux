@@ -73,48 +73,59 @@ static int bonding_dio_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn, unsigned int *data)
 {
 	struct comedi_bond_private *devpriv = dev->private;
-#define LSAMPL_BITS (sizeof(unsigned int)*8)
-	unsigned nchans = LSAMPL_BITS, num_done = 0, i;
+	unsigned int n_left, n_done, base_chan;
+	unsigned int write_mask, data_bits;
+	struct bonded_device **devs;
 
-	if (devpriv->nchans < nchans)
-		nchans = devpriv->nchans;
+	write_mask = data[0];
+	data_bits = data[1];
+	base_chan = CR_CHAN(insn->chanspec);
+	/* do a maximum of 32 channels, starting from base_chan. */
+	n_left = devpriv->nchans - base_chan;
+	if (n_left > 32)
+		n_left = 32;
 
-	/*
-	 * The insn data is a mask in data[0] and the new data
-	 * in data[1], each channel cooresponding to a bit.
-	 */
-	for (i = 0; num_done < nchans && i < devpriv->ndevs; ++i) {
-		struct bonded_device *bdev = devpriv->devs[i];
-		/*
-		 * Grab the channel mask and data of only the bits corresponding
-		 * to this subdevice.. need to shift them to zero position of
-		 * course.
-		 */
-		/* Bits corresponding to this subdev. */
-		unsigned int subdev_mask = ((1 << bdev->nchans) - 1);
-		unsigned int write_mask, data_bits;
+	n_done = 0;
+	devs = devpriv->devs;
+	do {
+		struct bonded_device *bdev = *devs++;
 
-		/* Argh, we have >= LSAMPL_BITS chans.. take all bits */
-		if (bdev->nchans >= LSAMPL_BITS)
-			subdev_mask = (unsigned int)(-1);
+		if (base_chan < bdev->nchans) {
+			/* base channel falls within bonded device */
+			unsigned int b_chans, b_mask, b_write_mask, b_data_bits;
+			int ret;
 
-		write_mask = (data[0] >> num_done) & subdev_mask;
-		data_bits = (data[1] >> num_done) & subdev_mask;
-
-		/* Read/Write the new digital lines */
-		if (comedi_dio_bitfield(bdev->dev, bdev->subdev, write_mask,
-					&data_bits) != 2)
-			return -EINVAL;
-
-		/* Make room for the new bits in data[1], the return value */
-		data[1] &= ~(subdev_mask << num_done);
-		/* Put the bits in the return value */
-		data[1] |= (data_bits & subdev_mask) << num_done;
-		/* Save the new bits to the saved state.. */
-		s->state = data[1];
-
-		num_done += bdev->nchans;
-	}
+			/*
+			 * Get num channels to do for bonded device and set
+			 * up mask and data bits for bonded device.
+			 */
+			b_chans = bdev->nchans - base_chan;
+			if (b_chans > n_left)
+				b_chans = n_left;
+			b_mask = (1U << b_chans) - 1;
+			b_write_mask = (write_mask >> n_done) & b_mask;
+			b_data_bits = (data_bits >> n_done) & b_mask;
+			/* Read/Write the new digital lines. */
+			ret = comedi_dio_bitfield2(bdev->dev, bdev->subdev,
+						   b_write_mask, &b_data_bits,
+						   base_chan);
+			if (ret < 0)
+				return ret;
+			/* Place read bits into data[1]. */
+			data[1] &= ~(b_mask << n_done);
+			data[1] |= (b_data_bits & b_mask) << n_done;
+			/*
+			 * Set up for following bonded device (if still have
+			 * channels to read/write).
+			 */
+			base_chan = 0;
+			n_done += b_chans;
+			n_left -= b_chans;
+		} else {
+			/* Skip bonded devices before base channel. */
+			base_chan -= bdev->nchans;
+		}
+	} while (n_left);
 
 	return insn->n;
 }
