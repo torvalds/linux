@@ -929,7 +929,7 @@ cleanup_idle:
 	stg	%r9,__LC_SYSTEM_TIMER
 	mvc	__LC_LAST_UPDATE_TIMER(8),__TIMER_IDLE_EXIT(%r2)
 	# prepare return psw
-	nihh	%r8,0xfffd		# clear wait state bit
+	nihh	%r8,0xfcfd		# clear irq & wait state bits
 	lg	%r9,48(%r11)		# return from psw_idle
 	br	%r14
 cleanup_idle_insn:
