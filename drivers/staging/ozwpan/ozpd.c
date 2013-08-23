@@ -268,7 +268,6 @@ void oz_pd_destroy(struct oz_pd *pd)
 	if (hrtimer_active(&pd->heartbeat))
 		hrtimer_cancel(&pd->heartbeat);
 
-	memset(&pd->workitem, 0, sizeof(pd->workitem));
 	INIT_WORK(&pd->workitem, oz_pd_free);
 	ret = schedule_work(&pd->workitem);
 
