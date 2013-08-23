@@ -34,6 +34,7 @@
 #include "qlcnic_hdr.h"
 #include "qlcnic_hw.h"
 #include "qlcnic_83xx_hw.h"
+#include "qlcnic_dcb.h"
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 3
@@ -959,6 +960,7 @@ struct qlcnic_ipaddr {
 #define __QLCNIC_SRIOV_CAPABLE		11
 #define __QLCNIC_MBX_POLL_ENABLE	12
 #define __QLCNIC_DIAG_MODE		13
+#define __QLCNIC_DCB_STATE		14
 
 #define QLCNIC_INTERRUPT_TEST		1
 #define QLCNIC_LOOPBACK_TEST		2
@@ -1062,6 +1064,7 @@ struct qlcnic_adapter {
 	struct delayed_work fw_work;
 	struct delayed_work idc_aen_work;
 	struct delayed_work mbx_poll_work;
+	struct qlcnic_dcb *dcb;
 
 	struct qlcnic_filter_hash fhash;
 	struct qlcnic_filter_hash rx_fhash;
@@ -2091,5 +2094,52 @@ static inline bool qlcnic_sriov_vf_check(struct qlcnic_adapter *adapter)
 		  (device == PCI_DEVICE_ID_QLOGIC_VF_QLE844X)) ? true : false;
 
 	return status;
+}
+
+static inline int qlcnic_dcb_get_hw_capability(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_dcb *dcb = adapter->dcb;
+
+	if (dcb && dcb->ops->get_hw_capability)
+		return dcb->ops->get_hw_capability(adapter);
+
+	return 0;
+}
+
+static inline void qlcnic_dcb_free(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_dcb *dcb = adapter->dcb;
+
+	if (dcb && dcb->ops->free)
+		dcb->ops->free(adapter);
+}
+
+static inline int qlcnic_dcb_attach(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_dcb *dcb = adapter->dcb;
+
+	if (dcb && dcb->ops->attach)
+		return dcb->ops->attach(adapter);
+
+	return 0;
+}
+
+static inline int
+qlcnic_dcb_query_hw_capability(struct qlcnic_adapter *adapter, char *buf)
+{
+	struct qlcnic_dcb *dcb = adapter->dcb;
+
+	if (dcb && dcb->ops->query_hw_capability)
+		return dcb->ops->query_hw_capability(adapter, buf);
+
+	return 0;
+}
+
+static inline void qlcnic_dcb_get_info(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_dcb *dcb = adapter->dcb;
+
+	if (dcb && dcb->ops->get_info)
+		dcb->ops->get_info(adapter);
 }
 #endif				/* __QLCNIC_H_ */

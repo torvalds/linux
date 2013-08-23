@@ -538,6 +538,9 @@ static int qlcnic_sriov_setup_vf(struct qlcnic_adapter *adapter,
 	if (err)
 		goto err_out_send_channel_term;
 
+	if (adapter->dcb && qlcnic_dcb_attach(adapter))
+		qlcnic_clear_dcb_ops(adapter);
+
 	err = qlcnic_setup_netdev(adapter, adapter->netdev, pci_using_dac);
 	if (err)
 		goto err_out_send_channel_term;
@@ -545,6 +548,7 @@ static int qlcnic_sriov_setup_vf(struct qlcnic_adapter *adapter,
 	pci_set_drvdata(adapter->pdev, adapter);
 	dev_info(&adapter->pdev->dev, "%s: XGbE port initialized\n",
 		 adapter->netdev->name);
+
 	qlcnic_schedule_work(adapter, qlcnic_sriov_vf_poll_dev_state,
 			     adapter->ahw->idc.delay);
 	return 0;
@@ -1576,6 +1580,8 @@ static int qlcnic_sriov_vf_reinit_driver(struct qlcnic_adapter *adapter)
 	err = qlcnic_sriov_vf_init_driver(adapter);
 	if (err)
 		goto err_out_term_channel;
+
+	qlcnic_dcb_get_info(adapter);
 
 	return 0;
 

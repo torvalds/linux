@@ -635,6 +635,8 @@ int qlcnic_83xx_idc_reattach_driver(struct qlcnic_adapter *adapter)
 
 	if (adapter->portnum == 0)
 		qlcnic_set_drv_version(adapter);
+
+	qlcnic_dcb_get_info(adapter);
 	qlcnic_83xx_idc_attach_driver(adapter);
 
 	return 0;
@@ -2227,6 +2229,9 @@ int qlcnic_83xx_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 	err = adapter->nic_ops->init_driver(adapter);
 	if (err)
 		goto disable_mbx_intr;
+
+	if (adapter->dcb && qlcnic_dcb_attach(adapter))
+		qlcnic_clear_dcb_ops(adapter);
 
 	/* Periodically monitor device status */
 	qlcnic_83xx_idc_poll_dev_state(&adapter->fw_work.work);

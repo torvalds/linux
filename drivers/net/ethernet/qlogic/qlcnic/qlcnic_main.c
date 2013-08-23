@@ -2121,6 +2121,17 @@ void qlcnic_set_drv_version(struct qlcnic_adapter *adapter)
 		qlcnic_fw_cmd_set_drv_version(adapter, fw_cmd);
 }
 
+static int qlcnic_register_dcb(struct qlcnic_adapter *adapter)
+{
+	return __qlcnic_register_dcb(adapter);
+}
+
+void qlcnic_clear_dcb_ops(struct qlcnic_adapter *adapter)
+{
+	kfree(adapter->dcb);
+	adapter->dcb = NULL;
+}
+
 static int
 qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -2217,6 +2228,8 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	INIT_LIST_HEAD(&adapter->mac_list);
 
+	qlcnic_register_dcb(adapter);
+
 	if (qlcnic_82xx_check(adapter)) {
 		qlcnic_check_vf(adapter, ent);
 		adapter->portnum = adapter->ahw->pci_func;
@@ -2245,6 +2258,10 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			goto err_out_free_hw;
 
 		adapter->flags |= QLCNIC_NEED_FLR;
+
+		if (adapter->dcb && qlcnic_dcb_attach(adapter))
+			qlcnic_clear_dcb_ops(adapter);
+
 	} else if (qlcnic_83xx_check(adapter)) {
 		adapter->max_drv_tx_rings = 1;
 		qlcnic_83xx_check_vf(adapter, ent);
@@ -2369,6 +2386,8 @@ static void qlcnic_remove(struct pci_dev *pdev)
 	qlcnic_cancel_idc_work(adapter);
 	ahw = adapter->ahw;
 
+	qlcnic_dcb_free(adapter);
+
 	unregister_netdev(netdev);
 	qlcnic_sriov_cleanup(adapter);
 
@@ -2411,6 +2430,7 @@ static void qlcnic_remove(struct pci_dev *pdev)
 		destroy_workqueue(adapter->qlcnic_wq);
 		adapter->qlcnic_wq = NULL;
 	}
+
 	qlcnic_free_adapter_resources(adapter);
 	kfree(ahw);
 	free_netdev(netdev);
@@ -3228,6 +3248,8 @@ qlcnic_attach_work(struct work_struct *work)
 		return;
 	}
 attach:
+	qlcnic_dcb_get_info(adapter);
+
 	if (netif_running(netdev)) {
 		if (qlcnic_up(adapter, netdev))
 			goto done;
