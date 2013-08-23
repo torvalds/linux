@@ -26,6 +26,7 @@
 #include <syslog.h>
 
 #include "usbip_common.h"
+#include "usbip_network.h"
 #include "usbip.h"
 
 static int usbip_help(int argc, char *argv[]);
@@ -34,7 +35,7 @@ static int usbip_version(int argc, char *argv[]);
 static const char usbip_version_string[] = PACKAGE_STRING;
 
 static const char usbip_usage_string[] =
-	"usbip [--debug] [--log] [version]\n"
+	"usbip [--debug] [--log] [--tcp-port PORT] [version]\n"
 	"             [help] <command> <args>\n";
 
 static void usbip_usage(void)
@@ -140,6 +141,7 @@ int main(int argc, char *argv[])
 	static const struct option opts[] = {
 		{ "debug", no_argument, NULL, 'd' },
 		{ "log",   no_argument, NULL, 'l' },
+		{ "tcp-port",  required_argument, NULL, 't' },
 		{ NULL,    0,           NULL,  0  }
 	};
 
@@ -150,7 +152,7 @@ int main(int argc, char *argv[])
 	usbip_use_stderr = 1;
 	opterr = 0;
 	for (;;) {
-		opt = getopt_long(argc, argv, "+d", opts, NULL);
+		opt = getopt_long(argc, argv, "+dt:", opts, NULL);
 
 		if (opt == -1)
 			break;
@@ -162,6 +164,9 @@ int main(int argc, char *argv[])
 		case 'l':
 			usbip_use_syslog = 1;
 			openlog("", LOG_PID, LOG_USER);
+			break;
+		case 't':
+			usbip_setup_port_number(optarg);
 			break;
 		case '?':
 			printf("usbip: invalid option\n");

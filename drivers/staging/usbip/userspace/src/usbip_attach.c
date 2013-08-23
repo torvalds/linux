@@ -175,7 +175,7 @@ static int attach_device(char *host, char *busid)
 	int rc;
 	int rhport;
 
-	sockfd = usbip_net_tcp_connect(host, USBIP_PORT_STRING);
+	sockfd = usbip_net_tcp_connect(host, usbip_port_string);
 	if (sockfd < 0) {
 		err("tcp connect");
 		return -1;
@@ -189,7 +189,7 @@ static int attach_device(char *host, char *busid)
 
 	close(sockfd);
 
-	rc = record_connection(host, USBIP_PORT_STRING, busid, rhport);
+	rc = record_connection(host, usbip_port_string, busid, rhport);
 	if (rc < 0) {
 		err("record connection");
 		return -1;

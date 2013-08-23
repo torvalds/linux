@@ -14,8 +14,9 @@
 
 #include <stdint.h>
 
-#define USBIP_PORT 3240
-#define USBIP_PORT_STRING "3240"
+extern int usbip_port;
+extern char *usbip_port_string;
+void usbip_setup_port_number(char *arg);
 
 /* ---------------------------------------------------------------------- */
 /* Common header for all the kinds of PDUs. */

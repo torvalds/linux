@@ -66,6 +66,9 @@ static const char usbipd_help_string[] =
 	"		Write process id to FILE.\n"
 	"		If no FILE specified, use " DEFAULT_PID_FILE "\n"
 	"\n"
+	"	-tPORT, --tcp-port PORT\n"
+	"		Listen on TCP/IP port PORT.\n"
+	"\n"
 	"	-h, --help\n"
 	"		Print this help.\n"
 	"\n"
@@ -417,9 +420,9 @@ static struct addrinfo *do_getaddrinfo(char *host, int ai_family)
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags    = AI_PASSIVE;
 
-	rc = getaddrinfo(host, USBIP_PORT_STRING, &hints, &ai_head);
+	rc = getaddrinfo(host, usbip_port_string, &hints, &ai_head);
 	if (rc) {
-		err("failed to get a network address %s: %s", USBIP_PORT_STRING,
+		err("failed to get a network address %s: %s", usbip_port_string,
 		    gai_strerror(rc));
 		return NULL;
 	}
@@ -560,6 +563,7 @@ int main(int argc, char *argv[])
 		{ "daemon",  no_argument, NULL, 'D' },
 		{ "debug",   no_argument, NULL, 'd' },
 		{ "pid",     optional_argument, NULL, 'P' },
+		{ "tcp-port", required_argument, NULL, 't' },
 		{ "help",    no_argument, NULL, 'h' },
 		{ "version", no_argument, NULL, 'v' },
 		{ NULL,	     0,           NULL,  0  }
@@ -583,7 +587,7 @@ int main(int argc, char *argv[])
 
 	cmd = cmd_standalone_mode;
 	for (;;) {
-		opt = getopt_long(argc, argv, "DdP::hv", longopts, NULL);
+		opt = getopt_long(argc, argv, "DdP::t:hv", longopts, NULL);
 
 		if (opt == -1)
 			break;
@@ -600,6 +604,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'P':
 			pid_file = optarg ? optarg : DEFAULT_PID_FILE;
+			break;
+		case 't':
+			usbip_setup_port_number(optarg);
 			break;
 		case 'v':
 			cmd = cmd_version;
