@@ -3799,6 +3799,10 @@
 #define          NVRAM_PARTITION_TYPE_DUMP                 0x800
 /* enum: Application license key storage partition */
 #define          NVRAM_PARTITION_TYPE_LICENSE              0x900
+/* enum: Start of range used for PHY partitions (low 8 bits are the PHY ID) */
+#define          NVRAM_PARTITION_TYPE_PHY_MIN              0xa00
+/* enum: End of range used for PHY partitions (low 8 bits are the PHY ID) */
+#define          NVRAM_PARTITION_TYPE_PHY_MAX              0xaff
 /* enum: Start of reserved value range (firmware may use for any purpose) */
 #define          NVRAM_PARTITION_TYPE_RESERVED_VALUES_MIN  0xff00
 /* enum: End of reserved value range (firmware may use for any purpose) */
