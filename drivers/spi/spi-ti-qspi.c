@@ -267,7 +267,18 @@ static int qspi_read_msg(struct ti_qspi *qspi, struct spi_transfer *t)
 	u8 *rxbuf;
 
 	rxbuf = t->rx_buf;
-	cmd = qspi->cmd | QSPI_RD_SNGL;
+	cmd = qspi->cmd;
+	switch (t->rx_nbits) {
+	case SPI_NBITS_DUAL:
+		cmd |= QSPI_RD_DUAL;
+		break;
+	case SPI_NBITS_QUAD:
+		cmd |= QSPI_RD_QUAD;
+		break;
+	default:
+		cmd |= QSPI_RD_SNGL;
+		break;
+	}
 	count = t->len;
 	wlen = t->bits_per_word;
 
