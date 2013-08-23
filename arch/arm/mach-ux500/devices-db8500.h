@@ -16,6 +16,5 @@ struct platform_device;
 
 extern struct ab8500_platform_data ab8500_platdata;
 extern struct prcmu_pdata db8500_prcmu_pdata;
-extern struct platform_device db8500_prcmu_device;
 
 #endif

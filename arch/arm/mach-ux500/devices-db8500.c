@@ -26,39 +26,3 @@ struct prcmu_pdata db8500_prcmu_pdata = {
 	.version_offset	= DB8500_PRCMU_FW_VERSION_OFFSET,
 	.legacy_offset	= DB8500_PRCMU_LEGACY_OFFSET,
 };
-
-static struct resource db8500_prcmu_res[] = {
-	{
-		.name  = "prcmu",
-		.start = U8500_PRCMU_BASE,
-		.end   = U8500_PRCMU_BASE + SZ_8K - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	{
-		.name  = "prcmu-tcdm",
-		.start = U8500_PRCMU_TCDM_BASE,
-		.end   = U8500_PRCMU_TCDM_BASE + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	{
-		.name  = "irq",
-		.start = IRQ_DB8500_PRCMU1,
-		.end   = IRQ_DB8500_PRCMU1,
-		.flags = IORESOURCE_IRQ,
-	},
-	{
-		.name  = "prcmu-tcpm",
-		.start = U8500_PRCMU_TCPM_BASE,
-		.end   = U8500_PRCMU_TCPM_BASE + SZ_32K - 1,
-		.flags = IORESOURCE_MEM,
-	},
-};
-
-struct platform_device db8500_prcmu_device = {
-	.name			= "db8500-prcmu",
-	.resource		= db8500_prcmu_res,
-	.num_resources		= ARRAY_SIZE(db8500_prcmu_res),
-	.dev = {
-		.platform_data = &db8500_prcmu_pdata,
-	},
-};

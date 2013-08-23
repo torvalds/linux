@@ -79,8 +79,6 @@ struct pl022_ssp_controller ssp0_plat = {
 
 static void __init mop500_init_machine(void)
 {
-	platform_device_register(&db8500_prcmu_device);
-
 	/* This board has full regulator constraints */
 	regulator_has_full_constraints();
 }
@@ -88,16 +86,12 @@ static void __init mop500_init_machine(void)
 
 static void __init snowball_init_machine(void)
 {
-	platform_device_register(&db8500_prcmu_device);
-
 	/* This board has full regulator constraints */
 	regulator_has_full_constraints();
 }
 
 static void __init hrefv60_init_machine(void)
 {
-	platform_device_register(&db8500_prcmu_device);
-
 	/* This board has full regulator constraints */
 	regulator_has_full_constraints();
 }
