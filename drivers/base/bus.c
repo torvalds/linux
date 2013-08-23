@@ -165,8 +165,8 @@ static const struct kset_uevent_ops bus_uevent_ops = {
 static struct kset *bus_kset;
 
 /* Manually detach a device from its associated driver. */
-static ssize_t driver_unbind(struct device_driver *drv,
-			     const char *buf, size_t count)
+static ssize_t unbind_store(struct device_driver *drv, const char *buf,
+			    size_t count)
 {
 	struct bus_type *bus = bus_get(drv->bus);
 	struct device *dev;
@@ -185,15 +185,15 @@ static ssize_t driver_unbind(struct device_driver *drv,
 	bus_put(bus);
 	return err;
 }
-static DRIVER_ATTR(unbind, S_IWUSR, NULL, driver_unbind);
+static DRIVER_ATTR_WO(unbind);
 
 /*
  * Manually attach a device to a driver.
  * Note: the driver must want to bind to the device,
  * it is not possible to override the driver's id table.
  */
-static ssize_t driver_bind(struct device_driver *drv,
-			   const char *buf, size_t count)
+static ssize_t bind_store(struct device_driver *drv, const char *buf,
+			  size_t count)
 {
 	struct bus_type *bus = bus_get(drv->bus);
 	struct device *dev;
@@ -221,7 +221,7 @@ static ssize_t driver_bind(struct device_driver *drv,
 	bus_put(bus);
 	return err;
 }
-static DRIVER_ATTR(bind, S_IWUSR, NULL, driver_bind);
+static DRIVER_ATTR_WO(bind);
 
 static ssize_t show_drivers_autoprobe(struct bus_type *bus, char *buf)
 {
@@ -665,8 +665,8 @@ static void remove_probe_files(struct bus_type *bus)
 	bus_remove_file(bus, &bus_attr_drivers_probe);
 }
 
-static ssize_t driver_uevent_store(struct device_driver *drv,
-				   const char *buf, size_t count)
+static ssize_t uevent_store(struct device_driver *drv, const char *buf,
+			    size_t count)
 {
 	enum kobject_action action;
 
@@ -674,7 +674,7 @@ static ssize_t driver_uevent_store(struct device_driver *drv,
 		kobject_uevent(&drv->p->kobj, action);
 	return count;
 }
-static DRIVER_ATTR(uevent, S_IWUSR, NULL, driver_uevent_store);
+static DRIVER_ATTR_WO(uevent);
 
 /**
  * bus_add_driver - Add a driver to the bus.
