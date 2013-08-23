@@ -552,7 +552,7 @@ fail:
 	 */
 	drm_gem_handle_delete(file_priv, *handle);
 out_unlock:
-	mutex_lock(&dev->object_name_lock);
+	mutex_unlock(&dev->object_name_lock);
 out_put:
 	dma_buf_put(dma_buf);
 	mutex_unlock(&file_priv->prime.lock);
