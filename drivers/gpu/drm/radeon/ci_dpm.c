@@ -746,6 +746,14 @@ static void ci_apply_state_adjust_rules(struct radeon_device *rdev,
 	u32 max_sclk_vddc, max_mclk_vddci, max_mclk_vddc;
 	int i;
 
+	if (rps->vce_active) {
+		rps->evclk = rdev->pm.dpm.vce_states[rdev->pm.dpm.vce_level].evclk;
+		rps->ecclk = rdev->pm.dpm.vce_states[rdev->pm.dpm.vce_level].ecclk;
+	} else {
+		rps->evclk = 0;
+		rps->ecclk = 0;
+	}
+
 	if ((rdev->pm.dpm.new_active_crtc_count > 1) ||
 	    ci_dpm_vblank_too_short(rdev))
 		disable_mclk_switching = true;
@@ -802,6 +810,13 @@ static void ci_apply_state_adjust_rules(struct radeon_device *rdev,
 	} else {
 		mclk = ps->performance_levels[0].mclk;
 		sclk = ps->performance_levels[0].sclk;
+	}
+
+	if (rps->vce_active) {
+		if (sclk < rdev->pm.dpm.vce_states[rdev->pm.dpm.vce_level].sclk)
+			sclk = rdev->pm.dpm.vce_states[rdev->pm.dpm.vce_level].sclk;
+		if (mclk < rdev->pm.dpm.vce_states[rdev->pm.dpm.vce_level].mclk)
+			mclk = rdev->pm.dpm.vce_states[rdev->pm.dpm.vce_level].mclk;
 	}
 
 	ps->performance_levels[0].sclk = sclk;
@@ -3468,7 +3483,6 @@ static int ci_enable_uvd_dpm(struct radeon_device *rdev, bool enable)
 		0 : -EINVAL;
 }
 
-#if 0
 static int ci_enable_vce_dpm(struct radeon_device *rdev, bool enable)
 {
 	struct ci_power_info *pi = ci_get_pi(rdev);
@@ -3501,6 +3515,7 @@ static int ci_enable_vce_dpm(struct radeon_device *rdev, bool enable)
 		0 : -EINVAL;
 }
 
+#if 0
 static int ci_enable_samu_dpm(struct radeon_device *rdev, bool enable)
 {
 	struct ci_power_info *pi = ci_get_pi(rdev);
@@ -3587,7 +3602,6 @@ static int ci_update_uvd_dpm(struct radeon_device *rdev, bool gate)
 	return ci_enable_uvd_dpm(rdev, !gate);
 }
 
-#if 0
 static u8 ci_get_vce_boot_level(struct radeon_device *rdev)
 {
 	u8 i;
@@ -3608,13 +3622,11 @@ static int ci_update_vce_dpm(struct radeon_device *rdev,
 			     struct radeon_ps *radeon_current_state)
 {
 	struct ci_power_info *pi = ci_get_pi(rdev);
-	bool new_vce_clock_non_zero = (radeon_new_state->evclk != 0);
-	bool old_vce_clock_non_zero = (radeon_current_state->evclk != 0);
 	int ret = 0;
 	u32 tmp;
 
-	if (new_vce_clock_non_zero != old_vce_clock_non_zero) {
-		if (new_vce_clock_non_zero) {
+	if (radeon_current_state->evclk != radeon_new_state->evclk) {
+		if (radeon_new_state->evclk) {
 			pi->smc_state_table.VceBootLevel = ci_get_vce_boot_level(rdev);
 
 			tmp = RREG32_SMC(DPM_TABLE_475);
@@ -3630,6 +3642,7 @@ static int ci_update_vce_dpm(struct radeon_device *rdev,
 	return ret;
 }
 
+#if 0
 static int ci_update_samu_dpm(struct radeon_device *rdev, bool gate)
 {
 	return ci_enable_samu_dpm(rdev, gate);
@@ -4752,13 +4765,13 @@ int ci_dpm_set_power_state(struct radeon_device *rdev)
 		DRM_ERROR("ci_generate_dpm_level_enable_mask failed\n");
 		return ret;
 	}
-#if 0
+
 	ret = ci_update_vce_dpm(rdev, new_ps, old_ps);
 	if (ret) {
 		DRM_ERROR("ci_update_vce_dpm failed\n");
 		return ret;
 	}
-#endif
+
 	ret = ci_update_sclk_t(rdev);
 	if (ret) {
 		DRM_ERROR("ci_update_sclk_t failed\n");
@@ -4995,6 +5008,21 @@ static int ci_parse_power_table(struct radeon_device *rdev)
 		power_state_offset += 2 + power_state->v2.ucNumDPMLevels;
 	}
 	rdev->pm.dpm.num_ps = state_array->ucNumEntries;
+
+	/* fill in the vce power states */
+	for (i = 0; i < RADEON_MAX_VCE_LEVELS; i++) {
+		u32 sclk, mclk;
+		clock_array_index = rdev->pm.dpm.vce_states[i].clk_idx;
+		clock_info = (union pplib_clock_info *)
+			&clock_info_array->clockInfo[clock_array_index * clock_info_array->ucEntrySize];
+		sclk = le16_to_cpu(clock_info->ci.usEngineClockLow);
+		sclk |= clock_info->ci.ucEngineClockHigh << 16;
+		mclk = le16_to_cpu(clock_info->ci.usMemoryClockLow);
+		mclk |= clock_info->ci.ucMemoryClockHigh << 16;
+		rdev->pm.dpm.vce_states[i].sclk = sclk;
+		rdev->pm.dpm.vce_states[i].mclk = mclk;
+	}
+
 	return 0;
 }
 
@@ -5080,12 +5108,14 @@ int ci_dpm_init(struct radeon_device *rdev)
 		ci_dpm_fini(rdev);
 		return ret;
 	}
-	ret = ci_parse_power_table(rdev);
+
+	ret = r600_parse_extended_power_table(rdev);
 	if (ret) {
 		ci_dpm_fini(rdev);
 		return ret;
 	}
-	ret = r600_parse_extended_power_table(rdev);
+
+	ret = ci_parse_power_table(rdev);
 	if (ret) {
 		ci_dpm_fini(rdev);
 		return ret;
