@@ -144,18 +144,9 @@ static int rcar_du_lvdsenc_get_resources(struct rcar_du_lvdsenc *lvds,
 	sprintf(name, "lvds.%u", lvds->index);
 
 	mem = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
-	if (mem == NULL) {
-		dev_err(&pdev->dev, "failed to get memory resource for %s\n",
-			name);
-		return -EINVAL;
-	}
-
 	lvds->mmio = devm_ioremap_resource(&pdev->dev, mem);
-	if (lvds->mmio == NULL) {
-		dev_err(&pdev->dev, "failed to remap memory resource for %s\n",
-			name);
-		return -ENOMEM;
-	}
+	if (IS_ERR(lvds->mmio))
+		return PTR_ERR(lvds->mmio);
 
 	lvds->clock = devm_clk_get(&pdev->dev, name);
 	if (IS_ERR(lvds->clock)) {
