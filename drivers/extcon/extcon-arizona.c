@@ -564,11 +564,10 @@ static irqreturn_t arizona_hpdet_irq(int irq, void *data)
 	}
 
 	ret = arizona_hpdet_read(info);
-	if (ret == -EAGAIN) {
+	if (ret == -EAGAIN)
 		goto out;
-	} else if (ret < 0) {
+	else if (ret < 0)
 		goto done;
-	}
 	reading = ret;
 
 	/* Reset back to starting range */
@@ -578,11 +577,10 @@ static irqreturn_t arizona_hpdet_irq(int irq, void *data)
 			   0);
 
 	ret = arizona_hpdet_do_id(info, &reading, &mic);
-	if (ret == -EAGAIN) {
+	if (ret == -EAGAIN)
 		goto out;
-	} else if (ret < 0) {
+	else if (ret < 0)
 		goto done;
-	}
 
 	/* Report high impedence cables as line outputs */
 	if (reading >= 5000)
