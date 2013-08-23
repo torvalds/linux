@@ -523,3 +523,7 @@
 	vmmc-supply = <&vmmc_reg>;
 	bus-width = <4>;
 };
+
+&sham {
+	status = "okay";
+};
