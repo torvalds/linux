@@ -618,14 +618,14 @@ static int oz_send_next_queued_frame(struct oz_pd *pd, int more_data)
 	pd->last_sent_frame = e;
 	skb = oz_build_frame(pd, f);
 	spin_unlock(&pd->tx_frame_lock);
+	if (!skb)
+		return -1;
 	if (more_data)
 		oz_set_more_bit(skb);
 	oz_dbg(TX_FRAMES, "TX frame PN=0x%x\n", f->hdr.pkt_num);
-	if (skb) {
-		if (dev_queue_xmit(skb) < 0)
-			return -1;
+	if (dev_queue_xmit(skb) < 0)
+		return -1;
 
-	}
 	return 0;
 }
 
