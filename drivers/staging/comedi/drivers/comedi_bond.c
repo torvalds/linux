@@ -336,7 +336,7 @@ static int bonding_attach(struct comedi_device *dev,
 		dev->driver->driver_name, dev->board_name,
 		devpriv->nchans, devpriv->ndevs);
 
-	return 1;
+	return 0;
 }
 
 static void bonding_detach(struct comedi_device *dev)
