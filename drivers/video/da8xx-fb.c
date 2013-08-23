@@ -493,12 +493,12 @@ static int lcd_cfg_display(const struct lcd_ctrl_config *cfg,
 	else
 		reg &= ~LCD_SYNC_EDGE;
 
-	if (panel->sync & FB_SYNC_HOR_HIGH_ACT)
+	if ((panel->sync & FB_SYNC_HOR_HIGH_ACT) == 0)
 		reg |= LCD_INVERT_LINE_CLOCK;
 	else
 		reg &= ~LCD_INVERT_LINE_CLOCK;
 
-	if (panel->sync & FB_SYNC_VERT_HIGH_ACT)
+	if ((panel->sync & FB_SYNC_VERT_HIGH_ACT) == 0)
 		reg |= LCD_INVERT_FRAME_CLOCK;
 	else
 		reg &= ~LCD_INVERT_FRAME_CLOCK;
