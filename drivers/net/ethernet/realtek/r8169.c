@@ -3689,7 +3689,7 @@ static void rtl_phy_work(struct rtl8169_private *tp)
 	if (tp->link_ok(ioaddr))
 		return;
 
-	netif_warn(tp, link, tp->dev, "PHY reset until link up\n");
+	netif_dbg(tp, link, tp->dev, "PHY reset until link up\n");
 
 	tp->phy_reset_enable(tp);
 
@@ -6468,6 +6468,8 @@ static int rtl8169_close(struct net_device *dev)
 	rtl8169_down(dev);
 	rtl_unlock_work(tp);
 
+	cancel_work_sync(&tp->wk.work);
+
 	free_irq(pdev->irq, dev);
 
 	dma_free_coherent(&pdev->dev, R8169_RX_RING_BYTES, tp->RxDescArray,
@@ -6792,8 +6794,6 @@ static void rtl_remove_one(struct pci_dev *pdev)
 	    tp->mac_version == RTL_GIGA_MAC_VER_31) {
 		rtl8168_driver_stop(tp);
 	}
-
-	cancel_work_sync(&tp->wk.work);
 
 	netif_napi_del(&tp->napi);
 

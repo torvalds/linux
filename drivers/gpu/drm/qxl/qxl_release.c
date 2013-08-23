@@ -38,7 +38,8 @@
 
 static const int release_size_per_bo[] = { RELEASE_SIZE, SURFACE_RELEASE_SIZE, RELEASE_SIZE };
 static const int releases_per_bo[] = { RELEASES_PER_BO, SURFACE_RELEASES_PER_BO, RELEASES_PER_BO };
-uint64_t
+
+static uint64_t
 qxl_release_alloc(struct qxl_device *qdev, int type,
 		  struct qxl_release **ret)
 {
@@ -53,9 +54,9 @@ qxl_release_alloc(struct qxl_device *qdev, int type,
 		return 0;
 	}
 	release->type = type;
-	release->bo_count = 0;
 	release->release_offset = 0;
 	release->surface_release_id = 0;
+	INIT_LIST_HEAD(&release->bos);
 
 	idr_preload(GFP_KERNEL);
 	spin_lock(&qdev->release_idr_lock);
@@ -77,20 +78,20 @@ void
 qxl_release_free(struct qxl_device *qdev,
 		 struct qxl_release *release)
 {
-	int i;
-
-	QXL_INFO(qdev, "release %d, type %d, %d bos\n", release->id,
-		 release->type, release->bo_count);
+	struct qxl_bo_list *entry, *tmp;
+	QXL_INFO(qdev, "release %d, type %d\n", release->id,
+		 release->type);
 
 	if (release->surface_release_id)
 		qxl_surface_id_dealloc(qdev, release->surface_release_id);
 
-	for (i = 0 ; i < release->bo_count; ++i) {
+	list_for_each_entry_safe(entry, tmp, &release->bos, tv.head) {
+		struct qxl_bo *bo = to_qxl_bo(entry->tv.bo);
 		QXL_INFO(qdev, "release %llx\n",
-			release->bos[i]->tbo.addr_space_offset
+			entry->tv.bo->addr_space_offset
 						- DRM_FILE_OFFSET);
-		qxl_fence_remove_release(&release->bos[i]->fence, release->id);
-		qxl_bo_unref(&release->bos[i]);
+		qxl_fence_remove_release(&bo->fence, release->id);
+		qxl_bo_unref(&bo);
 	}
 	spin_lock(&qdev->release_idr_lock);
 	idr_remove(&qdev->release_idr, release->id);
@@ -98,83 +99,117 @@ qxl_release_free(struct qxl_device *qdev,
 	kfree(release);
 }
 
-void
-qxl_release_add_res(struct qxl_device *qdev, struct qxl_release *release,
-		    struct qxl_bo *bo)
-{
-	int i;
-	for (i = 0; i < release->bo_count; i++)
-		if (release->bos[i] == bo)
-			return;
-
-	if (release->bo_count >= QXL_MAX_RES) {
-		DRM_ERROR("exceeded max resource on a qxl_release item\n");
-		return;
-	}
-	release->bos[release->bo_count++] = qxl_bo_ref(bo);
-}
-
 static int qxl_release_bo_alloc(struct qxl_device *qdev,
 				struct qxl_bo **bo)
 {
 	int ret;
-	ret = qxl_bo_create(qdev, PAGE_SIZE, false, QXL_GEM_DOMAIN_VRAM, NULL,
+	/* pin releases bo's they are too messy to evict */
+	ret = qxl_bo_create(qdev, PAGE_SIZE, false, true,
+			    QXL_GEM_DOMAIN_VRAM, NULL,
 			    bo);
 	return ret;
 }
 
-int qxl_release_reserve(struct qxl_device *qdev,
-			struct qxl_release *release, bool no_wait)
+int qxl_release_list_add(struct qxl_release *release, struct qxl_bo *bo)
+{
+	struct qxl_bo_list *entry;
+
+	list_for_each_entry(entry, &release->bos, tv.head) {
+		if (entry->tv.bo == &bo->tbo)
+			return 0;
+	}
+
+	entry = kmalloc(sizeof(struct qxl_bo_list), GFP_KERNEL);
+	if (!entry)
+		return -ENOMEM;
+
+	qxl_bo_ref(bo);
+	entry->tv.bo = &bo->tbo;
+	list_add_tail(&entry->tv.head, &release->bos);
+	return 0;
+}
+
+static int qxl_release_validate_bo(struct qxl_bo *bo)
 {
 	int ret;
-	if (atomic_inc_return(&release->bos[0]->reserve_count) == 1) {
-		ret = qxl_bo_reserve(release->bos[0], no_wait);
+
+	if (!bo->pin_count) {
+		qxl_ttm_placement_from_domain(bo, bo->type, false);
+		ret = ttm_bo_validate(&bo->tbo, &bo->placement,
+				      true, false);
 		if (ret)
 			return ret;
+	}
+
+	/* allocate a surface for reserved + validated buffers */
+	ret = qxl_bo_check_id(bo->gem_base.dev->dev_private, bo);
+	if (ret)
+		return ret;
+	return 0;
+}
+
+int qxl_release_reserve_list(struct qxl_release *release, bool no_intr)
+{
+	int ret;
+	struct qxl_bo_list *entry;
+
+	/* if only one object on the release its the release itself
+	   since these objects are pinned no need to reserve */
+	if (list_is_singular(&release->bos))
+		return 0;
+
+	ret = ttm_eu_reserve_buffers(&release->ticket, &release->bos);
+	if (ret)
+		return ret;
+
+	list_for_each_entry(entry, &release->bos, tv.head) {
+		struct qxl_bo *bo = to_qxl_bo(entry->tv.bo);
+
+		ret = qxl_release_validate_bo(bo);
+		if (ret) {
+			ttm_eu_backoff_reservation(&release->ticket, &release->bos);
+			return ret;
+		}
 	}
 	return 0;
 }
 
-void qxl_release_unreserve(struct qxl_device *qdev,
-			  struct qxl_release *release)
+void qxl_release_backoff_reserve_list(struct qxl_release *release)
 {
-	if (atomic_dec_and_test(&release->bos[0]->reserve_count))
-		qxl_bo_unreserve(release->bos[0]);
+	/* if only one object on the release its the release itself
+	   since these objects are pinned no need to reserve */
+	if (list_is_singular(&release->bos))
+		return;
+
+	ttm_eu_backoff_reservation(&release->ticket, &release->bos);
 }
+
 
 int qxl_alloc_surface_release_reserved(struct qxl_device *qdev,
 				       enum qxl_surface_cmd_type surface_cmd_type,
 				       struct qxl_release *create_rel,
 				       struct qxl_release **release)
 {
-	int ret;
-
 	if (surface_cmd_type == QXL_SURFACE_CMD_DESTROY && create_rel) {
 		int idr_ret;
+		struct qxl_bo_list *entry = list_first_entry(&create_rel->bos, struct qxl_bo_list, tv.head);
 		struct qxl_bo *bo;
 		union qxl_release_info *info;
 
 		/* stash the release after the create command */
 		idr_ret = qxl_release_alloc(qdev, QXL_RELEASE_SURFACE_CMD, release);
-		bo = qxl_bo_ref(create_rel->bos[0]);
+		bo = qxl_bo_ref(to_qxl_bo(entry->tv.bo));
 
 		(*release)->release_offset = create_rel->release_offset + 64;
 
-		qxl_release_add_res(qdev, *release, bo);
+		qxl_release_list_add(*release, bo);
 
-		ret = qxl_release_reserve(qdev, *release, false);
-		if (ret) {
-			DRM_ERROR("release reserve failed\n");
-			goto out_unref;
-		}
 		info = qxl_release_map(qdev, *release);
 		info->id = idr_ret;
 		qxl_release_unmap(qdev, *release, info);
 
-
-out_unref:
 		qxl_bo_unref(&bo);
-		return ret;
+		return 0;
 	}
 
 	return qxl_alloc_release_reserved(qdev, sizeof(struct qxl_surface_cmd),
@@ -187,7 +222,7 @@ int qxl_alloc_release_reserved(struct qxl_device *qdev, unsigned long size,
 {
 	struct qxl_bo *bo;
 	int idr_ret;
-	int ret;
+	int ret = 0;
 	union qxl_release_info *info;
 	int cur_idx;
 
@@ -216,11 +251,6 @@ int qxl_alloc_release_reserved(struct qxl_device *qdev, unsigned long size,
 			mutex_unlock(&qdev->release_mutex);
 			return ret;
 		}
-
-		/* pin releases bo's they are too messy to evict */
-		ret = qxl_bo_reserve(qdev->current_release_bo[cur_idx], false);
-		qxl_bo_pin(qdev->current_release_bo[cur_idx], QXL_GEM_DOMAIN_VRAM, NULL);
-		qxl_bo_unreserve(qdev->current_release_bo[cur_idx]);
 	}
 
 	bo = qxl_bo_ref(qdev->current_release_bo[cur_idx]);
@@ -231,34 +261,16 @@ int qxl_alloc_release_reserved(struct qxl_device *qdev, unsigned long size,
 	if (rbo)
 		*rbo = bo;
 
-	qxl_release_add_res(qdev, *release, bo);
-
-	ret = qxl_release_reserve(qdev, *release, false);
 	mutex_unlock(&qdev->release_mutex);
-	if (ret)
-		goto out_unref;
+
+	qxl_release_list_add(*release, bo);
 
 	info = qxl_release_map(qdev, *release);
 	info->id = idr_ret;
 	qxl_release_unmap(qdev, *release, info);
 
-out_unref:
 	qxl_bo_unref(&bo);
 	return ret;
-}
-
-int qxl_fence_releaseable(struct qxl_device *qdev,
-			  struct qxl_release *release)
-{
-	int i, ret;
-	for (i = 0; i < release->bo_count; i++) {
-		if (!release->bos[i]->tbo.sync_obj)
-			release->bos[i]->tbo.sync_obj = &release->bos[i]->fence;
-		ret = qxl_fence_add_release(&release->bos[i]->fence, release->id);
-		if (ret)
-			return ret;
-	}
-	return 0;
 }
 
 struct qxl_release *qxl_release_from_id_locked(struct qxl_device *qdev,
@@ -273,10 +285,7 @@ struct qxl_release *qxl_release_from_id_locked(struct qxl_device *qdev,
 		DRM_ERROR("failed to find id in release_idr\n");
 		return NULL;
 	}
-	if (release->bo_count < 1) {
-		DRM_ERROR("read a released resource with 0 bos\n");
-		return NULL;
-	}
+
 	return release;
 }
 
@@ -285,9 +294,12 @@ union qxl_release_info *qxl_release_map(struct qxl_device *qdev,
 {
 	void *ptr;
 	union qxl_release_info *info;
-	struct qxl_bo *bo = release->bos[0];
+	struct qxl_bo_list *entry = list_first_entry(&release->bos, struct qxl_bo_list, tv.head);
+	struct qxl_bo *bo = to_qxl_bo(entry->tv.bo);
 
 	ptr = qxl_bo_kmap_atomic_page(qdev, bo, release->release_offset & PAGE_SIZE);
+	if (!ptr)
+		return NULL;
 	info = ptr + (release->release_offset & ~PAGE_SIZE);
 	return info;
 }
@@ -296,9 +308,51 @@ void qxl_release_unmap(struct qxl_device *qdev,
 		       struct qxl_release *release,
 		       union qxl_release_info *info)
 {
-	struct qxl_bo *bo = release->bos[0];
+	struct qxl_bo_list *entry = list_first_entry(&release->bos, struct qxl_bo_list, tv.head);
+	struct qxl_bo *bo = to_qxl_bo(entry->tv.bo);
 	void *ptr;
 
 	ptr = ((void *)info) - (release->release_offset & ~PAGE_SIZE);
 	qxl_bo_kunmap_atomic_page(qdev, bo, ptr);
 }
+
+void qxl_release_fence_buffer_objects(struct qxl_release *release)
+{
+	struct ttm_validate_buffer *entry;
+	struct ttm_buffer_object *bo;
+	struct ttm_bo_global *glob;
+	struct ttm_bo_device *bdev;
+	struct ttm_bo_driver *driver;
+	struct qxl_bo *qbo;
+
+	/* if only one object on the release its the release itself
+	   since these objects are pinned no need to reserve */
+	if (list_is_singular(&release->bos))
+		return;
+
+	bo = list_first_entry(&release->bos, struct ttm_validate_buffer, head)->bo;
+	bdev = bo->bdev;
+	driver = bdev->driver;
+	glob = bo->glob;
+
+	spin_lock(&glob->lru_lock);
+	spin_lock(&bdev->fence_lock);
+
+	list_for_each_entry(entry, &release->bos, head) {
+		bo = entry->bo;
+		qbo = to_qxl_bo(bo);
+
+		if (!entry->bo->sync_obj)
+			entry->bo->sync_obj = &qbo->fence;
+
+		qxl_fence_add_release_locked(&qbo->fence, release->id);
+
+		ttm_bo_add_to_lru(bo);
+		ww_mutex_unlock(&bo->resv->lock);
+		entry->reserved = false;
+	}
+	spin_unlock(&bdev->fence_lock);
+	spin_unlock(&glob->lru_lock);
+	ww_acquire_fini(&release->ticket);
+}
+

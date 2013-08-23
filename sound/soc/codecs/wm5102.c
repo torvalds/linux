@@ -998,6 +998,8 @@ SND_SOC_DAPM_INPUT("IN2R"),
 SND_SOC_DAPM_INPUT("IN3L"),
 SND_SOC_DAPM_INPUT("IN3R"),
 
+SND_SOC_DAPM_OUTPUT("DRC1 Signal Activity"),
+
 SND_SOC_DAPM_PGA_E("IN1L PGA", ARIZONA_INPUT_ENABLES, ARIZONA_IN1L_ENA_SHIFT,
 		   0, NULL, 0, arizona_in_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD |
@@ -1421,9 +1423,6 @@ static const struct snd_soc_dapm_route wm5102_dapm_routes[] = {
 	{ "Tone Generator 1", NULL, "TONE" },
 	{ "Tone Generator 2", NULL, "TONE" },
 
-	{ "Mic Mute Mixer", NULL, "Noise Mixer" },
-	{ "Mic Mute Mixer", NULL, "Mic Mixer" },
-
 	{ "AIF1 Capture", NULL, "AIF1TX1" },
 	{ "AIF1 Capture", NULL, "AIF1TX2" },
 	{ "AIF1 Capture", NULL, "AIF1TX3" },
@@ -1499,23 +1498,6 @@ static const struct snd_soc_dapm_route wm5102_dapm_routes[] = {
 	{ "IN3L PGA", NULL, "IN3L" },
 	{ "IN3R PGA", NULL, "IN3R" },
 
-	{ "ASRC1L", NULL, "ASRC1L Input" },
-	{ "ASRC1R", NULL, "ASRC1R Input" },
-	{ "ASRC2L", NULL, "ASRC2L Input" },
-	{ "ASRC2R", NULL, "ASRC2R Input" },
-
-	{ "ISRC1DEC1", NULL, "ISRC1DEC1 Input" },
-	{ "ISRC1DEC2", NULL, "ISRC1DEC2 Input" },
-
-	{ "ISRC1INT1", NULL, "ISRC1INT1 Input" },
-	{ "ISRC1INT2", NULL, "ISRC1INT2 Input" },
-
-	{ "ISRC2DEC1", NULL, "ISRC2DEC1 Input" },
-	{ "ISRC2DEC2", NULL, "ISRC2DEC2 Input" },
-
-	{ "ISRC2INT1", NULL, "ISRC2INT1 Input" },
-	{ "ISRC2INT2", NULL, "ISRC2INT2 Input" },
-
 	ARIZONA_MIXER_ROUTES("OUT1L", "HPOUT1L"),
 	ARIZONA_MIXER_ROUTES("OUT1R", "HPOUT1R"),
 	ARIZONA_MIXER_ROUTES("OUT2L", "HPOUT2L"),
@@ -1567,22 +1549,25 @@ static const struct snd_soc_dapm_route wm5102_dapm_routes[] = {
 	ARIZONA_MIXER_ROUTES("LHPF3", "LHPF3"),
 	ARIZONA_MIXER_ROUTES("LHPF4", "LHPF4"),
 
-	ARIZONA_MUX_ROUTES("ASRC1L"),
-	ARIZONA_MUX_ROUTES("ASRC1R"),
-	ARIZONA_MUX_ROUTES("ASRC2L"),
-	ARIZONA_MUX_ROUTES("ASRC2R"),
+	ARIZONA_MIXER_ROUTES("Mic Mute Mixer", "Noise"),
+	ARIZONA_MIXER_ROUTES("Mic Mute Mixer", "Mic"),
 
-	ARIZONA_MUX_ROUTES("ISRC1INT1"),
-	ARIZONA_MUX_ROUTES("ISRC1INT2"),
+	ARIZONA_MUX_ROUTES("ASRC1L", "ASRC1L"),
+	ARIZONA_MUX_ROUTES("ASRC1R", "ASRC1R"),
+	ARIZONA_MUX_ROUTES("ASRC2L", "ASRC2L"),
+	ARIZONA_MUX_ROUTES("ASRC2R", "ASRC2R"),
 
-	ARIZONA_MUX_ROUTES("ISRC1DEC1"),
-	ARIZONA_MUX_ROUTES("ISRC1DEC2"),
+	ARIZONA_MUX_ROUTES("ISRC1INT1", "ISRC1INT1"),
+	ARIZONA_MUX_ROUTES("ISRC1INT2", "ISRC1INT2"),
 
-	ARIZONA_MUX_ROUTES("ISRC2INT1"),
-	ARIZONA_MUX_ROUTES("ISRC2INT2"),
+	ARIZONA_MUX_ROUTES("ISRC1DEC1", "ISRC1DEC1"),
+	ARIZONA_MUX_ROUTES("ISRC1DEC2", "ISRC1DEC2"),
 
-	ARIZONA_MUX_ROUTES("ISRC2DEC1"),
-	ARIZONA_MUX_ROUTES("ISRC2DEC2"),
+	ARIZONA_MUX_ROUTES("ISRC2INT1", "ISRC2INT1"),
+	ARIZONA_MUX_ROUTES("ISRC2INT2", "ISRC2INT2"),
+
+	ARIZONA_MUX_ROUTES("ISRC2DEC1", "ISRC2DEC1"),
+	ARIZONA_MUX_ROUTES("ISRC2DEC2", "ISRC2DEC2"),
 
 	ARIZONA_DSP_ROUTES("DSP1"),
 
@@ -1614,6 +1599,9 @@ static const struct snd_soc_dapm_route wm5102_dapm_routes[] = {
 	{ "SPKDAT1R", NULL, "OUT5R" },
 
 	{ "MICSUPP", NULL, "SYSCLK" },
+
+	{ "DRC1 Signal Activity", NULL, "DRC1L" },
+	{ "DRC1 Signal Activity", NULL, "DRC1R" },
 };
 
 static int wm5102_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
@@ -1781,6 +1769,7 @@ static int wm5102_codec_probe(struct snd_soc_codec *codec)
 		return ret;
 
 	arizona_init_spk(codec);
+	arizona_init_gpio(codec);
 
 	snd_soc_dapm_disable_pin(&codec->dapm, "HAPTICS");
 

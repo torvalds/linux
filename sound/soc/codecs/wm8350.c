@@ -1301,7 +1301,8 @@ static irqreturn_t wm8350_hpl_jack_handler(int irq, void *data)
 	if (device_may_wakeup(wm8350->dev))
 		pm_wakeup_event(wm8350->dev, 250);
 
-	schedule_delayed_work(&priv->hpl.work, msecs_to_jiffies(200));
+	queue_delayed_work(system_power_efficient_wq,
+			   &priv->hpl.work, msecs_to_jiffies(200));
 
 	return IRQ_HANDLED;
 }
@@ -1318,7 +1319,8 @@ static irqreturn_t wm8350_hpr_jack_handler(int irq, void *data)
 	if (device_may_wakeup(wm8350->dev))
 		pm_wakeup_event(wm8350->dev, 250);
 
-	schedule_delayed_work(&priv->hpr.work, msecs_to_jiffies(200));
+	queue_delayed_work(system_power_efficient_wq,
+			   &priv->hpr.work, msecs_to_jiffies(200));
 
 	return IRQ_HANDLED;
 }

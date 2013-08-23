@@ -2621,8 +2621,6 @@ static int wm8962_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 
 	wm8962->sysclk_rate = freq;
 
-	wm8962_configure_bclk(codec);
-
 	return 0;
 }
 
@@ -3046,8 +3044,9 @@ static irqreturn_t wm8962_irq(int irq, void *data)
 
 		pm_wakeup_event(dev, 300);
 
-		schedule_delayed_work(&wm8962->mic_work,
-				      msecs_to_jiffies(250));
+		queue_delayed_work(system_power_efficient_wq,
+				   &wm8962->mic_work,
+				   msecs_to_jiffies(250));
 	}
 
 	return IRQ_HANDLED;

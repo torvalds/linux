@@ -602,6 +602,7 @@
 #define		L2_BUSY						(1 << 0)
 
 #define	WAIT_UNTIL					0x8040
+#define         WAIT_CP_DMA_IDLE_bit                            (1 << 8)
 #define         WAIT_2D_IDLE_bit                                (1 << 14)
 #define         WAIT_3D_IDLE_bit                                (1 << 15)
 #define         WAIT_2D_IDLECLEAN_bit                           (1 << 16)
@@ -932,6 +933,9 @@
 #define DCCG_AUDIO_DTO0_LOAD              0x051c
 #       define DTO_LOAD                   (1 << 31)
 #define DCCG_AUDIO_DTO0_CNTL              0x0520
+#       define DCCG_AUDIO_DTO_WALLCLOCK_RATIO(x) (((x) & 7) << 0)
+#       define DCCG_AUDIO_DTO_WALLCLOCK_RATIO_MASK 7
+#       define DCCG_AUDIO_DTO_WALLCLOCK_RATIO_SHIFT 0
 
 #define DCCG_AUDIO_DTO1_PHASE             0x0524
 #define DCCG_AUDIO_DTO1_MODULE            0x0528

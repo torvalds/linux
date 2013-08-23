@@ -2166,16 +2166,23 @@ static noinline int record_one_backref(u64 inum, u64 offset, u64 root_id,
 		if (btrfs_file_extent_disk_bytenr(leaf, extent) != old->bytenr)
 			continue;
 
-		extent_offset = btrfs_file_extent_offset(leaf, extent);
-		if (key.offset - extent_offset != offset)
+		/*
+		 * 'offset' refers to the exact key.offset,
+		 * NOT the 'offset' field in btrfs_extent_data_ref, ie.
+		 * (key.offset - extent_offset).
+		 */
+		if (key.offset != offset)
 			continue;
 
+		extent_offset = btrfs_file_extent_offset(leaf, extent);
 		num_bytes = btrfs_file_extent_num_bytes(leaf, extent);
+
 		if (extent_offset >= old->extent_offset + old->offset +
 		    old->len || extent_offset + num_bytes <=
 		    old->extent_offset + old->offset)
 			continue;
 
+		ret = 0;
 		break;
 	}
 
@@ -2187,7 +2194,7 @@ static noinline int record_one_backref(u64 inum, u64 offset, u64 root_id,
 
 	backref->root_id = root_id;
 	backref->inum = inum;
-	backref->file_pos = offset + extent_offset;
+	backref->file_pos = offset;
 	backref->num_bytes = num_bytes;
 	backref->extent_offset = extent_offset;
 	backref->generation = btrfs_file_extent_generation(leaf, extent);
@@ -2210,7 +2217,8 @@ static noinline bool record_extent_backrefs(struct btrfs_path *path,
 	new->path = path;
 
 	list_for_each_entry_safe(old, tmp, &new->head, list) {
-		ret = iterate_inodes_from_logical(old->bytenr, fs_info,
+		ret = iterate_inodes_from_logical(old->bytenr +
+						  old->extent_offset, fs_info,
 						  path, record_one_backref,
 						  old);
 		BUG_ON(ret < 0 && ret != -ENOENT);
@@ -4391,9 +4399,6 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 	int mask = attr->ia_valid;
 	int ret;
 
-	if (newsize == oldsize)
-		return 0;
-
 	/*
 	 * The regular truncate() case without ATTR_CTIME and ATTR_MTIME is a
 	 * special case where we need to update the times despite not having
@@ -5165,14 +5170,31 @@ next:
 	}
 
 	/* Reached end of directory/root. Bump pos past the last item. */
-	if (key_type == BTRFS_DIR_INDEX_KEY)
-		/*
-		 * 32-bit glibc will use getdents64, but then strtol -
-		 * so the last number we can serve is this.
-		 */
-		ctx->pos = 0x7fffffff;
-	else
-		ctx->pos++;
+	ctx->pos++;
+
+	/*
+	 * Stop new entries from being returned after we return the last
+	 * entry.
+	 *
+	 * New directory entries are assigned a strictly increasing
+	 * offset.  This means that new entries created during readdir
+	 * are *guaranteed* to be seen in the future by that readdir.
+	 * This has broken buggy programs which operate on names as
+	 * they're returned by readdir.  Until we re-use freed offsets
+	 * we have this hack to stop new entries from being returned
+	 * under the assumption that they'll never reach this huge
+	 * offset.
+	 *
+	 * This is being careful not to overflow 32bit loff_t unless the
+	 * last entry requires it because doing so has broken 32bit apps
+	 * in the past.
+	 */
+	if (key_type == BTRFS_DIR_INDEX_KEY) {
+		if (ctx->pos >= INT_MAX)
+			ctx->pos = LLONG_MAX;
+		else
+			ctx->pos = INT_MAX;
+	}
 nopos:
 	ret = 0;
 err:

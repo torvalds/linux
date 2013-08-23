@@ -26,7 +26,7 @@
 static unsigned long icache_size, dcache_size;		/* Size in bytes */
 static unsigned long icache_lsize, dcache_lsize;	/* Size in bytes */
 
-unsigned long __cpuinit r3k_cache_size(unsigned long ca_flags)
+unsigned long r3k_cache_size(unsigned long ca_flags)
 {
 	unsigned long flags, status, dummy, size;
 	volatile unsigned long *p;
@@ -61,7 +61,7 @@ unsigned long __cpuinit r3k_cache_size(unsigned long ca_flags)
 	return size * sizeof(*p);
 }
 
-unsigned long __cpuinit r3k_cache_lsize(unsigned long ca_flags)
+unsigned long r3k_cache_lsize(unsigned long ca_flags)
 {
 	unsigned long flags, status, lsize, i;
 	volatile unsigned long *p;
@@ -90,7 +90,7 @@ unsigned long __cpuinit r3k_cache_lsize(unsigned long ca_flags)
 	return lsize * sizeof(*p);
 }
 
-static void __cpuinit r3k_probe_cache(void)
+static void r3k_probe_cache(void)
 {
 	dcache_size = r3k_cache_size(ST0_ISC);
 	if (dcache_size)
@@ -312,7 +312,7 @@ static void r3k_dma_cache_wback_inv(unsigned long start, unsigned long size)
 	r3k_flush_dcache_range(start, start + size);
 }
 
-void __cpuinit r3k_cache_init(void)
+void r3k_cache_init(void)
 {
 	extern void build_clear_page(void);
 	extern void build_copy_page(void);

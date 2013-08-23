@@ -15,9 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <sound/soc.h>
-#include <mach/kirkwood.h>
 #include <linux/platform_data/asoc-kirkwood.h>
-#include <asm/mach-types.h>
 #include "../codecs/alc5623.h"
 
 static int t5325_hw_params(struct snd_pcm_substream *substream,
@@ -70,8 +68,8 @@ static struct snd_soc_dai_link t5325_dai[] = {
 {
 	.name = "ALC5621",
 	.stream_name = "ALC5621 HiFi",
-	.cpu_dai_name = "kirkwood-i2s",
-	.platform_name = "kirkwood-pcm-audio",
+	.cpu_dai_name = "mvebu-audio",
+	.platform_name = "mvebu-audio",
 	.codec_dai_name = "alc5621-hifi",
 	.codec_name = "alc562x-codec.0-001a",
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS,

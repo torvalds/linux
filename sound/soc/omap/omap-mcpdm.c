@@ -66,7 +66,6 @@ struct omap_mcpdm {
 	bool restart;
 
 	struct snd_dmaengine_dai_dma_data dma_data[2];
-	unsigned int dma_req[2];
 };
 
 /*
@@ -477,24 +476,10 @@ static int asoc_mcpdm_probe(struct platform_device *pdev)
 	mcpdm->dma_data[0].addr = res->start + MCPDM_REG_DN_DATA;
 	mcpdm->dma_data[1].addr = res->start + MCPDM_REG_UP_DATA;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "dn_link");
-	if (!res)
-		return -ENODEV;
-
-	mcpdm->dma_req[0] = res->start;
-	mcpdm->dma_data[0].filter_data = &mcpdm->dma_req[0];
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "up_link");
-	if (!res)
-		return -ENODEV;
-
-	mcpdm->dma_req[1] = res->start;
-	mcpdm->dma_data[1].filter_data = &mcpdm->dma_req[1];
+	mcpdm->dma_data[0].filter_data = "dn_link";
+	mcpdm->dma_data[1].filter_data = "up_link";
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mpu");
-	if (res == NULL)
-		return -ENOMEM;
-
 	mcpdm->io_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(mcpdm->io_base))
 		return PTR_ERR(mcpdm->io_base);

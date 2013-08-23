@@ -52,7 +52,7 @@ Default: 64
 
 busy_read
 ----------------
-Low latency busy poll timeout for socket reads. (needs CONFIG_NET_LL_RX_POLL)
+Low latency busy poll timeout for socket reads. (needs CONFIG_NET_RX_BUSY_POLL)
 Approximate time in us to busy loop waiting for packets on the device queue.
 This sets the default value of the SO_BUSY_POLL socket option.
 Can be set or overridden per socket by setting socket option SO_BUSY_POLL,
@@ -63,7 +63,7 @@ Default: 0 (off)
 
 busy_poll
 ----------------
-Low latency busy poll timeout for poll and select. (needs CONFIG_NET_LL_RX_POLL)
+Low latency busy poll timeout for poll and select. (needs CONFIG_NET_RX_BUSY_POLL)
 Approximate time in us to busy loop waiting for events.
 Recommended value depends on the number of sockets you poll on.
 For several sockets 50, for several hundreds 100.

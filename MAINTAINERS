@@ -595,6 +595,7 @@ S:	Supported
 F:	sound/soc/codecs/adau*
 F:	sound/soc/codecs/adav*
 F:	sound/soc/codecs/ad1*
+F:	sound/soc/codecs/ad7*
 F:	sound/soc/codecs/ssm*
 F:	sound/soc/codecs/sigmadsp.*
 
@@ -965,6 +966,12 @@ M:	Lennert Buytenhek <kernel@wantstofly.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 
+ARM/TEXAS INSTRUMENT KEYSTONE ARCHITECTURE
+M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-keystone/
+
 ARM/LOGICPD PXA270 MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -1259,7 +1266,6 @@ F:	drivers/rtc/rtc-coh901331.c
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-stericsson.git
 
 ARM/Ux500 ARM ARCHITECTURE
-M:	Srinidhi Kasagar <srinidhi.kasagar@stericsson.com>
 M:	Linus Walleij <linus.walleij@linaro.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
@@ -1406,7 +1412,7 @@ ATHEROS ATH6KL WIRELESS DRIVER
 M:	Kalle Valo <kvalo@qca.qualcomm.com>
 L:	linux-wireless@vger.kernel.org
 W:	http://wireless.kernel.org/en/users/Drivers/ath6kl
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kvalo/ath6kl.git
+T:	git git://github.com/kvalo/ath.git
 S:	Supported
 F:	drivers/net/wireless/ath/ath6kl/
 
@@ -1642,7 +1648,7 @@ S:	Maintained
 F:	drivers/net/hamradio/baycom*
 
 BCACHE (BLOCK LAYER CACHE)
-M:	Kent Overstreet <koverstreet@google.com>
+M:	Kent Overstreet <kmo@daterainc.com>
 L:	linux-bcache@vger.kernel.org
 W:	http://bcache.evilpiepirate.org
 S:	Maintained:
@@ -2871,7 +2877,7 @@ F:	drivers/media/usb/dvb-usb-v2/dvb_usb*
 F:	drivers/media/usb/dvb-usb-v2/usb_urb.c
 
 DYNAMIC DEBUG
-M:	Jason Baron <jbaron@redhat.com>
+M:	Jason Baron <jbaron@akamai.com>
 S:	Maintained
 F:	lib/dynamic_debug.c
 F:	include/linux/dynamic_debug.h
@@ -3346,7 +3352,7 @@ F:	Documentation/firmware_class/
 F:	drivers/base/firmware*.c
 F:	include/linux/firmware.h
 
-FLASHSYSTEM DRIVER (IBM FlashSystem 70/80 PCI SSD Flash Card)
+FLASH ADAPTER DRIVER (IBM Flash Adapter 900GB Full Height PCI Flash Card)
 M:	Joshua Morris <josh.h.morris@us.ibm.com>
 M:	Philip Kelleher <pjk1939@linux.vnet.ibm.com>
 S:	Maintained
@@ -3622,11 +3628,9 @@ F:	drivers/isdn/gigaset/
 F:	include/uapi/linux/gigaset_dev.h
 
 GPIO SUBSYSTEM
-M:	Grant Likely <grant.likely@linaro.org>
 M:	Linus Walleij <linus.walleij@linaro.org>
 S:	Maintained
 L:	linux-gpio@vger.kernel.org
-T:	git git://git.secretlab.ca/git/linux-2.6.git
 F:	Documentation/gpio.txt
 F:	drivers/gpio/
 F:	include/linux/gpio*
@@ -4472,8 +4476,6 @@ F:	drivers/irqchip/
 
 IRQ DOMAINS (IRQ NUMBER MAPPING LIBRARY)
 M:	Benjamin Herrenschmidt <benh@kernel.crashing.org>
-M:	Grant Likely <grant.likely@linaro.org>
-T:	git git://git.secretlab.ca/git/linux-2.6.git irqdomain/next
 S:	Maintained
 F:	Documentation/IRQ-domain.txt
 F:	include/linux/irqdomain.h
@@ -4990,7 +4992,7 @@ F:	arch/powerpc/platforms/44x/
 
 LINUX FOR POWERPC EMBEDDED XILINX VIRTEX
 L:	linuxppc-dev@lists.ozlabs.org
-S:	Unmaintained
+S:	Orphan
 F:	arch/powerpc/*/*virtex*
 F:	arch/powerpc/*/*/*virtex*
 
@@ -5580,9 +5582,9 @@ S:	Maintained
 F:	drivers/media/tuners/mxl5007t.*
 
 MYRICOM MYRI-10G 10GbE DRIVER (MYRI10GE)
-M:	Andrew Gallatin <gallatin@myri.com>
+M:	Hyong-Youb Kim <hykim@myri.com>
 L:	netdev@vger.kernel.org
-W:	http://www.myri.com/scs/download-Myri10GE.html
+W:	https://www.myricom.com/support/downloads/myri10ge.html
 S:	Supported
 F:	drivers/net/ethernet/myricom/myri10ge/
 
@@ -5886,7 +5888,7 @@ OMAP DEVICE TREE SUPPORT
 M:	Benoît Cousson <b-cousson@ti.com>
 M:	Tony Lindgren <tony@atomide.com>
 L:	linux-omap@vger.kernel.org
-L:	devicetree-discuss@lists.ozlabs.org (moderated for non-subscribers)
+L:	devicetree@vger.kernel.org
 S:	Maintained
 F:	arch/arm/boot/dts/*omap*
 F:	arch/arm/boot/dts/*am3*
@@ -6050,16 +6052,27 @@ F:	drivers/i2c/busses/i2c-ocores.c
 OPEN FIRMWARE AND FLATTENED DEVICE TREE
 M:	Grant Likely <grant.likely@linaro.org>
 M:	Rob Herring <rob.herring@calxeda.com>
-L:	devicetree-discuss@lists.ozlabs.org (moderated for non-subscribers)
+L:	devicetree@vger.kernel.org
 W:	http://fdt.secretlab.ca
 T:	git git://git.secretlab.ca/git/linux-2.6.git
 S:	Maintained
-F:	Documentation/devicetree
-F:	drivers/of
+F:	drivers/of/
 F:	include/linux/of*.h
-F:	scripts/dtc
+F:	scripts/dtc/
 K:	of_get_property
 K:	of_match_table
+
+OPEN FIRMWARE AND FLATTENED DEVICE TREE BINDINGS
+M:	Rob Herring <rob.herring@calxeda.com>
+M:	Pawel Moll <pawel.moll@arm.com>
+M:	Mark Rutland <mark.rutland@arm.com>
+M:	Stephen Warren <swarren@wwwdotorg.org>
+M:	Ian Campbell <ian.campbell@citrix.com>
+L:	devicetree@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/
+F:	arch/*/boot/dts/
+F:	include/dt-bindings/
 
 OPENRISC ARCHITECTURE
 M:	Jonas Bonn <jonas@southpole.se>
@@ -6719,6 +6732,14 @@ T:	git git://linuxtv.org/anttip/media_tree.git
 S:	Maintained
 F:	drivers/media/tuners/qt1010*
 
+QUALCOMM ATHEROS ATH10K WIRELESS DRIVER
+M:	Kalle Valo <kvalo@qca.qualcomm.com>
+L:	ath10k@lists.infradead.org
+W:	http://wireless.kernel.org/en/users/Drivers/ath10k
+T:	git git://github.com/kvalo/ath.git
+S:	Supported
+F:	drivers/net/wireless/ath/ath10k/
+
 QUALCOMM HEXAGON ARCHITECTURE
 M:	Richard Kuo <rkuo@codeaurora.org>
 L:	linux-hexagon@vger.kernel.org
@@ -7346,7 +7367,6 @@ F:	drivers/net/ethernet/sfc/
 
 SGI GRU DRIVER
 M:	Dimitri Sivanich <sivanich@sgi.com>
-M:	Robin Holt <holt@sgi.com>
 S:	Maintained
 F:	drivers/misc/sgi-gru/
 
@@ -7366,7 +7386,8 @@ S:	Maintained for 2.6.
 F:	Documentation/sgi-visws.txt
 
 SGI XP/XPC/XPNET DRIVER
-M:	Robin Holt <holt@sgi.com>
+M:	Cliff Whickman <cpw@sgi.com>
+M:	Robin Holt <robinmholt@gmail.com>
 S:	Maintained
 F:	drivers/misc/sgi-xp/
 
@@ -7673,6 +7694,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/broonie/sound.git
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 W:	http://alsa-project.org/main/index.php/ASoC
 S:	Supported
+F:	Documentation/sound/alsa/soc/
 F:	sound/soc/
 F:	include/sound/soc*
 
@@ -7757,7 +7779,6 @@ F:	drivers/clk/spear/
 
 SPI SUBSYSTEM
 M:	Mark Brown <broonie@kernel.org>
-M:	Grant Likely <grant.likely@linaro.org>
 L:	linux-spi@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/broonie/spi.git
 Q:	http://patchwork.kernel.org/project/spi-devel-general/list/
@@ -7823,7 +7844,7 @@ F:	drivers/staging/asus_oled/
 
 STAGING - COMEDI
 M:	Ian Abbott <abbotti@mev.co.uk>
-M:	Mori Hess <fmhess@users.sourceforge.net>
+M:	H Hartley Sweeten <hsweeten@visionengravers.com>
 S:	Odd Fixes
 F:	drivers/staging/comedi/
 
@@ -8275,7 +8296,7 @@ S:	Maintained
 F:	sound/soc/codecs/twl4030*
 
 TI WILINK WIRELESS DRIVERS
-M:	Luciano Coelho <coelho@ti.com>
+M:	Luciano Coelho <luca@coelho.fi>
 L:	linux-wireless@vger.kernel.org
 W:	http://wireless.kernel.org/en/users/Drivers/wl12xx
 W:	http://wireless.kernel.org/en/users/Drivers/wl1251
@@ -8660,6 +8681,11 @@ L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 T:	git git://git.alsa-project.org/alsa-kernel.git
 S:	Maintained
 F:	sound/usb/midi.*
+
+USB NETWORKING DRIVERS
+L:	linux-usb@vger.kernel.org
+S:	Odd Fixes
+F:	drivers/net/usb/
 
 USB OHCI DRIVER
 M:	Alan Stern <stern@rowland.harvard.edu>
@@ -9299,7 +9325,7 @@ S:	Maintained
 F:	drivers/net/ethernet/xilinx/xilinx_axienet*
 
 XILINX SYSTEMACE DRIVER
-S:	Unmaintained
+S:	Orphan
 F:	drivers/block/xsysace.c
 
 XILINX UARTLITE SERIAL DRIVER
