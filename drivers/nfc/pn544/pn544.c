@@ -82,6 +82,7 @@ enum pn544_state {
 #define PN544_PL_NFCT_DEACTIVATED		0x09
 
 #define PN544_SWP_MGMT_GATE			0xA0
+#define PN544_SWP_DEFAULT_MODE			0x01
 
 #define PN544_NFC_WI_MGMT_GATE			0xA1
 #define PN544_NFC_ESE_DEFAULT_MODE		0x01
@@ -189,13 +190,6 @@ static int pn544_hci_ready(struct nfc_hci_dev *hdev)
 		{{0x98, 0x09}, 0x00},
 
 		{{0x9e, 0xb4}, 0x00},
-
-		{{0x9e, 0xd9}, 0xff},
-		{{0x9e, 0xda}, 0xff},
-		{{0x9e, 0xdb}, 0x23},
-		{{0x9e, 0xdc}, 0x21},
-		{{0x9e, 0xdd}, 0x22},
-		{{0x9e, 0xde}, 0x24},
 
 		{{0x9c, 0x01}, 0x08},
 
@@ -821,6 +815,82 @@ static int pn544_hci_discover_se(struct nfc_hci_dev *hdev)
 	return !se_idx;
 }
 
+#define PN544_SE_MODE_OFF	0x00
+#define PN544_SE_MODE_ON	0x01
+static int pn544_hci_enable_se(struct nfc_hci_dev *hdev, u32 se_idx)
+{
+	struct nfc_se *se;
+	u8 enable = PN544_SE_MODE_ON;
+	static struct uicc_gatelist {
+		u8 head;
+		u8 adr[2];
+		u8 value;
+	} uicc_gatelist[] = {
+		{0x00, {0x9e, 0xd9}, 0x23},
+		{0x00, {0x9e, 0xda}, 0x21},
+		{0x00, {0x9e, 0xdb}, 0x22},
+		{0x00, {0x9e, 0xdc}, 0x24},
+	};
+	struct uicc_gatelist *p = uicc_gatelist;
+	int count = ARRAY_SIZE(uicc_gatelist);
+	struct sk_buff *res_skb;
+	int r;
+
+	se = nfc_find_se(hdev->ndev, se_idx);
+
+	switch (se->type) {
+	case NFC_SE_UICC:
+		while (count--) {
+			r = nfc_hci_send_cmd(hdev, PN544_SYS_MGMT_GATE,
+					PN544_WRITE, (u8 *)p, 4, &res_skb);
+			if (r < 0)
+				return r;
+
+			if (res_skb->len != 1) {
+				kfree_skb(res_skb);
+				return -EPROTO;
+			}
+
+			if (res_skb->data[0] != p->value) {
+				kfree_skb(res_skb);
+				return -EIO;
+			}
+
+			kfree_skb(res_skb);
+
+			p++;
+		}
+
+		return nfc_hci_set_param(hdev, PN544_SWP_MGMT_GATE,
+			      PN544_SWP_DEFAULT_MODE, &enable, 1);
+	case NFC_SE_EMBEDDED:
+		return nfc_hci_set_param(hdev, PN544_NFC_WI_MGMT_GATE,
+			      PN544_NFC_ESE_DEFAULT_MODE, &enable, 1);
+
+	default:
+		return -EINVAL;
+	}
+}
+
+static int pn544_hci_disable_se(struct nfc_hci_dev *hdev, u32 se_idx)
+{
+	struct nfc_se *se;
+	u8 disable = PN544_SE_MODE_OFF;
+
+	se = nfc_find_se(hdev->ndev, se_idx);
+
+	switch (se->type) {
+	case NFC_SE_UICC:
+		return nfc_hci_set_param(hdev, PN544_SWP_MGMT_GATE,
+			      PN544_SWP_DEFAULT_MODE, &disable, 1);
+	case NFC_SE_EMBEDDED:
+		return nfc_hci_set_param(hdev, PN544_NFC_WI_MGMT_GATE,
+			      PN544_NFC_ESE_DEFAULT_MODE, &disable, 1);
+	default:
+		return -EINVAL;
+	}
+}
+
 static struct nfc_hci_ops pn544_hci_ops = {
 	.open = pn544_hci_open,
 	.close = pn544_hci_close,
@@ -837,6 +907,8 @@ static struct nfc_hci_ops pn544_hci_ops = {
 	.event_received = pn544_hci_event_received,
 	.fw_download = pn544_hci_fw_download,
 	.discover_se = pn544_hci_discover_se,
+	.enable_se = pn544_hci_enable_se,
+	.disable_se = pn544_hci_disable_se,
 };
 
 int pn544_hci_probe(void *phy_id, struct nfc_phy_ops *phy_ops, char *llc_name,
