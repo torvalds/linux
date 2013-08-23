@@ -555,7 +555,6 @@ struct snd_soc_dai_ops fsl_spdif_dai_ops = {
 
 
 /*
- * ============================================
  * FSL SPDIF IEC958 controller(mixer) functions
  *
  *	Channel status get/put control
@@ -563,7 +562,6 @@ struct snd_soc_dai_ops fsl_spdif_dai_ops = {
  *	Valid bit value get control
  *	DPLL lock status get control
  *	User bit sync mode selection control
- * ============================================
  */
 
 static int fsl_spdif_info(struct snd_kcontrol *kcontrol,
@@ -942,11 +940,7 @@ static const struct snd_soc_component_driver fsl_spdif_component = {
 	.name		= "fsl-spdif",
 };
 
-/*
- * ================
- * FSL SPDIF REGMAP
- * ================
- */
+/* FSL SPDIF REGMAP */
 
 static bool fsl_spdif_readable_reg(struct device *dev, unsigned int reg)
 {
