@@ -781,9 +781,11 @@ ieee80211_tx_h_sequence(struct ieee80211_tx_data *tx)
 	/*
 	 * Anything but QoS data that has a sequence number field
 	 * (is long enough) gets a sequence number from the global
-	 * counter.
+	 * counter.  QoS data frames with a multicast destination
+	 * also use the global counter (802.11-2012 9.3.2.10).
 	 */
-	if (!ieee80211_is_data_qos(hdr->frame_control)) {
+	if (!ieee80211_is_data_qos(hdr->frame_control) ||
+	    is_multicast_ether_addr(hdr->addr1)) {
 		/* driver should assign sequence number */
 		info->flags |= IEEE80211_TX_CTL_ASSIGN_SEQ;
 		/* for pure STA mode without beacons, we can do it */
