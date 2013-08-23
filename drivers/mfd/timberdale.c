@@ -868,34 +868,7 @@ static struct pci_driver timberdale_pci_driver = {
 	.remove = timb_remove,
 };
 
-static int __init timberdale_init(void)
-{
-	int err;
-
-	err = pci_register_driver(&timberdale_pci_driver);
-	if (err < 0) {
-		printk(KERN_ERR
-			"Failed to register PCI driver for %s device.\n",
-			timberdale_pci_driver.name);
-		return -ENODEV;
-	}
-
-	printk(KERN_INFO "Driver for %s has been successfully registered.\n",
-		timberdale_pci_driver.name);
-
-	return 0;
-}
-
-static void __exit timberdale_exit(void)
-{
-	pci_unregister_driver(&timberdale_pci_driver);
-
-	printk(KERN_INFO "Driver for %s has been successfully unregistered.\n",
-		timberdale_pci_driver.name);
-}
-
-module_init(timberdale_init);
-module_exit(timberdale_exit);
+module_pci_driver(timberdale_pci_driver);
 
 MODULE_AUTHOR("Mocean Laboratories <info@mocean-labs.com>");
 MODULE_VERSION(DRV_VERSION);
