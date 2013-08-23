@@ -721,5 +721,15 @@
 			dmas = <&edma 36>;
 			dma-names = "rx";
 		};
+
+		aes: aes@53500000 {
+			compatible = "ti,omap4-aes";
+			ti,hwmods = "aes";
+			reg = <0x53500000 0xa0>;
+			interrupts = <102>;
+			dmas = <&edma 6>,
+			       <&edma 5>;
+			dma-names = "tx", "rx";
+		};
 	};
 };
