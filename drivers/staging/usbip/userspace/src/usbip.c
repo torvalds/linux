@@ -139,10 +139,10 @@ static int run_command(const struct command *cmd, int argc, char *argv[])
 int main(int argc, char *argv[])
 {
 	static const struct option opts[] = {
-		{ "debug", no_argument, NULL, 'd' },
-		{ "log",   no_argument, NULL, 'l' },
-		{ "tcp-port",  required_argument, NULL, 't' },
-		{ NULL,    0,           NULL,  0  }
+		{ "debug",    no_argument,       NULL, 'd' },
+		{ "log",      no_argument,       NULL, 'l' },
+		{ "tcp-port", required_argument, NULL, 't' },
+		{ NULL,       0,                 NULL,  0  }
 	};
 
 	char *cmd;

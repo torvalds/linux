@@ -560,13 +560,13 @@ static int do_standalone_mode(int daemonize)
 int main(int argc, char *argv[])
 {
 	static const struct option longopts[] = {
-		{ "daemon",  no_argument, NULL, 'D' },
-		{ "debug",   no_argument, NULL, 'd' },
-		{ "pid",     optional_argument, NULL, 'P' },
+		{ "daemon",   no_argument,       NULL, 'D' },
+		{ "debug",    no_argument,       NULL, 'd' },
+		{ "pid",      optional_argument, NULL, 'P' },
 		{ "tcp-port", required_argument, NULL, 't' },
-		{ "help",    no_argument, NULL, 'h' },
-		{ "version", no_argument, NULL, 'v' },
-		{ NULL,	     0,           NULL,  0  }
+		{ "help",     no_argument,       NULL, 'h' },
+		{ "version",  no_argument,       NULL, 'v' },
+		{ NULL,	      0,                 NULL,  0  }
 	};
 
 	enum {
