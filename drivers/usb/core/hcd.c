@@ -849,9 +849,8 @@ static int usb_rh_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 /*
  * Show & store the current value of authorized_default
  */
-static ssize_t usb_host_authorized_default_show(struct device *dev,
-						struct device_attribute *attr,
-						char *buf)
+static ssize_t authorized_default_show(struct device *dev,
+				       struct device_attribute *attr, char *buf)
 {
 	struct usb_device *rh_usb_dev = to_usb_device(dev);
 	struct usb_bus *usb_bus = rh_usb_dev->bus;
@@ -863,9 +862,9 @@ static ssize_t usb_host_authorized_default_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%u\n", usb_hcd->authorized_default);
 }
 
-static ssize_t usb_host_authorized_default_store(struct device *dev,
-						 struct device_attribute *attr,
-						 const char *buf, size_t size)
+static ssize_t authorized_default_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t size)
 {
 	ssize_t result;
 	unsigned val;
@@ -885,11 +884,7 @@ static ssize_t usb_host_authorized_default_store(struct device *dev,
 		result = -EINVAL;
 	return result;
 }
-
-static DEVICE_ATTR(authorized_default, 0644,
-	    usb_host_authorized_default_show,
-	    usb_host_authorized_default_store);
-
+static DEVICE_ATTR_RW(authorized_default);
 
 /* Group all the USB bus attributes */
 static struct attribute *usb_bus_attrs[] = {

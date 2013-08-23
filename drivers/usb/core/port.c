@@ -23,8 +23,8 @@
 
 static const struct attribute_group *port_dev_group[];
 
-static ssize_t show_port_connect_type(struct device *dev,
-	struct device_attribute *attr, char *buf)
+static ssize_t connect_type_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
 {
 	struct usb_port *port_dev = to_usb_port(dev);
 	char *result;
@@ -46,8 +46,7 @@ static ssize_t show_port_connect_type(struct device *dev,
 
 	return sprintf(buf, "%s\n", result);
 }
-static DEVICE_ATTR(connect_type, S_IRUGO, show_port_connect_type,
-		NULL);
+static DEVICE_ATTR_RO(connect_type);
 
 static struct attribute *port_dev_attrs[] = {
 	&dev_attr_connect_type.attr,
