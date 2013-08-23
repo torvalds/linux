@@ -15,7 +15,6 @@
 #include "id.h"
 
 enum mop500_uib {
-	STUIB,
 };
 
 struct uib {
@@ -25,11 +24,6 @@ struct uib {
 };
 
 static struct uib __initdata mop500_uibs[] = {
-	[STUIB] = {
-		.name	= "ST-UIB",
-		.option	= "stuib",
-		.init	= mop500_stuib_init,
-	},
 };
 
 static struct uib *mop500_uib;
@@ -98,8 +92,6 @@ int __init mop500_uib_init(void)
 		__mop500_uib_init(uib, "from uib= boot argument");
 		return 0;
 	}
-
-	__mop500_uib_init(&mop500_uibs[STUIB], "detected");
 
 	return 0;
 }
