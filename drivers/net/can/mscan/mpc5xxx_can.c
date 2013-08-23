@@ -148,7 +148,10 @@ static u32 mpc512x_can_get_clock(struct platform_device *ofdev,
 		goto exit_put;
 	}
 
-	/* Determine the MSCAN device index from the physical address */
+	/* Determine the MSCAN device index from the peripheral's
+	 * physical address. Register address offsets against the
+	 * IMMR base are:  0x1300, 0x1380, 0x2300, 0x2380
+	 */
 	pval = of_get_property(ofdev->dev.of_node, "reg", &plen);
 	BUG_ON(!pval || plen < sizeof(*pval));
 	clockidx = (*pval & 0x80) ? 1 : 0;
