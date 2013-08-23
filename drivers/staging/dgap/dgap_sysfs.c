@@ -44,7 +44,6 @@
 #include <linux/kdev_t.h>
   
 #include "dgap_driver.h"
-#include "dgap_proc.h"
 #include "dgap_conf.h"
 #include "dgap_parse.h"
 
