@@ -323,6 +323,12 @@ static void s_vSWencryption(struct vnt_private *pDevice,
     }
 }
 
+static u16 vnt_time_stamp_off(struct vnt_private *priv, u16 rate)
+{
+	return cpu_to_le16(wTimeStampOff[priv->byPreambleType % 2]
+							[rate % MAX_RATE]);
+}
+
 /*byPktType : PK_TYPE_11A     0
              PK_TYPE_11B     1
              PK_TYPE_11GB    2
@@ -519,8 +525,10 @@ static u32 s_uFillDataHead(struct vnt_private *pDevice,
 		pBuf->wDuration_b = s_uGetDataDuration(pDevice,
 							PK_TYPE_11B, bNeedAck);
 
-                pBuf->wTimeStampOff_a = wTimeStampOff[pDevice->byPreambleType%2][wCurrentRate%MAX_RATE];
-                pBuf->wTimeStampOff_b = wTimeStampOff[pDevice->byPreambleType%2][pDevice->byTopCCKBasicRate%MAX_RATE];
+		pBuf->wTimeStampOff_a =	vnt_time_stamp_off(pDevice,
+								wCurrentRate);
+		pBuf->wTimeStampOff_b = vnt_time_stamp_off(pDevice,
+						pDevice->byTopCCKBasicRate);
                 return (pBuf->wDuration_a);
              } else {
                 // Auto Fallback
@@ -540,8 +548,10 @@ static u32 s_uFillDataHead(struct vnt_private *pDevice,
 							byPktType, bNeedAck);
 		pBuf->wDuration_a_f1 = s_uGetDataDuration(pDevice,
 							byPktType, bNeedAck);
-                pBuf->wTimeStampOff_a = wTimeStampOff[pDevice->byPreambleType%2][wCurrentRate%MAX_RATE];
-                pBuf->wTimeStampOff_b = wTimeStampOff[pDevice->byPreambleType%2][pDevice->byTopCCKBasicRate%MAX_RATE];
+		pBuf->wTimeStampOff_a = vnt_time_stamp_off(pDevice,
+								wCurrentRate);
+		pBuf->wTimeStampOff_b = vnt_time_stamp_off(pDevice,
+						pDevice->byTopCCKBasicRate);
                 return (pBuf->wDuration_a);
             } //if (byFBOption == AUTO_FB_NONE)
     }
@@ -559,7 +569,8 @@ static u32 s_uFillDataHead(struct vnt_private *pDevice,
 					byPktType, bNeedAck);
 		pBuf->wDuration_f1 = s_uGetDataDuration(pDevice,
 							byPktType, bNeedAck);
-                pBuf->wTimeStampOff = wTimeStampOff[pDevice->byPreambleType%2][wCurrentRate%MAX_RATE];
+		pBuf->wTimeStampOff = vnt_time_stamp_off(pDevice,
+								wCurrentRate);
             return (pBuf->wDuration);
         } else {
 		struct vnt_tx_datahead_ab *pBuf =
@@ -570,8 +581,8 @@ static u32 s_uFillDataHead(struct vnt_private *pDevice,
             //Get Duration and TimeStampOff
 		pBuf->wDuration = s_uGetDataDuration(pDevice,
 				byPktType, bNeedAck);
-                pBuf->wTimeStampOff = wTimeStampOff[pDevice->byPreambleType%2][wCurrentRate%MAX_RATE];
-
+		pBuf->wTimeStampOff = vnt_time_stamp_off(pDevice,
+								wCurrentRate);
             return (pBuf->wDuration);
         }
     }
@@ -584,8 +595,8 @@ static u32 s_uFillDataHead(struct vnt_private *pDevice,
             //Get Duration and TimeStampOff
 		pBuf->wDuration = s_uGetDataDuration(pDevice,
 				byPktType, bNeedAck);
-                pBuf->wTimeStampOff = wTimeStampOff[pDevice->byPreambleType%2][wCurrentRate%MAX_RATE];
-
+		pBuf->wTimeStampOff = vnt_time_stamp_off(pDevice,
+								wCurrentRate);
             return (pBuf->wDuration);
     }
     return 0;
@@ -1830,7 +1841,7 @@ CMD_STATUS csBeacon_xmit(struct vnt_private *pDevice,
         //Get Duration and TimeStampOff
 	pTxDataHead->wDuration = s_uGetDataDuration(pDevice,
 						PK_TYPE_11A, false);
-        pTxDataHead->wTimeStampOff = wTimeStampOff[pDevice->byPreambleType%2][wCurrentRate%MAX_RATE];
+	pTxDataHead->wTimeStampOff = vnt_time_stamp_off(pDevice, wCurrentRate);
 	cbHeaderSize = wTxBufSize + sizeof(struct vnt_tx_datahead_ab);
     } else {
         wCurrentRate = RATE_1M;
@@ -1843,7 +1854,7 @@ CMD_STATUS csBeacon_xmit(struct vnt_private *pDevice,
         //Get Duration and TimeStampOff
 	pTxDataHead->wDuration = s_uGetDataDuration(pDevice,
 						PK_TYPE_11B, false);
-        pTxDataHead->wTimeStampOff = wTimeStampOff[pDevice->byPreambleType%2][wCurrentRate%MAX_RATE];
+	pTxDataHead->wTimeStampOff = vnt_time_stamp_off(pDevice, wCurrentRate);
 	cbHeaderSize = wTxBufSize + sizeof(struct vnt_tx_datahead_ab);
     }
 
