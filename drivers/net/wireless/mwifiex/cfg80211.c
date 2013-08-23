@@ -1508,6 +1508,7 @@ mwifiex_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 		" reason code %d\n", priv->cfg_bssid, reason_code);
 
 	memset(priv->cfg_bssid, 0, ETH_ALEN);
+	priv->hs2_enabled = false;
 
 	return 0;
 }

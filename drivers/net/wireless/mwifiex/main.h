@@ -516,6 +516,7 @@ struct mwifiex_private {
 	u8 csa_chan;
 	unsigned long csa_expire_time;
 	u8 del_list_idx;
+	bool hs2_enabled;
 };
 
 enum mwifiex_ba_status {

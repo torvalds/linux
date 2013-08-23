@@ -399,6 +399,12 @@ mwifiex_cmd_append_11n_tlv(struct mwifiex_private *priv,
 		       bss_desc->bcn_ext_cap + sizeof(struct ieee_types_header),
 		       le16_to_cpu(ext_cap->header.len));
 
+		if (hdr->len > 3 &&
+		    ext_cap->ext_capab[3] & WLAN_EXT_CAPA4_INTERWORKING_ENABLED)
+			priv->hs2_enabled = true;
+		else
+			priv->hs2_enabled = false;
+
 		*buffer += sizeof(struct mwifiex_ie_types_extcap) + hdr->len;
 		ret_len += sizeof(struct mwifiex_ie_types_extcap) + hdr->len;
 	}
