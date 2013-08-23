@@ -33,8 +33,7 @@
 #include <mach/iomux.h>
 
 #include "rk3066b_lcdc.h"
-
-
+#include "../hdmi/rk_hdmi.h"
 
 
 
@@ -1138,6 +1137,42 @@ int rk3066b_lcdc_early_resume(struct rk_lcdc_device_driver *dev_drv)
 	
     	return 0;
 }
+
+static int no_report(struct rk3066b_lcdc_device *lcdc_dev)
+{
+	struct rk_lcdc_device_driver *dev = &(lcdc_dev->driver);
+	static u32 lcdc0_old_addr = 0,cur_addr = 0;
+	static u32 mode = 0,num = 0;
+	static u32 cur_state = 0,old_state = 0;
+	
+	if(dev->screen_ctr_info->prop == PRMRY){
+		cur_addr = LcdRdReg(lcdc_dev,WIN0_YRGB_MST);
+		if(lcdc0_old_addr != cur_addr){
+			if(cur_state++ > 10000)
+				cur_state = 0;
+
+			lcdc0_old_addr = cur_addr;
+		}
+	}
+
+	if(old_state == cur_state){
+		if(num++>10 && mode != 0)
+			mode = 0;
+	}
+	else{
+		mode = 1;
+		num = 0;
+	}
+
+	if(mode == 1 && old_state == cur_state){
+		return -1;
+	}
+
+	old_state = cur_state;
+
+	return 0;
+}
+
 static irqreturn_t rk3066b_lcdc_isr(int irq, void *dev_id)
 {
 	struct rk3066b_lcdc_device *lcdc_dev = (struct rk3066b_lcdc_device *)dev_id;
@@ -1148,6 +1183,13 @@ static irqreturn_t rk3066b_lcdc_isr(int irq, void *dev_id)
 	
 	LcdMskReg(lcdc_dev, INT_STATUS, m_FRM_STARTCLEAR, v_FRM_STARTCLEAR(1));
 	
+#if defined(CONFIG_FB_ROTATE) || !defined(CONFIG_THREE_FB_BUFFER)
+	if(hdmi_get_hotplug() == HDMI_HPD_ACTIVED){
+		if(no_report(lcdc_dev)){
+			return IRQ_HANDLED;
+		}
+	}
+#endif
 	//LcdMskReg(lcdc_dev, INT_STATUS, m_LINE_FLAG_INT_CLEAR, v_LINE_FLAG_INT_CLEAR(1));
 
 #if 0

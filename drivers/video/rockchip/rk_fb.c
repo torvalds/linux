@@ -403,6 +403,7 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
             		return -EINVAL;
     	}
 
+	dev_drv->pan_display(dev_drv,layer_id);
 	#if defined(CONFIG_RK_HDMI)
 		#if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
 			if(hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
@@ -424,7 +425,7 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 			}
 		#endif
 	#endif
-	dev_drv->pan_display(dev_drv,layer_id);
+
 	#ifdef	CONFIG_FB_MIRRORING
 	if(video_data_to_mirroring!=NULL)
 		video_data_to_mirroring(info,NULL);
