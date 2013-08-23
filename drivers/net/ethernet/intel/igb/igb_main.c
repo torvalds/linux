@@ -2367,7 +2367,14 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			  "Width x1" : "unknown"), netdev->dev_addr);
 	}
 
-	ret_val = igb_read_part_string(hw, part_str, E1000_PBANUM_LENGTH);
+	if ((hw->mac.type >= e1000_i210 ||
+	     igb_get_flash_presence_i210(hw))) {
+		ret_val = igb_read_part_string(hw, part_str,
+					       E1000_PBANUM_LENGTH);
+	} else {
+		ret_val = -E1000_ERR_INVM_VALUE_NOT_FOUND;
+	}
+
 	if (ret_val)
 		strcpy(part_str, "Unknown");
 	dev_info(&pdev->dev, "%s: PBA No: %s\n", netdev->name, part_str);
