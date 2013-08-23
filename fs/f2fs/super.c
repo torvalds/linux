@@ -1012,8 +1012,10 @@ static int __init init_f2fs_fs(void)
 	if (err)
 		goto free_gc_caches;
 	f2fs_kset = kset_create_and_add("f2fs", NULL, fs_kobj);
-	if (!f2fs_kset)
+	if (!f2fs_kset) {
+		err = -ENOMEM;
 		goto free_checkpoint_caches;
+	}
 	err = register_filesystem(&f2fs_fs_type);
 	if (err)
 		goto free_kset;
