@@ -3217,11 +3217,6 @@ static int copy_nocow_pages_for_inode(u64 inum, u64 offset, u64 root, void *ctx)
 		return PTR_ERR(local_root);
 	}
 
-	if (btrfs_root_refs(&local_root->root_item) == 0) {
-		srcu_read_unlock(&fs_info->subvol_srcu, srcu_index);
-		return -ENOENT;
-	}
-
 	key.type = BTRFS_INODE_ITEM_KEY;
 	key.objectid = inum;
 	key.offset = 0;

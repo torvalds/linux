@@ -2354,9 +2354,6 @@ again:
 			if (IS_ERR(root))
 				continue;
 
-			if (btrfs_root_refs(&root->root_item) == 0)
-				continue;
-
 			trans = btrfs_join_transaction(root);
 			BUG_ON(IS_ERR(trans));
 
