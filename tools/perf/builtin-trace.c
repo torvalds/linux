@@ -50,6 +50,44 @@ static size_t syscall_arg__scnprintf_mmap_prot(char *bf, size_t size, unsigned l
 
 #define SCA_MMAP_PROT syscall_arg__scnprintf_mmap_prot
 
+static size_t syscall_arg__scnprintf_mmap_flags(char *bf, size_t size, unsigned long arg)
+{
+	int printed = 0, flags = arg;
+
+#define	P_MMAP_FLAG(n) \
+	if (flags & MAP_##n) { \
+		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", #n); \
+		flags &= ~MAP_##n; \
+	}
+
+	P_MMAP_FLAG(SHARED);
+	P_MMAP_FLAG(PRIVATE);
+	P_MMAP_FLAG(32BIT);
+	P_MMAP_FLAG(ANONYMOUS);
+	P_MMAP_FLAG(DENYWRITE);
+	P_MMAP_FLAG(EXECUTABLE);
+	P_MMAP_FLAG(FILE);
+	P_MMAP_FLAG(FIXED);
+	P_MMAP_FLAG(GROWSDOWN);
+	P_MMAP_FLAG(HUGETLB);
+	P_MMAP_FLAG(LOCKED);
+	P_MMAP_FLAG(NONBLOCK);
+	P_MMAP_FLAG(NORESERVE);
+	P_MMAP_FLAG(POPULATE);
+	P_MMAP_FLAG(STACK);
+#ifdef MAP_UNINITIALIZED
+	P_MMAP_FLAG(UNINITIALIZED);
+#endif
+#undef P_MMAP_FLAG
+
+	if (flags)
+		printed += scnprintf(bf + printed, size - printed, "%s%#x", printed ? "|" : "", flags);
+
+	return printed;
+}
+
+#define SCA_MMAP_FLAGS syscall_arg__scnprintf_mmap_flags
+
 static struct syscall_fmt {
 	const char *name;
 	const char *alias;
@@ -72,7 +110,8 @@ static struct syscall_fmt {
 	{ .name	    = "lstat",	    .errmsg = true, .alias = "newlstat", },
 	{ .name	    = "mmap",	    .hexret = true,
 	  .arg_scnprintf = { [0] = SCA_HEX,	  /* addr */
-			     [2] = SCA_MMAP_PROT, /* prot */ }, },
+			     [2] = SCA_MMAP_PROT, /* prot */
+			     [3] = SCA_MMAP_FLAGS, /* flags */ }, },
 	{ .name	    = "mprotect",   .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_HEX, /* start */
 			     [2] = SCA_MMAP_PROT, /* prot */ }, },
