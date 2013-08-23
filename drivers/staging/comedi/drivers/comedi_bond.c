@@ -53,18 +53,12 @@
 #include "../comedilib.h"
 #include "../comedidev.h"
 
-/* The maxiumum number of channels per subdevice. */
-#define MAX_CHANS 256
-
 struct bonded_device {
 	struct comedi_device *dev;
 	unsigned minor;
 	unsigned subdev;
 	unsigned subdev_type;
 	unsigned nchans;
-	unsigned chanid_offset;	/* The offset into our unified linear
-				 * channel-id's of chanid 0 on this
-				 * subdevice. */
 };
 
 struct comedi_bond_private {
@@ -72,7 +66,6 @@ struct comedi_bond_private {
 	char name[MAX_BOARD_NAME];
 	struct bonded_device **devs;
 	unsigned ndevs;
-	struct bonded_device *chan_id_dev_map[MAX_CHANS];
 	unsigned nchans;
 };
 
@@ -133,12 +126,22 @@ static int bonding_dio_insn_config(struct comedi_device *dev,
 {
 	struct comedi_bond_private *devpriv = dev->private;
 	int chan = CR_CHAN(insn->chanspec), ret, io_bits = s->io_bits;
+	unsigned int chanid_offset;
 	unsigned int io;
 	struct bonded_device *bdev;
+	struct bonded_device **devs;
 
 	if (chan < 0 || chan >= devpriv->nchans)
 		return -EINVAL;
-	bdev = devpriv->chan_id_dev_map[chan];
+
+	/*
+	 * Locate bonded subdevice.
+	 */
+	chanid_offset = 0;
+	devs = devpriv->devs;
+	for (bdev = *devs++; chan >= chanid_offset + bdev->nchans;
+	     bdev = *devs++)
+		chanid_offset += bdev->nchans;
 
 	/*
 	 * The input or output configuration of each digital line is
@@ -165,7 +168,7 @@ static int bonding_dio_insn_config(struct comedi_device *dev,
 		break;
 	}
 	/* 'real' channel id for this subdev.. */
-	chan -= bdev->chanid_offset;
+	chan -= chanid_offset;
 	ret = comedi_dio_config(bdev->dev, bdev->subdev, chan, io);
 	if (ret != 1)
 		return -EINVAL;
@@ -252,12 +255,7 @@ static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 			bdev->subdev = sdev;
 			bdev->subdev_type = COMEDI_SUBD_DIO;
 			bdev->nchans = nchans;
-			bdev->chanid_offset = devpriv->nchans;
-
-			/* map channel id's to bonded_device * pointer.. */
-			while (nchans--)
-				devpriv->chan_id_dev_map[devpriv->nchans++] =
-				    bdev;
+			devpriv->nchans += nchans;
 
 			/*
 			 * Now put bdev pointer at end of devpriv->devs array
