@@ -94,34 +94,27 @@ ssize_t usb_show_dynids(struct usb_dynids *dynids, char *buf)
 }
 EXPORT_SYMBOL_GPL(usb_show_dynids);
 
-static ssize_t show_dynids(struct device_driver *driver, char *buf)
+static ssize_t new_id_show(struct device_driver *driver, char *buf)
 {
 	struct usb_driver *usb_drv = to_usb_driver(driver);
 
 	return usb_show_dynids(&usb_drv->dynids, buf);
 }
 
-static ssize_t store_new_id(struct device_driver *driver,
+static ssize_t new_id_store(struct device_driver *driver,
 			    const char *buf, size_t count)
 {
 	struct usb_driver *usb_drv = to_usb_driver(driver);
 
 	return usb_store_new_id(&usb_drv->dynids, driver, buf, count);
 }
-static DRIVER_ATTR(new_id, S_IRUGO | S_IWUSR, show_dynids, store_new_id);
+static DRIVER_ATTR_RW(new_id);
 
-/**
- * store_remove_id - remove a USB device ID from this driver
- * @driver: target device driver
- * @buf: buffer for scanning device ID data
- * @count: input size
- *
- * Removes a dynamic usb device ID from this driver.
- *
- * Return: @count on success. A negative error code otherwise.
+/*
+ * Remove a USB device ID from this driver
  */
-static ssize_t
-store_remove_id(struct device_driver *driver, const char *buf, size_t count)
+static ssize_t remove_id_store(struct device_driver *driver, const char *buf,
+			       size_t count)
 {
 	struct usb_dynid *dynid, *n;
 	struct usb_driver *usb_driver = to_usb_driver(driver);
@@ -146,7 +139,12 @@ store_remove_id(struct device_driver *driver, const char *buf, size_t count)
 	spin_unlock(&usb_driver->dynids.lock);
 	return count;
 }
-static DRIVER_ATTR(remove_id, S_IRUGO | S_IWUSR, show_dynids, store_remove_id);
+
+static ssize_t remove_id_show(struct device_driver *driver, char *buf)
+{
+	return new_id_show(driver, buf);
+}
+static DRIVER_ATTR_RW(remove_id);
 
 static int usb_create_newid_files(struct usb_driver *usb_drv)
 {
