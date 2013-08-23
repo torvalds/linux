@@ -27,18 +27,6 @@
 #include "core.h"
 #include "pinctrl-imx.h"
 
-#define IMX_PMX_DUMP(info, p, m, c, n)			\
-{							\
-	int i, j;					\
-	printk(KERN_DEBUG "Format: Pin Mux Config\n");	\
-	for (i = 0; i < n; i++) {			\
-		j = p[i];				\
-		printk(KERN_DEBUG "%s %d 0x%lx\n",	\
-			info->pins[j].name,		\
-			m[i], c[i]);			\
-	}						\
-}
-
 /* The bits in CONFIG cell defined in binding doc*/
 #define IMX_NO_PAD_CTL	0x80000000	/* no pin config need */
 #define IMX_PAD_SION 0x40000000		/* set SION */
@@ -498,11 +486,10 @@ static int imx_pinctrl_parse_groups(struct device_node *np,
 		if (config & IMX_PAD_SION)
 			pin->mux_mode |= IOMUXC_CONFIG_SION;
 		pin->config = config & ~IMX_PAD_SION;
-	}
 
-#ifdef DEBUG
-	IMX_PMX_DUMP(info, grp->pins, grp->mux_mode, grp->configs, grp->npins);
-#endif
+		dev_dbg(info->dev, "%s: %d 0x%08lx", info->pins[i].name,
+				pin->mux_mode, pin->config);
+	}
 
 	return 0;
 }
