@@ -262,7 +262,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(bcma_core_pci_irq_ctl);
 
-void bcma_core_pci_extend_L1timer(struct bcma_drv_pci *pc, bool extend)
+static void bcma_core_pci_extend_L1timer(struct bcma_drv_pci *pc, bool extend)
 {
 	u32 w;
 
@@ -274,7 +274,6 @@ void bcma_core_pci_extend_L1timer(struct bcma_drv_pci *pc, bool extend)
 	bcma_pcie_write(pc, BCMA_CORE_PCI_DLLP_PMTHRESHREG, w);
 	bcma_pcie_read(pc, BCMA_CORE_PCI_DLLP_PMTHRESHREG);
 }
-EXPORT_SYMBOL_GPL(bcma_core_pci_extend_L1timer);
 
 void bcma_core_pci_up(struct bcma_bus *bus)
 {

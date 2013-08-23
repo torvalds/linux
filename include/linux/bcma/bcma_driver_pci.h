@@ -220,7 +220,6 @@ struct bcma_drv_pci {
 extern void bcma_core_pci_init(struct bcma_drv_pci *pc);
 extern int bcma_core_pci_irq_ctl(struct bcma_drv_pci *pc,
 				 struct bcma_device *core, bool enable);
-extern void bcma_core_pci_extend_L1timer(struct bcma_drv_pci *pc, bool extend);
 extern void bcma_core_pci_up(struct bcma_bus *bus);
 extern void bcma_core_pci_down(struct bcma_bus *bus);
 
