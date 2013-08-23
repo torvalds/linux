@@ -56,7 +56,7 @@
 /* The maxiumum number of channels per subdevice. */
 #define MAX_CHANS 256
 
-struct BondedDevice {
+struct bonded_device {
 	struct comedi_device *dev;
 	unsigned minor;
 	unsigned subdev;
@@ -70,9 +70,9 @@ struct BondedDevice {
 struct comedi_bond_private {
 # define MAX_BOARD_NAME 256
 	char name[MAX_BOARD_NAME];
-	struct BondedDevice **devs;
+	struct bonded_device **devs;
 	unsigned ndevs;
-	struct BondedDevice *chanIdDevMap[MAX_CHANS];
+	struct bonded_device *chan_id_dev_map[MAX_CHANS];
 	unsigned nchans;
 };
 
@@ -92,32 +92,32 @@ static int bonding_dio_insn_bits(struct comedi_device *dev,
 	 * in data[1], each channel cooresponding to a bit.
 	 */
 	for (i = 0; num_done < nchans && i < devpriv->ndevs; ++i) {
-		struct BondedDevice *bdev = devpriv->devs[i];
+		struct bonded_device *bdev = devpriv->devs[i];
 		/*
 		 * Grab the channel mask and data of only the bits corresponding
 		 * to this subdevice.. need to shift them to zero position of
 		 * course.
 		 */
 		/* Bits corresponding to this subdev. */
-		unsigned int subdevMask = ((1 << bdev->nchans) - 1);
-		unsigned int writeMask, dataBits;
+		unsigned int subdev_mask = ((1 << bdev->nchans) - 1);
+		unsigned int write_mask, data_bits;
 
 		/* Argh, we have >= LSAMPL_BITS chans.. take all bits */
 		if (bdev->nchans >= LSAMPL_BITS)
-			subdevMask = (unsigned int)(-1);
+			subdev_mask = (unsigned int)(-1);
 
-		writeMask = (data[0] >> num_done) & subdevMask;
-		dataBits = (data[1] >> num_done) & subdevMask;
+		write_mask = (data[0] >> num_done) & subdev_mask;
+		data_bits = (data[1] >> num_done) & subdev_mask;
 
 		/* Read/Write the new digital lines */
-		if (comedi_dio_bitfield(bdev->dev, bdev->subdev, writeMask,
-					&dataBits) != 2)
+		if (comedi_dio_bitfield(bdev->dev, bdev->subdev, write_mask,
+					&data_bits) != 2)
 			return -EINVAL;
 
 		/* Make room for the new bits in data[1], the return value */
-		data[1] &= ~(subdevMask << num_done);
+		data[1] &= ~(subdev_mask << num_done);
 		/* Put the bits in the return value */
-		data[1] |= (dataBits & subdevMask) << num_done;
+		data[1] |= (data_bits & subdev_mask) << num_done;
 		/* Save the new bits to the saved state.. */
 		s->state = data[1];
 
@@ -134,11 +134,11 @@ static int bonding_dio_insn_config(struct comedi_device *dev,
 	struct comedi_bond_private *devpriv = dev->private;
 	int chan = CR_CHAN(insn->chanspec), ret, io_bits = s->io_bits;
 	unsigned int io;
-	struct BondedDevice *bdev;
+	struct bonded_device *bdev;
 
 	if (chan < 0 || chan >= devpriv->nchans)
 		return -EINVAL;
-	bdev = devpriv->chanIdDevMap[chan];
+	bdev = devpriv->chan_id_dev_map[chan];
 
 	/*
 	 * The input or output configuration of each digital line is
@@ -177,7 +177,7 @@ static int bonding_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-static void *Realloc(const void *oldmem, size_t newlen, size_t oldlen)
+static void *realloc(const void *oldmem, size_t newlen, size_t oldlen)
 {
 	void *newmem = kmalloc(newlen, GFP_KERNEL);
 
@@ -187,7 +187,7 @@ static void *Realloc(const void *oldmem, size_t newlen, size_t oldlen)
 	return newmem;
 }
 
-static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
+static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_bond_private *devpriv = dev->private;
 	int i;
@@ -204,7 +204,7 @@ static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 		int minor = it->options[i];
 		struct comedi_device *d;
 		int sdev = -1, nchans, tmp;
-		struct BondedDevice *bdev = NULL;
+		struct bonded_device *bdev = NULL;
 
 		if (minor < 0 || minor >= COMEDI_NUM_BOARD_MINORS) {
 			dev_err(dev->class_dev,
@@ -254,9 +254,10 @@ static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 			bdev->nchans = nchans;
 			bdev->chanid_offset = devpriv->nchans;
 
-			/* map channel id's to BondedDevice * pointer.. */
+			/* map channel id's to bonded_device * pointer.. */
 			while (nchans--)
-				devpriv->chanIdDevMap[devpriv->nchans++] = bdev;
+				devpriv->chan_id_dev_map[devpriv->nchans++] =
+				    bdev;
 
 			/*
 			 * Now put bdev pointer at end of devpriv->devs array
@@ -266,7 +267,7 @@ static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 			/* ergh.. ugly.. we need to realloc :(  */
 			tmp = devpriv->ndevs * sizeof(bdev);
 			devpriv->devs =
-			    Realloc(devpriv->devs,
+			    realloc(devpriv->devs,
 				    ++devpriv->ndevs * sizeof(bdev), tmp);
 			if (!devpriv->devs) {
 				dev_err(dev->class_dev,
@@ -311,7 +312,7 @@ static int bonding_attach(struct comedi_device *dev,
 	/*
 	 * Setup our bonding from config params.. sets up our private struct..
 	 */
-	if (!doDevConfig(dev, it))
+	if (!do_dev_config(dev, it))
 		return -EINVAL;
 
 	dev->board_name = devpriv->name;
@@ -344,7 +345,7 @@ static void bonding_detach(struct comedi_device *dev)
 
 	if (devpriv) {
 		while (devpriv->ndevs-- && devpriv->devs) {
-			struct BondedDevice *bdev;
+			struct bonded_device *bdev;
 
 			bdev = devpriv->devs[devpriv->ndevs];
 			if (!bdev)
