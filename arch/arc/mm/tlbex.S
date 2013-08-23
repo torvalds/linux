@@ -102,7 +102,7 @@ ex_saved_reg1:
 	; VERIFY if the ASID in MMU-PID Reg is same as
 	; one in Linux data structures
 
-	DBG_ASID_MISMATCH
+	tlb_paranoid_check_asm
 .endm
 
 .macro TLBMISS_RESTORE_REGS
@@ -133,12 +133,9 @@ ex_saved_reg1:
 ; In bizzare scenrios SW and HW ASID can get out-of-sync which is trouble.
 ; So we try to detect this in TLB Mis shandler
 
-
-.macro DBG_ASID_MISMATCH
+.macro tlb_paranoid_check_asm
 
 #ifdef CONFIG_ARC_DBG_TLB_PARANOIA
-
-	; make sure h/w ASID is same as s/w ASID
 
 	GET_CURR_TASK_ON_CPU  r3
 	ld r0, [r3, TASK_ACT_MM]
@@ -146,21 +143,22 @@ ex_saved_reg1:
 
 	lr r1, [ARC_REG_PID]
 	and r1, r1, 0xFF
+
 	breq r1, r0, 5f
 
 	; Error if H/w and S/w ASID don't match, but NOT if in kernel mode
-	lr  r0, [erstatus]
-	bbit0 r0, STATUS_U_BIT, 5f
+	lr  r2, [erstatus]
+	bbit0 r2, STATUS_U_BIT, 5f
 
 	; We sure are in troubled waters, Flag the error, but to do so
 	; need to switch to kernel mode stack to call error routine
 	GET_TSK_STACK_BASE   r3, sp
 
 	; Call printk to shoutout aloud
-	mov r0, 1
+	mov r2, 1
 	j print_asid_mismatch
 
-5:   ; ASIDs match so proceed normally
+5:	; ASIDs match so proceed normally
 	nop
 
 #endif

@@ -688,25 +688,27 @@ void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
  * Low Level ASM TLB handler calls this if it finds that HW and SW ASIDS
  * don't match
  */
-void print_asid_mismatch(int is_fast_path)
+void print_asid_mismatch(int mm_asid, int mmu_asid, int is_fast_path)
 {
-	int pid_sw, pid_hw;
-	pid_sw = current->active_mm->context.asid;
-	pid_hw = read_aux_reg(ARC_REG_PID) & 0xff;
-
 	pr_emerg("ASID Mismatch in %s Path Handler: sw-pid=0x%x hw-pid=0x%x\n",
-	       is_fast_path ? "Fast" : "Slow", pid_sw, pid_hw);
+	       is_fast_path ? "Fast" : "Slow", mm_asid, mmu_asid);
 
 	__asm__ __volatile__("flag 1");
 }
 
-void tlb_paranoid_check(unsigned int pid_sw, unsigned long addr)
+void tlb_paranoid_check(unsigned int mm_asid, unsigned long addr)
 {
-	unsigned int pid_hw;
+	unsigned int mmu_asid;
 
-	pid_hw = read_aux_reg(ARC_REG_PID) & 0xff;
+	mmu_asid = read_aux_reg(ARC_REG_PID) & 0xff;
 
-	if (addr < 0x70000000 && ((pid_hw != pid_sw) || (pid_sw == NO_ASID)))
-		print_asid_mismatch(0);
+	/*
+	 * At the time of a TLB miss/installation
+	 *   - HW version needs to match SW version
+	 *   - SW needs to have a valid ASID
+	 */
+	if (addr < 0x70000000 &&
+	    ((mmu_asid != mm_asid) || (mm_asid == NO_ASID)))
+		print_asid_mismatch(mm_asid, mmu_asid, 0);
 }
 #endif

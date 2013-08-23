@@ -52,7 +52,7 @@ typedef struct {
 } mm_context_t;
 
 #ifdef CONFIG_ARC_DBG_TLB_PARANOIA
-void tlb_paranoid_check(unsigned int pid_sw, unsigned long address);
+void tlb_paranoid_check(unsigned int mm_asid, unsigned long address);
 #else
 #define tlb_paranoid_check(a, b)
 #endif
