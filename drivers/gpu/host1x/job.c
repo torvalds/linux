@@ -466,9 +466,8 @@ static inline int copy_gathers(struct host1x_job *job, struct device *dev)
 							 &job->gather_copy,
 							 GFP_KERNEL);
 	if (!job->gather_copy_mapped) {
-		int err = PTR_ERR(job->gather_copy_mapped);
 		job->gather_copy_mapped = NULL;
-		return err;
+		return -ENOMEM;
 	}
 
 	job->gather_copy_size = size;
