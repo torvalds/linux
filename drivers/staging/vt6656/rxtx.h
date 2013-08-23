@@ -33,6 +33,24 @@
 #include "wcmd.h"
 #include "baseband.h"
 
+/* MIC HDR data header */
+struct vnt_mic_hdr {
+	u8 id;
+	u8 tx_priority;
+	u8 mic_addr2[6];
+	__be32 tsc_47_16;
+	__be16 tsc_15_0;
+	__be16 payload_len;
+	__be16 hlen;
+	__le16 frame_control;
+	u8 addr1[6];
+	u8 addr2[6];
+	u8 addr3[6];
+	__le16 seq_ctrl;
+	u8 addr4[6];
+	u16 packing; /* packing to 48 bytes */
+} __packed;
+
 /* RsvTime buffer header */
 struct vnt_rrv_time_rts {
 	u16 wRTSTxRrvTime_ba;

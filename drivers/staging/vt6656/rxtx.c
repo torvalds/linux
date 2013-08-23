@@ -1004,7 +1004,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
 	u32 uDuration;
 	u32 cbHeaderLength = 0, uPadding = 0;
 	void *pvRrvTime;
-	PSMICHDRHead pMICHDR;
+	struct vnt_mic_hdr *pMICHDR;
 	void *pvRTS;
 	void *pvCTS;
 	void *pvTxDataHd;
@@ -1121,7 +1121,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
         if (pTransmitKey->byCipherSuite == KEY_CTL_CCMP) {
             cbIVlen = 8;//RSN Header
             cbICVlen = 8;//MIC
-            cbMICHDR = sizeof(SMICHDRHead);
+	    cbMICHDR = sizeof(struct vnt_mic_hdr);
         }
         if (bSoftWEP == false) {
             //MAC Header should be padding 0 to DW alignment.
@@ -1146,7 +1146,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
             if (bRTS == true) {//RTS_need
 		pvRrvTime = (struct vnt_rrv_time_rts *)
 					(pbyTxBufferAddr + wTxBufSize);
-		pMICHDR = (PSMICHDRHead)(pbyTxBufferAddr + wTxBufSize +
+		pMICHDR = (struct vnt_mic_hdr *)(pbyTxBufferAddr + wTxBufSize +
 					sizeof(struct vnt_rrv_time_rts));
 		pvRTS = (struct vnt_rts_g *) (pbyTxBufferAddr + wTxBufSize +
 				sizeof(struct vnt_rrv_time_rts) + cbMICHDR);
@@ -1161,7 +1161,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
             else { //RTS_needless
 		pvRrvTime = (struct vnt_rrv_time_cts *)
 				(pbyTxBufferAddr + wTxBufSize);
-		pMICHDR = (PSMICHDRHead) (pbyTxBufferAddr + wTxBufSize +
+		pMICHDR = (struct vnt_mic_hdr *) (pbyTxBufferAddr + wTxBufSize +
 			sizeof(struct vnt_rrv_time_cts));
                 pvRTS = NULL;
 		pvCTS = (struct vnt_cts *) (pbyTxBufferAddr + wTxBufSize +
@@ -1178,7 +1178,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
             if (bRTS == true) {//RTS_need
 		pvRrvTime = (struct vnt_rrv_time_rts *)(pbyTxBufferAddr +
 								wTxBufSize);
-		pMICHDR = (PSMICHDRHead) (pbyTxBufferAddr + wTxBufSize +
+		pMICHDR = (struct vnt_mic_hdr *) (pbyTxBufferAddr + wTxBufSize +
 					sizeof(struct vnt_rrv_time_rts));
 		pvRTS = (struct vnt_rts_g_fb *) (pbyTxBufferAddr + wTxBufSize +
 				sizeof(struct vnt_rrv_time_rts) + cbMICHDR);
@@ -1193,7 +1193,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
             else if (bRTS == false) { //RTS_needless
 		pvRrvTime = (struct vnt_rrv_time_cts *)
 				(pbyTxBufferAddr + wTxBufSize);
-		pMICHDR = (PSMICHDRHead) (pbyTxBufferAddr + wTxBufSize +
+		pMICHDR = (struct vnt_mic_hdr *) (pbyTxBufferAddr + wTxBufSize +
 				sizeof(struct vnt_rrv_time_cts));
                 pvRTS = NULL;
 		pvCTS = (struct vnt_cts_fb *) (pbyTxBufferAddr + wTxBufSize +
@@ -1212,7 +1212,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
             if (bRTS == true) {//RTS_need
 		pvRrvTime = (struct vnt_rrv_time_ab *) (pbyTxBufferAddr +
 								wTxBufSize);
-		pMICHDR = (PSMICHDRHead)(pbyTxBufferAddr + wTxBufSize +
+		pMICHDR = (struct vnt_mic_hdr *)(pbyTxBufferAddr + wTxBufSize +
 						sizeof(struct vnt_rrv_time_ab));
 		pvRTS = (struct vnt_rts_ab *) (pbyTxBufferAddr + wTxBufSize +
 				sizeof(struct vnt_rrv_time_ab) + cbMICHDR);
@@ -1227,7 +1227,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
             else if (bRTS == false) { //RTS_needless, no MICHDR
 		pvRrvTime = (struct vnt_rrv_time_ab *)(pbyTxBufferAddr +
 								wTxBufSize);
-		pMICHDR = (PSMICHDRHead) (pbyTxBufferAddr + wTxBufSize +
+		pMICHDR = (struct vnt_mic_hdr *) (pbyTxBufferAddr + wTxBufSize +
 						sizeof(struct vnt_rrv_time_ab));
                 pvRTS = NULL;
                 pvCTS = NULL;
@@ -1241,7 +1241,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
             if (bRTS == true) {//RTS_need
 		pvRrvTime = (struct vnt_rrv_time_ab *)(pbyTxBufferAddr +
 						wTxBufSize);
-		pMICHDR = (PSMICHDRHead) (pbyTxBufferAddr + wTxBufSize +
+		pMICHDR = (struct vnt_mic_hdr *) (pbyTxBufferAddr + wTxBufSize +
 			sizeof(struct vnt_rrv_time_ab));
 		pvRTS = (struct vnt_rts_a_fb *) (pbyTxBufferAddr + wTxBufSize +
 				sizeof(struct vnt_rrv_time_ab) + cbMICHDR);
@@ -1256,7 +1256,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
             else if (bRTS == false) { //RTS_needless
 		pvRrvTime = (struct vnt_rrv_time_ab *)(pbyTxBufferAddr +
 								wTxBufSize);
-		pMICHDR = (PSMICHDRHead)(pbyTxBufferAddr + wTxBufSize +
+		pMICHDR = (struct vnt_mic_hdr *)(pbyTxBufferAddr + wTxBufSize +
 						sizeof(struct vnt_rrv_time_ab));
                 pvRTS = NULL;
                 pvCTS = NULL;
@@ -2057,7 +2057,7 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
         else if (pDevice->eEncryptionStatus == Ndis802_11Encryption3Enabled) {
             cbIVlen = 8;//RSN Header
             cbICVlen = 8;//MIC
-            cbMICHDR = sizeof(SMICHDRHead);
+	    cbMICHDR = sizeof(struct vnt_mic_hdr);
             pTxBufHead->wFragCtl |= FRAGCTL_AES;
             pDevice->bAES = true;
         }
@@ -2076,7 +2076,7 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
 
     if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {//802.11g packet
 	pvRrvTime = (struct vnt_rrv_time_cts *) (pbyTxBufferAddr + wTxBufSize);
-	pMICHDR = (PSMICHDRHead) (pbyTxBufferAddr + wTxBufSize +
+	pMICHDR = (struct vnt_mic_hdr *) (pbyTxBufferAddr + wTxBufSize +
 					sizeof(struct vnt_rrv_time_cts));
         pvRTS = NULL;
 	pvCTS = (struct vnt_cts *) (pbyTxBufferAddr + wTxBufSize +
@@ -2091,7 +2091,7 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
     else {//802.11a/b packet
 
 	pvRrvTime = (struct vnt_rrv_time_ab *) (pbyTxBufferAddr + wTxBufSize);
-	pMICHDR = (PSMICHDRHead) (pbyTxBufferAddr + wTxBufSize +
+	pMICHDR = (struct vnt_mic_hdr *) (pbyTxBufferAddr + wTxBufSize +
 		sizeof(struct vnt_rrv_time_ab));
         pvRTS = NULL;
         pvCTS = NULL;
