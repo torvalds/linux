@@ -434,7 +434,7 @@ static int gdm_lte_tx(struct sk_buff *skb, struct net_device *dev)
 	/*
 	Need byte shift (that is, remove VLAN tag) if there is one
 	For the case of ARP, this breaks the offset as vlan_ethhdr+4 is treated as ethhdr
-	However, it shouldn't be a problem as the reponse starts from arp_hdr and ethhdr
+	However, it shouldn't be a problem as the response starts from arp_hdr and ethhdr
 	is created by this driver based on the NIC mac
 	*/
 	if (nic_type & NIC_TYPE_F_VLAN) {
@@ -448,7 +448,7 @@ static int gdm_lte_tx(struct sk_buff *skb, struct net_device *dev)
 		data_len = skb->len;
 	}
 
-	/* If it is a ICMPV6 packet, clear all the other bits : for backward compatibilty with the firmware */
+	/* If it is a ICMPV6 packet, clear all the other bits : for backward compatibility with the firmware */
 	if (nic_type & NIC_TYPE_ICMPV6)
 		nic_type = NIC_TYPE_ICMPV6;
 
