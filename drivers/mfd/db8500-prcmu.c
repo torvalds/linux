@@ -2319,7 +2319,7 @@ unlock_and_return:
 /**
  * prcmu_ac_sleep_req - called when ARM no longer needs to talk to modem
  */
-void prcmu_ac_sleep_req()
+void prcmu_ac_sleep_req(void)
 {
 	u32 val;
 
