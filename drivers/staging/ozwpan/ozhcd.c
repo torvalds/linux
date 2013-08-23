@@ -74,6 +74,7 @@ struct oz_urb_link {
 /* Holds state information about a USB endpoint.
  */
 #define OZ_EP_BUFFER_SIZE_ISOC  (1024 * 24)
+#define OZ_EP_BUFFER_SIZE_INT   512
 struct oz_endpoint {
 	struct list_head urb_list;	/* List of oz_urb_link items. */
 	struct list_head link;		/* For isoc ep, links in to isoc
@@ -1265,7 +1266,7 @@ static int oz_build_endpoints_for_interface(struct usb_hcd *hcd,
 				buffer_size = OZ_EP_BUFFER_SIZE_ISOC;
 				break;
 			case USB_ENDPOINT_XFER_INT:
-				buffer_size = 128;
+				buffer_size = OZ_EP_BUFFER_SIZE_INT;
 				break;
 			}
 		}
