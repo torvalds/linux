@@ -412,10 +412,6 @@ struct board_t
 	 */
         char		*msgbuf_head;
         char		*msgbuf;
-
-	/* /proc/<board> entries */
-	struct proc_dir_entry *proc_entry_pointer;
-	struct dgap_proc_entry *dgap_board_table;
 };
 
 
@@ -563,10 +559,6 @@ struct channel_t {
 	ulong	ch_err_frame;		/* Count of framing errors on channel	*/
 	ulong	ch_err_break;		/* Count of breaks on channel	*/
 	ulong	ch_err_overrun;		/* Count of overruns on channel	*/
-
-	/* /proc/<board>/<channel> entries */
-	struct proc_dir_entry *proc_entry_pointer;
-	struct dgap_proc_entry *dgap_channel_table;
 
 	uint ch_sniff_in;
 	uint ch_sniff_out;
