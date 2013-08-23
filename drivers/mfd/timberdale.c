@@ -115,11 +115,11 @@ static const struct resource timberdale_ocores_resources[] = {
 	},
 };
 
-const struct max7301_platform_data timberdale_max7301_platform_data = {
+static const struct max7301_platform_data timberdale_max7301_platform_data = {
 	.base = 200
 };
 
-const struct mc33880_platform_data timberdale_mc33880_platform_data = {
+static const struct mc33880_platform_data timberdale_mc33880_platform_data = {
 	.base = 100
 };
 
