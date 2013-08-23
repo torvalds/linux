@@ -66,7 +66,6 @@ extern void bus_remove_file(struct bus_type *, struct bus_attribute *);
  * @name:	The name of the bus.
  * @dev_name:	Used for subsystems to enumerate devices like ("foo%u", dev->id).
  * @dev_root:	Default device to use as the parent.
- * @dev_attrs:	Default attributes of the devices on the bus.
  * @bus_groups:	Default attributes of the bus.
  * @dev_groups:	Default attributes of the devices on the bus.
  * @drv_groups: Default attributes of the device drivers on the bus.
@@ -112,7 +111,6 @@ struct bus_type {
 	const char		*name;
 	const char		*dev_name;
 	struct device		*dev_root;
-	struct device_attribute	*dev_attrs;	/* use dev_groups instead */
 	const struct attribute_group **bus_groups;
 	const struct attribute_group **dev_groups;
 	const struct attribute_group **drv_groups;
