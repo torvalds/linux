@@ -175,7 +175,7 @@ struct bcm_flash2x_copy_section {
 
 /*
  * This section provide the complete bitmap of the Flash.
- * using this map lib/APP will isssue read/write command.
+ * using this map lib/APP will issue read/write command.
  * Fields are defined as :
  * Bit [0] = section is present  //1:present, 0: Not present
  * Bit [1] = section is valid  //1: valid, 0: not valid
