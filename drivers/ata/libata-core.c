@@ -6150,8 +6150,6 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 	if (rc)
 		goto err_tadd;
 
-	ata_acpi_hotplug_init(host);
-
 	/* set cable, sata_spd_limit and report */
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
@@ -6632,8 +6630,6 @@ static int __init ata_init(void)
 
 	ata_parse_force_param();
 
-	ata_acpi_register();
-
 	rc = ata_sff_init();
 	if (rc) {
 		kfree(ata_force_tbl);
@@ -6660,7 +6656,6 @@ static void __exit ata_exit(void)
 	ata_release_transport(ata_scsi_transport_template);
 	libata_transport_exit();
 	ata_sff_exit();
-	ata_acpi_unregister();
 	kfree(ata_force_tbl);
 }
 

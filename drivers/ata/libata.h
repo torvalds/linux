@@ -118,9 +118,11 @@ extern void ata_acpi_on_resume(struct ata_port *ap);
 extern int ata_acpi_on_devcfg(struct ata_device *dev);
 extern void ata_acpi_on_disable(struct ata_device *dev);
 extern void ata_acpi_set_state(struct ata_port *ap, pm_message_t state);
-extern int ata_acpi_register(void);
-extern void ata_acpi_unregister(void);
-extern void ata_acpi_hotplug_init(struct ata_host *host);
+extern void ata_acpi_bind_port(struct ata_port *ap);
+extern void ata_acpi_bind_dev(struct ata_device *dev);
+extern acpi_handle ata_dev_acpi_handle(struct ata_device *dev);
+extern void ata_scsi_acpi_bind(struct ata_device *dev);
+extern void ata_scsi_acpi_unbind(struct ata_device *dev);
 #else
 static inline void ata_acpi_dissociate(struct ata_host *host) { }
 static inline int ata_acpi_on_suspend(struct ata_port *ap) { return 0; }
@@ -129,9 +131,11 @@ static inline int ata_acpi_on_devcfg(struct ata_device *dev) { return 0; }
 static inline void ata_acpi_on_disable(struct ata_device *dev) { }
 static inline void ata_acpi_set_state(struct ata_port *ap,
 				      pm_message_t state) { }
-static inline int ata_acpi_register(void) { return 0; }
-static inline void ata_acpi_unregister(void) { }
-static inline void ata_acpi_hotplug_init(struct ata_host *host) {}
+static inline void ata_acpi_bind_port(struct ata_port *ap) {}
+static inline void ata_acpi_bind_dev(struct ata_device *dev) {}
+static inline acpi_handle ata_dev_acpi_handle(struct ata_device *dev) { return NULL; }
+static inline void ata_scsi_acpi_bind(struct ata_device *dev) {}
+static inline void ata_scsi_acpi_unbind(struct ata_device *dev) {}
 #endif
 
 /* libata-scsi.c */

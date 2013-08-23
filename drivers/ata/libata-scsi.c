@@ -49,7 +49,6 @@
 #include <linux/hdreg.h>
 #include <linux/uaccess.h>
 #include <linux/suspend.h>
-#include <linux/pm_qos.h>
 #include <asm/unaligned.h>
 
 #include "libata.h"
@@ -3665,9 +3664,7 @@ void ata_scsi_scan_host(struct ata_port *ap, int sync)
 			if (!IS_ERR(sdev)) {
 				dev->sdev = sdev;
 				scsi_device_put(sdev);
-				if (zpodd_dev_enabled(dev))
-					dev_pm_qos_expose_flags(
-							&sdev->sdev_gendev, 0);
+				ata_scsi_acpi_bind(dev);
 			} else {
 				dev->sdev = NULL;
 			}
@@ -3755,6 +3752,8 @@ static void ata_scsi_remove_dev(struct ata_device *dev)
 	struct scsi_device *sdev;
 	unsigned long flags;
 
+	ata_scsi_acpi_unbind(dev);
+
 	/* Alas, we need to grab scan_mutex to ensure SCSI device
 	 * state doesn't change underneath us and thus
 	 * scsi_device_get() always succeeds.  The mutex locking can
@@ -3763,9 +3762,6 @@ static void ata_scsi_remove_dev(struct ata_device *dev)
 	 */
 	mutex_lock(&ap->scsi_host->scan_mutex);
 	spin_lock_irqsave(ap->lock, flags);
-
-	if (zpodd_dev_enabled(dev))
-		zpodd_exit(dev);
 
 	/* clearing dev->sdev is protected by host lock */
 	sdev = dev->sdev;
@@ -3815,6 +3811,9 @@ static void ata_scsi_handle_link_detach(struct ata_link *link)
 		spin_lock_irqsave(ap->lock, flags);
 		dev->flags &= ~ATA_DFLAG_DETACHED;
 		spin_unlock_irqrestore(ap->lock, flags);
+
+		if (zpodd_dev_enabled(dev))
+			zpodd_exit(dev);
 
 		ata_scsi_remove_dev(dev);
 	}
