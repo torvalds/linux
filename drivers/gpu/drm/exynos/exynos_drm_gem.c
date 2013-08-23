@@ -18,6 +18,7 @@
 #include "exynos_drm_drv.h"
 #include "exynos_drm_gem.h"
 #include "exynos_drm_buf.h"
+#include "exynos_drm_iommu.h"
 
 static unsigned int convert_to_vm_err_msg(int msg)
 {
@@ -666,6 +667,18 @@ int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
 
 	exynos_gem_obj = exynos_drm_gem_create(dev, EXYNOS_BO_CONTIG |
 						EXYNOS_BO_WC, args->size);
+	/*
+	 * If physically contiguous memory allocation fails and if IOMMU is
+	 * supported then try to get buffer from non physically contiguous
+	 * memory area.
+	 */
+	if (IS_ERR(exynos_gem_obj) && is_drm_iommu_supported(dev)) {
+		dev_warn(dev->dev, "contiguous FB allocation failed, falling back to non-contiguous\n");
+		exynos_gem_obj = exynos_drm_gem_create(dev,
+					EXYNOS_BO_NONCONTIG | EXYNOS_BO_WC,
+					args->size);
+	}
+
 	if (IS_ERR(exynos_gem_obj))
 		return PTR_ERR(exynos_gem_obj);
 
