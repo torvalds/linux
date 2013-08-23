@@ -854,16 +854,14 @@ int ip_tunnel_init_net(struct net *net, int ip_tnl_net_id,
 
 	rtnl_lock();
 	itn->fb_tunnel_dev = __ip_tunnel_create(net, ops, &parms);
-	rtnl_unlock();
-
-	if (IS_ERR(itn->fb_tunnel_dev))
-		return PTR_ERR(itn->fb_tunnel_dev);
 	/* FB netdevice is special: we have one, and only one per netns.
 	 * Allowing to move it to another netns is clearly unsafe.
 	 */
-	itn->fb_tunnel_dev->features |= NETIF_F_NETNS_LOCAL;
+	if (!IS_ERR(itn->fb_tunnel_dev))
+		itn->fb_tunnel_dev->features |= NETIF_F_NETNS_LOCAL;
+	rtnl_unlock();
 
-	return 0;
+	return PTR_RET(itn->fb_tunnel_dev);
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_init_net);
 
