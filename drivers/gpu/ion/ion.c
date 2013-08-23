@@ -424,7 +424,7 @@ static int ion_handle_add(struct ion_client *client, struct ion_handle *handle)
 		rc = idr_pre_get(&client->idr, GFP_KERNEL);
 		if (!rc)
 			return -ENOMEM;
-		rc = idr_get_new(&client->idr, handle, &id);
+		rc = idr_get_new_above(&client->idr, handle, 1, &id);
 		handle->id = id;
 	} while (rc == -EAGAIN);
 
