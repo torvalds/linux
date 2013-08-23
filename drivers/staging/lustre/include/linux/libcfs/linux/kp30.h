@@ -187,9 +187,13 @@ extern int  lwt_snapshot (cfs_cycles_t *now, int *ncpu, int *total_size,
 # endif
 #endif
 
-# define LI_POISON ((int)0x5a5a5a5a5a5a5a5a)
-# define LL_POISON ((long)0x5a5a5a5a5a5a5a5a)
-# define LP_POISON ((void *)(long)0x5a5a5a5a5a5a5a5a)
+# define LI_POISON 0x5a5a5a5a
+#if BITS_PER_LONG > 32
+# define LL_POISON 0x5a5a5a5a5a5a5a5aL
+#else
+# define LL_POISON 0x5a5a5a5aL
+#endif
+# define LP_POISON ((void *)LL_POISON)
 
 /* this is a bit chunky */
 
