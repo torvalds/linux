@@ -88,6 +88,43 @@ static size_t syscall_arg__scnprintf_mmap_flags(char *bf, size_t size, unsigned 
 
 #define SCA_MMAP_FLAGS syscall_arg__scnprintf_mmap_flags
 
+static size_t syscall_arg__scnprintf_madvise_behavior(char *bf, size_t size, unsigned long arg)
+{
+	int behavior = arg;
+
+	switch (behavior) {
+#define	P_MADV_BHV(n) case MADV_##n: return scnprintf(bf, size, #n)
+	P_MADV_BHV(NORMAL);
+	P_MADV_BHV(RANDOM);
+	P_MADV_BHV(SEQUENTIAL);
+	P_MADV_BHV(WILLNEED);
+	P_MADV_BHV(DONTNEED);
+	P_MADV_BHV(REMOVE);
+	P_MADV_BHV(DONTFORK);
+	P_MADV_BHV(DOFORK);
+	P_MADV_BHV(HWPOISON);
+#ifdef MADV_SOFT_OFFLINE
+	P_MADV_BHV(SOFT_OFFLINE);
+#endif
+	P_MADV_BHV(MERGEABLE);
+	P_MADV_BHV(UNMERGEABLE);
+	P_MADV_BHV(HUGEPAGE);
+	P_MADV_BHV(NOHUGEPAGE);
+#ifdef MADV_DONTDUMP
+	P_MADV_BHV(DONTDUMP);
+#endif
+#ifdef MADV_DODUMP
+	P_MADV_BHV(DODUMP);
+#endif
+#undef P_MADV_PHV
+	default: break;
+	}
+
+	return scnprintf(bf, size, "%#x", behavior);
+}
+
+#define SCA_MADV_BHV syscall_arg__scnprintf_madvise_behavior
+
 static struct syscall_fmt {
 	const char *name;
 	const char *alias;
@@ -108,6 +145,9 @@ static struct syscall_fmt {
 	{ .name	    = "ioctl",	    .errmsg = true,
 	  .arg_scnprintf = { [2] = SCA_HEX, /* arg */ }, },
 	{ .name	    = "lstat",	    .errmsg = true, .alias = "newlstat", },
+	{ .name     = "madvise",    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_HEX,	 /* start */
+			     [2] = SCA_MADV_BHV, /* behavior */ }, },
 	{ .name	    = "mmap",	    .hexret = true,
 	  .arg_scnprintf = { [0] = SCA_HEX,	  /* addr */
 			     [2] = SCA_MMAP_PROT, /* prot */
