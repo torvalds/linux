@@ -364,7 +364,7 @@ int genl_unregister_ops(struct genl_family *family, struct genl_ops *ops)
 EXPORT_SYMBOL(genl_unregister_ops);
 
 /**
- * genl_register_family - register a generic netlink family
+ * __genl_register_family - register a generic netlink family
  * @family: generic netlink family
  *
  * Registers the specified family after validating it first. Only one
@@ -374,7 +374,7 @@ EXPORT_SYMBOL(genl_unregister_ops);
  *
  * Return 0 on success or a negative error code.
  */
-int genl_register_family(struct genl_family *family)
+int __genl_register_family(struct genl_family *family)
 {
 	int err = -EINVAL;
 
@@ -430,10 +430,10 @@ errout_locked:
 errout:
 	return err;
 }
-EXPORT_SYMBOL(genl_register_family);
+EXPORT_SYMBOL(__genl_register_family);
 
 /**
- * genl_register_family_with_ops - register a generic netlink family
+ * __genl_register_family_with_ops - register a generic netlink family
  * @family: generic netlink family
  * @ops: operations to be registered
  * @n_ops: number of elements to register
@@ -457,12 +457,12 @@ EXPORT_SYMBOL(genl_register_family);
  *
  * Return 0 on success or a negative error code.
  */
-int genl_register_family_with_ops(struct genl_family *family,
+int __genl_register_family_with_ops(struct genl_family *family,
 	struct genl_ops *ops, size_t n_ops)
 {
 	int err, i;
 
-	err = genl_register_family(family);
+	err = __genl_register_family(family);
 	if (err)
 		return err;
 
@@ -476,7 +476,7 @@ err_out:
 	genl_unregister_family(family);
 	return err;
 }
-EXPORT_SYMBOL(genl_register_family_with_ops);
+EXPORT_SYMBOL(__genl_register_family_with_ops);
 
 /**
  * genl_unregister_family - unregister generic netlink family
@@ -603,22 +603,24 @@ static int genl_family_rcv_msg(struct genl_family *family,
 
 		if (!family->parallel_ops) {
 			struct netlink_dump_control c = {
+				.module = family->module,
 				.data = ops,
 				.dump = genl_lock_dumpit,
 				.done = genl_lock_done,
 			};
 
 			genl_unlock();
-			rc = netlink_dump_start(net->genl_sock, skb, nlh, &c);
+			rc = __netlink_dump_start(net->genl_sock, skb, nlh, &c);
 			genl_lock();
 
 		} else {
 			struct netlink_dump_control c = {
+				.module = family->module,
 				.dump = ops->dumpit,
 				.done = ops->done,
 			};
 
-			rc = netlink_dump_start(net->genl_sock, skb, nlh, &c);
+			rc = __netlink_dump_start(net->genl_sock, skb, nlh, &c);
 		}
 
 		return rc;
