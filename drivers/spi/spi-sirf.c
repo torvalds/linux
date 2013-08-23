@@ -650,12 +650,14 @@ static int spi_sirfsoc_probe(struct platform_device *pdev)
 		(void *)rx_dma_ch);
 	if (!sspi->rx_chan) {
 		dev_err(&pdev->dev, "can not allocate rx dma channel\n");
+		ret = -ENODEV;
 		goto free_master;
 	}
 	sspi->tx_chan = dma_request_channel(dma_cap_mask, (dma_filter_fn)sirfsoc_dma_filter_id,
 		(void *)tx_dma_ch);
 	if (!sspi->tx_chan) {
 		dev_err(&pdev->dev, "can not allocate tx dma channel\n");
+		ret = -ENODEV;
 		goto free_rx_dma;
 	}
 
@@ -678,8 +680,10 @@ static int spi_sirfsoc_probe(struct platform_device *pdev)
 	writel(0, sspi->base + SIRFSOC_SPI_DUMMY_DELAY_CTL);
 
 	sspi->dummypage = kmalloc(2 * PAGE_SIZE, GFP_KERNEL);
-	if (!sspi->dummypage)
+	if (!sspi->dummypage) {
+		ret = -ENOMEM;
 		goto free_clk;
+	}
 
 	ret = spi_bitbang_start(&sspi->bitbang);
 	if (ret)
