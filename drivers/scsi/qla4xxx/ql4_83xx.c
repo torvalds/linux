@@ -259,8 +259,8 @@ void qla4_83xx_rom_lock_recovery(struct scsi_qla_host *ha)
  * Return: On success return QLA_SUCCESS
  *	   On error return QLA_ERROR
  **/
-static int qla4_83xx_ms_mem_write_128b(struct scsi_qla_host *ha, uint64_t addr,
-				       uint32_t *data, uint32_t count)
+int qla4_83xx_ms_mem_write_128b(struct scsi_qla_host *ha, uint64_t addr,
+				uint32_t *data, uint32_t count)
 {
 	int i, j;
 	uint32_t agt_ctrl;
