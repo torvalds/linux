@@ -186,8 +186,7 @@ static struct rockchip_pin_bank *pin_to_bank(struct rockchip_pinctrl *info,
 {
 	struct rockchip_pin_bank *b = info->ctrl->pin_banks;
 
-	while ((pin >= b->pin_base) &&
-			((b->pin_base + b->nr_pins - 1) < pin))
+	while (pin >= (b->pin_base + b->nr_pins))
 		b++;
 
 	return b;
