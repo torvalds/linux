@@ -799,6 +799,12 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct intel_device_info *intel_info =
 		(struct intel_device_info *) ent->driver_data;
 
+	if (IS_PRELIMINARY_HW(intel_info) && !i915_preliminary_hw_support) {
+		DRM_INFO("This hardware requires preliminary hardware support.\n"
+			 "See CONFIG_DRM_I915_PRELIMINARY_HW_SUPPORT, and/or modparam preliminary_hw_support\n");
+		return -ENODEV;
+	}
+
 	/* Only bind to function 0 of the device. Early generations
 	 * used function 1 as a placeholder for multi-head. This causes
 	 * us confusion instead, especially on the systems where both
