@@ -1074,17 +1074,17 @@ struct padata_instance *padata_alloc(struct workqueue_struct *wq,
 
 	pinst->flags = 0;
 
-#ifdef CONFIG_HOTPLUG_CPU
-	pinst->cpu_notifier.notifier_call = padata_cpu_callback;
-	pinst->cpu_notifier.priority = 0;
-	register_hotcpu_notifier(&pinst->cpu_notifier);
-#endif
-
 	put_online_cpus();
 
 	BLOCKING_INIT_NOTIFIER_HEAD(&pinst->cpumask_change_notifier);
 	kobject_init(&pinst->kobj, &padata_attr_type);
 	mutex_init(&pinst->lock);
+
+#ifdef CONFIG_HOTPLUG_CPU
+	pinst->cpu_notifier.notifier_call = padata_cpu_callback;
+	pinst->cpu_notifier.priority = 0;
+	register_hotcpu_notifier(&pinst->cpu_notifier);
+#endif
 
 	return pinst;
 
