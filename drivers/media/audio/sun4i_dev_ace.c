@@ -52,7 +52,7 @@ static DECLARE_WAIT_QUEUE_HEAD(wait_ae);
 __u32 ae_interrupt_sta = 0, ae_interrupt_value = 0;
 void *       ccmu_hsram;
 /*ae、ace、ce共享中断号*/
-#define ACE_IRQ_NO (60)
+#define ACE_IRQ_NO (SW_INT_IRQNO_ACE)
 
 //#define ACE_DEBUG
 static int ace_dev_open(struct inode *inode, struct file *filp){
