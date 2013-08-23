@@ -200,7 +200,7 @@ static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 	 * building our device list.
 	 */
 	for (i = 0; i < COMEDI_NDEVCONFOPTS && (!i || it->options[i]); ++i) {
-		char file[] = "/dev/comediXXXXXX";
+		char file[sizeof("/dev/comediXXXXXX")];
 		int minor = it->options[i];
 		struct comedi_device *d;
 		int sdev = -1, nchans, tmp;
