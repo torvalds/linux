@@ -2077,8 +2077,10 @@ static int ironlake_update_plane(struct drm_crtc *crtc,
 	else
 		dspcntr &= ~DISPPLANE_TILED;
 
-	/* must disable */
-	dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
+	if (IS_HASWELL(dev))
+		dspcntr &= ~DISPPLANE_TRICKLE_FEED_DISABLE;
+	else
+		dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
 
 	I915_WRITE(reg, dspcntr);
 
@@ -6762,8 +6764,10 @@ static void ivb_update_cursor(struct drm_crtc *crtc, u32 base)
 			cntl &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE);
 			cntl |= CURSOR_MODE_DISABLE;
 		}
-		if (IS_HASWELL(dev))
+		if (IS_HASWELL(dev)) {
 			cntl |= CURSOR_PIPE_CSC_ENABLE;
+			cntl &= ~CURSOR_TRICKLE_FEED_DISABLE;
+		}
 		I915_WRITE(CURCNTR_IVB(pipe), cntl);
 
 		intel_crtc->cursor_visible = visible;
