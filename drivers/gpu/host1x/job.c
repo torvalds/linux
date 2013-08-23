@@ -42,12 +42,12 @@ struct host1x_job *host1x_job_alloc(struct host1x_channel *ch,
 
 	/* Check that we're not going to overflow */
 	total = sizeof(struct host1x_job) +
-		num_relocs * sizeof(struct host1x_reloc) +
-		num_unpins * sizeof(struct host1x_job_unpin_data) +
-		num_waitchks * sizeof(struct host1x_waitchk) +
-		num_cmdbufs * sizeof(struct host1x_job_gather) +
-		num_unpins * sizeof(dma_addr_t) +
-		num_unpins * sizeof(u32 *);
+		(u64)num_relocs * sizeof(struct host1x_reloc) +
+		(u64)num_unpins * sizeof(struct host1x_job_unpin_data) +
+		(u64)num_waitchks * sizeof(struct host1x_waitchk) +
+		(u64)num_cmdbufs * sizeof(struct host1x_job_gather) +
+		(u64)num_unpins * sizeof(dma_addr_t) +
+		(u64)num_unpins * sizeof(u32 *);
 	if (total > ULONG_MAX)
 		return NULL;
 
