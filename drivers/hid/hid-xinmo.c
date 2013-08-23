@@ -57,16 +57,5 @@ static struct hid_driver xinmo_driver = {
 	.event = xinmo_event
 };
 
-static int __init xinmo_init(void)
-{
-	return hid_register_driver(&xinmo_driver);
-}
-
-static void __exit xinmo_exit(void)
-{
-	hid_unregister_driver(&xinmo_driver);
-}
-
-module_init(xinmo_init);
-module_exit(xinmo_exit);
+module_hid_driver(xinmo_driver);
 MODULE_LICENSE("GPL");
