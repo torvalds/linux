@@ -31,7 +31,7 @@ static void bcma_pcie_write(struct bcma_drv_pci *pc, u32 address, u32 data)
 	pcicore_write32(pc, BCMA_CORE_PCI_PCIEIND_DATA, data);
 }
 
-static void bcma_pcie_mdio_set_phy(struct bcma_drv_pci *pc, u8 phy)
+static void bcma_pcie_mdio_set_phy(struct bcma_drv_pci *pc, u16 phy)
 {
 	u32 v;
 	int i;
@@ -55,7 +55,7 @@ static void bcma_pcie_mdio_set_phy(struct bcma_drv_pci *pc, u8 phy)
 	}
 }
 
-static u16 bcma_pcie_mdio_read(struct bcma_drv_pci *pc, u8 device, u8 address)
+static u16 bcma_pcie_mdio_read(struct bcma_drv_pci *pc, u16 device, u8 address)
 {
 	int max_retries = 10;
 	u16 ret = 0;
@@ -98,7 +98,7 @@ static u16 bcma_pcie_mdio_read(struct bcma_drv_pci *pc, u8 device, u8 address)
 	return ret;
 }
 
-static void bcma_pcie_mdio_write(struct bcma_drv_pci *pc, u8 device,
+static void bcma_pcie_mdio_write(struct bcma_drv_pci *pc, u16 device,
 				u8 address, u16 data)
 {
 	int max_retries = 10;
@@ -135,6 +135,13 @@ static void bcma_pcie_mdio_write(struct bcma_drv_pci *pc, u8 device,
 		usleep_range(1000, 2000);
 	}
 	pcicore_write32(pc, BCMA_CORE_PCI_MDIO_CONTROL, 0);
+}
+
+static u16 bcma_pcie_mdio_writeread(struct bcma_drv_pci *pc, u16 device,
+				    u8 address, u16 data)
+{
+	bcma_pcie_mdio_write(pc, device, address, data);
+	return bcma_pcie_mdio_read(pc, device, address);
 }
 
 /**************************************************
@@ -200,6 +207,25 @@ static void bcma_core_pci_config_fixup(struct bcma_drv_pci *pc)
 	if (!(val16 & BCMA_CORE_PCI_SPROM_L23READY_EXIT_NOPERST)) {
 		val16 |= BCMA_CORE_PCI_SPROM_L23READY_EXIT_NOPERST;
 		pcicore_write16(pc, regoff, val16);
+	}
+}
+
+static void bcma_core_pci_power_save(struct bcma_drv_pci *pc, bool up)
+{
+	u16 data;
+
+	if (pc->core->id.rev >= 15 && pc->core->id.rev <= 20) {
+		data = up ? 0x74 : 0x7C;
+		bcma_pcie_mdio_writeread(pc, BCMA_CORE_PCI_MDIO_BLK1,
+					 BCMA_CORE_PCI_MDIO_BLK1_MGMT1, 0x7F64);
+		bcma_pcie_mdio_writeread(pc, BCMA_CORE_PCI_MDIO_BLK1,
+					 BCMA_CORE_PCI_MDIO_BLK1_MGMT3, data);
+	} else if (pc->core->id.rev >= 21 && pc->core->id.rev <= 22) {
+		data = up ? 0x75 : 0x7D;
+		bcma_pcie_mdio_writeread(pc, BCMA_CORE_PCI_MDIO_BLK1,
+					 BCMA_CORE_PCI_MDIO_BLK1_MGMT1, 0x7E65);
+		bcma_pcie_mdio_writeread(pc, BCMA_CORE_PCI_MDIO_BLK1,
+					 BCMA_CORE_PCI_MDIO_BLK1_MGMT3, data);
 	}
 }
 
@@ -284,6 +310,8 @@ void bcma_core_pci_up(struct bcma_bus *bus)
 
 	pc = &bus->drv_pci[0];
 
+	bcma_core_pci_power_save(pc, true);
+
 	bcma_core_pci_extend_L1timer(pc, true);
 }
 EXPORT_SYMBOL_GPL(bcma_core_pci_up);
@@ -298,5 +326,7 @@ void bcma_core_pci_down(struct bcma_bus *bus)
 	pc = &bus->drv_pci[0];
 
 	bcma_core_pci_extend_L1timer(pc, false);
+
+	bcma_core_pci_power_save(pc, false);
 }
 EXPORT_SYMBOL_GPL(bcma_core_pci_down);
