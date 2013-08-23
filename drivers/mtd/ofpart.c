@@ -43,9 +43,8 @@ static int parse_ofpart_partitions(struct mtd_info *master,
 		return 0;
 
 	/* First count the subnodes */
-	pp = NULL;
 	nr_parts = 0;
-	while ((pp = of_get_next_child(node, pp))) {
+	for_each_child_of_node(node,  pp) {
 		if (node_has_compatible(pp))
 			continue;
 
@@ -59,9 +58,8 @@ static int parse_ofpart_partitions(struct mtd_info *master,
 	if (!*pparts)
 		return -ENOMEM;
 
-	pp = NULL;
 	i = 0;
-	while ((pp = of_get_next_child(node, pp))) {
+	for_each_child_of_node(node,  pp) {
 		const __be32 *reg;
 		int len;
 		int a_cells, s_cells;
