@@ -26,6 +26,7 @@ choice
 		bool "RT3883"
 		select USB_ARCH_HAS_OHCI
 		select USB_ARCH_HAS_EHCI
+		select HW_HAS_PCI
 
 	config SOC_MT7620
 		bool "MT7620"
