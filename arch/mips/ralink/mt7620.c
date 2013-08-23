@@ -23,9 +23,6 @@
 /* does the board have sdram or ddram */
 static int dram_type;
 
-/* the pll dividers */
-static u32 mt7620_clk_divider[] = { 2, 3, 4, 8 };
-
 static struct ralink_pinmux_grp mode_mux[] = {
 	{
 		.name = "i2c",
@@ -140,34 +137,187 @@ struct ralink_pinmux rt_gpio_pinmux = {
 	.uart_mask = MT7620_GPIO_MODE_UART0_MASK,
 };
 
+static __init u32
+mt7620_calc_rate(u32 ref_rate, u32 mul, u32 div)
+{
+	u64 t;
+
+	t = ref_rate;
+	t *= mul;
+	do_div(t, div);
+
+	return t;
+}
+
+#define MHZ(x)		((x) * 1000 * 1000)
+
+static __init unsigned long
+mt7620_get_xtal_rate(void)
+{
+	u32 reg;
+
+	reg = rt_sysc_r32(SYSC_REG_SYSTEM_CONFIG0);
+	if (reg & SYSCFG0_XTAL_FREQ_SEL)
+		return MHZ(40);
+
+	return MHZ(20);
+}
+
+static __init unsigned long
+mt7620_get_periph_rate(unsigned long xtal_rate)
+{
+	u32 reg;
+
+	reg = rt_sysc_r32(SYSC_REG_CLKCFG0);
+	if (reg & CLKCFG0_PERI_CLK_SEL)
+		return xtal_rate;
+
+	return MHZ(40);
+}
+
+static const u32 mt7620_clk_divider[] __initconst = { 2, 3, 4, 8 };
+
+static __init unsigned long
+mt7620_get_cpu_pll_rate(unsigned long xtal_rate)
+{
+	u32 reg;
+	u32 mul;
+	u32 div;
+
+	reg = rt_sysc_r32(SYSC_REG_CPLL_CONFIG0);
+	if (reg & CPLL_CFG0_BYPASS_REF_CLK)
+		return xtal_rate;
+
+	if ((reg & CPLL_CFG0_SW_CFG) == 0)
+		return MHZ(600);
+
+	mul = (reg >> CPLL_CFG0_PLL_MULT_RATIO_SHIFT) &
+	      CPLL_CFG0_PLL_MULT_RATIO_MASK;
+	mul += 24;
+	if (reg & CPLL_CFG0_LC_CURFCK)
+		mul *= 2;
+
+	div = (reg >> CPLL_CFG0_PLL_DIV_RATIO_SHIFT) &
+	      CPLL_CFG0_PLL_DIV_RATIO_MASK;
+
+	WARN_ON(div >= ARRAY_SIZE(mt7620_clk_divider));
+
+	return mt7620_calc_rate(xtal_rate, mul, mt7620_clk_divider[div]);
+}
+
+static __init unsigned long
+mt7620_get_pll_rate(unsigned long xtal_rate, unsigned long cpu_pll_rate)
+{
+	u32 reg;
+
+	reg = rt_sysc_r32(SYSC_REG_CPLL_CONFIG1);
+	if (reg & CPLL_CFG1_CPU_AUX1)
+		return xtal_rate;
+
+	if (reg & CPLL_CFG1_CPU_AUX0)
+		return MHZ(480);
+
+	return cpu_pll_rate;
+}
+
+static __init unsigned long
+mt7620_get_cpu_rate(unsigned long pll_rate)
+{
+	u32 reg;
+	u32 mul;
+	u32 div;
+
+	reg = rt_sysc_r32(SYSC_REG_CPU_SYS_CLKCFG);
+
+	mul = reg & CPU_SYS_CLKCFG_CPU_FFRAC_MASK;
+	div = (reg >> CPU_SYS_CLKCFG_CPU_FDIV_SHIFT) &
+	      CPU_SYS_CLKCFG_CPU_FDIV_MASK;
+
+	return mt7620_calc_rate(pll_rate, mul, div);
+}
+
+static const u32 mt7620_ocp_dividers[16] __initconst = {
+	[CPU_SYS_CLKCFG_OCP_RATIO_2] = 2,
+	[CPU_SYS_CLKCFG_OCP_RATIO_3] = 3,
+	[CPU_SYS_CLKCFG_OCP_RATIO_4] = 4,
+	[CPU_SYS_CLKCFG_OCP_RATIO_5] = 5,
+	[CPU_SYS_CLKCFG_OCP_RATIO_10] = 10,
+};
+
+static __init unsigned long
+mt7620_get_dram_rate(unsigned long pll_rate)
+{
+	if (dram_type == SYSCFG0_DRAM_TYPE_SDRAM)
+		return pll_rate / 4;
+
+	return pll_rate / 3;
+}
+
+static __init unsigned long
+mt7620_get_sys_rate(unsigned long cpu_rate)
+{
+	u32 reg;
+	u32 ocp_ratio;
+	u32 div;
+
+	reg = rt_sysc_r32(SYSC_REG_CPU_SYS_CLKCFG);
+
+	ocp_ratio = (reg >> CPU_SYS_CLKCFG_OCP_RATIO_SHIFT) &
+		    CPU_SYS_CLKCFG_OCP_RATIO_MASK;
+
+	if (WARN_ON(ocp_ratio >= ARRAY_SIZE(mt7620_ocp_dividers)))
+		return cpu_rate;
+
+	div = mt7620_ocp_dividers[ocp_ratio];
+	if (WARN(!div, "invalid divider for OCP ratio %u", ocp_ratio))
+		return cpu_rate;
+
+	return cpu_rate / div;
+}
+
 void __init ralink_clk_init(void)
 {
-	unsigned long cpu_rate, sys_rate;
-	u32 c0 = rt_sysc_r32(SYSC_REG_CPLL_CONFIG0);
-	u32 c1 = rt_sysc_r32(SYSC_REG_CPLL_CONFIG1);
-	u32 swconfig = (c0 >> CPLL_SW_CONFIG_SHIFT) & CPLL_SW_CONFIG_MASK;
-	u32 cpu_clk = (c1 >> CPLL_CPU_CLK_SHIFT) & CPLL_CPU_CLK_MASK;
+	unsigned long xtal_rate;
+	unsigned long cpu_pll_rate;
+	unsigned long pll_rate;
+	unsigned long cpu_rate;
+	unsigned long sys_rate;
+	unsigned long dram_rate;
+	unsigned long periph_rate;
 
-	if (cpu_clk) {
-		cpu_rate = 480000000;
-	} else if (!swconfig) {
-		cpu_rate = 600000000;
-	} else {
-		u32 m = (c0 >> CPLL_MULT_RATIO_SHIFT) & CPLL_MULT_RATIO;
-		u32 d = (c0 >> CPLL_DIV_RATIO_SHIFT) & CPLL_DIV_RATIO;
+	xtal_rate = mt7620_get_xtal_rate();
 
-		cpu_rate = ((40 * (m + 24)) / mt7620_clk_divider[d]) * 1000000;
-	}
+	cpu_pll_rate = mt7620_get_cpu_pll_rate(xtal_rate);
+	pll_rate = mt7620_get_pll_rate(xtal_rate, cpu_pll_rate);
 
-	if (dram_type == SYSCFG0_DRAM_TYPE_SDRAM)
-		sys_rate = cpu_rate / 4;
-	else
-		sys_rate = cpu_rate / 3;
+	cpu_rate = mt7620_get_cpu_rate(pll_rate);
+	dram_rate = mt7620_get_dram_rate(pll_rate);
+	sys_rate = mt7620_get_sys_rate(cpu_rate);
+	periph_rate = mt7620_get_periph_rate(xtal_rate);
+
+#define RFMT(label)	label ":%lu.%03luMHz "
+#define RINT(x)		((x) / 1000000)
+#define RFRAC(x)	(((x) / 1000) % 1000)
+
+	pr_debug(RFMT("XTAL") RFMT("CPU_PLL") RFMT("PLL"),
+		 RINT(xtal_rate), RFRAC(xtal_rate),
+		 RINT(cpu_pll_rate), RFRAC(cpu_pll_rate),
+		 RINT(pll_rate), RFRAC(pll_rate));
+
+	pr_debug(RFMT("CPU") RFMT("DRAM") RFMT("SYS") RFMT("PERIPH"),
+		 RINT(cpu_rate), RFRAC(cpu_rate),
+		 RINT(dram_rate), RFRAC(dram_rate),
+		 RINT(sys_rate), RFRAC(sys_rate),
+		 RINT(periph_rate), RFRAC(periph_rate));
+
+#undef RFRAC
+#undef RINT
+#undef RFMT
 
 	ralink_clk_add("cpu", cpu_rate);
-	ralink_clk_add("10000100.timer", 40000000);
-	ralink_clk_add("10000500.uart", 40000000);
-	ralink_clk_add("10000c00.uartlite", 40000000);
+	ralink_clk_add("10000100.timer", periph_rate);
+	ralink_clk_add("10000500.uart", periph_rate);
+	ralink_clk_add("10000c00.uartlite", periph_rate);
 }
 
 void __init ralink_of_remap(void)
