@@ -17,49 +17,22 @@
 	compatible = "phytec,imx27-pcm038", "fsl,imx27";
 
 	memory {
-		reg = <0x0 0x0>;
+		reg = <0xa0000000 0x08000000>;
+	};
+};
+
+&audmux {
+	status = "okay";
+
+	/* SSI0 <=> PINS_4 (MC13783 Audio) */
+	ssi0 {
+		fsl,audmux-port = <0>;
+		fsl,port-config = <0xcb205000>;
 	};
 
-	soc {
-		aipi@10000000 { /* aipi1 */
-			serial@1000a000 {
-				status = "okay";
-			};
-
-			i2c@1001d000 {
-				clock-frequency = <400000>;
-				status = "okay";
-				at24@52 {
-					compatible = "at,24c32";
-					pagesize = <32>;
-					reg = <0x52>;
-				};
-				pcf8563@51 {
-					compatible = "nxp,pcf8563";
-					reg = <0x51>;
-				};
-				lm75@4a {
-					compatible = "national,lm75";
-					reg = <0x4a>;
-				};
-			};
-		};
-
-		aipi@10020000 { /* aipi2 */
-			ethernet@1002b000 {
-				phy-reset-gpios = <&gpio3 30 0>;
-				status = "okay";
-			};
-		};
-	};
-
-	nor_flash@c0000000 {
-		compatible = "cfi-flash";
-		bank-width = <2>;
-		reg = <0xc0000000 0x02000000>;
-		linux,mtd-name = "physmap-flash.0";
-		#address-cells = <1>;
-		#size-cells = <1>;
+	pins4 {
+		fsl,audmux-port = <2>;
+		fsl,port-config = <0x00001000>;
 	};
 };
 
@@ -80,28 +53,16 @@
 		fsl,mc13xxx-uses-rtc;
 
 		regulators {
-			sw1a_reg: sw1a {
+			/* SW1A and SW1B joined operation */
+			sw1_reg: sw1a {
 				regulator-min-microvolt = <1200000>;
-				regulator-max-microvolt = <1200000>;
+				regulator-max-microvolt = <1520000>;
 				regulator-always-on;
 				regulator-boot-on;
 			};
 
-			sw1b_reg: sw1b {
-				regulator-min-microvolt = <1200000>;
-				regulator-max-microvolt = <1200000>;
-				regulator-always-on;
-				regulator-boot-on;
-			};
-
-			sw2a_reg: sw2a {
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
-				regulator-always-on;
-				regulator-boot-on;
-			};
-
-			sw2b_reg: sw2b {
+			/* SW2A and SW2B joined operation */
+			sw2_reg: sw2a {
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
@@ -172,8 +133,62 @@
 	};
 };
 
+&fec {
+	phy-reset-gpios = <&gpio3 30 0>;
+	status = "okay";
+};
+
+&i2c2 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	at24@52 {
+		compatible = "at,24c32";
+		pagesize = <32>;
+		reg = <0x52>;
+	};
+
+	pcf8563@51 {
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
+	};
+
+	lm75@4a {
+		compatible = "national,lm75";
+		reg = <0x4a>;
+	};
+};
+
 &nfc {
 	nand-bus-width = <8>;
 	nand-ecc-mode = "hw";
 	status = "okay";
+};
+
+&uart1 {
+	status = "okay";
+};
+
+&weim {
+	status = "okay";
+
+	nor: nor@c0000000 {
+		compatible = "cfi-flash";
+		reg = <0 0x00000000 0x02000000>;
+		bank-width = <2>;
+		linux,mtd-name = "physmap-flash.0";
+		fsl,weim-cs-timing = <0x22c2cf00 0x75000d01 0x00000900>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+	};
+
+	sram: sram@c8000000 {
+		compatible = "mtd-ram";
+		reg = <1 0x00000000 0x00800000>;
+		bank-width = <2>;
+		linux,mtd-name = "mtd-ram.0";
+		fsl,weim-cs-timing = <0x0000d843 0x22252521 0x22220a00>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+	};
 };
