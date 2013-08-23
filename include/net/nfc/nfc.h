@@ -243,5 +243,6 @@ void nfc_driver_failure(struct nfc_dev *dev, int err);
 
 int nfc_add_se(struct nfc_dev *dev, u32 se_idx, u16 type);
 int nfc_remove_se(struct nfc_dev *dev, u32 se_idx);
+struct nfc_se *nfc_find_se(struct nfc_dev *dev, u32 se_idx);
 
 #endif /* __NET_NFC_H */

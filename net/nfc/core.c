@@ -536,7 +536,7 @@ error:
 	return rc;
 }
 
-static struct nfc_se *find_se(struct nfc_dev *dev, u32 se_idx)
+struct nfc_se *nfc_find_se(struct nfc_dev *dev, u32 se_idx)
 {
 	struct nfc_se *se, *n;
 
@@ -546,6 +546,7 @@ static struct nfc_se *find_se(struct nfc_dev *dev, u32 se_idx)
 
 	return NULL;
 }
+EXPORT_SYMBOL(nfc_find_se);
 
 int nfc_enable_se(struct nfc_dev *dev, u32 se_idx)
 {
@@ -577,7 +578,7 @@ int nfc_enable_se(struct nfc_dev *dev, u32 se_idx)
 		goto error;
 	}
 
-	se = find_se(dev, se_idx);
+	se = nfc_find_se(dev, se_idx);
 	if (!se) {
 		rc = -EINVAL;
 		goto error;
@@ -622,7 +623,7 @@ int nfc_disable_se(struct nfc_dev *dev, u32 se_idx)
 		goto error;
 	}
 
-	se = find_se(dev, se_idx);
+	se = nfc_find_se(dev, se_idx);
 	if (!se) {
 		rc = -EINVAL;
 		goto error;
@@ -881,7 +882,7 @@ int nfc_add_se(struct nfc_dev *dev, u32 se_idx, u16 type)
 
 	pr_debug("%s se index %d\n", dev_name(&dev->dev), se_idx);
 
-	se = find_se(dev, se_idx);
+	se = nfc_find_se(dev, se_idx);
 	if (se)
 		return -EALREADY;
 
