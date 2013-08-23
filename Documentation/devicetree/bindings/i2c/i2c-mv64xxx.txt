@@ -5,7 +5,7 @@ Required properties :
 
  - reg             : Offset and length of the register set for the device
  - compatible      : Should be "marvell,mv64xxx-i2c" or "allwinner,sun4i-i2c"
-                     or "marvell,mv7230-i2c"
+                     or "marvell,mv78230-i2c"
  - interrupts      : The interrupt number
 
 Optional properties :
