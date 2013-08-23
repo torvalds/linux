@@ -5073,6 +5073,8 @@ int ci_dpm_init(struct radeon_device *rdev)
 
 	pi->caps_sclk_throttle_low_notification = false;
 
+	pi->caps_uvd_dpm = true;
+
         ci_get_leakage_voltages(rdev);
         ci_patch_dependency_tables_with_leakage(rdev);
         ci_set_private_data_variables_based_on_pptable(rdev);
