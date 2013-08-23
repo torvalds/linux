@@ -117,33 +117,25 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 	command = mcp->mb[0];
 	mboxes = mcp->out_mb;
 
+	ql_dbg(ql_dbg_mbx + ql_dbg_buffer, vha, 0x1111,
+	    "Mailbox registers (OUT):\n");
 	for (cnt = 0; cnt < ha->mbx_count; cnt++) {
 		if (IS_QLA2200(ha) && cnt == 8)
 			optr =
 			    (uint16_t __iomem *)MAILBOX_REG(ha, &reg->isp, 8);
-		if (mboxes & BIT_0)
+		if (mboxes & BIT_0) {
+			ql_dbg(ql_dbg_mbx, vha, 0x1112,
+			    "mbox[%d]<-0x%04x\n", cnt, *iptr);
 			WRT_REG_WORD(optr, *iptr);
+		}
 
 		mboxes >>= 1;
 		optr++;
 		iptr++;
 	}
 
-	ql_dbg(ql_dbg_mbx + ql_dbg_buffer, vha, 0x1111,
-	    "Loaded MBX registers (displayed in bytes) =.\n");
-	ql_dump_buffer(ql_dbg_mbx + ql_dbg_buffer, vha, 0x1112,
-	    (uint8_t *)mcp->mb, 16);
-	ql_dbg(ql_dbg_mbx + ql_dbg_buffer, vha, 0x1113,
-	    ".\n");
-	ql_dump_buffer(ql_dbg_mbx + ql_dbg_buffer, vha, 0x1114,
-	    ((uint8_t *)mcp->mb + 0x10), 16);
-	ql_dbg(ql_dbg_mbx + ql_dbg_buffer, vha, 0x1115,
-	    ".\n");
-	ql_dump_buffer(ql_dbg_mbx + ql_dbg_buffer, vha, 0x1116,
-	    ((uint8_t *)mcp->mb + 0x20), 8);
 	ql_dbg(ql_dbg_mbx + ql_dbg_buffer, vha, 0x1117,
 	    "I/O Address = %p.\n", optr);
-	ql_dump_regs(ql_dbg_mbx + ql_dbg_buffer, vha, 0x100e);
 
 	/* Issue set host interrupt command to send cmd out. */
 	ha->flags.mbox_int = 0;
@@ -254,9 +246,15 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		iptr2 = mcp->mb;
 		iptr = (uint16_t *)&ha->mailbox_out[0];
 		mboxes = mcp->in_mb;
+
+		ql_dbg(ql_dbg_mbx, vha, 0x1113,
+		    "Mailbox registers (IN):\n");
 		for (cnt = 0; cnt < ha->mbx_count; cnt++) {
-			if (mboxes & BIT_0)
+			if (mboxes & BIT_0) {
 				*iptr2 = *iptr;
+				ql_dbg(ql_dbg_mbx, vha, 0x1114,
+				    "mbox[%d]->0x%04x\n", cnt, *iptr2);
+			}
 
 			mboxes >>= 1;
 			iptr2++;
