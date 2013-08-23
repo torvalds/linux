@@ -2183,4 +2183,12 @@ static inline void qlcnic_dcb_handle_aen(struct qlcnic_adapter *adapter,
 	if (dcb && dcb->ops->handle_aen)
 		dcb->ops->handle_aen(adapter, msg);
 }
+
+static inline void qlcnic_dcb_init_dcbnl_ops(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_dcb *dcb = adapter->dcb;
+
+	if (dcb && dcb->ops->init_dcbnl_ops)
+		dcb->ops->init_dcbnl_ops(adapter);
+}
 #endif				/* __QLCNIC_H_ */

@@ -2028,6 +2028,8 @@ qlcnic_setup_netdev(struct qlcnic_adapter *adapter, struct net_device *netdev,
 		return err;
 	}
 
+	qlcnic_dcb_init_dcbnl_ops(adapter);
+
 	return 0;
 }
 

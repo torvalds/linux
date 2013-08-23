@@ -18,6 +18,7 @@ static inline int __qlcnic_register_dcb(struct qlcnic_adapter *adapter)
 #endif
 
 struct qlcnic_dcb_ops {
+	void (*init_dcbnl_ops) (struct qlcnic_adapter *);
 	void (*free) (struct qlcnic_adapter *);
 	int (*attach) (struct qlcnic_adapter *);
 	int (*query_hw_capability) (struct qlcnic_adapter *, char *);
