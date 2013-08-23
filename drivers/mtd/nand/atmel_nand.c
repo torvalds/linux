@@ -2048,6 +2048,7 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 		irq = platform_get_irq(pdev, 0);
 		if (irq < 0) {
 			dev_err(host->dev, "Cannot get HSMC irq!\n");
+			res = irq;
 			goto err_nand_ioremap;
 		}
 
