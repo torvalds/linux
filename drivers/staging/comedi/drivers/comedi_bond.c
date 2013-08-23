@@ -371,7 +371,5 @@ static struct comedi_driver bonding_driver = {
 module_comedi_driver(bonding_driver);
 
 MODULE_AUTHOR("Calin A. Culianu");
-MODULE_DESCRIPTION("comedi_bond: A driver for COMEDI to bond multiple COMEDI "
-		   "devices together as one.  In the words of John Lennon: "
-		   "'And the world will live as one...'");
+MODULE_DESCRIPTION("comedi_bond: A driver for COMEDI to bond multiple COMEDI devices together as one.");
 MODULE_LICENSE("GPL");
