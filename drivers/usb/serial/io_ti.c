@@ -2484,7 +2484,7 @@ static int edge_port_remove(struct usb_serial_port *port)
 
 /* Sysfs Attributes */
 
-static ssize_t show_uart_mode(struct device *dev,
+static ssize_t uart_mode_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct usb_serial_port *port = to_usb_serial_port(dev);
@@ -2493,7 +2493,7 @@ static ssize_t show_uart_mode(struct device *dev,
 	return sprintf(buf, "%d\n", edge_port->bUartMode);
 }
 
-static ssize_t store_uart_mode(struct device *dev,
+static ssize_t uart_mode_store(struct device *dev,
 	struct device_attribute *attr, const char *valbuf, size_t count)
 {
 	struct usb_serial_port *port = to_usb_serial_port(dev);
@@ -2509,9 +2509,7 @@ static ssize_t store_uart_mode(struct device *dev,
 
 	return count;
 }
-
-static DEVICE_ATTR(uart_mode, S_IWUSR | S_IRUGO, show_uart_mode,
-							store_uart_mode);
+static DEVICE_ATTR_RW(uart_mode);
 
 static int edge_create_sysfs_attrs(struct usb_serial_port *port)
 {

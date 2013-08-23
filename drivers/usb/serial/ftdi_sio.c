@@ -1561,8 +1561,8 @@ static void ftdi_set_max_packet_size(struct usb_serial_port *port)
  * ***************************************************************************
  */
 
-static ssize_t show_latency_timer(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t latency_timer_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
 {
 	struct usb_serial_port *port = to_usb_serial_port(dev);
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
@@ -1572,11 +1572,10 @@ static ssize_t show_latency_timer(struct device *dev,
 		return sprintf(buf, "%i\n", priv->latency);
 }
 
-
 /* Write a new value of the latency timer, in units of milliseconds. */
-static ssize_t store_latency_timer(struct device *dev,
-			struct device_attribute *attr, const char *valbuf,
-			size_t count)
+static ssize_t latency_timer_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *valbuf, size_t count)
 {
 	struct usb_serial_port *port = to_usb_serial_port(dev);
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
@@ -1589,6 +1588,7 @@ static ssize_t store_latency_timer(struct device *dev,
 		return -EIO;
 	return count;
 }
+static DEVICE_ATTR_RW(latency_timer);
 
 /* Write an event character directly to the FTDI register.  The ASCII
    value is in the low 8 bits, with the enable bit in the 9th bit. */
@@ -1616,9 +1616,6 @@ static ssize_t store_event_char(struct device *dev,
 
 	return count;
 }
-
-static DEVICE_ATTR(latency_timer, S_IWUSR | S_IRUGO, show_latency_timer,
-							store_latency_timer);
 static DEVICE_ATTR(event_char, S_IWUSR, NULL, store_event_char);
 
 static int create_sysfs_attrs(struct usb_serial_port *port)
