@@ -3516,7 +3516,7 @@ static int __init d40_of_probe(struct platform_device *pdev,
 	list = of_get_property(np, "disabled-channels", &num_disabled);
 	num_disabled /= sizeof(*list);
 
-	if (num_disabled > STEDMA40_MAX_PHYS || num_disabled < 0) {
+	if (num_disabled >= STEDMA40_MAX_PHYS || num_disabled < 0) {
 		d40_err(&pdev->dev,
 			"Invalid number of disabled channels specified (%d)\n",
 			num_disabled);
