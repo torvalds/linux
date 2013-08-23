@@ -159,7 +159,7 @@ static struct hwreg_cfg hwreg_cfg = {
 
 static struct ab8500_prcmu_ranges *debug_ranges;
 
-struct ab8500_prcmu_ranges ab8500_debug_ranges[AB8500_NUM_BANKS] = {
+static struct ab8500_prcmu_ranges ab8500_debug_ranges[AB8500_NUM_BANKS] = {
 	[0x0] = {
 		.num_ranges = 0,
 		.range = NULL,
@@ -488,7 +488,7 @@ struct ab8500_prcmu_ranges ab8500_debug_ranges[AB8500_NUM_BANKS] = {
 	},
 };
 
-struct ab8500_prcmu_ranges ab8505_debug_ranges[AB8500_NUM_BANKS] = {
+static struct ab8500_prcmu_ranges ab8505_debug_ranges[AB8500_NUM_BANKS] = {
 	[0x0] = {
 		.num_ranges = 0,
 		.range = NULL,
@@ -847,7 +847,7 @@ struct ab8500_prcmu_ranges ab8505_debug_ranges[AB8500_NUM_BANKS] = {
 	},
 };
 
-struct ab8500_prcmu_ranges ab8540_debug_ranges[AB8500_NUM_BANKS] = {
+static struct ab8500_prcmu_ranges ab8540_debug_ranges[AB8500_NUM_BANKS] = {
 	[AB8500_M_FSM_RANK] = {
 		.num_ranges = 1,
 		.range = (struct ab8500_reg_range[]) {
@@ -1377,7 +1377,7 @@ void ab8500_dump_all_banks(struct device *dev)
 
 /* Space for 500 registers. */
 #define DUMP_MAX_REGS 700
-struct ab8500_register_dump
+static struct ab8500_register_dump
 {
 	u8 bank;
 	u8 reg;
