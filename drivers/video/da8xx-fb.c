@@ -783,10 +783,10 @@ static int lcd_init(struct da8xx_fb_par *par, const struct lcd_ctrl_config *cfg,
 		return ret;
 
 	/* Configure the vertical and horizontal sync properties. */
-	lcd_cfg_vertical_sync(panel->lower_margin, panel->vsync_len,
-			panel->upper_margin);
-	lcd_cfg_horizontal_sync(panel->right_margin, panel->hsync_len,
-			panel->left_margin);
+	lcd_cfg_vertical_sync(panel->upper_margin, panel->vsync_len,
+			panel->lower_margin);
+	lcd_cfg_horizontal_sync(panel->left_margin, panel->hsync_len,
+			panel->right_margin);
 
 	/* Configure for disply */
 	ret = lcd_cfg_display(cfg, panel);
