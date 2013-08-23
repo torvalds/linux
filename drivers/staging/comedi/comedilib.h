@@ -21,6 +21,8 @@
 
 struct comedi_device *comedi_open(const char *path);
 int comedi_close(struct comedi_device *dev);
+int comedi_dio_get_config(struct comedi_device *dev, unsigned int subdev,
+			  unsigned int chan, unsigned int *io);
 int comedi_dio_config(struct comedi_device *dev, unsigned int subdev,
 		      unsigned int chan, unsigned int io);
 int comedi_dio_bitfield(struct comedi_device *dev, unsigned int subdev,

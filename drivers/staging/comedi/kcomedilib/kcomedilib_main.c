@@ -123,6 +123,27 @@ error:
 	return ret;
 }
 
+int comedi_dio_get_config(struct comedi_device *dev, unsigned int subdev,
+			  unsigned int chan, unsigned int *io)
+{
+	struct comedi_insn insn;
+	unsigned int data[2];
+	int ret;
+
+	memset(&insn, 0, sizeof(insn));
+	insn.insn = INSN_CONFIG;
+	insn.n = 2;
+	insn.subdev = subdev;
+	insn.chanspec = CR_PACK(chan, 0, 0);
+	data[0] = INSN_CONFIG_DIO_QUERY;
+	data[1] = 0;
+	ret = comedi_do_insn(dev, &insn, data);
+	if (ret >= 0)
+		*io = data[1];
+	return ret;
+}
+EXPORT_SYMBOL_GPL(comedi_dio_get_config);
+
 int comedi_dio_config(struct comedi_device *dev, unsigned int subdev,
 		      unsigned int chan, unsigned int io)
 {

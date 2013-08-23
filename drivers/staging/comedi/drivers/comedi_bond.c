@@ -124,59 +124,44 @@ static int bonding_dio_insn_config(struct comedi_device *dev,
 				   struct comedi_insn *insn, unsigned int *data)
 {
 	struct comedi_bond_private *devpriv = dev->private;
-	int chan = CR_CHAN(insn->chanspec), ret, io_bits = s->io_bits;
-	unsigned int chanid_offset;
-	unsigned int io;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int ret;
 	struct bonded_device *bdev;
 	struct bonded_device **devs;
 
-	if (chan < 0 || chan >= devpriv->nchans)
-		return -EINVAL;
-
 	/*
-	 * Locate bonded subdevice.
+	 * Locate bonded subdevice and adjust channel.
 	 */
-	chanid_offset = 0;
 	devs = devpriv->devs;
-	for (bdev = *devs++; chan >= chanid_offset + bdev->nchans;
-	     bdev = *devs++)
-		chanid_offset += bdev->nchans;
+	for (bdev = *devs++; chan >= bdev->nchans; bdev = *devs++)
+		chan -= bdev->nchans;
 
 	/*
 	 * The input or output configuration of each digital line is
 	 * configured by a special insn_config instruction.  chanspec
 	 * contains the channel to be changed, and data[0] contains the
-	 * value COMEDI_INPUT or COMEDI_OUTPUT.
+	 * configuration instruction INSN_CONFIG_DIO_OUTPUT,
+	 * INSN_CONFIG_DIO_INPUT or INSN_CONFIG_DIO_QUERY.
+	 *
+	 * Note that INSN_CONFIG_DIO_OUTPUT == COMEDI_OUTPUT,
+	 * and INSN_CONFIG_DIO_INPUT == COMEDI_INPUT.  This is deliberate ;)
 	 */
 	switch (data[0]) {
 	case INSN_CONFIG_DIO_OUTPUT:
-		io = COMEDI_OUTPUT;	/* is this really necessary? */
-		io_bits |= 1 << chan;
-		break;
 	case INSN_CONFIG_DIO_INPUT:
-		io = COMEDI_INPUT;	/* is this really necessary? */
-		io_bits &= ~(1 << chan);
+		ret = comedi_dio_config(bdev->dev, bdev->subdev, chan, data[0]);
 		break;
 	case INSN_CONFIG_DIO_QUERY:
-		data[1] =
-		    (io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
+		ret = comedi_dio_get_config(bdev->dev, bdev->subdev, chan,
+					    &data[1]);
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
 		break;
 	}
-	/* 'real' channel id for this subdev.. */
-	chan -= chanid_offset;
-	ret = comedi_dio_config(bdev->dev, bdev->subdev, chan, io);
-	if (ret != 1)
-		return -EINVAL;
-	/*
-	 * Finally, save the new io_bits values since we didn't get an error
-	 * above.
-	 */
-	s->io_bits = io_bits;
-	return insn->n;
+	if (ret >= 0)
+		ret = insn->n;
+	return ret;
 }
 
 static void *realloc(const void *oldmem, size_t newlen, size_t oldlen)
