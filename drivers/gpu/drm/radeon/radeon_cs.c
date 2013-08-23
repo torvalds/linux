@@ -347,6 +347,9 @@ static int radeon_cs_ib_chunk(struct radeon_device *rdev,
 
 	if (parser->ring == R600_RING_TYPE_UVD_INDEX)
 		radeon_uvd_note_usage(rdev);
+	else if ((parser->ring == TN_RING_TYPE_VCE1_INDEX) ||
+		 (parser->ring == TN_RING_TYPE_VCE2_INDEX))
+		radeon_vce_note_usage(rdev);
 
 	radeon_cs_sync_rings(parser);
 	r = radeon_ib_schedule(rdev, &parser->ib, NULL);

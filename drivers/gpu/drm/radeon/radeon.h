@@ -1518,6 +1518,7 @@ struct radeon_dpm {
 };
 
 void radeon_dpm_enable_uvd(struct radeon_device *rdev, bool enable);
+void radeon_dpm_enable_vce(struct radeon_device *rdev, bool enable);
 
 struct radeon_pm {
 	struct mutex		mutex;
@@ -1638,6 +1639,7 @@ struct radeon_vce {
 	unsigned		fb_version;
 	atomic_t		handles[RADEON_MAX_VCE_HANDLES];
 	struct drm_file		*filp[RADEON_MAX_VCE_HANDLES];
+	struct delayed_work	idle_work;
 };
 
 int radeon_vce_init(struct radeon_device *rdev);
@@ -1649,6 +1651,7 @@ int radeon_vce_get_create_msg(struct radeon_device *rdev, int ring,
 int radeon_vce_get_destroy_msg(struct radeon_device *rdev, int ring,
 			       uint32_t handle, struct radeon_fence **fence);
 void radeon_vce_free_handles(struct radeon_device *rdev, struct drm_file *filp);
+void radeon_vce_note_usage(struct radeon_device *rdev);
 int radeon_vce_cs_reloc(struct radeon_cs_parser *p, int lo, int hi);
 int radeon_vce_cs_parse(struct radeon_cs_parser *p);
 bool radeon_vce_semaphore_emit(struct radeon_device *rdev,

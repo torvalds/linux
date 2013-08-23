@@ -968,6 +968,23 @@ void radeon_dpm_enable_uvd(struct radeon_device *rdev, bool enable)
 	}
 }
 
+void radeon_dpm_enable_vce(struct radeon_device *rdev, bool enable)
+{
+	if (enable) {
+		mutex_lock(&rdev->pm.mutex);
+		rdev->pm.dpm.vce_active = true;
+		/* XXX select vce level based on ring/task */
+		rdev->pm.dpm.vce_level = RADEON_VCE_LEVEL_AC_ALL;
+		mutex_unlock(&rdev->pm.mutex);
+	} else {
+		mutex_lock(&rdev->pm.mutex);
+		rdev->pm.dpm.vce_active = false;
+		mutex_unlock(&rdev->pm.mutex);
+	}
+
+	radeon_pm_compute_clocks(rdev);
+}
+
 static void radeon_pm_suspend_old(struct radeon_device *rdev)
 {
 	mutex_lock(&rdev->pm.mutex);

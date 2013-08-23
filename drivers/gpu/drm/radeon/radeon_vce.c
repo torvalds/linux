@@ -34,10 +34,15 @@
 #include "radeon_asic.h"
 #include "sid.h"
 
+/* 1 second timeout */
+#define VCE_IDLE_TIMEOUT_MS	1000
+
 /* Firmware Names */
 #define FIRMWARE_BONAIRE	"radeon/BONAIRE_vce.bin"
 
 MODULE_FIRMWARE(FIRMWARE_BONAIRE);
+
+static void radeon_vce_idle_work_handler(struct work_struct *work);
 
 /**
  * radeon_vce_init - allocate memory, load vce firmware
@@ -54,6 +59,8 @@ int radeon_vce_init(struct radeon_device *rdev)
 	const char *fw_name, *c;
 	uint8_t start, mid, end;
 	int i, r;
+
+	INIT_DELAYED_WORK(&rdev->vce.idle_work, radeon_vce_idle_work_handler);
 
 	switch (rdev->family) {
 	case CHIP_BONAIRE:
@@ -220,6 +227,59 @@ int radeon_vce_resume(struct radeon_device *rdev)
 }
 
 /**
+ * radeon_vce_idle_work_handler - power off VCE
+ *
+ * @work: pointer to work structure
+ *
+ * power of VCE when it's not used any more
+ */
+static void radeon_vce_idle_work_handler(struct work_struct *work)
+{
+	struct radeon_device *rdev =
+		container_of(work, struct radeon_device, vce.idle_work.work);
+
+	if ((radeon_fence_count_emitted(rdev, TN_RING_TYPE_VCE1_INDEX) == 0) &&
+	    (radeon_fence_count_emitted(rdev, TN_RING_TYPE_VCE2_INDEX) == 0)) {
+		if ((rdev->pm.pm_method == PM_METHOD_DPM) && rdev->pm.dpm_enabled) {
+			radeon_dpm_enable_vce(rdev, false);
+		} else {
+			radeon_set_vce_clocks(rdev, 0, 0);
+		}
+	} else {
+		schedule_delayed_work(&rdev->vce.idle_work,
+				      msecs_to_jiffies(VCE_IDLE_TIMEOUT_MS));
+	}
+}
+
+/**
+ * radeon_vce_note_usage - power up VCE
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Make sure VCE is powerd up when we want to use it
+ */
+void radeon_vce_note_usage(struct radeon_device *rdev)
+{
+	bool streams_changed = false;
+	bool set_clocks = !cancel_delayed_work_sync(&rdev->vce.idle_work);
+	set_clocks &= schedule_delayed_work(&rdev->vce.idle_work,
+					    msecs_to_jiffies(VCE_IDLE_TIMEOUT_MS));
+
+	if ((rdev->pm.pm_method == PM_METHOD_DPM) && rdev->pm.dpm_enabled) {
+		/* XXX figure out if the streams changed */
+		streams_changed = false;
+	}
+
+	if (set_clocks || streams_changed) {
+		if ((rdev->pm.pm_method == PM_METHOD_DPM) && rdev->pm.dpm_enabled) {
+			radeon_dpm_enable_vce(rdev, true);
+		} else {
+			radeon_set_vce_clocks(rdev, 53300, 40000);
+		}
+	}
+}
+
+/**
  * radeon_vce_free_handles - free still open VCE handles
  *
  * @rdev: radeon_device pointer
@@ -234,6 +294,8 @@ void radeon_vce_free_handles(struct radeon_device *rdev, struct drm_file *filp)
 		uint32_t handle = atomic_read(&rdev->vce.handles[i]);
 		if (!handle || rdev->vce.filp[i] != filp)
 			continue;
+
+		radeon_vce_note_usage(rdev);
 
 		r = radeon_vce_get_destroy_msg(rdev, TN_RING_TYPE_VCE1_INDEX,
 					       handle, NULL);
