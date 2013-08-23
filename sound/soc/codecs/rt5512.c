@@ -184,8 +184,8 @@ static struct rt5512_init_reg init_list[] = {
     {0x8c , 0x09},
     {0xec , 0x27c},
     /*record*/
-    {0x95 , 0xa0},
-    {0x85 , 0x20},  
+    {0x95 , 0x82},
+    {0x85 , 0x30},  
 };
 #define RT5512_INIT_REG_LEN ARRAY_SIZE(init_list)
 
@@ -631,9 +631,9 @@ static int rt5512_capture_path_put(struct snd_kcontrol *kcontrol,
               
 			case Main_Mic:
                 RT_DBG(">>>>>>>>>>>>>>>>%s Main_Mic",__FUNCTION__); 
-                /*record gain*/
+                /*Mic2 record gain*/
                 snd_soc_update_bits(codec, 0x93, 0x1f, 0x15);
-                snd_soc_update_bits(codec, 0x96, 0x0c, 0x02);
+                snd_soc_update_bits(codec, 0x97, 0x0c, 0x08);
                 snd_soc_dapm_enable_pin(dapm, "Main Mic");
                 snd_soc_dapm_disable_pin(dapm, "LineIn");
                 snd_soc_dapm_sync(dapm);
@@ -644,6 +644,9 @@ static int rt5512_capture_path_put(struct snd_kcontrol *kcontrol,
                 
 			case Hands_Free_Mic:
                 RT_DBG(">>>>>>>>>>>>>>>>%s Hands_Free_Mic",__FUNCTION__);
+                /*Aux record gain*/
+                snd_soc_update_bits(codec, 0x91, 0x1f, 0x15);
+                snd_soc_update_bits(codec, 0x96, 0xc0, 0x80);
 				snd_soc_dapm_disable_pin(dapm, "Main Mic");
                 snd_soc_dapm_enable_pin(dapm, "LineIn");
                 snd_soc_dapm_sync(dapm);
@@ -1162,7 +1165,7 @@ static const struct snd_soc_dapm_widget rt5512_dapm_widgets[] =
 	SND_SOC_DAPM_OUTPUT("RHeadphone"),
 	//MicBias
 	SND_SOC_DAPM_MICBIAS("MicBias1", 0x81, 5, 0),
-	SND_SOC_DAPM_MICBIAS("MicBias2", 0x81, 4, 0),
+	SND_SOC_DAPM_MICBIAS("MicBias2", 0x81, 5, 0),
 };
 
 static const struct snd_soc_dapm_route rt5512_dapm_routes[] = 

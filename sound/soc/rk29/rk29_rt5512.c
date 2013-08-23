@@ -186,7 +186,8 @@ static const struct snd_soc_dapm_route rt5512_audio_map[] = {
 	// Input
 	{"MicBias1", NULL,"Main Mic"},
 	{"Mic2", NULL, "MicBias1"},
-	{"Aux", NULL, "LineIn"},
+    {"MicBias2", NULL, "LineIn"},
+    {"Aux", NULL, "MicBias2"},
 	// Output
 	{"Ext Spk", NULL, "LSpeaker"},
 	{"Ext Spk", NULL, "RSpeaker"},
@@ -286,17 +287,7 @@ static int rt5512_init(struct snd_soc_pcm_runtime *rtd)
 static struct snd_soc_dai_link rk29_dai[] = {
 	{ /* Primary DAI i/f */
 		.name = "RT5512 AIF1",
-		.stream_name = "Playback",
-		.cpu_dai_name = "rk29_i2s.1",
-		.codec_dai_name = "RT5512-aif1",
-		.platform_name = "rockchip-audio",
-		.codec_name = "rt5512.1-0018",
-		.init = rt5512_init,
-		.ops = &rk29_ops,
-	},
-	{ /* Sec_Fifo DAI i/f */
-		.name = "RT5512 AIF2",
-		.stream_name = "Capture",
+		.stream_name = "RT5512 PCM",
 		.cpu_dai_name = "rk29_i2s.1",
 		.codec_dai_name = "RT5512-aif1",
 		.platform_name = "rockchip-audio",
