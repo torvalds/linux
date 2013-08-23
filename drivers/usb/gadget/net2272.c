@@ -1184,7 +1184,7 @@ static const struct usb_gadget_ops net2272_ops = {
 /*---------------------------------------------------------------------------*/
 
 static ssize_t
-net2272_show_registers(struct device *_dev, struct device_attribute *attr, char *buf)
+registers_show(struct device *_dev, struct device_attribute *attr, char *buf)
 {
 	struct net2272 *dev;
 	char *next;
@@ -1308,7 +1308,7 @@ net2272_show_registers(struct device *_dev, struct device_attribute *attr, char 
 
 	return PAGE_SIZE - size;
 }
-static DEVICE_ATTR(registers, S_IRUGO, net2272_show_registers, NULL);
+static DEVICE_ATTR_RO(registers);
 
 /*---------------------------------------------------------------------------*/
 

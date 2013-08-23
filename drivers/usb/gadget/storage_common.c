@@ -547,8 +547,8 @@ static void store_cdrom_address(u8 *dest, int msf, u32 addr)
 /*-------------------------------------------------------------------------*/
 
 
-static ssize_t fsg_show_ro(struct device *dev, struct device_attribute *attr,
-			   char *buf)
+static ssize_t ro_show(struct device *dev, struct device_attribute *attr,
+		       char *buf)
 {
 	struct fsg_lun	*curlun = fsg_lun_from_dev(dev);
 
@@ -557,16 +557,16 @@ static ssize_t fsg_show_ro(struct device *dev, struct device_attribute *attr,
 				  : curlun->initially_ro);
 }
 
-static ssize_t fsg_show_nofua(struct device *dev, struct device_attribute *attr,
-			      char *buf)
+static ssize_t nofua_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
 	struct fsg_lun	*curlun = fsg_lun_from_dev(dev);
 
 	return sprintf(buf, "%u\n", curlun->nofua);
 }
 
-static ssize_t fsg_show_file(struct device *dev, struct device_attribute *attr,
-			     char *buf)
+static ssize_t file_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	struct fsg_lun	*curlun = fsg_lun_from_dev(dev);
 	struct rw_semaphore	*filesem = dev_get_drvdata(dev);
@@ -593,8 +593,8 @@ static ssize_t fsg_show_file(struct device *dev, struct device_attribute *attr,
 }
 
 
-static ssize_t fsg_store_ro(struct device *dev, struct device_attribute *attr,
-			    const char *buf, size_t count)
+static ssize_t ro_store(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
 {
 	ssize_t		rc;
 	struct fsg_lun	*curlun = fsg_lun_from_dev(dev);
@@ -623,9 +623,8 @@ static ssize_t fsg_store_ro(struct device *dev, struct device_attribute *attr,
 	return rc;
 }
 
-static ssize_t fsg_store_nofua(struct device *dev,
-			       struct device_attribute *attr,
-			       const char *buf, size_t count)
+static ssize_t nofua_store(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count)
 {
 	struct fsg_lun	*curlun = fsg_lun_from_dev(dev);
 	unsigned	nofua;
@@ -644,8 +643,8 @@ static ssize_t fsg_store_nofua(struct device *dev,
 	return count;
 }
 
-static ssize_t fsg_store_file(struct device *dev, struct device_attribute *attr,
-			      const char *buf, size_t count)
+static ssize_t file_store(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t count)
 {
 	struct fsg_lun	*curlun = fsg_lun_from_dev(dev);
 	struct rw_semaphore	*filesem = dev_get_drvdata(dev);

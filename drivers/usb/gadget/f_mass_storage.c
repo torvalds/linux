@@ -2578,14 +2578,12 @@ static int fsg_main_thread(void *common_)
 
 /*************************** DEVICE ATTRIBUTES ***************************/
 
-static DEVICE_ATTR(ro, 0644, fsg_show_ro, fsg_store_ro);
-static DEVICE_ATTR(nofua, 0644, fsg_show_nofua, fsg_store_nofua);
-static DEVICE_ATTR(file, 0644, fsg_show_file, fsg_store_file);
+static DEVICE_ATTR_RW(ro);
+static DEVICE_ATTR_RW(nofua);
+static DEVICE_ATTR_RW(file);
 
-static struct device_attribute dev_attr_ro_cdrom =
-	__ATTR(ro, 0444, fsg_show_ro, NULL);
-static struct device_attribute dev_attr_file_nonremovable =
-	__ATTR(file, 0444, fsg_show_file, NULL);
+static struct device_attribute dev_attr_ro_cdrom = __ATTR_RO(ro);
+static struct device_attribute dev_attr_file_nonremovable = __ATTR_RO(file);
 
 
 /****************************** FSG COMMON ******************************/

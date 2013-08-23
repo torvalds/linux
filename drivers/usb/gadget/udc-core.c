@@ -470,31 +470,31 @@ static ssize_t usb_udc_softconn_store(struct device *dev,
 }
 static DEVICE_ATTR(soft_connect, S_IWUSR, NULL, usb_udc_softconn_store);
 
-static ssize_t usb_gadget_state_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t state_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
 	struct usb_udc		*udc = container_of(dev, struct usb_udc, dev);
 	struct usb_gadget	*gadget = udc->gadget;
 
 	return sprintf(buf, "%s\n", usb_state_string(gadget->state));
 }
-static DEVICE_ATTR(state, S_IRUGO, usb_gadget_state_show, NULL);
+static DEVICE_ATTR_RO(state);
 
 #define USB_UDC_SPEED_ATTR(name, param)					\
-ssize_t usb_udc_##param##_show(struct device *dev,			\
+ssize_t name##_show(struct device *dev,					\
 		struct device_attribute *attr, char *buf)		\
 {									\
 	struct usb_udc *udc = container_of(dev, struct usb_udc, dev);	\
 	return snprintf(buf, PAGE_SIZE, "%s\n",				\
 			usb_speed_string(udc->gadget->param));		\
 }									\
-static DEVICE_ATTR(name, S_IRUGO, usb_udc_##param##_show, NULL)
+static DEVICE_ATTR_RO(name)
 
 static USB_UDC_SPEED_ATTR(current_speed, speed);
 static USB_UDC_SPEED_ATTR(maximum_speed, max_speed);
 
 #define USB_UDC_ATTR(name)					\
-ssize_t usb_udc_##name##_show(struct device *dev,		\
+ssize_t name##_show(struct device *dev,				\
 		struct device_attribute *attr, char *buf)	\
 {								\
 	struct usb_udc		*udc = container_of(dev, struct usb_udc, dev); \
@@ -502,7 +502,7 @@ ssize_t usb_udc_##name##_show(struct device *dev,		\
 								\
 	return snprintf(buf, PAGE_SIZE, "%d\n", gadget->name);	\
 }								\
-static DEVICE_ATTR(name, S_IRUGO, usb_udc_##name##_show, NULL)
+static DEVICE_ATTR_RO(name)
 
 static USB_UDC_ATTR(is_otg);
 static USB_UDC_ATTR(is_a_peripheral);
