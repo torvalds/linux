@@ -339,11 +339,11 @@ static void bonding_detach(struct comedi_device *dev)
 {
 	struct comedi_bond_private *devpriv = dev->private;
 
-	if (devpriv) {
+	if (devpriv && devpriv->devs) {
 		DECLARE_BITMAP(devs_closed, COMEDI_NUM_BOARD_MINORS);
 
 		memset(&devs_closed, 0, sizeof(devs_closed));
-		while (devpriv->ndevs-- && devpriv->devs) {
+		while (devpriv->ndevs--) {
 			struct bonded_device *bdev;
 
 			bdev = devpriv->devs[devpriv->ndevs];
