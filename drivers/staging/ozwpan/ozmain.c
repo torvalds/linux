@@ -18,7 +18,7 @@
 
 unsigned int oz_dbg_mask = OZ_DEFAULT_DBG_MASK;
 
-/*------------------------------------------------------------------------------
+/*
  * The name of the 802.11 mac device. Empty string is the default value but a
  * value can be supplied as a parameter to the module. An empty string means
  * bind to nothing. '*' means bind to all netcards - this includes non-802.11
@@ -26,7 +26,7 @@ unsigned int oz_dbg_mask = OZ_DEFAULT_DBG_MASK;
  */
 static char *g_net_dev = "";
 
-/*------------------------------------------------------------------------------
+/*
  * Context: process
  */
 static int __init ozwpan_init(void)
@@ -38,7 +38,7 @@ static int __init ozwpan_init(void)
 	return 0;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: process
  */
 static void __exit ozwpan_exit(void)
@@ -48,8 +48,6 @@ static void __exit ozwpan_exit(void)
 	oz_cdev_deregister();
 }
 
-/*------------------------------------------------------------------------------
- */
 module_param(g_net_dev, charp, S_IRUGO);
 module_init(ozwpan_init);
 module_exit(ozwpan_exit);

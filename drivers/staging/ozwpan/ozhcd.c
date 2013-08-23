@@ -35,7 +35,7 @@
 #include "ozurbparanoia.h"
 #include "ozhcd.h"
 
-/*------------------------------------------------------------------------------
+/*
  * Number of units of buffering to capture for an isochronous IN endpoint before
  * allowing data to be indicated up.
  */
@@ -57,7 +57,7 @@
  */
 #define EP0_TIMEOUT_COUNTER 13
 
-/*------------------------------------------------------------------------------
+/*
  * Used to link urbs together and also store some status information for each
  * urb.
  * A cache of these are kept in a pool to reduce number of calls to kmalloc.
@@ -144,7 +144,7 @@ struct oz_hcd {
  */
 #define OZ_HDC_F_SUSPENDED	0x1
 
-/*------------------------------------------------------------------------------
+/*
  * Static function prototypes.
  */
 static int oz_hcd_start(struct usb_hcd *hcd);
@@ -185,7 +185,7 @@ static struct oz_urb_link *oz_remove_urb(struct oz_endpoint *ep,
 		struct urb *urb);
 static void oz_hcd_clear_orphanage(struct oz_hcd *ozhcd, int status);
 
-/*------------------------------------------------------------------------------
+/*
  * Static external variables.
  */
 static struct platform_device *g_plat_dev;
@@ -231,7 +231,7 @@ static struct platform_driver g_oz_plat_drv = {
 	},
 };
 
-/*------------------------------------------------------------------------------
+/*
  * Gets our private context area (which is of type struct oz_hcd) from the
  * usb_hcd structure.
  * Context: any
@@ -241,7 +241,7 @@ static inline struct oz_hcd *oz_hcd_private(struct usb_hcd *hcd)
 	return (struct oz_hcd *)hcd->hcd_priv;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Searches list of ports to find the index of the one with a specified  USB
  * bus address. If none of the ports has the bus address then the connection
  * port is returned, if there is one or -1 otherwise.
@@ -258,7 +258,7 @@ static int oz_get_port_from_addr(struct oz_hcd *ozhcd, u8 bus_addr)
 	return ozhcd->conn_port;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Allocates an urb link, first trying the pool but going to heap if empty.
  * Context: any
  */
@@ -279,7 +279,7 @@ static struct oz_urb_link *oz_alloc_urb_link(void)
 	return urbl;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Frees an urb link by putting it in the pool if there is enough space or
  * deallocating it to heap otherwise.
  * Context: any
@@ -300,7 +300,7 @@ static void oz_free_urb_link(struct oz_urb_link *urbl)
 	}
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Deallocates all the urb links in the pool.
  * Context: unknown
  */
@@ -322,7 +322,7 @@ static void oz_empty_link_pool(void)
 	}
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Allocates endpoint structure and optionally a buffer. If a buffer is
  * allocated it immediately follows the endpoint structure.
  * Context: softirq
@@ -343,7 +343,7 @@ static struct oz_endpoint *oz_ep_alloc(int buffer_size, gfp_t mem_flags)
 	return ep;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Pre-condition: Must be called with g_tasklet_lock held and interrupts
  * disabled.
  * Context: softirq or process
@@ -363,7 +363,7 @@ static struct oz_urb_link *oz_uncancel_urb(struct oz_hcd *ozhcd, struct urb *urb
 	return NULL;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * This is called when we have finished processing an urb. It unlinks it from
  * the ep and returns it to the core.
  * Context: softirq or process
@@ -407,7 +407,7 @@ static void oz_complete_urb(struct usb_hcd *hcd, struct urb *urb,
 		oz_free_urb_link(cancel_urbl);
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Deallocates an endpoint including deallocating any associated stream and
  * returning any queued urbs to the core.
  * Context: softirq
@@ -432,7 +432,7 @@ static void oz_ep_free(struct oz_port *port, struct oz_endpoint *ep)
 	kfree(ep);
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: softirq
  */
 static void oz_complete_buffered_urb(struct oz_port *port,
@@ -471,7 +471,7 @@ static void oz_complete_buffered_urb(struct oz_port *port,
 	oz_complete_urb(port->ozhcd->hcd, urb, 0);
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: softirq
  */
 static int oz_enqueue_ep_urb(struct oz_port *port, u8 ep_addr, int in_dir,
@@ -543,7 +543,7 @@ out:
 	return err;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Removes an urb from the queue in the endpoint.
  * Returns 0 if it is found and -EIDRM otherwise.
  * Context: softirq
@@ -576,7 +576,7 @@ static int oz_dequeue_ep_urb(struct oz_port *port, u8 ep_addr, int in_dir,
 	return urbl ? 0 : -EIDRM;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Finds an urb given its request id.
  * Context: softirq
  */
@@ -609,7 +609,7 @@ static struct urb *oz_find_urb_by_id(struct oz_port *port, int ep_ix,
 	return urb;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Pre-condition: Port lock must be held.
  * Context: softirq
  */
@@ -624,7 +624,7 @@ static void oz_acquire_port(struct oz_port *port, void *hpd)
 	port->hpd = hpd;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: softirq
  */
 static struct oz_hcd *oz_hcd_claim(void)
@@ -639,7 +639,7 @@ static struct oz_hcd *oz_hcd_claim(void)
 	return ozhcd;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: softirq
  */
 static inline void oz_hcd_put(struct oz_hcd *ozhcd)
@@ -648,7 +648,7 @@ static inline void oz_hcd_put(struct oz_hcd *ozhcd)
 		usb_put_hcd(ozhcd->hcd);
 }
 
-/*------------------------------------------------------------------------------
+/*
  * This is called by the protocol handler to notify that a PD has arrived.
  * We allocate a port to associate with the PD and create a structure for
  * endpoint 0. This port is made the connection port.
@@ -714,7 +714,7 @@ err_put:
 	return NULL;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * This is called by the protocol handler to notify that the PD has gone away.
  * We need to deallocate all resources and then request that the root hub is
  * polled. We release the reference we hold on the PD.
@@ -770,7 +770,7 @@ void oz_hcd_pd_departed(struct oz_port *port)
 	oz_usb_put(hpd);
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: softirq
  */
 void oz_hcd_pd_reset(void *hpd, void *hport)
@@ -790,7 +790,7 @@ void oz_hcd_pd_reset(void *hpd, void *hport)
 	usb_hcd_poll_rh_status(ozhcd->hcd);
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: softirq
  */
 void oz_hcd_get_desc_cnf(void *hport, u8 req_id, int status, const u8 *desc,
@@ -836,7 +836,7 @@ void oz_hcd_get_desc_cnf(void *hport, u8 req_id, int status, const u8 *desc,
 	oz_complete_urb(port->ozhcd->hcd, urb, 0);
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: softirq
  */
 static void oz_display_conf_type(u8 t)
@@ -878,7 +878,7 @@ static void oz_display_conf_type(u8 t)
 	}
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: softirq
  */
 static void oz_hcd_complete_set_config(struct oz_port *port, struct urb *urb,
@@ -900,7 +900,7 @@ static void oz_hcd_complete_set_config(struct oz_port *port, struct urb *urb,
 	oz_complete_urb(hcd, urb, rc);
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: softirq
  */
 static void oz_hcd_complete_set_interface(struct oz_port *port, struct urb *urb,
@@ -927,7 +927,7 @@ static void oz_hcd_complete_set_interface(struct oz_port *port, struct urb *urb,
 	oz_complete_urb(hcd, urb, rc);
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: softirq
  */
 void oz_hcd_control_cnf(void *hport, u8 req_id, u8 rcode, const u8 *data,
@@ -980,7 +980,7 @@ void oz_hcd_control_cnf(void *hport, u8 req_id, u8 rcode, const u8 *data,
 	}
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: softirq-serialized
  */
 static int oz_hcd_buffer_data(struct oz_endpoint *ep, const u8 *data,
@@ -1018,7 +1018,7 @@ static int oz_hcd_buffer_data(struct oz_endpoint *ep, const u8 *data,
 	return 0;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: softirq-serialized
  */
 void oz_hcd_data_ind(void *hport, u8 endpoint, const u8 *data, int data_len)
@@ -1065,7 +1065,7 @@ done:
 	spin_unlock_bh(&ozhcd->hcd_lock);
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: unknown
  */
 static inline int oz_usb_get_frame_number(void)
@@ -1073,7 +1073,7 @@ static inline int oz_usb_get_frame_number(void)
 	return atomic_inc_return(&g_usb_frame_number);
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: softirq
  */
 int oz_hcd_heartbeat(void *hport)
@@ -1234,7 +1234,7 @@ int oz_hcd_heartbeat(void *hport)
 	return rc;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: softirq
  */
 static int oz_build_endpoints_for_interface(struct usb_hcd *hcd,
@@ -1315,7 +1315,7 @@ static int oz_build_endpoints_for_interface(struct usb_hcd *hcd,
 	return 0;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: softirq
  */
 static void oz_clean_endpoints_for_interface(struct usb_hcd *hcd,
@@ -1361,7 +1361,7 @@ static void oz_clean_endpoints_for_interface(struct usb_hcd *hcd,
 	}
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: softirq
  */
 static int oz_build_endpoints_for_config(struct usb_hcd *hcd,
@@ -1397,7 +1397,7 @@ fail:
 	return -1;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: softirq
  */
 static void oz_clean_endpoints_for_config(struct usb_hcd *hcd,
@@ -1419,7 +1419,7 @@ static void oz_clean_endpoints_for_config(struct usb_hcd *hcd,
 	spin_unlock_bh(&ozhcd->hcd_lock);
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: tasklet
  */
 static void *oz_claim_hpd(struct oz_port *port)
@@ -1435,7 +1435,7 @@ static void *oz_claim_hpd(struct oz_port *port)
 	return hpd;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: tasklet
  */
 static void oz_process_ep0_urb(struct oz_hcd *ozhcd, struct urb *urb,
@@ -1582,7 +1582,7 @@ out:
 	}
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: tasklet
  */
 static int oz_urb_process(struct oz_hcd *ozhcd, struct urb *urb)
@@ -1617,7 +1617,7 @@ static int oz_urb_process(struct oz_hcd *ozhcd, struct urb *urb)
 	return rc;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: tasklet
  */
 static void oz_urb_process_tasklet(unsigned long unused)
@@ -1651,7 +1651,7 @@ static void oz_urb_process_tasklet(unsigned long unused)
 	oz_hcd_put(ozhcd);
 }
 
-/*------------------------------------------------------------------------------
+/*
  * This function searches for the urb in any of the lists it could be in.
  * If it is found it is removed from the list and completed. If the urb is
  * being processed then it won't be in a list so won't be found. However, the
@@ -1719,7 +1719,7 @@ out2:
 	}
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: tasklet
  */
 static void oz_urb_cancel_tasklet(unsigned long unused)
@@ -1747,7 +1747,7 @@ static void oz_urb_cancel_tasklet(unsigned long unused)
 	oz_hcd_put(ozhcd);
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: unknown
  */
 static void oz_hcd_clear_orphanage(struct oz_hcd *ozhcd, int status)
@@ -1764,7 +1764,7 @@ static void oz_hcd_clear_orphanage(struct oz_hcd *ozhcd, int status)
 	}
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: unknown
  */
 static int oz_hcd_start(struct usb_hcd *hcd)
@@ -1775,21 +1775,21 @@ static int oz_hcd_start(struct usb_hcd *hcd)
 	return 0;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: unknown
  */
 static void oz_hcd_stop(struct usb_hcd *hcd)
 {
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: unknown
  */
 static void oz_hcd_shutdown(struct usb_hcd *hcd)
 {
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Called to queue an urb for the device.
  * This function should return a non-zero error code if it fails the urb but
  * should not call usb_hcd_giveback_urb().
@@ -1847,7 +1847,7 @@ static int oz_hcd_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 	return 0;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: tasklet
  */
 static struct oz_urb_link *oz_remove_urb(struct oz_endpoint *ep,
@@ -1873,7 +1873,7 @@ static struct oz_urb_link *oz_remove_urb(struct oz_endpoint *ep,
 	return NULL;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Called to dequeue a previously submitted urb for the device.
  * Context: any
  */
@@ -1915,7 +1915,7 @@ static int oz_hcd_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	return rc;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: unknown
  */
 static void oz_hcd_endpoint_disable(struct usb_hcd *hcd,
@@ -1923,7 +1923,7 @@ static void oz_hcd_endpoint_disable(struct usb_hcd *hcd,
 {
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: unknown
  */
 static void oz_hcd_endpoint_reset(struct usb_hcd *hcd,
@@ -1931,7 +1931,7 @@ static void oz_hcd_endpoint_reset(struct usb_hcd *hcd,
 {
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: unknown
  */
 static int oz_hcd_get_frame_number(struct usb_hcd *hcd)
@@ -1940,7 +1940,7 @@ static int oz_hcd_get_frame_number(struct usb_hcd *hcd)
 	return oz_usb_get_frame_number();
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: softirq
  * This is called as a consquence of us calling usb_hcd_poll_rh_status() and we
  * always do that in softirq context.
@@ -1971,7 +1971,7 @@ static int oz_hcd_hub_status_data(struct usb_hcd *hcd, char *buf)
 		return 0;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: process
  */
 static void oz_get_hub_descriptor(struct usb_hcd *hcd,
@@ -1985,7 +1985,7 @@ static void oz_get_hub_descriptor(struct usb_hcd *hcd,
 	desc->bNbrPorts = OZ_NB_PORTS;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: process
  */
 static int oz_set_port_feature(struct usb_hcd *hcd, u16 wvalue, u16 windex)
@@ -2061,7 +2061,7 @@ static int oz_set_port_feature(struct usb_hcd *hcd, u16 wvalue, u16 windex)
 	return err;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: process
  */
 static int oz_clear_port_feature(struct usb_hcd *hcd, u16 wvalue, u16 windex)
@@ -2137,7 +2137,7 @@ static int oz_clear_port_feature(struct usb_hcd *hcd, u16 wvalue, u16 windex)
 	return err;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: process
  */
 static int oz_get_port_status(struct usb_hcd *hcd, u16 windex, char *buf)
@@ -2155,7 +2155,7 @@ static int oz_get_port_status(struct usb_hcd *hcd, u16 windex, char *buf)
 	return 0;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: process
  */
 static int oz_hcd_hub_control(struct usb_hcd *hcd, u16 req_type, u16 wvalue,
@@ -2193,7 +2193,7 @@ static int oz_hcd_hub_control(struct usb_hcd *hcd, u16 req_type, u16 wvalue,
 	return err;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: process
  */
 static int oz_hcd_bus_suspend(struct usb_hcd *hcd)
@@ -2208,7 +2208,7 @@ static int oz_hcd_bus_suspend(struct usb_hcd *hcd)
 	return 0;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: process
  */
 static int oz_hcd_bus_resume(struct usb_hcd *hcd)
@@ -2223,13 +2223,11 @@ static int oz_hcd_bus_resume(struct usb_hcd *hcd)
 	return 0;
 }
 
-/*------------------------------------------------------------------------------
- */
 static void oz_plat_shutdown(struct platform_device *dev)
 {
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: process
  */
 static int oz_plat_probe(struct platform_device *dev)
@@ -2272,7 +2270,7 @@ static int oz_plat_probe(struct platform_device *dev)
 	return 0;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: unknown
  */
 static int oz_plat_remove(struct platform_device *dev)
@@ -2296,7 +2294,7 @@ static int oz_plat_remove(struct platform_device *dev)
 	return 0;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: unknown
  */
 static int oz_plat_suspend(struct platform_device *dev, pm_message_t msg)
@@ -2305,7 +2303,7 @@ static int oz_plat_suspend(struct platform_device *dev, pm_message_t msg)
 }
 
 
-/*------------------------------------------------------------------------------
+/*
  * Context: unknown
  */
 static int oz_plat_resume(struct platform_device *dev)
@@ -2313,7 +2311,7 @@ static int oz_plat_resume(struct platform_device *dev)
 	return 0;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: process
  */
 int oz_hcd_init(void)
@@ -2350,7 +2348,7 @@ error:
 	return err;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: process
  */
 void oz_hcd_term(void)

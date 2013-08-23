@@ -28,7 +28,7 @@
 #include "ozhcd.h"
 #include "ozusbsvc.h"
 
-/*------------------------------------------------------------------------------
+/*
  * This is called once when the driver is loaded to initialise the USB service.
  * Context: process
  */
@@ -37,7 +37,7 @@ int oz_usb_init(void)
 	return oz_hcd_init();
 }
 
-/*------------------------------------------------------------------------------
+/*
  * This is called once when the driver is unloaded to terminate the USB service.
  * Context: process
  */
@@ -46,7 +46,7 @@ void oz_usb_term(void)
 	oz_hcd_term();
 }
 
-/*------------------------------------------------------------------------------
+/*
  * This is called when the USB service is started or resumed for a PD.
  * Context: softirq
  */
@@ -111,7 +111,7 @@ int oz_usb_start(struct oz_pd *pd, int resume)
 	return rc;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * This is called when the USB service is stopped or paused for a PD.
  * Context: softirq or process
  */
@@ -152,7 +152,7 @@ void oz_usb_stop(struct oz_pd *pd, int pause)
 	}
 }
 
-/*------------------------------------------------------------------------------
+/*
  * This increments the reference count of the context area for a specific PD.
  * This ensures this context area does not disappear while still in use.
  * Context: softirq
@@ -164,7 +164,7 @@ void oz_usb_get(void *hpd)
 	atomic_inc(&usb_ctx->ref_count);
 }
 
-/*------------------------------------------------------------------------------
+/*
  * This decrements the reference count of the context area for a specific PD
  * and destroys the context area if the reference count becomes zero.
  * Context: irq or process
@@ -180,7 +180,7 @@ void oz_usb_put(void *hpd)
 	}
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: softirq
  */
 int oz_usb_heartbeat(struct oz_pd *pd)
@@ -205,7 +205,7 @@ done:
 	return rc;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: softirq
  */
 int oz_usb_stream_create(void *hpd, u8 ep_num)
@@ -227,7 +227,7 @@ int oz_usb_stream_create(void *hpd, u8 ep_num)
 	return 0;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: softirq
  */
 int oz_usb_stream_delete(void *hpd, u8 ep_num)
@@ -250,7 +250,7 @@ int oz_usb_stream_delete(void *hpd, u8 ep_num)
 	return 0;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: softirq or process
  */
 void oz_usb_request_heartbeat(void *hpd)

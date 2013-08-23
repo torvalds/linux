@@ -11,11 +11,10 @@
 #include "ozeltbuf.h"
 #include "ozpd.h"
 
-/*------------------------------------------------------------------------------
- */
 #define OZ_ELT_INFO_MAGIC_USED	0x35791057
 #define OZ_ELT_INFO_MAGIC_FREE	0x78940102
-/*------------------------------------------------------------------------------
+
+/*
  * Context: softirq-serialized
  */
 int oz_elt_buf_init(struct oz_elt_buf *buf)
@@ -29,7 +28,7 @@ int oz_elt_buf_init(struct oz_elt_buf *buf)
 	return 0;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: softirq or process
  */
 void oz_elt_buf_term(struct oz_elt_buf *buf)
@@ -62,7 +61,7 @@ void oz_elt_buf_term(struct oz_elt_buf *buf)
 	buf->free_elts = 0;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: softirq or process
  */
 struct oz_elt_info *oz_elt_info_alloc(struct oz_elt_buf *buf)
@@ -96,7 +95,7 @@ struct oz_elt_info *oz_elt_info_alloc(struct oz_elt_buf *buf)
 	return ei;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Precondition: oz_elt_buf.lock must be held.
  * Context: softirq or process
  */
@@ -133,8 +132,6 @@ void oz_elt_info_free_chain(struct oz_elt_buf *buf, struct list_head *list)
 	spin_unlock_bh(&buf->lock);
 }
 
-/*------------------------------------------------------------------------------
- */
 int oz_elt_stream_create(struct oz_elt_buf *buf, u8 id, int max_buf_count)
 {
 	struct oz_elt_stream *st;
@@ -154,8 +151,6 @@ int oz_elt_stream_create(struct oz_elt_buf *buf, u8 id, int max_buf_count)
 	return 0;
 }
 
-/*------------------------------------------------------------------------------
- */
 int oz_elt_stream_delete(struct oz_elt_buf *buf, u8 id)
 {
 	struct list_head *e;
@@ -194,15 +189,11 @@ int oz_elt_stream_delete(struct oz_elt_buf *buf, u8 id)
 	return 0;
 }
 
-/*------------------------------------------------------------------------------
- */
 void oz_elt_stream_get(struct oz_elt_stream *st)
 {
 	atomic_inc(&st->ref_count);
 }
 
-/*------------------------------------------------------------------------------
- */
 void oz_elt_stream_put(struct oz_elt_stream *st)
 {
 	if (atomic_dec_and_test(&st->ref_count)) {
@@ -211,7 +202,7 @@ void oz_elt_stream_put(struct oz_elt_stream *st)
 	}
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Precondition: Element buffer lock must be held.
  * If this function fails the caller is responsible for deallocating the elt
  * info structure.
@@ -275,8 +266,6 @@ int oz_queue_elt_info(struct oz_elt_buf *buf, u8 isoc, u8 id,
 	return 0;
 }
 
-/*------------------------------------------------------------------------------
- */
 int oz_select_elts_for_tx(struct oz_elt_buf *buf, u8 isoc, unsigned *len,
 		unsigned max_len, struct list_head *list)
 {
@@ -322,15 +311,11 @@ int oz_select_elts_for_tx(struct oz_elt_buf *buf, u8 isoc, unsigned *len,
 	return count;
 }
 
-/*------------------------------------------------------------------------------
- */
 int oz_are_elts_available(struct oz_elt_buf *buf)
 {
 	return buf->order_list.next != &buf->order_list;
 }
 
-/*------------------------------------------------------------------------------
- */
 void oz_trim_elt_pool(struct oz_elt_buf *buf)
 {
 	struct list_head *free = NULL;

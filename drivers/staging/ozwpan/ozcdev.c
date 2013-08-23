@@ -18,8 +18,7 @@
 #include "ozpd.h"
 #include "ozproto.h"
 #include "ozcdev.h"
-/*------------------------------------------------------------------------------
- */
+
 #define OZ_RD_BUF_SZ	256
 struct oz_cdev {
 	dev_t devnum;
@@ -39,12 +38,11 @@ struct oz_serial_ctx {
 	int rd_in;
 	int rd_out;
 };
-/*------------------------------------------------------------------------------
- */
+
 static struct oz_cdev g_cdev;
 static struct class *g_oz_class;
 
-/*------------------------------------------------------------------------------
+/*
  * Context: process and softirq
  */
 static struct oz_serial_ctx *oz_cdev_claim_ctx(struct oz_pd *pd)
@@ -59,7 +57,7 @@ static struct oz_serial_ctx *oz_cdev_claim_ctx(struct oz_pd *pd)
 	return ctx;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: softirq or process
  */
 static void oz_cdev_release_ctx(struct oz_serial_ctx *ctx)
@@ -70,7 +68,7 @@ static void oz_cdev_release_ctx(struct oz_serial_ctx *ctx)
 	}
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: process
  */
 static int oz_cdev_open(struct inode *inode, struct file *filp)
@@ -83,7 +81,7 @@ static int oz_cdev_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: process
  */
 static int oz_cdev_release(struct inode *inode, struct file *filp)
@@ -91,7 +89,7 @@ static int oz_cdev_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: process
  */
 static ssize_t oz_cdev_read(struct file *filp, char __user *buf, size_t count,
@@ -144,7 +142,7 @@ out2:
 	return count;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: process
  */
 static ssize_t oz_cdev_write(struct file *filp, const char __user *buf,
@@ -202,7 +200,7 @@ out:
 	return count;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: process
  */
 static int oz_set_active_pd(const u8 *addr)
@@ -237,7 +235,7 @@ static int oz_set_active_pd(const u8 *addr)
 	return rc;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: process
  */
 static long oz_cdev_ioctl(struct file *filp, unsigned int cmd,
@@ -305,7 +303,7 @@ static long oz_cdev_ioctl(struct file *filp, unsigned int cmd,
 	return rc;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: process
  */
 static unsigned int oz_cdev_poll(struct file *filp, poll_table *wait)
@@ -329,7 +327,7 @@ static unsigned int oz_cdev_poll(struct file *filp, poll_table *wait)
 	return ret;
 }
 
-/*------------------------------------------------------------------------------
+/*
  */
 static const struct file_operations oz_fops = {
 	.owner =	THIS_MODULE,
@@ -341,7 +339,7 @@ static const struct file_operations oz_fops = {
 	.poll =		oz_cdev_poll
 };
 
-/*------------------------------------------------------------------------------
+/*
  * Context: process
  */
 int oz_cdev_register(void)
@@ -386,7 +384,7 @@ unregister:
 	return err;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: process
  */
 int oz_cdev_deregister(void)
@@ -400,7 +398,7 @@ int oz_cdev_deregister(void)
 	return 0;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: process
  */
 int oz_cdev_init(void)
@@ -409,7 +407,7 @@ int oz_cdev_init(void)
 	return 0;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: process
  */
 void oz_cdev_term(void)
@@ -417,7 +415,7 @@ void oz_cdev_term(void)
 	oz_app_enable(OZ_APPID_SERIAL, 0);
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: softirq-serialized
  */
 int oz_cdev_start(struct oz_pd *pd, int resume)
@@ -455,7 +453,7 @@ int oz_cdev_start(struct oz_pd *pd, int resume)
 	return 0;
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: softirq or process
  */
 void oz_cdev_stop(struct oz_pd *pd, int pause)
@@ -485,7 +483,7 @@ void oz_cdev_stop(struct oz_pd *pd, int pause)
 	oz_dbg(ON, "Serial service stopped\n");
 }
 
-/*------------------------------------------------------------------------------
+/*
  * Context: softirq-serialized
  */
 void oz_cdev_rx(struct oz_pd *pd, struct oz_elt *elt)
