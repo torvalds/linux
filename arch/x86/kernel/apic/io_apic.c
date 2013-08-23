@@ -3380,12 +3380,15 @@ int io_apic_setup_irq_pin_once(unsigned int irq, int node,
 {
 	unsigned int ioapic_idx = attr->ioapic, pin = attr->ioapic_pin;
 	int ret;
+	struct IO_APIC_route_entry orig_entry;
 
 	/* Avoid redundant programming */
 	if (test_bit(pin, ioapics[ioapic_idx].pin_programmed)) {
-		pr_debug("Pin %d-%d already programmed\n",
-			 mpc_ioapic_id(ioapic_idx), pin);
-		return 0;
+		pr_debug("Pin %d-%d already programmed\n", mpc_ioapic_id(ioapic_idx), pin);
+		orig_entry = ioapic_read_entry(attr->ioapic, pin);
+		if (attr->trigger == orig_entry.trigger && attr->polarity == orig_entry.polarity)
+			return 0;
+		return -EBUSY;
 	}
 	ret = io_apic_setup_irq_pin(irq, node, attr);
 	if (!ret)
