@@ -49,7 +49,6 @@
 #include "dgap_tty.h"
 #include "dgap_conf.h"
 #include "dgap_parse.h"
-#include "dgap_mgmt.h"
 #include "dgap_trace.h"
 #include "dgap_sysfs.h"
 
