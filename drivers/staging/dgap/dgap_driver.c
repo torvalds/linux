@@ -102,9 +102,6 @@ module_exit(dgap_cleanup_module);
 static struct file_operations DgapBoardFops =
 {
 	.owner		=	THIS_MODULE,
-        .unlocked_ioctl = 	dgap_mgmt_ioctl,
-	.open		=	dgap_mgmt_open,
-	.release	=	dgap_mgmt_close
 };
 
 
