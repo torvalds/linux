@@ -909,7 +909,7 @@ static void oz_hcd_complete_set_interface(struct oz_port *port, struct urb *urb,
 	struct usb_hcd *hcd = port->ozhcd->hcd;
 	int rc = 0;
 
-	if (rcode == 0) {
+	if ((rcode == 0) && (port->config_num > 0)) {
 		struct usb_host_config *config;
 		struct usb_host_interface *intf;
 		oz_dbg(ON, "Set interface %d alt %d\n", if_num, alt);
