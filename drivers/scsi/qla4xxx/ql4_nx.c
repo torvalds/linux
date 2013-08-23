@@ -2628,7 +2628,7 @@ static int qla4_8xxx_collect_md_data(struct scsi_qla_host *ha)
 
 	/* Walk through the entry headers - validate/perform required action */
 	for (i = 0; i < num_entry_hdr; i++) {
-		if (data_collected >= ha->fw_dump_size) {
+		if (data_collected > ha->fw_dump_size) {
 			ql4_printk(KERN_INFO, ha,
 				   "Data collected: [0x%x], Total Dump size: [0x%x]\n",
 				   data_collected, ha->fw_dump_size);
@@ -2753,9 +2753,7 @@ static int qla4_8xxx_collect_md_data(struct scsi_qla_host *ha)
 			break;
 		}
 
-		data_collected = (uint8_t *)data_ptr -
-				 ((uint8_t *)((uint8_t *)ha->fw_dump +
-						ha->fw_dump_tmplt_size));
+		data_collected = (uint8_t *)data_ptr - (uint8_t *)ha->fw_dump;
 skip_nxt_entry:
 		/*  next entry in the template */
 		entry_hdr = (struct qla8xxx_minidump_entry_hdr *)
@@ -2763,7 +2761,7 @@ skip_nxt_entry:
 				 entry_hdr->entry_size);
 	}
 
-	if ((data_collected + ha->fw_dump_tmplt_size) != ha->fw_dump_size) {
+	if (data_collected != ha->fw_dump_size) {
 		ql4_printk(KERN_INFO, ha,
 			   "Dump data mismatch: Data collected: [0x%x], total_data_size:[0x%x]\n",
 			   data_collected, ha->fw_dump_size);
