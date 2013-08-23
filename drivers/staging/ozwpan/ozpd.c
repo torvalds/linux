@@ -261,17 +261,13 @@ void oz_pd_free(struct work_struct *work)
  */
 void oz_pd_destroy(struct oz_pd *pd)
 {
-	int ret;
-
 	if (hrtimer_active(&pd->timeout))
 		hrtimer_cancel(&pd->timeout);
 	if (hrtimer_active(&pd->heartbeat))
 		hrtimer_cancel(&pd->heartbeat);
 
 	INIT_WORK(&pd->workitem, oz_pd_free);
-	ret = schedule_work(&pd->workitem);
-
-	if (ret)
+	if (!schedule_work(&pd->workitem))
 		oz_pd_dbg(pd, ON, "failed to schedule workitem\n");
 }
 
