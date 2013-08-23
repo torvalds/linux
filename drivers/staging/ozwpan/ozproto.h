@@ -19,7 +19,7 @@
 #define OZ_PRESLEEP_TOUT	11
 
 /* Maximun sizes of tx frames. */
-#define OZ_MAX_TX_SIZE		1514
+#define OZ_MAX_TX_SIZE		760
 
 /* Maximum number of uncompleted isoc frames that can be pending in network. */
 #define OZ_MAX_SUBMITTED_ISOC	16
