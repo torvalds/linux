@@ -25,10 +25,15 @@ struct qlcnic_dcb_ops {
 	void (*get_info) (struct qlcnic_adapter *);
 	int (*query_cee_param) (struct qlcnic_adapter *, char *, u8);
 	int (*get_cee_cfg) (struct qlcnic_adapter *);
+	int (*register_aen) (struct qlcnic_adapter *, bool);
+	void (*handle_aen) (struct qlcnic_adapter *, void *);
 };
 
 struct qlcnic_dcb {
 	struct qlcnic_dcb_mbx_params	*param;
+	struct qlcnic_adapter		*adapter;
+	struct delayed_work		aen_work;
+	struct workqueue_struct		*wq;
 	struct qlcnic_dcb_ops		*ops;
 	struct qlcnic_dcb_cfg		*cfg;
 };

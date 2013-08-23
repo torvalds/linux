@@ -816,6 +816,7 @@ struct qlcnic_mac_list_s {
 
 #define QLCNIC_C2H_OPCODE_CONFIG_LOOPBACK		0x8f
 #define QLCNIC_C2H_OPCODE_GET_LINKEVENT_RESPONSE	0x8D
+#define QLCNIC_C2H_OPCODE_GET_DCB_AEN			0x90
 
 #define VPORT_MISS_MODE_DROP		0 /* drop all unmatched */
 #define VPORT_MISS_MODE_ACCEPT_ALL	1 /* accept all packets */
@@ -961,6 +962,7 @@ struct qlcnic_ipaddr {
 #define __QLCNIC_MBX_POLL_ENABLE	12
 #define __QLCNIC_DIAG_MODE		13
 #define __QLCNIC_DCB_STATE		14
+#define __QLCNIC_DCB_IN_AEN		15
 
 #define QLCNIC_INTERRUPT_TEST		1
 #define QLCNIC_LOOPBACK_TEST		2
@@ -2162,5 +2164,23 @@ static inline int qlcnic_dcb_get_cee_cfg(struct qlcnic_adapter *adapter)
 		return dcb->ops->get_cee_cfg(adapter);
 
 	return 0;
+}
+
+static inline void
+qlcnic_dcb_register_aen(struct qlcnic_adapter *adapter, u8 flag)
+{
+	struct qlcnic_dcb *dcb = adapter->dcb;
+
+	if (dcb && dcb->ops->register_aen)
+		dcb->ops->register_aen(adapter, flag);
+}
+
+static inline void qlcnic_dcb_handle_aen(struct qlcnic_adapter *adapter,
+					 void *msg)
+{
+	struct qlcnic_dcb *dcb = adapter->dcb;
+
+	if (dcb && dcb->ops->handle_aen)
+		dcb->ops->handle_aen(adapter, msg);
 }
 #endif				/* __QLCNIC_H_ */

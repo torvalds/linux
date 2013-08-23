@@ -10,6 +10,7 @@
 
 #define QLC_DCB_NUM_PARAM		3
 
+#define QLC_DCB_AEN_BIT			0x2
 #define QLC_DCB_FW_VER			0x2
 #define QLC_DCB_MAX_TC			0x8
 #define QLC_DCB_MAX_APP			0x8
@@ -44,6 +45,8 @@
 #define QLC_82XX_DCB_GET_PRIOMAP_APP(X)	(1 << X)
 #define QLC_82XX_DCB_PRIO_TC_MAP	(0x76543210)
 
+static void qlcnic_dcb_aen_work(struct work_struct *);
+
 static void __qlcnic_dcb_free(struct qlcnic_adapter *);
 static int __qlcnic_dcb_attach(struct qlcnic_adapter *);
 static int __qlcnic_dcb_query_hw_capability(struct qlcnic_adapter *, char *);
@@ -52,10 +55,13 @@ static void __qlcnic_dcb_get_info(struct qlcnic_adapter *);
 static int qlcnic_82xx_dcb_get_hw_capability(struct qlcnic_adapter *);
 static int qlcnic_82xx_dcb_query_cee_param(struct qlcnic_adapter *, char *, u8);
 static int qlcnic_82xx_dcb_get_cee_cfg(struct qlcnic_adapter *);
+static void qlcnic_82xx_dcb_handle_aen(struct qlcnic_adapter *, void *);
 
 static int qlcnic_83xx_dcb_get_hw_capability(struct qlcnic_adapter *);
 static int qlcnic_83xx_dcb_query_cee_param(struct qlcnic_adapter *, char *, u8);
 static int qlcnic_83xx_dcb_get_cee_cfg(struct qlcnic_adapter *);
+static int qlcnic_83xx_dcb_register_aen(struct qlcnic_adapter *, bool);
+static void qlcnic_83xx_dcb_handle_aen(struct qlcnic_adapter *, void *);
 
 struct qlcnic_dcb_capability {
 	bool	tsa_capability;
@@ -102,6 +108,8 @@ static struct qlcnic_dcb_ops qlcnic_83xx_dcb_ops = {
 	.get_hw_capability	= qlcnic_83xx_dcb_get_hw_capability,
 	.query_cee_param	= qlcnic_83xx_dcb_query_cee_param,
 	.get_cee_cfg		= qlcnic_83xx_dcb_get_cee_cfg,
+	.register_aen		= qlcnic_83xx_dcb_register_aen,
+	.handle_aen		= qlcnic_83xx_dcb_handle_aen,
 };
 
 static struct qlcnic_dcb_ops qlcnic_82xx_dcb_ops = {
@@ -113,6 +121,7 @@ static struct qlcnic_dcb_ops qlcnic_82xx_dcb_ops = {
 	.get_hw_capability	= qlcnic_82xx_dcb_get_hw_capability,
 	.query_cee_param	= qlcnic_82xx_dcb_query_cee_param,
 	.get_cee_cfg		= qlcnic_82xx_dcb_get_cee_cfg,
+	.handle_aen		= qlcnic_82xx_dcb_handle_aen,
 };
 
 static u8 qlcnic_dcb_get_num_app(struct qlcnic_adapter *adapter, u32 val)
@@ -140,6 +149,7 @@ int __qlcnic_register_dcb(struct qlcnic_adapter *adapter)
 		return -ENOMEM;
 
 	adapter->dcb = dcb;
+	dcb->adapter = adapter;
 	qlcnic_set_dcb_ops(adapter);
 
 	return 0;
@@ -151,6 +161,18 @@ static void __qlcnic_dcb_free(struct qlcnic_adapter *adapter)
 
 	if (!dcb)
 		return;
+
+	qlcnic_dcb_register_aen(adapter, 0);
+
+	while (test_bit(__QLCNIC_DCB_IN_AEN, &adapter->state))
+		usleep_range(10000, 11000);
+
+	cancel_delayed_work_sync(&dcb->aen_work);
+
+	if (dcb->wq) {
+		destroy_workqueue(dcb->wq);
+		dcb->wq = NULL;
+	}
 
 	kfree(dcb->cfg);
 	dcb->cfg = NULL;
@@ -164,6 +186,7 @@ static void __qlcnic_dcb_get_info(struct qlcnic_adapter *adapter)
 {
 	qlcnic_dcb_get_hw_capability(adapter);
 	qlcnic_dcb_get_cee_cfg(adapter);
+	qlcnic_dcb_register_aen(adapter, 1);
 }
 
 static int __qlcnic_dcb_attach(struct qlcnic_adapter *adapter)
@@ -171,9 +194,20 @@ static int __qlcnic_dcb_attach(struct qlcnic_adapter *adapter)
 	struct qlcnic_dcb *dcb = adapter->dcb;
 	int err = 0;
 
+	INIT_DELAYED_WORK(&dcb->aen_work, qlcnic_dcb_aen_work);
+
+	dcb->wq = create_singlethread_workqueue("qlcnic-dcb");
+	if (!dcb->wq) {
+		dev_err(&adapter->pdev->dev,
+			"DCB workqueue allocation failed. DCB will be disabled\n");
+		return -1;
+	}
+
 	dcb->cfg = kzalloc(sizeof(struct qlcnic_dcb_cfg), GFP_ATOMIC);
-	if (!dcb->cfg)
-		return -ENOMEM;
+	if (!dcb->cfg) {
+		err = -ENOMEM;
+		goto out_free_wq;
+	}
 
 	dcb->param = kzalloc(sizeof(struct qlcnic_dcb_mbx_params), GFP_ATOMIC);
 	if (!dcb->param) {
@@ -187,6 +221,10 @@ static int __qlcnic_dcb_attach(struct qlcnic_adapter *adapter)
 out_free_cfg:
 	kfree(dcb->cfg);
 	dcb->cfg = NULL;
+
+out_free_wq:
+	destroy_workqueue(dcb->wq);
+	dcb->wq = NULL;
 
 	return err;
 }
@@ -368,6 +406,29 @@ static int qlcnic_82xx_dcb_get_cee_cfg(struct qlcnic_adapter *adapter)
 	return err;
 }
 
+static void qlcnic_dcb_aen_work(struct work_struct *work)
+{
+	struct qlcnic_adapter *adapter;
+	struct qlcnic_dcb *dcb;
+
+	dcb = container_of(work, struct qlcnic_dcb, aen_work.work);
+	adapter = dcb->adapter;
+
+	qlcnic_dcb_get_cee_cfg(adapter);
+	clear_bit(__QLCNIC_DCB_IN_AEN, &adapter->state);
+}
+
+static void qlcnic_82xx_dcb_handle_aen(struct qlcnic_adapter *adapter,
+				       void *data)
+{
+	struct qlcnic_dcb *dcb = adapter->dcb;
+
+	if (test_and_set_bit(__QLCNIC_DCB_IN_AEN, &adapter->state))
+		return;
+
+	queue_delayed_work(dcb->wq, &dcb->aen_work, 0);
+}
+
 static int qlcnic_83xx_dcb_get_hw_capability(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_dcb_capability *cap = &adapter->dcb->cfg->capability;
@@ -458,4 +519,44 @@ static int qlcnic_83xx_dcb_get_cee_cfg(struct qlcnic_adapter *adapter)
 	struct qlcnic_dcb *dcb = adapter->dcb;
 
 	return qlcnic_dcb_query_cee_param(adapter, (char *)dcb->param, 0);
+}
+
+static int qlcnic_83xx_dcb_register_aen(struct qlcnic_adapter *adapter,
+					bool flag)
+{
+	u8 val = (flag ? QLCNIC_CMD_INIT_NIC_FUNC : QLCNIC_CMD_STOP_NIC_FUNC);
+	struct qlcnic_cmd_args cmd;
+	int err;
+
+	err = qlcnic_alloc_mbx_args(&cmd, adapter, val);
+	if (err)
+		return err;
+
+	cmd.req.arg[1] = QLC_DCB_AEN_BIT;
+
+	err = qlcnic_issue_cmd(adapter, &cmd);
+	if (err)
+		dev_err(&adapter->pdev->dev, "Failed to %s DCBX AEN, err %d\n",
+			(flag ? "register" : "unregister"), err);
+
+	qlcnic_free_mbx_args(&cmd);
+
+	return err;
+}
+
+static void qlcnic_83xx_dcb_handle_aen(struct qlcnic_adapter *adapter,
+				       void *data)
+{
+	struct qlcnic_dcb *dcb = adapter->dcb;
+	u32 *val = data;
+
+	if (test_and_set_bit(__QLCNIC_DCB_IN_AEN, &adapter->state))
+		return;
+
+	if (*val & BIT_8)
+		set_bit(__QLCNIC_DCB_STATE, &adapter->state);
+	else
+		clear_bit(__QLCNIC_DCB_STATE, &adapter->state);
+
+	queue_delayed_work(dcb->wq, &dcb->aen_work, 0);
 }

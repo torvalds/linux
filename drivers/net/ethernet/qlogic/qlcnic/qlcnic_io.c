@@ -1010,6 +1010,9 @@ static void qlcnic_handle_fw_message(int desc_cnt, int index,
 			break;
 		}
 		break;
+	case QLCNIC_C2H_OPCODE_GET_DCB_AEN:
+		qlcnic_dcb_handle_aen(adapter, (void *)&msg);
+		break;
 	default:
 		break;
 	}
