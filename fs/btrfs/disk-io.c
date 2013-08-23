@@ -1584,8 +1584,11 @@ struct btrfs_root *btrfs_read_fs_root_no_name(struct btrfs_fs_info *fs_info,
 					    ERR_PTR(-ENOENT);
 again:
 	root = btrfs_lookup_fs_root(fs_info, location->objectid);
-	if (root)
+	if (root) {
+		if (btrfs_root_refs(&root->root_item) == 0)
+			return ERR_PTR(-ENOENT);
 		return root;
+	}
 
 	root = btrfs_read_fs_root(fs_info->tree_root, location);
 	if (IS_ERR(root))
