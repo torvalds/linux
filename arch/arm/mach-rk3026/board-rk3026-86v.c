@@ -1299,6 +1299,56 @@ void __sramfunc board_pmu_resume(void)
 	#endif
 }
 
+int gpio_118,
+     gpio_11c,
+     gpio_120,
+     gpio_124,
+     gpio_128,
+     gpio_12c,
+     gpio_130,
+     gpio_134,
+     lcd_gpio;
+
+void board_gpio_suspend(void)
+{
+
+	
+	gpio_118 = grf_readl(0x0118);
+	gpio_11c = grf_readl(0x011c);
+	gpio_120 = grf_readl(0x0120);
+	gpio_124 = grf_readl(0x0124);
+	gpio_128 = grf_readl(0x0128);
+	gpio_12c = grf_readl(0x012c);
+	gpio_130 = grf_readl(0x0130);
+	gpio_134 = grf_readl(0x0134);
+//	lcd_gpio = grf_readl(0x0cc);
+	grf_writel(0xffffffff, 0x0118);
+	grf_writel(0xffffffff, 0x011c);
+	grf_writel(0xffffffff, 0x0120);
+	grf_writel(0xffffffff, 0x0124);
+	grf_writel(0xff7fff7f, 0x0128);
+	grf_writel(0xffffffff, 0x012c);
+	grf_writel(0xfefffeff, 0x0130);
+	grf_writel(0xffffffff, 0x0134);
+
+
+
+	
+	sram_printch('9');
+
+}
+ void board_gpio_resume(void) 
+ {
+	grf_writel(0xffff0000|gpio_118, 0x0118);
+	grf_writel(0xffff0000|gpio_11c, 0x011c);
+	grf_writel(0xffff0000|gpio_120, 0x0120);
+	grf_writel(0xffff0000|gpio_124, 0x0124);
+	grf_writel(0xffff0000|gpio_128, 0x0128);
+	grf_writel(0xffff0000|gpio_12c, 0x012c);	
+	grf_writel(0xffff0000|gpio_130, 0x0130);
+	grf_writel(0xffff0000|gpio_134, 0x0134);
+ }
+
 #ifdef CONFIG_SND_SOC_RK3026
 struct rk3026_codec_pdata rk3026_codec_pdata_info={
     .spk_ctl_gpio = INVALID_GPIO,
