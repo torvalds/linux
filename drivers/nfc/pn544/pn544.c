@@ -41,6 +41,7 @@ enum pn544_state {
 
 /* Proprietary commands */
 #define PN544_WRITE		0x3f
+#define PN544_TEST_SWP		0x21
 
 /* Proprietary gates, events, commands and registers */
 
@@ -83,12 +84,14 @@ enum pn544_state {
 #define PN544_SWP_MGMT_GATE			0xA0
 
 #define PN544_NFC_WI_MGMT_GATE			0xA1
+#define PN544_NFC_ESE_DEFAULT_MODE		0x01
 
 #define PN544_HCI_EVT_SND_DATA			0x01
 #define PN544_HCI_EVT_ACTIVATED			0x02
 #define PN544_HCI_EVT_DEACTIVATED		0x03
 #define PN544_HCI_EVT_RCV_DATA			0x04
 #define PN544_HCI_EVT_CONTINUE_MI		0x05
+#define PN544_HCI_EVT_SWITCH_MODE		0x03
 
 #define PN544_HCI_CMD_ATTREQUEST		0x12
 #define PN544_HCI_CMD_CONTINUE_ACTIVATION	0x13
@@ -792,6 +795,32 @@ static int pn544_hci_fw_download(struct nfc_hci_dev *hdev,
 	return info->fw_download(info->phy_id, firmware_name);
 }
 
+static int pn544_hci_discover_se(struct nfc_hci_dev *hdev)
+{
+	u32 se_idx = 0;
+	u8 ese_mode = 0x01; /* Default mode */
+	struct sk_buff *res_skb;
+	int r;
+
+	r = nfc_hci_send_cmd(hdev, PN544_SYS_MGMT_GATE, PN544_TEST_SWP,
+			     NULL, 0, &res_skb);
+
+	if (r == 0) {
+		if (res_skb->len == 2 && res_skb->data[0] == 0x00)
+			nfc_add_se(hdev->ndev, se_idx++, NFC_SE_UICC);
+
+		kfree_skb(res_skb);
+	}
+
+	r = nfc_hci_send_event(hdev, PN544_NFC_WI_MGMT_GATE,
+				PN544_HCI_EVT_SWITCH_MODE,
+				&ese_mode, 1);
+	if (r == 0)
+		nfc_add_se(hdev->ndev, se_idx++, NFC_SE_EMBEDDED);
+
+	return !se_idx;
+}
+
 static struct nfc_hci_ops pn544_hci_ops = {
 	.open = pn544_hci_open,
 	.close = pn544_hci_close,
@@ -807,6 +836,7 @@ static struct nfc_hci_ops pn544_hci_ops = {
 	.check_presence = pn544_hci_check_presence,
 	.event_received = pn544_hci_event_received,
 	.fw_download = pn544_hci_fw_download,
+	.discover_se = pn544_hci_discover_se,
 };
 
 int pn544_hci_probe(void *phy_id, struct nfc_phy_ops *phy_ops, char *llc_name,
