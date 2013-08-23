@@ -29,7 +29,7 @@ struct au_mvd_args {
 		struct super_block *h_sb;
 		struct dentry *h_parent;
 		struct au_hinode *hdir;
-		struct inode *h_dir;
+		struct inode *h_dir, *h_inode;
 	} info[AUFS_MVDOWN_NARRAY];
 
 	struct aufs_mvdown mvdown;
@@ -49,11 +49,13 @@ struct au_mvd_args {
 #define mvd_h_src_parent	info[AUFS_MVDOWN_SRC].h_parent
 #define mvd_hdir_src		info[AUFS_MVDOWN_SRC].hdir
 #define mvd_h_src_dir		info[AUFS_MVDOWN_SRC].h_dir
+#define mvd_h_src_inode		info[AUFS_MVDOWN_SRC].h_inode
 
 #define mvd_h_dst_sb		info[AUFS_MVDOWN_DST].h_sb
 #define mvd_h_dst_parent	info[AUFS_MVDOWN_DST].h_parent
 #define mvd_hdir_dst		info[AUFS_MVDOWN_DST].hdir
 #define mvd_h_dst_dir		info[AUFS_MVDOWN_DST].h_dir
+#define mvd_h_dst_inode		info[AUFS_MVDOWN_DST].h_inode
 
 #define AU_MVD_PR(flag, ...) do {			\
 		if (flag)				\
@@ -297,15 +299,13 @@ static int find_lower_writable(struct au_mvd_args *a)
 static int au_mvd_args_busy(const unsigned char dmsg, struct au_mvd_args *a)
 {
 	int err, plinked;
-	struct inode *h_src_inode;
 
 	err = 0;
-	h_src_inode = au_h_iptr(a->inode, a->mvd_bsrc);
 	plinked = !!au_opt_test(au_mntflags(a->sb), PLINK);
 	if (au_dbstart(a->dentry) == a->mvd_bsrc
 	    && a->dentry->d_count == 1
 	    && atomic_read(&a->inode->i_count) == 1
-	    /* && h_src_inode->i_nlink == 1 */
+	    /* && a->mvd_h_src_inode->i_nlink == 1 */
 	    && (!plinked || !au_plink_test(a->inode))
 	    && a->inode->i_nlink == 1)
 		goto out;
@@ -315,7 +315,7 @@ static int au_mvd_args_busy(const unsigned char dmsg, struct au_mvd_args *a)
 		  "b%d, d{b%d, c%u?}, i{c%d?, l%u}, hi{l%u}, p{%d, %d}\n",
 		  a->mvd_bsrc, au_dbstart(a->dentry), a->dentry->d_count,
 		  atomic_read(&a->inode->i_count), a->inode->i_nlink,
-		  h_src_inode->i_nlink,
+		  a->mvd_h_src_inode->i_nlink,
 		  plinked, plinked ? au_plink_test(a->inode) : 0);
 
 out:
@@ -468,9 +468,18 @@ static int au_mvd_args(const unsigned char dmsg, struct au_mvd_args *a)
 		AU_MVD_PR(dmsg, "on the bottom\n");
 		goto out;
 	}
+	a->mvd_h_src_inode = au_h_iptr(a->inode, a->mvd_bsrc);
 	br = au_sbr(a->sb, a->mvd_bsrc);
 	err = au_br_rdonly(br);
-	if (unlikely(err))
+	if (!(a->mvdown.flags & AUFS_MVDOWN_ROUPPER)) {
+		if (unlikely(err))
+			goto out;
+	} else if (!(vfsub_native_ro(a->mvd_h_src_inode)
+		     || IS_APPEND(a->mvd_h_src_inode))) {
+		if (err)
+			a->mvdown.flags |= AUFS_MVDOWN_ROUPPER_R;
+		/* go on */
+	} else
 		goto out;
 
 	err = -EINVAL;
@@ -520,7 +529,7 @@ int au_mvdown(struct dentry *dentry, struct aufs_mvdown __user *uarg)
 		goto out_free;
 	}
 	AuDbg("flags 0x%x\n", args->mvdown.flags);
-	args->mvdown.flags &= ~AUFS_MVDOWN_ROLOWER_R;
+	args->mvdown.flags &= ~(AUFS_MVDOWN_ROLOWER_R | AUFS_MVDOWN_ROUPPER_R);
 	args->mvdown.au_errno = 0;
 	args->dentry = dentry;
 	args->inode = dentry->d_inode;

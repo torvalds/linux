@@ -244,6 +244,8 @@ enum {
 #define AUFS_MVDOWN_KUPPER	(1 << 2)	/* keep upper */
 #define AUFS_MVDOWN_ROLOWER	(1 << 3)	/* do even if lower is RO */
 #define AUFS_MVDOWN_ROLOWER_R	(1 << 4)	/* did on lower RO */
+#define AUFS_MVDOWN_ROUPPER	(1 << 5)	/* do even if upper is RO */
+#define AUFS_MVDOWN_ROUPPER_R	(1 << 6)	/* did on upper RO */
 /* will be added more */
 
 struct aufs_mvdown {
