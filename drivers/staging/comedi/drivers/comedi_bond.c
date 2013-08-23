@@ -355,8 +355,6 @@ static void bonding_detach(struct comedi_device *dev)
 		}
 		kfree(devpriv->devs);
 		devpriv->devs = NULL;
-		kfree(devpriv);
-		dev->private = NULL;
 	}
 }
 
