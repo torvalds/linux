@@ -185,6 +185,7 @@ struct pci_dev;
 #define BCMA_CORE_PCI_RC_CRS_VISIBILITY		0x0001
 
 struct bcma_drv_pci;
+struct bcma_bus;
 
 #ifdef CONFIG_BCMA_DRIVER_PCI_HOSTMODE
 struct bcma_drv_pci_host {
@@ -220,6 +221,8 @@ extern void bcma_core_pci_init(struct bcma_drv_pci *pc);
 extern int bcma_core_pci_irq_ctl(struct bcma_drv_pci *pc,
 				 struct bcma_device *core, bool enable);
 extern void bcma_core_pci_extend_L1timer(struct bcma_drv_pci *pc, bool extend);
+extern void bcma_core_pci_up(struct bcma_bus *bus);
+extern void bcma_core_pci_down(struct bcma_bus *bus);
 
 extern int bcma_core_pci_pcibios_map_irq(const struct pci_dev *dev);
 extern int bcma_core_pci_plat_dev_init(struct pci_dev *dev);
