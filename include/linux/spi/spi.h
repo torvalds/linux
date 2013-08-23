@@ -74,7 +74,7 @@ struct spi_device {
 	struct spi_master	*master;
 	u32			max_speed_hz;
 	u8			chip_select;
-	u8			mode;
+	u16			mode;
 #define	SPI_CPHA	0x01			/* clock phase */
 #define	SPI_CPOL	0x02			/* clock polarity */
 #define	SPI_MODE_0	(0|0)			/* (original MicroWire) */
@@ -87,6 +87,10 @@ struct spi_device {
 #define	SPI_LOOP	0x20			/* loopback mode */
 #define	SPI_NO_CS	0x40			/* 1 dev/bus, no chipselect */
 #define	SPI_READY	0x80			/* slave pulls low to pause */
+#define	SPI_TX_DUAL	0x100			/* transmit with 2 wires */
+#define	SPI_TX_QUAD	0x200			/* transmit with 4 wires */
+#define	SPI_RX_DUAL	0x400			/* receive with 2 wires */
+#define	SPI_RX_QUAD	0x800			/* receive with 4 wires */
 	u8			bits_per_word;
 	int			irq;
 	void			*controller_state;
@@ -233,6 +237,8 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  *	suported. If set, the SPI core will reject any transfer with an
  *	unsupported bits_per_word. If not set, this value is simply ignored,
  *	and it's up to the individual driver to perform any validation.
+ * @min_speed_hz: Lowest supported transfer speed
+ * @max_speed_hz: Highest supported transfer speed
  * @flags: other constraints relevant to this driver
  * @bus_lock_spinlock: spinlock for SPI bus locking
  * @bus_lock_mutex: mutex for SPI bus locking
@@ -314,6 +320,10 @@ struct spi_master {
 #define SPI_BPW_MASK(bits) BIT((bits) - 1)
 #define SPI_BIT_MASK(bits) (((bits) == 32) ? ~0UL : (BIT(bits) - 1))
 #define SPI_BPW_RANGE_MASK(min, max) (SPI_BIT_MASK(max) - SPI_BIT_MASK(min - 1))
+
+	/* limits on transfer speed */
+	u32			min_speed_hz;
+	u32			max_speed_hz;
 
 	/* other constraints relevant to this driver */
 	u16			flags;
@@ -453,6 +463,10 @@ extern struct spi_master *spi_busnum_to_master(u16 busnum);
  * @rx_buf: data to be read (dma-safe memory), or NULL
  * @tx_dma: DMA address of tx_buf, if @spi_message.is_dma_mapped
  * @rx_dma: DMA address of rx_buf, if @spi_message.is_dma_mapped
+ * @tx_nbits: number of bits used for writting. If 0 the default
+ *      (SPI_NBITS_SINGLE) is used.
+ * @rx_nbits: number of bits used for reading. If 0 the default
+ *      (SPI_NBITS_SINGLE) is used.
  * @len: size of rx and tx buffers (in bytes)
  * @speed_hz: Select a speed other than the device default for this
  *      transfer. If 0 the default (from @spi_device) is used.
@@ -507,6 +521,11 @@ extern struct spi_master *spi_busnum_to_master(u16 busnum);
  * by the results of previous messages and where the whole transaction
  * ends when the chipselect goes intactive.
  *
+ * When SPI can transfer in 1x,2x or 4x. It can get this tranfer information
+ * from device through @tx_nbits and @rx_nbits. In Bi-direction, these
+ * two should both be set. User can set transfer mode with SPI_NBITS_SINGLE(1x)
+ * SPI_NBITS_DUAL(2x) and SPI_NBITS_QUAD(4x) to support these three transfer.
+ *
  * The code that submits an spi_message (and its spi_transfers)
  * to the lower layers is responsible for managing its memory.
  * Zero-initialize every field you don't set up explicitly, to
@@ -527,6 +546,11 @@ struct spi_transfer {
 	dma_addr_t	rx_dma;
 
 	unsigned	cs_change:1;
+	u8		tx_nbits;
+	u8		rx_nbits;
+#define	SPI_NBITS_SINGLE	0x01 /* 1bit transfer */
+#define	SPI_NBITS_DUAL		0x02 /* 2bits transfer */
+#define	SPI_NBITS_QUAD		0x04 /* 4bits transfer */
 	u8		bits_per_word;
 	u16		delay_usecs;
 	u32		speed_hz;
@@ -874,7 +898,7 @@ struct spi_board_info {
 	/* mode becomes spi_device.mode, and is essential for chips
 	 * where the default of SPI_CS_HIGH = 0 is wrong.
 	 */
-	u8		mode;
+	u16		mode;
 
 	/* ... may need additional spi_device chip config data here.
 	 * avoid stuff protocol drivers can set; but include stuff
