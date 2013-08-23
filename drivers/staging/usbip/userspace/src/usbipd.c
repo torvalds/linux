@@ -50,6 +50,8 @@
 
 #define MAIN_LOOP_TIMEOUT 10
 
+#define DEFAULT_PID_FILE "/var/run/" PROGNAME ".pid"
+
 static const char usbip_version_string[] = PACKAGE_STRING;
 
 static const char usbipd_help_string[] =
@@ -59,6 +61,10 @@ static const char usbipd_help_string[] =
 	"\n"
 	"	-d, --debug\n"
 	"		Print debugging information.\n"
+	"\n"
+	"	-PFILE, --pid FILE\n"
+	"		Write process id to FILE.\n"
+	"		If no FILE specified, use " DEFAULT_PID_FILE "\n"
 	"\n"
 	"	-h, --help\n"
 	"		Print this help.\n"
@@ -439,6 +445,31 @@ static void set_signal(void)
 	sigaction(SIGCLD, &act, NULL);
 }
 
+static const char *pid_file;
+
+static void write_pid_file()
+{
+	if (pid_file) {
+		dbg("creating pid file %s", pid_file);
+		FILE *fp = fopen(pid_file, "w");
+		if (!fp) {
+			err("pid_file: %s: %d (%s)",
+			    pid_file, errno, strerror(errno));
+			return;
+		}
+		fprintf(fp, "%d\n", getpid());
+		fclose(fp);
+	}
+}
+
+static void remove_pid_file()
+{
+	if (pid_file) {
+		dbg("removing pid file %s", pid_file);
+		unlink(pid_file);
+	}
+}
+
 static int do_standalone_mode(int daemonize)
 {
 	struct addrinfo *ai_head;
@@ -465,6 +496,7 @@ static int do_standalone_mode(int daemonize)
 		usbip_use_syslog = 1;
 	}
 	set_signal();
+	write_pid_file();
 
 	ai_head = do_getaddrinfo(NULL, PF_UNSPEC);
 	if (!ai_head) {
@@ -527,6 +559,7 @@ int main(int argc, char *argv[])
 	static const struct option longopts[] = {
 		{ "daemon",  no_argument, NULL, 'D' },
 		{ "debug",   no_argument, NULL, 'd' },
+		{ "pid",     optional_argument, NULL, 'P' },
 		{ "help",    no_argument, NULL, 'h' },
 		{ "version", no_argument, NULL, 'v' },
 		{ NULL,	     0,           NULL,  0  }
@@ -540,6 +573,7 @@ int main(int argc, char *argv[])
 
 	int daemonize = 0;
 	int opt, rc = -1;
+	pid_file = NULL;
 
 	usbip_use_stderr = 1;
 	usbip_use_syslog = 0;
@@ -549,7 +583,7 @@ int main(int argc, char *argv[])
 
 	cmd = cmd_standalone_mode;
 	for (;;) {
-		opt = getopt_long(argc, argv, "Ddhv", longopts, NULL);
+		opt = getopt_long(argc, argv, "DdP::hv", longopts, NULL);
 
 		if (opt == -1)
 			break;
@@ -564,6 +598,9 @@ int main(int argc, char *argv[])
 		case 'h':
 			cmd = cmd_help;
 			break;
+		case 'P':
+			pid_file = optarg ? optarg : DEFAULT_PID_FILE;
+			break;
 		case 'v':
 			cmd = cmd_version;
 			break;
@@ -577,6 +614,7 @@ int main(int argc, char *argv[])
 	switch (cmd) {
 	case cmd_standalone_mode:
 		rc = do_standalone_mode(daemonize);
+		remove_pid_file();
 		break;
 	case cmd_version:
 		printf(PROGNAME " (%s)\n", usbip_version_string);
