@@ -316,8 +316,18 @@ exit:
 
 	return rc;
 }
+static BUS_ATTR(scan, (S_IWUSR|S_IWGRP), NULL, bus_scan_store);
 
-struct bus_attribute rio_bus_attrs[] = {
-	__ATTR(scan, (S_IWUSR|S_IWGRP), NULL, bus_scan_store),
-	__ATTR_NULL
+static struct attribute *rio_bus_attrs[] = {
+	&bus_attr_scan.attr,
+	NULL,
+};
+
+static const struct attribute_group rio_bus_group = {
+	.attrs = rio_bus_attrs,
+};
+
+const struct attribute_group *rio_bus_groups[] = {
+	&rio_bus_group,
+	NULL,
 };
