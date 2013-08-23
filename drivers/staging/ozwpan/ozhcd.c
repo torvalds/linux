@@ -441,9 +441,9 @@ static void oz_complete_buffered_urb(struct oz_port *port,
 			struct oz_endpoint *ep,
 			struct urb *urb)
 {
-	u8 data_len, available_space, copy_len;
+	int data_len, available_space, copy_len;
 
-	memcpy(&data_len, &ep->buffer[ep->out_ix], sizeof(u8));
+	data_len = ep->buffer[ep->out_ix];
 	if (data_len <= urb->transfer_buffer_length)
 		available_space = data_len;
 	else
