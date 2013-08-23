@@ -10,7 +10,7 @@
 //#define DEBUG // for jtag debug
 
 #define cru_readl(offset)     readl_relaxed(RK30_CRU_BASE + offset)
-#define cru_writel(v, offset) do { writel_relaxed(v, RK30_CRU_BASE + offset); dsb(); } while (0)
+#define cru_writel(v, offset) do { writel_relaxed(v, RK30_CRU_BASE + offset); } while (0)
 #define grf_readl(offset)     readl_relaxed(RK30_GRF_BASE + offset)
 #define grf_writel(v, offset) do { writel_relaxed(v, RK30_GRF_BASE + offset); dsb(); } while (0)
 
@@ -41,6 +41,7 @@ static void __sramfunc __noreturn soft_reset(void)
 {
 	/* pll enter slow mode */
 	cru_writel(0xffff0000, CRU_MODE_CON);
+	dsb();
 
 	/* restore clock select and divide */
 	cru_writel(0xffff0200, CRU_CLKSELS_CON(0));
@@ -71,6 +72,7 @@ static void __sramfunc __noreturn soft_reset(void)
 	cru_writel(0xffff0001, CRU_CLKSELS_CON(31));
 	cru_writel(0xffff0303, CRU_CLKSELS_CON(32));
 	cru_writel(0xffff0003, CRU_CLKSELS_CON(34));
+	dsb();
 
 	/* idle request PERI/VIO/VPU/GPU */
 	grf_writel(0x1e00ffff, GRF_SOC_CON2);
@@ -101,6 +103,7 @@ static void __sramfunc __noreturn soft_reset(void)
 #else
 	cru_writel(0x1fe0ffff, CRU_SOFTRSTS_CON(0)); // CORE_SRST_WDT_SEL/MCORE/CORE0/CORE1/ACLK_CORE/STRC_SYS_AXI/L2C
 #endif
+	dsb();
 
 	sram_udelay(1000);
 
@@ -113,6 +116,7 @@ static void __sramfunc __noreturn soft_reset(void)
 	cru_writel(0xffff0000, CRU_SOFTRSTS_CON(6));
 	cru_writel(0xffff0000, CRU_SOFTRSTS_CON(7));
 	cru_writel(0xffff0000, CRU_SOFTRSTS_CON(8));
+	dsb();
 
 	/* disable idle request */
 	grf_writel(0x3f000000, GRF_SOC_CON2);
@@ -126,6 +130,7 @@ static void __sramfunc __noreturn soft_reset(void)
 #endif
 
 	cru_writel(0x801cffff, CRU_SOFTRSTS_CON(0)); // MCORE/CORE0/CORE1/L2C
+	dsb();
 
 	while (1);
 }
