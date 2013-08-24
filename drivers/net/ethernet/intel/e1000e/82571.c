@@ -1011,6 +1011,11 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 
 	/* Must release MDIO ownership and mutex after MAC reset. */
 	switch (hw->mac.type) {
+	case e1000_82573:
+		/* Release mutex only if the hw semaphore is acquired */
+		if (!ret_val)
+			e1000_put_hw_semaphore_82573(hw);
+		break;
 	case e1000_82574:
 	case e1000_82583:
 		/* Release mutex only if the hw semaphore is acquired */
