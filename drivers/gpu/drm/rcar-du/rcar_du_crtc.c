@@ -272,6 +272,10 @@ static void rcar_du_crtc_update_planes(struct rcar_du_crtc *rcrtc)
 			rcar_du_group_restart(rcrtc->group);
 	}
 
+	/* Restart the group if plane sources have changed. */
+	if (rcrtc->group->need_restart)
+		rcar_du_group_restart(rcrtc->group);
+
 	mutex_unlock(&rcrtc->group->lock);
 
 	rcar_du_group_write(rcrtc->group, rcrtc->index % 2 ? DS2PR : DS1PR,

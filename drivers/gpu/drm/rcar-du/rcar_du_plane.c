@@ -275,9 +275,27 @@ static void rcar_du_plane_atomic_update(struct drm_plane *plane,
 					struct drm_plane_state *old_state)
 {
 	struct rcar_du_plane *rplane = to_rcar_plane(plane);
+	struct rcar_du_plane_state *old_rstate;
+	struct rcar_du_plane_state *new_rstate;
 
-	if (plane->state->crtc)
-		rcar_du_plane_setup(rplane);
+	if (!plane->state->crtc)
+		return;
+
+	rcar_du_plane_setup(rplane);
+
+	/* Check whether the source has changed from memory to live source or
+	 * from live source to memory. The source has been configured by the
+	 * VSPS bit in the PnDDCR4 register. Although the datasheet states that
+	 * the bit is updated during vertical blanking, it seems that updates
+	 * only occur when the DU group is held in reset through the DSYSR.DRES
+	 * bit. We thus need to restart the group if the source changes.
+	 */
+	old_rstate = to_rcar_plane_state(old_state);
+	new_rstate = to_rcar_plane_state(plane->state);
+
+	if ((old_rstate->source == RCAR_DU_PLANE_MEMORY) !=
+	    (new_rstate->source == RCAR_DU_PLANE_MEMORY))
+		rplane->group->need_restart = true;
 }
 
 static const struct drm_plane_helper_funcs rcar_du_plane_helper_funcs = {
