@@ -24,6 +24,7 @@
 #include <linux/irqchip/arm-gic.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/platform_data/dma-rcar-hpbdma.h>
 #include <linux/platform_data/gpio-rcar.h>
 #include <linux/platform_data/irq-renesas-intc-irqpin.h>
 #include <linux/platform_device.h>
@@ -308,6 +309,88 @@ void __init r8a7778_add_dt_devices(void)
 	r8a7778_register_tmu(1);
 }
 
+/* HPB-DMA */
+
+/* Asynchronous mode register (ASYNCMDR) bits */
+#define HPB_DMAE_ASYNCMDR_ASMD22_MASK	BIT(2)	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASMD22_SINGLE	BIT(2)	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASMD22_MULTI	0	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASMD21_MASK	BIT(1)	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASMD21_SINGLE	BIT(1)	/* SDHI0 */
+#define HPB_DMAE_ASYNCMDR_ASMD21_MULTI	0	/* SDHI0 */
+
+static const struct hpb_dmae_slave_config hpb_dmae_slaves[] = {
+	{
+		.id	= HPBDMA_SLAVE_SDHI0_TX,
+		.addr	= 0xffe4c000 + 0x30,
+		.dcr	= HPB_DMAE_DCR_SPDS_16BIT |
+			  HPB_DMAE_DCR_DMDL |
+			  HPB_DMAE_DCR_DPDS_16BIT,
+		.rstr	= HPB_DMAE_ASYNCRSTR_ASRST21 |
+			  HPB_DMAE_ASYNCRSTR_ASRST22 |
+			  HPB_DMAE_ASYNCRSTR_ASRST23,
+		.mdr	= HPB_DMAE_ASYNCMDR_ASMD21_MULTI,
+		.mdm	= HPB_DMAE_ASYNCMDR_ASMD21_MASK,
+		.port	= 0x0D0C,
+		.flags	= HPB_DMAE_SET_ASYNC_RESET | HPB_DMAE_SET_ASYNC_MODE,
+		.dma_ch	= 21,
+	}, {
+		.id	= HPBDMA_SLAVE_SDHI0_RX,
+		.addr	= 0xffe4c000 + 0x30,
+		.dcr	= HPB_DMAE_DCR_SMDL |
+			  HPB_DMAE_DCR_SPDS_16BIT |
+			  HPB_DMAE_DCR_DPDS_16BIT,
+		.rstr	= HPB_DMAE_ASYNCRSTR_ASRST21 |
+			  HPB_DMAE_ASYNCRSTR_ASRST22 |
+			  HPB_DMAE_ASYNCRSTR_ASRST23,
+		.mdr	= HPB_DMAE_ASYNCMDR_ASMD22_MULTI,
+		.mdm	= HPB_DMAE_ASYNCMDR_ASMD22_MASK,
+		.port	= 0x0D0C,
+		.flags	= HPB_DMAE_SET_ASYNC_RESET | HPB_DMAE_SET_ASYNC_MODE,
+		.dma_ch	= 22,
+	},
+};
+
+static const struct hpb_dmae_channel hpb_dmae_channels[] = {
+	HPB_DMAE_CHANNEL(0x7e, HPBDMA_SLAVE_SDHI0_TX), /* ch. 21 */
+	HPB_DMAE_CHANNEL(0x7e, HPBDMA_SLAVE_SDHI0_RX), /* ch. 22 */
+};
+
+static struct hpb_dmae_pdata dma_platform_data __initdata = {
+	.slaves			= hpb_dmae_slaves,
+	.num_slaves		= ARRAY_SIZE(hpb_dmae_slaves),
+	.channels		= hpb_dmae_channels,
+	.num_channels		= ARRAY_SIZE(hpb_dmae_channels),
+	.ts_shift		= {
+		[XMIT_SZ_8BIT]	= 0,
+		[XMIT_SZ_16BIT]	= 1,
+		[XMIT_SZ_32BIT]	= 2,
+	},
+	.num_hw_channels	= 39,
+};
+
+static struct resource hpb_dmae_resources[] __initdata = {
+	/* Channel registers */
+	DEFINE_RES_MEM(0xffc08000, 0x1000),
+	/* Common registers */
+	DEFINE_RES_MEM(0xffc09000, 0x170),
+	/* Asynchronous reset registers */
+	DEFINE_RES_MEM(0xffc00300, 4),
+	/* Asynchronous mode registers */
+	DEFINE_RES_MEM(0xffc00400, 4),
+	/* IRQ for DMA channels */
+	DEFINE_RES_NAMED(gic_iid(0x7b), 5, NULL, IORESOURCE_IRQ),
+};
+
+static void __init r8a7778_register_hpb_dmae(void)
+{
+	platform_device_register_resndata(&platform_bus, "hpb-dma-engine", -1,
+					  hpb_dmae_resources,
+					  ARRAY_SIZE(hpb_dmae_resources),
+					  &dma_platform_data,
+					  sizeof(dma_platform_data));
+}
+
 void __init r8a7778_add_standard_devices(void)
 {
 	r8a7778_add_dt_devices();
@@ -318,6 +401,8 @@ void __init r8a7778_add_standard_devices(void)
 	r8a7778_register_hspi(0);
 	r8a7778_register_hspi(1);
 	r8a7778_register_hspi(2);
+
+	r8a7778_register_hpb_dmae();
 }
 
 void __init r8a7778_init_late(void)
