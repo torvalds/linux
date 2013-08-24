@@ -1,8 +1,9 @@
-Linux Base Driver for 10 Gigabit PCI Express Intel(R) Network Connection
-========================================================================
+Linux* Base Driver for the Intel(R) Ethernet 10 Gigabit PCI Express Family of
+Adapters
+=============================================================================
 
-Intel Gigabit Linux driver.
-Copyright(c) 1999 - 2010 Intel Corporation.
+Intel 10 Gigabit Linux driver.
+Copyright(c) 1999 - 2013 Intel Corporation.
 
 Contents
 ========
@@ -16,8 +17,8 @@ Contents
 Identifying Your Adapter
 ========================
 
-The driver in this release is compatible with 82598 and 82599-based Intel
-Network Connections.
+The driver in this release is compatible with 82598, 82599 and X540-based
+Intel Network Connections.
 
 For more information on how to identify your adapter, go to the Adapter &
 Driver ID Guide at:
@@ -72,7 +73,7 @@ cables that comply with SFF-8431 v4.1 and SFF-8472 v10.4 specifications.
 Laser turns off for SFP+ when ifconfig down
 -------------------------------------------
 "ifconfig down" turns off the laser for 82599-based SFP+ fiber adapters.
-"ifconfig up" turns on the later.
+"ifconfig up" turns on the laser.
 
 
 82598-BASED ADAPTERS
@@ -117,6 +118,93 @@ capable link partner, use ethtool:
 NOTE: For 82598 backplane cards entering 1 gig mode, flow control default
 behavior is changed to off.  Flow control in 1 gig mode on these devices can
 lead to Tx hangs.
+
+Intel(R) Ethernet Flow Director
+-------------------------------
+Supports advanced filters that direct receive packets by their flows to
+different queues. Enables tight control on routing a flow in the platform.
+Matches flows and CPU cores for flow affinity. Supports multiple parameters
+for flexible flow classification and load balancing.
+
+Flow director is enabled only if the kernel is multiple TX queue capable.
+
+An included script (set_irq_affinity.sh) automates setting the IRQ to CPU
+affinity.
+
+You can verify that the driver is using Flow Director by looking at the counter
+in ethtool: fdir_miss and fdir_match.
+
+Other ethtool Commands:
+To enable Flow Director
+	ethtool -K ethX ntuple on
+To add a filter
+	Use -U switch. e.g., ethtool -U ethX flow-type tcp4 src-ip 0x178000a
+        action 1
+To see the list of filters currently present:
+	ethtool -u ethX
+
+Perfect Filter: Perfect filter is an interface to load the filter table that
+funnels all flow into queue_0 unless an alternative queue is specified using
+"action". In that case, any flow that matches the filter criteria will be
+directed to the appropriate queue.
+
+If the queue is defined as -1, filter will drop matching packets.
+
+To account for filter matches and misses, there are two stats in ethtool:
+fdir_match and fdir_miss. In addition, rx_queue_N_packets shows the number of
+packets processed by the Nth queue.
+
+NOTE: Receive Packet Steering (RPS) and Receive Flow Steering (RFS) are not
+compatible with Flow Director. IF Flow Director is enabled, these will be
+disabled.
+
+The following three parameters impact Flow Director.
+
+FdirMode
+--------
+Valid Range: 0-2 (0=off, 1=ATR, 2=Perfect filter mode)
+Default Value: 1
+
+  Flow Director filtering modes.
+
+FdirPballoc
+-----------
+Valid Range: 0-2 (0=64k, 1=128k, 2=256k)
+Default Value: 0
+
+  Flow Director allocated packet buffer size.
+
+AtrSampleRate
+--------------
+Valid Range: 1-100
+Default Value: 20
+
+  Software ATR Tx packet sample rate. For example, when set to 20, every 20th
+  packet, looks to see if the packet will create a new flow.
+
+Node
+----
+Valid Range:   0-n
+Default Value: 1 (off)
+
+  0 - n: where n is the number of NUMA nodes (i.e. 0 - 3) currently online in
+  your system
+  1: turns this option off
+
+  The Node parameter will allow you to pick which NUMA node you want to have
+  the adapter allocate memory on.
+
+max_vfs
+-------
+Valid Range:   1-63
+Default Value: 0
+
+  If the value is greater than 0 it will also force the VMDq parameter to be 1
+  or more.
+
+  This parameter adds support for SR-IOV.  It causes the driver to spawn up to
+  max_vfs worth of virtual function.
+
 
 Additional Configurations
 =========================
@@ -221,9 +309,10 @@ http://www.redhat.com/promo/summit/2008/downloads/pdf/Thursday/Mark_Wagner.pdf
 Known Issues
 ============
 
-  Enabling SR-IOV in a 32-bit Microsoft* Windows* Server 2008 Guest OS using
-  Intel (R) 82576-based GbE or Intel (R) 82599-based 10GbE controller under KVM
-  -----------------------------------------------------------------------------
+  Enabling SR-IOV in a 32-bit or 64-bit Microsoft* Windows* Server 2008/R2
+  Guest OS using Intel (R) 82576-based GbE or Intel (R) 82599-based 10GbE
+  controller under KVM
+  ------------------------------------------------------------------------
   KVM Hypervisor/VMM supports direct assignment of a PCIe device to a VM.  This
   includes traditional PCIe devices, as well as SR-IOV-capable devices using
   Intel 82576-based and 82599-based controllers.
