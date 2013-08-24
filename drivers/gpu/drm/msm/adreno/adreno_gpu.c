@@ -111,6 +111,28 @@ uint32_t adreno_last_fence(struct msm_gpu *gpu)
 	return adreno_gpu->memptrs->fence;
 }
 
+void adreno_recover(struct msm_gpu *gpu)
+{
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct drm_device *dev = gpu->dev;
+	int ret;
+
+	gpu->funcs->pm_suspend(gpu);
+
+	/* reset ringbuffer: */
+	gpu->rb->cur = gpu->rb->start;
+
+	/* reset completed fence seqno, just discard anything pending: */
+	adreno_gpu->memptrs->fence = gpu->submitted_fence;
+
+	gpu->funcs->pm_resume(gpu);
+	ret = gpu->funcs->hw_init(gpu);
+	if (ret) {
+		dev_err(dev->dev, "gpu hw init failed: %d\n", ret);
+		/* hmm, oh well? */
+	}
+}
+
 int adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 		struct msm_file_private *ctx)
 {
@@ -118,8 +140,6 @@ int adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 	struct msm_drm_private *priv = gpu->dev->dev_private;
 	struct msm_ringbuffer *ring = gpu->rb;
 	unsigned i, ibs = 0;
-
-	adreno_gpu->last_fence = submit->fence;
 
 	for (i = 0; i < submit->nr_cmds; i++) {
 		switch (submit->cmd[i].type) {
@@ -225,7 +245,7 @@ void adreno_show(struct msm_gpu *gpu, struct seq_file *m)
 			adreno_gpu->rev.patchid);
 
 	seq_printf(m, "fence:    %d/%d\n", adreno_gpu->memptrs->fence,
-			adreno_gpu->last_fence);
+			gpu->submitted_fence);
 	seq_printf(m, "rptr:     %d\n", adreno_gpu->memptrs->rptr);
 	seq_printf(m, "wptr:     %d\n", adreno_gpu->memptrs->wptr);
 	seq_printf(m, "rb wptr:  %d\n", get_wptr(gpu->rb));

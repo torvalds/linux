@@ -51,6 +51,7 @@ struct msm_gpu_funcs {
 	void (*idle)(struct msm_gpu *gpu);
 	irqreturn_t (*irq)(struct msm_gpu *irq);
 	uint32_t (*last_fence)(struct msm_gpu *gpu);
+	void (*recover)(struct msm_gpu *gpu);
 	void (*destroy)(struct msm_gpu *gpu);
 #ifdef CONFIG_DEBUG_FS
 	/* show GPU status in debugfs: */
@@ -69,6 +70,8 @@ struct msm_gpu {
 	/* list of GEM active objects: */
 	struct list_head active_list;
 
+	uint32_t submitted_fence;
+
 	/* worker for handling active-list retiring: */
 	struct work_struct retire_work;
 
@@ -83,6 +86,13 @@ struct msm_gpu {
 	struct clk *ebi1_clk, *grp_clks[5];
 	uint32_t fast_rate, slow_rate, bus_freq;
 	uint32_t bsc;
+
+	/* Hang Detction: */
+#define DRM_MSM_HANGCHECK_PERIOD 500 /* in ms */
+#define DRM_MSM_HANGCHECK_JIFFIES msecs_to_jiffies(DRM_MSM_HANGCHECK_PERIOD)
+	struct timer_list hangcheck_timer;
+	uint32_t hangcheck_fence;
+	struct work_struct recover_work;
 };
 
 static inline void gpu_write(struct msm_gpu *gpu, u32 reg, u32 data)

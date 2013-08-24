@@ -203,6 +203,51 @@ int msm_gpu_pm_suspend(struct msm_gpu *gpu)
 }
 
 /*
+ * Hangcheck detection for locked gpu:
+ */
+
+static void recover_worker(struct work_struct *work)
+{
+	struct msm_gpu *gpu = container_of(work, struct msm_gpu, recover_work);
+	struct drm_device *dev = gpu->dev;
+
+	dev_err(dev->dev, "%s: hangcheck recover!\n", gpu->name);
+
+	mutex_lock(&dev->struct_mutex);
+	gpu->funcs->recover(gpu);
+	mutex_unlock(&dev->struct_mutex);
+
+	msm_gpu_retire(gpu);
+}
+
+static void hangcheck_timer_reset(struct msm_gpu *gpu)
+{
+	DBG("%s", gpu->name);
+	mod_timer(&gpu->hangcheck_timer,
+			round_jiffies_up(jiffies + DRM_MSM_HANGCHECK_JIFFIES));
+}
+
+static void hangcheck_handler(unsigned long data)
+{
+	struct msm_gpu *gpu = (struct msm_gpu *)data;
+	uint32_t fence = gpu->funcs->last_fence(gpu);
+
+	if (fence != gpu->hangcheck_fence) {
+		/* some progress has been made.. ya! */
+		gpu->hangcheck_fence = fence;
+	} else if (fence < gpu->submitted_fence) {
+		/* no progress and not done.. hung! */
+		struct msm_drm_private *priv = gpu->dev->dev_private;
+		gpu->hangcheck_fence = fence;
+		queue_work(priv->wq, &gpu->recover_work);
+	}
+
+	/* if still more pending work, reset the hangcheck timer: */
+	if (gpu->submitted_fence > gpu->hangcheck_fence)
+		hangcheck_timer_reset(gpu);
+}
+
+/*
  * Cmdstream submission/retirement:
  */
 
@@ -254,6 +299,8 @@ int msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 
 	submit->fence = ++priv->next_fence;
 
+	gpu->submitted_fence = submit->fence;
+
 	ret = gpu->funcs->submit(gpu, submit, ctx);
 	priv->lastctx = ctx;
 
@@ -276,6 +323,7 @@ int msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 
 		msm_gem_move_to_active(&msm_obj->base, gpu, submit->fence);
 	}
+	hangcheck_timer_reset(gpu);
 	mutex_unlock(&dev->struct_mutex);
 
 	return ret;
@@ -307,6 +355,10 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 
 	INIT_LIST_HEAD(&gpu->active_list);
 	INIT_WORK(&gpu->retire_work, retire_worker);
+	INIT_WORK(&gpu->recover_work, recover_worker);
+
+	setup_timer(&gpu->hangcheck_timer, hangcheck_handler,
+			(unsigned long)gpu);
 
 	BUG_ON(ARRAY_SIZE(clk_names) != ARRAY_SIZE(gpu->grp_clks));
 
