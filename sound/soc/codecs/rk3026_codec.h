@@ -155,12 +155,13 @@
 #define  RK3026_ADC_CURRENT_ENABLE              (0x1 << 7)
 #define  RK3026_ADC_CURRENT_DISABLE             (0x0 << 7)
 
-#define  RK3026_MICBIAS_VOL_ENABLE              (0x1 << 6)
-#define  RK3026_MICBIAS_VOL_DISABLE             (0x0 << 6)
+#define  RK3026_MICBIAS_VOL_ENABLE              (6)
 
+#define  RK3026_ADCL_ZERO_DET_EN_SFT                (5)
 #define  RK3026_ADCL_ZERO_DET_EN                (0x1 << 5)
 #define  RK3026_ADCL_ZERO_DET_DIS               (0x0 << 5)
 
+#define  RK3026_ADCR_ZERO_DET_EN_SFT                (4)
 #define  RK3026_ADCR_ZERO_DET_EN                (0x1 << 4)
 #define  RK3026_ADCR_ZERO_DET_DIS               (0x0 << 4)
 
@@ -216,24 +217,30 @@
 #define  RK3026_ALCR_GAIN_MSK               (0x1f)
 
 /* ADC control (0x9C) */
+#define RK3026_ADCL_REF_VOL_EN_SFT			(3)
 #define RK3026_ADCL_REF_VOL_EN			(0x1 << 7)
 #define RK3026_ADCL_REF_VOL_DIS			(0x0 << 7)
 
+#define RK3026_ADCL_CLK_EN_SFT		       (6)
 #define RK3026_ADCL_CLK_EN		       (0x1 << 6)
 #define RK3026_ADCL_CLK_DIS		       (0x0 << 6)
 
+#define RK3026_ADCL_AMP_EN_SFT			(5)
 #define RK3026_ADCL_AMP_EN			(0x1 << 5)
 #define RK3026_ADCL_AMP_DIS			(0x0 << 5)
 
 #define  RK3026_ADCL_RST_EN                     (0x1 << 4)
 #define  RK3026_ADCL_RST_DIS                     (0x0 << 4)
 
+#define RK3026_ADCR_REF_VOL_EN_SFT			(3)
 #define RK3026_ADCR_REF_VOL_EN			(0x1 << 3)
 #define RK3026_ADCR_REF_VOL_DIS			(0x0 << 3)
 
+#define RK3026_ADCR_CLK_EN_SFT		       (2)
 #define RK3026_ADCR_CLK_EN		       (0x1 << 2)
 #define RK3026_ADCR_CLK_DIS		       (0x0 << 2)
 
+#define RK3026_ADCR_AMP_EN_SFT			(1)
 #define RK3026_ADCR_AMP_EN			(0x1 << 1)
 #define RK3026_ADCR_AMP_DIS			(0x0 << 1)
 
@@ -243,18 +250,23 @@
 /* DAC & VOUT Control (0xa0)  */
 #define  RK3026_CURRENT_EN                  (0x1 << 6)
 #define  RK3026_CURRENT_DIS                  (0x0 << 6)
+#define  RK3026_REF_VOL_DACL_EN_SFT                  (5)
 #define  RK3026_REF_VOL_DACL_EN                  (0x1 << 5)
 #define  RK3026_REF_VOL_DACL_DIS                 (0x0 << 5)
+#define  RK3026_ZO_DET_VOUTL_SFT                 (4)
 #define  RK3026_ZO_DET_VOUTL_EN                 (0x1 << 4)
 #define  RK3026_ZO_DET_VOUTL_DIS                  (0x0 << 4)
 #define  RK3026_DET_ERAPHONE_DIS                  (0x0 << 3)
 #define  RK3026_DET_ERAPHONE_EN                  (0x1 << 3)
+#define  RK3026_REF_VOL_DACR_EN_SFT                  (1)
 #define  RK3026_REF_VOL_DACR_EN                  (0x1 << 1)
 #define  RK3026_REF_VOL_DACR_DIS                 (0x0 << 1)
+#define  RK3026_ZO_DET_VOUTR_SFT                 (0)
 #define  RK3026_ZO_DET_VOUTR_EN                 (0x1 << 0)
 #define  RK3026_ZO_DET_VOUTR_DIS                  (0x0 << 0)
 
 /* DAC control (0xa4) */
+#define RK3026_DACL_REF_VOL_EN_SFT			(7)
 #define RK3026_DACL_REF_VOL_EN			(0x1 << 7)
 #define RK3026_DACL_REF_VOL_DIS			(0x0 << 7)
 
@@ -267,6 +279,7 @@
 #define  RK3026_DACL_INIT                     (0x0 << 4)
 #define  RK3026_DACL_WORK                    (0x1 << 4)
 
+#define RK3026_DACR_REF_VOL_EN_SFT			(3)
 #define RK3026_DACR_REF_VOL_EN			(0x1 << 3)
 #define RK3026_DACR_REF_VOL_DIS			(0x0 << 3)
 
@@ -287,7 +300,7 @@
 #define RK3026_HPMIXL_WORK1               (0x1 << 5)
 #define RK3026_HPMIXL_INIT2              (0x0 << 4)
 #define RK3026_HPMIXL_WORK2                (0x1 << 4)
-#define RK3026_HPMIXR_SFT                         (6)
+#define RK3026_HPMIXR_SFT                         (2)
 #define RK3026_HPMIXR_EN                         (0x1 << 2)
 #define RK3026_HPMIXR_DIS                      (0x0 << 2)
 #define RK3026_HPMIXR_INIT1               (0x0 << 1)
@@ -296,14 +309,14 @@
 #define RK3026_HPMIXR_WORK2                (0x1 << 0)
 
 /* HPMIXL Control  (0xac) */
-#define RK3026_HPMIXL_BYPASS_SFT             (0x1 << 7)
-#define RK3026_HPMIXL_SEL_ALCL_SFT              (0x1 << 6)
-#define RK3026_HPMIXL_SEL_ALCR_SFT              (0x1 << 5)
-#define RK3026_HPMIXL_SEL_DACL_SFT             (0x1 << 4)
-#define RK3026_HPMIXR_BYPASS_SFT             (0x1 << 3)
-#define RK3026_HPMIXR_SEL_ALCL_SFT              (0x1 << 2)
-#define RK3026_HPMIXR_SEL_ALCR_SFT              (0x1 << 1)
-#define RK3026_HPMIXR_SEL_DACR_SFT             (0x1 << 0)
+#define RK3026_HPMIXL_BYPASS_SFT             (7)
+#define RK3026_HPMIXL_SEL_ALCL_SFT              (6)
+#define RK3026_HPMIXL_SEL_ALCR_SFT              (5)
+#define RK3026_HPMIXL_SEL_DACL_SFT             (4)
+#define RK3026_HPMIXR_BYPASS_SFT             (3)
+#define RK3026_HPMIXR_SEL_ALCL_SFT              (2)
+#define RK3026_HPMIXR_SEL_ALCR_SFT              (1)
+#define RK3026_HPMIXR_SEL_DACR_SFT             (0)
 
 /* HPOUT Control  (0xb0) */
 #define RK3026_HPOUTL_PWR_SHT			(7)
@@ -535,7 +548,9 @@ struct rk3026_reg_val_typ {
 struct rk3026_init_bit_typ {
 	unsigned int reg;
 	unsigned int power_bit;
-	unsigned int init_bit;
+	unsigned int init2_bit;
+	unsigned int init1_bit;
+	unsigned int init0_bit;	
 };
 
 bool get_hdmi_state(void);

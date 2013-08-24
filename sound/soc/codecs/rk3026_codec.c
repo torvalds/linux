@@ -168,10 +168,10 @@ static const unsigned int rk3026_reg_defaults[RK3026_PGAR_AGC_CTL5+1] = {
 };
 
 static struct rk3026_init_bit_typ rk3026_init_bit_list[] = {
-	{RK3026_HPOUT_CTL, RK3026_HPOUTL_EN, RK3026_HPOUTL_WORK},
-	{RK3026_HPOUT_CTL, RK3026_HPOUTR_EN, RK3026_HPOUTR_WORK},
-	{RK3026_HPMIX_CTL, RK3026_HPMIXR_EN, RK3026_HPMIXR_WORK2},
-	{RK3026_HPMIX_CTL, RK3026_HPMIXL_EN, RK3026_HPMIXR_WORK2},
+	{RK3026_HPOUT_CTL, RK3026_HPOUTL_EN, RK3026_HPOUTL_WORK,RK3026_HPVREF_EN},
+	{RK3026_HPOUT_CTL, RK3026_HPOUTR_EN, RK3026_HPOUTR_WORK,RK3026_HPVREF_WORK},
+	{RK3026_HPMIX_CTL, RK3026_HPMIXR_EN, RK3026_HPMIXR_WORK2,RK3026_HPMIXR_WORK1},
+	{RK3026_HPMIX_CTL, RK3026_HPMIXL_EN, RK3026_HPMIXL_WORK2,RK3026_HPMIXL_WORK1},
 
 };
 #define RK3026_INIT_BIT_LIST_LEN ARRAY_SIZE(rk3026_init_bit_list)
@@ -187,12 +187,14 @@ static int rk3026_init_bit_register(unsigned int reg, int i)
 }
 
 static unsigned int rk3026_codec_read(struct snd_soc_codec *codec, unsigned int reg);
+static inline void rk3026_write_reg_cache(struct snd_soc_codec *codec,
+	unsigned int reg, unsigned int value);
 
 static unsigned int rk3026_set_init_value(struct snd_soc_codec *codec, unsigned int reg, unsigned int value)
 {
-	unsigned int read_value, power_bit, set_bit;
+	unsigned int read_value, power_bit, set_bit2,set_bit1;
 	int i;
-
+	int tmp = 0;
 	// read codec init register
 	i = rk3026_init_bit_register(reg, 0);
 
@@ -203,28 +205,43 @@ static unsigned int rk3026_set_init_value(struct snd_soc_codec *codec, unsigned 
 		read_value = rk3026_codec_read(codec, reg);
 		while (i >= 0) {
 			power_bit = rk3026_init_bit_list[i].power_bit;
-			set_bit = rk3026_init_bit_list[i].init_bit;
+			set_bit2 = rk3026_init_bit_list[i].init2_bit;
+			set_bit1 = rk3026_init_bit_list[i].init1_bit;
 
 			if ((read_value & power_bit) != (value & power_bit))
 			{
 				if (value & power_bit)
 				{
+					tmp = value | set_bit2 | set_bit1;
 					writel(value, rk3026_priv->regbase+reg);
-					writel((value & set_bit), rk3026_priv->regbase+reg);
+					writel(tmp, rk3026_priv->regbase+reg);
+				  	
 				}
 				else
 				{	
-					writel((value & ~set_bit), rk3026_priv->regbase+reg);
+					tmp = value & (~set_bit2) & (~set_bit1);
+					writel(tmp, rk3026_priv->regbase+reg);
 					writel(value, rk3026_priv->regbase+reg);
-
-				}				
+				}	
+				value = tmp;			
+			}
+			else
+			{
+				if (read_value != value)
+					writel(value, rk3026_priv->regbase+reg);
 			}
 				
 			i = rk3026_init_bit_register(reg, ++i);
+			
+			rk3026_write_reg_cache(codec, reg, value);
 		}
 	}
+	else
+	{
+		return i;		
+	}
 
-	return i;
+	return value;
 }
 
 static int rk3026_volatile_register(struct snd_soc_codec *codec, unsigned int reg)
@@ -325,13 +342,13 @@ static unsigned int rk3026_codec_read(struct snd_soc_codec *codec, unsigned int 
 		printk("%s : reg error!\n", __func__);
 		return -EINVAL;
 	}
-#if 0
+
 	if (rk3026_volatile_register(codec, reg) == 0) {
 		value = rk3026_read_reg_cache(codec, reg);
 	} else {
 		value = readl_relaxed(rk3026_priv->regbase+reg);	
 	}
-#endif
+
 	value = readl_relaxed(rk3026_priv->regbase+reg);
 	DBG("%s : reg = 0x%x, val= 0x%x\n", __func__, reg, value);
 
@@ -353,10 +370,11 @@ static int rk3026_codec_write(struct snd_soc_codec *codec, unsigned int reg, uns
 	new_value = rk3026_set_init_value(codec, reg, value);
 
 	if (new_value == -1)
+	{
 		writel(value, rk3026_priv->regbase+reg);
-
-	rk3026_write_reg_cache(codec, reg, value);
-
+		rk3026_write_reg_cache(codec, reg, value);
+	}
+		
 	DBG("%s : reg = 0x%x, val = 0x%x, new_value=%d\n", __func__, reg, value,new_value);
 	return 0;
 }
@@ -546,7 +564,7 @@ static const DECLARE_TLV_DB_SCALE(bst_vol_tlv, 0, 2000, 0);
 static const DECLARE_TLV_DB_SCALE(pga_agc_max_vol_tlv, -1350, 600, 0);
 static const DECLARE_TLV_DB_SCALE(pga_agc_min_vol_tlv, -1800, 600, 0);
 
-static const char *rk3026_input_mode[] = {"Single-Ended","Differential"}; 
+static const char *rk3026_input_mode[] = {"Differential","Single-Ended"}; 
 
 static const char *rk3026_micbias_ratio[] = {"1.0 Vref", "1.1 Vref",
 		"1.2 Vref", "1.3 Vref", "1.4 Vref", "1.5 Vref", "1.6 Vref", "1.7 Vref",};
@@ -654,6 +672,15 @@ static const struct snd_kcontrol_new rk3026_snd_controls[] = {
 		RK3026_BSTR_GAIN_SHT, 1, 0, bst_vol_tlv),
 	SOC_SINGLE("Headset Mic Capture Switch", RK3026_BST_CTL,
 		RK3026_BSTR_MUTE_SHT, 1, 0),
+
+	SOC_SINGLE("ALCL Switch", RK3026_ALC_MUNIN_CTL,
+		RK3026_ALCL_MUTE_SHT, 1, 0),
+	SOC_SINGLE_TLV("ALCL Capture Volume", RK3026_BSTL_ALCL_CTL,
+		RK3026_ALCL_GAIN_SHT, 31, 0, pga_vol_tlv),
+	SOC_SINGLE("ALCR Switch", RK3026_ALC_MUNIN_CTL,
+		RK3026_ALCR_MUTE_SHT, 1, 0),
+	SOC_SINGLE_TLV("ALCR Capture Volume", RK3026_ALCR_GAIN_CTL,
+		RK3026_ALCL_GAIN_SHT, 31, 0, pga_vol_tlv),
 
 	SOC_ENUM("BST_L Mode",  rk3026_bst_enum[0]),
 
@@ -1019,13 +1046,13 @@ static int rk3026_adcl_event(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		snd_soc_update_bits(codec, RK3026_ADC_ENABLE,
-			RK3026_ADCL_CLK_EN | RK3026_ADCL_AMP_EN , 
-			RK3026_ADCL_CLK_EN | RK3026_ADCL_AMP_EN );
+			RK3026_ADCL_CLK_EN_SFT | RK3026_ADCL_AMP_EN_SFT, 
+			RK3026_ADCL_CLK_EN | RK3026_ADCL_AMP_EN);
 		break;
 
 	case SND_SOC_DAPM_POST_PMD:
 		snd_soc_update_bits(codec, RK3026_ADC_ENABLE,
-			RK3026_ADCL_CLK_EN | RK3026_ADCL_AMP_EN,0);
+			RK3026_ADCL_CLK_EN_SFT | RK3026_ADCL_AMP_EN_SFT,0);
 		break;
 
 	default:
@@ -1043,13 +1070,13 @@ static int rk3026_adcr_event(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		snd_soc_update_bits(codec, RK3026_ADC_ENABLE,
-			RK3026_ADCR_CLK_EN | RK3026_ADCR_AMP_EN , 
+			RK3026_ADCR_CLK_EN_SFT | RK3026_ADCR_AMP_EN_SFT, 
 			RK3026_ADCR_CLK_EN | RK3026_ADCR_AMP_EN );
 		break;
 
 	case SND_SOC_DAPM_POST_PMD:
 		snd_soc_update_bits(codec, RK3026_ADC_ENABLE,
-			RK3026_ADCR_CLK_EN | RK3026_ADCR_AMP_EN,0);
+			RK3026_ADCR_CLK_EN_SFT | RK3026_ADCR_AMP_EN_SFT,0);
 		break;
 
 	default:
@@ -1085,13 +1112,17 @@ static int rk3026_hpmixl_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		snd_soc_update_bits(codec, RK3026_HPMIX_CTL,
-			RK3026_HPMIXL_WORK2, RK3026_HPMIXL_WORK2); 
+		snd_soc_update_bits(codec, RK3026_DAC_CTL,
+			RK3026_ZO_DET_VOUTR_SFT, RK3026_ZO_DET_VOUTR_EN); 
+		snd_soc_update_bits(codec, RK3026_DAC_CTL,
+			RK3026_ZO_DET_VOUTL_SFT, RK3026_ZO_DET_VOUTL_EN); 
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
-		snd_soc_update_bits(codec, RK3026_HPMIX_CTL,
-			RK3026_HPMIXL_WORK2, 0);
+		snd_soc_update_bits(codec, RK3026_DAC_CTL,
+			RK3026_ZO_DET_VOUTR_SFT, RK3026_ZO_DET_VOUTR_DIS); 
+		snd_soc_update_bits(codec, RK3026_DAC_CTL,
+			RK3026_ZO_DET_VOUTL_SFT, RK3026_ZO_DET_VOUTL_DIS); 
 		break;
 
 	default:
@@ -1105,7 +1136,7 @@ static int rk3026_hpmixr_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
-
+#if 0
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		snd_soc_update_bits(codec, RK3026_HPMIX_CTL,
@@ -1120,7 +1151,7 @@ static int rk3026_hpmixr_event(struct snd_soc_dapm_widget *w,
 	default:
 		return 0;
 	}
-
+#endif
 	return 0;
 }
 
@@ -1300,42 +1331,44 @@ static int rk3026_set_bias_level(struct snd_soc_codec *codec,
 
 	case SND_SOC_BIAS_STANDBY:
 		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+			writel(0x32, rk3026_priv->regbase+RK3026_DAC_INT_CTL3);
 			snd_soc_update_bits(codec, RK3026_ADC_MIC_CTL,
 				RK3026_ADC_CURRENT_ENABLE, RK3026_ADC_CURRENT_ENABLE);
 			snd_soc_update_bits(codec, RK3026_DAC_CTL, 
 				RK3026_CURRENT_EN, RK3026_CURRENT_EN);
 			/* set power */
 			snd_soc_update_bits(codec, RK3026_ADC_ENABLE,
-				RK3026_ADCL_REF_VOL_EN | RK3026_ADCL_REF_VOL_EN, 
-				RK3026_ADCL_REF_VOL_EN | RK3026_ADCL_REF_VOL_EN);
+				RK3026_ADCL_REF_VOL_EN_SFT | RK3026_ADCR_REF_VOL_EN_SFT, 
+				RK3026_ADCL_REF_VOL_EN | RK3026_ADCR_REF_VOL_EN);
 
 			snd_soc_update_bits(codec, RK3026_ADC_MIC_CTL, 
-				RK3026_ADCL_ZERO_DET_EN | RK3026_ADCR_ZERO_DET_EN,
+				RK3026_ADCL_ZERO_DET_EN_SFT | RK3026_ADCR_ZERO_DET_EN_SFT,
 				RK3026_ADCL_ZERO_DET_EN | RK3026_ADCR_ZERO_DET_EN);
 
 			snd_soc_update_bits(codec, RK3026_DAC_CTL, 
-				RK3026_REF_VOL_DACL_EN | RK3026_REF_VOL_DACR_EN,
+				RK3026_REF_VOL_DACL_EN_SFT | RK3026_REF_VOL_DACR_EN_SFT,
 				RK3026_REF_VOL_DACL_EN | RK3026_REF_VOL_DACR_EN );
 
 			snd_soc_update_bits(codec, RK3026_DAC_ENABLE, 
-				RK3026_DACL_REF_VOL_EN | RK3026_DACR_REF_VOL_EN,
+				RK3026_DACL_REF_VOL_EN_SFT | RK3026_DACR_REF_VOL_EN_SFT,
 				RK3026_DACL_REF_VOL_EN | RK3026_DACR_REF_VOL_EN );
 		}
 		break;
 
 	case SND_SOC_BIAS_OFF:
 			snd_soc_update_bits(codec, RK3026_DAC_ENABLE, 
-				RK3026_DACL_REF_VOL_EN | RK3026_DACR_REF_VOL_EN,0);
+				RK3026_DACL_REF_VOL_EN_SFT | RK3026_DACR_REF_VOL_EN_SFT,0);
 			snd_soc_update_bits(codec, RK3026_DAC_CTL, 
-				RK3026_REF_VOL_DACL_EN | RK3026_REF_VOL_DACR_EN,0);
+				RK3026_REF_VOL_DACL_EN_SFT | RK3026_REF_VOL_DACR_EN_SFT,0);
 			snd_soc_update_bits(codec, RK3026_ADC_MIC_CTL, 
-				RK3026_ADCL_ZERO_DET_EN | RK3026_ADCR_ZERO_DET_EN,0);
+				RK3026_ADCL_ZERO_DET_EN_SFT | RK3026_ADCR_ZERO_DET_EN_SFT,0);
 			snd_soc_update_bits(codec, RK3026_ADC_ENABLE,
-				RK3026_ADCL_REF_VOL_EN | RK3026_ADCL_REF_VOL_EN, 0);
+				RK3026_ADCL_REF_VOL_EN_SFT | RK3026_ADCR_REF_VOL_EN_SFT,0);
 			snd_soc_update_bits(codec, RK3026_ADC_MIC_CTL,
 				RK3026_ADC_CURRENT_ENABLE, 0);
 			snd_soc_update_bits(codec, RK3026_DAC_CTL, 
 				RK3026_CURRENT_EN, 0);
+			writel(0x22, rk3026_priv->regbase+RK3026_DAC_INT_CTL3);
 		break;
 	}
 	codec->dapm.bias_level = level;
@@ -1608,7 +1641,8 @@ static struct rk3026_reg_val_typ playback_power_down_list[] = {
 	{0xbc,0x08},
 #endif
 	{0xb4,0x0},
-	{0xb8,0x0},	
+	{0xb8,0x0},
+	{0x18,0x22},
 };
 #define RK3026_CODEC_PLAYBACK_POWER_DOWN_LIST_LEN ARRAY_SIZE(playback_power_down_list)
 
@@ -1641,6 +1675,9 @@ static struct rk3026_reg_val_typ capture_power_down_list[] = {
 	{0x8c, 0x00},
 	{0X94, 0x0c},
 	{0X98, 0x0c},
+	{0x9c, 0x00},
+	{0x88, 0x00},
+	{0x90, 0x44},
 };
 #define RK3026_CODEC_CAPTURE_POWER_DOWN_LIST_LEN ARRAY_SIZE(capture_power_down_list)
 
@@ -1785,7 +1822,6 @@ static int rk3026_startup(struct snd_pcm_substream *substream,
 			}
 		}
 	}
-
 	return 0;
 }
 
@@ -1848,7 +1884,6 @@ static void rk3026_shutdown(struct snd_pcm_substream *substream,
 			}
 		}
 	}
-
 }
 
 #define RK3026_PLAYBACK_RATES (SNDRV_PCM_RATE_8000 |\
@@ -2001,7 +2036,7 @@ static int rk3026_probe(struct snd_soc_codec *codec)
 		rk3026->spk_ctl_gpio = rk3026_plt->spk_ctl_gpio;
 		rk3026->hp_ctl_gpio = rk3026_plt->hp_ctl_gpio;
 	} else {
-		printk("%s : rk3026 or pdata or spk_ctl_gpio is NULL!\n", __func__);
+		printk("%s : rk3026 spk_ctl_gpio is NULL!\n", __func__);
 		rk3026->spk_ctl_gpio = INVALID_GPIO;
 	}	
 
@@ -2010,14 +2045,14 @@ static int rk3026_probe(struct snd_soc_codec *codec)
 		gpio_direction_output(rk3026_plt->hp_ctl_gpio, GPIO_LOW);
 		rk3026->hp_ctl_gpio = rk3026_plt->hp_ctl_gpio;
 	} else {
-		printk("%s : rk3026 or pdata or hp_ctl_gpio is NULL!\n", __func__);
+		printk("%s : rk3026 hp_ctl_gpio is NULL!\n", __func__);
 		rk3026->hp_ctl_gpio = INVALID_GPIO;
 	}
 
 	if (rk3026_plt->delay_time) {
 		rk3026->delay_time = rk3026_plt->delay_time;
 	} else {
-		printk("%s : rk3026 or pdata or delay_time is NULL!\n", __func__);
+		printk("%s : rk3026 delay_time is NULL!\n", __func__);
 		rk3026->delay_time = 10;
 	}
 
@@ -2064,8 +2099,8 @@ static int rk3026_probe(struct snd_soc_codec *codec)
 
 #ifdef   WITH_CAP
 	//set for capacity output,clear up noise
-	snd_soc_write(codec, 0xbc,0x1e);
-	snd_soc_write(codec, 0xbc,0x3e);
+	snd_soc_write(codec, RK3026_SELECT_CURRENT,0x1e);
+	snd_soc_write(codec, RK3026_SELECT_CURRENT,0x3e);
 	//snd_soc_write(codec, 0xbc,0x28);
 #endif
 	// select  i2s sdi from  acodec  soc_con[0] bit 10
@@ -2075,7 +2110,7 @@ static int rk3026_probe(struct snd_soc_codec *codec)
 	printk("%s : i2s sdi from acodec val=0x%x,soc_con[0] bit 10 =1 is correct\n",__func__,val);
 
 
-	if  (!rk3026_for_mid) {
+	if(!rk3026_for_mid) {
 	codec->dapm.bias_level = SND_SOC_BIAS_OFF;
 	rk3026_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
@@ -2101,6 +2136,7 @@ err__:
 /* power down chip */
 static int rk3026_remove(struct snd_soc_codec *codec)
 {
+	
 	DBG("%s\n", __func__);
 
 	if (!rk3026_priv) {
@@ -2137,10 +2173,10 @@ static int rk3026_remove(struct snd_soc_codec *codec)
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_rk3026 = {
-	.probe =	rk3026_probe,
-	.remove =	rk3026_remove,
-	.suspend =	rk3026_suspend,
-	.resume =	rk3026_resume,
+	.probe =rk3026_probe,
+	.remove =rk3026_remove,
+	.suspend =rk3026_suspend,
+	.resume = rk3026_resume,
 	.set_bias_level = rk3026_set_bias_level,
 	.reg_cache_size = ARRAY_SIZE(rk3026_reg_defaults),
 	.reg_word_size = sizeof(unsigned int),
