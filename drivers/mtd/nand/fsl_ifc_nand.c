@@ -718,8 +718,6 @@ static int fsl_ifc_chip_init_tail(struct mtd_info *mtd)
 							chip->page_shift);
 	dev_dbg(priv->dev, "%s: nand->phys_erase_shift = %d\n", __func__,
 							chip->phys_erase_shift);
-	dev_dbg(priv->dev, "%s: nand->ecclayout = %p\n", __func__,
-							chip->ecclayout);
 	dev_dbg(priv->dev, "%s: nand->ecc.mode = %d\n", __func__,
 							chip->ecc.mode);
 	dev_dbg(priv->dev, "%s: nand->ecc.steps = %d\n", __func__,
