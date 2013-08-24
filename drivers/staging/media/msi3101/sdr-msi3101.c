@@ -40,6 +40,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/gcd.h>
+#include <asm/div64.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-ctrls.h>
@@ -1332,7 +1333,7 @@ static int msi3101_set_tuner(struct msi3101_state *s)
 	int ret, i, len;
 	unsigned int n, m, thresh, frac, vco_step, tmp, f_if1;
 	u32 reg;
-	u64 f_vco;
+	u64 f_vco, tmp64;
 	u8 mode, filter_mode, lo_div;
 	const struct msi3101_gain *gain_lut;
 	static const struct {
@@ -1436,8 +1437,10 @@ static int msi3101_set_tuner(struct msi3101_state *s)
 #define F_OUT_STEP 1
 #define R_REF 4
 	f_vco = (f_rf + f_if + f_if1) * lo_div;
-	n = f_vco / (F_REF * R_REF);
-	m = f_vco % (F_REF * R_REF);
+
+	tmp64 = f_vco;
+	m = do_div(tmp64, F_REF * R_REF);
+	n = (unsigned int) tmp64;
 
 	vco_step = F_OUT_STEP * lo_div;
 	thresh = (F_REF * R_REF) / vco_step;
