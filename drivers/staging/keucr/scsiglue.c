@@ -289,10 +289,7 @@ US_DO_ALL_FLAGS
  ***********************************************************************/
 
 /* Output routine for the sysfs max_sectors file */
-/*
- * show_max_sectors()
- */
-static ssize_t show_max_sectors(struct device *dev,
+static ssize_t max_sectors_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
@@ -302,10 +299,7 @@ static ssize_t show_max_sectors(struct device *dev,
 }
 
 /* Input routine for the sysfs max_sectors file */
-/*
- * store_max_sectors()
- */
-static ssize_t store_max_sectors(struct device *dev,
+static ssize_t max_sectors_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
@@ -319,9 +313,8 @@ static ssize_t store_max_sectors(struct device *dev,
 	}
 	return -EINVAL;
 }
+static DEVICE_ATTR_RW(max_sectors);
 
-static DEVICE_ATTR(max_sectors, S_IRUGO | S_IWUSR, show_max_sectors,
-							store_max_sectors);
 static struct device_attribute *sysfs_device_attr_list[] = {
 	&dev_attr_max_sectors, NULL,
 };
