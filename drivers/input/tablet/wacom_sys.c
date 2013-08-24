@@ -1361,8 +1361,10 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	usb_set_intfdata(intf, wacom);
 
 	if (features->quirks & WACOM_QUIRK_MONITOR) {
-		if (usb_submit_urb(wacom->irq, GFP_KERNEL))
+		if (usb_submit_urb(wacom->irq, GFP_KERNEL)) {
+			error = -EIO;
 			goto fail5;
+		}
 	}
 
 	return 0;
@@ -1417,8 +1419,8 @@ static int wacom_resume(struct usb_interface *intf)
 	wacom_query_tablet_data(intf, features);
 	wacom_led_control(wacom);
 
-	if ((wacom->open || features->quirks & WACOM_QUIRK_MONITOR)
-	     && usb_submit_urb(wacom->irq, GFP_NOIO) < 0)
+	if ((wacom->open || (features->quirks & WACOM_QUIRK_MONITOR)) &&
+	    usb_submit_urb(wacom->irq, GFP_NOIO) < 0)
 		rv = -EIO;
 
 	mutex_unlock(&wacom->lock);
