@@ -846,17 +846,12 @@ static void s_vGenerateTxParameter(struct vnt_private *pDevice,
 {
 	u32 cbMACHdLen = WLAN_HDR_ADDR3_LEN; /* 24 */
 	u16 wFifoCtl;
-	int bDisCRC = false;
 	u8 byFBOption = AUTO_FB_NONE;
 
     //DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"s_vGenerateTxParameter...\n");
     PSTxBufHead pFifoHead = (PSTxBufHead)pTxBufHead;
     pFifoHead->wReserved = wCurrentRate;
     wFifoCtl = pFifoHead->wFIFOCtl;
-
-    if (wFifoCtl & FIFOCTL_CRCDIS) {
-        bDisCRC = true;
-    }
 
     if (wFifoCtl & FIFOCTL_AUTO_FB_0) {
         byFBOption = AUTO_FB_0;
