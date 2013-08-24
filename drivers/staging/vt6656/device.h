@@ -596,7 +596,6 @@ struct vnt_private {
 	int bCCK;
 	int bEncryptionEnable;
 	int bLongHeader;
-	int bSoftwareGenCrcErr;
 	int bShortSlotTime;
 	int bProtectMode;
 	int bNonERPPresent;

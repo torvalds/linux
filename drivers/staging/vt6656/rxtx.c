@@ -1003,7 +1003,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
 	void *pvTxDataHd;
 	u8 byFBOption = AUTO_FB_NONE, byFragType;
 	u16 wTxBufSize;
-	u32 dwMICKey0, dwMICKey1, dwMIC_Priority, dwCRC;
+	u32 dwMICKey0, dwMICKey1, dwMIC_Priority;
 	u32 *pdwMIC_L, *pdwMIC_R;
 	int bSoftWEP = false;
 
@@ -1057,10 +1057,6 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
     //Set FIFOCTL_LHEAD
     if (pDevice->bLongHeader)
         pTxBufHead->wFIFOCtl |= FIFOCTL_LHEAD;
-
-    if (pDevice->bSoftwareGenCrcErr) {
-        pTxBufHead->wFIFOCtl |= FIFOCTL_CRCDIS; // set tx descriptors to NO hardware CRC
-    }
 
     //Set FRAGCTL_MACHDCNT
     if (pDevice->bLongHeader) {
@@ -1386,22 +1382,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
         cbFrameSize -= cbICVlen;
     }
 
-    if (pDevice->bSoftwareGenCrcErr == true) {
-	unsigned int cbLen;
-        u32 * pdwCRC;
-
-        dwCRC = 0xFFFFFFFFL;
-        cbLen = cbFrameSize - cbFCSlen;
-        // calculate CRC, and wrtie CRC value to end of TD
-        dwCRC = CRCdwGetCrc32Ex(pbyMacHdr, cbLen, dwCRC);
-        pdwCRC = (u32 *)(pbyMacHdr + cbLen);
-        // finally, we must invert dwCRC to get the correct answer
-        *pdwCRC = ~dwCRC;
-        // Force Error
-        *pdwCRC -= 1;
-    } else {
         cbFrameSize -= cbFCSlen;
-    }
 
     *pcbHeaderLen = cbHeaderLength;
     *pcbTotalLen = cbHeaderLength + cbFrameSize ;
