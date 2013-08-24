@@ -288,6 +288,7 @@ static int rt5025_i2c_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	struct rt5025_chip *chip = i2c_get_clientdata(client);
 	chip->suspend = 1;
+	RTINFO("\n");
 	return 0;
 }
 
@@ -295,6 +296,7 @@ static int rt5025_i2c_resume(struct i2c_client *client)
 {
 	struct rt5025_chip *chip = i2c_get_clientdata(client);
 	chip->suspend = 0;
+	RTINFO("\n");
 	return 0;
 }
 
@@ -336,3 +338,4 @@ module_exit(rt5025_i2c_exit);
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("I2C Driver for Richtek RT5025");
 MODULE_AUTHOR("CY Huang <cy_huang@richtek.com>");
+MODULE_VERSION(RT5025_DRV_VER);

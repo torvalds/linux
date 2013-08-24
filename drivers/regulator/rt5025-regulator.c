@@ -462,3 +462,4 @@ MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("CY Huang <cy_huang@richtek.com");
 MODULE_DESCRIPTION("Regulator driver for RT5025");
 MODULE_ALIAS("platform:" RT5025_DEVICE_NAME "-regulator");
+MODULE_VERSION(RT5025_DRV_VER);

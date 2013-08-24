@@ -13,8 +13,8 @@
 #ifndef __LINUX_RT5025_BATTERY_H
 #define __LINUX_RT5025_BATTERY_H
 
-#define ROCKCHIP_BATTERY_6200MAH
-#undef ROCKCHIP_BATTERY_2100MAH
+#undef ROCKCHIP_BATTERY_6900MAH
+#undef ROCKCHIP_BATTERY_4000MAH
 
 #define RT5025_REG_IRQ_CTL             0x50
 #define RT5025_REG_IRQ_FLAG            0x51
@@ -25,8 +25,8 @@
 #define RT5025_REG_TALRT_MINTH         0x57
 #define RT5025_REG_VCELL_MSB           0x58
 #define RT5025_REG_VCELL_LSB           0x59
-#define RT5025_REG_INT_TEMPERATUE_MSB  0x5B
-#define RT5025_REG_INT_TEMPERATUE_LSB  0x5C
+#define RT5025_REG_INT_TEMPERATUE_MSB  0x5A
+#define RT5025_REG_INT_TEMPERATUE_LSB  0x5B
 #define RT5025_REG_EXT_TEMPERATUE_MSB  0x5E
 #define RT5025_REG_EXT_TEMPERATUE_LSB  0x5F
 #define RT5025_REG_TIMER               0x60
@@ -66,8 +66,8 @@
 
 #define NORMAL_POLL  30       /* 30 sec */
 #define TP_POLL      5       /* 5 sec */
-#define EDV_POLL     1       /* 1 sec */
-#define SMOOTH_POLL  5      /* 5 sec */
+#define EDV_POLL     5       /* 1 sec */
+#define SMOOTH_POLL  20      /* 5 sec */
 #define SUSPEND_POLL (30*60) /* 30 min */
 #define INIT_POLL    1
 #define LOW_BAT_WAKE_LOK_TIME 120
@@ -112,10 +112,10 @@ typedef enum {
 	LAST_TYPE,
 }alert_type;
 
-#if defined(ROCKCHIP_BATTERY_6200MAH)
-#include <linux/power/rockchip-6200ma-bat.h>
-#elif defined(ROCKCHIP_BATTERY_2100MAH)
-#include <linux/power/rockchip-2100ma-bat.h>
+#if defined(ROCKCHIP_BATTERY_6900MAH)
+#include <linux/power/rockchip-6900ma-bat.h>
+#elif defined(ROCKCHIP_BATTERY_4000MAH)
+#include <linux/power/rockchip-4000ma-bat.h>
 #else
 #include <linux/power/rockchip-general-bat.h>
 #endif

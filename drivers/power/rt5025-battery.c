@@ -28,20 +28,29 @@
 #include <linux/mfd/rt5025.h>
 #include <linux/power/rt5025-battery.h>
 
-#define VOLTAGE_ALERT 1
+#define VOLTAGE_ALERT 0
 #define TEMPERATURE_ALERT 0
 
 #define RT5025_CSV 0
 #define RT5025_B 1
-#define RT5025_TEST_WAKE_LOCK 1
+#define RT5025_TEST_WAKE_LOCK 0
 
 u8 irq_thres[LAST_TYPE];
+
+static int rt5025_battery_parameter_backup(struct rt5025_battery_info *);
 
 void rt5025_gauge_set_status(struct rt5025_battery_info *bi, int status)
 {
   bi->status = status;
   if (status == POWER_SUPPLY_STATUS_FULL)
+  {
 	bi->tp_flag = true;
+	bi->last_tp_flag = true;
+  }
+  else
+	power_supply_changed(&bi->battery);
+  wake_lock_timeout(&bi->status_wake_lock, 1.5*HZ);
+  schedule_delayed_work(&bi->monitor_work, 0);
 }
 EXPORT_SYMBOL(rt5025_gauge_set_status);
 
@@ -108,18 +117,18 @@ static void rt5025_gauge_alarm(struct alarm *alarm)
 {
 	struct rt5025_battery_info *bi = (struct rt5025_battery_info *)container_of(alarm, struct rt5025_battery_info, wakeup_alarm);
 
-	wake_lock(&bi->monitor_wake_lock);
+	//wake_lock(&bi->monitor_wake_lock);
 	schedule_delayed_work(&bi->monitor_work, 0);
 }
 
 static void rt5025_program_alarm(struct rt5025_battery_info *bi)
 {
 	ktime_t low_interval = ktime_set(bi->update_time, 0);
-	ktime_t slack = ktime_set(20, 0);
+	//ktime_t slack = ktime_set(20, 0);
 	ktime_t next;
 
 	next = ktime_add(bi->last_poll, low_interval);
-	alarm_start_range(&bi->wakeup_alarm, next, ktime_add(next, slack));
+	//alarm_start_range(&bi->wakeup_alarm, next, ktime_add(next, slack));
 }
 
 #if 0
@@ -194,8 +203,21 @@ static void rt5025_get_vcell(struct rt5025_battery_info *bi)
 {
   u8 data[2];
 	
+  if (bi->init_once)
+  {
+    rt5025_clr_bits(bi->client, 0x07, 0x10);
+    RTINFO("set_current switch off\n");
+    mdelay(1000);
+  }
+
   if (rt5025_read_reg(bi->client, RT5025_REG_VCELL_MSB, data, 2) < 0){
     printk(KERN_ERR "%s: Failed to read Voltage\n", __func__);
+  }
+
+  if (bi->init_once)
+  {
+    rt5025_set_bits(bi->client, 0x07, 0x10);
+    RTINFO("set_current switch on\n");
   }
 
   if (bi->avg_flag)
@@ -227,6 +249,7 @@ static void rt5025_get_current(struct rt5025_battery_info *bi)
   u8 data[2];
   s32 temp;
   int sign = 0;
+  u8 curr_region;
 
   if (rt5025_read_reg(bi->client, RT5025_REG_CURRENT_MSB, data, 2) < 0) {
     printk(KERN_ERR "%s: Failed to read CURRENT\n", __func__);
@@ -274,8 +297,36 @@ static void rt5025_get_current(struct rt5025_battery_info *bi)
   else
 	  bi->curr = (bi->curr + temp) / 2;
 
+  if (bi->curr > -500)
+	curr_region = 0;
+  else if (bi->curr <= -500 && bi->curr > -1500)
+	curr_region = 1;
+  else
+	curr_region = 2;
+
+  if (curr_region != bi->edv_region)
+  {
+	switch (curr_region)
+	{
+		case 0:
+			bi->empty_edv = rt5025_battery_param2[4].x;
+			break;
+		case 1:
+			bi->empty_edv = rt5025_battery_param2[4].x - 75;
+			break;
+		case 2:
+			bi->empty_edv = rt5025_battery_param2[4].x - 100 ;
+			break;
+	}
+	bi->edv_region = curr_region;
+  }
+  RTINFO("empty_voltage=%d\n", bi->empty_edv);
+
   if(bi->curr > 0)
+  {
     bi->internal_status = POWER_SUPPLY_STATUS_CHARGING;
+    bi->last_tp_flag = false;
+  }
   else
     bi->internal_status = POWER_SUPPLY_STATUS_DISCHARGING;
   RTINFO("current=%d, internal_status=%d\n", bi->curr, bi->internal_status);
@@ -291,6 +342,23 @@ static void rt5025_get_current(struct rt5025_battery_info *bi)
 #endif
 }
 
+static void rt5025_get_internal_temp(struct rt5025_battery_info *bi)
+{
+	u8 data[2];
+	s32 temp;
+	if (rt5025_read_reg(bi->client, RT5025_REG_INT_TEMPERATUE_MSB, data, 2) < 0){
+		printk(KERN_ERR "%s: Failed to read internal TEMPERATURE\n", __func__);
+	}
+
+	temp = ((data[0]&0x1F)<<8) + data[1];
+	temp *= 15625;
+	temp /= 100000;
+
+	temp = (data[0]&0x20)?-temp:temp;
+	bi->int_temp = temp;
+	RTINFO("internal temperature: %d\n", bi->int_temp);
+}
+	
 static void rt5025_get_external_temp(struct rt5025_battery_info *bi)
 {
   u8 data[2];
@@ -340,7 +408,7 @@ static void rt5025_get_external_temp(struct rt5025_battery_info *bi)
 	 bi->health = POWER_SUPPLY_HEALTH_GOOD;
 	 bi->temp_recover_cnt = 0;
 	}
-	//RTINFO("external temperature: %d\n", bi->ext_temp);
+	RTINFO("external temperature: %d\n", bi->ext_temp);
 }
 
 static void rt5025_clear_cc(struct rt5025_battery_info *bi, operation_mode mode)
@@ -365,35 +433,41 @@ static void rt5025_get_chg_cc(struct rt5025_battery_info *bi)
 {
   u8 data[4];
   u32 qh_old,ql_old,qh_new,ql_new;
-  u32 cc_masec,offset;
+  u32 cc_masec,offset=0;
   
   if (rt5025_read_reg(bi->client, RT5025_REG_QCHGH_MSB, data, 4) < 0){
     pr_err("%s: Failed to read QCHG\n", __func__);
   }
   qh_old = (data[0]<<8) + data[1];
   ql_old = (data[2]<<8) + data[3];
+  RTINFO("qh_old=%d, ql_old=%d\n", qh_old, ql_old);
   
   if (rt5025_read_reg(bi->client, RT5025_REG_QCHGH_MSB, data, 4) < 0){
     pr_err("%s: Failed to read QCHG\n", __func__);
   }
   qh_new = (data[0]<<8) + data[1];
   ql_new = (data[2]<<8) + data[3];
+  RTINFO("qh_new=%d, ql_new=%d\n", qh_new, ql_new);
 
 #if RT5025_B
   if (qh_new > qh_old){
-     cc_masec = (((qh_new<<16) + ql_new) * 50134) / 10;
+     //cc_masec = (((qh_new<<16) + ql_new) * 50134) / 10;
+     cc_masec = qh_new*328558+(qh_new*1824+ql_new*50134)/10000;
   }else if (qh_new == qh_old){
     if (ql_new >= ql_old){
-      cc_masec = (((qh_new<<16) + ql_new) * 50134) / 10;
+     //cc_masec = (((qh_new<<16) + ql_new) * 50134) / 10;
+     cc_masec = qh_new*328558+(qh_new*1824+ql_new*50134)/10000;
     }else {  
-      cc_masec = (((qh_old<<16) + ql_old) * 50134) / 10;
+      //cc_masec = (((qh_old<<16) + ql_old) * 50134) / 10;
+     cc_masec = qh_old*328558+(qh_old*1824+ql_old*50134)/10000;
 		}
   }	
   
+  if (!bi->init_once)
 	offset = bi->curr_offset * bi->time_interval;
 		   	  
   if (cc_masec > offset){
-		cc_masec = (cc_masec - offset) / 1000;
+		cc_masec = cc_masec - (offset / 1000);
 	}
 #else   	
   if (qh_new > qh_old){
@@ -421,7 +495,8 @@ static void rt5025_get_chg_cc(struct rt5025_battery_info *bi)
 	RTINFO("chg_cc_mAsec: %d\n", cc_masec);
 #endif
 
-	bi->chg_cc = cc_masec;
+	//if (!bi->init_once)
+		bi->chg_cc = cc_masec;
 	//bi->chg_cc = (cc_masec + bi->chg_cc_unuse) / 3600;
   //bi->chg_cc_unuse = (cc_masec + bi->chg_cc_unuse) % 3600;
   rt5025_clear_cc(bi, CHG);
@@ -447,19 +522,23 @@ static void rt5025_get_dchg_cc(struct rt5025_battery_info *bi)
   
 #if RT5025_B
   if (qh_new > qh_old){
-     cc_masec = (((qh_new<<16) + ql_new) * 50134) / 10;
+     //cc_masec = (((qh_new<<16) + ql_new) * 50134) / 10;
+     cc_masec = qh_new*328558+(qh_new*1824+ql_new*50134)/10000;
   }else if (qh_new == qh_old){
     if (ql_new >= ql_old){
-      cc_masec = (((qh_new<<16) + ql_new) * 50134) / 10;
+     //cc_masec = (((qh_new<<16) + ql_new) * 50134) / 10;
+     cc_masec = qh_new*328558+(qh_new*1824+ql_new*50134)/10000;
     }else {  
-      cc_masec = (((qh_old<<16) + ql_old) * 50134) / 10;
+     //cc_masec = (((qh_old<<16) + ql_old) * 50134) / 10;
+     cc_masec = qh_old*328558+(qh_old*1824+ql_old*50134)/10000;
 		}
   }	
   
+  if (!bi->init_once)
 	offset = bi->curr_offset * bi->time_interval;
 		   	  
   if (cc_masec != 0){
-		cc_masec = (cc_masec + offset) / 1000;
+		cc_masec = cc_masec + (offset / 1000);
 	}
 #else  
   if (qh_new > qh_old){
@@ -487,6 +566,11 @@ static void rt5025_get_dchg_cc(struct rt5025_battery_info *bi)
 	RTINFO("dchg_cc_mAsec: %d\n", cc_masec);
 #endif
 	bi->dchg_cc = cc_masec;
+	if (bi->last_tp_flag)
+		bi->cal_fcc += cc_masec;
+	else
+		bi->cal_fcc = 0;
+	RTINFO("bi->cal_fcc=%d, bi->last_tp_flag=%d\n", bi->cal_fcc, bi->last_tp_flag);
 	//bi->dchg_cc = (cc_masec + bi->dchg_cc_unuse) / 3600;
   //bi->dchg_cc_unuse = (cc_masec + bi->dchg_cc_unuse) % 3600;
 	rt5025_clear_cc(bi, DCHG);
@@ -649,7 +733,7 @@ static void rt5025_alert_init(struct rt5025_battery_info *bi)
 	/* Set RT5025 gauge alert configuration */
 	rt5025_alert_threshold_init(bi->client);
 	/* Enable gauge alert function */
- 	rt5025_alert_setting(bi, MINVOLT2,VOLTAGE_ALERT);	
+ 	//rt5025_alert_setting(bi, MINVOLT2,VOLTAGE_ALERT);	
 }
 
 void rt5025_gauge_irq_handler(struct rt5025_battery_info *bi, u8 irq_flag)
@@ -684,7 +768,8 @@ void rt5025_gauge_irq_handler(struct rt5025_battery_info *bi, u8 irq_flag)
 		wake_lock_timeout(&bi->low_battery_wake_lock, msecs_to_jiffies(LOW_BAT_WAKE_LOK_TIME*MSEC_PER_SEC));
 	}
 	
-	wake_lock(&bi->monitor_wake_lock);
+	//wake_lock(&bi->monitor_wake_lock);
+	wake_lock_timeout(&bi->status_wake_lock, 1.5*HZ);
 	schedule_delayed_work(&bi->monitor_work, 0);
 }
 EXPORT_SYMBOL(rt5025_gauge_irq_handler);
@@ -732,6 +817,8 @@ static void rt5025_init_capacity(struct rt5025_battery_info *bi)
   bi->soc = bi->rm /36/bi->fcc_aging;
 	bi->init_cap = false;
 
+  rt5025_battery_parameter_backup(bi);
+
   //pr_err("[rt5025] i=%d, delta_x=%d, delta_y=%d, slope=%d, const_term=%d\n", i, delta_x, delta_y, slope, const_term);
 	RTINFO("voltage=%d, permille=%d, soc=%d, rm=%d\n", bi->vcell, bi->permille, bi->soc, bi->rm);
   return;		
@@ -739,7 +826,7 @@ static void rt5025_init_capacity(struct rt5025_battery_info *bi)
 
 static void rt5025_smooth_soc(struct rt5025_battery_info *bi)
 {
-	if ((bi->internal_status == POWER_SUPPLY_STATUS_CHARGING) &&
+	if ((bi->internal_status == POWER_SUPPLY_STATUS_CHARGING || bi->tp_flag == 1) &&
 	    (bi->soc < 100))
 	{
 		bi->soc++;
@@ -781,8 +868,11 @@ static void rt5025_soc_irreversible(struct rt5025_battery_info *bi)
 	else
 		bi->init_once = false;
 
+	if (bi->pre_soc != bi->soc)
+		rt5025_battery_parameter_backup(bi);
+
 	bi->pre_soc = bi->soc;
-//	RTINFO("pre_soc=%d, soc=%d, internal status=%d\n", bi->pre_soc,bi->soc,bi->internal_status);
+	RTINFO("pre_soc=%d, soc=%d, internal status=%d\n", bi->pre_soc,bi->soc,bi->internal_status);
 }
 
 static void rt5025_soc_lock(struct rt5025_battery_info *bi)
@@ -801,9 +891,14 @@ static void rt5025_soc_lock(struct rt5025_battery_info *bi)
   }
   else if ((bi->soc < 99) && (bi->tp_flag))
   {
-		bi->update_time = SMOOTH_POLL;
-		bi->smooth_flag = true;
-		rt5025_smooth_soc(bi);
+		if (!bi->last_suspend)
+		{
+			bi->update_time = SMOOTH_POLL;
+			bi->smooth_flag = true;
+			rt5025_smooth_soc(bi);
+		}
+		else
+			bi->last_suspend=false;
   }
   else
   {
@@ -824,9 +919,14 @@ static void rt5025_soc_lock(struct rt5025_battery_info *bi)
 	}else if ((bi->soc > 1) &&
             (bi->internal_status == POWER_SUPPLY_STATUS_DISCHARGING) &&
             (bi->edv_flag)){
-		bi->update_time = SMOOTH_POLL;
-		bi->smooth_flag = true;
-		rt5025_smooth_soc(bi);
+		if (!bi->last_suspend)
+		{
+			bi->update_time = SMOOTH_POLL;
+			bi->smooth_flag = true;
+			rt5025_smooth_soc(bi);
+		}
+		else
+			bi->last_suspend=false;
 	}else{
 		bi->edv_flag = false;
 	}
@@ -892,18 +992,26 @@ static void rt5025_soc_relearn_check(struct rt5025_battery_info *bi)
 		rt5025_convert_masec_to_permille(bi);
 		bi->update_time = NORMAL_POLL;
 	}
+
+	if (bi->vcell <= bi->empty_edv)
+	{
+		if (bi->edv_cnt < 2)
+			bi->edv_cnt++;
+	}
+	else
+		bi->edv_cnt=0;
 	
-	if(rt5025_battery_param2[4].x < bi->vcell && bi->vcell <= rt5025_battery_param2[4].x+300)
+	if(bi->empty_edv < bi->vcell && bi->vcell <= bi->empty_edv+300)
 	{
 		bi->update_time = EDV_POLL;
 		bi->edv_detection = true;
 	}
-	else if((bi->vcell >= rt5025_battery_param2[4].x + 300 +EDV_HYS) && (bi->edv_detection == true))
+	else if((bi->vcell >= bi->empty_edv + 300 +EDV_HYS) && (bi->edv_detection == true))
 	{
 		 bi->update_time = NORMAL_POLL;
 		 bi->edv_detection = false;		 
 	}
-	else if((bi->vcell <= rt5025_battery_param2[4].x) && (bi->min_volt2_alert == true))
+	else if((bi->vcell <= bi->empty_edv && bi->edv_cnt == 2)) //&& (bi->min_volt2_alert == true))
 	{
 		bi->edv_flag = true;
 		bi->rm = 0;
@@ -911,7 +1019,7 @@ static void rt5025_soc_relearn_check(struct rt5025_battery_info *bi)
 		bi->edv_detection = false;
 		bi->update_time = NORMAL_POLL;
 	}
-	else if((bi->vcell > rt5025_battery_param2[4].x + EDV_HYS) && (bi->min_volt2_alert == true))
+	else if((bi->vcell > bi->empty_edv + EDV_HYS)) //&& (bi->min_volt2_alert == true))
 	{
 		bi->min_volt2_alert = false;
 		bi->edv_flag = false;
@@ -954,7 +1062,7 @@ static void rt5025_soc_relearn_check(struct rt5025_battery_info *bi)
   }*/
   if (bi->internal_status == POWER_SUPPLY_STATUS_CHARGING) 
 	  bi->edv_flag = false;
-  else if (bi->status != POWER_SUPPLY_STATUS_FULL)
+  if (bi->status != POWER_SUPPLY_STATUS_FULL)
     bi->tp_flag = false;
 
 #if RT5025_CSV
@@ -968,6 +1076,7 @@ static void rt5025_soc_relearn_check(struct rt5025_battery_info *bi)
   return;
 }
 
+#if 0
 static void rt5025_channel_cc(struct rt5025_battery_info *bi, bool enable)
 {
   u8 data[1];
@@ -986,6 +1095,7 @@ static void rt5025_channel_cc(struct rt5025_battery_info *bi, bool enable)
     printk(KERN_INFO "%s: failed to write channel\n", __func__);
   }
 }
+#endif
 
 #if 0
 static void rt5025_pretrim(struct rt5025_battery_info *bi)
@@ -1090,6 +1200,13 @@ static int rt5025_battery_parameter_backup(struct rt5025_battery_info *bi)
 	//cycle_count
 	data[0] = (bi->cycle_cnt)&0xff;
 	rt5025_write_reg(bi->client, 0x2B, data, 1);
+	//soc
+	data[0] = (bi->soc)&0xff;
+	rt5025_write_reg(bi->client, 0x2C, data, 1);
+	//gauge_timer
+	data[0] = (bi->pre_gauge_timer>>8)&0xff;
+	data[1] = bi->pre_gauge_timer&0xff;
+	rt5025_write_reg(bi->client, 0x2D, data, 2);
 	return 0;
 }
 
@@ -1102,14 +1219,20 @@ static int rt5025_battery_parameter_restore(struct rt5025_battery_info *bi)
 	rt5025_read_reg(bi->client, 0x21, data, 2);
 	bi->fcc = bi->fcc_aging = data[0]<<8 | data[1];
 	//rm
-	rt5025_read_reg(bi->client, 0x23, data, 4);
-	bi->rm = data[0]<<24 | data[1]<<16 | data[2]<<8 | data[3];
+	//rt5025_read_reg(bi->client, 0x23, data, 4);
+	//bi->rm = data[0]<<24 | data[1]<<16 | data[2]<<8 | data[3];
 	//acc_dchg_cap
 	rt5025_read_reg(bi->client, 0x27, data, 4);
 	bi->acc_dchg_cap = data[0]<<24 | data[1]<<16 | data[2]<<8 | data[3];
 	//cycle_count
 	rt5025_read_reg(bi->client, 0x2B, data, 1);
 	bi->cycle_cnt = data[0];
+	//soc
+	rt5025_read_reg(bi->client, 0x2C, data, 1);
+	bi->soc = bi->pre_soc = data[0];
+	//pre_gauge_timer
+	rt5025_read_reg(bi->client, 0x2D, data, 2);
+	bi->pre_gauge_timer = bi->gauge_timer = (data[0]<<8) + data[1];
 	
 	return 0;
 }
@@ -1140,13 +1263,14 @@ static int rt5025_battery_parameter_initcheck(struct rt5025_battery_info *bi)
 static void rt5025_register_init(struct rt5025_battery_info *bi)
 {  
 	u8 data[1];
-	
+
 	/* enable the channel of current,qc,ain,vbat and vadc */
 	if (rt5025_read_reg(bi->client, RT5025_REG_CHANNEL_LSB, data, 1) < 0){
 		pr_err("%s: failed to read channel\n", __func__);
 	}
+	RTINFO("initial change enable=%02x\n", data[0]);
 	data[0] = data[0] | CHANNEL_L_BIT_CADC_EN | CHANNEL_L_BIT_AINCH | \
-		CHANNEL_L_BIT_VBATSCH | CHANNEL_L_BIT_VADC_EN;
+		CHANNEL_L_BIT_VBATSCH | CHANNEL_L_BIT_VADC_EN | CHANNEL_L_BIT_INTEMPCH;
 	if (rt5025_write_reg(bi->client, RT5025_REG_CHANNEL_LSB, data, 1) < 0){
 		pr_err("%s: failed to write channel\n", __func__);
 	}
@@ -1179,15 +1303,18 @@ static void rt5025_register_init(struct rt5025_battery_info *bi)
   
 	bi->acc_dchg_cap = 0;
 	bi->cycle_cnt = 0;
+	bi->empty_edv = rt5025_battery_param2[4].x;
+	bi->edv_region = 0;
 
 	// if has initial data, rewrite to the stored data
 	if (rt5025_battery_parameter_initcheck(bi))
 	{
 		bi->init_cap = false;
 		rt5025_battery_parameter_restore(bi);
-		bi->soc = bi->rm/36/bi->fcc_aging;
+		//bi->soc = bi->rm/36/bi->fcc_aging;
+		bi->rm = bi->soc*bi->fcc_aging*36;
 	}
-  
+
 	bi->update_time = NORMAL_POLL;
 	bi->device_suspend = false;
 	RTINFO("register initialized\n");
@@ -1401,7 +1528,8 @@ static void rt5025_update(struct rt5025_battery_info *bi)
   rt5025_get_vcell(bi);
   /* Update current */
   rt5025_get_current(bi);
-	
+  /* Update internal temperature */
+  rt5025_get_internal_temp(bi);	
   /* Update external temperature */
   rt5025_get_external_temp(bi);
   /* Read timer */
@@ -1457,7 +1585,7 @@ static void rt5025_update(struct rt5025_battery_info *bi)
 	
 #if VOLTAGE_ALERT
 	if ((bi->min_volt2_irq == false) &&
-		  	  	(bi->vcell > (rt5025_battery_param2[4].x + EDV_HYS))){	
+		  	  	(bi->vcell > (bi->empty_edv + EDV_HYS))){	
 		rt5025_alert_setting(bi,MINVOLT2,true);						
 	}
 #endif
@@ -1466,8 +1594,8 @@ static void rt5025_update(struct rt5025_battery_info *bi)
 		bi->dchg_cc,bi->tp_cnt,bi->tp_flag,bi->edv_detection,bi->edv_cnt,bi->edv_flag,bi->soc,
 		bi->permille,bi->rm,bi->fcc,bi->smooth_flag,bi->acc_dchg_cap,bi->cycle_cnt,bi->update_time);
 #else
-  pr_info("[RT5025] update_time=%d\n",bi->update_time);
-  pr_info("\n");
+  RTINFO("[RT5025] update_time=%d\n",bi->update_time);
+  RTINFO("\n");
 #endif
 }
 
@@ -1476,8 +1604,10 @@ static void rt5025_update_work(struct work_struct *work)
 	struct delayed_work *delayed_work = (struct delayed_work *)container_of(work, struct delayed_work, work);
 	struct rt5025_battery_info *bi = (struct rt5025_battery_info *)container_of(delayed_work, struct rt5025_battery_info, monitor_work);
 	unsigned long flags;
-	
-  rt5025_update(bi);
+
+	wake_lock(&bi->monitor_wake_lock);	
+	rt5025_update(bi);
+	power_supply_changed(&bi->battery);
   
 	/* prevent suspend before starting the alarm */
 	local_irq_save(flags);
@@ -1486,6 +1616,7 @@ static void rt5025_update_work(struct work_struct *work)
 	local_irq_restore(flags);
 
 	wake_unlock(&bi->monitor_wake_lock);
+	schedule_delayed_work(&bi->monitor_work, bi->update_time*HZ);
 }
 
 static enum power_supply_property rt5025_battery_props[] = {
@@ -1504,20 +1635,46 @@ static enum power_supply_property rt5025_battery_props[] = {
   #endif
 };
 
+static int rt5025_battery_sleepvth_setting(struct rt5025_battery_info* bi)
+{
+	u32 temp;
+	u8 vmax_th, vmin_th;
+	u8 vbat[2];
+	RTINFO("\n");
+	rt5025_read_reg(bi->client, RT5025_REG_VCELL_MSB, vbat, 2);
+	temp = ((vbat[0]<<8) + vbat[1])*61;
+	vmax_th = (temp+5000)/1953;
+	vmin_th = (temp-5000)/1953;
+
+	rt5025_write_reg(bi->client, RT5025_REG_VALRT_MAXTH, &vmax_th, 1);
+	rt5025_write_reg(bi->client, RT5025_REG_VALRT_MIN1TH, &vmin_th, 1);
+
+	RTINFO("vmax_th=0x%02x, vmin_th=0x%02x\n", vmax_th, vmin_th);
+	return 0;
+}
+
 static int rt5025_battery_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct rt5025_battery_info *bi = platform_get_drvdata(pdev);
+	RTINFO("\n");
+	//rt5025_get_timer(bi);
 	//bi->last_event = ktime_get();
 	bi->last_event = current_kernel_time();
 
 	//cy add for battery parameter backup
-	rt5025_battery_parameter_backup(bi);
+	//rt5025_battery_parameter_backup(bi);
 
-	rt5025_channel_cc(bi, false);
-	cancel_delayed_work(&bi->monitor_work);
-	rt5025_get_timer(bi);
+	//rt5025_channel_cc(bi, false);
+	cancel_delayed_work_sync(&bi->monitor_work);
+	//rt5025_update(bi);
 	bi->device_suspend = true;
+	/* prevent suspend before starting the alarm */
 	//bi->update_time = SUSPEND_POLL;
+	rt5025_alert_setting(bi,MAXVOLT, false);
+	rt5025_alert_setting(bi,MINVOLT1,false);
+	rt5025_battery_sleepvth_setting(bi);
+	rt5025_alert_setting(bi,MAXVOLT, true);
+	rt5025_alert_setting(bi,MINVOLT1,true);
 	RTINFO("RM=%d\n",bi->rm);
 	return 0;
 }
@@ -1539,11 +1696,11 @@ static int rt5025_battery_resume(struct platform_device *pdev)
 	//bi->rm = bi->rm - (time_interval * SLEEP_CURRENT);
 	//RTINFO("Sleep time=%d, RM=%d",(int)time_interval,bi->rm);  
 
-	rt5025_channel_cc(bi, true);
-	wake_lock(&bi->monitor_wake_lock);
-	schedule_delayed_work(&bi->monitor_work, 0);
+	//rt5025_channel_cc(bi, true);
+	bi->last_suspend = true;
 	bi->device_suspend = false;
-	//RTINFO("\n");
+	schedule_delayed_work(&bi->monitor_work, 0);
+	RTINFO("\n");
 	return 0;
 }
 
@@ -1580,6 +1737,7 @@ static int rt5025_battery_probe(struct platform_device *pdev)
 	
 	wake_lock_init(&bi->monitor_wake_lock, WAKE_LOCK_SUSPEND, "rt-battery-monitor");
 	wake_lock_init(&bi->low_battery_wake_lock, WAKE_LOCK_SUSPEND, "low_battery_wake_lock");
+	wake_lock_init(&bi->status_wake_lock, WAKE_LOCK_SUSPEND, "battery-status-changed");
 #if RT5025_TEST_WAKE_LOCK
 	wake_lock_init(&bi->test_wake_lock, WAKE_LOCK_SUSPEND, "rt-test");
 #endif
@@ -1617,7 +1775,7 @@ static int rt5025_battery_probe(struct platform_device *pdev)
 	}
   
 
-	wake_lock(&bi->monitor_wake_lock);
+	//wake_lock(&bi->monitor_wake_lock);
 #if RT5025_TEST_WAKE_LOCK
 	wake_lock(&bi->test_wake_lock);
 #endif
@@ -1638,8 +1796,12 @@ err_wake_lock:
 static void rt5025_battery_shutdown(struct platform_device *pdev)
 {
 	struct rt5025_battery_info *bi = platform_get_drvdata(pdev);
-
 	RTINFO("\n");
+	if (bi->soc == 0 && bi->cal_fcc != 0 )
+	{
+		bi->fcc_aging = bi->cal_fcc/3600 - (bi->fcc -bi->fcc_aging);
+		RTINFO("bi->cal_fcc=%d\n", bi->cal_fcc);
+	}
 	rt5025_battery_parameter_backup(bi);
 }
 
@@ -1673,3 +1835,4 @@ MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Nick Hung <nick_hung@richtek.com");
 MODULE_DESCRIPTION("battery gauge driver for RT5025");
 MODULE_ALIAS("platform:" RT5025_DEVICE_NAME "-battery");
+MODULE_VERSION(RT5025_DRV_VER);

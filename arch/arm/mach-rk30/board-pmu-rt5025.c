@@ -268,8 +268,8 @@ static struct rt5025_power_data rt5025_power_data = {
 		.bitfield = {
 			.CHGBC_EN = 1,
 			.TE = 1,
-			.CCCHG_TIMEOUT = RT5025_CCCHG_TO_6H,
-			.PRECHG_TIMEOUT = RT5025_PRECHG_TO_30M,
+			.CCCHG_TIMEOUT = RT5025_CCCHG_TO_10H,
+			.PRECHG_TIMEOUT = RT5025_PRECHG_TO_60M,
 		},
 	},
 	.CHGControl3 = {
@@ -280,8 +280,8 @@ static struct rt5025_power_data rt5025_power_data = {
 	.CHGControl4 = {
 		.bitfield = {
 			.AICR_CON = 1,
-			.AICR = RT5025_AICR_500MA,
-			.ICC = RT5025_ICC_0P5A,
+			.AICR = RT5025_AICR_1A,
+			.ICC = RT5025_ICC_1A,
 		},
 	},
 	.CHGControl5 = {
@@ -291,7 +291,7 @@ static struct rt5025_power_data rt5025_power_data = {
 	},
 	.CHGControl6 = {
 		.bitfield = {
-			.IPREC = RT5025_IPREC_10P,
+			.IPREC = RT5025_IPREC_20P,
 			.IEOC = RT5025_IEOC_10P,
 			.VPREC = RT5025_VPREC_3V,
 		},
@@ -321,7 +321,7 @@ static struct rt5025_misc_data rt5025_misc_data = {
 	},
 	.VSYSCtrl = {
 		.bitfield = {
-			.VOFF = RT5025_VOFF_3P4V,
+			.VOFF = RT5025_VOFF_3P0V,
 		},
 	},
 	.PwrOnCfg = {
@@ -346,7 +346,7 @@ static struct rt5025_misc_data rt5025_misc_data = {
 			.DCDC3LV_ENSHDN = 0,
 			.DCDC2LV_ENSHDN = 0,
 			.DCDC1LV_ENSHDN = 0,
-			.SYSLV_ENSHDN = 0,
+			.SYSLV_ENSHDN = 1,
 		},
 	},
 };
@@ -354,7 +354,7 @@ static struct rt5025_misc_data rt5025_misc_data = {
 static struct rt5025_irq_data rt5025_irq_data = {
 	.irq_enable1 = {
 		.bitfield = {
-			.BATABS = 1,
+			.BATABS = 0,
 			.INUSB_PLUGIN = 1,
 			.INUSBOVP = 1,
 			.INAC_PLUGIN = 1,
@@ -366,17 +366,17 @@ static struct rt5025_irq_data rt5025_irq_data = {
 			.CHTERMI = 1,
 			.CHBATOVI = 1,
 			.CHGOODI_INUSB = 0,
-			.CHBADI_INUSB = 1,
+			.CHBADI_INUSB = 0,
 			.CHSLPI_INUSB = 1,
 			.CHGOODI_INAC = 0,
-			.CHBADI_INAC = 1,
+			.CHBADI_INAC = 0,
 			.CHSLPI_INAC = 1,
 		},
 	},
 	.irq_enable3 = {
 		.bitfield = {
-			.TIMEOUT_CC = 1,
-			.TIMEOUT_PC = 1,
+			.TIMEOUT_CC = 0,
+			.TIMEOUT_PC = 0,
 			.CHVSREGI = 0,
 			.CHTREGI = 0,
 			.CHRCHGI = 1,
@@ -384,13 +384,13 @@ static struct rt5025_irq_data rt5025_irq_data = {
 	},
 	.irq_enable4 = {
 		.bitfield = {
-			.SYSLV = 1,
-			.DCDC4LVHV = 1,
+			.SYSLV = 0,
+			.DCDC4LVHV = 0,
 			.PWRONLP = 0,
 			.PWRONSP = 0,
-			.DCDC3LV = 1,
-			.DCDC2LV = 1,
-			.DCDC1LV = 1,
+			.DCDC3LV = 0,
+			.DCDC2LV = 0,
+			.DCDC1LV = 0,
 			.OT = 1,
 		},
 	},
@@ -409,10 +409,11 @@ static struct rt5025_irq_data rt5025_irq_data = {
 
 //temp unit: 'c*10 degree
 static int jeita_temp[4] = { 0, 150, 500, 600};
-static u8 jeita_scalar[4] = { 0x2d,  0x25, 0x12, 0x0e};
+			     //-5',  5',   15', 20',   45'   55'   55',  65'
+static u8 jeita_scalar[8] = { 0x30, 0x2B, 0x25, 0x20, 0x15, 0x10, 0x10, 0x0D };
 //cc unit: xxx mA
 static int jeita_temp_cc[][5] = {{ 500,  500,  500,  500, 500},    // not plugin
-			   	 {   0 , 250,  500,  250,   0},    // normal USB
+			   	 {   0 , 500,  500,  500,   0},    // normal USB
 			   	 {   0,  500, 1000,  500,   0},    // USB charger
 				 {   0,  500, 1000,  500,   0}};   // AC Adapter
 //cv unit: xxx mV
@@ -430,7 +431,7 @@ static struct rt5025_jeita_data rt5025_jeita_data = {
 
 static void rt5025_charger_event_callback(uint32_t detected)
 {
-	RTINFO("event detected = 0x%08x\n", detected);
+	RTINFO("charger event detected = 0x%08x\n", detected);
 	if (detected & CHG_EVENT_CHTERMI)
 	{
 		pr_info("charger termination OK\n");
@@ -439,11 +440,7 @@ static void rt5025_charger_event_callback(uint32_t detected)
 
 static void rt5025_power_event_callback(uint32_t detected)
 {
-	RTINFO("event detected = 0x%08x\n", detected);
-	if (detected & PWR_EVENT_SYSLV)
-	{
-		pr_info("sys voltage low\n");
-	}
+	RTINFO("power event detected = 0x%08x\n", detected);
 }
 
 static struct rt5025_event_callback rt5025_event_callback = {

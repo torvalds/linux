@@ -17,6 +17,7 @@
 #include <linux/android_alarm.h>
 
 #define RT5025_DEVICE_NAME "RT5025"
+#define RT5025_DRV_VER	   "1.0.2_R"
 
 enum {
 	RT5025_RSTDELAY1_100MS,
@@ -410,20 +411,6 @@ struct rt5025_event_callback {
 	#endif
 };
 
-struct rt5025_platform_data {
-	struct regulator_init_data* regulator[RT5025_MAX_REGULATOR];
-	struct rt5025_power_data* power_data;
-	struct rt5025_gpio_data* gpio_data;
-	struct rt5025_misc_data* misc_data;
-	struct rt5025_irq_data* irq_data;
-	struct rt5025_jeita_data* jeita_data;
-	struct rt5025_event_callback *cb;
-	int (*pre_init)(struct rt5025_chip *rt5025_chip);
-	/** Called after subdevices are set up */
-	int (*post_init)(void);
-	int intr_pin;
-};
-
 struct rt5025_power_info {
 	struct i2c_client	*i2c;
 	struct device		*dev;
@@ -443,13 +430,17 @@ struct rt5025_power_info {
 struct rt5025_swjeita_info {
 	struct i2c_client *i2c;
 	struct rt5025_chip *chip;
+	struct delayed_work thermal_reg_work;
 	int *temp;
 	u8 *temp_scalar;
 	int (*temp_cc)[5];
 	int (*temp_cv)[5];
+	int dec_current;
 	int cur_section;
+	int cur_therm_region;
 	int cur_cable;
 	int cur_temp;
+	int cur_inttemp;
 	int init_once;
 	int suspend;
 };
@@ -464,6 +455,7 @@ struct rt5025_battery_info {
 	struct delayed_work monitor_work;
 	struct wake_lock monitor_wake_lock;
 	struct wake_lock low_battery_wake_lock;
+	struct wake_lock status_wake_lock;
 //#if RT5025_TEST_WAKE_LOCK
 	struct wake_lock test_wake_lock;
 //#endif
@@ -510,6 +502,8 @@ struct rt5025_battery_info {
   u16 curr_offset;
   /* AIN voltage */
   u16 ain_volt;
+  /* battery internal temperature */
+  s16 int_temp;
   /* battery external temperature */
   s16 ext_temp;
   /* charge coulomb counter */
@@ -583,9 +577,14 @@ struct rt5025_battery_info {
   
   u16 gauge_timer;
   s16 curr_raw;
+  u32 empty_edv;
+  u8  edv_region;
 
   bool init_once;
   bool device_suspend;
+  bool last_suspend;
+  bool last_tp_flag;
+  u32 cal_fcc;
   u8 test_temp;
 };
 
@@ -600,6 +599,20 @@ struct rt5025_chip {
 	int irq;
 	struct delayed_work delayed_work;
 	struct mutex io_lock;
+};
+
+struct rt5025_platform_data {
+	struct regulator_init_data* regulator[RT5025_MAX_REGULATOR];
+	struct rt5025_power_data* power_data;
+	struct rt5025_gpio_data* gpio_data;
+	struct rt5025_misc_data* misc_data;
+	struct rt5025_irq_data* irq_data;
+	struct rt5025_jeita_data* jeita_data;
+	struct rt5025_event_callback *cb;
+	int (*pre_init)(struct rt5025_chip *rt5025_chip);
+	/** Called after subdevices are set up */
+	int (*post_init)(void);
+	int intr_pin;
 };
 
 #ifdef CONFIG_MFD_RT5025_MISC
