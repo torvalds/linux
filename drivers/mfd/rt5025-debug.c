@@ -32,6 +32,7 @@ static struct dentry *debugfs_rt_dent;
 static struct dentry *debugfs_peek;
 static struct dentry *debugfs_poke;
 static struct dentry *debugfs_regs;
+static struct dentry *debugfs_reset_b;
 
 static unsigned char read_data[10];
 
@@ -140,6 +141,14 @@ static ssize_t reg_debug_write(struct file *filp,
 		}
 		else
 			rc = -EINVAL;
+	} else if (!strcmp(access_str, "reset_b")) {
+		/* read */
+		rc = get_parameters(lbuf, param, 1);
+		if (param[0] == 1 && rc == 0)
+		{
+			memset(lbuf, 0, 15);
+			rt5025_reg_block_write(client, 0x21, 15, lbuf);
+		}
 	}
 
 	if (rc == 0)
@@ -180,6 +189,10 @@ static int __devinit rt5025_debug_probe(struct platform_device *pdev)
 		debugfs_regs = debugfs_create_file("regs",
 		S_IFREG | S_IRUGO, debugfs_rt_dent,
 		(void *) "regs", &reg_debug_ops);
+
+		debugfs_reset_b = debugfs_create_file("reset_b",
+		S_IFREG | S_IRUGO, debugfs_rt_dent,
+		(void *) "reset_b", &reg_debug_ops);
 	}
 
 	platform_set_drvdata(pdev, di);
@@ -224,3 +237,4 @@ MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("CY Huang <cy_huang@richtek.com");
 MODULE_DESCRIPTION("Debug driver for RT5025");
 MODULE_ALIAS("platform:" RT5025_DEVICE_NAME "-debug");
+MODULE_VERSION(RT5025_DRV_VER);

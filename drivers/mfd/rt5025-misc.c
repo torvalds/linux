@@ -27,6 +27,8 @@ struct rt5025_misc_info {
 static struct i2c_client *g_shdn;
 void rt5025_power_off(void)
 {
+	rt5025_reg_write(g_shdn, RT5025_CHENH_REG, 0x00);
+	rt5025_reg_write(g_shdn, RT5025_CHENL_REG, 0x80);
 	rt5025_set_bits(g_shdn, RT5025_SHDNCTRL_REG, RT5025_SHDNCTRL_MASK);
 }
 EXPORT_SYMBOL(rt5025_power_off);
@@ -87,7 +89,7 @@ static int __init rt5025_misc_init(void)
 {
 	return platform_driver_register(&rt5025_misc_driver);
 }
-subsys_initcall_sync(rt5025_misc_init);
+module_init(rt5025_misc_init);
 
 static void __exit rt5025_misc_exit(void)
 {
@@ -99,3 +101,4 @@ MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("CY Huang <cy_huang@richtek.com");
 MODULE_DESCRIPTION("Misc driver for RT5025");
 MODULE_ALIAS("platform:" RT5025_DEVICE_NAME "-misc");
+MODULE_VERSION(RT5025_DRV_VER);

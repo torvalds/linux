@@ -239,7 +239,7 @@ static int __init rt5025_irq_init(void)
 {
 	return platform_driver_register(&rt5025_irq_driver);
 }
-subsys_initcall_sync(rt5025_irq_init);
+module_init(rt5025_irq_init);
 
 static void __exit rt5025_irq_exit(void)
 {
@@ -251,3 +251,4 @@ MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("CY Huang <cy_huang@richtek.com");
 MODULE_DESCRIPTION("IRQ driver for RT5025");
 MODULE_ALIAS("platform:" RT5025_DEVICE_NAME "-irq");
+MODULE_VERSION(RT5025_DRV_VER);

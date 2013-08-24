@@ -2114,6 +2114,12 @@ static struct pmu_info  rt5025_dcdc_info[] = {
 		.max_uv         = 3300000,
 	},
 	
+	{
+		.name          = "rt5025-dcdc4",   //vccio
+		.min_uv         = 5000000,
+		.max_uv         = 5000000,
+	},
+	
 };
 static  struct pmu_info  rt5025_ldo_info[] = {
 	{
