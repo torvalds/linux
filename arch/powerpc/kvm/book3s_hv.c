@@ -1556,7 +1556,7 @@ long kvm_vm_ioctl_allocate_rma(struct kvm *kvm, struct kvm_allocate_rma *ret)
 	if (!ri)
 		return -ENOMEM;
 
-	fd = anon_inode_getfd("kvm-rma", &kvm_rma_fops, ri, O_RDWR);
+	fd = anon_inode_getfd("kvm-rma", &kvm_rma_fops, ri, O_RDWR | O_CLOEXEC);
 	if (fd < 0)
 		kvm_release_rma(ri);
 
