@@ -1042,6 +1042,7 @@ static int rk3188_lcdc_early_suspend(struct rk_lcdc_device_driver *dev_drv)
 	if(likely(lcdc_dev->clk_on))
 	{
 		lcdc_msk_reg(lcdc_dev,INT_STATUS,m_FS_INT_CLEAR,v_FS_INT_CLEAR(1));
+		lcdc_msk_reg(lcdc_dev,DSP_CTRL1,m_DSP_OUT_ZERO ,v_DSP_OUT_ZERO(1));
 		lcdc_msk_reg(lcdc_dev,SYS_CTRL,m_LCDC_STANDBY,v_LCDC_STANDBY(1));
 		lcdc_cfg_done(lcdc_dev);
 		spin_unlock(&lcdc_dev->reg_lock);
@@ -1090,6 +1091,7 @@ static int rk3188_lcdc_early_resume(struct rk_lcdc_device_driver *dev_drv)
 	
 	if(lcdc_dev->atv_layer_cnt)
 	{
+		lcdc_msk_reg(lcdc_dev,DSP_CTRL1,m_DSP_OUT_ZERO ,v_DSP_OUT_ZERO(0));
 		lcdc_msk_reg(lcdc_dev, SYS_CTRL,m_LCDC_STANDBY,v_LCDC_STANDBY(0));
 		lcdc_cfg_done(lcdc_dev);
 	}
