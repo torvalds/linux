@@ -771,7 +771,7 @@ typedef struct BACKUP_REG_Tag
 __sramdata BACKUP_REG_T ddr_reg;
 
 
-uint32_t __sramdata ddr3_cl_cwl[22][4]={
+uint32_t  ddr3_cl_cwl[22][4]={
 /*   0~330           330~400         400~533        speed
 * tCK  >3             2.5~3          1.875~2.5     1.875~1.5
 *    cl<<16, cwl    cl<<16, cwl     cl<<16, cwl              */
@@ -805,7 +805,7 @@ uint32_t __sramdata ddr3_cl_cwl[22][4]={
     {((6<<16)|5),   ((6<<16)|5),    ((8<<16)|6),   ((10<<16)|7)} //DDR3_DEFAULT
 
 };
-uint32_t __sramdata ddr3_tRC_tFAW[22]={
+uint32_t  ddr3_tRC_tFAW[22]={
 /**    tRC    tFAW   */
     ((50<<16)|50), //DDR3_800D
     ((53<<16)|50), //DDR3_800E
