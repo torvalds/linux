@@ -15,7 +15,7 @@
 #define I2C_SPEED 100
 #define I2C_SADDR               (0x2D)        /* slave address ,wm8310 addr is 0x34*/
 #define SRAM_I2C_CH 1	//CH==0, i2c0,CH==1, i2c1,CH==2, i2c2,CH==3, i2c3
-#if defined (CONFIG_MACH_RK2928_SDK)
+#if defined (CONFIG_MACH_RK2928_SDK)|| ( CONFIG_ARCH_RK3026_TB)||(CONFIG_ARCH_RK3028A_TB)
 #define SRAM_I2C_ADDRBASE (RK2928_RKI2C1_BASE )//RK29_I2C0_BASE\RK29_I2C2_BASE\RK29_I2C3_BASE
 #else
 #define SRAM_I2C_ADDRBASE (RK2928_RKI2C0_BASE )
@@ -38,6 +38,9 @@ CH=2:(~(0x03<<24))&(~(0x03<<22))|(0x01<<24)|(0x01<<22),CH=3:(~(0x03<<26))&(~(0x0
 #define uint32 unsigned int
 uint32 __sramdata data[5];
 uint8 __sramdata arm_voltage = 0;
+#if defined ( CONFIG_ARCH_RK3026)
+uint8 __sramdata logic_voltage = 0;
+#endif
 
 #define CRU_CLKGATE0_CON   0xd0
 #define CRU_CLKGATE8_CON	0xf0
@@ -142,7 +145,7 @@ void __sramfunc sram_i2c_init()
     //enable cru_clkgate8 clock
     data[1] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_CLKID(8)));
     
-	#if defined (CONFIG_MACH_RK2928_SDK)
+	#if defined (CONFIG_MACH_RK2928_SDK) || ( CONFIG_ARCH_RK3026_TB)||(CONFIG_ARCH_RK3028A_TB)
     cru_writel(CLK_GATE_W_MSK(CLK_GATE_PCLK_I2C1)|CLK_UN_GATE(CLK_GATE_PCLK_I2C1), 
 		CLK_GATE_CLKID_CONS(CLK_GATE_PCLK_I2C1));
 	#else
@@ -312,36 +315,41 @@ uint8 __sramfunc sram_i2c_read(uint8 I2CSlaveAddr, uint8 regAddr)
 void __sramfunc rk30_suspend_voltage_set(unsigned int vol)
 {
     uint8 slaveaddr;
-    uint16 slavereg;
+    uint8 slavereg;
     uint8 data,ret = 0;
 	uint8 rtc_status_reg = 0x11;
 	sram_i2c_init();  //init i2c device
     	#if defined(CONFIG_MFD_TPS65910)	
 	if(pmic_is_tps65910())
 	{
-	slaveaddr = 0x2d;            //slave device addr
-	slavereg = 0x22;            // reg addr
-	data = 0x23;       //set arm 1.0v
+		slaveaddr = 0x2d;            //slave device addr
+		slavereg = 0x22;            // reg addr
+		data = 0x1C;       //set arm 1.0v
 
-	ret = sram_i2c_read(slaveaddr, rtc_status_reg);
-	sram_i2c_write(slaveaddr, rtc_status_reg, ret);
-	arm_voltage = sram_i2c_read(slaveaddr, slavereg);
-	//sram_printhex(ret);
-	sram_i2c_write(slaveaddr, slavereg, data);//	
+		ret = sram_i2c_read(slaveaddr, rtc_status_reg);
+		sram_i2c_write(slaveaddr, rtc_status_reg, ret);
+		arm_voltage = sram_i2c_read(slaveaddr, slavereg);
+#if defined ( CONFIG_ARCH_RK3026)
+		logic_voltage = sram_i2c_read(slaveaddr, 0x25);
+		sram_i2c_write(slaveaddr, 0x25, data);//
+#endif
+		//sram_printhex(ret);
+		sram_i2c_write(slaveaddr, slavereg, data);//	
 	}
 	#endif
 	
 	#if defined(CONFIG_REGULATOR_ACT8931)	
 	if(pmic_is_act8931())
 	{
-	slaveaddr = 0x5b;            //slave device addr
-	slavereg = 0x40;            // reg addr
-	data = 0x10;       //set arm 1.0v
+		slaveaddr = 0x5b;            //slave device addr
+		slavereg = 0x40;            // reg addr
+		data = 0x10;       //set arm 1.0v
 
-	arm_voltage = sram_i2c_read(slaveaddr, slavereg);
-	//sram_printhex(ret);
-	sram_i2c_write(slaveaddr, slavereg, data);//	
-	sram_i2c_write(slaveaddr,( slavereg+0x1), data);//	
+		arm_voltage = sram_i2c_read(slaveaddr, slavereg);
+		
+		//sram_printhex(ret);
+		sram_i2c_write(slaveaddr, slavereg, data);//	
+		sram_i2c_write(slaveaddr,( slavereg+0x1), data);//	
 	}
 	#endif
 	  sram_i2c_deinit();  //deinit i2c device
@@ -350,10 +358,14 @@ void __sramfunc rk30_suspend_voltage_set(unsigned int vol)
 
 void __sramfunc rk30_suspend_voltage_resume(unsigned int vol)
 {
-    uint8 slaveaddr;
-    uint16 slavereg;
-    uint8 data,ret = 0;
-   	
+	uint8 slaveaddr;
+	uint8 slavereg;
+	uint8 data,ret = 0;
+#if defined ( CONFIG_ARCH_RK3026)
+	uint8 data2;
+	data2 = logic_voltage;
+#endif
+
 	data = arm_voltage;
 	sram_i2c_init();  //init i2c device
 	#if defined(CONFIG_MFD_TPS65910)	
@@ -361,8 +373,12 @@ void __sramfunc rk30_suspend_voltage_resume(unsigned int vol)
 	{
 		slaveaddr = 0x2d;            //slave device addr
 		slavereg = 0x22;            // reg add
-		 sram_i2c_write(slaveaddr, slavereg, data);
-		 sram_udelay(20000);
+		sram_i2c_write(slaveaddr, slavereg, data);
+		sram_udelay(20000);
+#if defined ( CONFIG_ARCH_RK3026)
+		sram_i2c_write(slaveaddr, 0x25, data2);
+		sram_udelay(20000);
+#endif
 	}
 	#endif
 	#if defined(CONFIG_REGULATOR_ACT8931)	

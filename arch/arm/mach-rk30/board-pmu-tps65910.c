@@ -221,8 +221,11 @@ int tps65910_pre_init(struct tps65910 *tps65910){
                 printk(KERN_ERR "Unable to read TPS65910_DCDCCTRL reg\n");
                 return val;
         }
-	
+#if defined ( CONFIG_ARCH_RK3026)
+	val |= 0x2b;
+#else	
 	val |= 0x0b;
+#endif
 	err = tps65910_reg_write(tps65910, TPS65910_SLEEP_SET_LDO_OFF, val);
 	if (err) {
 		printk(KERN_ERR "Unable to read TPS65910 Reg at offset 0x%x= \

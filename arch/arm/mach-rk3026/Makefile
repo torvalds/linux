@@ -15,7 +15,7 @@ obj-$(CONFIG_HOTPLUG_CPU) += ../mach-rk30/hotplug.o
 obj-$(CONFIG_CPU_IDLE) += ../mach-rk30/cpuidle.o
 obj-$(CONFIG_CPU_FREQ) += ../mach-rk3188/cpufreq.o
 obj-$(CONFIG_DVFS) += dvfs.o
-obj-$(CONFIG_RK30_I2C_INSRAM) += ../mach-rk30/i2c_sram.o
+obj-$(CONFIG_RK30_I2C_INSRAM) += ../mach-rk2928/i2c_sram.o
 
 obj-y += board.o
 
