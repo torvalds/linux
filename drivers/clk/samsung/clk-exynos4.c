@@ -182,7 +182,7 @@ enum exynos4_clks {
 	/* mux clocks */
 	mout_fimc0 = 384, mout_fimc1, mout_fimc2, mout_fimc3, mout_cam0,
 	mout_cam1, mout_csis0, mout_csis1, mout_g3d0, mout_g3d1, mout_g3d,
-	aclk400_mcuisp,
+	aclk400_mcuisp, mout_hdmi,
 
 	/* div clocks */
 	div_isp0 = 450, div_isp1, div_mcuisp0, div_mcuisp1, div_aclk200,
@@ -366,7 +366,7 @@ static struct samsung_fixed_rate_clock exynos4210_fixed_rate_clks[] __initdata =
 static struct samsung_mux_clock exynos4_mux_clks[] __initdata = {
 	MUX_FA(mout_apll, "mout_apll", mout_apll_p, SRC_CPU, 0, 1,
 			CLK_SET_RATE_PARENT, 0, "mout_apll"),
-	MUX(none, "mout_hdmi", mout_hdmi_p, SRC_TV, 0, 1),
+	MUX(mout_hdmi, "mout_hdmi", mout_hdmi_p, SRC_TV, 0, 1),
 	MUX(none, "mout_mfc1", sclk_evpll_p, SRC_MFC, 4, 1),
 	MUX(none, "mout_mfc", mout_mfc_p, SRC_MFC, 8, 1),
 	MUX_F(mout_g3d1, "mout_g3d1", sclk_evpll_p, SRC_G3D, 4, 1,

@@ -255,6 +255,7 @@ Exynos4 SoC and this is specified where applicable.
   mout_g3d1		393
   mout_g3d		394
   aclk400_mcuisp	395	Exynos4x12
+  mout_hdmi		396
 
 		[Div Clocks]
 
