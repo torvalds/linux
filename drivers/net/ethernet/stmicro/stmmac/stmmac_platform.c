@@ -71,14 +71,18 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 		plat->force_sf_dma_mode = 1;
 	}
 
-	dma_cfg = devm_kzalloc(&pdev->dev, sizeof(*dma_cfg), GFP_KERNEL);
-	if (!dma_cfg)
-		return -ENOMEM;
-
-	plat->dma_cfg = dma_cfg;
-	of_property_read_u32(np, "snps,pbl", &dma_cfg->pbl);
-	dma_cfg->fixed_burst = of_property_read_bool(np, "snps,fixed-burst");
-	dma_cfg->mixed_burst = of_property_read_bool(np, "snps,mixed-burst");
+	if (of_find_property(np, "snps,pbl", NULL)) {
+		dma_cfg = devm_kzalloc(&pdev->dev, sizeof(*dma_cfg),
+				       GFP_KERNEL);
+		if (!dma_cfg)
+			return -ENOMEM;
+		plat->dma_cfg = dma_cfg;
+		of_property_read_u32(np, "snps,pbl", &dma_cfg->pbl);
+		dma_cfg->fixed_burst =
+			of_property_read_bool(np, "snps,fixed-burst");
+		dma_cfg->mixed_burst =
+			of_property_read_bool(np, "snps,mixed-burst");
+	}
 
 	return 0;
 }
