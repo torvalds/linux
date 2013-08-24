@@ -345,7 +345,7 @@ static const struct kset_uevent_ops device_uevent_ops = {
 	.uevent =	dev_uevent,
 };
 
-static ssize_t show_uevent(struct device *dev, struct device_attribute *attr,
+static ssize_t uevent_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
 	struct kobject *top_kobj;
@@ -388,7 +388,7 @@ out:
 	return count;
 }
 
-static ssize_t store_uevent(struct device *dev, struct device_attribute *attr,
+static ssize_t uevent_store(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
 	enum kobject_action action;
@@ -399,11 +399,9 @@ static ssize_t store_uevent(struct device *dev, struct device_attribute *attr,
 		dev_err(dev, "uevent: unknown action-string\n");
 	return count;
 }
+static DEVICE_ATTR_RW(uevent);
 
-static struct device_attribute uevent_attr =
-	__ATTR(uevent, S_IRUGO | S_IWUSR, show_uevent, store_uevent);
-
-static ssize_t show_online(struct device *dev, struct device_attribute *attr,
+static ssize_t online_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
 	bool val;
@@ -414,7 +412,7 @@ static ssize_t show_online(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%u\n", val);
 }
 
-static ssize_t store_online(struct device *dev, struct device_attribute *attr,
+static ssize_t online_store(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
 	bool val;
@@ -429,9 +427,7 @@ static ssize_t store_online(struct device *dev, struct device_attribute *attr,
 	unlock_device_hotplug();
 	return ret < 0 ? ret : count;
 }
-
-static struct device_attribute online_attr =
-	__ATTR(online, S_IRUGO | S_IWUSR, show_online, store_online);
+static DEVICE_ATTR_RW(online);
 
 static int device_add_attributes(struct device *dev,
 				 struct device_attribute *attrs)
@@ -531,7 +527,7 @@ static int device_add_attrs(struct device *dev)
 		goto err_remove_type_groups;
 
 	if (device_supports_offline(dev) && !dev->offline_disabled) {
-		error = device_create_file(dev, &online_attr);
+		error = device_create_file(dev, &dev_attr_online);
 		if (error)
 			goto err_remove_type_groups;
 	}
@@ -559,7 +555,7 @@ static void device_remove_attrs(struct device *dev)
 	struct class *class = dev->class;
 	const struct device_type *type = dev->type;
 
-	device_remove_file(dev, &online_attr);
+	device_remove_file(dev, &dev_attr_online);
 	device_remove_groups(dev, dev->groups);
 
 	if (type)
@@ -572,15 +568,12 @@ static void device_remove_attrs(struct device *dev)
 	}
 }
 
-
-static ssize_t show_dev(struct device *dev, struct device_attribute *attr,
+static ssize_t dev_show(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
 	return print_dev_t(buf, dev->devt);
 }
-
-static struct device_attribute devt_attr =
-	__ATTR(dev, S_IRUGO, show_dev, NULL);
+static DEVICE_ATTR_RO(dev);
 
 /* /sys/devices/ */
 struct kset *devices_kset;
@@ -1084,12 +1077,12 @@ int device_add(struct device *dev)
 	if (platform_notify)
 		platform_notify(dev);
 
-	error = device_create_file(dev, &uevent_attr);
+	error = device_create_file(dev, &dev_attr_uevent);
 	if (error)
 		goto attrError;
 
 	if (MAJOR(dev->devt)) {
-		error = device_create_file(dev, &devt_attr);
+		error = device_create_file(dev, &dev_attr_dev);
 		if (error)
 			goto ueventattrError;
 
@@ -1156,9 +1149,9 @@ done:
 		device_remove_sys_dev_entry(dev);
  devtattrError:
 	if (MAJOR(dev->devt))
-		device_remove_file(dev, &devt_attr);
+		device_remove_file(dev, &dev_attr_dev);
  ueventattrError:
-	device_remove_file(dev, &uevent_attr);
+	device_remove_file(dev, &dev_attr_uevent);
  attrError:
 	kobject_uevent(&dev->kobj, KOBJ_REMOVE);
 	kobject_del(&dev->kobj);
@@ -1254,7 +1247,7 @@ void device_del(struct device *dev)
 	if (MAJOR(dev->devt)) {
 		devtmpfs_delete_node(dev);
 		device_remove_sys_dev_entry(dev);
-		device_remove_file(dev, &devt_attr);
+		device_remove_file(dev, &dev_attr_dev);
 	}
 	if (dev->class) {
 		device_remove_class_symlinks(dev);
@@ -1269,7 +1262,7 @@ void device_del(struct device *dev)
 		klist_del(&dev->knode_class);
 		mutex_unlock(&dev->class->p->mutex);
 	}
-	device_remove_file(dev, &uevent_attr);
+	device_remove_file(dev, &dev_attr_uevent);
 	device_remove_attrs(dev);
 	bus_remove_device(dev);
 	device_pm_remove(dev);
