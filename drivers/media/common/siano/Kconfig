@@ -23,6 +23,8 @@ config SMS_SIANO_DEBUGFS
 	depends on SMS_SIANO_MDTV
 	depends on DEBUG_FS
 	depends on SMS_USB_DRV
+	depends on CONFIG_SMS_USB_DRV = CONFIG_SMS_SDIO_DRV
+
 	---help---
 	  Choose Y to enable visualizing a dump of the frontend
 	  statistics response packets via debugfs. Currently, works
