@@ -568,15 +568,6 @@ ssize_t line6_nop_read(struct device *dev, struct device_attribute *attr,
 }
 
 /*
-	No operation (i.e., unsupported).
-*/
-ssize_t line6_nop_write(struct device *dev, struct device_attribute *attr,
-			const char *buf, size_t count)
-{
-	return count;
-}
-
-/*
 	Generic destructor.
 */
 static void line6_destruct(struct usb_interface *interface)
