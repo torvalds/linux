@@ -129,7 +129,7 @@ static void s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
 	int bDisCRC, u16 wCurrentRate, u8 byFBOption);
 
 static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
-	void *pvRTS, u32 cbFrameLength, int bNeedAck, int bDisCRC,
+	void *pvRTS, u32 cbFrameLength, int bNeedAck,
 	struct ethhdr *psEthHeader, u16 wCurrentRate, u8 byFBOption);
 
 static u16 s_uGetDataDuration(struct vnt_private *pDevice,
@@ -596,19 +596,13 @@ static u32 s_uFillDataHead(struct vnt_private *pDevice,
 }
 
 static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
-	void *pvRTS, u32 cbFrameLength, int bNeedAck, int bDisCRC,
+	void *pvRTS, u32 cbFrameLength, int bNeedAck,
 	struct ethhdr *psEthHeader, u16 wCurrentRate, u8 byFBOption)
 {
 	u32 uRTSFrameLen = 20;
 
     if (pvRTS == NULL)
     	return;
-
-    if (bDisCRC) {
-        // When CRCDIS bit is on, H/W forgot to generate FCS for RTS frame,
-        // in this case we need to decrease its length by 4.
-        uRTSFrameLen -= 4;
-    }
 
     // Note: So far RTSHead doesn't appear in ATIM & Beacom DMA, so we don't need to take them into account.
     //       Otherwise, we need to modified codes for them.
@@ -900,7 +894,8 @@ static void s_vGenerateTxParameter(struct vnt_private *pDevice,
 				bNeedACK);
             }
             //Fill RTS
-            s_vFillRTSHead(pDevice, byPktType, pvRTS, cbFrameSize, bNeedACK, bDisCRC, psEthHeader, wCurrentRate, byFBOption);
+	    s_vFillRTSHead(pDevice, byPktType, pvRTS, cbFrameSize, bNeedACK,
+				psEthHeader, wCurrentRate, byFBOption);
         }
         else {//RTS_needless, PCF mode
 
@@ -933,7 +928,8 @@ static void s_vGenerateTxParameter(struct vnt_private *pDevice,
 				cbFrameSize, wCurrentRate, bNeedACK);
             }
             //Fill RTS
-            s_vFillRTSHead(pDevice, byPktType, pvRTS, cbFrameSize, bNeedACK, bDisCRC, psEthHeader, wCurrentRate, byFBOption);
+	    s_vFillRTSHead(pDevice, byPktType, pvRTS, cbFrameSize, bNeedACK,
+			psEthHeader, wCurrentRate, byFBOption);
         }
         else if (pvRTS == NULL) {//RTS_needless, non PCF mode
             //Fill RsvTime
@@ -958,7 +954,8 @@ static void s_vGenerateTxParameter(struct vnt_private *pDevice,
 				cbFrameSize, wCurrentRate, bNeedACK);
             }
             //Fill RTS
-            s_vFillRTSHead(pDevice, byPktType, pvRTS, cbFrameSize, bNeedACK, bDisCRC, psEthHeader, wCurrentRate, byFBOption);
+	    s_vFillRTSHead(pDevice, byPktType, pvRTS, cbFrameSize, bNeedACK,
+			psEthHeader, wCurrentRate, byFBOption);
         }
         else { //RTS_needless, non PCF mode
             //Fill RsvTime
