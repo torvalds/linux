@@ -103,6 +103,7 @@ Exynos4 SoC and this is specified where applicable.
   sclk_spi1_isp       175     Exynos4x12
   sclk_uart_isp       176     Exynos4x12
   sclk_fimg2d         177
+  sclk_hdmiphy        178
 
 	      [Peripheral Clock Gates]
 
