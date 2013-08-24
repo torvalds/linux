@@ -206,8 +206,8 @@ static int amd64_set_scrub_rate(struct mem_ctl_info *mci, u32 bw)
 	if (pvt->fam == 0xf)
 		min_scrubrate = 0x0;
 
-	/* Erratum #505 for F15h Model 0x00 - Model 0x01, Stepping 0 */
-	if (pvt->fam == 0x15 && pvt->model <= 0x01 && pvt->stepping < 0x1)
+	/* Erratum #505 */
+	if (pvt->fam == 0x15 && pvt->model < 0x10)
 		f15h_select_dct(pvt, 0);
 
 	return __amd64_set_scrub_rate(pvt->F3, bw, min_scrubrate);
@@ -219,8 +219,8 @@ static int amd64_get_scrub_rate(struct mem_ctl_info *mci)
 	u32 scrubval = 0;
 	int i, retval = -EINVAL;
 
-	/* Erratum #505 for F15h Model 0x00 - Model 0x01, Stepping 0 */
-	if (pvt->fam == 0x15 && pvt->model <= 0x01 && pvt->stepping < 0x1)
+	/* Erratum #505 */
+	if (pvt->fam == 0x15 && pvt->model < 0x10)
 		f15h_select_dct(pvt, 0);
 
 	amd64_read_pci_cfg(pvt->F3, SCRCTRL, &scrubval);
