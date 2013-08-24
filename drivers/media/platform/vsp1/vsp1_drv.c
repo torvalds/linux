@@ -434,8 +434,8 @@ static int vsp1_probe(struct platform_device *pdev)
 	/* I/O, IRQ and clock resources */
 	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	vsp1->mmio = devm_ioremap_resource(&pdev->dev, io);
-	if (IS_ERR((void *)vsp1->mmio))
-		return PTR_ERR((void *)vsp1->mmio);
+	if (IS_ERR(vsp1->mmio))
+		return PTR_ERR(vsp1->mmio);
 
 	vsp1->clock = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(vsp1->clock)) {
