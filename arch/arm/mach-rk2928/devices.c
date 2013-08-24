@@ -49,7 +49,11 @@ static int rk30_get_base_volt(void)
 
 static struct adc_platform_data rk30_adc_pdata = {
         .ref_volt = 3300, //3300mV
-        .base_chn = 3,
+#if  defined(CONFIG_ARCH_RK3026)  
+	.base_chn = 6,
+#else
+	.base_chn = 3,
+#endif
         .get_base_volt = &rk30_get_base_volt,
 };
 

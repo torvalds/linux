@@ -1299,7 +1299,7 @@ void __sramfunc board_pmu_resume(void)
 	#endif
 }
 
-int gpio_118,
+static int gpio_118,
      gpio_11c,
      gpio_120,
      gpio_124,

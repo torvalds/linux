@@ -56,7 +56,7 @@ module_param_named(dbg_level, rk30_battery_dbg_level, int, 0644);
 
 #define	TIMER_MS_COUNTS		 1000	
 #define	SLOPE_SECOND_COUNTS	               15	
-#define	DISCHARGE_MIN_SECOND	               45	
+#define	DISCHARGE_MIN_SECOND	               60
 #define	CHARGE_MIN_SECOND	               45	
 #define	CHARGE_MID_SECOND	               90	
 #define	CHARGE_MAX_SECOND	               250
@@ -206,6 +206,7 @@ struct rk30_adc_battery_data {
 	int                     start_voltage_status;
 	int                     charge_up_proprotion;
 	int                     charge_down_proportion;
+	int                     voltage_to_local;
 	unsigned long	       suspend_time;
 	unsigned long		resume_time;
 	int                      adc_value;
@@ -745,8 +746,11 @@ static int rk_adc_voltage(struct rk30_adc_battery_data *bat, int value)
 	pulldown_res = bat ->pdata->pull_down_res;
 
 	if(ref_voltage && pullup_res && pulldown_res){
-		
+#if defined(CONFIG_ARCH_RK2928) || defined(CONFIG_ARCH_RK3026)
+		ref_voltage = adc_get_curr_ref_volt();
+#endif	
 		voltage =  ((value * ref_voltage * (pullup_res + pulldown_res)) / (1024 * pulldown_res));
+		DBG("ref_voltage =%d, voltage=%d \n", ref_voltage,voltage);
 		
 	}else{
 #if 0
@@ -754,13 +758,16 @@ static int rk_adc_voltage(struct rk30_adc_battery_data *bat, int value)
 			ref_voltage = adc_get_curr_ref_volt();
 		else
 			ref_voltage = adc_get_def_ref_volt();
-		voltage = (value * ref_voltage * (batt_table[4] +batt_table[5])) / (1024 *batt_table[5]); 
 #endif
-		voltage = adc_to_voltage(value) ;
-		DBG("ref_voltage =%d, voltage=%d \n", ref_voltage,voltage);
+#if defined(CONFIG_ARCH_RK2928) || defined(CONFIG_ARCH_RK3026)
+		ref_voltage = adc_get_curr_ref_volt();
+		voltage = (value * ref_voltage * (batt_table[4] +batt_table[5])) / (1024 *batt_table[5]); 
+#else
+		voltage =voltage = adc_to_voltage(value);
+#endif
 	}
-		
-		
+	
+	DBG("ref_voltage =%d, voltage=%d \n", ref_voltage,voltage);
 	return voltage;
 
 }
@@ -909,6 +916,9 @@ static int rk30_adc_battery_voltage_to_capacity(struct rk30_adc_battery_data *ba
 
 			DBG("start_voltage=%d,start_capacity =%d\n", bat->charge_start_voltage, bat->charge_start_capacity);
 			DBG("charge_down_proportion =%d,charge_up_proprotion=%d\n",bat ->charge_down_proportion,bat ->charge_up_proprotion);
+			for(i = BATT_NUM +6; i <2*BATT_NUM +5; i++)
+				if(((p[i]) <= bat->charge_start_voltage) && (bat->charge_start_voltage <  (p[i+1])))	
+					bat->voltage_to_local = i;
 				if(BatVoltage >= (p[2*BATT_NUM +5])){
 					capacity = 100;
 				}else{	
@@ -921,10 +931,13 @@ static int rk30_adc_battery_voltage_to_capacity(struct rk30_adc_battery_data *ba
 								for(i = BATT_NUM +6; i <2*BATT_NUM +5; i++)
 									if(((p[i]) <= BatVoltage) && (BatVoltage <  (p[i+1]))){
 										if( p[i+1] < bat->charge_start_voltage ){
-											capacity =(i-(BATT_NUM +6))*(bat ->charge_down_proportion) + ((BatVoltage - p[i]) *  bat ->charge_down_proportion)/ (p[i+1]- p[i]);
+											capacity =bat->charge_start_capacity - ((p[i+1] -BatVoltage) * bat->charge_start_capacity/(bat->voltage_to_local -17+1))/ (p[i+1]- p[i]) - (bat->voltage_to_local- (i ))*bat->charge_start_capacity/(bat->voltage_to_local -17+1);
+									 		 DBG("1<<<<<<< %d  bat->voltage_to_local =%d capacity = %d BatVoltage =%d  p[i] = %d,p[i+1] = %d  \n", i, bat->voltage_to_local,capacity,BatVoltage,p[i], p[i+1]);
+								
 										}
 										else {
-											capacity = (i-(BATT_NUM +6))*(bat ->charge_down_proportion) + ((BatVoltage - p[i]) *  bat ->charge_down_proportion)/ (bat->charge_start_voltage - p[i]);
+											capacity =bat->charge_start_capacity - ((bat->charge_start_voltage -BatVoltage) * bat->charge_start_capacity/(bat->voltage_to_local -17+1) )/ (bat->charge_start_voltage - p[i]);
+											DBG("2<<<<<< %d   capacity = %d BatVoltage =%d  p[i] = %d,p[i+1] = %d  \n", i,capacity,BatVoltage,p[i], p[i+1]);
 										}
 										break;
 									}
@@ -936,11 +949,13 @@ static int rk30_adc_battery_voltage_to_capacity(struct rk30_adc_battery_data *ba
 										for(i = BATT_NUM +6; i <2*BATT_NUM +5; i++)
 											if(((p[i]) <= BatVoltage) && (BatVoltage <  (p[i+1]))){
 												if( p[i] > bat->charge_start_voltage ){
-													capacity = bat->charge_start_capacity + (i - (BATT_NUM +6)-bat->charge_start_capacity/10)*(bat ->charge_up_proprotion) + ((BatVoltage - p[i]) *  bat ->charge_up_proprotion)/ (p[i+1]- p[i]);
+													capacity = bat->charge_start_capacity + (i +1- (bat->voltage_to_local))*(100- bat->charge_start_capacity )/( 10 -  (bat->voltage_to_local  - 17)) + (BatVoltage - p[i]) * (100- bat->charge_start_capacity )/( 10 -  (bat->voltage_to_local -17))/ (p[i+1]- p[i]);
+													DBG("3<<<<<<<< %d bat->voltage_to_local =%d  capacity = %d BatVoltage =%d  p[i] = %d,p[i+1] = %d  \n", i, bat->voltage_to_local,capacity,BatVoltage,p[i], p[i+1]);
 												}
 												else {
-												       capacity = bat->charge_start_capacity + (i - (BATT_NUM +6)-bat->charge_start_capacity/10)*(bat ->charge_up_proprotion) + ((BatVoltage - p[i]) *  bat ->charge_up_proprotion)/ (p[i+1] - bat->charge_start_voltage );
-													}
+												       capacity = bat->charge_start_capacity + (BatVoltage - bat->charge_start_voltage) * (100- bat->charge_start_capacity )/( 10 -  (bat->voltage_to_local-17 )) /(p[i+1] - bat->charge_start_voltage );
+													DBG(" 4<<<<<<<<<%d bat->voltage_to_local =%d  capacity = %d BatVoltage =%d  p[i] = %d,p[i+1] = %d  \n", i,bat->voltage_to_local,capacity,BatVoltage,p[i], p[i+1]);
+												}
 												break;
 											}
 
@@ -977,9 +992,9 @@ static int rk30_adc_battery_voltage_to_capacity(struct rk30_adc_battery_data *ba
 
 
 		}
-	DBG("real_voltage =%d\n" ,BatVoltage);
 
 	DBG("real_voltage_to_capacity =%d\n" ,capacity);
+
     return capacity;
 }
 
@@ -995,8 +1010,15 @@ static void rk_usb_charger(struct rk30_adc_battery_data *bat)
 			bat ->charge_start_voltage = bat ->bat_voltage;
 			bat ->start_voltage_status = 1;
 			bat ->charge_start_capacity = bat ->bat_capacity;
-			bat ->charge_up_proprotion = (100 - bat ->charge_start_capacity)/10+1;
-			bat ->charge_down_proportion = bat ->charge_start_capacity/10+1;
+			if(bat ->charge_start_capacity%10 != 0){
+				bat ->charge_up_proprotion = (100 - bat ->charge_start_capacity)/10+1;
+				bat ->charge_down_proportion = bat ->charge_start_capacity/10+1;
+			}else{
+				bat ->charge_up_proprotion = (100 - bat ->charge_start_capacity)/10;
+				bat ->charge_down_proportion = bat ->charge_start_capacity/10;
+
+
+			}
 	}
 
 	capacity = rk30_adc_battery_voltage_to_capacity(bat, bat->bat_voltage);
@@ -1118,8 +1140,15 @@ static void rk_ac_charger(struct rk30_adc_battery_data *bat)
 		bat->charge_start_voltage = bat->bat_voltage;
 		bat->start_voltage_status = 1;
 		bat->charge_start_capacity = bat->bat_capacity;
-		bat ->charge_up_proprotion = (100 - bat ->charge_start_capacity)/10+1;
-		bat ->charge_down_proportion = bat ->charge_start_capacity/10+1;
+			if(bat ->charge_start_capacity%10 != 0){
+				bat ->charge_up_proprotion = (100 - bat ->charge_start_capacity)/10+1;
+				bat ->charge_down_proportion = bat ->charge_start_capacity/10+1;
+			}else{
+				bat ->charge_up_proprotion = (100 - bat ->charge_start_capacity)/10;
+				bat ->charge_down_proportion = bat ->charge_start_capacity/10;
+
+
+			}
 	}
 	capacity = rk30_adc_battery_voltage_to_capacity(bat, bat->bat_voltage);
 		if (capacity > bat->bat_capacity){
@@ -1192,34 +1221,34 @@ static void rk_battery_charger(struct rk30_adc_battery_data *bat)
 {
 
 	int capacity = 0;
-	int timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE;
+	int timer_of_discharge_sample = DISCHARGE_MIN_SECOND;
 	
 	capacity = rk30_adc_battery_voltage_to_capacity(bat, bat->bat_voltage);
 
 		if (capacity < bat->bat_capacity){
-				#if 0
+			#if 0
 				if(capacity <10){
 						timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE - 40; // 13
-				}else
+				}else 
 				#endif
 				if(capacity < 20){
 					if(capacity + 3 > bat->bat_capacity  )
-						timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE -5;  //5s
+						timer_of_discharge_sample = DISCHARGE_MIN_SECOND -5;  //5s
 					else if(capacity  + 7 > bat->bat_capacity )
-						timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE -10; //10s
+						timer_of_discharge_sample = DISCHARGE_MIN_SECOND -10; //10s
 					else if(capacity  + 10> bat->bat_capacity )
-						timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE -25; // 13
+						timer_of_discharge_sample = DISCHARGE_MIN_SECOND -25; // 13
 					else
-						timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE - 35; // 13
+						timer_of_discharge_sample = DISCHARGE_MIN_SECOND - 35; // 13
 				}else{
 					if(capacity + 3 > bat->bat_capacity  )
-						timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE -5;  //5s
+						timer_of_discharge_sample = DISCHARGE_MIN_SECOND -5;  //5s
 					else if(capacity  + 7 > bat->bat_capacity )
-						timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE -10; //10s
+						timer_of_discharge_sample = DISCHARGE_MIN_SECOND -10; //10s
 					else if(capacity  + 10> bat->bat_capacity )
-						timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE - 15; // 13
+						timer_of_discharge_sample = DISCHARGE_MIN_SECOND - 15; // 13
 					else
-						timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE - 20; // 13
+						timer_of_discharge_sample = DISCHARGE_MIN_SECOND - 20; // 13
 
 			}
 			if (++(bat->gBatCapacityDisChargeCnt) >= timer_of_discharge_sample){
@@ -1249,7 +1278,7 @@ static void rk30_adc_battery_capacity_samples(struct rk30_adc_battery_data *bat)
 {
 //	int capacity = 0;
 //	int timer_of_charge_sample = NUM_CHARGE_MIN_SAMPLE;
-	int timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE;
+//	int timer_of_discharge_sample = NUM_CHARGE_MIN_SAMPLE;
 
 	if (bat->bat_status_cnt < NUM_VOLTAGE_SAMPLE)  {
 		bat->gBatCapacityDisChargeCnt = 0;
@@ -1282,10 +1311,6 @@ static void rk30_adc_battery_poweron_capacity_check(struct rk30_adc_battery_data
      	 int cnt = 50 ;
 
 	new_capacity = bat ->bat_capacity;
-//#if  defined (CONFIG_BATTERY_RK30_USB_CHARGE)
-//	if(dwc_vbus_status() != 0)
-//		bat ->bat_status = POWER_SUPPLY_STATUS_CHARGING; // add for charging.
-//#endif
 		
 	while( cnt -- ){
 	    old_capacity = rk30_adc_battery_load_capacity();
@@ -1313,7 +1338,7 @@ static void rk30_adc_battery_poweron_capacity_check(struct rk30_adc_battery_data
 			bat ->bat_capacity = (new_capacity > old_capacity) ? new_capacity : old_capacity;
 	}else{
 		if(new_capacity > old_capacity + 50 )
-			bat ->bat_capacity = new_capacity;
+			bat ->bat_capacity = old_capacity + 5;
 		else
 			bat ->bat_capacity = (new_capacity < old_capacity) ? new_capacity : old_capacity;  //avoid the value of capacity increase 
 		if(bat->bat_capacity == 100)
@@ -1321,7 +1346,7 @@ static void rk30_adc_battery_poweron_capacity_check(struct rk30_adc_battery_data
 		if(bat->bat_capacity == 0)
 			bat->bat_capacity =1;
 	}
-	printk("old_capacity = %d , new_capacity =%d\n  ",old_capacity,new_capacity);
+	printk("old_capacity = %d , new_capacity =%d, capacity = %d\n  ",old_capacity,new_capacity ,bat ->bat_capacity);
 
 	bat ->bat_change = 1;
 }
@@ -1580,7 +1605,7 @@ static void rk30_adc_battery_resume_check(struct rk30_adc_battery_data *bat)
 	//if (bat->bat_status != POWER_SUPPLY_STATUS_NOT_CHARGING){
 	if( 1 == level ){
 	//chargeing state
-		bat->bat_capacity = (new_capacity > old_capacity) ? new_capacity : old_capacity;
+		bat->bat_capacity = (new_capacity < old_capacity) ? new_capacity : old_capacity;
 	}
 	else{
 		bat->bat_capacity = (new_capacity < old_capacity) ? new_capacity : old_capacity;  // aviod the value of capacity increase    dicharge
@@ -1665,6 +1690,7 @@ struct rk30_adc_battery_data  *bat = container_of((work), \
 	}
 
 	bat ->charge_level = rk_battery_get_status(bat);
+	DBG("bat ->charge_level =%d\n", bat ->charge_level);
 	rk30_adc_battery_status_samples(bat);
 	rk30_adc_battery_voltage_samples(bat);
 	rk30_adc_battery_capacity_samples(bat);
@@ -1801,7 +1827,7 @@ static int rk_adc_battery_poweron_status(struct rk30_adc_battery_data *bat)
 {
 	int status; 
 	int otg_status = 0;
-	struct rk30_adc_battery_platform_data *pdata = bat->pdata;
+//	struct rk30_adc_battery_platform_data *pdata = bat->pdata;
 
 	if (get_ac_status(bat) ){		
 			bat->bat_status = POWER_SUPPLY_STATUS_CHARGING;
@@ -1858,7 +1884,7 @@ static void rk30_adc_battery_check(struct rk30_adc_battery_data *bat)
 {
 	int i;
 	int level,oldlevel;
-	struct rk30_adc_battery_platform_data *pdata = bat->pdata;
+//	struct rk30_adc_battery_platform_data *pdata = bat->pdata;
 	int check_data[NUM_VOLTAGE_SAMPLE];
 	//bat ->old_charge_level
 //	pSamples = bat->adc_samples;
@@ -1947,24 +1973,16 @@ static void rk30_adc_battery_check(struct rk30_adc_battery_data *bat)
 		system_lowerpower = 1;
 	}
 #endif
-#if 1
+
 	if(0 !=bat ->pdata->low_voltage_protection ){
 		if((bat->bat_voltage <=  bat ->pdata->low_voltage_protection))
 			system_lowerpower = 1;
-			printk(" lower power .....\n");
+			printk("protection lower power .....\n");
 	}else{
 		if((bat->bat_voltage <= BATT_ZERO_VOL_VALUE))
 			system_lowerpower = 1;
 			printk("lower power .....\n");
 	}	
-#else
-	if(0 !=bat ->pdata->low_voltage_protection ){
-		if(bat->bat_capacity <= bat ->pdata->low_voltage_protection)
-			system_lowerpower = 1;
-	}else
-		if((bat->bat_voltage <= BATT_ZERO_VOL_VALUE))
-			system_lowerpower = 1;
-#endif	
 
 #if 0
 		if ((bat->bat_voltage <= BATT_ZERO_VOL_VALUE)&&(bat->bat_status != POWER_SUPPLY_STATUS_CHARGING)){
@@ -2134,6 +2152,7 @@ static int rk30_adc_battery_probe(struct platform_device *pdev)
 	data->capacitytmp = 0;
 	data->time_to_full = 0;
 	data->stop_check = 0;
+	data->voltage_to_local = 0;
 
 	data->bat_status = POWER_SUPPLY_STATUS_NOT_CHARGING;
  	wake_lock_init(&batt_wake_lock, WAKE_LOCK_SUSPEND, "batt_lock");	
