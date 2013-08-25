@@ -546,6 +546,8 @@ int atapi_cmd_type(u8 opcode)
  */
 void ata_tf_to_fis(const struct ata_taskfile *tf, u8 pmp, int is_cmd, u8 *fis)
 {
+	const __le32 aux = cpu_to_le32(tf->auxiliary);
+
 	fis[0] = 0x27;			/* Register - Host to Device FIS */
 	fis[1] = pmp & 0xf;		/* Port multiplier number*/
 	if (is_cmd)
@@ -569,10 +571,10 @@ void ata_tf_to_fis(const struct ata_taskfile *tf, u8 pmp, int is_cmd, u8 *fis)
 	fis[14] = 0;
 	fis[15] = tf->ctl;
 
-	fis[16] = 0;
-	fis[17] = 0;
-	fis[18] = 0;
-	fis[19] = 0;
+	fis[16] = aux & 0xff;
+	fis[17] = (aux >> 8) & 0xff;
+	fis[18] = (aux >> 16) & 0xff;
+	fis[19] = (aux >> 24) & 0xff;
 }
 
 /**

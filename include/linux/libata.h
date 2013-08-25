@@ -555,6 +555,10 @@ struct ata_taskfile {
 	u8			device;
 
 	u8			command;	/* IO operation */
+
+	u32			auxiliary;	/* auxiliary field */
+						/* from SATA 3.1 and */
+						/* ATA-8 ACS-3 */
 };
 
 #ifdef CONFIG_ATA_SFF
