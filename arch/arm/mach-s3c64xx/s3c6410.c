@@ -62,13 +62,6 @@ void __init s3c6410_map_io(void)
 	s3c_cfcon_setname("s3c64xx-pata");
 }
 
-void __init s3c6410_init_clocks(int xtal)
-{
-	printk(KERN_DEBUG "%s: initialising clocks\n", __func__);
-	s3c64xx_register_clocks(xtal, S3C6410_CLKDIV0_ARM_MASK);
-	s3c64xx_setup_clocks();
-}
-
 void __init s3c6410_init_irq(void)
 {
 	/* VIC0 is missing IRQ7, VIC1 is fully populated. */

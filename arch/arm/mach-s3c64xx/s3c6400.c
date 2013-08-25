@@ -58,12 +58,6 @@ void __init s3c6400_map_io(void)
 	s3c64xx_onenand1_setname("s3c6400-onenand");
 }
 
-void __init s3c6400_init_clocks(int xtal)
-{
-	s3c64xx_register_clocks(xtal, S3C6400_CLKDIV0_ARM_MASK);
-	s3c64xx_setup_clocks();
-}
-
 void __init s3c6400_init_irq(void)
 {
 	/* VIC0 does not have IRQS 5..7,

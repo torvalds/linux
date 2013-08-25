@@ -247,7 +247,7 @@ static struct platform_device *hmt_devices[] __initdata = {
 static void __init hmt_map_io(void)
 {
 	s3c64xx_init_io(hmt_iodesc, ARRAY_SIZE(hmt_iodesc));
-	s3c24xx_init_clocks(12000000);
+	s3c64xx_set_xtal_freq(12000000);
 	s3c24xx_init_uarts(hmt_uartcfgs, ARRAY_SIZE(hmt_uartcfgs));
 	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 }
