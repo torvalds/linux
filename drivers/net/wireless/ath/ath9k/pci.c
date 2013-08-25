@@ -314,6 +314,22 @@ static void ath_pci_aspm_init(struct ath_common *common)
 		return;
 	}
 
+	/*
+	 * 0x70c - Ack Frequency Register.
+	 *
+	 * Bits 27:29 - DEFAULT_L1_ENTRANCE_LATENCY.
+	 *
+	 * 000 : 1 us
+	 * 001 : 2 us
+	 * 010 : 4 us
+	 * 011 : 8 us
+	 * 100 : 16 us
+	 * 101 : 32 us
+	 * 110/111 : 64 us
+	 */
+	if (AR_SREV_9462(ah))
+		pci_read_config_dword(pdev, 0x70c, &ah->config.aspm_l1_fix);
+
 	pcie_capability_read_word(parent, PCI_EXP_LNKCTL, &aspm);
 	if (aspm & (PCI_EXP_LNKCTL_ASPM_L0S | PCI_EXP_LNKCTL_ASPM_L1)) {
 		ah->aspm_enabled = true;

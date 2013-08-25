@@ -745,6 +745,20 @@ static void ar9003_hw_init_mode_gain_regs(struct ath_hw *ah)
 static void ar9003_hw_configpcipowersave(struct ath_hw *ah,
 					 bool power_off)
 {
+	/*
+	 * Increase L1 Entry Latency. Some WB222 boards don't have
+	 * this change in eeprom/OTP.
+	 *
+	 */
+	if (AR_SREV_9462(ah)) {
+		u32 val = ah->config.aspm_l1_fix;
+		if ((val & 0xff000000) == 0x17000000) {
+			val &= 0x00ffffff;
+			val |= 0x27000000;
+			REG_WRITE(ah, 0x570c, val);
+		}
+	}
+
 	/* Nothing to do on restore for 11N */
 	if (!power_off /* !restore */) {
 		/* set bit 19 to allow forcing of pcie core into L1 state */

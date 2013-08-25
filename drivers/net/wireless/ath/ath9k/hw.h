@@ -311,6 +311,7 @@ struct ath9k_ops_config {
 	u16 ani_poll_interval; /* ANI poll interval in ms */
 
 	/* Platform specific config */
+	u32 aspm_l1_fix;
 	u32 xlna_gpio;
 	u32 ant_ctrl_comm2g_switch_enable;
 	bool xatten_margin_cfg;
