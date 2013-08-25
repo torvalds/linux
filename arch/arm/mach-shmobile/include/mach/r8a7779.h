@@ -6,6 +6,13 @@
 #include <linux/sh_eth.h>
 #include <linux/platform_data/camera-rcar.h>
 
+/* HPB-DMA slave IDs */
+enum {
+	HPBDMA_SLAVE_DUMMY,
+	HPBDMA_SLAVE_SDHI0_TX,
+	HPBDMA_SLAVE_SDHI0_RX,
+};
+
 struct platform_device;
 
 struct r8a7779_pm_ch {
