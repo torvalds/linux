@@ -91,24 +91,15 @@ struct sock *netlink_init(int unit,
 	void (*cb)(struct net_device *dev, u16 type, void *msg, int len))
 {
 	struct sock *sock;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0)
 	struct netlink_kernel_cfg cfg = {
 		.input  = netlink_rcv,
 	};
-#endif
 
 #if !defined(DEFINE_MUTEX)
 	init_MUTEX(&netlink_mutex);
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 6, 0)
-	sock = netlink_kernel_create(&init_net, unit, 0, netlink_rcv, NULL,
-		THIS_MODULE);
-#elif LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0)
-	sock = netlink_kernel_create(&init_net, unit, THIS_MODULE, &cfg);
-#else
 	sock = netlink_kernel_create(&init_net, unit, &cfg);
-#endif
 
 	if (sock)
 		rcv_cb = cb;
@@ -142,11 +133,7 @@ int netlink_send(struct sock *sock, int group, u16 type, void *msg, int len)
 
 	nlh = nlmsg_put(skb, 0, seq, type, len, 0);
 	memcpy(NLMSG_DATA(nlh), msg, len);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0)
-	NETLINK_CB(skb).pid = 0;
-#else
 	NETLINK_CB(skb).portid = 0;
-#endif
 	NETLINK_CB(skb).dst_group = 0;
 
 	ret = netlink_broadcast(sock, skb, 0, group+1, GFP_ATOMIC);
