@@ -653,12 +653,6 @@ plane, are stored in struct <structname>v4l2_plane</structname> instead.
 In that case, struct <structname>v4l2_buffer</structname> contains an array of
 plane structures.</para>
 
-      <para>For timestamp types that are sampled from the system clock
-(V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC) it is guaranteed that the timestamp is
-taken after the complete frame has been received (or transmitted in
-case of video output devices). For other kinds of
-timestamps this may vary depending on the driver.</para>
-
     <table frame="none" pgwide="1" id="v4l2-buffer">
       <title>struct <structname>v4l2_buffer</structname></title>
       <tgroup cols="4">
@@ -1124,6 +1118,36 @@ in which case caches have not been used.</entry>
 	    <entry>0x00004000</entry>
 	    <entry>The CAPTURE buffer timestamp has been taken from the
 	    corresponding OUTPUT buffer. This flag applies only to mem2mem devices.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_BUF_FLAG_TSTAMP_SRC_MASK</constant></entry>
+	    <entry>0x00070000</entry>
+	    <entry>Mask for timestamp sources below. The timestamp source
+	    defines the point of time the timestamp is taken in relation to
+	    the frame. Logical 'and' operation between the
+	    <structfield>flags</structfield> field and
+	    <constant>V4L2_BUF_FLAG_TSTAMP_SRC_MASK</constant> produces the
+	    value of the timestamp source.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_BUF_FLAG_TSTAMP_SRC_EOF</constant></entry>
+	    <entry>0x00000000</entry>
+	    <entry>End Of Frame. The buffer timestamp has been taken
+	    when the last pixel of the frame has been received or the
+	    last pixel of the frame has been transmitted. In practice,
+	    software generated timestamps will typically be read from
+	    the clock a small amount of time after the last pixel has
+	    been received or transmitten, depending on the system and
+	    other activity in it.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_BUF_FLAG_TSTAMP_SRC_SOE</constant></entry>
+	    <entry>0x00010000</entry>
+	    <entry>Start Of Exposure. The buffer timestamp has been
+	    taken when the exposure of the frame has begun. This is
+	    only valid for the
+	    <constant>V4L2_BUF_TYPE_VIDEO_CAPTURE</constant> buffer
+	    type.</entry>
 	  </row>
 	</tbody>
       </tgroup>
