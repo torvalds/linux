@@ -171,10 +171,6 @@
 		};
 	};
 
-	rtc@101E0000 {
-		status = "okay";
-	};
-
 	/*
 	 * On Snow we've got SIP WiFi and so can keep drive strengths low to
 	 * reduce EMI.

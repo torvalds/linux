@@ -538,10 +538,6 @@
 		};
 	};
 
-	rtc@101E0000 {
-		status = "okay";
-	};
-
 	usb_hub_bus {
 		compatible = "simple-bus";
 		#address-cells = <1>;
