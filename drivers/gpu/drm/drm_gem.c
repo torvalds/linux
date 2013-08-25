@@ -298,6 +298,7 @@ drm_gem_handle_delete(struct drm_file *filp, u32 handle)
 	spin_unlock(&filp->table_lock);
 
 	drm_gem_remove_prime_handles(obj, filp);
+	drm_vma_node_revoke(&obj->vma_node, filp->filp);
 
 	if (dev->driver->gem_close_object)
 		dev->driver->gem_close_object(obj, filp);
@@ -357,6 +358,11 @@ drm_gem_handle_create_tail(struct drm_file *file_priv,
 	}
 	*handlep = ret;
 
+	ret = drm_vma_node_allow(&obj->vma_node, file_priv->filp);
+	if (ret) {
+		drm_gem_handle_delete(file_priv, *handlep);
+		return ret;
+	}
 
 	if (dev->driver->gem_open_object) {
 		ret = dev->driver->gem_open_object(obj, file_priv);
@@ -701,6 +707,7 @@ drm_gem_object_release_handle(int id, void *ptr, void *data)
 	struct drm_device *dev = obj->dev;
 
 	drm_gem_remove_prime_handles(obj, file_priv);
+	drm_vma_node_revoke(&obj->vma_node, file_priv->filp);
 
 	if (dev->driver->gem_close_object)
 		dev->driver->gem_close_object(obj, file_priv);
@@ -793,6 +800,10 @@ EXPORT_SYMBOL(drm_gem_vm_close);
  * the GEM object is not looked up based on its fake offset. To implement the
  * DRM mmap operation, drivers should use the drm_gem_mmap() function.
  *
+ * drm_gem_mmap_obj() assumes the user is granted access to the buffer while
+ * drm_gem_mmap() prevents unprivileged users from mapping random objects. So
+ * callers must verify access restrictions before calling this helper.
+ *
  * NOTE: This function has to be protected with dev->struct_mutex
  *
  * Return 0 or success or -EINVAL if the object size is smaller than the VMA
@@ -841,6 +852,9 @@ EXPORT_SYMBOL(drm_gem_mmap_obj);
  * Look up the GEM object based on the offset passed in (vma->vm_pgoff will
  * contain the fake offset we created when the GTT map ioctl was called on
  * the object) and map it with a call to drm_gem_mmap_obj().
+ *
+ * If the caller is not granted access to the buffer object, the mmap will fail
+ * with EACCES. Please see the vma manager for more information.
  */
 int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 {
@@ -861,6 +875,9 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	if (!node) {
 		mutex_unlock(&dev->struct_mutex);
 		return drm_mmap(filp, vma);
+	} else if (!drm_vma_node_is_allowed(node, filp)) {
+		mutex_unlock(&dev->struct_mutex);
+		return -EACCES;
 	}
 
 	obj = container_of(node, struct drm_gem_object, vma_node);
