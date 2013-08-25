@@ -115,7 +115,6 @@ struct s5p_jpeg_q_data {
  * @jpeg:		JPEG IP device for this context
  * @mode:		compression (encode) operation or decompression (decode)
  * @compr_quality:	destination image quality in compression (encode) mode
- * @m2m_ctx:		mem2mem device context
  * @out_q:		source (output) queue information
  * @cap_fmt:		destination (capture) queue queue information
  * @hdr_parsed:		set if header has been parsed during decompression
@@ -127,7 +126,6 @@ struct s5p_jpeg_ctx {
 	unsigned short		compr_quality;
 	unsigned short		restart_interval;
 	unsigned short		subsampling;
-	struct v4l2_m2m_ctx	*m2m_ctx;
 	struct s5p_jpeg_q_data	out_q;
 	struct s5p_jpeg_q_data	cap_q;
 	struct v4l2_fh		fh;

@@ -316,9 +316,9 @@ static int s5p_jpeg_open(struct file *file)
 	if (ret < 0)
 		goto error;
 
-	ctx->m2m_ctx = v4l2_m2m_ctx_init(jpeg->m2m_dev, ctx, queue_init);
-	if (IS_ERR(ctx->m2m_ctx)) {
-		ret = PTR_ERR(ctx->m2m_ctx);
+	ctx->fh.m2m_ctx = v4l2_m2m_ctx_init(jpeg->m2m_dev, ctx, queue_init);
+	if (IS_ERR(ctx->fh.m2m_ctx)) {
+		ret = PTR_ERR(ctx->fh.m2m_ctx);
 		goto error;
 	}
 
@@ -342,7 +342,7 @@ static int s5p_jpeg_release(struct file *file)
 	struct s5p_jpeg_ctx *ctx = fh_to_ctx(file->private_data);
 
 	mutex_lock(&jpeg->lock);
-	v4l2_m2m_ctx_release(ctx->m2m_ctx);
+	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
 	mutex_unlock(&jpeg->lock);
 	v4l2_ctrl_handler_free(&ctx->ctrl_handler);
 	v4l2_fh_del(&ctx->fh);
@@ -352,39 +352,13 @@ static int s5p_jpeg_release(struct file *file)
 	return 0;
 }
 
-static unsigned int s5p_jpeg_poll(struct file *file,
-				 struct poll_table_struct *wait)
-{
-	struct s5p_jpeg *jpeg = video_drvdata(file);
-	struct s5p_jpeg_ctx *ctx = fh_to_ctx(file->private_data);
-	unsigned int res;
-
-	mutex_lock(&jpeg->lock);
-	res = v4l2_m2m_poll(file, ctx->m2m_ctx, wait);
-	mutex_unlock(&jpeg->lock);
-	return res;
-}
-
-static int s5p_jpeg_mmap(struct file *file, struct vm_area_struct *vma)
-{
-	struct s5p_jpeg *jpeg = video_drvdata(file);
-	struct s5p_jpeg_ctx *ctx = fh_to_ctx(file->private_data);
-	int ret;
-
-	if (mutex_lock_interruptible(&jpeg->lock))
-		return -ERESTARTSYS;
-	ret = v4l2_m2m_mmap(file, ctx->m2m_ctx, vma);
-	mutex_unlock(&jpeg->lock);
-	return ret;
-}
-
 static const struct v4l2_file_operations s5p_jpeg_fops = {
 	.owner		= THIS_MODULE,
 	.open		= s5p_jpeg_open,
 	.release	= s5p_jpeg_release,
-	.poll		= s5p_jpeg_poll,
+	.poll		= v4l2_m2m_fop_poll,
 	.unlocked_ioctl	= video_ioctl2,
-	.mmap		= s5p_jpeg_mmap,
+	.mmap		= v4l2_m2m_fop_mmap,
 };
 
 /*
@@ -589,7 +563,7 @@ static int s5p_jpeg_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	struct s5p_jpeg_ctx *ct = fh_to_ctx(priv);
 
-	vq = v4l2_m2m_get_vq(ct->m2m_ctx, f->type);
+	vq = v4l2_m2m_get_vq(ct->fh.m2m_ctx, f->type);
 	if (!vq)
 		return -EINVAL;
 
@@ -745,7 +719,7 @@ static int s5p_jpeg_s_fmt(struct s5p_jpeg_ctx *ct, struct v4l2_format *f)
 	struct s5p_jpeg_q_data *q_data = NULL;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 
-	vq = v4l2_m2m_get_vq(ct->m2m_ctx, f->type);
+	vq = v4l2_m2m_get_vq(ct->fh.m2m_ctx, f->type);
 	if (!vq)
 		return -EINVAL;
 
@@ -790,53 +764,6 @@ static int s5p_jpeg_s_fmt_vid_out(struct file *file, void *priv,
 		return ret;
 
 	return s5p_jpeg_s_fmt(fh_to_ctx(priv), f);
-}
-
-static int s5p_jpeg_reqbufs(struct file *file, void *priv,
-			  struct v4l2_requestbuffers *reqbufs)
-{
-	struct s5p_jpeg_ctx *ctx = fh_to_ctx(priv);
-
-	return v4l2_m2m_reqbufs(file, ctx->m2m_ctx, reqbufs);
-}
-
-static int s5p_jpeg_querybuf(struct file *file, void *priv,
-			   struct v4l2_buffer *buf)
-{
-	struct s5p_jpeg_ctx *ctx = fh_to_ctx(priv);
-
-	return v4l2_m2m_querybuf(file, ctx->m2m_ctx, buf);
-}
-
-static int s5p_jpeg_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
-{
-	struct s5p_jpeg_ctx *ctx = fh_to_ctx(priv);
-
-	return v4l2_m2m_qbuf(file, ctx->m2m_ctx, buf);
-}
-
-static int s5p_jpeg_dqbuf(struct file *file, void *priv,
-			  struct v4l2_buffer *buf)
-{
-	struct s5p_jpeg_ctx *ctx = fh_to_ctx(priv);
-
-	return v4l2_m2m_dqbuf(file, ctx->m2m_ctx, buf);
-}
-
-static int s5p_jpeg_streamon(struct file *file, void *priv,
-			   enum v4l2_buf_type type)
-{
-	struct s5p_jpeg_ctx *ctx = fh_to_ctx(priv);
-
-	return v4l2_m2m_streamon(file, ctx->m2m_ctx, type);
-}
-
-static int s5p_jpeg_streamoff(struct file *file, void *priv,
-			    enum v4l2_buf_type type)
-{
-	struct s5p_jpeg_ctx *ctx = fh_to_ctx(priv);
-
-	return v4l2_m2m_streamoff(file, ctx->m2m_ctx, type);
 }
 
 static int s5p_jpeg_g_selection(struct file *file, void *priv,
@@ -972,14 +899,13 @@ static const struct v4l2_ioctl_ops s5p_jpeg_ioctl_ops = {
 	.vidioc_s_fmt_vid_cap		= s5p_jpeg_s_fmt_vid_cap,
 	.vidioc_s_fmt_vid_out		= s5p_jpeg_s_fmt_vid_out,
 
-	.vidioc_reqbufs			= s5p_jpeg_reqbufs,
-	.vidioc_querybuf		= s5p_jpeg_querybuf,
+	.vidioc_reqbufs			= v4l2_m2m_ioctl_reqbufs,
+	.vidioc_querybuf		= v4l2_m2m_ioctl_querybuf,
+	.vidioc_qbuf			= v4l2_m2m_ioctl_qbuf,
+	.vidioc_dqbuf			= v4l2_m2m_ioctl_dqbuf,
 
-	.vidioc_qbuf			= s5p_jpeg_qbuf,
-	.vidioc_dqbuf			= s5p_jpeg_dqbuf,
-
-	.vidioc_streamon		= s5p_jpeg_streamon,
-	.vidioc_streamoff		= s5p_jpeg_streamoff,
+	.vidioc_streamon		= v4l2_m2m_ioctl_streamon,
+	.vidioc_streamoff		= v4l2_m2m_ioctl_streamoff,
 
 	.vidioc_g_selection		= s5p_jpeg_g_selection,
 };
@@ -997,8 +923,8 @@ static void s5p_jpeg_device_run(void *priv)
 	struct vb2_buffer *src_buf, *dst_buf;
 	unsigned long src_addr, dst_addr;
 
-	src_buf = v4l2_m2m_next_src_buf(ctx->m2m_ctx);
-	dst_buf = v4l2_m2m_next_dst_buf(ctx->m2m_ctx);
+	src_buf = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
+	dst_buf = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
 	src_addr = vb2_dma_contig_plane_dma_addr(src_buf, 0);
 	dst_addr = vb2_dma_contig_plane_dma_addr(dst_buf, 0);
 
@@ -1170,22 +1096,8 @@ static void s5p_jpeg_buf_queue(struct vb2_buffer *vb)
 				      );
 		q_data->size = q_data->w * q_data->h * q_data->fmt->depth >> 3;
 	}
-	if (ctx->m2m_ctx)
-		v4l2_m2m_buf_queue(ctx->m2m_ctx, vb);
-}
 
-static void s5p_jpeg_wait_prepare(struct vb2_queue *vq)
-{
-	struct s5p_jpeg_ctx *ctx = vb2_get_drv_priv(vq);
-
-	mutex_unlock(&ctx->jpeg->lock);
-}
-
-static void s5p_jpeg_wait_finish(struct vb2_queue *vq)
-{
-	struct s5p_jpeg_ctx *ctx = vb2_get_drv_priv(vq);
-
-	mutex_lock(&ctx->jpeg->lock);
+	v4l2_m2m_buf_queue(ctx->fh.m2m_ctx, vb);
 }
 
 static int s5p_jpeg_start_streaming(struct vb2_queue *q, unsigned int count)
@@ -1211,8 +1123,8 @@ static struct vb2_ops s5p_jpeg_qops = {
 	.queue_setup		= s5p_jpeg_queue_setup,
 	.buf_prepare		= s5p_jpeg_buf_prepare,
 	.buf_queue		= s5p_jpeg_buf_queue,
-	.wait_prepare		= s5p_jpeg_wait_prepare,
-	.wait_finish		= s5p_jpeg_wait_finish,
+	.wait_prepare		= vb2_ops_wait_prepare,
+	.wait_finish		= vb2_ops_wait_finish,
 	.start_streaming	= s5p_jpeg_start_streaming,
 	.stop_streaming		= s5p_jpeg_stop_streaming,
 };
@@ -1230,6 +1142,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	src_vq->ops = &s5p_jpeg_qops;
 	src_vq->mem_ops = &vb2_dma_contig_memops;
 	src_vq->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	src_vq->lock = &ctx->jpeg->lock;
 
 	ret = vb2_queue_init(src_vq);
 	if (ret)
@@ -1242,6 +1155,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	dst_vq->ops = &s5p_jpeg_qops;
 	dst_vq->mem_ops = &vb2_dma_contig_memops;
 	dst_vq->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	dst_vq->lock = &ctx->jpeg->lock;
 
 	return vb2_queue_init(dst_vq);
 }
@@ -1267,8 +1181,8 @@ static irqreturn_t s5p_jpeg_irq(int irq, void *dev_id)
 
 	curr_ctx = v4l2_m2m_get_curr_priv(jpeg->m2m_dev);
 
-	src_buf = v4l2_m2m_src_buf_remove(curr_ctx->m2m_ctx);
-	dst_buf = v4l2_m2m_dst_buf_remove(curr_ctx->m2m_ctx);
+	src_buf = v4l2_m2m_src_buf_remove(curr_ctx->fh.m2m_ctx);
+	dst_buf = v4l2_m2m_dst_buf_remove(curr_ctx->fh.m2m_ctx);
 
 	if (curr_ctx->mode == S5P_JPEG_ENCODE)
 		enc_jpeg_too_large = jpeg_enc_stream_stat(jpeg->regs);
@@ -1296,7 +1210,7 @@ static irqreturn_t s5p_jpeg_irq(int irq, void *dev_id)
 	if (curr_ctx->mode == S5P_JPEG_ENCODE)
 		vb2_set_plane_payload(dst_buf, 0, payload_size);
 	v4l2_m2m_buf_done(dst_buf, state);
-	v4l2_m2m_job_finish(jpeg->m2m_dev, curr_ctx->m2m_ctx);
+	v4l2_m2m_job_finish(jpeg->m2m_dev, curr_ctx->fh.m2m_ctx);
 
 	curr_ctx->subsampling = jpeg_get_subsampling_mode(jpeg->regs);
 	spin_unlock(&jpeg->slock);
