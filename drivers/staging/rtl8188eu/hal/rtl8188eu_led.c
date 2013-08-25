@@ -93,7 +93,7 @@ void rtl8188eu_InitSwLeds(struct adapter *padapter)
 {
 	struct led_priv *pledpriv = &(padapter->ledpriv);
 
-	pledpriv->LedControlHandler = LedControl871x;
+	pledpriv->LedControlHandler = LedControl8188eu;
 
 	InitLed871x(padapter, &(pledpriv->SwLed0), LED_PIN_LED0);
 

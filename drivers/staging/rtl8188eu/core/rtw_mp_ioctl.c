@@ -27,8 +27,8 @@
 #include <rtw_mp_ioctl.h>
 
 
-/*   oid_rtl_seg_81_85   section start **************** */
-int oid_rt_wireless_mode_hdl(struct oid_par_priv *poid_par_priv)
+/*   rtl8188eu_oid_rtl_seg_81_85   section start **************** */
+int rtl8188eu_oid_rt_wireless_mode_hdl(struct oid_par_priv *poid_par_priv)
 {
 	int status = NDIS_STATUS_SUCCESS;
 	struct adapter *Adapter = (struct adapter *)(poid_par_priv->adapter_context);
@@ -52,8 +52,8 @@ _func_exit_;
 
 	return status;
 }
-/*   oid_rtl_seg_81_87_80   section start **************** */
-int oid_rt_pro_write_bb_reg_hdl(struct oid_par_priv *poid_par_priv)
+/*   rtl8188eu_oid_rtl_seg_81_87_80   section start **************** */
+int rtl8188eu_oid_rt_pro_write_bb_reg_hdl(struct oid_par_priv *poid_par_priv)
 {
 	struct bb_reg_param *pbbreg;
 	u16 offset;
@@ -63,7 +63,7 @@ int oid_rt_pro_write_bb_reg_hdl(struct oid_par_priv *poid_par_priv)
 
 _func_enter_;
 
-	RT_TRACE(_module_mp_, _drv_notice_, ("+oid_rt_pro_write_bb_reg_hdl\n"));
+	RT_TRACE(_module_mp_, _drv_notice_, ("+rtl8188eu_oid_rt_pro_write_bb_reg_hdl\n"));
 
 	if (poid_par_priv->type_of_oid != SET_OID)
 		return NDIS_STATUS_NOT_ACCEPTED;
@@ -80,7 +80,7 @@ _func_enter_;
 	value = pbbreg->value;
 
 	RT_TRACE(_module_mp_, _drv_notice_,
-		 ("oid_rt_pro_write_bb_reg_hdl: offset=0x%03X value=0x%08X\n",
+		 ("rtl8188eu_oid_rt_pro_write_bb_reg_hdl: offset=0x%03X value=0x%08X\n",
 		  offset, value));
 
 	_irqlevel_changed_(&oldirql, LOWER);
@@ -92,7 +92,7 @@ _func_exit_;
 	return status;
 }
 /*  */
-int oid_rt_pro_read_bb_reg_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_read_bb_reg_hdl(struct oid_par_priv *poid_par_priv)
 {
 	struct bb_reg_param *pbbreg;
 	u16 offset;
@@ -102,7 +102,7 @@ int oid_rt_pro_read_bb_reg_hdl(struct oid_par_priv *poid_par_priv)
 
 _func_enter_;
 
-	RT_TRACE(_module_mp_, _drv_notice_, ("+oid_rt_pro_read_bb_reg_hdl\n"));
+	RT_TRACE(_module_mp_, _drv_notice_, ("+rtl8188eu_oid_rt_pro_read_bb_reg_hdl\n"));
 
 	if (poid_par_priv->type_of_oid != QUERY_OID)
 		return NDIS_STATUS_NOT_ACCEPTED;
@@ -124,14 +124,14 @@ _func_enter_;
 	*poid_par_priv->bytes_rw = poid_par_priv->information_buf_len;
 
 	RT_TRACE(_module_mp_, _drv_notice_,
-		 ("-oid_rt_pro_read_bb_reg_hdl: offset=0x%03X value:0x%08X\n",
+		 ("-rtl8188eu_oid_rt_pro_read_bb_reg_hdl: offset=0x%03X value:0x%08X\n",
 		  offset, value));
 _func_exit_;
 
 	return status;
 }
 /*  */
-int oid_rt_pro_write_rf_reg_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_write_rf_reg_hdl(struct oid_par_priv *poid_par_priv)
 {
 	struct rf_reg_param *pbbreg;
 	u8 path;
@@ -142,7 +142,7 @@ int oid_rt_pro_write_rf_reg_hdl(struct oid_par_priv *poid_par_priv)
 
 _func_enter_;
 
-	RT_TRACE(_module_mp_, _drv_notice_, ("+oid_rt_pro_write_rf_reg_hdl\n"));
+	RT_TRACE(_module_mp_, _drv_notice_, ("+rtl8188eu_oid_rt_pro_write_rf_reg_hdl\n"));
 
 	if (poid_par_priv->type_of_oid != SET_OID)
 		return NDIS_STATUS_NOT_ACCEPTED;
@@ -164,7 +164,7 @@ _func_enter_;
 	value = pbbreg->value;
 
 	RT_TRACE(_module_mp_, _drv_notice_,
-		 ("oid_rt_pro_write_rf_reg_hdl: path=%d offset=0x%02X value=0x%05X\n",
+		 ("rtl8188eu_oid_rt_pro_write_rf_reg_hdl: path=%d offset=0x%02X value=0x%05X\n",
 		  path, offset, value));
 
 	_irqlevel_changed_(&oldirql, LOWER);
@@ -176,7 +176,7 @@ _func_exit_;
 	return status;
 }
 /*  */
-int oid_rt_pro_read_rf_reg_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_read_rf_reg_hdl(struct oid_par_priv *poid_par_priv)
 {
 	struct rf_reg_param *pbbreg;
 	u8 path;
@@ -187,7 +187,7 @@ int oid_rt_pro_read_rf_reg_hdl(struct oid_par_priv *poid_par_priv)
 
 _func_enter_;
 
-	RT_TRACE(_module_mp_, _drv_notice_, ("+oid_rt_pro_read_rf_reg_hdl\n"));
+	RT_TRACE(_module_mp_, _drv_notice_, ("+rtl8188eu_oid_rt_pro_read_rf_reg_hdl\n"));
 
 	if (poid_par_priv->type_of_oid != QUERY_OID)
 		return NDIS_STATUS_NOT_ACCEPTED;
@@ -214,19 +214,19 @@ _func_enter_;
 	*poid_par_priv->bytes_rw = poid_par_priv->information_buf_len;
 
 	RT_TRACE(_module_mp_, _drv_notice_,
-		 ("-oid_rt_pro_read_rf_reg_hdl: path=%d offset=0x%02X value=0x%05X\n",
+		 ("-rtl8188eu_oid_rt_pro_read_rf_reg_hdl: path=%d offset=0x%02X value=0x%05X\n",
 		  path, offset, value));
 
 _func_exit_;
 
 	return status;
 }
-/*   oid_rtl_seg_81_87_00   section end**************** */
+/*   rtl8188eu_oid_rtl_seg_81_87_00   section end**************** */
 /*  */
 
-/*   oid_rtl_seg_81_80_00   section start **************** */
+/*   rtl8188eu_oid_rtl_seg_81_80_00   section start **************** */
 /*  */
-int oid_rt_pro_set_data_rate_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_set_data_rate_hdl(struct oid_par_priv *poid_par_priv)
 {
 	u32		ratevalue;/* 4 */
 	int status = NDIS_STATUS_SUCCESS;
@@ -235,7 +235,7 @@ int oid_rt_pro_set_data_rate_hdl(struct oid_par_priv *poid_par_priv)
 _func_enter_;
 
 	RT_TRACE(_module_mp_, _drv_notice_,
-		 ("+oid_rt_pro_set_data_rate_hdl\n"));
+		 ("+rtl8188eu_oid_rt_pro_set_data_rate_hdl\n"));
 
 	if (poid_par_priv->type_of_oid != SET_OID)
 		return NDIS_STATUS_NOT_ACCEPTED;
@@ -245,7 +245,7 @@ _func_enter_;
 
 	ratevalue = *((u32 *)poid_par_priv->information_buf);/* 4 */
 	RT_TRACE(_module_mp_, _drv_notice_,
-		 ("oid_rt_pro_set_data_rate_hdl: data rate idx=%d\n", ratevalue));
+		 ("rtl8188eu_oid_rt_pro_set_data_rate_hdl: data rate idx=%d\n", ratevalue));
 	if (ratevalue >= MPT_RATE_LAST)
 		return NDIS_STATUS_INVALID_DATA;
 
@@ -260,7 +260,7 @@ _func_exit_;
 	return status;
 }
 /*  */
-int oid_rt_pro_start_test_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_start_test_hdl(struct oid_par_priv *poid_par_priv)
 {
 	u32		mode;
 	int status = NDIS_STATUS_SUCCESS;
@@ -268,7 +268,7 @@ int oid_rt_pro_start_test_hdl(struct oid_par_priv *poid_par_priv)
 
 _func_enter_;
 
-	RT_TRACE(_module_mp_, _drv_notice_, ("+oid_rt_pro_start_test_hdl\n"));
+	RT_TRACE(_module_mp_, _drv_notice_, ("+rtl8188eu_oid_rt_pro_start_test_hdl\n"));
 
 	if (Adapter->registrypriv.mp_mode == 0)
 		return NDIS_STATUS_NOT_ACCEPTED;
@@ -291,14 +291,14 @@ _func_enter_;
 exit:
 	_irqlevel_changed_(&oldirql, RAISE);
 
-	RT_TRACE(_module_mp_, _drv_notice_, ("-oid_rt_pro_start_test_hdl: mp_mode=%d\n", Adapter->mppriv.mode));
+	RT_TRACE(_module_mp_, _drv_notice_, ("-rtl8188eu_oid_rt_pro_start_test_hdl: mp_mode=%d\n", Adapter->mppriv.mode));
 
 _func_exit_;
 
 	return status;
 }
 /*  */
-int oid_rt_pro_stop_test_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_stop_test_hdl(struct oid_par_priv *poid_par_priv)
 {
 	int status = NDIS_STATUS_SUCCESS;
 	struct adapter *Adapter = (struct adapter *)(poid_par_priv->adapter_context);
@@ -321,7 +321,7 @@ _func_exit_;
 	return status;
 }
 /*  */
-int oid_rt_pro_set_channel_direct_call_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_set_channel_direct_call_hdl(struct oid_par_priv *poid_par_priv)
 {
 	u32		Channel;
 	int status = NDIS_STATUS_SUCCESS;
@@ -329,7 +329,7 @@ int oid_rt_pro_set_channel_direct_call_hdl(struct oid_par_priv *poid_par_priv)
 
 _func_enter_;
 
-	RT_TRACE(_module_mp_, _drv_notice_, ("+oid_rt_pro_set_channel_direct_call_hdl\n"));
+	RT_TRACE(_module_mp_, _drv_notice_, ("+rtl8188eu_oid_rt_pro_set_channel_direct_call_hdl\n"));
 
 	if (poid_par_priv->information_buf_len != sizeof(u32))
 		return NDIS_STATUS_INVALID_LENGTH;
@@ -343,7 +343,7 @@ _func_enter_;
 		return NDIS_STATUS_NOT_ACCEPTED;
 
 	Channel = *((u32 *)poid_par_priv->information_buf);
-	RT_TRACE(_module_mp_, _drv_notice_, ("oid_rt_pro_set_channel_direct_call_hdl: Channel=%d\n", Channel));
+	RT_TRACE(_module_mp_, _drv_notice_, ("rtl8188eu_oid_rt_pro_set_channel_direct_call_hdl: Channel=%d\n", Channel));
 	if (Channel > 14)
 		return NDIS_STATUS_NOT_ACCEPTED;
 	Adapter->mppriv.channel = Channel;
@@ -357,7 +357,7 @@ _func_exit_;
 	return status;
 }
 /*  */
-int oid_rt_set_bandwidth_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_set_bandwidth_hdl(struct oid_par_priv *poid_par_priv)
 {
 	u16		bandwidth;
 	u16		channel_offset;
@@ -367,7 +367,7 @@ int oid_rt_set_bandwidth_hdl(struct oid_par_priv *poid_par_priv)
 _func_enter_;
 
 	RT_TRACE(_module_mp_, _drv_info_,
-		 ("+oid_rt_set_bandwidth_hdl\n"));
+		 ("+rtl8188eu_oid_rt_set_bandwidth_hdl\n"));
 
 	if (poid_par_priv->type_of_oid != SET_OID)
 		return NDIS_STATUS_NOT_ACCEPTED;
@@ -388,7 +388,7 @@ _func_enter_;
 	_irqlevel_changed_(&oldirql, RAISE);
 
 	RT_TRACE(_module_mp_, _drv_notice_,
-		 ("-oid_rt_set_bandwidth_hdl: bandwidth=%d channel_offset=%d\n",
+		 ("-rtl8188eu_oid_rt_set_bandwidth_hdl: bandwidth=%d channel_offset=%d\n",
 		  bandwidth, channel_offset));
 
 _func_exit_;
@@ -396,7 +396,7 @@ _func_exit_;
 	return status;
 }
 /*  */
-int oid_rt_pro_set_antenna_bb_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_set_antenna_bb_hdl(struct oid_par_priv *poid_par_priv)
 {
 	u32		antenna;
 	int status = NDIS_STATUS_SUCCESS;
@@ -404,7 +404,7 @@ int oid_rt_pro_set_antenna_bb_hdl(struct oid_par_priv *poid_par_priv)
 
 _func_enter_;
 
-	RT_TRACE(_module_mp_, _drv_notice_, ("+oid_rt_pro_set_antenna_bb_hdl\n"));
+	RT_TRACE(_module_mp_, _drv_notice_, ("+rtl8188eu_oid_rt_pro_set_antenna_bb_hdl\n"));
 
 	if (poid_par_priv->information_buf_len != sizeof(u32))
 		return NDIS_STATUS_INVALID_LENGTH;
@@ -415,7 +415,7 @@ _func_enter_;
 		Adapter->mppriv.antenna_tx = (u16)((antenna & 0xFFFF0000) >> 16);
 		Adapter->mppriv.antenna_rx = (u16)(antenna & 0x0000FFFF);
 		RT_TRACE(_module_mp_, _drv_notice_,
-			 ("oid_rt_pro_set_antenna_bb_hdl: tx_ant=0x%04x rx_ant=0x%04x\n",
+			 ("rtl8188eu_oid_rt_pro_set_antenna_bb_hdl: tx_ant=0x%04x rx_ant=0x%04x\n",
 			  Adapter->mppriv.antenna_tx, Adapter->mppriv.antenna_rx));
 
 		_irqlevel_changed_(&oldirql, LOWER);
@@ -431,7 +431,7 @@ _func_exit_;
 	return status;
 }
 
-int oid_rt_pro_set_tx_power_control_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_set_tx_power_control_hdl(struct oid_par_priv *poid_par_priv)
 {
 	u32		tx_pwr_idx;
 	int status = NDIS_STATUS_SUCCESS;
@@ -439,7 +439,7 @@ int oid_rt_pro_set_tx_power_control_hdl(struct oid_par_priv *poid_par_priv)
 
 _func_enter_;
 
-	RT_TRACE(_module_mp_, _drv_info_, ("+oid_rt_pro_set_tx_power_control_hdl\n"));
+	RT_TRACE(_module_mp_, _drv_info_, ("+rtl8188eu_oid_rt_pro_set_tx_power_control_hdl\n"));
 
 	if (poid_par_priv->type_of_oid != SET_OID)
 		return NDIS_STATUS_NOT_ACCEPTED;
@@ -454,7 +454,7 @@ _func_enter_;
 	Adapter->mppriv.txpoweridx = (u8)tx_pwr_idx;
 
 	RT_TRACE(_module_mp_, _drv_notice_,
-		 ("oid_rt_pro_set_tx_power_control_hdl: idx=0x%2x\n",
+		 ("rtl8188eu_oid_rt_pro_set_tx_power_control_hdl: idx=0x%2x\n",
 		  Adapter->mppriv.txpoweridx));
 
 	_irqlevel_changed_(&oldirql, LOWER);
@@ -467,9 +467,9 @@ _func_exit_;
 }
 
 /*  */
-/*   oid_rtl_seg_81_80_20   section start **************** */
+/*   rtl8188eu_oid_rtl_seg_81_80_20   section start **************** */
 /*  */
-int oid_rt_pro_query_tx_packet_sent_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_query_tx_packet_sent_hdl(struct oid_par_priv *poid_par_priv)
 {
 	int status = NDIS_STATUS_SUCCESS;
 	struct adapter *Adapter = (struct adapter *)(poid_par_priv->adapter_context);
@@ -493,7 +493,7 @@ _func_exit_;
 	return status;
 }
 /*  */
-int oid_rt_pro_query_rx_packet_received_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_query_rx_packet_received_hdl(struct oid_par_priv *poid_par_priv)
 {
 	int status = NDIS_STATUS_SUCCESS;
 	struct adapter *Adapter = (struct adapter *)(poid_par_priv->adapter_context);
@@ -504,7 +504,7 @@ _func_enter_;
 		status = NDIS_STATUS_NOT_ACCEPTED;
 		return status;
 	}
-	RT_TRACE(_module_mp_, _drv_alert_, ("===> oid_rt_pro_query_rx_packet_received_hdl.\n"));
+	RT_TRACE(_module_mp_, _drv_alert_, ("===> rtl8188eu_oid_rt_pro_query_rx_packet_received_hdl.\n"));
 	if (poid_par_priv->information_buf_len == sizeof(u32)) {
 		*(u32 *)poid_par_priv->information_buf =  Adapter->mppriv.rx_pktcount;
 		*poid_par_priv->bytes_rw = poid_par_priv->information_buf_len;
@@ -518,7 +518,7 @@ _func_exit_;
 	return status;
 }
 /*  */
-int oid_rt_pro_query_rx_packet_crc32_error_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_query_rx_packet_crc32_error_hdl(struct oid_par_priv *poid_par_priv)
 {
 	int status = NDIS_STATUS_SUCCESS;
 	struct adapter *Adapter = (struct adapter *)(poid_par_priv->adapter_context);
@@ -529,7 +529,7 @@ _func_enter_;
 		status = NDIS_STATUS_NOT_ACCEPTED;
 		return status;
 	}
-	RT_TRACE(_module_mp_, _drv_alert_, ("===> oid_rt_pro_query_rx_packet_crc32_error_hdl.\n"));
+	RT_TRACE(_module_mp_, _drv_alert_, ("===> rtl8188eu_oid_rt_pro_query_rx_packet_crc32_error_hdl.\n"));
 	if (poid_par_priv->information_buf_len == sizeof(u32)) {
 		*(u32 *)poid_par_priv->information_buf =  Adapter->mppriv.rx_crcerrpktcount;
 		*poid_par_priv->bytes_rw = poid_par_priv->information_buf_len;
@@ -544,7 +544,7 @@ _func_exit_;
 }
 /*  */
 
-int oid_rt_pro_reset_tx_packet_sent_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_reset_tx_packet_sent_hdl(struct oid_par_priv *poid_par_priv)
 {
 	int status = NDIS_STATUS_SUCCESS;
 	struct adapter *Adapter = (struct adapter *)(poid_par_priv->adapter_context);
@@ -556,7 +556,7 @@ _func_enter_;
 		return status;
 	}
 
-	RT_TRACE(_module_mp_, _drv_alert_, ("===> oid_rt_pro_reset_tx_packet_sent_hdl.\n"));
+	RT_TRACE(_module_mp_, _drv_alert_, ("===> rtl8188eu_oid_rt_pro_reset_tx_packet_sent_hdl.\n"));
 	Adapter->mppriv.tx_pktcount = 0;
 
 _func_exit_;
@@ -564,7 +564,7 @@ _func_exit_;
 	return status;
 }
 /*  */
-int oid_rt_pro_reset_rx_packet_received_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_reset_rx_packet_received_hdl(struct oid_par_priv *poid_par_priv)
 {
 	int status = NDIS_STATUS_SUCCESS;
 	struct adapter *Adapter = (struct adapter *)(poid_par_priv->adapter_context);
@@ -588,7 +588,7 @@ _func_exit_;
 	return status;
 }
 /*  */
-int oid_rt_reset_phy_rx_packet_count_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_reset_phy_rx_packet_count_hdl(struct oid_par_priv *poid_par_priv)
 {
 	int status = NDIS_STATUS_SUCCESS;
 	struct adapter *Adapter = (struct adapter *)(poid_par_priv->adapter_context);
@@ -609,14 +609,14 @@ _func_exit_;
 	return status;
 }
 /*  */
-int oid_rt_get_phy_rx_packet_received_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_get_phy_rx_packet_received_hdl(struct oid_par_priv *poid_par_priv)
 {
 	int status = NDIS_STATUS_SUCCESS;
 	struct adapter *Adapter = (struct adapter *)(poid_par_priv->adapter_context);
 
 _func_enter_;
 
-	RT_TRACE(_module_mp_, _drv_info_, ("+oid_rt_get_phy_rx_packet_received_hdl\n"));
+	RT_TRACE(_module_mp_, _drv_info_, ("+rtl8188eu_oid_rt_get_phy_rx_packet_received_hdl\n"));
 
 	if (poid_par_priv->type_of_oid != QUERY_OID)
 		return NDIS_STATUS_NOT_ACCEPTED;
@@ -630,21 +630,21 @@ _func_enter_;
 
 	*poid_par_priv->bytes_rw = poid_par_priv->information_buf_len;
 
-	RT_TRACE(_module_mp_, _drv_notice_, ("-oid_rt_get_phy_rx_packet_received_hdl: recv_ok=%d\n", *(u32 *)poid_par_priv->information_buf));
+	RT_TRACE(_module_mp_, _drv_notice_, ("-rtl8188eu_oid_rt_get_phy_rx_packet_received_hdl: recv_ok=%d\n", *(u32 *)poid_par_priv->information_buf));
 
 _func_exit_;
 
 	return status;
 }
 /*  */
-int oid_rt_get_phy_rx_packet_crc32_error_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_get_phy_rx_packet_crc32_error_hdl(struct oid_par_priv *poid_par_priv)
 {
 	int status = NDIS_STATUS_SUCCESS;
 	struct adapter *Adapter = (struct adapter *)(poid_par_priv->adapter_context);
 
 _func_enter_;
 
-	RT_TRACE(_module_mp_, _drv_info_, ("+oid_rt_get_phy_rx_packet_crc32_error_hdl\n"));
+	RT_TRACE(_module_mp_, _drv_info_, ("+rtl8188eu_oid_rt_get_phy_rx_packet_crc32_error_hdl\n"));
 
 	if (poid_par_priv->type_of_oid != QUERY_OID)
 		return NDIS_STATUS_NOT_ACCEPTED;
@@ -660,15 +660,15 @@ _func_enter_;
 	*poid_par_priv->bytes_rw = poid_par_priv->information_buf_len;
 
 	RT_TRACE(_module_mp_, _drv_info_,
-		 ("-oid_rt_get_phy_rx_packet_crc32_error_hdl: recv_err =%d\n",
+		 ("-rtl8188eu_oid_rt_get_phy_rx_packet_crc32_error_hdl: recv_err =%d\n",
 		 *(u32 *)poid_par_priv->information_buf));
 
 _func_exit_;
 
 	return status;
 }
-/*   oid_rtl_seg_81_80_20   section end **************** */
-int oid_rt_pro_set_continuous_tx_hdl(struct oid_par_priv *poid_par_priv)
+/*   rtl8188eu_oid_rtl_seg_81_80_20   section end **************** */
+int rtl8188eu_oid_rt_pro_set_continuous_tx_hdl(struct oid_par_priv *poid_par_priv)
 {
 	u32		bStartTest;
 	int status = NDIS_STATUS_SUCCESS;
@@ -676,7 +676,7 @@ int oid_rt_pro_set_continuous_tx_hdl(struct oid_par_priv *poid_par_priv)
 
 _func_enter_;
 
-	RT_TRACE(_module_mp_, _drv_notice_, ("+oid_rt_pro_set_continuous_tx_hdl\n"));
+	RT_TRACE(_module_mp_, _drv_notice_, ("+rtl8188eu_oid_rt_pro_set_continuous_tx_hdl\n"));
 
 	if (poid_par_priv->type_of_oid != SET_OID)
 		return NDIS_STATUS_NOT_ACCEPTED;
@@ -703,7 +703,7 @@ _func_exit_;
 	return status;
 }
 
-int oid_rt_pro_set_single_carrier_tx_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_set_single_carrier_tx_hdl(struct oid_par_priv *poid_par_priv)
 {
 	u32		bStartTest;
 	int status = NDIS_STATUS_SUCCESS;
@@ -711,7 +711,7 @@ int oid_rt_pro_set_single_carrier_tx_hdl(struct oid_par_priv *poid_par_priv)
 
 _func_enter_;
 
-	RT_TRACE(_module_mp_, _drv_alert_, ("+oid_rt_pro_set_single_carrier_tx_hdl\n"));
+	RT_TRACE(_module_mp_, _drv_alert_, ("+rtl8188eu_oid_rt_pro_set_single_carrier_tx_hdl\n"));
 
 	if (poid_par_priv->type_of_oid != SET_OID)
 		return NDIS_STATUS_NOT_ACCEPTED;
@@ -738,7 +738,7 @@ _func_exit_;
 	return status;
 }
 
-int oid_rt_pro_set_carrier_suppression_tx_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_set_carrier_suppression_tx_hdl(struct oid_par_priv *poid_par_priv)
 {
 	u32		bStartTest;
 	int status = NDIS_STATUS_SUCCESS;
@@ -746,7 +746,7 @@ int oid_rt_pro_set_carrier_suppression_tx_hdl(struct oid_par_priv *poid_par_priv
 
 _func_enter_;
 
-	RT_TRACE(_module_mp_, _drv_notice_, ("+oid_rt_pro_set_carrier_suppression_tx_hdl\n"));
+	RT_TRACE(_module_mp_, _drv_notice_, ("+rtl8188eu_oid_rt_pro_set_carrier_suppression_tx_hdl\n"));
 
 	if (poid_par_priv->type_of_oid != SET_OID)
 		return NDIS_STATUS_NOT_ACCEPTED;
@@ -773,7 +773,7 @@ _func_exit_;
 	return status;
 }
 
-int oid_rt_pro_set_single_tone_tx_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_set_single_tone_tx_hdl(struct oid_par_priv *poid_par_priv)
 {
 	u32		bStartTest;
 	int status = NDIS_STATUS_SUCCESS;
@@ -781,7 +781,7 @@ int oid_rt_pro_set_single_tone_tx_hdl(struct oid_par_priv *poid_par_priv)
 
 _func_enter_;
 
-	RT_TRACE(_module_mp_, _drv_alert_, ("+oid_rt_pro_set_single_tone_tx_hdl\n"));
+	RT_TRACE(_module_mp_, _drv_alert_, ("+rtl8188eu_oid_rt_pro_set_single_tone_tx_hdl\n"));
 
 	if (poid_par_priv->type_of_oid != SET_OID)
 		return NDIS_STATUS_NOT_ACCEPTED;
@@ -797,12 +797,12 @@ _func_exit_;
 	return status;
 }
 
-int oid_rt_pro_set_modulation_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_set_modulation_hdl(struct oid_par_priv *poid_par_priv)
 {
 	return 0;
 }
 
-int oid_rt_pro_trigger_gpio_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_trigger_gpio_hdl(struct oid_par_priv *poid_par_priv)
 {
 	struct adapter *Adapter = (struct adapter *)(poid_par_priv->adapter_context);
 	int status = NDIS_STATUS_SUCCESS;
@@ -819,14 +819,14 @@ _func_exit_;
 
 	return status;
 }
-/*   oid_rtl_seg_81_80_00   section end **************** */
+/*   rtl8188eu_oid_rtl_seg_81_80_00   section end **************** */
 /*  */
-int oid_rt_pro8711_join_bss_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro8711_join_bss_hdl(struct oid_par_priv *poid_par_priv)
 {
 	return 0;
 }
 /*  */
-int oid_rt_pro_read_register_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_read_register_hdl(struct oid_par_priv *poid_par_priv)
 {
 	struct mp_rw_reg *RegRWStruct;
 	u32		offset, width;
@@ -836,7 +836,7 @@ int oid_rt_pro_read_register_hdl(struct oid_par_priv *poid_par_priv)
 _func_enter_;
 
 	RT_TRACE(_module_mp_, _drv_info_,
-		 ("+oid_rt_pro_read_register_hdl\n"));
+		 ("+rtl8188eu_oid_rt_pro_read_register_hdl\n"));
 
 	if (poid_par_priv->type_of_oid != QUERY_OID)
 		return NDIS_STATUS_NOT_ACCEPTED;
@@ -863,7 +863,7 @@ _func_enter_;
 		break;
 	}
 	RT_TRACE(_module_mp_, _drv_notice_,
-		 ("oid_rt_pro_read_register_hdl: offset:0x%04X value:0x%X\n",
+		 ("rtl8188eu_oid_rt_pro_read_register_hdl: offset:0x%04X value:0x%X\n",
 		  offset, RegRWStruct->value));
 
 	_irqlevel_changed_(&oldirql, RAISE);
@@ -875,7 +875,7 @@ _func_exit_;
 	return status;
 }
 /*  */
-int oid_rt_pro_write_register_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_write_register_hdl(struct oid_par_priv *poid_par_priv)
 {
 	struct mp_rw_reg *RegRWStruct;
 	u32		offset, width, value;
@@ -885,7 +885,7 @@ int oid_rt_pro_write_register_hdl(struct oid_par_priv *poid_par_priv)
 _func_enter_;
 
 	RT_TRACE(_module_mp_, _drv_info_,
-		 ("+oid_rt_pro_write_register_hdl\n"));
+		 ("+rtl8188eu_oid_rt_pro_write_register_hdl\n"));
 
 	if (poid_par_priv->type_of_oid != SET_OID)
 		return NDIS_STATUS_NOT_ACCEPTED;
@@ -926,7 +926,7 @@ _func_enter_;
 	_irqlevel_changed_(&oldirql, RAISE);
 
 	RT_TRACE(_module_mp_, _drv_info_,
-		 ("-oid_rt_pro_write_register_hdl: offset=0x%08X width=%d value=0x%X\n",
+		 ("-rtl8188eu_oid_rt_pro_write_register_hdl: offset=0x%08X width=%d value=0x%X\n",
 		  offset, width, value));
 
 _func_exit_;
@@ -934,69 +934,69 @@ _func_exit_;
 	return status;
 }
 /*  */
-int oid_rt_pro_burst_read_register_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_burst_read_register_hdl(struct oid_par_priv *poid_par_priv)
 {
 	return 0;
 }
 /*  */
-int oid_rt_pro_burst_write_register_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_burst_write_register_hdl(struct oid_par_priv *poid_par_priv)
 {
 	return 0;
 }
 /*  */
-int oid_rt_pro_write_txcmd_hdl(struct oid_par_priv *poid_par_priv)
-{
-	return 0;
-}
-
-/*  */
-int oid_rt_pro_read16_eeprom_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_write_txcmd_hdl(struct oid_par_priv *poid_par_priv)
 {
 	return 0;
 }
 
 /*  */
-int oid_rt_pro_write16_eeprom_hdl (struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_read16_eeprom_hdl(struct oid_par_priv *poid_par_priv)
+{
+	return 0;
+}
+
+/*  */
+int rtl8188eu_oid_rt_pro_write16_eeprom_hdl (struct oid_par_priv *poid_par_priv)
 {
 	return 0;
 }
 /*  */
-int oid_rt_pro8711_wi_poll_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro8711_wi_poll_hdl(struct oid_par_priv *poid_par_priv)
 {
 	return 0;
 }
 /*  */
-int oid_rt_pro8711_pkt_loss_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro8711_pkt_loss_hdl(struct oid_par_priv *poid_par_priv)
 {
 	return 0;
 }
 /*  */
-int oid_rt_rd_attrib_mem_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_rd_attrib_mem_hdl(struct oid_par_priv *poid_par_priv)
 {
 	return 0;
 }
 /*  */
-int oid_rt_wr_attrib_mem_hdl (struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_wr_attrib_mem_hdl (struct oid_par_priv *poid_par_priv)
 {
 	return 0;
 }
 /*  */
-int  oid_rt_pro_set_rf_intfs_hdl(struct oid_par_priv *poid_par_priv)
+int  rtl8188eu_oid_rt_pro_set_rf_intfs_hdl(struct oid_par_priv *poid_par_priv)
 {
 	return 0;
 }
 /*  */
-int oid_rt_poll_rx_status_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_poll_rx_status_hdl(struct oid_par_priv *poid_par_priv)
 {
 	return 0;
 }
 /*  */
-int oid_rt_pro_cfg_debug_message_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_cfg_debug_message_hdl(struct oid_par_priv *poid_par_priv)
 {
 	return 0;
 }
 /*  */
-int oid_rt_pro_set_data_rate_ex_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_set_data_rate_ex_hdl(struct oid_par_priv *poid_par_priv)
 {
 	struct adapter *Adapter = (struct adapter *)(poid_par_priv->adapter_context);
 
@@ -1021,7 +1021,7 @@ _func_exit_;
 	return status;
 }
 /*  */
-int oid_rt_get_thermal_meter_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_get_thermal_meter_hdl(struct oid_par_priv *poid_par_priv)
 {
 	int status = NDIS_STATUS_SUCCESS;
 	u8 thermal = 0;
@@ -1029,7 +1029,7 @@ int oid_rt_get_thermal_meter_hdl(struct oid_par_priv *poid_par_priv)
 
 _func_enter_;
 
-	RT_TRACE(_module_mp_, _drv_notice_, ("+oid_rt_get_thermal_meter_hdl\n"));
+	RT_TRACE(_module_mp_, _drv_notice_, ("+rtl8188eu_oid_rt_get_thermal_meter_hdl\n"));
 
 	if (poid_par_priv->type_of_oid != QUERY_OID)
 		return NDIS_STATUS_NOT_ACCEPTED;
@@ -1049,12 +1049,12 @@ _func_exit_;
 	return status;
 }
 /*  */
-int oid_rt_pro_read_tssi_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_read_tssi_hdl(struct oid_par_priv *poid_par_priv)
 {
 	return 0;
 }
 /*  */
-int oid_rt_pro_set_power_tracking_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_set_power_tracking_hdl(struct oid_par_priv *poid_par_priv)
 {
 	int status = NDIS_STATUS_SUCCESS;
 	struct adapter *Adapter = (struct adapter *)(poid_par_priv->adapter_context);
@@ -1071,7 +1071,7 @@ _func_enter_;
 
 		enable = *(u8 *)poid_par_priv->information_buf;
 		RT_TRACE(_module_mp_, _drv_notice_,
-			 ("+oid_rt_pro_set_power_tracking_hdl: enable =%d\n", enable));
+			 ("+rtl8188eu_oid_rt_pro_set_power_tracking_hdl: enable =%d\n", enable));
 
 		SetPowerTracking(Adapter, enable);
 	} else {
@@ -1084,58 +1084,58 @@ _func_exit_;
 	return status;
 }
 /*  */
-int oid_rt_pro_set_basic_rate_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_set_basic_rate_hdl(struct oid_par_priv *poid_par_priv)
 {
 	return 0;
 }
 /*  */
-int oid_rt_pro_qry_pwrstate_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_qry_pwrstate_hdl(struct oid_par_priv *poid_par_priv)
 {
 	return 0;
 }
 /*  */
-int oid_rt_pro_set_pwrstate_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_set_pwrstate_hdl(struct oid_par_priv *poid_par_priv)
 {
 	return 0;
 }
 /*  */
-int oid_rt_pro_h2c_set_rate_table_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_h2c_set_rate_table_hdl(struct oid_par_priv *poid_par_priv)
 {
 	return 0;
 }
 /*  */
-int oid_rt_pro_h2c_get_rate_table_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_h2c_get_rate_table_hdl(struct oid_par_priv *poid_par_priv)
 {
 	return 0;
 }
 
-/*   oid_rtl_seg_87_12_00   section start **************** */
-int oid_rt_pro_encryption_ctrl_hdl(struct oid_par_priv *poid_par_priv)
+/*   rtl8188eu_oid_rtl_seg_87_12_00   section start **************** */
+int rtl8188eu_oid_rt_pro_encryption_ctrl_hdl(struct oid_par_priv *poid_par_priv)
 {
 	return 0;
 }
 
-int oid_rt_pro_add_sta_info_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_add_sta_info_hdl(struct oid_par_priv *poid_par_priv)
 {
 	return 0;
 }
 
-int oid_rt_pro_dele_sta_info_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_dele_sta_info_hdl(struct oid_par_priv *poid_par_priv)
 {
 	return 0;
 }
 
-int oid_rt_pro_query_dr_variable_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_query_dr_variable_hdl(struct oid_par_priv *poid_par_priv)
 {
 	return 0;
 }
 
-int oid_rt_pro_rx_packet_type_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_rx_packet_type_hdl(struct oid_par_priv *poid_par_priv)
 {
 	return NDIS_STATUS_SUCCESS;
 }
 /*  */
-int oid_rt_pro_read_efuse_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_read_efuse_hdl(struct oid_par_priv *poid_par_priv)
 {
 	struct efuse_access_struct *pefuse;
 	u8 *data;
@@ -1157,19 +1157,19 @@ _func_enter_;
 	data = pefuse->data;
 
 	RT_TRACE(_module_mp_, _drv_notice_,
-		 ("+oid_rt_pro_read_efuse_hd: buf_len=%d addr=%d cnts=%d\n",
+		 ("+rtl8188eu_oid_rt_pro_read_efuse_hd: buf_len=%d addr=%d cnts=%d\n",
 		  poid_par_priv->information_buf_len, addr, cnts));
 
 	EFUSE_GetEfuseDefinition(Adapter, EFUSE_WIFI, TYPE_AVAILABLE_EFUSE_BYTES_TOTAL, (void *)&max_available_size, false);
 
 	if ((addr + cnts) > max_available_size) {
-		RT_TRACE(_module_mp_, _drv_err_, ("!oid_rt_pro_read_efuse_hdl: parameter error!\n"));
+		RT_TRACE(_module_mp_, _drv_err_, ("!rtl8188eu_oid_rt_pro_read_efuse_hdl: parameter error!\n"));
 		return NDIS_STATUS_NOT_ACCEPTED;
 	}
 
 	_irqlevel_changed_(&oldirql, LOWER);
 	if (rtw_efuse_access(Adapter, false, addr, cnts, data) == _FAIL) {
-		RT_TRACE(_module_mp_, _drv_err_, ("!oid_rt_pro_read_efuse_hdl: rtw_efuse_access FAIL!\n"));
+		RT_TRACE(_module_mp_, _drv_err_, ("!rtl8188eu_oid_rt_pro_read_efuse_hdl: rtw_efuse_access FAIL!\n"));
 		status = NDIS_STATUS_FAILURE;
 	} else {
 		*poid_par_priv->bytes_rw = poid_par_priv->information_buf_len;
@@ -1181,7 +1181,7 @@ _func_exit_;
 	return status;
 }
 /*  */
-int oid_rt_pro_write_efuse_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_write_efuse_hdl(struct oid_par_priv *poid_par_priv)
 {
 	struct efuse_access_struct *pefuse;
 	u8 *data;
@@ -1201,13 +1201,13 @@ _func_enter_;
 	data = pefuse->data;
 
 	RT_TRACE(_module_mp_, _drv_notice_,
-		 ("+oid_rt_pro_write_efuse_hdl: buf_len=%d addr=0x%04x cnts=%d\n",
+		 ("+rtl8188eu_oid_rt_pro_write_efuse_hdl: buf_len=%d addr=0x%04x cnts=%d\n",
 		  poid_par_priv->information_buf_len, addr, cnts));
 
 	EFUSE_GetEfuseDefinition(Adapter, EFUSE_WIFI, TYPE_AVAILABLE_EFUSE_BYTES_TOTAL, (void *)&max_available_size, false);
 
 	if ((addr + cnts) > max_available_size) {
-		RT_TRACE(_module_mp_, _drv_err_, ("!oid_rt_pro_write_efuse_hdl: parameter error"));
+		RT_TRACE(_module_mp_, _drv_err_, ("!rtl8188eu_oid_rt_pro_write_efuse_hdl: parameter error"));
 		return NDIS_STATUS_NOT_ACCEPTED;
 	}
 
@@ -1221,7 +1221,7 @@ _func_exit_;
 	return status;
 }
 /*  */
-int oid_rt_pro_rw_efuse_pgpkt_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_rw_efuse_pgpkt_hdl(struct oid_par_priv *poid_par_priv)
 {
 	struct pgpkt *ppgpkt;
 	int status = NDIS_STATUS_SUCCESS;
@@ -1240,7 +1240,7 @@ _func_enter_;
 
 	if (poid_par_priv->type_of_oid == QUERY_OID) {
 		RT_TRACE(_module_mp_, _drv_notice_,
-			 ("oid_rt_pro_rw_efuse_pgpkt_hdl: Read offset=0x%x\n",\
+			 ("rtl8188eu_oid_rt_pro_rw_efuse_pgpkt_hdl: Read offset=0x%x\n",\
 			 ppgpkt->offset));
 
 		Efuse_PowerSwitch(Adapter, false, true);
@@ -1251,7 +1251,7 @@ _func_enter_;
 		Efuse_PowerSwitch(Adapter, false, false);
 	} else {
 		RT_TRACE(_module_mp_, _drv_notice_,
-			 ("oid_rt_pro_rw_efuse_pgpkt_hdl: Write offset=0x%x word_en=0x%x\n",\
+			 ("rtl8188eu_oid_rt_pro_rw_efuse_pgpkt_hdl: Write offset=0x%x word_en=0x%x\n",\
 			 ppgpkt->offset, ppgpkt->word_en));
 
 		Efuse_PowerSwitch(Adapter, true, true);
@@ -1265,14 +1265,14 @@ _func_enter_;
 	_irqlevel_changed_(&oldirql, RAISE);
 
 	RT_TRACE(_module_mp_, _drv_info_,
-		 ("-oid_rt_pro_rw_efuse_pgpkt_hdl: status=0x%08X\n", status));
+		 ("-rtl8188eu_oid_rt_pro_rw_efuse_pgpkt_hdl: status=0x%08X\n", status));
 
 _func_exit_;
 
 	return status;
 }
 /*  */
-int oid_rt_get_efuse_current_size_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_get_efuse_current_size_hdl(struct oid_par_priv *poid_par_priv)
 {
 	u16 size;
 	u8 ret;
@@ -1301,7 +1301,7 @@ _func_exit_;
 	return status;
 }
 /*  */
-int oid_rt_get_efuse_max_size_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_get_efuse_max_size_hdl(struct oid_par_priv *poid_par_priv)
 {
 	int status = NDIS_STATUS_SUCCESS;
 	struct adapter *Adapter = (struct adapter *)(poid_par_priv->adapter_context);
@@ -1318,7 +1318,7 @@ _func_enter_;
 	*poid_par_priv->bytes_rw = poid_par_priv->information_buf_len;
 
 	RT_TRACE(_module_mp_, _drv_info_,
-		 ("-oid_rt_get_efuse_max_size_hdl: size=%d status=0x%08X\n",
+		 ("-rtl8188eu_oid_rt_get_efuse_max_size_hdl: size=%d status=0x%08X\n",
 		  *(int *)poid_par_priv->information_buf, status));
 
 _func_exit_;
@@ -1326,27 +1326,27 @@ _func_exit_;
 	return status;
 }
 /*  */
-int oid_rt_pro_efuse_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_efuse_hdl(struct oid_par_priv *poid_par_priv)
 {
 	int status;
 
 _func_enter_;
 
-	RT_TRACE(_module_mp_, _drv_info_, ("+oid_rt_pro_efuse_hdl\n"));
+	RT_TRACE(_module_mp_, _drv_info_, ("+rtl8188eu_oid_rt_pro_efuse_hdl\n"));
 
 	if (poid_par_priv->type_of_oid == QUERY_OID)
-		status = oid_rt_pro_read_efuse_hdl(poid_par_priv);
+		status = rtl8188eu_oid_rt_pro_read_efuse_hdl(poid_par_priv);
 	else
-		status = oid_rt_pro_write_efuse_hdl(poid_par_priv);
+		status = rtl8188eu_oid_rt_pro_write_efuse_hdl(poid_par_priv);
 
-	RT_TRACE(_module_mp_, _drv_info_, ("-oid_rt_pro_efuse_hdl: status=0x%08X\n", status));
+	RT_TRACE(_module_mp_, _drv_info_, ("-rtl8188eu_oid_rt_pro_efuse_hdl: status=0x%08X\n", status));
 
 _func_exit_;
 
 	return status;
 }
 /*  */
-int oid_rt_pro_efuse_map_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_efuse_map_hdl(struct oid_par_priv *poid_par_priv)
 {
 	u8		*data;
 	int status = NDIS_STATUS_SUCCESS;
@@ -1355,7 +1355,7 @@ int oid_rt_pro_efuse_map_hdl(struct oid_par_priv *poid_par_priv)
 
 _func_enter_;
 
-	RT_TRACE(_module_mp_, _drv_notice_, ("+oid_rt_pro_efuse_map_hdl\n"));
+	RT_TRACE(_module_mp_, _drv_notice_, ("+rtl8188eu_oid_rt_pro_efuse_map_hdl\n"));
 
 	EFUSE_GetEfuseDefinition(Adapter, EFUSE_WIFI, TYPE_EFUSE_MAP_LEN, (void *)&maplen, false);
 
@@ -1370,25 +1370,25 @@ _func_enter_;
 
 	if (poid_par_priv->type_of_oid == QUERY_OID) {
 		RT_TRACE(_module_mp_, _drv_info_,
-			 ("oid_rt_pro_efuse_map_hdl: READ\n"));
+			 ("rtl8188eu_oid_rt_pro_efuse_map_hdl: READ\n"));
 
 		if (rtw_efuse_map_read(Adapter, 0, maplen, data) == _SUCCESS) {
 			*poid_par_priv->bytes_rw = maplen;
 		} else {
 			RT_TRACE(_module_mp_, _drv_err_,
-				 ("oid_rt_pro_efuse_map_hdl: READ fail\n"));
+				 ("rtl8188eu_oid_rt_pro_efuse_map_hdl: READ fail\n"));
 			status = NDIS_STATUS_FAILURE;
 		}
 	} else {
 		/*  SET_OID */
 		RT_TRACE(_module_mp_, _drv_info_,
-			 ("oid_rt_pro_efuse_map_hdl: WRITE\n"));
+			 ("rtl8188eu_oid_rt_pro_efuse_map_hdl: WRITE\n"));
 
 		if (rtw_efuse_map_write(Adapter, 0, maplen, data) == _SUCCESS) {
 			*poid_par_priv->bytes_rw = maplen;
 		} else {
 			RT_TRACE(_module_mp_, _drv_err_,
-				 ("oid_rt_pro_efuse_map_hdl: WRITE fail\n"));
+				 ("rtl8188eu_oid_rt_pro_efuse_map_hdl: WRITE fail\n"));
 			status = NDIS_STATUS_FAILURE;
 		}
 	}
@@ -1396,27 +1396,27 @@ _func_enter_;
 	_irqlevel_changed_(&oldirql, RAISE);
 
 	RT_TRACE(_module_mp_, _drv_info_,
-		 ("-oid_rt_pro_efuse_map_hdl: status=0x%08X\n", status));
+		 ("-rtl8188eu_oid_rt_pro_efuse_map_hdl: status=0x%08X\n", status));
 
 _func_exit_;
 
 	return status;
 }
 
-int oid_rt_set_crystal_cap_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_set_crystal_cap_hdl(struct oid_par_priv *poid_par_priv)
 {
 	int status = NDIS_STATUS_SUCCESS;
 	return status;
 }
 
-int oid_rt_set_rx_packet_type_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_set_rx_packet_type_hdl(struct oid_par_priv *poid_par_priv)
 {
 	u8		rx_pkt_type;
 	int status = NDIS_STATUS_SUCCESS;
 
 _func_enter_;
 
-	RT_TRACE(_module_mp_, _drv_notice_, ("+oid_rt_set_rx_packet_type_hdl\n"));
+	RT_TRACE(_module_mp_, _drv_notice_, ("+rtl8188eu_oid_rt_set_rx_packet_type_hdl\n"));
 
 	if (poid_par_priv->type_of_oid != SET_OID)
 		return NDIS_STATUS_NOT_ACCEPTED;
@@ -1432,17 +1432,17 @@ _func_exit_;
 	return status;
 }
 
-int oid_rt_pro_set_tx_agc_offset_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_set_tx_agc_offset_hdl(struct oid_par_priv *poid_par_priv)
 {
 	return 0;
 }
 
-int oid_rt_pro_set_pkt_test_mode_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_pro_set_pkt_test_mode_hdl(struct oid_par_priv *poid_par_priv)
 {
 	return 0;
 }
 
-int mp_ioctl_xmit_packet_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_mp_ioctl_xmit_packet_hdl(struct oid_par_priv *poid_par_priv)
 {
 	struct mp_xmit_parm *pparm;
 	struct adapter *padapter;
@@ -1478,7 +1478,7 @@ int mp_ioctl_xmit_packet_hdl(struct oid_par_priv *poid_par_priv)
 }
 
 /*  */
-int oid_rt_set_power_down_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_set_power_down_hdl(struct oid_par_priv *poid_par_priv)
 {
 	int status = NDIS_STATUS_SUCCESS;
 
@@ -1490,7 +1490,7 @@ _func_enter_;
 	}
 
 	RT_TRACE(_module_mp_, _drv_info_,
-		 ("\n ===> Setoid_rt_set_power_down_hdl.\n"));
+		 ("\n ===> Setrtl8188eu_oid_rt_set_power_down_hdl.\n"));
 
 	_irqlevel_changed_(&oldirql, LOWER);
 
@@ -1502,7 +1502,7 @@ _func_exit_;
 	return status;
 }
 /*  */
-int oid_rt_get_power_mode_hdl(struct oid_par_priv *poid_par_priv)
+int rtl8188eu_oid_rt_get_power_mode_hdl(struct oid_par_priv *poid_par_priv)
 {
 	return 0;
 }

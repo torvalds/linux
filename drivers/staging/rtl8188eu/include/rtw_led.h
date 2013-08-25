@@ -160,7 +160,7 @@ enum LED_STRATEGY_871x {
 	LED_ST_NONE = 99,
 };
 
-void LedControl871x(struct adapter *padapter, enum LED_CTL_MODE	LedAction);
+void LedControl8188eu(struct adapter *padapter, enum LED_CTL_MODE	LedAction);
 
 struct led_priv{
 	/* add for led controll */

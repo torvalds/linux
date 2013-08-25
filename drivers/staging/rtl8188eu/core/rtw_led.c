@@ -1641,7 +1641,7 @@ void BlinkHandler(struct LED_871x *pLed)
 	}
 }
 
-void LedControl871x(struct adapter *padapter, enum LED_CTL_MODE LedAction)
+void LedControl8188eu(struct adapter *padapter, enum LED_CTL_MODE LedAction)
 {
 	struct led_priv *ledpriv = &(padapter->ledpriv);
 
