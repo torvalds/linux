@@ -68,13 +68,6 @@ unsigned long ram_end;
 static unsigned long dma_start __initdata;
 static unsigned long dma_size __initdata;
 
-char c6x_command_line[COMMAND_LINE_SIZE];
-
-#if defined(CONFIG_CMDLINE_BOOL)
-static const char default_command_line[COMMAND_LINE_SIZE] __section(.cmdline) =
-	CONFIG_CMDLINE;
-#endif
-
 struct cpuinfo_c6x {
 	const char *cpu_name;
 	const char *cpu_voltage;
@@ -296,8 +289,6 @@ notrace void __init machine_init(unsigned long dt_ptr)
 	/* Do some early initialization based on the flat device tree */
 	early_init_devtree(fdt);
 
-	/* parse_early_param needs a boot_command_line */
-	strlcpy(boot_command_line, c6x_command_line, COMMAND_LINE_SIZE);
 	parse_early_param();
 }
 
@@ -309,7 +300,7 @@ void __init setup_arch(char **cmdline_p)
 	printk(KERN_INFO "Initializing kernel\n");
 
 	/* Initialize command line */
-	*cmdline_p = c6x_command_line;
+	*cmdline_p = boot_command_line;
 
 	memory_end = ram_end;
 	memory_end &= ~(PAGE_SIZE - 1);
