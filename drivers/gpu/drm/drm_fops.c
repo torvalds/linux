@@ -283,10 +283,10 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 			goto out_free;
 	}
 
-
-	/* if there is no current master make this fd it */
+	/* if there is no current master make this fd it, but do not create
+	 * any master object for render clients */
 	mutex_lock(&dev->struct_mutex);
-	if (!priv->minor->master) {
+	if (!priv->minor->master && !drm_is_render_client(priv)) {
 		/* create a new master */
 		priv->minor->master = drm_master_create(priv->minor);
 		if (!priv->minor->master) {
@@ -324,12 +324,11 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 				goto out_free;
 			}
 		}
-		mutex_unlock(&dev->struct_mutex);
-	} else {
+	} else if (!drm_is_render_client(priv)) {
 		/* get a reference to the master */
 		priv->master = drm_master_get(priv->minor->master);
-		mutex_unlock(&dev->struct_mutex);
 	}
+	mutex_unlock(&dev->struct_mutex);
 
 	mutex_lock(&dev->struct_mutex);
 	list_add(&priv->lhead, &dev->filelist);
@@ -508,7 +507,8 @@ int drm_release(struct inode *inode, struct file *filp)
 	iput(container_of(dev->dev_mapping, struct inode, i_data));
 
 	/* drop the reference held my the file priv */
-	drm_master_put(&file_priv->master);
+	if (file_priv->master)
+		drm_master_put(&file_priv->master);
 	file_priv->is_master = 0;
 	list_del(&file_priv->lhead);
 	mutex_unlock(&dev->struct_mutex);

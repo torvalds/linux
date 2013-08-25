@@ -233,6 +233,12 @@
               Driver implements DRM PRIME buffer sharing.
             </para></listitem>
           </varlistentry>
+          <varlistentry>
+            <term>DRIVER_RENDER</term>
+            <listitem><para>
+              Driver supports dedicated render nodes.
+            </para></listitem>
+          </varlistentry>
         </variablelist>
       </sect3>
       <sect3>
@@ -2496,6 +2502,69 @@ int (*resume) (struct drm_device *);</synopsis>
       Cover generic ioctls and sysfs layout here.  We only need high-level
       info, since man pages should cover the rest.
     </para>
+
+  <!-- External: render nodes -->
+
+    <sect1>
+      <title>Render nodes</title>
+      <para>
+        DRM core provides multiple character-devices for user-space to use.
+        Depending on which device is opened, user-space can perform a different
+        set of operations (mainly ioctls). The primary node is always created
+        and called <term>card&lt;num&gt;</term>. Additionally, a currently
+        unused control node, called <term>controlD&lt;num&gt;</term> is also
+        created. The primary node provides all legacy operations and
+        historically was the only interface used by userspace. With KMS, the
+        control node was introduced. However, the planned KMS control interface
+        has never been written and so the control node stays unused to date.
+      </para>
+      <para>
+        With the increased use of offscreen renderers and GPGPU applications,
+        clients no longer require running compositors or graphics servers to
+        make use of a GPU. But the DRM API required unprivileged clients to
+        authenticate to a DRM-Master prior to getting GPU access. To avoid this
+        step and to grant clients GPU access without authenticating, render
+        nodes were introduced. Render nodes solely serve render clients, that
+        is, no modesetting or privileged ioctls can be issued on render nodes.
+        Only non-global rendering commands are allowed. If a driver supports
+        render nodes, it must advertise it via the <term>DRIVER_RENDER</term>
+        DRM driver capability. If not supported, the primary node must be used
+        for render clients together with the legacy drmAuth authentication
+        procedure.
+      </para>
+      <para>
+        If a driver advertises render node support, DRM core will create a
+        separate render node called <term>renderD&lt;num&gt;</term>. There will
+        be one render node per device. No ioctls except  PRIME-related ioctls
+        will be allowed on this node. Especially <term>GEM_OPEN</term> will be
+        explicitly prohibited. Render nodes are designed to avoid the
+        buffer-leaks, which occur if clients guess the flink names or mmap
+        offsets on the legacy interface. Additionally to this basic interface,
+        drivers must mark their driver-dependent render-only ioctls as
+        <term>DRM_RENDER_ALLOW</term> so render clients can use them. Driver
+        authors must be careful not to allow any privileged ioctls on render
+        nodes.
+      </para>
+      <para>
+        With render nodes, user-space can now control access to the render node
+        via basic file-system access-modes. A running graphics server which
+        authenticates clients on the privileged primary/legacy node is no longer
+        required. Instead, a client can open the render node and is immediately
+        granted GPU access. Communication between clients (or servers) is done
+        via PRIME. FLINK from render node to legacy node is not supported. New
+        clients must not use the insecure FLINK interface.
+      </para>
+      <para>
+        Besides dropping all modeset/global ioctls, render nodes also drop the
+        DRM-Master concept. There is no reason to associate render clients with
+        a DRM-Master as they are independent of any graphics server. Besides,
+        they must work without any running master, anyway.
+        Drivers must be able to run without a master object if they support
+        render nodes. If, on the other hand, a driver requires shared state
+        between clients which is visible to user-space and accessible beyond
+        open-file boundaries, they cannot support render nodes.
+      </para>
+    </sect1>
 
   <!-- External: vblank handling -->
 
