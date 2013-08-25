@@ -83,7 +83,7 @@ static inline __le32 _efx_readd(struct efx_nic *efx, unsigned int reg)
 }
 
 /* Write a normal 128-bit CSR, locking as appropriate. */
-static inline void efx_writeo(struct efx_nic *efx, efx_oword_t *value,
+static inline void efx_writeo(struct efx_nic *efx, const efx_oword_t *value,
 			      unsigned int reg)
 {
 	unsigned long flags __attribute__ ((unused));
@@ -108,7 +108,7 @@ static inline void efx_writeo(struct efx_nic *efx, efx_oword_t *value,
 
 /* Write 64-bit SRAM through the supplied mapping, locking as appropriate. */
 static inline void efx_sram_writeq(struct efx_nic *efx, void __iomem *membase,
-				   efx_qword_t *value, unsigned int index)
+				   const efx_qword_t *value, unsigned int index)
 {
 	unsigned int addr = index * sizeof(*value);
 	unsigned long flags __attribute__ ((unused));
@@ -129,7 +129,7 @@ static inline void efx_sram_writeq(struct efx_nic *efx, void __iomem *membase,
 }
 
 /* Write a 32-bit CSR or the last dword of a special 128-bit CSR */
-static inline void efx_writed(struct efx_nic *efx, efx_dword_t *value,
+static inline void efx_writed(struct efx_nic *efx, const efx_dword_t *value,
 			      unsigned int reg)
 {
 	netif_vdbg(efx, hw, efx->net_dev,
@@ -190,8 +190,9 @@ static inline void efx_readd(struct efx_nic *efx, efx_dword_t *value,
 }
 
 /* Write a 128-bit CSR forming part of a table */
-static inline void efx_writeo_table(struct efx_nic *efx, efx_oword_t *value,
-				      unsigned int reg, unsigned int index)
+static inline void
+efx_writeo_table(struct efx_nic *efx, const efx_oword_t *value,
+		 unsigned int reg, unsigned int index)
 {
 	efx_writeo(efx, value, reg + index * sizeof(efx_oword_t));
 }
@@ -239,8 +240,9 @@ static inline void _efx_writeo_page(struct efx_nic *efx, efx_oword_t *value,
 /* Write a page-mapped 32-bit CSR (EVQ_RPTR or the high bits of
  * RX_DESC_UPD or TX_DESC_UPD)
  */
-static inline void _efx_writed_page(struct efx_nic *efx, efx_dword_t *value,
-				    unsigned int reg, unsigned int page)
+static inline void
+_efx_writed_page(struct efx_nic *efx, const efx_dword_t *value,
+		 unsigned int reg, unsigned int page)
 {
 	efx_writed(efx, value, EFX_PAGED_REG(page, reg));
 }
@@ -256,7 +258,7 @@ static inline void _efx_writed_page(struct efx_nic *efx, efx_dword_t *value,
  * collector register.
  */
 static inline void _efx_writed_page_locked(struct efx_nic *efx,
-					   efx_dword_t *value,
+					   const efx_dword_t *value,
 					   unsigned int reg,
 					   unsigned int page)
 {

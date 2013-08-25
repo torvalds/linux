@@ -30,7 +30,6 @@
 /* Hardware control for SFC9000 family including SFL9021 (aka Siena). */
 
 static void siena_init_wol(struct efx_nic *efx);
-static int siena_reset_hw(struct efx_nic *efx, enum reset_type method);
 
 
 static void siena_push_irq_moderation(struct efx_channel *channel)
@@ -50,81 +49,6 @@ static void siena_push_irq_moderation(struct efx_channel *channel)
 				     FRF_CZ_TC_TIMER_VAL, 0);
 	efx_writed_page_locked(channel->efx, &timer_cmd, FR_BZ_TIMER_COMMAND_P0,
 			       channel->channel);
-}
-
-static int siena_mdio_write(struct net_device *net_dev,
-			    int prtad, int devad, u16 addr, u16 value)
-{
-	struct efx_nic *efx = netdev_priv(net_dev);
-	uint32_t status;
-	int rc;
-
-	rc = efx_mcdi_mdio_write(efx, efx->mdio_bus, prtad, devad,
-				 addr, value, &status);
-	if (rc)
-		return rc;
-	if (status != MC_CMD_MDIO_STATUS_GOOD)
-		return -EIO;
-
-	return 0;
-}
-
-static int siena_mdio_read(struct net_device *net_dev,
-			   int prtad, int devad, u16 addr)
-{
-	struct efx_nic *efx = netdev_priv(net_dev);
-	uint16_t value;
-	uint32_t status;
-	int rc;
-
-	rc = efx_mcdi_mdio_read(efx, efx->mdio_bus, prtad, devad,
-				addr, &value, &status);
-	if (rc)
-		return rc;
-	if (status != MC_CMD_MDIO_STATUS_GOOD)
-		return -EIO;
-
-	return (int)value;
-}
-
-/* This call is responsible for hooking in the MAC and PHY operations */
-static int siena_probe_port(struct efx_nic *efx)
-{
-	int rc;
-
-	/* Hook in PHY operations table */
-	efx->phy_op = &efx_mcdi_phy_ops;
-
-	/* Set up MDIO structure for PHY */
-	efx->mdio.mode_support = MDIO_SUPPORTS_C45 | MDIO_EMULATE_C22;
-	efx->mdio.mdio_read = siena_mdio_read;
-	efx->mdio.mdio_write = siena_mdio_write;
-
-	/* Fill out MDIO structure, loopback modes, and initial link state */
-	rc = efx->phy_op->probe(efx);
-	if (rc != 0)
-		return rc;
-
-	/* Allocate buffer for stats */
-	rc = efx_nic_alloc_buffer(efx, &efx->stats_buffer,
-				  MC_CMD_MAC_NSTATS * sizeof(u64));
-	if (rc)
-		return rc;
-	netif_dbg(efx, probe, efx->net_dev,
-		  "stats buffer at %llx (virt %p phys %llx)\n",
-		  (u64)efx->stats_buffer.dma_addr,
-		  efx->stats_buffer.addr,
-		  (u64)virt_to_phys(efx->stats_buffer.addr));
-
-	efx_mcdi_mac_stats(efx, efx->stats_buffer.dma_addr, 0, 0, 1);
-
-	return 0;
-}
-
-static void siena_remove_port(struct efx_nic *efx)
-{
-	efx->phy_op->remove(efx);
-	efx_nic_free_buffer(efx, &efx->stats_buffer);
 }
 
 void siena_prepare_flush(struct efx_nic *efx)
@@ -178,7 +102,7 @@ static int siena_test_chip(struct efx_nic *efx, struct efx_self_tests *tests)
 	/* Reset the chip immediately so that it is completely
 	 * quiescent regardless of what any VF driver does.
 	 */
-	rc = siena_reset_hw(efx, reset_method);
+	rc = efx_mcdi_reset(efx, reset_method);
 	if (rc)
 		goto out;
 
@@ -187,7 +111,7 @@ static int siena_test_chip(struct efx_nic *efx, struct efx_self_tests *tests)
 				       ARRAY_SIZE(siena_register_tests))
 		? -1 : 1;
 
-	rc = siena_reset_hw(efx, reset_method);
+	rc = efx_mcdi_reset(efx, reset_method);
 out:
 	rc2 = efx_reset_up(efx, reset_method, rc == 0);
 	return rc ? rc : rc2;
@@ -199,11 +123,6 @@ out:
  *
  **************************************************************************
  */
-
-static enum reset_type siena_map_reset_reason(enum reset_type reason)
-{
-	return RESET_TYPE_RECOVER_OR_ALL;
-}
 
 static int siena_map_reset_flags(u32 *flags)
 {
@@ -228,21 +147,6 @@ static int siena_map_reset_flags(u32 *flags)
 	/* no invisible reset implemented */
 
 	return -EINVAL;
-}
-
-static int siena_reset_hw(struct efx_nic *efx, enum reset_type method)
-{
-	int rc;
-
-	/* Recover from a failed assertion pre-reset */
-	rc = efx_mcdi_handle_assertion(efx);
-	if (rc)
-		return rc;
-
-	if (method == RESET_TYPE_WORLD)
-		return efx_mcdi_reset_mc(efx);
-	else
-		return efx_mcdi_reset_port(efx);
 }
 
 #ifdef CONFIG_EEH
@@ -306,10 +210,7 @@ static int siena_probe_nic(struct efx_nic *efx)
 	efx_reado(efx, &reg, FR_AZ_CS_DEBUG);
 	efx->port_num = EFX_OWORD_FIELD(reg, FRF_CZ_CS_PORT_NUM) - 1;
 
-	efx_mcdi_init(efx);
-
-	/* Recover from a failed assertion before probing */
-	rc = efx_mcdi_handle_assertion(efx);
+	rc = efx_mcdi_init(efx);
 	if (rc)
 		goto fail1;
 
@@ -327,7 +228,7 @@ static int siena_probe_nic(struct efx_nic *efx)
 			  "Host already registered with MCPU\n");
 
 	/* Now we can reset the NIC */
-	rc = siena_reset_hw(efx, RESET_TYPE_ALL);
+	rc = efx_mcdi_reset(efx, RESET_TYPE_ALL);
 	if (rc) {
 		netif_err(efx, probe, efx->net_dev, "failed to reset NIC\n");
 		goto fail3;
@@ -458,7 +359,7 @@ static void siena_remove_nic(struct efx_nic *efx)
 
 	efx_nic_free_buffer(efx, &efx->irq_status);
 
-	siena_reset_hw(efx, RESET_TYPE_ALL);
+	efx_mcdi_reset(efx, RESET_TYPE_ALL);
 
 	/* Relinquish the device back to the BMC */
 	efx_mcdi_drv_attach(efx, false, NULL);
@@ -467,8 +368,6 @@ static void siena_remove_nic(struct efx_nic *efx)
 	kfree(efx->nic_data);
 	efx->nic_data = NULL;
 }
-
-#define STATS_GENERATION_INVALID ((__force __le64)(-1))
 
 static int siena_try_update_nic_stats(struct efx_nic *efx)
 {
@@ -480,7 +379,7 @@ static int siena_try_update_nic_stats(struct efx_nic *efx)
 	dma_stats = efx->stats_buffer.addr;
 
 	generation_end = dma_stats[MC_CMD_MAC_GENERATION_END];
-	if (generation_end == STATS_GENERATION_INVALID)
+	if (generation_end == EFX_MC_STATS_GENERATION_INVALID)
 		return 0;
 	rmb();
 
@@ -583,19 +482,25 @@ static void siena_update_nic_stats(struct efx_nic *efx)
 	/* Use the old values instead */
 }
 
-static void siena_start_nic_stats(struct efx_nic *efx)
+static int siena_mac_reconfigure(struct efx_nic *efx)
 {
-	__le64 *dma_stats = efx->stats_buffer.addr;
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_SET_MCAST_HASH_IN_LEN);
+	int rc;
 
-	dma_stats[MC_CMD_MAC_GENERATION_END] = STATS_GENERATION_INVALID;
+	BUILD_BUG_ON(MC_CMD_SET_MCAST_HASH_IN_LEN !=
+		     MC_CMD_SET_MCAST_HASH_IN_HASH0_OFST +
+		     sizeof(efx->multicast_hash));
 
-	efx_mcdi_mac_stats(efx, efx->stats_buffer.dma_addr,
-			   MC_CMD_MAC_NSTATS * sizeof(u64), 1, 0);
-}
+	WARN_ON(!mutex_is_locked(&efx->mac_lock));
 
-static void siena_stop_nic_stats(struct efx_nic *efx)
-{
-	efx_mcdi_mac_stats(efx, efx->stats_buffer.dma_addr, 0, 0, 0);
+	rc = efx_mcdi_set_mac(efx);
+	if (rc != 0)
+		return rc;
+
+	memcpy(MCDI_PTR(inbuf, SET_MCAST_HASH_IN_HASH0),
+	       efx->multicast_hash.byte, sizeof(efx->multicast_hash));
+	return efx_mcdi_rpc(efx, MC_CMD_SET_MCAST_HASH,
+			    inbuf, sizeof(inbuf), NULL, 0, NULL);
 }
 
 /**************************************************************************
@@ -688,21 +593,21 @@ const struct efx_nic_type siena_a0_nic_type = {
 #else
 	.monitor = NULL,
 #endif
-	.map_reset_reason = siena_map_reset_reason,
+	.map_reset_reason = efx_mcdi_map_reset_reason,
 	.map_reset_flags = siena_map_reset_flags,
-	.reset = siena_reset_hw,
-	.probe_port = siena_probe_port,
-	.remove_port = siena_remove_port,
+	.reset = efx_mcdi_reset,
+	.probe_port = efx_mcdi_port_probe,
+	.remove_port = efx_mcdi_port_remove,
 	.prepare_flush = siena_prepare_flush,
 	.finish_flush = siena_finish_flush,
 	.update_stats = siena_update_nic_stats,
-	.start_stats = siena_start_nic_stats,
-	.stop_stats = siena_stop_nic_stats,
+	.start_stats = efx_mcdi_mac_start_stats,
+	.stop_stats = efx_mcdi_mac_stop_stats,
 	.set_id_led = efx_mcdi_set_id_led,
 	.push_irq_moderation = siena_push_irq_moderation,
-	.reconfigure_mac = efx_mcdi_mac_reconfigure,
+	.reconfigure_mac = siena_mac_reconfigure,
 	.check_mac_fault = efx_mcdi_mac_check_fault,
-	.reconfigure_port = efx_mcdi_phy_reconfigure,
+	.reconfigure_port = efx_mcdi_port_reconfigure,
 	.get_wol = siena_get_wol,
 	.set_wol = siena_set_wol,
 	.resume_wol = siena_init_wol,

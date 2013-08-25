@@ -297,13 +297,6 @@ extern int efx_nic_process_eventq(struct efx_channel *channel, int rx_quota);
 extern void efx_nic_eventq_read_ack(struct efx_channel *channel);
 extern bool efx_nic_event_present(struct efx_channel *channel);
 
-/* MAC/PHY */
-extern void falcon_drain_tx_fifo(struct efx_nic *efx);
-extern void falcon_reconfigure_mac_wrapper(struct efx_nic *efx);
-extern bool falcon_xmac_check_fault(struct efx_nic *efx);
-extern int falcon_reconfigure_xmac(struct efx_nic *efx);
-extern void falcon_update_stats_xmac(struct efx_nic *efx);
-
 /* Some statistics are computed as A - B where A and B each increase
  * linearly with some hardware counter(s) and the counters are read
  * asynchronously.  If the counters contributing to B are always read
@@ -348,7 +341,6 @@ extern void siena_prepare_flush(struct efx_nic *efx);
 extern void siena_finish_flush(struct efx_nic *efx);
 extern void falcon_start_nic_stats(struct efx_nic *efx);
 extern void falcon_stop_nic_stats(struct efx_nic *efx);
-extern void falcon_setup_xaui(struct efx_nic *efx);
 extern int falcon_reset_xaui(struct efx_nic *efx);
 extern void
 efx_nic_dimension_resources(struct efx_nic *efx, unsigned sram_lim_qw);
@@ -371,43 +363,9 @@ extern int efx_nic_test_registers(struct efx_nic *efx,
 extern size_t efx_nic_get_regs_len(struct efx_nic *efx);
 extern void efx_nic_get_regs(struct efx_nic *efx, void *buf);
 
-/**************************************************************************
- *
- * Falcon MAC stats
- *
- **************************************************************************
- */
-
-#define FALCON_STAT_OFFSET(falcon_stat) EFX_VAL(falcon_stat, offset)
-#define FALCON_STAT_WIDTH(falcon_stat) EFX_VAL(falcon_stat, WIDTH)
-
-/* Retrieve statistic from statistics block */
-#define FALCON_STAT(efx, falcon_stat, efx_stat) do {		\
-	if (FALCON_STAT_WIDTH(falcon_stat) == 16)		\
-		(efx)->mac_stats.efx_stat += le16_to_cpu(	\
-			*((__force __le16 *)				\
-			  (efx->stats_buffer.addr +		\
-			   FALCON_STAT_OFFSET(falcon_stat))));	\
-	else if (FALCON_STAT_WIDTH(falcon_stat) == 32)		\
-		(efx)->mac_stats.efx_stat += le32_to_cpu(	\
-			*((__force __le32 *)				\
-			  (efx->stats_buffer.addr +		\
-			   FALCON_STAT_OFFSET(falcon_stat))));	\
-	else							\
-		(efx)->mac_stats.efx_stat += le64_to_cpu(	\
-			*((__force __le64 *)				\
-			  (efx->stats_buffer.addr +		\
-			   FALCON_STAT_OFFSET(falcon_stat))));	\
-	} while (0)
-
-#define FALCON_MAC_STATS_SIZE 0x100
-
-#define MAC_DATA_LBN 0
-#define MAC_DATA_WIDTH 32
+#define EFX_MAX_FLUSH_TIME 5000
 
 extern void efx_generate_event(struct efx_nic *efx, unsigned int evq,
 			       efx_qword_t *event);
-
-extern void falcon_poll_xmac(struct efx_nic *efx);
 
 #endif /* EFX_NIC_H */

@@ -709,7 +709,6 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 	struct efx_nic *efx = netdev_priv(net_dev);
 	u8 wanted_fc, old_fc;
 	u32 old_adv;
-	bool reset;
 	int rc = 0;
 
 	mutex_lock(&efx->mac_lock);
@@ -732,24 +731,10 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 		goto out;
 	}
 
-	/* TX flow control may automatically turn itself off if the
-	 * link partner (intermittently) stops responding to pause
-	 * frames. There isn't any indication that this has happened,
-	 * so the best we do is leave it up to the user to spot this
-	 * and fix it be cycling transmit flow control on this end. */
-	reset = (wanted_fc & EFX_FC_TX) && !(efx->wanted_fc & EFX_FC_TX);
-	if (EFX_WORKAROUND_11482(efx) && reset) {
-		if (efx_nic_rev(efx) == EFX_REV_FALCON_B0) {
-			/* Recover by resetting the EM block */
-			falcon_stop_nic_stats(efx);
-			falcon_drain_tx_fifo(efx);
-			falcon_reconfigure_xmac(efx);
-			falcon_start_nic_stats(efx);
-		} else {
-			/* Schedule a reset to recover */
-			efx_schedule_reset(efx, RESET_TYPE_INVISIBLE);
-		}
-	}
+	/* Hook for Falcon bug 11482 workaround */
+	if (efx->type->prepare_enable_fc_tx &&
+	    (wanted_fc & EFX_FC_TX) && !(efx->wanted_fc & EFX_FC_TX))
+		efx->type->prepare_enable_fc_tx(efx);
 
 	old_adv = efx->link_advertising;
 	old_fc = efx->wanted_fc;

@@ -92,13 +92,11 @@ struct efx_mcdi_mon_attribute {
 static int efx_mcdi_mon_update(struct efx_nic *efx)
 {
 	struct efx_mcdi_mon *hwmon = efx_mcdi_mon(efx);
-	u8 inbuf[MC_CMD_READ_SENSORS_IN_LEN];
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_READ_SENSORS_IN_LEN);
 	int rc;
 
-	MCDI_SET_DWORD(inbuf, READ_SENSORS_IN_DMA_ADDR_LO,
-		       hwmon->dma_buf.dma_addr & 0xffffffff);
-	MCDI_SET_DWORD(inbuf, READ_SENSORS_IN_DMA_ADDR_HI,
-		       (u64)hwmon->dma_buf.dma_addr >> 32);
+	MCDI_SET_QWORD(inbuf, READ_SENSORS_IN_DMA_ADDR,
+		       hwmon->dma_buf.dma_addr);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_READ_SENSORS,
 			  inbuf, sizeof(inbuf), NULL, 0, NULL);
@@ -236,7 +234,7 @@ int efx_mcdi_mon_probe(struct efx_nic *efx)
 {
 	struct efx_mcdi_mon *hwmon = efx_mcdi_mon(efx);
 	unsigned int n_attrs, n_temp = 0, n_cool = 0, n_in = 0;
-	u8 outbuf[MC_CMD_SENSOR_INFO_OUT_LENMAX];
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_SENSOR_INFO_OUT_LENMAX);
 	size_t outlen;
 	char name[12];
 	u32 mask;
@@ -400,8 +398,7 @@ fail:
 
 void efx_mcdi_mon_remove(struct efx_nic *efx)
 {
-	struct siena_nic_data *nic_data = efx->nic_data;
-	struct efx_mcdi_mon *hwmon = &nic_data->hwmon;
+	struct efx_mcdi_mon *hwmon = efx_mcdi_mon(efx);
 	unsigned int i;
 
 	for (i = 0; i < hwmon->n_attrs; i++)

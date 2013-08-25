@@ -294,8 +294,7 @@ struct efx_ptp_data {
 	struct work_struct pps_work;
 	struct workqueue_struct *pps_workwq;
 	bool nic_ts_enabled;
-	u8 txbuf[ALIGN(MC_CMD_PTP_IN_TRANSMIT_LEN(
-			       MC_CMD_PTP_IN_TRANSMIT_PACKET_MAXNUM), 4)];
+	MCDI_DECLARE_BUF(txbuf, MC_CMD_PTP_IN_TRANSMIT_LENMAX);
 	struct efx_ptp_timeset
 	timeset[MC_CMD_PTP_OUT_SYNCHRONIZE_TIMESET_MAXNUM];
 };
@@ -311,7 +310,7 @@ static int efx_phc_enable(struct ptp_clock_info *ptp,
 /* Enable MCDI PTP support. */
 static int efx_ptp_enable(struct efx_nic *efx)
 {
-	u8 inbuf[MC_CMD_PTP_IN_ENABLE_LEN];
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_PTP_IN_ENABLE_LEN);
 
 	MCDI_SET_DWORD(inbuf, PTP_IN_OP, MC_CMD_PTP_OP_ENABLE);
 	MCDI_SET_DWORD(inbuf, PTP_IN_ENABLE_QUEUE,
@@ -329,7 +328,7 @@ static int efx_ptp_enable(struct efx_nic *efx)
  */
 static int efx_ptp_disable(struct efx_nic *efx)
 {
-	u8 inbuf[MC_CMD_PTP_IN_DISABLE_LEN];
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_PTP_IN_DISABLE_LEN);
 
 	MCDI_SET_DWORD(inbuf, PTP_IN_OP, MC_CMD_PTP_OP_DISABLE);
 	return efx_mcdi_rpc(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
@@ -396,7 +395,8 @@ static void efx_ptp_send_times(struct efx_nic *efx,
 }
 
 /* Read a timeset from the MC's results and partial process. */
-static void efx_ptp_read_timeset(u8 *data, struct efx_ptp_timeset *timeset)
+static void efx_ptp_read_timeset(MCDI_DECLARE_STRUCT_PTR(data),
+				 struct efx_ptp_timeset *timeset)
 {
 	unsigned start_ns, end_ns;
 
@@ -425,12 +425,14 @@ static void efx_ptp_read_timeset(u8 *data, struct efx_ptp_timeset *timeset)
  * busy. A number of readings are taken so that, hopefully, at least one good
  * synchronisation will be seen in the results.
  */
-static int efx_ptp_process_times(struct efx_nic *efx, u8 *synch_buf,
-				 size_t response_length,
-				 const struct pps_event_time *last_time)
+static int
+efx_ptp_process_times(struct efx_nic *efx, MCDI_DECLARE_STRUCT_PTR(synch_buf),
+		      size_t response_length,
+		      const struct pps_event_time *last_time)
 {
-	unsigned number_readings = (response_length /
-			       MC_CMD_PTP_OUT_SYNCHRONIZE_TIMESET_LEN);
+	unsigned number_readings =
+		MCDI_VAR_ARRAY_LEN(response_length,
+				   PTP_OUT_SYNCHRONIZE_TIMESET);
 	unsigned i;
 	unsigned total;
 	unsigned ngood = 0;
@@ -447,8 +449,10 @@ static int efx_ptp_process_times(struct efx_nic *efx, u8 *synch_buf,
 	 * appera to be erroneous.
 	 */
 	for (i = 0; i < number_readings; i++) {
-		efx_ptp_read_timeset(synch_buf, &ptp->timeset[i]);
-		synch_buf += MC_CMD_PTP_OUT_SYNCHRONIZE_TIMESET_LEN;
+		efx_ptp_read_timeset(
+			MCDI_ARRAY_STRUCT_PTR(synch_buf,
+					      PTP_OUT_SYNCHRONIZE_TIMESET, i),
+			&ptp->timeset[i]);
 	}
 
 	/* Find the last good host-MC synchronization result. The MC times
@@ -518,7 +522,7 @@ static int efx_ptp_process_times(struct efx_nic *efx, u8 *synch_buf,
 static int efx_ptp_synchronize(struct efx_nic *efx, unsigned int num_readings)
 {
 	struct efx_ptp_data *ptp = efx->ptp_data;
-	u8 synch_buf[MC_CMD_PTP_OUT_SYNCHRONIZE_LENMAX];
+	MCDI_DECLARE_BUF(synch_buf, MC_CMD_PTP_OUT_SYNCHRONIZE_LENMAX);
 	size_t response_length;
 	int rc;
 	unsigned long timeout;
@@ -529,10 +533,8 @@ static int efx_ptp_synchronize(struct efx_nic *efx, unsigned int num_readings)
 	MCDI_SET_DWORD(synch_buf, PTP_IN_OP, MC_CMD_PTP_OP_SYNCHRONIZE);
 	MCDI_SET_DWORD(synch_buf, PTP_IN_SYNCHRONIZE_NUMTIMESETS,
 		       num_readings);
-	MCDI_SET_DWORD(synch_buf, PTP_IN_SYNCHRONIZE_START_ADDR_LO,
-		       (u32)ptp->start.dma_addr);
-	MCDI_SET_DWORD(synch_buf, PTP_IN_SYNCHRONIZE_START_ADDR_HI,
-		       (u32)((u64)ptp->start.dma_addr >> 32));
+	MCDI_SET_QWORD(synch_buf, PTP_IN_SYNCHRONIZE_START_ADDR,
+		       ptp->start.dma_addr);
 
 	/* Clear flag that signals MC ready */
 	ACCESS_ONCE(*start) = 0;
@@ -564,15 +566,14 @@ static int efx_ptp_synchronize(struct efx_nic *efx, unsigned int num_readings)
 /* Transmit a PTP packet, via the MCDI interface, to the wire. */
 static int efx_ptp_xmit_skb(struct efx_nic *efx, struct sk_buff *skb)
 {
-	u8 *txbuf = efx->ptp_data->txbuf;
+	struct efx_ptp_data *ptp_data = efx->ptp_data;
 	struct skb_shared_hwtstamps timestamps;
 	int rc = -EIO;
-	/* MCDI driver requires word aligned lengths */
-	size_t len = ALIGN(MC_CMD_PTP_IN_TRANSMIT_LEN(skb->len), 4);
-	u8 txtime[MC_CMD_PTP_OUT_TRANSMIT_LEN];
+	MCDI_DECLARE_BUF(txtime, MC_CMD_PTP_OUT_TRANSMIT_LEN);
+	size_t len;
 
-	MCDI_SET_DWORD(txbuf, PTP_IN_OP, MC_CMD_PTP_OP_TRANSMIT);
-	MCDI_SET_DWORD(txbuf, PTP_IN_TRANSMIT_LENGTH, skb->len);
+	MCDI_SET_DWORD(ptp_data->txbuf, PTP_IN_OP, MC_CMD_PTP_OP_TRANSMIT);
+	MCDI_SET_DWORD(ptp_data->txbuf, PTP_IN_TRANSMIT_LENGTH, skb->len);
 	if (skb_shinfo(skb)->nr_frags != 0) {
 		rc = skb_linearize(skb);
 		if (rc != 0)
@@ -585,10 +586,12 @@ static int efx_ptp_xmit_skb(struct efx_nic *efx, struct sk_buff *skb)
 			goto fail;
 	}
 	skb_copy_from_linear_data(skb,
-				  &txbuf[MC_CMD_PTP_IN_TRANSMIT_PACKET_OFST],
-				  len);
-	rc = efx_mcdi_rpc(efx, MC_CMD_PTP, txbuf, len, txtime,
-			  sizeof(txtime), &len);
+				  MCDI_PTR(ptp_data->txbuf,
+					   PTP_IN_TRANSMIT_PACKET),
+				  skb->len);
+	rc = efx_mcdi_rpc(efx, MC_CMD_PTP,
+			  ptp_data->txbuf, MC_CMD_PTP_IN_TRANSMIT_LEN(skb->len),
+			  txtime, sizeof(txtime), &len);
 	if (rc != 0)
 		goto fail;
 
@@ -1359,7 +1362,7 @@ static int efx_phc_adjfreq(struct ptp_clock_info *ptp, s32 delta)
 						     struct efx_ptp_data,
 						     phc_clock_info);
 	struct efx_nic *efx = ptp_data->channel->efx;
-	u8 inadj[MC_CMD_PTP_IN_ADJUST_LEN];
+	MCDI_DECLARE_BUF(inadj, MC_CMD_PTP_IN_ADJUST_LEN);
 	s64 adjustment_ns;
 	int rc;
 
@@ -1373,9 +1376,7 @@ static int efx_phc_adjfreq(struct ptp_clock_info *ptp, s32 delta)
 			 (PPB_EXTRA_BITS + MAX_PPB_BITS));
 
 	MCDI_SET_DWORD(inadj, PTP_IN_OP, MC_CMD_PTP_OP_ADJUST);
-	MCDI_SET_DWORD(inadj, PTP_IN_ADJUST_FREQ_LO, (u32)adjustment_ns);
-	MCDI_SET_DWORD(inadj, PTP_IN_ADJUST_FREQ_HI,
-		       (u32)(adjustment_ns >> 32));
+	MCDI_SET_QWORD(inadj, PTP_IN_ADJUST_FREQ, adjustment_ns);
 	MCDI_SET_DWORD(inadj, PTP_IN_ADJUST_SECONDS, 0);
 	MCDI_SET_DWORD(inadj, PTP_IN_ADJUST_NANOSECONDS, 0);
 	rc = efx_mcdi_rpc(efx, MC_CMD_PTP, inadj, sizeof(inadj),
@@ -1394,11 +1395,10 @@ static int efx_phc_adjtime(struct ptp_clock_info *ptp, s64 delta)
 						     phc_clock_info);
 	struct efx_nic *efx = ptp_data->channel->efx;
 	struct timespec delta_ts = ns_to_timespec(delta);
-	u8 inbuf[MC_CMD_PTP_IN_ADJUST_LEN];
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_PTP_IN_ADJUST_LEN);
 
 	MCDI_SET_DWORD(inbuf, PTP_IN_OP, MC_CMD_PTP_OP_ADJUST);
-	MCDI_SET_DWORD(inbuf, PTP_IN_ADJUST_FREQ_LO, 0);
-	MCDI_SET_DWORD(inbuf, PTP_IN_ADJUST_FREQ_HI, 0);
+	MCDI_SET_QWORD(inbuf, PTP_IN_ADJUST_FREQ, 0);
 	MCDI_SET_DWORD(inbuf, PTP_IN_ADJUST_SECONDS, (u32)delta_ts.tv_sec);
 	MCDI_SET_DWORD(inbuf, PTP_IN_ADJUST_NANOSECONDS, (u32)delta_ts.tv_nsec);
 	return efx_mcdi_rpc(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
@@ -1411,8 +1411,8 @@ static int efx_phc_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
 						     struct efx_ptp_data,
 						     phc_clock_info);
 	struct efx_nic *efx = ptp_data->channel->efx;
-	u8 inbuf[MC_CMD_PTP_IN_READ_NIC_TIME_LEN];
-	u8 outbuf[MC_CMD_PTP_OUT_READ_NIC_TIME_LEN];
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_PTP_IN_READ_NIC_TIME_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_PTP_OUT_READ_NIC_TIME_LEN);
 	int rc;
 
 	MCDI_SET_DWORD(inbuf, PTP_IN_OP, MC_CMD_PTP_OP_READ_NIC_TIME);

@@ -946,6 +946,7 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
  * @set_id_led: Set state of identifying LED or revert to automatic function
  * @push_irq_moderation: Apply interrupt moderation value
  * @reconfigure_port: Push loopback/power/txdis changes to the MAC and PHY
+ * @prepare_enable_fc_tx: Prepare MAC to enable pause frame TX (may be %NULL)
  * @reconfigure_mac: Push MAC address, MTU, flow control and filter settings
  *	to the hardware.  Serialised by the mac_lock.
  * @check_mac_fault: Check MAC fault state. True if fault present.
@@ -995,6 +996,7 @@ struct efx_nic_type {
 	void (*set_id_led)(struct efx_nic *efx, enum efx_led_mode mode);
 	void (*push_irq_moderation)(struct efx_channel *channel);
 	int (*reconfigure_port)(struct efx_nic *efx);
+	void (*prepare_enable_fc_tx)(struct efx_nic *efx);
 	int (*reconfigure_mac)(struct efx_nic *efx);
 	bool (*check_mac_fault)(struct efx_nic *efx);
 	void (*get_wol)(struct efx_nic *efx, struct ethtool_wolinfo *wol);
