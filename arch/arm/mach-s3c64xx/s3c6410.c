@@ -10,6 +10,10 @@
  * published by the Free Software Foundation.
 */
 
+/*
+ * NOTE: Code in this file is not used when booting with Device Tree support.
+ */
+
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
@@ -21,6 +25,7 @@
 #include <linux/device.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -79,6 +84,10 @@ static struct device s3c6410_dev = {
 
 static int __init s3c6410_core_init(void)
 {
+	/* Not applicable when using DT. */
+	if (of_have_populated_dt())
+		return 0;
+
 	return subsys_system_register(&s3c6410_subsys, NULL);
 }
 
