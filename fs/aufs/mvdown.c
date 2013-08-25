@@ -18,12 +18,6 @@
 
 #include "aufs.h"
 
-enum {
-	AUFS_MVDOWN_SRC,
-	AUFS_MVDOWN_DST,
-	AUFS_MVDOWN_NARRAY
-};
-
 struct au_mvd_args {
 	struct {
 		struct super_block *h_sb;
@@ -42,20 +36,22 @@ struct au_mvd_args {
 };
 
 #define mvd_errno		mvdown.au_errno
-#define mvd_bsrc		mvdown.bsrc
-#define mvd_bdst		mvdown.bdst
+#define mvd_bsrc		mvdown.a[AUFS_MVDOWN_UPPER].bindex
+#define mvd_src_brid		mvdown.a[AUFS_MVDOWN_UPPER].brid
+#define mvd_bdst		mvdown.a[AUFS_MVDOWN_LOWER].bindex
+#define mvd_dst_brid		mvdown.a[AUFS_MVDOWN_LOWER].brid
 
-#define mvd_h_src_sb		info[AUFS_MVDOWN_SRC].h_sb
-#define mvd_h_src_parent	info[AUFS_MVDOWN_SRC].h_parent
-#define mvd_hdir_src		info[AUFS_MVDOWN_SRC].hdir
-#define mvd_h_src_dir		info[AUFS_MVDOWN_SRC].h_dir
-#define mvd_h_src_inode		info[AUFS_MVDOWN_SRC].h_inode
+#define mvd_h_src_sb		info[AUFS_MVDOWN_UPPER].h_sb
+#define mvd_h_src_parent	info[AUFS_MVDOWN_UPPER].h_parent
+#define mvd_hdir_src		info[AUFS_MVDOWN_UPPER].hdir
+#define mvd_h_src_dir		info[AUFS_MVDOWN_UPPER].h_dir
+#define mvd_h_src_inode		info[AUFS_MVDOWN_UPPER].h_inode
 
-#define mvd_h_dst_sb		info[AUFS_MVDOWN_DST].h_sb
-#define mvd_h_dst_parent	info[AUFS_MVDOWN_DST].h_parent
-#define mvd_hdir_dst		info[AUFS_MVDOWN_DST].hdir
-#define mvd_h_dst_dir		info[AUFS_MVDOWN_DST].h_dir
-#define mvd_h_dst_inode		info[AUFS_MVDOWN_DST].h_inode
+#define mvd_h_dst_sb		info[AUFS_MVDOWN_LOWER].h_sb
+#define mvd_h_dst_parent	info[AUFS_MVDOWN_LOWER].h_parent
+#define mvd_hdir_dst		info[AUFS_MVDOWN_LOWER].hdir
+#define mvd_h_dst_dir		info[AUFS_MVDOWN_LOWER].h_dir
+#define mvd_h_dst_inode		info[AUFS_MVDOWN_LOWER].h_inode
 
 #define AU_MVD_PR(flag, ...) do {			\
 		if (flag)				\
@@ -462,7 +458,22 @@ static int au_mvd_args(const unsigned char dmsg, struct au_mvd_args *a)
 		goto out;
 
 	err = -EINVAL;
-	a->mvd_bsrc = au_ibstart(a->inode);
+	if (!(a->mvdown.flags & AUFS_MVDOWN_BRID_UPPER))
+		a->mvd_bsrc = au_ibstart(a->inode);
+	else {
+		a->mvd_bsrc = au_br_index(a->sb, a->mvd_src_brid);
+		if (unlikely(a->mvd_bsrc < 0
+			     || (a->mvd_bsrc < au_dbstart(a->dentry)
+				 || au_dbend(a->dentry) < a->mvd_bsrc
+				 || !au_h_dptr(a->dentry, a->mvd_bsrc))
+			     || (a->mvd_bsrc < au_ibstart(a->inode)
+				 || au_ibend(a->inode) < a->mvd_bsrc
+				 || !au_h_iptr(a->inode, a->mvd_bsrc)))) {
+			a->mvd_errno = EAU_MVDOWN_NOUPPER;
+			AU_MVD_PR(dmsg, "no upper\n");
+			goto out;
+		}
+	}
 	if (unlikely(a->mvd_bsrc == au_sbend(a->sb))) {
 		a->mvd_errno = EAU_MVDOWN_BOTTOM;
 		AU_MVD_PR(dmsg, "on the bottom\n");
@@ -483,11 +494,21 @@ static int au_mvd_args(const unsigned char dmsg, struct au_mvd_args *a)
 		goto out;
 
 	err = -EINVAL;
-	a->mvd_bdst = find_lower_writable(a);
-	if (unlikely(a->mvd_bdst < 0)) {
-		a->mvd_errno = EAU_MVDOWN_BOTTOM;
-		AU_MVD_PR(dmsg, "no writable lower branch\n");
-		goto out;
+	if (!(a->mvdown.flags & AUFS_MVDOWN_BRID_LOWER)) {
+		a->mvd_bdst = find_lower_writable(a);
+		if (unlikely(a->mvd_bdst < 0)) {
+			a->mvd_errno = EAU_MVDOWN_BOTTOM;
+			AU_MVD_PR(dmsg, "no writable lower branch\n");
+			goto out;
+		}
+	} else {
+		a->mvd_bdst = au_br_index(a->sb, a->mvd_dst_brid);
+		if (unlikely(a->mvd_bdst < 0
+			     || au_sbend(a->sb) < a->mvd_bdst)) {
+			a->mvd_errno = EAU_MVDOWN_NOLOWERBR;
+			AU_MVD_PR(dmsg, "no lower brid\n");
+			goto out;
+		}
 	}
 
 	err = au_mvd_args_busy(dmsg, a);
