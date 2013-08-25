@@ -951,11 +951,11 @@ static void sirfsoc_uart_set_termios(struct uart_port *port,
 		set_baud = ((ioclk_rate / (clk_div_reg+1) - 1) /
 				(sample_div_reg + 1));
 		/* setting usp mode 2 */
-		len_val = ((1 << 0) | (1 << 8));
-		len_val |= ((clk_div_reg & 0x3ff) << 21);
-		wr_regl(port, ureg->sirfsoc_mode2,
-				len_val);
-
+		len_val = ((1 << SIRFSOC_USP_MODE2_RXD_DELAY_OFFSET) |
+				(1 << SIRFSOC_USP_MODE2_TXD_DELAY_OFFSET));
+		len_val |= ((clk_div_reg & SIRFSOC_USP_MODE2_CLK_DIVISOR_MASK)
+				<< SIRFSOC_USP_MODE2_CLK_DIVISOR_OFFSET);
+		wr_regl(port, ureg->sirfsoc_mode2, len_val);
 	}
 	if (tty_termios_baud_rate(termios))
 		tty_termios_encode_baud_rate(termios, set_baud, set_baud);
@@ -963,7 +963,7 @@ static void sirfsoc_uart_set_termios(struct uart_port *port,
 	rx_time_out = SIRFSOC_UART_RX_TIMEOUT(set_baud, 20000);
 	rx_time_out = SIRFUART_RECV_TIMEOUT_VALUE(rx_time_out);
 	txfifo_op_reg = rd_regl(port, ureg->sirfsoc_tx_fifo_op);
-	wr_regl(port, ureg->sirfsoc_rx_fifo_op, 0);
+	wr_regl(port, ureg->sirfsoc_rx_fifo_op, SIRFUART_FIFO_STOP);
 	wr_regl(port, ureg->sirfsoc_tx_fifo_op,
 			(txfifo_op_reg & ~SIRFUART_FIFO_START));
 	if (sirfport->uart_reg->uart_type == SIRF_REAL_UART) {
@@ -971,21 +971,28 @@ static void sirfsoc_uart_set_termios(struct uart_port *port,
 		wr_regl(port, ureg->sirfsoc_line_ctrl, config_reg);
 	} else {
 		/*tx frame ctrl*/
-		len_val = (data_bit_len - 1) << 0;
-		len_val |= (data_bit_len + 1 + stop_bit_len - 1) << 16;
-		len_val |= ((data_bit_len - 1) << 24);
-		len_val |= (((clk_div_reg & 0xc00) >> 10) << 30);
+		len_val = (data_bit_len - 1) << SIRFSOC_USP_TX_DATA_LEN_OFFSET;
+		len_val |= (data_bit_len + 1 + stop_bit_len - 1) <<
+				SIRFSOC_USP_TX_FRAME_LEN_OFFSET;
+		len_val |= ((data_bit_len - 1) <<
+				SIRFSOC_USP_TX_SHIFTER_LEN_OFFSET);
+		len_val |= (((clk_div_reg & 0xc00) >> 10) <<
+				SIRFSOC_USP_TX_CLK_DIVISOR_OFFSET);
 		wr_regl(port, ureg->sirfsoc_tx_frame_ctrl, len_val);
 		/*rx frame ctrl*/
-		len_val = (data_bit_len - 1) << 0;
-		len_val |= (data_bit_len + 1 + stop_bit_len - 1) << 8;
-		len_val |= (data_bit_len - 1) << 16;
-		len_val |= (((clk_div_reg & 0xf000) >> 12) << 24);
+		len_val = (data_bit_len - 1) << SIRFSOC_USP_RX_DATA_LEN_OFFSET;
+		len_val |= (data_bit_len + 1 + stop_bit_len - 1) <<
+				SIRFSOC_USP_RX_FRAME_LEN_OFFSET;
+		len_val |= (data_bit_len - 1) <<
+				SIRFSOC_USP_RX_SHIFTER_LEN_OFFSET;
+		len_val |= (((clk_div_reg & 0xf000) >> 12) <<
+				SIRFSOC_USP_RX_CLK_DIVISOR_OFFSET);
 		wr_regl(port, ureg->sirfsoc_rx_frame_ctrl, len_val);
 		/*async param*/
 		wr_regl(port, ureg->sirfsoc_async_param_reg,
 			(SIRFUART_RECV_TIMEOUT(port, rx_time_out)) |
-			(sample_div_reg & 0x3f) << 16);
+			(sample_div_reg & SIRFSOC_USP_ASYNC_DIV2_MASK) <<
+			SIRFSOC_USP_ASYNC_DIV2_OFFSET);
 	}
 	if (IS_DMA_CHAN_VALID(sirfport->tx_dma_no))
 		wr_regl(port, ureg->sirfsoc_tx_dma_io_ctrl, SIRFUART_DMA_MODE);
