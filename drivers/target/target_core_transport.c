@@ -67,7 +67,6 @@ struct kmem_cache *t10_alua_tg_pt_gp_mem_cache;
 static void transport_complete_task_attr(struct se_cmd *cmd);
 static void transport_handle_queue_full(struct se_cmd *cmd,
 		struct se_device *dev);
-static int transport_generic_get_mem(struct se_cmd *cmd);
 static int transport_put_cmd(struct se_cmd *cmd);
 static void target_complete_ok_work(struct work_struct *work);
 
@@ -2092,23 +2091,21 @@ void transport_kunmap_data_sg(struct se_cmd *cmd)
 EXPORT_SYMBOL(transport_kunmap_data_sg);
 
 static int
-transport_generic_get_mem(struct se_cmd *cmd)
+target_alloc_sgl(struct scatterlist **sgl, unsigned int *nents, u32 length,
+		 bool zero_page)
 {
-	u32 length = cmd->data_length;
-	unsigned int nents;
+	struct scatterlist *sg;
 	struct page *page;
-	gfp_t zero_flag;
+	gfp_t zero_flag = (zero_page) ? __GFP_ZERO : 0;
+	unsigned int nent;
 	int i = 0;
 
-	nents = DIV_ROUND_UP(length, PAGE_SIZE);
-	cmd->t_data_sg = kmalloc(sizeof(struct scatterlist) * nents, GFP_KERNEL);
-	if (!cmd->t_data_sg)
+	nent = DIV_ROUND_UP(length, PAGE_SIZE);
+	sg = kmalloc(sizeof(struct scatterlist) * nent, GFP_KERNEL);
+	if (!sg)
 		return -ENOMEM;
 
-	cmd->t_data_nents = nents;
-	sg_init_table(cmd->t_data_sg, nents);
-
-	zero_flag = cmd->se_cmd_flags & SCF_SCSI_DATA_CDB ? 0 : __GFP_ZERO;
+	sg_init_table(sg, nent);
 
 	while (length) {
 		u32 page_len = min_t(u32, length, PAGE_SIZE);
@@ -2116,19 +2113,20 @@ transport_generic_get_mem(struct se_cmd *cmd)
 		if (!page)
 			goto out;
 
-		sg_set_page(&cmd->t_data_sg[i], page, page_len, 0);
+		sg_set_page(&sg[i], page, page_len, 0);
 		length -= page_len;
 		i++;
 	}
+	*sgl = sg;
+	*nents = nent;
 	return 0;
 
 out:
 	while (i > 0) {
 		i--;
-		__free_page(sg_page(&cmd->t_data_sg[i]));
+		__free_page(sg_page(&sg[i]));
 	}
-	kfree(cmd->t_data_sg);
-	cmd->t_data_sg = NULL;
+	kfree(sg);
 	return -ENOMEM;
 }
 
@@ -2149,7 +2147,10 @@ transport_generic_new_cmd(struct se_cmd *cmd)
 	 */
 	if (!(cmd->se_cmd_flags & SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC) &&
 	    cmd->data_length) {
-		ret = transport_generic_get_mem(cmd);
+		bool zero_flag = !(cmd->se_cmd_flags & SCF_SCSI_DATA_CDB);
+
+		ret = target_alloc_sgl(&cmd->t_data_sg, &cmd->t_data_nents,
+				       cmd->data_length, zero_flag);
 		if (ret < 0)
 			return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}
