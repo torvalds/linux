@@ -180,7 +180,7 @@
 		clock-names = "mfc";
 	};
 
-	rtc {
+	rtc@101E0000 {
 		clocks = <&clock 337>;
 		clock-names = "rtc";
 	};

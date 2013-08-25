@@ -538,7 +538,7 @@
 		};
 	};
 
-	rtc {
+	rtc@101E0000 {
 		status = "okay";
 	};
 
