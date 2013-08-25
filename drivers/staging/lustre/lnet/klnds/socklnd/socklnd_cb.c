@@ -1116,7 +1116,7 @@ ksocknal_process_receive (ksock_conn_t *conn)
 	LASSERT (atomic_read(&conn->ksnc_conn_refcount) > 0);
 
 	/* NB: sched lock NOT held */
-	/* SOCKNAL_RX_LNET_HEADER is here for backward compatability */
+	/* SOCKNAL_RX_LNET_HEADER is here for backward compatibility */
 	LASSERT (conn->ksnc_rx_state == SOCKNAL_RX_KSM_HEADER ||
 		 conn->ksnc_rx_state == SOCKNAL_RX_LNET_PAYLOAD ||
 		 conn->ksnc_rx_state == SOCKNAL_RX_LNET_HEADER ||
@@ -1985,7 +1985,7 @@ ksocknal_connect (ksock_route_t *route)
 		list_splice_init(&peer->ksnp_tx_queue, &zombies);
 	}
 
-#if 0	   /* irrelevent with only eager routes */
+#if 0	   /* irrelevant with only eager routes */
 	if (!route->ksnr_deleted) {
 		/* make this route least-favourite for re-selection */
 		list_del(&route->ksnr_list);

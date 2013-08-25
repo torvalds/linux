@@ -1117,7 +1117,7 @@ srpc_del_client_rpc_timer (srpc_client_rpc_t *rpc)
 	if (rpc->crpc_timeout == 0)
 		return;
 
-	/* timer sucessfully defused */
+	/* timer successfully defused */
 	if (stt_del_timer(&rpc->crpc_timer))
 		return;
 

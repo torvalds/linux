@@ -1441,7 +1441,7 @@ ksocknal_close_conn_locked (ksock_conn_t *conn, int error)
 
 		conn->ksnc_route = NULL;
 
-#if 0	   /* irrelevent with only eager routes */
+#if 0	   /* irrelevant with only eager routes */
 		/* make route least favourite */
 		list_del (&route->ksnr_list);
 		list_add_tail (&route->ksnr_list, &peer->ksnp_routes);
@@ -1496,7 +1496,7 @@ ksocknal_peer_failed (ksock_peer_t *peer)
 
 	/* There has been a connection failure or comms error; but I'll only
 	 * tell LNET I think the peer is dead if it's to another kernel and
-	 * there are no connections or connection attempts in existance. */
+	 * there are no connections or connection attempts in existence. */
 
 	read_lock(&ksocknal_data.ksnd_global_lock);
 
@@ -2358,7 +2358,7 @@ ksocknal_new_incarnation (void)
 	/* The incarnation number is the time this module loaded and it
 	 * identifies this particular instance of the socknal.  Hopefully
 	 * we won't be able to reboot more frequently than 1MHz for the
-	 * forseeable future :) */
+	 * foreseeable future :) */
 
 	do_gettimeofday(&tv);
 

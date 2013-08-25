@@ -619,7 +619,7 @@ typedef struct lnet_portal {
 	unsigned int		ptl_index;	/* portal ID, reserved */
 	/* flags on this portal: lazy, unique... */
 	unsigned int		ptl_options;
-	/* list of messags which are stealing buffer */
+	/* list of messages which are stealing buffer */
 	struct list_head		ptl_msg_stealing;
 	/* messages blocking for MD */
 	struct list_head		ptl_msg_delayed;

@@ -218,7 +218,7 @@ ksocknal_queue_tx_zcack_v3(ksock_conn_t *conn,
 	if (tx->tx_msg.ksm_zc_cookies[0] > tx->tx_msg.ksm_zc_cookies[1]) {
 		__u64   tmp = 0;
 
-		/* two seperated cookies: (a+2, a) or (a+1, a) */
+		/* two separated cookies: (a+2, a) or (a+1, a) */
 		LASSERT (tx->tx_msg.ksm_zc_cookies[0] -
 			 tx->tx_msg.ksm_zc_cookies[1] <= 2);
 

@@ -316,7 +316,7 @@ lnet_msg_attach_md(lnet_msg_t *msg, lnet_libmd_t *md,
 	LASSERT(!msg->msg_routing);
 
 	msg->msg_md = md;
-	if (msg->msg_receiving) { /* commited for receiving */
+	if (msg->msg_receiving) { /* committed for receiving */
 		msg->msg_offset = offset;
 		msg->msg_wanted = mlen;
 	}
@@ -392,7 +392,7 @@ lnet_complete_msg_locked(lnet_msg_t *msg, int cpt)
 		 * NB: message is committed for sending, we should return
 		 * on success because LND will finalize this message later.
 		 *
-		 * Also, there is possibility that message is commited for
+		 * Also, there is possibility that message is committed for
 		 * sending and also failed before delivering to LND,
 		 * i.e: ENOMEM, in that case we can't fall through either
 		 * because CPT for sending can be different with CPT for
@@ -414,7 +414,7 @@ lnet_complete_msg_locked(lnet_msg_t *msg, int cpt)
 		 * NB: message is committed for sending, we should return
 		 * on success because LND will finalize this message later.
 		 *
-		 * Also, there is possibility that message is commited for
+		 * Also, there is possibility that message is committed for
 		 * sending and also failed before delivering to LND,
 		 * i.e: ENOMEM, in that case we can't fall through either:
 		 * - The rule is message must decommit for sending first if
@@ -474,14 +474,14 @@ lnet_finalize (lnet_ni_t *ni, lnet_msg_t *msg, int status)
  again:
 	rc = 0;
 	if (!msg->msg_tx_committed && !msg->msg_rx_committed) {
-		/* not commited to network yet */
+		/* not committed to network yet */
 		LASSERT(!msg->msg_onactivelist);
 		lnet_msg_free(msg);
 		return;
 	}
 
 	/*
-	 * NB: routed message can be commited for both receiving and sending,
+	 * NB: routed message can be committed for both receiving and sending,
 	 * we should finalize in LIFO order and keep counters correct.
 	 * (finalize sending first then finalize receiving)
 	 */
