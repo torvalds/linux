@@ -2141,6 +2141,22 @@ static int ata_dev_config_ncq(struct ata_device *dev,
 	else
 		snprintf(desc, desc_sz, "NCQ (depth %d/%d)%s", hdepth,
 			ddepth, aa_desc);
+
+	if ((ap->flags & ATA_FLAG_FPDMA_AUX) &&
+	    ata_id_has_ncq_send_and_recv(dev->id)) {
+		err_mask = ata_read_log_page(dev, ATA_LOG_NCQ_SEND_RECV,
+					     0, ap->sector_buf, 1);
+		if (err_mask) {
+			ata_dev_dbg(dev,
+				    "failed to get NCQ Send/Recv Log Emask 0x%x\n",
+				    err_mask);
+		} else {
+			dev->flags |= ATA_DFLAG_NCQ_SEND_RECV;
+			memcpy(dev->ncq_send_recv_cmds, ap->sector_buf,
+				ATA_LOG_NCQ_SEND_RECV_SIZE);
+		}
+	}
+
 	return 0;
 }
 
