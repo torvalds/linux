@@ -763,12 +763,7 @@ static void ar9003_hw_configpcipowersave(struct ath_hw *ah,
 	if (!power_off /* !restore */) {
 		/* set bit 19 to allow forcing of pcie core into L1 state */
 		REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
-
-		/* Several PCIe massages to ensure proper behaviour */
-		if (ah->config.pcie_waen)
-			REG_WRITE(ah, AR_WA, ah->config.pcie_waen);
-		else
-			REG_WRITE(ah, AR_WA, ah->WARegVal);
+		REG_WRITE(ah, AR_WA, ah->WARegVal);
 	}
 
 	/*

@@ -450,7 +450,6 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 	ah->config.ack_6mb = 0x0;
 	ah->config.cwm_ignore_extcca = 0;
 	ah->config.pcie_clock_req = 0;
-	ah->config.pcie_waen = 0;
 	ah->config.analog_shiftreg = 1;
 
 	for (i = 0; i < AR_EEPROM_MODAL_SPURS; i++) {

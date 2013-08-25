@@ -30,6 +30,52 @@ static DEFINE_PCI_DEVICE_TABLE(ath_pci_id_table) = {
 	{ PCI_VDEVICE(ATHEROS, 0x0029) }, /* PCI   */
 	{ PCI_VDEVICE(ATHEROS, 0x002A) }, /* PCI-E */
 
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x002A,
+			 PCI_VENDOR_ID_AZWAVE,
+			 0x1C71),
+	  .driver_data = ATH9K_PCI_D3_L1_WAR },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x002A,
+			 PCI_VENDOR_ID_FOXCONN,
+			 0xE01F),
+	  .driver_data = ATH9K_PCI_D3_L1_WAR },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x002A,
+			 0x11AD, /* LITEON */
+			 0x6632),
+	  .driver_data = ATH9K_PCI_D3_L1_WAR },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x002A,
+			 0x11AD, /* LITEON */
+			 0x6642),
+	  .driver_data = ATH9K_PCI_D3_L1_WAR },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x002A,
+			 PCI_VENDOR_ID_QMI,
+			 0x0306),
+	  .driver_data = ATH9K_PCI_D3_L1_WAR },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x002A,
+			 0x185F, /* WNC */
+			 0x309D),
+	  .driver_data = ATH9K_PCI_D3_L1_WAR },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x002A,
+			 0x10CF, /* Fujitsu */
+			 0x147C),
+	  .driver_data = ATH9K_PCI_D3_L1_WAR },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x002A,
+			 0x10CF, /* Fujitsu */
+			 0x147D),
+	  .driver_data = ATH9K_PCI_D3_L1_WAR },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
+			 0x002A,
+			 0x10CF, /* Fujitsu */
+			 0x1536),
+	  .driver_data = ATH9K_PCI_D3_L1_WAR },
+
 	/* AR9285 card for Asus */
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_ATHEROS,
 			 0x002B,

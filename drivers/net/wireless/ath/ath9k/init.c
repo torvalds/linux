@@ -551,6 +551,11 @@ static void ath9k_init_platform(struct ath_softc *sc)
 		pCap->hw_caps |= ATH9K_HW_CAP_BT_ANT_DIV;
 		ath_info(common, "Set BT/WLAN RX diversity capability\n");
 	}
+
+	if (sc->driver_data & ATH9K_PCI_D3_L1_WAR) {
+		ah->config.pcie_waen = 0x0040473b;
+		ath_info(common, "Enable WAR for ASPM D3/L1\n");
+	}
 }
 
 static void ath9k_eeprom_request_cb(const struct firmware *eeprom_blob,
