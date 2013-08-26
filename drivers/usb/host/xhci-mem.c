@@ -722,8 +722,7 @@ void xhci_free_stream_info(struct xhci_hcd *xhci,
 				stream_info->stream_ctx_array,
 				stream_info->ctx_array_dma);
 
-	if (stream_info)
-		kfree(stream_info->stream_rings);
+	kfree(stream_info->stream_rings);
 	kfree(stream_info);
 }
 
