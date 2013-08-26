@@ -673,6 +673,8 @@ static int __btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
 
 		if (device->can_discard)
 			fs_devices->num_can_discard--;
+		if (device->missing)
+			fs_devices->missing_devices--;
 
 		new_device = btrfs_alloc_device(NULL, &device->devid,
 						device->uuid);
