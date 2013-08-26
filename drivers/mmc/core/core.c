@@ -27,9 +27,7 @@
 #include <linux/fault-inject.h>
 #include <linux/random.h>
 #include <linux/slab.h>
-#include <linux/wakelock.h>
-
-#include <trace/events/mmc.h>
+#include <linux/of.h>
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
@@ -175,7 +173,6 @@ void mmc_request_done(struct mmc_host *host, struct mmc_request *mrq)
 			pr_debug("%s:     %d bytes transferred: %d\n",
 				mmc_hostname(host),
 				mrq->data->bytes_xfered, mrq->data->error);
-			trace_mmc_blk_rw_end(cmd->opcode, cmd->arg, mrq->data);
 		}
 
 		if (mrq->stop) {
@@ -560,9 +557,6 @@ struct mmc_async_req *mmc_start_req(struct mmc_host *host,
 	}
 
 	if (!err && areq) {
-		trace_mmc_blk_rw_start(areq->mrq->cmd->opcode,
-				       areq->mrq->cmd->arg,
-				       areq->mrq->data);
 		start_err = __mmc_start_data_req(host, areq->mrq);
 	}
 
@@ -1203,6 +1197,49 @@ u32 mmc_vddrange_to_ocrmask(int vdd_min, int vdd_max)
 	return mask;
 }
 EXPORT_SYMBOL(mmc_vddrange_to_ocrmask);
+
+#ifdef CONFIG_OF
+
+/**
+ * mmc_of_parse_voltage - return mask of supported voltages
+ * @np: The device node need to be parsed.
+ * @mask: mask of voltages available for MMC/SD/SDIO
+ *
+ * 1. Return zero on success.
+ * 2. Return negative errno: voltage-range is invalid.
+ */
+int mmc_of_parse_voltage(struct device_node *np, u32 *mask)
+{
+	const u32 *voltage_ranges;
+	int num_ranges, i;
+
+	voltage_ranges = of_get_property(np, "voltage-ranges", &num_ranges);
+	num_ranges = num_ranges / sizeof(*voltage_ranges) / 2;
+	if (!voltage_ranges || !num_ranges) {
+		pr_info("%s: voltage-ranges unspecified\n", np->full_name);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < num_ranges; i++) {
+		const int j = i * 2;
+		u32 ocr_mask;
+
+		ocr_mask = mmc_vddrange_to_ocrmask(
+				be32_to_cpu(voltage_ranges[j]),
+				be32_to_cpu(voltage_ranges[j + 1]));
+		if (!ocr_mask) {
+			pr_err("%s: voltage-range #%d is invalid\n",
+				np->full_name, i);
+			return -EINVAL;
+		}
+		*mask |= ocr_mask;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(mmc_of_parse_voltage);
+
+#endif /* CONFIG_OF */
 
 #ifdef CONFIG_REGULATOR
 
@@ -1902,7 +1939,6 @@ static int mmc_do_erase(struct mmc_card *card, unsigned int from,
 
 	fr = from;
 	nr = to - from + 1;
-	trace_mmc_blk_erase_start(arg, fr, nr);
 
 	/*
 	 * qty is used to calculate the erase timeout which depends on how many
@@ -2008,7 +2044,6 @@ static int mmc_do_erase(struct mmc_card *card, unsigned int from,
 		 (R1_CURRENT_STATE(cmd.resp[0]) == R1_STATE_PRG));
 out:
 
-	trace_mmc_blk_erase_end(arg, fr, nr);
 	return err;
 }
 
