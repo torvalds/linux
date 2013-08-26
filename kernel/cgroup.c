@@ -4041,7 +4041,7 @@ static int cgroup_write_event_control(struct cgroup_subsys_state *dummy_css,
 {
 	struct cgroup *cgrp = dummy_css->cgroup;
 	struct cgroup_event *event;
-	struct cgroup *cgrp_cfile;
+	struct cgroup_subsys_state *cfile_css;
 	unsigned int efd, cfd;
 	struct file *efile;
 	struct file *cfile;
@@ -4103,7 +4103,8 @@ static int cgroup_write_event_control(struct cgroup_subsys_state *dummy_css,
 	}
 
 	/*
-	 * Determine the css of @cfile and associate @event with it.
+	 * Determine the css of @cfile, verify it belongs to the same
+	 * cgroup as cgroup.event_control, and associate @event with it.
 	 * Remaining events are automatically removed on cgroup destruction
 	 * but the removal is asynchronous, so take an extra ref.
 	 */
@@ -4111,22 +4112,13 @@ static int cgroup_write_event_control(struct cgroup_subsys_state *dummy_css,
 
 	ret = -EINVAL;
 	event->css = cgroup_css(cgrp, event->cft->ss);
-	if (event->css && css_tryget(event->css))
+	cfile_css = css_from_dir(cfile->f_dentry->d_parent, event->cft->ss);
+	if (event->css && event->css == cfile_css && css_tryget(event->css))
 		ret = 0;
 
 	rcu_read_unlock();
 	if (ret)
 		goto out_put_cfile;
-
-	/*
-	 * The file to be monitored must be in the same cgroup as
-	 * cgroup.event_control is.
-	 */
-	cgrp_cfile = __d_cgrp(cfile->f_dentry->d_parent);
-	if (cgrp_cfile != cgrp) {
-		ret = -EINVAL;
-		goto out_put_css;
-	}
 
 	if (!event->cft->register_event || !event->cft->unregister_event) {
 		ret = -EINVAL;
