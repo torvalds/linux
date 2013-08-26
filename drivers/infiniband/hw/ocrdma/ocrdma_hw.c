@@ -256,11 +256,11 @@ static int ocrdma_get_mbx_cqe_errno(u16 cqe_status)
 		break;
 	case OCRDMA_MBX_CQE_STATUS_INSUFFICIENT_RESOURCES:
 	case OCRDMA_MBX_CQE_STATUS_QUEUE_FLUSHING:
-		err_num = -EAGAIN;
+		err_num = -EINVAL;
 		break;
 	case OCRDMA_MBX_CQE_STATUS_DMA_FAILED:
 	default:
-		err_num = -EIO;
+		err_num = -EINVAL;
 		break;
 	}
 	return err_num;
@@ -1654,6 +1654,14 @@ void ocrdma_flush_qp(struct ocrdma_qp *qp)
 	spin_unlock_irqrestore(&qp->dev->flush_q_lock, flags);
 }
 
+static void ocrdma_init_hwq_ptr(struct ocrdma_qp *qp)
+{
+	qp->sq.head = 0;
+	qp->sq.tail = 0;
+	qp->rq.head = 0;
+	qp->rq.tail = 0;
+}
+
 int ocrdma_qp_state_change(struct ocrdma_qp *qp, enum ib_qp_state new_ib_state,
 			   enum ib_qp_state *old_ib_state)
 {
@@ -1673,8 +1681,12 @@ int ocrdma_qp_state_change(struct ocrdma_qp *qp, enum ib_qp_state new_ib_state,
 	}
 
 
-	if (new_state == OCRDMA_QPS_ERR)
+	if (new_state == OCRDMA_QPS_INIT) {
+		ocrdma_init_hwq_ptr(qp);
+		ocrdma_del_flush_qp(qp);
+	} else if (new_state == OCRDMA_QPS_ERR) {
 		ocrdma_flush_qp(qp);
+	}
 
 	qp->state = new_state;
 
@@ -2317,7 +2329,8 @@ int ocrdma_mbx_modify_srq(struct ocrdma_srq *srq, struct ib_srq_attr *srq_attr)
 {
 	int status = -ENOMEM;
 	struct ocrdma_modify_srq *cmd;
-	struct ocrdma_dev *dev = get_ocrdma_dev(srq->ibsrq.device);
+	struct ocrdma_pd *pd = srq->pd;
+	struct ocrdma_dev *dev = get_ocrdma_dev(pd->ibpd.device);
 
 	cmd = ocrdma_init_emb_mqe(OCRDMA_CMD_CREATE_SRQ, sizeof(*cmd));
 	if (!cmd)

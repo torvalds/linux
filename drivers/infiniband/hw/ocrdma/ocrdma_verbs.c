@@ -930,9 +930,8 @@ static int ocrdma_copy_qp_uresp(struct ocrdma_qp *qp,
 	uresp.db_page_size = dev->nic_info.db_page_size;
 	if (dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY) {
 		uresp.db_sq_offset = OCRDMA_DB_GEN2_SQ_OFFSET;
-		uresp.db_rq_offset = ((qp->id & 0xFFFF) < 128) ?
-			OCRDMA_DB_GEN2_RQ1_OFFSET : OCRDMA_DB_GEN2_RQ2_OFFSET;
-		uresp.db_shift = (qp->id < 128) ? 24 : 16;
+		uresp.db_rq_offset = OCRDMA_DB_GEN2_RQ_OFFSET;
+		uresp.db_shift = 24;
 	} else {
 		uresp.db_sq_offset = OCRDMA_DB_SQ_OFFSET;
 		uresp.db_rq_offset = OCRDMA_DB_RQ_OFFSET;
@@ -975,8 +974,7 @@ static void ocrdma_set_qp_db(struct ocrdma_dev *dev, struct ocrdma_qp *qp,
 			OCRDMA_DB_GEN2_SQ_OFFSET;
 		qp->rq_db = dev->nic_info.db +
 			(pd->id * dev->nic_info.db_page_size) +
-			((qp->id < 128) ?
-			OCRDMA_DB_GEN2_RQ1_OFFSET : OCRDMA_DB_GEN2_RQ2_OFFSET);
+			OCRDMA_DB_GEN2_RQ_OFFSET;
 	} else {
 		qp->sq_db = dev->nic_info.db +
 			(pd->id * dev->nic_info.db_page_size) +
@@ -1399,7 +1397,7 @@ skip_cqe:
 	spin_unlock_irqrestore(&cq->cq_lock, cq_flags);
 }
 
-static void ocrdma_del_flush_qp(struct ocrdma_qp *qp)
+void ocrdma_del_flush_qp(struct ocrdma_qp *qp)
 {
 	int found = false;
 	unsigned long flags;
@@ -1496,7 +1494,7 @@ static int ocrdma_copy_srq_uresp(struct ocrdma_dev *dev, struct ocrdma_srq *srq,
 	uresp.db_page_size = dev->nic_info.db_page_size;
 	uresp.num_rqe_allocated = srq->rq.max_cnt;
 	if (dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY) {
-		uresp.db_rq_offset = OCRDMA_DB_GEN2_RQ1_OFFSET;
+		uresp.db_rq_offset = OCRDMA_DB_GEN2_RQ_OFFSET;
 		uresp.db_shift = 24;
 	} else {
 		uresp.db_rq_offset = OCRDMA_DB_RQ_OFFSET;
