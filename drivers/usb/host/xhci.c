@@ -4455,7 +4455,7 @@ static u16 xhci_calculate_lpm_timeout(struct usb_hcd *hcd,
 	if (!config)
 		return timeout;
 
-	for (i = 0; i < USB_MAXINTERFACES; i++) {
+	for (i = 0; i < config->desc.bNumInterfaces; i++) {
 		struct usb_driver *driver;
 		struct usb_interface *intf = config->interface[i];
 
