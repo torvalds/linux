@@ -20,7 +20,6 @@
 #include <net/route.h>
 #include <net/ipv6.h>
 #include <net/ip6_fib.h>
-#include <net/ip6_route.h>
 #include <net/flow.h>
 
 #include <linux/interrupt.h>
@@ -1722,17 +1721,6 @@ static inline int xfrm_mark_put(struct sk_buff *skb, const struct xfrm_mark *m)
 	if (m->m | m->v)
 		ret = nla_put(skb, XFRMA_MARK, sizeof(struct xfrm_mark), m);
 	return ret;
-}
-
-static inline int xfrm_skb_dst_mtu(struct sk_buff *skb)
-{
-	struct sock *sk = skb->sk;
-
-	if (sk && skb->protocol == htons(ETH_P_IPV6))
-		return ip6_skb_dst_mtu(skb);
-	else if (sk && skb->protocol == htons(ETH_P_IP))
-		return ip_skb_dst_mtu(skb);
-	return dst_mtu(skb_dst(skb));
 }
 
 #endif	/* _NET_XFRM_H */
