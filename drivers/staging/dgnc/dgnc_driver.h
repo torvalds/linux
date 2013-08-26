@@ -481,7 +481,7 @@ struct channel_t {
 	uchar		ch_mistat;	/* FEP input modem status       */
 
 	struct neo_uart_struct *ch_neo_uart;	/* Pointer to the "mapped" UART struct */
-	struct cls_uart_struct *ch_cls_uart;	/* Pointer to the "mapped" UART struct */
+	struct cls_uart_struct __iomem *ch_cls_uart;	/* Pointer to the "mapped" UART struct */
 
 	uchar		ch_cached_lsr;	/* Cached value of the LSR register */
 

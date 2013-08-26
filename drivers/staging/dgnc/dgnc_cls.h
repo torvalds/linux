@@ -36,14 +36,14 @@
  ************************************************************************/
 
 struct cls_uart_struct {
-	volatile uchar txrx;		/* WR  RHR/THR - Holding Reg */
-	volatile uchar ier;		/* WR  IER - Interrupt Enable Reg */
-	volatile uchar isr_fcr;		/* WR  ISR/FCR - Interrupt Status Reg/Fifo Control Reg */
-	volatile uchar lcr;		/* WR  LCR - Line Control Reg */
-	volatile uchar mcr;		/* WR  MCR - Modem Control Reg */
-	volatile uchar lsr;		/* WR  LSR - Line Status Reg */
-	volatile uchar msr;		/* WR  MSR - Modem Status Reg */
-	volatile uchar spr;		/* WR  SPR - Scratch Pad Reg */
+	u8 txrx;		/* WR  RHR/THR - Holding Reg */
+	u8 ier;		/* WR  IER - Interrupt Enable Reg */
+	u8 isr_fcr;		/* WR  ISR/FCR - Interrupt Status Reg/Fifo Control Reg */
+	u8 lcr;		/* WR  LCR - Line Control Reg */
+	u8 mcr;		/* WR  MCR - Modem Control Reg */
+	u8 lsr;		/* WR  LSR - Line Status Reg */
+	u8 msr;		/* WR  MSR - Modem Status Reg */
+	u8 spr;		/* WR  SPR - Scratch Pad Reg */
 };
 
 /* Where to read the interrupt register (8bits) */
