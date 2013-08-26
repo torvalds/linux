@@ -1491,24 +1491,23 @@ static int pcie_find_smpss(struct pci_dev *dev, void *data)
 	if (!pci_is_pcie(dev))
 		return 0;
 
-	/* For PCIE hotplug enabled slots not connected directly to a
-	 * PCI-E root port, there can be problems when hotplugging
-	 * devices.  This is due to the possibility of hotplugging a
-	 * device into the fabric with a smaller MPS that the devices
-	 * currently running have configured.  Modifying the MPS on the
-	 * running devices could cause a fatal bus error due to an
-	 * incoming frame being larger than the newly configured MPS.
-	 * To work around this, the MPS for the entire fabric must be
-	 * set to the minimum size.  Any devices hotplugged into this
-	 * fabric will have the minimum MPS set.  If the PCI hotplug
-	 * slot is directly connected to the root port and there are not
-	 * other devices on the fabric (which seems to be the most
-	 * common case), then this is not an issue and MPS discovery
-	 * will occur as normal.
+	/*
+	 * We don't have a way to change MPS settings on devices that have
+	 * drivers attached.  A hot-added device might support only the minimum
+	 * MPS setting (MPS=128).  Therefore, if the fabric contains a bridge
+	 * where devices may be hot-added, we limit the fabric MPS to 128 so
+	 * hot-added devices will work correctly.
+	 *
+	 * However, if we hot-add a device to a slot directly below a Root
+	 * Port, it's impossible for there to be other existing devices below
+	 * the port.  We don't limit the MPS in this case because we can
+	 * reconfigure MPS on both the Root Port and the hot-added device,
+	 * and there are no other devices involved.
+	 *
+	 * Note that this PCIE_BUS_SAFE path assumes no peer-to-peer DMA.
 	 */
-	if (dev->is_hotplug_bridge && (!list_is_singular(&dev->bus->devices) ||
-	     (dev->bus->self &&
-	      pci_pcie_type(dev->bus->self) != PCI_EXP_TYPE_ROOT_PORT)))
+	if (dev->is_hotplug_bridge &&
+	    pci_pcie_type(dev) != PCI_EXP_TYPE_ROOT_PORT)
 		*smpss = 0;
 
 	if (*smpss > dev->pcie_mpss)
@@ -1583,6 +1582,22 @@ static void pcie_write_mrrs(struct pci_dev *dev)
 			"with pci=pcie_bus_safe.\n");
 }
 
+static void pcie_bus_detect_mps(struct pci_dev *dev)
+{
+	struct pci_dev *bridge = dev->bus->self;
+	int mps, p_mps;
+
+	if (!bridge)
+		return;
+
+	mps = pcie_get_mps(dev);
+	p_mps = pcie_get_mps(bridge);
+
+	if (mps != p_mps)
+		dev_warn(&dev->dev, "Max Payload Size %d, but upstream %s set to %d; if necessary, use \"pci=pcie_bus_safe\" and report a bug\n",
+			 mps, pci_name(bridge), p_mps);
+}
+
 static int pcie_bus_configure_set(struct pci_dev *dev, void *data)
 {
 	int mps, orig_mps;
@@ -1590,13 +1605,18 @@ static int pcie_bus_configure_set(struct pci_dev *dev, void *data)
 	if (!pci_is_pcie(dev))
 		return 0;
 
+	if (pcie_bus_config == PCIE_BUS_TUNE_OFF) {
+		pcie_bus_detect_mps(dev);
+		return 0;
+	}
+
 	mps = 128 << *(u8 *)data;
 	orig_mps = pcie_get_mps(dev);
 
 	pcie_write_mps(dev, mps);
 	pcie_write_mrrs(dev);
 
-	dev_info(&dev->dev, "PCI-E Max Payload Size set to %4d/%4d (was %4d), "
+	dev_info(&dev->dev, "Max Payload Size set to %4d/%4d (was %4d), "
 		 "Max Read Rq %4d\n", pcie_get_mps(dev), 128 << dev->pcie_mpss,
 		 orig_mps, pcie_get_readrq(dev));
 
@@ -1607,25 +1627,25 @@ static int pcie_bus_configure_set(struct pci_dev *dev, void *data)
  * parents then children fashion.  If this changes, then this code will not
  * work as designed.
  */
-void pcie_bus_configure_settings(struct pci_bus *bus, u8 mpss)
+void pcie_bus_configure_settings(struct pci_bus *bus)
 {
 	u8 smpss;
+
+	if (!bus->self)
+		return;
 
 	if (!pci_is_pcie(bus->self))
 		return;
 
-	if (pcie_bus_config == PCIE_BUS_TUNE_OFF)
-		return;
-
 	/* FIXME - Peer to peer DMA is possible, though the endpoint would need
-	 * to be aware to the MPS of the destination.  To work around this,
+	 * to be aware of the MPS of the destination.  To work around this,
 	 * simply force the MPS of the entire system to the smallest possible.
 	 */
 	if (pcie_bus_config == PCIE_BUS_PEER2PEER)
 		smpss = 0;
 
 	if (pcie_bus_config == PCIE_BUS_SAFE) {
-		smpss = mpss;
+		smpss = bus->self->pcie_mpss;
 
 		pcie_find_smpss(bus->self, &smpss);
 		pci_walk_bus(bus, pcie_find_smpss, &smpss);
