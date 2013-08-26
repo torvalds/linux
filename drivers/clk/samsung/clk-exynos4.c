@@ -985,11 +985,15 @@ static struct of_device_id ext_clk_match[] __initdata = {
 	{},
 };
 
-static struct samsung_pll_clock exynos4210_plls[] __initdata = {
+static struct samsung_pll_clock exynos4210_plls[nr_plls] __initdata = {
 	[apll] = PLL_A(pll_4508, fout_apll, "fout_apll", "fin_pll", APLL_LOCK,
 		APLL_CON0, "fout_apll", NULL),
 	[mpll] = PLL_A(pll_4508, fout_mpll, "fout_mpll", "fin_pll",
 		E4210_MPLL_LOCK, E4210_MPLL_CON0, "fout_mpll", NULL),
+	[epll] = PLL_A(pll_4600, fout_epll, "fout_epll", "fin_pll", EPLL_LOCK,
+		EPLL_CON0, "fout_epll", NULL),
+	[vpll] = PLL_A(pll_4650c, fout_vpll, "fout_vpll", "mout_vpllsrc",
+		VPLL_LOCK, VPLL_CON0, "fout_vpll", NULL),
 };
 
 static struct samsung_pll_clock exynos4x12_plls[nr_plls] __initdata = {
@@ -1008,8 +1012,6 @@ static void __init exynos4_clk_init(struct device_node *np,
 				    enum exynos4_soc exynos4_soc,
 				    void __iomem *reg_base, unsigned long xom)
 {
-	struct clk *epll, *vpll;
-
 	reg_base = of_iomap(np, 0);
 	if (!reg_base)
 		panic("%s: failed to map registers\n", __func__);
@@ -1032,13 +1034,6 @@ static void __init exynos4_clk_init(struct device_node *np,
 	if (exynos4_soc == EXYNOS4210) {
 		samsung_clk_register_pll(exynos4210_plls,
 					ARRAY_SIZE(exynos4210_plls), reg_base);
-		epll = samsung_clk_register_pll46xx("fout_epll", "fin_pll",
-					reg_base + EPLL_CON0, pll_4600);
-		vpll = samsung_clk_register_pll46xx("fout_vpll", "mout_vpllsrc",
-					reg_base + VPLL_CON0, pll_4650c);
-
-		samsung_clk_add_lookup(epll, fout_epll);
-		samsung_clk_add_lookup(vpll, fout_vpll);
 	} else {
 		samsung_clk_register_pll(exynos4x12_plls,
 					ARRAY_SIZE(exynos4x12_plls), reg_base);

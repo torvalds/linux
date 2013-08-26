@@ -423,18 +423,10 @@ static const struct clk_ops samsung_pll45xx_clk_min_ops = {
 #define PLL4650C_KDIV_MASK	(0xFFF)
 #define PLL46XX_KDIV_SHIFT	(0)
 
-struct samsung_clk_pll46xx {
-	struct clk_hw		hw;
-	enum pll46xx_type	type;
-	const void __iomem	*con_reg;
-};
-
-#define to_clk_pll46xx(_hw) container_of(_hw, struct samsung_clk_pll46xx, hw)
-
 static unsigned long samsung_pll46xx_recalc_rate(struct clk_hw *hw,
 				unsigned long parent_rate)
 {
-	struct samsung_clk_pll46xx *pll = to_clk_pll46xx(hw);
+	struct samsung_clk_pll *pll = to_clk_pll(hw);
 	u32 mdiv, pdiv, sdiv, kdiv, pll_con0, pll_con1, shift;
 	u64 fvco = parent_rate;
 
@@ -457,43 +449,6 @@ static unsigned long samsung_pll46xx_recalc_rate(struct clk_hw *hw,
 static const struct clk_ops samsung_pll46xx_clk_ops = {
 	.recalc_rate = samsung_pll46xx_recalc_rate,
 };
-
-struct clk * __init samsung_clk_register_pll46xx(const char *name,
-			const char *pname, const void __iomem *con_reg,
-			enum pll46xx_type type)
-{
-	struct samsung_clk_pll46xx *pll;
-	struct clk *clk;
-	struct clk_init_data init;
-
-	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
-	if (!pll) {
-		pr_err("%s: could not allocate pll clk %s\n", __func__, name);
-		return NULL;
-	}
-
-	init.name = name;
-	init.ops = &samsung_pll46xx_clk_ops;
-	init.flags = CLK_GET_RATE_NOCACHE;
-	init.parent_names = &pname;
-	init.num_parents = 1;
-
-	pll->hw.init = &init;
-	pll->con_reg = con_reg;
-	pll->type = type;
-
-	clk = clk_register(NULL, &pll->hw);
-	if (IS_ERR(clk)) {
-		pr_err("%s: failed to register pll clock %s\n", __func__,
-				name);
-		kfree(pll);
-	}
-
-	if (clk_register_clkdev(clk, name, NULL))
-		pr_err("%s: failed to register lookup for %s", __func__, name);
-
-	return clk;
-}
 
 /*
  * PLL6552 Clock Type
@@ -716,6 +671,11 @@ static void __init _samsung_clk_register_pll(struct samsung_pll_clock *pll_clk,
 		break;
 	case pll_6553:
 		init.ops = &samsung_pll6553_clk_ops;
+		break;
+	case pll_4600:
+	case pll_4650:
+	case pll_4650c:
+		init.ops = &samsung_pll46xx_clk_ops;
 		break;
 	default:
 		pr_warn("%s: Unknown pll type for pll clk %s\n",
