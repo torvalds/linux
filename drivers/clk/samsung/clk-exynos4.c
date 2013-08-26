@@ -1002,11 +1002,9 @@ static void __init exynos4_clk_init(struct device_node *np,
 {
 	struct clk *apll, *mpll, *epll, *vpll;
 
-	if (np) {
-		reg_base = of_iomap(np, 0);
-		if (!reg_base)
-			panic("%s: failed to map registers\n", __func__);
-	}
+	reg_base = of_iomap(np, 0);
+	if (!reg_base)
+		panic("%s: failed to map registers\n", __func__);
 
 	if (exynos4_soc == EXYNOS4210)
 		samsung_clk_init(np, reg_base, nr_clks,
@@ -1017,8 +1015,7 @@ static void __init exynos4_clk_init(struct device_node *np,
 			exynos4_clk_regs, ARRAY_SIZE(exynos4_clk_regs),
 			exynos4x12_clk_save, ARRAY_SIZE(exynos4x12_clk_save));
 
-	if (np)
-		samsung_clk_of_register_fixed_ext(exynos4_fixed_rate_ext_clks,
+	samsung_clk_of_register_fixed_ext(exynos4_fixed_rate_ext_clks,
 			ARRAY_SIZE(exynos4_fixed_rate_ext_clks),
 			ext_clk_match);
 
