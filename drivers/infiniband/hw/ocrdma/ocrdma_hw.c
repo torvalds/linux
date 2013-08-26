@@ -994,6 +994,9 @@ static void ocrdma_get_attr(struct ocrdma_dev *dev,
 	attr->max_num_mr_pbl = rsp->max_num_mr_pbl;
 	attr->max_cqe = rsp->max_cq_cqes_per_cq &
 			OCRDMA_MBX_QUERY_CFG_MAX_CQES_PER_CQ_MASK;
+	attr->max_cq = (rsp->max_cq_cqes_per_cq &
+			OCRDMA_MBX_QUERY_CFG_MAX_CQ_MASK) >>
+			OCRDMA_MBX_QUERY_CFG_MAX_CQ_OFFSET;
 	attr->wqe_size = ((rsp->wqe_rqe_stride_max_dpp_cqs &
 		OCRDMA_MBX_QUERY_CFG_MAX_WQE_SIZE_MASK) >>
 		OCRDMA_MBX_QUERY_CFG_MAX_WQE_SIZE_OFFSET) *
@@ -1026,7 +1029,6 @@ static int ocrdma_check_fw_config(struct ocrdma_dev *dev,
 		return -EINVAL;
 	dev->base_eqid = conf->base_eqid;
 	dev->max_eq = conf->max_eq;
-	dev->attr.max_cq = OCRDMA_MAX_CQ - 1;
 	return 0;
 }
 

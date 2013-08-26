@@ -91,7 +91,7 @@ enum {
 
 #define OCRDMA_MAX_QP    2048
 #define OCRDMA_MAX_CQ    2048
-#define OCRDMA_MAX_STAG  2048
+#define OCRDMA_MAX_STAG  8192
 
 enum {
 	OCRDMA_DB_RQ_OFFSET		= 0xE0,
