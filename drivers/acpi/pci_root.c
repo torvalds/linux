@@ -526,10 +526,7 @@ static int acpi_pci_root_add(struct acpi_device *device,
 
 	if (system_state != SYSTEM_BOOTING) {
 		pcibios_resource_survey_bus(root->bus);
-		pci_assign_unassigned_bus_resources(root->bus);
-
-		/* need to after hot-added ioapic is registered */
-		pci_enable_bridges(root->bus);
+		pci_assign_unassigned_root_bus_resources(root->bus);
 	}
 
 	pci_bus_add_devices(root->bus);

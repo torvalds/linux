@@ -1146,6 +1146,24 @@ int pci_reenable_device(struct pci_dev *dev)
 	return 0;
 }
 
+static void pci_enable_bridge(struct pci_dev *dev)
+{
+	int retval;
+
+	if (!dev)
+		return;
+
+	pci_enable_bridge(dev->bus->self);
+
+	if (pci_is_enabled(dev))
+		return;
+	retval = pci_enable_device(dev);
+	if (retval)
+		dev_err(&dev->dev, "Error enabling bridge (%d), continuing\n",
+			retval);
+	pci_set_master(dev);
+}
+
 static int pci_enable_device_flags(struct pci_dev *dev, unsigned long flags)
 {
 	int err;
@@ -1165,6 +1183,8 @@ static int pci_enable_device_flags(struct pci_dev *dev, unsigned long flags)
 
 	if (atomic_inc_return(&dev->enable_cnt) > 1)
 		return 0;		/* already enabled */
+
+	pci_enable_bridge(dev->bus->self);
 
 	/* only skip sriov related */
 	for (i = 0; i <= PCI_ROM_RESOURCE; i++)

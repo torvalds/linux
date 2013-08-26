@@ -319,7 +319,6 @@ static int __init mcf_pci_init(void)
 	pci_fixup_irqs(pci_common_swizzle, mcf_pci_map_irq);
 	pci_bus_size_bridges(rootbus);
 	pci_bus_assign_resources(rootbus);
-	pci_enable_bridges(rootbus);
 	return 0;
 }
 

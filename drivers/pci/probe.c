@@ -1979,7 +1979,6 @@ unsigned int __ref pci_rescan_bus(struct pci_bus *bus)
 
 	max = pci_scan_child_bus(bus);
 	pci_assign_unassigned_bus_resources(bus);
-	pci_enable_bridges(bus);
 	pci_bus_add_devices(bus);
 
 	return max;
