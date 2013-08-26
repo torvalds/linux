@@ -242,6 +242,8 @@ struct fw_ohci {
 	u32 self_id_buffer[512];
 };
 
+static struct workqueue_struct *selfid_workqueue;
+
 static inline struct fw_ohci *fw_ohci(struct fw_card *card)
 {
 	return container_of(card, struct fw_ohci, card);
@@ -2087,7 +2089,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 	log_irqs(ohci, event);
 
 	if (event & OHCI1394_selfIDComplete)
-		queue_work(fw_workqueue, &ohci->bus_reset_work);
+		queue_work(selfid_workqueue, &ohci->bus_reset_work);
 
 	if (event & OHCI1394_RQPkt)
 		tasklet_schedule(&ohci->ar_request_ctx.tasklet);
@@ -3872,12 +3874,17 @@ static struct pci_driver fw_ohci_pci_driver = {
 
 static int __init fw_ohci_init(void)
 {
+	selfid_workqueue = alloc_workqueue(KBUILD_MODNAME, WQ_MEM_RECLAIM, 0);
+	if (!selfid_workqueue)
+		return -ENOMEM;
+
 	return pci_register_driver(&fw_ohci_pci_driver);
 }
 
 static void __exit fw_ohci_cleanup(void)
 {
 	pci_unregister_driver(&fw_ohci_pci_driver);
+	destroy_workqueue(selfid_workqueue);
 }
 
 module_init(fw_ohci_init);
