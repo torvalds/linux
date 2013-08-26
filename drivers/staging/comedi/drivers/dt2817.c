@@ -43,28 +43,26 @@ Configuration options:
 
 static int dt2817_dio_insn_config(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
-	int mask;
-	int chan;
-	int oe = 0;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int oe = 0;
+	unsigned int mask;
+	int ret;
 
-	if (insn->n != 1)
-		return -EINVAL;
-
-	chan = CR_CHAN(insn->chanspec);
 	if (chan < 8)
-		mask = 0xff;
+		mask = 0x000000ff;
 	else if (chan < 16)
-		mask = 0xff00;
+		mask = 0x0000ff00;
 	else if (chan < 24)
-		mask = 0xff0000;
+		mask = 0x00ff0000;
 	else
 		mask = 0xff000000;
-	if (data[0])
-		s->io_bits |= mask;
-	else
-		s->io_bits &= ~mask;
+
+	ret = comedi_dio_insn_config(dev, s, insn, data, mask);
+	if (ret)
+		return ret;
 
 	if (s->io_bits & 0x000000ff)
 		oe |= 0x1;
@@ -77,7 +75,7 @@ static int dt2817_dio_insn_config(struct comedi_device *dev,
 
 	outb(oe, dev->iobase + DT2817_CR);
 
-	return 1;
+	return insn->n;
 }
 
 static int dt2817_dio_insn_bits(struct comedi_device *dev,
