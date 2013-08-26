@@ -3215,9 +3215,11 @@ static int packet_getsockopt(struct socket *sock, int level, int optname,
 
 		if (po->tp_version == TPACKET_V3) {
 			lv = sizeof(struct tpacket_stats_v3);
+			st.stats3.tp_packets += st.stats3.tp_drops;
 			data = &st.stats3;
 		} else {
 			lv = sizeof(struct tpacket_stats);
+			st.stats1.tp_packets += st.stats1.tp_drops;
 			data = &st.stats1;
 		}
 

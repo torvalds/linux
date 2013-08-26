@@ -7089,7 +7089,7 @@ rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	RTL_W8(Cfg9346, Cfg9346_Unlock);
 	RTL_W8(Config1, RTL_R8(Config1) | PMEnable);
-	RTL_W8(Config5, RTL_R8(Config5) & PMEStatus);
+	RTL_W8(Config5, RTL_R8(Config5) & (BWF | MWF | UWF | LanWake | PMEStatus));
 	if ((RTL_R8(Config3) & (LinkUp | MagicPacket)) != 0)
 		tp->features |= RTL_FEATURE_WOL;
 	if ((RTL_R8(Config5) & (UWF | BWF | MWF)) != 0)
