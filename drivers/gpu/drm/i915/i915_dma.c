@@ -1801,8 +1801,6 @@ int i915_driver_unload(struct drm_device *dev)
 	list_del(&dev_priv->gtt.base.global_link);
 	WARN_ON(!list_empty(&dev_priv->vm_list));
 	drm_mm_takedown(&dev_priv->gtt.base.mm);
-	if (dev_priv->regs != NULL)
-		pci_iounmap(dev->pdev, dev_priv->regs);
 
 	intel_teardown_gmbus(dev);
 	intel_teardown_mchbar(dev);
@@ -1811,6 +1809,10 @@ int i915_driver_unload(struct drm_device *dev)
 	pm_qos_remove_request(&dev_priv->pm_qos);
 
 	dev_priv->gtt.base.cleanup(&dev_priv->gtt.base);
+
+	intel_uncore_fini(dev);
+	if (dev_priv->regs != NULL)
+		pci_iounmap(dev->pdev, dev_priv->regs);
 
 	if (dev_priv->slab)
 		kmem_cache_destroy(dev_priv->slab);
