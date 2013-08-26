@@ -5700,34 +5700,28 @@ struct cgroup_subsys_state *css_lookup(struct cgroup_subsys *ss, int id)
 EXPORT_SYMBOL_GPL(css_lookup);
 
 /**
- * cgroup_css_from_dir - get corresponding css from file open on cgroup dir
- * @f: directory file of interest
- * @id: subsystem id of interest
+ * css_from_dir - get corresponding css from the dentry of a cgroup dir
+ * @dentry: directory dentry of interest
+ * @ss: subsystem of interest
  *
  * Must be called under RCU read lock.  The caller is responsible for
  * pinning the returned css if it needs to be accessed outside the RCU
  * critical section.
  */
-struct cgroup_subsys_state *cgroup_css_from_dir(struct file *f, int id)
+struct cgroup_subsys_state *css_from_dir(struct dentry *dentry,
+					 struct cgroup_subsys *ss)
 {
 	struct cgroup *cgrp;
-	struct inode *inode;
-	struct cgroup_subsys_state *css;
 
 	WARN_ON_ONCE(!rcu_read_lock_held());
 
-	inode = file_inode(f);
-	/* check in cgroup filesystem dir */
-	if (inode->i_op != &cgroup_dir_inode_operations)
+	/* is @dentry a cgroup dir? */
+	if (!dentry->d_inode ||
+	    dentry->d_inode->i_op != &cgroup_dir_inode_operations)
 		return ERR_PTR(-EBADF);
 
-	if (id < 0 || id >= CGROUP_SUBSYS_COUNT)
-		return ERR_PTR(-EINVAL);
-
-	/* get cgroup */
-	cgrp = __d_cgrp(f->f_dentry);
-	css = cgroup_css(cgrp, id);
-	return css ? css : ERR_PTR(-ENOENT);
+	cgrp = __d_cgrp(dentry);
+	return cgroup_css(cgrp, ss->subsys_id) ?: ERR_PTR(-ENOENT);
 }
 
 /**

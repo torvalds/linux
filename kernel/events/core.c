@@ -593,7 +593,7 @@ static inline int perf_cgroup_connect(int fd, struct perf_event *event,
 
 	rcu_read_lock();
 
-	css = cgroup_css_from_dir(f.file, perf_subsys_id);
+	css = css_from_dir(f.file->f_dentry, &perf_subsys);
 	if (IS_ERR(css)) {
 		ret = PTR_ERR(css);
 		goto out;
