@@ -2102,8 +2102,6 @@ static int ocrdma_set_qp_params(struct ocrdma_qp *qp,
 				enum ib_qp_state old_qps)
 {
 	int status = 0;
-	struct net_device *netdev = qp->dev->nic_info.netdev;
-	int eth_mtu = iboe_get_mtu(netdev->mtu);
 
 	if (attr_mask & IB_QP_PKEY_INDEX) {
 		cmd->params.path_mtu_pkey_indx |= (attrs->pkey_index &
@@ -2140,8 +2138,8 @@ static int ocrdma_set_qp_params(struct ocrdma_qp *qp,
 		cmd->flags |= OCRDMA_QP_PARA_DST_QPN_VALID;
 	}
 	if (attr_mask & IB_QP_PATH_MTU) {
-		if (ib_mtu_enum_to_int(eth_mtu) <
-		    ib_mtu_enum_to_int(attrs->path_mtu)) {
+		if (attrs->path_mtu < IB_MTU_256 ||
+		    attrs->path_mtu > IB_MTU_4096) {
 			status = -EINVAL;
 			goto pmtu_err;
 		}

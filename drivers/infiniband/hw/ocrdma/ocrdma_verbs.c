@@ -75,7 +75,7 @@ int ocrdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr)
 	attr->vendor_part_id = dev->nic_info.pdev->device;
 	attr->hw_ver = 0;
 	attr->max_qp = dev->attr.max_qp;
-	attr->max_ah = dev->attr.max_qp;
+	attr->max_ah = OCRDMA_MAX_AH;
 	attr->max_qp_wr = dev->attr.max_wqe;
 
 	attr->device_cap_flags = IB_DEVICE_CURR_QP_STATE_MOD |
