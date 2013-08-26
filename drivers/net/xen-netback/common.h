@@ -190,21 +190,21 @@ void xenvif_xenbus_fini(void);
 
 int xenvif_schedulable(struct xenvif *vif);
 
-int xen_netbk_rx_ring_full(struct xenvif *vif);
+int xenvif_rx_ring_full(struct xenvif *vif);
 
-int xen_netbk_must_stop_queue(struct xenvif *vif);
+int xenvif_must_stop_queue(struct xenvif *vif);
 
 /* (Un)Map communication rings. */
-void xen_netbk_unmap_frontend_rings(struct xenvif *vif);
-int xen_netbk_map_frontend_rings(struct xenvif *vif,
-				 grant_ref_t tx_ring_ref,
-				 grant_ref_t rx_ring_ref);
+void xenvif_unmap_frontend_rings(struct xenvif *vif);
+int xenvif_map_frontend_rings(struct xenvif *vif,
+			      grant_ref_t tx_ring_ref,
+			      grant_ref_t rx_ring_ref);
 
 /* Check for SKBs from frontend and schedule backend processing */
-void xen_netbk_check_rx_xenvif(struct xenvif *vif);
+void xenvif_check_rx_xenvif(struct xenvif *vif);
 
 /* Queue an SKB for transmission to the frontend */
-void xen_netbk_queue_tx_skb(struct xenvif *vif, struct sk_buff *skb);
+void xenvif_queue_tx_skb(struct xenvif *vif, struct sk_buff *skb);
 /* Notify xenvif that ring now has space to send an skb to the frontend */
 void xenvif_notify_tx_completion(struct xenvif *vif);
 
@@ -212,12 +212,12 @@ void xenvif_notify_tx_completion(struct xenvif *vif);
 void xenvif_carrier_off(struct xenvif *vif);
 
 /* Returns number of ring slots required to send an skb to the frontend */
-unsigned int xen_netbk_count_skb_slots(struct xenvif *vif, struct sk_buff *skb);
+unsigned int xenvif_count_skb_slots(struct xenvif *vif, struct sk_buff *skb);
 
-int xen_netbk_tx_action(struct xenvif *vif, int budget);
-void xen_netbk_rx_action(struct xenvif *vif);
+int xenvif_tx_action(struct xenvif *vif, int budget);
+void xenvif_rx_action(struct xenvif *vif);
 
-int xen_netbk_kthread(void *data);
+int xenvif_kthread(void *data);
 
 extern bool separate_tx_rx_irq;
 
