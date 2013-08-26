@@ -28,6 +28,7 @@
 #ifndef __OCRDMA_ABI_H__
 #define __OCRDMA_ABI_H__
 
+#define OCRDMA_ABI_VERSION 1
 /* user kernel communication data structures. */
 
 struct ocrdma_alloc_ucontext_resp {
