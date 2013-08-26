@@ -25,37 +25,17 @@
 static struct modem_sound_data *modem_sound;
 int (*set_codec_for_pcm_modem)(int cmd) = NULL; /* Set the codec used only for PCM modem */
 void (*set_codec_spk)(int on) = NULL;
-#if defined(CONFIG_SND_RK_SOC_RK2928)|| defined(CONFIG_SND_RK29_SOC_RK610)
+#if defined(CONFIG_SND_RK_SOC_RK2928) ||  defined(CONFIG_SND_RK29_SOC_RK610_PHONEPAD)
 extern void call_set_spk(int on);
 #endif
 #ifdef CONFIG_SND_SOC_ES8323_PCM
 extern int set_es8323(int cmd);
 #endif
 
-#define HP_MIC 0
-#define MAIN_MIC 1
-#if defined(CONFIG_MODEM_MIC_SWITCH)
-extern void Modem_Mic_switch(int value);
-extern void Modem_Mic_release(void);
-void Modem_Sound_Mic_switch(int value)
-{
-	Modem_Mic_switch(value);
-}
-void Modem_Sound_Mic_release()
-{
-	Modem_Mic_release();
-}
-#else
-void Modem_Sound_Mic_switch(int value)
-{
-}
-void Modem_Sound_Mic_release()
-{
-}
-#endif
-
 int modem_sound_spkctl(int status)
 {
+	if(modem_sound->spkctl_io == INVALID_GPIO)
+		return 0;
 	if(status == ENABLE)
 		gpio_direction_output(modem_sound->spkctl_io,GPIO_HIGH);//modem_sound->spkctl_io? GPIO_HIGH:GPIO_LOW);
 	else 
@@ -92,83 +72,65 @@ static ssize_t modem_sound_read(struct file *filp, char __user *ptr, size_t size
 
 static long modem_sound_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	int ret = 0, codec_pcm_cmd = -1, codec_cmd = -1, modem_spk_enable = -1;
+	long ret = 0;
 	struct modem_sound_data *pdata = modem_sound;
 
 	DBG("modem_sound_ioctl: cmd = %d arg = %ld\n",cmd, arg);
 
 	ret = down_interruptible(&pdata->power_sem);
 	if (ret < 0) {
-		printk("%s: down power_sem error ret = %d\n", __func__, ret);
+		printk("%s: down power_sem error ret = %ld\n", __func__, ret);
 		return ret;
 	}
 
 	switch (cmd){
 		case IOCTL_MODEM_EAR_PHOEN:
 			DBG("modem_sound_ioctl: MODEM_EAR_PHONE\n");
-			Modem_Sound_Mic_switch(MAIN_MIC);
-			codec_cmd = 3;
-			codec_pcm_cmd = RCV;
-			modem_spk_enable = DISABLE;
+			if (set_codec_for_pcm_modem)
+				set_codec_for_pcm_modem(RCV);
 			break;
 		case IOCTL_MODEM_SPK_PHONE:
 			DBG("modem_sound_ioctl: MODEM_SPK_PHONE\n");
-			Modem_Sound_Mic_switch(MAIN_MIC);
-			codec_cmd = 1;
-			codec_pcm_cmd = SPK_PATH;
-			modem_spk_enable = ENABLE;
+			if (set_codec_for_pcm_modem)
+				set_codec_for_pcm_modem(SPK_PATH);
+			if(set_codec_spk)
+				set_codec_spk(1);
+			modem_sound_spkctl(ENABLE);
 			break;
 	  	case IOCTL_MODEM_HP_WITHMIC_PHONE:
 	  		DBG("modem_sound_ioctl: MODEM_HP_WITHMIC_PHONE\n");
-			Modem_Sound_Mic_switch(HP_MIC);
-			codec_cmd = 2;
-			codec_pcm_cmd = HP_PATH;
-			modem_spk_enable = DISABLE;
+			if (set_codec_for_pcm_modem)
+				set_codec_for_pcm_modem(HP_PATH);
+			if(set_codec_spk)
+				set_codec_spk(2);
+			modem_sound_spkctl(DISABLE);
 			break;
 		case IOCTL_MODEM_BT_PHONE:
-			codec_cmd = 3;
-			codec_pcm_cmd = BT;
-			modem_spk_enable = DISABLE;
+			if (set_codec_for_pcm_modem)
+				set_codec_for_pcm_modem(BT);
 			DBG("modem_sound_ioctl: MODEM_BT_PHONE\n");
 			break;
 		case IOCTL_MODEM_STOP_PHONE:
 		  	DBG("modem_sound_ioctl: MODEM_STOP_PHONE\n");
-			Modem_Sound_Mic_release();
-			codec_cmd = 0;
-			codec_pcm_cmd = OFF;
-			modem_spk_enable = ENABLE;
+			if(set_codec_spk)
+				set_codec_spk(0);
+			if (set_codec_for_pcm_modem)
+				set_codec_for_pcm_modem(OFF);
 			break;
 	        case IOCTL_MODEM_HP_NOMIC_PHONE:
-                        DBG("modem_sound_ioctl: MODEM_HP_NOMIC_PHONE\n");
-			Modem_Sound_Mic_switch(MAIN_MIC);
-			codec_cmd = 2;
-			codec_pcm_cmd = HP_NO_MIC;
-			modem_spk_enable = DISABLE;
-                        break;
+			DBG("modem_sound_ioctl: MODEM_HP_NOMIC_PHONE\n");
+			if (set_codec_for_pcm_modem)
+				set_codec_for_pcm_modem(HP_NO_MIC);
+			if(set_codec_spk)
+				set_codec_spk(2);
+			modem_sound_spkctl(DISABLE);
+			break;
+
+
 		default:
 			printk("unknown ioctl cmd!\n");
 			ret = -EINVAL;
 			break;
-	}
-
-	if (set_codec_spk == NULL || set_codec_for_pcm_modem == NULL)
-		printk("modem_sound_ioctl(), %s %s\n",
-			set_codec_for_pcm_modem ? "" : "set_codec_for_pcm_modem is NULL",
-			set_codec_spk ? "" : "set_codec_spk is NULL");
-
-	if (ret >= 0) {
-		// close codec firstly for pop noise
-		if (codec_cmd == 0 && set_codec_spk)
-			set_codec_spk(codec_cmd);
-
-		if (set_codec_for_pcm_modem)
-			set_codec_for_pcm_modem(codec_pcm_cmd);
-
-		modem_sound_spkctl(modem_spk_enable);
-
-		// open codec lastly for pop noise
-		if (codec_cmd != 0 && set_codec_spk)
-			set_codec_spk(codec_cmd);
 	}
 
 	up(&pdata->power_sem);
@@ -215,14 +177,14 @@ static int modem_sound_probe(struct platform_device *pdev)
 	pdata->wq = create_freezable_workqueue("modem_sound");
 	INIT_WORK(&pdata->work, modem_sound_delay_power_downup);
 	modem_sound = pdata;
-	printk("%s:modem sound initialized\n",__FUNCTION__);
-
-#if defined(CONFIG_SND_RK_SOC_RK2928)|| defined(CONFIG_SND_RK29_SOC_RK610)
-	set_codec_spk = call_set_spk;
+#if defined(CONFIG_SND_RK_SOC_RK2928)|| defined(CONFIG_SND_RK29_SOC_RK610_PHONEPAD)
+        set_codec_spk = call_set_spk;
 #endif
 #ifdef CONFIG_SND_SOC_ES8323_PCM
 	set_codec_for_pcm_modem = set_es8323;
 #endif
+
+	printk("%s:modem sound initialized\n",__FUNCTION__);
 
 	return ret;
 }
