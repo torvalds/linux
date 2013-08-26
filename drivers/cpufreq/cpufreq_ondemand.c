@@ -177,9 +177,6 @@ static void od_check_cpu(int cpu, unsigned int load)
 		/* No longer fully busy, reset rate_mult */
 		dbs_info->rate_mult = 1;
 
-		if (freq_next < policy->min)
-			freq_next = policy->min;
-
 		if (!od_tuners->powersave_bias) {
 			__cpufreq_driver_target(policy, freq_next,
 					CPUFREQ_RELATION_L);

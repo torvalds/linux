@@ -67,8 +67,6 @@ static void cs_check_cpu(int cpu, unsigned int load)
 			return;
 
 		dbs_info->requested_freq += get_freq_target(cs_tuners, policy);
-		if (dbs_info->requested_freq > policy->max)
-			dbs_info->requested_freq = policy->max;
 
 		__cpufreq_driver_target(policy, dbs_info->requested_freq,
 			CPUFREQ_RELATION_H);
@@ -89,8 +87,6 @@ static void cs_check_cpu(int cpu, unsigned int load)
 			return;
 
 		dbs_info->requested_freq -= get_freq_target(cs_tuners, policy);
-		if (dbs_info->requested_freq < policy->min)
-			dbs_info->requested_freq = policy->min;
 
 		__cpufreq_driver_target(policy, dbs_info->requested_freq,
 				CPUFREQ_RELATION_L);
