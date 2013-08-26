@@ -279,6 +279,7 @@ struct ci_power_info {
 	bool enable_pkg_pwr_tracking_feature;
 	bool use_pcie_performance_levels;
 	bool use_pcie_powersaving_levels;
+	bool uvd_power_gated;
 	/* driver states */
 	struct radeon_ps current_rps;
 	struct ci_ps current_ps;

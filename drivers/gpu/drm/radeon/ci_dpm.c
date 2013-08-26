@@ -681,6 +681,13 @@ static int ci_power_control_set_level(struct radeon_device *rdev)
 
 void ci_dpm_powergate_uvd(struct radeon_device *rdev, bool gate)
 {
+	struct ci_power_info *pi = ci_get_pi(rdev);
+
+	if (pi->uvd_power_gated == gate)
+		return;
+
+	pi->uvd_power_gated = gate;
+
 	ci_update_uvd_dpm(rdev, gate);
 }
 
@@ -4620,6 +4627,8 @@ int ci_dpm_enable(struct radeon_device *rdev)
 
 	ci_enable_auto_throttle_source(rdev, RADEON_DPM_AUTO_THROTTLE_SRC_THERMAL, true);
 
+	ci_dpm_powergate_uvd(rdev, true);
+
 	cik_update_cg(rdev, (RADEON_CG_BLOCK_GFX |
 			     RADEON_CG_BLOCK_MC |
 			     RADEON_CG_BLOCK_SDMA |
@@ -4642,6 +4651,8 @@ void ci_dpm_disable(struct radeon_device *rdev)
 			     RADEON_CG_BLOCK_SDMA |
 			     RADEON_CG_BLOCK_UVD |
 			     RADEON_CG_BLOCK_HDP), false);
+
+	ci_dpm_powergate_uvd(rdev, false);
 
 	if (!ci_is_smc_running(rdev))
 		return;
@@ -5162,6 +5173,8 @@ int ci_dpm_init(struct radeon_device *rdev)
 		pi->thermal_protection = false;
 
 	pi->caps_dynamic_ac_timing = true;
+
+	pi->uvd_power_gated = false;
 
 	return 0;
 }
