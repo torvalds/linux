@@ -17,24 +17,35 @@ static size_t syscall_arg__scnprintf_hex(char *bf, size_t size, unsigned long ar
 	return scnprintf(bf, size, "%#lx", arg);
 }
 
+#define SCA_HEX syscall_arg__scnprintf_hex
+
 static struct syscall_fmt {
 	const char *name;
 	const char *alias;
+	size_t	   (*arg_scnprintf[6])(char *bf, size_t size, unsigned long arg);
 	bool	   errmsg;
 	bool	   timeout;
 	bool	   hexret;
 } syscall_fmts[] = {
 	{ .name	    = "access",	    .errmsg = true, },
 	{ .name	    = "arch_prctl", .errmsg = true, .alias = "prctl", },
-	{ .name	    = "brk",	    .hexret = true, },
+	{ .name	    = "brk",	    .hexret = true,
+	  .arg_scnprintf = { [0] = SCA_HEX, /* brk */ }, },
 	{ .name	    = "mmap",	    .hexret = true, },
 	{ .name	    = "connect",    .errmsg = true, },
 	{ .name	    = "fstat",	    .errmsg = true, .alias = "newfstat", },
 	{ .name	    = "fstatat",    .errmsg = true, .alias = "newfstatat", },
 	{ .name	    = "futex",	    .errmsg = true, },
+	{ .name	    = "ioctl",	    .errmsg = true,
+	  .arg_scnprintf = { [2] = SCA_HEX, /* arg */ }, },
 	{ .name	    = "lstat",	    .errmsg = true, .alias = "newlstat", },
-	{ .name	    = "mmap",	    .hexret = true, },
+	{ .name	    = "mmap",	    .hexret = true,
+	  .arg_scnprintf = { [0] = SCA_HEX, /* addr */ }, },
+	{ .name	    = "mprotect",   .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_HEX, /* addr */ }, },
 	{ .name	    = "mremap",	    .hexret = true, },
+	{ .name	    = "munmap",	    .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_HEX, /* addr */ }, },
 	{ .name	    = "open",	    .errmsg = true, },
 	{ .name	    = "poll",	    .errmsg = true, .timeout = true, },
 	{ .name	    = "ppoll",	    .errmsg = true, .timeout = true, },
@@ -232,7 +243,9 @@ static int syscall__set_arg_fmts(struct syscall *sc)
 		return -1;
 
 	for (field = sc->tp_format->format.fields->next; field; field = field->next) {
-		if (field->flags & FIELD_IS_POINTER)
+		if (sc->fmt && sc->fmt->arg_scnprintf[idx])
+			sc->arg_scnprintf[idx] = sc->fmt->arg_scnprintf[idx];
+		else if (field->flags & FIELD_IS_POINTER)
 			sc->arg_scnprintf[idx] = syscall_arg__scnprintf_hex;
 		++idx;
 	}
