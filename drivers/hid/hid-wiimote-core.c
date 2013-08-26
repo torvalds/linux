@@ -459,6 +459,9 @@ static __u8 wiimote_cmd_read_ext(struct wiimote_data *wdata, __u8 *rmem)
 	if (rmem[0] == 0x01 && rmem[1] == 0x00 &&
 	    rmem[4] == 0x01 && rmem[5] == 0x03)
 		return WIIMOTE_EXT_GUITAR_HERO_DRUMS;
+	if (rmem[0] == 0x00 && rmem[1] == 0x00 &&
+	    rmem[4] == 0x01 && rmem[5] == 0x03)
+		return WIIMOTE_EXT_GUITAR_HERO_GUITAR;
 
 	return WIIMOTE_EXT_UNKNOWN;
 }
@@ -493,6 +496,7 @@ static bool wiimote_cmd_map_mp(struct wiimote_data *wdata, __u8 exttype)
 	switch (exttype) {
 	case WIIMOTE_EXT_CLASSIC_CONTROLLER:
 	case WIIMOTE_EXT_GUITAR_HERO_DRUMS:
+	case WIIMOTE_EXT_GUITAR_HERO_GUITAR:
 		wmem = 0x07;
 		break;
 	case WIIMOTE_EXT_NUNCHUK:
@@ -1084,6 +1088,7 @@ static const char *wiimote_exttype_names[WIIMOTE_EXT_NUM] = {
 	[WIIMOTE_EXT_BALANCE_BOARD] = "Nintendo Wii Balance Board",
 	[WIIMOTE_EXT_PRO_CONTROLLER] = "Nintendo Wii U Pro Controller",
 	[WIIMOTE_EXT_GUITAR_HERO_DRUMS] = "Nintendo Wii Guitar Hero Drums",
+	[WIIMOTE_EXT_GUITAR_HERO_GUITAR] = "Nintendo Wii Guitar Hero Guitar",
 };
 
 /*
@@ -1672,6 +1677,8 @@ static ssize_t wiimote_ext_show(struct device *dev,
 		return sprintf(buf, "procontroller\n");
 	case WIIMOTE_EXT_GUITAR_HERO_DRUMS:
 		return sprintf(buf, "drums\n");
+	case WIIMOTE_EXT_GUITAR_HERO_GUITAR:
+		return sprintf(buf, "guitar\n");
 	case WIIMOTE_EXT_UNKNOWN:
 		/* fallthrough */
 	default:
