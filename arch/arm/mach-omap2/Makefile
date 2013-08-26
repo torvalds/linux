@@ -63,6 +63,7 @@ obj-$(CONFIG_SOC_AM33XX)		+= am33xx-restart.o
 obj-$(CONFIG_ARCH_OMAP3)		+= omap3-restart.o
 obj-$(CONFIG_ARCH_OMAP4)		+= omap4-restart.o
 obj-$(CONFIG_SOC_OMAP5)			+= omap4-restart.o
+obj-$(CONFIG_SOC_DRA7XX)		+= omap4-restart.o
 
 # Pin multiplexing
 obj-$(CONFIG_SOC_OMAP2420)		+= mux2420.o
@@ -148,6 +149,7 @@ obj-$(CONFIG_SOC_AM43XX)		+= $(powerdomain-common)
 obj-$(CONFIG_SOC_OMAP5)			+= $(powerdomain-common)
 obj-$(CONFIG_SOC_OMAP5)			+= powerdomains54xx_data.o
 obj-$(CONFIG_SOC_DRA7XX)		+= $(powerdomain-common)
+obj-$(CONFIG_SOC_DRA7XX)		+= powerdomains7xx_data.o
 
 # PRCM clockdomain control
 clockdomain-common			+= clockdomain.o
@@ -166,6 +168,7 @@ obj-$(CONFIG_SOC_AM43XX)		+= $(clockdomain-common)
 obj-$(CONFIG_SOC_OMAP5)			+= $(clockdomain-common)
 obj-$(CONFIG_SOC_OMAP5)			+= clockdomains54xx_data.o
 obj-$(CONFIG_SOC_DRA7XX)		+= $(clockdomain-common)
+obj-$(CONFIG_SOC_DRA7XX)		+= clockdomains7xx_data.o
 
 # Clock framework
 obj-$(CONFIG_ARCH_OMAP2)		+= $(clock-common) clock2xxx.o
@@ -209,6 +212,7 @@ obj-$(CONFIG_ARCH_OMAP3)		+= omap_hwmod_3xxx_data.o
 obj-$(CONFIG_SOC_AM33XX)		+= omap_hwmod_33xx_data.o
 obj-$(CONFIG_ARCH_OMAP4)		+= omap_hwmod_44xx_data.o
 obj-$(CONFIG_SOC_OMAP5)			+= omap_hwmod_54xx_data.o
+obj-$(CONFIG_SOC_DRA7XX)		+= omap_hwmod_7xx_data.o
 
 # EMU peripherals
 obj-$(CONFIG_OMAP3_EMU)			+= emu.o
