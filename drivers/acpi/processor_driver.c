@@ -175,7 +175,9 @@ static int __acpi_processor_start(struct acpi_device *device)
 	acpi_processor_load_module(pr);
 #endif
 	acpi_processor_get_throttling_info(pr);
-	acpi_processor_get_limit_info(pr);
+
+	if (pr->flags.throttling)
+		pr->flags.limit = 1;
 
 	if (!cpuidle_get_driver() || cpuidle_get_driver() == &acpi_idle_driver)
 		acpi_processor_power_init(pr);
