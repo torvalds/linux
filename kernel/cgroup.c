@@ -3969,7 +3969,6 @@ static void cgroup_event_remove(struct work_struct *work)
 	struct cgroup_event *event = container_of(work, struct cgroup_event,
 			remove);
 	struct cgroup_subsys_state *css = event->css;
-	struct cgroup *cgrp = css->cgroup;
 
 	remove_wait_queue(event->wqh, &event->wait);
 
@@ -3980,7 +3979,7 @@ static void cgroup_event_remove(struct work_struct *work)
 
 	eventfd_ctx_put(event->eventfd);
 	kfree(event);
-	cgroup_dput(cgrp);
+	css_put(css);
 }
 
 /*
@@ -4103,12 +4102,16 @@ static int cgroup_write_event_control(struct cgroup_subsys_state *dummy_css,
 		goto out_put_cfile;
 	}
 
-	/* determine the css of @cfile and associate @event with it */
+	/*
+	 * Determine the css of @cfile and associate @event with it.
+	 * Remaining events are automatically removed on cgroup destruction
+	 * but the removal is asynchronous, so take an extra ref.
+	 */
 	rcu_read_lock();
 
 	ret = -EINVAL;
 	event->css = cgroup_css(cgrp, event->cft->ss);
-	if (event->css)
+	if (event->css && css_tryget(event->css))
 		ret = 0;
 
 	rcu_read_unlock();
@@ -4122,27 +4125,20 @@ static int cgroup_write_event_control(struct cgroup_subsys_state *dummy_css,
 	cgrp_cfile = __d_cgrp(cfile->f_dentry->d_parent);
 	if (cgrp_cfile != cgrp) {
 		ret = -EINVAL;
-		goto out_put_cfile;
+		goto out_put_css;
 	}
 
 	if (!event->cft->register_event || !event->cft->unregister_event) {
 		ret = -EINVAL;
-		goto out_put_cfile;
+		goto out_put_css;
 	}
 
 	ret = event->cft->register_event(event->css, event->cft,
 			event->eventfd, buffer);
 	if (ret)
-		goto out_put_cfile;
+		goto out_put_css;
 
 	efile->f_op->poll(efile, &event->pt);
-
-	/*
-	 * Events should be removed after rmdir of cgroup directory, but before
-	 * destroying subsystem state objects. Let's take reference to cgroup
-	 * directory dentry to do that.
-	 */
-	dget(cgrp->dentry);
 
 	spin_lock(&cgrp->event_list_lock);
 	list_add(&event->list, &cgrp->event_list);
@@ -4153,6 +4149,8 @@ static int cgroup_write_event_control(struct cgroup_subsys_state *dummy_css,
 
 	return 0;
 
+out_put_css:
+	css_put(event->css);
 out_put_cfile:
 	fput(cfile);
 out_put_eventfd:
