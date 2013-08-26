@@ -2393,7 +2393,7 @@ int ocrdma_mbx_modify_srq(struct ocrdma_srq *srq, struct ib_srq_attr *srq_attr)
 	struct ocrdma_pd *pd = srq->pd;
 	struct ocrdma_dev *dev = get_ocrdma_dev(pd->ibpd.device);
 
-	cmd = ocrdma_init_emb_mqe(OCRDMA_CMD_CREATE_SRQ, sizeof(*cmd));
+	cmd = ocrdma_init_emb_mqe(OCRDMA_CMD_MODIFY_SRQ, sizeof(*cmd));
 	if (!cmd)
 		return status;
 	cmd->id = srq->id;
@@ -2410,7 +2410,7 @@ int ocrdma_mbx_query_srq(struct ocrdma_srq *srq, struct ib_srq_attr *srq_attr)
 	struct ocrdma_query_srq *cmd;
 	struct ocrdma_dev *dev = get_ocrdma_dev(srq->ibsrq.device);
 
-	cmd = ocrdma_init_emb_mqe(OCRDMA_CMD_CREATE_SRQ, sizeof(*cmd));
+	cmd = ocrdma_init_emb_mqe(OCRDMA_CMD_QUERY_SRQ, sizeof(*cmd));
 	if (!cmd)
 		return status;
 	cmd->id = srq->rq.dbid;
