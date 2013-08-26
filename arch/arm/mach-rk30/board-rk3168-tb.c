@@ -484,6 +484,7 @@ static struct sensor_platform_data cm3217_info = {
 #define LCD_CS_VALUE       GPIO_HIGH
 
 #define LCD_EN_PIN         RK30_PIN0_PB0
+#define MIPI_LCD_RST_PIN   RK30_PIN0_PC3   //mipi lcd's reset pin, if no reset pin, set's  INVALID_GPIO
 #define LCD_EN_VALUE       GPIO_HIGH
 
 static int rk_fb_io_init(struct rk29_fb_setting_info *fb_setting)
@@ -519,6 +520,23 @@ static int rk_fb_io_init(struct rk29_fb_setting_info *fb_setting)
 			gpio_direction_output(LCD_EN_PIN, LCD_EN_VALUE);
 		}
 	}
+
+    if(MIPI_LCD_RST_PIN !=INVALID_GPIO)
+	{
+		ret = gpio_request(MIPI_LCD_RST_PIN, NULL);
+		if (ret != 0)
+		{
+			gpio_free(MIPI_LCD_RST_PIN);
+			printk(KERN_ERR "request mipi lcd rst pin fail!\n");
+			return -1;
+		}
+        
+		else
+		{
+            gpio_set_value(MIPI_LCD_RST_PIN, !GPIO_LOW);
+            msleep(20);
+		}
+	}
 	return 0;
 }
 static int rk_fb_io_disable(void)
@@ -531,6 +549,12 @@ static int rk_fb_io_disable(void)
 	{
 		gpio_set_value(LCD_EN_PIN, !LCD_EN_VALUE);
 	}
+
+    if(MIPI_LCD_RST_PIN !=INVALID_GPIO)
+	{
+		gpio_set_value(MIPI_LCD_RST_PIN, GPIO_LOW);
+        msleep(10);
+	}
 	return 0;
 }
 static int rk_fb_io_enable(void)
@@ -542,6 +566,12 @@ static int rk_fb_io_enable(void)
 	if(LCD_EN_PIN !=INVALID_GPIO)
 	{
 		gpio_set_value(LCD_EN_PIN, LCD_EN_VALUE);
+	}
+
+    if(MIPI_LCD_RST_PIN !=INVALID_GPIO)
+	{
+        gpio_set_value(MIPI_LCD_RST_PIN, !GPIO_LOW);
+        msleep(10);
 	}
 	return 0;
 }
