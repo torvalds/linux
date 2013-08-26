@@ -533,9 +533,9 @@ static void acpi_ns_resolve_references(struct acpi_evaluate_info *info)
  * PARAMETERS:  type                - acpi_object_type to search for
  *              start_object        - Handle in namespace where search begins
  *              max_depth           - Depth to which search is to reach
- *              pre_order_visit     - Called during tree pre-order visit
+ *              descending_callback - Called during tree descent
  *                                    when an object of "Type" is found
- *              post_order_visit    - Called during tree post-order visit
+ *              ascending_callback  - Called during tree ascent
  *                                    when an object of "Type" is found
  *              context             - Passed to user function(s) above
  *              return_value        - Location where return value of
@@ -563,8 +563,8 @@ acpi_status
 acpi_walk_namespace(acpi_object_type type,
 		    acpi_handle start_object,
 		    u32 max_depth,
-		    acpi_walk_callback pre_order_visit,
-		    acpi_walk_callback post_order_visit,
+		    acpi_walk_callback descending_callback,
+		    acpi_walk_callback ascending_callback,
 		    void *context, void **return_value)
 {
 	acpi_status status;
@@ -574,7 +574,7 @@ acpi_walk_namespace(acpi_object_type type,
 	/* Parameter validation */
 
 	if ((type > ACPI_TYPE_LOCAL_MAX) ||
-	    (!max_depth) || (!pre_order_visit && !post_order_visit)) {
+	    (!max_depth) || (!descending_callback && !ascending_callback)) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
@@ -606,9 +606,9 @@ acpi_walk_namespace(acpi_object_type type,
 	}
 
 	status = acpi_ns_walk_namespace(type, start_object, max_depth,
-					ACPI_NS_WALK_UNLOCK, pre_order_visit,
-					post_order_visit, context,
-					return_value);
+					ACPI_NS_WALK_UNLOCK,
+					descending_callback, ascending_callback,
+					context, return_value);
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 

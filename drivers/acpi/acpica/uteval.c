@@ -239,7 +239,8 @@ acpi_ut_evaluate_numeric_object(char *object_name,
  * RETURN:      Status
  *
  * DESCRIPTION: Executes _STA for selected device and stores results in
- *              *Flags.
+ *              *Flags. If _STA does not exist, then the device is assumed
+ *              to be present/functional/enabled (as per the ACPI spec).
  *
  *              NOTE: Internal function, no parameter validation
  *
@@ -257,6 +258,11 @@ acpi_ut_execute_STA(struct acpi_namespace_node *device_node, u32 * flags)
 					 ACPI_BTYPE_INTEGER, &obj_desc);
 	if (ACPI_FAILURE(status)) {
 		if (AE_NOT_FOUND == status) {
+			/*
+			 * if _STA does not exist, then (as per the ACPI specification),
+			 * the returned flags will indicate that the device is present,
+			 * functional, and enabled.
+			 */
 			ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 					  "_STA on %4.4s was not found, assuming device is present\n",
 					  acpi_ut_get_node_name(device_node)));
