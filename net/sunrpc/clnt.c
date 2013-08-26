@@ -105,7 +105,7 @@ static void __rpc_clnt_remove_pipedir(struct rpc_clnt *clnt)
 	if (clnt->cl_dentry) {
 		if (clnt->cl_auth && clnt->cl_auth->au_ops->pipes_destroy)
 			clnt->cl_auth->au_ops->pipes_destroy(clnt->cl_auth);
-		rpc_remove_client_dir(clnt->cl_dentry);
+		rpc_remove_client_dir(clnt->cl_dentry, clnt);
 	}
 	clnt->cl_dentry = NULL;
 }
@@ -355,6 +355,7 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args, stru
 	clnt->cl_vers     = version->number;
 	clnt->cl_stats    = program->stats;
 	clnt->cl_metrics  = rpc_alloc_iostats(clnt);
+	rpc_init_pipe_dir_head(&clnt->cl_pipedir_objects);
 	err = -ENOMEM;
 	if (clnt->cl_metrics == NULL)
 		goto out_no_stats;

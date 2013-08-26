@@ -5,6 +5,26 @@
 
 #include <linux/workqueue.h>
 
+struct rpc_pipe_dir_head {
+	struct list_head pdh_entries;
+	struct dentry *pdh_dentry;
+};
+
+struct rpc_pipe_dir_object_ops;
+struct rpc_pipe_dir_object {
+	struct list_head pdo_head;
+	const struct rpc_pipe_dir_object_ops *pdo_ops;
+
+	void *pdo_data;
+};
+
+struct rpc_pipe_dir_object_ops {
+	int (*create)(struct dentry *dir,
+			struct rpc_pipe_dir_object *pdo);
+	void (*destroy)(struct dentry *dir,
+			struct rpc_pipe_dir_object *pdo);
+};
+
 struct rpc_pipe_msg {
 	struct list_head list;
 	void *data;
@@ -74,7 +94,18 @@ extern int rpc_queue_upcall(struct rpc_pipe *, struct rpc_pipe_msg *);
 
 struct rpc_clnt;
 extern struct dentry *rpc_create_client_dir(struct dentry *, const char *, struct rpc_clnt *);
-extern int rpc_remove_client_dir(struct dentry *);
+extern int rpc_remove_client_dir(struct dentry *, struct rpc_clnt *);
+
+extern void rpc_init_pipe_dir_head(struct rpc_pipe_dir_head *pdh);
+extern void rpc_init_pipe_dir_object(struct rpc_pipe_dir_object *pdo,
+		const struct rpc_pipe_dir_object_ops *pdo_ops,
+		void *pdo_data);
+extern int rpc_add_pipe_dir_object(struct net *net,
+		struct rpc_pipe_dir_head *pdh,
+		struct rpc_pipe_dir_object *pdo);
+extern void rpc_remove_pipe_dir_object(struct net *net,
+		struct rpc_pipe_dir_head *pdh,
+		struct rpc_pipe_dir_object *pdo);
 
 struct cache_detail;
 extern struct dentry *rpc_create_cache_dir(struct dentry *,

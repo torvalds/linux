@@ -884,6 +884,124 @@ rpc_unlink(struct dentry *dentry)
 }
 EXPORT_SYMBOL_GPL(rpc_unlink);
 
+/**
+ * rpc_init_pipe_dir_head - initialise a struct rpc_pipe_dir_head
+ * @pdh: pointer to struct rpc_pipe_dir_head
+ */
+void rpc_init_pipe_dir_head(struct rpc_pipe_dir_head *pdh)
+{
+	INIT_LIST_HEAD(&pdh->pdh_entries);
+	pdh->pdh_dentry = NULL;
+}
+EXPORT_SYMBOL_GPL(rpc_init_pipe_dir_head);
+
+/**
+ * rpc_init_pipe_dir_object - initialise a struct rpc_pipe_dir_object
+ * @pdo: pointer to struct rpc_pipe_dir_object
+ * @pdo_ops: pointer to const struct rpc_pipe_dir_object_ops
+ * @pdo_data: pointer to caller-defined data
+ */
+void rpc_init_pipe_dir_object(struct rpc_pipe_dir_object *pdo,
+		const struct rpc_pipe_dir_object_ops *pdo_ops,
+		void *pdo_data)
+{
+	INIT_LIST_HEAD(&pdo->pdo_head);
+	pdo->pdo_ops = pdo_ops;
+	pdo->pdo_data = pdo_data;
+}
+EXPORT_SYMBOL_GPL(rpc_init_pipe_dir_object);
+
+static int
+rpc_add_pipe_dir_object_locked(struct net *net,
+		struct rpc_pipe_dir_head *pdh,
+		struct rpc_pipe_dir_object *pdo)
+{
+	int ret = 0;
+
+	if (pdh->pdh_dentry)
+		ret = pdo->pdo_ops->create(pdh->pdh_dentry, pdo);
+	if (ret == 0)
+		list_add_tail(&pdo->pdo_head, &pdh->pdh_entries);
+	return ret;
+}
+
+static void
+rpc_remove_pipe_dir_object_locked(struct net *net,
+		struct rpc_pipe_dir_head *pdh,
+		struct rpc_pipe_dir_object *pdo)
+{
+	if (pdh->pdh_dentry)
+		pdo->pdo_ops->destroy(pdh->pdh_dentry, pdo);
+	list_del_init(&pdo->pdo_head);
+}
+
+/**
+ * rpc_add_pipe_dir_object - associate a rpc_pipe_dir_object to a directory
+ * @net: pointer to struct net
+ * @pdh: pointer to struct rpc_pipe_dir_head
+ * @pdo: pointer to struct rpc_pipe_dir_object
+ *
+ */
+int
+rpc_add_pipe_dir_object(struct net *net,
+		struct rpc_pipe_dir_head *pdh,
+		struct rpc_pipe_dir_object *pdo)
+{
+	int ret = 0;
+
+	if (list_empty(&pdo->pdo_head)) {
+		struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
+
+		mutex_lock(&sn->pipefs_sb_lock);
+		ret = rpc_add_pipe_dir_object_locked(net, pdh, pdo);
+		mutex_unlock(&sn->pipefs_sb_lock);
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(rpc_add_pipe_dir_object);
+
+/**
+ * rpc_remove_pipe_dir_object - remove a rpc_pipe_dir_object from a directory
+ * @net: pointer to struct net
+ * @pdh: pointer to struct rpc_pipe_dir_head
+ * @pdo: pointer to struct rpc_pipe_dir_object
+ *
+ */
+void
+rpc_remove_pipe_dir_object(struct net *net,
+		struct rpc_pipe_dir_head *pdh,
+		struct rpc_pipe_dir_object *pdo)
+{
+	if (!list_empty(&pdo->pdo_head)) {
+		struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
+
+		mutex_lock(&sn->pipefs_sb_lock);
+		rpc_remove_pipe_dir_object_locked(net, pdh, pdo);
+		mutex_unlock(&sn->pipefs_sb_lock);
+	}
+}
+EXPORT_SYMBOL_GPL(rpc_remove_pipe_dir_object);
+
+static void
+rpc_create_pipe_dir_objects(struct rpc_pipe_dir_head *pdh)
+{
+	struct rpc_pipe_dir_object *pdo;
+	struct dentry *dir = pdh->pdh_dentry;
+
+	list_for_each_entry(pdo, &pdh->pdh_entries, pdo_head)
+		pdo->pdo_ops->create(dir, pdo);
+}
+
+static void
+rpc_destroy_pipe_dir_objects(struct rpc_pipe_dir_head *pdh)
+{
+	struct rpc_pipe_dir_object *pdo;
+	struct dentry *dir = pdh->pdh_dentry;
+
+	list_for_each_entry(pdo, &pdh->pdh_entries, pdo_head)
+		pdo->pdo_ops->destroy(dir, pdo);
+}
+
 enum {
 	RPCAUTH_info,
 	RPCAUTH_EOF
@@ -924,16 +1042,28 @@ struct dentry *rpc_create_client_dir(struct dentry *dentry,
 				   const char *name,
 				   struct rpc_clnt *rpc_client)
 {
-	return rpc_mkdir_populate(dentry, name, S_IRUGO | S_IXUGO, NULL,
+	struct dentry *ret;
+
+	ret = rpc_mkdir_populate(dentry, name, S_IRUGO | S_IXUGO, NULL,
 			rpc_clntdir_populate, rpc_client);
+	if (!IS_ERR(ret)) {
+		rpc_client->cl_pipedir_objects.pdh_dentry = ret;
+		rpc_create_pipe_dir_objects(&rpc_client->cl_pipedir_objects);
+	}
+	return ret;
 }
 
 /**
  * rpc_remove_client_dir - Remove a directory created with rpc_create_client_dir()
  * @dentry: dentry for the pipe
+ * @rpc_client: rpc_client for the pipe
  */
-int rpc_remove_client_dir(struct dentry *dentry)
+int rpc_remove_client_dir(struct dentry *dentry, struct rpc_clnt *rpc_client)
 {
+	if (rpc_client->cl_pipedir_objects.pdh_dentry) {
+		rpc_destroy_pipe_dir_objects(&rpc_client->cl_pipedir_objects);
+		rpc_client->cl_pipedir_objects.pdh_dentry = NULL;
+	}
 	return rpc_rmdir_depopulate(dentry, rpc_clntdir_depopulate);
 }
 

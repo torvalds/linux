@@ -21,6 +21,7 @@
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/xdr.h>
 #include <linux/sunrpc/timer.h>
+#include <linux/sunrpc/rpc_pipe_fs.h>
 #include <asm/signal.h>
 #include <linux/path.h>
 #include <net/ipv6.h>
@@ -55,6 +56,7 @@ struct rpc_clnt {
 
 	int			cl_nodelen;	/* nodename length */
 	char 			cl_nodename[UNX_MAXNODENAME];
+	struct rpc_pipe_dir_head cl_pipedir_objects;
 	struct dentry *		cl_dentry;
 	struct rpc_clnt *	cl_parent;	/* Points to parent of clones */
 	struct rpc_rtt		cl_rtt_default;
