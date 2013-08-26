@@ -1309,7 +1309,7 @@ static void ocrdma_unbind_eq(struct ocrdma_dev *dev, u16 eq_id)
 }
 
 int ocrdma_mbx_create_cq(struct ocrdma_dev *dev, struct ocrdma_cq *cq,
-			 int entries, int dpp_cq)
+			 int entries, int dpp_cq, u16 pd_id)
 {
 	int status = -ENOMEM; int max_hw_cqe;
 	struct pci_dev *pdev = dev->nic_info.pdev;
@@ -1357,7 +1357,7 @@ int ocrdma_mbx_create_cq(struct ocrdma_dev *dev, struct ocrdma_cq *cq,
 	cmd->cmd.ev_cnt_flags = OCRDMA_CREATE_CQ_DEF_FLAGS;
 
 	cq->eqn = ocrdma_bind_eq(dev);
-	cmd->cmd.req.rsvd_version = OCRDMA_CREATE_CQ_VER2;
+	cmd->cmd.req.rsvd_version = OCRDMA_CREATE_CQ_VER3;
 	cqe_count = cq->len / cqe_size;
 	if (cqe_count > 1024) {
 		/* Set cnt to 3 to indicate more than 1024 cq entries */
@@ -1393,6 +1393,7 @@ int ocrdma_mbx_create_cq(struct ocrdma_dev *dev, struct ocrdma_cq *cq,
 		cq->phase_change = true;
 	}
 
+	cmd->cmd.pd_id = pd_id; /* valid only for v3 */
 	ocrdma_build_q_pages(&cmd->cmd.pa[0], hw_pages, cq->pa, page_size);
 	status = ocrdma_mbx_cmd(dev, (struct ocrdma_mqe *)cmd);
 	if (status)

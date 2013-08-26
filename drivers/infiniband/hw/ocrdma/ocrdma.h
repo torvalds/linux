@@ -324,6 +324,9 @@ struct ocrdma_ucontext {
 
 	struct list_head mm_head;
 	struct mutex mm_list_lock; /* protects list entries of mm type */
+	struct ocrdma_pd *cntxt_pd;
+	int pd_in_use;
+
 	struct {
 		u32 *va;
 		dma_addr_t pa;

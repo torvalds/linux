@@ -547,6 +547,7 @@ enum {
 
 enum {
 	OCRDMA_CREATE_CQ_VER2			= 2,
+	OCRDMA_CREATE_CQ_VER3                   = 3,
 
 	OCRDMA_CREATE_CQ_PAGE_CNT_MASK		= 0xFFFF,
 	OCRDMA_CREATE_CQ_PAGE_SIZE_SHIFT	= 16,
@@ -580,7 +581,8 @@ struct ocrdma_create_cq_cmd {
 	u32 pgsz_pgcnt;
 	u32 ev_cnt_flags;
 	u32 eqn;
-	u32 cqe_count;
+	u16 cqe_count;
+	u16 pd_id;
 	u32 rsvd6;
 	struct ocrdma_pa pa[OCRDMA_CREATE_CQ_MAX_PAGES];
 };

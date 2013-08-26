@@ -78,6 +78,11 @@ static inline void ocrdma_copy_le32_to_cpu(void *dst, void *src, u32 len)
 #endif
 }
 
+static inline u64 ocrdma_get_db_addr(struct ocrdma_dev *dev, u32 pdid)
+{
+	return dev->nic_info.unmapped_db + (pdid * dev->nic_info.db_page_size);
+}
+
 int ocrdma_init_hw(struct ocrdma_dev *);
 void ocrdma_cleanup_hw(struct ocrdma_dev *);
 
@@ -100,7 +105,7 @@ int ocrdma_mbx_dealloc_lkey(struct ocrdma_dev *, int fmr, u32 lkey);
 int ocrdma_reg_mr(struct ocrdma_dev *, struct ocrdma_hw_mr *hwmr,
 			u32 pd_id, int acc);
 int ocrdma_mbx_create_cq(struct ocrdma_dev *, struct ocrdma_cq *,
-				int entries, int dpp_cq);
+				int entries, int dpp_cq, u16 pd_id);
 int ocrdma_mbx_destroy_cq(struct ocrdma_dev *, struct ocrdma_cq *);
 
 int ocrdma_mbx_create_qp(struct ocrdma_qp *, struct ib_qp_init_attr *attrs,

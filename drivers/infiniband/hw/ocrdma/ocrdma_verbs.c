@@ -215,6 +215,108 @@ static bool ocrdma_search_mmap(struct ocrdma_ucontext *uctx, u64 phy_addr,
 	return found;
 }
 
+static struct ocrdma_pd *_ocrdma_alloc_pd(struct ocrdma_dev *dev,
+					  struct ocrdma_ucontext *uctx,
+					  struct ib_udata *udata)
+{
+	struct ocrdma_pd *pd = NULL;
+	int status = 0;
+
+	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
+	if (!pd)
+		return ERR_PTR(-ENOMEM);
+
+	if (udata && uctx) {
+		pd->dpp_enabled =
+			dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY;
+		pd->num_dpp_qp =
+			pd->dpp_enabled ? OCRDMA_PD_MAX_DPP_ENABLED_QP : 0;
+	}
+
+retry:
+	status = ocrdma_mbx_alloc_pd(dev, pd);
+	if (status) {
+		if (pd->dpp_enabled) {
+			pd->dpp_enabled = false;
+			pd->num_dpp_qp = 0;
+			goto retry;
+		} else {
+			kfree(pd);
+			return ERR_PTR(status);
+		}
+	}
+
+	return pd;
+}
+
+static inline int is_ucontext_pd(struct ocrdma_ucontext *uctx,
+				 struct ocrdma_pd *pd)
+{
+	return (uctx->cntxt_pd == pd ? true : false);
+}
+
+static int _ocrdma_dealloc_pd(struct ocrdma_dev *dev,
+			      struct ocrdma_pd *pd)
+{
+	int status = 0;
+
+	status = ocrdma_mbx_dealloc_pd(dev, pd);
+	kfree(pd);
+	return status;
+}
+
+static int ocrdma_alloc_ucontext_pd(struct ocrdma_dev *dev,
+				    struct ocrdma_ucontext *uctx,
+				    struct ib_udata *udata)
+{
+	int status = 0;
+
+	uctx->cntxt_pd = _ocrdma_alloc_pd(dev, uctx, udata);
+	if (IS_ERR(uctx->cntxt_pd)) {
+		status = PTR_ERR(uctx->cntxt_pd);
+		uctx->cntxt_pd = NULL;
+		goto err;
+	}
+
+	uctx->cntxt_pd->uctx = uctx;
+	uctx->cntxt_pd->ibpd.device = &dev->ibdev;
+err:
+	return status;
+}
+
+static int ocrdma_dealloc_ucontext_pd(struct ocrdma_ucontext *uctx)
+{
+	int status = 0;
+	struct ocrdma_pd *pd = uctx->cntxt_pd;
+	struct ocrdma_dev *dev = get_ocrdma_dev(pd->ibpd.device);
+
+	BUG_ON(uctx->pd_in_use);
+	uctx->cntxt_pd = NULL;
+	status = _ocrdma_dealloc_pd(dev, pd);
+	return status;
+}
+
+static struct ocrdma_pd *ocrdma_get_ucontext_pd(struct ocrdma_ucontext *uctx)
+{
+	struct ocrdma_pd *pd = NULL;
+
+	mutex_lock(&uctx->mm_list_lock);
+	if (!uctx->pd_in_use) {
+		uctx->pd_in_use = true;
+		pd = uctx->cntxt_pd;
+	}
+	mutex_unlock(&uctx->mm_list_lock);
+
+	return pd;
+}
+
+static void ocrdma_release_ucontext_pd(struct ocrdma_ucontext *uctx)
+{
+	mutex_lock(&uctx->mm_list_lock);
+	uctx->pd_in_use = false;
+	mutex_unlock(&uctx->mm_list_lock);
+}
+
 struct ib_ucontext *ocrdma_alloc_ucontext(struct ib_device *ibdev,
 					  struct ib_udata *udata)
 {
@@ -249,6 +351,11 @@ struct ib_ucontext *ocrdma_alloc_ucontext(struct ib_device *ibdev,
 	status = ocrdma_add_mmap(ctx, resp.ah_tbl_page, resp.ah_tbl_len);
 	if (status)
 		goto map_err;
+
+	status = ocrdma_alloc_ucontext_pd(dev, ctx, udata);
+	if (status)
+		goto pd_err;
+
 	resp.dev_id = dev->id;
 	resp.max_inline_data = dev->attr.max_inline_data;
 	resp.wqe_size = dev->attr.wqe_size;
@@ -262,6 +369,7 @@ struct ib_ucontext *ocrdma_alloc_ucontext(struct ib_device *ibdev,
 	return &ctx->ibucontext;
 
 cpy_err:
+pd_err:
 	ocrdma_del_mmap(ctx, ctx->ah_tbl.pa, ctx->ah_tbl.len);
 map_err:
 	dma_free_coherent(&pdev->dev, ctx->ah_tbl.len, ctx->ah_tbl.va,
@@ -272,10 +380,13 @@ map_err:
 
 int ocrdma_dealloc_ucontext(struct ib_ucontext *ibctx)
 {
+	int status = 0;
 	struct ocrdma_mm *mm, *tmp;
 	struct ocrdma_ucontext *uctx = get_ocrdma_ucontext(ibctx);
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibctx->device);
 	struct pci_dev *pdev = dev->nic_info.pdev;
+
+	status = ocrdma_dealloc_ucontext_pd(uctx);
 
 	ocrdma_del_mmap(uctx, uctx->ah_tbl.pa, uctx->ah_tbl.len);
 	dma_free_coherent(&pdev->dev, uctx->ah_tbl.len, uctx->ah_tbl.va,
@@ -286,7 +397,7 @@ int ocrdma_dealloc_ucontext(struct ib_ucontext *ibctx)
 		kfree(mm);
 	}
 	kfree(uctx);
-	return 0;
+	return status;
 }
 
 int ocrdma_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
@@ -346,8 +457,7 @@ static int ocrdma_copy_pd_uresp(struct ocrdma_dev *dev, struct ocrdma_pd *pd,
 	memset(&rsp, 0, sizeof(rsp));
 	rsp.id = pd->id;
 	rsp.dpp_enabled = pd->dpp_enabled;
-	db_page_addr = dev->nic_info.unmapped_db +
-			(pd->id * dev->nic_info.db_page_size);
+	db_page_addr = ocrdma_get_db_addr(dev, pd->id);
 	db_page_size = dev->nic_info.db_page_size;
 
 	status = ocrdma_add_mmap(uctx, db_page_addr, db_page_size);
@@ -386,31 +496,26 @@ struct ib_pd *ocrdma_alloc_pd(struct ib_device *ibdev,
 {
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibdev);
 	struct ocrdma_pd *pd;
+	struct ocrdma_ucontext *uctx = NULL;
 	int status;
+	u8 is_uctx_pd = false;
 
-	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
-	if (!pd)
-		return ERR_PTR(-ENOMEM);
 	if (udata && context) {
-		pd->dpp_enabled =
-			(dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY);
-		pd->num_dpp_qp =
-			pd->dpp_enabled ? OCRDMA_PD_MAX_DPP_ENABLED_QP : 0;
-	}
-retry:
-	status = ocrdma_mbx_alloc_pd(dev, pd);
-	if (status) {
-		/* try for pd with out dpp */
-		if (pd->dpp_enabled) {
-			pd->dpp_enabled = false;
-			pd->num_dpp_qp = 0;
-			goto retry;
-		} else {
-			kfree(pd);
-			return ERR_PTR(status);
+		uctx = get_ocrdma_ucontext(context);
+		pd = ocrdma_get_ucontext_pd(uctx);
+		if (pd) {
+			is_uctx_pd = true;
+			goto pd_mapping;
 		}
 	}
 
+	pd = _ocrdma_alloc_pd(dev, uctx, udata);
+	if (IS_ERR(pd)) {
+		status = PTR_ERR(pd);
+		goto exit;
+	}
+
+pd_mapping:
 	if (udata && context) {
 		status = ocrdma_copy_pd_uresp(dev, pd, context, udata);
 		if (status)
@@ -419,8 +524,13 @@ retry:
 	return &pd->ibpd;
 
 err:
-	status = ocrdma_mbx_dealloc_pd(dev, pd);
-	kfree(pd);
+	if (is_uctx_pd) {
+		ocrdma_release_ucontext_pd(uctx);
+	} else {
+		status = ocrdma_mbx_dealloc_pd(dev, pd);
+		kfree(pd);
+	}
+exit:
 	return ERR_PTR(status);
 }
 
@@ -428,20 +538,25 @@ int ocrdma_dealloc_pd(struct ib_pd *ibpd)
 {
 	struct ocrdma_pd *pd = get_ocrdma_pd(ibpd);
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibpd->device);
-	int status;
+	struct ocrdma_ucontext *uctx = NULL;
+	int status = 0;
 	u64 usr_db;
 
-	status = ocrdma_mbx_dealloc_pd(dev, pd);
-	if (pd->uctx) {
+	uctx = pd->uctx;
+	if (uctx) {
 		u64 dpp_db = dev->nic_info.dpp_unmapped_addr +
-		    (pd->id * PAGE_SIZE);
+			(pd->id * PAGE_SIZE);
 		if (pd->dpp_enabled)
 			ocrdma_del_mmap(pd->uctx, dpp_db, PAGE_SIZE);
-		usr_db = dev->nic_info.unmapped_db +
-		    (pd->id * dev->nic_info.db_page_size);
+		usr_db = ocrdma_get_db_addr(dev, pd->id);
 		ocrdma_del_mmap(pd->uctx, usr_db, dev->nic_info.db_page_size);
+
+		if (is_ucontext_pd(uctx, pd)) {
+			ocrdma_release_ucontext_pd(uctx);
+			return status;
+		}
 	}
-	kfree(pd);
+	status = _ocrdma_dealloc_pd(dev, pd);
 	return status;
 }
 
@@ -701,7 +816,7 @@ static int ocrdma_copy_cq_uresp(struct ocrdma_dev *dev, struct ocrdma_cq *cq,
 				struct ib_ucontext *ib_ctx)
 {
 	int status;
-	struct ocrdma_ucontext *uctx;
+	struct ocrdma_ucontext *uctx = get_ocrdma_ucontext(ib_ctx);
 	struct ocrdma_create_cq_uresp uresp;
 
 	memset(&uresp, 0, sizeof(uresp));
@@ -710,7 +825,7 @@ static int ocrdma_copy_cq_uresp(struct ocrdma_dev *dev, struct ocrdma_cq *cq,
 	uresp.num_pages = 1;
 	uresp.max_hw_cqe = cq->max_hw_cqe;
 	uresp.page_addr[0] = cq->pa;
-	uresp.db_page_addr = dev->nic_info.unmapped_db;
+	uresp.db_page_addr =  ocrdma_get_db_addr(dev, uctx->cntxt_pd->id);
 	uresp.db_page_size = dev->nic_info.db_page_size;
 	uresp.phase_change = cq->phase_change ? 1 : 0;
 	status = ib_copy_to_udata(udata, &uresp, sizeof(uresp));
@@ -719,7 +834,6 @@ static int ocrdma_copy_cq_uresp(struct ocrdma_dev *dev, struct ocrdma_cq *cq,
 		       __func__, dev->id, cq->id);
 		goto err;
 	}
-	uctx = get_ocrdma_ucontext(ib_ctx);
 	status = ocrdma_add_mmap(uctx, uresp.db_page_addr, uresp.db_page_size);
 	if (status)
 		goto err;
@@ -739,6 +853,8 @@ struct ib_cq *ocrdma_create_cq(struct ib_device *ibdev, int entries, int vector,
 {
 	struct ocrdma_cq *cq;
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibdev);
+	struct ocrdma_ucontext *uctx = NULL;
+	u16 pd_id = 0;
 	int status;
 	struct ocrdma_create_cq_ureq ureq;
 
@@ -756,7 +872,12 @@ struct ib_cq *ocrdma_create_cq(struct ib_device *ibdev, int entries, int vector,
 	INIT_LIST_HEAD(&cq->sq_head);
 	INIT_LIST_HEAD(&cq->rq_head);
 
-	status = ocrdma_mbx_create_cq(dev, cq, entries, ureq.dpp_cq);
+	if (ib_ctx) {
+		uctx = get_ocrdma_ucontext(ib_ctx);
+		pd_id = uctx->cntxt_pd->id;
+	}
+
+	status = ocrdma_mbx_create_cq(dev, cq, entries, ureq.dpp_cq, pd_id);
 	if (status) {
 		kfree(cq);
 		return ERR_PTR(status);
@@ -797,13 +918,16 @@ int ocrdma_destroy_cq(struct ib_cq *ibcq)
 	int status;
 	struct ocrdma_cq *cq = get_ocrdma_cq(ibcq);
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibcq->device);
+	int pdid = 0;
 
 	status = ocrdma_mbx_destroy_cq(dev, cq);
 
 	if (cq->ucontext) {
+		pdid = cq->ucontext->cntxt_pd->id;
 		ocrdma_del_mmap(cq->ucontext, (u64) cq->pa,
 				PAGE_ALIGN(cq->len));
-		ocrdma_del_mmap(cq->ucontext, dev->nic_info.unmapped_db,
+		ocrdma_del_mmap(cq->ucontext,
+				ocrdma_get_db_addr(dev, pdid),
 				dev->nic_info.db_page_size);
 	}
 	dev->cq_tbl[cq->id] = NULL;
@@ -2685,4 +2809,167 @@ struct ib_fast_reg_page_list *ocrdma_alloc_frmr_page_list(struct ib_device
 void ocrdma_free_frmr_page_list(struct ib_fast_reg_page_list *page_list)
 {
 	kfree(page_list);
+}
+
+#define MAX_KERNEL_PBE_SIZE 65536
+static inline int count_kernel_pbes(struct ib_phys_buf *buf_list,
+				    int buf_cnt, u32 *pbe_size)
+{
+	u64 total_size = 0;
+	u64 buf_size = 0;
+	int i;
+	*pbe_size = roundup(buf_list[0].size, PAGE_SIZE);
+	*pbe_size = roundup_pow_of_two(*pbe_size);
+
+	/* find the smallest PBE size that we can have */
+	for (i = 0; i < buf_cnt; i++) {
+		/* first addr may not be page aligned, so ignore checking */
+		if ((i != 0) && ((buf_list[i].addr & ~PAGE_MASK) ||
+				 (buf_list[i].size & ~PAGE_MASK))) {
+			return 0;
+		}
+
+		/* if configured PBE size is greater then the chosen one,
+		 * reduce the PBE size.
+		 */
+		buf_size = roundup(buf_list[i].size, PAGE_SIZE);
+		/* pbe_size has to be even multiple of 4K 1,2,4,8...*/
+		buf_size = roundup_pow_of_two(buf_size);
+		if (*pbe_size > buf_size)
+			*pbe_size = buf_size;
+
+		total_size += buf_size;
+	}
+	*pbe_size = *pbe_size > MAX_KERNEL_PBE_SIZE ?
+	    (MAX_KERNEL_PBE_SIZE) : (*pbe_size);
+
+	/* num_pbes = total_size / (*pbe_size);  this is implemented below. */
+
+	return total_size >> ilog2(*pbe_size);
+}
+
+static void build_kernel_pbes(struct ib_phys_buf *buf_list, int ib_buf_cnt,
+			      u32 pbe_size, struct ocrdma_pbl *pbl_tbl,
+			      struct ocrdma_hw_mr *hwmr)
+{
+	int i;
+	int idx;
+	int pbes_per_buf = 0;
+	u64 buf_addr = 0;
+	int num_pbes;
+	struct ocrdma_pbe *pbe;
+	int total_num_pbes = 0;
+
+	if (!hwmr->num_pbes)
+		return;
+
+	pbe = (struct ocrdma_pbe *)pbl_tbl->va;
+	num_pbes = 0;
+
+	/* go through the OS phy regions & fill hw pbe entries into pbls. */
+	for (i = 0; i < ib_buf_cnt; i++) {
+		buf_addr = buf_list[i].addr;
+		pbes_per_buf =
+		    roundup_pow_of_two(roundup(buf_list[i].size, PAGE_SIZE)) /
+		    pbe_size;
+		hwmr->len += buf_list[i].size;
+		/* number of pbes can be more for one OS buf, when
+		 * buffers are of different sizes.
+		 * split the ib_buf to one or more pbes.
+		 */
+		for (idx = 0; idx < pbes_per_buf; idx++) {
+			/* we program always page aligned addresses,
+			 * first unaligned address is taken care by fbo.
+			 */
+			if (i == 0) {
+				/* for non zero fbo, assign the
+				 * start of the page.
+				 */
+				pbe->pa_lo =
+				    cpu_to_le32((u32) (buf_addr & PAGE_MASK));
+				pbe->pa_hi =
+				    cpu_to_le32((u32) upper_32_bits(buf_addr));
+			} else {
+				pbe->pa_lo =
+				    cpu_to_le32((u32) (buf_addr & 0xffffffff));
+				pbe->pa_hi =
+				    cpu_to_le32((u32) upper_32_bits(buf_addr));
+			}
+			buf_addr += pbe_size;
+			num_pbes += 1;
+			total_num_pbes += 1;
+			pbe++;
+
+			if (total_num_pbes == hwmr->num_pbes)
+				goto mr_tbl_done;
+			/* if the pbl is full storing the pbes,
+			 * move to next pbl.
+			 */
+			if (num_pbes == (hwmr->pbl_size/sizeof(u64))) {
+				pbl_tbl++;
+				pbe = (struct ocrdma_pbe *)pbl_tbl->va;
+				num_pbes = 0;
+			}
+		}
+	}
+mr_tbl_done:
+	return;
+}
+
+struct ib_mr *ocrdma_reg_kernel_mr(struct ib_pd *ibpd,
+				   struct ib_phys_buf *buf_list,
+				   int buf_cnt, int acc, u64 *iova_start)
+{
+	int status = -ENOMEM;
+	struct ocrdma_mr *mr;
+	struct ocrdma_pd *pd = get_ocrdma_pd(ibpd);
+	struct ocrdma_dev *dev = get_ocrdma_dev(ibpd->device);
+	u32 num_pbes;
+	u32 pbe_size = 0;
+
+	if ((acc & IB_ACCESS_REMOTE_WRITE) && !(acc & IB_ACCESS_LOCAL_WRITE))
+		return ERR_PTR(-EINVAL);
+
+	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	if (!mr)
+		return ERR_PTR(status);
+
+	num_pbes = count_kernel_pbes(buf_list, buf_cnt, &pbe_size);
+	if (num_pbes == 0) {
+		status = -EINVAL;
+		goto pbl_err;
+	}
+	status = ocrdma_get_pbl_info(dev, mr, num_pbes);
+	if (status)
+		goto pbl_err;
+
+	mr->hwmr.pbe_size = pbe_size;
+	mr->hwmr.fbo = *iova_start - (buf_list[0].addr & PAGE_MASK);
+	mr->hwmr.va = *iova_start;
+	mr->hwmr.local_rd = 1;
+	mr->hwmr.remote_wr = (acc & IB_ACCESS_REMOTE_WRITE) ? 1 : 0;
+	mr->hwmr.remote_rd = (acc & IB_ACCESS_REMOTE_READ) ? 1 : 0;
+	mr->hwmr.local_wr = (acc & IB_ACCESS_LOCAL_WRITE) ? 1 : 0;
+	mr->hwmr.remote_atomic = (acc & IB_ACCESS_REMOTE_ATOMIC) ? 1 : 0;
+	mr->hwmr.mw_bind = (acc & IB_ACCESS_MW_BIND) ? 1 : 0;
+
+	status = ocrdma_build_pbl_tbl(dev, &mr->hwmr);
+	if (status)
+		goto pbl_err;
+	build_kernel_pbes(buf_list, buf_cnt, pbe_size, mr->hwmr.pbl_table,
+			  &mr->hwmr);
+	status = ocrdma_reg_mr(dev, &mr->hwmr, pd->id, acc);
+	if (status)
+		goto mbx_err;
+
+	mr->ibmr.lkey = mr->hwmr.lkey;
+	if (mr->hwmr.remote_wr || mr->hwmr.remote_rd)
+		mr->ibmr.rkey = mr->hwmr.lkey;
+	return &mr->ibmr;
+
+mbx_err:
+	ocrdma_free_mr_pbl_tbl(dev, &mr->hwmr);
+pbl_err:
+	kfree(mr);
+	return ERR_PTR(status);
 }

@@ -326,6 +326,7 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 	dev->ibdev.req_notify_cq = ocrdma_arm_cq;
 
 	dev->ibdev.get_dma_mr = ocrdma_get_dma_mr;
+	dev->ibdev.reg_phys_mr = ocrdma_reg_kernel_mr;
 	dev->ibdev.dereg_mr = ocrdma_dereg_mr;
 	dev->ibdev.reg_user_mr = ocrdma_reg_user_mr;
 
