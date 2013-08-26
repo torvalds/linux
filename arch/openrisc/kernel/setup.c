@@ -50,8 +50,6 @@
 
 #include "vmlinux.h"
 
-char __initdata cmd_line[COMMAND_LINE_SIZE] = CONFIG_CMDLINE;
-
 static unsigned long __init setup_memory(void)
 {
 	unsigned long bootmap_size;
@@ -316,7 +314,7 @@ void __init setup_arch(char **cmdline_p)
 		conswitchp = &dummy_con;
 #endif
 
-	*cmdline_p = cmd_line;
+	*cmdline_p = boot_command_line;
 
 	printk(KERN_INFO "OpenRISC Linux -- http://openrisc.net\n");
 }

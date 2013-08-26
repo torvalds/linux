@@ -47,8 +47,6 @@
 #include <asm/sections.h>
 #include <asm/setup.h>
 
-extern char cmd_line[COMMAND_LINE_SIZE];
-
 void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 {
 	size &= PAGE_MASK;
@@ -67,14 +65,11 @@ void __init early_init_devtree(void *params)
 	 * device-tree, including the platform type, initrd location and
 	 * size, TCE reserve, and more ...
 	 */
-	of_scan_flat_dt(early_init_dt_scan_chosen, cmd_line);
+	of_scan_flat_dt(early_init_dt_scan_chosen, boot_command_line);
 
 	/* Scan memory nodes and rebuild MEMBLOCKs */
 	of_scan_flat_dt(early_init_dt_scan_root, NULL);
 	of_scan_flat_dt(early_init_dt_scan_memory, NULL);
-
-	/* Save command line for /proc/cmdline and then parse parameters */
-	strlcpy(boot_command_line, cmd_line, COMMAND_LINE_SIZE);
 
 	memblock_allow_resize();
 
