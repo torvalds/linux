@@ -324,7 +324,7 @@ struct board_t {
 	ulong		membase;	/* Start of base memory of the card */
 	ulong		membase_end;	/* End of base memory of the card */
 
-	uchar		*re_map_membase;/* Remapped memory of the card */
+	u8 __iomem		*re_map_membase;/* Remapped memory of the card */
 
 	ulong		iobase;		/* Start of io base of the card */
 	ulong		iobase_end;	/* End of io base of the card */
