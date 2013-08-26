@@ -901,13 +901,8 @@ static int sh_dmae_remove(struct platform_device *pdev)
 {
 	struct sh_dmae_device *shdev = platform_get_drvdata(pdev);
 	struct dma_device *dma_dev = &shdev->shdma_dev.dma_dev;
-	struct resource *res;
-	int errirq = platform_get_irq(pdev, 0);
 
 	dma_async_device_unregister(dma_dev);
-
-	if (errirq > 0)
-		free_irq(errirq, shdev);
 
 	spin_lock_irq(&sh_dmae_lock);
 	list_del_rcu(&shdev->node);
