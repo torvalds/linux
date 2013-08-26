@@ -423,28 +423,13 @@ common_exception:
 	.global common_exception_return
 common_exception_return:
 
-#ifdef CONFIG_TRACE_IRQFLAGS
-	l32i	a4, a1, PT_DEPC
-	/* Double exception means we came here with an exception
-	 * while PS.EXCM was set, i.e. interrupts disabled.
-	 */
-	bgeui	a4, VALID_DOUBLE_EXCEPTION_ADDRESS, 1f
-	l32i	a4, a1, PT_EXCCAUSE
-	bnei	a4, EXCCAUSE_LEVEL1_INTERRUPT, 1f
-	/* We came here with an interrupt means interrupts were enabled
-	 * and we'll reenable them on return.
-	 */
-	movi	a4, trace_hardirqs_on
-	callx4	a4
 1:
-#endif
+	rsil	a2, LOCKLEVEL
 
 	/* Jump if we are returning from kernel exceptions. */
 
-1:	l32i	a3, a1, PT_PS
+	l32i	a3, a1, PT_PS
 	_bbci.l	a3, PS_UM_BIT, 4f
-
-	rsil	a2, 0
 
 	/* Specific to a user exception exit:
 	 * We need to check some flags for signal handling and rescheduling,
@@ -465,6 +450,7 @@ common_exception_return:
 
 	/* Call do_signal() */
 
+	rsil	a2, 0
 	movi	a4, do_notify_resume	# int do_notify_resume(struct pt_regs*)
 	mov	a6, a1
 	callx4	a4
@@ -472,6 +458,7 @@ common_exception_return:
 
 3:	/* Reschedule */
 
+	rsil	a2, 0
 	movi	a4, schedule	# void schedule (void)
 	callx4	a4
 	j	1b
@@ -483,7 +470,23 @@ common_exception_return:
 	movi	a4, check_tlb_sanity
 	callx4	a4
 #endif
-4:	/* Restore optional registers. */
+4:
+#ifdef CONFIG_TRACE_IRQFLAGS
+	l32i	a4, a1, PT_DEPC
+	/* Double exception means we came here with an exception
+	 * while PS.EXCM was set, i.e. interrupts disabled.
+	 */
+	bgeui	a4, VALID_DOUBLE_EXCEPTION_ADDRESS, 1f
+	l32i	a4, a1, PT_EXCCAUSE
+	bnei	a4, EXCCAUSE_LEVEL1_INTERRUPT, 1f
+	/* We came here with an interrupt means interrupts were enabled
+	 * and we'll reenable them on return.
+	 */
+	movi	a4, trace_hardirqs_on
+	callx4	a4
+1:
+#endif
+	/* Restore optional registers. */
 
 	load_xtregs_opt a1 a2 a4 a5 a6 a7 PT_XTREGS_OPT
 
