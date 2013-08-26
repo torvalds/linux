@@ -133,11 +133,18 @@ extern void xfs_da3_node_hdr_to_disk(struct xfs_da_intnode *to,
 				     struct xfs_da3_icnode_hdr *from);
 
 static inline int
-xfs_da3_node_hdr_size(struct xfs_da_intnode *dap)
+__xfs_da3_node_hdr_size(bool v3)
 {
-	if (dap->hdr.info.magic == cpu_to_be16(XFS_DA3_NODE_MAGIC))
+	if (v3)
 		return sizeof(struct xfs_da3_node_hdr);
 	return sizeof(struct xfs_da_node_hdr);
+}
+static inline int
+xfs_da3_node_hdr_size(struct xfs_da_intnode *dap)
+{
+	bool	v3 = dap->hdr.info.magic == cpu_to_be16(XFS_DA3_NODE_MAGIC);
+
+	return __xfs_da3_node_hdr_size(v3);
 }
 
 static inline struct xfs_da_node_entry *
