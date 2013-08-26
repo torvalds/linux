@@ -18,34 +18,12 @@
  *
  */
 
-#include <stdarg.h>
-#include <linux/kernel.h>
-#include <linux/string.h>
 #include <linux/init.h>
-#include <linux/threads.h>
-#include <linux/spinlock.h>
 #include <linux/types.h>
-#include <linux/pci.h>
-#include <linux/stringify.h>
-#include <linux/delay.h>
-#include <linux/initrd.h>
-#include <linux/bitops.h>
-#include <linux/module.h>
-#include <linux/kexec.h>
-#include <linux/debugfs.h>
-#include <linux/irq.h>
 #include <linux/memblock.h>
 #include <linux/of_fdt.h>
 
-#include <asm/prom.h>
 #include <asm/page.h>
-#include <asm/processor.h>
-#include <asm/irq.h>
-#include <linux/io.h>
-#include <asm/mmu.h>
-#include <asm/pgtable.h>
-#include <asm/sections.h>
-#include <asm/setup.h>
 
 void __init early_init_devtree(void *params)
 {
