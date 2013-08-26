@@ -725,37 +725,34 @@ static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
 	if (!head)
 		return;
 
-    // Note: So far RTSHead doesn't appear in ATIM & Beacom DMA, so we don't need to take them into account.
-    //       Otherwise, we need to modified codes for them.
-    if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
-        if (byFBOption == AUTO_FB_NONE) {
-		vnt_rxtx_rts_g_head(pDevice, &head->rts_g,
+	/* Note: So far RTSHead doesn't appear in ATIM
+	*	& Beacom DMA, so we don't need to take them
+	*	into account.
+	*	Otherwise, we need to modified codes for them.
+	*/
+	if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
+		if (byFBOption == AUTO_FB_NONE)
+			vnt_rxtx_rts_g_head(pDevice, &head->rts_g,
 				psEthHeader, byPktType, cbFrameLength,
 				bNeedAck, wCurrentRate, byFBOption);
-        }
-        else {
-		vnt_rxtx_rts_g_fb_head(pDevice, &head->rts_g_fb,
+		else
+			vnt_rxtx_rts_g_fb_head(pDevice, &head->rts_g_fb,
 				psEthHeader, byPktType, cbFrameLength,
 				bNeedAck, wCurrentRate, byFBOption);
-        } // if (byFBOption == AUTO_FB_NONE)
-    }
-    else if (byPktType == PK_TYPE_11A) {
-        if (byFBOption == AUTO_FB_NONE) {
+	} else if (byPktType == PK_TYPE_11A) {
+		if (byFBOption == AUTO_FB_NONE)
+			vnt_rxtx_rts_ab_head(pDevice, &head->rts_ab,
+				psEthHeader, byPktType, cbFrameLength,
+				bNeedAck, wCurrentRate, byFBOption);
+		else
+			vnt_rxtx_rts_a_fb_head(pDevice, &head->rts_a_fb,
+				psEthHeader, byPktType, cbFrameLength,
+				bNeedAck, wCurrentRate, byFBOption);
+	} else if (byPktType == PK_TYPE_11B) {
 		vnt_rxtx_rts_ab_head(pDevice, &head->rts_ab,
-				psEthHeader, byPktType, cbFrameLength,
-				bNeedAck, wCurrentRate, byFBOption);
-        }
-        else {
-		vnt_rxtx_rts_a_fb_head(pDevice, &head->rts_a_fb,
-				psEthHeader, byPktType, cbFrameLength,
-				bNeedAck, wCurrentRate, byFBOption);
-        }
-    }
-    else if (byPktType == PK_TYPE_11B) {
-	vnt_rxtx_rts_ab_head(pDevice, &head->rts_ab,
 			psEthHeader, byPktType, cbFrameLength,
 			bNeedAck, wCurrentRate, byFBOption);
-    }
+	}
 }
 
 static void s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
