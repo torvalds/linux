@@ -984,7 +984,7 @@ static struct of_device_id ext_clk_match[] __initdata = {
 	{},
 };
 
-static struct samsung_pll_clock exynos4_plls[nr_plls] __initdata = {
+static struct samsung_pll_clock exynos4x12_plls[nr_plls] __initdata = {
 	[apll] = PLL(pll_35xx, fout_apll, "fout_apll", "fin_pll",
 			APLL_LOCK, APLL_CON0, NULL),
 	[mpll] = PLL(pll_35xx, fout_mpll, "fout_mpll", "fin_pll",
@@ -1036,8 +1036,8 @@ static void __init exynos4_clk_init(struct device_node *np,
 		samsung_clk_add_lookup(epll, fout_epll);
 		samsung_clk_add_lookup(vpll, fout_vpll);
 	} else {
-		samsung_clk_register_pll(exynos4_plls,
-					ARRAY_SIZE(exynos4_plls), reg_base);
+		samsung_clk_register_pll(exynos4x12_plls,
+					ARRAY_SIZE(exynos4x12_plls), reg_base);
 	}
 
 	samsung_clk_register_fixed_rate(exynos4_fixed_rate_clks,
