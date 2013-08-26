@@ -289,6 +289,7 @@ struct ocrdma_qp {
 	u32 qkey;
 	bool dpp_enabled;
 	u8 *ird_q_va;
+	bool signaled;
 	u16 db_cache;
 };
 

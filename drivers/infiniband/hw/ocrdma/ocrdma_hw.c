@@ -1500,6 +1500,7 @@ static int ocrdma_mbx_reg_mr(struct ocrdma_dev *dev, struct ocrdma_hw_mr *hwmr,
 		return -ENOMEM;
 	cmd->num_pbl_pdid =
 	    pdid | (hwmr->num_pbls << OCRDMA_REG_NSMR_NUM_PBL_SHIFT);
+	cmd->fr_mr = hwmr->fr_mr;
 
 	cmd->flags_hpage_pbe_sz |= (hwmr->remote_wr <<
 				    OCRDMA_REG_NSMR_REMOTE_WR_SHIFT);
@@ -2049,6 +2050,7 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 	    (ah_attr->grh.traffic_class << OCRDMA_QP_PARAMS_TCLASS_SHIFT);
 	cmd->params.rnt_rc_sl_fl |=
 	    (ah_attr->grh.flow_label & OCRDMA_QP_PARAMS_FLOW_LABEL_MASK);
+	cmd->params.rnt_rc_sl_fl |= (ah_attr->sl << OCRDMA_QP_PARAMS_SL_SHIFT);
 	cmd->params.hop_lmt_rq_psn |=
 	    (ah_attr->grh.hop_limit << OCRDMA_QP_PARAMS_HOP_LMT_SHIFT);
 	cmd->flags |= OCRDMA_QP_PARA_FLOW_LBL_VALID;

@@ -143,8 +143,11 @@ enum {
 # 2: 16K Bytes
 # 3: 32K Bytes
 # 4: 64K Bytes
+# 5: 128K Bytes
+# 6: 256K Bytes
+# 7: 512K Bytes
 */
-#define OCRDMA_MAX_Q_PAGE_SIZE_CNT (5)
+#define OCRDMA_MAX_Q_PAGE_SIZE_CNT (8)
 #define OCRDMA_Q_PAGE_BASE_SIZE (OCRDMA_MIN_Q_PAGE_SIZE * OCRDMA_MAX_Q_PAGES)
 
 #define MAX_OCRDMA_QP_PAGES      (8)
@@ -1274,7 +1277,7 @@ struct ocrdma_reg_nsmr {
 	struct ocrdma_mqe_hdr hdr;
 	struct ocrdma_mbx_hdr cmd;
 
-	u32 lrkey_key_index;
+	u32 fr_mr;
 	u32 num_pbl_pdid;
 	u32 flags_hpage_pbe_sz;
 	u32 totlen_low;
@@ -1611,12 +1614,6 @@ struct ocrdma_ewqe_ud_hdr {
 	u32 rsvd;
 };
 
-#define OCRDMA_MAX_FR_PBES 11
-struct ocrdma_fr_pbe {
-	u32 pa_hi;
-	u32 pa_lo;
-};
-
 /* extended wqe followed by hdr_wqe for Fast Memory register */
 struct ocrdma_ewqe_fr {
 	u32 va_hi;
@@ -1625,7 +1622,8 @@ struct ocrdma_ewqe_fr {
 	u32 fbo_lo;
 	u32 size_sge;
 	u32 num_sges;
-	struct ocrdma_fr_pbe pbe[0];
+	u32 rsvd;
+	u32 rsvd2;
 };
 
 struct ocrdma_eth_basic {

@@ -82,7 +82,8 @@ int ocrdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr)
 					IB_DEVICE_RC_RNR_NAK_GEN |
 					IB_DEVICE_SHUTDOWN_PORT |
 					IB_DEVICE_SYS_IMAGE_GUID |
-					IB_DEVICE_LOCAL_DMA_LKEY;
+					IB_DEVICE_LOCAL_DMA_LKEY |
+					IB_DEVICE_MEM_MGT_EXTENSIONS;
 	attr->max_sge = min(dev->attr.max_send_sge, dev->attr.max_srq_sge);
 	attr->max_sge_rd = dev->attr.max_rdma_sge;
 	attr->max_cq = dev->attr.max_cq;
@@ -1015,6 +1016,7 @@ static void ocrdma_set_qp_init_params(struct ocrdma_qp *qp,
 	qp->sq.max_sges = attrs->cap.max_send_sge;
 	qp->rq.max_sges = attrs->cap.max_recv_sge;
 	qp->state = OCRDMA_QPS_RST;
+	qp->signaled = (attrs->sq_sig_type == IB_SIGNAL_ALL_WR) ? true : false;
 }
 
 
@@ -1864,7 +1866,7 @@ int ocrdma_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		}
 		hdr = ocrdma_hwq_head(&qp->sq);
 		hdr->cw = 0;
-		if (wr->send_flags & IB_SEND_SIGNALED)
+		if (wr->send_flags & IB_SEND_SIGNALED || qp->signaled)
 			hdr->cw |= (OCRDMA_FLAG_SIG << OCRDMA_WQE_FLAGS_SHIFT);
 		if (wr->send_flags & IB_SEND_FENCE)
 			hdr->cw |=
@@ -1918,7 +1920,7 @@ int ocrdma_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			*bad_wr = wr;
 			break;
 		}
-		if (wr->send_flags & IB_SEND_SIGNALED)
+		if (wr->send_flags & IB_SEND_SIGNALED || qp->signaled)
 			qp->wqe_wr_id_tbl[qp->sq.head].signaled = 1;
 		else
 			qp->wqe_wr_id_tbl[qp->sq.head].signaled = 0;
