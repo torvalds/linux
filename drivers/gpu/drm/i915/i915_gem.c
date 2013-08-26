@@ -2604,6 +2604,9 @@ int i915_vma_unbind(struct i915_vma *vma)
 	drm_i915_private_t *dev_priv = obj->base.dev->dev_private;
 	int ret;
 
+	/* For now we only ever use 1 vma per object */
+	WARN_ON(!list_is_singular(&obj->vma_list));
+
 	if (list_empty(&vma->vma_link))
 		return 0;
 
@@ -2652,9 +2655,7 @@ destroy:
 	i915_gem_vma_destroy(vma);
 
 	/* Since the unbound list is global, only move to that list if
-	 * no more VMAs exist.
-	 * NB: Until we have real VMAs there will only ever be one */
-	WARN_ON(!list_empty(&obj->vma_list));
+	 * no more VMAs exist. */
 	if (list_empty(&obj->vma_list))
 		list_move_tail(&obj->global_list, &dev_priv->mm.unbound_list);
 
@@ -4158,11 +4159,12 @@ i915_gem_obj_lookup_or_create_vma(struct drm_i915_gem_object *obj,
 void i915_gem_vma_destroy(struct i915_vma *vma)
 {
 	WARN_ON(vma->node.allocated);
-	list_del(&vma->vma_link);
 
 	/* Keep the vma as a placeholder in the execbuffer reservation lists */
 	if (!list_empty(&vma->exec_list))
 		return;
+
+	list_del(&vma->vma_link);
 
 	kfree(vma);
 }

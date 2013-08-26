@@ -37,6 +37,9 @@ mark_free(struct i915_vma *vma, struct list_head *unwind)
 	if (vma->obj->pin_count)
 		return false;
 
+	if (WARN_ON(!list_empty(&vma->exec_list)))
+		return false;
+
 	list_add(&vma->exec_list, unwind);
 	return drm_mm_scan_add_block(&vma->node);
 }
