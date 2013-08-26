@@ -1381,7 +1381,7 @@ static void cls_send_immediate_char(struct channel_t *ch, unsigned char c)
 static void cls_vpd(struct board_t *brd)
 {
         ulong           vpdbase;        /* Start of io base of the card */
-        uchar           *re_map_vpdbase;/* Remapped memory of the card */
+        u8 __iomem           *re_map_vpdbase;/* Remapped memory of the card */
 	int i = 0;
 
 
