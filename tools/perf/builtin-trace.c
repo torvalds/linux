@@ -464,16 +464,19 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 		fprintf(trace->output, "]: %s()", sc->name);
 	}
 
-	if (ret < 0 && sc->fmt && sc->fmt->errmsg) {
+	if (sc->fmt == NULL) {
+signed_print:
+		fprintf(trace->output, ") = %d", ret);
+	} else if (ret < 0 && sc->fmt->errmsg) {
 		char bf[256];
 		const char *emsg = strerror_r(-ret, bf, sizeof(bf)),
 			   *e = audit_errno_to_name(-ret);
 
 		fprintf(trace->output, ") = -1 %s %s", e, emsg);
-	} else if (ret == 0 && sc->fmt && sc->fmt->timeout)
+	} else if (ret == 0 && sc->fmt->timeout)
 		fprintf(trace->output, ") = 0 Timeout");
 	else
-		fprintf(trace->output, ") = %d", ret);
+		goto signed_print;
 
 	fputc('\n', trace->output);
 out:
