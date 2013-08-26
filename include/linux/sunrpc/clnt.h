@@ -60,7 +60,6 @@ struct rpc_clnt {
 	struct rpc_rtt		cl_rtt_default;
 	struct rpc_timeout	cl_timeout_default;
 	const struct rpc_program *cl_program;
-	char			*cl_principal;	/* target to authenticate to */
 };
 
 /*

@@ -18,7 +18,7 @@ static struct rpc_auth null_auth;
 static struct rpc_cred null_cred;
 
 static struct rpc_auth *
-nul_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
+nul_create(struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
 {
 	atomic_inc(&null_auth.au_count);
 	return &null_auth;

@@ -864,8 +864,9 @@ static int gss_pipes_dentries_create_net(struct rpc_clnt *clnt,
  * parameters based on the input flavor (which must be a pseudoflavor)
  */
 static struct rpc_auth *
-gss_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
+gss_create(struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
 {
+	rpc_authflavor_t flavor = args->pseudoflavor;
 	struct gss_auth *gss_auth;
 	struct rpc_auth * auth;
 	int err = -ENOMEM; /* XXX? */
@@ -877,8 +878,8 @@ gss_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
 	if (!(gss_auth = kmalloc(sizeof(*gss_auth), GFP_KERNEL)))
 		goto out_dec;
 	gss_auth->target_name = NULL;
-	if (clnt->cl_principal) {
-		gss_auth->target_name = kstrdup(clnt->cl_principal, GFP_KERNEL);
+	if (args->target_name) {
+		gss_auth->target_name = kstrdup(args->target_name, GFP_KERNEL);
 		if (gss_auth->target_name == NULL)
 			goto err_free;
 	}

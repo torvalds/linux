@@ -33,7 +33,7 @@ static struct rpc_auth		unix_auth;
 static const struct rpc_credops	unix_credops;
 
 static struct rpc_auth *
-unx_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
+unx_create(struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
 {
 	dprintk("RPC:       creating UNIX authenticator for client %p\n",
 			clnt);

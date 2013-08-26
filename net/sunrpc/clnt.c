@@ -282,6 +282,10 @@ static void rpc_clnt_set_nodename(struct rpc_clnt *clnt, const char *nodename)
 static int rpc_client_register(const struct rpc_create_args *args,
 			       struct rpc_clnt *clnt)
 {
+	struct rpc_auth_create_args auth_args = {
+		.pseudoflavor = args->authflavor,
+		.target_name = args->client_name,
+	};
 	struct rpc_auth *auth;
 	struct net *net = rpc_net_ns(clnt);
 	struct super_block *pipefs_sb;
@@ -298,7 +302,7 @@ static int rpc_client_register(const struct rpc_create_args *args,
 	if (pipefs_sb)
 		rpc_put_sb_net(net);
 
-	auth = rpcauth_create(args->authflavor, clnt);
+	auth = rpcauth_create(&auth_args, clnt);
 	if (IS_ERR(auth)) {
 		dprintk("RPC:       Couldn't create auth handle (flavor %u)\n",
 				args->authflavor);
@@ -370,12 +374,6 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args, stru
 
 	clnt->cl_rtt = &clnt->cl_rtt_default;
 	rpc_init_rtt(&clnt->cl_rtt_default, clnt->cl_timeout->to_initval);
-	clnt->cl_principal = NULL;
-	if (args->client_name) {
-		clnt->cl_principal = kstrdup(args->client_name, GFP_KERNEL);
-		if (!clnt->cl_principal)
-			goto out_no_principal;
-	}
 
 	atomic_set(&clnt->cl_count, 1);
 
@@ -388,8 +386,6 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args, stru
 	return clnt;
 
 out_no_path:
-	kfree(clnt->cl_principal);
-out_no_principal:
 	rpc_free_iostats(clnt->cl_metrics);
 out_no_stats:
 	kfree(clnt);
@@ -559,7 +555,6 @@ struct rpc_clnt *rpc_clone_client(struct rpc_clnt *clnt)
 		.prognumber	= clnt->cl_prog,
 		.version	= clnt->cl_vers,
 		.authflavor	= clnt->cl_auth->au_flavor,
-		.client_name	= clnt->cl_principal,
 	};
 	return __rpc_clone_client(&args, clnt);
 }
@@ -581,7 +576,6 @@ rpc_clone_client_set_auth(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
 		.prognumber	= clnt->cl_prog,
 		.version	= clnt->cl_vers,
 		.authflavor	= flavor,
-		.client_name	= clnt->cl_principal,
 	};
 	return __rpc_clone_client(&args, clnt);
 }
@@ -654,7 +648,6 @@ rpc_free_client(struct rpc_clnt *clnt)
 	rpc_clnt_remove_pipedir(clnt);
 	rpc_unregister_client(clnt);
 	rpc_free_iostats(clnt->cl_metrics);
-	kfree(clnt->cl_principal);
 	clnt->cl_metrics = NULL;
 	xprt_put(rcu_dereference_raw(clnt->cl_xprt));
 	rpciod_down();
@@ -718,7 +711,6 @@ struct rpc_clnt *rpc_bind_new_program(struct rpc_clnt *old,
 		.prognumber	= program->number,
 		.version	= vers,
 		.authflavor	= old->cl_auth->au_flavor,
-		.client_name	= old->cl_principal,
 	};
 	struct rpc_clnt *clnt;
 	int err;
