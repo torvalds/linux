@@ -169,6 +169,11 @@ void __init arm_dt_init_cpu_maps(void)
 	}
 }
 
+bool arch_match_cpu_phys_id(int cpu, u64 phys_id)
+{
+	return (phys_id & MPIDR_HWID_BITMASK) == cpu_logical_map(cpu);
+}
+
 /**
  * setup_machine_fdt - Machine setup when an dtb was passed to the kernel
  * @dt_phys: physical address of dt blob

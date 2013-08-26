@@ -263,7 +263,6 @@ static int s3c64xx_cpufreq_driver_init(struct cpufreq_policy *policy)
 }
 
 static struct cpufreq_driver s3c64xx_cpufreq_driver = {
-	.owner		= THIS_MODULE,
 	.flags          = 0,
 	.verify		= s3c64xx_cpufreq_verify_speed,
 	.target		= s3c64xx_cpufreq_set_target,
