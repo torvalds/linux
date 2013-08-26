@@ -95,21 +95,6 @@ struct netbk_rx_meta {
 
 #define MAX_BUFFER_OFFSET PAGE_SIZE
 
-/* extra field used in struct page */
-union page_ext {
-	struct {
-#if BITS_PER_LONG < 64
-#define IDX_WIDTH   8
-#define GROUP_WIDTH (BITS_PER_LONG - IDX_WIDTH)
-		unsigned int group:GROUP_WIDTH;
-		unsigned int idx:IDX_WIDTH;
-#else
-		unsigned int group, idx;
-#endif
-	} e;
-	void *mapping;
-};
-
 struct xen_netbk {
 	wait_queue_head_t wq;
 	struct task_struct *task;
@@ -212,45 +197,6 @@ static inline unsigned long idx_to_kaddr(struct xen_netbk *netbk,
 					 u16 idx)
 {
 	return (unsigned long)pfn_to_kaddr(idx_to_pfn(netbk, idx));
-}
-
-/* extra field used in struct page */
-static inline void set_page_ext(struct page *pg, struct xen_netbk *netbk,
-				unsigned int idx)
-{
-	unsigned int group = netbk - xen_netbk;
-	union page_ext ext = { .e = { .group = group + 1, .idx = idx } };
-
-	BUILD_BUG_ON(sizeof(ext) > sizeof(ext.mapping));
-	pg->mapping = ext.mapping;
-}
-
-static int get_page_ext(struct page *pg,
-			unsigned int *pgroup, unsigned int *pidx)
-{
-	union page_ext ext = { .mapping = pg->mapping };
-	struct xen_netbk *netbk;
-	unsigned int group, idx;
-
-	group = ext.e.group - 1;
-
-	if (group < 0 || group >= xen_netbk_group_nr)
-		return 0;
-
-	netbk = &xen_netbk[group];
-
-	idx = ext.e.idx;
-
-	if ((idx < 0) || (idx >= MAX_PENDING_REQS))
-		return 0;
-
-	if (netbk->mmap_pages[idx] != pg)
-		return 0;
-
-	*pgroup = group;
-	*pidx = idx;
-
-	return 1;
 }
 
 /*
@@ -453,12 +399,6 @@ static void netbk_gop_frag_copy(struct xenvif *vif, struct sk_buff *skb,
 {
 	struct gnttab_copy *copy_gop;
 	struct netbk_rx_meta *meta;
-	/*
-	 * These variables are used iff get_page_ext returns true,
-	 * in which case they are guaranteed to be initialized.
-	 */
-	unsigned int uninitialized_var(group), uninitialized_var(idx);
-	int foreign = get_page_ext(page, &group, &idx);
 	unsigned long bytes;
 
 	/* Data must not cross a page boundary. */
@@ -494,20 +434,9 @@ static void netbk_gop_frag_copy(struct xenvif *vif, struct sk_buff *skb,
 
 		copy_gop = npo->copy + npo->copy_prod++;
 		copy_gop->flags = GNTCOPY_dest_gref;
-		if (foreign) {
-			struct xen_netbk *netbk = &xen_netbk[group];
-			struct pending_tx_info *src_pend;
+		copy_gop->source.domid = DOMID_SELF;
+		copy_gop->source.u.gmfn = virt_to_mfn(page_address(page));
 
-			src_pend = &netbk->pending_tx_info[idx];
-
-			copy_gop->source.domid = src_pend->vif->domid;
-			copy_gop->source.u.ref = src_pend->req.gref;
-			copy_gop->flags |= GNTCOPY_source_gref;
-		} else {
-			void *vaddr = page_address(page);
-			copy_gop->source.domid = DOMID_SELF;
-			copy_gop->source.u.gmfn = virt_to_mfn(vaddr);
-		}
 		copy_gop->source.offset = offset;
 		copy_gop->dest.domid = vif->domid;
 
@@ -1047,7 +976,6 @@ static struct page *xen_netbk_alloc_page(struct xen_netbk *netbk,
 	page = alloc_page(GFP_KERNEL|__GFP_COLD);
 	if (!page)
 		return NULL;
-	set_page_ext(page, netbk, pending_idx);
 	netbk->mmap_pages[pending_idx] = page;
 	return page;
 }
@@ -1155,7 +1083,6 @@ static struct gnttab_copy *xen_netbk_get_requests(struct xen_netbk *netbk,
 		first->req.offset = 0;
 		first->req.size = dst_offset;
 		first->head = start_idx;
-		set_page_ext(page, netbk, head_idx);
 		netbk->mmap_pages[head_idx] = page;
 		frag_set_pending_idx(&frags[shinfo->nr_frags], head_idx);
 	}
