@@ -74,6 +74,7 @@ struct omap4_keypad {
 	struct input_dev *input;
 
 	void __iomem *base;
+	bool irq_wake_enabled;
 	unsigned int irq;
 
 	unsigned int rows;
@@ -380,6 +381,7 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 		goto err_free_input;
 	}
 
+	device_init_wakeup(&pdev->dev, true);
 	pm_runtime_put_sync(&pdev->dev);
 
 	error = input_register_device(keypad_data->input);
@@ -393,6 +395,7 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 
 err_pm_disable:
 	pm_runtime_disable(&pdev->dev);
+	device_init_wakeup(&pdev->dev, false);
 	free_irq(keypad_data->irq, keypad_data);
 err_free_keymap:
 	kfree(keypad_data->keymap);
@@ -418,6 +421,8 @@ static int omap4_keypad_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 
+	device_init_wakeup(&pdev->dev, false);
+
 	input_unregister_device(keypad_data->input);
 
 	iounmap(keypad_data->base);
@@ -439,12 +444,46 @@ static const struct of_device_id omap_keypad_dt_match[] = {
 MODULE_DEVICE_TABLE(of, omap_keypad_dt_match);
 #endif
 
+#ifdef CONFIG_PM_SLEEP
+static int omap4_keypad_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct omap4_keypad *keypad_data = platform_get_drvdata(pdev);
+	int error;
+
+	if (device_may_wakeup(&pdev->dev)) {
+		error = enable_irq_wake(keypad_data->irq);
+		if (!error)
+			keypad_data->irq_wake_enabled = true;
+	}
+
+	return 0;
+}
+
+static int omap4_keypad_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct omap4_keypad *keypad_data = platform_get_drvdata(pdev);
+
+	if (device_may_wakeup(&pdev->dev) && keypad_data->irq_wake_enabled) {
+		disable_irq_wake(keypad_data->irq);
+		keypad_data->irq_wake_enabled = false;
+	}
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(omap4_keypad_pm_ops,
+			 omap4_keypad_suspend, omap4_keypad_resume);
+
 static struct platform_driver omap4_keypad_driver = {
 	.probe		= omap4_keypad_probe,
 	.remove		= omap4_keypad_remove,
 	.driver		= {
 		.name	= "omap4-keypad",
 		.owner	= THIS_MODULE,
+		.pm	= &omap4_keypad_pm_ops,
 		.of_match_table = of_match_ptr(omap_keypad_dt_match),
 	},
 };
