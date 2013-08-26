@@ -1349,6 +1349,12 @@ mldv2_unsolicited_report_interval - INTEGER
 	MLDv2 report retransmit will take place.
 	Default: 1000 (1 second)
 
+suppress_frag_ndisc - INTEGER
+	Control RFC 6980 (Security Implications of IPv6 Fragmentation
+	with IPv6 Neighbor Discovery) behavior:
+	1 - (default) discard fragmented neighbor discovery packets
+	0 - allow fragmented neighbor discovery packets
+
 icmp/*:
 ratelimit - INTEGER
 	Limit the maximal rates for sending ICMPv6 packets.
