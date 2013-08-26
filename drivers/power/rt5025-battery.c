@@ -1616,7 +1616,8 @@ static void rt5025_update_work(struct work_struct *work)
 	local_irq_restore(flags);
 
 	wake_unlock(&bi->monitor_wake_lock);
-	schedule_delayed_work(&bi->monitor_work, bi->update_time*HZ);
+	if (!bi->device_suspend)
+		schedule_delayed_work(&bi->monitor_work, bi->update_time*HZ);
 }
 
 static enum power_supply_property rt5025_battery_props[] = {
@@ -1665,9 +1666,9 @@ static int rt5025_battery_suspend(struct platform_device *pdev, pm_message_t sta
 	//rt5025_battery_parameter_backup(bi);
 
 	//rt5025_channel_cc(bi, false);
-	cancel_delayed_work_sync(&bi->monitor_work);
 	//rt5025_update(bi);
 	bi->device_suspend = true;
+	cancel_delayed_work_sync(&bi->monitor_work);
 	/* prevent suspend before starting the alarm */
 	//bi->update_time = SUSPEND_POLL;
 	rt5025_alert_setting(bi,MAXVOLT, false);
@@ -1712,6 +1713,7 @@ static int rt5025_battery_remove(struct platform_device *pdev)
 	cancel_delayed_work(&bi->monitor_work);
 	wake_lock_destroy(&bi->monitor_wake_lock);
 	kfree(bi);
+	RTINFO("\n");
 	return 0;
 }
 
@@ -1803,6 +1805,7 @@ static void rt5025_battery_shutdown(struct platform_device *pdev)
 		RTINFO("bi->cal_fcc=%d\n", bi->cal_fcc);
 	}
 	rt5025_battery_parameter_backup(bi);
+	RTINFO("\n");
 }
 
 static struct platform_driver rt5025_battery_driver = 
