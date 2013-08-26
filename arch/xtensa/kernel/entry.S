@@ -31,7 +31,6 @@
 /* Unimplemented features. */
 
 #undef KERNEL_STACK_OVERFLOW_CHECK
-#undef PREEMPTIBLE_KERNEL
 #undef ALLOCA_EXCEPTION_IN_IRAM
 
 /* Not well tested.
@@ -429,7 +428,9 @@ common_exception_return:
 	/* Jump if we are returning from kernel exceptions. */
 
 	l32i	a3, a1, PT_PS
-	_bbci.l	a3, PS_UM_BIT, 4f
+	GET_THREAD_INFO(a2, a1)
+	l32i	a4, a2, TI_FLAGS
+	_bbci.l	a3, PS_UM_BIT, 6f
 
 	/* Specific to a user exception exit:
 	 * We need to check some flags for signal handling and rescheduling,
@@ -437,9 +438,6 @@ common_exception_return:
 	 * in the register file that were in use in the user task.
 	 * Note that we don't disable interrupts here. 
 	 */
-
-	GET_THREAD_INFO(a2,a1)
-	l32i	a4, a2, TI_FLAGS
 
 	_bbsi.l	a4, TIF_NEED_RESCHED, 3f
 	_bbsi.l	a4, TIF_NOTIFY_RESUME, 2f
@@ -463,6 +461,19 @@ common_exception_return:
 	callx4	a4
 	j	1b
 
+#ifdef CONFIG_PREEMPT
+6:
+	_bbci.l	a4, TIF_NEED_RESCHED, 4f
+
+	/* Check current_thread_info->preempt_count */
+
+	l32i	a4, a2, TI_PRE_COUNT
+	bnez	a4, 4f
+	movi	a4, preempt_schedule_irq
+	callx4	a4
+	j	1b
+#endif
+
 5:
 #ifdef CONFIG_DEBUG_TLB_SANITY
 	l32i	a4, a1, PT_DEPC
@@ -470,6 +481,7 @@ common_exception_return:
 	movi	a4, check_tlb_sanity
 	callx4	a4
 #endif
+6:
 4:
 #ifdef CONFIG_TRACE_IRQFLAGS
 	l32i	a4, a1, PT_DEPC
@@ -572,29 +584,6 @@ user_exception_exit:
 	 */
 
 kernel_exception_exit:
-
-#ifdef PREEMPTIBLE_KERNEL
-
-#ifdef CONFIG_PREEMPT
-
-	/*
-	 * Note: We've just returned from a call4, so we have
-	 * at least 4 addt'l regs.
-	 */
-
-	/* Check current_thread_info->preempt_count */
-
-	GET_THREAD_INFO(a2)
-	l32i	a3, a2, TI_PREEMPT
-	bnez	a3, 1f
-
-	l32i	a2, a2, TI_FLAGS
-
-1:
-
-#endif
-
-#endif
 
 	/* Check if we have to do a movsp.
 	 *
