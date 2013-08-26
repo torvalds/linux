@@ -35,7 +35,7 @@
 #include <asm/cp15.h>
 
 extern void highbank_set_cpu_jump(int cpu, void *jump_addr);
-extern void *scu_base_addr;
+extern void __iomem *scu_base_addr;
 
 static noinline void calxeda_idle_restore(void)
 {

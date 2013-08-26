@@ -3094,6 +3094,10 @@ static struct mfd_cell db8500_prcmu_devs[] = {
 		.pdata_size = sizeof(db8500_cpufreq_table),
 	},
 	{
+		.name = "cpuidle-dbx500",
+		.of_compatible = "stericsson,cpuidle-dbx500",
+	},
+	{
 		.name = "db8500-thermal",
 		.num_resources = ARRAY_SIZE(db8500_thsens_resources),
 		.resources = db8500_thsens_resources,
