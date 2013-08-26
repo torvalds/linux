@@ -1898,7 +1898,7 @@ static void neo_send_immediate_char(struct channel_t *ch, unsigned char c)
 }
 
 
-static unsigned int neo_read_eeprom(unsigned char *base, unsigned int address)
+static unsigned int neo_read_eeprom(unsigned char __iomem *base, unsigned int address)
 {
 	unsigned int enable;
 	unsigned int bits;
