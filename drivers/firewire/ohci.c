@@ -3870,7 +3870,18 @@ static struct pci_driver fw_ohci_pci_driver = {
 #endif
 };
 
-module_pci_driver(fw_ohci_pci_driver);
+static int __init fw_ohci_init(void)
+{
+	return pci_register_driver(&fw_ohci_pci_driver);
+}
+
+static void __exit fw_ohci_cleanup(void)
+{
+	pci_unregister_driver(&fw_ohci_pci_driver);
+}
+
+module_init(fw_ohci_init);
+module_exit(fw_ohci_cleanup);
 
 MODULE_AUTHOR("Kristian Hoegsberg <krh@bitplanet.net>");
 MODULE_DESCRIPTION("Driver for PCI OHCI IEEE1394 controllers");
