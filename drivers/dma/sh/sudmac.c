@@ -391,7 +391,6 @@ static int sudmac_probe(struct platform_device *pdev)
 chan_probe_err:
 	sudmac_chan_remove(su_dev);
 
-	platform_set_drvdata(pdev, NULL);
 	shdma_cleanup(&su_dev->shdma_dev);
 
 	return err;
@@ -405,7 +404,6 @@ static int sudmac_remove(struct platform_device *pdev)
 	dma_async_device_unregister(dma_dev);
 	sudmac_chan_remove(su_dev);
 	shdma_cleanup(&su_dev->shdma_dev);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
