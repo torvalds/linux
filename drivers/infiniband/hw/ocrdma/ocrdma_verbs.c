@@ -1820,24 +1820,42 @@ static void ocrdma_build_sges(struct ocrdma_hdr_wqe *hdr,
 		memset(sge, 0, sizeof(*sge));
 }
 
+static inline uint32_t ocrdma_sglist_len(struct ib_sge *sg_list, int num_sge)
+{
+	uint32_t total_len = 0, i;
+
+	for (i = 0; i < num_sge; i++)
+		total_len += sg_list[i].length;
+	return total_len;
+}
+
+
 static int ocrdma_build_inline_sges(struct ocrdma_qp *qp,
 				    struct ocrdma_hdr_wqe *hdr,
 				    struct ocrdma_sge *sge,
 				    struct ib_send_wr *wr, u32 wqe_size)
 {
+	int i;
+	char *dpp_addr;
+
 	if (wr->send_flags & IB_SEND_INLINE && qp->qp_type != IB_QPT_UD) {
-		if (wr->sg_list[0].length > qp->max_inline_data) {
+		hdr->total_len = ocrdma_sglist_len(wr->sg_list, wr->num_sge);
+		if (unlikely(hdr->total_len > qp->max_inline_data)) {
 			pr_err("%s() supported_len=0x%x,\n"
 			       " unspported len req=0x%x\n", __func__,
-			       qp->max_inline_data, wr->sg_list[0].length);
+				qp->max_inline_data, hdr->total_len);
 			return -EINVAL;
 		}
-		memcpy(sge,
-		       (void *)(unsigned long)wr->sg_list[0].addr,
-		       wr->sg_list[0].length);
-		hdr->total_len = wr->sg_list[0].length;
+		dpp_addr = (char *)sge;
+		for (i = 0; i < wr->num_sge; i++) {
+			memcpy(dpp_addr,
+			       (void *)(unsigned long)wr->sg_list[i].addr,
+			       wr->sg_list[i].length);
+			dpp_addr += wr->sg_list[i].length;
+		}
+
 		wqe_size += roundup(hdr->total_len, OCRDMA_WQE_ALIGN_BYTES);
-		if (0 == wr->sg_list[0].length)
+		if (0 == hdr->total_len)
 			wqe_size += sizeof(struct ocrdma_sge);
 		hdr->cw |= (OCRDMA_TYPE_INLINE << OCRDMA_WQE_TYPE_SHIFT);
 	} else {
