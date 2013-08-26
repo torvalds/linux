@@ -190,6 +190,7 @@
 
 /* MUXINL ALCL MUXINR ALCR  (0x90)  */
 #define  RK3026_MUXINL_F_SHT		   (6)
+#define  RK3026_MUXINL_F_MSK		   (0x03 << 6)
 #define  RK3026_MUXINL_F_INL                (0x02 << 6)
 #define  RK3026_MUXINL_F_BSTL               (0x01 << 6)
 #define  RK3026_ALCL_PWR_SHT                     (5)
@@ -197,6 +198,7 @@
 #define  RK3026_ALCL_DIS                    (0x0 << 5)
 #define  RK3026_ALCL_MUTE_SHT                (4)
 #define  RK3026_MUXINR_F_SHT		   (2)
+#define  RK3026_MUXINR_F_MSK		   (0x03 << 2)
 #define  RK3026_MUXINR_F_INR                (0x02 << 2)
 #define  RK3026_MUXINR_F_BSTR               (0x01 << 2)
 #define  RK3026_ALCR_PWR_SHT                     (1)

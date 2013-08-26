@@ -34,8 +34,6 @@
 #include "../../../drivers/headset_observe/rk_headset.h"
 #endif
 
-
-
 #if 0
 #define	DBG(x...)	printk(x)
 #else
@@ -48,7 +46,7 @@
  *  31: 6dB
  *  Step: 1.5dB
 */
-#define  OUT_VOLUME    24//0~31
+#define  OUT_VOLUME    31//0~31
 
 /* capture vol set
  * 0: -18db
@@ -89,6 +87,7 @@ static struct rk3026_codec_priv *rk3026_priv = NULL;
 #define RK3026_CODEC_ALL	0
 #define RK3026_CODEC_PLAYBACK	1
 #define RK3026_CODEC_CAPTURE	2
+#define RK3026_CODEC_INCALL	3
 
 #define RK3026_CODEC_WORK_NULL	0
 #define RK3026_CODEC_WORK_POWER_DOWN	1
@@ -767,6 +766,9 @@ static const SOC_ENUM_SINGLE_DECL(rk3026_capture_path_type, 0, 0, rk3026_capture
 
 static const SOC_ENUM_SINGLE_DECL(rk3026_voice_call_path_type, 0, 0, rk3026_voice_call_path_mode);
 
+static int rk3026_codec_power_up(int type);
+static int rk3026_codec_power_down(int type);
+
 static int rk3026_playback_path_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
@@ -786,6 +788,7 @@ static int rk3026_playback_path_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	long int pre_path;
 
 	if (!rk3026_priv) {
 		printk("%s : rk3026_priv is NULL\n", __func__);
@@ -794,9 +797,10 @@ static int rk3026_playback_path_put(struct snd_kcontrol *kcontrol,
 
 	if (rk3026_priv->playback_path == ucontrol->value.integer.value[0]){
 		printk("%s : playback_path is not changed!\n",__func__);
-		//return 0;
+		return 0;
 	}
-
+	
+	pre_path = rk3026_priv->playback_path;
 	rk3026_priv->playback_path = ucontrol->value.integer.value[0];
 
 	DBG("%s : set playback_path = %ld, hdmi %s\n", __func__,
@@ -807,33 +811,29 @@ static int rk3026_playback_path_put(struct snd_kcontrol *kcontrol,
 
 	switch (rk3026_priv->playback_path) {
 	case OFF:
-		snd_soc_dapm_disable_pin(&codec->dapm, "Headphone Jack");
-		snd_soc_dapm_disable_pin(&codec->dapm, "Ext Spk");
-		snd_soc_dapm_sync(&codec->dapm);
+		if (pre_path != OFF)
+			rk3026_codec_power_down(RK3026_CODEC_PLAYBACK);
 		break;
 	case RCV:
 		break;
 	case SPK_PATH:
 	case RING_SPK:
-		snd_soc_dapm_disable_pin(&codec->dapm, "Headphone Jack");
-		snd_soc_dapm_enable_pin(&codec->dapm, "Ext Spk");
-		snd_soc_dapm_sync(&codec->dapm);
+		if (pre_path == OFF)
+			rk3026_codec_power_up(RK3026_CODEC_PLAYBACK);
 		break;
 	case HP_PATH:
 	case HP_NO_MIC:
 	case RING_HP:
 	case RING_HP_NO_MIC:
-		snd_soc_dapm_disable_pin(&codec->dapm, "Ext Spk");
-		snd_soc_dapm_enable_pin(&codec->dapm, "Headphone Jack");
-		snd_soc_dapm_sync(&codec->dapm);
+		if (pre_path == OFF)
+			rk3026_codec_power_up(RK3026_CODEC_PLAYBACK);
 		break;
 	case BT:
 		break;
 	case SPK_HP:
 	case RING_SPK_HP:
-		snd_soc_dapm_enable_pin(&codec->dapm, "Headphone Jack");
-		snd_soc_dapm_enable_pin(&codec->dapm, "Ext Spk");
-		snd_soc_dapm_sync(&codec->dapm);
+		if (pre_path == OFF)
+			rk3026_codec_power_up(RK3026_CODEC_PLAYBACK);
 		break;
 	default:
 		return -EINVAL;
@@ -862,6 +862,7 @@ static int rk3026_capture_path_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	long int pre_path;
 
 	if (!rk3026_priv) {
 		printk("%s : rk3026_priv is NULL\n", __func__);
@@ -873,25 +874,23 @@ static int rk3026_capture_path_put(struct snd_kcontrol *kcontrol,
 		//return 0;
 	}
 
+	pre_path = rk3026_priv->capture_path;
 	rk3026_priv->capture_path = ucontrol->value.integer.value[0];
 
 	DBG("%s : set capture_path = %ld\n", __func__, rk3026_priv->capture_path);
 
 	switch (rk3026_priv->capture_path) {
 	case MIC_OFF:
-		snd_soc_dapm_disable_pin(&codec->dapm, "Mic Jack");
-		snd_soc_dapm_disable_pin(&codec->dapm, "Headset Jack");
-		snd_soc_dapm_sync(&codec->dapm);
+		if (pre_path != MIC_OFF)
+			rk3026_codec_power_down(RK3026_CODEC_CAPTURE);
 		break;
 	case Main_Mic:
-		snd_soc_dapm_enable_pin(&codec->dapm, "Mic Jack");
-		snd_soc_dapm_disable_pin(&codec->dapm,"Headset Jack");
-		snd_soc_dapm_sync(&codec->dapm);
+		if (pre_path == MIC_OFF)
+			rk3026_codec_power_up(RK3026_CODEC_CAPTURE);
 		break;
 	case Hands_Free_Mic:
-		snd_soc_dapm_enable_pin(&codec->dapm, "Headset Jack");
-		snd_soc_dapm_disable_pin(&codec->dapm, "Mic Jack");
-		snd_soc_dapm_sync(&codec->dapm);
+		if (pre_path == MIC_OFF)
+			rk3026_codec_power_up(RK3026_CODEC_CAPTURE);
 		break;
 	case BT_Sco_Mic:
 		break;
@@ -923,6 +922,7 @@ static int rk3026_voice_call_path_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	long int pre_path;
 
 	if (!rk3026_priv) {
 		printk("%s : rk3026_priv is NULL\n", __func__);
@@ -934,29 +934,39 @@ static int rk3026_voice_call_path_put(struct snd_kcontrol *kcontrol,
 		//return 0;
 	}
 
+	pre_path = rk3026_priv->voice_call_path;
 	rk3026_priv->voice_call_path = ucontrol->value.integer.value[0];
 
 	DBG("%s : set playback_path = %ld\n", __func__,
 		rk3026_priv->voice_call_path);
 
+	//open playback route for incall route and keytone
+	if (pre_path == OFF) {
+		if (rk3026_priv->playback_path != OFF) {
+			//mute output for incall route pop nosie
+				mdelay(100);
+		} else
+			rk3026_codec_power_up(RK3026_CODEC_PLAYBACK);
+	}
+
 	switch (rk3026_priv->voice_call_path) {
 	case OFF:
-		snd_soc_dapm_disable_pin(&codec->dapm, "Headphone Jack");
-		snd_soc_dapm_disable_pin(&codec->dapm, "Ext Spk");
-		snd_soc_dapm_sync(&codec->dapm);
+		if (pre_path != MIC_OFF)
+			rk3026_codec_power_down(RK3026_CODEC_CAPTURE);
 		break;
 	case RCV:
 		break;
 	case SPK_PATH:
-		snd_soc_dapm_disable_pin(&codec->dapm, "Headphone Jack");
-		snd_soc_dapm_enable_pin(&codec->dapm, "Ext Spk");
-		snd_soc_dapm_sync(&codec->dapm);
+		//open incall route
+		if (pre_path == OFF || 	pre_path == RCV || pre_path == BT)
+			rk3026_codec_power_up(RK3026_CODEC_INCALL);
+
 		break;
 	case HP_PATH:
 	case HP_NO_MIC:
-		snd_soc_dapm_disable_pin(&codec->dapm, "Ext Spk");
-		snd_soc_dapm_enable_pin(&codec->dapm, "Headphone Jack");
-		snd_soc_dapm_sync(&codec->dapm);
+		//open incall route
+		if (pre_path == OFF || 	pre_path == RCV || pre_path == BT)
+			rk3026_codec_power_up(RK3026_CODEC_INCALL);
 		break;
 	case BT:
 		break;
@@ -1638,7 +1648,7 @@ static struct rk3026_reg_val_typ playback_power_down_list[] = {
 	{0xa0,0x00},
 	{0x18,0x22},
 #ifdef WITH_CAP
-	{0xbc,0x08},
+	//{0xbc,0x08},
 #endif
 	{0xb4,0x0},
 	{0xb8,0x0},
@@ -1706,6 +1716,11 @@ static int rk3026_codec_power_up(int type)
 			snd_soc_write(codec, capture_power_up_list[i].reg,
 				capture_power_up_list[i].value);
 		}
+	} else if (type == RK3026_CODEC_INCALL) {
+		snd_soc_update_bits(codec, RK3026_ALC_MUNIN_CTL,
+			 RK3026_MUXINL_F_MSK | RK3026_MUXINR_F_MSK, 
+			 RK3026_MUXINR_F_INR | RK3026_MUXINL_F_INL);
+		
 	}
 
 	return 0;
@@ -1726,7 +1741,7 @@ static int rk3026_codec_power_down(int type)
 		type == RK3026_CODEC_CAPTURE ? "capture" : "",
 		type == RK3026_CODEC_ALL ? "all" : "");
 
-	if (type == RK3026_CODEC_CAPTURE) {
+	if ((type == RK3026_CODEC_CAPTURE) || (type == RK3026_CODEC_INCALL)) {
 		for (i = 0; i < RK3026_CODEC_CAPTURE_POWER_DOWN_LIST_LEN; i++) {
 			snd_soc_write(codec, capture_power_down_list[i].reg,
 				capture_power_down_list[i].value);
@@ -2110,16 +2125,17 @@ static int rk3026_probe(struct snd_soc_codec *codec)
 	printk("%s : i2s sdi from acodec val=0x%x,soc_con[0] bit 10 =1 is correct\n",__func__,val);
 
 
-	if(!rk3026_for_mid) {
-	codec->dapm.bias_level = SND_SOC_BIAS_OFF;
-	rk3026_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+	if(!rk3026_for_mid) 
+	{
+		codec->dapm.bias_level = SND_SOC_BIAS_OFF;
+		rk3026_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	snd_soc_add_controls(codec, rk3026_snd_controls,
-		ARRAY_SIZE(rk3026_snd_controls));
-	snd_soc_dapm_new_controls(&codec->dapm, rk3026_dapm_widgets,
-		ARRAY_SIZE(rk3026_dapm_widgets));
-	snd_soc_dapm_add_routes(&codec->dapm, rk3026_dapm_routes,
-		ARRAY_SIZE(rk3026_dapm_routes));
+		snd_soc_add_controls(codec, rk3026_snd_controls,
+			ARRAY_SIZE(rk3026_snd_controls));
+		snd_soc_dapm_new_controls(&codec->dapm, rk3026_dapm_widgets,
+			ARRAY_SIZE(rk3026_dapm_widgets));
+		snd_soc_dapm_add_routes(&codec->dapm, rk3026_dapm_routes,
+			ARRAY_SIZE(rk3026_dapm_routes));
 
 	}
 	return 0;
