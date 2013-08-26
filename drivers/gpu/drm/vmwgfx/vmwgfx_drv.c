@@ -622,8 +622,10 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	}
 
 	dev_priv->fman = vmw_fence_manager_init(dev_priv);
-	if (unlikely(dev_priv->fman == NULL))
+	if (unlikely(dev_priv->fman == NULL)) {
+		ret = -ENOMEM;
 		goto out_no_fman;
+	}
 
 	vmw_kms_save_vga(dev_priv);
 
