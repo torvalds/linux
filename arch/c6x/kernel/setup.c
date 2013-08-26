@@ -287,7 +287,7 @@ notrace void __init machine_init(unsigned long dt_ptr)
 		fdt = dtb;
 
 	/* Do some early initialization based on the flat device tree */
-	early_init_devtree(fdt);
+	early_init_dt_scan(fdt);
 
 	parse_early_param();
 }
