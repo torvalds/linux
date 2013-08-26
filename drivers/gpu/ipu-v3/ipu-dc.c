@@ -114,6 +114,7 @@ struct ipu_dc_priv {
 	struct completion	comp;
 	int			dc_irq;
 	int			dp_irq;
+	int			use_count;
 };
 
 static void dc_link_event(struct ipu_dc *dc, int event, int addr, int priority)
@@ -232,7 +233,16 @@ EXPORT_SYMBOL_GPL(ipu_dc_init_sync);
 
 void ipu_dc_enable(struct ipu_soc *ipu)
 {
-	ipu_module_enable(ipu, IPU_CONF_DC_EN);
+	struct ipu_dc_priv *priv = ipu->dc_priv;
+
+	mutex_lock(&priv->mutex);
+
+	if (!priv->use_count)
+		ipu_module_enable(priv->ipu, IPU_CONF_DC_EN);
+
+	priv->use_count++;
+
+	mutex_unlock(&priv->mutex);
 }
 EXPORT_SYMBOL_GPL(ipu_dc_enable);
 
@@ -294,7 +304,18 @@ EXPORT_SYMBOL_GPL(ipu_dc_disable_channel);
 
 void ipu_dc_disable(struct ipu_soc *ipu)
 {
-	ipu_module_disable(ipu, IPU_CONF_DC_EN);
+	struct ipu_dc_priv *priv = ipu->dc_priv;
+
+	mutex_lock(&priv->mutex);
+
+	priv->use_count--;
+	if (!priv->use_count)
+		ipu_module_disable(priv->ipu, IPU_CONF_DC_EN);
+
+	if (priv->use_count < 0)
+		priv->use_count = 0;
+
+	mutex_unlock(&priv->mutex);
 }
 EXPORT_SYMBOL_GPL(ipu_dc_disable);
 
