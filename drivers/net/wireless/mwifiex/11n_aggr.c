@@ -69,7 +69,8 @@ mwifiex_11n_form_amsdu_pkt(struct sk_buff *skb_aggr,
 	memcpy(&tx_header->eth803_hdr, skb_src->data, dt_offset);
 
 	/* Copy SNAP header */
-	snap.snap_type = le16_to_cpu(*(__le16 *) ((u8 *)skb_src->data + dt_offset));
+	snap.snap_type =
+		le16_to_cpu(*(__le16 *) ((u8 *)skb_src->data + dt_offset));
 	dt_offset += sizeof(u16);
 
 	memcpy(&tx_header->rfc1042_hdr, &snap, sizeof(struct rfc_1042_hdr));
