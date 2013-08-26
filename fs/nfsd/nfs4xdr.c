@@ -2045,12 +2045,11 @@ static int get_parent_attributes(struct svc_export *exp, struct kstat *stat)
 /*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
  * ourselves.
- *
- * countp is the buffer size in _words_
  */
 __be32
-nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
-		struct dentry *dentry, __be32 **buffer, int count, u32 *bmval,
+nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
+		struct svc_export *exp,
+		struct dentry *dentry, u32 *bmval,
 		struct svc_rqst *rqstp, int ignore_crossmnt)
 {
 	u32 bmval0 = bmval[0];
@@ -2059,12 +2058,12 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 	struct kstat stat;
 	struct svc_fh *tempfh = NULL;
 	struct kstatfs statfs;
-	int buflen = count << 2;
+	__be32 *p = xdr->p;
+	int buflen = xdr->buf->buflen;
 	__be32 *attrlenp;
 	u32 dummy;
 	u64 dummy64;
 	u32 rdattr_err = 0;
-	__be32 *p = *buffer;
 	__be32 status;
 	int err;
 	int aclsupport = 0;
@@ -2491,7 +2490,7 @@ out_acl:
 	}
 
 	*attrlenp = htonl((char *)p - (char *)attrlenp - 4);
-	*buffer = p;
+	xdr->p = p;
 	status = nfs_ok;
 
 out:
@@ -2511,6 +2510,27 @@ out_nfserr:
 out_resource:
 	status = nfserr_resource;
 	goto out;
+}
+
+__be32 nfsd4_encode_fattr_to_buf(__be32 **p, int words,
+			struct svc_fh *fhp, struct svc_export *exp,
+			struct dentry *dentry, u32 *bmval,
+			struct svc_rqst *rqstp, int ignore_crossmnt)
+{
+	struct xdr_buf dummy = {
+			.head[0] = {
+				.iov_base = *p,
+			},
+			.buflen = words << 2,
+		};
+	struct xdr_stream xdr;
+	__be32 ret;
+
+	xdr_init_encode(&xdr, &dummy, NULL);
+	ret = nfsd4_encode_fattr(&xdr, fhp, exp, dentry, bmval, rqstp,
+							ignore_crossmnt);
+	*p = xdr.p;
+	return ret;
 }
 
 static inline int attributes_need_mount(u32 *bmval)
@@ -2576,7 +2596,8 @@ nfsd4_encode_dirent_fattr(struct nfsd4_readdir *cd,
 
 	}
 out_encode:
-	nfserr = nfsd4_encode_fattr(NULL, exp, dentry, p, buflen, cd->rd_bmval,
+	nfserr = nfsd4_encode_fattr_to_buf(p, buflen, NULL, exp, dentry,
+					cd->rd_bmval,
 					cd->rd_rqstp, ignore_crossmnt);
 out_put:
 	dput(dentry);
@@ -2746,14 +2767,16 @@ static __be32
 nfsd4_encode_getattr(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_getattr *getattr)
 {
 	struct svc_fh *fhp = getattr->ga_fhp;
-	int buflen;
+	struct xdr_stream *xdr = &resp->xdr;
+	struct xdr_buf *buf = resp->xdr.buf;
 
 	if (nfserr)
 		return nfserr;
 
-	buflen = resp->xdr.end - resp->xdr.p - (COMPOUND_ERR_SLACK_SPACE >> 2);
-	nfserr = nfsd4_encode_fattr(fhp, fhp->fh_export, fhp->fh_dentry,
-				    &resp->xdr.p, buflen, getattr->ga_bmval,
+	buf->buflen = (void *)resp->xdr.end - (void *)resp->xdr.p
+			- COMPOUND_ERR_SLACK_SPACE;
+	nfserr = nfsd4_encode_fattr(xdr, fhp, fhp->fh_export, fhp->fh_dentry,
+				    getattr->ga_bmval,
 				    resp->rqstp, 0);
 	return nfserr;
 }

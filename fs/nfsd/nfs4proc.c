@@ -1061,10 +1061,10 @@ _nfsd4_verify(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		return nfserr_jukebox;
 
 	p = buf;
-	status = nfsd4_encode_fattr(&cstate->current_fh,
+	status = nfsd4_encode_fattr_to_buf(&p, count, &cstate->current_fh,
 				    cstate->current_fh.fh_export,
-				    cstate->current_fh.fh_dentry, &p,
-				    count, verify->ve_bmval,
+				    cstate->current_fh.fh_dentry,
+				    verify->ve_bmval,
 				    rqstp, 0);
 	/*
 	 * If nfsd4_encode_fattr() ran out of space, assume that's because
