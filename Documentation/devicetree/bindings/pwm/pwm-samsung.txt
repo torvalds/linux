@@ -19,6 +19,16 @@ Required properties:
 - reg: base address and size of register area
 - interrupts: list of timer interrupts (one interrupt per timer, starting at
   timer 0)
+- clock-names: should contain all following required clock names:
+    - "timers" - PWM base clock used to generate PWM signals,
+  and any subset of following optional clock names:
+    - "pwm-tclk0" - first external PWM clock source,
+    - "pwm-tclk1" - second external PWM clock source.
+  Note that not all IP variants allow using all external clock sources.
+  Refer to SoC documentation to learn which clock source configurations
+  are available.
+- clocks: should contain clock specifiers of all clocks, which input names
+  have been specified in clock-names property, in same order.
 - #pwm-cells: number of cells used for PWM specifier - must be 3
    the specifier format is as follows:
      - phandle to PWM controller node
@@ -38,6 +48,8 @@ Example:
 		reg = <0x7f006000 0x1000>;
 		interrupt-parent = <&vic0>;
 		interrupts = <23>, <24>, <25>, <27>, <28>;
+		clocks = <&clock 67>;
+		clock-names = "timers";
 		samsung,pwm-outputs = <0>, <1>;
 		#pwm-cells = <3>;
 	}
