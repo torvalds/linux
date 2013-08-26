@@ -260,7 +260,8 @@ static int au_wbr_bu(struct super_block *sb, aufs_bindex_t bindex)
 }
 
 /* top down parent */
-static int au_wbr_create_tdp(struct dentry *dentry, int isdir __maybe_unused)
+static int au_wbr_create_tdp(struct dentry *dentry,
+			     unsigned int flags __maybe_unused)
 {
 	int err;
 	aufs_bindex_t bstart, bindex;
@@ -349,7 +350,7 @@ static int au_wbr_create_init_rr(struct super_block *sb)
 	return err;
 }
 
-static int au_wbr_create_rr(struct dentry *dentry, int isdir)
+static int au_wbr_create_rr(struct dentry *dentry, unsigned int flags)
 {
 	int err, nbr;
 	unsigned int u;
@@ -366,7 +367,7 @@ static int au_wbr_create_rr(struct dentry *dentry, int isdir)
 	bend = au_sbend(sb);
 	nbr = bend + 1;
 	for (bindex = 0; bindex <= bend; bindex++) {
-		if (!isdir) {
+		if (!au_ftest_wbr(flags, DIR)) {
 			err = atomic_dec_return(next) + 1;
 			/* modulo for 0 is meaningless */
 			if (unlikely(!err))
@@ -449,7 +450,7 @@ static void au_mfs(struct dentry *dentry)
 	kfree(st);
 }
 
-static int au_wbr_create_mfs(struct dentry *dentry, int isdir __maybe_unused)
+static int au_wbr_create_mfs(struct dentry *dentry, unsigned int flags)
 {
 	int err;
 	struct super_block *sb;
@@ -498,17 +499,17 @@ static int au_wbr_create_fin_mfs(struct super_block *sb __maybe_unused)
 /* ---------------------------------------------------------------------- */
 
 /* most free space and then round robin */
-static int au_wbr_create_mfsrr(struct dentry *dentry, int isdir)
+static int au_wbr_create_mfsrr(struct dentry *dentry, unsigned int flags)
 {
 	int err;
 	struct au_wbr_mfs *mfs;
 
-	err = au_wbr_create_mfs(dentry, isdir);
+	err = au_wbr_create_mfs(dentry, flags);
 	if (err >= 0) {
 		mfs = &au_sbi(dentry->d_sb)->si_wbr_mfs;
 		mutex_lock(&mfs->mfs_lock);
 		if (mfs->mfsrr_bytes < mfs->mfsrr_watermark)
-			err = au_wbr_create_rr(dentry, isdir);
+			err = au_wbr_create_rr(dentry, flags);
 		mutex_unlock(&mfs->mfs_lock);
 	}
 
@@ -529,7 +530,7 @@ static int au_wbr_create_init_mfsrr(struct super_block *sb)
 /* ---------------------------------------------------------------------- */
 
 /* top down parent and most free space */
-static int au_wbr_create_pmfs(struct dentry *dentry, int isdir)
+static int au_wbr_create_pmfs(struct dentry *dentry, unsigned int flags)
 {
 	int err, e2;
 	unsigned long long b;
@@ -538,7 +539,7 @@ static int au_wbr_create_pmfs(struct dentry *dentry, int isdir)
 	struct dentry *parent, *h_parent;
 	struct au_branch *br;
 
-	err = au_wbr_create_tdp(dentry, isdir);
+	err = au_wbr_create_tdp(dentry, flags);
 	if (unlikely(err < 0))
 		goto out;
 	parent = dget_parent(dentry);
@@ -547,7 +548,7 @@ static int au_wbr_create_pmfs(struct dentry *dentry, int isdir)
 	if (bstart == bend)
 		goto out_parent; /* success */
 
-	e2 = au_wbr_create_mfs(dentry, isdir);
+	e2 = au_wbr_create_mfs(dentry, flags);
 	if (e2 < 0)
 		goto out_parent; /* success */
 
@@ -587,7 +588,7 @@ out:
 /* top down parent */
 static int au_wbr_copyup_tdp(struct dentry *dentry)
 {
-	return au_wbr_create_tdp(dentry, /*isdir, anything is ok*/0);
+	return au_wbr_create_tdp(dentry, /*flags, anything is ok*/0);
 }
 
 /* bottom up parent */
