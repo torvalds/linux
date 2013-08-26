@@ -132,8 +132,7 @@ struct ocrdma_dev {
 	struct ocrdma_cq **cq_tbl;
 	struct ocrdma_qp **qp_tbl;
 
-	struct ocrdma_eq meq;
-	struct ocrdma_eq *qp_eq_tbl;
+	struct ocrdma_eq *eq_tbl;
 	int eq_cnt;
 	u16 base_eqid;
 	u16 max_eq;
