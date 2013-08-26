@@ -605,12 +605,17 @@ static void __sramfunc rk_pm_soc_sram_volt_resume(void)
 }
 static void __sramfunc rk2928_sram_suspend(void)
 {
-
+	int grf_uoc1_con0;
 	sram_printch('5');
 	RK_SOC_PM_CTR_FUN(NO_DDR, ddr_suspend);
 	sram_printch('6');
 	RK_SOC_PM_CTR_FUN(NO_VOLT, rk_pm_soc_sram_volt_suspend);
 	sram_printch('7');
+#ifdef CONFIG_ARCH_RK3026
+       grf_uoc1_con0 = grf_readl(GRF_UOC1_CON0);
+       grf_writel(0x30000000, GRF_UOC1_CON0);
+#endif
+	
 	RK_SOC_PM_CTR_FUN(NO_CLK_GATING, rk_pm_soc_sram_clk_gating);
 	RK_SOC_PM_CTR_FUN(NO_SYS_CLK, rk_pm_soc_sram_sys_clk_suspend);
 
@@ -623,6 +628,9 @@ static void __sramfunc rk2928_sram_suspend(void)
 	//RK_SOC_PM_CTR_FUN(NO_PMIC,board_pmu_resume);
 	RK_SOC_PM_CTR_FUN(NO_SYS_CLK, rk_pm_soc_sram_sys_clk_resume);
 	RK_SOC_PM_CTR_FUN(NO_CLK_GATING, rk_pm_soc_sram_clk_ungating);
+#ifdef CONFIG_ARCH_RK3026
+       grf_writel(0x30000000 | grf_uoc1_con0, GRF_UOC1_CON0);
+#endif	
 	sram_printch('7');
 	RK_SOC_PM_CTR_FUN(NO_VOLT, rk_pm_soc_sram_volt_resume);
 	sram_printch('6');
