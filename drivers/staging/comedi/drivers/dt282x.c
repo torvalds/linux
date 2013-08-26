@@ -982,29 +982,32 @@ static int dt282x_dio_insn_bits(struct comedi_device *dev,
 
 static int dt282x_dio_insn_config(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
 	struct dt282x_private *devpriv = dev->private;
-	int mask;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int mask;
+	int ret;
 
-	mask = (CR_CHAN(insn->chanspec) < 8) ? 0x00ff : 0xff00;
-	if (data[0])
-		s->io_bits |= mask;
+	if (chan < 8)
+		mask = 0x00ff;
 	else
-		s->io_bits &= ~mask;
+		mask = 0xff00;
 
+	ret = comedi_dio_insn_config(dev, s, insn, data, mask);
+	if (ret)
+		return ret;
+
+	devpriv->dacsr &= ~(DT2821_LBOE | DT2821_HBOE);
 	if (s->io_bits & 0x00ff)
 		devpriv->dacsr |= DT2821_LBOE;
-	else
-		devpriv->dacsr &= ~DT2821_LBOE;
 	if (s->io_bits & 0xff00)
 		devpriv->dacsr |= DT2821_HBOE;
-	else
-		devpriv->dacsr &= ~DT2821_HBOE;
 
 	outw(devpriv->dacsr, dev->iobase + DT2821_DACSR);
 
-	return 1;
+	return insn->n;
 }
 
 static const struct comedi_lrange *const ai_range_table[] = {
