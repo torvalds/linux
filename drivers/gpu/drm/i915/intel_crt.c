@@ -688,7 +688,7 @@ static void intel_crt_reset(struct drm_connector *connector)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crt *crt = intel_attached_crt(connector);
 
-	if (HAS_PCH_SPLIT(dev)) {
+	if (INTEL_INFO(dev)->gen >= 5) {
 		u32 adpa;
 
 		adpa = I915_READ(crt->adpa_reg);
