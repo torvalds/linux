@@ -293,6 +293,13 @@ static void vmbus_process_offer(struct work_struct *work)
 	}
 
 	/*
+	 * This state is used to indicate a successful open
+	 * so that when we do close the channel normally, we
+	 * can cleanup properly
+	 */
+	newchannel->state = CHANNEL_OPEN_STATE;
+
+	/*
 	 * Start the process of binding this offer to the driver
 	 * We need to set the DeviceObject field before calling
 	 * vmbus_child_dev_add()
@@ -318,13 +325,6 @@ static void vmbus_process_offer(struct work_struct *work)
 		kfree(newchannel->device_obj);
 
 		free_channel(newchannel);
-	} else {
-		/*
-		 * This state is used to indicate a successful open
-		 * so that when we do close the channel normally, we
-		 * can cleanup properly
-		 */
-		newchannel->state = CHANNEL_OPEN_STATE;
 	}
 }
 
