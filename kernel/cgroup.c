@@ -2756,7 +2756,8 @@ static int cgroup_add_file(struct cgroup *cgrp, struct cftype *cft)
 	umode_t mode;
 	char name[MAX_CGROUP_TYPE_NAMELEN + MAX_CFTYPE_NAME + 2] = { 0 };
 
-	if (cft->ss && !(cgrp->root->flags & CGRP_ROOT_NOPREFIX)) {
+	if (cft->ss && !(cft->flags & CFTYPE_NO_PREFIX) &&
+	    !(cgrp->root->flags & CGRP_ROOT_NOPREFIX)) {
 		strcpy(name, cft->ss->name);
 		strcat(name, ".");
 	}
