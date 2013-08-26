@@ -27,7 +27,6 @@
  */
 struct machine_desc * __init setup_machine_fdt(void *dt)
 {
-	struct boot_param_header *devtree = dt;
 	struct machine_desc *mdesc = NULL, *mdesc_best = NULL;
 	unsigned int score, mdesc_score = ~1;
 	unsigned long dt_root;
@@ -36,11 +35,9 @@ struct machine_desc * __init setup_machine_fdt(void *dt)
 	char manufacturer[16];
 	unsigned long len;
 
-	/* check device tree validity */
-	if (be32_to_cpu(devtree->magic) != OF_DT_HEADER)
+	if (!early_init_dt_scan(dt))
 		return NULL;
 
-	initial_boot_params = devtree;
 	dt_root = of_get_flat_dt_root();
 
 	/*
@@ -84,15 +81,6 @@ struct machine_desc * __init setup_machine_fdt(void *dt)
 	strlcpy(manufacturer, compat, model ? model - compat : strlen(compat));
 
 	pr_info("Board \"%s\" from %s (Manufacturer)\n", model, manufacturer);
-
-	/* Retrieve various information from the /chosen node */
-	of_scan_flat_dt(early_init_dt_scan_chosen, boot_command_line);
-
-	/* Initialize {size,address}-cells info */
-	of_scan_flat_dt(early_init_dt_scan_root, NULL);
-
-	/* Setup memory, calling early_init_dt_add_memory_arch */
-	of_scan_flat_dt(early_init_dt_scan_memory, NULL);
 
 	clk = of_get_flat_dt_prop(dt_root, "clock-frequency", &len);
 	if (clk)
