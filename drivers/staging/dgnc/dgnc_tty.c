@@ -344,7 +344,7 @@ int dgnc_tty_register(struct board_t *brd)
 int dgnc_tty_init(struct board_t *brd)
 {
 	int i;
-	uchar *vaddr;
+	u8 __iomem *vaddr;
 	struct channel_t *ch;
 
 	if (!brd)
