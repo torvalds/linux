@@ -7832,12 +7832,6 @@ err:
 	return ret;
 }
 
-/*
- * On gen7 we currently use the blit ring because (in early silicon at least)
- * the render ring doesn't give us interrpts for page flip completion, which
- * means clients will hang after the first flip is queued.  Fortunately the
- * blit ring generates interrupts properly, so use it instead.
- */
 static int intel_gen7_queue_flip(struct drm_device *dev,
 				 struct drm_crtc *crtc,
 				 struct drm_framebuffer *fb,
@@ -7846,9 +7840,13 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_ring_buffer *ring = &dev_priv->ring[BCS];
+	struct intel_ring_buffer *ring;
 	uint32_t plane_bit = 0;
-	int ret;
+	int len, ret;
+
+	ring = obj->ring;
+	if (ring == NULL || ring->id != RCS)
+		ring = &dev_priv->ring[BCS];
 
 	ret = intel_pin_and_fence_fb_obj(dev, obj, ring);
 	if (ret)
@@ -7870,9 +7868,33 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 		goto err_unpin;
 	}
 
-	ret = intel_ring_begin(ring, 4);
+	len = 4;
+	if (ring->id == RCS)
+		len += 6;
+
+	ret = intel_ring_begin(ring, len);
 	if (ret)
 		goto err_unpin;
+
+	/* Unmask the flip-done completion message. Note that the bspec says that
+	 * we should do this for both the BCS and RCS, and that we must not unmask
+	 * more than one flip event at any time (or ensure that one flip message
+	 * can be sent by waiting for flip-done prior to queueing new flips).
+	 * Experimentation says that BCS works despite DERRMR masking all
+	 * flip-done completion events and that unmasking all planes at once
+	 * for the RCS also doesn't appear to drop events. Setting the DERRMR
+	 * to zero does lead to lockups within MI_DISPLAY_FLIP.
+	 */
+	if (ring->id == RCS) {
+		intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
+		intel_ring_emit(ring, DERRMR);
+		intel_ring_emit(ring, ~(DERRMR_PIPEA_PRI_FLIP_DONE |
+					DERRMR_PIPEB_PRI_FLIP_DONE |
+					DERRMR_PIPEC_PRI_FLIP_DONE));
+		intel_ring_emit(ring, MI_STORE_REGISTER_MEM(1));
+		intel_ring_emit(ring, DERRMR);
+		intel_ring_emit(ring, ring->scratch.gtt_offset + 256);
+	}
 
 	intel_ring_emit(ring, MI_DISPLAY_FLIP_I915 | plane_bit);
 	intel_ring_emit(ring, (fb->pitches[0] | obj->tiling_mode));

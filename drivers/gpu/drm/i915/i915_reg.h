@@ -245,6 +245,7 @@
  *   address/value pairs. Don't overdue it, though, x <= 2^4 must hold!
  */
 #define MI_LOAD_REGISTER_IMM(x)	MI_INSTR(0x22, 2*x-1)
+#define MI_STORE_REGISTER_MEM(x) MI_INSTR(0x24, 2*x-1)
 #define MI_FLUSH_DW		MI_INSTR(0x26, 1) /* for GEN6 */
 #define   MI_FLUSH_DW_STORE_INDEX	(1<<21)
 #define   MI_INVALIDATE_TLB		(1<<18)
@@ -693,6 +694,23 @@
 #define   FPGA_DBG_RM_NOCLAIM	(1<<31)
 
 #define DERRMR		0x44050
+#define   DERRMR_PIPEA_SCANLINE		(1<<0)
+#define   DERRMR_PIPEA_PRI_FLIP_DONE	(1<<1)
+#define   DERRMR_PIPEA_SPR_FLIP_DONE	(1<<2)
+#define   DERRMR_PIPEA_VBLANK		(1<<3)
+#define   DERRMR_PIPEA_HBLANK		(1<<5)
+#define   DERRMR_PIPEB_SCANLINE 	(1<<8)
+#define   DERRMR_PIPEB_PRI_FLIP_DONE	(1<<9)
+#define   DERRMR_PIPEB_SPR_FLIP_DONE	(1<<10)
+#define   DERRMR_PIPEB_VBLANK		(1<<11)
+#define   DERRMR_PIPEB_HBLANK		(1<<13)
+/* Note that PIPEC is not a simple translation of PIPEA/PIPEB */
+#define   DERRMR_PIPEC_SCANLINE		(1<<14)
+#define   DERRMR_PIPEC_PRI_FLIP_DONE	(1<<15)
+#define   DERRMR_PIPEC_SPR_FLIP_DONE	(1<<20)
+#define   DERRMR_PIPEC_VBLANK		(1<<21)
+#define   DERRMR_PIPEC_HBLANK		(1<<22)
+
 
 /* GM45+ chicken bits -- debug workaround bits that may be required
  * for various sorts of correct behavior.  The top 16 bits of each are
