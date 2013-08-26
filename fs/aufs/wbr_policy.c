@@ -601,6 +601,40 @@ out:
 
 /* ---------------------------------------------------------------------- */
 
+/*
+ * - top down parent
+ * - most free space with parent
+ * - most free space round-robin regardless parent
+ */
+static int au_wbr_create_pmfsrr(struct dentry *dentry, unsigned int flags)
+{
+	int err;
+	unsigned long long watermark;
+	struct super_block *sb;
+	struct au_branch *br;
+	struct au_wbr_mfs *mfs;
+
+	err = au_wbr_create_pmfs(dentry, flags | AuWbr_PARENT);
+	if (unlikely(err < 0))
+		goto out;
+
+	sb = dentry->d_sb;
+	br = au_sbr(sb, err);
+	mfs = &au_sbi(sb)->si_wbr_mfs;
+	mutex_lock(&mfs->mfs_lock);
+	watermark = mfs->mfsrr_watermark;
+	mutex_unlock(&mfs->mfs_lock);
+	if (br->br_wbr->wbr_bytes < watermark)
+		/* regardless the parent dir */
+		err = au_wbr_create_mfsrr(dentry, flags);
+
+out:
+	AuDbg("b%d\n", err);
+	return err;
+}
+
+/* ---------------------------------------------------------------------- */
+
 /* policies for copyup */
 
 /* top down parent */
@@ -707,6 +741,16 @@ struct au_wbr_create_operations au_wbr_create_ops[] = {
 	[AuWbrCreate_PMFSV] = {
 		.create	= au_wbr_create_pmfs,
 		.init	= au_wbr_create_init_mfs,
+		.fin	= au_wbr_create_fin_mfs
+	},
+	[AuWbrCreate_PMFSRR] = {
+		.create	= au_wbr_create_pmfsrr,
+		.init	= au_wbr_create_init_mfsrr,
+		.fin	= au_wbr_create_fin_mfs
+	},
+	[AuWbrCreate_PMFSRRV] = {
+		.create	= au_wbr_create_pmfsrr,
+		.init	= au_wbr_create_init_mfsrr,
 		.fin	= au_wbr_create_fin_mfs
 	}
 };
