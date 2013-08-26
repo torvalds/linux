@@ -695,25 +695,30 @@ static int hci_sock_getname(struct socket *sock, struct sockaddr *addr,
 {
 	struct sockaddr_hci *haddr = (struct sockaddr_hci *) addr;
 	struct sock *sk = sock->sk;
-	struct hci_dev *hdev = hci_pi(sk)->hdev;
+	struct hci_dev *hdev;
+	int err = 0;
 
 	BT_DBG("sock %p sk %p", sock, sk);
 
 	if (peer)
 		return -EOPNOTSUPP;
 
-	if (!hdev)
-		return -EBADFD;
-
 	lock_sock(sk);
+
+	hdev = hci_pi(sk)->hdev;
+	if (!hdev) {
+		err = -EBADFD;
+		goto done;
+	}
 
 	*addr_len = sizeof(*haddr);
 	haddr->hci_family = AF_BLUETOOTH;
 	haddr->hci_dev    = hdev->id;
-	haddr->hci_channel= 0;
+	haddr->hci_channel= hci_pi(sk)->channel;
 
+done:
 	release_sock(sk);
-	return 0;
+	return err;
 }
 
 static void hci_sock_cmsg(struct sock *sk, struct msghdr *msg,
