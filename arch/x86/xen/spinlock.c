@@ -230,13 +230,6 @@ void xen_init_lock_cpu(int cpu)
 	WARN(per_cpu(lock_kicker_irq, cpu) >= 0, "spinlock on CPU%d exists on IRQ%d!\n",
 	     cpu, per_cpu(lock_kicker_irq, cpu));
 
-	/*
-	 * See git commit f10cd522c5fbfec9ae3cc01967868c9c2401ed23
-	 * (xen: disable PV spinlocks on HVM)
-	 */
-	if (xen_hvm_domain())
-		return;
-
 	name = kasprintf(GFP_KERNEL, "spinlock%d", cpu);
 	irq = bind_ipi_to_irqhandler(XEN_SPIN_UNLOCK_VECTOR,
 				     cpu,
@@ -256,13 +249,6 @@ void xen_init_lock_cpu(int cpu)
 
 void xen_uninit_lock_cpu(int cpu)
 {
-	/*
-	 * See git commit f10cd522c5fbfec9ae3cc01967868c9c2401ed23
-	 * (xen: disable PV spinlocks on HVM)
-	 */
-	if (xen_hvm_domain())
-		return;
-
 	if (!xen_pvspin)
 		return;
 
@@ -275,12 +261,6 @@ void xen_uninit_lock_cpu(int cpu)
 
 void __init xen_init_spinlocks(void)
 {
-	/*
-	 * See git commit f10cd522c5fbfec9ae3cc01967868c9c2401ed23
-	 * (xen: disable PV spinlocks on HVM)
-	 */
-	if (xen_hvm_domain())
-		return;
 
 	if (!xen_pvspin) {
 		printk(KERN_DEBUG "xen: PV spinlocks disabled\n");
