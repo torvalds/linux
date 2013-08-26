@@ -1624,6 +1624,7 @@ static int nfsd4_max_reply(u32 opnum)
 		 * the head and tail in another page:
 		 */
 		return 2 * PAGE_SIZE;
+	case OP_GETATTR:
 	case OP_READ:
 		return INT_MAX;
 	default:
@@ -2560,21 +2561,31 @@ out_resource:
 	goto out;
 }
 
+static void svcxdr_init_encode_from_buffer(struct xdr_stream *xdr,
+				struct xdr_buf *buf, __be32 *p, int bytes)
+{
+	xdr->scratch.iov_len = 0;
+	memset(buf, 0, sizeof(struct xdr_buf));
+	buf->head[0].iov_base = p;
+	buf->head[0].iov_len = 0;
+	buf->len = 0;
+	xdr->buf = buf;
+	xdr->iov = buf->head;
+	xdr->p = p;
+	xdr->end = (void *)p + bytes;
+	buf->buflen = bytes;
+}
+
 __be32 nfsd4_encode_fattr_to_buf(__be32 **p, int words,
 			struct svc_fh *fhp, struct svc_export *exp,
 			struct dentry *dentry, u32 *bmval,
 			struct svc_rqst *rqstp, int ignore_crossmnt)
 {
-	struct xdr_buf dummy = {
-			.head[0] = {
-				.iov_base = *p,
-			},
-			.buflen = words << 2,
-		};
+	struct xdr_buf dummy;
 	struct xdr_stream xdr;
 	__be32 ret;
 
-	xdr_init_encode(&xdr, &dummy, NULL);
+	svcxdr_init_encode_from_buffer(&xdr, &dummy, *p, words << 2);
 	ret = nfsd4_encode_fattr(&xdr, fhp, exp, dentry, bmval, rqstp,
 							ignore_crossmnt);
 	*p = xdr.p;
@@ -3064,8 +3075,6 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 
 	if (nfserr)
 		return nfserr;
-	if (resp->xdr.buf->page_len)
-		return nfserr_resource;
 
 	p = xdr_reserve_space(xdr, 8); /* eof flag and byte count */
 	if (!p)
@@ -3073,6 +3082,9 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 
 	/* Make sure there will be room for padding if needed: */
 	if (xdr->end - xdr->p < 1)
+		return nfserr_resource;
+
+	if (resp->xdr.buf->page_len)
 		return nfserr_resource;
 
 	maxcount = svc_max_payload(resp->rqstp);
@@ -3119,6 +3131,8 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 				- (char *)resp->xdr.buf->head[0].iov_base);
 	resp->xdr.buf->page_len = maxcount;
 	xdr->buf->len += maxcount;
+	xdr->page_ptr += v;
+	xdr->buf->buflen = maxcount + PAGE_SIZE - 2 * RPC_MAX_AUTH_SIZE;
 	xdr->iov = xdr->buf->tail;
 
 	/* Use rest of head for padding and remaining ops: */
@@ -3145,6 +3159,11 @@ nfsd4_encode_readlink(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd
 
 	if (nfserr)
 		return nfserr;
+
+	p = xdr_reserve_space(xdr, 4);
+	if (!p)
+		return nfserr_resource;
+
 	if (resp->xdr.buf->page_len)
 		return nfserr_resource;
 	if (!*resp->rqstp->rq_next_page)
@@ -3153,10 +3172,6 @@ nfsd4_encode_readlink(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd
 	page = page_address(*(resp->rqstp->rq_next_page++));
 
 	maxcount = PAGE_SIZE;
-
-	p = xdr_reserve_space(xdr, 4);
-	if (!p)
-		return nfserr_resource;
 
 	if (xdr->end - xdr->p < 1)
 		return nfserr_resource;
@@ -3180,6 +3195,8 @@ nfsd4_encode_readlink(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd
 				- (char *)resp->xdr.buf->head[0].iov_base;
 	resp->xdr.buf->page_len = maxcount;
 	xdr->buf->len += maxcount;
+	xdr->page_ptr += 1;
+	xdr->buf->buflen -= PAGE_SIZE;
 	xdr->iov = xdr->buf->tail;
 
 	/* Use rest of head for padding and remaining ops: */
@@ -3206,13 +3223,14 @@ nfsd4_encode_readdir(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4
 
 	if (nfserr)
 		return nfserr;
-	if (resp->xdr.buf->page_len)
-		return nfserr_resource;
-	if (!*resp->rqstp->rq_next_page)
-		return nfserr_resource;
 
 	p = xdr_reserve_space(xdr, NFS4_VERIFIER_SIZE);
 	if (!p)
+		return nfserr_resource;
+
+	if (resp->xdr.buf->page_len)
+		return nfserr_resource;
+	if (!*resp->rqstp->rq_next_page)
 		return nfserr_resource;
 
 	/* XXX: Following NFSv3, we ignore the READDIR verifier for now. */
@@ -3264,6 +3282,10 @@ nfsd4_encode_readdir(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4
 		(char*)page_address(*(resp->rqstp->rq_next_page-1));
 	xdr->buf->len += xdr->buf->page_len;
 
+	xdr->iov = xdr->buf->tail;
+
+	xdr->page_ptr++;
+	xdr->buf->buflen -= PAGE_SIZE;
 	xdr->iov = xdr->buf->tail;
 
 	/* Use rest of head for padding and remaining ops: */
@@ -3800,6 +3822,8 @@ nfsd4_encode_operation(struct nfsd4_compoundres *resp, struct nfsd4_op *op)
 	       !nfsd4_enc_ops[op->opnum]);
 	encoder = nfsd4_enc_ops[op->opnum];
 	op->status = encoder(resp, op->status, &op->u);
+	xdr_commit_encode(xdr);
+
 	/* nfsd4_check_resp_size guarantees enough room for error status */
 	if (!op->status) {
 		int space_needed = 0;
@@ -3918,6 +3942,8 @@ nfs4svc_encode_compoundres(struct svc_rqst *rqstp, __be32 *p, struct nfsd4_compo
 
 	WARN_ON_ONCE(buf->len != buf->head[0].iov_len + buf->page_len +
 				 buf->tail[0].iov_len);
+
+	rqstp->rq_next_page = resp->xdr.page_ptr + 1;
 
 	p = resp->tagp;
 	*p++ = htonl(resp->taglen);

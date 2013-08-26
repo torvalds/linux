@@ -597,6 +597,7 @@ static int svc_alloc_arg(struct svc_rqst *rqstp)
 			}
 			rqstp->rq_pages[i] = p;
 		}
+	rqstp->rq_page_end = &rqstp->rq_pages[i];
 	rqstp->rq_pages[i++] = NULL; /* this might be seen in nfs_read_actor */
 
 	/* Make arg->head point to first page and arg->pages point to rest */
