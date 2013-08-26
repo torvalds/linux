@@ -547,6 +547,15 @@ static int hci_sock_ioctl(struct socket *sock, unsigned int cmd,
 
 	BT_DBG("cmd %x arg %lx", cmd, arg);
 
+	lock_sock(sk);
+
+	if (hci_pi(sk)->channel != HCI_CHANNEL_RAW) {
+		err = -EBADFD;
+		goto done;
+	}
+
+	release_sock(sk);
+
 	switch (cmd) {
 	case HCIGETDEVLIST:
 		return hci_get_dev_list(argp);
@@ -591,13 +600,15 @@ static int hci_sock_ioctl(struct socket *sock, unsigned int cmd,
 
 	case HCIINQUIRY:
 		return hci_inquiry(argp);
-
-	default:
-		lock_sock(sk);
-		err = hci_sock_bound_ioctl(sk, cmd, arg);
-		release_sock(sk);
-		return err;
 	}
+
+	lock_sock(sk);
+
+	err = hci_sock_bound_ioctl(sk, cmd, arg);
+
+done:
+	release_sock(sk);
+	return err;
 }
 
 static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
