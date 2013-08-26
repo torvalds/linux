@@ -949,25 +949,9 @@ static int tz1090_pdc_pinctrl_probe(struct platform_device *pdev)
 	tz1090_pdc_pinctrl_desc.npins = ARRAY_SIZE(tz1090_pdc_pins);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "Missing MEM resource\n");
-		return -ENODEV;
-	}
-
-	if (!devm_request_mem_region(&pdev->dev, res->start,
-				     resource_size(res),
-				     dev_name(&pdev->dev))) {
-		dev_err(&pdev->dev,
-			"Couldn't request MEM resource\n");
-		return -ENODEV;
-	}
-
-	pmx->regs = devm_ioremap(&pdev->dev, res->start,
-				 resource_size(res));
-	if (!pmx->regs) {
-		dev_err(&pdev->dev, "Couldn't ioremap regs\n");
-		return -ENODEV;
-	}
+	pmx->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(pmx->regs))
+		return PTR_ERR(pmx->regs);
 
 	pmx->pctl = pinctrl_register(&tz1090_pdc_pinctrl_desc, &pdev->dev, pmx);
 	if (!pmx->pctl) {
