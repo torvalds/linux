@@ -47,24 +47,22 @@ void acpi_pci_remove_bus(struct pci_bus *bus);
 
 #ifdef	CONFIG_ACPI_PCI_SLOT
 void acpi_pci_slot_init(void);
-void acpi_pci_slot_enumerate(struct pci_bus *bus, acpi_handle handle);
+void acpi_pci_slot_enumerate(struct pci_bus *bus);
 void acpi_pci_slot_remove(struct pci_bus *bus);
 #else
 static inline void acpi_pci_slot_init(void) { }
-static inline void acpi_pci_slot_enumerate(struct pci_bus *bus,
-					   acpi_handle handle) { }
+static inline void acpi_pci_slot_enumerate(struct pci_bus *bus) { }
 static inline void acpi_pci_slot_remove(struct pci_bus *bus) { }
 #endif
 
 #ifdef	CONFIG_HOTPLUG_PCI_ACPI
 void acpiphp_init(void);
-void acpiphp_enumerate_slots(struct pci_bus *bus, acpi_handle handle);
+void acpiphp_enumerate_slots(struct pci_bus *bus);
 void acpiphp_remove_slots(struct pci_bus *bus);
 void acpiphp_check_host_bridge(acpi_handle handle);
 #else
 static inline void acpiphp_init(void) { }
-static inline void acpiphp_enumerate_slots(struct pci_bus *bus,
-					   acpi_handle handle) { }
+static inline void acpiphp_enumerate_slots(struct pci_bus *bus) { }
 static inline void acpiphp_remove_slots(struct pci_bus *bus) { }
 static inline void acpiphp_check_host_bridge(acpi_handle handle) { }
 #endif

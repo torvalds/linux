@@ -49,6 +49,7 @@
 #define info(format, arg...) printk(KERN_INFO "%s: " format, MY_NAME , ## arg)
 #define warn(format, arg...) printk(KERN_WARNING "%s: " format, MY_NAME , ## arg)
 
+struct acpiphp_context;
 struct acpiphp_bridge;
 struct acpiphp_slot;
 
@@ -59,6 +60,7 @@ struct slot {
 	struct hotplug_slot	*hotplug_slot;
 	struct acpiphp_slot	*acpi_slot;
 	struct hotplug_slot_info info;
+	unsigned int sun;	/* ACPI _SUN (Slot User Number) value */
 };
 
 static inline const char *slot_name(struct slot *slot)
@@ -75,14 +77,10 @@ struct acpiphp_bridge {
 	struct list_head list;
 	struct list_head slots;
 	struct kref ref;
-	acpi_handle handle;
 
-	/* Ejectable PCI-to-PCI bridge (PCI bridge and PCI function) */
-	struct acpiphp_func *func;
+	struct acpiphp_context *context;
 
 	int nr_slots;
-
-	u32 flags;
 
 	/* This bus (host bridge) or Secondary bus (PCI-to-PCI bridge) */
 	struct pci_bus *pci_bus;
@@ -99,15 +97,13 @@ struct acpiphp_bridge {
  */
 struct acpiphp_slot {
 	struct list_head node;
-	struct acpiphp_bridge *bridge;	/* parent */
+	struct pci_bus *bus;
 	struct list_head funcs;		/* one slot may have different
 					   objects (i.e. for each function) */
 	struct slot *slot;
 	struct mutex crit_sect;
 
 	u8		device;		/* pci device# */
-
-	unsigned long long sun;		/* ACPI _SUN (slot unique number) */
 	u32		flags;		/* see below */
 };
 
@@ -119,14 +115,31 @@ struct acpiphp_slot {
  * typically 8 objects per slot (i.e. for each PCI function)
  */
 struct acpiphp_func {
-	struct acpiphp_slot *slot;	/* parent */
+	struct acpiphp_bridge *parent;
+	struct acpiphp_slot *slot;
 
 	struct list_head sibling;
-	acpi_handle	handle;
 
 	u8		function;	/* pci function# */
 	u32		flags;		/* see below */
 };
+
+struct acpiphp_context {
+	acpi_handle handle;
+	struct acpiphp_func func;
+	struct acpiphp_bridge *bridge;
+	unsigned int refcount;
+};
+
+static inline struct acpiphp_context *func_to_context(struct acpiphp_func *func)
+{
+	return container_of(func, struct acpiphp_context, func);
+}
+
+static inline acpi_handle func_to_handle(struct acpiphp_func *func)
+{
+	return func_to_context(func)->handle;
+}
 
 /*
  * struct acpiphp_attention_info - device specific attention registration
@@ -141,45 +154,32 @@ struct acpiphp_attention_info
 	struct module *owner;
 };
 
-/* PCI bus bridge HID */
-#define ACPI_PCI_HOST_HID		"PNP0A03"
-
 /* ACPI _STA method value (ignore bit 4; battery present) */
 #define ACPI_STA_ALL			(0x0000000f)
 
-/* bridge flags */
-#define BRIDGE_HAS_EJ0		(0x00000001)
-
 /* slot flags */
 
-#define SLOT_POWEREDON		(0x00000001)
-#define SLOT_ENABLED		(0x00000002)
-#define SLOT_MULTIFUNCTION	(0x00000004)
+#define SLOT_ENABLED		(0x00000001)
 
 /* function flags */
 
 #define FUNC_HAS_STA		(0x00000001)
 #define FUNC_HAS_EJ0		(0x00000002)
-#define FUNC_HAS_PS0		(0x00000010)
-#define FUNC_HAS_PS1		(0x00000020)
-#define FUNC_HAS_PS2		(0x00000040)
-#define FUNC_HAS_PS3		(0x00000080)
-#define FUNC_HAS_DCK            (0x00000100)
+#define FUNC_HAS_DCK            (0x00000004)
 
 /* function prototypes */
 
 /* acpiphp_core.c */
 int acpiphp_register_attention(struct acpiphp_attention_info*info);
 int acpiphp_unregister_attention(struct acpiphp_attention_info *info);
-int acpiphp_register_hotplug_slot(struct acpiphp_slot *slot);
+int acpiphp_register_hotplug_slot(struct acpiphp_slot *slot, unsigned int sun);
 void acpiphp_unregister_hotplug_slot(struct acpiphp_slot *slot);
 
 /* acpiphp_glue.c */
 typedef int (*acpiphp_callback)(struct acpiphp_slot *slot, void *data);
 
 int acpiphp_enable_slot(struct acpiphp_slot *slot);
-int acpiphp_disable_slot(struct acpiphp_slot *slot);
-int acpiphp_eject_slot(struct acpiphp_slot *slot);
+int acpiphp_disable_and_eject_slot(struct acpiphp_slot *slot);
 u8 acpiphp_get_power_status(struct acpiphp_slot *slot);
 u8 acpiphp_get_attention_status(struct acpiphp_slot *slot);
 u8 acpiphp_get_latch_status(struct acpiphp_slot *slot);
