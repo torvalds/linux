@@ -21,11 +21,8 @@
 #include <linux/screen_info.h>
 #include <linux/bootmem.h>
 #include <linux/kernel.h>
-
-#ifdef CONFIG_OF
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>
-#endif
 
 #if defined(CONFIG_VGA_CONSOLE) || defined(CONFIG_DUMMY_CONSOLE)
 # include <linux/console.h>
@@ -250,17 +247,6 @@ void __init early_init_devtree(void *params)
 	of_scan_flat_dt(early_init_dt_scan_root, NULL);
 	if (sysmem.nr_banks == 0)
 		of_scan_flat_dt(early_init_dt_scan_memory, NULL);
-}
-
-static void __init copy_devtree(void)
-{
-	void *alloc = early_init_dt_alloc_memory_arch(
-			be32_to_cpu(initial_boot_params->totalsize), 8);
-	if (alloc) {
-		memcpy(alloc, initial_boot_params,
-				be32_to_cpu(initial_boot_params->totalsize));
-		initial_boot_params = alloc;
-	}
 }
 
 static int __init xtensa_device_probe(void)
@@ -525,10 +511,7 @@ void __init setup_arch(char **cmdline_p)
 
 	bootmem_init();
 
-#ifdef CONFIG_OF
-	copy_devtree();
-	unflatten_device_tree();
-#endif
+	unflatten_and_copy_device_tree();
 
 	platform_setup(cmdline_p);
 
