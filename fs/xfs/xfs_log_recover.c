@@ -1769,19 +1769,11 @@ xlog_recover_buffer_pass1(
 
 /*
  * Check to see whether the buffer being recovered has a corresponding
- * entry in the buffer cancel record table.  If it does then return 1
- * so that it will be cancelled, otherwise return 0.  If the buffer is
- * actually a buffer cancel item (XFS_BLF_CANCEL is set), then decrement
- * the refcount on the entry in the table and remove it from the table
- * if this is the last reference.
- *
- * We remove the cancel record from the table when we encounter its
- * last occurrence in the log so that if the same buffer is re-used
- * again after its last cancellation we actually replay the changes
- * made at that point.
+ * entry in the buffer cancel record table. If it is, return the cancel
+ * buffer structure to the caller.
  */
-STATIC int
-xlog_check_buffer_cancelled(
+STATIC struct xfs_buf_cancel *
+xlog_peek_buffer_cancelled(
 	struct xlog		*log,
 	xfs_daddr_t		blkno,
 	uint			len,
@@ -1790,22 +1782,16 @@ xlog_check_buffer_cancelled(
 	struct list_head	*bucket;
 	struct xfs_buf_cancel	*bcp;
 
-	if (log->l_buf_cancel_table == NULL) {
-		/*
-		 * There is nothing in the table built in pass one,
-		 * so this buffer must not be cancelled.
-		 */
+	if (!log->l_buf_cancel_table) {
+		/* empty table means no cancelled buffers in the log */
 		ASSERT(!(flags & XFS_BLF_CANCEL));
-		return 0;
+		return NULL;
 	}
 
-	/*
-	 * Search for an entry in the  cancel table that matches our buffer.
-	 */
 	bucket = XLOG_BUF_CANCEL_BUCKET(log, blkno);
 	list_for_each_entry(bcp, bucket, bc_list) {
 		if (bcp->bc_blkno == blkno && bcp->bc_len == len)
-			goto found;
+			return bcp;
 	}
 
 	/*
@@ -1813,9 +1799,32 @@ xlog_check_buffer_cancelled(
 	 * that the buffer is NOT cancelled.
 	 */
 	ASSERT(!(flags & XFS_BLF_CANCEL));
-	return 0;
+	return NULL;
+}
 
-found:
+/*
+ * If the buffer is being cancelled then return 1 so that it will be cancelled,
+ * otherwise return 0.  If the buffer is actually a buffer cancel item
+ * (XFS_BLF_CANCEL is set), then decrement the refcount on the entry in the
+ * table and remove it from the table if this is the last reference.
+ *
+ * We remove the cancel record from the table when we encounter its last
+ * occurrence in the log so that if the same buffer is re-used again after its
+ * last cancellation we actually replay the changes made at that point.
+ */
+STATIC int
+xlog_check_buffer_cancelled(
+	struct xlog		*log,
+	xfs_daddr_t		blkno,
+	uint			len,
+	ushort			flags)
+{
+	struct xfs_buf_cancel	*bcp;
+
+	bcp = xlog_peek_buffer_cancelled(log, blkno, len, flags);
+	if (!bcp)
+		return 0;
+
 	/*
 	 * We've go a match, so return 1 so that the recovery of this buffer
 	 * is cancelled.  If this buffer is actually a buffer cancel log
@@ -3127,7 +3136,7 @@ xlog_recover_buffer_ra_pass2(
 	struct xfs_buf_log_format	*buf_f = item->ri_buf[0].i_addr;
 	struct xfs_mount		*mp = log->l_mp;
 
-	if (xlog_check_buffer_cancelled(log, buf_f->blf_blkno,
+	if (xlog_peek_buffer_cancelled(log, buf_f->blf_blkno,
 			buf_f->blf_len, buf_f->blf_flags)) {
 		return;
 	}
@@ -3156,7 +3165,7 @@ xlog_recover_inode_ra_pass2(
 			return;
 	}
 
-	if (xlog_check_buffer_cancelled(log, ilfp->ilf_blkno, ilfp->ilf_len, 0))
+	if (xlog_peek_buffer_cancelled(log, ilfp->ilf_blkno, ilfp->ilf_len, 0))
 		return;
 
 	xfs_buf_readahead(mp->m_ddev_targp, ilfp->ilf_blkno,
