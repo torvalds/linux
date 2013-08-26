@@ -68,6 +68,8 @@ static const struct proto_ops macvtap_socket_ops;
 #define TUN_OFFLOADS (NETIF_F_HW_CSUM | NETIF_F_TSO_ECN | NETIF_F_TSO | \
 		      NETIF_F_TSO6 | NETIF_F_UFO)
 #define RX_OFFLOADS (NETIF_F_GRO | NETIF_F_LRO)
+#define TAP_FEATURES (NETIF_F_GSO | NETIF_F_SG)
+
 /*
  * RCU usage:
  * The macvtap_queue and the macvlan_dev are loosely coupled, the
@@ -278,7 +280,8 @@ static int macvtap_forward(struct net_device *dev, struct sk_buff *skb)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	struct macvtap_queue *q = macvtap_get_queue(dev, skb);
-	netdev_features_t features;
+	netdev_features_t features = TAP_FEATURES;
+
 	if (!q)
 		goto drop;
 
@@ -287,9 +290,11 @@ static int macvtap_forward(struct net_device *dev, struct sk_buff *skb)
 
 	skb->dev = dev;
 	/* Apply the forward feature mask so that we perform segmentation
-	 * according to users wishes.
+	 * according to users wishes.  This only works if VNET_HDR is
+	 * enabled.
 	 */
-	features = netif_skb_features(skb) & vlan->tap_features;
+	if (q->flags & IFF_VNET_HDR)
+		features |= vlan->tap_features;
 	if (netif_needs_gso(skb, features)) {
 		struct sk_buff *segs = __skb_gso_segment(skb, features, false);
 
@@ -1064,8 +1069,7 @@ static int set_offload(struct macvtap_queue *q, unsigned long arg)
 	/* tap_features are the same as features on tun/tap and
 	 * reflect user expectations.
 	 */
-	vlan->tap_features = vlan->dev->features &
-			    (feature_mask | ~TUN_OFFLOADS);
+	vlan->tap_features = feature_mask;
 	vlan->set_features = features;
 	netdev_update_features(vlan->dev);
 
@@ -1161,10 +1165,6 @@ static long macvtap_ioctl(struct file *file, unsigned int cmd,
 			    TUN_F_TSO_ECN | TUN_F_UFO))
 			return -EINVAL;
 
-		/* TODO: only accept frames with the features that
-			 got enabled for forwarded frames */
-		if (!(q->flags & IFF_VNET_HDR))
-			return  -EINVAL;
 		rtnl_lock();
 		ret = set_offload(q, arg);
 		rtnl_unlock();

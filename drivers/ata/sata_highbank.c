@@ -86,11 +86,11 @@ struct ecx_plat_data {
 
 #define SGPIO_SIGNALS			3
 #define ECX_ACTIVITY_BITS		0x300000
-#define ECX_ACTIVITY_SHIFT		2
+#define ECX_ACTIVITY_SHIFT		0
 #define ECX_LOCATE_BITS			0x80000
 #define ECX_LOCATE_SHIFT		1
 #define ECX_FAULT_BITS			0x400000
-#define ECX_FAULT_SHIFT			0
+#define ECX_FAULT_SHIFT			2
 static inline int sgpio_bit_shift(struct ecx_plat_data *pdata, u32 port,
 				u32 shift)
 {
