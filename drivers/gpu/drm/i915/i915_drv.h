@@ -408,6 +408,8 @@ struct intel_uncore {
 
 	unsigned fifo_count;
 	unsigned forcewake_count;
+
+	struct delayed_work force_wake_work;
 };
 
 #define DEV_INFO_FOR_EACH_FLAG(func, sep) \
@@ -1801,6 +1803,7 @@ extern void intel_uncore_early_sanitize(struct drm_device *dev);
 extern void intel_uncore_init(struct drm_device *dev);
 extern void intel_uncore_clear_errors(struct drm_device *dev);
 extern void intel_uncore_check_errors(struct drm_device *dev);
+extern void intel_uncore_fini(struct drm_device *dev);
 
 void
 i915_enable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask);
