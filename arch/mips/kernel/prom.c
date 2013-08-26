@@ -17,8 +17,6 @@
 #include <linux/debugfs.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
-#include <linux/of_irq.h>
-#include <linux/of_platform.h>
 
 #include <asm/page.h>
 #include <asm/prom.h>
@@ -40,13 +38,6 @@ char *mips_get_machine_name(void)
 }
 
 #ifdef CONFIG_OF
-int __init early_init_dt_scan_memory_arch(unsigned long node,
-					  const char *uname, int depth,
-					  void *data)
-{
-	return early_init_dt_scan_memory(node, uname, depth, data);
-}
-
 void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 {
 	return add_memory_region(base, size, BOOT_MEM_RAM);
@@ -78,36 +69,12 @@ int __init early_init_dt_scan_model(unsigned long node,	const char *uname,
 	return 0;
 }
 
-void __init early_init_devtree(void *params)
+void __init __dt_setup_arch(struct boot_param_header *bph)
 {
-	/* Setup flat device-tree pointer */
-	initial_boot_params = params;
-
-	/* Retrieve various informations from the /chosen node of the
-	 * device-tree, including the platform type, initrd location and
-	 * size, and more ...
-	 */
-	of_scan_flat_dt(early_init_dt_scan_chosen, arcs_cmdline);
-
-
-	/* Scan memory nodes */
-	of_scan_flat_dt(early_init_dt_scan_root, NULL);
-	of_scan_flat_dt(early_init_dt_scan_memory_arch, NULL);
+	if (!early_init_dt_scan(bph))
+		return;
 
 	/* try to load the mips machine name */
 	of_scan_flat_dt(early_init_dt_scan_model, NULL);
-}
-
-void __init __dt_setup_arch(struct boot_param_header *bph)
-{
-	if (be32_to_cpu(bph->magic) != OF_DT_HEADER) {
-		pr_err("DTB has bad magic, ignoring builtin OF DTB\n");
-
-		return;
-	}
-
-	initial_boot_params = bph;
-
-	early_init_devtree(initial_boot_params);
 }
 #endif
