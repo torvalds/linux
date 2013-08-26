@@ -53,6 +53,28 @@ enum samsung_pll_type {
 		.afc	=	(_afc),				\
 	}
 
+#define PLL_4600_RATE(_rate, _m, _p, _s, _k, _vsel)		\
+	{							\
+		.rate	=	(_rate),			\
+		.mdiv	=	(_m),				\
+		.pdiv	=	(_p),				\
+		.sdiv	=	(_s),				\
+		.kdiv	=	(_k),				\
+		.vsel	=	(_vsel),			\
+	}
+
+#define PLL_4650_RATE(_rate, _m, _p, _s, _k, _mfr, _mrr, _vsel)	\
+	{							\
+		.rate	=	(_rate),			\
+		.mdiv	=	(_m),				\
+		.pdiv	=	(_p),				\
+		.sdiv	=	(_s),				\
+		.kdiv	=	(_k),				\
+		.mfr	=	(_mfr),				\
+		.mrr	=	(_mrr),				\
+		.vsel	=	(_vsel),			\
+	}
+
 /* NOTE: Rate table should be kept sorted in descending order. */
 
 struct samsung_pll_rate_table {
@@ -62,6 +84,9 @@ struct samsung_pll_rate_table {
 	unsigned int sdiv;
 	unsigned int kdiv;
 	unsigned int afc;
+	unsigned int mfr;
+	unsigned int mrr;
+	unsigned int vsel;
 };
 
 extern struct clk * __init samsung_clk_register_pll2550x(const char *name,
