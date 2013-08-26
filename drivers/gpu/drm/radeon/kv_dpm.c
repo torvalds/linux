@@ -1226,6 +1226,12 @@ void kv_dpm_disable(struct radeon_device *rdev)
 			     RADEON_CG_BLOCK_BIF |
 			     RADEON_CG_BLOCK_HDP), false);
 
+	/* powerup blocks */
+	kv_dpm_powergate_acp(rdev, false);
+	kv_dpm_powergate_samu(rdev, false);
+	kv_dpm_powergate_vce(rdev, false);
+	kv_dpm_powergate_uvd(rdev, false);
+
 	kv_enable_smc_cac(rdev, false);
 	kv_enable_didt(rdev, false);
 	kv_clear_vc(rdev);
