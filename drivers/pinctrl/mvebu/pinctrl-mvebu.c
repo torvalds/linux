@@ -444,7 +444,7 @@ static int mvebu_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	}
 
 	*map = kmalloc(nmaps * sizeof(struct pinctrl_map), GFP_KERNEL);
-	if (map == NULL) {
+	if (*map == NULL) {
 		dev_err(pctl->dev,
 			"cannot allocate pinctrl_map memory for %s\n",
 			np->name);
