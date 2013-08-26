@@ -58,6 +58,7 @@
 #define TI816X_PRM_IVAHD1_MOD			0x0d00
 #define TI816X_PRM_IVAHD2_MOD			0x0e00
 #define TI816X_PRM_SGX_MOD				0x0f00
+#define TI81XX_PRM_ALWON_MOD			0x1800
 
 /* 24XX register bits shared between CM & PRM registers */
 
