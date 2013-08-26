@@ -280,18 +280,10 @@ static const struct clk_ops samsung_pll36xx_clk_min_ops = {
 #define PLL45XX_PDIV_SHIFT	(8)
 #define PLL45XX_SDIV_SHIFT	(0)
 
-struct samsung_clk_pll45xx {
-	struct clk_hw		hw;
-	enum pll45xx_type	type;
-	const void __iomem	*con_reg;
-};
-
-#define to_clk_pll45xx(_hw) container_of(_hw, struct samsung_clk_pll45xx, hw)
-
 static unsigned long samsung_pll45xx_recalc_rate(struct clk_hw *hw,
 				unsigned long parent_rate)
 {
-	struct samsung_clk_pll45xx *pll = to_clk_pll45xx(hw);
+	struct samsung_clk_pll *pll = to_clk_pll(hw);
 	u32 mdiv, pdiv, sdiv, pll_con;
 	u64 fvco = parent_rate;
 
@@ -312,43 +304,6 @@ static unsigned long samsung_pll45xx_recalc_rate(struct clk_hw *hw,
 static const struct clk_ops samsung_pll45xx_clk_ops = {
 	.recalc_rate = samsung_pll45xx_recalc_rate,
 };
-
-struct clk * __init samsung_clk_register_pll45xx(const char *name,
-			const char *pname, const void __iomem *con_reg,
-			enum pll45xx_type type)
-{
-	struct samsung_clk_pll45xx *pll;
-	struct clk *clk;
-	struct clk_init_data init;
-
-	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
-	if (!pll) {
-		pr_err("%s: could not allocate pll clk %s\n", __func__, name);
-		return NULL;
-	}
-
-	init.name = name;
-	init.ops = &samsung_pll45xx_clk_ops;
-	init.flags = CLK_GET_RATE_NOCACHE;
-	init.parent_names = &pname;
-	init.num_parents = 1;
-
-	pll->hw.init = &init;
-	pll->con_reg = con_reg;
-	pll->type = type;
-
-	clk = clk_register(NULL, &pll->hw);
-	if (IS_ERR(clk)) {
-		pr_err("%s: failed to register pll clock %s\n", __func__,
-				name);
-		kfree(pll);
-	}
-
-	if (clk_register_clkdev(clk, name, NULL))
-		pr_err("%s: failed to register lookup for %s", __func__, name);
-
-	return clk;
-}
 
 /*
  * PLL46xx Clock Type
@@ -634,6 +589,11 @@ static void __init _samsung_clk_register_pll(struct samsung_pll_clock *pll_clk,
 			init.ops = &samsung_pll35xx_clk_min_ops;
 		else
 			init.ops = &samsung_pll35xx_clk_ops;
+		break;
+	case pll_4500:
+	case pll_4502:
+	case pll_4508:
+		init.ops = &samsung_pll45xx_clk_ops;
 		break;
 	/* clk_ops for 36xx and 2650 are similar */
 	case pll_36xx:

@@ -104,6 +104,7 @@
 #define DIV_DMC1		0x10504
 #define GATE_IP_DMC		0x10900
 #define APLL_LOCK		0x14000
+#define E4210_MPLL_LOCK		0x14008
 #define APLL_CON0		0x14100
 #define E4210_MPLL_CON0		0x14108
 #define SRC_CPU			0x14200
@@ -984,6 +985,13 @@ static struct of_device_id ext_clk_match[] __initdata = {
 	{},
 };
 
+static struct samsung_pll_clock exynos4210_plls[] __initdata = {
+	[apll] = PLL_A(pll_4508, fout_apll, "fout_apll", "fin_pll", APLL_LOCK,
+		APLL_CON0, "fout_apll", NULL),
+	[mpll] = PLL_A(pll_4508, fout_mpll, "fout_mpll", "fin_pll",
+		E4210_MPLL_LOCK, E4210_MPLL_CON0, "fout_mpll", NULL),
+};
+
 static struct samsung_pll_clock exynos4x12_plls[nr_plls] __initdata = {
 	[apll] = PLL(pll_35xx, fout_apll, "fout_apll", "fin_pll",
 			APLL_LOCK, APLL_CON0, NULL),
@@ -1000,7 +1008,7 @@ static void __init exynos4_clk_init(struct device_node *np,
 				    enum exynos4_soc exynos4_soc,
 				    void __iomem *reg_base, unsigned long xom)
 {
-	struct clk *apll, *mpll, *epll, *vpll;
+	struct clk *epll, *vpll;
 
 	reg_base = of_iomap(np, 0);
 	if (!reg_base)
@@ -1022,17 +1030,13 @@ static void __init exynos4_clk_init(struct device_node *np,
 	exynos4_clk_register_finpll(xom);
 
 	if (exynos4_soc == EXYNOS4210) {
-		apll = samsung_clk_register_pll45xx("fout_apll", "fin_pll",
-					reg_base + APLL_CON0, pll_4508);
-		mpll = samsung_clk_register_pll45xx("fout_mpll", "fin_pll",
-					reg_base + E4210_MPLL_CON0, pll_4508);
+		samsung_clk_register_pll(exynos4210_plls,
+					ARRAY_SIZE(exynos4210_plls), reg_base);
 		epll = samsung_clk_register_pll46xx("fout_epll", "fin_pll",
 					reg_base + EPLL_CON0, pll_4600);
 		vpll = samsung_clk_register_pll46xx("fout_vpll", "mout_vpllsrc",
 					reg_base + VPLL_CON0, pll_4650c);
 
-		samsung_clk_add_lookup(apll, fout_apll);
-		samsung_clk_add_lookup(mpll, fout_mpll);
 		samsung_clk_add_lookup(epll, fout_epll);
 		samsung_clk_add_lookup(vpll, fout_vpll);
 	} else {

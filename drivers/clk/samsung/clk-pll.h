@@ -17,6 +17,9 @@ enum samsung_pll_type {
 	pll_36xx,
 	pll_2550,
 	pll_2650,
+	pll_4500,
+	pll_4502,
+	pll_4508,
 	pll_6552,
 	pll_6553,
 };
@@ -48,21 +51,12 @@ struct samsung_pll_rate_table {
 	unsigned int kdiv;
 };
 
-enum pll45xx_type {
-	pll_4500,
-	pll_4502,
-	pll_4508
-};
-
 enum pll46xx_type {
 	pll_4600,
 	pll_4650,
 	pll_4650c,
 };
 
-extern struct clk * __init samsung_clk_register_pll45xx(const char *name,
-			const char *pname, const void __iomem *con_reg,
-			enum pll45xx_type type);
 extern struct clk * __init samsung_clk_register_pll46xx(const char *name,
 			const char *pname, const void __iomem *con_reg,
 			enum pll46xx_type type);
