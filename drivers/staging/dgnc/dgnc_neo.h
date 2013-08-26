@@ -36,27 +36,27 @@
  ************************************************************************/
 
 struct neo_uart_struct {
-	volatile uchar txrx;		/* WR  RHR/THR - Holding Reg */
-	volatile uchar ier;		/* WR  IER - Interrupt Enable Reg */
-	volatile uchar isr_fcr;		/* WR  ISR/FCR - Interrupt Status Reg/Fifo Control Reg */
-	volatile uchar lcr;		/* WR  LCR - Line Control Reg */
-	volatile uchar mcr;		/* WR  MCR - Modem Control Reg */
-	volatile uchar lsr;		/* WR  LSR - Line Status Reg */
-	volatile uchar msr;		/* WR  MSR - Modem Status Reg */
-	volatile uchar spr;		/* WR  SPR - Scratch Pad Reg */
-	volatile uchar fctr;		/* WR  FCTR - Feature Control Reg */
-	volatile uchar efr;		/* WR  EFR - Enhanced Function Reg */
-	volatile uchar tfifo;		/* WR  TXCNT/TXTRG - Transmit FIFO Reg */
-	volatile uchar rfifo;		/* WR  RXCNT/RXTRG - Recieve  FIFO Reg */
-	volatile uchar xoffchar1;	/* WR  XOFF 1 - XOff Character 1 Reg */
-	volatile uchar xoffchar2;	/* WR  XOFF 2 - XOff Character 2 Reg */
-	volatile uchar xonchar1;	/* WR  XON 1 - Xon Character 1 Reg */
-	volatile uchar xonchar2;	/* WR  XON 2 - XOn Character 2 Reg */
+	u8 txrx;		/* WR  RHR/THR - Holding Reg */
+	u8 ier;		/* WR  IER - Interrupt Enable Reg */
+	u8 isr_fcr;		/* WR  ISR/FCR - Interrupt Status Reg/Fifo Control Reg */
+	u8 lcr;		/* WR  LCR - Line Control Reg */
+	u8 mcr;		/* WR  MCR - Modem Control Reg */
+	u8 lsr;		/* WR  LSR - Line Status Reg */
+	u8 msr;		/* WR  MSR - Modem Status Reg */
+	u8 spr;		/* WR  SPR - Scratch Pad Reg */
+	u8 fctr;		/* WR  FCTR - Feature Control Reg */
+	u8 efr;		/* WR  EFR - Enhanced Function Reg */
+	u8 tfifo;		/* WR  TXCNT/TXTRG - Transmit FIFO Reg */
+	u8 rfifo;		/* WR  RXCNT/RXTRG - Recieve  FIFO Reg */
+	u8 xoffchar1;	/* WR  XOFF 1 - XOff Character 1 Reg */
+	u8 xoffchar2;	/* WR  XOFF 2 - XOff Character 2 Reg */
+	u8 xonchar1;	/* WR  XON 1 - Xon Character 1 Reg */
+	u8 xonchar2;	/* WR  XON 2 - XOn Character 2 Reg */
 
-	volatile uchar reserved1[0x2ff - 0x200]; /* U   Reserved by Exar */
-	volatile uchar txrxburst[64];	/* RW  64 bytes of RX/TX FIFO Data */
-	volatile uchar reserved2[0x37f - 0x340]; /* U   Reserved by Exar */
-	volatile uchar rxburst_with_errors[64];	/* R  64 bytes of RX FIFO Data + LSR */
+	u8 reserved1[0x2ff - 0x200]; /* U   Reserved by Exar */
+	u8 txrxburst[64];	/* RW  64 bytes of RX/TX FIFO Data */
+	u8 reserved2[0x37f - 0x340]; /* U   Reserved by Exar */
+	u8 rxburst_with_errors[64];	/* R  64 bytes of RX FIFO Data + LSR */
 };
 
 /* Where to read the extended interrupt register (32bits instead of 8bits) */
