@@ -921,7 +921,7 @@ static int hci_sock_setsockopt(struct socket *sock, int level, int optname,
 	lock_sock(sk);
 
 	if (hci_pi(sk)->channel != HCI_CHANNEL_RAW) {
-		err = -EINVAL;
+		err = -EBADFD;
 		goto done;
 	}
 
@@ -1007,7 +1007,7 @@ static int hci_sock_getsockopt(struct socket *sock, int level, int optname,
 	lock_sock(sk);
 
 	if (hci_pi(sk)->channel != HCI_CHANNEL_RAW) {
-		err = -EINVAL;
+		err = -EBADFD;
 		goto done;
 	}
 
