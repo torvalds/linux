@@ -999,6 +999,9 @@ static void ocrdma_get_attr(struct ocrdma_dev *dev,
 	attr->max_ord_per_qp = (rsp->max_ird_ord_per_qp &
 				OCRDMA_MBX_QUERY_CFG_MAX_ORD_PER_QP_MASK) >>
 	    OCRDMA_MBX_QUERY_CFG_MAX_ORD_PER_QP_SHIFT;
+	attr->max_srq =
+		(rsp->max_srq_rpir_qps & OCRDMA_MBX_QUERY_CFG_MAX_SRQ_MASK) >>
+		OCRDMA_MBX_QUERY_CFG_MAX_SRQ_OFFSET;
 	attr->max_ird_per_qp = (rsp->max_ird_ord_per_qp &
 				OCRDMA_MBX_QUERY_CFG_MAX_IRD_PER_QP_MASK) >>
 	    OCRDMA_MBX_QUERY_CFG_MAX_IRD_PER_QP_SHIFT;

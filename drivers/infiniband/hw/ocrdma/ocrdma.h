@@ -56,6 +56,7 @@ struct ocrdma_dev_attr {
 	u16 max_qp;
 	u16 max_wqe;
 	u16 max_rqe;
+	u16 max_srq;
 	u32 max_inline_data;
 	int max_send_sge;
 	int max_recv_sge;
@@ -169,6 +170,7 @@ struct ocrdma_dev {
 	struct list_head entry;
 	struct rcu_head rcu;
 	int id;
+	u64 stag_arr[OCRDMA_MAX_STAG];
 };
 
 struct ocrdma_cq {

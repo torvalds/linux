@@ -91,6 +91,7 @@ enum {
 
 #define OCRDMA_MAX_QP    2048
 #define OCRDMA_MAX_CQ    2048
+#define OCRDMA_MAX_STAG  2048
 
 enum {
 	OCRDMA_DB_RQ_OFFSET		= 0xE0,
@@ -1564,6 +1565,7 @@ enum OCRDMA_WQE_OPCODE {
 	OCRDMA_SEND		= 0x00,
 	OCRDMA_CMP_SWP		= 0x14,
 	OCRDMA_BIND_MW		= 0x10,
+	OCRDMA_FR_MR            = 0x11,
 	OCRDMA_RESV1		= 0x0A,
 	OCRDMA_LKEY_INV		= 0x15,
 	OCRDMA_FETCH_ADD	= 0x13,
@@ -1608,6 +1610,23 @@ struct ocrdma_ewqe_ud_hdr {
 	u32 qkey;
 	u32 rsvd_ahid;
 	u32 rsvd;
+};
+
+#define OCRDMA_MAX_FR_PBES 11
+struct ocrdma_fr_pbe {
+	u32 pa_hi;
+	u32 pa_lo;
+};
+
+/* extended wqe followed by hdr_wqe for Fast Memory register */
+struct ocrdma_ewqe_fr {
+	u32 va_hi;
+	u32 va_lo;
+	u32 fbo_hi;
+	u32 fbo_lo;
+	u32 size_sge;
+	u32 num_sges;
+	struct ocrdma_fr_pbe pbe[0];
 };
 
 struct ocrdma_eth_basic {

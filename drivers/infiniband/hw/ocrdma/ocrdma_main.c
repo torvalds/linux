@@ -329,6 +329,10 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 	dev->ibdev.dereg_mr = ocrdma_dereg_mr;
 	dev->ibdev.reg_user_mr = ocrdma_reg_user_mr;
 
+	dev->ibdev.alloc_fast_reg_mr = ocrdma_alloc_frmr;
+	dev->ibdev.alloc_fast_reg_page_list = ocrdma_alloc_frmr_page_list;
+	dev->ibdev.free_fast_reg_page_list = ocrdma_free_frmr_page_list;
+
 	/* mandatory to support user space verbs consumer. */
 	dev->ibdev.alloc_ucontext = ocrdma_alloc_ucontext;
 	dev->ibdev.dealloc_ucontext = ocrdma_dealloc_ucontext;
