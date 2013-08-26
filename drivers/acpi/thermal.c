@@ -239,26 +239,16 @@ static int acpi_thermal_get_polling_frequency(struct acpi_thermal *tz)
 
 static int acpi_thermal_set_cooling_mode(struct acpi_thermal *tz, int mode)
 {
-	acpi_status status = AE_OK;
-	union acpi_object arg0 = { ACPI_TYPE_INTEGER };
-	struct acpi_object_list arg_list = { 1, &arg0 };
-	acpi_handle handle = NULL;
-
-
 	if (!tz)
 		return -EINVAL;
 
-	status = acpi_get_handle(tz->device->handle, "_SCP", &handle);
-	if (ACPI_FAILURE(status)) {
+	if (!acpi_has_method(tz->device->handle, "_SCP")) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "_SCP not present\n"));
 		return -ENODEV;
-	}
-
-	arg0.integer.value = mode;
-
-	status = acpi_evaluate_object(handle, NULL, &arg_list, NULL);
-	if (ACPI_FAILURE(status))
+	} else if (ACPI_FAILURE(acpi_execute_simple_method(tz->device->handle,
+							   "_SCP", mode))) {
 		return -ENODEV;
+	}
 
 	return 0;
 }

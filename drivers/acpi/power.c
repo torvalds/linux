@@ -637,9 +637,7 @@ int acpi_device_sleep_wake(struct acpi_device *dev,
 	}
 
 	/* Execute _PSW */
-	arg_list.count = 1;
-	in_arg[0].integer.value = enable;
-	status = acpi_evaluate_object(dev->handle, "_PSW", &arg_list, NULL);
+	status = acpi_execute_simple_method(dev->handle, "_PSW", enable);
 	if (ACPI_FAILURE(status) && (status != AE_NOT_FOUND)) {
 		printk(KERN_ERR PREFIX "_PSW execution failed\n");
 		dev->wakeup.flags.valid = 0;

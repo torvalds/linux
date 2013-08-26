@@ -499,19 +499,6 @@ static void acpi_bus_check_scope(acpi_handle handle)
 	 */
 }
 
-static BLOCKING_NOTIFIER_HEAD(acpi_bus_notify_list);
-int register_acpi_bus_notifier(struct notifier_block *nb)
-{
-	return blocking_notifier_chain_register(&acpi_bus_notify_list, nb);
-}
-EXPORT_SYMBOL_GPL(register_acpi_bus_notifier);
-
-void unregister_acpi_bus_notifier(struct notifier_block *nb)
-{
-	blocking_notifier_chain_unregister(&acpi_bus_notify_list, nb);
-}
-EXPORT_SYMBOL_GPL(unregister_acpi_bus_notifier);
-
 /**
  * acpi_bus_notify
  * ---------------
@@ -524,9 +511,6 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Notification %#02x to handle %p\n",
 			  type, handle));
-
-	blocking_notifier_call_chain(&acpi_bus_notify_list,
-		type, (void *)handle);
 
 	switch (type) {
 
@@ -593,8 +577,6 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 static int __init acpi_bus_init_irq(void)
 {
 	acpi_status status;
-	union acpi_object arg = { ACPI_TYPE_INTEGER };
-	struct acpi_object_list arg_list = { 1, &arg };
 	char *message = NULL;
 
 
@@ -623,9 +605,7 @@ static int __init acpi_bus_init_irq(void)
 
 	printk(KERN_INFO PREFIX "Using %s for interrupt routing\n", message);
 
-	arg.integer.value = acpi_irq_model;
-
-	status = acpi_evaluate_object(NULL, "\\_PIC", &arg_list, NULL);
+	status = acpi_execute_simple_method(NULL, "\\_PIC", acpi_irq_model);
 	if (ACPI_FAILURE(status) && (status != AE_NOT_FOUND)) {
 		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _PIC"));
 		return -ENODEV;
