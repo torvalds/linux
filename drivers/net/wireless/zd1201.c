@@ -75,8 +75,10 @@ static int zd1201_fw_upload(struct usb_device *dev, int apfw)
         len = fw_entry->size;
 
 	buf = kmalloc(1024, GFP_ATOMIC);
-	if (!buf)
+	if (!buf) {
+		err = -ENOMEM;
 		goto exit;
+	}
 	
 	while (len > 0) {
 		int translen = (len > 1024) ? 1024 : len;
@@ -1762,8 +1764,10 @@ static int zd1201_probe(struct usb_interface *interface,
 	zd->endp_out2 = 2;
 	zd->rx_urb = usb_alloc_urb(0, GFP_KERNEL);
 	zd->tx_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!zd->rx_urb || !zd->tx_urb)
+	if (!zd->rx_urb || !zd->tx_urb) {
+		err = -ENOMEM;
 		goto err_zd;
+	}
 
 	mdelay(100);
 	err = zd1201_drvr_start(zd);
