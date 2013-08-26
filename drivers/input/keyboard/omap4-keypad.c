@@ -112,18 +112,28 @@ static void kbd_write_irqreg(struct omap4_keypad *keypad_data,
 }
 
 
-/* Interrupt handler */
-static irqreturn_t omap4_keypad_interrupt(int irq, void *dev_id)
+/* Interrupt handlers */
+static irqreturn_t omap4_keypad_irq_handler(int irq, void *dev_id)
+{
+	struct omap4_keypad *keypad_data = dev_id;
+
+	if (kbd_read_irqreg(keypad_data, OMAP4_KBD_IRQSTATUS)) {
+		/* Disable interrupts */
+		kbd_write_irqreg(keypad_data, OMAP4_KBD_IRQENABLE,
+				 OMAP4_VAL_IRQDISABLE);
+		return IRQ_WAKE_THREAD;
+	}
+
+	return IRQ_NONE;
+}
+
+static irqreturn_t omap4_keypad_irq_thread_fn(int irq, void *dev_id)
 {
 	struct omap4_keypad *keypad_data = dev_id;
 	struct input_dev *input_dev = keypad_data->input;
 	unsigned char key_state[ARRAY_SIZE(keypad_data->key_state)];
 	unsigned int col, row, code, changed;
 	u32 *new_state = (u32 *) key_state;
-
-	/* Disable interrupts */
-	kbd_write_irqreg(keypad_data, OMAP4_KBD_IRQENABLE,
-			 OMAP4_VAL_IRQDISABLE);
 
 	*new_state = kbd_readl(keypad_data, OMAP4_KBD_FULLCODE31_0);
 	*(new_state + 1) = kbd_readl(keypad_data, OMAP4_KBD_FULLCODE63_32);
@@ -360,9 +370,10 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 		goto err_free_keymap;
 	}
 
-	error = request_irq(keypad_data->irq, omap4_keypad_interrupt,
-			     IRQF_TRIGGER_RISING,
-			     "omap4-keypad", keypad_data);
+	error = request_threaded_irq(keypad_data->irq, omap4_keypad_irq_handler,
+				     omap4_keypad_irq_thread_fn,
+				     IRQF_TRIGGER_RISING,
+				     "omap4-keypad", keypad_data);
 	if (error) {
 		dev_err(&pdev->dev, "failed to register interrupt\n");
 		goto err_free_input;
