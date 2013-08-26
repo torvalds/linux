@@ -1055,15 +1055,16 @@ struct dentry *rpc_create_client_dir(struct dentry *dentry,
 
 /**
  * rpc_remove_client_dir - Remove a directory created with rpc_create_client_dir()
- * @dentry: dentry for the pipe
  * @rpc_client: rpc_client for the pipe
  */
-int rpc_remove_client_dir(struct dentry *dentry, struct rpc_clnt *rpc_client)
+int rpc_remove_client_dir(struct rpc_clnt *rpc_client)
 {
-	if (rpc_client->cl_pipedir_objects.pdh_dentry) {
-		rpc_destroy_pipe_dir_objects(&rpc_client->cl_pipedir_objects);
-		rpc_client->cl_pipedir_objects.pdh_dentry = NULL;
-	}
+	struct dentry *dentry = rpc_client->cl_pipedir_objects.pdh_dentry;
+
+	if (dentry == NULL)
+		return 0;
+	rpc_destroy_pipe_dir_objects(&rpc_client->cl_pipedir_objects);
+	rpc_client->cl_pipedir_objects.pdh_dentry = NULL;
 	return rpc_rmdir_depopulate(dentry, rpc_clntdir_depopulate);
 }
 

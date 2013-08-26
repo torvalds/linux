@@ -102,9 +102,7 @@ static void rpc_unregister_client(struct rpc_clnt *clnt)
 
 static void __rpc_clnt_remove_pipedir(struct rpc_clnt *clnt)
 {
-	if (clnt->cl_dentry)
-		rpc_remove_client_dir(clnt->cl_dentry, clnt);
-	clnt->cl_dentry = NULL;
+	rpc_remove_client_dir(clnt);
 }
 
 static void rpc_clnt_remove_pipedir(struct rpc_clnt *clnt)
@@ -154,14 +152,11 @@ rpc_setup_pipedir(struct super_block *pipefs_sb, struct rpc_clnt *clnt)
 {
 	struct dentry *dentry;
 
-	if (clnt->cl_program->pipe_dir_name == NULL)
-		goto out;
-	clnt->cl_dentry = NULL;
-	dentry = rpc_setup_pipedir_sb(pipefs_sb, clnt);
-	if (IS_ERR(dentry))
-		return PTR_ERR(dentry);
-	clnt->cl_dentry = dentry;
-out:
+	if (clnt->cl_program->pipe_dir_name != NULL) {
+		dentry = rpc_setup_pipedir_sb(pipefs_sb, clnt);
+		if (IS_ERR(dentry))
+			return PTR_ERR(dentry);
+	}
 	return 0;
 }
 
@@ -170,11 +165,18 @@ static int rpc_clnt_skip_event(struct rpc_clnt *clnt, unsigned long event)
 	if (clnt->cl_program->pipe_dir_name == NULL)
 		return 1;
 
-	if (((event == RPC_PIPEFS_MOUNT) && clnt->cl_dentry) ||
-	    ((event == RPC_PIPEFS_UMOUNT) && !clnt->cl_dentry))
-		return 1;
-	if ((event == RPC_PIPEFS_MOUNT) && atomic_read(&clnt->cl_count) == 0)
-		return 1;
+	switch (event) {
+	case RPC_PIPEFS_MOUNT:
+		if (clnt->cl_pipedir_objects.pdh_dentry != NULL)
+			return 1;
+		if (atomic_read(&clnt->cl_count) == 0)
+			return 1;
+		break;
+	case RPC_PIPEFS_UMOUNT:
+		if (clnt->cl_pipedir_objects.pdh_dentry == NULL)
+			return 1;
+		break;
+	}
 	return 0;
 }
 
@@ -191,7 +193,6 @@ static int __rpc_clnt_handle_event(struct rpc_clnt *clnt, unsigned long event,
 			return -ENOENT;
 		if (IS_ERR(dentry))
 			return PTR_ERR(dentry);
-		clnt->cl_dentry = dentry;
 		break;
 	case RPC_PIPEFS_UMOUNT:
 		__rpc_clnt_remove_pipedir(clnt);

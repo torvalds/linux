@@ -57,7 +57,6 @@ struct rpc_clnt {
 	int			cl_nodelen;	/* nodename length */
 	char 			cl_nodename[UNX_MAXNODENAME];
 	struct rpc_pipe_dir_head cl_pipedir_objects;
-	struct dentry *		cl_dentry;
 	struct rpc_clnt *	cl_parent;	/* Points to parent of clones */
 	struct rpc_rtt		cl_rtt_default;
 	struct rpc_timeout	cl_timeout_default;
