@@ -319,7 +319,6 @@ err:
 	if (HYPERVISOR_event_channel_op(EVTCHNOP_close, &close) != 0)
 		BUG();
 	del_evtchn(u, evtchn);
-	kfree(evtchn);
 	return rc;
 }
 
