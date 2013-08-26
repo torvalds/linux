@@ -100,18 +100,3 @@ struct machine_desc * __init setup_machine_fdt(void *dt)
 
 	return mdesc_best;
 }
-
-/*
- * Copy the flattened DT out of .init since unflattening doesn't copy strings
- * and the normal DT APIs refs them from orig flat DT
- */
-void __init copy_devtree(void)
-{
-	void *alloc = early_init_dt_alloc_memory_arch(
-			be32_to_cpu(initial_boot_params->totalsize), 64);
-	if (alloc) {
-		memcpy(alloc, initial_boot_params,
-				be32_to_cpu(initial_boot_params->totalsize));
-		initial_boot_params = alloc;
-	}
-}
