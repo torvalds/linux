@@ -116,6 +116,8 @@ extern void early_init_dt_setup_initrd_arch(u64 start, u64 end);
 extern int early_init_dt_scan_root(unsigned long node, const char *uname,
 				   int depth, void *data);
 
+extern bool early_init_dt_scan(void *params);
+
 /* Other Prototypes */
 extern void unflatten_device_tree(void);
 extern void unflatten_and_copy_device_tree(void);
