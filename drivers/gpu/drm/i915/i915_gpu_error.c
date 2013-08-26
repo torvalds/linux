@@ -641,7 +641,7 @@ i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 		if (WARN_ON(ring->id != RCS))
 			return NULL;
 
-		obj = ring->private;
+		obj = ring->scratch.obj;
 		if (acthd >= i915_gem_obj_ggtt_offset(obj) &&
 		    acthd < i915_gem_obj_ggtt_offset(obj) + obj->base.size)
 			return i915_error_object_create(dev_priv, obj);
