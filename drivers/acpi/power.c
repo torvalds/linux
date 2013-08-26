@@ -784,7 +784,7 @@ int acpi_power_get_inferred_state(struct acpi_device *device, int *state)
 		}
 	}
 
-	*state = ACPI_STATE_D3;
+	*state = ACPI_STATE_D3_COLD;
 	return 0;
 }
 

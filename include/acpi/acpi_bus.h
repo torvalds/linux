@@ -486,7 +486,8 @@ static inline int acpi_pm_device_sleep_state(struct device *d, int *p, int m)
 	if (p)
 		*p = ACPI_STATE_D0;
 
-	return (m >= ACPI_STATE_D0 && m <= ACPI_STATE_D3) ? m : ACPI_STATE_D0;
+	return (m >= ACPI_STATE_D0 && m <= ACPI_STATE_D3_COLD) ?
+		m : ACPI_STATE_D0;
 }
 static inline void acpi_dev_pm_add_dependent(acpi_handle handle,
 					     struct device *depdev) {}

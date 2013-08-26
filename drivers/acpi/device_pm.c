@@ -159,26 +159,29 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 	int result = 0;
 	bool cut_power = false;
 
-	if (!device || (state < ACPI_STATE_D0) || (state > ACPI_STATE_D3_COLD))
+	if (!device || !device->flags.power_manageable
+	    || (state < ACPI_STATE_D0) || (state > ACPI_STATE_D3_COLD))
 		return -EINVAL;
 
 	/* Make sure this is a valid target state */
 
 	if (state == device->power.state) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device is already at %s\n",
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device [%s] already in %s\n",
+				  device->pnp.bus_id,
 				  acpi_power_state_string(state)));
 		return 0;
 	}
 
 	if (!device->power.states[state].flags.valid) {
-		printk(KERN_WARNING PREFIX "Device does not support %s\n",
-		       acpi_power_state_string(state));
+		dev_warn(&device->dev, "Power state %s not supported\n",
+			 acpi_power_state_string(state));
 		return -ENODEV;
 	}
 	if (device->parent && (state < device->parent->power.state)) {
-		printk(KERN_WARNING PREFIX
-			      "Cannot set device to a higher-powered"
-			      " state than parent\n");
+		dev_warn(&device->dev,
+			 "Cannot transition to power state %s for parent in %s\n",
+			 acpi_power_state_string(state),
+			 acpi_power_state_string(device->parent->power.state));
 		return -ENODEV;
 	}
 
@@ -191,8 +194,8 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 
 	if (state < device->power.state && state != ACPI_STATE_D0
 	    && device->power.state >= ACPI_STATE_D3_HOT) {
-		printk(KERN_WARNING PREFIX
-			"Cannot transition to non-D0 state from D3\n");
+		dev_warn(&device->dev,
+			 "Cannot transition to non-D0 state from D3\n");
 		return -ENODEV;
 	}
 
@@ -219,10 +222,8 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 
  end:
 	if (result) {
-		printk(KERN_WARNING PREFIX
-			      "Device [%s] failed to transition to %s\n",
-			      device->pnp.bus_id,
-			      acpi_power_state_string(state));
+		dev_warn(&device->dev, "Failed to change power state to %s\n",
+			 acpi_power_state_string(state));
 	} else {
 		device->power.state = state;
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
@@ -243,13 +244,6 @@ int acpi_bus_set_power(acpi_handle handle, int state)
 	result = acpi_bus_get_device(handle, &device);
 	if (result)
 		return result;
-
-	if (!device->flags.power_manageable) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				"Device [%s] is not power manageable\n",
-				dev_name(&device->dev)));
-		return -ENODEV;
-	}
 
 	return acpi_device_set_power(device, state);
 }
