@@ -45,31 +45,109 @@
 #include <xen/grant_table.h>
 #include <xen/xenbus.h>
 
-struct xen_netbk;
+typedef unsigned int pending_ring_idx_t;
+#define INVALID_PENDING_RING_IDX (~0U)
+
+/* For the head field in pending_tx_info: it is used to indicate
+ * whether this tx info is the head of one or more coalesced requests.
+ *
+ * When head != INVALID_PENDING_RING_IDX, it means the start of a new
+ * tx requests queue and the end of previous queue.
+ *
+ * An example sequence of head fields (I = INVALID_PENDING_RING_IDX):
+ *
+ * ...|0 I I I|5 I|9 I I I|...
+ * -->|<-INUSE----------------
+ *
+ * After consuming the first slot(s) we have:
+ *
+ * ...|V V V V|5 I|9 I I I|...
+ * -----FREE->|<-INUSE--------
+ *
+ * where V stands for "valid pending ring index". Any number other
+ * than INVALID_PENDING_RING_IDX is OK. These entries are considered
+ * free and can contain any number other than
+ * INVALID_PENDING_RING_IDX. In practice we use 0.
+ *
+ * The in use non-INVALID_PENDING_RING_IDX (say 0, 5 and 9 in the
+ * above example) number is the index into pending_tx_info and
+ * mmap_pages arrays.
+ */
+struct pending_tx_info {
+	struct xen_netif_tx_request req; /* coalesced tx request */
+	pending_ring_idx_t head; /* head != INVALID_PENDING_RING_IDX
+				  * if it is head of one or more tx
+				  * reqs
+				  */
+};
+
+#define XEN_NETIF_TX_RING_SIZE __CONST_RING_SIZE(xen_netif_tx, PAGE_SIZE)
+#define XEN_NETIF_RX_RING_SIZE __CONST_RING_SIZE(xen_netif_rx, PAGE_SIZE)
+
+struct xenvif_rx_meta {
+	int id;
+	int size;
+	int gso_size;
+};
+
+/* Discriminate from any valid pending_idx value. */
+#define INVALID_PENDING_IDX 0xFFFF
+
+#define MAX_BUFFER_OFFSET PAGE_SIZE
+
+#define MAX_PENDING_REQS 256
 
 struct xenvif {
 	/* Unique identifier for this interface. */
 	domid_t          domid;
 	unsigned int     handle;
 
-	/* Reference to netback processing backend. */
-	struct xen_netbk *netbk;
-
-	u8               fe_dev_addr[6];
-
+	/* Use NAPI for guest TX */
+	struct napi_struct napi;
 	/* When feature-split-event-channels = 0, tx_irq = rx_irq. */
 	unsigned int tx_irq;
-	unsigned int rx_irq;
 	/* Only used when feature-split-event-channels = 1 */
 	char tx_irq_name[IFNAMSIZ+4]; /* DEVNAME-tx */
-	char rx_irq_name[IFNAMSIZ+4]; /* DEVNAME-rx */
-
-	/* List of frontends to notify after a batch of frames sent. */
-	struct list_head notify_list;
-
-	/* The shared rings and indexes. */
 	struct xen_netif_tx_back_ring tx;
+	struct sk_buff_head tx_queue;
+	struct page *mmap_pages[MAX_PENDING_REQS];
+	pending_ring_idx_t pending_prod;
+	pending_ring_idx_t pending_cons;
+	u16 pending_ring[MAX_PENDING_REQS];
+	struct pending_tx_info pending_tx_info[MAX_PENDING_REQS];
+
+	/* Coalescing tx requests before copying makes number of grant
+	 * copy ops greater or equal to number of slots required. In
+	 * worst case a tx request consumes 2 gnttab_copy.
+	 */
+	struct gnttab_copy tx_copy_ops[2*MAX_PENDING_REQS];
+
+
+	/* Use kthread for guest RX */
+	struct task_struct *task;
+	wait_queue_head_t wq;
+	/* When feature-split-event-channels = 0, tx_irq = rx_irq. */
+	unsigned int rx_irq;
+	/* Only used when feature-split-event-channels = 1 */
+	char rx_irq_name[IFNAMSIZ+4]; /* DEVNAME-rx */
 	struct xen_netif_rx_back_ring rx;
+	struct sk_buff_head rx_queue;
+
+	/* Allow xenvif_start_xmit() to peek ahead in the rx request
+	 * ring.  This is a prediction of what rx_req_cons will be
+	 * once all queued skbs are put on the ring.
+	 */
+	RING_IDX rx_req_cons_peek;
+
+	/* Given MAX_BUFFER_OFFSET of 4096 the worst case is that each
+	 * head/fragment page uses 2 copy operations because it
+	 * straddles two buffers in the frontend.
+	 */
+	struct gnttab_copy grant_copy_op[2*XEN_NETIF_RX_RING_SIZE];
+	struct xenvif_rx_meta meta[2*XEN_NETIF_RX_RING_SIZE];
+
+
+	u8               fe_dev_addr[6];
 
 	/* Frontend feature information. */
 	u8 can_sg:1;
@@ -79,13 +157,6 @@ struct xenvif {
 
 	/* Internal feature information. */
 	u8 can_queue:1;	    /* can queue packets for receiver? */
-
-	/*
-	 * Allow xenvif_start_xmit() to peek ahead in the rx request
-	 * ring.  This is a prediction of what rx_req_cons will be
-	 * once all queued skbs are put on the ring.
-	 */
-	RING_IDX rx_req_cons_peek;
 
 	/* Transmit shaping: allow 'credit_bytes' every 'credit_usec'. */
 	unsigned long   credit_bytes;
@@ -97,20 +168,13 @@ struct xenvif {
 	unsigned long rx_gso_checksum_fixup;
 
 	/* Miscellaneous private stuff. */
-	struct list_head schedule_list;
-	atomic_t         refcnt;
 	struct net_device *dev;
-
-	wait_queue_head_t waiting_to_free;
 };
 
 static inline struct xenbus_device *xenvif_to_xenbus_device(struct xenvif *vif)
 {
 	return to_xenbus_device(vif->dev->dev.parent);
 }
-
-#define XEN_NETIF_TX_RING_SIZE __CONST_RING_SIZE(xen_netif_tx, PAGE_SIZE)
-#define XEN_NETIF_RX_RING_SIZE __CONST_RING_SIZE(xen_netif_rx, PAGE_SIZE)
 
 struct xenvif *xenvif_alloc(struct device *parent,
 			    domid_t domid,
@@ -120,9 +184,6 @@ int xenvif_connect(struct xenvif *vif, unsigned long tx_ring_ref,
 		   unsigned long rx_ring_ref, unsigned int tx_evtchn,
 		   unsigned int rx_evtchn);
 void xenvif_disconnect(struct xenvif *vif);
-
-void xenvif_get(struct xenvif *vif);
-void xenvif_put(struct xenvif *vif);
 
 int xenvif_xenbus_init(void);
 void xenvif_xenbus_fini(void);
@@ -139,18 +200,8 @@ int xen_netbk_map_frontend_rings(struct xenvif *vif,
 				 grant_ref_t tx_ring_ref,
 				 grant_ref_t rx_ring_ref);
 
-/* (De)Register a xenvif with the netback backend. */
-void xen_netbk_add_xenvif(struct xenvif *vif);
-void xen_netbk_remove_xenvif(struct xenvif *vif);
-
-/* (De)Schedule backend processing for a xenvif */
-void xen_netbk_schedule_xenvif(struct xenvif *vif);
-void xen_netbk_deschedule_xenvif(struct xenvif *vif);
-
 /* Check for SKBs from frontend and schedule backend processing */
 void xen_netbk_check_rx_xenvif(struct xenvif *vif);
-/* Receive an SKB from the frontend */
-void xenvif_receive_skb(struct xenvif *vif, struct sk_buff *skb);
 
 /* Queue an SKB for transmission to the frontend */
 void xen_netbk_queue_tx_skb(struct xenvif *vif, struct sk_buff *skb);
@@ -162,6 +213,11 @@ void xenvif_carrier_off(struct xenvif *vif);
 
 /* Returns number of ring slots required to send an skb to the frontend */
 unsigned int xen_netbk_count_skb_slots(struct xenvif *vif, struct sk_buff *skb);
+
+int xen_netbk_tx_action(struct xenvif *vif, int budget);
+void xen_netbk_rx_action(struct xenvif *vif);
+
+int xen_netbk_kthread(void *data);
 
 extern bool separate_tx_rx_irq;
 
