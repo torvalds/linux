@@ -1207,8 +1207,11 @@ static int __buf_prepare(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 	int ret;
 
 	ret = __verify_length(vb, b);
-	if (ret < 0)
+	if (ret < 0) {
+		dprintk(1, "%s(): plane parameters verification failed: %d\n",
+			__func__, ret);
 		return ret;
+	}
 
 	switch (q->memory) {
 	case V4L2_MEMORY_MMAP:
