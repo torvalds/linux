@@ -720,48 +720,39 @@ static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
 	void *pvRTS, u32 cbFrameLength, int bNeedAck,
 	struct ethhdr *psEthHeader, u16 wCurrentRate, u8 byFBOption)
 {
+	union vnt_tx_data_head *head = pvRTS;
 
-    if (pvRTS == NULL)
-    	return;
+	if (!head)
+		return;
 
     // Note: So far RTSHead doesn't appear in ATIM & Beacom DMA, so we don't need to take them into account.
     //       Otherwise, we need to modified codes for them.
     if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
         if (byFBOption == AUTO_FB_NONE) {
-		struct vnt_rts_g *pBuf = (struct vnt_rts_g *)pvRTS;
-
-		vnt_rxtx_rts_g_head(pDevice, pBuf,
+		vnt_rxtx_rts_g_head(pDevice, &head->rts_g,
 				psEthHeader, byPktType, cbFrameLength,
 				bNeedAck, wCurrentRate, byFBOption);
         }
         else {
-		struct vnt_rts_g_fb *pBuf = (struct vnt_rts_g_fb *)pvRTS;
-
-		vnt_rxtx_rts_g_fb_head(pDevice, pBuf,
+		vnt_rxtx_rts_g_fb_head(pDevice, &head->rts_g_fb,
 				psEthHeader, byPktType, cbFrameLength,
 				bNeedAck, wCurrentRate, byFBOption);
         } // if (byFBOption == AUTO_FB_NONE)
     }
     else if (byPktType == PK_TYPE_11A) {
         if (byFBOption == AUTO_FB_NONE) {
-		struct vnt_rts_ab *pBuf = (struct vnt_rts_ab *)pvRTS;
-
-		vnt_rxtx_rts_ab_head(pDevice, pBuf,
+		vnt_rxtx_rts_ab_head(pDevice, &head->rts_ab,
 				psEthHeader, byPktType, cbFrameLength,
 				bNeedAck, wCurrentRate, byFBOption);
         }
         else {
-		struct vnt_rts_a_fb *pBuf = (struct vnt_rts_a_fb *)pvRTS;
-
-		vnt_rxtx_rts_a_fb_head(pDevice, pBuf,
+		vnt_rxtx_rts_a_fb_head(pDevice, &head->rts_a_fb,
 				psEthHeader, byPktType, cbFrameLength,
 				bNeedAck, wCurrentRate, byFBOption);
         }
     }
     else if (byPktType == PK_TYPE_11B) {
-	struct vnt_rts_ab *pBuf = (struct vnt_rts_ab *)pvRTS;
-
-	vnt_rxtx_rts_ab_head(pDevice, pBuf,
+	vnt_rxtx_rts_ab_head(pDevice, &head->rts_ab,
 			psEthHeader, byPktType, cbFrameLength,
 			bNeedAck, wCurrentRate, byFBOption);
     }

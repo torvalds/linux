@@ -168,6 +168,18 @@ struct vnt_cts_fb {
 	u16 reserved2;
 } __packed;
 
+union vnt_tx_data_head {
+	/* rts g */
+	struct vnt_rts_g rts_g;
+	struct vnt_rts_g_fb rts_g_fb;
+	/* rts a/b */
+	struct vnt_rts_ab rts_ab;
+	struct vnt_rts_a_fb rts_a_fb;
+	/* cts g */
+	struct vnt_cts cts_g;
+	struct vnt_cts_fb cts_g_fb;
+};
+
 struct vnt_tx_buffer {
 	u8 byType;
 	u8 byPKTNO;
