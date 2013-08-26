@@ -544,7 +544,10 @@ static int ocrdma_mbx_create_mq(struct ocrdma_dev *dev,
 	cmd->cqid_pages = num_pages;
 	cmd->cqid_pages |= (cq->id << OCRDMA_CREATE_MQ_CQ_ID_SHIFT);
 	cmd->async_cqid_valid = OCRDMA_CREATE_MQ_ASYNC_CQ_VALID;
-	cmd->async_event_bitmap = Bit(20);
+
+	cmd->async_event_bitmap = Bit(OCRDMA_ASYNC_GRP5_EVE_CODE);
+	cmd->async_event_bitmap |= Bit(OCRDMA_ASYNC_RDMA_EVE_CODE);
+
 	cmd->async_cqid_ringsize = cq->id;
 	cmd->async_cqid_ringsize |= (ocrdma_encoded_q_len(mq->len) <<
 				OCRDMA_CREATE_MQ_RING_SIZE_SHIFT);
@@ -727,6 +730,29 @@ static void ocrdma_dispatch_ibevent(struct ocrdma_dev *dev,
 
 }
 
+static void ocrdma_process_grp5_aync(struct ocrdma_dev *dev,
+					struct ocrdma_ae_mcqe *cqe)
+{
+	struct ocrdma_ae_pvid_mcqe *evt;
+	int type = (cqe->valid_ae_event & OCRDMA_AE_MCQE_EVENT_TYPE_MASK) >>
+			OCRDMA_AE_MCQE_EVENT_TYPE_SHIFT;
+
+	switch (type) {
+	case OCRDMA_ASYNC_EVENT_PVID_STATE:
+		evt = (struct ocrdma_ae_pvid_mcqe *)cqe;
+		if ((evt->tag_enabled & OCRDMA_AE_PVID_MCQE_ENABLED_MASK) >>
+			OCRDMA_AE_PVID_MCQE_ENABLED_SHIFT)
+			dev->pvid = ((evt->tag_enabled &
+					OCRDMA_AE_PVID_MCQE_TAG_MASK) >>
+					OCRDMA_AE_PVID_MCQE_TAG_SHIFT);
+		break;
+	default:
+		/* Not interested evts. */
+		break;
+	}
+}
+
+
 static void ocrdma_process_acqe(struct ocrdma_dev *dev, void *ae_cqe)
 {
 	/* async CQE processing */
@@ -734,8 +760,10 @@ static void ocrdma_process_acqe(struct ocrdma_dev *dev, void *ae_cqe)
 	u32 evt_code = (cqe->valid_ae_event & OCRDMA_AE_MCQE_EVENT_CODE_MASK) >>
 			OCRDMA_AE_MCQE_EVENT_CODE_SHIFT;
 
-	if (evt_code == OCRDMA_ASYNC_EVE_CODE)
+	if (evt_code == OCRDMA_ASYNC_RDMA_EVE_CODE)
 		ocrdma_dispatch_ibevent(dev, cqe);
+	else if (evt_code == OCRDMA_ASYNC_GRP5_EVE_CODE)
+		ocrdma_process_grp5_aync(dev, cqe);
 	else
 		pr_err("%s(%d) invalid evt code=0x%x\n", __func__,
 		       dev->id, evt_code);

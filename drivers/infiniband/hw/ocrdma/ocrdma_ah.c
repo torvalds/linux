@@ -50,6 +50,8 @@ static inline int set_av_attr(struct ocrdma_dev *dev, struct ocrdma_ah *ah,
 	ah->sgid_index = attr->grh.sgid_index;
 
 	vlan_tag = rdma_get_vlan_id(&attr->grh.dgid);
+	if (!vlan_tag || (vlan_tag > 0xFFF))
+		vlan_tag = dev->pvid;
 	if (vlan_tag && (vlan_tag < 0x1000)) {
 		eth.eth_type = cpu_to_be16(0x8100);
 		eth.roce_eth_type = cpu_to_be16(OCRDMA_ROCE_ETH_TYPE);

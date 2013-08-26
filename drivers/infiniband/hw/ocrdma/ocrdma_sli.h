@@ -339,6 +339,20 @@ struct ocrdma_ae_mcqe {
 };
 
 enum {
+	OCRDMA_AE_PVID_MCQE_ENABLED_SHIFT = 0,
+	OCRDMA_AE_PVID_MCQE_ENABLED_MASK  = 0xFF,
+	OCRDMA_AE_PVID_MCQE_TAG_SHIFT = 16,
+	OCRDMA_AE_PVID_MCQE_TAG_MASK = 0xFFFF << OCRDMA_AE_PVID_MCQE_TAG_SHIFT
+};
+
+struct ocrdma_ae_pvid_mcqe {
+	u32 tag_enabled;
+	u32 event_tag;
+	u32 rsvd1;
+	u32 rsvd2;
+};
+
+enum {
 	OCRDMA_AE_MPA_MCQE_REQ_ID_SHIFT		= 16,
 	OCRDMA_AE_MPA_MCQE_REQ_ID_MASK		= 0xFFFF <<
 					OCRDMA_AE_MPA_MCQE_REQ_ID_SHIFT,
@@ -388,7 +402,9 @@ struct ocrdma_ae_qp_mcqe {
 	u32 valid_ae_event;
 };
 
-#define OCRDMA_ASYNC_EVE_CODE 0x14
+#define OCRDMA_ASYNC_RDMA_EVE_CODE 0x14
+#define OCRDMA_ASYNC_GRP5_EVE_CODE 0x5
+#define OCRDMA_ASYNC_EVENT_PVID_STATE 0x3
 
 enum OCRDMA_ASYNC_EVENT_TYPE {
 	OCRDMA_CQ_ERROR			= 0x00,

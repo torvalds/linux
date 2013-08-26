@@ -170,6 +170,7 @@ struct ocrdma_dev {
 	struct rcu_head rcu;
 	int id;
 	u64 stag_arr[OCRDMA_MAX_STAG];
+	u16 pvid;
 };
 
 struct ocrdma_cq {
