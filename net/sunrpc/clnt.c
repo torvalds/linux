@@ -102,11 +102,8 @@ static void rpc_unregister_client(struct rpc_clnt *clnt)
 
 static void __rpc_clnt_remove_pipedir(struct rpc_clnt *clnt)
 {
-	if (clnt->cl_dentry) {
-		if (clnt->cl_auth && clnt->cl_auth->au_ops->pipes_destroy)
-			clnt->cl_auth->au_ops->pipes_destroy(clnt->cl_auth);
+	if (clnt->cl_dentry)
 		rpc_remove_client_dir(clnt->cl_dentry, clnt);
-	}
 	clnt->cl_dentry = NULL;
 }
 
@@ -195,11 +192,6 @@ static int __rpc_clnt_handle_event(struct rpc_clnt *clnt, unsigned long event,
 		if (IS_ERR(dentry))
 			return PTR_ERR(dentry);
 		clnt->cl_dentry = dentry;
-		if (clnt->cl_auth->au_ops->pipes_create) {
-			err = clnt->cl_auth->au_ops->pipes_create(clnt->cl_auth);
-			if (err)
-				__rpc_clnt_remove_pipedir(clnt);
-		}
 		break;
 	case RPC_PIPEFS_UMOUNT:
 		__rpc_clnt_remove_pipedir(clnt);
