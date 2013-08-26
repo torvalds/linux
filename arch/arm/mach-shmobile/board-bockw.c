@@ -38,6 +38,10 @@
 #include <mach/r8a7778.h>
 #include <asm/mach/arch.h>
 
+#define FPGA	0x18200000
+#define IRQ0MR	0x30
+static void __iomem *fpga;
+
 /*
  *	CN9(Upper side) SCIF/RCAN selection
  *
@@ -224,8 +228,6 @@ static const struct pinctrl_map bockw_pinctrl_map[] = {
 				  "vin1_data8", "vin1"),
 };
 
-#define FPGA	0x18200000
-#define IRQ0MR	0x30
 #define PFC	0xfffc0000
 #define PUPR4	0x110
 static void __init bockw_init(void)
@@ -269,8 +271,8 @@ static void __init bockw_init(void)
 
 
 	/* for SMSC */
-	base = ioremap_nocache(FPGA, SZ_1M);
-	if (base) {
+	fpga = ioremap_nocache(FPGA, SZ_1M);
+	if (fpga) {
 		/*
 		 * CAUTION
 		 *
@@ -278,10 +280,9 @@ static void __init bockw_init(void)
 		 * it should be cared in the future
 		 * Now, it is assuming IRQ0 was used only from SMSC.
 		 */
-		u16 val = ioread16(base + IRQ0MR);
+		u16 val = ioread16(fpga + IRQ0MR);
 		val &= ~(1 << 4); /* enable SMSC911x */
-		iowrite16(val, base + IRQ0MR);
-		iounmap(base);
+		iowrite16(val, fpga + IRQ0MR);
 
 		regulator_register_fixed(0, dummy_supplies,
 					 ARRAY_SIZE(dummy_supplies));
