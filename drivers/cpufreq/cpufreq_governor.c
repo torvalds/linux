@@ -233,7 +233,7 @@ int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 
 		policy->governor_data = dbs_data;
 
-		/* policy latency is in nS. Convert it to uS first */
+		/* policy latency is in ns. Convert it to us first */
 		latency = policy->cpuinfo.transition_latency / 1000;
 		if (latency == 0)
 			latency = 1;
