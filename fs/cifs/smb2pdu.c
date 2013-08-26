@@ -939,9 +939,7 @@ add_lease_context(struct kvec *iov, unsigned int *num_iovec, __u8 *oplock)
 		req->CreateContextsOffset = cpu_to_le32(
 				sizeof(struct smb2_create_req) - 4 +
 				iov[num - 1].iov_len);
-	req->CreateContextsLength = cpu_to_le32(
-				le32_to_cpu(req->CreateContextsLength) +
-				sizeof(struct create_lease));
+	le32_add_cpu(&req->CreateContextsLength, sizeof(struct create_lease));
 	inc_rfc1001_len(&req->hdr, sizeof(struct create_lease));
 	*num_iovec = num + 1;
 	return 0;
@@ -967,9 +965,7 @@ add_durable_context(struct kvec *iov, unsigned int *num_iovec,
 		req->CreateContextsOffset =
 			cpu_to_le32(sizeof(struct smb2_create_req) - 4 +
 								iov[1].iov_len);
-	req->CreateContextsLength =
-			cpu_to_le32(le32_to_cpu(req->CreateContextsLength) +
-						sizeof(struct create_durable));
+	le32_add_cpu(&req->CreateContextsLength, sizeof(struct create_durable));
 	inc_rfc1001_len(&req->hdr, sizeof(struct create_durable));
 	*num_iovec = num + 1;
 	return 0;
