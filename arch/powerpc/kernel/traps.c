@@ -1342,13 +1342,10 @@ void facility_unavailable_exception(struct pt_regs *regs)
 	if (status == FSCR_DSCR_LG) {
 		/* User is acessing the DSCR.  Set the inherit bit and allow
 		 * the user to set it directly in future by setting via the
-		 * H/FSCR DSCR bit.
+		 * FSCR DSCR bit.  We always leave HFSCR DSCR set.
 		 */
 		current->thread.dscr_inherit = 1;
-		if (hv)
-			mtspr(SPRN_HFSCR, value | HFSCR_DSCR);
-		else
-			mtspr(SPRN_FSCR,  value | FSCR_DSCR);
+		mtspr(SPRN_FSCR, value | FSCR_DSCR);
 		return;
 	}
 
