@@ -55,8 +55,6 @@ void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 
 void __init early_init_devtree(void *params)
 {
-	void *alloc;
-
 	/* Setup flat device-tree pointer */
 	initial_boot_params = params;
 
@@ -72,17 +70,6 @@ void __init early_init_devtree(void *params)
 	of_scan_flat_dt(early_init_dt_scan_memory, NULL);
 
 	memblock_allow_resize();
-
-	/* We must copy the flattend device tree from init memory to regular
-	 * memory because the device tree references the strings in it
-	 * directly.
-	 */
-
-	alloc = __va(memblock_alloc(initial_boot_params->totalsize, PAGE_SIZE));
-
-	memcpy(alloc, initial_boot_params, initial_boot_params->totalsize);
-
-	initial_boot_params = alloc;
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD

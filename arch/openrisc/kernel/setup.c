@@ -283,7 +283,7 @@ void __init setup_arch(char **cmdline_p)
 {
 	unsigned long max_low_pfn;
 
-	unflatten_device_tree();
+	unflatten_and_copy_device_tree();
 
 	setup_cpuinfo();
 
