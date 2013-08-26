@@ -1028,8 +1028,6 @@ static void acpi_battery_notify(struct acpi_device *device, u32 event)
 	if (event == ACPI_BATTERY_NOTIFY_INFO)
 		acpi_battery_refresh(battery);
 	acpi_battery_update(battery);
-	acpi_bus_generate_proc_event(device, event,
-				     acpi_battery_present(battery));
 	acpi_bus_generate_netlink_event(device->pnp.device_class,
 					dev_name(&device->dev), event,
 					acpi_battery_present(battery));

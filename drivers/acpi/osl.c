@@ -52,6 +52,7 @@
 #include <acpi/acpi.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/processor.h>
+#include "internal.h"
 
 #define _COMPONENT		ACPI_OS_SERVICES
 ACPI_MODULE_NAME("osl");
@@ -566,10 +567,6 @@ static const char * const table_sigs[] = {
 	ACPI_SIG_WDRT, ACPI_SIG_DSDT, ACPI_SIG_FADT, ACPI_SIG_PSDT,
 	ACPI_SIG_RSDT, ACPI_SIG_XSDT, ACPI_SIG_SSDT, NULL };
 
-/* Non-fatal errors: Affected tables/files are ignored */
-#define INVALID_TABLE(x, path, name)					\
-	{ pr_err("ACPI OVERRIDE: " x " [%s%s]\n", path, name); continue; }
-
 #define ACPI_HEADER_SIZE sizeof(struct acpi_table_header)
 
 /* Must not increase 10 or needs code modification below */
@@ -596,9 +593,11 @@ void __init acpi_initrd_override(void *data, size_t size)
 		data += offset;
 		size -= offset;
 
-		if (file.size < sizeof(struct acpi_table_header))
-			INVALID_TABLE("Table smaller than ACPI header",
-				      cpio_path, file.name);
+		if (file.size < sizeof(struct acpi_table_header)) {
+			pr_err("ACPI OVERRIDE: Table smaller than ACPI header [%s%s]\n",
+				cpio_path, file.name);
+			continue;
+		}
 
 		table = file.data;
 
@@ -606,15 +605,21 @@ void __init acpi_initrd_override(void *data, size_t size)
 			if (!memcmp(table->signature, table_sigs[sig], 4))
 				break;
 
-		if (!table_sigs[sig])
-			INVALID_TABLE("Unknown signature",
-				      cpio_path, file.name);
-		if (file.size != table->length)
-			INVALID_TABLE("File length does not match table length",
-				      cpio_path, file.name);
-		if (acpi_table_checksum(file.data, table->length))
-			INVALID_TABLE("Bad table checksum",
-				      cpio_path, file.name);
+		if (!table_sigs[sig]) {
+			pr_err("ACPI OVERRIDE: Unknown signature [%s%s]\n",
+				cpio_path, file.name);
+			continue;
+		}
+		if (file.size != table->length) {
+			pr_err("ACPI OVERRIDE: File length does not match table length [%s%s]\n",
+				cpio_path, file.name);
+			continue;
+		}
+		if (acpi_table_checksum(file.data, table->length)) {
+			pr_err("ACPI OVERRIDE: Bad table checksum [%s%s]\n",
+				cpio_path, file.name);
+			continue;
+		}
 
 		pr_info("%4.4s ACPI table found in initrd [%s%s][0x%x]\n",
 			table->signature, cpio_path, file.name, table->length);
@@ -1354,8 +1359,8 @@ struct osi_setup_entry {
 	bool enable;
 };
 
-static struct osi_setup_entry __initdata
-		osi_setup_entries[OSI_STRING_ENTRIES_MAX] = {
+static struct osi_setup_entry
+		osi_setup_entries[OSI_STRING_ENTRIES_MAX] __initdata = {
 	{"Module Device", true},
 	{"Processor Device", true},
 	{"3.0 _SCP Extensions", true},

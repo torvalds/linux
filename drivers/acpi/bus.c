@@ -89,27 +89,6 @@ static struct dmi_system_id dsdt_dmi_table[] __initdata = {
                                 Device Management
    -------------------------------------------------------------------------- */
 
-int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device)
-{
-	acpi_status status;
-
-	if (!device)
-		return -EINVAL;
-
-	/* TBD: Support fixed-feature devices */
-
-	status = acpi_get_data(handle, acpi_bus_data_handler, (void **)device);
-	if (ACPI_FAILURE(status) || !*device) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No context for object [%p]\n",
-				  handle));
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
-EXPORT_SYMBOL(acpi_bus_get_device);
-
 acpi_status acpi_bus_get_status_handle(acpi_handle handle,
 				       unsigned long long *sta)
 {
@@ -344,104 +323,6 @@ static void acpi_bus_osc_support(void)
 	}
 	/* do we need to check other returned cap? Sounds no */
 }
-
-/* --------------------------------------------------------------------------
-                                Event Management
-   -------------------------------------------------------------------------- */
-
-#ifdef CONFIG_ACPI_PROC_EVENT
-static DEFINE_SPINLOCK(acpi_bus_event_lock);
-
-LIST_HEAD(acpi_bus_event_list);
-DECLARE_WAIT_QUEUE_HEAD(acpi_bus_event_queue);
-
-extern int event_is_open;
-
-int acpi_bus_generate_proc_event4(const char *device_class, const char *bus_id, u8 type, int data)
-{
-	struct acpi_bus_event *event;
-	unsigned long flags;
-
-	/* drop event on the floor if no one's listening */
-	if (!event_is_open)
-		return 0;
-
-	event = kzalloc(sizeof(struct acpi_bus_event), GFP_ATOMIC);
-	if (!event)
-		return -ENOMEM;
-
-	strcpy(event->device_class, device_class);
-	strcpy(event->bus_id, bus_id);
-	event->type = type;
-	event->data = data;
-
-	spin_lock_irqsave(&acpi_bus_event_lock, flags);
-	list_add_tail(&event->node, &acpi_bus_event_list);
-	spin_unlock_irqrestore(&acpi_bus_event_lock, flags);
-
-	wake_up_interruptible(&acpi_bus_event_queue);
-
-	return 0;
-
-}
-
-EXPORT_SYMBOL_GPL(acpi_bus_generate_proc_event4);
-
-int acpi_bus_generate_proc_event(struct acpi_device *device, u8 type, int data)
-{
-	if (!device)
-		return -EINVAL;
-	return acpi_bus_generate_proc_event4(device->pnp.device_class,
-					     device->pnp.bus_id, type, data);
-}
-
-EXPORT_SYMBOL(acpi_bus_generate_proc_event);
-
-int acpi_bus_receive_event(struct acpi_bus_event *event)
-{
-	unsigned long flags;
-	struct acpi_bus_event *entry = NULL;
-
-	DECLARE_WAITQUEUE(wait, current);
-
-
-	if (!event)
-		return -EINVAL;
-
-	if (list_empty(&acpi_bus_event_list)) {
-
-		set_current_state(TASK_INTERRUPTIBLE);
-		add_wait_queue(&acpi_bus_event_queue, &wait);
-
-		if (list_empty(&acpi_bus_event_list))
-			schedule();
-
-		remove_wait_queue(&acpi_bus_event_queue, &wait);
-		set_current_state(TASK_RUNNING);
-
-		if (signal_pending(current))
-			return -ERESTARTSYS;
-	}
-
-	spin_lock_irqsave(&acpi_bus_event_lock, flags);
-	if (!list_empty(&acpi_bus_event_list)) {
-		entry = list_entry(acpi_bus_event_list.next,
-				   struct acpi_bus_event, node);
-		list_del(&entry->node);
-	}
-	spin_unlock_irqrestore(&acpi_bus_event_lock, flags);
-
-	if (!entry)
-		return -ENODEV;
-
-	memcpy(event, entry, sizeof(struct acpi_bus_event));
-
-	kfree(entry);
-
-	return 0;
-}
-
-#endif	/* CONFIG_ACPI_PROC_EVENT */
 
 /* --------------------------------------------------------------------------
                              Notification Handling
@@ -695,7 +576,6 @@ static int __init acpi_bus_init(void)
 {
 	int result;
 	acpi_status status;
-	extern acpi_status acpi_os_initialize1(void);
 
 	acpi_os_initialize1();
 

@@ -138,7 +138,7 @@ static int __init init_nvs_nosave(const struct dmi_system_id *d)
 	return 0;
 }
 
-static struct dmi_system_id __initdata acpisleep_dmi_table[] = {
+static struct dmi_system_id acpisleep_dmi_table[] __initdata = {
 	{
 	.callback = init_old_suspend_ordering,
 	.ident = "Abit KN9 (nForce4 variant)",

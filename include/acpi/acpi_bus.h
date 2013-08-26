@@ -367,7 +367,6 @@ extern int unregister_acpi_notifier(struct notifier_block *);
  */
 
 int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device);
-void acpi_bus_data_handler(acpi_handle handle, void *context);
 acpi_status acpi_bus_get_status_handle(acpi_handle handle,
 				       unsigned long long *sta);
 int acpi_bus_get_status(struct acpi_device *device);
@@ -385,15 +384,6 @@ bool acpi_bus_power_manageable(acpi_handle handle);
 bool acpi_bus_can_wakeup(acpi_handle handle);
 #else
 static inline bool acpi_bus_can_wakeup(acpi_handle handle) { return false; }
-#endif
-
-#ifdef CONFIG_ACPI_PROC_EVENT
-int acpi_bus_generate_proc_event(struct acpi_device *device, u8 type, int data);
-int acpi_bus_generate_proc_event4(const char *class, const char *bid, u8 type, int data);
-int acpi_bus_receive_event(struct acpi_bus_event *event);
-#else
-static inline int acpi_bus_generate_proc_event(struct acpi_device *device, u8 type, int data)
-	{ return 0; }
 #endif
 
 void acpi_scan_lock_acquire(void);

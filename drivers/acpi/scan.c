@@ -970,6 +970,28 @@ struct bus_type acpi_bus_type = {
 	.uevent		= acpi_device_uevent,
 };
 
+static void acpi_bus_data_handler(acpi_handle handle, void *context)
+{
+	/* Intentionally empty. */
+}
+
+int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device)
+{
+	acpi_status status;
+
+	if (!device)
+		return -EINVAL;
+
+	status = acpi_get_data(handle, acpi_bus_data_handler, (void **)device);
+	if (ACPI_FAILURE(status) || !*device) {
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No context for object [%p]\n",
+				  handle));
+		return -ENODEV;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(acpi_bus_get_device);
+
 int acpi_device_add(struct acpi_device *device,
 		    void (*release)(struct device *))
 {
@@ -1180,14 +1202,6 @@ acpi_bus_get_ejd(acpi_handle handle, acpi_handle *ejd)
 	return status;
 }
 EXPORT_SYMBOL_GPL(acpi_bus_get_ejd);
-
-void acpi_bus_data_handler(acpi_handle handle, void *context)
-{
-
-	/* TBD */
-
-	return;
-}
 
 static int acpi_bus_extract_wakeup_device_power_package(acpi_handle handle,
 					struct acpi_device_wakeup *wakeup)

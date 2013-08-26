@@ -948,7 +948,7 @@ static int ec_enlarge_storm_threshold(const struct dmi_system_id *id)
 	return 0;
 }
 
-static struct dmi_system_id __initdata ec_dmi_table[] = {
+static struct dmi_system_id ec_dmi_table[] __initdata = {
 	{
 	ec_skip_dsdt_scan, "Compal JFL92", {
 	DMI_MATCH(DMI_BIOS_VENDOR, "COMPAL"),

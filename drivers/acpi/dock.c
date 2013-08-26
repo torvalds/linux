@@ -908,7 +908,7 @@ err_unregister:
  *
  * This is called by acpi_walk_namespace to look for dock stations and bays.
  */
-static __init acpi_status
+static acpi_status __init
 find_dock_and_bay(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
 	if (acpi_dock_match(handle) || is_ejectable_bay(handle))
