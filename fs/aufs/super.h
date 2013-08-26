@@ -40,6 +40,7 @@ struct au_wbr_copyup_operations {
 };
 
 #define AuWbr_DIR	1		/* target is a dir */
+#define AuWbr_PARENT	(1 << 1)	/* always require a parent */
 
 #define au_ftest_wbr(flags, name)	((flags) & AuWbr_##name)
 #define au_fset_wbr(flags, name)	{ (flags) |= AuWbr_##name; }

@@ -394,11 +394,12 @@ out:
 /* ---------------------------------------------------------------------- */
 
 /* most free space */
-static void au_mfs(struct dentry *dentry)
+static void au_mfs(struct dentry *dentry, struct dentry *parent)
 {
 	struct super_block *sb;
 	struct au_branch *br;
 	struct au_wbr_mfs *mfs;
+	struct dentry *h_parent;
 	aufs_bindex_t bindex, bend;
 	int err;
 	unsigned long long b, bavail;
@@ -418,8 +419,20 @@ static void au_mfs(struct dentry *dentry)
 	MtxMustLock(&mfs->mfs_lock);
 	mfs->mfs_bindex = -EROFS;
 	mfs->mfsrr_bytes = 0;
-	bend = au_sbend(sb);
-	for (bindex = 0; bindex <= bend; bindex++) {
+	if (!parent) {
+		bindex = 0;
+		bend = au_sbend(sb);
+	} else {
+		bindex = au_dbstart(parent);
+		bend = au_dbtaildir(parent);
+	}
+
+	for (; bindex <= bend; bindex++) {
+		if (parent) {
+			h_parent = au_h_dptr(parent, bindex);
+			if (!h_parent || !h_parent->d_inode)
+				continue;
+		}
 		br = au_sbr(sb, bindex);
 		if (au_br_rdonly(br))
 			continue;
@@ -453,6 +466,7 @@ static void au_mfs(struct dentry *dentry)
 static int au_wbr_create_mfs(struct dentry *dentry, unsigned int flags)
 {
 	int err;
+	struct dentry *parent;
 	struct super_block *sb;
 	struct au_wbr_mfs *mfs;
 
@@ -461,14 +475,18 @@ static int au_wbr_create_mfs(struct dentry *dentry, unsigned int flags)
 		goto out;
 
 	sb = dentry->d_sb;
+	parent = NULL;
+	if (au_ftest_wbr(flags, PARENT))
+		parent = dget_parent(dentry);
 	mfs = &au_sbi(sb)->si_wbr_mfs;
 	mutex_lock(&mfs->mfs_lock);
 	if (time_after(jiffies, mfs->mfs_jiffy + mfs->mfs_expire)
 	    || mfs->mfs_bindex < 0
 	    || au_br_rdonly(au_sbr(sb, mfs->mfs_bindex)))
-		au_mfs(dentry);
+		au_mfs(dentry, parent);
 	mutex_unlock(&mfs->mfs_lock);
 	err = mfs->mfs_bindex;
+	dput(parent);
 
 	if (err >= 0)
 		err = au_wbr_nonopq(dentry, err);
