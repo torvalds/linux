@@ -202,7 +202,8 @@ static void eb_destroy(struct eb_vmas *eb) {
 
 static inline int use_cpu_reloc(struct drm_i915_gem_object *obj)
 {
-	return (obj->base.write_domain == I915_GEM_DOMAIN_CPU ||
+	return (HAS_LLC(obj->base.dev) ||
+		obj->base.write_domain == I915_GEM_DOMAIN_CPU ||
 		!obj->map_and_fenceable ||
 		obj->cache_level != I915_CACHE_NONE);
 }
@@ -215,7 +216,7 @@ relocate_entry_cpu(struct drm_i915_gem_object *obj,
 	char *vaddr;
 	int ret = -EINVAL;
 
-	ret = i915_gem_object_set_to_cpu_domain(obj, 1);
+	ret = i915_gem_object_set_to_cpu_domain(obj, true);
 	if (ret)
 		return ret;
 
