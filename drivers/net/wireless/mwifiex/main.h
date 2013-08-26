@@ -1026,7 +1026,7 @@ mwifiex_netdev_get_priv(struct net_device *dev)
  */
 static inline bool mwifiex_is_skb_mgmt_frame(struct sk_buff *skb)
 {
-	return (*(u32 *)skb->data == PKT_TYPE_MGMT);
+	return (le32_to_cpu(*(__le32 *)skb->data) == PKT_TYPE_MGMT);
 }
 
 /* This function retrieves channel closed for operation by Channel
