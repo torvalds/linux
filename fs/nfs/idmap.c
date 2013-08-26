@@ -404,8 +404,10 @@ static struct key_type key_type_id_resolver_legacy = {
 
 static void __nfs_idmap_unregister(struct rpc_pipe *pipe)
 {
-	if (pipe->dentry)
+	if (pipe->dentry) {
 		rpc_unlink(pipe->dentry);
+		pipe->dentry = NULL;
+	}
 }
 
 static int __nfs_idmap_register(struct dentry *dir,
