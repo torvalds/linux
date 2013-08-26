@@ -38,7 +38,7 @@
 #include <mach/ddr.h>
 #include <mach/dvfs.h>
 
-#define VERSION "2.1"
+#define VERSION "2.2"
 
 #ifdef DEBUG
 #define FREQ_DBG(fmt, args...) pr_debug(fmt, ## args)
@@ -155,6 +155,34 @@ static struct cpufreq_frequency_table temp_limits_cpu_perf[] = {
 
 static struct cpufreq_frequency_table temp_limits_gpu_perf[] = {
 	{.frequency = 1008 * 1000, .index = 0},
+};
+#elif defined(CONFIG_ARCH_RK3026)
+static struct cpufreq_frequency_table temp_limits[2][1] = {
+	{	// 1 CPU busy
+		{.frequency =          -1, .index = 0},
+	}, {	// 2 CPUs busy
+		{.frequency =  816 * 1000, .index = 0},
+	}
+};
+
+static struct cpufreq_frequency_table temp_limits_cpu_perf[] = {
+	{.frequency = 1008 * 1000, .index = 0},
+};
+
+static struct cpufreq_frequency_table temp_limits_gpu_perf[] = {
+	{.frequency = 1008 * 1000, .index = 0},
+};
+
+static struct cpufreq_frequency_table temp_limits_3028a[2][1] = {
+	{	// 1 CPU busy
+		{.frequency =          -1, .index = 0},
+	}, {	// 2 CPUs busy
+		{.frequency = 1008 * 1000, .index = 0},
+	}
+};
+
+static struct cpufreq_frequency_table temp_limits_cpu_perf_3028a[] = {
+	{.frequency = 1200 * 1000, .index = 0},
 };
 #else /* 3188/3168 etc */
 static struct cpufreq_frequency_table temp_limits[4][4] = {
@@ -330,6 +358,13 @@ static void rk3188_cpufreq_temp_limit_init(struct cpufreq_policy *policy)
 {
 	unsigned int i;
 	struct cpufreq_frequency_table *table;
+
+#if defined(CONFIG_ARCH_RK3026)
+	if (soc_is_rk3028a()) {
+		memcpy(temp_limits, temp_limits_3028a, sizeof(temp_limits));
+		memcpy(temp_limits_cpu_perf, temp_limits_cpu_perf_3028a, sizeof(temp_limits_cpu_perf));
+	}
+#endif
 
 	table = temp_limits[0];
 	for (i = 0; i < sizeof(temp_limits) / sizeof(struct cpufreq_frequency_table); i++) {
