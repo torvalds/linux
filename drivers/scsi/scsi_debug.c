@@ -1997,8 +1997,14 @@ static unsigned long lba_to_map_index(sector_t lba)
 
 static sector_t map_index_to_lba(unsigned long index)
 {
-	return index * scsi_debug_unmap_granularity -
-		scsi_debug_unmap_alignment;
+	sector_t lba = index * scsi_debug_unmap_granularity;
+
+	if (scsi_debug_unmap_alignment) {
+		lba -= scsi_debug_unmap_granularity -
+			scsi_debug_unmap_alignment;
+	}
+
+	return lba;
 }
 
 static unsigned int map_state(sector_t lba, unsigned int *num)
