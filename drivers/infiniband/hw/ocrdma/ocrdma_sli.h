@@ -70,6 +70,7 @@ enum {
 
 #define OCRDMA_SUBSYS_COMMON 1
 enum {
+	OCRDMA_CMD_QUERY_NTWK_LINK_CONFIG_V1 = 5,
 	OCRDMA_CMD_CREATE_CQ		= 12,
 	OCRDMA_CMD_CREATE_EQ		= 13,
 	OCRDMA_CMD_CREATE_MQ		= 21,
@@ -543,6 +544,32 @@ struct ocrdma_fw_conf_rsp {
 
 enum {
 	OCRDMA_FN_MODE_RDMA	= 0x4
+};
+
+struct ocrdma_get_link_speed_rsp {
+	struct ocrdma_mqe_hdr hdr;
+	struct ocrdma_mbx_rsp rsp;
+
+	u8 pt_port_num;
+	u8 link_duplex;
+	u8 phys_port_speed;
+	u8 phys_port_fault;
+	u16 rsvd1;
+	u16 qos_lnk_speed;
+	u8 logical_lnk_status;
+	u8 rsvd2[3];
+};
+
+enum {
+	OCRDMA_PHYS_LINK_SPEED_ZERO = 0x0,
+	OCRDMA_PHYS_LINK_SPEED_10MBPS = 0x1,
+	OCRDMA_PHYS_LINK_SPEED_100MBPS = 0x2,
+	OCRDMA_PHYS_LINK_SPEED_1GBPS = 0x3,
+	OCRDMA_PHYS_LINK_SPEED_10GBPS = 0x4,
+	OCRDMA_PHYS_LINK_SPEED_20GBPS = 0x5,
+	OCRDMA_PHYS_LINK_SPEED_25GBPS = 0x6,
+	OCRDMA_PHYS_LINK_SPEED_40GBPS = 0x7,
+	OCRDMA_PHYS_LINK_SPEED_100GBPS = 0x8
 };
 
 enum {

@@ -91,6 +91,7 @@ void ocrdma_ring_cq_db(struct ocrdma_dev *, u16 cq_id, bool armed,
 		       bool solicited, u16 cqe_popped);
 
 /* verbs specific mailbox commands */
+int ocrdma_mbx_get_link_speed(struct ocrdma_dev *dev, u8 *lnk_speed);
 int ocrdma_query_config(struct ocrdma_dev *,
 			struct ocrdma_mbx_query_config *config);
 int ocrdma_resolve_dgid(struct ocrdma_dev *, union ib_gid *dgid, u8 *mac_addr);

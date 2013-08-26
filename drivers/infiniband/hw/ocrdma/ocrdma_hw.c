@@ -1101,6 +1101,34 @@ mbx_err:
 	return status;
 }
 
+int ocrdma_mbx_get_link_speed(struct ocrdma_dev *dev, u8 *lnk_speed)
+{
+	int status = -ENOMEM;
+	struct ocrdma_get_link_speed_rsp *rsp;
+	struct ocrdma_mqe *cmd;
+
+	cmd = ocrdma_init_emb_mqe(OCRDMA_CMD_QUERY_NTWK_LINK_CONFIG_V1,
+				  sizeof(*cmd));
+	if (!cmd)
+		return status;
+	ocrdma_init_mch((struct ocrdma_mbx_hdr *)&cmd->u.cmd[0],
+			OCRDMA_CMD_QUERY_NTWK_LINK_CONFIG_V1,
+			OCRDMA_SUBSYS_COMMON, sizeof(*cmd));
+
+	((struct ocrdma_mbx_hdr *)cmd->u.cmd)->rsvd_version = 0x1;
+
+	status = ocrdma_mbx_cmd(dev, (struct ocrdma_mqe *)cmd);
+	if (status)
+		goto mbx_err;
+
+	rsp = (struct ocrdma_get_link_speed_rsp *)cmd;
+	*lnk_speed = rsp->phys_port_speed;
+
+mbx_err:
+	kfree(cmd);
+	return status;
+}
+
 int ocrdma_mbx_alloc_pd(struct ocrdma_dev *dev, struct ocrdma_pd *pd)
 {
 	int status = -ENOMEM;
