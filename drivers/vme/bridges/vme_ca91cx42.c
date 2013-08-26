@@ -243,6 +243,8 @@ static int ca91cx42_irq_init(struct vme_bridge *ca91cx42_bridge)
 static void ca91cx42_irq_exit(struct ca91cx42_driver *bridge,
 	struct pci_dev *pdev)
 {
+	struct vme_bridge *ca91cx42_bridge;
+
 	/* Disable interrupts from PCI to VME */
 	iowrite32(0, bridge->base + VINT_EN);
 
@@ -251,7 +253,9 @@ static void ca91cx42_irq_exit(struct ca91cx42_driver *bridge,
 	/* Clear Any Pending PCI Interrupts */
 	iowrite32(0x00FFFFFF, bridge->base + LINT_STAT);
 
-	free_irq(pdev->irq, pdev);
+	ca91cx42_bridge = container_of((void *)bridge, struct vme_bridge,
+				       driver_priv);
+	free_irq(pdev->irq, ca91cx42_bridge);
 }
 
 static int ca91cx42_iack_received(struct ca91cx42_driver *bridge, int level)
