@@ -516,6 +516,11 @@ struct kvm_vcpu_arch {
 
 	/* set at EPT violation at this point */
 	unsigned long exit_qualification;
+
+	/* pv related host specific info */
+	struct {
+		bool pv_unhalted;
+	} pv;
 };
 
 struct kvm_lpage_info {
