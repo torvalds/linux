@@ -449,17 +449,7 @@ static int do_switch(struct i915_hw_context *to)
 		from->obj->dirty = 1;
 		BUG_ON(from->obj->ring != ring);
 
-		ret = i915_add_request(ring, NULL);
-		if (ret) {
-			/* Too late, we've already scheduled a context switch.
-			 * Try to undo the change so that the hw state is
-			 * consistent with out tracking. In case of emergency,
-			 * scream.
-			 */
-			WARN_ON(mi_set_context(ring, from, MI_RESTORE_INHIBIT));
-			return ret;
-		}
-
+		/* obj is kept alive until the next request by its active ref */
 		i915_gem_object_unpin(from->obj);
 		i915_gem_context_unreference(from);
 	}
