@@ -199,6 +199,9 @@ static int __init exynos4_init_cpuidle(void)
 	if (soc_is_exynos5250())
 		exynos5_core_down_clk();
 
+	if (soc_is_exynos5440())
+		exynos4_idle_driver.state_count = 1;
+
 	ret = cpuidle_register_driver(&exynos4_idle_driver);
 	if (ret) {
 		printk(KERN_ERR "CPUidle failed to register driver\n");
