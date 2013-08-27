@@ -1334,17 +1334,19 @@ static int rk616_voice_call_path_put(struct snd_kcontrol *kcontrol,
 
 	switch (rk616->voice_call_path) {
 	case OFF:
-		//mute output for incall route pop nosie
-		rk616_set_gpio(RK616_CODEC_SET_SPK, GPIO_LOW);
-		rk616_set_gpio(RK616_CODEC_SET_HP, GPIO_LOW);
+		if (pre_path != RCV &&
+			pre_path != BT) {
+			//mute output for incall route pop nosie
+			rk616_set_gpio(RK616_CODEC_SET_SPK, GPIO_LOW);
+			rk616_set_gpio(RK616_CODEC_SET_HP, GPIO_LOW);
+			if (pre_path == SPK_PATH)
+				mdelay(SPK_AMP_DELAY);
+			else if (pre_path == HP_PATH ||
+				pre_path == HP_NO_MIC)
+				mdelay(HP_MOS_DELAY);
 
-		if (pre_path == SPK_PATH)
-			mdelay(SPK_AMP_DELAY);
-		else if (pre_path == HP_PATH || pre_path == HP_NO_MIC)
-			mdelay(HP_MOS_DELAY);
-
-		//close incall route
-		rk616_codec_power_down(RK616_CODEC_INCALL);
+			rk616_codec_power_down(RK616_CODEC_INCALL);
+		}
 
 		if (pre_path == SPK_PATH) {
 			rk616_set_gpio(RK616_CODEC_SET_SPK, GPIO_HIGH);
@@ -1362,10 +1364,10 @@ static int rk616_voice_call_path_put(struct snd_kcontrol *kcontrol,
 			//mute output for incall route pop nosie
 			rk616_set_gpio(RK616_CODEC_SET_SPK, GPIO_LOW);
 			rk616_set_gpio(RK616_CODEC_SET_HP, GPIO_LOW);
-			if (rk616->voice_call_path == SPK_PATH)
+			if (pre_path == SPK_PATH)
 				mdelay(SPK_AMP_DELAY);
-			else if (rk616->voice_call_path == HP_PATH ||
-				rk616->voice_call_path == HP_NO_MIC)
+			else if (pre_path == HP_PATH ||
+				pre_path == HP_NO_MIC)
 				mdelay(HP_MOS_DELAY);
 
 			rk616_codec_power_down(RK616_CODEC_INCALL);
@@ -1377,6 +1379,8 @@ static int rk616_voice_call_path_put(struct snd_kcontrol *kcontrol,
 	case SPK_PATH:
 		//set mic for modem
 		rk616_set_gpio(RK616_CODEC_SET_MIC, GPIO_HIGH);
+
+		rk616_set_gpio(RK616_CODEC_SET_HP, GPIO_LOW);
 
 		//open incall route
 		if (pre_path == OFF ||
@@ -1393,7 +1397,9 @@ static int rk616_voice_call_path_put(struct snd_kcontrol *kcontrol,
 		break;
 	case HP_PATH:
 		//set mic for modem
-			rk616_set_gpio(RK616_CODEC_SET_MIC, GPIO_LOW);
+		rk616_set_gpio(RK616_CODEC_SET_MIC, GPIO_LOW);
+
+		rk616_set_gpio(RK616_CODEC_SET_SPK, GPIO_LOW);
 
 		//open incall route
 		if (pre_path == OFF ||
@@ -1411,6 +1417,8 @@ static int rk616_voice_call_path_put(struct snd_kcontrol *kcontrol,
 	case HP_NO_MIC:
 		//set mic for modem
 		rk616_set_gpio(RK616_CODEC_SET_MIC, GPIO_HIGH);
+
+		rk616_set_gpio(RK616_CODEC_SET_SPK, GPIO_LOW);
 
 		//open incall route
 		if (pre_path == OFF ||
