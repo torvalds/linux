@@ -1993,3 +1993,14 @@ void bnx2x_afex_collect_stats(struct bnx2x *bp, void *void_afex_stats,
 		       estats->mac_discard);
 	}
 }
+
+void bnx2x_stats_safe_exec(struct bnx2x *bp,
+			   void (func_to_exec)(void *cookie),
+			   void *cookie){
+	if (down_timeout(&bp->stats_sema, HZ/10))
+		BNX2X_ERR("Unable to acquire stats lock\n");
+	bnx2x_stats_comp(bp);
+	func_to_exec(cookie);
+	__bnx2x_stats_start(bp);
+	up(&bp->stats_sema);
+}

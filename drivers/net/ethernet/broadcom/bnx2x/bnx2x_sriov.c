@@ -2786,6 +2786,18 @@ int bnx2x_vf_init(struct bnx2x *bp, struct bnx2x_virtf *vf, dma_addr_t *sb_map)
 	return 0;
 }
 
+struct set_vf_state_cookie {
+	struct bnx2x_virtf *vf;
+	u8 state;
+};
+
+void bnx2x_set_vf_state(void *cookie)
+{
+	struct set_vf_state_cookie *p = (struct set_vf_state_cookie *)cookie;
+
+	p->vf->state = p->state;
+}
+
 /* VFOP close (teardown the queues, delete mcasts and close HW) */
 static void bnx2x_vfop_close(struct bnx2x *bp, struct bnx2x_virtf *vf)
 {
@@ -2836,7 +2848,19 @@ static void bnx2x_vfop_close(struct bnx2x *bp, struct bnx2x_virtf *vf)
 op_err:
 	BNX2X_ERR("VF[%d] CLOSE error: rc %d\n", vf->abs_vfid, vfop->rc);
 op_done:
-	vf->state = VF_ACQUIRED;
+
+	/* need to make sure there are no outstanding stats ramrods which may
+	 * cause the device to access the VF's stats buffer which it will free
+	 * as soon as we return from the close flow.
+	 */
+	{
+		struct set_vf_state_cookie cookie;
+
+		cookie.vf = vf;
+		cookie.state = VF_ACQUIRED;
+		bnx2x_stats_safe_exec(bp, bnx2x_set_vf_state, &cookie);
+	}
+
 	DP(BNX2X_MSG_IOV, "set state to acquired\n");
 	bnx2x_vfop_end(bp, vf, vfop);
 }
