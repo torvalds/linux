@@ -294,7 +294,7 @@ premature_exit:
  * Context:
  *	Kernel context.
  */
-static int
+int
 qlafx00_driver_shutdown(scsi_qla_host_t *vha, int tmo)
 {
 	int rval;

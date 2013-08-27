@@ -3006,6 +3006,10 @@ qla2x00_shutdown(struct pci_dev *pdev)
 	vha = pci_get_drvdata(pdev);
 	ha = vha->hw;
 
+	/* Notify ISPFX00 firmware */
+	if (IS_QLAFX00(ha))
+		qlafx00_driver_shutdown(vha, 20);
+
 	/* Turn-off FCE trace */
 	if (ha->flags.fce_enabled) {
 		qla2x00_disable_fce_trace(vha, NULL, NULL);
@@ -3053,6 +3057,9 @@ qla2x00_remove_one(struct pci_dev *pdev)
 	ha->flags.host_shutting_down = 1;
 
 	set_bit(UNLOADING, &base_vha->dpc_flags);
+	if (IS_QLAFX00(ha))
+		qlafx00_driver_shutdown(base_vha, 20);
+
 	mutex_lock(&ha->vport_lock);
 	while (ha->cur_vport_count) {
 		spin_lock_irqsave(&ha->vport_slock, flags);

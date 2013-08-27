@@ -594,6 +594,7 @@ extern int qlafx00_start_scsi(srb_t *);
 extern int qlafx00_abort_isp(scsi_qla_host_t *);
 extern int qlafx00_iospace_config(struct qla_hw_data *);
 extern int qlafx00_init_firmware(scsi_qla_host_t *, uint16_t);
+extern int qlafx00_driver_shutdown(scsi_qla_host_t *, int);
 extern int qlafx00_fw_ready(scsi_qla_host_t *);
 extern int qlafx00_configure_devices(scsi_qla_host_t *);
 extern int qlafx00_reset_initialize(scsi_qla_host_t *);
