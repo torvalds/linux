@@ -1734,10 +1734,6 @@ qlafx00_process_aen(struct scsi_qla_host *vha, struct qla_work_evt *evt)
 	aen_data = evt->u.aenfx.evtcode;
 
 	switch (evt->u.aenfx.evtcode) {
-	case QLAFX00_MBA_SHUTDOWN_RQSTD: /* FW shutdown pending */
-		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
-		rval = qlafx00_driver_shutdown(vha, 10);
-		break;
 	case QLAFX00_MBA_PORT_UPDATE:		/* Port database update */
 		if (evt->u.aenfx.mbx[1] == 0) {
 			if (evt->u.aenfx.mbx[2] == 1) {
