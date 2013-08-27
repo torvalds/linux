@@ -2249,7 +2249,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		I915_WRITE(PIPESRC(intel_crtc->pipe),
 			   ((crtc->mode.hdisplay - 1) << 16) |
 			   (crtc->mode.vdisplay - 1));
-		if (!intel_crtc->config.pch_pfit.size &&
+		if (!intel_crtc->config.pch_pfit.enabled &&
 		    (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) ||
 		     intel_pipe_has_type(crtc, INTEL_OUTPUT_EDP))) {
 			I915_WRITE(PF_CTL(intel_crtc->pipe), 0);
@@ -3203,7 +3203,7 @@ static void ironlake_pfit_enable(struct intel_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe = crtc->pipe;
 
-	if (crtc->config.pch_pfit.size) {
+	if (crtc->config.pch_pfit.enabled) {
 		/* Force use of hard-coded filter coefficients
 		 * as some pre-programmed values are broken,
 		 * e.g. x201.
@@ -3428,7 +3428,7 @@ static void ironlake_pfit_disable(struct intel_crtc *crtc)
 
 	/* To avoid upsetting the power well on haswell only disable the pfit if
 	 * it's in use. The hw state code will make sure we get this right. */
-	if (crtc->config.pch_pfit.size) {
+	if (crtc->config.pch_pfit.enabled) {
 		I915_WRITE(PF_CTL(pipe), 0);
 		I915_WRITE(PF_WIN_POS(pipe), 0);
 		I915_WRITE(PF_WIN_SZ(pipe), 0);
@@ -5859,6 +5859,7 @@ static void ironlake_get_pfit_config(struct intel_crtc *crtc,
 	tmp = I915_READ(PF_CTL(crtc->pipe));
 
 	if (tmp & PF_ENABLE) {
+		pipe_config->pch_pfit.enabled = true;
 		pipe_config->pch_pfit.pos = I915_READ(PF_WIN_POS(crtc->pipe));
 		pipe_config->pch_pfit.size = I915_READ(PF_WIN_SZ(crtc->pipe));
 
@@ -6236,7 +6237,7 @@ static void haswell_modeset_global_resources(struct drm_device *dev)
 		if (!crtc->base.enabled)
 			continue;
 
-		if (crtc->pipe != PIPE_A || crtc->config.pch_pfit.size ||
+		if (crtc->pipe != PIPE_A || crtc->config.pch_pfit.enabled ||
 		    crtc->config.cpu_transcoder != TRANSCODER_EDP)
 			enable = true;
 	}
@@ -8205,9 +8206,10 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 		      pipe_config->gmch_pfit.control,
 		      pipe_config->gmch_pfit.pgm_ratios,
 		      pipe_config->gmch_pfit.lvds_border_bits);
-	DRM_DEBUG_KMS("pch pfit: pos: 0x%08x, size: 0x%08x\n",
+	DRM_DEBUG_KMS("pch pfit: pos: 0x%08x, size: 0x%08x, %s\n",
 		      pipe_config->pch_pfit.pos,
-		      pipe_config->pch_pfit.size);
+		      pipe_config->pch_pfit.size,
+		      pipe_config->pch_pfit.enabled ? "enabled" : "disabled");
 	DRM_DEBUG_KMS("ips: %i\n", pipe_config->ips_enabled);
 }
 
@@ -8603,8 +8605,11 @@ intel_pipe_config_compare(struct drm_device *dev,
 	if (INTEL_INFO(dev)->gen < 4)
 		PIPE_CONF_CHECK_I(gmch_pfit.pgm_ratios);
 	PIPE_CONF_CHECK_I(gmch_pfit.lvds_border_bits);
-	PIPE_CONF_CHECK_I(pch_pfit.pos);
-	PIPE_CONF_CHECK_I(pch_pfit.size);
+	PIPE_CONF_CHECK_I(pch_pfit.enabled);
+	if (current_config->pch_pfit.enabled) {
+		PIPE_CONF_CHECK_I(pch_pfit.pos);
+		PIPE_CONF_CHECK_I(pch_pfit.size);
+	}
 
 	PIPE_CONF_CHECK_I(ips_enabled);
 
