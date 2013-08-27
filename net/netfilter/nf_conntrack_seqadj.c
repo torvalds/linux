@@ -6,6 +6,26 @@
 #include <net/netfilter/nf_conntrack_extend.h>
 #include <net/netfilter/nf_conntrack_seqadj.h>
 
+int nf_ct_seqadj_init(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
+		      s32 off)
+{
+	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
+	struct nf_conn_seqadj *seqadj;
+	struct nf_ct_seqadj *this_way;
+
+	if (off == 0)
+		return 0;
+
+	set_bit(IPS_SEQ_ADJUST_BIT, &ct->status);
+
+	seqadj = nfct_seqadj(ct);
+	this_way = &seqadj->seq[dir];
+	this_way->offset_before	 = off;
+	this_way->offset_after	 = off;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nf_ct_seqadj_init);
+
 int nf_ct_seqadj_set(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
 		     __be32 seq, s32 off)
 {

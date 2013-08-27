@@ -30,6 +30,8 @@ static inline struct nf_conn_seqadj *nfct_seqadj_ext_add(struct nf_conn *ct)
 	return nf_ct_ext_add(ct, NF_CT_EXT_SEQADJ, GFP_ATOMIC);
 }
 
+extern int nf_ct_seqadj_init(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
+			     s32 off);
 extern int nf_ct_seqadj_set(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
 			    __be32 seq, s32 off);
 extern void nf_ct_tcp_seqadj_set(struct sk_buff *skb,
