@@ -500,6 +500,9 @@ static int hci_sock_bound_ioctl(struct sock *sk, unsigned int cmd,
 	if (!hdev)
 		return -EBADFD;
 
+	if (test_bit(HCI_USER_CHANNEL, &hdev->dev_flags))
+		return -EBUSY;
+
 	switch (cmd) {
 	case HCISETRAW:
 		if (!capable(CAP_NET_ADMIN))
@@ -530,19 +533,19 @@ static int hci_sock_bound_ioctl(struct sock *sk, unsigned int cmd,
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
 		return hci_sock_blacklist_del(hdev, (void __user *) arg);
-
-	default:
-		if (hdev->ioctl)
-			return hdev->ioctl(hdev, cmd, arg);
-		return -EINVAL;
 	}
+
+	if (hdev->ioctl)
+		return hdev->ioctl(hdev, cmd, arg);
+
+	return -EINVAL;
 }
 
 static int hci_sock_ioctl(struct socket *sock, unsigned int cmd,
 			  unsigned long arg)
 {
-	struct sock *sk = sock->sk;
 	void __user *argp = (void __user *) arg;
+	struct sock *sk = sock->sk;
 	int err;
 
 	BT_DBG("cmd %x arg %lx", cmd, arg);

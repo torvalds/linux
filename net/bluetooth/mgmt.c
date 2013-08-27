@@ -339,6 +339,9 @@ static int read_index_list(struct sock *sk, struct hci_dev *hdev, void *data,
 		if (test_bit(HCI_SETUP, &d->dev_flags))
 			continue;
 
+		if (test_bit(HCI_USER_CHANNEL, &d->dev_flags))
+			continue;
+
 		if (!mgmt_valid_hdev(d))
 			continue;
 
@@ -3316,6 +3319,12 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 	if (index != MGMT_INDEX_NONE) {
 		hdev = hci_dev_get(index);
 		if (!hdev) {
+			err = cmd_status(sk, index, opcode,
+					 MGMT_STATUS_INVALID_INDEX);
+			goto done;
+		}
+
+		if (test_bit(HCI_USER_CHANNEL, &hdev->dev_flags)) {
 			err = cmd_status(sk, index, opcode,
 					 MGMT_STATUS_INVALID_INDEX);
 			goto done;
