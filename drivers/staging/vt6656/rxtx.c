@@ -141,8 +141,8 @@ static u16 s_uGetRTSCTSDuration(struct vnt_private *pDevice,
 
 static void *s_vGetFreeContext(struct vnt_private *pDevice)
 {
-	PUSB_SEND_CONTEXT pContext = NULL;
-	PUSB_SEND_CONTEXT pReturnContext = NULL;
+	struct vnt_usb_send_context *pContext = NULL;
+	struct vnt_usb_send_context *pReturnContext = NULL;
 	int ii;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"GetFreeContext()\n");
@@ -1468,7 +1468,7 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
 	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	struct vnt_tx_buffer *pTX_Buffer;
 	PSTxBufHead pTxBufHead;
-	PUSB_SEND_CONTEXT pContext;
+	struct vnt_usb_send_context *pContext;
 	struct ieee80211_hdr *pMACHeader;
 	struct ethhdr sEthHeader;
 	u8 byPktType, *pbyTxBufferAddr;
@@ -1482,7 +1482,7 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
 	u32 cbMacHdLen;
 	u16 wCurrentRate = RATE_1M;
 
-    pContext = (PUSB_SEND_CONTEXT)s_vGetFreeContext(pDevice);
+	pContext = (struct vnt_usb_send_context *)s_vGetFreeContext(pDevice);
 
     if (NULL == pContext) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ManagementSend TX...NO CONTEXT!\n");
@@ -1749,10 +1749,10 @@ CMD_STATUS csBeacon_xmit(struct vnt_private *pDevice,
 	u32 cbFrameBodySize;
 	u32 cbReqCount;
 	u8 *pbyTxBufferAddr;
-	PUSB_SEND_CONTEXT pContext;
+	struct vnt_usb_send_context *pContext;
 	CMD_STATUS status;
 
-    pContext = (PUSB_SEND_CONTEXT)s_vGetFreeContext(pDevice);
+	pContext = (struct vnt_usb_send_context *)s_vGetFreeContext(pDevice);
     if (NULL == pContext) {
         status = CMD_STATUS_RESOURCES;
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ManagementSend TX...NO CONTEXT!\n");
@@ -1851,7 +1851,7 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
 	PSKeyItem pTransmitKey = NULL;
 	u8 *pbyIVHead, *pbyPayloadHead, *pbyMacHdr;
 	u32 cbExtSuppRate = 0;
-	PUSB_SEND_CONTEXT pContext;
+	struct vnt_usb_send_context *pContext;
 
 	pvRrvTime = pMICHDR = pvTxDataHd = NULL;
 
@@ -1863,7 +1863,7 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
     }
     p80211Header = (PUWLAN_80211HDR)skb->data;
 
-    pContext = (PUSB_SEND_CONTEXT)s_vGetFreeContext(pDevice);
+	pContext = (struct vnt_usb_send_context *)s_vGetFreeContext(pDevice);
 
     if (NULL == pContext) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"DMA0 TX...NO CONTEXT!\n");
@@ -2225,7 +2225,7 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
 	int bNeedDeAuth = false;
 	u8 *pbyBSSID;
 	int bNodeExist = false;
-	PUSB_SEND_CONTEXT pContext;
+	struct vnt_usb_send_context *pContext;
 	bool fConvertedPacket;
 	u32 status;
 	u16 wKeepRate = pDevice->wCurrentRate;
@@ -2296,7 +2296,7 @@ int nsDMA_tx_packet(struct vnt_private *pDevice,
         }
     }
 
-    pContext = (PUSB_SEND_CONTEXT)s_vGetFreeContext(pDevice);
+	pContext = (struct vnt_usb_send_context *)s_vGetFreeContext(pDevice);
 
     if (pContext == NULL) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_DEBUG" pContext == NULL\n");
@@ -2612,13 +2612,13 @@ int bRelayPacketSend(struct vnt_private *pDevice, u8 *pbySkbData, u32 uDataLen,
 	SKeyItem STempKey;
 	PSKeyItem pTransmitKey = NULL;
 	u8 *pbyBSSID;
-	PUSB_SEND_CONTEXT pContext;
+	struct vnt_usb_send_context *pContext;
 	u8 byPktTyp;
 	int fConvertedPacket;
 	u32 status;
 	u16 wKeepRate = pDevice->wCurrentRate;
 
-    pContext = (PUSB_SEND_CONTEXT)s_vGetFreeContext(pDevice);
+	pContext = (struct vnt_usb_send_context *)s_vGetFreeContext(pDevice);
 
     if (NULL == pContext) {
         return false;
