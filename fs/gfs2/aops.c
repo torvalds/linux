@@ -122,14 +122,13 @@ out:
 }
 
 /**
- * gfs2_writeback_writepage - Write page for writeback mappings
+ * gfs2_writepage - Write page for writeback mappings
  * @page: The page
  * @wbc: The writeback control
  *
  */
 
-static int gfs2_writeback_writepage(struct page *page,
-				    struct writeback_control *wbc)
+static int gfs2_writepage(struct page *page, struct writeback_control *wbc)
 {
 	int ret;
 
@@ -138,32 +137,6 @@ static int gfs2_writeback_writepage(struct page *page,
 		return ret;
 
 	return nobh_writepage(page, gfs2_get_block_noalloc, wbc);
-}
-
-/**
- * gfs2_ordered_writepage - Write page for ordered data files
- * @page: The page to write
- * @wbc: The writeback control
- *
- */
-
-static int gfs2_ordered_writepage(struct page *page,
-				  struct writeback_control *wbc)
-{
-	struct inode *inode = page->mapping->host;
-	struct gfs2_inode *ip = GFS2_I(inode);
-	int ret;
-
-	ret = gfs2_writepage_common(page, wbc);
-	if (ret <= 0)
-		return ret;
-
-	if (!page_has_buffers(page)) {
-		create_empty_buffers(page, inode->i_sb->s_blocksize,
-				     (1 << BH_Dirty)|(1 << BH_Uptodate));
-	}
-	gfs2_page_add_databufs(ip, page, 0, inode->i_sb->s_blocksize-1);
-	return block_write_full_page(page, gfs2_get_block_noalloc, wbc);
 }
 
 /**
@@ -1107,7 +1080,7 @@ cannot_release:
 }
 
 static const struct address_space_operations gfs2_writeback_aops = {
-	.writepage = gfs2_writeback_writepage,
+	.writepage = gfs2_writepage,
 	.writepages = gfs2_writepages,
 	.readpage = gfs2_readpage,
 	.readpages = gfs2_readpages,
@@ -1123,7 +1096,7 @@ static const struct address_space_operations gfs2_writeback_aops = {
 };
 
 static const struct address_space_operations gfs2_ordered_aops = {
-	.writepage = gfs2_ordered_writepage,
+	.writepage = gfs2_writepage,
 	.writepages = gfs2_writepages,
 	.readpage = gfs2_readpage,
 	.readpages = gfs2_readpages,
