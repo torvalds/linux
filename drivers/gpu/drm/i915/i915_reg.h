@@ -376,6 +376,38 @@
 #define   FB_FMAX_VMIN_FREQ_LO_SHIFT		27
 #define   FB_FMAX_VMIN_FREQ_LO_MASK		0xf8000000
 
+/* vlv2 north clock has */
+#define CCK_REG_DSI_PLL_FUSE			0x44
+#define CCK_REG_DSI_PLL_CONTROL			0x48
+#define  DSI_PLL_VCO_EN				(1 << 31)
+#define  DSI_PLL_LDO_GATE			(1 << 30)
+#define  DSI_PLL_P1_POST_DIV_SHIFT		17
+#define  DSI_PLL_P1_POST_DIV_MASK		(0x1ff << 17)
+#define  DSI_PLL_P2_MUX_DSI0_DIV2		(1 << 13)
+#define  DSI_PLL_P3_MUX_DSI1_DIV2		(1 << 12)
+#define  DSI_PLL_MUX_MASK			(3 << 9)
+#define  DSI_PLL_MUX_DSI0_DSIPLL		(0 << 10)
+#define  DSI_PLL_MUX_DSI0_CCK			(1 << 10)
+#define  DSI_PLL_MUX_DSI1_DSIPLL		(0 << 9)
+#define  DSI_PLL_MUX_DSI1_CCK			(1 << 9)
+#define  DSI_PLL_CLK_GATE_MASK			(0xf << 5)
+#define  DSI_PLL_CLK_GATE_DSI0_DSIPLL		(1 << 8)
+#define  DSI_PLL_CLK_GATE_DSI1_DSIPLL		(1 << 7)
+#define  DSI_PLL_CLK_GATE_DSI0_CCK		(1 << 6)
+#define  DSI_PLL_CLK_GATE_DSI1_CCK		(1 << 5)
+#define  DSI_PLL_LOCK				(1 << 0)
+#define CCK_REG_DSI_PLL_DIVIDER			0x4c
+#define  DSI_PLL_LFSR				(1 << 31)
+#define  DSI_PLL_FRACTION_EN			(1 << 30)
+#define  DSI_PLL_FRAC_COUNTER_SHIFT		27
+#define  DSI_PLL_FRAC_COUNTER_MASK		(7 << 27)
+#define  DSI_PLL_USYNC_CNT_SHIFT		18
+#define  DSI_PLL_USYNC_CNT_MASK			(0x1ff << 18)
+#define  DSI_PLL_N1_DIV_SHIFT			16
+#define  DSI_PLL_N1_DIV_MASK			(3 << 16)
+#define  DSI_PLL_M1_DIV_SHIFT			0
+#define  DSI_PLL_M1_DIV_MASK			(0x1ff << 0)
+
 /*
  * DPIO - a special bus for various display related registers to hide behind
  *

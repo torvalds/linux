@@ -83,6 +83,8 @@ static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 static void intel_dsi_pre_pll_enable(struct intel_encoder *encoder)
 {
 	DRM_DEBUG_KMS("\n");
+
+	vlv_enable_dsi_pll(encoder);
 }
 
 static void intel_dsi_pre_enable(struct intel_encoder *encoder)
@@ -167,6 +169,8 @@ static void intel_dsi_disable(struct intel_encoder *encoder)
 static void intel_dsi_post_disable(struct intel_encoder *encoder)
 {
 	DRM_DEBUG_KMS("\n");
+
+	vlv_disable_dsi_pll(encoder);
 }
 
 static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
@@ -302,6 +306,9 @@ static void intel_dsi_mode_set(struct intel_encoder *intel_encoder)
 	u32 val, tmp;
 
 	DRM_DEBUG_KMS("pipe %d\n", pipe);
+
+	/* Update the DSI PLL */
+	vlv_enable_dsi_pll(intel_encoder);
 
 	/* escape clock divider, 20MHz, shared for A and C. device ready must be
 	 * off when doing this! txclkesc? */

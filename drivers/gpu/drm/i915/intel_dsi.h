@@ -96,4 +96,7 @@ static inline struct intel_dsi *enc_to_intel_dsi(struct drm_encoder *encoder)
 	return container_of(encoder, struct intel_dsi, base.base);
 }
 
+extern void vlv_enable_dsi_pll(struct intel_encoder *encoder);
+extern void vlv_disable_dsi_pll(struct intel_encoder *encoder);
+
 #endif /* _INTEL_DSI_H */
