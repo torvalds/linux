@@ -455,7 +455,7 @@ static const struct of_device_id ti_qspi_match[] = {
 	{.compatible = "ti,dra7xxx-qspi" },
 	{},
 };
-MODULE_DEVICE_TABLE(of, dra7xxx_qspi_match);
+MODULE_DEVICE_TABLE(of, ti_qspi_match);
 
 static int ti_qspi_probe(struct platform_device *pdev)
 {
