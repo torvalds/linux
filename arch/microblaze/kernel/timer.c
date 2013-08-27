@@ -42,13 +42,13 @@ static unsigned int timer_clock_freq;
 #define TCSR_PWMA	(1<<9)
 #define TCSR_ENALL	(1<<10)
 
-static inline void microblaze_timer0_stop(void)
+static inline void xilinx_timer0_stop(void)
 {
 	out_be32(timer_baseaddr + TCSR0,
 		 in_be32(timer_baseaddr + TCSR0) & ~TCSR_ENT);
 }
 
-static inline void microblaze_timer0_start_periodic(unsigned long load_val)
+static inline void xilinx_timer0_start_periodic(unsigned long load_val)
 {
 	if (!load_val)
 		load_val = 1;
@@ -75,7 +75,7 @@ static inline void microblaze_timer0_start_periodic(unsigned long load_val)
 			TCSR_TINT|TCSR_ENIT|TCSR_ENT|TCSR_ARHT|TCSR_UDT);
 }
 
-static inline void microblaze_timer0_start_oneshot(unsigned long load_val)
+static inline void xilinx_timer0_start_oneshot(unsigned long load_val)
 {
 	if (!load_val)
 		load_val = 1;
@@ -89,21 +89,21 @@ static inline void microblaze_timer0_start_oneshot(unsigned long load_val)
 			TCSR_TINT|TCSR_ENIT|TCSR_ENT|TCSR_ARHT|TCSR_UDT);
 }
 
-static int microblaze_timer_set_next_event(unsigned long delta,
+static int xilinx_timer_set_next_event(unsigned long delta,
 					struct clock_event_device *dev)
 {
 	pr_debug("%s: next event, delta %x\n", __func__, (u32)delta);
-	microblaze_timer0_start_oneshot(delta);
+	xilinx_timer0_start_oneshot(delta);
 	return 0;
 }
 
-static void microblaze_timer_set_mode(enum clock_event_mode mode,
+static void xilinx_timer_set_mode(enum clock_event_mode mode,
 				struct clock_event_device *evt)
 {
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
 		pr_info("%s: periodic\n", __func__);
-		microblaze_timer0_start_periodic(freq_div_hz);
+		xilinx_timer0_start_periodic(freq_div_hz);
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
 		pr_info("%s: oneshot\n", __func__);
@@ -113,7 +113,7 @@ static void microblaze_timer_set_mode(enum clock_event_mode mode,
 		break;
 	case CLOCK_EVT_MODE_SHUTDOWN:
 		pr_info("%s: shutdown\n", __func__);
-		microblaze_timer0_stop();
+		xilinx_timer0_stop();
 		break;
 	case CLOCK_EVT_MODE_RESUME:
 		pr_info("%s: resume\n", __func__);
@@ -121,13 +121,13 @@ static void microblaze_timer_set_mode(enum clock_event_mode mode,
 	}
 }
 
-static struct clock_event_device clockevent_microblaze_timer = {
-	.name		= "microblaze_clockevent",
+static struct clock_event_device clockevent_xilinx_timer = {
+	.name		= "xilinx_clockevent",
 	.features       = CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_PERIODIC,
 	.shift		= 8,
 	.rating		= 300,
-	.set_next_event	= microblaze_timer_set_next_event,
-	.set_mode	= microblaze_timer_set_mode,
+	.set_next_event	= xilinx_timer_set_next_event,
+	.set_mode	= xilinx_timer_set_mode,
 };
 
 static inline void timer_ack(void)
@@ -137,7 +137,7 @@ static inline void timer_ack(void)
 
 static irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
-	struct clock_event_device *evt = &clockevent_microblaze_timer;
+	struct clock_event_device *evt = &clockevent_xilinx_timer;
 #ifdef CONFIG_HEART_BEAT
 	heartbeat();
 #endif
@@ -150,62 +150,62 @@ static struct irqaction timer_irqaction = {
 	.handler = timer_interrupt,
 	.flags = IRQF_DISABLED | IRQF_TIMER,
 	.name = "timer",
-	.dev_id = &clockevent_microblaze_timer,
+	.dev_id = &clockevent_xilinx_timer,
 };
 
-static __init void microblaze_clockevent_init(void)
+static __init void xilinx_clockevent_init(void)
 {
-	clockevent_microblaze_timer.mult =
+	clockevent_xilinx_timer.mult =
 		div_sc(timer_clock_freq, NSEC_PER_SEC,
-				clockevent_microblaze_timer.shift);
-	clockevent_microblaze_timer.max_delta_ns =
-		clockevent_delta2ns((u32)~0, &clockevent_microblaze_timer);
-	clockevent_microblaze_timer.min_delta_ns =
-		clockevent_delta2ns(1, &clockevent_microblaze_timer);
-	clockevent_microblaze_timer.cpumask = cpumask_of(0);
-	clockevents_register_device(&clockevent_microblaze_timer);
+				clockevent_xilinx_timer.shift);
+	clockevent_xilinx_timer.max_delta_ns =
+		clockevent_delta2ns((u32)~0, &clockevent_xilinx_timer);
+	clockevent_xilinx_timer.min_delta_ns =
+		clockevent_delta2ns(1, &clockevent_xilinx_timer);
+	clockevent_xilinx_timer.cpumask = cpumask_of(0);
+	clockevents_register_device(&clockevent_xilinx_timer);
 }
 
-static cycle_t microblaze_read(struct clocksource *cs)
+static cycle_t xilinx_read(struct clocksource *cs)
 {
 	/* reading actual value of timer 1 */
 	return (cycle_t) (in_be32(timer_baseaddr + TCR1));
 }
 
-static struct timecounter microblaze_tc = {
+static struct timecounter xilinx_tc = {
 	.cc = NULL,
 };
 
-static cycle_t microblaze_cc_read(const struct cyclecounter *cc)
+static cycle_t xilinx_cc_read(const struct cyclecounter *cc)
 {
-	return microblaze_read(NULL);
+	return xilinx_read(NULL);
 }
 
-static struct cyclecounter microblaze_cc = {
-	.read = microblaze_cc_read,
+static struct cyclecounter xilinx_cc = {
+	.read = xilinx_cc_read,
 	.mask = CLOCKSOURCE_MASK(32),
 	.shift = 8,
 };
 
-static int __init init_microblaze_timecounter(void)
+static int __init init_xilinx_timecounter(void)
 {
-	microblaze_cc.mult = div_sc(timer_clock_freq, NSEC_PER_SEC,
-				microblaze_cc.shift);
+	xilinx_cc.mult = div_sc(timer_clock_freq, NSEC_PER_SEC,
+				xilinx_cc.shift);
 
-	timecounter_init(&microblaze_tc, &microblaze_cc, sched_clock());
+	timecounter_init(&xilinx_tc, &xilinx_cc, sched_clock());
 
 	return 0;
 }
 
 static struct clocksource clocksource_microblaze = {
-	.name		= "microblaze_clocksource",
+	.name		= "xilinx_clocksource",
 	.rating		= 300,
-	.read		= microblaze_read,
+	.read		= xilinx_read,
 	.mask		= CLOCKSOURCE_MASK(32),
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static int __init microblaze_clocksource_init(void)
+static int __init xilinx_clocksource_init(void)
 {
 	if (clocksource_register_hz(&clocksource_microblaze, timer_clock_freq))
 		panic("failed to register clocksource");
@@ -217,7 +217,7 @@ static int __init microblaze_clocksource_init(void)
 	out_be32(timer_baseaddr + TCSR1, TCSR_TINT|TCSR_ENT|TCSR_ARHT);
 
 	/* register timecounter - for ftrace support */
-	init_microblaze_timecounter();
+	init_xilinx_timecounter();
 	return 0;
 }
 
@@ -260,8 +260,8 @@ static void __init xilinx_timer_init(struct device_node *timer)
 #ifdef CONFIG_HEART_BEAT
 	setup_heartbeat();
 #endif
-	microblaze_clocksource_init();
-	microblaze_clockevent_init();
+	xilinx_clocksource_init();
+	xilinx_clockevent_init();
 	timer_initialized = 1;
 }
 
