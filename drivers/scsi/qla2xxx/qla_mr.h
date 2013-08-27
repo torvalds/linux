@@ -510,7 +510,10 @@ struct mr_data_fx00 {
 	uint16_t fw_critemp_timer_tick;
 	uint32_t old_aenmbx0_state;
 	uint32_t critical_temperature;
+	bool extended_io_enabled;
 };
+
+#define QLAFX00_EXTENDED_IO_EN_MASK    0x20
 
 /*
  * SoC Junction Temperature is stored in

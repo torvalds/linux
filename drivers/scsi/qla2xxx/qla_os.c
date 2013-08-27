@@ -2876,6 +2876,13 @@ skip_dpc:
 
 	ha->isp_ops->enable_intrs(ha);
 
+	if (IS_QLAFX00(ha)) {
+		ret = qlafx00_fx_disc(base_vha,
+			&base_vha->hw->mr.fcport, FXDISC_GET_CONFIG_INFO);
+		host->sg_tablesize = (ha->mr.extended_io_enabled) ?
+		    QLA_SG_ALL : 128;
+	}
+
 	ret = scsi_add_host(host, &pdev->dev);
 	if (ret)
 		goto probe_failed;
@@ -2895,9 +2902,6 @@ skip_dpc:
 	qla2x00_alloc_sysfs_attr(base_vha);
 
 	if (IS_QLAFX00(ha)) {
-		ret = qlafx00_fx_disc(base_vha,
-			&base_vha->hw->mr.fcport, FXDISC_GET_CONFIG_INFO);
-
 		ret = qlafx00_fx_disc(base_vha,
 			&base_vha->hw->mr.fcport, FXDISC_GET_PORT_INFO);
 
