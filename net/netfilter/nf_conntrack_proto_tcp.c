@@ -27,6 +27,7 @@
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_ecache.h>
+#include <net/netfilter/nf_conntrack_seqadj.h>
 #include <net/netfilter/nf_log.h>
 #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
 #include <net/netfilter/ipv6/nf_conntrack_ipv6.h>
@@ -495,21 +496,6 @@ static void tcp_sack(const struct sk_buff *skb, unsigned int dataoff,
 	}
 }
 
-#ifdef CONFIG_NF_NAT_NEEDED
-static inline s32 nat_offset(const struct nf_conn *ct,
-			     enum ip_conntrack_dir dir,
-			     u32 seq)
-{
-	typeof(nf_ct_nat_offset) get_offset = rcu_dereference(nf_ct_nat_offset);
-
-	return get_offset != NULL ? get_offset(ct, dir, seq) : 0;
-}
-#define NAT_OFFSET(ct, dir, seq) \
-	(nat_offset(ct, dir, seq))
-#else
-#define NAT_OFFSET(ct, dir, seq)	0
-#endif
-
 static bool tcp_in_window(const struct nf_conn *ct,
 			  struct ip_ct_tcp *state,
 			  enum ip_conntrack_dir dir,
@@ -540,7 +526,7 @@ static bool tcp_in_window(const struct nf_conn *ct,
 		tcp_sack(skb, dataoff, tcph, &sack);
 
 	/* Take into account NAT sequence number mangling */
-	receiver_offset = NAT_OFFSET(ct, !dir, ack - 1);
+	receiver_offset = nf_ct_seq_offset(ct, !dir, ack - 1);
 	ack -= receiver_offset;
 	sack -= receiver_offset;
 

@@ -9,6 +9,7 @@ enum nf_ct_ext_id {
 	NF_CT_EXT_HELPER,
 #if defined(CONFIG_NF_NAT) || defined(CONFIG_NF_NAT_MODULE)
 	NF_CT_EXT_NAT,
+	NF_CT_EXT_SEQADJ,
 #endif
 	NF_CT_EXT_ACCT,
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
@@ -31,6 +32,7 @@ enum nf_ct_ext_id {
 
 #define NF_CT_EXT_HELPER_TYPE struct nf_conn_help
 #define NF_CT_EXT_NAT_TYPE struct nf_conn_nat
+#define NF_CT_EXT_SEQADJ_TYPE struct nf_conn_seqadj
 #define NF_CT_EXT_ACCT_TYPE struct nf_conn_counter
 #define NF_CT_EXT_ECACHE_TYPE struct nf_conntrack_ecache
 #define NF_CT_EXT_ZONE_TYPE struct nf_conntrack_zone

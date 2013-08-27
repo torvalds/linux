@@ -319,6 +319,7 @@ extern void nf_ct_attach(struct sk_buff *, const struct sk_buff *);
 extern void (*nf_ct_destroy)(struct nf_conntrack *) __rcu;
 
 struct nf_conn;
+enum ip_conntrack_info;
 struct nlattr;
 
 struct nfq_ct_hook {
@@ -327,14 +328,10 @@ struct nfq_ct_hook {
 	int (*parse)(const struct nlattr *attr, struct nf_conn *ct);
 	int (*attach_expect)(const struct nlattr *attr, struct nf_conn *ct,
 			     u32 portid, u32 report);
+	void (*seq_adjust)(struct sk_buff *skb, struct nf_conn *ct,
+			   enum ip_conntrack_info ctinfo, s32 off);
 };
 extern struct nfq_ct_hook __rcu *nfq_ct_hook;
-
-struct nfq_ct_nat_hook {
-	void (*seq_adjust)(struct sk_buff *skb, struct nf_conn *ct,
-			   u32 ctinfo, s32 off);
-};
-extern struct nfq_ct_nat_hook __rcu *nfq_ct_nat_hook;
 #else
 static inline void nf_ct_attach(struct sk_buff *new, struct sk_buff *skb) {}
 #endif
