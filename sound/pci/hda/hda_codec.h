@@ -94,6 +94,8 @@ enum {
 #define AC_VERB_GET_HDMI_DIP_XMIT		0x0f32
 #define AC_VERB_GET_HDMI_CP_CTRL		0x0f33
 #define AC_VERB_GET_HDMI_CHAN_SLOT		0x0f34
+#define AC_VERB_GET_DEVICE_SEL			0xf35
+#define AC_VERB_GET_DEVICE_LIST			0xf36
 
 /*
  * SET verbs
@@ -133,6 +135,7 @@ enum {
 #define AC_VERB_SET_HDMI_DIP_XMIT		0x732
 #define AC_VERB_SET_HDMI_CP_CTRL		0x733
 #define AC_VERB_SET_HDMI_CHAN_SLOT		0x734
+#define AC_VERB_SET_DEVICE_SEL			0x735
 
 /*
  * Parameter IDs
@@ -154,6 +157,7 @@ enum {
 #define AC_PAR_GPIO_CAP			0x11
 #define AC_PAR_AMP_OUT_CAP		0x12
 #define AC_PAR_VOL_KNB_CAP		0x13
+#define AC_PAR_DEVLIST_LEN		0x15
 #define AC_PAR_HDMI_LPCM_CAP		0x20
 
 /*
@@ -352,6 +356,10 @@ enum {
 #define AC_LPCMCAP_44K			(1<<30)	/* 44.1kHz support */
 #define AC_LPCMCAP_44K_MS		(1<<31)	/* 44.1kHz-multiplies support */
 
+/* Display pin's device list length */
+#define AC_DEV_LIST_LEN_MASK		0x3f
+#define AC_MAX_DEV_LIST_LEN		64
+
 /*
  * Control Parameters
  */
@@ -459,6 +467,11 @@ enum {
 #define AC_DEFCFG_LOCATION_SHIFT	24
 #define AC_DEFCFG_PORT_CONN		(0x3<<30)
 #define AC_DEFCFG_PORT_CONN_SHIFT	30
+
+/* Display pin's device list entry */
+#define AC_DE_PD			(1<<0)
+#define AC_DE_ELDV			(1<<1)
+#define AC_DE_IA			(1<<2)
 
 /* device device types (0x0-0xf) */
 enum {
@@ -885,6 +898,7 @@ struct hda_codec {
 	unsigned int pcm_format_first:1; /* PCM format must be set first */
 	unsigned int epss:1;		/* supporting EPSS? */
 	unsigned int cached_write:1;	/* write only to caches */
+	unsigned int dp_mst:1; /* support DP1.2 Multi-stream transport */
 #ifdef CONFIG_PM
 	unsigned int power_on :1;	/* current (global) power-state */
 	unsigned int d3_stop_clk:1;	/* support D3 operation without BCLK */
@@ -972,6 +986,8 @@ int snd_hda_override_conn_list(struct hda_codec *codec, hda_nid_t nid, int nums,
 			  const hda_nid_t *list);
 int snd_hda_get_conn_index(struct hda_codec *codec, hda_nid_t mux,
 			   hda_nid_t nid, int recursive);
+int snd_hda_get_devices(struct hda_codec *codec, hda_nid_t nid,
+			u8 *dev_list, int max_devices);
 int snd_hda_query_supported_pcm(struct hda_codec *codec, hda_nid_t nid,
 				u32 *ratesp, u64 *formatsp, unsigned int *bpsp);
 
