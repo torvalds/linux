@@ -564,8 +564,12 @@ static void rspi_work(struct work_struct *work)
 	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&rspi->lock, flags);
-	while (!list_empty(&rspi->queue)) {
+	while (1) {
+		spin_lock_irqsave(&rspi->lock, flags);
+		if (list_empty(&rspi->queue)) {
+			spin_unlock_irqrestore(&rspi->lock, flags);
+			break;
+		}
 		mesg = list_entry(rspi->queue.next, struct spi_message, queue);
 		list_del_init(&mesg->queue);
 		spin_unlock_irqrestore(&rspi->lock, flags);
@@ -595,8 +599,6 @@ static void rspi_work(struct work_struct *work)
 
 		mesg->status = 0;
 		mesg->complete(mesg->context);
-
-		spin_lock_irqsave(&rspi->lock, flags);
 	}
 
 	return;
