@@ -15,6 +15,15 @@ extern struct task_struct *__switch_to(struct task_struct *,
 struct thread_struct;
 extern struct task_struct *_switch(struct thread_struct *prev,
 				   struct thread_struct *next);
+#ifdef CONFIG_PPC_BOOK3S_64
+static inline void save_tar(struct thread_struct *prev)
+{
+	if (cpu_has_feature(CPU_FTR_ARCH_207S))
+		prev->tar = mfspr(SPRN_TAR);
+}
+#else
+static inline void save_tar(struct thread_struct *prev) {}
+#endif
 
 extern void load_up_fpu(void);
 extern void enable_kernel_fp(void);
