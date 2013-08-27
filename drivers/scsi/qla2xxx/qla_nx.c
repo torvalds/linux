@@ -2077,13 +2077,6 @@ qla82xx_intr_handler(int irq, void *dev_id)
 		WRT_REG_DWORD(&reg->host_int, 0);
 	}
 
-#ifdef QL_DEBUG_LEVEL_17
-	if (!irq && ha->flags.eeh_busy)
-		ql_log(ql_log_warn, vha, 0x503d,
-		    "isr:status %x, cmd_flags %lx, mbox_int %x, stat %x.\n",
-		    status, ha->mbx_cmd_flags, ha->flags.mbox_int, stat);
-#endif
-
 	qla2x00_handle_mbx_completion(ha, status);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
@@ -2148,13 +2141,6 @@ qla82xx_msix_default(int irq, void *dev_id)
 		}
 		WRT_REG_DWORD(&reg->host_int, 0);
 	} while (0);
-
-#ifdef QL_DEBUG_LEVEL_17
-	if (!irq && ha->flags.eeh_busy)
-		ql_log(ql_log_warn, vha, 0x5044,
-		    "isr:status %x, cmd_flags %lx, mbox_int %x, stat %x.\n",
-		    status, ha->mbx_cmd_flags, ha->flags.mbox_int, stat);
-#endif
 
 	qla2x00_handle_mbx_completion(ha, status);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
