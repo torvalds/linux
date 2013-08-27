@@ -17,10 +17,14 @@
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
 #include <linux/slab.h>
+#include <linux/kobject.h>
 #include <asm/opal.h>
 #include <asm/firmware.h>
 
 #include "powernv.h"
+
+/* /sys/firmware/opal */
+struct kobject *opal_kobj;
 
 struct opal {
 	u64 base;
@@ -375,6 +379,17 @@ static irqreturn_t opal_interrupt(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static int opal_sysfs_init(void)
+{
+	opal_kobj = kobject_create_and_add("opal", firmware_kobj);
+	if (!opal_kobj) {
+		pr_warn("kobject_create_and_add opal failed\n");
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
 static int __init opal_init(void)
 {
 	struct device_node *np, *consoles;
@@ -420,6 +435,10 @@ static int __init opal_init(void)
 				   " (0x%x)\n", rc, irq, hwirq);
 		opal_irqs[i] = irq;
 	}
+
+	/* Create "opal" kobject under /sys/firmware */
+	rc = opal_sysfs_init();
+
 	return 0;
 }
 subsys_initcall(opal_init);

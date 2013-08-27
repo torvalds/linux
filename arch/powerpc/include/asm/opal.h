@@ -601,6 +601,9 @@ typedef struct oppanel_line {
 	uint64_t 	line_len;
 } oppanel_line_t;
 
+/* /sys/firmware/opal */
+extern struct kobject *opal_kobj;
+
 /* API functions */
 int64_t opal_console_write(int64_t term_number, __be64 *length,
 			   const uint8_t *buffer);
