@@ -230,6 +230,7 @@ int perf_event__preprocess_sample(const union perf_event *self,
 const char *perf_event__name(unsigned int id);
 
 int perf_event__synthesize_sample(union perf_event *event, u64 type,
+				  u64 sample_regs_user, u64 read_format,
 				  const struct perf_sample *sample,
 				  bool swapped);
 
