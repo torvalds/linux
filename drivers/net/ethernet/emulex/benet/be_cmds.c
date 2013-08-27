@@ -678,31 +678,6 @@ static void be_cmd_page_addrs_prepare(struct phys_addr *pages, u32 max_pages,
 	}
 }
 
-/* Converts interrupt delay in microseconds to multiplier value */
-static u32 eq_delay_to_mult(u32 usec_delay)
-{
-#define MAX_INTR_RATE			651042
-	const u32 round = 10;
-	u32 multiplier;
-
-	if (usec_delay == 0)
-		multiplier = 0;
-	else {
-		u32 interrupt_rate = 1000000 / usec_delay;
-		/* Max delay, corresponding to the lowest interrupt rate */
-		if (interrupt_rate == 0)
-			multiplier = 1023;
-		else {
-			multiplier = (MAX_INTR_RATE - interrupt_rate) * round;
-			multiplier /= interrupt_rate;
-			/* Round the multiplier to the closest value.*/
-			multiplier = (multiplier + round/2) / round;
-			multiplier = min(multiplier, (u32)1023);
-		}
-	}
-	return multiplier;
-}
-
 static inline struct be_mcc_wrb *wrb_from_mbox(struct be_adapter *adapter)
 {
 	struct be_dma_mem *mbox_mem = &adapter->mbox_mem;
@@ -790,13 +765,12 @@ int be_cmd_fw_clean(struct be_adapter *adapter)
 	return status;
 }
 
-int be_cmd_eq_create(struct be_adapter *adapter,
-		struct be_queue_info *eq, int eq_delay)
+int be_cmd_eq_create(struct be_adapter *adapter, struct be_eq_obj *eqo)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_eq_create *req;
-	struct be_dma_mem *q_mem = &eq->dma_mem;
-	int status;
+	struct be_dma_mem *q_mem = &eqo->q.dma_mem;
+	int status, ver = 0;
 
 	if (mutex_lock_interruptible(&adapter->mbox_lock))
 		return -1;
@@ -807,15 +781,18 @@ int be_cmd_eq_create(struct be_adapter *adapter,
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 		OPCODE_COMMON_EQ_CREATE, sizeof(*req), wrb, NULL);
 
+	/* Support for EQ_CREATEv2 available only SH-R onwards */
+	if (!(BEx_chip(adapter) || lancer_chip(adapter)))
+		ver = 2;
+
+	req->hdr.version = ver;
 	req->num_pages =  cpu_to_le16(PAGES_4K_SPANNED(q_mem->va, q_mem->size));
 
 	AMAP_SET_BITS(struct amap_eq_context, valid, req->context, 1);
 	/* 4byte eqe*/
 	AMAP_SET_BITS(struct amap_eq_context, size, req->context, 0);
 	AMAP_SET_BITS(struct amap_eq_context, count, req->context,
-			__ilog2_u32(eq->len/256));
-	AMAP_SET_BITS(struct amap_eq_context, delaymult, req->context,
-			eq_delay_to_mult(eq_delay));
+		      __ilog2_u32(eqo->q.len / 256));
 	be_dws_cpu_to_le(req->context, sizeof(req->context));
 
 	be_cmd_page_addrs_prepare(req->pages, ARRAY_SIZE(req->pages), q_mem);
@@ -823,8 +800,10 @@ int be_cmd_eq_create(struct be_adapter *adapter,
 	status = be_mbox_notify_wait(adapter);
 	if (!status) {
 		struct be_cmd_resp_eq_create *resp = embedded_payload(wrb);
-		eq->id = le16_to_cpu(resp->eq_id);
-		eq->created = true;
+		eqo->q.id = le16_to_cpu(resp->eq_id);
+		eqo->msix_idx =
+			(ver == 2) ? le16_to_cpu(resp->msix_idx) : eqo->idx;
+		eqo->q.created = true;
 	}
 
 	mutex_unlock(&adapter->mbox_lock);

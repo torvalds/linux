@@ -189,6 +189,7 @@ struct be_eq_obj {
 	u32 cur_eqd;		/* in usecs */
 
 	u8 idx;			/* array index */
+	u8 msix_idx;
 	u16 tx_budget;
 	u16 spurious_intr;
 	struct napi_struct napi;

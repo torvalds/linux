@@ -307,7 +307,7 @@ struct be_cmd_req_eq_create {
 struct be_cmd_resp_eq_create {
 	struct be_cmd_resp_hdr resp_hdr;
 	u16 eq_id;		/* sword */
-	u16 rsvd0;		/* sword */
+	u16 msix_idx;		/* available only in v2 */
 } __packed;
 
 /******************** Mac query ***************************/
@@ -1851,8 +1851,7 @@ extern int be_cmd_if_create(struct be_adapter *adapter, u32 cap_flags,
 			    u32 en_flags, u32 *if_handle, u32 domain);
 extern int be_cmd_if_destroy(struct be_adapter *adapter, int if_handle,
 			u32 domain);
-extern int be_cmd_eq_create(struct be_adapter *adapter,
-			struct be_queue_info *eq, int eq_delay);
+extern int be_cmd_eq_create(struct be_adapter *adapter, struct be_eq_obj *eqo);
 extern int be_cmd_cq_create(struct be_adapter *adapter,
 			struct be_queue_info *cq, struct be_queue_info *eq,
 			bool no_delay, int num_cqe_dma_coalesce);
