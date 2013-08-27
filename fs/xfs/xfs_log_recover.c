@@ -3202,7 +3202,7 @@ xlog_recover_dquot_ra_pass2(
 	ASSERT(dq_f->qlf_len == 1);
 
 	xfs_buf_readahead(mp->m_ddev_targp, dq_f->qlf_blkno,
-				dq_f->qlf_len, NULL);
+			  XFS_FSB_TO_BB(mp, dq_f->qlf_len), NULL);
 }
 
 STATIC void
