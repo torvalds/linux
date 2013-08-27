@@ -1093,6 +1093,7 @@ static inline pte_t ptep_modify_prot_start(struct mm_struct *mm,
 
 	pte = *ptep;
 	ptep_flush_lazy(mm, address, ptep);
+	pte_val(*ptep) |= _PAGE_INVALID;
 
 	if (mm_has_pgste(mm)) {
 		pgste = pgste_update_all(&pte, pgste);
