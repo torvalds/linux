@@ -3153,7 +3153,7 @@ qla8044_poll_flash_status_reg(struct scsi_qla_host *vha)
 		ret_val = qla8044_rd_reg_indirect(vha, QLA8044_FLASH_STATUS,
 		    &flash_status);
 		if (ret_val) {
-			ql_log(ql_log_warn, vha, 0xb120,
+			ql_log(ql_log_warn, vha, 0xb13c,
 			    "%s: Failed to read FLASH_STATUS reg.\n",
 			    __func__);
 			break;
@@ -3484,7 +3484,7 @@ qla8044_write_optrom_data(struct scsi_qla_host *vha, uint8_t *buf,
 		}
 		erase_offset += QLA8044_SECTOR_SIZE;
 	}
-	ql_dbg(ql_dbg_user, vha, 0xb139,
+	ql_dbg(ql_dbg_user, vha, 0xb13f,
 	    "Got write for addr = 0x%x length=0x%x.\n",
 	    offset, length);
 
@@ -3653,7 +3653,7 @@ qla8044_clear_rst_ready(scsi_qla_host_t *vha)
 	 */
 	drv_state &= ~(1 << vha->hw->portnum);
 
-	ql_dbg(ql_dbg_p3p, vha, 0xb143,
+	ql_dbg(ql_dbg_p3p, vha, 0xb13d,
 	    "drv_state: 0x%08x\n", drv_state);
 	qla8044_wr_direct(vha, QLA8044_CRB_DRV_STATE_INDEX, drv_state);
 }
@@ -3681,13 +3681,13 @@ qla8044_abort_isp(scsi_qla_host_t *vha)
 		/* If IDC_CTRL DONTRESETHBA_BIT0 is set don't do reset
 		 * recovery */
 		if (qla8044_idc_dontreset(ha) == DONTRESET_BIT0) {
-			ql_dbg(ql_dbg_p3p, vha, 0xb144,
+			ql_dbg(ql_dbg_p3p, vha, 0xb13e,
 			    "Reset recovery disabled\n");
 			rval = QLA_FUNCTION_FAILED;
 			goto exit_isp_reset;
 		}
 
-		ql_dbg(ql_dbg_p3p, vha, 0xb145,
+		ql_dbg(ql_dbg_p3p, vha, 0xb140,
 		    "HW State: NEED RESET\n");
 		qla8044_wr_direct(vha, QLA8044_CRB_DEV_STATE_INDEX,
 		    QLA8XXX_DEV_NEED_RESET);

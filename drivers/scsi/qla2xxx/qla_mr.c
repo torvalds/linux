@@ -1596,7 +1596,7 @@ qlafx00_timer_routine(scsi_qla_host_t *vha)
 		 */
 		if (ha->mr.fw_critemp_timer_tick == 0) {
 			tempc = QLAFX00_GET_TEMPERATURE(ha);
-			ql_log(ql_dbg_timer, vha, 0x6012,
+			ql_dbg(ql_dbg_timer, vha, 0x6012,
 			    "ISPFx00(%s): Critical temp timer, "
 			    "current SOC temperature: %d\n",
 			    __func__, tempc);

@@ -11,10 +11,11 @@
  * ----------------------------------------------------------------------
  * |             Level            |   Last Value Used  |     Holes	|
  * ----------------------------------------------------------------------
- * | Module Init and Probe        |       0x0152       | 0x4b,0xba,0xfa |
+ * | Module Init and Probe        |       0x0159       | 0x4b,0xba,0xfa |
  * | Mailbox commands             |       0x1181       | 0x111a-0x111b  |
  * |                              |                    | 0x1155-0x1158  |
  * |                              |                    | 0x1018-0x1019  |
+ * |                              |                    | 0x1115-0x1116  |
  * |                              |                    | 0x10ca		|
  * | Device Discovery             |       0x2095       | 0x2020-0x2022, |
  * |                              |                    | 0x2011-0x2012, |
@@ -28,7 +29,7 @@
  * | DPC Thread                   |       0x4022       | 0x4002,0x4013  |
  * | Async Events                 |       0x5087       | 0x502b-0x502f  |
  * |                              |                    | 0x5047,0x5052  |
- * |                              |                    | 0x5040,0x5075  |
+ * |                              |                    | 0x5084,0x5075	|
  * |                              |                    | 0x503d,0x5044  |
  * | Timer Routines               |       0x6012       |                |
  * | User Space Interactions      |       0x70e1       | 0x7018,0x702e, |
@@ -41,6 +42,7 @@
  * |                              |                    | 0x70ad-0x70ae, |
  * |                              |                    | 0x70d1-0x70db, |
  * |                              |                    | 0x7047,0x703b	|
+ * |                              |                    | 0x70de-0x70df, |
  * | Task Management              |       0x803d       | 0x8025-0x8026  |
  * |                              |                    | 0x800b,0x8039  |
  * | AER/EEH                      |       0x9011       |		|
@@ -54,10 +56,12 @@
  * |                              |                    | 0xb12c,0xb12d  |
  * |                              |                    | 0xb13a,0xb142  |
  * |                              |                    | 0xb13c-0xb140  |
+ * |                              |                    | 0xb149		|
  * | MultiQ                       |       0xc00c       |		|
  * | Misc                         |       0xd010       |		|
- * | Target Mode		  |	  0xe070       |		|
- * | Target Mode Management	  |	  0xf072       |		|
+ * | Target Mode		  |	  0xe070       | 0xe021		|
+ * | Target Mode Management	  |	  0xf072       | 0xf002-0xf003	|
+ * |                              |                    | 0xf046-0xf049  |
  * | Target Mode Task Management  |	  0x1000b      |		|
  * ----------------------------------------------------------------------
  */

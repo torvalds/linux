@@ -2944,7 +2944,7 @@ qla82xx_get_flash_version(scsi_qla_host_t *vha, void *mbuf)
 		ha->fw_revision[0] = bcode[0x4];
 		ha->fw_revision[1] = bcode[0x5];
 		ha->fw_revision[2] = bcode[0x6];
-		ql_dbg(ql_dbg_init, vha, 0x015a,
+		ql_dbg(ql_dbg_init, vha, 0x0153,
 		    "Firmware revision %d.%d.%d\n",
 		    ha->fw_revision[0], ha->fw_revision[1],
 		    ha->fw_revision[2]);
