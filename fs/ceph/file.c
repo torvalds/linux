@@ -960,13 +960,17 @@ static int ceph_zero_objects(struct inode *inode, loff_t offset, loff_t length)
 {
 	int ret = 0;
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	__s32 stripe_unit = ceph_file_layout_su(ci->i_layout);
-	__s32 stripe_count = ceph_file_layout_stripe_count(ci->i_layout);
-	__s32 object_size = ceph_file_layout_object_size(ci->i_layout);
-	loff_t object_set_size = (loff_t)object_size * stripe_count;
+	s32 stripe_unit = ceph_file_layout_su(ci->i_layout);
+	s32 stripe_count = ceph_file_layout_stripe_count(ci->i_layout);
+	s32 object_size = ceph_file_layout_object_size(ci->i_layout);
+	u64 object_set_size = object_size * stripe_count;
+	u64 nearly, t;
 
-	loff_t nearly = (offset + object_set_size - 1)
-			/ object_set_size * object_set_size;
+	/* round offset up to next period boundary */
+	nearly = offset + object_set_size - 1;
+	t = nearly;
+	nearly -= do_div(t, object_set_size);
+
 	while (length && offset < nearly) {
 		loff_t size = length;
 		ret = ceph_zero_partial_object(inode, offset, &size);
