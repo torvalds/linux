@@ -1508,7 +1508,7 @@ qla2x00_host_ramp_down_queuedepth(scsi_qla_host_t *vha)
 			if (sdev->queue_depth > shost->cmd_per_lun) {
 				if (sdev->queue_depth < ha->cfg_lun_q_depth)
 					continue;
-				ql_log(ql_log_warn, vp, 0x3031,
+				ql_dbg(ql_dbg_io, vp, 0x3031,
 				    "%ld:%d:%d: Ramping down queue depth to %d",
 				    vp->host_no, sdev->id, sdev->lun,
 				    ha->cfg_lun_q_depth);
