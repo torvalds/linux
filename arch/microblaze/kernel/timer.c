@@ -22,6 +22,7 @@
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/io.h>
+#include <linux/of_address.h>
 #include <linux/bug.h>
 #include <asm/cpuinfo.h>
 #include <asm/setup.h>
@@ -29,7 +30,7 @@
 #include <asm/irq.h>
 #include <linux/cnt32_to_63.h>
 
-static unsigned int timer_baseaddr;
+static void __iomem *timer_baseaddr;
 
 static unsigned int freq_div_hz;
 static unsigned int timer_clock_freq;
@@ -242,26 +243,27 @@ static void __init xilinx_timer_init(struct device_node *timer)
 {
 	u32 irq;
 	u32 timer_num = 1;
-	const void *prop;
+	int ret;
 
-	timer_baseaddr = be32_to_cpup(of_get_property(timer, "reg", NULL));
-	timer_baseaddr = (unsigned long) ioremap(timer_baseaddr, PAGE_SIZE);
-	irq = irq_of_parse_and_map(timer, 0);
-	timer_num = be32_to_cpup(of_get_property(timer,
-						"xlnx,one-timer-only", NULL));
-	if (timer_num) {
-		pr_emerg("Please   enable two timers in HW\n");
+	timer_baseaddr = of_iomap(timer, 0);
+	if (!timer_baseaddr) {
+		pr_err("ERROR: invalid timer base address\n");
 		BUG();
 	}
 
-	pr_info("%s #0 at 0x%08x, irq=%d\n",
-		timer->name, timer_baseaddr, irq);
+	irq = irq_of_parse_and_map(timer, 0);
+
+	of_property_read_u32(timer, "xlnx,one-timer-only", &timer_num);
+	if (timer_num) {
+		pr_emerg("Please enable two timers in HW\n");
+		BUG();
+	}
+
+	pr_info("%s: irq=%d\n", timer->full_name, irq);
 
 	/* If there is clock-frequency property than use it */
-	prop = of_get_property(timer, "clock-frequency", NULL);
-	if (prop)
-		timer_clock_freq = be32_to_cpup(prop);
-	else
+	ret = of_property_read_u32(timer, "clock-frequency", &timer_clock_freq);
+	if (ret < 0)
 		timer_clock_freq = cpuinfo.cpu_clock_freq;
 
 	freq_div_hz = timer_clock_freq / HZ;
