@@ -527,7 +527,7 @@ qla25xx_copy_mq(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
 	uint32_t cnt, que_idx;
 	uint8_t que_cnt;
 	struct qla2xxx_mq_chain *mq = ptr;
-	struct device_reg_25xxmq __iomem *reg;
+	device_reg_t __iomem *reg;
 
 	if (!ha->mqenable || IS_QLA83XX(ha))
 		return ptr;
@@ -541,13 +541,16 @@ qla25xx_copy_mq(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
 		ha->max_req_queues : ha->max_rsp_queues;
 	mq->count = htonl(que_cnt);
 	for (cnt = 0; cnt < que_cnt; cnt++) {
-		reg = (struct device_reg_25xxmq __iomem *)
-			(ha->mqiobase + cnt * QLA_QUE_PAGE);
+		reg = ISP_QUE_REG(ha, cnt);
 		que_idx = cnt * 4;
-		mq->qregs[que_idx] = htonl(RD_REG_DWORD(&reg->req_q_in));
-		mq->qregs[que_idx+1] = htonl(RD_REG_DWORD(&reg->req_q_out));
-		mq->qregs[que_idx+2] = htonl(RD_REG_DWORD(&reg->rsp_q_in));
-		mq->qregs[que_idx+3] = htonl(RD_REG_DWORD(&reg->rsp_q_out));
+		mq->qregs[que_idx] =
+		    htonl(RD_REG_DWORD(&reg->isp25mq.req_q_in));
+		mq->qregs[que_idx+1] =
+		    htonl(RD_REG_DWORD(&reg->isp25mq.req_q_out));
+		mq->qregs[que_idx+2] =
+		    htonl(RD_REG_DWORD(&reg->isp25mq.rsp_q_in));
+		mq->qregs[que_idx+3] =
+		    htonl(RD_REG_DWORD(&reg->isp25mq.rsp_q_out));
 	}
 
 	return ptr + sizeof(struct qla2xxx_mq_chain);
