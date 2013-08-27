@@ -53,7 +53,7 @@ struct ath10k_pci_compl {
 	struct list_head list;
 	enum ath10k_pci_compl_state state;
 	struct ce_state *ce_state;
-	struct hif_ce_pipe_info *pipe_info;
+	struct ath10k_pci_pipe *pipe_info;
 	void *transfer_context;
 	unsigned int nbytes;
 	unsigned int transfer_id;
@@ -160,7 +160,7 @@ enum ath10k_pci_features {
 };
 
 /* Per-pipe state. */
-struct hif_ce_pipe_info {
+struct ath10k_pci_pipe {
 	/* Handle of underlying Copy Engine */
 	struct ce_state *ce_hdl;
 
@@ -219,7 +219,7 @@ struct ath10k_pci {
 
 	bool compl_processing;
 
-	struct hif_ce_pipe_info pipe_info[CE_COUNT_MAX];
+	struct ath10k_pci_pipe pipe_info[CE_COUNT_MAX];
 
 	struct ath10k_hif_cb msg_callbacks_current;
 

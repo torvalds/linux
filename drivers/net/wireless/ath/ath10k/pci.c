@@ -48,9 +48,9 @@ static int ath10k_pci_diag_read_access(struct ath10k *ar, u32 address,
 
 static void ath10k_pci_process_ce(struct ath10k *ar);
 static int ath10k_pci_post_rx(struct ath10k *ar);
-static int ath10k_pci_post_rx_pipe(struct hif_ce_pipe_info *pipe_info,
+static int ath10k_pci_post_rx_pipe(struct ath10k_pci_pipe *pipe_info,
 					     int num);
-static void ath10k_pci_rx_pipe_cleanup(struct hif_ce_pipe_info *pipe_info);
+static void ath10k_pci_rx_pipe_cleanup(struct ath10k_pci_pipe *pipe_info);
 static void ath10k_pci_stop_ce(struct ath10k *ar);
 static void ath10k_pci_device_reset(struct ath10k *ar);
 static int ath10k_pci_reset_target(struct ath10k *ar);
@@ -491,7 +491,7 @@ void ath10k_do_pci_sleep(struct ath10k *ar)
  * FIXME: Handle OOM properly.
  */
 static inline
-struct ath10k_pci_compl *get_free_compl(struct hif_ce_pipe_info *pipe_info)
+struct ath10k_pci_compl *get_free_compl(struct ath10k_pci_pipe *pipe_info)
 {
 	struct ath10k_pci_compl *compl = NULL;
 
@@ -517,7 +517,7 @@ static void ath10k_pci_ce_send_done(struct ce_state *ce_state,
 {
 	struct ath10k *ar = ce_state->ar;
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	struct hif_ce_pipe_info *pipe_info =  &ar_pci->pipe_info[ce_state->id];
+	struct ath10k_pci_pipe *pipe_info =  &ar_pci->pipe_info[ce_state->id];
 	struct ath10k_pci_compl *compl;
 	bool process = false;
 
@@ -579,7 +579,7 @@ static void ath10k_pci_ce_recv_data(struct ce_state *ce_state,
 {
 	struct ath10k *ar = ce_state->ar;
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	struct hif_ce_pipe_info *pipe_info =  &ar_pci->pipe_info[ce_state->id];
+	struct ath10k_pci_pipe *pipe_info =  &ar_pci->pipe_info[ce_state->id];
 	struct ath10k_pci_compl *compl;
 	struct sk_buff *skb;
 
@@ -623,7 +623,7 @@ static int ath10k_pci_hif_send_head(struct ath10k *ar, u8 pipe_id,
 {
 	struct ath10k_skb_cb *skb_cb = ATH10K_SKB_CB(nbuf);
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	struct hif_ce_pipe_info *pipe_info = &(ar_pci->pipe_info[pipe_id]);
+	struct ath10k_pci_pipe *pipe_info = &(ar_pci->pipe_info[pipe_id]);
 	struct ce_state *ce_hdl = pipe_info->ce_hdl;
 	struct ce_sendlist sendlist;
 	unsigned int len;
@@ -668,7 +668,7 @@ static int ath10k_pci_hif_send_head(struct ath10k *ar, u8 pipe_id,
 static u16 ath10k_pci_hif_get_free_queue_number(struct ath10k *ar, u8 pipe)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	struct hif_ce_pipe_info *pipe_info = &(ar_pci->pipe_info[pipe]);
+	struct ath10k_pci_pipe *pipe_info = &(ar_pci->pipe_info[pipe]);
 	int ret;
 
 	spin_lock_bh(&pipe_info->pipe_lock);
@@ -764,7 +764,7 @@ static int ath10k_pci_start_ce(struct ath10k *ar)
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct ce_state *ce_diag = ar_pci->ce_diag;
 	const struct ce_attr *attr;
-	struct hif_ce_pipe_info *pipe_info;
+	struct ath10k_pci_pipe *pipe_info;
 	struct ath10k_pci_compl *compl;
 	int i, pipe_num, completions, disable_interrupts;
 
@@ -847,7 +847,7 @@ static void ath10k_pci_cleanup_ce(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct ath10k_pci_compl *compl, *tmp;
-	struct hif_ce_pipe_info *pipe_info;
+	struct ath10k_pci_pipe *pipe_info;
 	struct sk_buff *netbuf;
 	int pipe_num;
 
@@ -1044,7 +1044,7 @@ static void ath10k_pci_hif_get_default_pipe(struct ath10k *ar,
 						 &dl_is_polled);
 }
 
-static int ath10k_pci_post_rx_pipe(struct hif_ce_pipe_info *pipe_info,
+static int ath10k_pci_post_rx_pipe(struct ath10k_pci_pipe *pipe_info,
 				   int num)
 {
 	struct ath10k *ar = pipe_info->hif_ce_state;
@@ -1104,7 +1104,7 @@ err:
 static int ath10k_pci_post_rx(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	struct hif_ce_pipe_info *pipe_info;
+	struct ath10k_pci_pipe *pipe_info;
 	const struct ce_attr *attr;
 	int pipe_num, ret = 0;
 
@@ -1154,7 +1154,7 @@ static int ath10k_pci_hif_start(struct ath10k *ar)
 	return 0;
 }
 
-static void ath10k_pci_rx_pipe_cleanup(struct hif_ce_pipe_info *pipe_info)
+static void ath10k_pci_rx_pipe_cleanup(struct ath10k_pci_pipe *pipe_info)
 {
 	struct ath10k *ar;
 	struct ath10k_pci *ar_pci;
@@ -1186,7 +1186,7 @@ static void ath10k_pci_rx_pipe_cleanup(struct hif_ce_pipe_info *pipe_info)
 	}
 }
 
-static void ath10k_pci_tx_pipe_cleanup(struct hif_ce_pipe_info *pipe_info)
+static void ath10k_pci_tx_pipe_cleanup(struct ath10k_pci_pipe *pipe_info)
 {
 	struct ath10k *ar;
 	struct ath10k_pci *ar_pci;
@@ -1239,7 +1239,7 @@ static void ath10k_pci_buffer_cleanup(struct ath10k *ar)
 	int pipe_num;
 
 	for (pipe_num = 0; pipe_num < ar_pci->ce_count; pipe_num++) {
-		struct hif_ce_pipe_info *pipe_info;
+		struct ath10k_pci_pipe *pipe_info;
 
 		pipe_info = &ar_pci->pipe_info[pipe_num];
 		ath10k_pci_rx_pipe_cleanup(pipe_info);
@@ -1250,7 +1250,7 @@ static void ath10k_pci_buffer_cleanup(struct ath10k *ar)
 static void ath10k_pci_ce_deinit(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	struct hif_ce_pipe_info *pipe_info;
+	struct ath10k_pci_pipe *pipe_info;
 	int pipe_num;
 
 	for (pipe_num = 0; pipe_num < ar_pci->ce_count; pipe_num++) {
@@ -1686,7 +1686,7 @@ static int ath10k_pci_init_config(struct ath10k *ar)
 static int ath10k_pci_ce_init(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	struct hif_ce_pipe_info *pipe_info;
+	struct ath10k_pci_pipe *pipe_info;
 	const struct ce_attr *attr;
 	int pipe_num;
 
@@ -1902,7 +1902,7 @@ static const struct ath10k_hif_ops ath10k_pci_hif_ops = {
 
 static void ath10k_pci_ce_tasklet(unsigned long ptr)
 {
-	struct hif_ce_pipe_info *pipe = (struct hif_ce_pipe_info *)ptr;
+	struct ath10k_pci_pipe *pipe = (struct ath10k_pci_pipe *)ptr;
 	struct ath10k_pci *ar_pci = pipe->ar_pci;
 
 	ath10k_ce_per_engine_service(ar_pci->ar, pipe->pipe_num);
