@@ -5122,9 +5122,10 @@ restart:
 		inject_emulated_exception(vcpu);
 		r = EMULATE_DONE;
 	} else if (vcpu->arch.pio.count) {
-		if (!vcpu->arch.pio.in)
+		if (!vcpu->arch.pio.in) {
+			/* FIXME: return into emulator if single-stepping.  */
 			vcpu->arch.pio.count = 0;
-		else {
+		} else {
 			writeback = false;
 			vcpu->arch.complete_userspace_io = complete_emulated_pio;
 		}
@@ -6176,6 +6177,8 @@ static int complete_emulated_mmio(struct kvm_vcpu *vcpu)
 
 	if (vcpu->mmio_cur_fragment == vcpu->mmio_nr_fragments) {
 		vcpu->mmio_needed = 0;
+
+		/* FIXME: return into emulator if single-stepping.  */
 		if (vcpu->mmio_is_write)
 			return 1;
 		vcpu->mmio_read_completed = 1;
