@@ -1631,7 +1631,7 @@ static bool tcp_tso_should_defer(struct sock *sk, struct sk_buff *skb)
 
 	/* If a full-sized TSO skb can be sent, do it. */
 	if (limit >= min_t(unsigned int, sk->sk_gso_max_size,
-			   sk->sk_gso_max_segs * tp->mss_cache))
+			   tp->xmit_size_goal_segs * tp->mss_cache))
 		goto send_now;
 
 	/* Middle in queue won't get any more data, full sendable already? */
