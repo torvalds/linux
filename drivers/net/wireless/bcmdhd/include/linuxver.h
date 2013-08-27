@@ -22,12 +22,13 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: linuxver.h 407802 2013-06-14 13:59:38Z $
+ * $Id: linuxver.h 417757 2013-08-12 12:24:45Z $
  */
 
 #ifndef _linuxver_h_
 #define _linuxver_h_
 
+#include <typedefs.h>
 #include <linux/version.h>
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 0))
 #include <linux/config.h>
@@ -518,14 +519,16 @@ pci_restore_state(struct pci_dev *dev, u32 *buffer)
 #endif
 
 typedef struct {
-	void 	*parent;  /* some external entity that the thread supposed to work for */
-	char 	*proc_name;
+	void	*parent;  /* some external entity that the thread supposed to work for */
+	char	*proc_name;
 	struct	task_struct *p_task;
-	long 	thr_pid;
-	int 	prio; /* priority */
+	long	thr_pid;
+	int		prio; /* priority */
 	struct	semaphore sema;
 	int	terminated;
 	struct	completion completed;
+	spinlock_t	spinlock;
+	int		up_cnt;
 } tsk_ctl_t;
 
 
@@ -536,6 +539,44 @@ typedef struct {
 #else
 #define DBG_THR(x)
 #endif
+
+static inline bool binary_sema_down(tsk_ctl_t *tsk)
+{
+	if (down_interruptible(&tsk->sema) == 0) {
+		unsigned long flags = 0;
+		spin_lock_irqsave(&tsk->spinlock, flags);
+		if (tsk->up_cnt == 1)
+			tsk->up_cnt--;
+		else {
+			DBG_THR(("dhd_dpc_thread: Unexpected up_cnt %d\n", tsk->up_cnt));
+		}
+		spin_unlock_irqrestore(&tsk->spinlock, flags);
+		return FALSE;
+	} else
+		return TRUE;
+}
+
+static inline bool binary_sema_up(tsk_ctl_t *tsk)
+{
+	bool sem_up = FALSE;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&tsk->spinlock, flags);
+	if (tsk->up_cnt == 0) {
+		tsk->up_cnt++;
+		sem_up = TRUE;
+	} else if (tsk->up_cnt == 1) {
+		/* dhd_sched_dpc: dpc is alread up! */
+	} else
+		DBG_THR(("dhd_sched_dpc: unexpected up cnt %d!\n", tsk->up_cnt));
+
+	spin_unlock_irqrestore(&tsk->spinlock, flags);
+
+	if (sem_up)
+		up(&tsk->sema);
+
+	return sem_up;
+}
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0))
 #define SMP_RD_BARRIER_DEPENDS(x) smp_read_barrier_depends(x)
@@ -552,6 +593,7 @@ typedef struct {
 	(tsk_ctl)->terminated = FALSE; \
 	(tsk_ctl)->p_task  = kthread_run(thread_func, tsk_ctl, (char*)name); \
 	(tsk_ctl)->thr_pid = (tsk_ctl)->p_task->pid; \
+	spin_lock_init(&((tsk_ctl)->spinlock)); \
 	DBG_THR(("%s(): thread:%s:%lx started\n", __FUNCTION__, \
 		(tsk_ctl)->proc_name, (tsk_ctl)->thr_pid)); \
 }

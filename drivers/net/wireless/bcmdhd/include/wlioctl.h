@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wlioctl.h 397263 2013-04-18 00:36:48Z $
+ * $Id: wlioctl.h 417015 2013-08-07 12:56:49Z $
  */
 
 #ifndef _wlioctl_h_
@@ -5451,8 +5451,29 @@ typedef struct txdelay_params {
 #define WL_RELMCAST_FLAG_INBLACKLIST	1
 #define WL_RELMCAST_FLAG_ACTIVEACKER	2
 #define WL_RELMCAST_FLAG_RELMCAST		4
+#define WL_RELMCAST_MAX_TABLE_ENTRY     4
 
 #define WL_RELMCAST_VER					1
+#define WL_RELMCAST_INDEX_ACK_ALL       255
+#define WL_RELMCAST_NUM_OF_MC_STREAMS   4
+#define WL_RELMCAST_MAX_TRS_PER_GROUP   1
+#define WL_RELMCAST_ACK_MCAST0          0x02
+#define WL_RELMCAST_ACK_MCAST_ALL             0x01
+#define WL_RELMCAST_ACTF_TIME_MIN          300	 /* time in ms */
+#define WL_RELMCAST_ACTF_TIME_MAX          20000 /* time in ms */
+
+enum {
+	RELMCAST_ENTRY_OP_DISABLE = 0,
+	RELMCAST_ENTRY_OP_DELETE,
+	RELMCAST_ENTRY_OP_ENABLE,
+	RELMCAST_ENTRY_OP_ACK_ALL
+};
+
+enum {
+	WL_RELMCAST_MODE_RECEIVER = 0,
+	WL_RELMCAST_MODE_TRANSMITTER,
+	WL_RELMCAST_MODE_INITIATOR
+};
 
 typedef struct wl_relmcast_client {
 	uint8 flag;
@@ -5464,8 +5485,42 @@ typedef struct wl_relmcast_st {
 	uint8 ver;
 	uint8 num;
 	wl_relmcast_client_t clients[WL_RELMCAST_MAX_CLIENT];
+	uint16 err;
 } wl_relmcast_status_t;
 
+typedef struct wl_relmcast_entry {
+	int8 flag;
+	struct ether_addr addr;
+} wl_relmcast_entry_t;
+
+typedef struct wl_relmcast_entry_table {
+	int8 index;
+	int8 opcode;
+	wl_relmcast_entry_t entry[WL_RELMCAST_MAX_TABLE_ENTRY];
+} wl_relmcast_entry_table_t;
+
+typedef struct wl_tr_Info {
+	struct ether_addr addr;
+	uint32 timeVal;
+	uint16 seq;
+} wl_tr_Info_t;
+
+typedef struct wl_mcGrpEntry {
+	struct ether_addr mcaddr;
+	struct ether_addr ar;
+	wl_tr_Info_t trInfo[WL_RELMCAST_MAX_TRS_PER_GROUP];
+} wl_mcGrpEntry_t;
+
+typedef struct wl_mcAckAllEntry {
+	struct ether_addr ar;
+	wl_tr_Info_t trInfo[WL_RELMCAST_NUM_OF_MC_STREAMS];
+} wl_mcAckAllEntry_t;
+
+typedef struct wl_relmcast_globalMcTbl {
+	uint8 activeMask;
+	wl_mcAckAllEntry_t ackAll;
+	wl_mcGrpEntry_t mcEntry[WL_RELMCAST_NUM_OF_MC_STREAMS];
+} wl_relmcast_globalMcTbl_t;
 #endif /* LINUX_POSTMOGRIFY_REMOVAL */
 
 /* fbt_cap: FBT assoc / reassoc modes. */

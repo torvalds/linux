@@ -911,6 +911,12 @@ wf_chspec_valid(chanspec_t chanspec)
 				}
 
 				if (i == num_ch) {
+					/* check for channel 165 which is not the side band
+					 * of 40MHz 5G channel
+					 */
+					if (chspec_ch == 165)
+						i = 0;
+
 					/* check for legacy JP channels on failure */
 					if (chspec_ch == 34 || chspec_ch == 38 ||
 					    chspec_ch == 42 || chspec_ch == 46)

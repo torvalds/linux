@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_linux.c 384887 2013-02-13 13:23:52Z $
+ * $Id: bcmsdh_linux.c 414953 2013-07-26 17:36:27Z $
  */
 
 /**
@@ -689,6 +689,14 @@ void bcmsdh_unregister_oob_intr(void)
 		free_irq(sdhcinfo->oob_irq, NULL);
 		sdhcinfo->oob_irq_registered = FALSE;
 	}
+}
+
+bool bcmsdh_is_oob_intr_registered(void)
+{
+	if (sdhcinfo)
+		return sdhcinfo->oob_irq_registered;
+	else
+		return FALSE;
 }
 #endif 
 

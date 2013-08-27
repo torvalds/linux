@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd.h 407649 2013-06-13 19:55:14Z $
+ * $Id: dhd.h 418907 2013-08-18 02:10:25Z $
  */
 
 /****************
@@ -342,9 +342,7 @@ typedef struct dhd_pub {
 	int tcp_ack_info_cnt;
 	tcp_ack_info_t tcp_ack_info_tbl[MAXTCPSTREAMS];
 #endif /* DHDTCPACK_SUPPRESS */
-#if defined(ARP_OFFLOAD_SUPPORT)
 	uint32 arp_version;
-#endif
 } dhd_pub_t;
 
 typedef struct dhd_cmn {
@@ -399,6 +397,11 @@ typedef struct dhd_cmn {
 #undef	SPINWAIT_SLEEP
 #define SPINWAIT_SLEEP(a, exp, us) SPINWAIT(exp, us)
 #endif /* DHDTHREAD */
+
+#ifndef OSL_SLEEP
+#define OSL_SLEEP(ms)		OSL_DELAY(ms*1000)
+#endif /* OSL_SLEEP */
+
 #define DHD_IF_VIF	0x01	/* Virtual IF (Hidden from user) */
 
 unsigned long dhd_os_spin_lock(dhd_pub_t *pub);
@@ -585,6 +588,7 @@ extern int dhd_pno_suspend(dhd_pub_t *dhd, int pfn_suspend);
 #define DHD_MULTICAST4_FILTER_NUM	2
 #define DHD_MULTICAST6_FILTER_NUM	3
 #define DHD_MDNS_FILTER_NUM		4
+#define DHD_ARP_FILTER_NUM		5
 extern int 	dhd_os_enable_packet_filter(dhd_pub_t *dhdp, int val);
 extern void dhd_enable_packet_filter(int value, dhd_pub_t *dhd);
 extern int net_os_enable_packet_filter(struct net_device *dev, int val);
@@ -776,6 +780,9 @@ extern uint dhd_force_tx_queueing;
 #define CUSTOM_SUSPEND_BCN_LI_DTIM		DEFAULT_SUSPEND_BCN_LI_DTIM
 #endif
 
+#define DEFAULT_WIFI_TURNOFF_DELAY	0
+#define WIFI_TURNOFF_DELAY		DEFAULT_WIFI_TURNOFF_DELAY
+
 #ifdef RXFRAME_THREAD
 #ifndef CUSTOM_RXF_PRIO_SETTING
 #define CUSTOM_RXF_PRIO_SETTING		MAX((CUSTOM_DPC_PRIO_SETTING - 1), 1)
@@ -785,6 +792,12 @@ extern uint dhd_force_tx_queueing;
 #ifdef WLTDLS
 #ifndef CUSTOM_TDLS_IDLE_MODE_SETTING
 #define CUSTOM_TDLS_IDLE_MODE_SETTING  60000 /* 60sec to tear down TDLS of not active */
+#endif
+#ifndef CUSTOM_TDLS_RSSI_THRESHOLD_HIGH
+#define CUSTOM_TDLS_RSSI_THRESHOLD_HIGH -70 /* rssi threshold for establishing TDLS link */
+#endif
+#ifndef CUSTOM_TDLS_RSSI_THRESHOLD_LOW
+#define CUSTOM_TDLS_RSSI_THRESHOLD_LOW -80 /* rssi threshold for tearing down TDLS link */
 #endif
 #endif /* WLTDLS */
 

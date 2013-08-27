@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmutils.h 382763 2013-02-04 10:21:08Z $
+ * $Id: bcmutils.h 412804 2013-07-16 16:26:39Z $
  */
 
 #ifndef	_bcmutils_h_
@@ -359,6 +359,22 @@ extern void *pktoffset(osl_t *osh, void *p,  uint offset);
 #define	PKTPRIO_VLAN	0x200		/* VLAN prio found */
 #define	PKTPRIO_UPD	0x400		/* DSCP used to update VLAN prio */
 #define	PKTPRIO_DSCP	0x800		/* DSCP prio found */
+
+/* DSCP type definitions (RFC4594) */
+/* AF1x: High-Throughput Data (RFC2597) */
+#define DSCP_AF11	0x0A
+#define DSCP_AF12	0x0C
+#define DSCP_AF13	0x0E
+/* AF2x: Low-Latency Data (RFC2597) */
+#define DSCP_AF21	0x12
+#define DSCP_AF22	0x14
+#define DSCP_AF23	0x16
+/* AF3x: Multimedia Streaming (RFC2597) */
+#define DSCP_AF31	0x1A
+#define DSCP_AF32	0x1C
+#define DSCP_AF33	0x1E
+/* EF: Telephony (RFC3246) */
+#define DSCP_EF		0x2E
 
 extern uint pktsetprio(void *pkt, bool update_vtag);
 

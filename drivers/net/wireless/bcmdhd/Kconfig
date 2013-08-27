@@ -10,6 +10,13 @@ config BCMDHD
 	  If you choose to build a module, it'll be called dhd. Say M if
 	  unsure.
 
+config BCM4339
+	tristate "Broadcom 4339 wireless cards support"
+	depends on BCMDHD
+	---help---
+	  This module adds support for wireless adapters based on
+	  Broadcom 4339 chipset.
+
 config BCMDHD_FW_PATH
 	depends on BCMDHD
 	string "Firmware path"

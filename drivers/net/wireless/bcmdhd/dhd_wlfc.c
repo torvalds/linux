@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_wlfc.c 402043 2013-05-14 12:11:22Z $
+ * $Id: dhd_wlfc.c 412994 2013-07-17 12:38:03Z $
  *
  */
 
@@ -2309,6 +2309,7 @@ dhd_wlfc_enable(dhd_pub_t *dhd)
 	if (wlfc->hanger == NULL) {
 		MFREE(dhd->osh, dhd->wlfc_state, sizeof(athost_wl_status_info_t));
 		dhd->wlfc_state = NULL;
+		DHD_ERROR(("Failed to malloc dhd->wlfc_state\n"));
 		return BCME_NOMEM;
 	}
 

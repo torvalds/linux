@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_cdc.c 402043 2013-05-14 12:11:22Z $
+ * $Id: dhd_cdc.c 416698 2013-08-06 07:53:34Z $
  *
  * BDC is like CDC, except it includes a header for data packets to convey
  * packet priority over the bus, and flags (e.g. to indicate checksum status
@@ -117,7 +117,6 @@ dhdcdc_query_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len, uin
 {
 	dhd_prot_t *prot = dhd->prot;
 	cdc_ioctl_t *msg = &prot->msg;
-	void *info;
 	int ret = 0, retries = 0;
 	uint32 id, flags = 0;
 
@@ -177,15 +176,12 @@ retry:
 		goto done;
 	}
 
-	/* Check info buffer */
-	info = (void*)&msg[1];
-
 	/* Copy info buffer */
 	if (buf)
 	{
 		if (ret < (int)len)
 			len = ret;
-		memcpy(buf, info, len);
+		memcpy(buf, (void*) prot->buf, len);
 	}
 
 	/* Check the ERROR flag */

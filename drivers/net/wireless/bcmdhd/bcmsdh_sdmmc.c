@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_sdmmc.c 401922 2013-05-14 02:33:11Z $
+ * $Id: bcmsdh_sdmmc.c 418714 2013-08-16 13:21:09Z $
  */
 #include <typedefs.h>
 
@@ -1032,6 +1032,28 @@ sdioh_glom_enabled(void)
 }
 #endif /* BCMSDIOH_TXGLOM */
 
+static INLINE int sdioh_request_packet_align(uint pkt_len, uint write, uint func, int blk_size)
+{
+	/* Align Patch */
+	if (!write || pkt_len < 32)
+		pkt_len = (pkt_len + 3) & 0xFFFFFFFC;
+	else if ((pkt_len > blk_size) && (pkt_len % blk_size)) {
+		if (func == SDIO_FUNC_2) {
+			sd_err(("%s: [%s] dhd_sdio must align %d bytes"
+			" packet larger than a %d bytes blk size by a blk size\n",
+			__FUNCTION__, write ? "W" : "R", pkt_len, blk_size));
+		}
+		pkt_len += blk_size - (pkt_len % blk_size);
+	}
+#ifdef CONFIG_MMC_MSM7X00A
+	if ((pkt_len % 64) == 32) {
+		sd_err(("%s: Rounding up TX packet +=32\n", __FUNCTION__));
+		pkt_len += 32;
+	}
+#endif /* CONFIG_MMC_MSM7X00A */
+	return pkt_len;
+}
+
 static SDIOH_API_RC
 sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
                      uint addr, void *pkt)
@@ -1076,7 +1098,7 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 #ifdef BCMSDIOH_TXGLOM
 		(need_txglom && sd->txglom_mode == SDPCM_TXGLOM_MDESC) ||
 #endif
-		0) && (ttl_len > blk_size)) {
+		0) && (ttl_len >= blk_size)) {
 		blk_num = ttl_len / blk_size;
 		dma_len = blk_num * blk_size;
 	} else {
@@ -1162,6 +1184,7 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 		for (pnext = pkt; pnext; pnext = PKTNEXT(sd->osh, pnext)) {
 			uint8 *buf = (uint8*)PKTDATA(sd->osh, pnext) +
 				xfred_len;
+			uint pad = 0;
 			pkt_len = PKTLEN(sd->osh, pnext);
 			if (0 != xfred_len) {
 				pkt_len -= xfred_len;
@@ -1170,10 +1193,22 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 #ifdef BCMSDIOH_TXGLOM
 			if (need_txglom) {
 				if (!localbuf) {
+					uint prev_lft_len = lft_len;
+					lft_len = sdioh_request_packet_align(lft_len, write,
+						func, blk_size);
+
+					if (lft_len > prev_lft_len) {
+						sd_err(("%s: padding is unexpected! lft_len %d,"
+							" prev_lft_len %d %s\n",
+							__FUNCTION__, lft_len, prev_lft_len,
+							write ? "Write" : "Read"));
+					}
+
 					localbuf = (uint8 *)MALLOC(sd->osh, lft_len);
 					if (localbuf == NULL) {
 						sd_err(("%s: %s TXGLOM: localbuf malloc FAILED\n",
 							__FUNCTION__, (write) ? "TX" : "RX"));
+						need_txglom = FALSE;
 						goto txglomfail;
 					}
 				}
@@ -1191,18 +1226,37 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 txglomfail:
 #endif /* BCMSDIOH_TXGLOM */
 
-			/* Align Patch */
-			if (!write || pkt_len < 32)
-				pkt_len = (pkt_len + 3) & 0xFFFFFFFC;
-			else if (pkt_len % blk_size)
-				pkt_len += blk_size - (pkt_len % blk_size);
+			if (
+#ifdef BCMSDIOH_TXGLOM
+				!need_txglom &&
+#endif
+				TRUE) {
+				pkt_len = sdioh_request_packet_align(pkt_len, write,
+					func, blk_size);
 
-#ifdef CONFIG_MMC_MSM7X00A
-			if ((pkt_len % 64) == 32) {
-				sd_trace(("%s: Rounding up TX packet +=32\n", __FUNCTION__));
-				pkt_len += 32;
+				pad = pkt_len - PKTLEN(sd->osh, pnext);
+
+				if (pad > 0) {
+					if (func == SDIO_FUNC_2) {
+						sd_err(("%s: padding is unexpected! pkt_len %d,"
+						" PKTLEN %d lft_len %d %s\n",
+						__FUNCTION__, pkt_len, PKTLEN(sd->osh, pnext),
+							lft_len, write ? "Write" : "Read"));
+					}
+					if (PKTTAILROOM(sd->osh, pkt) < pad) {
+						sd_info(("%s: insufficient tailroom %d, pad %d,"
+						" lft_len %d pktlen %d, func %d %s\n",
+						__FUNCTION__, (int)PKTTAILROOM(sd->osh, pkt),
+						pad, lft_len, PKTLEN(sd->osh, pnext), func,
+						write ? "W" : "R"));
+						if (PKTPADTAILROOM(sd->osh, pkt, pad)) {
+							sd_err(("%s: padding error size %d.\n",
+								__FUNCTION__, pad));
+							return SDIOH_API_RC_FAIL;
+						}
+					}
+				}
 			}
-#endif /* CONFIG_MMC_MSM7X00A */
 
 			if ((write) && (!fifo))
 				err_ret = sdio_memcpy_toio(

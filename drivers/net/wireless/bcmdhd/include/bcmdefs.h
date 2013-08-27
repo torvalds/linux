@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmdefs.h 381895 2013-01-30 07:06:40Z $
+ * $Id: bcmdefs.h 416231 2013-08-02 07:38:34Z $
  */
 
 #ifndef	_bcmdefs_h_
@@ -65,11 +65,14 @@
 #define	BCMNMIATTACHFN(_fn)	_fn
 #define	BCMNMIATTACHDATA(_data)	_data
 #define CONST	const
-#if defined(__ARM_ARCH_7A__)
-#define BCM47XX_CA9
-#else
+
+/* Do not put BCM47XX and __ARM_ARCH_7A__ to the same line.
+ * DHD build has problem because the BCM47XX will be excluded in DHD release.
+ */
 #undef BCM47XX_CA9
-#endif
+#ifdef __ARM_ARCH_7A__
+#define BCM47XX_CA9
+#endif /* __ARM_ARCH_7A__ */
 #ifndef BCMFASTPATH
 #if defined(BCM47XX_CA9)
 #define BCMFASTPATH		__attribute__ ((__section__ (".text.fastpath")))
