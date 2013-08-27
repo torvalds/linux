@@ -1674,7 +1674,7 @@ static int gpmi_nfc_init(struct gpmi_nand_data *this)
 	if (ret)
 		goto err_out;
 
-	ret = nand_scan_ident(mtd, 1, NULL);
+	ret = nand_scan_ident(mtd, 2, NULL);
 	if (ret)
 		goto err_out;
 
