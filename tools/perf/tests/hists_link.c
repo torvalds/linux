@@ -88,7 +88,8 @@ static struct machine *setup_fake_machine(struct machines *machines)
 	for (i = 0; i < ARRAY_SIZE(fake_threads); i++) {
 		struct thread *thread;
 
-		thread = machine__findnew_thread(machine, fake_threads[i].pid);
+		thread = machine__findnew_thread(machine, fake_threads[i].pid,
+						 fake_threads[i].pid);
 		if (thread == NULL)
 			goto out;
 

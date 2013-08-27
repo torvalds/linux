@@ -32,7 +32,8 @@ int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
 		return -ENOMEM;
 
 	if (pid != HOST_KERNEL_ID) {
-		struct thread *thread = machine__findnew_thread(machine, pid);
+		struct thread *thread = machine__findnew_thread(machine, 0,
+								pid);
 		char comm[64];
 
 		if (thread == NULL)
@@ -302,9 +303,10 @@ static struct thread *__machine__findnew_thread(struct machine *machine,
 	return th;
 }
 
-struct thread *machine__findnew_thread(struct machine *machine, pid_t tid)
+struct thread *machine__findnew_thread(struct machine *machine, pid_t pid,
+				       pid_t tid)
 {
-	return __machine__findnew_thread(machine, 0, tid, true);
+	return __machine__findnew_thread(machine, pid, tid, true);
 }
 
 struct thread *machine__find_thread(struct machine *machine, pid_t tid)
@@ -314,7 +316,9 @@ struct thread *machine__find_thread(struct machine *machine, pid_t tid)
 
 int machine__process_comm_event(struct machine *machine, union perf_event *event)
 {
-	struct thread *thread = machine__findnew_thread(machine, event->comm.tid);
+	struct thread *thread = machine__findnew_thread(machine,
+							event->comm.pid,
+							event->comm.tid);
 
 	if (dump_trace)
 		perf_event__fprintf_comm(event, stdout);
@@ -1012,7 +1016,8 @@ int machine__process_mmap_event(struct machine *machine, union perf_event *event
 		return 0;
 	}
 
-	thread = machine__findnew_thread(machine, event->mmap.pid);
+	thread = machine__findnew_thread(machine, event->mmap.pid,
+					 event->mmap.pid);
 	if (thread == NULL)
 		goto out_problem;
 
@@ -1051,13 +1056,16 @@ static void machine__remove_thread(struct machine *machine, struct thread *th)
 int machine__process_fork_event(struct machine *machine, union perf_event *event)
 {
 	struct thread *thread = machine__find_thread(machine, event->fork.tid);
-	struct thread *parent = machine__findnew_thread(machine, event->fork.ptid);
+	struct thread *parent = machine__findnew_thread(machine,
+							event->fork.ppid,
+							event->fork.ptid);
 
 	/* if a thread currently exists for the thread id remove it */
 	if (thread != NULL)
 		machine__remove_thread(machine, thread);
 
-	thread = machine__findnew_thread(machine, event->fork.tid);
+	thread = machine__findnew_thread(machine, event->fork.pid,
+					 event->fork.tid);
 	if (dump_trace)
 		perf_event__fprintf_task(event, stdout);
 

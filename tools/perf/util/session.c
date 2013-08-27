@@ -1099,7 +1099,7 @@ void perf_event_header__bswap(struct perf_event_header *self)
 
 struct thread *perf_session__findnew(struct perf_session *session, pid_t pid)
 {
-	return machine__findnew_thread(&session->machines.host, pid);
+	return machine__findnew_thread(&session->machines.host, 0, pid);
 }
 
 static struct thread *perf_session__register_idle_thread(struct perf_session *self)
