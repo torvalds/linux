@@ -474,7 +474,7 @@ qla2x00_start_iocbs(struct scsi_qla_host *vha, struct req_que *req)
 	struct qla_hw_data *ha = vha->hw;
 	device_reg_t __iomem *reg = ISP_QUE_REG(ha, req->id);
 
-	if (IS_QLA82XX(ha)) {
+	if (IS_P3P_TYPE(ha)) {
 		qla82xx_start_iocbs(vha);
 	} else {
 		/* Adjust ring index. */
@@ -1844,7 +1844,7 @@ skip_cmd_array:
 	if (req->cnt < req_cnt) {
 		if (ha->mqenable || IS_QLA83XX(ha))
 			cnt = RD_REG_DWORD(&reg->isp25mq.req_q_out);
-		else if (IS_QLA82XX(ha))
+		else if (IS_P3P_TYPE(ha))
 			cnt = RD_REG_DWORD(&reg->isp82.req_q_out);
 		else if (IS_FWI2_CAPABLE(ha))
 			cnt = RD_REG_DWORD(&reg->isp24.req_q_out);

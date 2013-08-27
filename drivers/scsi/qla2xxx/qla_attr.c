@@ -29,7 +29,7 @@ qla2x00_sysfs_read_fw_dump(struct file *filp, struct kobject *kobj,
 	if (!(ha->fw_dump_reading || ha->mctp_dump_reading))
 		return 0;
 
-	if (IS_QLA82XX(ha)) {
+	if (IS_P3P_TYPE(ha)) {
 		if (off < ha->md_template_size) {
 			rval = memory_read_from_buffer(buf, count,
 			    &off, ha->md_tmplt_hdr, ha->md_template_size);
@@ -71,7 +71,7 @@ qla2x00_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 		ql_log(ql_log_info, vha, 0x705d,
 		    "Firmware dump cleared on (%ld).\n", vha->host_no);
 
-		if (IS_QLA82XX(vha->hw)) {
+		if (IS_P3P_TYPE(ha)) {
 			qla82xx_md_free(vha);
 			qla82xx_md_prep(vha);
 		}
@@ -95,11 +95,15 @@ qla2x00_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 			qla82xx_idc_lock(ha);
 			qla82xx_set_reset_owner(vha);
 			qla82xx_idc_unlock(ha);
+		} else if (IS_QLA8044(ha)) {
+			qla8044_idc_lock(ha);
+			qla82xx_set_reset_owner(vha);
+			qla8044_idc_unlock(ha);
 		} else
 			qla2x00_system_error(vha);
 		break;
 	case 4:
-		if (IS_QLA82XX(ha)) {
+		if (IS_P3P_TYPE(ha)) {
 			if (ha->md_tmplt_hdr)
 				ql_dbg(ql_dbg_user, vha, 0x705b,
 				    "MiniDump supported with this firmware.\n");
@@ -109,7 +113,7 @@ qla2x00_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 		}
 		break;
 	case 5:
-		if (IS_QLA82XX(ha))
+		if (IS_P3P_TYPE(ha))
 			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		break;
 	case 6:
@@ -597,14 +601,23 @@ qla2x00_sysfs_write_reset(struct file *filp, struct kobject *kobj,
 		    "Issuing ISP reset.\n");
 
 		scsi_block_requests(vha->host);
-		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		if (IS_QLA82XX(ha)) {
 			ha->flags.isp82xx_no_md_cap = 1;
 			qla82xx_idc_lock(ha);
 			qla82xx_set_reset_owner(vha);
 			qla82xx_idc_unlock(ha);
+		} else if (IS_QLA8044(ha)) {
+			qla8044_idc_lock(ha);
+			idc_control = qla8044_rd_reg(ha,
+			    QLA8044_IDC_DRV_CTRL);
+			qla8044_wr_reg(ha, QLA8044_IDC_DRV_CTRL,
+			    (idc_control | GRACEFUL_RESET_BIT1));
+			qla82xx_set_reset_owner(vha);
+			qla8044_idc_unlock(ha);
+		} else {
+			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+			qla2xxx_wake_dpc(vha);
 		}
-		qla2xxx_wake_dpc(vha);
 		qla2x00_wait_for_chip_reset(vha);
 		scsi_unblock_requests(vha->host);
 		break;
@@ -640,7 +653,7 @@ qla2x00_sysfs_write_reset(struct file *filp, struct kobject *kobj,
 			break;
 		}
 	case 0x2025e:
-		if (!IS_QLA82XX(ha) || vha != base_vha) {
+		if (!IS_P3P_TYPE(ha) || vha != base_vha) {
 			ql_log(ql_log_info, vha, 0x7071,
 			    "FCoE ctx reset no supported.\n");
 			return -EPERM;
@@ -1212,7 +1225,7 @@ qla2x00_mpi_version_show(struct device *dev, struct device_attribute *attr,
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 	struct qla_hw_data *ha = vha->hw;
 
-	if (!IS_QLA81XX(ha) && !IS_QLA8031(ha))
+	if (!IS_QLA81XX(ha) && !IS_QLA8031(ha) && !IS_QLA8044(ha))
 		return snprintf(buf, PAGE_SIZE, "\n");
 
 	return snprintf(buf, PAGE_SIZE, "%d.%02d.%02d (%x)\n",

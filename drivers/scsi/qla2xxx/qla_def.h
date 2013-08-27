@@ -35,6 +35,7 @@
 
 #include "qla_bsg.h"
 #include "qla_nx.h"
+#include "qla_nx2.h"
 #define QLA2XXX_DRIVER_NAME	"qla2xxx"
 #define QLA2XXX_APIDEV		"ql2xapidev"
 #define QLA2XXX_MANUFACTURER	"QLogic Corporation"
@@ -2935,7 +2936,8 @@ struct qla_hw_data {
 #define DT_ISP2031			BIT_15
 #define DT_ISP8031			BIT_16
 #define DT_ISPFX00			BIT_17
-#define DT_ISP_LAST			(DT_ISPFX00 << 1)
+#define DT_ISP8044			BIT_18
+#define DT_ISP_LAST			(DT_ISP8044 << 1)
 
 #define DT_T10_PI                       BIT_25
 #define DT_IIDMA                        BIT_26
@@ -2961,6 +2963,7 @@ struct qla_hw_data {
 #define IS_QLA8001(ha)	(DT_MASK(ha) & DT_ISP8001)
 #define IS_QLA81XX(ha)	(IS_QLA8001(ha))
 #define IS_QLA82XX(ha)	(DT_MASK(ha) & DT_ISP8021)
+#define IS_QLA8044(ha)  (DT_MASK(ha) & DT_ISP8044)
 #define IS_QLA2031(ha)	(DT_MASK(ha) & DT_ISP2031)
 #define IS_QLA8031(ha)	(DT_MASK(ha) & DT_ISP8031)
 #define IS_QLAFX00(ha)	(DT_MASK(ha) & DT_ISPFX00)
@@ -2975,10 +2978,12 @@ struct qla_hw_data {
 #define IS_QLA24XX_TYPE(ha)     (IS_QLA24XX(ha) || IS_QLA54XX(ha) || \
 				IS_QLA84XX(ha))
 #define IS_CNA_CAPABLE(ha)	(IS_QLA81XX(ha) || IS_QLA82XX(ha) || \
-				IS_QLA8031(ha))
+				IS_QLA8031(ha) || IS_QLA8044(ha))
+#define IS_P3P_TYPE(ha)		(IS_QLA82XX(ha) || IS_QLA8044(ha))
 #define IS_QLA2XXX_MIDTYPE(ha)	(IS_QLA24XX(ha) || IS_QLA84XX(ha) || \
 				IS_QLA25XX(ha) || IS_QLA81XX(ha) || \
-				IS_QLA82XX(ha) || IS_QLA83XX(ha))
+				IS_QLA82XX(ha) || IS_QLA83XX(ha) || \
+				IS_QLA8044(ha))
 #define IS_MSIX_NACK_CAPABLE(ha) (IS_QLA81XX(ha) || IS_QLA83XX(ha))
 #define IS_NOPOLLING_TYPE(ha)	((IS_QLA25XX(ha) || IS_QLA81XX(ha) || \
 			IS_QLA83XX(ha)) && (ha)->flags.msix_enabled)
@@ -3187,10 +3192,12 @@ struct qla_hw_data {
 	uint32_t	nvram_data_off;
 
 	uint32_t	fdt_wrt_disable;
+	uint32_t	fdt_wrt_enable;
 	uint32_t	fdt_erase_cmd;
 	uint32_t	fdt_block_size;
 	uint32_t	fdt_unprotect_sec_cmd;
 	uint32_t	fdt_protect_sec_cmd;
+	uint32_t	fdt_wrt_sts_reg_cmd;
 
 	uint32_t        flt_region_flt;
 	uint32_t        flt_region_fdt;
@@ -3402,7 +3409,7 @@ typedef struct scsi_qla_host {
 	uint16_t	fcoe_fcf_idx;
 	uint8_t		fcoe_vn_port_mac[6];
 
-	uint32_t   	vp_abort_cnt;
+	uint32_t	vp_abort_cnt;
 
 	struct fc_vport	*fc_vport;	/* holds fc_vport * for each vport */
 	uint16_t        vp_idx;		/* vport ID */
@@ -3435,6 +3442,7 @@ typedef struct scsi_qla_host {
 	struct bidi_statistics bidi_stats;
 
 	atomic_t	vref_count;
+	struct qla8044_reset_template reset_tmplt;
 } scsi_qla_host_t;
 
 #define SET_VP_IDX	1

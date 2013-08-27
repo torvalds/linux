@@ -11,7 +11,7 @@
  * ----------------------------------------------------------------------
  * |             Level            |   Last Value Used  |     Holes	|
  * ----------------------------------------------------------------------
- * | Module Init and Probe        |       0x014f       | 0x4b,0xba,0xfa |
+ * | Module Init and Probe        |       0x0151       | 0x4b,0xba,0xfa |
  * | Mailbox commands             |       0x117a       | 0x111a-0x111b  |
  * |                              |                    | 0x1155-0x1158  |
  * | Device Discovery             |       0x2095       | 0x2020-0x2022, |
@@ -42,7 +42,15 @@
  * |                              |                    | 0x800b,0x8039  |
  * | AER/EEH                      |       0x9011       |		|
  * | Virtual Port                 |       0xa007       |		|
- * | ISP82XX Specific             |       0xb086       | 0xb002,0xb024  |
+ * | ISP82XX Specific             |       0xb14c       | 0xb002,0xb024  |
+ * |                              |                    | 0xb09e,0xb0ae  |
+ * |                              |                    | 0xb0e0-0xb0ef  |
+ * |                              |                    | 0xb085,0xb0dc  |
+ * |                              |                    | 0xb107,0xb108  |
+ * |                              |                    | 0xb111,0xb11e  |
+ * |                              |                    | 0xb12c,0xb12d  |
+ * |                              |                    | 0xb13a,0xb142  |
+ * |                              |                    | 0xb13c-0xb140  |
  * | MultiQ                       |       0xc00c       |		|
  * | Misc                         |       0xd010       |		|
  * | Target Mode		  |	  0xe070       |		|
@@ -941,7 +949,7 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	uint32_t	*last_chain = NULL;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 
-	if (IS_QLA82XX(ha))
+	if (IS_P3P_TYPE(ha))
 		return;
 
 	risc_address = ext_mem_cnt = 0;
@@ -2530,7 +2538,7 @@ ql_dump_regs(uint32_t level, scsi_qla_host_t *vha, int32_t id)
 	if (!ql_mask_match(level))
 		return;
 
-	if (IS_QLA82XX(ha))
+	if (IS_P3P_TYPE(ha))
 		mbx_reg = &reg82->mailbox_in[0];
 	else if (IS_FWI2_CAPABLE(ha))
 		mbx_reg = &reg24->mailbox0;
