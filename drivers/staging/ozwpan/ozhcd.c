@@ -760,7 +760,7 @@ void oz_hcd_pd_departed(struct oz_port *port)
 	port->config_num = 0;
 	port->flags &= ~(OZ_PORT_F_PRESENT | OZ_PORT_F_DYING);
 	port->flags |= OZ_PORT_F_CHANGED;
-	port->status &= ~USB_PORT_STAT_CONNECTION;
+	port->status &= ~(USB_PORT_STAT_CONNECTION | USB_PORT_STAT_ENABLE);
 	port->status |= (USB_PORT_STAT_C_CONNECTION << 16);
 	/* If there is an endpont 0 then clear the pointer while we hold
 	 * the spinlock be we deallocate it after releasing the lock.
