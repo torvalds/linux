@@ -102,6 +102,8 @@ enum {
 	AuWbrCreate_MFSRRV,	/* mfs then rr with seconds */
 	AuWbrCreate_PMFS,	/* parent and mfs */
 	AuWbrCreate_PMFSV,	/* parent and mfs with seconds */
+	AuWbrCreate_PMFSRR,	/* parent, mfs and round-robin */
+	AuWbrCreate_PMFSRRV,	/* plus seconds */
 
 	AuWbrCreate_Def = AuWbrCreate_TDP
 };
