@@ -7,6 +7,7 @@
 
 struct nouveau_eventh {
 	struct list_head head;
+	void *priv;
 	int (*func)(struct nouveau_eventh *, int index);
 };
 
