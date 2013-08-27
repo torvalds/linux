@@ -21,7 +21,7 @@
 #include "efx.h"
 #include "spi.h"
 #include "nic.h"
-#include "regs.h"
+#include "farch_regs.h"
 #include "io.h"
 #include "phy.h"
 #include "workarounds.h"
@@ -336,7 +336,7 @@ static void falcon_prepare_flush(struct efx_nic *efx)
  *
  * NB most hardware supports MSI interrupts
  */
-inline void falcon_irq_ack_a1(struct efx_nic *efx)
+static inline void falcon_irq_ack_a1(struct efx_nic *efx)
 {
 	efx_dword_t reg;
 
@@ -346,7 +346,7 @@ inline void falcon_irq_ack_a1(struct efx_nic *efx)
 }
 
 
-irqreturn_t falcon_legacy_interrupt_a1(int irq, void *dev_id)
+static irqreturn_t falcon_legacy_interrupt_a1(int irq, void *dev_id)
 {
 	struct efx_nic *efx = dev_id;
 	efx_oword_t *int_ker = efx->irq_status.addr;
@@ -367,10 +367,13 @@ irqreturn_t falcon_legacy_interrupt_a1(int irq, void *dev_id)
 		   "IRQ %d on CPU %d status " EFX_OWORD_FMT "\n",
 		   irq, raw_smp_processor_id(), EFX_OWORD_VAL(*int_ker));
 
+	if (!likely(ACCESS_ONCE(efx->irq_soft_enabled)))
+		return IRQ_HANDLED;
+
 	/* Check to see if we have a serious error condition */
 	syserr = EFX_OWORD_FIELD(*int_ker, FSF_AZ_NET_IVEC_FATAL_INT);
 	if (unlikely(syserr))
-		return efx_nic_fatal_interrupt(efx);
+		return efx_farch_fatal_interrupt(efx);
 
 	/* Determine interrupting queues, clear interrupt status
 	 * register and acknowledge the device interrupt.
@@ -1418,7 +1421,7 @@ static int falcon_probe_port(struct efx_nic *efx)
 
 	/* Allocate buffer for stats */
 	rc = efx_nic_alloc_buffer(efx, &efx->stats_buffer,
-				  FALCON_MAC_STATS_SIZE);
+				  FALCON_MAC_STATS_SIZE, GFP_KERNEL);
 	if (rc)
 		return rc;
 	netif_dbg(efx, probe, efx->net_dev,
@@ -1555,7 +1558,7 @@ static int falcon_test_nvram(struct efx_nic *efx)
 	return falcon_read_nvram(efx, NULL);
 }
 
-static const struct efx_nic_register_test falcon_b0_register_tests[] = {
+static const struct efx_farch_register_test falcon_b0_register_tests[] = {
 	{ FR_AZ_ADR_REGION,
 	  EFX_OWORD32(0x0003FFFF, 0x0003FFFF, 0x0003FFFF, 0x0003FFFF) },
 	{ FR_AZ_RX_CFG,
@@ -1615,8 +1618,8 @@ falcon_b0_test_chip(struct efx_nic *efx, struct efx_self_tests *tests)
 	efx_reset_down(efx, reset_method);
 
 	tests->registers =
-		efx_nic_test_registers(efx, falcon_b0_register_tests,
-				       ARRAY_SIZE(falcon_b0_register_tests))
+		efx_farch_test_registers(efx, falcon_b0_register_tests,
+					 ARRAY_SIZE(falcon_b0_register_tests))
 		? -1 : 1;
 
 	rc = falcon_reset_hw(efx, reset_method);
@@ -1981,7 +1984,7 @@ static int falcon_probe_nic(struct efx_nic *efx)
 
 	rc = -ENODEV;
 
-	if (efx_nic_fpga_ver(efx) != 0) {
+	if (efx_farch_fpga_ver(efx) != 0) {
 		netif_err(efx, probe, efx->net_dev,
 			  "Falcon FPGA not supported\n");
 		goto fail1;
@@ -2035,7 +2038,8 @@ static int falcon_probe_nic(struct efx_nic *efx)
 	}
 
 	/* Allocate memory for INT_KER */
-	rc = efx_nic_alloc_buffer(efx, &efx->irq_status, sizeof(efx_oword_t));
+	rc = efx_nic_alloc_buffer(efx, &efx->irq_status, sizeof(efx_oword_t),
+				  GFP_KERNEL);
 	if (rc)
 		goto fail4;
 	BUG_ON(efx->irq_status.dma_addr & 0x0f);
@@ -2214,7 +2218,7 @@ static int falcon_init_nic(struct efx_nic *efx)
 		efx_writeo(efx, &temp, FR_BZ_DP_CTRL);
 	}
 
-	efx_nic_init_common(efx);
+	efx_farch_init_common(efx);
 
 	return 0;
 }
@@ -2339,7 +2343,7 @@ const struct efx_nic_type falcon_a1_nic_type = {
 	.remove = falcon_remove_nic,
 	.init = falcon_init_nic,
 	.dimension_resources = falcon_dimension_resources,
-	.fini = efx_port_dummy_op_void,
+	.fini = falcon_irq_ack_a1,
 	.monitor = falcon_monitor,
 	.map_reset_reason = falcon_map_reset_reason,
 	.map_reset_flags = falcon_map_reset_flags,
@@ -2347,6 +2351,7 @@ const struct efx_nic_type falcon_a1_nic_type = {
 	.probe_port = falcon_probe_port,
 	.remove_port = falcon_remove_port,
 	.handle_global_event = falcon_handle_global_event,
+	.fini_dmaq = efx_farch_fini_dmaq,
 	.prepare_flush = falcon_prepare_flush,
 	.finish_flush = efx_port_dummy_op_void,
 	.update_stats = falcon_update_nic_stats,
@@ -2362,6 +2367,28 @@ const struct efx_nic_type falcon_a1_nic_type = {
 	.set_wol = falcon_set_wol,
 	.resume_wol = efx_port_dummy_op_void,
 	.test_nvram = falcon_test_nvram,
+	.irq_enable_master = efx_farch_irq_enable_master,
+	.irq_test_generate = efx_farch_irq_test_generate,
+	.irq_disable_non_ev = efx_farch_irq_disable_master,
+	.irq_handle_msi = efx_farch_msi_interrupt,
+	.irq_handle_legacy = falcon_legacy_interrupt_a1,
+	.tx_probe = efx_farch_tx_probe,
+	.tx_init = efx_farch_tx_init,
+	.tx_remove = efx_farch_tx_remove,
+	.tx_write = efx_farch_tx_write,
+	.rx_push_indir_table = efx_farch_rx_push_indir_table,
+	.rx_probe = efx_farch_rx_probe,
+	.rx_init = efx_farch_rx_init,
+	.rx_remove = efx_farch_rx_remove,
+	.rx_write = efx_farch_rx_write,
+	.rx_defer_refill = efx_farch_rx_defer_refill,
+	.ev_probe = efx_farch_ev_probe,
+	.ev_init = efx_farch_ev_init,
+	.ev_fini = efx_farch_ev_fini,
+	.ev_remove = efx_farch_ev_remove,
+	.ev_process = efx_farch_ev_process,
+	.ev_read_ack = efx_farch_ev_read_ack,
+	.ev_test_generate = efx_farch_ev_test_generate,
 
 	.revision = EFX_REV_FALCON_A1,
 	.mem_map_size = 0x20000,
@@ -2377,6 +2404,7 @@ const struct efx_nic_type falcon_a1_nic_type = {
 	.phys_addr_channels = 4,
 	.timer_period_max =  1 << FRF_AB_TC_TIMER_VAL_WIDTH,
 	.offload_features = NETIF_F_IP_CSUM,
+	.mcdi_max_ver = -1,
 };
 
 const struct efx_nic_type falcon_b0_nic_type = {
@@ -2392,6 +2420,7 @@ const struct efx_nic_type falcon_b0_nic_type = {
 	.probe_port = falcon_probe_port,
 	.remove_port = falcon_remove_port,
 	.handle_global_event = falcon_handle_global_event,
+	.fini_dmaq = efx_farch_fini_dmaq,
 	.prepare_flush = falcon_prepare_flush,
 	.finish_flush = efx_port_dummy_op_void,
 	.update_stats = falcon_update_nic_stats,
@@ -2408,6 +2437,28 @@ const struct efx_nic_type falcon_b0_nic_type = {
 	.resume_wol = efx_port_dummy_op_void,
 	.test_chip = falcon_b0_test_chip,
 	.test_nvram = falcon_test_nvram,
+	.irq_enable_master = efx_farch_irq_enable_master,
+	.irq_test_generate = efx_farch_irq_test_generate,
+	.irq_disable_non_ev = efx_farch_irq_disable_master,
+	.irq_handle_msi = efx_farch_msi_interrupt,
+	.irq_handle_legacy = efx_farch_legacy_interrupt,
+	.tx_probe = efx_farch_tx_probe,
+	.tx_init = efx_farch_tx_init,
+	.tx_remove = efx_farch_tx_remove,
+	.tx_write = efx_farch_tx_write,
+	.rx_push_indir_table = efx_farch_rx_push_indir_table,
+	.rx_probe = efx_farch_rx_probe,
+	.rx_init = efx_farch_rx_init,
+	.rx_remove = efx_farch_rx_remove,
+	.rx_write = efx_farch_rx_write,
+	.rx_defer_refill = efx_farch_rx_defer_refill,
+	.ev_probe = efx_farch_ev_probe,
+	.ev_init = efx_farch_ev_init,
+	.ev_fini = efx_farch_ev_fini,
+	.ev_remove = efx_farch_ev_remove,
+	.ev_process = efx_farch_ev_process,
+	.ev_read_ack = efx_farch_ev_read_ack,
+	.ev_test_generate = efx_farch_ev_test_generate,
 
 	.revision = EFX_REV_FALCON_B0,
 	/* Map everything up to and including the RSS indirection
@@ -2431,5 +2482,6 @@ const struct efx_nic_type falcon_b0_nic_type = {
 				   * channels */
 	.timer_period_max =  1 << FRF_AB_TC_TIMER_VAL_WIDTH,
 	.offload_features = NETIF_F_IP_CSUM | NETIF_F_RXHASH | NETIF_F_NTUPLE,
+	.mcdi_max_ver = -1,
 };
 

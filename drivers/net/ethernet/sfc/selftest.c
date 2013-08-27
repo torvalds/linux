@@ -447,14 +447,7 @@ static int efx_begin_loopback(struct efx_tx_queue *tx_queue)
 static int efx_poll_loopback(struct efx_nic *efx)
 {
 	struct efx_loopback_state *state = efx->loopback_selftest;
-	struct efx_channel *channel;
 
-	/* NAPI polling is not enabled, so process channels
-	 * synchronously */
-	efx_for_each_channel(channel, efx) {
-		if (channel->work_pending)
-			efx_process_channel_now(channel);
-	}
 	return atomic_read(&state->rx_good) == state->packet_count;
 }
 
@@ -586,10 +579,6 @@ static int efx_wait_for_link(struct efx_nic *efx)
 			mutex_lock(&efx->mac_lock);
 			efx->type->monitor(efx);
 			mutex_unlock(&efx->mac_lock);
-		} else {
-			struct efx_channel *channel = efx_get_channel(efx, 0);
-			if (channel->work_pending)
-				efx_process_channel_now(channel);
 		}
 
 		mutex_lock(&efx->mac_lock);

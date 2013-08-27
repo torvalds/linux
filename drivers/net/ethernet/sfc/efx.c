@@ -191,8 +191,8 @@ MODULE_PARM_DESC(debug, "Bitmapped debugging message enable value");
  *
  *************************************************************************/
 
-static void efx_start_interrupts(struct efx_nic *efx, bool may_keep_eventq);
-static void efx_stop_interrupts(struct efx_nic *efx, bool may_keep_eventq);
+static void efx_soft_enable_interrupts(struct efx_nic *efx);
+static void efx_soft_disable_interrupts(struct efx_nic *efx);
 static void efx_remove_channel(struct efx_channel *channel);
 static void efx_remove_channels(struct efx_nic *efx);
 static const struct efx_channel_type efx_default_channel_type;
@@ -248,28 +248,10 @@ static int efx_process_channel(struct efx_channel *channel, int budget)
 			efx_channel_get_rx_queue(channel);
 
 		efx_rx_flush_packet(channel);
-		if (rx_queue->enabled)
-			efx_fast_push_rx_descriptors(rx_queue);
+		efx_fast_push_rx_descriptors(rx_queue);
 	}
 
 	return spent;
-}
-
-/* Mark channel as finished processing
- *
- * Note that since we will not receive further interrupts for this
- * channel before we finish processing and call the eventq_read_ack()
- * method, there is no need to use the interrupt hold-off timers.
- */
-static inline void efx_channel_processed(struct efx_channel *channel)
-{
-	/* The interrupt handler for this channel may set work_pending
-	 * as soon as we acknowledge the events we've seen.  Make sure
-	 * it's cleared before then. */
-	channel->work_pending = false;
-	smp_wmb();
-
-	efx_nic_eventq_read_ack(channel);
 }
 
 /* NAPI poll handler
@@ -316,56 +298,14 @@ static int efx_poll(struct napi_struct *napi, int budget)
 
 		/* There is no race here; although napi_disable() will
 		 * only wait for napi_complete(), this isn't a problem
-		 * since efx_channel_processed() will have no effect if
+		 * since efx_nic_eventq_read_ack() will have no effect if
 		 * interrupts have already been disabled.
 		 */
 		napi_complete(napi);
-		efx_channel_processed(channel);
+		efx_nic_eventq_read_ack(channel);
 	}
 
 	return spent;
-}
-
-/* Process the eventq of the specified channel immediately on this CPU
- *
- * Disable hardware generated interrupts, wait for any existing
- * processing to finish, then directly poll (and ack ) the eventq.
- * Finally reenable NAPI and interrupts.
- *
- * This is for use only during a loopback self-test.  It must not
- * deliver any packets up the stack as this can result in deadlock.
- */
-void efx_process_channel_now(struct efx_channel *channel)
-{
-	struct efx_nic *efx = channel->efx;
-
-	BUG_ON(channel->channel >= efx->n_channels);
-	BUG_ON(!channel->enabled);
-	BUG_ON(!efx->loopback_selftest);
-
-	/* Disable interrupts and wait for ISRs to complete */
-	efx_nic_disable_interrupts(efx);
-	if (efx->legacy_irq) {
-		synchronize_irq(efx->legacy_irq);
-		efx->legacy_irq_enabled = false;
-	}
-	if (channel->irq)
-		synchronize_irq(channel->irq);
-
-	/* Wait for any NAPI processing to complete */
-	napi_disable(&channel->napi_str);
-
-	/* Poll the channel */
-	efx_process_channel(channel, channel->eventq_mask + 1);
-
-	/* Ack the eventq. This may cause an interrupt to be generated
-	 * when they are reenabled */
-	efx_channel_processed(channel);
-
-	napi_enable(&channel->napi_str);
-	if (efx->legacy_irq)
-		efx->legacy_irq_enabled = true;
-	efx_nic_enable_interrupts(efx);
 }
 
 /* Create event queue
@@ -407,11 +347,7 @@ static void efx_start_eventq(struct efx_channel *channel)
 	netif_dbg(channel->efx, ifup, channel->efx->net_dev,
 		  "chan %d start event queue\n", channel->channel);
 
-	/* The interrupt handler for this channel may set work_pending
-	 * as soon as we enable it.  Make sure it's cleared before
-	 * then.  Similarly, make sure it sees the enabled flag set.
-	 */
-	channel->work_pending = false;
+	/* Make sure the NAPI handler sees the enabled flag set */
 	channel->enabled = true;
 	smp_wmb();
 
@@ -583,8 +519,8 @@ static void efx_set_channel_names(struct efx_nic *efx)
 
 	efx_for_each_channel(channel, efx)
 		channel->type->get_name(channel,
-					efx->channel_name[channel->channel],
-					sizeof(efx->channel_name[0]));
+					efx->msi_context[channel->channel].name,
+					sizeof(efx->msi_context[0].name));
 }
 
 static int efx_probe_channels(struct efx_nic *efx)
@@ -704,30 +640,15 @@ static void efx_stop_datapath(struct efx_nic *efx)
 	struct efx_channel *channel;
 	struct efx_tx_queue *tx_queue;
 	struct efx_rx_queue *rx_queue;
-	struct pci_dev *dev = efx->pci_dev;
 	int rc;
 
 	EFX_ASSERT_RESET_SERIALISED(efx);
 	BUG_ON(efx->port_enabled);
 
-	/* Only perform flush if dma is enabled */
-	if (dev->is_busmaster && efx->state != STATE_RECOVERY) {
-		rc = efx_nic_flush_queues(efx);
-
-		if (rc && EFX_WORKAROUND_7803(efx)) {
-			/* Schedule a reset to recover from the flush failure. The
-			 * descriptor caches reference memory we're about to free,
-			 * but falcon_reconfigure_mac_wrapper() won't reconnect
-			 * the MACs because of the pending reset. */
-			netif_err(efx, drv, efx->net_dev,
-				  "Resetting to recover from flush failure\n");
-			efx_schedule_reset(efx, RESET_TYPE_ALL);
-		} else if (rc) {
-			netif_err(efx, drv, efx->net_dev, "failed to flush queues\n");
-		} else {
-			netif_dbg(efx, drv, efx->net_dev,
-				  "successfully flushed all queues\n");
-		}
+	/* Stop RX refill */
+	efx_for_each_channel(channel, efx) {
+		efx_for_each_channel_rx_queue(rx_queue, channel)
+			rx_queue->refill_enabled = false;
 	}
 
 	efx_for_each_channel(channel, efx) {
@@ -741,7 +662,26 @@ static void efx_stop_datapath(struct efx_nic *efx)
 			efx_stop_eventq(channel);
 			efx_start_eventq(channel);
 		}
+	}
 
+	rc = efx->type->fini_dmaq(efx);
+	if (rc && EFX_WORKAROUND_7803(efx)) {
+		/* Schedule a reset to recover from the flush failure. The
+		 * descriptor caches reference memory we're about to free,
+		 * but falcon_reconfigure_mac_wrapper() won't reconnect
+		 * the MACs because of the pending reset.
+		 */
+		netif_err(efx, drv, efx->net_dev,
+			  "Resetting to recover from flush failure\n");
+		efx_schedule_reset(efx, RESET_TYPE_ALL);
+	} else if (rc) {
+		netif_err(efx, drv, efx->net_dev, "failed to flush queues\n");
+	} else {
+		netif_dbg(efx, drv, efx->net_dev,
+			  "successfully flushed all queues\n");
+	}
+
+	efx_for_each_channel(channel, efx) {
 		efx_for_each_channel_rx_queue(rx_queue, channel)
 			efx_fini_rx_queue(rx_queue);
 		efx_for_each_possible_channel_tx_queue(tx_queue, channel)
@@ -809,7 +749,7 @@ efx_realloc_channels(struct efx_nic *efx, u32 rxq_entries, u32 txq_entries)
 
 	efx_device_detach_sync(efx);
 	efx_stop_all(efx);
-	efx_stop_interrupts(efx, true);
+	efx_soft_disable_interrupts(efx);
 
 	/* Clone channels (where possible) */
 	memset(other_channel, 0, sizeof(other_channel));
@@ -859,7 +799,7 @@ out:
 		}
 	}
 
-	efx_start_interrupts(efx, true);
+	efx_soft_enable_interrupts(efx);
 	efx_start_all(efx);
 	netif_device_attach(efx->net_dev);
 	return rc;
@@ -1392,8 +1332,50 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 	return 0;
 }
 
-/* Enable interrupts, then probe and start the event queues */
-static void efx_start_interrupts(struct efx_nic *efx, bool may_keep_eventq)
+static void efx_soft_enable_interrupts(struct efx_nic *efx)
+{
+	struct efx_channel *channel;
+
+	BUG_ON(efx->state == STATE_DISABLED);
+
+	efx->irq_soft_enabled = true;
+	smp_wmb();
+
+	efx_for_each_channel(channel, efx) {
+		if (!channel->type->keep_eventq)
+			efx_init_eventq(channel);
+		efx_start_eventq(channel);
+	}
+
+	efx_mcdi_mode_event(efx);
+}
+
+static void efx_soft_disable_interrupts(struct efx_nic *efx)
+{
+	struct efx_channel *channel;
+
+	if (efx->state == STATE_DISABLED)
+		return;
+
+	efx_mcdi_mode_poll(efx);
+
+	efx->irq_soft_enabled = false;
+	smp_wmb();
+
+	if (efx->legacy_irq)
+		synchronize_irq(efx->legacy_irq);
+
+	efx_for_each_channel(channel, efx) {
+		if (channel->irq)
+			synchronize_irq(channel->irq);
+
+		efx_stop_eventq(channel);
+		if (!channel->type->keep_eventq)
+			efx_fini_eventq(channel);
+	}
+}
+
+static void efx_enable_interrupts(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
 
@@ -1403,42 +1385,29 @@ static void efx_start_interrupts(struct efx_nic *efx, bool may_keep_eventq)
 		enable_irq(efx->legacy_irq);
 		efx->eeh_disabled_legacy_irq = false;
 	}
-	if (efx->legacy_irq)
-		efx->legacy_irq_enabled = true;
-	efx_nic_enable_interrupts(efx);
+
+	efx->type->irq_enable_master(efx);
 
 	efx_for_each_channel(channel, efx) {
-		if (!channel->type->keep_eventq || !may_keep_eventq)
+		if (channel->type->keep_eventq)
 			efx_init_eventq(channel);
-		efx_start_eventq(channel);
 	}
 
-	efx_mcdi_mode_event(efx);
+	efx_soft_enable_interrupts(efx);
 }
 
-static void efx_stop_interrupts(struct efx_nic *efx, bool may_keep_eventq)
+static void efx_disable_interrupts(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
 
-	if (efx->state == STATE_DISABLED)
-		return;
-
-	efx_mcdi_mode_poll(efx);
-
-	efx_nic_disable_interrupts(efx);
-	if (efx->legacy_irq) {
-		synchronize_irq(efx->legacy_irq);
-		efx->legacy_irq_enabled = false;
-	}
+	efx_soft_disable_interrupts(efx);
 
 	efx_for_each_channel(channel, efx) {
-		if (channel->irq)
-			synchronize_irq(channel->irq);
-
-		efx_stop_eventq(channel);
-		if (!channel->type->keep_eventq || !may_keep_eventq)
+		if (channel->type->keep_eventq)
 			efx_fini_eventq(channel);
 	}
+
+	efx->type->irq_disable_non_ev(efx);
 }
 
 static void efx_remove_interrupts(struct efx_nic *efx)
@@ -2185,21 +2154,10 @@ fail_locked:
 
 static void efx_unregister_netdev(struct efx_nic *efx)
 {
-	struct efx_channel *channel;
-	struct efx_tx_queue *tx_queue;
-
 	if (!efx->net_dev)
 		return;
 
 	BUG_ON(netdev_priv(efx->net_dev) != efx);
-
-	/* Free up any skbs still remaining. This has to happen before
-	 * we try to unregister the netdev as running their destructors
-	 * may be needed to get the device ref. count to 0. */
-	efx_for_each_channel(channel, efx) {
-		efx_for_each_channel_tx_queue(tx_queue, channel)
-			efx_release_tx_buffers(tx_queue);
-	}
 
 	strlcpy(efx->name, pci_name(efx->pci_dev), sizeof(efx->name));
 	device_remove_file(&efx->pci_dev->dev, &dev_attr_phy_type);
@@ -2223,7 +2181,7 @@ void efx_reset_down(struct efx_nic *efx, enum reset_type method)
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
 	efx_stop_all(efx);
-	efx_stop_interrupts(efx, false);
+	efx_disable_interrupts(efx);
 
 	mutex_lock(&efx->mac_lock);
 	if (efx->port_initialized && method != RESET_TYPE_INVISIBLE)
@@ -2262,7 +2220,7 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 
 	efx->type->reconfigure_mac(efx);
 
-	efx_start_interrupts(efx, false);
+	efx_enable_interrupts(efx);
 	efx_restore_filters(efx);
 	efx_sriov_reset(efx);
 
@@ -2527,6 +2485,8 @@ static int efx_init_struct(struct efx_nic *efx,
 		efx->channel[i] = efx_alloc_channel(efx, i, NULL);
 		if (!efx->channel[i])
 			goto fail;
+		efx->msi_context[i].efx = efx;
+		efx->msi_context[i].index = i;
 	}
 
 	EFX_BUG_ON_PARANOID(efx->type->phys_addr_channels > EFX_MAX_CHANNELS);
@@ -2579,7 +2539,7 @@ static void efx_pci_remove_main(struct efx_nic *efx)
 	BUG_ON(efx->state == STATE_READY);
 	cancel_work_sync(&efx->reset_work);
 
-	efx_stop_interrupts(efx, false);
+	efx_disable_interrupts(efx);
 	efx_nic_fini_interrupt(efx);
 	efx_fini_port(efx);
 	efx->type->fini(efx);
@@ -2601,7 +2561,7 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 	/* Mark the NIC as fini, then stop the interface */
 	rtnl_lock();
 	dev_close(efx->net_dev);
-	efx_stop_interrupts(efx, false);
+	efx_disable_interrupts(efx);
 	rtnl_unlock();
 
 	efx_sriov_fini(efx);
@@ -2703,7 +2663,7 @@ static int efx_pci_probe_main(struct efx_nic *efx)
 	rc = efx_nic_init_interrupt(efx);
 	if (rc)
 		goto fail5;
-	efx_start_interrupts(efx, false);
+	efx_enable_interrupts(efx);
 
 	return 0;
 
@@ -2824,7 +2784,7 @@ static int efx_pm_freeze(struct device *dev)
 		efx_device_detach_sync(efx);
 
 		efx_stop_all(efx);
-		efx_stop_interrupts(efx, false);
+		efx_disable_interrupts(efx);
 	}
 
 	rtnl_unlock();
@@ -2839,7 +2799,7 @@ static int efx_pm_thaw(struct device *dev)
 	rtnl_lock();
 
 	if (efx->state != STATE_DISABLED) {
-		efx_start_interrupts(efx, false);
+		efx_enable_interrupts(efx);
 
 		mutex_lock(&efx->mac_lock);
 		efx->phy_op->reconfigure(efx);
@@ -2942,7 +2902,7 @@ static pci_ers_result_t efx_io_error_detected(struct pci_dev *pdev,
 		efx_device_detach_sync(efx);
 
 		efx_stop_all(efx);
-		efx_stop_interrupts(efx, false);
+		efx_disable_interrupts(efx);
 
 		status = PCI_ERS_RESULT_NEED_RESET;
 	} else {

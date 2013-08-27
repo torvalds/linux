@@ -23,7 +23,6 @@ extern void efx_remove_tx_queue(struct efx_tx_queue *tx_queue);
 extern void efx_init_tx_queue(struct efx_tx_queue *tx_queue);
 extern void efx_init_tx_queue_core_txq(struct efx_tx_queue *tx_queue);
 extern void efx_fini_tx_queue(struct efx_tx_queue *tx_queue);
-extern void efx_release_tx_buffers(struct efx_tx_queue *tx_queue);
 extern netdev_tx_t
 efx_hard_start_xmit(struct sk_buff *skb, struct net_device *net_dev);
 extern netdev_tx_t
@@ -109,7 +108,6 @@ static inline void efx_filter_rfs_expire(struct efx_channel *channel) {}
 /* Channels */
 extern int efx_channel_dummy_op_int(struct efx_channel *channel);
 extern void efx_channel_dummy_op_void(struct efx_channel *channel);
-extern void efx_process_channel_now(struct efx_channel *channel);
 extern int
 efx_realloc_channels(struct efx_nic *efx, u32 rxq_entries, u32 txq_entries);
 
@@ -155,7 +153,6 @@ static inline void efx_schedule_channel(struct efx_channel *channel)
 	netif_vdbg(channel->efx, intr, channel->efx->net_dev,
 		   "channel %d scheduling NAPI poll on CPU%d\n",
 		   channel->channel, raw_smp_processor_id());
-	channel->work_pending = true;
 
 	napi_schedule(&channel->napi_str);
 }

@@ -261,7 +261,7 @@ int efx_mcdi_mon_probe(struct efx_nic *efx)
 		return -EIO;
 
 	rc = efx_nic_alloc_buffer(efx, &hwmon->dma_buf,
-				  4 * MC_CMD_SENSOR_ENTRY_MAXNUM);
+				  4 * MC_CMD_SENSOR_ENTRY_MAXNUM, GFP_KERNEL);
 	if (rc)
 		return rc;
 

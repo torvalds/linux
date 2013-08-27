@@ -15,7 +15,7 @@
 #include "mcdi.h"
 #include "filter.h"
 #include "mcdi_pcol.h"
-#include "regs.h"
+#include "farch_regs.h"
 #include "vfdi.h"
 
 /* Number of longs required to track all the VIs in a VF */
@@ -464,8 +464,9 @@ static void __efx_sriov_push_vf_status(struct efx_vf *vf)
 			     VFDI_EV_SEQ, (vf->msg_seqno & 0xff),
 			     VFDI_EV_TYPE, VFDI_EV_TYPE_STATUS);
 	++vf->msg_seqno;
-	efx_generate_event(efx, EFX_VI_BASE + vf->index * efx_vf_size(efx),
-			      &event);
+	efx_farch_generate_event(efx,
+				 EFX_VI_BASE + vf->index * efx_vf_size(efx),
+				 &event);
 }
 
 static void efx_sriov_bufs(struct efx_nic *efx, unsigned offset,
@@ -997,7 +998,7 @@ static void efx_sriov_reset_vf_work(struct work_struct *work)
 	struct efx_nic *efx = vf->efx;
 	struct efx_buffer buf;
 
-	if (!efx_nic_alloc_buffer(efx, &buf, EFX_PAGE_SIZE)) {
+	if (!efx_nic_alloc_buffer(efx, &buf, EFX_PAGE_SIZE, GFP_NOIO)) {
 		efx_sriov_reset_vf(vf, &buf);
 		efx_nic_free_buffer(efx, &buf);
 	}
@@ -1241,7 +1242,8 @@ static int efx_sriov_vfs_init(struct efx_nic *efx)
 			 pci_domain_nr(pci_dev->bus), pci_dev->bus->number,
 			 PCI_SLOT(devfn), PCI_FUNC(devfn));
 
-		rc = efx_nic_alloc_buffer(efx, &vf->buf, EFX_PAGE_SIZE);
+		rc = efx_nic_alloc_buffer(efx, &vf->buf, EFX_PAGE_SIZE,
+					  GFP_KERNEL);
 		if (rc)
 			goto fail;
 
@@ -1273,7 +1275,8 @@ int efx_sriov_init(struct efx_nic *efx)
 	if (rc)
 		goto fail_cmd;
 
-	rc = efx_nic_alloc_buffer(efx, &efx->vfdi_status, sizeof(*vfdi_status));
+	rc = efx_nic_alloc_buffer(efx, &efx->vfdi_status, sizeof(*vfdi_status),
+				  GFP_KERNEL);
 	if (rc)
 		goto fail_status;
 	vfdi_status = efx->vfdi_status.addr;
@@ -1528,7 +1531,7 @@ void efx_sriov_reset(struct efx_nic *efx)
 	efx_sriov_usrev(efx, true);
 	(void)efx_sriov_cmd(efx, true, NULL, NULL);
 
-	if (efx_nic_alloc_buffer(efx, &buf, EFX_PAGE_SIZE))
+	if (efx_nic_alloc_buffer(efx, &buf, EFX_PAGE_SIZE, GFP_NOIO))
 		return;
 
 	for (vf_i = 0; vf_i < efx->vf_init_count; ++vf_i) {

@@ -326,6 +326,9 @@ void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue)
 	unsigned int fill_level, batch_size;
 	int space, rc = 0;
 
+	if (!rx_queue->refill_enabled)
+		return;
+
 	/* Calculate current fill level, and exit if we don't need to fill */
 	fill_level = (rx_queue->added_count - rx_queue->removed_count);
 	EFX_BUG_ON_PARANOID(fill_level > rx_queue->efx->rxq_entries);
@@ -738,9 +741,9 @@ void efx_init_rx_queue(struct efx_rx_queue *rx_queue)
 
 	rx_queue->max_fill = max_fill;
 	rx_queue->fast_fill_trigger = trigger;
+	rx_queue->refill_enabled = true;
 
 	/* Set up RX descriptor ring */
-	rx_queue->enabled = true;
 	efx_nic_init_rx(rx_queue);
 }
 
@@ -753,11 +756,7 @@ void efx_fini_rx_queue(struct efx_rx_queue *rx_queue)
 	netif_dbg(rx_queue->efx, drv, rx_queue->efx->net_dev,
 		  "shutting down RX queue %d\n", efx_rx_queue_index(rx_queue));
 
-	/* A flush failure might have left rx_queue->enabled */
-	rx_queue->enabled = false;
-
 	del_timer_sync(&rx_queue->slow_fill);
-	efx_nic_fini_rx(rx_queue);
 
 	/* Release RX buffers from the current read ptr to the write ptr */
 	if (rx_queue->buffer) {

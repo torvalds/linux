@@ -19,7 +19,7 @@
 #include "efx.h"
 #include "nic.h"
 #include "spi.h"
-#include "regs.h"
+#include "farch_regs.h"
 #include "io.h"
 #include "phy.h"
 #include "workarounds.h"
@@ -63,7 +63,7 @@ void siena_finish_flush(struct efx_nic *efx)
 		efx_mcdi_set_mac(efx);
 }
 
-static const struct efx_nic_register_test siena_register_tests[] = {
+static const struct efx_farch_register_test siena_register_tests[] = {
 	{ FR_AZ_ADR_REGION,
 	  EFX_OWORD32(0x0003FFFF, 0x0003FFFF, 0x0003FFFF, 0x0003FFFF) },
 	{ FR_CZ_USR_EV_CFG,
@@ -107,8 +107,8 @@ static int siena_test_chip(struct efx_nic *efx, struct efx_self_tests *tests)
 		goto out;
 
 	tests->registers =
-		efx_nic_test_registers(efx, siena_register_tests,
-				       ARRAY_SIZE(siena_register_tests))
+		efx_farch_test_registers(efx, siena_register_tests,
+					 ARRAY_SIZE(siena_register_tests))
 		? -1 : 1;
 
 	rc = efx_mcdi_reset(efx, reset_method);
@@ -184,7 +184,7 @@ static void siena_dimension_resources(struct efx_nic *efx)
 	 * the buffer table and descriptor caches.  In theory we can
 	 * map both blocks to one port, but we don't.
 	 */
-	efx_nic_dimension_resources(efx, FR_CZ_BUF_FULL_TBL_ROWS / 2);
+	efx_farch_dimension_resources(efx, FR_CZ_BUF_FULL_TBL_ROWS / 2);
 }
 
 static int siena_probe_nic(struct efx_nic *efx)
@@ -200,7 +200,7 @@ static int siena_probe_nic(struct efx_nic *efx)
 		return -ENOMEM;
 	efx->nic_data = nic_data;
 
-	if (efx_nic_fpga_ver(efx) != 0) {
+	if (efx_farch_fpga_ver(efx) != 0) {
 		netif_err(efx, probe, efx->net_dev,
 			  "Siena FPGA not supported\n");
 		rc = -ENODEV;
@@ -237,7 +237,8 @@ static int siena_probe_nic(struct efx_nic *efx)
 	siena_init_wol(efx);
 
 	/* Allocate memory for INT_KER */
-	rc = efx_nic_alloc_buffer(efx, &efx->irq_status, sizeof(efx_oword_t));
+	rc = efx_nic_alloc_buffer(efx, &efx->irq_status, sizeof(efx_oword_t),
+				  GFP_KERNEL);
 	if (rc)
 		goto fail4;
 	BUG_ON(efx->irq_status.dma_addr & 0x0f);
@@ -274,6 +275,7 @@ fail4:
 fail3:
 	efx_mcdi_drv_attach(efx, false, NULL);
 fail2:
+	efx_mcdi_fini(efx);
 fail1:
 	kfree(efx->nic_data);
 	return rc;
@@ -349,7 +351,7 @@ static int siena_init_nic(struct efx_nic *efx)
 	EFX_POPULATE_OWORD_1(temp, FRF_CZ_USREV_DIS, 1);
 	efx_writeo(efx, &temp, FR_CZ_USR_EV_CFG);
 
-	efx_nic_init_common(efx);
+	efx_farch_init_common(efx);
 	return 0;
 }
 
@@ -367,6 +369,8 @@ static void siena_remove_nic(struct efx_nic *efx)
 	/* Tear down the private nic state */
 	kfree(efx->nic_data);
 	efx->nic_data = NULL;
+
+	efx_mcdi_fini(efx);
 }
 
 static int siena_try_update_nic_stats(struct efx_nic *efx)
@@ -574,6 +578,89 @@ static void siena_init_wol(struct efx_nic *efx)
 	}
 }
 
+/**************************************************************************
+ *
+ * MCDI
+ *
+ **************************************************************************
+ */
+
+#define MCDI_PDU(efx)							\
+	(efx_port_num(efx) ? MC_SMEM_P1_PDU_OFST : MC_SMEM_P0_PDU_OFST)
+#define MCDI_DOORBELL(efx)						\
+	(efx_port_num(efx) ? MC_SMEM_P1_DOORBELL_OFST : MC_SMEM_P0_DOORBELL_OFST)
+#define MCDI_STATUS(efx)						\
+	(efx_port_num(efx) ? MC_SMEM_P1_STATUS_OFST : MC_SMEM_P0_STATUS_OFST)
+
+static void siena_mcdi_request(struct efx_nic *efx,
+			       const efx_dword_t *hdr, size_t hdr_len,
+			       const efx_dword_t *sdu, size_t sdu_len)
+{
+	unsigned pdu = FR_CZ_MC_TREG_SMEM + MCDI_PDU(efx);
+	unsigned doorbell = FR_CZ_MC_TREG_SMEM + MCDI_DOORBELL(efx);
+	unsigned int i;
+	unsigned int inlen_dw = DIV_ROUND_UP(sdu_len, 4);
+
+	EFX_BUG_ON_PARANOID(hdr_len != 4);
+
+	efx_writed(efx, hdr, pdu);
+
+	for (i = 0; i < inlen_dw; i++)
+		efx_writed(efx, &sdu[i], pdu + hdr_len + 4 * i);
+
+	/* Ensure the request is written out before the doorbell */
+	wmb();
+
+	/* ring the doorbell with a distinctive value */
+	_efx_writed(efx, (__force __le32) 0x45789abc, doorbell);
+}
+
+static bool siena_mcdi_poll_response(struct efx_nic *efx)
+{
+	unsigned int pdu = FR_CZ_MC_TREG_SMEM + MCDI_PDU(efx);
+	efx_dword_t hdr;
+
+	efx_readd(efx, &hdr, pdu);
+
+	/* All 1's indicates that shared memory is in reset (and is
+	 * not a valid hdr). Wait for it to come out reset before
+	 * completing the command
+	 */
+	return EFX_DWORD_FIELD(hdr, EFX_DWORD_0) != 0xffffffff &&
+		EFX_DWORD_FIELD(hdr, MCDI_HEADER_RESPONSE);
+}
+
+static void siena_mcdi_read_response(struct efx_nic *efx, efx_dword_t *outbuf,
+				     size_t offset, size_t outlen)
+{
+	unsigned int pdu = FR_CZ_MC_TREG_SMEM + MCDI_PDU(efx);
+	unsigned int outlen_dw = DIV_ROUND_UP(outlen, 4);
+	int i;
+
+	for (i = 0; i < outlen_dw; i++)
+		efx_readd(efx, &outbuf[i], pdu + offset + 4 * i);
+}
+
+static int siena_mcdi_poll_reboot(struct efx_nic *efx)
+{
+	unsigned int addr = FR_CZ_MC_TREG_SMEM + MCDI_STATUS(efx);
+	efx_dword_t reg;
+	u32 value;
+
+	efx_readd(efx, &reg, addr);
+	value = EFX_DWORD_FIELD(reg, EFX_DWORD_0);
+
+	if (value == 0)
+		return 0;
+
+	EFX_ZERO_DWORD(reg);
+	efx_writed(efx, &reg, addr);
+
+	if (value == MC_STATUS_DWORD_ASSERT)
+		return -EINTR;
+	else
+		return -EIO;
+}
 
 /**************************************************************************
  *
@@ -598,6 +685,7 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.reset = efx_mcdi_reset,
 	.probe_port = efx_mcdi_port_probe,
 	.remove_port = efx_mcdi_port_remove,
+	.fini_dmaq = efx_farch_fini_dmaq,
 	.prepare_flush = siena_prepare_flush,
 	.finish_flush = siena_finish_flush,
 	.update_stats = siena_update_nic_stats,
@@ -613,6 +701,32 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.resume_wol = siena_init_wol,
 	.test_chip = siena_test_chip,
 	.test_nvram = efx_mcdi_nvram_test_all,
+	.mcdi_request = siena_mcdi_request,
+	.mcdi_poll_response = siena_mcdi_poll_response,
+	.mcdi_read_response = siena_mcdi_read_response,
+	.mcdi_poll_reboot = siena_mcdi_poll_reboot,
+	.irq_enable_master = efx_farch_irq_enable_master,
+	.irq_test_generate = efx_farch_irq_test_generate,
+	.irq_disable_non_ev = efx_farch_irq_disable_master,
+	.irq_handle_msi = efx_farch_msi_interrupt,
+	.irq_handle_legacy = efx_farch_legacy_interrupt,
+	.tx_probe = efx_farch_tx_probe,
+	.tx_init = efx_farch_tx_init,
+	.tx_remove = efx_farch_tx_remove,
+	.tx_write = efx_farch_tx_write,
+	.rx_push_indir_table = efx_farch_rx_push_indir_table,
+	.rx_probe = efx_farch_rx_probe,
+	.rx_init = efx_farch_rx_init,
+	.rx_remove = efx_farch_rx_remove,
+	.rx_write = efx_farch_rx_write,
+	.rx_defer_refill = efx_farch_rx_defer_refill,
+	.ev_probe = efx_farch_ev_probe,
+	.ev_init = efx_farch_ev_init,
+	.ev_fini = efx_farch_ev_fini,
+	.ev_remove = efx_farch_ev_remove,
+	.ev_process = efx_farch_ev_process,
+	.ev_read_ack = efx_farch_ev_read_ack,
+	.ev_test_generate = efx_farch_ev_test_generate,
 
 	.revision = EFX_REV_SIENA_A0,
 	.mem_map_size = (FR_CZ_MC_TREG_SMEM +
@@ -633,4 +747,5 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.timer_period_max = 1 << FRF_CZ_TC_TIMER_VAL_WIDTH,
 	.offload_features = (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 			     NETIF_F_RXHASH | NETIF_F_NTUPLE),
+	.mcdi_max_ver = 1,
 };
