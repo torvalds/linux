@@ -264,7 +264,7 @@ static int ath10k_ce_send_nolock(struct ath10k_ce_pipe *ce_state,
 				 unsigned int flags)
 {
 	struct ath10k *ar = ce_state->ar;
-	struct ce_ring_state *src_ring = ce_state->src_ring;
+	struct ath10k_ce_ring *src_ring = ce_state->src_ring;
 	struct ce_desc *desc, *sdesc;
 	unsigned int nentries_mask = src_ring->nentries_mask;
 	unsigned int sw_index = src_ring->sw_index;
@@ -354,7 +354,7 @@ int ath10k_ce_sendlist_send(struct ath10k_ce_pipe *ce_state,
 			    struct ce_sendlist *sendlist,
 			    unsigned int transfer_id)
 {
-	struct ce_ring_state *src_ring = ce_state->src_ring;
+	struct ath10k_ce_ring *src_ring = ce_state->src_ring;
 	struct ce_sendlist_item *item;
 	struct ath10k *ar = ce_state->ar;
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
@@ -406,7 +406,7 @@ int ath10k_ce_recv_buf_enqueue(struct ath10k_ce_pipe *ce_state,
 			       void *per_recv_context,
 			       u32 buffer)
 {
-	struct ce_ring_state *dest_ring = ce_state->dest_ring;
+	struct ath10k_ce_ring *dest_ring = ce_state->dest_ring;
 	u32 ctrl_addr = ce_state->ctrl_addr;
 	struct ath10k *ar = ce_state->ar;
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
@@ -457,7 +457,7 @@ static int ath10k_ce_completed_recv_next_nolock(struct ath10k_ce_pipe *ce_state,
 						unsigned int *transfer_idp,
 						unsigned int *flagsp)
 {
-	struct ce_ring_state *dest_ring = ce_state->dest_ring;
+	struct ath10k_ce_ring *dest_ring = ce_state->dest_ring;
 	unsigned int nentries_mask = dest_ring->nentries_mask;
 	unsigned int sw_index = dest_ring->sw_index;
 
@@ -531,7 +531,7 @@ int ath10k_ce_revoke_recv_next(struct ath10k_ce_pipe *ce_state,
 			       void **per_transfer_contextp,
 			       u32 *bufferp)
 {
-	struct ce_ring_state *dest_ring;
+	struct ath10k_ce_ring *dest_ring;
 	unsigned int nentries_mask;
 	unsigned int sw_index;
 	unsigned int write_index;
@@ -589,7 +589,7 @@ static int ath10k_ce_completed_send_next_nolock(struct ath10k_ce_pipe *ce_state,
 						unsigned int *nbytesp,
 						unsigned int *transfer_idp)
 {
-	struct ce_ring_state *src_ring = ce_state->src_ring;
+	struct ath10k_ce_ring *src_ring = ce_state->src_ring;
 	u32 ctrl_addr = ce_state->ctrl_addr;
 	struct ath10k *ar = ce_state->ar;
 	unsigned int nentries_mask = src_ring->nentries_mask;
@@ -646,7 +646,7 @@ int ath10k_ce_cancel_send_next(struct ath10k_ce_pipe *ce_state,
 			       unsigned int *nbytesp,
 			       unsigned int *transfer_idp)
 {
-	struct ce_ring_state *src_ring;
+	struct ath10k_ce_ring *src_ring;
 	unsigned int nentries_mask;
 	unsigned int sw_index;
 	unsigned int write_index;
@@ -894,7 +894,7 @@ static int ath10k_ce_init_src_ring(struct ath10k *ar,
 				   const struct ce_attr *attr)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	struct ce_ring_state *src_ring;
+	struct ath10k_ce_ring *src_ring;
 	unsigned int nentries = attr->src_nentries;
 	unsigned int ce_nbytes;
 	u32 ctrl_addr = ath10k_ce_base_address(ce_id);
@@ -908,15 +908,15 @@ static int ath10k_ce_init_src_ring(struct ath10k *ar,
 		return 0;
 	}
 
-	ce_nbytes = sizeof(struct ce_ring_state) + (nentries * sizeof(void *));
+	ce_nbytes = sizeof(struct ath10k_ce_ring) + (nentries * sizeof(void *));
 	ptr = kzalloc(ce_nbytes, GFP_KERNEL);
 	if (ptr == NULL)
 		return -ENOMEM;
 
-	ce_state->src_ring = (struct ce_ring_state *)ptr;
+	ce_state->src_ring = (struct ath10k_ce_ring *)ptr;
 	src_ring = ce_state->src_ring;
 
-	ptr += sizeof(struct ce_ring_state);
+	ptr += sizeof(struct ath10k_ce_ring);
 	src_ring->nentries = nentries;
 	src_ring->nentries_mask = nentries - 1;
 
@@ -997,7 +997,7 @@ static int ath10k_ce_init_dest_ring(struct ath10k *ar,
 				    const struct ce_attr *attr)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	struct ce_ring_state *dest_ring;
+	struct ath10k_ce_ring *dest_ring;
 	unsigned int nentries = attr->dest_nentries;
 	unsigned int ce_nbytes;
 	u32 ctrl_addr = ath10k_ce_base_address(ce_id);
@@ -1011,15 +1011,15 @@ static int ath10k_ce_init_dest_ring(struct ath10k *ar,
 		return 0;
 	}
 
-	ce_nbytes = sizeof(struct ce_ring_state) + (nentries * sizeof(void *));
+	ce_nbytes = sizeof(struct ath10k_ce_ring) + (nentries * sizeof(void *));
 	ptr = kzalloc(ce_nbytes, GFP_KERNEL);
 	if (ptr == NULL)
 		return -ENOMEM;
 
-	ce_state->dest_ring = (struct ce_ring_state *)ptr;
+	ce_state->dest_ring = (struct ath10k_ce_ring *)ptr;
 	dest_ring = ce_state->dest_ring;
 
-	ptr += sizeof(struct ce_ring_state);
+	ptr += sizeof(struct ath10k_ce_ring);
 	dest_ring->nentries = nentries;
 	dest_ring->nentries_mask = nentries - 1;
 

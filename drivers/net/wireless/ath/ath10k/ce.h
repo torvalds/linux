@@ -50,8 +50,7 @@ struct ce_desc {
 	__le16 flags; /* %CE_DESC_FLAGS_ */
 };
 
-/* Copy Engine Ring internal state */
-struct ce_ring_state {
+struct ath10k_ce_ring {
 	/* Number of entries in this ring; must be power of 2 */
 	unsigned int nentries;
 	unsigned int nentries_mask;
@@ -130,8 +129,8 @@ struct ath10k_ce_pipe {
 			 unsigned int flags);
 
 	unsigned int src_sz_max;
-	struct ce_ring_state *src_ring;
-	struct ce_ring_state *dest_ring;
+	struct ath10k_ce_ring *src_ring;
+	struct ath10k_ce_ring *dest_ring;
 };
 
 struct ce_sendlist_item {
