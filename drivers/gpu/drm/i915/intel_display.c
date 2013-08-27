@@ -3687,7 +3687,8 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 
 	is_dsi = intel_pipe_has_type(crtc, INTEL_OUTPUT_DSI);
 
-	vlv_enable_pll(intel_crtc);
+	if (!is_dsi)
+		vlv_enable_pll(intel_crtc);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_enable)
@@ -3802,7 +3803,8 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 		if (encoder->post_disable)
 			encoder->post_disable(encoder);
 
-	i9xx_disable_pll(dev_priv, pipe);
+	if (!intel_pipe_has_type(crtc, INTEL_OUTPUT_DSI))
+		i9xx_disable_pll(dev_priv, pipe);
 
 	intel_crtc->active = false;
 	intel_update_fbc(dev);
@@ -4870,7 +4872,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	intel_clock_t clock, reduced_clock;
 	u32 dspcntr;
 	bool ok, has_reduced_clock = false;
-	bool is_lvds = false;
+	bool is_lvds = false, is_dsi = false;
 	struct intel_encoder *encoder;
 	const intel_limit_t *limit;
 	int ret;
@@ -4880,6 +4882,9 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 		case INTEL_OUTPUT_LVDS:
 			is_lvds = true;
 			break;
+		case INTEL_OUTPUT_DSI:
+			is_dsi = true;
+			break;
 		}
 
 		num_connectors++;
@@ -4887,24 +4892,27 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 
 	refclk = i9xx_get_refclk(crtc, num_connectors);
 
-	/*
-	 * Returns a set of divisors for the desired target clock with the given
-	 * refclk, or FALSE.  The returned values represent the clock equation:
-	 * reflck * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) / p1 / p2.
-	 */
-	limit = intel_limit(crtc, refclk);
-	ok = dev_priv->display.find_dpll(limit, crtc,
-					 intel_crtc->config.port_clock,
-					 refclk, NULL, &clock);
-	if (!ok && !intel_crtc->config.clock_set) {
-		DRM_ERROR("Couldn't find PLL settings for mode!\n");
-		return -EINVAL;
+	if (!is_dsi) {
+		/*
+		 * Returns a set of divisors for the desired target clock with
+		 * the given refclk, or FALSE.  The returned values represent
+		 * the clock equation: reflck * (5 * (m1 + 2) + (m2 + 2)) / (n +
+		 * 2) / p1 / p2.
+		 */
+		limit = intel_limit(crtc, refclk);
+		ok = dev_priv->display.find_dpll(limit, crtc,
+						 intel_crtc->config.port_clock,
+						 refclk, NULL, &clock);
+		if (!ok && !intel_crtc->config.clock_set) {
+			DRM_ERROR("Couldn't find PLL settings for mode!\n");
+			return -EINVAL;
+		}
 	}
 
 	/* Ensure that the cursor is valid for the new mode before changing... */
 	intel_crtc_update_cursor(crtc, true);
 
-	if (is_lvds && dev_priv->lvds_downclock_avail) {
+	if (!is_dsi && is_lvds && dev_priv->lvds_downclock_avail) {
 		/*
 		 * Ensure we match the reduced clock's P to the target clock.
 		 * If the clocks don't match, we can't switch the display clock
@@ -4926,16 +4934,18 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 		intel_crtc->config.dpll.p2 = clock.p2;
 	}
 
-	if (IS_GEN2(dev))
+	if (IS_GEN2(dev)) {
 		i8xx_update_pll(intel_crtc,
 				has_reduced_clock ? &reduced_clock : NULL,
 				num_connectors);
-	else if (IS_VALLEYVIEW(dev))
-		vlv_update_pll(intel_crtc);
-	else
+	} else if (IS_VALLEYVIEW(dev)) {
+		if (!is_dsi)
+			vlv_update_pll(intel_crtc);
+	} else {
 		i9xx_update_pll(intel_crtc,
 				has_reduced_clock ? &reduced_clock : NULL,
                                 num_connectors);
+	}
 
 	/* Set up the display plane register */
 	dspcntr = DISPPLANE_GAMMA_ENABLE;
