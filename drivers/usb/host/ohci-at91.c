@@ -235,8 +235,6 @@ static void usb_hcd_at91_remove(struct usb_hcd *hcd,
 	clk_put(fclk);
 	clk_put(iclk);
 	fclk = iclk = hclk = NULL;
-
-	dev_set_drvdata(&pdev->dev, NULL);
 }
 
 /*-------------------------------------------------------------------------*/
