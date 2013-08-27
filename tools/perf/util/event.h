@@ -8,16 +8,6 @@
 #include "map.h"
 #include "build-id.h"
 
-/*
- * PERF_SAMPLE_IP | PERF_SAMPLE_TID | *
- */
-struct ip_event {
-	struct perf_event_header header;
-	u64 ip;
-	u32 pid, tid;
-	unsigned char __more_data[];
-};
-
 struct mmap_event {
 	struct perf_event_header header;
 	u32 pid, tid;
@@ -166,7 +156,6 @@ struct tracing_data_event {
 
 union perf_event {
 	struct perf_event_header	header;
-	struct ip_event			ip;
 	struct mmap_event		mmap;
 	struct comm_event		comm;
 	struct fork_event		fork;
