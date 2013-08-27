@@ -1300,12 +1300,6 @@ qla2x00_thermal_temp_show(struct device *dev,
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 	uint16_t temp = 0;
 
-	if (!vha->hw->thermal_support) {
-		ql_log(ql_log_warn, vha, 0x70db,
-		    "Thermal not supported by this card.\n");
-		goto done;
-	}
-
 	if (qla2x00_reset_active(vha)) {
 		ql_log(ql_log_warn, vha, 0x70dc, "ISP reset active.\n");
 		goto done;

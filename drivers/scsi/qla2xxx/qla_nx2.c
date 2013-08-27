@@ -1945,6 +1945,14 @@ qla8044_check_temp(struct scsi_qla_host *vha)
 	return 0;
 }
 
+int qla8044_read_temperature(scsi_qla_host_t *vha)
+{
+	uint32_t temp;
+
+	temp = qla8044_rd_direct(vha, QLA8044_CRB_TEMP_STATE_INDEX);
+	return qla82xx_get_temp_val(temp);
+}
+
 /**
  * qla8044_check_fw_alive  - Check firmware health
  * @ha: Pointer to host adapter structure.

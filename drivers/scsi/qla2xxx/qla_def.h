@@ -3304,9 +3304,6 @@ struct qla_hw_data {
 	struct mr_data_fx00 mr;
 
 	struct qlt_hw_data tgt;
-	uint16_t	thermal_support;
-#define THERMAL_SUPPORT_I2C BIT_0
-#define THERMAL_SUPPORT_ISP BIT_1
 };
 
 /*
