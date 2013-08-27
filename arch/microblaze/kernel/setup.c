@@ -68,10 +68,6 @@ void __init setup_arch(char **cmdline_p)
 
 	xilinx_pci_init();
 
-#if defined(CONFIG_SELFMOD_INTC) || defined(CONFIG_SELFMOD_TIMER)
-	pr_notice("Self modified code enable\n");
-#endif
-
 #ifdef CONFIG_VT
 #if defined(CONFIG_XILINX_CONSOLE)
 	conswitchp = &xil_con;

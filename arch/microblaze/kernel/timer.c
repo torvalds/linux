@@ -29,13 +29,7 @@
 #include <asm/irq.h>
 #include <linux/cnt32_to_63.h>
 
-#ifdef CONFIG_SELFMOD_TIMER
-#include <asm/selfmod.h>
-#define TIMER_BASE	BARRIER_BASE_ADDR
-#else
 static unsigned int timer_baseaddr;
-#define TIMER_BASE	timer_baseaddr
-#endif
 
 static unsigned int freq_div_hz;
 static unsigned int timer_clock_freq;
@@ -61,17 +55,19 @@ static unsigned int timer_clock_freq;
 
 static inline void microblaze_timer0_stop(void)
 {
-	out_be32(TIMER_BASE + TCSR0, in_be32(TIMER_BASE + TCSR0) & ~TCSR_ENT);
+	out_be32(timer_baseaddr + TCSR0,
+		 in_be32(timer_baseaddr + TCSR0) & ~TCSR_ENT);
 }
 
 static inline void microblaze_timer0_start_periodic(unsigned long load_val)
 {
 	if (!load_val)
 		load_val = 1;
-	out_be32(TIMER_BASE + TLR0, load_val); /* loading value to timer reg */
+	/* loading value to timer reg */
+	out_be32(timer_baseaddr + TLR0, load_val);
 
 	/* load the initial value */
-	out_be32(TIMER_BASE + TCSR0, TCSR_LOAD);
+	out_be32(timer_baseaddr + TCSR0, TCSR_LOAD);
 
 	/* see timer data sheet for detail
 	 * !ENALL - don't enable 'em all
@@ -86,7 +82,7 @@ static inline void microblaze_timer0_start_periodic(unsigned long load_val)
 	 * UDT - set the timer as down counter
 	 * !MDT0 - generate mode
 	 */
-	out_be32(TIMER_BASE + TCSR0,
+	out_be32(timer_baseaddr + TCSR0,
 			TCSR_TINT|TCSR_ENIT|TCSR_ENT|TCSR_ARHT|TCSR_UDT);
 }
 
@@ -94,12 +90,13 @@ static inline void microblaze_timer0_start_oneshot(unsigned long load_val)
 {
 	if (!load_val)
 		load_val = 1;
-	out_be32(TIMER_BASE + TLR0, load_val); /* loading value to timer reg */
+	/* loading value to timer reg */
+	out_be32(timer_baseaddr + TLR0, load_val);
 
 	/* load the initial value */
-	out_be32(TIMER_BASE + TCSR0, TCSR_LOAD);
+	out_be32(timer_baseaddr + TCSR0, TCSR_LOAD);
 
-	out_be32(TIMER_BASE + TCSR0,
+	out_be32(timer_baseaddr + TCSR0,
 			TCSR_TINT|TCSR_ENIT|TCSR_ENT|TCSR_ARHT|TCSR_UDT);
 }
 
@@ -146,7 +143,7 @@ static struct clock_event_device clockevent_microblaze_timer = {
 
 static inline void timer_ack(void)
 {
-	out_be32(TIMER_BASE + TCSR0, in_be32(TIMER_BASE + TCSR0));
+	out_be32(timer_baseaddr + TCSR0, in_be32(timer_baseaddr + TCSR0));
 }
 
 static irqreturn_t timer_interrupt(int irq, void *dev_id)
@@ -183,7 +180,7 @@ static __init void microblaze_clockevent_init(void)
 static cycle_t microblaze_read(struct clocksource *cs)
 {
 	/* reading actual value of timer 1 */
-	return (cycle_t) (in_be32(TIMER_BASE + TCR1));
+	return (cycle_t) (in_be32(timer_baseaddr + TCR1));
 }
 
 static struct timecounter microblaze_tc = {
@@ -225,9 +222,10 @@ static int __init microblaze_clocksource_init(void)
 		panic("failed to register clocksource");
 
 	/* stop timer1 */
-	out_be32(TIMER_BASE + TCSR1, in_be32(TIMER_BASE + TCSR1) & ~TCSR_ENT);
+	out_be32(timer_baseaddr + TCSR1,
+		 in_be32(timer_baseaddr + TCSR1) & ~TCSR_ENT);
 	/* start timer1 - up counting without interrupt */
-	out_be32(TIMER_BASE + TCSR1, TCSR_TINT|TCSR_ENT|TCSR_ARHT);
+	out_be32(timer_baseaddr + TCSR1, TCSR_TINT|TCSR_ENT|TCSR_ARHT);
 
 	/* register timecounter - for ftrace support */
 	init_microblaze_timecounter();
@@ -246,17 +244,7 @@ void __init time_init(void)
 	u32 timer_num = 1;
 	struct device_node *timer = NULL;
 	const void *prop;
-#ifdef CONFIG_SELFMOD_TIMER
-	unsigned int timer_baseaddr = 0;
-	int arr_func[] = {
-				(int)&microblaze_read,
-				(int)&timer_interrupt,
-				(int)&microblaze_clocksource_init,
-				(int)&microblaze_timer_set_mode,
-				(int)&microblaze_timer_set_next_event,
-				0
-			};
-#endif
+
 	prop = of_get_property(of_chosen, "system-timer", NULL);
 	if (prop)
 		timer = of_find_node_by_phandle(be32_to_cpup(prop));
@@ -278,9 +266,6 @@ void __init time_init(void)
 		BUG();
 	}
 
-#ifdef CONFIG_SELFMOD_TIMER
-	selfmod_function((int *) arr_func, timer_baseaddr);
-#endif
 	pr_info("%s #0 at 0x%08x, irq=%d\n",
 		timer->name, timer_baseaddr, irq);
 

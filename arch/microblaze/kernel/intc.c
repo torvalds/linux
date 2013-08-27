@@ -18,13 +18,7 @@
 #include <asm/prom.h>
 #include <asm/irq.h>
 
-#ifdef CONFIG_SELFMOD_INTC
-#include <asm/selfmod.h>
-#define INTC_BASE	BARRIER_BASE_ADDR
-#else
 static unsigned int intc_baseaddr;
-#define INTC_BASE	intc_baseaddr
-#endif
 
 /* No one else should require these constants, so define them locally here. */
 #define ISR 0x00			/* Interrupt Status Register */
@@ -50,21 +44,21 @@ static void intc_enable_or_unmask(struct irq_data *d)
 	 * acks the irq before calling the interrupt handler
 	 */
 	if (irqd_is_level_type(d))
-		out_be32(INTC_BASE + IAR, mask);
+		out_be32(intc_baseaddr + IAR, mask);
 
-	out_be32(INTC_BASE + SIE, mask);
+	out_be32(intc_baseaddr + SIE, mask);
 }
 
 static void intc_disable_or_mask(struct irq_data *d)
 {
 	pr_debug("disable: %ld\n", d->hwirq);
-	out_be32(INTC_BASE + CIE, 1 << d->hwirq);
+	out_be32(intc_baseaddr + CIE, 1 << d->hwirq);
 }
 
 static void intc_ack(struct irq_data *d)
 {
 	pr_debug("ack: %ld\n", d->hwirq);
-	out_be32(INTC_BASE + IAR, 1 << d->hwirq);
+	out_be32(intc_baseaddr + IAR, 1 << d->hwirq);
 }
 
 static void intc_mask_ack(struct irq_data *d)
@@ -72,8 +66,8 @@ static void intc_mask_ack(struct irq_data *d)
 	unsigned long mask = 1 << d->hwirq;
 
 	pr_debug("disable_and_ack: %ld\n", d->hwirq);
-	out_be32(INTC_BASE + CIE, mask);
-	out_be32(INTC_BASE + IAR, mask);
+	out_be32(intc_baseaddr + CIE, mask);
+	out_be32(intc_baseaddr + IAR, mask);
 }
 
 static struct irq_chip intc_dev = {
@@ -90,7 +84,7 @@ unsigned int get_irq(void)
 {
 	unsigned int hwirq, irq = -1;
 
-	hwirq = in_be32(INTC_BASE + IVR);
+	hwirq = in_be32(intc_baseaddr + IVR);
 	if (hwirq != -1U)
 		irq = irq_find_mapping(root_domain, hwirq);
 
@@ -124,18 +118,7 @@ void __init init_IRQ(void)
 {
 	u32 nr_irq, intr_mask;
 	struct device_node *intc = NULL;
-#ifdef CONFIG_SELFMOD_INTC
-	unsigned int intc_baseaddr = 0;
-	static int arr_func[] = {
-				(int)&get_irq,
-				(int)&intc_enable_or_unmask,
-				(int)&intc_disable_or_mask,
-				(int)&intc_mask_ack,
-				(int)&intc_ack,
-				(int)&intc_end,
-				0
-			};
-#endif
+
 	intc = of_find_compatible_node(NULL, NULL, "xlnx,xps-intc-1.00.a");
 	BUG_ON(!intc);
 
@@ -149,9 +132,6 @@ void __init init_IRQ(void)
 	if (intr_mask > (u32)((1ULL << nr_irq) - 1))
 		pr_info(" ERROR: Mismatch in kind-of-intr param\n");
 
-#ifdef CONFIG_SELFMOD_INTC
-	selfmod_function((int *) arr_func, intc_baseaddr);
-#endif
 	pr_info("%s #0 at 0x%08x, num_irq=%d, edge=0x%x\n",
 		intc->name, intc_baseaddr, nr_irq, intr_mask);
 
