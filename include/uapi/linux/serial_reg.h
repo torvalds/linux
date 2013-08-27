@@ -366,7 +366,6 @@
 #define UART_OMAP_MDR1_FIR_MODE		0x05	/* FIR mode */
 #define UART_OMAP_MDR1_CIR_MODE		0x06	/* CIR mode */
 #define UART_OMAP_MDR1_DISABLE		0x07	/* Disable (default state) */
-#define UART_OMAP_TXFIFO_LVL		0x1A	/* TX FIFO fullness */
 
 /*
  * These are definitions for the Exar XR17V35X and XR17(C|D)15X

@@ -350,8 +350,7 @@ static void transmit_chars(struct uart_omap_port *up, unsigned int lsr)
 		serial_omap_stop_tx(&up->port);
 		return;
 	}
-	count = up->port.fifosize -
-		(serial_in(up, UART_OMAP_TXFIFO_LVL) & 0xFF);
+	count = up->port.fifosize / 4;
 	do {
 		serial_out(up, UART_TX, xmit->buf[xmit->tail]);
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
