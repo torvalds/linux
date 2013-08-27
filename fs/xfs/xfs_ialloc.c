@@ -729,7 +729,7 @@ xfs_dialloc_ag(
 		error = xfs_inobt_get_rec(cur, &rec, &j);
 		if (error)
 			goto error0;
-		XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
+		XFS_WANT_CORRUPTED_GOTO(j == 1, error0);
 
 		if (rec.ir_freecount > 0) {
 			/*
