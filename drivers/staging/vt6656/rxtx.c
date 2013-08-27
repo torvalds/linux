@@ -198,7 +198,8 @@ static void s_vFillTxKey(struct vnt_private *pDevice, u8 *pbyBuf,
 	*pdwIV = pDevice->dwIVCounter;
 	pDevice->byKeyIndex = pTransmitKey->dwKeyIndex & 0xf;
 
-	if (pTransmitKey->byCipherSuite == KEY_CTL_WEP) {
+	switch (pTransmitKey->byCipherSuite) {
+	case KEY_CTL_WEP:
 		if (pTransmitKey->uKeyLength == WLAN_WEP232_KEYLEN) {
 			memcpy(pDevice->abyPRNG, (u8 *)&dwRevIVCounter, 3);
 			memcpy(pDevice->abyPRNG + 3, pTransmitKey->abyKey,
@@ -223,7 +224,9 @@ static void s_vFillTxKey(struct vnt_private *pDevice, u8 *pbyBuf,
 		pDevice->dwIVCounter++;
 		if (pDevice->dwIVCounter > WEP_IV_MASK)
 			pDevice->dwIVCounter = 0;
-	} else if (pTransmitKey->byCipherSuite == KEY_CTL_TKIP) {
+
+		break;
+	case KEY_CTL_TKIP:
 		pTransmitKey->wTSC15_0++;
 		if (pTransmitKey->wTSC15_0 == 0)
 			pTransmitKey->dwTSC47_16++;
@@ -244,7 +247,8 @@ static void s_vFillTxKey(struct vnt_private *pDevice, u8 *pbyBuf,
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
 			"vFillTxKey()---- pdwExtIV: %x\n", *pdwExtIV);
 
-	} else if (pTransmitKey->byCipherSuite == KEY_CTL_CCMP) {
+		break;
+	case KEY_CTL_CCMP:
 		pTransmitKey->wTSC15_0++;
 		if (pTransmitKey->wTSC15_0 == 0)
 			pTransmitKey->dwTSC47_16++;
