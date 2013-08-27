@@ -314,9 +314,6 @@ struct ce_attr {
 	/* CE_ATTR_* values */
 	unsigned int flags;
 
-	/* currently not in use */
-	unsigned int priority;
-
 	/* #entries in source ring - Must be a power of 2 */
 	unsigned int src_nentries;
 
@@ -328,9 +325,6 @@ struct ce_attr {
 
 	/* #entries in destination ring - Must be a power of 2 */
 	unsigned int dest_nentries;
-
-	/* Future use */
-	void *reserved;
 };
 
 /*

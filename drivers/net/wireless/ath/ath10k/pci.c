@@ -59,23 +59,23 @@ static void ath10k_pci_stop_intr(struct ath10k *ar);
 
 static const struct ce_attr host_ce_config_wlan[] = {
 	/* host->target HTC control and raw streams */
-	{ /* CE0 */ CE_ATTR_FLAGS, 0, 16, 256, 0, NULL,},
+	{ /* CE0 */ CE_ATTR_FLAGS, 16, 256, 0 },
 	/* could be moved to share CE3 */
 	/* target->host HTT + HTC control */
-	{ /* CE1 */ CE_ATTR_FLAGS, 0, 0, 512, 512, NULL,},
+	{ /* CE1 */ CE_ATTR_FLAGS, 0, 512, 512 },
 	/* target->host WMI */
-	{ /* CE2 */ CE_ATTR_FLAGS, 0, 0, 2048, 32, NULL,},
+	{ /* CE2 */ CE_ATTR_FLAGS, 0, 2048, 32 },
 	/* host->target WMI */
-	{ /* CE3 */ CE_ATTR_FLAGS, 0, 32, 2048, 0, NULL,},
+	{ /* CE3 */ CE_ATTR_FLAGS, 32, 2048, 0 },
 	/* host->target HTT */
-	{ /* CE4 */ CE_ATTR_FLAGS | CE_ATTR_DIS_INTR, 0,
-		    CE_HTT_H2T_MSG_SRC_NENTRIES, 256, 0, NULL,},
+	{ /* CE4 */ CE_ATTR_FLAGS | CE_ATTR_DIS_INTR,
+		    CE_HTT_H2T_MSG_SRC_NENTRIES, 256, 0 },
 	/* unused */
-	{ /* CE5 */ CE_ATTR_FLAGS, 0, 0, 0, 0, NULL,},
+	{ /* CE5 */ CE_ATTR_FLAGS, 0, 0, 0 },
 	/* Target autonomous hif_memcpy */
-	{ /* CE6 */ CE_ATTR_FLAGS, 0, 0, 0, 0, NULL,},
+	{ /* CE6 */ CE_ATTR_FLAGS, 0, 0, 0 },
 	/* ce_diag, the Diagnostic Window */
-	{ /* CE7 */ CE_ATTR_FLAGS, 0, 2, DIAG_TRANSFER_LIMIT, 2, NULL,},
+	{ /* CE7 */ CE_ATTR_FLAGS, 2, DIAG_TRANSFER_LIMIT, 2 },
 };
 
 /* Target firmware's Copy Engine configuration. */
