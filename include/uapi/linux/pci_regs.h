@@ -544,10 +544,12 @@
 #define PCI_EXP_RTSTA_PME	0x10000 /* PME status */
 #define PCI_EXP_RTSTA_PENDING	0x20000 /* PME pending */
 /*
- * Note that the following PCI Express 'Capability Structure' registers
- * were introduced with 'Capability Version' 0x2 (v2).  These registers
- * do not exist on devices with Capability Version 1.  Use pci_pcie_cap2()
- * to use these fields safely.
+ * The Device Capabilities 2, Device Status 2, Device Control 2,
+ * Link Capabilities 2, Link Status 2, Link Control 2,
+ * Slot Capabilities 2, Slot Status 2, and Slot Control 2 registers
+ * are only present on devices with PCIe Capability version 2.
+ * Use pcie_capability_read_word() and similar interfaces to use them
+ * safely.
  */
 #define PCI_EXP_DEVCAP2		36	/* Device Capabilities 2 */
 #define  PCI_EXP_DEVCAP2_ARI		0x20	/* Alternative Routing-ID */
