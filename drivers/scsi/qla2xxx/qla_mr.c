@@ -941,11 +941,22 @@ qlafx00_init_fw_ready(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_fx00 __iomem *reg = &ha->iobase->ispfx00;
 	uint32_t aenmbx, aenmbx7 = 0;
+	uint32_t pseudo_aen;
 	uint32_t state[5];
 	bool done = false;
 
 	/* 30 seconds wait - Adjust if required */
 	wait_time = 30;
+
+	pseudo_aen = RD_REG_DWORD(&reg->pseudoaen);
+	if (pseudo_aen == 1) {
+		aenmbx7 = RD_REG_DWORD(&reg->initval7);
+		ha->mbx_intr_code = MSW(aenmbx7);
+		ha->rqstq_intr_code = LSW(aenmbx7);
+		rval = qlafx00_driver_shutdown(vha, 10);
+		if (rval != QLA_SUCCESS)
+			qlafx00_soft_reset(vha);
+	}
 
 	/* wait time before firmware ready */
 	wtime = jiffies + (wait_time * HZ);

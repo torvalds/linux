@@ -643,6 +643,7 @@ struct device_reg_fx00 {
 	uint32_t initval6;		/* C8 */
 	uint32_t initval7;		/* CC */
 	uint32_t fwheartbeat;		/* D0 */
+	uint32_t pseudoaen;		/* D4 */
 };
 
 
