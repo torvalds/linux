@@ -125,11 +125,11 @@ static u16 s_uGetRTSCTSRsvTime(struct vnt_private *pDevice, u8 byRTSRsvType,
 	u8 byPktType, u32 cbFrameLength, u16 wCurrentRate);
 
 static void s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
-	u8 byPktType, void *pvCTS, u32 cbFrameLength, int bNeedAck,
-	u16 wCurrentRate, u8 byFBOption);
+	u8 byPktType, union vnt_tx_data_head *head, u32 cbFrameLength,
+	int bNeedAck, u16 wCurrentRate, u8 byFBOption);
 
 static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
-	void *pvRTS, u32 cbFrameLength, int bNeedAck,
+	union vnt_tx_data_head *head, u32 cbFrameLength, int bNeedAck,
 	struct ethhdr *psEthHeader, u16 wCurrentRate, u8 byFBOption);
 
 static u16 s_uGetDataDuration(struct vnt_private *pDevice,
@@ -717,10 +717,9 @@ static int vnt_rxtx_rts_a_fb_head(struct vnt_private *priv,
 }
 
 static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
-	void *pvRTS, u32 cbFrameLength, int bNeedAck,
+	union vnt_tx_data_head *head, u32 cbFrameLength, int bNeedAck,
 	struct ethhdr *psEthHeader, u16 wCurrentRate, u8 byFBOption)
 {
-	union vnt_tx_data_head *head = pvRTS;
 
 	if (!head)
 		return;
@@ -757,10 +756,9 @@ static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
 }
 
 static void s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
-	u8 byPktType, void *pvCTS, u32 cbFrameLength, int bNeedAck,
-	u16 wCurrentRate, u8 byFBOption)
+	u8 byPktType, union vnt_tx_data_head *head, u32 cbFrameLength,
+	int bNeedAck, u16 wCurrentRate, u8 byFBOption)
 {
-	union vnt_tx_data_head *head = pvCTS;
 	u32 uCTSFrameLen = 14;
 
 	if (!head)
@@ -831,6 +829,7 @@ static void s_vGenerateTxParameter(struct vnt_private *pDevice,
 	void *rts_cts, u32 cbFrameSize, int bNeedACK, u32 uDMAIdx,
 	struct ethhdr *psEthHeader, bool need_rts)
 {
+	union vnt_tx_data_head *head = rts_cts;
 	u32 cbMACHdLen = WLAN_HDR_ADDR3_LEN; /* 24 */
 	u16 wFifoCtl;
 	u8 byFBOption = AUTO_FB_NONE;
@@ -870,7 +869,7 @@ static void s_vGenerateTxParameter(struct vnt_private *pDevice,
 			PK_TYPE_11B, cbFrameSize, pDevice->byTopCCKBasicRate,
 				bNeedACK);
 		/* Fill RTS */
-		s_vFillRTSHead(pDevice, byPktType, rts_cts, cbFrameSize,
+		s_vFillRTSHead(pDevice, byPktType, head, cbFrameSize,
 			bNeedACK, psEthHeader, wCurrentRate, byFBOption);
         }
         else {//RTS_needless, PCF mode
@@ -885,7 +884,7 @@ static void s_vGenerateTxParameter(struct vnt_private *pDevice,
 		pBuf->wCTSTxRrvTime_ba = s_uGetRTSCTSRsvTime(pDevice, 3,
 				byPktType, cbFrameSize, wCurrentRate);
 		/* Fill CTS */
-		s_vFillCTSHead(pDevice, uDMAIdx, byPktType, rts_cts,
+		s_vFillCTSHead(pDevice, uDMAIdx, byPktType, head,
 			cbFrameSize, bNeedACK, wCurrentRate, byFBOption);
         }
     }
@@ -899,7 +898,7 @@ static void s_vGenerateTxParameter(struct vnt_private *pDevice,
 		pBuf->wTxRrvTime = vnt_rxtx_rsvtime_le16(pDevice, byPktType,
 				cbFrameSize, wCurrentRate, bNeedACK);
 		/* Fill RTS */
-		s_vFillRTSHead(pDevice, byPktType, rts_cts, cbFrameSize,
+		s_vFillRTSHead(pDevice, byPktType, head, cbFrameSize,
 			bNeedACK, psEthHeader, wCurrentRate, byFBOption);
 	} else {
             //Fill RsvTime
@@ -919,7 +918,7 @@ static void s_vGenerateTxParameter(struct vnt_private *pDevice,
 		pBuf->wTxRrvTime = vnt_rxtx_rsvtime_le16(pDevice, PK_TYPE_11B,
 				cbFrameSize, wCurrentRate, bNeedACK);
 		/* Fill RTS */
-		s_vFillRTSHead(pDevice, byPktType, rts_cts, cbFrameSize,
+		s_vFillRTSHead(pDevice, byPktType, head, cbFrameSize,
 			bNeedACK, psEthHeader, wCurrentRate, byFBOption);
         }
         else { //RTS_needless, non PCF mode
