@@ -760,15 +760,15 @@ static void s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
 	u8 byPktType, void *pvCTS, u32 cbFrameLength, int bNeedAck,
 	u16 wCurrentRate, u8 byFBOption)
 {
+	union vnt_tx_data_head *head = pvCTS;
 	u32 uCTSFrameLen = 14;
 
-    if (pvCTS == NULL) {
-        return;
-    }
+	if (!head)
+		return;
 
 	if (byFBOption != AUTO_FB_NONE) {
 		/* Auto Fall back */
-		struct vnt_cts_fb *pBuf = (struct vnt_cts_fb *)pvCTS;
+		struct vnt_cts_fb *pBuf = &head->cts_g_fb;
 		/* Get SignalField,ServiceField,Length */
 		BBvCalculateParameter(pDevice, uCTSFrameLen,
 			pDevice->byTopCCKBasicRate, PK_TYPE_11B, &pBuf->b);
@@ -788,7 +788,7 @@ static void s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
 		pBuf->data.frame_control = TYPE_CTL_CTS;
 		memcpy(pBuf->data.ra, pDevice->abyCurrentNetAddr, ETH_ALEN);
 	} else {
-		struct vnt_cts *pBuf = (struct vnt_cts *)pvCTS;
+		struct vnt_cts *pBuf = &head->cts_g;
 		/* Get SignalField,ServiceField,Length */
 		BBvCalculateParameter(pDevice, uCTSFrameLen,
 			pDevice->byTopCCKBasicRate, PK_TYPE_11B, &pBuf->b);
