@@ -1539,6 +1539,9 @@ qlafx00_timer_routine(scsi_qla_host_t *vha)
 		} else if ((aenmbx0 & 0xFF00) == MBA_FW_POLL_STATE) {
 			ha->mr.fw_reset_timer_tick =
 			    QLAFX00_MAX_RESET_INTERVAL;
+		} else if (aenmbx0 == MBA_FW_RESET_FCT) {
+			ha->mr.fw_reset_timer_tick =
+			    QLAFX00_MAX_RESET_INTERVAL;
 		}
 		ha->mr.old_aenmbx0_state = aenmbx0;
 		ha->mr.fw_reset_timer_tick--;

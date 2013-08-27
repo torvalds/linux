@@ -806,6 +806,7 @@ struct mbx_cmd_32 {
 #define MBA_MIRROR_LUN_CHANGE	0x8402	/* Mirror LUN State Change
 					   Notification */
 #define MBA_FW_POLL_STATE	0x8600  /* Firmware in poll diagnostic state */
+#define MBA_FW_RESET_FCT	0x8502	/* Firmware reset factory defaults */
 
 /* 83XX FCoE specific */
 #define MBA_IDC_AEN		0x8200  /* FCoE: NIC Core state change AEN */
