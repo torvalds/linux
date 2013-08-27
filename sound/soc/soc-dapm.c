@@ -2712,9 +2712,8 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_weak_routes);
  *
  * Returns 0 for success.
  */
-int snd_soc_dapm_new_widgets(struct snd_soc_dapm_context *dapm)
+int snd_soc_dapm_new_widgets(struct snd_soc_card *card)
 {
-	struct snd_soc_card *card = dapm->card;
 	struct snd_soc_dapm_widget *w;
 	unsigned int val;
 
