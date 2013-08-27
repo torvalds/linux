@@ -485,14 +485,14 @@ static int acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
 			break;
 	}
 
-	if (flag & ACPI_TRIPS_DEVICES) {
-		memset(&devices, 0, sizeof(struct acpi_handle_list));
+	if ((flag & ACPI_TRIPS_DEVICES)
+	    && acpi_has_method(tz->device->handle, "_TZD")) {
+		memset(&devices, 0, sizeof(devices));
 		status = acpi_evaluate_reference(tz->device->handle, "_TZD",
 						NULL, &devices);
-		if (memcmp(&tz->devices, &devices,
-				sizeof(struct acpi_handle_list))) {
-			memcpy(&tz->devices, &devices,
-				sizeof(struct acpi_handle_list));
+		if (ACPI_SUCCESS(status)
+		    && memcmp(&tz->devices, &devices, sizeof(devices))) {
+			tz->devices = devices;
 			ACPI_THERMAL_TRIPS_EXCEPTION(flag, "device");
 		}
 	}
