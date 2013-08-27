@@ -529,38 +529,44 @@ static int sh_pfc_pinconf_get(struct pinctrl_dev *pctldev, unsigned _pin,
 }
 
 static int sh_pfc_pinconf_set(struct pinctrl_dev *pctldev, unsigned _pin,
-			      unsigned long config)
+			      unsigned long *configs, unsigned num_configs)
 {
 	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
 	struct sh_pfc *pfc = pmx->pfc;
-	enum pin_config_param param = pinconf_to_config_param(config);
+	enum pin_config_param param;
 	unsigned long flags;
+	unsigned int i;
 
-	if (!sh_pfc_pinconf_validate(pfc, _pin, param))
-		return -ENOTSUPP;
+	for (i = 0; i < num_configs; i++) {
+		param = pinconf_to_config_param(configs[i]);
 
-	switch (param) {
-	case PIN_CONFIG_BIAS_PULL_UP:
-	case PIN_CONFIG_BIAS_PULL_DOWN:
-	case PIN_CONFIG_BIAS_DISABLE:
-		if (!pfc->info->ops || !pfc->info->ops->set_bias)
+		if (!sh_pfc_pinconf_validate(pfc, _pin, param))
 			return -ENOTSUPP;
 
-		spin_lock_irqsave(&pfc->lock, flags);
-		pfc->info->ops->set_bias(pfc, _pin, param);
-		spin_unlock_irqrestore(&pfc->lock, flags);
+		switch (param) {
+		case PIN_CONFIG_BIAS_PULL_UP:
+		case PIN_CONFIG_BIAS_PULL_DOWN:
+		case PIN_CONFIG_BIAS_DISABLE:
+			if (!pfc->info->ops || !pfc->info->ops->set_bias)
+				return -ENOTSUPP;
 
-		break;
+			spin_lock_irqsave(&pfc->lock, flags);
+			pfc->info->ops->set_bias(pfc, _pin, param);
+			spin_unlock_irqrestore(&pfc->lock, flags);
 
-	default:
-		return -ENOTSUPP;
-	}
+			break;
+
+		default:
+			return -ENOTSUPP;
+		}
+	} /* for each config */
 
 	return 0;
 }
 
 static int sh_pfc_pinconf_group_set(struct pinctrl_dev *pctldev, unsigned group,
-				    unsigned long config)
+				    unsigned long *configs,
+				    unsigned num_configs)
 {
 	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
 	const unsigned int *pins;
@@ -571,7 +577,7 @@ static int sh_pfc_pinconf_group_set(struct pinctrl_dev *pctldev, unsigned group,
 	num_pins = pmx->pfc->info->groups[group].nr_pins;
 
 	for (i = 0; i < num_pins; ++i)
-		sh_pfc_pinconf_set(pctldev, pins[i], config);
+		sh_pfc_pinconf_set(pctldev, pins[i], configs, num_configs);
 
 	return 0;
 }

@@ -323,11 +323,13 @@ static int imx_pinconf_get(struct pinctrl_dev *pctldev,
 }
 
 static int imx_pinconf_set(struct pinctrl_dev *pctldev,
-			     unsigned pin_id, unsigned long config)
+			     unsigned pin_id, unsigned long *configs,
+			     unsigned num_configs)
 {
 	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
 	const struct imx_pinctrl_soc_info *info = ipctl->info;
 	const struct imx_pin_reg *pin_reg = &info->pin_regs[pin_id];
+	int i;
 
 	if (!(info->flags & ZERO_OFFSET_VALID) && !pin_reg->conf_reg) {
 		dev_err(info->dev, "Pin(%s) does not support config function\n",
@@ -338,17 +340,19 @@ static int imx_pinconf_set(struct pinctrl_dev *pctldev,
 	dev_dbg(ipctl->dev, "pinconf set pin %s\n",
 		info->pins[pin_id].name);
 
-	if (info->flags & SHARE_MUX_CONF_REG) {
-		u32 reg;
-		reg = readl(ipctl->base + pin_reg->conf_reg);
-		reg &= ~0xffff;
-		reg |= config;
-		writel(reg, ipctl->base + pin_reg->conf_reg);
-	} else {
-		writel(config, ipctl->base + pin_reg->conf_reg);
-	}
-	dev_dbg(ipctl->dev, "write: offset 0x%x val 0x%lx\n",
-		pin_reg->conf_reg, config);
+	for (i = 0; i < num_configs; i++) {
+		if (info->flags & SHARE_MUX_CONF_REG) {
+			u32 reg;
+			reg = readl(ipctl->base + pin_reg->conf_reg);
+			reg &= ~0xffff;
+			reg |= configs[i];
+			writel(reg, ipctl->base + pin_reg->conf_reg);
+		} else {
+			writel(configs[i], ipctl->base + pin_reg->conf_reg);
+		}
+		dev_dbg(ipctl->dev, "write: offset 0x%x val 0x%lx\n",
+			pin_reg->conf_reg, configs[i]);
+	} /* for each config */
 
 	return 0;
 }

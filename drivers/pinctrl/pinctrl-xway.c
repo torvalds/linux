@@ -499,74 +499,101 @@ static int xway_pinconf_get(struct pinctrl_dev *pctldev,
 
 static int xway_pinconf_set(struct pinctrl_dev *pctldev,
 				unsigned pin,
-				unsigned long config)
+				unsigned long *configs,
+				unsigned num_configs)
 {
 	struct ltq_pinmux_info *info = pinctrl_dev_get_drvdata(pctldev);
-	enum ltq_pinconf_param param = LTQ_PINCONF_UNPACK_PARAM(config);
-	int arg = LTQ_PINCONF_UNPACK_ARG(config);
+	enum ltq_pinconf_param param;
+	int arg;
 	int port = PORT(pin);
 	u32 reg;
+	int i;
 
-	switch (param) {
-	case LTQ_PINCONF_PARAM_OPEN_DRAIN:
-		if (port == PORT3)
-			reg = GPIO3_OD;
-		else
-			reg = GPIO_OD(pin);
-		if (arg == 0)
-			gpio_setbit(info->membase[0], reg, PORT_PIN(pin));
-		else
-			gpio_clearbit(info->membase[0], reg, PORT_PIN(pin));
-		break;
+	for (i = 0; i < num_configs; i++) {
+		param = LTQ_PINCONF_UNPACK_PARAM(configs[i]);
+		arg = LTQ_PINCONF_UNPACK_ARG(configs[i]);
 
-	case LTQ_PINCONF_PARAM_PULL:
-		if (port == PORT3)
-			reg = GPIO3_PUDEN;
-		else
-			reg = GPIO_PUDEN(pin);
-		if (arg == 0) {
-			gpio_clearbit(info->membase[0], reg, PORT_PIN(pin));
+		switch (param) {
+		case LTQ_PINCONF_PARAM_OPEN_DRAIN:
+			if (port == PORT3)
+				reg = GPIO3_OD;
+			else
+				reg = GPIO_OD(pin);
+			if (arg == 0)
+				gpio_setbit(info->membase[0],
+					reg,
+					PORT_PIN(pin));
+			else
+				gpio_clearbit(info->membase[0],
+					reg,
+					PORT_PIN(pin));
 			break;
+
+		case LTQ_PINCONF_PARAM_PULL:
+			if (port == PORT3)
+				reg = GPIO3_PUDEN;
+			else
+				reg = GPIO_PUDEN(pin);
+			if (arg == 0) {
+				gpio_clearbit(info->membase[0],
+					reg,
+					PORT_PIN(pin));
+				break;
+			}
+			gpio_setbit(info->membase[0], reg, PORT_PIN(pin));
+
+			if (port == PORT3)
+				reg = GPIO3_PUDSEL;
+			else
+				reg = GPIO_PUDSEL(pin);
+			if (arg == 1)
+				gpio_clearbit(info->membase[0],
+					reg,
+					PORT_PIN(pin));
+			else if (arg == 2)
+				gpio_setbit(info->membase[0],
+					reg,
+					PORT_PIN(pin));
+			else
+				dev_err(pctldev->dev,
+					"Invalid pull value %d\n", arg);
+			break;
+
+		case LTQ_PINCONF_PARAM_OUTPUT:
+			reg = GPIO_DIR(pin);
+			if (arg == 0)
+				gpio_clearbit(info->membase[0],
+					reg,
+					PORT_PIN(pin));
+			else
+				gpio_setbit(info->membase[0],
+					reg,
+					PORT_PIN(pin));
+			break;
+
+		default:
+			dev_err(pctldev->dev,
+				"Invalid config param %04x\n", param);
+			return -ENOTSUPP;
 		}
-		gpio_setbit(info->membase[0], reg, PORT_PIN(pin));
+	} /* for each config */
 
-		if (port == PORT3)
-			reg = GPIO3_PUDSEL;
-		else
-			reg = GPIO_PUDSEL(pin);
-		if (arg == 1)
-			gpio_clearbit(info->membase[0], reg, PORT_PIN(pin));
-		else if (arg == 2)
-			gpio_setbit(info->membase[0], reg, PORT_PIN(pin));
-		else
-			dev_err(pctldev->dev, "Invalid pull value %d\n", arg);
-		break;
-
-	case LTQ_PINCONF_PARAM_OUTPUT:
-		reg = GPIO_DIR(pin);
-		if (arg == 0)
-			gpio_clearbit(info->membase[0], reg, PORT_PIN(pin));
-		else
-			gpio_setbit(info->membase[0], reg, PORT_PIN(pin));
-		break;
-
-	default:
-		dev_err(pctldev->dev, "Invalid config param %04x\n", param);
-		return -ENOTSUPP;
-	}
 	return 0;
 }
 
 int xway_pinconf_group_set(struct pinctrl_dev *pctldev,
 			unsigned selector,
-			unsigned long config)
+			unsigned long *configs,
+			unsigned num_configs)
 {
 	struct ltq_pinmux_info *info = pinctrl_dev_get_drvdata(pctldev);
 	int i, ret = 0;
 
 	for (i = 0; i < info->grps[selector].npins && !ret; i++)
 		ret = xway_pinconf_set(pctldev,
-				info->grps[selector].pins[i], config);
+				info->grps[selector].pins[i],
+				configs,
+				num_configs);
 
 	return ret;
 }

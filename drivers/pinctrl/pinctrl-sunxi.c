@@ -274,50 +274,55 @@ static int sunxi_pconf_group_get(struct pinctrl_dev *pctldev,
 
 static int sunxi_pconf_group_set(struct pinctrl_dev *pctldev,
 				 unsigned group,
-				 unsigned long config)
+				 unsigned long *configs,
+				 unsigned num_configs)
 {
 	struct sunxi_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 	struct sunxi_pinctrl_group *g = &pctl->groups[group];
 	u32 val, mask;
 	u16 strength;
 	u8 dlevel;
+	int i;
 
-	switch (pinconf_to_config_param(config)) {
-	case PIN_CONFIG_DRIVE_STRENGTH:
-		strength = pinconf_to_config_argument(config);
-		if (strength > 40)
-			return -EINVAL;
-		/*
-		 * We convert from mA to what the register expects:
-		 *   0: 10mA
-		 *   1: 20mA
-		 *   2: 30mA
-		 *   3: 40mA
-		 */
-		dlevel = strength / 10 - 1;
-		val = readl(pctl->membase + sunxi_dlevel_reg(g->pin));
-	        mask = DLEVEL_PINS_MASK << sunxi_dlevel_offset(g->pin);
-		writel((val & ~mask) | dlevel << sunxi_dlevel_offset(g->pin),
-			pctl->membase + sunxi_dlevel_reg(g->pin));
-		break;
-	case PIN_CONFIG_BIAS_PULL_UP:
-		val = readl(pctl->membase + sunxi_pull_reg(g->pin));
-		mask = PULL_PINS_MASK << sunxi_pull_offset(g->pin);
-		writel((val & ~mask) | 1 << sunxi_pull_offset(g->pin),
-			pctl->membase + sunxi_pull_reg(g->pin));
-		break;
-	case PIN_CONFIG_BIAS_PULL_DOWN:
-		val = readl(pctl->membase + sunxi_pull_reg(g->pin));
-		mask = PULL_PINS_MASK << sunxi_pull_offset(g->pin);
-		writel((val & ~mask) | 2 << sunxi_pull_offset(g->pin),
-			pctl->membase + sunxi_pull_reg(g->pin));
-		break;
-	default:
-		break;
-	}
+	for (i = 0; i < num_configs; i++) {
+		switch (pinconf_to_config_param(configs[i])) {
+		case PIN_CONFIG_DRIVE_STRENGTH:
+			strength = pinconf_to_config_argument(configs[i]);
+			if (strength > 40)
+				return -EINVAL;
+			/*
+			 * We convert from mA to what the register expects:
+			 *   0: 10mA
+			 *   1: 20mA
+			 *   2: 30mA
+			 *   3: 40mA
+			 */
+			dlevel = strength / 10 - 1;
+			val = readl(pctl->membase + sunxi_dlevel_reg(g->pin));
+			mask = DLEVEL_PINS_MASK << sunxi_dlevel_offset(g->pin);
+			writel((val & ~mask)
+				| dlevel << sunxi_dlevel_offset(g->pin),
+				pctl->membase + sunxi_dlevel_reg(g->pin));
+			break;
+		case PIN_CONFIG_BIAS_PULL_UP:
+			val = readl(pctl->membase + sunxi_pull_reg(g->pin));
+			mask = PULL_PINS_MASK << sunxi_pull_offset(g->pin);
+			writel((val & ~mask) | 1 << sunxi_pull_offset(g->pin),
+				pctl->membase + sunxi_pull_reg(g->pin));
+			break;
+		case PIN_CONFIG_BIAS_PULL_DOWN:
+			val = readl(pctl->membase + sunxi_pull_reg(g->pin));
+			mask = PULL_PINS_MASK << sunxi_pull_offset(g->pin);
+			writel((val & ~mask) | 2 << sunxi_pull_offset(g->pin),
+				pctl->membase + sunxi_pull_reg(g->pin));
+			break;
+		default:
+			break;
+		}
 
-	/* cache the config value */
-	g->config = config;
+		/* cache the config value */
+		g->config = configs[i];
+	} /* for each config */
 
 	return 0;
 }

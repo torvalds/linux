@@ -737,39 +737,46 @@ static int tz1090_pdc_pinconf_get(struct pinctrl_dev *pctldev,
 }
 
 static int tz1090_pdc_pinconf_set(struct pinctrl_dev *pctldev,
-				  unsigned int pin, unsigned long config)
+				  unsigned int pin, unsigned long *configs,
+				  unsigned num_configs)
 {
 	struct tz1090_pdc_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
-	enum pin_config_param param = pinconf_to_config_param(config);
-	unsigned int arg = pinconf_to_config_argument(config);
+	enum pin_config_param param;
+	unsigned int arg;
 	int ret;
 	u32 reg, width, mask, shift, val, tmp;
 	unsigned long flags;
+	int i;
 
-	dev_dbg(pctldev->dev, "%s(pin=%s, config=%#lx)\n",
-		__func__, tz1090_pdc_pins[pin].name, config);
+	for (i = 0; i < num_configs; i++) {
+		param = pinconf_to_config_param(configs[i]);
+		arg = pinconf_to_config_argument(configs[i]);
 
-	/* Get register information */
-	ret = tz1090_pdc_pinconf_reg(pctldev, pin, param, true,
-				     &reg, &width, &mask, &shift, &val);
-	if (ret < 0)
-		return ret;
+		dev_dbg(pctldev->dev, "%s(pin=%s, config=%#lx)\n",
+			__func__, tz1090_pdc_pins[pin].name, configs[i]);
 
-	/* Unpack argument and range check it */
-	if (arg > 1) {
-		dev_dbg(pctldev->dev, "%s: arg %u out of range\n",
-			__func__, arg);
-		return -EINVAL;
-	}
+		/* Get register information */
+		ret = tz1090_pdc_pinconf_reg(pctldev, pin, param, true,
+					     &reg, &width, &mask, &shift, &val);
+		if (ret < 0)
+			return ret;
 
-	/* Write register field */
-	__global_lock2(flags);
-	tmp = pmx_read(pmx, reg);
-	tmp &= ~mask;
-	if (arg)
-		tmp |= val << shift;
-	pmx_write(pmx, tmp, reg);
-	__global_unlock2(flags);
+		/* Unpack argument and range check it */
+		if (arg > 1) {
+			dev_dbg(pctldev->dev, "%s: arg %u out of range\n",
+				__func__, arg);
+			return -EINVAL;
+		}
+
+		/* Write register field */
+		__global_lock2(flags);
+		tmp = pmx_read(pmx, reg);
+		tmp &= ~mask;
+		if (arg)
+			tmp |= val << shift;
+		pmx_write(pmx, tmp, reg);
+		__global_unlock2(flags);
+	} /* for each config */
 
 	return 0;
 }
@@ -860,54 +867,68 @@ static int tz1090_pdc_pinconf_group_get(struct pinctrl_dev *pctldev,
 
 static int tz1090_pdc_pinconf_group_set(struct pinctrl_dev *pctldev,
 					unsigned int group,
-					unsigned long config)
+					unsigned long *configs,
+					unsigned num_configs)
 {
 	struct tz1090_pdc_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
 	const struct tz1090_pdc_pingroup *g = &tz1090_pdc_groups[group];
-	enum pin_config_param param = pinconf_to_config_param(config);
+	enum pin_config_param param;
 	const unsigned int *pit;
 	unsigned int i;
 	int ret, arg;
 	u32 reg, width, mask, shift, val;
 	unsigned long flags;
 	const int *map;
+	int j;
 
-	dev_dbg(pctldev->dev, "%s(group=%s, config=%#lx)\n",
-		__func__, g->name, config);
+	for (j = 0; j < num_configs; j++) {
+		param = pinconf_to_config_param(configs[j]);
 
-	/* Get register information */
-	ret = tz1090_pdc_pinconf_group_reg(pctldev, g, param, true,
-					   &reg, &width, &mask, &shift, &map);
-	if (ret < 0) {
-		/*
-		 * Maybe we're trying to set a per-pin configuration of a group,
-		 * so do the pins one by one. This is mainly as a convenience.
-		 */
-		for (i = 0, pit = g->pins; i < g->npins; ++i, ++pit) {
-			ret = tz1090_pdc_pinconf_set(pctldev, *pit, config);
-			if (ret)
-				return ret;
-		}
-		return 0;
-	}
+		dev_dbg(pctldev->dev, "%s(group=%s, config=%#lx)\n",
+			__func__, g->name, configs[j]);
 
-	/* Unpack argument and map it to register value */
-	arg = pinconf_to_config_argument(config);
-	for (i = 0; i < BIT(width); ++i) {
-		if (map[i] == arg || (map[i] == -EINVAL && !arg)) {
-			/* Write register field */
-			__global_lock2(flags);
-			val = pmx_read(pmx, reg);
-			val &= ~mask;
-			val |= i << shift;
-			pmx_write(pmx, val, reg);
-			__global_unlock2(flags);
+		/* Get register information */
+		ret = tz1090_pdc_pinconf_group_reg(pctldev, g, param, true,
+						   &reg, &width, &mask, &shift,
+						   &map);
+		if (ret < 0) {
+			/*
+			 * Maybe we're trying to set a per-pin configuration
+			 * of a group, so do the pins one by one. This is
+			 * mainly as a convenience.
+			 */
+			for (i = 0, pit = g->pins; i < g->npins; ++i, ++pit) {
+				ret = tz1090_pdc_pinconf_set(pctldev, *pit,
+					configs, num_configs);
+				if (ret)
+					return ret;
+			}
 			return 0;
 		}
-	}
 
-	dev_dbg(pctldev->dev, "%s: arg %u not supported\n",
-		__func__, arg);
+		/* Unpack argument and map it to register value */
+		arg = pinconf_to_config_argument(configs[j]);
+		for (i = 0; i < BIT(width); ++i) {
+			if (map[i] == arg || (map[i] == -EINVAL && !arg)) {
+				/* Write register field */
+				__global_lock2(flags);
+				val = pmx_read(pmx, reg);
+				val &= ~mask;
+				val |= i << shift;
+				pmx_write(pmx, val, reg);
+				__global_unlock2(flags);
+				goto next_config;
+			}
+		}
+
+		dev_dbg(pctldev->dev, "%s: arg %u not supported\n",
+			__func__, arg);
+		return 0;
+
+next_config:
+		;
+	} /* for each config */
+
 	return 0;
 }
 

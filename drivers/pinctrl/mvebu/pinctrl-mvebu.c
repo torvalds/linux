@@ -191,18 +191,27 @@ static int mvebu_pinconf_group_get(struct pinctrl_dev *pctldev,
 }
 
 static int mvebu_pinconf_group_set(struct pinctrl_dev *pctldev,
-				unsigned gid, unsigned long config)
+				unsigned gid, unsigned long *configs,
+				unsigned num_configs)
 {
 	struct mvebu_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 	struct mvebu_pinctrl_group *grp = &pctl->groups[gid];
+	int i, ret;
 
 	if (!grp->ctrl)
 		return -EINVAL;
 
-	if (grp->ctrl->mpp_set)
-		return grp->ctrl->mpp_set(grp->ctrl, config);
+	for (i = 0; i < num_configs; i++) {
+		if (grp->ctrl->mpp_set)
+			ret = grp->ctrl->mpp_set(grp->ctrl, configs[i]);
+		else
+			ret = mvebu_common_mpp_set(pctl, grp, configs[i]);
 
-	return mvebu_common_mpp_set(pctl, grp, config);
+		if (ret)
+			return ret;
+	} /* for each config */
+
+	return 0;
 }
 
 static void mvebu_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
@@ -303,6 +312,7 @@ static int mvebu_pinmux_enable(struct pinctrl_dev *pctldev, unsigned fid,
 	struct mvebu_pinctrl_group *grp = &pctl->groups[gid];
 	struct mvebu_mpp_ctrl_setting *setting;
 	int ret;
+	unsigned long config;
 
 	setting = mvebu_pinctrl_find_setting_by_name(pctl, grp,
 						     func->name);
@@ -313,7 +323,8 @@ static int mvebu_pinmux_enable(struct pinctrl_dev *pctldev, unsigned fid,
 		return -EINVAL;
 	}
 
-	ret = mvebu_pinconf_group_set(pctldev, grp->gid, setting->val);
+	config = setting->val;
+	ret = mvebu_pinconf_group_set(pctldev, grp->gid, &config, 1);
 	if (ret) {
 		dev_err(pctl->dev, "cannot set group %s to %s\n",
 			func->groups[gid], func->name);
@@ -329,6 +340,7 @@ static int mvebu_pinmux_gpio_request_enable(struct pinctrl_dev *pctldev,
 	struct mvebu_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 	struct mvebu_pinctrl_group *grp;
 	struct mvebu_mpp_ctrl_setting *setting;
+	unsigned long config;
 
 	grp = mvebu_pinctrl_find_group_by_pid(pctl, offset);
 	if (!grp)
@@ -341,7 +353,9 @@ static int mvebu_pinmux_gpio_request_enable(struct pinctrl_dev *pctldev,
 	if (!setting)
 		return -ENOTSUPP;
 
-	return mvebu_pinconf_group_set(pctldev, grp->gid, setting->val);
+	config = setting->val;
+
+	return mvebu_pinconf_group_set(pctldev, grp->gid, &config, 1);
 }
 
 static int mvebu_pinmux_gpio_set_direction(struct pinctrl_dev *pctldev,

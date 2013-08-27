@@ -238,7 +238,8 @@ static int falcon_pinconf_group_get(struct pinctrl_dev *pctrldev,
 }
 
 static int falcon_pinconf_group_set(struct pinctrl_dev *pctrldev,
-				unsigned group, unsigned long config)
+				unsigned group, unsigned long *configs,
+				unsigned num_configs)
 {
 	return -ENOTSUPP;
 }
@@ -279,39 +280,47 @@ static int falcon_pinconf_get(struct pinctrl_dev *pctrldev,
 }
 
 static int falcon_pinconf_set(struct pinctrl_dev *pctrldev,
-			unsigned pin, unsigned long config)
+			unsigned pin, unsigned long *configs,
+			unsigned num_configs)
 {
-	enum ltq_pinconf_param param = LTQ_PINCONF_UNPACK_PARAM(config);
-	int arg = LTQ_PINCONF_UNPACK_ARG(config);
+	enum ltq_pinconf_param param;
+	int arg;
 	struct ltq_pinmux_info *info = pinctrl_dev_get_drvdata(pctrldev);
 	void __iomem *mem = info->membase[PORT(pin)];
 	u32 reg;
+	int i;
 
-	switch (param) {
-	case LTQ_PINCONF_PARAM_DRIVE_CURRENT:
-		reg = LTQ_PADC_DCC;
-		break;
+	for (i = 0; i < num_configs; i++) {
+		param = LTQ_PINCONF_UNPACK_PARAM(configs[i]);
+		arg = LTQ_PINCONF_UNPACK_ARG(configs[i]);
 
-	case LTQ_PINCONF_PARAM_SLEW_RATE:
-		reg = LTQ_PADC_SRC;
-		break;
+		switch (param) {
+		case LTQ_PINCONF_PARAM_DRIVE_CURRENT:
+			reg = LTQ_PADC_DCC;
+			break;
 
-	case LTQ_PINCONF_PARAM_PULL:
-		if (arg == 1)
-			reg = LTQ_PADC_PDEN;
-		else
-			reg = LTQ_PADC_PUEN;
-		break;
+		case LTQ_PINCONF_PARAM_SLEW_RATE:
+			reg = LTQ_PADC_SRC;
+			break;
 
-	default:
-		pr_err("%s: Invalid config param %04x\n",
-		pinctrl_dev_get_name(pctrldev), param);
-		return -ENOTSUPP;
-	}
+		case LTQ_PINCONF_PARAM_PULL:
+			if (arg == 1)
+				reg = LTQ_PADC_PDEN;
+			else
+				reg = LTQ_PADC_PUEN;
+			break;
 
-	pad_w32(mem, BIT(PORT_PIN(pin)), reg);
-	if (!(pad_r32(mem, reg) & BIT(PORT_PIN(pin))))
-		return -ENOTSUPP;
+		default:
+			pr_err("%s: Invalid config param %04x\n",
+			pinctrl_dev_get_name(pctrldev), param);
+			return -ENOTSUPP;
+		}
+
+		pad_w32(mem, BIT(PORT_PIN(pin)), reg);
+		if (!(pad_r32(mem, reg) & BIT(PORT_PIN(pin))))
+			return -ENOTSUPP;
+	} /* for each config */
+
 	return 0;
 }
 

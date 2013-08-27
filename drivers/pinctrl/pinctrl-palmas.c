@@ -854,17 +854,19 @@ static int palmas_pinconf_get(struct pinctrl_dev *pctldev,
 }
 
 static int palmas_pinconf_set(struct pinctrl_dev *pctldev,
-			unsigned pin, unsigned long config)
+			unsigned pin, unsigned long *configs,
+			unsigned num_configs)
 {
 	struct palmas_pctrl_chip_info *pci = pinctrl_dev_get_drvdata(pctldev);
-	enum pin_config_param param = pinconf_to_config_param(config);
-	u16 param_val = pinconf_to_config_argument(config);
+	enum pin_config_param param;
+	u16 param_val;
 	const struct palmas_pingroup *g;
 	const struct palmas_pin_info *opt;
 	int ret;
 	int base, add, mask;
 	int rval;
 	int group_nr;
+	int i;
 
 	for (group_nr = 0; group_nr < pci->num_pin_groups; ++group_nr) {
 		if (pci->pin_groups[group_nr].pins[0] == pin)
@@ -885,70 +887,77 @@ static int palmas_pinconf_set(struct pinctrl_dev *pctldev,
 		return -ENOTSUPP;
 	}
 
-	switch (param) {
-	case PIN_CONFIG_BIAS_PULL_PIN_DEFAULT:
-		return 0;
-	case PIN_CONFIG_BIAS_DISABLE:
-	case PIN_CONFIG_BIAS_PULL_UP:
-	case PIN_CONFIG_BIAS_PULL_DOWN:
-		if (!opt->pud_info) {
-			dev_err(pci->dev,
-				"PULL control not supported for pin %s\n",
-				g->name);
+	for (i = 0; i < num_configs; i++) {
+		param = pinconf_to_config_param(configs[i]);
+		param_val = pinconf_to_config_argument(configs[i]);
+
+		switch (param) {
+		case PIN_CONFIG_BIAS_PULL_PIN_DEFAULT:
+			return 0;
+		case PIN_CONFIG_BIAS_DISABLE:
+		case PIN_CONFIG_BIAS_PULL_UP:
+		case PIN_CONFIG_BIAS_PULL_DOWN:
+			if (!opt->pud_info) {
+				dev_err(pci->dev,
+					"PULL control not supported for pin %s\n",
+					g->name);
+				return -ENOTSUPP;
+			}
+			base = opt->pud_info->pullup_dn_reg_base;
+			add = opt->pud_info->pullup_dn_reg_add;
+			mask = opt->pud_info->pullup_dn_mask;
+
+			if (param == PIN_CONFIG_BIAS_DISABLE)
+				rval = opt->pud_info->normal_val;
+			else if (param == PIN_CONFIG_BIAS_PULL_UP)
+				rval = opt->pud_info->pull_up_val;
+			else
+				rval = opt->pud_info->pull_dn_val;
+
+			if (rval < 0) {
+				dev_err(pci->dev,
+					"PULL control not supported for pin %s\n",
+					g->name);
+				return -ENOTSUPP;
+			}
+			break;
+
+		case PIN_CONFIG_DRIVE_OPEN_DRAIN:
+			if (!opt->od_info) {
+				dev_err(pci->dev,
+					"OD control not supported for pin %s\n",
+					g->name);
+				return -ENOTSUPP;
+			}
+			base = opt->od_info->od_reg_base;
+			add = opt->od_info->od_reg_add;
+			mask = opt->od_info->od_mask;
+			if (param_val == 0)
+				rval = opt->od_info->od_disable;
+			else
+				rval = opt->od_info->od_enable;
+			if (rval < 0) {
+				dev_err(pci->dev,
+					"OD control not supported for pin %s\n",
+					g->name);
+				return -ENOTSUPP;
+			}
+			break;
+		default:
+			dev_err(pci->dev, "Properties not supported\n");
 			return -ENOTSUPP;
 		}
-		base = opt->pud_info->pullup_dn_reg_base;
-		add = opt->pud_info->pullup_dn_reg_add;
-		mask = opt->pud_info->pullup_dn_mask;
 
-		if (param == PIN_CONFIG_BIAS_DISABLE)
-			rval = opt->pud_info->normal_val;
-		else if (param == PIN_CONFIG_BIAS_PULL_UP)
-			rval = opt->pud_info->pull_up_val;
-		else
-			rval = opt->pud_info->pull_dn_val;
-
-		if (rval < 0) {
-			dev_err(pci->dev,
-				"PULL control not supported for pin %s\n",
-				g->name);
-			return -ENOTSUPP;
+		dev_dbg(pci->dev, "%s(): Add0x%02x:0x%02x:0x%02x:0x%02x\n",
+				__func__, base, add, mask, rval);
+		ret = palmas_update_bits(pci->palmas, base, add, mask, rval);
+		if (ret < 0) {
+			dev_err(pci->dev, "Reg 0x%02x update failed: %d\n",
+				add, ret);
+			return ret;
 		}
-		break;
+	} /* for each config */
 
-	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
-		if (!opt->od_info) {
-			dev_err(pci->dev,
-				"OD control not supported for pin %s\n",
-				g->name);
-			return -ENOTSUPP;
-		}
-		base = opt->od_info->od_reg_base;
-		add = opt->od_info->od_reg_add;
-		mask = opt->od_info->od_mask;
-		if (param_val == 0)
-			rval = opt->od_info->od_disable;
-		else
-			rval = opt->od_info->od_enable;
-		if (rval < 0) {
-			dev_err(pci->dev,
-				"OD control not supported for pin %s\n",
-				g->name);
-			return -ENOTSUPP;
-		}
-		break;
-	default:
-		dev_err(pci->dev, "Properties not supported\n");
-		return -ENOTSUPP;
-	}
-
-	dev_dbg(pci->dev, "%s(): Add0x%02x:0x%02x:0x%02x:0x%02x\n",
-			__func__, base, add, mask, rval);
-	ret = palmas_update_bits(pci->palmas, base, add, mask, rval);
-	if (ret < 0) {
-		dev_err(pci->dev, "Reg 0x%02x update failed: %d\n", add, ret);
-		return ret;
-	}
 	return 0;
 }
 
@@ -960,7 +969,8 @@ static int palmas_pinconf_group_get(struct pinctrl_dev *pctldev,
 }
 
 static int palmas_pinconf_group_set(struct pinctrl_dev *pctldev,
-				unsigned group, unsigned long config)
+				unsigned group, unsigned long *configs,
+				unsigned num_configs)
 {
 	dev_err(pctldev->dev, "palmas_pinconf_group_set op not supported\n");
 	return -ENOTSUPP;

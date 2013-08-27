@@ -909,15 +909,18 @@ static void st_pinconf_set_retime(struct st_pinctrl *info,
 							config, pin);
 }
 
-static int st_pinconf_set(struct pinctrl_dev *pctldev,
-			     unsigned pin_id, unsigned long config)
+static int st_pinconf_set(struct pinctrl_dev *pctldev, unsigned pin_id,
+			unsigned long *configs, unsigned num_configs)
 {
 	int pin = st_gpio_pin(pin_id);
 	struct st_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
 	struct st_pio_control *pc = st_get_pio_control(pctldev, pin_id);
+	int i;
 
-	st_pinconf_set_config(pc, pin, config);
-	st_pinconf_set_retime(info, pc, pin, config);
+	for (i = 0; i < num_configs; i++) {
+		st_pinconf_set_config(pc, pin, configs[i]);
+		st_pinconf_set_retime(info, pc, pin, configs[i]);
+	} /* for each config */
 
 	return 0;
 }

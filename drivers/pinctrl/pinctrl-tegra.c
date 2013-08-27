@@ -436,7 +436,8 @@ static int tegra_pinconf_get(struct pinctrl_dev *pctldev,
 }
 
 static int tegra_pinconf_set(struct pinctrl_dev *pctldev,
-			     unsigned pin, unsigned long config)
+			     unsigned pin, unsigned long *configs,
+			     unsigned num_configs)
 {
 	dev_err(pctldev->dev, "pin_config_set op not supported\n");
 	return -ENOTSUPP;
@@ -471,51 +472,57 @@ static int tegra_pinconf_group_get(struct pinctrl_dev *pctldev,
 }
 
 static int tegra_pinconf_group_set(struct pinctrl_dev *pctldev,
-				   unsigned group, unsigned long config)
+				   unsigned group, unsigned long *configs,
+				   unsigned num_configs)
 {
 	struct tegra_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
-	enum tegra_pinconf_param param = TEGRA_PINCONF_UNPACK_PARAM(config);
-	u16 arg = TEGRA_PINCONF_UNPACK_ARG(config);
+	enum tegra_pinconf_param param;
+	u16 arg;
 	const struct tegra_pingroup *g;
-	int ret;
+	int ret, i;
 	s8 bank, bit, width;
 	s16 reg;
 	u32 val, mask;
 
 	g = &pmx->soc->groups[group];
 
-	ret = tegra_pinconf_reg(pmx, g, param, true, &bank, &reg, &bit,
-				&width);
-	if (ret < 0)
-		return ret;
+	for (i = 0; i < num_configs; i++) {
+		param = TEGRA_PINCONF_UNPACK_PARAM(configs[i]);
+		arg = TEGRA_PINCONF_UNPACK_ARG(configs[i]);
 
-	val = pmx_readl(pmx, bank, reg);
+		ret = tegra_pinconf_reg(pmx, g, param, true, &bank, &reg, &bit,
+					&width);
+		if (ret < 0)
+			return ret;
 
-	/* LOCK can't be cleared */
-	if (param == TEGRA_PINCONF_PARAM_LOCK) {
-		if ((val & BIT(bit)) && !arg) {
-			dev_err(pctldev->dev, "LOCK bit cannot be cleared\n");
+		val = pmx_readl(pmx, bank, reg);
+
+		/* LOCK can't be cleared */
+		if (param == TEGRA_PINCONF_PARAM_LOCK) {
+			if ((val & BIT(bit)) && !arg) {
+				dev_err(pctldev->dev, "LOCK bit cannot be cleared\n");
+				return -EINVAL;
+			}
+		}
+
+		/* Special-case Boolean values; allow any non-zero as true */
+		if (width == 1)
+			arg = !!arg;
+
+		/* Range-check user-supplied value */
+		mask = (1 << width) - 1;
+		if (arg & ~mask) {
+			dev_err(pctldev->dev,
+				"config %lx: %x too big for %d bit register\n",
+				configs[i], arg, width);
 			return -EINVAL;
 		}
-	}
 
-	/* Special-case Boolean values; allow any non-zero as true */
-	if (width == 1)
-		arg = !!arg;
-
-	/* Range-check user-supplied value */
-	mask = (1 << width) - 1;
-	if (arg & ~mask) {
-		dev_err(pctldev->dev,
-			"config %lx: %x too big for %d bit register\n",
-			config, arg, width);
-		return -EINVAL;
-	}
-
-	/* Update register */
-	val &= ~(mask << bit);
-	val |= arg << bit;
-	pmx_writel(pmx, val, bank, reg);
+		/* Update register */
+		val &= ~(mask << bit);
+		val |= arg << bit;
+		pmx_writel(pmx, val, bank, reg);
+	} /* for each config */
 
 	return 0;
 }
