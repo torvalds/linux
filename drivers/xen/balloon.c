@@ -430,8 +430,13 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
 	/* No more mappings: invalidate P2M and add to balloon. */
 	for (i = 0; i < nr_pages; i++) {
 		pfn = mfn_to_pfn(frame_list[i]);
-		__set_phys_to_machine(pfn,
-				pfn_to_mfn(page_to_pfn(__get_cpu_var(balloon_scratch_page))));
+		if (!xen_feature(XENFEAT_auto_translated_physmap)) {
+			unsigned long p;
+			struct page *pg;
+			pg = __get_cpu_var(balloon_scratch_page);
+			p = page_to_pfn(pg);
+			__set_phys_to_machine(pfn, pfn_to_mfn(p));
+		}
 		balloon_append(pfn_to_page(pfn));
 	}
 
