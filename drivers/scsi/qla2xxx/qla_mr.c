@@ -1606,6 +1606,14 @@ qlafx00_abort_isp(scsi_qla_host_t *vha)
 
 		scsi_block_requests(vha->host);
 		qlafx00_abort_isp_cleanup(vha);
+	} else {
+		scsi_block_requests(vha->host);
+		clear_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+		vha->qla_stats.total_isp_aborts++;
+		ha->isp_ops->reset_chip(vha);
+		set_bit(FX00_RESET_RECOVERY, &vha->dpc_flags);
+		/* Clear the Interrupts */
+		QLAFX00_CLR_INTR_REG(ha, QLAFX00_HST_INT_STS_BITS);
 	}
 
 	ql_log(ql_log_info, vha, 0x0145,
