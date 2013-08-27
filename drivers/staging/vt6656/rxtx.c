@@ -730,7 +730,9 @@ static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
 	*	into account.
 	*	Otherwise, we need to modified codes for them.
 	*/
-	if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
+	switch (byPktType) {
+	case PK_TYPE_11GB:
+	case PK_TYPE_11GA:
 		if (byFBOption == AUTO_FB_NONE)
 			vnt_rxtx_rts_g_head(pDevice, &head->rts_g,
 				psEthHeader, byPktType, cbFrameLength,
@@ -739,7 +741,8 @@ static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
 			vnt_rxtx_rts_g_fb_head(pDevice, &head->rts_g_fb,
 				psEthHeader, byPktType, cbFrameLength,
 				bNeedAck, wCurrentRate, byFBOption);
-	} else if (byPktType == PK_TYPE_11A) {
+		break;
+	case PK_TYPE_11A:
 		if (byFBOption == AUTO_FB_NONE)
 			vnt_rxtx_rts_ab_head(pDevice, &head->rts_ab,
 				psEthHeader, byPktType, cbFrameLength,
@@ -748,7 +751,8 @@ static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
 			vnt_rxtx_rts_a_fb_head(pDevice, &head->rts_a_fb,
 				psEthHeader, byPktType, cbFrameLength,
 				bNeedAck, wCurrentRate, byFBOption);
-	} else if (byPktType == PK_TYPE_11B) {
+		break;
+	case PK_TYPE_11B:
 		vnt_rxtx_rts_ab_head(pDevice, &head->rts_ab,
 			psEthHeader, byPktType, cbFrameLength,
 			bNeedAck, wCurrentRate, byFBOption);
