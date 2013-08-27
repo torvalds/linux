@@ -3292,6 +3292,7 @@ struct qla_hw_data {
 
 	/* QLA83XX IDC specific fields */
 	uint32_t	idc_audit_ts;
+	uint32_t	idc_extend_tmo;
 
 	/* DPC low-priority workqueue */
 	struct workqueue_struct *dpc_lp_wq;

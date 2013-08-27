@@ -282,25 +282,38 @@ qla81xx_idc_event(scsi_qla_host_t *vha, uint16_t aen, uint16_t descr)
 	    "%04x %04x %04x %04x %04x %04x %04x.\n",
 	    event[aen & 0xff], mb[0], mb[1], mb[2], mb[3],
 	    mb[4], mb[5], mb[6]);
-	if ((aen == MBA_IDC_COMPLETE && mb[1] >> 15)) {
-		vha->hw->flags.idc_compl_status = 1;
-		if (vha->hw->notify_dcbx_comp)
-			complete(&vha->hw->dcbx_comp);
+	switch (aen) {
+	/* Handle IDC Error completion case. */
+	case MBA_IDC_COMPLETE:
+		if (mb[1] >> 15) {
+			vha->hw->flags.idc_compl_status = 1;
+			if (vha->hw->notify_dcbx_comp)
+				complete(&vha->hw->dcbx_comp);
+		}
+		break;
+
+	case MBA_IDC_NOTIFY:
+		/* Acknowledgement needed? [Notify && non-zero timeout]. */
+		timeout = (descr >> 8) & 0xf;
+		ql_dbg(ql_dbg_async, vha, 0x5022,
+		    "%lu Inter-Driver Communication %s -- ACK timeout=%d.\n",
+		    vha->host_no, event[aen & 0xff], timeout);
+
+		if (!timeout)
+			return;
+		rval = qla2x00_post_idc_ack_work(vha, mb);
+		if (rval != QLA_SUCCESS)
+			ql_log(ql_log_warn, vha, 0x5023,
+			    "IDC failed to post ACK.\n");
+		break;
+	case MBA_IDC_TIME_EXT:
+		vha->hw->idc_extend_tmo = descr;
+		ql_dbg(ql_dbg_async, vha, 0x5087,
+		    "%lu Inter-Driver Communication %s -- "
+		    "Extend timeout by=%d.\n",
+		    vha->host_no, event[aen & 0xff], vha->hw->idc_extend_tmo);
+		break;
 	}
-
-	/* Acknowledgement needed? [Notify && non-zero timeout]. */
-	timeout = (descr >> 8) & 0xf;
-	if (aen != MBA_IDC_NOTIFY || !timeout)
-		return;
-
-	ql_dbg(ql_dbg_async, vha, 0x5022,
-	    "%lu Inter-Driver Communication %s -- ACK timeout=%d.\n",
-	    vha->host_no, event[aen & 0xff], timeout);
-
-	rval = qla2x00_post_idc_ack_work(vha, mb);
-	if (rval != QLA_SUCCESS)
-		ql_log(ql_log_warn, vha, 0x5023,
-		    "IDC failed to post ACK.\n");
 }
 
 #define LS_UNKNOWN	2

@@ -627,6 +627,7 @@ qla81xx_set_loopback_mode(scsi_qla_host_t *vha, uint16_t *config,
 {
 	int ret = 0;
 	int rval = 0;
+	unsigned long rem_tmo = 0, current_tmo = 0;
 	struct qla_hw_data *ha = vha->hw;
 
 	if (!IS_QLA81XX(ha) && !IS_QLA8031(ha) && !IS_QLA8044(ha))
@@ -652,8 +653,19 @@ qla81xx_set_loopback_mode(scsi_qla_host_t *vha, uint16_t *config,
 	}
 
 	/* Wait for DCBX complete event */
-	if (!wait_for_completion_timeout(&ha->dcbx_comp,
-	    (DCBX_COMP_TIMEOUT * HZ))) {
+	current_tmo = DCBX_COMP_TIMEOUT * HZ;
+	while (1) {
+		rem_tmo = wait_for_completion_timeout(&ha->dcbx_comp,
+		    current_tmo);
+		if (!ha->idc_extend_tmo || rem_tmo) {
+			ha->idc_extend_tmo = 0;
+			break;
+		}
+		current_tmo = ha->idc_extend_tmo * HZ;
+		ha->idc_extend_tmo = 0;
+	}
+
+	if (!rem_tmo) {
 		ql_dbg(ql_dbg_user, vha, 0x7022,
 		    "DCBX completion not received.\n");
 		ret = qla81xx_reset_loopback_mode(vha, new_config, 0, 0);
@@ -678,6 +690,7 @@ qla81xx_set_loopback_mode(scsi_qla_host_t *vha, uint16_t *config,
 	}
 
 	ha->notify_dcbx_comp = 0;
+	ha->idc_extend_tmo = 0;
 
 done_set_internal:
 	return rval;
