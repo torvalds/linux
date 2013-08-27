@@ -1089,7 +1089,6 @@ static struct ce_state *ath10k_ce_init_state(struct ath10k *ar,
 	ce_state->ar = ar;
 	ce_state->id = ce_id;
 	ce_state->ctrl_addr = ctrl_addr;
-	ce_state->state = CE_RUNNING;
 	ce_state->attr_flags = attr->flags;
 	ce_state->src_sz_max = attr->src_sz_max;
 
@@ -1173,7 +1172,6 @@ void ath10k_ce_deinit(struct ce_state *ce_state)
 		kfree(ce_state->dest_ring);
 	}
 
-	ce_state->state = CE_UNUSED;
 	ce_state->src_ring = NULL;
 	ce_state->dest_ring = NULL;
 }

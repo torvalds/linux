@@ -39,13 +39,6 @@
 struct ce_state;
 
 
-/* Copy Engine operational state */
-enum ce_op_state {
-	CE_UNUSED,
-	CE_PAUSED,
-	CE_RUNNING,
-};
-
 #define CE_DESC_FLAGS_GATHER         (1 << 0)
 #define CE_DESC_FLAGS_BYTE_SWAP      (1 << 1)
 #define CE_DESC_FLAGS_META_DATA_MASK 0xFFFC
@@ -124,7 +117,6 @@ struct ce_state {
 	unsigned int attr_flags;
 
 	u32 ctrl_addr;
-	enum ce_op_state state;
 
 	void (*send_cb) (struct ce_state *ce_state,
 			 void *per_transfer_send_context,
