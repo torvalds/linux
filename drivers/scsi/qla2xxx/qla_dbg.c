@@ -38,7 +38,7 @@
  * |                              |                    | 0x70ad-0x70ae, |
  * |                              |                    | 0x70d1-0x70da, |
  * |                              |                    | 0x7047,0x703b	|
- * | Task Management              |       0x803c       | 0x8025-0x8026  |
+ * | Task Management              |       0x803d       | 0x8025-0x8026  |
  * |                              |                    | 0x800b,0x8039  |
  * | AER/EEH                      |       0x9011       |		|
  * | Virtual Port                 |       0xa007       |		|

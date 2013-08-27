@@ -776,6 +776,29 @@ qlafx00_lun_reset(fc_port_t *fcport, unsigned int l, int tag)
 }
 
 int
+qlafx00_loop_reset(scsi_qla_host_t *vha)
+{
+	int ret;
+	struct fc_port *fcport;
+	struct qla_hw_data *ha = vha->hw;
+
+	if (ql2xtargetreset) {
+		list_for_each_entry(fcport, &vha->vp_fcports, list) {
+			if (fcport->port_type != FCT_TARGET)
+				continue;
+
+			ret = ha->isp_ops->target_reset(fcport, 0, 0);
+			if (ret != QLA_SUCCESS) {
+				ql_dbg(ql_dbg_taskm, vha, 0x803d,
+				    "Bus Reset failed: Reset=%d "
+				    "d_id=%x.\n", ret, fcport->d_id.b24);
+			}
+		}
+	}
+	return QLA_SUCCESS;
+}
+
+int
 qlafx00_iospace_config(struct qla_hw_data *ha)
 {
 	if (pci_request_selected_regions(ha->pdev, ha->bars,

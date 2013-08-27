@@ -1303,6 +1303,10 @@ qla2x00_loop_reset(scsi_qla_host_t *vha)
 	struct fc_port *fcport;
 	struct qla_hw_data *ha = vha->hw;
 
+	if (IS_QLAFX00(ha)) {
+		return qlafx00_loop_reset(vha);
+	}
+
 	if (ql2xtargetreset == 1 && ha->flags.enable_target_reset) {
 		list_for_each_entry(fcport, &vha->vp_fcports, list) {
 			if (fcport->port_type != FCT_TARGET)
@@ -1311,14 +1315,12 @@ qla2x00_loop_reset(scsi_qla_host_t *vha)
 			ret = ha->isp_ops->target_reset(fcport, 0, 0);
 			if (ret != QLA_SUCCESS) {
 				ql_dbg(ql_dbg_taskm, vha, 0x802c,
-				    "Bus Reset failed: Target Reset=%d "
+				    "Bus Reset failed: Reset=%d "
 				    "d_id=%x.\n", ret, fcport->d_id.b24);
 			}
 		}
 	}
 
-	if (IS_QLAFX00(ha))
-		return QLA_SUCCESS;
 
 	if (ha->flags.enable_lip_full_login && !IS_CNA_CAPABLE(ha)) {
 		atomic_set(&vha->loop_state, LOOP_DOWN);
