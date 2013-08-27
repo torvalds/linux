@@ -204,11 +204,12 @@ struct mddev {
 	struct md_personality		*pers;
 	dev_t				unit;
 	int				md_minor;
-	struct list_head 		disks;
+	struct list_head		disks;
 	unsigned long			flags;
 #define MD_CHANGE_DEVS	0	/* Some device status has changed */
 #define MD_CHANGE_CLEAN 1	/* transition to or from 'clean' */
 #define MD_CHANGE_PENDING 2	/* switch from 'clean' to 'active' in progress */
+#define MD_UPDATE_SB_FLAGS (1 | 2 | 4)	/* If these are set, md_update_sb needed */
 #define MD_ARRAY_FIRST_USE 3    /* First use of array, needs initialization */
 
 	int				suspended;
@@ -218,7 +219,7 @@ struct mddev {
 						       * are happening, so run/
 						       * takeover/stop are not safe
 						       */
-	int				ready; /* See when safe to pass 
+	int				ready; /* See when safe to pass
 						* IO requests down */
 	struct gendisk			*gendisk;
 
