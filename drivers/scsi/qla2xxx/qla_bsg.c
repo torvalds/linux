@@ -1266,6 +1266,7 @@ qla24xx_iidma(struct fc_bsg_job *bsg_job)
 	int rval = 0;
 	struct qla_port_param *port_param = NULL;
 	fc_port_t *fcport = NULL;
+	int found = 0;
 	uint16_t mb[MAILBOX_REGISTER_COUNT];
 	uint8_t *rsp_ptr = NULL;
 
@@ -1288,10 +1289,12 @@ qla24xx_iidma(struct fc_bsg_job *bsg_job)
 		if (memcmp(port_param->fc_scsi_addr.dest_addr.wwpn,
 			fcport->port_name, sizeof(fcport->port_name)))
 			continue;
+
+		found = 1;
 		break;
 	}
 
-	if (!fcport) {
+	if (!found) {
 		ql_log(ql_log_warn, vha, 0x7049,
 		    "Failed to find port.\n");
 		return -EINVAL;
