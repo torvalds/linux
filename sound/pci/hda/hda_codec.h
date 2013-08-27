@@ -255,6 +255,11 @@ enum {
 #define AC_UNSOL_RES_TAG_SHIFT		26
 #define AC_UNSOL_RES_SUBTAG		(0x1f<<21)
 #define AC_UNSOL_RES_SUBTAG_SHIFT	21
+#define AC_UNSOL_RES_DE			(0x3f<<15)  /* Device Entry
+						     * (for DP1.2 MST)
+						     */
+#define AC_UNSOL_RES_DE_SHIFT		15
+#define AC_UNSOL_RES_IA			(1<<2)	/* Inactive (for DP1.2 MST) */
 #define AC_UNSOL_RES_ELDV		(1<<1)	/* ELD Data valid (for HDMI) */
 #define AC_UNSOL_RES_PD			(1<<0)	/* pinsense detect */
 #define AC_UNSOL_RES_CP_STATE		(1<<1)	/* content protection */
