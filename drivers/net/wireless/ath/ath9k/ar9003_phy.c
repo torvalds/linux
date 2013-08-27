@@ -1193,8 +1193,6 @@ skip_ws_det:
 		}
 	break;
 	}
-	case ATH9K_ANI_PRESENT:
-		break;
 	default:
 		ath_dbg(common, ANI, "invalid cmd %u\n", cmd);
 		return false;
