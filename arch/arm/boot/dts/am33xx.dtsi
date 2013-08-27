@@ -354,7 +354,7 @@
 				status = "disabled";
 			};
 
-			usb0_phy: phy@47401300 {
+			usb0_phy: usb-phy@47401300 {
 				compatible = "ti,am335x-usb-phy";
 				reg = <0x47401300 0x100>;
 				reg-names = "phy";
@@ -364,25 +364,19 @@
 
 			usb0: usb@47401000 {
 				compatible = "ti,musb-am33xx";
-				ranges;
-				#address-cells = <1>;
-				#size-cells = <1>;
-				reg = <0x47401000 0x200>;
-				reg-names = "control";
 				status = "disabled";
+				reg = <0x47401400 0x400
+					0x47401000 0x200>;
+				reg-names = "mc", "control";
 
-				musb0: usb@47401400 {
-					compatible = "mg,musbmhdrc";
-					reg = <0x47401400 0x400>;
-					reg-names = "mc";
-					interrupts = <18>;
-					interrupt-names = "mc";
-					multipoint = <1>;
-					num-eps = <16>;
-					ram-bits = <12>;
-					port-mode = <3>;
-					power = <250>;
-					phys = <&usb0_phy>;
+				interrupts = <18>;
+				interrupt-names = "mc";
+				dr_mode = "otg";
+				mentor,multipoint = <1>;
+				mentor,num-eps = <16>;
+				mentor,ram-bits = <12>;
+				mentor,power = <500>;
+				phys = <&usb0_phy>;
 
 				dmas = <&cppi41dma  0 0 &cppi41dma  1 0
 					&cppi41dma  2 0 &cppi41dma  3 0
@@ -406,10 +400,9 @@
 					"tx1", "tx2", "tx3", "tx4", "tx5", "tx6", "tx7",
 					"tx8", "tx9", "tx10", "tx11", "tx12", "tx13",
 					"tx14", "tx15";
-				};
 			};
 
-			usb1_phy: phy@47401b00 {
+			usb1_phy: usb-phy@47401b00 {
 				compatible = "ti,am335x-usb-phy";
 				reg = <0x47401b00 0x100>;
 				reg-names = "phy";
@@ -419,25 +412,18 @@
 
 			usb1: usb@47401800 {
 				compatible = "ti,musb-am33xx";
-				ranges;
-				#address-cells = <1>;
-				#size-cells = <1>;
-				reg = <0x47401800 0x200>;
-				reg-names = "control";
 				status = "disabled";
-
-				musb1: usb@47401c00 {
-					compatible = "mg,musbmhdrc";
-					reg = <0x47401c00 0x400>;
-					reg-names = "mc";
-					interrupts = <19>;
-					interrupt-names = "mc";
-					multipoint = <1>;
-					num-eps = <16>;
-					ram-bits = <12>;
-					port-mode = <3>;
-					power = <250>;
-					phys = <&usb1_phy>;
+				reg = <0x47401c00 0x400
+					0x47401800 0x200>;
+				reg-names = "mc", "control";
+				interrupts = <19>;
+				interrupt-names = "mc";
+				dr_mode = "otg";
+				mentor,multipoint = <1>;
+				mentor,num-eps = <16>;
+				mentor,ram-bits = <12>;
+				mentor,power = <500>;
+				phys = <&usb1_phy>;
 
 				dmas = <&cppi41dma 15 0 &cppi41dma 16 0
 					&cppi41dma 17 0 &cppi41dma 18 0
@@ -461,16 +447,15 @@
 					"tx1", "tx2", "tx3", "tx4", "tx5", "tx6", "tx7",
 					"tx8", "tx9", "tx10", "tx11", "tx12", "tx13",
 					"tx14", "tx15";
-				};
 			};
 
-			cppi41dma: dma@07402000 {
+			cppi41dma: dma-controller@07402000 {
 				compatible = "ti,am3359-cppi41";
 				reg =  <0x47400000 0x1000
 					0x47402000 0x1000
 					0x47403000 0x1000
 					0x47404000 0x4000>;
-				reg-names = "glue controller scheduler queuemgr";
+				reg-names = "glue", "controller", "scheduler", "queuemgr";
 				interrupts = <17>;
 				interrupt-names = "glue";
 				#dma-cells = <2>;

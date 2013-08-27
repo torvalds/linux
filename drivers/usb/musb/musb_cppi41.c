@@ -150,8 +150,10 @@ static void cppi41_dma_callback(void *private_data)
 				remain_bytes,
 				direction,
 				DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-		if (WARN_ON(!dma_desc))
+		if (WARN_ON(!dma_desc)) {
+			spin_unlock_irqrestore(&musb->lock, flags);
 			return;
+		}
 
 		dma_desc->callback = cppi41_dma_callback;
 		dma_desc->callback_param = channel;

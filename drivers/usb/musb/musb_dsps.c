@@ -44,6 +44,7 @@
 #include <linux/of_device.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/usb/of.h>
 
 #include "musb_core.h"
 
@@ -230,6 +231,8 @@ static void dsps_musb_try_idle(struct musb *musb, unsigned long timeout)
 		glue->last_timer = jiffies;
 		return;
 	}
+	if (musb->port_mode == MUSB_PORT_MODE_HOST)
+		return;
 
 	if (time_after(glue->last_timer, timeout) &&
 				timer_pending(&glue->timer)) {
@@ -313,7 +316,6 @@ static irqreturn_t dsps_interrupt(int irq, void *hci)
 					jiffies + wrp->poll_seconds * HZ);
 			WARNING("VBUS error workaround (delay coming)\n");
 		} else if (drvvbus) {
-			musb->is_active = 1;
 			MUSB_HST_MODE(musb);
 			musb->xceiv->otg->default_a = 1;
 			musb->xceiv->state = OTG_STATE_A_WAIT_VRISE;
@@ -361,8 +363,8 @@ static int dsps_musb_init(struct musb *musb)
 		return -EINVAL;
 
 	reg_base = devm_ioremap_resource(dev, r);
-	if (!musb->ctrl_base)
-		return -EINVAL;
+	if (IS_ERR(reg_base))
+		return PTR_ERR(reg_base);
 	musb->ctrl_base = reg_base;
 
 	/* NOP driver needs change if supporting dual instance */
@@ -425,35 +427,51 @@ static int get_int_prop(struct device_node *dn, const char *s)
 	return val;
 }
 
+static int get_musb_port_mode(struct device *dev)
+{
+	enum usb_dr_mode mode;
+
+	mode = of_usb_get_dr_mode(dev->of_node);
+	switch (mode) {
+	case USB_DR_MODE_HOST:
+		return MUSB_PORT_MODE_HOST;
+
+	case USB_DR_MODE_PERIPHERAL:
+		return MUSB_PORT_MODE_GADGET;
+
+	case USB_DR_MODE_UNKNOWN:
+	case USB_DR_MODE_OTG:
+	default:
+		return MUSB_PORT_MODE_DUAL_ROLE;
+	};
+}
+
 static int dsps_create_musb_pdev(struct dsps_glue *glue,
 		struct platform_device *parent)
 {
 	struct musb_hdrc_platform_data pdata;
 	struct resource	resources[2];
+	struct resource	*res;
 	struct device *dev = &parent->dev;
 	struct musb_hdrc_config	*config;
 	struct platform_device *musb;
 	struct device_node *dn = parent->dev.of_node;
-	struct device_node *child_node;
 	int ret;
 
-	child_node = of_get_child_by_name(dn, "usb");
-	if (!child_node)
-		return -EINVAL;
-
 	memset(resources, 0, sizeof(resources));
-	ret = of_address_to_resource(child_node, 0, &resources[0]);
-	if (ret) {
+	res = platform_get_resource_byname(parent, IORESOURCE_MEM, "mc");
+	if (!res) {
 		dev_err(dev, "failed to get memory.\n");
-		return ret;
+		return -EINVAL;
 	}
+	resources[0] = *res;
 
-	ret = of_irq_to_resource(child_node, 0, &resources[1]);
-	if (ret == 0) {
+	res = platform_get_resource_byname(parent, IORESOURCE_IRQ, "mc");
+	if (!res) {
 		dev_err(dev, "failed to get irq.\n");
-		ret = -EINVAL;
-		return ret;
+		return -EINVAL;
 	}
+	resources[1] = *res;
 
 	/* allocate the child platform device */
 	musb = platform_device_alloc("musb-hdrc", PLATFORM_DEVID_AUTO);
@@ -465,7 +483,7 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue,
 	musb->dev.parent		= dev;
 	musb->dev.dma_mask		= &musb_dmamask;
 	musb->dev.coherent_dma_mask	= musb_dmamask;
-	musb->dev.of_node		= of_node_get(child_node);
+	musb->dev.of_node		= of_node_get(dn);
 
 	glue->musb = musb;
 
@@ -485,11 +503,12 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue,
 	pdata.config = config;
 	pdata.platform_ops = &dsps_ops;
 
-	config->num_eps = get_int_prop(child_node, "num-eps");
-	config->ram_bits = get_int_prop(child_node, "ram-bits");
-	pdata.mode = get_int_prop(child_node, "port-mode");
-	pdata.power = get_int_prop(child_node, "power");
-	config->multipoint = of_property_read_bool(child_node, "multipoint");
+	config->num_eps = get_int_prop(dn, "mentor,num-eps");
+	config->ram_bits = get_int_prop(dn, "mentor,ram-bits");
+	pdata.mode = get_musb_port_mode(dev);
+	/* DT keeps this entry in mA, musb expects it as per USB spec */
+	pdata.power = get_int_prop(dn, "mentor,power") / 2;
+	config->multipoint = of_property_read_bool(dn, "mentor,multipoint");
 
 	ret = platform_device_add_data(musb, &pdata, sizeof(pdata));
 	if (ret) {

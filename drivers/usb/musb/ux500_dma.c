@@ -333,7 +333,9 @@ static int ux500_dma_controller_start(struct ux500_dma_controller *controller)
 			if (!ux500_channel->dma_chan)
 				ux500_channel->dma_chan =
 					dma_request_channel(mask,
-							    data->dma_filter,
+							    data ?
+							    data->dma_filter :
+							    NULL,
 							    param_array[ch_num]);
 
 			if (!ux500_channel->dma_chan) {
