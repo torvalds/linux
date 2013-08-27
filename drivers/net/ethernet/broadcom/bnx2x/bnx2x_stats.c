@@ -522,20 +522,16 @@ static void bnx2x_func_stats_init(struct bnx2x *bp)
 /* should be called under stats_sema */
 static void __bnx2x_stats_start(struct bnx2x *bp)
 {
-	/* vfs travel through here as part of the statistics FSM, but no action
-	 * is required
-	 */
-	if (IS_VF(bp))
-		return;
+	if (IS_PF(bp)) {
+		if (bp->port.pmf)
+			bnx2x_port_stats_init(bp);
 
-	if (bp->port.pmf)
-		bnx2x_port_stats_init(bp);
+		else if (bp->func_stx)
+			bnx2x_func_stats_init(bp);
 
-	else if (bp->func_stx)
-		bnx2x_func_stats_init(bp);
-
-	bnx2x_hw_stats_post(bp);
-	bnx2x_storm_stats_post(bp);
+		bnx2x_hw_stats_post(bp);
+		bnx2x_storm_stats_post(bp);
+	}
 
 	bp->stats_started = true;
 }
