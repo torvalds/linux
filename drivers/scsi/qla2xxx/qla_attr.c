@@ -1290,10 +1290,7 @@ qla2x00_vn_port_mac_address_show(struct device *dev,
 	if (!IS_CNA_CAPABLE(vha->hw))
 		return snprintf(buf, PAGE_SIZE, "\n");
 
-	return snprintf(buf, PAGE_SIZE, "%02x:%02x:%02x:%02x:%02x:%02x\n",
-	    vha->fcoe_vn_port_mac[5], vha->fcoe_vn_port_mac[4],
-	    vha->fcoe_vn_port_mac[3], vha->fcoe_vn_port_mac[2],
-	    vha->fcoe_vn_port_mac[1], vha->fcoe_vn_port_mac[0]);
+	return snprintf(buf, PAGE_SIZE, "%pMR\n", vha->fcoe_vn_port_mac);
 }
 
 static ssize_t
