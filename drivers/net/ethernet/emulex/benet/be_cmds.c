@@ -3066,25 +3066,40 @@ err:
 	return status;
 }
 
-static struct be_nic_resource_desc *be_get_nic_desc(u8 *buf, u32 desc_count,
-						    u32 max_buf_size)
+static struct be_nic_res_desc *be_get_nic_desc(u8 *buf, u32 desc_count)
 {
-	struct be_nic_resource_desc *desc = (struct be_nic_resource_desc *)buf;
+	struct be_res_desc_hdr *hdr = (struct be_res_desc_hdr *)buf;
 	int i;
 
 	for (i = 0; i < desc_count; i++) {
-		desc->desc_len = desc->desc_len ? : RESOURCE_DESC_SIZE;
-		if (((void *)desc + desc->desc_len) >
-		    (void *)(buf + max_buf_size))
-			return NULL;
+		if (hdr->desc_type == NIC_RESOURCE_DESC_TYPE_V0 ||
+		    hdr->desc_type == NIC_RESOURCE_DESC_TYPE_V1)
+			return (struct be_nic_res_desc *)hdr;
 
-		if (desc->desc_type == NIC_RESOURCE_DESC_TYPE_V0 ||
-		    desc->desc_type == NIC_RESOURCE_DESC_TYPE_V1)
-			return desc;
-
-		desc = (void *)desc + desc->desc_len;
+		hdr->desc_len = hdr->desc_len ? : RESOURCE_DESC_SIZE_V0;
+		hdr = (void *)hdr + hdr->desc_len;
 	}
+	return NULL;
+}
 
+static struct be_pcie_res_desc *be_get_pcie_desc(u8 devfn, u8 *buf,
+						 u32 desc_count)
+{
+	struct be_res_desc_hdr *hdr = (struct be_res_desc_hdr *)buf;
+	struct be_pcie_res_desc *pcie;
+	int i;
+
+	for (i = 0; i < desc_count; i++) {
+		if ((hdr->desc_type == PCIE_RESOURCE_DESC_TYPE_V0 ||
+		     hdr->desc_type == PCIE_RESOURCE_DESC_TYPE_V1)) {
+			pcie = (struct be_pcie_res_desc	*)hdr;
+			if (pcie->pf_num == devfn)
+				return pcie;
+		}
+
+		hdr->desc_len = hdr->desc_len ? : RESOURCE_DESC_SIZE_V0;
+		hdr = (void *)hdr + hdr->desc_len;
+	}
 	return NULL;
 }
 
@@ -3128,10 +3143,9 @@ int be_cmd_get_func_config(struct be_adapter *adapter)
 	if (!status) {
 		struct be_cmd_resp_get_func_config *resp = cmd.va;
 		u32 desc_count = le32_to_cpu(resp->desc_count);
-		struct be_nic_resource_desc *desc;
+		struct be_nic_res_desc *desc;
 
-		desc = be_get_nic_desc(resp->func_param, desc_count,
-				       sizeof(resp->func_param));
+		desc = be_get_nic_desc(resp->func_param, desc_count);
 		if (!desc) {
 			status = -EINVAL;
 			goto err;
@@ -3223,51 +3237,51 @@ err:
 int be_cmd_get_profile_config(struct be_adapter *adapter, u32 *cap_flags,
 			      u16 *txq_count, u8 domain)
 {
+	struct be_cmd_resp_get_profile_config *resp;
+	struct be_pcie_res_desc *pcie;
+	struct be_nic_res_desc *nic;
 	struct be_queue_info *mccq = &adapter->mcc_obj.q;
 	struct be_dma_mem cmd;
+	u32 desc_count;
 	int status;
 
 	memset(&cmd, 0, sizeof(struct be_dma_mem));
-	if (!lancer_chip(adapter))
-		cmd.size = sizeof(struct be_cmd_resp_get_profile_config_v1);
-	else
-		cmd.size = sizeof(struct be_cmd_resp_get_profile_config);
-	cmd.va = pci_alloc_consistent(adapter->pdev, cmd.size,
-				      &cmd.dma);
-	if (!cmd.va) {
-		dev_err(&adapter->pdev->dev, "Memory alloc failure\n");
+	cmd.size = sizeof(struct be_cmd_resp_get_profile_config);
+	cmd.va = pci_alloc_consistent(adapter->pdev, cmd.size, &cmd.dma);
+	if (!cmd.va)
 		return -ENOMEM;
-	}
 
 	if (!mccq->created)
 		status = be_cmd_get_profile_config_mbox(adapter, domain, &cmd);
 	else
 		status = be_cmd_get_profile_config_mccq(adapter, domain, &cmd);
-	if (!status) {
-		struct be_cmd_resp_get_profile_config *resp = cmd.va;
-		u32 desc_count = le32_to_cpu(resp->desc_count);
-		struct be_nic_resource_desc *desc;
+	if (status)
+		goto err;
 
-		desc = be_get_nic_desc(resp->func_param, desc_count,
-				       sizeof(resp->func_param));
+	resp = cmd.va;
+	desc_count = le32_to_cpu(resp->desc_count);
 
-		if (!desc) {
-			status = -EINVAL;
-			goto err;
-		}
+	pcie =  be_get_pcie_desc(adapter->pdev->devfn, resp->func_param,
+				 desc_count);
+	if (pcie)
+		adapter->dev_num_vfs = le16_to_cpu(pcie->num_vfs);
+
+	nic = be_get_nic_desc(resp->func_param, desc_count);
+	if (nic) {
 		if (cap_flags)
-			*cap_flags = le32_to_cpu(desc->cap_flags);
+			*cap_flags = le32_to_cpu(nic->cap_flags);
 		if (txq_count)
-			*txq_count = le32_to_cpu(desc->txq_count);
+			*txq_count = le16_to_cpu(nic->txq_count);
 	}
 err:
 	if (cmd.va)
-		pci_free_consistent(adapter->pdev, cmd.size,
-				    cmd.va, cmd.dma);
+		pci_free_consistent(adapter->pdev, cmd.size, cmd.va, cmd.dma);
 	return status;
 }
 
-/* Uses sync mcc */
+/* Currently only Lancer uses this command and it supports version 0 only
+ * Uses sync mcc
+ */
 int be_cmd_set_profile_config(struct be_adapter *adapter, u32 bps,
 			      u8 domain)
 {
@@ -3288,12 +3302,10 @@ int be_cmd_set_profile_config(struct be_adapter *adapter, u32 bps,
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 			       OPCODE_COMMON_SET_PROFILE_CONFIG, sizeof(*req),
 			       wrb, NULL);
-
 	req->hdr.domain = domain;
 	req->desc_count = cpu_to_le32(1);
-
-	req->nic_desc.desc_type = NIC_RESOURCE_DESC_TYPE_V0;
-	req->nic_desc.desc_len = RESOURCE_DESC_SIZE;
+	req->nic_desc.hdr.desc_type = NIC_RESOURCE_DESC_TYPE_V0;
+	req->nic_desc.hdr.desc_len = RESOURCE_DESC_SIZE_V0;
 	req->nic_desc.flags = (1 << QUN) | (1 << IMM) | (1 << NOSV);
 	req->nic_desc.pf_num = adapter->pf_number;
 	req->nic_desc.vf_num = domain;

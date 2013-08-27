@@ -1718,11 +1718,13 @@ struct be_cmd_req_set_ext_fat_caps {
 	struct be_fat_conf_params set_params;
 };
 
-#define RESOURCE_DESC_SIZE			88
+#define RESOURCE_DESC_SIZE_V0			72
+#define RESOURCE_DESC_SIZE_V1			88
+#define PCIE_RESOURCE_DESC_TYPE_V0		0x40
 #define NIC_RESOURCE_DESC_TYPE_V0		0x41
+#define PCIE_RESOURCE_DESC_TYPE_V1		0x50
 #define NIC_RESOURCE_DESC_TYPE_V1		0x51
-#define MAX_RESOURCE_DESC			4
-#define MAX_RESOURCE_DESC_V1			32
+#define MAX_RESOURCE_DESC			264
 
 /* QOS unit number */
 #define QUN					4
@@ -1731,9 +1733,30 @@ struct be_cmd_req_set_ext_fat_caps {
 /* No save */
 #define NOSV					7
 
-struct be_nic_resource_desc {
+struct be_res_desc_hdr {
 	u8 desc_type;
 	u8 desc_len;
+} __packed;
+
+struct be_pcie_res_desc {
+	struct be_res_desc_hdr hdr;
+	u8 rsvd0;
+	u8 flags;
+	u16 rsvd1;
+	u8 pf_num;
+	u8 rsvd2;
+	u32 rsvd3;
+	u8 sriov_state;
+	u8 pf_state;
+	u8 pf_type;
+	u8 rsvd4;
+	u16 num_vfs;
+	u16 rsvd5;
+	u32 rsvd6[17];
+} __packed;
+
+struct be_nic_res_desc {
+	struct be_res_desc_hdr hdr;
 	u8 rsvd1;
 	u8 flags;
 	u8 vf_num;
@@ -1762,7 +1785,7 @@ struct be_nic_resource_desc {
 	u8 wol_param;
 	u16 rsvd7;
 	u32 rsvd8[3];
-};
+} __packed;
 
 struct be_cmd_req_get_func_config {
 	struct be_cmd_req_hdr hdr;
@@ -1771,7 +1794,7 @@ struct be_cmd_req_get_func_config {
 struct be_cmd_resp_get_func_config {
 	struct be_cmd_resp_hdr hdr;
 	u32 desc_count;
-	u8 func_param[MAX_RESOURCE_DESC * RESOURCE_DESC_SIZE];
+	u8 func_param[MAX_RESOURCE_DESC * RESOURCE_DESC_SIZE_V1];
 };
 
 #define ACTIVE_PROFILE_TYPE			0x2
@@ -1783,26 +1806,20 @@ struct be_cmd_req_get_profile_config {
 };
 
 struct be_cmd_resp_get_profile_config {
-	struct be_cmd_req_hdr hdr;
+	struct be_cmd_resp_hdr hdr;
 	u32 desc_count;
-	u8 func_param[MAX_RESOURCE_DESC * RESOURCE_DESC_SIZE];
-};
-
-struct be_cmd_resp_get_profile_config_v1 {
-	struct be_cmd_req_hdr hdr;
-	u32 desc_count;
-	u8 func_param[MAX_RESOURCE_DESC_V1 * RESOURCE_DESC_SIZE];
+	u8 func_param[MAX_RESOURCE_DESC * RESOURCE_DESC_SIZE_V1];
 };
 
 struct be_cmd_req_set_profile_config {
 	struct be_cmd_req_hdr hdr;
 	u32 rsvd;
 	u32 desc_count;
-	struct be_nic_resource_desc nic_desc;
+	struct be_nic_res_desc nic_desc;
 };
 
 struct be_cmd_resp_set_profile_config {
-	struct be_cmd_req_hdr hdr;
+	struct be_cmd_resp_hdr hdr;
 };
 
 struct be_cmd_enable_disable_vf {
