@@ -3548,7 +3548,7 @@ qlcnicvf_start_firmware(struct qlcnic_adapter *adapter)
 	return err;
 }
 
-int qlcnic_validate_max_tx_rings(struct qlcnic_adapter *adapter, int txq)
+int qlcnic_validate_max_tx_rings(struct qlcnic_adapter *adapter, u32 txq)
 {
 	struct net_device *netdev = adapter->netdev;
 	u8 max_hw = QLCNIC_MAX_TX_RINGS;

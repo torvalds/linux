@@ -1542,7 +1542,7 @@ int qlcnic_diag_alloc_res(struct net_device *netdev, int test);
 netdev_tx_t qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
 int qlcnic_set_max_rss(struct qlcnic_adapter *, u8, int);
 int qlcnic_validate_max_rss(struct qlcnic_adapter *, __u32);
-int qlcnic_validate_max_tx_rings(struct qlcnic_adapter *, int);
+int qlcnic_validate_max_tx_rings(struct qlcnic_adapter *, u32 txq);
 void qlcnic_alloc_lb_filters_mem(struct qlcnic_adapter *adapter);
 void qlcnic_82xx_set_mac_filter_count(struct qlcnic_adapter *);
 int qlcnic_enable_msix(struct qlcnic_adapter *, u32);
