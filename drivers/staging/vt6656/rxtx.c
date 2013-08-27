@@ -743,15 +743,12 @@ static void s_vFillRTSHead(struct vnt_private *pDevice, u8 byPktType,
 				bNeedAck, wCurrentRate, byFBOption);
 		break;
 	case PK_TYPE_11A:
-		if (byFBOption == AUTO_FB_NONE)
-			vnt_rxtx_rts_ab_head(pDevice, &head->rts_ab,
-				psEthHeader, byPktType, cbFrameLength,
-				bNeedAck, wCurrentRate, byFBOption);
-		else
+		if (byFBOption) {
 			vnt_rxtx_rts_a_fb_head(pDevice, &head->rts_a_fb,
 				psEthHeader, byPktType, cbFrameLength,
 				bNeedAck, wCurrentRate, byFBOption);
-		break;
+			break;
+		}
 	case PK_TYPE_11B:
 		vnt_rxtx_rts_ab_head(pDevice, &head->rts_ab,
 			psEthHeader, byPktType, cbFrameLength,
