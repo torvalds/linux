@@ -126,11 +126,20 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 		if (skb->sk == sk)
 			continue;
 
-		if (hci_pi(sk)->channel != HCI_CHANNEL_RAW)
+		if (hci_pi(sk)->channel == HCI_CHANNEL_RAW) {
+			if (is_filtered_packet(sk, skb))
+				continue;
+		} else if (hci_pi(sk)->channel == HCI_CHANNEL_USER) {
+			if (!bt_cb(skb)->incoming)
+				continue;
+			if (bt_cb(skb)->pkt_type != HCI_EVENT_PKT &&
+			    bt_cb(skb)->pkt_type != HCI_ACLDATA_PKT &&
+			    bt_cb(skb)->pkt_type != HCI_SCODATA_PKT)
+				continue;
+		} else {
+			/* Don't send frame to other channel types */
 			continue;
-
-		if (is_filtered_packet(sk, skb))
-			continue;
+		}
 
 		if (!skb_copy) {
 			/* Create a private copy with headroom */
@@ -444,6 +453,12 @@ static int hci_sock_release(struct socket *sock)
 	bt_sock_unlink(&hci_sk_list, sk);
 
 	if (hdev) {
+		if (hci_pi(sk)->channel == HCI_CHANNEL_USER) {
+			mgmt_index_added(hdev);
+			clear_bit(HCI_USER_CHANNEL, &hdev->dev_flags);
+			hci_dev_close(hdev->id);
+		}
+
 		atomic_dec(&hdev->promisc);
 		hci_dev_put(hdev);
 	}
@@ -661,6 +676,56 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 		hci_pi(sk)->hdev = hdev;
 		break;
 
+	case HCI_CHANNEL_USER:
+		if (hci_pi(sk)->hdev) {
+			err = -EALREADY;
+			goto done;
+		}
+
+		if (haddr.hci_dev == HCI_DEV_NONE) {
+			err = -EINVAL;
+			goto done;
+		}
+
+		if (!capable(CAP_NET_RAW)) {
+			err = -EPERM;
+			goto done;
+		}
+
+		hdev = hci_dev_get(haddr.hci_dev);
+		if (!hdev) {
+			err = -ENODEV;
+			goto done;
+		}
+
+		if (test_bit(HCI_UP, &hdev->flags) ||
+		    test_bit(HCI_INIT, &hdev->flags) ||
+		    test_bit(HCI_SETUP, &hdev->dev_flags)) {
+			err = -EBUSY;
+			hci_dev_put(hdev);
+			goto done;
+		}
+
+		if (test_and_set_bit(HCI_USER_CHANNEL, &hdev->dev_flags)) {
+			err = -EUSERS;
+			hci_dev_put(hdev);
+			goto done;
+		}
+
+		mgmt_index_removed(hdev);
+
+		err = hci_dev_open(hdev->id);
+		if (err) {
+			clear_bit(HCI_USER_CHANNEL, &hdev->dev_flags);
+			hci_dev_put(hdev);
+			goto done;
+		}
+
+		atomic_inc(&hdev->promisc);
+
+		hci_pi(sk)->hdev = hdev;
+		break;
+
 	case HCI_CHANNEL_CONTROL:
 		if (haddr.hci_dev != HCI_DEV_NONE) {
 			err = -EINVAL;
@@ -807,6 +872,7 @@ static int hci_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	case HCI_CHANNEL_RAW:
 		hci_sock_cmsg(sk, msg, skb);
 		break;
+	case HCI_CHANNEL_USER:
 	case HCI_CHANNEL_CONTROL:
 	case HCI_CHANNEL_MONITOR:
 		sock_recv_timestamp(msg, sk, skb);
@@ -841,6 +907,7 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 	switch (hci_pi(sk)->channel) {
 	case HCI_CHANNEL_RAW:
+	case HCI_CHANNEL_USER:
 		break;
 	case HCI_CHANNEL_CONTROL:
 		err = mgmt_control(sk, msg, len);
@@ -877,7 +944,8 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	skb_pull(skb, 1);
 	skb->dev = (void *) hdev;
 
-	if (bt_cb(skb)->pkt_type == HCI_COMMAND_PKT) {
+	if (hci_pi(sk)->channel == HCI_CHANNEL_RAW &&
+	    bt_cb(skb)->pkt_type == HCI_COMMAND_PKT) {
 		u16 opcode = get_unaligned_le16(skb->data);
 		u16 ogf = hci_opcode_ogf(opcode);
 		u16 ocf = hci_opcode_ocf(opcode);
@@ -905,6 +973,14 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	} else {
 		if (!capable(CAP_NET_RAW)) {
 			err = -EPERM;
+			goto drop;
+		}
+
+		if (hci_pi(sk)->channel == HCI_CHANNEL_USER &&
+		    bt_cb(skb)->pkt_type != HCI_COMMAND_PKT &&
+		    bt_cb(skb)->pkt_type != HCI_ACLDATA_PKT &&
+		    bt_cb(skb)->pkt_type != HCI_SCODATA_PKT) {
+			err = -EINVAL;
 			goto drop;
 		}
 
