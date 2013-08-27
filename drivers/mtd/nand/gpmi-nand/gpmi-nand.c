@@ -357,9 +357,8 @@ int common_nfc_set_geometry(struct gpmi_nand_data *this)
 
 struct dma_chan *get_dma_chan(struct gpmi_nand_data *this)
 {
-	int chipnr = this->current_chip;
-
-	return this->dma_chans[chipnr];
+	/* We use the DMA channel 0 to access all the nand chips. */
+	return this->dma_chans[0];
 }
 
 /* Can we use the upper's buffer directly for DMA? */
