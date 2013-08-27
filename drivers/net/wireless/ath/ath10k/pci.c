@@ -112,7 +112,7 @@ static int ath10k_pci_diag_read_mem(struct ath10k *ar, u32 address, void *data,
 	unsigned int completed_nbytes, orig_nbytes, remaining_bytes;
 	unsigned int id;
 	unsigned int flags;
-	struct ce_state *ce_diag;
+	struct ath10k_ce_pipe *ce_diag;
 	/* Host buffer address in CE space */
 	u32 ce_data;
 	dma_addr_t ce_data_base = 0;
@@ -276,7 +276,7 @@ static int ath10k_pci_diag_write_mem(struct ath10k *ar, u32 address,
 	unsigned int completed_nbytes, orig_nbytes, remaining_bytes;
 	unsigned int id;
 	unsigned int flags;
-	struct ce_state *ce_diag;
+	struct ath10k_ce_pipe *ce_diag;
 	void *data_buf = NULL;
 	u32 ce_data;	/* Host buffer address in CE space */
 	dma_addr_t ce_data_base = 0;
@@ -509,7 +509,7 @@ exit:
 }
 
 /* Called by lower (CE) layer when a send to Target completes. */
-static void ath10k_pci_ce_send_done(struct ce_state *ce_state,
+static void ath10k_pci_ce_send_done(struct ath10k_ce_pipe *ce_state,
 				    void *transfer_context,
 				    u32 ce_data,
 				    unsigned int nbytes,
@@ -571,7 +571,7 @@ static void ath10k_pci_ce_send_done(struct ce_state *ce_state,
 }
 
 /* Called by lower (CE) layer when data is received from the Target. */
-static void ath10k_pci_ce_recv_data(struct ce_state *ce_state,
+static void ath10k_pci_ce_recv_data(struct ath10k_ce_pipe *ce_state,
 				    void *transfer_context, u32 ce_data,
 				    unsigned int nbytes,
 				    unsigned int transfer_id,
@@ -624,7 +624,7 @@ static int ath10k_pci_hif_send_head(struct ath10k *ar, u8 pipe_id,
 	struct ath10k_skb_cb *skb_cb = ATH10K_SKB_CB(nbuf);
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct ath10k_pci_pipe *pipe_info = &(ar_pci->pipe_info[pipe_id]);
-	struct ce_state *ce_hdl = pipe_info->ce_hdl;
+	struct ath10k_ce_pipe *ce_hdl = pipe_info->ce_hdl;
 	struct ce_sendlist sendlist;
 	unsigned int len;
 	u32 flags = 0;
@@ -762,7 +762,7 @@ static void ath10k_pci_hif_set_callbacks(struct ath10k *ar,
 static int ath10k_pci_start_ce(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	struct ce_state *ce_diag = ar_pci->ce_diag;
+	struct ath10k_ce_pipe *ce_diag = ar_pci->ce_diag;
 	const struct ce_attr *attr;
 	struct ath10k_pci_pipe *pipe_info;
 	struct ath10k_pci_compl *compl;
@@ -1049,7 +1049,7 @@ static int ath10k_pci_post_rx_pipe(struct ath10k_pci_pipe *pipe_info,
 {
 	struct ath10k *ar = pipe_info->hif_ce_state;
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	struct ce_state *ce_state = pipe_info->ce_hdl;
+	struct ath10k_ce_pipe *ce_state = pipe_info->ce_hdl;
 	struct sk_buff *skb;
 	dma_addr_t ce_data;
 	int i, ret = 0;
@@ -1158,7 +1158,7 @@ static void ath10k_pci_rx_pipe_cleanup(struct ath10k_pci_pipe *pipe_info)
 {
 	struct ath10k *ar;
 	struct ath10k_pci *ar_pci;
-	struct ce_state *ce_hdl;
+	struct ath10k_ce_pipe *ce_hdl;
 	u32 buf_sz;
 	struct sk_buff *netbuf;
 	u32 ce_data;
@@ -1190,7 +1190,7 @@ static void ath10k_pci_tx_pipe_cleanup(struct ath10k_pci_pipe *pipe_info)
 {
 	struct ath10k *ar;
 	struct ath10k_pci *ar_pci;
-	struct ce_state *ce_hdl;
+	struct ath10k_ce_pipe *ce_hdl;
 	struct sk_buff *netbuf;
 	u32 ce_data;
 	unsigned int nbytes;
@@ -1300,8 +1300,10 @@ static int ath10k_pci_hif_exchange_bmi_msg(struct ath10k *ar,
 					   void *resp, u32 *resp_len)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	struct ce_state *ce_tx = ar_pci->pipe_info[BMI_CE_NUM_TO_TARG].ce_hdl;
-	struct ce_state *ce_rx = ar_pci->pipe_info[BMI_CE_NUM_TO_HOST].ce_hdl;
+	struct ath10k_pci_pipe *pci_tx = &ar_pci->pipe_info[BMI_CE_NUM_TO_TARG];
+	struct ath10k_pci_pipe *pci_rx = &ar_pci->pipe_info[BMI_CE_NUM_TO_HOST];
+	struct ath10k_ce_pipe *ce_tx = pci_tx->ce_hdl;
+	struct ath10k_ce_pipe *ce_rx = pci_rx->ce_hdl;
 	dma_addr_t req_paddr = 0;
 	dma_addr_t resp_paddr = 0;
 	struct bmi_xfer xfer = {};
@@ -1385,7 +1387,7 @@ err_dma:
 	return ret;
 }
 
-static void ath10k_pci_bmi_send_done(struct ce_state *ce_state,
+static void ath10k_pci_bmi_send_done(struct ath10k_ce_pipe *ce_state,
 				     void *transfer_context,
 				     u32 data,
 				     unsigned int nbytes,
@@ -1399,7 +1401,7 @@ static void ath10k_pci_bmi_send_done(struct ce_state *ce_state,
 	complete(&xfer->done);
 }
 
-static void ath10k_pci_bmi_recv_data(struct ce_state *ce_state,
+static void ath10k_pci_bmi_recv_data(struct ath10k_ce_pipe *ce_state,
 				     void *transfer_context,
 				     u32 data,
 				     unsigned int nbytes,

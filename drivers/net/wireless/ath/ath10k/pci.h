@@ -52,7 +52,7 @@ enum ath10k_pci_compl_state {
 struct ath10k_pci_compl {
 	struct list_head list;
 	enum ath10k_pci_compl_state state;
-	struct ce_state *ce_state;
+	struct ath10k_ce_pipe *ce_state;
 	struct ath10k_pci_pipe *pipe_info;
 	void *transfer_context;
 	unsigned int nbytes;
@@ -162,7 +162,7 @@ enum ath10k_pci_features {
 /* Per-pipe state. */
 struct ath10k_pci_pipe {
 	/* Handle of underlying Copy Engine */
-	struct ce_state *ce_hdl;
+	struct ath10k_ce_pipe *ce_hdl;
 
 	/* Our pipe number; facilitiates use of pipe_info ptrs. */
 	u8 pipe_num;
@@ -227,13 +227,13 @@ struct ath10k_pci {
 	u32 fw_indicator_address;
 
 	/* Copy Engine used for Diagnostic Accesses */
-	struct ce_state *ce_diag;
+	struct ath10k_ce_pipe *ce_diag;
 
 	/* FIXME: document what this really protects */
 	spinlock_t ce_lock;
 
 	/* Map CE id to ce_state */
-	struct ce_state ce_states[CE_COUNT_MAX];
+	struct ath10k_ce_pipe ce_states[CE_COUNT_MAX];
 };
 
 static inline struct ath10k_pci *ath10k_pci_priv(struct ath10k *ar)

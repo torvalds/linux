@@ -256,7 +256,7 @@ static inline void ath10k_ce_engine_int_status_clear(struct ath10k *ar,
  * ath10k_ce_sendlist_send.
  * The caller takes responsibility for any needed locking.
  */
-static int ath10k_ce_send_nolock(struct ce_state *ce_state,
+static int ath10k_ce_send_nolock(struct ath10k_ce_pipe *ce_state,
 				 void *per_transfer_context,
 				 u32 buffer,
 				 unsigned int nbytes,
@@ -317,7 +317,7 @@ exit:
 	return ret;
 }
 
-int ath10k_ce_send(struct ce_state *ce_state,
+int ath10k_ce_send(struct ath10k_ce_pipe *ce_state,
 		   void *per_transfer_context,
 		   u32 buffer,
 		   unsigned int nbytes,
@@ -349,7 +349,7 @@ void ath10k_ce_sendlist_buf_add(struct ce_sendlist *sendlist, u32 buffer,
 	sendlist->num_items++;
 }
 
-int ath10k_ce_sendlist_send(struct ce_state *ce_state,
+int ath10k_ce_sendlist_send(struct ath10k_ce_pipe *ce_state,
 			    void *per_transfer_context,
 			    struct ce_sendlist *sendlist,
 			    unsigned int transfer_id)
@@ -402,7 +402,7 @@ int ath10k_ce_sendlist_send(struct ce_state *ce_state,
 	return ret;
 }
 
-int ath10k_ce_recv_buf_enqueue(struct ce_state *ce_state,
+int ath10k_ce_recv_buf_enqueue(struct ath10k_ce_pipe *ce_state,
 			       void *per_recv_context,
 			       u32 buffer)
 {
@@ -450,7 +450,7 @@ int ath10k_ce_recv_buf_enqueue(struct ce_state *ce_state,
  * Guts of ath10k_ce_completed_recv_next.
  * The caller takes responsibility for any necessary locking.
  */
-static int ath10k_ce_completed_recv_next_nolock(struct ce_state *ce_state,
+static int ath10k_ce_completed_recv_next_nolock(struct ath10k_ce_pipe *ce_state,
 						void **per_transfer_contextp,
 						u32 *bufferp,
 						unsigned int *nbytesp,
@@ -506,7 +506,7 @@ static int ath10k_ce_completed_recv_next_nolock(struct ce_state *ce_state,
 	return 0;
 }
 
-int ath10k_ce_completed_recv_next(struct ce_state *ce_state,
+int ath10k_ce_completed_recv_next(struct ath10k_ce_pipe *ce_state,
 				  void **per_transfer_contextp,
 				  u32 *bufferp,
 				  unsigned int *nbytesp,
@@ -527,7 +527,7 @@ int ath10k_ce_completed_recv_next(struct ce_state *ce_state,
 	return ret;
 }
 
-int ath10k_ce_revoke_recv_next(struct ce_state *ce_state,
+int ath10k_ce_revoke_recv_next(struct ath10k_ce_pipe *ce_state,
 			       void **per_transfer_contextp,
 			       u32 *bufferp)
 {
@@ -583,7 +583,7 @@ int ath10k_ce_revoke_recv_next(struct ce_state *ce_state,
  * Guts of ath10k_ce_completed_send_next.
  * The caller takes responsibility for any necessary locking.
  */
-static int ath10k_ce_completed_send_next_nolock(struct ce_state *ce_state,
+static int ath10k_ce_completed_send_next_nolock(struct ath10k_ce_pipe *ce_state,
 						void **per_transfer_contextp,
 						u32 *bufferp,
 						unsigned int *nbytesp,
@@ -640,7 +640,7 @@ static int ath10k_ce_completed_send_next_nolock(struct ce_state *ce_state,
 }
 
 /* NB: Modeled after ath10k_ce_completed_send_next */
-int ath10k_ce_cancel_send_next(struct ce_state *ce_state,
+int ath10k_ce_cancel_send_next(struct ath10k_ce_pipe *ce_state,
 			       void **per_transfer_contextp,
 			       u32 *bufferp,
 			       unsigned int *nbytesp,
@@ -698,7 +698,7 @@ int ath10k_ce_cancel_send_next(struct ce_state *ce_state,
 	return ret;
 }
 
-int ath10k_ce_completed_send_next(struct ce_state *ce_state,
+int ath10k_ce_completed_send_next(struct ath10k_ce_pipe *ce_state,
 				  void **per_transfer_contextp,
 				  u32 *bufferp,
 				  unsigned int *nbytesp,
@@ -727,7 +727,7 @@ int ath10k_ce_completed_send_next(struct ce_state *ce_state,
 void ath10k_ce_per_engine_service(struct ath10k *ar, unsigned int ce_id)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	struct ce_state *ce_state = &ar_pci->ce_states[ce_id];
+	struct ath10k_ce_pipe *ce_state = &ar_pci->ce_states[ce_id];
 	u32 ctrl_addr = ce_state->ctrl_addr;
 	void *transfer_context;
 	u32 buf;
@@ -820,7 +820,7 @@ void ath10k_ce_per_engine_service_any(struct ath10k *ar)
  *
  * Called with ce_lock held.
  */
-static void ath10k_ce_per_engine_handler_adjust(struct ce_state *ce_state,
+static void ath10k_ce_per_engine_handler_adjust(struct ath10k_ce_pipe *ce_state,
 						int disable_copy_compl_intr)
 {
 	u32 ctrl_addr = ce_state->ctrl_addr;
@@ -846,7 +846,7 @@ void ath10k_ce_disable_interrupts(struct ath10k *ar)
 
 	ath10k_pci_wake(ar);
 	for (ce_id = 0; ce_id < ar_pci->ce_count; ce_id++) {
-		struct ce_state *ce_state = &ar_pci->ce_states[ce_id];
+		struct ath10k_ce_pipe *ce_state = &ar_pci->ce_states[ce_id];
 		u32 ctrl_addr = ce_state->ctrl_addr;
 
 		ath10k_ce_copy_complete_intr_disable(ar, ctrl_addr);
@@ -854,12 +854,12 @@ void ath10k_ce_disable_interrupts(struct ath10k *ar)
 	ath10k_pci_sleep(ar);
 }
 
-void ath10k_ce_send_cb_register(struct ce_state *ce_state,
-				void (*send_cb) (struct ce_state *ce_state,
-						 void *transfer_context,
-						 u32 buffer,
-						 unsigned int nbytes,
-						 unsigned int transfer_id),
+void ath10k_ce_send_cb_register(struct ath10k_ce_pipe *ce_state,
+				void (*send_cb)(struct ath10k_ce_pipe *ce_state,
+						void *transfer_context,
+						u32 buffer,
+						unsigned int nbytes,
+						unsigned int transfer_id),
 				int disable_interrupts)
 {
 	struct ath10k *ar = ce_state->ar;
@@ -871,13 +871,13 @@ void ath10k_ce_send_cb_register(struct ce_state *ce_state,
 	spin_unlock_bh(&ar_pci->ce_lock);
 }
 
-void ath10k_ce_recv_cb_register(struct ce_state *ce_state,
-				void (*recv_cb) (struct ce_state *ce_state,
-						 void *transfer_context,
-						 u32 buffer,
-						 unsigned int nbytes,
-						 unsigned int transfer_id,
-						 unsigned int flags))
+void ath10k_ce_recv_cb_register(struct ath10k_ce_pipe *ce_state,
+				void (*recv_cb)(struct ath10k_ce_pipe *ce_state,
+						void *transfer_context,
+						u32 buffer,
+						unsigned int nbytes,
+						unsigned int transfer_id,
+						unsigned int flags))
 {
 	struct ath10k *ar = ce_state->ar;
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
@@ -890,7 +890,7 @@ void ath10k_ce_recv_cb_register(struct ce_state *ce_state,
 
 static int ath10k_ce_init_src_ring(struct ath10k *ar,
 				   unsigned int ce_id,
-				   struct ce_state *ce_state,
+				   struct ath10k_ce_pipe *ce_state,
 				   const struct ce_attr *attr)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
@@ -993,7 +993,7 @@ static int ath10k_ce_init_src_ring(struct ath10k *ar,
 
 static int ath10k_ce_init_dest_ring(struct ath10k *ar,
 				    unsigned int ce_id,
-				    struct ce_state *ce_state,
+				    struct ath10k_ce_pipe *ce_state,
 				    const struct ce_attr *attr)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
@@ -1076,12 +1076,12 @@ static int ath10k_ce_init_dest_ring(struct ath10k *ar,
 	return 0;
 }
 
-static struct ce_state *ath10k_ce_init_state(struct ath10k *ar,
+static struct ath10k_ce_pipe *ath10k_ce_init_state(struct ath10k *ar,
 					     unsigned int ce_id,
 					     const struct ce_attr *attr)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	struct ce_state *ce_state = &ar_pci->ce_states[ce_id];
+	struct ath10k_ce_pipe *ce_state = &ar_pci->ce_states[ce_id];
 	u32 ctrl_addr = ath10k_ce_base_address(ce_id);
 
 	spin_lock_bh(&ar_pci->ce_lock);
@@ -1104,11 +1104,11 @@ static struct ce_state *ath10k_ce_init_state(struct ath10k *ar,
  * initialization. It may be that only one side or the other is
  * initialized by software/firmware.
  */
-struct ce_state *ath10k_ce_init(struct ath10k *ar,
+struct ath10k_ce_pipe *ath10k_ce_init(struct ath10k *ar,
 				unsigned int ce_id,
 				const struct ce_attr *attr)
 {
-	struct ce_state *ce_state;
+	struct ath10k_ce_pipe *ce_state;
 	u32 ctrl_addr = ath10k_ce_base_address(ce_id);
 	int ret;
 
@@ -1146,7 +1146,7 @@ struct ce_state *ath10k_ce_init(struct ath10k *ar,
 	return ce_state;
 }
 
-void ath10k_ce_deinit(struct ce_state *ce_state)
+void ath10k_ce_deinit(struct ath10k_ce_pipe *ce_state)
 {
 	struct ath10k *ar = ce_state->ar;
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
