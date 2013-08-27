@@ -18,9 +18,6 @@
 #include <linux/kernel_stat.h>
 #include <linux/irq.h>
 #include <linux/of_irq.h>
-#include <linux/export.h>
-
-#include <asm/prom.h>
 
 static u32 concurrent_irq;
 
