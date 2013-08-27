@@ -9,15 +9,12 @@
  * for more details.
  */
 
-#include <linux/init.h>
 #include <linux/irqdomain.h>
 #include <linux/irq.h>
 #include <linux/of_address.h>
 #include <linux/io.h>
 #include <linux/bug.h>
 
-#include <asm/prom.h>
-#include <asm/irq.h>
 #include "../../drivers/irqchip/irqchip.h"
 
 static void __iomem *intc_baseaddr;
