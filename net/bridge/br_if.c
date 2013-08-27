@@ -383,6 +383,9 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 
 	netdev_update_features(br->dev);
 
+	if (br->dev->needed_headroom < dev->needed_headroom)
+		br->dev->needed_headroom = dev->needed_headroom;
+
 	spin_lock_bh(&br->lock);
 	changed_addr = br_stp_recalculate_bridge_id(br);
 
