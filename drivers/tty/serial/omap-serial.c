@@ -538,6 +538,7 @@ static irqreturn_t serial_omap_irq(int irq, void *dev_id)
 	struct uart_omap_port *up = dev_id;
 	unsigned int iir, lsr;
 	unsigned int type;
+	irqreturn_t ret = IRQ_NONE;
 	int max_count = 256;
 
 	spin_lock(&up->port.lock);
@@ -548,6 +549,7 @@ static irqreturn_t serial_omap_irq(int irq, void *dev_id)
 		if (iir & UART_IIR_NO_INT)
 			break;
 
+		ret = IRQ_HANDLED;
 		lsr = serial_in(up, UART_LSR);
 
 		/* extract IRQ type from IIR register */
@@ -586,7 +588,7 @@ static irqreturn_t serial_omap_irq(int irq, void *dev_id)
 	pm_runtime_put_autosuspend(up->dev);
 	up->port_activity = jiffies;
 
-	return IRQ_HANDLED;
+	return ret;
 }
 
 static unsigned int serial_omap_tx_empty(struct uart_port *port)
