@@ -71,7 +71,9 @@ static size_t syscall_arg__scnprintf_mmap_flags(char *bf, size_t size, unsigned 
 	P_MMAP_FLAG(FILE);
 	P_MMAP_FLAG(FIXED);
 	P_MMAP_FLAG(GROWSDOWN);
+#ifdef MAP_HUGETLB
 	P_MMAP_FLAG(HUGETLB);
+#endif
 	P_MMAP_FLAG(LOCKED);
 	P_MMAP_FLAG(NONBLOCK);
 	P_MMAP_FLAG(NORESERVE);
@@ -110,8 +112,12 @@ static size_t syscall_arg__scnprintf_madvise_behavior(char *bf, size_t size, uns
 #endif
 	P_MADV_BHV(MERGEABLE);
 	P_MADV_BHV(UNMERGEABLE);
+#ifdef MADV_HUGEPAGE
 	P_MADV_BHV(HUGEPAGE);
+#endif
+#ifdef MADV_NOHUGEPAGE
 	P_MADV_BHV(NOHUGEPAGE);
+#endif
 #ifdef MADV_DONTDUMP
 	P_MADV_BHV(DONTDUMP);
 #endif
