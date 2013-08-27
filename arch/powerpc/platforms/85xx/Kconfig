@@ -32,6 +32,12 @@ config BSC9131_RDB
 	  StarCore SC3850 DSP
 	  Manufacturer : Freescale Semiconductor, Inc
 
+config C293_PCIE
+	  bool "Freescale C293PCIE"
+	  select DEFAULT_UIMAGE
+	  help
+	  This option enables support for the C293PCIE board
+
 config MPC8540_ADS
 	bool "Freescale MPC8540 ADS"
 	select DEFAULT_UIMAGE
@@ -112,10 +118,10 @@ config P1022_RDK
 	  reference board.
 
 config P1023_RDS
-	bool "Freescale P1023 RDS"
+	bool "Freescale P1023 RDS/RDB"
 	select DEFAULT_UIMAGE
 	help
-	  This option enables support for the P1023 RDS board
+	  This option enables support for the P1023 RDS and RDB boards
 
 config SOCRATES
 	bool "Socrates"
