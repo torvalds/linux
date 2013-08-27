@@ -104,6 +104,10 @@ static struct test {
 		.func = test__code_reading,
 	},
 	{
+		.desc = "Test sample parsing",
+		.func = test__sample_parsing,
+	},
+	{
 		.func = NULL,
 	},
 };
