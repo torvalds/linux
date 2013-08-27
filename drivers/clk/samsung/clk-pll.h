@@ -17,6 +17,8 @@ enum samsung_pll_type {
 	pll_36xx,
 	pll_2550,
 	pll_2650,
+	pll_6552,
+	pll_6553,
 };
 
 #define PLL_35XX_RATE(_rate, _m, _p, _s)			\
@@ -64,10 +66,6 @@ extern struct clk * __init samsung_clk_register_pll45xx(const char *name,
 extern struct clk * __init samsung_clk_register_pll46xx(const char *name,
 			const char *pname, const void __iomem *con_reg,
 			enum pll46xx_type type);
-extern struct clk *samsung_clk_register_pll6552(const char *name,
-			const char *pname, void __iomem *base);
-extern struct clk *samsung_clk_register_pll6553(const char *name,
-			const char *pname, void __iomem *base);
 extern struct clk * __init samsung_clk_register_pll2550x(const char *name,
 			const char *pname, const void __iomem *reg_base,
 			const unsigned long offset);
