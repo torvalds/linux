@@ -180,6 +180,7 @@ struct sta_info {
 
 	u8 has_legacy_ac;
 	unsigned int sleepq_ac_len;
+#endif	/*  CONFIG_88EU_AP_MODE */
 
 #ifdef CONFIG_88EU_P2P
 	/* p2p priv data */
@@ -198,7 +199,6 @@ struct sta_info {
 #endif /* CONFIG_88EU_P2P */
 	u8 under_exist_checking;
 	u8 keep_alive_trycnt;
-#endif	/*  CONFIG_88EU_AP_MODE */
 
 	/* for DM */
 	struct rssi_sta rssi_stat;
