@@ -316,6 +316,7 @@ extern struct Qdisc noop_qdisc;
 extern struct Qdisc_ops noop_qdisc_ops;
 extern struct Qdisc_ops pfifo_fast_ops;
 extern struct Qdisc_ops mq_qdisc_ops;
+extern const struct Qdisc_ops *default_qdisc_ops;
 
 struct Qdisc_class_common {
 	u32			classid;
