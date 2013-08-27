@@ -6279,6 +6279,13 @@ static int raid5_start_reshape(struct mddev *mddev)
 	write_seqcount_end(&conf->gen_lock);
 	spin_unlock_irq(&conf->device_lock);
 
+	/* Now make sure any requests that proceeded on the assumption
+	 * the reshape wasn't running - like Discard or Read - have
+	 * completed.
+	 */
+	mddev_suspend(mddev);
+	mddev_resume(mddev);
+
 	/* Add some new drives, as many as will fit.
 	 * We know there are enough to make the newly sized array work.
 	 * Don't add devices if we are reducing the number of
