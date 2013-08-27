@@ -1980,10 +1980,10 @@ extern int lancer_initiate_dump(struct be_adapter *adapter);
 extern bool dump_present(struct be_adapter *adapter);
 extern int lancer_test_and_set_rdy_state(struct be_adapter *adapter);
 extern int be_cmd_query_port_name(struct be_adapter *adapter, u8 *port_name);
-extern int be_cmd_get_func_config(struct be_adapter *adapter);
-extern int be_cmd_get_profile_config(struct be_adapter *adapter, u32 *cap_flags,
-				     u16 *txq_count, u8 domain);
-
+int be_cmd_get_func_config(struct be_adapter *adapter,
+			   struct be_resources *res);
+int be_cmd_get_profile_config(struct be_adapter *adapter,
+			      struct be_resources *res, u8 domain);
 extern int be_cmd_set_profile_config(struct be_adapter *adapter, u32 bps,
 				     u8 domain);
 extern int be_cmd_get_if_id(struct be_adapter *adapter,

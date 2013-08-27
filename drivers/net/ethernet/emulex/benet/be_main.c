@@ -1001,7 +1001,7 @@ static int be_vid_config(struct be_adapter *adapter)
 	if (adapter->promiscuous)
 		return 0;
 
-	if (adapter->vlans_added > adapter->max_vlans)
+	if (adapter->vlans_added > be_max_vlans(adapter))
 		goto set_vlan_promisc;
 
 	/* Construct VLAN Table to give to HW */
@@ -1042,7 +1042,7 @@ static int be_vlan_add_vid(struct net_device *netdev, __be16 proto, u16 vid)
 		goto ret;
 
 	adapter->vlan_tag[vid] = 1;
-	if (adapter->vlans_added <= (adapter->max_vlans + 1))
+	if (adapter->vlans_added <= (be_max_vlans(adapter) + 1))
 		status = be_vid_config(adapter);
 
 	if (!status)
@@ -1068,7 +1068,7 @@ static int be_vlan_rem_vid(struct net_device *netdev, __be16 proto, u16 vid)
 		goto ret;
 
 	adapter->vlan_tag[vid] = 0;
-	if (adapter->vlans_added <= adapter->max_vlans)
+	if (adapter->vlans_added <= be_max_vlans(adapter))
 		status = be_vid_config(adapter);
 
 	if (!status)
@@ -1101,7 +1101,7 @@ static void be_set_rx_mode(struct net_device *netdev)
 
 	/* Enable multicast promisc if num configured exceeds what we support */
 	if (netdev->flags & IFF_ALLMULTI ||
-	    netdev_mc_count(netdev) > adapter->max_mcast_mac) {
+	    netdev_mc_count(netdev) > be_max_mc(adapter)) {
 		be_cmd_rx_filter(adapter, IFF_ALLMULTI, ON);
 		goto done;
 	}
@@ -1115,7 +1115,7 @@ static void be_set_rx_mode(struct net_device *netdev)
 					adapter->pmac_id[i], 0);
 		}
 
-		if (netdev_uc_count(netdev) > adapter->max_pmac_cnt) {
+		if (netdev_uc_count(netdev) > be_max_uc(adapter)) {
 			be_cmd_rx_filter(adapter, IFF_PROMISC, ON);
 			adapter->promiscuous = true;
 			goto done;
@@ -1924,7 +1924,8 @@ static int be_evt_queues_create(struct be_adapter *adapter)
 	struct be_eq_obj *eqo;
 	int i, rc;
 
-	adapter->num_evt_qs = num_irqs(adapter);
+	adapter->num_evt_qs = min_t(u16, num_irqs(adapter),
+				    adapter->cfg_num_qs);
 
 	for_all_evt_queues(adapter, eqo, i) {
 		eqo->adapter = adapter;
@@ -2013,25 +2014,13 @@ static void be_tx_queues_destroy(struct be_adapter *adapter)
 	}
 }
 
-static int be_num_txqs_want(struct be_adapter *adapter)
-{
-	if ((!lancer_chip(adapter) && sriov_want(adapter)) ||
-	    be_is_mc(adapter) ||
-	    (!lancer_chip(adapter) && !be_physfn(adapter)) ||
-	    BE2_chip(adapter))
-		return 1;
-	else
-		return adapter->max_tx_queues;
-}
-
 static int be_tx_cqs_create(struct be_adapter *adapter)
 {
 	struct be_queue_info *cq, *eq;
-	int status;
 	struct be_tx_obj *txo;
-	u8 i;
+	int status, i;
 
-	adapter->num_tx_qs = be_num_txqs_want(adapter);
+	adapter->num_tx_qs = min(adapter->num_evt_qs, be_max_txqs(adapter));
 	if (adapter->num_tx_qs != MAX_TX_QS) {
 		rtnl_lock();
 		netif_set_real_num_tx_queues(adapter->netdev,
@@ -2098,11 +2087,15 @@ static int be_rx_cqs_create(struct be_adapter *adapter)
 	struct be_rx_obj *rxo;
 	int rc, i;
 
-	/* We'll create as many RSS rings as there are irqs.
-	 * But when there's only one irq there's no use creating RSS rings
+	/* We can create as many RSS rings as there are EQs. */
+	adapter->num_rx_qs = adapter->num_evt_qs;
+
+	/* We'll use RSS only if atleast 2 RSS rings are supported.
+	 * When RSS is used, we'll need a default RXQ for non-IP traffic.
 	 */
-	adapter->num_rx_qs = (num_irqs(adapter) > 1) ?
-				num_irqs(adapter) + 1 : 1;
+	if (adapter->num_rx_qs > 1)
+		adapter->num_rx_qs++;
+
 	if (adapter->num_rx_qs != MAX_RX_QS) {
 		rtnl_lock();
 		netif_set_real_num_rx_queues(adapter->netdev,
@@ -2375,35 +2368,20 @@ static void be_msix_disable(struct be_adapter *adapter)
 	}
 }
 
-static uint be_num_rss_want(struct be_adapter *adapter)
-{
-	u32 num = 0;
-
-	if ((adapter->function_caps & BE_FUNCTION_CAPS_RSS) &&
-	    (lancer_chip(adapter) ||
-	     (!sriov_want(adapter) && be_physfn(adapter)))) {
-		num = adapter->max_rss_queues;
-		num = min_t(u32, num, (u32)netif_get_num_default_rss_queues());
-	}
-	return num;
-}
-
 static int be_msix_enable(struct be_adapter *adapter)
 {
-#define BE_MIN_MSIX_VECTORS		1
-	int i, status, num_vec, num_roce_vec = 0;
+	int i, status, num_vec;
 	struct device *dev = &adapter->pdev->dev;
 
-	/* If RSS queues are not used, need a vec for default RX Q */
-	num_vec = min(be_num_rss_want(adapter), num_online_cpus());
-	if (be_roce_supported(adapter)) {
-		num_roce_vec = min_t(u32, MAX_ROCE_MSIX_VECTORS,
-					(num_online_cpus() + 1));
-		num_roce_vec = min(num_roce_vec, MAX_ROCE_EQS);
-		num_vec += num_roce_vec;
-		num_vec = min(num_vec, MAX_MSIX_VECTORS);
-	}
-	num_vec = max(num_vec, BE_MIN_MSIX_VECTORS);
+	/* If RoCE is supported, program the max number of NIC vectors that
+	 * may be configured via set-channels, along with vectors needed for
+	 * RoCe. Else, just program the number we'll use initially.
+	 */
+	if (be_roce_supported(adapter))
+		num_vec = min_t(int, 2 * be_max_eqs(adapter),
+				2 * num_online_cpus());
+	else
+		num_vec = adapter->cfg_num_qs;
 
 	for (i = 0; i < num_vec; i++)
 		adapter->msix_entries[i].entry = i;
@@ -2411,7 +2389,7 @@ static int be_msix_enable(struct be_adapter *adapter)
 	status = pci_enable_msix(adapter->pdev, adapter->msix_entries, num_vec);
 	if (status == 0) {
 		goto done;
-	} else if (status >= BE_MIN_MSIX_VECTORS) {
+	} else if (status >= MIN_MSIX_VECTORS) {
 		num_vec = status;
 		status = pci_enable_msix(adapter->pdev, adapter->msix_entries,
 					 num_vec);
@@ -2420,23 +2398,22 @@ static int be_msix_enable(struct be_adapter *adapter)
 	}
 
 	dev_warn(dev, "MSIx enable failed\n");
+
 	/* INTx is not supported in VFs, so fail probe if enable_msix fails */
 	if (!be_physfn(adapter))
 		return status;
 	return 0;
 done:
-	if (be_roce_supported(adapter)) {
-		if (num_vec > num_roce_vec) {
-			adapter->num_msix_vec = num_vec - num_roce_vec;
-			adapter->num_msix_roce_vec =
-				num_vec - adapter->num_msix_vec;
-		} else {
-			adapter->num_msix_vec = num_vec;
-			adapter->num_msix_roce_vec = 0;
-		}
-	} else
-		adapter->num_msix_vec = num_vec;
-	dev_info(dev, "enabled %d MSI-x vector(s)\n", adapter->num_msix_vec);
+	if (be_roce_supported(adapter) && num_vec > MIN_MSIX_VECTORS) {
+		adapter->num_msix_roce_vec = num_vec / 2;
+		dev_info(dev, "enabled %d MSI-x vector(s) for RoCE\n",
+			 adapter->num_msix_roce_vec);
+	}
+
+	adapter->num_msix_vec = num_vec - adapter->num_msix_roce_vec;
+
+	dev_info(dev, "enabled %d MSI-x vector(s) for NIC\n",
+		 adapter->num_msix_vec);
 	return 0;
 }
 
@@ -2829,6 +2806,7 @@ static int be_clear(struct be_adapter *adapter)
 
 static int be_vfs_if_create(struct be_adapter *adapter)
 {
+	struct be_resources res = {0};
 	struct be_vf_cfg *vf_cfg;
 	u32 cap_flags, en_flags, vf;
 	int status;
@@ -2837,9 +2815,12 @@ static int be_vfs_if_create(struct be_adapter *adapter)
 		    BE_IF_FLAGS_MULTICAST;
 
 	for_all_vfs(adapter, vf_cfg, vf) {
-		if (!BE3_chip(adapter))
-			be_cmd_get_profile_config(adapter, &cap_flags,
-						  NULL, vf + 1);
+		if (!BE3_chip(adapter)) {
+			status = be_cmd_get_profile_config(adapter, &res,
+							   vf + 1);
+			if (!status)
+				cap_flags = res.if_cap_flags;
+		}
 
 		/* If a FW profile exists, then cap_flags are updated */
 		en_flags = cap_flags & (BE_IF_FLAGS_UNTAGGED |
@@ -2885,10 +2866,10 @@ static int be_vf_setup(struct be_adapter *adapter)
 			dev_warn(dev, "Ignoring num_vfs=%d setting\n", num_vfs);
 		adapter->num_vfs = old_vfs;
 	} else {
-		if (num_vfs > adapter->dev_num_vfs)
+		if (num_vfs > be_max_vfs(adapter))
 			dev_info(dev, "Device supports %d VFs and not %d\n",
-				 adapter->dev_num_vfs, num_vfs);
-		adapter->num_vfs = min_t(u16, num_vfs, adapter->dev_num_vfs);
+				 be_max_vfs(adapter), num_vfs);
+		adapter->num_vfs = min_t(u16, num_vfs, be_max_vfs(adapter));
 		if (!adapter->num_vfs)
 			return 0;
 	}
@@ -2967,6 +2948,51 @@ err:
 	return status;
 }
 
+/* On BE2/BE3 FW does not suggest the supported limits */
+static void BEx_get_resources(struct be_adapter *adapter,
+			      struct be_resources *res)
+{
+	struct pci_dev *pdev = adapter->pdev;
+	bool use_sriov = false;
+
+	if (BE3_chip(adapter) && be_physfn(adapter)) {
+		int max_vfs;
+
+		max_vfs = pci_sriov_get_totalvfs(pdev);
+		res->max_vfs = max_vfs > 0 ? min(MAX_VFS, max_vfs) : 0;
+		use_sriov = res->max_vfs && num_vfs;
+	}
+
+	if (be_physfn(adapter))
+		res->max_uc_mac = BE_UC_PMAC_COUNT;
+	else
+		res->max_uc_mac = BE_VF_UC_PMAC_COUNT;
+
+	if (adapter->function_mode & FLEX10_MODE)
+		res->max_vlans = BE_NUM_VLANS_SUPPORTED/8;
+	else
+		res->max_vlans = BE_NUM_VLANS_SUPPORTED;
+	res->max_mcast_mac = BE_MAX_MC;
+
+	if (BE2_chip(adapter) || use_sriov || be_is_mc(adapter) ||
+	    !be_physfn(adapter))
+		res->max_tx_qs = 1;
+	else
+		res->max_tx_qs = BE3_MAX_TX_QS;
+
+	if ((adapter->function_caps & BE_FUNCTION_CAPS_RSS) &&
+	    !use_sriov && be_physfn(adapter))
+		res->max_rss_qs = (adapter->be3_native) ?
+					   BE3_MAX_RSS_QS : BE2_MAX_RSS_QS;
+	res->max_rx_qs = res->max_rss_qs + 1;
+
+	res->max_evt_qs = be_physfn(adapter) ? MAX_EVT_QS : 1;
+
+	res->if_cap_flags = BE_IF_CAP_FLAGS_WANT;
+	if (!(adapter->function_caps & BE_FUNCTION_CAPS_RSS))
+		res->if_cap_flags &= ~BE_IF_FLAGS_RSS;
+}
+
 static void be_setup_init(struct be_adapter *adapter)
 {
 	adapter->vlan_prio_bmap = 0xff;
@@ -2980,76 +3006,56 @@ static void be_setup_init(struct be_adapter *adapter)
 		adapter->cmd_privileges = MIN_PRIVILEGES;
 }
 
-static void be_get_resources(struct be_adapter *adapter)
+static int be_get_resources(struct be_adapter *adapter)
 {
-	u16 dev_num_vfs;
-	int pos, status;
-	bool profile_present = false;
-	u16 txq_count = 0;
+	struct device *dev = &adapter->pdev->dev;
+	struct be_resources res = {0};
+	int status;
 
+	if (BEx_chip(adapter)) {
+		BEx_get_resources(adapter, &res);
+		adapter->res = res;
+	}
+
+	/* For BE3 only check if FW suggests a different max-txqs value */
+	if (BE3_chip(adapter)) {
+		status = be_cmd_get_profile_config(adapter, &res, 0);
+		if (!status && res.max_tx_qs)
+			adapter->res.max_tx_qs =
+				min(adapter->res.max_tx_qs, res.max_tx_qs);
+	}
+
+	/* For Lancer, SH etc read per-function resource limits from FW.
+	 * GET_FUNC_CONFIG returns per function guaranteed limits.
+	 * GET_PROFILE_CONFIG returns PCI-E related limits PF-pool limits
+	 */
 	if (!BEx_chip(adapter)) {
-		status = be_cmd_get_func_config(adapter);
-		if (!status)
-			profile_present = true;
-	} else if (BE3_chip(adapter) && be_physfn(adapter)) {
-		be_cmd_get_profile_config(adapter, NULL, &txq_count, 0);
+		status = be_cmd_get_func_config(adapter, &res);
+		if (status)
+			return status;
+
+		/* If RoCE may be enabled stash away half the EQs for RoCE */
+		if (be_roce_supported(adapter))
+			res.max_evt_qs /= 2;
+		adapter->res = res;
+
+		if (be_physfn(adapter)) {
+			status = be_cmd_get_profile_config(adapter, &res, 0);
+			if (status)
+				return status;
+			adapter->res.max_vfs = res.max_vfs;
+		}
+
+		dev_info(dev, "Max: txqs %d, rxqs %d, rss %d, eqs %d, vfs %d\n",
+			 be_max_txqs(adapter), be_max_rxqs(adapter),
+			 be_max_rss(adapter), be_max_eqs(adapter),
+			 be_max_vfs(adapter));
+		dev_info(dev, "Max: uc-macs %d, mc-macs %d, vlans %d\n",
+			 be_max_uc(adapter), be_max_mc(adapter),
+			 be_max_vlans(adapter));
 	}
 
-	if (profile_present) {
-		adapter->max_tx_queues = min_t(u16, adapter->max_tx_queues,
-					       MAX_TX_QS);
-		adapter->max_rss_queues = min_t(u16, adapter->max_rss_queues,
-						BE3_MAX_RSS_QS);
-		adapter->max_event_queues = min_t(u16,
-						  adapter->max_event_queues,
-						  BE3_MAX_RSS_QS);
-
-		if (adapter->max_rss_queues &&
-		    adapter->max_rss_queues == adapter->max_rx_queues)
-			adapter->max_rss_queues -= 1;
-
-		if (adapter->max_event_queues < adapter->max_rss_queues)
-			adapter->max_rss_queues = adapter->max_event_queues;
-
-	} else {
-		if (be_physfn(adapter))
-			adapter->max_pmac_cnt = BE_UC_PMAC_COUNT;
-		else
-			adapter->max_pmac_cnt = BE_VF_UC_PMAC_COUNT;
-
-		if (adapter->function_mode & FLEX10_MODE)
-			adapter->max_vlans = BE_NUM_VLANS_SUPPORTED/8;
-		else
-			adapter->max_vlans = BE_NUM_VLANS_SUPPORTED;
-
-		adapter->max_mcast_mac = BE_MAX_MC;
-		adapter->max_tx_queues = txq_count ? txq_count : MAX_TX_QS;
-		adapter->max_tx_queues = min_t(u16, adapter->max_tx_queues,
-					       MAX_TX_QS);
-		adapter->max_rss_queues = (adapter->be3_native) ?
-					   BE3_MAX_RSS_QS : BE2_MAX_RSS_QS;
-		adapter->max_event_queues = BE3_MAX_RSS_QS;
-
-		adapter->if_cap_flags = BE_IF_FLAGS_UNTAGGED |
-					BE_IF_FLAGS_BROADCAST |
-					BE_IF_FLAGS_MULTICAST |
-					BE_IF_FLAGS_PASS_L3L4_ERRORS |
-					BE_IF_FLAGS_MCAST_PROMISCUOUS |
-					BE_IF_FLAGS_VLAN_PROMISCUOUS |
-					BE_IF_FLAGS_PROMISCUOUS;
-
-		if (adapter->function_caps & BE_FUNCTION_CAPS_RSS)
-			adapter->if_cap_flags |= BE_IF_FLAGS_RSS;
-	}
-
-	pos = pci_find_ext_capability(adapter->pdev, PCI_EXT_CAP_ID_SRIOV);
-	if (pos) {
-		pci_read_config_word(adapter->pdev, pos + PCI_SRIOV_TOTAL_VF,
-				     &dev_num_vfs);
-		if (BE3_chip(adapter))
-			dev_num_vfs = min_t(u16, dev_num_vfs, MAX_VFS);
-		adapter->dev_num_vfs = dev_num_vfs;
-	}
+	return 0;
 }
 
 /* Routine to query per function resource limits */
@@ -3062,20 +3068,22 @@ static int be_get_config(struct be_adapter *adapter)
 				     &adapter->function_caps,
 				     &adapter->asic_rev);
 	if (status)
-		goto err;
+		return status;
 
-	be_get_resources(adapter);
+	status = be_get_resources(adapter);
+	if (status)
+		return status;
 
 	/* primary mac needs 1 pmac entry */
-	adapter->pmac_id = kcalloc(adapter->max_pmac_cnt + 1,
-				   sizeof(u32), GFP_KERNEL);
-	if (!adapter->pmac_id) {
-		status = -ENOMEM;
-		goto err;
-	}
+	adapter->pmac_id = kcalloc(be_max_uc(adapter) + 1, sizeof(u32),
+				   GFP_KERNEL);
+	if (!adapter->pmac_id)
+		return -ENOMEM;
 
-err:
-	return status;
+	/* Sanitize cfg_num_qs based on HW and platform limits */
+	adapter->cfg_num_qs = min(adapter->cfg_num_qs, be_max_qs(adapter));
+
+	return 0;
 }
 
 static int be_mac_setup(struct be_adapter *adapter)
@@ -3151,8 +3159,8 @@ static int be_setup(struct be_adapter *adapter)
 			BE_IF_FLAGS_MULTICAST | BE_IF_FLAGS_PASS_L3L4_ERRORS;
 	if (adapter->function_caps & BE_FUNCTION_CAPS_RSS)
 		en_flags |= BE_IF_FLAGS_RSS;
-	en_flags = en_flags & adapter->if_cap_flags;
-	status = be_cmd_if_create(adapter, adapter->if_cap_flags, en_flags,
+	en_flags = en_flags & be_if_cap_flags(adapter);
+	status = be_cmd_if_create(adapter, be_if_cap_flags(adapter), en_flags,
 				  &adapter->if_handle, 0);
 	if (status != 0)
 		goto err;
@@ -3178,8 +3186,8 @@ static int be_setup(struct be_adapter *adapter)
 		be_cmd_set_flow_control(adapter, adapter->tx_fc,
 					adapter->rx_fc);
 
-	if (be_physfn(adapter)) {
-		if (adapter->dev_num_vfs)
+	if (be_physfn(adapter) && num_vfs) {
+		if (be_max_vfs(adapter))
 			be_vf_setup(adapter);
 		else
 			dev_warn(dev, "device doesn't support SRIOV\n");
@@ -4045,6 +4053,7 @@ static int be_get_initial_config(struct be_adapter *adapter)
 	level = be_get_fw_log_level(adapter);
 	adapter->msg_enable = level <= FW_LOG_LEVEL_DEFAULT ? NETIF_MSG_HW : 0;
 
+	adapter->cfg_num_qs = netif_get_num_default_rss_queues();
 	return 0;
 }
 

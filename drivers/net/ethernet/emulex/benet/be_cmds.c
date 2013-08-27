@@ -1776,8 +1776,7 @@ int be_cmd_rx_filter(struct be_adapter *adapter, u32 flags, u32 value)
 		 */
 		req->if_flags_mask |=
 			cpu_to_le32(BE_IF_FLAGS_MCAST_PROMISCUOUS &
-				    adapter->if_cap_flags);
-
+				    be_if_cap_flags(adapter));
 		req->mcast_num = cpu_to_le32(netdev_mc_count(adapter->netdev));
 		netdev_for_each_mc_addr(ha, adapter->netdev)
 			memcpy(req->mcast_mac[i++].byte, ha->addr, ETH_ALEN);
@@ -3103,8 +3102,26 @@ static struct be_pcie_res_desc *be_get_pcie_desc(u8 devfn, u8 *buf,
 	return NULL;
 }
 
+static void be_copy_nic_desc(struct be_resources *res,
+			     struct be_nic_res_desc *desc)
+{
+	res->max_uc_mac = le16_to_cpu(desc->unicast_mac_count);
+	res->max_vlans = le16_to_cpu(desc->vlan_count);
+	res->max_mcast_mac = le16_to_cpu(desc->mcast_mac_count);
+	res->max_tx_qs = le16_to_cpu(desc->txq_count);
+	res->max_rss_qs = le16_to_cpu(desc->rssq_count);
+	res->max_rx_qs = le16_to_cpu(desc->rq_count);
+	res->max_evt_qs = le16_to_cpu(desc->eq_count);
+	/* Clear flags that driver is not interested in */
+	res->if_cap_flags = le32_to_cpu(desc->cap_flags) &
+				BE_IF_CAP_FLAGS_WANT;
+	/* Need 1 RXQ as the default RXQ */
+	if (res->max_rss_qs && res->max_rss_qs == res->max_rx_qs)
+		res->max_rss_qs -= 1;
+}
+
 /* Uses Mbox */
-int be_cmd_get_func_config(struct be_adapter *adapter)
+int be_cmd_get_func_config(struct be_adapter *adapter, struct be_resources *res)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_get_func_config *req;
@@ -3152,18 +3169,7 @@ int be_cmd_get_func_config(struct be_adapter *adapter)
 		}
 
 		adapter->pf_number = desc->pf_num;
-		adapter->max_pmac_cnt = le16_to_cpu(desc->unicast_mac_count);
-		adapter->max_vlans = le16_to_cpu(desc->vlan_count);
-		adapter->max_mcast_mac = le16_to_cpu(desc->mcast_mac_count);
-		adapter->max_tx_queues = le16_to_cpu(desc->txq_count);
-		adapter->max_rss_queues = le16_to_cpu(desc->rssq_count);
-		adapter->max_rx_queues = le16_to_cpu(desc->rq_count);
-
-		adapter->max_event_queues = le16_to_cpu(desc->eq_count);
-		adapter->if_cap_flags = le32_to_cpu(desc->cap_flags);
-
-		/* Clear flags that driver is not interested in */
-		adapter->if_cap_flags &=  BE_IF_CAP_FLAGS_WANT;
+		be_copy_nic_desc(res, desc);
 	}
 err:
 	mutex_unlock(&adapter->mbox_lock);
@@ -3234,8 +3240,8 @@ err:
 }
 
 /* Uses sync mcc, if MCCQ is already created otherwise mbox */
-int be_cmd_get_profile_config(struct be_adapter *adapter, u32 *cap_flags,
-			      u16 *txq_count, u8 domain)
+int be_cmd_get_profile_config(struct be_adapter *adapter,
+			      struct be_resources *res, u8 domain)
 {
 	struct be_cmd_resp_get_profile_config *resp;
 	struct be_pcie_res_desc *pcie;
@@ -3264,15 +3270,12 @@ int be_cmd_get_profile_config(struct be_adapter *adapter, u32 *cap_flags,
 	pcie =  be_get_pcie_desc(adapter->pdev->devfn, resp->func_param,
 				 desc_count);
 	if (pcie)
-		adapter->dev_num_vfs = le16_to_cpu(pcie->num_vfs);
+		res->max_vfs = le16_to_cpu(pcie->num_vfs);
 
 	nic = be_get_nic_desc(resp->func_param, desc_count);
-	if (nic) {
-		if (cap_flags)
-			*cap_flags = le32_to_cpu(nic->cap_flags);
-		if (txq_count)
-			*txq_count = le16_to_cpu(nic->txq_count);
-	}
+	if (nic)
+		be_copy_nic_desc(res, nic);
+
 err:
 	if (cmd.va)
 		pci_free_consistent(adapter->pdev, cmd.size, cmd.va, cmd.dma);

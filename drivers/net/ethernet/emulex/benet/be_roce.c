@@ -60,7 +60,7 @@ static void _be_roce_dev_add(struct be_adapter *adapter)
 		 */
 		num_vec = adapter->num_msix_vec + adapter->num_msix_roce_vec;
 		dev_info.intr_mode = BE_INTERRUPT_MODE_MSIX;
-		dev_info.msix.num_vectors = min(num_vec, MAX_ROCE_MSIX_VECTORS);
+		dev_info.msix.num_vectors = min(num_vec, MAX_MSIX_VECTORS);
 		/* provide start index of the vector,
 		 * so in case of linear usage,
 		 * it can use the base as starting point.
