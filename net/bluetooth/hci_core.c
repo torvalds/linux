@@ -1344,8 +1344,10 @@ int hci_dev_reset(__u16 dev)
 
 	hci_req_lock(hdev);
 
-	if (!test_bit(HCI_UP, &hdev->flags))
+	if (!test_bit(HCI_UP, &hdev->flags)) {
+		ret = -ENETDOWN;
 		goto done;
+	}
 
 	/* Drop queues */
 	skb_queue_purge(&hdev->rx_q);
