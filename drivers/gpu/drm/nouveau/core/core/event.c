@@ -40,9 +40,11 @@ nouveau_event_put(struct nouveau_event *event, int index,
 {
 	unsigned long flags;
 
+	if (index >= event->index_nr)
+		return;
+
 	spin_lock_irqsave(&event->lock, flags);
-	if (index < event->index_nr)
-		nouveau_event_put_locked(event, index, handler);
+	nouveau_event_put_locked(event, index, handler);
 	spin_unlock_irqrestore(&event->lock, flags);
 }
 
@@ -52,13 +54,14 @@ nouveau_event_get(struct nouveau_event *event, int index,
 {
 	unsigned long flags;
 
+	if (index >= event->index_nr)
+		return;
+
 	spin_lock_irqsave(&event->lock, flags);
-	if (index < event->index_nr) {
-		list_add(&handler->head, &event->index[index].list);
-		if (!event->index[index].refs++) {
-			if (event->enable)
-				event->enable(event, index);
-		}
+	list_add(&handler->head, &event->index[index].list);
+	if (!event->index[index].refs++) {
+		if (event->enable)
+			event->enable(event, index);
 	}
 	spin_unlock_irqrestore(&event->lock, flags);
 }
