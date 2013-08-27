@@ -48,6 +48,9 @@
 #define		AT91_ADC_ENDRX		(1 << 18)	/* End of RX Buffer */
 #define		AT91_ADC_RXFUFF		(1 << 19)	/* RX Buffer Full */
 
+#define AT91_ADC_SR_9X5		0x30		/* Status Register for 9x5 */
+#define		AT91_ADC_SR_DRDY_9X5	(1 << 24)	/* Data Ready */
+
 #define AT91_ADC_LCDR		0x20		/* Last Converted Data Register */
 #define		AT91_ADC_LDATA		(0x3ff)
 
@@ -57,5 +60,11 @@
 
 #define AT91_ADC_CHR(n)		(0x30 + ((n) * 4))	/* Channel Data Register N */
 #define		AT91_ADC_DATA		(0x3ff)
+
+#define AT91_ADC_CDR0_9X5	(0x50)			/* Channel Data Register 0 for 9X5 */
+
+#define AT91_ADC_TRGR_9260	AT91_ADC_MR
+#define AT91_ADC_TRGR_9G45	0x08
+#define AT91_ADC_TRGR_9X5	0xC0
 
 #endif
