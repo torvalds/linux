@@ -727,7 +727,7 @@ int ath10k_ce_completed_send_next(struct ce_state *ce_state,
 void ath10k_ce_per_engine_service(struct ath10k *ar, unsigned int ce_id)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	struct ce_state *ce_state = ar_pci->ce_id_to_state[ce_id];
+	struct ce_state *ce_state = &ar_pci->ce_states[ce_id];
 	u32 ctrl_addr = ce_state->ctrl_addr;
 	void *transfer_context;
 	u32 buf;
@@ -846,7 +846,7 @@ void ath10k_ce_disable_interrupts(struct ath10k *ar)
 
 	ath10k_pci_wake(ar);
 	for (ce_id = 0; ce_id < ar_pci->ce_count; ce_id++) {
-		struct ce_state *ce_state = ar_pci->ce_id_to_state[ce_id];
+		struct ce_state *ce_state = &ar_pci->ce_states[ce_id];
 		u32 ctrl_addr = ce_state->ctrl_addr;
 
 		ath10k_ce_copy_complete_intr_disable(ar, ctrl_addr);
@@ -1081,27 +1081,17 @@ static struct ce_state *ath10k_ce_init_state(struct ath10k *ar,
 					     const struct ce_attr *attr)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	struct ce_state *ce_state = NULL;
+	struct ce_state *ce_state = &ar_pci->ce_states[ce_id];
 	u32 ctrl_addr = ath10k_ce_base_address(ce_id);
 
 	spin_lock_bh(&ar_pci->ce_lock);
 
-	if (!ar_pci->ce_id_to_state[ce_id]) {
-		ce_state = kzalloc(sizeof(*ce_state), GFP_ATOMIC);
-		if (ce_state == NULL) {
-			spin_unlock_bh(&ar_pci->ce_lock);
-			return NULL;
-		}
-
-		ar_pci->ce_id_to_state[ce_id] = ce_state;
-		ce_state->ar = ar;
-		ce_state->id = ce_id;
-		ce_state->ctrl_addr = ctrl_addr;
-		ce_state->state = CE_RUNNING;
-		/* Save attribute flags */
-		ce_state->attr_flags = attr->flags;
-		ce_state->src_sz_max = attr->src_sz_max;
-	}
+	ce_state->ar = ar;
+	ce_state->id = ce_id;
+	ce_state->ctrl_addr = ctrl_addr;
+	ce_state->state = CE_RUNNING;
+	ce_state->attr_flags = attr->flags;
+	ce_state->src_sz_max = attr->src_sz_max;
 
 	spin_unlock_bh(&ar_pci->ce_lock);
 
@@ -1159,12 +1149,8 @@ struct ce_state *ath10k_ce_init(struct ath10k *ar,
 
 void ath10k_ce_deinit(struct ce_state *ce_state)
 {
-	unsigned int ce_id = ce_state->id;
 	struct ath10k *ar = ce_state->ar;
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-
-	ce_state->state = CE_UNUSED;
-	ar_pci->ce_id_to_state[ce_id] = NULL;
 
 	if (ce_state->src_ring) {
 		kfree(ce_state->src_ring->shadow_base_unaligned);
@@ -1186,5 +1172,8 @@ void ath10k_ce_deinit(struct ce_state *ce_state)
 				    ce_state->dest_ring->base_addr_ce_space);
 		kfree(ce_state->dest_ring);
 	}
-	kfree(ce_state);
+
+	ce_state->state = CE_UNUSED;
+	ce_state->src_ring = NULL;
+	ce_state->dest_ring = NULL;
 }

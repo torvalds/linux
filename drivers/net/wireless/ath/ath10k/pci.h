@@ -233,7 +233,7 @@ struct ath10k_pci {
 	spinlock_t ce_lock;
 
 	/* Map CE id to ce_state */
-	struct ce_state *ce_id_to_state[CE_COUNT_MAX];
+	struct ce_state ce_states[CE_COUNT_MAX];
 };
 
 static inline struct ath10k_pci *ath10k_pci_priv(struct ath10k *ar)
