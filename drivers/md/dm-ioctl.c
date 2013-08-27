@@ -1264,9 +1264,12 @@ static int table_load(struct dm_ioctl *param, size_t param_size)
 	if (r)
 		goto out;
 
+	/* Protect md->type and md->queue against concurrent table loads. */
+	dm_lock_md_type(md);
 	r = populate_table(t, param, param_size);
 	if (r) {
 		dm_table_destroy(t);
+		dm_unlock_md_type(md);
 		goto out;
 	}
 
@@ -1276,12 +1279,11 @@ static int table_load(struct dm_ioctl *param, size_t param_size)
 		DMWARN("can't replace immutable target type %s",
 		       immutable_target_type->name);
 		dm_table_destroy(t);
+		dm_unlock_md_type(md);
 		r = -EINVAL;
 		goto out;
 	}
 
-	/* Protect md->type and md->queue against concurrent table loads. */
-	dm_lock_md_type(md);
 	if (dm_get_md_type(md) == DM_TYPE_NONE)
 		/* Initial table load: acquire type of table. */
 		dm_set_md_type(md, dm_table_get_type(t));

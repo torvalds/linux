@@ -2235,11 +2235,13 @@ void dm_unlock_md_type(struct mapped_device *md)
 
 void dm_set_md_type(struct mapped_device *md, unsigned type)
 {
+	BUG_ON(!mutex_is_locked(&md->type_lock));
 	md->type = type;
 }
 
 unsigned dm_get_md_type(struct mapped_device *md)
 {
+	BUG_ON(!mutex_is_locked(&md->type_lock));
 	return md->type;
 }
 

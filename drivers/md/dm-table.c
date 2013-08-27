@@ -888,9 +888,7 @@ static int dm_table_set_type(struct dm_table *t)
 		 * Determine the type from the live device.
 		 * Default to bio-based if device is new.
 		 */
-		dm_lock_md_type(t->md);
 		live_md_type = dm_get_md_type(t->md);
-		dm_unlock_md_type(t->md);
 		if (live_md_type == DM_TYPE_REQUEST_BASED)
 			request_based = 1;
 		else
