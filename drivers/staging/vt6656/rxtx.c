@@ -766,7 +766,6 @@ static void s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
         return;
     }
 
-    if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
 	if (byFBOption != AUTO_FB_NONE) {
 		/* Auto Fall back */
 		struct vnt_cts_fb *pBuf = (struct vnt_cts_fb *)pvCTS;
@@ -802,7 +801,6 @@ static void s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
 		pBuf->data.frame_control = TYPE_CTL_CTS;
 		memcpy(pBuf->data.ra, pDevice->abyCurrentNetAddr, ETH_ALEN);
         }
-    }
 }
 
 /*+
