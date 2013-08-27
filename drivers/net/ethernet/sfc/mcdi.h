@@ -46,7 +46,7 @@ enum efx_mcdi_mode {
  * @resp_data_len: Response data (SDU or error) length
  */
 struct efx_mcdi_iface {
-	atomic_t state;
+	enum efx_mcdi_state state;
 	enum efx_mcdi_mode mode;
 	wait_queue_head_t wq;
 	spinlock_t iface_lock;

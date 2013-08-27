@@ -8,6 +8,7 @@
  */
 
 #include <linux/delay.h>
+#include <asm/cmpxchg.h>
 #include "net_driver.h"
 #include "nic.h"
 #include "io.h"
@@ -53,7 +54,7 @@ int efx_mcdi_init(struct efx_nic *efx)
 	mcdi = efx_mcdi(efx);
 	init_waitqueue_head(&mcdi->wq);
 	spin_lock_init(&mcdi->iface_lock);
-	atomic_set(&mcdi->state, MCDI_STATE_QUIESCENT);
+	mcdi->state = MCDI_STATE_QUIESCENT;
 	mcdi->mode = MCDI_MODE_POLL;
 
 	(void) efx_mcdi_poll_reboot(efx);
@@ -65,8 +66,7 @@ int efx_mcdi_init(struct efx_nic *efx)
 
 void efx_mcdi_fini(struct efx_nic *efx)
 {
-	BUG_ON(efx->mcdi &&
-	       atomic_read(&efx->mcdi->iface.state) != MCDI_STATE_QUIESCENT);
+	BUG_ON(efx->mcdi && efx->mcdi->iface.state != MCDI_STATE_QUIESCENT);
 	kfree(efx->mcdi);
 }
 
@@ -78,7 +78,7 @@ static void efx_mcdi_send_request(struct efx_nic *efx, unsigned cmd,
 	size_t hdr_len;
 	u32 xflags, seqno;
 
-	BUG_ON(atomic_read(&mcdi->state) == MCDI_STATE_QUIESCENT);
+	BUG_ON(mcdi->state == MCDI_STATE_QUIESCENT);
 
 	/* Serialise with efx_mcdi_ev_cpl() and efx_mcdi_ev_death() */
 	spin_lock_bh(&mcdi->iface_lock);
@@ -258,20 +258,17 @@ static void efx_mcdi_acquire(struct efx_mcdi_iface *mcdi)
 	/* Wait until the interface becomes QUIESCENT and we win the race
 	 * to mark it RUNNING. */
 	wait_event(mcdi->wq,
-		   atomic_cmpxchg(&mcdi->state,
-				  MCDI_STATE_QUIESCENT,
-				  MCDI_STATE_RUNNING)
-		   == MCDI_STATE_QUIESCENT);
+		   cmpxchg(&mcdi->state,
+			   MCDI_STATE_QUIESCENT, MCDI_STATE_RUNNING) ==
+		   MCDI_STATE_QUIESCENT);
 }
 
 static int efx_mcdi_await_completion(struct efx_nic *efx)
 {
 	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
 
-	if (wait_event_timeout(
-		    mcdi->wq,
-		    atomic_read(&mcdi->state) == MCDI_STATE_COMPLETED,
-		    MCDI_RPC_TIMEOUT) == 0)
+	if (wait_event_timeout(mcdi->wq, mcdi->state == MCDI_STATE_COMPLETED,
+			       MCDI_RPC_TIMEOUT) == 0)
 		return -ETIMEDOUT;
 
 	/* Check if efx_mcdi_set_mode() switched us back to polled completions.
@@ -296,9 +293,8 @@ static bool efx_mcdi_complete(struct efx_mcdi_iface *mcdi)
 	 * QUIESCENT. [A subsequent invocation would increment seqno, so would
 	 * have failed the seqno check].
 	 */
-	if (atomic_cmpxchg(&mcdi->state,
-			   MCDI_STATE_RUNNING,
-			   MCDI_STATE_COMPLETED) == MCDI_STATE_RUNNING) {
+	if (cmpxchg(&mcdi->state, MCDI_STATE_RUNNING, MCDI_STATE_COMPLETED) ==
+	    MCDI_STATE_RUNNING) {
 		wake_up(&mcdi->wq);
 		return true;
 	}
@@ -308,7 +304,7 @@ static bool efx_mcdi_complete(struct efx_mcdi_iface *mcdi)
 
 static void efx_mcdi_release(struct efx_mcdi_iface *mcdi)
 {
-	atomic_set(&mcdi->state, MCDI_STATE_QUIESCENT);
+	mcdi->state = MCDI_STATE_QUIESCENT;
 	wake_up(&mcdi->wq);
 }
 
