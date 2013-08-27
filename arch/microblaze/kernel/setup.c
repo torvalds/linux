@@ -9,6 +9,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/clocksource.h>
 #include <linux/string.h>
 #include <linux/seq_file.h>
 #include <linux/cpu.h>
@@ -190,6 +191,11 @@ void __init machine_early_init(const char *cmdline, unsigned int ram,
 	/* Initialize global data */
 	per_cpu(KM, 0) = 0x1;	/* We start in kernel mode */
 	per_cpu(CURRENT_SAVE, 0) = (unsigned long)current;
+}
+
+void __init time_init(void)
+{
+	clocksource_of_init();
 }
 
 #ifdef CONFIG_DEBUG_FS

@@ -238,23 +238,11 @@ static int __init microblaze_clocksource_init(void)
  */
 static int timer_initialized;
 
-void __init time_init(void)
+static void __init xilinx_timer_init(struct device_node *timer)
 {
 	u32 irq;
 	u32 timer_num = 1;
-	struct device_node *timer = NULL;
 	const void *prop;
-
-	prop = of_get_property(of_chosen, "system-timer", NULL);
-	if (prop)
-		timer = of_find_node_by_phandle(be32_to_cpup(prop));
-	else
-		pr_info("No chosen timer found, using default\n");
-
-	if (!timer)
-		timer = of_find_compatible_node(NULL, NULL,
-						"xlnx,xps-timer-1.00.a");
-	BUG_ON(!timer);
 
 	timer_baseaddr = be32_to_cpup(of_get_property(timer, "reg", NULL));
 	timer_baseaddr = (unsigned long) ioremap(timer_baseaddr, PAGE_SIZE);
@@ -297,3 +285,6 @@ unsigned long long notrace sched_clock(void)
 	}
 	return 0;
 }
+
+CLOCKSOURCE_OF_DECLARE(xilinx_timer, "xlnx,xps-timer-1.00.a",
+		       xilinx_timer_init);
