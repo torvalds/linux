@@ -57,6 +57,10 @@
  */
 #define EP0_TIMEOUT_COUNTER 13
 
+/* Debounce time HCD driver should wait before unregistering.
+ */
+#define OZ_HUB_DEBOUNCE_TIMEOUT 1500
+
 /*
  * Used to link urbs together and also store some status information for each
  * urb.
@@ -2355,6 +2359,7 @@ error:
  */
 void oz_hcd_term(void)
 {
+	msleep(OZ_HUB_DEBOUNCE_TIMEOUT);
 	tasklet_kill(&g_urb_process_tasklet);
 	tasklet_kill(&g_urb_cancel_tasklet);
 	platform_device_unregister(g_plat_dev);
