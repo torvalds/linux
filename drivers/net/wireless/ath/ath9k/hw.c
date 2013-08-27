@@ -574,17 +574,16 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	 * We need to do this to avoid RMW of this register. We cannot
 	 * read the reg when chip is asleep.
 	 */
-	ah->WARegVal = REG_READ(ah, AR_WA);
-	ah->WARegVal |= (AR_WA_D3_L1_DISABLE |
-			 AR_WA_ASPM_TIMER_BASED_DISABLE);
+	if (AR_SREV_9300_20_OR_LATER(ah)) {
+		ah->WARegVal = REG_READ(ah, AR_WA);
+		ah->WARegVal |= (AR_WA_D3_L1_DISABLE |
+				 AR_WA_ASPM_TIMER_BASED_DISABLE);
+	}
 
 	if (!ath9k_hw_set_reset_reg(ah, ATH9K_RESET_POWER_ON)) {
 		ath_err(common, "Couldn't reset chip\n");
 		return -EIO;
 	}
-
-	if (AR_SREV_9462(ah))
-		ah->WARegVal &= ~AR_WA_D3_L1_DISABLE;
 
 	if (AR_SREV_9565(ah)) {
 		ah->WARegVal |= AR_WA_BIT22;
