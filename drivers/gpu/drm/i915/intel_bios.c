@@ -569,6 +569,21 @@ parse_edp(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 }
 
 static void
+parse_mipi(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
+{
+	struct bdb_mipi *mipi;
+
+	mipi = find_section(bdb, BDB_MIPI);
+	if (!mipi) {
+		DRM_DEBUG_KMS("No MIPI BDB found");
+		return;
+	}
+
+	/* XXX: add more info */
+	dev_priv->vbt.dsi.panel_id = mipi->panel_id;
+}
+
+static void
 parse_device_mapping(struct drm_i915_private *dev_priv,
 		       struct bdb_header *bdb)
 {
@@ -745,6 +760,7 @@ intel_parse_bios(struct drm_device *dev)
 	parse_device_mapping(dev_priv, bdb);
 	parse_driver_features(dev_priv, bdb);
 	parse_edp(dev_priv, bdb);
+	parse_mipi(dev_priv, bdb);
 
 	if (bios)
 		pci_unmap_rom(pdev, bios);

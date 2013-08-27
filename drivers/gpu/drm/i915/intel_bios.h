@@ -104,6 +104,7 @@ struct vbios_data {
 #define BDB_LVDS_LFP_DATA	 42
 #define BDB_LVDS_BACKLIGHT	 43
 #define BDB_LVDS_POWER		 44
+#define BDB_MIPI		 50
 #define BDB_SKIP		254 /* VBIOS private block, ignore */
 
 struct bdb_general_features {
@@ -617,5 +618,45 @@ int intel_parse_bios(struct drm_device *dev);
 #define		PORT_IDPB	7
 #define		PORT_IDPC	8
 #define		PORT_IDPD	9
+
+/* MIPI DSI panel info */
+struct bdb_mipi {
+	u16 panel_id;
+	u16 bridge_revision;
+
+	/* General params */
+	u32 dithering:1;
+	u32 bpp_pixel_format:1;
+	u32 rsvd1:1;
+	u32 dphy_valid:1;
+	u32 resvd2:28;
+
+	u16 port_info;
+	u16 rsvd3:2;
+	u16 num_lanes:2;
+	u16 rsvd4:12;
+
+	/* DSI config */
+	u16 virt_ch_num:2;
+	u16 vtm:2;
+	u16 rsvd5:12;
+
+	u32 dsi_clock;
+	u32 bridge_ref_clk;
+	u16 rsvd_pwr;
+
+	/* Dphy Params */
+	u32 prepare_cnt:5;
+	u32 rsvd6:3;
+	u32 clk_zero_cnt:8;
+	u32 trail_cnt:5;
+	u32 rsvd7:3;
+	u32 exit_zero_cnt:6;
+	u32 rsvd8:2;
+
+	u32 hl_switch_cnt;
+	u32 lp_byte_clk;
+	u32 clk_lane_switch_cnt;
+} __attribute__((packed));
 
 #endif /* _I830_BIOS_H_ */
