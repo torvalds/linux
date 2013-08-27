@@ -52,7 +52,7 @@ extern void rmci_off(void);
 
 static inline void rmci_maybe_on(void)
 {
-#ifdef CONFIG_PPC_EARLY_DEBUG_BOOTX
+#if defined(CONFIG_PPC_EARLY_DEBUG_BOOTX) && defined(CONFIG_PPC64)
 	if (!(mfmsr() & MSR_DR))
 		rmci_on();
 #endif
@@ -60,7 +60,7 @@ static inline void rmci_maybe_on(void)
 
 static inline void rmci_maybe_off(void)
 {
-#ifdef CONFIG_PPC_EARLY_DEBUG_BOOTX
+#if defined(CONFIG_PPC_EARLY_DEBUG_BOOTX) && defined(CONFIG_PPC64)
 	if (!(mfmsr() & MSR_DR))
 		rmci_off();
 #endif
