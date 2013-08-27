@@ -60,11 +60,11 @@ void update_cr_regs(struct task_struct *task)
 
 		__ctl_store(cr, 0, 2);
 		cr_new[1] = cr[1];
-		/* Set or clear transaction execution TXC/PIFO bits 8 and 9. */
+		/* Set or clear transaction execution TXC bit 8. */
 		if (task->thread.per_flags & PER_FLAG_NO_TE)
-			cr_new[0] = cr[0] & ~(3UL << 54);
+			cr_new[0] = cr[0] & ~(1UL << 55);
 		else
-			cr_new[0] = cr[0] | (3UL << 54);
+			cr_new[0] = cr[0] | (1UL << 55);
 		/* Set or clear transaction execution TDC bits 62 and 63. */
 		cr_new[2] = cr[2] & ~3UL;
 		if (task->thread.per_flags & PER_FLAG_TE_ABORT_RAND) {
