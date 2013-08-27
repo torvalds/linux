@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/mutex.h>
+#include <linux/sysfs.h>
 #include "base.h"
 #include "power/power.h"
 

@@ -26,6 +26,7 @@
 #include <linux/async.h>
 #include <linux/pm_runtime.h>
 #include <linux/netdevice.h>
+#include <linux/sysfs.h>
 
 #include "base.h"
 #include "power/power.h"
