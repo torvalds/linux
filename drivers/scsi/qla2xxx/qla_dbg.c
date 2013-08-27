@@ -31,7 +31,7 @@
  * |                              |                    | 0x5040,0x5075  |
  * |                              |                    | 0x503d,0x5044  |
  * | Timer Routines               |       0x6012       |                |
- * | User Space Interactions      |       0x70dd       | 0x7018,0x702e, |
+ * | User Space Interactions      |       0x70e1       | 0x7018,0x702e, |
  * |                              |                    | 0x7020,0x7024, |
  * |                              |                    | 0x7039,0x7045, |
  * |                              |                    | 0x7073-0x7075, |

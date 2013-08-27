@@ -590,7 +590,7 @@ qla2x00_sysfs_write_reset(struct file *filp, struct kobject *kobj,
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 	int type;
 	uint32_t idc_control;
-
+	uint8_t *tmp_data = NULL;
 	if (off != 0)
 		return -EINVAL;
 
@@ -687,7 +687,19 @@ qla2x00_sysfs_write_reset(struct file *filp, struct kobject *kobj,
 		__qla83xx_set_idc_control(vha, idc_control);
 		qla83xx_idc_unlock(vha, 0);
 		break;
+	case 0x20261:
+		ql_dbg(ql_dbg_user, vha, 0x70e0,
+		    "Updating cache versions without reset ");
 
+		tmp_data = vmalloc(256);
+		if (!tmp_data) {
+			ql_log(ql_log_warn, vha, 0x70e1,
+			    "Unable to allocate memory for VPD information update.\n");
+			return -ENOMEM;
+		}
+		ha->isp_ops->get_flash_version(vha, tmp_data);
+		vfree(tmp_data);
+		break;
 	}
 	return count;
 }
