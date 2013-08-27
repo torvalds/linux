@@ -14,15 +14,17 @@
  * enum efx_mcdi_state - MCDI request handling state
  * @MCDI_STATE_QUIESCENT: No pending MCDI requests. If the caller holds the
  *	mcdi @iface_lock then they are able to move to %MCDI_STATE_RUNNING
- * @MCDI_STATE_RUNNING: There is an MCDI request pending. Only the thread that
- *	moved into this state is allowed to move out of it.
+ * @MCDI_STATE_RUNNING_SYNC: There is a synchronous MCDI request pending.
+ *	Only the thread that moved into this state is allowed to move out of it.
+ * @MCDI_STATE_RUNNING_ASYNC: There is an asynchronous MCDI request pending.
  * @MCDI_STATE_COMPLETED: An MCDI request has completed, but the owning thread
  *	has not yet consumed the result. For all other threads, equivalent to
  *	%MCDI_STATE_RUNNING.
  */
 enum efx_mcdi_state {
 	MCDI_STATE_QUIESCENT,
-	MCDI_STATE_RUNNING,
+	MCDI_STATE_RUNNING_SYNC,
+	MCDI_STATE_RUNNING_ASYNC,
 	MCDI_STATE_COMPLETED,
 };
 
@@ -33,19 +35,25 @@ enum efx_mcdi_mode {
 
 /**
  * struct efx_mcdi_iface - MCDI protocol context
+ * @efx: The associated NIC.
  * @state: Request handling state. Waited for by @wq.
  * @mode: Poll for mcdi completion, or wait for an mcdi_event.
  * @wq: Wait queue for threads waiting for @state != %MCDI_STATE_RUNNING
  * @new_epoch: Indicates start of day or start of MC reboot recovery
- * @iface_lock: Serialises access to all the following fields
+ * @iface_lock: Serialises access to @seqno, @credits and response metadata
  * @seqno: The next sequence number to use for mcdi requests.
  * @credits: Number of spurious MCDI completion events allowed before we
  *     trigger a fatal error
  * @resprc: Response error/success code (Linux numbering)
  * @resp_hdr_len: Response header length
  * @resp_data_len: Response data (SDU or error) length
+ * @async_lock: Serialises access to @async_list while event processing is
+ *	enabled
+ * @async_list: Queue of asynchronous requests
+ * @async_timer: Timer for asynchronous request timeout
  */
 struct efx_mcdi_iface {
+	struct efx_nic *efx;
 	enum efx_mcdi_state state;
 	enum efx_mcdi_mode mode;
 	wait_queue_head_t wq;
@@ -56,6 +64,9 @@ struct efx_mcdi_iface {
 	int resprc;
 	size_t resp_hdr_len;
 	size_t resp_data_len;
+	spinlock_t async_lock;
+	struct list_head async_list;
+	struct timer_list async_timer;
 };
 
 struct efx_mcdi_mon {
@@ -111,10 +122,20 @@ extern int efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned cmd, size_t inlen,
 			       efx_dword_t *outbuf, size_t outlen,
 			       size_t *outlen_actual);
 
+typedef void efx_mcdi_async_completer(struct efx_nic *efx,
+				      unsigned long cookie, int rc,
+				      efx_dword_t *outbuf,
+				      size_t outlen_actual);
+extern int efx_mcdi_rpc_async(struct efx_nic *efx, unsigned int cmd,
+			      const efx_dword_t *inbuf, size_t inlen,
+			      size_t outlen,
+			      efx_mcdi_async_completer *complete,
+			      unsigned long cookie);
 
 extern int efx_mcdi_poll_reboot(struct efx_nic *efx);
 extern void efx_mcdi_mode_poll(struct efx_nic *efx);
 extern void efx_mcdi_mode_event(struct efx_nic *efx);
+extern void efx_mcdi_flush_async(struct efx_nic *efx);
 
 extern void efx_mcdi_process_event(struct efx_channel *channel,
 				   efx_qword_t *event);

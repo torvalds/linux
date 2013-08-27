@@ -1368,6 +1368,9 @@ static void efx_soft_disable_interrupts(struct efx_nic *efx)
 		if (!channel->type->keep_eventq)
 			efx_fini_eventq(channel);
 	}
+
+	/* Flush the asynchronous MCDI request queue */
+	efx_mcdi_flush_async(efx);
 }
 
 static void efx_enable_interrupts(struct efx_nic *efx)
