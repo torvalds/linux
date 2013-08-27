@@ -3369,6 +3369,7 @@ typedef struct scsi_qla_host {
 #define PORT_UPDATE_NEEDED	24
 #define FX00_RESET_RECOVERY	25
 #define FX00_TARGET_SCAN	26
+#define FX00_CRITEMP_RECOVERY	27
 
 	uint32_t	device_flags;
 #define SWITCH_FOUND		BIT_0
