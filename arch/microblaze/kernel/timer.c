@@ -8,26 +8,13 @@
  * for more details.
  */
 
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/param.h>
 #include <linux/interrupt.h>
-#include <linux/profile.h>
-#include <linux/irq.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
-#include <linux/spinlock.h>
-#include <linux/err.h>
 #include <linux/clk.h>
-#include <linux/clocksource.h>
 #include <linux/clockchips.h>
-#include <linux/io.h>
 #include <linux/of_address.h>
-#include <linux/bug.h>
 #include <asm/cpuinfo.h>
-#include <asm/setup.h>
-#include <asm/prom.h>
-#include <asm/irq.h>
 #include <linux/cnt32_to_63.h>
 
 static void __iomem *timer_baseaddr;
