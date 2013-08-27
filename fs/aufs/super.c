@@ -160,6 +160,16 @@ static void au_show_wbr_create(struct seq_file *m, int v,
 			   jiffies_to_msecs(sbinfo->si_wbr_mfs.mfs_expire)
 			   / MSEC_PER_SEC);
 		break;
+	case AuWbrCreate_PMFSRR:
+		seq_printf(m, /*pat*/"pmfsrr:%llu",
+			   sbinfo->si_wbr_mfs.mfsrr_watermark);
+		break;
+	case AuWbrCreate_PMFSRRV:
+		seq_printf(m, /*pat*/"pmfsrr:%llu:%lu",
+			   sbinfo->si_wbr_mfs.mfsrr_watermark,
+			   jiffies_to_msecs(sbinfo->si_wbr_mfs.mfs_expire)
+			   / MSEC_PER_SEC);
+		break;
 	}
 }
 
