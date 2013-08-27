@@ -1416,13 +1416,12 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 	}
 
 	if (type & PERF_SAMPLE_REGS_USER) {
-		u64 avail;
-
 		/* First u64 tells us if we have any regs in sample. */
 		OVERFLOW_CHECK_u64(array);
-		avail = *array++;
+		data->user_regs.abi = *array;
+		array++;
 
-		if (avail) {
+		if (data->user_regs.abi) {
 			u64 regs_user = evsel->attr.sample_regs_user;
 
 			sz = hweight_long(regs_user) * sizeof(u64);

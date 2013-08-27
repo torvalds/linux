@@ -62,6 +62,7 @@ struct sample_event {
 };
 
 struct regs_dump {
+	u64 abi;
 	u64 *regs;
 };
 
