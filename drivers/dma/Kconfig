@@ -300,6 +300,15 @@ config DMA_JZ4740
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 
+config K3_DMA
+	tristate "Hisilicon K3 DMA support"
+	depends on ARCH_HI3xxx
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support the DMA engine for Hisilicon K3 platform
+	  devices.
+
 config DMA_ENGINE
 	bool
 
