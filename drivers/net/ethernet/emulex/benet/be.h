@@ -99,16 +99,17 @@ static inline char *nic_name(struct pci_dev *pdev)
 #define MCC_Q_LEN		128	/* total size not to exceed 8 pages */
 #define MCC_CQ_LEN		256
 
-#define BE3_MAX_RSS_QS		8
 #define BE2_MAX_RSS_QS		4
-#define BE3_MAX_TX_QS		8
-#define MAX_RSS_QS		BE3_MAX_RSS_QS
-#define MAX_RX_QS		(MAX_RSS_QS + 1) /* RSS qs + 1 def Rx */
-#define MAX_EVT_QS		MAX_RSS_QS
+#define BE3_MAX_RSS_QS		16
+#define BE3_MAX_TX_QS		16
+#define BE3_MAX_EVT_QS		16
 
-#define MAX_TX_QS		8
+#define MAX_RX_QS		32
+#define MAX_EVT_QS		32
+#define MAX_TX_QS		32
+
 #define MAX_ROCE_EQS		5
-#define MAX_MSIX_VECTORS	(MAX_RSS_QS + MAX_ROCE_EQS) /* RSS qs + RoCE */
+#define MAX_MSIX_VECTORS	32
 #define MIN_MSIX_VECTORS	1
 #define BE_TX_BUDGET		256
 #define BE_NAPI_WEIGHT		64
@@ -701,6 +702,8 @@ extern int be_load_fw(struct be_adapter *adapter, u8 *func);
 extern bool be_is_wol_supported(struct be_adapter *adapter);
 extern bool be_pause_supported(struct be_adapter *adapter);
 extern u32 be_get_fw_log_level(struct be_adapter *adapter);
+int be_update_queues(struct be_adapter *adapter);
+int be_poll(struct napi_struct *napi, int budget);
 
 /*
  * internal function to initialize-cleanup roce device.

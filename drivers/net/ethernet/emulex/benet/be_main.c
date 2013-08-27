@@ -1913,6 +1913,7 @@ static void be_evt_queues_destroy(struct be_adapter *adapter)
 		if (eqo->q.created) {
 			be_eq_clean(eqo);
 			be_cmd_q_destroy(adapter, &eqo->q, QTYPE_EQ);
+			netif_napi_del(&eqo->napi);
 		}
 		be_queue_free(adapter, &eqo->q);
 	}
@@ -1928,6 +1929,8 @@ static int be_evt_queues_create(struct be_adapter *adapter)
 				    adapter->cfg_num_qs);
 
 	for_all_evt_queues(adapter, eqo, i) {
+		netif_napi_add(adapter->netdev, &eqo->napi, be_poll,
+			       BE_NAPI_WEIGHT);
 		eqo->adapter = adapter;
 		eqo->tx_budget = BE_TX_BUDGET;
 		eqo->idx = i;
@@ -2021,12 +2024,6 @@ static int be_tx_qs_create(struct be_adapter *adapter)
 	int status, i;
 
 	adapter->num_tx_qs = min(adapter->num_evt_qs, be_max_txqs(adapter));
-	if (adapter->num_tx_qs != MAX_TX_QS) {
-		rtnl_lock();
-		netif_set_real_num_tx_queues(adapter->netdev,
-			adapter->num_tx_qs);
-		rtnl_unlock();
-	}
 
 	for_all_tx_queues(adapter, txo, i) {
 		cq = &txo->cq;
@@ -2086,13 +2083,6 @@ static int be_rx_cqs_create(struct be_adapter *adapter)
 	 */
 	if (adapter->num_rx_qs > 1)
 		adapter->num_rx_qs++;
-
-	if (adapter->num_rx_qs != MAX_RX_QS) {
-		rtnl_lock();
-		netif_set_real_num_rx_queues(adapter->netdev,
-					     adapter->num_rx_qs);
-		rtnl_unlock();
-	}
 
 	adapter->big_page_size = (1 << get_order(rx_frag_size)) * PAGE_SIZE;
 	for_all_rx_queues(adapter, rxo, i) {
@@ -2244,7 +2234,7 @@ static bool be_process_tx(struct be_adapter *adapter, struct be_tx_obj *txo,
 	return (work_done < budget); /* Done */
 }
 
-static int be_poll(struct napi_struct *napi, int budget)
+int be_poll(struct napi_struct *napi, int budget)
 {
 	struct be_eq_obj *eqo = container_of(napi, struct be_eq_obj, napi);
 	struct be_adapter *adapter = eqo->adapter;
@@ -2356,6 +2346,7 @@ static void be_msix_disable(struct be_adapter *adapter)
 	if (msix_enabled(adapter)) {
 		pci_disable_msix(adapter->pdev);
 		adapter->num_msix_vec = 0;
+		adapter->num_msix_roce_vec = 0;
 	}
 }
 
@@ -2771,14 +2762,19 @@ static void be_clear_queues(struct be_adapter *adapter)
 	be_evt_queues_destroy(adapter);
 }
 
-static int be_clear(struct be_adapter *adapter)
+static void be_cancel_worker(struct be_adapter *adapter)
 {
-	int i;
-
 	if (adapter->flags & BE_FLAGS_WORKER_SCHEDULED) {
 		cancel_delayed_work_sync(&adapter->work);
 		adapter->flags &= ~BE_FLAGS_WORKER_SCHEDULED;
 	}
+}
+
+static int be_clear(struct be_adapter *adapter)
+{
+	int i;
+
+	be_cancel_worker(adapter);
 
 	if (sriov_enabled(adapter))
 		be_vf_clear(adapter);
@@ -2982,7 +2978,7 @@ static void BEx_get_resources(struct be_adapter *adapter,
 					   BE3_MAX_RSS_QS : BE2_MAX_RSS_QS;
 	res->max_rx_qs = res->max_rss_qs + 1;
 
-	res->max_evt_qs = be_physfn(adapter) ? MAX_EVT_QS : 1;
+	res->max_evt_qs = be_physfn(adapter) ? BE3_MAX_EVT_QS : 1;
 
 	res->if_cap_flags = BE_IF_CAP_FLAGS_WANT;
 	if (!(adapter->function_caps & BE_FUNCTION_CAPS_RSS))
@@ -3108,8 +3104,15 @@ static int be_mac_setup(struct be_adapter *adapter)
 	return 0;
 }
 
+static void be_schedule_worker(struct be_adapter *adapter)
+{
+	schedule_delayed_work(&adapter->work, msecs_to_jiffies(1000));
+	adapter->flags |= BE_FLAGS_WORKER_SCHEDULED;
+}
+
 static int be_setup_queues(struct be_adapter *adapter)
 {
+	struct net_device *netdev = adapter->netdev;
 	int status;
 
 	status = be_evt_queues_create(adapter);
@@ -3128,9 +3131,53 @@ static int be_setup_queues(struct be_adapter *adapter)
 	if (status)
 		goto err;
 
+	status = netif_set_real_num_rx_queues(netdev, adapter->num_rx_qs);
+	if (status)
+		goto err;
+
+	status = netif_set_real_num_tx_queues(netdev, adapter->num_tx_qs);
+	if (status)
+		goto err;
+
 	return 0;
 err:
 	dev_err(&adapter->pdev->dev, "queue_setup failed\n");
+	return status;
+}
+
+int be_update_queues(struct be_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+	int status;
+
+	if (netif_running(netdev))
+		be_close(netdev);
+
+	be_cancel_worker(adapter);
+
+	/* If any vectors have been shared with RoCE we cannot re-program
+	 * the MSIx table.
+	 */
+	if (!adapter->num_msix_roce_vec)
+		be_msix_disable(adapter);
+
+	be_clear_queues(adapter);
+
+	if (!msix_enabled(adapter)) {
+		status = be_msix_enable(adapter);
+		if (status)
+			return status;
+	}
+
+	status = be_setup_queues(adapter);
+	if (status)
+		return status;
+
+	be_schedule_worker(adapter);
+
+	if (netif_running(netdev))
+		status = be_open(netdev);
+
 	return status;
 }
 
@@ -3163,7 +3210,10 @@ static int be_setup(struct be_adapter *adapter)
 	if (status)
 		goto err;
 
+	/* Updating real_num_tx/rx_queues() requires rtnl_lock() */
+	rtnl_lock();
 	status = be_setup_queues(adapter);
+	rtnl_unlock();
 	if (status)
 		goto err;
 
@@ -3202,8 +3252,7 @@ static int be_setup(struct be_adapter *adapter)
 	if (!status && be_pause_supported(adapter))
 		adapter->phy.fc_autoneg = 1;
 
-	schedule_delayed_work(&adapter->work, msecs_to_jiffies(1000));
-	adapter->flags |= BE_FLAGS_WORKER_SCHEDULED;
+	be_schedule_worker(adapter);
 	return 0;
 err:
 	be_clear(adapter);
@@ -3769,8 +3818,6 @@ static const struct net_device_ops be_netdev_ops = {
 static void be_netdev_init(struct net_device *netdev)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	struct be_eq_obj *eqo;
-	int i;
 
 	netdev->hw_features |= NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 |
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM |
@@ -3793,9 +3840,6 @@ static void be_netdev_init(struct net_device *netdev)
 	netdev->netdev_ops = &be_netdev_ops;
 
 	SET_ETHTOOL_OPS(netdev, &be_ethtool_ops);
-
-	for_all_evt_queues(adapter, eqo, i)
-		netif_napi_add(netdev, &eqo->napi, be_poll, BE_NAPI_WEIGHT);
 }
 
 static void be_unmap_pci_bars(struct be_adapter *adapter)
