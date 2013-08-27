@@ -325,8 +325,8 @@ regcache_rbtree_node_alloc(struct regmap *map, unsigned int reg)
 
 		if (i != map->rd_table->n_yes_ranges) {
 			range = &map->rd_table->yes_ranges[i];
-			rbnode->blklen = range->range_max - range->range_min
-				+ 1;
+			rbnode->blklen = (range->range_max - range->range_min) /
+				map->reg_stride	+ 1;
 			rbnode->base_reg = range->range_min;
 		}
 	}
@@ -418,30 +418,33 @@ static int regcache_rbtree_sync(struct regmap *map, unsigned int min,
 	struct regcache_rbtree_ctx *rbtree_ctx;
 	struct rb_node *node;
 	struct regcache_rbtree_node *rbnode;
+	unsigned int base_reg, top_reg;
+	unsigned int start, end;
 	int ret;
-	int base, end;
 
 	rbtree_ctx = map->cache;
 	for (node = rb_first(&rbtree_ctx->root); node; node = rb_next(node)) {
 		rbnode = rb_entry(node, struct regcache_rbtree_node, node);
 
-		if (rbnode->base_reg > max)
+		regcache_rbtree_get_base_top_reg(map, rbnode, &base_reg,
+			&top_reg);
+		if (base_reg > max)
 			break;
-		if (rbnode->base_reg + rbnode->blklen < min)
+		if (top_reg < min)
 			continue;
 
-		if (min > rbnode->base_reg)
-			base = min - rbnode->base_reg;
+		if (min > base_reg)
+			start = (min - base_reg) / map->reg_stride;
 		else
-			base = 0;
+			start = 0;
 
-		if (max < rbnode->base_reg + rbnode->blklen)
-			end = max - rbnode->base_reg + 1;
+		if (max < top_reg)
+			end = (max - base_reg) / map->reg_stride + 1;
 		else
 			end = rbnode->blklen;
 
 		ret = regcache_sync_block(map, rbnode->block, rbnode->base_reg,
-					  base, end);
+					  start, end);
 		if (ret != 0)
 			return ret;
 	}
