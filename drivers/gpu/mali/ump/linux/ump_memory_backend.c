@@ -11,7 +11,7 @@
 #include <linux/module.h>            /* kernel module definitions */
 #include <linux/ioport.h>            /* request_mem_region */
 
-#include "arch/config.h"             /* Configuration for current platform. The symlink for arch is set by Makefile */
+#include "config.h"             /* Configuration for current platform. The symlink for arch is set by Makefile */
 
 #include "ump_osk.h"
 #include "ump_kernel_common.h"

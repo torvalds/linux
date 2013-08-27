@@ -41,6 +41,8 @@ DRIVER_DIR=$(src)
 # The ARM proprietary product will only include the license/proprietary directory
 # The GPL product will only include the license/gpl directory
 
+ccflags-y += -I$(srctree)/$(DRIVER_DIR)/arch-$(CONFIG)
+
 ifeq ($(wildcard $(srctree)/$(DRIVER_DIR)/linux/license/gpl/*),)
 ccflags-y += -I$(srctree)/$(DRIVER_DIR)/linux/license/proprietary
 # Disable profiling for proprietary
@@ -69,7 +71,7 @@ endif
 MALI_RELEASE_NAME=$(shell cat $(DRIVER_DIR)/.version 2> /dev/null)
 
 # Check if a Mali Core sub module should be enabled, true or false returned
-submodule_enabled = $(shell gcc $(DEFINES) -E $(srctree)/$(DRIVER_DIR)/arch/config.h | grep type | grep -c $(2))
+submodule_enabled = $(shell gcc $(DEFINES) -E $(srctree)/$(DRIVER_DIR)/arch-$(CONFIG)/config.h | grep type | grep -c $(2))
 
 OSKFILES = \
 	$(OSKOS)/mali_osk_atomics.c \

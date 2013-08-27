@@ -17,6 +17,8 @@ UDD_FILE_PREFIX = ../mali/
 # set the SVN_REV to ${MALI_RELEASE_NAME} due to ARM using subversion
 SVN_REV := $(MALI_RELEASE_NAME)
 
+ccflags-y += -I$(srctree)/$(src)/arch-$(CONFIG)
+
 ccflags-y += -DSVN_REV=$(SVN_REV)
 ccflags-y += -DSVN_REV_STRING=\"$(SVN_REV)\"
 

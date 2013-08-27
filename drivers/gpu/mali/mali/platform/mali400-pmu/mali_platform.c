@@ -15,12 +15,19 @@
 #include "mali_kernel_common.h"
 #include "mali_osk.h"
 #include "mali_platform.h"
+#include "mali_mem_validation.h"
 
 #include <linux/module.h>
 #include <linux/clk.h>
 #include <mach/irqs.h>
 #include <mach/clock.h>
 #include <plat/sys_config.h>
+
+#ifdef CONFIG_FB_SUNXI_RESERVED_MEM
+extern unsigned long fb_start;
+extern unsigned long fb_size;
+static int fb_validation_range_added;
+#endif
 
 
 int mali_clk_div = 3;
@@ -36,6 +43,25 @@ _mali_osk_errcode_t mali_platform_init(void)
 	unsigned long rate;
 	int clk_div;
 	int mali_used = 0;
+
+#ifdef CONFIG_FB_SUNXI_RESERVED_MEM
+	/* mali_platform_init() may be called multiple times,
+	   but we only need to set the validation range once */
+	if (!fb_validation_range_added) {
+		_mali_osk_resource_t fb_resource = {
+			.type = MEM_VALIDATION,
+			.description = "Framebuffer",
+			.cpu_usage_adjust = 0x40000000,
+			.base = __phys_to_bus(fb_start),
+			.size = fb_size,
+			.flags = 0
+		};
+		mali_mem_validation_add_range(&fb_resource);
+		MALI_PRINT(("permit MALI_IOC_MEM_MAP_EXT ioctl for framebuffer"
+			    " (paddr=0x%08X, size=%d)\n", fb_start, fb_size));
+		fb_validation_range_added = 1;
+	}
+#endif
 
 	//get mali ahb clock
 	h_ahb_mali = clk_get(NULL, "ahb_mali");

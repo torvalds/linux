@@ -80,11 +80,13 @@ int mem_map_ext_wrapper(struct mali_session_data *session_data, _mali_uk_map_ext
 		return -EFAULT;
 	}
 
-    uk_args.ctx = session_data;
+	uk_args.ctx = session_data;
+	uk_args.phys_addr = __phys_to_bus(uk_args.phys_addr);
+
 	err_code = _mali_ukk_map_external_mem( &uk_args );
 
-    if (0 != put_user(uk_args.cookie, &argument->cookie))
-    {
+	if (0 != put_user(uk_args.cookie, &argument->cookie))
+	{
         if (_MALI_OSK_ERR_OK == err_code)
         {
             /* Rollback */

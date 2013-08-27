@@ -18,7 +18,7 @@
 #include <linux/device.h>
 #include <linux/debugfs.h>
 
-#include "arch/config.h"             /* Configuration for current platform. The symlinc for arch is set by Makefile */
+#include "config.h"             /* Configuration for current platform. The symlinc for arch is set by Makefile */
 #include "ump_ioctl.h"
 #include "ump_kernel_common.h"
 #include "ump_kernel_interface.h"
