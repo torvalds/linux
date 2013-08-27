@@ -285,9 +285,10 @@ static ssize_t manager_alpha_blending_enabled_show(
 {
 	struct omap_overlay_manager_info info;
 
-	mgr->get_manager_info(mgr, &info);
+	if(!dss_has_feature(FEAT_ALPHA_FIXED_ZORDER))
+		return -ENODEV;
 
-	WARN_ON(!dss_has_feature(FEAT_ALPHA_FIXED_ZORDER));
+	mgr->get_manager_info(mgr, &info);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
 		info.partial_alpha_enabled);
@@ -301,7 +302,8 @@ static ssize_t manager_alpha_blending_enabled_store(
 	bool enable;
 	int r;
 
-	WARN_ON(!dss_has_feature(FEAT_ALPHA_FIXED_ZORDER));
+	if(!dss_has_feature(FEAT_ALPHA_FIXED_ZORDER))
+		return -ENODEV;
 
 	r = strtobool(buf, &enable);
 	if (r)
