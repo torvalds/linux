@@ -430,13 +430,8 @@ static int qlt_reset(struct scsi_qla_host *vha, void *iocb, int mcmd)
 	}
 
 	ql_dbg(ql_dbg_tgt, vha, 0xe047,
-	    "scsi(%ld): resetting (session %p from port "
-	    "%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x, "
-	    "mcmd %x, loop_id %d)\n", vha->host_no, sess,
-	    sess->port_name[0], sess->port_name[1],
-	    sess->port_name[2], sess->port_name[3],
-	    sess->port_name[4], sess->port_name[5],
-	    sess->port_name[6], sess->port_name[7],
+	    "scsi(%ld): resetting (session %p from port %8phC mcmd %x, "
+	    "loop_id %d)\n", vha->host_no, sess, sess->port_name,
 	    mcmd, loop_id);
 
 	lun = a->u.isp24.fcp_cmnd.lun;
@@ -467,15 +462,10 @@ static void qlt_schedule_sess_for_deletion(struct qla_tgt_sess *sess,
 	sess->expires = jiffies + dev_loss_tmo * HZ;
 
 	ql_dbg(ql_dbg_tgt, sess->vha, 0xe048,
-	    "qla_target(%d): session for port %02x:%02x:%02x:"
-	    "%02x:%02x:%02x:%02x:%02x (loop ID %d) scheduled for "
+	    "qla_target(%d): session for port %8phC (loop ID %d) scheduled for "
 	    "deletion in %u secs (expires: %lu) immed: %d\n",
-	    sess->vha->vp_idx,
-	    sess->port_name[0], sess->port_name[1],
-	    sess->port_name[2], sess->port_name[3],
-	    sess->port_name[4], sess->port_name[5],
-	    sess->port_name[6], sess->port_name[7],
-	    sess->loop_id, dev_loss_tmo, sess->expires, immediate);
+	    sess->vha->vp_idx, sess->port_name, sess->loop_id, dev_loss_tmo,
+	    sess->expires, immediate);
 
 	if (immediate)
 		schedule_delayed_work(&tgt->sess_del_work, 0);
@@ -630,13 +620,9 @@ static struct qla_tgt_sess *qlt_create_sess(
 	sess = kzalloc(sizeof(*sess), GFP_KERNEL);
 	if (!sess) {
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf04a,
-		    "qla_target(%u): session allocation failed, "
-		    "all commands from port %02x:%02x:%02x:%02x:"
-		    "%02x:%02x:%02x:%02x will be refused", vha->vp_idx,
-		    fcport->port_name[0], fcport->port_name[1],
-		    fcport->port_name[2], fcport->port_name[3],
-		    fcport->port_name[4], fcport->port_name[5],
-		    fcport->port_name[6], fcport->port_name[7]);
+		    "qla_target(%u): session allocation failed, all commands "
+		    "from port %8phC will be refused", vha->vp_idx,
+		    fcport->port_name);
 
 		return NULL;
 	}
@@ -680,15 +666,11 @@ static struct qla_tgt_sess *qlt_create_sess(
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf04b,
-	    "qla_target(%d): %ssession for wwn %02x:%02x:%02x:%02x:"
-	    "%02x:%02x:%02x:%02x (loop_id %d, s_id %x:%x:%x, confirmed"
-	    " completion %ssupported) added\n",
-	    vha->vp_idx, local ?  "local " : "", fcport->port_name[0],
-	    fcport->port_name[1], fcport->port_name[2], fcport->port_name[3],
-	    fcport->port_name[4], fcport->port_name[5], fcport->port_name[6],
-	    fcport->port_name[7], fcport->loop_id, sess->s_id.b.domain,
-	    sess->s_id.b.area, sess->s_id.b.al_pa, sess->conf_compl_supported ?
-	    "" : "not ");
+	    "qla_target(%d): %ssession for wwn %8phC (loop_id %d, "
+	    "s_id %x:%x:%x, confirmed completion %ssupported) added\n",
+	    vha->vp_idx, local ?  "local " : "", fcport->port_name,
+	    fcport->loop_id, sess->s_id.b.domain, sess->s_id.b.area,
+	    sess->s_id.b.al_pa, sess->conf_compl_supported ?  "" : "not ");
 
 	return sess;
 }
@@ -730,13 +712,9 @@ void qlt_fc_port_added(struct scsi_qla_host *vha, fc_port_t *fcport)
 			qlt_undelete_sess(sess);
 
 			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf04c,
-			    "qla_target(%u): %ssession for port %02x:"
-			    "%02x:%02x:%02x:%02x:%02x:%02x:%02x (loop ID %d) "
-			    "reappeared\n", vha->vp_idx, sess->local ? "local "
-			    : "", sess->port_name[0], sess->port_name[1],
-			    sess->port_name[2], sess->port_name[3],
-			    sess->port_name[4], sess->port_name[5],
-			    sess->port_name[6], sess->port_name[7],
+			    "qla_target(%u): %ssession for port %8phC "
+			    "(loop ID %d) reappeared\n", vha->vp_idx,
+			    sess->local ? "local " : "", sess->port_name,
 			    sess->loop_id);
 
 			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf007,
@@ -749,13 +727,8 @@ void qlt_fc_port_added(struct scsi_qla_host *vha, fc_port_t *fcport)
 	if (sess && sess->local) {
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf04d,
 		    "qla_target(%u): local session for "
-		    "port %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x "
-		    "(loop ID %d) became global\n", vha->vp_idx,
-		    fcport->port_name[0], fcport->port_name[1],
-		    fcport->port_name[2], fcport->port_name[3],
-		    fcport->port_name[4], fcport->port_name[5],
-		    fcport->port_name[6], fcport->port_name[7],
-		    sess->loop_id);
+		    "port %8phC (loop ID %d) became global\n", vha->vp_idx,
+		    fcport->port_name, sess->loop_id);
 		sess->local = 0;
 	}
 	ha->tgt.tgt_ops->put_sess(sess);
@@ -2840,10 +2813,8 @@ static int qlt_24xx_handle_els(struct scsi_qla_host *vha,
 	int res = 0;
 
 	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf026,
-	    "qla_target(%d): Port ID: 0x%02x:%02x:%02x"
-	    " ELS opcode: 0x%02x\n", vha->vp_idx, iocb->u.isp24.port_id[0],
-	    iocb->u.isp24.port_id[1], iocb->u.isp24.port_id[2],
-	    iocb->u.isp24.status_subcode);
+	    "qla_target(%d): Port ID: 0x%3phC ELS opcode: 0x%02x\n",
+	    vha->vp_idx, iocb->u.isp24.port_id, iocb->u.isp24.status_subcode);
 
 	switch (iocb->u.isp24.status_subcode) {
 	case ELS_PLOGI:
