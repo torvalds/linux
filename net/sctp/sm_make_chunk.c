@@ -2240,25 +2240,23 @@ int sctp_verify_init(struct net *net, const struct sctp_association *asoc,
 		     struct sctp_chunk **errp)
 {
 	union sctp_params param;
-	int has_cookie = 0;
+	bool has_cookie = false;
 	int result;
 
-	/* Verify stream values are non-zero. */
-	if ((0 == peer_init->init_hdr.num_outbound_streams) ||
-	    (0 == peer_init->init_hdr.num_inbound_streams) ||
-	    (0 == peer_init->init_hdr.init_tag) ||
-	    (SCTP_DEFAULT_MINWINDOW > ntohl(peer_init->init_hdr.a_rwnd))) {
-
+	/* Check for missing mandatory parameters. Note: Initial TSN is
+	 * also mandatory, but is not checked here since the valid range
+	 * is 0..2**32-1. RFC4960, section 3.3.3.
+	 */
+	if (peer_init->init_hdr.num_outbound_streams == 0 ||
+	    peer_init->init_hdr.num_inbound_streams == 0 ||
+	    peer_init->init_hdr.init_tag == 0 ||
+	    ntohl(peer_init->init_hdr.a_rwnd) < SCTP_DEFAULT_MINWINDOW)
 		return sctp_process_inv_mandatory(asoc, chunk, errp);
-	}
 
-	/* Check for missing mandatory parameters.  */
 	sctp_walk_params(param, peer_init, init_hdr.params) {
-
-		if (SCTP_PARAM_STATE_COOKIE == param.p->type)
-			has_cookie = 1;
-
-	} /* for (loop through all parameters) */
+		if (param.p->type == SCTP_PARAM_STATE_COOKIE)
+			has_cookie = true;
+	}
 
 	/* There is a possibility that a parameter length was bad and
 	 * in that case we would have stoped walking the parameters.
