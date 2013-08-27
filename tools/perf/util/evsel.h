@@ -48,6 +48,12 @@ struct perf_sample_id {
  * @name - Can be set to retain the original event name passed by the user,
  *         so that when showing results in tools such as 'perf stat', we
  *         show the name used, not some alias.
+ * @id_pos: the position of the event id (PERF_SAMPLE_ID or
+ *          PERF_SAMPLE_IDENTIFIER) in a sample event i.e. in the array of
+ *          struct sample_event
+ * @is_pos: the position (counting backwards) of the event id (PERF_SAMPLE_ID or
+ *          PERF_SAMPLE_IDENTIFIER) in a non-sample event i.e. if sample_id_all
+ *          is used there is an id sample appended to non-sample events
  */
 struct perf_evsel {
 	struct list_head	node;
@@ -74,6 +80,8 @@ struct perf_evsel {
 	} handler;
 	struct cpu_map		*cpus;
 	unsigned int		sample_size;
+	int			id_pos;
+	int			is_pos;
 	bool 			supported;
 	bool 			needs_swap;
 	/* parse modifier helper */
@@ -103,6 +111,9 @@ void perf_evsel__delete(struct perf_evsel *evsel);
 
 void perf_evsel__config(struct perf_evsel *evsel,
 			struct perf_record_opts *opts);
+
+int __perf_evsel__sample_size(u64 sample_type);
+void perf_evsel__calc_id_pos(struct perf_evsel *evsel);
 
 bool perf_evsel__is_cache_op_valid(u8 type, u8 op);
 
@@ -142,7 +153,8 @@ void __perf_evsel__reset_sample_bit(struct perf_evsel *evsel,
 #define perf_evsel__reset_sample_bit(evsel, bit) \
 	__perf_evsel__reset_sample_bit(evsel, PERF_SAMPLE_##bit)
 
-void perf_evsel__set_sample_id(struct perf_evsel *evsel);
+void perf_evsel__set_sample_id(struct perf_evsel *evsel,
+			       bool use_sample_identifier);
 
 int perf_evsel__set_filter(struct perf_evsel *evsel, int ncpus, int nthreads,
 			   const char *filter);
