@@ -633,6 +633,12 @@ static inline struct be_sge *nonembedded_sgl(struct be_mcc_wrb *wrb)
 	return &wrb->payload.sgl[0];
 }
 
+static inline void fill_wrb_tags(struct be_mcc_wrb *wrb,
+				 unsigned long addr)
+{
+	wrb->tag0 = addr & 0xFFFFFFFF;
+	wrb->tag1 = upper_32_bits(addr);
+}
 
 /* Don't touch the hdr after it's prepared */
 /* mem will be NULL for embedded commands */
@@ -641,17 +647,12 @@ static void be_wrb_cmd_hdr_prepare(struct be_cmd_req_hdr *req_hdr,
 				struct be_mcc_wrb *wrb, struct be_dma_mem *mem)
 {
 	struct be_sge *sge;
-	unsigned long addr = (unsigned long)req_hdr;
-	u64 req_addr = addr;
 
 	req_hdr->opcode = opcode;
 	req_hdr->subsystem = subsystem;
 	req_hdr->request_length = cpu_to_le32(cmd_len - sizeof(*req_hdr));
 	req_hdr->version = 0;
-
-	wrb->tag0 = req_addr & 0xFFFFFFFF;
-	wrb->tag1 = upper_32_bits(req_addr);
-
+	fill_wrb_tags(wrb, (ulong) req_hdr);
 	wrb->payload_length = cmd_len;
 	if (mem) {
 		wrb->embedded |= (1 & MCC_WRB_SGE_CNT_MASK) <<
@@ -703,6 +704,78 @@ static struct be_mcc_wrb *wrb_from_mccq(struct be_adapter *adapter)
 	atomic_inc(&mccq->used);
 	memset(wrb, 0, sizeof(*wrb));
 	return wrb;
+}
+
+static bool use_mcc(struct be_adapter *adapter)
+{
+	return adapter->mcc_obj.q.created;
+}
+
+/* Must be used only in process context */
+static int be_cmd_lock(struct be_adapter *adapter)
+{
+	if (use_mcc(adapter)) {
+		spin_lock_bh(&adapter->mcc_lock);
+		return 0;
+	} else {
+		return mutex_lock_interruptible(&adapter->mbox_lock);
+	}
+}
+
+/* Must be used only in process context */
+static void be_cmd_unlock(struct be_adapter *adapter)
+{
+	if (use_mcc(adapter))
+		spin_unlock_bh(&adapter->mcc_lock);
+	else
+		return mutex_unlock(&adapter->mbox_lock);
+}
+
+static struct be_mcc_wrb *be_cmd_copy(struct be_adapter *adapter,
+				      struct be_mcc_wrb *wrb)
+{
+	struct be_mcc_wrb *dest_wrb;
+
+	if (use_mcc(adapter)) {
+		dest_wrb = wrb_from_mccq(adapter);
+		if (!dest_wrb)
+			return NULL;
+	} else {
+		dest_wrb = wrb_from_mbox(adapter);
+	}
+
+	memcpy(dest_wrb, wrb, sizeof(*wrb));
+	if (wrb->embedded & cpu_to_le32(MCC_WRB_EMBEDDED_MASK))
+		fill_wrb_tags(dest_wrb, (ulong) embedded_payload(wrb));
+
+	return dest_wrb;
+}
+
+/* Must be used only in process context */
+static int be_cmd_notify_wait(struct be_adapter *adapter,
+			      struct be_mcc_wrb *wrb)
+{
+	struct be_mcc_wrb *dest_wrb;
+	int status;
+
+	status = be_cmd_lock(adapter);
+	if (status)
+		return status;
+
+	dest_wrb = be_cmd_copy(adapter, wrb);
+	if (!dest_wrb)
+		return -EBUSY;
+
+	if (use_mcc(adapter))
+		status = be_mcc_notify_wait(adapter);
+	else
+		status = be_mbox_notify_wait(adapter);
+
+	if (!status)
+		memcpy(wrb, dest_wrb, sizeof(*wrb));
+
+	be_cmd_unlock(adapter);
+	return status;
 }
 
 /* Tell fw we're about to start firing cmds by writing a
@@ -1290,44 +1363,32 @@ err:
 }
 
 /* Create an rx filtering policy configuration on an i/f
- * Uses MCCQ
+ * Will use MBOX only if MCCQ has not been created.
  */
 int be_cmd_if_create(struct be_adapter *adapter, u32 cap_flags, u32 en_flags,
 		     u32 *if_handle, u32 domain)
 {
-	struct be_mcc_wrb *wrb;
+	struct be_mcc_wrb wrb = {0};
 	struct be_cmd_req_if_create *req;
 	int status;
 
-	spin_lock_bh(&adapter->mcc_lock);
-
-	wrb = wrb_from_mccq(adapter);
-	if (!wrb) {
-		status = -EBUSY;
-		goto err;
-	}
-	req = embedded_payload(wrb);
-
+	req = embedded_payload(&wrb);
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
-		OPCODE_COMMON_NTWK_INTERFACE_CREATE, sizeof(*req), wrb, NULL);
+		OPCODE_COMMON_NTWK_INTERFACE_CREATE, sizeof(*req), &wrb, NULL);
 	req->hdr.domain = domain;
 	req->capability_flags = cpu_to_le32(cap_flags);
 	req->enable_flags = cpu_to_le32(en_flags);
-
 	req->pmac_invalid = true;
 
-	status = be_mcc_notify_wait(adapter);
+	status = be_cmd_notify_wait(adapter, &wrb);
 	if (!status) {
-		struct be_cmd_resp_if_create *resp = embedded_payload(wrb);
+		struct be_cmd_resp_if_create *resp = embedded_payload(&wrb);
 		*if_handle = le32_to_cpu(resp->interface_id);
 
 		/* Hack to retrieve VF's pmac-id on BE3 */
 		if (BE3_chip(adapter) && !be_physfn(adapter))
 			adapter->pmac_id[0] = le32_to_cpu(resp->pmac_id);
 	}
-
-err:
-	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
 }
 
