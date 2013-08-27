@@ -5729,7 +5729,7 @@ struct cgroup_subsys_state *css_from_id(int id, struct cgroup_subsys *ss)
 
 	cgrp = idr_find(&ss->root->cgroup_idr, id);
 	if (cgrp)
-		return cgroup_css(cgrp, ss->subsys_id);
+		return cgroup_css(cgrp, ss);
 	return NULL;
 }
 
