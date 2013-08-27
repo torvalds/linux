@@ -666,10 +666,11 @@ void omapdss_hdmi_display_set_timing(struct omap_dss_device *dssdev,
 	hdmi.ip_data.cfg.cm = cm;
 
 	t = hdmi_get_timings();
-	if (t != NULL)
+	if (t != NULL) {
 		hdmi.ip_data.cfg = *t;
 
-	dispc_set_tv_pclk(t->timings.pixel_clock * 1000);
+		dispc_set_tv_pclk(t->timings.pixel_clock * 1000);
+	}
 
 	mutex_unlock(&hdmi.lock);
 }
