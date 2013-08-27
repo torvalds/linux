@@ -1667,7 +1667,11 @@ qla24xx_link_initialize(scsi_qla_host_t *vha)
 		return QLA_FUNCTION_FAILED;
 
 	mcp->mb[0] = MBC_LINK_INITIALIZATION;
-	mcp->mb[1] = BIT_6|BIT_4;
+	mcp->mb[1] = BIT_4;
+	if (vha->hw->operating_mode == LOOP)
+		mcp->mb[1] |= BIT_6;
+	else
+		mcp->mb[1] |= BIT_5;
 	mcp->mb[2] = 0;
 	mcp->mb[3] = 0;
 	mcp->out_mb = MBX_3|MBX_2|MBX_1|MBX_0;
