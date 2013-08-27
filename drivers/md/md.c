@@ -5337,8 +5337,14 @@ static int md_set_readonly(struct mddev *mddev, struct block_device *bdev)
 		err = -EBUSY;
 		goto out;
 	}
-	if (bdev)
-		sync_blockdev(bdev);
+	if (bdev && !test_bit(MD_STILL_CLOSED, &mddev->flags)) {
+		/* Someone opened the device since we flushed it
+		 * so page cache could be dirty and it is too late
+		 * to flush.  So abort
+		 */
+		mutex_unlock(&mddev->open_mutex);
+		return -EBUSY;
+	}
 	if (mddev->pers) {
 		__md_stop_writes(mddev);
 
@@ -5373,14 +5379,14 @@ static int do_md_stop(struct mddev * mddev, int mode,
 		mutex_unlock(&mddev->open_mutex);
 		return -EBUSY;
 	}
-	if (bdev)
-		/* It is possible IO was issued on some other
-		 * open file which was closed before we took ->open_mutex.
-		 * As that was not the last close __blkdev_put will not
-		 * have called sync_blockdev, so we must.
+	if (bdev && !test_bit(MD_STILL_CLOSED, &mddev->flags)) {
+		/* Someone opened the device since we flushed it
+		 * so page cache could be dirty and it is too late
+		 * to flush.  So abort
 		 */
-		sync_blockdev(bdev);
-
+		mutex_unlock(&mddev->open_mutex);
+		return -EBUSY;
+	}
 	if (mddev->pers) {
 		if (mddev->ro)
 			set_disk_ro(disk, 0);
@@ -6417,6 +6423,20 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 						 !test_bit(MD_RECOVERY_NEEDED,
 							   &mddev->flags),
 						 msecs_to_jiffies(5000));
+	if (cmd == STOP_ARRAY || cmd == STOP_ARRAY_RO) {
+		/* Need to flush page cache, and ensure no-one else opens
+		 * and writes
+		 */
+		mutex_lock(&mddev->open_mutex);
+		if (atomic_read(&mddev->openers) > 1) {
+			mutex_unlock(&mddev->open_mutex);
+			err = -EBUSY;
+			goto abort;
+		}
+		set_bit(MD_STILL_CLOSED, &mddev->flags);
+		mutex_unlock(&mddev->open_mutex);
+		sync_blockdev(bdev);
+	}
 	err = mddev_lock(mddev);
 	if (err) {
 		printk(KERN_INFO 
@@ -6670,6 +6690,7 @@ static int md_open(struct block_device *bdev, fmode_t mode)
 
 	err = 0;
 	atomic_inc(&mddev->openers);
+	clear_bit(MD_STILL_CLOSED, &mddev->flags);
 	mutex_unlock(&mddev->open_mutex);
 
 	check_disk_change(bdev);
