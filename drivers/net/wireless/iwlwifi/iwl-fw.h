@@ -209,6 +209,44 @@ enum iwl_fw_phy_cfg {
 	FW_PHY_CFG_RX_CHAIN = 0xf << FW_PHY_CFG_RX_CHAIN_POS,
 };
 
+#define IWL_UCODE_MAX_CS		1
+
+/**
+ * struct iwl_fw_cipher_scheme - a cipher scheme supported by FW.
+ * @cipher: a cipher suite selector
+ * @flags: cipher scheme flags (currently reserved for a future use)
+ * @hdr_len: a size of MPDU security header
+ * @pn_len: a size of PN
+ * @pn_off: an offset of pn from the beginning of the security header
+ * @key_idx_off: an offset of key index byte in the security header
+ * @key_idx_mask: a bit mask of key_idx bits
+ * @key_idx_shift: bit shift needed to get key_idx
+ * @mic_len: mic length in bytes
+ * @hw_cipher: a HW cipher index used in host commands
+ */
+struct iwl_fw_cipher_scheme {
+	__le32 cipher;
+	u8 flags;
+	u8 hdr_len;
+	u8 pn_len;
+	u8 pn_off;
+	u8 key_idx_off;
+	u8 key_idx_mask;
+	u8 key_idx_shift;
+	u8 mic_len;
+	u8 hw_cipher;
+} __packed;
+
+/**
+ * struct iwl_fw_cscheme_list - a cipher scheme list
+ * @size: a number of entries
+ * @cs: cipher scheme entries
+ */
+struct iwl_fw_cscheme_list {
+	u8 size;
+	struct iwl_fw_cipher_scheme cs[];
+} __packed;
+
 /**
  * struct iwl_fw - variables associated with the firmware
  *
@@ -224,6 +262,7 @@ enum iwl_fw_phy_cfg {
  * @inst_evtlog_size: event log size for runtime ucode.
  * @inst_errlog_ptr: error log offfset for runtime ucode.
  * @mvm_fw: indicates this is MVM firmware
+ * @cipher_scheme: optional external cipher scheme.
  */
 struct iwl_fw {
 	u32 ucode_ver;
@@ -243,6 +282,8 @@ struct iwl_fw {
 	u32 phy_config;
 
 	bool mvm_fw;
+
+	struct ieee80211_cipher_scheme cs[IWL_UCODE_MAX_CS];
 };
 
 static inline u8 iwl_fw_valid_tx_ant(const struct iwl_fw *fw)

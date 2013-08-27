@@ -1123,8 +1123,8 @@ static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
 		memcpy(cmd.key, keyconf->key, keyconf->keylen);
 		break;
 	default:
-		WARN_ON(1);
-		return -EINVAL;
+		key_flags |= cpu_to_le16(STA_KEY_FLG_EXT);
+		memcpy(cmd.key, keyconf->key, keyconf->keylen);
 	}
 
 	if (!(keyconf->flags & IEEE80211_KEY_FLAG_PAIRWISE))
@@ -1288,8 +1288,8 @@ int iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 					   0, NULL, CMD_SYNC);
 		break;
 	default:
-		IWL_ERR(mvm, "Unknown cipher %x\n", keyconf->cipher);
-		ret = -EINVAL;
+		ret = iwl_mvm_send_sta_key(mvm, mvm_sta, keyconf,
+					   sta_id, 0, NULL, CMD_SYNC);
 	}
 
 	if (ret)
