@@ -163,6 +163,8 @@ struct iwl_mvm_power_ops {
 				 struct ieee80211_vif *vif);
 	int (*power_update_device_mode)(struct iwl_mvm *mvm);
 	int (*power_disable)(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+	void (*power_update_binding)(struct iwl_mvm *mvm,
+				     struct ieee80211_vif *vif);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	int (*power_dbgfs_read)(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				char *buf, int bufsz);
@@ -336,6 +338,8 @@ struct iwl_mvm_vif {
 
 	/* FW identified misbehaving AP */
 	u8 uapsd_misbehaving_bssid[ETH_ALEN];
+
+	bool pm_prevented;
 };
 
 static inline struct iwl_mvm_vif *
@@ -520,12 +524,6 @@ struct iwl_mvm {
 	 */
 	unsigned long fw_key_table[BITS_TO_LONGS(STA_KEY_MAX_NUM)];
 
-	/*
-	 * This counter of created interfaces is referenced only in conjunction
-	 * with FW limitation related to power management. Currently PM is
-	 * supported only on a single interface.
-	 * IMPORTANT: this variable counts all interfaces except P2P device.
-	 */
 	u8 vif_count;
 
 	/* -1 for always, 0 for never, >0 for that many times */
@@ -568,6 +566,8 @@ struct iwl_mvm {
 	u8 aux_queue;
 	u8 first_agg_queue;
 	u8 last_agg_queue;
+
+	u8 bound_vif_cnt;
 };
 
 /* Extract MVM priv from op_mode and _hw */
@@ -784,6 +784,13 @@ static inline int iwl_mvm_power_update_device_mode(struct iwl_mvm *mvm)
 	if (mvm->pm_ops->power_update_device_mode)
 		return mvm->pm_ops->power_update_device_mode(mvm);
 	return 0;
+}
+
+static inline void iwl_mvm_power_update_binding(struct iwl_mvm *mvm,
+						struct ieee80211_vif *vif)
+{
+	if (mvm->pm_ops->power_update_binding)
+		mvm->pm_ops->power_update_binding(mvm, vif);
 }
 
 void iwl_mvm_power_vif_assoc(struct iwl_mvm *mvm, struct ieee80211_vif *vif);

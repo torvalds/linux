@@ -494,17 +494,6 @@ static void iwl_mvm_mac_stop(struct ieee80211_hw *hw)
 	cancel_work_sync(&mvm->async_handlers_wk);
 }
 
-static void iwl_mvm_pm_disable_iterator(void *data, u8 *mac,
-					struct ieee80211_vif *vif)
-{
-	struct iwl_mvm *mvm = data;
-	int ret;
-
-	ret = iwl_mvm_power_disable(mvm, vif);
-	if (ret)
-		IWL_ERR(mvm, "failed to disable power management\n");
-}
-
 static void iwl_mvm_power_update_iterator(void *data, u8 *mac,
 					  struct ieee80211_vif *vif)
 {
@@ -547,26 +536,9 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	if (ret)
 		goto out_unlock;
 
-	/*
-	 * TODO: remove this temporary code.
-	 * Currently MVM FW supports power management only on single MAC.
-	 * If new interface added, disable PM on existing interface.
-	 * P2P device is a special case, since it is handled by FW similary to
-	 * scan. If P2P deviced is added, PM remains enabled on existing
-	 * interface.
-	 * Note: the method below does not count the new interface being added
-	 * at this moment.
-	 */
+	/* Counting number of interfaces is needed for legacy PM */
 	if (vif->type != NL80211_IFTYPE_P2P_DEVICE)
 		mvm->vif_count++;
-	if (mvm->vif_count > 1) {
-		IWL_DEBUG_MAC80211(mvm,
-				   "Disable power on existing interfaces\n");
-		ieee80211_iterate_active_interfaces_atomic(
-					    mvm->hw,
-					    IEEE80211_IFACE_ITER_NORMAL,
-					    iwl_mvm_pm_disable_iterator, mvm);
-	}
 
 	/*
 	 * The AP binding flow can be done only after the beacon
@@ -597,11 +569,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	if (ret)
 		goto out_release;
 
-	/*
-	 * Update power state on the new interface. Admittedly, based on
-	 * mac80211 logics this power update will disable power management
-	 */
-	iwl_mvm_power_update_mode(mvm, vif);
+	iwl_mvm_power_disable(mvm, vif);
 
 	/* beacon filtering */
 	ret = iwl_mvm_disable_beacon_filter(mvm, vif);
@@ -662,9 +630,12 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
  out_release:
 	if (vif->type != NL80211_IFTYPE_P2P_DEVICE)
 		mvm->vif_count--;
+
+	/* TODO: remove this when legacy PM will be discarded */
 	ieee80211_iterate_active_interfaces(
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
 		iwl_mvm_power_update_iterator, mvm);
+
 	iwl_mvm_mac_ctxt_release(mvm, vif);
  out_unlock:
 	mutex_unlock(&mvm->mutex);
@@ -750,21 +721,13 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 		mvmvif->phy_ctxt = NULL;
 	}
 
-	/*
-	 * TODO: remove this temporary code.
-	 * Currently MVM FW supports power management only on single MAC.
-	 * Check if only one additional interface remains after removing
-	 * current one. Update power mode on the remaining interface.
-	 */
 	if (mvm->vif_count && vif->type != NL80211_IFTYPE_P2P_DEVICE)
 		mvm->vif_count--;
-	IWL_DEBUG_MAC80211(mvm, "Currently %d interfaces active\n",
-			   mvm->vif_count);
-	if (mvm->vif_count == 1) {
-		ieee80211_iterate_active_interfaces(
-					mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
-					iwl_mvm_power_update_iterator, mvm);
-	}
+
+	/* TODO: remove this when legacy PM will be discarded */
+	ieee80211_iterate_active_interfaces(
+		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+		iwl_mvm_power_update_iterator, mvm);
 
 	iwl_mvm_mac_ctxt_remove(mvm, vif);
 
@@ -1658,6 +1621,9 @@ static int iwl_mvm_assign_vif_chanctx(struct ieee80211_hw *hw,
 			goto out_remove_binding;
 	}
 
+	mvm->bound_vif_cnt++;
+	iwl_mvm_power_update_binding(mvm, vif);
+
 	goto out_unlock;
 
  out_remove_binding:
@@ -1695,6 +1661,9 @@ static void iwl_mvm_unassign_vif_chanctx(struct ieee80211_hw *hw,
 	iwl_mvm_binding_remove_vif(mvm, vif);
 out_unlock:
 	mvmvif->phy_ctxt = NULL;
+	mvm->bound_vif_cnt--;
+	iwl_mvm_power_update_binding(mvm, vif);
+
 	mutex_unlock(&mvm->mutex);
 }
 

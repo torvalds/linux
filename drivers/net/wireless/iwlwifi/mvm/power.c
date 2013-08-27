@@ -311,7 +311,7 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 	    mvmvif->dbgfs_pm.disable_power_off)
 		cmd->flags &= cpu_to_le16(~POWER_FLAGS_POWER_SAVE_ENA_MSK);
 #endif
-	if (!vif->bss_conf.ps)
+	if (!vif->bss_conf.ps || mvmvif->pm_prevented)
 		return;
 
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK);
@@ -404,17 +404,6 @@ static int iwl_mvm_power_mac_update_mode(struct iwl_mvm *mvm,
 	struct iwl_mac_power_cmd cmd = {};
 
 	if (vif->type != NL80211_IFTYPE_STATION || vif->p2p)
-		return 0;
-
-	/*
-	 * TODO: The following vif_count verification is temporary condition.
-	 * Avoid power mode update if more than one interface is currently
-	 * active. Remove this condition when FW will support power management
-	 * on multiple MACs.
-	 */
-	IWL_DEBUG_POWER(mvm, "Currently %d interfaces active\n",
-			mvm->vif_count);
-	if (mvm->vif_count > 1)
 		return 0;
 
 	iwl_mvm_power_build_cmd(mvm, vif, &cmd);
@@ -520,6 +509,28 @@ int iwl_mvm_power_uapsd_misbehaving_ap_notif(struct iwl_mvm *mvm,
 		iwl_mvm_power_uapsd_misbehav_ap_iterator, &ap_sta_id);
 
 	return 0;
+}
+
+static void iwl_mvm_power_binding_iterator(void *_data, u8 *mac,
+					   struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = _data;
+	int ret;
+
+	mvmvif->pm_prevented = (mvm->bound_vif_cnt <= 1) ? false : true;
+
+	ret = iwl_mvm_power_mac_update_mode(mvm, vif);
+	WARN_ONCE(ret, "Failed to update power parameters on a specific vif\n");
+}
+
+static void _iwl_mvm_power_update_binding(struct iwl_mvm *mvm,
+					  struct ieee80211_vif *vif)
+{
+	ieee80211_iterate_active_interfaces(mvm->hw,
+					    IEEE80211_IFACE_ITER_NORMAL,
+					    iwl_mvm_power_binding_iterator,
+					    mvm);
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
@@ -692,6 +703,7 @@ const struct iwl_mvm_power_ops pm_mac_ops = {
 	.power_update_mode = iwl_mvm_power_mac_update_mode,
 	.power_update_device_mode = iwl_mvm_power_update_device,
 	.power_disable = iwl_mvm_power_mac_disable,
+	.power_update_binding = _iwl_mvm_power_update_binding,
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	.power_dbgfs_read = iwl_mvm_power_mac_dbgfs_read,
 #endif
