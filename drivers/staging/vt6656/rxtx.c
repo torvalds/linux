@@ -101,7 +101,7 @@ static void *s_vGetFreeContext(struct vnt_private *pDevice);
 static void s_vGenerateTxParameter(struct vnt_private *pDevice,
 	u8 byPktType, u16 wCurrentRate,	void *pTxBufHead, void *pvRrvTime,
 	void *pvRTS, void *pvCTS, u32 cbFrameSize, int bNeedACK, u32 uDMAIdx,
-	struct ethhdr *psEthHeader);
+	struct ethhdr *psEthHeader, bool need_rts);
 
 static u32 s_uFillDataHead(struct vnt_private *pDevice,
 	u8 byPktType, u16 wCurrentRate, void *pTxDataHead, u32 cbFrameLength,
@@ -829,7 +829,7 @@ static void s_vFillCTSHead(struct vnt_private *pDevice, u32 uDMAIdx,
 static void s_vGenerateTxParameter(struct vnt_private *pDevice,
 	u8 byPktType, u16 wCurrentRate,	void *pTxBufHead, void *pvRrvTime,
 	void *pvRTS, void *pvCTS, u32 cbFrameSize, int bNeedACK, u32 uDMAIdx,
-	struct ethhdr *psEthHeader)
+	struct ethhdr *psEthHeader, bool need_rts)
 {
 	u32 cbMACHdLen = WLAN_HDR_ADDR3_LEN; /* 24 */
 	u16 wFifoCtl;
@@ -854,8 +854,7 @@ static void s_vGenerateTxParameter(struct vnt_private *pDevice,
         cbMACHdLen = WLAN_HDR_ADDR3_LEN + 6;
 
     if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
-
-        if (pvRTS != NULL) { //RTS_need
+	if (need_rts) {
             //Fill RsvTime
 		struct vnt_rrv_time_rts *pBuf =
 			(struct vnt_rrv_time_rts *)pvRrvTime;
@@ -891,8 +890,7 @@ static void s_vGenerateTxParameter(struct vnt_private *pDevice,
         }
     }
     else if (byPktType == PK_TYPE_11A) {
-
-        if (pvRTS != NULL) {//RTS_need, non PCF mode
+	if (need_rts) {
             //Fill RsvTime
 		struct vnt_rrv_time_ab *pBuf =
 				(struct vnt_rrv_time_ab *)pvRrvTime;
@@ -903,8 +901,7 @@ static void s_vGenerateTxParameter(struct vnt_private *pDevice,
             //Fill RTS
 	    s_vFillRTSHead(pDevice, byPktType, pvRTS, cbFrameSize, bNeedACK,
 			psEthHeader, wCurrentRate, byFBOption);
-        }
-        else if (pvRTS == NULL) {//RTS_needless, non PCF mode
+	} else {
             //Fill RsvTime
 		struct vnt_rrv_time_ab *pBuf =
 				(struct vnt_rrv_time_ab *)pvRrvTime;
@@ -913,8 +910,7 @@ static void s_vGenerateTxParameter(struct vnt_private *pDevice,
         }
     }
     else if (byPktType == PK_TYPE_11B) {
-
-        if ((pvRTS != NULL)) {//RTS_need, non PCF mode
+	if (need_rts) {
             //Fill RsvTime
 		struct vnt_rrv_time_ab *pBuf =
 				(struct vnt_rrv_time_ab *)pvRrvTime;
@@ -953,7 +949,8 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
 	u32 cb802_1_H_len;
 	u32 cbIVlen = 0, cbICVlen = 0, cbMIClen = 0, cbMACHdLen = 0;
 	u32 cbFCSlen = 4, cbMICHDR = 0;
-	int bNeedACK, bRTS;
+	int bNeedACK;
+	bool bRTS = false;
 	u8 *pbyType, *pbyMacHdr, *pbyIVHead, *pbyPayloadHead, *pbyTxBufferAddr;
 	u8 abySNAP_RFC1042[ETH_ALEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0x00};
 	u8 abySNAP_Bridgetunnel[ETH_ALEN]
@@ -1236,7 +1233,7 @@ static int s_bPacketToWirelessUsb(struct vnt_private *pDevice, u8 byPktType,
     //Fill FIFO,RrvTime,RTS,and CTS
     s_vGenerateTxParameter(pDevice, byPktType, wCurrentRate,
 			   (void *)pbyTxBufferAddr, pvRrvTime, pvRTS, pvCTS,
-                               cbFrameSize, bNeedACK, uDMAIdx, psEthHeader);
+		cbFrameSize, bNeedACK, uDMAIdx, psEthHeader, bRTS);
     //Fill DataHead
     uDuration = s_uFillDataHead(pDevice, byPktType, wCurrentRate, pvTxDataHd, cbFrameSize, uDMAIdx, bNeedACK,
 				byFBOption);
@@ -1640,7 +1637,7 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice,
 
     //Fill FIFO,RrvTime,RTS,and CTS
     s_vGenerateTxParameter(pDevice, byPktType, wCurrentRate,  pbyTxBufferAddr, pvRrvTime, pvRTS, pCTS,
-                           cbFrameSize, bNeedACK, TYPE_TXDMA0, &sEthHeader);
+		cbFrameSize, bNeedACK, TYPE_TXDMA0, &sEthHeader, false);
 
     //Fill DataHead
     uDuration = s_uFillDataHead(pDevice, byPktType, wCurrentRate, pvTxDataHd, cbFrameSize, TYPE_TXDMA0, bNeedACK,
@@ -2051,7 +2048,7 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb)
 
     //Fill FIFO,RrvTime,RTS,and CTS
     s_vGenerateTxParameter(pDevice, byPktType, wCurrentRate, pbyTxBufferAddr, pvRrvTime, pvRTS, pvCTS,
-                           cbFrameSize, bNeedACK, TYPE_TXDMA0, &sEthHeader);
+		cbFrameSize, bNeedACK, TYPE_TXDMA0, &sEthHeader, false);
 
     //Fill DataHead
     uDuration = s_uFillDataHead(pDevice, byPktType, wCurrentRate, pvTxDataHd, cbFrameSize, TYPE_TXDMA0, bNeedACK,
