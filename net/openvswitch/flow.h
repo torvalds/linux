@@ -125,7 +125,7 @@ struct sw_flow_key {
 			} nd;
 		} ipv6;
 	};
-};
+} __aligned(__alignof__(long));
 
 struct sw_flow {
 	struct rcu_head rcu;
@@ -148,11 +148,6 @@ struct sw_flow_key_range {
 	size_t start;
 	size_t end;
 };
-
-static inline u16 ovs_sw_flow_key_range_actual_size(const struct sw_flow_key_range *range)
-{
-	return range->end - range->start;
-}
 
 struct sw_flow_match {
 	struct sw_flow_key *key;
@@ -252,18 +247,6 @@ struct sw_flow_mask {
 	struct sw_flow_key_range range;
 	struct sw_flow_key key;
 };
-
-static inline u16
-ovs_sw_flow_mask_actual_size(const struct sw_flow_mask *mask)
-{
-	return ovs_sw_flow_key_range_actual_size(&mask->range);
-}
-
-static inline u16
-ovs_sw_flow_mask_size_roundup(const struct sw_flow_mask *mask)
-{
-	return roundup(ovs_sw_flow_mask_actual_size(mask), sizeof(u32));
-}
 
 struct sw_flow_mask *ovs_sw_flow_mask_alloc(void);
 void ovs_sw_flow_mask_add_ref(struct sw_flow_mask *);
