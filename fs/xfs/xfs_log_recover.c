@@ -3309,7 +3309,7 @@ xlog_recover_inode_ra_pass2(
 		return;
 
 	xfs_buf_readahead(mp->m_ddev_targp, ilfp->ilf_blkno,
-				ilfp->ilf_len, &xfs_inode_buf_ops);
+				ilfp->ilf_len, &xfs_inode_buf_ra_ops);
 }
 
 STATIC void
