@@ -106,6 +106,12 @@ extern int rpc_add_pipe_dir_object(struct net *net,
 extern void rpc_remove_pipe_dir_object(struct net *net,
 		struct rpc_pipe_dir_head *pdh,
 		struct rpc_pipe_dir_object *pdo);
+extern struct rpc_pipe_dir_object *rpc_find_or_alloc_pipe_dir_object(
+		struct net *net,
+		struct rpc_pipe_dir_head *pdh,
+		int (*match)(struct rpc_pipe_dir_object *, void *),
+		struct rpc_pipe_dir_object *(*alloc)(void *),
+		void *data);
 
 struct cache_detail;
 extern struct dentry *rpc_create_cache_dir(struct dentry *,

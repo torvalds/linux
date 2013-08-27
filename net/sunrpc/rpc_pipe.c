@@ -982,6 +982,41 @@ rpc_remove_pipe_dir_object(struct net *net,
 }
 EXPORT_SYMBOL_GPL(rpc_remove_pipe_dir_object);
 
+/**
+ * rpc_find_or_alloc_pipe_dir_object
+ * @net: pointer to struct net
+ * @pdh: pointer to struct rpc_pipe_dir_head
+ * @match: match struct rpc_pipe_dir_object to data
+ * @alloc: allocate a new struct rpc_pipe_dir_object
+ * @data: user defined data for match() and alloc()
+ *
+ */
+struct rpc_pipe_dir_object *
+rpc_find_or_alloc_pipe_dir_object(struct net *net,
+		struct rpc_pipe_dir_head *pdh,
+		int (*match)(struct rpc_pipe_dir_object *, void *),
+		struct rpc_pipe_dir_object *(*alloc)(void *),
+		void *data)
+{
+	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
+	struct rpc_pipe_dir_object *pdo;
+
+	mutex_lock(&sn->pipefs_sb_lock);
+	list_for_each_entry(pdo, &pdh->pdh_entries, pdo_head) {
+		if (!match(pdo, data))
+			continue;
+		goto out;
+	}
+	pdo = alloc(data);
+	if (!pdo)
+		goto out;
+	rpc_add_pipe_dir_object_locked(net, pdh, pdo);
+out:
+	mutex_unlock(&sn->pipefs_sb_lock);
+	return pdo;
+}
+EXPORT_SYMBOL_GPL(rpc_find_or_alloc_pipe_dir_object);
+
 static void
 rpc_create_pipe_dir_objects(struct rpc_pipe_dir_head *pdh)
 {
