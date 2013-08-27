@@ -18,6 +18,7 @@
 
 #include <asm/prom.h>
 #include <asm/irq.h>
+#include "../../drivers/irqchip/irqchip.h"
 
 static unsigned int intc_baseaddr;
 
@@ -115,13 +116,10 @@ static const struct irq_domain_ops xintc_irq_domain_ops = {
 	.map = xintc_map,
 };
 
-void __init init_IRQ(void)
+static int __init xilinx_intc_of_init(struct device_node *intc,
+					     struct device_node *parent)
 {
 	u32 nr_irq, intr_mask;
-	struct device_node *intc = NULL;
-
-	intc = of_find_compatible_node(NULL, NULL, "xlnx,xps-intc-1.00.a");
-	BUG_ON(!intc);
 
 	intc_baseaddr = be32_to_cpup(of_get_property(intc, "reg", NULL));
 	intc_baseaddr = (unsigned long) ioremap(intc_baseaddr, PAGE_SIZE);
@@ -155,4 +153,8 @@ void __init init_IRQ(void)
 							(void *)intr_mask);
 
 	irq_set_default_host(root_domain);
+
+	return 0;
 }
+
+IRQCHIP_DECLARE(xilinx_intc, "xlnx,xps-intc-1.00.a", xilinx_intc_of_init);

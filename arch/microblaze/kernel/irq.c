@@ -17,6 +17,7 @@
 #include <linux/seq_file.h>
 #include <linux/kernel_stat.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/of_irq.h>
 
 static u32 concurrent_irq;
@@ -43,4 +44,10 @@ next_irq:
 	irq_exit();
 	set_irq_regs(old_regs);
 	trace_hardirqs_on();
+}
+
+void __init init_IRQ(void)
+{
+	/* process the entire interrupt tree in one go */
+	irqchip_init();
 }
