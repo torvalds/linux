@@ -37,6 +37,51 @@
 static const struct intel_dsi_device intel_dsi_devices[] = {
 };
 
+
+static void vlv_cck_modify(struct drm_i915_private *dev_priv, u32 reg, u32 val,
+			   u32 mask)
+{
+	u32 tmp = vlv_cck_read(dev_priv, reg);
+	tmp &= ~mask;
+	tmp |= val;
+	vlv_cck_write(dev_priv, reg, tmp);
+}
+
+static void band_gap_wa(struct drm_i915_private *dev_priv)
+{
+	mutex_lock(&dev_priv->dpio_lock);
+
+	/* Enable bandgap fix in GOP driver */
+	vlv_cck_modify(dev_priv, 0x6D, 0x00010000, 0x00030000);
+	msleep(20);
+	vlv_cck_modify(dev_priv, 0x6E, 0x00010000, 0x00030000);
+	msleep(20);
+	vlv_cck_modify(dev_priv, 0x6F, 0x00010000, 0x00030000);
+	msleep(20);
+	vlv_cck_modify(dev_priv, 0x00, 0x00008000, 0x00008000);
+	msleep(20);
+	vlv_cck_modify(dev_priv, 0x00, 0x00000000, 0x00008000);
+	msleep(20);
+
+	/* Turn Display Trunk on */
+	vlv_cck_modify(dev_priv, 0x6B, 0x00020000, 0x00030000);
+	msleep(20);
+
+	vlv_cck_modify(dev_priv, 0x6C, 0x00020000, 0x00030000);
+	msleep(20);
+
+	vlv_cck_modify(dev_priv, 0x6D, 0x00020000, 0x00030000);
+	msleep(20);
+	vlv_cck_modify(dev_priv, 0x6E, 0x00020000, 0x00030000);
+	msleep(20);
+	vlv_cck_modify(dev_priv, 0x6F, 0x00020000, 0x00030000);
+
+	mutex_unlock(&dev_priv->dpio_lock);
+
+	/* Need huge delay, otherwise clock is not stable */
+	msleep(100);
+}
+
 static struct intel_dsi *intel_attached_dsi(struct drm_connector *connector)
 {
 	return container_of(intel_attached_encoder(connector),
@@ -309,6 +354,9 @@ static void intel_dsi_mode_set(struct intel_encoder *intel_encoder)
 
 	/* Update the DSI PLL */
 	vlv_enable_dsi_pll(intel_encoder);
+
+	/* XXX: Location of the call */
+	band_gap_wa(dev_priv);
 
 	/* escape clock divider, 20MHz, shared for A and C. device ready must be
 	 * off when doing this! txclkesc? */
