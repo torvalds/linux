@@ -453,6 +453,7 @@ static int ti_qspi_runtime_resume(struct device *dev)
 
 static const struct of_device_id ti_qspi_match[] = {
 	{.compatible = "ti,dra7xxx-qspi" },
+	{.compatible = "ti,am4372-qspi" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, ti_qspi_match);

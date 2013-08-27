@@ -1,7 +1,7 @@
 TI QSPI controller.
 
 Required properties:
-- compatible : should be "ti,dra7xxx-qspi".
+- compatible : should be "ti,dra7xxx-qspi" or "ti,am4372-qspi".
 - reg: Should contain QSPI registers location and length.
 - #address-cells, #size-cells : Must be present if the device has sub-nodes
 - ti,hwmods: Name of the hwmod associated to the QSPI
