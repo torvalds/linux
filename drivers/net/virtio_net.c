@@ -1538,6 +1538,8 @@ static int virtnet_probe(struct virtio_device *vdev)
 			dev->features |= dev->hw_features & (NETIF_F_ALL_TSO|NETIF_F_UFO);
 		/* (!csum && gso) case will be fixed by register_netdev() */
 	}
+	if (virtio_has_feature(vdev, VIRTIO_NET_F_GUEST_CSUM))
+		dev->features |= NETIF_F_RXCSUM;
 
 	dev->vlan_features = dev->features;
 
