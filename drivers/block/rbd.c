@@ -1557,11 +1557,12 @@ rbd_img_obj_request_read_callback(struct rbd_obj_request *obj_request)
 		obj_request, obj_request->img_request, obj_request->result,
 		xferred, length);
 	/*
-	 * ENOENT means a hole in the image.  We zero-fill the
-	 * entire length of the request.  A short read also implies
-	 * zero-fill to the end of the request.  Either way we
-	 * update the xferred count to indicate the whole request
-	 * was satisfied.
+	 * ENOENT means a hole in the image.  We zero-fill the entire
+	 * length of the request.  A short read also implies zero-fill
+	 * to the end of the request.  An error requires the whole
+	 * length of the request to be reported finished with an error
+	 * to the block layer.  In each case we update the xferred
+	 * count to indicate the whole request was satisfied.
 	 */
 	rbd_assert(obj_request->type != OBJ_REQUEST_NODATA);
 	if (obj_request->result == -ENOENT) {
@@ -1570,14 +1571,13 @@ rbd_img_obj_request_read_callback(struct rbd_obj_request *obj_request)
 		else
 			zero_pages(obj_request->pages, 0, length);
 		obj_request->result = 0;
-		obj_request->xferred = length;
 	} else if (xferred < length && !obj_request->result) {
 		if (obj_request->type == OBJ_REQUEST_BIO)
 			zero_bio_chain(obj_request->bio_list, xferred);
 		else
 			zero_pages(obj_request->pages, xferred, length);
-		obj_request->xferred = length;
 	}
+	obj_request->xferred = length;
 	obj_request_done_set(obj_request);
 }
 
