@@ -190,95 +190,106 @@ static void s_vFillTxKey(struct vnt_private *pDevice, u8 *pbyBuf,
 	struct ieee80211_hdr *pMACHeader = (struct ieee80211_hdr *)pbyHdrBuf;
 	u32 dwRevIVCounter;
 
-    //Fill TXKEY
-    if (pTransmitKey == NULL)
-        return;
-
-    dwRevIVCounter = cpu_to_le32(pDevice->dwIVCounter);
-    *pdwIV = pDevice->dwIVCounter;
-    pDevice->byKeyIndex = pTransmitKey->dwKeyIndex & 0xf;
-
-    if (pTransmitKey->byCipherSuite == KEY_CTL_WEP) {
-        if (pTransmitKey->uKeyLength == WLAN_WEP232_KEYLEN ){
-            memcpy(pDevice->abyPRNG, (u8 *)&(dwRevIVCounter), 3);
-            memcpy(pDevice->abyPRNG+3, pTransmitKey->abyKey, pTransmitKey->uKeyLength);
-        } else {
-            memcpy(pbyBuf, (u8 *)&(dwRevIVCounter), 3);
-            memcpy(pbyBuf+3, pTransmitKey->abyKey, pTransmitKey->uKeyLength);
-            if(pTransmitKey->uKeyLength == WLAN_WEP40_KEYLEN) {
-                memcpy(pbyBuf+8, (u8 *)&(dwRevIVCounter), 3);
-                memcpy(pbyBuf+11, pTransmitKey->abyKey, pTransmitKey->uKeyLength);
-            }
-            memcpy(pDevice->abyPRNG, pbyBuf, 16);
-        }
-        // Append IV after Mac Header
-        *pdwIV &= WEP_IV_MASK;//00000000 11111111 11111111 11111111
-	*pdwIV |= (u32)pDevice->byKeyIndex << 30;
-        *pdwIV = cpu_to_le32(*pdwIV);
-        pDevice->dwIVCounter++;
-        if (pDevice->dwIVCounter > WEP_IV_MASK) {
-            pDevice->dwIVCounter = 0;
-        }
-    } else if (pTransmitKey->byCipherSuite == KEY_CTL_TKIP) {
-        pTransmitKey->wTSC15_0++;
-        if (pTransmitKey->wTSC15_0 == 0) {
-            pTransmitKey->dwTSC47_16++;
-        }
-        TKIPvMixKey(pTransmitKey->abyKey, pDevice->abyCurrentNetAddr,
-                    pTransmitKey->wTSC15_0, pTransmitKey->dwTSC47_16, pDevice->abyPRNG);
-        memcpy(pbyBuf, pDevice->abyPRNG, 16);
-        // Make IV
-        memcpy(pdwIV, pDevice->abyPRNG, 3);
-
-        *(pbyIVHead+3) = (u8)(((pDevice->byKeyIndex << 6) & 0xc0) | 0x20); // 0x20 is ExtIV
-        // Append IV&ExtIV after Mac Header
-        *pdwExtIV = cpu_to_le32(pTransmitKey->dwTSC47_16);
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"vFillTxKey()---- pdwExtIV: %x\n",
-		*pdwExtIV);
-
-    } else if (pTransmitKey->byCipherSuite == KEY_CTL_CCMP) {
-        pTransmitKey->wTSC15_0++;
-        if (pTransmitKey->wTSC15_0 == 0) {
-            pTransmitKey->dwTSC47_16++;
-        }
-        memcpy(pbyBuf, pTransmitKey->abyKey, 16);
-
-        // Make IV
-        *pdwIV = 0;
-        *(pbyIVHead+3) = (u8)(((pDevice->byKeyIndex << 6) & 0xc0) | 0x20); // 0x20 is ExtIV
-        *pdwIV |= cpu_to_le16((u16)(pTransmitKey->wTSC15_0));
-        //Append IV&ExtIV after Mac Header
-        *pdwExtIV = cpu_to_le32(pTransmitKey->dwTSC47_16);
-
-	if (!mic_hdr)
+	/* Fill TXKEY */
+	if (pTransmitKey == NULL)
 		return;
 
-	/* MICHDR0 */
-	mic_hdr->id = 0x59;
-	mic_hdr->payload_len = cpu_to_be16(wPayloadLen);
-	memcpy(mic_hdr->mic_addr2, pMACHeader->addr2, ETH_ALEN);
+	dwRevIVCounter = cpu_to_le32(pDevice->dwIVCounter);
+	*pdwIV = pDevice->dwIVCounter;
+	pDevice->byKeyIndex = pTransmitKey->dwKeyIndex & 0xf;
 
-	mic_hdr->tsc_47_16 = cpu_to_be32(pTransmitKey->dwTSC47_16);
-	mic_hdr->tsc_15_0 = cpu_to_be16(pTransmitKey->wTSC15_0);
+	if (pTransmitKey->byCipherSuite == KEY_CTL_WEP) {
+		if (pTransmitKey->uKeyLength == WLAN_WEP232_KEYLEN) {
+			memcpy(pDevice->abyPRNG, (u8 *)&dwRevIVCounter, 3);
+			memcpy(pDevice->abyPRNG + 3, pTransmitKey->abyKey,
+						pTransmitKey->uKeyLength);
+		} else {
+			memcpy(pbyBuf, (u8 *)&dwRevIVCounter, 3);
+			memcpy(pbyBuf + 3, pTransmitKey->abyKey,
+						pTransmitKey->uKeyLength);
+			if (pTransmitKey->uKeyLength == WLAN_WEP40_KEYLEN) {
+				memcpy(pbyBuf+8, (u8 *)&dwRevIVCounter, 3);
+			memcpy(pbyBuf+11, pTransmitKey->abyKey,
+						pTransmitKey->uKeyLength);
+			}
 
-	/* MICHDR1 */
-	if (pDevice->bLongHeader)
-		mic_hdr->hlen = cpu_to_be16(28);
-	else
-		mic_hdr->hlen = cpu_to_be16(22);
+			memcpy(pDevice->abyPRNG, pbyBuf, 16);
+		}
+		/* Append IV after Mac Header */
+		*pdwIV &= WEP_IV_MASK;
+		*pdwIV |= (u32)pDevice->byKeyIndex << 30;
+		*pdwIV = cpu_to_le32(*pdwIV);
 
-	memcpy(mic_hdr->addr1, pMACHeader->addr1, ETH_ALEN);
-	memcpy(mic_hdr->addr2, pMACHeader->addr2, ETH_ALEN);
+		pDevice->dwIVCounter++;
+		if (pDevice->dwIVCounter > WEP_IV_MASK)
+			pDevice->dwIVCounter = 0;
+	} else if (pTransmitKey->byCipherSuite == KEY_CTL_TKIP) {
+		pTransmitKey->wTSC15_0++;
+		if (pTransmitKey->wTSC15_0 == 0)
+			pTransmitKey->dwTSC47_16++;
 
-	/* MICHDR2 */
-	memcpy(mic_hdr->addr3, pMACHeader->addr3, ETH_ALEN);
-	mic_hdr->frame_control = cpu_to_le16(pMACHeader->frame_control
+		TKIPvMixKey(pTransmitKey->abyKey, pDevice->abyCurrentNetAddr,
+			pTransmitKey->wTSC15_0, pTransmitKey->dwTSC47_16,
+							pDevice->abyPRNG);
+		memcpy(pbyBuf, pDevice->abyPRNG, 16);
+
+		/* Make IV */
+		memcpy(pdwIV, pDevice->abyPRNG, 3);
+
+		*(pbyIVHead+3) = (u8)(((pDevice->byKeyIndex << 6) &
+							0xc0) | 0x20);
+		/*  Append IV&ExtIV after Mac Header */
+		*pdwExtIV = cpu_to_le32(pTransmitKey->dwTSC47_16);
+
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+			"vFillTxKey()---- pdwExtIV: %x\n", *pdwExtIV);
+
+	} else if (pTransmitKey->byCipherSuite == KEY_CTL_CCMP) {
+		pTransmitKey->wTSC15_0++;
+		if (pTransmitKey->wTSC15_0 == 0)
+			pTransmitKey->dwTSC47_16++;
+
+		memcpy(pbyBuf, pTransmitKey->abyKey, 16);
+
+		/* Make IV */
+		*pdwIV = 0;
+		*(pbyIVHead+3) = (u8)(((pDevice->byKeyIndex << 6) &
+							0xc0) | 0x20);
+
+		*pdwIV |= cpu_to_le16((u16)(pTransmitKey->wTSC15_0));
+
+		/* Append IV&ExtIV after Mac Header */
+		*pdwExtIV = cpu_to_le32(pTransmitKey->dwTSC47_16);
+
+		if (!mic_hdr)
+			return;
+
+		/* MICHDR0 */
+		mic_hdr->id = 0x59;
+		mic_hdr->payload_len = cpu_to_be16(wPayloadLen);
+		memcpy(mic_hdr->mic_addr2, pMACHeader->addr2, ETH_ALEN);
+
+		mic_hdr->tsc_47_16 = cpu_to_be32(pTransmitKey->dwTSC47_16);
+		mic_hdr->tsc_15_0 = cpu_to_be16(pTransmitKey->wTSC15_0);
+
+		/* MICHDR1 */
+		if (pDevice->bLongHeader)
+			mic_hdr->hlen = cpu_to_be16(28);
+		else
+			mic_hdr->hlen = cpu_to_be16(22);
+
+		memcpy(mic_hdr->addr1, pMACHeader->addr1, ETH_ALEN);
+		memcpy(mic_hdr->addr2, pMACHeader->addr2, ETH_ALEN);
+
+		/* MICHDR2 */
+		memcpy(mic_hdr->addr3, pMACHeader->addr3, ETH_ALEN);
+		mic_hdr->frame_control = cpu_to_le16(pMACHeader->frame_control
 								& 0xc78f);
-	mic_hdr->seq_ctrl = cpu_to_le16(pMACHeader->seq_ctrl & 0xf);
+		mic_hdr->seq_ctrl = cpu_to_le16(pMACHeader->seq_ctrl & 0xf);
 
-	if (pDevice->bLongHeader)
-		memcpy(mic_hdr->addr4, pMACHeader->addr4, ETH_ALEN);
-    }
+		if (pDevice->bLongHeader)
+			memcpy(mic_hdr->addr4, pMACHeader->addr4, ETH_ALEN);
+	}
 }
 
 static void s_vSWencryption(struct vnt_private *pDevice,
