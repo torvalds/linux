@@ -550,19 +550,19 @@
  * to use these fields safely.
  */
 #define PCI_EXP_DEVCAP2		36	/* Device Capabilities 2 */
-#define  PCI_EXP_DEVCAP2_ARI	0x20	/* Alternative Routing-ID */
-#define  PCI_EXP_DEVCAP2_LTR	0x800	/* Latency tolerance reporting */
-#define  PCI_EXP_OBFF_MASK	0xc0000 /* OBFF support mechanism */
-#define  PCI_EXP_OBFF_MSG	0x40000 /* New message signaling */
-#define  PCI_EXP_OBFF_WAKE	0x80000 /* Re-use WAKE# for OBFF */
+#define  PCI_EXP_DEVCAP2_ARI		0x20	/* Alternative Routing-ID */
+#define  PCI_EXP_DEVCAP2_LTR		0x800	/* Latency tolerance reporting */
+#define  PCI_EXP_DEVCAP2_OBFF_MASK	0xc0000 /* OBFF support mechanism */
+#define  PCI_EXP_DEVCAP2_OBFF_MSG	0x40000 /* New message signaling */
+#define  PCI_EXP_DEVCAP2_OBFF_WAKE	0x80000 /* Re-use WAKE# for OBFF */
 #define PCI_EXP_DEVCTL2		40	/* Device Control 2 */
-#define  PCI_EXP_DEVCTL2_ARI	0x20	/* Alternative Routing-ID */
-#define  PCI_EXP_IDO_REQ_EN	0x100	/* ID-based ordering request enable */
-#define  PCI_EXP_IDO_CMP_EN	0x200	/* ID-based ordering completion enable */
-#define  PCI_EXP_LTR_EN		0x400	/* Latency tolerance reporting */
-#define  PCI_EXP_OBFF_MSGA_EN	0x2000	/* OBFF enable with Message type A */
-#define  PCI_EXP_OBFF_MSGB_EN	0x4000	/* OBFF enable with Message type B */
-#define  PCI_EXP_OBFF_WAKE_EN	0x6000	/* OBFF using WAKE# signaling */
+#define  PCI_EXP_DEVCTL2_ARI		0x20	/* Alternative Routing-ID */
+#define  PCI_EXP_DEVCTL2_IDO_REQ_EN	0x100	/* ID-based ordering request enable */
+#define  PCI_EXP_DEVCTL2_IDO_CMP_EN	0x200	/* ID-based ordering completion enable */
+#define  PCI_EXP_DEVCTL2_LTR_EN		0x400	/* Latency tolerance reporting */
+#define  PCI_EXP_DEVCTL2_OBFF_MSGA_EN	0x2000	/* OBFF enable with Message type A */
+#define  PCI_EXP_DEVCTL2_OBFF_MSGB_EN	0x4000	/* OBFF enable with Message type B */
+#define  PCI_EXP_DEVCTL2_OBFF_WAKE_EN	0x6000	/* OBFF using WAKE# signaling */
 #define PCI_CAP_EXP_ENDPOINT_SIZEOF_V2	44	/* v2 endpoints end here */
 #define PCI_EXP_LNKCAP2		44	/* Link Capability 2 */
 #define  PCI_EXP_LNKCAP2_SLS_2_5GB 0x02	/* Supported Link Speed 2.5GT/s */

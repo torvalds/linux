@@ -2095,9 +2095,9 @@ void pci_enable_ido(struct pci_dev *dev, unsigned long type)
 	u16 ctrl = 0;
 
 	if (type & PCI_EXP_IDO_REQUEST)
-		ctrl |= PCI_EXP_IDO_REQ_EN;
+		ctrl |= PCI_EXP_DEVCTL2_IDO_REQ_EN;
 	if (type & PCI_EXP_IDO_COMPLETION)
-		ctrl |= PCI_EXP_IDO_CMP_EN;
+		ctrl |= PCI_EXP_DEVCTL2_IDO_CMP_EN;
 	if (ctrl)
 		pcie_capability_set_word(dev, PCI_EXP_DEVCTL2, ctrl);
 }
@@ -2113,9 +2113,9 @@ void pci_disable_ido(struct pci_dev *dev, unsigned long type)
 	u16 ctrl = 0;
 
 	if (type & PCI_EXP_IDO_REQUEST)
-		ctrl |= PCI_EXP_IDO_REQ_EN;
+		ctrl |= PCI_EXP_DEVCTL2_IDO_REQ_EN;
 	if (type & PCI_EXP_IDO_COMPLETION)
-		ctrl |= PCI_EXP_IDO_CMP_EN;
+		ctrl |= PCI_EXP_DEVCTL2_IDO_CMP_EN;
 	if (ctrl)
 		pcie_capability_clear_word(dev, PCI_EXP_DEVCTL2, ctrl);
 }
@@ -2147,7 +2147,7 @@ int pci_enable_obff(struct pci_dev *dev, enum pci_obff_signal_type type)
 	int ret;
 
 	pcie_capability_read_dword(dev, PCI_EXP_DEVCAP2, &cap);
-	if (!(cap & PCI_EXP_OBFF_MASK))
+	if (!(cap & PCI_EXP_DEVCAP2_OBFF_MASK))
 		return -ENOTSUPP; /* no OBFF support at all */
 
 	/* Make sure the topology supports OBFF as well */
@@ -2158,17 +2158,17 @@ int pci_enable_obff(struct pci_dev *dev, enum pci_obff_signal_type type)
 	}
 
 	pcie_capability_read_word(dev, PCI_EXP_DEVCTL2, &ctrl);
-	if (cap & PCI_EXP_OBFF_WAKE)
-		ctrl |= PCI_EXP_OBFF_WAKE_EN;
+	if (cap & PCI_EXP_DEVCAP2_OBFF_WAKE)
+		ctrl |= PCI_EXP_DEVCTL2_OBFF_WAKE_EN;
 	else {
 		switch (type) {
 		case PCI_EXP_OBFF_SIGNAL_L0:
-			if (!(ctrl & PCI_EXP_OBFF_WAKE_EN))
-				ctrl |= PCI_EXP_OBFF_MSGA_EN;
+			if (!(ctrl & PCI_EXP_DEVCTL2_OBFF_WAKE_EN))
+				ctrl |= PCI_EXP_DEVCTL2_OBFF_MSGA_EN;
 			break;
 		case PCI_EXP_OBFF_SIGNAL_ALWAYS:
-			ctrl &= ~PCI_EXP_OBFF_WAKE_EN;
-			ctrl |= PCI_EXP_OBFF_MSGB_EN;
+			ctrl &= ~PCI_EXP_DEVCTL2_OBFF_WAKE_EN;
+			ctrl |= PCI_EXP_DEVCTL2_OBFF_MSGB_EN;
 			break;
 		default:
 			WARN(1, "bad OBFF signal type\n");
@@ -2189,7 +2189,8 @@ EXPORT_SYMBOL(pci_enable_obff);
  */
 void pci_disable_obff(struct pci_dev *dev)
 {
-	pcie_capability_clear_word(dev, PCI_EXP_DEVCTL2, PCI_EXP_OBFF_WAKE_EN);
+	pcie_capability_clear_word(dev, PCI_EXP_DEVCTL2,
+				   PCI_EXP_DEVCTL2_OBFF_WAKE_EN);
 }
 EXPORT_SYMBOL(pci_disable_obff);
 
@@ -2237,7 +2238,8 @@ int pci_enable_ltr(struct pci_dev *dev)
 			return ret;
 	}
 
-	return pcie_capability_set_word(dev, PCI_EXP_DEVCTL2, PCI_EXP_LTR_EN);
+	return pcie_capability_set_word(dev, PCI_EXP_DEVCTL2,
+					PCI_EXP_DEVCTL2_LTR_EN);
 }
 EXPORT_SYMBOL(pci_enable_ltr);
 
@@ -2254,7 +2256,8 @@ void pci_disable_ltr(struct pci_dev *dev)
 	if (!pci_ltr_supported(dev))
 		return;
 
-	pcie_capability_clear_word(dev, PCI_EXP_DEVCTL2, PCI_EXP_LTR_EN);
+	pcie_capability_clear_word(dev, PCI_EXP_DEVCTL2,
+				   PCI_EXP_DEVCTL2_LTR_EN);
 }
 EXPORT_SYMBOL(pci_disable_ltr);
 
