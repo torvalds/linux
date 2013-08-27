@@ -302,6 +302,7 @@ int au_wr_dir(struct dentry *dentry, struct dentry *src_dentry,
 	      struct au_wr_dir_args *args)
 {
 	int err;
+	unsigned int flags;
 	aufs_bindex_t bcpup, bstart, src_bstart;
 	const unsigned char add_entry
 		= au_ftest_wrdir(args->flags, ADD_ENTRY)
@@ -321,8 +322,10 @@ int au_wr_dir(struct dentry *dentry, struct dentry *src_dentry,
 			if (src_bstart < bstart)
 				bcpup = src_bstart;
 		} else if (add_entry) {
-			err = AuWbrCreate(sbinfo, dentry,
-					  au_ftest_wrdir(args->flags, ISDIR));
+			flags = 0;
+			if (au_ftest_wrdir(args->flags, ISDIR))
+				au_fset_wbr(flags, DIR);
+			err = AuWbrCreate(sbinfo, dentry, flags);
 			bcpup = err;
 		}
 
