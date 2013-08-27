@@ -1765,7 +1765,6 @@ qlafx00_process_aen(struct scsi_qla_host *vha, struct qla_work_evt *evt)
 		aen_code = FCH_EVT_LINKDOWN;
 		aen_data = 0;
 		break;
-	case QLAFX00_MBA_TEMP_OVER:
 	case QLAFX00_MBA_TEMP_CRIT:	/* Critical temperature event */
 		ql_log(ql_log_info, vha, 0x5082,
 		    "Process critical temperature event "
@@ -2915,6 +2914,19 @@ qlafx00_async_event(scsi_qla_host_t *vha)
 		break;
 
 	case QLAFX00_MBA_TEMP_OVER:	/* Over temperature event */
+		ql_log(ql_log_info, vha, 0x5085,
+		    "Asynchronous over temperature event received "
+		    "aenmb[0]: %x\n",
+		    ha->aenmb[0]);
+		break;
+
+	case QLAFX00_MBA_TEMP_NORM:	/* Normal temperature event */
+		ql_log(ql_log_info, vha, 0x5086,
+		    "Asynchronous normal temperature event received "
+		    "aenmb[0]: %x\n",
+		    ha->aenmb[0]);
+		break;
+
 	case QLAFX00_MBA_TEMP_CRIT:	/* Critical temperature event */
 		ql_log(ql_log_info, vha, 0x5083,
 		    "Asynchronous critical temperature event received "
