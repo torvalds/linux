@@ -12,7 +12,7 @@
 #include <linux/init.h>
 #include <linux/irqdomain.h>
 #include <linux/irq.h>
-#include <asm/page.h>
+#include <linux/of_address.h>
 #include <linux/io.h>
 #include <linux/bug.h>
 
@@ -20,7 +20,7 @@
 #include <asm/irq.h>
 #include "../../drivers/irqchip/irqchip.h"
 
-static unsigned int intc_baseaddr;
+static void __iomem *intc_baseaddr;
 
 /* No one else should require these constants, so define them locally here. */
 #define ISR 0x00			/* Interrupt Status Register */
@@ -120,19 +120,28 @@ static int __init xilinx_intc_of_init(struct device_node *intc,
 					     struct device_node *parent)
 {
 	u32 nr_irq, intr_mask;
+	int ret;
 
-	intc_baseaddr = be32_to_cpup(of_get_property(intc, "reg", NULL));
-	intc_baseaddr = (unsigned long) ioremap(intc_baseaddr, PAGE_SIZE);
-	nr_irq = be32_to_cpup(of_get_property(intc,
-						"xlnx,num-intr-inputs", NULL));
+	intc_baseaddr = of_iomap(intc, 0);
+	BUG_ON(!intc_baseaddr);
 
-	intr_mask =
-		be32_to_cpup(of_get_property(intc, "xlnx,kind-of-intr", NULL));
+	ret = of_property_read_u32(intc, "xlnx,num-intr-inputs", &nr_irq);
+	if (ret < 0) {
+		pr_err("%s: unable to read xlnx,num-intr-inputs\n", __func__);
+		return -EINVAL;
+	}
+
+	ret = of_property_read_u32(intc, "xlnx,kind-of-intr", &intr_mask);
+	if (ret < 0) {
+		pr_err("%s: unable to read xlnx,kind-of-intr\n", __func__);
+		return -EINVAL;
+	}
+
 	if (intr_mask > (u32)((1ULL << nr_irq) - 1))
 		pr_info(" ERROR: Mismatch in kind-of-intr param\n");
 
-	pr_info("%s #0 at 0x%08x, num_irq=%d, edge=0x%x\n",
-		intc->name, intc_baseaddr, nr_irq, intr_mask);
+	pr_info("%s: num_irq=%d, edge=0x%x\n",
+		intc->full_name, nr_irq, intr_mask);
 
 	/*
 	 * Disable all external interrupts until they are
