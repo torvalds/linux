@@ -103,54 +103,57 @@ static ssize_t hwflags_read(struct file *file, char __user *user_buf,
 	if (!buf)
 		return 0;
 
-	sf += snprintf(buf, mxln - sf, "0x%x\n", local->hw.flags);
+	sf += scnprintf(buf, mxln - sf, "0x%x\n", local->hw.flags);
 	if (local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL)
-		sf += snprintf(buf + sf, mxln - sf, "HAS_RATE_CONTROL\n");
+		sf += scnprintf(buf + sf, mxln - sf, "HAS_RATE_CONTROL\n");
 	if (local->hw.flags & IEEE80211_HW_RX_INCLUDES_FCS)
-		sf += snprintf(buf + sf, mxln - sf, "RX_INCLUDES_FCS\n");
+		sf += scnprintf(buf + sf, mxln - sf, "RX_INCLUDES_FCS\n");
 	if (local->hw.flags & IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING)
-		sf += snprintf(buf + sf, mxln - sf,
-			       "HOST_BCAST_PS_BUFFERING\n");
+		sf += scnprintf(buf + sf, mxln - sf,
+				"HOST_BCAST_PS_BUFFERING\n");
 	if (local->hw.flags & IEEE80211_HW_2GHZ_SHORT_SLOT_INCAPABLE)
-		sf += snprintf(buf + sf, mxln - sf,
-			       "2GHZ_SHORT_SLOT_INCAPABLE\n");
+		sf += scnprintf(buf + sf, mxln - sf,
+				"2GHZ_SHORT_SLOT_INCAPABLE\n");
 	if (local->hw.flags & IEEE80211_HW_2GHZ_SHORT_PREAMBLE_INCAPABLE)
-		sf += snprintf(buf + sf, mxln - sf,
-			       "2GHZ_SHORT_PREAMBLE_INCAPABLE\n");
+		sf += scnprintf(buf + sf, mxln - sf,
+				"2GHZ_SHORT_PREAMBLE_INCAPABLE\n");
 	if (local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC)
-		sf += snprintf(buf + sf, mxln - sf, "SIGNAL_UNSPEC\n");
+		sf += scnprintf(buf + sf, mxln - sf, "SIGNAL_UNSPEC\n");
 	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
-		sf += snprintf(buf + sf, mxln - sf, "SIGNAL_DBM\n");
+		sf += scnprintf(buf + sf, mxln - sf, "SIGNAL_DBM\n");
 	if (local->hw.flags & IEEE80211_HW_NEED_DTIM_BEFORE_ASSOC)
-		sf += snprintf(buf + sf, mxln - sf, "NEED_DTIM_BEFORE_ASSOC\n");
+		sf += scnprintf(buf + sf, mxln - sf,
+				"NEED_DTIM_BEFORE_ASSOC\n");
 	if (local->hw.flags & IEEE80211_HW_SPECTRUM_MGMT)
-		sf += snprintf(buf + sf, mxln - sf, "SPECTRUM_MGMT\n");
+		sf += scnprintf(buf + sf, mxln - sf, "SPECTRUM_MGMT\n");
 	if (local->hw.flags & IEEE80211_HW_AMPDU_AGGREGATION)
-		sf += snprintf(buf + sf, mxln - sf, "AMPDU_AGGREGATION\n");
+		sf += scnprintf(buf + sf, mxln - sf, "AMPDU_AGGREGATION\n");
 	if (local->hw.flags & IEEE80211_HW_SUPPORTS_PS)
-		sf += snprintf(buf + sf, mxln - sf, "SUPPORTS_PS\n");
+		sf += scnprintf(buf + sf, mxln - sf, "SUPPORTS_PS\n");
 	if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
-		sf += snprintf(buf + sf, mxln - sf, "PS_NULLFUNC_STACK\n");
+		sf += scnprintf(buf + sf, mxln - sf, "PS_NULLFUNC_STACK\n");
 	if (local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS)
-		sf += snprintf(buf + sf, mxln - sf, "SUPPORTS_DYNAMIC_PS\n");
+		sf += scnprintf(buf + sf, mxln - sf, "SUPPORTS_DYNAMIC_PS\n");
 	if (local->hw.flags & IEEE80211_HW_MFP_CAPABLE)
-		sf += snprintf(buf + sf, mxln - sf, "MFP_CAPABLE\n");
+		sf += scnprintf(buf + sf, mxln - sf, "MFP_CAPABLE\n");
 	if (local->hw.flags & IEEE80211_HW_SUPPORTS_STATIC_SMPS)
-		sf += snprintf(buf + sf, mxln - sf, "SUPPORTS_STATIC_SMPS\n");
+		sf += scnprintf(buf + sf, mxln - sf, "SUPPORTS_STATIC_SMPS\n");
 	if (local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS)
-		sf += snprintf(buf + sf, mxln - sf, "SUPPORTS_DYNAMIC_SMPS\n");
+		sf += scnprintf(buf + sf, mxln - sf,
+				"SUPPORTS_DYNAMIC_SMPS\n");
 	if (local->hw.flags & IEEE80211_HW_SUPPORTS_UAPSD)
-		sf += snprintf(buf + sf, mxln - sf, "SUPPORTS_UAPSD\n");
+		sf += scnprintf(buf + sf, mxln - sf, "SUPPORTS_UAPSD\n");
 	if (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)
-		sf += snprintf(buf + sf, mxln - sf, "REPORTS_TX_ACK_STATUS\n");
+		sf += scnprintf(buf + sf, mxln - sf,
+				"REPORTS_TX_ACK_STATUS\n");
 	if (local->hw.flags & IEEE80211_HW_CONNECTION_MONITOR)
-		sf += snprintf(buf + sf, mxln - sf, "CONNECTION_MONITOR\n");
+		sf += scnprintf(buf + sf, mxln - sf, "CONNECTION_MONITOR\n");
 	if (local->hw.flags & IEEE80211_HW_SUPPORTS_PER_STA_GTK)
-		sf += snprintf(buf + sf, mxln - sf, "SUPPORTS_PER_STA_GTK\n");
+		sf += scnprintf(buf + sf, mxln - sf, "SUPPORTS_PER_STA_GTK\n");
 	if (local->hw.flags & IEEE80211_HW_AP_LINK_PS)
-		sf += snprintf(buf + sf, mxln - sf, "AP_LINK_PS\n");
+		sf += scnprintf(buf + sf, mxln - sf, "AP_LINK_PS\n");
 	if (local->hw.flags & IEEE80211_HW_TX_AMPDU_SETUP_IN_HW)
-		sf += snprintf(buf + sf, mxln - sf, "TX_AMPDU_SETUP_IN_HW\n");
+		sf += scnprintf(buf + sf, mxln - sf, "TX_AMPDU_SETUP_IN_HW\n");
 
 	rv = simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
 	kfree(buf);
