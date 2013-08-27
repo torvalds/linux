@@ -133,7 +133,6 @@ static inline void ata_acpi_set_state(struct ata_port *ap,
 				      pm_message_t state) { }
 static inline void ata_acpi_bind_port(struct ata_port *ap) {}
 static inline void ata_acpi_bind_dev(struct ata_device *dev) {}
-static inline acpi_handle ata_dev_acpi_handle(struct ata_device *dev) { return NULL; }
 static inline void ata_scsi_acpi_bind(struct ata_device *dev) {}
 static inline void ata_scsi_acpi_unbind(struct ata_device *dev) {}
 #endif
