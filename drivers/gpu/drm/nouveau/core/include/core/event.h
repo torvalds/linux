@@ -5,8 +5,12 @@
 #define NVKM_EVENT_DROP 0
 #define NVKM_EVENT_KEEP 1
 
+/* nouveau_eventh.flags bit #s */
+#define NVKM_EVENT_ENABLE 0
+
 struct nouveau_eventh {
 	struct list_head head;
+	unsigned long flags;
 	void *priv;
 	int (*func)(struct nouveau_eventh *, int index);
 };

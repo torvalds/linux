@@ -95,7 +95,6 @@ nouveau_drm_vblank_enable(struct drm_device *dev, int head)
 
 	if (WARN_ON_ONCE(head >= ARRAY_SIZE(drm->vblank)))
 		return -EIO;
-	WARN_ON_ONCE(drm->vblank[head].func);
 	drm->vblank[head].func = nouveau_drm_vblank_handler;
 	nouveau_event_get(pdisp->vblank, head, &drm->vblank[head]);
 	return 0;
@@ -106,11 +105,8 @@ nouveau_drm_vblank_disable(struct drm_device *dev, int head)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_disp *pdisp = nouveau_disp(drm->device);
-	if (drm->vblank[head].func)
-		nouveau_event_put(pdisp->vblank, head, &drm->vblank[head]);
-	else
-		WARN_ON_ONCE(1);
-	drm->vblank[head].func = NULL;
+
+	nouveau_event_put(pdisp->vblank, head, &drm->vblank[head]);
 }
 
 static u64
