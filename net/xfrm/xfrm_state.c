@@ -372,8 +372,6 @@ static void xfrm_state_gc_task(struct work_struct *work)
 
 	hlist_for_each_entry_safe(x, tmp, &gc_list, gclist)
 		xfrm_state_gc_destroy(x);
-
-	wake_up(&net->xfrm.km_waitq);
 }
 
 static inline unsigned long make_jiffies(long secs)
@@ -388,7 +386,6 @@ static enum hrtimer_restart xfrm_timer_handler(struct hrtimer * me)
 {
 	struct tasklet_hrtimer *thr = container_of(me, struct tasklet_hrtimer, timer);
 	struct xfrm_state *x = container_of(thr, struct xfrm_state, mtimer);
-	struct net *net = xs_net(x);
 	unsigned long now = get_seconds();
 	long next = LONG_MAX;
 	int warn = 0;
@@ -458,12 +455,8 @@ resched:
 	goto out;
 
 expired:
-	if (x->km.state == XFRM_STATE_ACQ && x->id.spi == 0) {
+	if (x->km.state == XFRM_STATE_ACQ && x->id.spi == 0)
 		x->km.state = XFRM_STATE_EXPIRED;
-		wake_up(&net->xfrm.km_waitq);
-		next = 2;
-		goto resched;
-	}
 
 	err = __xfrm_state_delete(x);
 	if (!err)
@@ -635,7 +628,6 @@ restart:
 
 out:
 	spin_unlock_bh(&net->xfrm.xfrm_state_lock);
-	wake_up(&net->xfrm.km_waitq);
 	return err;
 }
 EXPORT_SYMBOL(xfrm_state_flush);
@@ -947,8 +939,6 @@ static void __xfrm_state_insert(struct xfrm_state *x)
 	tasklet_hrtimer_start(&x->mtimer, ktime_set(1, 0), HRTIMER_MODE_REL);
 	if (x->replay_maxage)
 		mod_timer(&x->rtimer, jiffies + x->replay_maxage);
-
-	wake_up(&net->xfrm.km_waitq);
 
 	net->xfrm.state_num++;
 
@@ -1658,16 +1648,12 @@ EXPORT_SYMBOL(km_state_notify);
 
 void km_state_expired(struct xfrm_state *x, int hard, u32 portid)
 {
-	struct net *net = xs_net(x);
 	struct km_event c;
 
 	c.data.hard = hard;
 	c.portid = portid;
 	c.event = XFRM_MSG_EXPIRE;
 	km_state_notify(x, &c);
-
-	if (hard)
-		wake_up(&net->xfrm.km_waitq);
 }
 
 EXPORT_SYMBOL(km_state_expired);
@@ -1710,16 +1696,12 @@ EXPORT_SYMBOL(km_new_mapping);
 
 void km_policy_expired(struct xfrm_policy *pol, int dir, int hard, u32 portid)
 {
-	struct net *net = xp_net(pol);
 	struct km_event c;
 
 	c.data.hard = hard;
 	c.portid = portid;
 	c.event = XFRM_MSG_POLEXPIRE;
 	km_policy_notify(pol, dir, &c);
-
-	if (hard)
-		wake_up(&net->xfrm.km_waitq);
 }
 EXPORT_SYMBOL(km_policy_expired);
 
@@ -2028,7 +2010,6 @@ int __net_init xfrm_state_init(struct net *net)
 	INIT_WORK(&net->xfrm.state_hash_work, xfrm_hash_resize);
 	INIT_HLIST_HEAD(&net->xfrm.state_gc_list);
 	INIT_WORK(&net->xfrm.state_gc_work, xfrm_state_gc_task);
-	init_waitqueue_head(&net->xfrm.km_waitq);
 	spin_lock_init(&net->xfrm.xfrm_state_lock);
 	return 0;
 

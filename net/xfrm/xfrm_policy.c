@@ -1901,8 +1901,7 @@ static struct xfrm_dst *xfrm_create_dummy_bundle(struct net *net,
 	if (IS_ERR(xdst))
 		return xdst;
 
-	if (net->xfrm.sysctl_larval_drop || num_xfrms <= 0 ||
-	    (fl->flowi_flags & FLOWI_FLAG_CAN_SLEEP))
+	if (net->xfrm.sysctl_larval_drop || num_xfrms <= 0)
 		return xdst;
 
 	dst1 = &xdst->u.dst;
@@ -2077,7 +2076,6 @@ struct dst_entry *xfrm_lookup(struct net *net, struct dst_entry *dst_orig,
 	u8 dir = policy_to_flow_dir(XFRM_POLICY_OUT);
 	int i, err, num_pols, num_xfrms = 0, drop_pols = 0;
 
-restart:
 	dst = NULL;
 	xdst = NULL;
 	route = NULL;
@@ -2157,23 +2155,8 @@ restart:
 
 			return make_blackhole(net, family, dst_orig);
 		}
-		if (fl->flowi_flags & FLOWI_FLAG_CAN_SLEEP) {
-			DECLARE_WAITQUEUE(wait, current);
 
-			add_wait_queue(&net->xfrm.km_waitq, &wait);
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule();
-			set_current_state(TASK_RUNNING);
-			remove_wait_queue(&net->xfrm.km_waitq, &wait);
-
-			if (!signal_pending(current)) {
-				dst_release(dst);
-				goto restart;
-			}
-
-			err = -ERESTART;
-		} else
-			err = -EAGAIN;
+		err = -EAGAIN;
 
 		XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTNOSTATES);
 		goto error;

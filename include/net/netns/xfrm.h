@@ -33,8 +33,6 @@ struct netns_xfrm {
 	struct hlist_head	state_gc_list;
 	struct work_struct	state_gc_work;
 
-	wait_queue_head_t	km_waitq;
-
 	struct list_head	policy_all;
 	struct hlist_head	*policy_byidx;
 	unsigned int		policy_idx_hmask;
