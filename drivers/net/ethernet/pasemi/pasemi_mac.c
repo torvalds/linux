@@ -440,10 +440,9 @@ static int pasemi_mac_setup_rx_resources(const struct net_device *dev)
 	if (pasemi_dma_alloc_ring(&ring->chan, RX_RING_SIZE))
 		goto out_ring_desc;
 
-	ring->buffers = dma_alloc_coherent(&mac->dma_pdev->dev,
-					   RX_RING_SIZE * sizeof(u64),
-					   &ring->buf_dma,
-					   GFP_KERNEL | __GFP_ZERO);
+	ring->buffers = dma_zalloc_coherent(&mac->dma_pdev->dev,
+					    RX_RING_SIZE * sizeof(u64),
+					    &ring->buf_dma, GFP_KERNEL);
 	if (!ring->buffers)
 		goto out_ring_desc;
 

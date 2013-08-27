@@ -448,14 +448,14 @@ int qlcnic_82xx_fw_cmd_create_tx_ctx(struct qlcnic_adapter *adapter,
 	*(tx_ring->hw_consumer) = 0;
 
 	rq_size = SIZEOF_HOSTRQ_TX(struct qlcnic_hostrq_tx_ctx);
-	rq_addr = dma_alloc_coherent(&adapter->pdev->dev, rq_size,
-				     &rq_phys_addr, GFP_KERNEL | __GFP_ZERO);
+	rq_addr = dma_zalloc_coherent(&adapter->pdev->dev, rq_size,
+				      &rq_phys_addr, GFP_KERNEL);
 	if (!rq_addr)
 		return -ENOMEM;
 
 	rsp_size = SIZEOF_CARDRSP_TX(struct qlcnic_cardrsp_tx_ctx);
-	rsp_addr = dma_alloc_coherent(&adapter->pdev->dev, rsp_size,
-				      &rsp_phys_addr, GFP_KERNEL | __GFP_ZERO);
+	rsp_addr = dma_zalloc_coherent(&adapter->pdev->dev, rsp_size,
+				       &rsp_phys_addr, GFP_KERNEL);
 	if (!rsp_addr) {
 		err = -ENOMEM;
 		goto out_free_rq;
@@ -865,8 +865,8 @@ int qlcnic_82xx_get_nic_info(struct qlcnic_adapter *adapter,
 	struct qlcnic_cmd_args cmd;
 	size_t  nic_size = sizeof(struct qlcnic_info_le);
 
-	nic_info_addr = dma_alloc_coherent(&adapter->pdev->dev, nic_size,
-					   &nic_dma_t, GFP_KERNEL | __GFP_ZERO);
+	nic_info_addr = dma_zalloc_coherent(&adapter->pdev->dev, nic_size,
+					    &nic_dma_t, GFP_KERNEL);
 	if (!nic_info_addr)
 		return -ENOMEM;
 
@@ -919,8 +919,8 @@ int qlcnic_82xx_set_nic_info(struct qlcnic_adapter *adapter,
 	if (adapter->ahw->op_mode != QLCNIC_MGMT_FUNC)
 		return err;
 
-	nic_info_addr = dma_alloc_coherent(&adapter->pdev->dev, nic_size,
-					   &nic_dma_t, GFP_KERNEL | __GFP_ZERO);
+	nic_info_addr = dma_zalloc_coherent(&adapter->pdev->dev, nic_size,
+					    &nic_dma_t, GFP_KERNEL);
 	if (!nic_info_addr)
 		return -ENOMEM;
 
@@ -972,9 +972,8 @@ int qlcnic_82xx_get_pci_info(struct qlcnic_adapter *adapter,
 	size_t npar_size = sizeof(struct qlcnic_pci_info_le);
 	size_t pci_size = npar_size * QLCNIC_MAX_PCI_FUNC;
 
-	pci_info_addr = dma_alloc_coherent(&adapter->pdev->dev, pci_size,
-					   &pci_info_dma_t,
-					   GFP_KERNEL | __GFP_ZERO);
+	pci_info_addr = dma_zalloc_coherent(&adapter->pdev->dev, pci_size,
+					    &pci_info_dma_t, GFP_KERNEL);
 	if (!pci_info_addr)
 		return -ENOMEM;
 
@@ -1074,8 +1073,8 @@ int qlcnic_get_port_stats(struct qlcnic_adapter *adapter, const u8 func,
 		return -EIO;
 	}
 
-	stats_addr = dma_alloc_coherent(&adapter->pdev->dev, stats_size,
-					&stats_dma_t, GFP_KERNEL | __GFP_ZERO);
+	stats_addr = dma_zalloc_coherent(&adapter->pdev->dev, stats_size,
+					 &stats_dma_t, GFP_KERNEL);
 	if (!stats_addr)
 		return -ENOMEM;
 
@@ -1130,8 +1129,8 @@ int qlcnic_get_mac_stats(struct qlcnic_adapter *adapter,
 	if (mac_stats == NULL)
 		return -ENOMEM;
 
-	stats_addr = dma_alloc_coherent(&adapter->pdev->dev, stats_size,
-					&stats_dma_t, GFP_KERNEL | __GFP_ZERO);
+	stats_addr = dma_zalloc_coherent(&adapter->pdev->dev, stats_size,
+					 &stats_dma_t, GFP_KERNEL);
 	if (!stats_addr)
 		return -ENOMEM;
 

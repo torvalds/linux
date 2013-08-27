@@ -948,8 +948,7 @@ static int bcm_enet_open(struct net_device *dev)
 
 	/* allocate rx dma ring */
 	size = priv->rx_ring_size * sizeof(struct bcm_enet_desc);
-	p = dma_alloc_coherent(kdev, size, &priv->rx_desc_dma,
-			       GFP_KERNEL | __GFP_ZERO);
+	p = dma_zalloc_coherent(kdev, size, &priv->rx_desc_dma, GFP_KERNEL);
 	if (!p) {
 		ret = -ENOMEM;
 		goto out_freeirq_tx;
@@ -960,8 +959,7 @@ static int bcm_enet_open(struct net_device *dev)
 
 	/* allocate tx dma ring */
 	size = priv->tx_ring_size * sizeof(struct bcm_enet_desc);
-	p = dma_alloc_coherent(kdev, size, &priv->tx_desc_dma,
-			       GFP_KERNEL | __GFP_ZERO);
+	p = dma_zalloc_coherent(kdev, size, &priv->tx_desc_dma, GFP_KERNEL);
 	if (!p) {
 		ret = -ENOMEM;
 		goto out_free_rx_ring;

@@ -33,9 +33,8 @@
 int efx_nic_alloc_buffer(struct efx_nic *efx, struct efx_buffer *buffer,
 			 unsigned int len, gfp_t gfp_flags)
 {
-	buffer->addr = dma_alloc_coherent(&efx->pci_dev->dev, len,
-					  &buffer->dma_addr,
-					  gfp_flags | __GFP_ZERO);
+	buffer->addr = dma_zalloc_coherent(&efx->pci_dev->dev, len,
+					   &buffer->dma_addr, gfp_flags);
 	if (!buffer->addr)
 		return -ENOMEM;
 	buffer->len = len;

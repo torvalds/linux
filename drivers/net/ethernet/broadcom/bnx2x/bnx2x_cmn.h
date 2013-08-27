@@ -51,8 +51,7 @@ extern int int_mode;
 
 #define BNX2X_PCI_ALLOC(x, y, size) \
 	do { \
-		x = dma_alloc_coherent(&bp->pdev->dev, size, y, \
-				       GFP_KERNEL | __GFP_ZERO); \
+		x = dma_zalloc_coherent(&bp->pdev->dev, size, y, GFP_KERNEL); \
 		if (x == NULL) \
 			goto alloc_mem_err; \
 		DP(NETIF_MSG_HW, "BNX2X_PCI_ALLOC: Physical %Lx Virtual %p\n", \

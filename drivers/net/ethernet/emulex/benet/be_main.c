@@ -145,8 +145,8 @@ static int be_queue_alloc(struct be_adapter *adapter, struct be_queue_info *q,
 	q->len = len;
 	q->entry_size = entry_size;
 	mem->size = len * entry_size;
-	mem->va = dma_alloc_coherent(&adapter->pdev->dev, mem->size, &mem->dma,
-				     GFP_KERNEL | __GFP_ZERO);
+	mem->va = dma_zalloc_coherent(&adapter->pdev->dev, mem->size, &mem->dma,
+				      GFP_KERNEL);
 	if (!mem->va)
 		return -ENOMEM;
 	return 0;
@@ -2642,8 +2642,8 @@ static int be_setup_wol(struct be_adapter *adapter, bool enable)
 	memset(mac, 0, ETH_ALEN);
 
 	cmd.size = sizeof(struct be_cmd_req_acpi_wol_magic_config);
-	cmd.va = dma_alloc_coherent(&adapter->pdev->dev, cmd.size, &cmd.dma,
-				    GFP_KERNEL | __GFP_ZERO);
+	cmd.va = dma_zalloc_coherent(&adapter->pdev->dev, cmd.size, &cmd.dma,
+				     GFP_KERNEL);
 	if (cmd.va == NULL)
 		return -1;
 
@@ -3946,9 +3946,9 @@ static int be_ctrl_init(struct be_adapter *adapter)
 	memset(mbox_mem_align->va, 0, sizeof(struct be_mcc_mailbox));
 
 	rx_filter->size = sizeof(struct be_cmd_req_rx_filter);
-	rx_filter->va = dma_alloc_coherent(&adapter->pdev->dev, rx_filter->size,
-					   &rx_filter->dma,
-					   GFP_KERNEL | __GFP_ZERO);
+	rx_filter->va = dma_zalloc_coherent(&adapter->pdev->dev,
+					    rx_filter->size, &rx_filter->dma,
+					    GFP_KERNEL);
 	if (rx_filter->va == NULL) {
 		status = -ENOMEM;
 		goto free_mbox;
@@ -3994,8 +3994,8 @@ static int be_stats_init(struct be_adapter *adapter)
 		/* BE3 and Skyhawk */
 		cmd->size = sizeof(struct be_cmd_req_get_stats_v1);
 
-	cmd->va = dma_alloc_coherent(&adapter->pdev->dev, cmd->size, &cmd->dma,
-				     GFP_KERNEL | __GFP_ZERO);
+	cmd->va = dma_zalloc_coherent(&adapter->pdev->dev, cmd->size, &cmd->dma,
+				      GFP_KERNEL);
 	if (cmd->va == NULL)
 		return -1;
 	return 0;
