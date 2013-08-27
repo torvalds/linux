@@ -36,16 +36,23 @@ static int check_extent_in_eb(struct btrfs_key *key, struct extent_buffer *eb,
 				u64 extent_item_pos,
 				struct extent_inode_elem **eie)
 {
-	u64 data_offset;
-	u64 data_len;
+	u64 offset = 0;
 	struct extent_inode_elem *e;
 
-	data_offset = btrfs_file_extent_offset(eb, fi);
-	data_len = btrfs_file_extent_num_bytes(eb, fi);
+	if (!btrfs_file_extent_compression(eb, fi) &&
+	    !btrfs_file_extent_encryption(eb, fi) &&
+	    !btrfs_file_extent_other_encoding(eb, fi)) {
+		u64 data_offset;
+		u64 data_len;
 
-	if (extent_item_pos < data_offset ||
-	    extent_item_pos >= data_offset + data_len)
-		return 1;
+		data_offset = btrfs_file_extent_offset(eb, fi);
+		data_len = btrfs_file_extent_num_bytes(eb, fi);
+
+		if (extent_item_pos < data_offset ||
+		    extent_item_pos >= data_offset + data_len)
+			return 1;
+		offset = extent_item_pos - data_offset;
+	}
 
 	e = kmalloc(sizeof(*e), GFP_NOFS);
 	if (!e)
@@ -53,7 +60,7 @@ static int check_extent_in_eb(struct btrfs_key *key, struct extent_buffer *eb,
 
 	e->next = *eie;
 	e->inum = key->objectid;
-	e->offset = key->offset + (extent_item_pos - data_offset);
+	e->offset = key->offset + offset;
 	*eie = e;
 
 	return 0;
@@ -189,7 +196,7 @@ static int add_all_parents(struct btrfs_root *root, struct btrfs_path *path,
 	struct extent_buffer *eb;
 	struct btrfs_key key;
 	struct btrfs_file_extent_item *fi;
-	struct extent_inode_elem *eie = NULL;
+	struct extent_inode_elem *eie = NULL, *old = NULL;
 	u64 disk_byte;
 
 	if (level != 0) {
@@ -223,6 +230,7 @@ static int add_all_parents(struct btrfs_root *root, struct btrfs_path *path,
 
 		if (disk_byte == wanted_disk_byte) {
 			eie = NULL;
+			old = NULL;
 			if (extent_item_pos) {
 				ret = check_extent_in_eb(&key, eb, fi,
 						*extent_item_pos,
@@ -230,18 +238,20 @@ static int add_all_parents(struct btrfs_root *root, struct btrfs_path *path,
 				if (ret < 0)
 					break;
 			}
-			if (!ret) {
-				ret = ulist_add(parents, eb->start,
-						(uintptr_t)eie, GFP_NOFS);
-				if (ret < 0)
-					break;
-				if (!extent_item_pos) {
-					ret = btrfs_next_old_leaf(root, path,
-							time_seq);
-					continue;
-				}
+			if (ret > 0)
+				goto next;
+			ret = ulist_add_merge(parents, eb->start,
+					      (uintptr_t)eie,
+					      (u64 *)&old, GFP_NOFS);
+			if (ret < 0)
+				break;
+			if (!ret && extent_item_pos) {
+				while (old->next)
+					old = old->next;
+				old->next = eie;
 			}
 		}
+next:
 		ret = btrfs_next_old_item(root, path, time_seq);
 	}
 

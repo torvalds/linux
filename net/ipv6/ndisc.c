@@ -479,7 +479,7 @@ static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
 	if (ifp) {
 		src_addr = solicited_addr;
 		if (ifp->flags & IFA_F_OPTIMISTIC)
-			override = 0;
+			override = false;
 		inc_opt |= ifp->idev->cnf.force_tllao;
 		in6_ifa_put(ifp);
 	} else {
@@ -557,7 +557,7 @@ void ndisc_send_ns(struct net_device *dev, struct neighbour *neigh,
 	}
 
 	if (ipv6_addr_any(saddr))
-		inc_opt = 0;
+		inc_opt = false;
 	if (inc_opt)
 		optlen += ndisc_opt_addr_space(dev);
 
@@ -790,7 +790,7 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 		     (is_router = pndisc_is_router(&msg->target, dev)) >= 0)) {
 			if (!(NEIGH_CB(skb)->flags & LOCALLY_ENQUEUED) &&
 			    skb->pkt_type != PACKET_HOST &&
-			    inc != 0 &&
+			    inc &&
 			    idev->nd_parms->proxy_delay != 0) {
 				/*
 				 * for anycast or proxy,
@@ -1369,8 +1369,10 @@ static void ndisc_redirect_rcv(struct sk_buff *skb)
 	if (!ndisc_parse_options(msg->opt, ndoptlen, &ndopts))
 		return;
 
-	if (!ndopts.nd_opts_rh)
+	if (!ndopts.nd_opts_rh) {
+		ip6_redirect_no_header(skb, dev_net(skb->dev), 0, 0);
 		return;
+	}
 
 	hdr = (u8 *)ndopts.nd_opts_rh;
 	hdr += 8;
@@ -1576,7 +1578,7 @@ static int ndisc_netdev_event(struct notifier_block *this, unsigned long event, 
 	switch (event) {
 	case NETDEV_CHANGEADDR:
 		neigh_changeaddr(&nd_tbl, dev);
-		fib6_run_gc(~0UL, net);
+		fib6_run_gc(0, net, false);
 		idev = in6_dev_get(dev);
 		if (!idev)
 			break;
@@ -1586,7 +1588,7 @@ static int ndisc_netdev_event(struct notifier_block *this, unsigned long event, 
 		break;
 	case NETDEV_DOWN:
 		neigh_ifdown(&nd_tbl, dev);
-		fib6_run_gc(~0UL, net);
+		fib6_run_gc(0, net, false);
 		break;
 	case NETDEV_NOTIFY_PEERS:
 		ndisc_send_unsol_na(dev);

@@ -670,10 +670,6 @@ perf_trace_##call(void *__data, proto)					\
 			     sizeof(u64));				\
 	__entry_size -= sizeof(u32);					\
 									\
-	if (WARN_ONCE(__entry_size > PERF_MAX_TRACE_SIZE,		\
-		      "profile buffer not large enough"))		\
-		return;							\
-									\
 	entry = (struct ftrace_raw_##call *)perf_trace_buf_prepare(	\
 		__entry_size, event_call->event.type, &__regs, &rctx);	\
 	if (!entry)							\

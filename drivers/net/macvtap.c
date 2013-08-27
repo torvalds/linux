@@ -68,6 +68,8 @@ static const struct proto_ops macvtap_socket_ops;
 #define TUN_OFFLOADS (NETIF_F_HW_CSUM | NETIF_F_TSO_ECN | NETIF_F_TSO | \
 		      NETIF_F_TSO6 | NETIF_F_UFO)
 #define RX_OFFLOADS (NETIF_F_GRO | NETIF_F_LRO)
+#define TAP_FEATURES (NETIF_F_GSO | NETIF_F_SG)
+
 /*
  * RCU usage:
  * The macvtap_queue and the macvlan_dev are loosely coupled, the
@@ -278,7 +280,8 @@ static int macvtap_forward(struct net_device *dev, struct sk_buff *skb)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	struct macvtap_queue *q = macvtap_get_queue(dev, skb);
-	netdev_features_t features;
+	netdev_features_t features = TAP_FEATURES;
+
 	if (!q)
 		goto drop;
 
@@ -287,9 +290,11 @@ static int macvtap_forward(struct net_device *dev, struct sk_buff *skb)
 
 	skb->dev = dev;
 	/* Apply the forward feature mask so that we perform segmentation
-	 * according to users wishes.
+	 * according to users wishes.  This only works if VNET_HDR is
+	 * enabled.
 	 */
-	features = netif_skb_features(skb) & vlan->tap_features;
+	if (q->flags & IFF_VNET_HDR)
+		features |= vlan->tap_features;
 	if (netif_needs_gso(skb, features)) {
 		struct sk_buff *segs = __skb_gso_segment(skb, features, false);
 
@@ -698,6 +703,28 @@ static int macvtap_skb_to_vnet_hdr(const struct sk_buff *skb,
 	return 0;
 }
 
+static unsigned long iov_pages(const struct iovec *iv, int offset,
+			       unsigned long nr_segs)
+{
+	unsigned long seg, base;
+	int pages = 0, len, size;
+
+	while (nr_segs && (offset >= iv->iov_len)) {
+		offset -= iv->iov_len;
+		++iv;
+		--nr_segs;
+	}
+
+	for (seg = 0; seg < nr_segs; seg++) {
+		base = (unsigned long)iv[seg].iov_base + offset;
+		len = iv[seg].iov_len - offset;
+		size = ((base & ~PAGE_MASK) + len + ~PAGE_MASK) >> PAGE_SHIFT;
+		pages += size;
+		offset = 0;
+	}
+
+	return pages;
+}
 
 /* Get packet from user space buffer */
 static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
@@ -744,31 +771,15 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 	if (unlikely(count > UIO_MAXIOV))
 		goto err;
 
-	if (m && m->msg_control && sock_flag(&q->sk, SOCK_ZEROCOPY))
-		zerocopy = true;
-
-	if (zerocopy) {
-		/* Userspace may produce vectors with count greater than
-		 * MAX_SKB_FRAGS, so we need to linearize parts of the skb
-		 * to let the rest of data to be fit in the frags.
-		 */
-		if (count > MAX_SKB_FRAGS) {
-			copylen = iov_length(iv, count - MAX_SKB_FRAGS);
-			if (copylen < vnet_hdr_len)
-				copylen = 0;
-			else
-				copylen -= vnet_hdr_len;
-		}
-		/* There are 256 bytes to be copied in skb, so there is enough
-		 * room for skb expand head in case it is used.
-		 * The rest buffer is mapped from userspace.
-		 */
-		if (copylen < vnet_hdr.hdr_len)
-			copylen = vnet_hdr.hdr_len;
-		if (!copylen)
-			copylen = GOODCOPY_LEN;
+	if (m && m->msg_control && sock_flag(&q->sk, SOCK_ZEROCOPY)) {
+		copylen = vnet_hdr.hdr_len ? vnet_hdr.hdr_len : GOODCOPY_LEN;
 		linear = copylen;
-	} else {
+		if (iov_pages(iv, vnet_hdr_len + copylen, count)
+		    <= MAX_SKB_FRAGS)
+			zerocopy = true;
+	}
+
+	if (!zerocopy) {
 		copylen = len;
 		linear = vnet_hdr.hdr_len;
 	}
@@ -780,9 +791,15 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 
 	if (zerocopy)
 		err = zerocopy_sg_from_iovec(skb, iv, vnet_hdr_len, count);
-	else
+	else {
 		err = skb_copy_datagram_from_iovec(skb, 0, iv, vnet_hdr_len,
 						   len);
+		if (!err && m && m->msg_control) {
+			struct ubuf_info *uarg = m->msg_control;
+			uarg->callback(uarg, false);
+		}
+	}
+
 	if (err)
 		goto err_kfree;
 
@@ -806,10 +823,13 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 		skb_shinfo(skb)->tx_flags |= SKBTX_DEV_ZEROCOPY;
 		skb_shinfo(skb)->tx_flags |= SKBTX_SHARED_FRAG;
 	}
-	if (vlan)
+	if (vlan) {
+		local_bh_disable();
 		macvlan_start_xmit(skb, vlan->dev);
-	else
+		local_bh_enable();
+	} else {
 		kfree_skb(skb);
+	}
 	rcu_read_unlock();
 
 	return total_len;
@@ -873,7 +893,7 @@ static ssize_t macvtap_put_user(struct macvtap_queue *q,
 			__be16 h_vlan_proto;
 			__be16 h_vlan_TCI;
 		} veth;
-		veth.h_vlan_proto = htons(ETH_P_8021Q);
+		veth.h_vlan_proto = skb->vlan_proto;
 		veth.h_vlan_TCI = htons(vlan_tx_tag_get(skb));
 
 		vlan_offset = offsetof(struct vlan_ethhdr, h_vlan_proto);
@@ -900,8 +920,11 @@ static ssize_t macvtap_put_user(struct macvtap_queue *q,
 done:
 	rcu_read_lock();
 	vlan = rcu_dereference(q->vlan);
-	if (vlan)
+	if (vlan) {
+		preempt_disable();
 		macvlan_count_rx(vlan, copied - vnet_hdr_len, ret == 0, 0);
+		preempt_enable();
+	}
 	rcu_read_unlock();
 
 	return ret ? ret : copied;
@@ -1046,8 +1069,7 @@ static int set_offload(struct macvtap_queue *q, unsigned long arg)
 	/* tap_features are the same as features on tun/tap and
 	 * reflect user expectations.
 	 */
-	vlan->tap_features = vlan->dev->features &
-			    (feature_mask | ~TUN_OFFLOADS);
+	vlan->tap_features = feature_mask;
 	vlan->set_features = features;
 	netdev_update_features(vlan->dev);
 
@@ -1107,6 +1129,7 @@ static long macvtap_ioctl(struct file *file, unsigned int cmd,
 		rtnl_lock();
 		ret = macvtap_ioctl_set_queue(file, u);
 		rtnl_unlock();
+		return ret;
 
 	case TUNGETFEATURES:
 		if (put_user(IFF_TAP | IFF_NO_PI | IFF_VNET_HDR |
@@ -1142,10 +1165,6 @@ static long macvtap_ioctl(struct file *file, unsigned int cmd,
 			    TUN_F_TSO_ECN | TUN_F_UFO))
 			return -EINVAL;
 
-		/* TODO: only accept frames with the features that
-			 got enabled for forwarded frames */
-		if (!(q->flags & IFF_VNET_HDR))
-			return  -EINVAL;
 		rtnl_lock();
 		ret = set_offload(q, arg);
 		rtnl_unlock();

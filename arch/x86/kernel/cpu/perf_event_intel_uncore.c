@@ -314,8 +314,8 @@ static struct uncore_event_desc snbep_uncore_imc_events[] = {
 static struct uncore_event_desc snbep_uncore_qpi_events[] = {
 	INTEL_UNCORE_EVENT_DESC(clockticks,       "event=0x14"),
 	INTEL_UNCORE_EVENT_DESC(txl_flits_active, "event=0x00,umask=0x06"),
-	INTEL_UNCORE_EVENT_DESC(drs_data,         "event=0x02,umask=0x08"),
-	INTEL_UNCORE_EVENT_DESC(ncb_data,         "event=0x03,umask=0x04"),
+	INTEL_UNCORE_EVENT_DESC(drs_data,         "event=0x102,umask=0x08"),
+	INTEL_UNCORE_EVENT_DESC(ncb_data,         "event=0x103,umask=0x04"),
 	{ /* end: all zeroes */ },
 };
 
@@ -3297,7 +3297,7 @@ static void __init uncore_pci_exit(void)
 /* CPU hot plug/unplug are serialized by cpu_add_remove_lock mutex */
 static LIST_HEAD(boxes_to_free);
 
-static void __cpuinit uncore_kfree_boxes(void)
+static void uncore_kfree_boxes(void)
 {
 	struct intel_uncore_box *box;
 
@@ -3309,7 +3309,7 @@ static void __cpuinit uncore_kfree_boxes(void)
 	}
 }
 
-static void __cpuinit uncore_cpu_dying(int cpu)
+static void uncore_cpu_dying(int cpu)
 {
 	struct intel_uncore_type *type;
 	struct intel_uncore_pmu *pmu;
@@ -3328,7 +3328,7 @@ static void __cpuinit uncore_cpu_dying(int cpu)
 	}
 }
 
-static int __cpuinit uncore_cpu_starting(int cpu)
+static int uncore_cpu_starting(int cpu)
 {
 	struct intel_uncore_type *type;
 	struct intel_uncore_pmu *pmu;
@@ -3371,7 +3371,7 @@ static int __cpuinit uncore_cpu_starting(int cpu)
 	return 0;
 }
 
-static int __cpuinit uncore_cpu_prepare(int cpu, int phys_id)
+static int uncore_cpu_prepare(int cpu, int phys_id)
 {
 	struct intel_uncore_type *type;
 	struct intel_uncore_pmu *pmu;
@@ -3397,7 +3397,7 @@ static int __cpuinit uncore_cpu_prepare(int cpu, int phys_id)
 	return 0;
 }
 
-static void __cpuinit
+static void
 uncore_change_context(struct intel_uncore_type **uncores, int old_cpu, int new_cpu)
 {
 	struct intel_uncore_type *type;
@@ -3435,7 +3435,7 @@ uncore_change_context(struct intel_uncore_type **uncores, int old_cpu, int new_c
 	}
 }
 
-static void __cpuinit uncore_event_exit_cpu(int cpu)
+static void uncore_event_exit_cpu(int cpu)
 {
 	int i, phys_id, target;
 
@@ -3463,7 +3463,7 @@ static void __cpuinit uncore_event_exit_cpu(int cpu)
 	uncore_change_context(pci_uncores, cpu, target);
 }
 
-static void __cpuinit uncore_event_init_cpu(int cpu)
+static void uncore_event_init_cpu(int cpu)
 {
 	int i, phys_id;
 
@@ -3479,8 +3479,8 @@ static void __cpuinit uncore_event_init_cpu(int cpu)
 	uncore_change_context(pci_uncores, -1, cpu);
 }
 
-static int
- __cpuinit uncore_cpu_notifier(struct notifier_block *self, unsigned long action, void *hcpu)
+static int uncore_cpu_notifier(struct notifier_block *self,
+			       unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (long)hcpu;
 
@@ -3520,7 +3520,7 @@ static int
 	return NOTIFY_OK;
 }
 
-static struct notifier_block uncore_cpu_nb __cpuinitdata = {
+static struct notifier_block uncore_cpu_nb = {
 	.notifier_call	= uncore_cpu_notifier,
 	/*
 	 * to migrate uncore events, our notifier should be executed

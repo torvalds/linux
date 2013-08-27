@@ -333,7 +333,8 @@ int __wait_on_atomic_t(wait_queue_head_t *wq, struct wait_bit_queue *q,
 		prepare_to_wait(wq, &q->wait, mode);
 		val = q->key.flags;
 		if (atomic_read(val) == 0)
-			ret = (*action)(val);
+			break;
+		ret = (*action)(val);
 	} while (!ret && atomic_read(val) != 0);
 	finish_wait(wq, &q->wait);
 	return ret;
@@ -362,8 +363,7 @@ EXPORT_SYMBOL(out_of_line_wait_on_atomic_t);
 
 /**
  * wake_up_atomic_t - Wake up a waiter on a atomic_t
- * @word: The word being waited on, a kernel virtual address
- * @bit: The bit of the word being waited on
+ * @p: The atomic_t being waited on, a kernel virtual address
  *
  * Wake up anyone waiting for the atomic_t to go to zero.
  *

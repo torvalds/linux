@@ -59,7 +59,7 @@ static inline u16 find_equiv_id(struct equiv_cpu_entry *equiv_cpu_table,
 
 extern int __apply_microcode_amd(struct microcode_amd *mc_amd);
 extern int apply_microcode_amd(int cpu);
-extern enum ucode_state load_microcode_amd(int cpu, const u8 *data, size_t size);
+extern enum ucode_state load_microcode_amd(u8 family, const u8 *data, size_t size);
 
 #ifdef CONFIG_MICROCODE_AMD_EARLY
 #ifdef CONFIG_X86_32
@@ -67,11 +67,11 @@ extern enum ucode_state load_microcode_amd(int cpu, const u8 *data, size_t size)
 extern u8 amd_bsp_mpb[MPB_MAX_SIZE];
 #endif
 extern void __init load_ucode_amd_bsp(void);
-extern void __cpuinit load_ucode_amd_ap(void);
+extern void load_ucode_amd_ap(void);
 extern int __init save_microcode_in_initrd_amd(void);
 #else
 static inline void __init load_ucode_amd_bsp(void) {}
-static inline void __cpuinit load_ucode_amd_ap(void) {}
+static inline void load_ucode_amd_ap(void) {}
 static inline int __init save_microcode_in_initrd_amd(void) { return -EINVAL; }
 #endif
 

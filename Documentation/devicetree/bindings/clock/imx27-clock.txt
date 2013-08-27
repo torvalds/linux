@@ -98,6 +98,7 @@ clocks and IDs.
 	fpm                  83
 	mpll_osc_sel         84
 	mpll_sel             85
+	spll_gate	     86
 
 Examples:
 

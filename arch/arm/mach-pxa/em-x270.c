@@ -477,16 +477,24 @@ static int em_x270_usb_hub_init(void)
 	/* USB Hub power-on and reset */
 	gpio_direction_output(usb_hub_reset, 1);
 	gpio_direction_output(GPIO9_USB_VBUS_EN, 0);
-	regulator_enable(em_x270_usb_ldo);
+	err = regulator_enable(em_x270_usb_ldo);
+	if (err)
+		goto err_free_rst_gpio;
+
 	gpio_set_value(usb_hub_reset, 0);
 	gpio_set_value(usb_hub_reset, 1);
 	regulator_disable(em_x270_usb_ldo);
-	regulator_enable(em_x270_usb_ldo);
+	err = regulator_enable(em_x270_usb_ldo);
+	if (err)
+		goto err_free_rst_gpio;
+
 	gpio_set_value(usb_hub_reset, 0);
 	gpio_set_value(GPIO9_USB_VBUS_EN, 1);
 
 	return 0;
 
+err_free_rst_gpio:
+	gpio_free(usb_hub_reset);
 err_free_vbus_gpio:
 	gpio_free(GPIO9_USB_VBUS_EN);
 err_free_usb_ldo:
@@ -592,7 +600,7 @@ err_irq:
 	return err;
 }
 
-static void em_x270_mci_setpower(struct device *dev, unsigned int vdd)
+static int em_x270_mci_setpower(struct device *dev, unsigned int vdd)
 {
 	struct pxamci_platform_data* p_d = dev->platform_data;
 
@@ -600,10 +608,11 @@ static void em_x270_mci_setpower(struct device *dev, unsigned int vdd)
 		int vdd_uV = (2000 + (vdd - __ffs(MMC_VDD_20_21)) * 100) * 1000;
 
 		regulator_set_voltage(em_x270_sdio_ldo, vdd_uV, vdd_uV);
-		regulator_enable(em_x270_sdio_ldo);
+		return regulator_enable(em_x270_sdio_ldo);
 	} else {
 		regulator_disable(em_x270_sdio_ldo);
 	}
+	return 0;
 }
 
 static void em_x270_mci_exit(struct device *dev, void *data)

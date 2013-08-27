@@ -3860,10 +3860,8 @@ int snd_soc_add_platform(struct device *dev, struct snd_soc_platform *platform,
 {
 	/* create platform component name */
 	platform->name = fmt_single_name(dev, &platform->id);
-	if (platform->name == NULL) {
-		kfree(platform);
+	if (platform->name == NULL)
 		return -ENOMEM;
-	}
 
 	platform->dev = dev;
 	platform->driver = platform_drv;

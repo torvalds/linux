@@ -621,7 +621,7 @@ static void iucv_disable(void)
 	put_online_cpus();
 }
 
-static int __cpuinit iucv_cpu_notify(struct notifier_block *self,
+static int iucv_cpu_notify(struct notifier_block *self,
 				     unsigned long action, void *hcpu)
 {
 	cpumask_t cpumask;

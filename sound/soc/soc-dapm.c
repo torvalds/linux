@@ -649,12 +649,13 @@ static int dapm_new_mux(struct snd_soc_dapm_widget *w)
 		return -EINVAL;
 	}
 
-	path = list_first_entry(&w->sources, struct snd_soc_dapm_path,
-				list_sink);
-	if (!path) {
+	if (list_empty(&w->sources)) {
 		dev_err(dapm->dev, "ASoC: mux %s has no paths\n", w->name);
 		return -EINVAL;
 	}
+
+	path = list_first_entry(&w->sources, struct snd_soc_dapm_path,
+				list_sink);
 
 	ret = dapm_create_or_share_mixmux_kcontrol(w, 0, path);
 	if (ret < 0)
@@ -2703,7 +2704,7 @@ int snd_soc_dapm_put_volsw(struct snd_kcontrol *kcontrol,
 	}
 
 	mutex_unlock(&card->dapm_mutex);
-	return 0;
+	return change;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_put_volsw);
 
@@ -2831,7 +2832,6 @@ int snd_soc_dapm_put_enum_virt(struct snd_kcontrol *kcontrol,
 	struct soc_enum *e =
 		(struct soc_enum *)kcontrol->private_value;
 	int change;
-	int ret = 0;
 	int wi;
 
 	if (ucontrol->value.enumerated.item[0] >= e->max)
@@ -2851,7 +2851,7 @@ int snd_soc_dapm_put_enum_virt(struct snd_kcontrol *kcontrol,
 	}
 
 	mutex_unlock(&card->dapm_mutex);
-	return ret;
+	return change;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_put_enum_virt);
 

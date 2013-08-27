@@ -425,7 +425,7 @@ static u32 esp6_get_mtu(struct xfrm_state *x, int mtu)
 		net_adj = 0;
 
 	return ((mtu - x->props.header_len - crypto_aead_authsize(esp->aead) -
-		 net_adj) & ~(align - 1)) + (net_adj - 2);
+		 net_adj) & ~(align - 1)) + net_adj - 2;
 }
 
 static void esp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,

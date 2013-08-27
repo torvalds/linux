@@ -235,8 +235,10 @@ static int ad7303_probe(struct spi_device *spi)
 
 	if (ext_ref) {
 		st->vref_reg = regulator_get(&spi->dev, "REF");
-		if (IS_ERR(st->vref_reg))
+		if (IS_ERR(st->vref_reg)) {
+			ret = PTR_ERR(st->vref_reg);
 			goto err_disable_vdd_reg;
+		}
 
 		ret = regulator_enable(st->vref_reg);
 		if (ret)

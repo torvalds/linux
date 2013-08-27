@@ -465,7 +465,7 @@ static void ext4_map_blocks_es_recheck(handle_t *handle,
 	if (es_map->m_lblk != map->m_lblk ||
 	    es_map->m_flags != map->m_flags ||
 	    es_map->m_pblk != map->m_pblk) {
-		printk("ES cache assertation failed for inode: %lu "
+		printk("ES cache assertion failed for inode: %lu "
 		       "es_cached ex [%d/%d/%llu/%x] != "
 		       "found ex [%d/%d/%llu/%x] retval %d flags %x\n",
 		       inode->i_ino, es_map->m_lblk, es_map->m_len,
@@ -514,10 +514,9 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 		  "logical block %lu\n", inode->i_ino, flags, map->m_len,
 		  (unsigned long) map->m_lblk);
 
-	ext4_es_lru_add(inode);
-
 	/* Lookup extent status tree firstly */
 	if (ext4_es_lookup_extent(inode, map->m_lblk, &es)) {
+		ext4_es_lru_add(inode);
 		if (ext4_es_is_written(&es) || ext4_es_is_unwritten(&es)) {
 			map->m_pblk = ext4_es_pblock(&es) +
 					map->m_lblk - es.es_lblk;
@@ -556,14 +555,13 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 		int ret;
 		unsigned long long status;
 
-#ifdef ES_AGGRESSIVE_TEST
-		if (retval != map->m_len) {
-			printk("ES len assertation failed for inode: %lu "
-			       "retval %d != map->m_len %d "
-			       "in %s (lookup)\n", inode->i_ino, retval,
-			       map->m_len, __func__);
+		if (unlikely(retval != map->m_len)) {
+			ext4_warning(inode->i_sb,
+				     "ES len assertion failed for inode "
+				     "%lu: retval %d != map->m_len %d",
+				     inode->i_ino, retval, map->m_len);
+			WARN_ON(1);
 		}
-#endif
 
 		status = map->m_flags & EXT4_MAP_UNWRITTEN ?
 				EXTENT_STATUS_UNWRITTEN : EXTENT_STATUS_WRITTEN;
@@ -657,14 +655,13 @@ found:
 		int ret;
 		unsigned long long status;
 
-#ifdef ES_AGGRESSIVE_TEST
-		if (retval != map->m_len) {
-			printk("ES len assertation failed for inode: %lu "
-			       "retval %d != map->m_len %d "
-			       "in %s (allocation)\n", inode->i_ino, retval,
-			       map->m_len, __func__);
+		if (unlikely(retval != map->m_len)) {
+			ext4_warning(inode->i_sb,
+				     "ES len assertion failed for inode "
+				     "%lu: retval %d != map->m_len %d",
+				     inode->i_ino, retval, map->m_len);
+			WARN_ON(1);
 		}
-#endif
 
 		/*
 		 * If the extent has been zeroed out, we don't need to update
@@ -1529,11 +1526,9 @@ static int ext4_da_map_blocks(struct inode *inode, sector_t iblock,
 		  "logical block %lu\n", inode->i_ino, map->m_len,
 		  (unsigned long) map->m_lblk);
 
-	ext4_es_lru_add(inode);
-
 	/* Lookup extent status tree firstly */
 	if (ext4_es_lookup_extent(inode, iblock, &es)) {
-
+		ext4_es_lru_add(inode);
 		if (ext4_es_is_hole(&es)) {
 			retval = 0;
 			down_read((&EXT4_I(inode)->i_data_sem));
@@ -1640,14 +1635,13 @@ add_delayed:
 		int ret;
 		unsigned long long status;
 
-#ifdef ES_AGGRESSIVE_TEST
-		if (retval != map->m_len) {
-			printk("ES len assertation failed for inode: %lu "
-			       "retval %d != map->m_len %d "
-			       "in %s (lookup)\n", inode->i_ino, retval,
-			       map->m_len, __func__);
+		if (unlikely(retval != map->m_len)) {
+			ext4_warning(inode->i_sb,
+				     "ES len assertion failed for inode "
+				     "%lu: retval %d != map->m_len %d",
+				     inode->i_ino, retval, map->m_len);
+			WARN_ON(1);
 		}
-#endif
 
 		status = map->m_flags & EXT4_MAP_UNWRITTEN ?
 				EXTENT_STATUS_UNWRITTEN : EXTENT_STATUS_WRITTEN;
@@ -2163,7 +2157,7 @@ static int mpage_map_and_submit_extent(handle_t *handle,
 
 	mpd->io_submit.io_end->offset =
 				((loff_t)map->m_lblk) << inode->i_blkbits;
-	while (map->m_len) {
+	do {
 		err = mpage_map_one_extent(handle, mpd);
 		if (err < 0) {
 			struct super_block *sb = inode->i_sb;
@@ -2201,7 +2195,7 @@ static int mpage_map_and_submit_extent(handle_t *handle,
 		err = mpage_map_and_submit_buffers(mpd);
 		if (err < 0)
 			return err;
-	}
+	} while (map->m_len);
 
 	/* Update on-disk size after IO is submitted */
 	disksize = ((loff_t)mpd->first_page) << PAGE_CACHE_SHIFT;
@@ -3539,6 +3533,18 @@ int ext4_punch_hole(struct inode *inode, loff_t offset, loff_t length)
 		   offset;
 	}
 
+	if (offset & (sb->s_blocksize - 1) ||
+	    (offset + length) & (sb->s_blocksize - 1)) {
+		/*
+		 * Attach jinode to inode for jbd2 if we do any zeroing of
+		 * partial block
+		 */
+		ret = ext4_inode_attach_jinode(inode);
+		if (ret < 0)
+			goto out_mutex;
+
+	}
+
 	first_block_offset = round_up(offset, sb->s_blocksize);
 	last_block_offset = round_down((offset + length), sb->s_blocksize) - 1;
 
@@ -3607,6 +3613,31 @@ out_mutex:
 	return ret;
 }
 
+int ext4_inode_attach_jinode(struct inode *inode)
+{
+	struct ext4_inode_info *ei = EXT4_I(inode);
+	struct jbd2_inode *jinode;
+
+	if (ei->jinode || !EXT4_SB(inode->i_sb)->s_journal)
+		return 0;
+
+	jinode = jbd2_alloc_inode(GFP_KERNEL);
+	spin_lock(&inode->i_lock);
+	if (!ei->jinode) {
+		if (!jinode) {
+			spin_unlock(&inode->i_lock);
+			return -ENOMEM;
+		}
+		ei->jinode = jinode;
+		jbd2_journal_init_jbd_inode(ei->jinode, inode);
+		jinode = NULL;
+	}
+	spin_unlock(&inode->i_lock);
+	if (unlikely(jinode != NULL))
+		jbd2_free_inode(jinode);
+	return 0;
+}
+
 /*
  * ext4_truncate()
  *
@@ -3664,6 +3695,12 @@ void ext4_truncate(struct inode *inode)
 
 		ext4_inline_data_truncate(inode, &has_inline);
 		if (has_inline)
+			return;
+	}
+
+	/* If we zero-out tail of the page, we have to create jinode for jbd2 */
+	if (inode->i_size & (inode->i_sb->s_blocksize - 1)) {
+		if (ext4_inode_attach_jinode(inode) < 0)
 			return;
 	}
 

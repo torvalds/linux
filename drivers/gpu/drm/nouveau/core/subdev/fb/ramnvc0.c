@@ -33,11 +33,19 @@ void
 nvc0_ram_put(struct nouveau_fb *pfb, struct nouveau_mem **pmem)
 {
 	struct nouveau_ltcg *ltcg = nouveau_ltcg(pfb);
+	struct nouveau_mem *mem = *pmem;
 
-	if ((*pmem)->tag)
-		ltcg->tags_free(ltcg, &(*pmem)->tag);
+	*pmem = NULL;
+	if (unlikely(mem == NULL))
+		return;
 
-	nv50_ram_put(pfb, pmem);
+	mutex_lock(&pfb->base.mutex);
+	if (mem->tag)
+		ltcg->tags_free(ltcg, &mem->tag);
+	__nv50_ram_put(pfb, mem);
+	mutex_unlock(&pfb->base.mutex);
+
+	kfree(mem);
 }
 
 int
