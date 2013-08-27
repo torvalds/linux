@@ -49,6 +49,8 @@ qla2x00_prep_ms_iocb(scsi_qla_host_t *vha, uint32_t req_size, uint32_t rsp_size)
 	ms_pkt->dseg_rsp_address[1] = cpu_to_le32(MSD(ha->ct_sns_dma));
 	ms_pkt->dseg_rsp_length = ms_pkt->rsp_bytecount;
 
+	vha->qla_stats.control_requests++;
+
 	return (ms_pkt);
 }
 
@@ -86,6 +88,8 @@ qla24xx_prep_ms_iocb(scsi_qla_host_t *vha, uint32_t req_size, uint32_t rsp_size)
 	ct_pkt->dseg_1_address[1] = cpu_to_le32(MSD(ha->ct_sns_dma));
 	ct_pkt->dseg_1_len = ct_pkt->rsp_byte_count;
 	ct_pkt->vp_index = vha->vp_idx;
+
+	vha->qla_stats.control_requests++;
 
 	return (ct_pkt);
 }
@@ -722,6 +726,8 @@ qla2x00_prep_sns_cmd(scsi_qla_host_t *vha, uint16_t cmd, uint16_t scmd_len,
 	sns_cmd->p.cmd.subcommand = cpu_to_le16(cmd);
 	wc = (data_size - 16) / 4;		/* Size in 32bit words. */
 	sns_cmd->p.cmd.size = cpu_to_le16(wc);
+
+	vha->qla_stats.control_requests++;
 
 	return (sns_cmd);
 }

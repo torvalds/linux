@@ -1807,6 +1807,9 @@ qla25xx_process_bidir_status_iocb(scsi_qla_host_t *vha, void *pkt,
 		if (scsi_status == 0) {
 			bsg_job->reply->reply_payload_rcv_len =
 					bsg_job->reply_payload.payload_len;
+			vha->qla_stats.input_bytes +=
+				bsg_job->reply->reply_payload_rcv_len;
+			vha->qla_stats.input_requests++;
 			rval = EXT_STATUS_OK;
 		}
 		goto done;

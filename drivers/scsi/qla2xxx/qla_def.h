@@ -1236,8 +1236,9 @@ struct link_statistics {
 	uint32_t unused1[0x1a];
 	uint32_t tx_frames;
 	uint32_t rx_frames;
-	uint32_t dumped_frames;
-	uint32_t unused2[2];
+	uint32_t discarded_frames;
+	uint32_t dropped_frames;
+	uint32_t unused2[1];
 	uint32_t nos_rcvd;
 };
 
@@ -2659,6 +2660,11 @@ struct qla_statistics {
 	uint32_t total_isp_aborts;
 	uint64_t input_bytes;
 	uint64_t output_bytes;
+	uint64_t input_requests;
+	uint64_t output_requests;
+	uint32_t control_requests;
+
+	uint64_t jiffies_at_last_reset;
 };
 
 struct bidi_statistics {
