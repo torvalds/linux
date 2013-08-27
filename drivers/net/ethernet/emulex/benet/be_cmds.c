@@ -1182,25 +1182,16 @@ int be_cmd_mccq_create(struct be_adapter *adapter,
 
 int be_cmd_txq_create(struct be_adapter *adapter, struct be_tx_obj *txo)
 {
-	struct be_mcc_wrb *wrb;
+	struct be_mcc_wrb wrb = {0};
 	struct be_cmd_req_eth_tx_create *req;
 	struct be_queue_info *txq = &txo->q;
 	struct be_queue_info *cq = &txo->cq;
 	struct be_dma_mem *q_mem = &txq->dma_mem;
 	int status, ver = 0;
 
-	spin_lock_bh(&adapter->mcc_lock);
-
-	wrb = wrb_from_mccq(adapter);
-	if (!wrb) {
-		status = -EBUSY;
-		goto err;
-	}
-
-	req = embedded_payload(wrb);
-
+	req = embedded_payload(&wrb);
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ETH,
-		OPCODE_ETH_TX_CREATE, sizeof(*req), wrb, NULL);
+				OPCODE_ETH_TX_CREATE, sizeof(*req), &wrb, NULL);
 
 	if (lancer_chip(adapter)) {
 		req->hdr.version = 1;
@@ -1218,12 +1209,11 @@ int be_cmd_txq_create(struct be_adapter *adapter, struct be_tx_obj *txo)
 	req->cq_id = cpu_to_le16(cq->id);
 	req->queue_size = be_encoded_q_len(txq->len);
 	be_cmd_page_addrs_prepare(req->pages, ARRAY_SIZE(req->pages), q_mem);
-
 	ver = req->hdr.version;
 
-	status = be_mcc_notify_wait(adapter);
+	status = be_cmd_notify_wait(adapter, &wrb);
 	if (!status) {
-		struct be_cmd_resp_eth_tx_create *resp = embedded_payload(wrb);
+		struct be_cmd_resp_eth_tx_create *resp = embedded_payload(&wrb);
 		txq->id = le16_to_cpu(resp->cid);
 		if (ver == 2)
 			txo->db_offset = le32_to_cpu(resp->db_offset);
@@ -1231,9 +1221,6 @@ int be_cmd_txq_create(struct be_adapter *adapter, struct be_tx_obj *txo)
 			txo->db_offset = DB_TXULP1_OFFSET;
 		txq->created = true;
 	}
-
-err:
-	spin_unlock_bh(&adapter->mcc_lock);
 
 	return status;
 }

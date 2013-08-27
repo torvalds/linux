@@ -2014,7 +2014,7 @@ static void be_tx_queues_destroy(struct be_adapter *adapter)
 	}
 }
 
-static int be_tx_cqs_create(struct be_adapter *adapter)
+static int be_tx_qs_create(struct be_adapter *adapter)
 {
 	struct be_queue_info *cq, *eq;
 	struct be_tx_obj *txo;
@@ -2042,16 +2042,7 @@ static int be_tx_cqs_create(struct be_adapter *adapter)
 		status = be_cmd_cq_create(adapter, cq, eq, false, 3);
 		if (status)
 			return status;
-	}
-	return 0;
-}
 
-static int be_tx_qs_create(struct be_adapter *adapter)
-{
-	struct be_tx_obj *txo;
-	int i, status;
-
-	for_all_tx_queues(adapter, txo, i) {
 		status = be_queue_alloc(adapter, &txo->q, TX_Q_LEN,
 					sizeof(struct be_eth_wrb));
 		if (status)
@@ -2772,6 +2763,14 @@ done:
 	adapter->num_vfs = 0;
 }
 
+static void be_clear_queues(struct be_adapter *adapter)
+{
+	be_mcc_queues_destroy(adapter);
+	be_rx_cqs_destroy(adapter);
+	be_tx_queues_destroy(adapter);
+	be_evt_queues_destroy(adapter);
+}
+
 static int be_clear(struct be_adapter *adapter)
 {
 	int i;
@@ -2792,10 +2791,7 @@ static int be_clear(struct be_adapter *adapter)
 
 	be_cmd_if_destroy(adapter, adapter->if_handle,  0);
 
-	be_mcc_queues_destroy(adapter);
-	be_rx_cqs_destroy(adapter);
-	be_tx_queues_destroy(adapter);
-	be_evt_queues_destroy(adapter);
+	be_clear_queues(adapter);
 
 	kfree(adapter->pmac_id);
 	adapter->pmac_id = NULL;
@@ -3112,11 +3108,36 @@ static int be_mac_setup(struct be_adapter *adapter)
 	return 0;
 }
 
+static int be_setup_queues(struct be_adapter *adapter)
+{
+	int status;
+
+	status = be_evt_queues_create(adapter);
+	if (status)
+		goto err;
+
+	status = be_tx_qs_create(adapter);
+	if (status)
+		goto err;
+
+	status = be_rx_cqs_create(adapter);
+	if (status)
+		goto err;
+
+	status = be_mcc_queues_create(adapter);
+	if (status)
+		goto err;
+
+	return 0;
+err:
+	dev_err(&adapter->pdev->dev, "queue_setup failed\n");
+	return status;
+}
+
 static int be_setup(struct be_adapter *adapter)
 {
 	struct device *dev = &adapter->pdev->dev;
-	u32 en_flags;
-	u32 tx_fc, rx_fc;
+	u32 tx_fc, rx_fc, en_flags;
 	int status;
 
 	be_setup_init(adapter);
@@ -3132,19 +3153,17 @@ static int be_setup(struct be_adapter *adapter)
 	if (status)
 		goto err;
 
-	status = be_evt_queues_create(adapter);
+	en_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST |
+		   BE_IF_FLAGS_MULTICAST | BE_IF_FLAGS_PASS_L3L4_ERRORS;
+	if (adapter->function_caps & BE_FUNCTION_CAPS_RSS)
+		en_flags |= BE_IF_FLAGS_RSS;
+	en_flags = en_flags & be_if_cap_flags(adapter);
+	status = be_cmd_if_create(adapter, be_if_cap_flags(adapter), en_flags,
+				  &adapter->if_handle, 0);
 	if (status)
 		goto err;
 
-	status = be_tx_cqs_create(adapter);
-	if (status)
-		goto err;
-
-	status = be_rx_cqs_create(adapter);
-	if (status)
-		goto err;
-
-	status = be_mcc_queues_create(adapter);
+	status = be_setup_queues(adapter);
 	if (status)
 		goto err;
 
@@ -3155,21 +3174,7 @@ static int be_setup(struct be_adapter *adapter)
 	if (be_is_mc(adapter))
 		adapter->cmd_privileges = MAX_PRIVILEGES;
 
-	en_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST |
-			BE_IF_FLAGS_MULTICAST | BE_IF_FLAGS_PASS_L3L4_ERRORS;
-	if (adapter->function_caps & BE_FUNCTION_CAPS_RSS)
-		en_flags |= BE_IF_FLAGS_RSS;
-	en_flags = en_flags & be_if_cap_flags(adapter);
-	status = be_cmd_if_create(adapter, be_if_cap_flags(adapter), en_flags,
-				  &adapter->if_handle, 0);
-	if (status != 0)
-		goto err;
-
 	status = be_mac_setup(adapter);
-	if (status)
-		goto err;
-
-	status = be_tx_qs_create(adapter);
 	if (status)
 		goto err;
 
