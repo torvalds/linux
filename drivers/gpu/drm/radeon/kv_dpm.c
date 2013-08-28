@@ -1491,17 +1491,20 @@ void kv_dpm_powergate_uvd(struct radeon_device *rdev, bool gate)
 	pi->uvd_power_gated = gate;
 
 	if (gate) {
-		uvd_v1_0_stop(rdev);
-		cik_update_cg(rdev, RADEON_CG_BLOCK_UVD, false);
+		if (pi->caps_uvd_pg) {
+			uvd_v1_0_stop(rdev);
+			cik_update_cg(rdev, RADEON_CG_BLOCK_UVD, false);
+		}
 		kv_update_uvd_dpm(rdev, gate);
 		if (pi->caps_uvd_pg)
 			kv_notify_message_to_smu(rdev, PPSMC_MSG_UVDPowerOFF);
 	} else {
-		if (pi->caps_uvd_pg)
+		if (pi->caps_uvd_pg) {
 			kv_notify_message_to_smu(rdev, PPSMC_MSG_UVDPowerON);
-		uvd_v4_2_resume(rdev);
-		uvd_v1_0_start(rdev);
-		cik_update_cg(rdev, RADEON_CG_BLOCK_UVD, true);
+			uvd_v4_2_resume(rdev);
+			uvd_v1_0_start(rdev);
+			cik_update_cg(rdev, RADEON_CG_BLOCK_UVD, true);
+		}
 		kv_update_uvd_dpm(rdev, gate);
 	}
 }
