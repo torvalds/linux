@@ -558,7 +558,7 @@ static int asus_wmi_led_init(struct asus_wmi *asus)
 			goto error;
 	}
 
-	if (wlan_led_presence(asus)) {
+	if (wlan_led_presence(asus) && (asus->driver->quirks->wapf == 4)) {
 		INIT_WORK(&asus->wlan_led_work, wlan_led_update);
 
 		asus->wlan_led.name = "asus::wlan";
@@ -886,7 +886,8 @@ static int asus_new_rfkill(struct asus_wmi *asus,
 	if (!*rfkill)
 		return -EINVAL;
 
-	if (dev_id == ASUS_WMI_DEVID_WLAN)
+	if ((dev_id == ASUS_WMI_DEVID_WLAN) &&
+			(asus->driver->quirks->wapf == 4))
 		rfkill_set_led_trigger_name(*rfkill, "asus-wlan");
 
 	rfkill_init_sw_state(*rfkill, !result);
@@ -1045,7 +1046,7 @@ static ssize_t asus_hwmon_pwm1(struct device *dev,
 	else if (value == 3)
 		value = 255;
 	else if (value != 0) {
-		pr_err("Unknown fan speed %#x", value);
+		pr_err("Unknown fan speed %#x\n", value);
 		value = -1;
 	}
 
@@ -1557,11 +1558,11 @@ static int asus_wmi_platform_init(struct asus_wmi *asus)
 
 	/* INIT enable hotkeys on some models */
 	if (!asus_wmi_evaluate_method(ASUS_WMI_METHODID_INIT, 0, 0, &rv))
-		pr_info("Initialization: %#x", rv);
+		pr_info("Initialization: %#x\n", rv);
 
 	/* We don't know yet what to do with this version... */
 	if (!asus_wmi_evaluate_method(ASUS_WMI_METHODID_SPEC, 0, 0x9, &rv)) {
-		pr_info("BIOS WMI version: %d.%d", rv >> 16, rv & 0xFF);
+		pr_info("BIOS WMI version: %d.%d\n", rv >> 16, rv & 0xFF);
 		asus->spec = rv;
 	}
 
@@ -1572,7 +1573,7 @@ static int asus_wmi_platform_init(struct asus_wmi *asus)
 	 * The significance of others is yet to be found.
 	 */
 	if (!asus_wmi_evaluate_method(ASUS_WMI_METHODID_SFUN, 0, 0, &rv)) {
-		pr_info("SFUN value: %#x", rv);
+		pr_info("SFUN value: %#x\n", rv);
 		asus->sfun = rv;
 	}
 
@@ -1712,7 +1713,7 @@ static int asus_wmi_debugfs_init(struct asus_wmi *asus)
 
 	asus->debug.root = debugfs_create_dir(asus->driver->name, NULL);
 	if (!asus->debug.root) {
-		pr_err("failed to create debugfs directory");
+		pr_err("failed to create debugfs directory\n");
 		goto error_debugfs;
 	}
 
@@ -1985,17 +1986,17 @@ EXPORT_SYMBOL_GPL(asus_wmi_unregister_driver);
 static int __init asus_wmi_init(void)
 {
 	if (!wmi_has_guid(ASUS_WMI_MGMT_GUID)) {
-		pr_info("Asus Management GUID not found");
+		pr_info("Asus Management GUID not found\n");
 		return -ENODEV;
 	}
 
-	pr_info("ASUS WMI generic driver loaded");
+	pr_info("ASUS WMI generic driver loaded\n");
 	return 0;
 }
 
 static void __exit asus_wmi_exit(void)
 {
-	pr_info("ASUS WMI generic driver unloaded");
+	pr_info("ASUS WMI generic driver unloaded\n");
 }
 
 module_init(asus_wmi_init);

@@ -393,6 +393,8 @@ static int panel_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
+	mod->preferred_bpp = panel_mod->info->bpp;
+
 	panel_mod->backlight = of_find_backlight_by_node(node);
 	if (panel_mod->backlight)
 		dev_info(&pdev->dev, "found backlight\n");

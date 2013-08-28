@@ -230,9 +230,9 @@ void __init nuc900_init_clocks(void)
 #define	WTE	(1 << 7)
 #define	WTRE	(1 << 1)
 
-void nuc9xx_restart(char mode, const char *cmd)
+void nuc9xx_restart(enum reboot_mode mode, const char *cmd)
 {
-	if (mode == 's') {
+	if (mode == REBOOT_SOFT) {
 		/* Jump into ROM at address 0 */
 		soft_restart(0);
 	} else {

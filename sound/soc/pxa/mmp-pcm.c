@@ -147,7 +147,7 @@ static int mmp_pcm_mmap(struct snd_pcm_substream *substream,
 		vma->vm_end - vma->vm_start, vma->vm_page_prot);
 }
 
-struct snd_pcm_ops mmp_pcm_ops = {
+static struct snd_pcm_ops mmp_pcm_ops = {
 	.open		= mmp_pcm_open,
 	.close		= snd_dmaengine_pcm_close_release_chan,
 	.ioctl		= snd_pcm_lib_ioctl,
@@ -208,7 +208,7 @@ static int mmp_pcm_preallocate_dma_buffer(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-int mmp_pcm_new(struct snd_soc_pcm_runtime *rtd)
+static int mmp_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_pcm_substream *substream;
 	struct snd_pcm *pcm = rtd->pcm;
@@ -229,7 +229,7 @@ err:
 	return ret;
 }
 
-struct snd_soc_platform_driver mmp_soc_platform = {
+static struct snd_soc_platform_driver mmp_soc_platform = {
 	.ops		= &mmp_pcm_ops,
 	.pcm_new	= mmp_pcm_new,
 	.pcm_free	= mmp_pcm_free_dma_buffers,

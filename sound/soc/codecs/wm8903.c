@@ -403,10 +403,8 @@ static int wm8903_class_w_put(struct snd_kcontrol *kcontrol,
 }
 
 #define SOC_DAPM_SINGLE_W(xname, reg, shift, max, invert) \
-{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
-	.info = snd_soc_info_volsw, \
-	.get = snd_soc_dapm_get_volsw, .put = wm8903_class_w_put, \
-	.private_value =  SOC_SINGLE_VALUE(reg, shift, max, invert) }
+	SOC_SINGLE_EXT(xname, reg, shift, max, invert, \
+		snd_soc_dapm_get_volsw, wm8903_class_w_put)
 
 
 static int wm8903_deemph[] = { 0, 32000, 44100, 48000 };

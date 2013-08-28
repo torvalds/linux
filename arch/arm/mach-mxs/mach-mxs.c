@@ -14,12 +14,12 @@
 #include <linux/clk/mxs.h>
 #include <linux/clkdev.h>
 #include <linux/clocksource.h>
-#include <linux/can/platform/flexcan.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/irqchip/mxs.h>
+#include <linux/reboot.h>
 #include <linux/micrel_phy.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
@@ -75,41 +75,6 @@ static inline void __mxs_togl(u32 mask, void __iomem *reg)
 {
 	__raw_writel(mask, reg + MXS_TOG_ADDR);
 }
-
-/*
- * MX28EVK_FLEXCAN_SWITCH is shared between both flexcan controllers
- */
-#define MX28EVK_FLEXCAN_SWITCH	MXS_GPIO_NR(2, 13)
-
-static int flexcan0_en, flexcan1_en;
-
-static void mx28evk_flexcan_switch(void)
-{
-	if (flexcan0_en || flexcan1_en)
-		gpio_set_value(MX28EVK_FLEXCAN_SWITCH, 1);
-	else
-		gpio_set_value(MX28EVK_FLEXCAN_SWITCH, 0);
-}
-
-static void mx28evk_flexcan0_switch(int enable)
-{
-	flexcan0_en = enable;
-	mx28evk_flexcan_switch();
-}
-
-static void mx28evk_flexcan1_switch(int enable)
-{
-	flexcan1_en = enable;
-	mx28evk_flexcan_switch();
-}
-
-static struct flexcan_platform_data flexcan_pdata[2];
-
-static struct of_dev_auxdata mxs_auxdata_lookup[] __initdata = {
-	OF_DEV_AUXDATA("fsl,imx28-flexcan", 0x80032000, NULL, &flexcan_pdata[0]),
-	OF_DEV_AUXDATA("fsl,imx28-flexcan", 0x80034000, NULL, &flexcan_pdata[1]),
-	{ /* sentinel */ }
-};
 
 #define OCOTP_WORD_OFFSET		0x20
 #define OCOTP_WORD_COUNT		0x20
@@ -268,15 +233,6 @@ static void __init imx28_evk_init(void)
 	update_fec_mac_prop(OUI_FSL);
 
 	mxs_saif_clkmux_select(MXS_DIGCTL_SAIF_CLKMUX_EXTMSTR0);
-}
-
-static void __init imx28_evk_post_init(void)
-{
-	if (!gpio_request_one(MX28EVK_FLEXCAN_SWITCH, GPIOF_DIR_OUT,
-			      "flexcan-switch")) {
-		flexcan_pdata[0].transceiver_switch = mx28evk_flexcan0_switch;
-		flexcan_pdata[1].transceiver_switch = mx28evk_flexcan1_switch;
-	}
 }
 
 static int apx4devkit_phy_fixup(struct phy_device *phy)
@@ -484,13 +440,10 @@ static void __init mxs_machine_init(void)
 		crystalfontz_init();
 
 	of_platform_populate(NULL, of_default_bus_match_table,
-			     mxs_auxdata_lookup, parent);
+			     NULL, parent);
 
 	if (of_machine_is_compatible("karo,tx28"))
 		tx28_post_init();
-
-	if (of_machine_is_compatible("fsl,imx28-evk"))
-		imx28_evk_post_init();
 }
 
 #define MX23_CLKCTRL_RESET_OFFSET	0x120
@@ -500,7 +453,7 @@ static void __init mxs_machine_init(void)
 /*
  * Reset the system. It is called by machine_restart().
  */
-static void mxs_restart(char mode, const char *cmd)
+static void mxs_restart(enum reboot_mode mode, const char *cmd)
 {
 	struct device_node *np;
 	void __iomem *reset_addr;

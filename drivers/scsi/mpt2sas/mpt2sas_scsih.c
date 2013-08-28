@@ -101,6 +101,10 @@ static ushort max_sectors = 0xFFFF;
 module_param(max_sectors, ushort, 0);
 MODULE_PARM_DESC(max_sectors, "max sectors, range 64 to 32767  default=32767");
 
+static int missing_delay[2] = {-1, -1};
+module_param_array(missing_delay, int, NULL, 0);
+MODULE_PARM_DESC(missing_delay, " device missing delay , io missing delay");
+
 /* scsi-mid layer global parmeter is max_report_luns, which is 511 */
 #define MPT2SAS_MAX_LUN (16895)
 static int max_lun = MPT2SAS_MAX_LUN;
@@ -3994,11 +3998,7 @@ _scsih_qcmd_lck(struct scsi_cmnd *scmd, void (*done)(struct scsi_cmnd *))
 			else
 				mpi_control |= MPI2_SCSIIO_CONTROL_SIMPLEQ;
 		} else
-/* MPI Revision I (UNIT = 0xA) - removed MPI2_SCSIIO_CONTROL_UNTAGGED */
-/*			mpi_control |= MPI2_SCSIIO_CONTROL_UNTAGGED;
- */
-			mpi_control |= (0x500);
-
+			mpi_control |= MPI2_SCSIIO_CONTROL_SIMPLEQ;
 	} else
 		mpi_control |= MPI2_SCSIIO_CONTROL_SIMPLEQ;
 	/* Make sure Device is not raid volume.
@@ -5815,9 +5815,10 @@ _scsih_sas_broadcast_primitive_event(struct MPT2SAS_ADAPTER *ioc,
 	u8 task_abort_retries;
 
 	mutex_lock(&ioc->tm_cmds.mutex);
-	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: enter: phy number(%d), "
-	    "width(%d)\n", ioc->name, __func__, event_data->PhyNum,
-	     event_data->PortWidth));
+	pr_info(MPT2SAS_FMT
+		"%s: enter: phy number(%d), width(%d)\n",
+		ioc->name, __func__, event_data->PhyNum,
+		event_data->PortWidth);
 
 	_scsih_block_io_all_device(ioc);
 
@@ -7093,12 +7094,15 @@ _scsih_scan_for_devices_after_reset(struct MPT2SAS_ADAPTER *ioc)
 	struct _sas_device *sas_device;
 	struct _sas_node *expander_device;
 	static struct _raid_device *raid_device;
+	u8 retry_count;
 	unsigned long flags;
 
 	printk(MPT2SAS_INFO_FMT "scan devices: start\n", ioc->name);
 
 	_scsih_sas_host_refresh(ioc);
 
+	printk(MPT2SAS_INFO_FMT "\tscan devices: expanders start\n",
+		ioc->name);
 	/* expanders */
 	handle = 0xFFFF;
 	while (!(mpt2sas_config_get_expander_pg0(ioc, &mpi_reply, &expander_pg0,
@@ -7107,6 +7111,13 @@ _scsih_scan_for_devices_after_reset(struct MPT2SAS_ADAPTER *ioc)
 		    MPI2_IOCSTATUS_MASK;
 		if (ioc_status == MPI2_IOCSTATUS_CONFIG_INVALID_PAGE)
 			break;
+		if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
+			printk(MPT2SAS_INFO_FMT "\tbreak from expander scan: "
+				"ioc_status(0x%04x), loginfo(0x%08x)\n",
+				ioc->name, ioc_status,
+				le32_to_cpu(mpi_reply.IOCLogInfo));
+			break;
+		}
 		handle = le16_to_cpu(expander_pg0.DevHandle);
 		spin_lock_irqsave(&ioc->sas_node_lock, flags);
 		expander_device = mpt2sas_scsih_expander_find_by_sas_address(
@@ -7115,13 +7126,26 @@ _scsih_scan_for_devices_after_reset(struct MPT2SAS_ADAPTER *ioc)
 		if (expander_device)
 			_scsih_refresh_expander_links(ioc, expander_device,
 			    handle);
-		else
+		else {
+			printk(MPT2SAS_INFO_FMT "\tBEFORE adding expander: "
+				"handle (0x%04x), sas_addr(0x%016llx)\n",
+				ioc->name, handle, (unsigned long long)
+				le64_to_cpu(expander_pg0.SASAddress));
 			_scsih_expander_add(ioc, handle);
+			printk(MPT2SAS_INFO_FMT "\tAFTER adding expander: "
+				"handle (0x%04x), sas_addr(0x%016llx)\n",
+				ioc->name, handle, (unsigned long long)
+				le64_to_cpu(expander_pg0.SASAddress));
+		}
 	}
+
+	printk(MPT2SAS_INFO_FMT "\tscan devices: expanders complete\n",
+		ioc->name);
 
 	if (!ioc->ir_firmware)
 		goto skip_to_sas;
 
+	printk(MPT2SAS_INFO_FMT "\tscan devices phys disk start\n", ioc->name);
 	/* phys disk */
 	phys_disk_num = 0xFF;
 	while (!(mpt2sas_config_get_phys_disk_pg0(ioc, &mpi_reply,
@@ -7131,6 +7155,13 @@ _scsih_scan_for_devices_after_reset(struct MPT2SAS_ADAPTER *ioc)
 		    MPI2_IOCSTATUS_MASK;
 		if (ioc_status == MPI2_IOCSTATUS_CONFIG_INVALID_PAGE)
 			break;
+		if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
+			printk(MPT2SAS_INFO_FMT "\tbreak from phys disk scan:"
+				"ioc_status(0x%04x), loginfo(0x%08x)\n",
+				ioc->name, ioc_status,
+				le32_to_cpu(mpi_reply.IOCLogInfo));
+			break;
+		}
 		phys_disk_num = pd_pg0.PhysDiskNum;
 		handle = le16_to_cpu(pd_pg0.DevHandle);
 		spin_lock_irqsave(&ioc->sas_device_lock, flags);
@@ -7142,17 +7173,46 @@ _scsih_scan_for_devices_after_reset(struct MPT2SAS_ADAPTER *ioc)
 		    &sas_device_pg0, MPI2_SAS_DEVICE_PGAD_FORM_HANDLE,
 		    handle) != 0)
 			continue;
+		ioc_status = le16_to_cpu(mpi_reply.IOCStatus) &
+			MPI2_IOCSTATUS_MASK;
+		if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
+			printk(MPT2SAS_INFO_FMT "\tbreak from phys disk scan "
+				"ioc_status(0x%04x), loginfo(0x%08x)\n",
+				ioc->name, ioc_status,
+				le32_to_cpu(mpi_reply.IOCLogInfo));
+			break;
+		}
 		parent_handle = le16_to_cpu(sas_device_pg0.ParentDevHandle);
 		if (!_scsih_get_sas_address(ioc, parent_handle,
 		    &sas_address)) {
+			printk(MPT2SAS_INFO_FMT "\tBEFORE adding phys disk: "
+				" handle (0x%04x), sas_addr(0x%016llx)\n",
+				ioc->name, handle, (unsigned long long)
+				le64_to_cpu(sas_device_pg0.SASAddress));
 			mpt2sas_transport_update_links(ioc, sas_address,
 			    handle, sas_device_pg0.PhyNum,
 			    MPI2_SAS_NEG_LINK_RATE_1_5);
 			set_bit(handle, ioc->pd_handles);
-			_scsih_add_device(ioc, handle, 0, 1);
+			retry_count = 0;
+			/* This will retry adding the end device.
+			* _scsih_add_device() will decide on retries and
+			* return "1" when it should be retried
+			*/
+			while (_scsih_add_device(ioc, handle, retry_count++,
+				1)) {
+					ssleep(1);
+			}
+			printk(MPT2SAS_INFO_FMT "\tAFTER adding phys disk: "
+				" handle (0x%04x), sas_addr(0x%016llx)\n",
+				ioc->name, handle, (unsigned long long)
+				le64_to_cpu(sas_device_pg0.SASAddress));
 		}
 	}
 
+	printk(MPT2SAS_INFO_FMT "\tscan devices: phys disk complete\n",
+		ioc->name);
+
+	printk(MPT2SAS_INFO_FMT "\tscan devices: volumes start\n", ioc->name);
 	/* volumes */
 	handle = 0xFFFF;
 	while (!(mpt2sas_config_get_raid_volume_pg1(ioc, &mpi_reply,
@@ -7161,6 +7221,13 @@ _scsih_scan_for_devices_after_reset(struct MPT2SAS_ADAPTER *ioc)
 		    MPI2_IOCSTATUS_MASK;
 		if (ioc_status == MPI2_IOCSTATUS_CONFIG_INVALID_PAGE)
 			break;
+		if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
+			printk(MPT2SAS_INFO_FMT "\tbreak from volume scan: "
+				"ioc_status(0x%04x), loginfo(0x%08x)\n",
+				ioc->name, ioc_status,
+				le32_to_cpu(mpi_reply.IOCLogInfo));
+			break;
+		}
 		handle = le16_to_cpu(volume_pg1.DevHandle);
 		spin_lock_irqsave(&ioc->raid_device_lock, flags);
 		raid_device = _scsih_raid_device_find_by_wwid(ioc,
@@ -7172,18 +7239,38 @@ _scsih_scan_for_devices_after_reset(struct MPT2SAS_ADAPTER *ioc)
 		    &volume_pg0, MPI2_RAID_VOLUME_PGAD_FORM_HANDLE, handle,
 		     sizeof(Mpi2RaidVolPage0_t)))
 			continue;
+		ioc_status = le16_to_cpu(mpi_reply.IOCStatus) &
+			MPI2_IOCSTATUS_MASK;
+		if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
+			printk(MPT2SAS_INFO_FMT "\tbreak from volume scan: "
+				"ioc_status(0x%04x), loginfo(0x%08x)\n",
+				ioc->name, ioc_status,
+				le32_to_cpu(mpi_reply.IOCLogInfo));
+			break;
+		}
 		if (volume_pg0.VolumeState == MPI2_RAID_VOL_STATE_OPTIMAL ||
 		    volume_pg0.VolumeState == MPI2_RAID_VOL_STATE_ONLINE ||
 		    volume_pg0.VolumeState == MPI2_RAID_VOL_STATE_DEGRADED) {
 			memset(&element, 0, sizeof(Mpi2EventIrConfigElement_t));
 			element.ReasonCode = MPI2_EVENT_IR_CHANGE_RC_ADDED;
 			element.VolDevHandle = volume_pg1.DevHandle;
+			printk(MPT2SAS_INFO_FMT "\tBEFORE adding volume: "
+				" handle (0x%04x)\n", ioc->name,
+				volume_pg1.DevHandle);
 			_scsih_sas_volume_add(ioc, &element);
+			printk(MPT2SAS_INFO_FMT "\tAFTER adding volume: "
+				" handle (0x%04x)\n", ioc->name,
+				volume_pg1.DevHandle);
 		}
 	}
 
+	printk(MPT2SAS_INFO_FMT "\tscan devices: volumes complete\n",
+		ioc->name);
+
  skip_to_sas:
 
+	printk(MPT2SAS_INFO_FMT "\tscan devices: end devices start\n",
+		ioc->name);
 	/* sas devices */
 	handle = 0xFFFF;
 	while (!(mpt2sas_config_get_sas_device_pg0(ioc, &mpi_reply,
@@ -7193,6 +7280,13 @@ _scsih_scan_for_devices_after_reset(struct MPT2SAS_ADAPTER *ioc)
 		    MPI2_IOCSTATUS_MASK;
 		if (ioc_status == MPI2_IOCSTATUS_CONFIG_INVALID_PAGE)
 			break;
+		if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
+			printk(MPT2SAS_INFO_FMT "\tbreak from end device scan:"
+				" ioc_status(0x%04x), loginfo(0x%08x)\n",
+				ioc->name, ioc_status,
+				le32_to_cpu(mpi_reply.IOCLogInfo));
+				break;
+		}
 		handle = le16_to_cpu(sas_device_pg0.DevHandle);
 		if (!(_scsih_is_end_device(
 		    le32_to_cpu(sas_device_pg0.DeviceInfo))))
@@ -7205,11 +7299,30 @@ _scsih_scan_for_devices_after_reset(struct MPT2SAS_ADAPTER *ioc)
 			continue;
 		parent_handle = le16_to_cpu(sas_device_pg0.ParentDevHandle);
 		if (!_scsih_get_sas_address(ioc, parent_handle, &sas_address)) {
+			printk(MPT2SAS_INFO_FMT "\tBEFORE adding end device: "
+				"handle (0x%04x), sas_addr(0x%016llx)\n",
+				ioc->name, handle, (unsigned long long)
+				le64_to_cpu(sas_device_pg0.SASAddress));
 			mpt2sas_transport_update_links(ioc, sas_address, handle,
 			    sas_device_pg0.PhyNum, MPI2_SAS_NEG_LINK_RATE_1_5);
-			_scsih_add_device(ioc, handle, 0, 0);
+			retry_count = 0;
+			/* This will retry adding the end device.
+			 * _scsih_add_device() will decide on retries and
+			 * return "1" when it should be retried
+			 */
+			while (_scsih_add_device(ioc, handle, retry_count++,
+				0)) {
+					ssleep(1);
+			}
+			printk(MPT2SAS_INFO_FMT "\tAFTER adding end device: "
+				"handle (0x%04x), sas_addr(0x%016llx)\n",
+				ioc->name, handle, (unsigned long long)
+				le64_to_cpu(sas_device_pg0.SASAddress));
 		}
 	}
+
+	printk(MPT2SAS_INFO_FMT "\tscan devices: end devices complete\n",
+		ioc->name);
 
 	printk(MPT2SAS_INFO_FMT "scan devices: complete\n", ioc->name);
 }
@@ -7303,7 +7416,9 @@ _firmware_event_work(struct work_struct *work)
 	case MPT2SAS_PORT_ENABLE_COMPLETE:
 		ioc->start_scan = 0;
 
-
+		if (missing_delay[0] != -1 && missing_delay[1] != -1)
+			mpt2sas_base_update_missing_delay(ioc, missing_delay[0],
+				missing_delay[1]);
 
 		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "port enable: complete "
 		    "from worker thread\n", ioc->name));
@@ -8070,8 +8185,8 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (max_sectors != 0xFFFF) {
 		if (max_sectors < 64) {
 			shost->max_sectors = 64;
-			printk(MPT2SAS_WARN_FMT "Invalid value %d passed "\
-			    "for max_sectors, range is 64 to 32767. Assigning "\
+			printk(MPT2SAS_WARN_FMT "Invalid value %d passed "
+			    "for max_sectors, range is 64 to 32767. Assigning "
 			    "value of 64.\n", ioc->name, max_sectors);
 		} else if (max_sectors > 32767) {
 			shost->max_sectors = 32767;

@@ -113,8 +113,6 @@ int btrfs_return_cluster_to_free_space(
 int btrfs_trim_block_group(struct btrfs_block_group_cache *block_group,
 			   u64 *trimmed, u64 start, u64 end, u64 minlen);
 
-#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 void btrfs_test_free_space_cache(void);
-#endif
 
 #endif

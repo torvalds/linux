@@ -69,7 +69,7 @@ nouveau_vram_manager_del(struct ttm_mem_type_manager *man,
 	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
 	struct nouveau_fb *pfb = nouveau_fb(drm->device);
 	nouveau_mem_node_cleanup(mem->mm_node);
-	pfb->ram.put(pfb, (struct nouveau_mem **)&mem->mm_node);
+	pfb->ram->put(pfb, (struct nouveau_mem **)&mem->mm_node);
 }
 
 static int
@@ -88,7 +88,7 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 	if (nvbo->tile_flags & NOUVEAU_GEM_TILE_NONCONTIG)
 		size_nc = 1 << nvbo->page_shift;
 
-	ret = pfb->ram.get(pfb, mem->num_pages << PAGE_SHIFT,
+	ret = pfb->ram->get(pfb, mem->num_pages << PAGE_SHIFT,
 			   mem->page_alignment << PAGE_SHIFT, size_nc,
 			   (nvbo->tile_flags >> 8) & 0x3ff, &node);
 	if (ret) {
@@ -111,7 +111,7 @@ nouveau_vram_manager_debug(struct ttm_mem_type_manager *man, const char *prefix)
 	struct nouveau_mm_node *r;
 	u32 total = 0, free = 0;
 
-	mutex_lock(&mm->mutex);
+	mutex_lock(&nv_subdev(pfb)->mutex);
 	list_for_each_entry(r, &mm->nodes, nl_entry) {
 		printk(KERN_DEBUG "%s %d: 0x%010llx 0x%010llx\n",
 		       prefix, r->type, ((u64)r->offset << 12),
@@ -121,7 +121,7 @@ nouveau_vram_manager_debug(struct ttm_mem_type_manager *man, const char *prefix)
 		if (!r->type)
 			free += r->length;
 	}
-	mutex_unlock(&mm->mutex);
+	mutex_unlock(&nv_subdev(pfb)->mutex);
 
 	printk(KERN_DEBUG "%s  total: 0x%010llx free: 0x%010llx\n",
 	       prefix, (u64)total << 12, (u64)free << 12);
@@ -167,9 +167,6 @@ nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nouveau_mem *node;
-
-	if (unlikely((mem->num_pages << PAGE_SHIFT) >= 512 * 1024 * 1024))
-		return -ENOMEM;
 
 	node = kzalloc(sizeof(*node), GFP_KERNEL);
 	if (!node)
@@ -386,7 +383,7 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	}
 
 	/* VRAM init */
-	drm->gem.vram_available  = nouveau_fb(drm->device)->ram.size;
+	drm->gem.vram_available  = nouveau_fb(drm->device)->ram->size;
 	drm->gem.vram_available -= nouveau_instmem(drm->device)->reserved;
 
 	ret = ttm_bo_init_mm(&drm->ttm.bdev, TTM_PL_VRAM,
@@ -396,15 +393,12 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 		return ret;
 	}
 
-	drm->ttm.mtrr = drm_mtrr_add(pci_resource_start(dev->pdev, 1),
-				     pci_resource_len(dev->pdev, 1),
-				     DRM_MTRR_WC);
+	drm->ttm.mtrr = arch_phys_wc_add(pci_resource_start(dev->pdev, 1),
+					 pci_resource_len(dev->pdev, 1));
 
 	/* GART init */
 	if (drm->agp.stat != ENABLED) {
 		drm->gem.gart_available = nouveau_vmmgr(drm->device)->limit;
-		if (drm->gem.gart_available > 512 * 1024 * 1024)
-			drm->gem.gart_available = 512 * 1024 * 1024;
 	} else {
 		drm->gem.gart_available = drm->agp.size;
 	}
@@ -433,10 +427,6 @@ nouveau_ttm_fini(struct nouveau_drm *drm)
 
 	nouveau_ttm_global_release(drm);
 
-	if (drm->ttm.mtrr >= 0) {
-		drm_mtrr_del(drm->ttm.mtrr,
-			     pci_resource_start(drm->dev->pdev, 1),
-			     pci_resource_len(drm->dev->pdev, 1), DRM_MTRR_WC);
-		drm->ttm.mtrr = -1;
-	}
+	arch_phys_wc_del(drm->ttm.mtrr);
+	drm->ttm.mtrr = 0;
 }

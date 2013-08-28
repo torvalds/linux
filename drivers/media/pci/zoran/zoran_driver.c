@@ -1456,29 +1456,6 @@ zoran_set_norm (struct zoran *zr,
 		return -EINVAL;
 	}
 
-	if (norm == V4L2_STD_ALL) {
-		unsigned int status = 0;
-		v4l2_std_id std = 0;
-
-		decoder_call(zr, video, querystd, &std);
-		decoder_call(zr, core, s_std, std);
-
-		/* let changes come into effect */
-		ssleep(2);
-
-		decoder_call(zr, video, g_input_status, &status);
-		if (status & V4L2_IN_ST_NO_SIGNAL) {
-			dprintk(1,
-				KERN_ERR
-				"%s: %s - no norm detected\n",
-				ZR_DEVNAME(zr), __func__);
-			/* reset norm */
-			decoder_call(zr, core, s_std, zr->norm);
-			return -EIO;
-		}
-
-		norm = std;
-	}
 	if (norm & V4L2_STD_SECAM)
 		zr->timing = zr->card.tvn[2];
 	else if (norm & V4L2_STD_NTSC)

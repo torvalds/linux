@@ -53,7 +53,7 @@ struct lprocfs_vars {
 	/**
 	 * /proc file mode.
 	 */
-	mode_t			proc_mode;
+	umode_t			proc_mode;
 };
 
 struct lprocfs_static_vars {
@@ -600,11 +600,11 @@ extern int lprocfs_obd_setup(struct obd_device *obd, struct lprocfs_vars *list);
 extern int lprocfs_obd_cleanup(struct obd_device *obd);
 
 extern int lprocfs_seq_create(proc_dir_entry_t *parent, const char *name,
-			      mode_t mode,
+			      umode_t mode,
 			      const struct file_operations *seq_fops,
 			      void *data);
 extern int lprocfs_obd_seq_create(struct obd_device *dev, const char *name,
-				  mode_t mode,
+				  umode_t mode,
 				  const struct file_operations *seq_fops,
 				  void *data);
 

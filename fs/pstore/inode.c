@@ -326,6 +326,15 @@ int pstore_mkfile(enum pstore_type_id type, char *psname, u64 id, int count,
 	case PSTORE_TYPE_MCE:
 		sprintf(name, "mce-%s-%lld", psname, id);
 		break;
+	case PSTORE_TYPE_PPC_RTAS:
+		sprintf(name, "rtas-%s-%lld", psname, id);
+		break;
+	case PSTORE_TYPE_PPC_OF:
+		sprintf(name, "powerpc-ofw-%s-%lld", psname, id);
+		break;
+	case PSTORE_TYPE_PPC_COMMON:
+		sprintf(name, "powerpc-common-%s-%lld", psname, id);
+		break;
 	case PSTORE_TYPE_UNKNOWN:
 		sprintf(name, "unknown-%s-%lld", psname, id);
 		break;

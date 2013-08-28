@@ -92,7 +92,7 @@ static struct drm_fb_cma *drm_fb_cma_alloc(struct drm_device *dev,
 
 	ret = drm_framebuffer_init(dev, &fb_cma->fb, &drm_fb_cma_funcs);
 	if (ret) {
-		dev_err(dev->dev, "Failed to initalize framebuffer: %d\n", ret);
+		dev_err(dev->dev, "Failed to initialize framebuffer: %d\n", ret);
 		kfree(fb_cma);
 		return ERR_PTR(ret);
 	}
@@ -376,7 +376,7 @@ struct drm_fbdev_cma *drm_fbdev_cma_init(struct drm_device *dev,
 
 	ret = drm_fb_helper_initial_config(helper, preferred_bpp);
 	if (ret < 0) {
-		dev_err(dev->dev, "Failed to set inital hw configuration.\n");
+		dev_err(dev->dev, "Failed to set initial hw configuration.\n");
 		goto err_drm_fb_helper_fini;
 	}
 

@@ -961,7 +961,7 @@ static void nl_fib_input(struct sk_buff *skb)
 	    nlmsg_len(nlh) < sizeof(*frn))
 		return;
 
-	skb = skb_clone(skb, GFP_KERNEL);
+	skb = netlink_skb_clone(skb, GFP_KERNEL);
 	if (skb == NULL)
 		return;
 	nlh = nlmsg_hdr(skb);
@@ -1038,7 +1038,7 @@ static int fib_inetaddr_event(struct notifier_block *this, unsigned long event, 
 
 static int fib_netdev_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
-	struct net_device *dev = ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct in_device *in_dev;
 	struct net *net = dev_net(dev);
 

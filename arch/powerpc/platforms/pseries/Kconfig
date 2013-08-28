@@ -33,11 +33,6 @@ config PPC_SPLPAR
 	  processors, that is, which share physical processors between
 	  two or more partitions.
 
-config EEH
-	bool
-	depends on PPC_PSERIES && PCI
-	default y
-
 config PSERIES_MSI
        bool
        depends on PCI_MSI && EEH

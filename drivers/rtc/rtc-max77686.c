@@ -119,7 +119,7 @@ static int max77686_rtc_tm_to_data(struct rtc_time *tm, u8 *data)
 	data[RTC_WEEKDAY] = 1 << tm->tm_wday;
 	data[RTC_DATE] = tm->tm_mday;
 	data[RTC_MONTH] = tm->tm_mon + 1;
-	data[RTC_YEAR] = tm->tm_year > 100 ? (tm->tm_year - 100) : 0 ;
+	data[RTC_YEAR] = tm->tm_year > 100 ? (tm->tm_year - 100) : 0;
 
 	if (tm->tm_year < 100) {
 		pr_warn("%s: MAX77686 RTC cannot handle the year %d."
@@ -567,11 +567,6 @@ err_rtc:
 	return ret;
 }
 
-static int max77686_rtc_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static void max77686_rtc_shutdown(struct platform_device *pdev)
 {
 #ifdef MAX77686_RTC_WTSR_SMPL
@@ -610,7 +605,6 @@ static struct platform_driver max77686_rtc_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= max77686_rtc_probe,
-	.remove		= max77686_rtc_remove,
 	.shutdown	= max77686_rtc_shutdown,
 	.id_table	= rtc_id,
 };

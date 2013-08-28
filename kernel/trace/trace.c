@@ -115,6 +115,9 @@ cpumask_var_t __read_mostly	tracing_buffer_mask;
 
 enum ftrace_dump_mode ftrace_dump_on_oops;
 
+/* When set, tracing will stop when a WARN*() is hit */
+int __disable_trace_on_warning;
+
 static int tracing_set_tracer(const char *buf);
 
 #define MAX_TRACER_SIZE		100
@@ -149,6 +152,13 @@ static int __init set_ftrace_dump_on_oops(char *str)
 }
 __setup("ftrace_dump_on_oops", set_ftrace_dump_on_oops);
 
+static int __init stop_trace_on_warning(char *str)
+{
+	__disable_trace_on_warning = 1;
+	return 1;
+}
+__setup("traceoff_on_warning=", stop_trace_on_warning);
+
 static int __init boot_alloc_snapshot(char *str)
 {
 	allocate_snapshot = true;
@@ -169,6 +179,7 @@ static int __init set_trace_boot_options(char *str)
 	return 0;
 }
 __setup("trace_options=", set_trace_boot_options);
+
 
 unsigned long long ns2usecs(cycle_t nsec)
 {
@@ -193,6 +204,37 @@ static struct trace_array	global_trace;
 
 LIST_HEAD(ftrace_trace_arrays);
 
+int trace_array_get(struct trace_array *this_tr)
+{
+	struct trace_array *tr;
+	int ret = -ENODEV;
+
+	mutex_lock(&trace_types_lock);
+	list_for_each_entry(tr, &ftrace_trace_arrays, list) {
+		if (tr == this_tr) {
+			tr->ref++;
+			ret = 0;
+			break;
+		}
+	}
+	mutex_unlock(&trace_types_lock);
+
+	return ret;
+}
+
+static void __trace_array_put(struct trace_array *this_tr)
+{
+	WARN_ON(!this_tr->ref);
+	this_tr->ref--;
+}
+
+void trace_array_put(struct trace_array *this_tr)
+{
+	mutex_lock(&trace_types_lock);
+	__trace_array_put(this_tr);
+	mutex_unlock(&trace_types_lock);
+}
+
 int filter_current_check_discard(struct ring_buffer *buffer,
 				 struct ftrace_event_call *call, void *rec,
 				 struct ring_buffer_event *event)
@@ -215,9 +257,24 @@ cycle_t ftrace_now(int cpu)
 	return ts;
 }
 
+/**
+ * tracing_is_enabled - Show if global_trace has been disabled
+ *
+ * Shows if the global trace has been enabled or not. It uses the
+ * mirror flag "buffer_disabled" to be used in fast paths such as for
+ * the irqsoff tracer. But it may be inaccurate due to races. If you
+ * need to know the accurate state, use tracing_is_on() which is a little
+ * slower, but accurate.
+ */
 int tracing_is_enabled(void)
 {
-	return tracing_is_on();
+	/*
+	 * For quick access (irqsoff uses this in fast path), just
+	 * return the mirror variable of the state of the ring buffer.
+	 * It's a little racy, but we don't really care.
+	 */
+	smp_rmb();
+	return !global_trace.buffer_disabled;
 }
 
 /*
@@ -240,7 +297,7 @@ static struct tracer		*trace_types __read_mostly;
 /*
  * trace_types_lock is used to protect the trace_types list.
  */
-static DEFINE_MUTEX(trace_types_lock);
+DEFINE_MUTEX(trace_types_lock);
 
 /*
  * serialize the access of the ring buffer
@@ -330,6 +387,23 @@ unsigned long trace_flags = TRACE_ITER_PRINT_PARENT | TRACE_ITER_PRINTK |
 	TRACE_ITER_GRAPH_TIME | TRACE_ITER_RECORD_CMD | TRACE_ITER_OVERWRITE |
 	TRACE_ITER_IRQ_INFO | TRACE_ITER_MARKERS | TRACE_ITER_FUNCTION;
 
+static void tracer_tracing_on(struct trace_array *tr)
+{
+	if (tr->trace_buffer.buffer)
+		ring_buffer_record_on(tr->trace_buffer.buffer);
+	/*
+	 * This flag is looked at when buffers haven't been allocated
+	 * yet, or by some tracers (like irqsoff), that just want to
+	 * know if the ring buffer has been disabled, but it can handle
+	 * races of where it gets disabled but we still do a record.
+	 * As the check is in the fast path of the tracers, it is more
+	 * important to be fast than accurate.
+	 */
+	tr->buffer_disabled = 0;
+	/* Make the flag seen by readers */
+	smp_wmb();
+}
+
 /**
  * tracing_on - enable tracing buffers
  *
@@ -338,15 +412,7 @@ unsigned long trace_flags = TRACE_ITER_PRINT_PARENT | TRACE_ITER_PRINTK |
  */
 void tracing_on(void)
 {
-	if (global_trace.trace_buffer.buffer)
-		ring_buffer_record_on(global_trace.trace_buffer.buffer);
-	/*
-	 * This flag is only looked at when buffers haven't been
-	 * allocated yet. We don't really care about the race
-	 * between setting this flag and actually turning
-	 * on the buffer.
-	 */
-	global_trace.buffer_disabled = 0;
+	tracer_tracing_on(&global_trace);
 }
 EXPORT_SYMBOL_GPL(tracing_on);
 
@@ -540,6 +606,23 @@ void tracing_snapshot_alloc(void)
 EXPORT_SYMBOL_GPL(tracing_snapshot_alloc);
 #endif /* CONFIG_TRACER_SNAPSHOT */
 
+static void tracer_tracing_off(struct trace_array *tr)
+{
+	if (tr->trace_buffer.buffer)
+		ring_buffer_record_off(tr->trace_buffer.buffer);
+	/*
+	 * This flag is looked at when buffers haven't been allocated
+	 * yet, or by some tracers (like irqsoff), that just want to
+	 * know if the ring buffer has been disabled, but it can handle
+	 * races of where it gets disabled but we still do a record.
+	 * As the check is in the fast path of the tracers, it is more
+	 * important to be fast than accurate.
+	 */
+	tr->buffer_disabled = 1;
+	/* Make the flag seen by readers */
+	smp_wmb();
+}
+
 /**
  * tracing_off - turn off tracing buffers
  *
@@ -550,26 +633,35 @@ EXPORT_SYMBOL_GPL(tracing_snapshot_alloc);
  */
 void tracing_off(void)
 {
-	if (global_trace.trace_buffer.buffer)
-		ring_buffer_record_off(global_trace.trace_buffer.buffer);
-	/*
-	 * This flag is only looked at when buffers haven't been
-	 * allocated yet. We don't really care about the race
-	 * between setting this flag and actually turning
-	 * on the buffer.
-	 */
-	global_trace.buffer_disabled = 1;
+	tracer_tracing_off(&global_trace);
 }
 EXPORT_SYMBOL_GPL(tracing_off);
+
+void disable_trace_on_warning(void)
+{
+	if (__disable_trace_on_warning)
+		tracing_off();
+}
+
+/**
+ * tracer_tracing_is_on - show real state of ring buffer enabled
+ * @tr : the trace array to know if ring buffer is enabled
+ *
+ * Shows real state of the ring buffer if it is enabled or not.
+ */
+static int tracer_tracing_is_on(struct trace_array *tr)
+{
+	if (tr->trace_buffer.buffer)
+		return ring_buffer_record_is_on(tr->trace_buffer.buffer);
+	return !tr->buffer_disabled;
+}
 
 /**
  * tracing_is_on - show state of ring buffers enabled
  */
 int tracing_is_on(void)
 {
-	if (global_trace.trace_buffer.buffer)
-		return ring_buffer_record_is_on(global_trace.trace_buffer.buffer);
-	return !global_trace.buffer_disabled;
+	return tracer_tracing_is_on(&global_trace);
 }
 EXPORT_SYMBOL_GPL(tracing_is_on);
 
@@ -1541,15 +1633,6 @@ trace_function(struct trace_array *tr,
 
 	if (!filter_check_discard(call, entry, buffer, event))
 		__buffer_unlock_commit(buffer, event);
-}
-
-void
-ftrace(struct trace_array *tr, struct trace_array_cpu *data,
-       unsigned long ip, unsigned long parent_ip, unsigned long flags,
-       int pc)
-{
-	if (likely(!atomic_read(&data->disabled)))
-		trace_function(tr, ip, parent_ip, flags, pc);
 }
 
 #ifdef CONFIG_STACKTRACE
@@ -2768,10 +2851,9 @@ static const struct seq_operations tracer_seq_ops = {
 };
 
 static struct trace_iterator *
-__tracing_open(struct inode *inode, struct file *file, bool snapshot)
+__tracing_open(struct trace_array *tr, struct trace_cpu *tc,
+	       struct inode *inode, struct file *file, bool snapshot)
 {
-	struct trace_cpu *tc = inode->i_private;
-	struct trace_array *tr = tc->tr;
 	struct trace_iterator *iter;
 	int cpu;
 
@@ -2850,8 +2932,6 @@ __tracing_open(struct inode *inode, struct file *file, bool snapshot)
 		tracing_iter_reset(iter, cpu);
 	}
 
-	tr->ref++;
-
 	mutex_unlock(&trace_types_lock);
 
 	return iter;
@@ -2874,6 +2954,43 @@ int tracing_open_generic(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+/*
+ * Open and update trace_array ref count.
+ * Must have the current trace_array passed to it.
+ */
+static int tracing_open_generic_tr(struct inode *inode, struct file *filp)
+{
+	struct trace_array *tr = inode->i_private;
+
+	if (tracing_disabled)
+		return -ENODEV;
+
+	if (trace_array_get(tr) < 0)
+		return -ENODEV;
+
+	filp->private_data = inode->i_private;
+
+	return 0;
+	
+}
+
+static int tracing_open_generic_tc(struct inode *inode, struct file *filp)
+{
+	struct trace_cpu *tc = inode->i_private;
+	struct trace_array *tr = tc->tr;
+
+	if (tracing_disabled)
+		return -ENODEV;
+
+	if (trace_array_get(tr) < 0)
+		return -ENODEV;
+
+	filp->private_data = inode->i_private;
+
+	return 0;
+	
+}
+
 static int tracing_release(struct inode *inode, struct file *file)
 {
 	struct seq_file *m = file->private_data;
@@ -2881,16 +2998,19 @@ static int tracing_release(struct inode *inode, struct file *file)
 	struct trace_array *tr;
 	int cpu;
 
-	if (!(file->f_mode & FMODE_READ))
+	/* Writes do not use seq_file, need to grab tr from inode */
+	if (!(file->f_mode & FMODE_READ)) {
+		struct trace_cpu *tc = inode->i_private;
+
+		trace_array_put(tc->tr);
 		return 0;
+	}
 
 	iter = m->private;
 	tr = iter->tr;
+	trace_array_put(tr);
 
 	mutex_lock(&trace_types_lock);
-
-	WARN_ON(!tr->ref);
-	tr->ref--;
 
 	for_each_tracing_cpu(cpu) {
 		if (iter->buffer_iter[cpu])
@@ -2910,20 +3030,49 @@ static int tracing_release(struct inode *inode, struct file *file)
 	kfree(iter->trace);
 	kfree(iter->buffer_iter);
 	seq_release_private(inode, file);
+
 	return 0;
+}
+
+static int tracing_release_generic_tr(struct inode *inode, struct file *file)
+{
+	struct trace_array *tr = inode->i_private;
+
+	trace_array_put(tr);
+	return 0;
+}
+
+static int tracing_release_generic_tc(struct inode *inode, struct file *file)
+{
+	struct trace_cpu *tc = inode->i_private;
+	struct trace_array *tr = tc->tr;
+
+	trace_array_put(tr);
+	return 0;
+}
+
+static int tracing_single_release_tr(struct inode *inode, struct file *file)
+{
+	struct trace_array *tr = inode->i_private;
+
+	trace_array_put(tr);
+
+	return single_release(inode, file);
 }
 
 static int tracing_open(struct inode *inode, struct file *file)
 {
+	struct trace_cpu *tc = inode->i_private;
+	struct trace_array *tr = tc->tr;
 	struct trace_iterator *iter;
 	int ret = 0;
+
+	if (trace_array_get(tr) < 0)
+		return -ENODEV;
 
 	/* If this file was open for write, then erase contents */
 	if ((file->f_mode & FMODE_WRITE) &&
 	    (file->f_flags & O_TRUNC)) {
-		struct trace_cpu *tc = inode->i_private;
-		struct trace_array *tr = tc->tr;
-
 		if (tc->cpu == RING_BUFFER_ALL_CPUS)
 			tracing_reset_online_cpus(&tr->trace_buffer);
 		else
@@ -2931,12 +3080,16 @@ static int tracing_open(struct inode *inode, struct file *file)
 	}
 
 	if (file->f_mode & FMODE_READ) {
-		iter = __tracing_open(inode, file, false);
+		iter = __tracing_open(tr, tc, inode, file, false);
 		if (IS_ERR(iter))
 			ret = PTR_ERR(iter);
 		else if (trace_flags & TRACE_ITER_LATENCY_FMT)
 			iter->iter_flags |= TRACE_FILE_LAT_FMT;
 	}
+
+	if (ret < 0)
+		trace_array_put(tr);
+
 	return ret;
 }
 
@@ -3293,7 +3446,12 @@ tracing_trace_options_write(struct file *filp, const char __user *ubuf,
 
 static int tracing_trace_options_open(struct inode *inode, struct file *file)
 {
+	struct trace_array *tr = inode->i_private;
+
 	if (tracing_disabled)
+		return -ENODEV;
+
+	if (trace_array_get(tr) < 0)
 		return -ENODEV;
 
 	return single_open(file, tracing_trace_options_show, inode->i_private);
@@ -3303,7 +3461,7 @@ static const struct file_operations tracing_iter_fops = {
 	.open		= tracing_trace_options_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= single_release,
+	.release	= tracing_single_release_tr,
 	.write		= tracing_trace_options_write,
 };
 
@@ -3791,6 +3949,9 @@ static int tracing_open_pipe(struct inode *inode, struct file *filp)
 	if (tracing_disabled)
 		return -ENODEV;
 
+	if (trace_array_get(tr) < 0)
+		return -ENODEV;
+
 	mutex_lock(&trace_types_lock);
 
 	/* create a buffer to store the information to pass to userspace */
@@ -3843,6 +4004,7 @@ out:
 fail:
 	kfree(iter->trace);
 	kfree(iter);
+	__trace_array_put(tr);
 	mutex_unlock(&trace_types_lock);
 	return ret;
 }
@@ -3850,6 +4012,8 @@ fail:
 static int tracing_release_pipe(struct inode *inode, struct file *file)
 {
 	struct trace_iterator *iter = file->private_data;
+	struct trace_cpu *tc = inode->i_private;
+	struct trace_array *tr = tc->tr;
 
 	mutex_lock(&trace_types_lock);
 
@@ -3862,6 +4026,8 @@ static int tracing_release_pipe(struct inode *inode, struct file *file)
 	mutex_destroy(&iter->mutex);
 	kfree(iter->trace);
 	kfree(iter);
+
+	trace_array_put(tr);
 
 	return 0;
 }
@@ -3939,7 +4105,7 @@ static int tracing_wait_pipe(struct file *filp)
 		 *
 		 * iter->pos will be 0 if we haven't read anything.
 		 */
-		if (!tracing_is_enabled() && iter->pos)
+		if (!tracing_is_on() && iter->pos)
 			break;
 	}
 
@@ -4320,6 +4486,8 @@ tracing_free_buffer_release(struct inode *inode, struct file *filp)
 	/* resize the ring buffer to 0 */
 	tracing_resize_ring_buffer(tr, 0, RING_BUFFER_ALL_CPUS);
 
+	trace_array_put(tr);
+
 	return 0;
 }
 
@@ -4328,6 +4496,7 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 					size_t cnt, loff_t *fpos)
 {
 	unsigned long addr = (unsigned long)ubuf;
+	struct trace_array *tr = filp->private_data;
 	struct ring_buffer_event *event;
 	struct ring_buffer *buffer;
 	struct print_entry *entry;
@@ -4387,7 +4556,7 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 
 	local_save_flags(irq_flags);
 	size = sizeof(*entry) + cnt + 2; /* possible \n added */
-	buffer = global_trace.trace_buffer.buffer;
+	buffer = tr->trace_buffer.buffer;
 	event = trace_buffer_lock_reserve(buffer, TRACE_PRINT, size,
 					  irq_flags, preempt_count());
 	if (!event) {
@@ -4495,10 +4664,20 @@ static ssize_t tracing_clock_write(struct file *filp, const char __user *ubuf,
 
 static int tracing_clock_open(struct inode *inode, struct file *file)
 {
+	struct trace_array *tr = inode->i_private;
+	int ret;
+
 	if (tracing_disabled)
 		return -ENODEV;
 
-	return single_open(file, tracing_clock_show, inode->i_private);
+	if (trace_array_get(tr))
+		return -ENODEV;
+
+	ret = single_open(file, tracing_clock_show, inode->i_private);
+	if (ret < 0)
+		trace_array_put(tr);
+
+	return ret;
 }
 
 struct ftrace_buffer_info {
@@ -4511,12 +4690,16 @@ struct ftrace_buffer_info {
 static int tracing_snapshot_open(struct inode *inode, struct file *file)
 {
 	struct trace_cpu *tc = inode->i_private;
+	struct trace_array *tr = tc->tr;
 	struct trace_iterator *iter;
 	struct seq_file *m;
 	int ret = 0;
 
+	if (trace_array_get(tr) < 0)
+		return -ENODEV;
+
 	if (file->f_mode & FMODE_READ) {
-		iter = __tracing_open(inode, file, true);
+		iter = __tracing_open(tr, tc, inode, file, true);
 		if (IS_ERR(iter))
 			ret = PTR_ERR(iter);
 	} else {
@@ -4529,12 +4712,15 @@ static int tracing_snapshot_open(struct inode *inode, struct file *file)
 			kfree(m);
 			return -ENOMEM;
 		}
-		iter->tr = tc->tr;
+		iter->tr = tr;
 		iter->trace_buffer = &tc->tr->max_buffer;
 		iter->cpu_file = tc->cpu;
 		m->private = iter;
 		file->private_data = m;
 	}
+
+	if (ret < 0)
+		trace_array_put(tr);
 
 	return ret;
 }
@@ -4616,9 +4802,12 @@ out:
 static int tracing_snapshot_release(struct inode *inode, struct file *file)
 {
 	struct seq_file *m = file->private_data;
+	int ret;
+
+	ret = tracing_release(inode, file);
 
 	if (file->f_mode & FMODE_READ)
-		return tracing_release(inode, file);
+		return ret;
 
 	/* If write only, the seq_file is just a stub */
 	if (m)
@@ -4684,34 +4873,38 @@ static const struct file_operations tracing_pipe_fops = {
 };
 
 static const struct file_operations tracing_entries_fops = {
-	.open		= tracing_open_generic,
+	.open		= tracing_open_generic_tc,
 	.read		= tracing_entries_read,
 	.write		= tracing_entries_write,
 	.llseek		= generic_file_llseek,
+	.release	= tracing_release_generic_tc,
 };
 
 static const struct file_operations tracing_total_entries_fops = {
-	.open		= tracing_open_generic,
+	.open		= tracing_open_generic_tr,
 	.read		= tracing_total_entries_read,
 	.llseek		= generic_file_llseek,
+	.release	= tracing_release_generic_tr,
 };
 
 static const struct file_operations tracing_free_buffer_fops = {
+	.open		= tracing_open_generic_tr,
 	.write		= tracing_free_buffer_write,
 	.release	= tracing_free_buffer_release,
 };
 
 static const struct file_operations tracing_mark_fops = {
-	.open		= tracing_open_generic,
+	.open		= tracing_open_generic_tr,
 	.write		= tracing_mark_write,
 	.llseek		= generic_file_llseek,
+	.release	= tracing_release_generic_tr,
 };
 
 static const struct file_operations trace_clock_fops = {
 	.open		= tracing_clock_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= single_release,
+	.release	= tracing_single_release_tr,
 	.write		= tracing_clock_write,
 };
 
@@ -4739,13 +4932,19 @@ static int tracing_buffers_open(struct inode *inode, struct file *filp)
 	struct trace_cpu *tc = inode->i_private;
 	struct trace_array *tr = tc->tr;
 	struct ftrace_buffer_info *info;
+	int ret;
 
 	if (tracing_disabled)
 		return -ENODEV;
 
+	if (trace_array_get(tr) < 0)
+		return -ENODEV;
+
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (!info)
+	if (!info) {
+		trace_array_put(tr);
 		return -ENOMEM;
+	}
 
 	mutex_lock(&trace_types_lock);
 
@@ -4763,7 +4962,11 @@ static int tracing_buffers_open(struct inode *inode, struct file *filp)
 
 	mutex_unlock(&trace_types_lock);
 
-	return nonseekable_open(inode, filp);
+	ret = nonseekable_open(inode, filp);
+	if (ret < 0)
+		trace_array_put(tr);
+
+	return ret;
 }
 
 static unsigned int
@@ -4863,8 +5066,7 @@ static int tracing_buffers_release(struct inode *inode, struct file *file)
 
 	mutex_lock(&trace_types_lock);
 
-	WARN_ON(!iter->tr->ref);
-	iter->tr->ref--;
+	__trace_array_put(iter->tr);
 
 	if (info->spare)
 		ring_buffer_free_read_page(iter->trace_buffer->buffer, info->spare);
@@ -5612,15 +5814,10 @@ rb_simple_read(struct file *filp, char __user *ubuf,
 	       size_t cnt, loff_t *ppos)
 {
 	struct trace_array *tr = filp->private_data;
-	struct ring_buffer *buffer = tr->trace_buffer.buffer;
 	char buf[64];
 	int r;
 
-	if (buffer)
-		r = ring_buffer_record_is_on(buffer);
-	else
-		r = 0;
-
+	r = tracer_tracing_is_on(tr);
 	r = sprintf(buf, "%d\n", r);
 
 	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
@@ -5642,11 +5839,11 @@ rb_simple_write(struct file *filp, const char __user *ubuf,
 	if (buffer) {
 		mutex_lock(&trace_types_lock);
 		if (val) {
-			ring_buffer_record_on(buffer);
+			tracer_tracing_on(tr);
 			if (tr->current_trace->start)
 				tr->current_trace->start(tr);
 		} else {
-			ring_buffer_record_off(buffer);
+			tracer_tracing_off(tr);
 			if (tr->current_trace->stop)
 				tr->current_trace->stop(tr);
 		}
@@ -5659,9 +5856,10 @@ rb_simple_write(struct file *filp, const char __user *ubuf,
 }
 
 static const struct file_operations rb_simple_fops = {
-	.open		= tracing_open_generic,
+	.open		= tracing_open_generic_tr,
 	.read		= rb_simple_read,
 	.write		= rb_simple_write,
+	.release	= tracing_release_generic_tr,
 	.llseek		= default_llseek,
 };
 
@@ -5933,7 +6131,7 @@ init_tracer_debugfs(struct trace_array *tr, struct dentry *d_tracer)
 	trace_create_file("buffer_total_size_kb", 0444, d_tracer,
 			  tr, &tracing_total_entries_fops);
 
-	trace_create_file("free_buffer", 0644, d_tracer,
+	trace_create_file("free_buffer", 0200, d_tracer,
 			  tr, &tracing_free_buffer_fops);
 
 	trace_create_file("trace_marker", 0220, d_tracer,

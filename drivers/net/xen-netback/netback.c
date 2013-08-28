@@ -47,6 +47,13 @@
 #include <asm/xen/hypercall.h>
 #include <asm/xen/page.h>
 
+/* Provide an option to disable split event channels at load time as
+ * event channels are limited resource. Split event channels are
+ * enabled by default.
+ */
+bool separate_tx_rx_irq = 1;
+module_param(separate_tx_rx_irq, bool, 0644);
+
 /*
  * This is the maximum slots a skb can have. If a guest sends a skb
  * which exceeds this limit it is considered malicious.
@@ -783,7 +790,7 @@ static void xen_netbk_rx_action(struct xen_netbk *netbk)
 	}
 
 	list_for_each_entry_safe(vif, tmp, &notify, notify_list) {
-		notify_remote_via_irq(vif->irq);
+		notify_remote_via_irq(vif->rx_irq);
 		list_del_init(&vif->notify_list);
 		xenvif_put(vif);
 	}
@@ -1763,7 +1770,7 @@ static void make_tx_response(struct xenvif *vif,
 	vif->tx.rsp_prod_pvt = ++i;
 	RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&vif->tx, notify);
 	if (notify)
-		notify_remote_via_irq(vif->irq);
+		notify_remote_via_irq(vif->tx_irq);
 }
 
 static struct xen_netif_rx_response *make_rx_response(struct xenvif *vif,
@@ -1883,9 +1890,8 @@ static int __init netback_init(void)
 		return -ENODEV;
 
 	if (fatal_skb_slots < XEN_NETBK_LEGACY_SLOTS_MAX) {
-		printk(KERN_INFO
-		       "xen-netback: fatal_skb_slots too small (%d), bump it to XEN_NETBK_LEGACY_SLOTS_MAX (%d)\n",
-		       fatal_skb_slots, XEN_NETBK_LEGACY_SLOTS_MAX);
+		pr_info("fatal_skb_slots too small (%d), bump it to XEN_NETBK_LEGACY_SLOTS_MAX (%d)\n",
+			fatal_skb_slots, XEN_NETBK_LEGACY_SLOTS_MAX);
 		fatal_skb_slots = XEN_NETBK_LEGACY_SLOTS_MAX;
 	}
 
@@ -1914,7 +1920,7 @@ static int __init netback_init(void)
 					     "netback/%u", group);
 
 		if (IS_ERR(netbk->task)) {
-			printk(KERN_ALERT "kthread_create() fails at netback\n");
+			pr_alert("kthread_create() fails at netback\n");
 			del_timer(&netbk->net_timer);
 			rc = PTR_ERR(netbk->task);
 			goto failed_init;
@@ -1940,10 +1946,6 @@ static int __init netback_init(void)
 failed_init:
 	while (--group >= 0) {
 		struct xen_netbk *netbk = &xen_netbk[group];
-		for (i = 0; i < MAX_PENDING_REQS; i++) {
-			if (netbk->mmap_pages[i])
-				__free_page(netbk->mmap_pages[i]);
-		}
 		del_timer(&netbk->net_timer);
 		kthread_stop(netbk->task);
 	}
@@ -1953,6 +1955,26 @@ failed_init:
 }
 
 module_init(netback_init);
+
+static void __exit netback_fini(void)
+{
+	int i, j;
+
+	xenvif_xenbus_fini();
+
+	for (i = 0; i < xen_netbk_group_nr; i++) {
+		struct xen_netbk *netbk = &xen_netbk[i];
+		del_timer_sync(&netbk->net_timer);
+		kthread_stop(netbk->task);
+		for (j = 0; j < MAX_PENDING_REQS; j++) {
+			if (netbk->mmap_pages[j])
+				__free_page(netbk->mmap_pages[j]);
+		}
+	}
+
+	vfree(xen_netbk);
+}
+module_exit(netback_fini);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS("xen-backend:vif");

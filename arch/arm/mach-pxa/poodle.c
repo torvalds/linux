@@ -422,7 +422,7 @@ static struct i2c_board_info __initdata poodle_i2c_devices[] = {
 
 static void poodle_poweroff(void)
 {
-	pxa_restart('h', NULL);
+	pxa_restart(REBOOT_HARD, NULL);
 }
 
 static void __init poodle_init(void)

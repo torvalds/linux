@@ -302,7 +302,33 @@ error:
 	return -EIO;
 }
 
+/*
+ * This is a special sequence we must do to ensure the P0 output is not stuck
+ * in test mode. This is described in rev 2 of the ds2408's datasheet
+ * (http://datasheets.maximintegrated.com/en/ds/DS2408.pdf) under
+ * "APPLICATION INFORMATION/Power-up timing".
+ */
+static int w1_f29_disable_test_mode(struct w1_slave *sl)
+{
+	int res;
+	u8 magic[10] = {0x96, };
+	u64 rn = le64_to_cpu(*((u64*)&sl->reg_num));
 
+	memcpy(&magic[1], &rn, 8);
+	magic[9] = 0x3C;
+
+	mutex_lock(&sl->master->bus_mutex);
+
+	res = w1_reset_bus(sl->master);
+	if (res)
+		goto out;
+	w1_write_block(sl->master, magic, ARRAY_SIZE(magic));
+
+	res = w1_reset_bus(sl->master);
+out:
+	mutex_unlock(&sl->master->bus_mutex);
+	return res;
+}
 
 static struct bin_attribute w1_f29_sysfs_bin_files[] = {
 	{
@@ -362,6 +388,10 @@ static int w1_f29_add_slave(struct w1_slave *sl)
 {
 	int err = 0;
 	int i;
+
+	err = w1_f29_disable_test_mode(sl);
+	if (err)
+		return err;
 
 	for (i = 0; i < ARRAY_SIZE(w1_f29_sysfs_bin_files) && !err; ++i)
 		err = sysfs_create_bin_file(

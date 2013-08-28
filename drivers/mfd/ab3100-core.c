@@ -491,7 +491,7 @@ static ssize_t ab3100_get_set_reg(struct file *file,
 	char buf[32];
 	ssize_t buf_size;
 	int regp;
-	unsigned long user_reg;
+	u8 user_reg;
 	int err;
 	int i = 0;
 
@@ -514,34 +514,29 @@ static ssize_t ab3100_get_set_reg(struct file *file,
 	/*
 	 * Advance pointer to end of string then terminate
 	 * the register string. This is needed to satisfy
-	 * the strict_strtoul() function.
+	 * the kstrtou8() function.
 	 */
 	while ((i < buf_size) && (buf[i] != ' '))
 		i++;
 	buf[i] = '\0';
 
-	err = strict_strtoul(&buf[regp], 16, &user_reg);
+	err = kstrtou8(&buf[regp], 16, &user_reg);
 	if (err)
 		return err;
-	if (user_reg > 0xff)
-		return -EINVAL;
 
 	/* Either we read or we write a register here */
 	if (!priv->mode) {
 		/* Reading */
-		u8 reg = (u8) user_reg;
 		u8 regvalue;
 
-		ab3100_get_register_interruptible(ab3100, reg, &regvalue);
+		ab3100_get_register_interruptible(ab3100, user_reg, &regvalue);
 
 		dev_info(ab3100->dev,
 			 "debug read AB3100 reg[0x%02x]: 0x%02x\n",
-			 reg, regvalue);
+			 user_reg, regvalue);
 	} else {
 		int valp;
-		unsigned long user_value;
-		u8 reg = (u8) user_reg;
-		u8 value;
+		u8 user_value;
 		u8 regvalue;
 
 		/*
@@ -557,20 +552,17 @@ static ssize_t ab3100_get_set_reg(struct file *file,
 			i++;
 		buf[i] = '\0';
 
-		err = strict_strtoul(&buf[valp], 16, &user_value);
+		err = kstrtou8(&buf[valp], 16, &user_value);
 		if (err)
 			return err;
-		if (user_reg > 0xff)
-			return -EINVAL;
 
-		value = (u8) user_value;
-		ab3100_set_register_interruptible(ab3100, reg, value);
-		ab3100_get_register_interruptible(ab3100, reg, &regvalue);
+		ab3100_set_register_interruptible(ab3100, user_reg, user_value);
+		ab3100_get_register_interruptible(ab3100, user_reg, &regvalue);
 
 		dev_info(ab3100->dev,
 			 "debug write reg[0x%02x] with 0x%02x, "
 			 "after readback: 0x%02x\n",
-			 reg, value, regvalue);
+			 user_reg, user_value, regvalue);
 	}
 	return buf_size;
 }

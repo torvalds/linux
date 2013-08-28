@@ -615,7 +615,7 @@ static void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 
 	priv->thermal_throttle.ct_kill_toggle = false;
 
-	if (priv->cfg->base_params->support_ct_kill_exit) {
+	if (priv->lib->support_ct_kill_exit) {
 		adv_cmd.critical_temperature_enter =
 			cpu_to_le32(priv->hw_params.ct_kill_threshold);
 		adv_cmd.critical_temperature_exit =
@@ -732,10 +732,10 @@ int iwl_alive_start(struct iwl_priv *priv)
 	}
 
 	/* download priority table before any calibration request */
-	if (priv->cfg->bt_params &&
-	    priv->cfg->bt_params->advanced_bt_coexist) {
+	if (priv->lib->bt_params &&
+	    priv->lib->bt_params->advanced_bt_coexist) {
 		/* Configure Bluetooth device coexistence support */
-		if (priv->cfg->bt_params->bt_sco_disable)
+		if (priv->lib->bt_params->bt_sco_disable)
 			priv->bt_enable_pspoll = false;
 		else
 			priv->bt_enable_pspoll = true;
@@ -873,9 +873,9 @@ void iwl_down(struct iwl_priv *priv)
 	priv->bt_status = 0;
 	priv->cur_rssi_ctx = NULL;
 	priv->bt_is_sco = 0;
-	if (priv->cfg->bt_params)
+	if (priv->lib->bt_params)
 		priv->bt_traffic_load =
-			 priv->cfg->bt_params->bt_init_traffic_load;
+			 priv->lib->bt_params->bt_init_traffic_load;
 	else
 		priv->bt_traffic_load = 0;
 	priv->bt_full_concurrent = false;
@@ -1058,7 +1058,7 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 
 	iwl_setup_scan_deferred_work(priv);
 
-	if (priv->cfg->bt_params)
+	if (priv->lib->bt_params)
 		iwlagn_bt_setup_deferred_work(priv);
 
 	init_timer(&priv->statistics_periodic);
@@ -1072,7 +1072,7 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 
 void iwl_cancel_deferred_work(struct iwl_priv *priv)
 {
-	if (priv->cfg->bt_params)
+	if (priv->lib->bt_params)
 		iwlagn_bt_cancel_deferred_work(priv);
 
 	cancel_work_sync(&priv->run_time_calib_work);
@@ -1098,15 +1098,12 @@ static int iwl_init_drv(struct iwl_priv *priv)
 
 	priv->band = IEEE80211_BAND_2GHZ;
 
-	priv->plcp_delta_threshold =
-		priv->cfg->base_params->plcp_delta_threshold;
+	priv->plcp_delta_threshold = priv->lib->plcp_delta_threshold;
 
 	priv->iw_mode = NL80211_IFTYPE_STATION;
 	priv->current_ht_config.smps = IEEE80211_SMPS_STATIC;
 	priv->missed_beacon_threshold = IWL_MISSED_BEACON_THRESHOLD_DEF;
 	priv->agg_tids_count = 0;
-
-	priv->ucode_owner = IWL_OWNERSHIP_DRIVER;
 
 	priv->rx_statistics_jiffies = jiffies;
 
@@ -1116,8 +1113,8 @@ static int iwl_init_drv(struct iwl_priv *priv)
 	iwl_init_scan_params(priv);
 
 	/* init bt coex */
-	if (priv->cfg->bt_params &&
-	    priv->cfg->bt_params->advanced_bt_coexist) {
+	if (priv->lib->bt_params &&
+	    priv->lib->bt_params->advanced_bt_coexist) {
 		priv->kill_ack_mask = IWLAGN_BT_KILL_ACK_MASK_DEFAULT;
 		priv->kill_cts_mask = IWLAGN_BT_KILL_CTS_MASK_DEFAULT;
 		priv->bt_valid = IWLAGN_BT_ALL_VALID_MSK;
@@ -1171,12 +1168,6 @@ static void iwl_option_config(struct iwl_priv *priv)
 	IWL_INFO(priv, "CONFIG_IWLWIFI_DEVICE_TRACING enabled\n");
 #else
 	IWL_INFO(priv, "CONFIG_IWLWIFI_DEVICE_TRACING disabled\n");
-#endif
-
-#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
-	IWL_INFO(priv, "CONFIG_IWLWIFI_DEVICE_TESTMODE enabled\n");
-#else
-	IWL_INFO(priv, "CONFIG_IWLWIFI_DEVICE_TESTMODE disabled\n");
 #endif
 
 #ifdef CONFIG_IWLWIFI_P2P
@@ -1264,31 +1255,37 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	switch (priv->cfg->device_family) {
 	case IWL_DEVICE_FAMILY_1000:
 	case IWL_DEVICE_FAMILY_100:
-		priv->lib = &iwl1000_lib;
+		priv->lib = &iwl_dvm_1000_cfg;
 		break;
 	case IWL_DEVICE_FAMILY_2000:
+		priv->lib = &iwl_dvm_2000_cfg;
+		break;
 	case IWL_DEVICE_FAMILY_105:
-		priv->lib = &iwl2000_lib;
+		priv->lib = &iwl_dvm_105_cfg;
 		break;
 	case IWL_DEVICE_FAMILY_2030:
 	case IWL_DEVICE_FAMILY_135:
-		priv->lib = &iwl2030_lib;
+		priv->lib = &iwl_dvm_2030_cfg;
 		break;
 	case IWL_DEVICE_FAMILY_5000:
-		priv->lib = &iwl5000_lib;
+		priv->lib = &iwl_dvm_5000_cfg;
 		break;
 	case IWL_DEVICE_FAMILY_5150:
-		priv->lib = &iwl5150_lib;
+		priv->lib = &iwl_dvm_5150_cfg;
 		break;
 	case IWL_DEVICE_FAMILY_6000:
-	case IWL_DEVICE_FAMILY_6005:
 	case IWL_DEVICE_FAMILY_6000i:
+		priv->lib = &iwl_dvm_6000_cfg;
+		break;
+	case IWL_DEVICE_FAMILY_6005:
+		priv->lib = &iwl_dvm_6005_cfg;
+		break;
 	case IWL_DEVICE_FAMILY_6050:
 	case IWL_DEVICE_FAMILY_6150:
-		priv->lib = &iwl6000_lib;
+		priv->lib = &iwl_dvm_6050_cfg;
 		break;
 	case IWL_DEVICE_FAMILY_6030:
-		priv->lib = &iwl6030_lib;
+		priv->lib = &iwl_dvm_6030_cfg;
 		break;
 	default:
 		break;
@@ -1350,8 +1347,8 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 			IWL_BT_ANTENNA_COUPLING_THRESHOLD) ?
 			true : false;
 
-	/* enable/disable bt channel inhibition */
-	priv->bt_ch_announce = iwlwifi_mod_params.bt_ch_announce;
+	/* bt channel inhibition enabled*/
+	priv->bt_ch_announce = true;
 	IWL_DEBUG_INFO(priv, "BT channel inhibition is %s\n",
 		       (priv->bt_ch_announce) ? "On" : "Off");
 
@@ -1446,7 +1443,6 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	 ********************/
 	iwl_setup_deferred_work(priv);
 	iwl_setup_rx_handlers(priv);
-	iwl_testmode_init(priv);
 
 	iwl_power_initialize(priv);
 	iwl_tt_initialize(priv);
@@ -1483,7 +1479,6 @@ out_mac80211_unregister:
 	iwlagn_mac_unregister(priv);
 out_destroy_workqueue:
 	iwl_tt_exit(priv);
-	iwl_testmode_free(priv);
 	iwl_cancel_deferred_work(priv);
 	destroy_workqueue(priv->workqueue);
 	priv->workqueue = NULL;
@@ -1505,7 +1500,6 @@ static void iwl_op_mode_dvm_stop(struct iwl_op_mode *op_mode)
 
 	IWL_DEBUG_INFO(priv, "*** UNLOAD DRIVER ***\n");
 
-	iwl_testmode_free(priv);
 	iwlagn_mac_unregister(priv);
 
 	iwl_tt_exit(priv);
@@ -1854,14 +1848,9 @@ int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 		return pos;
 	}
 
-#ifdef CONFIG_IWLWIFI_DEBUG
 	if (!(iwl_have_debug_level(IWL_DL_FW_ERRORS)) && !full_log)
 		size = (size > DEFAULT_DUMP_EVENT_LOG_ENTRIES)
 			? DEFAULT_DUMP_EVENT_LOG_ENTRIES : size;
-#else
-	size = (size > DEFAULT_DUMP_EVENT_LOG_ENTRIES)
-		? DEFAULT_DUMP_EVENT_LOG_ENTRIES : size;
-#endif
 	IWL_ERR(priv, "Start IWL Event Log Dump: display last %u entries\n",
 		size);
 
@@ -1905,10 +1894,8 @@ static void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 	unsigned int reload_msec;
 	unsigned long reload_jiffies;
 
-#ifdef CONFIG_IWLWIFI_DEBUG
 	if (iwl_have_debug_level(IWL_DL_FW_ERRORS))
 		iwl_print_rx_config_cmd(priv, IWL_RXON_CTX_BSS);
-#endif
 
 	/* uCode is no longer loaded. */
 	priv->ucode_loaded = false;

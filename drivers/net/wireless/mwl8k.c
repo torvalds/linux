@@ -1548,7 +1548,7 @@ static int mwl8k_tx_wait_empty(struct ieee80211_hw *hw)
 	if (!priv->pending_tx_pkts)
 		return 0;
 
-	retry = 0;
+	retry = 1;
 	rc = 0;
 
 	spin_lock_bh(&priv->tx_lock);
@@ -1572,11 +1572,17 @@ static int mwl8k_tx_wait_empty(struct ieee80211_hw *hw)
 
 		spin_lock_bh(&priv->tx_lock);
 
-		if (timeout) {
+		if (timeout || !priv->pending_tx_pkts) {
 			WARN_ON(priv->pending_tx_pkts);
 			if (retry)
 				wiphy_notice(hw->wiphy, "tx rings drained\n");
 			break;
+		}
+
+		if (retry) {
+			mwl8k_tx_start(priv);
+			retry = 0;
+			continue;
 		}
 
 		if (priv->pending_tx_pkts < oldcount) {
@@ -2055,6 +2061,7 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw,
 				mwl8k_remove_stream(hw, stream);
 				spin_unlock(&priv->stream_lock);
 			}
+			mwl8k_tx_start(priv);
 			spin_unlock_bh(&priv->tx_lock);
 			pci_unmap_single(priv->pdev, dma, skb->len,
 					 PCI_DMA_TODEVICE);

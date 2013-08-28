@@ -2251,6 +2251,21 @@ static int mvneta_change_mtu(struct net_device *dev, int mtu)
 	return 0;
 }
 
+/* Get mac address */
+static void mvneta_get_mac_addr(struct mvneta_port *pp, unsigned char *addr)
+{
+	u32 mac_addr_l, mac_addr_h;
+
+	mac_addr_l = mvreg_read(pp, MVNETA_MAC_ADDR_LOW);
+	mac_addr_h = mvreg_read(pp, MVNETA_MAC_ADDR_HIGH);
+	addr[0] = (mac_addr_h >> 24) & 0xFF;
+	addr[1] = (mac_addr_h >> 16) & 0xFF;
+	addr[2] = (mac_addr_h >> 8) & 0xFF;
+	addr[3] = mac_addr_h & 0xFF;
+	addr[4] = (mac_addr_l >> 8) & 0xFF;
+	addr[5] = mac_addr_l & 0xFF;
+}
+
 /* Handle setting mac address */
 static int mvneta_set_mac_addr(struct net_device *dev, void *addr)
 {
@@ -2667,7 +2682,9 @@ static int mvneta_probe(struct platform_device *pdev)
 	u32 phy_addr;
 	struct mvneta_port *pp;
 	struct net_device *dev;
-	const char *mac_addr;
+	const char *dt_mac_addr;
+	char hw_mac_addr[ETH_ALEN];
+	const char *mac_from;
 	int phy_mode;
 	int err;
 
@@ -2703,13 +2720,6 @@ static int mvneta_probe(struct platform_device *pdev)
 		goto err_free_irq;
 	}
 
-	mac_addr = of_get_mac_address(dn);
-
-	if (!mac_addr || !is_valid_ether_addr(mac_addr))
-		eth_hw_addr_random(dev);
-	else
-		memcpy(dev->dev_addr, mac_addr, ETH_ALEN);
-
 	dev->tx_queue_len = MVNETA_MAX_TXD;
 	dev->watchdog_timeo = 5 * HZ;
 	dev->netdev_ops = &mvneta_netdev_ops;
@@ -2739,6 +2749,21 @@ static int mvneta_probe(struct platform_device *pdev)
 	}
 
 	clk_prepare_enable(pp->clk);
+
+	dt_mac_addr = of_get_mac_address(dn);
+	if (dt_mac_addr && is_valid_ether_addr(dt_mac_addr)) {
+		mac_from = "device tree";
+		memcpy(dev->dev_addr, dt_mac_addr, ETH_ALEN);
+	} else {
+		mvneta_get_mac_addr(pp, hw_mac_addr);
+		if (is_valid_ether_addr(hw_mac_addr)) {
+			mac_from = "hardware";
+			memcpy(dev->dev_addr, hw_mac_addr, ETH_ALEN);
+		} else {
+			mac_from = "random";
+			eth_hw_addr_random(dev);
+		}
+	}
 
 	pp->tx_done_timer.data = (unsigned long)dev;
 
@@ -2772,7 +2797,8 @@ static int mvneta_probe(struct platform_device *pdev)
 		goto err_deinit;
 	}
 
-	netdev_info(dev, "mac: %pM\n", dev->dev_addr);
+	netdev_info(dev, "Using %s mac address %pM\n", mac_from,
+		    dev->dev_addr);
 
 	platform_set_drvdata(pdev, pp->dev);
 
@@ -2803,8 +2829,6 @@ static int mvneta_remove(struct platform_device *pdev)
 	iounmap(pp->base);
 	irq_dispose_mapping(dev->irq);
 	free_netdev(dev);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

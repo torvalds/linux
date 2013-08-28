@@ -49,7 +49,7 @@ static ssize_t ecryptfs_read_update_atime(struct kiocb *iocb,
 				unsigned long nr_segs, loff_t pos)
 {
 	ssize_t rc;
-	struct path lower;
+	struct path *path;
 	struct file *file = iocb->ki_filp;
 
 	rc = generic_file_aio_read(iocb, iov, nr_segs, pos);
@@ -60,9 +60,8 @@ static ssize_t ecryptfs_read_update_atime(struct kiocb *iocb,
 	if (-EIOCBQUEUED == rc)
 		rc = wait_on_sync_kiocb(iocb);
 	if (rc >= 0) {
-		lower.dentry = ecryptfs_dentry_to_lower(file->f_path.dentry);
-		lower.mnt = ecryptfs_dentry_to_lower_mnt(file->f_path.dentry);
-		touch_atime(&lower);
+		path = ecryptfs_dentry_to_lower_path(file->f_path.dentry);
+		touch_atime(path);
 	}
 	return rc;
 }

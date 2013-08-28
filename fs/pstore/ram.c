@@ -195,7 +195,8 @@ static size_t ramoops_write_kmsg_hdr(struct persistent_ram_zone *prz)
 static int notrace ramoops_pstore_write_buf(enum pstore_type_id type,
 					    enum kmsg_dump_reason reason,
 					    u64 *id, unsigned int part,
-					    const char *buf, size_t size,
+					    const char *buf,
+					    size_t hsize, size_t size,
 					    struct pstore_info *psi)
 {
 	struct ramoops_context *cxt = psi->data;

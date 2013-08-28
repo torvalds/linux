@@ -290,6 +290,21 @@ ftrace_stacktrace_count(unsigned long ip, unsigned long parent_ip, void **data)
 		trace_dump_stack(STACK_SKIP);
 }
 
+static void
+ftrace_dump_probe(unsigned long ip, unsigned long parent_ip, void **data)
+{
+	if (update_count(data))
+		ftrace_dump(DUMP_ALL);
+}
+
+/* Only dump the current CPU buffer. */
+static void
+ftrace_cpudump_probe(unsigned long ip, unsigned long parent_ip, void **data)
+{
+	if (update_count(data))
+		ftrace_dump(DUMP_ORIG);
+}
+
 static int
 ftrace_probe_print(const char *name, struct seq_file *m,
 		   unsigned long ip, void *data)
@@ -327,6 +342,20 @@ ftrace_stacktrace_print(struct seq_file *m, unsigned long ip,
 	return ftrace_probe_print("stacktrace", m, ip, data);
 }
 
+static int
+ftrace_dump_print(struct seq_file *m, unsigned long ip,
+			struct ftrace_probe_ops *ops, void *data)
+{
+	return ftrace_probe_print("dump", m, ip, data);
+}
+
+static int
+ftrace_cpudump_print(struct seq_file *m, unsigned long ip,
+			struct ftrace_probe_ops *ops, void *data)
+{
+	return ftrace_probe_print("cpudump", m, ip, data);
+}
+
 static struct ftrace_probe_ops traceon_count_probe_ops = {
 	.func			= ftrace_traceon_count,
 	.print			= ftrace_traceon_print,
@@ -340,6 +369,16 @@ static struct ftrace_probe_ops traceoff_count_probe_ops = {
 static struct ftrace_probe_ops stacktrace_count_probe_ops = {
 	.func			= ftrace_stacktrace_count,
 	.print			= ftrace_stacktrace_print,
+};
+
+static struct ftrace_probe_ops dump_probe_ops = {
+	.func			= ftrace_dump_probe,
+	.print			= ftrace_dump_print,
+};
+
+static struct ftrace_probe_ops cpudump_probe_ops = {
+	.func			= ftrace_cpudump_probe,
+	.print			= ftrace_cpudump_print,
 };
 
 static struct ftrace_probe_ops traceon_probe_ops = {
@@ -425,6 +464,32 @@ ftrace_stacktrace_callback(struct ftrace_hash *hash,
 					   param, enable);
 }
 
+static int
+ftrace_dump_callback(struct ftrace_hash *hash,
+			   char *glob, char *cmd, char *param, int enable)
+{
+	struct ftrace_probe_ops *ops;
+
+	ops = &dump_probe_ops;
+
+	/* Only dump once. */
+	return ftrace_trace_probe_callback(ops, hash, glob, cmd,
+					   "1", enable);
+}
+
+static int
+ftrace_cpudump_callback(struct ftrace_hash *hash,
+			   char *glob, char *cmd, char *param, int enable)
+{
+	struct ftrace_probe_ops *ops;
+
+	ops = &cpudump_probe_ops;
+
+	/* Only dump once. */
+	return ftrace_trace_probe_callback(ops, hash, glob, cmd,
+					   "1", enable);
+}
+
 static struct ftrace_func_command ftrace_traceon_cmd = {
 	.name			= "traceon",
 	.func			= ftrace_trace_onoff_callback,
@@ -440,6 +505,16 @@ static struct ftrace_func_command ftrace_stacktrace_cmd = {
 	.func			= ftrace_stacktrace_callback,
 };
 
+static struct ftrace_func_command ftrace_dump_cmd = {
+	.name			= "dump",
+	.func			= ftrace_dump_callback,
+};
+
+static struct ftrace_func_command ftrace_cpudump_cmd = {
+	.name			= "cpudump",
+	.func			= ftrace_cpudump_callback,
+};
+
 static int __init init_func_cmd_traceon(void)
 {
 	int ret;
@@ -450,13 +525,31 @@ static int __init init_func_cmd_traceon(void)
 
 	ret = register_ftrace_command(&ftrace_traceon_cmd);
 	if (ret)
-		unregister_ftrace_command(&ftrace_traceoff_cmd);
+		goto out_free_traceoff;
 
 	ret = register_ftrace_command(&ftrace_stacktrace_cmd);
-	if (ret) {
-		unregister_ftrace_command(&ftrace_traceoff_cmd);
-		unregister_ftrace_command(&ftrace_traceon_cmd);
-	}
+	if (ret)
+		goto out_free_traceon;
+
+	ret = register_ftrace_command(&ftrace_dump_cmd);
+	if (ret)
+		goto out_free_stacktrace;
+
+	ret = register_ftrace_command(&ftrace_cpudump_cmd);
+	if (ret)
+		goto out_free_dump;
+
+	return 0;
+
+ out_free_dump:
+	unregister_ftrace_command(&ftrace_dump_cmd);
+ out_free_stacktrace:
+	unregister_ftrace_command(&ftrace_stacktrace_cmd);
+ out_free_traceon:
+	unregister_ftrace_command(&ftrace_traceon_cmd);
+ out_free_traceoff:
+	unregister_ftrace_command(&ftrace_traceoff_cmd);
+
 	return ret;
 }
 #else

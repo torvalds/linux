@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat Inc.
+ * Copyright 2013 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,37 +26,55 @@
 #include <subdev/bios/dcb.h>
 #include <subdev/bios/disp.h>
 #include <subdev/bios/init.h>
-#include <subdev/devinit.h>
 #include <subdev/vga.h>
 
-struct nv50_devinit_priv {
-	struct nouveau_devinit base;
-};
+#include "priv.h"
 
 static int
-nv50_devinit_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		  struct nouveau_oclass *oclass, void *data, u32 size,
-		  struct nouveau_object **pobject)
+nv50_devinit_pll_set(struct nouveau_devinit *devinit, u32 type, u32 freq)
 {
-	struct nv50_devinit_priv *priv;
+	struct nv50_devinit_priv *priv = (void *)devinit;
+	struct nouveau_bios *bios = nouveau_bios(priv);
+	struct nvbios_pll info;
+	int N1, M1, N2, M2, P;
 	int ret;
 
-	ret = nouveau_devinit_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
+	ret = nvbios_pll_parse(bios, type, &info);
+	if (ret) {
+		nv_error(devinit, "failed to retrieve pll data, %d\n", ret);
 		return ret;
+	}
+
+	ret = nv04_pll_calc(nv_subdev(devinit), &info, freq, &N1, &M1, &N2, &M2, &P);
+	if (!ret) {
+		nv_error(devinit, "failed pll calculation\n");
+		return ret;
+	}
+
+	switch (info.type) {
+	case PLL_VPLL0:
+	case PLL_VPLL1:
+		nv_wr32(priv, info.reg + 0, 0x10000611);
+		nv_mask(priv, info.reg + 4, 0x00ff00ff, (M1 << 16) | N1);
+		nv_mask(priv, info.reg + 8, 0x7fff00ff, (P  << 28) |
+							(M2 << 16) | N2);
+		break;
+	case PLL_MEMORY:
+		nv_mask(priv, info.reg + 0, 0x01ff0000, (P << 22) |
+						        (info.bias_p << 19) |
+							(P << 16));
+		nv_wr32(priv, info.reg + 4, (N1 << 8) | M1);
+		break;
+	default:
+		nv_mask(priv, info.reg + 0, 0x00070000, (P << 16));
+		nv_wr32(priv, info.reg + 4, (N1 << 8) | M1);
+		break;
+	}
 
 	return 0;
 }
 
-static void
-nv50_devinit_dtor(struct nouveau_object *object)
-{
-	struct nv50_devinit_priv *priv = (void *)object;
-	nouveau_devinit_destroy(&priv->base);
-}
-
-static int
+int
 nv50_devinit_init(struct nouveau_object *object)
 {
 	struct nouveau_bios *bios = nouveau_bios(object);
@@ -103,10 +121,20 @@ nv50_devinit_init(struct nouveau_object *object)
 }
 
 static int
-nv50_devinit_fini(struct nouveau_object *object, bool suspend)
+nv50_devinit_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+		  struct nouveau_oclass *oclass, void *data, u32 size,
+		  struct nouveau_object **pobject)
 {
-	struct nv50_devinit_priv *priv = (void *)object;
-	return nouveau_devinit_fini(&priv->base, suspend);
+	struct nv50_devinit_priv *priv;
+	int ret;
+
+	ret = nouveau_devinit_create(parent, engine, oclass, &priv);
+	*pobject = nv_object(priv);
+	if (ret)
+		return ret;
+
+	priv->base.pll_set = nv50_devinit_pll_set;
+	return 0;
 }
 
 struct nouveau_oclass
@@ -114,8 +142,8 @@ nv50_devinit_oclass = {
 	.handle = NV_SUBDEV(DEVINIT, 0x50),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv50_devinit_ctor,
-		.dtor = nv50_devinit_dtor,
+		.dtor = _nouveau_devinit_dtor,
 		.init = nv50_devinit_init,
-		.fini = nv50_devinit_fini,
+		.fini = _nouveau_devinit_fini,
 	},
 };

@@ -273,61 +273,15 @@ static long native_hpte_remove(unsigned long hpte_group)
 	return i;
 }
 
-static inline int __hpte_actual_psize(unsigned int lp, int psize)
-{
-	int i, shift;
-	unsigned int mask;
-
-	/* start from 1 ignoring MMU_PAGE_4K */
-	for (i = 1; i < MMU_PAGE_COUNT; i++) {
-
-		/* invalid penc */
-		if (mmu_psize_defs[psize].penc[i] == -1)
-			continue;
-		/*
-		 * encoding bits per actual page size
-		 *        PTE LP     actual page size
-		 *    rrrr rrrz		>=8KB
-		 *    rrrr rrzz		>=16KB
-		 *    rrrr rzzz		>=32KB
-		 *    rrrr zzzz		>=64KB
-		 * .......
-		 */
-		shift = mmu_psize_defs[i].shift - LP_SHIFT;
-		if (shift > LP_BITS)
-			shift = LP_BITS;
-		mask = (1 << shift) - 1;
-		if ((lp & mask) == mmu_psize_defs[psize].penc[i])
-			return i;
-	}
-	return -1;
-}
-
-static inline int hpte_actual_psize(struct hash_pte *hptep, int psize)
-{
-	/* Look at the 8 bit LP value */
-	unsigned int lp = (hptep->r >> LP_SHIFT) & ((1 << LP_BITS) - 1);
-
-	if (!(hptep->v & HPTE_V_VALID))
-		return -1;
-
-	/* First check if it is large page */
-	if (!(hptep->v & HPTE_V_LARGE))
-		return MMU_PAGE_4K;
-
-	return __hpte_actual_psize(lp, psize);
-}
-
 static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
-				 unsigned long vpn, int psize, int ssize,
-				 int local)
+				 unsigned long vpn, int bpsize,
+				 int apsize, int ssize, int local)
 {
 	struct hash_pte *hptep = htab_address + slot;
 	unsigned long hpte_v, want_v;
 	int ret = 0;
-	int actual_psize;
 
-	want_v = hpte_encode_avpn(vpn, psize, ssize);
+	want_v = hpte_encode_avpn(vpn, bpsize, ssize);
 
 	DBG_LOW("    update(vpn=%016lx, avpnv=%016lx, group=%lx, newpp=%lx)",
 		vpn, want_v & HPTE_V_AVPN, slot, newpp);
@@ -335,7 +289,6 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 	native_lock_hpte(hptep);
 
 	hpte_v = hptep->v;
-	actual_psize = hpte_actual_psize(hptep, psize);
 	/*
 	 * We need to invalidate the TLB always because hpte_remove doesn't do
 	 * a tlb invalidate. If a hash bucket gets full, we "evict" a more/less
@@ -343,12 +296,7 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 	 * (hpte_remove) because we assume the old translation is still
 	 * technically "valid".
 	 */
-	if (actual_psize < 0) {
-		actual_psize = psize;
-		ret = -1;
-		goto err_out;
-	}
-	if (!HPTE_V_COMPARE(hpte_v, want_v)) {
+	if (!HPTE_V_COMPARE(hpte_v, want_v) || !(hpte_v & HPTE_V_VALID)) {
 		DBG_LOW(" -> miss\n");
 		ret = -1;
 	} else {
@@ -357,11 +305,10 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 		hptep->r = (hptep->r & ~(HPTE_R_PP | HPTE_R_N)) |
 			(newpp & (HPTE_R_PP | HPTE_R_N | HPTE_R_C));
 	}
-err_out:
 	native_unlock_hpte(hptep);
 
 	/* Ensure it is out of the tlb too. */
-	tlbie(vpn, psize, actual_psize, ssize, local);
+	tlbie(vpn, bpsize, apsize, ssize, local);
 
 	return ret;
 }
@@ -402,7 +349,6 @@ static long native_hpte_find(unsigned long vpn, int psize, int ssize)
 static void native_hpte_updateboltedpp(unsigned long newpp, unsigned long ea,
 				       int psize, int ssize)
 {
-	int actual_psize;
 	unsigned long vpn;
 	unsigned long vsid;
 	long slot;
@@ -415,36 +361,33 @@ static void native_hpte_updateboltedpp(unsigned long newpp, unsigned long ea,
 	if (slot == -1)
 		panic("could not find page to bolt\n");
 	hptep = htab_address + slot;
-	actual_psize = hpte_actual_psize(hptep, psize);
-	if (actual_psize < 0)
-		actual_psize = psize;
 
 	/* Update the HPTE */
 	hptep->r = (hptep->r & ~(HPTE_R_PP | HPTE_R_N)) |
 		(newpp & (HPTE_R_PP | HPTE_R_N));
-
-	/* Ensure it is out of the tlb too. */
-	tlbie(vpn, psize, actual_psize, ssize, 0);
+	/*
+	 * Ensure it is out of the tlb too. Bolted entries base and
+	 * actual page size will be same.
+	 */
+	tlbie(vpn, psize, psize, ssize, 0);
 }
 
 static void native_hpte_invalidate(unsigned long slot, unsigned long vpn,
-				   int psize, int ssize, int local)
+				   int bpsize, int apsize, int ssize, int local)
 {
 	struct hash_pte *hptep = htab_address + slot;
 	unsigned long hpte_v;
 	unsigned long want_v;
 	unsigned long flags;
-	int actual_psize;
 
 	local_irq_save(flags);
 
 	DBG_LOW("    invalidate(vpn=%016lx, hash: %lx)\n", vpn, slot);
 
-	want_v = hpte_encode_avpn(vpn, psize, ssize);
+	want_v = hpte_encode_avpn(vpn, bpsize, ssize);
 	native_lock_hpte(hptep);
 	hpte_v = hptep->v;
 
-	actual_psize = hpte_actual_psize(hptep, psize);
 	/*
 	 * We need to invalidate the TLB always because hpte_remove doesn't do
 	 * a tlb invalidate. If a hash bucket gets full, we "evict" a more/less
@@ -452,21 +395,118 @@ static void native_hpte_invalidate(unsigned long slot, unsigned long vpn,
 	 * (hpte_remove) because we assume the old translation is still
 	 * technically "valid".
 	 */
-	if (actual_psize < 0) {
-		actual_psize = psize;
-		native_unlock_hpte(hptep);
-		goto err_out;
-	}
-	if (!HPTE_V_COMPARE(hpte_v, want_v))
+	if (!HPTE_V_COMPARE(hpte_v, want_v) || !(hpte_v & HPTE_V_VALID))
 		native_unlock_hpte(hptep);
 	else
 		/* Invalidate the hpte. NOTE: this also unlocks it */
 		hptep->v = 0;
 
-err_out:
 	/* Invalidate the TLB */
-	tlbie(vpn, psize, actual_psize, ssize, local);
+	tlbie(vpn, bpsize, apsize, ssize, local);
+
 	local_irq_restore(flags);
+}
+
+static void native_hugepage_invalidate(struct mm_struct *mm,
+				       unsigned char *hpte_slot_array,
+				       unsigned long addr, int psize)
+{
+	int ssize = 0, i;
+	int lock_tlbie;
+	struct hash_pte *hptep;
+	int actual_psize = MMU_PAGE_16M;
+	unsigned int max_hpte_count, valid;
+	unsigned long flags, s_addr = addr;
+	unsigned long hpte_v, want_v, shift;
+	unsigned long hidx, vpn = 0, vsid, hash, slot;
+
+	shift = mmu_psize_defs[psize].shift;
+	max_hpte_count = 1U << (PMD_SHIFT - shift);
+
+	local_irq_save(flags);
+	for (i = 0; i < max_hpte_count; i++) {
+		valid = hpte_valid(hpte_slot_array, i);
+		if (!valid)
+			continue;
+		hidx =  hpte_hash_index(hpte_slot_array, i);
+
+		/* get the vpn */
+		addr = s_addr + (i * (1ul << shift));
+		if (!is_kernel_addr(addr)) {
+			ssize = user_segment_size(addr);
+			vsid = get_vsid(mm->context.id, addr, ssize);
+			WARN_ON(vsid == 0);
+		} else {
+			vsid = get_kernel_vsid(addr, mmu_kernel_ssize);
+			ssize = mmu_kernel_ssize;
+		}
+
+		vpn = hpt_vpn(addr, vsid, ssize);
+		hash = hpt_hash(vpn, shift, ssize);
+		if (hidx & _PTEIDX_SECONDARY)
+			hash = ~hash;
+
+		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
+		slot += hidx & _PTEIDX_GROUP_IX;
+
+		hptep = htab_address + slot;
+		want_v = hpte_encode_avpn(vpn, psize, ssize);
+		native_lock_hpte(hptep);
+		hpte_v = hptep->v;
+
+		/* Even if we miss, we need to invalidate the TLB */
+		if (!HPTE_V_COMPARE(hpte_v, want_v) || !(hpte_v & HPTE_V_VALID))
+			native_unlock_hpte(hptep);
+		else
+			/* Invalidate the hpte. NOTE: this also unlocks it */
+			hptep->v = 0;
+	}
+	/*
+	 * Since this is a hugepage, we just need a single tlbie.
+	 * use the last vpn.
+	 */
+	lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
+	if (lock_tlbie)
+		raw_spin_lock(&native_tlbie_lock);
+
+	asm volatile("ptesync":::"memory");
+	__tlbie(vpn, psize, actual_psize, ssize);
+	asm volatile("eieio; tlbsync; ptesync":::"memory");
+
+	if (lock_tlbie)
+		raw_spin_unlock(&native_tlbie_lock);
+
+	local_irq_restore(flags);
+}
+
+static inline int __hpte_actual_psize(unsigned int lp, int psize)
+{
+	int i, shift;
+	unsigned int mask;
+
+	/* start from 1 ignoring MMU_PAGE_4K */
+	for (i = 1; i < MMU_PAGE_COUNT; i++) {
+
+		/* invalid penc */
+		if (mmu_psize_defs[psize].penc[i] == -1)
+			continue;
+		/*
+		 * encoding bits per actual page size
+		 *        PTE LP     actual page size
+		 *    rrrr rrrz		>=8KB
+		 *    rrrr rrzz		>=16KB
+		 *    rrrr rzzz		>=32KB
+		 *    rrrr zzzz		>=64KB
+		 * .......
+		 */
+		shift = mmu_psize_defs[i].shift - LP_SHIFT;
+		if (shift > LP_BITS)
+			shift = LP_BITS;
+		mask = (1 << shift) - 1;
+		if ((lp & mask) == mmu_psize_defs[psize].penc[i])
+			return i;
+	}
+	return -1;
 }
 
 static void hpte_decode(struct hash_pte *hpte, unsigned long slot,
@@ -672,4 +712,5 @@ void __init hpte_init_native(void)
 	ppc_md.hpte_remove	= native_hpte_remove;
 	ppc_md.hpte_clear_all	= native_hpte_clear;
 	ppc_md.flush_hash_range = native_flush_hash_range;
+	ppc_md.hugepage_invalidate   = native_hugepage_invalidate;
 }

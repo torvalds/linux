@@ -526,7 +526,7 @@ static int coda_dentry_revalidate(struct dentry *de, unsigned int flags)
 	if (cii->c_flags & C_FLUSH) 
 		coda_flag_inode_children(inode, C_FLUSH);
 
-	if (de->d_count > 1)
+	if (d_count(de) > 1)
 		/* pretend it's valid, but don't change the flags */
 		goto out;
 

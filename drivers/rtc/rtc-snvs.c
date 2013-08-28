@@ -294,11 +294,6 @@ static int snvs_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int snvs_rtc_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 #ifdef CONFIG_PM_SLEEP
 static int snvs_rtc_suspend(struct device *dev)
 {
@@ -337,7 +332,6 @@ static struct platform_driver snvs_rtc_driver = {
 		.of_match_table = of_match_ptr(snvs_dt_ids),
 	},
 	.probe		= snvs_rtc_probe,
-	.remove		= snvs_rtc_remove,
 };
 module_platform_driver(snvs_rtc_driver);
 

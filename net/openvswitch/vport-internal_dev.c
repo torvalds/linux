@@ -67,7 +67,7 @@ static struct rtnl_link_stats64 *internal_dev_get_stats(struct net_device *netde
 static int internal_dev_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	rcu_read_lock();
-	ovs_vport_receive(internal_dev_priv(netdev)->vport, skb);
+	ovs_vport_receive(internal_dev_priv(netdev)->vport, skb, NULL);
 	rcu_read_unlock();
 	return 0;
 }
@@ -221,6 +221,7 @@ static int internal_dev_recv(struct vport *vport, struct sk_buff *skb)
 	skb->dev = netdev;
 	skb->pkt_type = PACKET_HOST;
 	skb->protocol = eth_type_trans(skb, netdev);
+	skb_postpull_rcsum(skb, eth_hdr(skb), ETH_HLEN);
 
 	netif_rx(skb);
 

@@ -679,6 +679,7 @@ struct hda_bus {
 	unsigned int response_reset:1;	/* controller was reset */
 	unsigned int in_reset:1;	/* during reset operation */
 	unsigned int power_keep_link_on:1; /* don't power off HDA link */
+	unsigned int no_response_fallback:1; /* don't fallback at RIRB error */
 
 	int primary_dig_out_type;	/* primary digital out PCM type */
 };
@@ -930,6 +931,8 @@ enum {
 	HDA_INPUT, HDA_OUTPUT
 };
 
+/* snd_hda_codec_read/write optional flags */
+#define HDA_RW_NO_RESPONSE_FALLBACK	(1 << 0)
 
 /*
  * constructors
@@ -945,9 +948,9 @@ int snd_hda_codec_update_widgets(struct hda_codec *codec);
  * low level functions
  */
 unsigned int snd_hda_codec_read(struct hda_codec *codec, hda_nid_t nid,
-				int direct,
+				int flags,
 				unsigned int verb, unsigned int parm);
-int snd_hda_codec_write(struct hda_codec *codec, hda_nid_t nid, int direct,
+int snd_hda_codec_write(struct hda_codec *codec, hda_nid_t nid, int flags,
 			unsigned int verb, unsigned int parm);
 #define snd_hda_param_read(codec, nid, param) \
 	snd_hda_codec_read(codec, nid, 0, AC_VERB_PARAMETERS, param)
@@ -986,11 +989,11 @@ int snd_hda_queue_unsol_event(struct hda_bus *bus, u32 res, u32 res_ex);
 
 /* cached write */
 int snd_hda_codec_write_cache(struct hda_codec *codec, hda_nid_t nid,
-			      int direct, unsigned int verb, unsigned int parm);
+			      int flags, unsigned int verb, unsigned int parm);
 void snd_hda_sequence_write_cache(struct hda_codec *codec,
 				  const struct hda_verb *seq);
 int snd_hda_codec_update_cache(struct hda_codec *codec, hda_nid_t nid,
-			      int direct, unsigned int verb, unsigned int parm);
+			      int flags, unsigned int verb, unsigned int parm);
 void snd_hda_codec_resume_cache(struct hda_codec *codec);
 /* both for cmd & amp caches */
 void snd_hda_codec_flush_cache(struct hda_codec *codec);

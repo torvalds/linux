@@ -703,7 +703,7 @@ static int tcm_qla2xxx_queue_status(struct se_cmd *se_cmd)
 	return qlt_xmit_response(cmd, xmit_type, se_cmd->scsi_status);
 }
 
-static int tcm_qla2xxx_queue_tm_rsp(struct se_cmd *se_cmd)
+static void tcm_qla2xxx_queue_tm_rsp(struct se_cmd *se_cmd)
 {
 	struct se_tmr_req *se_tmr = se_cmd->se_tmr_req;
 	struct qla_tgt_mgmt_cmd *mcmd = container_of(se_cmd,
@@ -735,8 +735,6 @@ static int tcm_qla2xxx_queue_tm_rsp(struct se_cmd *se_cmd)
 	 * CTIO response packet.
 	 */
 	qlt_xmit_tm_rsp(mcmd);
-
-	return 0;
 }
 
 /* Local pointer to allocated TCM configfs fabric module */
@@ -799,12 +797,14 @@ static void tcm_qla2xxx_put_session(struct se_session *se_sess)
 
 static void tcm_qla2xxx_put_sess(struct qla_tgt_sess *sess)
 {
-	tcm_qla2xxx_put_session(sess->se_sess);
+	assert_spin_locked(&sess->vha->hw->hardware_lock);
+	kref_put(&sess->se_sess->sess_kref, tcm_qla2xxx_release_session);
 }
 
 static void tcm_qla2xxx_shutdown_sess(struct qla_tgt_sess *sess)
 {
-	tcm_qla2xxx_shutdown_session(sess->se_sess);
+	assert_spin_locked(&sess->vha->hw->hardware_lock);
+	target_sess_cmd_list_set_waiting(sess->se_sess);
 }
 
 static struct se_node_acl *tcm_qla2xxx_make_nodeacl(

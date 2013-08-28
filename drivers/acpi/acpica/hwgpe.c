@@ -127,14 +127,17 @@ acpi_hw_low_set_gpe(struct acpi_gpe_event_info *gpe_event_info, u32 action)
 		/*lint -fallthrough */
 
 	case ACPI_GPE_ENABLE:
+
 		ACPI_SET_BIT(enable_mask, register_bit);
 		break;
 
 	case ACPI_GPE_DISABLE:
+
 		ACPI_CLEAR_BIT(enable_mask, register_bit);
 		break;
 
 	default:
+
 		ACPI_ERROR((AE_INFO, "Invalid GPE Action, %u", action));
 		return (AE_BAD_PARAMETER);
 	}

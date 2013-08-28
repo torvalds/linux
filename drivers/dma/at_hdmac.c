@@ -14,6 +14,7 @@
  * found on AT91SAM9263.
  */
 
+#include <dt-bindings/dma/at91.h>
 #include <linux/clk.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
@@ -54,6 +55,7 @@ MODULE_PARM_DESC(init_nr_desc_per_channel,
 
 /* prototypes */
 static dma_cookie_t atc_tx_submit(struct dma_async_tx_descriptor *tx);
+static void atc_issue_pending(struct dma_chan *chan);
 
 
 /*----------------------------------------------------------------------*/
@@ -230,6 +232,95 @@ static void atc_dostart(struct at_dma_chan *atchan, struct at_desc *first)
 	vdbg_dump_regs(atchan);
 }
 
+/*
+ * atc_get_current_descriptors -
+ * locate the descriptor which equal to physical address in DSCR
+ * @atchan: the channel we want to start
+ * @dscr_addr: physical descriptor address in DSCR
+ */
+static struct at_desc *atc_get_current_descriptors(struct at_dma_chan *atchan,
+							u32 dscr_addr)
+{
+	struct at_desc  *desc, *_desc, *child, *desc_cur = NULL;
+
+	list_for_each_entry_safe(desc, _desc, &atchan->active_list, desc_node) {
+		if (desc->lli.dscr == dscr_addr) {
+			desc_cur = desc;
+			break;
+		}
+
+		list_for_each_entry(child, &desc->tx_list, desc_node) {
+			if (child->lli.dscr == dscr_addr) {
+				desc_cur = child;
+				break;
+			}
+		}
+	}
+
+	return desc_cur;
+}
+
+/*
+ * atc_get_bytes_left -
+ * Get the number of bytes residue in dma buffer,
+ * @chan: the channel we want to start
+ */
+static int atc_get_bytes_left(struct dma_chan *chan)
+{
+	struct at_dma_chan      *atchan = to_at_dma_chan(chan);
+	struct at_dma           *atdma = to_at_dma(chan->device);
+	int	chan_id = atchan->chan_common.chan_id;
+	struct at_desc *desc_first = atc_first_active(atchan);
+	struct at_desc *desc_cur;
+	int ret = 0, count = 0;
+
+	/*
+	 * Initialize necessary values in the first time.
+	 * remain_desc record remain desc length.
+	 */
+	if (atchan->remain_desc == 0)
+		/* First descriptor embedds the transaction length */
+		atchan->remain_desc = desc_first->len;
+
+	/*
+	 * This happens when current descriptor transfer complete.
+	 * The residual buffer size should reduce current descriptor length.
+	 */
+	if (unlikely(test_bit(ATC_IS_BTC, &atchan->status))) {
+		clear_bit(ATC_IS_BTC, &atchan->status);
+		desc_cur = atc_get_current_descriptors(atchan,
+						channel_readl(atchan, DSCR));
+		if (!desc_cur) {
+			ret = -EINVAL;
+			goto out;
+		}
+		atchan->remain_desc -= (desc_cur->lli.ctrla & ATC_BTSIZE_MAX)
+						<< (desc_first->tx_width);
+		if (atchan->remain_desc < 0) {
+			ret = -EINVAL;
+			goto out;
+		} else {
+			ret = atchan->remain_desc;
+		}
+	} else {
+		/*
+		 * Get residual bytes when current
+		 * descriptor transfer in progress.
+		 */
+		count = (channel_readl(atchan, CTRLA) & ATC_BTSIZE_MAX)
+				<< (desc_first->tx_width);
+		ret = atchan->remain_desc - count;
+	}
+	/*
+	 * Check fifo empty.
+	 */
+	if (!(dma_readl(atdma, CHSR) & AT_DMA_EMPT(chan_id)))
+		atc_issue_pending(chan);
+
+out:
+	return ret;
+}
+
 /**
  * atc_chain_complete - finish work for one transaction chain
  * @atchan: channel we work on
@@ -324,37 +415,6 @@ static void atc_complete_all(struct at_dma_chan *atchan)
 
 	list_for_each_entry_safe(desc, _desc, &list, desc_node)
 		atc_chain_complete(atchan, desc);
-}
-
-/**
- * atc_cleanup_descriptors - cleanup up finished descriptors in active_list
- * @atchan: channel to be cleaned up
- *
- * Called with atchan->lock held and bh disabled
- */
-static void atc_cleanup_descriptors(struct at_dma_chan *atchan)
-{
-	struct at_desc	*desc, *_desc;
-	struct at_desc	*child;
-
-	dev_vdbg(chan2dev(&atchan->chan_common), "cleanup descriptors\n");
-
-	list_for_each_entry_safe(desc, _desc, &atchan->active_list, desc_node) {
-		if (!(desc->lli.ctrla & ATC_DONE))
-			/* This one is currently in progress */
-			return;
-
-		list_for_each_entry(child, &desc->tx_list, desc_node)
-			if (!(child->lli.ctrla & ATC_DONE))
-				/* Currently in progress */
-				return;
-
-		/*
-		 * No descriptors so far seem to be in progress, i.e.
-		 * this chain must be done.
-		 */
-		atc_chain_complete(atchan, desc);
-	}
 }
 
 /**
@@ -496,6 +556,8 @@ static irqreturn_t at_dma_interrupt(int irq, void *dev_id)
 					/* Give information to tasklet */
 					set_bit(ATC_IS_ERROR, &atchan->status);
 				}
+				if (pending & AT_DMA_BTC(i))
+					set_bit(ATC_IS_BTC, &atchan->status);
 				tasklet_schedule(&atchan->tasklet);
 				ret = IRQ_HANDLED;
 			}
@@ -615,6 +677,7 @@ atc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	/* First descriptor of the chain embedds additional information */
 	first->txd.cookie = -EBUSY;
 	first->len = len;
+	first->tx_width = src_width;
 
 	/* set end-of-link to the last link descriptor of list*/
 	set_desc_eol(desc);
@@ -761,6 +824,7 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	/* First descriptor of the chain embedds additional information */
 	first->txd.cookie = -EBUSY;
 	first->len = total_len;
+	first->tx_width = reg_width;
 
 	/* first link descriptor of list is responsible of flags */
 	first->txd.flags = flags; /* client is in control of this ack */
@@ -919,6 +983,7 @@ atc_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_len,
 	/* First descriptor of the chain embedds additional information */
 	first->txd.cookie = -EBUSY;
 	first->len = buf_len;
+	first->tx_width = reg_width;
 
 	return &first->txd;
 
@@ -1032,34 +1097,36 @@ atc_tx_status(struct dma_chan *chan,
 		struct dma_tx_state *txstate)
 {
 	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
-	dma_cookie_t		last_used;
-	dma_cookie_t		last_complete;
 	unsigned long		flags;
 	enum dma_status		ret;
+	int bytes = 0;
+
+	ret = dma_cookie_status(chan, cookie, txstate);
+	if (ret == DMA_SUCCESS)
+		return ret;
+	/*
+	 * There's no point calculating the residue if there's
+	 * no txstate to store the value.
+	 */
+	if (!txstate)
+		return DMA_ERROR;
 
 	spin_lock_irqsave(&atchan->lock, flags);
 
-	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret != DMA_SUCCESS) {
-		atc_cleanup_descriptors(atchan);
-
-		ret = dma_cookie_status(chan, cookie, txstate);
-	}
-
-	last_complete = chan->completed_cookie;
-	last_used = chan->cookie;
+	/*  Get number of bytes left in the active transactions */
+	bytes = atc_get_bytes_left(chan);
 
 	spin_unlock_irqrestore(&atchan->lock, flags);
 
-	if (ret != DMA_SUCCESS)
-		dma_set_residue(txstate, atc_first_active(atchan)->len);
+	if (unlikely(bytes < 0)) {
+		dev_vdbg(chan2dev(chan), "get residual bytes error\n");
+		return DMA_ERROR;
+	} else {
+		dma_set_residue(txstate, bytes);
+	}
 
-	if (atc_chan_is_paused(atchan))
-		ret = DMA_PAUSED;
-
-	dev_vdbg(chan2dev(chan), "tx_status %d: cookie = %d (d%d, u%d)\n",
-		 ret, cookie, last_complete ? last_complete : 0,
-		 last_used ? last_used : 0);
+	dev_vdbg(chan2dev(chan), "tx_status %d: cookie = %d residue = %d\n",
+		 ret, cookie, bytes);
 
 	return ret;
 }
@@ -1120,7 +1187,7 @@ static int atc_alloc_chan_resources(struct dma_chan *chan)
 		 */
 		BUG_ON(!atslave->dma_dev || atslave->dma_dev != atdma->dma_common.dev);
 
-		/* if cfg configuration specified take it instad of default */
+		/* if cfg configuration specified take it instead of default */
 		if (atslave->cfg)
 			cfg = atslave->cfg;
 	}
@@ -1143,6 +1210,7 @@ static int atc_alloc_chan_resources(struct dma_chan *chan)
 
 	spin_lock_irqsave(&atchan->lock, flags);
 	atchan->descs_allocated = i;
+	atchan->remain_desc = 0;
 	list_splice(&tmp_list, &atchan->free_list);
 	dma_cookie_init(chan);
 	spin_unlock_irqrestore(&atchan->lock, flags);
@@ -1185,6 +1253,7 @@ static void atc_free_chan_resources(struct dma_chan *chan)
 	list_splice_init(&atchan->free_list, &list);
 	atchan->descs_allocated = 0;
 	atchan->status = 0;
+	atchan->remain_desc = 0;
 
 	dev_vdbg(chan2dev(chan), "free_chan_resources: done\n");
 }
@@ -1223,14 +1292,31 @@ static struct dma_chan *at_dma_xlate(struct of_phandle_args *dma_spec,
 	atslave = devm_kzalloc(&dmac_pdev->dev, sizeof(*atslave), GFP_KERNEL);
 	if (!atslave)
 		return NULL;
+
+	atslave->cfg = ATC_DST_H2SEL_HW | ATC_SRC_H2SEL_HW;
 	/*
 	 * We can fill both SRC_PER and DST_PER, one of these fields will be
 	 * ignored depending on DMA transfer direction.
 	 */
-	per_id = dma_spec->args[1];
-	atslave->cfg = ATC_FIFOCFG_HALFFIFO | ATC_DST_H2SEL_HW
-		      | ATC_SRC_H2SEL_HW | ATC_DST_PER(per_id)
-		      | ATC_SRC_PER(per_id);
+	per_id = dma_spec->args[1] & AT91_DMA_CFG_PER_ID_MASK;
+	atslave->cfg |= ATC_DST_PER_MSB(per_id) | ATC_DST_PER(per_id)
+		     | ATC_SRC_PER_MSB(per_id) | ATC_SRC_PER(per_id);
+	/*
+	 * We have to translate the value we get from the device tree since
+	 * the half FIFO configuration value had to be 0 to keep backward
+	 * compatibility.
+	 */
+	switch (dma_spec->args[1] & AT91_DMA_CFG_FIFOCFG_MASK) {
+	case AT91_DMA_CFG_FIFOCFG_ALAP:
+		atslave->cfg |= ATC_FIFOCFG_LARGESTBURST;
+		break;
+	case AT91_DMA_CFG_FIFOCFG_ASAP:
+		atslave->cfg |= ATC_FIFOCFG_ENOUGHSPACE;
+		break;
+	case AT91_DMA_CFG_FIFOCFG_HALF:
+	default:
+		atslave->cfg |= ATC_FIFOCFG_HALFFIFO;
+	}
 	atslave->dma_dev = &dmac_pdev->dev;
 
 	chan = dma_request_channel(mask, at_dma_filter, atslave);
@@ -1374,7 +1460,9 @@ static int __init at_dma_probe(struct platform_device *pdev)
 		err = PTR_ERR(atdma->clk);
 		goto err_clk;
 	}
-	clk_enable(atdma->clk);
+	err = clk_prepare_enable(atdma->clk);
+	if (err)
+		goto err_clk_prepare;
 
 	/* force dma off, just in case */
 	at_dma_off(atdma);
@@ -1472,10 +1560,10 @@ err_of_dma_controller_register:
 	dma_async_device_unregister(&atdma->dma_common);
 	dma_pool_destroy(atdma->dma_desc_pool);
 err_pool_create:
-	platform_set_drvdata(pdev, NULL);
 	free_irq(platform_get_irq(pdev, 0), atdma);
 err_irq:
-	clk_disable(atdma->clk);
+	clk_disable_unprepare(atdma->clk);
+err_clk_prepare:
 	clk_put(atdma->clk);
 err_clk:
 	iounmap(atdma->regs);
@@ -1497,7 +1585,6 @@ static int at_dma_remove(struct platform_device *pdev)
 	dma_async_device_unregister(&atdma->dma_common);
 
 	dma_pool_destroy(atdma->dma_desc_pool);
-	platform_set_drvdata(pdev, NULL);
 	free_irq(platform_get_irq(pdev, 0), atdma);
 
 	list_for_each_entry_safe(chan, _chan, &atdma->dma_common.channels,
@@ -1512,7 +1599,7 @@ static int at_dma_remove(struct platform_device *pdev)
 		list_del(&chan->device_node);
 	}
 
-	clk_disable(atdma->clk);
+	clk_disable_unprepare(atdma->clk);
 	clk_put(atdma->clk);
 
 	iounmap(atdma->regs);
@@ -1531,7 +1618,7 @@ static void at_dma_shutdown(struct platform_device *pdev)
 	struct at_dma	*atdma = platform_get_drvdata(pdev);
 
 	at_dma_off(platform_get_drvdata(pdev));
-	clk_disable(atdma->clk);
+	clk_disable_unprepare(atdma->clk);
 }
 
 static int at_dma_prepare(struct device *dev)
@@ -1588,7 +1675,7 @@ static int at_dma_suspend_noirq(struct device *dev)
 
 	/* disable DMA controller */
 	at_dma_off(atdma);
-	clk_disable(atdma->clk);
+	clk_disable_unprepare(atdma->clk);
 	return 0;
 }
 
@@ -1618,7 +1705,7 @@ static int at_dma_resume_noirq(struct device *dev)
 	struct dma_chan *chan, *_chan;
 
 	/* bring back DMA controller */
-	clk_enable(atdma->clk);
+	clk_prepare_enable(atdma->clk);
 	dma_writel(atdma, EN, AT_DMA_ENABLE);
 
 	/* clear any pending interrupt */

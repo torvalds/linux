@@ -2309,14 +2309,6 @@ qla2x00_configure_hba(scsi_qla_host_t *vha)
 		    "Topology - %s, Host Loop address 0x%x.\n",
 		    connect_type, vha->loop_id);
 
-	if (rval) {
-		ql_log(ql_log_warn, vha, 0x2011,
-		    "%s FAILED\n", __func__);
-	} else {
-		ql_dbg(ql_dbg_disc, vha, 0x2012,
-		    "%s success\n", __func__);
-	}
-
 	return(rval);
 }
 

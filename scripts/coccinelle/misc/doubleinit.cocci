@@ -8,7 +8,7 @@
 // Copyright: (C) 2010-2012 Gilles Muller, INRIA/LiP6.  GPLv2.
 // URL: http://coccinelle.lip6.fr/
 // Comments: requires at least Coccinelle 0.2.4, lex or parse error otherwise
-// Options: -no_includes -include_headers
+// Options: --no-includes --include-headers
 
 virtual org
 virtual report

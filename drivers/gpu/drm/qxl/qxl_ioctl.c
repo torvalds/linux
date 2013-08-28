@@ -188,6 +188,12 @@ static int qxl_execbuffer_ioctl(struct drm_device *dev, void *data,
 		/* TODO copy slow path code from i915 */
 		fb_cmd = qxl_bo_kmap_atomic_page(qdev, cmd_bo, (release->release_offset & PAGE_SIZE));
 		unwritten = __copy_from_user_inatomic_nocache(fb_cmd + sizeof(union qxl_release_info) + (release->release_offset & ~PAGE_SIZE), (void *)(unsigned long)user_cmd.command, user_cmd.command_size);
+
+		{
+			struct qxl_drawable *draw = fb_cmd;
+
+			draw->mm_time = qdev->rom->mm_clock;
+		}
 		qxl_bo_kunmap_atomic_page(qdev, cmd_bo, fb_cmd);
 		if (unwritten) {
 			DRM_ERROR("got unwritten %d\n", unwritten);

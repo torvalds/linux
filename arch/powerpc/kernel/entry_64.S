@@ -629,21 +629,43 @@ _GLOBAL(ret_from_except_lite)
 
 	CURRENT_THREAD_INFO(r9, r1)
 	ld	r3,_MSR(r1)
+#ifdef CONFIG_PPC_BOOK3E
+	ld	r10,PACACURRENT(r13)
+#endif /* CONFIG_PPC_BOOK3E */
 	ld	r4,TI_FLAGS(r9)
 	andi.	r3,r3,MSR_PR
 	beq	resume_kernel
+#ifdef CONFIG_PPC_BOOK3E
+	lwz	r3,(THREAD+THREAD_DBCR0)(r10)
+#endif /* CONFIG_PPC_BOOK3E */
 
 	/* Check current_thread_info()->flags */
 	andi.	r0,r4,_TIF_USER_WORK_MASK
+#ifdef CONFIG_PPC_BOOK3E
+	bne	1f
+	/*
+	 * Check to see if the dbcr0 register is set up to debug.
+	 * Use the internal debug mode bit to do this.
+	 */
+	andis.	r0,r3,DBCR0_IDM@h
 	beq	restore
-
-	andi.	r0,r4,_TIF_NEED_RESCHED
-	beq	1f
+	mfmsr	r0
+	rlwinm	r0,r0,0,~MSR_DE	/* Clear MSR.DE */
+	mtmsr	r0
+	mtspr	SPRN_DBCR0,r3
+	li	r10, -1
+	mtspr	SPRN_DBSR,r10
+	b	restore
+#else
+	beq	restore
+#endif
+1:	andi.	r0,r4,_TIF_NEED_RESCHED
+	beq	2f
 	bl	.restore_interrupts
 	SCHEDULE_USER
 	b	.ret_from_except_lite
 
-1:	bl	.save_nvgprs
+2:	bl	.save_nvgprs
 	bl	.restore_interrupts
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	.do_notify_resume

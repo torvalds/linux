@@ -765,7 +765,7 @@ static int pdc2027x_init_one(struct pci_dev *pdev,
 #ifdef CONFIG_PM
 static int pdc2027x_reinit_one(struct pci_dev *pdev)
 {
-	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = pci_get_drvdata(pdev);
 	unsigned int board_idx;
 	int rc;
 

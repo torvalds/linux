@@ -130,7 +130,7 @@ static int sdhci_dove_probe(struct platform_device *pdev)
 		gpio_direction_input(priv->gpio_cd);
 	}
 
-	host = sdhci_pltfm_init(pdev, &sdhci_dove_pdata);
+	host = sdhci_pltfm_init(pdev, &sdhci_dove_pdata, 0);
 	if (IS_ERR(host)) {
 		ret = PTR_ERR(host);
 		goto err_sdhci_pltfm_init;

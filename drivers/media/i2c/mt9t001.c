@@ -740,7 +740,7 @@ static int mt9t001_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	mt9t001 = kzalloc(sizeof(*mt9t001), GFP_KERNEL);
+	mt9t001 = devm_kzalloc(&client->dev, sizeof(*mt9t001), GFP_KERNEL);
 	if (!mt9t001)
 		return -ENOMEM;
 
@@ -801,7 +801,6 @@ done:
 	if (ret < 0) {
 		v4l2_ctrl_handler_free(&mt9t001->ctrls);
 		media_entity_cleanup(&mt9t001->subdev.entity);
-		kfree(mt9t001);
 	}
 
 	return ret;
@@ -815,7 +814,6 @@ static int mt9t001_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(&mt9t001->ctrls);
 	v4l2_device_unregister_subdev(subdev);
 	media_entity_cleanup(&subdev->entity);
-	kfree(mt9t001);
 	return 0;
 }
 

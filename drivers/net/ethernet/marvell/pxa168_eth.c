@@ -357,7 +357,7 @@ static void rxq_refill(struct net_device *dev)
 		/* Get 'used' Rx descriptor */
 		used_rx_desc = pep->rx_used_desc_q;
 		p_used_rx_desc = &pep->p_rx_desc_area[used_rx_desc];
-		size = skb->end - skb->data;
+		size = skb_end_pointer(skb) - skb->data;
 		p_used_rx_desc->buf_ptr = dma_map_single(NULL,
 							 skb->data,
 							 size,
@@ -1602,7 +1602,6 @@ static int pxa168_eth_remove(struct platform_device *pdev)
 	unregister_netdev(dev);
 	cancel_work_sync(&pep->tx_timeout_task);
 	free_netdev(dev);
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 

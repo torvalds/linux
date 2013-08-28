@@ -290,7 +290,6 @@ static int spear_kbd_remove(struct platform_device *pdev)
 	clk_unprepare(kbd->clk);
 
 	device_init_wakeup(&pdev->dev, 0);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

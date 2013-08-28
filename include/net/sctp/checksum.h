@@ -42,6 +42,9 @@
  * be incorporated into the next SCTP release.
  */
 
+#ifndef __sctp_checksum_h__
+#define __sctp_checksum_h__
+
 #include <linux/types.h>
 #include <net/sctp/sctp.h>
 #include <linux/crc32c.h>
@@ -81,3 +84,5 @@ static inline __le32 sctp_end_cksum(__u32 crc32)
 {
 	return cpu_to_le32(~crc32);
 }
+
+#endif /* __sctp_checksum_h__ */

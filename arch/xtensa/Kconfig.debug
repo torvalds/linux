@@ -2,6 +2,16 @@ menu "Kernel hacking"
 
 source "lib/Kconfig.debug"
 
+config DEBUG_TLB_SANITY
+	bool "Debug TLB sanity"
+	depends on DEBUG_KERNEL
+	help
+	  Enable this to turn on TLB sanity check on each entry to userspace.
+	  This check can spot missing TLB invalidation/wrong PTE permissions/
+	  premature page freeing.
+
+	  If unsure, say N.
+
 config LD_NO_RELAX
 	bool "Disable linker relaxation"
 	default n

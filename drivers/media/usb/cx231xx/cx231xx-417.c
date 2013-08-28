@@ -1840,7 +1840,6 @@ static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_streamon	 = vidioc_streamon,
 	.vidioc_streamoff	 = vidioc_streamoff,
 	.vidioc_log_status	 = vidioc_log_status,
-	.vidioc_g_chip_ident	 = cx231xx_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register	 = cx231xx_g_register,
 	.vidioc_s_register	 = cx231xx_s_register,

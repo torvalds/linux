@@ -97,6 +97,7 @@
  */
 s32 pch_gbe_phy_get_id(struct pch_gbe_hw *hw)
 {
+	struct pch_gbe_adapter *adapter = pch_gbe_hw_to_adapter(hw);
 	struct pch_gbe_phy_info *phy = &hw->phy;
 	s32 ret;
 	u16 phy_id1;
@@ -115,8 +116,9 @@ s32 pch_gbe_phy_get_id(struct pch_gbe_hw *hw)
 	phy->id = (u32)phy_id1;
 	phy->id = ((phy->id << 6) | ((phy_id2 & 0xFC00) >> 10));
 	phy->revision = (u32) (phy_id2 & 0x000F);
-	pr_debug("phy->id : 0x%08x  phy->revision : 0x%08x\n",
-		 phy->id, phy->revision);
+	netdev_dbg(adapter->netdev,
+		   "phy->id : 0x%08x  phy->revision : 0x%08x\n",
+		   phy->id, phy->revision);
 	return 0;
 }
 
@@ -134,7 +136,10 @@ s32 pch_gbe_phy_read_reg_miic(struct pch_gbe_hw *hw, u32 offset, u16 *data)
 	struct pch_gbe_phy_info *phy = &hw->phy;
 
 	if (offset > PHY_MAX_REG_ADDRESS) {
-		pr_err("PHY Address %d is out of range\n", offset);
+		struct pch_gbe_adapter *adapter = pch_gbe_hw_to_adapter(hw);
+
+		netdev_err(adapter->netdev, "PHY Address %d is out of range\n",
+			   offset);
 		return -EINVAL;
 	}
 	*data = pch_gbe_mac_ctrl_miim(hw, phy->addr, PCH_GBE_HAL_MIIM_READ,
@@ -156,7 +161,10 @@ s32 pch_gbe_phy_write_reg_miic(struct pch_gbe_hw *hw, u32 offset, u16 data)
 	struct pch_gbe_phy_info *phy = &hw->phy;
 
 	if (offset > PHY_MAX_REG_ADDRESS) {
-		pr_err("PHY Address %d is out of range\n", offset);
+		struct pch_gbe_adapter *adapter = pch_gbe_hw_to_adapter(hw);
+
+		netdev_err(adapter->netdev, "PHY Address %d is out of range\n",
+			   offset);
 		return -EINVAL;
 	}
 	pch_gbe_mac_ctrl_miim(hw, phy->addr, PCH_GBE_HAL_MIIM_WRITE,
@@ -235,7 +243,7 @@ void pch_gbe_phy_power_down(struct pch_gbe_hw *hw)
  * pch_gbe_phy_set_rgmii - RGMII interface setting
  * @hw:	            Pointer to the HW structure
  */
-inline void pch_gbe_phy_set_rgmii(struct pch_gbe_hw *hw)
+void pch_gbe_phy_set_rgmii(struct pch_gbe_hw *hw)
 {
 	pch_gbe_phy_sw_reset(hw);
 }
@@ -246,15 +254,14 @@ inline void pch_gbe_phy_set_rgmii(struct pch_gbe_hw *hw)
  */
 void pch_gbe_phy_init_setting(struct pch_gbe_hw *hw)
 {
-	struct pch_gbe_adapter *adapter;
+	struct pch_gbe_adapter *adapter = pch_gbe_hw_to_adapter(hw);
 	struct ethtool_cmd     cmd = { .cmd = ETHTOOL_GSET };
 	int ret;
 	u16 mii_reg;
 
-	adapter = container_of(hw, struct pch_gbe_adapter, hw);
 	ret = mii_ethtool_gset(&adapter->mii, &cmd);
 	if (ret)
-		pr_err("Error: mii_ethtool_gset\n");
+		netdev_err(adapter->netdev, "Error: mii_ethtool_gset\n");
 
 	ethtool_cmd_speed_set(&cmd, hw->mac.link_speed);
 	cmd.duplex = hw->mac.link_duplex;
@@ -263,12 +270,11 @@ void pch_gbe_phy_init_setting(struct pch_gbe_hw *hw)
 	pch_gbe_phy_write_reg_miic(hw, MII_BMCR, BMCR_RESET);
 	ret = mii_ethtool_sset(&adapter->mii, &cmd);
 	if (ret)
-		pr_err("Error: mii_ethtool_sset\n");
+		netdev_err(adapter->netdev, "Error: mii_ethtool_sset\n");
 
 	pch_gbe_phy_sw_reset(hw);
 
 	pch_gbe_phy_read_reg_miic(hw, PHY_PHYSP_CONTROL, &mii_reg);
 	mii_reg |= PHYSP_CTRL_ASSERT_CRS_TX;
 	pch_gbe_phy_write_reg_miic(hw, PHY_PHYSP_CONTROL, mii_reg);
-
 }

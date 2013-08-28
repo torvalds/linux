@@ -613,7 +613,7 @@
 		};
 
 		rtc-iobg {
-			compatible = "sirf,prima2-rtciobg", "sirf-prima2-rtciobg-bus";
+			compatible = "sirf,prima2-rtciobg", "sirf-prima2-rtciobg-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			reg = <0x80030000 0x10000>;

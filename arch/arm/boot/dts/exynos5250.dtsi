@@ -599,7 +599,7 @@
 	};
 
 	hdmi {
-		compatible = "samsung,exynos5-hdmi";
+		compatible = "samsung,exynos4212-hdmi";
 		reg = <0x14530000 0x70000>;
 		interrupts = <0 95 0>;
 		clocks = <&clock 333>, <&clock 136>, <&clock 137>,
@@ -609,7 +609,7 @@
 	};
 
 	mixer {
-		compatible = "samsung,exynos5-mixer";
+		compatible = "samsung,exynos5250-mixer";
 		reg = <0x14450000 0x10000>;
 		interrupts = <0 94 0>;
 	};

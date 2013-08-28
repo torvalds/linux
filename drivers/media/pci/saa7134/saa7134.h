@@ -471,19 +471,9 @@ struct saa7134_dmaqueue {
 struct saa7134_fh {
 	struct v4l2_fh             fh;
 	struct saa7134_dev         *dev;
-	unsigned int               radio;
-	enum v4l2_buf_type         type;
 	unsigned int               resources;
-	struct pm_qos_request	   qos_request;
-
-	/* video overlay */
-	struct v4l2_window         win;
-	struct v4l2_clip           clips[8];
-	unsigned int               nclips;
 
 	/* video capture */
-	struct saa7134_format      *fmt;
-	unsigned int               width,height;
 	struct videobuf_queue      cap;
 	struct saa7134_pgtable     pt_cap;
 
@@ -592,12 +582,19 @@ struct saa7134_dev {
 	struct saa7134_format      *ovfmt;
 	unsigned int               ovenable;
 	enum v4l2_field            ovfield;
+	struct v4l2_window         win;
+	struct v4l2_clip           clips[8];
+	unsigned int               nclips;
+
 
 	/* video+ts+vbi capture */
 	struct saa7134_dmaqueue    video_q;
 	struct saa7134_dmaqueue    vbi_q;
 	unsigned int               video_fieldcount;
 	unsigned int               vbi_fieldcount;
+	struct saa7134_format      *fmt;
+	unsigned int               width, height;
+	struct pm_qos_request	   qos_request;
 
 	/* various v4l controls */
 	struct saa7134_tvnorm      *tvnorm;              /* video */

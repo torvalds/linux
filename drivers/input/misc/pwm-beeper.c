@@ -133,7 +133,6 @@ static int pwm_beeper_remove(struct platform_device *pdev)
 {
 	struct pwm_beeper *beeper = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
 	input_unregister_device(beeper->input);
 
 	pwm_disable(beeper->pwm);

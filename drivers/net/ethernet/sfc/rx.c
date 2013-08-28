@@ -36,7 +36,7 @@
 #define EFX_RECYCLE_RING_SIZE_NOIOMMU (2 * EFX_RX_PREFERRED_BATCH)
 
 /* Size of buffer allocated for skb header area. */
-#define EFX_SKB_HEADERS  64u
+#define EFX_SKB_HEADERS  128u
 
 /* This is the percentage fill level below which new RX descriptors
  * will be added to the RX descriptor ring.
@@ -282,14 +282,28 @@ static void efx_fini_rx_buffer(struct efx_rx_queue *rx_queue,
 }
 
 /* Recycle the pages that are used by buffers that have just been received. */
-static void efx_recycle_rx_buffers(struct efx_channel *channel,
-				   struct efx_rx_buffer *rx_buf,
-				   unsigned int n_frags)
+static void efx_recycle_rx_pages(struct efx_channel *channel,
+				 struct efx_rx_buffer *rx_buf,
+				 unsigned int n_frags)
 {
 	struct efx_rx_queue *rx_queue = efx_channel_get_rx_queue(channel);
 
 	do {
 		efx_recycle_rx_page(channel, rx_buf);
+		rx_buf = efx_rx_buf_next(rx_queue, rx_buf);
+	} while (--n_frags);
+}
+
+static void efx_discard_rx_packet(struct efx_channel *channel,
+				  struct efx_rx_buffer *rx_buf,
+				  unsigned int n_frags)
+{
+	struct efx_rx_queue *rx_queue = efx_channel_get_rx_queue(channel);
+
+	efx_recycle_rx_pages(channel, rx_buf, n_frags);
+
+	do {
+		efx_free_rx_buffer(rx_buf);
 		rx_buf = efx_rx_buf_next(rx_queue, rx_buf);
 	} while (--n_frags);
 }
@@ -533,8 +547,7 @@ void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 	 */
 	if (unlikely(rx_buf->flags & EFX_RX_PKT_DISCARD)) {
 		efx_rx_flush_packet(channel);
-		put_page(rx_buf->page);
-		efx_recycle_rx_buffers(channel, rx_buf, n_frags);
+		efx_discard_rx_packet(channel, rx_buf, n_frags);
 		return;
 	}
 
@@ -570,9 +583,9 @@ void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 		efx_sync_rx_buffer(efx, rx_buf, rx_buf->len);
 	}
 
-	/* All fragments have been DMA-synced, so recycle buffers and pages. */
+	/* All fragments have been DMA-synced, so recycle pages. */
 	rx_buf = efx_rx_buffer(rx_queue, index);
-	efx_recycle_rx_buffers(channel, rx_buf, n_frags);
+	efx_recycle_rx_pages(channel, rx_buf, n_frags);
 
 	/* Pipeline receives so that we give time for packet headers to be
 	 * prefetched into cache.
@@ -598,6 +611,8 @@ static void efx_rx_deliver(struct efx_channel *channel, u8 *eh,
 
 	/* Set the SKB flags */
 	skb_checksum_none_assert(skb);
+	if (likely(rx_buf->flags & EFX_RX_PKT_CSUMMED))
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	if (channel->type->receive_skb)
 		if (channel->type->receive_skb(channel, skb))
@@ -627,7 +642,7 @@ void __efx_rx_packet(struct efx_channel *channel)
 	if (unlikely(!(efx->net_dev->features & NETIF_F_RXCSUM)))
 		rx_buf->flags &= ~EFX_RX_PKT_CSUMMED;
 
-	if (!channel->type->receive_skb)
+	if ((rx_buf->flags & EFX_RX_PKT_TCP) && !channel->type->receive_skb)
 		efx_rx_packet_gro(channel, rx_buf, channel->rx_pkt_n_frags, eh);
 	else
 		efx_rx_deliver(channel, eh, rx_buf, channel->rx_pkt_n_frags);
@@ -675,7 +690,7 @@ static void efx_init_rx_recycle_ring(struct efx_nic *efx,
 #ifdef CONFIG_PPC64
 	bufs_in_recycle_ring = EFX_RECYCLE_RING_SIZE_IOMMU;
 #else
-	if (efx->pci_dev->dev.iommu_group)
+	if (iommu_present(&pci_bus_type))
 		bufs_in_recycle_ring = EFX_RECYCLE_RING_SIZE_IOMMU;
 	else
 		bufs_in_recycle_ring = EFX_RECYCLE_RING_SIZE_NOIOMMU;

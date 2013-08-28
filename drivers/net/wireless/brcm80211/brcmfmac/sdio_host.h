@@ -170,7 +170,6 @@ struct brcmf_sdio_dev {
 	atomic_t suspend;		/* suspend flag */
 	wait_queue_head_t request_byte_wait;
 	wait_queue_head_t request_word_wait;
-	wait_queue_head_t request_chain_wait;
 	wait_queue_head_t request_buffer_wait;
 	struct device *dev;
 	struct brcmf_bus *bus_if;
@@ -230,8 +229,6 @@ brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 #define SDIO_REQ_4BYTE	0x1
 /* Fixed address (FIFO) (vs. incrementing address) */
 #define SDIO_REQ_FIXED	0x2
-/* Async request (vs. sync request) */
-#define SDIO_REQ_ASYNC	0x4
 
 /* Read/write to memory block (F1, no FIFO) via CMD53 (sync only).
  *   rw:       read or write (0/1)
@@ -252,9 +249,6 @@ extern int brcmf_sdcard_abort(struct brcmf_sdio_dev *sdiodev, uint fn);
 extern int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev);
 extern int brcmf_sdio_remove(struct brcmf_sdio_dev *sdiodev);
 
-extern int brcmf_sdcard_set_sbaddr_window(struct brcmf_sdio_dev *sdiodev,
-					  u32 address);
-
 /* attach, return handler on success, NULL if failed.
  *  The handler shall be provided by all subsequent calls. No local cache
  *  cfghdl points to the starting address of pci device mapped memory
@@ -272,16 +266,6 @@ brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev,
 			 uint rw, uint fnc, uint addr,
 			 u32 *word, uint nbyte);
 
-/* read or write any buffer using cmd53 */
-extern int
-brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev,
-			   uint fix_inc, uint rw, uint fnc_num, u32 addr,
-			   struct sk_buff *pkt);
-extern int
-brcmf_sdioh_request_chain(struct brcmf_sdio_dev *sdiodev, uint fix_inc,
-			  uint write, uint func, uint addr,
-			  struct sk_buff_head *pktq);
-
 /* Watchdog timer interface for pm ops */
 extern void brcmf_sdio_wdtmr_enable(struct brcmf_sdio_dev *sdiodev,
 				    bool enable);
@@ -291,4 +275,8 @@ extern void brcmf_sdbrcm_disconnect(void *ptr);
 extern void brcmf_sdbrcm_isr(void *arg);
 
 extern void brcmf_sdbrcm_wd_timer(struct brcmf_sdio *bus, uint wdtick);
+
+extern void brcmf_pm_resume_wait(struct brcmf_sdio_dev *sdiodev,
+				 wait_queue_head_t *wq);
+extern bool brcmf_pm_resume_error(struct brcmf_sdio_dev *sdiodev);
 #endif				/* _BRCM_SDH_H_ */

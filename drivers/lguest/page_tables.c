@@ -70,7 +70,7 @@
 /*H:320
  * The page table code is curly enough to need helper functions to keep it
  * clear and clean.  The kernel itself provides many of them; one advantage
- * of insisting that the Guest and Host use the same CONFIG_PAE setting.
+ * of insisting that the Guest and Host use the same CONFIG_X86_PAE setting.
  *
  * There are two functions which return pointers to the shadow (aka "real")
  * page tables.

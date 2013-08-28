@@ -1,7 +1,7 @@
     4xx/Axon EMAC ethernet nodes
 
     The EMAC ethernet controller in IBM and AMCC 4xx chips, and also
-    the Axon bridge.  To operate this needs to interact with a ths
+    the Axon bridge.  To operate this needs to interact with a this
     special McMAL DMA controller, and sometimes an RGMII or ZMII
     interface.  In addition to the nodes and properties described
     below, the node for the OPB bus on which the EMAC sits must have a

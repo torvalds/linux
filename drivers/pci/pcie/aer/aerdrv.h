@@ -13,10 +13,6 @@
 #include <linux/aer.h>
 #include <linux/interrupt.h>
 
-#define AER_NONFATAL			0
-#define AER_FATAL			1
-#define AER_CORRECTABLE			2
-
 #define SYSTEM_ERROR_INTR_ON_MESG_MASK	(PCI_EXP_RTCTL_SECEE|	\
 					PCI_EXP_RTCTL_SENFEE|	\
 					PCI_EXP_RTCTL_SEFEE)

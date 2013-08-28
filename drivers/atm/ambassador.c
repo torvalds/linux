@@ -1403,7 +1403,7 @@ static void amb_free_rx_skb (struct atm_vcc * atm_vcc, struct sk_buff * skb) {
   rx.host_address = cpu_to_be32 (virt_to_bus (skb->data));
   
   skb->data = skb->head;
-  skb->tail = skb->head;
+  skb_reset_tail_pointer(skb);
   skb->len = 0;
   
   if (!rx_give (dev, &rx, pool)) {

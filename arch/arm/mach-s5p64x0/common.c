@@ -24,6 +24,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/gpio.h>
 #include <linux/irq.h>
+#include <linux/reboot.h>
 
 #include <asm/irq.h>
 #include <asm/proc-fns.h>
@@ -439,9 +440,9 @@ static int __init s5p64x0_init_irq_eint(void)
 }
 arch_initcall(s5p64x0_init_irq_eint);
 
-void s5p64x0_restart(char mode, const char *cmd)
+void s5p64x0_restart(enum reboot_mode mode, const char *cmd)
 {
-	if (mode != 's')
+	if (mode != REBOOT_SOFT)
 		samsung_wdt_reset();
 
 	soft_restart(0);

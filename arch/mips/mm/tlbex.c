@@ -305,6 +305,17 @@ static int check_for_high_segbits __cpuinitdata;
 
 static unsigned int kscratch_used_mask __cpuinitdata;
 
+static inline int __maybe_unused c0_kscratch(void)
+{
+	switch (current_cpu_type()) {
+	case CPU_XLP:
+	case CPU_XLR:
+		return 22;
+	default:
+		return 31;
+	}
+}
+
 static int __cpuinit allocate_kscratch(void)
 {
 	int r;
@@ -334,9 +345,9 @@ static struct work_registers __cpuinit build_get_work_registers(u32 **p)
 	int smp_processor_id_sel;
 	int smp_processor_id_shift;
 
-	if (scratch_reg > 0) {
+	if (scratch_reg >= 0) {
 		/* Save in CPU local C0_KScratch? */
-		UASM_i_MTC0(p, 1, 31, scratch_reg);
+		UASM_i_MTC0(p, 1, c0_kscratch(), scratch_reg);
 		r.r1 = K0;
 		r.r2 = K1;
 		r.r3 = 1;
@@ -384,8 +395,8 @@ static struct work_registers __cpuinit build_get_work_registers(u32 **p)
 
 static void __cpuinit build_restore_work_registers(u32 **p)
 {
-	if (scratch_reg > 0) {
-		UASM_i_MFC0(p, 1, 31, scratch_reg);
+	if (scratch_reg >= 0) {
+		UASM_i_MFC0(p, 1, c0_kscratch(), scratch_reg);
 		return;
 	}
 	/* K0 already points to save area, restore $1 and $2  */
@@ -673,8 +684,8 @@ static __cpuinit void build_restore_pagemask(u32 **p,
 			uasm_i_mtc0(p, 0, C0_PAGEMASK);
 			uasm_il_b(p, r, lid);
 		}
-		if (scratch_reg > 0)
-			UASM_i_MFC0(p, 1, 31, scratch_reg);
+		if (scratch_reg >= 0)
+			UASM_i_MFC0(p, 1, c0_kscratch(), scratch_reg);
 		else
 			UASM_i_LW(p, 1, scratchpad_offset(0), 0);
 	} else {
@@ -817,7 +828,7 @@ build_get_pmde64(u32 **p, struct uasm_label **l, struct uasm_reloc **r,
 #ifdef CONFIG_MIPS_PGD_C0_CONTEXT
 	if (pgd_reg != -1) {
 		/* pgd is in pgd_reg */
-		UASM_i_MFC0(p, ptr, 31, pgd_reg);
+		UASM_i_MFC0(p, ptr, c0_kscratch(), pgd_reg);
 	} else {
 		/*
 		 * &pgd << 11 stored in CONTEXT [23..63].
@@ -929,8 +940,8 @@ build_get_pgd_vmalloc64(u32 **p, struct uasm_label **l, struct uasm_reloc **r,
 		uasm_i_jr(p, ptr);
 
 		if (mode == refill_scratch) {
-			if (scratch_reg > 0)
-				UASM_i_MFC0(p, 1, 31, scratch_reg);
+			if (scratch_reg >= 0)
+				UASM_i_MFC0(p, 1, c0_kscratch(), scratch_reg);
 			else
 				UASM_i_LW(p, 1, scratchpad_offset(0), 0);
 		} else {
@@ -961,7 +972,7 @@ build_get_pgde32(u32 **p, unsigned int tmp, unsigned int ptr)
 	uasm_i_srl(p, ptr, ptr, 19);
 #else
 	/*
-	 * smp_processor_id() << 3 is stored in CONTEXT.
+	 * smp_processor_id() << 2 is stored in CONTEXT.
 	 */
 	uasm_i_mfc0(p, ptr, C0_CONTEXT);
 	UASM_i_LA_mostly(p, tmp, pgdc);
@@ -1096,7 +1107,7 @@ struct mips_huge_tlb_info {
 static struct mips_huge_tlb_info __cpuinit
 build_fast_tlb_refill_handler (u32 **p, struct uasm_label **l,
 			       struct uasm_reloc **r, unsigned int tmp,
-			       unsigned int ptr, int c0_scratch)
+			       unsigned int ptr, int c0_scratch_reg)
 {
 	struct mips_huge_tlb_info rv;
 	unsigned int even, odd;
@@ -1110,12 +1121,12 @@ build_fast_tlb_refill_handler (u32 **p, struct uasm_label **l,
 		UASM_i_MFC0(p, tmp, C0_BADVADDR);
 
 		if (pgd_reg != -1)
-			UASM_i_MFC0(p, ptr, 31, pgd_reg);
+			UASM_i_MFC0(p, ptr, c0_kscratch(), pgd_reg);
 		else
 			UASM_i_MFC0(p, ptr, C0_CONTEXT);
 
-		if (c0_scratch >= 0)
-			UASM_i_MTC0(p, scratch, 31, c0_scratch);
+		if (c0_scratch_reg >= 0)
+			UASM_i_MTC0(p, scratch, c0_kscratch(), c0_scratch_reg);
 		else
 			UASM_i_SW(p, scratch, scratchpad_offset(0), 0);
 
@@ -1130,14 +1141,14 @@ build_fast_tlb_refill_handler (u32 **p, struct uasm_label **l,
 		}
 	} else {
 		if (pgd_reg != -1)
-			UASM_i_MFC0(p, ptr, 31, pgd_reg);
+			UASM_i_MFC0(p, ptr, c0_kscratch(), pgd_reg);
 		else
 			UASM_i_MFC0(p, ptr, C0_CONTEXT);
 
 		UASM_i_MFC0(p, tmp, C0_BADVADDR);
 
-		if (c0_scratch >= 0)
-			UASM_i_MTC0(p, scratch, 31, c0_scratch);
+		if (c0_scratch_reg >= 0)
+			UASM_i_MTC0(p, scratch, c0_kscratch(), c0_scratch_reg);
 		else
 			UASM_i_SW(p, scratch, scratchpad_offset(0), 0);
 
@@ -1242,8 +1253,8 @@ build_fast_tlb_refill_handler (u32 **p, struct uasm_label **l,
 	}
 	UASM_i_MTC0(p, odd, C0_ENTRYLO1); /* load it */
 
-	if (c0_scratch >= 0) {
-		UASM_i_MFC0(p, scratch, 31, c0_scratch);
+	if (c0_scratch_reg >= 0) {
+		UASM_i_MFC0(p, scratch, c0_kscratch(), c0_scratch_reg);
 		build_tlb_write_entry(p, l, r, tlb_random);
 		uasm_l_leave(l, *p);
 		rv.restore_scratch = 1;
@@ -1286,7 +1297,7 @@ static void __cpuinit build_r4000_tlb_refill_handler(void)
 	memset(relocs, 0, sizeof(relocs));
 	memset(final_handler, 0, sizeof(final_handler));
 
-	if ((scratch_reg > 0 || scratchpad_available()) && use_bbit_insns()) {
+	if ((scratch_reg >= 0 || scratchpad_available()) && use_bbit_insns()) {
 		htlb_info = build_fast_tlb_refill_handler(&p, &l, &r, K0, K1,
 							  scratch_reg);
 		vmalloc_mode = refill_scratch;
@@ -1444,27 +1455,25 @@ static void __cpuinit build_r4000_tlb_refill_handler(void)
 	dump_handler("r4000_tlb_refill", (u32 *)ebase, 64);
 }
 
-/*
- * 128 instructions for the fastpath handler is generous and should
- * never be exceeded.
- */
-#define FASTPATH_SIZE 128
+extern u32 handle_tlbl[], handle_tlbl_end[];
+extern u32 handle_tlbs[], handle_tlbs_end[];
+extern u32 handle_tlbm[], handle_tlbm_end[];
 
-u32 handle_tlbl[FASTPATH_SIZE] __cacheline_aligned;
-u32 handle_tlbs[FASTPATH_SIZE] __cacheline_aligned;
-u32 handle_tlbm[FASTPATH_SIZE] __cacheline_aligned;
 #ifdef CONFIG_MIPS_PGD_C0_CONTEXT
-u32 tlbmiss_handler_setup_pgd_array[16] __cacheline_aligned;
+extern u32 tlbmiss_handler_setup_pgd[], tlbmiss_handler_setup_pgd_end[];
 
 static void __cpuinit build_r4000_setup_pgd(void)
 {
 	const int a0 = 4;
 	const int a1 = 5;
 	u32 *p = tlbmiss_handler_setup_pgd_array;
+	const int tlbmiss_handler_setup_pgd_size =
+		tlbmiss_handler_setup_pgd_end - tlbmiss_handler_setup_pgd;
 	struct uasm_label *l = labels;
 	struct uasm_reloc *r = relocs;
 
-	memset(tlbmiss_handler_setup_pgd_array, 0, sizeof(tlbmiss_handler_setup_pgd_array));
+	memset(tlbmiss_handler_setup_pgd, 0, tlbmiss_handler_setup_pgd_size *
+					sizeof(tlbmiss_handler_setup_pgd[0]));
 	memset(labels, 0, sizeof(labels));
 	memset(relocs, 0, sizeof(relocs));
 
@@ -1490,17 +1499,17 @@ static void __cpuinit build_r4000_setup_pgd(void)
 	} else {
 		/* PGD in c0_KScratch */
 		uasm_i_jr(&p, 31);
-		UASM_i_MTC0(&p, a0, 31, pgd_reg);
+		UASM_i_MTC0(&p, a0, c0_kscratch(), pgd_reg);
 	}
-	if (p - tlbmiss_handler_setup_pgd_array > ARRAY_SIZE(tlbmiss_handler_setup_pgd_array))
-		panic("tlbmiss_handler_setup_pgd_array space exceeded");
-	uasm_resolve_relocs(relocs, labels);
-	pr_debug("Wrote tlbmiss_handler_setup_pgd_array (%u instructions).\n",
-		 (unsigned int)(p - tlbmiss_handler_setup_pgd_array));
+	if (p >= tlbmiss_handler_setup_pgd_end)
+		panic("tlbmiss_handler_setup_pgd space exceeded");
 
-	dump_handler("tlbmiss_handler",
-		     tlbmiss_handler_setup_pgd_array,
-		     ARRAY_SIZE(tlbmiss_handler_setup_pgd_array));
+	uasm_resolve_relocs(relocs, labels);
+	pr_debug("Wrote tlbmiss_handler_setup_pgd (%u instructions).\n",
+		 (unsigned int)(p - tlbmiss_handler_setup_pgd));
+
+	dump_handler("tlbmiss_handler", tlbmiss_handler_setup_pgd,
+					tlbmiss_handler_setup_pgd_size);
 }
 #endif
 
@@ -1745,10 +1754,11 @@ build_r3000_tlbchange_handler_head(u32 **p, unsigned int pte,
 static void __cpuinit build_r3000_tlb_load_handler(void)
 {
 	u32 *p = handle_tlbl;
+	const int handle_tlbl_size = handle_tlbl_end - handle_tlbl;
 	struct uasm_label *l = labels;
 	struct uasm_reloc *r = relocs;
 
-	memset(handle_tlbl, 0, sizeof(handle_tlbl));
+	memset(handle_tlbl, 0, handle_tlbl_size * sizeof(handle_tlbl[0]));
 	memset(labels, 0, sizeof(labels));
 	memset(relocs, 0, sizeof(relocs));
 
@@ -1762,23 +1772,24 @@ static void __cpuinit build_r3000_tlb_load_handler(void)
 	uasm_i_j(&p, (unsigned long)tlb_do_page_fault_0 & 0x0fffffff);
 	uasm_i_nop(&p);
 
-	if ((p - handle_tlbl) > FASTPATH_SIZE)
+	if (p >= handle_tlbl_end)
 		panic("TLB load handler fastpath space exceeded");
 
 	uasm_resolve_relocs(relocs, labels);
 	pr_debug("Wrote TLB load handler fastpath (%u instructions).\n",
 		 (unsigned int)(p - handle_tlbl));
 
-	dump_handler("r3000_tlb_load", handle_tlbl, ARRAY_SIZE(handle_tlbl));
+	dump_handler("r3000_tlb_load", handle_tlbl, handle_tlbl_size);
 }
 
 static void __cpuinit build_r3000_tlb_store_handler(void)
 {
 	u32 *p = handle_tlbs;
+	const int handle_tlbs_size = handle_tlbs_end - handle_tlbs;
 	struct uasm_label *l = labels;
 	struct uasm_reloc *r = relocs;
 
-	memset(handle_tlbs, 0, sizeof(handle_tlbs));
+	memset(handle_tlbs, 0, handle_tlbs_size * sizeof(handle_tlbs[0]));
 	memset(labels, 0, sizeof(labels));
 	memset(relocs, 0, sizeof(relocs));
 
@@ -1792,23 +1803,24 @@ static void __cpuinit build_r3000_tlb_store_handler(void)
 	uasm_i_j(&p, (unsigned long)tlb_do_page_fault_1 & 0x0fffffff);
 	uasm_i_nop(&p);
 
-	if ((p - handle_tlbs) > FASTPATH_SIZE)
+	if (p >= handle_tlbs)
 		panic("TLB store handler fastpath space exceeded");
 
 	uasm_resolve_relocs(relocs, labels);
 	pr_debug("Wrote TLB store handler fastpath (%u instructions).\n",
 		 (unsigned int)(p - handle_tlbs));
 
-	dump_handler("r3000_tlb_store", handle_tlbs, ARRAY_SIZE(handle_tlbs));
+	dump_handler("r3000_tlb_store", handle_tlbs, handle_tlbs_size);
 }
 
 static void __cpuinit build_r3000_tlb_modify_handler(void)
 {
 	u32 *p = handle_tlbm;
+	const int handle_tlbm_size = handle_tlbm_end - handle_tlbm;
 	struct uasm_label *l = labels;
 	struct uasm_reloc *r = relocs;
 
-	memset(handle_tlbm, 0, sizeof(handle_tlbm));
+	memset(handle_tlbm, 0, handle_tlbm_size * sizeof(handle_tlbm[0]));
 	memset(labels, 0, sizeof(labels));
 	memset(relocs, 0, sizeof(relocs));
 
@@ -1822,14 +1834,14 @@ static void __cpuinit build_r3000_tlb_modify_handler(void)
 	uasm_i_j(&p, (unsigned long)tlb_do_page_fault_1 & 0x0fffffff);
 	uasm_i_nop(&p);
 
-	if ((p - handle_tlbm) > FASTPATH_SIZE)
+	if (p >= handle_tlbm_end)
 		panic("TLB modify handler fastpath space exceeded");
 
 	uasm_resolve_relocs(relocs, labels);
 	pr_debug("Wrote TLB modify handler fastpath (%u instructions).\n",
 		 (unsigned int)(p - handle_tlbm));
 
-	dump_handler("r3000_tlb_modify", handle_tlbm, ARRAY_SIZE(handle_tlbm));
+	dump_handler("r3000_tlb_modify", handle_tlbm, handle_tlbm_size);
 }
 #endif /* CONFIG_MIPS_PGD_C0_CONTEXT */
 
@@ -1893,11 +1905,12 @@ build_r4000_tlbchange_handler_tail(u32 **p, struct uasm_label **l,
 static void __cpuinit build_r4000_tlb_load_handler(void)
 {
 	u32 *p = handle_tlbl;
+	const int handle_tlbl_size = handle_tlbl_end - handle_tlbl;
 	struct uasm_label *l = labels;
 	struct uasm_reloc *r = relocs;
 	struct work_registers wr;
 
-	memset(handle_tlbl, 0, sizeof(handle_tlbl));
+	memset(handle_tlbl, 0, handle_tlbl_size * sizeof(handle_tlbl[0]));
 	memset(labels, 0, sizeof(labels));
 	memset(relocs, 0, sizeof(relocs));
 
@@ -1935,6 +1948,19 @@ static void __cpuinit build_r4000_tlb_load_handler(void)
 		uasm_i_nop(&p);
 
 		uasm_i_tlbr(&p);
+
+		switch (current_cpu_type()) {
+		default:
+			if (cpu_has_mips_r2) {
+				uasm_i_ehb(&p);
+
+		case CPU_CAVIUM_OCTEON:
+		case CPU_CAVIUM_OCTEON_PLUS:
+		case CPU_CAVIUM_OCTEON2:
+				break;
+			}
+		}
+
 		/* Examine  entrylo 0 or 1 based on ptr. */
 		if (use_bbit_insns()) {
 			uasm_i_bbit0(&p, wr.r2, ilog2(sizeof(pte_t)), 8);
@@ -1989,6 +2015,19 @@ static void __cpuinit build_r4000_tlb_load_handler(void)
 		uasm_i_nop(&p);
 
 		uasm_i_tlbr(&p);
+
+		switch (current_cpu_type()) {
+		default:
+			if (cpu_has_mips_r2) {
+				uasm_i_ehb(&p);
+
+		case CPU_CAVIUM_OCTEON:
+		case CPU_CAVIUM_OCTEON_PLUS:
+		case CPU_CAVIUM_OCTEON2:
+				break;
+			}
+		}
+
 		/* Examine  entrylo 0 or 1 based on ptr. */
 		if (use_bbit_insns()) {
 			uasm_i_bbit0(&p, wr.r2, ilog2(sizeof(pte_t)), 8);
@@ -2036,24 +2075,25 @@ static void __cpuinit build_r4000_tlb_load_handler(void)
 	uasm_i_j(&p, (unsigned long)tlb_do_page_fault_0 & 0x0fffffff);
 	uasm_i_nop(&p);
 
-	if ((p - handle_tlbl) > FASTPATH_SIZE)
+	if (p >= handle_tlbl_end)
 		panic("TLB load handler fastpath space exceeded");
 
 	uasm_resolve_relocs(relocs, labels);
 	pr_debug("Wrote TLB load handler fastpath (%u instructions).\n",
 		 (unsigned int)(p - handle_tlbl));
 
-	dump_handler("r4000_tlb_load", handle_tlbl, ARRAY_SIZE(handle_tlbl));
+	dump_handler("r4000_tlb_load", handle_tlbl, handle_tlbl_size);
 }
 
 static void __cpuinit build_r4000_tlb_store_handler(void)
 {
 	u32 *p = handle_tlbs;
+	const int handle_tlbs_size = handle_tlbs_end - handle_tlbs;
 	struct uasm_label *l = labels;
 	struct uasm_reloc *r = relocs;
 	struct work_registers wr;
 
-	memset(handle_tlbs, 0, sizeof(handle_tlbs));
+	memset(handle_tlbs, 0, handle_tlbs_size * sizeof(handle_tlbs[0]));
 	memset(labels, 0, sizeof(labels));
 	memset(relocs, 0, sizeof(relocs));
 
@@ -2090,24 +2130,25 @@ static void __cpuinit build_r4000_tlb_store_handler(void)
 	uasm_i_j(&p, (unsigned long)tlb_do_page_fault_1 & 0x0fffffff);
 	uasm_i_nop(&p);
 
-	if ((p - handle_tlbs) > FASTPATH_SIZE)
+	if (p >= handle_tlbs_end)
 		panic("TLB store handler fastpath space exceeded");
 
 	uasm_resolve_relocs(relocs, labels);
 	pr_debug("Wrote TLB store handler fastpath (%u instructions).\n",
 		 (unsigned int)(p - handle_tlbs));
 
-	dump_handler("r4000_tlb_store", handle_tlbs, ARRAY_SIZE(handle_tlbs));
+	dump_handler("r4000_tlb_store", handle_tlbs, handle_tlbs_size);
 }
 
 static void __cpuinit build_r4000_tlb_modify_handler(void)
 {
 	u32 *p = handle_tlbm;
+	const int handle_tlbm_size = handle_tlbm_end - handle_tlbm;
 	struct uasm_label *l = labels;
 	struct uasm_reloc *r = relocs;
 	struct work_registers wr;
 
-	memset(handle_tlbm, 0, sizeof(handle_tlbm));
+	memset(handle_tlbm, 0, handle_tlbm_size * sizeof(handle_tlbm[0]));
 	memset(labels, 0, sizeof(labels));
 	memset(relocs, 0, sizeof(relocs));
 
@@ -2145,14 +2186,28 @@ static void __cpuinit build_r4000_tlb_modify_handler(void)
 	uasm_i_j(&p, (unsigned long)tlb_do_page_fault_1 & 0x0fffffff);
 	uasm_i_nop(&p);
 
-	if ((p - handle_tlbm) > FASTPATH_SIZE)
+	if (p >= handle_tlbm_end)
 		panic("TLB modify handler fastpath space exceeded");
 
 	uasm_resolve_relocs(relocs, labels);
 	pr_debug("Wrote TLB modify handler fastpath (%u instructions).\n",
 		 (unsigned int)(p - handle_tlbm));
 
-	dump_handler("r4000_tlb_modify", handle_tlbm, ARRAY_SIZE(handle_tlbm));
+	dump_handler("r4000_tlb_modify", handle_tlbm, handle_tlbm_size);
+}
+
+static void __cpuinit flush_tlb_handlers(void)
+{
+	local_flush_icache_range((unsigned long)handle_tlbl,
+			   (unsigned long)handle_tlbl_end);
+	local_flush_icache_range((unsigned long)handle_tlbs,
+			   (unsigned long)handle_tlbs_end);
+	local_flush_icache_range((unsigned long)handle_tlbm,
+			   (unsigned long)handle_tlbm_end);
+#ifdef CONFIG_MIPS_PGD_C0_CONTEXT
+	local_flush_icache_range((unsigned long)tlbmiss_handler_setup_pgd,
+			   (unsigned long)tlbmiss_handler_setup_pgd_end);
+#endif
 }
 
 void __cpuinit build_tlb_refill_handler(void)
@@ -2187,6 +2242,7 @@ void __cpuinit build_tlb_refill_handler(void)
 			build_r3000_tlb_load_handler();
 			build_r3000_tlb_store_handler();
 			build_r3000_tlb_modify_handler();
+			flush_tlb_handlers();
 			run_once++;
 		}
 #else
@@ -2214,23 +2270,10 @@ void __cpuinit build_tlb_refill_handler(void)
 			build_r4000_tlb_modify_handler();
 			if (!cpu_has_local_ebase)
 				build_r4000_tlb_refill_handler();
+			flush_tlb_handlers();
 			run_once++;
 		}
 		if (cpu_has_local_ebase)
 			build_r4000_tlb_refill_handler();
 	}
-}
-
-void __cpuinit flush_tlb_handlers(void)
-{
-	local_flush_icache_range((unsigned long)handle_tlbl,
-			   (unsigned long)handle_tlbl + sizeof(handle_tlbl));
-	local_flush_icache_range((unsigned long)handle_tlbs,
-			   (unsigned long)handle_tlbs + sizeof(handle_tlbs));
-	local_flush_icache_range((unsigned long)handle_tlbm,
-			   (unsigned long)handle_tlbm + sizeof(handle_tlbm));
-#ifdef CONFIG_MIPS_PGD_C0_CONTEXT
-	local_flush_icache_range((unsigned long)tlbmiss_handler_setup_pgd_array,
-			   (unsigned long)tlbmiss_handler_setup_pgd_array + sizeof(handle_tlbm));
-#endif
 }

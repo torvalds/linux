@@ -676,7 +676,7 @@ static int ne2k_pci_resume (struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata (pdev);
 	int rc;
 
-	pci_set_power_state(pdev, 0);
+	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 
 	rc = pci_enable_device(pdev);

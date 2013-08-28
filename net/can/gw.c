@@ -445,9 +445,9 @@ static inline void cgw_unregister_filter(struct cgw_job *gwj)
 }
 
 static int cgw_notifier(struct notifier_block *nb,
-			unsigned long msg, void *data)
+			unsigned long msg, void *ptr)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 
 	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;

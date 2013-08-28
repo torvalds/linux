@@ -48,9 +48,6 @@ config OF_IRQ
 	def_bool y
 	depends on !SPARC
 
-config OF_DEVICE
-	def_bool y
-
 config OF_I2C
 	def_tristate I2C
 	depends on I2C

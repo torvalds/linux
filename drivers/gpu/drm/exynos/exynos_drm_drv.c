@@ -46,8 +46,6 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	int ret;
 	int nr;
 
-	DRM_DEBUG_DRIVER("%s\n", __FILE__);
-
 	private = kzalloc(sizeof(struct exynos_drm_private), GFP_KERNEL);
 	if (!private) {
 		DRM_ERROR("failed to allocate private\n");
@@ -140,8 +138,6 @@ err_crtc:
 
 static int exynos_drm_unload(struct drm_device *dev)
 {
-	DRM_DEBUG_DRIVER("%s\n", __FILE__);
-
 	exynos_drm_fbdev_fini(dev);
 	exynos_drm_device_unregister(dev);
 	drm_vblank_cleanup(dev);
@@ -159,8 +155,7 @@ static int exynos_drm_unload(struct drm_device *dev)
 static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_exynos_file_private *file_priv;
-
-	DRM_DEBUG_DRIVER("%s\n", __FILE__);
+	int ret;
 
 	file_priv = kzalloc(sizeof(*file_priv), GFP_KERNEL);
 	if (!file_priv)
@@ -168,7 +163,13 @@ static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
 
 	file->driver_priv = file_priv;
 
-	return exynos_drm_subdrv_open(dev, file);
+	ret = exynos_drm_subdrv_open(dev, file);
+	if (ret) {
+		kfree(file_priv);
+		file->driver_priv = NULL;
+	}
+
+	return ret;
 }
 
 static void exynos_drm_preclose(struct drm_device *dev,
@@ -177,8 +178,6 @@ static void exynos_drm_preclose(struct drm_device *dev,
 	struct exynos_drm_private *private = dev->dev_private;
 	struct drm_pending_vblank_event *e, *t;
 	unsigned long flags;
-
-	DRM_DEBUG_DRIVER("%s\n", __FILE__);
 
 	/* release events of current file */
 	spin_lock_irqsave(&dev->event_lock, flags);
@@ -196,8 +195,6 @@ static void exynos_drm_preclose(struct drm_device *dev,
 
 static void exynos_drm_postclose(struct drm_device *dev, struct drm_file *file)
 {
-	DRM_DEBUG_DRIVER("%s\n", __FILE__);
-
 	if (!file->driver_priv)
 		return;
 
@@ -207,8 +204,6 @@ static void exynos_drm_postclose(struct drm_device *dev, struct drm_file *file)
 
 static void exynos_drm_lastclose(struct drm_device *dev)
 {
-	DRM_DEBUG_DRIVER("%s\n", __FILE__);
-
 	exynos_drm_fbdev_restore_mode(dev);
 }
 
@@ -292,8 +287,6 @@ static struct drm_driver exynos_drm_driver = {
 
 static int exynos_drm_platform_probe(struct platform_device *pdev)
 {
-	DRM_DEBUG_DRIVER("%s\n", __FILE__);
-
 	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 	exynos_drm_driver.num_ioctls = DRM_ARRAY_SIZE(exynos_ioctls);
 
@@ -302,8 +295,6 @@ static int exynos_drm_platform_probe(struct platform_device *pdev)
 
 static int exynos_drm_platform_remove(struct platform_device *pdev)
 {
-	DRM_DEBUG_DRIVER("%s\n", __FILE__);
-
 	drm_platform_exit(&exynos_drm_driver, pdev);
 
 	return 0;
@@ -321,8 +312,6 @@ static struct platform_driver exynos_drm_platform_driver = {
 static int __init exynos_drm_init(void)
 {
 	int ret;
-
-	DRM_DEBUG_DRIVER("%s\n", __FILE__);
 
 #ifdef CONFIG_DRM_EXYNOS_FIMD
 	ret = platform_driver_register(&fimd_driver);
@@ -455,8 +444,6 @@ out_fimd:
 
 static void __exit exynos_drm_exit(void)
 {
-	DRM_DEBUG_DRIVER("%s\n", __FILE__);
-
 	platform_device_unregister(exynos_drm_pdev);
 
 	platform_driver_unregister(&exynos_drm_platform_driver);

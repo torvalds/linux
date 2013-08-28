@@ -363,14 +363,17 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 	 */
 	switch (name[1]) {
 	case 'L':
+
 		type = ACPI_GPE_LEVEL_TRIGGERED;
 		break;
 
 	case 'E':
+
 		type = ACPI_GPE_EDGE_TRIGGERED;
 		break;
 
 	default:
+
 		/* Unknown method type, just ignore it */
 
 		ACPI_DEBUG_PRINT((ACPI_DB_LOAD,

@@ -21,7 +21,6 @@
 #include "dw_mmc.h"
 
 #define PCI_BAR_NO 2
-#define COMPLETE_BAR 0
 #define SYNOPSYS_DW_MCI_VENDOR_ID 0x700
 #define SYNOPSYS_DW_MCI_DEVICE_ID 0x1107
 /* Defining the Capabilities */
@@ -38,51 +37,37 @@ static struct dw_mci_board pci_board_data = {
 };
 
 static int dw_mci_pci_probe(struct pci_dev *pdev,
-				  const struct pci_device_id *entries)
+			    const struct pci_device_id *entries)
 {
 	struct dw_mci *host;
 	int ret;
 
-	ret = pci_enable_device(pdev);
+	ret = pcim_enable_device(pdev);
 	if (ret)
 		return ret;
-	if (pci_request_regions(pdev, "dw_mmc_pci")) {
-		ret = -ENODEV;
-		goto err_disable_dev;
-	}
 
-	host = kzalloc(sizeof(struct dw_mci), GFP_KERNEL);
-	if (!host) {
-		ret = -ENOMEM;
-		goto err_release;
-	}
+	host = devm_kzalloc(&pdev->dev, sizeof(struct dw_mci), GFP_KERNEL);
+	if (!host)
+		return -ENOMEM;
 
 	host->irq = pdev->irq;
 	host->irq_flags = IRQF_SHARED;
 	host->dev = &pdev->dev;
 	host->pdata = &pci_board_data;
 
-	host->regs = pci_iomap(pdev, PCI_BAR_NO, COMPLETE_BAR);
-	if (!host->regs) {
-		ret = -EIO;
-		goto err_unmap;
-	}
+	ret = pcim_iomap_regions(pdev, 1 << PCI_BAR_NO, pci_name(pdev));
+	if (ret)
+		return ret;
 
-	pci_set_drvdata(pdev, host);
+	host->regs = pcim_iomap_table(pdev)[0];
+
 	ret = dw_mci_probe(host);
 	if (ret)
-		goto err_probe_failed;
-	return ret;
+		return ret;
 
-err_probe_failed:
-	pci_iounmap(pdev, host->regs);
-err_unmap:
-	kfree(host);
-err_release:
-	pci_release_regions(pdev);
-err_disable_dev:
-	pci_disable_device(pdev);
-	return ret;
+	pci_set_drvdata(pdev, host);
+
+	return 0;
 }
 
 static void dw_mci_pci_remove(struct pci_dev *pdev)
@@ -90,32 +75,23 @@ static void dw_mci_pci_remove(struct pci_dev *pdev)
 	struct dw_mci *host = pci_get_drvdata(pdev);
 
 	dw_mci_remove(host);
-	pci_set_drvdata(pdev, NULL);
-	pci_release_regions(pdev);
-	pci_iounmap(pdev, host->regs);
-	kfree(host);
-	pci_disable_device(pdev);
 }
 
 #ifdef CONFIG_PM_SLEEP
 static int dw_mci_pci_suspend(struct device *dev)
 {
-	int ret;
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct dw_mci *host = pci_get_drvdata(pdev);
 
-	ret = dw_mci_suspend(host);
-	return ret;
+	return dw_mci_suspend(host);
 }
 
 static int dw_mci_pci_resume(struct device *dev)
 {
-	int ret;
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct dw_mci *host = pci_get_drvdata(pdev);
 
-	ret = dw_mci_resume(host);
-	return ret;
+	return dw_mci_resume(host);
 }
 #else
 #define dw_mci_pci_suspend	NULL

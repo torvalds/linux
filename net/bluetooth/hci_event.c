@@ -40,20 +40,12 @@ static void hci_cc_inquiry_cancel(struct hci_dev *hdev, struct sk_buff *skb)
 
 	BT_DBG("%s status 0x%2.2x", hdev->name, status);
 
-	if (status) {
-		hci_dev_lock(hdev);
-		mgmt_stop_discovery_failed(hdev, status);
-		hci_dev_unlock(hdev);
+	if (status)
 		return;
-	}
 
 	clear_bit(HCI_INQUIRY, &hdev->flags);
 	smp_mb__after_clear_bit(); /* wake_up_bit advises about this barrier */
 	wake_up_bit(&hdev->flags, HCI_INQUIRY);
-
-	hci_dev_lock(hdev);
-	hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
-	hci_dev_unlock(hdev);
 
 	hci_conn_check_pending(hdev);
 }
@@ -937,20 +929,6 @@ static void hci_cc_le_set_adv_enable(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_dev_unlock(hdev);
 }
 
-static void hci_cc_le_set_scan_param(struct hci_dev *hdev, struct sk_buff *skb)
-{
-	__u8 status = *((__u8 *) skb->data);
-
-	BT_DBG("%s status 0x%2.2x", hdev->name, status);
-
-	if (status) {
-		hci_dev_lock(hdev);
-		mgmt_start_discovery_failed(hdev, status);
-		hci_dev_unlock(hdev);
-		return;
-	}
-}
-
 static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 				      struct sk_buff *skb)
 {
@@ -963,41 +941,16 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 	if (!cp)
 		return;
 
+	if (status)
+		return;
+
 	switch (cp->enable) {
 	case LE_SCAN_ENABLE:
-		if (status) {
-			hci_dev_lock(hdev);
-			mgmt_start_discovery_failed(hdev, status);
-			hci_dev_unlock(hdev);
-			return;
-		}
-
 		set_bit(HCI_LE_SCAN, &hdev->dev_flags);
-
-		hci_dev_lock(hdev);
-		hci_discovery_set_state(hdev, DISCOVERY_FINDING);
-		hci_dev_unlock(hdev);
 		break;
 
 	case LE_SCAN_DISABLE:
-		if (status) {
-			hci_dev_lock(hdev);
-			mgmt_stop_discovery_failed(hdev, status);
-			hci_dev_unlock(hdev);
-			return;
-		}
-
 		clear_bit(HCI_LE_SCAN, &hdev->dev_flags);
-
-		if (hdev->discovery.type == DISCOV_TYPE_INTERLEAVED &&
-		    hdev->discovery.state == DISCOVERY_FINDING) {
-			mgmt_interleaved_discovery(hdev);
-		} else {
-			hci_dev_lock(hdev);
-			hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
-			hci_dev_unlock(hdev);
-		}
-
 		break;
 
 	default:
@@ -1077,18 +1030,10 @@ static void hci_cs_inquiry(struct hci_dev *hdev, __u8 status)
 
 	if (status) {
 		hci_conn_check_pending(hdev);
-		hci_dev_lock(hdev);
-		if (test_bit(HCI_MGMT, &hdev->dev_flags))
-			mgmt_start_discovery_failed(hdev, status);
-		hci_dev_unlock(hdev);
 		return;
 	}
 
 	set_bit(HCI_INQUIRY, &hdev->flags);
-
-	hci_dev_lock(hdev);
-	hci_discovery_set_state(hdev, DISCOVERY_FINDING);
-	hci_dev_unlock(hdev);
 }
 
 static void hci_cs_create_conn(struct hci_dev *hdev, __u8 status)
@@ -2298,10 +2243,6 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		hci_cc_user_passkey_neg_reply(hdev, skb);
 		break;
 
-	case HCI_OP_LE_SET_SCAN_PARAM:
-		hci_cc_le_set_scan_param(hdev, skb);
-		break;
-
 	case HCI_OP_LE_SET_ADV_ENABLE:
 		hci_cc_le_set_adv_enable(hdev, skb);
 		break;
@@ -2670,7 +2611,7 @@ static void hci_link_key_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	BT_DBG("%s", hdev->name);
 
-	if (!test_bit(HCI_LINK_KEYS, &hdev->dev_flags))
+	if (!test_bit(HCI_MGMT, &hdev->dev_flags))
 		return;
 
 	hci_dev_lock(hdev);
@@ -2746,7 +2687,7 @@ static void hci_link_key_notify_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		hci_conn_drop(conn);
 	}
 
-	if (test_bit(HCI_LINK_KEYS, &hdev->dev_flags))
+	if (test_bit(HCI_MGMT, &hdev->dev_flags))
 		hci_add_link_key(hdev, conn, 1, &ev->bdaddr, ev->link_key,
 				 ev->key_type, pin_len);
 

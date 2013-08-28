@@ -28,6 +28,7 @@
 #include <asm/pgtable.h>
 #include <asm/nmi.h>
 #include <asm/switch_to.h>
+#include <asm/facility.h>
 #include <asm/sclp.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
@@ -84,8 +85,14 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ NULL }
 };
 
-static unsigned long long *facilities;
+unsigned long *vfacilities;
 static struct gmap_notifier gmap_notifier;
+
+/* test availability of vfacility */
+static inline int test_vfacility(unsigned long nr)
+{
+	return __test_facility(nr, (void *) vfacilities);
+}
 
 /* Section: not file related */
 int kvm_arch_hardware_enable(void *garbage)
@@ -387,7 +394,7 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	vcpu->arch.sie_block->ecb   = 6;
 	vcpu->arch.sie_block->ecb2  = 8;
 	vcpu->arch.sie_block->eca   = 0xC1002001U;
-	vcpu->arch.sie_block->fac   = (int) (long) facilities;
+	vcpu->arch.sie_block->fac   = (int) (long) vfacilities;
 	hrtimer_init(&vcpu->arch.ckc_timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
 	tasklet_init(&vcpu->arch.tasklet, kvm_s390_tasklet,
 		     (unsigned long) vcpu);
@@ -1056,6 +1063,10 @@ int kvm_arch_create_memslot(struct kvm_memory_slot *slot, unsigned long npages)
 	return 0;
 }
 
+void kvm_arch_memslots_updated(struct kvm *kvm)
+{
+}
+
 /* Section: memory related */
 int kvm_arch_prepare_memory_region(struct kvm *kvm,
 				   struct kvm_memory_slot *memslot,
@@ -1122,20 +1133,20 @@ static int __init kvm_s390_init(void)
 	 * to hold the maximum amount of facilities. On the other hand, we
 	 * only set facilities that are known to work in KVM.
 	 */
-	facilities = (unsigned long long *) get_zeroed_page(GFP_KERNEL|GFP_DMA);
-	if (!facilities) {
+	vfacilities = (unsigned long *) get_zeroed_page(GFP_KERNEL|GFP_DMA);
+	if (!vfacilities) {
 		kvm_exit();
 		return -ENOMEM;
 	}
-	memcpy(facilities, S390_lowcore.stfle_fac_list, 16);
-	facilities[0] &= 0xff82fff3f47c0000ULL;
-	facilities[1] &= 0x001c000000000000ULL;
+	memcpy(vfacilities, S390_lowcore.stfle_fac_list, 16);
+	vfacilities[0] &= 0xff82fff3f47c0000UL;
+	vfacilities[1] &= 0x001c000000000000UL;
 	return 0;
 }
 
 static void __exit kvm_s390_exit(void)
 {
-	free_page((unsigned long) facilities);
+	free_page((unsigned long) vfacilities);
 	kvm_exit();
 }
 

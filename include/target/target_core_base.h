@@ -218,14 +218,11 @@ enum tcm_tmreq_table {
 
 /* fabric independent task management response values */
 enum tcm_tmrsp_table {
-	TMR_FUNCTION_COMPLETE		= 0,
-	TMR_TASK_DOES_NOT_EXIST		= 1,
-	TMR_LUN_DOES_NOT_EXIST		= 2,
-	TMR_TASK_STILL_ALLEGIANT	= 3,
-	TMR_TASK_FAILOVER_NOT_SUPPORTED	= 4,
-	TMR_TASK_MGMT_FUNCTION_NOT_SUPPORTED	= 5,
-	TMR_FUNCTION_AUTHORIZATION_FAILED = 6,
-	TMR_FUNCTION_REJECTED		= 255,
+	TMR_FUNCTION_COMPLETE		= 1,
+	TMR_TASK_DOES_NOT_EXIST		= 2,
+	TMR_LUN_DOES_NOT_EXIST		= 3,
+	TMR_TASK_MGMT_FUNCTION_NOT_SUPPORTED	= 4,
+	TMR_FUNCTION_REJECTED		= 5,
 };
 
 /*
@@ -339,8 +336,6 @@ struct t10_pr_registration {
 	/* Used during APTPL metadata reading */
 #define PR_APTPL_MAX_TPORT_LEN			256
 	unsigned char pr_tport[PR_APTPL_MAX_TPORT_LEN];
-	/* For writing out live meta data */
-	unsigned char *pr_aptpl_buf;
 	u16 pr_aptpl_rpti;
 	u16 pr_reg_tpgt;
 	/* Reservation effects all target ports */
@@ -374,9 +369,7 @@ struct t10_reservation {
 	/* Activate Persistence across Target Power Loss enabled
 	 * for SCSI device */
 	int pr_aptpl_active;
-	/* Used by struct t10_reservation->pr_aptpl_buf_len */
 #define PR_APTPL_BUF_LEN			8192
-	u32 pr_aptpl_buf_len;
 	u32 pr_generation;
 	spinlock_t registration_lock;
 	spinlock_t aptpl_reg_lock;
@@ -424,8 +417,6 @@ struct se_cmd {
 	int			sam_task_attr;
 	/* Transport protocol dependent state, see transport_state_table */
 	enum transport_state_table t_state;
-	/* Used to signal cmd->se_tfo->check_release_cmd() usage per cmd */
-	unsigned		check_release:1;
 	unsigned		cmd_wait_set:1;
 	unsigned		unknown_data_length:1;
 	/* See se_cmd_flags_table */
@@ -458,7 +449,6 @@ struct se_cmd {
 	unsigned char		*t_task_cdb;
 	unsigned char		__t_task_cdb[TCM_MAX_COMMAND_SIZE];
 	unsigned long long	t_task_lba;
-	atomic_t		t_fe_count;
 	unsigned int		transport_state;
 #define CMD_T_ABORTED		(1 << 0)
 #define CMD_T_ACTIVE		(1 << 1)
@@ -802,11 +792,12 @@ struct se_portal_group {
 	struct target_core_fabric_ops *se_tpg_tfo;
 	struct se_wwn		*se_tpg_wwn;
 	struct config_group	tpg_group;
-	struct config_group	*tpg_default_groups[6];
+	struct config_group	*tpg_default_groups[7];
 	struct config_group	tpg_lun_group;
 	struct config_group	tpg_np_group;
 	struct config_group	tpg_acl_group;
 	struct config_group	tpg_attrib_group;
+	struct config_group	tpg_auth_group;
 	struct config_group	tpg_param_group;
 };
 

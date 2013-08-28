@@ -407,7 +407,7 @@ static void ace_dump_regs(struct ace_device *ace)
 		 ace_in32(ace, ACE_CFGLBA), ace_in(ace, ACE_FATSTAT));
 }
 
-void ace_fix_driveid(u16 *id)
+static void ace_fix_driveid(u16 *id)
 {
 #if defined(__BIG_ENDIAN)
 	int i;
@@ -463,7 +463,7 @@ static inline void ace_fsm_yieldirq(struct ace_device *ace)
 }
 
 /* Get the next read/write request; ending requests that we don't handle */
-struct request *ace_get_next_request(struct request_queue * q)
+static struct request *ace_get_next_request(struct request_queue *q)
 {
 	struct request *req;
 

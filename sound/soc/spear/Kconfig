@@ -1,0 +1,9 @@
+config SND_SPEAR_SOC
+	tristate
+	select SND_SOC_DMAENGINE_PCM
+
+config SND_SPEAR_SPDIF_OUT
+	tristate
+
+config SND_SPEAR_SPDIF_IN
+	tristate

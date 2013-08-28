@@ -9,6 +9,8 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/reboot.h>
+
 struct irq_data;
 
 extern void pxa_timer_init(void);
@@ -56,4 +58,4 @@ void __init pxa_set_btuart_info(void *info);
 void __init pxa_set_stuart_info(void *info);
 void __init pxa_set_hwuart_info(void *info);
 
-void pxa_restart(char, const char *);
+void pxa_restart(enum reboot_mode, const char *);

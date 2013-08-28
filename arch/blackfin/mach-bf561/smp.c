@@ -69,7 +69,6 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 	SSYNC();
 
 	/* We are done with local CPU inits, unblock the boot CPU. */
-	set_cpu_online(cpu, true);
 	spin_lock(&boot_lock);
 	spin_unlock(&boot_lock);
 }
@@ -91,7 +90,9 @@ int __cpuinit platform_boot_secondary(unsigned int cpu, struct task_struct *idle
 		SSYNC();
 	}
 
-	timeout = jiffies + 1 * HZ;
+	timeout = jiffies + HZ;
+	/* release the lock and let coreb run */
+	spin_unlock(&boot_lock);
 	while (time_before(jiffies, timeout)) {
 		if (cpu_online(cpu))
 			break;
@@ -100,8 +101,6 @@ int __cpuinit platform_boot_secondary(unsigned int cpu, struct task_struct *idle
 	}
 
 	if (cpu_online(cpu)) {
-		/* release the lock and let coreb run */
-		spin_unlock(&boot_lock);
 		return 0;
 	} else
 		panic("CPU%u: processor failed to boot\n", cpu);

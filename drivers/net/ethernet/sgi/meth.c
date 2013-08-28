@@ -863,7 +863,6 @@ static int __exit meth_remove(struct platform_device *pdev)
 
 	unregister_netdev(dev);
 	free_netdev(dev);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

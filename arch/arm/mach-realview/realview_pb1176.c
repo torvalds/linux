@@ -31,6 +31,7 @@
 #include <linux/io.h>
 #include <linux/irqchip/arm-gic.h>
 #include <linux/platform_data/clk-realview.h>
+#include <linux/reboot.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
@@ -329,7 +330,7 @@ static void __init realview_pb1176_timer_init(void)
 	realview_timer_init(IRQ_DC1176_TIMER0);
 }
 
-static void realview_pb1176_restart(char mode, const char *cmd)
+static void realview_pb1176_restart(enum reboot_mode mode, const char *cmd)
 {
 	void __iomem *reset_ctrl = __io_address(REALVIEW_SYS_RESETCTL);
 	void __iomem *lock_ctrl = __io_address(REALVIEW_SYS_LOCK);

@@ -149,9 +149,10 @@ struct pnfs_device {
 	struct nfs4_deviceid dev_id;
 	unsigned int  layout_type;
 	unsigned int  mincount;
+	unsigned int  maxcount;	/* gdia_maxcount */
 	struct page **pages;
 	unsigned int  pgbase;
-	unsigned int  pglen;
+	unsigned int  pglen;	/* reply buffer length */
 };
 
 #define NFS4_PNFS_GETDEVLIST_MAXNUM 16
@@ -170,7 +171,8 @@ extern int nfs4_proc_getdevicelist(struct nfs_server *server,
 				   const struct nfs_fh *fh,
 				   struct pnfs_devicelist *devlist);
 extern int nfs4_proc_getdeviceinfo(struct nfs_server *server,
-				   struct pnfs_device *dev);
+				   struct pnfs_device *dev,
+				   struct rpc_cred *cred);
 extern struct pnfs_layout_segment* nfs4_proc_layoutget(struct nfs4_layoutget *lgp, gfp_t gfp_flags);
 extern int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp);
 

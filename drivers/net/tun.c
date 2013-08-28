@@ -841,7 +841,7 @@ static const struct net_device_ops tap_netdev_ops = {
 #endif
 };
 
-static int tun_flow_init(struct tun_struct *tun)
+static void tun_flow_init(struct tun_struct *tun)
 {
 	int i;
 
@@ -852,8 +852,6 @@ static int tun_flow_init(struct tun_struct *tun)
 	setup_timer(&tun->flow_gc_timer, tun_flow_cleanup, (unsigned long)tun);
 	mod_timer(&tun->flow_gc_timer,
 		  round_jiffies_up(jiffies + tun->ageing_time));
-
-	return 0;
 }
 
 static void tun_flow_uninit(struct tun_struct *tun)
@@ -1044,7 +1042,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 {
 	struct tun_pi pi = { 0, cpu_to_be16(ETH_P_IP) };
 	struct sk_buff *skb;
-	size_t len = total_len, align = NET_SKB_PAD;
+	size_t len = total_len, align = NET_SKB_PAD, linear;
 	struct virtio_net_hdr gso = { 0 };
 	int offset = 0;
 	int copylen;
@@ -1108,10 +1106,13 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 			copylen = gso.hdr_len;
 		if (!copylen)
 			copylen = GOODCOPY_LEN;
-	} else
+		linear = copylen;
+	} else {
 		copylen = len;
+		linear = gso.hdr_len;
+	}
 
-	skb = tun_alloc_skb(tfile, align, copylen, gso.hdr_len, noblock);
+	skb = tun_alloc_skb(tfile, align, copylen, linear, noblock);
 	if (IS_ERR(skb)) {
 		if (PTR_ERR(skb) != -EAGAIN)
 			tun->dev->stats.rx_dropped++;
@@ -1532,6 +1533,9 @@ static int tun_flags(struct tun_struct *tun)
 	if (tun->flags & TUN_TAP_MQ)
 		flags |= IFF_MULTI_QUEUE;
 
+	if (tun->flags & TUN_PERSIST)
+		flags |= IFF_PERSIST;
+
 	return flags;
 }
 
@@ -1661,10 +1665,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 			goto err_free_dev;
 
 		tun_net_init(dev);
-
-		err = tun_flow_init(tun);
-		if (err < 0)
-			goto err_free_dev;
+		tun_flow_init(tun);
 
 		dev->hw_features = NETIF_F_SG | NETIF_F_FRAGLIST |
 			TUN_USER_FEATURES;

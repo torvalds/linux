@@ -2303,28 +2303,17 @@ int perf_session__write_header(struct perf_session *session,
 	struct perf_file_header f_header;
 	struct perf_file_attr   f_attr;
 	struct perf_header *header = &session->header;
-	struct perf_evsel *evsel, *pair = NULL;
+	struct perf_evsel *evsel;
 	int err;
 
 	lseek(fd, sizeof(f_header), SEEK_SET);
-
-	if (session->evlist != evlist)
-		pair = perf_evlist__first(session->evlist);
 
 	list_for_each_entry(evsel, &evlist->entries, node) {
 		evsel->id_offset = lseek(fd, 0, SEEK_CUR);
 		err = do_write(fd, evsel->id, evsel->ids * sizeof(u64));
 		if (err < 0) {
-out_err_write:
 			pr_debug("failed to write perf header\n");
 			return err;
-		}
-		if (session->evlist != evlist) {
-			err = do_write(fd, pair->id, pair->ids * sizeof(u64));
-			if (err < 0)
-				goto out_err_write;
-			evsel->ids += pair->ids;
-			pair = perf_evsel__next(pair);
 		}
 	}
 
@@ -2966,6 +2955,8 @@ int perf_event__process_attr(union perf_event *event,
 	for (i = 0; i < n_ids; i++) {
 		perf_evlist__id_add(evlist, evsel, 0, i, event->attr.id[i]);
 	}
+
+	symbol_conf.nr_events = evlist->nr_entries;
 
 	return 0;
 }

@@ -79,16 +79,6 @@ static inline void apic_set_reg(struct kvm_lapic *apic, int reg_off, u32 val)
 	*((u32 *) (apic->regs + reg_off)) = val;
 }
 
-static inline int apic_test_and_set_vector(int vec, void *bitmap)
-{
-	return test_and_set_bit(VEC_POS(vec), (bitmap) + REG_POS(vec));
-}
-
-static inline int apic_test_and_clear_vector(int vec, void *bitmap)
-{
-	return test_and_clear_bit(VEC_POS(vec), (bitmap) + REG_POS(vec));
-}
-
 static inline int apic_test_vector(int vec, void *bitmap)
 {
 	return test_bit(VEC_POS(vec), (bitmap) + REG_POS(vec));
@@ -331,10 +321,10 @@ void kvm_apic_update_irr(struct kvm_vcpu *vcpu, u32 *pir)
 }
 EXPORT_SYMBOL_GPL(kvm_apic_update_irr);
 
-static inline int apic_test_and_set_irr(int vec, struct kvm_lapic *apic)
+static inline void apic_set_irr(int vec, struct kvm_lapic *apic)
 {
 	apic->irr_pending = true;
-	return apic_test_and_set_vector(vec, apic->regs + APIC_IRR);
+	apic_set_vector(vec, apic->regs + APIC_IRR);
 }
 
 static inline int apic_search_irr(struct kvm_lapic *apic)
@@ -681,28 +671,21 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 		if (unlikely(!apic_enabled(apic)))
 			break;
 
+		result = 1;
+
 		if (dest_map)
 			__set_bit(vcpu->vcpu_id, dest_map);
 
-		if (kvm_x86_ops->deliver_posted_interrupt) {
-			result = 1;
+		if (kvm_x86_ops->deliver_posted_interrupt)
 			kvm_x86_ops->deliver_posted_interrupt(vcpu, vector);
-		} else {
-			result = !apic_test_and_set_irr(vector, apic);
-
-			if (!result) {
-				if (trig_mode)
-					apic_debug("level trig mode repeatedly "
-						"for vector %d", vector);
-				goto out;
-			}
+		else {
+			apic_set_irr(vector, apic);
 
 			kvm_make_request(KVM_REQ_EVENT, vcpu);
 			kvm_vcpu_kick(vcpu);
 		}
-out:
 		trace_kvm_apic_accept_irq(vcpu->vcpu_id, delivery_mode,
-				trig_mode, vector, !result);
+					  trig_mode, vector, false);
 		break;
 
 	case APIC_DM_REMRD:

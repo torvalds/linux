@@ -232,10 +232,11 @@ enum {
 /* Interrupt disable masks */
 enum {
 	/* Interrupt disable mask for UFSHCI v1.0 */
-	INTERRUPT_DISABLE_MASK_10	= 0xFFFF,
+	INTERRUPT_MASK_ALL_VER_10	= 0x30FFF,
+	INTERRUPT_MASK_RW_VER_10	= 0x30000,
 
 	/* Interrupt disable mask for UFSHCI v1.1 */
-	INTERRUPT_DISABLE_MASK_11	= 0x0,
+	INTERRUPT_MASK_ALL_VER_11	= 0x31FFF,
 };
 
 /*

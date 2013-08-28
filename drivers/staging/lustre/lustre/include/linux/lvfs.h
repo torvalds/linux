@@ -99,7 +99,7 @@ static inline void l_dput(struct dentry *de)
 	if (!de || IS_ERR(de))
 		return;
 	//shrink_dcache_parent(de);
-	LASSERT(d_refcount(de) > 0);
+	LASSERT(d_count(de) > 0);
 	dput(de);
 }
 

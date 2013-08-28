@@ -26,6 +26,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/ttm/ttm_execbuf_util.h>
 
 #include "nouveau_fbcon.h"
 #include "dispnv04/hw.h"
@@ -332,10 +333,15 @@ nouveau_display_create(struct drm_device *dev)
 
 	if (nouveau_modeset == 1 ||
 	    (nouveau_modeset < 0 && pclass == PCI_CLASS_DISPLAY_VGA)) {
-		if (nv_device(drm->device)->card_type < NV_50)
-			ret = nv04_display_create(dev);
-		else
-			ret = nv50_display_create(dev);
+		if (drm->vbios.dcb.entries) {
+			if (nv_device(drm->device)->card_type < NV_50)
+				ret = nv04_display_create(dev);
+			else
+				ret = nv50_display_create(dev);
+		} else {
+			ret = 0;
+		}
+
 		if (ret)
 			goto disp_create_err;
 
@@ -457,51 +463,6 @@ nouveau_display_resume(struct drm_device *dev)
 }
 
 static int
-nouveau_page_flip_reserve(struct nouveau_bo *old_bo,
-			  struct nouveau_bo *new_bo)
-{
-	int ret;
-
-	ret = nouveau_bo_pin(new_bo, TTM_PL_FLAG_VRAM);
-	if (ret)
-		return ret;
-
-	ret = ttm_bo_reserve(&new_bo->bo, false, false, false, 0);
-	if (ret)
-		goto fail;
-
-	if (likely(old_bo != new_bo)) {
-		ret = ttm_bo_reserve(&old_bo->bo, false, false, false, 0);
-		if (ret)
-			goto fail_unreserve;
-	}
-
-	return 0;
-
-fail_unreserve:
-	ttm_bo_unreserve(&new_bo->bo);
-fail:
-	nouveau_bo_unpin(new_bo);
-	return ret;
-}
-
-static void
-nouveau_page_flip_unreserve(struct nouveau_bo *old_bo,
-			    struct nouveau_bo *new_bo,
-			    struct nouveau_fence *fence)
-{
-	nouveau_bo_fence(new_bo, fence);
-	ttm_bo_unreserve(&new_bo->bo);
-
-	if (likely(old_bo != new_bo)) {
-		nouveau_bo_fence(old_bo, fence);
-		ttm_bo_unreserve(&old_bo->bo);
-	}
-
-	nouveau_bo_unpin(old_bo);
-}
-
-static int
 nouveau_page_flip_emit(struct nouveau_channel *chan,
 		       struct nouveau_bo *old_bo,
 		       struct nouveau_bo *new_bo,
@@ -563,6 +524,9 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	struct nouveau_page_flip_state *s;
 	struct nouveau_channel *chan = NULL;
 	struct nouveau_fence *fence;
+	struct list_head res;
+	struct ttm_validate_buffer res_val[2];
+	struct ww_acquire_ctx ticket;
 	int ret;
 
 	if (!drm->channel)
@@ -572,24 +536,42 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	if (!s)
 		return -ENOMEM;
 
-	/* Don't let the buffers go away while we flip */
-	ret = nouveau_page_flip_reserve(old_bo, new_bo);
-	if (ret)
+	/* Choose the channel the flip will be handled in */
+	spin_lock(&old_bo->bo.bdev->fence_lock);
+	fence = new_bo->bo.sync_obj;
+	if (fence)
+		chan = fence->channel;
+	if (!chan)
+		chan = drm->channel;
+	spin_unlock(&old_bo->bo.bdev->fence_lock);
+
+	mutex_lock(&chan->cli->mutex);
+
+	if (new_bo != old_bo) {
+		ret = nouveau_bo_pin(new_bo, TTM_PL_FLAG_VRAM);
+		if (likely(!ret)) {
+			res_val[0].bo = &old_bo->bo;
+			res_val[1].bo = &new_bo->bo;
+			INIT_LIST_HEAD(&res);
+			list_add_tail(&res_val[0].head, &res);
+			list_add_tail(&res_val[1].head, &res);
+			ret = ttm_eu_reserve_buffers(&ticket, &res);
+			if (ret)
+				nouveau_bo_unpin(new_bo);
+		}
+	} else
+		ret = ttm_bo_reserve(&new_bo->bo, false, false, false, 0);
+
+	if (ret) {
+		mutex_unlock(&chan->cli->mutex);
 		goto fail_free;
+	}
 
 	/* Initialize a page flip struct */
 	*s = (struct nouveau_page_flip_state)
 		{ { }, event, nouveau_crtc(crtc)->index,
 		  fb->bits_per_pixel, fb->pitches[0], crtc->x, crtc->y,
 		  new_bo->bo.offset };
-
-	/* Choose the channel the flip will be handled in */
-	fence = new_bo->bo.sync_obj;
-	if (fence)
-		chan = fence->channel;
-	if (!chan)
-		chan = drm->channel;
-	mutex_lock(&chan->cli->mutex);
 
 	/* Emit a page flip */
 	if (nv_device(drm->device)->card_type >= NV_50) {
@@ -608,12 +590,22 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	/* Update the crtc struct and cleanup */
 	crtc->fb = fb;
 
-	nouveau_page_flip_unreserve(old_bo, new_bo, fence);
+	if (old_bo != new_bo) {
+		ttm_eu_fence_buffer_objects(&ticket, &res, fence);
+		nouveau_bo_unpin(old_bo);
+	} else {
+		nouveau_bo_fence(new_bo, fence);
+		ttm_bo_unreserve(&new_bo->bo);
+	}
 	nouveau_fence_unref(&fence);
 	return 0;
 
 fail_unreserve:
-	nouveau_page_flip_unreserve(old_bo, new_bo, NULL);
+	if (old_bo != new_bo) {
+		ttm_eu_backoff_reservation(&ticket, &res);
+		nouveau_bo_unpin(new_bo);
+	} else
+		ttm_bo_unreserve(&new_bo->bo);
 fail_free:
 	kfree(s);
 	return ret;

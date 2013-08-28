@@ -104,6 +104,12 @@
 #include <linux/route.h>
 #include <linux/sockios.h>
 #include <linux/atalk.h>
+#include <net/busy_poll.h>
+
+#ifdef CONFIG_NET_LL_RX_POLL
+unsigned int sysctl_net_busy_read __read_mostly;
+unsigned int sysctl_net_busy_poll __read_mostly;
+#endif
 
 static int sock_no_open(struct inode *irrelevant, struct file *dontcare);
 static ssize_t sock_aio_read(struct kiocb *iocb, const struct iovec *iov,
@@ -1142,13 +1148,24 @@ EXPORT_SYMBOL(sock_create_lite);
 /* No kernel lock held - perfect */
 static unsigned int sock_poll(struct file *file, poll_table *wait)
 {
+	unsigned int busy_flag = 0;
 	struct socket *sock;
 
 	/*
 	 *      We can't return errors to poll, so it's either yes or no.
 	 */
 	sock = file->private_data;
-	return sock->ops->poll(file, sock, wait);
+
+	if (sk_can_busy_loop(sock->sk)) {
+		/* this socket can poll_ll so tell the system call */
+		busy_flag = POLL_BUSY_LOOP;
+
+		/* once, only if requested by syscall */
+		if (wait && (wait->_key & POLL_BUSY_LOOP))
+			sk_busy_loop(sock->sk, 1);
+	}
+
+	return busy_flag | sock->ops->poll(file, sock, wait);
 }
 
 static int sock_mmap(struct file *file, struct vm_area_struct *vma)
@@ -2635,7 +2652,9 @@ static int __init sock_init(void)
 	 */
 
 #ifdef CONFIG_NETFILTER
-	netfilter_init();
+	err = netfilter_init();
+	if (err)
+		goto out;
 #endif
 
 #ifdef CONFIG_NETWORK_PHY_TIMESTAMPING

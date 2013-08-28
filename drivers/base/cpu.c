@@ -13,16 +13,20 @@
 #include <linux/gfp.h>
 #include <linux/slab.h>
 #include <linux/percpu.h>
+#include <linux/acpi.h>
 
 #include "base.h"
 
-struct bus_type cpu_subsys = {
-	.name = "cpu",
-	.dev_name = "cpu",
-};
-EXPORT_SYMBOL_GPL(cpu_subsys);
-
 static DEFINE_PER_CPU(struct device *, cpu_sys_devices);
+
+static int cpu_subsys_match(struct device *dev, struct device_driver *drv)
+{
+	/* ACPI style match is the only one that may succeed. */
+	if (acpi_driver_match_device(dev, drv))
+		return 1;
+
+	return 0;
+}
 
 #ifdef CONFIG_HOTPLUG_CPU
 static void change_cpu_under_node(struct cpu *cpu,
@@ -34,65 +38,38 @@ static void change_cpu_under_node(struct cpu *cpu,
 	cpu->node_id = to_nid;
 }
 
-static ssize_t show_online(struct device *dev,
-			   struct device_attribute *attr,
-			   char *buf)
+static int __ref cpu_subsys_online(struct device *dev)
 {
 	struct cpu *cpu = container_of(dev, struct cpu, dev);
-
-	return sprintf(buf, "%u\n", !!cpu_online(cpu->dev.id));
-}
-
-static ssize_t __ref store_online(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf, size_t count)
-{
-	struct cpu *cpu = container_of(dev, struct cpu, dev);
-	int cpuid = cpu->dev.id;
+	int cpuid = dev->id;
 	int from_nid, to_nid;
-	ssize_t ret;
+	int ret;
 
 	cpu_hotplug_driver_lock();
-	switch (buf[0]) {
-	case '0':
-		ret = cpu_down(cpuid);
-		if (!ret)
-			kobject_uevent(&dev->kobj, KOBJ_OFFLINE);
-		break;
-	case '1':
-		from_nid = cpu_to_node(cpuid);
-		ret = cpu_up(cpuid);
 
-		/*
-		 * When hot adding memory to memoryless node and enabling a cpu
-		 * on the node, node number of the cpu may internally change.
-		 */
-		to_nid = cpu_to_node(cpuid);
-		if (from_nid != to_nid)
-			change_cpu_under_node(cpu, from_nid, to_nid);
+	from_nid = cpu_to_node(cpuid);
+	ret = cpu_up(cpuid);
+	/*
+	 * When hot adding memory to memoryless node and enabling a cpu
+	 * on the node, node number of the cpu may internally change.
+	 */
+	to_nid = cpu_to_node(cpuid);
+	if (from_nid != to_nid)
+		change_cpu_under_node(cpu, from_nid, to_nid);
 
-		if (!ret)
-			kobject_uevent(&dev->kobj, KOBJ_ONLINE);
-		break;
-	default:
-		ret = -EINVAL;
-	}
 	cpu_hotplug_driver_unlock();
-
-	if (ret >= 0)
-		ret = count;
 	return ret;
 }
-static DEVICE_ATTR(online, 0644, show_online, store_online);
 
-static struct attribute *hotplug_cpu_attrs[] = {
-	&dev_attr_online.attr,
-	NULL
-};
+static int cpu_subsys_offline(struct device *dev)
+{
+	int ret;
 
-static struct attribute_group hotplug_cpu_attr_group = {
-	.attrs = hotplug_cpu_attrs,
-};
+	cpu_hotplug_driver_lock();
+	ret = cpu_down(dev->id);
+	cpu_hotplug_driver_unlock();
+	return ret;
+}
 
 void unregister_cpu(struct cpu *cpu)
 {
@@ -126,6 +103,17 @@ static DEVICE_ATTR(probe, S_IWUSR, NULL, cpu_probe_store);
 static DEVICE_ATTR(release, S_IWUSR, NULL, cpu_release_store);
 #endif /* CONFIG_ARCH_CPU_PROBE_RELEASE */
 #endif /* CONFIG_HOTPLUG_CPU */
+
+struct bus_type cpu_subsys = {
+	.name = "cpu",
+	.dev_name = "cpu",
+	.match = cpu_subsys_match,
+#ifdef CONFIG_HOTPLUG_CPU
+	.online = cpu_subsys_online,
+	.offline = cpu_subsys_offline,
+#endif
+};
+EXPORT_SYMBOL_GPL(cpu_subsys);
 
 #ifdef CONFIG_KEXEC
 #include <linux/kexec.h>
@@ -184,9 +172,6 @@ static const struct attribute_group *common_cpu_attr_groups[] = {
 static const struct attribute_group *hotplugable_cpu_attr_groups[] = {
 #ifdef CONFIG_KEXEC
 	&crash_note_cpu_attr_group,
-#endif
-#ifdef CONFIG_HOTPLUG_CPU
-	&hotplug_cpu_attr_group,
 #endif
 	NULL
 };
@@ -302,6 +287,8 @@ int __cpuinit register_cpu(struct cpu *cpu, int num)
 	cpu->dev.id = num;
 	cpu->dev.bus = &cpu_subsys;
 	cpu->dev.release = cpu_device_release;
+	cpu->dev.offline_disabled = !cpu->hotpluggable;
+	cpu->dev.offline = !cpu_online(num);
 #ifdef CONFIG_ARCH_HAS_CPU_AUTOPROBE
 	cpu->dev.bus->uevent = arch_cpu_uevent;
 #endif

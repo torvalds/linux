@@ -1407,7 +1407,6 @@ static int __exit davinci_mmcsd_remove(struct platform_device *pdev)
 {
 	struct mmc_davinci_host *host = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
 	if (host) {
 		mmc_davinci_cpufreq_deregister(host);
 

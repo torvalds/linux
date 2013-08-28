@@ -54,6 +54,13 @@ static const struct intel_dvo_device intel_dvo_devices[] = {
 		.dev_ops = &ch7xxx_ops,
 	},
 	{
+		.type = INTEL_DVO_CHIP_TMDS,
+		.name = "ch7xxx",
+		.dvo_reg = DVOC,
+		.slave_addr = 0x75, /* For some ch7010 */
+		.dev_ops = &ch7xxx_ops,
+	},
+	{
 		.type = INTEL_DVO_CHIP_LVDS,
 		.name = "ivch",
 		.dvo_reg = DVOA,
@@ -129,6 +136,26 @@ static bool intel_dvo_get_hw_state(struct intel_encoder *encoder,
 	return true;
 }
 
+static void intel_dvo_get_config(struct intel_encoder *encoder,
+				 struct intel_crtc_config *pipe_config)
+{
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct intel_dvo *intel_dvo = enc_to_intel_dvo(&encoder->base);
+	u32 tmp, flags = 0;
+
+	tmp = I915_READ(intel_dvo->dev.dvo_reg);
+	if (tmp & DVO_HSYNC_ACTIVE_HIGH)
+		flags |= DRM_MODE_FLAG_PHSYNC;
+	else
+		flags |= DRM_MODE_FLAG_NHSYNC;
+	if (tmp & DVO_VSYNC_ACTIVE_HIGH)
+		flags |= DRM_MODE_FLAG_PVSYNC;
+	else
+		flags |= DRM_MODE_FLAG_NVSYNC;
+
+	pipe_config->adjusted_mode.flags |= flags;
+}
+
 static void intel_disable_dvo(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
@@ -153,6 +180,7 @@ static void intel_enable_dvo(struct intel_encoder *encoder)
 	intel_dvo->dev.dev_ops->dpms(&intel_dvo->dev, true);
 }
 
+/* Special dpms function to support cloning between dvo/sdvo/crt. */
 static void intel_dvo_dpms(struct drm_connector *connector, int mode)
 {
 	struct intel_dvo *intel_dvo = intel_attached_dvo(connector);
@@ -174,6 +202,8 @@ static void intel_dvo_dpms(struct drm_connector *connector, int mode)
 		return;
 	}
 
+	/* We call connector dpms manually below in case pipe dpms doesn't
+	 * change due to cloning. */
 	if (mode == DRM_MODE_DPMS_ON) {
 		intel_dvo->base.connectors_active = true;
 
@@ -440,6 +470,7 @@ void intel_dvo_init(struct drm_device *dev)
 	intel_encoder->disable = intel_disable_dvo;
 	intel_encoder->enable = intel_enable_dvo;
 	intel_encoder->get_hw_state = intel_dvo_get_hw_state;
+	intel_encoder->get_config = intel_dvo_get_config;
 	intel_connector->get_hw_state = intel_dvo_connector_get_hw_state;
 
 	/* Now, try to find a controller */

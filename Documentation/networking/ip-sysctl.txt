@@ -183,7 +183,7 @@ tcp_early_retrans - INTEGER
 	for triggering fast retransmit when the amount of outstanding data is
 	small and when no previously unsent data can be transmitted (such
 	that limited transmit could be used). Also controls the use of
-	Tail loss probe (TLP) that converts RTOs occuring due to tail
+	Tail loss probe (TLP) that converts RTOs occurring due to tail
 	losses into fast recovery (draft-dukkipati-tcpm-tcp-loss-probe-01).
 	Possible values:
 		0 disables ER
@@ -685,6 +685,15 @@ ip_dynaddr - BOOLEAN
 	occurs.
 	Default: 0
 
+ip_early_demux - BOOLEAN
+	Optimize input packet processing down to one demux for
+	certain kinds of local sockets.  Currently we only do this
+	for established TCP sockets.
+
+	It may add an additional cost for pure routing workloads that
+	reduces overall throughput, in such case you should disable it.
+	Default: 1
+
 icmp_echo_ignore_all - BOOLEAN
 	If set non-zero, then the kernel will ignore all ICMP ECHO
 	requests sent to it.
@@ -729,7 +738,7 @@ icmp_ignore_bogus_error_responses - BOOLEAN
 	frames.  Such violations are normally logged via a kernel warning.
 	If this is set to TRUE, the kernel will not give such warnings, which
 	will avoid log file clutter.
-	Default: FALSE
+	Default: 1
 
 icmp_errors_use_inbound_ifaddr - BOOLEAN
 

@@ -141,7 +141,6 @@ static const struct dev_pm_ops usb_port_pm_ops = {
 #ifdef CONFIG_PM_RUNTIME
 	.runtime_suspend =	usb_port_runtime_suspend,
 	.runtime_resume =	usb_port_runtime_resume,
-	.runtime_idle =		pm_generic_runtime_idle,
 #endif
 };
 

@@ -78,6 +78,7 @@
 
 /* Hardware specific file defines the PCI IDs table for that hardware module */
 static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
+#if IS_ENABLED(CONFIG_IWLDVM)
 	{IWL_PCI_DEVICE(0x4232, 0x1201, iwl5100_agn_cfg)}, /* Mini Card */
 	{IWL_PCI_DEVICE(0x4232, 0x1301, iwl5100_agn_cfg)}, /* Half Mini Card */
 	{IWL_PCI_DEVICE(0x4232, 0x1204, iwl5100_agn_cfg)}, /* Mini Card */
@@ -253,13 +254,60 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 	{IWL_PCI_DEVICE(0x0892, 0x0062, iwl135_bgn_cfg)},
 	{IWL_PCI_DEVICE(0x0893, 0x0262, iwl135_bgn_cfg)},
 	{IWL_PCI_DEVICE(0x0892, 0x0462, iwl135_bgn_cfg)},
+#endif /* CONFIG_IWLDVM */
 
+#if IS_ENABLED(CONFIG_IWLMVM)
 /* 7000 Series */
 	{IWL_PCI_DEVICE(0x08B1, 0x4070, iwl7260_2ac_cfg)},
-	{IWL_PCI_DEVICE(0x08B1, 0x4062, iwl7260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4170, iwl7260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4060, iwl7260_2n_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4160, iwl7260_2n_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4062, iwl7260_n_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4162, iwl7260_n_cfg)},
+	{IWL_PCI_DEVICE(0x08B2, 0x4270, iwl7260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B2, 0x4260, iwl7260_2n_cfg)},
+	{IWL_PCI_DEVICE(0x08B2, 0x4262, iwl7260_n_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4470, iwl7260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4460, iwl7260_2n_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4462, iwl7260_n_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4870, iwl7260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x486E, iwl7260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4A70, iwl7260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4A6E, iwl7260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4A6C, iwl7260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4020, iwl7260_2n_cfg)},
+	{IWL_PCI_DEVICE(0x08B2, 0x4220, iwl7260_2n_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0x4420, iwl7260_2n_cfg)},
 	{IWL_PCI_DEVICE(0x08B1, 0xC070, iwl7260_2ac_cfg)},
-	{IWL_PCI_DEVICE(0x08B3, 0x0070, iwl3160_ac_cfg)},
-	{IWL_PCI_DEVICE(0x08B3, 0x8070, iwl3160_ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC170, iwl7260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC060, iwl7260_2n_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC160, iwl7260_2n_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC062, iwl7260_n_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC162, iwl7260_n_cfg)},
+	{IWL_PCI_DEVICE(0x08B2, 0xC270, iwl7260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B2, 0xC260, iwl7260_2n_cfg)},
+	{IWL_PCI_DEVICE(0x08B2, 0xC262, iwl7260_n_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC470, iwl7260_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC460, iwl7260_2n_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC462, iwl7260_n_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC020, iwl7260_2n_cfg)},
+	{IWL_PCI_DEVICE(0x08B2, 0xC220, iwl7260_2n_cfg)},
+	{IWL_PCI_DEVICE(0x08B1, 0xC420, iwl7260_2n_cfg)},
+
+/* 3160 Series */
+	{IWL_PCI_DEVICE(0x08B3, 0x0070, iwl3160_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x0170, iwl3160_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x0060, iwl3160_2n_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x0062, iwl3160_n_cfg)},
+	{IWL_PCI_DEVICE(0x08B4, 0x0270, iwl3160_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x0470, iwl3160_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x8070, iwl3160_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x8170, iwl3160_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x8060, iwl3160_2n_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x8062, iwl3160_n_cfg)},
+	{IWL_PCI_DEVICE(0x08B4, 0x8270, iwl3160_2ac_cfg)},
+	{IWL_PCI_DEVICE(0x08B3, 0x8470, iwl3160_2ac_cfg)},
+#endif /* CONFIG_IWLMVM */
 
 	{0}
 };

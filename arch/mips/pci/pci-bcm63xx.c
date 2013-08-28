@@ -266,7 +266,7 @@ static int __init bcm63xx_register_pci(void)
 	/* setup PCI to local bus access, used by PCI device to target
 	 * local RAM while bus mastering */
 	bcm63xx_int_cfg_writel(0, PCI_BASE_ADDRESS_3);
-	if (BCMCPU_IS_6358() || BCMCPU_IS_6368())
+	if (BCMCPU_IS_3368() || BCMCPU_IS_6358() || BCMCPU_IS_6368())
 		val = MPI_SP0_REMAP_ENABLE_MASK;
 	else
 		val = 0;
@@ -338,6 +338,7 @@ static int __init bcm63xx_pci_init(void)
 	case BCM6328_CPU_ID:
 	case BCM6362_CPU_ID:
 		return bcm63xx_register_pcie();
+	case BCM3368_CPU_ID:
 	case BCM6348_CPU_ID:
 	case BCM6358_CPU_ID:
 	case BCM6368_CPU_ID:

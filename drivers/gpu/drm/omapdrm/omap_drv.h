@@ -157,6 +157,7 @@ const struct omap_video_timings *omap_crtc_timings(struct drm_crtc *crtc);
 enum omap_channel omap_crtc_channel(struct drm_crtc *crtc);
 int omap_crtc_apply(struct drm_crtc *crtc,
 		struct omap_drm_apply *apply);
+void omap_crtc_pre_init(void);
 struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 		struct drm_plane *plane, enum omap_channel channel, int id);
 

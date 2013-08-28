@@ -21,14 +21,13 @@
  * SOFTWARE.
  */
 
-#include <subdev/clock.h>
 #include <subdev/bios.h>
 #include <subdev/bios/pll.h>
 
 #include "pll.h"
 
 static int
-getMNP_single(struct nouveau_clock *clock, struct nvbios_pll *info, int clk,
+getMNP_single(struct nouveau_subdev *subdev, struct nvbios_pll *info, int clk,
 	      int *pN, int *pM, int *pP)
 {
 	/* Find M, N and P for a single stage PLL
@@ -39,7 +38,7 @@ getMNP_single(struct nouveau_clock *clock, struct nvbios_pll *info, int clk,
 	 * "clk" parameter in kHz
 	 * returns calculated clock
 	 */
-	int cv = nouveau_bios(clock)->version.chip;
+	int cv = nouveau_bios(subdev)->version.chip;
 	int minvco = info->vco1.min_freq, maxvco = info->vco1.max_freq;
 	int minM = info->vco1.min_m, maxM = info->vco1.max_m;
 	int minN = info->vco1.min_n, maxN = info->vco1.max_n;
@@ -124,7 +123,7 @@ getMNP_single(struct nouveau_clock *clock, struct nvbios_pll *info, int clk,
 }
 
 static int
-getMNP_double(struct nouveau_clock *clock, struct nvbios_pll *info, int clk,
+getMNP_double(struct nouveau_subdev *subdev, struct nvbios_pll *info, int clk,
 	      int *pN1, int *pM1, int *pN2, int *pM2, int *pP)
 {
 	/* Find M, N and P for a two stage PLL
@@ -135,7 +134,7 @@ getMNP_double(struct nouveau_clock *clock, struct nvbios_pll *info, int clk,
 	 * "clk" parameter in kHz
 	 * returns calculated clock
 	 */
-	int chip_version = nouveau_bios(clock)->version.chip;
+	int chip_version = nouveau_bios(subdev)->version.chip;
 	int minvco1 = info->vco1.min_freq, maxvco1 = info->vco1.max_freq;
 	int minvco2 = info->vco2.min_freq, maxvco2 = info->vco2.max_freq;
 	int minU1 = info->vco1.min_inputfreq, minU2 = info->vco2.min_inputfreq;
@@ -223,20 +222,20 @@ getMNP_double(struct nouveau_clock *clock, struct nvbios_pll *info, int clk,
 }
 
 int
-nv04_pll_calc(struct nouveau_clock *clk, struct nvbios_pll *info, u32 freq,
+nv04_pll_calc(struct nouveau_subdev *subdev, struct nvbios_pll *info, u32 freq,
 	      int *N1, int *M1, int *N2, int *M2, int *P)
 {
 	int ret;
 
 	if (!info->vco2.max_freq) {
-		ret = getMNP_single(clk, info, freq, N1, M1, P);
+		ret = getMNP_single(subdev, info, freq, N1, M1, P);
 		*N2 = 1;
 		*M2 = 1;
 	} else {
-		ret = getMNP_double(clk, info, freq, N1, M1, N2, M2, P);
+		ret = getMNP_double(subdev, info, freq, N1, M1, N2, M2, P);
 	}
 
 	if (!ret)
-		nv_error(clk, "unable to compute acceptable pll values\n");
+		nv_error(subdev, "unable to compute acceptable pll values\n");
 	return ret;
 }

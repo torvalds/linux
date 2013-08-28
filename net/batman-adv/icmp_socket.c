@@ -177,13 +177,13 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 	if (len >= sizeof(struct batadv_icmp_packet_rr))
 		packet_len = sizeof(struct batadv_icmp_packet_rr);
 
-	skb = dev_alloc_skb(packet_len + ETH_HLEN + NET_IP_ALIGN);
+	skb = netdev_alloc_skb_ip_align(NULL, packet_len + ETH_HLEN);
 	if (!skb) {
 		len = -ENOMEM;
 		goto out;
 	}
 
-	skb_reserve(skb, ETH_HLEN + NET_IP_ALIGN);
+	skb_reserve(skb, ETH_HLEN);
 	icmp_packet = (struct batadv_icmp_packet_rr *)skb_put(skb, packet_len);
 
 	if (copy_from_user(icmp_packet, buff, packet_len)) {

@@ -559,7 +559,6 @@ your filesystem. The following members are defined:
 struct address_space_operations {
 	int (*writepage)(struct page *page, struct writeback_control *wbc);
 	int (*readpage)(struct file *, struct page *);
-	int (*sync_page)(struct page *);
 	int (*writepages)(struct address_space *, struct writeback_control *);
 	int (*set_page_dirty)(struct page *page);
 	int (*readpages)(struct file *filp, struct address_space *mapping,
@@ -581,6 +580,9 @@ struct address_space_operations {
 	/* migrate the contents of a page to the specified target */
 	int (*migratepage) (struct page *, struct page *);
 	int (*launder_page) (struct page *);
+	int (*is_partially_uptodate) (struct page *, read_descriptor_t *,
+					unsigned long);
+	void (*is_dirty_writeback) (struct page *, bool *, bool *);
 	int (*error_remove_page) (struct mapping *mapping, struct page *page);
 	int (*swap_activate)(struct file *);
 	int (*swap_deactivate)(struct file *);
@@ -611,13 +613,6 @@ struct address_space_operations {
        some reason, it can do so, and then return AOP_TRUNCATED_PAGE.
        In this case, the page will be relocated, relocked and if
        that all succeeds, ->readpage will be called again.
-
-  sync_page: called by the VM to notify the backing store to perform all
-  	queued I/O operations for a page. I/O operations for other pages
-	associated with this address_space object may also be performed.
-
-	This function is optional and is called only for pages with
-  	PG_Writeback set while waiting for the writeback to complete.
 
   writepages: called by the VM to write out pages associated with the
   	address_space object.  If wbc->sync_mode is WBC_SYNC_ALL, then
@@ -746,6 +741,20 @@ struct address_space_operations {
   launder_page: Called before freeing a page - it writes back the dirty page. To
   	prevent redirtying the page, it is kept locked during the whole
 	operation.
+
+  is_partially_uptodate: Called by the VM when reading a file through the
+	pagecache when the underlying blocksize != pagesize. If the required
+	block is up to date then the read can complete without needing the IO
+	to bring the whole page up to date.
+
+  is_dirty_writeback: Called by the VM when attempting to reclaim a page.
+	The VM uses dirty and writeback information to determine if it needs
+	to stall to allow flushers a chance to complete some IO. Ordinarily
+	it can use PageDirty and PageWriteback but some filesystems have
+	more complex state (unstable pages in NFS prevent reclaim) or
+	do not set those flags due to locking problems (jbd). This callback
+	allows a filesystem to indicate to the VM if a page should be
+	treated as dirty or writeback for the purposes of stalling.
 
   error_remove_page: normally set to generic_error_remove_page if truncation
 	is ok for this address space. Used for memory failure handling.

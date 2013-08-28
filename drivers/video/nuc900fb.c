@@ -707,7 +707,6 @@ static int nuc900fb_remove(struct platform_device *pdev)
 	release_resource(fbi->mem);
 	kfree(fbi->mem);
 
-	platform_set_drvdata(pdev, NULL);
 	framebuffer_release(fbinfo);
 
 	return 0;

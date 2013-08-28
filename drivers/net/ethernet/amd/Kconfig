@@ -34,7 +34,6 @@ config AMD8111_ETH
 	tristate "AMD 8111 (new PCI LANCE) support"
 	depends on PCI
 	select CRC32
-	select NET_CORE
 	select MII
 	---help---
 	  If you have an AMD 8111-based PCI LANCE ethernet card,
@@ -60,7 +59,6 @@ config PCNET32
 	tristate "AMD PCnet32 PCI support"
 	depends on PCI
 	select CRC32
-	select NET_CORE
 	select MII
 	---help---
 	  If you have a PCnet32 or PCnetPCI based network (Ethernet) card,

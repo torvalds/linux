@@ -359,7 +359,7 @@ steps you should take:
 - OK, it's a driver problem.
 
    You need to generate a report.  Typically this is an email to the
-   maintainer and/or linux-net@vger.kernel.org.  The maintainer's
+   maintainer and/or netdev@vger.kernel.org.  The maintainer's
    email address will be in the driver source or in the MAINTAINERS file.
 
 - The contents of your report will vary a lot depending upon the

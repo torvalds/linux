@@ -652,6 +652,12 @@ void ib_sa_unpack_path(void *attribute, struct ib_sa_path_rec *rec)
 }
 EXPORT_SYMBOL(ib_sa_unpack_path);
 
+void ib_sa_pack_path(struct ib_sa_path_rec *rec, void *attribute)
+{
+	ib_pack(path_rec_table, ARRAY_SIZE(path_rec_table), rec, attribute);
+}
+EXPORT_SYMBOL(ib_sa_pack_path);
+
 static void ib_sa_path_rec_callback(struct ib_sa_query *sa_query,
 				    int status,
 				    struct ib_sa_mad *mad)

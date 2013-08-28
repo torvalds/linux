@@ -395,7 +395,7 @@ void inorder_test(void)
 #endif
 
 /*
- * Cacheline/offset <-> bkey pointer arithmatic:
+ * Cacheline/offset <-> bkey pointer arithmetic:
  *
  * t->tree is a binary search tree in an array; each node corresponds to a key
  * in one cacheline in t->set (BSET_CACHELINE bytes).
@@ -404,7 +404,7 @@ void inorder_test(void)
  * the binary tree points to; to_inorder() gives us the cacheline, and then
  * bkey_float->m gives us the offset within that cacheline, in units of 8 bytes.
  *
- * cacheline_to_bkey() and friends abstract out all the pointer arithmatic to
+ * cacheline_to_bkey() and friends abstract out all the pointer arithmetic to
  * make this work.
  *
  * To construct the bfloat for an arbitrary key we need to know what the key

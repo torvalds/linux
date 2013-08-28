@@ -8,6 +8,7 @@
  * published by the Free Software Foundation.
  */
 #include <linux/atomic.h>
+#include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
@@ -61,6 +62,8 @@ static DEFINE_PER_CPU(struct ipi_data, ipi_data) = {
 };
 
 static DEFINE_SPINLOCK(boot_lock);
+
+static DECLARE_COMPLETION(cpu_running);
 
 /*
  * "thread" is assumed to be a valid Meta hardware thread ID.
@@ -235,20 +238,12 @@ int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *idle)
 	 */
 	ret = boot_secondary(thread, idle);
 	if (ret == 0) {
-		unsigned long timeout;
-
 		/*
 		 * CPU was successfully started, wait for it
 		 * to come online or time out.
 		 */
-		timeout = jiffies + HZ;
-		while (time_before(jiffies, timeout)) {
-			if (cpu_online(cpu))
-				break;
-
-			udelay(10);
-			barrier();
-		}
+		wait_for_completion_timeout(&cpu_running,
+					    msecs_to_jiffies(1000));
 
 		if (!cpu_online(cpu))
 			ret = -EIO;
@@ -276,7 +271,6 @@ static DECLARE_COMPLETION(cpu_killed);
 int __cpuexit __cpu_disable(void)
 {
 	unsigned int cpu = smp_processor_id();
-	struct task_struct *p;
 
 	/*
 	 * Take this CPU offline.  Once we clear this, we can't return,
@@ -296,12 +290,7 @@ int __cpuexit __cpu_disable(void)
 	flush_cache_all();
 	local_flush_tlb_all();
 
-	read_lock(&tasklist_lock);
-	for_each_process(p) {
-		if (p->mm)
-			cpumask_clear_cpu(cpu, mm_cpumask(p->mm));
-	}
-	read_unlock(&tasklist_lock);
+	clear_tasks_mm_cpumask(cpu);
 
 	return 0;
 }
@@ -385,12 +374,7 @@ asmlinkage void secondary_start_kernel(void)
 
 	setup_priv();
 
-	/*
-	 * Enable local interrupts.
-	 */
-	tbi_startup_interrupt(TBID_SIGNUM_TRT);
 	notify_cpu_starting(cpu);
-	local_irq_enable();
 
 	pr_info("CPU%u (thread %u): Booted secondary processor\n",
 		cpu, cpu_2_hwthread_id[cpu]);
@@ -402,12 +386,13 @@ asmlinkage void secondary_start_kernel(void)
 	 * OK, now it's safe to let the boot CPU continue
 	 */
 	set_cpu_online(cpu, true);
+	complete(&cpu_running);
 
 	/*
-	 * Check for cache aliasing.
-	 * Preemption is disabled
+	 * Enable local interrupts.
 	 */
-	check_for_cache_aliasing(cpu);
+	tbi_startup_interrupt(TBID_SIGNUM_TRT);
+	local_irq_enable();
 
 	/*
 	 * OK, it's off to the idle thread for us

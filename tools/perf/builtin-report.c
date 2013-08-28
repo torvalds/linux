@@ -939,8 +939,7 @@ repeat:
 		 */
 		if (!strstr(sort_order, "parent"))
 			sort_parent.elide = 1;
-	} else
-		symbol_conf.exclude_other = false;
+	}
 
 	if (argc) {
 		/*

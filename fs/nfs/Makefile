@@ -6,8 +6,7 @@ obj-$(CONFIG_NFS_FS) += nfs.o
 
 nfs-y 			:= client.o dir.o file.o getroot.o inode.o super.o \
 			   direct.o pagelist.o read.o symlink.o unlink.o \
-			   write.o namespace.o mount_clnt.o \
-			   dns_resolve.o cache_lib.o
+			   write.o namespace.o mount_clnt.o
 nfs-$(CONFIG_ROOT_NFS)	+= nfsroot.o
 nfs-$(CONFIG_SYSCTL)	+= sysctl.o
 nfs-$(CONFIG_NFS_FSCACHE) += fscache.o fscache-index.o
@@ -22,7 +21,8 @@ nfsv3-$(CONFIG_NFS_V3_ACL) += nfs3acl.o
 obj-$(CONFIG_NFS_V4) += nfsv4.o
 nfsv4-y := nfs4proc.o nfs4xdr.o nfs4state.o nfs4renewd.o nfs4super.o nfs4file.o \
 	  delegation.o idmap.o callback.o callback_xdr.o callback_proc.o \
-	  nfs4namespace.o nfs4getroot.o nfs4client.o
+	  nfs4namespace.o nfs4getroot.o nfs4client.o dns_resolve.o
+nfsv4-$(CONFIG_NFS_USE_LEGACY_DNS) += cache_lib.o
 nfsv4-$(CONFIG_SYSCTL)	+= nfs4sysctl.o
 nfsv4-$(CONFIG_NFS_V4_1)	+= nfs4session.o pnfs.o pnfs_dev.o
 

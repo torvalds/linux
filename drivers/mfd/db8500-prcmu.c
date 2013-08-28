@@ -1725,9 +1725,9 @@ static long round_clock_rate(u8 clock, unsigned long rate)
 
 /* CPU FREQ table, may be changed due to if MAX_OPP is supported. */
 static struct cpufreq_frequency_table db8500_cpufreq_table[] = {
-	{ .frequency = 200000, .index = ARM_EXTCLK,},
-	{ .frequency = 400000, .index = ARM_50_OPP,},
-	{ .frequency = 800000, .index = ARM_100_OPP,},
+	{ .frequency = 200000, .driver_data = ARM_EXTCLK,},
+	{ .frequency = 400000, .driver_data = ARM_50_OPP,},
+	{ .frequency = 800000, .driver_data = ARM_100_OPP,},
 	{ .frequency = CPUFREQ_TABLE_END,}, /* To be used for MAX_OPP. */
 	{ .frequency = CPUFREQ_TABLE_END,},
 };
@@ -1902,7 +1902,7 @@ static int set_armss_rate(unsigned long rate)
 		return -EINVAL;
 
 	/* Set the new arm opp. */
-	return db8500_prcmu_set_arm_opp(db8500_cpufreq_table[i].index);
+	return db8500_prcmu_set_arm_opp(db8500_cpufreq_table[i].driver_data);
 }
 
 static int set_plldsi_rate(unsigned long rate)
@@ -3106,7 +3106,7 @@ static void db8500_prcmu_update_cpufreq(void)
 {
 	if (prcmu_has_arm_maxopp()) {
 		db8500_cpufreq_table[3].frequency = 1000000;
-		db8500_cpufreq_table[3].index = ARM_MAX_OPP;
+		db8500_cpufreq_table[3].driver_data = ARM_MAX_OPP;
 	}
 }
 

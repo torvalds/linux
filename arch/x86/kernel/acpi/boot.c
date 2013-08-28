@@ -44,6 +44,7 @@
 #include <asm/mpspec.h>
 #include <asm/smp.h>
 
+#include "sleep.h" /* To include x86_acpi_suspend_lowlevel */
 static int __initdata acpi_force = 0;
 u32 acpi_rsdt_forced;
 int acpi_disabled;
@@ -558,6 +559,12 @@ static int acpi_register_gsi_ioapic(struct device *dev, u32 gsi,
 
 int (*__acpi_register_gsi)(struct device *dev, u32 gsi,
 			   int trigger, int polarity) = acpi_register_gsi_pic;
+
+#ifdef CONFIG_ACPI_SLEEP
+int (*acpi_suspend_lowlevel)(void) = x86_acpi_suspend_lowlevel;
+#else
+int (*acpi_suspend_lowlevel)(void);
+#endif
 
 /*
  * success: return IRQ number (>=0)

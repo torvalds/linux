@@ -1341,7 +1341,7 @@ int bnx2x_vfop_qdown_cmd(struct bnx2x *bp,
  */
 
 /* internal vf enable - until vf is enabled internally all transactions
- * are blocked. this routine should always be called last with pretend.
+ * are blocked. This routine should always be called last with pretend.
  */
 static void bnx2x_vf_enable_internal(struct bnx2x *bp, u8 enable)
 {
@@ -1459,21 +1459,16 @@ static u8 bnx2x_vf_is_pcie_pending(struct bnx2x *bp, u8 abs_vfid)
 	struct bnx2x_virtf *vf = bnx2x_vf_by_abs_fid(bp, abs_vfid);
 
 	if (!vf)
-		goto unknown_dev;
+		return false;
 
 	dev = pci_get_bus_and_slot(vf->bus, vf->devfn);
 	if (dev)
 		return bnx2x_is_pcie_pending(dev);
-
-unknown_dev:
 	return false;
 }
 
 int bnx2x_vf_flr_clnup_epilog(struct bnx2x *bp, u8 abs_vfid)
 {
-	/* Wait 100ms */
-	msleep(100);
-
 	/* Verify no pending pci transactions */
 	if (bnx2x_vf_is_pcie_pending(bp, abs_vfid))
 		BNX2X_ERR("PCIE Transactions still pending\n");
@@ -1620,7 +1615,7 @@ next_vf_to_clean:
 	     i++)
 		;
 
-	DP(BNX2X_MSG_IOV, "next vf to cleanup: %d. num of vfs: %d\n", i,
+	DP(BNX2X_MSG_IOV, "next vf to cleanup: %d. Num of vfs: %d\n", i,
 	   BNX2X_NR_VIRTFN(bp));
 
 	if (i < BNX2X_NR_VIRTFN(bp)) {
@@ -1743,7 +1738,7 @@ void bnx2x_iov_init_dq(struct bnx2x *bp)
 	REG_WR(bp, DORQ_REG_VF_TYPE_MIN_MCID_0, 0);
 	REG_WR(bp, DORQ_REG_VF_TYPE_MAX_MCID_0, 0x1ffff);
 
-	/* set the number of VF alllowed doorbells to the full DQ range */
+	/* set the number of VF allowed doorbells to the full DQ range */
 	REG_WR(bp, DORQ_REG_VF_NORM_MAX_CID_COUNT, 0x20000);
 
 	/* set the VF doorbell threshold */
@@ -2176,6 +2171,9 @@ int bnx2x_iov_nic_init(struct bnx2x *bp)
 
 	DP(BNX2X_MSG_IOV, "num of vfs: %d\n", (bp)->vfdb->sriov.nr_virtfn);
 
+	/* let FLR complete ... */
+	msleep(100);
+
 	/* initialize vf database */
 	for_each_vf(bp, vfid) {
 		struct bnx2x_virtf *vf = BP_VF(bp, vfid);
@@ -2403,7 +2401,7 @@ int bnx2x_iov_eq_sp_event(struct bnx2x *bp, union event_ring_elem *elem)
 
 	/* extract vf and rxq index from vf_cid - relies on the following:
 	 * 1. vfid on cid reflects the true abs_vfid
-	 * 2. the max number of VFs (per path) is 64
+	 * 2. The max number of VFs (per path) is 64
 	 */
 	qidx = cid & ((1 << BNX2X_VF_CID_WND)-1);
 	abs_vfid = (cid >> BNX2X_VF_CID_WND) & (BNX2X_MAX_NUM_OF_VFS-1);
@@ -2461,7 +2459,7 @@ static struct bnx2x_virtf *bnx2x_vf_by_cid(struct bnx2x *bp, int vf_cid)
 {
 	/* extract the vf from vf_cid - relies on the following:
 	 * 1. vfid on cid reflects the true abs_vfid
-	 * 2. the max number of VFs (per path) is 64
+	 * 2. The max number of VFs (per path) is 64
 	 */
 	int abs_vfid = (vf_cid >> BNX2X_VF_CID_WND) & (BNX2X_MAX_NUM_OF_VFS-1);
 	return bnx2x_vf_by_abs_fid(bp, abs_vfid);
@@ -2480,7 +2478,7 @@ void bnx2x_iov_set_queue_sp_obj(struct bnx2x *bp, int vf_cid,
 	if (vf) {
 		/* extract queue index from vf_cid - relies on the following:
 		 * 1. vfid on cid reflects the true abs_vfid
-		 * 2. the max number of VFs (per path) is 64
+		 * 2. The max number of VFs (per path) is 64
 		 */
 		int q_index = vf_cid & ((1 << BNX2X_VF_CID_WND)-1);
 		*q_obj = &bnx2x_vfq(vf, q_index, sp_obj);
@@ -2705,7 +2703,7 @@ int bnx2x_vf_acquire(struct bnx2x *bp, struct bnx2x_virtf *vf,
 	}
 
 	/* static allocation:
-	 * the global maximum number are fixed per VF. fail the request if
+	 * the global maximum number are fixed per VF. Fail the request if
 	 * requested number exceed these globals
 	 */
 	if (!bnx2x_vf_chk_avail_resc(bp, vf, resc)) {
@@ -2777,6 +2775,10 @@ int bnx2x_vf_init(struct bnx2x *bp, struct bnx2x_virtf *vf, dma_addr_t *sb_map)
 		   vf->abs_vfid, vf->state);
 		return -EINVAL;
 	}
+
+	/* let FLR complete ... */
+	msleep(100);
+
 	/* FLR cleanup epilogue */
 	if (bnx2x_vf_flr_clnup_epilog(bp, vf->abs_vfid))
 		return -EBUSY;
@@ -2890,7 +2892,7 @@ int bnx2x_vfop_close_cmd(struct bnx2x *bp,
 	return -ENOMEM;
 }
 
-/* VF release can be called either: 1. the VF was acquired but
+/* VF release can be called either: 1. The VF was acquired but
  * not enabled 2. the vf was enabled or in the process of being
  * enabled
  */
@@ -3024,7 +3026,6 @@ void bnx2x_unlock_vf_pf_channel(struct bnx2x *bp, struct bnx2x_virtf *vf,
 
 int bnx2x_sriov_configure(struct pci_dev *dev, int num_vfs_param)
 {
-
 	struct bnx2x *bp = netdev_priv(pci_get_drvdata(dev));
 
 	DP(BNX2X_MSG_IOV, "bnx2x_sriov_configure called with %d, BNX2X_NR_VIRTFN(bp) was %d\n",
@@ -3032,7 +3033,7 @@ int bnx2x_sriov_configure(struct pci_dev *dev, int num_vfs_param)
 
 	/* HW channel is only operational when PF is up */
 	if (bp->state != BNX2X_STATE_OPEN) {
-		BNX2X_ERR("VF num configurtion via sysfs not supported while PF is down");
+		BNX2X_ERR("VF num configuration via sysfs not supported while PF is down\n");
 		return -EINVAL;
 	}
 
@@ -3086,6 +3087,11 @@ void bnx2x_disable_sriov(struct bnx2x *bp)
 static int bnx2x_vf_ndo_sanity(struct bnx2x *bp, int vfidx,
 			       struct bnx2x_virtf *vf)
 {
+	if (bp->state != BNX2X_STATE_OPEN) {
+		BNX2X_ERR("vf ndo called though PF is down\n");
+		return -EINVAL;
+	}
+
 	if (!IS_SRIOV(bp)) {
 		BNX2X_ERR("vf ndo called though sriov is disabled\n");
 		return -EINVAL;
@@ -3141,7 +3147,7 @@ int bnx2x_get_vf_config(struct net_device *dev, int vfidx,
 			/* mac configured by ndo so its in bulletin board */
 			memcpy(&ivi->mac, bulletin->mac, ETH_ALEN);
 		else
-			/* funtion has not been loaded yet. Show mac as 0s */
+			/* function has not been loaded yet. Show mac as 0s */
 			memset(&ivi->mac, 0, ETH_ALEN);
 
 		/* vlan */
@@ -3149,7 +3155,7 @@ int bnx2x_get_vf_config(struct net_device *dev, int vfidx,
 			/* vlan configured by ndo so its in bulletin board */
 			memcpy(&ivi->vlan, &bulletin->vlan, VLAN_HLEN);
 		else
-			/* funtion has not been loaded yet. Show vlans as 0s */
+			/* function has not been loaded yet. Show vlans as 0s */
 			memset(&ivi->vlan, 0, VLAN_HLEN);
 	}
 
@@ -3189,7 +3195,7 @@ int bnx2x_set_vf_mac(struct net_device *dev, int vfidx, u8 *mac)
 		return -EINVAL;
 	}
 
-	/* update PF's copy of the VF's bulletin. will no longer accept mac
+	/* update PF's copy of the VF's bulletin. Will no longer accept mac
 	 * configuration requests from vf unless match this mac
 	 */
 	bulletin->valid_bitmap |= 1 << MAC_ADDR_VALID;
@@ -3358,8 +3364,11 @@ int bnx2x_set_vf_vlan(struct net_device *dev, int vfidx, u16 vlan, u8 qos)
 	return 0;
 }
 
-/* crc is the first field in the bulletin board. compute the crc over the
- * entire bulletin board excluding the crc field itself
+/* crc is the first field in the bulletin board. Compute the crc over the
+ * entire bulletin board excluding the crc field itself. Use the length field
+ * as the Bulletin Board was posted by a PF with possibly a different version
+ * from the vf which will sample it. Therefore, the length is computed by the
+ * PF and the used blindly by the VF.
  */
 u32 bnx2x_crc_vf_bulletin(struct bnx2x *bp,
 			  struct pf_vf_bulletin_content *bulletin)
@@ -3389,7 +3398,7 @@ enum sample_bulletin_result bnx2x_sample_bulletin(struct bnx2x *bp)
 			if (bulletin.crc == bnx2x_crc_vf_bulletin(bp,
 								  &bulletin))
 				break;
-			BNX2X_ERR("bad crc on bulletin board. contained %x computed %x\n",
+			BNX2X_ERR("bad crc on bulletin board. Contained %x computed %x\n",
 				  bulletin.crc,
 				  bnx2x_crc_vf_bulletin(bp, &bulletin));
 		}
@@ -3415,6 +3424,20 @@ enum sample_bulletin_result bnx2x_sample_bulletin(struct bnx2x *bp)
 	bp->old_bulletin = bulletin;
 
 	return PFVF_BULLETIN_UPDATED;
+}
+
+void bnx2x_timer_sriov(struct bnx2x *bp)
+{
+	bnx2x_sample_bulletin(bp);
+
+	/* if channel is down we need to self destruct */
+	if (bp->old_bulletin.valid_bitmap & 1 << CHANNEL_DOWN) {
+		smp_mb__before_clear_bit();
+		set_bit(BNX2X_SP_RTNL_VFPF_CHANNEL_DOWN,
+			&bp->sp_rtnl_state);
+		smp_mb__after_clear_bit();
+		schedule_delayed_work(&bp->sp_rtnl_task, 0);
+	}
 }
 
 void __iomem *bnx2x_vf_doorbells(struct bnx2x *bp)
@@ -3452,7 +3475,7 @@ int bnx2x_open_epilog(struct bnx2x *bp)
 	 * register_netdevice which must have rtnl lock taken. As we are holding
 	 * the lock right now, that could only work if the probe would not take
 	 * the lock. However, as the probe of the vf may be called from other
-	 * contexts as well (such as passthrough to vm failes) it can't assume
+	 * contexts as well (such as passthrough to vm fails) it can't assume
 	 * the lock is being held for it. Using delayed work here allows the
 	 * probe code to simply take the lock (i.e. wait for it to be released
 	 * if it is being held). We only want to do this if the number of VFs
@@ -3466,4 +3489,24 @@ int bnx2x_open_epilog(struct bnx2x *bp)
 	}
 
 	return 0;
+}
+
+void bnx2x_iov_channel_down(struct bnx2x *bp)
+{
+	int vf_idx;
+	struct pf_vf_bulletin_content *bulletin;
+
+	if (!IS_SRIOV(bp))
+		return;
+
+	for_each_vf(bp, vf_idx) {
+		/* locate this VFs bulletin board and update the channel down
+		 * bit
+		 */
+		bulletin = BP_VF_BULLETIN(bp, vf_idx);
+		bulletin->valid_bitmap |= 1 << CHANNEL_DOWN;
+
+		/* update vf bulletin board */
+		bnx2x_post_vf_bulletin(bp, vf_idx);
+	}
 }

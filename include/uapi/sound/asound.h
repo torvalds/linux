@@ -817,6 +817,8 @@ typedef int __bitwise snd_ctl_elem_iface_t;
 #define SNDRV_CTL_POWER_D3hot		(SNDRV_CTL_POWER_D3|0x0000)	/* Off, with power */
 #define SNDRV_CTL_POWER_D3cold		(SNDRV_CTL_POWER_D3|0x0001)	/* Off, without power */
 
+#define SNDRV_CTL_ELEM_ID_NAME_MAXLEN	44
+
 struct snd_ctl_elem_id {
 	unsigned int numid;		/* numeric identifier, zero = invalid */
 	snd_ctl_elem_iface_t iface;	/* interface identifier */

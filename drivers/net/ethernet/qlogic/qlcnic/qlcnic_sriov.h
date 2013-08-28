@@ -129,6 +129,7 @@ struct qlcnic_vport {
 	u8			vlan_mode;
 	u16			vlan;
 	u8			qos;
+	bool			spoofchk;
 	u8			mac[6];
 };
 
@@ -194,6 +195,8 @@ int __qlcnic_sriov_add_act_list(struct qlcnic_sriov *, struct qlcnic_vf_info *,
 int qlcnic_sriov_get_vf_vport_info(struct qlcnic_adapter *,
 				   struct qlcnic_info *, u16);
 int qlcnic_sriov_cfg_vf_guest_vlan(struct qlcnic_adapter *, u16, u8);
+int qlcnic_sriov_vf_shutdown(struct pci_dev *);
+int qlcnic_sriov_vf_resume(struct qlcnic_adapter *);
 
 static inline bool qlcnic_sriov_enable_check(struct qlcnic_adapter *adapter)
 {
@@ -225,6 +228,7 @@ int qlcnic_sriov_set_vf_tx_rate(struct net_device *, int, int);
 int qlcnic_sriov_get_vf_config(struct net_device *, int ,
 			       struct ifla_vf_info *);
 int qlcnic_sriov_set_vf_vlan(struct net_device *, int, u16, u8);
+int qlcnic_sriov_set_vf_spoofchk(struct net_device *, int, bool);
 #else
 static inline void qlcnic_sriov_pf_disable(struct qlcnic_adapter *adapter) {}
 static inline void qlcnic_sriov_pf_cleanup(struct qlcnic_adapter *adapter) {}

@@ -25,6 +25,7 @@
 #include <linux/kdebug.h>
 #include <linux/delay.h>
 #include <linux/crash_dump.h>
+#include <linux/reboot.h>
 
 #include <asm/uv/uv_mmrs.h>
 #include <asm/uv/uv_hub.h>
@@ -36,7 +37,6 @@
 #include <asm/ipi.h>
 #include <asm/smp.h>
 #include <asm/x86_init.h>
-#include <asm/emergency-restart.h>
 #include <asm/nmi.h>
 
 /* BMC sets a bit this MMR non-zero before sending an NMI */

@@ -246,7 +246,6 @@ may be NULL if the subdev driver does not support anything from that category.
 It looks like this:
 
 struct v4l2_subdev_core_ops {
-	int (*g_chip_ident)(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip);
 	int (*log_status)(struct v4l2_subdev *sd);
 	int (*init)(struct v4l2_subdev *sd, u32 val);
 	...
@@ -326,8 +325,27 @@ that width, height and the media bus pixel code are equal on both source and
 sink of the link. Subdev drivers are also free to use this function to
 perform the checks mentioned above in addition to their own checks.
 
-A device (bridge) driver needs to register the v4l2_subdev with the
-v4l2_device:
+There are currently two ways to register subdevices with the V4L2 core. The
+first (traditional) possibility is to have subdevices registered by bridge
+drivers. This can be done when the bridge driver has the complete information
+about subdevices connected to it and knows exactly when to register them. This
+is typically the case for internal subdevices, like video data processing units
+within SoCs or complex PCI(e) boards, camera sensors in USB cameras or connected
+to SoCs, which pass information about them to bridge drivers, usually in their
+platform data.
+
+There are however also situations where subdevices have to be registered
+asynchronously to bridge devices. An example of such a configuration is a Device
+Tree based system where information about subdevices is made available to the
+system independently from the bridge devices, e.g. when subdevices are defined
+in DT as I2C device nodes. The API used in this second case is described further
+below.
+
+Using one or the other registration method only affects the probing process, the
+run-time bridge-subdevice interaction is in both cases the same.
+
+In the synchronous case a device (bridge) driver needs to register the
+v4l2_subdev with the v4l2_device:
 
 	int err = v4l2_device_register_subdev(v4l2_dev, sd);
 
@@ -346,24 +364,24 @@ Afterwards the subdev module can be unloaded and sd->dev == NULL.
 
 You can call an ops function either directly:
 
-	err = sd->ops->core->g_chip_ident(sd, &chip);
+	err = sd->ops->core->g_std(sd, &norm);
 
 but it is better and easier to use this macro:
 
-	err = v4l2_subdev_call(sd, core, g_chip_ident, &chip);
+	err = v4l2_subdev_call(sd, core, g_std, &norm);
 
 The macro will to the right NULL pointer checks and returns -ENODEV if subdev
-is NULL, -ENOIOCTLCMD if either subdev->core or subdev->core->g_chip_ident is
-NULL, or the actual result of the subdev->ops->core->g_chip_ident ops.
+is NULL, -ENOIOCTLCMD if either subdev->core or subdev->core->g_std is
+NULL, or the actual result of the subdev->ops->core->g_std ops.
 
 It is also possible to call all or a subset of the sub-devices:
 
-	v4l2_device_call_all(v4l2_dev, 0, core, g_chip_ident, &chip);
+	v4l2_device_call_all(v4l2_dev, 0, core, g_std, &norm);
 
 Any subdev that does not support this ops is skipped and error results are
 ignored. If you want to check for errors use this:
 
-	err = v4l2_device_call_until_err(v4l2_dev, 0, core, g_chip_ident, &chip);
+	err = v4l2_device_call_until_err(v4l2_dev, 0, core, g_std, &norm);
 
 Any error except -ENOIOCTLCMD will exit the loop with that error. If no
 errors (except -ENOIOCTLCMD) occurred, then 0 is returned.
@@ -392,6 +410,30 @@ not contain any knowledge about the underlying hardware. So a driver might
 contain several subdevs that use an I2C bus, but also a subdev that is
 controlled through GPIO pins. This distinction is only relevant when setting
 up the device, but once the subdev is registered it is completely transparent.
+
+
+In the asynchronous case subdevice probing can be invoked independently of the
+bridge driver availability. The subdevice driver then has to verify whether all
+the requirements for a successful probing are satisfied. This can include a
+check for a master clock availability. If any of the conditions aren't satisfied
+the driver might decide to return -EPROBE_DEFER to request further reprobing
+attempts. Once all conditions are met the subdevice shall be registered using
+the v4l2_async_register_subdev() function. Unregistration is performed using
+the v4l2_async_unregister_subdev() call. Subdevices registered this way are
+stored in a global list of subdevices, ready to be picked up by bridge drivers.
+
+Bridge drivers in turn have to register a notifier object with an array of
+subdevice descriptors that the bridge device needs for its operation. This is
+performed using the v4l2_async_notifier_register() call. To unregister the
+notifier the driver has to call v4l2_async_notifier_unregister(). The former of
+the two functions takes two arguments: a pointer to struct v4l2_device and a
+pointer to struct v4l2_async_notifier. The latter contains a pointer to an array
+of pointers to subdevice descriptors of type struct v4l2_async_subdev type. The
+V4L2 core will then use these descriptors to match asynchronously registered
+subdevices to them. If a match is detected the .bound() notifier callback is
+called. After all subdevices have been located the .complete() callback is
+called. When a subdevice is removed from the system the .unbind() method is
+called. All three callbacks are optional.
 
 
 V4L2 sub-device userspace API
@@ -575,9 +617,13 @@ of the video device exits.
 The default video_device_release() callback just calls kfree to free the
 allocated memory.
 
+There is also a video_device_release_empty() function that does nothing
+(is empty) and can be used if the struct is embedded and there is nothing
+to do when it is released.
+
 You should also set these fields:
 
-- v4l2_dev: set to the v4l2_device parent device.
+- v4l2_dev: must be set to the v4l2_device parent device.
 
 - name: set to something descriptive and unique.
 
@@ -614,15 +660,16 @@ You should also set these fields:
   If you want to have a separate priority state per (group of) device node(s),
   then you can point it to your own struct v4l2_prio_state.
 
-- parent: you only set this if v4l2_device was registered with NULL as
+- dev_parent: you only set this if v4l2_device was registered with NULL as
   the parent device struct. This only happens in cases where one hardware
   device has multiple PCI devices that all share the same v4l2_device core.
 
   The cx88 driver is an example of this: one core v4l2_device struct, but
-  it is used by both an raw video PCI device (cx8800) and a MPEG PCI device
-  (cx8802). Since the v4l2_device cannot be associated with a particular
-  PCI device it is setup without a parent device. But when the struct
-  video_device is setup you do know which parent PCI device to use.
+  it is used by both a raw video PCI device (cx8800) and a MPEG PCI device
+  (cx8802). Since the v4l2_device cannot be associated with two PCI devices
+  at the same time it is setup without a parent device. But when the struct
+  video_device is initialized you *do* know which parent PCI device to use and
+  so you set dev_device to the correct PCI device.
 
 - flags: optional. Set to V4L2_FL_USE_FH_PRIO if you want to let the framework
   handle the VIDIOC_G/S_PRIORITY ioctls. This requires that you use struct
@@ -1061,3 +1108,29 @@ available event type is 'class base + 1'.
 
 An example on how the V4L2 events may be used can be found in the OMAP
 3 ISP driver (drivers/media/platform/omap3isp).
+
+
+V4L2 clocks
+-----------
+
+Many subdevices, like camera sensors, TV decoders and encoders, need a clock
+signal to be supplied by the system. Often this clock is supplied by the
+respective bridge device. The Linux kernel provides a Common Clock Framework for
+this purpose. However, it is not (yet) available on all architectures. Besides,
+the nature of the multi-functional (clock, data + synchronisation, I2C control)
+connection of subdevices to the system might impose special requirements on the
+clock API usage. E.g. V4L2 has to support clock provider driver unregistration
+while a subdevice driver is holding a reference to the clock. For these reasons
+a V4L2 clock helper API has been developed and is provided to bridge and
+subdevice drivers.
+
+The API consists of two parts: two functions to register and unregister a V4L2
+clock source: v4l2_clk_register() and v4l2_clk_unregister() and calls to control
+a clock object, similar to the respective generic clock API calls:
+v4l2_clk_get(), v4l2_clk_put(), v4l2_clk_enable(), v4l2_clk_disable(),
+v4l2_clk_get_rate(), and v4l2_clk_set_rate(). Clock suppliers have to provide
+clock operations that will be called when clock users invoke respective API
+methods.
+
+It is expected that once the CCF becomes available on all relevant
+architectures this API will be removed.

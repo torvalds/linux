@@ -150,6 +150,11 @@ static void vhost_net_ubuf_put_and_wait(struct vhost_net_ubuf_ref *ubufs)
 {
 	kref_put(&ubufs->kref, vhost_net_zerocopy_done_signal);
 	wait_event(ubufs->wait, !atomic_read(&ubufs->kref.refcount));
+}
+
+static void vhost_net_ubuf_put_wait_and_free(struct vhost_net_ubuf_ref *ubufs)
+{
+	vhost_net_ubuf_put_and_wait(ubufs);
 	kfree(ubufs);
 }
 
@@ -163,7 +168,7 @@ static void vhost_net_clear_ubuf_info(struct vhost_net *n)
 	}
 }
 
-int vhost_net_set_ubuf_info(struct vhost_net *n)
+static int vhost_net_set_ubuf_info(struct vhost_net *n)
 {
 	bool zcopy;
 	int i;
@@ -184,7 +189,7 @@ err:
 	return -ENOMEM;
 }
 
-void vhost_net_vq_reset(struct vhost_net *n)
+static void vhost_net_vq_reset(struct vhost_net *n)
 {
 	int i;
 
@@ -948,7 +953,7 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 	mutex_unlock(&vq->mutex);
 
 	if (oldubufs) {
-		vhost_net_ubuf_put_and_wait(oldubufs);
+		vhost_net_ubuf_put_wait_and_free(oldubufs);
 		mutex_lock(&vq->mutex);
 		vhost_zerocopy_signal_used(n, vq);
 		mutex_unlock(&vq->mutex);
@@ -966,7 +971,7 @@ err_used:
 	rcu_assign_pointer(vq->private_data, oldsock);
 	vhost_net_enable_vq(n, vq);
 	if (ubufs)
-		vhost_net_ubuf_put_and_wait(ubufs);
+		vhost_net_ubuf_put_wait_and_free(ubufs);
 err_ubufs:
 	fput(sock->file);
 err_vq:

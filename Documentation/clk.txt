@@ -32,7 +32,7 @@ hardware-specific bits for the hypothetical "foo" hardware.
 
 Tying the two halves of this interface together is struct clk_hw, which
 is defined in struct clk_foo and pointed to within struct clk.  This
-allows easy for navigation between the two discrete halves of the common
+allows for easy navigation between the two discrete halves of the common
 clock interface.
 
 	Part 2 - common data structures and api

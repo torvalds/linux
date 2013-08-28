@@ -1005,7 +1005,7 @@ static int __cmd_record(int argc, const char **argv)
 {
 #ifdef SUPPORT_OLD_POWER_EVENTS
 	const char * const record_old_args[] = {
-		"record", "-a", "-R", "-f", "-c", "1",
+		"record", "-a", "-R", "-c", "1",
 		"-e", "power:power_start",
 		"-e", "power:power_end",
 		"-e", "power:power_frequency",
@@ -1014,7 +1014,7 @@ static int __cmd_record(int argc, const char **argv)
 	};
 #endif
 	const char * const record_new_args[] = {
-		"record", "-a", "-R", "-f", "-c", "1",
+		"record", "-a", "-R", "-c", "1",
 		"-e", "power:cpu_frequency",
 		"-e", "power:cpu_idle",
 		"-e", "sched:sched_wakeup",

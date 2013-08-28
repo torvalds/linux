@@ -24,13 +24,14 @@
 
 #include <linux/amba/bus.h>
 #include <linux/of_platform.h>
+#include <linux/reboot.h>
 
 extern void __init versatile_init(void);
 extern void __init versatile_init_early(void);
 extern void __init versatile_init_irq(void);
 extern void __init versatile_map_io(void);
 extern void versatile_timer_init(void);
-extern void versatile_restart(char, const char *);
+extern void versatile_restart(enum reboot_mode, const char *);
 extern unsigned int mmc_status(struct device *dev);
 #ifdef CONFIG_OF
 extern struct of_dev_auxdata versatile_auxdata_lookup[];

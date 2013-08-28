@@ -899,7 +899,6 @@ static int mxsfb_probe(struct platform_device *pdev)
 
 	host->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(host->base)) {
-		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = PTR_ERR(host->base);
 		goto fb_release;
 	}
@@ -985,8 +984,6 @@ static int mxsfb_remove(struct platform_device *pdev)
 	mxsfb_free_videomem(host);
 
 	framebuffer_release(fb_info);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

@@ -577,7 +577,6 @@ failed:
 	if (fbdev->info.cmap.len != 0) {
 		fb_dealloc_cmap(&fbdev->info.cmap);
 	}
-	platform_set_drvdata(dev, NULL);
 
 	return -ENODEV;
 }

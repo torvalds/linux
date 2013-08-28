@@ -2446,9 +2446,9 @@ free_ports:
  * last peer for a given fw_card triggering the destruction of the same
  * fw_serial for the same fw_card.
  */
-static int fwserial_probe(struct device *dev)
+static int fwserial_probe(struct fw_unit *unit,
+			  const struct ieee1394_device_id *id)
 {
-	struct fw_unit *unit = fw_unit(dev);
 	struct fw_serial *serial;
 	int err;
 
@@ -2470,9 +2470,9 @@ static int fwserial_probe(struct device *dev)
  * specific fw_card). If this is the last peer being removed, then trigger
  * the destruction of the underlying TTYs.
  */
-static int fwserial_remove(struct device *dev)
+static void fwserial_remove(struct fw_unit *unit)
 {
-	struct fwtty_peer *peer = dev_get_drvdata(dev);
+	struct fwtty_peer *peer = dev_get_drvdata(&unit->device);
 	struct fw_serial *serial = peer->serial;
 	int i;
 
@@ -2492,8 +2492,6 @@ static int fwserial_remove(struct device *dev)
 		kref_put(&serial->kref, fwserial_destroy);
 	}
 	mutex_unlock(&fwserial_list_mutex);
-
-	return 0;
 }
 
 /**
@@ -2538,10 +2536,10 @@ static struct fw_driver fwserial_driver = {
 		.owner  = THIS_MODULE,
 		.name   = KBUILD_MODNAME,
 		.bus    = &fw_bus_type,
-		.probe  = fwserial_probe,
-		.remove = fwserial_remove,
 	},
+	.probe    = fwserial_probe,
 	.update   = fwserial_update,
+	.remove   = fwserial_remove,
 	.id_table = fwserial_id_table,
 };
 

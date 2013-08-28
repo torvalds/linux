@@ -54,7 +54,7 @@ void nilfs_inode_add_blocks(struct inode *inode, int n)
 
 	inode_add_bytes(inode, (1 << inode->i_blkbits) * n);
 	if (root)
-		atomic_add(n, &root->blocks_count);
+		atomic64_add(n, &root->blocks_count);
 }
 
 void nilfs_inode_sub_blocks(struct inode *inode, int n)
@@ -63,7 +63,7 @@ void nilfs_inode_sub_blocks(struct inode *inode, int n)
 
 	inode_sub_bytes(inode, (1 << inode->i_blkbits) * n);
 	if (root)
-		atomic_sub(n, &root->blocks_count);
+		atomic64_sub(n, &root->blocks_count);
 }
 
 /**
@@ -369,7 +369,7 @@ struct inode *nilfs_new_inode(struct inode *dir, umode_t mode)
 		goto failed_ifile_create_inode;
 	/* reference count of i_bh inherits from nilfs_mdt_read_block() */
 
-	atomic_inc(&root->inodes_count);
+	atomic64_inc(&root->inodes_count);
 	inode_init_owner(inode, dir, mode);
 	inode->i_ino = ino;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
@@ -801,7 +801,7 @@ void nilfs_evict_inode(struct inode *inode)
 
 	ret = nilfs_ifile_delete_inode(ii->i_root->ifile, inode->i_ino);
 	if (!ret)
-		atomic_dec(&ii->i_root->inodes_count);
+		atomic64_dec(&ii->i_root->inodes_count);
 
 	nilfs_clear_inode(inode);
 

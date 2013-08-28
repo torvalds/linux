@@ -17,7 +17,9 @@
 
 #define ARMADA_XP_MAX_CPUS 4
 
-void mvebu_restart(char mode, const char *cmd);
+#include <linux/reboot.h>
+
+void mvebu_restart(enum reboot_mode mode, const char *cmd);
 
 void armada_370_xp_init_irq(void);
 void armada_370_xp_handle_irq(struct pt_regs *regs);

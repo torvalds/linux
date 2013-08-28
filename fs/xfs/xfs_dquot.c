@@ -570,13 +570,13 @@ xfs_qm_dqtobp(
 	xfs_buf_t		**O_bpp,
 	uint			flags)
 {
-	xfs_bmbt_irec_t map;
-	int		nmaps = 1, error;
-	xfs_buf_t	*bp;
-	xfs_inode_t	*quotip = XFS_DQ_TO_QIP(dqp);
-	xfs_mount_t	*mp = dqp->q_mount;
-	xfs_dqid_t	id = be32_to_cpu(dqp->q_core.d_id);
-	xfs_trans_t	*tp = (tpp ? *tpp : NULL);
+	struct xfs_bmbt_irec	map;
+	int			nmaps = 1, error;
+	struct xfs_buf		*bp;
+	struct xfs_inode	*quotip = xfs_dq_to_quota_inode(dqp);
+	struct xfs_mount	*mp = dqp->q_mount;
+	xfs_dqid_t		id = be32_to_cpu(dqp->q_core.d_id);
+	struct xfs_trans	*tp = (tpp ? *tpp : NULL);
 
 	dqp->q_fileoffset = (xfs_fileoff_t)id / mp->m_quotainfo->qi_dqperchunk;
 
@@ -804,7 +804,7 @@ xfs_qm_dqget(
 	xfs_dquot_t	**O_dqpp) /* OUT : locked incore dquot */
 {
 	struct xfs_quotainfo	*qi = mp->m_quotainfo;
-	struct radix_tree_root *tree = XFS_DQUOT_TREE(qi, type);
+	struct radix_tree_root *tree = xfs_dquot_tree(qi, type);
 	struct xfs_dquot	*dqp;
 	int			error;
 
@@ -936,6 +936,7 @@ xfs_qm_dqput_final(
 {
 	struct xfs_quotainfo	*qi = dqp->q_mount->m_quotainfo;
 	struct xfs_dquot	*gdqp;
+	struct xfs_dquot	*pdqp;
 
 	trace_xfs_dqput_free(dqp);
 
@@ -949,21 +950,29 @@ xfs_qm_dqput_final(
 
 	/*
 	 * If we just added a udquot to the freelist, then we want to release
-	 * the gdquot reference that it (probably) has. Otherwise it'll keep
-	 * the gdquot from getting reclaimed.
+	 * the gdquot/pdquot reference that it (probably) has. Otherwise it'll
+	 * keep the gdquot/pdquot from getting reclaimed.
 	 */
 	gdqp = dqp->q_gdquot;
 	if (gdqp) {
 		xfs_dqlock(gdqp);
 		dqp->q_gdquot = NULL;
 	}
+
+	pdqp = dqp->q_pdquot;
+	if (pdqp) {
+		xfs_dqlock(pdqp);
+		dqp->q_pdquot = NULL;
+	}
 	xfs_dqunlock(dqp);
 
 	/*
-	 * If we had a group quota hint, release it now.
+	 * If we had a group/project quota hint, release it now.
 	 */
 	if (gdqp)
 		xfs_qm_dqput(gdqp);
+	if (pdqp)
+		xfs_qm_dqput(pdqp);
 }
 
 /*

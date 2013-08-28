@@ -32,7 +32,8 @@ config POWER_RESET_RESTART
 	  user presses a key. u-boot then boots into Linux.
 
 config POWER_RESET_VEXPRESS
-	bool
+	bool "ARM Versatile Express power-off and reset driver"
+	depends on ARM || ARM64
 	depends on POWER_RESET
 	help
 	  Power off and reset support for the ARM Ltd. Versatile

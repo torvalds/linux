@@ -602,7 +602,7 @@ int extcon_dev_register(struct extcon_dev *edev, struct device *dev)
 	edev->dev->class = extcon_class;
 	edev->dev->release = extcon_dev_release;
 
-	dev_set_name(edev->dev, edev->name ? edev->name : dev_name(dev));
+	dev_set_name(edev->dev, "%s", edev->name ? edev->name : dev_name(dev));
 
 	if (edev->max_supported) {
 		char buf[10];

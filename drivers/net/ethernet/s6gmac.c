@@ -1040,7 +1040,6 @@ static int s6gmac_remove(struct platform_device *pdev)
 		unregister_netdev(dev);
 		free_irq(dev->irq, dev);
 		free_netdev(dev);
-		platform_set_drvdata(pdev, NULL);
 	}
 	return 0;
 }

@@ -177,5 +177,11 @@ int main(void)
 	DEVID(mei_cl_device_id);
 	DEVID_FIELD(mei_cl_device_id, name);
 
+	DEVID(rio_device_id);
+	DEVID_FIELD(rio_device_id, did);
+	DEVID_FIELD(rio_device_id, vid);
+	DEVID_FIELD(rio_device_id, asm_did);
+	DEVID_FIELD(rio_device_id, asm_vid);
+
 	return 0;
 }

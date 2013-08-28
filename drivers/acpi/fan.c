@@ -84,7 +84,7 @@ static int fan_get_cur_state(struct thermal_cooling_device *cdev, unsigned long
 {
 	struct acpi_device *device = cdev->devdata;
 	int result;
-	int acpi_state;
+	int acpi_state = ACPI_STATE_D0;
 
 	if (!device)
 		return -EINVAL;

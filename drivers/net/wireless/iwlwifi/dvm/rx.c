@@ -335,8 +335,7 @@ static void iwlagn_recover_from_statistics(struct iwl_priv *priv,
 	if (msecs < 99)
 		return;
 
-	if (iwlwifi_mod_params.plcp_check &&
-	    !iwlagn_good_plcp_health(priv, cur_ofdm, cur_ofdm_ht, msecs))
+	if (!iwlagn_good_plcp_health(priv, cur_ofdm, cur_ofdm_ht, msecs))
 		iwl_force_rf_reset(priv, false);
 }
 
@@ -1102,7 +1101,7 @@ void iwl_setup_rx_handlers(struct iwl_priv *priv)
 	iwl_notification_wait_init(&priv->notif_wait);
 
 	/* Set up BT Rx handlers */
-	if (priv->cfg->bt_params)
+	if (priv->lib->bt_params)
 		iwlagn_bt_rx_handler_setup(priv);
 }
 
@@ -1120,32 +1119,17 @@ int iwl_rx_dispatch(struct iwl_op_mode *op_mode, struct iwl_rx_cmd_buffer *rxb,
 	 */
 	iwl_notification_wait_notify(&priv->notif_wait, pkt);
 
-#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
-	/*
-	 * RX data may be forwarded to userspace in one
-	 * of two cases: the user owns the fw through testmode or when
-	 * the user requested to monitor the rx w/o affecting the regular flow.
-	 * In these cases the iwl_test object will handle forwarding the rx
-	 * data to user space.
-	 * Note that if the ownership flag != IWL_OWNERSHIP_TM the flow
-	 * continues.
-	 */
-	iwl_test_rx(&priv->tst, rxb);
-#endif
-
-	if (priv->ucode_owner != IWL_OWNERSHIP_TM) {
-		/* Based on type of command response or notification,
-		 *   handle those that need handling via function in
-		 *   rx_handlers table.  See iwl_setup_rx_handlers() */
-		if (priv->rx_handlers[pkt->hdr.cmd]) {
-			priv->rx_handlers_stats[pkt->hdr.cmd]++;
-			err = priv->rx_handlers[pkt->hdr.cmd] (priv, rxb, cmd);
-		} else {
-			/* No handling needed */
-			IWL_DEBUG_RX(priv, "No handler needed for %s, 0x%02x\n",
-				     iwl_dvm_get_cmd_string(pkt->hdr.cmd),
-				     pkt->hdr.cmd);
-		}
+	/* Based on type of command response or notification,
+	 *   handle those that need handling via function in
+	 *   rx_handlers table.  See iwl_setup_rx_handlers() */
+	if (priv->rx_handlers[pkt->hdr.cmd]) {
+		priv->rx_handlers_stats[pkt->hdr.cmd]++;
+		err = priv->rx_handlers[pkt->hdr.cmd] (priv, rxb, cmd);
+	} else {
+		/* No handling needed */
+		IWL_DEBUG_RX(priv, "No handler needed for %s, 0x%02x\n",
+			     iwl_dvm_get_cmd_string(pkt->hdr.cmd),
+			     pkt->hdr.cmd);
 	}
 	return err;
 }

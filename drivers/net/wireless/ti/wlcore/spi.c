@@ -434,19 +434,7 @@ static struct spi_driver wl1271_spi_driver = {
 	.remove		= wl1271_remove,
 };
 
-static int __init wl1271_init(void)
-{
-	return spi_register_driver(&wl1271_spi_driver);
-}
-
-static void __exit wl1271_exit(void)
-{
-	spi_unregister_driver(&wl1271_spi_driver);
-}
-
-module_init(wl1271_init);
-module_exit(wl1271_exit);
-
+module_spi_driver(wl1271_spi_driver);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
 MODULE_AUTHOR("Juuso Oikarinen <juuso.oikarinen@nokia.com>");

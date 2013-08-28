@@ -884,12 +884,19 @@ static int __init init_tis(void)
 	rc = platform_driver_register(&tis_drv);
 	if (rc < 0)
 		return rc;
-	if (IS_ERR(pdev=platform_device_register_simple("tpm_tis", -1, NULL, 0)))
-		return PTR_ERR(pdev);
-	if((rc=tpm_tis_init(&pdev->dev, TIS_MEM_BASE, TIS_MEM_LEN, 0)) != 0) {
-		platform_device_unregister(pdev);
-		platform_driver_unregister(&tis_drv);
+	pdev = platform_device_register_simple("tpm_tis", -1, NULL, 0);
+	if (IS_ERR(pdev)) {
+		rc = PTR_ERR(pdev);
+		goto err_dev;
 	}
+	rc = tpm_tis_init(&pdev->dev, TIS_MEM_BASE, TIS_MEM_LEN, 0);
+	if (rc)
+		goto err_init;
+	return 0;
+err_init:
+	platform_device_unregister(pdev);
+err_dev:
+	platform_driver_unregister(&tis_drv);
 	return rc;
 }
 

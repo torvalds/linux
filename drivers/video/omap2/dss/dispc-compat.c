@@ -360,8 +360,7 @@ static void dispc_error_worker(struct work_struct *work)
 		if (bit & errors) {
 			DSSERR("FIFO UNDERFLOW on %s, disabling the overlay\n",
 					ovl->name);
-			dispc_ovl_enable(ovl->id, false);
-			dispc_mgr_go(ovl->manager->id);
+			ovl->disable(ovl);
 			msleep(50);
 		}
 	}

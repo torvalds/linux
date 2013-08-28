@@ -232,7 +232,7 @@ Purpose: Offload RCU callbacks from the corresponding CPU.
 To reduce its OS jitter, do at least one of the following:
 1.	Use affinity, cgroups, or other mechanism to force these kthreads
 	to execute on some other CPU.
-2.	Build with CONFIG_RCU_NOCB_CPUS=n, which will prevent these
+2.	Build with CONFIG_RCU_NOCB_CPU=n, which will prevent these
 	kthreads from being created in the first place.  However, please
 	note that this will not eliminate OS jitter, but will instead
 	shift it to RCU_SOFTIRQ.

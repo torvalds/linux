@@ -21,8 +21,8 @@
 #include <linux/ethtool.h>
 #include <linux/topology.h>
 #include <linux/gfp.h>
-#include <linux/cpu_rmap.h>
 #include <linux/aer.h>
+#include <linux/interrupt.h>
 #include "net_driver.h"
 #include "efx.h"
 #include "nic.h"
@@ -1283,29 +1283,6 @@ static unsigned int efx_wanted_parallelism(struct efx_nic *efx)
 	return count;
 }
 
-static int
-efx_init_rx_cpu_rmap(struct efx_nic *efx, struct msix_entry *xentries)
-{
-#ifdef CONFIG_RFS_ACCEL
-	unsigned int i;
-	int rc;
-
-	efx->net_dev->rx_cpu_rmap = alloc_irq_cpu_rmap(efx->n_rx_channels);
-	if (!efx->net_dev->rx_cpu_rmap)
-		return -ENOMEM;
-	for (i = 0; i < efx->n_rx_channels; i++) {
-		rc = irq_cpu_rmap_add(efx->net_dev->rx_cpu_rmap,
-				      xentries[i].vector);
-		if (rc) {
-			free_irq_cpu_rmap(efx->net_dev->rx_cpu_rmap);
-			efx->net_dev->rx_cpu_rmap = NULL;
-			return rc;
-		}
-	}
-#endif
-	return 0;
-}
-
 /* Probe the number and type of interrupts we are able to obtain, and
  * the resulting numbers of channels and RX queues.
  */
@@ -1358,11 +1335,6 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 			} else {
 				efx->n_tx_channels = n_channels;
 				efx->n_rx_channels = n_channels;
-			}
-			rc = efx_init_rx_cpu_rmap(efx, xentries);
-			if (rc) {
-				pci_disable_msix(efx->pci_dev);
-				return rc;
 			}
 			for (i = 0; i < efx->n_channels; i++)
 				efx_get_channel(efx, i)->irq =
@@ -1427,6 +1399,10 @@ static void efx_start_interrupts(struct efx_nic *efx, bool may_keep_eventq)
 
 	BUG_ON(efx->state == STATE_DISABLED);
 
+	if (efx->eeh_disabled_legacy_irq) {
+		enable_irq(efx->legacy_irq);
+		efx->eeh_disabled_legacy_irq = false;
+	}
 	if (efx->legacy_irq)
 		efx->legacy_irq_enabled = true;
 	efx_nic_enable_interrupts(efx);
@@ -2120,7 +2096,7 @@ static void efx_update_name(struct efx_nic *efx)
 static int efx_netdev_event(struct notifier_block *this,
 			    unsigned long event, void *ptr)
 {
-	struct net_device *net_dev = ptr;
+	struct net_device *net_dev = netdev_notifier_info_to_dev(ptr);
 
 	if (net_dev->netdev_ops == &efx_netdev_ops &&
 	    event == NETDEV_CHANGENAME)
@@ -2365,7 +2341,7 @@ out:
  * Returns 0 if the recovery mechanisms are unsuccessful.
  * Returns a non-zero value otherwise.
  */
-static int efx_try_recovery(struct efx_nic *efx)
+int efx_try_recovery(struct efx_nic *efx)
 {
 #ifdef CONFIG_EEH
 	/* A PCI error can occur and not be seen by EEH because nothing
@@ -2603,10 +2579,6 @@ static void efx_pci_remove_main(struct efx_nic *efx)
 	BUG_ON(efx->state == STATE_READY);
 	cancel_work_sync(&efx->reset_work);
 
-#ifdef CONFIG_RFS_ACCEL
-	free_irq_cpu_rmap(efx->net_dev->rx_cpu_rmap);
-	efx->net_dev->rx_cpu_rmap = NULL;
-#endif
 	efx_stop_interrupts(efx, false);
 	efx_nic_fini_interrupt(efx);
 	efx_fini_port(efx);

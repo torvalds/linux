@@ -23,9 +23,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/pm_runtime.h>
-
-#include <asm/io.h>
-
+#include <linux/io.h>
 
 /* The OMAP1 RTC is a year/month/day/hours/minutes/seconds BCD clock
  * with century-range alarm matching, driven by the 32kHz clock.
@@ -422,6 +420,8 @@ static int __init omap_rtc_probe(struct platform_device *pdev)
 	 *    power mode.  (Some chip errata report that RTC_CTRL_SPLIT
 	 *    is write-only, and always reads as zero...)
 	 */
+
+	device_init_wakeup(&pdev->dev, true);
 
 	if (new_ctrl & (u8) OMAP_RTC_CTRL_SPLIT)
 		pr_info("%s: split power mode\n", pdev->name);

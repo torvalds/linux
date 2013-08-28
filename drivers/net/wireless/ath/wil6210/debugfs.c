@@ -418,8 +418,14 @@ static int wil_txdesc_debugfs_show(struct seq_file *s, void *data)
 		if (skb) {
 			unsigned char printbuf[16 * 3 + 2];
 			int i = 0;
-			int len = skb_headlen(skb);
+			int len = le16_to_cpu(d->dma.length);
 			void *p = skb->data;
+
+			if (len != skb_headlen(skb)) {
+				seq_printf(s, "!!! len: desc = %d skb = %d\n",
+					   len, skb_headlen(skb));
+				len = min_t(int, len, skb_headlen(skb));
+			}
 
 			seq_printf(s, "    len = %d\n", len);
 

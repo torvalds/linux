@@ -84,8 +84,8 @@ int i2o_driver_register(struct i2o_driver *drv)
 	osm_debug("Register driver %s\n", drv->name);
 
 	if (drv->event) {
-		drv->event_queue = alloc_workqueue(drv->name,
-						   WQ_MEM_RECLAIM, 1);
+		drv->event_queue = alloc_workqueue("%s", WQ_MEM_RECLAIM, 1,
+						   drv->name);
 		if (!drv->event_queue) {
 			osm_err("Could not initialize event queue for driver "
 				"%s\n", drv->name);

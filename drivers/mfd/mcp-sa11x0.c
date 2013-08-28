@@ -225,8 +225,6 @@ static int mcp_sa11x0_probe(struct platform_device *dev)
 	if (ret == 0)
 		return 0;
 
-	platform_set_drvdata(dev, NULL);
-
  err_ioremap:
 	iounmap(m->base1);
 	iounmap(m->base0);
@@ -252,7 +250,6 @@ static int mcp_sa11x0_remove(struct platform_device *dev)
 	mem0 = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	mem1 = platform_get_resource(dev, IORESOURCE_MEM, 1);
 
-	platform_set_drvdata(dev, NULL);
 	mcp_host_del(mcp);
 	iounmap(m->base1);
 	iounmap(m->base0);

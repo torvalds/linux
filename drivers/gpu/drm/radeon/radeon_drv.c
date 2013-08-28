@@ -74,9 +74,10 @@
  *   2.31.0 - Add fastfb support for rs690
  *   2.32.0 - new info request for rings working
  *   2.33.0 - Add SI tiling mode array query
+ *   2.34.0 - Add CIK tiling mode array query
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	33
+#define KMS_DRIVER_MINOR	34
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);
@@ -127,6 +128,7 @@ struct drm_gem_object *radeon_gem_prime_import_sg_table(struct drm_device *dev,
 							size_t size,
 							struct sg_table *sg);
 int radeon_gem_prime_pin(struct drm_gem_object *obj);
+void radeon_gem_prime_unpin(struct drm_gem_object *obj);
 void *radeon_gem_prime_vmap(struct drm_gem_object *obj);
 void radeon_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
 extern long radeon_kms_compat_ioctl(struct file *filp, unsigned int cmd,
@@ -164,6 +166,7 @@ int radeon_pcie_gen2 = -1;
 int radeon_msi = -1;
 int radeon_lockup_timeout = 10000;
 int radeon_fastfb = 0;
+int radeon_dpm = -1;
 
 MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers");
 module_param_named(no_wb, radeon_no_wb, int, 0444);
@@ -218,6 +221,9 @@ module_param_named(lockup_timeout, radeon_lockup_timeout, int, 0444);
 
 MODULE_PARM_DESC(fastfb, "Direct FB access for IGP chips (0 = disable, 1 = enable)");
 module_param_named(fastfb, radeon_fastfb, int, 0444);
+
+MODULE_PARM_DESC(dpm, "DPM support (1 = enable, 0 = disable, -1 = auto)");
+module_param_named(dpm, radeon_dpm, int, 0444);
 
 static struct pci_device_id pciidlist[] = {
 	radeon_PCI_IDS
@@ -422,6 +428,7 @@ static struct drm_driver kms_driver = {
 	.gem_prime_export = drm_gem_prime_export,
 	.gem_prime_import = drm_gem_prime_import,
 	.gem_prime_pin = radeon_gem_prime_pin,
+	.gem_prime_unpin = radeon_gem_prime_unpin,
 	.gem_prime_get_sg_table = radeon_gem_prime_get_sg_table,
 	.gem_prime_import_sg_table = radeon_gem_prime_import_sg_table,
 	.gem_prime_vmap = radeon_gem_prime_vmap,

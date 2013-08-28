@@ -695,9 +695,6 @@ static int usX2Y_rate_set(struct usX2Ydev *usX2Y, int rate)
 			((char*)(usbdata + i))[1] = ra[i].c2;
 			usb_fill_bulk_urb(us->urb[i], usX2Y->dev, usb_sndbulkpipe(usX2Y->dev, 4),
 					  usbdata + i, 2, i_usX2Y_04Int, usX2Y);
-#ifdef OLD_USB
-			us->urb[i]->transfer_flags = USB_QUEUE_BULK;
-#endif
 		}
 		us->submitted =	0;
 		us->len =	NOOF_SETRATE_URBS;

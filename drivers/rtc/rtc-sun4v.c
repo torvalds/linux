@@ -92,17 +92,11 @@ static int __init sun4v_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit sun4v_rtc_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver sun4v_rtc_driver = {
 	.driver		= {
 		.name	= "rtc-sun4v",
 		.owner	= THIS_MODULE,
 	},
-	.remove		= __exit_p(sun4v_rtc_remove),
 };
 
 module_platform_driver_probe(sun4v_rtc_driver, sun4v_rtc_probe);

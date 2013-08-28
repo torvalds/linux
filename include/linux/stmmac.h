@@ -80,6 +80,10 @@ struct stmmac_mdio_bus_data {
 	unsigned int phy_mask;
 	int *irqs;
 	int probed_phy_irq;
+#ifdef CONFIG_OF
+	int reset_gpio, active_low;
+	u32 delays[3];
+#endif
 };
 
 struct stmmac_dma_cfg {

@@ -840,8 +840,8 @@ static inline int build_open_flags(int flags, umode_t mode, struct open_flags *o
 	if (flags & __O_SYNC)
 		flags |= O_DSYNC;
 
-	if (flags & O_TMPFILE) {
-		if (!(flags & O_CREAT))
+	if (flags & __O_TMPFILE) {
+		if ((flags & O_TMPFILE_MASK) != O_TMPFILE)
 			return -EINVAL;
 		acc_mode = MAY_OPEN | ACC_MODE(flags);
 	} else if (flags & O_PATH) {

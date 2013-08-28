@@ -8,6 +8,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/reboot.h>
 #include "prminst44xx.h"
 
 /**
@@ -18,7 +19,7 @@
  * Resets the SoC.  For @cmd, see the 'reboot' syscall in
  * kernel/sys.c.  No return value.
  */
-void omap44xx_restart(char mode, const char *cmd)
+void omap44xx_restart(enum reboot_mode mode, const char *cmd)
 {
 	/* XXX Should save 'cmd' into scratchpad for use after reboot */
 	omap4_prminst_global_warm_sw_reset(); /* never returns */

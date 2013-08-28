@@ -534,6 +534,8 @@ int mwifiex_cmd_802_11_associate(struct mwifiex_private *priv,
 
 	mwifiex_cmd_append_tsf_tlv(priv, &pos, bss_desc);
 
+	mwifiex_11h_process_join(priv, &pos, bss_desc);
+
 	cmd->size = cpu_to_le16((u16) (pos - (u8 *) assoc) + S_DS_GEN);
 
 	/* Set the Capability info at last */
@@ -919,9 +921,8 @@ mwifiex_cmd_802_11_ad_hoc_start(struct mwifiex_private *priv,
 	memcpy(&priv->curr_bss_params.data_rates,
 	       &adhoc_start->data_rate, priv->curr_bss_params.num_of_rates);
 
-	dev_dbg(adapter->dev, "info: ADHOC_S_CMD: rates=%02x %02x %02x %02x\n",
-		adhoc_start->data_rate[0], adhoc_start->data_rate[1],
-		adhoc_start->data_rate[2], adhoc_start->data_rate[3]);
+	dev_dbg(adapter->dev, "info: ADHOC_S_CMD: rates=%4ph\n",
+		adhoc_start->data_rate);
 
 	dev_dbg(adapter->dev, "info: ADHOC_S_CMD: AD-HOC Start command is ready\n");
 

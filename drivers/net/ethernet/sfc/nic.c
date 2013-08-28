@@ -14,6 +14,7 @@
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
+#include <linux/cpu_rmap.h>
 #include "net_driver.h"
 #include "bitfield.h"
 #include "efx.h"
@@ -1080,12 +1081,21 @@ efx_handle_rx_event(struct efx_channel *channel, const efx_qword_t *event)
 	rx_ev_hdr_type = EFX_QWORD_FIELD(*event, FSF_AZ_RX_EV_HDR_TYPE);
 
 	if (likely(rx_ev_pkt_ok)) {
-		/* If packet is marked as OK and packet type is TCP/IP or
-		 * UDP/IP, then we can rely on the hardware checksum.
+		/* If packet is marked as OK then we can rely on the
+		 * hardware checksum and classification.
 		 */
-		flags = (rx_ev_hdr_type == FSE_CZ_RX_EV_HDR_TYPE_IPV4V6_TCP ||
-			 rx_ev_hdr_type == FSE_CZ_RX_EV_HDR_TYPE_IPV4V6_UDP) ?
-			EFX_RX_PKT_CSUMMED : 0;
+		flags = 0;
+		switch (rx_ev_hdr_type) {
+		case FSE_CZ_RX_EV_HDR_TYPE_IPV4V6_TCP:
+			flags |= EFX_RX_PKT_TCP;
+			/* fall through */
+		case FSE_CZ_RX_EV_HDR_TYPE_IPV4V6_UDP:
+			flags |= EFX_RX_PKT_CSUMMED;
+			/* fall through */
+		case FSE_CZ_RX_EV_HDR_TYPE_IPV4V6_OTHER:
+		case FSE_AZ_RX_EV_HDR_TYPE_OTHER:
+			break;
+		}
 	} else {
 		flags = efx_handle_rx_not_ok(rx_queue, event);
 	}
@@ -1579,6 +1589,16 @@ static irqreturn_t efx_legacy_interrupt(int irq, void *dev_id)
 	efx_readd(efx, &reg, FR_BZ_INT_ISR0);
 	queues = EFX_EXTRACT_DWORD(reg, 0, 31);
 
+	/* Legacy interrupts are disabled too late by the EEH kernel
+	 * code. Disable them earlier.
+	 * If an EEH error occurred, the read will have returned all ones.
+	 */
+	if (EFX_DWORD_IS_ALL_ONES(reg) && efx_try_recovery(efx) &&
+	    !efx->eeh_disabled_legacy_irq) {
+		disable_irq_nosync(efx->legacy_irq);
+		efx->eeh_disabled_legacy_irq = true;
+	}
+
 	/* Handle non-event-queue sources */
 	if (queues & (1U << efx->irq_level)) {
 		syserr = EFX_OWORD_FIELD(*int_ker, FSF_AZ_NET_IVEC_FATAL_INT);
@@ -1687,6 +1707,7 @@ void efx_nic_push_rx_indir_table(struct efx_nic *efx)
 int efx_nic_init_interrupt(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
+	unsigned int n_irqs;
 	int rc;
 
 	if (!EFX_INT_MODE_USE_MSI(efx)) {
@@ -1707,7 +1728,19 @@ int efx_nic_init_interrupt(struct efx_nic *efx)
 		return 0;
 	}
 
+#ifdef CONFIG_RFS_ACCEL
+	if (efx->interrupt_mode == EFX_INT_MODE_MSIX) {
+		efx->net_dev->rx_cpu_rmap =
+			alloc_irq_cpu_rmap(efx->n_rx_channels);
+		if (!efx->net_dev->rx_cpu_rmap) {
+			rc = -ENOMEM;
+			goto fail1;
+		}
+	}
+#endif
+
 	/* Hook MSI or MSI-X interrupt */
+	n_irqs = 0;
 	efx_for_each_channel(channel, efx) {
 		rc = request_irq(channel->irq, efx_msi_interrupt,
 				 IRQF_PROBE_SHARED, /* Not shared */
@@ -1718,13 +1751,31 @@ int efx_nic_init_interrupt(struct efx_nic *efx)
 				  "failed to hook IRQ %d\n", channel->irq);
 			goto fail2;
 		}
+		++n_irqs;
+
+#ifdef CONFIG_RFS_ACCEL
+		if (efx->interrupt_mode == EFX_INT_MODE_MSIX &&
+		    channel->channel < efx->n_rx_channels) {
+			rc = irq_cpu_rmap_add(efx->net_dev->rx_cpu_rmap,
+					      channel->irq);
+			if (rc)
+				goto fail2;
+		}
+#endif
 	}
 
 	return 0;
 
  fail2:
-	efx_for_each_channel(channel, efx)
+#ifdef CONFIG_RFS_ACCEL
+	free_irq_cpu_rmap(efx->net_dev->rx_cpu_rmap);
+	efx->net_dev->rx_cpu_rmap = NULL;
+#endif
+	efx_for_each_channel(channel, efx) {
+		if (n_irqs-- == 0)
+			break;
 		free_irq(channel->irq, &efx->channel[channel->channel]);
+	}
  fail1:
 	return rc;
 }
@@ -1734,11 +1785,14 @@ void efx_nic_fini_interrupt(struct efx_nic *efx)
 	struct efx_channel *channel;
 	efx_oword_t reg;
 
+#ifdef CONFIG_RFS_ACCEL
+	free_irq_cpu_rmap(efx->net_dev->rx_cpu_rmap);
+	efx->net_dev->rx_cpu_rmap = NULL;
+#endif
+
 	/* Disable MSI/MSI-X interrupts */
-	efx_for_each_channel(channel, efx) {
-		if (channel->irq)
-			free_irq(channel->irq, &efx->channel[channel->channel]);
-	}
+	efx_for_each_channel(channel, efx)
+		free_irq(channel->irq, &efx->channel[channel->channel]);
 
 	/* ACK legacy interrupt */
 	if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0)

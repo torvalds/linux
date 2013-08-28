@@ -215,7 +215,6 @@ out:	snd_card_free(card);
 static int snd_gusclassic_remove(struct device *dev, unsigned int n)
 {
 	snd_card_free(dev_get_drvdata(dev));
-	dev_set_drvdata(dev, NULL);
 	return 0;
 }
 

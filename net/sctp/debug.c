@@ -47,10 +47,6 @@
 
 #include <net/sctp/sctp.h>
 
-#if SCTP_DEBUG
-int sctp_debug_flag = 1;	/* Initially enable DEBUG */
-#endif	/* SCTP_DEBUG */
-
 /* These are printable forms of Chunk ID's from section 3.1.  */
 static const char *const sctp_cid_tbl[SCTP_NUM_BASE_CHUNK_TYPES] = {
 	"DATA",

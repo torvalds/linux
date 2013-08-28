@@ -298,6 +298,7 @@ static int slave_probe(struct platform_device *pdev)
 	struct tilcdc_module *mod;
 	struct pinctrl *pinctrl;
 	uint32_t i2c_phandle;
+	struct i2c_adapter *slavei2c;
 	int ret = -EINVAL;
 
 	/* bail out early if no DT data: */
@@ -306,11 +307,38 @@ static int slave_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
+	/* Bail out early if i2c not specified */
+	if (of_property_read_u32(node, "i2c", &i2c_phandle)) {
+		dev_err(&pdev->dev, "could not get i2c bus phandle\n");
+		return ret;
+	}
+
+	i2c_node = of_find_node_by_phandle(i2c_phandle);
+	if (!i2c_node) {
+		dev_err(&pdev->dev, "could not get i2c bus node\n");
+		return ret;
+	}
+
+	/* but defer the probe if it can't be initialized it might come later */
+	slavei2c = of_find_i2c_adapter_by_node(i2c_node);
+	of_node_put(i2c_node);
+
+	if (!slavei2c) {
+		ret = -EPROBE_DEFER;
+		tilcdc_slave_probedefer(true);
+		dev_err(&pdev->dev, "could not get i2c\n");
+		return ret;
+	}
+
 	slave_mod = kzalloc(sizeof(*slave_mod), GFP_KERNEL);
 	if (!slave_mod)
 		return -ENOMEM;
 
 	mod = &slave_mod->base;
+
+	mod->preferred_bpp = slave_info.bpp;
+
+	slave_mod->i2c = slavei2c;
 
 	tilcdc_module_init(mod, "slave", &slave_module_ops);
 
@@ -318,30 +346,9 @@ static int slave_probe(struct platform_device *pdev)
 	if (IS_ERR(pinctrl))
 		dev_warn(&pdev->dev, "pins are not configured\n");
 
-	if (of_property_read_u32(node, "i2c", &i2c_phandle)) {
-		dev_err(&pdev->dev, "could not get i2c bus phandle\n");
-		goto fail;
-	}
-
-	i2c_node = of_find_node_by_phandle(i2c_phandle);
-	if (!i2c_node) {
-		dev_err(&pdev->dev, "could not get i2c bus node\n");
-		goto fail;
-	}
-
-	slave_mod->i2c = of_find_i2c_adapter_by_node(i2c_node);
-	if (!slave_mod->i2c) {
-		dev_err(&pdev->dev, "could not get i2c\n");
-		goto fail;
-	}
-
-	of_node_put(i2c_node);
+	tilcdc_slave_probedefer(false);
 
 	return 0;
-
-fail:
-	slave_destroy(mod);
-	return ret;
 }
 
 static int slave_remove(struct platform_device *pdev)

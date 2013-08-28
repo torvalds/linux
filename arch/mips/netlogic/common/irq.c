@@ -253,13 +253,12 @@ asmlinkage void plat_irq_dispatch(void)
 
 	node = nlm_nodeid();
 	eirr = read_c0_eirr_and_eimr();
-
-	i = __ilog2_u64(eirr);
-	if (i == -1)
+	if (eirr == 0)
 		return;
 
+	i = __ffs64(eirr);
 	/* per-CPU IRQs don't need translation */
-	if (eirr & PERCPU_IRQ_MASK) {
+	if (i < PIC_IRQ_BASE) {
 		do_IRQ(i);
 		return;
 	}

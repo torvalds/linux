@@ -152,12 +152,10 @@ static struct rtc_class_ops coh901331_ops = {
 
 static int __exit coh901331_remove(struct platform_device *pdev)
 {
-	struct coh901331_port *rtap = dev_get_drvdata(&pdev->dev);
+	struct coh901331_port *rtap = platform_get_drvdata(pdev);
 
-	if (rtap) {
+	if (rtap)
 		clk_unprepare(rtap->clk);
-		platform_set_drvdata(pdev, NULL);
-	}
 
 	return 0;
 }
@@ -220,7 +218,6 @@ static int __init coh901331_probe(struct platform_device *pdev)
 	return 0;
 
  out_no_rtc:
-	platform_set_drvdata(pdev, NULL);
 	clk_unprepare(rtap->clk);
 	return ret;
 }
@@ -267,7 +264,7 @@ static SIMPLE_DEV_PM_OPS(coh901331_pm_ops, coh901331_suspend, coh901331_resume);
 
 static void coh901331_shutdown(struct platform_device *pdev)
 {
-	struct coh901331_port *rtap = dev_get_drvdata(&pdev->dev);
+	struct coh901331_port *rtap = platform_get_drvdata(pdev);
 
 	clk_enable(rtap->clk);
 	writel(0, rtap->virtbase + COH901331_IRQ_MASK);

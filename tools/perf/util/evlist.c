@@ -821,6 +821,7 @@ int perf_evlist__prepare_workload(struct perf_evlist *evlist,
 		goto out_close_pipes;
 	}
 
+	fcntl(go_pipe[1], F_SETFD, FD_CLOEXEC);
 	evlist->workload.cork_fd = go_pipe[1];
 	close(child_ready_pipe[0]);
 	return 0;
@@ -837,10 +838,17 @@ out_close_ready_pipe:
 int perf_evlist__start_workload(struct perf_evlist *evlist)
 {
 	if (evlist->workload.cork_fd > 0) {
+		char bf;
+		int ret;
 		/*
 		 * Remove the cork, let it rip!
 		 */
-		return close(evlist->workload.cork_fd);
+		ret = write(evlist->workload.cork_fd, &bf, 1);
+		if (ret < 0)
+			perror("enable to write to pipe");
+
+		close(evlist->workload.cork_fd);
+		return ret;
 	}
 
 	return 0;

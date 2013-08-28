@@ -53,13 +53,13 @@
 #define V4L2_CTRL_CLASS_USER		0x00980000	/* Old-style 'user' controls */
 #define V4L2_CTRL_CLASS_MPEG		0x00990000	/* MPEG-compression controls */
 #define V4L2_CTRL_CLASS_CAMERA		0x009a0000	/* Camera class controls */
-#define V4L2_CTRL_CLASS_FM_TX		0x009b0000	/* FM Modulator control class */
+#define V4L2_CTRL_CLASS_FM_TX		0x009b0000	/* FM Modulator controls */
 #define V4L2_CTRL_CLASS_FLASH		0x009c0000	/* Camera flash controls */
 #define V4L2_CTRL_CLASS_JPEG		0x009d0000	/* JPEG-compression controls */
 #define V4L2_CTRL_CLASS_IMAGE_SOURCE	0x009e0000	/* Image source controls */
 #define V4L2_CTRL_CLASS_IMAGE_PROC	0x009f0000	/* Image processing controls */
 #define V4L2_CTRL_CLASS_DV		0x00a00000	/* Digital Video controls */
-#define V4L2_CTRL_CLASS_FM_RX		0x00a10000	/* Digital Video controls */
+#define V4L2_CTRL_CLASS_FM_RX		0x00a10000	/* FM Receiver controls */
 
 /* User-class control IDs */
 

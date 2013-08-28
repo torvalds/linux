@@ -9,7 +9,7 @@
 // Copyright: (C) 2009-2010 Julia Lawall, Nicolas Palix, DIKU.  GPLv2.
 // Copyright: (C) 2009-2010 Gilles Muller, INRIA/LiP6.  GPLv2.
 // URL: http://coccinelle.lip6.fr/rules/kzalloc.html
-// Options: -no_includes -include_headers
+// Options: --no-includes --include-headers
 //
 // Keywords: kmalloc, kzalloc
 // Version min: < 2.6.12 kmalloc

@@ -36,7 +36,8 @@
 #define QLC_83XX_MAX_DRV_LOCK_RECOVERY_ATTEMPT		3
 #define QLC_83XX_DRV_LOCK_RECOVERY_DELAY		200
 #define QLC_83XX_DRV_LOCK_RECOVERY_STATUS_MASK		0x3
-
+#define QLC_83XX_LB_WAIT_COUNT				250
+#define QLC_83XX_LB_MSLEEP_COUNT			20
 #define QLC_83XX_NO_NIC_RESOURCE	0x5
 #define QLC_83XX_MAC_PRESENT		0xC
 #define QLC_83XX_MAC_ABSENT		0xD
@@ -314,6 +315,7 @@ struct qlc_83xx_idc {
 	u8		vnic_state;
 	u8		vnic_wait_limit;
 	u8		quiesce_req;
+	u8		delay_reset;
 	char		**name;
 };
 
@@ -392,6 +394,8 @@ enum qlcnic_83xx_states {
 #define QLC_83XX_LB_MAX_FILTERS			2048
 #define QLC_83XX_LB_BUCKET_SIZE			256
 #define QLC_83XX_MINIMUM_VECTOR			3
+#define QLC_83XX_MAX_MC_COUNT			38
+#define QLC_83XX_MAX_UC_COUNT			4096
 
 #define QLC_83XX_GET_FUNC_MODE_FROM_NPAR_INFO(val)	(val & 0x80000000)
 #define QLC_83XX_GET_LRO_CAPABILITY(val)		(val & 0x20)
@@ -623,4 +627,11 @@ u32 qlcnic_83xx_mac_rcode(struct qlcnic_adapter *);
 u32 qlcnic_83xx_mbx_poll(struct qlcnic_adapter *, u32 *);
 void qlcnic_83xx_enable_mbx_poll(struct qlcnic_adapter *);
 void qlcnic_83xx_disable_mbx_poll(struct qlcnic_adapter *);
+void qlcnic_83xx_set_mac_filter_count(struct qlcnic_adapter *);
+int qlcnic_83xx_shutdown(struct pci_dev *);
+int qlcnic_83xx_resume(struct qlcnic_adapter *);
+int qlcnic_83xx_idc_init(struct qlcnic_adapter *);
+int qlcnic_83xx_idc_reattach_driver(struct qlcnic_adapter *);
+int qlcnic_83xx_set_vnic_opmode(struct qlcnic_adapter *);
+int qlcnic_83xx_check_vnic_state(struct qlcnic_adapter *);
 #endif

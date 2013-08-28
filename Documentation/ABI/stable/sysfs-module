@@ -4,9 +4,13 @@ Description:
 
 	/sys/module/MODULENAME
 		The name of the module that is in the kernel.  This
-		module name will show up either if the module is built
-		directly into the kernel, or if it is loaded as a
-		dynamic module.
+		module name will always show up if the module is loaded as a
+		dynamic module.  If it is built directly into the kernel, it
+		will only show up if it has a version or at least one
+		parameter.
+
+		Note: The conditions of creation in the built-in case are not
+		by design and may be removed in the future.
 
 	/sys/module/MODULENAME/parameters
 		This directory contains individual files that are each

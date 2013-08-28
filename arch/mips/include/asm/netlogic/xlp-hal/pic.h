@@ -315,7 +315,7 @@ nlm_pic_send_ipi(uint64_t base, int hwt, int irq, int nmi)
 {
 	uint64_t ipi;
 
-	ipi = (nmi << 31) | (irq << 20);
+	ipi = ((uint64_t)nmi << 31) | (irq << 20);
 	ipi |= ((hwt >> 4) << 16) | (1 << (hwt & 0xf)); /* cpuset and mask */
 	nlm_write_pic_reg(base, PIC_IPI_CTL, ipi);
 }

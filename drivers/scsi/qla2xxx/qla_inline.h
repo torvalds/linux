@@ -83,7 +83,7 @@ static inline void
 host_to_adap(uint8_t *src, uint8_t *dst, uint32_t bsize)
 {
 	uint32_t *isrc = (uint32_t *) src;
-	uint32_t *odest = (uint32_t *) dst;
+	__le32 *odest = (__le32 *) dst;
 	uint32_t iter = bsize >> 2;
 
 	for (; iter ; iter--)

@@ -105,9 +105,6 @@ int main(void)
 	DEFINE(KSP_VSID, offsetof(struct thread_struct, ksp_vsid));
 #else /* CONFIG_PPC64 */
 	DEFINE(PGDIR, offsetof(struct thread_struct, pgdir));
-#if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
-	DEFINE(THREAD_DBCR0, offsetof(struct thread_struct, dbcr0));
-#endif
 #ifdef CONFIG_SPE
 	DEFINE(THREAD_EVR0, offsetof(struct thread_struct, evr[0]));
 	DEFINE(THREAD_ACC, offsetof(struct thread_struct, acc));
@@ -115,6 +112,9 @@ int main(void)
 	DEFINE(THREAD_USED_SPE, offsetof(struct thread_struct, used_spe));
 #endif /* CONFIG_SPE */
 #endif /* CONFIG_PPC64 */
+#if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
+	DEFINE(THREAD_DBCR0, offsetof(struct thread_struct, dbcr0));
+#endif
 #ifdef CONFIG_KVM_BOOK3S_32_HANDLER
 	DEFINE(THREAD_KVM_SVCPU, offsetof(struct thread_struct, kvm_shadow_vcpu));
 #endif
@@ -132,7 +132,6 @@ int main(void)
 	DEFINE(THREAD_SIER, offsetof(struct thread_struct, sier));
 	DEFINE(THREAD_MMCR0, offsetof(struct thread_struct, mmcr0));
 	DEFINE(THREAD_MMCR2, offsetof(struct thread_struct, mmcr2));
-	DEFINE(THREAD_MMCRA, offsetof(struct thread_struct, mmcra));
 #endif
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	DEFINE(PACATMSCRATCH, offsetof(struct paca_struct, tm_scratch));

@@ -128,6 +128,10 @@ module_param_named(disable_power_well, i915_disable_power_well, int, 0600);
 MODULE_PARM_DESC(disable_power_well,
 		 "Disable the power well when possible (default: false)");
 
+int i915_enable_ips __read_mostly = 1;
+module_param_named(enable_ips, i915_enable_ips, int, 0600);
+MODULE_PARM_DESC(enable_ips, "Enable IPS (default: true)");
+
 static struct drm_driver driver;
 extern int intel_agp_enabled;
 
@@ -280,6 +284,7 @@ static const struct intel_device_info intel_ivybridge_m_info = {
 	GEN7_FEATURES,
 	.is_ivybridge = 1,
 	.is_mobile = 1,
+	.has_fbc = 1,
 };
 
 static const struct intel_device_info intel_ivybridge_q_info = {
@@ -308,12 +313,19 @@ static const struct intel_device_info intel_valleyview_d_info = {
 static const struct intel_device_info intel_haswell_d_info = {
 	GEN7_FEATURES,
 	.is_haswell = 1,
+	.has_ddi = 1,
+	.has_fpga_dbg = 1,
+	.has_vebox_ring = 1,
 };
 
 static const struct intel_device_info intel_haswell_m_info = {
 	GEN7_FEATURES,
 	.is_haswell = 1,
 	.is_mobile = 1,
+	.has_ddi = 1,
+	.has_fpga_dbg = 1,
+	.has_fbc = 1,
+	.has_vebox_ring = 1,
 };
 
 static const struct pci_device_id pciidlist[] = {		/* aka */
@@ -445,7 +457,6 @@ void intel_detect_pch(struct drm_device *dev)
 	 */
 	if (INTEL_INFO(dev)->num_pipes == 0) {
 		dev_priv->pch_type = PCH_NOP;
-		dev_priv->num_pch_pll = 0;
 		return;
 	}
 
@@ -454,9 +465,15 @@ void intel_detect_pch(struct drm_device *dev)
 	 * make graphics device passthrough work easy for VMM, that only
 	 * need to expose ISA bridge to let driver know the real hardware
 	 * underneath. This is a requirement from virtualization team.
+	 *
+	 * In some virtualized environments (e.g. XEN), there is irrelevant
+	 * ISA bridge in the system. To work reliably, we should scan trhough
+	 * all the ISA bridge devices and check for the first match, instead
+	 * of only checking the first one.
 	 */
 	pch = pci_get_class(PCI_CLASS_BRIDGE_ISA << 8, NULL);
-	if (pch) {
+	while (pch) {
+		struct pci_dev *curr = pch;
 		if (pch->vendor == PCI_VENDOR_ID_INTEL) {
 			unsigned short id;
 			id = pch->device & INTEL_PCH_DEVICE_ID_MASK;
@@ -464,37 +481,39 @@ void intel_detect_pch(struct drm_device *dev)
 
 			if (id == INTEL_PCH_IBX_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_IBX;
-				dev_priv->num_pch_pll = 2;
 				DRM_DEBUG_KMS("Found Ibex Peak PCH\n");
 				WARN_ON(!IS_GEN5(dev));
 			} else if (id == INTEL_PCH_CPT_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_CPT;
-				dev_priv->num_pch_pll = 2;
 				DRM_DEBUG_KMS("Found CougarPoint PCH\n");
 				WARN_ON(!(IS_GEN6(dev) || IS_IVYBRIDGE(dev)));
 			} else if (id == INTEL_PCH_PPT_DEVICE_ID_TYPE) {
 				/* PantherPoint is CPT compatible */
 				dev_priv->pch_type = PCH_CPT;
-				dev_priv->num_pch_pll = 2;
 				DRM_DEBUG_KMS("Found PatherPoint PCH\n");
 				WARN_ON(!(IS_GEN6(dev) || IS_IVYBRIDGE(dev)));
 			} else if (id == INTEL_PCH_LPT_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_LPT;
-				dev_priv->num_pch_pll = 0;
 				DRM_DEBUG_KMS("Found LynxPoint PCH\n");
 				WARN_ON(!IS_HASWELL(dev));
 				WARN_ON(IS_ULT(dev));
 			} else if (id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_LPT;
-				dev_priv->num_pch_pll = 0;
 				DRM_DEBUG_KMS("Found LynxPoint LP PCH\n");
 				WARN_ON(!IS_HASWELL(dev));
 				WARN_ON(!IS_ULT(dev));
+			} else {
+				goto check_next;
 			}
-			BUG_ON(dev_priv->num_pch_pll > I915_NUM_PLLS);
+			pci_dev_put(pch);
+			break;
 		}
-		pci_dev_put(pch);
+check_next:
+		pch = pci_get_class(PCI_CLASS_BRIDGE_ISA << 8, curr);
+		pci_dev_put(curr);
 	}
+	if (!pch)
+		DRM_DEBUG_KMS("No PCH found?\n");
 }
 
 bool i915_semaphore_is_enabled(struct drm_device *dev)
@@ -549,6 +568,8 @@ static int i915_drm_freeze(struct drm_device *dev)
 		 */
 		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
 			dev_priv->display.crtc_disable(crtc);
+
+		intel_modeset_suspend_hw(dev);
 	}
 
 	i915_save_state(dev);
@@ -556,7 +577,7 @@ static int i915_drm_freeze(struct drm_device *dev)
 	intel_opregion_fini(dev);
 
 	console_lock();
-	intel_fbdev_set_suspend(dev, 1);
+	intel_fbdev_set_suspend(dev, FBINFO_STATE_SUSPENDED);
 	console_unlock();
 
 	return 0;
@@ -600,7 +621,7 @@ void intel_console_resume(struct work_struct *work)
 	struct drm_device *dev = dev_priv->dev;
 
 	console_lock();
-	intel_fbdev_set_suspend(dev, 0);
+	intel_fbdev_set_suspend(dev, FBINFO_STATE_RUNNING);
 	console_unlock();
 }
 
@@ -669,7 +690,7 @@ static int __i915_drm_thaw(struct drm_device *dev)
 	 * path of resume if possible.
 	 */
 	if (console_trylock()) {
-		intel_fbdev_set_suspend(dev, 0);
+		intel_fbdev_set_suspend(dev, FBINFO_STATE_RUNNING);
 		console_unlock();
 	} else {
 		schedule_work(&dev_priv->console_resume_work);
@@ -855,37 +876,14 @@ static int gen6_do_reset(struct drm_device *dev)
 
 int intel_gpu_reset(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret = -ENODEV;
-
 	switch (INTEL_INFO(dev)->gen) {
 	case 7:
-	case 6:
-		ret = gen6_do_reset(dev);
-		break;
-	case 5:
-		ret = ironlake_do_reset(dev);
-		break;
-	case 4:
-		ret = i965_do_reset(dev);
-		break;
-	case 2:
-		ret = i8xx_do_reset(dev);
-		break;
+	case 6: return gen6_do_reset(dev);
+	case 5: return ironlake_do_reset(dev);
+	case 4: return i965_do_reset(dev);
+	case 2: return i8xx_do_reset(dev);
+	default: return -ENODEV;
 	}
-
-	/* Also reset the gpu hangman. */
-	if (dev_priv->gpu_error.stop_rings) {
-		DRM_INFO("Simulated gpu hang, resetting stop_rings\n");
-		dev_priv->gpu_error.stop_rings = 0;
-		if (ret == -ENODEV) {
-			DRM_ERROR("Reset not implemented, but ignoring "
-				  "error for simulated gpu hangs\n");
-			ret = 0;
-		}
-	}
-
-	return ret;
 }
 
 /**
@@ -906,6 +904,7 @@ int intel_gpu_reset(struct drm_device *dev)
 int i915_reset(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	bool simulated;
 	int ret;
 
 	if (!i915_try_reset)
@@ -915,13 +914,26 @@ int i915_reset(struct drm_device *dev)
 
 	i915_gem_reset(dev);
 
-	ret = -ENODEV;
-	if (get_seconds() - dev_priv->gpu_error.last_reset < 5)
+	simulated = dev_priv->gpu_error.stop_rings != 0;
+
+	if (!simulated && get_seconds() - dev_priv->gpu_error.last_reset < 5) {
 		DRM_ERROR("GPU hanging too fast, declaring wedged!\n");
-	else
+		ret = -ENODEV;
+	} else {
 		ret = intel_gpu_reset(dev);
 
-	dev_priv->gpu_error.last_reset = get_seconds();
+		/* Also reset the gpu hangman. */
+		if (simulated) {
+			DRM_INFO("Simulated gpu hang, resetting stop_rings\n");
+			dev_priv->gpu_error.stop_rings = 0;
+			if (ret == -ENODEV) {
+				DRM_ERROR("Reset not implemented, but ignoring "
+					  "error for simulated gpu hangs\n");
+				ret = 0;
+			}
+		} else
+			dev_priv->gpu_error.last_reset = get_seconds();
+	}
 	if (ret) {
 		DRM_ERROR("Failed to reset chip.\n");
 		mutex_unlock(&dev->struct_mutex);
@@ -983,12 +995,6 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct intel_device_info *intel_info =
 		(struct intel_device_info *) ent->driver_data;
-
-	if (intel_info->is_valleyview)
-		if(!i915_preliminary_hw_support) {
-			DRM_ERROR("Preliminary hardware support disabled\n");
-			return -ENODEV;
-		}
 
 	/* Only bind to function 0 of the device. Early generations
 	 * used function 1 as a placeholder for multi-head. This causes
@@ -1218,16 +1224,16 @@ MODULE_LICENSE("GPL and additional rights");
 static void
 ilk_dummy_write(struct drm_i915_private *dev_priv)
 {
-	/* WaIssueDummyWriteToWakeupFromRC6: Issue a dummy write to wake up the
-	 * chip from rc6 before touching it for real. MI_MODE is masked, hence
-	 * harmless to write 0 into. */
+	/* WaIssueDummyWriteToWakeupFromRC6:ilk Issue a dummy write to wake up
+	 * the chip from rc6 before touching it for real. MI_MODE is masked,
+	 * hence harmless to write 0 into. */
 	I915_WRITE_NOTRACE(MI_MODE, 0);
 }
 
 static void
 hsw_unclaimed_reg_clear(struct drm_i915_private *dev_priv, u32 reg)
 {
-	if (IS_HASWELL(dev_priv->dev) &&
+	if (HAS_FPGA_DBG_UNCLAIMED(dev_priv->dev) &&
 	    (I915_READ_NOTRACE(FPGA_DBG) & FPGA_DBG_RM_NOCLAIM)) {
 		DRM_ERROR("Unknown unclaimed register before writing to %x\n",
 			  reg);
@@ -1238,7 +1244,7 @@ hsw_unclaimed_reg_clear(struct drm_i915_private *dev_priv, u32 reg)
 static void
 hsw_unclaimed_reg_check(struct drm_i915_private *dev_priv, u32 reg)
 {
-	if (IS_HASWELL(dev_priv->dev) &&
+	if (HAS_FPGA_DBG_UNCLAIMED(dev_priv->dev) &&
 	    (I915_READ_NOTRACE(FPGA_DBG) & FPGA_DBG_RM_NOCLAIM)) {
 		DRM_ERROR("Unclaimed write to %x\n", reg);
 		I915_WRITE_NOTRACE(FPGA_DBG, FPGA_DBG_RM_NOCLAIM);

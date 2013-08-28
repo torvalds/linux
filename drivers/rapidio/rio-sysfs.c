@@ -84,6 +84,15 @@ static ssize_t lnext_show(struct device *dev,
 	return str - buf;
 }
 
+static ssize_t modalias_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	struct rio_dev *rdev = to_rio_dev(dev);
+
+	return sprintf(buf, "rapidio:v%04Xd%04Xav%04Xad%04X\n",
+		       rdev->vid, rdev->did, rdev->asm_vid, rdev->asm_did);
+}
+
 struct device_attribute rio_dev_attrs[] = {
 	__ATTR_RO(did),
 	__ATTR_RO(vid),
@@ -93,6 +102,7 @@ struct device_attribute rio_dev_attrs[] = {
 	__ATTR_RO(asm_rev),
 	__ATTR_RO(lprev),
 	__ATTR_RO(destid),
+	__ATTR_RO(modalias),
 	__ATTR_NULL,
 };
 
@@ -257,8 +267,6 @@ int rio_create_sysfs_dev_files(struct rio_dev *rdev)
 		err |= device_create_file(&rdev->dev, &dev_attr_routes);
 		err |= device_create_file(&rdev->dev, &dev_attr_lnext);
 		err |= device_create_file(&rdev->dev, &dev_attr_hopcount);
-		if (!err && rdev->rswitch->sw_sysfs)
-			err = rdev->rswitch->sw_sysfs(rdev, RIO_SW_SYSFS_CREATE);
 	}
 
 	if (err)
@@ -281,8 +289,6 @@ void rio_remove_sysfs_dev_files(struct rio_dev *rdev)
 		device_remove_file(&rdev->dev, &dev_attr_routes);
 		device_remove_file(&rdev->dev, &dev_attr_lnext);
 		device_remove_file(&rdev->dev, &dev_attr_hopcount);
-		if (rdev->rswitch->sw_sysfs)
-			rdev->rswitch->sw_sysfs(rdev, RIO_SW_SYSFS_REMOVE);
 	}
 }
 
@@ -290,7 +296,6 @@ static ssize_t bus_scan_store(struct bus_type *bus, const char *buf,
 				size_t count)
 {
 	long val;
-	struct rio_mport *port = NULL;
 	int rc;
 
 	if (kstrtol(buf, 0, &val) < 0)
@@ -304,21 +309,7 @@ static ssize_t bus_scan_store(struct bus_type *bus, const char *buf,
 	if (val < 0 || val >= RIO_MAX_MPORTS)
 		return -EINVAL;
 
-	port = rio_find_mport((int)val);
-
-	if (!port) {
-		pr_debug("RIO: %s: mport_%d not available\n",
-			 __func__, (int)val);
-		return -EINVAL;
-	}
-
-	if (!port->nscan)
-		return -EINVAL;
-
-	if (port->host_deviceid >= 0)
-		rc = port->nscan->enumerate(port, 0);
-	else
-		rc = port->nscan->discover(port, RIO_SCAN_ENUM_NO_WAIT);
+	rc = rio_mport_scan((int)val);
 exit:
 	if (!rc)
 		rc = count;

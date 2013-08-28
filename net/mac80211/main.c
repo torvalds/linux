@@ -331,7 +331,7 @@ static int ieee80211_ifa_changed(struct notifier_block *nb,
 		return NOTIFY_DONE;
 
 	ifmgd = &sdata->u.mgd;
-	mutex_lock(&ifmgd->mtx);
+	sdata_lock(sdata);
 
 	/* Copy the addresses to the bss_conf list */
 	ifa = idev->ifa_list;
@@ -349,7 +349,7 @@ static int ieee80211_ifa_changed(struct notifier_block *nb,
 		ieee80211_bss_info_change_notify(sdata,
 						 BSS_CHANGED_ARP_FILTER);
 
-	mutex_unlock(&ifmgd->mtx);
+	sdata_unlock(sdata);
 
 	return NOTIFY_DONE;
 }
@@ -686,8 +686,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		return -EINVAL;
 
 #ifdef CONFIG_PM
-	if ((hw->wiphy->wowlan.flags || hw->wiphy->wowlan.n_patterns) &&
-	    (!local->ops->suspend || !local->ops->resume))
+	if (hw->wiphy->wowlan && (!local->ops->suspend || !local->ops->resume))
 		return -EINVAL;
 #endif
 
@@ -921,7 +920,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		hw->queues = IEEE80211_MAX_QUEUES;
 
 	local->workqueue =
-		alloc_ordered_workqueue(wiphy_name(local->hw.wiphy), 0);
+		alloc_ordered_workqueue("%s", 0, wiphy_name(local->hw.wiphy));
 	if (!local->workqueue) {
 		result = -ENOMEM;
 		goto fail_workqueue;

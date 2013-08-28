@@ -19,6 +19,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
+#include <linux/reboot.h>
 
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/arch.h>
@@ -89,13 +90,13 @@ static void __init socfpga_init_irq(void)
 	socfpga_sysmgr_init();
 }
 
-static void socfpga_cyclone5_restart(char mode, const char *cmd)
+static void socfpga_cyclone5_restart(enum reboot_mode mode, const char *cmd)
 {
 	u32 temp;
 
 	temp = readl(rst_manager_base_addr + SOCFPGA_RSTMGR_CTRL);
 
-	if (mode == 'h')
+	if (mode == REBOOT_HARD)
 		temp |= RSTMGR_CTRL_SWCOLDRSTREQ;
 	else
 		temp |= RSTMGR_CTRL_SWWARMRSTREQ;

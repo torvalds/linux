@@ -380,8 +380,8 @@ static struct sh_eth_plat_data sh_eth_plat = {
 };
 
 static struct platform_device sh_eth_device = {
-	.name = "sh-eth",
-	.id	= 0,
+	.name = "sh7724-ether",
+	.id = 0,
 	.dev = {
 		.platform_data = &sh_eth_plat,
 	},

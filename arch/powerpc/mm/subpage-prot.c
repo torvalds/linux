@@ -130,6 +130,53 @@ static void subpage_prot_clear(unsigned long addr, unsigned long len)
 	up_write(&mm->mmap_sem);
 }
 
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+static int subpage_walk_pmd_entry(pmd_t *pmd, unsigned long addr,
+				  unsigned long end, struct mm_walk *walk)
+{
+	struct vm_area_struct *vma = walk->private;
+	split_huge_page_pmd(vma, addr, pmd);
+	return 0;
+}
+
+static void subpage_mark_vma_nohuge(struct mm_struct *mm, unsigned long addr,
+				    unsigned long len)
+{
+	struct vm_area_struct *vma;
+	struct mm_walk subpage_proto_walk = {
+		.mm = mm,
+		.pmd_entry = subpage_walk_pmd_entry,
+	};
+
+	/*
+	 * We don't try too hard, we just mark all the vma in that range
+	 * VM_NOHUGEPAGE and split them.
+	 */
+	vma = find_vma(mm, addr);
+	/*
+	 * If the range is in unmapped range, just return
+	 */
+	if (vma && ((addr + len) <= vma->vm_start))
+		return;
+
+	while (vma) {
+		if (vma->vm_start >= (addr + len))
+			break;
+		vma->vm_flags |= VM_NOHUGEPAGE;
+		subpage_proto_walk.private = vma;
+		walk_page_range(vma->vm_start, vma->vm_end,
+				&subpage_proto_walk);
+		vma = vma->vm_next;
+	}
+}
+#else
+static void subpage_mark_vma_nohuge(struct mm_struct *mm, unsigned long addr,
+				    unsigned long len)
+{
+	return;
+}
+#endif
+
 /*
  * Copy in a subpage protection map for an address range.
  * The map has 2 bits per 4k subpage, so 32 bits per 64k page.
@@ -168,6 +215,7 @@ long sys_subpage_prot(unsigned long addr, unsigned long len, u32 __user *map)
 		return -EFAULT;
 
 	down_write(&mm->mmap_sem);
+	subpage_mark_vma_nohuge(mm, addr, len);
 	for (limit = addr + len; addr < limit; addr = next) {
 		next = pmd_addr_end(addr, limit);
 		err = -ENOMEM;

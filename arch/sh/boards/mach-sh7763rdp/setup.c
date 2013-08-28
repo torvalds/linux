@@ -93,7 +93,7 @@ static struct sh_eth_plat_data sh7763_eth_pdata = {
 };
 
 static struct platform_device sh7763rdp_eth_device = {
-	.name       = "sh-eth",
+	.name       = "sh7763-gether",
 	.resource   = sh_eth_resources,
 	.num_resources  = ARRAY_SIZE(sh_eth_resources),
 	.dev        = {

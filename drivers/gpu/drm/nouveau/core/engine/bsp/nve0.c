@@ -22,8 +22,7 @@
  * Authors: Ben Skeggs
  */
 
-#include <core/falcon.h>
-
+#include <engine/falcon.h>
 #include <engine/bsp.h>
 
 struct nve0_bsp_priv {

@@ -118,7 +118,7 @@ static int cpufreq_p4_target(struct cpufreq_policy *policy,
 		return -EINVAL;
 
 	freqs.old = cpufreq_p4_get(policy->cpu);
-	freqs.new = stock_freq * p4clockmod_table[newstate].index / 8;
+	freqs.new = stock_freq * p4clockmod_table[newstate].driver_data / 8;
 
 	if (freqs.new == freqs.old)
 		return 0;
@@ -131,7 +131,7 @@ static int cpufreq_p4_target(struct cpufreq_policy *policy,
 	 * Developer's Manual, Volume 3
 	 */
 	for_each_cpu(i, policy->cpus)
-		cpufreq_p4_setdc(i, p4clockmod_table[newstate].index);
+		cpufreq_p4_setdc(i, p4clockmod_table[newstate].driver_data);
 
 	/* notifiers */
 	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);

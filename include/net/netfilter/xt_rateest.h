@@ -6,7 +6,7 @@ struct xt_rateest {
 	struct gnet_stats_basic_packed	bstats;
 	spinlock_t			lock;
 	/* keep rstats and lock on same cache line to speedup xt_rateest_mt() */
-	struct gnet_stats_rate_est	rstats;
+	struct gnet_stats_rate_est64	rstats;
 
 	/* following fields not accessed in hot path */
 	struct hlist_node		list;

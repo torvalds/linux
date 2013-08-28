@@ -347,7 +347,6 @@ struct ocfs2_super
 	struct task_struct *recovery_thread_task;
 	int disable_recovery;
 	wait_queue_head_t checkpoint_event;
-	atomic_t needs_checkpoint;
 	struct ocfs2_journal *journal;
 	unsigned long osb_commit_interval;
 

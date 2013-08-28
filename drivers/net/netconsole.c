@@ -654,12 +654,11 @@ static struct configfs_subsystem netconsole_subsys = {
 
 /* Handle network interface device notifications */
 static int netconsole_netdev_event(struct notifier_block *this,
-				   unsigned long event,
-				   void *ptr)
+				   unsigned long event, void *ptr)
 {
 	unsigned long flags;
 	struct netconsole_target *nt;
-	struct net_device *dev = ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	bool stopped = false;
 
 	if (!(event == NETDEV_CHANGENAME || event == NETDEV_UNREGISTER ||

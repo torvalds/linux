@@ -81,8 +81,6 @@ int exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 	int nr;
 	int i;
 
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
-
 	nr = exynos_drm_fb_get_buf_cnt(fb);
 	for (i = 0; i < nr; i++) {
 		struct exynos_drm_gem_buf *buffer = exynos_drm_fb_buffer(fb, i);
@@ -159,8 +157,6 @@ void exynos_plane_dpms(struct drm_plane *plane, int mode)
 	struct exynos_plane *exynos_plane = to_exynos_plane(plane);
 	struct exynos_drm_overlay *overlay = &exynos_plane->overlay;
 
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
-
 	if (mode == DRM_MODE_DPMS_ON) {
 		if (exynos_plane->enabled)
 			return;
@@ -189,8 +185,6 @@ exynos_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 {
 	int ret;
 
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
-
 	ret = exynos_plane_mode_set(plane, crtc, fb, crtc_x, crtc_y,
 			crtc_w, crtc_h, src_x >> 16, src_y >> 16,
 			src_w >> 16, src_h >> 16);
@@ -207,8 +201,6 @@ exynos_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 
 static int exynos_disable_plane(struct drm_plane *plane)
 {
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
-
 	exynos_plane_dpms(plane, DRM_MODE_DPMS_OFF);
 
 	return 0;
@@ -217,8 +209,6 @@ static int exynos_disable_plane(struct drm_plane *plane)
 static void exynos_plane_destroy(struct drm_plane *plane)
 {
 	struct exynos_plane *exynos_plane = to_exynos_plane(plane);
-
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
 
 	exynos_disable_plane(plane);
 	drm_plane_cleanup(plane);
@@ -232,8 +222,6 @@ static int exynos_plane_set_property(struct drm_plane *plane,
 	struct drm_device *dev = plane->dev;
 	struct exynos_plane *exynos_plane = to_exynos_plane(plane);
 	struct exynos_drm_private *dev_priv = dev->dev_private;
-
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
 
 	if (property == dev_priv->plane_zpos_property) {
 		exynos_plane->overlay.zpos = val;
@@ -256,8 +244,6 @@ static void exynos_plane_attach_zpos_property(struct drm_plane *plane)
 	struct exynos_drm_private *dev_priv = dev->dev_private;
 	struct drm_property *prop;
 
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
-
 	prop = dev_priv->plane_zpos_property;
 	if (!prop) {
 		prop = drm_property_create_range(dev, 0, "zpos", 0,
@@ -276,8 +262,6 @@ struct drm_plane *exynos_plane_init(struct drm_device *dev,
 {
 	struct exynos_plane *exynos_plane;
 	int err;
-
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
 
 	exynos_plane = kzalloc(sizeof(struct exynos_plane), GFP_KERNEL);
 	if (!exynos_plane) {

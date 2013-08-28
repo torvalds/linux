@@ -371,10 +371,23 @@ show_cpuinfo (struct seq_file *m, void *v)
 
 		seq_printf(m, "capabilities\t:");
 		if (boot_cpu_data.pdc.capabilities & PDC_MODEL_OS32)
-			seq_printf(m, " os32");
+			seq_puts(m, " os32");
 		if (boot_cpu_data.pdc.capabilities & PDC_MODEL_OS64)
-			seq_printf(m, " os64");
-		seq_printf(m, "\n");
+			seq_puts(m, " os64");
+		if (boot_cpu_data.pdc.capabilities & PDC_MODEL_IOPDIR_FDC)
+			seq_puts(m, " iopdir_fdc");
+		switch (boot_cpu_data.pdc.capabilities & PDC_MODEL_NVA_MASK) {
+		case PDC_MODEL_NVA_SUPPORTED:
+			seq_puts(m, " nva_supported");
+			break;
+		case PDC_MODEL_NVA_SLOW:
+			seq_puts(m, " nva_slow");
+			break;
+		case PDC_MODEL_NVA_UNSUPPORTED:
+			seq_puts(m, " needs_equivalent_aliasing");
+			break;
+		}
+		seq_printf(m, " (0x%02lx)\n", boot_cpu_data.pdc.capabilities);
 
 		seq_printf(m, "model\t\t: %s\n"
 				"model name\t: %s\n",

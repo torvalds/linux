@@ -911,8 +911,8 @@ static int imon_probe(struct usb_interface *interface,
 	if (retval) {
 		dev_err(dev, "%s: usb_submit_urb failed for intf0 (%d)\n",
 			__func__, retval);
-		mutex_unlock(&context->ctx_lock);
-		goto exit;
+		alloc_status = 8;
+		goto unlock;
 	}
 
 	usb_set_intfdata(interface, context);
@@ -937,6 +937,8 @@ unlock:
 alloc_status_switch:
 
 	switch (alloc_status) {
+	case 8:
+		lirc_unregister_driver(driver->minor);
 	case 7:
 		usb_free_urb(tx_urb);
 	case 6:
@@ -959,7 +961,6 @@ alloc_status_switch:
 		retval = 0;
 	}
 
-exit:
 	mutex_unlock(&driver_lock);
 
 	return retval;

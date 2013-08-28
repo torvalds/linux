@@ -373,7 +373,7 @@ static struct snd_soc_dai_link neo1973_dai[] = {
 { /* Voice via BT */
 	.name = "Bluetooth",
 	.stream_name = "Voice",
-	.cpu_dai_name = "dfbmcs320-pcm",
+	.cpu_dai_name = "bt-sco-pcm",
 	.codec_dai_name = "wm8753-voice",
 	.codec_name = "wm8753.0-001a",
 	.ops = &neo1973_voice_ops,

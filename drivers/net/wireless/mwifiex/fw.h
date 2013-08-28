@@ -245,6 +245,8 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HT_BW_20    0
 #define HT_BW_40    1
 
+#define DFS_CHAN_MOVE_TIME      10000
+
 #define HostCmd_CMD_GET_HW_SPEC                       0x0003
 #define HostCmd_CMD_802_11_SCAN                       0x0006
 #define HostCmd_CMD_802_11_GET_LOG                    0x000b
@@ -271,6 +273,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_802_11_SUBSCRIBE_EVENT            0x0075
 #define HostCmd_CMD_802_11_TX_RATE_QUERY              0x007f
 #define HostCmd_CMD_802_11_IBSS_COALESCING_STATUS     0x0083
+#define HostCmd_CMD_CFG_DATA                          0x008f
 #define HostCmd_CMD_VERSION_EXT                       0x0097
 #define HostCmd_CMD_MEF_CFG                           0x009a
 #define HostCmd_CMD_RSSI_INFO                         0x00a4
@@ -279,6 +282,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_UAP_SYS_CONFIG                    0x00b0
 #define HostCmd_CMD_UAP_BSS_START                     0x00b1
 #define HostCmd_CMD_UAP_BSS_STOP                      0x00b2
+#define HostCmd_CMD_UAP_STA_DEAUTH                    0x00b5
 #define HostCmd_CMD_11N_CFG                           0x00cd
 #define HostCmd_CMD_11N_ADDBA_REQ                     0x00ce
 #define HostCmd_CMD_11N_ADDBA_RSP                     0x00cf
@@ -436,6 +440,7 @@ enum P2P_MODES {
 #define EVENT_BW_CHANGE                 0x00000048
 #define EVENT_UAP_MIC_COUNTERMEASURES   0x0000004c
 #define EVENT_HOSTWAKE_STAIE		0x0000004d
+#define EVENT_CHANNEL_SWITCH_ANN        0x00000050
 #define EVENT_REMAIN_ON_CHAN_EXPIRED    0x0000005f
 
 #define EVENT_ID_MASK                   0xffff
@@ -463,6 +468,8 @@ enum P2P_MODES {
 #define MWIFIEX_CRITERIA_BROADCAST	BIT(0)
 #define MWIFIEX_CRITERIA_UNICAST	BIT(1)
 #define MWIFIEX_CRITERIA_MULTICAST	BIT(3)
+
+#define CFG_DATA_TYPE_CAL		2
 
 struct mwifiex_ie_types_header {
 	__le16 type;
@@ -971,6 +978,7 @@ enum SNMP_MIB_INDEX {
 	LONG_RETRY_LIM_I = 7,
 	FRAG_THRESH_I = 8,
 	DOT11D_I = 9,
+	DOT11H_I = 10,
 };
 
 #define MAX_SNMP_BUF_SIZE   128
@@ -1196,6 +1204,23 @@ struct host_cmd_ds_amsdu_aggr_ctrl {
 	__le16 enable;
 	__le16 curr_buf_size;
 } __packed;
+
+struct host_cmd_ds_sta_deauth {
+	u8 mac[ETH_ALEN];
+	__le16 reason;
+} __packed;
+
+struct mwifiex_ie_types_pwr_capability {
+	struct mwifiex_ie_types_header header;
+	s8 min_pwr;
+	s8 max_pwr;
+};
+
+struct mwifiex_ie_types_local_pwr_constraint {
+	struct mwifiex_ie_types_header header;
+	u8 chan;
+	u8 constraint;
+};
 
 struct mwifiex_ie_types_wmm_param_set {
 	struct mwifiex_ie_types_header header;
@@ -1573,6 +1598,12 @@ struct mwifiex_ie_list {
 	struct mwifiex_ie ie_list[MAX_MGMT_IE_INDEX];
 } __packed;
 
+struct host_cmd_ds_802_11_cfg_data {
+	__le16 action;
+	__le16 type;
+	__le16 data_len;
+} __packed;
+
 struct host_cmd_ds_command {
 	__le16 command;
 	__le16 size;
@@ -1630,7 +1661,9 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_802_11_eeprom_access eeprom;
 		struct host_cmd_ds_802_11_subsc_evt subsc_evt;
 		struct host_cmd_ds_sys_config uap_sys_config;
+		struct host_cmd_ds_sta_deauth sta_deauth;
 		struct host_cmd_11ac_vht_cfg vht_cfg;
+		struct host_cmd_ds_802_11_cfg_data cfg_data;
 	} params;
 } __packed;
 

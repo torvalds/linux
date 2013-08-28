@@ -43,18 +43,19 @@
 static void drm_vm_open(struct vm_area_struct *vma);
 static void drm_vm_close(struct vm_area_struct *vma);
 
-static pgprot_t drm_io_prot(uint32_t map_type, struct vm_area_struct *vma)
+static pgprot_t drm_io_prot(struct drm_local_map *map,
+			    struct vm_area_struct *vma)
 {
 	pgprot_t tmp = vm_get_page_prot(vma->vm_flags);
 
 #if defined(__i386__) || defined(__x86_64__)
-	if (boot_cpu_data.x86 > 3 && map_type != _DRM_AGP) {
-		pgprot_val(tmp) |= _PAGE_PCD;
-		pgprot_val(tmp) &= ~_PAGE_PWT;
-	}
+	if (map->type == _DRM_REGISTERS && !(map->flags & _DRM_WRITE_COMBINING))
+		tmp = pgprot_noncached(tmp);
+	else
+		tmp = pgprot_writecombine(tmp);
 #elif defined(__powerpc__)
 	pgprot_val(tmp) |= _PAGE_NO_CACHE;
-	if (map_type == _DRM_REGISTERS)
+	if (map->type == _DRM_REGISTERS)
 		pgprot_val(tmp) |= _PAGE_GUARDED;
 #elif defined(__ia64__)
 	if (efi_range_is_wc(vma->vm_start, vma->vm_end -
@@ -250,13 +251,8 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 			switch (map->type) {
 			case _DRM_REGISTERS:
 			case _DRM_FRAME_BUFFER:
-				if (drm_core_has_MTRR(dev) && map->mtrr >= 0) {
-					int retcode;
-					retcode = mtrr_del(map->mtrr,
-							   map->offset,
-							   map->size);
-					DRM_DEBUG("mtrr_del = %d\n", retcode);
-				}
+				if (drm_core_has_MTRR(dev))
+					arch_phys_wc_del(map->mtrr);
 				iounmap(map->handle);
 				break;
 			case _DRM_SHM:
@@ -617,7 +613,7 @@ int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 	case _DRM_FRAME_BUFFER:
 	case _DRM_REGISTERS:
 		offset = drm_core_get_reg_ofs(dev);
-		vma->vm_page_prot = drm_io_prot(map->type, vma);
+		vma->vm_page_prot = drm_io_prot(map, vma);
 		if (io_remap_pfn_range(vma, vma->vm_start,
 				       (map->offset + offset) >> PAGE_SHIFT,
 				       vma->vm_end - vma->vm_start,

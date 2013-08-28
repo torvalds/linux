@@ -1,0 +1,9 @@
+#
+# MPLS configuration
+#
+config NET_MPLS_GSO
+	tristate "MPLS: GSO support"
+	help
+	 This is helper module to allow segmentation of non-MPLS GSO packets
+	 that have had MPLS stack entries pushed onto them and thus
+	 become MPLS GSO packets.

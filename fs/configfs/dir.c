@@ -387,7 +387,7 @@ static void remove_dir(struct dentry * d)
 	if (d->d_inode)
 		simple_rmdir(parent->d_inode,d);
 
-	pr_debug(" o %s removing done (%d)\n",d->d_name.name, d->d_count);
+	pr_debug(" o %s removing done (%d)\n",d->d_name.name, d_count(d));
 
 	dput(parent);
 }
@@ -660,19 +660,15 @@ static int create_default_group(struct config_group *parent_group,
 				struct config_group *group)
 {
 	int ret;
-	struct qstr name;
 	struct configfs_dirent *sd;
 	/* We trust the caller holds a reference to parent */
 	struct dentry *child, *parent = parent_group->cg_item.ci_dentry;
 
 	if (!group->cg_item.ci_name)
 		group->cg_item.ci_name = group->cg_item.ci_namebuf;
-	name.name = group->cg_item.ci_name;
-	name.len = strlen(name.name);
-	name.hash = full_name_hash(name.name, name.len);
 
 	ret = -ENOMEM;
-	child = d_alloc(parent, &name);
+	child = d_alloc_name(parent, group->cg_item.ci_name);
 	if (child) {
 		d_add(child, NULL);
 
@@ -1650,7 +1646,6 @@ int configfs_register_subsystem(struct configfs_subsystem *subsys)
 {
 	int err;
 	struct config_group *group = &subsys->su_group;
-	struct qstr name;
 	struct dentry *dentry;
 	struct dentry *root;
 	struct configfs_dirent *sd;
@@ -1667,12 +1662,8 @@ int configfs_register_subsystem(struct configfs_subsystem *subsys)
 
 	mutex_lock_nested(&root->d_inode->i_mutex, I_MUTEX_PARENT);
 
-	name.name = group->cg_item.ci_name;
-	name.len = strlen(name.name);
-	name.hash = full_name_hash(name.name, name.len);
-
 	err = -ENOMEM;
-	dentry = d_alloc(root, &name);
+	dentry = d_alloc_name(root, group->cg_item.ci_name);
 	if (dentry) {
 		d_add(dentry, NULL);
 

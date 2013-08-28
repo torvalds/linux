@@ -563,10 +563,18 @@ static int mmc_sdio_init_uhs_card(struct mmc_card *card)
 	if (err)
 		goto out;
 
-	/* Initialize and start re-tuning timer */
-	if (!mmc_host_is_spi(card->host) && card->host->ops->execute_tuning)
+	/*
+	 * SPI mode doesn't define CMD19 and tuning is only valid for SDR50 and
+	 * SDR104 mode SD-cards. Note that tuning is mandatory for SDR104.
+	 */
+	if (!mmc_host_is_spi(card->host) && card->host->ops->execute_tuning &&
+			((card->sw_caps.sd3_bus_mode & SD_MODE_UHS_SDR50) ||
+			 (card->sw_caps.sd3_bus_mode & SD_MODE_UHS_SDR104))) {
+		mmc_host_clk_hold(card->host);
 		err = card->host->ops->execute_tuning(card->host,
 						      MMC_SEND_TUNING_BLOCK);
+		mmc_host_clk_release(card->host);
+	}
 
 out:
 
@@ -902,11 +910,11 @@ out:
 }
 
 /*
- * SDIO suspend.  We need to suspend all functions separately.
+ * SDIO pre_suspend.  We need to suspend all functions separately.
  * Therefore all registered functions must have drivers with suspend
  * and resume methods.  Failing that we simply remove the whole card.
  */
-static int mmc_sdio_suspend(struct mmc_host *host)
+static int mmc_sdio_pre_suspend(struct mmc_host *host)
 {
 	int i, err = 0;
 
@@ -917,8 +925,26 @@ static int mmc_sdio_suspend(struct mmc_host *host)
 			if (!pmops || !pmops->suspend || !pmops->resume) {
 				/* force removal of entire card in that case */
 				err = -ENOSYS;
-			} else
-				err = pmops->suspend(&func->dev);
+				break;
+			}
+		}
+	}
+
+	return err;
+}
+
+/*
+ * SDIO suspend.  Suspend all functions separately.
+ */
+static int mmc_sdio_suspend(struct mmc_host *host)
+{
+	int i, err = 0;
+
+	for (i = 0; i < host->card->sdio_funcs; i++) {
+		struct sdio_func *func = host->card->sdio_func[i];
+		if (func && sdio_func_present(func) && func->dev.driver) {
+			const struct dev_pm_ops *pmops = func->dev.driver->pm;
+			err = pmops->suspend(&func->dev);
 			if (err)
 				break;
 		}
@@ -937,6 +963,9 @@ static int mmc_sdio_suspend(struct mmc_host *host)
 		mmc_release_host(host);
 	}
 
+	if (!err && !mmc_card_keep_power(host))
+		mmc_power_off(host);
+
 	return err;
 }
 
@@ -949,6 +978,23 @@ static int mmc_sdio_resume(struct mmc_host *host)
 
 	/* Basic card reinitialization. */
 	mmc_claim_host(host);
+
+	/* Restore power if needed */
+	if (!mmc_card_keep_power(host)) {
+		mmc_power_up(host);
+		mmc_select_voltage(host, host->ocr);
+		/*
+		 * Tell runtime PM core we just powered up the card,
+		 * since it still believes the card is powered off.
+		 * Note that currently runtime PM is only enabled
+		 * for SDIO cards that are MMC_CAP_POWER_OFF_CARD
+		 */
+		if (host->caps & MMC_CAP_POWER_OFF_CARD) {
+			pm_runtime_disable(&host->card->dev);
+			pm_runtime_set_active(&host->card->dev);
+			pm_runtime_enable(&host->card->dev);
+		}
+	}
 
 	/* No need to reinitialize powered-resumed nonremovable cards */
 	if (mmc_card_is_removable(host) || !mmc_card_keep_power(host)) {
@@ -987,6 +1033,7 @@ static int mmc_sdio_resume(struct mmc_host *host)
 		}
 	}
 
+	host->pm_flags &= ~MMC_PM_KEEP_POWER;
 	return err;
 }
 
@@ -1051,11 +1098,28 @@ out:
 	return ret;
 }
 
+static int mmc_sdio_runtime_suspend(struct mmc_host *host)
+{
+	/* No references to the card, cut the power to it. */
+	mmc_power_off(host);
+	return 0;
+}
+
+static int mmc_sdio_runtime_resume(struct mmc_host *host)
+{
+	/* Restore power and re-initialize. */
+	mmc_power_up(host);
+	return mmc_sdio_power_restore(host);
+}
+
 static const struct mmc_bus_ops mmc_sdio_ops = {
 	.remove = mmc_sdio_remove,
 	.detect = mmc_sdio_detect,
+	.pre_suspend = mmc_sdio_pre_suspend,
 	.suspend = mmc_sdio_suspend,
 	.resume = mmc_sdio_resume,
+	.runtime_suspend = mmc_sdio_runtime_suspend,
+	.runtime_resume = mmc_sdio_runtime_resume,
 	.power_restore = mmc_sdio_power_restore,
 	.alive = mmc_sdio_alive,
 };

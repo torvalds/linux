@@ -1064,10 +1064,10 @@ find_dock_and_bay(acpi_handle handle, u32 lvl, void *context, void **rv)
 	return AE_OK;
 }
 
-int __init acpi_dock_init(void)
+void __init acpi_dock_init(void)
 {
 	if (acpi_disabled)
-		return 0;
+		return;
 
 	/* look for dock stations and bays */
 	acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
@@ -1075,11 +1075,10 @@ int __init acpi_dock_init(void)
 
 	if (!dock_station_count) {
 		pr_info(PREFIX "No dock devices found.\n");
-		return 0;
+		return;
 	}
 
 	register_acpi_bus_notifier(&dock_acpi_notifier);
 	pr_info(PREFIX "%s: %d docks/bays found\n",
 		ACPI_DOCK_DRIVER_DESCRIPTION, dock_station_count);
-	return 0;
 }
