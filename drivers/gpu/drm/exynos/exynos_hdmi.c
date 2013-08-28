@@ -1858,7 +1858,6 @@ void hdmi_attach_hdmiphy_client(struct i2c_client *hdmiphy)
 		hdmi_hdmiphy = hdmiphy;
 }
 
-#ifdef CONFIG_OF
 static struct s5p_hdmi_platform_data *drm_hdmi_dt_parse_pdata
 					(struct device *dev)
 {
@@ -1882,33 +1881,7 @@ static struct s5p_hdmi_platform_data *drm_hdmi_dt_parse_pdata
 err_data:
 	return NULL;
 }
-#else
-static struct s5p_hdmi_platform_data *drm_hdmi_dt_parse_pdata
-					(struct device *dev)
-{
-	return NULL;
-}
-#endif
 
-static struct platform_device_id hdmi_driver_types[] = {
-	{
-		.name		= "s5pv210-hdmi",
-		.driver_data    = HDMI_TYPE13,
-	}, {
-		.name		= "exynos4-hdmi",
-		.driver_data    = HDMI_TYPE13,
-	}, {
-		.name		= "exynos4-hdmi14",
-		.driver_data	= HDMI_TYPE14,
-	}, {
-		.name		= "exynos5-hdmi",
-		.driver_data	= HDMI_TYPE14,
-	}, {
-		/* end node */
-	}
-};
-
-#ifdef CONFIG_OF
 static struct of_device_id hdmi_match_types[] = {
 	{
 		.compatible = "samsung,exynos5-hdmi",
@@ -1920,7 +1893,6 @@ static struct of_device_id hdmi_match_types[] = {
 		/* end node */
 	}
 };
-#endif
 
 static int hdmi_probe(struct platform_device *pdev)
 {
@@ -1929,30 +1901,21 @@ static int hdmi_probe(struct platform_device *pdev)
 	struct hdmi_context *hdata;
 	struct s5p_hdmi_platform_data *pdata;
 	struct resource *res;
+	const struct of_device_id *match;
 	int ret;
 
-	if (dev->of_node) {
-		pdata = drm_hdmi_dt_parse_pdata(dev);
-		if (IS_ERR(pdata)) {
-			DRM_ERROR("failed to parse dt\n");
-			return PTR_ERR(pdata);
-		}
-	} else {
-		pdata = dev->platform_data;
-	}
+	 if (!dev->of_node)
+		return -ENODEV;
 
-	if (!pdata) {
-		DRM_ERROR("no platform data specified\n");
+	pdata = drm_hdmi_dt_parse_pdata(dev);
+	if (!pdata)
 		return -EINVAL;
-	}
 
-	drm_hdmi_ctx = devm_kzalloc(dev, sizeof(*drm_hdmi_ctx),
-								GFP_KERNEL);
+	drm_hdmi_ctx = devm_kzalloc(dev, sizeof(*drm_hdmi_ctx), GFP_KERNEL);
 	if (!drm_hdmi_ctx)
 		return -ENOMEM;
 
-	hdata = devm_kzalloc(dev, sizeof(struct hdmi_context),
-								GFP_KERNEL);
+	hdata = devm_kzalloc(dev, sizeof(struct hdmi_context), GFP_KERNEL);
 	if (!hdata)
 		return -ENOMEM;
 
@@ -1963,23 +1926,15 @@ static int hdmi_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, drm_hdmi_ctx);
 
-	if (dev->of_node) {
-		const struct of_device_id *match;
-		match = of_match_node(of_match_ptr(hdmi_match_types),
-					dev->of_node);
-		if (match == NULL)
-			return -ENODEV;
-		hdata->type = (enum hdmi_type)match->data;
-	} else {
-		hdata->type = (enum hdmi_type)platform_get_device_id
-					(pdev)->driver_data;
-	}
+	match = of_match_node(hdmi_match_types, dev->of_node);
+	if (!match)
+		return -ENODEV;
+	hdata->type = (enum hdmi_type)match->data;
 
 	hdata->hpd_gpio = pdata->hpd_gpio;
 	hdata->dev = dev;
 
 	ret = hdmi_resources_init(hdata);
-
 	if (ret) {
 		DRM_ERROR("hdmi_resources_init failed\n");
 		return -EINVAL;
@@ -2134,11 +2089,10 @@ static const struct dev_pm_ops hdmi_pm_ops = {
 struct platform_driver hdmi_driver = {
 	.probe		= hdmi_probe,
 	.remove		= hdmi_remove,
-	.id_table = hdmi_driver_types,
 	.driver		= {
 		.name	= "exynos-hdmi",
 		.owner	= THIS_MODULE,
 		.pm	= &hdmi_pm_ops,
-		.of_match_table = of_match_ptr(hdmi_match_types),
+		.of_match_table = hdmi_match_types,
 	},
 };
