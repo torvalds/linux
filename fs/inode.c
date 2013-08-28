@@ -735,9 +735,9 @@ inode_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
 
 	WARN_ON(inode->i_state & I_NEW);
 	inode->i_state |= I_FREEING;
+	list_move(&inode->i_lru, freeable);
 	spin_unlock(&inode->i_lock);
 
-	list_move(&inode->i_lru, freeable);
 	this_cpu_dec(nr_unused);
 	return LRU_REMOVED;
 }
