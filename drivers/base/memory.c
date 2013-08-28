@@ -29,6 +29,8 @@ static DEFINE_MUTEX(mem_sysfs_mutex);
 
 #define MEMORY_CLASS_NAME	"memory"
 
+#define to_memory_block(dev) container_of(dev, struct memory_block, dev)
+
 static int sections_per_block;
 
 static inline int base_memory_block_id(int section_nr)
@@ -76,7 +78,7 @@ EXPORT_SYMBOL(unregister_memory_isolate_notifier);
 
 static void memory_block_release(struct device *dev)
 {
-	struct memory_block *mem = container_of(dev, struct memory_block, dev);
+	struct memory_block *mem = to_memory_block(dev);
 
 	kfree(mem);
 }
@@ -109,8 +111,7 @@ static unsigned long get_memory_block_size(void)
 static ssize_t show_mem_start_phys_index(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	struct memory_block *mem =
-		container_of(dev, struct memory_block, dev);
+	struct memory_block *mem = to_memory_block(dev);
 	unsigned long phys_index;
 
 	phys_index = mem->start_section_nr / sections_per_block;
@@ -120,8 +121,7 @@ static ssize_t show_mem_start_phys_index(struct device *dev,
 static ssize_t show_mem_end_phys_index(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	struct memory_block *mem =
-		container_of(dev, struct memory_block, dev);
+	struct memory_block *mem = to_memory_block(dev);
 	unsigned long phys_index;
 
 	phys_index = mem->end_section_nr / sections_per_block;
@@ -136,8 +136,7 @@ static ssize_t show_mem_removable(struct device *dev,
 {
 	unsigned long i, pfn;
 	int ret = 1;
-	struct memory_block *mem =
-		container_of(dev, struct memory_block, dev);
+	struct memory_block *mem = to_memory_block(dev);
 
 	for (i = 0; i < sections_per_block; i++) {
 		pfn = section_nr_to_pfn(mem->start_section_nr + i);
@@ -153,8 +152,7 @@ static ssize_t show_mem_removable(struct device *dev,
 static ssize_t show_mem_state(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	struct memory_block *mem =
-		container_of(dev, struct memory_block, dev);
+	struct memory_block *mem = to_memory_block(dev);
 	ssize_t len = 0;
 
 	/*
@@ -282,7 +280,7 @@ static int memory_block_change_state(struct memory_block *mem,
 /* The device lock serializes operations on memory_subsys_[online|offline] */
 static int memory_subsys_online(struct device *dev)
 {
-	struct memory_block *mem = container_of(dev, struct memory_block, dev);
+	struct memory_block *mem = to_memory_block(dev);
 	int ret;
 
 	if (mem->state == MEM_ONLINE)
@@ -306,7 +304,7 @@ static int memory_subsys_online(struct device *dev)
 
 static int memory_subsys_offline(struct device *dev)
 {
-	struct memory_block *mem = container_of(dev, struct memory_block, dev);
+	struct memory_block *mem = to_memory_block(dev);
 
 	if (mem->state == MEM_OFFLINE)
 		return 0;
@@ -318,10 +316,8 @@ static ssize_t
 store_mem_state(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct memory_block *mem;
+	struct memory_block *mem = to_memory_block(dev);
 	int ret, online_type;
-
-	mem = container_of(dev, struct memory_block, dev);
 
 	lock_device_hotplug();
 
@@ -376,8 +372,7 @@ store_mem_state(struct device *dev,
 static ssize_t show_phys_device(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct memory_block *mem =
-		container_of(dev, struct memory_block, dev);
+	struct memory_block *mem = to_memory_block(dev);
 	return sprintf(buf, "%d\n", mem->phys_device);
 }
 
@@ -509,7 +504,7 @@ struct memory_block *find_memory_block_hinted(struct mem_section *section,
 		put_device(&hint->dev);
 	if (!dev)
 		return NULL;
-	return container_of(dev, struct memory_block, dev);
+	return to_memory_block(dev);
 }
 
 /*
