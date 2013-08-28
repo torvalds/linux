@@ -10,6 +10,7 @@
 #include <linux/stat.h>
 #include <linux/cache.h>
 #include <linux/list.h>
+#include <linux/list_lru.h>
 #include <linux/llist.h>
 #include <linux/radix-tree.h>
 #include <linux/rbtree.h>
@@ -1275,10 +1276,7 @@ struct super_block {
 	struct list_head	s_dentry_lru;	/* unused dentry lru */
 	long			s_nr_dentry_unused;	/* # of dentry on lru */
 
-	/* s_inode_lru_lock protects s_inode_lru and s_nr_inodes_unused */
-	spinlock_t		s_inode_lru_lock ____cacheline_aligned_in_smp;
-	struct list_head	s_inode_lru;		/* unused inode lru */
-	long			s_nr_inodes_unused;	/* # of inodes on lru */
+	struct list_lru		s_inode_lru ____cacheline_aligned_in_smp;
 
 	struct block_device	*s_bdev;
 	struct backing_dev_info *s_bdi;
