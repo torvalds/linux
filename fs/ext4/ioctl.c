@@ -17,7 +17,6 @@
 #include <asm/uaccess.h>
 #include "ext4_jbd2.h"
 #include "ext4.h"
-#include "ext4_extents.h"
 
 #define MAX_32_NUM ((((unsigned long long) 1) << 32) - 1)
 

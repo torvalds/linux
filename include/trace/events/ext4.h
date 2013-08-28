@@ -14,7 +14,6 @@ struct ext4_prealloc_space;
 struct ext4_inode_info;
 struct mpage_da_data;
 struct ext4_map_blocks;
-struct ext4_extent;
 struct extent_status;
 
 #define EXT4_I(inode) (container_of(inode, struct ext4_inode_info, vfs_inode))

@@ -3048,6 +3048,23 @@ void ext4_ext_release(struct super_block *sb)
 #endif
 }
 
+static int ext4_zeroout_es(struct inode *inode, struct ext4_extent *ex)
+{
+	ext4_lblk_t  ee_block;
+	ext4_fsblk_t ee_pblock;
+	unsigned int ee_len;
+
+	ee_block  = le32_to_cpu(ex->ee_block);
+	ee_len    = ext4_ext_get_actual_len(ex);
+	ee_pblock = ext4_ext_pblock(ex);
+
+	if (ee_len == 0)
+		return 0;
+
+	return ext4_es_insert_extent(inode, ee_block, ee_len, ee_pblock,
+				     EXTENT_STATUS_WRITTEN);
+}
+
 /* FIXME!! we need to try to merge to left or right after zero-out  */
 static int ext4_ext_zeroout(struct inode *inode, struct ext4_extent *ex)
 {
@@ -3200,7 +3217,7 @@ static int ext4_split_extent_at(handle_t *handle,
 			goto fix_extent_len;
 
 		/* update extent status tree */
-		err = ext4_es_zeroout(inode, &zero_ex);
+		err = ext4_zeroout_es(inode, &zero_ex);
 
 		goto out;
 	} else if (err)
@@ -3551,7 +3568,7 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 out:
 	/* If we have gotten a failure, don't zero out status tree */
 	if (!err)
-		err = ext4_es_zeroout(inode, &zero_ex);
+		err = ext4_zeroout_es(inode, &zero_ex);
 	return err ? err : allocated;
 }
 

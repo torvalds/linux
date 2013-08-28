@@ -13,7 +13,6 @@
 #include <linux/list_sort.h>
 #include "ext4.h"
 #include "extents_status.h"
-#include "ext4_extents.h"
 
 #include <trace/events/ext4.h>
 
@@ -409,6 +408,8 @@ ext4_es_try_to_merge_right(struct inode *inode, struct extent_status *es)
 }
 
 #ifdef ES_AGGRESSIVE_TEST
+#include "ext4_extents.h"	/* Needed when ES_AGGRESSIVE_TEST is defined */
+
 static void ext4_es_insert_extent_ext_check(struct inode *inode,
 					    struct extent_status *es)
 {
@@ -901,23 +902,6 @@ int ext4_es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 	write_unlock(&EXT4_I(inode)->i_es_lock);
 	ext4_es_print_tree(inode);
 	return err;
-}
-
-int ext4_es_zeroout(struct inode *inode, struct ext4_extent *ex)
-{
-	ext4_lblk_t  ee_block;
-	ext4_fsblk_t ee_pblock;
-	unsigned int ee_len;
-
-	ee_block  = le32_to_cpu(ex->ee_block);
-	ee_len    = ext4_ext_get_actual_len(ex);
-	ee_pblock = ext4_ext_pblock(ex);
-
-	if (ee_len == 0)
-		return 0;
-
-	return ext4_es_insert_extent(inode, ee_block, ee_len, ee_pblock,
-				     EXTENT_STATUS_WRITTEN);
 }
 
 static int ext4_inode_touch_time_cmp(void *priv, struct list_head *a,

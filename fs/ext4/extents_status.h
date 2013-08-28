@@ -81,7 +81,6 @@ extern void ext4_es_find_delayed_extent_range(struct inode *inode,
 					struct extent_status *es);
 extern int ext4_es_lookup_extent(struct inode *inode, ext4_lblk_t lblk,
 				 struct extent_status *es);
-extern int ext4_es_zeroout(struct inode *inode, struct ext4_extent *ex);
 
 static inline int ext4_es_is_written(struct extent_status *es)
 {
