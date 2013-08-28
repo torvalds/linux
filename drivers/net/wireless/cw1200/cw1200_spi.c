@@ -40,6 +40,7 @@ struct hwbus_priv {
 	struct cw1200_common	*core;
 	const struct cw1200_platform_data_spi *pdata;
 	spinlock_t		lock; /* Serialize all bus operations */
+	wait_queue_head_t       wq;
 	int claimed;
 	int irq_disabled;
 };
@@ -198,8 +199,11 @@ static void cw1200_spi_lock(struct hwbus_priv *self)
 {
 	unsigned long flags;
 
+	DECLARE_WAITQUEUE(wait, current);
+
 	might_sleep();
 
+	add_wait_queue(&self->wq, &wait);
 	spin_lock_irqsave(&self->lock, flags);
 	while (1) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
@@ -212,6 +216,7 @@ static void cw1200_spi_lock(struct hwbus_priv *self)
 	set_current_state(TASK_RUNNING);
 	self->claimed = 1;
 	spin_unlock_irqrestore(&self->lock, flags);
+	remove_wait_queue(&self->wq, &wait);
 
 	return;
 }
@@ -223,6 +228,8 @@ static void cw1200_spi_unlock(struct hwbus_priv *self)
 	spin_lock_irqsave(&self->lock, flags);
 	self->claimed = 0;
 	spin_unlock_irqrestore(&self->lock, flags);
+	wake_up(&self->wq);
+
 	return;
 }
 
@@ -412,6 +419,8 @@ static int cw1200_spi_probe(struct spi_device *func)
 	spin_lock_init(&self->lock);
 
 	spi_set_drvdata(func, self);
+
+	init_waitqueue_head(&self->wq);
 
 	status = cw1200_spi_irq_subscribe(self);
 
