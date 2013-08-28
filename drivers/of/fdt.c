@@ -202,7 +202,6 @@ static unsigned long unflatten_dt_node(struct boot_param_header *blob,
 				__alignof__(struct device_node));
 	if (allnextpp) {
 		char *fn;
-		memset(np, 0, sizeof(*np));
 		np->full_name = fn = ((char *)np) + sizeof(*np);
 		if (new_format) {
 			/* rebuild full path for new format */
