@@ -224,6 +224,10 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 
 	RX_HANDLER(SCAN_REQUEST_CMD, iwl_mvm_rx_scan_response, false),
 	RX_HANDLER(SCAN_COMPLETE_NOTIFICATION, iwl_mvm_rx_scan_complete, false),
+	RX_HANDLER(SCAN_OFFLOAD_COMPLETE,
+		   iwl_mvm_rx_scan_offload_complete_notif, false),
+	RX_HANDLER(MATCH_FOUND_NOTIFICATION, iwl_mvm_rx_sched_scan_results,
+		   false),
 
 	RX_HANDLER(RADIO_VERSION_NOTIFICATION, iwl_mvm_rx_radio_ver, false),
 	RX_HANDLER(CARD_STATE_NOTIFICATION, iwl_mvm_rx_card_state_notif, false),
@@ -266,6 +270,7 @@ static const char *iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(REMOVE_STA),
 	CMD(LQ_CMD),
 	CMD(SCAN_OFFLOAD_CONFIG_CMD),
+	CMD(MATCH_FOUND_NOTIFICATION),
 	CMD(SCAN_OFFLOAD_REQUEST_CMD),
 	CMD(SCAN_OFFLOAD_ABORT_CMD),
 	CMD(SCAN_OFFLOAD_COMPLETE),
@@ -716,6 +721,9 @@ static void iwl_mvm_nic_restart(struct iwl_mvm *mvm)
 			break;
 		case IWL_MVM_SCAN_OS:
 			ieee80211_scan_completed(mvm->hw, true);
+			break;
+		case IWL_MVM_SCAN_SCHED:
+			ieee80211_sched_scan_stopped(mvm->hw);
 			break;
 		}
 

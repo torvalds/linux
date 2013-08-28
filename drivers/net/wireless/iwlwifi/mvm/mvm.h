@@ -339,6 +339,7 @@ iwl_mvm_vif_from_mac80211(struct ieee80211_vif *vif)
 enum iwl_scan_status {
 	IWL_MVM_SCAN_NONE,
 	IWL_MVM_SCAN_OS,
+	IWL_MVM_SCAN_SCHED,
 };
 
 /**
@@ -695,6 +696,23 @@ int iwl_mvm_rx_scan_response(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 int iwl_mvm_rx_scan_complete(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 			     struct iwl_device_cmd *cmd);
 void iwl_mvm_cancel_scan(struct iwl_mvm *mvm);
+
+/* Scheduled scan */
+int iwl_mvm_rx_scan_offload_complete_notif(struct iwl_mvm *mvm,
+					   struct iwl_rx_cmd_buffer *rxb,
+					   struct iwl_device_cmd *cmd);
+int iwl_mvm_config_sched_scan(struct iwl_mvm *mvm,
+			      struct ieee80211_vif *vif,
+			      struct cfg80211_sched_scan_request *req,
+			      struct ieee80211_sched_scan_ies *ies);
+int iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
+				       struct cfg80211_sched_scan_request *req);
+int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
+			     struct cfg80211_sched_scan_request *req);
+void iwl_mvm_sched_scan_stop(struct iwl_mvm *mvm);
+int iwl_mvm_rx_sched_scan_results(struct iwl_mvm *mvm,
+				  struct iwl_rx_cmd_buffer *rxb,
+				  struct iwl_device_cmd *cmd);
 
 /* MVM debugfs */
 #ifdef CONFIG_IWLWIFI_DEBUGFS

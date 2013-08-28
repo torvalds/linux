@@ -239,6 +239,15 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	else
 		hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
+	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_SCHED_SCAN) {
+		hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_SCHED_SCAN;
+		hw->wiphy->max_sched_scan_ssids = PROBE_OPTION_MAX;
+		hw->wiphy->max_match_sets = IWL_SCAN_MAX_PROFILES;
+		/* we create the 802.11 header and zero length SSID IE. */
+		hw->wiphy->max_sched_scan_ie_len =
+					SCAN_OFFLOAD_PROBE_REQ_SIZE - 24 - 2;
+	}
+
 	hw->wiphy->features |= NL80211_FEATURE_P2P_GO_CTWIN |
 			       NL80211_FEATURE_P2P_GO_OPPPS;
 
@@ -1202,6 +1211,53 @@ static void iwl_mvm_mac_mgd_prepare_tx(struct ieee80211_hw *hw,
 	mutex_unlock(&mvm->mutex);
 }
 
+static int iwl_mvm_mac_sched_scan_start(struct ieee80211_hw *hw,
+					struct ieee80211_vif *vif,
+					struct cfg80211_sched_scan_request *req,
+					struct ieee80211_sched_scan_ies *ies)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	int ret;
+
+	mutex_lock(&mvm->mutex);
+
+	if (mvm->scan_status != IWL_MVM_SCAN_NONE) {
+		IWL_DEBUG_SCAN(mvm,
+			       "SCHED SCAN request during internal scan - abort\n");
+		ret = -EBUSY;
+		goto out;
+	}
+
+	mvm->scan_status = IWL_MVM_SCAN_SCHED;
+
+	ret = iwl_mvm_config_sched_scan(mvm, vif, req, ies);
+	if (ret)
+		goto err;
+
+	ret = iwl_mvm_config_sched_scan_profiles(mvm, req);
+	if (ret)
+		goto err;
+
+	ret = iwl_mvm_sched_scan_start(mvm, req);
+	if (!ret)
+		goto out;
+err:
+	mvm->scan_status = IWL_MVM_SCAN_NONE;
+out:
+	mutex_unlock(&mvm->mutex);
+	return ret;
+}
+
+static void iwl_mvm_mac_sched_scan_stop(struct ieee80211_hw *hw,
+					struct ieee80211_vif *vif)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	mutex_lock(&mvm->mutex);
+	iwl_mvm_sched_scan_stop(mvm);
+	mutex_unlock(&mvm->mutex);
+}
+
 static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 			       enum set_key_cmd cmd,
 			       struct ieee80211_vif *vif,
@@ -1671,6 +1727,8 @@ struct ieee80211_ops iwl_mvm_hw_ops = {
 	.set_rts_threshold = iwl_mvm_mac_set_rts_threshold,
 	.conf_tx = iwl_mvm_mac_conf_tx,
 	.mgd_prepare_tx = iwl_mvm_mac_mgd_prepare_tx,
+	.sched_scan_start = iwl_mvm_mac_sched_scan_start,
+	.sched_scan_stop = iwl_mvm_mac_sched_scan_stop,
 	.set_key = iwl_mvm_mac_set_key,
 	.update_tkip_key = iwl_mvm_mac_update_tkip_key,
 	.remain_on_channel = iwl_mvm_roc,
