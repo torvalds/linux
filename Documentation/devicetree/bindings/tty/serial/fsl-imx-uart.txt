@@ -11,9 +11,16 @@ Optional properties:
 - fsl,dte-mode : Indicate the uart works in DTE mode. The uart works
                   is DCE mode by default.
 
+Note: Each uart controller should have an alias correctly numbered
+in "aliases" node.
+
 Example:
 
-serial@73fbc000 {
+aliases {
+	serial0 = &uart1;
+};
+
+uart1: serial@73fbc000 {
 	compatible = "fsl,imx51-uart", "fsl,imx21-uart";
 	reg = <0x73fbc000 0x4000>;
 	interrupts = <31>;
