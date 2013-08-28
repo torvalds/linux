@@ -39,11 +39,6 @@ int uvd_v4_2_resume(struct radeon_device *rdev)
 {
 	uint64_t addr;
 	uint32_t size;
-	int r;
-
-	r = radeon_uvd_resume(rdev);
-	if (r)
-		return r;
 
 	/* programm the VCPU memory controller bits 0-27 */
 	addr = rdev->uvd.gpu_addr >> 3;

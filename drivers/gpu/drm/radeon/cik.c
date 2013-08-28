@@ -7051,12 +7051,15 @@ static int cik_startup(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = uvd_v4_2_resume(rdev);
+	r = radeon_uvd_resume(rdev);
 	if (!r) {
-		r = radeon_fence_driver_start_ring(rdev,
-						   R600_RING_TYPE_UVD_INDEX);
-		if (r)
-			dev_err(rdev->dev, "UVD fences init error (%d).\n", r);
+		r = uvd_v4_2_resume(rdev);
+		if (!r) {
+			r = radeon_fence_driver_start_ring(rdev,
+							   R600_RING_TYPE_UVD_INDEX);
+			if (r)
+				dev_err(rdev->dev, "UVD fences init error (%d).\n", r);
+		}
 	}
 	if (r)
 		rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_size = 0;
