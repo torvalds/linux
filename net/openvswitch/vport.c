@@ -203,7 +203,7 @@ out:
  *	ovs_vport_set_options - modify existing vport device (for kernel callers)
  *
  * @vport: vport to modify.
- * @port: New configuration.
+ * @options: New configuration.
  *
  * Modifies an existing device with the specified configuration (which is
  * dependent on device type).  ovs_mutex must be held.
@@ -328,6 +328,7 @@ int ovs_vport_get_options(const struct vport *vport, struct sk_buff *skb)
  *
  * @vport: vport that received the packet
  * @skb: skb that was received
+ * @tun_key: tunnel (if any) that carried packet
  *
  * Must be called with rcu_read_lock.  The packet cannot be shared and
  * skb->data should point to the Ethernet header.
