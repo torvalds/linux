@@ -1412,7 +1412,6 @@ static int kv_update_vce_dpm(struct radeon_device *rdev,
 
 	if (radeon_new_state->evclk > 0 && radeon_current_state->evclk == 0) {
 		kv_dpm_powergate_vce(rdev, false);
-		/* XXX cik_vce_resume(); */
 		if (pi->caps_stable_p_state)
 			pi->vce_boot_level = table->count - 1;
 		else
@@ -1435,7 +1434,6 @@ static int kv_update_vce_dpm(struct radeon_device *rdev,
 		kv_enable_vce_dpm(rdev, true);
 	} else if (radeon_new_state->evclk == 0 && radeon_current_state->evclk > 0) {
 		kv_enable_vce_dpm(rdev, false);
-		/* XXX cik_vce_suspend(); */
 		kv_dpm_powergate_vce(rdev, true);
 	}
 
@@ -1575,11 +1573,16 @@ static void kv_dpm_powergate_vce(struct radeon_device *rdev, bool gate)
 	pi->vce_power_gated = gate;
 
 	if (gate) {
-		if (pi->caps_vce_pg)
+		if (pi->caps_vce_pg) {
+			/* XXX do we need a vce_v1_0_stop() ?  */
 			kv_notify_message_to_smu(rdev, PPSMC_MSG_VCEPowerOFF);
+		}
 	} else {
-		if (pi->caps_vce_pg)
+		if (pi->caps_vce_pg) {
 			kv_notify_message_to_smu(rdev, PPSMC_MSG_VCEPowerON);
+			vce_v2_0_resume(rdev);
+			vce_v1_0_start(rdev);
+		}
 	}
 }
 
