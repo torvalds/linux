@@ -198,7 +198,7 @@ void omap4iss_configure_bridge(struct iss_device *iss,
 }
 
 #if defined(DEBUG) && defined(ISS_ISR_DEBUG)
-static inline void iss_isr_dbg(struct iss_device *iss, u32 irqstatus)
+static void iss_isr_dbg(struct iss_device *iss, u32 irqstatus)
 {
 	static const char * const name[] = {
 		"ISP_0",
@@ -245,7 +245,7 @@ static inline void iss_isr_dbg(struct iss_device *iss, u32 irqstatus)
 	pr_cont("\n");
 }
 
-static inline void iss_isp_isr_dbg(struct iss_device *iss, u32 irqstatus)
+static void iss_isp_isr_dbg(struct iss_device *iss, u32 irqstatus)
 {
 	static const char * const name[] = {
 		"ISIF_0",
