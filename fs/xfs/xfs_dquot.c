@@ -940,13 +940,8 @@ xfs_qm_dqput_final(
 
 	trace_xfs_dqput_free(dqp);
 
-	mutex_lock(&qi->qi_lru_lock);
-	if (list_empty(&dqp->q_lru)) {
-		list_add_tail(&dqp->q_lru, &qi->qi_lru_list);
-		qi->qi_lru_count++;
+	if (list_lru_add(&qi->qi_lru, &dqp->q_lru))
 		XFS_STATS_INC(xs_qm_dquot_unused);
-	}
-	mutex_unlock(&qi->qi_lru_lock);
 
 	/*
 	 * If we just added a udquot to the freelist, then we want to release
