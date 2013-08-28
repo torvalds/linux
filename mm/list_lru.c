@@ -112,48 +112,6 @@ restart:
 }
 EXPORT_SYMBOL_GPL(list_lru_walk_node);
 
-static unsigned long list_lru_dispose_all_node(struct list_lru *lru, int nid,
-					       list_lru_dispose_cb dispose)
-{
-	struct list_lru_node	*nlru = &lru->node[nid];
-	LIST_HEAD(dispose_list);
-	unsigned long disposed = 0;
-
-	spin_lock(&nlru->lock);
-	while (!list_empty(&nlru->list)) {
-		list_splice_init(&nlru->list, &dispose_list);
-		disposed += nlru->nr_items;
-		nlru->nr_items = 0;
-		node_clear(nid, lru->active_nodes);
-		spin_unlock(&nlru->lock);
-
-		dispose(&dispose_list);
-
-		spin_lock(&nlru->lock);
-	}
-	spin_unlock(&nlru->lock);
-	return disposed;
-}
-
-unsigned long list_lru_dispose_all(struct list_lru *lru,
-				   list_lru_dispose_cb dispose)
-{
-	unsigned long disposed;
-	unsigned long total = 0;
-	int nid;
-
-	do {
-		disposed = 0;
-		for_each_node_mask(nid, lru->active_nodes) {
-			disposed += list_lru_dispose_all_node(lru, nid,
-							      dispose);
-		}
-		total += disposed;
-	} while (disposed != 0);
-
-	return total;
-}
-
 int list_lru_init(struct list_lru *lru)
 {
 	int i;

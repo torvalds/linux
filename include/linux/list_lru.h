@@ -137,21 +137,4 @@ list_lru_walk(struct list_lru *lru, list_lru_walk_cb isolate,
 	}
 	return isolated;
 }
-
-typedef void (*list_lru_dispose_cb)(struct list_head *dispose_list);
-/**
- * list_lru_dispose_all: forceably flush all elements in an @lru
- * @lru: the lru pointer
- * @dispose: callback function to be called for each lru list.
- *
- * This function will forceably isolate all elements into the dispose list, and
- * call the @dispose callback to flush the list. Please note that the callback
- * should expect items in any state, clean or dirty, and be able to flush all of
- * them.
- *
- * Return value: how many objects were freed. It should be equal to all objects
- * in the list_lru.
- */
-unsigned long
-list_lru_dispose_all(struct list_lru *lru, list_lru_dispose_cb dispose);
 #endif /* _LRU_LIST_H */
