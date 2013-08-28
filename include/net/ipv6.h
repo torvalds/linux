@@ -711,11 +711,9 @@ void ip6_flush_pending_frames(struct sock *sk);
 
 int ip6_dst_lookup(struct sock *sk, struct dst_entry **dst, struct flowi6 *fl6);
 struct dst_entry *ip6_dst_lookup_flow(struct sock *sk, struct flowi6 *fl6,
-				      const struct in6_addr *final_dst,
-				      bool can_sleep);
+				      const struct in6_addr *final_dst);
 struct dst_entry *ip6_sk_dst_lookup_flow(struct sock *sk, struct flowi6 *fl6,
-					 const struct in6_addr *final_dst,
-					 bool can_sleep);
+					 const struct in6_addr *final_dst);
 struct dst_entry *ip6_blackhole_route(struct net *net,
 				      struct dst_entry *orig_dst);
 

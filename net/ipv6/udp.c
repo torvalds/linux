@@ -1221,7 +1221,7 @@ do_udp_sendmsg:
 
 	security_sk_classify_flow(sk, flowi6_to_flowi(&fl6));
 
-	dst = ip6_sk_dst_lookup_flow(sk, &fl6, final_p, true);
+	dst = ip6_sk_dst_lookup_flow(sk, &fl6, final_p);
 	if (IS_ERR(dst)) {
 		err = PTR_ERR(dst);
 		dst = NULL;

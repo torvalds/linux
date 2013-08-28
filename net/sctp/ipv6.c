@@ -263,7 +263,7 @@ static void sctp_v6_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 	}
 
 	final_p = fl6_update_dst(fl6, np->opt, &final);
-	dst = ip6_dst_lookup_flow(sk, fl6, final_p, false);
+	dst = ip6_dst_lookup_flow(sk, fl6, final_p);
 	if (!asoc || saddr)
 		goto out;
 
@@ -322,7 +322,7 @@ static void sctp_v6_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 		fl6->saddr = baddr->v6.sin6_addr;
 		fl6->fl6_sport = baddr->v6.sin6_port;
 		final_p = fl6_update_dst(fl6, np->opt, &final);
-		dst = ip6_dst_lookup_flow(sk, fl6, final_p, false);
+		dst = ip6_dst_lookup_flow(sk, fl6, final_p);
 	}
 
 out:

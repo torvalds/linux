@@ -237,7 +237,7 @@ static int dccp_v6_send_response(struct sock *sk, struct request_sock *req)
 
 	final_p = fl6_update_dst(&fl6, np->opt, &final);
 
-	dst = ip6_dst_lookup_flow(sk, &fl6, final_p, false);
+	dst = ip6_dst_lookup_flow(sk, &fl6, final_p);
 	if (IS_ERR(dst)) {
 		err = PTR_ERR(dst);
 		dst = NULL;
@@ -301,7 +301,7 @@ static void dccp_v6_ctl_send_reset(struct sock *sk, struct sk_buff *rxskb)
 	security_skb_classify_flow(rxskb, flowi6_to_flowi(&fl6));
 
 	/* sk = NULL, but it is safe for now. RST socket required. */
-	dst = ip6_dst_lookup_flow(ctl_sk, &fl6, NULL, false);
+	dst = ip6_dst_lookup_flow(ctl_sk, &fl6, NULL);
 	if (!IS_ERR(dst)) {
 		skb_dst_set(skb, dst);
 		ip6_xmit(ctl_sk, skb, &fl6, NULL, 0);
@@ -512,7 +512,7 @@ static struct sock *dccp_v6_request_recv_sock(struct sock *sk,
 		fl6.fl6_sport = htons(ireq->ir_num);
 		security_sk_classify_flow(sk, flowi6_to_flowi(&fl6));
 
-		dst = ip6_dst_lookup_flow(sk, &fl6, final_p, false);
+		dst = ip6_dst_lookup_flow(sk, &fl6, final_p);
 		if (IS_ERR(dst))
 			goto out;
 	}
@@ -932,7 +932,7 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 
 	final_p = fl6_update_dst(&fl6, np->opt, &final);
 
-	dst = ip6_dst_lookup_flow(sk, &fl6, final_p, true);
+	dst = ip6_dst_lookup_flow(sk, &fl6, final_p);
 	if (IS_ERR(dst)) {
 		err = PTR_ERR(dst);
 		goto failure;
