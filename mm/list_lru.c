@@ -47,25 +47,22 @@ bool list_lru_del(struct list_lru *lru, struct list_head *item)
 }
 EXPORT_SYMBOL_GPL(list_lru_del);
 
-unsigned long list_lru_count(struct list_lru *lru)
+unsigned long
+list_lru_count_node(struct list_lru *lru, int nid)
 {
 	unsigned long count = 0;
-	int nid;
+	struct list_lru_node *nlru = &lru->node[nid];
 
-	for_each_node_mask(nid, lru->active_nodes) {
-		struct list_lru_node *nlru = &lru->node[nid];
-
-		spin_lock(&nlru->lock);
-		WARN_ON_ONCE(nlru->nr_items < 0);
-		count += nlru->nr_items;
-		spin_unlock(&nlru->lock);
-	}
+	spin_lock(&nlru->lock);
+	WARN_ON_ONCE(nlru->nr_items < 0);
+	count += nlru->nr_items;
+	spin_unlock(&nlru->lock);
 
 	return count;
 }
-EXPORT_SYMBOL_GPL(list_lru_count);
+EXPORT_SYMBOL_GPL(list_lru_count_node);
 
-static unsigned long
+unsigned long
 list_lru_walk_node(struct list_lru *lru, int nid, list_lru_walk_cb isolate,
 		   void *cb_arg, unsigned long *nr_to_walk)
 {
@@ -114,22 +111,6 @@ restart:
 	return isolated;
 }
 EXPORT_SYMBOL_GPL(list_lru_walk_node);
-
-unsigned long list_lru_walk(struct list_lru *lru, list_lru_walk_cb isolate,
-			    void *cb_arg, unsigned long nr_to_walk)
-{
-	unsigned long isolated = 0;
-	int nid;
-
-	for_each_node_mask(nid, lru->active_nodes) {
-		isolated += list_lru_walk_node(lru, nid, isolate,
-					       cb_arg, &nr_to_walk);
-		if (nr_to_walk <= 0)
-			break;
-	}
-	return isolated;
-}
-EXPORT_SYMBOL_GPL(list_lru_walk);
 
 static unsigned long list_lru_dispose_all_node(struct list_lru *lru, int nid,
 					       list_lru_dispose_cb dispose)
