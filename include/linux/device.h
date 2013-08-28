@@ -895,6 +895,7 @@ static inline bool device_supports_offline(struct device *dev)
 
 extern void lock_device_hotplug(void);
 extern void unlock_device_hotplug(void);
+extern int lock_device_hotplug_sysfs(void);
 extern int device_offline(struct device *dev);
 extern int device_online(struct device *dev);
 /*
