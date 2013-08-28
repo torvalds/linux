@@ -85,7 +85,9 @@ int uvd_v1_0_init(struct radeon_device *rdev)
 	/* raise clocks while booting up the VCPU */
 	radeon_set_uvd_clocks(rdev, 53300, 40000);
 
-	uvd_v1_0_start(rdev);
+	r = uvd_v1_0_start(rdev);
+	if (r)
+		goto done;
 
 	ring->ready = true;
 	r = radeon_ring_test(rdev, R600_RING_TYPE_UVD_INDEX, ring);
