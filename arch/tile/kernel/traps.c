@@ -240,6 +240,11 @@ static int do_bpt(struct pt_regs *regs)
 		notify_die(DIE_BREAK, "debug", regs, bundle,
 			INT_ILL, SIGTRAP);
 		break;
+	/* compiled_bpt */
+	case DIE_COMPILED_BPT:
+		notify_die(DIE_COMPILED_BPT, "debug", regs, bundle,
+			INT_ILL, SIGTRAP);
+		break;
 	/* breakpoint2_insn */
 	case DIE_SSTEPBP:
 		notify_die(DIE_SSTEPBP, "single_step", regs, bundle,

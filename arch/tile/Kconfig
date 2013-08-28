@@ -127,6 +127,7 @@ config TILEGX
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
+	select HAVE_ARCH_KGDB
 
 config TILEPRO
 	def_bool !TILEGX
