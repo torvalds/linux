@@ -705,12 +705,6 @@ static int tegra_output_hdmi_enable(struct tegra_output *output)
 	h_back_porch = mode->htotal - mode->hsync_end;
 	h_front_porch = mode->hsync_start - mode->hdisplay;
 
-	err = regulator_enable(hdmi->vdd);
-	if (err < 0) {
-		dev_err(hdmi->dev, "failed to enable VDD regulator: %d\n", err);
-		return err;
-	}
-
 	err = regulator_enable(hdmi->pll);
 	if (err < 0) {
 		dev_err(hdmi->dev, "failed to enable PLL regulator: %d\n", err);
@@ -921,7 +915,6 @@ static int tegra_output_hdmi_disable(struct tegra_output *output)
 	tegra_periph_reset_assert(hdmi->clk);
 	clk_disable(hdmi->clk);
 	regulator_disable(hdmi->pll);
-	regulator_disable(hdmi->vdd);
 
 	return 0;
 }
@@ -1226,6 +1219,13 @@ static int tegra_hdmi_init(struct host1x_client *client)
 	struct tegra_hdmi *hdmi = host1x_client_to_hdmi(client);
 	int err;
 
+	err = regulator_enable(hdmi->vdd);
+	if (err < 0) {
+		dev_err(client->dev, "failed to enable VDD regulator: %d\n",
+			err);
+		return err;
+	}
+
 	hdmi->output.type = TEGRA_OUTPUT_HDMI;
 	hdmi->output.dev = client->dev;
 	hdmi->output.ops = &hdmi_ops;
@@ -1268,6 +1268,8 @@ static int tegra_hdmi_exit(struct host1x_client *client)
 		dev_err(client->dev, "output cleanup failed: %d\n", err);
 		return err;
 	}
+
+	regulator_disable(hdmi->vdd);
 
 	return 0;
 }
