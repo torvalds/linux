@@ -1262,26 +1262,21 @@ static int table_load(struct dm_ioctl *param, size_t param_size)
 
 	r = dm_table_create(&t, get_mode(param), param->target_count, md);
 	if (r)
-		goto out;
+		goto err;
 
 	/* Protect md->type and md->queue against concurrent table loads. */
 	dm_lock_md_type(md);
 	r = populate_table(t, param, param_size);
-	if (r) {
-		dm_table_destroy(t);
-		dm_unlock_md_type(md);
-		goto out;
-	}
+	if (r)
+		goto err_unlock_md_type;
 
 	immutable_target_type = dm_get_immutable_target_type(md);
 	if (immutable_target_type &&
 	    (immutable_target_type != dm_table_get_immutable_target_type(t))) {
 		DMWARN("can't replace immutable target type %s",
 		       immutable_target_type->name);
-		dm_table_destroy(t);
-		dm_unlock_md_type(md);
 		r = -EINVAL;
-		goto out;
+		goto err_unlock_md_type;
 	}
 
 	if (dm_get_md_type(md) == DM_TYPE_NONE)
@@ -1289,19 +1284,15 @@ static int table_load(struct dm_ioctl *param, size_t param_size)
 		dm_set_md_type(md, dm_table_get_type(t));
 	else if (dm_get_md_type(md) != dm_table_get_type(t)) {
 		DMWARN("can't change device type after initial table load.");
-		dm_table_destroy(t);
-		dm_unlock_md_type(md);
 		r = -EINVAL;
-		goto out;
+		goto err_unlock_md_type;
 	}
 
 	/* setup md->queue to reflect md's type (may block) */
 	r = dm_setup_md_queue(md);
 	if (r) {
 		DMWARN("unable to set up device queue for new table.");
-		dm_table_destroy(t);
-		dm_unlock_md_type(md);
-		goto out;
+		goto err_unlock_md_type;
 	}
 	dm_unlock_md_type(md);
 
@@ -1311,9 +1302,8 @@ static int table_load(struct dm_ioctl *param, size_t param_size)
 	if (!hc || hc->md != md) {
 		DMWARN("device has been removed from the dev hash table.");
 		up_write(&_hash_lock);
-		dm_table_destroy(t);
 		r = -ENXIO;
-		goto out;
+		goto err_destroy_table;
 	}
 
 	if (hc->new_map)
@@ -1324,12 +1314,20 @@ static int table_load(struct dm_ioctl *param, size_t param_size)
 	param->flags |= DM_INACTIVE_PRESENT_FLAG;
 	__dev_status(md, param);
 
-out:
 	if (old_map) {
 		dm_sync_table(md);
 		dm_table_destroy(old_map);
 	}
 
+	dm_put(md);
+
+	return 0;
+
+err_unlock_md_type:
+	dm_unlock_md_type(md);
+err_destroy_table:
+	dm_table_destroy(t);
+err:
 	dm_put(md);
 
 	return r;
