@@ -41,6 +41,12 @@ static struct workqueue_struct *isert_rx_wq;
 static struct workqueue_struct *isert_comp_wq;
 
 static void
+isert_unmap_cmd(struct isert_cmd *isert_cmd, struct isert_conn *isert_conn);
+static int
+isert_map_rdma(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
+	       struct isert_rdma_wr *wr);
+
+static void
 isert_qp_event_callback(struct ib_event *e, void *context)
 {
 	struct isert_conn *isert_conn = (struct isert_conn *)context;
@@ -210,6 +216,10 @@ isert_create_device_ib_res(struct isert_device *device)
 	struct ib_device *ib_dev = device->ib_device;
 	struct isert_cq_desc *cq_desc;
 	int ret = 0, i, j;
+
+	/* asign function handlers */
+	device->reg_rdma_mem = isert_map_rdma;
+	device->unreg_rdma_mem = isert_unmap_cmd;
 
 	device->cqs_used = min_t(int, num_online_cpus(),
 				 device->ib_device->num_comp_vectors);
@@ -1261,6 +1271,7 @@ isert_put_cmd(struct isert_cmd *isert_cmd)
 	struct iscsi_cmd *cmd = isert_cmd->iscsi_cmd;
 	struct isert_conn *isert_conn = isert_cmd->conn;
 	struct iscsi_conn *conn = isert_conn->conn;
+	struct isert_device *device = isert_conn->conn_device;
 
 	pr_debug("Entering isert_put_cmd: %p\n", isert_cmd);
 
@@ -1274,7 +1285,7 @@ isert_put_cmd(struct isert_cmd *isert_cmd)
 		if (cmd->data_direction == DMA_TO_DEVICE)
 			iscsit_stop_dataout_timer(cmd);
 
-		isert_unmap_cmd(isert_cmd, isert_conn);
+		device->unreg_rdma_mem(isert_cmd, isert_conn);
 		transport_generic_free_cmd(&cmd->se_cmd, 0);
 		break;
 	case ISCSI_OP_SCSI_TMFUNC:
@@ -1348,9 +1359,10 @@ isert_completion_rdma_read(struct iser_tx_desc *tx_desc,
 	struct iscsi_cmd *cmd = isert_cmd->iscsi_cmd;
 	struct se_cmd *se_cmd = &cmd->se_cmd;
 	struct isert_conn *isert_conn = isert_cmd->conn;
+	struct isert_device *device = isert_conn->conn_device;
 
 	iscsit_stop_dataout_timer(cmd);
-	isert_unmap_cmd(isert_cmd, isert_conn);
+	device->unreg_rdma_mem(isert_cmd, isert_conn);
 	cmd->write_data_done = wr->cur_rdma_length;
 
 	pr_debug("Cmd: %p RDMA_READ comp calling execute_cmd\n", isert_cmd);
@@ -1936,13 +1948,14 @@ isert_put_datain(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
 					struct isert_cmd, iscsi_cmd);
 	struct isert_rdma_wr *wr = &isert_cmd->rdma_wr;
 	struct isert_conn *isert_conn = (struct isert_conn *)conn->context;
+	struct isert_device *device = isert_conn->conn_device;
 	struct ib_send_wr *wr_failed;
 	int rc;
 
 	pr_debug("Cmd: %p RDMA_WRITE data_length: %u\n",
 		 isert_cmd, se_cmd->data_length);
 	wr->iser_ib_op = ISER_IB_RDMA_WRITE;
-	rc = isert_map_rdma(conn, cmd, wr);
+	rc = device->reg_rdma_mem(conn, cmd, wr);
 	if (rc) {
 		pr_err("Cmd: %p failed to prepare RDMA res\n", isert_cmd);
 		return rc;
@@ -1977,13 +1990,14 @@ isert_get_dataout(struct iscsi_conn *conn, struct iscsi_cmd *cmd, bool recovery)
 	struct isert_cmd *isert_cmd = iscsit_priv_cmd(cmd);
 	struct isert_rdma_wr *wr = &isert_cmd->rdma_wr;
 	struct isert_conn *isert_conn = (struct isert_conn *)conn->context;
+	struct isert_device *device = isert_conn->conn_device;
 	struct ib_send_wr *wr_failed;
 	int rc;
 
 	pr_debug("Cmd: %p RDMA_READ data_length: %u write_data_done: %u\n",
 		 isert_cmd, se_cmd->data_length, cmd->write_data_done);
 	wr->iser_ib_op = ISER_IB_RDMA_READ;
-	rc = isert_map_rdma(conn, cmd, wr);
+	rc = device->reg_rdma_mem(conn, cmd, wr);
 	if (rc) {
 		pr_err("Cmd: %p failed to prepare RDMA res\n", isert_cmd);
 		return rc;

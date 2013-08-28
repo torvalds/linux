@@ -128,6 +128,11 @@ struct isert_device {
 	struct ib_cq		*dev_tx_cq[ISERT_MAX_CQ];
 	struct isert_cq_desc	*cq_desc;
 	struct list_head	dev_node;
+	int			(*reg_rdma_mem)(struct iscsi_conn *conn,
+						    struct iscsi_cmd *cmd,
+						    struct isert_rdma_wr *wr);
+	void			(*unreg_rdma_mem)(struct isert_cmd *isert_cmd,
+						  struct isert_conn *isert_conn);
 };
 
 struct isert_np {
