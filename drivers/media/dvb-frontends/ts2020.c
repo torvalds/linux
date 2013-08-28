@@ -31,6 +31,7 @@ struct ts2020_priv {
 	struct i2c_adapter *i2c;
 	u8 clk_out_div;
 	u32 frequency;
+	u32 frequency_div;
 };
 
 static int ts2020_release(struct dvb_frontend *fe)
@@ -193,7 +194,7 @@ static int ts2020_set_params(struct dvb_frontend *fe)
 	u8 lo = 0x01, div4 = 0x0;
 
 	/* Calculate frequency divider */
-	if (frequency < 1060000) {
+	if (frequency < priv->frequency_div) {
 		lo |= 0x10;
 		div4 = 0x1;
 		ndiv = (frequency * 14 * 4) / TS2020_XTAL_FREQ;
@@ -340,6 +341,7 @@ struct dvb_frontend *ts2020_attach(struct dvb_frontend *fe,
 	priv->i2c_address = config->tuner_address;
 	priv->i2c = i2c;
 	priv->clk_out_div = config->clk_out_div;
+	priv->frequency_div = config->frequency_div;
 	fe->tuner_priv = priv;
 
 	/* Wake Up the tuner */

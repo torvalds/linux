@@ -955,15 +955,22 @@ static struct ds3000_config dw2104_ds3000_config = {
 	.demod_address = 0x68,
 };
 
-static struct ts2020_config dw2104_ts2020_config  = {
+static struct ts2020_config dw2104_ts2020_config = {
 	.tuner_address = 0x60,
 	.clk_out_div = 1,
+	.frequency_div = 1060000,
 };
 
 static struct ds3000_config s660_ds3000_config = {
 	.demod_address = 0x68,
 	.ci_mode = 1,
 	.set_lock_led = dw210x_led_ctrl,
+};
+
+static struct ts2020_config s660_ts2020_config = {
+	.tuner_address = 0x60,
+	.clk_out_div = 1,
+	.frequency_div = 1146000,
 };
 
 static struct stv0900_config dw2104a_stv0900_config = {
@@ -1205,7 +1212,7 @@ static int ds3000_frontend_attach(struct dvb_usb_adapter *d)
 	if (d->fe_adap[0].fe == NULL)
 		return -EIO;
 
-	dvb_attach(ts2020_attach, d->fe_adap[0].fe, &dw2104_ts2020_config,
+	dvb_attach(ts2020_attach, d->fe_adap[0].fe, &s660_ts2020_config,
 		&d->dev->i2c_adap);
 
 	st->old_set_voltage = d->fe_adap[0].fe->ops.set_voltage;
@@ -1213,7 +1220,7 @@ static int ds3000_frontend_attach(struct dvb_usb_adapter *d)
 
 	dw210x_op_rw(d->dev->udev, 0x8a, 0, 0, obuf, 2, DW210X_WRITE_MSG);
 
-	info("Attached ds3000+ds2020!\n");
+	info("Attached ds3000+ts2020!\n");
 
 	return 0;
 }
