@@ -85,7 +85,7 @@
 struct vnt_phy_field {
 	u8 signal;
 	u8 service;
-	u16 len;
+	__le16 len;
 } __packed;
 
 unsigned int
