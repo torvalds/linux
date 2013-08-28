@@ -542,7 +542,6 @@ struct channel_t {
  *************************************************************************/
 
 extern int		dgnc_ms_sleep(ulong ms);
-extern void		*dgnc_driver_kzmalloc(size_t size, int priority);
 extern char		*dgnc_ioctl_name(int cmd);
 
 /*

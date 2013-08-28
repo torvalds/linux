@@ -889,21 +889,6 @@ static void dgnc_init_globals(void)
  *
  ************************************************************************/
 
-
-/*
- * dgnc_driver_kzmalloc()
- *
- * Malloc and clear memory,
- */
-void *dgnc_driver_kzmalloc(size_t size, int priority)
-{
-	void *p = kmalloc(size, priority);
-	if(p)
-		memset(p, 0, size);
-	return(p);
-}
-
-
 /*
  * dgnc_ms_sleep()
  *
