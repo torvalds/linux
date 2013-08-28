@@ -315,11 +315,11 @@ void omap4iss_resizer_isr(struct iss_resizer_device *resizer, u32 events)
 	struct iss_pipeline *pipe =
 			     to_iss_pipeline(&resizer->subdev.entity);
 
-	if (events & (ISP5_IRQ_RSZ_FIFO_IN_BLK |
+	if (events & (ISP5_IRQ_RSZ_FIFO_IN_BLK_ERR |
 		      ISP5_IRQ_RSZ_FIFO_OVF)) {
 		dev_dbg(iss->dev, "RSZ Err: FIFO_IN_BLK:%d, FIFO_OVF:%d\n",
 			(events &
-			 ISP5_IRQ_RSZ_FIFO_IN_BLK) ? 1 : 0,
+			 ISP5_IRQ_RSZ_FIFO_IN_BLK_ERR) ? 1 : 0,
 			(events &
 			 ISP5_IRQ_RSZ_FIFO_OVF) ? 1 : 0);
 		pipe->error = true;

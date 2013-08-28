@@ -274,7 +274,7 @@ void omap4iss_ipipeif_isr(struct iss_ipipeif_device *ipipeif, u32 events)
 					     &ipipeif->stopping))
 		return;
 
-	if (events & ISP5_IRQ_ISIF0)
+	if (events & ISP5_IRQ_ISIF_INT(0))
 		ipipeif_isif0_isr(ipipeif);
 }
 

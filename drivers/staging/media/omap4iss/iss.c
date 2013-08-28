@@ -40,9 +40,9 @@ static void iss_print_status(struct iss_device *iss)
 
 	ISS_PRINT_REGISTER(iss, HL_REVISION);
 	ISS_PRINT_REGISTER(iss, HL_SYSCONFIG);
-	ISS_PRINT_REGISTER(iss, HL_IRQSTATUS_5);
-	ISS_PRINT_REGISTER(iss, HL_IRQENABLE_5_SET);
-	ISS_PRINT_REGISTER(iss, HL_IRQENABLE_5_CLR);
+	ISS_PRINT_REGISTER(iss, HL_IRQSTATUS(5));
+	ISS_PRINT_REGISTER(iss, HL_IRQENABLE_SET(5));
+	ISS_PRINT_REGISTER(iss, HL_IRQENABLE_CLR(5));
 	ISS_PRINT_REGISTER(iss, CTRL);
 	ISS_PRINT_REGISTER(iss, CLKCTRL);
 	ISS_PRINT_REGISTER(iss, CLKSTAT);
@@ -75,8 +75,8 @@ static void iss_enable_interrupts(struct iss_device *iss)
 	static const u32 hl_irq = ISS_HL_IRQ_CSIA | ISS_HL_IRQ_CSIB | ISS_HL_IRQ_ISP(0);
 
 	/* Enable HL interrupts */
-	writel(hl_irq, iss->regs[OMAP4_ISS_MEM_TOP] + ISS_HL_IRQSTATUS_5);
-	writel(hl_irq, iss->regs[OMAP4_ISS_MEM_TOP] + ISS_HL_IRQENABLE_5_SET);
+	writel(hl_irq, iss->regs[OMAP4_ISS_MEM_TOP] + ISS_HL_IRQSTATUS(5));
+	writel(hl_irq, iss->regs[OMAP4_ISS_MEM_TOP] + ISS_HL_IRQENABLE_SET(5));
 
 }
 
@@ -86,7 +86,7 @@ static void iss_enable_interrupts(struct iss_device *iss)
  */
 static void iss_disable_interrupts(struct iss_device *iss)
 {
-	writel(-1, iss->regs[OMAP4_ISS_MEM_TOP] + ISS_HL_IRQENABLE_5_CLR);
+	writel(-1, iss->regs[OMAP4_ISS_MEM_TOP] + ISS_HL_IRQENABLE_CLR(5));
 }
 
 /*
@@ -96,10 +96,10 @@ static void iss_disable_interrupts(struct iss_device *iss)
 void omap4iss_isp_enable_interrupts(struct iss_device *iss)
 {
 	static const u32 isp_irq = ISP5_IRQ_OCP_ERR |
-				   ISP5_IRQ_RSZ_FIFO_IN_BLK |
+				   ISP5_IRQ_RSZ_FIFO_IN_BLK_ERR |
 				   ISP5_IRQ_RSZ_FIFO_OVF |
 				   ISP5_IRQ_RSZ_INT_DMA |
-				   ISP5_IRQ_ISIF0;
+				   ISP5_IRQ_ISIF_INT(0);
 
 	/* Enable ISP interrupts */
 	writel(isp_irq, iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_IRQSTATUS(0));
@@ -256,16 +256,16 @@ static inline void iss_isr_dbg(struct iss_device *iss, u32 irqstatus)
  */
 static irqreturn_t iss_isr(int irq, void *_iss)
 {
-	static const u32 ipipeif_events = ISP5_IRQ_IPIPEIF |
-					  ISP5_IRQ_ISIF0;
-	static const u32 resizer_events = ISP5_IRQ_RSZ_FIFO_IN_BLK |
+	static const u32 ipipeif_events = ISP5_IRQ_IPIPEIF_IRQ |
+					  ISP5_IRQ_ISIF_INT(0);
+	static const u32 resizer_events = ISP5_IRQ_RSZ_FIFO_IN_BLK_ERR |
 					  ISP5_IRQ_RSZ_FIFO_OVF |
 					  ISP5_IRQ_RSZ_INT_DMA;
 	struct iss_device *iss = _iss;
 	u32 irqstatus;
 
-	irqstatus = readl(iss->regs[OMAP4_ISS_MEM_TOP] + ISS_HL_IRQSTATUS_5);
-	writel(irqstatus, iss->regs[OMAP4_ISS_MEM_TOP] + ISS_HL_IRQSTATUS_5);
+	irqstatus = readl(iss->regs[OMAP4_ISS_MEM_TOP] + ISS_HL_IRQSTATUS(5));
+	writel(irqstatus, iss->regs[OMAP4_ISS_MEM_TOP] + ISS_HL_IRQSTATUS(5));
 
 	if (irqstatus & ISS_HL_IRQ_CSIA)
 		omap4iss_csi2_isr(&iss->csi2a);
