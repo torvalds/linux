@@ -978,6 +978,7 @@ xfs_btree_init_block_int(
 			buf->bb_u.l.bb_owner = cpu_to_be64(owner);
 			uuid_copy(&buf->bb_u.l.bb_uuid, &mp->m_sb.sb_uuid);
 			buf->bb_u.l.bb_pad = 0;
+			buf->bb_u.l.bb_lsn = 0;
 		}
 	} else {
 		/* owner is a 32 bit value on short blocks */
@@ -989,6 +990,7 @@ xfs_btree_init_block_int(
 			buf->bb_u.s.bb_blkno = cpu_to_be64(blkno);
 			buf->bb_u.s.bb_owner = cpu_to_be32(__owner);
 			uuid_copy(&buf->bb_u.s.bb_uuid, &mp->m_sb.sb_uuid);
+			buf->bb_u.s.bb_lsn = 0;
 		}
 	}
 }
