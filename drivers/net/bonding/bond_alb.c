@@ -971,35 +971,53 @@ static void rlb_clear_vlan(struct bonding *bond, unsigned short vlan_id)
 
 /*********************** tlb/rlb shared functions *********************/
 
-static void alb_send_learning_packets(struct slave *slave, u8 mac_addr[])
+static void alb_send_lp_vid(struct slave *slave, u8 mac_addr[],
+			    u16 vid)
 {
-	struct bonding *bond = bond_get_bond_by_slave(slave);
 	struct learning_pkt pkt;
+	struct sk_buff *skb;
 	int size = sizeof(struct learning_pkt);
-	int i;
+	char *data;
 
 	memset(&pkt, 0, size);
 	memcpy(pkt.mac_dst, mac_addr, ETH_ALEN);
 	memcpy(pkt.mac_src, mac_addr, ETH_ALEN);
 	pkt.type = cpu_to_be16(ETH_P_LOOP);
 
-	for (i = 0; i < MAX_LP_BURST; i++) {
-		struct sk_buff *skb;
-		char *data;
+	skb = dev_alloc_skb(size);
+	if (!skb)
+		return;
 
-		skb = dev_alloc_skb(size);
+	data = skb_put(skb, size);
+	memcpy(data, &pkt, size);
+
+	skb_reset_mac_header(skb);
+	skb->network_header = skb->mac_header + ETH_HLEN;
+	skb->protocol = pkt.type;
+	skb->priority = TC_PRIO_CONTROL;
+	skb->dev = slave->dev;
+
+	if (vid) {
+		skb = vlan_put_tag(skb, htons(ETH_P_8021Q), vid);
 		if (!skb) {
+			pr_err("%s: Error: failed to insert VLAN tag\n",
+			       slave->bond->dev->name);
 			return;
 		}
+	}
 
-		data = skb_put(skb, size);
-		memcpy(data, &pkt, size);
+	dev_queue_xmit(skb);
+}
 
-		skb_reset_mac_header(skb);
-		skb->network_header = skb->mac_header + ETH_HLEN;
-		skb->protocol = pkt.type;
-		skb->priority = TC_PRIO_CONTROL;
-		skb->dev = slave->dev;
+
+static void alb_send_learning_packets(struct slave *slave, u8 mac_addr[])
+{
+	struct bonding *bond = bond_get_bond_by_slave(slave);
+	u16 vlan_id;
+	int i;
+
+	for (i = 0; i < MAX_LP_BURST; i++) {
+		vlan_id = 0;
 
 		if (bond_vlan_used(bond)) {
 			struct vlan_entry *vlan;
@@ -1008,20 +1026,13 @@ static void alb_send_learning_packets(struct slave *slave, u8 mac_addr[])
 					      bond->alb_info.current_alb_vlan);
 
 			bond->alb_info.current_alb_vlan = vlan;
-			if (!vlan) {
-				kfree_skb(skb);
+			if (!vlan)
 				continue;
-			}
 
-			skb = vlan_put_tag(skb, htons(ETH_P_8021Q), vlan->vlan_id);
-			if (!skb) {
-				pr_err("%s: Error: failed to insert VLAN tag\n",
-				       bond->dev->name);
-				continue;
-			}
+			vlan_id = vlan->vlan_id;
 		}
 
-		dev_queue_xmit(skb);
+		alb_send_lp_vid(slave, mac_addr, vlan_id);
 	}
 }
 
