@@ -14,6 +14,7 @@ config ARCH_TEGRA
 	select HAVE_CLK
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
+	select MIGHT_HAVE_PCI
 	select PINCTRL
 	select SOC_BUS
 	select SPARSE_IRQ
@@ -21,8 +22,6 @@ config ARCH_TEGRA
 	select USB_ULPI if USB_PHY
 	select USB_ULPI_VIEWPORT if USB_PHY
 	select USE_OF
-	select MIGHT_HAVE_PCI
-	select ARCH_SUPPORTS_MSI
 	help
 	  This enables support for NVIDIA Tegra based systems.
 
