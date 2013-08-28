@@ -20,6 +20,7 @@
  * 02111-1307, USA
  */
 #include <linux/device.h>
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/of.h>
