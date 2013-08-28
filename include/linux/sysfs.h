@@ -353,6 +353,7 @@ static inline int sysfs_create_group(struct kobject *kobj,
 static inline int sysfs_create_groups(struct kobject *kobj,
 				      const struct attribute_group **groups)
 {
+	return 0;
 }
 
 static inline int sysfs_update_group(struct kobject *kobj,
