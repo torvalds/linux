@@ -212,6 +212,7 @@ struct stripe_head {
 	enum check_states	check_state;
 	enum reconstruct_states reconstruct_state;
 	spinlock_t		stripe_lock;
+	int			cpu;
 	/**
 	 * struct stripe_operations
 	 * @target - STRIPE_OP_COMPUTE_BLK target
@@ -365,6 +366,17 @@ struct disk_info {
 	struct md_rdev	*rdev, *replacement;
 };
 
+struct r5worker {
+	struct work_struct work;
+	struct r5worker_group *group;
+};
+
+struct r5worker_group {
+	struct list_head handle_list;
+	struct r5conf *conf;
+	struct r5worker *workers;
+};
+
 struct r5conf {
 	struct hlist_head	*stripe_hashtbl;
 	struct mddev		*mddev;
@@ -461,6 +473,9 @@ struct r5conf {
 	 * the new thread here until we fully activate the array.
 	 */
 	struct md_thread	*thread;
+	struct r5worker_group	*worker_groups;
+	int			group_cnt;
+	int			worker_cnt_per_group;
 };
 
 /*
