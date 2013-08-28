@@ -344,7 +344,7 @@ int dgnc_tty_register(struct board_t *brd)
 int dgnc_tty_init(struct board_t *brd)
 {
 	int i;
-	u8 __iomem *vaddr;
+	void __iomem *vaddr;
 	struct channel_t *ch;
 
 	if (!brd)
@@ -403,9 +403,9 @@ int dgnc_tty_init(struct board_t *brd)
 		ch->ch_pun.un_dev = i + 128;
 
 		if (brd->bd_uart_offset == 0x200)
-			ch->ch_neo_uart = (struct neo_uart_struct *) ((ulong) vaddr + (brd->bd_uart_offset * i));
+			ch->ch_neo_uart = vaddr + (brd->bd_uart_offset * i);
 		else
-			ch->ch_cls_uart = (struct cls_uart_struct *) ((ulong) vaddr + (brd->bd_uart_offset * i));
+			ch->ch_cls_uart = vaddr + (brd->bd_uart_offset * i);
 
 		ch->ch_bd = brd;
 		ch->ch_portnum = i;
