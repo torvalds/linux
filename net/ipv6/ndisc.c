@@ -428,7 +428,6 @@ static void ndisc_send_skb(struct sk_buff *skb,
 	type = icmp6h->icmp6_type;
 
 	if (!dst) {
-		struct sock *sk = net->ipv6.ndisc_sk;
 		struct flowi6 fl6;
 
 		icmpv6_flow_init(sk, &fl6, type, saddr, daddr, skb->dev->ifindex);
