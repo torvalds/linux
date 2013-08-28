@@ -100,12 +100,12 @@
 				tchsh-ns = <4>;
 				tslch-ns = <4>;
 
-				partition@0 {
+				partition@qspi-boot {
 					/* 8MB for raw data. */
 					label = "Flash 0 Raw Data";
 					reg = <0x0 0x800000>;
 				};
-				partition@800000 {
+				partition@qspi-rootfs {
 					/* 120MB for jffs2 data. */
 					label = "Flash 0 jffs2 Filesystem";
 					reg = <0x800000 0x7800000>;

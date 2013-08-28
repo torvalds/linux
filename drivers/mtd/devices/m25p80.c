@@ -120,6 +120,7 @@ struct m25p {
 	u8			read_opcode;
 	u8			prog_opcode;
 	u8			dummycount;
+	struct flash_info *info;
 	int (*wait_till_ready)(struct m25p *flash);
 };
 
@@ -948,6 +949,7 @@ struct flash_info {
 #define	SST_WRITE	0x04		/* use SST byte programming */
 #define	SECT_32K	0x10		/* OPCODE_BE_32K */
 #define	USE_FSR		0x08    /* use flag status register */
+#define	SHUTDOWN_3BYTE   0x10    /* set 3-byte mode on shutdown */
 };
 
 #define INFO(_jedec_id, _ext_id, _sector_size, _n_sectors, _flags)	\
@@ -1031,7 +1033,10 @@ static const struct spi_device_id m25p_ids[] = {
 	{ "n25q128a11",  INFO(0x20bb18, 0, 64 * 1024, 256, 0) },
 	{ "n25q128a13",  INFO(0x20ba18, 0, 64 * 1024, 256, 0) },
 	{ "n25q256a", INFO(0x20ba19, 0, 64 * 1024, 512, SECT_4K) },
-	{ "n25q00",   INFO(0x20ba21, 0, 64 * 1024, 2048, USE_FSR) },
+	{ "n25q512a", INFO(0x20ba20, 0, 64 * 1024, 1024,
+		USE_FSR|SHUTDOWN_3BYTE) },
+	{ "n25q00",   INFO(0x20ba21, 0, 64 * 1024, 2048,
+		USE_FSR|SHUTDOWN_3BYTE) },
 
 	/* Spansion -- single (large) sector size only, at least
 	 * for the chips listed here (without boot sectors).
@@ -1251,6 +1256,7 @@ static int m25p_probe(struct spi_device *spi)
 		return -ENOMEM;
 	}
 
+	flash->info = info;
 	flash->spi = spi;
 	mutex_init(&flash->lock);
 	dev_set_drvdata(&spi->dev, flash);
@@ -1457,6 +1463,12 @@ static int m25p_remove(struct spi_device *spi)
 	return 0;
 }
 
+static void m25p_shutdown(struct spi_device *spi)
+{
+	struct m25p	*flash = dev_get_drvdata(&spi->dev);
+	if (flash->info->flags & SHUTDOWN_3BYTE)
+		set_4byte(flash, flash->info->jedec_id, 0);
+}
 
 static struct spi_driver m25p80_driver = {
 	.driver = {
@@ -1466,6 +1478,7 @@ static struct spi_driver m25p80_driver = {
 	.id_table	= m25p_ids,
 	.probe	= m25p_probe,
 	.remove	= m25p_remove,
+	.shutdown = m25p_shutdown,
 
 	/* REVISIT: many of these chips have deep power-down modes, which
 	 * should clearly be entered on suspend() to minimize power use.
