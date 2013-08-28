@@ -455,4 +455,10 @@ source "drivers/usb/gadget/legacy/Kconfig"
 
 endchoice
 
+config FSL_UTP
+        bool "UTP over Storage Gadget"
+        depends on USB_F_MASS_STORAGE
+        help
+          Freescale's extension to MSC protocol
+
 endif # USB_GADGET

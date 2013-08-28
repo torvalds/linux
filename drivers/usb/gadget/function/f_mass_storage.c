@@ -336,7 +336,14 @@ struct fsg_dev {
 
 	struct usb_ep		*bulk_in;
 	struct usb_ep		*bulk_out;
+#ifdef CONFIG_FSL_UTP
+	void			*utp;
+#endif
 };
+
+#ifdef CONFIG_FSL_UTP
+#include "fsl_updater.h"
+#endif
 
 static inline int __fsg_is_set(struct fsg_common *common,
 			       const char *func, unsigned line)
@@ -1131,6 +1138,13 @@ static int do_request_sense(struct fsg_common *common, struct fsg_buffhd *bh)
 	}
 #endif
 
+#ifdef CONFIG_FSL_UTP
+	if (utp_get_sense(common->fsg) == 0) {  /* got the sense from the UTP */
+		sd = UTP_CTX(common->fsg)->sd;
+		sdinfo = UTP_CTX(common->fsg)->sdinfo;
+		valid = 0;
+	} else
+#endif
 	if (!curlun) {		/* Unsupported LUNs are okay */
 		common->bad_lun_okay = 1;
 		sd = SS_LOGICAL_UNIT_NOT_SUPPORTED;
@@ -1152,6 +1166,9 @@ static int do_request_sense(struct fsg_common *common, struct fsg_buffhd *bh)
 	buf[7] = 18 - 8;			/* Additional sense length */
 	buf[12] = ASC(sd);
 	buf[13] = ASCQ(sd);
+#ifdef CONFIG_FSL_UTP
+	put_unaligned_be32(UTP_CTX(common->fsg)->sdinfo_h, &buf[8]);
+#endif
 	return 18;
 }
 
@@ -1645,7 +1662,18 @@ static int send_status(struct fsg_common *common)
 		sd = SS_INVALID_COMMAND;
 	} else if (sd != SS_NO_SENSE) {
 		DBG(common, "sending command-failure status\n");
+#ifdef CONFIG_FSL_UTP
+/*
+ * mfgtool host frequently reset bus during transfer
+ *  - the response in csw to request sense will be 1 due to UTP change
+ *    some storage information
+ *  - host will reset the bus if response to request sense is 1
+ *  - change the response to 0 if CONFIG_FSL_UTP is defined
+ */
+		status = US_BULK_STAT_OK;
+#else
 		status = US_BULK_STAT_FAIL;
+#endif
 		VDBG(common, "  sense data: SK x%02x, ASC x%02x, ASCQ x%02x;"
 				"  info x%x\n",
 				SK(sd), ASC(sd), ASCQ(sd), sdinfo);
@@ -1835,6 +1863,13 @@ static int do_scsi_command(struct fsg_common *common)
 	}
 	common->phase_error = 0;
 	common->short_packet_received = 0;
+
+#ifdef CONFIG_FSL_UTP
+	reply = utp_handle_message(common->fsg, common->cmnd, reply);
+
+	if (reply != -EINVAL)
+		return reply;
+#endif
 
 	down_read(&common->filesem);	/* We're using the backing file */
 	switch (common->cmnd[0]) {
@@ -2502,12 +2537,14 @@ static int fsg_main_thread(void *common_)
 	/* Allow the thread to be frozen */
 	set_freezable();
 
+#ifndef CONFIG_FSL_UTP
 	/*
 	 * Arrange for userspace references to be interpreted as kernel
 	 * pointers.  That way we can pass a kernel pointer to a routine
 	 * that expects a __user pointer and it will work okay.
 	 */
 	set_fs(get_ds());
+#endif
 
 	/* The main loop */
 	while (common->state != FSG_STATE_TERMINATED) {
@@ -3053,6 +3090,10 @@ static void fsg_common_release(struct kref *ref)
 
 /*-------------------------------------------------------------------------*/
 
+#ifdef CONFIG_FSL_UTP
+#include "fsl_updater.c"
+#endif
+
 static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct fsg_dev		*fsg = fsg_from_func(f);
@@ -3083,6 +3124,10 @@ static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 		return i;
 	fsg_intf_desc.bInterfaceNumber = i;
 	fsg->interface_number = i;
+
+#ifdef CONFIG_FSL_UTP
+	utp_init(fsg);
+#endif
 
 	/* Find all the endpoints we will use */
 	ep = usb_ep_autoconfig(gadget, &fsg_fs_bulk_in_desc);
@@ -3142,6 +3187,11 @@ static void fsg_unbind(struct usb_configuration *c, struct usb_function *f)
 	}
 
 	usb_free_all_descriptors(&fsg->function);
+
+#ifdef CONFIG_FSL_UTP
+	utp_exit(fsg);
+#endif
+
 }
 
 static inline struct fsg_lun_opts *to_fsg_lun_opts(struct config_item *item)
