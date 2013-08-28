@@ -36,6 +36,7 @@
 #include <media/tvaudio.h>
 #include <media/i2c-addr.h>
 #include <media/tveeprom.h>
+#include <media/v4l2-clk.h>
 #include <media/v4l2-common.h>
 
 #include "em28xx.h"
@@ -2857,6 +2858,8 @@ void em28xx_release_resources(struct em28xx *dev)
 	if (dev->def_i2c_bus)
 		em28xx_i2c_unregister(dev, 1);
 	em28xx_i2c_unregister(dev, 0);
+	if (dev->clk)
+		v4l2_clk_unregister_fixed(dev->clk);
 
 	v4l2_ctrl_handler_free(&dev->ctrl_handler);
 
