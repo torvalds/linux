@@ -162,6 +162,8 @@ static ssize_t oz_cdev_write(struct file *filp, const char __user *buf,
 	spin_unlock_bh(&g_cdev.lock);
 	if (pd == NULL)
 		return -ENXIO;
+	if (!(pd->state & OZ_PD_S_CONNECTED))
+		return -EAGAIN;
 	eb = &pd->elt_buff;
 	ei = oz_elt_info_alloc(eb);
 	if (ei == NULL) {
