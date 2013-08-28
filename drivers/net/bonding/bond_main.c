@@ -2392,24 +2392,25 @@ re_arm:
 	}
 }
 
-static int bond_has_this_ip(struct bonding *bond, __be32 ip)
+static bool bond_has_this_ip(struct bonding *bond, __be32 ip)
 {
-	struct vlan_entry *vlan;
-	struct net_device *vlan_dev;
+	struct net_device *upper;
+	struct list_head *iter;
+	bool ret = false;
 
 	if (ip == bond_confirm_addr(bond->dev, 0, ip))
-		return 1;
+		return true;
 
-	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
-		rcu_read_lock();
-		vlan_dev = __vlan_find_dev_deep(bond->dev, htons(ETH_P_8021Q),
-						vlan->vlan_id);
-		rcu_read_unlock();
-		if (vlan_dev && ip == bond_confirm_addr(vlan_dev, 0, ip))
-			return 1;
+	rcu_read_lock();
+	netdev_for_each_upper_dev_rcu(bond->dev, upper, iter) {
+		if (ip == bond_confirm_addr(upper, 0, ip)) {
+			ret = true;
+			break;
+		}
 	}
+	rcu_read_unlock();
 
-	return 0;
+	return ret;
 }
 
 /*
