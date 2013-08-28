@@ -76,6 +76,17 @@ config MACH_APE6EVM
 	depends on ARCH_R8A73A4
 	select USE_OF
 
+config MACH_APE6EVM_REFERENCE
+	bool "APE6EVM board - Reference Device Tree Implementation"
+	depends on ARCH_R8A73A4
+	select USE_OF
+	---help---
+	   Use reference implementation of APE6EVM board support
+	   which makes a greater use of device tree at the expense
+	   of not supporting a number of devices.
+
+	   This is intended to aid developers
+
 config MACH_MACKEREL
 	bool "mackerel board"
 	depends on ARCH_SH7372
@@ -113,11 +124,26 @@ config MACH_BOCKW
 	select RENESAS_INTC_IRQPIN
 	select USE_OF
 
+config MACH_BOCKW_REFERENCE
+	bool "BOCK-W  - Reference Device Tree Implementation"
+	depends on ARCH_R8A7778
+	select ARCH_REQUIRE_GPIOLIB
+	select RENESAS_INTC_IRQPIN
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
+	select USE_OF
+	---help---
+	   Use reference implementation of BockW board support
+	   which makes use of device tree at the expense
+	   of not supporting a number of devices.
+
+	   This is intended to aid developers
+
 config MACH_MARZEN
 	bool "MARZEN board"
 	depends on ARCH_R8A7779
 	select ARCH_REQUIRE_GPIOLIB
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
+	select USE_OF
 
 config MACH_MARZEN_REFERENCE
 	bool "MARZEN board - Reference Device Tree Implementation"
@@ -136,6 +162,17 @@ config MACH_LAGER
 	bool "Lager board"
 	depends on ARCH_R8A7790
 	select USE_OF
+
+config MACH_LAGER_REFERENCE
+	bool "Lager board - Reference Device Tree Implementation"
+	depends on ARCH_R8A7790
+	select USE_OF
+	---help---
+	   Use reference implementation of Lager board support
+	   which makes use of device tree at the expense
+	   of not supporting a number of devices.
+
+	   This is intended to aid developers
 
 config MACH_KZM9D
 	bool "KZM9D board"

@@ -18,6 +18,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <linux/clocksource.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/of_platform.h>
@@ -160,13 +161,13 @@ static struct resource thermal_resources[] __initdata = {
 					thermal_resources,		\
 					ARRAY_SIZE(thermal_resources))
 
-static struct sh_timer_config cmt00_platform_data = {
+static struct sh_timer_config cmt00_platform_data __initdata = {
 	.name = "CMT00",
 	.timer_bit = 0,
 	.clockevent_rating = 80,
 };
 
-static struct resource cmt00_resources[] = {
+static struct resource cmt00_resources[] __initdata = {
 	DEFINE_RES_MEM(0xffca0510, 0x0c),
 	DEFINE_RES_MEM(0xffca0500, 0x04),
 	DEFINE_RES_IRQ(gic_spi(142)), /* CMT0_0 */
@@ -179,7 +180,7 @@ static struct resource cmt00_resources[] = {
 					  &cmt##idx##_platform_data,	\
 					  sizeof(struct sh_timer_config))
 
-void __init r8a7790_add_standard_devices(void)
+void __init r8a7790_add_dt_devices(void)
 {
 	r8a7790_register_scif(SCIFA0);
 	r8a7790_register_scif(SCIFA1);
@@ -191,9 +192,14 @@ void __init r8a7790_add_standard_devices(void)
 	r8a7790_register_scif(SCIF1);
 	r8a7790_register_scif(HSCIF0);
 	r8a7790_register_scif(HSCIF1);
+	r8a7790_register_cmt(00);
+}
+
+void __init r8a7790_add_standard_devices(void)
+{
+	r8a7790_add_dt_devices();
 	r8a7790_register_irqc(0);
 	r8a7790_register_thermal();
-	r8a7790_register_cmt(00);
 }
 
 #define MODEMR 0xe6160060
@@ -258,7 +264,7 @@ void __init r8a7790_timer_init(void)
 	iounmap(base);
 #endif /* CONFIG_ARM_ARCH_TIMER */
 
-	shmobile_timer_init();
+	clocksource_of_init();
 }
 
 void __init r8a7790_init_delay(void)

@@ -20,8 +20,11 @@
 
 #include <linux/mfd/tmio.h>
 #include <linux/mmc/host.h>
+#include <linux/mmc/sh_mobile_sdhi.h>
+#include <linux/mmc/sh_mmcif.h>
 #include <linux/mtd/partitions.h>
 #include <linux/pinctrl/machine.h>
+#include <linux/platform_data/usb-rcar-phy.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
@@ -64,26 +67,36 @@ static struct regulator_consumer_supply dummy_supplies[] = {
 	REGULATOR_SUPPLY("vdd33a", "smsc911x"),
 };
 
-static struct smsc911x_platform_config smsc911x_data = {
+static struct smsc911x_platform_config smsc911x_data __initdata = {
 	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
 	.irq_type	= SMSC911X_IRQ_TYPE_PUSH_PULL,
 	.flags		= SMSC911X_USE_32BIT,
 	.phy_interface	= PHY_INTERFACE_MODE_MII,
 };
 
-static struct resource smsc911x_resources[] = {
+static struct resource smsc911x_resources[] __initdata = {
 	DEFINE_RES_MEM(0x18300000, 0x1000),
 	DEFINE_RES_IRQ(irq_pin(0)), /* IRQ 0 */
 };
 
 /* USB */
+static struct resource usb_phy_resources[] __initdata = {
+	DEFINE_RES_MEM(0xffe70800, 0x100),
+	DEFINE_RES_MEM(0xffe76000, 0x100),
+};
+
 static struct rcar_phy_platform_data usb_phy_platform_data __initdata;
 
 /* SDHI */
-static struct sh_mobile_sdhi_info sdhi0_info = {
+static struct sh_mobile_sdhi_info sdhi0_info __initdata = {
 	.tmio_caps	= MMC_CAP_SD_HIGHSPEED,
 	.tmio_ocr_mask	= MMC_VDD_165_195 | MMC_VDD_32_33 | MMC_VDD_33_34,
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT,
+};
+
+static struct resource sdhi0_resources[] __initdata = {
+	DEFINE_RES_MEM(0xFFE4C000, 0x100),
+	DEFINE_RES_IRQ(gic_iid(0x77)),
 };
 
 static struct sh_eth_plat_data ether_platform_data __initdata = {
@@ -135,7 +148,12 @@ static struct spi_board_info spi_board_info[] __initdata = {
 };
 
 /* MMC */
-static struct sh_mmcif_plat_data sh_mmcif_plat = {
+static struct resource mmc_resources[] __initdata = {
+	DEFINE_RES_MEM(0xffe4e000, 0x100),
+	DEFINE_RES_IRQ(gic_iid(0x5d)),
+};
+
+static struct sh_mmcif_plat_data sh_mmcif_plat __initdata = {
 	.sup_pclk	= 0,
 	.ocr		= MMC_VDD_165_195 | MMC_VDD_32_33 | MMC_VDD_33_34,
 	.caps		= MMC_CAP_4_BIT_DATA |
@@ -187,11 +205,7 @@ static void __init bockw_init(void)
 	r8a7778_clock_init();
 	r8a7778_init_irq_extpin(1);
 	r8a7778_add_standard_devices();
-	r8a7778_add_usb_phy_device(&usb_phy_platform_data);
 	r8a7778_add_ether_device(&ether_platform_data);
-	r8a7778_add_i2c_device(0);
-	r8a7778_add_hspi_device(0);
-	r8a7778_add_mmc_device(&sh_mmcif_plat);
 
 	i2c_register_board_info(0, i2c0_devices,
 				ARRAY_SIZE(i2c0_devices));
@@ -200,6 +214,19 @@ static void __init bockw_init(void)
 	pinctrl_register_mappings(bockw_pinctrl_map,
 				  ARRAY_SIZE(bockw_pinctrl_map));
 	r8a7778_pinmux_init();
+
+	platform_device_register_resndata(
+		&platform_bus, "sh_mmcif", -1,
+		mmc_resources, ARRAY_SIZE(mmc_resources),
+		&sh_mmcif_plat, sizeof(struct sh_mmcif_plat_data));
+
+	platform_device_register_resndata(
+		&platform_bus, "rcar_usb_phy", -1,
+		usb_phy_resources,
+		ARRAY_SIZE(usb_phy_resources),
+		&usb_phy_platform_data,
+		sizeof(struct rcar_phy_platform_data));
+
 
 	/* for SMSC */
 	base = ioremap_nocache(FPGA, SZ_1M);
@@ -236,7 +263,10 @@ static void __init bockw_init(void)
 		iowrite32(ioread32(base + PUPR4) | (3 << 26), base + PUPR4);
 		iounmap(base);
 
-		r8a7778_sdhi_init(0, &sdhi0_info);
+		platform_device_register_resndata(
+			&platform_bus, "sh_mobile_sdhi", 0,
+			sdhi0_resources, ARRAY_SIZE(sdhi0_resources),
+			&sdhi0_info, sizeof(struct sh_mobile_sdhi_info));
 	}
 }
 
@@ -249,7 +279,6 @@ DT_MACHINE_START(BOCKW_DT, "bockw")
 	.init_early	= r8a7778_init_delay,
 	.init_irq	= r8a7778_init_irq_dt,
 	.init_machine	= bockw_init,
-	.init_time	= shmobile_timer_init,
 	.dt_compat	= bockw_boards_compat_dt,
 	.init_late      = r8a7778_init_late,
 MACHINE_END

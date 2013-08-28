@@ -22,8 +22,11 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
+#include <linux/irqchip/arm-gic.h>
 #include <linux/of_platform.h>
 #include <linux/platform_data/gpio-rcar.h>
+#include <linux/platform_data/irq-renesas-intc-irqpin.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/input.h>
@@ -67,6 +70,60 @@ void __init r8a7779_map_io(void)
 	iotable_init(r8a7779_io_desc, ARRAY_SIZE(r8a7779_io_desc));
 }
 
+/* IRQ */
+#define INT2SMSKCR0 IOMEM(0xfe7822a0)
+#define INT2SMSKCR1 IOMEM(0xfe7822a4)
+#define INT2SMSKCR2 IOMEM(0xfe7822a8)
+#define INT2SMSKCR3 IOMEM(0xfe7822ac)
+#define INT2SMSKCR4 IOMEM(0xfe7822b0)
+
+#define INT2NTSR0 IOMEM(0xfe700060)
+#define INT2NTSR1 IOMEM(0xfe700064)
+
+static struct renesas_intc_irqpin_config irqpin0_platform_data __initdata = {
+	.irq_base = irq_pin(0), /* IRQ0 -> IRQ3 */
+	.sense_bitfield_width = 2,
+};
+
+static struct resource irqpin0_resources[] __initdata = {
+	DEFINE_RES_MEM(0xfe78001c, 4), /* ICR1 */
+	DEFINE_RES_MEM(0xfe780010, 4), /* INTPRI */
+	DEFINE_RES_MEM(0xfe780024, 4), /* INTREQ */
+	DEFINE_RES_MEM(0xfe780044, 4), /* INTMSK0 */
+	DEFINE_RES_MEM(0xfe780064, 4), /* INTMSKCLR0 */
+	DEFINE_RES_IRQ(gic_spi(27)), /* IRQ0 */
+	DEFINE_RES_IRQ(gic_spi(28)), /* IRQ1 */
+	DEFINE_RES_IRQ(gic_spi(29)), /* IRQ2 */
+	DEFINE_RES_IRQ(gic_spi(30)), /* IRQ3 */
+};
+
+void __init r8a7779_init_irq_extpin(int irlm)
+{
+	void __iomem *icr0 = ioremap_nocache(0xfe780000, PAGE_SIZE);
+	u32 tmp;
+
+	if (!icr0) {
+		pr_warn("r8a7779: unable to setup external irq pin mode\n");
+		return;
+	}
+
+	tmp = ioread32(icr0);
+	if (irlm)
+		tmp |= 1 << 23; /* IRQ0 -> IRQ3 as individual pins */
+	else
+		tmp &= ~(1 << 23); /* IRL mode - not supported */
+	tmp |= (1 << 21); /* LVLMODE = 1 */
+	iowrite32(tmp, icr0);
+	iounmap(icr0);
+
+	if (irlm)
+		platform_device_register_resndata(
+			&platform_bus, "renesas_intc_irqpin", -1,
+			irqpin0_resources, ARRAY_SIZE(irqpin0_resources),
+			&irqpin0_platform_data, sizeof(irqpin0_platform_data));
+}
+
+/* PFC/GPIO */
 static struct resource r8a7779_pfc_resources[] = {
 	DEFINE_RES_MEM(0xfffc0000, 0x023c),
 };
@@ -537,7 +594,7 @@ static struct platform_device ohci1_device = {
 };
 
 /* Ether */
-static struct resource ether_resources[] = {
+static struct resource ether_resources[] __initdata = {
 	{
 		.start	= 0xfde00000,
 		.end	= 0xfde003ff,
@@ -641,6 +698,29 @@ void __init r8a7779_init_late(void)
 }
 
 #ifdef CONFIG_USE_OF
+static int r8a7779_set_wake(struct irq_data *data, unsigned int on)
+{
+	return 0; /* always allow wakeup */
+}
+
+void __init r8a7779_init_irq_dt(void)
+{
+	gic_arch_extn.irq_set_wake = r8a7779_set_wake;
+
+	irqchip_init();
+
+	/* route all interrupts to ARM */
+	__raw_writel(0xffffffff, INT2NTSR0);
+	__raw_writel(0x3fffffff, INT2NTSR1);
+
+	/* unmask all known interrupts in INTCS2 */
+	__raw_writel(0xfffffff0, INT2SMSKCR0);
+	__raw_writel(0xfff7ffff, INT2SMSKCR1);
+	__raw_writel(0xfffbffdf, INT2SMSKCR2);
+	__raw_writel(0xbffffffc, INT2SMSKCR3);
+	__raw_writel(0x003fee3f, INT2SMSKCR4);
+}
+
 void __init r8a7779_init_delay(void)
 {
 	shmobile_setup_delay(1000, 2, 4); /* Cortex-A9 @ 1000MHz */
@@ -667,7 +747,6 @@ DT_MACHINE_START(R8A7779_DT, "Generic R8A7779 (Flattened Device Tree)")
 	.nr_irqs	= NR_IRQS_LEGACY,
 	.init_irq	= r8a7779_init_irq_dt,
 	.init_machine	= r8a7779_add_standard_devices_dt,
-	.init_time	= shmobile_timer_init,
 	.init_late	= r8a7779_init_late,
 	.dt_compat	= r8a7779_compat_dt,
 MACHINE_END

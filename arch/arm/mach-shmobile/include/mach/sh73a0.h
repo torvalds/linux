@@ -1,8 +1,6 @@
 #ifndef __ASM_SH73A0_H__
 #define __ASM_SH73A0_H__
 
-#define GPIO_NR			310
-
 /* DMA slave IDs */
 enum {
 	SHDMA_SLAVE_INVALID,
