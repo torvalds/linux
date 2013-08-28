@@ -674,6 +674,18 @@ static void tegra_hdmi_setup_tmds(struct tegra_hdmi *hdmi,
 				  HDMI_NV_PDISP_SOR_IO_PEAK_CURRENT);
 }
 
+static bool tegra_output_is_hdmi(struct tegra_output *output)
+{
+	struct edid *edid;
+
+	if (!output->connector.edid_blob_ptr)
+		return false;
+
+	edid = (struct edid *)output->connector.edid_blob_ptr->data;
+
+	return drm_detect_hdmi_monitor(edid);
+}
+
 static int tegra_output_hdmi_enable(struct tegra_output *output)
 {
 	unsigned int h_sync_width, h_front_porch, h_back_porch, i, rekey;
@@ -685,6 +697,8 @@ static int tegra_output_hdmi_enable(struct tegra_output *output)
 	unsigned long value;
 	int retries = 1000;
 	int err;
+
+	hdmi->dvi = !tegra_output_is_hdmi(output);
 
 	pclk = mode->clock * 1000;
 	h_sync_width = mode->hsync_end - mode->hsync_start;
