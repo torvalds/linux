@@ -1536,7 +1536,7 @@ xfs_buftarg_isolate(
 	return LRU_REMOVED;
 }
 
-static long
+static unsigned long
 xfs_buftarg_shrink_scan(
 	struct shrinker		*shrink,
 	struct shrink_control	*sc)
@@ -1544,7 +1544,7 @@ xfs_buftarg_shrink_scan(
 	struct xfs_buftarg	*btp = container_of(shrink,
 					struct xfs_buftarg, bt_shrinker);
 	LIST_HEAD(dispose);
-	long			freed;
+	unsigned long		freed;
 	unsigned long		nr_to_scan = sc->nr_to_scan;
 
 	freed = list_lru_walk_node(&btp->bt_lru, sc->nid, xfs_buftarg_isolate,
@@ -1560,7 +1560,7 @@ xfs_buftarg_shrink_scan(
 	return freed;
 }
 
-static long
+static unsigned long
 xfs_buftarg_shrink_count(
 	struct shrinker		*shrink,
 	struct shrink_control	*sc)
