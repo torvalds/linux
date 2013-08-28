@@ -2027,9 +2027,9 @@ static void i915_hangcheck_elapsed(unsigned long data)
 
 	for_each_ring(ring, dev_priv, i) {
 		if (ring->hangcheck.score > FIRE) {
-			DRM_ERROR("%s on %s\n",
-				  stuck[i] ? "stuck" : "no progress",
-				  ring->name);
+			DRM_INFO("%s on %s\n",
+				 stuck[i] ? "stuck" : "no progress",
+				 ring->name);
 			rings_hung++;
 		}
 	}
