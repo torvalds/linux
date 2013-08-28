@@ -174,12 +174,12 @@ static u32 __init ar934x_get_pll_freq(u32 ref, u32 ref_div, u32 nint, u32 nfrac,
 	u64 t;
 	u32 ret;
 
-	t = ath79_ref_clk.rate;
+	t = ref;
 	t *= nint;
 	do_div(t, ref_div);
 	ret = t;
 
-	t = ath79_ref_clk.rate;
+	t = ref;
 	t *= nfrac;
 	do_div(t, ref_div * frac);
 	ret += t;
