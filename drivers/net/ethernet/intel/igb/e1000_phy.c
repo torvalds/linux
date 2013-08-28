@@ -731,15 +731,13 @@ s32 igb_copper_link_setup_m88_gen2(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 phy_data;
 
-	if (phy->reset_disable) {
-		ret_val = 0;
-		goto out;
-	}
+	if (phy->reset_disable)
+		return 0;
 
 	/* Enable CRS on Tx. This must be set for half-duplex operation. */
 	ret_val = phy->ops.read_reg(hw, M88E1000_PHY_SPEC_CTRL, &phy_data);
 	if (ret_val)
-		goto out;
+		return ret_val;
 
 	/* Options:
 	 *   MDI/MDI-X = 0 (default)
@@ -780,23 +778,36 @@ s32 igb_copper_link_setup_m88_gen2(struct e1000_hw *hw)
 		phy_data |= M88E1000_PSCR_POLARITY_REVERSAL;
 
 	/* Enable downshift and setting it to X6 */
+	if (phy->id == M88E1543_E_PHY_ID) {
+		phy_data &= ~I347AT4_PSCR_DOWNSHIFT_ENABLE;
+		ret_val =
+		    phy->ops.write_reg(hw, M88E1000_PHY_SPEC_CTRL, phy_data);
+		if (ret_val)
+			return ret_val;
+
+		ret_val = igb_phy_sw_reset(hw);
+		if (ret_val) {
+			hw_dbg("Error committing the PHY changes\n");
+			return ret_val;
+		}
+	}
+
 	phy_data &= ~I347AT4_PSCR_DOWNSHIFT_MASK;
 	phy_data |= I347AT4_PSCR_DOWNSHIFT_6X;
 	phy_data |= I347AT4_PSCR_DOWNSHIFT_ENABLE;
 
 	ret_val = phy->ops.write_reg(hw, M88E1000_PHY_SPEC_CTRL, phy_data);
 	if (ret_val)
-		goto out;
+		return ret_val;
 
 	/* Commit the changes. */
 	ret_val = igb_phy_sw_reset(hw);
 	if (ret_val) {
 		hw_dbg("Error committing the PHY changes\n");
-		goto out;
+		return ret_val;
 	}
 
-out:
-	return ret_val;
+	return 0;
 }
 
 /**
