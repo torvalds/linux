@@ -53,7 +53,6 @@ struct slave;
 
 
 #define TLB_NULL_INDEX		0xffffffff
-#define MAX_LP_BURST		3
 
 /* rlb defs */
 #define RLB_HASH_TABLE_SIZE	256
