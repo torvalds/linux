@@ -3615,8 +3615,8 @@ static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 
 	value = ar9003_hw_ant_ctrl_common_2_get(ah, is2ghz);
 	if (AR_SREV_9485(ah) && common->bt_ant_diversity) {
-		regval &= ~AR_SWITCH_TABLE_COM2_ALL;
-		regval |= ah->config.ant_ctrl_comm2g_switch_enable;
+		value &= ~AR_SWITCH_TABLE_COM2_ALL;
+		value |= ah->config.ant_ctrl_comm2g_switch_enable;
 
 	}
 	REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM_2, AR_SWITCH_TABLE_COM2_ALL, value);
