@@ -157,9 +157,8 @@ struct acpi_device_flags {
 	u32 removable:1;
 	u32 ejectable:1;
 	u32 power_manageable:1;
-	u32 eject_pending:1;
 	u32 match_driver:1;
-	u32 reserved:26;
+	u32 reserved:27;
 };
 
 /* File System */

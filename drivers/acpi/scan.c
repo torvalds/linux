@@ -307,6 +307,7 @@ static void acpi_bus_device_eject(void *context)
 	struct acpi_device *device = NULL;
 	struct acpi_scan_handler *handler;
 	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE;
+	int error;
 
 	mutex_lock(&acpi_scan_lock);
 
@@ -321,17 +322,13 @@ static void acpi_bus_device_eject(void *context)
 	}
 	acpi_evaluate_hotplug_ost(handle, ACPI_NOTIFY_EJECT_REQUEST,
 				  ACPI_OST_SC_EJECT_IN_PROGRESS, NULL);
-	if (handler->hotplug.mode == AHM_CONTAINER) {
-		device->flags.eject_pending = true;
+	if (handler->hotplug.mode == AHM_CONTAINER)
 		kobject_uevent(&device->dev.kobj, KOBJ_OFFLINE);
-	} else {
-		int error;
 
-		get_device(&device->dev);
-		error = acpi_scan_hot_remove(device);
-		if (error)
-			goto err_out;
-	}
+	get_device(&device->dev);
+	error = acpi_scan_hot_remove(device);
+	if (error)
+		goto err_out;
 
  out:
 	mutex_unlock(&acpi_scan_lock);
@@ -516,7 +513,6 @@ acpi_eject_store(struct device *d, struct device_attribute *attr,
 	struct acpi_eject_event *ej_event;
 	acpi_object_type not_used;
 	acpi_status status;
-	u32 ost_source;
 	int ret;
 
 	if (!count || buf[0] != '1')
@@ -530,43 +526,28 @@ acpi_eject_store(struct device *d, struct device_attribute *attr,
 	if (ACPI_FAILURE(status) || !acpi_device->flags.ejectable)
 		return -ENODEV;
 
-	mutex_lock(&acpi_scan_lock);
-
-	if (acpi_device->flags.eject_pending) {
-		/* ACPI eject notification event. */
-		ost_source = ACPI_NOTIFY_EJECT_REQUEST;
-		acpi_device->flags.eject_pending = 0;
-	} else {
-		/* Eject initiated by user space. */
-		ost_source = ACPI_OST_EC_OSPM_EJECT;
-	}
 	ej_event = kmalloc(sizeof(*ej_event), GFP_KERNEL);
 	if (!ej_event) {
 		ret = -ENOMEM;
 		goto err_out;
 	}
-	acpi_evaluate_hotplug_ost(acpi_device->handle, ost_source,
+	acpi_evaluate_hotplug_ost(acpi_device->handle, ACPI_OST_EC_OSPM_EJECT,
 				  ACPI_OST_SC_EJECT_IN_PROGRESS, NULL);
 	ej_event->device = acpi_device;
-	ej_event->event = ost_source;
+	ej_event->event = ACPI_OST_EC_OSPM_EJECT;
 	get_device(&acpi_device->dev);
 	status = acpi_os_hotplug_execute(acpi_bus_hot_remove_device, ej_event);
-	if (ACPI_FAILURE(status)) {
-		put_device(&acpi_device->dev);
-		kfree(ej_event);
-		ret = status == AE_NO_MEMORY ? -ENOMEM : -EAGAIN;
-		goto err_out;
-	}
-	ret = count;
+	if (ACPI_SUCCESS(status))
+		return count;
 
- out:
-	mutex_unlock(&acpi_scan_lock);
-	return ret;
+	put_device(&acpi_device->dev);
+	kfree(ej_event);
+	ret = status == AE_NO_MEMORY ? -ENOMEM : -EAGAIN;
 
  err_out:
-	acpi_evaluate_hotplug_ost(acpi_device->handle, ost_source,
+	acpi_evaluate_hotplug_ost(acpi_device->handle, ACPI_OST_EC_OSPM_EJECT,
 				  ACPI_OST_SC_NON_SPECIFIC_FAILURE, NULL);
-	goto out;
+	return ret;
 }
 
 static DEVICE_ATTR(eject, 0200, NULL, acpi_eject_store);
