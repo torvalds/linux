@@ -36,7 +36,6 @@
  *
  */
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/ctype.h>
 #include <linux/slab.h>
 
