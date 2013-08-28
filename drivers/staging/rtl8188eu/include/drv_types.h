@@ -34,7 +34,6 @@
 #include <drv_types_linux.h>
 #include <rtw_ht.h>
 #include <rtw_cmd.h>
-#include <wlan_bssdef.h>
 #include <rtw_xmit.h>
 #include <rtw_recv.h>
 #include <hal_intf.h>
