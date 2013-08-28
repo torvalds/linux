@@ -43,7 +43,7 @@
 #endif
 
 /* Mask for just the mount related flags */
-#define SE_MNTMASK	0x1f
+#define SE_MNTMASK	0x0f
 /* Super block security struct flags for mount options */
 /* BE CAREFUL, these need to be the low order bits for selinux_get_mnt_opts */
 #define CONTEXT_MNT	0x01
