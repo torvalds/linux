@@ -39,7 +39,7 @@
  * Number of units of buffering to capture for an isochronous IN endpoint before
  * allowing data to be indicated up.
  */
-#define OZ_IN_BUFFERING_UNITS	50
+#define OZ_IN_BUFFERING_UNITS	100
 
 /* Name of our platform device.
  */
