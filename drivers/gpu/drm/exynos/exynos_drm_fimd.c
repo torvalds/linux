@@ -14,7 +14,6 @@
 #include <drm/drmP.h>
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/of_device.h>
@@ -130,7 +129,6 @@ static const struct of_device_id fimd_driver_dt_match[] = {
 	  .data = &exynos5_fimd_driver_data },
 	{},
 };
-MODULE_DEVICE_TABLE(of, fimd_driver_dt_match);
 #endif
 
 static inline struct fimd_driver_data *drm_fimd_get_driver_data(
@@ -1082,7 +1080,6 @@ static struct platform_device_id fimd_driver_ids[] = {
 	},
 	{},
 };
-MODULE_DEVICE_TABLE(platform, fimd_driver_ids);
 
 static const struct dev_pm_ops fimd_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(fimd_suspend, fimd_resume)

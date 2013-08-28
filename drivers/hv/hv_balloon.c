@@ -562,7 +562,7 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
 				struct hv_hotadd_state *has)
 {
 	int ret = 0;
-	int i, nid, t;
+	int i, nid;
 	unsigned long start_pfn;
 	unsigned long processed_pfn;
 	unsigned long total_pfn = pfn_count;
@@ -607,14 +607,11 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
 
 		/*
 		 * Wait for the memory block to be onlined.
+		 * Since the hot add has succeeded, it is ok to
+		 * proceed even if the pages in the hot added region
+		 * have not been "onlined" within the allowed time.
 		 */
-		t = wait_for_completion_timeout(&dm_device.ol_waitevent, 5*HZ);
-		if (t == 0) {
-			pr_info("hot_add memory timedout\n");
-			has->ha_end_pfn -= HA_CHUNK;
-			has->covered_end_pfn -=  processed_pfn;
-			break;
-		}
+		wait_for_completion_timeout(&dm_device.ol_waitevent, 5*HZ);
 
 	}
 
@@ -977,6 +974,14 @@ static void post_status(struct hv_dynmem_device *dm)
 	status.num_committed = vm_memory_committed() +
 				dm->num_pages_ballooned +
 				compute_balloon_floor();
+
+	/*
+	 * If our transaction ID is no longer current, just don't
+	 * send the status. This can happen if we were interrupted
+	 * after we picked our transaction ID.
+	 */
+	if (status.hdr.trans_id != atomic_read(&trans_id))
+		return;
 
 	vmbus_sendpacket(dm->dev->channel, &status,
 				sizeof(struct dm_status),
