@@ -1217,7 +1217,7 @@ static s32 igb_get_pcs_speed_and_duplex_82575(struct e1000_hw *hw, u16 *speed,
 						u16 *duplex)
 {
 	struct e1000_mac_info *mac = &hw->mac;
-	u32 pcs;
+	u32 pcs, status;
 
 	/* Set up defaults for the return values of this function */
 	mac->serdes_has_link = false;
@@ -1238,20 +1238,31 @@ static s32 igb_get_pcs_speed_and_duplex_82575(struct e1000_hw *hw, u16 *speed,
 		mac->serdes_has_link = true;
 
 		/* Detect and store PCS speed */
-		if (pcs & E1000_PCS_LSTS_SPEED_1000) {
+		if (pcs & E1000_PCS_LSTS_SPEED_1000)
 			*speed = SPEED_1000;
-		} else if (pcs & E1000_PCS_LSTS_SPEED_100) {
+		else if (pcs & E1000_PCS_LSTS_SPEED_100)
 			*speed = SPEED_100;
-		} else {
+		else
 			*speed = SPEED_10;
-		}
 
 		/* Detect and store PCS duplex */
-		if (pcs & E1000_PCS_LSTS_DUPLEX_FULL) {
+		if (pcs & E1000_PCS_LSTS_DUPLEX_FULL)
 			*duplex = FULL_DUPLEX;
-		} else {
+		else
 			*duplex = HALF_DUPLEX;
+
+	/* Check if it is an I354 2.5Gb backplane connection. */
+		if (mac->type == e1000_i354) {
+			status = rd32(E1000_STATUS);
+			if ((status & E1000_STATUS_2P5_SKU) &&
+			    !(status & E1000_STATUS_2P5_SKU_OVER)) {
+				*speed = SPEED_2500;
+				*duplex = FULL_DUPLEX;
+				hw_dbg("2500 Mbs, ");
+				hw_dbg("Full Duplex\n");
+			}
 		}
+
 	}
 
 	return 0;
