@@ -26,7 +26,6 @@
 #define _SUCCESS	1
 #define RTW_RX_HANDLED 2
 
-#include <linux/version.h>
 #include <linux/spinlock.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
