@@ -751,8 +751,8 @@ static void device_free_tx_bufs(struct vnt_private *pDevice)
 
 static void device_free_rx_bufs(struct vnt_private *pDevice)
 {
-    PRCB pRCB;
-    int ii;
+	struct vnt_rcb *pRCB;
+	int ii;
 
     for (ii = 0; ii < pDevice->cbRD; ii++) {
 
@@ -789,8 +789,8 @@ static void device_free_int_bufs(struct vnt_private *pDevice)
 static bool device_alloc_bufs(struct vnt_private *pDevice)
 {
 	struct vnt_usb_send_context *pTxContext;
-    PRCB pRCB;
-    int ii;
+	struct vnt_rcb *pRCB;
+	int ii;
 
     for (ii = 0; ii < pDevice->cbTD; ii++) {
 
@@ -811,7 +811,8 @@ static bool device_alloc_bufs(struct vnt_private *pDevice)
     }
 
     /* allocate RCB mem */
-	pDevice->pRCBMem = kzalloc((sizeof(RCB) * pDevice->cbRD), GFP_KERNEL);
+	pDevice->pRCBMem = kzalloc((sizeof(struct vnt_rcb) * pDevice->cbRD),
+								GFP_KERNEL);
     if (pDevice->pRCBMem == NULL) {
         DBG_PRT(MSG_LEVEL_ERR,KERN_ERR "%s : alloc rx usb context failed\n", pDevice->dev->name);
         goto free_tx;
@@ -822,7 +823,8 @@ static bool device_alloc_bufs(struct vnt_private *pDevice)
     pDevice->FirstRecvMngList = NULL;
     pDevice->LastRecvMngList = NULL;
     pDevice->NumRecvFreeList = 0;
-    pRCB = (PRCB) pDevice->pRCBMem;
+
+	pRCB = (struct vnt_rcb *)pDevice->pRCBMem;
 
     for (ii = 0; ii < pDevice->cbRD; ii++) {
 

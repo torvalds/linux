@@ -166,8 +166,7 @@ typedef enum _CONTEXT_TYPE {
 } CONTEXT_TYPE;
 
 /* RCB (Receive Control Block) */
-typedef struct _RCB
-{
+struct vnt_rcb {
 	void *Next;
 	signed long Ref;
 	void *pDevice;
@@ -175,8 +174,7 @@ typedef struct _RCB
 	struct vnt_rx_mgmt sMngPacket;
 	struct sk_buff *skb;
 	int bBoolInUse;
-
-} RCB, *PRCB;
+};
 
 /* used to track bulk out irps */
 struct vnt_usb_send_context {
@@ -416,14 +414,14 @@ struct vnt_private {
 	u32 int_interval;
 
 	/* Variables to track resources for the BULK In Pipe */
-	PRCB pRCBMem;
-	PRCB apRCB[CB_MAX_RX_DESC];
+	struct vnt_rcb *pRCBMem;
+	struct vnt_rcb *apRCB[CB_MAX_RX_DESC];
 	u32 cbRD;
-	PRCB FirstRecvFreeList;
-	PRCB LastRecvFreeList;
+	struct vnt_rcb *FirstRecvFreeList;
+	struct vnt_rcb *LastRecvFreeList;
 	u32 NumRecvFreeList;
-	PRCB FirstRecvMngList;
-	PRCB LastRecvMngList;
+	struct vnt_rcb *FirstRecvMngList;
+	struct vnt_rcb *LastRecvMngList;
 	u32 NumRecvMngList;
 	int bIsRxWorkItemQueued;
 	int bIsRxMngWorkItemQueued;
@@ -774,7 +772,7 @@ struct vnt_private {
 
 #define DequeueRCB(Head, Tail)                          \
 {                                                       \
-    PRCB   RCB = Head;                                  \
+    struct vnt_rcb *RCB = Head;                         \
     if (!RCB->Next) {                                   \
         Tail = NULL;                                    \
     }                                                   \

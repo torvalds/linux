@@ -246,7 +246,7 @@ s_vGetDASA (
     *pcbHeaderSize = cbHeaderSize;
 }
 
-int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
+int RXbBulkInProcessData(struct vnt_private *pDevice, struct vnt_rcb *pRCB,
 	unsigned long BytesToIndicate)
 {
 	struct net_device_stats *pStats = &pDevice->stats;
@@ -271,7 +271,7 @@ int RXbBulkInProcessData(struct vnt_private *pDevice, PRCB pRCB,
 	/* signed long ldBm = 0; */
 	int bIsWEP = false; int bExtIV = false;
 	u32 dwWbkStatus;
-	PRCB pRCBIndicate = pRCB;
+	struct vnt_rcb *pRCBIndicate = pRCB;
 	u8 *pbyDAddress;
 	u16 *pwPLCP_Length;
 	u8 abyVaildRate[MAX_RATE]
@@ -1336,7 +1336,7 @@ static int s_bAPModeRxData(struct vnt_private *pDevice, struct sk_buff *skb,
 void RXvWorkItem(struct vnt_private *pDevice)
 {
 	int ntStatus;
-	PRCB pRCB = NULL;
+	struct vnt_rcb *pRCB = NULL;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Rx Polling Thread\n");
     spin_lock_irq(&pDevice->lock);
@@ -1354,7 +1354,7 @@ void RXvWorkItem(struct vnt_private *pDevice)
 
 }
 
-void RXvFreeRCB(PRCB pRCB, int bReAllocSkb)
+void RXvFreeRCB(struct vnt_rcb *pRCB, int bReAllocSkb)
 {
 	struct vnt_private *pDevice = pRCB->pDevice;
 
@@ -1391,7 +1391,7 @@ void RXvFreeRCB(PRCB pRCB, int bReAllocSkb)
 
 void RXvMngWorkItem(struct vnt_private *pDevice)
 {
-	PRCB pRCB = NULL;
+	struct vnt_rcb *pRCB = NULL;
 	struct vnt_rx_mgmt *pRxPacket;
 	int bReAllocSkb = false;
 

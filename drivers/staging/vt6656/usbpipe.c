@@ -421,7 +421,7 @@ static void s_nsInterruptUsbIoCompleteRead(struct urb *urb)
  *
  */
 
-int PIPEnsBulkInUsbRead(struct vnt_private *pDevice, PRCB pRCB)
+int PIPEnsBulkInUsbRead(struct vnt_private *pDevice, struct vnt_rcb *pRCB)
 {
 	int ntStatus = 0;
 	struct urb *pUrb;
@@ -479,7 +479,7 @@ int PIPEnsBulkInUsbRead(struct vnt_private *pDevice, PRCB pRCB)
 
 static void s_nsBulkInUsbIoCompleteRead(struct urb *urb)
 {
-	PRCB pRCB = (PRCB)urb->context;
+	struct vnt_rcb *pRCB = (struct vnt_rcb *)urb->context;
 	struct vnt_private *pDevice = pRCB->pDevice;
 	unsigned long   bytesRead;
 	int bIndicateReceive = false;
