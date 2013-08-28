@@ -4553,6 +4553,27 @@ static inline int sg_imbalanced(struct sched_group *group)
 	return group->sgp->imbalance;
 }
 
+/*
+ * Compute the group capacity.
+ *
+ * For now the capacity is simply the number of power units in the group_power.
+ * A power unit represents a full core.
+ *
+ * This has an issue where N*frac(smt_power) >= 1, in that case we'll see extra
+ * 'cores' that aren't actually there.
+ */
+static inline int sg_capacity(struct lb_env *env, struct sched_group *group)
+{
+
+	unsigned int power = group->sgp->power;
+	unsigned int capacity = DIV_ROUND_CLOSEST(power, SCHED_POWER_SCALE);
+
+	if (!capacity)
+		capacity = fix_small_capacity(env->sd, group);
+
+	return capacity;
+}
+
 /**
  * update_sg_lb_stats - Update sched_group's statistics for load balancing.
  * @env: The load balancing environment.
@@ -4596,15 +4617,10 @@ static inline void update_sg_lb_stats(struct lb_env *env,
 	if (sgs->sum_nr_running)
 		sgs->load_per_task = sgs->sum_weighted_load / sgs->sum_nr_running;
 
-	sgs->group_imb = sg_imbalanced(group);
-
-	sgs->group_capacity =
-		DIV_ROUND_CLOSEST(sgs->group_power, SCHED_POWER_SCALE);
-
-	if (!sgs->group_capacity)
-		sgs->group_capacity = fix_small_capacity(env->sd, group);
-
 	sgs->group_weight = group->group_weight;
+
+	sgs->group_imb = sg_imbalanced(group);
+	sgs->group_capacity = sg_capacity(env, group);
 
 	if (sgs->group_capacity > sgs->sum_nr_running)
 		sgs->group_has_capacity = 1;
