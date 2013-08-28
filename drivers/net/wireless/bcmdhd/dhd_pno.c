@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_pno.c 419138 2013-08-19 22:11:30Z $
+ * $Id: dhd_pno.c 420056 2013-08-24 00:53:12Z $
  */
 #include <typedefs.h>
 #include <osl.h>

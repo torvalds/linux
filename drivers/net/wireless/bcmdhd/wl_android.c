@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_android.c 419132 2013-08-19 21:33:05Z $
+ * $Id: wl_android.c 420671 2013-08-28 11:37:19Z $
  */
 
 #include <linux/module.h>
@@ -88,9 +88,6 @@
 #define CMD_SETROAMMODE 	"SETROAMMODE"
 #define CMD_MIRACAST		"MIRACAST"
 
-#if defined(WL_SUPPORT_AUTO_CHANNEL)
-#define CMD_GET_BEST_CHANNELS	"GET_BEST_CHANNELS"
-#endif /* WL_SUPPORT_AUTO_CHANNEL */
 
 
 /* CCX Private Commands */
@@ -1002,13 +999,6 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		bytes_written = wl_android_set_pmk(net, command, priv_cmd.total_len);
 	else if (strnicmp(command, CMD_OKC_ENABLE, strlen(CMD_OKC_ENABLE)) == 0)
 		bytes_written = wl_android_okc_enable(net, command, priv_cmd.total_len);
-#if defined(WL_SUPPORT_AUTO_CHANNEL)
-	else if (strnicmp(command, CMD_GET_BEST_CHANNELS,
-		strlen(CMD_GET_BEST_CHANNELS)) == 0) {
-		bytes_written = wl_cfg80211_get_best_channels(net, command,
-			priv_cmd.total_len);
-	}
-#endif /* WL_SUPPORT_AUTO_CHANNEL */
 	else if (strnicmp(command, CMD_SETROAMMODE, strlen(CMD_SETROAMMODE)) == 0)
 		bytes_written = wl_android_set_roam_mode(net, command, priv_cmd.total_len);
 	else if (strnicmp(command, CMD_MIRACAST, strlen(CMD_MIRACAST)) == 0)

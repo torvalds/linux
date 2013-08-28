@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_pno.h 419666 2013-08-22 03:35:55Z eccopark $
+ * $Id: dhd_pno.h 419969 2013-08-23 18:54:36Z $
  */
 
 #ifndef __DHD_PNO_H__

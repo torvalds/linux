@@ -788,21 +788,33 @@ wl_get_netinfo_by_netdev(struct wl_priv *wl, struct net_device *ndev)
 #define ndev_to_wlc_ndev(ndev, wl)	(ndev)
 #endif /* WL_ENABLE_P2P_IF */
 
-#if defined(WL_ENABLE_P2P_IF)
+#if defined(WL_CFG80211_P2P_DEV_IF)
+#define wdev_to_wlc_ndev(wdev, wl)	\
+	((wdev->iftype == NL80211_IFTYPE_P2P_DEVICE) ? \
+	wl_to_prmry_ndev(wl) : wdev_to_ndev(wdev))
+#define cfgdev_to_wlc_ndev(cfgdev, wl)	wdev_to_wlc_ndev(cfgdev, wl)
+#elif defined(WL_ENABLE_P2P_IF)
 #define cfgdev_to_wlc_ndev(cfgdev, wl)	ndev_to_wlc_ndev(cfgdev, wl)
 #else
 #define cfgdev_to_wlc_ndev(cfgdev, wl)	(cfgdev)
-#endif 
+#endif /* WL_CFG80211_P2P_DEV_IF */
 
+#if defined(WL_CFG80211_P2P_DEV_IF)
+#define ndev_to_cfgdev(ndev)	ndev_to_wdev(ndev)
+#else
 #define ndev_to_cfgdev(ndev)	(ndev)
+#endif /* WL_CFG80211_P2P_DEV_IF */
 
-#if defined(WL_ENABLE_P2P_IF)
+#if defined(WL_CFG80211_P2P_DEV_IF)
+#define scan_req_match(wl)	(((wl) && (wl->scan_request) && \
+	(wl->scan_request->wdev == wl->p2p_wdev)) ? true : false)
+#elif defined(WL_ENABLE_P2P_IF)
 #define scan_req_match(wl)	(((wl) && (wl->scan_request) && \
 	(wl->scan_request->dev == wl->p2p_net)) ? true : false)
 #else
 #define scan_req_match(wl)	(((wl) && p2p_is_on(wl) && p2p_scan(wl)) ? \
 	true : false)
-#endif 
+#endif /* WL_CFG80211_P2P_DEV_IF */
 
 #define wl_to_sr(w) (w->scan_req_int)
 #if defined(STATIC_WL_PRIV_STRUCT)
@@ -868,19 +880,6 @@ extern s32 wl_cfg80211_get_p2p_noa(struct net_device *net, char* buf, int len);
 extern s32 wl_cfg80211_set_wps_p2p_ie(struct net_device *net, char *buf, int len,
 	enum wl_management_type type);
 extern s32 wl_cfg80211_set_p2p_ps(struct net_device *net, char* buf, int len);
-#ifdef WL_SUPPORT_AUTO_CHANNEL
-#define CHANSPEC_BUF_SIZE	1024
-#define CHAN_SEL_IOCTL_DELAY	300
-#define CHAN_SEL_RETRY_COUNT	15
-#define CHANNEL_IS_RADAR(channel)	(((channel & WL_CHAN_RADAR) || \
-	(channel & WL_CHAN_PASSIVE)) ? true : false)
-#define CHANNEL_IS_2G(channel)	(((channel >= 1) && (channel <= 14)) ? \
-	true : false)
-#define CHANNEL_IS_5G(channel)	(((channel >= 36) && (channel <= 165)) ? \
-	true : false)
-extern s32 wl_cfg80211_get_best_channels(struct net_device *dev, char* command,
-	int total_len);
-#endif /* WL_SUPPORT_AUTO_CHANNEL */
 extern int wl_cfg80211_hang(struct net_device *dev, u16 reason);
 extern s32 wl_mode_to_nl80211_iftype(s32 mode);
 int wl_cfg80211_do_driver_init(struct net_device *net);

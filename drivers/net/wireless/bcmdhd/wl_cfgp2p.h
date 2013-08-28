@@ -188,20 +188,25 @@ enum wl_cfgp2p_status {
 		add_timer(timer); \
 	} while (0);
 
-#if !0 && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
+#if !defined(WL_CFG80211_P2P_DEV_IF) && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
 #define WL_CFG80211_P2P_DEV_IF
-#endif 
+#endif /* !WL_CFG80211_P2P_DEV_IF && (LINUX_VERSION >= VERSION(3, 8, 0)) */
 
-#if defined(WL_ENABLE_P2P_IF) && (0 || (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)))
+#if defined(WL_ENABLE_P2P_IF) && (defined(WL_CFG80211_P2P_DEV_IF) || \
+	(LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0)))
 #error Disable 'WL_ENABLE_P2P_IF', if 'WL_CFG80211_P2P_DEV_IF' is enabled \
 	or kernel version is 3.8.0 or above
-#endif 
+#endif /* WL_ENABLE_P2P_IF && (WL_CFG80211_P2P_DEV_IF || (LINUX_VERSION >= VERSION(3, 8, 0))) */
 
-#if !defined(WLP2P) && defined(WL_ENABLE_P2P_IF)
+#if !defined(WLP2P) && (defined(WL_ENABLE_P2P_IF) || defined(WL_CFG80211_P2P_DEV_IF))
 #error WLP2P not defined
 #endif 
 
+#if defined(WL_CFG80211_P2P_DEV_IF)
+#define bcm_struct_cfgdev	struct wireless_dev
+#else
 #define bcm_struct_cfgdev	struct net_device
+#endif /* WL_CFG80211_P2P_DEV_IF */
 
 extern void
 wl_cfgp2p_listen_expired(unsigned long data);
@@ -340,6 +345,20 @@ wl_cfgp2p_unregister_ndev(struct wl_priv *wl);
 
 extern bool
 wl_cfgp2p_is_ifops(const struct net_device_ops *if_ops);
+
+#if defined(WL_CFG80211_P2P_DEV_IF)
+extern struct wireless_dev *
+wl_cfgp2p_add_p2p_disc_if(void);
+
+extern int
+wl_cfgp2p_start_p2p_device(struct wiphy *wiphy, struct wireless_dev *wdev);
+
+extern void
+wl_cfgp2p_stop_p2p_device(struct wiphy *wiphy, struct wireless_dev *wdev);
+
+extern int
+wl_cfgp2p_del_p2p_disc_if(struct wireless_dev *wdev);
+#endif /* WL_CFG80211_P2P_DEV_IF */
 
 /* WiFi Direct */
 #define SOCIAL_CHAN_1 1
