@@ -1259,6 +1259,7 @@ static void svcxdr_init_encode(struct svc_rqst *rqstp,
 	struct kvec *head = buf->head;
 
 	xdr->buf = buf;
+	xdr->iov = head;
 	xdr->p   = head->iov_base + head->iov_len;
 	xdr->end = head->iov_base + PAGE_SIZE - 2 * RPC_MAX_AUTH_SIZE;
 }
