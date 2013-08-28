@@ -363,8 +363,8 @@
 #define ISIF_CCOLP_CP3_F0_B				(3 << 0)
 #define ISIF_CCOLP_CP3_F0_GB				(2 << 0)
 
-#define ISIF_VDINT0					(0x0070)
-#define ISIF_VDINT0_MASK				(0x7FFF)
+#define ISIF_VDINT(i)					(0x0070 + (i) * 4)
+#define ISIF_VDINT_MASK					(0x7fff)
 
 #define ISIF_CGAMMAWD					(0x0080)
 #define ISIF_CGAMMAWD_GWDI_MASK				(0xF << 1)

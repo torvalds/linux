@@ -67,7 +67,7 @@ static void ipipeif_print_status(struct iss_ipipeif_device *ipipeif)
 	ISIF_PRINT_REGISTER(iss, SPH);
 	ISIF_PRINT_REGISTER(iss, LNH);
 	ISIF_PRINT_REGISTER(iss, LNV);
-	ISIF_PRINT_REGISTER(iss, VDINT0);
+	ISIF_PRINT_REGISTER(iss, VDINT(0));
 	ISIF_PRINT_REGISTER(iss, HSIZE);
 
 	ISP5_PRINT_REGISTER(iss, SYSCONFIG);
@@ -213,7 +213,7 @@ cont_raw:
 
 	/* Generate ISIF0 on the last line of the image */
 	writel(format->height - 1,
-		iss->regs[OMAP4_ISS_MEM_ISP_ISIF] + ISIF_VDINT0);
+		iss->regs[OMAP4_ISS_MEM_ISP_ISIF] + ISIF_VDINT(0));
 
 	/* IPIPEIF_PAD_SOURCE_ISIF_SF */
 	format = &ipipeif->formats[IPIPEIF_PAD_SOURCE_ISIF_SF];
