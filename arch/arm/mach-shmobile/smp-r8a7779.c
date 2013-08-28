@@ -84,33 +84,34 @@ static int r8a7779_platform_cpu_kill(unsigned int cpu)
 static int r8a7779_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	struct r8a7779_pm_ch *ch = NULL;
-	int ret = -EIO;
+	unsigned int lcpu = cpu_logical_map(cpu);
+	int ret;
 
-	cpu = cpu_logical_map(cpu);
+	ret = shmobile_smp_scu_boot_secondary(cpu, idle);
+	if (ret)
+		return ret;
 
-	if (cpu < ARRAY_SIZE(r8a7779_ch_cpu))
-		ch = r8a7779_ch_cpu[cpu];
+	if (lcpu < ARRAY_SIZE(r8a7779_ch_cpu))
+		ch = r8a7779_ch_cpu[lcpu];
 
 	if (ch)
 		ret = r8a7779_sysc_power_up(ch);
+	else
+		ret = -EIO;
 
 	return ret;
 }
 
 static void __init r8a7779_smp_prepare_cpus(unsigned int max_cpus)
 {
-
-	/* setup r8a7779 specific SCU base */
-	shmobile_scu_base = IOMEM(R8A7779_SCU_BASE);
-	scu_enable(shmobile_scu_base);
-
 	/* Map the reset vector (in headsmp-scu.S, headsmp.S) */
 	__raw_writel(__pa(shmobile_boot_vector), AVECR);
 	shmobile_boot_fn = virt_to_phys(shmobile_boot_scu);
 	shmobile_boot_arg = (unsigned long)shmobile_scu_base;
 
-	/* enable cache coherency on booting CPU */
-	scu_power_mode(shmobile_scu_base, SCU_PM_NORMAL);
+	/* setup r8a7779 specific SCU bits */
+	shmobile_scu_base = IOMEM(R8A7779_SCU_BASE);
+	shmobile_smp_scu_prepare_cpus(max_cpus);
 
 	r8a7779_pm_init();
 
@@ -121,45 +122,12 @@ static void __init r8a7779_smp_prepare_cpus(unsigned int max_cpus)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-static int r8a7779_scu_psr_core_disabled(int cpu)
-{
-	unsigned long mask = 3 << (cpu * 8);
-
-	if ((__raw_readl(shmobile_scu_base + 8) & mask) == mask)
-		return 1;
-
-	return 0;
-}
-
 static int r8a7779_cpu_kill(unsigned int cpu)
 {
-	int k;
-
-	/* this function is running on another CPU than the offline target,
-	 * here we need wait for shutdown code in platform_cpu_die() to
-	 * finish before asking SoC-specific code to power off the CPU core.
-	 */
-	for (k = 0; k < 1000; k++) {
-		if (r8a7779_scu_psr_core_disabled(cpu))
-			return r8a7779_platform_cpu_kill(cpu);
-
-		mdelay(1);
-	}
+	if (shmobile_smp_scu_cpu_kill(cpu))
+		return r8a7779_platform_cpu_kill(cpu);
 
 	return 0;
-}
-
-static void r8a7779_cpu_die(unsigned int cpu)
-{
-	dsb();
-	flush_cache_all();
-
-	/* disable cache coherency */
-	scu_power_mode(shmobile_scu_base, SCU_PM_POWEROFF);
-
-	/* Endless loop until power off from r8a7779_cpu_kill() */
-	while (1)
-		cpu_do_idle();
 }
 
 static int r8a7779_cpu_disable(unsigned int cpu)
@@ -173,8 +141,8 @@ struct smp_operations r8a7779_smp_ops  __initdata = {
 	.smp_prepare_cpus	= r8a7779_smp_prepare_cpus,
 	.smp_boot_secondary	= r8a7779_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
-	.cpu_kill		= r8a7779_cpu_kill,
-	.cpu_die		= r8a7779_cpu_die,
 	.cpu_disable		= r8a7779_cpu_disable,
+	.cpu_die		= shmobile_smp_scu_cpu_die,
+	.cpu_kill		= r8a7779_cpu_kill,
 #endif
 };
