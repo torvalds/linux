@@ -22,6 +22,12 @@ extern int shmobile_smp_scu_boot_secondary(unsigned int cpu,
 					   struct task_struct *idle);
 extern void shmobile_smp_scu_cpu_die(unsigned int cpu);
 extern int shmobile_smp_scu_cpu_kill(unsigned int cpu);
+extern void shmobile_smp_apmu_prepare_cpus(unsigned int max_cpus);
+extern int shmobile_smp_apmu_boot_secondary(unsigned int cpu,
+					    struct task_struct *idle);
+extern void shmobile_smp_apmu_cpu_die(unsigned int cpu);
+extern int shmobile_smp_apmu_cpu_kill(unsigned int cpu);
+extern void shmobile_invalidate_start(void);
 struct clk;
 extern int shmobile_clk_init(void);
 extern void shmobile_handle_irq_intc(struct pt_regs *);
