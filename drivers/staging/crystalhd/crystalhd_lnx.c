@@ -545,8 +545,7 @@ static int chd_dec_pci_probe(struct pci_dev *pdev,
 	int rc;
 	enum BC_STATUS sts = BC_STS_SUCCESS;
 
-	BCMLOG(BCMLOG_DBG, "PCI_INFO: Vendor:0x%04x Device:0x%04x "
-	       "s_vendor:0x%04x s_device: 0x%04x\n",
+	BCMLOG(BCMLOG_DBG, "PCI_INFO: Vendor:0x%04x Device:0x%04x s_vendor:0x%04x s_device: 0x%04x\n",
 	       pdev->vendor, pdev->device, pdev->subsystem_vendor,
 	       pdev->subsystem_device);
 
