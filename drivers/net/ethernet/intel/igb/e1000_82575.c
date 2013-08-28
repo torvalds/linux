@@ -1141,6 +1141,31 @@ static s32 igb_get_cfg_done_82575(struct e1000_hw *hw)
 }
 
 /**
+ *  igb_get_link_up_info_82575 - Get link speed/duplex info
+ *  @hw: pointer to the HW structure
+ *  @speed: stores the current speed
+ *  @duplex: stores the current duplex
+ *
+ *  This is a wrapper function, if using the serial gigabit media independent
+ *  interface, use PCS to retrieve the link speed and duplex information.
+ *  Otherwise, use the generic function to get the link speed and duplex info.
+ **/
+static s32 igb_get_link_up_info_82575(struct e1000_hw *hw, u16 *speed,
+					u16 *duplex)
+{
+	s32 ret_val;
+
+	if (hw->phy.media_type != e1000_media_type_copper)
+		ret_val = igb_get_pcs_speed_and_duplex_82575(hw, speed,
+							       duplex);
+	else
+		ret_val = igb_get_speed_and_duplex_copper(hw, speed,
+								    duplex);
+
+	return ret_val;
+}
+
+/**
  *  igb_check_for_link_82575 - Check for link
  *  @hw: pointer to the HW structure
  *
@@ -2723,7 +2748,7 @@ static struct e1000_mac_operations e1000_mac_ops_82575 = {
 	.check_for_link       = igb_check_for_link_82575,
 	.rar_set              = igb_rar_set,
 	.read_mac_addr        = igb_read_mac_addr_82575,
-	.get_speed_and_duplex = igb_get_speed_and_duplex_copper,
+	.get_speed_and_duplex = igb_get_link_up_info_82575,
 #ifdef CONFIG_IGB_HWMON
 	.get_thermal_sensor_data = igb_get_thermal_sensor_data_generic,
 	.init_thermal_sensor_thresh = igb_init_thermal_sensor_thresh_generic,
