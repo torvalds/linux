@@ -11,6 +11,7 @@
 
 #include <linux/kernel.h>
 #include <linux/initrd.h>
+#include <linux/memblock.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
@@ -699,6 +700,17 @@ int __init early_init_dt_scan_chosen(unsigned long node, const char *uname,
 	/* break now */
 	return 1;
 }
+
+#ifdef CONFIG_HAVE_MEMBLOCK
+/*
+ * called from unflatten_device_tree() to bootstrap devicetree itself
+ * Architectures can override this definition if memblock isn't used
+ */
+void * __init __weak early_init_dt_alloc_memory_arch(u64 size, u64 align)
+{
+	return __va(memblock_alloc(size, align));
+}
+#endif
 
 /**
  * unflatten_device_tree - create tree of device_nodes from flat blob
