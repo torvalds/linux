@@ -29,7 +29,6 @@
 #include <linux/input.h>
 #include <linux/io.h>
 #include <linux/serial_sci.h>
-#include <linux/sh_intc.h>
 #include <linux/sh_timer.h>
 #include <linux/dma-mapping.h>
 #include <linux/usb/otg.h>
@@ -37,7 +36,6 @@
 #include <linux/usb/ehci_pdriver.h>
 #include <linux/usb/ohci_pdriver.h>
 #include <linux/pm_runtime.h>
-#include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <mach/r8a7779.h>
 #include <mach/common.h>
@@ -388,15 +386,6 @@ static struct platform_device sata_device = {
 	},
 };
 
-/* USB PHY */
-static struct resource usb_phy_resources[] __initdata = {
-	[0] = {
-		.start		= 0xffe70800,
-		.end		= 0xffe70900 - 1,
-		.flags		= IORESOURCE_MEM,
-	},
-};
-
 /* USB */
 static struct usb_phy *phy;
 
@@ -602,14 +591,6 @@ void __init r8a7779_add_ether_device(struct sh_eth_plat_data *pdata)
 					  pdata, sizeof(*pdata));
 }
 
-void __init r8a7779_add_usb_phy_device(struct rcar_phy_platform_data *pdata)
-{
-	platform_device_register_resndata(&platform_bus, "rcar_usb_phy", -1,
-					  usb_phy_resources,
-					  ARRAY_SIZE(usb_phy_resources),
-					  pdata, sizeof(*pdata));
-}
-
 /* do nothing for !CONFIG_SMP or !CONFIG_HAVE_TWD */
 void __init __weak r8a7779_register_twd(void) { }
 
@@ -665,10 +646,6 @@ void __init r8a7779_init_delay(void)
 	shmobile_setup_delay(1000, 2, 4); /* Cortex-A9 @ 1000MHz */
 }
 
-static const struct of_dev_auxdata r8a7779_auxdata_lookup[] __initconst = {
-	{},
-};
-
 void __init r8a7779_add_standard_devices_dt(void)
 {
 	/* clocks are setup late during boot in the case of DT */
@@ -676,8 +653,7 @@ void __init r8a7779_add_standard_devices_dt(void)
 
 	platform_add_devices(r8a7779_devices_dt,
 			     ARRAY_SIZE(r8a7779_devices_dt));
-	of_platform_populate(NULL, of_default_bus_match_table,
-			     r8a7779_auxdata_lookup, NULL);
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
 static const char *r8a7779_compat_dt[] __initdata = {

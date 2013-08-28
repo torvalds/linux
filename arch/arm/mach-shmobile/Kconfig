@@ -23,9 +23,10 @@ config ARCH_R8A73A4
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
 	select CPU_V7
-	select HAVE_ARM_ARCH_TIMER
 	select SH_CLK_CPG
 	select RENESAS_IRQC
+	select ARCH_HAS_CPUFREQ
+	select ARCH_HAS_OPP
 
 config ARCH_R8A7740
 	bool "R-Mobile A1 (R8A77400)"
@@ -59,7 +60,6 @@ config ARCH_R8A7790
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
 	select CPU_V7
-	select HAVE_ARM_ARCH_TIMER
 	select SH_CLK_CPG
 	select RENESAS_IRQC
 
@@ -70,13 +70,6 @@ config ARCH_EMEV2
 	select CPU_V7
 
 comment "SH-Mobile Board Type"
-
-config MACH_AG5EVM
-	bool "AG5EVM board"
-	depends on ARCH_SH73A0
-	select ARCH_REQUIRE_GPIOLIB
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-	select SH_LCD_MIPI_DSI
 
 config MACH_APE6EVM
 	bool "APE6EVM board"
@@ -90,12 +83,6 @@ config MACH_MACKEREL
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	select SND_SOC_AK4642 if SND_SIMPLE_CARD
 	select USE_OF
-
-config MACH_KOTA2
-	bool "KOTA2 board"
-	depends on ARCH_SH73A0
-	select ARCH_REQUIRE_GPIOLIB
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
 config MACH_ARMADILLO800EVA
 	bool "Armadillo-800 EVA board"
@@ -155,6 +142,18 @@ config MACH_KZM9D
 	depends on ARCH_EMEV2
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	select USE_OF
+
+config MACH_KZM9D_REFERENCE
+	bool "KZM9D board - Reference Device Tree Implementation"
+	depends on ARCH_EMEV2
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
+	select USE_OF
+	---help---
+	   Use reference implementation of KZM9D board support
+	   which makes a greater use of device tree at the expense
+	   of not supporting a number of devices.
+
+	   This is intended to aid developers
 
 config MACH_KZM9G
 	bool "KZM-A9-GT board"

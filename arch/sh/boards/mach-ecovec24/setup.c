@@ -30,6 +30,7 @@
 #include <linux/spi/mmc_spi.h>
 #include <linux/input.h>
 #include <linux/input/sh_keysc.h>
+#include <linux/platform_data/gpio_backlight.h>
 #include <linux/sh_eth.h>
 #include <linux/sh_intc.h>
 #include <linux/videodev2.h>
@@ -303,7 +304,7 @@ static struct platform_device usbhs_device = {
 	.resource	= usbhs_resources,
 };
 
-/* LCDC */
+/* LCDC and backlight */
 static const struct fb_videomode ecovec_lcd_modes[] = {
 	{
 		.name		= "Panel",
@@ -334,13 +335,6 @@ static const struct fb_videomode ecovec_dvi_modes[] = {
 	},
 };
 
-static int ecovec24_set_brightness(int brightness)
-{
-	gpio_set_value(GPIO_PTR1, brightness);
-
-	return 0;
-}
-
 static struct sh_mobile_lcdc_info lcdc_info = {
 	.ch[0] = {
 		.interface_type = RGB18,
@@ -349,11 +343,6 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 		.panel_cfg = { /* 7.0 inch */
 			.width = 152,
 			.height = 91,
-		},
-		.bl_info = {
-			.name = "sh_mobile_lcdc_bl",
-			.max_brightness = 1,
-			.set_brightness = ecovec24_set_brightness,
 		},
 	}
 };
@@ -377,6 +366,20 @@ static struct platform_device lcdc_device = {
 	.resource	= lcdc_resources,
 	.dev		= {
 		.platform_data	= &lcdc_info,
+	},
+};
+
+static struct gpio_backlight_platform_data gpio_backlight_data = {
+	.fbdev = &lcdc_device.dev,
+	.gpio = GPIO_PTR1,
+	.def_value = 1,
+	.name = "backlight",
+};
+
+static struct platform_device gpio_backlight_device = {
+	.name = "gpio-backlight",
+	.dev = {
+		.platform_data = &gpio_backlight_data,
 	},
 };
 
@@ -1049,6 +1052,7 @@ static struct platform_device *ecovec_devices[] __initdata = {
 	&usb1_common_device,
 	&usbhs_device,
 	&lcdc_device,
+	&gpio_backlight_device,
 	&ceu0_device,
 	&ceu1_device,
 	&keysc_device,
@@ -1239,11 +1243,9 @@ static int __init arch_setup(void)
 
 	gpio_request(GPIO_PTE6, NULL);
 	gpio_request(GPIO_PTU1, NULL);
-	gpio_request(GPIO_PTR1, NULL);
 	gpio_request(GPIO_PTA2, NULL);
 	gpio_direction_input(GPIO_PTE6);
 	gpio_direction_output(GPIO_PTU1, 0);
-	gpio_direction_output(GPIO_PTR1, 0);
 	gpio_direction_output(GPIO_PTA2, 0);
 
 	/* I/O buffer drive ability is high */
@@ -1256,6 +1258,9 @@ static int __init arch_setup(void)
 		lcdc_info.ch[0].lcd_modes		= ecovec_dvi_modes;
 		lcdc_info.ch[0].num_modes		= ARRAY_SIZE(ecovec_dvi_modes);
 
+		/* No backlight */
+		gpio_backlight_data.fbdev = NULL;
+
 		gpio_set_value(GPIO_PTA2, 1);
 		gpio_set_value(GPIO_PTU1, 1);
 	} else {
@@ -1264,8 +1269,6 @@ static int __init arch_setup(void)
 		lcdc_info.ch[0].clock_divider		= 2;
 		lcdc_info.ch[0].lcd_modes		= ecovec_lcd_modes;
 		lcdc_info.ch[0].num_modes		= ARRAY_SIZE(ecovec_lcd_modes);
-
-		gpio_set_value(GPIO_PTR1, 1);
 
 		/* FIXME
 		 *

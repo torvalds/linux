@@ -27,7 +27,6 @@
 #include <linux/platform_data/irq-renesas-intc-irqpin.h>
 #include <linux/irqchip.h>
 #include <mach/common.h>
-#include <mach/intc.h>
 #include <mach/irqs.h>
 #include <mach/r8a7779.h>
 #include <asm/mach-types.h>
