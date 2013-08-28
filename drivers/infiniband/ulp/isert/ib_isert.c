@@ -45,6 +45,11 @@ isert_unmap_cmd(struct isert_cmd *isert_cmd, struct isert_conn *isert_conn);
 static int
 isert_map_rdma(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 	       struct isert_rdma_wr *wr);
+static void
+isert_unreg_rdma_frwr(struct isert_cmd *isert_cmd, struct isert_conn *isert_conn);
+static int
+isert_reg_rdma_frwr(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
+		    struct isert_rdma_wr *wr);
 
 static void
 isert_qp_event_callback(struct ib_event *e, void *context)
@@ -85,13 +90,7 @@ isert_conn_setup_qp(struct isert_conn *isert_conn, struct rdma_cm_id *cma_id)
 {
 	struct isert_device *device = isert_conn->conn_device;
 	struct ib_qp_init_attr attr;
-	struct ib_device_attr devattr;
 	int ret, index, min_index = 0;
-
-	memset(&devattr, 0, sizeof(struct ib_device_attr));
-	ret = isert_query_device(cma_id->device, &devattr);
-	if (ret)
-		return ret;
 
 	mutex_lock(&device_list_mutex);
 	for (index = 0; index < device->cqs_used; index++)
@@ -113,7 +112,7 @@ isert_conn_setup_qp(struct isert_conn *isert_conn, struct rdma_cm_id *cma_id)
 	 * FIXME: Use devattr.max_sge - 2 for max_send_sge as
 	 * work-around for RDMA_READ..
 	 */
-	attr.cap.max_send_sge = devattr.max_sge - 2;
+	attr.cap.max_send_sge = device->dev_attr.max_sge - 2;
 	isert_conn->max_sge = attr.cap.max_send_sge;
 
 	attr.cap.max_recv_sge = 1;
@@ -215,18 +214,31 @@ isert_create_device_ib_res(struct isert_device *device)
 {
 	struct ib_device *ib_dev = device->ib_device;
 	struct isert_cq_desc *cq_desc;
+	struct ib_device_attr *dev_attr;
 	int ret = 0, i, j;
 
+	dev_attr = &device->dev_attr;
+	ret = isert_query_device(ib_dev, dev_attr);
+	if (ret)
+		return ret;
+
 	/* asign function handlers */
-	device->reg_rdma_mem = isert_map_rdma;
-	device->unreg_rdma_mem = isert_unmap_cmd;
+	if (dev_attr->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS) {
+		device->use_frwr = 1;
+		device->reg_rdma_mem = isert_reg_rdma_frwr;
+		device->unreg_rdma_mem = isert_unreg_rdma_frwr;
+	} else {
+		device->use_frwr = 0;
+		device->reg_rdma_mem = isert_map_rdma;
+		device->unreg_rdma_mem = isert_unmap_cmd;
+	}
 
 	device->cqs_used = min_t(int, num_online_cpus(),
 				 device->ib_device->num_comp_vectors);
 	device->cqs_used = min(ISERT_MAX_CQ, device->cqs_used);
-	pr_debug("Using %d CQs, device %s supports %d vectors\n",
+	pr_debug("Using %d CQs, device %s supports %d vectors support FRWR %d\n",
 		 device->cqs_used, device->ib_device->name,
-		 device->ib_device->num_comp_vectors);
+		 device->ib_device->num_comp_vectors, device->use_frwr);
 	device->cq_desc = kzalloc(sizeof(struct isert_cq_desc) *
 				device->cqs_used, GFP_KERNEL);
 	if (!device->cq_desc) {
@@ -372,6 +384,85 @@ isert_device_find_by_ib_dev(struct rdma_cm_id *cma_id)
 	return device;
 }
 
+static void
+isert_conn_free_frwr_pool(struct isert_conn *isert_conn)
+{
+	struct fast_reg_descriptor *fr_desc, *tmp;
+	int i = 0;
+
+	if (list_empty(&isert_conn->conn_frwr_pool))
+		return;
+
+	pr_debug("Freeing conn %p frwr pool", isert_conn);
+
+	list_for_each_entry_safe(fr_desc, tmp,
+				 &isert_conn->conn_frwr_pool, list) {
+		list_del(&fr_desc->list);
+		ib_free_fast_reg_page_list(fr_desc->data_frpl);
+		ib_dereg_mr(fr_desc->data_mr);
+		kfree(fr_desc);
+		++i;
+	}
+
+	if (i < isert_conn->conn_frwr_pool_size)
+		pr_warn("Pool still has %d regions registered\n",
+			isert_conn->conn_frwr_pool_size - i);
+}
+
+static int
+isert_conn_create_frwr_pool(struct isert_conn *isert_conn)
+{
+	struct fast_reg_descriptor *fr_desc;
+	struct isert_device *device = isert_conn->conn_device;
+	int i, ret;
+
+	INIT_LIST_HEAD(&isert_conn->conn_frwr_pool);
+	isert_conn->conn_frwr_pool_size = 0;
+	for (i = 0; i < ISCSI_DEF_XMIT_CMDS_MAX; i++) {
+		fr_desc = kzalloc(sizeof(*fr_desc), GFP_KERNEL);
+		if (!fr_desc) {
+			pr_err("Failed to allocate fast_reg descriptor\n");
+			ret = -ENOMEM;
+			goto err;
+		}
+
+		fr_desc->data_frpl =
+			ib_alloc_fast_reg_page_list(device->ib_device,
+						    ISCSI_ISER_SG_TABLESIZE);
+		if (IS_ERR(fr_desc->data_frpl)) {
+			pr_err("Failed to allocate fr_pg_list err=%ld\n",
+			       PTR_ERR(fr_desc->data_frpl));
+			ret = PTR_ERR(fr_desc->data_frpl);
+			goto err;
+		}
+
+		fr_desc->data_mr = ib_alloc_fast_reg_mr(device->dev_pd,
+					ISCSI_ISER_SG_TABLESIZE);
+		if (IS_ERR(fr_desc->data_mr)) {
+			pr_err("Failed to allocate frmr err=%ld\n",
+			       PTR_ERR(fr_desc->data_mr));
+			ret = PTR_ERR(fr_desc->data_mr);
+			ib_free_fast_reg_page_list(fr_desc->data_frpl);
+			goto err;
+		}
+		pr_debug("Create fr_desc %p page_list %p\n",
+			 fr_desc, fr_desc->data_frpl->page_list);
+
+		fr_desc->valid = true;
+		list_add_tail(&fr_desc->list, &isert_conn->conn_frwr_pool);
+		isert_conn->conn_frwr_pool_size++;
+	}
+
+	pr_debug("Creating conn %p frwr pool size=%d",
+		 isert_conn, isert_conn->conn_frwr_pool_size);
+
+	return 0;
+
+err:
+	isert_conn_free_frwr_pool(isert_conn);
+	return ret;
+}
+
 static int
 isert_connect_request(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 {
@@ -398,6 +489,7 @@ isert_connect_request(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 	kref_init(&isert_conn->conn_kref);
 	kref_get(&isert_conn->conn_kref);
 	mutex_init(&isert_conn->conn_mutex);
+	spin_lock_init(&isert_conn->conn_lock);
 
 	cma_id->context = isert_conn;
 	isert_conn->conn_cm_id = cma_id;
@@ -455,6 +547,14 @@ isert_connect_request(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 	isert_conn->conn_pd = device->dev_pd;
 	isert_conn->conn_mr = device->dev_mr;
 
+	if (device->use_frwr) {
+		ret = isert_conn_create_frwr_pool(isert_conn);
+		if (ret) {
+			pr_err("Conn: %p failed to create frwr_pool\n", isert_conn);
+			goto out_frwr;
+		}
+	}
+
 	ret = isert_conn_setup_qp(isert_conn, cma_id);
 	if (ret)
 		goto out_conn_dev;
@@ -468,6 +568,9 @@ isert_connect_request(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 	return 0;
 
 out_conn_dev:
+	if (device->use_frwr)
+		isert_conn_free_frwr_pool(isert_conn);
+out_frwr:
 	isert_device_try_release(device);
 out_rsp_dma_map:
 	ib_dma_unmap_single(ib_dev, isert_conn->login_rsp_dma,
@@ -490,6 +593,9 @@ isert_connect_release(struct isert_conn *isert_conn)
 	int cq_index;
 
 	pr_debug("Entering isert_connect_release(): >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
+
+	if (device->use_frwr)
+		isert_conn_free_frwr_pool(isert_conn);
 
 	if (isert_conn->conn_qp) {
 		cq_index = ((struct isert_cq_desc *)
@@ -1266,6 +1372,36 @@ isert_unmap_cmd(struct isert_cmd *isert_cmd, struct isert_conn *isert_conn)
 }
 
 static void
+isert_unreg_rdma_frwr(struct isert_cmd *isert_cmd, struct isert_conn *isert_conn)
+{
+	struct isert_rdma_wr *wr = &isert_cmd->rdma_wr;
+	struct ib_device *ib_dev = isert_conn->conn_cm_id->device;
+	LIST_HEAD(unmap_list);
+
+	pr_debug("unreg_frwr_cmd: %p\n", isert_cmd);
+
+	if (wr->fr_desc) {
+		pr_debug("unreg_frwr_cmd: %p free fr_desc %p\n",
+			 isert_cmd, wr->fr_desc);
+		spin_lock_bh(&isert_conn->conn_lock);
+		list_add_tail(&wr->fr_desc->list, &isert_conn->conn_frwr_pool);
+		spin_unlock_bh(&isert_conn->conn_lock);
+		wr->fr_desc = NULL;
+	}
+
+	if (wr->sge) {
+		pr_debug("unreg_frwr_cmd: %p unmap_sg op\n", isert_cmd);
+		ib_dma_unmap_sg(ib_dev, wr->sge, wr->num_sge,
+				(wr->iser_ib_op == ISER_IB_RDMA_WRITE) ?
+				DMA_TO_DEVICE : DMA_FROM_DEVICE);
+		wr->sge = NULL;
+	}
+
+	wr->ib_sge = NULL;
+	wr->send_wr = NULL;
+}
+
+static void
 isert_put_cmd(struct isert_cmd *isert_cmd)
 {
 	struct iscsi_cmd *cmd = isert_cmd->iscsi_cmd;
@@ -1941,11 +2077,216 @@ unmap_sg:
 }
 
 static int
+isert_map_fr_pagelist(struct ib_device *ib_dev,
+		      struct scatterlist *sg_start, int sg_nents, u64 *fr_pl)
+{
+	u64 start_addr, end_addr, page, chunk_start = 0;
+	struct scatterlist *tmp_sg;
+	int i = 0, new_chunk, last_ent, n_pages;
+
+	n_pages = 0;
+	new_chunk = 1;
+	last_ent = sg_nents - 1;
+	for_each_sg(sg_start, tmp_sg, sg_nents, i) {
+		start_addr = ib_sg_dma_address(ib_dev, tmp_sg);
+		if (new_chunk)
+			chunk_start = start_addr;
+		end_addr = start_addr + ib_sg_dma_len(ib_dev, tmp_sg);
+
+		pr_debug("SGL[%d] dma_addr: 0x%16llx len: %u\n",
+			 i, (unsigned long long)tmp_sg->dma_address,
+			 tmp_sg->length);
+
+		if ((end_addr & ~PAGE_MASK) && i < last_ent) {
+			new_chunk = 0;
+			continue;
+		}
+		new_chunk = 1;
+
+		page = chunk_start & PAGE_MASK;
+		do {
+			fr_pl[n_pages++] = page;
+			pr_debug("Mapped page_list[%d] page_addr: 0x%16llx\n",
+				 n_pages - 1, page);
+			page += PAGE_SIZE;
+		} while (page < end_addr);
+	}
+
+	return n_pages;
+}
+
+static int
+isert_fast_reg_mr(struct fast_reg_descriptor *fr_desc,
+		  struct isert_cmd *isert_cmd, struct isert_conn *isert_conn,
+		  struct ib_sge *ib_sge, u32 offset, unsigned int data_len)
+{
+	struct iscsi_cmd *cmd = isert_cmd->iscsi_cmd;
+	struct ib_device *ib_dev = isert_conn->conn_cm_id->device;
+	struct scatterlist *sg_start;
+	u32 sg_off, page_off;
+	struct ib_send_wr fr_wr, inv_wr;
+	struct ib_send_wr *bad_wr, *wr = NULL;
+	u8 key;
+	int ret, sg_nents, pagelist_len;
+
+	sg_off = offset / PAGE_SIZE;
+	sg_start = &cmd->se_cmd.t_data_sg[sg_off];
+	sg_nents = min_t(unsigned int, cmd->se_cmd.t_data_nents - sg_off,
+			 ISCSI_ISER_SG_TABLESIZE);
+	page_off = offset % PAGE_SIZE;
+
+	pr_debug("Cmd: %p use fr_desc %p sg_nents %d sg_off %d offset %u\n",
+		 isert_cmd, fr_desc, sg_nents, sg_off, offset);
+
+	pagelist_len = isert_map_fr_pagelist(ib_dev, sg_start, sg_nents,
+					     &fr_desc->data_frpl->page_list[0]);
+
+	if (!fr_desc->valid) {
+		memset(&inv_wr, 0, sizeof(inv_wr));
+		inv_wr.opcode = IB_WR_LOCAL_INV;
+		inv_wr.ex.invalidate_rkey = fr_desc->data_mr->rkey;
+		wr = &inv_wr;
+		/* Bump the key */
+		key = (u8)(fr_desc->data_mr->rkey & 0x000000FF);
+		ib_update_fast_reg_key(fr_desc->data_mr, ++key);
+	}
+
+	/* Prepare FASTREG WR */
+	memset(&fr_wr, 0, sizeof(fr_wr));
+	fr_wr.opcode = IB_WR_FAST_REG_MR;
+	fr_wr.wr.fast_reg.iova_start =
+		fr_desc->data_frpl->page_list[0] + page_off;
+	fr_wr.wr.fast_reg.page_list = fr_desc->data_frpl;
+	fr_wr.wr.fast_reg.page_list_len = pagelist_len;
+	fr_wr.wr.fast_reg.page_shift = PAGE_SHIFT;
+	fr_wr.wr.fast_reg.length = data_len;
+	fr_wr.wr.fast_reg.rkey = fr_desc->data_mr->rkey;
+	fr_wr.wr.fast_reg.access_flags = IB_ACCESS_LOCAL_WRITE;
+
+	if (!wr)
+		wr = &fr_wr;
+	else
+		wr->next = &fr_wr;
+
+	ret = ib_post_send(isert_conn->conn_qp, wr, &bad_wr);
+	if (ret) {
+		pr_err("fast registration failed, ret:%d\n", ret);
+		return ret;
+	}
+	fr_desc->valid = false;
+
+	ib_sge->lkey = fr_desc->data_mr->lkey;
+	ib_sge->addr = fr_desc->data_frpl->page_list[0] + page_off;
+	ib_sge->length = data_len;
+
+	pr_debug("RDMA ib_sge: addr: 0x%16llx  length: %u lkey: %08x\n",
+		 ib_sge->addr, ib_sge->length, ib_sge->lkey);
+
+	return ret;
+}
+
+static int
+isert_reg_rdma_frwr(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
+		    struct isert_rdma_wr *wr)
+{
+	struct se_cmd *se_cmd = &cmd->se_cmd;
+	struct isert_cmd *isert_cmd = iscsit_priv_cmd(cmd);
+	struct isert_conn *isert_conn = (struct isert_conn *)conn->context;
+	struct ib_device *ib_dev = isert_conn->conn_cm_id->device;
+	struct ib_send_wr *send_wr;
+	struct ib_sge *ib_sge;
+	struct scatterlist *sg_start;
+	struct fast_reg_descriptor *fr_desc;
+	u32 sg_off = 0, sg_nents;
+	u32 offset = 0, data_len, data_left, rdma_write_max;
+	int ret = 0, count;
+	unsigned long flags;
+
+	if (wr->iser_ib_op == ISER_IB_RDMA_WRITE) {
+		data_left = se_cmd->data_length;
+		iscsit_increment_maxcmdsn(cmd, conn->sess);
+		cmd->stat_sn = conn->stat_sn++;
+	} else {
+		sg_off = cmd->write_data_done / PAGE_SIZE;
+		data_left = se_cmd->data_length - cmd->write_data_done;
+		offset = cmd->write_data_done;
+		isert_cmd->tx_desc.isert_cmd = isert_cmd;
+	}
+
+	sg_start = &cmd->se_cmd.t_data_sg[sg_off];
+	sg_nents = se_cmd->t_data_nents - sg_off;
+
+	count = ib_dma_map_sg(ib_dev, sg_start, sg_nents,
+			      (wr->iser_ib_op == ISER_IB_RDMA_WRITE) ?
+			      DMA_TO_DEVICE : DMA_FROM_DEVICE);
+	if (unlikely(!count)) {
+		pr_err("Cmd: %p unrable to map SGs\n", isert_cmd);
+		return -EINVAL;
+	}
+	wr->sge = sg_start;
+	wr->num_sge = sg_nents;
+	pr_debug("Mapped cmd: %p count: %u sg: %p sg_nents: %u rdma_len %d\n",
+		 isert_cmd, count, sg_start, sg_nents, data_left);
+
+	memset(&wr->s_ib_sge, 0, sizeof(*ib_sge));
+	ib_sge = &wr->s_ib_sge;
+	wr->ib_sge = ib_sge;
+
+	wr->send_wr_num = 1;
+	memset(&wr->s_send_wr, 0, sizeof(*send_wr));
+	wr->send_wr = &wr->s_send_wr;
+
+	wr->isert_cmd = isert_cmd;
+	rdma_write_max = ISCSI_ISER_SG_TABLESIZE * PAGE_SIZE;
+
+	send_wr = &isert_cmd->rdma_wr.s_send_wr;
+	send_wr->sg_list = ib_sge;
+	send_wr->num_sge = 1;
+	send_wr->wr_id = (unsigned long)&isert_cmd->tx_desc;
+	if (wr->iser_ib_op == ISER_IB_RDMA_WRITE) {
+		send_wr->opcode = IB_WR_RDMA_WRITE;
+		send_wr->wr.rdma.remote_addr = isert_cmd->read_va;
+		send_wr->wr.rdma.rkey = isert_cmd->read_stag;
+		send_wr->send_flags = 0;
+		send_wr->next = &isert_cmd->tx_desc.send_wr;
+	} else {
+		send_wr->opcode = IB_WR_RDMA_READ;
+		send_wr->wr.rdma.remote_addr = isert_cmd->write_va;
+		send_wr->wr.rdma.rkey = isert_cmd->write_stag;
+		send_wr->send_flags = IB_SEND_SIGNALED;
+	}
+
+	data_len = min(data_left, rdma_write_max);
+	wr->cur_rdma_length = data_len;
+
+	spin_lock_irqsave(&isert_conn->conn_lock, flags);
+	fr_desc = list_first_entry(&isert_conn->conn_frwr_pool,
+				   struct fast_reg_descriptor, list);
+	list_del(&fr_desc->list);
+	spin_unlock_irqrestore(&isert_conn->conn_lock, flags);
+	wr->fr_desc = fr_desc;
+
+	ret = isert_fast_reg_mr(fr_desc, isert_cmd, isert_conn,
+			  ib_sge, offset, data_len);
+	if (ret) {
+		list_add_tail(&fr_desc->list, &isert_conn->conn_frwr_pool);
+		goto unmap_sg;
+	}
+
+	return 0;
+
+unmap_sg:
+	ib_dma_unmap_sg(ib_dev, sg_start, sg_nents,
+			(wr->iser_ib_op == ISER_IB_RDMA_WRITE) ?
+			DMA_TO_DEVICE : DMA_FROM_DEVICE);
+	return ret;
+}
+
+static int
 isert_put_datain(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
 {
 	struct se_cmd *se_cmd = &cmd->se_cmd;
-	struct isert_cmd *isert_cmd = container_of(cmd,
-					struct isert_cmd, iscsi_cmd);
+	struct isert_cmd *isert_cmd = iscsit_priv_cmd(cmd);
 	struct isert_rdma_wr *wr = &isert_cmd->rdma_wr;
 	struct isert_conn *isert_conn = (struct isert_conn *)conn->context;
 	struct isert_device *device = isert_conn->conn_device;
