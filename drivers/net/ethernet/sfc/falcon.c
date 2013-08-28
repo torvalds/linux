@@ -434,7 +434,7 @@ static int falcon_spi_wait(struct efx_nic *efx)
 	}
 }
 
-int falcon_spi_cmd(struct efx_nic *efx, const struct efx_spi_device *spi,
+int falcon_spi_cmd(struct efx_nic *efx, const struct falcon_spi_device *spi,
 		   unsigned int command, int address,
 		   const void *in, void *out, size_t len)
 {
@@ -491,22 +491,22 @@ int falcon_spi_cmd(struct efx_nic *efx, const struct efx_spi_device *spi,
 }
 
 static size_t
-falcon_spi_write_limit(const struct efx_spi_device *spi, size_t start)
+falcon_spi_write_limit(const struct falcon_spi_device *spi, size_t start)
 {
 	return min(FALCON_SPI_MAX_LEN,
 		   (spi->block_size - (start & (spi->block_size - 1))));
 }
 
 static inline u8
-efx_spi_munge_command(const struct efx_spi_device *spi,
-		      const u8 command, const unsigned int address)
+falcon_spi_munge_command(const struct falcon_spi_device *spi,
+			 const u8 command, const unsigned int address)
 {
 	return command | (((address >> 8) & spi->munge_address) << 3);
 }
 
 /* Wait up to 10 ms for buffered write completion */
 int
-falcon_spi_wait_write(struct efx_nic *efx, const struct efx_spi_device *spi)
+falcon_spi_wait_write(struct efx_nic *efx, const struct falcon_spi_device *spi)
 {
 	unsigned long timeout = jiffies + 1 + DIV_ROUND_UP(HZ, 100);
 	u8 status;
@@ -530,7 +530,7 @@ falcon_spi_wait_write(struct efx_nic *efx, const struct efx_spi_device *spi)
 	}
 }
 
-int falcon_spi_read(struct efx_nic *efx, const struct efx_spi_device *spi,
+int falcon_spi_read(struct efx_nic *efx, const struct falcon_spi_device *spi,
 		    loff_t start, size_t len, size_t *retlen, u8 *buffer)
 {
 	size_t block_len, pos = 0;
@@ -540,7 +540,7 @@ int falcon_spi_read(struct efx_nic *efx, const struct efx_spi_device *spi,
 	while (pos < len) {
 		block_len = min(len - pos, FALCON_SPI_MAX_LEN);
 
-		command = efx_spi_munge_command(spi, SPI_READ, start + pos);
+		command = falcon_spi_munge_command(spi, SPI_READ, start + pos);
 		rc = falcon_spi_cmd(efx, spi, command, start + pos, NULL,
 				    buffer + pos, block_len);
 		if (rc)
@@ -561,7 +561,7 @@ int falcon_spi_read(struct efx_nic *efx, const struct efx_spi_device *spi,
 }
 
 int
-falcon_spi_write(struct efx_nic *efx, const struct efx_spi_device *spi,
+falcon_spi_write(struct efx_nic *efx, const struct falcon_spi_device *spi,
 		 loff_t start, size_t len, size_t *retlen, const u8 *buffer)
 {
 	u8 verify_buffer[FALCON_SPI_MAX_LEN];
@@ -576,7 +576,7 @@ falcon_spi_write(struct efx_nic *efx, const struct efx_spi_device *spi,
 
 		block_len = min(len - pos,
 				falcon_spi_write_limit(spi, start + pos));
-		command = efx_spi_munge_command(spi, SPI_WRITE, start + pos);
+		command = falcon_spi_munge_command(spi, SPI_WRITE, start + pos);
 		rc = falcon_spi_cmd(efx, spi, command, start + pos,
 				    buffer + pos, NULL, block_len);
 		if (rc)
@@ -586,7 +586,7 @@ falcon_spi_write(struct efx_nic *efx, const struct efx_spi_device *spi,
 		if (rc)
 			break;
 
-		command = efx_spi_munge_command(spi, SPI_READ, start + pos);
+		command = falcon_spi_munge_command(spi, SPI_READ, start + pos);
 		rc = falcon_spi_cmd(efx, spi, command, start + pos,
 				    NULL, verify_buffer, block_len);
 		if (memcmp(verify_buffer, buffer + pos, block_len)) {
@@ -686,7 +686,7 @@ static void falcon_ack_status_intr(struct efx_nic *efx)
 		return;
 
 	/* We expect xgmii faults if the wireside link is down */
-	if (!EFX_WORKAROUND_5147(efx) || !efx->link_state.up)
+	if (!efx->link_state.up)
 		return;
 
 	/* We can only use this interrupt to signal the negative edge of
@@ -764,7 +764,7 @@ static void falcon_reconfigure_xmac_core(struct efx_nic *efx)
 			     FRF_AB_XM_RXEN, 1,
 			     FRF_AB_XM_AUTO_DEPAD, 0,
 			     FRF_AB_XM_ACPT_ALL_MCAST, 1,
-			     FRF_AB_XM_ACPT_ALL_UCAST, efx->promiscuous,
+			     FRF_AB_XM_ACPT_ALL_UCAST, !efx->unicast_filter,
 			     FRF_AB_XM_PASS_CRC_ERR, 1);
 	efx_writeo(efx, &reg, FR_AB_XM_RX_CFG);
 
@@ -795,29 +795,22 @@ static void falcon_reconfigure_xgxs_core(struct efx_nic *efx)
 	bool xgxs_loopback = (efx->loopback_mode == LOOPBACK_XGXS);
 	bool xaui_loopback = (efx->loopback_mode == LOOPBACK_XAUI);
 	bool xgmii_loopback = (efx->loopback_mode == LOOPBACK_XGMII);
+	bool old_xgmii_loopback, old_xgxs_loopback, old_xaui_loopback;
 
 	/* XGXS block is flaky and will need to be reset if moving
 	 * into our out of XGMII, XGXS or XAUI loopbacks. */
-	if (EFX_WORKAROUND_5147(efx)) {
-		bool old_xgmii_loopback, old_xgxs_loopback, old_xaui_loopback;
-		bool reset_xgxs;
+	efx_reado(efx, &reg, FR_AB_XX_CORE_STAT);
+	old_xgxs_loopback = EFX_OWORD_FIELD(reg, FRF_AB_XX_XGXS_LB_EN);
+	old_xgmii_loopback = EFX_OWORD_FIELD(reg, FRF_AB_XX_XGMII_LB_EN);
 
-		efx_reado(efx, &reg, FR_AB_XX_CORE_STAT);
-		old_xgxs_loopback = EFX_OWORD_FIELD(reg, FRF_AB_XX_XGXS_LB_EN);
-		old_xgmii_loopback =
-			EFX_OWORD_FIELD(reg, FRF_AB_XX_XGMII_LB_EN);
+	efx_reado(efx, &reg, FR_AB_XX_SD_CTL);
+	old_xaui_loopback = EFX_OWORD_FIELD(reg, FRF_AB_XX_LPBKA);
 
-		efx_reado(efx, &reg, FR_AB_XX_SD_CTL);
-		old_xaui_loopback = EFX_OWORD_FIELD(reg, FRF_AB_XX_LPBKA);
-
-		/* The PHY driver may have turned XAUI off */
-		reset_xgxs = ((xgxs_loopback != old_xgxs_loopback) ||
-			      (xaui_loopback != old_xaui_loopback) ||
-			      (xgmii_loopback != old_xgmii_loopback));
-
-		if (reset_xgxs)
-			falcon_reset_xaui(efx);
-	}
+	/* The PHY driver may have turned XAUI off */
+	if ((xgxs_loopback != old_xgxs_loopback) ||
+	    (xaui_loopback != old_xaui_loopback) ||
+	    (xgmii_loopback != old_xgmii_loopback))
+		falcon_reset_xaui(efx);
 
 	efx_reado(efx, &reg, FR_AB_XX_CORE_STAT);
 	EFX_SET_OWORD_FIELD(reg, FRF_AB_XX_FORCE_SIG,
@@ -870,6 +863,8 @@ static bool falcon_xmac_check_fault(struct efx_nic *efx)
 static int falcon_reconfigure_xmac(struct efx_nic *efx)
 {
 	struct falcon_nic_data *nic_data = efx->nic_data;
+
+	efx_farch_filter_sync_rx_mode(efx);
 
 	falcon_reconfigure_xgxs_core(efx);
 	falcon_reconfigure_xmac_core(efx);
@@ -946,8 +941,8 @@ static void falcon_poll_xmac(struct efx_nic *efx)
 {
 	struct falcon_nic_data *nic_data = efx->nic_data;
 
-	if (!EFX_WORKAROUND_5147(efx) || !efx->link_state.up ||
-	    !nic_data->xmac_poll_required)
+	/* We expect xgmii faults if the wireside link is down */
+	if (!efx->link_state.up || !nic_data->xmac_poll_required)
 		return;
 
 	nic_data->xmac_poll_required = !falcon_xmac_link_ok_retry(efx, 1);
@@ -1088,7 +1083,7 @@ static void falcon_reconfigure_mac_wrapper(struct efx_nic *efx)
 	EFX_POPULATE_OWORD_5(reg,
 			     FRF_AB_MAC_XOFF_VAL, 0xffff /* max pause time */,
 			     FRF_AB_MAC_BCAD_ACPT, 1,
-			     FRF_AB_MAC_UC_PROM, efx->promiscuous,
+			     FRF_AB_MAC_UC_PROM, !efx->unicast_filter,
 			     FRF_AB_MAC_LINK_STATUS, 1, /* always set */
 			     FRF_AB_MAC_SPEED, link_speed);
 	/* On B0, MAC backpressure can be disabled and packets get
@@ -1486,15 +1481,15 @@ falcon_read_nvram(struct efx_nic *efx, struct falcon_nvconfig *nvconfig_out)
 {
 	struct falcon_nic_data *nic_data = efx->nic_data;
 	struct falcon_nvconfig *nvconfig;
-	struct efx_spi_device *spi;
+	struct falcon_spi_device *spi;
 	void *region;
 	int rc, magic_num, struct_ver;
 	__le16 *word, *limit;
 	u32 csum;
 
-	if (efx_spi_present(&nic_data->spi_flash))
+	if (falcon_spi_present(&nic_data->spi_flash))
 		spi = &nic_data->spi_flash;
-	else if (efx_spi_present(&nic_data->spi_eeprom))
+	else if (falcon_spi_present(&nic_data->spi_eeprom))
 		spi = &nic_data->spi_eeprom;
 	else
 		return -EINVAL;
@@ -1509,7 +1504,7 @@ falcon_read_nvram(struct efx_nic *efx, struct falcon_nvconfig *nvconfig_out)
 	mutex_unlock(&nic_data->spi_lock);
 	if (rc) {
 		netif_err(efx, hw, efx->net_dev, "Failed to read %s\n",
-			  efx_spi_present(&nic_data->spi_flash) ?
+			  falcon_spi_present(&nic_data->spi_flash) ?
 			  "flash" : "EEPROM");
 		rc = -EIO;
 		goto out;
@@ -1854,7 +1849,7 @@ static int falcon_reset_sram(struct efx_nic *efx)
 }
 
 static void falcon_spi_device_init(struct efx_nic *efx,
-				  struct efx_spi_device *spi_device,
+				  struct falcon_spi_device *spi_device,
 				  unsigned int device_id, u32 device_type)
 {
 	if (device_type != 0) {
@@ -1970,6 +1965,20 @@ static void falcon_probe_spi_devices(struct efx_nic *efx)
 				       large_eeprom_type);
 }
 
+static unsigned int falcon_a1_mem_map_size(struct efx_nic *efx)
+{
+	return 0x20000;
+}
+
+static unsigned int falcon_b0_mem_map_size(struct efx_nic *efx)
+{
+	/* Map everything up to and including the RSS indirection table.
+	 * The PCI core takes care of mapping the MSI-X tables.
+	 */
+	return FR_BZ_RX_INDIRECTION_TBL +
+		FR_BZ_RX_INDIRECTION_TBL_STEP * FR_BZ_RX_INDIRECTION_TBL_ROWS;
+}
+
 static int falcon_probe_nic(struct efx_nic *efx)
 {
 	struct falcon_nic_data *nic_data;
@@ -2060,6 +2069,8 @@ static int falcon_probe_nic(struct efx_nic *efx)
 		goto fail5;
 	}
 
+	efx->max_channels = (efx_nic_rev(efx) <= EFX_REV_FALCON_A1 ? 4 :
+			     EFX_MAX_CHANNELS);
 	efx->timer_quantum_ns = 4968; /* 621 cycles */
 
 	/* Initialise I2C adapter */
@@ -2339,6 +2350,7 @@ static int falcon_set_wol(struct efx_nic *efx, u32 type)
  */
 
 const struct efx_nic_type falcon_a1_nic_type = {
+	.mem_map_size = falcon_a1_mem_map_size,
 	.probe = falcon_probe_nic,
 	.remove = falcon_remove_nic,
 	.init = falcon_init_nic,
@@ -2390,8 +2402,22 @@ const struct efx_nic_type falcon_a1_nic_type = {
 	.ev_read_ack = efx_farch_ev_read_ack,
 	.ev_test_generate = efx_farch_ev_test_generate,
 
+	/* We don't expose the filter table on Falcon A1 as it is not
+	 * mapped into function 0, but these implementations still
+	 * work with a degenerate case of all tables set to size 0.
+	 */
+	.filter_table_probe = efx_farch_filter_table_probe,
+	.filter_table_restore = efx_farch_filter_table_restore,
+	.filter_table_remove = efx_farch_filter_table_remove,
+	.filter_insert = efx_farch_filter_insert,
+	.filter_remove_safe = efx_farch_filter_remove_safe,
+	.filter_get_safe = efx_farch_filter_get_safe,
+	.filter_clear_rx = efx_farch_filter_clear_rx,
+	.filter_count_rx_used = efx_farch_filter_count_rx_used,
+	.filter_get_rx_id_limit = efx_farch_filter_get_rx_id_limit,
+	.filter_get_rx_ids = efx_farch_filter_get_rx_ids,
+
 	.revision = EFX_REV_FALCON_A1,
-	.mem_map_size = 0x20000,
 	.txd_ptr_tbl_base = FR_AA_TX_DESC_PTR_TBL_KER,
 	.rxd_ptr_tbl_base = FR_AA_RX_DESC_PTR_TBL_KER,
 	.buf_tbl_base = FR_AA_BUF_FULL_TBL_KER,
@@ -2401,13 +2427,13 @@ const struct efx_nic_type falcon_a1_nic_type = {
 	.rx_buffer_padding = 0x24,
 	.can_rx_scatter = false,
 	.max_interrupt_mode = EFX_INT_MODE_MSI,
-	.phys_addr_channels = 4,
 	.timer_period_max =  1 << FRF_AB_TC_TIMER_VAL_WIDTH,
 	.offload_features = NETIF_F_IP_CSUM,
 	.mcdi_max_ver = -1,
 };
 
 const struct efx_nic_type falcon_b0_nic_type = {
+	.mem_map_size = falcon_b0_mem_map_size,
 	.probe = falcon_probe_nic,
 	.remove = falcon_remove_nic,
 	.init = falcon_init_nic,
@@ -2459,14 +2485,23 @@ const struct efx_nic_type falcon_b0_nic_type = {
 	.ev_process = efx_farch_ev_process,
 	.ev_read_ack = efx_farch_ev_read_ack,
 	.ev_test_generate = efx_farch_ev_test_generate,
+	.filter_table_probe = efx_farch_filter_table_probe,
+	.filter_table_restore = efx_farch_filter_table_restore,
+	.filter_table_remove = efx_farch_filter_table_remove,
+	.filter_update_rx_scatter = efx_farch_filter_update_rx_scatter,
+	.filter_insert = efx_farch_filter_insert,
+	.filter_remove_safe = efx_farch_filter_remove_safe,
+	.filter_get_safe = efx_farch_filter_get_safe,
+	.filter_clear_rx = efx_farch_filter_clear_rx,
+	.filter_count_rx_used = efx_farch_filter_count_rx_used,
+	.filter_get_rx_id_limit = efx_farch_filter_get_rx_id_limit,
+	.filter_get_rx_ids = efx_farch_filter_get_rx_ids,
+#ifdef CONFIG_RFS_ACCEL
+	.filter_rfs_insert = efx_farch_filter_rfs_insert,
+	.filter_rfs_expire_one = efx_farch_filter_rfs_expire_one,
+#endif
 
 	.revision = EFX_REV_FALCON_B0,
-	/* Map everything up to and including the RSS indirection
-	 * table.  Don't map MSI-X table, MSI-X PBA since Linux
-	 * requires that they not be mapped.  */
-	.mem_map_size = (FR_BZ_RX_INDIRECTION_TBL +
-			 FR_BZ_RX_INDIRECTION_TBL_STEP *
-			 FR_BZ_RX_INDIRECTION_TBL_ROWS),
 	.txd_ptr_tbl_base = FR_BZ_TX_DESC_PTR_TBL,
 	.rxd_ptr_tbl_base = FR_BZ_RX_DESC_PTR_TBL,
 	.buf_tbl_base = FR_BZ_BUF_FULL_TBL,
@@ -2477,11 +2512,9 @@ const struct efx_nic_type falcon_b0_nic_type = {
 	.rx_buffer_padding = 0,
 	.can_rx_scatter = true,
 	.max_interrupt_mode = EFX_INT_MODE_MSIX,
-	.phys_addr_channels = 32, /* Hardware limit is 64, but the legacy
-				   * interrupt handler only supports 32
-				   * channels */
 	.timer_period_max =  1 << FRF_AB_TC_TIMER_VAL_WIDTH,
 	.offload_features = NETIF_F_IP_CSUM | NETIF_F_RXHASH | NETIF_F_NTUPLE,
 	.mcdi_max_ver = -1,
+	.max_rx_ip_filters = FR_BZ_RX_FILTER_TBL0_ROWS,
 };
 

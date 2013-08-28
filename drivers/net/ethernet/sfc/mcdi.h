@@ -128,6 +128,60 @@ extern void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
 	EFX_POPULATE_DWORD_1(*_MCDI_DWORD(_buf, _field), EFX_DWORD_0, _value)
 #define MCDI_DWORD(_buf, _field)					\
 	EFX_DWORD_FIELD(*_MCDI_DWORD(_buf, _field), EFX_DWORD_0)
+#define MCDI_POPULATE_DWORD_1(_buf, _field, _name1, _value1)		\
+	EFX_POPULATE_DWORD_1(*_MCDI_DWORD(_buf, _field),		\
+			     MC_CMD_ ## _name1, _value1)
+#define MCDI_POPULATE_DWORD_2(_buf, _field, _name1, _value1,		\
+			      _name2, _value2)				\
+	EFX_POPULATE_DWORD_2(*_MCDI_DWORD(_buf, _field),		\
+			     MC_CMD_ ## _name1, _value1,		\
+			     MC_CMD_ ## _name2, _value2)
+#define MCDI_POPULATE_DWORD_3(_buf, _field, _name1, _value1,		\
+			      _name2, _value2, _name3, _value3)		\
+	EFX_POPULATE_DWORD_3(*_MCDI_DWORD(_buf, _field),		\
+			     MC_CMD_ ## _name1, _value1,		\
+			     MC_CMD_ ## _name2, _value2,		\
+			     MC_CMD_ ## _name3, _value3)
+#define MCDI_POPULATE_DWORD_4(_buf, _field, _name1, _value1,		\
+			      _name2, _value2, _name3, _value3,		\
+			      _name4, _value4)				\
+	EFX_POPULATE_DWORD_4(*_MCDI_DWORD(_buf, _field),		\
+			     MC_CMD_ ## _name1, _value1,		\
+			     MC_CMD_ ## _name2, _value2,		\
+			     MC_CMD_ ## _name3, _value3,		\
+			     MC_CMD_ ## _name4, _value4)
+#define MCDI_POPULATE_DWORD_5(_buf, _field, _name1, _value1,		\
+			      _name2, _value2, _name3, _value3,		\
+			      _name4, _value4, _name5, _value5)		\
+	EFX_POPULATE_DWORD_5(*_MCDI_DWORD(_buf, _field),		\
+			     MC_CMD_ ## _name1, _value1,		\
+			     MC_CMD_ ## _name2, _value2,		\
+			     MC_CMD_ ## _name3, _value3,		\
+			     MC_CMD_ ## _name4, _value4,		\
+			     MC_CMD_ ## _name5, _value5)
+#define MCDI_POPULATE_DWORD_6(_buf, _field, _name1, _value1,		\
+			      _name2, _value2, _name3, _value3,		\
+			      _name4, _value4, _name5, _value5,		\
+			      _name6, _value6)				\
+	EFX_POPULATE_DWORD_6(*_MCDI_DWORD(_buf, _field),		\
+			     MC_CMD_ ## _name1, _value1,		\
+			     MC_CMD_ ## _name2, _value2,		\
+			     MC_CMD_ ## _name3, _value3,		\
+			     MC_CMD_ ## _name4, _value4,		\
+			     MC_CMD_ ## _name5, _value5,		\
+			     MC_CMD_ ## _name6, _value6)
+#define MCDI_POPULATE_DWORD_7(_buf, _field, _name1, _value1,		\
+			      _name2, _value2, _name3, _value3,		\
+			      _name4, _value4, _name5, _value5,		\
+			      _name6, _value6, _name7, _value7)		\
+	EFX_POPULATE_DWORD_7(*_MCDI_DWORD(_buf, _field),		\
+			     MC_CMD_ ## _name1, _value1,		\
+			     MC_CMD_ ## _name2, _value2,		\
+			     MC_CMD_ ## _name3, _value3,		\
+			     MC_CMD_ ## _name4, _value4,		\
+			     MC_CMD_ ## _name5, _value5,		\
+			     MC_CMD_ ## _name6, _value6,		\
+			     MC_CMD_ ## _name7, _value7)
 #define MCDI_SET_QWORD(_buf, _field, _value)				\
 	do {								\
 		EFX_POPULATE_DWORD_1(_MCDI_DWORD(_buf, _field)[0],	\

@@ -799,11 +799,12 @@ static int efx_ethtool_reset(struct net_device *net_dev, u32 *flags)
 	return efx_reset(efx, rc);
 }
 
-/* MAC address mask including only MC flag */
-static const u8 mac_addr_mc_mask[ETH_ALEN] = { 0x01, 0, 0, 0, 0, 0 };
+/* MAC address mask including only I/G bit */
+static const u8 mac_addr_ig_mask[ETH_ALEN] = { 0x01, 0, 0, 0, 0, 0 };
 
 #define IP4_ADDR_FULL_MASK	((__force __be32)~0)
 #define PORT_FULL_MASK		((__force __be16)~0)
+#define ETHER_TYPE_FULL_MASK	((__force __be16)~0)
 
 static int efx_ethtool_get_class_rule(struct efx_nic *efx,
 				      struct ethtool_rx_flow_spec *rule)
@@ -813,8 +814,6 @@ static int efx_ethtool_get_class_rule(struct efx_nic *efx,
 	struct ethhdr *mac_entry = &rule->h_u.ether_spec;
 	struct ethhdr *mac_mask = &rule->m_u.ether_spec;
 	struct efx_filter_spec spec;
-	u16 vid;
-	u8 proto;
 	int rc;
 
 	rc = efx_filter_get_filter_safe(efx, EFX_FILTER_PRI_MANUAL,
@@ -822,44 +821,72 @@ static int efx_ethtool_get_class_rule(struct efx_nic *efx,
 	if (rc)
 		return rc;
 
-	if (spec.dmaq_id == 0xfff)
+	if (spec.dmaq_id == EFX_FILTER_RX_DMAQ_ID_DROP)
 		rule->ring_cookie = RX_CLS_FLOW_DISC;
 	else
 		rule->ring_cookie = spec.dmaq_id;
 
-	if (spec.type == EFX_FILTER_MC_DEF || spec.type == EFX_FILTER_UC_DEF) {
-		rule->flow_type = ETHER_FLOW;
-		memcpy(mac_mask->h_dest, mac_addr_mc_mask, ETH_ALEN);
-		if (spec.type == EFX_FILTER_MC_DEF)
-			memcpy(mac_entry->h_dest, mac_addr_mc_mask, ETH_ALEN);
-		return 0;
-	}
-
-	rc = efx_filter_get_eth_local(&spec, &vid, mac_entry->h_dest);
-	if (rc == 0) {
-		rule->flow_type = ETHER_FLOW;
-		memset(mac_mask->h_dest, ~0, ETH_ALEN);
-		if (vid != EFX_FILTER_VID_UNSPEC) {
-			rule->flow_type |= FLOW_EXT;
-			rule->h_ext.vlan_tci = htons(vid);
-			rule->m_ext.vlan_tci = htons(0xfff);
+	if ((spec.match_flags & EFX_FILTER_MATCH_ETHER_TYPE) &&
+	    spec.ether_type == htons(ETH_P_IP) &&
+	    (spec.match_flags & EFX_FILTER_MATCH_IP_PROTO) &&
+	    (spec.ip_proto == IPPROTO_TCP || spec.ip_proto == IPPROTO_UDP) &&
+	    !(spec.match_flags &
+	      ~(EFX_FILTER_MATCH_ETHER_TYPE | EFX_FILTER_MATCH_OUTER_VID |
+		EFX_FILTER_MATCH_LOC_HOST | EFX_FILTER_MATCH_REM_HOST |
+		EFX_FILTER_MATCH_IP_PROTO |
+		EFX_FILTER_MATCH_LOC_PORT | EFX_FILTER_MATCH_REM_PORT))) {
+		rule->flow_type = ((spec.ip_proto == IPPROTO_TCP) ?
+				   TCP_V4_FLOW : UDP_V4_FLOW);
+		if (spec.match_flags & EFX_FILTER_MATCH_LOC_HOST) {
+			ip_entry->ip4dst = spec.loc_host[0];
+			ip_mask->ip4dst = IP4_ADDR_FULL_MASK;
 		}
-		return 0;
+		if (spec.match_flags & EFX_FILTER_MATCH_REM_HOST) {
+			ip_entry->ip4src = spec.rem_host[0];
+			ip_mask->ip4src = IP4_ADDR_FULL_MASK;
+		}
+		if (spec.match_flags & EFX_FILTER_MATCH_LOC_PORT) {
+			ip_entry->pdst = spec.loc_port;
+			ip_mask->pdst = PORT_FULL_MASK;
+		}
+		if (spec.match_flags & EFX_FILTER_MATCH_REM_PORT) {
+			ip_entry->psrc = spec.rem_port;
+			ip_mask->psrc = PORT_FULL_MASK;
+		}
+	} else if (!(spec.match_flags &
+		     ~(EFX_FILTER_MATCH_LOC_MAC | EFX_FILTER_MATCH_LOC_MAC_IG |
+		       EFX_FILTER_MATCH_REM_MAC | EFX_FILTER_MATCH_ETHER_TYPE |
+		       EFX_FILTER_MATCH_OUTER_VID))) {
+		rule->flow_type = ETHER_FLOW;
+		if (spec.match_flags &
+		    (EFX_FILTER_MATCH_LOC_MAC | EFX_FILTER_MATCH_LOC_MAC_IG)) {
+			memcpy(mac_entry->h_dest, spec.loc_mac, ETH_ALEN);
+			if (spec.match_flags & EFX_FILTER_MATCH_LOC_MAC)
+				memset(mac_mask->h_dest, ~0, ETH_ALEN);
+			else
+				memcpy(mac_mask->h_dest, mac_addr_ig_mask,
+				       ETH_ALEN);
+		}
+		if (spec.match_flags & EFX_FILTER_MATCH_REM_MAC) {
+			memcpy(mac_entry->h_source, spec.rem_mac, ETH_ALEN);
+			memset(mac_mask->h_source, ~0, ETH_ALEN);
+		}
+		if (spec.match_flags & EFX_FILTER_MATCH_ETHER_TYPE) {
+			mac_entry->h_proto = spec.ether_type;
+			mac_mask->h_proto = ETHER_TYPE_FULL_MASK;
+		}
+	} else {
+		/* The above should handle all filters that we insert */
+		WARN_ON(1);
+		return -EINVAL;
 	}
 
-	rc = efx_filter_get_ipv4_local(&spec, &proto,
-				       &ip_entry->ip4dst, &ip_entry->pdst);
-	if (rc != 0) {
-		rc = efx_filter_get_ipv4_full(
-			&spec, &proto, &ip_entry->ip4dst, &ip_entry->pdst,
-			&ip_entry->ip4src, &ip_entry->psrc);
-		EFX_WARN_ON_PARANOID(rc);
-		ip_mask->ip4src = IP4_ADDR_FULL_MASK;
-		ip_mask->psrc = PORT_FULL_MASK;
+	if (spec.match_flags & EFX_FILTER_MATCH_OUTER_VID) {
+		rule->flow_type |= FLOW_EXT;
+		rule->h_ext.vlan_tci = spec.outer_vid;
+		rule->m_ext.vlan_tci = htons(0xfff);
 	}
-	rule->flow_type = (proto == IPPROTO_TCP) ? TCP_V4_FLOW : UDP_V4_FLOW;
-	ip_mask->ip4dst = IP4_ADDR_FULL_MASK;
-	ip_mask->pdst = PORT_FULL_MASK;
+
 	return rc;
 }
 
@@ -967,80 +994,78 @@ static int efx_ethtool_set_class_rule(struct efx_nic *efx,
 	efx_filter_init_rx(&spec, EFX_FILTER_PRI_MANUAL,
 			   efx->rx_scatter ? EFX_FILTER_FLAG_RX_SCATTER : 0,
 			   (rule->ring_cookie == RX_CLS_FLOW_DISC) ?
-			   0xfff : rule->ring_cookie);
+			   EFX_FILTER_RX_DMAQ_ID_DROP : rule->ring_cookie);
 
-	switch (rule->flow_type) {
+	switch (rule->flow_type & ~FLOW_EXT) {
 	case TCP_V4_FLOW:
-	case UDP_V4_FLOW: {
-		u8 proto = (rule->flow_type == TCP_V4_FLOW ?
-			    IPPROTO_TCP : IPPROTO_UDP);
-
-		/* Must match all of destination, */
-		if (!(ip_mask->ip4dst == IP4_ADDR_FULL_MASK &&
-		      ip_mask->pdst == PORT_FULL_MASK))
+	case UDP_V4_FLOW:
+		spec.match_flags = (EFX_FILTER_MATCH_ETHER_TYPE |
+				    EFX_FILTER_MATCH_IP_PROTO);
+		spec.ether_type = htons(ETH_P_IP);
+		spec.ip_proto = ((rule->flow_type & ~FLOW_EXT) == TCP_V4_FLOW ?
+				 IPPROTO_TCP : IPPROTO_UDP);
+		if (ip_mask->ip4dst) {
+			if (ip_mask->ip4dst != IP4_ADDR_FULL_MASK)
+				return -EINVAL;
+			spec.match_flags |= EFX_FILTER_MATCH_LOC_HOST;
+			spec.loc_host[0] = ip_entry->ip4dst;
+		}
+		if (ip_mask->ip4src) {
+			if (ip_mask->ip4src != IP4_ADDR_FULL_MASK)
+				return -EINVAL;
+			spec.match_flags |= EFX_FILTER_MATCH_REM_HOST;
+			spec.rem_host[0] = ip_entry->ip4src;
+		}
+		if (ip_mask->pdst) {
+			if (ip_mask->pdst != PORT_FULL_MASK)
+				return -EINVAL;
+			spec.match_flags |= EFX_FILTER_MATCH_LOC_PORT;
+			spec.loc_port = ip_entry->pdst;
+		}
+		if (ip_mask->psrc) {
+			if (ip_mask->psrc != PORT_FULL_MASK)
+				return -EINVAL;
+			spec.match_flags |= EFX_FILTER_MATCH_REM_PORT;
+			spec.rem_port = ip_entry->psrc;
+		}
+		if (ip_mask->tos)
 			return -EINVAL;
-		/* all or none of source, */
-		if ((ip_mask->ip4src || ip_mask->psrc) &&
-		    !(ip_mask->ip4src == IP4_ADDR_FULL_MASK &&
-		      ip_mask->psrc == PORT_FULL_MASK))
-			return -EINVAL;
-		/* and nothing else */
-		if (ip_mask->tos || rule->m_ext.vlan_tci)
-			return -EINVAL;
-
-		if (ip_mask->ip4src)
-			rc = efx_filter_set_ipv4_full(&spec, proto,
-						      ip_entry->ip4dst,
-						      ip_entry->pdst,
-						      ip_entry->ip4src,
-						      ip_entry->psrc);
-		else
-			rc = efx_filter_set_ipv4_local(&spec, proto,
-						       ip_entry->ip4dst,
-						       ip_entry->pdst);
-		if (rc)
-			return rc;
 		break;
-	}
 
-	case ETHER_FLOW | FLOW_EXT:
-	case ETHER_FLOW: {
-		u16 vlan_tag_mask = (rule->flow_type & FLOW_EXT ?
-				     ntohs(rule->m_ext.vlan_tci) : 0);
-
-		/* Must not match on source address or Ethertype */
-		if (!is_zero_ether_addr(mac_mask->h_source) ||
-		    mac_mask->h_proto)
-			return -EINVAL;
-
-		/* Is it a default UC or MC filter? */
-		if (ether_addr_equal(mac_mask->h_dest, mac_addr_mc_mask) &&
-		    vlan_tag_mask == 0) {
-			if (is_multicast_ether_addr(mac_entry->h_dest))
-				rc = efx_filter_set_mc_def(&spec);
+	case ETHER_FLOW:
+		if (!is_zero_ether_addr(mac_mask->h_dest)) {
+			if (ether_addr_equal(mac_mask->h_dest,
+					     mac_addr_ig_mask))
+				spec.match_flags |= EFX_FILTER_MATCH_LOC_MAC_IG;
+			else if (is_broadcast_ether_addr(mac_mask->h_dest))
+				spec.match_flags |= EFX_FILTER_MATCH_LOC_MAC;
 			else
-				rc = efx_filter_set_uc_def(&spec);
+				return -EINVAL;
+			memcpy(spec.loc_mac, mac_entry->h_dest, ETH_ALEN);
 		}
-		/* Otherwise, it must match all of destination and all
-		 * or none of VID.
-		 */
-		else if (is_broadcast_ether_addr(mac_mask->h_dest) &&
-			 (vlan_tag_mask == 0xfff || vlan_tag_mask == 0)) {
-			rc = efx_filter_set_eth_local(
-				&spec,
-				vlan_tag_mask ?
-				ntohs(rule->h_ext.vlan_tci) : EFX_FILTER_VID_UNSPEC,
-				mac_entry->h_dest);
-		} else {
-			rc = -EINVAL;
+		if (!is_zero_ether_addr(mac_mask->h_source)) {
+			if (!is_broadcast_ether_addr(mac_mask->h_source))
+				return -EINVAL;
+			spec.match_flags |= EFX_FILTER_MATCH_REM_MAC;
+			memcpy(spec.rem_mac, mac_entry->h_source, ETH_ALEN);
 		}
-		if (rc)
-			return rc;
+		if (mac_mask->h_proto) {
+			if (mac_mask->h_proto != ETHER_TYPE_FULL_MASK)
+				return -EINVAL;
+			spec.match_flags |= EFX_FILTER_MATCH_ETHER_TYPE;
+			spec.ether_type = mac_entry->h_proto;
+		}
 		break;
-	}
 
 	default:
 		return -EINVAL;
+	}
+
+	if ((rule->flow_type & FLOW_EXT) && rule->m_ext.vlan_tci) {
+		if (rule->m_ext.vlan_tci != htons(0xfff))
+			return -EINVAL;
+		spec.match_flags |= EFX_FILTER_MATCH_OUTER_VID;
+		spec.outer_vid = rule->h_ext.vlan_tci;
 	}
 
 	rc = efx_filter_insert_filter(efx, &spec, true);

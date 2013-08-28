@@ -35,7 +35,7 @@
 #define SPI_STATUS_NRDY 0x01	/* Device busy flag */
 
 /**
- * struct efx_spi_device - an Efx SPI (Serial Peripheral Interface) device
+ * struct falcon_spi_device - a Falcon SPI (Serial Peripheral Interface) device
  * @device_id:		Controller's id for the device
  * @size:		Size (in bytes)
  * @addr_len:		Number of address bytes in read/write commands
@@ -51,7 +51,7 @@
  * @block_size:		Write block size (in bytes).
  *	Write commands are limited to blocks with this size and alignment.
  */
-struct efx_spi_device {
+struct falcon_spi_device {
 	int device_id;
 	unsigned int size;
 	unsigned int addr_len;
@@ -61,21 +61,21 @@ struct efx_spi_device {
 	unsigned int block_size;
 };
 
-static inline bool efx_spi_present(const struct efx_spi_device *spi)
+static inline bool falcon_spi_present(const struct falcon_spi_device *spi)
 {
 	return spi->size != 0;
 }
 
 int falcon_spi_cmd(struct efx_nic *efx,
-		   const struct efx_spi_device *spi, unsigned int command,
+		   const struct falcon_spi_device *spi, unsigned int command,
 		   int address, const void *in, void *out, size_t len);
 int falcon_spi_wait_write(struct efx_nic *efx,
-			  const struct efx_spi_device *spi);
+			  const struct falcon_spi_device *spi);
 int falcon_spi_read(struct efx_nic *efx,
-		    const struct efx_spi_device *spi, loff_t start,
+		    const struct falcon_spi_device *spi, loff_t start,
 		    size_t len, size_t *retlen, u8 *buffer);
 int falcon_spi_write(struct efx_nic *efx,
-		     const struct efx_spi_device *spi, loff_t start,
+		     const struct falcon_spi_device *spi, loff_t start,
 		     size_t len, size_t *retlen, const u8 *buffer);
 
 /*
@@ -93,7 +93,7 @@ int falcon_spi_write(struct efx_nic *efx,
  */
 #define FALCON_NVCONFIG_END 0x400U
 #define FALCON_FLASH_BOOTCODE_START 0x8000U
-#define EFX_EEPROM_BOOTCONFIG_START 0x800U
-#define EFX_EEPROM_BOOTCONFIG_END 0x1800U
+#define FALCON_EEPROM_BOOTCONFIG_START 0x800U
+#define FALCON_EEPROM_BOOTCONFIG_END 0x1800U
 
 #endif /* EFX_SPI_H */

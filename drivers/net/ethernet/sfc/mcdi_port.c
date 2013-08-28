@@ -861,7 +861,7 @@ void efx_mcdi_process_link_change(struct efx_nic *efx, efx_qword_t *ev)
 
 int efx_mcdi_set_mac(struct efx_nic *efx)
 {
-	u32 reject, fcntl;
+	u32 fcntl;
 	MCDI_DECLARE_BUF(cmdbytes, MC_CMD_SET_MAC_IN_LEN);
 
 	BUILD_BUG_ON(MC_CMD_SET_MAC_OUT_LEN != 0);
@@ -873,12 +873,9 @@ int efx_mcdi_set_mac(struct efx_nic *efx)
 			EFX_MAX_FRAME_LEN(efx->net_dev->mtu));
 	MCDI_SET_DWORD(cmdbytes, SET_MAC_IN_DRAIN, 0);
 
-	/* The MCDI command provides for controlling accept/reject
-	 * of broadcast packets too, but the driver doesn't currently
-	 * expose this. */
-	reject = (efx->promiscuous) ? 0 :
-		(1 << MC_CMD_SET_MAC_IN_REJECT_UNCST_LBN);
-	MCDI_SET_DWORD(cmdbytes, SET_MAC_IN_REJECT, reject);
+	/* Set simple MAC filter for Siena */
+	MCDI_POPULATE_DWORD_1(cmdbytes, SET_MAC_IN_REJECT,
+			      SET_MAC_IN_REJECT_UNCST, efx->unicast_filter);
 
 	switch (efx->wanted_fc) {
 	case EFX_FC_RX | EFX_FC_TX:
@@ -926,21 +923,19 @@ static int efx_mcdi_mac_stats(struct efx_nic *efx, dma_addr_t dma_addr,
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_MAC_STATS_IN_LEN);
 	int rc;
-	efx_dword_t *cmd_ptr;
 	int period = enable ? 1000 : 0;
 
 	BUILD_BUG_ON(MC_CMD_MAC_STATS_OUT_DMA_LEN != 0);
 
 	MCDI_SET_QWORD(inbuf, MAC_STATS_IN_DMA_ADDR, dma_addr);
-	cmd_ptr = (efx_dword_t *)MCDI_PTR(inbuf, MAC_STATS_IN_CMD);
-	EFX_POPULATE_DWORD_7(*cmd_ptr,
-			     MC_CMD_MAC_STATS_IN_DMA, !!enable,
-			     MC_CMD_MAC_STATS_IN_CLEAR, clear,
-			     MC_CMD_MAC_STATS_IN_PERIODIC_CHANGE, 1,
-			     MC_CMD_MAC_STATS_IN_PERIODIC_ENABLE, !!enable,
-			     MC_CMD_MAC_STATS_IN_PERIODIC_CLEAR, 0,
-			     MC_CMD_MAC_STATS_IN_PERIODIC_NOEVENT, 1,
-			     MC_CMD_MAC_STATS_IN_PERIOD_MS, period);
+	MCDI_POPULATE_DWORD_7(inbuf, MAC_STATS_IN_CMD,
+			      MAC_STATS_IN_DMA, !!enable,
+			      MAC_STATS_IN_CLEAR, clear,
+			      MAC_STATS_IN_PERIODIC_CHANGE, 1,
+			      MAC_STATS_IN_PERIODIC_ENABLE, !!enable,
+			      MAC_STATS_IN_PERIODIC_CLEAR, 0,
+			      MAC_STATS_IN_PERIODIC_NOEVENT, 1,
+			      MAC_STATS_IN_PERIOD_MS, period);
 	MCDI_SET_DWORD(inbuf, MAC_STATS_IN_DMA_LEN, dma_len);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_MAC_STATS, inbuf, sizeof(inbuf),

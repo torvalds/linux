@@ -30,6 +30,7 @@
 
 #include "enum.h"
 #include "bitfield.h"
+#include "filter.h"
 
 /**************************************************************************
  *
@@ -356,6 +357,7 @@ enum efx_rx_alloc_method {
  * @efx: Associated Efx NIC
  * @channel: Channel instance number
  * @type: Channel type definition
+ * @eventq_init: Event queue initialised flag
  * @enabled: Channel enabled indicator
  * @irq: IRQ number (MSI and MSI-X only)
  * @irq_moderation: IRQ moderation value (in hardware ticks)
@@ -387,6 +389,7 @@ struct efx_channel {
 	struct efx_nic *efx;
 	int channel;
 	const struct efx_channel_type *type;
+	bool eventq_init;
 	bool enabled;
 	int irq;
 	unsigned int irq_moderation;
@@ -674,7 +677,6 @@ union efx_multicast_hash {
 	efx_oword_t oword[EFX_MCAST_HASH_ENTRIES / sizeof(efx_oword_t) / 8];
 };
 
-struct efx_filter_state;
 struct efx_vf;
 struct vfdi_status;
 
@@ -751,8 +753,10 @@ struct vfdi_status;
  * @link_advertising: Autonegotiation advertising flags
  * @link_state: Current state of the link
  * @n_link_state_changes: Number of times the link has changed state
- * @promiscuous: Promiscuous flag. Protected by netif_tx_lock.
- * @multicast_hash: Multicast hash table
+ * @unicast_filter: Flag for Falcon-arch simple unicast filter.
+ *	Protected by @mac_lock.
+ * @multicast_hash: Multicast hash table for Falcon-arch.
+ *	Protected by @mac_lock.
  * @wanted_fc: Wanted flow control flags
  * @fc_disable: When non-zero flow control is disabled. Typically used to
  *	ensure that network back pressure doesn't delay dma queue flushes.
@@ -761,6 +765,11 @@ struct vfdi_status;
  * @loopback_mode: Loopback status
  * @loopback_modes: Supported loopback mode bitmask
  * @loopback_selftest: Offline self-test private state
+ * @filter_lock: Filter table lock
+ * @filter_state: Architecture-dependent filter table state
+ * @rps_flow_id: Flow IDs of filters allocated for accelerated RFS,
+ *	indexed by filter ID
+ * @rps_expire_index: Next index to check for expiry in @rps_flow_id
  * @drain_pending: Count of RX and TX queues that haven't been flushed and drained.
  * @rxq_flush_pending: Count of number of receive queues that need to be flushed.
  *	Decremented when the efx_flush_rx_queue() is called.
@@ -832,6 +841,8 @@ struct efx_nic {
 	unsigned rx_dc_base;
 	unsigned sram_lim_qw;
 	unsigned next_buffer_table;
+
+	unsigned int max_channels;
 	unsigned n_channels;
 	unsigned n_rx_channels;
 	unsigned rss_spread;
@@ -857,6 +868,7 @@ struct efx_nic {
 	struct delayed_work selftest_work;
 
 #ifdef CONFIG_SFC_MTD
+	const struct efx_mtd_ops *mtd_ops;
 	struct list_head mtd_list;
 #endif
 
@@ -883,7 +895,7 @@ struct efx_nic {
 	struct efx_link_state link_state;
 	unsigned int n_link_state_changes;
 
-	bool promiscuous;
+	bool unicast_filter;
 	union efx_multicast_hash multicast_hash;
 	u8 wanted_fc;
 	unsigned fc_disable;
@@ -894,7 +906,12 @@ struct efx_nic {
 
 	void *loopback_selftest;
 
-	struct efx_filter_state *filter_state;
+	spinlock_t filter_lock;
+	void *filter_state;
+#ifdef CONFIG_RFS_ACCEL
+	u32 *rps_flow_id;
+	unsigned int rps_expire_index;
+#endif
 
 	atomic_t drain_pending;
 	atomic_t rxq_flush_pending;
@@ -939,6 +956,7 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
 
 /**
  * struct efx_nic_type - Efx device type definition
+ * @mem_map_size: Get memory BAR mapped size
  * @probe: Probe the controller
  * @remove: Free resources allocated by probe()
  * @init: Initialise the controller
@@ -1011,8 +1029,25 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
  * @ev_process: Process events for a queue, up to the given NAPI quota
  * @ev_read_ack: Acknowledge read events on a queue, rearming its IRQ
  * @ev_test_generate: Generate a test event
+ * @filter_table_probe: Probe filter capabilities and set up filter software state
+ * @filter_table_restore: Restore filters removed from hardware
+ * @filter_table_remove: Remove filters from hardware and tear down software state
+ * @filter_update_rx_scatter: Update filters after change to rx scatter setting
+ * @filter_insert: add or replace a filter
+ * @filter_remove_safe: remove a filter by ID, carefully
+ * @filter_get_safe: retrieve a filter by ID, carefully
+ * @filter_clear_rx: remove RX filters by priority
+ * @filter_count_rx_used: Get the number of filters in use at a given priority
+ * @filter_get_rx_id_limit: Get maximum value of a filter id, plus 1
+ * @filter_get_rx_ids: Get list of RX filters at a given priority
+ * @filter_rfs_insert: Add or replace a filter for RFS.  This must be
+ *	atomic.  The hardware change may be asynchronous but should
+ *	not be delayed for long.  It may fail if this can't be done
+ *	atomically.
+ * @filter_rfs_expire_one: Consider expiring a filter inserted for RFS.
+ *	This must check whether the specified table entry is used by RFS
+ *	and that rps_may_expire_flow() returns true for it.
  * @revision: Hardware architecture revision
- * @mem_map_size: Memory BAR mapped size
  * @txd_ptr_tbl_base: TX descriptor ring base address
  * @rxd_ptr_tbl_base: RX descriptor ring base address
  * @buf_tbl_base: Buffer table base address
@@ -1024,14 +1059,13 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
  * @can_rx_scatter: NIC is able to scatter packet to multiple buffers
  * @max_interrupt_mode: Highest capability interrupt mode supported
  *	from &enum efx_init_mode.
- * @phys_addr_channels: Number of channels with physically addressed
- *	descriptors
  * @timer_period_max: Maximum period of interrupt timer (in ticks)
  * @offload_features: net_device feature flags for protocol offload
  *	features implemented in hardware
  * @mcdi_max_ver: Maximum MCDI version supported
  */
 struct efx_nic_type {
+	unsigned int (*mem_map_size)(struct efx_nic *efx);
 	int (*probe)(struct efx_nic *efx);
 	void (*remove)(struct efx_nic *efx);
 	int (*init)(struct efx_nic *efx);
@@ -1090,9 +1124,34 @@ struct efx_nic_type {
 	int (*ev_process)(struct efx_channel *channel, int quota);
 	void (*ev_read_ack)(struct efx_channel *channel);
 	void (*ev_test_generate)(struct efx_channel *channel);
+	int (*filter_table_probe)(struct efx_nic *efx);
+	void (*filter_table_restore)(struct efx_nic *efx);
+	void (*filter_table_remove)(struct efx_nic *efx);
+	void (*filter_update_rx_scatter)(struct efx_nic *efx);
+	s32 (*filter_insert)(struct efx_nic *efx,
+			     struct efx_filter_spec *spec, bool replace);
+	int (*filter_remove_safe)(struct efx_nic *efx,
+				  enum efx_filter_priority priority,
+				  u32 filter_id);
+	int (*filter_get_safe)(struct efx_nic *efx,
+			       enum efx_filter_priority priority,
+			       u32 filter_id, struct efx_filter_spec *);
+	void (*filter_clear_rx)(struct efx_nic *efx,
+				enum efx_filter_priority priority);
+	u32 (*filter_count_rx_used)(struct efx_nic *efx,
+				    enum efx_filter_priority priority);
+	u32 (*filter_get_rx_id_limit)(struct efx_nic *efx);
+	s32 (*filter_get_rx_ids)(struct efx_nic *efx,
+				 enum efx_filter_priority priority,
+				 u32 *buf, u32 size);
+#ifdef CONFIG_RFS_ACCEL
+	s32 (*filter_rfs_insert)(struct efx_nic *efx,
+				 struct efx_filter_spec *spec);
+	bool (*filter_rfs_expire_one)(struct efx_nic *efx, u32 flow_id,
+				      unsigned int index);
+#endif
 
 	int revision;
-	unsigned int mem_map_size;
 	unsigned int txd_ptr_tbl_base;
 	unsigned int rxd_ptr_tbl_base;
 	unsigned int buf_tbl_base;
@@ -1103,10 +1162,10 @@ struct efx_nic_type {
 	unsigned int rx_buffer_padding;
 	bool can_rx_scatter;
 	unsigned int max_interrupt_mode;
-	unsigned int phys_addr_channels;
 	unsigned int timer_period_max;
 	netdev_features_t offload_features;
 	int mcdi_max_ver;
+	unsigned int max_rx_ip_filters;
 };
 
 /**************************************************************************

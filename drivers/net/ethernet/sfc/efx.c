@@ -17,7 +17,6 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/in.h>
-#include <linux/crc32.h>
 #include <linux/ethtool.h>
 #include <linux/topology.h>
 #include <linux/gfp.h>
@@ -339,6 +338,7 @@ static void efx_init_eventq(struct efx_channel *channel)
 	channel->eventq_read_ptr = 0;
 
 	efx_nic_init_eventq(channel);
+	channel->eventq_init = true;
 }
 
 /* Enable event queue processing and NAPI */
@@ -367,10 +367,14 @@ static void efx_stop_eventq(struct efx_channel *channel)
 
 static void efx_fini_eventq(struct efx_channel *channel)
 {
+	if (!channel->eventq_init)
+		return;
+
 	netif_dbg(channel->efx, drv, channel->efx->net_dev,
 		  "chan %d fini event queue\n", channel->channel);
 
 	efx_nic_fini_eventq(channel);
+	channel->eventq_init = false;
 }
 
 static void efx_remove_eventq(struct efx_channel *channel)
@@ -606,7 +610,7 @@ static void efx_start_datapath(struct efx_nic *efx)
 
 	/* RX filters also have scatter-enabled flags */
 	if (efx->rx_scatter != old_rx_scatter)
-		efx_filter_update_rx_scatter(efx);
+		efx->type->filter_update_rx_scatter(efx);
 
 	/* We must keep at least one descriptor in a TX ring empty.
 	 * We could avoid this when the queue size does not exactly
@@ -871,10 +875,9 @@ void efx_link_status_changed(struct efx_nic *efx)
 	/* Status message for kernel log */
 	if (link_state->up)
 		netif_info(efx, link, efx->net_dev,
-			   "link up at %uMbps %s-duplex (MTU %d)%s\n",
+			   "link up at %uMbps %s-duplex (MTU %d)\n",
 			   link_state->speed, link_state->fd ? "full" : "half",
-			   efx->net_dev->mtu,
-			   (efx->promiscuous ? " [PROMISC]" : ""));
+			   efx->net_dev->mtu);
 	else
 		netif_info(efx, link, efx->net_dev, "link down\n");
 }
@@ -922,10 +925,6 @@ int __efx_reconfigure_port(struct efx_nic *efx)
 	int rc;
 
 	WARN_ON(!mutex_is_locked(&efx->mac_lock));
-
-	/* Serialise the promiscuous flag with efx_set_rx_mode. */
-	netif_addr_lock_bh(efx->net_dev);
-	netif_addr_unlock_bh(efx->net_dev);
 
 	/* Disable PHY transmit in mac level loopbacks */
 	phy_mode = efx->phy_mode;
@@ -1084,6 +1083,7 @@ static int efx_init_io(struct efx_nic *efx)
 {
 	struct pci_dev *pci_dev = efx->pci_dev;
 	dma_addr_t dma_mask = efx->type->max_dma_mask;
+	unsigned int mem_map_size = efx->type->mem_map_size(efx);
 	int rc;
 
 	netif_dbg(efx, probe, efx->net_dev, "initialising I/O\n");
@@ -1136,20 +1136,18 @@ static int efx_init_io(struct efx_nic *efx)
 		rc = -EIO;
 		goto fail3;
 	}
-	efx->membase = ioremap_nocache(efx->membase_phys,
-				       efx->type->mem_map_size);
+	efx->membase = ioremap_nocache(efx->membase_phys, mem_map_size);
 	if (!efx->membase) {
 		netif_err(efx, probe, efx->net_dev,
 			  "could not map memory BAR at %llx+%x\n",
-			  (unsigned long long)efx->membase_phys,
-			  efx->type->mem_map_size);
+			  (unsigned long long)efx->membase_phys, mem_map_size);
 		rc = -ENOMEM;
 		goto fail4;
 	}
 	netif_dbg(efx, probe, efx->net_dev,
 		  "memory BAR at %llx+%x (virtual %p)\n",
-		  (unsigned long long)efx->membase_phys,
-		  efx->type->mem_map_size, efx->membase);
+		  (unsigned long long)efx->membase_phys, mem_map_size,
+		  efx->membase);
 
 	return 0;
 
@@ -1228,8 +1226,6 @@ static unsigned int efx_wanted_parallelism(struct efx_nic *efx)
  */
 static int efx_probe_interrupts(struct efx_nic *efx)
 {
-	unsigned int max_channels =
-		min(efx->type->phys_addr_channels, EFX_MAX_CHANNELS);
 	unsigned int extra_channels = 0;
 	unsigned int i, j;
 	int rc;
@@ -1246,7 +1242,7 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 		if (separate_tx_channels)
 			n_channels *= 2;
 		n_channels += extra_channels;
-		n_channels = min(n_channels, max_channels);
+		n_channels = min(n_channels, efx->max_channels);
 
 		for (i = 0; i < n_channels; i++)
 			xentries[i].entry = i;
@@ -1495,6 +1491,44 @@ static void efx_remove_nic(struct efx_nic *efx)
 
 	efx_remove_interrupts(efx);
 	efx->type->remove(efx);
+}
+
+static int efx_probe_filters(struct efx_nic *efx)
+{
+	int rc;
+
+	spin_lock_init(&efx->filter_lock);
+
+	rc = efx->type->filter_table_probe(efx);
+	if (rc)
+		return rc;
+
+#ifdef CONFIG_RFS_ACCEL
+	if (efx->type->offload_features & NETIF_F_NTUPLE) {
+		efx->rps_flow_id = kcalloc(efx->type->max_rx_ip_filters,
+					   sizeof(*efx->rps_flow_id),
+					   GFP_KERNEL);
+		if (!efx->rps_flow_id) {
+			efx->type->filter_table_remove(efx);
+			return -ENOMEM;
+		}
+	}
+#endif
+
+	return 0;
+}
+
+static void efx_remove_filters(struct efx_nic *efx)
+{
+#ifdef CONFIG_RFS_ACCEL
+	kfree(efx->rps_flow_id);
+#endif
+	efx->type->filter_table_remove(efx);
+}
+
+static void efx_restore_filters(struct efx_nic *efx)
+{
+	efx->type->filter_table_restore(efx);
 }
 
 /**************************************************************************
@@ -1987,30 +2021,6 @@ static int efx_set_mac_address(struct net_device *net_dev, void *data)
 static void efx_set_rx_mode(struct net_device *net_dev)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	struct netdev_hw_addr *ha;
-	union efx_multicast_hash *mc_hash = &efx->multicast_hash;
-	u32 crc;
-	int bit;
-
-	efx->promiscuous = !!(net_dev->flags & IFF_PROMISC);
-
-	/* Build multicast hash table */
-	if (efx->promiscuous || (net_dev->flags & IFF_ALLMULTI)) {
-		memset(mc_hash, 0xff, sizeof(*mc_hash));
-	} else {
-		memset(mc_hash, 0x00, sizeof(*mc_hash));
-		netdev_for_each_mc_addr(ha, net_dev) {
-			crc = ether_crc_le(ETH_ALEN, ha->addr);
-			bit = crc & (EFX_MCAST_HASH_ENTRIES - 1);
-			__set_bit_le(bit, mc_hash);
-		}
-
-		/* Broadcast packets go through the multicast hash filter.
-		 * ether_crc_le() of the broadcast address is 0xbe2612ff
-		 * so we always add bit 0xff to the mask.
-		 */
-		__set_bit_le(0xff, mc_hash);
-	}
 
 	if (efx->port_enabled)
 		queue_work(efx->workqueue, &efx->mac_work);
@@ -2488,8 +2498,6 @@ static int efx_init_struct(struct efx_nic *efx,
 		efx->msi_context[i].efx = efx;
 		efx->msi_context[i].index = i;
 	}
-
-	EFX_BUG_ON_PARANOID(efx->type->phys_addr_channels > EFX_MAX_CHANNELS);
 
 	/* Higher numbered interrupt modes are less capable! */
 	efx->interrupt_mode = max(efx->type->max_interrupt_mode,
