@@ -716,10 +716,10 @@ xfs_trans_free_items(
 		lip->li_desc = NULL;
 
 		if (commit_lsn != NULLCOMMITLSN)
-			IOP_COMMITTING(lip, commit_lsn);
+			lip->li_ops->iop_committing(lip, commit_lsn);
 		if (flags & XFS_TRANS_ABORT)
 			lip->li_flags |= XFS_LI_ABORTED;
-		IOP_UNLOCK(lip);
+		lip->li_ops->iop_unlock(lip);
 
 		xfs_trans_free_item_desc(lidp);
 	}
@@ -739,8 +739,11 @@ xfs_log_item_batch_insert(
 	/* xfs_trans_ail_update_bulk drops ailp->xa_lock */
 	xfs_trans_ail_update_bulk(ailp, cur, log_items, nr_items, commit_lsn);
 
-	for (i = 0; i < nr_items; i++)
-		IOP_UNPIN(log_items[i], 0);
+	for (i = 0; i < nr_items; i++) {
+		struct xfs_log_item *lip = log_items[i];
+
+		lip->li_ops->iop_unpin(lip, 0);
+	}
 }
 
 /*
@@ -750,11 +753,11 @@ xfs_log_item_batch_insert(
  *
  * If we are called with the aborted flag set, it is because a log write during
  * a CIL checkpoint commit has failed. In this case, all the items in the
- * checkpoint have already gone through IOP_COMMITED and IOP_UNLOCK, which
+ * checkpoint have already gone through iop_commited and iop_unlock, which
  * means that checkpoint commit abort handling is treated exactly the same
  * as an iclog write error even though we haven't started any IO yet. Hence in
- * this case all we need to do is IOP_COMMITTED processing, followed by an
- * IOP_UNPIN(aborted) call.
+ * this case all we need to do is iop_committed processing, followed by an
+ * iop_unpin(aborted) call.
  *
  * The AIL cursor is used to optimise the insert process. If commit_lsn is not
  * at the end of the AIL, the insert cursor avoids the need to walk
@@ -787,7 +790,7 @@ xfs_trans_committed_bulk(
 
 		if (aborted)
 			lip->li_flags |= XFS_LI_ABORTED;
-		item_lsn = IOP_COMMITTED(lip, commit_lsn);
+		item_lsn = lip->li_ops->iop_committed(lip, commit_lsn);
 
 		/* item_lsn of -1 means the item needs no further processing */
 		if (XFS_LSN_CMP(item_lsn, (xfs_lsn_t)-1) == 0)
@@ -799,7 +802,7 @@ xfs_trans_committed_bulk(
 		 */
 		if (aborted) {
 			ASSERT(XFS_FORCED_SHUTDOWN(ailp->xa_mount));
-			IOP_UNPIN(lip, 1);
+			lip->li_ops->iop_unpin(lip, 1);
 			continue;
 		}
 
@@ -817,7 +820,7 @@ xfs_trans_committed_bulk(
 				xfs_trans_ail_update(ailp, lip, item_lsn);
 			else
 				spin_unlock(&ailp->xa_lock);
-			IOP_UNPIN(lip, 0);
+			lip->li_ops->iop_unpin(lip, 0);
 			continue;
 		}
 

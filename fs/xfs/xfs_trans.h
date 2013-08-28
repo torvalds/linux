@@ -77,14 +77,8 @@ struct xfs_item_ops {
 	void (*iop_committing)(xfs_log_item_t *, xfs_lsn_t);
 };
 
-#define IOP_UNPIN(ip, remove)	(*(ip)->li_ops->iop_unpin)(ip, remove)
-#define IOP_PUSH(ip, list)	(*(ip)->li_ops->iop_push)(ip, list)
-#define IOP_UNLOCK(ip)		(*(ip)->li_ops->iop_unlock)(ip)
-#define IOP_COMMITTED(ip, lsn)	(*(ip)->li_ops->iop_committed)(ip, lsn)
-#define IOP_COMMITTING(ip, lsn) (*(ip)->li_ops->iop_committing)(ip, lsn)
-
 /*
- * Return values for the IOP_PUSH() routines.
+ * Return values for the iop_push() routines.
  */
 #define XFS_ITEM_SUCCESS	0
 #define XFS_ITEM_PINNED		1

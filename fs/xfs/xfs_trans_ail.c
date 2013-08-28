@@ -379,11 +379,11 @@ xfsaild_push(
 		int	lock_result;
 
 		/*
-		 * Note that IOP_PUSH may unlock and reacquire the AIL lock.  We
+		 * Note that iop_push may unlock and reacquire the AIL lock.  We
 		 * rely on the AIL cursor implementation to be able to deal with
 		 * the dropped lock.
 		 */
-		lock_result = IOP_PUSH(lip, &ailp->xa_buf_list);
+		lock_result = lip->li_ops->iop_push(lip, &ailp->xa_buf_list);
 		switch (lock_result) {
 		case XFS_ITEM_SUCCESS:
 			XFS_STATS_INC(xs_push_ail_success);
