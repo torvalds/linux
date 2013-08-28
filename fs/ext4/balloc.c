@@ -445,7 +445,10 @@ ext4_read_block_bitmap_nowait(struct super_block *sb, ext4_group_t block_group)
 	return bh;
 verify:
 	ext4_validate_block_bitmap(sb, desc, block_group, bh);
-	return bh;
+	if (buffer_verified(bh))
+		return bh;
+	put_bh(bh);
+	return NULL;
 }
 
 /* Returns 0 on success, 1 on error */
@@ -469,7 +472,8 @@ int ext4_wait_block_bitmap(struct super_block *sb, ext4_group_t block_group,
 	clear_buffer_new(bh);
 	/* Panic or remount fs read-only if block bitmap is invalid */
 	ext4_validate_block_bitmap(sb, desc, block_group, bh);
-	return 0;
+	/* ...but check for error just in case errors=continue. */
+	return !buffer_verified(bh);
 }
 
 struct buffer_head *
