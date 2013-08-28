@@ -1447,6 +1447,29 @@ static void pvclock_update_vm_gtod_copy(struct kvm *kvm)
 #endif
 }
 
+static void kvm_gen_update_masterclock(struct kvm *kvm)
+{
+#ifdef CONFIG_X86_64
+	int i;
+	struct kvm_vcpu *vcpu;
+	struct kvm_arch *ka = &kvm->arch;
+
+	spin_lock(&ka->pvclock_gtod_sync_lock);
+	kvm_make_mclock_inprogress_request(kvm);
+	/* no guest entries from this point */
+	pvclock_update_vm_gtod_copy(kvm);
+
+	kvm_for_each_vcpu(i, vcpu, kvm)
+		set_bit(KVM_REQ_CLOCK_UPDATE, &vcpu->requests);
+
+	/* guest entries allowed */
+	kvm_for_each_vcpu(i, vcpu, kvm)
+		clear_bit(KVM_REQ_MCLOCK_INPROGRESS, &vcpu->requests);
+
+	spin_unlock(&ka->pvclock_gtod_sync_lock);
+#endif
+}
+
 static int kvm_guest_time_update(struct kvm_vcpu *v)
 {
 	unsigned long flags, this_tsc_khz;
@@ -3796,6 +3819,7 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		delta = user_ns.clock - now_ns;
 		local_irq_enable();
 		kvm->arch.kvmclock_offset = delta;
+		kvm_gen_update_masterclock(kvm);
 		break;
 	}
 	case KVM_GET_CLOCK: {
@@ -5802,29 +5826,6 @@ static void process_nmi(struct kvm_vcpu *vcpu)
 	vcpu->arch.nmi_pending += atomic_xchg(&vcpu->arch.nmi_queued, 0);
 	vcpu->arch.nmi_pending = min(vcpu->arch.nmi_pending, limit);
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
-}
-
-static void kvm_gen_update_masterclock(struct kvm *kvm)
-{
-#ifdef CONFIG_X86_64
-	int i;
-	struct kvm_vcpu *vcpu;
-	struct kvm_arch *ka = &kvm->arch;
-
-	spin_lock(&ka->pvclock_gtod_sync_lock);
-	kvm_make_mclock_inprogress_request(kvm);
-	/* no guest entries from this point */
-	pvclock_update_vm_gtod_copy(kvm);
-
-	kvm_for_each_vcpu(i, vcpu, kvm)
-		set_bit(KVM_REQ_CLOCK_UPDATE, &vcpu->requests);
-
-	/* guest entries allowed */
-	kvm_for_each_vcpu(i, vcpu, kvm)
-		clear_bit(KVM_REQ_MCLOCK_INPROGRESS, &vcpu->requests);
-
-	spin_unlock(&ka->pvclock_gtod_sync_lock);
-#endif
 }
 
 static void vcpu_scan_ioapic(struct kvm_vcpu *vcpu)
