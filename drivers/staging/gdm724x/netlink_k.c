@@ -13,7 +13,6 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/version.h>
 #include <linux/export.h>
 #include <linux/etherdevice.h>
 #include <linux/netlink.h>
