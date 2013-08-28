@@ -1125,6 +1125,7 @@ struct net_device {
 	struct list_head	napi_list;
 	struct list_head	unreg_list;
 	struct list_head	upper_dev_list; /* List of upper devices */
+	struct list_head	lower_dev_list;
 
 
 	/* currently active device features */
