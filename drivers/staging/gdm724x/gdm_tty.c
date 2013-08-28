@@ -47,8 +47,8 @@
 
 #define GDM_TTY_READY(gdm) (gdm && gdm->tty_dev && gdm->port.count)
 
-struct tty_driver *gdm_driver[TTY_MAX_COUNT];
-struct gdm *gdm_table[TTY_MAX_COUNT][GDM_TTY_MINOR];
+static struct tty_driver *gdm_driver[TTY_MAX_COUNT];
+static struct gdm *gdm_table[TTY_MAX_COUNT][GDM_TTY_MINOR];
 static DEFINE_MUTEX(gdm_table_lock);
 
 static char *DRIVER_STRING[TTY_MAX_COUNT] = {"GCTATC", "GCTDM"};
