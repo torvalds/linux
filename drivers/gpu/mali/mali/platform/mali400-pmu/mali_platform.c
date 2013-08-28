@@ -22,6 +22,7 @@
 #include <mach/irqs.h>
 #include <mach/clock.h>
 #include <plat/sys_config.h>
+#include <plat/memory.h>
 
 #ifdef CONFIG_FB_SUNXI_RESERVED_MEM
 extern unsigned long fb_start;
