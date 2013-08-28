@@ -209,13 +209,11 @@ void __init plat_mem_setup(void)
 
 void __init plat_time_init(void)
 {
-	struct clk *clk;
+	unsigned long cpu_clk_rate;
 
-	clk = clk_get(NULL, "cpu");
-	if (IS_ERR(clk))
-		panic("unable to get CPU clock, err=%ld", PTR_ERR(clk));
+	cpu_clk_rate = ath79_get_sys_clk_rate("cpu");
 
-	mips_hpt_frequency = clk_get_rate(clk) / 2;
+	mips_hpt_frequency = cpu_clk_rate / 2;
 }
 
 static int __init ath79_setup(void)

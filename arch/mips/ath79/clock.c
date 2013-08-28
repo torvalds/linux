@@ -400,6 +400,22 @@ void __init ath79_clocks_init(void)
 		(ath79_ref_clk.rate / 1000) % 1000);
 }
 
+unsigned long __init
+ath79_get_sys_clk_rate(const char *id)
+{
+	struct clk *clk;
+	unsigned long rate;
+
+	clk = clk_get(NULL, id);
+	if (IS_ERR(clk))
+		panic("unable to get %s clock, err=%d", id, (int) PTR_ERR(clk));
+
+	rate = clk_get_rate(clk);
+	clk_put(clk);
+
+	return rate;
+}
+
 /*
  * Linux clock API
  */
