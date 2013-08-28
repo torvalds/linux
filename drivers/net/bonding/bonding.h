@@ -185,11 +185,6 @@ struct bond_parm_tbl {
 
 #define BOND_MAX_MODENAME_LEN 20
 
-struct vlan_entry {
-	struct list_head vlan_list;
-	unsigned short vlan_id;
-};
-
 struct slave {
 	struct net_device *dev; /* first - useful for panic debug */
 	struct list_head list;
@@ -254,7 +249,6 @@ struct bonding {
 	struct   ad_bond_info ad_info;
 	struct   alb_bond_info alb_info;
 	struct   bond_params params;
-	struct   list_head vlan_list;
 	struct   workqueue_struct *wq;
 	struct   delayed_work mii_work;
 	struct   delayed_work arp_work;

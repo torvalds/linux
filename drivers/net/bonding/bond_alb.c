@@ -1763,11 +1763,6 @@ int bond_alb_set_mac_address(struct net_device *bond_dev, void *addr)
 
 void bond_alb_clear_vlan(struct bonding *bond, unsigned short vlan_id)
 {
-	if (bond->alb_info.current_alb_vlan &&
-	    (bond->alb_info.current_alb_vlan->vlan_id == vlan_id)) {
-		bond->alb_info.current_alb_vlan = NULL;
-	}
-
 	if (bond->alb_info.rlb_enabled) {
 		rlb_clear_vlan(bond, vlan_id);
 	}

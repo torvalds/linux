@@ -283,116 +283,6 @@ const char *bond_mode_name(int mode)
 /*---------------------------------- VLAN -----------------------------------*/
 
 /**
- * bond_add_vlan - add a new vlan id on bond
- * @bond: bond that got the notification
- * @vlan_id: the vlan id to add
- *
- * Returns -ENOMEM if allocation failed.
- */
-static int bond_add_vlan(struct bonding *bond, unsigned short vlan_id)
-{
-	struct vlan_entry *vlan;
-
-	pr_debug("bond: %s, vlan id %d\n",
-		 (bond ? bond->dev->name : "None"), vlan_id);
-
-	vlan = kzalloc(sizeof(struct vlan_entry), GFP_KERNEL);
-	if (!vlan)
-		return -ENOMEM;
-
-	INIT_LIST_HEAD(&vlan->vlan_list);
-	vlan->vlan_id = vlan_id;
-
-	write_lock_bh(&bond->lock);
-
-	list_add_tail(&vlan->vlan_list, &bond->vlan_list);
-
-	write_unlock_bh(&bond->lock);
-
-	pr_debug("added VLAN ID %d on bond %s\n", vlan_id, bond->dev->name);
-
-	return 0;
-}
-
-/**
- * bond_del_vlan - delete a vlan id from bond
- * @bond: bond that got the notification
- * @vlan_id: the vlan id to delete
- *
- * returns -ENODEV if @vlan_id was not found in @bond.
- */
-static int bond_del_vlan(struct bonding *bond, unsigned short vlan_id)
-{
-	struct vlan_entry *vlan;
-	int res = -ENODEV;
-
-	pr_debug("bond: %s, vlan id %d\n", bond->dev->name, vlan_id);
-
-	block_netpoll_tx();
-	write_lock_bh(&bond->lock);
-
-	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
-		if (vlan->vlan_id == vlan_id) {
-			list_del(&vlan->vlan_list);
-
-			if (bond_is_lb(bond))
-				bond_alb_clear_vlan(bond, vlan_id);
-
-			pr_debug("removed VLAN ID %d from bond %s\n",
-				 vlan_id, bond->dev->name);
-
-			kfree(vlan);
-
-			res = 0;
-			goto out;
-		}
-	}
-
-	pr_debug("couldn't find VLAN ID %d in bond %s\n",
-		 vlan_id, bond->dev->name);
-
-out:
-	write_unlock_bh(&bond->lock);
-	unblock_netpoll_tx();
-	return res;
-}
-
-/**
- * bond_next_vlan - safely skip to the next item in the vlans list.
- * @bond: the bond we're working on
- * @curr: item we're advancing from
- *
- * Returns %NULL if list is empty, bond->next_vlan if @curr is %NULL,
- * or @curr->next otherwise (even if it is @curr itself again).
- *
- * Caller must hold bond->lock
- */
-struct vlan_entry *bond_next_vlan(struct bonding *bond, struct vlan_entry *curr)
-{
-	struct vlan_entry *next, *last;
-
-	if (list_empty(&bond->vlan_list))
-		return NULL;
-
-	if (!curr) {
-		next = list_entry(bond->vlan_list.next,
-				  struct vlan_entry, vlan_list);
-	} else {
-		last = list_entry(bond->vlan_list.prev,
-				  struct vlan_entry, vlan_list);
-		if (last == curr) {
-			next = list_entry(bond->vlan_list.next,
-					  struct vlan_entry, vlan_list);
-		} else {
-			next = list_entry(curr->vlan_list.next,
-					  struct vlan_entry, vlan_list);
-		}
-	}
-
-	return next;
-}
-
-/**
  * bond_dev_queue_xmit - Prepare skb for xmit.
  *
  * @bond: bond device that got this skb for tx.
@@ -451,13 +341,6 @@ static int bond_vlan_rx_add_vid(struct net_device *bond_dev,
 			goto unwind;
 	}
 
-	res = bond_add_vlan(bond, vid);
-	if (res) {
-		pr_err("%s: Error: Failed to add vlan id %d\n",
-		       bond_dev->name, vid);
-		goto unwind;
-	}
-
 	return 0;
 
 unwind:
@@ -478,17 +361,12 @@ static int bond_vlan_rx_kill_vid(struct net_device *bond_dev,
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct slave *slave;
-	int res;
 
 	bond_for_each_slave(bond, slave)
 		vlan_vid_del(slave->dev, proto, vid);
 
-	res = bond_del_vlan(bond, vid);
-	if (res) {
-		pr_err("%s: Error: Failed to remove vlan id %d\n",
-		       bond_dev->name, vid);
-		return res;
-	}
+	if (bond_is_lb(bond))
+		bond_alb_clear_vlan(bond, vid);
 
 	return 0;
 }
@@ -4143,7 +4021,6 @@ static void bond_setup(struct net_device *bond_dev)
 
 	/* Initialize pointers */
 	bond->dev = bond_dev;
-	INIT_LIST_HEAD(&bond->vlan_list);
 
 	/* Initialize the device entry points */
 	ether_setup(bond_dev);
@@ -4196,7 +4073,6 @@ static void bond_uninit(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct slave *slave, *tmp_slave;
-	struct vlan_entry *vlan, *tmp;
 
 	bond_netpoll_cleanup(bond_dev);
 
@@ -4208,11 +4084,6 @@ static void bond_uninit(struct net_device *bond_dev)
 	list_del(&bond->bond_list);
 
 	bond_debug_unregister(bond);
-
-	list_for_each_entry_safe(vlan, tmp, &bond->vlan_list, vlan_list) {
-		list_del(&vlan->vlan_list);
-		kfree(vlan);
-	}
 }
 
 /*------------------------- Module initialization ---------------------------*/
