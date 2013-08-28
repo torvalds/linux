@@ -242,7 +242,7 @@ static struct cppi41_channel *desc_to_chan(struct cppi41_dd *cdd, u32 desc)
 	}
 
 	desc_num = (desc - cdd->descs_phys) / sizeof(struct cppi41_desc);
-	BUG_ON(desc_num > ALLOC_DECS_NUM);
+	BUG_ON(desc_num >= ALLOC_DECS_NUM);
 	c = cdd->chan_busy[desc_num];
 	cdd->chan_busy[desc_num] = NULL;
 	return c;
