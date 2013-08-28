@@ -264,6 +264,11 @@
 #define  MI_SEMAPHORE_SYNC_VVE	    (1<<16) /* VECS wait for VCS  (VEVSYNC) */
 #define  MI_SEMAPHORE_SYNC_RVE	    (2<<16) /* VECS wait for RCS  (VERSYNC) */
 #define  MI_SEMAPHORE_SYNC_INVALID  (3<<16)
+
+#define MI_PREDICATE_RESULT_2	(0x2214)
+#define  LOWER_SLICE_ENABLED	(1<<0)
+#define  LOWER_SLICE_DISABLED	(0<<0)
+
 /*
  * 3D instructions used by the kernel
  */

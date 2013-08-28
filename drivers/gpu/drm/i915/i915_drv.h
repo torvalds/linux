@@ -1603,6 +1603,8 @@ struct drm_i915_file_private {
 				 ((dev)->pci_device & 0xFF00) == 0x0C00)
 #define IS_ULT(dev)		(IS_HASWELL(dev) && \
 				 ((dev)->pci_device & 0xFF00) == 0x0A00)
+#define IS_HSW_GT3(dev)		(IS_HASWELL(dev) && \
+				 ((dev)->pci_device & 0x00F0) == 0x0020)
 
 /*
  * The genX designation typically refers to the render engine, so render
