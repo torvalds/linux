@@ -126,7 +126,6 @@ struct fimd_context {
 	struct fimd_driver_data *driver_data;
 };
 
-#ifdef CONFIG_OF
 static const struct of_device_id fimd_driver_dt_match[] = {
 	{ .compatible = "samsung,s3c6400-fimd",
 	  .data = &s3c64xx_fimd_driver_data },
@@ -136,21 +135,14 @@ static const struct of_device_id fimd_driver_dt_match[] = {
 	  .data = &exynos5_fimd_driver_data },
 	{},
 };
-#endif
 
 static inline struct fimd_driver_data *drm_fimd_get_driver_data(
 	struct platform_device *pdev)
 {
-#ifdef CONFIG_OF
 	const struct of_device_id *of_id =
 			of_match_device(fimd_driver_dt_match, &pdev->dev);
 
-	if (of_id)
-		return (struct fimd_driver_data *)of_id->data;
-#endif
-
-	return (struct fimd_driver_data *)
-		platform_get_device_id(pdev)->driver_data;
+	return (struct fimd_driver_data *)of_id->data;
 }
 
 static bool fimd_display_is_connected(struct device *dev)
@@ -894,36 +886,24 @@ static int fimd_activate(struct fimd_context *ctx, bool enable)
 
 static int fimd_get_platform_data(struct fimd_context *ctx, struct device *dev)
 {
-	if (dev->of_node) {
-		struct videomode *vm;
-		int ret;
+	struct videomode *vm;
+	int ret;
 
-		vm = &ctx->panel.vm;
-		ret = of_get_videomode(dev->of_node, vm, OF_USE_NATIVE_MODE);
-		if (ret) {
-			DRM_ERROR("failed: of_get_videomode() : %d\n", ret);
-			return ret;
-		}
-
-		if (vm->flags & DISPLAY_FLAGS_VSYNC_LOW)
-			ctx->vidcon1 |= VIDCON1_INV_VSYNC;
-		if (vm->flags & DISPLAY_FLAGS_HSYNC_LOW)
-			ctx->vidcon1 |= VIDCON1_INV_HSYNC;
-		if (vm->flags & DISPLAY_FLAGS_DE_LOW)
-			ctx->vidcon1 |= VIDCON1_INV_VDEN;
-		if (vm->flags & DISPLAY_FLAGS_PIXDATA_NEGEDGE)
-			ctx->vidcon1 |= VIDCON1_INV_VCLK;
-	} else {
-		struct exynos_drm_fimd_pdata *pdata = dev->platform_data;
-		if (!pdata) {
-			DRM_ERROR("no platform data specified\n");
-			return -EINVAL;
-		}
-		ctx->vidcon0 = pdata->vidcon0;
-		ctx->vidcon1 = pdata->vidcon1;
-		ctx->default_win = pdata->default_win;
-		ctx->panel = pdata->panel;
+	vm = &ctx->panel.vm;
+	ret = of_get_videomode(dev->of_node, vm, OF_USE_NATIVE_MODE);
+	if (ret) {
+		DRM_ERROR("failed: of_get_videomode() : %d\n", ret);
+		return ret;
 	}
+
+	if (vm->flags & DISPLAY_FLAGS_VSYNC_LOW)
+		ctx->vidcon1 |= VIDCON1_INV_VSYNC;
+	if (vm->flags & DISPLAY_FLAGS_HSYNC_LOW)
+		ctx->vidcon1 |= VIDCON1_INV_HSYNC;
+	if (vm->flags & DISPLAY_FLAGS_DE_LOW)
+		ctx->vidcon1 |= VIDCON1_INV_VDEN;
+	if (vm->flags & DISPLAY_FLAGS_PIXDATA_NEGEDGE)
+		ctx->vidcon1 |= VIDCON1_INV_VCLK;
 
 	return 0;
 }
@@ -936,6 +916,9 @@ static int fimd_probe(struct platform_device *pdev)
 	struct resource *res;
 	int win;
 	int ret = -EINVAL;
+
+	if (!dev->of_node)
+		return -ENODEV;
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
@@ -1076,20 +1059,6 @@ static int fimd_runtime_resume(struct device *dev)
 }
 #endif
 
-static struct platform_device_id fimd_driver_ids[] = {
-	{
-		.name		= "s3c64xx-fb",
-		.driver_data	= (unsigned long)&s3c64xx_fimd_driver_data,
-	}, {
-		.name		= "exynos4-fb",
-		.driver_data	= (unsigned long)&exynos4_fimd_driver_data,
-	}, {
-		.name		= "exynos5-fb",
-		.driver_data	= (unsigned long)&exynos5_fimd_driver_data,
-	},
-	{},
-};
-
 static const struct dev_pm_ops fimd_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(fimd_suspend, fimd_resume)
 	SET_RUNTIME_PM_OPS(fimd_runtime_suspend, fimd_runtime_resume, NULL)
@@ -1098,11 +1067,10 @@ static const struct dev_pm_ops fimd_pm_ops = {
 struct platform_driver fimd_driver = {
 	.probe		= fimd_probe,
 	.remove		= fimd_remove,
-	.id_table       = fimd_driver_ids,
 	.driver		= {
 		.name	= "exynos4-fb",
 		.owner	= THIS_MODULE,
 		.pm	= &fimd_pm_ops,
-		.of_match_table = of_match_ptr(fimd_driver_dt_match),
+		.of_match_table = fimd_driver_dt_match,
 	},
 };
