@@ -19,6 +19,8 @@ struct shrink_control {
 
 	/* shrink from these nodes */
 	nodemask_t nodes_to_scan;
+	/* current node being shrunk (for NUMA aware shrinkers) */
+	int nid;
 };
 
 #define SHRINK_STOP (~0UL)
@@ -44,6 +46,8 @@ struct shrink_control {
  * due to potential deadlocks. If SHRINK_STOP is returned, then no further
  * attempts to call the @scan_objects will be made from the current reclaim
  * context.
+ *
+ * @flags determine the shrinker abilities, like numa awareness
  */
 struct shrinker {
 	int (*shrink)(struct shrinker *, struct shrink_control *sc);
@@ -54,12 +58,18 @@ struct shrinker {
 
 	int seeks;	/* seeks to recreate an obj */
 	long batch;	/* reclaim batch size, 0 = default */
+	unsigned long flags;
 
 	/* These are for internal use */
 	struct list_head list;
-	atomic_long_t nr_in_batch; /* objs pending delete */
+	/* objs pending delete, per node */
+	atomic_long_t *nr_deferred;
 };
 #define DEFAULT_SEEKS 2 /* A good number if you don't know better. */
-extern void register_shrinker(struct shrinker *);
+
+/* Flags */
+#define SHRINKER_NUMA_AWARE (1 << 0)
+
+extern int register_shrinker(struct shrinker *);
 extern void unregister_shrinker(struct shrinker *);
 #endif
