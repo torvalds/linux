@@ -22,6 +22,11 @@ Required properties:
 - snps,pbl		Programmable Burst Length
 - snps,fixed-burst	Program the DMA to use the fixed burst mode
 - snps,mixed-burst	Program the DMA to use the mixed burst mode
+- snps,force_thresh_dma_mode	Force DMA to use the threshold mode for
+				both tx and rx
+- snps,force_sf_dma_mode	Force DMA to use the Store and Forward
+				mode for both tx and rx. This flag is
+				ignored if force_thresh_dma_mode is set.
 
 Optional properties:
 - mac-address: 6 bytes, mac address
