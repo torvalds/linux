@@ -1421,11 +1421,18 @@ static s32 igb_setup_copper_link_82575(struct e1000_hw *hw)
 	ctrl &= ~(E1000_CTRL_FRCSPD | E1000_CTRL_FRCDPX);
 	wr32(E1000_CTRL, ctrl);
 
-	/* Clear Go Link Disconnect bit */
-	if (hw->mac.type >= e1000_82580) {
+	/* Clear Go Link Disconnect bit on supported devices */
+	switch (hw->mac.type) {
+	case e1000_82580:
+	case e1000_i350:
+	case e1000_i210:
+	case e1000_i211:
 		phpm_reg = rd32(E1000_82580_PHY_POWER_MGMT);
 		phpm_reg &= ~E1000_82580_PM_GO_LINKD;
 		wr32(E1000_82580_PHY_POWER_MGMT, phpm_reg);
+		break;
+	default:
+		break;
 	}
 
 	ret_val = igb_setup_serdes_link_82575(hw);
