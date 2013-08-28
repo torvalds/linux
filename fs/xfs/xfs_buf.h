@@ -25,6 +25,7 @@
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
 #include <linux/uio.h>
+#include <linux/list_lru.h>
 
 /*
  *	Base types
@@ -92,9 +93,7 @@ typedef struct xfs_buftarg {
 
 	/* LRU control structures */
 	struct shrinker		bt_shrinker;
-	struct list_head	bt_lru;
-	spinlock_t		bt_lru_lock;
-	unsigned int		bt_lru_nr;
+	struct list_lru		bt_lru;
 } xfs_buftarg_t;
 
 struct xfs_buf;
