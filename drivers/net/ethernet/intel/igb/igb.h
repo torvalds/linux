@@ -448,6 +448,8 @@ struct igb_adapter {
 	struct i2c_client *i2c_client;
 	u32 rss_indir_tbl_init;
 	u8 rss_indir_tbl[IGB_RETA_SIZE];
+
+	unsigned long link_check_timeout;
 };
 
 #define IGB_FLAG_HAS_MSI		(1 << 0)
@@ -459,6 +461,7 @@ struct igb_adapter {
 #define IGB_FLAG_RSS_FIELD_IPV4_UDP	(1 << 6)
 #define IGB_FLAG_RSS_FIELD_IPV6_UDP	(1 << 7)
 #define IGB_FLAG_WOL_SUPPORTED		(1 << 8)
+#define IGB_FLAG_NEED_LINK_UPDATE	(1 << 9)
 
 /* DMA Coalescing defines */
 #define IGB_MIN_TXPBSIZE	20408

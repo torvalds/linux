@@ -1671,6 +1671,8 @@ void igb_down(struct igb_adapter *adapter)
 
 	igb_irq_disable(adapter);
 
+	adapter->flags &= ~IGB_FLAG_NEED_LINK_UPDATE;
+
 	for (i = 0; i < adapter->num_q_vectors; i++) {
 		napi_synchronize(&(adapter->q_vector[i]->napi));
 		napi_disable(&(adapter->q_vector[i]->napi));
@@ -3886,6 +3888,17 @@ bool igb_has_link(struct igb_adapter *adapter)
 		break;
 	}
 
+	if (((hw->mac.type == e1000_i210) ||
+	     (hw->mac.type == e1000_i211)) &&
+	     (hw->phy.id == I210_I_PHY_ID)) {
+		if (!netif_carrier_ok(adapter->netdev)) {
+			adapter->flags &= ~IGB_FLAG_NEED_LINK_UPDATE;
+		} else if (!(adapter->flags & IGB_FLAG_NEED_LINK_UPDATE)) {
+			adapter->flags |= IGB_FLAG_NEED_LINK_UPDATE;
+			adapter->link_check_timeout = jiffies;
+		}
+	}
+
 	return link_active;
 }
 
@@ -3930,6 +3943,14 @@ static void igb_watchdog_task(struct work_struct *work)
 	int i;
 
 	link = igb_has_link(adapter);
+
+	if (adapter->flags & IGB_FLAG_NEED_LINK_UPDATE) {
+		if (time_after(jiffies, (adapter->link_check_timeout + HZ)))
+			adapter->flags &= ~IGB_FLAG_NEED_LINK_UPDATE;
+		else
+			link = false;
+	}
+
 	if (link) {
 		/* Cancel scheduled suspend requests. */
 		pm_runtime_resume(netdev->dev.parent);
@@ -4054,9 +4075,14 @@ static void igb_watchdog_task(struct work_struct *work)
 	igb_ptp_rx_hang(adapter);
 
 	/* Reset the timer */
-	if (!test_bit(__IGB_DOWN, &adapter->state))
-		mod_timer(&adapter->watchdog_timer,
-			  round_jiffies(jiffies + 2 * HZ));
+	if (!test_bit(__IGB_DOWN, &adapter->state)) {
+		if (adapter->flags & IGB_FLAG_NEED_LINK_UPDATE)
+			mod_timer(&adapter->watchdog_timer,
+				  round_jiffies(jiffies +  HZ));
+		else
+			mod_timer(&adapter->watchdog_timer,
+				  round_jiffies(jiffies + 2 * HZ));
+	}
 }
 
 enum latency_range {
