@@ -387,17 +387,6 @@ void __init ath79_clocks_init(void)
 		qca955x_clocks_init();
 	else
 		BUG();
-
-	pr_info("Clocks: CPU:%lu.%03luMHz, DDR:%lu.%03luMHz, AHB:%lu.%03luMHz, "
-		"Ref:%lu.%03luMHz",
-		ath79_cpu_clk.rate / 1000000,
-		(ath79_cpu_clk.rate / 1000) % 1000,
-		ath79_ddr_clk.rate / 1000000,
-		(ath79_ddr_clk.rate / 1000) % 1000,
-		ath79_ahb_clk.rate / 1000000,
-		(ath79_ahb_clk.rate / 1000) % 1000,
-		ath79_ref_clk.rate / 1000000,
-		(ath79_ref_clk.rate / 1000) % 1000);
 }
 
 unsigned long __init

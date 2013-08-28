@@ -210,8 +210,20 @@ void __init plat_mem_setup(void)
 void __init plat_time_init(void)
 {
 	unsigned long cpu_clk_rate;
+	unsigned long ahb_clk_rate;
+	unsigned long ddr_clk_rate;
+	unsigned long ref_clk_rate;
 
 	cpu_clk_rate = ath79_get_sys_clk_rate("cpu");
+	ahb_clk_rate = ath79_get_sys_clk_rate("ahb");
+	ddr_clk_rate = ath79_get_sys_clk_rate("ddr");
+	ref_clk_rate = ath79_get_sys_clk_rate("ref");
+
+	pr_info("Clocks: CPU:%lu.%03luMHz, DDR:%lu.%03luMHz, AHB:%lu.%03luMHz, Ref:%lu.%03luMHz",
+		cpu_clk_rate / 1000000, (cpu_clk_rate / 1000) % 1000,
+		ddr_clk_rate / 1000000, (ddr_clk_rate / 1000) % 1000,
+		ahb_clk_rate / 1000000, (ahb_clk_rate / 1000) % 1000,
+		ref_clk_rate / 1000000, (ref_clk_rate / 1000) % 1000);
 
 	mips_hpt_frequency = cpu_clk_rate / 2;
 }
