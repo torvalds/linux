@@ -356,6 +356,7 @@ void ext4_validate_block_bitmap(struct super_block *sb,
 			       struct buffer_head *bh)
 {
 	ext4_fsblk_t	blk;
+	struct ext4_group_info *grp = ext4_get_group_info(sb, block_group);
 
 	if (buffer_verified(bh))
 		return;
@@ -366,12 +367,14 @@ void ext4_validate_block_bitmap(struct super_block *sb,
 		ext4_unlock_group(sb, block_group);
 		ext4_error(sb, "bg %u: block %llu: invalid block bitmap",
 			   block_group, blk);
+		set_bit(EXT4_GROUP_INFO_BBITMAP_CORRUPT_BIT, &grp->bb_state);
 		return;
 	}
 	if (unlikely(!ext4_block_bitmap_csum_verify(sb, block_group,
 			desc, bh))) {
 		ext4_unlock_group(sb, block_group);
 		ext4_error(sb, "bg %u: bad block bitmap checksum", block_group);
+		set_bit(EXT4_GROUP_INFO_BBITMAP_CORRUPT_BIT, &grp->bb_state);
 		return;
 	}
 	set_buffer_verified(bh);
