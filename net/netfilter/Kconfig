@@ -408,6 +408,9 @@ config NF_NAT_TFTP
 	depends on NF_CONNTRACK && NF_NAT
 	default NF_NAT && NF_CONNTRACK_TFTP
 
+config NETFILTER_SYNPROXY
+	tristate
+
 endif # NF_CONNTRACK
 
 config NETFILTER_XTABLES

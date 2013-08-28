@@ -476,9 +476,13 @@ void inet_sk_rx_dst_set(struct sock *sk, const struct sk_buff *skb);
 
 /* From syncookies.c */
 extern __u32 syncookie_secret[2][16-4+SHA_DIGEST_WORDS];
+extern int __cookie_v4_check(const struct iphdr *iph, const struct tcphdr *th,
+			     u32 cookie);
 extern struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb, 
 				    struct ip_options *opt);
 #ifdef CONFIG_SYN_COOKIES
+extern u32 __cookie_v4_init_sequence(const struct iphdr *iph,
+				     const struct tcphdr *th, u16 *mssp);
 extern __u32 cookie_v4_init_sequence(struct sock *sk, struct sk_buff *skb, 
 				     __u16 *mss);
 #else
@@ -495,8 +499,12 @@ extern bool cookie_check_timestamp(struct tcp_options_received *opt,
 				struct net *net, bool *ecn_ok);
 
 /* From net/ipv6/syncookies.c */
+extern int __cookie_v6_check(const struct ipv6hdr *iph, const struct tcphdr *th,
+			     u32 cookie);
 extern struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb);
 #ifdef CONFIG_SYN_COOKIES
+extern u32 __cookie_v6_init_sequence(const struct ipv6hdr *iph,
+				     const struct tcphdr *th, u16 *mssp);
 extern __u32 cookie_v6_init_sequence(struct sock *sk, const struct sk_buff *skb,
 				     __u16 *mss);
 #else

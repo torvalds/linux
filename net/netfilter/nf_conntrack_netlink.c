@@ -37,6 +37,7 @@
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_expect.h>
 #include <net/netfilter/nf_conntrack_helper.h>
+#include <net/netfilter/nf_conntrack_seqadj.h>
 #include <net/netfilter/nf_conntrack_l3proto.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_tuple.h>
@@ -381,9 +382,8 @@ nla_put_failure:
 	return -1;
 }
 
-#ifdef CONFIG_NF_NAT_NEEDED
 static int
-dump_nat_seq_adj(struct sk_buff *skb, const struct nf_nat_seq *natseq, int type)
+dump_ct_seq_adj(struct sk_buff *skb, const struct nf_ct_seqadj *seq, int type)
 {
 	struct nlattr *nest_parms;
 
@@ -391,12 +391,12 @@ dump_nat_seq_adj(struct sk_buff *skb, const struct nf_nat_seq *natseq, int type)
 	if (!nest_parms)
 		goto nla_put_failure;
 
-	if (nla_put_be32(skb, CTA_NAT_SEQ_CORRECTION_POS,
-			 htonl(natseq->correction_pos)) ||
-	    nla_put_be32(skb, CTA_NAT_SEQ_OFFSET_BEFORE,
-			 htonl(natseq->offset_before)) ||
-	    nla_put_be32(skb, CTA_NAT_SEQ_OFFSET_AFTER,
-			 htonl(natseq->offset_after)))
+	if (nla_put_be32(skb, CTA_SEQADJ_CORRECTION_POS,
+			 htonl(seq->correction_pos)) ||
+	    nla_put_be32(skb, CTA_SEQADJ_OFFSET_BEFORE,
+			 htonl(seq->offset_before)) ||
+	    nla_put_be32(skb, CTA_SEQADJ_OFFSET_AFTER,
+			 htonl(seq->offset_after)))
 		goto nla_put_failure;
 
 	nla_nest_end(skb, nest_parms);
@@ -408,27 +408,24 @@ nla_put_failure:
 }
 
 static inline int
-ctnetlink_dump_nat_seq_adj(struct sk_buff *skb, const struct nf_conn *ct)
+ctnetlink_dump_ct_seq_adj(struct sk_buff *skb, const struct nf_conn *ct)
 {
-	struct nf_nat_seq *natseq;
-	struct nf_conn_nat *nat = nfct_nat(ct);
+	struct nf_conn_seqadj *seqadj = nfct_seqadj(ct);
+	struct nf_ct_seqadj *seq;
 
-	if (!(ct->status & IPS_SEQ_ADJUST) || !nat)
+	if (!(ct->status & IPS_SEQ_ADJUST) || !seqadj)
 		return 0;
 
-	natseq = &nat->seq[IP_CT_DIR_ORIGINAL];
-	if (dump_nat_seq_adj(skb, natseq, CTA_NAT_SEQ_ADJ_ORIG) == -1)
+	seq = &seqadj->seq[IP_CT_DIR_ORIGINAL];
+	if (dump_ct_seq_adj(skb, seq, CTA_SEQ_ADJ_ORIG) == -1)
 		return -1;
 
-	natseq = &nat->seq[IP_CT_DIR_REPLY];
-	if (dump_nat_seq_adj(skb, natseq, CTA_NAT_SEQ_ADJ_REPLY) == -1)
+	seq = &seqadj->seq[IP_CT_DIR_REPLY];
+	if (dump_ct_seq_adj(skb, seq, CTA_SEQ_ADJ_REPLY) == -1)
 		return -1;
 
 	return 0;
 }
-#else
-#define ctnetlink_dump_nat_seq_adj(a, b) (0)
-#endif
 
 static inline int
 ctnetlink_dump_id(struct sk_buff *skb, const struct nf_conn *ct)
@@ -502,7 +499,7 @@ ctnetlink_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 	    ctnetlink_dump_id(skb, ct) < 0 ||
 	    ctnetlink_dump_use(skb, ct) < 0 ||
 	    ctnetlink_dump_master(skb, ct) < 0 ||
-	    ctnetlink_dump_nat_seq_adj(skb, ct) < 0)
+	    ctnetlink_dump_ct_seq_adj(skb, ct) < 0)
 		goto nla_put_failure;
 
 	nlmsg_end(skb, nlh);
@@ -707,8 +704,8 @@ ctnetlink_conntrack_event(unsigned int events, struct nf_ct_event *item)
 		    ctnetlink_dump_master(skb, ct) < 0)
 			goto nla_put_failure;
 
-		if (events & (1 << IPCT_NATSEQADJ) &&
-		    ctnetlink_dump_nat_seq_adj(skb, ct) < 0)
+		if (events & (1 << IPCT_SEQADJ) &&
+		    ctnetlink_dump_ct_seq_adj(skb, ct) < 0)
 			goto nla_put_failure;
 	}
 
@@ -1439,66 +1436,65 @@ ctnetlink_change_protoinfo(struct nf_conn *ct, const struct nlattr * const cda[]
 	return err;
 }
 
-#ifdef CONFIG_NF_NAT_NEEDED
-static const struct nla_policy nat_seq_policy[CTA_NAT_SEQ_MAX+1] = {
-	[CTA_NAT_SEQ_CORRECTION_POS]	= { .type = NLA_U32 },
-	[CTA_NAT_SEQ_OFFSET_BEFORE]	= { .type = NLA_U32 },
-	[CTA_NAT_SEQ_OFFSET_AFTER]	= { .type = NLA_U32 },
+static const struct nla_policy seqadj_policy[CTA_SEQADJ_MAX+1] = {
+	[CTA_SEQADJ_CORRECTION_POS]	= { .type = NLA_U32 },
+	[CTA_SEQADJ_OFFSET_BEFORE]	= { .type = NLA_U32 },
+	[CTA_SEQADJ_OFFSET_AFTER]	= { .type = NLA_U32 },
 };
 
 static inline int
-change_nat_seq_adj(struct nf_nat_seq *natseq, const struct nlattr * const attr)
+change_seq_adj(struct nf_ct_seqadj *seq, const struct nlattr * const attr)
 {
 	int err;
-	struct nlattr *cda[CTA_NAT_SEQ_MAX+1];
+	struct nlattr *cda[CTA_SEQADJ_MAX+1];
 
-	err = nla_parse_nested(cda, CTA_NAT_SEQ_MAX, attr, nat_seq_policy);
+	err = nla_parse_nested(cda, CTA_SEQADJ_MAX, attr, seqadj_policy);
 	if (err < 0)
 		return err;
 
-	if (!cda[CTA_NAT_SEQ_CORRECTION_POS])
+	if (!cda[CTA_SEQADJ_CORRECTION_POS])
 		return -EINVAL;
 
-	natseq->correction_pos =
-		ntohl(nla_get_be32(cda[CTA_NAT_SEQ_CORRECTION_POS]));
+	seq->correction_pos =
+		ntohl(nla_get_be32(cda[CTA_SEQADJ_CORRECTION_POS]));
 
-	if (!cda[CTA_NAT_SEQ_OFFSET_BEFORE])
+	if (!cda[CTA_SEQADJ_OFFSET_BEFORE])
 		return -EINVAL;
 
-	natseq->offset_before =
-		ntohl(nla_get_be32(cda[CTA_NAT_SEQ_OFFSET_BEFORE]));
+	seq->offset_before =
+		ntohl(nla_get_be32(cda[CTA_SEQADJ_OFFSET_BEFORE]));
 
-	if (!cda[CTA_NAT_SEQ_OFFSET_AFTER])
+	if (!cda[CTA_SEQADJ_OFFSET_AFTER])
 		return -EINVAL;
 
-	natseq->offset_after =
-		ntohl(nla_get_be32(cda[CTA_NAT_SEQ_OFFSET_AFTER]));
+	seq->offset_after =
+		ntohl(nla_get_be32(cda[CTA_SEQADJ_OFFSET_AFTER]));
 
 	return 0;
 }
 
 static int
-ctnetlink_change_nat_seq_adj(struct nf_conn *ct,
-			     const struct nlattr * const cda[])
+ctnetlink_change_seq_adj(struct nf_conn *ct,
+			 const struct nlattr * const cda[])
 {
+	struct nf_conn_seqadj *seqadj = nfct_seqadj(ct);
 	int ret = 0;
-	struct nf_conn_nat *nat = nfct_nat(ct);
 
-	if (!nat)
+	if (!seqadj)
 		return 0;
 
-	if (cda[CTA_NAT_SEQ_ADJ_ORIG]) {
-		ret = change_nat_seq_adj(&nat->seq[IP_CT_DIR_ORIGINAL],
-					 cda[CTA_NAT_SEQ_ADJ_ORIG]);
+	if (cda[CTA_SEQ_ADJ_ORIG]) {
+		ret = change_seq_adj(&seqadj->seq[IP_CT_DIR_ORIGINAL],
+				     cda[CTA_SEQ_ADJ_ORIG]);
 		if (ret < 0)
 			return ret;
 
 		ct->status |= IPS_SEQ_ADJUST;
 	}
 
-	if (cda[CTA_NAT_SEQ_ADJ_REPLY]) {
-		ret = change_nat_seq_adj(&nat->seq[IP_CT_DIR_REPLY],
-					 cda[CTA_NAT_SEQ_ADJ_REPLY]);
+	if (cda[CTA_SEQ_ADJ_REPLY]) {
+		ret = change_seq_adj(&seqadj->seq[IP_CT_DIR_REPLY],
+				     cda[CTA_SEQ_ADJ_REPLY]);
 		if (ret < 0)
 			return ret;
 
@@ -1507,7 +1503,6 @@ ctnetlink_change_nat_seq_adj(struct nf_conn *ct,
 
 	return 0;
 }
-#endif
 
 static int
 ctnetlink_attach_labels(struct nf_conn *ct, const struct nlattr * const cda[])
@@ -1573,13 +1568,12 @@ ctnetlink_change_conntrack(struct nf_conn *ct,
 		ct->mark = ntohl(nla_get_be32(cda[CTA_MARK]));
 #endif
 
-#ifdef CONFIG_NF_NAT_NEEDED
-	if (cda[CTA_NAT_SEQ_ADJ_ORIG] || cda[CTA_NAT_SEQ_ADJ_REPLY]) {
-		err = ctnetlink_change_nat_seq_adj(ct, cda);
+	if (cda[CTA_SEQ_ADJ_ORIG] || cda[CTA_SEQ_ADJ_REPLY]) {
+		err = ctnetlink_change_seq_adj(ct, cda);
 		if (err < 0)
 			return err;
 	}
-#endif
+
 	if (cda[CTA_LABELS]) {
 		err = ctnetlink_attach_labels(ct, cda);
 		if (err < 0)
@@ -1684,13 +1678,11 @@ ctnetlink_create_conntrack(struct net *net, u16 zone,
 			goto err2;
 	}
 
-#ifdef CONFIG_NF_NAT_NEEDED
-	if (cda[CTA_NAT_SEQ_ADJ_ORIG] || cda[CTA_NAT_SEQ_ADJ_REPLY]) {
-		err = ctnetlink_change_nat_seq_adj(ct, cda);
+	if (cda[CTA_SEQ_ADJ_ORIG] || cda[CTA_SEQ_ADJ_REPLY]) {
+		err = ctnetlink_change_seq_adj(ct, cda);
 		if (err < 0)
 			goto err2;
 	}
-#endif
 
 	memset(&ct->proto, 0, sizeof(ct->proto));
 	if (cda[CTA_PROTOINFO]) {
@@ -1804,7 +1796,7 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 						      (1 << IPCT_ASSURED) |
 						      (1 << IPCT_HELPER) |
 						      (1 << IPCT_PROTOINFO) |
-						      (1 << IPCT_NATSEQADJ) |
+						      (1 << IPCT_SEQADJ) |
 						      (1 << IPCT_MARK) | events,
 						      ct, NETLINK_CB(skb).portid,
 						      nlmsg_report(nlh));
@@ -1827,7 +1819,7 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 						      (1 << IPCT_HELPER) |
 						      (1 << IPCT_LABEL) |
 						      (1 << IPCT_PROTOINFO) |
-						      (1 << IPCT_NATSEQADJ) |
+						      (1 << IPCT_SEQADJ) |
 						      (1 << IPCT_MARK),
 						      ct, NETLINK_CB(skb).portid,
 						      nlmsg_report(nlh));
@@ -2082,7 +2074,7 @@ ctnetlink_nfqueue_build(struct sk_buff *skb, struct nf_conn *ct)
 		goto nla_put_failure;
 
 	if ((ct->status & IPS_SEQ_ADJUST) &&
-	    ctnetlink_dump_nat_seq_adj(skb, ct) < 0)
+	    ctnetlink_dump_ct_seq_adj(skb, ct) < 0)
 		goto nla_put_failure;
 
 #ifdef CONFIG_NF_CONNTRACK_MARK
@@ -2170,7 +2162,7 @@ ctnetlink_nfqueue_attach_expect(const struct nlattr *attr, struct nf_conn *ct,
 {
 	struct nlattr *cda[CTA_EXPECT_MAX+1];
 	struct nf_conntrack_tuple tuple, mask;
-	struct nf_conntrack_helper *helper;
+	struct nf_conntrack_helper *helper = NULL;
 	struct nf_conntrack_expect *exp;
 	int err;
 
@@ -2211,6 +2203,7 @@ static struct nfq_ct_hook ctnetlink_nfqueue_hook = {
 	.build		= ctnetlink_nfqueue_build,
 	.parse		= ctnetlink_nfqueue_parse,
 	.attach_expect	= ctnetlink_nfqueue_attach_expect,
+	.seq_adjust	= nf_ct_tcp_seqadj_set,
 };
 #endif /* CONFIG_NETFILTER_NETLINK_QUEUE_CT */
 
