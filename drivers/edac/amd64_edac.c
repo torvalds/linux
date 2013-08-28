@@ -206,8 +206,8 @@ static int amd64_set_scrub_rate(struct mem_ctl_info *mci, u32 bw)
 	if (pvt->fam == 0xf)
 		min_scrubrate = 0x0;
 
-	/* Erratum #505 for F15h Model 0x00 - Model 0x01, Stepping 0 */
-	if (pvt->fam == 0x15 && pvt->model <= 0x01 && pvt->stepping < 0x1)
+	/* Erratum #505 */
+	if (pvt->fam == 0x15 && pvt->model < 0x10)
 		f15h_select_dct(pvt, 0);
 
 	return __amd64_set_scrub_rate(pvt->F3, bw, min_scrubrate);
@@ -219,8 +219,8 @@ static int amd64_get_scrub_rate(struct mem_ctl_info *mci)
 	u32 scrubval = 0;
 	int i, retval = -EINVAL;
 
-	/* Erratum #505 for F15h Model 0x00 - Model 0x01, Stepping 0 */
-	if (pvt->fam == 0x15 && pvt->model <= 0x01 && pvt->stepping < 0x1)
+	/* Erratum #505 */
+	if (pvt->fam == 0x15 && pvt->model < 0x10)
 		f15h_select_dct(pvt, 0);
 
 	amd64_read_pci_cfg(pvt->F3, SCRCTRL, &scrubval);
@@ -1558,11 +1558,12 @@ static int f15_m30h_match_to_this_node(struct amd64_pvt *pvt, unsigned range,
 	}
 
 	/* Verify sys_addr is within DCT Range. */
-	dct_base = (dct_sel_baseaddr(pvt) << 27);
-	dct_limit = (((dct_cont_limit_reg >> 11) & 0x1FFF) << 27) | 0x7FFFFFF;
+	dct_base = (u64) dct_sel_baseaddr(pvt);
+	dct_limit = (dct_cont_limit_reg >> 11) & 0x1FFF;
 
 	if (!(dct_cont_base_reg & BIT(0)) &&
-	    !(dct_base <= sys_addr && dct_limit >= sys_addr))
+	    !(dct_base <= (sys_addr >> 27) &&
+	      dct_limit >= (sys_addr >> 27)))
 		return -EINVAL;
 
 	/* Verify number of dct's that participate in channel interleaving. */
@@ -1584,7 +1585,7 @@ static int f15_m30h_match_to_this_node(struct amd64_pvt *pvt, unsigned range,
 	if (leg_mmio_hole && (sys_addr >= BIT_64(32)))
 		chan_offset = dhar_offset;
 	else
-		chan_offset = dct_base;
+		chan_offset = dct_base << 27;
 
 	chan_addr = sys_addr - chan_offset;
 
@@ -1614,7 +1615,7 @@ static int f15_m30h_match_to_this_node(struct amd64_pvt *pvt, unsigned range,
 		amd64_read_pci_cfg(pvt->F1,
 				   DRAM_CONT_HIGH_OFF + (int) channel * 4,
 				   &tmp);
-		chan_addr +=  ((tmp >> 11) & 0xfff) << 27;
+		chan_addr +=  (u64) ((tmp >> 11) & 0xfff) << 27;
 	}
 
 	f15h_select_dct(pvt, channel);
