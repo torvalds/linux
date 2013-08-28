@@ -118,13 +118,13 @@ static void resizer_enable(struct iss_resizer_device *resizer, u8 enable)
 
 	writel((readl(iss->regs[OMAP4_ISS_MEM_ISP_RESIZER] + RSZ_SRC_EN) &
 		~RSZ_SRC_EN_SRC_EN) |
-		enable ? RSZ_SRC_EN_SRC_EN : 0,
+		(enable ? RSZ_SRC_EN_SRC_EN : 0),
 		iss->regs[OMAP4_ISS_MEM_ISP_RESIZER] + RSZ_SRC_EN);
 
 	/* TODO: Enable RSZB */
 	writel((readl(iss->regs[OMAP4_ISS_MEM_ISP_RESIZER] + RZA_EN) &
 		~RSZ_EN_EN) |
-		enable ? RSZ_EN_EN : 0,
+		(enable ? RSZ_EN_EN : 0),
 		iss->regs[OMAP4_ISS_MEM_ISP_RESIZER] + RZA_EN);
 }
 
@@ -202,7 +202,7 @@ static void resizer_configure(struct iss_resizer_device *resizer)
 	/* Select RSZ input */
 	writel((readl(iss->regs[OMAP4_ISS_MEM_ISP_RESIZER] + RSZ_SRC_FMT0) &
 		~RSZ_SRC_FMT0_SEL) |
-		(resizer->input == RESIZER_INPUT_IPIPEIF) ? RSZ_SRC_FMT0_SEL : 0,
+		(resizer->input == RESIZER_INPUT_IPIPEIF ? RSZ_SRC_FMT0_SEL : 0),
 		iss->regs[OMAP4_ISS_MEM_ISP_RESIZER] + RSZ_SRC_FMT0);
 
 	/* RSZ ignores WEN signal from IPIPE/IPIPEIF */
@@ -318,10 +318,8 @@ void omap4iss_resizer_isr(struct iss_resizer_device *resizer, u32 events)
 	if (events & (ISP5_IRQ_RSZ_FIFO_IN_BLK_ERR |
 		      ISP5_IRQ_RSZ_FIFO_OVF)) {
 		dev_dbg(iss->dev, "RSZ Err: FIFO_IN_BLK:%d, FIFO_OVF:%d\n",
-			(events &
-			 ISP5_IRQ_RSZ_FIFO_IN_BLK_ERR) ? 1 : 0,
-			(events &
-			 ISP5_IRQ_RSZ_FIFO_OVF) ? 1 : 0);
+			events & ISP5_IRQ_RSZ_FIFO_IN_BLK_ERR ? 1 : 0,
+			events & ISP5_IRQ_RSZ_FIFO_OVF ? 1 : 0);
 		pipe->error = true;
 	}
 

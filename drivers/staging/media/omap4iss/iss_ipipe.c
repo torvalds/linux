@@ -75,7 +75,7 @@ static void ipipe_enable(struct iss_ipipe_device *ipipe, u8 enable)
 
 	writel((readl(iss->regs[OMAP4_ISS_MEM_ISP_IPIPE] + IPIPE_SRC_EN) &
 		~IPIPE_SRC_EN_EN) |
-		enable ? IPIPE_SRC_EN_EN : 0,
+		(enable ? IPIPE_SRC_EN_EN : 0),
 		iss->regs[OMAP4_ISS_MEM_ISP_IPIPE] + IPIPE_SRC_EN);
 }
 

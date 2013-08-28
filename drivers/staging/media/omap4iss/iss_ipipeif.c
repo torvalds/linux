@@ -85,7 +85,7 @@ static void ipipeif_write_enable(struct iss_ipipeif_device *ipipeif, u8 enable)
 
 	writel((readl(iss->regs[OMAP4_ISS_MEM_ISP_ISIF] + ISIF_SYNCEN) &
 		~ISIF_SYNCEN_DWEN) |
-		enable ? ISIF_SYNCEN_DWEN : 0,
+		(enable ? ISIF_SYNCEN_DWEN : 0),
 		iss->regs[OMAP4_ISS_MEM_ISP_ISIF] + ISIF_SYNCEN);
 }
 
@@ -100,7 +100,7 @@ static void ipipeif_enable(struct iss_ipipeif_device *ipipeif, u8 enable)
 
 	writel((readl(iss->regs[OMAP4_ISS_MEM_ISP_ISIF] + ISIF_SYNCEN) &
 		~ISIF_SYNCEN_SYEN) |
-		enable ? ISIF_SYNCEN_SYEN : 0,
+		(enable ? ISIF_SYNCEN_SYEN : 0),
 		iss->regs[OMAP4_ISS_MEM_ISP_ISIF] + ISIF_SYNCEN);
 }
 

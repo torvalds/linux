@@ -274,7 +274,7 @@ static void csi2_set_outaddr(struct iss_csi2_device *csi2, u32 addr)
  */
 static inline int is_usr_def_mapping(u32 format_id)
 {
-	return ((format_id & 0xF0) == 0x40) ? 1 : 0;
+	return (format_id & 0xF0) == 0x40 ? 1 : 0;
 }
 
 /*
@@ -766,16 +766,11 @@ void omap4iss_csi2_isr(struct iss_csi2_device *csi2)
 			      CSI2_IRQ_FIFO_OVF)) {
 		dev_dbg(iss->dev,
 			"CSI2 Err: OCP:%d SHORT:%d ECC:%d CPXIO:%d OVF:%d\n",
-			(csi2_irqstatus &
-			 CSI2_IRQ_OCP_ERR) ? 1 : 0,
-			(csi2_irqstatus &
-			 CSI2_IRQ_SHORT_PACKET) ? 1 : 0,
-			(csi2_irqstatus &
-			 CSI2_IRQ_ECC_NO_CORRECTION) ? 1 : 0,
-			(csi2_irqstatus &
-			 CSI2_IRQ_COMPLEXIO_ERR) ? 1 : 0,
-			(csi2_irqstatus &
-			 CSI2_IRQ_FIFO_OVF) ? 1 : 0);
+			csi2_irqstatus & CSI2_IRQ_OCP_ERR ? 1 : 0,
+			csi2_irqstatus & CSI2_IRQ_SHORT_PACKET ? 1 : 0,
+			csi2_irqstatus & CSI2_IRQ_ECC_NO_CORRECTION ? 1 : 0,
+			csi2_irqstatus & CSI2_IRQ_COMPLEXIO_ERR ? 1 : 0,
+			csi2_irqstatus & CSI2_IRQ_FIFO_OVF ? 1 : 0);
 		pipe->error = true;
 	}
 
@@ -1209,8 +1204,7 @@ static int csi2_link_setup(struct media_entity *entity,
 		return -EINVAL;
 	}
 
-	ctrl->vp_only_enable =
-		(csi2->output & CSI2_OUTPUT_MEMORY) ? false : true;
+	ctrl->vp_only_enable = csi2->output & CSI2_OUTPUT_MEMORY ? false : true;
 	ctrl->vp_clk_enable = !!(csi2->output & CSI2_OUTPUT_IPIPEIF);
 
 	return 0;
