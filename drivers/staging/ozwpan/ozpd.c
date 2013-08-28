@@ -200,7 +200,7 @@ struct oz_pd *oz_pd_alloc(const u8 *mac_addr)
 /*
  * Context: softirq or process
  */
-void oz_pd_free(struct work_struct *work)
+static void oz_pd_free(struct work_struct *work)
 {
 	struct list_head *e;
 	struct oz_tx_frame *f;
