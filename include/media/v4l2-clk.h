@@ -65,4 +65,7 @@ static inline struct v4l2_clk *v4l2_clk_register_fixed(const char *dev_id,
 	return __v4l2_clk_register_fixed(dev_id, id, rate, THIS_MODULE);
 }
 
+#define v4l2_clk_name_i2c(name, size, adap, client) snprintf(name, size, \
+			  "%d-%04x", adap, client)
+
 #endif
