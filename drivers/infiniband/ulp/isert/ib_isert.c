@@ -1233,18 +1233,26 @@ isert_unmap_cmd(struct isert_cmd *isert_cmd, struct isert_conn *isert_conn)
 	struct isert_rdma_wr *wr = &isert_cmd->rdma_wr;
 	struct ib_device *ib_dev = isert_conn->conn_cm_id->device;
 
-	pr_debug("isert_unmap_cmd >>>>>>>>>>>>>>>>>>>>>>>\n");
-
+	pr_debug("isert_unmap_cmd: %p\n", isert_cmd);
 	if (wr->sge) {
-		ib_dma_unmap_sg(ib_dev, wr->sge, wr->num_sge, DMA_TO_DEVICE);
+		pr_debug("isert_unmap_cmd: %p unmap_sg op\n", isert_cmd);
+		ib_dma_unmap_sg(ib_dev, wr->sge, wr->num_sge,
+				(wr->iser_ib_op == ISER_IB_RDMA_WRITE) ?
+				DMA_TO_DEVICE : DMA_FROM_DEVICE);
 		wr->sge = NULL;
 	}
 
-	kfree(wr->send_wr);
-	wr->send_wr = NULL;
+	if (wr->send_wr) {
+		pr_debug("isert_unmap_cmd: %p free send_wr\n", isert_cmd);
+		kfree(wr->send_wr);
+		wr->send_wr = NULL;
+	}
 
-	kfree(isert_cmd->ib_sge);
-	isert_cmd->ib_sge = NULL;
+	if (wr->ib_sge) {
+		pr_debug("isert_unmap_cmd: %p free ib_sge\n", isert_cmd);
+		kfree(wr->ib_sge);
+		wr->ib_sge = NULL;
+	}
 }
 
 static void
@@ -1339,25 +1347,13 @@ isert_completion_rdma_read(struct iser_tx_desc *tx_desc,
 	struct isert_rdma_wr *wr = &isert_cmd->rdma_wr;
 	struct iscsi_cmd *cmd = isert_cmd->iscsi_cmd;
 	struct se_cmd *se_cmd = &cmd->se_cmd;
-	struct ib_device *ib_dev = isert_cmd->conn->conn_cm_id->device;
+	struct isert_conn *isert_conn = isert_cmd->conn;
 
 	iscsit_stop_dataout_timer(cmd);
+	isert_unmap_cmd(isert_cmd, isert_conn);
+	cmd->write_data_done = wr->cur_rdma_length;
 
-	if (wr->sge) {
-		pr_debug("isert_do_rdma_read_comp: Unmapping wr->sge from t_data_sg\n");
-		ib_dma_unmap_sg(ib_dev, wr->sge, wr->num_sge, DMA_TO_DEVICE);
-		wr->sge = NULL;
-	}
-
-	if (isert_cmd->ib_sge) {
-		pr_debug("isert_do_rdma_read_comp: Freeing isert_cmd->ib_sge\n");
-		kfree(isert_cmd->ib_sge);
-		isert_cmd->ib_sge = NULL;
-	}
-
-	cmd->write_data_done = se_cmd->data_length;
-
-	pr_debug("isert_do_rdma_read_comp, calling target_execute_cmd\n");
+	pr_debug("Cmd: %p RDMA_READ comp calling execute_cmd\n", isert_cmd);
 	spin_lock_bh(&cmd->istate_lock);
 	cmd->cmd_flags |= ICF_GOT_LAST_DATAOUT;
 	cmd->i_state = ISTATE_RECEIVED_LAST_DATAOUT;
@@ -1816,8 +1812,8 @@ isert_build_rdma_wr(struct isert_conn *isert_conn, struct isert_cmd *isert_cmd,
 				ib_sg_dma_len(ib_dev, tmp_sg) - page_off);
 		ib_sge->lkey = isert_conn->conn_mr->lkey;
 
-		pr_debug("RDMA ib_sge: addr: 0x%16llx  length: %u\n",
-			 ib_sge->addr, ib_sge->length);
+		pr_debug("RDMA ib_sge: addr: 0x%16llx  length: %u lkey: %08x\n",
+			 ib_sge->addr, ib_sge->length, ib_sge->lkey);
 		page_off = 0;
 		data_left -= ib_sge->length;
 		ib_sge++;
@@ -1831,84 +1827,127 @@ isert_build_rdma_wr(struct isert_conn *isert_conn, struct isert_cmd *isert_cmd,
 }
 
 static int
-isert_put_datain(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
+isert_map_rdma(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
+	       struct isert_rdma_wr *wr)
 {
 	struct se_cmd *se_cmd = &cmd->se_cmd;
 	struct isert_cmd *isert_cmd = iscsit_priv_cmd(cmd);
-	struct isert_rdma_wr *wr = &isert_cmd->rdma_wr;
 	struct isert_conn *isert_conn = (struct isert_conn *)conn->context;
-	struct ib_send_wr *wr_failed, *send_wr;
 	struct ib_device *ib_dev = isert_conn->conn_cm_id->device;
+	struct ib_send_wr *send_wr;
 	struct ib_sge *ib_sge;
-	struct scatterlist *sg;
-	u32 offset = 0, data_len, data_left, rdma_write_max;
-	int rc, ret = 0, count, sg_nents, i, ib_sge_cnt;
+	struct scatterlist *sg_start;
+	u32 sg_off = 0, sg_nents;
+	u32 offset = 0, data_len, data_left, rdma_write_max, va_offset = 0;
+	int ret = 0, count, i, ib_sge_cnt;
 
-	pr_debug("RDMA_WRITE: data_length: %u\n", se_cmd->data_length);
+	if (wr->iser_ib_op == ISER_IB_RDMA_WRITE) {
+		data_left = se_cmd->data_length;
+		iscsit_increment_maxcmdsn(cmd, conn->sess);
+		cmd->stat_sn = conn->stat_sn++;
+	} else {
+		sg_off = cmd->write_data_done / PAGE_SIZE;
+		data_left = se_cmd->data_length - cmd->write_data_done;
+		offset = cmd->write_data_done;
+		isert_cmd->tx_desc.isert_cmd = isert_cmd;
+	}
 
-	sg = &se_cmd->t_data_sg[0];
-	sg_nents = se_cmd->t_data_nents;
+	sg_start = &cmd->se_cmd.t_data_sg[sg_off];
+	sg_nents = se_cmd->t_data_nents - sg_off;
 
-	count = ib_dma_map_sg(ib_dev, sg, sg_nents, DMA_TO_DEVICE);
+	count = ib_dma_map_sg(ib_dev, sg_start, sg_nents,
+			      (wr->iser_ib_op == ISER_IB_RDMA_WRITE) ?
+			      DMA_TO_DEVICE : DMA_FROM_DEVICE);
 	if (unlikely(!count)) {
-		pr_err("Unable to map put_datain SGs\n");
+		pr_err("Cmd: %p unrable to map SGs\n", isert_cmd);
 		return -EINVAL;
 	}
-	wr->sge = sg;
+	wr->sge = sg_start;
 	wr->num_sge = sg_nents;
-	pr_debug("Mapped IB count: %u sg: %p sg_nents: %u for RDMA_WRITE\n",
-		 count, sg, sg_nents);
+	wr->cur_rdma_length = data_left;
+	pr_debug("Mapped cmd: %p count: %u sg: %p sg_nents: %u rdma_len %d\n",
+		 isert_cmd, count, sg_start, sg_nents, data_left);
 
 	ib_sge = kzalloc(sizeof(struct ib_sge) * sg_nents, GFP_KERNEL);
 	if (!ib_sge) {
-		pr_warn("Unable to allocate datain ib_sge\n");
+		pr_warn("Unable to allocate ib_sge\n");
 		ret = -ENOMEM;
 		goto unmap_sg;
 	}
-	isert_cmd->ib_sge = ib_sge;
-
-	pr_debug("Allocated ib_sge: %p from t_data_ents: %d for RDMA_WRITE\n",
-		 ib_sge, se_cmd->t_data_nents);
+	wr->ib_sge = ib_sge;
 
 	wr->send_wr_num = DIV_ROUND_UP(sg_nents, isert_conn->max_sge);
 	wr->send_wr = kzalloc(sizeof(struct ib_send_wr) * wr->send_wr_num,
 				GFP_KERNEL);
 	if (!wr->send_wr) {
-		pr_err("Unable to allocate wr->send_wr\n");
+		pr_debug("Unable to allocate wr->send_wr\n");
 		ret = -ENOMEM;
 		goto unmap_sg;
 	}
-	pr_debug("Allocated wr->send_wr: %p wr->send_wr_num: %u\n",
-		 wr->send_wr, wr->send_wr_num);
-
-	iscsit_increment_maxcmdsn(cmd, conn->sess);
-	cmd->stat_sn = conn->stat_sn++;
 
 	wr->isert_cmd = isert_cmd;
 	rdma_write_max = isert_conn->max_sge * PAGE_SIZE;
-	data_left = se_cmd->data_length;
 
 	for (i = 0; i < wr->send_wr_num; i++) {
 		send_wr = &isert_cmd->rdma_wr.send_wr[i];
 		data_len = min(data_left, rdma_write_max);
 
-		send_wr->opcode = IB_WR_RDMA_WRITE;
 		send_wr->send_flags = 0;
-		send_wr->wr.rdma.remote_addr = isert_cmd->read_va + offset;
-		send_wr->wr.rdma.rkey = isert_cmd->read_stag;
+		if (wr->iser_ib_op == ISER_IB_RDMA_WRITE) {
+			send_wr->opcode = IB_WR_RDMA_WRITE;
+			send_wr->wr.rdma.remote_addr = isert_cmd->read_va + offset;
+			send_wr->wr.rdma.rkey = isert_cmd->read_stag;
+			if (i + 1 == wr->send_wr_num)
+				send_wr->next = &isert_cmd->tx_desc.send_wr;
+			else
+				send_wr->next = &wr->send_wr[i + 1];
+		} else {
+			send_wr->opcode = IB_WR_RDMA_READ;
+			send_wr->wr.rdma.remote_addr = isert_cmd->write_va + va_offset;
+			send_wr->wr.rdma.rkey = isert_cmd->write_stag;
+			if (i + 1 == wr->send_wr_num)
+				send_wr->send_flags = IB_SEND_SIGNALED;
+			else
+				send_wr->next = &wr->send_wr[i + 1];
+		}
 
 		ib_sge_cnt = isert_build_rdma_wr(isert_conn, isert_cmd, ib_sge,
 					send_wr, data_len, offset);
 		ib_sge += ib_sge_cnt;
 
-		if (i + 1 == wr->send_wr_num)
-			send_wr->next = &isert_cmd->tx_desc.send_wr;
-		else
-			send_wr->next = &wr->send_wr[i + 1];
-
 		offset += data_len;
+		va_offset += data_len;
 		data_left -= data_len;
 	}
+
+	return 0;
+unmap_sg:
+	ib_dma_unmap_sg(ib_dev, sg_start, sg_nents,
+			(wr->iser_ib_op == ISER_IB_RDMA_WRITE) ?
+			DMA_TO_DEVICE : DMA_FROM_DEVICE);
+	return ret;
+}
+
+static int
+isert_put_datain(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
+{
+	struct se_cmd *se_cmd = &cmd->se_cmd;
+	struct isert_cmd *isert_cmd = container_of(cmd,
+					struct isert_cmd, iscsi_cmd);
+	struct isert_rdma_wr *wr = &isert_cmd->rdma_wr;
+	struct isert_conn *isert_conn = (struct isert_conn *)conn->context;
+	struct ib_send_wr *wr_failed;
+	int rc;
+
+	pr_debug("Cmd: %p RDMA_WRITE data_length: %u\n",
+		 isert_cmd, se_cmd->data_length);
+	wr->iser_ib_op = ISER_IB_RDMA_WRITE;
+	rc = isert_map_rdma(conn, cmd, wr);
+	if (rc) {
+		pr_err("Cmd: %p failed to prepare RDMA res\n", isert_cmd);
+		return rc;
+	}
+
 	/*
 	 * Build isert_conn->tx_desc for iSCSI response PDU and attach
 	 */
@@ -1925,12 +1964,10 @@ isert_put_datain(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
 		pr_warn("ib_post_send() failed for IB_WR_RDMA_WRITE\n");
 		atomic_dec(&isert_conn->post_send_buf_count);
 	}
-	pr_debug("Posted RDMA_WRITE + Response for iSER Data READ\n");
-	return 1;
+	pr_debug("Cmd: %p posted RDMA_WRITE + Response for iSER Data READ\n",
+		 isert_cmd);
 
-unmap_sg:
-	ib_dma_unmap_sg(ib_dev, sg, sg_nents, DMA_TO_DEVICE);
-	return ret;
+	return 1;
 }
 
 static int
@@ -1940,89 +1977,16 @@ isert_get_dataout(struct iscsi_conn *conn, struct iscsi_cmd *cmd, bool recovery)
 	struct isert_cmd *isert_cmd = iscsit_priv_cmd(cmd);
 	struct isert_rdma_wr *wr = &isert_cmd->rdma_wr;
 	struct isert_conn *isert_conn = (struct isert_conn *)conn->context;
-	struct ib_send_wr *wr_failed, *send_wr;
-	struct ib_sge *ib_sge;
-	struct ib_device *ib_dev = isert_conn->conn_cm_id->device;
-	struct scatterlist *sg_start;
-	u32 sg_off, sg_nents, page_off, va_offset = 0;
-	u32 offset = 0, data_len, data_left, rdma_write_max;
-	int rc, ret = 0, count, i, ib_sge_cnt;
+	struct ib_send_wr *wr_failed;
+	int rc;
 
-	pr_debug("RDMA_READ: data_length: %u write_data_done: %u\n",
-		 se_cmd->data_length, cmd->write_data_done);
-
-	sg_off = cmd->write_data_done / PAGE_SIZE;
-	sg_start = &cmd->se_cmd.t_data_sg[sg_off];
-	page_off = cmd->write_data_done % PAGE_SIZE;
-
-	pr_debug("RDMA_READ: sg_off: %d, sg_start: %p page_off: %d\n",
-		 sg_off, sg_start, page_off);
-
-	data_left = se_cmd->data_length - cmd->write_data_done;
-	sg_nents = se_cmd->t_data_nents - sg_off;
-
-	pr_debug("RDMA_READ: data_left: %d, sg_nents: %d\n",
-		 data_left, sg_nents);
-
-	count = ib_dma_map_sg(ib_dev, sg_start, sg_nents, DMA_FROM_DEVICE);
-	if (unlikely(!count)) {
-		pr_err("Unable to map get_dataout SGs\n");
-		return -EINVAL;
-	}
-	wr->sge = sg_start;
-	wr->num_sge = sg_nents;
-	pr_debug("Mapped IB count: %u sg_start: %p sg_nents: %u for RDMA_READ\n",
-		 count, sg_start, sg_nents);
-
-	ib_sge = kzalloc(sizeof(struct ib_sge) * sg_nents, GFP_KERNEL);
-	if (!ib_sge) {
-		pr_warn("Unable to allocate dataout ib_sge\n");
-		ret = -ENOMEM;
-		goto unmap_sg;
-	}
-	isert_cmd->ib_sge = ib_sge;
-
-	pr_debug("Using ib_sge: %p from sg_ents: %d for RDMA_READ\n",
-		 ib_sge, sg_nents);
-
-	wr->send_wr_num = DIV_ROUND_UP(sg_nents, isert_conn->max_sge);
-	wr->send_wr = kzalloc(sizeof(struct ib_send_wr) * wr->send_wr_num,
-				GFP_KERNEL);
-	if (!wr->send_wr) {
-		pr_debug("Unable to allocate wr->send_wr\n");
-		ret = -ENOMEM;
-		goto unmap_sg;
-	}
-	pr_debug("Allocated wr->send_wr: %p wr->send_wr_num: %u\n",
-		 wr->send_wr, wr->send_wr_num);
-
-	isert_cmd->tx_desc.isert_cmd = isert_cmd;
-
+	pr_debug("Cmd: %p RDMA_READ data_length: %u write_data_done: %u\n",
+		 isert_cmd, se_cmd->data_length, cmd->write_data_done);
 	wr->iser_ib_op = ISER_IB_RDMA_READ;
-	wr->isert_cmd = isert_cmd;
-	rdma_write_max = isert_conn->max_sge * PAGE_SIZE;
-	offset = cmd->write_data_done;
-
-	for (i = 0; i < wr->send_wr_num; i++) {
-		send_wr = &isert_cmd->rdma_wr.send_wr[i];
-		data_len = min(data_left, rdma_write_max);
-
-		send_wr->opcode = IB_WR_RDMA_READ;
-		send_wr->wr.rdma.remote_addr = isert_cmd->write_va + va_offset;
-		send_wr->wr.rdma.rkey = isert_cmd->write_stag;
-
-		ib_sge_cnt = isert_build_rdma_wr(isert_conn, isert_cmd, ib_sge,
-					send_wr, data_len, offset);
-		ib_sge += ib_sge_cnt;
-
-		if (i + 1 == wr->send_wr_num)
-			send_wr->send_flags = IB_SEND_SIGNALED;
-		else
-			send_wr->next = &wr->send_wr[i + 1];
-
-		offset += data_len;
-		va_offset += data_len;
-		data_left -= data_len;
+	rc = isert_map_rdma(conn, cmd, wr);
+	if (rc) {
+		pr_err("Cmd: %p failed to prepare RDMA res\n", isert_cmd);
+		return rc;
 	}
 
 	atomic_inc(&isert_conn->post_send_buf_count);
@@ -2032,12 +1996,10 @@ isert_get_dataout(struct iscsi_conn *conn, struct iscsi_cmd *cmd, bool recovery)
 		pr_warn("ib_post_send() failed for IB_WR_RDMA_READ\n");
 		atomic_dec(&isert_conn->post_send_buf_count);
 	}
-	pr_debug("Posted RDMA_READ memory for ISER Data WRITE\n");
-	return 0;
+	pr_debug("Cmd: %p posted RDMA_READ memory for ISER Data WRITE\n",
+		 isert_cmd);
 
-unmap_sg:
-	ib_dma_unmap_sg(ib_dev, sg_start, sg_nents, DMA_FROM_DEVICE);
-	return ret;
+	return 0;
 }
 
 static int

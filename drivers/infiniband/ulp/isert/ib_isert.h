@@ -54,6 +54,7 @@ struct isert_rdma_wr {
 	struct scatterlist	*sge;
 	int			send_wr_num;
 	struct ib_send_wr	*send_wr;
+	u32			cur_rdma_length;
 };
 
 struct isert_cmd {
@@ -68,7 +69,6 @@ struct isert_cmd {
 	u32			rdma_wr_num;
 	struct isert_conn	*conn;
 	struct iscsi_cmd	*iscsi_cmd;
-	struct ib_sge		*ib_sge;
 	struct iser_tx_desc	tx_desc;
 	struct isert_rdma_wr	rdma_wr;
 	struct work_struct	comp_work;
