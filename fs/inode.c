@@ -706,10 +706,11 @@ static int can_unuse(struct inode *inode)
  * LRU does not have strict ordering. Hence we don't want to reclaim inodes
  * with this flag set because they are the inodes that are out of order.
  */
-void prune_icache_sb(struct super_block *sb, int nr_to_scan)
+long prune_icache_sb(struct super_block *sb, unsigned long nr_to_scan)
 {
 	LIST_HEAD(freeable);
-	int nr_scanned;
+	long nr_scanned;
+	long freed = 0;
 	unsigned long reap = 0;
 
 	spin_lock(&sb->s_inode_lru_lock);
@@ -779,6 +780,7 @@ void prune_icache_sb(struct super_block *sb, int nr_to_scan)
 		list_move(&inode->i_lru, &freeable);
 		sb->s_nr_inodes_unused--;
 		this_cpu_dec(nr_unused);
+		freed++;
 	}
 	if (current_is_kswapd())
 		__count_vm_events(KSWAPD_INODESTEAL, reap);
@@ -789,6 +791,7 @@ void prune_icache_sb(struct super_block *sb, int nr_to_scan)
 		current->reclaim_state->reclaimed_slab += reap;
 
 	dispose_list(&freeable);
+	return freed;
 }
 
 static void __wait_on_freeing_inode(struct inode *inode);
