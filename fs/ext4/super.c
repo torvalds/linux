@@ -1134,8 +1134,8 @@ enum {
 	Opt_nouid32, Opt_debug, Opt_removed,
 	Opt_user_xattr, Opt_nouser_xattr, Opt_acl, Opt_noacl,
 	Opt_auto_da_alloc, Opt_noauto_da_alloc, Opt_noload,
-	Opt_commit, Opt_min_batch_time, Opt_max_batch_time,
-	Opt_journal_dev, Opt_journal_checksum, Opt_journal_async_commit,
+	Opt_commit, Opt_min_batch_time, Opt_max_batch_time, Opt_journal_dev,
+	Opt_journal_path, Opt_journal_checksum, Opt_journal_async_commit,
 	Opt_abort, Opt_data_journal, Opt_data_ordered, Opt_data_writeback,
 	Opt_data_err_abort, Opt_data_err_ignore,
 	Opt_usrjquota, Opt_grpjquota, Opt_offusrjquota, Opt_offgrpjquota,
@@ -1179,6 +1179,7 @@ static const match_table_t tokens = {
 	{Opt_min_batch_time, "min_batch_time=%u"},
 	{Opt_max_batch_time, "max_batch_time=%u"},
 	{Opt_journal_dev, "journal_dev=%u"},
+	{Opt_journal_path, "journal_path=%s"},
 	{Opt_journal_checksum, "journal_checksum"},
 	{Opt_journal_async_commit, "journal_async_commit"},
 	{Opt_abort, "abort"},
@@ -1338,6 +1339,7 @@ static int clear_qf_name(struct super_block *sb, int qtype)
 #define MOPT_NO_EXT2	0x0100
 #define MOPT_NO_EXT3	0x0200
 #define MOPT_EXT4_ONLY	(MOPT_NO_EXT2 | MOPT_NO_EXT3)
+#define MOPT_STRING	0x0400
 
 static const struct mount_opts {
 	int	token;
@@ -1387,6 +1389,7 @@ static const struct mount_opts {
 	{Opt_resuid, 0, MOPT_GTE0},
 	{Opt_resgid, 0, MOPT_GTE0},
 	{Opt_journal_dev, 0, MOPT_GTE0},
+	{Opt_journal_path, 0, MOPT_STRING},
 	{Opt_journal_ioprio, 0, MOPT_GTE0},
 	{Opt_data_journal, EXT4_MOUNT_JOURNAL_DATA, MOPT_NO_EXT2 | MOPT_DATAJ},
 	{Opt_data_ordered, EXT4_MOUNT_ORDERED_DATA, MOPT_NO_EXT2 | MOPT_DATAJ},
@@ -1480,7 +1483,7 @@ static int handle_mount_opt(struct super_block *sb, char *opt, int token,
 		return -1;
 	}
 
-	if (args->from && match_int(args, &arg))
+	if (args->from && !(m->flags & MOPT_STRING) && match_int(args, &arg))
 		return -1;
 	if (args->from && (m->flags & MOPT_GTE0) && (arg < 0))
 		return -1;
@@ -1544,6 +1547,44 @@ static int handle_mount_opt(struct super_block *sb, char *opt, int token,
 			return -1;
 		}
 		*journal_devnum = arg;
+	} else if (token == Opt_journal_path) {
+		char *journal_path;
+		struct inode *journal_inode;
+		struct path path;
+		int error;
+
+		if (is_remount) {
+			ext4_msg(sb, KERN_ERR,
+				 "Cannot specify journal on remount");
+			return -1;
+		}
+		journal_path = match_strdup(&args[0]);
+		if (!journal_path) {
+			ext4_msg(sb, KERN_ERR, "error: could not dup "
+				"journal device string");
+			return -1;
+		}
+
+		error = kern_path(journal_path, LOOKUP_FOLLOW, &path);
+		if (error) {
+			ext4_msg(sb, KERN_ERR, "error: could not find "
+				"journal device path: error %d", error);
+			kfree(journal_path);
+			return -1;
+		}
+
+		journal_inode = path.dentry->d_inode;
+		if (!S_ISBLK(journal_inode->i_mode)) {
+			ext4_msg(sb, KERN_ERR, "error: journal path %s "
+				"is not a block device", journal_path);
+			path_put(&path);
+			kfree(journal_path);
+			return -1;
+		}
+
+		*journal_devnum = new_encode_dev(journal_inode->i_rdev);
+		path_put(&path);
+		kfree(journal_path);
 	} else if (token == Opt_journal_ioprio) {
 		if (arg > 7) {
 			ext4_msg(sb, KERN_ERR, "Invalid journal IO priority"
