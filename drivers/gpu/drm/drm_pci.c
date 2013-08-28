@@ -247,7 +247,6 @@ err:
 	return ret;
 }
 
-
 static int drm_pci_irq_by_busid(struct drm_device *dev, struct drm_irq_busid *p)
 {
 	if ((p->busnum >> 8) != drm_get_pci_domain(dev) ||
@@ -260,6 +259,37 @@ static int drm_pci_irq_by_busid(struct drm_device *dev, struct drm_irq_busid *p)
 	DRM_DEBUG("%d:%d:%d => IRQ %d\n", p->busnum, p->devnum, p->funcnum,
 		  p->irq);
 	return 0;
+}
+
+/**
+ * Get interrupt from bus id.
+ *
+ * \param inode device inode.
+ * \param file_priv DRM file private.
+ * \param cmd command.
+ * \param arg user argument, pointing to a drm_irq_busid structure.
+ * \return zero on success or a negative number on failure.
+ *
+ * Finds the PCI device with the specified bus id and gets its IRQ number.
+ * This IOCTL is deprecated, and will now return EINVAL for any busid not equal
+ * to that of the device that this DRM instance attached to.
+ */
+int drm_irq_by_busid(struct drm_device *dev, void *data,
+		     struct drm_file *file_priv)
+{
+	struct drm_irq_busid *p = data;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
+	/* UMS was only ever support on PCI devices. */
+	if (WARN_ON(!dev->pdev))
+		return -EINVAL;
+
+	if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
+		return -EINVAL;
+
+	return drm_pci_irq_by_busid(dev, p);
 }
 
 static void drm_pci_agp_init(struct drm_device *dev)
@@ -292,7 +322,6 @@ static struct drm_bus drm_pci_bus = {
 	.get_name = drm_pci_get_name,
 	.set_busid = drm_pci_set_busid,
 	.set_unique = drm_pci_set_unique,
-	.irq_by_busid = drm_pci_irq_by_busid,
 };
 
 /**
@@ -453,6 +482,12 @@ int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver)
 }
 
 void drm_pci_agp_destroy(struct drm_device *dev) {}
+
+int drm_irq_by_busid(struct drm_device *dev, void *data,
+		     struct drm_file *file_priv)
+{
+	return -EINVAL;
+}
 #endif
 
 EXPORT_SYMBOL(drm_pci_init);

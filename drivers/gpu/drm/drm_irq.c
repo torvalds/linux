@@ -56,33 +56,6 @@
  */
 #define DRM_REDUNDANT_VBLIRQ_THRESH_NS 1000000
 
-/**
- * Get interrupt from bus id.
- *
- * \param inode device inode.
- * \param file_priv DRM file private.
- * \param cmd command.
- * \param arg user argument, pointing to a drm_irq_busid structure.
- * \return zero on success or a negative number on failure.
- *
- * Finds the PCI device with the specified bus id and gets its IRQ number.
- * This IOCTL is deprecated, and will now return EINVAL for any busid not equal
- * to that of the device that this DRM instance attached to.
- */
-int drm_irq_by_busid(struct drm_device *dev, void *data,
-		     struct drm_file *file_priv)
-{
-	struct drm_irq_busid *p = data;
-
-	if (!dev->driver->bus->irq_by_busid)
-		return -EINVAL;
-
-	if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
-		return -EINVAL;
-
-	return dev->driver->bus->irq_by_busid(dev, p);
-}
-
 /*
  * Clear vblank timestamp buffer for a crtc.
  */

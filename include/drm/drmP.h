@@ -737,7 +737,6 @@ struct drm_bus {
 	int (*set_busid)(struct drm_device *dev, struct drm_master *master);
 	int (*set_unique)(struct drm_device *dev, struct drm_master *master,
 			  struct drm_unique *unique);
-	int (*irq_by_busid)(struct drm_device *dev, struct drm_irq_busid *p);
 };
 
 /**
