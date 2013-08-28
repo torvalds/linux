@@ -201,7 +201,7 @@ error:
 
 static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 				      const u8 *bssid, const int beacon_int,
-				      struct ieee80211_channel *chan,
+				      struct cfg80211_chan_def *req_chandef,
 				      const u32 basic_rates,
 				      const u16 capability, u64 tsf,
 				      bool creator)
@@ -213,6 +213,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	struct cfg80211_bss *bss;
 	u32 bss_change;
 	struct cfg80211_chan_def chandef;
+	struct ieee80211_channel *chan;
 	struct beacon_data *presp;
 	enum nl80211_bss_scan_width scan_width;
 	bool have_higher_than_11mbit;
@@ -244,7 +245,9 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 
 	sdata->drop_unencrypted = capability & WLAN_CAPABILITY_PRIVACY ? 1 : 0;
 
-	chandef = ifibss->chandef;
+	/* make a copy of the chandef, it could be modified below. */
+	chandef = *req_chandef;
+	chan = chandef.chan;
 	if (!cfg80211_reg_can_beacon(local->hw.wiphy, &chandef)) {
 		if (chandef.width == NL80211_CHAN_WIDTH_5 ||
 		    chandef.width == NL80211_CHAN_WIDTH_10 ||
@@ -339,10 +342,12 @@ static void ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	struct cfg80211_bss *cbss =
 		container_of((void *)bss, struct cfg80211_bss, priv);
 	struct ieee80211_supported_band *sband;
+	struct cfg80211_chan_def chandef;
 	u32 basic_rates;
 	int i, j;
 	u16 beacon_int = cbss->beacon_interval;
 	const struct cfg80211_bss_ies *ies;
+	enum nl80211_channel_type chan_type;
 	u64 tsf;
 	u32 rate_flags;
 	int shift;
@@ -351,6 +356,26 @@ static void ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 
 	if (beacon_int < 10)
 		beacon_int = 10;
+
+	switch (sdata->u.ibss.chandef.width) {
+	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20:
+	case NL80211_CHAN_WIDTH_40:
+		chan_type = cfg80211_get_chandef_type(&sdata->u.ibss.chandef);
+		cfg80211_chandef_create(&chandef, cbss->channel, chan_type);
+		break;
+	case NL80211_CHAN_WIDTH_5:
+	case NL80211_CHAN_WIDTH_10:
+		cfg80211_chandef_create(&chandef, cbss->channel,
+					NL80211_CHAN_WIDTH_20_NOHT);
+		chandef.width = sdata->u.ibss.chandef.width;
+		break;
+	default:
+		/* fall back to 20 MHz for unsupported modes */
+		cfg80211_chandef_create(&chandef, cbss->channel,
+					NL80211_CHAN_WIDTH_20_NOHT);
+		break;
+	}
 
 	sband = sdata->local->hw.wiphy->bands[cbss->channel->band];
 	rate_flags = ieee80211_chandef_rate_flags(&sdata->u.ibss.chandef);
@@ -385,7 +410,7 @@ static void ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 
 	__ieee80211_sta_join_ibss(sdata, cbss->bssid,
 				  beacon_int,
-				  cbss->channel,
+				  &chandef,
 				  basic_rates,
 				  cbss->capability,
 				  tsf, false);
@@ -867,7 +892,7 @@ static void ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata)
 		sdata->drop_unencrypted = 0;
 
 	__ieee80211_sta_join_ibss(sdata, bssid, sdata->vif.bss_conf.beacon_int,
-				  ifibss->chandef.chan, ifibss->basic_rates,
+				  &ifibss->chandef, ifibss->basic_rates,
 				  capability, 0, true);
 }
 
@@ -1304,6 +1329,7 @@ int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
 	clear_bit(SDATA_STATE_OFFCHANNEL_BEACON_STOPPED, &sdata->state);
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED |
 						BSS_CHANGED_IBSS);
+	ieee80211_vif_release_channel(sdata);
 	synchronize_rcu();
 	kfree(presp);
 
