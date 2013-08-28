@@ -201,12 +201,6 @@ static int labpc_counter_set_mode(struct comedi_device *dev,
 		return i8254_set_mode(base_address, 0, counter_number, mode);
 }
 
-static bool labpc_range_is_unipolar(struct comedi_subdevice *s,
-				    unsigned int range)
-{
-	return s->range_table->range[range].min >= 0;
-}
-
 static int labpc_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct labpc_private *devpriv = dev->private;
@@ -272,7 +266,7 @@ static void labpc_setup_cmd6_reg(struct comedi_device *dev,
 		devpriv->cmd6 &= ~CMD6_NRSE;
 
 	/* bipolar or unipolar range? */
-	if (labpc_range_is_unipolar(s, range))
+	if (comedi_range_is_unipolar(s, range))
 		devpriv->cmd6 |= CMD6_ADCUNI;
 	else
 		devpriv->cmd6 &= ~CMD6_ADCUNI;
@@ -1046,7 +1040,7 @@ static int labpc_ao_insn_write(struct comedi_device *dev,
 	/* set range */
 	if (board->is_labpc1200) {
 		range = CR_RANGE(insn->chanspec);
-		if (labpc_range_is_unipolar(s, range))
+		if (comedi_range_is_unipolar(s, range))
 			devpriv->cmd6 |= CMD6_DACUNI(channel);
 		else
 			devpriv->cmd6 &= ~CMD6_DACUNI(channel);
