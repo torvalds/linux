@@ -2467,10 +2467,11 @@ size_t vb2_read(struct vb2_queue *q, char __user *data, size_t count,
 }
 EXPORT_SYMBOL_GPL(vb2_read);
 
-size_t vb2_write(struct vb2_queue *q, char __user *data, size_t count,
+size_t vb2_write(struct vb2_queue *q, const char __user *data, size_t count,
 		loff_t *ppos, int nonblocking)
 {
-	return __vb2_perform_fileio(q, data, count, ppos, nonblocking, 0);
+	return __vb2_perform_fileio(q, (char __user *) data, count,
+							ppos, nonblocking, 0);
 }
 EXPORT_SYMBOL_GPL(vb2_write);
 
@@ -2631,7 +2632,7 @@ int vb2_fop_release(struct file *file)
 }
 EXPORT_SYMBOL_GPL(vb2_fop_release);
 
-ssize_t vb2_fop_write(struct file *file, char __user *buf,
+ssize_t vb2_fop_write(struct file *file, const char __user *buf,
 		size_t count, loff_t *ppos)
 {
 	struct video_device *vdev = video_devdata(file);
