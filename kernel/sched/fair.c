@@ -4556,18 +4556,24 @@ static inline int sg_imbalanced(struct sched_group *group)
 /*
  * Compute the group capacity.
  *
- * For now the capacity is simply the number of power units in the group_power.
- * A power unit represents a full core.
- *
- * This has an issue where N*frac(smt_power) >= 1, in that case we'll see extra
- * 'cores' that aren't actually there.
+ * Avoid the issue where N*frac(smt_power) >= 1 creates 'phantom' cores by
+ * first dividing out the smt factor and computing the actual number of cores
+ * and limit power unit capacity with that.
  */
 static inline int sg_capacity(struct lb_env *env, struct sched_group *group)
 {
+	unsigned int capacity, smt, cpus;
+	unsigned int power, power_orig;
 
-	unsigned int power = group->sgp->power;
-	unsigned int capacity = DIV_ROUND_CLOSEST(power, SCHED_POWER_SCALE);
+	power = group->sgp->power;
+	power_orig = group->sgp->power_orig;
+	cpus = group->group_weight;
 
+	/* smt := ceil(cpus / power), assumes: 1 < smt_power < 2 */
+	smt = DIV_ROUND_UP(SCHED_POWER_SCALE * cpus, power_orig);
+	capacity = cpus / smt; /* cores */
+
+	capacity = min_t(unsigned, capacity, DIV_ROUND_CLOSEST(power, SCHED_POWER_SCALE));
 	if (!capacity)
 		capacity = fix_small_capacity(env->sd, group);
 
