@@ -230,7 +230,7 @@ int dgnc_tty_register(struct board_t *brd)
 	 * The kernel wants space to store pointers to
 	 * tty_struct's and termios's.
 	 */
-	brd->SerialDriver.ttys = dgnc_driver_kzmalloc(brd->maxports * sizeof(struct tty_struct *), GFP_KERNEL);
+	brd->SerialDriver.ttys = kzalloc(brd->maxports * sizeof(struct tty_struct *), GFP_KERNEL);
 	if (!brd->SerialDriver.ttys)
 		return(-ENOMEM);
 
@@ -240,12 +240,12 @@ int dgnc_tty_register(struct board_t *brd)
 	kref_init(&brd->SerialDriver.kref);
 #endif
 
-	brd->SerialDriver.termios = dgnc_driver_kzmalloc(brd->maxports * sizeof(struct ktermios *), GFP_KERNEL);
+	brd->SerialDriver.termios = kzalloc(brd->maxports * sizeof(struct ktermios *), GFP_KERNEL);
 	if (!brd->SerialDriver.termios)
 		return(-ENOMEM);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
-	brd->SerialDriver.termios_locked = dgnc_driver_kzmalloc(brd->maxports * sizeof(struct ktermios *), GFP_KERNEL);
+	brd->SerialDriver.termios_locked = kzalloc(brd->maxports * sizeof(struct ktermios *), GFP_KERNEL);
 	if (!brd->SerialDriver.termios_locked)
 		return(-ENOMEM);
 #endif
@@ -289,7 +289,7 @@ int dgnc_tty_register(struct board_t *brd)
 	 * tty_struct's and termios's.  Must be seperate from
 	 * the Serial Driver so we don't get confused
 	 */
-	brd->PrintDriver.ttys = dgnc_driver_kzmalloc(brd->maxports * sizeof(struct tty_struct *), GFP_KERNEL);
+	brd->PrintDriver.ttys = kzalloc(brd->maxports * sizeof(struct tty_struct *), GFP_KERNEL);
 	if (!brd->PrintDriver.ttys)
 		return(-ENOMEM);
 
@@ -299,12 +299,12 @@ int dgnc_tty_register(struct board_t *brd)
 	kref_init(&brd->PrintDriver.kref);
 #endif
 
-	brd->PrintDriver.termios = dgnc_driver_kzmalloc(brd->maxports * sizeof(struct ktermios *), GFP_KERNEL);
+	brd->PrintDriver.termios = kzalloc(brd->maxports * sizeof(struct ktermios *), GFP_KERNEL);
 	if (!brd->PrintDriver.termios)
 		return(-ENOMEM);
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
-	brd->PrintDriver.termios_locked = dgnc_driver_kzmalloc(brd->maxports * sizeof(struct ktermios *), GFP_KERNEL);
+	brd->PrintDriver.termios_locked = kzalloc(brd->maxports * sizeof(struct ktermios *), GFP_KERNEL);
 	if (!brd->PrintDriver.termios_locked)
 		return(-ENOMEM);
 #endif
@@ -371,7 +371,7 @@ int dgnc_tty_init(struct board_t *brd)
 			 * Okay to malloc with GFP_KERNEL, we are not at
 			 * interrupt context, and there are no locks held.
 			 */
-			brd->channels[i] = dgnc_driver_kzmalloc(sizeof(struct channel_t), GFP_KERNEL);
+			brd->channels[i] = kzalloc(sizeof(struct channel_t), GFP_KERNEL);
 			if (!brd->channels[i]) {
 				DPR_CORE(("%s:%d Unable to allocate memory for channel struct\n",
 				    __FILE__, __LINE__));
@@ -1392,11 +1392,11 @@ static int dgnc_tty_open(struct tty_struct *tty, struct file *file)
 	DGNC_UNLOCK(ch->ch_lock, lock_flags);
 
 	if (!ch->ch_rqueue)
-		ch->ch_rqueue = dgnc_driver_kzmalloc(RQUEUESIZE, GFP_KERNEL);
+		ch->ch_rqueue = kzalloc(RQUEUESIZE, GFP_KERNEL);
 	if (!ch->ch_equeue)
-		ch->ch_equeue = dgnc_driver_kzmalloc(EQUEUESIZE, GFP_KERNEL);
+		ch->ch_equeue = kzalloc(EQUEUESIZE, GFP_KERNEL);
 	if (!ch->ch_wqueue)
-		ch->ch_wqueue = dgnc_driver_kzmalloc(WQUEUESIZE, GFP_KERNEL);
+		ch->ch_wqueue = kzalloc(WQUEUESIZE, GFP_KERNEL);
 
 	DGNC_LOCK(ch->ch_lock, lock_flags);
 

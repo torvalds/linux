@@ -499,7 +499,7 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 
 	/* get the board structure and prep it */
 	brd = dgnc_Board[dgnc_NumBoards] =
-	(struct board_t *) dgnc_driver_kzmalloc(sizeof(struct board_t), GFP_KERNEL);
+	(struct board_t *) kzalloc(sizeof(struct board_t), GFP_KERNEL);
 	if (!brd) {
 		APR(("memory allocation for board structure failed\n"));
 		return(-ENOMEM);
@@ -507,7 +507,7 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 
 	/* make a temporary message buffer for the boot messages */
 	brd->msgbuf = brd->msgbuf_head =
-		(char *) dgnc_driver_kzmalloc(sizeof(char) * 8192, GFP_KERNEL);
+		(char *) kzalloc(sizeof(char) * 8192, GFP_KERNEL);
 	if (!brd->msgbuf) {
 		kfree(brd);
 		APR(("memory allocation for board msgbuf failed\n"));
@@ -721,7 +721,7 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 	 * Okay to malloc with GFP_KERNEL, we are not at interrupt
 	 * context, and there are no locks held.
 	 */
-	brd->flipbuf = dgnc_driver_kzmalloc(MYFLIPLEN, GFP_KERNEL);
+	brd->flipbuf = kzalloc(MYFLIPLEN, GFP_KERNEL);
 
 	wake_up_interruptible(&brd->state_wait);
 
