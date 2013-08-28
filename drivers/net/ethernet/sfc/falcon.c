@@ -2174,10 +2174,11 @@ out:
 	return rc;
 }
 
-static void falcon_dimension_resources(struct efx_nic *efx)
+static int falcon_dimension_resources(struct efx_nic *efx)
 {
 	efx->rx_dc_base = 0x20000;
 	efx->tx_dc_base = 0x26000;
+	return 0;
 }
 
 /* Probe all SPI devices on the NIC */

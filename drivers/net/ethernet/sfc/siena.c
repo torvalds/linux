@@ -177,13 +177,14 @@ static int siena_probe_nvconfig(struct efx_nic *efx)
 	return rc;
 }
 
-static void siena_dimension_resources(struct efx_nic *efx)
+static int siena_dimension_resources(struct efx_nic *efx)
 {
 	/* Each port has a small block of internal SRAM dedicated to
 	 * the buffer table and descriptor caches.  In theory we can
 	 * map both blocks to one port, but we don't.
 	 */
 	efx_farch_dimension_resources(efx, FR_CZ_BUF_FULL_TBL_ROWS / 2);
+	return 0;
 }
 
 static unsigned int siena_mem_map_size(struct efx_nic *efx)

@@ -1036,7 +1036,7 @@ struct efx_nic_type {
 	int (*probe)(struct efx_nic *efx);
 	void (*remove)(struct efx_nic *efx);
 	int (*init)(struct efx_nic *efx);
-	void (*dimension_resources)(struct efx_nic *efx);
+	int (*dimension_resources)(struct efx_nic *efx);
 	void (*fini)(struct efx_nic *efx);
 	void (*monitor)(struct efx_nic *efx);
 	enum reset_type (*map_reset_reason)(enum reset_type reason);
