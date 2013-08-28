@@ -189,7 +189,7 @@ mb_cache_shrink_fn(struct shrinker *shrink, struct shrink_control *sc)
 	list_for_each_entry_safe(entry, tmp, &free_list, e_lru_list) {
 		__mb_cache_entry_forget(entry, gfp_mask);
 	}
-	return (count / 100) * sysctl_vfs_cache_pressure;
+	return vfs_pressure_ratio(count);
 }
 
 

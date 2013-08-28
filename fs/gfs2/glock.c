@@ -1462,7 +1462,7 @@ static int gfs2_shrink_glock_memory(struct shrinker *shrink,
 		gfs2_scan_glock_lru(sc->nr_to_scan);
 	}
 
-	return (atomic_read(&lru_count) / 100) * sysctl_vfs_cache_pressure;
+	return vfs_pressure_ratio(atomic_read(&lru_count));
 }
 
 static struct shrinker glock_shrinker = {

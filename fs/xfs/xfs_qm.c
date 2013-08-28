@@ -1722,7 +1722,7 @@ xfs_qm_shake(
 	}
 
 out:
-	return (qi->qi_lru_count / 100) * sysctl_vfs_cache_pressure;
+	return vfs_pressure_ratio(qi->qi_lru_count);
 }
 
 /*

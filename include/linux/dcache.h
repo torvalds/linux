@@ -395,4 +395,8 @@ static inline bool d_mountpoint(const struct dentry *dentry)
 
 extern int sysctl_vfs_cache_pressure;
 
+static inline unsigned long vfs_pressure_ratio(unsigned long val)
+{
+	return mult_frac(val, sysctl_vfs_cache_pressure, 100);
+}
 #endif	/* __LINUX_DCACHE_H */
