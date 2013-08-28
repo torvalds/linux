@@ -36,16 +36,16 @@
 void dsi_hs_mode_enable(struct intel_dsi *intel_dsi, bool enable);
 
 int dsi_vc_dcs_write(struct intel_dsi *intel_dsi, int channel,
-		     const u8 *data, size_t len);
+		     const u8 *data, int len);
 
 int dsi_vc_generic_write(struct intel_dsi *intel_dsi, int channel,
-			 const u8 *data, size_t len);
+			 const u8 *data, int len);
 
 int dsi_vc_dcs_read(struct intel_dsi *intel_dsi, int channel, u8 dcs_cmd,
-		    u8 *buf, size_t buflen);
+		    u8 *buf, int buflen);
 
 int dsi_vc_generic_read(struct intel_dsi *intel_dsi, int channel,
-			u8 *reqdata, size_t reqlen, u8 *buf, size_t buflen);
+			u8 *reqdata, int reqlen, u8 *buf, int buflen);
 
 int dpi_send_cmd(struct intel_dsi *intel_dsi, u32 cmd);
 
@@ -84,21 +84,21 @@ static inline int dsi_vc_generic_write_2(struct intel_dsi *intel_dsi,
 
 /* XXX: questionable read helpers */
 static inline int dsi_vc_generic_read_0(struct intel_dsi *intel_dsi,
-					int channel, u8 *buf, size_t buflen)
+					int channel, u8 *buf, int buflen)
 {
 	return dsi_vc_generic_read(intel_dsi, channel, NULL, 0, buf, buflen);
 }
 
 static inline int dsi_vc_generic_read_1(struct intel_dsi *intel_dsi,
 					int channel, u8 param, u8 *buf,
-					size_t buflen)
+					int buflen)
 {
 	return dsi_vc_generic_read(intel_dsi, channel, &param, 1, buf, buflen);
 }
 
 static inline int dsi_vc_generic_read_2(struct intel_dsi *intel_dsi,
 					int channel, u8 param1, u8 param2,
-					u8 *buf, size_t buflen)
+					u8 *buf, int buflen)
 {
 	u8 req[2] = { param1, param2 };
 

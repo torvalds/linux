@@ -167,7 +167,7 @@ static int dsi_vc_send_short(struct intel_dsi *intel_dsi, int channel,
 }
 
 static int dsi_vc_send_long(struct intel_dsi *intel_dsi, int channel,
-			    u8 data_type, const u8 *data, size_t len)
+			    u8 data_type, const u8 *data, int len)
 {
 	struct drm_encoder *encoder = &intel_dsi->base.base;
 	struct drm_device *dev = encoder->dev;
@@ -175,7 +175,7 @@ static int dsi_vc_send_long(struct intel_dsi *intel_dsi, int channel,
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
 	enum pipe pipe = intel_crtc->pipe;
 	u32 data_reg;
-	size_t i, j, n;
+	int i, j, n;
 	u32 mask;
 
 	DRM_DEBUG_KMS("channel %d, data_type %d, len %04x\n",
@@ -194,7 +194,7 @@ static int dsi_vc_send_long(struct intel_dsi *intel_dsi, int channel,
 
 	for (i = 0; i < len; i += n) {
 		u32 val = 0;
-		n = min_t(size_t, len - i, 4);
+		n = min_t(int, len - i, 4);
 
 		for (j = 0; j < n; j++)
 			val |= *data++ << 8 * j;
@@ -208,7 +208,7 @@ static int dsi_vc_send_long(struct intel_dsi *intel_dsi, int channel,
 }
 
 static int dsi_vc_write_common(struct intel_dsi *intel_dsi,
-			       int channel, const u8 *data, size_t len,
+			       int channel, const u8 *data, int len,
 			       enum dsi_type type)
 {
 	int ret;
@@ -240,13 +240,13 @@ static int dsi_vc_write_common(struct intel_dsi *intel_dsi,
 }
 
 int dsi_vc_dcs_write(struct intel_dsi *intel_dsi, int channel,
-		     const u8 *data, size_t len)
+		     const u8 *data, int len)
 {
 	return dsi_vc_write_common(intel_dsi, channel, data, len, DSI_DCS);
 }
 
 int dsi_vc_generic_write(struct intel_dsi *intel_dsi, int channel,
-			 const u8 *data, size_t len)
+			 const u8 *data, int len)
 {
 	return dsi_vc_write_common(intel_dsi, channel, data, len, DSI_GENERIC);
 }
@@ -260,7 +260,7 @@ static int dsi_vc_dcs_send_read_request(struct intel_dsi *intel_dsi,
 
 static int dsi_vc_generic_send_read_request(struct intel_dsi *intel_dsi,
 					    int channel, u8 *reqdata,
-					    size_t reqlen)
+					    int reqlen)
 {
 	u16 data;
 	u8 data_type;
@@ -286,14 +286,14 @@ static int dsi_vc_generic_send_read_request(struct intel_dsi *intel_dsi,
 }
 
 static int dsi_read_data_return(struct intel_dsi *intel_dsi,
-				u8 *buf, size_t buflen)
+				u8 *buf, int buflen)
 {
 	struct drm_encoder *encoder = &intel_dsi->base.base;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
 	enum pipe pipe = intel_crtc->pipe;
-	size_t i, len = 0;
+	int i, len = 0;
 	u32 data_reg, val;
 
 	if (intel_dsi->hs) {
@@ -312,7 +312,7 @@ static int dsi_read_data_return(struct intel_dsi *intel_dsi,
 }
 
 int dsi_vc_dcs_read(struct intel_dsi *intel_dsi, int channel, u8 dcs_cmd,
-		    u8 *buf, size_t buflen)
+		    u8 *buf, int buflen)
 {
 	struct drm_encoder *encoder = &intel_dsi->base.base;
 	struct drm_device *dev = encoder->dev;
@@ -348,7 +348,7 @@ int dsi_vc_dcs_read(struct intel_dsi *intel_dsi, int channel, u8 dcs_cmd,
 }
 
 int dsi_vc_generic_read(struct intel_dsi *intel_dsi, int channel,
-			u8 *reqdata, size_t reqlen, u8 *buf, size_t buflen)
+			u8 *reqdata, int reqlen, u8 *buf, int buflen)
 {
 	struct drm_encoder *encoder = &intel_dsi->base.base;
 	struct drm_device *dev = encoder->dev;
