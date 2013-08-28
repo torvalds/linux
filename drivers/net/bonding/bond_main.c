@@ -2336,10 +2336,8 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 		rt = ip_route_output(dev_net(bond->dev), targets[i], 0,
 				     RTO_ONLINK, 0);
 		if (IS_ERR(rt)) {
-			if (net_ratelimit()) {
-				pr_warning("%s: no route to arp_ip_target %pI4\n",
-					   bond->dev->name, &targets[i]);
-			}
+			pr_debug("%s: no route to arp_ip_target %pI4\n",
+				 bond->dev->name, &targets[i]);
 			continue;
 		}
 
@@ -2386,10 +2384,10 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 		rcu_read_unlock();
 
 		/* Not our device - skip */
-		if (net_ratelimit())
-			pr_warning("%s: no path to arp_ip_target %pI4 via rt.dev %s\n",
-				   bond->dev->name, &targets[i],
-				   rt->dst.dev ? rt->dst.dev->name : "NULL");
+		pr_debug("%s: no path to arp_ip_target %pI4 via rt.dev %s\n",
+			 bond->dev->name, &targets[i],
+			 rt->dst.dev ? rt->dst.dev->name : "NULL");
+
 		ip_rt_put(rt);
 		continue;
 
