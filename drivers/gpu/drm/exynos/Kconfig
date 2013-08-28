@@ -1,6 +1,6 @@
 config DRM_EXYNOS
 	tristate "DRM Support for Samsung SoC EXYNOS Series"
-	depends on DRM && (PLAT_SAMSUNG || ARCH_MULTIPLATFORM)
+	depends on OF && DRM && (PLAT_SAMSUNG || ARCH_MULTIPLATFORM)
 	select DRM_KMS_HELPER
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
@@ -24,7 +24,7 @@ config DRM_EXYNOS_DMABUF
 
 config DRM_EXYNOS_FIMD
 	bool "Exynos DRM FIMD"
-	depends on OF && DRM_EXYNOS && !FB_S3C && !ARCH_MULTIPLATFORM
+	depends on DRM_EXYNOS && !FB_S3C && !ARCH_MULTIPLATFORM
 	select FB_MODE_HELPERS
 	select VIDEOMODE_HELPERS
 	help
