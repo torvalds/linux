@@ -200,7 +200,6 @@ void __init plat_mem_setup(void)
 
 	ath79_detect_sys_type();
 	detect_memory_region(0, ATH79_MEM_SIZE_MIN, ATH79_MEM_SIZE_MAX);
-	ath79_clocks_init();
 
 	_machine_restart = ath79_restart;
 	_machine_halt = ath79_halt;
@@ -213,6 +212,8 @@ void __init plat_time_init(void)
 	unsigned long ahb_clk_rate;
 	unsigned long ddr_clk_rate;
 	unsigned long ref_clk_rate;
+
+	ath79_clocks_init();
 
 	cpu_clk_rate = ath79_get_sys_clk_rate("cpu");
 	ahb_clk_rate = ath79_get_sys_clk_rate("ahb");
