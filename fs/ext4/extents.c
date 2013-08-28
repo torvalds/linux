@@ -3220,7 +3220,7 @@ fix_extent_len:
  * ext4_split_extents() splits an extent and mark extent which is covered
  * by @map as split_flags indicates
  *
- * It may result in splitting the extent into multiple extents (upto three)
+ * It may result in splitting the extent into multiple extents (up to three)
  * There are three possibilities:
  *   a> There is no split required
  *   b> Splits in two extents: Split is happening at either end of the extent

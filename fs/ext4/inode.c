@@ -1916,7 +1916,7 @@ static int mpage_submit_page(struct mpage_da_data *mpd, struct page *page)
 /*
  * mballoc gives us at most this number of blocks...
  * XXX: That seems to be only a limitation of ext4_mb_normalize_request().
- * The rest of mballoc seems to handle chunks upto full group size.
+ * The rest of mballoc seems to handle chunks up to full group size.
  */
 #define MAX_WRITEPAGES_EXTENT_LEN 2048
 
@@ -2057,7 +2057,7 @@ static int mpage_map_and_submit_buffers(struct mpage_da_data *mpd)
 
 			if (page->index > end)
 				break;
-			/* Upto 'end' pages must be contiguous */
+			/* Up to 'end' pages must be contiguous */
 			BUG_ON(page->index != start);
 			bh = head = page_buffers(page);
 			do {
@@ -2256,7 +2256,7 @@ static int mpage_map_and_submit_extent(handle_t *handle,
 /*
  * Calculate the total number of credits to reserve for one writepages
  * iteration. This is called from ext4_writepages(). We map an extent of
- * upto MAX_WRITEPAGES_EXTENT_LEN blocks and then we go on and finish mapping
+ * up to MAX_WRITEPAGES_EXTENT_LEN blocks and then we go on and finish mapping
  * the last partial page. So in total we can map MAX_WRITEPAGES_EXTENT_LEN +
  * bpp - 1 blocks in bpp different extents.
  */
@@ -2443,7 +2443,7 @@ static int ext4_writepages(struct address_space *mapping,
 
 	if (ext4_should_dioread_nolock(inode)) {
 		/*
-		 * We may need to convert upto one extent per block in
+		 * We may need to convert up to one extent per block in
 		 * the page and we may dirty the inode.
 		 */
 		rsv_blocks = 1 + (PAGE_CACHE_SIZE >> inode->i_blkbits);
