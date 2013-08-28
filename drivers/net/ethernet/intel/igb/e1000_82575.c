@@ -176,7 +176,7 @@ static s32 igb_init_phy_params_82575(struct e1000_hw *hw)
 
 	/* Verify phy id and set remaining function pointers */
 	switch (phy->id) {
-	case M88E1545_E_PHY_ID:
+	case M88E1543_E_PHY_ID:
 	case I347AT4_E_PHY_ID:
 	case M88E1112_E_PHY_ID:
 	case M88E1111_I_PHY_ID:
@@ -1448,7 +1448,7 @@ static s32 igb_setup_copper_link_82575(struct e1000_hw *hw)
 		switch (hw->phy.id) {
 		case I347AT4_E_PHY_ID:
 		case M88E1112_E_PHY_ID:
-		case M88E1545_E_PHY_ID:
+		case M88E1543_E_PHY_ID:
 		case I210_I_PHY_ID:
 			ret_val = igb_copper_link_setup_m88_gen2(hw);
 			break;
@@ -2477,28 +2477,28 @@ s32 igb_set_eee_i354(struct e1000_hw *hw)
 	u16 phy_data;
 
 	if ((hw->phy.media_type != e1000_media_type_copper) ||
-	    (phy->id != M88E1545_E_PHY_ID))
+	    (phy->id != M88E1543_E_PHY_ID))
 		goto out;
 
 	if (!hw->dev_spec._82575.eee_disable) {
 		/* Switch to PHY page 18. */
-		ret_val = phy->ops.write_reg(hw, E1000_M88E1545_PAGE_ADDR, 18);
+		ret_val = phy->ops.write_reg(hw, E1000_M88E1543_PAGE_ADDR, 18);
 		if (ret_val)
 			goto out;
 
-		ret_val = phy->ops.read_reg(hw, E1000_M88E1545_EEE_CTRL_1,
+		ret_val = phy->ops.read_reg(hw, E1000_M88E1543_EEE_CTRL_1,
 					    &phy_data);
 		if (ret_val)
 			goto out;
 
-		phy_data |= E1000_M88E1545_EEE_CTRL_1_MS;
-		ret_val = phy->ops.write_reg(hw, E1000_M88E1545_EEE_CTRL_1,
+		phy_data |= E1000_M88E1543_EEE_CTRL_1_MS;
+		ret_val = phy->ops.write_reg(hw, E1000_M88E1543_EEE_CTRL_1,
 					     phy_data);
 		if (ret_val)
 			goto out;
 
 		/* Return the PHY to page 0. */
-		ret_val = phy->ops.write_reg(hw, E1000_M88E1545_PAGE_ADDR, 0);
+		ret_val = phy->ops.write_reg(hw, E1000_M88E1543_PAGE_ADDR, 0);
 		if (ret_val)
 			goto out;
 
@@ -2549,7 +2549,7 @@ s32 igb_get_eee_status_i354(struct e1000_hw *hw, bool *status)
 
 	/* Check if EEE is supported on this device. */
 	if ((hw->phy.media_type != e1000_media_type_copper) ||
-	    (phy->id != M88E1545_E_PHY_ID))
+	    (phy->id != M88E1543_E_PHY_ID))
 		goto out;
 
 	ret_val = igb_read_xmdio_reg(hw, E1000_PCS_STATUS_ADDR_I354,
