@@ -1160,9 +1160,8 @@ int drm_wait_vblank(struct drm_device *dev, void *data,
 	int ret;
 	unsigned int flags, seq, crtc, high_crtc;
 
-	if (drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
-		if ((!drm_dev_to_irq(dev)) || (!dev->irq_enabled))
-			return -EINVAL;
+	if (!dev->irq_enabled)
+		return -EINVAL;
 
 	if (vblwait->request.type & _DRM_VBLANK_SIGNAL)
 		return -EINVAL;
