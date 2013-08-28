@@ -4331,6 +4331,11 @@ i915_gem_init_hw(struct drm_device *dev)
 	if (dev_priv->ellc_size)
 		I915_WRITE(HSW_IDICR, I915_READ(HSW_IDICR) | IDIHASHMSK(0xf));
 
+	if (IS_HSW_GT3(dev))
+		I915_WRITE(MI_PREDICATE_RESULT_2, LOWER_SLICE_ENABLED);
+	else
+		I915_WRITE(MI_PREDICATE_RESULT_2, LOWER_SLICE_DISABLED);
+
 	if (HAS_PCH_NOP(dev)) {
 		u32 temp = I915_READ(GEN7_MSG_CTL);
 		temp &= ~(WAIT_FOR_PCH_FLR_ACK | WAIT_FOR_PCH_RESET_ACK);
