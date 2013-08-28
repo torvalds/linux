@@ -47,6 +47,11 @@
 			macb0: ethernet@fffbc000 {
 				phy-mode = "rmii";
 				status = "okay";
+
+				phy0: ethernet-phy {
+					interrupt-parent = <&pioC>;
+					interrupts = <4 IRQ_TYPE_EDGE_BOTH>;
+				};
 			};
 
 			usb1: gadget@fffb0000 {
