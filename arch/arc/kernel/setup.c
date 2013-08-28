@@ -31,7 +31,7 @@
 int running_on_hw = 1;	/* vs. on ISS */
 
 char __initdata command_line[COMMAND_LINE_SIZE];
-struct machine_desc *machine_desc;
+const struct machine_desc *machine_desc;
 
 struct task_struct *_current_task[NR_CPUS];	/* For stack switching */
 
