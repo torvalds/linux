@@ -73,19 +73,19 @@ list_lru_walk_node(struct list_lru *lru, int nid, list_lru_walk_cb isolate,
 	struct list_lru_node	*nlru = &lru->node[nid];
 	struct list_head *item, *n;
 	unsigned long isolated = 0;
-	/*
-	 * If we don't keep state of at which pass we are, we can loop at
-	 * LRU_RETRY, since we have no guarantees that the caller will be able
-	 * to do something other than retry on the next pass. We handle this by
-	 * allowing at most one retry per object. This should not be altered
-	 * by any condition other than LRU_RETRY.
-	 */
-	bool first_pass = true;
 
 	spin_lock(&nlru->lock);
 restart:
 	list_for_each_safe(item, n, &nlru->list) {
 		enum lru_status ret;
+
+		/*
+		 * decrement nr_to_walk first so that we don't livelock if we
+		 * get stuck on large numbesr of LRU_RETRY items
+		 */
+		if (--(*nr_to_walk) == 0)
+			break;
+
 		ret = isolate(item, &nlru->lock, cb_arg);
 		switch (ret) {
 		case LRU_REMOVED:
@@ -100,19 +100,14 @@ restart:
 		case LRU_SKIP:
 			break;
 		case LRU_RETRY:
-			if (!first_pass) {
-				first_pass = true;
-				break;
-			}
-			first_pass = false;
+			/*
+			 * The lru lock has been dropped, our list traversal is
+			 * now invalid and so we have to restart from scratch.
+			 */
 			goto restart;
 		default:
 			BUG();
 		}
-
-		if ((*nr_to_walk)-- == 0)
-			break;
-
 	}
 
 	spin_unlock(&nlru->lock);
