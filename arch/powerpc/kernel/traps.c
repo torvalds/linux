@@ -1468,7 +1468,8 @@ void SoftwareEmulation(struct pt_regs *regs)
 
 	if (!user_mode(regs)) {
 		debugger(regs);
-		die("Kernel Mode Software FPU Emulation", regs, SIGFPE);
+		die("Kernel Mode Unimplemented Instruction or SW FPU Emulation",
+			regs, SIGFPE);
 	}
 
 	if (!emulate_math(regs))
