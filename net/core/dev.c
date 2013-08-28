@@ -4381,41 +4381,7 @@ struct netdev_adjacent {
 
 	struct list_head list;
 	struct rcu_head rcu;
-	struct list_head search_list;
 };
-
-static void __append_search_uppers(struct list_head *search_list,
-				   struct net_device *dev)
-{
-	struct netdev_adjacent *upper;
-
-	list_for_each_entry(upper, &dev->upper_dev_list, list) {
-		/* check if this upper is not already in search list */
-		if (list_empty(&upper->search_list))
-			list_add_tail(&upper->search_list, search_list);
-	}
-}
-
-static bool __netdev_search_upper_dev(struct net_device *dev,
-				      struct net_device *upper_dev)
-{
-	LIST_HEAD(search_list);
-	struct netdev_adjacent *upper;
-	struct netdev_adjacent *tmp;
-	bool ret = false;
-
-	__append_search_uppers(&search_list, dev);
-	list_for_each_entry(upper, &search_list, search_list) {
-		if (upper->dev == upper_dev) {
-			ret = true;
-			break;
-		}
-		__append_search_uppers(&search_list, upper->dev);
-	}
-	list_for_each_entry_safe(upper, tmp, &search_list, search_list)
-		INIT_LIST_HEAD(&upper->search_list);
-	return ret;
-}
 
 static struct netdev_adjacent *__netdev_find_adj(struct net_device *dev,
 						 struct net_device *adj_dev,
@@ -4544,7 +4510,6 @@ static int __netdev_adjacent_dev_insert(struct net_device *dev,
 	adj->master = master;
 	adj->neighbour = neighbour;
 	adj->ref_nr = 1;
-	INIT_LIST_HEAD(&adj->search_list);
 
 	dev_hold(adj_dev);
 	pr_debug("dev_hold for %s, because of %s link added from %s to %s\n",
@@ -4671,7 +4636,7 @@ static int __netdev_upper_dev_link(struct net_device *dev,
 		return -EBUSY;
 
 	/* To prevent loops, check if dev is not upper device to upper_dev. */
-	if (__netdev_search_upper_dev(upper_dev, dev))
+	if (__netdev_find_upper(upper_dev, dev))
 		return -EBUSY;
 
 	if (__netdev_find_upper(dev, upper_dev))
