@@ -689,7 +689,7 @@ static int acpi_video_bqc_quirk(struct acpi_video_device *device,
 	 * Some systems always report current brightness level as maximum
 	 * through _BQC, we need to test another value for them.
 	 */
-	test_level = current_level == max_level ? br->levels[2] : max_level;
+	test_level = current_level == max_level ? br->levels[3] : max_level;
 
 	result = acpi_video_device_lcd_set_level(device, test_level);
 	if (result)
@@ -908,10 +908,7 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		device->cap._DDC = 1;
 	}
 
-	if (acpi_video_init_brightness(device))
-		return;
-
-	if (acpi_video_verify_backlight_support()) {
+	if (acpi_video_backlight_support()) {
 		struct backlight_properties props;
 		struct pci_dev *pdev;
 		acpi_handle acpi_parent;
@@ -920,6 +917,9 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		static int count = 0;
 		char *name;
 
+		result = acpi_video_init_brightness(device);
+		if (result)
+			return;
 		name = kasprintf(GFP_KERNEL, "acpi_video%d", count);
 		if (!name)
 			return;
@@ -979,11 +979,6 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		if (result)
 			printk(KERN_ERR PREFIX "Create sysfs link\n");
 
-	} else {
-		/* Remove the brightness object. */
-		kfree(device->brightness->levels);
-		kfree(device->brightness);
-		device->brightness = NULL;
 	}
 }
 
@@ -1366,8 +1361,8 @@ acpi_video_switch_brightness(struct acpi_video_device *device, int event)
 	unsigned long long level_current, level_next;
 	int result = -EINVAL;
 
-	/* no warning message if acpi_backlight=vendor or a quirk is used */
-	if (!acpi_video_verify_backlight_support())
+	/* no warning message if acpi_backlight=vendor is used */
+	if (!acpi_video_backlight_support())
 		return 0;
 
 	if (!device->brightness)
@@ -1875,46 +1870,6 @@ static int acpi_video_bus_remove(struct acpi_device *device)
 	return 0;
 }
 
-static acpi_status video_unregister_backlight(acpi_handle handle, u32 lvl,
-					      void *context, void **rv)
-{
-	struct acpi_device *acpi_dev;
-	struct acpi_video_bus *video;
-	struct acpi_video_device *dev, *next;
-
-	if (acpi_bus_get_device(handle, &acpi_dev))
-		return AE_OK;
-
-	if (acpi_match_device_ids(acpi_dev, video_device_ids))
-		return AE_OK;
-
-	video = acpi_driver_data(acpi_dev);
-	if (!video)
-		return AE_OK;
-
-	acpi_video_bus_stop_devices(video);
-	mutex_lock(&video->device_list_lock);
-	list_for_each_entry_safe(dev, next, &video->video_device_list, entry) {
-		if (dev->backlight) {
-			backlight_device_unregister(dev->backlight);
-			dev->backlight = NULL;
-			kfree(dev->brightness->levels);
-			kfree(dev->brightness);
-		}
-		if (dev->cooling_dev) {
-			sysfs_remove_link(&dev->dev->dev.kobj,
-					  "thermal_cooling");
-			sysfs_remove_link(&dev->cooling_dev->device.kobj,
-					  "device");
-			thermal_cooling_device_unregister(dev->cooling_dev);
-			dev->cooling_dev = NULL;
-		}
-	}
-	mutex_unlock(&video->device_list_lock);
-	acpi_video_bus_start_devices(video);
-	return AE_OK;
-}
-
 static int __init is_i740(struct pci_dev *dev)
 {
 	if (dev->device == 0x00D1)
@@ -1946,25 +1901,14 @@ static int __init intel_opregion_present(void)
 	return opregion;
 }
 
-int __acpi_video_register(bool backlight_quirks)
+int acpi_video_register(void)
 {
-	bool no_backlight;
-	int result;
-
-	no_backlight = backlight_quirks ? acpi_video_backlight_quirks() : false;
-
+	int result = 0;
 	if (register_count) {
 		/*
-		 * If acpi_video_register() has been called already, don't try
-		 * to register acpi_video_bus, but unregister backlight devices
-		 * if no backlight support is requested.
+		 * if the function of acpi_video_register is already called,
+		 * don't register the acpi_vide_bus again and return no error.
 		 */
-		if (no_backlight)
-			acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
-					    ACPI_UINT32_MAX,
-					    video_unregister_backlight,
-					    NULL, NULL, NULL);
-
 		return 0;
 	}
 
@@ -1980,7 +1924,7 @@ int __acpi_video_register(bool backlight_quirks)
 
 	return 0;
 }
-EXPORT_SYMBOL(__acpi_video_register);
+EXPORT_SYMBOL(acpi_video_register);
 
 void acpi_video_unregister(void)
 {

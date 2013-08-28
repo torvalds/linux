@@ -79,7 +79,7 @@
 			interrupts	= <0 197 0>;
 			clocks          = <&CLK_S_ICN_REG_0>;
 			pinctrl-names 	= "default";
-			pinctrl-0 	= <&pinctrl_serial2>;
+			pinctrl-0 	= <&pinctrl_serial2 &pinctrl_serial2_oe>;
 		};
 
 		/* SBC_UART1 */

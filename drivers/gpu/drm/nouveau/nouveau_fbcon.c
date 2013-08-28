@@ -385,6 +385,7 @@ out_unlock:
 	mutex_unlock(&dev->struct_mutex);
 	if (chan)
 		nouveau_bo_vma_del(nvbo, &fbcon->nouveau_fb.vma);
+	nouveau_bo_unmap(nvbo);
 out_unpin:
 	nouveau_bo_unpin(nvbo);
 out_unref:
@@ -397,7 +398,8 @@ void
 nouveau_fbcon_output_poll_changed(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	drm_fb_helper_hotplug_event(&drm->fbcon->helper);
+	if (drm->fbcon)
+		drm_fb_helper_hotplug_event(&drm->fbcon->helper);
 }
 
 static int

@@ -1369,8 +1369,10 @@ static void ndisc_redirect_rcv(struct sk_buff *skb)
 	if (!ndisc_parse_options(msg->opt, ndoptlen, &ndopts))
 		return;
 
-	if (!ndopts.nd_opts_rh)
+	if (!ndopts.nd_opts_rh) {
+		ip6_redirect_no_header(skb, dev_net(skb->dev), 0, 0);
 		return;
+	}
 
 	hdr = (u8 *)ndopts.nd_opts_rh;
 	hdr += 8;
@@ -1576,7 +1578,7 @@ static int ndisc_netdev_event(struct notifier_block *this, unsigned long event, 
 	switch (event) {
 	case NETDEV_CHANGEADDR:
 		neigh_changeaddr(&nd_tbl, dev);
-		fib6_run_gc(~0UL, net);
+		fib6_run_gc(0, net, false);
 		idev = in6_dev_get(dev);
 		if (!idev)
 			break;
@@ -1586,7 +1588,7 @@ static int ndisc_netdev_event(struct notifier_block *this, unsigned long event, 
 		break;
 	case NETDEV_DOWN:
 		neigh_ifdown(&nd_tbl, dev);
-		fib6_run_gc(~0UL, net);
+		fib6_run_gc(0, net, false);
 		break;
 	case NETDEV_NOTIFY_PEERS:
 		ndisc_send_unsol_na(dev);

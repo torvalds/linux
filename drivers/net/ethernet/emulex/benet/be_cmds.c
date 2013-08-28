@@ -3048,6 +3048,9 @@ int be_cmd_get_func_config(struct be_adapter *adapter)
 
 		adapter->max_event_queues = le16_to_cpu(desc->eq_count);
 		adapter->if_cap_flags = le32_to_cpu(desc->cap_flags);
+
+		/* Clear flags that driver is not interested in */
+		adapter->if_cap_flags &=  BE_IF_CAP_FLAGS_WANT;
 	}
 err:
 	mutex_unlock(&adapter->mbox_lock);

@@ -40,7 +40,7 @@ struct sun4i_mdio_data {
 static int sun4i_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 {
 	struct sun4i_mdio_data *data = bus->priv;
-	unsigned long start_jiffies;
+	unsigned long timeout_jiffies;
 	int value;
 
 	/* issue the phy address and reg */
@@ -49,10 +49,9 @@ static int sun4i_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 	writel(0x1, data->membase + EMAC_MAC_MCMD_REG);
 
 	/* Wait read complete */
-	start_jiffies = jiffies;
+	timeout_jiffies = jiffies + MDIO_TIMEOUT;
 	while (readl(data->membase + EMAC_MAC_MIND_REG) & 0x1) {
-		if (time_after(start_jiffies,
-			       start_jiffies + MDIO_TIMEOUT))
+		if (time_is_before_jiffies(timeout_jiffies))
 			return -ETIMEDOUT;
 		msleep(1);
 	}
@@ -69,7 +68,7 @@ static int sun4i_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 			    u16 value)
 {
 	struct sun4i_mdio_data *data = bus->priv;
-	unsigned long start_jiffies;
+	unsigned long timeout_jiffies;
 
 	/* issue the phy address and reg */
 	writel((mii_id << 8) | regnum, data->membase + EMAC_MAC_MADR_REG);
@@ -77,10 +76,9 @@ static int sun4i_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 	writel(0x1, data->membase + EMAC_MAC_MCMD_REG);
 
 	/* Wait read complete */
-	start_jiffies = jiffies;
+	timeout_jiffies = jiffies + MDIO_TIMEOUT;
 	while (readl(data->membase + EMAC_MAC_MIND_REG) & 0x1) {
-		if (time_after(start_jiffies,
-			       start_jiffies + MDIO_TIMEOUT))
+		if (time_is_before_jiffies(timeout_jiffies))
 			return -ETIMEDOUT;
 		msleep(1);
 	}
