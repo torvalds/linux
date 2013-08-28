@@ -239,6 +239,20 @@ static void __release_stripe(struct r5conf *conf, struct stripe_head *sh)
 		do_release_stripe(conf, sh);
 }
 
+static struct llist_node *llist_reverse_order(struct llist_node *head)
+{
+	struct llist_node *new_head = NULL;
+
+	while (head) {
+		struct llist_node *tmp = head;
+		head = head->next;
+		tmp->next = new_head;
+		new_head = tmp;
+	}
+
+	return new_head;
+}
+
 /* should hold conf->device_lock already */
 static int release_stripe_list(struct r5conf *conf)
 {
@@ -247,6 +261,7 @@ static int release_stripe_list(struct r5conf *conf)
 	struct llist_node *head;
 
 	head = llist_del_all(&conf->released_stripes);
+	head = llist_reverse_order(head);
 	while (head) {
 		sh = llist_entry(head, struct stripe_head, release_list);
 		head = llist_next(head);
