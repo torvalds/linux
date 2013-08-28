@@ -730,7 +730,6 @@ static int __init ar933x_uart_init(void)
 {
 	int ret;
 
-	ar933x_uart_driver.nr = CONFIG_SERIAL_AR933X_NR_UARTS;
 	ret = uart_register_driver(&ar933x_uart_driver);
 	if (ret)
 		goto err_out;
