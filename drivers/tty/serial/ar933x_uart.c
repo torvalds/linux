@@ -50,6 +50,11 @@ struct ar933x_uart_port {
 	struct clk		*clk;
 };
 
+static inline bool ar933x_uart_console_enabled(void)
+{
+	return config_enabled(CONFIG_SERIAL_AR933X_CONSOLE);
+}
+
 static inline unsigned int ar933x_uart_read(struct ar933x_uart_port *up,
 					    int offset)
 {
@@ -500,8 +505,6 @@ static struct uart_ops ar933x_uart_ops = {
 	.verify_port	= ar933x_uart_verify_port,
 };
 
-#ifdef CONFIG_SERIAL_AR933X_CONSOLE
-
 static struct ar933x_uart_port *
 ar933x_console_ports[CONFIG_SERIAL_AR933X_NR_UARTS];
 
@@ -600,25 +603,18 @@ static struct console ar933x_uart_console = {
 
 static void ar933x_uart_add_console_port(struct ar933x_uart_port *up)
 {
+	if (!ar933x_uart_console_enabled())
+		return;
+
 	ar933x_console_ports[up->port.line] = up;
 }
-
-#define AR933X_SERIAL_CONSOLE	(&ar933x_uart_console)
-
-#else
-
-static inline void ar933x_uart_add_console_port(struct ar933x_uart_port *up) {}
-
-#define AR933X_SERIAL_CONSOLE	NULL
-
-#endif /* CONFIG_SERIAL_AR933X_CONSOLE */
 
 static struct uart_driver ar933x_uart_driver = {
 	.owner		= THIS_MODULE,
 	.driver_name	= DRIVER_NAME,
 	.dev_name	= "ttyATH",
 	.nr		= CONFIG_SERIAL_AR933X_NR_UARTS,
-	.cons		= AR933X_SERIAL_CONSOLE,
+	.cons		= NULL, /* filled in runtime */
 };
 
 static int ar933x_uart_probe(struct platform_device *pdev)
@@ -729,6 +725,9 @@ static struct platform_driver ar933x_uart_platform_driver = {
 static int __init ar933x_uart_init(void)
 {
 	int ret;
+
+	if (ar933x_uart_console_enabled())
+		ar933x_uart_driver.cons = &ar933x_uart_console;
 
 	ret = uart_register_driver(&ar933x_uart_driver);
 	if (ret)
