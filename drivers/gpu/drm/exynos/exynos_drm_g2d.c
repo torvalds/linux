@@ -1534,12 +1534,10 @@ static const struct dev_pm_ops g2d_pm_ops = {
 	SET_RUNTIME_PM_OPS(g2d_runtime_suspend, g2d_runtime_resume, NULL)
 };
 
-#ifdef CONFIG_OF
 static const struct of_device_id exynos_g2d_match[] = {
 	{ .compatible = "samsung,exynos5250-g2d" },
 	{},
 };
-#endif
 
 struct platform_driver g2d_driver = {
 	.probe		= g2d_probe,
@@ -1548,6 +1546,6 @@ struct platform_driver g2d_driver = {
 		.name	= "s5p-g2d",
 		.owner	= THIS_MODULE,
 		.pm	= &g2d_pm_ops,
-		.of_match_table = of_match_ptr(exynos_g2d_match),
+		.of_match_table = exynos_g2d_match,
 	},
 };
