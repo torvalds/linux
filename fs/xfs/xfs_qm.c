@@ -766,7 +766,7 @@ out_unlock_dirty:
 	return 3;
 }
 
-static long
+static unsigned long
 xfs_qm_shrink_scan(
 	struct shrinker		*shrink,
 	struct shrink_control	*sc)
@@ -774,7 +774,7 @@ xfs_qm_shrink_scan(
 	struct xfs_quotainfo	*qi = container_of(shrink,
 					struct xfs_quotainfo, qi_shrinker);
 	struct xfs_qm_isolate	isol;
-	long			freed;
+	unsigned long		freed;
 	int			error;
 	unsigned long		nr_to_scan = sc->nr_to_scan;
 
@@ -802,7 +802,7 @@ xfs_qm_shrink_scan(
 	return freed;
 }
 
-static long
+static unsigned long
 xfs_qm_shrink_count(
 	struct shrinker		*shrink,
 	struct shrink_control	*sc)
