@@ -32,7 +32,8 @@
 struct workqueue_struct *gfs2_control_wq;
 
 static struct shrinker qd_shrinker = {
-	.shrink = gfs2_shrink_qd_memory,
+	.count_objects = gfs2_qd_shrink_count,
+	.scan_objects = gfs2_qd_shrink_scan,
 	.seeks = DEFAULT_SEEKS,
 };
 

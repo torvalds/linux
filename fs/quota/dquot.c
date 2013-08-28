@@ -687,44 +687,37 @@ int dquot_quota_sync(struct super_block *sb, int type)
 }
 EXPORT_SYMBOL(dquot_quota_sync);
 
-/* Free unused dquots from cache */
-static void prune_dqcache(int count)
+static unsigned long
+dqcache_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 {
 	struct list_head *head;
 	struct dquot *dquot;
+	unsigned long freed = 0;
 
 	head = free_dquots.prev;
-	while (head != &free_dquots && count) {
+	while (head != &free_dquots && sc->nr_to_scan) {
 		dquot = list_entry(head, struct dquot, dq_free);
 		remove_dquot_hash(dquot);
 		remove_free_dquot(dquot);
 		remove_inuse(dquot);
 		do_destroy_dquot(dquot);
-		count--;
+		sc->nr_to_scan--;
+		freed++;
 		head = free_dquots.prev;
 	}
+	return freed;
 }
 
-/*
- * This is called from kswapd when we think we need some
- * more memory
- */
-static int shrink_dqcache_memory(struct shrinker *shrink,
-				 struct shrink_control *sc)
+static unsigned long
+dqcache_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
 {
-	int nr = sc->nr_to_scan;
-
-	if (nr) {
-		spin_lock(&dq_list_lock);
-		prune_dqcache(nr);
-		spin_unlock(&dq_list_lock);
-	}
 	return vfs_pressure_ratio(
 	percpu_counter_read_positive(&dqstats.counter[DQST_FREE_DQUOTS]));
 }
 
 static struct shrinker dqcache_shrinker = {
-	.shrink = shrink_dqcache_memory,
+	.count_objects = dqcache_shrink_count,
+	.scan_objects = dqcache_shrink_scan,
 	.seeks = DEFAULT_SEEKS,
 };
 

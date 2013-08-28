@@ -2006,17 +2006,18 @@ static void nfs_access_free_list(struct list_head *head)
 	}
 }
 
-int nfs_access_cache_shrinker(struct shrinker *shrink,
-			      struct shrink_control *sc)
+unsigned long
+nfs_access_cache_scan(struct shrinker *shrink, struct shrink_control *sc)
 {
 	LIST_HEAD(head);
 	struct nfs_inode *nfsi, *next;
 	struct nfs_access_entry *cache;
 	int nr_to_scan = sc->nr_to_scan;
 	gfp_t gfp_mask = sc->gfp_mask;
+	long freed = 0;
 
 	if ((gfp_mask & GFP_KERNEL) != GFP_KERNEL)
-		return (nr_to_scan == 0) ? 0 : -1;
+		return SHRINK_STOP;
 
 	spin_lock(&nfs_access_lru_lock);
 	list_for_each_entry_safe(nfsi, next, &nfs_access_lru_list, access_cache_inode_lru) {
@@ -2032,6 +2033,7 @@ int nfs_access_cache_shrinker(struct shrinker *shrink,
 				struct nfs_access_entry, lru);
 		list_move(&cache->lru, &head);
 		rb_erase(&cache->rb_node, &nfsi->access_cache);
+		freed++;
 		if (!list_empty(&nfsi->access_cache_entry_lru))
 			list_move_tail(&nfsi->access_cache_inode_lru,
 					&nfs_access_lru_list);
@@ -2046,6 +2048,12 @@ remove_lru_entry:
 	}
 	spin_unlock(&nfs_access_lru_lock);
 	nfs_access_free_list(&head);
+	return freed;
+}
+
+unsigned long
+nfs_access_cache_count(struct shrinker *shrink, struct shrink_control *sc)
+{
 	return vfs_pressure_ratio(atomic_long_read(&nfs_access_nr_entries));
 }
 
