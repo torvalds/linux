@@ -135,7 +135,8 @@ int zpci_register_ioat(struct zpci_dev *, u8, u64, u64, u64);
 int zpci_unregister_ioat(struct zpci_dev *, u8);
 
 /* CLP */
-int clp_find_pci_devices(void);
+int clp_scan_pci_devices(void);
+int clp_rescan_pci_devices(void);
 int clp_add_pci_device(u32, u32, int);
 int clp_enable_fh(struct zpci_dev *, u8);
 int clp_disable_fh(struct zpci_dev *);
@@ -163,7 +164,6 @@ static inline void zpci_exit_slot(struct zpci_dev *zdev) {}
 /* Helpers */
 struct zpci_dev *get_zdev(struct pci_dev *);
 struct zpci_dev *get_zdev_by_fid(u32);
-bool zpci_fid_present(u32);
 
 /* sysfs */
 int zpci_sysfs_add_device(struct device *);

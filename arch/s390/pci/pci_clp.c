@@ -36,9 +36,9 @@ static inline u8 clp_instr(void *data)
 	return cc;
 }
 
-static void *clp_alloc_block(void)
+static void *clp_alloc_block(gfp_t gfp_mask)
 {
-	return (void *) __get_free_pages(GFP_KERNEL, get_order(CLP_BLK_SIZE));
+	return (void *) __get_free_pages(gfp_mask, get_order(CLP_BLK_SIZE));
 }
 
 static void clp_free_block(void *ptr)
@@ -70,7 +70,7 @@ static int clp_query_pci_fngrp(struct zpci_dev *zdev, u8 pfgid)
 	struct clp_req_rsp_query_pci_grp *rrb;
 	int rc;
 
-	rrb = clp_alloc_block();
+	rrb = clp_alloc_block(GFP_KERNEL);
 	if (!rrb)
 		return -ENOMEM;
 
@@ -113,7 +113,7 @@ static int clp_query_pci_fn(struct zpci_dev *zdev, u32 fh)
 	struct clp_req_rsp_query_pci *rrb;
 	int rc;
 
-	rrb = clp_alloc_block();
+	rrb = clp_alloc_block(GFP_KERNEL);
 	if (!rrb)
 		return -ENOMEM;
 
@@ -181,7 +181,7 @@ static int clp_set_pci_fn(u32 *fh, u8 nr_dma_as, u8 command)
 	struct clp_req_rsp_set_pci *rrb;
 	int rc, retries = 1000;
 
-	rrb = clp_alloc_block();
+	rrb = clp_alloc_block(GFP_KERNEL);
 	if (!rrb)
 		return -ENOMEM;
 
@@ -245,48 +245,11 @@ int clp_disable_fh(struct zpci_dev *zdev)
 	return rc;
 }
 
-static void clp_check_pcifn_entry(struct clp_fh_list_entry *entry)
+static int clp_list_pci(struct clp_req_rsp_list_pci *rrb,
+			void (*cb)(struct clp_fh_list_entry *entry))
 {
-	int present, rc;
-
-	if (!entry->vendor_id)
-		return;
-
-	/* TODO: be a little bit more scalable */
-	present = zpci_fid_present(entry->fid);
-
-	if (present)
-		pr_debug("%s: device %x already present\n", __func__, entry->fid);
-
-	/* skip already used functions */
-	if (present && entry->config_state)
-		return;
-
-	/* aev 306: function moved to stand-by state */
-	if (present && !entry->config_state) {
-		/*
-		 * The handle is already disabled, that means no iota/irq freeing via
-		 * the firmware interfaces anymore. Need to free resources manually
-		 * (DMA memory, debug, sysfs)...
-		 */
-		zpci_stop_device(get_zdev_by_fid(entry->fid));
-		return;
-	}
-
-	rc = clp_add_pci_device(entry->fid, entry->fh, entry->config_state);
-	if (rc)
-		pr_err("Failed to add fid: 0x%x\n", entry->fid);
-}
-
-int clp_find_pci_devices(void)
-{
-	struct clp_req_rsp_list_pci *rrb;
 	u64 resume_token = 0;
 	int entries, i, rc;
-
-	rrb = clp_alloc_block();
-	if (!rrb)
-		return -ENOMEM;
 
 	do {
 		memset(rrb, 0, sizeof(*rrb));
@@ -316,12 +279,72 @@ int clp_find_pci_devices(void)
 		resume_token = rrb->response.resume_token;
 
 		for (i = 0; i < entries; i++)
-			clp_check_pcifn_entry(&rrb->response.fh_list[i]);
+			cb(&rrb->response.fh_list[i]);
 	} while (resume_token);
 
 	pr_debug("Maximum number of supported PCI functions: %u\n",
 		rrb->response.max_fn);
 out:
+	return rc;
+}
+
+static void __clp_add(struct clp_fh_list_entry *entry)
+{
+	if (!entry->vendor_id)
+		return;
+
+	clp_add_pci_device(entry->fid, entry->fh, entry->config_state);
+}
+
+static void __clp_rescan(struct clp_fh_list_entry *entry)
+{
+	struct zpci_dev *zdev;
+
+	if (!entry->vendor_id)
+		return;
+
+	zdev = get_zdev_by_fid(entry->fid);
+	if (!zdev) {
+		clp_add_pci_device(entry->fid, entry->fh, entry->config_state);
+		return;
+	}
+
+	if (!entry->config_state) {
+		/*
+		 * The handle is already disabled, that means no iota/irq freeing via
+		 * the firmware interfaces anymore. Need to free resources manually
+		 * (DMA memory, debug, sysfs)...
+		 */
+		zpci_stop_device(zdev);
+	}
+}
+
+int clp_scan_pci_devices(void)
+{
+	struct clp_req_rsp_list_pci *rrb;
+	int rc;
+
+	rrb = clp_alloc_block(GFP_KERNEL);
+	if (!rrb)
+		return -ENOMEM;
+
+	rc = clp_list_pci(rrb, __clp_add);
+
+	clp_free_block(rrb);
+	return rc;
+}
+
+int clp_rescan_pci_devices(void)
+{
+	struct clp_req_rsp_list_pci *rrb;
+	int rc;
+
+	rrb = clp_alloc_block(GFP_KERNEL);
+	if (!rrb)
+		return -ENOMEM;
+
+	rc = clp_list_pci(rrb, __clp_rescan);
+
 	clp_free_block(rrb);
 	return rc;
 }

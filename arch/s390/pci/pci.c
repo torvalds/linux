@@ -99,11 +99,6 @@ struct zpci_dev *get_zdev_by_fid(u32 fid)
 	return zdev;
 }
 
-bool zpci_fid_present(u32 fid)
-{
-	return (get_zdev_by_fid(fid) != NULL) ? true : false;
-}
-
 static struct zpci_dev *get_zdev_by_bus(struct pci_bus *bus)
 {
 	return (bus && bus->sysdata) ? (struct zpci_dev *) bus->sysdata : NULL;
@@ -926,7 +921,7 @@ static int __init pci_base_init(void)
 	if (rc)
 		goto out_dma;
 
-	rc = clp_find_pci_devices();
+	rc = clp_scan_pci_devices();
 	if (rc)
 		goto out_find;
 
