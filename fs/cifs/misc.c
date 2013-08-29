@@ -105,6 +105,7 @@ sesInfoFree(struct cifs_ses *buf_to_free)
 	}
 	kfree(buf_to_free->user_name);
 	kfree(buf_to_free->domainName);
+	kfree(buf_to_free->auth_key.response);
 	kfree(buf_to_free);
 }
 

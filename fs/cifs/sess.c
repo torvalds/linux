@@ -629,7 +629,8 @@ CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
 	type = select_sectype(ses->server, ses->sectype);
 	cifs_dbg(FYI, "sess setup type %d\n", type);
 	if (type == Unspecified) {
-		cifs_dbg(VFS, "Unable to select appropriate authentication method!");
+		cifs_dbg(VFS,
+			"Unable to select appropriate authentication method!");
 		return -EINVAL;
 	}
 
@@ -815,8 +816,9 @@ ssetup_ntlmssp_authenticate:
 		ses->auth_key.response = kmemdup(msg->data, msg->sesskey_len,
 						 GFP_KERNEL);
 		if (!ses->auth_key.response) {
-			cifs_dbg(VFS, "Kerberos can't allocate (%u bytes) memory",
-					msg->sesskey_len);
+			cifs_dbg(VFS,
+				"Kerberos can't allocate (%u bytes) memory",
+				msg->sesskey_len);
 			rc = -ENOMEM;
 			goto ssetup_exit;
 		}
@@ -1004,6 +1006,38 @@ ssetup_exit:
 	/* if ntlmssp, and negotiate succeeded, proceed to authenticate phase */
 	if ((phase == NtLmChallenge) && (rc == 0))
 		goto ssetup_ntlmssp_authenticate;
+
+	if (!rc) {
+		mutex_lock(&ses->server->srv_mutex);
+		if (!ses->server->session_estab) {
+			if (ses->server->sign) {
+				ses->server->session_key.response =
+					kmemdup(ses->auth_key.response,
+					ses->auth_key.len, GFP_KERNEL);
+				if (!ses->server->session_key.response) {
+					rc = -ENOMEM;
+					mutex_unlock(&ses->server->srv_mutex);
+					goto keycp_exit;
+				}
+				ses->server->session_key.len =
+							ses->auth_key.len;
+			}
+			ses->server->sequence_number = 0x2;
+			ses->server->session_estab = true;
+		}
+		mutex_unlock(&ses->server->srv_mutex);
+
+		cifs_dbg(FYI, "CIFS session established successfully\n");
+		spin_lock(&GlobalMid_Lock);
+		ses->status = CifsGood;
+		ses->need_reconnect = false;
+		spin_unlock(&GlobalMid_Lock);
+	}
+
+keycp_exit:
+	kfree(ses->auth_key.response);
+	ses->auth_key.response = NULL;
+	kfree(ses->ntlmssp);
 
 	return rc;
 }

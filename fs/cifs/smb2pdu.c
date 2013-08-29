@@ -478,6 +478,13 @@ SMB2_sess_setup(const unsigned int xid, struct cifs_ses *ses,
 	}
 
 	/*
+	 * If we are here due to reconnect, free per-smb session key
+	 * in case signing was required.
+	 */
+	kfree(ses->auth_key.response);
+	ses->auth_key.response = NULL;
+
+	/*
 	 * If memory allocation is successful, caller of this function
 	 * frees it.
 	 */
@@ -628,6 +635,30 @@ ssetup_exit:
 	/* if ntlmssp, and negotiate succeeded, proceed to authenticate phase */
 	if ((phase == NtLmChallenge) && (rc == 0))
 		goto ssetup_ntlmssp_authenticate;
+
+	if (!rc) {
+		mutex_lock(&server->srv_mutex);
+		if (!server->session_estab) {
+			server->sequence_number = 0x2;
+			server->session_estab = true;
+			if (server->ops->generate_signingkey)
+				server->ops->generate_signingkey(server);
+		}
+		mutex_unlock(&server->srv_mutex);
+
+		cifs_dbg(FYI, "SMB2/3 session established successfully\n");
+		spin_lock(&GlobalMid_Lock);
+		ses->status = CifsGood;
+		ses->need_reconnect = false;
+		spin_unlock(&GlobalMid_Lock);
+	}
+
+	if (!server->sign) {
+		kfree(ses->auth_key.response);
+		ses->auth_key.response = NULL;
+	}
+	kfree(ses->ntlmssp);
+
 	return rc;
 }
 
