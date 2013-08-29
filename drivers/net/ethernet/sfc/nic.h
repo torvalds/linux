@@ -17,15 +17,12 @@
 #include "efx.h"
 #include "mcdi.h"
 
-/*
- * Falcon hardware control
- */
-
 enum {
 	EFX_REV_FALCON_A0 = 0,
 	EFX_REV_FALCON_A1 = 1,
 	EFX_REV_FALCON_B0 = 2,
 	EFX_REV_SIENA_A0 = 3,
+	EFX_REV_HUNT_A0 = 4,
 };
 
 static inline int efx_nic_rev(struct efx_nic *efx)
@@ -347,6 +344,78 @@ struct siena_nic_data {
 	u64 stats[SIENA_STAT_COUNT];
 };
 
+enum {
+	EF10_STAT_tx_bytes,
+	EF10_STAT_tx_packets,
+	EF10_STAT_tx_pause,
+	EF10_STAT_tx_control,
+	EF10_STAT_tx_unicast,
+	EF10_STAT_tx_multicast,
+	EF10_STAT_tx_broadcast,
+	EF10_STAT_tx_lt64,
+	EF10_STAT_tx_64,
+	EF10_STAT_tx_65_to_127,
+	EF10_STAT_tx_128_to_255,
+	EF10_STAT_tx_256_to_511,
+	EF10_STAT_tx_512_to_1023,
+	EF10_STAT_tx_1024_to_15xx,
+	EF10_STAT_tx_15xx_to_jumbo,
+	EF10_STAT_rx_bytes,
+	EF10_STAT_rx_bytes_minus_good_bytes,
+	EF10_STAT_rx_good_bytes,
+	EF10_STAT_rx_bad_bytes,
+	EF10_STAT_rx_packets,
+	EF10_STAT_rx_good,
+	EF10_STAT_rx_bad,
+	EF10_STAT_rx_pause,
+	EF10_STAT_rx_control,
+	EF10_STAT_rx_unicast,
+	EF10_STAT_rx_multicast,
+	EF10_STAT_rx_broadcast,
+	EF10_STAT_rx_lt64,
+	EF10_STAT_rx_64,
+	EF10_STAT_rx_65_to_127,
+	EF10_STAT_rx_128_to_255,
+	EF10_STAT_rx_256_to_511,
+	EF10_STAT_rx_512_to_1023,
+	EF10_STAT_rx_1024_to_15xx,
+	EF10_STAT_rx_15xx_to_jumbo,
+	EF10_STAT_rx_gtjumbo,
+	EF10_STAT_rx_bad_gtjumbo,
+	EF10_STAT_rx_overflow,
+	EF10_STAT_rx_align_error,
+	EF10_STAT_rx_length_error,
+	EF10_STAT_rx_nodesc_drops,
+	EF10_STAT_COUNT
+};
+
+/**
+ * struct efx_ef10_nic_data - EF10 architecture NIC state
+ * @mcdi_buf: DMA buffer for MCDI
+ * @warm_boot_count: Last seen MC warm boot count
+ * @vi_base: Absolute index of first VI in this function
+ * @n_allocated_vis: Number of VIs allocated to this function
+ * @must_realloc_vis: Flag: VIs have yet to be reallocated after MC reboot
+ * @must_restore_filters: Flag: filters have yet to be restored after MC reboot
+ * @rx_rss_context: Firmware handle for our RSS context
+ * @stats: Hardware statistics
+ * @workaround_35388: Flag: firmware supports workaround for bug 35388
+ * @datapath_caps: Capabilities of datapath firmware (FLAGS1 field of
+ *	%MC_CMD_GET_CAPABILITIES response)
+ */
+struct efx_ef10_nic_data {
+	struct efx_buffer mcdi_buf;
+	u16 warm_boot_count;
+	unsigned int vi_base;
+	unsigned int n_allocated_vis;
+	bool must_realloc_vis;
+	bool must_restore_filters;
+	u32 rx_rss_context;
+	u64 stats[EF10_STAT_COUNT];
+	bool workaround_35388;
+	u32 datapath_caps;
+};
+
 /*
  * On the SFC9000 family each port is associated with 1 PCI physical
  * function (PF) handled by sfc and a configurable number of virtual
@@ -448,6 +517,7 @@ extern void efx_ptp_event(struct efx_nic *efx, efx_qword_t *ev);
 extern const struct efx_nic_type falcon_a1_nic_type;
 extern const struct efx_nic_type falcon_b0_nic_type;
 extern const struct efx_nic_type siena_a0_nic_type;
+extern const struct efx_nic_type efx_hunt_a0_nic_type;
 
 /**************************************************************************
  *
@@ -627,6 +697,7 @@ extern void falcon_stop_nic_stats(struct efx_nic *efx);
 extern int falcon_reset_xaui(struct efx_nic *efx);
 extern void efx_farch_dimension_resources(struct efx_nic *efx, unsigned sram_lim_qw);
 extern void efx_farch_init_common(struct efx_nic *efx);
+extern void efx_ef10_handle_drain_event(struct efx_nic *efx);
 static inline void efx_nic_push_rx_indir_table(struct efx_nic *efx)
 {
 	efx->type->rx_push_indir_table(efx);

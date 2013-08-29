@@ -77,6 +77,8 @@ static const struct efx_sw_stat_desc efx_sw_stat_desc[] = {
 	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_mcast_mismatch),
 	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_frm_trunc),
 	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_nodesc_trunc),
+	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_merge_events),
+	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_merge_packets),
 };
 
 #define EFX_ETHTOOL_SW_STAT_COUNT ARRAY_SIZE(efx_sw_stat_desc)

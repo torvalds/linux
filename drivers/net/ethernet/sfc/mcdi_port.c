@@ -830,6 +830,13 @@ static const struct efx_phy_operations efx_mcdi_phy_ops = {
 	.get_module_info = efx_mcdi_phy_get_module_info,
 };
 
+u32 efx_mcdi_phy_get_caps(struct efx_nic *efx)
+{
+	struct efx_mcdi_phy_data *phy_data = efx->phy_data;
+
+	return phy_data->supported_cap;
+}
+
 static unsigned int efx_mcdi_event_link_speed[] = {
 	[MCDI_EVENT_LINKCHANGE_SPEED_100M] = 100,
 	[MCDI_EVENT_LINKCHANGE_SPEED_1G] = 1000,
@@ -1003,4 +1010,18 @@ void efx_mcdi_port_remove(struct efx_nic *efx)
 {
 	efx->phy_op->remove(efx);
 	efx_nic_free_buffer(efx, &efx->stats_buffer);
+}
+
+/* Get physical port number (EF10 only; on Siena it is same as PF number) */
+int efx_mcdi_port_get_number(struct efx_nic *efx)
+{
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_PORT_ASSIGNMENT_OUT_LEN);
+	int rc;
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_GET_PORT_ASSIGNMENT, NULL, 0,
+			  outbuf, sizeof(outbuf), NULL);
+	if (rc)
+		return rc;
+
+	return MCDI_DWORD(outbuf, GET_PORT_ASSIGNMENT_OUT_PORT);
 }

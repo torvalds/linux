@@ -44,4 +44,10 @@
 /* Leak overlength packets rather than free */
 #define EFX_WORKAROUND_8071 EFX_WORKAROUND_FALCON_A
 
+/* Lockup when writing event block registers at gen2/gen3 */
+#define EFX_EF10_WORKAROUND_35388(efx)					\
+	(((struct efx_ef10_nic_data *)efx->nic_data)->workaround_35388)
+#define EFX_WORKAROUND_35388(efx)					\
+	(efx_nic_rev(efx) == EFX_REV_HUNT_A0 && EFX_EF10_WORKAROUND_35388(efx))
+
 #endif /* EFX_WORKAROUNDS_H */

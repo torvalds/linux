@@ -39,7 +39,7 @@
  *
  **************************************************************************/
 
-#define EFX_DRIVER_VERSION	"3.2"
+#define EFX_DRIVER_VERSION	"4.0"
 
 #ifdef DEBUG
 #define EFX_BUG_ON_PARANOID(x) BUG_ON(x)
@@ -389,6 +389,8 @@ enum efx_rx_alloc_method {
  * @n_skbuff_leaks: Count of skbuffs leaked due to RX overrun
  * @n_rx_nodesc_trunc: Number of RX packets truncated and then dropped due to
  *	lack of descriptors
+ * @n_rx_merge_events: Number of RX merged completion events
+ * @n_rx_merge_packets: Number of RX packets completed by merged events
  * @rx_pkt_n_frags: Number of fragments in next packet to be delivered by
  *	__efx_rx_packet(), or zero if there is none
  * @rx_pkt_index: Ring index of first buffer for next packet to be delivered
@@ -425,6 +427,8 @@ struct efx_channel {
 	unsigned n_rx_overlength;
 	unsigned n_skbuff_leaks;
 	unsigned int n_rx_nodesc_trunc;
+	unsigned int n_rx_merge_events;
+	unsigned int n_rx_merge_packets;
 
 	unsigned int rx_pkt_n_frags;
 	unsigned int rx_pkt_index;

@@ -81,7 +81,7 @@ struct efx_mcdi_mon {
 struct efx_mcdi_mtd_partition {
 	struct efx_mtd_partition common;
 	bool updating;
-	u8 nvram_type;
+	u16 nvram_type;
 	u16 fw_subtype;
 };
 
@@ -157,6 +157,9 @@ extern void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
 #define _MCDI_DWORD(_buf, _field)					\
 	((_buf) + (_MCDI_CHECK_ALIGN(MC_CMD_ ## _field ## _OFST, 4) >> 2))
 
+#define MCDI_WORD(_buf, _field)						\
+	((u16)BUILD_BUG_ON_ZERO(MC_CMD_ ## _field ## _LEN != 2) +	\
+	 le16_to_cpu(*(__force const __le16 *)MCDI_PTR(_buf, _field)))
 #define MCDI_SET_DWORD(_buf, _field, _value)				\
 	EFX_POPULATE_DWORD_1(*_MCDI_DWORD(_buf, _field), EFX_DWORD_0, _value)
 #define MCDI_DWORD(_buf, _field)					\
@@ -293,6 +296,8 @@ extern int efx_mcdi_flush_rxqs(struct efx_nic *efx);
 extern int efx_mcdi_port_probe(struct efx_nic *efx);
 extern void efx_mcdi_port_remove(struct efx_nic *efx);
 extern int efx_mcdi_port_reconfigure(struct efx_nic *efx);
+extern int efx_mcdi_port_get_number(struct efx_nic *efx);
+extern u32 efx_mcdi_phy_get_caps(struct efx_nic *efx);
 extern void efx_mcdi_process_link_change(struct efx_nic *efx, efx_qword_t *ev);
 extern int efx_mcdi_set_mac(struct efx_nic *efx);
 #define EFX_MC_STATS_GENERATION_INVALID ((__force __le64)(-1))
@@ -301,6 +306,7 @@ extern void efx_mcdi_mac_stop_stats(struct efx_nic *efx);
 extern bool efx_mcdi_mac_check_fault(struct efx_nic *efx);
 extern enum reset_type efx_mcdi_map_reset_reason(enum reset_type reason);
 extern int efx_mcdi_reset(struct efx_nic *efx, enum reset_type method);
+extern int efx_mcdi_set_workaround(struct efx_nic *efx, u32 type, bool enabled);
 
 #ifdef CONFIG_SFC_MCDI_MON
 extern int efx_mcdi_mon_probe(struct efx_nic *efx);

@@ -852,6 +852,7 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 			   "MC Scheduler error address=0x%x\n", data);
 		break;
 	case MCDI_EVENT_CODE_REBOOT:
+	case MCDI_EVENT_CODE_MC_REBOOT:
 		netif_info(efx, hw, efx->net_dev, "MC Reboot\n");
 		efx_mcdi_ev_death(efx, -EIO);
 		break;
@@ -866,7 +867,19 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 	case MCDI_EVENT_CODE_PTP_PPS:
 		efx_ptp_event(efx, event);
 		break;
-
+	case MCDI_EVENT_CODE_TX_FLUSH:
+	case MCDI_EVENT_CODE_RX_FLUSH:
+		/* Two flush events will be sent: one to the same event
+		 * queue as completions, and one to event queue 0.
+		 * In the latter case the {RX,TX}_FLUSH_TO_DRIVER
+		 * flag will be set, and we should ignore the event
+		 * because we want to wait for all completions.
+		 */
+		BUILD_BUG_ON(MCDI_EVENT_TX_FLUSH_TO_DRIVER_LBN !=
+			     MCDI_EVENT_RX_FLUSH_TO_DRIVER_LBN);
+		if (!MCDI_EVENT_FIELD(*event, TX_FLUSH_TO_DRIVER))
+			efx_ef10_handle_drain_event(efx);
+		break;
 	case MCDI_EVENT_CODE_TX_ERR:
 	case MCDI_EVENT_CODE_RX_ERR:
 		netif_err(efx, hw, efx->net_dev,
@@ -890,27 +903,55 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 
 void efx_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len)
 {
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_VERSION_OUT_LEN);
+	MCDI_DECLARE_BUF(outbuf,
+			 max(MC_CMD_GET_VERSION_OUT_LEN,
+			     MC_CMD_GET_CAPABILITIES_OUT_LEN));
 	size_t outlength;
 	const __le16 *ver_words;
+	size_t offset;
 	int rc;
 
 	BUILD_BUG_ON(MC_CMD_GET_VERSION_IN_LEN != 0);
-
 	rc = efx_mcdi_rpc(efx, MC_CMD_GET_VERSION, NULL, 0,
 			  outbuf, sizeof(outbuf), &outlength);
 	if (rc)
 		goto fail;
-
 	if (outlength < MC_CMD_GET_VERSION_OUT_LEN) {
 		rc = -EIO;
 		goto fail;
 	}
 
 	ver_words = (__le16 *)MCDI_PTR(outbuf, GET_VERSION_OUT_VERSION);
-	snprintf(buf, len, "%u.%u.%u.%u",
-		 le16_to_cpu(ver_words[0]), le16_to_cpu(ver_words[1]),
-		 le16_to_cpu(ver_words[2]), le16_to_cpu(ver_words[3]));
+	offset = snprintf(buf, len, "%u.%u.%u.%u",
+			  le16_to_cpu(ver_words[0]), le16_to_cpu(ver_words[1]),
+			  le16_to_cpu(ver_words[2]), le16_to_cpu(ver_words[3]));
+
+	/* EF10 may have multiple datapath firmware variants within a
+	 * single version.  Report which variants are running.
+	 */
+	if (efx_nic_rev(efx) >= EFX_REV_HUNT_A0) {
+		BUILD_BUG_ON(MC_CMD_GET_CAPABILITIES_IN_LEN != 0);
+		rc = efx_mcdi_rpc(efx, MC_CMD_GET_CAPABILITIES, NULL, 0,
+				  outbuf, sizeof(outbuf), &outlength);
+		if (rc || outlength < MC_CMD_GET_CAPABILITIES_OUT_LEN)
+			offset += snprintf(
+				buf + offset, len - offset, " rx? tx?");
+		else
+			offset += snprintf(
+				buf + offset, len - offset, " rx%x tx%x",
+				MCDI_WORD(outbuf,
+					  GET_CAPABILITIES_OUT_RX_DPCPU_FW_ID),
+				MCDI_WORD(outbuf,
+					  GET_CAPABILITIES_OUT_TX_DPCPU_FW_ID));
+
+		/* It's theoretically possible for the string to exceed 31
+		 * characters, though in practice the first three version
+		 * components are short enough that this doesn't happen.
+		 */
+		if (WARN_ON(offset >= len))
+			buf[0] = 0;
+	}
+
 	return;
 
 fail:
@@ -1428,6 +1469,17 @@ int efx_mcdi_wol_filter_reset(struct efx_nic *efx)
 fail:
 	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
+}
+
+int efx_mcdi_set_workaround(struct efx_nic *efx, u32 type, bool enabled)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_WORKAROUND_IN_LEN);
+
+	BUILD_BUG_ON(MC_CMD_WORKAROUND_OUT_LEN != 0);
+	MCDI_SET_DWORD(inbuf, WORKAROUND_IN_TYPE, type);
+	MCDI_SET_DWORD(inbuf, WORKAROUND_IN_ENABLED, enabled);
+	return efx_mcdi_rpc(efx, MC_CMD_WORKAROUND, inbuf, sizeof(inbuf),
+			    NULL, 0, NULL);
 }
 
 #ifdef CONFIG_SFC_MTD
