@@ -180,6 +180,7 @@ clock which they consume.
   fimc_lite3		495
   aclk_g3d		500
   g3d			501
+  smmu_mixer		502
 
 Example 1: An example of a clock controller node is listed below.
 
