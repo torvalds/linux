@@ -146,6 +146,16 @@ config GPIO_MM_LANTIQ
 	  (EBU) found on Lantiq SoCs. The gpios are output only as they are
 	  created by attaching a 16bit latch to the bus.
 
+config GPIO_F7188X
+	tristate "F71882FG and F71889F GPIO support"
+	depends on X86
+	help
+	  This option enables support for GPIOs found on Fintek Super-I/O
+	  chips F71882FG and F71889F.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called f7188x-gpio.
+
 config GPIO_MPC5200
 	def_bool y
 	depends on PPC_MPC52xx
