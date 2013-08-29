@@ -74,6 +74,10 @@ int perf_evlist__set_filter(struct perf_evlist *evlist, const char *filter);
 struct perf_evsel *
 perf_evlist__find_tracepoint_by_id(struct perf_evlist *evlist, int id);
 
+struct perf_evsel *
+perf_evlist__find_tracepoint_by_name(struct perf_evlist *evlist,
+				     const char *name);
+
 void perf_evlist__id_add(struct perf_evlist *evlist, struct perf_evsel *evsel,
 			 int cpu, int thread, u64 id);
 

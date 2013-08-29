@@ -208,6 +208,21 @@ perf_evlist__find_tracepoint_by_id(struct perf_evlist *evlist, int id)
 	return NULL;
 }
 
+struct perf_evsel *
+perf_evlist__find_tracepoint_by_name(struct perf_evlist *evlist,
+				     const char *name)
+{
+	struct perf_evsel *evsel;
+
+	list_for_each_entry(evsel, &evlist->entries, node) {
+		if ((evsel->attr.type == PERF_TYPE_TRACEPOINT) &&
+		    (strcmp(evsel->name, name) == 0))
+			return evsel;
+	}
+
+	return NULL;
+}
+
 int perf_evlist__add_newtp(struct perf_evlist *evlist,
 			   const char *sys, const char *name, void *handler)
 {
