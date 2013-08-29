@@ -125,37 +125,101 @@ static int nx_gca(struct nx_crypto_ctx  *nx_ctx,
 		  struct aead_request   *req,
 		  u8                    *out)
 {
+	int rc;
 	struct nx_csbcpb *csbcpb_aead = nx_ctx->csbcpb_aead;
-	int rc = -EINVAL;
 	struct scatter_walk walk;
 	struct nx_sg *nx_sg = nx_ctx->in_sg;
+	unsigned int nbytes = req->assoclen;
+	unsigned int processed = 0, to_process;
+	u32 max_sg_len;
 
-	if (req->assoclen > nx_ctx->ap->databytelen)
-		goto out;
-
-	if (req->assoclen <= AES_BLOCK_SIZE) {
+	if (nbytes <= AES_BLOCK_SIZE) {
 		scatterwalk_start(&walk, req->assoc);
-		scatterwalk_copychunks(out, &walk, req->assoclen,
-				       SCATTERWALK_FROM_SG);
+		scatterwalk_copychunks(out, &walk, nbytes, SCATTERWALK_FROM_SG);
 		scatterwalk_done(&walk, SCATTERWALK_FROM_SG, 0);
+		return 0;
+	}
 
-		rc = 0;
+	NX_CPB_FDM(csbcpb_aead) &= ~NX_FDM_CONTINUATION;
+
+	/* page_limit: number of sg entries that fit on one page */
+	max_sg_len = min_t(u32, nx_driver.of.max_sg_len/sizeof(struct nx_sg),
+			   nx_ctx->ap->sglen);
+
+	do {
+		/*
+		 * to_process: the data chunk to process in this update.
+		 * This value is bound by sg list limits.
+		 */
+		to_process = min_t(u64, nbytes - processed,
+				   nx_ctx->ap->databytelen);
+		to_process = min_t(u64, to_process,
+				   NX_PAGE_SIZE * (max_sg_len - 1));
+
+		if ((to_process + processed) < nbytes)
+			NX_CPB_FDM(csbcpb_aead) |= NX_FDM_INTERMEDIATE;
+		else
+			NX_CPB_FDM(csbcpb_aead) &= ~NX_FDM_INTERMEDIATE;
+
+		nx_sg = nx_walk_and_build(nx_ctx->in_sg, nx_ctx->ap->sglen,
+					  req->assoc, processed, to_process);
+		nx_ctx->op_aead.inlen = (nx_ctx->in_sg - nx_sg)
+					* sizeof(struct nx_sg);
+
+		rc = nx_hcall_sync(nx_ctx, &nx_ctx->op_aead,
+				req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP);
+		if (rc)
+			return rc;
+
+		memcpy(csbcpb_aead->cpb.aes_gca.in_pat,
+				csbcpb_aead->cpb.aes_gca.out_pat,
+				AES_BLOCK_SIZE);
+		NX_CPB_FDM(csbcpb_aead) |= NX_FDM_CONTINUATION;
+
+		atomic_inc(&(nx_ctx->stats->aes_ops));
+		atomic64_add(req->assoclen, &(nx_ctx->stats->aes_bytes));
+
+		processed += to_process;
+	} while (processed < nbytes);
+
+	memcpy(out, csbcpb_aead->cpb.aes_gca.out_pat, AES_BLOCK_SIZE);
+
+	return rc;
+}
+
+static int gcm_empty(struct aead_request *req, struct blkcipher_desc *desc,
+		     int enc)
+{
+	int rc;
+	struct nx_crypto_ctx *nx_ctx = crypto_tfm_ctx(req->base.tfm);
+	struct nx_csbcpb *csbcpb = nx_ctx->csbcpb;
+
+	/* For scenarios where the input message is zero length, AES CTR mode
+	 * may be used. Set the source data to be a single block (16B) of all
+	 * zeros, and set the input IV value to be the same as the GMAC IV
+	 * value. - nx_wb 4.8.1.3 */
+	char src[AES_BLOCK_SIZE] = {};
+	struct scatterlist sg;
+
+	desc->tfm = crypto_alloc_blkcipher("ctr(aes)", 0, 0);
+	if (IS_ERR(desc->tfm)) {
+		rc = -ENOMEM;
 		goto out;
 	}
 
-	nx_sg = nx_walk_and_build(nx_sg, nx_ctx->ap->sglen, req->assoc, 0,
-				  req->assoclen);
-	nx_ctx->op_aead.inlen = (nx_ctx->in_sg - nx_sg) * sizeof(struct nx_sg);
+	crypto_blkcipher_setkey(desc->tfm, csbcpb->cpb.aes_gcm.key,
+		NX_CPB_KEY_SIZE(csbcpb) == NX_KS_AES_128 ? 16 :
+		NX_CPB_KEY_SIZE(csbcpb) == NX_KS_AES_192 ? 24 : 32);
 
-	rc = nx_hcall_sync(nx_ctx, &nx_ctx->op_aead,
-			   req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP);
-	if (rc)
-		goto out;
+	sg_init_one(&sg, src, AES_BLOCK_SIZE);
+	if (enc)
+		rc = crypto_blkcipher_encrypt_iv(desc, req->dst, &sg,
+						 AES_BLOCK_SIZE);
+	else
+		rc = crypto_blkcipher_decrypt_iv(desc, req->dst, &sg,
+						 AES_BLOCK_SIZE);
+	crypto_free_blkcipher(desc->tfm);
 
-	atomic_inc(&(nx_ctx->stats->aes_ops));
-	atomic64_add(req->assoclen, &(nx_ctx->stats->aes_bytes));
-
-	memcpy(out, csbcpb_aead->cpb.aes_gca.out_pat, AES_BLOCK_SIZE);
 out:
 	return rc;
 }
@@ -166,79 +230,85 @@ static int gcm_aes_nx_crypt(struct aead_request *req, int enc)
 	struct nx_csbcpb *csbcpb = nx_ctx->csbcpb;
 	struct blkcipher_desc desc;
 	unsigned int nbytes = req->cryptlen;
+	unsigned int processed = 0, to_process;
 	unsigned long irq_flags;
+	u32 max_sg_len;
 	int rc = -EINVAL;
 
 	spin_lock_irqsave(&nx_ctx->lock, irq_flags);
-
-	if (nbytes > nx_ctx->ap->databytelen)
-		goto out;
 
 	desc.info = nx_ctx->priv.gcm.iv;
 	/* initialize the counter */
 	*(u32 *)(desc.info + NX_GCM_CTR_OFFSET) = 1;
 
-	/* For scenarios where the input message is zero length, AES CTR mode
-	 * may be used. Set the source data to be a single block (16B) of all
-	 * zeros, and set the input IV value to be the same as the GMAC IV
-	 * value. - nx_wb 4.8.1.3 */
 	if (nbytes == 0) {
-		char src[AES_BLOCK_SIZE] = {};
-		struct scatterlist sg;
-
-		desc.tfm = crypto_alloc_blkcipher("ctr(aes)", 0, 0);
-		if (IS_ERR(desc.tfm)) {
-			rc = -ENOMEM;
-			goto out;
-		}
-
-		crypto_blkcipher_setkey(desc.tfm, csbcpb->cpb.aes_gcm.key,
-			NX_CPB_KEY_SIZE(csbcpb) == NX_KS_AES_128 ? 16 :
-			NX_CPB_KEY_SIZE(csbcpb) == NX_KS_AES_192 ? 24 : 32);
-
-		sg_init_one(&sg, src, AES_BLOCK_SIZE);
-		if (enc)
-			crypto_blkcipher_encrypt_iv(&desc, req->dst, &sg,
-						    AES_BLOCK_SIZE);
-		else
-			crypto_blkcipher_decrypt_iv(&desc, req->dst, &sg,
-						    AES_BLOCK_SIZE);
-		crypto_free_blkcipher(desc.tfm);
-
-		rc = 0;
+		rc = gcm_empty(req, &desc, enc);
 		goto out;
 	}
 
-	desc.tfm = (struct crypto_blkcipher *)req->base.tfm;
-
+	/* Process associated data */
 	csbcpb->cpb.aes_gcm.bit_length_aad = req->assoclen * 8;
-
 	if (req->assoclen) {
 		rc = nx_gca(nx_ctx, req, csbcpb->cpb.aes_gcm.in_pat_or_aad);
 		if (rc)
 			goto out;
 	}
 
-	if (enc)
+	/* Set flags for encryption */
+	NX_CPB_FDM(csbcpb) &= ~NX_FDM_CONTINUATION;
+	if (enc) {
 		NX_CPB_FDM(csbcpb) |= NX_FDM_ENDE_ENCRYPT;
-	else
+	} else {
+		NX_CPB_FDM(csbcpb) &= ~NX_FDM_ENDE_ENCRYPT;
 		nbytes -= crypto_aead_authsize(crypto_aead_reqtfm(req));
+	}
 
-	csbcpb->cpb.aes_gcm.bit_length_data = nbytes * 8;
+	/* page_limit: number of sg entries that fit on one page */
+	max_sg_len = min_t(u32, nx_driver.of.max_sg_len/sizeof(struct nx_sg),
+			   nx_ctx->ap->sglen);
 
-	rc = nx_build_sg_lists(nx_ctx, &desc, req->dst, req->src, nbytes, 0,
-			       csbcpb->cpb.aes_gcm.iv_or_cnt);
-	if (rc)
-		goto out;
+	do {
+		/*
+		 * to_process: the data chunk to process in this update.
+		 * This value is bound by sg list limits.
+		 */
+		to_process = min_t(u64, nbytes - processed,
+				   nx_ctx->ap->databytelen);
+		to_process = min_t(u64, to_process,
+				   NX_PAGE_SIZE * (max_sg_len - 1));
 
-	rc = nx_hcall_sync(nx_ctx, &nx_ctx->op,
-			   req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP);
-	if (rc)
-		goto out;
+		if ((to_process + processed) < nbytes)
+			NX_CPB_FDM(csbcpb) |= NX_FDM_INTERMEDIATE;
+		else
+			NX_CPB_FDM(csbcpb) &= ~NX_FDM_INTERMEDIATE;
 
-	atomic_inc(&(nx_ctx->stats->aes_ops));
-	atomic64_add(csbcpb->csb.processed_byte_count,
-		     &(nx_ctx->stats->aes_bytes));
+		csbcpb->cpb.aes_gcm.bit_length_data = nbytes * 8;
+		desc.tfm = (struct crypto_blkcipher *) req->base.tfm;
+		rc = nx_build_sg_lists(nx_ctx, &desc, req->dst,
+				       req->src, to_process, processed,
+				       csbcpb->cpb.aes_gcm.iv_or_cnt);
+		if (rc)
+			goto out;
+
+		rc = nx_hcall_sync(nx_ctx, &nx_ctx->op,
+				   req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP);
+		if (rc)
+			goto out;
+
+		memcpy(desc.info, csbcpb->cpb.aes_gcm.out_cnt, AES_BLOCK_SIZE);
+		memcpy(csbcpb->cpb.aes_gcm.in_pat_or_aad,
+			csbcpb->cpb.aes_gcm.out_pat_or_mac, AES_BLOCK_SIZE);
+		memcpy(csbcpb->cpb.aes_gcm.in_s0,
+			csbcpb->cpb.aes_gcm.out_s0, AES_BLOCK_SIZE);
+
+		NX_CPB_FDM(csbcpb) |= NX_FDM_CONTINUATION;
+
+		atomic_inc(&(nx_ctx->stats->aes_ops));
+		atomic64_add(csbcpb->csb.processed_byte_count,
+			     &(nx_ctx->stats->aes_bytes));
+
+		processed += to_process;
+	} while (processed < nbytes);
 
 	if (enc) {
 		/* copy out the auth tag */
