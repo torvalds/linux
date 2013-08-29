@@ -1554,106 +1554,6 @@ exit:
 	return rc;
 }
 
-static int cyttsp4_core_sleep(struct cyttsp4 *cd)
-{
-	int rc;
-
-	rc = cyttsp4_request_exclusive(cd, cd->dev,
-			CY_CORE_SLEEP_REQUEST_EXCLUSIVE_TIMEOUT);
-	if (rc < 0) {
-		dev_err(cd->dev, "%s: fail get exclusive ex=%p own=%p\n",
-				__func__, cd->exclusive_dev, cd->dev);
-		return 0;
-	}
-
-	rc = cyttsp4_core_sleep_(cd);
-
-	if (cyttsp4_release_exclusive(cd, cd->dev) < 0)
-		dev_err(cd->dev, "%s: fail to release exclusive\n", __func__);
-	else
-		dev_vdbg(cd->dev, "%s: pass release exclusive\n", __func__);
-
-	return rc;
-}
-
-static int cyttsp4_core_wake_(struct cyttsp4 *cd)
-{
-	struct device *dev = cd->dev;
-	int rc;
-	u8 mode;
-	int t;
-
-	/* Already woken? */
-	mutex_lock(&cd->system_lock);
-	if (cd->sleep_state == SS_SLEEP_OFF) {
-		mutex_unlock(&cd->system_lock);
-		return 0;
-	}
-	cd->int_status &= ~CY_INT_IGNORE;
-	cd->int_status |= CY_INT_AWAKE;
-	cd->sleep_state = SS_WAKING;
-
-	if (cd->cpdata->power) {
-		dev_dbg(dev, "%s: Power up HW\n", __func__);
-		rc = cd->cpdata->power(cd->cpdata, 1, dev, &cd->ignore_irq);
-	} else {
-		dev_dbg(dev, "%s: No power function\n", __func__);
-		rc = -ENOSYS;
-	}
-	if (rc < 0) {
-		dev_err(dev, "%s: HW Power up fails r=%d\n",
-				__func__, rc);
-
-		/* Initiate a read transaction to wake up */
-		cyttsp4_adap_read(cd, CY_REG_BASE, sizeof(mode), &mode);
-	} else
-		dev_vdbg(cd->dev, "%s: HW power up succeeds\n",
-			__func__);
-	mutex_unlock(&cd->system_lock);
-
-	t = wait_event_timeout(cd->wait_q,
-			(cd->int_status & CY_INT_AWAKE) == 0,
-			msecs_to_jiffies(CY_CORE_WAKEUP_TIMEOUT));
-	if (IS_TMO(t)) {
-		dev_err(dev, "%s: TMO waiting for wakeup\n", __func__);
-		mutex_lock(&cd->system_lock);
-		cd->int_status &= ~CY_INT_AWAKE;
-		/* Try starting up */
-		cyttsp4_queue_startup_(cd);
-		mutex_unlock(&cd->system_lock);
-	}
-
-	mutex_lock(&cd->system_lock);
-	cd->sleep_state = SS_SLEEP_OFF;
-	mutex_unlock(&cd->system_lock);
-
-	cyttsp4_start_wd_timer(cd);
-
-	return 0;
-}
-
-static int cyttsp4_core_wake(struct cyttsp4 *cd)
-{
-	int rc;
-
-	rc = cyttsp4_request_exclusive(cd, cd->dev,
-			CY_CORE_REQUEST_EXCLUSIVE_TIMEOUT);
-	if (rc < 0) {
-		dev_err(cd->dev, "%s: fail get exclusive ex=%p own=%p\n",
-				__func__, cd->exclusive_dev, cd->dev);
-		return 0;
-	}
-
-	rc = cyttsp4_core_wake_(cd);
-
-	if (cyttsp4_release_exclusive(cd, cd->dev) < 0)
-		dev_err(cd->dev, "%s: fail to release exclusive\n", __func__);
-	else
-		dev_vdbg(cd->dev, "%s: pass release exclusive\n", __func__);
-
-	return rc;
-}
-
 static int cyttsp4_startup_(struct cyttsp4 *cd)
 {
 	int retry = CY_CORE_STARTUP_RETRY_COUNT;
@@ -1823,6 +1723,106 @@ static void cyttsp4_free_si_ptrs(struct cyttsp4 *cd)
 }
 
 #if defined(CONFIG_PM_SLEEP) || defined(CONFIG_PM_RUNTIME)
+static int cyttsp4_core_sleep(struct cyttsp4 *cd)
+{
+	int rc;
+
+	rc = cyttsp4_request_exclusive(cd, cd->dev,
+			CY_CORE_SLEEP_REQUEST_EXCLUSIVE_TIMEOUT);
+	if (rc < 0) {
+		dev_err(cd->dev, "%s: fail get exclusive ex=%p own=%p\n",
+				__func__, cd->exclusive_dev, cd->dev);
+		return 0;
+	}
+
+	rc = cyttsp4_core_sleep_(cd);
+
+	if (cyttsp4_release_exclusive(cd, cd->dev) < 0)
+		dev_err(cd->dev, "%s: fail to release exclusive\n", __func__);
+	else
+		dev_vdbg(cd->dev, "%s: pass release exclusive\n", __func__);
+
+	return rc;
+}
+
+static int cyttsp4_core_wake_(struct cyttsp4 *cd)
+{
+	struct device *dev = cd->dev;
+	int rc;
+	u8 mode;
+	int t;
+
+	/* Already woken? */
+	mutex_lock(&cd->system_lock);
+	if (cd->sleep_state == SS_SLEEP_OFF) {
+		mutex_unlock(&cd->system_lock);
+		return 0;
+	}
+	cd->int_status &= ~CY_INT_IGNORE;
+	cd->int_status |= CY_INT_AWAKE;
+	cd->sleep_state = SS_WAKING;
+
+	if (cd->cpdata->power) {
+		dev_dbg(dev, "%s: Power up HW\n", __func__);
+		rc = cd->cpdata->power(cd->cpdata, 1, dev, &cd->ignore_irq);
+	} else {
+		dev_dbg(dev, "%s: No power function\n", __func__);
+		rc = -ENOSYS;
+	}
+	if (rc < 0) {
+		dev_err(dev, "%s: HW Power up fails r=%d\n",
+				__func__, rc);
+
+		/* Initiate a read transaction to wake up */
+		cyttsp4_adap_read(cd, CY_REG_BASE, sizeof(mode), &mode);
+	} else
+		dev_vdbg(cd->dev, "%s: HW power up succeeds\n",
+			__func__);
+	mutex_unlock(&cd->system_lock);
+
+	t = wait_event_timeout(cd->wait_q,
+			(cd->int_status & CY_INT_AWAKE) == 0,
+			msecs_to_jiffies(CY_CORE_WAKEUP_TIMEOUT));
+	if (IS_TMO(t)) {
+		dev_err(dev, "%s: TMO waiting for wakeup\n", __func__);
+		mutex_lock(&cd->system_lock);
+		cd->int_status &= ~CY_INT_AWAKE;
+		/* Try starting up */
+		cyttsp4_queue_startup_(cd);
+		mutex_unlock(&cd->system_lock);
+	}
+
+	mutex_lock(&cd->system_lock);
+	cd->sleep_state = SS_SLEEP_OFF;
+	mutex_unlock(&cd->system_lock);
+
+	cyttsp4_start_wd_timer(cd);
+
+	return 0;
+}
+
+static int cyttsp4_core_wake(struct cyttsp4 *cd)
+{
+	int rc;
+
+	rc = cyttsp4_request_exclusive(cd, cd->dev,
+			CY_CORE_REQUEST_EXCLUSIVE_TIMEOUT);
+	if (rc < 0) {
+		dev_err(cd->dev, "%s: fail get exclusive ex=%p own=%p\n",
+				__func__, cd->exclusive_dev, cd->dev);
+		return 0;
+	}
+
+	rc = cyttsp4_core_wake_(cd);
+
+	if (cyttsp4_release_exclusive(cd, cd->dev) < 0)
+		dev_err(cd->dev, "%s: fail to release exclusive\n", __func__);
+	else
+		dev_vdbg(cd->dev, "%s: pass release exclusive\n", __func__);
+
+	return rc;
+}
+
 static int cyttsp4_core_suspend(struct device *dev)
 {
 	struct cyttsp4 *cd = dev_get_drvdata(dev);
