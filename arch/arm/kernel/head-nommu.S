@@ -87,6 +87,7 @@ ENTRY(stext)
 ENDPROC(stext)
 
 #ifdef CONFIG_SMP
+	.text
 ENTRY(secondary_startup)
 	/*
 	 * Common entry point for secondary CPUs.

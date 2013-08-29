@@ -1054,10 +1054,6 @@ static int ni_restrict_performance_levels_before_switch(struct radeon_device *rd
 int ni_dpm_force_performance_level(struct radeon_device *rdev,
 				   enum radeon_dpm_forced_level level)
 {
-	struct radeon_ps *rps = rdev->pm.dpm.current_ps;
-	struct ni_ps *ps = ni_get_ps(rps);
-	u32 levels;
-
 	if (level == RADEON_DPM_FORCED_LEVEL_HIGH) {
 		if (ni_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetEnabledLevels, 0) != PPSMC_Result_OK)
 			return -EINVAL;
@@ -1068,8 +1064,7 @@ int ni_dpm_force_performance_level(struct radeon_device *rdev,
 		if (ni_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetForcedLevels, 0) != PPSMC_Result_OK)
 			return -EINVAL;
 
-		levels = ps->performance_level_count - 1;
-		if (ni_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetEnabledLevels, levels) != PPSMC_Result_OK)
+		if (ni_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetEnabledLevels, 1) != PPSMC_Result_OK)
 			return -EINVAL;
 	} else if (level == RADEON_DPM_FORCED_LEVEL_AUTO) {
 		if (ni_send_msg_to_smc_with_parameter(rdev, PPSMC_MSG_SetForcedLevels, 0) != PPSMC_Result_OK)

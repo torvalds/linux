@@ -1441,11 +1441,21 @@ ftrace_hash_move(struct ftrace_ops *ops, int enable,
  * the hashes are freed with call_rcu_sched().
  */
 static int
-ftrace_ops_test(struct ftrace_ops *ops, unsigned long ip)
+ftrace_ops_test(struct ftrace_ops *ops, unsigned long ip, void *regs)
 {
 	struct ftrace_hash *filter_hash;
 	struct ftrace_hash *notrace_hash;
 	int ret;
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+	/*
+	 * There's a small race when adding ops that the ftrace handler
+	 * that wants regs, may be called without them. We can not
+	 * allow that handler to be called if regs is NULL.
+	 */
+	if (regs == NULL && (ops->flags & FTRACE_OPS_FL_SAVE_REGS))
+		return 0;
+#endif
 
 	filter_hash = rcu_dereference_raw_notrace(ops->filter_hash);
 	notrace_hash = rcu_dereference_raw_notrace(ops->notrace_hash);
@@ -4218,7 +4228,7 @@ static inline void ftrace_startup_enable(int command) { }
 # define ftrace_shutdown_sysctl()	do { } while (0)
 
 static inline int
-ftrace_ops_test(struct ftrace_ops *ops, unsigned long ip)
+ftrace_ops_test(struct ftrace_ops *ops, unsigned long ip, void *regs)
 {
 	return 1;
 }
@@ -4241,7 +4251,7 @@ ftrace_ops_control_func(unsigned long ip, unsigned long parent_ip,
 	do_for_each_ftrace_op(op, ftrace_control_list) {
 		if (!(op->flags & FTRACE_OPS_FL_STUB) &&
 		    !ftrace_function_local_disabled(op) &&
-		    ftrace_ops_test(op, ip))
+		    ftrace_ops_test(op, ip, regs))
 			op->func(ip, parent_ip, op, regs);
 	} while_for_each_ftrace_op(op);
 	trace_recursion_clear(TRACE_CONTROL_BIT);
@@ -4274,7 +4284,7 @@ __ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
 	 */
 	preempt_disable_notrace();
 	do_for_each_ftrace_op(op, ftrace_ops_list) {
-		if (ftrace_ops_test(op, ip))
+		if (ftrace_ops_test(op, ip, regs))
 			op->func(ip, parent_ip, op, regs);
 	} while_for_each_ftrace_op(op);
 	preempt_enable_notrace();

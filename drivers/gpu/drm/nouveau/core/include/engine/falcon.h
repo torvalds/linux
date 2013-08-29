@@ -72,6 +72,8 @@ int nouveau_falcon_create_(struct nouveau_object *, struct nouveau_object *,
 			   struct nouveau_oclass *, u32, bool, const char *,
 			   const char *, int, void **);
 
+void nouveau_falcon_intr(struct nouveau_subdev *subdev);
+
 #define _nouveau_falcon_dtor _nouveau_engine_dtor
 int  _nouveau_falcon_init(struct nouveau_object *);
 int  _nouveau_falcon_fini(struct nouveau_object *, bool);
