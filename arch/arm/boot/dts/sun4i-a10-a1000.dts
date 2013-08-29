@@ -1,6 +1,7 @@
 /*
- * Copyright 2012 Stefan Roese
- * Stefan Roese <sr@denx.de>
+ * Copyright 2013 Emilio López
+ *
+ * Emilio López <emilio@elopez.com.ar>
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -14,16 +15,11 @@
 /include/ "sun4i-a10.dtsi"
 
 / {
-	model = "Cubietech Cubieboard";
-	compatible = "cubietech,a10-cubieboard", "allwinner,sun4i-a10";
+	model = "Mele A1000";
+	compatible = "mele,a1000", "allwinner,sun4i-a10";
 
 	aliases {
 		serial0 = &uart0;
-		serial1 = &uart1;
-	};
-
-	chosen {
-		bootargs = "earlyprintk console=ttyS0,115200";
 	};
 
 	soc@01c00000 {
@@ -35,6 +31,7 @@
 		};
 
 		mdio@01c0b080 {
+			phy-supply = <&reg_emac_3v3>;
 			status = "okay";
 
 			phy1: ethernet-phy@1 {
@@ -43,10 +40,17 @@
 		};
 
 		pinctrl@01c20800 {
-			led_pins_cubieboard: led_pins@0 {
-				allwinner,pins = "PH20", "PH21";
+			emac_power_pin_a1000: emac_power_pin@0 {
+				allwinner,pins = "PH15";
 				allwinner,function = "gpio_out";
-				allwinner,drive = <1>;
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
+			led_pins_a1000: led_pins@0 {
+				allwinner,pins = "PH10", "PH20";
+				allwinner,function = "gpio_out";
+				allwinner,drive = <0>;
 				allwinner,pull = <0>;
 			};
 		};
@@ -62,28 +66,36 @@
 			pinctrl-0 = <&i2c0_pins_a>;
 			status = "okay";
 		};
-
-		i2c1: i2c@01c2b000 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&i2c1_pins_a>;
-			status = "okay";
-		};
 	};
 
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_cubieboard>;
+		pinctrl-0 = <&led_pins_a1000>;
 
-		blue {
-			label = "cubieboard:blue:usr";
-			gpios = <&pio 7 21 0>; /* LED1 */
+		red {
+			label = "a1000:red:usr";
+			gpios = <&pio 7 10 0>;
 		};
 
-		green {
-			label = "cubieboard:green:usr";
-			gpios = <&pio 7 20 0>; /* LED2 */
-			linux,default-trigger = "heartbeat";
+		blue {
+			label = "a1000:blue:usr";
+			gpios = <&pio 7 20 0>;
+		};
+	};
+
+	regulators {
+		compatible = "simple-bus";
+
+		reg_emac_3v3: emac-3v3 {
+			compatible = "regulator-fixed";
+			pinctrl-names = "default";
+			pinctrl-0 = <&emac_power_pin_a1000>;
+			regulator-name = "emac-3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			enable-active-high;
+			gpio = <&pio 7 15 0>;
 		};
 	};
 };

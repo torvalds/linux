@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Maxime Ripard
+ * Copyright 2013 Maxime Ripard
  *
  * Maxime Ripard <maxime.ripard@free-electrons.com>
  *
@@ -12,47 +12,37 @@
  */
 
 /dts-v1/;
-/include/ "sun5i-a13.dtsi"
+/include/ "sun7i-a20.dtsi"
 
 / {
-	model = "Olimex A13-Olinuxino";
-	compatible = "olimex,a13-olinuxino", "allwinner,sun5i-a13";
-
-	chosen {
-		bootargs = "earlyprintk console=ttyS0,115200";
-	};
+	model = "Olimex A20-Olinuxino Micro";
+	compatible = "olimex,a20-olinuxino-micro", "allwinner,sun7i-a20";
 
 	soc@01c00000 {
 		pinctrl@01c20800 {
 			led_pins_olinuxino: led_pins@0 {
-				allwinner,pins = "PG9";
+				allwinner,pins = "PH2";
 				allwinner,function = "gpio_out";
 				allwinner,drive = <1>;
 				allwinner,pull = <0>;
 			};
 		};
 
-		uart1: serial@01c28400 {
+		uart0: serial@01c28000 {
 			pinctrl-names = "default";
-			pinctrl-0 = <&uart1_pins_b>;
+			pinctrl-0 = <&uart0_pins_a>;
 			status = "okay";
 		};
 
-		i2c0: i2c@01c2ac00 {
+		uart6: serial@01c29800 {
 			pinctrl-names = "default";
-			pinctrl-0 = <&i2c0_pins_a>;
+			pinctrl-0 = <&uart6_pins_a>;
 			status = "okay";
 		};
 
-		i2c1: i2c@01c2b000 {
+		uart7: serial@01c29c00 {
 			pinctrl-names = "default";
-			pinctrl-0 = <&i2c1_pins_a>;
-			status = "okay";
-		};
-
-		i2c2: i2c@01c2b400 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&i2c2_pins_a>;
+			pinctrl-0 = <&uart7_pins_a>;
 			status = "okay";
 		};
 	};
@@ -62,8 +52,9 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&led_pins_olinuxino>;
 
-		power {
-			gpios = <&pio 6 9 0>;
+		green {
+			label = "a20-olinuxino-micro:green:usr";
+			gpios = <&pio 7 2 0>;
 			default-state = "on";
 		};
 	};

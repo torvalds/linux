@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Maxime Ripard
+ * Copyright 2013 Maxime Ripard
  *
  * Maxime Ripard <maxime.ripard@free-electrons.com>
  *
@@ -12,11 +12,11 @@
  */
 
 /dts-v1/;
-/include/ "sun4i-a10.dtsi"
+/include/ "sun6i-a31.dtsi"
 
 / {
-	model = "PineRiver Mini X-Plus";
-	compatible = "pineriver,mini-xplus", "allwinner,sun4i-a10";
+	model = "WITS A31 Colombus Evaluation Board";
+	compatible = "wits,colombus", "allwinner,sun6i-a31";
 
 	chosen {
 		bootargs = "earlyprintk console=ttyS0,115200";
