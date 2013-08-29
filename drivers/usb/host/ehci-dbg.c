@@ -336,7 +336,6 @@ static inline void remove_debug_files (struct ehci_hcd *bus) { }
 static int debug_async_open(struct inode *, struct file *);
 static int debug_periodic_open(struct inode *, struct file *);
 static int debug_registers_open(struct inode *, struct file *);
-static int debug_async_open(struct inode *, struct file *);
 
 static ssize_t debug_output(struct file*, char __user*, size_t, loff_t*);
 static int debug_close(struct inode *, struct file *);
