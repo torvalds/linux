@@ -45,11 +45,8 @@
 #define ZPCI_NR_DEVICES			CONFIG_PCI_NR_FUNCTIONS
 
 /* list of all detected zpci devices */
-LIST_HEAD(zpci_list);
-EXPORT_SYMBOL_GPL(zpci_list);
-DEFINE_MUTEX(zpci_list_lock);
-EXPORT_SYMBOL_GPL(zpci_list_lock);
-
+static LIST_HEAD(zpci_list);
+static DEFINE_MUTEX(zpci_list_lock);
 
 static void zpci_enable_irq(struct irq_data *data);
 static void zpci_disable_irq(struct irq_data *data);
@@ -59,8 +56,6 @@ static struct irq_chip zpci_irq_chip = {
 	.irq_unmask = zpci_enable_irq,
 	.irq_mask = zpci_disable_irq,
 };
-
-static struct pci_hp_callback_ops *hotplug_ops;
 
 static DECLARE_BITMAP(zpci_domain, ZPCI_NR_DEVICES);
 static DEFINE_SPINLOCK(zpci_domain_lock);
@@ -828,9 +823,9 @@ int zpci_create_device(struct zpci_dev *zdev)
 
 	mutex_lock(&zpci_list_lock);
 	list_add_tail(&zdev->entry, &zpci_list);
-	if (hotplug_ops)
-		hotplug_ops->create_slot(zdev);
 	mutex_unlock(&zpci_list_lock);
+
+	zpci_init_slot(zdev);
 
 	return 0;
 
@@ -884,24 +879,7 @@ static void zpci_mem_exit(void)
 	kmem_cache_destroy(zdev_fmb_cache);
 }
 
-void zpci_register_hp_ops(struct pci_hp_callback_ops *ops)
-{
-	mutex_lock(&zpci_list_lock);
-	hotplug_ops = ops;
-	mutex_unlock(&zpci_list_lock);
-}
-EXPORT_SYMBOL_GPL(zpci_register_hp_ops);
-
-void zpci_deregister_hp_ops(void)
-{
-	mutex_lock(&zpci_list_lock);
-	hotplug_ops = NULL;
-	mutex_unlock(&zpci_list_lock);
-}
-EXPORT_SYMBOL_GPL(zpci_deregister_hp_ops);
-
-unsigned int s390_pci_probe;
-EXPORT_SYMBOL_GPL(s390_pci_probe);
+static unsigned int s390_pci_probe;
 
 char * __init pcibios_setup(char *str)
 {
@@ -960,4 +938,4 @@ out_mem:
 out:
 	return rc;
 }
-subsys_initcall(pci_base_init);
+subsys_initcall_sync(pci_base_init);

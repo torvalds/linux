@@ -116,11 +116,6 @@ struct zpci_dev {
 	struct dentry	*debugfs_perf;
 };
 
-struct pci_hp_callback_ops {
-	int (*create_slot)	(struct zpci_dev *zdev);
-	void (*remove_slot)	(struct zpci_dev *zdev);
-};
-
 static inline bool zdev_enabled(struct zpci_dev *zdev)
 {
 	return (zdev->fh & (1UL << 31)) ? true : false;
@@ -154,6 +149,17 @@ static inline void zpci_event_error(void *e) {}
 static inline void zpci_event_availability(void *e) {}
 #endif /* CONFIG_PCI */
 
+#ifdef CONFIG_HOTPLUG_PCI_S390
+int zpci_init_slot(struct zpci_dev *);
+void zpci_exit_slot(struct zpci_dev *);
+#else /* CONFIG_HOTPLUG_PCI_S390 */
+static inline int zpci_init_slot(struct zpci_dev *zdev)
+{
+	return 0;
+}
+static inline void zpci_exit_slot(struct zpci_dev *zdev) {}
+#endif /* CONFIG_HOTPLUG_PCI_S390 */
+
 /* Helpers */
 struct zpci_dev *get_zdev(struct pci_dev *);
 struct zpci_dev *get_zdev_by_fid(u32);
@@ -166,14 +172,6 @@ void zpci_sysfs_remove_device(struct device *);
 /* DMA */
 int zpci_dma_init(void);
 void zpci_dma_exit(void);
-
-/* Hotplug */
-extern struct mutex zpci_list_lock;
-extern struct list_head zpci_list;
-extern unsigned int s390_pci_probe;
-
-void zpci_register_hp_ops(struct pci_hp_callback_ops *);
-void zpci_deregister_hp_ops(void);
 
 /* FMB */
 int zpci_fmb_enable_device(struct zpci_dev *);
