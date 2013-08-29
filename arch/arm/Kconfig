@@ -557,6 +557,7 @@ config ARCH_MMP
 	select GENERIC_CLOCKEVENTS
 	select GPIO_PXA
 	select IRQ_DOMAIN
+	select MULTI_IRQ_HANDLER
 	select NEED_MACH_GPIO_H
 	select PINCTRL
 	select PLAT_PXA
