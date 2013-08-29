@@ -541,8 +541,12 @@ static bool handle_mmio_cfg_reg(struct kvm_vcpu *vcpu,
 				struct kvm_exit_mmio *mmio, phys_addr_t offset)
 {
 	u32 val;
-	u32 *reg = vgic_bitmap_get_reg(&vcpu->kvm->arch.vgic.irq_cfg,
-				       vcpu->vcpu_id, offset >> 1);
+	u32 *reg;
+
+	offset >>= 1;
+	reg = vgic_bitmap_get_reg(&vcpu->kvm->arch.vgic.irq_cfg,
+				  vcpu->vcpu_id, offset);
+
 	if (offset & 2)
 		val = *reg >> 16;
 	else
