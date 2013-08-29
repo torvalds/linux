@@ -4,11 +4,12 @@ This binding defines the location of the bounce buffer
 used for non-secure to secure communications.
 
 Required properties:
-- compatible : "bcm,kona-smc"
+- compatible : "brcm,kona-smc"
+- DEPRECATED: compatible : "bcm,kona-smc"
 - reg : Location and size of bounce buffer
 
 Example:
 	smc@0x3404c000 {
-		compatible = "bcm,bcm11351-smc", "bcm,kona-smc";
+		compatible = "brcm,bcm11351-smc", "brcm,kona-smc";
 		reg = <0x3404c000 0x400>; //1 KiB in SRAM
 	};

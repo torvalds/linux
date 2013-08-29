@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 Broadcom Corporation
+ * Copyright (C) 2013 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -16,8 +16,8 @@
 #include "bcm11351.dtsi"
 
 / {
-	model = "BCM11351 BRT board";
-	compatible = "brcm,bcm11351-brt", "brcm,bcm11351";
+	model = "BCM28155 AP board";
+	compatible = "brcm,bcm28155-ap", "brcm,bcm11351";
 
 	memory {
 		reg = <0x80000000 0x40000000>; /* 1 GB */
@@ -42,6 +42,4 @@
 		max-frequency = <48000000>;
 		status = "okay";
 	};
-
-
 };
