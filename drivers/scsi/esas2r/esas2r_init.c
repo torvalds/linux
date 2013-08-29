@@ -665,7 +665,7 @@ void esas2r_kill_adapter(int i)
 
 int esas2r_cleanup(struct Scsi_Host *host)
 {
-	struct esas2r_adapter *a = (struct esas2r_adapter *)host->hostdata;
+	struct esas2r_adapter *a;
 	int index;
 
 	if (host == NULL) {
@@ -678,6 +678,7 @@ int esas2r_cleanup(struct Scsi_Host *host)
 	}
 
 	esas2r_debug("esas2r_cleanup called for host %p", host);
+	a = (struct esas2r_adapter *)host->hostdata;
 	index = a->index;
 	esas2r_kill_adapter(index);
 	return index;

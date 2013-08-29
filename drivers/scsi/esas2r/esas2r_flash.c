@@ -860,8 +860,13 @@ bool esas2r_process_fs_ioctl(struct esas2r_adapter *a,
 		return false;
 	}
 
+	if (fsc->command >= cmdcnt) {
+		fs->status = ATTO_STS_INV_FUNC;
+		return false;
+	}
+
 	func = cmd_to_fls_func[fsc->command];
-	if (fsc->command >= cmdcnt || func == 0xFF) {
+	if (func == 0xFF) {
 		fs->status = ATTO_STS_INV_FUNC;
 		return false;
 	}
