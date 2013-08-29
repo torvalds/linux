@@ -24,7 +24,7 @@
  */
 static DEFINE_PER_CPU(struct task_struct *, idle_threads);
 
-struct task_struct * __cpuinit idle_thread_get(unsigned int cpu)
+struct task_struct *idle_thread_get(unsigned int cpu)
 {
 	struct task_struct *tsk = per_cpu(idle_threads, cpu);
 

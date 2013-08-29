@@ -427,6 +427,10 @@ static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 				"Cal data request_firmware() failed\n");
 	}
 
+	/* enable host interrupt after fw dnld is successful */
+	if (adapter->if_ops.enable_int)
+		adapter->if_ops.enable_int(adapter);
+
 	adapter->init_wait_q_woken = false;
 	ret = mwifiex_init_fw(adapter);
 	if (ret == -1) {
@@ -478,6 +482,8 @@ err_add_intf:
 	mwifiex_del_virtual_intf(adapter->wiphy, priv->wdev);
 	rtnl_unlock();
 err_init_fw:
+	if (adapter->if_ops.disable_int)
+		adapter->if_ops.disable_int(adapter);
 	pr_debug("info: %s: unregister device\n", __func__);
 	adapter->if_ops.unregister_dev(adapter);
 done:
@@ -855,7 +861,7 @@ mwifiex_add_card(void *card, struct semaphore *sem,
 	INIT_WORK(&adapter->main_work, mwifiex_main_work_queue);
 
 	/* Register the device. Fill up the private data structure with relevant
-	   information from the card and request for the required IRQ. */
+	   information from the card. */
 	if (adapter->if_ops.register_dev(adapter)) {
 		pr_err("%s: failed to register mwifiex device\n", __func__);
 		goto err_registerdev;
@@ -918,6 +924,11 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter, struct semaphore *sem)
 
 	if (!adapter)
 		goto exit_remove;
+
+	/* We can no longer handle interrupts once we start doing the teardown
+	 * below. */
+	if (adapter->if_ops.disable_int)
+		adapter->if_ops.disable_int(adapter);
 
 	adapter->surprise_removed = true;
 

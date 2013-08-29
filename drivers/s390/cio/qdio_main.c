@@ -1497,7 +1497,7 @@ static inline int buf_in_between(int bufnr, int start, int count)
 static int handle_inbound(struct qdio_q *q, unsigned int callflags,
 			  int bufnr, int count)
 {
-	int used, diff;
+	int diff;
 
 	qperf_inc(q, inbound_call);
 
@@ -1530,7 +1530,7 @@ static int handle_inbound(struct qdio_q *q, unsigned int callflags,
 
 set:
 	count = set_buf_states(q, bufnr, SLSB_CU_INPUT_EMPTY, count);
-	used = atomic_add_return(count, &q->nr_buf_used) - count;
+	atomic_add(count, &q->nr_buf_used);
 
 	if (need_siga_in(q))
 		return qdio_siga_input(q);

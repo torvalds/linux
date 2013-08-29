@@ -1747,11 +1747,8 @@ void bnx2x_iov_init_dq(struct bnx2x *bp)
 
 void bnx2x_iov_init_dmae(struct bnx2x *bp)
 {
-	DP(BNX2X_MSG_IOV, "SRIOV is %s\n", IS_SRIOV(bp) ? "ON" : "OFF");
-	if (!IS_SRIOV(bp))
-		return;
-
-	REG_WR(bp, DMAE_REG_BACKWARD_COMP_EN, 0);
+	if (pci_find_ext_capability(bp->pdev, PCI_EXT_CAP_ID_SRIOV))
+		REG_WR(bp, DMAE_REG_BACKWARD_COMP_EN, 0);
 }
 
 static int bnx2x_vf_bus(struct bnx2x *bp, int vfid)
@@ -3084,8 +3081,9 @@ void bnx2x_disable_sriov(struct bnx2x *bp)
 	pci_disable_sriov(bp->pdev);
 }
 
-static int bnx2x_vf_ndo_sanity(struct bnx2x *bp, int vfidx,
-			       struct bnx2x_virtf *vf)
+static int bnx2x_vf_ndo_prep(struct bnx2x *bp, int vfidx,
+			     struct bnx2x_virtf **vf,
+			     struct pf_vf_bulletin_content **bulletin)
 {
 	if (bp->state != BNX2X_STATE_OPEN) {
 		BNX2X_ERR("vf ndo called though PF is down\n");
@@ -3103,8 +3101,18 @@ static int bnx2x_vf_ndo_sanity(struct bnx2x *bp, int vfidx,
 		return -EINVAL;
 	}
 
-	if (!vf) {
+	/* init members */
+	*vf = BP_VF(bp, vfidx);
+	*bulletin = BP_VF_BULLETIN(bp, vfidx);
+
+	if (!*vf) {
 		BNX2X_ERR("vf ndo called but vf was null. vfidx was %d\n",
+			  vfidx);
+		return -EINVAL;
+	}
+
+	if (!*bulletin) {
+		BNX2X_ERR("vf ndo called but Bulletin Board struct is null. vfidx was %d\n",
 			  vfidx);
 		return -EINVAL;
 	}
@@ -3116,17 +3124,19 @@ int bnx2x_get_vf_config(struct net_device *dev, int vfidx,
 			struct ifla_vf_info *ivi)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-	struct bnx2x_virtf *vf = BP_VF(bp, vfidx);
-	struct bnx2x_vlan_mac_obj *mac_obj = &bnx2x_vfq(vf, 0, mac_obj);
-	struct bnx2x_vlan_mac_obj *vlan_obj = &bnx2x_vfq(vf, 0, vlan_obj);
-	struct pf_vf_bulletin_content *bulletin = BP_VF_BULLETIN(bp, vfidx);
+	struct bnx2x_virtf *vf = NULL;
+	struct pf_vf_bulletin_content *bulletin = NULL;
+	struct bnx2x_vlan_mac_obj *mac_obj;
+	struct bnx2x_vlan_mac_obj *vlan_obj;
 	int rc;
 
-	/* sanity */
-	rc = bnx2x_vf_ndo_sanity(bp, vfidx, vf);
+	/* sanity and init */
+	rc = bnx2x_vf_ndo_prep(bp, vfidx, &vf, &bulletin);
 	if (rc)
 		return rc;
-	if (!mac_obj || !vlan_obj || !bulletin) {
+	mac_obj = &bnx2x_vfq(vf, 0, mac_obj);
+	vlan_obj = &bnx2x_vfq(vf, 0, vlan_obj);
+	if (!mac_obj || !vlan_obj) {
 		BNX2X_ERR("VF partially initialized\n");
 		return -EINVAL;
 	}
@@ -3183,11 +3193,11 @@ int bnx2x_set_vf_mac(struct net_device *dev, int vfidx, u8 *mac)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	int rc, q_logical_state;
-	struct bnx2x_virtf *vf = BP_VF(bp, vfidx);
-	struct pf_vf_bulletin_content *bulletin = BP_VF_BULLETIN(bp, vfidx);
+	struct bnx2x_virtf *vf = NULL;
+	struct pf_vf_bulletin_content *bulletin = NULL;
 
-	/* sanity */
-	rc = bnx2x_vf_ndo_sanity(bp, vfidx, vf);
+	/* sanity and init */
+	rc = bnx2x_vf_ndo_prep(bp, vfidx, &vf, &bulletin);
 	if (rc)
 		return rc;
 	if (!is_valid_ether_addr(mac)) {
@@ -3249,11 +3259,11 @@ int bnx2x_set_vf_vlan(struct net_device *dev, int vfidx, u16 vlan, u8 qos)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	int rc, q_logical_state;
-	struct bnx2x_virtf *vf = BP_VF(bp, vfidx);
-	struct pf_vf_bulletin_content *bulletin = BP_VF_BULLETIN(bp, vfidx);
+	struct bnx2x_virtf *vf = NULL;
+	struct pf_vf_bulletin_content *bulletin = NULL;
 
-	/* sanity */
-	rc = bnx2x_vf_ndo_sanity(bp, vfidx, vf);
+	/* sanity and init */
+	rc = bnx2x_vf_ndo_prep(bp, vfidx, &vf, &bulletin);
 	if (rc)
 		return rc;
 
@@ -3463,7 +3473,7 @@ int bnx2x_vf_pci_alloc(struct bnx2x *bp)
 alloc_mem_err:
 	BNX2X_PCI_FREE(bp->vf2pf_mbox, bp->vf2pf_mbox_mapping,
 		       sizeof(struct bnx2x_vf_mbx_msg));
-	BNX2X_PCI_FREE(bp->vf2pf_mbox, bp->vf2pf_mbox_mapping,
+	BNX2X_PCI_FREE(bp->vf2pf_mbox, bp->pf2vf_bulletin_mapping,
 		       sizeof(union pf_vf_bulletin));
 	return -ENOMEM;
 }

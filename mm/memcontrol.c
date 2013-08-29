@@ -2522,7 +2522,7 @@ static void mem_cgroup_drain_pcp_counter(struct mem_cgroup *memcg, int cpu)
 	spin_unlock(&memcg->pcp_counter_lock);
 }
 
-static int __cpuinit memcg_cpu_hotplug_callback(struct notifier_block *nb,
+static int memcg_cpu_hotplug_callback(struct notifier_block *nb,
 					unsigned long action,
 					void *hcpu)
 {
@@ -3195,11 +3195,11 @@ int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s,
 	if (!s->memcg_params)
 		return -ENOMEM;
 
-	INIT_WORK(&s->memcg_params->destroy,
-			kmem_cache_destroy_work_func);
 	if (memcg) {
 		s->memcg_params->memcg = memcg;
 		s->memcg_params->root_cache = root_cache;
+		INIT_WORK(&s->memcg_params->destroy,
+				kmem_cache_destroy_work_func);
 	} else
 		s->memcg_params->is_root_cache = true;
 
@@ -6335,6 +6335,7 @@ static void mem_cgroup_css_offline(struct cgroup *cont)
 	mem_cgroup_invalidate_reclaim_iterators(memcg);
 	mem_cgroup_reparent_charges(memcg);
 	mem_cgroup_destroy_all_caches(memcg);
+	vmpressure_cleanup(&memcg->vmpressure);
 }
 
 static void mem_cgroup_css_free(struct cgroup *cont)
@@ -6968,7 +6969,6 @@ struct cgroup_subsys mem_cgroup_subsys = {
 #ifdef CONFIG_MEMCG_SWAP
 static int __init enable_swap_account(char *s)
 {
-	/* consider enabled if no parameter or 1 is given */
 	if (!strcmp(s, "1"))
 		really_do_swap_account = 1;
 	else if (!strcmp(s, "0"))

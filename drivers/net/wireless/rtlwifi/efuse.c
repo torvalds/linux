@@ -229,6 +229,7 @@ void read_efuse_byte(struct ieee80211_hw *hw, u16 _offset, u8 *pbuf)
 
 	*pbuf = (u8) (value32 & 0xff);
 }
+EXPORT_SYMBOL_GPL(read_efuse_byte);
 
 void read_efuse(struct ieee80211_hw *hw, u16 _offset, u16 _size_byte, u8 *pbuf)
 {

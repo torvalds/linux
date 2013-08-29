@@ -324,7 +324,7 @@ static inline int __d_rcu_to_refcount(struct dentry *dentry, unsigned seq)
 	return ret;
 }
 
-static inline unsigned d_count(struct dentry *dentry)
+static inline unsigned d_count(const struct dentry *dentry)
 {
 	return dentry->d_count;
 }
@@ -336,6 +336,7 @@ extern int d_validate(struct dentry *, struct dentry *);
  * helper function for dentry_operations.d_dname() members
  */
 extern char *dynamic_dname(struct dentry *, char *, int, const char *, ...);
+extern char *simple_dname(struct dentry *, char *, int);
 
 extern char *__d_path(const struct path *, const struct path *, char *, int);
 extern char *d_absolute_path(const struct path *, char *, int);

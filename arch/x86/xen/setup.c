@@ -313,6 +313,17 @@ static void xen_align_and_add_e820_region(u64 start, u64 size, int type)
 	e820_add_region(start, end - start, type);
 }
 
+void xen_ignore_unusable(struct e820entry *list, size_t map_size)
+{
+	struct e820entry *entry;
+	unsigned int i;
+
+	for (i = 0, entry = list; i < map_size; i++, entry++) {
+		if (entry->type == E820_UNUSABLE)
+			entry->type = E820_RAM;
+	}
+}
+
 /**
  * machine_specific_memory_setup - Hook for machine specific memory setup.
  **/
@@ -352,6 +363,17 @@ char * __init xen_memory_setup(void)
 		rc = 0;
 	}
 	BUG_ON(rc);
+
+	/*
+	 * Xen won't allow a 1:1 mapping to be created to UNUSABLE
+	 * regions, so if we're using the machine memory map leave the
+	 * region as RAM as it is in the pseudo-physical map.
+	 *
+	 * UNUSABLE regions in domUs are not handled and will need
+	 * a patch in the future.
+	 */
+	if (xen_initial_domain())
+		xen_ignore_unusable(map, memmap.nr_entries);
 
 	/* Make sure the Xen-supplied memory map is well-ordered. */
 	sanitize_e820_map(map, memmap.nr_entries, &memmap.nr_entries);
@@ -475,7 +497,7 @@ static void __init fiddle_vdso(void)
 #endif
 }
 
-static int __cpuinit register_callback(unsigned type, const void *func)
+static int register_callback(unsigned type, const void *func)
 {
 	struct callback_register callback = {
 		.type = type,
@@ -486,7 +508,7 @@ static int __cpuinit register_callback(unsigned type, const void *func)
 	return HYPERVISOR_callback_op(CALLBACKOP_register, &callback);
 }
 
-void __cpuinit xen_enable_sysenter(void)
+void xen_enable_sysenter(void)
 {
 	int ret;
 	unsigned sysenter_feature;
@@ -505,7 +527,7 @@ void __cpuinit xen_enable_sysenter(void)
 		setup_clear_cpu_cap(sysenter_feature);
 }
 
-void __cpuinit xen_enable_syscall(void)
+void xen_enable_syscall(void)
 {
 #ifdef CONFIG_X86_64
 	int ret;

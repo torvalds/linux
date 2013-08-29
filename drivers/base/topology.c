@@ -143,22 +143,22 @@ static struct attribute_group topology_attr_group = {
 };
 
 /* Add/Remove cpu_topology interface for CPU device */
-static int __cpuinit topology_add_dev(unsigned int cpu)
+static int topology_add_dev(unsigned int cpu)
 {
 	struct device *dev = get_cpu_device(cpu);
 
 	return sysfs_create_group(&dev->kobj, &topology_attr_group);
 }
 
-static void __cpuinit topology_remove_dev(unsigned int cpu)
+static void topology_remove_dev(unsigned int cpu)
 {
 	struct device *dev = get_cpu_device(cpu);
 
 	sysfs_remove_group(&dev->kobj, &topology_attr_group);
 }
 
-static int __cpuinit topology_cpu_callback(struct notifier_block *nfb,
-					   unsigned long action, void *hcpu)
+static int topology_cpu_callback(struct notifier_block *nfb,
+				 unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
 	int rc = 0;
@@ -178,7 +178,7 @@ static int __cpuinit topology_cpu_callback(struct notifier_block *nfb,
 	return notifier_from_errno(rc);
 }
 
-static int __cpuinit topology_sysfs_init(void)
+static int topology_sysfs_init(void)
 {
 	int cpu;
 	int rc;

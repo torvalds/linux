@@ -182,7 +182,8 @@ static bool can_stop_full_tick(void)
 		 * Don't allow the user to think they can get
 		 * full NO_HZ with this machine.
 		 */
-		WARN_ONCE(1, "NO_HZ FULL will not work with unstable sched clock");
+		WARN_ONCE(have_nohz_full_mask,
+			  "NO_HZ FULL will not work with unstable sched clock");
 		return false;
 	}
 #endif
@@ -298,7 +299,7 @@ static int __init tick_nohz_full_setup(char *str)
 }
 __setup("nohz_full=", tick_nohz_full_setup);
 
-static int __cpuinit tick_nohz_cpu_down_callback(struct notifier_block *nfb,
+static int tick_nohz_cpu_down_callback(struct notifier_block *nfb,
 						 unsigned long action,
 						 void *hcpu)
 {
@@ -343,8 +344,6 @@ static int tick_nohz_init_all(void)
 
 void __init tick_nohz_init(void)
 {
-	int cpu;
-
 	if (!have_nohz_full_mask) {
 		if (tick_nohz_init_all() < 0)
 			return;
@@ -827,13 +826,10 @@ void tick_nohz_irq_exit(void)
 {
 	struct tick_sched *ts = &__get_cpu_var(tick_cpu_sched);
 
-	if (ts->inidle) {
-		/* Cancel the timer because CPU already waken up from the C-states*/
-		menu_hrtimer_cancel();
+	if (ts->inidle)
 		__tick_nohz_idle_enter(ts);
-	} else {
+	else
 		tick_nohz_full_stop_tick(ts);
-	}
 }
 
 /**
@@ -931,8 +927,6 @@ void tick_nohz_idle_exit(void)
 
 	ts->inidle = 0;
 
-	/* Cancel the timer because CPU already waken up from the C-states*/
-	menu_hrtimer_cancel();
 	if (ts->idle_active || ts->tick_stopped)
 		now = ktime_get();
 

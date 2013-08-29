@@ -491,6 +491,12 @@
                                                 sirf,function = "usp0";
                                         };
                                 };
+				usp0_uart_nostreamctrl_pins_a: usp0@1 {
+                                        usp0 {
+                                                sirf,pins = "usp0_uart_nostreamctrl_grp";
+                                                sirf,function = "usp0_uart_nostreamctrl";
+                                        };
+                                };
                                 usp1_pins_a: usp1@0 {
                                         usp1 {
                                                 sirf,pins = "usp1grp";
@@ -521,16 +527,16 @@
                                                 sirf,function = "pulse_count";
                                         };
                                 };
-                                cko0_rst_pins_a: cko0_rst@0 {
-                                        cko0_rst {
-                                                sirf,pins = "cko0_rstgrp";
-                                                sirf,function = "cko0_rst";
+                                cko0_pins_a: cko0@0 {
+                                        cko0 {
+                                                sirf,pins = "cko0grp";
+                                                sirf,function = "cko0";
                                         };
                                 };
-                                cko1_rst_pins_a: cko1_rst@0 {
-                                        cko1_rst {
-                                                sirf,pins = "cko1_rstgrp";
-                                                sirf,function = "cko1_rst";
+                                cko1_pins_a: cko1@0 {
+                                        cko1 {
+                                                sirf,pins = "cko1grp";
+                                                sirf,function = "cko1";
                                         };
                                 };
 			};
