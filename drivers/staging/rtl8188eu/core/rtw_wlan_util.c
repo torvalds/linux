@@ -1592,7 +1592,7 @@ void update_bmc_sta_support_rate(struct adapter *padapter, u32 mac_id)
 		/*  Only B, B/G, and B/G/N AP could use CCK rate */
 		memcpy((pmlmeinfo->FW_sta_info[mac_id].SupportedRates), rtw_basic_rate_cck, 4);
 	} else {
-		memcpy((pmlmeinfo->FW_sta_info[mac_id].SupportedRates), rtw_basic_rate_ofdm, 4);
+		memcpy((pmlmeinfo->FW_sta_info[mac_id].SupportedRates), rtw_basic_rate_ofdm, 3);
 	}
 }
 
