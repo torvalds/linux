@@ -291,8 +291,10 @@ static int sunxi_pconf_group_set(struct pinctrl_dev *pctldev,
 		switch (pinconf_to_config_param(configs[i])) {
 		case PIN_CONFIG_DRIVE_STRENGTH:
 			strength = pinconf_to_config_argument(configs[i]);
-			if (strength > 40)
+			if (strength > 40) {
+				spin_unlock_irqrestore(&pctl->lock, flags);
 				return -EINVAL;
+			}
 			/*
 			 * We convert from mA to what the register expects:
 			 *   0: 10mA
