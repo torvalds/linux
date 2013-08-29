@@ -179,7 +179,7 @@ error:
 static int clp_set_pci_fn(u32 *fh, u8 nr_dma_as, u8 command)
 {
 	struct clp_req_rsp_set_pci *rrb;
-	int rc, retries = 1000;
+	int rc, retries = 100;
 
 	rrb = clp_alloc_block(GFP_KERNEL);
 	if (!rrb)
@@ -199,7 +199,7 @@ static int clp_set_pci_fn(u32 *fh, u8 nr_dma_as, u8 command)
 			retries--;
 			if (retries < 0)
 				break;
-			msleep(1);
+			msleep(20);
 		}
 	} while (rrb->response.hdr.rsp == CLP_RC_SETPCIFN_BUSY);
 
