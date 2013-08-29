@@ -36,6 +36,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/delay.h>	/* For udelay */
+#include <linux/slab.h>
 #include <asm/uaccess.h>	/* For copy_from_user/copy_to_user */
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39)
