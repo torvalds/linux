@@ -1759,16 +1759,19 @@ static __be32 nfsd4_encode_components_esc(struct xdr_stream *xdr, char sep,
 					  char esc_exit)
 {
 	__be32 *p;
-	__be32 *countp;
+	__be32 pathlen;
+	int pathlen_offset;
 	int strlen, count=0;
 	char *str, *end, *next;
 
 	dprintk("nfsd4_encode_components(%s)\n", components);
+
+	pathlen_offset = xdr->buf->len;
 	p = xdr_reserve_space(xdr, 4);
 	if (!p)
 		return nfserr_resource;
-	countp = p;
-	WRITE32(0); /* We will fill this in with @count later */
+	p++; /* We will fill this in with @count later */
+
 	end = str = components;
 	while (*end) {
 		bool found_esc = false;
@@ -1801,8 +1804,8 @@ static __be32 nfsd4_encode_components_esc(struct xdr_stream *xdr, char sep,
 			end++;
 		str = end;
 	}
-	p = countp;
-	WRITE32(count);
+	pathlen = htonl(xdr->buf->len - pathlen_offset);
+	write_bytes_to_xdr_buf(xdr->buf, pathlen_offset, &pathlen, 4);
 	return 0;
 }
 
@@ -2054,7 +2057,8 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 	struct kstatfs statfs;
 	__be32 *p;
 	int starting_len = xdr->buf->len;
-	__be32 *attrlenp;
+	int attrlen_offset;
+	__be32 attrlen;
 	u32 dummy;
 	u64 dummy64;
 	u32 rdattr_err = 0;
@@ -2159,10 +2163,12 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 		WRITE32(1);
 		WRITE32(bmval0);
 	}
+
+	attrlen_offset = xdr->buf->len;
 	p = xdr_reserve_space(xdr, 4);
 	if (!p)
 		goto out_resource;
-	attrlenp = p++;                /* to be backfilled later */
+	p++;                /* to be backfilled later */
 
 	if (bmval0 & FATTR4_WORD0_SUPPORTED_ATTRS) {
 		u32 word0 = nfsd_suppattrs0(minorversion);
@@ -2534,7 +2540,8 @@ out_acl:
 		WRITE32(NFSD_SUPPATTR_EXCLCREAT_WORD2);
 	}
 
-	*attrlenp = htonl((char *)xdr->p - (char *)attrlenp - 4);
+	attrlen = htonl(xdr->buf->len - attrlen_offset - 4);
+	write_bytes_to_xdr_buf(xdr->buf, attrlen_offset, &attrlen, 4);
 	status = nfs_ok;
 
 out:
@@ -3664,15 +3671,16 @@ __be32 nfsd4_check_resp_size(struct nfsd4_compoundres *resp, u32 pad)
 void
 nfsd4_encode_operation(struct nfsd4_compoundres *resp, struct nfsd4_op *op)
 {
+	struct xdr_stream *xdr = &resp->xdr;
 	struct nfs4_stateowner *so = resp->cstate.replay_owner;
 	struct svc_rqst *rqstp = resp->rqstp;
-	__be32 *statp;
+	int post_err_offset;
 	nfsd4_enc encoder;
 	__be32 *p;
 
 	RESERVE_SPACE(8);
 	WRITE32(op->opnum);
-	statp = p++;	/* to be backfilled at the end */
+	post_err_offset = xdr->buf->len;
 
 	if (op->opnum == OP_ILLEGAL)
 		goto status;
@@ -3698,20 +3706,19 @@ nfsd4_encode_operation(struct nfsd4_compoundres *resp, struct nfsd4_op *op)
 		 * bug if we had to do this on a non-idempotent op:
 		 */
 		warn_on_nonidempotent_op(op);
-		resp->xdr.p = statp + 1;
+		xdr_truncate_encode(xdr, post_err_offset);
 	}
 	if (so) {
+		int len = xdr->buf->len - post_err_offset;
+
 		so->so_replay.rp_status = op->status;
-		so->so_replay.rp_buflen = (char *)resp->xdr.p
-						- (char *)(statp+1);
-		memcpy(so->so_replay.rp_buf, statp+1, so->so_replay.rp_buflen);
+		so->so_replay.rp_buflen = len;
+		read_bytes_from_xdr_buf(xdr->buf, post_err_offset,
+						so->so_replay.rp_buf, len);
 	}
 status:
-	/*
-	 * Note: We write the status directly, instead of using WRITE32(),
-	 * since it is already in network byte order.
-	 */
-	*statp = op->status;
+	/* Note that op->status is already in network byte order: */
+	write_bytes_to_xdr_buf(xdr->buf, post_err_offset - 4, &op->status, 4);
 }
 
 /* 
