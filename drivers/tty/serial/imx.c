@@ -979,7 +979,7 @@ static void imx_uart_dma_exit(struct imx_port *sport)
 
 static int imx_uart_dma_init(struct imx_port *sport)
 {
-	struct dma_slave_config slave_config;
+	struct dma_slave_config slave_config = {};
 	struct device *dev = sport->port.dev;
 	int ret;
 
