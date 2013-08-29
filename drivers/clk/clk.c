@@ -1108,16 +1108,17 @@ static u8 clk_fetch_parent_index(struct clk *clk, struct clk *parent)
 
 static void clk_reparent(struct clk *clk, struct clk *new_parent)
 {
-	/* avoid duplicate POST_RATE_CHANGE notifications */
-	if (new_parent->new_child == clk)
-		new_parent->new_child = NULL;
-
 	hlist_del(&clk->child_node);
 
-	if (new_parent)
+	if (new_parent) {
+		/* avoid duplicate POST_RATE_CHANGE notifications */
+		if (new_parent->new_child == clk)
+			new_parent->new_child = NULL;
+
 		hlist_add_head(&clk->child_node, &new_parent->children);
-	else
+	} else {
 		hlist_add_head(&clk->child_node, &clk_orphan_list);
+	}
 
 	clk->parent = new_parent;
 }
