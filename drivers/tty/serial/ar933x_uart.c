@@ -17,6 +17,8 @@
 #include <linux/sysrq.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/serial_core.h>
@@ -623,13 +625,24 @@ static int ar933x_uart_probe(struct platform_device *pdev)
 	struct uart_port *port;
 	struct resource *mem_res;
 	struct resource *irq_res;
+	struct device_node *np;
 	unsigned int baud;
 	int id;
 	int ret;
 
-	id = pdev->id;
-	if (id == -1)
-		id = 0;
+	np = pdev->dev.of_node;
+	if (config_enabled(CONFIG_OF) && np) {
+		id = of_alias_get_id(np, "serial");
+		if (id < 0) {
+			dev_err(&pdev->dev, "unable to get alias id, err=%d\n",
+				id);
+			return id;
+		}
+	} else {
+		id = pdev->id;
+		if (id == -1)
+			id = 0;
+	}
 
 	if (id > CONFIG_SERIAL_AR933X_NR_UARTS)
 		return -EINVAL;
@@ -713,12 +726,21 @@ static int ar933x_uart_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id ar933x_uart_of_ids[] = {
+	{ .compatible = "qca,ar9330-uart" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, ar933x_uart_of_ids);
+#endif
+
 static struct platform_driver ar933x_uart_platform_driver = {
 	.probe		= ar933x_uart_probe,
 	.remove		= ar933x_uart_remove,
 	.driver		= {
 		.name		= DRIVER_NAME,
 		.owner		= THIS_MODULE,
+		.of_match_table = of_match_ptr(ar933x_uart_of_ids),
 	},
 };
 
