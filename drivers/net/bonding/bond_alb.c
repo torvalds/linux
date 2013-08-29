@@ -971,58 +971,62 @@ static void rlb_clear_vlan(struct bonding *bond, unsigned short vlan_id)
 
 /*********************** tlb/rlb shared functions *********************/
 
-static void alb_send_learning_packets(struct slave *slave, u8 mac_addr[])
+static void alb_send_lp_vid(struct slave *slave, u8 mac_addr[],
+			    u16 vid)
 {
-	struct bonding *bond = bond_get_bond_by_slave(slave);
 	struct learning_pkt pkt;
+	struct sk_buff *skb;
 	int size = sizeof(struct learning_pkt);
-	int i;
+	char *data;
 
 	memset(&pkt, 0, size);
 	memcpy(pkt.mac_dst, mac_addr, ETH_ALEN);
 	memcpy(pkt.mac_src, mac_addr, ETH_ALEN);
 	pkt.type = cpu_to_be16(ETH_P_LOOP);
 
-	for (i = 0; i < MAX_LP_BURST; i++) {
-		struct sk_buff *skb;
-		char *data;
+	skb = dev_alloc_skb(size);
+	if (!skb)
+		return;
 
-		skb = dev_alloc_skb(size);
+	data = skb_put(skb, size);
+	memcpy(data, &pkt, size);
+
+	skb_reset_mac_header(skb);
+	skb->network_header = skb->mac_header + ETH_HLEN;
+	skb->protocol = pkt.type;
+	skb->priority = TC_PRIO_CONTROL;
+	skb->dev = slave->dev;
+
+	if (vid) {
+		skb = vlan_put_tag(skb, htons(ETH_P_8021Q), vid);
 		if (!skb) {
+			pr_err("%s: Error: failed to insert VLAN tag\n",
+			       slave->bond->dev->name);
 			return;
 		}
-
-		data = skb_put(skb, size);
-		memcpy(data, &pkt, size);
-
-		skb_reset_mac_header(skb);
-		skb->network_header = skb->mac_header + ETH_HLEN;
-		skb->protocol = pkt.type;
-		skb->priority = TC_PRIO_CONTROL;
-		skb->dev = slave->dev;
-
-		if (bond_vlan_used(bond)) {
-			struct vlan_entry *vlan;
-
-			vlan = bond_next_vlan(bond,
-					      bond->alb_info.current_alb_vlan);
-
-			bond->alb_info.current_alb_vlan = vlan;
-			if (!vlan) {
-				kfree_skb(skb);
-				continue;
-			}
-
-			skb = vlan_put_tag(skb, htons(ETH_P_8021Q), vlan->vlan_id);
-			if (!skb) {
-				pr_err("%s: Error: failed to insert VLAN tag\n",
-				       bond->dev->name);
-				continue;
-			}
-		}
-
-		dev_queue_xmit(skb);
 	}
+
+	dev_queue_xmit(skb);
+}
+
+
+static void alb_send_learning_packets(struct slave *slave, u8 mac_addr[])
+{
+	struct bonding *bond = bond_get_bond_by_slave(slave);
+	struct net_device *upper;
+	struct list_head *iter;
+
+	/* send untagged */
+	alb_send_lp_vid(slave, mac_addr, 0);
+
+	/* loop through vlans and send one packet for each */
+	rcu_read_lock();
+	netdev_for_each_upper_dev_rcu(bond->dev, upper, iter) {
+		if (upper->priv_flags & IFF_802_1Q_VLAN)
+			alb_send_lp_vid(slave, mac_addr,
+					vlan_dev_vlan_id(upper));
+	}
+	rcu_read_unlock();
 }
 
 static int alb_set_slave_mac_addr(struct slave *slave, u8 addr[])
@@ -1759,11 +1763,6 @@ int bond_alb_set_mac_address(struct net_device *bond_dev, void *addr)
 
 void bond_alb_clear_vlan(struct bonding *bond, unsigned short vlan_id)
 {
-	if (bond->alb_info.current_alb_vlan &&
-	    (bond->alb_info.current_alb_vlan->vlan_id == vlan_id)) {
-		bond->alb_info.current_alb_vlan = NULL;
-	}
-
 	if (bond->alb_info.rlb_enabled) {
 		rlb_clear_vlan(bond, vlan_id);
 	}

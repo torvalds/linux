@@ -283,116 +283,6 @@ const char *bond_mode_name(int mode)
 /*---------------------------------- VLAN -----------------------------------*/
 
 /**
- * bond_add_vlan - add a new vlan id on bond
- * @bond: bond that got the notification
- * @vlan_id: the vlan id to add
- *
- * Returns -ENOMEM if allocation failed.
- */
-static int bond_add_vlan(struct bonding *bond, unsigned short vlan_id)
-{
-	struct vlan_entry *vlan;
-
-	pr_debug("bond: %s, vlan id %d\n",
-		 (bond ? bond->dev->name : "None"), vlan_id);
-
-	vlan = kzalloc(sizeof(struct vlan_entry), GFP_KERNEL);
-	if (!vlan)
-		return -ENOMEM;
-
-	INIT_LIST_HEAD(&vlan->vlan_list);
-	vlan->vlan_id = vlan_id;
-
-	write_lock_bh(&bond->lock);
-
-	list_add_tail(&vlan->vlan_list, &bond->vlan_list);
-
-	write_unlock_bh(&bond->lock);
-
-	pr_debug("added VLAN ID %d on bond %s\n", vlan_id, bond->dev->name);
-
-	return 0;
-}
-
-/**
- * bond_del_vlan - delete a vlan id from bond
- * @bond: bond that got the notification
- * @vlan_id: the vlan id to delete
- *
- * returns -ENODEV if @vlan_id was not found in @bond.
- */
-static int bond_del_vlan(struct bonding *bond, unsigned short vlan_id)
-{
-	struct vlan_entry *vlan;
-	int res = -ENODEV;
-
-	pr_debug("bond: %s, vlan id %d\n", bond->dev->name, vlan_id);
-
-	block_netpoll_tx();
-	write_lock_bh(&bond->lock);
-
-	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
-		if (vlan->vlan_id == vlan_id) {
-			list_del(&vlan->vlan_list);
-
-			if (bond_is_lb(bond))
-				bond_alb_clear_vlan(bond, vlan_id);
-
-			pr_debug("removed VLAN ID %d from bond %s\n",
-				 vlan_id, bond->dev->name);
-
-			kfree(vlan);
-
-			res = 0;
-			goto out;
-		}
-	}
-
-	pr_debug("couldn't find VLAN ID %d in bond %s\n",
-		 vlan_id, bond->dev->name);
-
-out:
-	write_unlock_bh(&bond->lock);
-	unblock_netpoll_tx();
-	return res;
-}
-
-/**
- * bond_next_vlan - safely skip to the next item in the vlans list.
- * @bond: the bond we're working on
- * @curr: item we're advancing from
- *
- * Returns %NULL if list is empty, bond->next_vlan if @curr is %NULL,
- * or @curr->next otherwise (even if it is @curr itself again).
- *
- * Caller must hold bond->lock
- */
-struct vlan_entry *bond_next_vlan(struct bonding *bond, struct vlan_entry *curr)
-{
-	struct vlan_entry *next, *last;
-
-	if (list_empty(&bond->vlan_list))
-		return NULL;
-
-	if (!curr) {
-		next = list_entry(bond->vlan_list.next,
-				  struct vlan_entry, vlan_list);
-	} else {
-		last = list_entry(bond->vlan_list.prev,
-				  struct vlan_entry, vlan_list);
-		if (last == curr) {
-			next = list_entry(bond->vlan_list.next,
-					  struct vlan_entry, vlan_list);
-		} else {
-			next = list_entry(curr->vlan_list.next,
-					  struct vlan_entry, vlan_list);
-		}
-	}
-
-	return next;
-}
-
-/**
  * bond_dev_queue_xmit - Prepare skb for xmit.
  *
  * @bond: bond device that got this skb for tx.
@@ -451,13 +341,6 @@ static int bond_vlan_rx_add_vid(struct net_device *bond_dev,
 			goto unwind;
 	}
 
-	res = bond_add_vlan(bond, vid);
-	if (res) {
-		pr_err("%s: Error: Failed to add vlan id %d\n",
-		       bond_dev->name, vid);
-		goto unwind;
-	}
-
 	return 0;
 
 unwind:
@@ -478,17 +361,12 @@ static int bond_vlan_rx_kill_vid(struct net_device *bond_dev,
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct slave *slave;
-	int res;
 
 	bond_for_each_slave(bond, slave)
 		vlan_vid_del(slave->dev, proto, vid);
 
-	res = bond_del_vlan(bond, vid);
-	if (res) {
-		pr_err("%s: Error: Failed to remove vlan id %d\n",
-		       bond_dev->name, vid);
-		return res;
-	}
+	if (bond_is_lb(bond))
+		bond_alb_clear_vlan(bond, vid);
 
 	return 0;
 }
@@ -1954,7 +1832,7 @@ static int __bond_release_one(struct net_device *bond_dev,
 		bond_set_carrier(bond);
 		eth_hw_addr_random(bond_dev);
 
-		if (bond_vlan_used(bond)) {
+		if (vlan_uses_dev(bond_dev)) {
 			pr_warning("%s: Warning: clearing HW address of %s while it still has VLANs.\n",
 				   bond_dev->name, bond_dev->name);
 			pr_warning("%s: When re-adding slaves, make sure the bond's HW address matches its VLANs'.\n",
@@ -2392,24 +2270,25 @@ re_arm:
 	}
 }
 
-static int bond_has_this_ip(struct bonding *bond, __be32 ip)
+static bool bond_has_this_ip(struct bonding *bond, __be32 ip)
 {
-	struct vlan_entry *vlan;
-	struct net_device *vlan_dev;
+	struct net_device *upper;
+	struct list_head *iter;
+	bool ret = false;
 
 	if (ip == bond_confirm_addr(bond->dev, 0, ip))
-		return 1;
+		return true;
 
-	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
-		rcu_read_lock();
-		vlan_dev = __vlan_find_dev_deep(bond->dev, htons(ETH_P_8021Q),
-						vlan->vlan_id);
-		rcu_read_unlock();
-		if (vlan_dev && ip == bond_confirm_addr(vlan_dev, 0, ip))
-			return 1;
+	rcu_read_lock();
+	netdev_for_each_upper_dev_rcu(bond->dev, upper, iter) {
+		if (ip == bond_confirm_addr(upper, 0, ip)) {
+			ret = true;
+			break;
+		}
 	}
+	rcu_read_unlock();
 
-	return 0;
+	return ret;
 }
 
 /*
@@ -2444,81 +2323,79 @@ static void bond_arp_send(struct net_device *slave_dev, int arp_op, __be32 dest_
 
 static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 {
-	int i, vlan_id;
-	__be32 *targets = bond->params.arp_targets;
-	struct vlan_entry *vlan;
-	struct net_device *vlan_dev = NULL;
+	struct net_device *upper, *vlan_upper;
+	struct list_head *iter, *vlan_iter;
 	struct rtable *rt;
+	__be32 *targets = bond->params.arp_targets, addr;
+	int i, vlan_id;
 
-	for (i = 0; (i < BOND_MAX_ARP_TARGETS); i++) {
-		__be32 addr;
-		if (!targets[i])
-			break;
+	for (i = 0; i < BOND_MAX_ARP_TARGETS && targets[i]; i++) {
 		pr_debug("basa: target %pI4\n", &targets[i]);
-		if (!bond_vlan_used(bond)) {
-			pr_debug("basa: empty vlan: arp_send\n");
-			addr = bond_confirm_addr(bond->dev, targets[i], 0);
-			bond_arp_send(slave->dev, ARPOP_REQUEST, targets[i],
-				      addr, 0);
-			continue;
-		}
 
-		/*
-		 * If VLANs are configured, we do a route lookup to
-		 * determine which VLAN interface would be used, so we
-		 * can tag the ARP with the proper VLAN tag.
-		 */
+		/* Find out through which dev should the packet go */
 		rt = ip_route_output(dev_net(bond->dev), targets[i], 0,
 				     RTO_ONLINK, 0);
 		if (IS_ERR(rt)) {
-			if (net_ratelimit()) {
-				pr_warning("%s: no route to arp_ip_target %pI4\n",
-					   bond->dev->name, &targets[i]);
-			}
-			continue;
-		}
-
-		/*
-		 * This target is not on a VLAN
-		 */
-		if (rt->dst.dev == bond->dev) {
-			ip_rt_put(rt);
-			pr_debug("basa: rtdev == bond->dev: arp_send\n");
-			addr = bond_confirm_addr(bond->dev, targets[i], 0);
-			bond_arp_send(slave->dev, ARPOP_REQUEST, targets[i],
-				      addr, 0);
+			pr_debug("%s: no route to arp_ip_target %pI4\n",
+				 bond->dev->name, &targets[i]);
 			continue;
 		}
 
 		vlan_id = 0;
-		list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
-			rcu_read_lock();
-			vlan_dev = __vlan_find_dev_deep(bond->dev,
-							htons(ETH_P_8021Q),
-							vlan->vlan_id);
-			rcu_read_unlock();
-			if (vlan_dev == rt->dst.dev) {
-				vlan_id = vlan->vlan_id;
-				pr_debug("basa: vlan match on %s %d\n",
-				       vlan_dev->name, vlan_id);
-				break;
+
+		/* bond device itself */
+		if (rt->dst.dev == bond->dev)
+			goto found;
+
+		rcu_read_lock();
+		/* first we search only for vlan devices. for every vlan
+		 * found we verify its upper dev list, searching for the
+		 * rt->dst.dev. If found we save the tag of the vlan and
+		 * proceed to send the packet.
+		 *
+		 * TODO: QinQ?
+		 */
+		netdev_for_each_upper_dev_rcu(bond->dev, vlan_upper, vlan_iter) {
+			if (!is_vlan_dev(vlan_upper))
+				continue;
+			netdev_for_each_upper_dev_rcu(vlan_upper, upper, iter) {
+				if (upper == rt->dst.dev) {
+					vlan_id = vlan_dev_vlan_id(vlan_upper);
+					rcu_read_unlock();
+					goto found;
+				}
 			}
 		}
 
-		if (vlan_id && vlan_dev) {
-			ip_rt_put(rt);
-			addr = bond_confirm_addr(vlan_dev, targets[i], 0);
-			bond_arp_send(slave->dev, ARPOP_REQUEST, targets[i],
-				      addr, vlan_id);
-			continue;
-		}
+		/* if the device we're looking for is not on top of any of
+		 * our upper vlans, then just search for any dev that
+		 * matches, and in case it's a vlan - save the id
+		 */
+		netdev_for_each_upper_dev_rcu(bond->dev, upper, iter) {
+			if (upper == rt->dst.dev) {
+				/* if it's a vlan - get its VID */
+				if (is_vlan_dev(upper))
+					vlan_id = vlan_dev_vlan_id(upper);
 
-		if (net_ratelimit()) {
-			pr_warning("%s: no path to arp_ip_target %pI4 via rt.dev %s\n",
-				   bond->dev->name, &targets[i],
-				   rt->dst.dev ? rt->dst.dev->name : "NULL");
+				rcu_read_unlock();
+				goto found;
+			}
 		}
+		rcu_read_unlock();
+
+		/* Not our device - skip */
+		pr_debug("%s: no path to arp_ip_target %pI4 via rt.dev %s\n",
+			 bond->dev->name, &targets[i],
+			 rt->dst.dev ? rt->dst.dev->name : "NULL");
+
 		ip_rt_put(rt);
+		continue;
+
+found:
+		addr = bond_confirm_addr(rt->dst.dev, targets[i], 0);
+		ip_rt_put(rt);
+		bond_arp_send(slave->dev, ARPOP_REQUEST, targets[i],
+			      addr, vlan_id);
 	}
 }
 
@@ -4142,7 +4019,6 @@ static void bond_setup(struct net_device *bond_dev)
 
 	/* Initialize pointers */
 	bond->dev = bond_dev;
-	INIT_LIST_HEAD(&bond->vlan_list);
 
 	/* Initialize the device entry points */
 	ether_setup(bond_dev);
@@ -4195,7 +4071,6 @@ static void bond_uninit(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct slave *slave, *tmp_slave;
-	struct vlan_entry *vlan, *tmp;
 
 	bond_netpoll_cleanup(bond_dev);
 
@@ -4207,11 +4082,6 @@ static void bond_uninit(struct net_device *bond_dev)
 	list_del(&bond->bond_list);
 
 	bond_debug_unregister(bond);
-
-	list_for_each_entry_safe(vlan, tmp, &bond->vlan_list, vlan_list) {
-		list_del(&vlan->vlan_list);
-		kfree(vlan);
-	}
 }
 
 /*------------------------- Module initialization ---------------------------*/
