@@ -59,6 +59,7 @@ clock which they consume.
   sclk_pwm		155
   sclk_gscl_wa		156
   sclk_gscl_wb		157
+  sclk_hdmiphy		158
 
    [Peripheral Clock Gates]
 
