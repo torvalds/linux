@@ -888,6 +888,11 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		ttl = iph6->hop_limit;
 	tos = INET_ECN_encapsulate(tos, ipv6_get_dsfield(iph6));
 
+	if (likely(!skb->encapsulation)) {
+		skb_reset_inner_headers(skb);
+		skb->encapsulation = 1;
+	}
+
 	err = iptunnel_xmit(dev_net(dev), rt, skb, fl4.saddr, fl4.daddr,
 			    IPPROTO_IPV6, tos, ttl, df);
 	iptunnel_xmit_stats(err, &dev->stats, dev->tstats);
