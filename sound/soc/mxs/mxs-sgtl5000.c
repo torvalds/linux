@@ -91,11 +91,13 @@ static struct snd_soc_dai_link mxs_sgtl5000_dai[] = {
 		.stream_name	= "HiFi Playback",
 		.codec_dai_name	= "sgtl5000",
 		.ops		= &mxs_sgtl5000_hifi_ops,
+		.playback_only	= true,
 	}, {
 		.name		= "HiFi Rx",
 		.stream_name	= "HiFi Capture",
 		.codec_dai_name	= "sgtl5000",
 		.ops		= &mxs_sgtl5000_hifi_ops,
+		.capture_only	= true,
 	},
 };
 
