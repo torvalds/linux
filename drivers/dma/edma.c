@@ -70,6 +70,7 @@ struct edma_chan {
 	int				ch_num;
 	bool				alloced;
 	int				slot[EDMA_MAX_SLOTS];
+	int				missed;
 	struct dma_slave_config		cfg;
 };
 
@@ -169,6 +170,20 @@ static void edma_execute(struct edma_chan *echan)
 	if (edesc->processed <= MAX_NR_SG) {
 		dev_dbg(dev, "first transfer starting %d\n", echan->ch_num);
 		edma_start(echan->ch_num);
+	}
+
+	/*
+	 * This happens due to setup times between intermediate transfers
+	 * in long SG lists which have to be broken up into transfers of
+	 * MAX_NR_SG
+	 */
+	if (echan->missed) {
+		dev_dbg(dev, "missed event in execute detected\n");
+		edma_clean_channel(echan->ch_num);
+		edma_stop(echan->ch_num);
+		edma_start(echan->ch_num);
+		edma_trigger_channel(echan->ch_num);
+		echan->missed = 0;
 	}
 }
 
@@ -387,6 +402,7 @@ static void edma_callback(unsigned ch_num, u16 ch_status, void *data)
 	struct device *dev = echan->vchan.chan.device->dev;
 	struct edma_desc *edesc;
 	unsigned long flags;
+	struct edmacc_param p;
 
 	/* Pause the channel */
 	edma_pause(echan->ch_num);
@@ -412,7 +428,39 @@ static void edma_callback(unsigned ch_num, u16 ch_status, void *data)
 
 		break;
 	case DMA_CC_ERROR:
-		dev_dbg(dev, "transfer error on channel %d\n", ch_num);
+		spin_lock_irqsave(&echan->vchan.lock, flags);
+
+		edma_read_slot(EDMA_CHAN_SLOT(echan->slot[0]), &p);
+
+		/*
+		 * Issue later based on missed flag which will be sure
+		 * to happen as:
+		 * (1) we finished transmitting an intermediate slot and
+		 *     edma_execute is coming up.
+		 * (2) or we finished current transfer and issue will
+		 *     call edma_execute.
+		 *
+		 * Important note: issuing can be dangerous here and
+		 * lead to some nasty recursion when we are in a NULL
+		 * slot. So we avoid doing so and set the missed flag.
+		 */
+		if (p.a_b_cnt == 0 && p.ccnt == 0) {
+			dev_dbg(dev, "Error occurred, looks like slot is null, just setting miss\n");
+			echan->missed = 1;
+		} else {
+			/*
+			 * The slot is already programmed but the event got
+			 * missed, so its safe to issue it here.
+			 */
+			dev_dbg(dev, "Error occurred but slot is non-null, TRIGGERING\n");
+			edma_clean_channel(echan->ch_num);
+			edma_stop(echan->ch_num);
+			edma_start(echan->ch_num);
+			edma_trigger_channel(echan->ch_num);
+		}
+
+		spin_unlock_irqrestore(&echan->vchan.lock, flags);
+
 		break;
 	default:
 		break;
