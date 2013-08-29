@@ -8,6 +8,7 @@
 #include "util/thread.h"
 #include "util/parse-options.h"
 #include "util/strlist.h"
+#include "util/intlist.h"
 #include "util/thread_map.h"
 
 #include <libaudit.h>
@@ -259,6 +260,8 @@ struct trace {
 	unsigned long		nr_events;
 	struct strlist		*ev_qualifier;
 	bool			not_ev_qualifier;
+	struct intlist		*tid_list;
+	struct intlist		*pid_list;
 	bool			sched;
 	bool			multiple_threads;
 	double			duration_filter;
@@ -653,6 +656,18 @@ out_dump:
 	return 0;
 }
 
+static bool skip_sample(struct trace *trace, struct perf_sample *sample)
+{
+	if ((trace->pid_list && intlist__find(trace->pid_list, sample->pid)) ||
+	    (trace->tid_list && intlist__find(trace->tid_list, sample->tid)))
+		return false;
+
+	if (trace->pid_list || trace->tid_list)
+		return true;
+
+	return false;
+}
+
 static int trace__process_sample(struct perf_tool *tool,
 				 union perf_event *event __maybe_unused,
 				 struct perf_sample *sample,
@@ -663,6 +678,9 @@ static int trace__process_sample(struct perf_tool *tool,
 	int err = 0;
 
 	tracepoint_handler handler = evsel->handler.func;
+
+	if (skip_sample(trace, sample))
+		return 0;
 
 	if (trace->base_time == 0)
 		trace->base_time = sample->time;
@@ -681,6 +699,27 @@ perf_session__has_tp(struct perf_session *session, const char *name)
 	evsel = perf_evlist__find_tracepoint_by_name(session->evlist, name);
 
 	return evsel != NULL;
+}
+
+static int parse_target_str(struct trace *trace)
+{
+	if (trace->opts.target.pid) {
+		trace->pid_list = intlist__new(trace->opts.target.pid);
+		if (trace->pid_list == NULL) {
+			pr_err("Error parsing process id string\n");
+			return -EINVAL;
+		}
+	}
+
+	if (trace->opts.target.tid) {
+		trace->tid_list = intlist__new(trace->opts.target.tid);
+		if (trace->tid_list == NULL) {
+			pr_err("Error parsing thread id string\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
 }
 
 static int trace__run(struct trace *trace, int argc, const char **argv)
@@ -868,6 +907,10 @@ static int trace__replay(struct trace *trace)
 		pr_err("Data file does not have raw_syscalls:sys_exit events\n");
 		goto out;
 	}
+
+	err = parse_target_str(trace);
+	if (err != 0)
+		goto out;
 
 	setup_pager();
 
