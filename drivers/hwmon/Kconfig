@@ -511,6 +511,16 @@ config SENSORS_HIH6130
 	  This driver can also be built as a module.  If so, the module
 	  will be called hih6130.
 
+config SENSORS_HTU21
+	tristate "Measurement Specialties HTU21D humidity/temperature sensors"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Measurement Specialties
+	  HTU21D humidity and temperature sensors.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called htu21.
+
 config SENSORS_CORETEMP
 	tristate "Intel Core/Core2/Atom temperature sensor"
 	depends on X86
