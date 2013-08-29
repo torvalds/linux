@@ -39,6 +39,10 @@
 #define at91_adc_writel(st, reg, val) \
 	(writel_relaxed(val, st->reg_base + reg))
 
+struct at91_adc_caps {
+	struct at91_adc_reg_desc registers;
+};
+
 struct at91_adc_state {
 	struct clk		*adc_clk;
 	u16			*buffer;
@@ -62,6 +66,7 @@ struct at91_adc_state {
 	u32			res;		/* resolution used for convertions */
 	bool			low_res;	/* the resolution corresponds to the lowest one */
 	wait_queue_head_t	wq_data_avail;
+	struct at91_adc_caps	*caps;
 };
 
 static irqreturn_t at91_adc_trigger_handler(int irq, void *p)
@@ -429,6 +434,8 @@ ret:
 	return ret;
 }
 
+static const struct of_device_id at91_adc_dt_ids[];
+
 static int at91_adc_probe_dt(struct at91_adc_state *st,
 			     struct platform_device *pdev)
 {
@@ -440,6 +447,9 @@ static int at91_adc_probe_dt(struct at91_adc_state *st,
 
 	if (!node)
 		return -EINVAL;
+
+	st->caps = (struct at91_adc_caps *)
+		of_match_device(at91_adc_dt_ids, &pdev->dev)->data;
 
 	st->use_external = of_property_read_bool(node, "atmel,adc-use-external-triggers");
 
@@ -481,43 +491,7 @@ static int at91_adc_probe_dt(struct at91_adc_state *st,
 	if (ret)
 		goto error_ret;
 
-	st->registers = devm_kzalloc(&idev->dev,
-				     sizeof(struct at91_adc_reg_desc),
-				     GFP_KERNEL);
-	if (!st->registers) {
-		dev_err(&idev->dev, "Could not allocate register memory.\n");
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-
-	if (of_property_read_u32(node, "atmel,adc-channel-base", &prop)) {
-		dev_err(&idev->dev, "Missing adc-channel-base property in the DT.\n");
-		ret = -EINVAL;
-		goto error_ret;
-	}
-	st->registers->channel_base = prop;
-
-	if (of_property_read_u32(node, "atmel,adc-drdy-mask", &prop)) {
-		dev_err(&idev->dev, "Missing adc-drdy-mask property in the DT.\n");
-		ret = -EINVAL;
-		goto error_ret;
-	}
-	st->registers->drdy_mask = prop;
-
-	if (of_property_read_u32(node, "atmel,adc-status-register", &prop)) {
-		dev_err(&idev->dev, "Missing adc-status-register property in the DT.\n");
-		ret = -EINVAL;
-		goto error_ret;
-	}
-	st->registers->status_register = prop;
-
-	if (of_property_read_u32(node, "atmel,adc-trigger-register", &prop)) {
-		dev_err(&idev->dev, "Missing adc-trigger-register property in the DT.\n");
-		ret = -EINVAL;
-		goto error_ret;
-	}
-	st->registers->trigger_register = prop;
-
+	st->registers = &st->caps->registers;
 	st->trigger_number = of_get_child_count(node);
 	st->trigger_list = devm_kzalloc(&idev->dev, st->trigger_number *
 					sizeof(struct at91_adc_trigger),
@@ -698,8 +672,8 @@ static int at91_adc_probe(struct platform_device *pdev)
 	shtim = round_up((st->sample_hold_time * adc_clk /
 			  1000000) - 1, 1);
 
-	reg = AT91_ADC_PRESCAL_(prsc) & AT91_ADC_PRESCAL;
-	reg |= AT91_ADC_STARTUP_(ticks) & AT91_ADC_STARTUP;
+	reg = AT91_ADC_PRESCAL_(prsc) & st->registers->mr_prescal_mask;
+	reg |= AT91_ADC_STARTUP_(ticks) & st->registers->mr_startup_mask;
 	if (st->low_res)
 		reg |= AT91_ADC_LOWRES;
 	if (st->sleep_mode)
@@ -766,8 +740,44 @@ static int at91_adc_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
+static struct at91_adc_caps at91sam9260_caps = {
+	.registers = {
+		.channel_base = AT91_ADC_CHR(0),
+		.drdy_mask = AT91_ADC_DRDY,
+		.status_register = AT91_ADC_SR,
+		.trigger_register = AT91_ADC_TRGR_9260,
+		.mr_prescal_mask = AT91_ADC_PRESCAL_9260,
+		.mr_startup_mask = AT91_ADC_STARTUP_9260,
+	},
+};
+
+static struct at91_adc_caps at91sam9g45_caps = {
+	.registers = {
+		.channel_base = AT91_ADC_CHR(0),
+		.drdy_mask = AT91_ADC_DRDY,
+		.status_register = AT91_ADC_SR,
+		.trigger_register = AT91_ADC_TRGR_9G45,
+		.mr_prescal_mask = AT91_ADC_PRESCAL_9G45,
+		.mr_startup_mask = AT91_ADC_STARTUP_9G45,
+	},
+};
+
+static struct at91_adc_caps at91sam9x5_caps = {
+	.registers = {
+		.channel_base = AT91_ADC_CDR0_9X5,
+		.drdy_mask = AT91_ADC_SR_DRDY_9X5,
+		.status_register = AT91_ADC_SR_9X5,
+		.trigger_register = AT91_ADC_TRGR_9X5,
+		/* prescal mask is same as 9G45 */
+		.mr_prescal_mask = AT91_ADC_PRESCAL_9G45,
+		.mr_startup_mask = AT91_ADC_STARTUP_9X5,
+	},
+};
+
 static const struct of_device_id at91_adc_dt_ids[] = {
-	{ .compatible = "atmel,at91sam9260-adc" },
+	{ .compatible = "atmel,at91sam9260-adc", .data = &at91sam9260_caps },
+	{ .compatible = "atmel,at91sam9g45-adc", .data = &at91sam9g45_caps },
+	{ .compatible = "atmel,at91sam9x5-adc", .data = &at91sam9x5_caps },
 	{},
 };
 MODULE_DEVICE_TABLE(of, at91_adc_dt_ids);

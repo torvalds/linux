@@ -537,8 +537,8 @@ static int twl6030_gpadc_read_raw(struct iio_dev *indio_dev,
 		ret = -ETIMEDOUT;
 		goto err;
 	} else if (timeout < 0) {
-		goto err;
 		ret = -EINTR;
+		goto err;
 	}
 
 	switch (mask) {

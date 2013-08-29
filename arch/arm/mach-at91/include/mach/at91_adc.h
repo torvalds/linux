@@ -28,9 +28,12 @@
 #define			AT91_ADC_TRGSEL_EXTERNAL	(6 << 1)
 #define		AT91_ADC_LOWRES		(1 << 4)	/* Low Resolution */
 #define		AT91_ADC_SLEEP		(1 << 5)	/* Sleep Mode */
-#define		AT91_ADC_PRESCAL	(0x3f << 8)	/* Prescalar Rate Selection */
+#define		AT91_ADC_PRESCAL_9260	(0x3f << 8)	/* Prescalar Rate Selection */
+#define		AT91_ADC_PRESCAL_9G45	(0xff << 8)
 #define			AT91_ADC_PRESCAL_(x)	((x) << 8)
-#define		AT91_ADC_STARTUP	(0x1f << 16)	/* Startup Up Time */
+#define		AT91_ADC_STARTUP_9260	(0x1f << 16)	/* Startup Up Time */
+#define		AT91_ADC_STARTUP_9G45	(0x7f << 16)
+#define		AT91_ADC_STARTUP_9X5	(0xf << 16)
 #define			AT91_ADC_STARTUP_(x)	((x) << 16)
 #define		AT91_ADC_SHTIM		(0xf  << 24)	/* Sample & Hold Time */
 #define			AT91_ADC_SHTIM_(x)	((x) << 24)
@@ -48,6 +51,9 @@
 #define		AT91_ADC_ENDRX		(1 << 18)	/* End of RX Buffer */
 #define		AT91_ADC_RXFUFF		(1 << 19)	/* RX Buffer Full */
 
+#define AT91_ADC_SR_9X5		0x30		/* Status Register for 9x5 */
+#define		AT91_ADC_SR_DRDY_9X5	(1 << 24)	/* Data Ready */
+
 #define AT91_ADC_LCDR		0x20		/* Last Converted Data Register */
 #define		AT91_ADC_LDATA		(0x3ff)
 
@@ -57,5 +63,11 @@
 
 #define AT91_ADC_CHR(n)		(0x30 + ((n) * 4))	/* Channel Data Register N */
 #define		AT91_ADC_DATA		(0x3ff)
+
+#define AT91_ADC_CDR0_9X5	(0x50)			/* Channel Data Register 0 for 9X5 */
+
+#define AT91_ADC_TRGR_9260	AT91_ADC_MR
+#define AT91_ADC_TRGR_9G45	0x08
+#define AT91_ADC_TRGR_9X5	0xC0
 
 #endif
