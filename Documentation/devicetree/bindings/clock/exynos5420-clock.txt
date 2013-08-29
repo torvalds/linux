@@ -187,6 +187,11 @@ clock which they consume.
 
   mout_hdmi		640
 
+  Divider		ID
+  ----------------------------
+
+  dout_pixel		768
+
 Example 1: An example of a clock controller node is listed below.
 
 	clock: clock-controller@0x10010000 {
