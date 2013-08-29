@@ -196,8 +196,13 @@ static int scom_debug_init(void)
 		return -1;
 
 	i = rc = 0;
-	for_each_node_with_property(dn, "scom-controller")
-		rc |= scom_debug_init_one(root, dn, i++);
+	for_each_node_with_property(dn, "scom-controller") {
+		int id = of_get_ibm_chip_id(dn);
+		if (id == -1)
+			id = i;
+		rc |= scom_debug_init_one(root, dn, id);
+		i++;
+	}
 
 	return rc;
 }
