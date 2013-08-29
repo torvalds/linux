@@ -173,7 +173,7 @@ static void bmips_boot_secondary(int cpu, struct task_struct *idle)
 	else {
 #if defined(CONFIG_CPU_BMIPS4350) || defined(CONFIG_CPU_BMIPS4380)
 		/* Reset slave TP1 if booting from TP0 */
-		if (cpu_logical_map(cpu) == 0)
+		if (cpu_logical_map(cpu) == 1)
 			set_c0_brcm_cmt_ctrl(0x01);
 #elif defined(CONFIG_CPU_BMIPS5000)
 		if (cpu & 0x01)
@@ -398,7 +398,7 @@ struct plat_smp_ops bmips_smp_ops = {
  * UP BMIPS systems as well.
  ***********************************************************************/
 
-static void __cpuinit bmips_wr_vec(unsigned long dst, char *start, char *end)
+static void bmips_wr_vec(unsigned long dst, char *start, char *end)
 {
 	memcpy((void *)dst, start, end - start);
 	dma_cache_wback((unsigned long)start, end - start);
@@ -406,7 +406,7 @@ static void __cpuinit bmips_wr_vec(unsigned long dst, char *start, char *end)
 	instruction_hazard();
 }
 
-static inline void __cpuinit bmips_nmi_handler_setup(void)
+static inline void bmips_nmi_handler_setup(void)
 {
 	bmips_wr_vec(BMIPS_NMI_RESET_VEC, &bmips_reset_nmi_vec,
 		&bmips_reset_nmi_vec_end);
@@ -414,7 +414,7 @@ static inline void __cpuinit bmips_nmi_handler_setup(void)
 		&bmips_smp_int_vec_end);
 }
 
-void __cpuinit bmips_ebase_setup(void)
+void bmips_ebase_setup(void)
 {
 	unsigned long new_ebase = ebase;
 	void __iomem __maybe_unused *cbr;

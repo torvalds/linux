@@ -174,6 +174,17 @@ static void nuc900_spi_gobusy(struct nuc900_spi *hw)
 	spin_unlock_irqrestore(&hw->lock, flags);
 }
 
+static int nuc900_spi_setupxfer(struct spi_device *spi,
+				 struct spi_transfer *t)
+{
+	return 0;
+}
+
+static int nuc900_spi_setup(struct spi_device *spi)
+{
+	return 0;
+}
+
 static inline unsigned int hw_txbyte(struct nuc900_spi *hw, int count)
 {
 	return hw->tx ? hw->tx[count] : 0;
@@ -366,8 +377,10 @@ static int nuc900_spi_probe(struct platform_device *pdev)
 	master->num_chipselect     = hw->pdata->num_cs;
 	master->bus_num            = hw->pdata->bus_num;
 	hw->bitbang.master         = hw->master;
+	hw->bitbang.setup_transfer = nuc900_spi_setupxfer;
 	hw->bitbang.chipselect     = nuc900_spi_chipsel;
 	hw->bitbang.txrx_bufs      = nuc900_spi_txrx;
+	hw->bitbang.master->setup  = nuc900_spi_setup;
 
 	hw->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (hw->res == NULL) {

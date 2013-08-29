@@ -309,6 +309,7 @@ static int rpc_client_register(const struct rpc_create_args *args,
 	return 0;
 err_auth:
 	pipefs_sb = rpc_get_sb_net(net);
+	rpc_unregister_client(clnt);
 	__rpc_clnt_remove_pipedir(clnt);
 out:
 	if (pipefs_sb)

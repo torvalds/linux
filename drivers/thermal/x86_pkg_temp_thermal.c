@@ -54,6 +54,8 @@ MODULE_PARM_DESC(notify_delay_ms,
 * is some wrong values returned by cpuid for number of thresholds.
 */
 #define MAX_NUMBER_OF_TRIPS	2
+/* Limit number of package temp zones */
+#define MAX_PKG_TEMP_ZONE_IDS	256
 
 struct phy_dev_entry {
 	struct list_head list;
@@ -394,10 +396,14 @@ static int pkg_temp_thermal_device_add(unsigned int cpu)
 	char buffer[30];
 	int thres_count;
 	u32 eax, ebx, ecx, edx;
+	u8 *temp;
 
 	cpuid(6, &eax, &ebx, &ecx, &edx);
 	thres_count = ebx & 0x07;
 	if (!thres_count)
+		return -ENODEV;
+
+	if (topology_physical_package_id(cpu) > MAX_PKG_TEMP_ZONE_IDS)
 		return -ENODEV;
 
 	thres_count = clamp_val(thres_count, 0, MAX_NUMBER_OF_TRIPS);
@@ -417,13 +423,14 @@ static int pkg_temp_thermal_device_add(unsigned int cpu)
 	spin_lock(&pkg_work_lock);
 	if (topology_physical_package_id(cpu) > max_phy_id)
 		max_phy_id = topology_physical_package_id(cpu);
-	pkg_work_scheduled = krealloc(pkg_work_scheduled,
-				(max_phy_id+1) * sizeof(u8), GFP_ATOMIC);
-	if (!pkg_work_scheduled) {
+	temp = krealloc(pkg_work_scheduled,
+			(max_phy_id+1) * sizeof(u8), GFP_ATOMIC);
+	if (!temp) {
 		spin_unlock(&pkg_work_lock);
 		err = -ENOMEM;
 		goto err_ret_free;
 	}
+	pkg_work_scheduled = temp;
 	pkg_work_scheduled[topology_physical_package_id(cpu)] = 0;
 	spin_unlock(&pkg_work_lock);
 
@@ -511,7 +518,7 @@ static int get_core_online(unsigned int cpu)
 
 	/* Check if there is already an instance for this package */
 	if (!phdev) {
-		if (!cpu_has(c, X86_FEATURE_DTHERM) &&
+		if (!cpu_has(c, X86_FEATURE_DTHERM) ||
 					!cpu_has(c, X86_FEATURE_PTS))
 			return -ENODEV;
 		if (pkg_temp_thermal_device_add(cpu))
@@ -562,7 +569,7 @@ static struct notifier_block pkg_temp_thermal_notifier __refdata = {
 };
 
 static const struct x86_cpu_id __initconst pkg_temp_thermal_ids[] = {
-	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, X86_FEATURE_DTHERM },
+	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, X86_FEATURE_PTS },
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, pkg_temp_thermal_ids);
@@ -592,7 +599,6 @@ static int __init pkg_temp_thermal_init(void)
 	return 0;
 
 err_ret:
-	get_online_cpus();
 	for_each_online_cpu(i)
 		put_core_offline(i);
 	put_online_cpus();

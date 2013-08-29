@@ -140,8 +140,6 @@ ENDPROC(cpu_v7_set_pte_ext)
 	mcrr	p15, 0, \ttbr0, \zero, c2			@ load TTBR0
 	.endm
 
-	__CPUINIT
-
 	/*
 	 *   AT
 	 *  TFR   EV X F   IHD LR    S
@@ -153,5 +151,3 @@ ENDPROC(cpu_v7_set_pte_ext)
 	.type	v7_crval, #object
 v7_crval:
 	crval	clear=0x0120c302, mmuset=0x30c23c7d, ucset=0x00c01c7c
-
-	.previous

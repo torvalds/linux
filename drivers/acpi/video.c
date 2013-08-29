@@ -44,6 +44,8 @@
 #include <linux/suspend.h>
 #include <acpi/video.h>
 
+#include "internal.h"
+
 #define PREFIX "ACPI: "
 
 #define ACPI_VIDEO_BUS_NAME		"Video Bus"
@@ -446,6 +448,14 @@ static struct dmi_system_id video_dmi_table[] __initdata = {
 	 .matches = {
 		DMI_MATCH(DMI_BOARD_VENDOR, "Hewlett-Packard"),
 		DMI_MATCH(DMI_PRODUCT_NAME, "HP Folio 13 - 2000 Notebook PC"),
+		},
+	},
+	{
+	 .callback = video_ignore_initial_backlight,
+	 .ident = "Fujitsu E753",
+	 .matches = {
+		DMI_MATCH(DMI_BOARD_VENDOR, "FUJITSU"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK E753"),
 		},
 	},
 	{
@@ -898,6 +908,9 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		device->cap._DDC = 1;
 	}
 
+	if (acpi_video_init_brightness(device))
+		return;
+
 	if (acpi_video_backlight_support()) {
 		struct backlight_properties props;
 		struct pci_dev *pdev;
@@ -907,9 +920,6 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		static int count = 0;
 		char *name;
 
-		result = acpi_video_init_brightness(device);
-		if (result)
-			return;
 		name = kasprintf(GFP_KERNEL, "acpi_video%d", count);
 		if (!name)
 			return;
@@ -969,6 +979,11 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		if (result)
 			printk(KERN_ERR PREFIX "Create sysfs link\n");
 
+	} else {
+		/* Remove the brightness object. */
+		kfree(device->brightness->levels);
+		kfree(device->brightness);
+		device->brightness = NULL;
 	}
 }
 
@@ -1532,14 +1547,20 @@ static int acpi_video_bus_put_devices(struct acpi_video_bus *video)
 
 /* acpi_video interface */
 
+/*
+ * Win8 requires setting bit2 of _DOS to let firmware know it shouldn't
+ * preform any automatic brightness change on receiving a notification.
+ */
 static int acpi_video_bus_start_devices(struct acpi_video_bus *video)
 {
-	return acpi_video_bus_DOS(video, 0, 0);
+	return acpi_video_bus_DOS(video, 0,
+				  acpi_video_backlight_quirks() ? 1 : 0);
 }
 
 static int acpi_video_bus_stop_devices(struct acpi_video_bus *video)
 {
-	return acpi_video_bus_DOS(video, 0, 1);
+	return acpi_video_bus_DOS(video, 0,
+				  acpi_video_backlight_quirks() ? 0 : 1);
 }
 
 static void acpi_video_bus_notify(struct acpi_device *device, u32 event)

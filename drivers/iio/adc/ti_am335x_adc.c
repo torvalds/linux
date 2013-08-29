@@ -183,6 +183,7 @@ static int tiadc_read_raw(struct iio_dev *indio_dev,
 
 static const struct iio_info tiadc_info = {
 	.read_raw = &tiadc_read_raw,
+	.driver_module = THIS_MODULE,
 };
 
 static int tiadc_probe(struct platform_device *pdev)

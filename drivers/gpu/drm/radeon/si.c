@@ -22,7 +22,6 @@
  * Authors: Alex Deucher
  */
 #include <linux/firmware.h>
-#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <drm/drmP.h>
@@ -1541,7 +1540,6 @@ static int si_mc_load_microcode(struct radeon_device *rdev)
 
 static int si_init_microcode(struct radeon_device *rdev)
 {
-	struct platform_device *pdev;
 	const char *chip_name;
 	const char *rlc_chip_name;
 	size_t pfp_req_size, me_req_size, ce_req_size, rlc_req_size, mc_req_size;
@@ -1550,13 +1548,6 @@ static int si_init_microcode(struct radeon_device *rdev)
 	int err;
 
 	DRM_DEBUG("\n");
-
-	pdev = platform_device_register_simple("radeon_cp", 0, NULL, 0);
-	err = IS_ERR(pdev);
-	if (err) {
-		printk(KERN_ERR "radeon_cp: Failed to register firmware\n");
-		return -EINVAL;
-	}
 
 	switch (rdev->family) {
 	case CHIP_TAHITI:
@@ -1615,7 +1606,7 @@ static int si_init_microcode(struct radeon_device *rdev)
 	DRM_INFO("Loading %s Microcode\n", chip_name);
 
 	snprintf(fw_name, sizeof(fw_name), "radeon/%s_pfp.bin", chip_name);
-	err = request_firmware(&rdev->pfp_fw, fw_name, &pdev->dev);
+	err = request_firmware(&rdev->pfp_fw, fw_name, rdev->dev);
 	if (err)
 		goto out;
 	if (rdev->pfp_fw->size != pfp_req_size) {
@@ -1627,7 +1618,7 @@ static int si_init_microcode(struct radeon_device *rdev)
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "radeon/%s_me.bin", chip_name);
-	err = request_firmware(&rdev->me_fw, fw_name, &pdev->dev);
+	err = request_firmware(&rdev->me_fw, fw_name, rdev->dev);
 	if (err)
 		goto out;
 	if (rdev->me_fw->size != me_req_size) {
@@ -1638,7 +1629,7 @@ static int si_init_microcode(struct radeon_device *rdev)
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "radeon/%s_ce.bin", chip_name);
-	err = request_firmware(&rdev->ce_fw, fw_name, &pdev->dev);
+	err = request_firmware(&rdev->ce_fw, fw_name, rdev->dev);
 	if (err)
 		goto out;
 	if (rdev->ce_fw->size != ce_req_size) {
@@ -1649,7 +1640,7 @@ static int si_init_microcode(struct radeon_device *rdev)
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "radeon/%s_rlc.bin", rlc_chip_name);
-	err = request_firmware(&rdev->rlc_fw, fw_name, &pdev->dev);
+	err = request_firmware(&rdev->rlc_fw, fw_name, rdev->dev);
 	if (err)
 		goto out;
 	if (rdev->rlc_fw->size != rlc_req_size) {
@@ -1660,7 +1651,7 @@ static int si_init_microcode(struct radeon_device *rdev)
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "radeon/%s_mc.bin", chip_name);
-	err = request_firmware(&rdev->mc_fw, fw_name, &pdev->dev);
+	err = request_firmware(&rdev->mc_fw, fw_name, rdev->dev);
 	if (err)
 		goto out;
 	if (rdev->mc_fw->size != mc_req_size) {
@@ -1671,7 +1662,7 @@ static int si_init_microcode(struct radeon_device *rdev)
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "radeon/%s_smc.bin", chip_name);
-	err = request_firmware(&rdev->smc_fw, fw_name, &pdev->dev);
+	err = request_firmware(&rdev->smc_fw, fw_name, rdev->dev);
 	if (err)
 		goto out;
 	if (rdev->smc_fw->size != smc_req_size) {
@@ -1682,8 +1673,6 @@ static int si_init_microcode(struct radeon_device *rdev)
 	}
 
 out:
-	platform_device_unregister(pdev);
-
 	if (err) {
 		if (err != -EINVAL)
 			printk(KERN_ERR
@@ -4401,6 +4390,270 @@ void si_vm_fini(struct radeon_device *rdev)
 }
 
 /**
+ * si_vm_decode_fault - print human readable fault info
+ *
+ * @rdev: radeon_device pointer
+ * @status: VM_CONTEXT1_PROTECTION_FAULT_STATUS register value
+ * @addr: VM_CONTEXT1_PROTECTION_FAULT_ADDR register value
+ *
+ * Print human readable fault information (SI).
+ */
+static void si_vm_decode_fault(struct radeon_device *rdev,
+			       u32 status, u32 addr)
+{
+	u32 mc_id = (status & MEMORY_CLIENT_ID_MASK) >> MEMORY_CLIENT_ID_SHIFT;
+	u32 vmid = (status & FAULT_VMID_MASK) >> FAULT_VMID_SHIFT;
+	u32 protections = (status & PROTECTIONS_MASK) >> PROTECTIONS_SHIFT;
+	char *block;
+
+	if (rdev->family == CHIP_TAHITI) {
+		switch (mc_id) {
+		case 160:
+		case 144:
+		case 96:
+		case 80:
+		case 224:
+		case 208:
+		case 32:
+		case 16:
+			block = "CB";
+			break;
+		case 161:
+		case 145:
+		case 97:
+		case 81:
+		case 225:
+		case 209:
+		case 33:
+		case 17:
+			block = "CB_FMASK";
+			break;
+		case 162:
+		case 146:
+		case 98:
+		case 82:
+		case 226:
+		case 210:
+		case 34:
+		case 18:
+			block = "CB_CMASK";
+			break;
+		case 163:
+		case 147:
+		case 99:
+		case 83:
+		case 227:
+		case 211:
+		case 35:
+		case 19:
+			block = "CB_IMMED";
+			break;
+		case 164:
+		case 148:
+		case 100:
+		case 84:
+		case 228:
+		case 212:
+		case 36:
+		case 20:
+			block = "DB";
+			break;
+		case 165:
+		case 149:
+		case 101:
+		case 85:
+		case 229:
+		case 213:
+		case 37:
+		case 21:
+			block = "DB_HTILE";
+			break;
+		case 167:
+		case 151:
+		case 103:
+		case 87:
+		case 231:
+		case 215:
+		case 39:
+		case 23:
+			block = "DB_STEN";
+			break;
+		case 72:
+		case 68:
+		case 64:
+		case 8:
+		case 4:
+		case 0:
+		case 136:
+		case 132:
+		case 128:
+		case 200:
+		case 196:
+		case 192:
+			block = "TC";
+			break;
+		case 112:
+		case 48:
+			block = "CP";
+			break;
+		case 49:
+		case 177:
+		case 50:
+		case 178:
+			block = "SH";
+			break;
+		case 53:
+		case 190:
+			block = "VGT";
+			break;
+		case 117:
+			block = "IH";
+			break;
+		case 51:
+		case 115:
+			block = "RLC";
+			break;
+		case 119:
+		case 183:
+			block = "DMA0";
+			break;
+		case 61:
+			block = "DMA1";
+			break;
+		case 248:
+		case 120:
+			block = "HDP";
+			break;
+		default:
+			block = "unknown";
+			break;
+		}
+	} else {
+		switch (mc_id) {
+		case 32:
+		case 16:
+		case 96:
+		case 80:
+		case 160:
+		case 144:
+		case 224:
+		case 208:
+			block = "CB";
+			break;
+		case 33:
+		case 17:
+		case 97:
+		case 81:
+		case 161:
+		case 145:
+		case 225:
+		case 209:
+			block = "CB_FMASK";
+			break;
+		case 34:
+		case 18:
+		case 98:
+		case 82:
+		case 162:
+		case 146:
+		case 226:
+		case 210:
+			block = "CB_CMASK";
+			break;
+		case 35:
+		case 19:
+		case 99:
+		case 83:
+		case 163:
+		case 147:
+		case 227:
+		case 211:
+			block = "CB_IMMED";
+			break;
+		case 36:
+		case 20:
+		case 100:
+		case 84:
+		case 164:
+		case 148:
+		case 228:
+		case 212:
+			block = "DB";
+			break;
+		case 37:
+		case 21:
+		case 101:
+		case 85:
+		case 165:
+		case 149:
+		case 229:
+		case 213:
+			block = "DB_HTILE";
+			break;
+		case 39:
+		case 23:
+		case 103:
+		case 87:
+		case 167:
+		case 151:
+		case 231:
+		case 215:
+			block = "DB_STEN";
+			break;
+		case 72:
+		case 68:
+		case 8:
+		case 4:
+		case 136:
+		case 132:
+		case 200:
+		case 196:
+			block = "TC";
+			break;
+		case 112:
+		case 48:
+			block = "CP";
+			break;
+		case 49:
+		case 177:
+		case 50:
+		case 178:
+			block = "SH";
+			break;
+		case 53:
+			block = "VGT";
+			break;
+		case 117:
+			block = "IH";
+			break;
+		case 51:
+		case 115:
+			block = "RLC";
+			break;
+		case 119:
+		case 183:
+			block = "DMA0";
+			break;
+		case 61:
+			block = "DMA1";
+			break;
+		case 248:
+		case 120:
+			block = "HDP";
+			break;
+		default:
+			block = "unknown";
+			break;
+		}
+	}
+
+	printk("VM fault (0x%02x, vmid %d) at page %u, %s from %s (%d)\n",
+	       protections, vmid, addr,
+	       (status & MEMORY_CLIENT_RW_MASK) ? "write" : "read",
+	       block, mc_id);
+}
+
+/**
  * si_vm_set_page - update the page tables using the CP
  *
  * @rdev: radeon_device pointer
@@ -5766,6 +6019,7 @@ int si_irq_process(struct radeon_device *rdev)
 	u32 ring_index;
 	bool queue_hotplug = false;
 	bool queue_thermal = false;
+	u32 status, addr;
 
 	if (!rdev->ih.enabled || rdev->shutdown)
 		return IRQ_NONE;
@@ -6001,11 +6255,14 @@ restart_ih:
 			break;
 		case 146:
 		case 147:
+			addr = RREG32(VM_CONTEXT1_PROTECTION_FAULT_ADDR);
+			status = RREG32(VM_CONTEXT1_PROTECTION_FAULT_STATUS);
 			dev_err(rdev->dev, "GPU fault detected: %d 0x%08x\n", src_id, src_data);
 			dev_err(rdev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_ADDR   0x%08X\n",
-				RREG32(VM_CONTEXT1_PROTECTION_FAULT_ADDR));
+				addr);
 			dev_err(rdev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_STATUS 0x%08X\n",
-				RREG32(VM_CONTEXT1_PROTECTION_FAULT_STATUS));
+				status);
+			si_vm_decode_fault(rdev, status, addr);
 			/* reset addr and status */
 			WREG32_P(VM_CONTEXT1_CNTL2, 1, ~1);
 			break;
@@ -6795,6 +7052,9 @@ static void si_program_aspm(struct radeon_device *rdev)
 	u32 data, orig;
 	bool disable_l0s = false, disable_l1 = false, disable_plloff_in_l1 = false;
 	bool disable_clkreq = false;
+
+	if (radeon_aspm == 0)
+		return;
 
 	if (!(rdev->flags & RADEON_IS_PCIE))
 		return;

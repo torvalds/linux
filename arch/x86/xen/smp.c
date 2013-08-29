@@ -65,7 +65,7 @@ static irqreturn_t xen_reschedule_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void __cpuinit cpu_bringup(void)
+static void cpu_bringup(void)
 {
 	int cpu;
 
@@ -97,7 +97,7 @@ static void __cpuinit cpu_bringup(void)
 	wmb();			/* make sure everything is out */
 }
 
-static void __cpuinit cpu_bringup_and_idle(void)
+static void cpu_bringup_and_idle(void)
 {
 	cpu_bringup();
 	cpu_startup_entry(CPUHP_ONLINE);
@@ -326,7 +326,7 @@ static void __init xen_smp_prepare_cpus(unsigned int max_cpus)
 		set_cpu_present(cpu, true);
 }
 
-static int __cpuinit
+static int
 cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 {
 	struct vcpu_guest_context *ctxt;
@@ -397,7 +397,7 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 	return 0;
 }
 
-static int __cpuinit xen_cpu_up(unsigned int cpu, struct task_struct *idle)
+static int xen_cpu_up(unsigned int cpu, struct task_struct *idle)
 {
 	int rc;
 
@@ -470,7 +470,7 @@ static void xen_cpu_die(unsigned int cpu)
 	xen_teardown_timer(cpu);
 }
 
-static void __cpuinit xen_play_dead(void) /* used only with HOTPLUG_CPU */
+static void xen_play_dead(void) /* used only with HOTPLUG_CPU */
 {
 	play_dead_common();
 	HYPERVISOR_vcpu_op(VCPUOP_down, smp_processor_id(), NULL);
@@ -691,7 +691,7 @@ static void __init xen_hvm_smp_prepare_cpus(unsigned int max_cpus)
 	xen_init_lock_cpu(0);
 }
 
-static int __cpuinit xen_hvm_cpu_up(unsigned int cpu, struct task_struct *tidle)
+static int xen_hvm_cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	int rc;
 	rc = native_cpu_up(cpu, tidle);

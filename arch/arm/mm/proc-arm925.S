@@ -438,8 +438,6 @@ ENTRY(cpu_arm925_set_pte_ext)
 #endif /* CONFIG_MMU */
 	mov	pc, lr
 
-	__CPUINIT
-
 	.type	__arm925_setup, #function
 __arm925_setup:
 	mov	r0, #0

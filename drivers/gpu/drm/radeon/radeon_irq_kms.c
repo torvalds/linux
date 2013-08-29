@@ -260,10 +260,6 @@ int radeon_irq_kms_init(struct radeon_device *rdev)
 {
 	int r = 0;
 
-	INIT_WORK(&rdev->hotplug_work, radeon_hotplug_work_func);
-	INIT_WORK(&rdev->audio_work, r600_audio_update_hdmi);
-	INIT_WORK(&rdev->reset_work, radeon_irq_reset_work_func);
-
 	spin_lock_init(&rdev->irq.lock);
 	r = drm_vblank_init(rdev->ddev, rdev->num_crtc);
 	if (r) {
@@ -285,6 +281,11 @@ int radeon_irq_kms_init(struct radeon_device *rdev)
 		rdev->irq.installed = false;
 		return r;
 	}
+
+	INIT_WORK(&rdev->hotplug_work, radeon_hotplug_work_func);
+	INIT_WORK(&rdev->audio_work, r600_audio_update_hdmi);
+	INIT_WORK(&rdev->reset_work, radeon_irq_reset_work_func);
+
 	DRM_INFO("radeon: irq initialized.\n");
 	return 0;
 }
@@ -304,8 +305,8 @@ void radeon_irq_kms_fini(struct radeon_device *rdev)
 		rdev->irq.installed = false;
 		if (rdev->msi_enabled)
 			pci_disable_msi(rdev->pdev);
+		flush_work(&rdev->hotplug_work);
 	}
-	flush_work(&rdev->hotplug_work);
 }
 
 /**
