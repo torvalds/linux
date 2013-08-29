@@ -566,7 +566,7 @@ _func_enter_;
 
 	keyid = wep->KeyIndex & 0x3fffffff;
 
-	if (keyid > 4) {
+	if (keyid >= 4) {
 		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_, ("MgntActrtw_set_802_11_add_wep:keyid>4 =>fail\n"));
 		ret = false;
 		goto exit;
