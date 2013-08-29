@@ -26,9 +26,10 @@
 
 /* A reboot/assertion causes the MCDI status word to be set after the
  * command word is set or a REBOOT event is sent. If we notice a reboot
- * via these mechanisms then wait 10ms for the status word to be set. */
+ * via these mechanisms then wait 20ms for the status word to be set.
+ */
 #define MCDI_STATUS_DELAY_US		100
-#define MCDI_STATUS_DELAY_COUNT		100
+#define MCDI_STATUS_DELAY_COUNT		200
 #define MCDI_STATUS_SLEEP_MS						\
 	(MCDI_STATUS_DELAY_US * MCDI_STATUS_DELAY_COUNT / 1000)
 
@@ -56,6 +57,7 @@ int efx_mcdi_init(struct efx_nic *efx)
 	mcdi->mode = MCDI_MODE_POLL;
 
 	(void) efx_mcdi_poll_reboot(efx);
+	mcdi->new_epoch = true;
 
 	/* Recover from a failed assertion before probing */
 	return efx_mcdi_handle_assertion(efx);
@@ -85,24 +87,26 @@ static void efx_mcdi_copyin(struct efx_nic *efx, unsigned cmd,
 
 	if (efx->type->mcdi_max_ver == 1) {
 		/* MCDI v1 */
-		EFX_POPULATE_DWORD_6(hdr[0],
+		EFX_POPULATE_DWORD_7(hdr[0],
 				     MCDI_HEADER_RESPONSE, 0,
 				     MCDI_HEADER_RESYNC, 1,
 				     MCDI_HEADER_CODE, cmd,
 				     MCDI_HEADER_DATALEN, inlen,
 				     MCDI_HEADER_SEQ, seqno,
-				     MCDI_HEADER_XFLAGS, xflags);
+				     MCDI_HEADER_XFLAGS, xflags,
+				     MCDI_HEADER_NOT_EPOCH, !mcdi->new_epoch);
 		hdr_len = 4;
 	} else {
 		/* MCDI v2 */
 		BUG_ON(inlen > MCDI_CTL_SDU_LEN_MAX_V2);
-		EFX_POPULATE_DWORD_6(hdr[0],
+		EFX_POPULATE_DWORD_7(hdr[0],
 				     MCDI_HEADER_RESPONSE, 0,
 				     MCDI_HEADER_RESYNC, 1,
 				     MCDI_HEADER_CODE, MC_CMD_V2_EXTN,
 				     MCDI_HEADER_DATALEN, 0,
 				     MCDI_HEADER_SEQ, seqno,
-				     MCDI_HEADER_XFLAGS, xflags);
+				     MCDI_HEADER_XFLAGS, xflags,
+				     MCDI_HEADER_NOT_EPOCH, !mcdi->new_epoch);
 		EFX_POPULATE_DWORD_2(hdr[1],
 				     MC_CMD_V2_EXTN_IN_EXTENDED_CMD, cmd,
 				     MC_CMD_V2_EXTN_IN_ACTUAL_LEN, inlen);
@@ -236,21 +240,10 @@ static int efx_mcdi_poll(struct efx_nic *efx)
  */
 int efx_mcdi_poll_reboot(struct efx_nic *efx)
 {
-	int rc;
-
 	if (!efx->mcdi)
 		return 0;
 
-	rc = efx->type->mcdi_poll_reboot(efx);
-	if (!rc)
-		return 0;
-
-	/* MAC statistics have been cleared on the NIC; clear our copy
-	 * so that efx_update_diff_stat() can continue to work.
-	 */
-	memset(&efx->mac_stats, 0, sizeof(efx->mac_stats));
-
-	return rc;
+	return efx->type->mcdi_poll_reboot(efx);
 }
 
 static void efx_mcdi_acquire(struct efx_mcdi_iface *mcdi)
@@ -384,6 +377,7 @@ int efx_mcdi_rpc_start(struct efx_nic *efx, unsigned cmd,
 	spin_unlock_bh(&mcdi->iface_lock);
 
 	efx_mcdi_copyin(efx, cmd, inbuf, inlen);
+	mcdi->new_epoch = false;
 	return 0;
 }
 
@@ -446,6 +440,7 @@ int efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned cmd, size_t inlen,
 		if (rc == -EIO || rc == -EINTR) {
 			msleep(MCDI_STATUS_SLEEP_MS);
 			efx_mcdi_poll_reboot(efx);
+			mcdi->new_epoch = true;
 		}
 	}
 
@@ -541,6 +536,7 @@ static void efx_mcdi_ev_death(struct efx_nic *efx, int rc)
 				break;
 			udelay(MCDI_STATUS_DELAY_US);
 		}
+		mcdi->new_epoch = true;
 	}
 
 	spin_unlock(&mcdi->iface_lock);
@@ -598,6 +594,14 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 		efx_ptp_event(efx, event);
 		break;
 
+	case MCDI_EVENT_CODE_TX_ERR:
+	case MCDI_EVENT_CODE_RX_ERR:
+		netif_err(efx, hw, efx->net_dev,
+			  "%s DMA error (event: "EFX_QWORD_FMT")\n",
+			  code == MCDI_EVENT_CODE_TX_ERR ? "TX" : "RX",
+			  EFX_QWORD_VAL(*event));
+		efx_schedule_reset(efx, RESET_TYPE_DMA_ERROR);
+		break;
 	default:
 		netif_err(efx, hw, efx->net_dev, "Unknown MCDI event 0x%x\n",
 			  code);
@@ -804,125 +808,6 @@ int efx_mcdi_nvram_info(struct efx_nic *efx, unsigned int type,
 	*erase_size_out = MCDI_DWORD(outbuf, NVRAM_INFO_OUT_ERASESIZE);
 	*protected_out = !!(MCDI_DWORD(outbuf, NVRAM_INFO_OUT_FLAGS) &
 				(1 << MC_CMD_NVRAM_INFO_OUT_PROTECTED_LBN));
-	return 0;
-
-fail:
-	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
-	return rc;
-}
-
-int efx_mcdi_nvram_update_start(struct efx_nic *efx, unsigned int type)
-{
-	MCDI_DECLARE_BUF(inbuf, MC_CMD_NVRAM_UPDATE_START_IN_LEN);
-	int rc;
-
-	MCDI_SET_DWORD(inbuf, NVRAM_UPDATE_START_IN_TYPE, type);
-
-	BUILD_BUG_ON(MC_CMD_NVRAM_UPDATE_START_OUT_LEN != 0);
-
-	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_UPDATE_START, inbuf, sizeof(inbuf),
-			  NULL, 0, NULL);
-	if (rc)
-		goto fail;
-
-	return 0;
-
-fail:
-	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
-	return rc;
-}
-
-int efx_mcdi_nvram_read(struct efx_nic *efx, unsigned int type,
-			loff_t offset, u8 *buffer, size_t length)
-{
-	MCDI_DECLARE_BUF(inbuf, MC_CMD_NVRAM_READ_IN_LEN);
-	MCDI_DECLARE_BUF(outbuf,
-			 MC_CMD_NVRAM_READ_OUT_LEN(EFX_MCDI_NVRAM_LEN_MAX));
-	size_t outlen;
-	int rc;
-
-	MCDI_SET_DWORD(inbuf, NVRAM_READ_IN_TYPE, type);
-	MCDI_SET_DWORD(inbuf, NVRAM_READ_IN_OFFSET, offset);
-	MCDI_SET_DWORD(inbuf, NVRAM_READ_IN_LENGTH, length);
-
-	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_READ, inbuf, sizeof(inbuf),
-			  outbuf, sizeof(outbuf), &outlen);
-	if (rc)
-		goto fail;
-
-	memcpy(buffer, MCDI_PTR(outbuf, NVRAM_READ_OUT_READ_BUFFER), length);
-	return 0;
-
-fail:
-	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
-	return rc;
-}
-
-int efx_mcdi_nvram_write(struct efx_nic *efx, unsigned int type,
-			   loff_t offset, const u8 *buffer, size_t length)
-{
-	MCDI_DECLARE_BUF(inbuf,
-			 MC_CMD_NVRAM_WRITE_IN_LEN(EFX_MCDI_NVRAM_LEN_MAX));
-	int rc;
-
-	MCDI_SET_DWORD(inbuf, NVRAM_WRITE_IN_TYPE, type);
-	MCDI_SET_DWORD(inbuf, NVRAM_WRITE_IN_OFFSET, offset);
-	MCDI_SET_DWORD(inbuf, NVRAM_WRITE_IN_LENGTH, length);
-	memcpy(MCDI_PTR(inbuf, NVRAM_WRITE_IN_WRITE_BUFFER), buffer, length);
-
-	BUILD_BUG_ON(MC_CMD_NVRAM_WRITE_OUT_LEN != 0);
-
-	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_WRITE, inbuf,
-			  ALIGN(MC_CMD_NVRAM_WRITE_IN_LEN(length), 4),
-			  NULL, 0, NULL);
-	if (rc)
-		goto fail;
-
-	return 0;
-
-fail:
-	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
-	return rc;
-}
-
-int efx_mcdi_nvram_erase(struct efx_nic *efx, unsigned int type,
-			 loff_t offset, size_t length)
-{
-	MCDI_DECLARE_BUF(inbuf, MC_CMD_NVRAM_ERASE_IN_LEN);
-	int rc;
-
-	MCDI_SET_DWORD(inbuf, NVRAM_ERASE_IN_TYPE, type);
-	MCDI_SET_DWORD(inbuf, NVRAM_ERASE_IN_OFFSET, offset);
-	MCDI_SET_DWORD(inbuf, NVRAM_ERASE_IN_LENGTH, length);
-
-	BUILD_BUG_ON(MC_CMD_NVRAM_ERASE_OUT_LEN != 0);
-
-	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_ERASE, inbuf, sizeof(inbuf),
-			  NULL, 0, NULL);
-	if (rc)
-		goto fail;
-
-	return 0;
-
-fail:
-	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
-	return rc;
-}
-
-int efx_mcdi_nvram_update_finish(struct efx_nic *efx, unsigned int type)
-{
-	MCDI_DECLARE_BUF(inbuf, MC_CMD_NVRAM_UPDATE_FINISH_IN_LEN);
-	int rc;
-
-	MCDI_SET_DWORD(inbuf, NVRAM_UPDATE_FINISH_IN_TYPE, type);
-
-	BUILD_BUG_ON(MC_CMD_NVRAM_UPDATE_FINISH_OUT_LEN != 0);
-
-	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_UPDATE_FINISH, inbuf, sizeof(inbuf),
-			  NULL, 0, NULL);
-	if (rc)
-		goto fail;
-
 	return 0;
 
 fail:
@@ -1272,3 +1157,236 @@ fail:
 	return rc;
 }
 
+#ifdef CONFIG_SFC_MTD
+
+#define EFX_MCDI_NVRAM_LEN_MAX 128
+
+static int efx_mcdi_nvram_update_start(struct efx_nic *efx, unsigned int type)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_NVRAM_UPDATE_START_IN_LEN);
+	int rc;
+
+	MCDI_SET_DWORD(inbuf, NVRAM_UPDATE_START_IN_TYPE, type);
+
+	BUILD_BUG_ON(MC_CMD_NVRAM_UPDATE_START_OUT_LEN != 0);
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_UPDATE_START, inbuf, sizeof(inbuf),
+			  NULL, 0, NULL);
+	if (rc)
+		goto fail;
+
+	return 0;
+
+fail:
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
+	return rc;
+}
+
+static int efx_mcdi_nvram_read(struct efx_nic *efx, unsigned int type,
+			       loff_t offset, u8 *buffer, size_t length)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_NVRAM_READ_IN_LEN);
+	MCDI_DECLARE_BUF(outbuf,
+			 MC_CMD_NVRAM_READ_OUT_LEN(EFX_MCDI_NVRAM_LEN_MAX));
+	size_t outlen;
+	int rc;
+
+	MCDI_SET_DWORD(inbuf, NVRAM_READ_IN_TYPE, type);
+	MCDI_SET_DWORD(inbuf, NVRAM_READ_IN_OFFSET, offset);
+	MCDI_SET_DWORD(inbuf, NVRAM_READ_IN_LENGTH, length);
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_READ, inbuf, sizeof(inbuf),
+			  outbuf, sizeof(outbuf), &outlen);
+	if (rc)
+		goto fail;
+
+	memcpy(buffer, MCDI_PTR(outbuf, NVRAM_READ_OUT_READ_BUFFER), length);
+	return 0;
+
+fail:
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
+	return rc;
+}
+
+static int efx_mcdi_nvram_write(struct efx_nic *efx, unsigned int type,
+				loff_t offset, const u8 *buffer, size_t length)
+{
+	MCDI_DECLARE_BUF(inbuf,
+			 MC_CMD_NVRAM_WRITE_IN_LEN(EFX_MCDI_NVRAM_LEN_MAX));
+	int rc;
+
+	MCDI_SET_DWORD(inbuf, NVRAM_WRITE_IN_TYPE, type);
+	MCDI_SET_DWORD(inbuf, NVRAM_WRITE_IN_OFFSET, offset);
+	MCDI_SET_DWORD(inbuf, NVRAM_WRITE_IN_LENGTH, length);
+	memcpy(MCDI_PTR(inbuf, NVRAM_WRITE_IN_WRITE_BUFFER), buffer, length);
+
+	BUILD_BUG_ON(MC_CMD_NVRAM_WRITE_OUT_LEN != 0);
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_WRITE, inbuf,
+			  ALIGN(MC_CMD_NVRAM_WRITE_IN_LEN(length), 4),
+			  NULL, 0, NULL);
+	if (rc)
+		goto fail;
+
+	return 0;
+
+fail:
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
+	return rc;
+}
+
+static int efx_mcdi_nvram_erase(struct efx_nic *efx, unsigned int type,
+				loff_t offset, size_t length)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_NVRAM_ERASE_IN_LEN);
+	int rc;
+
+	MCDI_SET_DWORD(inbuf, NVRAM_ERASE_IN_TYPE, type);
+	MCDI_SET_DWORD(inbuf, NVRAM_ERASE_IN_OFFSET, offset);
+	MCDI_SET_DWORD(inbuf, NVRAM_ERASE_IN_LENGTH, length);
+
+	BUILD_BUG_ON(MC_CMD_NVRAM_ERASE_OUT_LEN != 0);
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_ERASE, inbuf, sizeof(inbuf),
+			  NULL, 0, NULL);
+	if (rc)
+		goto fail;
+
+	return 0;
+
+fail:
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
+	return rc;
+}
+
+static int efx_mcdi_nvram_update_finish(struct efx_nic *efx, unsigned int type)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_NVRAM_UPDATE_FINISH_IN_LEN);
+	int rc;
+
+	MCDI_SET_DWORD(inbuf, NVRAM_UPDATE_FINISH_IN_TYPE, type);
+
+	BUILD_BUG_ON(MC_CMD_NVRAM_UPDATE_FINISH_OUT_LEN != 0);
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_UPDATE_FINISH, inbuf, sizeof(inbuf),
+			  NULL, 0, NULL);
+	if (rc)
+		goto fail;
+
+	return 0;
+
+fail:
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
+	return rc;
+}
+
+int efx_mcdi_mtd_read(struct mtd_info *mtd, loff_t start,
+		      size_t len, size_t *retlen, u8 *buffer)
+{
+	struct efx_mcdi_mtd_partition *part = to_efx_mcdi_mtd_partition(mtd);
+	struct efx_nic *efx = mtd->priv;
+	loff_t offset = start;
+	loff_t end = min_t(loff_t, start + len, mtd->size);
+	size_t chunk;
+	int rc = 0;
+
+	while (offset < end) {
+		chunk = min_t(size_t, end - offset, EFX_MCDI_NVRAM_LEN_MAX);
+		rc = efx_mcdi_nvram_read(efx, part->nvram_type, offset,
+					 buffer, chunk);
+		if (rc)
+			goto out;
+		offset += chunk;
+		buffer += chunk;
+	}
+out:
+	*retlen = offset - start;
+	return rc;
+}
+
+int efx_mcdi_mtd_erase(struct mtd_info *mtd, loff_t start, size_t len)
+{
+	struct efx_mcdi_mtd_partition *part = to_efx_mcdi_mtd_partition(mtd);
+	struct efx_nic *efx = mtd->priv;
+	loff_t offset = start & ~((loff_t)(mtd->erasesize - 1));
+	loff_t end = min_t(loff_t, start + len, mtd->size);
+	size_t chunk = part->common.mtd.erasesize;
+	int rc = 0;
+
+	if (!part->updating) {
+		rc = efx_mcdi_nvram_update_start(efx, part->nvram_type);
+		if (rc)
+			goto out;
+		part->updating = true;
+	}
+
+	/* The MCDI interface can in fact do multiple erase blocks at once;
+	 * but erasing may be slow, so we make multiple calls here to avoid
+	 * tripping the MCDI RPC timeout. */
+	while (offset < end) {
+		rc = efx_mcdi_nvram_erase(efx, part->nvram_type, offset,
+					  chunk);
+		if (rc)
+			goto out;
+		offset += chunk;
+	}
+out:
+	return rc;
+}
+
+int efx_mcdi_mtd_write(struct mtd_info *mtd, loff_t start,
+		       size_t len, size_t *retlen, const u8 *buffer)
+{
+	struct efx_mcdi_mtd_partition *part = to_efx_mcdi_mtd_partition(mtd);
+	struct efx_nic *efx = mtd->priv;
+	loff_t offset = start;
+	loff_t end = min_t(loff_t, start + len, mtd->size);
+	size_t chunk;
+	int rc = 0;
+
+	if (!part->updating) {
+		rc = efx_mcdi_nvram_update_start(efx, part->nvram_type);
+		if (rc)
+			goto out;
+		part->updating = true;
+	}
+
+	while (offset < end) {
+		chunk = min_t(size_t, end - offset, EFX_MCDI_NVRAM_LEN_MAX);
+		rc = efx_mcdi_nvram_write(efx, part->nvram_type, offset,
+					  buffer, chunk);
+		if (rc)
+			goto out;
+		offset += chunk;
+		buffer += chunk;
+	}
+out:
+	*retlen = offset - start;
+	return rc;
+}
+
+int efx_mcdi_mtd_sync(struct mtd_info *mtd)
+{
+	struct efx_mcdi_mtd_partition *part = to_efx_mcdi_mtd_partition(mtd);
+	struct efx_nic *efx = mtd->priv;
+	int rc = 0;
+
+	if (part->updating) {
+		part->updating = false;
+		rc = efx_mcdi_nvram_update_finish(efx, part->nvram_type);
+	}
+
+	return rc;
+}
+
+void efx_mcdi_mtd_rename(struct efx_mtd_partition *part)
+{
+	struct efx_mcdi_mtd_partition *mcdi_part =
+		container_of(part, struct efx_mcdi_mtd_partition, common);
+	struct efx_nic *efx = part->mtd.priv;
+
+	snprintf(part->name, sizeof(part->name), "%s %s:%02x",
+		 efx->name, part->type_name, mcdi_part->fw_subtype);
+}
+
+#endif /* CONFIG_SFC_MTD */

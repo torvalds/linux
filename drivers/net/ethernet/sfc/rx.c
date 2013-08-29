@@ -61,13 +61,12 @@ static inline u8 *efx_rx_buf_va(struct efx_rx_buffer *buf)
 	return page_address(buf->page) + buf->page_offset;
 }
 
-static inline u32 efx_rx_buf_hash(const u8 *eh)
+static inline u32 efx_rx_buf_hash(struct efx_nic *efx, const u8 *eh)
 {
-	/* The ethernet header is always directly after any hash. */
-#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) || NET_IP_ALIGN % 4 == 0
-	return __le32_to_cpup((const __le32 *)(eh - 4));
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
+	return __le32_to_cpup((const __le32 *)(eh + efx->rx_packet_hash_offset));
 #else
-	const u8 *data = eh - 4;
+	const u8 *data = eh + efx->rx_packet_hash_offset;
 	return (u32)data[0]	  |
 	       (u32)data[1] << 8  |
 	       (u32)data[2] << 16 |
@@ -439,7 +438,7 @@ efx_rx_packet_gro(struct efx_channel *channel, struct efx_rx_buffer *rx_buf,
 	}
 
 	if (efx->net_dev->features & NETIF_F_RXHASH)
-		skb->rxhash = efx_rx_buf_hash(eh);
+		skb->rxhash = efx_rx_buf_hash(efx, eh);
 	skb->ip_summed = ((rx_buf->flags & EFX_RX_PKT_CSUMMED) ?
 			  CHECKSUM_UNNECESSARY : CHECKSUM_NONE);
 
@@ -527,7 +526,8 @@ void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 
 	/* Validate the number of fragments and completed length */
 	if (n_frags == 1) {
-		efx_rx_packet__check_len(rx_queue, rx_buf, len);
+		if (!(flags & EFX_RX_PKT_PREFIX_LEN))
+			efx_rx_packet__check_len(rx_queue, rx_buf, len);
 	} else if (unlikely(n_frags > EFX_RX_MAX_FRAGS) ||
 		   unlikely(len <= (n_frags - 1) * EFX_RX_USR_BUF_SIZE) ||
 		   unlikely(len > n_frags * EFX_RX_USR_BUF_SIZE) ||
@@ -555,7 +555,7 @@ void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 		return;
 	}
 
-	if (n_frags == 1)
+	if (n_frags == 1 && !(flags & EFX_RX_PKT_PREFIX_LEN))
 		rx_buf->len = len;
 
 	/* Release and/or sync the DMA mapping - assumes all RX buffers
@@ -568,8 +568,8 @@ void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 	 */
 	prefetch(efx_rx_buf_va(rx_buf));
 
-	rx_buf->page_offset += efx->type->rx_buffer_hash_size;
-	rx_buf->len -= efx->type->rx_buffer_hash_size;
+	rx_buf->page_offset += efx->rx_prefix_size;
+	rx_buf->len -= efx->rx_prefix_size;
 
 	if (n_frags > 1) {
 		/* Release/sync DMA mapping for additional fragments.
@@ -633,6 +633,13 @@ void __efx_rx_packet(struct efx_channel *channel)
 	struct efx_rx_buffer *rx_buf =
 		efx_rx_buffer(&channel->rx_queue, channel->rx_pkt_index);
 	u8 *eh = efx_rx_buf_va(rx_buf);
+
+	/* Read length from the prefix if necessary.  This already
+	 * excludes the length of the prefix itself.
+	 */
+	if (rx_buf->flags & EFX_RX_PKT_PREFIX_LEN)
+		rx_buf->len = le16_to_cpup((__le16 *)
+					   (eh + efx->rx_packet_len_offset));
 
 	/* If we're in loopback test, then pass the packet directly to the
 	 * loopback layer, and free the rx_buf here

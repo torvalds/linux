@@ -18,7 +18,6 @@
 #include "bitfield.h"
 #include "efx.h"
 #include "nic.h"
-#include "spi.h"
 #include "farch_regs.h"
 #include "io.h"
 #include "phy.h"
@@ -381,117 +380,160 @@ static void siena_remove_nic(struct efx_nic *efx)
 	efx_mcdi_fini(efx);
 }
 
+#define SIENA_DMA_STAT(ext_name, mcdi_name)			\
+	[SIENA_STAT_ ## ext_name] =				\
+	{ #ext_name, 64, 8 * MC_CMD_MAC_ ## mcdi_name }
+#define SIENA_OTHER_STAT(ext_name)				\
+	[SIENA_STAT_ ## ext_name] = { #ext_name, 0, 0 }
+
+static const struct efx_hw_stat_desc siena_stat_desc[SIENA_STAT_COUNT] = {
+	SIENA_DMA_STAT(tx_bytes, TX_BYTES),
+	SIENA_OTHER_STAT(tx_good_bytes),
+	SIENA_DMA_STAT(tx_bad_bytes, TX_BAD_BYTES),
+	SIENA_DMA_STAT(tx_packets, TX_PKTS),
+	SIENA_DMA_STAT(tx_bad, TX_BAD_FCS_PKTS),
+	SIENA_DMA_STAT(tx_pause, TX_PAUSE_PKTS),
+	SIENA_DMA_STAT(tx_control, TX_CONTROL_PKTS),
+	SIENA_DMA_STAT(tx_unicast, TX_UNICAST_PKTS),
+	SIENA_DMA_STAT(tx_multicast, TX_MULTICAST_PKTS),
+	SIENA_DMA_STAT(tx_broadcast, TX_BROADCAST_PKTS),
+	SIENA_DMA_STAT(tx_lt64, TX_LT64_PKTS),
+	SIENA_DMA_STAT(tx_64, TX_64_PKTS),
+	SIENA_DMA_STAT(tx_65_to_127, TX_65_TO_127_PKTS),
+	SIENA_DMA_STAT(tx_128_to_255, TX_128_TO_255_PKTS),
+	SIENA_DMA_STAT(tx_256_to_511, TX_256_TO_511_PKTS),
+	SIENA_DMA_STAT(tx_512_to_1023, TX_512_TO_1023_PKTS),
+	SIENA_DMA_STAT(tx_1024_to_15xx, TX_1024_TO_15XX_PKTS),
+	SIENA_DMA_STAT(tx_15xx_to_jumbo, TX_15XX_TO_JUMBO_PKTS),
+	SIENA_DMA_STAT(tx_gtjumbo, TX_GTJUMBO_PKTS),
+	SIENA_OTHER_STAT(tx_collision),
+	SIENA_DMA_STAT(tx_single_collision, TX_SINGLE_COLLISION_PKTS),
+	SIENA_DMA_STAT(tx_multiple_collision, TX_MULTIPLE_COLLISION_PKTS),
+	SIENA_DMA_STAT(tx_excessive_collision, TX_EXCESSIVE_COLLISION_PKTS),
+	SIENA_DMA_STAT(tx_deferred, TX_DEFERRED_PKTS),
+	SIENA_DMA_STAT(tx_late_collision, TX_LATE_COLLISION_PKTS),
+	SIENA_DMA_STAT(tx_excessive_deferred, TX_EXCESSIVE_DEFERRED_PKTS),
+	SIENA_DMA_STAT(tx_non_tcpudp, TX_NON_TCPUDP_PKTS),
+	SIENA_DMA_STAT(tx_mac_src_error, TX_MAC_SRC_ERR_PKTS),
+	SIENA_DMA_STAT(tx_ip_src_error, TX_IP_SRC_ERR_PKTS),
+	SIENA_DMA_STAT(rx_bytes, RX_BYTES),
+	SIENA_OTHER_STAT(rx_good_bytes),
+	SIENA_DMA_STAT(rx_bad_bytes, RX_BAD_BYTES),
+	SIENA_DMA_STAT(rx_packets, RX_PKTS),
+	SIENA_DMA_STAT(rx_good, RX_GOOD_PKTS),
+	SIENA_DMA_STAT(rx_bad, RX_BAD_FCS_PKTS),
+	SIENA_DMA_STAT(rx_pause, RX_PAUSE_PKTS),
+	SIENA_DMA_STAT(rx_control, RX_CONTROL_PKTS),
+	SIENA_DMA_STAT(rx_unicast, RX_UNICAST_PKTS),
+	SIENA_DMA_STAT(rx_multicast, RX_MULTICAST_PKTS),
+	SIENA_DMA_STAT(rx_broadcast, RX_BROADCAST_PKTS),
+	SIENA_DMA_STAT(rx_lt64, RX_UNDERSIZE_PKTS),
+	SIENA_DMA_STAT(rx_64, RX_64_PKTS),
+	SIENA_DMA_STAT(rx_65_to_127, RX_65_TO_127_PKTS),
+	SIENA_DMA_STAT(rx_128_to_255, RX_128_TO_255_PKTS),
+	SIENA_DMA_STAT(rx_256_to_511, RX_256_TO_511_PKTS),
+	SIENA_DMA_STAT(rx_512_to_1023, RX_512_TO_1023_PKTS),
+	SIENA_DMA_STAT(rx_1024_to_15xx, RX_1024_TO_15XX_PKTS),
+	SIENA_DMA_STAT(rx_15xx_to_jumbo, RX_15XX_TO_JUMBO_PKTS),
+	SIENA_DMA_STAT(rx_gtjumbo, RX_GTJUMBO_PKTS),
+	SIENA_DMA_STAT(rx_bad_gtjumbo, RX_JABBER_PKTS),
+	SIENA_DMA_STAT(rx_overflow, RX_OVERFLOW_PKTS),
+	SIENA_DMA_STAT(rx_false_carrier, RX_FALSE_CARRIER_PKTS),
+	SIENA_DMA_STAT(rx_symbol_error, RX_SYMBOL_ERROR_PKTS),
+	SIENA_DMA_STAT(rx_align_error, RX_ALIGN_ERROR_PKTS),
+	SIENA_DMA_STAT(rx_length_error, RX_LENGTH_ERROR_PKTS),
+	SIENA_DMA_STAT(rx_internal_error, RX_INTERNAL_ERROR_PKTS),
+	SIENA_DMA_STAT(rx_nodesc_drop_cnt, RX_NODESC_DROPS),
+};
+static const unsigned long siena_stat_mask[] = {
+	[0 ... BITS_TO_LONGS(SIENA_STAT_COUNT) - 1] = ~0UL,
+};
+
+static size_t siena_describe_nic_stats(struct efx_nic *efx, u8 *names)
+{
+	return efx_nic_describe_stats(siena_stat_desc, SIENA_STAT_COUNT,
+				      siena_stat_mask, names);
+}
+
 static int siena_try_update_nic_stats(struct efx_nic *efx)
 {
+	struct siena_nic_data *nic_data = efx->nic_data;
+	u64 *stats = nic_data->stats;
 	__le64 *dma_stats;
-	struct efx_mac_stats *mac_stats;
 	__le64 generation_start, generation_end;
 
-	mac_stats = &efx->mac_stats;
 	dma_stats = efx->stats_buffer.addr;
 
 	generation_end = dma_stats[MC_CMD_MAC_GENERATION_END];
 	if (generation_end == EFX_MC_STATS_GENERATION_INVALID)
 		return 0;
 	rmb();
-
-#define MAC_STAT(M, D) \
-	mac_stats->M = le64_to_cpu(dma_stats[MC_CMD_MAC_ ## D])
-
-	MAC_STAT(tx_bytes, TX_BYTES);
-	MAC_STAT(tx_bad_bytes, TX_BAD_BYTES);
-	efx_update_diff_stat(&mac_stats->tx_good_bytes,
-			     mac_stats->tx_bytes - mac_stats->tx_bad_bytes);
-	MAC_STAT(tx_packets, TX_PKTS);
-	MAC_STAT(tx_bad, TX_BAD_FCS_PKTS);
-	MAC_STAT(tx_pause, TX_PAUSE_PKTS);
-	MAC_STAT(tx_control, TX_CONTROL_PKTS);
-	MAC_STAT(tx_unicast, TX_UNICAST_PKTS);
-	MAC_STAT(tx_multicast, TX_MULTICAST_PKTS);
-	MAC_STAT(tx_broadcast, TX_BROADCAST_PKTS);
-	MAC_STAT(tx_lt64, TX_LT64_PKTS);
-	MAC_STAT(tx_64, TX_64_PKTS);
-	MAC_STAT(tx_65_to_127, TX_65_TO_127_PKTS);
-	MAC_STAT(tx_128_to_255, TX_128_TO_255_PKTS);
-	MAC_STAT(tx_256_to_511, TX_256_TO_511_PKTS);
-	MAC_STAT(tx_512_to_1023, TX_512_TO_1023_PKTS);
-	MAC_STAT(tx_1024_to_15xx, TX_1024_TO_15XX_PKTS);
-	MAC_STAT(tx_15xx_to_jumbo, TX_15XX_TO_JUMBO_PKTS);
-	MAC_STAT(tx_gtjumbo, TX_GTJUMBO_PKTS);
-	mac_stats->tx_collision = 0;
-	MAC_STAT(tx_single_collision, TX_SINGLE_COLLISION_PKTS);
-	MAC_STAT(tx_multiple_collision, TX_MULTIPLE_COLLISION_PKTS);
-	MAC_STAT(tx_excessive_collision, TX_EXCESSIVE_COLLISION_PKTS);
-	MAC_STAT(tx_deferred, TX_DEFERRED_PKTS);
-	MAC_STAT(tx_late_collision, TX_LATE_COLLISION_PKTS);
-	mac_stats->tx_collision = (mac_stats->tx_single_collision +
-				   mac_stats->tx_multiple_collision +
-				   mac_stats->tx_excessive_collision +
-				   mac_stats->tx_late_collision);
-	MAC_STAT(tx_excessive_deferred, TX_EXCESSIVE_DEFERRED_PKTS);
-	MAC_STAT(tx_non_tcpudp, TX_NON_TCPUDP_PKTS);
-	MAC_STAT(tx_mac_src_error, TX_MAC_SRC_ERR_PKTS);
-	MAC_STAT(tx_ip_src_error, TX_IP_SRC_ERR_PKTS);
-	MAC_STAT(rx_bytes, RX_BYTES);
-	MAC_STAT(rx_bad_bytes, RX_BAD_BYTES);
-	efx_update_diff_stat(&mac_stats->rx_good_bytes,
-			     mac_stats->rx_bytes - mac_stats->rx_bad_bytes);
-	MAC_STAT(rx_packets, RX_PKTS);
-	MAC_STAT(rx_good, RX_GOOD_PKTS);
-	MAC_STAT(rx_bad, RX_BAD_FCS_PKTS);
-	MAC_STAT(rx_pause, RX_PAUSE_PKTS);
-	MAC_STAT(rx_control, RX_CONTROL_PKTS);
-	MAC_STAT(rx_unicast, RX_UNICAST_PKTS);
-	MAC_STAT(rx_multicast, RX_MULTICAST_PKTS);
-	MAC_STAT(rx_broadcast, RX_BROADCAST_PKTS);
-	MAC_STAT(rx_lt64, RX_UNDERSIZE_PKTS);
-	MAC_STAT(rx_64, RX_64_PKTS);
-	MAC_STAT(rx_65_to_127, RX_65_TO_127_PKTS);
-	MAC_STAT(rx_128_to_255, RX_128_TO_255_PKTS);
-	MAC_STAT(rx_256_to_511, RX_256_TO_511_PKTS);
-	MAC_STAT(rx_512_to_1023, RX_512_TO_1023_PKTS);
-	MAC_STAT(rx_1024_to_15xx, RX_1024_TO_15XX_PKTS);
-	MAC_STAT(rx_15xx_to_jumbo, RX_15XX_TO_JUMBO_PKTS);
-	MAC_STAT(rx_gtjumbo, RX_GTJUMBO_PKTS);
-	mac_stats->rx_bad_lt64 = 0;
-	mac_stats->rx_bad_64_to_15xx = 0;
-	mac_stats->rx_bad_15xx_to_jumbo = 0;
-	MAC_STAT(rx_bad_gtjumbo, RX_JABBER_PKTS);
-	MAC_STAT(rx_overflow, RX_OVERFLOW_PKTS);
-	mac_stats->rx_missed = 0;
-	MAC_STAT(rx_false_carrier, RX_FALSE_CARRIER_PKTS);
-	MAC_STAT(rx_symbol_error, RX_SYMBOL_ERROR_PKTS);
-	MAC_STAT(rx_align_error, RX_ALIGN_ERROR_PKTS);
-	MAC_STAT(rx_length_error, RX_LENGTH_ERROR_PKTS);
-	MAC_STAT(rx_internal_error, RX_INTERNAL_ERROR_PKTS);
-	mac_stats->rx_good_lt64 = 0;
-
-	efx->n_rx_nodesc_drop_cnt =
-		le64_to_cpu(dma_stats[MC_CMD_MAC_RX_NODESC_DROPS]);
-
-#undef MAC_STAT
-
+	efx_nic_update_stats(siena_stat_desc, SIENA_STAT_COUNT, siena_stat_mask,
+			     stats, efx->stats_buffer.addr, false);
 	rmb();
 	generation_start = dma_stats[MC_CMD_MAC_GENERATION_START];
 	if (generation_end != generation_start)
 		return -EAGAIN;
 
+	/* Update derived statistics */
+	efx_update_diff_stat(&stats[SIENA_STAT_tx_good_bytes],
+			     stats[SIENA_STAT_tx_bytes] -
+			     stats[SIENA_STAT_tx_bad_bytes]);
+	stats[SIENA_STAT_tx_collision] =
+		stats[SIENA_STAT_tx_single_collision] +
+		stats[SIENA_STAT_tx_multiple_collision] +
+		stats[SIENA_STAT_tx_excessive_collision] +
+		stats[SIENA_STAT_tx_late_collision];
+	efx_update_diff_stat(&stats[SIENA_STAT_rx_good_bytes],
+			     stats[SIENA_STAT_rx_bytes] -
+			     stats[SIENA_STAT_rx_bad_bytes]);
 	return 0;
 }
 
-static void siena_update_nic_stats(struct efx_nic *efx)
+static size_t siena_update_nic_stats(struct efx_nic *efx, u64 *full_stats,
+				     struct rtnl_link_stats64 *core_stats)
 {
+	struct siena_nic_data *nic_data = efx->nic_data;
+	u64 *stats = nic_data->stats;
 	int retry;
 
 	/* If we're unlucky enough to read statistics wduring the DMA, wait
 	 * up to 10ms for it to finish (typically takes <500us) */
 	for (retry = 0; retry < 100; ++retry) {
 		if (siena_try_update_nic_stats(efx) == 0)
-			return;
+			break;
 		udelay(100);
 	}
 
-	/* Use the old values instead */
+	if (full_stats)
+		memcpy(full_stats, stats, sizeof(u64) * SIENA_STAT_COUNT);
+
+	if (core_stats) {
+		core_stats->rx_packets = stats[SIENA_STAT_rx_packets];
+		core_stats->tx_packets = stats[SIENA_STAT_tx_packets];
+		core_stats->rx_bytes = stats[SIENA_STAT_rx_bytes];
+		core_stats->tx_bytes = stats[SIENA_STAT_tx_bytes];
+		core_stats->rx_dropped = stats[SIENA_STAT_rx_nodesc_drop_cnt];
+		core_stats->multicast = stats[SIENA_STAT_rx_multicast];
+		core_stats->collisions = stats[SIENA_STAT_tx_collision];
+		core_stats->rx_length_errors =
+			stats[SIENA_STAT_rx_gtjumbo] +
+			stats[SIENA_STAT_rx_length_error];
+		core_stats->rx_crc_errors = stats[SIENA_STAT_rx_bad];
+		core_stats->rx_frame_errors = stats[SIENA_STAT_rx_align_error];
+		core_stats->rx_fifo_errors = stats[SIENA_STAT_rx_overflow];
+		core_stats->tx_window_errors =
+			stats[SIENA_STAT_tx_late_collision];
+
+		core_stats->rx_errors = (core_stats->rx_length_errors +
+					 core_stats->rx_crc_errors +
+					 core_stats->rx_frame_errors +
+					 stats[SIENA_STAT_rx_symbol_error]);
+		core_stats->tx_errors = (core_stats->tx_window_errors +
+					 stats[SIENA_STAT_tx_bad]);
+	}
+
+	return SIENA_STAT_COUNT;
 }
 
 static int siena_mac_reconfigure(struct efx_nic *efx)
@@ -653,6 +695,7 @@ static void siena_mcdi_read_response(struct efx_nic *efx, efx_dword_t *outbuf,
 
 static int siena_mcdi_poll_reboot(struct efx_nic *efx)
 {
+	struct siena_nic_data *nic_data = efx->nic_data;
 	unsigned int addr = FR_CZ_MC_TREG_SMEM + MCDI_STATUS(efx);
 	efx_dword_t reg;
 	u32 value;
@@ -666,10 +709,161 @@ static int siena_mcdi_poll_reboot(struct efx_nic *efx)
 	EFX_ZERO_DWORD(reg);
 	efx_writed(efx, &reg, addr);
 
+	/* MAC statistics have been cleared on the NIC; clear the local
+	 * copies that we update with efx_update_diff_stat().
+	 */
+	nic_data->stats[SIENA_STAT_tx_good_bytes] = 0;
+	nic_data->stats[SIENA_STAT_rx_good_bytes] = 0;
+
 	if (value == MC_STATUS_DWORD_ASSERT)
 		return -EINTR;
 	else
 		return -EIO;
+}
+
+/**************************************************************************
+ *
+ * MTD
+ *
+ **************************************************************************
+ */
+
+#ifdef CONFIG_SFC_MTD
+
+struct siena_nvram_type_info {
+	int port;
+	const char *name;
+};
+
+static const struct siena_nvram_type_info siena_nvram_types[] = {
+	[MC_CMD_NVRAM_TYPE_DISABLED_CALLISTO]	= { 0, "sfc_dummy_phy" },
+	[MC_CMD_NVRAM_TYPE_MC_FW]		= { 0, "sfc_mcfw" },
+	[MC_CMD_NVRAM_TYPE_MC_FW_BACKUP]	= { 0, "sfc_mcfw_backup" },
+	[MC_CMD_NVRAM_TYPE_STATIC_CFG_PORT0]	= { 0, "sfc_static_cfg" },
+	[MC_CMD_NVRAM_TYPE_STATIC_CFG_PORT1]	= { 1, "sfc_static_cfg" },
+	[MC_CMD_NVRAM_TYPE_DYNAMIC_CFG_PORT0]	= { 0, "sfc_dynamic_cfg" },
+	[MC_CMD_NVRAM_TYPE_DYNAMIC_CFG_PORT1]	= { 1, "sfc_dynamic_cfg" },
+	[MC_CMD_NVRAM_TYPE_EXP_ROM]		= { 0, "sfc_exp_rom" },
+	[MC_CMD_NVRAM_TYPE_EXP_ROM_CFG_PORT0]	= { 0, "sfc_exp_rom_cfg" },
+	[MC_CMD_NVRAM_TYPE_EXP_ROM_CFG_PORT1]	= { 1, "sfc_exp_rom_cfg" },
+	[MC_CMD_NVRAM_TYPE_PHY_PORT0]		= { 0, "sfc_phy_fw" },
+	[MC_CMD_NVRAM_TYPE_PHY_PORT1]		= { 1, "sfc_phy_fw" },
+	[MC_CMD_NVRAM_TYPE_FPGA]		= { 0, "sfc_fpga" },
+};
+
+static int siena_mtd_probe_partition(struct efx_nic *efx,
+				     struct efx_mcdi_mtd_partition *part,
+				     unsigned int type)
+{
+	const struct siena_nvram_type_info *info;
+	size_t size, erase_size;
+	bool protected;
+	int rc;
+
+	if (type >= ARRAY_SIZE(siena_nvram_types) ||
+	    siena_nvram_types[type].name == NULL)
+		return -ENODEV;
+
+	info = &siena_nvram_types[type];
+
+	if (info->port != efx_port_num(efx))
+		return -ENODEV;
+
+	rc = efx_mcdi_nvram_info(efx, type, &size, &erase_size, &protected);
+	if (rc)
+		return rc;
+	if (protected)
+		return -ENODEV; /* hide it */
+
+	part->nvram_type = type;
+	part->common.dev_type_name = "Siena NVRAM manager";
+	part->common.type_name = info->name;
+
+	part->common.mtd.type = MTD_NORFLASH;
+	part->common.mtd.flags = MTD_CAP_NORFLASH;
+	part->common.mtd.size = size;
+	part->common.mtd.erasesize = erase_size;
+
+	return 0;
+}
+
+static int siena_mtd_get_fw_subtypes(struct efx_nic *efx,
+				     struct efx_mcdi_mtd_partition *parts,
+				     size_t n_parts)
+{
+	uint16_t fw_subtype_list[
+		MC_CMD_GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST_MAXNUM];
+	size_t i;
+	int rc;
+
+	rc = efx_mcdi_get_board_cfg(efx, NULL, fw_subtype_list, NULL);
+	if (rc)
+		return rc;
+
+	for (i = 0; i < n_parts; i++)
+		parts[i].fw_subtype = fw_subtype_list[parts[i].nvram_type];
+
+	return 0;
+}
+
+static int siena_mtd_probe(struct efx_nic *efx)
+{
+	struct efx_mcdi_mtd_partition *parts;
+	u32 nvram_types;
+	unsigned int type;
+	size_t n_parts;
+	int rc;
+
+	ASSERT_RTNL();
+
+	rc = efx_mcdi_nvram_types(efx, &nvram_types);
+	if (rc)
+		return rc;
+
+	parts = kcalloc(hweight32(nvram_types), sizeof(*parts), GFP_KERNEL);
+	if (!parts)
+		return -ENOMEM;
+
+	type = 0;
+	n_parts = 0;
+
+	while (nvram_types != 0) {
+		if (nvram_types & 1) {
+			rc = siena_mtd_probe_partition(efx, &parts[n_parts],
+						       type);
+			if (rc == 0)
+				n_parts++;
+			else if (rc != -ENODEV)
+				goto fail;
+		}
+		type++;
+		nvram_types >>= 1;
+	}
+
+	rc = siena_mtd_get_fw_subtypes(efx, parts, n_parts);
+	if (rc)
+		goto fail;
+
+	rc = efx_mtd_add(efx, &parts[0].common, n_parts, sizeof(*parts));
+fail:
+	if (rc)
+		kfree(parts);
+	return rc;
+}
+
+#endif /* CONFIG_SFC_MTD */
+
+/**************************************************************************
+ *
+ * PTP
+ *
+ **************************************************************************
+ */
+
+static void siena_ptp_write_host_time(struct efx_nic *efx, u32 host_time)
+{
+	_efx_writed(efx, cpu_to_le32(host_time),
+		    FR_CZ_MC_TREG_SMEM + MC_SMEM_P0_PTP_TIME_OFST);
 }
 
 /**************************************************************************
@@ -699,6 +893,7 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.fini_dmaq = efx_farch_fini_dmaq,
 	.prepare_flush = siena_prepare_flush,
 	.finish_flush = siena_finish_flush,
+	.describe_stats = siena_describe_nic_stats,
 	.update_stats = siena_update_nic_stats,
 	.start_stats = efx_mcdi_mac_start_stats,
 	.stop_stats = efx_mcdi_mac_stop_stats,
@@ -753,6 +948,15 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.filter_rfs_insert = efx_farch_filter_rfs_insert,
 	.filter_rfs_expire_one = efx_farch_filter_rfs_expire_one,
 #endif
+#ifdef CONFIG_SFC_MTD
+	.mtd_probe = siena_mtd_probe,
+	.mtd_rename = efx_mcdi_mtd_rename,
+	.mtd_read = efx_mcdi_mtd_read,
+	.mtd_erase = efx_mcdi_mtd_erase,
+	.mtd_write = efx_mcdi_mtd_write,
+	.mtd_sync = efx_mcdi_mtd_sync,
+#endif
+	.ptp_write_host_time = siena_ptp_write_host_time,
 
 	.revision = EFX_REV_SIENA_A0,
 	.txd_ptr_tbl_base = FR_BZ_TX_DESC_PTR_TBL,
@@ -761,7 +965,8 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.evq_ptr_tbl_base = FR_BZ_EVQ_PTR_TBL,
 	.evq_rptr_tbl_base = FR_BZ_EVQ_RPTR,
 	.max_dma_mask = DMA_BIT_MASK(FSF_AZ_TX_KER_BUF_ADDR_WIDTH),
-	.rx_buffer_hash_size = 0x10,
+	.rx_prefix_size = FS_BZ_RX_PREFIX_SIZE,
+	.rx_hash_offset = FS_BZ_RX_PREFIX_HASH_OFST,
 	.rx_buffer_padding = 0,
 	.can_rx_scatter = true,
 	.max_interrupt_mode = EFX_INT_MODE_MSIX,

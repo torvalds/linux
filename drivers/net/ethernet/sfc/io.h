@@ -204,12 +204,12 @@ static inline void efx_reado_table(struct efx_nic *efx, efx_oword_t *value,
 	efx_reado(efx, value, reg + index * sizeof(efx_oword_t));
 }
 
-/* Page-mapped register block size */
-#define EFX_PAGE_BLOCK_SIZE 0x2000
+/* Page size used as step between per-VI registers */
+#define EFX_VI_PAGE_SIZE 0x2000
 
-/* Calculate offset to page-mapped register block */
+/* Calculate offset to page-mapped register */
 #define EFX_PAGED_REG(page, reg) \
-	((page) * EFX_PAGE_BLOCK_SIZE + (reg))
+	((page) * EFX_VI_PAGE_SIZE + (reg))
 
 /* Write the whole of RX_DESC_UPD or TX_DESC_UPD */
 static inline void _efx_writeo_page(struct efx_nic *efx, efx_oword_t *value,

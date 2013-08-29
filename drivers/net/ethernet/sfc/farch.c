@@ -832,7 +832,7 @@ efx_farch_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 		efx_farch_notify_tx_desc(tx_queue);
 		netif_tx_unlock(efx->net_dev);
 	} else if (EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_PKT_ERR)) {
-		efx_schedule_reset(efx, RESET_TYPE_TX_DESC_FETCH);
+		efx_schedule_reset(efx, RESET_TYPE_DMA_ERROR);
 	} else {
 		netif_err(efx, tx_err, efx->net_dev,
 			  "channel %d unexpected TX event "
@@ -1217,7 +1217,7 @@ efx_farch_handle_driver_event(struct efx_channel *channel, efx_qword_t *event)
 				  "RX DMA Q %d reports descriptor fetch error."
 				  " RX Q %d is disabled.\n", ev_sub_data,
 				  ev_sub_data);
-			efx_schedule_reset(efx, RESET_TYPE_RX_DESC_FETCH);
+			efx_schedule_reset(efx, RESET_TYPE_DMA_ERROR);
 		} else
 			efx_sriov_desc_fetch_err(efx, ev_sub_data);
 		break;
@@ -1227,7 +1227,7 @@ efx_farch_handle_driver_event(struct efx_channel *channel, efx_qword_t *event)
 				  "TX DMA Q %d reports descriptor fetch error."
 				  " TX Q %d is disabled.\n", ev_sub_data,
 				  ev_sub_data);
-			efx_schedule_reset(efx, RESET_TYPE_TX_DESC_FETCH);
+			efx_schedule_reset(efx, RESET_TYPE_DMA_ERROR);
 		} else
 			efx_sriov_desc_fetch_err(efx, ev_sub_data);
 		break;

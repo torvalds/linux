@@ -36,6 +36,7 @@ enum efx_mcdi_mode {
  * @state: Request handling state. Waited for by @wq.
  * @mode: Poll for mcdi completion, or wait for an mcdi_event.
  * @wq: Wait queue for threads waiting for @state != %MCDI_STATE_RUNNING
+ * @new_epoch: Indicates start of day or start of MC reboot recovery
  * @iface_lock: Serialises access to all the following fields
  * @seqno: The next sequence number to use for mcdi requests.
  * @credits: Number of spurious MCDI completion events allowed before we
@@ -49,6 +50,7 @@ struct efx_mcdi_iface {
 	enum efx_mcdi_mode mode;
 	wait_queue_head_t wq;
 	spinlock_t iface_lock;
+	bool new_epoch;
 	unsigned int credits;
 	unsigned int seqno;
 	int resprc;
@@ -64,6 +66,16 @@ struct efx_mcdi_mon {
 	struct efx_mcdi_mon_attribute *attrs;
 	unsigned int n_attrs;
 };
+
+struct efx_mcdi_mtd_partition {
+	struct efx_mtd_partition common;
+	bool updating;
+	u8 nvram_type;
+	u16 fw_subtype;
+};
+
+#define to_efx_mcdi_mtd_partition(mtd)				\
+	container_of(mtd, struct efx_mcdi_mtd_partition, common.mtd)
 
 /**
  * struct efx_mcdi_data - extra state for NICs that implement MCDI
@@ -250,18 +262,6 @@ extern int efx_mcdi_nvram_types(struct efx_nic *efx, u32 *nvram_types_out);
 extern int efx_mcdi_nvram_info(struct efx_nic *efx, unsigned int type,
 			       size_t *size_out, size_t *erase_size_out,
 			       bool *protected_out);
-extern int efx_mcdi_nvram_update_start(struct efx_nic *efx,
-				       unsigned int type);
-extern int efx_mcdi_nvram_read(struct efx_nic *efx, unsigned int type,
-			       loff_t offset, u8 *buffer, size_t length);
-extern int efx_mcdi_nvram_write(struct efx_nic *efx, unsigned int type,
-				loff_t offset, const u8 *buffer,
-				size_t length);
-#define EFX_MCDI_NVRAM_LEN_MAX 128
-extern int efx_mcdi_nvram_erase(struct efx_nic *efx, unsigned int type,
-				loff_t offset, size_t length);
-extern int efx_mcdi_nvram_update_finish(struct efx_nic *efx,
-					unsigned int type);
 extern int efx_mcdi_nvram_test_all(struct efx_nic *efx);
 extern int efx_mcdi_handle_assertion(struct efx_nic *efx);
 extern void efx_mcdi_set_id_led(struct efx_nic *efx, enum efx_led_mode mode);
@@ -289,6 +289,16 @@ extern void efx_mcdi_mon_remove(struct efx_nic *efx);
 #else
 static inline int efx_mcdi_mon_probe(struct efx_nic *efx) { return 0; }
 static inline void efx_mcdi_mon_remove(struct efx_nic *efx) {}
+#endif
+
+#ifdef CONFIG_SFC_MTD
+extern int efx_mcdi_mtd_read(struct mtd_info *mtd, loff_t start,
+			     size_t len, size_t *retlen, u8 *buffer);
+extern int efx_mcdi_mtd_erase(struct mtd_info *mtd, loff_t start, size_t len);
+extern int efx_mcdi_mtd_write(struct mtd_info *mtd, loff_t start,
+			      size_t len, size_t *retlen, const u8 *buffer);
+extern int efx_mcdi_mtd_sync(struct mtd_info *mtd);
+extern void efx_mcdi_mtd_rename(struct efx_mtd_partition *part);
 #endif
 
 #endif /* EFX_MCDI_H */

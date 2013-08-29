@@ -27,6 +27,7 @@
 #include <linux/mutex.h>
 #include <linux/vmalloc.h>
 #include <linux/i2c.h>
+#include <linux/mtd/mtd.h>
 
 #include "enum.h"
 #include "bitfield.h"
@@ -185,6 +186,7 @@ struct efx_tx_buffer {
  *	variable indicates that the queue is empty.  This is to
  *	avoid cache-line ping-pong between the xmit path and the
  *	completion path.
+ * @merge_events: Number of TX merged completion events
  * @insert_count: Current insert pointer
  *	This is the number of buffers that have been added to the
  *	software ring.
@@ -221,6 +223,7 @@ struct efx_tx_queue {
 	/* Members used mainly on the completion path */
 	unsigned int read_count ____cacheline_aligned_in_smp;
 	unsigned int old_write_count;
+	unsigned int merge_events;
 
 	/* Members used only on the xmit path */
 	unsigned int insert_count ____cacheline_aligned_in_smp;
@@ -260,6 +263,7 @@ struct efx_rx_buffer {
 #define EFX_RX_PKT_CSUMMED	0x0002
 #define EFX_RX_PKT_DISCARD	0x0004
 #define EFX_RX_PKT_TCP		0x0040
+#define EFX_RX_PKT_PREFIX_LEN	0x0080	/* length is in prefix only */
 
 /**
  * struct efx_rx_page_state - Page-based rx buffer state
@@ -594,75 +598,17 @@ static inline bool efx_phy_mode_disabled(enum efx_phy_mode mode)
 	return !!(mode & ~PHY_MODE_TX_DISABLED);
 }
 
-/*
- * Efx extended statistics
- *
- * Not all statistics are provided by all supported MACs.  The purpose
- * is this structure is to contain the raw statistics provided by each
- * MAC.
+/**
+ * struct efx_hw_stat_desc - Description of a hardware statistic
+ * @name: Name of the statistic as visible through ethtool, or %NULL if
+ *	it should not be exposed
+ * @dma_width: Width in bits (0 for non-DMA statistics)
+ * @offset: Offset within stats (ignored for non-DMA statistics)
  */
-struct efx_mac_stats {
-	u64 tx_bytes;
-	u64 tx_good_bytes;
-	u64 tx_bad_bytes;
-	u64 tx_packets;
-	u64 tx_bad;
-	u64 tx_pause;
-	u64 tx_control;
-	u64 tx_unicast;
-	u64 tx_multicast;
-	u64 tx_broadcast;
-	u64 tx_lt64;
-	u64 tx_64;
-	u64 tx_65_to_127;
-	u64 tx_128_to_255;
-	u64 tx_256_to_511;
-	u64 tx_512_to_1023;
-	u64 tx_1024_to_15xx;
-	u64 tx_15xx_to_jumbo;
-	u64 tx_gtjumbo;
-	u64 tx_collision;
-	u64 tx_single_collision;
-	u64 tx_multiple_collision;
-	u64 tx_excessive_collision;
-	u64 tx_deferred;
-	u64 tx_late_collision;
-	u64 tx_excessive_deferred;
-	u64 tx_non_tcpudp;
-	u64 tx_mac_src_error;
-	u64 tx_ip_src_error;
-	u64 rx_bytes;
-	u64 rx_good_bytes;
-	u64 rx_bad_bytes;
-	u64 rx_packets;
-	u64 rx_good;
-	u64 rx_bad;
-	u64 rx_pause;
-	u64 rx_control;
-	u64 rx_unicast;
-	u64 rx_multicast;
-	u64 rx_broadcast;
-	u64 rx_lt64;
-	u64 rx_64;
-	u64 rx_65_to_127;
-	u64 rx_128_to_255;
-	u64 rx_256_to_511;
-	u64 rx_512_to_1023;
-	u64 rx_1024_to_15xx;
-	u64 rx_15xx_to_jumbo;
-	u64 rx_gtjumbo;
-	u64 rx_bad_lt64;
-	u64 rx_bad_64_to_15xx;
-	u64 rx_bad_15xx_to_jumbo;
-	u64 rx_bad_gtjumbo;
-	u64 rx_overflow;
-	u64 rx_missed;
-	u64 rx_false_carrier;
-	u64 rx_symbol_error;
-	u64 rx_align_error;
-	u64 rx_length_error;
-	u64 rx_internal_error;
-	u64 rx_good_lt64;
+struct efx_hw_stat_desc {
+	const char *name;
+	u16 dma_width;
+	u16 offset;
 };
 
 /* Number of bits used in a multicast filter hash address */
@@ -720,6 +666,11 @@ struct vfdi_status;
  * @rx_buffer_order: Order (log2) of number of pages for each RX buffer
  * @rx_buffer_truesize: Amortised allocation size of an RX buffer,
  *	for use in sk_buff::truesize
+ * @rx_prefix_size: Size of RX prefix before packet data
+ * @rx_packet_hash_offset: Offset of RX flow hash from start of packet data
+ *	(valid only if @rx_prefix_size != 0; always negative)
+ * @rx_packet_len_offset: Offset of RX packet length from start of packet data
+ *	(valid only for NICs that set %EFX_RX_PKT_PREFIX_LEN; always negative)
  * @rx_hash_key: Toeplitz hash key for RSS
  * @rx_indir_table: Indirection table for RSS
  * @rx_scatter: Scatter mode enabled for receives
@@ -794,12 +745,8 @@ struct vfdi_status;
  * @last_irq_cpu: Last CPU to handle a possible test interrupt.  This
  *	field is used by efx_test_interrupts() to verify that an
  *	interrupt has occurred.
- * @n_rx_nodesc_drop_cnt: RX no descriptor drop count
- * @mac_stats: MAC statistics. These include all statistics the MACs
- *	can provide.  Generic code converts these into a standard
- *	&struct net_device_stats.
- * @stats_lock: Statistics update lock. Serialises statistics fetches
- *	and access to @mac_stats.
+ * @stats_lock: Statistics update lock. Must be held when calling
+ *	efx_nic_type::{update,start,stop}_stats.
  *
  * This is stored in the private area of the &struct net_device.
  */
@@ -854,6 +801,9 @@ struct efx_nic {
 	unsigned int rx_page_buf_step;
 	unsigned int rx_bufs_per_page;
 	unsigned int rx_pages_per_batch;
+	unsigned int rx_prefix_size;
+	int rx_packet_hash_offset;
+	int rx_packet_len_offset;
 	u8 rx_hash_key[40];
 	u32 rx_indir_table[128];
 	bool rx_scatter;
@@ -868,7 +818,6 @@ struct efx_nic {
 	struct delayed_work selftest_work;
 
 #ifdef CONFIG_SFC_MTD
-	const struct efx_mtd_ops *mtd_ops;
 	struct list_head mtd_list;
 #endif
 
@@ -939,8 +888,6 @@ struct efx_nic {
 	struct delayed_work monitor_work ____cacheline_aligned_in_smp;
 	spinlock_t biu_lock;
 	int last_irq_cpu;
-	unsigned n_rx_nodesc_drop_cnt;
-	struct efx_mac_stats mac_stats;
 	spinlock_t stats_lock;
 };
 
@@ -953,6 +900,14 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
 {
 	return efx->port_num;
 }
+
+struct efx_mtd_partition {
+	struct list_head node;
+	struct mtd_info mtd;
+	const char *dev_type_name;
+	const char *type_name;
+	char name[IFNAMSIZ + 20];
+};
 
 /**
  * struct efx_nic_type - Efx device type definition
@@ -976,7 +931,9 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
  *	(for Falcon architecture)
  * @finish_flush: Clean up after flushing the DMA queues (for Falcon
  *	architecture)
- * @update_stats: Update statistics not provided by event handling
+ * @describe_stats: Describe statistics for ethtool
+ * @update_stats: Update statistics not provided by event handling.
+ *	Either argument may be %NULL.
  * @start_stats: Start the regular fetching of statistics
  * @stop_stats: Stop the regular fetching of statistics
  * @set_id_led: Set state of identifying LED or revert to automatic function
@@ -1047,6 +1004,15 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
  * @filter_rfs_expire_one: Consider expiring a filter inserted for RFS.
  *	This must check whether the specified table entry is used by RFS
  *	and that rps_may_expire_flow() returns true for it.
+ * @mtd_probe: Probe and add MTD partitions associated with this net device,
+ *	 using efx_mtd_add()
+ * @mtd_rename: Set an MTD partition name using the net device name
+ * @mtd_read: Read from an MTD partition
+ * @mtd_erase: Erase part of an MTD partition
+ * @mtd_write: Write to an MTD partition
+ * @mtd_sync: Wait for write-back to complete on MTD partition.  This
+ *	also notifies the driver that a writer has finished using this
+ *	partition.
  * @revision: Hardware architecture revision
  * @txd_ptr_tbl_base: TX descriptor ring base address
  * @rxd_ptr_tbl_base: RX descriptor ring base address
@@ -1054,7 +1020,8 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
  * @evq_ptr_tbl_base: Event queue pointer table base address
  * @evq_rptr_tbl_base: Event queue read-pointer table base address
  * @max_dma_mask: Maximum possible DMA mask
- * @rx_buffer_hash_size: Size of hash at start of RX packet
+ * @rx_prefix_size: Size of RX prefix before packet data
+ * @rx_hash_offset: Offset of RX flow hash within prefix
  * @rx_buffer_padding: Size of padding at end of RX packet
  * @can_rx_scatter: NIC is able to scatter packet to multiple buffers
  * @max_interrupt_mode: Highest capability interrupt mode supported
@@ -1081,7 +1048,9 @@ struct efx_nic_type {
 	int (*fini_dmaq)(struct efx_nic *efx);
 	void (*prepare_flush)(struct efx_nic *efx);
 	void (*finish_flush)(struct efx_nic *efx);
-	void (*update_stats)(struct efx_nic *efx);
+	size_t (*describe_stats)(struct efx_nic *efx, u8 *names);
+	size_t (*update_stats)(struct efx_nic *efx, u64 *full_stats,
+			       struct rtnl_link_stats64 *core_stats);
 	void (*start_stats)(struct efx_nic *efx);
 	void (*stop_stats)(struct efx_nic *efx);
 	void (*set_id_led)(struct efx_nic *efx, enum efx_led_mode mode);
@@ -1150,6 +1119,17 @@ struct efx_nic_type {
 	bool (*filter_rfs_expire_one)(struct efx_nic *efx, u32 flow_id,
 				      unsigned int index);
 #endif
+#ifdef CONFIG_SFC_MTD
+	int (*mtd_probe)(struct efx_nic *efx);
+	void (*mtd_rename)(struct efx_mtd_partition *part);
+	int (*mtd_read)(struct mtd_info *mtd, loff_t start, size_t len,
+			size_t *retlen, u8 *buffer);
+	int (*mtd_erase)(struct mtd_info *mtd, loff_t start, size_t len);
+	int (*mtd_write)(struct mtd_info *mtd, loff_t start, size_t len,
+			 size_t *retlen, const u8 *buffer);
+	int (*mtd_sync)(struct mtd_info *mtd);
+#endif
+	void (*ptp_write_host_time)(struct efx_nic *efx, u32 host_time);
 
 	int revision;
 	unsigned int txd_ptr_tbl_base;
@@ -1158,7 +1138,8 @@ struct efx_nic_type {
 	unsigned int evq_ptr_tbl_base;
 	unsigned int evq_rptr_tbl_base;
 	u64 max_dma_mask;
-	unsigned int rx_buffer_hash_size;
+	unsigned int rx_prefix_size;
+	unsigned int rx_hash_offset;
 	unsigned int rx_buffer_padding;
 	bool can_rx_scatter;
 	unsigned int max_interrupt_mode;

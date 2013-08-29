@@ -16,7 +16,6 @@
 #include "net_driver.h"
 #include "efx.h"
 #include "mcdi.h"
-#include "spi.h"
 
 /*
  * Falcon hardware control
@@ -118,9 +117,6 @@ enum {
 	 (1 << LOOPBACK_XGXS) |			\
 	 (1 << LOOPBACK_XAUI))
 
-#define FALCON_GMAC_LOOPBACKS			\
-	(1 << LOOPBACK_GMAC)
-
 /* Alignment of PCIe DMA boundaries (4KB) */
 #define EFX_PAGE_SIZE	4096
 /* Size and alignment of buffer table entries (same) */
@@ -164,13 +160,96 @@ struct falcon_board {
 };
 
 /**
+ * struct falcon_spi_device - a Falcon SPI (Serial Peripheral Interface) device
+ * @device_id:		Controller's id for the device
+ * @size:		Size (in bytes)
+ * @addr_len:		Number of address bytes in read/write commands
+ * @munge_address:	Flag whether addresses should be munged.
+ *	Some devices with 9-bit addresses (e.g. AT25040A EEPROM)
+ *	use bit 3 of the command byte as address bit A8, rather
+ *	than having a two-byte address.  If this flag is set, then
+ *	commands should be munged in this way.
+ * @erase_command:	Erase command (or 0 if sector erase not needed).
+ * @erase_size:		Erase sector size (in bytes)
+ *	Erase commands affect sectors with this size and alignment.
+ *	This must be a power of two.
+ * @block_size:		Write block size (in bytes).
+ *	Write commands are limited to blocks with this size and alignment.
+ */
+struct falcon_spi_device {
+	int device_id;
+	unsigned int size;
+	unsigned int addr_len;
+	unsigned int munge_address:1;
+	u8 erase_command;
+	unsigned int erase_size;
+	unsigned int block_size;
+};
+
+static inline bool falcon_spi_present(const struct falcon_spi_device *spi)
+{
+	return spi->size != 0;
+}
+
+enum {
+	FALCON_STAT_tx_bytes,
+	FALCON_STAT_tx_packets,
+	FALCON_STAT_tx_pause,
+	FALCON_STAT_tx_control,
+	FALCON_STAT_tx_unicast,
+	FALCON_STAT_tx_multicast,
+	FALCON_STAT_tx_broadcast,
+	FALCON_STAT_tx_lt64,
+	FALCON_STAT_tx_64,
+	FALCON_STAT_tx_65_to_127,
+	FALCON_STAT_tx_128_to_255,
+	FALCON_STAT_tx_256_to_511,
+	FALCON_STAT_tx_512_to_1023,
+	FALCON_STAT_tx_1024_to_15xx,
+	FALCON_STAT_tx_15xx_to_jumbo,
+	FALCON_STAT_tx_gtjumbo,
+	FALCON_STAT_tx_non_tcpudp,
+	FALCON_STAT_tx_mac_src_error,
+	FALCON_STAT_tx_ip_src_error,
+	FALCON_STAT_rx_bytes,
+	FALCON_STAT_rx_good_bytes,
+	FALCON_STAT_rx_bad_bytes,
+	FALCON_STAT_rx_packets,
+	FALCON_STAT_rx_good,
+	FALCON_STAT_rx_bad,
+	FALCON_STAT_rx_pause,
+	FALCON_STAT_rx_control,
+	FALCON_STAT_rx_unicast,
+	FALCON_STAT_rx_multicast,
+	FALCON_STAT_rx_broadcast,
+	FALCON_STAT_rx_lt64,
+	FALCON_STAT_rx_64,
+	FALCON_STAT_rx_65_to_127,
+	FALCON_STAT_rx_128_to_255,
+	FALCON_STAT_rx_256_to_511,
+	FALCON_STAT_rx_512_to_1023,
+	FALCON_STAT_rx_1024_to_15xx,
+	FALCON_STAT_rx_15xx_to_jumbo,
+	FALCON_STAT_rx_gtjumbo,
+	FALCON_STAT_rx_bad_lt64,
+	FALCON_STAT_rx_bad_gtjumbo,
+	FALCON_STAT_rx_overflow,
+	FALCON_STAT_rx_symbol_error,
+	FALCON_STAT_rx_align_error,
+	FALCON_STAT_rx_length_error,
+	FALCON_STAT_rx_internal_error,
+	FALCON_STAT_rx_nodesc_drop_cnt,
+	FALCON_STAT_COUNT
+};
+
+/**
  * struct falcon_nic_data - Falcon NIC state
  * @pci_dev2: Secondary function of Falcon A
  * @board: Board state and functions
+ * @stats: Hardware statistics
  * @stats_disable_count: Nest count for disabling statistics fetches
  * @stats_pending: Is there a pending DMA of MAC statistics.
  * @stats_timer: A timer for regularly fetching MAC statistics.
- * @stats_dma_done: Pointer to the flag which indicates DMA completion.
  * @spi_flash: SPI flash device
  * @spi_eeprom: SPI EEPROM device
  * @spi_lock: SPI bus lock
@@ -180,10 +259,10 @@ struct falcon_board {
 struct falcon_nic_data {
 	struct pci_dev *pci_dev2;
 	struct falcon_board board;
+	u64 stats[FALCON_STAT_COUNT];
 	unsigned int stats_disable_count;
 	bool stats_pending;
 	struct timer_list stats_timer;
-	u32 *stats_dma_done;
 	struct falcon_spi_device spi_flash;
 	struct falcon_spi_device spi_eeprom;
 	struct mutex spi_lock;
@@ -197,12 +276,75 @@ static inline struct falcon_board *falcon_board(struct efx_nic *efx)
 	return &data->board;
 }
 
+enum {
+	SIENA_STAT_tx_bytes,
+	SIENA_STAT_tx_good_bytes,
+	SIENA_STAT_tx_bad_bytes,
+	SIENA_STAT_tx_packets,
+	SIENA_STAT_tx_bad,
+	SIENA_STAT_tx_pause,
+	SIENA_STAT_tx_control,
+	SIENA_STAT_tx_unicast,
+	SIENA_STAT_tx_multicast,
+	SIENA_STAT_tx_broadcast,
+	SIENA_STAT_tx_lt64,
+	SIENA_STAT_tx_64,
+	SIENA_STAT_tx_65_to_127,
+	SIENA_STAT_tx_128_to_255,
+	SIENA_STAT_tx_256_to_511,
+	SIENA_STAT_tx_512_to_1023,
+	SIENA_STAT_tx_1024_to_15xx,
+	SIENA_STAT_tx_15xx_to_jumbo,
+	SIENA_STAT_tx_gtjumbo,
+	SIENA_STAT_tx_collision,
+	SIENA_STAT_tx_single_collision,
+	SIENA_STAT_tx_multiple_collision,
+	SIENA_STAT_tx_excessive_collision,
+	SIENA_STAT_tx_deferred,
+	SIENA_STAT_tx_late_collision,
+	SIENA_STAT_tx_excessive_deferred,
+	SIENA_STAT_tx_non_tcpudp,
+	SIENA_STAT_tx_mac_src_error,
+	SIENA_STAT_tx_ip_src_error,
+	SIENA_STAT_rx_bytes,
+	SIENA_STAT_rx_good_bytes,
+	SIENA_STAT_rx_bad_bytes,
+	SIENA_STAT_rx_packets,
+	SIENA_STAT_rx_good,
+	SIENA_STAT_rx_bad,
+	SIENA_STAT_rx_pause,
+	SIENA_STAT_rx_control,
+	SIENA_STAT_rx_unicast,
+	SIENA_STAT_rx_multicast,
+	SIENA_STAT_rx_broadcast,
+	SIENA_STAT_rx_lt64,
+	SIENA_STAT_rx_64,
+	SIENA_STAT_rx_65_to_127,
+	SIENA_STAT_rx_128_to_255,
+	SIENA_STAT_rx_256_to_511,
+	SIENA_STAT_rx_512_to_1023,
+	SIENA_STAT_rx_1024_to_15xx,
+	SIENA_STAT_rx_15xx_to_jumbo,
+	SIENA_STAT_rx_gtjumbo,
+	SIENA_STAT_rx_bad_gtjumbo,
+	SIENA_STAT_rx_overflow,
+	SIENA_STAT_rx_false_carrier,
+	SIENA_STAT_rx_symbol_error,
+	SIENA_STAT_rx_align_error,
+	SIENA_STAT_rx_length_error,
+	SIENA_STAT_rx_internal_error,
+	SIENA_STAT_rx_nodesc_drop_cnt,
+	SIENA_STAT_COUNT
+};
+
 /**
  * struct siena_nic_data - Siena NIC state
  * @wol_filter_id: Wake-on-LAN packet filter id
+ * @stats: Hardware statistics
  */
 struct siena_nic_data {
 	int wol_filter_id;
+	u64 stats[SIENA_STAT_COUNT];
 };
 
 /*
@@ -506,6 +648,14 @@ extern int efx_farch_test_registers(struct efx_nic *efx,
 
 extern size_t efx_nic_get_regs_len(struct efx_nic *efx);
 extern void efx_nic_get_regs(struct efx_nic *efx, void *buf);
+
+extern size_t
+efx_nic_describe_stats(const struct efx_hw_stat_desc *desc, size_t count,
+		       const unsigned long *mask, u8 *names);
+extern void
+efx_nic_update_stats(const struct efx_hw_stat_desc *desc, size_t count,
+		     const unsigned long *mask,
+		     u64 *stats, const void *dma_buf, bool accumulate);
 
 #define EFX_MAX_FLUSH_TIME 5000
 

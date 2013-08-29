@@ -80,8 +80,7 @@ const char *const efx_reset_type_names[] = {
 	[RESET_TYPE_TX_WATCHDOG]        = "TX_WATCHDOG",
 	[RESET_TYPE_INT_ERROR]          = "INT_ERROR",
 	[RESET_TYPE_RX_RECOVERY]        = "RX_RECOVERY",
-	[RESET_TYPE_RX_DESC_FETCH]      = "RX_DESC_FETCH",
-	[RESET_TYPE_TX_DESC_FETCH]      = "TX_DESC_FETCH",
+	[RESET_TYPE_DMA_ERROR]          = "DMA_ERROR",
 	[RESET_TYPE_TX_SKIP]            = "TX_SKIP",
 	[RESET_TYPE_MC_FAILURE]         = "MC_FAILURE",
 };
@@ -574,7 +573,7 @@ static void efx_start_datapath(struct efx_nic *efx)
 	 * support the current MTU, including padding for header
 	 * alignment and overruns.
 	 */
-	efx->rx_dma_len = (efx->type->rx_buffer_hash_size +
+	efx->rx_dma_len = (efx->rx_prefix_size +
 			   EFX_MAX_FRAME_LEN(efx->net_dev->mtu) +
 			   efx->type->rx_buffer_padding);
 	rx_buf_len = (sizeof(struct efx_rx_page_state) +
@@ -1920,34 +1919,9 @@ static struct rtnl_link_stats64 *efx_net_stats(struct net_device *net_dev,
 					       struct rtnl_link_stats64 *stats)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	struct efx_mac_stats *mac_stats = &efx->mac_stats;
 
 	spin_lock_bh(&efx->stats_lock);
-
-	efx->type->update_stats(efx);
-
-	stats->rx_packets = mac_stats->rx_packets;
-	stats->tx_packets = mac_stats->tx_packets;
-	stats->rx_bytes = mac_stats->rx_bytes;
-	stats->tx_bytes = mac_stats->tx_bytes;
-	stats->rx_dropped = efx->n_rx_nodesc_drop_cnt;
-	stats->multicast = mac_stats->rx_multicast;
-	stats->collisions = mac_stats->tx_collision;
-	stats->rx_length_errors = (mac_stats->rx_gtjumbo +
-				   mac_stats->rx_length_error);
-	stats->rx_crc_errors = mac_stats->rx_bad;
-	stats->rx_frame_errors = mac_stats->rx_align_error;
-	stats->rx_fifo_errors = mac_stats->rx_overflow;
-	stats->rx_missed_errors = mac_stats->rx_missed;
-	stats->tx_window_errors = mac_stats->tx_late_collision;
-
-	stats->rx_errors = (stats->rx_length_errors +
-			    stats->rx_crc_errors +
-			    stats->rx_frame_errors +
-			    mac_stats->rx_symbol_error);
-	stats->tx_errors = (stats->tx_window_errors +
-			    mac_stats->tx_bad);
-
+	efx->type->update_stats(efx, NULL, stats);
 	spin_unlock_bh(&efx->stats_lock);
 
 	return stats;
@@ -2228,8 +2202,6 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 				  "could not restore PHY settings\n");
 	}
 
-	efx->type->reconfigure_mac(efx);
-
 	efx_enable_interrupts(efx);
 	efx_restore_filters(efx);
 	efx_sriov_reset(efx);
@@ -2484,6 +2456,9 @@ static int efx_init_struct(struct efx_nic *efx,
 	strlcpy(efx->name, pci_name(pci_dev), sizeof(efx->name));
 
 	efx->net_dev = net_dev;
+	efx->rx_prefix_size = efx->type->rx_prefix_size;
+	efx->rx_packet_hash_offset =
+		efx->type->rx_hash_offset - efx->type->rx_prefix_size;
 	spin_lock_init(&efx->stats_lock);
 	mutex_init(&efx->mac_lock);
 	efx->phy_op = &efx_dummy_phy_operations;
