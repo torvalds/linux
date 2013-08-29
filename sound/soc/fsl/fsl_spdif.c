@@ -1113,10 +1113,8 @@ static int fsl_spdif_probe(struct platform_device *pdev)
 	}
 
 	regs = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(regs)) {
-		dev_err(&pdev->dev, "could not map device resources\n");
+	if (IS_ERR(regs))
 		return PTR_ERR(regs);
-	}
 
 	spdif_priv->regmap = devm_regmap_init_mmio_clk(&pdev->dev,
 			"core", regs, &fsl_spdif_regmap_config);
