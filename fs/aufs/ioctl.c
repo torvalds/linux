@@ -96,7 +96,8 @@ static int au_wbr_fd(struct path *path, struct aufs_wbr_fd __user *arg)
 	}
 	AuDbg("wbi %d\n", wbi);
 	if (wbi >= 0)
-		h_file = au_h_open(root, wbi, wbrfd.oflags, NULL);
+		h_file = au_h_open(root, wbi, wbrfd.oflags, NULL,
+				   /*force_wr*/0);
 
 out_unlock:
 	aufs_read_unlock(root, AuLock_IR);
