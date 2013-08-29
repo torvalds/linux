@@ -915,7 +915,7 @@ EXPORT_SYMBOL_GPL(tpm_show_pcrs);
 
 #define  READ_PUBEK_RESULT_SIZE 314
 #define TPM_ORD_READPUBEK cpu_to_be32(124)
-struct tpm_input_header tpm_readpubek_header = {
+static struct tpm_input_header tpm_readpubek_header = {
 	.tag = TPM_TAG_RQU_COMMAND,
 	.length = cpu_to_be32(30),
 	.ordinal = TPM_ORD_READPUBEK
@@ -1395,7 +1395,7 @@ EXPORT_SYMBOL_GPL(tpm_dev_vendor_release);
  * Once all references to platform device are down to 0,
  * release all allocated structures.
  */
-void tpm_dev_release(struct device *dev)
+static void tpm_dev_release(struct device *dev)
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
 
