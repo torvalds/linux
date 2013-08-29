@@ -182,6 +182,11 @@ clock which they consume.
   g3d			501
   smmu_mixer		502
 
+  Mux			ID
+  ----------------------------
+
+  mout_hdmi		640
+
 Example 1: An example of a clock controller node is listed below.
 
 	clock: clock-controller@0x10010000 {
