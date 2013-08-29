@@ -339,6 +339,9 @@ struct bq24190_sysfs_field_info {
 	u8	shift;
 };
 
+/* On i386 ptrace-abi.h defines SS that breaks the macro calls below. */
+#undef SS
+
 static struct bq24190_sysfs_field_info bq24190_sysfs_field_tbl[] = {
 			/*	sysfs name	reg	field in reg */
 	BQ24190_SYSFS_FIELD_RW(en_hiz,		ISC,	EN_HIZ),
