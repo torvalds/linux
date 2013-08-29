@@ -256,8 +256,7 @@ int pinconf_generic_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	if (ret < 0) {
 		/* EINVAL=missing, which is fine since it's optional */
 		if (ret != -EINVAL)
-			dev_err(dev,
-				"could not parse property ti,function\n");
+			dev_err(dev, "could not parse property function\n");
 		function = NULL;
 	}
 
@@ -274,7 +273,7 @@ int pinconf_generic_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		reserve++;
 	ret = of_property_count_strings(np, "pins");
 	if (ret < 0) {
-		dev_err(dev, "could not parse property ti,pins\n");
+		dev_err(dev, "could not parse property pins\n");
 		goto exit;
 	}
 	reserve *= ret;
