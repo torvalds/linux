@@ -240,13 +240,6 @@ static int qtd_copy_status (
 		} else {	/* unknown */
 			status = -EPROTO;
 		}
-
-		ehci_vdbg (ehci,
-			"dev%d ep%d%s qtd token %08x --> status %d\n",
-			usb_pipedevice (urb->pipe),
-			usb_pipeendpoint (urb->pipe),
-			usb_pipein (urb->pipe) ? "in" : "out",
-			token, status);
 	}
 
 	return status;

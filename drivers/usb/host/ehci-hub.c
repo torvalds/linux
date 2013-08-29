@@ -211,8 +211,6 @@ static void ehci_adjust_port_wakeup_flags(struct ehci_hcd *ehci,
 			else
 				t2 |= PORT_WKOC_E | PORT_WKCONN_E;
 		}
-		ehci_vdbg(ehci, "port %d, %08x -> %08x\n",
-				port + 1, t1, t2);
 		ehci_writel(ehci, t2, reg);
 	}
 
@@ -302,8 +300,6 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 		}
 
 		if (t1 != t2) {
-			ehci_vdbg (ehci, "port %d, %08x -> %08x\n",
-				port + 1, t1, t2);
 			ehci_writel(ehci, t2, reg);
 			changed = 1;
 		}
@@ -483,7 +479,6 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 		if (test_bit(i, &resume_needed)) {
 			temp &= ~(PORT_RWC_BITS | PORT_SUSPEND | PORT_RESUME);
 			ehci_writel(ehci, temp, &ehci->regs->port_status [i]);
-			ehci_vdbg (ehci, "resumed port %d\n", i + 1);
 		}
 	}
 
@@ -1204,7 +1199,6 @@ static int ehci_hub_control (
 					wIndex + 1);
 				temp |= PORT_OWNER;
 			} else {
-				ehci_vdbg (ehci, "port %d reset\n", wIndex + 1);
 				temp |= PORT_RESET;
 				temp &= ~PORT_PE;
 

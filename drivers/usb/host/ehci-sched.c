@@ -327,17 +327,8 @@ static int tt_available (
 
 		periodic_tt_usecs (ehci, dev, frame, tt_usecs);
 
-		ehci_vdbg(ehci, "tt frame %d check %d usecs start uframe %d in"
-			" schedule %d/%d/%d/%d/%d/%d/%d/%d\n",
-			frame, usecs, uframe,
-			tt_usecs[0], tt_usecs[1], tt_usecs[2], tt_usecs[3],
-			tt_usecs[4], tt_usecs[5], tt_usecs[6], tt_usecs[7]);
-
-		if (max_tt_usecs[uframe] <= tt_usecs[uframe]) {
-			ehci_vdbg(ehci, "frame %d uframe %d fully scheduled\n",
-				frame, uframe);
+		if (max_tt_usecs[uframe] <= tt_usecs[uframe])
 			return 0;
-		}
 
 		/* special case for isoc transfers larger than 125us:
 		 * the first and each subsequent fully used uframe
@@ -348,13 +339,8 @@ static int tt_available (
 			int ufs = (usecs / 125);
 			int i;
 			for (i = uframe; i < (uframe + ufs) && i < 8; i++)
-				if (0 < tt_usecs[i]) {
-					ehci_vdbg(ehci,
-						"multi-uframe xfer can't fit "
-						"in frame %d uframe %d\n",
-						frame, i);
+				if (0 < tt_usecs[i])
 					return 0;
-				}
 		}
 
 		tt_usecs[uframe] += usecs;
@@ -362,12 +348,8 @@ static int tt_available (
 		carryover_tt_bandwidth(tt_usecs);
 
 		/* fail if the carryover pushed bw past the last uframe's limit */
-		if (max_tt_usecs[7] < tt_usecs[7]) {
-			ehci_vdbg(ehci,
-				"tt unavailable usecs %d frame %d uframe %d\n",
-				usecs, frame, uframe);
+		if (max_tt_usecs[7] < tt_usecs[7])
 			return 0;
-		}
 	}
 
 	return 1;
@@ -1616,16 +1598,9 @@ static void itd_link_urb(
 
 	next_uframe = stream->next_uframe & (mod - 1);
 
-	if (unlikely (list_empty(&stream->td_list))) {
+	if (unlikely (list_empty(&stream->td_list)))
 		ehci_to_hcd(ehci)->self.bandwidth_allocated
 				+= stream->bandwidth;
-		ehci_vdbg (ehci,
-			"schedule devp %s ep%d%s-iso period %d start %d.%d\n",
-			urb->dev->devpath, stream->bEndpointAddress & 0x0f,
-			(stream->bEndpointAddress & USB_DIR_IN) ? "in" : "out",
-			urb->interval,
-			next_uframe >> 3, next_uframe & 0x7);
-	}
 
 	if (ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs == 0) {
 		if (ehci->amd_pll_fix == 1)
@@ -1760,14 +1735,9 @@ static bool itd_complete(struct ehci_hcd *ehci, struct ehci_itd *itd)
 			usb_amd_quirk_pll_enable();
 	}
 
-	if (unlikely(list_is_singular(&stream->td_list))) {
+	if (unlikely(list_is_singular(&stream->td_list)))
 		ehci_to_hcd(ehci)->self.bandwidth_allocated
 				-= stream->bandwidth;
-		ehci_vdbg (ehci,
-			"deschedule devp %s ep%d%s-iso\n",
-			dev->devpath, stream->bEndpointAddress & 0x0f,
-			(stream->bEndpointAddress & USB_DIR_IN) ? "in" : "out");
-	}
 
 done:
 	itd->urb = NULL;
@@ -2025,17 +1995,10 @@ static void sitd_link_urb(
 
 	next_uframe = stream->next_uframe;
 
-	if (list_empty(&stream->td_list)) {
+	if (list_empty(&stream->td_list))
 		/* usbfs ignores TT bandwidth */
 		ehci_to_hcd(ehci)->self.bandwidth_allocated
 				+= stream->bandwidth;
-		ehci_vdbg (ehci,
-			"sched devp %s ep%d%s-iso [%d] %dms/%04x\n",
-			urb->dev->devpath, stream->bEndpointAddress & 0x0f,
-			(stream->bEndpointAddress & USB_DIR_IN) ? "in" : "out",
-			(next_uframe >> 3) & (ehci->periodic_size - 1),
-			stream->interval, hc32_to_cpu(ehci, stream->splits));
-	}
 
 	if (ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs == 0) {
 		if (ehci->amd_pll_fix == 1)
@@ -2149,14 +2112,9 @@ static bool sitd_complete(struct ehci_hcd *ehci, struct ehci_sitd *sitd)
 			usb_amd_quirk_pll_enable();
 	}
 
-	if (list_is_singular(&stream->td_list)) {
+	if (list_is_singular(&stream->td_list))
 		ehci_to_hcd(ehci)->self.bandwidth_allocated
 				-= stream->bandwidth;
-		ehci_vdbg (ehci,
-			"deschedule devp %s ep%d%s-iso\n",
-			dev->devpath, stream->bEndpointAddress & 0x0f,
-			(stream->bEndpointAddress & USB_DIR_IN) ? "in" : "out");
-	}
 
 done:
 	sitd->urb = NULL;
