@@ -68,6 +68,18 @@ struct au_br_hfsnotify {
 };
 #endif
 
+/* sysfs entries */
+struct au_brsysfs {
+	char			name[16];
+	struct attribute	attr;
+};
+
+enum {
+	AuBrSysfs_BR,
+	AuBrSysfs_BRID,
+	AuBrSysfs_Last
+};
+
 /* protected by superblock rwsem */
 struct au_branch {
 	struct au_xino_file	br_xino;
@@ -92,9 +104,8 @@ struct au_branch {
 #endif
 
 #ifdef CONFIG_SYSFS
-	/* an entry under sysfs per mount-point */
-	char			br_name[8];
-	struct attribute	br_attr;
+	/* entries under sysfs per mount-point */
+	struct au_brsysfs	br_sysfs[AuBrSysfs_Last];
 #endif
 };
 
