@@ -2261,6 +2261,23 @@ static void bnx2x_set_requested_fc(struct bnx2x *bp)
 		bp->link_params.req_fc_auto_adv = BNX2X_FLOW_CTRL_BOTH;
 }
 
+static void bnx2x_init_dropless_fc(struct bnx2x *bp)
+{
+	u32 pause_enabled = 0;
+
+	if (!CHIP_IS_E1(bp) && bp->dropless_fc && bp->link_vars.link_up) {
+		if (bp->link_vars.flow_ctrl & BNX2X_FLOW_CTRL_TX)
+			pause_enabled = 1;
+
+		REG_WR(bp, BAR_USTRORM_INTMEM +
+			   USTORM_ETH_PAUSE_ENABLED_OFFSET(BP_PORT(bp)),
+		       pause_enabled);
+	}
+
+	DP(NETIF_MSG_IFUP | NETIF_MSG_LINK, "dropless_fc is %s\n",
+	   pause_enabled ? "enabled" : "disabled");
+}
+
 int bnx2x_initial_phy_init(struct bnx2x *bp, int load_mode)
 {
 	int rc, cfx_idx = bnx2x_get_link_cfg_idx(bp);
@@ -2294,6 +2311,8 @@ int bnx2x_initial_phy_init(struct bnx2x *bp, int load_mode)
 
 		bnx2x_release_phy_lock(bp);
 
+		bnx2x_init_dropless_fc(bp);
+
 		bnx2x_calc_fc_adv(bp);
 
 		if (bp->link_vars.link_up) {
@@ -2314,6 +2333,8 @@ void bnx2x_link_set(struct bnx2x *bp)
 		bnx2x_acquire_phy_lock(bp);
 		bnx2x_phy_init(&bp->link_params, &bp->link_vars);
 		bnx2x_release_phy_lock(bp);
+
+		bnx2x_init_dropless_fc(bp);
 
 		bnx2x_calc_fc_adv(bp);
 	} else
@@ -2476,7 +2497,7 @@ static void bnx2x_cmng_fns_init(struct bnx2x *bp, u8 read_cfg, u8 cmng_type)
 
 	input.port_rate = bp->link_vars.line_speed;
 
-	if (cmng_type == CMNG_FNS_MINMAX) {
+	if (cmng_type == CMNG_FNS_MINMAX && input.port_rate) {
 		int vn;
 
 		/* read mf conf from shmem */
@@ -2533,6 +2554,21 @@ static void storm_memset_cmng(struct bnx2x *bp,
 	}
 }
 
+/* init cmng mode in HW according to local configuration */
+void bnx2x_set_local_cmng(struct bnx2x *bp)
+{
+	int cmng_fns = bnx2x_get_cmng_fns_mode(bp);
+
+	if (cmng_fns != CMNG_FNS_NONE) {
+		bnx2x_cmng_fns_init(bp, false, cmng_fns);
+		storm_memset_cmng(bp, &bp->cmng, BP_PORT(bp));
+	} else {
+		/* rate shaping and fairness are disabled */
+		DP(NETIF_MSG_IFUP,
+		   "single function mode without fairness\n");
+	}
+}
+
 /* This function is called upon link interrupt */
 static void bnx2x_link_attn(struct bnx2x *bp)
 {
@@ -2541,20 +2577,9 @@ static void bnx2x_link_attn(struct bnx2x *bp)
 
 	bnx2x_link_update(&bp->link_params, &bp->link_vars);
 
+	bnx2x_init_dropless_fc(bp);
+
 	if (bp->link_vars.link_up) {
-
-		/* dropless flow control */
-		if (!CHIP_IS_E1(bp) && bp->dropless_fc) {
-			int port = BP_PORT(bp);
-			u32 pause_enabled = 0;
-
-			if (bp->link_vars.flow_ctrl & BNX2X_FLOW_CTRL_TX)
-				pause_enabled = 1;
-
-			REG_WR(bp, BAR_USTRORM_INTMEM +
-			       USTORM_ETH_PAUSE_ENABLED_OFFSET(port),
-			       pause_enabled);
-		}
 
 		if (bp->link_vars.mac_type != MAC_TYPE_EMAC) {
 			struct host_port_stats *pstats;
@@ -2568,17 +2593,8 @@ static void bnx2x_link_attn(struct bnx2x *bp)
 			bnx2x_stats_handle(bp, STATS_EVENT_LINK_UP);
 	}
 
-	if (bp->link_vars.link_up && bp->link_vars.line_speed) {
-		int cmng_fns = bnx2x_get_cmng_fns_mode(bp);
-
-		if (cmng_fns != CMNG_FNS_NONE) {
-			bnx2x_cmng_fns_init(bp, false, cmng_fns);
-			storm_memset_cmng(bp, &bp->cmng, BP_PORT(bp));
-		} else
-			/* rate shaping and fairness are disabled */
-			DP(NETIF_MSG_IFUP,
-			   "single function mode without fairness\n");
-	}
+	if (bp->link_vars.link_up && bp->link_vars.line_speed)
+		bnx2x_set_local_cmng(bp);
 
 	__bnx2x_link_report(bp);
 
@@ -9639,6 +9655,12 @@ sp_rtnl_not_reset:
 			       &bp->sp_rtnl_state))
 		bnx2x_pf_set_vfs_vlan(bp);
 
+	if (test_and_clear_bit(BNX2X_SP_RTNL_TX_STOP, &bp->sp_rtnl_state))
+		bnx2x_dcbx_stop_hw_tx(bp);
+
+	if (test_and_clear_bit(BNX2X_SP_RTNL_TX_RESUME, &bp->sp_rtnl_state))
+		bnx2x_dcbx_resume_hw_tx(bp);
+
 	/* work which needs rtnl lock not-taken (as it takes the lock itself and
 	 * can be called from other contexts as well)
 	 */
@@ -10362,6 +10384,10 @@ static void bnx2x_get_common_hwinfo(struct bnx2x *bp)
 
 	bp->flags |= (val >= REQ_BC_VER_4_DCBX_ADMIN_MSG_NON_PMF) ?
 			BC_SUPPORTS_DCBX_MSG_NON_PMF : 0;
+
+	bp->flags |= (val >= REQ_BC_VER_4_RMMOD_CMD) ?
+			BC_SUPPORTS_RMMOD_CMD : 0;
+
 	boot_mode = SHMEM_RD(bp,
 			dev_info.port_feature_config[BP_PORT(bp)].mba_config) &
 			PORT_FEATURE_MBA_BOOT_AGENT_TYPE_MASK;
@@ -11137,6 +11163,9 @@ static bool bnx2x_get_dropless_info(struct bnx2x *bp)
 	int tmp;
 	u32 cfg;
 
+	if (IS_VF(bp))
+		return 0;
+
 	if (IS_MF(bp) && !CHIP_IS_E1x(bp)) {
 		/* Take function: tmp = func */
 		tmp = BP_ABS_FUNC(bp);
@@ -11524,6 +11553,7 @@ static int bnx2x_init_bp(struct bnx2x *bp)
 	mutex_init(&bp->port.phy_mutex);
 	mutex_init(&bp->fw_mb_mutex);
 	spin_lock_init(&bp->stats_lock);
+	sema_init(&bp->stats_sema, 1);
 
 	INIT_DELAYED_WORK(&bp->sp_task, bnx2x_sp_task);
 	INIT_DELAYED_WORK(&bp->sp_rtnl_task, bnx2x_sp_rtnl_task);
@@ -12817,13 +12847,17 @@ static void __bnx2x_remove(struct pci_dev *pdev,
 	bnx2x_dcbnl_update_applist(bp, true);
 #endif
 
+	if (IS_PF(bp) &&
+	    !BP_NOMCP(bp) &&
+	    (bp->flags & BC_SUPPORTS_RMMOD_CMD))
+		bnx2x_fw_command(bp, DRV_MSG_CODE_RMMOD, 0);
+
 	/* Close the interface - either directly or implicitly */
 	if (remove_netdev) {
 		unregister_netdev(dev);
 	} else {
 		rtnl_lock();
-		if (netif_running(dev))
-			bnx2x_close(dev);
+		dev_close(dev);
 		rtnl_unlock();
 	}
 
