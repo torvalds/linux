@@ -137,8 +137,7 @@ static int scom_val_get(void *data, u64 *val)
 	if (!scom_map_ok(ent->map))
 		return -EFAULT;
 
-	*val = scom_read(ent->map, 0);
-	return 0;
+	return scom_read(ent->map, 0, val);
 }
 DEFINE_SIMPLE_ATTRIBUTE(scom_val_fops, scom_val_get, scom_val_set,
 			"0x%llx\n");
