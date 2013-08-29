@@ -1273,7 +1273,6 @@ void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port)
 {
 	struct intel_digital_port *intel_dig_port;
 	struct intel_encoder *intel_encoder;
-	struct drm_encoder *encoder;
 	struct intel_connector *intel_connector;
 
 	intel_dig_port = kzalloc(sizeof(struct intel_digital_port), GFP_KERNEL);
@@ -1287,7 +1286,6 @@ void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port)
 	}
 
 	intel_encoder = &intel_dig_port->base;
-	encoder = &intel_encoder->base;
 
 	drm_encoder_init(dev, &intel_encoder->base, &intel_hdmi_enc_funcs,
 			 DRM_MODE_ENCODER_TMDS);

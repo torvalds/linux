@@ -3450,11 +3450,11 @@ static void gen6_enable_rps_interrupts(struct drm_device *dev)
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	WARN_ON(dev_priv->rps.pm_iir);
-	I915_WRITE(GEN6_PMIMR, I915_READ(GEN6_PMIMR) & ~GEN6_PM_RPS_EVENTS);
+	snb_enable_pm_irq(dev_priv, GEN6_PM_RPS_EVENTS);
 	I915_WRITE(GEN6_PMIIR, GEN6_PM_RPS_EVENTS);
 	spin_unlock_irq(&dev_priv->irq_lock);
-	/* unmask all PM interrupts */
-	I915_WRITE(GEN6_PMINTRMSK, 0);
+	/* only unmask PM interrupts we need. Mask all others. */
+	I915_WRITE(GEN6_PMINTRMSK, ~GEN6_PM_RPS_EVENTS);
 }
 
 static void gen6_enable_rps(struct drm_device *dev)
@@ -3508,7 +3508,10 @@ static void gen6_enable_rps(struct drm_device *dev)
 
 	I915_WRITE(GEN6_RC_SLEEP, 0);
 	I915_WRITE(GEN6_RC1e_THRESHOLD, 1000);
-	I915_WRITE(GEN6_RC6_THRESHOLD, 50000);
+	if (INTEL_INFO(dev)->gen <= 6 || IS_IVYBRIDGE(dev))
+		I915_WRITE(GEN6_RC6_THRESHOLD, 125000);
+	else
+		I915_WRITE(GEN6_RC6_THRESHOLD, 50000);
 	I915_WRITE(GEN6_RC6p_THRESHOLD, 150000);
 	I915_WRITE(GEN6_RC6pp_THRESHOLD, 64000); /* unused */
 
@@ -3604,7 +3607,7 @@ static void gen6_enable_rps(struct drm_device *dev)
 	gen6_gt_force_wake_put(dev_priv);
 }
 
-static void gen6_update_ring_freq(struct drm_device *dev)
+void gen6_update_ring_freq(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int min_freq = 15;
@@ -4861,10 +4864,6 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 		   ILK_DPARBUNIT_CLOCK_GATE_ENABLE  |
 		   ILK_DPFDUNIT_CLOCK_GATE_ENABLE);
 
-	/* WaMbcDriverBootEnable:snb */
-	I915_WRITE(GEN6_MBCTL, I915_READ(GEN6_MBCTL) |
-		   GEN6_MBCTL_ENABLE_BOOT_FETCH);
-
 	g4x_disable_trickle_feed(dev);
 
 	/* The default value should be 0x200 according to docs, but the two
@@ -4960,10 +4959,6 @@ static void haswell_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(CACHE_MODE_1,
 		   _MASKED_BIT_ENABLE(PIXEL_SUBSPAN_COLLECT_OPT_DISABLE));
 
-	/* WaMbcDriverBootEnable:hsw */
-	I915_WRITE(GEN6_MBCTL, I915_READ(GEN6_MBCTL) |
-		   GEN6_MBCTL_ENABLE_BOOT_FETCH);
-
 	/* WaSwitchSolVfFArbitrationPriority:hsw */
 	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) | HSW_ECOCHK_ARB_PRIO_SOL);
 
@@ -5047,10 +5042,6 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 
 	g4x_disable_trickle_feed(dev);
 
-	/* WaMbcDriverBootEnable:ivb */
-	I915_WRITE(GEN6_MBCTL, I915_READ(GEN6_MBCTL) |
-		   GEN6_MBCTL_ENABLE_BOOT_FETCH);
-
 	/* WaVSRefCountFullforceMissDisable:ivb */
 	gen7_setup_fixed_func_scheduler(dev_priv);
 
@@ -5109,11 +5100,6 @@ static void valleyview_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(GEN7_SQ_CHICKEN_MBCUNIT_CONFIG,
 		   I915_READ(GEN7_SQ_CHICKEN_MBCUNIT_CONFIG) |
 		   GEN7_SQ_CHICKEN_MBCUNIT_SQINTMOB);
-
-	/* WaMbcDriverBootEnable:vlv */
-	I915_WRITE(GEN6_MBCTL, I915_READ(GEN6_MBCTL) |
-		   GEN6_MBCTL_ENABLE_BOOT_FETCH);
-
 
 	/* According to the BSpec vol1g, bit 12 (RCPBUNIT) clock
 	 * gating disable must be set.  Failure to set it results in
@@ -5282,7 +5268,7 @@ bool intel_display_power_enabled(struct drm_device *dev,
 	case POWER_DOMAIN_TRANSCODER_B:
 	case POWER_DOMAIN_TRANSCODER_C:
 		return I915_READ(HSW_PWR_WELL_DRIVER) ==
-		       (HSW_PWR_WELL_ENABLE | HSW_PWR_WELL_STATE);
+		     (HSW_PWR_WELL_ENABLE_REQUEST | HSW_PWR_WELL_STATE_ENABLED);
 	default:
 		BUG();
 	}
@@ -5295,17 +5281,18 @@ static void __intel_set_power_well(struct drm_device *dev, bool enable)
 	uint32_t tmp;
 
 	tmp = I915_READ(HSW_PWR_WELL_DRIVER);
-	is_enabled = tmp & HSW_PWR_WELL_STATE;
-	enable_requested = tmp & HSW_PWR_WELL_ENABLE;
+	is_enabled = tmp & HSW_PWR_WELL_STATE_ENABLED;
+	enable_requested = tmp & HSW_PWR_WELL_ENABLE_REQUEST;
 
 	if (enable) {
 		if (!enable_requested)
-			I915_WRITE(HSW_PWR_WELL_DRIVER, HSW_PWR_WELL_ENABLE);
+			I915_WRITE(HSW_PWR_WELL_DRIVER,
+				   HSW_PWR_WELL_ENABLE_REQUEST);
 
 		if (!is_enabled) {
 			DRM_DEBUG_KMS("Enabling power well\n");
 			if (wait_for((I915_READ(HSW_PWR_WELL_DRIVER) &
-				      HSW_PWR_WELL_STATE), 20))
+				      HSW_PWR_WELL_STATE_ENABLED), 20))
 				DRM_ERROR("Timeout enabling power well\n");
 		}
 	} else {
@@ -5407,8 +5394,19 @@ void intel_init_power_well(struct drm_device *dev)
 
 	/* We're taking over the BIOS, so clear any requests made by it since
 	 * the driver is in charge now. */
-	if (I915_READ(HSW_PWR_WELL_BIOS) & HSW_PWR_WELL_ENABLE)
+	if (I915_READ(HSW_PWR_WELL_BIOS) & HSW_PWR_WELL_ENABLE_REQUEST)
 		I915_WRITE(HSW_PWR_WELL_BIOS, 0);
+}
+
+/* Disables PC8 so we can use the GMBUS and DP AUX interrupts. */
+void intel_aux_display_runtime_get(struct drm_i915_private *dev_priv)
+{
+	hsw_disable_package_c8(dev_priv);
+}
+
+void intel_aux_display_runtime_put(struct drm_i915_private *dev_priv)
+{
+	hsw_enable_package_c8(dev_priv);
 }
 
 /* Set up chip specific power management-related functions */

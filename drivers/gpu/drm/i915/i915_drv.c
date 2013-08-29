@@ -122,10 +122,10 @@ int i915_enable_psr __read_mostly = 0;
 module_param_named(enable_psr, i915_enable_psr, int, 0600);
 MODULE_PARM_DESC(enable_psr, "Enable PSR (default: false)");
 
-unsigned int i915_preliminary_hw_support __read_mostly = 0;
+unsigned int i915_preliminary_hw_support __read_mostly = IS_ENABLED(CONFIG_DRM_I915_PRELIMINARY_HW_SUPPORT);
 module_param_named(preliminary_hw_support, i915_preliminary_hw_support, int, 0600);
 MODULE_PARM_DESC(preliminary_hw_support,
-		"Enable preliminary hardware support. (default: false)");
+		"Enable preliminary hardware support.");
 
 int i915_disable_power_well __read_mostly = 1;
 module_param_named(disable_power_well, i915_disable_power_well, int, 0600);
@@ -140,6 +140,14 @@ bool i915_fastboot __read_mostly = 0;
 module_param_named(fastboot, i915_fastboot, bool, 0600);
 MODULE_PARM_DESC(fastboot, "Try to skip unnecessary mode sets at boot time "
 		 "(default: false)");
+
+int i915_enable_pc8 __read_mostly = 1;
+module_param_named(enable_pc8, i915_enable_pc8, int, 0600);
+MODULE_PARM_DESC(enable_pc8, "Enable support for low power package C states (PC8+) (default: true)");
+
+int i915_pc8_timeout __read_mostly = 5000;
+module_param_named(pc8_timeout, i915_pc8_timeout, int, 0600);
+MODULE_PARM_DESC(pc8_timeout, "Number of msecs of idleness required to enter PC8+ (default: 5000)");
 
 bool i915_prefault_disable __read_mostly;
 module_param_named(prefault_disable, i915_prefault_disable, bool, 0600);
@@ -557,6 +565,9 @@ static int i915_drm_freeze(struct drm_device *dev)
 	dev_priv->modeset_restore = MODESET_SUSPENDED;
 	mutex_unlock(&dev_priv->modeset_restore_lock);
 
+	/* We do a lot of poking in a lot of registers, make sure they work
+	 * properly. */
+	hsw_disable_package_c8(dev_priv);
 	intel_set_power_well(dev, true);
 
 	drm_kms_helper_poll_disable(dev);
@@ -712,6 +723,10 @@ static int __i915_drm_thaw(struct drm_device *dev)
 	} else {
 		schedule_work(&dev_priv->console_resume_work);
 	}
+
+	/* Undo what we did at i915_drm_freeze so the refcount goes back to the
+	 * expected level. */
+	hsw_enable_package_c8(dev_priv);
 
 	mutex_lock(&dev_priv->modeset_restore_lock);
 	dev_priv->modeset_restore = MODESET_DONE;

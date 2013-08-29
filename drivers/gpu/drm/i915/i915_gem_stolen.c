@@ -296,9 +296,8 @@ _i915_gem_object_create_stolen(struct drm_device *dev,
 	i915_gem_object_pin_pages(obj);
 	obj->stolen = stolen;
 
-	obj->base.write_domain = I915_GEM_DOMAIN_GTT;
-	obj->base.read_domains = I915_GEM_DOMAIN_GTT;
-	obj->cache_level = I915_CACHE_NONE;
+	obj->base.read_domains = I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT;
+	obj->cache_level = HAS_LLC(dev) ? I915_CACHE_LLC : I915_CACHE_NONE;
 
 	return obj;
 
@@ -410,8 +409,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 		ret = drm_mm_reserve_node(&ggtt->mm, &vma->node);
 		if (ret) {
 			DRM_DEBUG_KMS("failed to allocate stolen GTT space\n");
-			i915_gem_vma_destroy(vma);
-			goto err_out;
+			goto err_vma;
 		}
 	}
 
@@ -422,6 +420,8 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 
 	return obj;
 
+err_vma:
+	i915_gem_vma_destroy(vma);
 err_out:
 	drm_mm_remove_node(stolen);
 	kfree(stolen);

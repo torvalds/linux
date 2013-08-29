@@ -85,6 +85,12 @@ ironlake_enable_display_irq(drm_i915_private_t *dev_priv, u32 mask)
 {
 	assert_spin_locked(&dev_priv->irq_lock);
 
+	if (dev_priv->pc8.irqs_disabled) {
+		WARN(1, "IRQs disabled\n");
+		dev_priv->pc8.regsave.deimr &= ~mask;
+		return;
+	}
+
 	if ((dev_priv->irq_mask & mask) != 0) {
 		dev_priv->irq_mask &= ~mask;
 		I915_WRITE(DEIMR, dev_priv->irq_mask);
@@ -97,11 +103,96 @@ ironlake_disable_display_irq(drm_i915_private_t *dev_priv, u32 mask)
 {
 	assert_spin_locked(&dev_priv->irq_lock);
 
+	if (dev_priv->pc8.irqs_disabled) {
+		WARN(1, "IRQs disabled\n");
+		dev_priv->pc8.regsave.deimr |= mask;
+		return;
+	}
+
 	if ((dev_priv->irq_mask & mask) != mask) {
 		dev_priv->irq_mask |= mask;
 		I915_WRITE(DEIMR, dev_priv->irq_mask);
 		POSTING_READ(DEIMR);
 	}
+}
+
+/**
+ * ilk_update_gt_irq - update GTIMR
+ * @dev_priv: driver private
+ * @interrupt_mask: mask of interrupt bits to update
+ * @enabled_irq_mask: mask of interrupt bits to enable
+ */
+static void ilk_update_gt_irq(struct drm_i915_private *dev_priv,
+			      uint32_t interrupt_mask,
+			      uint32_t enabled_irq_mask)
+{
+	assert_spin_locked(&dev_priv->irq_lock);
+
+	if (dev_priv->pc8.irqs_disabled) {
+		WARN(1, "IRQs disabled\n");
+		dev_priv->pc8.regsave.gtimr &= ~interrupt_mask;
+		dev_priv->pc8.regsave.gtimr |= (~enabled_irq_mask &
+						interrupt_mask);
+		return;
+	}
+
+	dev_priv->gt_irq_mask &= ~interrupt_mask;
+	dev_priv->gt_irq_mask |= (~enabled_irq_mask & interrupt_mask);
+	I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
+	POSTING_READ(GTIMR);
+}
+
+void ilk_enable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask)
+{
+	ilk_update_gt_irq(dev_priv, mask, mask);
+}
+
+void ilk_disable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask)
+{
+	ilk_update_gt_irq(dev_priv, mask, 0);
+}
+
+/**
+  * snb_update_pm_irq - update GEN6_PMIMR
+  * @dev_priv: driver private
+  * @interrupt_mask: mask of interrupt bits to update
+  * @enabled_irq_mask: mask of interrupt bits to enable
+  */
+static void snb_update_pm_irq(struct drm_i915_private *dev_priv,
+			      uint32_t interrupt_mask,
+			      uint32_t enabled_irq_mask)
+{
+	uint32_t new_val;
+
+	assert_spin_locked(&dev_priv->irq_lock);
+
+	if (dev_priv->pc8.irqs_disabled) {
+		WARN(1, "IRQs disabled\n");
+		dev_priv->pc8.regsave.gen6_pmimr &= ~interrupt_mask;
+		dev_priv->pc8.regsave.gen6_pmimr |= (~enabled_irq_mask &
+						     interrupt_mask);
+		return;
+	}
+
+	new_val = dev_priv->pm_irq_mask;
+	new_val &= ~interrupt_mask;
+	new_val |= (~enabled_irq_mask & interrupt_mask);
+
+	if (new_val != dev_priv->pm_irq_mask) {
+		dev_priv->pm_irq_mask = new_val;
+		I915_WRITE(GEN6_PMIMR, dev_priv->pm_irq_mask);
+		POSTING_READ(GEN6_PMIMR);
+	}
+}
+
+void snb_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
+{
+	snb_update_pm_irq(dev_priv, mask, mask);
+}
+
+void snb_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask)
+{
+	snb_update_pm_irq(dev_priv, mask, 0);
 }
 
 static bool ivb_can_enable_err_int(struct drm_device *dev)
@@ -193,6 +284,15 @@ static void ibx_display_interrupt_update(struct drm_i915_private *dev_priv,
 	sdeimr |= (~enabled_irq_mask & interrupt_mask);
 
 	assert_spin_locked(&dev_priv->irq_lock);
+
+	if (dev_priv->pc8.irqs_disabled &&
+	    (interrupt_mask & SDE_HOTPLUG_MASK_CPT)) {
+		WARN(1, "IRQs disabled\n");
+		dev_priv->pc8.regsave.sdeimr &= ~interrupt_mask;
+		dev_priv->pc8.regsave.sdeimr |= (~enabled_irq_mask &
+						 interrupt_mask);
+		return;
+	}
 
 	I915_WRITE(SDEIMR, sdeimr);
 	POSTING_READ(SDEIMR);
@@ -711,16 +811,18 @@ static void gen6_pm_rps_work(struct work_struct *work)
 {
 	drm_i915_private_t *dev_priv = container_of(work, drm_i915_private_t,
 						    rps.work);
-	u32 pm_iir, pm_imr;
+	u32 pm_iir;
 	u8 new_delay;
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	pm_iir = dev_priv->rps.pm_iir;
 	dev_priv->rps.pm_iir = 0;
-	pm_imr = I915_READ(GEN6_PMIMR);
 	/* Make sure not to corrupt PMIMR state used by ringbuffer code */
-	I915_WRITE(GEN6_PMIMR, pm_imr & ~GEN6_PM_RPS_EVENTS);
+	snb_enable_pm_irq(dev_priv, GEN6_PM_RPS_EVENTS);
 	spin_unlock_irq(&dev_priv->irq_lock);
+
+	/* Make sure we didn't queue anything we're not going to process. */
+	WARN_ON(pm_iir & ~GEN6_PM_RPS_EVENTS);
 
 	if ((pm_iir & GEN6_PM_RPS_EVENTS) == 0)
 		return;
@@ -806,8 +908,7 @@ static void ivybridge_parity_work(struct work_struct *work)
 	I915_WRITE(GEN7_MISCCPCTL, misccpctl);
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
-	dev_priv->gt_irq_mask &= ~GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
-	I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
+	ilk_enable_gt_irq(dev_priv, GT_RENDER_L3_PARITY_ERROR_INTERRUPT);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
 
 	mutex_unlock(&dev_priv->dev->struct_mutex);
@@ -837,8 +938,7 @@ static void ivybridge_parity_error_irq_handler(struct drm_device *dev)
 		return;
 
 	spin_lock(&dev_priv->irq_lock);
-	dev_priv->gt_irq_mask |= GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
-	I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
+	ilk_disable_gt_irq(dev_priv, GT_RENDER_L3_PARITY_ERROR_INTERRUPT);
 	spin_unlock(&dev_priv->irq_lock);
 
 	queue_work(dev_priv->wq, &dev_priv->l3_parity.error_work);
@@ -877,29 +977,6 @@ static void snb_gt_irq_handler(struct drm_device *dev,
 
 	if (gt_iir & GT_RENDER_L3_PARITY_ERROR_INTERRUPT)
 		ivybridge_parity_error_irq_handler(dev);
-}
-
-/* Legacy way of handling PM interrupts */
-static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv,
-				 u32 pm_iir)
-{
-	/*
-	 * IIR bits should never already be set because IMR should
-	 * prevent an interrupt from being shown in IIR. The warning
-	 * displays a case where we've unsafely cleared
-	 * dev_priv->rps.pm_iir. Although missing an interrupt of the same
-	 * type is not a problem, it displays a problem in the logic.
-	 *
-	 * The mask bit in IMR is cleared by dev_priv->rps.work.
-	 */
-
-	spin_lock(&dev_priv->irq_lock);
-	dev_priv->rps.pm_iir |= pm_iir;
-	I915_WRITE(GEN6_PMIMR, dev_priv->rps.pm_iir);
-	POSTING_READ(GEN6_PMIMR);
-	spin_unlock(&dev_priv->irq_lock);
-
-	queue_work(dev_priv->wq, &dev_priv->rps.work);
 }
 
 #define HPD_STORM_DETECT_PERIOD 1000
@@ -968,31 +1045,28 @@ static void dp_aux_irq_handler(struct drm_device *dev)
 	wake_up_all(&dev_priv->gmbus_wait_queue);
 }
 
-/* Unlike gen6_rps_irq_handler() from which this function is originally derived,
- * we must be able to deal with other PM interrupts. This is complicated because
- * of the way in which we use the masks to defer the RPS work (which for
- * posterity is necessary because of forcewake).
- */
-static void hsw_pm_irq_handler(struct drm_i915_private *dev_priv,
-			       u32 pm_iir)
+/* The RPS events need forcewake, so we add them to a work queue and mask their
+ * IMR bits until the work is done. Other interrupts can be processed without
+ * the work queue. */
+static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 {
 	if (pm_iir & GEN6_PM_RPS_EVENTS) {
 		spin_lock(&dev_priv->irq_lock);
 		dev_priv->rps.pm_iir |= pm_iir & GEN6_PM_RPS_EVENTS;
-		I915_WRITE(GEN6_PMIMR, dev_priv->rps.pm_iir);
-		/* never want to mask useful interrupts. (also posting read) */
-		WARN_ON(I915_READ_NOTRACE(GEN6_PMIMR) & ~GEN6_PM_RPS_EVENTS);
+		snb_disable_pm_irq(dev_priv, pm_iir & GEN6_PM_RPS_EVENTS);
 		spin_unlock(&dev_priv->irq_lock);
 
 		queue_work(dev_priv->wq, &dev_priv->rps.work);
 	}
 
-	if (pm_iir & PM_VEBOX_USER_INTERRUPT)
-		notify_ring(dev_priv->dev, &dev_priv->ring[VECS]);
+	if (HAS_VEBOX(dev_priv->dev)) {
+		if (pm_iir & PM_VEBOX_USER_INTERRUPT)
+			notify_ring(dev_priv->dev, &dev_priv->ring[VECS]);
 
-	if (pm_iir & PM_VEBOX_CS_ERROR_INTERRUPT) {
-		DRM_ERROR("VEBOX CS error interrupt 0x%08x\n", pm_iir);
-		i915_handle_error(dev_priv->dev, false);
+		if (pm_iir & PM_VEBOX_CS_ERROR_INTERRUPT) {
+			DRM_ERROR("VEBOX CS error interrupt 0x%08x\n", pm_iir);
+			i915_handle_error(dev_priv->dev, false);
+		}
 	}
 }
 
@@ -1064,7 +1138,7 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 		if (pipe_stats[0] & PIPE_GMBUS_INTERRUPT_STATUS)
 			gmbus_irq_handler(dev);
 
-		if (pm_iir & GEN6_PM_RPS_EVENTS)
+		if (pm_iir)
 			gen6_rps_irq_handler(dev_priv, pm_iir);
 
 		I915_WRITE(GTIIR, gt_iir);
@@ -1309,6 +1383,7 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	u32 de_iir, gt_iir, de_ier, sde_ier = 0;
 	irqreturn_t ret = IRQ_NONE;
+	bool err_int_reenable = false;
 
 	atomic_inc(&dev_priv->irq_received);
 
@@ -1337,7 +1412,9 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 	 * handler. */
 	if (IS_HASWELL(dev)) {
 		spin_lock(&dev_priv->irq_lock);
-		ironlake_disable_display_irq(dev_priv, DE_ERR_INT_IVB);
+		err_int_reenable = ~dev_priv->irq_mask & DE_ERR_INT_IVB;
+		if (err_int_reenable)
+			ironlake_disable_display_irq(dev_priv, DE_ERR_INT_IVB);
 		spin_unlock(&dev_priv->irq_lock);
 	}
 
@@ -1364,16 +1441,13 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 	if (INTEL_INFO(dev)->gen >= 6) {
 		u32 pm_iir = I915_READ(GEN6_PMIIR);
 		if (pm_iir) {
-			if (IS_HASWELL(dev))
-				hsw_pm_irq_handler(dev_priv, pm_iir);
-			else if (pm_iir & GEN6_PM_RPS_EVENTS)
-				gen6_rps_irq_handler(dev_priv, pm_iir);
+			gen6_rps_irq_handler(dev_priv, pm_iir);
 			I915_WRITE(GEN6_PMIIR, pm_iir);
 			ret = IRQ_HANDLED;
 		}
 	}
 
-	if (IS_HASWELL(dev)) {
+	if (err_int_reenable) {
 		spin_lock(&dev_priv->irq_lock);
 		if (ivb_can_enable_err_int(dev))
 			ironlake_enable_display_irq(dev_priv, DE_ERR_INT_IVB);
@@ -1826,10 +1900,10 @@ ring_stuck(struct intel_ring_buffer *ring, u32 acthd)
 	u32 tmp;
 
 	if (ring->hangcheck.acthd != acthd)
-		return active;
+		return HANGCHECK_ACTIVE;
 
 	if (IS_GEN2(dev))
-		return hung;
+		return HANGCHECK_HUNG;
 
 	/* Is the chip hanging on a WAIT_FOR_EVENT?
 	 * If so we can simply poke the RB_WAIT bit
@@ -1841,24 +1915,24 @@ ring_stuck(struct intel_ring_buffer *ring, u32 acthd)
 		DRM_ERROR("Kicking stuck wait on %s\n",
 			  ring->name);
 		I915_WRITE_CTL(ring, tmp);
-		return kick;
+		return HANGCHECK_KICK;
 	}
 
 	if (INTEL_INFO(dev)->gen >= 6 && tmp & RING_WAIT_SEMAPHORE) {
 		switch (semaphore_passed(ring)) {
 		default:
-			return hung;
+			return HANGCHECK_HUNG;
 		case 1:
 			DRM_ERROR("Kicking stuck semaphore on %s\n",
 				  ring->name);
 			I915_WRITE_CTL(ring, tmp);
-			return kick;
+			return HANGCHECK_KICK;
 		case 0:
-			return wait;
+			return HANGCHECK_WAIT;
 		}
 	}
 
-	return hung;
+	return HANGCHECK_HUNG;
 }
 
 /**
@@ -1905,8 +1979,6 @@ static void i915_hangcheck_elapsed(unsigned long data)
 				} else
 					busy = false;
 			} else {
-				int score;
-
 				/* We always increment the hangcheck score
 				 * if the ring is busy and still processing
 				 * the same request, so that no single request
@@ -1926,21 +1998,19 @@ static void i915_hangcheck_elapsed(unsigned long data)
 								    acthd);
 
 				switch (ring->hangcheck.action) {
-				case wait:
-					score = 0;
+				case HANGCHECK_WAIT:
 					break;
-				case active:
-					score = BUSY;
+				case HANGCHECK_ACTIVE:
+					ring->hangcheck.score += BUSY;
 					break;
-				case kick:
-					score = KICK;
+				case HANGCHECK_KICK:
+					ring->hangcheck.score += KICK;
 					break;
-				case hung:
-					score = HUNG;
+				case HANGCHECK_HUNG:
+					ring->hangcheck.score += HUNG;
 					stuck[i] = true;
 					break;
 				}
-				ring->hangcheck.score += score;
 			}
 		} else {
 			/* Gradually reduce the count so that we catch DoS
@@ -2158,8 +2228,9 @@ static void gen5_gt_irq_postinstall(struct drm_device *dev)
 		if (HAS_VEBOX(dev))
 			pm_irqs |= PM_VEBOX_USER_INTERRUPT;
 
+		dev_priv->pm_irq_mask = 0xffffffff;
 		I915_WRITE(GEN6_PMIIR, I915_READ(GEN6_PMIIR));
-		I915_WRITE(GEN6_PMIMR, 0xffffffff);
+		I915_WRITE(GEN6_PMIMR, dev_priv->pm_irq_mask);
 		I915_WRITE(GEN6_PMIER, pm_irqs);
 		POSTING_READ(GEN6_PMIER);
 	}
@@ -2403,7 +2474,6 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 	u16 iir, new_iir;
 	u32 pipe_stats[2];
 	unsigned long irqflags;
-	int irq_received;
 	int pipe;
 	u16 flip_mask =
 		I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT |
@@ -2437,7 +2507,6 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 					DRM_DEBUG_DRIVER("pipe %c underrun\n",
 							 pipe_name(pipe));
 				I915_WRITE(reg, pipe_stats[pipe]);
-				irq_received = 1;
 			}
 		}
 		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
@@ -3079,5 +3148,69 @@ void intel_hpd_init(struct drm_device *dev)
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	if (dev_priv->display.hpd_irq_setup)
 		dev_priv->display.hpd_irq_setup(dev);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+}
+
+/* Disable interrupts so we can allow Package C8+. */
+void hsw_pc8_disable_interrupts(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+
+	dev_priv->pc8.regsave.deimr = I915_READ(DEIMR);
+	dev_priv->pc8.regsave.sdeimr = I915_READ(SDEIMR);
+	dev_priv->pc8.regsave.gtimr = I915_READ(GTIMR);
+	dev_priv->pc8.regsave.gtier = I915_READ(GTIER);
+	dev_priv->pc8.regsave.gen6_pmimr = I915_READ(GEN6_PMIMR);
+
+	ironlake_disable_display_irq(dev_priv, ~DE_PCH_EVENT_IVB);
+	ibx_disable_display_interrupt(dev_priv, ~SDE_HOTPLUG_MASK_CPT);
+	ilk_disable_gt_irq(dev_priv, 0xffffffff);
+	snb_disable_pm_irq(dev_priv, 0xffffffff);
+
+	dev_priv->pc8.irqs_disabled = true;
+
+	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+}
+
+/* Restore interrupts so we can recover from Package C8+. */
+void hsw_pc8_restore_interrupts(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long irqflags;
+	uint32_t val, expected;
+
+	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+
+	val = I915_READ(DEIMR);
+	expected = ~DE_PCH_EVENT_IVB;
+	WARN(val != expected, "DEIMR is 0x%08x, not 0x%08x\n", val, expected);
+
+	val = I915_READ(SDEIMR) & ~SDE_HOTPLUG_MASK_CPT;
+	expected = ~SDE_HOTPLUG_MASK_CPT;
+	WARN(val != expected, "SDEIMR non-HPD bits are 0x%08x, not 0x%08x\n",
+	     val, expected);
+
+	val = I915_READ(GTIMR);
+	expected = 0xffffffff;
+	WARN(val != expected, "GTIMR is 0x%08x, not 0x%08x\n", val, expected);
+
+	val = I915_READ(GEN6_PMIMR);
+	expected = 0xffffffff;
+	WARN(val != expected, "GEN6_PMIMR is 0x%08x, not 0x%08x\n", val,
+	     expected);
+
+	dev_priv->pc8.irqs_disabled = false;
+
+	ironlake_enable_display_irq(dev_priv, ~dev_priv->pc8.regsave.deimr);
+	ibx_enable_display_interrupt(dev_priv,
+				     ~dev_priv->pc8.regsave.sdeimr &
+				     ~SDE_HOTPLUG_MASK_CPT);
+	ilk_enable_gt_irq(dev_priv, ~dev_priv->pc8.regsave.gtimr);
+	snb_enable_pm_irq(dev_priv, ~dev_priv->pc8.regsave.gen6_pmimr);
+	I915_WRITE(GTIER, dev_priv->pc8.regsave.gtier);
+
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }

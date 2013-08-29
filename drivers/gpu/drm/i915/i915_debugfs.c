@@ -31,6 +31,7 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 #include <linux/list_sort.h>
+#include <asm/msr-index.h>
 #include <drm/drmP.h>
 #include "intel_drv.h"
 #include "intel_ringbuffer.h"
@@ -99,7 +100,7 @@ static void
 describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 {
 	struct i915_vma *vma;
-	seq_printf(m, "%pK: %s%s%s %8zdKiB %02x %02x %d %d %d%s%s%s",
+	seq_printf(m, "%pK: %s%s%s %8zdKiB %02x %02x %u %u %u%s%s%s",
 		   &obj->base,
 		   get_pin_flag(obj),
 		   get_tiling_flag(obj),
@@ -117,6 +118,8 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		seq_printf(m, " (name: %d)", obj->base.name);
 	if (obj->pin_count)
 		seq_printf(m, " (pinned x %d)", obj->pin_count);
+	if (obj->pin_display)
+		seq_printf(m, " (display)");
 	if (obj->fence_reg != I915_FENCE_REG_NONE)
 		seq_printf(m, " (fence: %d)", obj->fence_reg);
 	list_for_each_entry(vma, &obj->vma_list, vma_link) {
@@ -193,9 +196,9 @@ static int obj_rank_by_stolen(void *priv,
 			      struct list_head *A, struct list_head *B)
 {
 	struct drm_i915_gem_object *a =
-		container_of(A, struct drm_i915_gem_object, exec_list);
+		container_of(A, struct drm_i915_gem_object, obj_exec_link);
 	struct drm_i915_gem_object *b =
-		container_of(B, struct drm_i915_gem_object, exec_list);
+		container_of(B, struct drm_i915_gem_object, obj_exec_link);
 
 	return a->stolen->start - b->stolen->start;
 }
@@ -219,7 +222,7 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 		if (obj->stolen == NULL)
 			continue;
 
-		list_add(&obj->exec_list, &stolen);
+		list_add(&obj->obj_exec_link, &stolen);
 
 		total_obj_size += obj->base.size;
 		total_gtt_size += i915_gem_obj_ggtt_size(obj);
@@ -229,7 +232,7 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 		if (obj->stolen == NULL)
 			continue;
 
-		list_add(&obj->exec_list, &stolen);
+		list_add(&obj->obj_exec_link, &stolen);
 
 		total_obj_size += obj->base.size;
 		count++;
@@ -237,11 +240,11 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 	list_sort(NULL, &stolen, obj_rank_by_stolen);
 	seq_puts(m, "Stolen:\n");
 	while (!list_empty(&stolen)) {
-		obj = list_first_entry(&stolen, typeof(*obj), exec_list);
+		obj = list_first_entry(&stolen, typeof(*obj), obj_exec_link);
 		seq_puts(m, "   ");
 		describe_obj(m, obj);
 		seq_putc(m, '\n');
-		list_del_init(&obj->exec_list);
+		list_del_init(&obj->obj_exec_link);
 	}
 	mutex_unlock(&dev->struct_mutex);
 
@@ -1767,6 +1770,52 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int i915_energy_uJ(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u64 power;
+	u32 units;
+
+	if (INTEL_INFO(dev)->gen < 6)
+		return -ENODEV;
+
+	rdmsrl(MSR_RAPL_POWER_UNIT, power);
+	power = (power & 0x1f00) >> 8;
+	units = 1000000 / (1 << power); /* convert to uJ */
+	power = I915_READ(MCH_SECP_NRG_STTS);
+	power *= units;
+
+	seq_printf(m, "%llu", (long long unsigned)power);
+
+	return 0;
+}
+
+static int i915_pc8_status(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!IS_HASWELL(dev)) {
+		seq_puts(m, "not supported\n");
+		return 0;
+	}
+
+	mutex_lock(&dev_priv->pc8.lock);
+	seq_printf(m, "Requirements met: %s\n",
+		   yesno(dev_priv->pc8.requirements_met));
+	seq_printf(m, "GPU idle: %s\n", yesno(dev_priv->pc8.gpu_idle));
+	seq_printf(m, "Disable count: %d\n", dev_priv->pc8.disable_count);
+	seq_printf(m, "IRQs disabled: %s\n",
+		   yesno(dev_priv->pc8.irqs_disabled));
+	seq_printf(m, "Enabled: %s\n", yesno(dev_priv->pc8.enabled));
+	mutex_unlock(&dev_priv->pc8.lock);
+
+	return 0;
+}
+
 static int
 i915_wedged_get(void *data, u64 *val)
 {
@@ -2206,6 +2255,8 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_dpio", i915_dpio_info, 0},
 	{"i915_llc", i915_llc, 0},
 	{"i915_edp_psr_status", i915_edp_psr_status, 0},
+	{"i915_energy_uJ", i915_energy_uJ, 0},
+	{"i915_pc8_status", i915_pc8_status, 0},
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 
