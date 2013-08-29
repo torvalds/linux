@@ -267,14 +267,10 @@ static int sdi_init_regulator(void)
 	if (sdi.vdds_sdi_reg)
 		return 0;
 
-	vdds_sdi = dss_get_vdds_sdi();
-
+	vdds_sdi = devm_regulator_get(&sdi.pdev->dev, "vdds_sdi");
 	if (IS_ERR(vdds_sdi)) {
-		vdds_sdi = devm_regulator_get(&sdi.pdev->dev, "vdds_sdi");
-		if (IS_ERR(vdds_sdi)) {
-			DSSERR("can't get VDDS_SDI regulator\n");
-			return PTR_ERR(vdds_sdi);
-		}
+		DSSERR("can't get VDDS_SDI regulator\n");
+		return PTR_ERR(vdds_sdi);
 	}
 
 	sdi.vdds_sdi_reg = vdds_sdi;
