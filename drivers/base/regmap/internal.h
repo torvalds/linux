@@ -128,9 +128,6 @@ struct regmap {
 	void *cache;
 	u32 cache_dirty;
 
-	unsigned long *cache_present;
-	unsigned int cache_present_nbits;
-
 	struct reg_default *patch;
 	int patch_regs;
 
@@ -203,6 +200,7 @@ int regcache_write(struct regmap *map,
 			unsigned int reg, unsigned int value);
 int regcache_sync(struct regmap *map);
 int regcache_sync_block(struct regmap *map, void *block,
+			unsigned long *cache_present,
 			unsigned int block_base, unsigned int start,
 			unsigned int end);
 
@@ -218,16 +216,6 @@ unsigned int regcache_get_val(struct regmap *map, const void *base,
 bool regcache_set_val(struct regmap *map, void *base, unsigned int idx,
 		      unsigned int val);
 int regcache_lookup_reg(struct regmap *map, unsigned int reg);
-int regcache_set_reg_present(struct regmap *map, unsigned int reg);
-
-static inline bool regcache_reg_present(struct regmap *map, unsigned int reg)
-{
-	if (!map->cache_present)
-		return false;
-	if (reg > map->cache_present_nbits)
-		return false;
-	return map->cache_present[BIT_WORD(reg)] & BIT_MASK(reg);
-}
 
 int _regmap_raw_write(struct regmap *map, unsigned int reg,
 		      const void *val, size_t val_len, bool async);
