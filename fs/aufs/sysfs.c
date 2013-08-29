@@ -55,7 +55,7 @@ int sysaufs_si_xi_path(struct seq_file *seq, struct super_block *sb)
  * unlinked.
  */
 static int sysaufs_si_br(struct seq_file *seq, struct super_block *sb,
-			 aufs_bindex_t bindex)
+			 aufs_bindex_t bindex, int idx)
 {
 	int err;
 	struct path path;
@@ -69,18 +69,30 @@ static int sysaufs_si_br(struct seq_file *seq, struct super_block *sb,
 	root = sb->s_root;
 	di_read_lock_parent(root, !AuLock_IR);
 	br = au_sbr(sb, bindex);
-	path.mnt = au_br_mnt(br);
-	path.dentry = au_h_dptr(root, bindex);
-	au_seq_path(seq, &path);
-	di_read_unlock(root, !AuLock_IR);
-	perm = au_optstr_br_perm(br->br_perm);
-	if (perm) {
-		err = seq_printf(seq, "=%s\n", perm);
-		kfree(perm);
+
+	switch (idx) {
+	case AuBrSysfs_BR:
+		path.mnt = au_br_mnt(br);
+		path.dentry = au_h_dptr(root, bindex);
+		au_seq_path(seq, &path);
+		di_read_unlock(root, !AuLock_IR);
+		perm = au_optstr_br_perm(br->br_perm);
+		if (perm) {
+			err = seq_printf(seq, "=%s\n", perm);
+			kfree(perm);
+			if (err == -1)
+				err = -E2BIG;
+		} else
+			err = -ENOMEM;
+		break;
+	case AuBrSysfs_BRID:
+		err = seq_printf(seq, "%d\n", br->br_id);
+		di_read_unlock(root, !AuLock_IR);
 		if (err == -1)
 			err = -E2BIG;
-	} else
-		err = -ENOMEM;
+		break;
+	}
+
 	return err;
 }
 
@@ -102,13 +114,15 @@ static struct seq_file *au_seq(char *p, ssize_t len)
 	return seq;
 }
 
-#define SysaufsBr_PREFIX "br"
+#define SysaufsBr_PREFIX	"br"
+#define SysaufsBrid_PREFIX	"brid"
 
 /* todo: file size may exceed PAGE_SIZE */
 ssize_t sysaufs_si_show(struct kobject *kobj, struct attribute *attr,
 			char *buf)
 {
 	ssize_t err;
+	int idx;
 	long l;
 	aufs_bindex_t bend;
 	struct au_sbinfo *sbinfo;
@@ -150,19 +164,25 @@ ssize_t sysaufs_si_show(struct kobject *kobj, struct attribute *attr,
 		cattr++;
 	}
 
-	bend = au_sbend(sb);
-	if (!strncmp(name, SysaufsBr_PREFIX, sizeof(SysaufsBr_PREFIX) - 1)) {
+	if (!strncmp(name, SysaufsBrid_PREFIX,
+		     sizeof(SysaufsBrid_PREFIX) - 1)) {
+		idx = AuBrSysfs_BRID;
+		name += sizeof(SysaufsBrid_PREFIX) - 1;
+	} else if (!strncmp(name, SysaufsBr_PREFIX,
+			    sizeof(SysaufsBr_PREFIX) - 1)) {
+		idx = AuBrSysfs_BR;
 		name += sizeof(SysaufsBr_PREFIX) - 1;
-		err = kstrtol(name, 10, &l);
-		if (!err) {
-			if (l <= bend)
-				err = sysaufs_si_br(seq, sb, (aufs_bindex_t)l);
-			else
-				err = -ENOENT;
-		}
-		goto out_seq;
+	} else
+		  BUG();
+
+	err = kstrtol(name, 10, &l);
+	if (!err) {
+		bend = au_sbend(sb);
+		if (l <= bend)
+			err = sysaufs_si_br(seq, sb, (aufs_bindex_t)l, idx);
+		else
+			err = -ENOENT;
 	}
-	BUG();
 
 out_seq:
 	if (!err) {
@@ -182,17 +202,26 @@ out:
 
 void sysaufs_br_init(struct au_branch *br)
 {
-	struct attribute *attr = &br->br_attr;
+	int i;
+	struct au_brsysfs *br_sysfs;
+	struct attribute *attr;
 
-	sysfs_attr_init(attr);
-	attr->name = br->br_name;
-	attr->mode = S_IRUGO;
+	br_sysfs = br->br_sysfs;
+	for (i = 0; i < ARRAY_SIZE(br->br_sysfs); i++) {
+		attr = &br_sysfs->attr;
+		sysfs_attr_init(attr);
+		attr->name = br_sysfs->name;
+		attr->mode = S_IRUGO;
+		br_sysfs++;
+	}
 }
 
 void sysaufs_brs_del(struct super_block *sb, aufs_bindex_t bindex)
 {
 	struct au_branch *br;
 	struct kobject *kobj;
+	struct au_brsysfs *br_sysfs;
+	int i;
 	aufs_bindex_t bend;
 
 	dbgaufs_brs_del(sb, bindex);
@@ -204,16 +233,21 @@ void sysaufs_brs_del(struct super_block *sb, aufs_bindex_t bindex)
 	bend = au_sbend(sb);
 	for (; bindex <= bend; bindex++) {
 		br = au_sbr(sb, bindex);
-		sysfs_remove_file(kobj, &br->br_attr);
+		br_sysfs = br->br_sysfs;
+		for (i = 0; i < ARRAY_SIZE(br->br_sysfs); i++) {
+			sysfs_remove_file(kobj, &br_sysfs->attr);
+			br_sysfs++;
+		}
 	}
 }
 
 void sysaufs_brs_add(struct super_block *sb, aufs_bindex_t bindex)
 {
-	int err;
+	int err, i;
 	aufs_bindex_t bend;
 	struct kobject *kobj;
 	struct au_branch *br;
+	struct au_brsysfs *br_sysfs;
 
 	dbgaufs_brs_add(sb, bindex);
 
@@ -224,11 +258,17 @@ void sysaufs_brs_add(struct super_block *sb, aufs_bindex_t bindex)
 	bend = au_sbend(sb);
 	for (; bindex <= bend; bindex++) {
 		br = au_sbr(sb, bindex);
-		snprintf(br->br_name, sizeof(br->br_name), SysaufsBr_PREFIX
-			 "%d", bindex);
-		err = sysfs_create_file(kobj, &br->br_attr);
-		if (unlikely(err))
-			pr_warn("failed %s under sysfs(%d)\n",
-				br->br_name, err);
+		br_sysfs = br->br_sysfs;
+		snprintf(br_sysfs[AuBrSysfs_BR].name, sizeof(br_sysfs->name),
+			 SysaufsBr_PREFIX "%d", bindex);
+		snprintf(br_sysfs[AuBrSysfs_BRID].name, sizeof(br_sysfs->name),
+			 SysaufsBrid_PREFIX "%d", bindex);
+		for (i = 0; i < ARRAY_SIZE(br->br_sysfs); i++) {
+			err = sysfs_create_file(kobj, &br_sysfs->attr);
+			if (unlikely(err))
+				pr_warn("failed %s under sysfs(%d)\n",
+					br_sysfs->name, err);
+			br_sysfs++;
+		}
 	}
 }
