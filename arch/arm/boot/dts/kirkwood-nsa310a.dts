@@ -2,8 +2,13 @@
 
 #include "kirkwood-nsa310-common.dtsi"
 
+/*
+ * There are at least two different NSA310 designs. This variant does
+ * not have the red USB Led.
+ */
+
 / {
-	compatible = "zyxel,nsa310", "marvell,kirkwood-88f6281", "marvell,kirkwood";
+	compatible = "zyxel,nsa310a", "zyxel,nsa310", "marvell,kirkwood-88f6281", "marvell,kirkwood";
 
 	memory {
 		device_type = "memory";
@@ -14,20 +19,8 @@
 		bootargs = "console=ttyS0,115200";
 	};
 
-	mbus {
-		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000>;
-		pcie-controller {
-			status = "okay";
-
-			pcie@1,0 {
-				status = "okay";
-			};
-		};
-	};
-
 	ocp@f1000000 {
 		pinctrl: pinctrl@10000 {
-			pinctrl-0 = <&pmx_unknown>;
 			pinctrl-names = "default";
 
 			pmx_led_esata_green: pmx-led-esata-green {
@@ -45,8 +38,8 @@
 				marvell,function = "gpio";
 			};
 
-			pmx_led_usb_red: pmx-led-usb-red {
-				marvell,pins = "mpp16";
+			pmx_usb_power_off: pmx-usb-power-off {
+				marvell,pins = "mpp21";
 				marvell,function = "gpio";
 			};
 
@@ -90,22 +83,18 @@
 				marvell,function = "gpio";
 			};
 
-			pmx_unknown: pmx-unknown {
-				marvell,pins = "mpp44";
-				marvell,function = "gpio";
-			};
-
 			pmx_btn_power: pmx-btn-power {
 				marvell,pins = "mpp46";
 				marvell,function = "gpio";
 			};
+
 		};
 
 		i2c@11000 {
 			status = "okay";
 
-			adt7476: adt7476a@2e {
-				compatible = "adt7476";
+			lm85: lm85@2e {
+				compatible = "lm85";
 				reg = <0x2e>;
 			};
 		};
@@ -115,8 +104,6 @@
 		compatible = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		pinctrl-0 = <&pmx_btn_reset &pmx_btn_copy &pmx_btn_power>;
-		pinctrl-names = "default";
 
 		button@1 {
 			label = "Power Button";
@@ -137,12 +124,6 @@
 
 	gpio-leds {
 		compatible = "gpio-leds";
-		pinctrl-0 = <&pmx_led_esata_green &pmx_led_esata_red
-			     &pmx_led_usb_green &pmx_led_usb_red
-			     &pmx_led_sys_green &pmx_led_sys_red
-			     &pmx_led_copy_green &pmx_led_copy_red
-			     &pmx_led_hdd_green &pmx_led_hdd_red>;
-		pinctrl-names = "default";
 
 		green-sys {
 			label = "nsa310:green:sys";
@@ -171,10 +152,6 @@
 		green-usb {
 			label = "nsa310:green:usb";
 			gpios = <&gpio0 15 0>;
-		};
-		red-usb {
-			label = "nsa310:red:usb";
-			gpios = <&gpio0 16 0>;
 		};
 		green-copy {
 			label = "nsa310:green:copy";

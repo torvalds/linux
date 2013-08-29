@@ -138,10 +138,8 @@
 			};
 
 			timer@20300 {
-				compatible = "marvell,armada-370-xp-timer";
 				reg = <0x20300 0x30>, <0x21040 0x30>;
 				interrupts = <37>, <38>, <39>, <40>, <5>, <6>;
-				clocks = <&coreclk 2>;
 			};
 
 			sata@a0000 {
