@@ -440,14 +440,6 @@ static void ehci_stop (struct usb_hcd *hcd)
 	if (ehci->amd_pll_fix == 1)
 		usb_amd_dev_put();
 
-#ifdef	EHCI_STATS
-	ehci_dbg(ehci, "irq normal %ld err %ld iaa %ld (lost %ld)\n",
-		ehci->stats.normal, ehci->stats.error, ehci->stats.iaa,
-		ehci->stats.lost_iaa);
-	ehci_dbg (ehci, "complete %ld unlink %ld\n",
-		ehci->stats.complete, ehci->stats.unlink);
-#endif
-
 	dbg_status (ehci, "ehci_stop completed",
 		    ehci_readl(ehci, &ehci->regs->status));
 }
