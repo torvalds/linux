@@ -151,7 +151,7 @@
 	};
 
 	sdhi0: sdhi@ee100000 {
-		compatible = "renesas,r8a7790-sdhi";
+		compatible = "renesas,sdhi-r8a7790";
 		reg = <0 0xee100000 0 0x100>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 165 4>;
@@ -160,7 +160,7 @@
 	};
 
 	sdhi1: sdhi@ee120000 {
-		compatible = "renesas,r8a7790-sdhi";
+		compatible = "renesas,sdhi-r8a7790";
 		reg = <0 0xee120000 0 0x100>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 166 4>;
@@ -169,7 +169,7 @@
 	};
 
 	sdhi2: sdhi@ee140000 {
-		compatible = "renesas,r8a7790-sdhi";
+		compatible = "renesas,sdhi-r8a7790";
 		reg = <0 0xee140000 0 0x100>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 167 4>;
@@ -178,7 +178,7 @@
 	};
 
 	sdhi3: sdhi@ee160000 {
-		compatible = "renesas,r8a7790-sdhi";
+		compatible = "renesas,sdhi-r8a7790";
 		reg = <0 0xee160000 0 0x100>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 168 4>;
