@@ -53,7 +53,7 @@ scom_map_t scom_map_device(struct device_node *dev, int index)
 {
 	struct device_node *parent;
 	unsigned int cells, size;
-	const u32 *prop;
+	const __be32 *prop, *sprop;
 	u64 reg, cnt;
 	scom_map_t ret;
 
@@ -62,12 +62,24 @@ scom_map_t scom_map_device(struct device_node *dev, int index)
 	if (parent == NULL)
 		return 0;
 
-	prop = of_get_property(parent, "#scom-cells", NULL);
-	cells = prop ? *prop : 1;
-
+	/*
+	 * We support "scom-reg" properties for adding scom registers
+	 * to a random device-tree node with an explicit scom-parent
+	 *
+	 * We also support the simple "reg" property if the device is
+	 * a direct child of a scom controller.
+	 *
+	 * In case both exist, "scom-reg" takes precedence.
+	 */
 	prop = of_get_property(dev, "scom-reg", &size);
+	sprop = of_get_property(parent, "#scom-cells", NULL);
+	if (!prop && parent == dev->parent) {
+		prop = of_get_property(dev, "reg", &size);
+		sprop = of_get_property(parent, "#address-cells", NULL);
+	}
 	if (!prop)
-		return 0;
+		return NULL;
+	cells = sprop ? be32_to_cpup(sprop) : 1;
 	size >>= 2;
 
 	if (index >= (size / (2*cells)))
