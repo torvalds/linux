@@ -261,24 +261,6 @@ struct bonding {
 #endif /* CONFIG_DEBUG_FS */
 };
 
-/* if we hold rtnl_lock() - call vlan_uses_dev() */
-static inline bool bond_vlan_used(struct bonding *bond)
-{
-	struct net_device *upper;
-	struct list_head *iter;
-
-	rcu_read_lock();
-	netdev_for_each_upper_dev_rcu(bond->dev, upper, iter) {
-		if (upper->priv_flags & IFF_802_1Q_VLAN) {
-			rcu_read_unlock();
-			return true;
-		}
-	}
-	rcu_read_unlock();
-
-	return false;
-}
-
 #define bond_slave_get_rcu(dev) \
 	((struct slave *) rcu_dereference(dev->rx_handler_data))
 

@@ -694,10 +694,8 @@ static struct slave *rlb_choose_channel(struct sk_buff *skb, struct bonding *bon
 			client_info->ntt = 0;
 		}
 
-		if (bond_vlan_used(bond)) {
-			if (!vlan_get_tag(skb, &client_info->vlan_id))
-				client_info->tag = 1;
-		}
+		if (!vlan_get_tag(skb, &client_info->vlan_id))
+			client_info->tag = 1;
 
 		if (!client_info->assigned) {
 			u32 prev_tbl_head = bond_info->rx_hashtbl_used_head;
