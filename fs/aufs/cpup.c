@@ -266,6 +266,8 @@ static int au_do_copy_file(struct file *dst, struct file *src, loff_t len,
 				wbytes -= b;
 				p += b;
 			}
+			if (unlikely(err < 0))
+				break;
 		} else {
 			loff_t res;
 
