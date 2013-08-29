@@ -352,9 +352,9 @@ static int regcache_rbtree_write(struct regmap *map, unsigned int reg,
 	struct regcache_rbtree_ctx *rbtree_ctx;
 	struct regcache_rbtree_node *rbnode, *rbnode_tmp;
 	struct rb_node *node;
+	unsigned int base_reg, top_reg;
 	unsigned int reg_tmp;
 	unsigned int pos;
-	int i;
 	int ret;
 
 	rbtree_ctx = map->cache;
@@ -376,25 +376,24 @@ static int regcache_rbtree_write(struct regmap *map, unsigned int reg,
 		     node = rb_next(node)) {
 			rbnode_tmp = rb_entry(node, struct regcache_rbtree_node,
 					      node);
-			for (i = 0; i < rbnode_tmp->blklen; i++) {
-				reg_tmp = rbnode_tmp->base_reg +
-						(i * map->reg_stride);
-				if (abs(reg_tmp - reg) != map->reg_stride)
-					continue;
-				/* decide where in the block to place our register */
-				if (reg_tmp + map->reg_stride == reg)
-					pos = i + 1;
-				else
-					pos = i;
-				ret = regcache_rbtree_insert_to_block(map,
-								      rbnode_tmp,
-								      pos, reg,
-								      value);
-				if (ret)
-					return ret;
-				rbtree_ctx->cached_rbnode = rbnode_tmp;
-				return 0;
-			}
+
+			regcache_rbtree_get_base_top_reg(map, rbnode_tmp,
+				&base_reg, &top_reg);
+
+			/* decide where in the block to place our register */
+			if (base_reg > 0 && reg == base_reg - map->reg_stride)
+				pos = 0;
+			else if (reg > 0 && reg - map->reg_stride == top_reg)
+				pos = rbnode_tmp->blklen;
+			else
+				continue;
+
+			ret = regcache_rbtree_insert_to_block(map, rbnode_tmp,
+							      pos, reg, value);
+			if (ret)
+				return ret;
+			rbtree_ctx->cached_rbnode = rbnode_tmp;
+			return 0;
 		}
 
 		/* We did not manage to find a place to insert it in
