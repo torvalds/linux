@@ -319,6 +319,20 @@ static void __clp_rescan(struct clp_fh_list_entry *entry)
 	}
 }
 
+static void __clp_update(struct clp_fh_list_entry *entry)
+{
+	struct zpci_dev *zdev;
+
+	if (!entry->vendor_id)
+		return;
+
+	zdev = get_zdev_by_fid(entry->fid);
+	if (!zdev)
+		return;
+
+	zdev->fh = entry->fh;
+}
+
 int clp_scan_pci_devices(void)
 {
 	struct clp_req_rsp_list_pci *rrb;
@@ -344,6 +358,21 @@ int clp_rescan_pci_devices(void)
 		return -ENOMEM;
 
 	rc = clp_list_pci(rrb, __clp_rescan);
+
+	clp_free_block(rrb);
+	return rc;
+}
+
+int clp_rescan_pci_devices_simple(void)
+{
+	struct clp_req_rsp_list_pci *rrb;
+	int rc;
+
+	rrb = clp_alloc_block(GFP_NOWAIT);
+	if (!rrb)
+		return -ENOMEM;
+
+	rc = clp_list_pci(rrb, __clp_update);
 
 	clp_free_block(rrb);
 	return rc;

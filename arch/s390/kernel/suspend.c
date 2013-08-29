@@ -12,6 +12,7 @@
 #include <asm/ctl_reg.h>
 #include <asm/ipl.h>
 #include <asm/cio.h>
+#include <asm/pci.h>
 
 /*
  * References to section boundaries
@@ -219,4 +220,5 @@ void s390_early_resume(void)
 {
 	lgr_info_log();
 	channel_subsystem_reinit();
+	zpci_rescan();
 }

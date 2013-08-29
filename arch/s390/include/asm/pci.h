@@ -6,6 +6,7 @@
 /* must be set before including pci_clp.h */
 #define PCI_BAR_COUNT	6
 
+#include <linux/pci.h>
 #include <asm-generic/pci.h>
 #include <asm-generic/pci-dma-compat.h>
 #include <asm/pci_clp.h>
@@ -137,6 +138,7 @@ int zpci_unregister_ioat(struct zpci_dev *, u8);
 /* CLP */
 int clp_scan_pci_devices(void);
 int clp_rescan_pci_devices(void);
+int clp_rescan_pci_devices_simple(void);
 int clp_add_pci_device(u32, u32, int);
 int clp_enable_fh(struct zpci_dev *, u8);
 int clp_disable_fh(struct zpci_dev *);
@@ -145,9 +147,11 @@ int clp_disable_fh(struct zpci_dev *);
 /* Error handling and recovery */
 void zpci_event_error(void *);
 void zpci_event_availability(void *);
+void zpci_rescan(void);
 #else /* CONFIG_PCI */
 static inline void zpci_event_error(void *e) {}
 static inline void zpci_event_availability(void *e) {}
+static inline void zpci_rescan(void) {}
 #endif /* CONFIG_PCI */
 
 #ifdef CONFIG_HOTPLUG_PCI_S390
