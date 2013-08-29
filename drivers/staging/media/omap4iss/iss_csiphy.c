@@ -63,8 +63,8 @@ static int csiphy_set_power(struct iss_csiphy *phy, u32 power)
 
 	writel((readl(phy->cfg_regs + CSI2_COMPLEXIO_CFG) &
 		~CSI2_COMPLEXIO_CFG_PWD_CMD_MASK) |
-		power,
-		phy->cfg_regs + CSI2_COMPLEXIO_CFG);
+	       power | CSI2_COMPLEXIO_CFG_PWR_AUTO,
+	       phy->cfg_regs + CSI2_COMPLEXIO_CFG);
 
 	retry_count = 0;
 	do {
