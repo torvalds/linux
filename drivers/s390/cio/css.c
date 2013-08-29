@@ -546,7 +546,9 @@ static int slow_eval_unknown_fn(struct subchannel_id schid, void *data)
 		case -ENOMEM:
 		case -EIO:
 			/* These should abort looping */
+			spin_lock_irq(&slow_subchannel_lock);
 			idset_sch_del_subseq(slow_subchannel_set, schid);
+			spin_unlock_irq(&slow_subchannel_lock);
 			break;
 		default:
 			rc = 0;
