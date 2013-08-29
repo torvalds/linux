@@ -48,6 +48,8 @@ struct efx_mcdi_async_param {
 };
 
 static void efx_mcdi_timeout_async(unsigned long context);
+static int efx_mcdi_drv_attach(struct efx_nic *efx, bool driver_operating,
+			       bool *was_attached_out);
 
 static inline struct efx_mcdi_iface *efx_mcdi(struct efx_nic *efx)
 {
@@ -58,6 +60,8 @@ static inline struct efx_mcdi_iface *efx_mcdi(struct efx_nic *efx)
 int efx_mcdi_init(struct efx_nic *efx)
 {
 	struct efx_mcdi_iface *mcdi;
+	bool already_attached;
+	int rc;
 
 	efx->mcdi = kzalloc(sizeof(*efx->mcdi), GFP_KERNEL);
 	if (!efx->mcdi)
@@ -78,12 +82,37 @@ int efx_mcdi_init(struct efx_nic *efx)
 	mcdi->new_epoch = true;
 
 	/* Recover from a failed assertion before probing */
-	return efx_mcdi_handle_assertion(efx);
+	rc = efx_mcdi_handle_assertion(efx);
+	if (rc)
+		return rc;
+
+	/* Let the MC (and BMC, if this is a LOM) know that the driver
+	 * is loaded. We should do this before we reset the NIC.
+	 */
+	rc = efx_mcdi_drv_attach(efx, true, &already_attached);
+	if (rc) {
+		netif_err(efx, probe, efx->net_dev,
+			  "Unable to register driver with MCPU\n");
+		return rc;
+	}
+	if (already_attached)
+		/* Not a fatal error */
+		netif_err(efx, probe, efx->net_dev,
+			  "Host already registered with MCPU\n");
+
+	return 0;
 }
 
 void efx_mcdi_fini(struct efx_nic *efx)
 {
-	BUG_ON(efx->mcdi && efx->mcdi->iface.state != MCDI_STATE_QUIESCENT);
+	if (!efx->mcdi)
+		return;
+
+	BUG_ON(efx->mcdi->iface.state != MCDI_STATE_QUIESCENT);
+
+	/* Relinquish the device (back to the BMC, if this is a LOM) */
+	efx_mcdi_drv_attach(efx, false, NULL);
+
 	kfree(efx->mcdi);
 }
 
@@ -889,8 +918,8 @@ fail:
 	buf[0] = 0;
 }
 
-int efx_mcdi_drv_attach(struct efx_nic *efx, bool driver_operating,
-			bool *was_attached)
+static int efx_mcdi_drv_attach(struct efx_nic *efx, bool driver_operating,
+			       bool *was_attached)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_DRV_ATTACH_IN_LEN);
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_DRV_ATTACH_OUT_LEN);

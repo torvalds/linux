@@ -196,7 +196,6 @@ static unsigned int siena_mem_map_size(struct efx_nic *efx)
 static int siena_probe_nic(struct efx_nic *efx)
 {
 	struct siena_nic_data *nic_data;
-	bool already_attached = false;
 	efx_oword_t reg;
 	int rc;
 
@@ -221,19 +220,6 @@ static int siena_probe_nic(struct efx_nic *efx)
 	rc = efx_mcdi_init(efx);
 	if (rc)
 		goto fail1;
-
-	/* Let the BMC know that the driver is now in charge of link and
-	 * filter settings. We must do this before we reset the NIC */
-	rc = efx_mcdi_drv_attach(efx, true, &already_attached);
-	if (rc) {
-		netif_err(efx, probe, efx->net_dev,
-			  "Unable to register driver with MCPU\n");
-		goto fail2;
-	}
-	if (already_attached)
-		/* Not a fatal error */
-		netif_err(efx, probe, efx->net_dev,
-			  "Host already registered with MCPU\n");
 
 	/* Now we can reset the NIC */
 	rc = efx_mcdi_reset(efx, RESET_TYPE_ALL);
@@ -281,8 +267,6 @@ fail5:
 	efx_nic_free_buffer(efx, &efx->irq_status);
 fail4:
 fail3:
-	efx_mcdi_drv_attach(efx, false, NULL);
-fail2:
 	efx_mcdi_fini(efx);
 fail1:
 	kfree(efx->nic_data);
@@ -371,14 +355,11 @@ static void siena_remove_nic(struct efx_nic *efx)
 
 	efx_mcdi_reset(efx, RESET_TYPE_ALL);
 
-	/* Relinquish the device back to the BMC */
-	efx_mcdi_drv_attach(efx, false, NULL);
+	efx_mcdi_fini(efx);
 
 	/* Tear down the private nic state */
 	kfree(efx->nic_data);
 	efx->nic_data = NULL;
-
-	efx_mcdi_fini(efx);
 }
 
 #define SIENA_DMA_STAT(ext_name, mcdi_name)			\

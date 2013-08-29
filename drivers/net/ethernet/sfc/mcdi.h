@@ -273,8 +273,6 @@ extern void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
 	EFX_QWORD_FIELD(_ev, MCDI_EVENT_ ## _field)
 
 extern void efx_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len);
-extern int efx_mcdi_drv_attach(struct efx_nic *efx, bool driver_operating,
-			       bool *was_attached_out);
 extern int efx_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
 				  u16 *fw_subtype_list, u32 *capabilities);
 extern int efx_mcdi_log_ctrl(struct efx_nic *efx, bool evq, bool uart,
