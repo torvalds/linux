@@ -131,6 +131,7 @@ struct cifs_secmech {
 
 /* per smb session structure/fields */
 struct ntlmssp_auth {
+	bool sesskey_per_smbsess; /* whether session key is per smb session */
 	__u32 client_flags; /* sent by client in type 1 ntlmsssp exchange */
 	__u32 server_flags; /* sent by server in type 2 ntlmssp exchange */
 	unsigned char ciphertext[CIFS_CPHTXT_SIZE]; /* sent to server */

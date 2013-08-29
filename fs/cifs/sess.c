@@ -428,7 +428,8 @@ void build_ntlmssp_negotiate_blob(unsigned char *pbuffer,
 		NTLMSSP_NEGOTIATE_NTLM | NTLMSSP_NEGOTIATE_EXTENDED_SEC;
 	if (ses->server->sign) {
 		flags |= NTLMSSP_NEGOTIATE_SIGN;
-		if (!ses->server->session_estab)
+		if (!ses->server->session_estab ||
+				ses->ntlmssp->sesskey_per_smbsess)
 			flags |= NTLMSSP_NEGOTIATE_KEY_XCH;
 	}
 
@@ -466,7 +467,8 @@ int build_ntlmssp_auth_blob(unsigned char *pbuffer,
 		NTLMSSP_NEGOTIATE_NTLM | NTLMSSP_NEGOTIATE_EXTENDED_SEC;
 	if (ses->server->sign) {
 		flags |= NTLMSSP_NEGOTIATE_SIGN;
-		if (!ses->server->session_estab)
+		if (!ses->server->session_estab ||
+				ses->ntlmssp->sesskey_per_smbsess)
 			flags |= NTLMSSP_NEGOTIATE_KEY_XCH;
 	}
 
@@ -641,6 +643,8 @@ CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
 		ses->ntlmssp = kmalloc(sizeof(struct ntlmssp_auth), GFP_KERNEL);
 		if (!ses->ntlmssp)
 			return -ENOMEM;
+		ses->ntlmssp->sesskey_per_smbsess = false;
+
 	}
 
 ssetup_ntlmssp_authenticate:
