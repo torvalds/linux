@@ -300,11 +300,15 @@ synproxy_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 					  XT_SYNPROXY_OPT_ECN);
 
 		synproxy_send_client_synack(skb, th, &opts);
-	} else if (th->ack && !(th->fin || th->rst || th->syn))
+		return NF_DROP;
+
+	} else if (th->ack && !(th->fin || th->rst || th->syn)) {
 		/* ACK from client */
 		synproxy_recv_client_ack(snet, skb, th, &opts, ntohl(th->seq));
+		return NF_DROP;
+	}
 
-	return NF_DROP;
+	return XT_CONTINUE;
 }
 
 static unsigned int ipv6_synproxy_hook(unsigned int hooknum,
