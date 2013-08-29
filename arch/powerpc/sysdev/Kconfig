@@ -28,7 +28,7 @@ config PPC_SCOM
 
 config SCOM_DEBUGFS
 	bool "Expose SCOM controllers via debugfs"
-	depends on PPC_SCOM
+	depends on PPC_SCOM && DEBUG_FS
 	default n
 
 config GE_FPGA
