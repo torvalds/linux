@@ -79,8 +79,6 @@ static int enable_slot(struct hotplug_slot *hotplug_slot)
 	if (rc)
 		goto out_deconfigure;
 
-	slot->zdev->state = ZPCI_FN_STATE_ONLINE;
-
 	pci_scan_slot(slot->zdev->bus, ZPCI_DEVFN);
 	pci_bus_add_devices(slot->zdev->bus);
 

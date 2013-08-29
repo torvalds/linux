@@ -791,6 +791,8 @@ int zpci_enable_device(struct zpci_dev *zdev)
 	rc = zpci_dma_init_device(zdev);
 	if (rc)
 		goto out_dma;
+
+	zdev->state = ZPCI_FN_STATE_ONLINE;
 	return 0;
 
 out_dma:
@@ -819,8 +821,6 @@ int zpci_create_device(struct zpci_dev *zdev)
 		rc = zpci_enable_device(zdev);
 		if (rc)
 			goto out_free;
-
-		zdev->state = ZPCI_FN_STATE_ONLINE;
 	}
 	rc = zpci_scan_bus(zdev);
 	if (rc)
