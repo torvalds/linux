@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wlioctl.h 417015 2013-08-07 12:56:49Z $
+ * $Id: wlioctl.h 419132 2013-08-19 21:33:05Z $
  */
 
 #ifndef _wlioctl_h_
@@ -3868,7 +3868,8 @@ enum {
 #define ENABLE_ADAPTSCAN_BIT		6
 #define IMMEDIATE_EVENT_BIT		8
 #define SUPPRESS_SSID_BIT		9
-#define ENABLE_NET_OFFLOAD_BIT		10
+#define ENABLE_NET_OFFLOAD_BIT	10
+#define REPORT_SEPERATELY_BIT 	11
 
 #define SORT_CRITERIA_MASK		0x0001
 #define AUTO_NET_SWITCH_MASK		0x0002
@@ -3881,18 +3882,22 @@ enum {
 #define IMMEDIATE_EVENT_MASK	0x0100
 #define SUPPRESS_SSID_MASK	0x0200
 #define ENABLE_NET_OFFLOAD_MASK	0x0400
+#define REPORT_SEPERATELY_MASK 0x800
 
 #define PFN_VERSION		2
 #define PFN_SCANRESULT_VERSION	1
+#define PFN_LSCANRESULT_VERSION 2
 #define MAX_PFN_LIST_COUNT	16
 
 #define PFN_COMPLETE			1
 #define PFN_INCOMPLETE			0
+#define PFN_OUTOFMEMORY			2
 
 #define DEFAULT_BESTN			2
 #define DEFAULT_MSCAN			0
 #define DEFAULT_REPEAT			10
-#define DEFAULT_EXP			2
+#define DEFAULT_EXP				2
+#define DEFAULT_RTTN			0
 
 /* PFN network info structure */
 typedef struct wl_pfn_subnet_info {
@@ -3907,6 +3912,21 @@ typedef struct wl_pfn_net_info {
 	int16	RSSI; /* receive signal strength (in dBm) */
 	uint16	timestamp; /* age in seconds */
 } wl_pfn_net_info_t;
+
+typedef struct wl_pfn_lnet_info {
+	wl_pfn_subnet_info_t pfnsubnet;
+	int32 	RSSI;
+	uint32  timestamp;
+	uint16	rtt0;
+	uint16 	rtt1;
+} wl_pfn_lnet_info_t;
+
+typedef struct wl_pfn_lscanresults {
+	uint32 version;
+	uint32 status;
+	uint32 count;
+	wl_pfn_lnet_info_t netinfo[1];
+} wl_pfn_lscanresults_t;
 
 typedef struct wl_pfn_scanresults {
 	uint32 version;
@@ -3936,6 +3956,7 @@ typedef struct wl_pfn_param {
 					*/
 	uint8 exp;			/* Exponent of 2 for maximum scan interval */
 	int32 slow_freq;		/* slow scan period */
+	uint8	rttn;
 } wl_pfn_param_t;
 
 typedef struct wl_pfn_bssid {

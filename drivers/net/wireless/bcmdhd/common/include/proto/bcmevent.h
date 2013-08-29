@@ -23,7 +23,7 @@
  *
  * Dependencies: proto/bcmeth.h
  *
- * $Id: bcmevent.h 386716 2013-02-21 18:16:10Z $
+ * $Id: bcmevent.h 419132 2013-08-19 21:33:05Z $
  *
  */
 
@@ -151,6 +151,7 @@ typedef BWL_PRE_PACKED_STRUCT struct bcm_event {
 #define WLC_E_IF		54	/* I/F change (for dongle host notification) */
 #define WLC_E_P2P_DISC_LISTEN_COMPLETE	55	/* listen state expires */
 #define WLC_E_RSSI		56	/* indicate RSSI change based on configured levels */
+#define WLC_E_PFN_BEST_BATCHING     57  /* PFN best network batching event of out of memory */
 #define WLC_E_PFN_SCAN_COMPLETE	57	/* PFN completed scan of network list */
 #define WLC_E_EXTLOG_MSG	58
 #define WLC_E_ACTION_FRAME      59 	/* Action frame Rx */
@@ -178,7 +179,9 @@ typedef BWL_PRE_PACKED_STRUCT struct bcm_event {
 #define WLC_E_OVERLAY_REQ	79	/* request an overlay IOCTL/iovar from the host */
 #define WLC_E_CSA_COMPLETE_IND		80	/* 802.11 CHANNEL SWITCH ACTION completed */
 #define WLC_E_EXCESS_PM_WAKE_EVENT	81	/* excess PM Wake Event to inform host  */
+#define WLC_E_PFN_BSSID_NET_FOUND   82	/* PFN BSSID network found event */
 #define WLC_E_PFN_SCAN_NONE		82	/* no PFN networks around */
+#define WLC_E_PFN_BSSID_NET_LOST    83  /* PFN BSSID network lost event */
 #define WLC_E_PFN_SCAN_ALLGONE		83	/* last found PFN network gets lost */
 #define WLC_E_GTK_PLUMBED		84
 #define WLC_E_ASSOC_IND_NDIS		85	/* 802.11 ASSOC indication for NDIS only */

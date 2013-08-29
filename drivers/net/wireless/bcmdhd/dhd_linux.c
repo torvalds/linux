@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_linux.c 418907 2013-08-18 02:10:25Z $
+ * $Id: dhd_linux.c 419132 2013-08-19 21:33:05Z $
  */
 
 #include <typedefs.h>
@@ -66,7 +66,9 @@
 #ifdef WL_CFG80211
 #include <wl_cfg80211.h>
 #endif
-
+#ifdef PNO_SUPPORT
+#include <dhd_pno.h>
+#endif
 
 #ifdef WLMEDIA_HTSF
 #include <linux/time.h>
@@ -4003,6 +4005,9 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 #endif /* WLMEDIA_HTSF */
 #ifdef PNO_SUPPORT
 	setbit(eventmask, WLC_E_PFN_NET_FOUND);
+	setbit(eventmask, WLC_E_PFN_BEST_BATCHING);
+	setbit(eventmask, WLC_E_PFN_BSSID_NET_FOUND);
+	setbit(eventmask, WLC_E_PFN_BSSID_NET_LOST);
 #endif /* PNO_SUPPORT */
 	/* enable dongle roaming event */
 	setbit(eventmask, WLC_E_ROAM);
@@ -4109,6 +4114,11 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 #if defined(PROP_TXSTATUS) && !defined(PROP_TXSTATUS_VSDB)
 	dhd_wlfc_init(dhd);
 #endif /* PROP_TXSTATUS && !PROP_TXSTATUS_VSDB */
+#ifdef PNO_SUPPORT
+	if (!dhd->pno_state) {
+		dhd_pno_init(dhd);
+	}
+#endif
 
 done:
 	return ret;
@@ -4130,7 +4140,7 @@ dhd_iovar(dhd_pub_t *pub, int ifidx, char *name, char *cmd_buf, uint cmd_len, in
 	ioc.cmd = set? WLC_SET_VAR : WLC_GET_VAR;
 	ioc.buf = buf;
 	ioc.len = len;
-	ioc.set = TRUE;
+	ioc.set = set;
 
 	ret = dhd_wl_ioctl(pub, ifidx, &ioc, ioc.buf, ioc.len);
 	if (!set && ret >= 0)
@@ -4643,7 +4653,10 @@ void dhd_detach(dhd_pub_t *dhdp)
 	}
 #endif
 
-
+#ifdef PNO_SUPPORT
+	if (dhdp->pno_state)
+		dhd_pno_deinit(dhdp);
+#endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && (LINUX_VERSION_CODE <= \
 	KERNEL_VERSION(2, 6, 39)) && defined(CONFIG_PM_SLEEP)
 		unregister_pm_notifier(&dhd_sleep_pm_notifier);
@@ -5437,43 +5450,65 @@ done:
 #ifdef PNO_SUPPORT
 /* Linux wrapper to call common dhd_pno_clean */
 int
-dhd_dev_pno_reset(struct net_device *dev)
+dhd_dev_pno_stop_for_ssid(struct net_device *dev)
 {
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
 
-	return (dhd_pno_clean(&dhd->pub));
+	return (dhd_pno_stop_for_ssid(&dhd->pub));
 }
 
+/* Linux wrapper to call common dhd_pno_set_for_ssid */
+int
+dhd_dev_pno_set_for_ssid(struct net_device *dev, wlc_ssid_t* ssids_local, int nssid,
+	uint16  scan_fr, int pno_repeat, int pno_freq_expo_max, uint16 *channel_list, int nchan)
+{
+	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
+
+	return (dhd_pno_set_for_ssid(&dhd->pub, ssids_local, nssid, scan_fr,
+		pno_repeat, pno_freq_expo_max, channel_list, nchan));
+}
 
 /* Linux wrapper to call common dhd_pno_enable */
 int
-dhd_dev_pno_enable(struct net_device *dev,  int pfn_enabled)
+dhd_dev_pno_enable(struct net_device *dev, int enable)
 {
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
 
-	return (dhd_pno_enable(&dhd->pub, pfn_enabled));
+	return (dhd_pno_enable(&dhd->pub, enable));
 }
 
-
-/* Linux wrapper to call common dhd_pno_set */
+/* Linux wrapper to call common dhd_pno_set_for_hotlist */
 int
-dhd_dev_pno_set(struct net_device *dev, wlc_ssid_t* ssids_local, int nssid,
-	ushort  scan_fr, int pno_repeat, int pno_freq_expo_max)
+dhd_dev_pno_set_for_hotlist(struct net_device *dev, wl_pfn_bssid_t *p_pfn_bssid,
+	struct dhd_pno_hotlist_params *hotlist_params)
 {
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
-
-	return (dhd_pno_set(&dhd->pub, ssids_local, nssid, scan_fr, pno_repeat, pno_freq_expo_max));
+	return (dhd_pno_set_for_hotlist(&dhd->pub, p_pfn_bssid, hotlist_params));
 }
 
-/* Linux wrapper to get  pno status */
+/* Linux wrapper to call common dhd_dev_pno_stop_for_batch */
 int
-dhd_dev_get_pno_status(struct net_device *dev)
+dhd_dev_pno_stop_for_batch(struct net_device *dev)
 {
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
-
-	return (dhd_pno_get_status(&dhd->pub));
+	return (dhd_pno_stop_for_batch(&dhd->pub));
 }
 
+/* Linux wrapper to call common dhd_dev_pno_set_for_batch */
+int
+dhd_dev_pno_set_for_batch(struct net_device *dev, struct dhd_pno_batch_params *batch_params)
+{
+	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
+	return (dhd_pno_set_for_batch(&dhd->pub, batch_params));
+}
+
+/* Linux wrapper to call common dhd_dev_pno_get_for_batch */
+int
+dhd_dev_pno_get_for_batch(struct net_device *dev, char *buf, int bufsize)
+{
+	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
+	return (dhd_pno_get_for_batch(&dhd->pub, buf, bufsize, PNO_STATUS_NORMAL));
+}
 #endif /* PNO_SUPPORT */
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))

@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfg80211.c 418708 2013-08-16 11:49:47Z $
+ * $Id: wl_cfg80211.c 419132 2013-08-19 21:33:05Z $
  */
 #include <typedefs.h>
 #include <linuxver.h>
@@ -41,6 +41,9 @@
 #include <dhdioctl.h>
 #include <wlioctl.h>
 #include <dhd_cfg80211.h>
+#ifdef PNO_SUPPORT
+#include <dhd_pno.h>
+#endif /* PNO_SUPPORT */
 
 #include <proto/ethernet.h>
 #include <linux/kernel.h>
@@ -6200,15 +6203,9 @@ int wl_cfg80211_sched_scan_start(struct wiphy *wiphy,
 	}
 
 	if (ssid_count) {
-		if ((ret = dhd_dev_pno_set(dev, ssids_local, request->n_match_sets,
-			pno_time, pno_repeat, pno_freq_expo_max)) < 0) {
+		if ((ret = dhd_dev_pno_set_for_ssid(dev, ssids_local, request->n_match_sets,
+			pno_time, pno_repeat, pno_freq_expo_max, NULL, 0)) < 0) {
 			WL_ERR(("PNO setup failed!! ret=%d \n", ret));
-			return -EINVAL;
-		}
-
-		/* Enable the PNO */
-		if (dhd_dev_pno_enable(dev, 1) < 0) {
-			WL_ERR(("PNO enable failed!! ret=%d \n", ret));
 			return -EINVAL;
 		}
 		wl->sched_scan_req = request;
@@ -6226,11 +6223,8 @@ int wl_cfg80211_sched_scan_stop(struct wiphy *wiphy, struct net_device *dev)
 	WL_DBG(("Enter \n"));
 	WL_PNO((">>> SCHED SCAN STOP\n"));
 
-	if (dhd_dev_pno_enable(dev, 0) < 0)
-		WL_ERR(("PNO disable failed"));
-
-	if (dhd_dev_pno_reset(dev) < 0)
-		WL_ERR(("PNO reset failed"));
+	if (dhd_dev_pno_stop_for_ssid(dev) < 0)
+		WL_ERR(("PNO Stop for SSID failed"));
 
 	if (wl->scan_request && wl->sched_scan_running) {
 		WL_PNO((">>> Sched scan running. Aborting it..\n"));
