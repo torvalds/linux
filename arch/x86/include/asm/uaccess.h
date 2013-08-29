@@ -153,11 +153,14 @@ __typeof__(__builtin_choose_expr(sizeof(x) > sizeof(0UL), 0ULL, 0UL))
  * Careful: we have to cast the result to the type of the pointer
  * for sign reasons.
  *
- * The use of %edx as the register specifier is a bit of a
+ * The use of _ASM_DX as the register specifier is a bit of a
  * simplification, as gcc only cares about it as the starting point
  * and not size: for a 64-bit value it will use %ecx:%edx on 32 bits
  * (%ecx being the next register in gcc's x86 register sequence), and
  * %rdx on 64 bits.
+ *
+ * Clang/LLVM cares about the size of the register, but still wants
+ * the base register for something that ends up being a pair.
  */
 #define get_user(x, ptr)						\
 ({									\
