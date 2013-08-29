@@ -256,6 +256,7 @@ extern void omap3xxx_powerdomains_init(void);
 extern void am33xx_powerdomains_init(void);
 extern void omap44xx_powerdomains_init(void);
 extern void omap54xx_powerdomains_init(void);
+extern void dra7xx_powerdomains_init(void);
 
 extern struct pwrdm_ops omap2_pwrdm_operations;
 extern struct pwrdm_ops omap3_pwrdm_operations;
