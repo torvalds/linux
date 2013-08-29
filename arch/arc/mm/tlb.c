@@ -577,13 +577,6 @@ void arc_mmu_init(void)
 	if (mmu->pg_sz != PAGE_SIZE)
 		panic("MMU pg size != PAGE_SIZE (%luk)\n", TO_KB(PAGE_SIZE));
 
-	/*
-	 * ASID mgmt data structures are compile time init
-	 *  asid_cache = FIRST_ASID and asid_mm_map[] all zeroes
-	 */
-
-	local_flush_tlb_all();
-
 	/* Enable the MMU */
 	write_aux_reg(ARC_REG_PID, MMU_ENABLE);
 
