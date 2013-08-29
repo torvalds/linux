@@ -241,9 +241,6 @@ int regcache_write(struct regmap *map,
 
 	BUG_ON(!map->cache_ops);
 
-	if (!regmap_writeable(map, reg))
-		return -EIO;
-
 	if (!regmap_volatile(map, reg))
 		return map->cache_ops->write(map, reg, value);
 
