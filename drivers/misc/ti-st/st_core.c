@@ -562,7 +562,9 @@ long st_register(struct st_proto_s *new_proto)
 			if ((st_gdata->protos_registered != ST_EMPTY) &&
 			    (test_bit(ST_REG_PENDING, &st_gdata->st_state))) {
 				pr_err(" KIM failure complete callback ");
+				spin_lock_irqsave(&st_gdata->lock, flags);
 				st_reg_complete(st_gdata, err);
+				spin_unlock_irqrestore(&st_gdata->lock, flags);
 				clear_bit(ST_REG_PENDING, &st_gdata->st_state);
 			}
 			return -EINVAL;
