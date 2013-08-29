@@ -24,7 +24,6 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
-#include <linux/version.h>
 #include <linux/mmc/slot-gpio.h>
 
 #include "sdhci-pltfm.h"
@@ -162,7 +161,7 @@ static int sdhci_bcm_kona_sd_card_emulate(struct sdhci_host *host, int insert)
 /*
  * SD card interrupt event callback
  */
-void sdhci_bcm_kona_card_event(struct sdhci_host *host)
+static void sdhci_bcm_kona_card_event(struct sdhci_host *host)
 {
 	if (mmc_gpio_get_cd(host->mmc) > 0) {
 		dev_dbg(mmc_dev(host->mmc),
