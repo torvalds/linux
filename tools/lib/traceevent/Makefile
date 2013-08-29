@@ -60,7 +60,7 @@ ifeq ($(BUILD_SRC),)
 ifneq ($(BUILD_OUTPUT),)
 
 define build_output
-	$(if $(VERBOSE:1=),@)$(MAKE) -C $(BUILD_OUTPUT) 	\
+	$(if $(VERBOSE:1=),@)+$(MAKE) -C $(BUILD_OUTPUT) 	\
 	BUILD_SRC=$(CURDIR) -f $(CURDIR)/Makefile $1
 endef
 
