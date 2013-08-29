@@ -170,11 +170,11 @@ typedef struct sg_fd {		/* holds the state of a file descriptor */
 
 typedef struct sg_device { /* holds the state of each scsi generic device */
 	struct scsi_device *device;
-	wait_queue_head_t o_excl_wait;	/* queue open() when O_EXCL in use */
 	int sg_tablesize;	/* adapter's max scatter-gather table size */
 	u32 index;		/* device index number */
 	/* sfds is protected by sg_index_lock */
 	struct list_head sfds;
+	struct rw_semaphore o_sem;	/* exclude open should hold this rwsem */
 	volatile char detached;	/* 0->attached, 1->detached pending removal */
 	/* exclude protected by sg_open_exclusive_lock */
 	char exclude;		/* opened for exclusive access */
@@ -265,7 +265,6 @@ sg_open(struct inode *inode, struct file *filp)
 	struct request_queue *q;
 	Sg_device *sdp;
 	Sg_fd *sfp;
-	int res;
 	int retval;
 
 	nonseekable_open(inode, filp);
@@ -294,35 +293,35 @@ sg_open(struct inode *inode, struct file *filp)
 		goto error_out;
 	}
 
-	if (flags & O_EXCL) {
-		if (O_RDONLY == (flags & O_ACCMODE)) {
-			retval = -EPERM; /* Can't lock it with read only access */
-			goto error_out;
-		}
-		if (!sfds_list_empty(sdp) && (flags & O_NONBLOCK)) {
-			retval = -EBUSY;
-			goto error_out;
-		}
-		res = wait_event_interruptible(sdp->o_excl_wait,
-					   ((!sfds_list_empty(sdp) || get_exclude(sdp)) ? 0 : set_exclude(sdp, 1)));
-		if (res) {
-			retval = res;	/* -ERESTARTSYS because signal hit process */
-			goto error_out;
-		}
-	} else if (get_exclude(sdp)) {	/* some other fd has an exclusive lock on dev */
-		if (flags & O_NONBLOCK) {
-			retval = -EBUSY;
-			goto error_out;
-		}
-		res = wait_event_interruptible(sdp->o_excl_wait, !get_exclude(sdp));
-		if (res) {
-			retval = res;	/* -ERESTARTSYS because signal hit process */
-			goto error_out;
-		}
+	if ((flags & O_EXCL) && (O_RDONLY == (flags & O_ACCMODE))) {
+		retval = -EPERM; /* Can't lock it with read only access */
+		goto error_out;
 	}
+	if (flags & O_NONBLOCK) {
+		if (flags & O_EXCL) {
+			if (!down_write_trylock(&sdp->o_sem)) {
+				retval = -EBUSY;
+				goto error_out;
+			}
+		} else {
+			if (!down_read_trylock(&sdp->o_sem)) {
+				retval = -EBUSY;
+				goto error_out;
+			}
+		}
+	} else {
+		if (flags & O_EXCL)
+			down_write(&sdp->o_sem);
+		else
+			down_read(&sdp->o_sem);
+	}
+	/* Since write lock is held, no need to check sfd_list */
+	if (flags & O_EXCL)
+		set_exclude(sdp, 1);
+
 	if (sdp->detached) {
 		retval = -ENODEV;
-		goto error_out;
+		goto sem_out;
 	}
 	if (sfds_list_empty(sdp)) {	/* no existing opens on this device */
 		sdp->sgdebug = 0;
@@ -331,17 +330,18 @@ sg_open(struct inode *inode, struct file *filp)
 	}
 	if ((sfp = sg_add_sfp(sdp, dev)))
 		filp->private_data = sfp;
+		/* retval is already provably zero at this point because of the
+		 * check after retval = scsi_autopm_get_device(sdp->device))
+		 */
 	else {
+		retval = -ENOMEM;
+sem_out:
 		if (flags & O_EXCL) {
 			set_exclude(sdp, 0);	/* undo if error */
-			wake_up_interruptible(&sdp->o_excl_wait);
-		}
-		retval = -ENOMEM;
-		goto error_out;
-	}
-	retval = 0;
+			up_write(&sdp->o_sem);
+		} else
+			up_read(&sdp->o_sem);
 error_out:
-	if (retval) {
 		scsi_autopm_put_device(sdp->device);
 sdp_put:
 		scsi_device_put(sdp->device);
@@ -358,13 +358,18 @@ sg_release(struct inode *inode, struct file *filp)
 {
 	Sg_device *sdp;
 	Sg_fd *sfp;
+	int excl;
 
 	if ((!(sfp = (Sg_fd *) filp->private_data)) || (!(sdp = sfp->parentdp)))
 		return -ENXIO;
 	SCSI_LOG_TIMEOUT(3, printk("sg_release: %s\n", sdp->disk->disk_name));
 
+	excl = get_exclude(sdp);
 	set_exclude(sdp, 0);
-	wake_up_interruptible(&sdp->o_excl_wait);
+	if (excl)
+		up_write(&sdp->o_sem);
+	else
+		up_read(&sdp->o_sem);
 
 	scsi_autopm_put_device(sdp->device);
 	kref_put(&sfp->f_ref, sg_remove_sfp);
@@ -1416,7 +1421,7 @@ static Sg_device *sg_alloc(struct gendisk *disk, struct scsi_device *scsidp)
 	sdp->disk = disk;
 	sdp->device = scsidp;
 	INIT_LIST_HEAD(&sdp->sfds);
-	init_waitqueue_head(&sdp->o_excl_wait);
+	init_rwsem(&sdp->o_sem);
 	sdp->sg_tablesize = queue_max_segments(q);
 	sdp->index = k;
 	kref_init(&sdp->d_ref);
@@ -2127,13 +2132,11 @@ static void sg_remove_sfp_usercontext(struct work_struct *work)
 static void sg_remove_sfp(struct kref *kref)
 {
 	struct sg_fd *sfp = container_of(kref, struct sg_fd, f_ref);
-	struct sg_device *sdp = sfp->parentdp;
 	unsigned long iflags;
 
 	write_lock_irqsave(&sg_index_lock, iflags);
 	list_del(&sfp->sfd_siblings);
 	write_unlock_irqrestore(&sg_index_lock, iflags);
-	wake_up_interruptible(&sdp->o_excl_wait);
 
 	INIT_WORK(&sfp->ew.work, sg_remove_sfp_usercontext);
 	schedule_work(&sfp->ew.work);
