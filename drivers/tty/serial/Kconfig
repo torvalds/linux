@@ -1401,12 +1401,15 @@ config SERIAL_XILINX_PS_UART_CONSOLE
 	  Enable a Xilinx PS UART port to be the system console.
 
 config SERIAL_AR933X
-	bool "AR933X serial port support"
+	tristate "AR933X serial port support"
 	depends on HAVE_CLK && SOC_AR933X
 	select SERIAL_CORE
 	help
 	  If you have an Atheros AR933X SOC based board and want to use the
 	  built-in UART of the SoC, say Y to this option.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ar933x_uart.
 
 config SERIAL_AR933X_CONSOLE
 	bool "Console on AR933X serial port"
