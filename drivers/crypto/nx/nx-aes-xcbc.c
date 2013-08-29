@@ -56,6 +56,77 @@ static int nx_xcbc_set_key(struct crypto_shash *desc,
 	return 0;
 }
 
+/*
+ * Based on RFC 3566, for a zero-length message:
+ *
+ * n = 1
+ * K1 = E(K, 0x01010101010101010101010101010101)
+ * K3 = E(K, 0x03030303030303030303030303030303)
+ * E[0] = 0x00000000000000000000000000000000
+ * M[1] = 0x80000000000000000000000000000000 (0 length message with padding)
+ * E[1] = (K1, M[1] ^ E[0] ^ K3)
+ * Tag = M[1]
+ */
+static int nx_xcbc_empty(struct shash_desc *desc, u8 *out)
+{
+	struct nx_crypto_ctx *nx_ctx = crypto_tfm_ctx(&desc->tfm->base);
+	struct nx_csbcpb *csbcpb = nx_ctx->csbcpb;
+	struct nx_sg *in_sg, *out_sg;
+	u8 keys[2][AES_BLOCK_SIZE];
+	u8 key[32];
+	int rc = 0;
+
+	/* Change to ECB mode */
+	csbcpb->cpb.hdr.mode = NX_MODE_AES_ECB;
+	memcpy(key, csbcpb->cpb.aes_xcbc.key, AES_BLOCK_SIZE);
+	memcpy(csbcpb->cpb.aes_ecb.key, key, AES_BLOCK_SIZE);
+	NX_CPB_FDM(csbcpb) |= NX_FDM_ENDE_ENCRYPT;
+
+	/* K1 and K3 base patterns */
+	memset(keys[0], 0x01, sizeof(keys[0]));
+	memset(keys[1], 0x03, sizeof(keys[1]));
+
+	/* Generate K1 and K3 encrypting the patterns */
+	in_sg = nx_build_sg_list(nx_ctx->in_sg, (u8 *) keys, sizeof(keys),
+				 nx_ctx->ap->sglen);
+	out_sg = nx_build_sg_list(nx_ctx->out_sg, (u8 *) keys, sizeof(keys),
+				  nx_ctx->ap->sglen);
+	nx_ctx->op.inlen = (nx_ctx->in_sg - in_sg) * sizeof(struct nx_sg);
+	nx_ctx->op.outlen = (nx_ctx->out_sg - out_sg) * sizeof(struct nx_sg);
+
+	rc = nx_hcall_sync(nx_ctx, &nx_ctx->op,
+			   desc->flags & CRYPTO_TFM_REQ_MAY_SLEEP);
+	if (rc)
+		goto out;
+	atomic_inc(&(nx_ctx->stats->aes_ops));
+
+	/* XOr K3 with the padding for a 0 length message */
+	keys[1][0] ^= 0x80;
+
+	/* Encrypt the final result */
+	memcpy(csbcpb->cpb.aes_ecb.key, keys[0], AES_BLOCK_SIZE);
+	in_sg = nx_build_sg_list(nx_ctx->in_sg, (u8 *) keys[1], sizeof(keys[1]),
+				 nx_ctx->ap->sglen);
+	out_sg = nx_build_sg_list(nx_ctx->out_sg, out, AES_BLOCK_SIZE,
+				  nx_ctx->ap->sglen);
+	nx_ctx->op.inlen = (nx_ctx->in_sg - in_sg) * sizeof(struct nx_sg);
+	nx_ctx->op.outlen = (nx_ctx->out_sg - out_sg) * sizeof(struct nx_sg);
+
+	rc = nx_hcall_sync(nx_ctx, &nx_ctx->op,
+			   desc->flags & CRYPTO_TFM_REQ_MAY_SLEEP);
+	if (rc)
+		goto out;
+	atomic_inc(&(nx_ctx->stats->aes_ops));
+
+out:
+	/* Restore XCBC mode */
+	csbcpb->cpb.hdr.mode = NX_MODE_AES_XCBC_MAC;
+	memcpy(csbcpb->cpb.aes_xcbc.key, key, AES_BLOCK_SIZE);
+	NX_CPB_FDM(csbcpb) &= ~NX_FDM_ENDE_ENCRYPT;
+
+	return rc;
+}
+
 static int nx_xcbc_init(struct shash_desc *desc)
 {
 	struct xcbc_state *sctx = shash_desc_ctx(desc);
@@ -201,13 +272,12 @@ static int nx_xcbc_final(struct shash_desc *desc, u8 *out)
 		memcpy(csbcpb->cpb.aes_xcbc.cv,
 		       csbcpb->cpb.aes_xcbc.out_cv_mac, AES_BLOCK_SIZE);
 	} else if (sctx->count == 0) {
-		/* we've never seen an update, so this is a 0 byte op. The
-		 * hardware cannot handle a 0 byte op, so just copy out the
-		 * known 0 byte result. This is cheaper than allocating a
-		 * software context to do a 0 byte op */
-		u8 data[] = { 0x75, 0xf0, 0x25, 0x1d, 0x52, 0x8a, 0xc0, 0x1c,
-			      0x45, 0x73, 0xdf, 0xd5, 0x84, 0xd7, 0x9f, 0x29 };
-		memcpy(out, data, sizeof(data));
+		/*
+		 * we've never seen an update, so this is a 0 byte op. The
+		 * hardware cannot handle a 0 byte op, so just ECB to
+		 * generate the hash.
+		 */
+		rc = nx_xcbc_empty(desc, out);
 		goto out;
 	}
 
