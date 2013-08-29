@@ -1,5 +1,5 @@
 /****************************************************************************
- * Driver for Solarflare Solarstorm network controllers and boards
+ * Driver for Solarflare network controllers and boards
  * Copyright 2007-2010 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it

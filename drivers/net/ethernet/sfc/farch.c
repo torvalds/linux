@@ -1,7 +1,7 @@
 /****************************************************************************
- * Driver for Solarflare Solarstorm network controllers and boards
+ * Driver for Solarflare network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
- * Copyright 2006-2011 Solarflare Communications Inc.
+ * Copyright 2006-2013 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
