@@ -743,7 +743,7 @@ _func_enter_;
 
 		/*  Check key length for WEP. For NDTEST, 2005.01.27, by rcnjko. */
 		if ((encryptionalgo == _WEP40_ || encryptionalgo == _WEP104_) &&
-		    (key->KeyLength != 5 || key->KeyLength != 13)) {
+		    (key->KeyLength != 5 && key->KeyLength != 13)) {
 			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_, ("WEP KeyLength:0x%x != 5 or 13\n", key->KeyLength));
 			ret = _FAIL;
 			goto exit;
