@@ -303,7 +303,7 @@ int si476x_core_set_power_state(struct si476x_core *core,
 			 */
 			udelay(100);
 
-			err = si476x_core_start(core, false);
+			err = si476x_core_start(core, true);
 			if (err < 0)
 				goto disable_regulators;
 
@@ -312,7 +312,7 @@ int si476x_core_set_power_state(struct si476x_core *core,
 
 		case SI476X_POWER_DOWN:
 			core->power_state = next_state;
-			err = si476x_core_stop(core, false);
+			err = si476x_core_stop(core, true);
 			if (err < 0)
 				core->power_state = SI476X_POWER_INCONSISTENT;
 disable_regulators:
@@ -798,6 +798,10 @@ static int si476x_core_probe(struct i2c_client *client,
 	}
 
 	core->chip_id = id->driver_data;
+
+	/* Power down si476x first */
+	core->power_state = SI476X_POWER_UP_FULL;
+	si476x_core_set_power_state(core, SI476X_POWER_DOWN);
 
 	rval = si476x_core_get_revision_info(core);
 	if (rval < 0) {

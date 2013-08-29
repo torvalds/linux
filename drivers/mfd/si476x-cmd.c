@@ -303,13 +303,13 @@ static int si476x_core_send_command(struct si476x_core *core,
 	 * possible racing conditions when working in polling mode */
 	atomic_set(&core->cts, 0);
 
-	/* if (unlikely(command == CMD_POWER_DOWN) */
-	if (!wait_event_timeout(core->command,
-				atomic_read(&core->cts),
-				usecs_to_jiffies(usecs) + 1))
-		dev_warn(&core->client->dev,
-			 "(%s) [CMD 0x%02x] Answer timeout.\n",
-			 __func__, command);
+	if (!(command == CMD_POWER_DOWN))
+		if (!wait_event_timeout(core->command,
+					atomic_read(&core->cts),
+					usecs_to_jiffies(usecs) + 1))
+			dev_warn(&core->client->dev,
+				"(%s) [CMD 0x%02x] Answer timeout.\n",
+				__func__, command);
 
 	/*
 	  When working in polling mode, for some reason the tuner will
