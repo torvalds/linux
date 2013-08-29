@@ -3861,6 +3861,7 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	u64 extent_num_bytes = 0;
 	u64 extent_offset = 0;
 	u64 item_end = 0;
+	u64 last_size = (u64)-1;
 	u32 found_type = (u8)-1;
 	int found_extent;
 	int del_item;
@@ -3957,6 +3958,11 @@ search_again:
 		/* FIXME, shrink the extent if the ref count is only 1 */
 		if (found_type != BTRFS_EXTENT_DATA_KEY)
 			goto delete;
+
+		if (del_item)
+			last_size = found_key.offset;
+		else
+			last_size = new_size;
 
 		if (extent_type != BTRFS_FILE_EXTENT_INLINE) {
 			u64 num_dec;
@@ -4069,6 +4075,8 @@ out:
 			btrfs_abort_transaction(trans, root, ret);
 	}
 error:
+	if (last_size != (u64)-1)
+		btrfs_ordered_update_i_size(inode, last_size, NULL);
 	btrfs_free_path(path);
 	return err;
 }
@@ -4397,8 +4405,26 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 		btrfs_inode_resume_unlocked_dio(inode);
 
 		ret = btrfs_truncate(inode);
-		if (ret && inode->i_nlink)
-			btrfs_orphan_del(NULL, inode);
+		if (ret && inode->i_nlink) {
+			int err;
+
+			/*
+			 * failed to truncate, disk_i_size is only adjusted down
+			 * as we remove extents, so it should represent the true
+			 * size of the inode, so reset the in memory size and
+			 * delete our orphan entry.
+			 */
+			trans = btrfs_join_transaction(root);
+			if (IS_ERR(trans)) {
+				btrfs_orphan_del(NULL, inode);
+				return ret;
+			}
+			i_size_write(inode, BTRFS_I(inode)->disk_i_size);
+			err = btrfs_orphan_del(trans, inode);
+			if (err)
+				btrfs_abort_transaction(trans, root, err);
+			btrfs_end_transaction(trans, root);
+		}
 	}
 
 	return ret;
@@ -7537,7 +7563,6 @@ static int btrfs_truncate(struct inode *inode)
 	u64 min_size = btrfs_calc_trunc_metadata_size(root, 1);
 
 	btrfs_wait_ordered_range(inode, inode->i_size & (~mask), (u64)-1);
-	btrfs_ordered_update_i_size(inode, inode->i_size, NULL);
 
 	/*
 	 * Yes ladies and gentelment, this is indeed ugly.  The fact is we have
