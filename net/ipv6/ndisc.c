@@ -662,9 +662,7 @@ static void ndisc_solicit(struct neighbour *neigh, struct sk_buff *skb)
 		}
 		ndisc_send_ns(dev, neigh, target, target, saddr);
 	} else if ((probes -= neigh->parms->app_probes) < 0) {
-#ifdef CONFIG_ARPD
 		neigh_app_ns(neigh);
-#endif
 	} else {
 		addrconf_addr_solict_mult(target, &mcaddr);
 		ndisc_send_ns(dev, NULL, target, &mcaddr, saddr);
