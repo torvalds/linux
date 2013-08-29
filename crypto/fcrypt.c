@@ -110,7 +110,7 @@ static const __be32 sbox0[256] = {
 };
 
 #undef Z
-#define Z(x) cpu_to_be32((x << 27) | (x >> 5))
+#define Z(x) cpu_to_be32(((x & 0x1f) << 27) | (x >> 5))
 static const __be32 sbox1[256] = {
 	Z(0x77), Z(0x14), Z(0xa6), Z(0xfe), Z(0xb2), Z(0x5e), Z(0x8c), Z(0x3e),
 	Z(0x67), Z(0x6c), Z(0xa1), Z(0x0d), Z(0xc2), Z(0xa2), Z(0xc1), Z(0x85),
