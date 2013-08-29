@@ -2483,20 +2483,17 @@ int open_ctree(struct super_block *sb,
 			   &fs_info->generic_worker);
 
 	btrfs_init_workers(&fs_info->delalloc_workers, "delalloc",
-			   fs_info->thread_pool_size,
-			   &fs_info->generic_worker);
+			   fs_info->thread_pool_size, NULL);
 
 	btrfs_init_workers(&fs_info->flush_workers, "flush_delalloc",
-			   fs_info->thread_pool_size,
-			   &fs_info->generic_worker);
+			   fs_info->thread_pool_size, NULL);
 
 	btrfs_init_workers(&fs_info->submit_workers, "submit",
 			   min_t(u64, fs_devices->num_devices,
-			   fs_info->thread_pool_size),
-			   &fs_info->generic_worker);
+			   fs_info->thread_pool_size), NULL);
 
 	btrfs_init_workers(&fs_info->caching_workers, "cache",
-			   2, &fs_info->generic_worker);
+			   fs_info->thread_pool_size, NULL);
 
 	/* a higher idle thresh on the submit workers makes it much more
 	 * likely that bios will be send down in a sane order to the
