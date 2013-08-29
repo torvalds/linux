@@ -207,7 +207,7 @@ static void __init arm_bootmem_init(unsigned long start_pfn,
 
 #ifdef CONFIG_ZONE_DMA
 
-unsigned long arm_dma_zone_size __read_mostly;
+phys_addr_t arm_dma_zone_size __read_mostly;
 EXPORT_SYMBOL(arm_dma_zone_size);
 
 /*
