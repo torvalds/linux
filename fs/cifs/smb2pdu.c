@@ -639,11 +639,20 @@ ssetup_exit:
 
 	if (!rc) {
 		mutex_lock(&server->srv_mutex);
+		if (server->sign && server->ops->generate_signingkey) {
+			rc = server->ops->generate_signingkey(ses);
+			kfree(ses->auth_key.response);
+			ses->auth_key.response = NULL;
+			if (rc) {
+				cifs_dbg(FYI,
+					"SMB3 session key generation failed\n");
+				mutex_unlock(&server->srv_mutex);
+				goto keygen_exit;
+			}
+		}
 		if (!server->session_estab) {
 			server->sequence_number = 0x2;
 			server->session_estab = true;
-			if (server->ops->generate_signingkey)
-				server->ops->generate_signingkey(server);
 		}
 		mutex_unlock(&server->srv_mutex);
 
@@ -654,6 +663,7 @@ ssetup_exit:
 		spin_unlock(&GlobalMid_Lock);
 	}
 
+keygen_exit:
 	if (!server->sign) {
 		kfree(ses->auth_key.response);
 		ses->auth_key.response = NULL;
