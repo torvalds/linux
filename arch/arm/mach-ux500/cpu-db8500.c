@@ -26,7 +26,6 @@
 
 #include <asm/pmu.h>
 #include <asm/mach/map.h>
-#include <asm/mach/arch.h>
 
 #include "setup.h"
 #include "devices.h"
@@ -157,7 +156,8 @@ static void __init db8500_add_gpios(struct device *parent)
 		.supports_sleepmode = true,
 	};
 
-	dbx500_add_gpios(parent, ARRAY_AND_SIZE(db8500_gpio_base),
+	dbx500_add_gpios(parent, db8500_gpio_base,
+			 ARRAY_SIZE(db8500_gpio_base),
 			 IRQ_DB8500_GPIO0, &pdata);
 	dbx500_add_pinctrl(parent, "pinctrl-db8500", U8500_PRCMU_BASE);
 }
@@ -325,6 +325,7 @@ DT_MACHINE_START(U8500_DT, "ST-Ericsson Ux5x0 platform (Device Tree Support)")
 	.init_machine	= u8500_init_machine,
 	.init_late	= NULL,
 	.dt_compat      = stericsson_dt_platform_compat,
+	.restart        = ux500_restart,
 MACHINE_END
 
 #endif
