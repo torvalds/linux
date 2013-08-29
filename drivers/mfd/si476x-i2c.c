@@ -740,8 +740,15 @@ static int si476x_core_probe(struct i2c_client *client,
 		memcpy(&core->pinmux, &pdata->pinmux,
 		       sizeof(struct si476x_pinmux));
 	} else {
-		dev_err(&client->dev, "No platform data provided\n");
-		return -EINVAL;
+		dev_warn(&client->dev, "Using default platform data.\n");
+		core->power_up_parameters.xcload = 0x28;
+		core->power_up_parameters.func = SI476X_FUNC_FM_RECEIVER;
+		core->power_up_parameters.freq = SI476X_FREQ_37P209375_MHZ;
+		core->diversity_mode = SI476X_PHDIV_DISABLED;
+		core->pinmux.dclk = SI476X_DCLK_DAUDIO;
+		core->pinmux.dfs  = SI476X_DFS_DAUDIO;
+		core->pinmux.dout = SI476X_DOUT_I2S_OUTPUT;
+		core->pinmux.xout = SI476X_XOUT_TRISTATE;
 	}
 
 	core->supplies[0].supply = "vd";
