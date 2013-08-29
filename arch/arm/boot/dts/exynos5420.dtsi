@@ -14,7 +14,10 @@
  */
 
 #include "exynos5.dtsi"
-/include/ "exynos5420-pinctrl.dtsi"
+#include "exynos5420-pinctrl.dtsi"
+
+#include <dt-bindings/clk/exynos-audss-clk.h>
+
 / {
 	compatible = "samsung,exynos5420";
 
@@ -65,6 +68,22 @@
 		#clock-cells = <1>;
 	};
 
+	clock_audss: audss-clock-controller@3810000 {
+		compatible = "samsung,exynos5420-audss-clock";
+		reg = <0x03810000 0x0C>;
+		#clock-cells = <1>;
+		clocks = <&clock 148>;
+		clock-names = "sclk_audio";
+	};
+
+	codec@11000000 {
+		compatible = "samsung,mfc-v7";
+		reg = <0x11000000 0x10000>;
+		interrupts = <0 96 0>;
+		clocks = <&clock 401>;
+		clock-names = "mfc";
+	};
+
 	mct@101C0000 {
 		compatible = "samsung,exynos4210-mct";
 		reg = <0x101C0000 0x800>;
@@ -88,6 +107,41 @@
 					<6 &gic 0 122 0>,
 					<7 &gic 0 123 0>;
 		};
+	};
+
+	gsc_pd: power-domain@10044000 {
+		compatible = "samsung,exynos4210-pd";
+		reg = <0x10044000 0x20>;
+	};
+
+	isp_pd: power-domain@10044020 {
+		compatible = "samsung,exynos4210-pd";
+		reg = <0x10044020 0x20>;
+	};
+
+	mfc_pd: power-domain@10044060 {
+		compatible = "samsung,exynos4210-pd";
+		reg = <0x10044060 0x20>;
+	};
+
+	disp_pd: power-domain@100440C0 {
+		compatible = "samsung,exynos4210-pd";
+		reg = <0x100440C0 0x20>;
+	};
+
+	mau_pd: power-domain@100440E0 {
+		compatible = "samsung,exynos4210-pd";
+		reg = <0x100440E0 0x20>;
+	};
+
+	g2d_pd: power-domain@10044100 {
+		compatible = "samsung,exynos4210-pd";
+		reg = <0x10044100 0x20>;
+	};
+
+	msc_pd: power-domain@10044120 {
+		compatible = "samsung,exynos4210-pd";
+		reg = <0x10044120 0x20>;
 	};
 
 	pinctrl_0: pinctrl@13400000 {
@@ -126,6 +180,12 @@
 		interrupts = <0 47 0>;
 	};
 
+	rtc@101E0000 {
+		clocks = <&clock 317>;
+		clock-names = "rtc";
+		status = "okay";
+	};
+
 	serial@12C00000 {
 		clocks = <&clock 257>, <&clock 128>;
 		clock-names = "uart", "clk_uart_baud0";
@@ -144,5 +204,35 @@
 	serial@12C30000 {
 		clocks = <&clock 260>, <&clock 131>;
 		clock-names = "uart", "clk_uart_baud0";
+	};
+
+	dp_phy: video-phy@10040728 {
+		compatible = "samsung,exynos5250-dp-video-phy";
+		reg = <0x10040728 4>;
+		#phy-cells = <0>;
+	};
+
+	dp-controller@145B0000 {
+		clocks = <&clock 412>;
+		clock-names = "dp";
+		phys = <&dp_phy>;
+		phy-names = "dp";
+	};
+
+	fimd@14400000 {
+		samsung,power-domain = <&disp_pd>;
+		clocks = <&clock 147>, <&clock 421>;
+		clock-names = "sclk_fimd", "fimd";
+	};
+
+	adc: adc@12D10000 {
+		compatible = "samsung,exynos-adc-v2";
+		reg = <0x12D10000 0x100>, <0x10040720 0x4>;
+		interrupts = <0 106 0>;
+		clocks = <&clock 270>;
+		clock-names = "adc";
+		#io-channel-cells = <1>;
+		io-channel-ranges;
+		status = "disabled";
 	};
 };
