@@ -359,20 +359,20 @@ static int au_cp_regular(struct au_cp_generic *cpg)
 		aufs_bindex_t bindex;
 		unsigned int flags;
 		struct dentry *dentry;
+		int force_wr;
 		struct file *file;
 		void *label, *label_file;
 	} *f, file[] = {
 		{
 			.bindex = cpg->bsrc,
 			.flags = O_RDONLY | O_NOATIME | O_LARGEFILE,
-			.file = NULL,
 			.label = &&out,
 			.label_file = &&out_src
 		},
 		{
 			.bindex = cpg->bdst,
 			.flags = O_WRONLY | O_NOATIME | O_LARGEFILE,
-			.file = NULL,
+			.force_wr = !!au_ftest_cpup(cpg->flags, RWDST),
 			.label = &&out_src,
 			.label_file = &&out_dst
 		}
@@ -385,7 +385,7 @@ static int au_cp_regular(struct au_cp_generic *cpg)
 	for (i = 0; i < 2; i++, f++) {
 		f->dentry = au_h_dptr(cpg->dentry, f->bindex);
 		f->file = au_h_open(cpg->dentry, f->bindex, f->flags,
-				    /*file*/NULL);
+				    /*file*/NULL, f->force_wr);
 		err = PTR_ERR(f->file);
 		if (IS_ERR(f->file))
 			goto *f->label;
@@ -920,7 +920,7 @@ static int au_do_sio_cpup_simple(struct au_cp_generic *cpg)
 	h_file = NULL;
 	if (au_ftest_cpup(cpg->flags, HOPEN)) {
 		AuDebugOn(cpg->bsrc < 0);
-		h_file = au_h_open_pre(dentry, cpg->bsrc);
+		h_file = au_h_open_pre(dentry, cpg->bsrc, /*force_wr*/0);
 		err = PTR_ERR(h_file);
 		if (IS_ERR(h_file))
 			goto out;
