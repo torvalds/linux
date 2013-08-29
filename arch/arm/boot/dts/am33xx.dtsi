@@ -779,5 +779,12 @@
 				<&edma 11>;
 			dma-names = "tx", "rx";
 		};
+
+		rng: rng@48310000 {
+			compatible = "ti,omap4-rng";
+			ti,hwmods = "rng";
+			reg = <0x48310000 0x2000>;
+			interrupts = <111>;
+		};
 	};
 };
