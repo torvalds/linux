@@ -54,7 +54,7 @@ enum _EFUSE_DEF_TYPE {
 #define EFUSE_MAX_SIZE      256
 /* end of E-Fuse */
 
-#define		EFUSE_MAX_MAP_LEN		256
+#define		EFUSE_MAX_MAP_LEN		512
 #define		EFUSE_MAX_HW_SIZE		512
 #define		EFUSE_MAX_SECTION_BASE	16
 

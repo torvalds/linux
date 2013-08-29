@@ -197,7 +197,6 @@ struct txpowerinfo24g {
 };
 
 #define EFUSE_REAL_CONTENT_LEN		512
-#define EFUSE_MAP_LEN			128
 #define EFUSE_MAX_SECTION		16
 #define EFUSE_IC_ID_OFFSET		506 /* For some inferior IC purpose*/
 #define AVAILABLE_EFUSE_ADDR(addr)	(addr < EFUSE_REAL_CONTENT_LEN)
@@ -215,6 +214,7 @@ struct txpowerinfo24g {
 
 #define		EFUSE_REAL_CONTENT_LEN_88E	256
 #define		EFUSE_MAP_LEN_88E		512
+#define EFUSE_MAP_LEN			EFUSE_MAP_LEN_88E
 #define		EFUSE_MAX_SECTION_88E		64
 #define		EFUSE_MAX_WORD_UNIT_88E		4
 #define		EFUSE_IC_ID_OFFSET_88E		506
