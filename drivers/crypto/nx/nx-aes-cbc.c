@@ -85,7 +85,7 @@ static int cbc_aes_nx_crypt(struct blkcipher_desc *desc,
 	else
 		NX_CPB_FDM(csbcpb) &= ~NX_FDM_ENDE_ENCRYPT;
 
-	rc = nx_build_sg_lists(nx_ctx, desc, dst, src, nbytes,
+	rc = nx_build_sg_lists(nx_ctx, desc, dst, src, nbytes, 0,
 			       csbcpb->cpb.aes_cbc.iv);
 	if (rc)
 		goto out;

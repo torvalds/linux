@@ -226,7 +226,7 @@ static int gcm_aes_nx_crypt(struct aead_request *req, int enc)
 
 	csbcpb->cpb.aes_gcm.bit_length_data = nbytes * 8;
 
-	rc = nx_build_sg_lists(nx_ctx, &desc, req->dst, req->src, nbytes,
+	rc = nx_build_sg_lists(nx_ctx, &desc, req->dst, req->src, nbytes, 0,
 			       csbcpb->cpb.aes_gcm.iv_or_cnt);
 	if (rc)
 		goto out;

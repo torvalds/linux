@@ -293,7 +293,7 @@ static int ccm_nx_decrypt(struct aead_request   *req,
 	if (rc)
 		goto out;
 
-	rc = nx_build_sg_lists(nx_ctx, desc, req->dst, req->src, nbytes,
+	rc = nx_build_sg_lists(nx_ctx, desc, req->dst, req->src, nbytes, 0,
 			       csbcpb->cpb.aes_ccm.iv_or_ctr);
 	if (rc)
 		goto out;
@@ -339,7 +339,7 @@ static int ccm_nx_encrypt(struct aead_request   *req,
 	if (rc)
 		goto out;
 
-	rc = nx_build_sg_lists(nx_ctx, desc, req->dst, req->src, nbytes,
+	rc = nx_build_sg_lists(nx_ctx, desc, req->dst, req->src, nbytes, 0,
 			       csbcpb->cpb.aes_ccm.iv_or_ctr);
 	if (rc)
 		goto out;

@@ -98,7 +98,7 @@ static int ctr_aes_nx_crypt(struct blkcipher_desc *desc,
 		goto out;
 	}
 
-	rc = nx_build_sg_lists(nx_ctx, desc, dst, src, nbytes,
+	rc = nx_build_sg_lists(nx_ctx, desc, dst, src, nbytes, 0,
 			       csbcpb->cpb.aes_ctr.iv);
 	if (rc)
 		goto out;

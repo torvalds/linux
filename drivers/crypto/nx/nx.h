@@ -156,7 +156,7 @@ int nx_hcall_sync(struct nx_crypto_ctx *ctx, struct vio_pfo_op *op,
 struct nx_sg *nx_build_sg_list(struct nx_sg *, u8 *, unsigned int, u32);
 int nx_build_sg_lists(struct nx_crypto_ctx *, struct blkcipher_desc *,
 		      struct scatterlist *, struct scatterlist *, unsigned int,
-		      u8 *);
+		      unsigned int, u8 *);
 struct nx_sg *nx_walk_and_build(struct nx_sg *, unsigned int,
 				struct scatterlist *, unsigned int,
 				unsigned int);

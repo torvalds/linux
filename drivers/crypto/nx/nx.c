@@ -211,6 +211,8 @@ struct nx_sg *nx_walk_and_build(struct nx_sg       *nx_dst,
  * @dst: destination scatterlist
  * @src: source scatterlist
  * @nbytes: length of data described in the scatterlists
+ * @offset: number of bytes to fast-forward past at the beginning of
+ *          scatterlists.
  * @iv: destination for the iv data, if the algorithm requires it
  *
  * This is common code shared by all the AES algorithms. It uses the block
@@ -222,6 +224,7 @@ int nx_build_sg_lists(struct nx_crypto_ctx  *nx_ctx,
 		      struct scatterlist    *dst,
 		      struct scatterlist    *src,
 		      unsigned int           nbytes,
+		      unsigned int           offset,
 		      u8                    *iv)
 {
 	struct nx_sg *nx_insg = nx_ctx->in_sg;
@@ -230,8 +233,10 @@ int nx_build_sg_lists(struct nx_crypto_ctx  *nx_ctx,
 	if (iv)
 		memcpy(iv, desc->info, AES_BLOCK_SIZE);
 
-	nx_insg = nx_walk_and_build(nx_insg, nx_ctx->ap->sglen, src, 0, nbytes);
-	nx_outsg = nx_walk_and_build(nx_outsg, nx_ctx->ap->sglen, dst, 0, nbytes);
+	nx_insg = nx_walk_and_build(nx_insg, nx_ctx->ap->sglen, src,
+				    offset, nbytes);
+	nx_outsg = nx_walk_and_build(nx_outsg, nx_ctx->ap->sglen, dst,
+				    offset, nbytes);
 
 	/* these lengths should be negative, which will indicate to phyp that
 	 * the input and output parameters are scatterlists, not linear
