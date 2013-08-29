@@ -213,6 +213,7 @@ struct stripe_head {
 	enum reconstruct_states reconstruct_state;
 	spinlock_t		stripe_lock;
 	int			cpu;
+	struct r5worker_group	*group;
 	/**
 	 * struct stripe_operations
 	 * @target - STRIPE_OP_COMPUTE_BLK target
@@ -369,12 +370,14 @@ struct disk_info {
 struct r5worker {
 	struct work_struct work;
 	struct r5worker_group *group;
+	bool working;
 };
 
 struct r5worker_group {
 	struct list_head handle_list;
 	struct r5conf *conf;
 	struct r5worker *workers;
+	int stripes_cnt;
 };
 
 struct r5conf {
