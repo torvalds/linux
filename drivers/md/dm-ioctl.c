@@ -877,7 +877,7 @@ static int dev_rename(struct dm_ioctl *param, size_t param_size)
 	unsigned change_uuid = (param->flags & DM_UUID_FLAG) ? 1 : 0;
 
 	if (new_data < param->data ||
-	    invalid_str(new_data, (void *) param + param_size) ||
+	    invalid_str(new_data, (void *) param + param_size) || !*new_data ||
 	    strlen(new_data) > (change_uuid ? DM_UUID_LEN - 1 : DM_NAME_LEN - 1)) {
 		DMWARN("Invalid new mapped device name or uuid string supplied.");
 		return -EINVAL;
