@@ -43,8 +43,6 @@
 static struct {
 	struct platform_device *pdev;
 
-	struct regulator *vdds_dsi_reg;
-
 	const char *default_display_name;
 } core;
 
@@ -76,22 +74,6 @@ EXPORT_SYMBOL(omapdss_is_initialized);
 struct platform_device *dss_get_core_pdev(void)
 {
 	return core.pdev;
-}
-
-/* REGULATORS */
-
-struct regulator *dss_get_vdds_dsi(void)
-{
-	struct regulator *reg;
-
-	if (core.vdds_dsi_reg != NULL)
-		return core.vdds_dsi_reg;
-
-	reg = devm_regulator_get(&core.pdev->dev, "vdds_dsi");
-	if (!IS_ERR(reg))
-		core.vdds_dsi_reg = reg;
-
-	return reg;
 }
 
 int dss_dsi_enable_pads(int dsi_id, unsigned lane_mask)
