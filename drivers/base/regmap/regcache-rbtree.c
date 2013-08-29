@@ -278,27 +278,34 @@ static int regcache_rbtree_read(struct regmap *map,
 
 static int regcache_rbtree_insert_to_block(struct regmap *map,
 					   struct regcache_rbtree_node *rbnode,
-					   unsigned int pos, unsigned int reg,
+					   unsigned int base_reg,
+					   unsigned int top_reg,
+					   unsigned int reg,
 					   unsigned int value)
 {
+	unsigned int blklen;
+	unsigned int pos, offset;
 	u8 *blk;
 
+	blklen = (top_reg - base_reg) / map->reg_stride + 1;
+	pos = (reg - base_reg) / map->reg_stride;
+	offset = (rbnode->base_reg - base_reg) / map->reg_stride;
+
 	blk = krealloc(rbnode->block,
-		       (rbnode->blklen + 1) * map->cache_word_size,
+		       blklen * map->cache_word_size,
 		       GFP_KERNEL);
 	if (!blk)
 		return -ENOMEM;
 
 	/* insert the register value in the correct place in the rbnode block */
-	memmove(blk + (pos + 1) * map->cache_word_size,
-		blk + pos * map->cache_word_size,
-		(rbnode->blklen - pos) * map->cache_word_size);
+	if (pos == 0)
+		memmove(blk + offset * map->cache_word_size,
+			blk, rbnode->blklen * map->cache_word_size);
 
 	/* update the rbnode block, its size and the base register */
 	rbnode->block = blk;
-	rbnode->blklen++;
-	if (!pos)
-		rbnode->base_reg = reg;
+	rbnode->blklen = blklen;
+	rbnode->base_reg = base_reg;
 
 	regcache_rbtree_set_register(map, rbnode, pos, value);
 	return 0;
@@ -352,9 +359,7 @@ static int regcache_rbtree_write(struct regmap *map, unsigned int reg,
 	struct regcache_rbtree_ctx *rbtree_ctx;
 	struct regcache_rbtree_node *rbnode, *rbnode_tmp;
 	struct rb_node *node;
-	unsigned int base_reg, top_reg;
 	unsigned int reg_tmp;
-	unsigned int pos;
 	int ret;
 
 	rbtree_ctx = map->cache;
@@ -371,6 +376,19 @@ static int regcache_rbtree_write(struct regmap *map, unsigned int reg,
 		reg_tmp = (reg - rbnode->base_reg) / map->reg_stride;
 		regcache_rbtree_set_register(map, rbnode, reg_tmp, value);
 	} else {
+		unsigned int base_reg, top_reg;
+		unsigned int new_base_reg, new_top_reg;
+		unsigned int min, max;
+		unsigned int max_dist;
+
+		max_dist = map->reg_stride * sizeof(*rbnode_tmp) /
+			map->cache_word_size;
+		if (reg < max_dist)
+			min = 0;
+		else
+			min = reg - max_dist;
+		max = reg + max_dist;
+
 		/* look for an adjacent register to the one we are about to add */
 		for (node = rb_first(&rbtree_ctx->root); node;
 		     node = rb_next(node)) {
@@ -380,16 +398,17 @@ static int regcache_rbtree_write(struct regmap *map, unsigned int reg,
 			regcache_rbtree_get_base_top_reg(map, rbnode_tmp,
 				&base_reg, &top_reg);
 
-			/* decide where in the block to place our register */
-			if (base_reg > 0 && reg == base_reg - map->reg_stride)
-				pos = 0;
-			else if (reg > 0 && reg - map->reg_stride == top_reg)
-				pos = rbnode_tmp->blklen;
-			else
+			if (base_reg <= max && top_reg >= min) {
+				new_base_reg = min(reg, base_reg);
+				new_top_reg = max(reg, top_reg);
+			} else {
 				continue;
+			}
 
 			ret = regcache_rbtree_insert_to_block(map, rbnode_tmp,
-							      pos, reg, value);
+							      new_base_reg,
+							      new_top_reg, reg,
+							      value);
 			if (ret)
 				return ret;
 			rbtree_ctx->cached_rbnode = rbnode_tmp;
