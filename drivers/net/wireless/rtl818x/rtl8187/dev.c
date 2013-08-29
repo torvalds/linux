@@ -2,10 +2,10 @@
  * Linux device driver for RTL8187
  *
  * Copyright 2007 Michael Wu <flamingice@sourmilk.net>
- * Copyright 2007 Andrea Merello <andreamrl@tiscali.it>
+ * Copyright 2007 Andrea Merello <andrea.merello@gmail.com>
  *
  * Based on the r8187 driver, which is:
- * Copyright 2005 Andrea Merello <andreamrl@tiscali.it>, et al.
+ * Copyright 2005 Andrea Merello <andrea.merello@gmail.com>, et al.
  *
  * The driver was extended to the RTL8187B in 2008 by:
  *	Herton Ronaldo Krzesinski <herton@mandriva.com.br>
@@ -37,7 +37,7 @@
 #include "rfkill.h"
 
 MODULE_AUTHOR("Michael Wu <flamingice@sourmilk.net>");
-MODULE_AUTHOR("Andrea Merello <andreamrl@tiscali.it>");
+MODULE_AUTHOR("Andrea Merello <andrea.merello@gmail.com>");
 MODULE_AUTHOR("Herton Ronaldo Krzesinski <herton@mandriva.com.br>");
 MODULE_AUTHOR("Hin-Tak Leung <htl10@users.sourceforge.net>");
 MODULE_AUTHOR("Larry Finger <Larry.Finger@lwfinger.net>");

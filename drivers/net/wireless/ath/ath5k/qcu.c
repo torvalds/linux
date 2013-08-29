@@ -566,9 +566,11 @@ int ath5k_hw_set_ifs_intervals(struct ath5k_hw *ah, unsigned int slot_time)
 {
 	struct ieee80211_channel *channel = ah->ah_current_channel;
 	enum ieee80211_band band;
+	struct ieee80211_supported_band *sband;
 	struct ieee80211_rate *rate;
 	u32 ack_tx_time, eifs, eifs_clock, sifs, sifs_clock;
 	u32 slot_time_clock = ath5k_hw_htoclock(ah, slot_time);
+	u32 rate_flags, i;
 
 	if (slot_time < 6 || slot_time_clock > AR5K_SLOT_TIME_MAX)
 		return -EINVAL;
@@ -605,7 +607,28 @@ int ath5k_hw_set_ifs_intervals(struct ath5k_hw *ah, unsigned int slot_time)
 	else
 		band = IEEE80211_BAND_2GHZ;
 
-	rate = &ah->sbands[band].bitrates[0];
+	switch (ah->ah_bwmode) {
+	case AR5K_BWMODE_5MHZ:
+		rate_flags = IEEE80211_RATE_SUPPORTS_5MHZ;
+		break;
+	case AR5K_BWMODE_10MHZ:
+		rate_flags = IEEE80211_RATE_SUPPORTS_10MHZ;
+		break;
+	default:
+		rate_flags = 0;
+		break;
+	}
+	sband = &ah->sbands[band];
+	rate = NULL;
+	for (i = 0; i < sband->n_bitrates; i++) {
+		if ((rate_flags & sband->bitrates[i].flags) != rate_flags)
+			continue;
+		rate = &sband->bitrates[i];
+		break;
+	}
+	if (WARN_ON(!rate))
+		return -EINVAL;
+
 	ack_tx_time = ath5k_hw_get_frame_duration(ah, band, 10, rate, false);
 
 	/* ack_tx_time includes an SIFS already */

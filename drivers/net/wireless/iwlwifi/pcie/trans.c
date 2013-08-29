@@ -1386,9 +1386,10 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 
 	trans = kzalloc(sizeof(struct iwl_trans) +
 			sizeof(struct iwl_trans_pcie), GFP_KERNEL);
-
-	if (!trans)
-		return NULL;
+	if (!trans) {
+		err = -ENOMEM;
+		goto out;
+	}
 
 	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
@@ -1411,15 +1412,9 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 				       PCIE_LINK_STATE_CLKPM);
 	}
 
-	if (pci_enable_device(pdev)) {
-		err = -ENODEV;
+	err = pci_enable_device(pdev);
+	if (err)
 		goto out_no_pci;
-	}
-
-	/* W/A - seems to solve weird behavior. We need to remove this if we
-	 * don't want to stay in L1 all the time. This wastes a lot of power */
-	pci_disable_link_state(pdev, PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1 |
-			       PCIE_LINK_STATE_CLKPM);
 
 	pci_set_master(pdev);
 
@@ -1488,17 +1483,20 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 				  SLAB_HWCACHE_ALIGN,
 				  NULL);
 
-	if (!trans->dev_cmd_pool)
+	if (!trans->dev_cmd_pool) {
+		err = -ENOMEM;
 		goto out_pci_disable_msi;
+	}
 
 	trans_pcie->inta_mask = CSR_INI_SET_MASK;
 
 	if (iwl_pcie_alloc_ict(trans))
 		goto out_free_cmd_pool;
 
-	if (request_threaded_irq(pdev->irq, iwl_pcie_isr_ict,
-				 iwl_pcie_irq_handler,
-				 IRQF_SHARED, DRV_NAME, trans)) {
+	err = request_threaded_irq(pdev->irq, iwl_pcie_isr_ict,
+				   iwl_pcie_irq_handler,
+				   IRQF_SHARED, DRV_NAME, trans);
+	if (err) {
 		IWL_ERR(trans, "Error allocating IRQ %d\n", pdev->irq);
 		goto out_free_ict;
 	}
@@ -1517,5 +1515,6 @@ out_pci_disable_device:
 	pci_disable_device(pdev);
 out_no_pci:
 	kfree(trans);
-	return NULL;
+out:
+	return ERR_PTR(err);
 }

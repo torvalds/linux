@@ -66,7 +66,8 @@ nla_put_failure:
 	ath6kl_warn("nla_put failed on testmode rx skb!\n");
 }
 
-int ath6kl_tm_cmd(struct wiphy *wiphy, void *data, int len)
+int ath6kl_tm_cmd(struct wiphy *wiphy, struct wireless_dev *wdev,
+		  void *data, int len)
 {
 	struct ath6kl *ar = wiphy_priv(wiphy);
 	struct nlattr *tb[ATH6KL_TM_ATTR_MAX + 1];

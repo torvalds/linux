@@ -155,8 +155,12 @@ struct iwl_powertable_cmd {
  * @lprx_rssi_threshold: Signal strength up to which LP RX can be enabled.
  *			Default: 80dbm
  * @num_skip_dtim:	Number of DTIMs to skip if Skip over DTIM flag is set
- * @snooze_interval:	TBD
- * @snooze_window:	TBD
+ * @snooze_interval:	Maximum time between attempts to retrieve buffered data
+ *			from the AP [msec]
+ * @snooze_window:	A window of time in which PBW snoozing insures that all
+ *			packets received. It is also the minimum time from last
+ *			received unicast RX packet, before client stops snoozing
+ *			for data. [msec]
  * @snooze_step:	TBD
  * @qndp_tid:		TID client shall use for uAPSD QNDP triggers
  * @uapsd_ac_flags:	Set trigger-enabled and delivery-enabled indication for
@@ -164,10 +168,10 @@ struct iwl_powertable_cmd {
  *			Use IEEE80211_WMM_IE_STA_QOSINFO_AC* for correct values.
  * @uapsd_max_sp:	Use IEEE80211_WMM_IE_STA_QOSINFO_SP_* for correct
  *			values.
- * @heavy_traffic_thr_tx_pkts:	TX threshold measured in number of packets
- * @heavy_traffic_thr_rx_pkts:	RX threshold measured in number of packets
- * @heavy_traffic_thr_tx_load:	TX threshold measured in load's percentage
- * @heavy_traffic_thr_rx_load:	RX threshold measured in load's percentage
+ * @heavy_tx_thld_packets:	TX threshold measured in number of packets
+ * @heavy_rx_thld_packets:	RX threshold measured in number of packets
+ * @heavy_tx_thld_percentage:	TX threshold measured in load's percentage
+ * @heavy_rx_thld_percentage:	RX threshold measured in load's percentage
  * @limited_ps_threshold:
 */
 struct iwl_mac_power_cmd {
@@ -189,10 +193,10 @@ struct iwl_mac_power_cmd {
 	u8 qndp_tid;
 	u8 uapsd_ac_flags;
 	u8 uapsd_max_sp;
-	u8 heavy_traffic_threshold_tx_packets;
-	u8 heavy_traffic_threshold_rx_packets;
-	u8 heavy_traffic_threshold_tx_percentage;
-	u8 heavy_traffic_threshold_rx_percentage;
+	u8 heavy_tx_thld_packets;
+	u8 heavy_rx_thld_packets;
+	u8 heavy_tx_thld_percentage;
+	u8 heavy_rx_thld_percentage;
 	u8 limited_ps_threshold;
 	u8 reserved;
 } __packed;

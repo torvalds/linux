@@ -1406,9 +1406,9 @@ static void ath10k_tx_h_qos_workaround(struct ieee80211_hw *hw,
 		return;
 
 	qos_ctl = ieee80211_get_qos_ctl(hdr);
-	memmove(qos_ctl, qos_ctl + IEEE80211_QOS_CTL_LEN,
-		skb->len - ieee80211_hdrlen(hdr->frame_control));
-	skb_trim(skb, skb->len - IEEE80211_QOS_CTL_LEN);
+	memmove(skb->data + IEEE80211_QOS_CTL_LEN,
+		skb->data, (void *)qos_ctl - (void *)skb->data);
+	skb_pull(skb, IEEE80211_QOS_CTL_LEN);
 }
 
 static void ath10k_tx_h_update_wep_key(struct sk_buff *skb)
@@ -1925,6 +1925,8 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&ar->conf_mutex);
 
+	memset(arvif, 0, sizeof(*arvif));
+
 	arvif->ar = ar;
 	arvif->vif = vif;
 
@@ -2338,6 +2340,8 @@ static int ath10k_hw_scan(struct ieee80211_hw *hw,
 			arg.ssids[i].len  = req->ssids[i].ssid_len;
 			arg.ssids[i].ssid = req->ssids[i].ssid;
 		}
+	} else {
+		arg.scan_ctrl_flags |= WMI_SCAN_FLAG_PASSIVE;
 	}
 
 	if (req->n_channels) {
@@ -2934,6 +2938,41 @@ static void ath10k_restart_complete(struct ieee80211_hw *hw)
 	mutex_unlock(&ar->conf_mutex);
 }
 
+static int ath10k_get_survey(struct ieee80211_hw *hw, int idx,
+			     struct survey_info *survey)
+{
+	struct ath10k *ar = hw->priv;
+	struct ieee80211_supported_band *sband;
+	struct survey_info *ar_survey = &ar->survey[idx];
+	int ret = 0;
+
+	mutex_lock(&ar->conf_mutex);
+
+	sband = hw->wiphy->bands[IEEE80211_BAND_2GHZ];
+	if (sband && idx >= sband->n_channels) {
+		idx -= sband->n_channels;
+		sband = NULL;
+	}
+
+	if (!sband)
+		sband = hw->wiphy->bands[IEEE80211_BAND_5GHZ];
+
+	if (!sband || idx >= sband->n_channels) {
+		ret = -ENOENT;
+		goto exit;
+	}
+
+	spin_lock_bh(&ar->data_lock);
+	memcpy(survey, ar_survey, sizeof(*survey));
+	spin_unlock_bh(&ar->data_lock);
+
+	survey->channel = &sband->channels[idx];
+
+exit:
+	mutex_unlock(&ar->conf_mutex);
+	return ret;
+}
+
 static const struct ieee80211_ops ath10k_ops = {
 	.tx				= ath10k_tx,
 	.start				= ath10k_start,
@@ -2955,6 +2994,7 @@ static const struct ieee80211_ops ath10k_ops = {
 	.flush				= ath10k_flush,
 	.tx_last_beacon			= ath10k_tx_last_beacon,
 	.restart_complete		= ath10k_restart_complete,
+	.get_survey			= ath10k_get_survey,
 #ifdef CONFIG_PM
 	.suspend			= ath10k_suspend,
 	.resume				= ath10k_resume,
@@ -3076,9 +3116,15 @@ static const struct ieee80211_iface_limit ath10k_if_limits[] = {
 	.max	= 8,
 	.types	= BIT(NL80211_IFTYPE_STATION)
 		| BIT(NL80211_IFTYPE_P2P_CLIENT)
-		| BIT(NL80211_IFTYPE_P2P_GO)
-		| BIT(NL80211_IFTYPE_AP)
-	}
+	},
+	{
+	.max	= 3,
+	.types	= BIT(NL80211_IFTYPE_P2P_GO)
+	},
+	{
+	.max	= 7,
+	.types	= BIT(NL80211_IFTYPE_AP)
+	},
 };
 
 static const struct ieee80211_iface_combination ath10k_if_comb = {
@@ -3093,19 +3139,18 @@ static struct ieee80211_sta_vht_cap ath10k_create_vht_cap(struct ath10k *ar)
 {
 	struct ieee80211_sta_vht_cap vht_cap = {0};
 	u16 mcs_map;
+	int i;
 
 	vht_cap.vht_supported = 1;
 	vht_cap.cap = ar->vht_cap_info;
 
-	/* FIXME: check dynamically how many streams board supports */
-	mcs_map = IEEE80211_VHT_MCS_SUPPORT_0_9 << 0 |
-		IEEE80211_VHT_MCS_SUPPORT_0_9 << 2 |
-		IEEE80211_VHT_MCS_SUPPORT_0_9 << 4 |
-		IEEE80211_VHT_MCS_NOT_SUPPORTED << 6 |
-		IEEE80211_VHT_MCS_NOT_SUPPORTED << 8 |
-		IEEE80211_VHT_MCS_NOT_SUPPORTED << 10 |
-		IEEE80211_VHT_MCS_NOT_SUPPORTED << 12 |
-		IEEE80211_VHT_MCS_NOT_SUPPORTED << 14;
+	mcs_map = 0;
+	for (i = 0; i < 8; i++) {
+		if (i < ar->num_rf_chains)
+			mcs_map |= IEEE80211_VHT_MCS_SUPPORT_0_9 << (i*2);
+		else
+			mcs_map |= IEEE80211_VHT_MCS_NOT_SUPPORTED << (i*2);
+	}
 
 	vht_cap.vht_mcs.rx_mcs_map = cpu_to_le16(mcs_map);
 	vht_cap.vht_mcs.tx_mcs_map = cpu_to_le16(mcs_map);
@@ -3168,7 +3213,7 @@ static struct ieee80211_sta_ht_cap ath10k_get_ht_cap(struct ath10k *ar)
 	if (ar->vht_cap_info & WMI_VHT_CAP_MAX_MPDU_LEN_MASK)
 		ht_cap.cap |= IEEE80211_HT_CAP_MAX_AMSDU;
 
-	for (i = 0; i < WMI_MAX_SPATIAL_STREAM; i++)
+	for (i = 0; i < ar->num_rf_chains; i++)
 		ht_cap.mcs.rx_mask[i] = 0xFF;
 
 	ht_cap.mcs.tx_params |= IEEE80211_HT_MCS_TX_DEFINED;
@@ -3309,6 +3354,8 @@ int ath10k_mac_register(struct ath10k *ar)
 
 	ar->hw->wiphy->iface_combinations = &ath10k_if_comb;
 	ar->hw->wiphy->n_iface_combinations = 1;
+
+	ar->hw->netdev_features = NETIF_F_HW_CSUM;
 
 	ret = ath_regd_init(&ar->ath_common.regulatory, ar->hw->wiphy,
 			    ath10k_reg_notifier);

@@ -210,7 +210,7 @@ static bool rc_no_data_or_no_ack_use_min(struct ieee80211_tx_rate_control *txrc)
 		!ieee80211_is_data(fc);
 }
 
-static void rc_send_low_broadcast(s8 *idx, u32 basic_rates,
+static void rc_send_low_basicrate(s8 *idx, u32 basic_rates,
 				  struct ieee80211_supported_band *sband)
 {
 	u8 i;
@@ -263,28 +263,37 @@ static void __rate_control_send_low(struct ieee80211_hw *hw,
 }
 
 
-bool rate_control_send_low(struct ieee80211_sta *sta,
+bool rate_control_send_low(struct ieee80211_sta *pubsta,
 			   void *priv_sta,
 			   struct ieee80211_tx_rate_control *txrc)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(txrc->skb);
 	struct ieee80211_supported_band *sband = txrc->sband;
+	struct sta_info *sta;
 	int mcast_rate;
+	bool use_basicrate = false;
 
-	if (!sta || !priv_sta || rc_no_data_or_no_ack_use_min(txrc)) {
-		__rate_control_send_low(txrc->hw, sband, sta, info);
+	if (!pubsta || !priv_sta || rc_no_data_or_no_ack_use_min(txrc)) {
+		__rate_control_send_low(txrc->hw, sband, pubsta, info);
 
-		if (!sta && txrc->bss) {
+		if (!pubsta && txrc->bss) {
 			mcast_rate = txrc->bss_conf->mcast_rate[sband->band];
 			if (mcast_rate > 0) {
 				info->control.rates[0].idx = mcast_rate - 1;
 				return true;
 			}
+			use_basicrate = true;
+		} else if (pubsta) {
+			sta = container_of(pubsta, struct sta_info, sta);
+			if (ieee80211_vif_is_mesh(&sta->sdata->vif))
+				use_basicrate = true;
+		}
 
-			rc_send_low_broadcast(&info->control.rates[0].idx,
+		if (use_basicrate)
+			rc_send_low_basicrate(&info->control.rates[0].idx,
 					      txrc->bss_conf->basic_rates,
 					      sband);
-		}
+
 		return true;
 	}
 	return false;

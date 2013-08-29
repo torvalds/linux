@@ -24,9 +24,9 @@
 
 static const char usbdriver_name[] = "usb8797";
 
-static u8 user_rmmod;
 static struct mwifiex_if_ops usb_ops;
 static struct semaphore add_remove_card_sem;
+static struct usb_card_rec *usb_card;
 
 static struct usb_device_id mwifiex_usb_table[] = {
 	{USB_DEVICE(USB8797_VID, USB8797_PID_1)},
@@ -350,6 +350,7 @@ static int mwifiex_usb_probe(struct usb_interface *intf,
 
 	card->udev = udev;
 	card->intf = intf;
+	usb_card = card;
 
 	pr_debug("info: bcdUSB=%#x Device Class=%#x SubClass=%#x Protocol=%#x\n",
 		 udev->descriptor.bcdUSB, udev->descriptor.bDeviceClass,
@@ -532,7 +533,6 @@ static void mwifiex_usb_disconnect(struct usb_interface *intf)
 {
 	struct usb_card_rec *card = usb_get_intfdata(intf);
 	struct mwifiex_adapter *adapter;
-	int i;
 
 	if (!card || !card->adapter) {
 		pr_err("%s: card or card->adapter is NULL\n", __func__);
@@ -542,27 +542,6 @@ static void mwifiex_usb_disconnect(struct usb_interface *intf)
 	adapter = card->adapter;
 	if (!adapter->priv_num)
 		return;
-
-	/* In case driver is removed when asynchronous FW downloading is
-	 * in progress
-	 */
-	wait_for_completion(&adapter->fw_load);
-
-	if (user_rmmod) {
-#ifdef CONFIG_PM
-		if (adapter->is_suspended)
-			mwifiex_usb_resume(intf);
-#endif
-		for (i = 0; i < adapter->priv_num; i++)
-			if ((GET_BSS_ROLE(adapter->priv[i]) ==
-			     MWIFIEX_BSS_ROLE_STA) &&
-			    adapter->priv[i]->media_connected)
-				mwifiex_deauthenticate(adapter->priv[i], NULL);
-
-		mwifiex_init_shutdown_fw(mwifiex_get_priv(adapter,
-							  MWIFIEX_BSS_ROLE_ANY),
-					 MWIFIEX_FUNC_SHUTDOWN);
-	}
 
 	mwifiex_usb_free(card);
 
@@ -1032,8 +1011,29 @@ static void mwifiex_usb_cleanup_module(void)
 	if (!down_interruptible(&add_remove_card_sem))
 		up(&add_remove_card_sem);
 
-	/* set the flag as user is removing this module */
-	user_rmmod = 1;
+	if (usb_card) {
+		struct mwifiex_adapter *adapter = usb_card->adapter;
+		int i;
+
+		/* In case driver is removed when asynchronous FW downloading is
+		 * in progress
+		 */
+		wait_for_completion(&adapter->fw_load);
+
+#ifdef CONFIG_PM
+		if (adapter->is_suspended)
+			mwifiex_usb_resume(usb_card->intf);
+#endif
+		for (i = 0; i < adapter->priv_num; i++)
+			if ((GET_BSS_ROLE(adapter->priv[i]) ==
+			     MWIFIEX_BSS_ROLE_STA) &&
+			    adapter->priv[i]->media_connected)
+				mwifiex_deauthenticate(adapter->priv[i], NULL);
+
+		mwifiex_init_shutdown_fw(mwifiex_get_priv(adapter,
+							  MWIFIEX_BSS_ROLE_ANY),
+					 MWIFIEX_FUNC_SHUTDOWN);
+	}
 
 	usb_deregister(&mwifiex_usb_driver);
 }

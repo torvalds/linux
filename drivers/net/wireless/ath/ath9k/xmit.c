@@ -312,12 +312,6 @@ static void ath_tx_addto_baw(struct ath_softc *sc, struct ath_atx_tid *tid,
 	}
 }
 
-/*
- * TODO: For frame(s) that are in the retry state, we will reuse the
- * sequence number(s) without setting the retry bit. The
- * alternative is to give up on these and BAR the receiver's window
- * forward.
- */
 static void ath_tid_drain(struct ath_softc *sc, struct ath_txq *txq,
 			  struct ath_atx_tid *tid)
 
@@ -341,14 +335,8 @@ static void ath_tid_drain(struct ath_softc *sc, struct ath_txq *txq,
 		}
 
 		list_add_tail(&bf->list, &bf_head);
-
-		ath_tx_update_baw(sc, tid, bf->bf_state.seqno);
 		ath_tx_complete_buf(sc, bf, txq, &bf_head, &ts, 0);
 	}
-
-	tid->seq_next = tid->seq_start;
-	tid->baw_tail = tid->baw_head;
-	tid->bar_index = -1;
 }
 
 static void ath_tx_set_retry(struct ath_softc *sc, struct ath_txq *txq,
@@ -493,7 +481,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 		while (bf) {
 			bf_next = bf->bf_next;
 
-			if (!bf->bf_stale || bf_next != NULL)
+			if (!bf->bf_state.stale || bf_next != NULL)
 				list_move_tail(&bf->list, &bf_head);
 
 			ath_tx_complete_buf(sc, bf, txq, &bf_head, ts, 0);
@@ -586,7 +574,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 		 * not a holding desc.
 		 */
 		INIT_LIST_HEAD(&bf_head);
-		if (bf_next != NULL || !bf_last->bf_stale)
+		if (bf_next != NULL || !bf_last->bf_state.stale)
 			list_move_tail(&bf->list, &bf_head);
 
 		if (!txpending) {
@@ -610,7 +598,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 				ieee80211_sta_eosp(sta);
 			}
 			/* retry the un-acked ones */
-			if (bf->bf_next == NULL && bf_last->bf_stale) {
+			if (bf->bf_next == NULL && bf_last->bf_state.stale) {
 				struct ath_buf *tbf;
 
 				tbf = ath_clone_txbuf(sc, bf_last);
@@ -900,6 +888,8 @@ ath_tx_get_tid_subframe(struct ath_softc *sc, struct ath_txq *txq,
 		bf = fi->bf;
 		if (!fi->bf)
 			bf = ath_tx_setup_buffer(sc, txq, tid, skb);
+		else
+			bf->bf_state.stale = false;
 
 		if (!bf) {
 			__skb_unlink(skb, *q);
@@ -1734,7 +1724,7 @@ static void ath_drain_txq_list(struct ath_softc *sc, struct ath_txq *txq,
 	while (!list_empty(list)) {
 		bf = list_first_entry(list, struct ath_buf, list);
 
-		if (bf->bf_stale) {
+		if (bf->bf_state.stale) {
 			list_del(&bf->list);
 
 			ath_tx_return_buffer(sc, bf);
@@ -2490,7 +2480,7 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		 * it with the STALE flag.
 		 */
 		bf_held = NULL;
-		if (bf->bf_stale) {
+		if (bf->bf_state.stale) {
 			bf_held = bf;
 			if (list_is_last(&bf_held->list, &txq->axq_q))
 				break;
@@ -2514,7 +2504,7 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		 * however leave the last descriptor back as the holding
 		 * descriptor for hw.
 		 */
-		lastbf->bf_stale = true;
+		lastbf->bf_state.stale = true;
 		INIT_LIST_HEAD(&bf_head);
 		if (!list_is_singular(&lastbf->list))
 			list_cut_position(&bf_head,
@@ -2569,6 +2559,8 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 		if (ts.qid == sc->beacon.beaconq) {
 			sc->beacon.tx_processed = true;
 			sc->beacon.tx_last = !(ts.ts_status & ATH9K_TXERR_MASK);
+
+			ath9k_csa_is_finished(sc);
 			continue;
 		}
 
@@ -2585,7 +2577,7 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 		}
 
 		bf = list_first_entry(fifo_list, struct ath_buf, list);
-		if (bf->bf_stale) {
+		if (bf->bf_state.stale) {
 			list_del(&bf->list);
 			ath_tx_return_buffer(sc, bf);
 			bf = list_first_entry(fifo_list, struct ath_buf, list);
@@ -2607,7 +2599,7 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 				ath_tx_txqaddbuf(sc, txq, &bf_q, true);
 			}
 		} else {
-			lastbf->bf_stale = true;
+			lastbf->bf_state.stale = true;
 			if (bf != lastbf)
 				list_cut_position(&bf_head, fifo_list,
 						  lastbf->list.prev);

@@ -153,6 +153,7 @@ struct service_to_pipe {
 enum ath10k_pci_features {
 	ATH10K_PCI_FEATURE_MSI_X		= 0,
 	ATH10K_PCI_FEATURE_HW_1_0_WORKAROUND	= 1,
+	ATH10K_PCI_FEATURE_SOC_POWER_SAVE	= 2,
 
 	/* keep last */
 	ATH10K_PCI_FEATURE_COUNT
@@ -335,20 +336,22 @@ static inline u32 ath10k_pci_read32(struct ath10k *ar, u32 offset)
 	return ioread32(ar_pci->mem + offset);
 }
 
-extern unsigned int ath10k_target_ps;
-
 void ath10k_do_pci_wake(struct ath10k *ar);
 void ath10k_do_pci_sleep(struct ath10k *ar);
 
 static inline void ath10k_pci_wake(struct ath10k *ar)
 {
-	if (ath10k_target_ps)
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+
+	if (test_bit(ATH10K_PCI_FEATURE_SOC_POWER_SAVE, ar_pci->features))
 		ath10k_do_pci_wake(ar);
 }
 
 static inline void ath10k_pci_sleep(struct ath10k *ar)
 {
-	if (ath10k_target_ps)
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+
+	if (test_bit(ATH10K_PCI_FEATURE_SOC_POWER_SAVE, ar_pci->features))
 		ath10k_do_pci_sleep(ar);
 }
 

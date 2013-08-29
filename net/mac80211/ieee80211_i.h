@@ -53,9 +53,6 @@ struct ieee80211_local;
  * increased memory use (about 2 kB of RAM per entry). */
 #define IEEE80211_FRAGMENT_MAX 4
 
-#define TU_TO_JIFFIES(x)	(usecs_to_jiffies((x) * 1024))
-#define TU_TO_EXP_TIME(x)	(jiffies + TU_TO_JIFFIES(x))
-
 /* power level hasn't been configured (or set to automatic) */
 #define IEEE80211_UNSET_POWER_LEVEL	INT_MIN
 

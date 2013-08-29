@@ -2019,10 +2019,12 @@ struct mac_iveiv_entry {
 #define HW_BEACON_BASE6			0x5dc0
 #define HW_BEACON_BASE7			0x5bc0
 
-#define HW_BEACON_OFFSET(__index) \
+#define HW_BEACON_BASE(__index) \
 	(((__index) < 4) ? (HW_BEACON_BASE0 + (__index * 0x0200)) : \
 	  (((__index) < 6) ? (HW_BEACON_BASE4 + ((__index - 4) * 0x0200)) : \
 	  (HW_BEACON_BASE6 - ((__index - 6) * 0x0200))))
+
+#define BEACON_BASE_TO_OFFSET(_base)	(((_base) - 0x4000) / 64)
 
 /*
  * BBP registers.
@@ -2794,6 +2796,7 @@ enum rt2800_eeprom_word {
 #define MCU_RADAR			0x60
 #define MCU_BOOT_SIGNAL			0x72
 #define MCU_ANT_SELECT			0X73
+#define MCU_FREQ_OFFSET			0x74
 #define MCU_BBP_SIGNAL			0x80
 #define MCU_POWER_SAVE			0x83
 #define MCU_BAND_SELECT		0x91

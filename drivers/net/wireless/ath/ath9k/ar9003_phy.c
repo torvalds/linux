@@ -1172,6 +1172,10 @@ skip_ws_det:
 		 * is_on == 0 means MRC CCK is OFF (more noise imm)
 		 */
 		bool is_on = param ? 1 : 0;
+
+		if (ah->caps.rx_chainmask == 1)
+			break;
+
 		REG_RMW_FIELD(ah, AR_PHY_MRC_CCK_CTRL,
 			      AR_PHY_MRC_CCK_ENABLE, is_on);
 		REG_RMW_FIELD(ah, AR_PHY_MRC_CCK_CTRL,
@@ -1189,8 +1193,6 @@ skip_ws_det:
 		}
 	break;
 	}
-	case ATH9K_ANI_PRESENT:
-		break;
 	default:
 		ath_dbg(common, ANI, "invalid cmd %u\n", cmd);
 		return false;
@@ -1445,7 +1447,7 @@ static void ar9003_hw_set_bt_ant_diversity(struct ath_hw *ah, bool enable)
 	regval |= (ant_div_ctl1 & 0x3f) << AR_ANT_DIV_CTRL_ALL_S;
 	REG_WRITE(ah, AR_PHY_MC_GAIN_CTRL, regval);
 
-	if (AR_SREV_9485_11(ah)) {
+	if (AR_SREV_9485_11_OR_LATER(ah)) {
 		/*
 		 * Enable LNA diversity.
 		 */

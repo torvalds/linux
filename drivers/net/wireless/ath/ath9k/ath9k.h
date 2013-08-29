@@ -72,15 +72,10 @@ struct ath_config {
 /*************************/
 
 #define ATH_TXBUF_RESET(_bf) do {				\
-		(_bf)->bf_stale = false;			\
 		(_bf)->bf_lastbf = NULL;			\
 		(_bf)->bf_next = NULL;				\
 		memset(&((_bf)->bf_state), 0,			\
 		       sizeof(struct ath_buf_state));		\
-	} while (0)
-
-#define ATH_RXBUF_RESET(_bf) do {		\
-		(_bf)->bf_stale = false;	\
 	} while (0)
 
 /**
@@ -196,10 +191,10 @@ struct ath_txq {
 
 struct ath_atx_ac {
 	struct ath_txq *txq;
-	int sched;
 	struct list_head list;
 	struct list_head tid_q;
 	bool clear_ps_filter;
+	bool sched;
 };
 
 struct ath_frame_info {
@@ -216,6 +211,7 @@ struct ath_buf_state {
 	u8 bf_type;
 	u8 bfs_paprd;
 	u8 ndelim;
+	bool stale;
 	u16 seqno;
 	unsigned long bfs_paprd_timestamp;
 };
@@ -229,7 +225,6 @@ struct ath_buf {
 	void *bf_desc;			/* virtual addr of desc */
 	dma_addr_t bf_daddr;		/* physical addr of desc */
 	dma_addr_t bf_buf_addr;	/* physical addr of data buffer, for DMA */
-	bool bf_stale;
 	struct ieee80211_tx_rate rates[4];
 	struct ath_buf_state bf_state;
 };
@@ -241,13 +236,14 @@ struct ath_atx_tid {
 	struct ath_node *an;
 	struct ath_atx_ac *ac;
 	unsigned long tx_buf[BITS_TO_LONGS(ATH_TID_MAX_BUFS)];
-	int bar_index;
 	u16 seq_start;
 	u16 seq_next;
 	u16 baw_size;
-	int tidno;
+	u8 tidno;
 	int baw_head;   /* first un-acked tx buffer */
 	int baw_tail;   /* next unused tx buffer slot */
+
+	s8 bar_index;
 	bool sched;
 	bool paused;
 	bool active;
@@ -259,17 +255,13 @@ struct ath_node {
 	struct ieee80211_vif *vif; /* interface with which we're associated */
 	struct ath_atx_tid tid[IEEE80211_NUM_TIDS];
 	struct ath_atx_ac ac[IEEE80211_NUM_ACS];
-	int ps_key;
 
 	u16 maxampdu;
 	u8 mpdudensity;
+	s8 ps_key;
 
 	bool sleeping;
 	bool no_ps_filter;
-
-#if defined(CONFIG_MAC80211_DEBUGFS) && defined(CONFIG_ATH9K_DEBUGFS)
-	struct dentry *node_stat;
-#endif
 };
 
 struct ath_tx_control {
@@ -315,6 +307,7 @@ struct ath_rx {
 	struct ath_descdma rxdma;
 	struct ath_rx_edma rx_edma[ATH9K_RX_QUEUE_MAX];
 
+	struct ath_buf *buf_hold;
 	struct sk_buff *frag;
 
 	u32 ampdu_ref;
@@ -427,6 +420,7 @@ void ath9k_beacon_assign_slot(struct ath_softc *sc, struct ieee80211_vif *vif);
 void ath9k_beacon_remove_slot(struct ath_softc *sc, struct ieee80211_vif *vif);
 void ath9k_set_tsfadjust(struct ath_softc *sc, struct ieee80211_vif *vif);
 void ath9k_set_beacon(struct ath_softc *sc);
+bool ath9k_csa_is_finished(struct ath_softc *sc);
 
 /*******************/
 /* Link Monitoring */
@@ -637,6 +631,7 @@ void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs);
 #define ATH9K_PCI_CUS217     0x0004
 #define ATH9K_PCI_WOW        0x0008
 #define ATH9K_PCI_BT_ANT_DIV 0x0010
+#define ATH9K_PCI_D3_L1_WAR  0x0020
 
 /*
  * Default cache line size, in bytes.
@@ -763,6 +758,7 @@ struct ath_softc {
 #endif
 
 	struct ath_descdma txsdma;
+	struct ieee80211_vif *csa_vif;
 
 	struct ath_ant_comb ant_comb;
 	u8 ant_tx, ant_rx;
