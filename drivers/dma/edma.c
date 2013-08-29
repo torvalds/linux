@@ -158,12 +158,17 @@ static void edma_execute(struct edma_chan *echan)
 		/* Link to the previous slot if not the last set */
 		if (i != (nslots - 1))
 			edma_link(echan->slot[i], echan->slot[i+1]);
-		/* Final pset links to the dummy pset */
-		else
-			edma_link(echan->slot[i], echan->ecc->dummy_slot);
 	}
 
 	edesc->processed += nslots;
+
+	/*
+	 * If this is either the last set in a set of SG-list transactions
+	 * then setup a link to the dummy slot, this results in all future
+	 * events being absorbed and that's OK because we're done
+	 */
+	if (edesc->processed == edesc->pset_nr)
+		edma_link(echan->slot[nslots-1], echan->ecc->dummy_slot);
 
 	edma_resume(echan->ch_num);
 
