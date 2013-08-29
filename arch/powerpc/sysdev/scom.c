@@ -180,7 +180,7 @@ static int scom_debug_init_one(struct dentry *root, struct device_node *dn,
 
 	debugfs_create_file("addr", 0600, dir, ent, &scom_addr_fops);
 	debugfs_create_file("value", 0600, dir, ent, &scom_val_fops);
-	debugfs_create_blob("path", 0400, dir, &ent->blob);
+	debugfs_create_blob("devspec", 0400, dir, &ent->blob);
 
 	return 0;
 }
