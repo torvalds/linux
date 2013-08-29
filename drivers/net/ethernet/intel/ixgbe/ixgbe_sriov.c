@@ -639,8 +639,8 @@ static int ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	unsigned char *vf_mac = adapter->vfinfo[vf].vf_mac_addresses;
-	u32 reg, msgbuf[4];
-	u32 reg_offset, vf_shift;
+	u32 reg, reg_offset, vf_shift;
+	u32 msgbuf[4] = {0, 0, 0, 0};
 	u8 *addr = (u8 *)(&msgbuf[1]);
 
 	e_info(probe, "VF Reset msg received from vf %d\n", vf);

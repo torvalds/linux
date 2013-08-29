@@ -49,6 +49,7 @@ static s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 static s32 ixgbe_setup_mac_link_smartspeed(struct ixgbe_hw *hw,
                                            ixgbe_link_speed speed,
                                            bool autoneg_wait_to_complete);
+static void ixgbe_stop_mac_link_on_d3_82599(struct ixgbe_hw *hw);
 static s32 ixgbe_start_mac_link_82599(struct ixgbe_hw *hw,
 				      bool autoneg_wait_to_complete);
 static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
@@ -141,11 +142,13 @@ static s32 ixgbe_setup_sfp_modules_82599(struct ixgbe_hw *hw)
 			goto setup_sfp_out;
 		}
 
-		hw->eeprom.ops.read(hw, ++data_offset, &data_value);
+		if (hw->eeprom.ops.read(hw, ++data_offset, &data_value))
+			goto setup_sfp_err;
 		while (data_value != 0xffff) {
 			IXGBE_WRITE_REG(hw, IXGBE_CORECTL, data_value);
 			IXGBE_WRITE_FLUSH(hw);
-			hw->eeprom.ops.read(hw, ++data_offset, &data_value);
+			if (hw->eeprom.ops.read(hw, ++data_offset, &data_value))
+				goto setup_sfp_err;
 		}
 
 		/* Release the semaphore */
@@ -191,6 +194,17 @@ static s32 ixgbe_setup_sfp_modules_82599(struct ixgbe_hw *hw)
 
 setup_sfp_out:
 	return ret_val;
+
+setup_sfp_err:
+	/* Release the semaphore */
+	hw->mac.ops.release_swfw_sync(hw, IXGBE_GSSR_MAC_CSR_SM);
+	/* Delay obtaining semaphore again to allow FW access,
+	 * semaphore_delay is in ms usleep_range needs us.
+	 */
+	usleep_range(hw->eeprom.semaphore_delay * 1000,
+		     hw->eeprom.semaphore_delay * 2000);
+	hw_err(hw, "eeprom read at offset %d failed\n", data_offset);
+	return IXGBE_ERR_SFP_SETUP_NOT_COMPLETE;
 }
 
 static s32 ixgbe_get_invariants_82599(struct ixgbe_hw *hw)
@@ -365,8 +379,13 @@ static s32 ixgbe_get_link_capabilities_82599(struct ixgbe_hw *hw,
 
 	if (hw->phy.multispeed_fiber) {
 		*speed |= IXGBE_LINK_SPEED_10GB_FULL |
-		          IXGBE_LINK_SPEED_1GB_FULL;
-		*autoneg = true;
+			  IXGBE_LINK_SPEED_1GB_FULL;
+
+		/* QSFP must not enable auto-negotiation */
+		if (hw->phy.media_type == ixgbe_media_type_fiber_qsfp)
+			*autoneg = false;
+		else
+			*autoneg = true;
 	}
 
 out:
@@ -429,6 +448,24 @@ static enum ixgbe_media_type ixgbe_get_media_type_82599(struct ixgbe_hw *hw)
 	}
 out:
 	return media_type;
+}
+
+/**
+ * ixgbe_stop_mac_link_on_d3_82599 - Disables link on D3
+ * @hw: pointer to hardware structure
+ *
+ * Disables link, should be called during D3 power down sequence.
+ *
+ */
+static void ixgbe_stop_mac_link_on_d3_82599(struct ixgbe_hw *hw)
+{
+	u32 autoc2_reg;
+
+	if (!hw->mng_fw_enabled && !hw->wol_enabled) {
+		autoc2_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC2);
+		autoc2_reg |= IXGBE_AUTOC2_LINK_DISABLE_ON_D3_MASK;
+		IXGBE_WRITE_REG(hw, IXGBE_AUTOC2, autoc2_reg);
+	}
 }
 
 /**
@@ -668,13 +705,18 @@ static s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 			goto out;
 
 		/* Set the module link speed */
-		if (hw->phy.media_type == ixgbe_media_type_fiber_fixed) {
-			ixgbe_set_fiber_fixed_speed(hw,
-					IXGBE_LINK_SPEED_10GB_FULL);
-		} else {
+		switch (hw->phy.media_type) {
+		case ixgbe_media_type_fiber:
 			esdp_reg |= (IXGBE_ESDP_SDP5_DIR | IXGBE_ESDP_SDP5);
 			IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
 			IXGBE_WRITE_FLUSH(hw);
+			break;
+		case ixgbe_media_type_fiber_qsfp:
+			/* QSFP module automatically detects MAC link speed */
+			break;
+		default:
+			hw_dbg(hw, "Unexpected media type.\n");
+			break;
 		}
 
 		/* Allow module to change analog characteristics (1G->10G) */
@@ -725,14 +767,23 @@ static s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 			goto out;
 
 		/* Set the module link speed */
-		if (hw->phy.media_type == ixgbe_media_type_fiber_fixed) {
+		switch (hw->phy.media_type) {
+		case ixgbe_media_type_fiber_fixed:
 			ixgbe_set_fiber_fixed_speed(hw,
 						IXGBE_LINK_SPEED_1GB_FULL);
-		} else {
+			break;
+		case ixgbe_media_type_fiber:
 			esdp_reg &= ~IXGBE_ESDP_SDP5;
 			esdp_reg |= IXGBE_ESDP_SDP5_DIR;
 			IXGBE_WRITE_REG(hw, IXGBE_ESDP, esdp_reg);
 			IXGBE_WRITE_FLUSH(hw);
+			break;
+		case ixgbe_media_type_fiber_qsfp:
+			/* QSFP module automatically detects MAC link speed */
+			break;
+		default:
+			hw_dbg(hw, "Unexpected media type.\n");
+			break;
 		}
 
 		/* Allow module to change analog characteristics (10G->1G) */
@@ -2161,6 +2212,7 @@ static s32 ixgbe_verify_fw_version_82599(struct ixgbe_hw *hw)
 {
 	s32 status = IXGBE_ERR_EEPROM_VERSION;
 	u16 fw_offset, fw_ptp_cfg_offset;
+	u16 offset;
 	u16 fw_version = 0;
 
 	/* firmware check is only necessary for SFI devices */
@@ -2170,29 +2222,35 @@ static s32 ixgbe_verify_fw_version_82599(struct ixgbe_hw *hw)
 	}
 
 	/* get the offset to the Firmware Module block */
-	hw->eeprom.ops.read(hw, IXGBE_FW_PTR, &fw_offset);
+	offset = IXGBE_FW_PTR;
+	if (hw->eeprom.ops.read(hw, offset, &fw_offset))
+		goto fw_version_err;
 
 	if ((fw_offset == 0) || (fw_offset == 0xFFFF))
 		goto fw_version_out;
 
 	/* get the offset to the Pass Through Patch Configuration block */
-	hw->eeprom.ops.read(hw, (fw_offset +
-	                         IXGBE_FW_PASSTHROUGH_PATCH_CONFIG_PTR),
-	                         &fw_ptp_cfg_offset);
+	offset = fw_offset + IXGBE_FW_PASSTHROUGH_PATCH_CONFIG_PTR;
+	if (hw->eeprom.ops.read(hw, offset, &fw_ptp_cfg_offset))
+		goto fw_version_err;
 
 	if ((fw_ptp_cfg_offset == 0) || (fw_ptp_cfg_offset == 0xFFFF))
 		goto fw_version_out;
 
 	/* get the firmware version */
-	hw->eeprom.ops.read(hw, (fw_ptp_cfg_offset +
-	                         IXGBE_FW_PATCH_VERSION_4),
-	                         &fw_version);
+	offset = fw_ptp_cfg_offset + IXGBE_FW_PATCH_VERSION_4;
+	if (hw->eeprom.ops.read(hw, offset, &fw_version))
+		goto fw_version_err;
 
 	if (fw_version > 0x5)
 		status = 0;
 
 fw_version_out:
 	return status;
+
+fw_version_err:
+	hw_err(hw, "eeprom read at offset %d failed\n", offset);
+	return IXGBE_ERR_EEPROM_VERSION;
 }
 
 /**
@@ -2477,6 +2535,7 @@ static struct ixgbe_mac_operations mac_ops_82599 = {
 	.set_lan_id             = &ixgbe_set_lan_id_multi_port_pcie,
 	.read_analog_reg8       = &ixgbe_read_analog_reg8_82599,
 	.write_analog_reg8      = &ixgbe_write_analog_reg8_82599,
+	.stop_link_on_d3	= &ixgbe_stop_mac_link_on_d3_82599,
 	.setup_link             = &ixgbe_setup_mac_link_82599,
 	.set_rxpba		= &ixgbe_set_rxpba_generic,
 	.check_link             = &ixgbe_check_mac_link_generic,

@@ -4175,6 +4175,10 @@ static inline bool ixgbe_is_sfp(struct ixgbe_hw *hw)
 	case ixgbe_phy_sfp_passive_unknown:
 	case ixgbe_phy_sfp_active_unknown:
 	case ixgbe_phy_sfp_ftl_active:
+	case ixgbe_phy_qsfp_passive_unknown:
+	case ixgbe_phy_qsfp_active_unknown:
+	case ixgbe_phy_qsfp_intel:
+	case ixgbe_phy_qsfp_unknown:
 		return true;
 	case ixgbe_phy_nl:
 		if (hw->mac.type == ixgbe_mac_82598EB)
@@ -5292,6 +5296,9 @@ static int __ixgbe_shutdown(struct pci_dev *pdev, bool *enable_wake)
 		return retval;
 
 #endif
+	if (hw->mac.ops.stop_link_on_d3)
+		hw->mac.ops.stop_link_on_d3(hw);
+
 	if (wufc) {
 		ixgbe_set_rx_mode(netdev);
 
@@ -7602,10 +7609,8 @@ static int ixgbe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	    hw->mac.type == ixgbe_mac_82598EB) {
 		err = 0;
 	} else if (err == IXGBE_ERR_SFP_NOT_SUPPORTED) {
-		e_dev_err("failed to load because an unsupported SFP+ "
-			  "module type was detected.\n");
-		e_dev_err("Reload the driver after installing a supported "
-			  "module.\n");
+		e_dev_err("failed to load because an unsupported SFP+ or QSFP module type was detected.\n");
+		e_dev_err("Reload the driver after installing a supported module.\n");
 		goto err_sw_init;
 	} else if (err) {
 		e_dev_err("HW Init failed: %d\n", err);
