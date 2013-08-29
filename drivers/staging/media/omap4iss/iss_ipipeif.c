@@ -235,6 +235,13 @@ static void ipipeif_isr_buffer(struct iss_ipipeif_device *ipipeif)
 {
 	struct iss_buffer *buffer;
 
+	/* The ISIF generates VD0 interrupts even when writes are disabled.
+	 * deal with it anyway). Disabling the ISIF when no buffer is available
+	 * is thus not be enough, we need to handle the situation explicitly.
+	 */
+	if (list_empty(&ipipeif->video_out.dmaqueue))
+		return;
+
 	ipipeif_write_enable(ipipeif, 0);
 
 	buffer = omap4iss_video_buffer_next(&ipipeif->video_out);
