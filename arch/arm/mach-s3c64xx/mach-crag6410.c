@@ -30,7 +30,7 @@
 #include <linux/basic_mmio_gpio.h>
 #include <linux/spi/spi.h>
 
-#include <linux/i2c/pca953x.h>
+#include <linux/platform_data/pca953x.h>
 #include <linux/platform_data/s3c-hsotg.h>
 
 #include <video/platform_lcd.h>
