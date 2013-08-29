@@ -23,6 +23,7 @@
 #include <linux/kdebug.h>
 
 #include <asm/uaccess.h>
+#include <asm/dis.h>
 #include <asm/io.h>
 #include <linux/atomic.h>
 #include <asm/mathemu.h>
@@ -36,17 +37,6 @@
 #else /* CONFIG_64BIT */
 #define ONELONG "%016lx: "
 #endif /* CONFIG_64BIT */
-
-#define OPERAND_GPR	0x1	/* Operand printed as %rx */
-#define OPERAND_FPR	0x2	/* Operand printed as %fx */
-#define OPERAND_AR	0x4	/* Operand printed as %ax */
-#define OPERAND_CR	0x8	/* Operand printed as %cx */
-#define OPERAND_DISP	0x10	/* Operand printed as displacement */
-#define OPERAND_BASE	0x20	/* Operand printed as base register */
-#define OPERAND_INDEX	0x40	/* Operand printed as index register */
-#define OPERAND_PCREL	0x80	/* Operand printed as pc-relative symbol */
-#define OPERAND_SIGNED	0x100	/* Operand printed as signed value */
-#define OPERAND_LENGTH	0x200	/* Operand printed as length (+1) */
 
 enum {
 	UNUSED,	/* Indicates the end of the operand list */
@@ -153,18 +143,6 @@ enum {
 	INSTR_SS_L0RDRD, INSTR_SS_LIRDRD, INSTR_SS_LLRDRD, INSTR_SS_RRRDRD,
 	INSTR_SS_RRRDRD2, INSTR_SS_RRRDRD3,
 	INSTR_S_00, INSTR_S_RD,
-};
-
-struct s390_operand {
-	int bits;		/* The number of bits in the operand. */
-	int shift;		/* The number of bits to shift. */
-	int flags;		/* One bit syntax flags. */
-};
-
-struct s390_insn {
-	const char name[5];
-	unsigned char opfrag;
-	unsigned char format;
 };
 
 static const struct s390_operand operands[] =
@@ -1606,11 +1584,6 @@ static unsigned int extract_operand(unsigned char *code,
 	if (operand->flags & OPERAND_LENGTH)
 		val++;
 	return val;
-}
-
-static inline int insn_length(unsigned char code)
-{
-	return ((((int) code + 64) >> 7) + 1) << 1;
 }
 
 static struct s390_insn *find_insn(unsigned char *code)
