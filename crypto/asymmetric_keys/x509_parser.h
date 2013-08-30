@@ -9,6 +9,7 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 
+#include <linux/time.h>
 #include <crypto/public_key.h>
 
 struct x509_certificate {
