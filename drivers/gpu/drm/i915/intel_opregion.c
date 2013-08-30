@@ -342,6 +342,33 @@ int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
 	return swsci(dev, SWSCI_SBCB_DISPLAY_POWER_STATE, parm, NULL);
 }
 
+static const struct {
+	pci_power_t pci_power_state;
+	u32 parm;
+} power_state_map[] = {
+	{ PCI_D0,	0x00 },
+	{ PCI_D1,	0x01 },
+	{ PCI_D2,	0x02 },
+	{ PCI_D3hot,	0x04 },
+	{ PCI_D3cold,	0x04 },
+};
+
+int intel_opregion_notify_adapter(struct drm_device *dev, pci_power_t state)
+{
+	int i;
+
+	if (!HAS_DDI(dev))
+		return 0;
+
+	for (i = 0; i < ARRAY_SIZE(power_state_map); i++) {
+		if (state == power_state_map[i].pci_power_state)
+			return swsci(dev, SWSCI_SBCB_ADAPTER_POWER_STATE,
+				     power_state_map[i].parm, NULL);
+	}
+
+	return -EINVAL;
+}
+
 static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
