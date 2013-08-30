@@ -1621,16 +1621,10 @@ int dwc_otg_pcd_init(struct device *dev)
 /*	pcd->gadget.is_dualspeed = check_is_dual_speed(core_if);*/
 	pcd->gadget.is_otg = check_is_otg(core_if);
 
-	/* Register the gadget device */
-	retval = device_register(&pcd->gadget.dev);
-	if (retval)
-		goto unreg_device;
-
-
 	/* hook up the gadget*/
 	retval = usb_add_gadget_udc(dev, &pcd->gadget);
 	if (retval)
-		goto unreg_device;
+		goto err;
 
 	/* Initialized the Core for Device mode. */
 	if (dwc_otg_is_device_mode(core_if))
@@ -1665,9 +1659,6 @@ err_cleanup:
 	kfree(pcd);
 	otg_dev->pcd = NULL;
 	s_pcd = NULL;
-
-unreg_device:
-	device_unregister(&pcd->gadget.dev);
 
 err:
 	return retval;
@@ -1733,7 +1724,6 @@ static int dwc_gadget_start(struct usb_gadget *gadget,
 
 	/* hook up the driver */
 	s_pcd->driver = driver;
-	s_pcd->gadget.dev.driver = &driver->driver;
 
 	return 0;
 }
@@ -1756,7 +1746,6 @@ static int dwc_gadget_stop(struct usb_gadget *gadget,
 	otg_set_peripheral(core_if->xceiv->otg, NULL);
 
 	driver->unbind(&s_pcd->gadget);
-	s_pcd->driver = NULL;
 
 	return 0;
 }

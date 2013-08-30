@@ -399,19 +399,7 @@ static struct platform_driver dwc_otg_driver = {
 		},
 };
 
-static int __init dwc_otg_driver_init(void)
-{
-	return platform_driver_probe(&dwc_otg_driver, dwc_otg_driver_probe);
-}
-
-module_init(dwc_otg_driver_init);
-
-static void __exit dwc_otg_driver_cleanup(void)
-{
-	platform_driver_unregister(&dwc_otg_driver);
-}
-
-module_exit(dwc_otg_driver_cleanup);
+module_platform_driver_probe(dwc_otg_driver, dwc_otg_driver_probe);
 
 MODULE_DESCRIPTION(DWC_DRIVER_DESC);
 MODULE_AUTHOR("Mark Miesfeld <mmiesfeld@apm.com");

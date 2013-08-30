@@ -43,6 +43,7 @@ config DWC_DEVICE_ONLY
 	select USB_GADGET_SELECTED
 	select USB_GADGET_DWC_HDRC
 	select USB_GADGET_DWC_OTG
+	select CONFIGFS_FS
 
 endchoice
 
