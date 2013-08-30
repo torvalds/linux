@@ -207,6 +207,13 @@ out_free:
 	return ret;
 }
 
+void nfs_wait_on_sillyrename(struct dentry *dentry)
+{
+	struct nfs_inode *nfsi = NFS_I(dentry->d_inode);
+
+	wait_event(nfsi->waitqueue, atomic_read(&nfsi->silly_count) <= 1);
+}
+
 void nfs_block_sillyrename(struct dentry *dentry)
 {
 	struct nfs_inode *nfsi = NFS_I(dentry->d_inode);

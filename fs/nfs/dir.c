@@ -1694,12 +1694,19 @@ int nfs_rmdir(struct inode *dir, struct dentry *dentry)
 			dir->i_sb->s_id, dir->i_ino, dentry->d_name.name);
 
 	trace_nfs_rmdir_enter(dir, dentry);
-	error = NFS_PROTO(dir)->rmdir(dir, &dentry->d_name);
-	/* Ensure the VFS deletes this inode */
-	if (error == 0 && dentry->d_inode != NULL)
-		clear_nlink(dentry->d_inode);
-	else if (error == -ENOENT)
-		nfs_dentry_handle_enoent(dentry);
+	if (dentry->d_inode) {
+		nfs_wait_on_sillyrename(dentry);
+		error = NFS_PROTO(dir)->rmdir(dir, &dentry->d_name);
+		/* Ensure the VFS deletes this inode */
+		switch (error) {
+		case 0:
+			clear_nlink(dentry->d_inode);
+			break;
+		case -ENOENT:
+			nfs_dentry_handle_enoent(dentry);
+		}
+	} else
+		error = NFS_PROTO(dir)->rmdir(dir, &dentry->d_name);
 	trace_nfs_rmdir_exit(dir, dentry, error);
 
 	return error;
