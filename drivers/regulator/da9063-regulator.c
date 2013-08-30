@@ -166,22 +166,15 @@ static int da9063_set_current_limit(struct regulator_dev *rdev,
 {
 	struct da9063_regulator *regl = rdev_get_drvdata(rdev);
 	const struct da9063_regulator_info *rinfo = regl->info;
-	int val = INT_MAX;
-	unsigned sel = 0;
-	int n;
-	int tval;
+	int n, tval;
 
 	for (n = 0; n < rinfo->n_current_limits; n++) {
 		tval = rinfo->current_limits[n];
-		if (tval >= min_uA && tval <= max_uA && val > tval) {
-			val = tval;
-			sel = n;
-		}
+		if (tval >= min_uA && tval <= max_uA)
+			return regmap_field_write(regl->ilimit, n);
 	}
-	if (val == INT_MAX)
-		return -EINVAL;
 
-	return regmap_field_write(regl->ilimit, sel);
+	return -EINVAL;
 }
 
 static int da9063_get_current_limit(struct regulator_dev *rdev)
