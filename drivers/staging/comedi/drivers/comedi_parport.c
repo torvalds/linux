@@ -96,15 +96,13 @@ struct parport_private {
 	int enable_irq;
 };
 
-static int parport_insn_a(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
+static int parport_data_reg_insn_bits(struct comedi_device *dev,
+				      struct comedi_subdevice *s,
+				      struct comedi_insn *insn,
+				      unsigned int *data)
 {
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
-
+	if (comedi_dio_update_state(s, data))
 		outb(s->state, dev->iobase + PARPORT_DATA_REG);
-	}
 
 	data[1] = inb(dev->iobase + PARPORT_DATA_REG);
 
@@ -289,7 +287,7 @@ static int parport_attach(struct comedi_device *dev,
 	s->n_chan = 8;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
-	s->insn_bits = parport_insn_a;
+	s->insn_bits = parport_data_reg_insn_bits;
 	s->insn_config = parport_insn_config_a;
 
 	s = &dev->subdevices[1];
