@@ -345,6 +345,8 @@ void comedi_buf_memcpy_from(struct comedi_async *async, unsigned int offset,
 int comedi_dio_insn_config(struct comedi_device *, struct comedi_subdevice *,
 			   struct comedi_insn *, unsigned int *data,
 			   unsigned int mask);
+unsigned int comedi_dio_update_state(struct comedi_subdevice *,
+				     unsigned int *data);
 
 void *comedi_alloc_devpriv(struct comedi_device *, size_t);
 int comedi_alloc_subdevices(struct comedi_device *, int);
