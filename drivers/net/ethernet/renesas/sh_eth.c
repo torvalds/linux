@@ -2606,7 +2606,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct net_device *ndev = NULL;
 	struct sh_eth_private *mdp = NULL;
-	struct sh_eth_plat_data *pd = pdev->dev.platform_data;
+	struct sh_eth_plat_data *pd = dev_get_platdata(&pdev->dev);
 	const struct platform_device_id *id = platform_get_device_id(pdev);
 
 	/* get base addr */
