@@ -91,36 +91,6 @@
 #include "../plat-rk/rk-fac-config.c"
 #include <plat/key.h>
 
-/*
-static struct rk29_keys_button key_button[] = {
-	{
-		.desc	= "play",
-		.code	= KEY_POWER,
-		.gpio	= RK30_PIN0_PA4, 
-		.active_low = PRESS_LEV_LOW,
-		.wakeup	= 1,
-	},
-	{
-                .desc   = "vol-",
-                .code   = KEY_VOLUMEDOWN,
-                .adc_value      = 150,
-                .gpio   = INVALID_GPIO,
-                .active_low = PRESS_LEV_LOW,
-        },
-       {
-                .desc   = "vol+",
-                .code   = KEY_VOLUMEUP,
-                .adc_value      = 1,
-                .gpio = INVALID_GPIO,
-                .active_low = PRESS_LEV_LOW,
-        },
-};
-struct rk29_keys_platform_data rk29_keys_pdata = {
-	.buttons	= key_button,
-	.nbuttons	= ARRAY_SIZE(key_button),
-	.chn	= 1,  //chn: 0-7, if do not use ADC,set 'chn' -1
-};
-*/
 static struct rk29_keys_button key_button[] = {	
 	{		
 		.desc	= "play",		
@@ -154,7 +124,7 @@ struct rk29_keys_platform_data rk29_keys_pdata = {
 };
 
 #if defined (CONFIG_TOUCHSCREEN_GSLX680_RK3168)
-static int gslx680_init_platform_hw()
+int gslx680_init_platform_hw()
 {
 	int ret;
 	if(tp_rst!=-1){
@@ -331,7 +301,7 @@ static int rk29_backlight_io_init(void)
 
 
 static int rk29_backlight_io_deinit(void){        
-  	int ret = 0, pwm_gpio;	
+  	int pwm_gpio;	
 	
 	if(bl_en != -1)                
 		port_deinit(bl_en); 
@@ -381,26 +351,6 @@ static struct platform_device rk29_device_backlight = {
 	}
 };
 
-#endif
-
-/*MMA8452 gsensor*/
-#if defined (CONFIG_GS_MMA8452)
-static int mma8452_init_platform_hw(void)
-{
-	return 0;
-}
-
-static struct sensor_platform_data mma8452_data = {
-	.type = SENSOR_TYPE_ACCEL,
-	.irq_enable = 1,
-	.poll_delay_ms = 30,
-    .init_platform_hw = mma8452_init_platform_hw,       
-};
-struct i2c_board_info __initdata mma8452_info = {
-        .type                   = "gs_mma8452",
-        .flags                  = 0,
-        .platform_data          =&mma8452_data, 
-};
 #endif
 
 /*MMA7660 gsensor*/
@@ -482,6 +432,44 @@ struct i2c_board_info __initdata lis3dh_info = {
         .platform_data          =&lis3dh_data, 
 };
 #endif
+
+#if defined (CONFIG_GS_LSM303D)
+static int lms303d_init_platform_hw(void)
+{
+	return 0;
+}
+static struct sensor_platform_data lms303d_data = {
+	.type = SENSOR_TYPE_ACCEL,
+	.irq_enable = 1,
+	.poll_delay_ms = 30,
+    .init_platform_hw = lms303d_init_platform_hw,
+};
+struct i2c_board_info __initdata lms303d_info = {
+    .type                   = "gs_lsm303d",
+    .flags                  = 0,
+    .platform_data          =&lms303d_data, 
+};
+#endif
+
+#if defined (CONFIG_GS_MMA8452)
+static int mma8452_init_platform_hw(void)
+{
+	return 0;
+}
+
+static struct sensor_platform_data mma8452_data = {
+	.type = SENSOR_TYPE_ACCEL,
+	.irq_enable = 1,
+	.poll_delay_ms = 30,
+    .init_platform_hw = mma8452_init_platform_hw,
+};
+struct i2c_board_info __initdata mma8452_info = {
+    .type                   = "gs_mma8452",
+    .flags                  = 0,
+    .platform_data          =&mma8452_data, 
+};
+#endif
+
 #if defined (CONFIG_COMPASS_AK8975)
 static struct sensor_platform_data akm8975_info =
 {
@@ -591,7 +579,6 @@ static struct sensor_platform_data cm3217_info = {
 #ifdef CONFIG_FB_ROCKCHIP
 static int rk_fb_io_init(struct rk29_fb_setting_info *fb_setting)
 {	
-    int stbyb_gpio;
 	int ret = 0; 
 	printk("rk_fb_io_init %x,%x,%x\n",lcd_cs,lcd_en,lcd_std);
 	if(lcd_cs != -1){                
@@ -1461,15 +1448,6 @@ static int rk_platform_add_display_devices(void)
 // i2c
 #ifdef CONFIG_I2C0_RK30
 static struct i2c_board_info __initdata i2c0_info[] = {
-#if defined (CONFIG_GS_MMA8452)
-	{
-		.type	        = "gs_mma8452",
-		.addr	        = 0x1d,
-		.flags	        = 0,
-		.irq	        = MMA8452_INT_PIN,
-		.platform_data = &mma8452_info,
-	},
-#endif
 #if defined (CONFIG_COMPASS_AK8975)
 	{
 		.type          = "ak8975",
@@ -2197,7 +2175,6 @@ static void rk30_pm_power_off(void)
 
 static int __init tp_board_init(void)
 {
-	int i;
 	struct port_config irq_port;
 	struct port_config rst_port;
 	int ret = check_tp_param();
@@ -2237,7 +2214,6 @@ static int __init codec_board_init(void)
 {
 	struct port_config spk_port;
 	struct port_config hp_port;
-	struct port_config hdmi_irq_port;
 	int ret = check_codec_param();
 
 	if(ret < 0)
@@ -2404,6 +2380,26 @@ static int __init gs_board_init(void)
 		for(i = 0; i < 9; i++)                        
 			dmt10_data.orientation[i] = gs_orig[i];	        
 		i2c_register_board_info(gs_i2c, &dmt10_info, 1); 
+	}
+#endif
+
+#if defined (CONFIG_GS_MMA8452)
+	if(gs_type == GS_TYPE_MMA8452){ 
+		mma8452_info.irq = port.gpio;                
+		mma8452_info.addr = gs_addr;                
+		for(i = 0; i < 9; i++)                        
+			mma8452_data.orientation[i] = gs_orig[i];	        
+		i2c_register_board_info(gs_i2c, &mma8452_info, 1); 
+	}
+#endif
+
+#if defined (CONFIG_GS_LSM303D)
+	if(gs_type == GS_TYPE_LSM303D){ 
+		lms303d_info.irq = port.gpio;                
+		lms303d_info.addr = gs_addr;                
+		for(i = 0; i < 9; i++)                        
+			lms303d_data.orientation[i] = gs_orig[i];	        
+		i2c_register_board_info(gs_i2c, &lms303d_info, 1); 
 	}
 #endif
 
