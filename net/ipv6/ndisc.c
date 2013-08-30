@@ -1369,8 +1369,10 @@ static void ndisc_redirect_rcv(struct sk_buff *skb)
 	if (!ndisc_parse_options(msg->opt, ndoptlen, &ndopts))
 		return;
 
-	if (!ndopts.nd_opts_rh)
+	if (!ndopts.nd_opts_rh) {
+		ip6_redirect_no_header(skb, dev_net(skb->dev), 0, 0);
 		return;
+	}
 
 	hdr = (u8 *)ndopts.nd_opts_rh;
 	hdr += 8;

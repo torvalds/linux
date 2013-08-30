@@ -1245,9 +1245,6 @@ static int soc_post_component_init(struct snd_soc_card *card,
 	}
 	rtd->card = card;
 
-	/* Make sure all DAPM widgets are instantiated */
-	snd_soc_dapm_new_widgets(&codec->dapm);
-
 	/* machine controls, routes and widgets are not prefixed */
 	temp = codec->name_prefix;
 	codec->name_prefix = NULL;
@@ -1743,8 +1740,6 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 		snd_soc_dapm_add_routes(&card->dapm, card->dapm_routes,
 					card->num_dapm_routes);
 
-	snd_soc_dapm_new_widgets(&card->dapm);
-
 	for (i = 0; i < card->num_links; i++) {
 		dai_link = &card->dai_link[i];
 		dai_fmt = dai_link->dai_fmt;
@@ -1823,11 +1818,11 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 		}
 	}
 
-	snd_soc_dapm_new_widgets(&card->dapm);
-
 	if (card->fully_routed)
 		list_for_each_entry(codec, &card->codec_dev_list, card_list)
 			snd_soc_dapm_auto_nc_codec_pins(codec);
+
+	snd_soc_dapm_new_widgets(card);
 
 	ret = snd_card_register(card->snd_card);
 	if (ret < 0) {
