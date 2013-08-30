@@ -5179,6 +5179,12 @@ int ci_dpm_init(struct radeon_device *rdev)
 
 	pi->uvd_power_gated = false;
 
+	/* make sure dc limits are valid */
+	if ((rdev->pm.dpm.dyn_state.max_clock_voltage_on_dc.sclk == 0) ||
+	    (rdev->pm.dpm.dyn_state.max_clock_voltage_on_dc.mclk == 0))
+		rdev->pm.dpm.dyn_state.max_clock_voltage_on_dc =
+			rdev->pm.dpm.dyn_state.max_clock_voltage_on_ac;
+
 	return 0;
 }
 
