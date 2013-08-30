@@ -1932,16 +1932,18 @@ xfs_swap_extents(
 	target_log_flags = XFS_ILOG_CORE;
 	if (ip->i_d.di_version == 3 &&
 	    ip->i_d.di_format == XFS_DINODE_FMT_BTREE) {
-		target_log_flags |= XFS_ILOG_OWNER;
-		error = xfs_bmbt_change_owner(tp, ip, XFS_DATA_FORK, tip->i_ino);
+		target_log_flags |= XFS_ILOG_DOWNER;
+		error = xfs_bmbt_change_owner(tp, ip, XFS_DATA_FORK,
+					      tip->i_ino, NULL);
 		if (error)
 			goto out_trans_cancel;
 	}
 
 	if (tip->i_d.di_version == 3 &&
 	    tip->i_d.di_format == XFS_DINODE_FMT_BTREE) {
-		src_log_flags |= XFS_ILOG_OWNER;
-		error = xfs_bmbt_change_owner(tp, tip, XFS_DATA_FORK, ip->i_ino);
+		src_log_flags |= XFS_ILOG_DOWNER;
+		error = xfs_bmbt_change_owner(tp, tip, XFS_DATA_FORK,
+					      ip->i_ino, NULL);
 		if (error)
 			goto out_trans_cancel;
 	}
@@ -1997,7 +1999,7 @@ xfs_swap_extents(
 		break;
 	case XFS_DINODE_FMT_BTREE:
 		ASSERT(ip->i_d.di_version < 3 ||
-		       (src_log_flags & XFS_ILOG_OWNER));
+		       (src_log_flags & XFS_ILOG_DOWNER));
 		src_log_flags |= XFS_ILOG_DBROOT;
 		break;
 	}
@@ -2017,7 +2019,7 @@ xfs_swap_extents(
 	case XFS_DINODE_FMT_BTREE:
 		target_log_flags |= XFS_ILOG_DBROOT;
 		ASSERT(tip->i_d.di_version < 3 ||
-		       (target_log_flags & XFS_ILOG_OWNER));
+		       (target_log_flags & XFS_ILOG_DOWNER));
 		break;
 	}
 

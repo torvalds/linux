@@ -445,7 +445,8 @@ int xfs_btree_new_iroot(struct xfs_btree_cur *, int *, int *);
 int xfs_btree_insert(struct xfs_btree_cur *, int *);
 int xfs_btree_delete(struct xfs_btree_cur *, int *);
 int xfs_btree_get_rec(struct xfs_btree_cur *, union xfs_btree_rec **, int *);
-int xfs_btree_change_owner(struct xfs_btree_cur *cur, __uint64_t new_owner);
+int xfs_btree_change_owner(struct xfs_btree_cur *cur, __uint64_t new_owner,
+			   struct list_head *buffer_list);
 
 /*
  * btree block CRC helpers

@@ -474,7 +474,8 @@ typedef struct xfs_inode_log_format_64 {
 #define	XFS_ILOG_ADATA	0x040	/* log i_af.if_data */
 #define	XFS_ILOG_AEXT	0x080	/* log i_af.if_extents */
 #define	XFS_ILOG_ABROOT	0x100	/* log i_af.i_broot */
-#define XFS_ILOG_OWNER	0x200	/* change the extent tree owner on replay */
+#define XFS_ILOG_DOWNER	0x200	/* change the data fork owner on replay */
+#define XFS_ILOG_AOWNER	0x400	/* change the attr fork owner on replay */
 
 
 /*
@@ -488,7 +489,8 @@ typedef struct xfs_inode_log_format_64 {
 #define	XFS_ILOG_NONCORE	(XFS_ILOG_DDATA | XFS_ILOG_DEXT | \
 				 XFS_ILOG_DBROOT | XFS_ILOG_DEV | \
 				 XFS_ILOG_UUID | XFS_ILOG_ADATA | \
-				 XFS_ILOG_AEXT | XFS_ILOG_ABROOT)
+				 XFS_ILOG_AEXT | XFS_ILOG_ABROOT | \
+				 XFS_ILOG_DOWNER | XFS_ILOG_AOWNER)
 
 #define	XFS_ILOG_DFORK		(XFS_ILOG_DDATA | XFS_ILOG_DEXT | \
 				 XFS_ILOG_DBROOT)
@@ -500,7 +502,8 @@ typedef struct xfs_inode_log_format_64 {
 				 XFS_ILOG_DEXT | XFS_ILOG_DBROOT | \
 				 XFS_ILOG_DEV | XFS_ILOG_UUID | \
 				 XFS_ILOG_ADATA | XFS_ILOG_AEXT | \
-				 XFS_ILOG_ABROOT | XFS_ILOG_TIMESTAMP)
+				 XFS_ILOG_ABROOT | XFS_ILOG_TIMESTAMP | \
+				 XFS_ILOG_DOWNER | XFS_ILOG_AOWNER)
 
 static inline int xfs_ilog_fbroot(int w)
 {

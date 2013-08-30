@@ -196,7 +196,7 @@ xfs_imap_to_bp(
 	return 0;
 }
 
-STATIC void
+void
 xfs_dinode_from_disk(
 	xfs_icdinode_t		*to,
 	xfs_dinode_t		*from)

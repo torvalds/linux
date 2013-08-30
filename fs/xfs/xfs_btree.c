@@ -3907,13 +3907,16 @@ xfs_btree_get_rec(
  * buffer as an ordered buffer and log it appropriately. We need to ensure that
  * we mark the region we change dirty so that if the buffer is relogged in
  * a subsequent transaction the changes we make here as an ordered buffer are
- * correctly relogged in that transaction.
+ * correctly relogged in that transaction.  If we are in recovery context, then
+ * just queue the modified buffer as delayed write buffer so the transaction
+ * recovery completion writes the changes to disk.
  */
 static int
 xfs_btree_block_change_owner(
 	struct xfs_btree_cur	*cur,
 	int			level,
-	__uint64_t		new_owner)
+	__uint64_t		new_owner,
+	struct list_head	*buffer_list)
 {
 	struct xfs_btree_block	*block;
 	struct xfs_buf		*bp;
@@ -3930,16 +3933,19 @@ xfs_btree_block_change_owner(
 		block->bb_u.s.bb_owner = cpu_to_be32(new_owner);
 
 	/*
-	 * Log owner change as an ordered buffer. If the block is a root block
-	 * hosted in an inode, we might not have a buffer pointer here and we
-	 * shouldn't attempt to log the change as the information is already
-	 * held in the inode and discarded when the root block is formatted into
-	 * the on-disk inode fork. We still change it, though, so everything is
-	 * consistent in memory.
+	 * If the block is a root block hosted in an inode, we might not have a
+	 * buffer pointer here and we shouldn't attempt to log the change as the
+	 * information is already held in the inode and discarded when the root
+	 * block is formatted into the on-disk inode fork. We still change it,
+	 * though, so everything is consistent in memory.
 	 */
 	if (bp) {
-		xfs_trans_ordered_buf(cur->bc_tp, bp);
-		xfs_btree_log_block(cur, bp, XFS_BB_OWNER);
+		if (cur->bc_tp) {
+			xfs_trans_ordered_buf(cur->bc_tp, bp);
+			xfs_btree_log_block(cur, bp, XFS_BB_OWNER);
+		} else {
+			xfs_buf_delwri_queue(bp, buffer_list);
+		}
 	} else {
 		ASSERT(cur->bc_flags & XFS_BTREE_ROOT_IN_INODE);
 		ASSERT(level == cur->bc_nlevels - 1);
@@ -3956,7 +3962,8 @@ xfs_btree_block_change_owner(
 int
 xfs_btree_change_owner(
 	struct xfs_btree_cur	*cur,
-	__uint64_t		new_owner)
+	__uint64_t		new_owner,
+	struct list_head	*buffer_list)
 {
 	union xfs_btree_ptr     lptr;
 	int			level;
@@ -3986,7 +3993,8 @@ xfs_btree_change_owner(
 		/* for each buffer in the level */
 		do {
 			error = xfs_btree_block_change_owner(cur, level,
-							     new_owner);
+							     new_owner,
+							     buffer_list);
 		} while (!error);
 
 		if (error != ENOENT)

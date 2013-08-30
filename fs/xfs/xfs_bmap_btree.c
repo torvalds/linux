@@ -932,30 +932,40 @@ xfs_bmdr_maxrecs(
  * we switch forks between inodes. The operation that the caller is doing will
  * determine whether is needs to change owner before or after the switch.
  *
- * For demand paged modification, the fork switch should be done after reading
- * in all the blocks, modifying them and pinning them in the transaction. For
- * modification when the buffers are already pinned in memory, the fork switch
- * can be done before changing the owner as we won't need to validate the owner
- * until the btree buffers are unpinned and writes can occur again.
+ * For demand paged transactional modification, the fork switch should be done
+ * after reading in all the blocks, modifying them and pinning them in the
+ * transaction. For modification when the buffers are already pinned in memory,
+ * the fork switch can be done before changing the owner as we won't need to
+ * validate the owner until the btree buffers are unpinned and writes can occur
+ * again.
+ *
+ * For recovery based ownership change, there is no transactional context and
+ * so a buffer list must be supplied so that we can record the buffers that we
+ * modified for the caller to issue IO on.
  */
 int
 xfs_bmbt_change_owner(
 	struct xfs_trans	*tp,
 	struct xfs_inode	*ip,
 	int			whichfork,
-	xfs_ino_t		new_owner)
+	xfs_ino_t		new_owner,
+	struct list_head	*buffer_list)
 {
 	struct xfs_btree_cur	*cur;
 	int			error;
 
+	ASSERT(tp || buffer_list);
+	ASSERT(!(tp && buffer_list));
 	if (whichfork == XFS_DATA_FORK)
 		ASSERT(ip->i_d.di_format = XFS_DINODE_FMT_BTREE);
 	else
 		ASSERT(ip->i_d.di_aformat = XFS_DINODE_FMT_BTREE);
 
 	cur = xfs_bmbt_init_cursor(ip->i_mount, tp, ip, whichfork);
-	error = xfs_btree_change_owner(cur, new_owner);
+	if (!cur)
+		return ENOMEM;
+
+	error = xfs_btree_change_owner(cur, new_owner, buffer_list);
 	xfs_btree_del_cursor(cur, error ? XFS_BTREE_ERROR : XFS_BTREE_NOERROR);
 	return error;
 }
-

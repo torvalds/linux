@@ -32,17 +32,17 @@ struct xfs_imap {
 	ushort		im_boffset;	/* inode offset in block in bytes */
 };
 
-int		xfs_imap_to_bp(struct xfs_mount *, struct xfs_trans *,
-			       struct xfs_imap *, struct xfs_dinode **,
-			       struct xfs_buf **, uint, uint);
-int		xfs_iread(struct xfs_mount *, struct xfs_trans *,
-			  struct xfs_inode *, uint);
-void		xfs_dinode_calc_crc(struct xfs_mount *, struct xfs_dinode *);
-void		xfs_dinode_to_disk(struct xfs_dinode *,
-				   struct xfs_icdinode *);
+int	xfs_imap_to_bp(struct xfs_mount *, struct xfs_trans *,
+		       struct xfs_imap *, struct xfs_dinode **,
+		       struct xfs_buf **, uint, uint);
+int	xfs_iread(struct xfs_mount *, struct xfs_trans *,
+		  struct xfs_inode *, uint);
+void	xfs_dinode_calc_crc(struct xfs_mount *, struct xfs_dinode *);
+void	xfs_dinode_to_disk(struct xfs_dinode *to, struct xfs_icdinode *from);
+void	xfs_dinode_from_disk(struct xfs_icdinode *to, struct xfs_dinode *from);
 
 #if defined(DEBUG)
-void		xfs_inobp_check(struct xfs_mount *, struct xfs_buf *);
+void	xfs_inobp_check(struct xfs_mount *, struct xfs_buf *);
 #else
 #define	xfs_inobp_check(mp, bp)
 #endif /* DEBUG */
