@@ -188,6 +188,8 @@
 #define GRXSTS_EPNUM_SHIFT		0
 
 #define GRXFSIZ				HSOTG_REG(0x024)
+#define GRXFSIZ_DEPTH_MASK		(0xffff << 0)
+#define GRXFSIZ_DEPTH_SHIFT		0
 
 #define GNPTXFSIZ			HSOTG_REG(0x028)
 /* Use FIFOSIZE_* constants to access this register */
