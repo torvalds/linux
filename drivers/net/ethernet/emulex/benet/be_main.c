@@ -21,6 +21,7 @@
 #include "be_cmds.h"
 #include <asm/div64.h>
 #include <linux/aer.h>
+#include <linux/if_bridge.h>
 
 MODULE_VERSION(DRV_VER);
 MODULE_DEVICE_TABLE(pci, be_dev_ids);
@@ -1212,14 +1213,14 @@ static int be_set_vf_vlan(struct net_device *netdev,
 			adapter->vf_cfg[vf].vlan_tag = vlan;
 
 			status = be_cmd_set_hsw_config(adapter, vlan,
-				vf + 1, adapter->vf_cfg[vf].if_handle);
+				vf + 1, adapter->vf_cfg[vf].if_handle, 0);
 		}
 	} else {
 		/* Reset Transparent Vlan Tagging. */
 		adapter->vf_cfg[vf].vlan_tag = 0;
 		vlan = adapter->vf_cfg[vf].def_vid;
 		status = be_cmd_set_hsw_config(adapter, vlan, vf + 1,
-			adapter->vf_cfg[vf].if_handle);
+			adapter->vf_cfg[vf].if_handle, 0);
 	}
 
 
@@ -2917,7 +2918,7 @@ static int be_vf_setup(struct be_adapter *adapter)
 			vf_cfg->tx_rate = lnk_speed;
 
 		status = be_cmd_get_hsw_config(adapter, &def_vlan,
-					       vf + 1, vf_cfg->if_handle);
+					       vf + 1, vf_cfg->if_handle, NULL);
 		if (status)
 			goto err;
 		vf_cfg->def_vid = def_vlan;
@@ -3795,6 +3796,74 @@ fw_exit:
 	return status;
 }
 
+static int be_ndo_bridge_setlink(struct net_device *dev,
+				    struct nlmsghdr *nlh)
+{
+	struct be_adapter *adapter = netdev_priv(dev);
+	struct nlattr *attr, *br_spec;
+	int rem;
+	int status = 0;
+	u16 mode = 0;
+
+	if (!sriov_enabled(adapter))
+		return -EOPNOTSUPP;
+
+	br_spec = nlmsg_find_attr(nlh, sizeof(struct ifinfomsg), IFLA_AF_SPEC);
+
+	nla_for_each_nested(attr, br_spec, rem) {
+		if (nla_type(attr) != IFLA_BRIDGE_MODE)
+			continue;
+
+		mode = nla_get_u16(attr);
+		if (mode != BRIDGE_MODE_VEPA && mode != BRIDGE_MODE_VEB)
+			return -EINVAL;
+
+		status = be_cmd_set_hsw_config(adapter, 0, 0,
+					       adapter->if_handle,
+					       mode == BRIDGE_MODE_VEPA ?
+					       PORT_FWD_TYPE_VEPA :
+					       PORT_FWD_TYPE_VEB);
+		if (status)
+			goto err;
+
+		dev_info(&adapter->pdev->dev, "enabled switch mode: %s\n",
+			 mode == BRIDGE_MODE_VEPA ? "VEPA" : "VEB");
+
+		return status;
+	}
+err:
+	dev_err(&adapter->pdev->dev, "Failed to set switch mode %s\n",
+		mode == BRIDGE_MODE_VEPA ? "VEPA" : "VEB");
+
+	return status;
+}
+
+static int be_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
+				    struct net_device *dev,
+				    u32 filter_mask)
+{
+	struct be_adapter *adapter = netdev_priv(dev);
+	int status = 0;
+	u8 hsw_mode;
+
+	if (!sriov_enabled(adapter))
+		return 0;
+
+	/* BE and Lancer chips support VEB mode only */
+	if (BEx_chip(adapter) || lancer_chip(adapter)) {
+		hsw_mode = PORT_FWD_TYPE_VEB;
+	} else {
+		status = be_cmd_get_hsw_config(adapter, NULL, 0,
+					       adapter->if_handle, &hsw_mode);
+		if (status)
+			return 0;
+	}
+
+	return ndo_dflt_bridge_getlink(skb, pid, seq, dev,
+				       hsw_mode == PORT_FWD_TYPE_VEPA ?
+				       BRIDGE_MODE_VEPA : BRIDGE_MODE_VEB);
+}
+
 static const struct net_device_ops be_netdev_ops = {
 	.ndo_open		= be_open,
 	.ndo_stop		= be_close,
@@ -3813,6 +3882,8 @@ static const struct net_device_ops be_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= be_netpoll,
 #endif
+	.ndo_bridge_setlink	= be_ndo_bridge_setlink,
+	.ndo_bridge_getlink	= be_ndo_bridge_getlink,
 };
 
 static void be_netdev_init(struct net_device *netdev)

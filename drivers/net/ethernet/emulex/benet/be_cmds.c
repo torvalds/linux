@@ -2876,7 +2876,7 @@ int be_cmd_set_mac(struct be_adapter *adapter, u8 *mac, int if_id, u32 dom)
 }
 
 int be_cmd_set_hsw_config(struct be_adapter *adapter, u16 pvid,
-			u32 domain, u16 intf_id)
+			  u32 domain, u16 intf_id, u16 hsw_mode)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_set_hsw_config *req;
@@ -2903,6 +2903,13 @@ int be_cmd_set_hsw_config(struct be_adapter *adapter, u16 pvid,
 		AMAP_SET_BITS(struct amap_set_hsw_context, pvid_valid, ctxt, 1);
 		AMAP_SET_BITS(struct amap_set_hsw_context, pvid, ctxt, pvid);
 	}
+	if (!BEx_chip(adapter) && hsw_mode) {
+		AMAP_SET_BITS(struct amap_set_hsw_context, interface_id,
+			      ctxt, adapter->hba_port_num);
+		AMAP_SET_BITS(struct amap_set_hsw_context, pport, ctxt, 1);
+		AMAP_SET_BITS(struct amap_set_hsw_context, port_fwd_type,
+			      ctxt, hsw_mode);
+	}
 
 	be_dws_cpu_to_le(req->context, sizeof(req->context));
 	status = be_mcc_notify_wait(adapter);
@@ -2914,7 +2921,7 @@ err:
 
 /* Get Hyper switch config */
 int be_cmd_get_hsw_config(struct be_adapter *adapter, u16 *pvid,
-			u32 domain, u16 intf_id)
+			  u32 domain, u16 intf_id, u8 *mode)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_get_hsw_config *req;
@@ -2937,9 +2944,15 @@ int be_cmd_get_hsw_config(struct be_adapter *adapter, u16 *pvid,
 			OPCODE_COMMON_GET_HSW_CONFIG, sizeof(*req), wrb, NULL);
 
 	req->hdr.domain = domain;
-	AMAP_SET_BITS(struct amap_get_hsw_req_context, interface_id, ctxt,
-								intf_id);
+	AMAP_SET_BITS(struct amap_get_hsw_req_context, interface_id,
+		      ctxt, intf_id);
 	AMAP_SET_BITS(struct amap_get_hsw_req_context, pvid_valid, ctxt, 1);
+
+	if (!BEx_chip(adapter)) {
+		AMAP_SET_BITS(struct amap_get_hsw_req_context, interface_id,
+			      ctxt, adapter->hba_port_num);
+		AMAP_SET_BITS(struct amap_get_hsw_req_context, pport, ctxt, 1);
+	}
 	be_dws_cpu_to_le(req->context, sizeof(req->context));
 
 	status = be_mcc_notify_wait(adapter);
@@ -2950,7 +2963,11 @@ int be_cmd_get_hsw_config(struct be_adapter *adapter, u16 *pvid,
 						sizeof(resp->context));
 		vid = AMAP_GET_BITS(struct amap_get_hsw_resp_context,
 							pvid, &resp->context);
-		*pvid = le16_to_cpu(vid);
+		if (pvid)
+			*pvid = le16_to_cpu(vid);
+		if (mode)
+			*mode = AMAP_GET_BITS(struct amap_get_hsw_resp_context,
+					      port_fwd_type, &resp->context);
 	}
 
 err:
