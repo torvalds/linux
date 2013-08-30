@@ -2209,7 +2209,7 @@ int dwc2_set_param_max_packet_count(struct dwc2_hsotg *hsotg, int val)
 		    GHWCFG3_PACKET_SIZE_CNTR_WIDTH_MASK >>
 				GHWCFG3_PACKET_SIZE_CNTR_WIDTH_SHIFT;
 
-	if (val < 15 || val > (1 << (width + 4)))
+	if (val < 15 || val >= (1 << (width + 4)))
 		valid = 0;
 
 	if (!valid) {
