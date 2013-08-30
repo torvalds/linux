@@ -183,9 +183,7 @@ struct gspca_dev {
 	__u8 streaming;			/* protected by both mutexes (*) */
 
 	__u8 curr_mode;			/* current camera mode */
-	__u32 pixfmt;			/* current mode parameters */
-	__u16 width;
-	__u16 height;
+	struct v4l2_pix_format pixfmt;	/* current mode parameters */
 	__u32 sequence;			/* frame sequence number */
 
 	wait_queue_head_t wq;		/* wait queue */

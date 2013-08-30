@@ -753,7 +753,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		/* In 640x480, if the reg11 has less than 4, the image is
 		   unstable (the bridge goes into a higher compression mode
 		   which we have not reverse engineered yet). */
-		if (gspca_dev->width == 640 && reg11 < 4)
+		if (gspca_dev->pixfmt.width == 640 && reg11 < 4)
 			reg11 = 4;
 
 		/* frame exposure time in ms = 1000 * reg11 / 30    ->

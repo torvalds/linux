@@ -347,8 +347,8 @@ static void stk1135_configure_mt9m112(struct gspca_dev *gspca_dev)
 		sensor_write(gspca_dev, cfg[i].reg, cfg[i].val);
 
 	/* set output size */
-	width = gspca_dev->cam.cam_mode[gspca_dev->curr_mode].width;
-	height = gspca_dev->cam.cam_mode[gspca_dev->curr_mode].height;
+	width = gspca_dev->pixfmt.width;
+	height = gspca_dev->pixfmt.height;
 	if (width <= 640) { /* use context A (half readout speed by default) */
 		sensor_write(gspca_dev, 0x1a7, width);
 		sensor_write(gspca_dev, 0x1aa, height);
@@ -484,8 +484,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, STK1135_REG_CISPO + 3, 0x00);
 
 	/* set capture end position */
-	width = gspca_dev->cam.cam_mode[gspca_dev->curr_mode].width;
-	height = gspca_dev->cam.cam_mode[gspca_dev->curr_mode].height;
+	width = gspca_dev->pixfmt.width;
+	height = gspca_dev->pixfmt.height;
 	reg_w(gspca_dev, STK1135_REG_CIEPO + 0, width & 0xff);
 	reg_w(gspca_dev, STK1135_REG_CIEPO + 1, width >> 8);
 	reg_w(gspca_dev, STK1135_REG_CIEPO + 2, height & 0xff);
