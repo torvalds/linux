@@ -76,7 +76,7 @@ static int x509_check_signature(const struct public_key *pub,
 	if (ret < 0)
 		goto error_mpi;
 
-	ret = pub->algo->verify_signature(pub, sig);
+	ret = public_key_verify_signature(pub, sig);
 
 	pr_debug("Cert Verification: %d\n", ret);
 
