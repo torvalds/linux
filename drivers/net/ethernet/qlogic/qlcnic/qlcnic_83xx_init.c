@@ -797,7 +797,6 @@ static int qlcnic_83xx_idc_init_state(struct qlcnic_adapter *adapter)
 			ret = qlcnic_83xx_idc_restart_hw(adapter, 1);
 	} else {
 		ret = qlcnic_83xx_idc_check_timeout(adapter, timeout);
-		return ret;
 	}
 
 	return ret;
@@ -2248,4 +2247,59 @@ detach_mbx:
 	qlcnic_83xx_free_mailbox(ahw->mailbox);
 exit:
 	return err;
+}
+
+void qlcnic_83xx_aer_stop_poll_work(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct qlc_83xx_idc *idc = &ahw->idc;
+
+	clear_bit(QLC_83XX_MBX_READY, &idc->status);
+	cancel_delayed_work_sync(&adapter->fw_work);
+
+	if (ahw->nic_mode == QLC_83XX_VIRTUAL_NIC_MODE)
+		qlcnic_83xx_disable_vnic_mode(adapter, 1);
+
+	qlcnic_83xx_idc_detach_driver(adapter);
+	qlcnic_83xx_register_nic_idc_func(adapter, 0);
+
+	cancel_delayed_work_sync(&adapter->idc_aen_work);
+}
+
+int qlcnic_83xx_aer_reset(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct qlc_83xx_idc *idc = &ahw->idc;
+	int ret = 0;
+	u32 owner;
+
+	/* Mark the previous IDC state as NEED_RESET so
+	 * that state_entry() will perform the reattachment
+	 * and bringup the device
+	 */
+	idc->prev_state = QLC_83XX_IDC_DEV_NEED_RESET;
+	owner = qlcnic_83xx_idc_find_reset_owner_id(adapter);
+	if (ahw->pci_func == owner) {
+		ret = qlcnic_83xx_restart_hw(adapter);
+		if (ret < 0)
+			return ret;
+		qlcnic_83xx_idc_clear_registers(adapter, 0);
+	}
+
+	ret = idc->state_entry(adapter);
+	return ret;
+}
+
+void qlcnic_83xx_aer_start_poll_work(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct qlc_83xx_idc *idc = &ahw->idc;
+	u32 owner;
+
+	idc->prev_state = QLC_83XX_IDC_DEV_READY;
+	owner = qlcnic_83xx_idc_find_reset_owner_id(adapter);
+	if (ahw->pci_func == owner)
+		qlcnic_83xx_idc_enter_ready_state(adapter, 0);
+
+	qlcnic_schedule_work(adapter, qlcnic_83xx_idc_poll_dev_state, 0);
 }

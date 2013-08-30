@@ -657,4 +657,11 @@ int qlcnic_83xx_idc_init(struct qlcnic_adapter *);
 int qlcnic_83xx_idc_reattach_driver(struct qlcnic_adapter *);
 int qlcnic_83xx_set_vnic_opmode(struct qlcnic_adapter *);
 int qlcnic_83xx_check_vnic_state(struct qlcnic_adapter *);
+void qlcnic_83xx_aer_stop_poll_work(struct qlcnic_adapter *);
+int qlcnic_83xx_aer_reset(struct qlcnic_adapter *);
+void qlcnic_83xx_aer_start_poll_work(struct qlcnic_adapter *);
+pci_ers_result_t qlcnic_83xx_io_error_detected(struct pci_dev *,
+					       pci_channel_state_t);
+pci_ers_result_t qlcnic_83xx_io_slot_reset(struct pci_dev *);
+void qlcnic_83xx_io_resume(struct pci_dev *);
 #endif
