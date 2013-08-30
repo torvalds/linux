@@ -144,9 +144,10 @@ static int parport_ctrl_reg_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int parport_intr_insn(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_insn *insn, unsigned int *data)
+static int parport_intr_insn_bits(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
 	data[1] = 0;
 	return insn->n;
@@ -293,7 +294,7 @@ static int parport_attach(struct comedi_device *dev,
 		s->n_chan	= 1;
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;
-		s->insn_bits	= parport_intr_insn;
+		s->insn_bits	= parport_intr_insn_bits;
 		s->do_cmdtest	= parport_intr_cmdtest;
 		s->do_cmd	= parport_intr_cmd;
 		s->cancel	= parport_intr_cancel;
