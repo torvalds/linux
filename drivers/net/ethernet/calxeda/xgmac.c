@@ -618,10 +618,15 @@ static void xgmac_set_mac_addr(void __iomem *ioaddr, unsigned char *addr,
 {
 	u32 data;
 
-	data = (addr[5] << 8) | addr[4] | (num ? XGMAC_ADDR_AE : 0);
-	writel(data, ioaddr + XGMAC_ADDR_HIGH(num));
-	data = (addr[3] << 24) | (addr[2] << 16) | (addr[1] << 8) | addr[0];
-	writel(data, ioaddr + XGMAC_ADDR_LOW(num));
+	if (addr) {
+		data = (addr[5] << 8) | addr[4] | (num ? XGMAC_ADDR_AE : 0);
+		writel(data, ioaddr + XGMAC_ADDR_HIGH(num));
+		data = (addr[3] << 24) | (addr[2] << 16) | (addr[1] << 8) | addr[0];
+		writel(data, ioaddr + XGMAC_ADDR_LOW(num));
+	} else {
+		writel(0, ioaddr + XGMAC_ADDR_HIGH(num));
+		writel(0, ioaddr + XGMAC_ADDR_LOW(num));
+	}
 }
 
 static void xgmac_get_mac_addr(void __iomem *ioaddr, unsigned char *addr,
@@ -1294,6 +1299,8 @@ static void xgmac_set_rx_mode(struct net_device *dev)
 	if ((netdev_mc_count(dev) + reg - 1) > XGMAC_MAX_FILTER_ADDR) {
 		use_hash = true;
 		value |= XGMAC_FRAME_FILTER_HMC | XGMAC_FRAME_FILTER_HPF;
+	} else {
+		use_hash = false;
 	}
 	netdev_for_each_mc_addr(ha, dev) {
 		if (use_hash) {
@@ -1310,6 +1317,8 @@ static void xgmac_set_rx_mode(struct net_device *dev)
 	}
 
 out:
+	for (i = reg; i < XGMAC_MAX_FILTER_ADDR; i++)
+		xgmac_set_mac_addr(ioaddr, NULL, reg);
 	for (i = 0; i < XGMAC_NUM_HASH; i++)
 		writel(hash_filter[i], ioaddr + XGMAC_HASH(i));
 
