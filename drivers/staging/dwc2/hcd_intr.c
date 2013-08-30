@@ -177,7 +177,7 @@ static void dwc2_rx_fifo_level_intr(struct dwc2_hsotg *hsotg)
 	       GRXSTS_BYTECNT_MASK >> GRXSTS_BYTECNT_SHIFT;
 	dpid = grxsts >> GRXSTS_DPID_SHIFT &
 	       GRXSTS_DPID_MASK >> GRXSTS_DPID_SHIFT;
-	pktsts = grxsts & GRXSTS_PKTSTS_MASK;
+	pktsts = (grxsts & GRXSTS_PKTSTS_MASK) >> GRXSTS_PKTSTS_SHIFT;
 
 	/* Packet Status */
 	if (dbg_perio()) {
@@ -185,9 +185,7 @@ static void dwc2_rx_fifo_level_intr(struct dwc2_hsotg *hsotg)
 		dev_vdbg(hsotg->dev, "    Count = %d\n", bcnt);
 		dev_vdbg(hsotg->dev, "    DPID = %d, chan.dpid = %d\n", dpid,
 			 chan->data_pid_start);
-		dev_vdbg(hsotg->dev, "    PStatus = %d\n",
-			 pktsts >> GRXSTS_PKTSTS_SHIFT &
-			 GRXSTS_PKTSTS_MASK >> GRXSTS_PKTSTS_SHIFT);
+		dev_vdbg(hsotg->dev, "    PStatus = %d\n", pktsts);
 	}
 
 	switch (pktsts) {
@@ -266,7 +264,7 @@ static void dwc2_hprt0_enable(struct dwc2_hsotg *hsotg, u32 hprt0,
 	}
 
 	usbcfg = readl(hsotg->regs + GUSBCFG);
-	prtspd = hprt0 & HPRT0_SPD_MASK;
+	prtspd = (hprt0 & HPRT0_SPD_MASK) >> HPRT0_SPD_SHIFT;
 
 	if (prtspd == HPRT0_SPD_LOW_SPEED || prtspd == HPRT0_SPD_FULL_SPEED) {
 		/* Low power */
@@ -278,7 +276,8 @@ static void dwc2_hprt0_enable(struct dwc2_hsotg *hsotg, u32 hprt0,
 		}
 
 		hcfg = readl(hsotg->regs + HCFG);
-		fslspclksel = hcfg & HCFG_FSLSPCLKSEL_MASK;
+		fslspclksel = (hcfg & HCFG_FSLSPCLKSEL_MASK) >>
+			      HCFG_FSLSPCLKSEL_SHIFT;
 
 		if (prtspd == HPRT0_SPD_LOW_SPEED &&
 		    params->host_ls_low_power_phy_clk ==
@@ -287,8 +286,9 @@ static void dwc2_hprt0_enable(struct dwc2_hsotg *hsotg, u32 hprt0,
 			dev_vdbg(hsotg->dev,
 				 "FS_PHY programming HCFG to 6 MHz\n");
 			if (fslspclksel != HCFG_FSLSPCLKSEL_6_MHZ) {
+				fslspclksel = HCFG_FSLSPCLKSEL_6_MHZ;
 				hcfg &= ~HCFG_FSLSPCLKSEL_MASK;
-				hcfg |= HCFG_FSLSPCLKSEL_6_MHZ;
+				hcfg |= fslspclksel << HCFG_FSLSPCLKSEL_SHIFT;
 				writel(hcfg, hsotg->regs + HCFG);
 				do_reset = 1;
 			}
@@ -297,8 +297,9 @@ static void dwc2_hprt0_enable(struct dwc2_hsotg *hsotg, u32 hprt0,
 			dev_vdbg(hsotg->dev,
 				 "FS_PHY programming HCFG to 48 MHz\n");
 			if (fslspclksel != HCFG_FSLSPCLKSEL_48_MHZ) {
+				fslspclksel = HCFG_FSLSPCLKSEL_48_MHZ;
 				hcfg &= ~HCFG_FSLSPCLKSEL_MASK;
-				hcfg |= HCFG_FSLSPCLKSEL_48_MHZ;
+				hcfg |= fslspclksel << HCFG_FSLSPCLKSEL_SHIFT;
 				writel(hcfg, hsotg->regs + HCFG);
 				do_reset = 1;
 			}
@@ -515,7 +516,7 @@ void dwc2_hcd_save_data_toggle(struct dwc2_hsotg *hsotg,
 			       struct dwc2_qtd *qtd)
 {
 	u32 hctsiz = readl(hsotg->regs + HCTSIZ(chnum));
-	u32 pid = hctsiz & TSIZ_SC_MC_PID_MASK;
+	u32 pid = (hctsiz & TSIZ_SC_MC_PID_MASK) >> TSIZ_SC_MC_PID_SHIFT;
 
 	if (chan->ep_type != USB_ENDPOINT_XFER_CONTROL) {
 		if (pid == TSIZ_SC_MC_PID_DATA0)

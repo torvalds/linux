@@ -1612,7 +1612,7 @@ static int dwc2_hcd_hub_control(struct dwc2_hsotg *hsotg, u16 typereq,
 		if (hprt0 & HPRT0_PWR)
 			port_status |= USB_PORT_STAT_POWER;
 
-		speed = hprt0 & HPRT0_SPD_MASK;
+		speed = (hprt0 & HPRT0_SPD_MASK) >> HPRT0_SPD_SHIFT;
 		if (speed == HPRT0_SPD_HIGH_SPEED)
 			port_status |= USB_PORT_STAT_HIGH_SPEED;
 		else if (speed == HPRT0_SPD_LOW_SPEED)

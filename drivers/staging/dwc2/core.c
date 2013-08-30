@@ -90,8 +90,10 @@ static void dwc2_enable_common_interrupts(struct dwc2_hsotg *hsotg)
  */
 static void dwc2_init_fs_ls_pclk_sel(struct dwc2_hsotg *hsotg)
 {
-	u32 hs_phy_type = hsotg->hwcfg2 & GHWCFG2_HS_PHY_TYPE_MASK;
-	u32 fs_phy_type = hsotg->hwcfg2 & GHWCFG2_FS_PHY_TYPE_MASK;
+	u32 hs_phy_type = (hsotg->hwcfg2 & GHWCFG2_HS_PHY_TYPE_MASK) >>
+			  GHWCFG2_HS_PHY_TYPE_SHIFT;
+	u32 fs_phy_type = (hsotg->hwcfg2 & GHWCFG2_FS_PHY_TYPE_MASK) >>
+			  GHWCFG2_FS_PHY_TYPE_SHIFT;
 	u32 hcfg, val;
 
 	if ((hs_phy_type == GHWCFG2_HS_PHY_TYPE_ULPI &&
@@ -108,7 +110,7 @@ static void dwc2_init_fs_ls_pclk_sel(struct dwc2_hsotg *hsotg)
 	dev_dbg(hsotg->dev, "Initializing HCFG.FSLSPClkSel to %08x\n", val);
 	hcfg = readl(hsotg->regs + HCFG);
 	hcfg &= ~HCFG_FSLSPCLKSEL_MASK;
-	hcfg |= val;
+	hcfg |= val << HCFG_FSLSPCLKSEL_SHIFT;
 	writel(hcfg, hsotg->regs + HCFG);
 }
 
@@ -256,8 +258,10 @@ static void dwc2_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 		dwc2_hs_phy_init(hsotg, select_phy);
 	}
 
-	hs_phy_type = hsotg->hwcfg2 & GHWCFG2_HS_PHY_TYPE_MASK;
-	fs_phy_type = hsotg->hwcfg2 & GHWCFG2_FS_PHY_TYPE_MASK;
+	hs_phy_type = (hsotg->hwcfg2 & GHWCFG2_HS_PHY_TYPE_MASK) >>
+		      GHWCFG2_HS_PHY_TYPE_SHIFT;
+	fs_phy_type = (hsotg->hwcfg2 & GHWCFG2_FS_PHY_TYPE_MASK) >>
+		      GHWCFG2_FS_PHY_TYPE_SHIFT;
 
 	if (hs_phy_type == GHWCFG2_HS_PHY_TYPE_ULPI &&
 	    fs_phy_type == GHWCFG2_FS_PHY_TYPE_DEDICATED &&
@@ -279,7 +283,8 @@ static int dwc2_gahbcfg_init(struct dwc2_hsotg *hsotg)
 {
 	u32 ahbcfg = readl(hsotg->regs + GAHBCFG);
 
-	switch (hsotg->hwcfg2 & GHWCFG2_ARCHITECTURE_MASK) {
+	switch ((hsotg->hwcfg2 & GHWCFG2_ARCHITECTURE_MASK) >>
+		GHWCFG2_ARCHITECTURE_SHIFT) {
 	case GHWCFG2_EXT_DMA_ARCH:
 		dev_err(hsotg->dev, "External DMA Mode not supported\n");
 		return -EINVAL;
@@ -328,7 +333,8 @@ static void dwc2_gusbcfg_init(struct dwc2_hsotg *hsotg)
 	usbcfg = readl(hsotg->regs + GUSBCFG);
 	usbcfg &= ~(GUSBCFG_HNPCAP | GUSBCFG_SRPCAP);
 
-	switch (hsotg->hwcfg2 & GHWCFG2_OP_MODE_MASK) {
+	switch ((hsotg->hwcfg2 & GHWCFG2_OP_MODE_MASK) >>
+		GHWCFG2_OP_MODE_SHIFT) {
 	case GHWCFG2_OP_MODE_HNP_SRP_CAPABLE:
 		if (hsotg->core_params->otg_cap ==
 				DWC2_CAP_PARAM_HNP_SRP_CAPABLE)
@@ -599,7 +605,8 @@ void dwc2_core_host_init(struct dwc2_hsotg *hsotg)
 	}
 
 	if (hsotg->core_params->dma_desc_enable > 0) {
-		u32 op_mode = hsotg->hwcfg2 & GHWCFG2_OP_MODE_MASK;
+		u32 op_mode = (hsotg->hwcfg2 & GHWCFG2_OP_MODE_MASK) >>
+			      GHWCFG2_OP_MODE_SHIFT;
 
 		if (hsotg->snpsid < DWC2_CORE_REV_2_90a ||
 		    !(hsotg->hwcfg4 & GHWCFG4_DESC_DMA) ||
@@ -1666,7 +1673,8 @@ u32 dwc2_calc_frame_interval(struct dwc2_hsotg *hsotg)
 	if (!(usbcfg & GUSBCFG_PHYSEL) && (usbcfg & GUSBCFG_ULPI_UTMI_SEL) &&
 	    !(usbcfg & GUSBCFG_PHYIF16))
 		clock = 60;
-	if ((usbcfg & GUSBCFG_PHYSEL) && (hwcfg2 & GHWCFG2_FS_PHY_TYPE_MASK) ==
+	if ((usbcfg & GUSBCFG_PHYSEL) &&
+	    (hwcfg2 & GHWCFG2_FS_PHY_TYPE_MASK) >> GHWCFG2_FS_PHY_TYPE_SHIFT ==
 	    GHWCFG2_FS_PHY_TYPE_SHARED_ULPI)
 		clock = 48;
 	if (!(usbcfg & GUSBCFG_PHY_LP_CLK_SEL) && !(usbcfg & GUSBCFG_PHYSEL) &&
@@ -1679,14 +1687,15 @@ u32 dwc2_calc_frame_interval(struct dwc2_hsotg *hsotg)
 	    !(usbcfg & GUSBCFG_ULPI_UTMI_SEL) && (usbcfg & GUSBCFG_PHYIF16))
 		clock = 48;
 	if ((usbcfg & GUSBCFG_PHYSEL) && !(usbcfg & GUSBCFG_PHYIF16) &&
-	    (hwcfg2 & GHWCFG2_FS_PHY_TYPE_MASK) ==
+	    (hwcfg2 & GHWCFG2_FS_PHY_TYPE_MASK) >> GHWCFG2_FS_PHY_TYPE_SHIFT ==
 	    GHWCFG2_FS_PHY_TYPE_SHARED_UTMI)
 		clock = 48;
-	if ((usbcfg & GUSBCFG_PHYSEL) && (hwcfg2 & GHWCFG2_FS_PHY_TYPE_MASK) ==
+	if ((usbcfg & GUSBCFG_PHYSEL) &&
+	    (hwcfg2 & GHWCFG2_FS_PHY_TYPE_MASK) >> GHWCFG2_FS_PHY_TYPE_SHIFT ==
 	    GHWCFG2_FS_PHY_TYPE_DEDICATED)
 		clock = 48;
 
-	if ((hprt0 & HPRT0_SPD_MASK) == HPRT0_SPD_HIGH_SPEED)
+	if ((hprt0 & HPRT0_SPD_MASK) >> HPRT0_SPD_SHIFT == HPRT0_SPD_HIGH_SPEED)
 		/* High speed case */
 		return 125 * clock;
 	else
@@ -1957,7 +1966,8 @@ int dwc2_set_param_otg_cap(struct dwc2_hsotg *hsotg, int val)
 	int retval = 0;
 	u32 op_mode;
 
-	op_mode = hsotg->hwcfg2 & GHWCFG2_OP_MODE_MASK;
+	op_mode = (hsotg->hwcfg2 & GHWCFG2_OP_MODE_MASK) >>
+		  GHWCFG2_OP_MODE_SHIFT;
 
 	switch (val) {
 	case DWC2_CAP_PARAM_HNP_SRP_CAPABLE:
@@ -2015,8 +2025,8 @@ int dwc2_set_param_dma_enable(struct dwc2_hsotg *hsotg, int val)
 	int valid = 1;
 	int retval = 0;
 
-	if (val > 0 && (hsotg->hwcfg2 & GHWCFG2_ARCHITECTURE_MASK) ==
-	    GHWCFG2_SLAVE_ONLY_ARCH)
+	if (val > 0 && (hsotg->hwcfg2 & GHWCFG2_ARCHITECTURE_MASK) >>
+		       GHWCFG2_ARCHITECTURE_SHIFT == GHWCFG2_SLAVE_ONLY_ARCH)
 		valid = 0;
 	if (val < 0)
 		valid = 0;
@@ -2026,8 +2036,8 @@ int dwc2_set_param_dma_enable(struct dwc2_hsotg *hsotg, int val)
 			dev_err(hsotg->dev,
 				"%d invalid for dma_enable parameter. Check HW configuration.\n",
 				val);
-		val = (hsotg->hwcfg2 & GHWCFG2_ARCHITECTURE_MASK) !=
-			GHWCFG2_SLAVE_ONLY_ARCH;
+		val = (hsotg->hwcfg2 & GHWCFG2_ARCHITECTURE_MASK) >>
+		      GHWCFG2_ARCHITECTURE_SHIFT != GHWCFG2_SLAVE_ONLY_ARCH;
 		dev_dbg(hsotg->dev, "Setting dma_enable to %d\n", val);
 		retval = -EINVAL;
 	}
@@ -2276,8 +2286,10 @@ int dwc2_set_param_phy_type(struct dwc2_hsotg *hsotg, int val)
 	}
 
 #ifndef NO_FS_PHY_HW_CHECKS
-	hs_phy_type = hsotg->hwcfg2 & GHWCFG2_HS_PHY_TYPE_MASK;
-	fs_phy_type = hsotg->hwcfg2 & GHWCFG2_FS_PHY_TYPE_MASK;
+	hs_phy_type = (hsotg->hwcfg2 & GHWCFG2_HS_PHY_TYPE_MASK) >>
+		      GHWCFG2_HS_PHY_TYPE_SHIFT;
+	fs_phy_type = (hsotg->hwcfg2 & GHWCFG2_FS_PHY_TYPE_MASK) >>
+		      GHWCFG2_FS_PHY_TYPE_SHIFT;
 
 	if (val == DWC2_PHY_TYPE_PARAM_UTMI &&
 	    (hs_phy_type == GHWCFG2_HS_PHY_TYPE_UTMI ||
@@ -2588,7 +2600,8 @@ int dwc2_set_param_ahbcfg(struct dwc2_hsotg *hsotg, int val)
 	if (val != -1)
 		hsotg->core_params->ahbcfg = val;
 	else
-		hsotg->core_params->ahbcfg = GAHBCFG_HBSTLEN_INCR4;
+		hsotg->core_params->ahbcfg = GAHBCFG_HBSTLEN_INCR4 <<
+                                             GAHBCFG_HBSTLEN_SHIFT;
 	return 0;
 }
 
