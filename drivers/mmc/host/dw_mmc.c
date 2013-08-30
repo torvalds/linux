@@ -1999,9 +1999,6 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 		mmc->caps |= MMC_CAP_4_BIT_DATA;
 	}
 
-	if (host->pdata->quirks & DW_MCI_QUIRK_HIGHSPEED)
-		mmc->caps |= MMC_CAP_SD_HIGHSPEED | MMC_CAP_MMC_HIGHSPEED;
-
 	if (host->pdata->blk_settings) {
 		mmc->max_segs = host->pdata->blk_settings->max_segs;
 		mmc->max_blk_size = host->pdata->blk_settings->max_blk_size;
@@ -2130,9 +2127,6 @@ static struct dw_mci_of_quirks {
 	int id;
 } of_quirks[] = {
 	{
-		.quirk	= "supports-highspeed",
-		.id	= DW_MCI_QUIRK_HIGHSPEED,
-	}, {
 		.quirk	= "broken-cd",
 		.id	= DW_MCI_QUIRK_BROKEN_CARD_DETECTION,
 	},
@@ -2186,6 +2180,9 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 
 	if (of_find_property(np, "enable-sdio-wakeup", NULL))
 		pdata->pm_caps |= MMC_PM_WAKE_SDIO_IRQ;
+
+	if (of_find_property(np, "supports-highspeed", NULL))
+		pdata->caps |= MMC_CAP_SD_HIGHSPEED | MMC_CAP_MMC_HIGHSPEED;
 
 	if (of_find_property(np, "caps2-mmc-hs200-1_8v", NULL))
 		pdata->caps2 |= MMC_CAP2_HS200_1_8V_SDR;
