@@ -3325,6 +3325,31 @@ static void rbd_exists_validate(struct rbd_device *rbd_dev)
 		clear_bit(RBD_DEV_FLAG_EXISTS, &rbd_dev->flags);
 }
 
+static void rbd_dev_update_size(struct rbd_device *rbd_dev)
+{
+	sector_t size;
+	bool removing;
+
+	/*
+	 * Don't hold the lock while doing disk operations,
+	 * or lock ordering will conflict with the bdev mutex via:
+	 * rbd_add() -> blkdev_get() -> rbd_open()
+	 */
+	spin_lock_irq(&rbd_dev->lock);
+	removing = test_bit(RBD_DEV_FLAG_REMOVING, &rbd_dev->flags);
+	spin_unlock_irq(&rbd_dev->lock);
+	/*
+	 * If the device is being removed, rbd_dev->disk has
+	 * been destroyed, so don't try to update its size
+	 */
+	if (!removing) {
+		size = (sector_t)rbd_dev->mapping.size / SECTOR_SIZE;
+		dout("setting size to %llu sectors", (unsigned long long)size);
+		set_capacity(rbd_dev->disk, size);
+		revalidate_disk(rbd_dev->disk);
+	}
+}
+
 static int rbd_dev_refresh(struct rbd_device *rbd_dev)
 {
 	u64 mapping_size;
@@ -3344,12 +3369,7 @@ static int rbd_dev_refresh(struct rbd_device *rbd_dev)
 	up_write(&rbd_dev->header_rwsem);
 
 	if (mapping_size != rbd_dev->mapping.size) {
-		sector_t size;
-
-		size = (sector_t)rbd_dev->mapping.size / SECTOR_SIZE;
-		dout("setting size to %llu sectors", (unsigned long long)size);
-		set_capacity(rbd_dev->disk, size);
-		revalidate_disk(rbd_dev->disk);
+		rbd_dev_update_size(rbd_dev);
 	}
 
 	return ret;
@@ -5160,7 +5180,6 @@ static ssize_t rbd_remove(struct bus_type *bus,
 	if (ret < 0 || already)
 		return ret;
 
-	rbd_bus_del_dev(rbd_dev);
 	ret = rbd_dev_header_watch_sync(rbd_dev, false);
 	if (ret)
 		rbd_warn(rbd_dev, "failed to cancel watch event (%d)\n", ret);
@@ -5171,6 +5190,13 @@ static ssize_t rbd_remove(struct bus_type *bus,
 	 */
 	dout("%s: flushing notifies", __func__);
 	ceph_osdc_flush_notifies(&rbd_dev->rbd_client->client->osdc);
+	/*
+	 * Don't free anything from rbd_dev->disk until after all
+	 * notifies are completely processed. Otherwise
+	 * rbd_bus_del_dev() will race with rbd_watch_cb(), resulting
+	 * in a potential use after free of rbd_dev->disk or rbd_dev.
+	 */
+	rbd_bus_del_dev(rbd_dev);
 	rbd_dev_image_release(rbd_dev);
 	module_put(THIS_MODULE);
 
