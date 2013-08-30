@@ -183,11 +183,6 @@ static void aio_free_ring(struct kioctx *ctx)
 
 	if (aio_ring_file) {
 		truncate_setsize(aio_ring_file->f_inode, 0);
-		pr_debug("pid(%d) i_nlink=%u d_count=%d d_unhashed=%d i_count=%d\n",
-			current->pid, aio_ring_file->f_inode->i_nlink,
-			aio_ring_file->f_path.dentry->d_count,
-			d_unhashed(aio_ring_file->f_path.dentry),
-			atomic_read(&aio_ring_file->f_inode->i_count));
 		fput(aio_ring_file);
 		ctx->aio_ring_file = NULL;
 	}
