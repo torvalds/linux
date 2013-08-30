@@ -119,16 +119,14 @@ static int adv7511_s_clock_freq(struct v4l2_subdev *sd, u32 freq);
 
 static const struct v4l2_dv_timings_cap adv7511_timings_cap = {
 	.type = V4L2_DV_BT_656_1120,
-	.bt = {
-		.max_width = ADV7511_MAX_WIDTH,
-		.max_height = ADV7511_MAX_HEIGHT,
-		.min_pixelclock = ADV7511_MIN_PIXELCLOCK,
-		.max_pixelclock = ADV7511_MAX_PIXELCLOCK,
-		.standards = V4L2_DV_BT_STD_CEA861 | V4L2_DV_BT_STD_DMT |
+	/* keep this initialization for compatibility with GCC < 4.4.6 */
+	.reserved = { 0 },
+	V4L2_INIT_BT_TIMINGS(0, ADV7511_MAX_WIDTH, 0, ADV7511_MAX_HEIGHT,
+		ADV7511_MIN_PIXELCLOCK, ADV7511_MAX_PIXELCLOCK,
+		V4L2_DV_BT_STD_CEA861 | V4L2_DV_BT_STD_DMT |
 			V4L2_DV_BT_STD_GTF | V4L2_DV_BT_STD_CVT,
-		.capabilities = V4L2_DV_BT_CAP_PROGRESSIVE |
-			V4L2_DV_BT_CAP_REDUCED_BLANKING | V4L2_DV_BT_CAP_CUSTOM,
-	},
+		V4L2_DV_BT_CAP_PROGRESSIVE | V4L2_DV_BT_CAP_REDUCED_BLANKING |
+			V4L2_DV_BT_CAP_CUSTOM)
 };
 
 static inline struct adv7511_state *get_adv7511_state(struct v4l2_subdev *sd)
