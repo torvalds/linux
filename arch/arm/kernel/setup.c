@@ -991,15 +991,6 @@ static int c_show(struct seq_file *m, void *v)
 		seq_printf(m, "model name\t: %s rev %d (%s)\n",
 			   cpu_name, cpuid & 15, elf_platform);
 
-#if defined(CONFIG_SMP)
-		seq_printf(m, "BogoMIPS\t: %lu.%02lu\n",
-			   per_cpu(cpu_data, i).loops_per_jiffy / (500000UL/HZ),
-			   (per_cpu(cpu_data, i).loops_per_jiffy / (5000UL/HZ)) % 100);
-#else
-		seq_printf(m, "BogoMIPS\t: %lu.%02lu\n",
-			   loops_per_jiffy / (500000/HZ),
-			   (loops_per_jiffy / (5000/HZ)) % 100);
-#endif
 		/* dump out the processor features */
 		seq_puts(m, "Features\t: ");
 
