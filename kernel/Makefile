@@ -142,17 +142,40 @@ $(obj)/timeconst.h: $(obj)/hz.bc $(src)/timeconst.bc FORCE
 	$(call if_changed,bc)
 
 ifeq ($(CONFIG_MODULE_SIG),y)
+###############################################################################
 #
-# Pull the signing certificate and any extra certificates into the kernel
+# Roll all the X.509 certificates that we can find together and pull
+# them into the kernel.
 #
+###############################################################################
+X509_CERTIFICATES-y := $(wildcard *.x509) $(wildcard $(srctree)/*.x509)
+X509_CERTIFICATES-$(CONFIG_MODULE_SIG) += signing_key.x509
+X509_CERTIFICATES := $(sort $(X509_CERTIFICATES-y))
 
-quiet_cmd_touch = TOUCH   $@
-      cmd_touch = touch   $@
+ifeq ($(X509_CERTIFICATES),)
+$(warning *** No X.509 certificates found ***)
+endif
 
-extra_certificates:
-	$(call cmd,touch)
+ifneq ($(wildcard $(obj)/.x509.list),)
+ifneq ($(shell cat $(obj)/.x509.list),$(X509_CERTIFICATES))
+$(info X.509 certificate list changed)
+$(shell rm $(obj)/.x509.list)
+endif
+endif
 
-kernel/modsign_certificate.o: signing_key.x509 extra_certificates
+kernel/modsign_certificate.o: $(obj)/x509_certificate_list
+
+quiet_cmd_x509certs  = CERTS   $@
+      cmd_x509certs  = cat $(X509_CERTIFICATES) /dev/null >$@
+targets += $(obj)/x509_certificate_list
+$(obj)/x509_certificate_list: $(X509_CERTIFICATES) $(obj)/.x509.list
+	$(call if_changed,x509certs)
+
+targets += $(obj)/.x509.list
+$(obj)/.x509.list:
+	@echo $(X509_CERTIFICATES) >$@
+
+clean-files := x509_certificate_list .x509.list
 
 ###############################################################################
 #
