@@ -490,7 +490,7 @@ MODULE_DEVICE_TABLE(x86cpu, intel_idle_ids);
 /*
  * intel_idle_probe()
  */
-static int intel_idle_probe(void)
+static int __init intel_idle_probe(void)
 {
 	unsigned int eax, ebx, ecx;
 	const struct x86_cpu_id *id;
@@ -558,7 +558,7 @@ static void intel_idle_cpuidle_devices_uninit(void)
  * intel_idle_cpuidle_driver_init()
  * allocate, initialize cpuidle_states
  */
-static int intel_idle_cpuidle_driver_init(void)
+static int __init intel_idle_cpuidle_driver_init(void)
 {
 	int cstate;
 	struct cpuidle_driver *drv = &intel_idle_driver;
