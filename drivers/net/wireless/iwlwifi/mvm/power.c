@@ -273,7 +273,10 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 		if (!mvmvif->queue_params[ac].uapsd)
 			continue;
 
-		cmd->flags |= cpu_to_le16(POWER_FLAGS_ADVANCE_PM_ENA_MSK);
+		if (mvm->cur_ucode != IWL_UCODE_WOWLAN)
+			cmd->flags |=
+				cpu_to_le16(POWER_FLAGS_ADVANCE_PM_ENA_MSK);
+
 		cmd->uapsd_ac_flags |= BIT(ac);
 
 		/* QNDP TID - the highest TID with no admission control */
