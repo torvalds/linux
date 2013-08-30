@@ -130,15 +130,12 @@ static int parport_data_reg_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int parport_insn_b(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
+static int parport_status_reg_insn_bits(struct comedi_device *dev,
+					struct comedi_subdevice *s,
+					struct comedi_insn *insn,
+					unsigned int *data)
 {
-	if (data[0]) {
-		/* should writes be ignored? */
-		/* anyone??? */
-	}
-
-	data[1] = (inb(dev->iobase + PARPORT_STATUS_REG) >> 3);
+	data[1] = inb(dev->iobase + PARPORT_STATUS_REG) >> 3;
 
 	return insn->n;
 }
@@ -299,7 +296,7 @@ static int parport_attach(struct comedi_device *dev,
 	s->n_chan = 5;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
-	s->insn_bits = parport_insn_b;
+	s->insn_bits = parport_status_reg_insn_bits;
 
 	s = &dev->subdevices[2];
 	s->type = COMEDI_SUBD_DO;
