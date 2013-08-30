@@ -521,7 +521,7 @@ static int sunxi_pinctrl_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	struct sunxi_pinctrl *pctl = dev_get_drvdata(chip->dev);
 	struct sunxi_desc_function *desc;
 
-	if (offset > chip->ngpio)
+	if (offset >= chip->ngpio)
 		return -ENXIO;
 
 	desc = sunxi_pinctrl_desc_find_function_by_pin(pctl, offset, "irq");
