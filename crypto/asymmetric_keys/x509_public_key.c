@@ -143,8 +143,8 @@ static int x509_key_preparse(struct key_preparsed_payload *prep)
 		 pkey_algo_name[cert->sig.pkey_algo],
 		 pkey_hash_algo_name[cert->sig.pkey_hash_algo]);
 
-	if (!cert->fingerprint || !cert->authority) {
-		pr_warn("Cert for '%s' must have SubjKeyId and AuthKeyId extensions\n",
+	if (!cert->fingerprint) {
+		pr_warn("Cert for '%s' must have a SubjKeyId extension\n",
 			cert->subject);
 		ret = -EKEYREJECTED;
 		goto error_free_cert;
@@ -190,8 +190,9 @@ static int x509_key_preparse(struct key_preparsed_payload *prep)
 	cert->pub->algo = pkey_algo[cert->pub->pkey_algo];
 	cert->pub->id_type = PKEY_ID_X509;
 
-	/* Check the signature on the key */
-	if (strcmp(cert->fingerprint, cert->authority) == 0) {
+	/* Check the signature on the key if it appears to be self-signed */
+	if (!cert->authority ||
+	    strcmp(cert->fingerprint, cert->authority) == 0) {
 		ret = x509_check_signature(cert->pub, cert);
 		if (ret < 0)
 			goto error_free_cert;
