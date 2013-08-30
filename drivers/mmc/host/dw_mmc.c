@@ -372,6 +372,14 @@ static void dw_mci_dma_cleanup(struct dw_mci *host)
 				     dw_mci_get_dma_dir(data));
 }
 
+static void dw_mci_idmac_reset(struct dw_mci *host)
+{
+	u32 bmod = mci_readl(host, BMOD);
+	/* Software reset of DMA */
+	bmod |= SDMMC_IDMAC_SWRESET;
+	mci_writel(host, BMOD, bmod);
+}
+
 static void dw_mci_idmac_stop_dma(struct dw_mci *host)
 {
 	u32 temp;
@@ -385,6 +393,7 @@ static void dw_mci_idmac_stop_dma(struct dw_mci *host)
 	/* Stop the IDMAC running */
 	temp = mci_readl(host, BMOD);
 	temp &= ~(SDMMC_IDMAC_ENABLE | SDMMC_IDMAC_FB);
+	temp |= SDMMC_IDMAC_SWRESET;
 	mci_writel(host, BMOD, temp);
 }
 
@@ -476,7 +485,7 @@ static int dw_mci_idmac_init(struct dw_mci *host)
 	p->des3 = host->sg_dma;
 	p->des0 = IDMAC_DES0_ER;
 
-	mci_writel(host, BMOD, SDMMC_IDMAC_SWRESET);
+	dw_mci_idmac_reset(host);
 
 	/* Mask out interrupts - get Tx & Rx complete only */
 	mci_writel(host, IDSTS, IDMAC_INT_CLR);
@@ -1906,7 +1915,6 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 		struct mmc_host *mmc = slot->mmc;
 		struct mmc_request *mrq;
 		int present;
-		u32 ctrl;
 
 		present = dw_mci_get_cd(mmc);
 		while (present != slot->last_detect_state) {
@@ -1974,10 +1982,7 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 				/* Clear down the FIFO */
 				dw_mci_fifo_reset(host);
 #ifdef CONFIG_MMC_DW_IDMAC
-				ctrl = mci_readl(host, BMOD);
-				/* Software reset of DMA */
-				ctrl |= SDMMC_IDMAC_SWRESET;
-				mci_writel(host, BMOD, ctrl);
+				dw_mci_idmac_reset(host);
 #endif
 
 			}
