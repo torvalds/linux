@@ -235,6 +235,8 @@ enum {
 	EAU_MVDOWN_WHITEOUT,
 	EAU_MVDOWN_UPPER,
 	EAU_MVDOWN_BOTTOM,
+	EAU_MVDOWN_NOUPPER,
+	EAU_MVDOWN_NOLOWERBR,
 	EAU_Last
 };
 
@@ -242,18 +244,28 @@ enum {
 #define AUFS_MVDOWN_DMSG	1
 #define AUFS_MVDOWN_OWLOWER	(1 << 1)	/* overwrite lower */
 #define AUFS_MVDOWN_KUPPER	(1 << 2)	/* keep upper */
+#define AUFS_MVDOWN_ROLOWER	(1 << 3)	/* do even if lower is RO */
+#define AUFS_MVDOWN_ROLOWER_R	(1 << 4)	/* did on lower RO */
+#define AUFS_MVDOWN_ROUPPER	(1 << 5)	/* do even if upper is RO */
+#define AUFS_MVDOWN_ROUPPER_R	(1 << 6)	/* did on upper RO */
+#define AUFS_MVDOWN_BRID_UPPER	(1 << 7)	/* upper brid */
+#define AUFS_MVDOWN_BRID_LOWER	(1 << 8)	/* lower brid */
 /* will be added more */
 
-struct aufs_mvdown {
-	/* input */
-	uint8_t		flags;
-	/* will be added more */
+enum {
+	AUFS_MVDOWN_UPPER,
+	AUFS_MVDOWN_LOWER,
+	AUFS_MVDOWN_NARRAY
+};
 
-	/* output */
+struct aufs_mvdown {
+	uint32_t	flags;
 	struct {
-		int16_t	bsrc, bdst;
-		int8_t	au_errno;
-	} output;
+		int16_t		bindex;
+		int16_t		brid;
+	} a[AUFS_MVDOWN_NARRAY];
+	int8_t		au_errno;
+	/* will be added more */
 } __aligned(8);
 
 /* ---------------------------------------------------------------------- */
