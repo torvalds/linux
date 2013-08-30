@@ -267,43 +267,47 @@ static int parport_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
+	/* Digial I/O subdevice - Parallel port DATA register */
 	s = &dev->subdevices[0];
-	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	s->n_chan = 8;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = parport_data_reg_insn_bits;
-	s->insn_config = parport_data_reg_insn_config;
+	s->type		= COMEDI_SUBD_DIO;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+	s->n_chan	= 8;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= parport_data_reg_insn_bits;
+	s->insn_config	= parport_data_reg_insn_config;
 
+	/* Digial Input subdevice - Parallel port STATUS register */
 	s = &dev->subdevices[1];
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->n_chan = 5;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = parport_status_reg_insn_bits;
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 5;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= parport_status_reg_insn_bits;
 
+	/* Digial Output subdevice - Parallel port CONTROL register */
 	s = &dev->subdevices[2];
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 4;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = parport_ctrl_reg_insn_bits;
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 4;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= parport_ctrl_reg_insn_bits;
 
 	if (dev->irq) {
+		/* Digial Input subdevice - Interrupt support */
 		s = &dev->subdevices[3];
 		dev->read_subdev = s;
-		s->type = COMEDI_SUBD_DI;
-		s->subdev_flags = SDF_READABLE | SDF_CMD_READ;
-		s->n_chan = 1;
-		s->maxdata = 1;
-		s->range_table = &range_digital;
-		s->insn_bits = parport_intr_insn;
-		s->do_cmdtest = parport_intr_cmdtest;
-		s->do_cmd = parport_intr_cmd;
-		s->cancel = parport_intr_cancel;
+		s->type		= COMEDI_SUBD_DI;
+		s->subdev_flags	= SDF_READABLE | SDF_CMD_READ;
+		s->n_chan	= 1;
+		s->maxdata	= 1;
+		s->range_table	= &range_digital;
+		s->insn_bits	= parport_intr_insn;
+		s->do_cmdtest	= parport_intr_cmdtest;
+		s->do_cmd	= parport_intr_cmd;
+		s->cancel	= parport_intr_cancel;
 	}
 
 	outb(0, dev->iobase + PARPORT_DATA_REG);
