@@ -30,6 +30,7 @@
 #define SDMMC_CLKSEL_TIMING(x, y, z)	(SDMMC_CLKSEL_CCLK_SAMPLE(x) |	\
 					SDMMC_CLKSEL_CCLK_DRIVE(y) |	\
 					SDMMC_CLKSEL_CCLK_DIVIDER(z))
+#define SDMMC_CLKSEL_WAKEUP_INT		BIT(11)
 
 #define EXYNOS4210_FIXED_CIU_CLK_DIV	2
 #define EXYNOS4412_FIXED_CIU_CLK_DIV	4
@@ -104,6 +105,49 @@ static int dw_mci_exynos_setup_clock(struct dw_mci *host)
 
 	return 0;
 }
+
+#ifdef CONFIG_PM_SLEEP
+static int dw_mci_exynos_suspend(struct device *dev)
+{
+	struct dw_mci *host = dev_get_drvdata(dev);
+
+	return dw_mci_suspend(host);
+}
+
+static int dw_mci_exynos_resume(struct device *dev)
+{
+	struct dw_mci *host = dev_get_drvdata(dev);
+
+	return dw_mci_resume(host);
+}
+
+/**
+ * dw_mci_exynos_resume_noirq - Exynos-specific resume code
+ *
+ * On exynos5420 there is a silicon errata that will sometimes leave the
+ * WAKEUP_INT bit in the CLKSEL register asserted.  This bit is 1 to indicate
+ * that it fired and we can clear it by writing a 1 back.  Clear it to prevent
+ * interrupts from going off constantly.
+ *
+ * We run this code on all exynos variants because it doesn't hurt.
+ */
+
+static int dw_mci_exynos_resume_noirq(struct device *dev)
+{
+	struct dw_mci *host = dev_get_drvdata(dev);
+	u32 clksel;
+
+	clksel = mci_readl(host, CLKSEL);
+	if (clksel & SDMMC_CLKSEL_WAKEUP_INT)
+		mci_writel(host, CLKSEL, clksel);
+
+	return 0;
+}
+#else
+#define dw_mci_exynos_suspend		NULL
+#define dw_mci_exynos_resume		NULL
+#define dw_mci_exynos_resume_noirq	NULL
+#endif /* CONFIG_PM_SLEEP */
 
 static void dw_mci_exynos_prepare_command(struct dw_mci *host, u32 *cmdr)
 {
@@ -194,13 +238,20 @@ static int dw_mci_exynos_probe(struct platform_device *pdev)
 	return dw_mci_pltfm_register(pdev, drv_data);
 }
 
+const struct dev_pm_ops dw_mci_exynos_pmops = {
+	SET_SYSTEM_SLEEP_PM_OPS(dw_mci_exynos_suspend, dw_mci_exynos_resume)
+	.resume_noirq = dw_mci_exynos_resume_noirq,
+	.thaw_noirq = dw_mci_exynos_resume_noirq,
+	.restore_noirq = dw_mci_exynos_resume_noirq,
+};
+
 static struct platform_driver dw_mci_exynos_pltfm_driver = {
 	.probe		= dw_mci_exynos_probe,
 	.remove		= __exit_p(dw_mci_pltfm_remove),
 	.driver		= {
 		.name		= "dwmmc_exynos",
 		.of_match_table	= dw_mci_exynos_match,
-		.pm		= &dw_mci_pltfm_pmops,
+		.pm		= &dw_mci_exynos_pmops,
 	},
 };
 
