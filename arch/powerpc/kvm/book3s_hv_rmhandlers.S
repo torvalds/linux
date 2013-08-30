@@ -1381,7 +1381,7 @@ hcall_try_real_mode:
 	cmpldi	r3,hcall_real_table_end - hcall_real_table
 	bge	guest_exit_cont
 	LOAD_REG_ADDR(r4, hcall_real_table)
-	lwzx	r3,r3,r4
+	lwax	r3,r3,r4
 	cmpwi	r3,0
 	beq	guest_exit_cont
 	add	r3,r3,r4

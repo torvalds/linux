@@ -183,13 +183,9 @@ struct kvmppc_spapr_tce_table {
 	struct page *pages[0];
 };
 
-struct kvmppc_linear_info {
-	void		*base_virt;
-	unsigned long	 base_pfn;
-	unsigned long	 npages;
-	struct list_head list;
-	atomic_t	 use_count;
-	int		 type;
+struct kvm_rma_info {
+	atomic_t use_count;
+	unsigned long base_pfn;
 };
 
 /* XICS components, defined in book3s_xics.c */
@@ -246,7 +242,7 @@ struct kvm_arch {
 	int tlbie_lock;
 	unsigned long lpcr;
 	unsigned long rmor;
-	struct kvmppc_linear_info *rma;
+	struct kvm_rma_info *rma;
 	unsigned long vrma_slb_v;
 	int rma_setup_done;
 	int using_mmu_notifiers;
@@ -259,7 +255,7 @@ struct kvm_arch {
 	spinlock_t slot_phys_lock;
 	cpumask_t need_tlb_flush;
 	struct kvmppc_vcore *vcores[KVM_MAX_VCORES];
-	struct kvmppc_linear_info *hpt_li;
+	int hpt_cma_alloc;
 #endif /* CONFIG_KVM_BOOK3S_64_HV */
 #ifdef CONFIG_PPC_BOOK3S_64
 	struct list_head spapr_tce_tables;

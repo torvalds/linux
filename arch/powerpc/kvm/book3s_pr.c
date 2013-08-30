@@ -468,7 +468,8 @@ void kvmppc_giveup_ext(struct kvm_vcpu *vcpu, ulong msr)
 		 * both the traditional FP registers and the added VSX
 		 * registers into thread.fpr[].
 		 */
-		giveup_fpu(current);
+		if (current->thread.regs->msr & MSR_FP)
+			giveup_fpu(current);
 		for (i = 0; i < ARRAY_SIZE(vcpu->arch.fpr); i++)
 			vcpu_fpr[i] = thread_fpr[get_fpr_index(i)];
 
@@ -483,7 +484,8 @@ void kvmppc_giveup_ext(struct kvm_vcpu *vcpu, ulong msr)
 
 #ifdef CONFIG_ALTIVEC
 	if (msr & MSR_VEC) {
-		giveup_altivec(current);
+		if (current->thread.regs->msr & MSR_VEC)
+			giveup_altivec(current);
 		memcpy(vcpu->arch.vr, t->vr, sizeof(vcpu->arch.vr));
 		vcpu->arch.vscr = t->vscr;
 	}
@@ -575,8 +577,6 @@ static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 	printk(KERN_INFO "Loading up ext 0x%lx\n", msr);
 #endif
 
-	current->thread.regs->msr |= msr;
-
 	if (msr & MSR_FP) {
 		for (i = 0; i < ARRAY_SIZE(vcpu->arch.fpr); i++)
 			thread_fpr[get_fpr_index(i)] = vcpu_fpr[i];
@@ -598,10 +598,30 @@ static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 #endif
 	}
 
+	current->thread.regs->msr |= msr;
 	vcpu->arch.guest_owned_ext |= msr;
 	kvmppc_recalc_shadow_msr(vcpu);
 
 	return RESUME_GUEST;
+}
+
+/*
+ * Kernel code using FP or VMX could have flushed guest state to
+ * the thread_struct; if so, get it back now.
+ */
+static void kvmppc_handle_lost_ext(struct kvm_vcpu *vcpu)
+{
+	unsigned long lost_ext;
+
+	lost_ext = vcpu->arch.guest_owned_ext & ~current->thread.regs->msr;
+	if (!lost_ext)
+		return;
+
+	if (lost_ext & MSR_FP)
+		kvmppc_load_up_fpu();
+	if (lost_ext & MSR_VEC)
+		kvmppc_load_up_altivec();
+	current->thread.regs->msr |= lost_ext;
 }
 
 int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
@@ -772,7 +792,7 @@ program_interrupt:
 	}
 	case BOOK3S_INTERRUPT_SYSCALL:
 		if (vcpu->arch.papr_enabled &&
-		    (kvmppc_get_last_inst(vcpu) == 0x44000022) &&
+		    (kvmppc_get_last_sc(vcpu) == 0x44000022) &&
 		    !(vcpu->arch.shared->msr & MSR_PR)) {
 			/* SC 1 papr hypercalls */
 			ulong cmd = kvmppc_get_gpr(vcpu, 3);
@@ -890,8 +910,9 @@ program_interrupt:
 			local_irq_enable();
 			r = s;
 		} else {
-			kvmppc_lazy_ee_enable();
+			kvmppc_fix_ee_before_entry();
 		}
+		kvmppc_handle_lost_ext(vcpu);
 	}
 
 	trace_kvm_book3s_reenter(r, vcpu);
@@ -1047,11 +1068,12 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 	if (err)
 		goto free_shadow_vcpu;
 
+	err = -ENOMEM;
 	p = __get_free_page(GFP_KERNEL|__GFP_ZERO);
-	/* the real shared page fills the last 4k of our page */
-	vcpu->arch.shared = (void*)(p + PAGE_SIZE - 4096);
 	if (!p)
 		goto uninit_vcpu;
+	/* the real shared page fills the last 4k of our page */
+	vcpu->arch.shared = (void *)(p + PAGE_SIZE - 4096);
 
 #ifdef CONFIG_PPC_BOOK3S_64
 	/* default to book3s_64 (970fx) */
@@ -1161,7 +1183,7 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	if (vcpu->arch.shared->msr & MSR_FP)
 		kvmppc_handle_ext(vcpu, BOOK3S_INTERRUPT_FP_UNAVAIL, MSR_FP);
 
-	kvmppc_lazy_ee_enable();
+	kvmppc_fix_ee_before_entry();
 
 	ret = __kvmppc_vcpu_run(kvm_run, vcpu);
 

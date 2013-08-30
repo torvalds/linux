@@ -229,6 +229,8 @@ void __init early_setup(unsigned long dt_ptr)
 	/* Initialize the hash table or TLB handling */
 	early_init_mmu();
 
+	kvm_cma_reserve();
+
 	/*
 	 * Reserve any gigantic pages requested on the command line.
 	 * memblock needs to have been initialized by the time this is
@@ -608,8 +610,6 @@ void __init setup_arch(char **cmdline_p)
 
 	/* Initialize the MMU context management stuff */
 	mmu_context_init();
-
-	kvm_linear_init();
 
 	/* Interrupt code needs to be 64K-aligned */
 	if ((unsigned long)_stext & 0xffff)

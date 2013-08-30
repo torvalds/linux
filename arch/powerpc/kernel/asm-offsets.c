@@ -451,6 +451,7 @@ int main(void)
 	DEFINE(VCPU_SPRG2, offsetof(struct kvm_vcpu, arch.shregs.sprg2));
 	DEFINE(VCPU_SPRG3, offsetof(struct kvm_vcpu, arch.shregs.sprg3));
 #endif
+	DEFINE(VCPU_SHARED_SPRG3, offsetof(struct kvm_vcpu_arch_shared, sprg3));
 	DEFINE(VCPU_SHARED_SPRG4, offsetof(struct kvm_vcpu_arch_shared, sprg4));
 	DEFINE(VCPU_SHARED_SPRG5, offsetof(struct kvm_vcpu_arch_shared, sprg5));
 	DEFINE(VCPU_SHARED_SPRG6, offsetof(struct kvm_vcpu_arch_shared, sprg6));
