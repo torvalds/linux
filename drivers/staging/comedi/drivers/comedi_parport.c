@@ -82,11 +82,14 @@ pin, which can be used to wake up tasks.
 
 #include "comedi_fc.h"
 
-#define PARPORT_SIZE 3
-
-#define PARPORT_A 0
-#define PARPORT_B 1
-#define PARPORT_C 2
+/*
+ * Register map
+ */
+#define PARPORT_DATA_REG	0x00
+#define PARPORT_STATUS_REG	0x01
+#define PARPORT_CTRL_REG	0x02
+#define PARPORT_CTRL_IRQ_ENA	(1 << 4)
+#define PARPORT_CTRL_BIDIR_ENA	(1 << 5)
 
 struct parport_private {
 	unsigned int a_data;
@@ -103,10 +106,10 @@ static int parport_insn_a(struct comedi_device *dev, struct comedi_subdevice *s,
 		devpriv->a_data &= ~data[0];
 		devpriv->a_data |= (data[0] & data[1]);
 
-		outb(devpriv->a_data, dev->iobase + PARPORT_A);
+		outb(devpriv->a_data, dev->iobase + PARPORT_DATA_REG);
 	}
 
-	data[1] = inb(dev->iobase + PARPORT_A);
+	data[1] = inb(dev->iobase + PARPORT_DATA_REG);
 
 	return insn->n;
 }
@@ -119,12 +122,12 @@ static int parport_insn_config_a(struct comedi_device *dev,
 
 	if (data[0]) {
 		s->io_bits = 0xff;
-		devpriv->c_data &= ~(1 << 5);
+		devpriv->c_data &= ~PARPORT_CTRL_BIDIR_ENA;
 	} else {
 		s->io_bits = 0;
-		devpriv->c_data |= (1 << 5);
+		devpriv->c_data |= PARPORT_CTRL_BIDIR_ENA;
 	}
-	outb(devpriv->c_data, dev->iobase + PARPORT_C);
+	outb(devpriv->c_data, dev->iobase + PARPORT_CTRL_REG);
 
 	return 1;
 }
@@ -137,7 +140,7 @@ static int parport_insn_b(struct comedi_device *dev, struct comedi_subdevice *s,
 		/* anyone??? */
 	}
 
-	data[1] = (inb(dev->iobase + PARPORT_B) >> 3);
+	data[1] = (inb(dev->iobase + PARPORT_STATUS_REG) >> 3);
 
 	return insn->n;
 }
@@ -152,7 +155,7 @@ static int parport_insn_c(struct comedi_device *dev, struct comedi_subdevice *s,
 		devpriv->c_data &= ~data[0];
 		devpriv->c_data |= (data[0] & data[1]);
 
-		outb(devpriv->c_data, dev->iobase + PARPORT_C);
+		outb(devpriv->c_data, dev->iobase + PARPORT_CTRL_REG);
 	}
 
 	data[1] = devpriv->c_data & 0xf;
@@ -215,8 +218,8 @@ static int parport_intr_cmd(struct comedi_device *dev,
 {
 	struct parport_private *devpriv = dev->private;
 
-	devpriv->c_data |= 0x10;
-	outb(devpriv->c_data, dev->iobase + PARPORT_C);
+	devpriv->c_data |= PARPORT_CTRL_IRQ_ENA;
+	outb(devpriv->c_data, dev->iobase + PARPORT_CTRL_REG);
 
 	devpriv->enable_irq = 1;
 
@@ -228,8 +231,8 @@ static int parport_intr_cancel(struct comedi_device *dev,
 {
 	struct parport_private *devpriv = dev->private;
 
-	devpriv->c_data &= ~0x10;
-	outb(devpriv->c_data, dev->iobase + PARPORT_C);
+	devpriv->c_data &= ~PARPORT_CTRL_IRQ_ENA;
+	outb(devpriv->c_data, dev->iobase + PARPORT_CTRL_REG);
 
 	devpriv->enable_irq = 0;
 
@@ -260,7 +263,7 @@ static int parport_attach(struct comedi_device *dev,
 	unsigned int irq;
 	int ret;
 
-	ret = comedi_request_region(dev, it->options[0], PARPORT_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x03);
 	if (ret)
 		return ret;
 
@@ -325,9 +328,9 @@ static int parport_attach(struct comedi_device *dev,
 	}
 
 	devpriv->a_data = 0;
-	outb(devpriv->a_data, dev->iobase + PARPORT_A);
+	outb(devpriv->a_data, dev->iobase + PARPORT_DATA_REG);
 	devpriv->c_data = 0;
-	outb(devpriv->c_data, dev->iobase + PARPORT_C);
+	outb(devpriv->c_data, dev->iobase + PARPORT_CTRL_REG);
 
 	return 0;
 }
