@@ -316,17 +316,13 @@ static int das08jr_di_rbits(struct comedi_device *dev,
 
 static int das08jr_do_wbits(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+			    struct comedi_insn *insn,
+			    unsigned int *data)
 {
-	struct das08_private_struct *devpriv = dev->private;
+	if (comedi_dio_update_state(s, data))
+		outb(s->state, dev->iobase + DAS08JR_DIO);
 
-	/*  null bits we are going to set */
-	devpriv->do_bits &= ~data[0];
-	/*  set new bit values */
-	devpriv->do_bits |= data[0] & data[1];
-	outb(devpriv->do_bits, dev->iobase + DAS08JR_DIO);
-
-	data[1] = devpriv->do_bits;
+	data[1] = s->state;
 
 	return insn->n;
 }
