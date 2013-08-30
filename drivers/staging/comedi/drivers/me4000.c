@@ -1313,29 +1313,12 @@ static int me4000_ao_insn_read(struct comedi_device *dev,
 	return 1;
 }
 
-/*=============================================================================
-  Digital I/O section
-  ===========================================================================*/
-
 static int me4000_dio_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	/*
-	 * The insn data consists of a mask in data[0] and the new data
-	 * in data[1]. The mask defines which bits we are concerning about.
-	 * The new data must be anded with the mask.
-	 * Each channel corresponds to a bit.
-	 */
-	if (data[0]) {
-		/* Check if requested ports are configured for output */
-		if ((s->io_bits & data[0]) != data[0])
-			return -EIO;
-
-		s->state &= ~data[0];
-		s->state |= data[0] & data[1];
-
-		/* Write out the new digital output lines */
+	if (comedi_dio_update_state(s, data)) {
 		outl((s->state >> 0) & 0xFF,
 			    dev->iobase + ME4000_DIO_PORT_0_REG);
 		outl((s->state >> 8) & 0xFF,
@@ -1346,8 +1329,6 @@ static int me4000_dio_insn_bits(struct comedi_device *dev,
 			    dev->iobase + ME4000_DIO_PORT_3_REG);
 	}
 
-	/* On return, data[1] contains the value of
-	   the digital input and output lines. */
 	data[1] = ((inl(dev->iobase + ME4000_DIO_PORT_0_REG) & 0xFF) << 0) |
 		  ((inl(dev->iobase + ME4000_DIO_PORT_1_REG) & 0xFF) << 8) |
 		  ((inl(dev->iobase + ME4000_DIO_PORT_2_REG) & 0xFF) << 16) |
