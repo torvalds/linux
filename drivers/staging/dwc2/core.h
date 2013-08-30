@@ -194,21 +194,87 @@ struct dwc2_core_params {
 };
 
 /**
+ * struct dwc2_hw_params - Autodetected parameters.
+ *
+ * These parameters are the various parameters read from hardware
+ * registers during initialization. They typically contain the best
+ * supported or maximum value that can be configured in the
+ * corresponding dwc2_core_params value.
+ *
+ * The values that are not in dwc2_core_params are documented below.
+ *
+ * @op_mode             Mode of Operation
+ *                       0 - HNP- and SRP-Capable OTG (Host & Device)
+ *                       1 - SRP-Capable OTG (Host & Device)
+ *                       2 - Non-HNP and Non-SRP Capable OTG (Host & Device)
+ *                       3 - SRP-Capable Device
+ *                       4 - Non-OTG Device
+ *                       5 - SRP-Capable Host
+ *                       6 - Non-OTG Host
+ * @arch                Architecture
+ *                       0 - Slave only
+ *                       1 - External DMA
+ *                       2 - Internal DMA
+ * @power_optimized     Are power optimizations enabled?
+ * @num_dev_ep          Number of device endpoints available
+ * @num_dev_perio_in_ep Number of device periodic IN endpoints
+ *                      avaialable
+ * @dev_token_q_depth   Device Mode IN Token Sequence Learning Queue
+ *                      Depth
+ *                       0 to 30
+ * @host_perio_tx_q_depth
+ *                      Host Mode Periodic Request Queue Depth
+ *                       2, 4 or 8
+ * @nperio_tx_q_depth
+ *                      Non-Periodic Request Queue Depth
+ *                       2, 4 or 8
+ * @hs_phy_type         High-speed PHY interface type
+ *                       0 - High-speed interface not supported
+ *                       1 - UTMI+
+ *                       2 - ULPI
+ *                       3 - UTMI+ and ULPI
+ * @fs_phy_type         Full-speed PHY interface type
+ *                       0 - Full speed interface not supported
+ *                       1 - Dedicated full speed interface
+ *                       2 - FS pins shared with UTMI+ pins
+ *                       3 - FS pins shared with ULPI pins
+ * @total_fifo_size:    Total internal RAM for FIFOs (bytes)
+ * @snpsid:             Value from SNPSID register
+ */
+struct dwc2_hw_params {
+	unsigned op_mode:3;
+	unsigned arch:2;
+	unsigned dma_desc_enable:1;
+	unsigned enable_dynamic_fifo:1;
+	unsigned en_multiple_tx_fifo:1;
+	unsigned host_rx_fifo_size:16;
+	unsigned host_nperio_tx_fifo_size:16;
+	unsigned host_perio_tx_fifo_size:16;
+	unsigned nperio_tx_q_depth:3;
+	unsigned host_perio_tx_q_depth:3;
+	unsigned dev_token_q_depth:5;
+	unsigned max_transfer_size:26;
+	unsigned max_packet_count:11;
+	unsigned host_channels:4;
+	unsigned hs_phy_type:2;
+	unsigned fs_phy_type:2;
+	unsigned i2c_enable:1;
+	unsigned num_dev_ep:4;
+	unsigned num_dev_perio_in_ep:4;
+	unsigned total_fifo_size:16;
+	unsigned power_optimized:1;
+	u32 snpsid;
+};
+
+/**
  * struct dwc2_hsotg - Holds the state of the driver, including the non-periodic
  * and periodic schedules
  *
  * @dev:                The struct device pointer
  * @regs:		Pointer to controller regs
  * @core_params:        Parameters that define how the core should be configured
- * @hwcfg1:             Hardware Configuration - stored here for convenience
- * @hwcfg2:             Hardware Configuration - stored here for convenience
- * @hwcfg3:             Hardware Configuration - stored here for convenience
- * @hwcfg4:             Hardware Configuration - stored here for convenience
- * @hptxfsiz:           Hardware Configuration - stored here for convenience
- * @snpsid:             Value from SNPSID register
- * @total_fifo_size:    Total internal RAM for FIFOs (bytes)
- * @rx_fifo_size:       Size of Rx FIFO (bytes)
- * @nperio_tx_fifo_size: Size of Non-periodic Tx FIFO (Bytes)
+ * @hw_params:          Parameters that were autodetected from the
+ *                      hardware registers
  * @op_state:           The operational State, during transitions (a_host=>
  *                      a_peripheral and b_device=>b_host) this may not match
  *                      the core, but allows the software to determine
@@ -296,16 +362,10 @@ struct dwc2_core_params {
 struct dwc2_hsotg {
 	struct device *dev;
 	void __iomem *regs;
+	/** Params detected from hardware */
+	struct dwc2_hw_params hw_params;
+	/** Params to actually use */
 	struct dwc2_core_params *core_params;
-	u32 hwcfg1;
-	u32 hwcfg2;
-	u32 hwcfg3;
-	u32 hwcfg4;
-	u32 hptxfsiz;
-	u32 snpsid;
-	u16 total_fifo_size;
-	u16 rx_fifo_size;
-	u16 nperio_tx_fifo_size;
 	enum usb_otg_state op_state;
 
 	unsigned int queuing_high_bandwidth:1;

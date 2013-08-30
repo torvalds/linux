@@ -2678,7 +2678,7 @@ static void dwc2_hcd_free(struct dwc2_hsotg *hsotg)
 	writel(ahbcfg, hsotg->regs + GAHBCFG);
 	writel(0, hsotg->regs + GINTMSK);
 
-	if (hsotg->snpsid >= DWC2_CORE_REV_3_00a) {
+	if (hsotg->hw_params.snpsid >= DWC2_CORE_REV_3_00a) {
 		dctl = readl(hsotg->regs + DCTL);
 		dctl |= DCTL_SFTDISCON;
 		writel(dctl, hsotg->regs + DCTL);
@@ -2730,80 +2730,22 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 {
 	struct usb_hcd *hcd;
 	struct dwc2_host_chan *channel;
-	u32 gusbcfg, hcfg;
+	u32 hcfg;
 	int i, num_channels;
-	int retval = -ENOMEM;
+	int retval;
 
 	dev_dbg(hsotg->dev, "DWC OTG HCD INIT\n");
 
-	/*
-	 * Attempt to ensure this device is really a DWC_otg Controller.
-	 * Read and verify the GSNPSID register contents. The value should be
-	 * 0x45f42xxx or 0x45f43xxx, which corresponds to either "OT2" or "OT3",
-	 * as in "OTG version 2.xx" or "OTG version 3.xx".
-	 */
-	hsotg->snpsid = readl(hsotg->regs + GSNPSID);
-	if ((hsotg->snpsid & 0xfffff000) != 0x4f542000 &&
-	    (hsotg->snpsid & 0xfffff000) != 0x4f543000) {
-		dev_err(hsotg->dev, "Bad value for GSNPSID: 0x%08x\n",
-			hsotg->snpsid);
-		retval = -ENODEV;
-		goto error1;
-	}
+	/* Detect config values from hardware */
+	retval = dwc2_get_hwparams(hsotg);
 
-	/*
-	 * Store the contents of the hardware configuration registers here for
-	 * easy access later
-	 */
-	hsotg->hwcfg1 = readl(hsotg->regs + GHWCFG1);
-	hsotg->hwcfg2 = readl(hsotg->regs + GHWCFG2);
-	hsotg->hwcfg3 = readl(hsotg->regs + GHWCFG3);
-	hsotg->hwcfg4 = readl(hsotg->regs + GHWCFG4);
+	if (retval)
+		return retval;
 
-	dev_dbg(hsotg->dev, "hwcfg1=%08x\n", hsotg->hwcfg1);
-	dev_dbg(hsotg->dev, "hwcfg2=%08x\n", hsotg->hwcfg2);
-	dev_dbg(hsotg->dev, "hwcfg3=%08x\n", hsotg->hwcfg3);
-	dev_dbg(hsotg->dev, "hwcfg4=%08x\n", hsotg->hwcfg4);
-
-	/* Force host mode to get HPTXFSIZ exact power on value */
-	gusbcfg = readl(hsotg->regs + GUSBCFG);
-	gusbcfg |= GUSBCFG_FORCEHOSTMODE;
-	writel(gusbcfg, hsotg->regs + GUSBCFG);
-	usleep_range(100000, 150000);
-
-	hsotg->hptxfsiz = readl(hsotg->regs + HPTXFSIZ);
-	dev_dbg(hsotg->dev, "hptxfsiz=%08x\n", hsotg->hptxfsiz);
-	gusbcfg = readl(hsotg->regs + GUSBCFG);
-	gusbcfg &= ~GUSBCFG_FORCEHOSTMODE;
-	writel(gusbcfg, hsotg->regs + GUSBCFG);
-	usleep_range(100000, 150000);
+	retval = -ENOMEM;
 
 	hcfg = readl(hsotg->regs + HCFG);
 	dev_dbg(hsotg->dev, "hcfg=%08x\n", hcfg);
-	dev_dbg(hsotg->dev, "op_mode=%0x\n",
-		hsotg->hwcfg2 >> GHWCFG2_OP_MODE_SHIFT &
-		GHWCFG2_OP_MODE_MASK >> GHWCFG2_OP_MODE_SHIFT);
-	dev_dbg(hsotg->dev, "arch=%0x\n",
-		hsotg->hwcfg2 >> GHWCFG2_ARCHITECTURE_SHIFT &
-		GHWCFG2_ARCHITECTURE_MASK >> GHWCFG2_ARCHITECTURE_SHIFT);
-	dev_dbg(hsotg->dev, "num_dev_ep=%d\n",
-		hsotg->hwcfg2 >> GHWCFG2_NUM_DEV_EP_SHIFT &
-		GHWCFG2_NUM_DEV_EP_MASK >> GHWCFG2_NUM_DEV_EP_SHIFT);
-	dev_dbg(hsotg->dev, "max_host_chan=%d\n",
-		hsotg->hwcfg2 >> GHWCFG2_NUM_HOST_CHAN_SHIFT &
-		GHWCFG2_NUM_HOST_CHAN_MASK >> GHWCFG2_NUM_HOST_CHAN_SHIFT);
-	dev_dbg(hsotg->dev, "nonperio_tx_q_depth=0x%0x\n",
-		hsotg->hwcfg2 >> GHWCFG2_NONPERIO_TX_Q_DEPTH_SHIFT &
-		GHWCFG2_NONPERIO_TX_Q_DEPTH_MASK >>
-				GHWCFG2_NONPERIO_TX_Q_DEPTH_SHIFT);
-	dev_dbg(hsotg->dev, "host_perio_tx_q_depth=0x%0x\n",
-		hsotg->hwcfg2 >> GHWCFG2_HOST_PERIO_TX_Q_DEPTH_SHIFT &
-		GHWCFG2_HOST_PERIO_TX_Q_DEPTH_MASK >>
-				GHWCFG2_HOST_PERIO_TX_Q_DEPTH_SHIFT);
-	dev_dbg(hsotg->dev, "dev_token_q_depth=0x%0x\n",
-		hsotg->hwcfg2 >> GHWCFG2_DEV_TOKEN_Q_DEPTH_SHIFT &
-		GHWCFG3_XFER_SIZE_CNTR_WIDTH_MASK >>
-				GHWCFG3_XFER_SIZE_CNTR_WIDTH_SHIFT);
 
 #ifdef CONFIG_USB_DWC2_TRACK_MISSED_SOFS
 	hsotg->frame_num_array = kzalloc(sizeof(*hsotg->frame_num_array) *
@@ -2876,10 +2818,6 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 		goto error2;
 	}
 	INIT_WORK(&hsotg->wf_otg, dwc2_conn_id_status_change);
-
-	dev_dbg(hsotg->dev, "Core Release: %1x.%1x%1x%1x\n",
-		hsotg->snpsid >> 12 & 0xf, hsotg->snpsid >> 8 & 0xf,
-		hsotg->snpsid >> 4 & 0xf, hsotg->snpsid & 0xf);
 
 	setup_timer(&hsotg->wkp_timer, dwc2_wakeup_detected,
 		    (unsigned long)hsotg);

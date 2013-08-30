@@ -1759,7 +1759,7 @@ static void dwc2_hc_chhltd_intr_dma(struct dwc2_hsotg *hsotg,
 	 * For core with OUT NAK enhancement, the flow for high-speed
 	 * CONTROL/BULK OUT is handled a little differently
 	 */
-	if (hsotg->snpsid >= DWC2_CORE_REV_2_71a) {
+	if (hsotg->hw_params.snpsid >= DWC2_CORE_REV_2_71a) {
 		if (chan->speed == USB_SPEED_HIGH && !chan->ep_is_in &&
 		    (chan->ep_type == USB_ENDPOINT_XFER_CONTROL ||
 		     chan->ep_type == USB_ENDPOINT_XFER_BULK)) {
