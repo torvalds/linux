@@ -58,7 +58,9 @@
 
 //with capacity or  not
 #define WITH_CAP
-
+#ifdef CONFIG_MACH_RK_FAC 
+	rk3026_hdmi_ctrl=0;
+#endif
 struct rk3026_codec_priv {
 	struct snd_soc_codec *codec;
 
@@ -2138,6 +2140,10 @@ static int rk3026_probe(struct snd_soc_codec *codec)
 			ARRAY_SIZE(rk3026_dapm_routes));
 
 	}
+	
+#ifdef CONFIG_MACH_RK_FAC 
+	rk3026_hdmi_ctrl=1;
+#endif
 	return 0;
 
 err__:

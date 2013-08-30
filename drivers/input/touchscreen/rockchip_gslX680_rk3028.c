@@ -810,6 +810,9 @@ static void gsl_timer_handle(unsigned long data)
 static int gsl_ts_init_ts(struct i2c_client *client, struct gsl_ts *ts)
 {
 	struct input_dev *input_device;
+#ifdef CONFIG_MACH_RK_FAC
+	struct tp_platform_data *pdata = client->dev.platform_data;   
+#endif
 	int i, rc = 0;
 	
 	printk("[GSLX680] Enter %s\n", __func__);
@@ -863,9 +866,13 @@ static int gsl_ts_init_ts(struct i2c_client *client, struct gsl_ts *ts)
 	set_bit(ABS_MT_POSITION_Y, input_device->absbit);
 	set_bit(ABS_MT_TOUCH_MAJOR, input_device->absbit);
 	set_bit(ABS_MT_WIDTH_MAJOR, input_device->absbit);
-
+#ifdef CONFIG_MACH_RK_FAC
+	input_set_abs_params(input_device,ABS_MT_POSITION_X, 0, pdata->x_max, 0, 0);
+	input_set_abs_params(input_device,ABS_MT_POSITION_Y, 0, pdata->y_max, 0, 0);
+#else
 	input_set_abs_params(input_device,ABS_MT_POSITION_X, 0, SCREEN_MAX_X, 0, 0);
 	input_set_abs_params(input_device,ABS_MT_POSITION_Y, 0, SCREEN_MAX_Y, 0, 0);
+#endif
 	input_set_abs_params(input_device,ABS_MT_TOUCH_MAJOR, 0, PRESS_MAX, 0, 0);
 	input_set_abs_params(input_device,ABS_MT_WIDTH_MAJOR, 0, 200, 0, 0);
 
@@ -995,8 +1002,11 @@ static void gsl_ts_late_resume(struct early_suspend *h)
 static int __devinit gsl_ts_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	struct ts_hw_data *pdata = client->dev.platform_data;   
-
+	#ifdef CONFIG_MACH_RK_FAC
+	struct tp_platform_data *pdata = client->dev.platform_data;  
+	#else 
+	struct ts_hw_data *pdata = client->dev.platform_data;  
+	#endif  
 	struct gsl_ts *ts;
 	int rc;
 
@@ -1014,9 +1024,14 @@ static int __devinit gsl_ts_probe(struct i2c_client *client,
 	ts->client = client;
 	ts->device_id = id->driver_data;
 
+#ifdef CONFIG_MACH_RK_FAC
+	ts->reset_gpio = pdata->reset_pin;   //lizhengwei
+	ts->irq= gpio_to_irq(pdata->irq_pin);        //lizhengwei  
+#else
 	ts->reset_gpio = pdata->reset_gpio;   //lizhengwei
 	ts->irq= gpio_to_irq(pdata->touch_en_gpio);        //lizhengwei  
-
+	
+#endif
   ts_global_reset_pin=ts->reset_gpio;
 
 	i2c_set_clientdata(client, ts);
