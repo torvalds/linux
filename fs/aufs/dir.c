@@ -129,7 +129,7 @@ static int reopen_dir(struct file *file)
 		if (h_file)
 			continue;
 
-		h_file = au_h_open(dentry, bindex, flags, file);
+		h_file = au_h_open(dentry, bindex, flags, file, /*force_wr*/0);
 		err = PTR_ERR(h_file);
 		if (IS_ERR(h_file))
 			goto out; /* close all? */
@@ -168,7 +168,7 @@ static int do_open_dir(struct file *file, int flags)
 		if (!h_dentry)
 			continue;
 
-		h_file = au_h_open(dentry, bindex, flags, file);
+		h_file = au_h_open(dentry, bindex, flags, file, /*force_wr*/0);
 		if (IS_ERR(h_file)) {
 			err = PTR_ERR(h_file);
 			break;
@@ -480,7 +480,7 @@ static int do_test_empty(struct dentry *dentry, struct test_empty_arg *arg)
 
 	h_file = au_h_open(dentry, arg->bindex,
 			   O_RDONLY | O_NONBLOCK | O_DIRECTORY | O_LARGEFILE,
-			   /*file*/NULL);
+			   /*file*/NULL, /*force_wr*/0);
 	err = PTR_ERR(h_file);
 	if (IS_ERR(h_file))
 		goto out;

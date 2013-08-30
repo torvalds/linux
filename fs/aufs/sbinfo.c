@@ -91,6 +91,7 @@ int au_si_alloc(struct super_block *sb)
 	atomic_long_set(&sbinfo->si_nfiles, 0);
 
 	sbinfo->si_bend = -1;
+	sbinfo->si_last_br_id = AUFS_BRANCH_MAX / 2;
 
 	sbinfo->si_wbr_copyup = AuWbrCopyup_Def;
 	sbinfo->si_wbr_create = AuWbrCreate_Def;
