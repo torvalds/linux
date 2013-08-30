@@ -2202,7 +2202,7 @@ static void smc_release_datacs(struct platform_device *pdev, struct net_device *
  */
 static int smc_drv_probe(struct platform_device *pdev)
 {
-	struct smc91x_platdata *pd = pdev->dev.platform_data;
+	struct smc91x_platdata *pd = dev_get_platdata(&pdev->dev);
 	struct smc_local *lp;
 	struct net_device *ndev;
 	struct resource *res, *ires;
