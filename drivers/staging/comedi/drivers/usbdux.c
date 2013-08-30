@@ -1133,15 +1133,13 @@ static int usbdux_dio_insn_bits(struct comedi_device *dev,
 {
 
 	struct usbdux_private *devpriv = dev->private;
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
 	int ret;
 
 	down(&devpriv->sem);
 
-	s->state &= ~mask;
-	s->state |= (bits & mask);
+	comedi_dio_update_state(s, data);
 
+	/* Always update the hardware. See the (*insn_config). */
 	devpriv->dux_commands[1] = s->io_bits;
 	devpriv->dux_commands[2] = s->state;
 
