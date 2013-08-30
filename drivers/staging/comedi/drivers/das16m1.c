@@ -134,7 +134,6 @@ struct das16m1_private_struct {
 	 * counter yet (loaded by first sample conversion) */
 	u16 initial_hw_count;
 	short ai_buffer[FIFO_SIZE];
-	unsigned int do_bits;	/*  saves status of digital output bits */
 	unsigned int divisor1;	/*  divides master clock to obtain conversion speed */
 	unsigned int divisor2;	/*  divides master clock to obtain conversion speed */
 	unsigned long extra_iobase;
@@ -393,22 +392,13 @@ static int das16m1_di_rbits(struct comedi_device *dev,
 
 static int das16m1_do_wbits(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+			    struct comedi_insn *insn,
+			    unsigned int *data)
 {
-	struct das16m1_private_struct *devpriv = dev->private;
-	unsigned int wbits;
+	if (comedi_dio_update_state(s, data))
+		outb(s->state, dev->iobase + DAS16M1_DIO);
 
-	/*  only set bits that have been masked */
-	data[0] &= 0xf;
-	wbits = devpriv->do_bits;
-	/*  zero bits that have been masked */
-	wbits &= ~data[0];
-	/*  set masked bits */
-	wbits |= data[0] & data[1];
-	devpriv->do_bits = wbits;
-	data[1] = wbits;
-
-	outb(devpriv->do_bits, dev->iobase + DAS16M1_DIO);
+	data[1] = s->state;
 
 	return insn->n;
 }
@@ -649,7 +639,7 @@ static int das16m1_attach(struct comedi_device *dev,
 	outb(TOTAL_CLEAR, dev->iobase + DAS16M1_8254_FIRST_CNTRL);
 
 	/*  initialize digital output lines */
-	outb(devpriv->do_bits, dev->iobase + DAS16M1_DIO);
+	outb(0, dev->iobase + DAS16M1_DIO);
 
 	/* set the interrupt level */
 	if (dev->irq)
