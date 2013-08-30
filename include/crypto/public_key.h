@@ -23,6 +23,7 @@ enum pkey_algo {
 };
 
 extern const char *const pkey_algo_name[PKEY_ALGO__LAST];
+extern const struct public_key_algorithm *pkey_algo[PKEY_ALGO__LAST];
 
 enum pkey_hash_algo {
 	PKEY_HASH_MD4,

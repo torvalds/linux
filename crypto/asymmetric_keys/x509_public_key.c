@@ -23,15 +23,6 @@
 #include "public_key.h"
 #include "x509_parser.h"
 
-static const
-struct public_key_algorithm *x509_public_key_algorithms[PKEY_ALGO__LAST] = {
-	[PKEY_ALGO_DSA]		= NULL,
-#if defined(CONFIG_PUBLIC_KEY_ALGO_RSA) || \
-	defined(CONFIG_PUBLIC_KEY_ALGO_RSA_MODULE)
-	[PKEY_ALGO_RSA]		= &RSA_public_key_algorithm,
-#endif
-};
-
 /*
  * Check the signature on a certificate using the provided public key
  */
@@ -174,7 +165,7 @@ static int x509_key_preparse(struct key_preparsed_payload *prep)
 		goto error_free_cert;
 	}
 
-	cert->pub->algo = x509_public_key_algorithms[cert->pkey_algo];
+	cert->pub->algo = pkey_algo[cert->pkey_algo];
 	cert->pub->id_type = PKEY_ID_X509;
 
 	/* Check the signature on the key */

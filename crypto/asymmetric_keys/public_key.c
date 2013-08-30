@@ -28,6 +28,14 @@ const char *const pkey_algo_name[PKEY_ALGO__LAST] = {
 };
 EXPORT_SYMBOL_GPL(pkey_algo_name);
 
+const struct public_key_algorithm *pkey_algo[PKEY_ALGO__LAST] = {
+#if defined(CONFIG_PUBLIC_KEY_ALGO_RSA) || \
+	defined(CONFIG_PUBLIC_KEY_ALGO_RSA_MODULE)
+	[PKEY_ALGO_RSA]		= &RSA_public_key_algorithm,
+#endif
+};
+EXPORT_SYMBOL_GPL(pkey_algo);
+
 const char *const pkey_hash_algo_name[PKEY_HASH__LAST] = {
 	[PKEY_HASH_MD4]		= "md4",
 	[PKEY_HASH_MD5]		= "md5",
