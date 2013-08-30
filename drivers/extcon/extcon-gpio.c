@@ -80,7 +80,7 @@ static int gpio_extcon_probe(struct platform_device *pdev)
 {
 	struct gpio_extcon_platform_data *pdata = pdev->dev.platform_data;
 	struct gpio_extcon_data *extcon_data;
-	int ret = 0;
+	int ret;
 
 	if (!pdata)
 		return -EBUSY;
