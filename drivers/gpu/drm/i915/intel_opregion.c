@@ -291,6 +291,57 @@ static int swsci(struct drm_device *dev, u32 function, u32 parm, u32 *parm_out)
 #undef C
 }
 
+#define DISPLAY_TYPE_CRT			0
+#define DISPLAY_TYPE_TV				1
+#define DISPLAY_TYPE_EXTERNAL_FLAT_PANEL	2
+#define DISPLAY_TYPE_INTERNAL_FLAT_PANEL	3
+
+int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
+				  bool enable)
+{
+	struct drm_device *dev = intel_encoder->base.dev;
+	u32 parm = 0;
+	u32 type = 0;
+	u32 port;
+
+	/* don't care about old stuff for now */
+	if (!HAS_DDI(dev))
+		return 0;
+
+	port = intel_ddi_get_encoder_port(intel_encoder);
+	if (port == PORT_E) {
+		port = 0;
+	} else {
+		parm |= 1 << port;
+		port++;
+	}
+
+	if (!enable)
+		parm |= 4 << 8;
+
+	switch (intel_encoder->type) {
+	case INTEL_OUTPUT_ANALOG:
+		type = DISPLAY_TYPE_CRT;
+		break;
+	case INTEL_OUTPUT_UNKNOWN:
+	case INTEL_OUTPUT_DISPLAYPORT:
+	case INTEL_OUTPUT_HDMI:
+		type = DISPLAY_TYPE_EXTERNAL_FLAT_PANEL;
+		break;
+	case INTEL_OUTPUT_EDP:
+		type = DISPLAY_TYPE_INTERNAL_FLAT_PANEL;
+		break;
+	default:
+		WARN_ONCE(1, "unsupported intel_encoder type %d\n",
+			  intel_encoder->type);
+		return -EINVAL;
+	}
+
+	parm |= type << (16 + port * 3);
+
+	return swsci(dev, SWSCI_SBCB_DISPLAY_POWER_STATE, parm, NULL);
+}
+
 static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
