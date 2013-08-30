@@ -14,6 +14,7 @@
 #include <crypto/public_key.h>
 #include <crypto/hash.h>
 #include <keys/asymmetric-type.h>
+#include <keys/system_keyring.h>
 #include "module-internal.h"
 
 /*
@@ -157,7 +158,7 @@ static struct key *request_asymmetric_key(const char *signer, size_t signer_len,
 
 	pr_debug("Look up: \"%s\"\n", id);
 
-	key = keyring_search(make_key_ref(modsign_keyring, 1),
+	key = keyring_search(make_key_ref(system_trusted_keyring, 1),
 			     &key_type_asymmetric, id);
 	if (IS_ERR(key))
 		pr_warn("Request for unknown module key '%s' err %ld\n",
