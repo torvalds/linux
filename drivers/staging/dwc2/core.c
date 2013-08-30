@@ -887,26 +887,20 @@ void dwc2_hc_init(struct dwc2_hsotg *hsotg, struct dwc2_host_chan *chan)
 		dev_vdbg(hsotg->dev, "set HCCHAR(%d) to %08x\n",
 			 hc_num, hcchar);
 
-		dev_vdbg(hsotg->dev, "%s: Channel %d\n", __func__, hc_num);
+		dev_vdbg(hsotg->dev, "%s: Channel %d\n",
+			 __func__, hc_num);
 		dev_vdbg(hsotg->dev, "	 Dev Addr: %d\n",
-			 hcchar >> HCCHAR_DEVADDR_SHIFT &
-			 HCCHAR_DEVADDR_MASK >> HCCHAR_DEVADDR_SHIFT);
+			 chan->dev_addr);
 		dev_vdbg(hsotg->dev, "	 Ep Num: %d\n",
-			 hcchar >> HCCHAR_EPNUM_SHIFT &
-			 HCCHAR_EPNUM_MASK >> HCCHAR_EPNUM_SHIFT);
+			 chan->ep_num);
 		dev_vdbg(hsotg->dev, "	 Is In: %d\n",
-			 !!(hcchar & HCCHAR_EPDIR));
+			 chan->ep_is_in);
 		dev_vdbg(hsotg->dev, "	 Is Low Speed: %d\n",
-			 !!(hcchar & HCCHAR_LSPDDEV));
+			 chan->speed == USB_SPEED_LOW);
 		dev_vdbg(hsotg->dev, "	 Ep Type: %d\n",
-			 hcchar >> HCCHAR_EPTYPE_SHIFT &
-			 HCCHAR_EPTYPE_MASK >> HCCHAR_EPTYPE_SHIFT);
+			 chan->ep_type);
 		dev_vdbg(hsotg->dev, "	 Max Pkt: %d\n",
-			 hcchar >> HCCHAR_MPS_SHIFT &
-			 HCCHAR_MPS_MASK >> HCCHAR_MPS_SHIFT);
-		dev_vdbg(hsotg->dev, "	 Multi Cnt: %d\n",
-			 hcchar >> HCCHAR_MULTICNT_SHIFT &
-			 HCCHAR_MULTICNT_MASK >> HCCHAR_MULTICNT_SHIFT);
+			 chan->max_packet);
 	}
 
 	/* Program the HCSPLT register for SPLITs */
@@ -936,8 +930,7 @@ void dwc2_hc_init(struct dwc2_hsotg *hsotg, struct dwc2_host_chan *chan)
 			dev_vdbg(hsotg->dev, "	  is_in %d\n",
 				 chan->ep_is_in);
 			dev_vdbg(hsotg->dev, "	  Max Pkt %d\n",
-				 hcchar >> HCCHAR_MPS_SHIFT &
-				 HCCHAR_MPS_MASK >> HCCHAR_MPS_SHIFT);
+				 chan->max_packet);
 			dev_vdbg(hsotg->dev, "	  xferlen %d\n",
 				 chan->xfer_len);
 		}
