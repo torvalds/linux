@@ -48,13 +48,6 @@ struct xfs_trans;
 	 (XFS_IS_PQUOTA_ON(mp) && \
 		(mp->m_sb.sb_qflags & XFS_PQUOTA_CHKD) == 0))
 
-#define XFS_MOUNT_QUOTA_ALL	(XFS_UQUOTA_ACCT|XFS_UQUOTA_ENFD|\
-				 XFS_UQUOTA_CHKD|XFS_GQUOTA_ACCT|\
-				 XFS_GQUOTA_ENFD|XFS_GQUOTA_CHKD|\
-				 XFS_PQUOTA_ACCT|XFS_PQUOTA_ENFD|\
-				 XFS_PQUOTA_CHKD)
-
-
 /*
  * The structure kept inside the xfs_trans_t keep track of dquot changes
  * within a transaction and apply them later.

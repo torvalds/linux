@@ -821,6 +821,12 @@ typedef struct xfs_qoff_logformat {
 #define XFS_ALL_QUOTA_CHKD	\
 		(XFS_UQUOTA_CHKD | XFS_GQUOTA_CHKD | XFS_PQUOTA_CHKD)
 
+#define XFS_MOUNT_QUOTA_ALL	(XFS_UQUOTA_ACCT|XFS_UQUOTA_ENFD|\
+				 XFS_UQUOTA_CHKD|XFS_GQUOTA_ACCT|\
+				 XFS_GQUOTA_ENFD|XFS_GQUOTA_CHKD|\
+				 XFS_PQUOTA_ACCT|XFS_PQUOTA_ENFD|\
+				 XFS_PQUOTA_CHKD)
+
 /*
  * Inode create log item structure
  *
