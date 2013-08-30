@@ -239,6 +239,10 @@ struct dwc2_core_params {
  *                       2 - FS pins shared with UTMI+ pins
  *                       3 - FS pins shared with ULPI pins
  * @total_fifo_size:    Total internal RAM for FIFOs (bytes)
+ * @utmi_phy_data_width UTMI+ PHY data width
+ *                       0 - 8 bits
+ *                       1 - 16 bits
+ *                       2 - 8 or 16 bits
  * @snpsid:             Value from SNPSID register
  */
 struct dwc2_hw_params {
@@ -263,6 +267,7 @@ struct dwc2_hw_params {
 	unsigned num_dev_perio_in_ep:4;
 	unsigned total_fifo_size:16;
 	unsigned power_optimized:1;
+	unsigned utmi_phy_data_width:2;
 	u32 snpsid;
 };
 

@@ -2376,14 +2376,29 @@ int dwc2_set_param_phy_ulpi_ext_vbus(struct dwc2_hsotg *hsotg, int val)
 
 int dwc2_set_param_phy_utmi_width(struct dwc2_hsotg *hsotg, int val)
 {
+	int valid = 0;
 	int retval = 0;
 
-	if (DWC2_PARAM_TEST(val, 8, 8) && DWC2_PARAM_TEST(val, 16, 16)) {
+	switch (hsotg->hw_params.utmi_phy_data_width) {
+	case GHWCFG4_UTMI_PHY_DATA_WIDTH_8:
+		valid = (val == 8);
+		break;
+	case GHWCFG4_UTMI_PHY_DATA_WIDTH_16:
+		valid = (val == 16);
+		break;
+	case GHWCFG4_UTMI_PHY_DATA_WIDTH_8_OR_16:
+		valid = (val == 8 || val == 16);
+		break;
+	}
+
+	if (!valid) {
 		if (val >= 0) {
-			dev_err(hsotg->dev, "Wrong value for phy_utmi_width\n");
-			dev_err(hsotg->dev, "phy_utmi_width must be 8 or 16\n");
+			dev_err(hsotg->dev,
+				"%d invalid for phy_utmi_width. Check HW configuration.\n",
+				val);
 		}
-		val = 8;
+		val = (hsotg->hw_params.utmi_phy_data_width ==
+		       GHWCFG4_UTMI_PHY_DATA_WIDTH_8) ? 8 : 16;
 		dev_dbg(hsotg->dev, "Setting phy_utmi_width to %d\n", val);
 		retval = -EINVAL;
 	}
@@ -2660,6 +2675,8 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 				  GHWCFG4_NUM_DEV_PERIO_IN_EP_SHIFT;
 	hw->dma_desc_enable = !!(hwcfg4 & GHWCFG4_DESC_DMA);
 	hw->power_optimized = !!(hwcfg4 & GHWCFG4_POWER_OPTIMIZ);
+	hw->utmi_phy_data_width = (hwcfg4 & GHWCFG4_UTMI_PHY_DATA_WIDTH_MASK) >>
+				  GHWCFG4_UTMI_PHY_DATA_WIDTH_SHIFT;
 
 	/* fifo sizes */
 	hw->host_rx_fifo_size = (grxfsiz & GRXFSIZ_DEPTH_MASK) >>
@@ -2684,6 +2701,8 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 		hw->hs_phy_type);
 	dev_dbg(hsotg->dev, "  fs_phy_type=%d\n",
 		hw->fs_phy_type);
+	dev_dbg(hsotg->dev, "  utmi_phy_data_wdith=%d\n",
+		hw->utmi_phy_data_width);
 	dev_dbg(hsotg->dev, "  num_dev_ep=%d\n",
 		hw->num_dev_ep);
 	dev_dbg(hsotg->dev, "  num_dev_perio_in_ep=%d\n",
