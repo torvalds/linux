@@ -351,7 +351,9 @@ store_mem_state(struct device *dev,
 
 	mem = container_of(dev, struct memory_block, dev);
 
-	lock_device_hotplug();
+	ret = lock_device_hotplug_sysfs();
+	if (ret)
+		return ret;
 
 	if (!strncmp(buf, "online_kernel", min_t(int, count, 13))) {
 		offline = false;
