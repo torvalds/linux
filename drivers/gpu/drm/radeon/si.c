@@ -6343,6 +6343,11 @@ static int si_startup(struct radeon_device *rdev)
 	/* enable aspm */
 	si_program_aspm(rdev);
 
+	/* scratch needs to be initialized before MC */
+	r = r600_vram_scratch_init(rdev);
+	if (r)
+		return r;
+
 	si_mc_program(rdev);
 
 	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->ce_fw ||
@@ -6359,10 +6364,6 @@ static int si_startup(struct radeon_device *rdev)
 		DRM_ERROR("Failed to load MC firmware!\n");
 		return r;
 	}
-
-	r = r600_vram_scratch_init(rdev);
-	if (r)
-		return r;
 
 	r = si_pcie_gart_enable(rdev);
 	if (r)

@@ -6951,6 +6951,11 @@ static int cik_startup(struct radeon_device *rdev)
 	/* enable aspm */
 	cik_program_aspm(rdev);
 
+	/* scratch needs to be initialized before MC */
+	r = r600_vram_scratch_init(rdev);
+	if (r)
+		return r;
+
 	cik_mc_program(rdev);
 
 	if (rdev->flags & RADEON_IS_IGP) {
@@ -6979,10 +6984,6 @@ static int cik_startup(struct radeon_device *rdev)
 			return r;
 		}
 	}
-
-	r = r600_vram_scratch_init(rdev);
-	if (r)
-		return r;
 
 	r = cik_pcie_gart_enable(rdev);
 	if (r)

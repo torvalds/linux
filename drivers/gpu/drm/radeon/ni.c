@@ -1863,6 +1863,11 @@ static int cayman_startup(struct radeon_device *rdev)
 	/* enable aspm */
 	evergreen_program_aspm(rdev);
 
+	/* scratch needs to be initialized before MC */
+	r = r600_vram_scratch_init(rdev);
+	if (r)
+		return r;
+
 	evergreen_mc_program(rdev);
 
 	if (rdev->flags & RADEON_IS_IGP) {
@@ -1888,10 +1893,6 @@ static int cayman_startup(struct radeon_device *rdev)
 			return r;
 		}
 	}
-
-	r = r600_vram_scratch_init(rdev);
-	if (r)
-		return r;
 
 	r = cayman_pcie_gart_enable(rdev);
 	if (r)
