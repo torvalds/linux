@@ -719,11 +719,15 @@ static int rk616_codec_power_up(int type)
 		type == RK616_CODEC_CAPTURE ? "capture" : "",
 		type == RK616_CODEC_INCALL ? "incall" : "");
 
-	if (type == RK616_CODEC_PLAYBACK) {
-		// mute output for pop noise
+	// mute output for pop noise
+	if (type == RK616_CODEC_PLAYBACK ||
+		type == RK616_CODEC_INCALL ||
+		type == RK616_CODEC_ALL) {
 		rk616_set_gpio(RK616_CODEC_SET_SPK, GPIO_LOW);
 		rk616_set_gpio(RK616_CODEC_SET_HP, GPIO_LOW);
+	}
 
+	if (type == RK616_CODEC_PLAYBACK) {
 		for (i = 0; i < RK616_CODEC_PLAYBACK_POWER_UP_LIST_LEN; i++) {
 			snd_soc_write(codec, playback_power_up_list[i].reg,
 				playback_power_up_list[i].value);
@@ -739,14 +743,18 @@ static int rk616_codec_power_up(int type)
 				capture_power_up_list[i].value);
 		}
 	} else if (type == RK616_CODEC_INCALL) {
+		//delay for MOS or AMP mute, or it will get some pop noise.
+		mdelay(SPK_AMP_DELAY);
+
 		snd_soc_update_bits(codec, RK616_PGA_AGC_CTL,
 			0x0f, 0x09); //set for capture pop noise
 		snd_soc_update_bits(codec, RK616_MIXINL_CTL,
-			RK616_MIL_F_IN3L | RK616_MIL_MUTE, 0); //IN3L to MIXINL, unmute IN3L
+			RK616_MIL_F_IN3L | RK616_MIL_MUTE | RK616_MIL_PWRD,
+			0); //IN3L to MIXINL, unmute IN3L
 		snd_soc_update_bits(codec, RK616_MIXINL_VOL2,
-			RK616_MIL_F_IN3L_VOL_MASK, 7); //IN3L to MIXINL vol
+			RK616_MIL_F_IN3L_VOL_MASK, 0); //IN3L to MIXINL vol
 		snd_soc_update_bits(codec, RK616_PGAL_CTL,
-			0xff, 0x9f); //PU unmute PGAL,PGAL vol
+			0xff, 15); //PU unmute PGAL,PGAL vol
 		snd_soc_update_bits(codec, RK616_HPMIX_CTL,
 			RK616_HML_F_PGAL | RK616_HMR_F_PGAL, 0);
 	}
@@ -773,6 +781,7 @@ static int rk616_codec_power_down(int type)
 
 	// mute output for pop noise
 	if (type == RK616_CODEC_PLAYBACK ||
+		type == RK616_CODEC_INCALL ||
 		type == RK616_CODEC_ALL) {
 		rk616_set_gpio(RK616_CODEC_SET_SPK, GPIO_LOW);
 		rk616_set_gpio(RK616_CODEC_SET_HP, GPIO_LOW);
@@ -793,6 +802,9 @@ static int rk616_codec_power_down(int type)
 	}
 
 	if (type == RK616_CODEC_INCALL || type == RK616_CODEC_ALL) {
+		//delay for MOS or AMP mute, or it will get some pop noise.
+		mdelay(SPK_AMP_DELAY);
+
 		//close incall route
 		snd_soc_update_bits(codec, RK616_HPMIX_CTL,
 			RK616_HML_F_PGAL | RK616_HMR_F_PGAL,
@@ -800,10 +812,10 @@ static int rk616_codec_power_down(int type)
 		snd_soc_update_bits(codec, RK616_PGA_AGC_CTL,
 			0x0f, 0x0c);
 		snd_soc_update_bits(codec, RK616_MIXINL_CTL,
-			RK616_MIL_F_IN3L | RK616_MIL_MUTE,
-			RK616_MIL_F_IN3L | RK616_MIL_MUTE);
+			RK616_MIL_F_IN3L | RK616_MIL_MUTE | RK616_MIL_PWRD,
+			RK616_MIL_F_IN3L | RK616_MIL_MUTE | RK616_MIL_PWRD);
 		snd_soc_update_bits(codec, RK616_MIXINL_VOL2,
-			RK616_MIL_F_IN3L_VOL_MASK, 4);
+			RK616_MIL_F_IN3L_VOL_MASK, 0);
 		snd_soc_update_bits(codec, RK616_PGAL_CTL,
 			0xff, 0xcc);
 	}
@@ -1105,11 +1117,16 @@ static const char *rk616_capture_path_mode[] = {"MIC OFF", "Main Mic", "Hands Fr
 
 static const char *rk616_voice_call_path_mode[] = {"OFF", "RCV", "SPK", "HP", "HP_NO_MIC", "BT"};//0-5
 
+static const char *rk616_modem_input_sel[] = {"ON", "OFF"};
+
 static const SOC_ENUM_SINGLE_DECL(rk616_playback_path_type, 0, 0, rk616_playback_path_mode);
 
 static const SOC_ENUM_SINGLE_DECL(rk616_capture_path_type, 0, 0, rk616_capture_path_mode);
 
 static const SOC_ENUM_SINGLE_DECL(rk616_voice_call_path_type, 0, 0, rk616_voice_call_path_mode);
+
+static const struct soc_enum rk616_modem_input_enum =
+	SOC_ENUM_SINGLE(RK616_PGAL_CTL, RK616_PGA_MUTE_SFT, 2, rk616_modem_input_sel);
 
 static int rk616_playback_path_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
@@ -1163,6 +1180,8 @@ static int rk616_playback_path_put(struct snd_kcontrol *kcontrol,
 		break;
 	case SPK_PATH:
 	case RING_SPK:
+		rk616_set_gpio(RK616_CODEC_SET_HP, GPIO_LOW);
+
 		if (pre_path == OFF)
 			rk616_codec_power_up(RK616_CODEC_PLAYBACK);
 
@@ -1177,6 +1196,8 @@ static int rk616_playback_path_put(struct snd_kcontrol *kcontrol,
 	case HP_NO_MIC:
 	case RING_HP:
 	case RING_HP_NO_MIC:
+		rk616_set_gpio(RK616_CODEC_SET_SPK, GPIO_LOW);
+
 		if (pre_path == OFF)
 			rk616_codec_power_up(RK616_CODEC_PLAYBACK);
 
@@ -1318,17 +1339,7 @@ static int rk616_voice_call_path_put(struct snd_kcontrol *kcontrol,
 		rk616->voice_call_path, pre_path);
 
 	//open playback route for incall route and keytone
-	if (pre_path == OFF) {
-		if (rk616->playback_path != OFF) {
-			//mute output for incall route pop nosie
-			rk616_set_gpio(RK616_CODEC_SET_SPK, GPIO_LOW);
-			rk616_set_gpio(RK616_CODEC_SET_HP, GPIO_LOW);
-			if (rk616->voice_call_path == SPK_PATH)
-				mdelay(SPK_AMP_DELAY);
-			else if (rk616->voice_call_path == HP_PATH ||
-				rk616->voice_call_path == HP_NO_MIC)
-				mdelay(HP_MOS_DELAY);
-		} else
+	if (pre_path == OFF && rk616->playback_path == OFF) {
 			rk616_codec_power_up(RK616_CODEC_PLAYBACK);
 	}
 
@@ -1336,15 +1347,6 @@ static int rk616_voice_call_path_put(struct snd_kcontrol *kcontrol,
 	case OFF:
 		if (pre_path != RCV &&
 			pre_path != BT) {
-			//mute output for incall route pop nosie
-			rk616_set_gpio(RK616_CODEC_SET_SPK, GPIO_LOW);
-			rk616_set_gpio(RK616_CODEC_SET_HP, GPIO_LOW);
-			if (pre_path == SPK_PATH)
-				mdelay(SPK_AMP_DELAY);
-			else if (pre_path == HP_PATH ||
-				pre_path == HP_NO_MIC)
-				mdelay(HP_MOS_DELAY);
-
 			rk616_codec_power_down(RK616_CODEC_INCALL);
 		}
 
@@ -1361,15 +1363,6 @@ static int rk616_voice_call_path_put(struct snd_kcontrol *kcontrol,
 		//rcv is controled by modem, so close incall route
 		if (pre_path != OFF &&
 			pre_path != BT) {
-			//mute output for incall route pop nosie
-			rk616_set_gpio(RK616_CODEC_SET_SPK, GPIO_LOW);
-			rk616_set_gpio(RK616_CODEC_SET_HP, GPIO_LOW);
-			if (pre_path == SPK_PATH)
-				mdelay(SPK_AMP_DELAY);
-			else if (pre_path == HP_PATH ||
-				pre_path == HP_NO_MIC)
-				mdelay(HP_MOS_DELAY);
-
 			rk616_codec_power_down(RK616_CODEC_INCALL);
 		}
 
@@ -1437,15 +1430,6 @@ static int rk616_voice_call_path_put(struct snd_kcontrol *kcontrol,
 		//BT is controled by modem, so close incall route
 		if (pre_path != OFF &&
 			pre_path != RCV) {
-			//mute output for incall route pop nosie
-			rk616_set_gpio(RK616_CODEC_SET_SPK, GPIO_LOW);
-			rk616_set_gpio(RK616_CODEC_SET_HP, GPIO_LOW);
-
-			if (rk616->voice_call_path == SPK_PATH)
-				mdelay(SPK_AMP_DELAY);
-			else if (rk616->voice_call_path == HP_PATH ||
-				rk616->voice_call_path == HP_NO_MIC)
-				mdelay(HP_MOS_DELAY);
 			rk616_codec_power_down(RK616_CODEC_INCALL);
 		}
 
@@ -1468,6 +1452,13 @@ static const struct snd_kcontrol_new rk616_snd_path_controls[] = {
 
 	SOC_ENUM_EXT("Voice Call Path", rk616_voice_call_path_type,
 		rk616_voice_call_path_get, rk616_voice_call_path_put),
+
+	/*
+	* When modem connecting, it will make some pop noise.
+	* So, add this control for modem. Modem will set 'OFF'
+	* before incall connected, and set 'ON' after connected.
+	*/
+	SOC_ENUM("Modem Input Enable",  rk616_modem_input_enum),
 };
 
 static int rk616_dacl_event(struct snd_soc_dapm_widget *w,
