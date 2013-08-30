@@ -443,7 +443,7 @@ void tcp_init_metrics(struct sock *sk)
 	struct dst_entry *dst = __sk_dst_get(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp_metrics_block *tm;
-	u32 val;
+	u32 val, crtt = 0; /* cached RTT scaled by 8 */
 
 	if (dst == NULL)
 		goto reset;
@@ -478,40 +478,18 @@ void tcp_init_metrics(struct sock *sk)
 		tp->reordering = val;
 	}
 
-	val = tcp_metric_get(tm, TCP_METRIC_RTT);
-	if (val == 0 || tp->srtt == 0) {
-		rcu_read_unlock();
-		goto reset;
-	}
-	/* Initial rtt is determined from SYN,SYN-ACK.
-	 * The segment is small and rtt may appear much
-	 * less than real one. Use per-dst memory
-	 * to make it more realistic.
-	 *
-	 * A bit of theory. RTT is time passed after "normal" sized packet
-	 * is sent until it is ACKed. In normal circumstances sending small
-	 * packets force peer to delay ACKs and calculation is correct too.
-	 * The algorithm is adaptive and, provided we follow specs, it
-	 * NEVER underestimate RTT. BUT! If peer tries to make some clever
-	 * tricks sort of "quick acks" for time long enough to decrease RTT
-	 * to low value, and then abruptly stops to do it and starts to delay
-	 * ACKs, wait for troubles.
-	 */
-	val = msecs_to_jiffies(val);
-	if (val > tp->srtt) {
-		tp->srtt = val;
-		tp->rtt_seq = tp->snd_nxt;
-	}
-	val = tcp_metric_get_jiffies(tm, TCP_METRIC_RTTVAR);
-	if (val > tp->mdev) {
-		tp->mdev = val;
-		tp->mdev_max = tp->rttvar = max(tp->mdev, tcp_rto_min(sk));
-	}
+	crtt = tcp_metric_get_jiffies(tm, TCP_METRIC_RTT);
 	rcu_read_unlock();
-
-	tcp_set_rto(sk);
 reset:
-	if (tp->srtt == 0) {
+	if (crtt > tp->srtt) {
+		/* Initial RTT (tp->srtt) from SYN usually don't measure
+		 * serialization delay on low BW links well so RTO may be
+		 * under-estimated. Stay conservative and seed RTO with
+		 * the RTTs from past data exchanges, using the same seeding
+		 * formula in tcp_rtt_estimator().
+		 */
+		inet_csk(sk)->icsk_rto = crtt + max(crtt >> 2, tcp_rto_min(sk));
+	} else if (tp->srtt == 0) {
 		/* RFC6298: 5.7 We've failed to get a valid RTT sample from
 		 * 3WHS. This is most likely due to retransmission,
 		 * including spurious one. Reset the RTO back to 3secs
