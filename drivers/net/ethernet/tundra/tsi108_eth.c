@@ -1558,7 +1558,7 @@ tsi108_init_one(struct platform_device *pdev)
 	hw_info *einfo;
 	int err = 0;
 
-	einfo = pdev->dev.platform_data;
+	einfo = dev_get_platdata(&pdev->dev);
 
 	if (NULL == einfo) {
 		printk(KERN_ERR "tsi-eth %d: Missing additional data!\n",
