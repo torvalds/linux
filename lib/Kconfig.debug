@@ -597,7 +597,7 @@ endmenu # "Memory Debugging"
 
 config DEBUG_SHIRQ
 	bool "Debug shared IRQ handlers"
-	depends on DEBUG_KERNEL && GENERIC_HARDIRQS
+	depends on DEBUG_KERNEL
 	help
 	  Enable this to generate a spurious interrupt as soon as a shared
 	  interrupt handler is registered, and just before one is deregistered.

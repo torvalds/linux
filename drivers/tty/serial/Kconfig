@@ -5,7 +5,7 @@
 if TTY
 
 menu "Serial drivers"
-	depends on HAS_IOMEM && GENERIC_HARDIRQS
+	depends on HAS_IOMEM
 
 source "drivers/tty/serial/8250/Kconfig"
 

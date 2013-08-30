@@ -269,7 +269,6 @@ config CHARGER_ISP1704
 
 config CHARGER_MAX8903
 	tristate "MAX8903 Battery DC-DC Charger for USB and Adapter Power"
-	depends on GENERIC_HARDIRQS
 	help
 	  Say Y to enable support for the MAX8903 DC-DC charger and sysfs.
 	  The driver supports controlling charger-enable and current-limit
@@ -370,7 +369,7 @@ config AB8500_BM
 
 config BATTERY_GOLDFISH
 	tristate "Goldfish battery driver"
-	depends on GENERIC_HARDIRQS && (GOLDFISH || COMPILE_TEST)
+	depends on GOLDFISH || COMPILE_TEST
 	help
 	  Say Y to enable support for the battery and AC power in the
 	  Goldfish emulator.
