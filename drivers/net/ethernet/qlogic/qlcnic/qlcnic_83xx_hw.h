@@ -274,11 +274,7 @@ struct qlcnic_macvlan_mbx {
 
 struct qlc_83xx_fw_info {
 	const struct firmware	*fw;
-	u16	major_fw_version;
-	u8	minor_fw_version;
-	u8	sub_fw_version;
-	u8	fw_build_num;
-	u8	load_from_file;
+	char	fw_file_name[QLC_FW_FILE_NAME_LEN];
 };
 
 struct qlc_83xx_reset {

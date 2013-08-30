@@ -1267,31 +1267,33 @@ static int qlcnic_83xx_copy_bootloader(struct qlcnic_adapter *adapter)
 
 static int qlcnic_83xx_copy_fw_file(struct qlcnic_adapter *adapter)
 {
+	struct qlc_83xx_fw_info *fw_info = adapter->ahw->fw_info;
+	const struct firmware *fw = fw_info->fw;
 	u32 dest, *p_cache;
-	u64 addr;
+	int i, ret = -EIO;
 	u8 data[16];
 	size_t size;
-	int i, ret = -EIO;
+	u64 addr;
 
 	dest = QLCRDX(adapter->ahw, QLCNIC_FW_IMAGE_ADDR);
-	size = (adapter->ahw->fw_info.fw->size & ~0xF);
-	p_cache = (u32 *)adapter->ahw->fw_info.fw->data;
+	size = (fw->size & ~0xF);
+	p_cache = (u32 *)fw->data;
 	addr = (u64)dest;
 
 	ret = qlcnic_83xx_ms_mem_write128(adapter, addr,
 					  (u32 *)p_cache, size / 16);
 	if (ret) {
 		dev_err(&adapter->pdev->dev, "MS memory write failed\n");
-		release_firmware(adapter->ahw->fw_info.fw);
-		adapter->ahw->fw_info.fw = NULL;
+		release_firmware(fw);
+		fw_info->fw = NULL;
 		return -EIO;
 	}
 
 	/* alignment check */
-	if (adapter->ahw->fw_info.fw->size & 0xF) {
+	if (fw->size & 0xF) {
 		addr = dest + size;
-		for (i = 0; i < (adapter->ahw->fw_info.fw->size & 0xF); i++)
-			data[i] = adapter->ahw->fw_info.fw->data[size + i];
+		for (i = 0; i < (fw->size & 0xF); i++)
+			data[i] = fw->data[size + i];
 		for (; i < 16; i++)
 			data[i] = 0;
 		ret = qlcnic_83xx_ms_mem_write128(adapter, addr,
@@ -1299,13 +1301,13 @@ static int qlcnic_83xx_copy_fw_file(struct qlcnic_adapter *adapter)
 		if (ret) {
 			dev_err(&adapter->pdev->dev,
 				"MS memory write failed\n");
-			release_firmware(adapter->ahw->fw_info.fw);
-			adapter->ahw->fw_info.fw = NULL;
+			release_firmware(fw);
+			fw_info->fw = NULL;
 			return -EIO;
 		}
 	}
-	release_firmware(adapter->ahw->fw_info.fw);
-	adapter->ahw->fw_info.fw = NULL;
+	release_firmware(fw);
+	fw_info->fw = NULL;
 
 	return 0;
 }
@@ -1949,35 +1951,12 @@ static void qlcnic_83xx_init_hw(struct qlcnic_adapter *p_dev)
 		dev_err(&p_dev->pdev->dev, "%s: failed\n", __func__);
 }
 
-static void qlcnic_83xx_get_fw_file_name(struct qlcnic_adapter *adapter,
-					 char *file_name)
-{
-	struct pci_dev *pdev = adapter->pdev;
-
-	memset(file_name, 0, QLC_FW_FILE_NAME_LEN);
-
-	switch (pdev->device) {
-	case PCI_DEVICE_ID_QLOGIC_QLE834X:
-		strncpy(file_name, QLC_83XX_FW_FILE_NAME,
-			QLC_FW_FILE_NAME_LEN);
-		break;
-	case PCI_DEVICE_ID_QLOGIC_QLE844X:
-		strncpy(file_name, QLC_84XX_FW_FILE_NAME,
-			QLC_FW_FILE_NAME_LEN);
-		break;
-	default:
-		dev_err(&pdev->dev, "%s: Invalid device id\n",
-			__func__);
-	}
-}
-
 static int qlcnic_83xx_load_fw_image_from_host(struct qlcnic_adapter *adapter)
 {
-	char fw_file_name[QLC_FW_FILE_NAME_LEN];
+	struct qlc_83xx_fw_info *fw_info = adapter->ahw->fw_info;
 	int err = -EIO;
 
-	qlcnic_83xx_get_fw_file_name(adapter, fw_file_name);
-	if (request_firmware(&adapter->ahw->fw_info.fw, fw_file_name,
+	if (request_firmware(&fw_info->fw, fw_info->fw_file_name,
 			     &(adapter->pdev->dev))) {
 		dev_err(&adapter->pdev->dev,
 			"No file FW image, loading flash FW image.\n");
@@ -2173,6 +2152,39 @@ static void qlcnic_83xx_clear_function_resources(struct qlcnic_adapter *adapter)
 	}
 }
 
+static int qlcnic_83xx_get_fw_info(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct pci_dev *pdev = adapter->pdev;
+	struct qlc_83xx_fw_info *fw_info;
+	int err = 0;
+
+	ahw->fw_info = kzalloc(sizeof(*fw_info), GFP_KERNEL);
+	if (!ahw->fw_info) {
+		err = -ENOMEM;
+	} else {
+		fw_info = ahw->fw_info;
+		switch (pdev->device) {
+		case PCI_DEVICE_ID_QLOGIC_QLE834X:
+			strncpy(fw_info->fw_file_name, QLC_83XX_FW_FILE_NAME,
+				QLC_FW_FILE_NAME_LEN);
+			break;
+		case PCI_DEVICE_ID_QLOGIC_QLE844X:
+			strncpy(fw_info->fw_file_name, QLC_84XX_FW_FILE_NAME,
+				QLC_FW_FILE_NAME_LEN);
+			break;
+		default:
+			dev_err(&pdev->dev, "%s: Invalid device id\n",
+				__func__);
+			err = -EINVAL;
+			break;
+		}
+	}
+
+	return err;
+}
+
+
 int qlcnic_83xx_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
@@ -2198,9 +2210,13 @@ int qlcnic_83xx_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 	if (!qlcnic_83xx_read_flash_descriptor_table(adapter))
 		qlcnic_83xx_read_flash_mfg_id(adapter);
 
-	err = qlcnic_83xx_idc_init(adapter);
+	err = qlcnic_83xx_get_fw_info(adapter);
 	if (err)
 		goto detach_mbx;
+
+	err = qlcnic_83xx_idc_init(adapter);
+	if (err)
+		goto clear_fw_info;
 
 	err = qlcnic_setup_intr(adapter, 0, 0);
 	if (err) {
@@ -2241,6 +2257,9 @@ disable_mbx_intr:
 
 disable_intr:
 	qlcnic_teardown_intr(adapter);
+
+clear_fw_info:
+	kfree(ahw->fw_info);
 
 detach_mbx:
 	qlcnic_83xx_detach_mailbox_work(adapter);

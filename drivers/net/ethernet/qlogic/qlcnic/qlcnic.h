@@ -463,7 +463,7 @@ struct qlcnic_hardware_context {
 	struct qlcnic_fdt fdt;
 	struct qlc_83xx_reset reset;
 	struct qlc_83xx_idc idc;
-	struct qlc_83xx_fw_info fw_info;
+	struct qlc_83xx_fw_info *fw_info;
 	struct qlcnic_intrpt_config *intr_tbl;
 	struct qlcnic_sriov *sriov;
 	u32 *reg_tbl;
