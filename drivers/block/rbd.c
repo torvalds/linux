@@ -2819,7 +2819,7 @@ out_err:
 	obj_request_done_set(obj_request);
 }
 
-static int rbd_obj_notify_ack(struct rbd_device *rbd_dev, u64 notify_id)
+static int rbd_obj_notify_ack_sync(struct rbd_device *rbd_dev, u64 notify_id)
 {
 	struct rbd_obj_request *obj_request;
 	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
@@ -2834,16 +2834,17 @@ static int rbd_obj_notify_ack(struct rbd_device *rbd_dev, u64 notify_id)
 	obj_request->osd_req = rbd_osd_req_create(rbd_dev, false, obj_request);
 	if (!obj_request->osd_req)
 		goto out;
-	obj_request->callback = rbd_obj_request_put;
 
 	osd_req_op_watch_init(obj_request->osd_req, 0, CEPH_OSD_OP_NOTIFY_ACK,
 					notify_id, 0, 0);
 	rbd_osd_req_format_read(obj_request);
 
 	ret = rbd_obj_request_submit(osdc, obj_request);
-out:
 	if (ret)
-		rbd_obj_request_put(obj_request);
+		goto out;
+	ret = rbd_obj_request_wait(obj_request);
+out:
+	rbd_obj_request_put(obj_request);
 
 	return ret;
 }
@@ -2863,7 +2864,7 @@ static void rbd_watch_cb(u64 ver, u64 notify_id, u8 opcode, void *data)
 	if (ret)
 		rbd_warn(rbd_dev, ": header refresh error (%d)\n", ret);
 
-	rbd_obj_notify_ack(rbd_dev, notify_id);
+	rbd_obj_notify_ack_sync(rbd_dev, notify_id);
 }
 
 /*
