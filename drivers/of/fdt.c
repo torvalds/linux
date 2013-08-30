@@ -624,7 +624,7 @@ int __init of_scan_flat_dt_by_path(const char *path,
  * early_init_dt_check_for_initrd - Decode initrd location from flat tree
  * @node: reference to node containing initrd location ('chosen')
  */
-void __init early_init_dt_check_for_initrd(unsigned long node)
+static void __init early_init_dt_check_for_initrd(unsigned long node)
 {
 	u64 start, end;
 	unsigned long len;
@@ -642,12 +642,15 @@ void __init early_init_dt_check_for_initrd(unsigned long node)
 		return;
 	end = of_read_number(prop, len/4);
 
-	early_init_dt_setup_initrd_arch(start, end);
+	initrd_start = (unsigned long)__va(start);
+	initrd_end = (unsigned long)__va(end);
+	initrd_below_start_ok = 1;
+
 	pr_debug("initrd_start=0x%llx  initrd_end=0x%llx\n",
 		 (unsigned long long)start, (unsigned long long)end);
 }
 #else
-inline void early_init_dt_check_for_initrd(unsigned long node)
+static inline void early_init_dt_check_for_initrd(unsigned long node)
 {
 }
 #endif /* CONFIG_BLK_DEV_INITRD */

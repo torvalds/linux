@@ -61,8 +61,8 @@ extern struct rtc_ops no_rtc_ops;
 struct rtc_ops *rtc_ops;
 
 #ifdef CONFIG_BLK_DEV_INITRD
-extern void *initrd_start;
-extern void *initrd_end;
+extern unsigned long initrd_start;
+extern unsigned long initrd_end;
 int initrd_is_mapped = 0;
 extern int initrd_below_start_ok;
 #endif
@@ -149,8 +149,8 @@ static int __init parse_tag_initrd(const bp_tag_t* tag)
 {
 	meminfo_t* mi;
 	mi = (meminfo_t*)(tag->data);
-	initrd_start = __va(mi->start);
-	initrd_end = __va(mi->end);
+	initrd_start = (unsigned long)__va(mi->start);
+	initrd_end = (unsigned long)__va(mi->end);
 
 	return 0;
 }
@@ -166,13 +166,6 @@ static int __init parse_tag_fdt(const bp_tag_t *tag)
 }
 
 __tagtable(BP_TAG_FDT, parse_tag_fdt);
-
-void __init early_init_dt_setup_initrd_arch(u64 start, u64 end)
-{
-	initrd_start = (void *)__va(start);
-	initrd_end = (void *)__va(end);
-	initrd_below_start_ok = 1;
-}
 
 #endif /* CONFIG_OF */
 
