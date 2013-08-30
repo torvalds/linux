@@ -118,7 +118,7 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 	if (IS_ERR(addr))
 		return PTR_ERR(addr);
 
-	plat_dat = pdev->dev.platform_data;
+	plat_dat = dev_get_platdata(&pdev->dev);
 	if (pdev->dev.of_node) {
 		if (!plat_dat)
 			plat_dat = devm_kzalloc(&pdev->dev,
