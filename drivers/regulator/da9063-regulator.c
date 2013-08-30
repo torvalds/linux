@@ -848,7 +848,7 @@ static int da9063_regulator_probe(struct platform_device *pdev)
 			config.of_node = da9063_reg_matches[id].of_node;
 		config.regmap = da9063->regmap;
 		regl->rdev = regulator_register(&regl->desc, &config);
-		if (IS_ERR_OR_NULL(regl->rdev)) {
+		if (IS_ERR(regl->rdev)) {
 			dev_err(&pdev->dev,
 				"Failed to register %s regulator\n",
 				regl->desc.name);
