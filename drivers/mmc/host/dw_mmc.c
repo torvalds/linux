@@ -345,10 +345,10 @@ static void dw_mci_stop_dma(struct dw_mci *host)
 	if (host->using_dma) {
 		host->dma_ops->stop(host);
 		host->dma_ops->cleanup(host);
-	} else {
-		/* Data transfer was stopped by the interrupt handler */
-		set_bit(EVENT_XFER_COMPLETE, &host->pending_events);
 	}
+
+	/* Data transfer was stopped by the interrupt handler */
+	set_bit(EVENT_XFER_COMPLETE, &host->pending_events);
 }
 
 static int dw_mci_get_dma_dir(struct mmc_data *data)
