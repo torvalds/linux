@@ -1183,6 +1183,10 @@ int key_link(struct key *keyring, struct key *key)
 	key_check(keyring);
 	key_check(key);
 
+	if (test_bit(KEY_FLAG_TRUSTED_ONLY, &keyring->flags) &&
+	    !test_bit(KEY_FLAG_TRUSTED, &key->flags))
+		return -EPERM;
+
 	ret = __key_link_begin(keyring, &key->index_key, &edit);
 	if (ret == 0) {
 		kdebug("begun {%d,%d}", keyring->serial, atomic_read(&keyring->usage));
