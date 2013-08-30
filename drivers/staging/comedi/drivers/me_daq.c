@@ -222,15 +222,11 @@ static int me_dio_insn_bits(struct comedi_device *dev,
 	struct me_private_data *dev_private = dev->private;
 	void __iomem *mmio_porta = dev_private->me_regbase + ME_DIO_PORT_A;
 	void __iomem *mmio_portb = dev_private->me_regbase + ME_DIO_PORT_B;
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
+	unsigned int mask;
 	unsigned int val;
 
-	mask &= s->io_bits;	/* only update the COMEDI_OUTPUT channels */
+	mask = comedi_dio_update_state(s, data);
 	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
-
 		if (mask & 0x0000ffff)
 			writew((s->state & 0xffff), mmio_porta);
 		if (mask & 0xffff0000)
