@@ -60,11 +60,6 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 		error = -ENOSYS;
 		goto Unlock;
 	}
-	if(create_basic_memory_bitmaps()) {
-		atomic_inc(&snapshot_device_available);
-		error = -ENOMEM;
-		goto Unlock;
-	}
 	nonseekable_open(inode, filp);
 	data = &snapshot_state;
 	filp->private_data = data;
@@ -90,10 +85,9 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 		if (error)
 			pm_notifier_call_chain(PM_POST_RESTORE);
 	}
-	if (error) {
-		free_basic_memory_bitmaps();
+	if (error)
 		atomic_inc(&snapshot_device_available);
-	}
+
 	data->frozen = 0;
 	data->ready = 0;
 	data->platform_support = 0;
@@ -111,11 +105,11 @@ static int snapshot_release(struct inode *inode, struct file *filp)
 	lock_system_sleep();
 
 	swsusp_free();
-	free_basic_memory_bitmaps();
 	data = filp->private_data;
 	free_all_swap_pages(data->swap);
 	if (data->frozen) {
 		pm_restore_gfp_mask();
+		free_basic_memory_bitmaps();
 		thaw_processes();
 	}
 	pm_notifier_call_chain(data->mode == O_RDONLY ?
@@ -220,14 +214,22 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 		printk("done.\n");
 
 		error = freeze_processes();
-		if (!error)
+		if (error)
+			break;
+
+		error = create_basic_memory_bitmaps();
+		if (error)
+			thaw_processes();
+		else
 			data->frozen = 1;
+
 		break;
 
 	case SNAPSHOT_UNFREEZE:
 		if (!data->frozen || data->ready)
 			break;
 		pm_restore_gfp_mask();
+		free_basic_memory_bitmaps();
 		thaw_processes();
 		data->frozen = 0;
 		break;
