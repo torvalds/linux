@@ -58,7 +58,7 @@ static const u32 hsw_ddi_translations_fdi[] = {
 	0x00FFFFFF, 0x00040006		/* HDMI parameters */
 };
 
-static enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
+enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
 	int type = intel_encoder->type;
