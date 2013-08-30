@@ -130,6 +130,7 @@ struct dw_mci {
 	struct mmc_command	*cmd;
 	struct mmc_data		*data;
 	unsigned int		prev_blksz;
+	unsigned char		timing;
 	struct workqueue_struct	*card_workqueue;
 
 	/* DMA interface members*/
