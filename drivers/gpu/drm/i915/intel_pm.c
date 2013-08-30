@@ -2205,7 +2205,7 @@ struct intel_wm_config {
  * For both WM_PIPE and WM_LP.
  * mem_value must be in 0.1us units.
  */
-static uint32_t ilk_compute_pri_wm(struct hsw_pipe_wm_parameters *params,
+static uint32_t ilk_compute_pri_wm(const struct hsw_pipe_wm_parameters *params,
 				   uint32_t mem_value,
 				   bool is_lp)
 {
@@ -2234,7 +2234,7 @@ static uint32_t ilk_compute_pri_wm(struct hsw_pipe_wm_parameters *params,
  * For both WM_PIPE and WM_LP.
  * mem_value must be in 0.1us units.
  */
-static uint32_t ilk_compute_spr_wm(struct hsw_pipe_wm_parameters *params,
+static uint32_t ilk_compute_spr_wm(const struct hsw_pipe_wm_parameters *params,
 				   uint32_t mem_value)
 {
 	uint32_t method1, method2;
@@ -2257,7 +2257,7 @@ static uint32_t ilk_compute_spr_wm(struct hsw_pipe_wm_parameters *params,
  * For both WM_PIPE and WM_LP.
  * mem_value must be in 0.1us units.
  */
-static uint32_t ilk_compute_cur_wm(struct hsw_pipe_wm_parameters *params,
+static uint32_t ilk_compute_cur_wm(const struct hsw_pipe_wm_parameters *params,
 				   uint32_t mem_value)
 {
 	if (!params->active || !params->cur.enabled)
@@ -2271,7 +2271,7 @@ static uint32_t ilk_compute_cur_wm(struct hsw_pipe_wm_parameters *params,
 }
 
 /* Only for WM_LP. */
-static uint32_t ilk_compute_fbc_wm(struct hsw_pipe_wm_parameters *params,
+static uint32_t ilk_compute_fbc_wm(const struct hsw_pipe_wm_parameters *params,
 				   uint32_t pri_val)
 {
 	if (!params->active || !params->pri.enabled)
@@ -2422,7 +2422,7 @@ static bool ilk_check_wm(int level,
 
 static void ilk_compute_wm_level(struct drm_i915_private *dev_priv,
 				 int level,
-				 struct hsw_pipe_wm_parameters *p,
+				 const struct hsw_pipe_wm_parameters *p,
 				 struct intel_wm_level *result)
 {
 	uint16_t pri_latency = dev_priv->wm.pri_latency[level];
@@ -2444,8 +2444,8 @@ static void ilk_compute_wm_level(struct drm_i915_private *dev_priv,
 }
 
 static bool hsw_compute_lp_wm(struct drm_i915_private *dev_priv,
-			      int level, struct hsw_wm_maximums *max,
-			      struct hsw_pipe_wm_parameters *params,
+			      int level, const struct hsw_wm_maximums *max,
+			      const struct hsw_pipe_wm_parameters *params,
 			      struct intel_wm_level *result)
 {
 	enum pipe pipe;
@@ -2465,7 +2465,7 @@ static bool hsw_compute_lp_wm(struct drm_i915_private *dev_priv,
 
 static uint32_t hsw_compute_wm_pipe(struct drm_i915_private *dev_priv,
 				    enum pipe pipe,
-				    struct hsw_pipe_wm_parameters *params)
+				    const struct hsw_pipe_wm_parameters *params)
 {
 	uint32_t pri_val, cur_val, spr_val;
 	/* WM0 latency values stored in 0.1us units */
@@ -2673,8 +2673,8 @@ static void hsw_compute_wm_parameters(struct drm_device *dev,
 }
 
 static void hsw_compute_wm_results(struct drm_device *dev,
-				   struct hsw_pipe_wm_parameters *params,
-				   struct hsw_wm_maximums *lp_maximums,
+				   const struct hsw_pipe_wm_parameters *params,
+				   const struct hsw_wm_maximums *lp_maximums,
 				   struct hsw_wm_values *results)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
