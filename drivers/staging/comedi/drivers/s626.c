@@ -1638,19 +1638,10 @@ static int s626_dio_insn_bits(struct comedi_device *dev,
 			      unsigned int *data)
 {
 	unsigned long group = (unsigned long)s->private;
-	unsigned long mask = data[0];
-	unsigned long bits = data[1];
 
-	if (mask) {
-		/* Check if requested channels are configured for output */
-		if ((s->io_bits & mask) != mask)
-			return -EIO;
-
-		s->state &= ~mask;
-		s->state |= (bits & mask);
-
+	if (comedi_dio_update_state(s, data))
 		DEBIwrite(dev, LP_WRDOUT(group), s->state);
-	}
+
 	data[1] = DEBIread(dev, LP_RDDIN(group));
 
 	return insn->n;
