@@ -140,20 +140,20 @@ static int parport_status_reg_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int parport_insn_c(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
+static int parport_ctrl_reg_insn_bits(struct comedi_device *dev,
+				      struct comedi_subdevice *s,
+				      struct comedi_insn *insn,
+				      unsigned int *data)
 {
 	struct parport_private *devpriv = dev->private;
 
-	data[0] &= 0x0f;
-	if (data[0]) {
-		devpriv->c_data &= ~data[0];
-		devpriv->c_data |= (data[0] & data[1]);
-
+	if (comedi_dio_update_state(s, data)) {
+		devpriv->c_data &= ~((1 << s->n_chan) - 1);
+		devpriv->c_data |= s->state;
 		outb(devpriv->c_data, dev->iobase + PARPORT_CTRL_REG);
 	}
 
-	data[1] = devpriv->c_data & 0xf;
+	data[1] = s->state;
 
 	return insn->n;
 }
@@ -304,7 +304,7 @@ static int parport_attach(struct comedi_device *dev,
 	s->n_chan = 4;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
-	s->insn_bits = parport_insn_c;
+	s->insn_bits = parport_ctrl_reg_insn_bits;
 
 	s = &dev->subdevices[3];
 	if (irq) {
