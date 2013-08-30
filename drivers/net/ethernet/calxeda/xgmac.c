@@ -353,11 +353,9 @@ struct xgmac_extra_stats {
 	/* Receive errors */
 	unsigned long rx_watchdog;
 	unsigned long rx_da_filter_fail;
-	unsigned long rx_sa_filter_fail;
 	unsigned long rx_payload_error;
 	unsigned long rx_ip_header_error;
 	/* Tx/Rx IRQ errors */
-	unsigned long tx_undeflow;
 	unsigned long tx_process_stopped;
 	unsigned long rx_buf_unav;
 	unsigned long rx_process_stopped;
@@ -1581,7 +1579,6 @@ static const struct xgmac_stats xgmac_gstrings_stats[] = {
 	XGMAC_STAT(rx_payload_error),
 	XGMAC_STAT(rx_ip_header_error),
 	XGMAC_STAT(rx_da_filter_fail),
-	XGMAC_STAT(rx_sa_filter_fail),
 	XGMAC_STAT(fatal_bus_error),
 	XGMAC_HW_STAT(rx_watchdog, XGMAC_MMC_RXWATCHDOG),
 	XGMAC_HW_STAT(tx_vlan, XGMAC_MMC_TXVLANFRAME),
