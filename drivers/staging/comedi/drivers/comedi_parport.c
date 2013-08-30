@@ -92,7 +92,6 @@ pin, which can be used to wake up tasks.
 #define PARPORT_CTRL_BIDIR_ENA	(1 << 5)
 
 struct parport_private {
-	unsigned int c_data;
 	int enable_irq;
 };
 
@@ -114,18 +113,19 @@ static int parport_data_reg_insn_config(struct comedi_device *dev,
 					struct comedi_insn *insn,
 					unsigned int *data)
 {
-	struct parport_private *devpriv = dev->private;
+	unsigned int ctrl;
 	int ret;
 
 	ret = comedi_dio_insn_config(dev, s, insn, data, 0xff);
 	if (ret)
 		return ret;
 
+	ctrl = inb(dev->iobase + PARPORT_CTRL_REG);
 	if (s->io_bits)
-		devpriv->c_data &= ~PARPORT_CTRL_BIDIR_ENA;
+		ctrl &= ~PARPORT_CTRL_BIDIR_ENA;
 	else
-		devpriv->c_data |= PARPORT_CTRL_BIDIR_ENA;
-	outb(devpriv->c_data, dev->iobase + PARPORT_CTRL_REG);
+		ctrl |= PARPORT_CTRL_BIDIR_ENA;
+	outb(ctrl, dev->iobase + PARPORT_CTRL_REG);
 
 	return insn->n;
 }
@@ -145,12 +145,13 @@ static int parport_ctrl_reg_insn_bits(struct comedi_device *dev,
 				      struct comedi_insn *insn,
 				      unsigned int *data)
 {
-	struct parport_private *devpriv = dev->private;
+	unsigned int ctrl;
 
 	if (comedi_dio_update_state(s, data)) {
-		devpriv->c_data &= ~((1 << s->n_chan) - 1);
-		devpriv->c_data |= s->state;
-		outb(devpriv->c_data, dev->iobase + PARPORT_CTRL_REG);
+		ctrl = inb(dev->iobase + PARPORT_CTRL_REG);
+		ctrl &= (PARPORT_CTRL_IRQ_ENA | PARPORT_CTRL_BIDIR_ENA);
+		ctrl |= s->state;
+		outb(ctrl, dev->iobase + PARPORT_CTRL_REG);
 	}
 
 	data[1] = s->state;
@@ -212,9 +213,11 @@ static int parport_intr_cmd(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
 	struct parport_private *devpriv = dev->private;
+	unsigned int ctrl;
 
-	devpriv->c_data |= PARPORT_CTRL_IRQ_ENA;
-	outb(devpriv->c_data, dev->iobase + PARPORT_CTRL_REG);
+	ctrl = inb(dev->iobase + PARPORT_CTRL_REG);
+	ctrl |= PARPORT_CTRL_IRQ_ENA;
+	outb(ctrl, dev->iobase + PARPORT_CTRL_REG);
 
 	devpriv->enable_irq = 1;
 
@@ -225,9 +228,11 @@ static int parport_intr_cancel(struct comedi_device *dev,
 			       struct comedi_subdevice *s)
 {
 	struct parport_private *devpriv = dev->private;
+	unsigned int ctrl;
 
-	devpriv->c_data &= ~PARPORT_CTRL_IRQ_ENA;
-	outb(devpriv->c_data, dev->iobase + PARPORT_CTRL_REG);
+	ctrl = inb(dev->iobase + PARPORT_CTRL_REG);
+	ctrl &= ~PARPORT_CTRL_IRQ_ENA;
+	outb(ctrl, dev->iobase + PARPORT_CTRL_REG);
 
 	devpriv->enable_irq = 0;
 
@@ -323,8 +328,7 @@ static int parport_attach(struct comedi_device *dev,
 	}
 
 	outb(0, dev->iobase + PARPORT_DATA_REG);
-	devpriv->c_data = 0;
-	outb(devpriv->c_data, dev->iobase + PARPORT_CTRL_REG);
+	outb(0, dev->iobase + PARPORT_CTRL_REG);
 
 	return 0;
 }
