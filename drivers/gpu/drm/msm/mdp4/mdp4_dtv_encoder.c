@@ -18,7 +18,6 @@
 #include <mach/clk.h>
 
 #include "mdp4_kms.h"
-#include "msm_connector.h"
 
 #include "drm_crtc.h"
 #include "drm_crtc_helper.h"
@@ -101,7 +100,6 @@ static void mdp4_dtv_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct drm_device *dev = encoder->dev;
 	struct mdp4_dtv_encoder *mdp4_dtv_encoder = to_mdp4_dtv_encoder(encoder);
-	struct msm_connector *msm_connector = get_connector(encoder);
 	struct mdp4_kms *mdp4_kms = get_kms(encoder);
 	bool enabled = (mode == DRM_MODE_DPMS_ON);
 
@@ -115,9 +113,6 @@ static void mdp4_dtv_encoder_dpms(struct drm_encoder *encoder, int mode)
 		int ret;
 
 		bs_set(mdp4_dtv_encoder, 1);
-
-		if (msm_connector)
-			msm_connector->funcs->dpms(msm_connector, mode);
 
 		DBG("setting src_clk=%lu", pc);
 
@@ -150,9 +145,6 @@ static void mdp4_dtv_encoder_dpms(struct drm_encoder *encoder, int mode)
 		clk_disable_unprepare(mdp4_dtv_encoder->hdmi_clk);
 		clk_disable_unprepare(mdp4_dtv_encoder->mdp_clk);
 
-		if (msm_connector)
-			msm_connector->funcs->dpms(msm_connector, mode);
-
 		bs_set(mdp4_dtv_encoder, 0);
 	}
 
@@ -171,7 +163,6 @@ static void mdp4_dtv_encoder_mode_set(struct drm_encoder *encoder,
 		struct drm_display_mode *adjusted_mode)
 {
 	struct mdp4_dtv_encoder *mdp4_dtv_encoder = to_mdp4_dtv_encoder(encoder);
-	struct msm_connector *msm_connector = get_connector(encoder);
 	struct mdp4_kms *mdp4_kms = get_kms(encoder);
 	uint32_t dtv_hsync_skew, vsync_period, vsync_len, ctrl_pol;
 	uint32_t display_v_start, display_v_end;
@@ -230,9 +221,6 @@ static void mdp4_dtv_encoder_mode_set(struct drm_encoder *encoder,
 			MDP4_DTV_ACTIVE_HCTL_END(0));
 	mdp4_write(mdp4_kms, REG_MDP4_DTV_ACTIVE_VSTART, 0);
 	mdp4_write(mdp4_kms, REG_MDP4_DTV_ACTIVE_VEND, 0);
-
-	if (msm_connector)
-		msm_connector->funcs->mode_set(msm_connector, mode);
 }
 
 static void mdp4_dtv_encoder_prepare(struct drm_encoder *encoder)

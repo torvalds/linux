@@ -83,6 +83,9 @@ struct msm_drm_private {
 	unsigned int num_encoders;
 	struct drm_encoder *encoders[8];
 
+	unsigned int num_bridges;
+	struct drm_bridge *bridges[8];
+
 	unsigned int num_connectors;
 	struct drm_connector *connectors[8];
 };
@@ -170,8 +173,7 @@ struct drm_framebuffer *msm_framebuffer_create(struct drm_device *dev,
 
 struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev);
 
-struct drm_connector *hdmi_connector_init(struct drm_device *dev,
-		struct drm_encoder *encoder);
+int hdmi_init(struct drm_device *dev, struct drm_encoder *encoder);
 void __init hdmi_register(void);
 void __exit hdmi_unregister(void);
 

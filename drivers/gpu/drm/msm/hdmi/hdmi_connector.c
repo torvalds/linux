@@ -17,14 +17,11 @@
 
 #include <linux/gpio.h>
 
-#include "msm_connector.h"
 #include "hdmi.h"
 
 struct hdmi_connector {
-	struct msm_connector base;
-	struct hdmi hdmi;
-	unsigned long int pixclock;
-	bool enabled;
+	struct drm_connector base;
+	struct hdmi *hdmi;
 };
 #define to_hdmi_connector(x) container_of(x, struct hdmi_connector, base)
 
@@ -90,8 +87,8 @@ error1:
 
 static int hpd_enable(struct hdmi_connector *hdmi_connector)
 {
-	struct hdmi *hdmi = &hdmi_connector->hdmi;
-	struct drm_device *dev = hdmi_connector->base.base.dev;
+	struct hdmi *hdmi = hdmi_connector->hdmi;
+	struct drm_device *dev = hdmi_connector->base.dev;
 	struct hdmi_phy *phy = hdmi->phy;
 	uint32_t hpd_ctrl;
 	int ret;
@@ -158,8 +155,8 @@ fail:
 
 static int hdp_disable(struct hdmi_connector *hdmi_connector)
 {
-	struct hdmi *hdmi = &hdmi_connector->hdmi;
-	struct drm_device *dev = hdmi_connector->base.base.dev;
+	struct hdmi *hdmi = hdmi_connector->hdmi;
+	struct drm_device *dev = hdmi_connector->base.dev;
 	int ret = 0;
 
 	/* Disable HPD interrupt */
@@ -194,9 +191,8 @@ fail:
 
 void hdmi_connector_irq(struct drm_connector *connector)
 {
-	struct msm_connector *msm_connector = to_msm_connector(connector);
-	struct hdmi_connector *hdmi_connector = to_hdmi_connector(msm_connector);
-	struct hdmi *hdmi = &hdmi_connector->hdmi;
+	struct hdmi_connector *hdmi_connector = to_hdmi_connector(connector);
+	struct hdmi *hdmi = hdmi_connector->hdmi;
 	uint32_t hpd_int_status, hpd_int_ctrl;
 
 	/* Process HPD: */
@@ -226,9 +222,8 @@ void hdmi_connector_irq(struct drm_connector *connector)
 static enum drm_connector_status hdmi_connector_detect(
 		struct drm_connector *connector, bool force)
 {
-	struct msm_connector *msm_connector = to_msm_connector(connector);
-	struct hdmi_connector *hdmi_connector = to_hdmi_connector(msm_connector);
-	struct hdmi *hdmi = &hdmi_connector->hdmi;
+	struct hdmi_connector *hdmi_connector = to_hdmi_connector(connector);
+	struct hdmi *hdmi = hdmi_connector->hdmi;
 	uint32_t hpd_int_status;
 	int retry = 20;
 
@@ -249,24 +244,22 @@ static enum drm_connector_status hdmi_connector_detect(
 
 static void hdmi_connector_destroy(struct drm_connector *connector)
 {
-	struct msm_connector *msm_connector = to_msm_connector(connector);
-	struct hdmi_connector *hdmi_connector = to_hdmi_connector(msm_connector);
+	struct hdmi_connector *hdmi_connector = to_hdmi_connector(connector);
 
 	hdp_disable(hdmi_connector);
 
 	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);
 
-	hdmi_destroy(&hdmi_connector->hdmi);
+	hdmi_unreference(hdmi_connector->hdmi);
 
 	kfree(hdmi_connector);
 }
 
 static int hdmi_connector_get_modes(struct drm_connector *connector)
 {
-	struct msm_connector *msm_connector = to_msm_connector(connector);
-	struct hdmi_connector *hdmi_connector = to_hdmi_connector(msm_connector);
-	struct hdmi *hdmi = &hdmi_connector->hdmi;
+	struct hdmi_connector *hdmi_connector = to_hdmi_connector(connector);
+	struct hdmi *hdmi = hdmi_connector->hdmi;
 	struct edid *edid;
 	uint32_t hdmi_ctrl;
 	int ret = 0;
@@ -291,14 +284,14 @@ static int hdmi_connector_get_modes(struct drm_connector *connector)
 static int hdmi_connector_mode_valid(struct drm_connector *connector,
 				 struct drm_display_mode *mode)
 {
-	struct msm_connector *msm_connector = to_msm_connector(connector);
+	struct hdmi_connector *hdmi_connector = to_hdmi_connector(connector);
 	struct msm_drm_private *priv = connector->dev->dev_private;
 	struct msm_kms *kms = priv->kms;
 	long actual, requested;
 
 	requested = 1000 * mode->clock;
 	actual = kms->funcs->round_pixclk(kms,
-			requested, msm_connector->encoder);
+			requested, hdmi_connector->hdmi->encoder);
 
 	DBG("requested=%ld, actual=%ld", requested, actual);
 
@@ -306,6 +299,13 @@ static int hdmi_connector_mode_valid(struct drm_connector *connector,
 		return MODE_CLOCK_RANGE;
 
 	return 0;
+}
+
+static struct drm_encoder *
+hdmi_connector_best_encoder(struct drm_connector *connector)
+{
+	struct hdmi_connector *hdmi_connector = to_hdmi_connector(connector);
+	return hdmi_connector->hdmi->encoder;
 }
 
 static const struct drm_connector_funcs hdmi_connector_funcs = {
@@ -318,101 +318,11 @@ static const struct drm_connector_funcs hdmi_connector_funcs = {
 static const struct drm_connector_helper_funcs hdmi_connector_helper_funcs = {
 	.get_modes = hdmi_connector_get_modes,
 	.mode_valid = hdmi_connector_mode_valid,
-	.best_encoder = msm_connector_attached_encoder,
-};
-
-static void hdmi_connector_dpms(struct msm_connector *msm_connector, int mode)
-{
-	struct hdmi_connector *hdmi_connector = to_hdmi_connector(msm_connector);
-	struct hdmi *hdmi = &hdmi_connector->hdmi;
-	struct hdmi_phy *phy = hdmi->phy;
-	bool enabled = (mode == DRM_MODE_DPMS_ON);
-
-	DBG("mode=%d", mode);
-
-	if (enabled == hdmi_connector->enabled)
-		return;
-
-	if (enabled) {
-		phy->funcs->powerup(phy, hdmi_connector->pixclock);
-		hdmi_set_mode(hdmi, true);
-	} else {
-		hdmi_set_mode(hdmi, false);
-		phy->funcs->powerdown(phy);
-	}
-
-	hdmi_connector->enabled = enabled;
-}
-
-static void hdmi_connector_mode_set(struct msm_connector *msm_connector,
-		struct drm_display_mode *mode)
-{
-	struct hdmi_connector *hdmi_connector = to_hdmi_connector(msm_connector);
-	struct hdmi *hdmi = &hdmi_connector->hdmi;
-	int hstart, hend, vstart, vend;
-	uint32_t frame_ctrl;
-
-	hdmi_connector->pixclock = mode->clock * 1000;
-
-	hdmi->hdmi_mode = drm_match_cea_mode(mode) > 1;
-
-	hstart = mode->htotal - mode->hsync_start;
-	hend   = mode->htotal - mode->hsync_start + mode->hdisplay;
-
-	vstart = mode->vtotal - mode->vsync_start - 1;
-	vend   = mode->vtotal - mode->vsync_start + mode->vdisplay - 1;
-
-	DBG("htotal=%d, vtotal=%d, hstart=%d, hend=%d, vstart=%d, vend=%d",
-			mode->htotal, mode->vtotal, hstart, hend, vstart, vend);
-
-	hdmi_write(hdmi, REG_HDMI_TOTAL,
-			HDMI_TOTAL_H_TOTAL(mode->htotal - 1) |
-			HDMI_TOTAL_V_TOTAL(mode->vtotal - 1));
-
-	hdmi_write(hdmi, REG_HDMI_ACTIVE_HSYNC,
-			HDMI_ACTIVE_HSYNC_START(hstart) |
-			HDMI_ACTIVE_HSYNC_END(hend));
-	hdmi_write(hdmi, REG_HDMI_ACTIVE_VSYNC,
-			HDMI_ACTIVE_VSYNC_START(vstart) |
-			HDMI_ACTIVE_VSYNC_END(vend));
-
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
-		hdmi_write(hdmi, REG_HDMI_VSYNC_TOTAL_F2,
-				HDMI_VSYNC_TOTAL_F2_V_TOTAL(mode->vtotal));
-		hdmi_write(hdmi, REG_HDMI_VSYNC_ACTIVE_F2,
-				HDMI_VSYNC_ACTIVE_F2_START(vstart + 1) |
-				HDMI_VSYNC_ACTIVE_F2_END(vend + 1));
-	} else {
-		hdmi_write(hdmi, REG_HDMI_VSYNC_TOTAL_F2,
-				HDMI_VSYNC_TOTAL_F2_V_TOTAL(0));
-		hdmi_write(hdmi, REG_HDMI_VSYNC_ACTIVE_F2,
-				HDMI_VSYNC_ACTIVE_F2_START(0) |
-				HDMI_VSYNC_ACTIVE_F2_END(0));
-	}
-
-	frame_ctrl = 0;
-	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
-		frame_ctrl |= HDMI_FRAME_CTRL_HSYNC_LOW;
-	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
-		frame_ctrl |= HDMI_FRAME_CTRL_VSYNC_LOW;
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		frame_ctrl |= HDMI_FRAME_CTRL_INTERLACED_EN;
-	DBG("frame_ctrl=%08x", frame_ctrl);
-	hdmi_write(hdmi, REG_HDMI_FRAME_CTRL, frame_ctrl);
-
-	// TODO until we have audio, this might be safest:
-	if (hdmi->hdmi_mode)
-		hdmi_write(hdmi, REG_HDMI_GC, HDMI_GC_MUTE);
-}
-
-static const struct msm_connector_funcs msm_connector_funcs = {
-		.dpms = hdmi_connector_dpms,
-		.mode_set = hdmi_connector_mode_set,
+	.best_encoder = hdmi_connector_best_encoder,
 };
 
 /* initialize connector */
-struct drm_connector *hdmi_connector_init(struct drm_device *dev,
-		struct drm_encoder *encoder)
+struct drm_connector *hdmi_connector_init(struct hdmi *hdmi)
 {
 	struct drm_connector *connector = NULL;
 	struct hdmi_connector *hdmi_connector;
@@ -424,11 +334,11 @@ struct drm_connector *hdmi_connector_init(struct drm_device *dev,
 		goto fail;
 	}
 
-	connector = &hdmi_connector->base.base;
+	hdmi_connector->hdmi = hdmi_reference(hdmi);
 
-	msm_connector_init(&hdmi_connector->base,
-			&msm_connector_funcs, encoder);
-	drm_connector_init(dev, connector, &hdmi_connector_funcs,
+	connector = &hdmi_connector->base;
+
+	drm_connector_init(hdmi->dev, connector, &hdmi_connector_funcs,
 			DRM_MODE_CONNECTOR_HDMIA);
 	drm_connector_helper_add(connector, &hdmi_connector_helper_funcs);
 
@@ -439,17 +349,13 @@ struct drm_connector *hdmi_connector_init(struct drm_device *dev,
 
 	drm_sysfs_connector_add(connector);
 
-	ret = hdmi_init(&hdmi_connector->hdmi, dev, connector);
-	if (ret)
-		goto fail;
-
 	ret = hpd_enable(hdmi_connector);
 	if (ret) {
-		dev_err(dev->dev, "failed to enable HPD: %d\n", ret);
+		dev_err(hdmi->dev->dev, "failed to enable HPD: %d\n", ret);
 		goto fail;
 	}
 
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_mode_connector_attach_encoder(connector, hdmi->encoder);
 
 	return connector;
 

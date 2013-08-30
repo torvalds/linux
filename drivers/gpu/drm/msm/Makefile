@@ -7,6 +7,7 @@ msm-y := \
 	adreno/adreno_gpu.o \
 	adreno/a3xx_gpu.o \
 	hdmi/hdmi.o \
+	hdmi/hdmi_bridge.o \
 	hdmi/hdmi_connector.o \
 	hdmi/hdmi_i2c.o \
 	hdmi/hdmi_phy_8960.o \
@@ -17,7 +18,6 @@ msm-y := \
 	mdp4/mdp4_irq.o \
 	mdp4/mdp4_kms.o \
 	mdp4/mdp4_plane.o \
-	msm_connector.o \
 	msm_drv.o \
 	msm_fb.o \
 	msm_gem.o \

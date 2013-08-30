@@ -56,8 +56,9 @@ static irqreturn_t hdmi_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-void hdmi_destroy(struct hdmi *hdmi)
+void hdmi_destroy(struct kref *kref)
 {
+	struct hdmi *hdmi = container_of(kref, struct hdmi, refcount);
 	struct hdmi_phy *phy = hdmi->phy;
 
 	if (phy)
@@ -70,9 +71,10 @@ void hdmi_destroy(struct hdmi *hdmi)
 }
 
 /* initialize connector */
-int hdmi_init(struct hdmi *hdmi, struct drm_device *dev,
-		struct drm_connector *connector)
+int hdmi_init(struct drm_device *dev, struct drm_encoder *encoder)
 {
+	struct hdmi *hdmi = NULL;
+	struct msm_drm_private *priv = dev->dev_private;
 	struct platform_device *pdev = hdmi_pdev;
 	struct hdmi_platform_config *config;
 	int ret;
@@ -85,11 +87,19 @@ int hdmi_init(struct hdmi *hdmi, struct drm_device *dev,
 
 	config = pdev->dev.platform_data;
 
+	hdmi = kzalloc(sizeof(*hdmi), GFP_KERNEL);
+	if (!hdmi) {
+		ret = -ENOMEM;
+		goto fail;
+	}
+
+	kref_init(&hdmi->refcount);
+
 	get_device(&pdev->dev);
 
 	hdmi->dev = dev;
 	hdmi->pdev = pdev;
-	hdmi->connector = connector;
+	hdmi->encoder = encoder;
 
 	/* not sure about which phy maps to which msm.. probably I miss some */
 	if (config->phy_init)
@@ -152,6 +162,22 @@ int hdmi_init(struct hdmi *hdmi, struct drm_device *dev,
 		goto fail;
 	}
 
+	hdmi->bridge = hdmi_bridge_init(hdmi);
+	if (IS_ERR(hdmi->bridge)) {
+		ret = PTR_ERR(hdmi->bridge);
+		dev_err(dev->dev, "failed to create HDMI bridge: %d\n", ret);
+		hdmi->bridge = NULL;
+		goto fail;
+	}
+
+	hdmi->connector = hdmi_connector_init(hdmi);
+	if (IS_ERR(hdmi->connector)) {
+		ret = PTR_ERR(hdmi->connector);
+		dev_err(dev->dev, "failed to create HDMI connector: %d\n", ret);
+		hdmi->connector = NULL;
+		goto fail;
+	}
+
 	hdmi->irq = platform_get_irq(pdev, 0);
 	if (hdmi->irq < 0) {
 		ret = hdmi->irq;
@@ -168,11 +194,22 @@ int hdmi_init(struct hdmi *hdmi, struct drm_device *dev,
 		goto fail;
 	}
 
+	encoder->bridge = hdmi->bridge;
+
+	priv->bridges[priv->num_bridges++]       = hdmi->bridge;
+	priv->connectors[priv->num_connectors++] = hdmi->connector;
+
 	return 0;
 
 fail:
-	if (hdmi)
-		hdmi_destroy(hdmi);
+	if (hdmi) {
+		/* bridge/connector are normally destroyed by drm: */
+		if (hdmi->bridge)
+			hdmi->bridge->funcs->destroy(hdmi->bridge);
+		if (hdmi->connector)
+			hdmi->connector->funcs->destroy(hdmi->connector);
+		hdmi_destroy(&hdmi->refcount);
+	}
 
 	return ret;
 }

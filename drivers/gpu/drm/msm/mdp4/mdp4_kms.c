@@ -191,7 +191,6 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 	struct drm_plane *plane;
 	struct drm_crtc *crtc;
 	struct drm_encoder *encoder;
-	struct drm_connector *connector;
 	int ret;
 
 	/*
@@ -224,13 +223,11 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 	encoder->possible_crtcs = 0x1;     /* DTV can be hooked to DMA_E */
 	priv->encoders[priv->num_encoders++] = encoder;
 
-	connector = hdmi_connector_init(dev, encoder);
-	if (IS_ERR(connector)) {
-		dev_err(dev->dev, "failed to construct HDMI connector\n");
-		ret = PTR_ERR(connector);
+	ret = hdmi_init(dev, encoder);
+	if (ret) {
+		dev_err(dev->dev, "failed to initialize HDMI\n");
 		goto fail;
 	}
-	priv->connectors[priv->num_connectors++] = connector;
 
 	return 0;
 
