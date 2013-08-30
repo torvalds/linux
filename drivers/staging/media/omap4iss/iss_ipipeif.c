@@ -129,6 +129,7 @@ static void ipipeif_set_outaddr(struct iss_ipipeif_device *ipipeif, u32 addr)
 static void ipipeif_configure(struct iss_ipipeif_device *ipipeif)
 {
 	struct iss_device *iss = to_iss_device(ipipeif);
+	const struct iss_format_info *info;
 	struct v4l2_mbus_framefmt *format;
 	u32 isif_ccolp = 0;
 
@@ -194,9 +195,10 @@ cont_raw:
 			ISIF_MODESET_INPMOD_RAW | ISIF_MODESET_CCDW_2BIT,
 			iss->regs[OMAP4_ISS_MEM_ISP_ISIF] + ISIF_MODESET);
 
+		info = omap4iss_video_format_info(format->code);
 		writel((readl(iss->regs[OMAP4_ISS_MEM_ISP_ISIF] + ISIF_CGAMMAWD) &
 			~ISIF_CGAMMAWD_GWDI_MASK) |
-			ISIF_CGAMMAWD_GWDI_BIT11,
+			ISIF_CGAMMAWD_GWDI(info->bpp),
 			iss->regs[OMAP4_ISS_MEM_ISP_ISIF] + ISIF_CGAMMAWD);
 
 		/* Set RAW Bayer pattern */

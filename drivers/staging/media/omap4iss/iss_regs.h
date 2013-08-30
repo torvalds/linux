@@ -368,7 +368,7 @@
 
 #define ISIF_CGAMMAWD					(0x0080)
 #define ISIF_CGAMMAWD_GWDI_MASK				(0xF << 1)
-#define ISIF_CGAMMAWD_GWDI_BIT11			(0x4 << 1)
+#define ISIF_CGAMMAWD_GWDI(bpp)				((16 - (bpp)) << 1)
 
 #define ISIF_CCDCFG					(0x0088)
 #define ISIF_CCDCFG_Y8POS				(1 << 11)
