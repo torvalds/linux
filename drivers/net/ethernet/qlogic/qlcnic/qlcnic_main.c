@@ -796,6 +796,23 @@ static int qlcnic_get_act_pci_func(struct qlcnic_adapter *adapter)
 	return ret;
 }
 
+static bool qlcnic_port_eswitch_cfg_capability(struct qlcnic_adapter *adapter)
+{
+	bool ret = false;
+
+	if (qlcnic_84xx_check(adapter)) {
+		ret = true;
+	} else if (qlcnic_83xx_check(adapter)) {
+		if (adapter->ahw->extra_capability[0] &
+		    QLCNIC_FW_CAPABILITY_2_PER_PORT_ESWITCH_CFG)
+			ret = true;
+		else
+			ret = false;
+	}
+
+	return ret;
+}
+
 int qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_pci_info *pci_info;
@@ -839,18 +856,30 @@ int qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
 		    (pci_info[i].type != QLCNIC_TYPE_NIC))
 			continue;
 
+		if (qlcnic_port_eswitch_cfg_capability(adapter)) {
+			if (!qlcnic_83xx_enable_port_eswitch(adapter, pfn))
+				adapter->npars[j].eswitch_status = true;
+			else
+				continue;
+		} else {
+			adapter->npars[j].eswitch_status = true;
+		}
+
 		adapter->npars[j].pci_func = pfn;
 		adapter->npars[j].active = (u8)pci_info[i].active;
 		adapter->npars[j].type = (u8)pci_info[i].type;
 		adapter->npars[j].phy_port = (u8)pci_info[i].default_port;
 		adapter->npars[j].min_bw = pci_info[i].tx_min_bw;
 		adapter->npars[j].max_bw = pci_info[i].tx_max_bw;
+
 		j++;
 	}
 
-	for (i = 0; i < QLCNIC_NIU_MAX_XG_PORTS; i++) {
-		adapter->eswitch[i].flags |= QLCNIC_SWITCH_ENABLE;
-		if (qlcnic_83xx_check(adapter))
+	if (qlcnic_82xx_check(adapter)) {
+		for (i = 0; i < QLCNIC_NIU_MAX_XG_PORTS; i++)
+			adapter->eswitch[i].flags |= QLCNIC_SWITCH_ENABLE;
+	} else if (!qlcnic_port_eswitch_cfg_capability(adapter)) {
+		for (i = 0; i < QLCNIC_NIU_MAX_XG_PORTS; i++)
 			qlcnic_enable_eswitch(adapter, i, 1);
 	}
 
@@ -1275,6 +1304,9 @@ int qlcnic_set_default_offload_settings(struct qlcnic_adapter *adapter)
 		return 0;
 
 	for (i = 0; i < adapter->ahw->act_pci_func; i++) {
+		if (!adapter->npars[i].eswitch_status)
+			continue;
+
 		memset(&esw_cfg, 0, sizeof(struct qlcnic_esw_func_cfg));
 		esw_cfg.pci_func = adapter->npars[i].pci_func;
 		esw_cfg.mac_override = BIT_0;
@@ -1337,6 +1369,9 @@ int qlcnic_reset_npar_config(struct qlcnic_adapter *adapter)
 	for (i = 0; i < adapter->ahw->act_pci_func; i++) {
 		npar = &adapter->npars[i];
 		pci_func = npar->pci_func;
+		if (!adapter->npars[i].eswitch_status)
+			continue;
+
 		memset(&nic_info, 0, sizeof(struct qlcnic_info));
 		err = qlcnic_get_nic_info(adapter, &nic_info, pci_func);
 		if (err)

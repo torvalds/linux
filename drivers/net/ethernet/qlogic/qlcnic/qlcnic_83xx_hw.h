@@ -411,6 +411,7 @@ enum qlcnic_83xx_states {
 #define QLC_83XX_GET_HW_LRO_CAPABILITY(val)		(val & 0x400)
 #define QLC_83XX_GET_VLAN_ALIGN_CAPABILITY(val)	(val & 0x4000)
 #define QLC_83XX_GET_FW_LRO_MSS_CAPABILITY(val)	(val & 0x20000)
+#define QLC_83XX_ESWITCH_CAPABILITY			BIT_23
 #define QLC_83XX_VIRTUAL_NIC_MODE			0xFF
 #define QLC_83XX_DEFAULT_MODE				0x0
 #define QLC_83XX_SRIOV_MODE				0x1
@@ -625,6 +626,7 @@ int qlcnic_83xx_config_vnic_opmode(struct qlcnic_adapter *);
 int qlcnic_83xx_get_vnic_vport_info(struct qlcnic_adapter *,
 				    struct qlcnic_info *, u8);
 int qlcnic_83xx_get_vnic_pf_info(struct qlcnic_adapter *, struct qlcnic_info *);
+int qlcnic_83xx_enable_port_eswitch(struct qlcnic_adapter *, int);
 
 void qlcnic_83xx_get_minidump_template(struct qlcnic_adapter *);
 void qlcnic_83xx_get_stats(struct qlcnic_adapter *adapter, u64 *data);

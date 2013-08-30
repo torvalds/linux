@@ -465,8 +465,14 @@ static ssize_t qlcnic_sysfs_read_pm_config(struct file *filp,
 	memset(&pm_cfg, 0,
 	       sizeof(struct qlcnic_pm_func_cfg) * QLCNIC_MAX_PCI_FUNC);
 
-	for (i = 0; i < adapter->ahw->act_pci_func; i++) {
+	for (i = 0; i < QLCNIC_MAX_PCI_FUNC; i++) {
 		pci_func = adapter->npars[i].pci_func;
+		if (!adapter->npars[i].active)
+			continue;
+
+		if (!adapter->npars[i].eswitch_status)
+			continue;
+
 		pm_cfg[pci_func].action = adapter->npars[i].enable_pm;
 		pm_cfg[pci_func].dest_npar = 0;
 		pm_cfg[pci_func].pci_func = i;
@@ -632,8 +638,14 @@ static ssize_t qlcnic_sysfs_read_esw_config(struct file *file,
 	memset(&esw_cfg, 0,
 	       sizeof(struct qlcnic_esw_func_cfg) * QLCNIC_MAX_PCI_FUNC);
 
-	for (i = 0; i < adapter->ahw->act_pci_func; i++) {
+	for (i = 0; i < QLCNIC_MAX_PCI_FUNC; i++) {
 		pci_func = adapter->npars[i].pci_func;
+		if (!adapter->npars[i].active)
+			continue;
+
+		if (!adapter->npars[i].eswitch_status)
+			continue;
+
 		esw_cfg[pci_func].pci_func = pci_func;
 		if (qlcnic_get_eswitch_port_config(adapter, &esw_cfg[pci_func]))
 			return QL_STATUS_INVALID_PARAM;
@@ -731,6 +743,9 @@ static ssize_t qlcnic_sysfs_read_npar_config(struct file *file,
 		ret = qlcnic_get_nic_info(adapter, &nic_info, i);
 		if (ret)
 			return ret;
+
+		if (!adapter->npars[i].eswitch_status)
+			continue;
 
 		np_cfg[i].pci_func = i;
 		np_cfg[i].op_mode = (u8)nic_info.op_mode;

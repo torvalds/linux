@@ -208,7 +208,7 @@ int qlcnic_83xx_config_vnic_opmode(struct qlcnic_adapter *adapter)
 		return -EIO;
 	}
 
-	if (ahw->capabilities & BIT_23)
+	if (ahw->capabilities & QLC_83XX_ESWITCH_CAPABILITY)
 		adapter->flags |= QLCNIC_ESWITCH_ENABLED;
 	else
 		adapter->flags &= ~QLCNIC_ESWITCH_ENABLED;
@@ -238,4 +238,42 @@ int qlcnic_83xx_check_vnic_state(struct qlcnic_adapter *adapter)
 	}
 
 	return 0;
+}
+
+static int qlcnic_83xx_get_eswitch_port_info(struct qlcnic_adapter *adapter,
+					     int func, int *port_id)
+{
+	struct qlcnic_info nic_info;
+	int err = 0;
+
+	memset(&nic_info, 0, sizeof(struct qlcnic_info));
+
+	err = qlcnic_get_nic_info(adapter, &nic_info, func);
+	if (err)
+		return err;
+
+	if (nic_info.capabilities & QLC_83XX_ESWITCH_CAPABILITY)
+		*port_id = nic_info.phys_port;
+	else
+		err = -EIO;
+
+	return err;
+}
+
+int qlcnic_83xx_enable_port_eswitch(struct qlcnic_adapter *adapter, int func)
+{
+	int id, err = 0;
+
+	err = qlcnic_83xx_get_eswitch_port_info(adapter, func, &id);
+	if (err)
+		return err;
+
+	if (!(adapter->eswitch[id].flags & QLCNIC_SWITCH_ENABLE)) {
+		if (!qlcnic_enable_eswitch(adapter, id, 1))
+			adapter->eswitch[id].flags |= QLCNIC_SWITCH_ENABLE;
+		else
+			err = -EIO;
+	}
+
+	return err;
 }

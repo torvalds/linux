@@ -2003,36 +2003,6 @@ static int qlcnic_83xx_restart_hw(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
-/**
-* qlcnic_83xx_config_default_opmode
-*
-* @adapter: adapter structure
-*
-* Configure default driver operating mode
-*
-* Returns: Error code or Success(0)
-* */
-int qlcnic_83xx_config_default_opmode(struct qlcnic_adapter *adapter)
-{
-	u32 op_mode;
-	struct qlcnic_hardware_context *ahw = adapter->ahw;
-
-	qlcnic_get_func_no(adapter);
-	op_mode = QLCRDX(ahw, QLC_83XX_DRV_OP_MODE);
-
-	if (test_bit(__QLCNIC_SRIOV_CAPABLE, &adapter->state))
-		op_mode = QLC_83XX_DEFAULT_OPMODE;
-
-	if (op_mode == QLC_83XX_DEFAULT_OPMODE) {
-		adapter->nic_ops->init_driver = qlcnic_83xx_init_default_driver;
-		ahw->idc.state_entry = qlcnic_83xx_idc_ready_state_entry;
-	} else {
-		return -EIO;
-	}
-
-	return 0;
-}
-
 int qlcnic_83xx_get_nic_configuration(struct qlcnic_adapter *adapter)
 {
 	int err;
@@ -2052,26 +2022,26 @@ int qlcnic_83xx_get_nic_configuration(struct qlcnic_adapter *adapter)
 	ahw->max_mac_filters = nic_info.max_mac_filters;
 	ahw->max_mtu = nic_info.max_mtu;
 
-	/* VNIC mode is detected by BIT_23 in capabilities. This bit is also
-	 * set in case device is SRIOV capable. VNIC and SRIOV are mutually
-	 * exclusive. So in case of sriov capable device load driver in
-	 * default mode
+	/* eSwitch capability indicates vNIC mode.
+	 * vNIC and SRIOV are mutually exclusive operational modes.
+	 * If SR-IOV capability is detected, SR-IOV physical function
+	 * will get initialized in default mode.
+	 * SR-IOV virtual function initialization follows a
+	 * different code path and opmode.
+	 * SRIOV mode has precedence over vNIC mode.
 	 */
-	if (test_bit(__QLCNIC_SRIOV_CAPABLE, &adapter->state)) {
-		ahw->nic_mode = QLC_83XX_DEFAULT_MODE;
-		return ahw->nic_mode;
-	}
+	if (test_bit(__QLCNIC_SRIOV_CAPABLE, &adapter->state))
+		return QLC_83XX_DEFAULT_OPMODE;
 
-	if (ahw->capabilities & BIT_23)
-		ahw->nic_mode = QLC_83XX_VIRTUAL_NIC_MODE;
-	else
-		ahw->nic_mode = QLC_83XX_DEFAULT_MODE;
+	if (ahw->capabilities & QLC_83XX_ESWITCH_CAPABILITY)
+		return QLC_83XX_VIRTUAL_NIC_MODE;
 
-	return ahw->nic_mode;
+	return QLC_83XX_DEFAULT_OPMODE;
 }
 
 int qlcnic_83xx_configure_opmode(struct qlcnic_adapter *adapter)
 {
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	int ret;
 
 	ret = qlcnic_83xx_get_nic_configuration(adapter);
@@ -2079,11 +2049,16 @@ int qlcnic_83xx_configure_opmode(struct qlcnic_adapter *adapter)
 		return -EIO;
 
 	if (ret == QLC_83XX_VIRTUAL_NIC_MODE) {
+		ahw->nic_mode = QLC_83XX_VIRTUAL_NIC_MODE;
 		if (qlcnic_83xx_config_vnic_opmode(adapter))
 			return -EIO;
-	} else if (ret == QLC_83XX_DEFAULT_MODE) {
-		if (qlcnic_83xx_config_default_opmode(adapter))
-			return -EIO;
+
+	} else if (ret == QLC_83XX_DEFAULT_OPMODE) {
+		ahw->nic_mode = QLC_83XX_DEFAULT_MODE;
+		adapter->nic_ops->init_driver = qlcnic_83xx_init_default_driver;
+		ahw->idc.state_entry = qlcnic_83xx_idc_ready_state_entry;
+	} else {
+		return -EIO;
 	}
 
 	return 0;

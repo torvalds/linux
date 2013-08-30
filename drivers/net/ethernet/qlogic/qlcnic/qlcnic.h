@@ -837,6 +837,7 @@ struct qlcnic_mac_list_s {
 #define QLCNIC_FW_CAP2_HW_LRO_IPV6		BIT_3
 #define QLCNIC_FW_CAPABILITY_SET_DRV_VER	BIT_5
 #define QLCNIC_FW_CAPABILITY_2_BEACON		BIT_7
+#define QLCNIC_FW_CAPABILITY_2_PER_PORT_ESWITCH_CFG	BIT_8
 
 /* module types */
 #define LINKEVENT_MODULE_NOT_PRESENT			1
@@ -1184,6 +1185,7 @@ struct qlcnic_pci_info {
 };
 
 struct qlcnic_npar_info {
+	bool	eswitch_status;
 	u16	pvid;
 	u16	min_bw;
 	u16	max_bw;

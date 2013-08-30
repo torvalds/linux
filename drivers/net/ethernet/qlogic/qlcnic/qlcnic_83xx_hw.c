@@ -2331,7 +2331,7 @@ int qlcnic_83xx_get_pci_info(struct qlcnic_adapter *adapter,
 					 pci_info->tx_max_bw, pci_info->mac);
 		}
 		if (ahw->op_mode == QLCNIC_MGMT_FUNC)
-			dev_info(dev, "Max vNIC functions = %d, active vNIC functions = %d\n",
+			dev_info(dev, "Max functions = %d, active functions = %d\n",
 				 ahw->max_pci_func, ahw->act_pci_func);
 
 	} else {
