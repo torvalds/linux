@@ -2137,7 +2137,7 @@ out_unlock:
 	return rc;
 }
 
-void efx_ef10_filter_update_rx_scatter(struct efx_nic *efx)
+static void efx_ef10_filter_update_rx_scatter(struct efx_nic *efx)
 {
 	/* no need to do anything here on EF10 */
 }
