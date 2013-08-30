@@ -2463,33 +2463,31 @@ static bool hsw_compute_lp_wm(struct drm_i915_private *dev_priv,
 	return ilk_check_wm(level, max, result);
 }
 
-static uint32_t hsw_compute_wm_pipe(struct drm_i915_private *dev_priv,
-				    enum pipe pipe,
+
+static uint32_t hsw_compute_wm_pipe(struct drm_device *dev,
 				    const struct hsw_pipe_wm_parameters *params)
 {
-	uint32_t pri_val, cur_val, spr_val;
-	/* WM0 latency values stored in 0.1us units */
-	uint16_t pri_latency = dev_priv->wm.pri_latency[0];
-	uint16_t spr_latency = dev_priv->wm.spr_latency[0];
-	uint16_t cur_latency = dev_priv->wm.cur_latency[0];
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_wm_config config = {
+		.num_pipes_active = 1,
+		.sprites_enabled = params->spr.enabled,
+		.sprites_scaled = params->spr.scaled,
+	};
+	struct hsw_wm_maximums max;
+	struct intel_wm_level res;
 
-	pri_val = ilk_compute_pri_wm(params, pri_latency, false);
-	spr_val = ilk_compute_spr_wm(params, spr_latency);
-	cur_val = ilk_compute_cur_wm(params, cur_latency);
+	if (!params->active)
+		return 0;
 
-	WARN(pri_val > 127,
-	     "Primary WM error, mode not supported for pipe %c\n",
-	     pipe_name(pipe));
-	WARN(spr_val > 127,
-	     "Sprite WM error, mode not supported for pipe %c\n",
-	     pipe_name(pipe));
-	WARN(cur_val > 63,
-	     "Cursor WM error, mode not supported for pipe %c\n",
-	     pipe_name(pipe));
+	ilk_wm_max(dev, 0, &config, INTEL_DDB_PART_1_2, &max);
 
-	return (pri_val << WM0_PIPE_PLANE_SHIFT) |
-	       (spr_val << WM0_PIPE_SPRITE_SHIFT) |
-	       cur_val;
+	ilk_compute_wm_level(dev_priv, 0, params, &res);
+
+	ilk_check_wm(0, &max, &res);
+
+	return (res.pri_val << WM0_PIPE_PLANE_SHIFT) |
+	       (res.spr_val << WM0_PIPE_SPRITE_SHIFT) |
+	       res.cur_val;
 }
 
 static uint32_t
@@ -2718,7 +2716,7 @@ static void hsw_compute_wm_results(struct drm_device *dev,
 	}
 
 	for_each_pipe(pipe)
-		results->wm_pipe[pipe] = hsw_compute_wm_pipe(dev_priv, pipe,
+		results->wm_pipe[pipe] = hsw_compute_wm_pipe(dev,
 							     &params[pipe]);
 
 	for_each_pipe(pipe) {
