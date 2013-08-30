@@ -2540,21 +2540,20 @@ static int copy_module_from_user(const void __user *umod, unsigned long len,
 /* Sets info->hdr and info->len. */
 static int copy_module_from_fd(int fd, struct load_info *info)
 {
-	struct file *file;
+	struct fd f = fdget(fd);
 	int err;
 	struct kstat stat;
 	loff_t pos;
 	ssize_t bytes = 0;
 
-	file = fget(fd);
-	if (!file)
+	if (!f.file)
 		return -ENOEXEC;
 
-	err = security_kernel_module_from_file(file);
+	err = security_kernel_module_from_file(f.file);
 	if (err)
 		goto out;
 
-	err = vfs_getattr(&file->f_path, &stat);
+	err = vfs_getattr(&f.file->f_path, &stat);
 	if (err)
 		goto out;
 
@@ -2577,7 +2576,7 @@ static int copy_module_from_fd(int fd, struct load_info *info)
 
 	pos = 0;
 	while (pos < stat.size) {
-		bytes = kernel_read(file, pos, (char *)(info->hdr) + pos,
+		bytes = kernel_read(f.file, pos, (char *)(info->hdr) + pos,
 				    stat.size - pos);
 		if (bytes < 0) {
 			vfree(info->hdr);
@@ -2591,7 +2590,7 @@ static int copy_module_from_fd(int fd, struct load_info *info)
 	info->len = pos;
 
 out:
-	fput(file);
+	fdput(f);
 	return err;
 }
 
