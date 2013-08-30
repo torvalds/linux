@@ -3547,28 +3547,22 @@ static int ni_dio_insn_config(struct comedi_device *dev,
 
 static int ni_dio_insn_bits(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+			    struct comedi_insn *insn,
+			    unsigned int *data)
 {
 	struct ni_private *devpriv = dev->private;
 
-#ifdef DEBUG_DIO
-	printk("ni_dio_insn_bits() mask=0x%x bits=0x%x\n", data[0], data[1]);
-#endif
+	/* Make sure we're not using the serial part of the dio */
+	if ((data[0] & (DIO_SDIN | DIO_SDOUT)) && devpriv->serial_interval_ns)
+		return -EBUSY;
 
-	if (data[0]) {
-		/* Perform check to make sure we're not using the
-		   serial part of the dio */
-		if ((data[0] & (DIO_SDIN | DIO_SDOUT))
-		    && devpriv->serial_interval_ns)
-			return -EBUSY;
-
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
+	if (comedi_dio_update_state(s, data)) {
 		devpriv->dio_output &= ~DIO_Parallel_Data_Mask;
 		devpriv->dio_output |= DIO_Parallel_Data_Out(s->state);
 		devpriv->stc_writew(dev, devpriv->dio_output,
 				    DIO_Output_Register);
 	}
+
 	data[1] = devpriv->stc_readw(dev, DIO_Parallel_Input_Register);
 
 	return insn->n;
@@ -3598,16 +3592,9 @@ static int ni_m_series_dio_insn_bits(struct comedi_device *dev,
 {
 	struct ni_private *devpriv __maybe_unused = dev->private;
 
-#ifdef DEBUG_DIO
-	printk("ni_m_series_dio_insn_bits() mask=0x%x bits=0x%x\n", data[0],
-	       data[1]);
-#endif
-
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
+	if (comedi_dio_update_state(s, data))
 		ni_writel(s->state, M_Offset_Static_Digital_Output);
-	}
+
 	data[1] = ni_readl(M_Offset_Static_Digital_Input);
 
 	return insn->n;
@@ -5355,20 +5342,20 @@ static int ni_config_filter(struct comedi_device *dev, unsigned pfi_channel,
 
 static int ni_pfi_insn_bits(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+			    struct comedi_insn *insn,
+			    unsigned int *data)
 {
 	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv __maybe_unused = dev->private;
 
-	if ((board->reg_type & ni_reg_m_series_mask) == 0) {
+	if (!(board->reg_type & ni_reg_m_series_mask))
 		return -ENOTSUPP;
-	}
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
+
+	if (comedi_dio_update_state(s, data))
 		ni_writew(s->state, M_Offset_PFI_DO);
-	}
+
 	data[1] = ni_readw(M_Offset_PFI_DI);
+
 	return insn->n;
 }
 
