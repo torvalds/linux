@@ -201,7 +201,7 @@ config REGULATOR_LP3972
 
 config REGULATOR_LP872X
 	tristate "TI/National Semiconductor LP8720/LP8725 voltage regulators"
-	depends on I2C=y
+	depends on I2C
 	select REGMAP_I2C
 	help
 	  This driver supports LP8720/LP8725 PMIC
