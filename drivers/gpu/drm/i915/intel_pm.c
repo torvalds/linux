@@ -2561,19 +2561,22 @@ static void intel_fixup_cur_wm_latency(struct drm_device *dev, uint16_t wm[5])
 		wm[3] *= 2;
 }
 
+static int ilk_wm_max_level(const struct drm_device *dev)
+{
+	/* how many WM levels are we expecting */
+	if (IS_HASWELL(dev))
+		return 4;
+	else if (INTEL_INFO(dev)->gen >= 6)
+		return 3;
+	else
+		return 2;
+}
+
 static void intel_print_wm_latency(struct drm_device *dev,
 				   const char *name,
 				   const uint16_t wm[5])
 {
-	int level, max_level;
-
-	/* how many WM levels are we expecting */
-	if (IS_HASWELL(dev))
-		max_level = 4;
-	else if (INTEL_INFO(dev)->gen >= 6)
-		max_level = 3;
-	else
-		max_level = 2;
+	int level, max_level = ilk_wm_max_level(dev);
 
 	for (level = 0; level <= max_level; level++) {
 		unsigned int latency = wm[level];
