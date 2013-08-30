@@ -418,8 +418,6 @@ config BFIN_WDT
 
 # FRV Architecture
 
-# H8300 Architecture
-
 # X86 (i386 + ia64 + x86_64) Architecture
 
 config ACQUIRE_WDT
