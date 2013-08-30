@@ -1463,6 +1463,7 @@ static int __spi_async(struct spi_device *spi, struct spi_message *message)
 			return -EINVAL;
 		if (xfer->speed_hz && master->max_speed_hz &&
 		    xfer->speed_hz > master->max_speed_hz)
+			return -EINVAL;
 
 		if (xfer->tx_buf && !xfer->tx_nbits)
 			xfer->tx_nbits = SPI_NBITS_SINGLE;
