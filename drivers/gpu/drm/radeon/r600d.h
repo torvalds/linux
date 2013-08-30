@@ -933,6 +933,9 @@
 #define DCCG_AUDIO_DTO0_LOAD              0x051c
 #       define DTO_LOAD                   (1 << 31)
 #define DCCG_AUDIO_DTO0_CNTL              0x0520
+#       define DCCG_AUDIO_DTO_WALLCLOCK_RATIO(x) (((x) & 7) << 0)
+#       define DCCG_AUDIO_DTO_WALLCLOCK_RATIO_MASK 7
+#       define DCCG_AUDIO_DTO_WALLCLOCK_RATIO_SHIFT 0
 
 #define DCCG_AUDIO_DTO1_PHASE             0x0524
 #define DCCG_AUDIO_DTO1_MODULE            0x0528

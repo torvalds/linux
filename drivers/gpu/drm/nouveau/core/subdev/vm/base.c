@@ -361,7 +361,7 @@ nouveau_vm_create(struct nouveau_vmmgr *vmm, u64 offset, u64 length,
 
 	INIT_LIST_HEAD(&vm->pgd_list);
 	vm->vmm = vmm;
-	vm->refcount = 1;
+	kref_init(&vm->refcount);
 	vm->fpde = offset >> (vmm->pgt_bits + 12);
 	vm->lpde = (offset + length - 1) >> (vmm->pgt_bits + 12);
 
@@ -441,8 +441,9 @@ nouveau_vm_unlink(struct nouveau_vm *vm, struct nouveau_gpuobj *mpgd)
 }
 
 static void
-nouveau_vm_del(struct nouveau_vm *vm)
+nouveau_vm_del(struct kref *kref)
 {
+	struct nouveau_vm *vm = container_of(kref, typeof(*vm), refcount);
 	struct nouveau_vm_pgd *vpgd, *tmp;
 
 	list_for_each_entry_safe(vpgd, tmp, &vm->pgd_list, head) {
@@ -458,27 +459,19 @@ int
 nouveau_vm_ref(struct nouveau_vm *ref, struct nouveau_vm **ptr,
 	       struct nouveau_gpuobj *pgd)
 {
-	struct nouveau_vm *vm;
-	int ret;
-
-	vm = ref;
-	if (vm) {
-		ret = nouveau_vm_link(vm, pgd);
+	if (ref) {
+		int ret = nouveau_vm_link(ref, pgd);
 		if (ret)
 			return ret;
 
-		vm->refcount++;
+		kref_get(&ref->refcount);
 	}
 
-	vm = *ptr;
+	if (*ptr) {
+		nouveau_vm_unlink(*ptr, pgd);
+		kref_put(&(*ptr)->refcount, nouveau_vm_del);
+	}
+
 	*ptr = ref;
-
-	if (vm) {
-		nouveau_vm_unlink(vm, pgd);
-
-		if (--vm->refcount == 0)
-			nouveau_vm_del(vm);
-	}
-
 	return 0;
 }

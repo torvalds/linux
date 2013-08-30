@@ -55,7 +55,7 @@ struct nouveau_vma {
 struct nouveau_vm {
 	struct nouveau_vmmgr *vmm;
 	struct nouveau_mm mm;
-	int refcount;
+	struct kref refcount;
 
 	struct list_head pgd_list;
 	atomic_t engref[NVDEV_SUBDEV_NR];

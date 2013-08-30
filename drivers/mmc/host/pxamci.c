@@ -128,7 +128,7 @@ static inline int pxamci_set_power(struct pxamci_host *host,
 			       !!on ^ host->pdata->gpio_power_invert);
 	}
 	if (!host->vcc && host->pdata && host->pdata->setpower)
-		host->pdata->setpower(mmc_dev(host->mmc), vdd);
+		return host->pdata->setpower(mmc_dev(host->mmc), vdd);
 
 	return 0;
 }

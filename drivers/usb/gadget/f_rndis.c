@@ -963,8 +963,11 @@ static struct usb_function_instance *rndis_alloc_inst(void)
 	mutex_init(&opts->lock);
 	opts->func_inst.free_func_inst = rndis_free_inst;
 	opts->net = gether_setup_default();
-	if (IS_ERR(opts->net))
-		return ERR_CAST(opts->net);
+	if (IS_ERR(opts->net)) {
+		struct net_device *net = opts->net;
+		kfree(opts);
+		return ERR_CAST(net);
+	}
 
 	config_group_init_type_name(&opts->func_inst.group, "",
 				    &rndis_func_type);

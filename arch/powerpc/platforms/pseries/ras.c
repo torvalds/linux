@@ -287,6 +287,9 @@ static struct rtas_error_log *fwnmi_get_errinfo(struct pt_regs *regs)
 	unsigned long *savep;
 	struct rtas_error_log *h, *errhdr = NULL;
 
+	/* Mask top two bits */
+	regs->gpr[3] &= ~(0x3UL << 62);
+
 	if (!VALID_FWNMI_BUFFER(regs->gpr[3])) {
 		printk(KERN_ERR "FWNMI: corrupt r3 0x%016lx\n", regs->gpr[3]);
 		return NULL;
