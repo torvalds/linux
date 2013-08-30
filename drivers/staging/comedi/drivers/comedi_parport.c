@@ -250,25 +250,20 @@ static int parport_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
-	unsigned int irq;
 	int ret;
 
 	ret = comedi_request_region(dev, it->options[0], 0x03);
 	if (ret)
 		return ret;
 
-	irq = it->options[1];
-	if (irq) {
-		ret = request_irq(irq, parport_interrupt, 0, dev->board_name,
-				  dev);
-		if (ret < 0) {
-			dev_err(dev->class_dev, "irq not available\n");
-			return -EINVAL;
-		}
-		dev->irq = irq;
+	if (it->options[1]) {
+		ret = request_irq(it->options[1], parport_interrupt, 0,
+				  dev->board_name, dev);
+		if (ret == 0)
+			dev->irq = it->options[1];
 	}
 
-	ret = comedi_alloc_subdevices(dev, 4);
+	ret = comedi_alloc_subdevices(dev, dev->irq ? 4 : 3);
 	if (ret)
 		return ret;
 
@@ -297,8 +292,8 @@ static int parport_attach(struct comedi_device *dev,
 	s->range_table = &range_digital;
 	s->insn_bits = parport_ctrl_reg_insn_bits;
 
-	s = &dev->subdevices[3];
-	if (irq) {
+	if (dev->irq) {
+		s = &dev->subdevices[3];
 		dev->read_subdev = s;
 		s->type = COMEDI_SUBD_DI;
 		s->subdev_flags = SDF_READABLE | SDF_CMD_READ;
@@ -309,8 +304,6 @@ static int parport_attach(struct comedi_device *dev,
 		s->do_cmdtest = parport_intr_cmdtest;
 		s->do_cmd = parport_intr_cmd;
 		s->cancel = parport_intr_cancel;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
 	}
 
 	outb(0, dev->iobase + PARPORT_DATA_REG);
