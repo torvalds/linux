@@ -823,7 +823,7 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 		if (port->count)
 			return -EINVAL;
 		port->passthru = true;
-		memcpy(dev->dev_addr, lowerdev->dev_addr, ETH_ALEN);
+		eth_hw_addr_inherit(dev, lowerdev);
 	}
 
 	err = netdev_upper_dev_link(lowerdev, dev);
