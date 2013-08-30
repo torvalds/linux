@@ -588,15 +588,18 @@ int dma_set_coherent_mask(struct device *dev, u64 mask)
 {
 	struct dma_map_ops *dma_ops = get_dma_ops(dev);
 
-	/* Handle hybrid PCI devices with limited memory addressability. */
-	if ((dma_ops == gx_pci_dma_map_ops ||
-	     dma_ops == gx_hybrid_pci_dma_map_ops ||
-	     dma_ops == gx_legacy_pci_dma_map_ops) &&
-	    (mask <= DMA_BIT_MASK(32))) {
-		if (dma_ops == gx_pci_dma_map_ops)
-			set_dma_ops(dev, gx_hybrid_pci_dma_map_ops);
-
-		if (mask > dev->archdata.max_direct_dma_addr)
+	/*
+	 * For PCI devices with 64-bit DMA addressing capability, promote
+	 * the dma_ops to full capability for both streams and consistent
+	 * memory access. For 32-bit capable devices, limit the consistent 
+	 * memory DMA range to max_direct_dma_addr.
+	 */
+	if (dma_ops == gx_pci_dma_map_ops ||
+	    dma_ops == gx_hybrid_pci_dma_map_ops ||
+	    dma_ops == gx_legacy_pci_dma_map_ops) {
+		if (mask == DMA_BIT_MASK(64))
+			set_dma_ops(dev, gx_pci_dma_map_ops);
+		else if (mask > dev->archdata.max_direct_dma_addr)
 			mask = dev->archdata.max_direct_dma_addr;
 	}
 

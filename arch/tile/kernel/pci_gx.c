@@ -1081,13 +1081,24 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 	return pci_enable_resources(dev, mask);
 }
 
-/* Called for each device after PCI setup is done. */
+/*
+ * Called for each device after PCI setup is done.
+ * We initialize the PCI device capabilities conservatively, assuming that
+ * all devices can only address the 32-bit DMA space. The exception here is
+ * that the device dma_offset is set to the value that matches the 64-bit
+ * capable devices. This is OK because dma_offset is not used by legacy
+ * dma_ops, nor by the hybrid dma_ops's streaming DMAs, which are 64-bit ops.
+ * This implementation matches the kernel design of setting PCI devices'
+ * coherent_dma_mask to 0xffffffffull by default, allowing the device drivers
+ * to skip calling pci_set_consistent_dma_mask(DMA_BIT_MASK(32)).
+ */
 static void pcibios_fixup_final(struct pci_dev *pdev)
 {
-	set_dma_ops(&pdev->dev, gx_pci_dma_map_ops);
+	set_dma_ops(&pdev->dev, gx_legacy_pci_dma_map_ops);
 	set_dma_offset(&pdev->dev, TILE_PCI_MEM_MAP_BASE_OFFSET);
 	pdev->dev.archdata.max_direct_dma_addr =
 		TILE_PCI_MAX_DIRECT_DMA_ADDRESS;
+	pdev->dev.coherent_dma_mask = TILE_PCI_MAX_DIRECT_DMA_ADDRESS;
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_ANY_ID, PCI_ANY_ID, pcibios_fixup_final);
 
