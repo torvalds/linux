@@ -1781,8 +1781,8 @@ int qlcnic_sriov_set_vf_vlan(struct net_device *netdev, int vf,
 	return 0;
 }
 
-static inline __u32 qlcnic_sriov_get_vf_vlan(struct qlcnic_adapter *adapter,
-					     struct qlcnic_vport *vp, int vf)
+static __u32 qlcnic_sriov_get_vf_vlan(struct qlcnic_adapter *adapter,
+				      struct qlcnic_vport *vp, int vf)
 {
 	__u32 vlan = 0;
 

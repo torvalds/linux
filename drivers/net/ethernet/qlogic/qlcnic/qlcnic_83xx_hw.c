@@ -723,9 +723,8 @@ void qlcnic_dump_mbx(struct qlcnic_adapter *adapter,
 	pr_info("\n");
 }
 
-static inline void
-qlcnic_83xx_poll_for_mbx_completion(struct qlcnic_adapter *adapter,
-				    struct qlcnic_cmd_args *cmd)
+static void qlcnic_83xx_poll_for_mbx_completion(struct qlcnic_adapter *adapter,
+						struct qlcnic_cmd_args *cmd)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	int opcode = LSW(cmd->req.arg[0]);
@@ -3544,7 +3543,7 @@ qlcnic_83xx_notify_cmd_completion(struct qlcnic_adapter *adapter,
 	complete(&cmd->completion);
 }
 
-static inline void qlcnic_83xx_flush_mbx_queue(struct qlcnic_adapter *adapter)
+static void qlcnic_83xx_flush_mbx_queue(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_mailbox *mbx = adapter->ahw->mailbox;
 	struct list_head *head = &mbx->cmd_q;
@@ -3564,7 +3563,7 @@ static inline void qlcnic_83xx_flush_mbx_queue(struct qlcnic_adapter *adapter)
 	spin_unlock(&mbx->queue_lock);
 }
 
-static inline int qlcnic_83xx_check_mbx_status(struct qlcnic_adapter *adapter)
+static int qlcnic_83xx_check_mbx_status(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	struct qlcnic_mailbox *mbx = ahw->mailbox;
@@ -3592,8 +3591,8 @@ static inline void qlcnic_83xx_signal_mbx_cmd(struct qlcnic_adapter *adapter,
 		QLCWRX(adapter->ahw, QLCNIC_FW_MBX_CTRL, QLCNIC_CLR_OWNER);
 }
 
-static inline void qlcnic_83xx_dequeue_mbx_cmd(struct qlcnic_adapter *adapter,
-					       struct qlcnic_cmd_args *cmd)
+static void qlcnic_83xx_dequeue_mbx_cmd(struct qlcnic_adapter *adapter,
+					struct qlcnic_cmd_args *cmd)
 {
 	struct qlcnic_mailbox *mbx = adapter->ahw->mailbox;
 
@@ -3653,9 +3652,9 @@ void qlcnic_83xx_detach_mailbox_work(struct qlcnic_adapter *adapter)
 	qlcnic_83xx_flush_mbx_queue(adapter);
 }
 
-static inline int qlcnic_83xx_enqueue_mbx_cmd(struct qlcnic_adapter *adapter,
-					      struct qlcnic_cmd_args *cmd,
-					      unsigned long *timeout)
+static int qlcnic_83xx_enqueue_mbx_cmd(struct qlcnic_adapter *adapter,
+				       struct qlcnic_cmd_args *cmd,
+				       unsigned long *timeout)
 {
 	struct qlcnic_mailbox *mbx = adapter->ahw->mailbox;
 
@@ -3680,8 +3679,8 @@ static inline int qlcnic_83xx_enqueue_mbx_cmd(struct qlcnic_adapter *adapter,
 	return -EBUSY;
 }
 
-static inline int qlcnic_83xx_check_mac_rcode(struct qlcnic_adapter *adapter,
-					      struct qlcnic_cmd_args *cmd)
+static int qlcnic_83xx_check_mac_rcode(struct qlcnic_adapter *adapter,
+				       struct qlcnic_cmd_args *cmd)
 {
 	u8 mac_cmd_rcode;
 	u32 fw_data;

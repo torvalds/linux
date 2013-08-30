@@ -1950,8 +1950,8 @@ static void qlcnic_83xx_init_hw(struct qlcnic_adapter *p_dev)
 		dev_err(&p_dev->pdev->dev, "%s: failed\n", __func__);
 }
 
-static inline void qlcnic_83xx_get_fw_file_name(struct qlcnic_adapter *adapter,
-						char *file_name)
+static void qlcnic_83xx_get_fw_file_name(struct qlcnic_adapter *adapter,
+					 char *file_name)
 {
 	struct pci_dev *pdev = adapter->pdev;
 

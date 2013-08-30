@@ -969,8 +969,8 @@ static int qlcnic_setup_pci_map(struct pci_dev *pdev,
 	return 0;
 }
 
-static inline bool qlcnic_validate_subsystem_id(struct qlcnic_adapter *adapter,
-						int index)
+static bool qlcnic_validate_subsystem_id(struct qlcnic_adapter *adapter,
+					 int index)
 {
 	struct pci_dev *pdev = adapter->pdev;
 	unsigned short subsystem_vendor;
