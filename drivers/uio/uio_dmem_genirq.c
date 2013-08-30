@@ -146,7 +146,7 @@ static int uio_dmem_genirq_irqcontrol(struct uio_info *dev_info, s32 irq_on)
 
 static int uio_dmem_genirq_probe(struct platform_device *pdev)
 {
-	struct uio_dmem_genirq_pdata *pdata = pdev->dev.platform_data;
+	struct uio_dmem_genirq_pdata *pdata = dev_get_platdata(&pdev->dev);
 	struct uio_info *uioinfo = &pdata->uioinfo;
 	struct uio_dmem_genirq_platdata *priv;
 	struct uio_mem *uiomem;
