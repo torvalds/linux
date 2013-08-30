@@ -1217,15 +1217,9 @@ static int rtd_dio_insn_bits(struct comedi_device *dev,
 			     unsigned int *data)
 {
 	struct rtd_private *devpriv = dev->private;
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
 
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
-
+	if (comedi_dio_update_state(s, data))
 		writew(s->state & 0xff, devpriv->las0 + LAS0_DIO0);
-	}
 
 	data[1] = readw(devpriv->las0 + LAS0_DIO0) & 0xff;
 

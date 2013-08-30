@@ -952,15 +952,8 @@ static int das16_do_insn_bits(struct comedi_device *dev,
 			      struct comedi_insn *insn,
 			      unsigned int *data)
 {
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
-
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
-
+	if (comedi_dio_update_state(s, data))
 		outb(s->state, dev->iobase + DAS16_DIO_REG);
-	}
 
 	data[1] = s->state;
 

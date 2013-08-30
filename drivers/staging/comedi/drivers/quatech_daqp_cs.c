@@ -690,18 +690,12 @@ static int daqp_do_insn_bits(struct comedi_device *dev,
 			     unsigned int *data)
 {
 	struct daqp_private *devpriv = dev->private;
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
 
 	if (devpriv->stop)
 		return -EIO;
 
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
-
+	if (comedi_dio_update_state(s, data))
 		outb(s->state, dev->iobase + DAQP_DIGITAL_IO);
-	}
 
 	data[1] = s->state;
 

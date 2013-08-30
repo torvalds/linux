@@ -528,23 +528,23 @@ static int dt2801_ao_insn_write(struct comedi_device *dev,
 
 static int dt2801_dio_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	int which = 0;
+	int which = (s == &dev->subdevices[3]) ? 1 : 0;
+	unsigned int val;
 
-	if (s == &dev->subdevices[3])
-		which = 1;
-
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
+	if (comedi_dio_update_state(s, data)) {
 		dt2801_writecmd(dev, DT_C_WRITE_DIG);
 		dt2801_writedata(dev, which);
 		dt2801_writedata(dev, s->state);
 	}
+
 	dt2801_writecmd(dev, DT_C_READ_DIG);
 	dt2801_writedata(dev, which);
-	dt2801_readdata(dev, data + 1);
+	dt2801_readdata(dev, &val);
+
+	data[1] = val;
 
 	return insn->n;
 }

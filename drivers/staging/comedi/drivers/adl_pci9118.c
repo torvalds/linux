@@ -671,13 +671,12 @@ static int pci9118_insn_bits_di(struct comedi_device *dev,
 
 static int pci9118_insn_bits_do(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
+	if (comedi_dio_update_state(s, data))
 		outl(s->state & 0x0f, dev->iobase + PCI9118_DO);
-	}
+
 	data[1] = s->state;
 
 	return insn->n;

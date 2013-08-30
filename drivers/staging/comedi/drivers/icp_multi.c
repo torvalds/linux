@@ -348,18 +348,13 @@ static int icp_multi_insn_bits_di(struct comedi_device *dev,
 
 static int icp_multi_insn_bits_do(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
 	struct icp_multi_private *devpriv = dev->private;
 
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
-
-		printk(KERN_DEBUG "Digital outputs = %4x \n", s->state);
-
+	if (comedi_dio_update_state(s, data))
 		writew(s->state, devpriv->io_addr + ICP_MULTI_DO);
-	}
 
 	data[1] = readw(devpriv->io_addr + ICP_MULTI_DI);
 

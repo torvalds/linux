@@ -657,15 +657,14 @@ static int ni_pcidio_insn_config(struct comedi_device *dev,
 
 static int ni_pcidio_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
 	struct nidio96_private *devpriv = dev->private;
 
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
+	if (comedi_dio_update_state(s, data))
 		writel(s->state, devpriv->mite->daq_io_addr + Port_IO(0));
-	}
+
 	data[1] = readl(devpriv->mite->daq_io_addr + Port_IO(0));
 
 	return insn->n;

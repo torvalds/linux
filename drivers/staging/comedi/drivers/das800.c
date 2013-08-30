@@ -630,13 +630,9 @@ static int das800_do_insn_bits(struct comedi_device *dev,
 			       unsigned int *data)
 {
 	struct das800_private *devpriv = dev->private;
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
 	unsigned long irq_flags;
 
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
+	if (comedi_dio_update_state(s, data)) {
 		devpriv->do_bits = s->state << 4;
 
 		spin_lock_irqsave(&dev->spinlock, irq_flags);

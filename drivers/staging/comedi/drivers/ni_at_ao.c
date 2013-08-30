@@ -233,13 +233,11 @@ static int atao_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 static int atao_dio_insn_bits(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= data[0] & data[1];
+	if (comedi_dio_update_state(s, data))
 		outw(s->state, dev->iobase + ATAO_DOUT);
-	}
 
 	data[1] = inw(dev->iobase + ATAO_DIN);
 

@@ -418,21 +418,15 @@ static int pcl818_di_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
-==============================================================================
-   DIGITAL OUTPUT MODE0, 818 cards
-
-   only one sample per call is supported
-*/
 static int pcl818_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
-	s->state &= ~data[0];
-	s->state |= (data[0] & data[1]);
-
-	outb(s->state & 0xff, dev->iobase + PCL818_DO_LO);
-	outb((s->state >> 8), dev->iobase + PCL818_DO_HI);
+	if (comedi_dio_update_state(s, data)) {
+		outb(s->state & 0xff, dev->iobase + PCL818_DO_LO);
+		outb((s->state >> 8), dev->iobase + PCL818_DO_HI);
+	}
 
 	data[1] = s->state;
 
