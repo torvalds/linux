@@ -314,7 +314,7 @@ static int davinci_mdio_probe_dt(struct mdio_platform_data *data,
 
 static int davinci_mdio_probe(struct platform_device *pdev)
 {
-	struct mdio_platform_data *pdata = pdev->dev.platform_data;
+	struct mdio_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct device *dev = &pdev->dev;
 	struct davinci_mdio_data *data;
 	struct resource *res;
