@@ -1789,14 +1789,6 @@ xfs_swap_extents(
 	int		taforkblks = 0;
 	__uint64_t	tmp;
 
-	/*
-	 * We have no way of updating owner information in the BMBT blocks for
-	 * each inode on CRC enabled filesystems, so to avoid corrupting the
-	 * this metadata we simply don't allow extent swaps to occur.
-	 */
-	if (xfs_sb_version_hascrc(&mp->m_sb))
-		return XFS_ERROR(EINVAL);
-
 	tempifp = kmem_alloc(sizeof(xfs_ifork_t), KM_MAYFAIL);
 	if (!tempifp) {
 		error = XFS_ERROR(ENOMEM);
@@ -1920,6 +1912,40 @@ xfs_swap_extents(
 			goto out_trans_cancel;
 	}
 
+	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
+	xfs_trans_ijoin(tp, tip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
+
+	/*
+	 * Before we've swapped the forks, lets set the owners of the forks
+	 * appropriately. We have to do this as we are demand paging the btree
+	 * buffers, and so the validation done on read will expect the owner
+	 * field to be correctly set. Once we change the owners, we can swap the
+	 * inode forks.
+	 *
+	 * Note the trickiness in setting the log flags - we set the owner log
+	 * flag on the opposite inode (i.e. the inode we are setting the new
+	 * owner to be) because once we swap the forks and log that, log
+	 * recovery is going to see the fork as owned by the swapped inode,
+	 * not the pre-swapped inodes.
+	 */
+	src_log_flags = XFS_ILOG_CORE;
+	target_log_flags = XFS_ILOG_CORE;
+	if (ip->i_d.di_version == 3 &&
+	    ip->i_d.di_format == XFS_DINODE_FMT_BTREE) {
+		target_log_flags |= XFS_ILOG_OWNER;
+		error = xfs_bmbt_change_owner(tp, ip, XFS_DATA_FORK, tip->i_ino);
+		if (error)
+			goto out_trans_cancel;
+	}
+
+	if (tip->i_d.di_version == 3 &&
+	    tip->i_d.di_format == XFS_DINODE_FMT_BTREE) {
+		src_log_flags |= XFS_ILOG_OWNER;
+		error = xfs_bmbt_change_owner(tp, tip, XFS_DATA_FORK, ip->i_ino);
+		if (error)
+			goto out_trans_cancel;
+	}
+
 	/*
 	 * Swap the data forks of the inodes
 	 */
@@ -1957,7 +1983,6 @@ xfs_swap_extents(
 	tip->i_delayed_blks = ip->i_delayed_blks;
 	ip->i_delayed_blks = 0;
 
-	src_log_flags = XFS_ILOG_CORE;
 	switch (ip->i_d.di_format) {
 	case XFS_DINODE_FMT_EXTENTS:
 		/* If the extents fit in the inode, fix the
@@ -1971,11 +1996,12 @@ xfs_swap_extents(
 		src_log_flags |= XFS_ILOG_DEXT;
 		break;
 	case XFS_DINODE_FMT_BTREE:
+		ASSERT(ip->i_d.di_version < 3 ||
+		       (src_log_flags & XFS_ILOG_OWNER));
 		src_log_flags |= XFS_ILOG_DBROOT;
 		break;
 	}
 
-	target_log_flags = XFS_ILOG_CORE;
 	switch (tip->i_d.di_format) {
 	case XFS_DINODE_FMT_EXTENTS:
 		/* If the extents fit in the inode, fix the
@@ -1990,12 +2016,10 @@ xfs_swap_extents(
 		break;
 	case XFS_DINODE_FMT_BTREE:
 		target_log_flags |= XFS_ILOG_DBROOT;
+		ASSERT(tip->i_d.di_version < 3 ||
+		       (target_log_flags & XFS_ILOG_OWNER));
 		break;
 	}
-
-
-	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
-	xfs_trans_ijoin(tp, tip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
 
 	xfs_trans_log_inode(tp, ip,  src_log_flags);
 	xfs_trans_log_inode(tp, tip, target_log_flags);

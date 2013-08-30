@@ -121,15 +121,18 @@ union xfs_btree_rec {
 /*
  * For logging record fields.
  */
-#define	XFS_BB_MAGIC		0x01
-#define	XFS_BB_LEVEL		0x02
-#define	XFS_BB_NUMRECS		0x04
-#define	XFS_BB_LEFTSIB		0x08
-#define	XFS_BB_RIGHTSIB		0x10
-#define	XFS_BB_BLKNO		0x20
+#define	XFS_BB_MAGIC		(1 << 0)
+#define	XFS_BB_LEVEL		(1 << 1)
+#define	XFS_BB_NUMRECS		(1 << 2)
+#define	XFS_BB_LEFTSIB		(1 << 3)
+#define	XFS_BB_RIGHTSIB		(1 << 4)
+#define	XFS_BB_BLKNO		(1 << 5)
+#define	XFS_BB_LSN		(1 << 6)
+#define	XFS_BB_UUID		(1 << 7)
+#define	XFS_BB_OWNER		(1 << 8)
 #define	XFS_BB_NUM_BITS		5
 #define	XFS_BB_ALL_BITS		((1 << XFS_BB_NUM_BITS) - 1)
-#define	XFS_BB_NUM_BITS_CRC	8
+#define	XFS_BB_NUM_BITS_CRC	9
 #define	XFS_BB_ALL_BITS_CRC	((1 << XFS_BB_NUM_BITS_CRC) - 1)
 
 /*
@@ -442,6 +445,7 @@ int xfs_btree_new_iroot(struct xfs_btree_cur *, int *, int *);
 int xfs_btree_insert(struct xfs_btree_cur *, int *);
 int xfs_btree_delete(struct xfs_btree_cur *, int *);
 int xfs_btree_get_rec(struct xfs_btree_cur *, union xfs_btree_rec **, int *);
+int xfs_btree_change_owner(struct xfs_btree_cur *cur, __uint64_t new_owner);
 
 /*
  * btree block CRC helpers

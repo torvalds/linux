@@ -474,6 +474,7 @@ typedef struct xfs_inode_log_format_64 {
 #define	XFS_ILOG_ADATA	0x040	/* log i_af.if_data */
 #define	XFS_ILOG_AEXT	0x080	/* log i_af.if_extents */
 #define	XFS_ILOG_ABROOT	0x100	/* log i_af.i_broot */
+#define XFS_ILOG_OWNER	0x200	/* change the extent tree owner on replay */
 
 
 /*
