@@ -586,6 +586,12 @@ struct i915_ctx_hang_stats {
 
 	/* This context had batch active when hang was declared */
 	unsigned batch_active;
+
+	/* Time when this context was last blamed for a GPU reset */
+	unsigned long guilty_ts;
+
+	/* This context is banned to submit more work */
+	bool banned;
 };
 
 /* This must match up with the value previously used for execbuf2.rsvd1. */
@@ -987,6 +993,9 @@ struct i915_gpu_error {
 	/* For hangcheck timer */
 #define DRM_I915_HANGCHECK_PERIOD 1500 /* in ms */
 #define DRM_I915_HANGCHECK_JIFFIES msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD)
+	/* Hang gpu twice in this window and your context gets banned */
+#define DRM_I915_CTX_BAN_PERIOD DIV_ROUND_UP(8*DRM_I915_HANGCHECK_PERIOD, 1000)
+
 	struct timer_list hangcheck_timer;
 
 	/* For reset and error_state handling. */
@@ -994,8 +1003,6 @@ struct i915_gpu_error {
 	/* Protected by the above dev->gpu_error.lock. */
 	struct drm_i915_error_state *first_error;
 	struct work_struct work;
-
-	unsigned long last_reset;
 
 	/**
 	 * State variable and reset counter controlling the reset flow

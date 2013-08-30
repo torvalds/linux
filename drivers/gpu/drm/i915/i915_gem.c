@@ -2221,6 +2221,21 @@ static bool i915_request_guilty(struct drm_i915_gem_request *request,
 	return false;
 }
 
+static bool i915_context_is_banned(const struct i915_ctx_hang_stats *hs)
+{
+	const unsigned long elapsed = get_seconds() - hs->guilty_ts;
+
+	if (hs->banned)
+		return true;
+
+	if (elapsed <= DRM_I915_CTX_BAN_PERIOD) {
+		DRM_ERROR("context hanging too fast, declaring banned!\n");
+		return true;
+	}
+
+	return false;
+}
+
 static void i915_set_reset_status(struct intel_ring_buffer *ring,
 				  struct drm_i915_gem_request *request,
 				  u32 acthd)
@@ -2257,10 +2272,13 @@ static void i915_set_reset_status(struct intel_ring_buffer *ring,
 		hs = &request->file_priv->hang_stats;
 
 	if (hs) {
-		if (guilty)
+		if (guilty) {
+			hs->banned = i915_context_is_banned(hs);
 			hs->batch_active++;
-		else
+			hs->guilty_ts = get_seconds();
+		} else {
 			hs->batch_pending++;
+		}
 	}
 }
 
