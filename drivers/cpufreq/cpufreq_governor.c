@@ -119,8 +119,18 @@ void gov_queue_work(struct dbs_data *dbs_data, struct cpufreq_policy *policy,
 {
 	int i;
 
+	if (!policy->governor_enabled)
+		return;
+
 	if (!all_cpus) {
-		__gov_queue_work(smp_processor_id(), dbs_data, delay);
+		/*
+		 * Use raw_smp_processor_id() to avoid preemptible warnings.
+		 * We know that this is only called with all_cpus == false from
+		 * works that have been queued with *_work_on() functions and
+		 * those works are canceled during CPU_DOWN_PREPARE so they
+		 * can't possibly run on any other CPU.
+		 */
+		__gov_queue_work(raw_smp_processor_id(), dbs_data, delay);
 	} else {
 		for_each_cpu(i, policy->cpus)
 			__gov_queue_work(i, dbs_data, delay);
@@ -230,7 +240,7 @@ int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 
 		policy->governor_data = dbs_data;
 
-		/* policy latency is in nS. Convert it to uS first */
+		/* policy latency is in ns. Convert it to us first */
 		latency = policy->cpuinfo.transition_latency / 1000;
 		if (latency == 0)
 			latency = 1;

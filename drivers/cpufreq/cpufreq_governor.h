@@ -25,11 +25,11 @@
 /*
  * The polling frequency depends on the capability of the processor. Default
  * polling frequency is 1000 times the transition latency of the processor. The
- * governor will work on any processor with transition latency <= 10mS, using
+ * governor will work on any processor with transition latency <= 10ms, using
  * appropriate sampling rate.
  *
- * For CPUs with transition latency > 10mS (mostly drivers with CPUFREQ_ETERNAL)
- * this governor will not work. All times here are in uS.
+ * For CPUs with transition latency > 10ms (mostly drivers with CPUFREQ_ETERNAL)
+ * this governor will not work. All times here are in us (micro seconds).
  */
 #define MIN_SAMPLING_RATE_RATIO			(2)
 #define LATENCY_MULTIPLIER			(1000)
@@ -162,7 +162,7 @@ struct cs_cpu_dbs_info_s {
 	unsigned int enable:1;
 };
 
-/* Per policy Governers sysfs tunables */
+/* Per policy Governors sysfs tunables */
 struct od_dbs_tuners {
 	unsigned int ignore_nice_load;
 	unsigned int sampling_rate;
@@ -181,7 +181,7 @@ struct cs_dbs_tuners {
 	unsigned int freq_step;
 };
 
-/* Common Governer data across policies */
+/* Common Governor data across policies */
 struct dbs_data;
 struct common_dbs_data {
 	/* Common across governors */
@@ -205,7 +205,7 @@ struct common_dbs_data {
 	void *gov_ops;
 };
 
-/* Governer Per policy data */
+/* Governor Per policy data */
 struct dbs_data {
 	struct common_dbs_data *cdata;
 	unsigned int min_sampling_rate;

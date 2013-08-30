@@ -117,28 +117,11 @@ static int imx6q_set_target(struct cpufreq_policy *policy,
 	 *  - Reprogram pll1_sys_clk and reparent pll1_sw_clk back to it
 	 *  - Disable pll2_pfd2_396m_clk
 	 */
-	clk_prepare_enable(pll2_pfd2_396m_clk);
 	clk_set_parent(step_clk, pll2_pfd2_396m_clk);
 	clk_set_parent(pll1_sw_clk, step_clk);
 	if (freq_hz > clk_get_rate(pll2_pfd2_396m_clk)) {
 		clk_set_rate(pll1_sys_clk, freqs.new * 1000);
-		/*
-		 * If we are leaving 396 MHz set-point, we need to enable
-		 * pll1_sys_clk and disable pll2_pfd2_396m_clk to keep
-		 * their use count correct.
-		 */
-		if (freqs.old * 1000 <= clk_get_rate(pll2_pfd2_396m_clk)) {
-			clk_prepare_enable(pll1_sys_clk);
-			clk_disable_unprepare(pll2_pfd2_396m_clk);
-		}
 		clk_set_parent(pll1_sw_clk, pll1_sys_clk);
-		clk_disable_unprepare(pll2_pfd2_396m_clk);
-	} else {
-		/*
-		 * Disable pll1_sys_clk if pll2_pfd2_396m_clk is sufficient
-		 * to provide the frequency.
-		 */
-		clk_disable_unprepare(pll1_sys_clk);
 	}
 
 	/* Ensure the arm clock divider is what we expect */
