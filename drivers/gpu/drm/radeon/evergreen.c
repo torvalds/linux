@@ -5106,6 +5106,11 @@ static int evergreen_startup(struct radeon_device *rdev)
 	/* enable aspm */
 	evergreen_program_aspm(rdev);
 
+	/* scratch needs to be initialized before MC */
+	r = r600_vram_scratch_init(rdev);
+	if (r)
+		return r;
+
 	evergreen_mc_program(rdev);
 
 	if (ASIC_IS_DCE5(rdev)) {
@@ -5130,10 +5135,6 @@ static int evergreen_startup(struct radeon_device *rdev)
 			}
 		}
 	}
-
-	r = r600_vram_scratch_init(rdev);
-	if (r)
-		return r;
 
 	if (rdev->flags & RADEON_IS_AGP) {
 		evergreen_agp_enable(rdev);
