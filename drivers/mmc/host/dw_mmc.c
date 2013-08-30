@@ -2008,12 +2008,6 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	/* Card initially undetected */
 	slot->last_detect_state = 0;
 
-	/*
-	 * Card may have been plugged in prior to boot so we
-	 * need to run the detect tasklet
-	 */
-	queue_work(host->card_workqueue, &host->card_work);
-
 	return 0;
 
 err_setup_bus:
