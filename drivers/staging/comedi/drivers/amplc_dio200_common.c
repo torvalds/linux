@@ -1022,8 +1022,6 @@ static int dio200_subdev_8255_init(struct comedi_device *dev,
 	s->maxdata = 1;
 	s->insn_bits = dio200_subdev_8255_bits;
 	s->insn_config = dio200_subdev_8255_config;
-	s->state = 0;
-	s->io_bits = 0;
 	dio200_subdev_8255_set_dir(dev, s);
 	return 0;
 }

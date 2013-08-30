@@ -2075,7 +2075,6 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 	s->maxdata = 1;
 	s->len_chanlist = 4;
 	s->range_table = &range_digital;
-	s->io_bits = 0;		/* all bits input */
 	s->insn_bits = pci9118_insn_bits_di;
 
 	s = &dev->subdevices[3];
@@ -2085,7 +2084,6 @@ static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
 	s->maxdata = 1;
 	s->len_chanlist = 4;
 	s->range_table = &range_digital;
-	s->io_bits = 0xf;	/* all bits output */
 	s->insn_bits = pci9118_insn_bits_do;
 
 	devpriv->valid = 1;

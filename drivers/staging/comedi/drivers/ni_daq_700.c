@@ -212,7 +212,6 @@ static int daq700_auto_attach(struct comedi_device *dev,
 	s->maxdata	= 1;
 	s->insn_bits	= daq700_dio_insn_bits;
 	s->insn_config	= daq700_dio_insn_config;
-	s->state	= 0;
 	s->io_bits	= 0x00ff;
 
 	/* DAQCard-700 ai */

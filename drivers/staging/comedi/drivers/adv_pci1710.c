@@ -1320,7 +1320,6 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		s->maxdata = 1;
 		s->len_chanlist = this_board->n_dichan;
 		s->range_table = &range_digital;
-		s->io_bits = 0;	/* all bits input */
 		s->insn_bits = pci171x_insn_bits_di;
 		subdev++;
 	}
@@ -1333,9 +1332,6 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 		s->maxdata = 1;
 		s->len_chanlist = this_board->n_dochan;
 		s->range_table = &range_digital;
-		/* all bits output */
-		s->io_bits = (1 << this_board->n_dochan) - 1;
-		s->state = 0;
 		s->insn_bits = pci171x_insn_bits_do;
 		subdev++;
 	}

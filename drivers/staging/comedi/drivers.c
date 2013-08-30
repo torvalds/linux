@@ -285,6 +285,13 @@ static int __comedi_device_postconfig(struct comedi_device *dev)
 		if (s->type == COMEDI_SUBD_UNUSED)
 			continue;
 
+		if (s->type == COMEDI_SUBD_DO) {
+			if (s->n_chan < 32)
+				s->io_bits = (1 << s->n_chan) - 1;
+			else
+				s->io_bits = 0xffffffff;
+		}
+
 		if (s->len_chanlist == 0)
 			s->len_chanlist = 1;
 
