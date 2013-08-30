@@ -2734,7 +2734,7 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 {
 	struct usb_hcd *hcd;
 	struct dwc2_host_chan *channel;
-	u32 snpsid, gusbcfg, hcfg;
+	u32 gusbcfg, hcfg;
 	int i, num_channels;
 	int retval = -ENOMEM;
 
@@ -2746,10 +2746,11 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 	 * 0x45f42xxx or 0x45f43xxx, which corresponds to either "OT2" or "OT3",
 	 * as in "OTG version 2.xx" or "OTG version 3.xx".
 	 */
-	snpsid = readl(hsotg->regs + GSNPSID);
-	if ((snpsid & 0xfffff000) != 0x4f542000 &&
-	    (snpsid & 0xfffff000) != 0x4f543000) {
-		dev_err(hsotg->dev, "Bad value for GSNPSID: 0x%08x\n", snpsid);
+	hsotg->snpsid = readl(hsotg->regs + GSNPSID);
+	if ((hsotg->snpsid & 0xfffff000) != 0x4f542000 &&
+	    (hsotg->snpsid & 0xfffff000) != 0x4f543000) {
+		dev_err(hsotg->dev, "Bad value for GSNPSID: 0x%08x\n",
+			hsotg->snpsid);
 		retval = -ENODEV;
 		goto error1;
 	}
@@ -2880,7 +2881,6 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 	}
 	INIT_WORK(&hsotg->wf_otg, dwc2_conn_id_status_change);
 
-	hsotg->snpsid = readl(hsotg->regs + GSNPSID);
 	dev_dbg(hsotg->dev, "Core Release: %1x.%1x%1x%1x\n",
 		hsotg->snpsid >> 12 & 0xf, hsotg->snpsid >> 8 & 0xf,
 		hsotg->snpsid >> 4 & 0xf, hsotg->snpsid & 0xf);
