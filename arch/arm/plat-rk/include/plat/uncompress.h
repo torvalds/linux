@@ -3,13 +3,15 @@
 
 #include <linux/serial_reg.h>
 #include <mach/io.h>
+#include <mach/debug_uart.h>
 
 #ifdef DEBUG_UART_PHYS
 static volatile u32 *UART = (u32 *)DEBUG_UART_PHYS;
 
 static void putc(int c)
 {
-	while (!(UART[UART_LSR] & UART_LSR_THRE))
+	int i = 1000;
+	while (i-- && !(UART[UART_LSR] & UART_LSR_THRE))
 		barrier();
 	UART[UART_TX] = c;
 }
