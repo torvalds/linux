@@ -124,3 +124,9 @@ Description:
 		can be trusted, and can be used to seek forward one (sub)
 		descriptor at a time until the next config descriptor is found.
 		All descriptors read from this file are in bus-endian format
+
+What:		/sys/bus/usb/devices/.../speed
+KernelVersion:	since at least 2.6.18
+Description:
+		Speed the device is connected with to the usb-host in
+		Mbit / second. IE one of 1.5 / 12 / 480 / 5000.
