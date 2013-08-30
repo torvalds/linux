@@ -165,18 +165,15 @@ static void dwc2_rx_fifo_level_intr(struct dwc2_hsotg *hsotg)
 		dev_vdbg(hsotg->dev, "--RxFIFO Level Interrupt--\n");
 
 	grxsts = readl(hsotg->regs + GRXSTSP);
-	chnum = grxsts >> GRXSTS_HCHNUM_SHIFT &
-		GRXSTS_HCHNUM_MASK >> GRXSTS_HCHNUM_SHIFT;
+	chnum = (grxsts & GRXSTS_HCHNUM_MASK) >> GRXSTS_HCHNUM_SHIFT;
 	chan = hsotg->hc_ptr_array[chnum];
 	if (!chan) {
 		dev_err(hsotg->dev, "Unable to get corresponding channel\n");
 		return;
 	}
 
-	bcnt = grxsts >> GRXSTS_BYTECNT_SHIFT &
-	       GRXSTS_BYTECNT_MASK >> GRXSTS_BYTECNT_SHIFT;
-	dpid = grxsts >> GRXSTS_DPID_SHIFT &
-	       GRXSTS_DPID_MASK >> GRXSTS_DPID_SHIFT;
+	bcnt = (grxsts & GRXSTS_BYTECNT_MASK) >> GRXSTS_BYTECNT_SHIFT;
+	dpid = (grxsts & GRXSTS_DPID_MASK) >> GRXSTS_DPID_SHIFT;
 	pktsts = (grxsts & GRXSTS_PKTSTS_MASK) >> GRXSTS_PKTSTS_SHIFT;
 
 	/* Packet Status */
@@ -412,8 +409,8 @@ static u32 dwc2_get_actual_xfer_length(struct dwc2_hsotg *hsotg,
 
 	if (halt_status == DWC2_HC_XFER_COMPLETE) {
 		if (chan->ep_is_in) {
-			count = hctsiz >> TSIZ_XFERSIZE_SHIFT &
-				TSIZ_XFERSIZE_MASK >> TSIZ_XFERSIZE_SHIFT;
+			count = (hctsiz & TSIZ_XFERSIZE_MASK) >>
+				TSIZ_XFERSIZE_SHIFT;
 			length = chan->xfer_len - count;
 			if (short_read != NULL)
 				*short_read = (count != 0);
@@ -432,8 +429,7 @@ static u32 dwc2_get_actual_xfer_length(struct dwc2_hsotg *hsotg,
 		 * hctsiz.xfersize field because that reflects the number of
 		 * bytes transferred via the AHB, not the USB).
 		 */
-		count = hctsiz >> TSIZ_PKTCNT_SHIFT &
-			TSIZ_PKTCNT_MASK >> TSIZ_PKTCNT_SHIFT;
+		count = (hctsiz & TSIZ_PKTCNT_MASK) >> TSIZ_PKTCNT_SHIFT;
 		length = (chan->start_pkt_count - count) * chan->max_packet;
 	}
 
@@ -496,8 +492,7 @@ static int dwc2_update_urb_state(struct dwc2_hsotg *hsotg,
 		 __func__, (chan->ep_is_in ? "IN" : "OUT"), chnum);
 	dev_vdbg(hsotg->dev, "  chan->xfer_len %d\n", chan->xfer_len);
 	dev_vdbg(hsotg->dev, "  hctsiz.xfersize %d\n",
-		 hctsiz >> TSIZ_XFERSIZE_SHIFT &
-		 TSIZ_XFERSIZE_MASK >> TSIZ_XFERSIZE_SHIFT);
+		 (hctsiz & TSIZ_XFERSIZE_MASK) >> TSIZ_XFERSIZE_SHIFT);
 	dev_vdbg(hsotg->dev, "  urb->transfer_buffer_length %d\n", urb->length);
 	dev_vdbg(hsotg->dev, "  urb->actual_length %d\n", urb->actual_length);
 	dev_vdbg(hsotg->dev, "  short_read %d, xfer_done %d\n", short_read,
@@ -1182,8 +1177,7 @@ static void dwc2_update_urb_state_abn(struct dwc2_hsotg *hsotg,
 	dev_vdbg(hsotg->dev, "  chan->start_pkt_count %d\n",
 		 chan->start_pkt_count);
 	dev_vdbg(hsotg->dev, "  hctsiz.pktcnt %d\n",
-		 hctsiz >> TSIZ_PKTCNT_SHIFT &
-		 TSIZ_PKTCNT_MASK >> TSIZ_PKTCNT_SHIFT);
+		 (hctsiz & TSIZ_PKTCNT_MASK) >> TSIZ_PKTCNT_SHIFT);
 	dev_vdbg(hsotg->dev, "  chan->max_packet %d\n", chan->max_packet);
 	dev_vdbg(hsotg->dev, "  bytes_transferred %d\n",
 		 xfer_length);

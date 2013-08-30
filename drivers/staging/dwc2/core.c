@@ -1386,14 +1386,14 @@ void dwc2_hc_start_transfer(struct dwc2_hsotg *hsotg,
 		dev_vdbg(hsotg->dev, "%s: Channel %d\n", __func__,
 			 chan->hc_num);
 		dev_vdbg(hsotg->dev, "	 Xfer Size: %d\n",
-			 hctsiz >> TSIZ_XFERSIZE_SHIFT &
-			 TSIZ_XFERSIZE_MASK >> TSIZ_XFERSIZE_SHIFT);
+			 (hctsiz & TSIZ_XFERSIZE_MASK) >>
+			 TSIZ_XFERSIZE_SHIFT);
 		dev_vdbg(hsotg->dev, "	 Num Pkts: %d\n",
-			 hctsiz >> TSIZ_PKTCNT_SHIFT &
-			 TSIZ_PKTCNT_MASK >> TSIZ_PKTCNT_SHIFT);
+			 (hctsiz & TSIZ_PKTCNT_MASK) >>
+			 TSIZ_PKTCNT_SHIFT);
 		dev_vdbg(hsotg->dev, "	 Start PID: %d\n",
-			 hctsiz >> TSIZ_SC_MC_PID_SHIFT &
-			 TSIZ_SC_MC_PID_MASK >> TSIZ_SC_MC_PID_SHIFT);
+			 (hctsiz & TSIZ_SC_MC_PID_MASK) >>
+			 TSIZ_SC_MC_PID_SHIFT);
 	}
 
 	if (hsotg->core_params->dma_enable > 0) {
@@ -1437,8 +1437,8 @@ void dwc2_hc_start_transfer(struct dwc2_hsotg *hsotg,
 
 	if (dbg_hc(chan))
 		dev_vdbg(hsotg->dev, "	 Multi Cnt: %d\n",
-			 hcchar >> HCCHAR_MULTICNT_SHIFT &
-			 HCCHAR_MULTICNT_MASK >> HCCHAR_MULTICNT_SHIFT);
+			 (hcchar & HCCHAR_MULTICNT_MASK) >>
+			 HCCHAR_MULTICNT_SHIFT);
 
 	writel(hcchar, hsotg->regs + HCCHAR(chan->hc_num));
 	if (dbg_hc(chan))
@@ -1526,8 +1526,8 @@ void dwc2_hc_start_transfer_ddma(struct dwc2_hsotg *hsotg,
 
 	if (dbg_hc(chan))
 		dev_vdbg(hsotg->dev, "	 Multi Cnt: %d\n",
-			 hcchar >> HCCHAR_MULTICNT_SHIFT &
-			 HCCHAR_MULTICNT_MASK >> HCCHAR_MULTICNT_SHIFT);
+			 (hcchar & HCCHAR_MULTICNT_MASK) >>
+			 HCCHAR_MULTICNT_SHIFT);
 
 	writel(hcchar, hsotg->regs + HCCHAR(chan->hc_num));
 	if (dbg_hc(chan))

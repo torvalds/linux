@@ -806,8 +806,8 @@ static int dwc2_cmpl_host_isoc_dma_desc(struct dwc2_hsotg *hsotg,
 	frame_desc = &qtd->urb->iso_descs[qtd->isoc_frame_index_last];
 	dma_desc->buf = (u32)(qtd->urb->dma + frame_desc->offset);
 	if (chan->ep_is_in)
-		remain = dma_desc->status >> HOST_DMA_ISOC_NBYTES_SHIFT &
-			HOST_DMA_ISOC_NBYTES_MASK >> HOST_DMA_ISOC_NBYTES_SHIFT;
+		remain = (dma_desc->status & HOST_DMA_ISOC_NBYTES_MASK) >>
+			 HOST_DMA_ISOC_NBYTES_SHIFT;
 
 	if ((dma_desc->status & HOST_DMA_STS_MASK) == HOST_DMA_STS_PKTERR) {
 		/*
@@ -935,8 +935,8 @@ static int dwc2_update_non_isoc_urb_state_ddma(struct dwc2_hsotg *hsotg,
 	u16 remain = 0;
 
 	if (chan->ep_is_in)
-		remain = dma_desc->status >> HOST_DMA_NBYTES_SHIFT &
-			 HOST_DMA_NBYTES_MASK >> HOST_DMA_NBYTES_SHIFT;
+		remain = (dma_desc->status & HOST_DMA_NBYTES_MASK) >>
+			 HOST_DMA_NBYTES_SHIFT;
 
 	dev_vdbg(hsotg->dev, "remain=%d dwc2_urb=%p\n", remain, urb);
 

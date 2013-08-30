@@ -1005,10 +1005,10 @@ static void dwc2_process_periodic_channels(struct dwc2_hsotg *hsotg)
 		dev_vdbg(hsotg->dev, "Queue periodic transactions\n");
 
 	tx_status = readl(hsotg->regs + HPTXSTS);
-	qspcavail = tx_status >> TXSTS_QSPCAVAIL_SHIFT &
-		    TXSTS_QSPCAVAIL_MASK >> TXSTS_QSPCAVAIL_SHIFT;
-	fspcavail = tx_status >> TXSTS_FSPCAVAIL_SHIFT &
-		    TXSTS_FSPCAVAIL_MASK >> TXSTS_FSPCAVAIL_SHIFT;
+	qspcavail = (tx_status & TXSTS_QSPCAVAIL_MASK) >>
+		    TXSTS_QSPCAVAIL_SHIFT;
+	fspcavail = (tx_status & TXSTS_FSPCAVAIL_MASK) >>
+		    TXSTS_FSPCAVAIL_SHIFT;
 
 	if (dbg_perio()) {
 		dev_vdbg(hsotg->dev, "  P Tx Req Queue Space Avail (before queue): %d\n",
@@ -1046,8 +1046,8 @@ static void dwc2_process_periodic_channels(struct dwc2_hsotg *hsotg)
 				qh->channel->multi_count > 1)
 			hsotg->queuing_high_bandwidth = 1;
 
-		fspcavail = tx_status >> TXSTS_FSPCAVAIL_SHIFT &
-			    TXSTS_FSPCAVAIL_MASK >> TXSTS_FSPCAVAIL_SHIFT;
+		fspcavail = (tx_status & TXSTS_FSPCAVAIL_MASK) >>
+			    TXSTS_FSPCAVAIL_SHIFT;
 		status = dwc2_queue_transaction(hsotg, qh->channel, fspcavail);
 		if (status < 0) {
 			no_fifo_space = 1;
@@ -1078,10 +1078,10 @@ static void dwc2_process_periodic_channels(struct dwc2_hsotg *hsotg)
 
 	if (hsotg->core_params->dma_enable <= 0) {
 		tx_status = readl(hsotg->regs + HPTXSTS);
-		qspcavail = tx_status >> TXSTS_QSPCAVAIL_SHIFT &
-			    TXSTS_QSPCAVAIL_MASK >> TXSTS_QSPCAVAIL_SHIFT;
-		fspcavail = tx_status >> TXSTS_FSPCAVAIL_SHIFT &
-			    TXSTS_FSPCAVAIL_MASK >> TXSTS_FSPCAVAIL_SHIFT;
+		qspcavail = (tx_status & TXSTS_QSPCAVAIL_MASK) >>
+			    TXSTS_QSPCAVAIL_SHIFT;
+		fspcavail = (tx_status & TXSTS_FSPCAVAIL_MASK) >>
+			    TXSTS_FSPCAVAIL_SHIFT;
 		if (dbg_perio()) {
 			dev_vdbg(hsotg->dev,
 				 "  P Tx Req Queue Space Avail (after queue): %d\n",
@@ -1143,10 +1143,10 @@ static void dwc2_process_non_periodic_channels(struct dwc2_hsotg *hsotg)
 	dev_vdbg(hsotg->dev, "Queue non-periodic transactions\n");
 
 	tx_status = readl(hsotg->regs + GNPTXSTS);
-	qspcavail = tx_status >> TXSTS_QSPCAVAIL_SHIFT &
-		    TXSTS_QSPCAVAIL_MASK >> TXSTS_QSPCAVAIL_SHIFT;
-	fspcavail = tx_status >> TXSTS_FSPCAVAIL_SHIFT &
-		    TXSTS_FSPCAVAIL_MASK >> TXSTS_FSPCAVAIL_SHIFT;
+	qspcavail = (tx_status & TXSTS_QSPCAVAIL_MASK) >>
+		    TXSTS_QSPCAVAIL_SHIFT;
+	fspcavail = (tx_status & TXSTS_FSPCAVAIL_MASK) >>
+		    TXSTS_FSPCAVAIL_SHIFT;
 	dev_vdbg(hsotg->dev, "  NP Tx Req Queue Space Avail (before queue): %d\n",
 		 qspcavail);
 	dev_vdbg(hsotg->dev, "  NP Tx FIFO Space Avail (before queue): %d\n",
@@ -1166,8 +1166,8 @@ static void dwc2_process_non_periodic_channels(struct dwc2_hsotg *hsotg)
 	 */
 	do {
 		tx_status = readl(hsotg->regs + GNPTXSTS);
-		qspcavail = tx_status >> TXSTS_QSPCAVAIL_SHIFT &
-			    TXSTS_QSPCAVAIL_MASK >> TXSTS_QSPCAVAIL_SHIFT;
+		qspcavail = (tx_status & TXSTS_QSPCAVAIL_MASK) >>
+			    TXSTS_QSPCAVAIL_SHIFT;
 		if (hsotg->core_params->dma_enable <= 0 && qspcavail == 0) {
 			no_queue_space = 1;
 			break;
@@ -1182,8 +1182,8 @@ static void dwc2_process_non_periodic_channels(struct dwc2_hsotg *hsotg)
 		if (qh->tt_buffer_dirty)
 			goto next;
 
-		fspcavail = tx_status >> TXSTS_FSPCAVAIL_SHIFT &
-			    TXSTS_FSPCAVAIL_MASK >> TXSTS_FSPCAVAIL_SHIFT;
+		fspcavail = (tx_status & TXSTS_FSPCAVAIL_MASK) >>
+			    TXSTS_FSPCAVAIL_SHIFT;
 		status = dwc2_queue_transaction(hsotg, qh->channel, fspcavail);
 
 		if (status > 0) {
@@ -1203,10 +1203,10 @@ next:
 
 	if (hsotg->core_params->dma_enable <= 0) {
 		tx_status = readl(hsotg->regs + GNPTXSTS);
-		qspcavail = tx_status >> TXSTS_QSPCAVAIL_SHIFT &
-			    TXSTS_QSPCAVAIL_MASK >> TXSTS_QSPCAVAIL_SHIFT;
-		fspcavail = tx_status >> TXSTS_FSPCAVAIL_SHIFT &
-			    TXSTS_FSPCAVAIL_MASK >> TXSTS_FSPCAVAIL_SHIFT;
+		qspcavail = (tx_status & TXSTS_QSPCAVAIL_MASK) >>
+			    TXSTS_QSPCAVAIL_SHIFT;
+		fspcavail = (tx_status & TXSTS_FSPCAVAIL_MASK) >>
+			    TXSTS_FSPCAVAIL_SHIFT;
 		dev_vdbg(hsotg->dev,
 			 "  NP Tx Req Queue Space Avail (after queue): %d\n",
 			 qspcavail);
@@ -1761,11 +1761,9 @@ int dwc2_hcd_get_frame_number(struct dwc2_hsotg *hsotg)
 
 #ifdef DWC2_DEBUG_SOF
 	dev_vdbg(hsotg->dev, "DWC OTG HCD GET FRAME NUMBER %d\n",
-		 hfnum >> HFNUM_FRNUM_SHIFT &
-		 HFNUM_FRNUM_MASK >> HFNUM_FRNUM_SHIFT);
+		 (hfnum & HFNUM_FRNUM_MASK) >> HFNUM_FRNUM_SHIFT);
 #endif
-	return hfnum >> HFNUM_FRNUM_SHIFT &
-	       HFNUM_FRNUM_MASK >> HFNUM_FRNUM_SHIFT;
+	return (hfnum & HFNUM_FRNUM_MASK) >> HFNUM_FRNUM_SHIFT;
 }
 
 int dwc2_hcd_is_b_host(struct dwc2_hsotg *hsotg)
@@ -1916,18 +1914,14 @@ void dwc2_hcd_dump_state(struct dwc2_hsotg *hsotg)
 	dev_dbg(hsotg->dev, "  periodic_usecs: %d\n", hsotg->periodic_usecs);
 	np_tx_status = readl(hsotg->regs + GNPTXSTS);
 	dev_dbg(hsotg->dev, "  NP Tx Req Queue Space Avail: %d\n",
-		np_tx_status >> TXSTS_QSPCAVAIL_SHIFT &
-		TXSTS_QSPCAVAIL_MASK >> TXSTS_QSPCAVAIL_SHIFT);
+		(np_tx_status & TXSTS_QSPCAVAIL_MASK) >> TXSTS_QSPCAVAIL_SHIFT);
 	dev_dbg(hsotg->dev, "  NP Tx FIFO Space Avail: %d\n",
-		np_tx_status >> TXSTS_FSPCAVAIL_SHIFT &
-		TXSTS_FSPCAVAIL_MASK >> TXSTS_FSPCAVAIL_SHIFT);
+		(np_tx_status & TXSTS_FSPCAVAIL_MASK) >> TXSTS_FSPCAVAIL_SHIFT);
 	p_tx_status = readl(hsotg->regs + HPTXSTS);
 	dev_dbg(hsotg->dev, "  P Tx Req Queue Space Avail: %d\n",
-		p_tx_status >> TXSTS_QSPCAVAIL_SHIFT &
-		TXSTS_QSPCAVAIL_MASK >> TXSTS_QSPCAVAIL_SHIFT);
+		(p_tx_status & TXSTS_QSPCAVAIL_MASK) >> TXSTS_QSPCAVAIL_SHIFT);
 	dev_dbg(hsotg->dev, "  P Tx FIFO Space Avail: %d\n",
-		p_tx_status >> TXSTS_FSPCAVAIL_SHIFT &
-		TXSTS_FSPCAVAIL_MASK >> TXSTS_FSPCAVAIL_SHIFT);
+		(p_tx_status & TXSTS_FSPCAVAIL_MASK) >> TXSTS_FSPCAVAIL_SHIFT);
 	dwc2_hcd_dump_frrem(hsotg);
 	dwc2_dump_global_registers(hsotg);
 	dwc2_dump_host_registers(hsotg);
