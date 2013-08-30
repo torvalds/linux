@@ -1,79 +1,67 @@
 /*
-    comedi/drivers/comedi_parport.c
-    hardware driver for standard parallel port
+ * comedi_parport.c
+ * Comedi driver for standard parallel port
+ *
+ * For more information see:
+ *	http://retired.beyondlogic.org/spp/parallel.htm
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 1998,2001 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1998,2001 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
 /*
-Driver: comedi_parport
-Description: Standard PC parallel port
-Author: ds
-Status: works in immediate mode
-Devices: [standard] parallel port (comedi_parport)
-Updated: Tue, 30 Apr 2002 21:11:45 -0700
-
-A cheap and easy way to get a few more digital I/O lines.  Steal
-additional parallel ports from old computers or your neighbors'
-computers.
-
-Option list:
- 0: I/O port base for the parallel port.
- 1: IRQ
-
-Parallel Port Lines:
-
-pin     subdev  chan    aka
----     ------  ----    ---
-1       2       0       strobe
-2       0       0       data 0
-3       0       1       data 1
-4       0       2       data 2
-5       0       3       data 3
-6       0       4       data 4
-7       0       5       data 5
-8       0       6       data 6
-9       0       7       data 7
-10      1       3       acknowledge
-11      1       4       busy
-12      1       2       output
-13      1       1       printer selected
-14      2       1       auto LF
-15      1       0       error
-16      2       2       init
-17      2       3       select printer
-18-25   ground
-
-Notes:
-
-Subdevices 0 is digital I/O, subdevice 1 is digital input, and
-subdevice 2 is digital output.  Unlike other Comedi devices,
-subdevice 0 defaults to output.
-
-Pins 13 and 14 are inverted once by Comedi and once by the
-hardware, thus cancelling the effect.
-
-Pin 1 is a strobe, thus acts like one.  There's no way in software
-to change this, at least on a standard parallel port.
-
-Subdevice 3 pretends to be a digital input subdevice, but it always
-returns 0 when read.  However, if you run a command with
-scan_begin_src=TRIG_EXT, it uses pin 10 as a external triggering
-pin, which can be used to wake up tasks.
-*/
-/*
-   see http://www.beyondlogic.org/ for information.
-   or http://www.linux-magazin.de/ausgabe/1999/10/IO/io.html
+ * Driver: comedi_parport
+ * Description: Standard PC parallel port
+ * Author: ds
+ * Status: works in immediate mode
+ * Devices: (standard) parallel port [comedi_parport]
+ * Updated: Tue, 30 Apr 2002 21:11:45 -0700
+ *
+ * A cheap and easy way to get a few more digital I/O lines. Steal
+ * additional parallel ports from old computers or your neighbors'
+ * computers.
+ *
+ * Option list:
+ *   0: I/O port base for the parallel port.
+ *   1: IRQ (optional)
+ *
+ * Parallel Port Lines:
+ *
+ *	 pin   subdev  chan  type  name
+ *	-----  ------  ----  ----  --------------
+ *	  1      2       0    DO   strobe
+ *	  2      0       0    DIO  data 0
+ *	  3      0       1    DIO  data 1
+ *	  4      0       2    DIO  data 2
+ *	  5      0       3    DIO  data 3
+ *	  6      0       4    DIO  data 4
+ *	  7      0       5    DIO  data 5
+ *	  8      0       6    DIO  data 6
+ *	  9      0       7    DIO  data 7
+ *	 10      1       3    DI   ack
+ *	 11      1       4    DI   busy
+ *	 12      1       2    DI   paper out
+ *	 13      1       1    DI   select in
+ *	 14      2       1    DO   auto LF
+ *	 15      1       0    DI   error
+ *	 16      2       2    DO   init
+ *	 17      2       3    DO   select printer
+ *	18-25                      ground
+ *
+ * When an IRQ is configured subdevice 3 pretends to be a digital
+ * input subdevice, but it always returns 0 when read. However, if
+ * you run a command with scan_begin_src=TRIG_EXT, it uses pin 10
+ * as a external trigger, which can be used to wake up tasks.
  */
 
 #include <linux/module.h>
