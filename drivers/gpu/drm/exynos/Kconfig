@@ -6,6 +6,7 @@ config DRM_EXYNOS
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	select VT_HW_CONSOLE_BINDING if FRAMEBUFFER_CONSOLE
+	select VIDEOMODE_HELPERS
 	help
 	  Choose this option if you have a Samsung SoC EXYNOS chipset.
 	  If M is selected the module will be called exynosdrm.
@@ -26,7 +27,6 @@ config DRM_EXYNOS_FIMD
 	bool "Exynos DRM FIMD"
 	depends on DRM_EXYNOS && !FB_S3C && !ARCH_MULTIPLATFORM
 	select FB_MODE_HELPERS
-	select VIDEOMODE_HELPERS
 	help
 	  Choose this option if you want to use Exynos FIMD for DRM.
 
