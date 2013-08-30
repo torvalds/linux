@@ -279,27 +279,23 @@ static int das08_di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
 	return insn->n;
 }
 
-static int das08_do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
+static int das08_do_wbits(struct comedi_device *dev,
+			  struct comedi_subdevice *s,
+			  struct comedi_insn *insn,
+			  unsigned int *data)
 {
 	struct das08_private_struct *devpriv = dev->private;
-	int wbits;
 
-	/*  get current settings of digital output lines */
-	wbits = (devpriv->do_mux_bits >> 4) & 0xf;
-	/*  null bits we are going to set */
-	wbits &= ~data[0];
-	/*  set new bit values */
-	wbits |= data[0] & data[1];
-	/*  remember digital output bits */
-	/*  prevent race with setting of analog input mux */
-	spin_lock(&dev->spinlock);
-	devpriv->do_mux_bits &= ~DAS08_DO_MASK;
-	devpriv->do_mux_bits |= DAS08_OP(wbits);
-	outb(devpriv->do_mux_bits, dev->iobase + DAS08_CONTROL);
-	spin_unlock(&dev->spinlock);
+	if (comedi_dio_update_state(s, data)) {
+		/* prevent race with setting of analog input mux */
+		spin_lock(&dev->spinlock);
+		devpriv->do_mux_bits &= ~DAS08_DO_MASK;
+		devpriv->do_mux_bits |= DAS08_OP(s->state);
+		outb(devpriv->do_mux_bits, dev->iobase + DAS08_CONTROL);
+		spin_unlock(&dev->spinlock);
+	}
 
-	data[1] = wbits;
+	data[1] = s->state;
 
 	return insn->n;
 }
