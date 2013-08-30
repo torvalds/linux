@@ -2069,6 +2069,14 @@ static inline bool qlcnic_82xx_check(struct qlcnic_adapter *adapter)
 	return (device == PCI_DEVICE_ID_QLOGIC_QLE824X) ? true : false;
 }
 
+static inline bool qlcnic_84xx_check(struct qlcnic_adapter *adapter)
+{
+	unsigned short device = adapter->pdev->device;
+
+	return ((device == PCI_DEVICE_ID_QLOGIC_QLE844X) ||
+		(device == PCI_DEVICE_ID_QLOGIC_VF_QLE844X)) ? true : false;
+}
+
 static inline bool qlcnic_83xx_check(struct qlcnic_adapter *adapter)
 {
 	unsigned short device = adapter->pdev->device;
