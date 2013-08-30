@@ -46,6 +46,7 @@
 #include <linux/slab.h>
 #include <linux/rbtree.h>
 #include <linux/hash.h>
+#include <linux/prefetch.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 #include <net/sock.h>
@@ -461,6 +462,7 @@ begin:
 		}
 		goto begin;
 	}
+	prefetch(&skb->end);
 	f->time_next_packet = now;
 	f->credit -= qdisc_pkt_len(skb);
 
@@ -488,7 +490,6 @@ begin:
 		}
 	}
 out:
-	prefetch(&skb->end);
 	sch->qstats.backlog -= qdisc_pkt_len(skb);
 	qdisc_bstats_update(sch, skb);
 	sch->q.qlen--;
