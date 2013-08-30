@@ -370,12 +370,16 @@ static struct sk_buff *ndisc_alloc_skb(struct net_device *dev,
 {
 	int hlen = LL_RESERVED_SPACE(dev);
 	int tlen = dev->needed_tailroom;
+	struct sock *sk = dev_net(dev)->ipv6.ndisc_sk;
 	struct sk_buff *skb;
+	int err;
 
-	skb = alloc_skb(hlen + sizeof(struct ipv6hdr) + len + tlen, GFP_ATOMIC);
+	skb = sock_alloc_send_skb(sk,
+				  hlen + sizeof(struct ipv6hdr) + len + tlen,
+				  1, &err);
 	if (!skb) {
-		ND_PRINTK(0, err, "ndisc: %s failed to allocate an skb\n",
-			  __func__);
+		ND_PRINTK(0, err, "ndisc: %s failed to allocate an skb, err=%d\n",
+			  __func__, err);
 		return NULL;
 	}
 
