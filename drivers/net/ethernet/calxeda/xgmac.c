@@ -695,9 +695,14 @@ static void xgmac_rx_refill(struct xgmac_priv *priv)
 			if (unlikely(skb == NULL))
 				break;
 
-			priv->rx_skbuff[entry] = skb;
 			paddr = dma_map_single(priv->device, skb->data,
-					       bufsz, DMA_FROM_DEVICE);
+					       priv->dma_buf_sz - NET_IP_ALIGN,
+					       DMA_FROM_DEVICE);
+			if (dma_mapping_error(priv->device, paddr)) {
+				dev_kfree_skb_any(skb);
+				break;
+			}
+			priv->rx_skbuff[entry] = skb;
 			desc_set_buf_addr(p, paddr, priv->dma_buf_sz);
 		}
 
@@ -794,13 +799,14 @@ static void xgmac_free_rx_skbufs(struct xgmac_priv *priv)
 		return;
 
 	for (i = 0; i < DMA_RX_RING_SZ; i++) {
-		if (priv->rx_skbuff[i] == NULL)
+		struct sk_buff *skb = priv->rx_skbuff[i];
+		if (skb == NULL)
 			continue;
 
 		p = priv->dma_rx + i;
 		dma_unmap_single(priv->device, desc_get_buf_addr(p),
-				 priv->dma_buf_sz, DMA_FROM_DEVICE);
-		dev_kfree_skb_any(priv->rx_skbuff[i]);
+				 priv->dma_buf_sz - NET_IP_ALIGN, DMA_FROM_DEVICE);
+		dev_kfree_skb_any(skb);
 		priv->rx_skbuff[i] = NULL;
 	}
 }
@@ -1187,7 +1193,7 @@ static int xgmac_rx(struct xgmac_priv *priv, int limit)
 
 		skb_put(skb, frame_len);
 		dma_unmap_single(priv->device, desc_get_buf_addr(p),
-				 frame_len, DMA_FROM_DEVICE);
+				 priv->dma_buf_sz - NET_IP_ALIGN, DMA_FROM_DEVICE);
 
 		skb->protocol = eth_type_trans(skb, priv->dev);
 		skb->ip_summed = ip_checksum;
