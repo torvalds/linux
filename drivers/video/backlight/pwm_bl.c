@@ -21,6 +21,7 @@
 #include <linux/err.h>
 #include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
+#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 
 struct pwm_bl_data {
@@ -30,6 +31,7 @@ struct pwm_bl_data {
 	unsigned int		lth_brightness;
 	unsigned int		*levels;
 	bool			enabled;
+	struct regulator	*power_supply;
 	int			enable_gpio;
 	unsigned long		enable_gpio_flags;
 	int			(*notify)(struct device *,
@@ -60,6 +62,10 @@ static void pwm_backlight_power_on(struct pwm_bl_data *pb, int brightness,
 
 	pwm_config(pb->pwm, duty_cycle, pb->period);
 
+	err = regulator_enable(pb->power_supply);
+	if (err < 0)
+		dev_err(pb->dev, "failed to enable power supply\n");
+
 	if (gpio_is_valid(pb->enable_gpio)) {
 		if (pb->enable_gpio_flags & PWM_BACKLIGHT_GPIO_ACTIVE_LOW)
 			gpio_set_value(pb->enable_gpio, 0);
@@ -86,6 +92,7 @@ static void pwm_backlight_power_off(struct pwm_bl_data *pb)
 			gpio_set_value(pb->enable_gpio, 0);
 	}
 
+	regulator_disable(pb->power_supply);
 	pb->enabled = false;
 }
 
@@ -266,6 +273,12 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 				pb->enable_gpio, ret);
 			goto err_alloc;
 		}
+	}
+
+	pb->power_supply = devm_regulator_get(&pdev->dev, "power");
+	if (IS_ERR(pb->power_supply)) {
+		ret = PTR_ERR(pb->power_supply);
+		goto err_gpio;
 	}
 
 	pb->pwm = devm_pwm_get(&pdev->dev, NULL);

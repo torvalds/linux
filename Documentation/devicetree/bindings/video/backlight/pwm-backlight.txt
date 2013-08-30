@@ -10,6 +10,7 @@ Required properties:
       last value in the array represents a 100% duty cycle (brightest).
   - default-brightness-level: the default brightness level (index into the
       array defined by the "brightness-levels" property)
+  - power-supply: regulator for supply voltage
 
 Optional properties:
   - pwm-names: a list of names for the PWM devices specified in the
@@ -29,5 +30,6 @@ Example:
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <6>;
 
+		power-supply = <&vdd_bl_reg>;
 		enable-gpios = <&gpio 58 0>;
 	};
