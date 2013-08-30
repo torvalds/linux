@@ -92,7 +92,6 @@ pin, which can be used to wake up tasks.
 #define PARPORT_CTRL_BIDIR_ENA	(1 << 5)
 
 struct parport_private {
-	unsigned int a_data;
 	unsigned int c_data;
 	int enable_irq;
 };
@@ -100,13 +99,11 @@ struct parport_private {
 static int parport_insn_a(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
-	struct parport_private *devpriv = dev->private;
-
 	if (data[0]) {
-		devpriv->a_data &= ~data[0];
-		devpriv->a_data |= (data[0] & data[1]);
+		s->state &= ~data[0];
+		s->state |= (data[0] & data[1]);
 
-		outb(devpriv->a_data, dev->iobase + PARPORT_DATA_REG);
+		outb(s->state, dev->iobase + PARPORT_DATA_REG);
 	}
 
 	data[1] = inb(dev->iobase + PARPORT_DATA_REG);
@@ -327,8 +324,7 @@ static int parport_attach(struct comedi_device *dev,
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	devpriv->a_data = 0;
-	outb(devpriv->a_data, dev->iobase + PARPORT_DATA_REG);
+	outb(0, dev->iobase + PARPORT_DATA_REG);
 	devpriv->c_data = 0;
 	outb(devpriv->c_data, dev->iobase + PARPORT_CTRL_REG);
 
