@@ -229,6 +229,8 @@ static int dapm_kcontrol_data_alloc(struct snd_soc_dapm_widget *widget,
 			template.id = snd_soc_dapm_kcontrol;
 			template.name = kcontrol->id.name;
 
+			data->value = template.on_val;
+
 			data->widget = snd_soc_dapm_new_control(widget->dapm,
 				&template);
 			if (!data->widget) {
