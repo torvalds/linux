@@ -929,6 +929,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *batch_obj;
 	struct drm_clip_rect *cliprects = NULL;
 	struct intel_ring_buffer *ring;
+	struct i915_ctx_hang_stats *hs;
 	u32 ctx_id = i915_execbuffer2_get_context_id(*args);
 	u32 exec_start, exec_len;
 	u32 mask, flags;
@@ -1117,6 +1118,17 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	ret = i915_gem_execbuffer_move_to_gpu(ring, &eb->vmas);
 	if (ret)
 		goto err;
+
+	hs = i915_gem_context_get_hang_stats(dev, file, ctx_id);
+	if (IS_ERR(hs)) {
+		ret = PTR_ERR(hs);
+		goto err;
+	}
+
+	if (hs->banned) {
+		ret = -EIO;
+		goto err;
+	}
 
 	ret = i915_switch_context(ring, file, ctx_id);
 	if (ret)

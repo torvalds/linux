@@ -719,24 +719,19 @@ int i915_reset(struct drm_device *dev)
 
 	simulated = dev_priv->gpu_error.stop_rings != 0;
 
-	if (!simulated && get_seconds() - dev_priv->gpu_error.last_reset < 5) {
-		DRM_ERROR("GPU hanging too fast, declaring wedged!\n");
-		ret = -ENODEV;
-	} else {
-		ret = intel_gpu_reset(dev);
+	ret = intel_gpu_reset(dev);
 
-		/* Also reset the gpu hangman. */
-		if (simulated) {
-			DRM_INFO("Simulated gpu hang, resetting stop_rings\n");
-			dev_priv->gpu_error.stop_rings = 0;
-			if (ret == -ENODEV) {
-				DRM_ERROR("Reset not implemented, but ignoring "
-					  "error for simulated gpu hangs\n");
-				ret = 0;
-			}
-		} else
-			dev_priv->gpu_error.last_reset = get_seconds();
+	/* Also reset the gpu hangman. */
+	if (simulated) {
+		DRM_INFO("Simulated gpu hang, resetting stop_rings\n");
+		dev_priv->gpu_error.stop_rings = 0;
+		if (ret == -ENODEV) {
+			DRM_ERROR("Reset not implemented, but ignoring "
+				  "error for simulated gpu hangs\n");
+			ret = 0;
+		}
 	}
+
 	if (ret) {
 		DRM_ERROR("Failed to reset chip.\n");
 		mutex_unlock(&dev->struct_mutex);
