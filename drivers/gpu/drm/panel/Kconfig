@@ -1,0 +1,5 @@
+config DRM_PANEL
+	bool
+	depends on DRM
+	help
+	  Panel registration and lookup framework.
