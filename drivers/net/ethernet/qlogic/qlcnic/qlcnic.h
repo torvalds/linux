@@ -1479,6 +1479,10 @@ void qlcnic_delete_lb_filters(struct qlcnic_adapter *adapter);
 int qlcnic_dump_fw(struct qlcnic_adapter *);
 int qlcnic_enable_fw_dump_state(struct qlcnic_adapter *);
 bool qlcnic_check_fw_dump_state(struct qlcnic_adapter *);
+pci_ers_result_t qlcnic_82xx_io_error_detected(struct pci_dev *,
+					       pci_channel_state_t);
+pci_ers_result_t qlcnic_82xx_io_slot_reset(struct pci_dev *);
+void qlcnic_82xx_io_resume(struct pci_dev *);
 
 /* Functions from qlcnic_init.c */
 void qlcnic_schedule_work(struct qlcnic_adapter *, work_func_t, int);
@@ -1724,6 +1728,10 @@ struct qlcnic_hardware_ops {
 	void (*set_mac_filter_count) (struct qlcnic_adapter *);
 	void (*free_mac_list) (struct qlcnic_adapter *);
 	int (*read_phys_port_id) (struct qlcnic_adapter *);
+	pci_ers_result_t (*io_error_detected) (struct pci_dev *,
+					       pci_channel_state_t);
+	pci_ers_result_t (*io_slot_reset) (struct pci_dev *);
+	void (*io_resume) (struct pci_dev *);
 };
 
 extern struct qlcnic_nic_template qlcnic_vf_ops;
