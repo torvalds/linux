@@ -1148,11 +1148,6 @@ static void dw_mci_command_complete(struct dw_mci *host, struct mmc_command *cmd
 		/* newer ip versions need a delay between retries */
 		if (host->quirks & DW_MCI_QUIRK_RETRY_DELAY)
 			mdelay(20);
-
-		if (cmd->data) {
-			dw_mci_stop_dma(host);
-			host->data = NULL;
-		}
 	}
 }
 
@@ -1191,6 +1186,17 @@ static void dw_mci_tasklet_func(unsigned long priv)
 				__dw_mci_start_request(host, host->cur_slot,
 						       host->mrq->cmd);
 				goto unlock;
+			}
+
+			if (cmd->data && cmd->error) {
+				dw_mci_stop_dma(host);
+				if (data->stop) {
+					send_stop_cmd(host, data);
+					state = STATE_SENDING_STOP;
+					break;
+				} else {
+					host->data = NULL;
+				}
 			}
 
 			if (!host->mrq->data || cmd->error) {
@@ -1287,7 +1293,17 @@ static void dw_mci_tasklet_func(unsigned long priv)
 						&host->pending_events))
 				break;
 
+			/* CMD error in data command */
+			if (host->mrq->cmd->error && host->mrq->data) {
+				sg_miter_stop(&host->sg_miter);
+				host->sg = NULL;
+				ctrl = mci_readl(host, CTRL);
+				ctrl |= SDMMC_CTRL_FIFO_RESET;
+				mci_writel(host, CTRL, ctrl);
+			}
+
 			host->cmd = NULL;
+			host->data = NULL;
 			dw_mci_command_complete(host, host->mrq->stop);
 			dw_mci_request_end(host, host->mrq);
 			goto unlock;
