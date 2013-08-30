@@ -971,8 +971,7 @@ fec_enet_rx(struct net_device *ndev, int budget)
 						       htons(ETH_P_8021Q),
 						       vlan_tag);
 
-			if (!skb_defer_rx_timestamp(skb))
-				napi_gro_receive(&fep->napi, skb);
+			napi_gro_receive(&fep->napi, skb);
 		}
 
 		bdp->cbd_bufaddr = dma_map_single(&fep->pdev->dev, data,
