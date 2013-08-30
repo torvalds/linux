@@ -1148,7 +1148,7 @@ static int ks8842_probe(struct platform_device *pdev)
 	struct resource *iomem;
 	struct net_device *netdev;
 	struct ks8842_adapter *adapter;
-	struct ks8842_platform_data *pdata = pdev->dev.platform_data;
+	struct ks8842_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	u16 id;
 	unsigned i;
 
