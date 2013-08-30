@@ -73,7 +73,7 @@
  *
  * There are two confusing terms used above:
  *  The "current context" means the context which is currently running on the
- *  GPU. The GPU has loaded it's state already and has stored away the gtt
+ *  GPU. The GPU has loaded its state already and has stored away the gtt
  *  offset of the BO. The GPU is not actively referencing the data at this
  *  offset, but it will on the next context switch. The only way to avoid this
  *  is to do a GPU reset.
