@@ -3427,8 +3427,10 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	intel_update_fbc(dev);
 	mutex_unlock(&dev->struct_mutex);
 
-	for_each_encoder_on_crtc(dev, crtc, encoder)
+	for_each_encoder_on_crtc(dev, crtc, encoder) {
 		encoder->enable(encoder);
+		intel_opregion_notify_encoder(encoder, true);
+	}
 
 	/*
 	 * There seems to be a race in PCH platform hw (at least on some
@@ -3542,8 +3544,10 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 	if (!intel_crtc->active)
 		return;
 
-	for_each_encoder_on_crtc(dev, crtc, encoder)
+	for_each_encoder_on_crtc(dev, crtc, encoder) {
+		intel_opregion_notify_encoder(encoder, false);
 		encoder->disable(encoder);
+	}
 
 	intel_crtc_wait_for_pending_flips(crtc);
 	drm_vblank_off(dev, pipe);
