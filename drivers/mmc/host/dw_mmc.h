@@ -128,6 +128,10 @@
 #define SDMMC_CMD_INDX(n)		((n) & 0x1F)
 /* Status register defines */
 #define SDMMC_GET_FCNT(x)		(((x)>>17) & 0x1FFF)
+/* FIFOTH register defines */
+#define SDMMC_SET_FIFOTH(m, r, t)	(((m) & 0x7) << 28 | \
+					 ((r) & 0xFFF) << 16 | \
+					 ((t) & 0xFFF))
 /* Internal DMAC interrupt defines */
 #define SDMMC_IDMAC_INT_AI		BIT(9)
 #define SDMMC_IDMAC_INT_NI		BIT(8)
