@@ -119,6 +119,17 @@ static int x509_key_preparse(struct key_preparsed_payload *prep)
 
 	pr_devel("Cert Issuer: %s\n", cert->issuer);
 	pr_devel("Cert Subject: %s\n", cert->subject);
+
+	if (cert->pub->pkey_algo >= PKEY_ALGO__LAST ||
+	    cert->sig.pkey_algo >= PKEY_ALGO__LAST ||
+	    cert->sig.pkey_hash_algo >= PKEY_HASH__LAST ||
+	    !pkey_algo[cert->pub->pkey_algo] ||
+	    !pkey_algo[cert->sig.pkey_algo] ||
+	    !pkey_hash_algo_name[cert->sig.pkey_hash_algo]) {
+		ret = -ENOPKG;
+		goto error_free_cert;
+	}
+
 	pr_devel("Cert Key Algo: %s\n", pkey_algo_name[cert->pub->pkey_algo]);
 	pr_devel("Cert Valid From: %04ld-%02d-%02d %02d:%02d:%02d\n",
 		 cert->valid_from.tm_year + 1900, cert->valid_from.tm_mon + 1,
