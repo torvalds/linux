@@ -57,6 +57,8 @@ struct au_cp_generic {
 						   cpup */
 #define AuCpup_OVERWRITE	(1 << 4)	/* allow overwriting the
 						   existing entry */
+#define AuCpup_RWDST		(1 << 5)	/* force write target even if
+						   the branch is marked as RO */
 
 #define au_ftest_cpup(flags, name)	((flags) & AuCpup_##name)
 #define au_fset_cpup(flags, name) \

@@ -101,6 +101,14 @@ static inline void vfsub_dead_dir(struct inode *inode)
 	clear_nlink(inode);
 }
 
+static inline int vfsub_native_ro(struct inode *inode)
+{
+	return (inode->i_sb->s_flags & MS_RDONLY)
+		|| IS_RDONLY(inode)
+		/* || IS_APPEND(inode) */
+		|| IS_IMMUTABLE(inode);
+}
+
 /* ---------------------------------------------------------------------- */
 
 int vfsub_update_h_iattr(struct path *h_path, int *did);
