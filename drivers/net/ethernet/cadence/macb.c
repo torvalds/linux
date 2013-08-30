@@ -125,7 +125,7 @@ void macb_get_hwaddr(struct macb *bp)
 	u8 addr[6];
 	int i;
 
-	pdata = bp->pdev->dev.platform_data;
+	pdata = dev_get_platdata(&bp->pdev->dev);
 
 	/* Check all 4 address register for vaild address */
 	for (i = 0; i < 4; i++) {
@@ -335,7 +335,7 @@ int macb_mii_init(struct macb *bp)
 		bp->pdev->name, bp->pdev->id);
 	bp->mii_bus->priv = bp;
 	bp->mii_bus->parent = &bp->dev->dev;
-	pdata = bp->pdev->dev.platform_data;
+	pdata = dev_get_platdata(&bp->pdev->dev);
 
 	bp->mii_bus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
 	if (!bp->mii_bus->irq) {
@@ -1851,7 +1851,7 @@ static int __init macb_probe(struct platform_device *pdev)
 
 	err = of_get_phy_mode(pdev->dev.of_node);
 	if (err < 0) {
-		pdata = pdev->dev.platform_data;
+		pdata = dev_get_platdata(&pdev->dev);
 		if (pdata && pdata->is_rmii)
 			bp->phy_interface = PHY_INTERFACE_MODE_RMII;
 		else
