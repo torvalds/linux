@@ -410,6 +410,9 @@ struct xgmac_priv {
 #define dma_ring_space(h, t, s)	CIRC_SPACE(h, t, s)
 #define dma_ring_cnt(h, t, s)	CIRC_CNT(h, t, s)
 
+#define tx_dma_ring_space(p) \
+	dma_ring_space((p)->tx_head, (p)->tx_tail, DMA_TX_RING_SZ)
+
 /* XGMAC Descriptor Access Helpers */
 static inline void desc_set_buf_len(struct xgmac_dma_desc *p, u32 buf_sz)
 {
@@ -886,8 +889,10 @@ static void xgmac_tx_complete(struct xgmac_priv *priv)
 		priv->tx_tail = dma_ring_incr(entry, DMA_TX_RING_SZ);
 	}
 
-	if (dma_ring_space(priv->tx_head, priv->tx_tail, DMA_TX_RING_SZ) >
-	    MAX_SKB_FRAGS)
+	/* Ensure tx_tail is visible to xgmac_xmit */
+	smp_mb();
+	if (unlikely(netif_queue_stopped(priv->dev) &&
+	    (tx_dma_ring_space(priv) > MAX_SKB_FRAGS)))
 		netif_wake_queue(priv->dev);
 }
 
@@ -1125,10 +1130,15 @@ static netdev_tx_t xgmac_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	priv->tx_head = dma_ring_incr(entry, DMA_TX_RING_SZ);
 
-	if (dma_ring_space(priv->tx_head, priv->tx_tail, DMA_TX_RING_SZ) <
-	    MAX_SKB_FRAGS)
+	/* Ensure tx_head update is visible to tx completion */
+	smp_mb();
+	if (unlikely(tx_dma_ring_space(priv) <= MAX_SKB_FRAGS)) {
 		netif_stop_queue(dev);
-
+		/* Ensure netif_stop_queue is visible to tx completion */
+		smp_mb();
+		if (tx_dma_ring_space(priv) > MAX_SKB_FRAGS)
+			netif_start_queue(dev);
+	}
 	return NETDEV_TX_OK;
 }
 
