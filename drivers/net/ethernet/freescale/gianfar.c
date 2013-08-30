@@ -2092,7 +2092,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int do_tstamp, do_csum, do_vlan;
 	u32 bufaddr;
 	unsigned long flags;
-	unsigned int nr_frags, nr_txbds, length, fcb_len = 0;
+	unsigned int nr_frags, nr_txbds, bytes_sent, fcb_len = 0;
 
 	rq = skb->queue_mapping;
 	tx_queue = priv->tx_queue[rq];
@@ -2147,7 +2147,10 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/* Update transmit stats */
-	tx_queue->stats.tx_bytes += skb->len;
+	bytes_sent = skb->len;
+	tx_queue->stats.tx_bytes += bytes_sent;
+	/* keep Tx bytes on wire for BQL accounting */
+	GFAR_CB(skb)->bytes_sent = bytes_sent;
 	tx_queue->stats.tx_packets++;
 
 	txbdp = txbdp_start = tx_queue->cur_tx;
@@ -2167,12 +2170,13 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	} else {
 		/* Place the fragment addresses and lengths into the TxBDs */
 		for (i = 0; i < nr_frags; i++) {
+			unsigned int frag_len;
 			/* Point at the next BD, wrapping as needed */
 			txbdp = next_txbd(txbdp, base, tx_queue->tx_ring_size);
 
-			length = skb_shinfo(skb)->frags[i].size;
+			frag_len = skb_shinfo(skb)->frags[i].size;
 
-			lstatus = txbdp->lstatus | length |
+			lstatus = txbdp->lstatus | frag_len |
 				  BD_LFLAG(TXBD_READY);
 
 			/* Handle the last BD specially */
@@ -2182,7 +2186,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			bufaddr = skb_frag_dma_map(priv->dev,
 						   &skb_shinfo(skb)->frags[i],
 						   0,
-						   length,
+						   frag_len,
 						   DMA_TO_DEVICE);
 
 			/* set the TxBD length and buffer pointer */
@@ -2250,7 +2254,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		lstatus |= BD_LFLAG(TXBD_CRC | TXBD_READY) | skb_headlen(skb);
 	}
 
-	netdev_tx_sent_queue(txq, skb->len);
+	netdev_tx_sent_queue(txq, bytes_sent);
 
 	/* We can work in parallel with gfar_clean_tx_ring(), except
 	 * when modifying num_txbdfree. Note that we didn't grab the lock
@@ -2570,7 +2574,7 @@ static void gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 			bdp = next_txbd(bdp, base, tx_ring_size);
 		}
 
-		bytes_sent += skb->len;
+		bytes_sent += GFAR_CB(skb)->bytes_sent;
 
 		dev_kfree_skb_any(skb);
 
