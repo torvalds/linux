@@ -1092,7 +1092,7 @@ flash_temp:
 	else
 		ahw->fw_dump.use_pex_dma = false;
 
-	ahw->fw_dump.enable = 1;
+	qlcnic_enable_fw_dump_state(adapter);
 
 	return 0;
 }
@@ -1115,7 +1115,11 @@ int qlcnic_dump_fw(struct qlcnic_adapter *adapter)
 
 	ahw = adapter->ahw;
 
-	if (!fw_dump->enable) {
+	/* Return if we don't have firmware dump template header */
+	if (!tmpl_hdr)
+		return -EIO;
+
+	if (!qlcnic_check_fw_dump_state(adapter)) {
 		dev_info(&adapter->pdev->dev, "Dump not enabled\n");
 		return -EIO;
 	}

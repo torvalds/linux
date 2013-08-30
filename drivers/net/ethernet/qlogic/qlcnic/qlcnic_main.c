@@ -3045,7 +3045,7 @@ skip_ack_check:
 		qlcnic_api_unlock(adapter);
 
 		rtnl_lock();
-		if (adapter->ahw->fw_dump.enable &&
+		if (qlcnic_check_fw_dump_state(adapter) &&
 		    (adapter->flags & QLCNIC_FW_RESET_OWNER)) {
 			QLCDB(adapter, DRV, "Take FW dump\n");
 			qlcnic_dump_fw(adapter);

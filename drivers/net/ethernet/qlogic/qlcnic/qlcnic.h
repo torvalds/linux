@@ -392,7 +392,7 @@ struct qlcnic_dump_template_hdr {
 
 struct qlcnic_fw_dump {
 	u8	clr;	/* flag to indicate if dump is cleared */
-	u8	enable; /* enable/disable dump */
+	bool	enable; /* enable/disable dump */
 	u32	size;	/* total size of the dump */
 	void	*data;	/* dump data area */
 	struct	qlcnic_dump_template_hdr *tmpl_hdr;
@@ -1477,6 +1477,8 @@ int qlcnic_wol_supported(struct qlcnic_adapter *adapter);
 void qlcnic_prune_lb_filters(struct qlcnic_adapter *adapter);
 void qlcnic_delete_lb_filters(struct qlcnic_adapter *adapter);
 int qlcnic_dump_fw(struct qlcnic_adapter *);
+int qlcnic_enable_fw_dump_state(struct qlcnic_adapter *);
+bool qlcnic_check_fw_dump_state(struct qlcnic_adapter *);
 
 /* Functions from qlcnic_init.c */
 void qlcnic_schedule_work(struct qlcnic_adapter *, work_func_t, int);
