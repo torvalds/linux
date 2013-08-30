@@ -871,47 +871,43 @@ static void of_register_spi_devices(struct spi_master *master)
 
 		/* Device DUAL/QUAD mode */
 		prop = of_get_property(nc, "spi-tx-nbits", &len);
-		if (!prop || len < sizeof(*prop)) {
-			dev_err(&master->dev, "%s has no 'spi-tx-nbits' property\n",
-				nc->full_name);
-			spi_dev_put(spi);
-			continue;
-		}
-		switch (be32_to_cpup(prop)) {
-		case SPI_NBITS_SINGLE:
-			break;
-		case SPI_NBITS_DUAL:
-			spi->mode |= SPI_TX_DUAL;
-			break;
-		case SPI_NBITS_QUAD:
-			spi->mode |= SPI_TX_QUAD;
-			break;
-		default:
-			dev_err(&master->dev, "spi-tx-nbits value is not supported\n");
-			spi_dev_put(spi);
-			continue;
+		if (prop && len == sizeof(*prop)) {
+			switch (be32_to_cpup(prop)) {
+			case SPI_NBITS_SINGLE:
+				break;
+			case SPI_NBITS_DUAL:
+				spi->mode |= SPI_TX_DUAL;
+				break;
+			case SPI_NBITS_QUAD:
+				spi->mode |= SPI_TX_QUAD;
+				break;
+			default:
+				dev_err(&master->dev,
+					"spi-tx-nbits %d not supported\n",
+					be32_to_cpup(prop));
+				spi_dev_put(spi);
+				continue;
+			}
 		}
 
 		prop = of_get_property(nc, "spi-rx-nbits", &len);
-		if (!prop || len < sizeof(*prop)) {
-			dev_err(&master->dev, "%s has no 'spi-rx-nbits' property\n",
-				nc->full_name);
-			spi_dev_put(spi);
-			continue;
-		}
-		switch (be32_to_cpup(prop)) {
-		case SPI_NBITS_SINGLE:
-			break;
-		case SPI_NBITS_DUAL:
-			spi->mode |= SPI_RX_DUAL;
-			break;
-		case SPI_NBITS_QUAD:
-			spi->mode |= SPI_RX_QUAD;
-			break;
-		default:
-			dev_err(&master->dev, "spi-rx-nbits value is not supported\n");
-			spi_dev_put(spi);
-			continue;
+		if (prop && len == sizeof(*prop)) {
+			switch (be32_to_cpup(prop)) {
+			case SPI_NBITS_SINGLE:
+				break;
+			case SPI_NBITS_DUAL:
+				spi->mode |= SPI_RX_DUAL;
+				break;
+			case SPI_NBITS_QUAD:
+				spi->mode |= SPI_RX_QUAD;
+				break;
+			default:
+				dev_err(&master->dev,
+					"spi-rx-nbits %d not supported\n",
+					be32_to_cpup(prop));
+				spi_dev_put(spi);
+				continue;
+			}
 		}
 
 		/* Device speed */
