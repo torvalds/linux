@@ -186,6 +186,11 @@ static int ixgbe_get_settings(struct net_device *netdev,
 			ecmd->advertising |= ADVERTISED_1000baseT_Full;
 		if (supported_link & IXGBE_LINK_SPEED_100_FULL)
 			ecmd->advertising |= ADVERTISED_100baseT_Full;
+
+		if (hw->phy.multispeed_fiber && !autoneg) {
+			if (supported_link & IXGBE_LINK_SPEED_10GB_FULL)
+				ecmd->advertising = ADVERTISED_10000baseT_Full;
+		}
 	}
 
 	if (autoneg) {
@@ -313,6 +318,14 @@ static int ixgbe_set_settings(struct net_device *netdev,
 		 */
 		if (ecmd->advertising & ~ecmd->supported)
 			return -EINVAL;
+
+		/* only allow one speed at a time if no autoneg */
+		if (!ecmd->autoneg && hw->phy.multispeed_fiber) {
+			if (ecmd->advertising ==
+			    (ADVERTISED_10000baseT_Full |
+			     ADVERTISED_1000baseT_Full))
+				return -EINVAL;
+		}
 
 		old = hw->phy.autoneg_advertised;
 		advertised = 0;
