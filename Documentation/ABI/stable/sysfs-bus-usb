@@ -91,6 +91,8 @@ What:		/sys/bus/usb/devices/.../devnum
 KernelVersion:	since at least 2.6.18
 Description:
 		Device address on the USB bus.
+Users:
+		libusb
 
 What:		/sys/bus/usb/devices/.../bConfigurationValue
 KernelVersion:	since at least 2.6.18
@@ -106,11 +108,15 @@ Description:
 		configuration, rather then unconfigure the device.
 
 		Writing -1 will always unconfigure the device.
+Users:
+		libusb
 
 What:		/sys/bus/usb/devices/.../busnum
 KernelVersion:	2.6.22
 Description:
 		Bus-number of the USB-bus the device is connected to.
+Users:
+		libusb
 
 What:		/sys/bus/usb/devices/.../descriptors
 KernelVersion:	2.6.26
@@ -124,9 +130,13 @@ Description:
 		can be trusted, and can be used to seek forward one (sub)
 		descriptor at a time until the next config descriptor is found.
 		All descriptors read from this file are in bus-endian format
+Users:
+		libusb
 
 What:		/sys/bus/usb/devices/.../speed
 KernelVersion:	since at least 2.6.18
 Description:
 		Speed the device is connected with to the usb-host in
 		Mbit / second. IE one of 1.5 / 12 / 480 / 5000.
+Users:
+		libusb
