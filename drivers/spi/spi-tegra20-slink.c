@@ -283,7 +283,7 @@ static unsigned tegra_slink_calculate_curr_xfer_param(
 	unsigned total_fifo_words;
 
 	bits_per_word = t->bits_per_word;
-	tspi->bytes_per_word = (bits_per_word - 1) / 8 + 1;
+	tspi->bytes_per_word = DIV_ROUND_UP(bits_per_word, 8);
 
 	if (bits_per_word == 8 || bits_per_word == 16) {
 		tspi->is_packed = 1;

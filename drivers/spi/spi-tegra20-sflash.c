@@ -173,7 +173,7 @@ static unsigned tegra_sflash_calculate_curr_xfer_param(
 	unsigned remain_len = t->len - tsd->cur_pos;
 	unsigned max_word;
 
-	tsd->bytes_per_word = (t->bits_per_word - 1) / 8 + 1;
+	tsd->bytes_per_word = DIV_ROUND_UP(t->bits_per_word, 8);
 	max_word = remain_len / tsd->bytes_per_word;
 	if (max_word > SPI_FIFO_DEPTH)
 		max_word = SPI_FIFO_DEPTH;
