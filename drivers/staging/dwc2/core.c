@@ -507,7 +507,7 @@ void dwc2_disable_host_interrupts(struct dwc2_hsotg *hsotg)
 static void dwc2_config_fifos(struct dwc2_hsotg *hsotg)
 {
 	struct dwc2_core_params *params = hsotg->core_params;
-	u32 rxfsiz, nptxfsiz, ptxfsiz, hptxfsiz, dfifocfg;
+	u32 rxfsiz, nptxfsiz, hptxfsiz, dfifocfg;
 
 	if (!params->enable_dynamic_fifo)
 		return;
@@ -539,12 +539,12 @@ static void dwc2_config_fifos(struct dwc2_hsotg *hsotg)
 	/* Periodic Tx FIFO */
 	dev_dbg(hsotg->dev, "initial hptxfsiz=%08x\n",
 		readl(hsotg->regs + HPTXFSIZ));
-	ptxfsiz = params->host_perio_tx_fifo_size <<
-		  FIFOSIZE_DEPTH_SHIFT & FIFOSIZE_DEPTH_MASK;
-	ptxfsiz |= (params->host_rx_fifo_size +
-		    params->host_nperio_tx_fifo_size) <<
-		   FIFOSIZE_STARTADDR_SHIFT & FIFOSIZE_STARTADDR_MASK;
-	writel(ptxfsiz, hsotg->regs + HPTXFSIZ);
+	hptxfsiz = params->host_perio_tx_fifo_size <<
+		   FIFOSIZE_DEPTH_SHIFT & FIFOSIZE_DEPTH_MASK;
+	hptxfsiz |= (params->host_rx_fifo_size +
+		     params->host_nperio_tx_fifo_size) <<
+		    FIFOSIZE_STARTADDR_SHIFT & FIFOSIZE_STARTADDR_MASK;
+	writel(hptxfsiz, hsotg->regs + HPTXFSIZ);
 	dev_dbg(hsotg->dev, "new hptxfsiz=%08x\n",
 		readl(hsotg->regs + HPTXFSIZ));
 
