@@ -2003,6 +2003,15 @@ static int hdmi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void hdmi_shutdown(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct exynos_drm_hdmi_context *ctx = get_hdmi_context(dev);
+	struct hdmi_context *hdata = ctx->ctx;
+
+	hdmi_poweroff(hdata);
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int hdmi_suspend(struct device *dev)
 {
@@ -2075,6 +2084,7 @@ static const struct dev_pm_ops hdmi_pm_ops = {
 struct platform_driver hdmi_driver = {
 	.probe		= hdmi_probe,
 	.remove		= hdmi_remove,
+	.shutdown	= hdmi_shutdown,
 	.driver		= {
 		.name	= "exynos-hdmi",
 		.owner	= THIS_MODULE,
