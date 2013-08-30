@@ -1403,7 +1403,6 @@ struct qlcnic_esw_statistics {
 	struct __qlcnic_esw_statistics tx;
 };
 
-#define QLCNIC_DUMP_MASK_DEF		0x1f
 #define QLCNIC_FORCE_FW_DUMP_KEY	0xdeadfeed
 #define QLCNIC_ENABLE_FW_DUMP		0xaddfeed
 #define QLCNIC_DISABLE_FW_DUMP		0xbadfeed

@@ -1082,7 +1082,10 @@ flash_temp:
 	}
 
 	tmpl_hdr = ahw->fw_dump.tmpl_hdr;
-	tmpl_hdr->drv_cap_mask = QLCNIC_DUMP_MASK_DEF;
+	tmpl_hdr->drv_cap_mask = tmpl_hdr->cap_mask;
+	dev_info(&adapter->pdev->dev,
+		 "Default minidump capture mask 0x%x\n",
+		 tmpl_hdr->cap_mask);
 
 	if ((tmpl_hdr->version & 0xfffff) >= 0x20001)
 		ahw->fw_dump.use_pex_dma = true;
