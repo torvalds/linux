@@ -24,72 +24,83 @@
 #include "x509_parser.h"
 
 /*
- * Check the signature on a certificate using the provided public key
+ * Set up the signature parameters in an X.509 certificate.  This involves
+ * digesting the signed data and extracting the signature.
  */
-static int x509_check_signature(const struct public_key *pub,
-				const struct x509_certificate *cert)
+int x509_get_sig_params(struct x509_certificate *cert)
 {
-	struct public_key_signature *sig;
 	struct crypto_shash *tfm;
 	struct shash_desc *desc;
 	size_t digest_size, desc_size;
+	void *digest;
 	int ret;
 
 	pr_devel("==>%s()\n", __func__);
-	
+
+	if (cert->sig.rsa.s)
+		return 0;
+
+	cert->sig.rsa.s = mpi_read_raw_data(cert->raw_sig, cert->raw_sig_size);
+	if (!cert->sig.rsa.s)
+		return -ENOMEM;
+	cert->sig.nr_mpi = 1;
+
 	/* Allocate the hashing algorithm we're going to need and find out how
 	 * big the hash operational data will be.
 	 */
-	tfm = crypto_alloc_shash(pkey_hash_algo_name[cert->sig_hash_algo], 0, 0);
+	tfm = crypto_alloc_shash(pkey_hash_algo_name[cert->sig.pkey_hash_algo], 0, 0);
 	if (IS_ERR(tfm))
 		return (PTR_ERR(tfm) == -ENOENT) ? -ENOPKG : PTR_ERR(tfm);
 
 	desc_size = crypto_shash_descsize(tfm) + sizeof(*desc);
 	digest_size = crypto_shash_digestsize(tfm);
 
-	/* We allocate the hash operational data storage on the end of our
-	 * context data.
+	/* We allocate the hash operational data storage on the end of the
+	 * digest storage space.
 	 */
 	ret = -ENOMEM;
-	sig = kzalloc(sizeof(*sig) + desc_size + digest_size, GFP_KERNEL);
-	if (!sig)
-		goto error_no_sig;
+	digest = kzalloc(digest_size + desc_size, GFP_KERNEL);
+	if (!digest)
+		goto error;
 
-	sig->pkey_hash_algo	= cert->sig_hash_algo;
-	sig->digest		= (u8 *)sig + sizeof(*sig) + desc_size;
-	sig->digest_size	= digest_size;
+	cert->sig.digest = digest;
+	cert->sig.digest_size = digest_size;
 
-	desc = (void *)sig + sizeof(*sig);
-	desc->tfm	= tfm;
-	desc->flags	= CRYPTO_TFM_REQ_MAY_SLEEP;
+	desc = digest + digest_size;
+	desc->tfm = tfm;
+	desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	ret = crypto_shash_init(desc);
 	if (ret < 0)
 		goto error;
-
-	ret = -ENOMEM;
-	sig->rsa.s = mpi_read_raw_data(cert->sig, cert->sig_size);
-	if (!sig->rsa.s)
-		goto error;
-
-	ret = crypto_shash_finup(desc, cert->tbs, cert->tbs_size, sig->digest);
-	if (ret < 0)
-		goto error_mpi;
-
-	ret = public_key_verify_signature(pub, sig);
-
-	pr_debug("Cert Verification: %d\n", ret);
-
-error_mpi:
-	mpi_free(sig->rsa.s);
+	might_sleep();
+	ret = crypto_shash_finup(desc, cert->tbs, cert->tbs_size, digest);
 error:
-	kfree(sig);
-error_no_sig:
 	crypto_free_shash(tfm);
-
 	pr_devel("<==%s() = %d\n", __func__, ret);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(x509_get_sig_params);
+
+/*
+ * Check the signature on a certificate using the provided public key
+ */
+int x509_check_signature(const struct public_key *pub,
+			 struct x509_certificate *cert)
+{
+	int ret;
+
+	pr_devel("==>%s()\n", __func__);
+
+	ret = x509_get_sig_params(cert);
+	if (ret < 0)
+		return ret;
+
+	ret = public_key_verify_signature(pub, &cert->sig);
+	pr_debug("Cert Verification: %d\n", ret);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(x509_check_signature);
 
 /*
  * Attempt to parse a data blob for a key as an X509 certificate.
@@ -118,8 +129,8 @@ static int x509_key_preparse(struct key_preparsed_payload *prep)
 		 cert->valid_to.tm_mday, cert->valid_to.tm_hour,
 		 cert->valid_to.tm_min,  cert->valid_to.tm_sec);
 	pr_devel("Cert Signature: %s + %s\n",
-		 pkey_algo_name[cert->sig_pkey_algo],
-		 pkey_hash_algo_name[cert->sig_hash_algo]);
+		 pkey_algo_name[cert->sig.pkey_algo],
+		 pkey_hash_algo_name[cert->sig.pkey_hash_algo]);
 
 	if (!cert->fingerprint || !cert->authority) {
 		pr_warn("Cert for '%s' must have SubjKeyId and AuthKeyId extensions\n",

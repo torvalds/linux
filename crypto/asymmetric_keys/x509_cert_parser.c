@@ -47,6 +47,8 @@ void x509_free_certificate(struct x509_certificate *cert)
 		kfree(cert->subject);
 		kfree(cert->fingerprint);
 		kfree(cert->authority);
+		kfree(cert->sig.digest);
+		mpi_free(cert->sig.rsa.s);
 		kfree(cert);
 	}
 }
@@ -152,33 +154,33 @@ int x509_note_pkey_algo(void *context, size_t hdrlen,
 		return -ENOPKG; /* Unsupported combination */
 
 	case OID_md4WithRSAEncryption:
-		ctx->cert->sig_hash_algo = PKEY_HASH_MD5;
-		ctx->cert->sig_pkey_algo = PKEY_ALGO_RSA;
+		ctx->cert->sig.pkey_hash_algo = PKEY_HASH_MD5;
+		ctx->cert->sig.pkey_algo = PKEY_ALGO_RSA;
 		break;
 
 	case OID_sha1WithRSAEncryption:
-		ctx->cert->sig_hash_algo = PKEY_HASH_SHA1;
-		ctx->cert->sig_pkey_algo = PKEY_ALGO_RSA;
+		ctx->cert->sig.pkey_hash_algo = PKEY_HASH_SHA1;
+		ctx->cert->sig.pkey_algo = PKEY_ALGO_RSA;
 		break;
 
 	case OID_sha256WithRSAEncryption:
-		ctx->cert->sig_hash_algo = PKEY_HASH_SHA256;
-		ctx->cert->sig_pkey_algo = PKEY_ALGO_RSA;
+		ctx->cert->sig.pkey_hash_algo = PKEY_HASH_SHA256;
+		ctx->cert->sig.pkey_algo = PKEY_ALGO_RSA;
 		break;
 
 	case OID_sha384WithRSAEncryption:
-		ctx->cert->sig_hash_algo = PKEY_HASH_SHA384;
-		ctx->cert->sig_pkey_algo = PKEY_ALGO_RSA;
+		ctx->cert->sig.pkey_hash_algo = PKEY_HASH_SHA384;
+		ctx->cert->sig.pkey_algo = PKEY_ALGO_RSA;
 		break;
 
 	case OID_sha512WithRSAEncryption:
-		ctx->cert->sig_hash_algo = PKEY_HASH_SHA512;
-		ctx->cert->sig_pkey_algo = PKEY_ALGO_RSA;
+		ctx->cert->sig.pkey_hash_algo = PKEY_HASH_SHA512;
+		ctx->cert->sig.pkey_algo = PKEY_ALGO_RSA;
 		break;
 
 	case OID_sha224WithRSAEncryption:
-		ctx->cert->sig_hash_algo = PKEY_HASH_SHA224;
-		ctx->cert->sig_pkey_algo = PKEY_ALGO_RSA;
+		ctx->cert->sig.pkey_hash_algo = PKEY_HASH_SHA224;
+		ctx->cert->sig.pkey_algo = PKEY_ALGO_RSA;
 		break;
 	}
 
@@ -203,8 +205,8 @@ int x509_note_signature(void *context, size_t hdrlen,
 		return -EINVAL;
 	}
 
-	ctx->cert->sig = value;
-	ctx->cert->sig_size = vlen;
+	ctx->cert->raw_sig = value;
+	ctx->cert->raw_sig_size = vlen;
 	return 0;
 }
 
