@@ -16,5 +16,9 @@ config MACH_RK3028A_TB
 
 config MACH_RK3028A_86V
 	bool "RK3028A 86V Board"
+	
+config MACH_RK3028A_FAC
+  bool "RK3028A Board for factory"
+  select MACH_RK_FAC
 
 endchoice

@@ -114,34 +114,32 @@ static int tp_firmVer= DEF_FIRMVER;
 module_param(tp_firmVer, int, 0644);
 static inline int check_tp_param(void)
 {
-        int i;
-
-        if(tp_type == TP_TYPE_NONE)
-                return 0;
-        if(tp_type < TP_TYPE_NONE || tp_type > TP_TYPE_MAX){
-                CONFIG_ERR(tp_type, "tp_type");
-                return -EINVAL;
-        }
-        if(tp_i2c < 0 || tp_i2c > 3){
-                CONFIG_ERR(tp_i2c, "tp_i2c");
-                return -EINVAL;
-        }
-        if(tp_addr < 0 || tp_addr > 0x7f){
-                CONFIG_ERR(tp_addr, "tp_addr");
-                return -EINVAL;
-        }
-        
-         if(tp_xmax < 0 || tp_xmax >1920){
-                CONFIG_ERR(tp_xmax, "tp_xmax");
-                return -EINVAL;
-        }
-        
-         if(tp_ymax < 0 || tp_ymax >1920){
-                CONFIG_ERR(tp_ymax, "tp_ymax");
-                return -EINVAL;
-        }
-       
-        return 0;
+    if(tp_type == TP_TYPE_NONE)
+            return 0;
+    if(tp_type < TP_TYPE_NONE || tp_type > TP_TYPE_MAX){
+            CONFIG_ERR(tp_type, "tp_type");
+            return -EINVAL;
+    }
+    if(tp_i2c < 0 || tp_i2c > 3){
+            CONFIG_ERR(tp_i2c, "tp_i2c");
+            return -EINVAL;
+    }
+    if(tp_addr < 0 || tp_addr > 0x7f){
+            CONFIG_ERR(tp_addr, "tp_addr");
+            return -EINVAL;
+    }
+    
+     if(tp_xmax < 0 || tp_xmax >1920){
+            CONFIG_ERR(tp_xmax, "tp_xmax");
+            return -EINVAL;
+    }
+    
+     if(tp_ymax < 0 || tp_ymax >1920){
+            CONFIG_ERR(tp_ymax, "tp_ymax");
+            return -EINVAL;
+    }
+   
+    return 0;
 }
 
 /* gsensor */
@@ -235,5 +233,7 @@ static inline int rk_power_on(void)
 		CONFIG_ERR(pwr_on, "pwr_on"); 
 	
 	port_output_on(pwr_on);
+	
+	return 0;
 }
 
