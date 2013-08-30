@@ -186,6 +186,7 @@ struct tegra_output {
 	const struct tegra_output_ops *ops;
 	enum tegra_output_type type;
 
+	struct drm_panel *panel;
 	struct i2c_adapter *ddc;
 	const struct edid *edid;
 	unsigned int hpd_irq;

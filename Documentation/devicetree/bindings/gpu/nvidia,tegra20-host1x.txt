@@ -125,6 +125,7 @@ of the following host1x client modules:
   - nvidia,ddc-i2c-bus: phandle of an I2C controller used for DDC EDID probing
   - nvidia,hpd-gpio: specifies a GPIO used for hotplug detection
   - nvidia,edid: supplies a binary EDID blob
+  - nvidia,panel: phandle of a display panel
 
 - hdmi: High Definition Multimedia Interface
 
@@ -149,6 +150,7 @@ of the following host1x client modules:
   - nvidia,ddc-i2c-bus: phandle of an I2C controller used for DDC EDID probing
   - nvidia,hpd-gpio: specifies a GPIO used for hotplug detection
   - nvidia,edid: supplies a binary EDID blob
+  - nvidia,panel: phandle of a display panel
 
 - tvo: TV encoder output
 

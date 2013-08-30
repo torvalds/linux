@@ -6,6 +6,7 @@ config DRM_TEGRA
 	select TEGRA_HOST1X
 	select DRM_KMS_HELPER
 	select DRM_KMS_FB_HELPER
+	select DRM_PANEL
 	select FB_SYS_FILLRECT
 	select FB_SYS_COPYAREA
 	select FB_SYS_IMAGEBLIT
