@@ -552,6 +552,43 @@ struct i2c_board_info __initdata lis3dh_info = {
 };
 #endif
 
+#if defined (CONFIG_GS_LSM303D)
+static int lms303d_init_platform_hw(void)
+{
+	return 0;
+}
+static struct sensor_platform_data lms303d_data = {
+	.type = SENSOR_TYPE_ACCEL,
+	.irq_enable = 1,
+	.poll_delay_ms = 30,
+    .init_platform_hw = lms303d_init_platform_hw,
+};
+struct i2c_board_info __initdata lms303d_info = {
+    .type                   = "gs_lsm303d",
+    .flags                  = 0,
+    .platform_data          =&lms303d_data, 
+};
+#endif
+
+#if defined (CONFIG_GS_MMA8452)
+static int mma8452_init_platform_hw(void)
+{
+	return 0;
+}
+
+static struct sensor_platform_data mma8452_data = {
+	.type = SENSOR_TYPE_ACCEL,
+	.irq_enable = 1,
+	.poll_delay_ms = 30,
+    .init_platform_hw = mma8452_init_platform_hw,
+};
+struct i2c_board_info __initdata mma8452_info = {
+    .type                   = "gs_mma8452",
+    .flags                  = 0,
+    .platform_data          =&mma8452_data, 
+};
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////////////
 //battery
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -2252,7 +2289,6 @@ static void rk30_pm_power_off(void)
 
 static int __init tp_board_init(void)
 {
-	int i;
 	struct port_config irq_port;
 	struct port_config rst_port;
 	int ret = check_tp_param();
@@ -2303,7 +2339,6 @@ static int __init codec_board_init(void)
 {
 	struct port_config spk_port;
 	struct port_config hp_port;
-	struct port_config hdmi_irq_port;
 	int ret = check_codec_param();
 
 	if(ret < 0)
@@ -2343,7 +2378,6 @@ if(codec_type == CODEC_TYPE_RK616){
 
 static int __init chg_board_init(void)
 {   
-	int i;
 	int ret = check_chg_param();        
 	if(ret < 0)                
 		return ret;  
@@ -2416,8 +2450,8 @@ static int __init chg_board_init(void)
 }
 
 static int __init gs_board_init(void)
-{        
-	int i;        
+{ 
+	int i;
 	struct port_config port;        
 	int ret = check_gs_param();        
 	if(ret < 0)                
@@ -2462,6 +2496,26 @@ static int __init gs_board_init(void)
 		for(i = 0; i < 9; i++)                        
 			dmt10_data.orientation[i] = gs_orig[i];	        
 		i2c_register_board_info(gs_i2c, &dmt10_info, 1); 
+	}
+#endif
+
+#if defined (CONFIG_GS_MMA8452)
+	if(gs_type == GS_TYPE_MMA8452){ 
+		mma8452_info.irq = port.gpio;                
+		mma8452_info.addr = gs_addr;                
+		for(i = 0; i < 9; i++)                        
+			mma8452_data.orientation[i] = gs_orig[i];	        
+		i2c_register_board_info(gs_i2c, &mma8452_info, 1); 
+	}
+#endif
+
+#if defined (CONFIG_GS_LSM303D)
+	if(gs_type == GS_TYPE_LSM303D){ 
+		lms303d_info.irq = port.gpio;                
+		lms303d_info.addr = gs_addr;                
+		for(i = 0; i < 9; i++)                        
+			lms303d_data.orientation[i] = gs_orig[i];	        
+		i2c_register_board_info(gs_i2c, &lms303d_info, 1); 
 	}
 #endif
 
