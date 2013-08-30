@@ -60,6 +60,7 @@ struct public_key {
 #define PKEY_CAN_DECRYPT	0x02
 #define PKEY_CAN_SIGN		0x04
 #define PKEY_CAN_VERIFY		0x08
+	enum pkey_algo pkey_algo : 8;
 	enum pkey_id_type id_type : 8;
 	union {
 		MPI	mpi[5];

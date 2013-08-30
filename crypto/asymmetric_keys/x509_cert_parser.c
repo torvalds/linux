@@ -343,8 +343,9 @@ int x509_extract_key_data(void *context, size_t hdrlen,
 	if (ctx->last_oid != OID_rsaEncryption)
 		return -ENOPKG;
 
-	/* There seems to be an extraneous 0 byte on the front of the data */
-	ctx->cert->pkey_algo = PKEY_ALGO_RSA;
+	ctx->cert->pub->pkey_algo = PKEY_ALGO_RSA;
+
+	/* Discard the BIT STRING metadata */
 	ctx->key = value + 1;
 	ctx->key_size = vlen - 1;
 	return 0;
