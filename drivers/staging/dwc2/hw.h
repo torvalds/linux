@@ -190,14 +190,7 @@
 #define GRXFSIZ				HSOTG_REG(0x024)
 
 #define GNPTXFSIZ			HSOTG_REG(0x028)
-#define GNPTXFSIZ_NP_TXF_DEP_MASK	(0xffff << 16)
-#define GNPTXFSIZ_NP_TXF_DEP_SHIFT	16
-#define GNPTXFSIZ_NP_TXF_DEP_LIMIT	0xffff
-#define GNPTXFSIZ_NP_TXF_DEP(_x)	((_x) << 16)
-#define GNPTXFSIZ_NP_TXF_ST_ADDR_MASK	(0xffff << 0)
-#define GNPTXFSIZ_NP_TXF_ST_ADDR_SHIFT	0
-#define GNPTXFSIZ_NP_TXF_ST_ADDR_LIMIT	0xffff
-#define GNPTXFSIZ_NP_TXF_ST_ADDR(_x)	((_x) << 0)
+/* Use FIFOSIZE_* constants to access this register */
 
 #define GNPTXSTS			HSOTG_REG(0x02C)
 #define GNPTXSTS_NP_TXQ_TOP_MASK		(0x7f << 24)
@@ -395,16 +388,12 @@
 #define ADPCTL_PRB_DSCHRG_SHIFT		0
 
 #define HPTXFSIZ			HSOTG_REG(0x100)
+/* Use FIFOSIZE_* constants to access this register */
 
 #define DPTXFSIZN(_a)			HSOTG_REG(0x104 + (((_a) - 1) * 4))
-#define DPTXFSIZN_DP_TXF_SIZE_MASK	(0xffff << 16)
-#define DPTXFSIZN_DP_TXF_SIZE_SHIFT	16
-#define DPTXFSIZN_DP_TXF_SIZE_GET(_v)	(((_v) >> 16) & 0xffff)
-#define DPTXFSIZN_DP_TXF_SIZE_LIMIT	0xffff
-#define DPTXFSIZN_DP_TXF_SIZE(_x)	((_x) << 16)
-#define DPTXFSIZN_DP_TXF_ST_ADDR_MASK	(0xffff << 0)
-#define DPTXFSIZN_DP_TXF_ST_ADDR_SHIFT	0
+/* Use FIFOSIZE_* constants to access this register */
 
+/* These apply to the GNPTXFSIZ, HPTXFSIZ and DPTXFSIZN registers */
 #define FIFOSIZE_DEPTH_MASK		(0xffff << 16)
 #define FIFOSIZE_DEPTH_SHIFT		16
 #define FIFOSIZE_STARTADDR_MASK		(0xffff << 0)
