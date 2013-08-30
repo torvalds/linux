@@ -427,7 +427,6 @@ struct das1800_private {
 	volatile unsigned int count;	/* number of data points left to be taken */
 	unsigned int divisor1;	/* value to load into board's counter 1 for timed conversions */
 	unsigned int divisor2;	/* value to load into board's counter 2 for timed conversions */
-	int do_bits;		/* digital output bits */
 	int irq_dma_bits;	/* bits for control register b */
 	/* dma bits for control register b, stored so that dma can be
 	 * turned on and off */
@@ -1319,24 +1318,15 @@ static int das1800_di_rbits(struct comedi_device *dev,
 	return insn->n;
 }
 
-/* writes to digital output channels */
 static int das1800_do_wbits(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+			    struct comedi_insn *insn,
+			    unsigned int *data)
 {
-	struct das1800_private *devpriv = dev->private;
-	unsigned int wbits;
+	if (comedi_dio_update_state(s, data))
+		outb(s->state, dev->iobase + DAS1800_DIGITAL);
 
-	/*  only set bits that have been masked */
-	data[0] &= (1 << s->n_chan) - 1;
-	wbits = devpriv->do_bits;
-	wbits &= ~data[0];
-	wbits |= data[0] & data[1];
-	devpriv->do_bits = wbits;
-
-	outb(devpriv->do_bits, dev->iobase + DAS1800_DIGITAL);
-
-	data[1] = devpriv->do_bits;
+	data[1] = s->state;
 
 	return insn->n;
 }
@@ -1644,7 +1634,7 @@ static int das1800_attach(struct comedi_device *dev,
 	das1800_cancel(dev, dev->read_subdev);
 
 	/*  initialize digital out channels */
-	outb(devpriv->do_bits, dev->iobase + DAS1800_DIGITAL);
+	outb(0, dev->iobase + DAS1800_DIGITAL);
 
 	/*  initialize analog out channels */
 	if (thisboard->ao_ability == 1) {
