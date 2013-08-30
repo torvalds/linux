@@ -50,6 +50,9 @@
 #define DW_MCI_RECV_STATUS	2
 #define DW_MCI_DMA_THRESHOLD	16
 
+#define DW_MCI_FREQ_MAX	200000000	/* unit: HZ */
+#define DW_MCI_FREQ_MIN	400000		/* unit: HZ */
+
 #ifdef CONFIG_MMC_DW_IDMAC
 #define IDMAC_INT_CLR		(SDMMC_IDMAC_INT_AI | SDMMC_IDMAC_INT_NI | \
 				 SDMMC_IDMAC_INT_CES | SDMMC_IDMAC_INT_DU | \
@@ -1936,6 +1939,7 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	struct dw_mci_slot *slot;
 	const struct dw_mci_drv_data *drv_data = host->drv_data;
 	int ctrl_id, ret;
+	u32 freq[2];
 	u8 bus_width;
 
 	mmc = mmc_alloc_host(sizeof(struct dw_mci_slot), host->dev);
@@ -1951,8 +1955,14 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	slot->quirks = dw_mci_of_get_slot_quirks(host->dev, slot->id);
 
 	mmc->ops = &dw_mci_ops;
-	mmc->f_min = DIV_ROUND_UP(host->bus_hz, 510);
-	mmc->f_max = host->bus_hz;
+	if (of_property_read_u32_array(host->dev->of_node,
+				       "clock-freq-min-max", freq, 2)) {
+		mmc->f_min = DW_MCI_FREQ_MIN;
+		mmc->f_max = DW_MCI_FREQ_MAX;
+	} else {
+		mmc->f_min = freq[0];
+		mmc->f_max = freq[1];
+	}
 
 	if (host->pdata->get_ocr)
 		mmc->ocr_avail = host->pdata->get_ocr(id);
