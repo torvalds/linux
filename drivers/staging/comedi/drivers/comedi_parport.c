@@ -109,22 +109,25 @@ static int parport_data_reg_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int parport_insn_config_a(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
+static int parport_data_reg_insn_config(struct comedi_device *dev,
+					struct comedi_subdevice *s,
+					struct comedi_insn *insn,
+					unsigned int *data)
 {
 	struct parport_private *devpriv = dev->private;
+	int ret;
 
-	if (data[0]) {
-		s->io_bits = 0xff;
+	ret = comedi_dio_insn_config(dev, s, insn, data, 0xff);
+	if (ret)
+		return ret;
+
+	if (s->io_bits)
 		devpriv->c_data &= ~PARPORT_CTRL_BIDIR_ENA;
-	} else {
-		s->io_bits = 0;
+	else
 		devpriv->c_data |= PARPORT_CTRL_BIDIR_ENA;
-	}
 	outb(devpriv->c_data, dev->iobase + PARPORT_CTRL_REG);
 
-	return 1;
+	return insn->n;
 }
 
 static int parport_insn_b(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -288,7 +291,7 @@ static int parport_attach(struct comedi_device *dev,
 	s->maxdata = 1;
 	s->range_table = &range_digital;
 	s->insn_bits = parport_data_reg_insn_bits;
-	s->insn_config = parport_insn_config_a;
+	s->insn_config = parport_data_reg_insn_config;
 
 	s = &dev->subdevices[1];
 	s->type = COMEDI_SUBD_DI;
