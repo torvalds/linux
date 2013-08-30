@@ -1121,9 +1121,10 @@ static netdev_tx_t xgmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	wmb();
 	desc_set_tx_owner(first, desc_flags | TXDESC_FIRST_SEG);
 
+	writel(1, priv->base + XGMAC_DMA_TX_POLL);
+
 	priv->tx_head = dma_ring_incr(entry, DMA_TX_RING_SZ);
 
-	writel(1, priv->base + XGMAC_DMA_TX_POLL);
 	if (dma_ring_space(priv->tx_head, priv->tx_tail, DMA_TX_RING_SZ) <
 	    MAX_SKB_FRAGS)
 		netif_stop_queue(dev);
