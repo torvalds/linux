@@ -22,7 +22,7 @@ enum pkey_algo {
 	PKEY_ALGO__LAST
 };
 
-extern const char *const pkey_algo[PKEY_ALGO__LAST];
+extern const char *const pkey_algo_name[PKEY_ALGO__LAST];
 
 enum pkey_hash_algo {
 	PKEY_HASH_MD4,
@@ -36,7 +36,7 @@ enum pkey_hash_algo {
 	PKEY_HASH__LAST
 };
 
-extern const char *const pkey_hash_algo[PKEY_HASH__LAST];
+extern const char *const pkey_hash_algo_name[PKEY_HASH__LAST];
 
 enum pkey_id_type {
 	PKEY_ID_PGP,		/* OpenPGP generated key ID */
@@ -44,7 +44,7 @@ enum pkey_id_type {
 	PKEY_ID_TYPE__LAST
 };
 
-extern const char *const pkey_id_type[PKEY_ID_TYPE__LAST];
+extern const char *const pkey_id_type_name[PKEY_ID_TYPE__LAST];
 
 /*
  * Cryptographic data for the public-key subtype of the asymmetric key type.

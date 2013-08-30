@@ -49,7 +49,7 @@ static int x509_check_signature(const struct public_key *pub,
 	/* Allocate the hashing algorithm we're going to need and find out how
 	 * big the hash operational data will be.
 	 */
-	tfm = crypto_alloc_shash(pkey_hash_algo[cert->sig_hash_algo], 0, 0);
+	tfm = crypto_alloc_shash(pkey_hash_algo_name[cert->sig_hash_algo], 0, 0);
 	if (IS_ERR(tfm))
 		return (PTR_ERR(tfm) == -ENOENT) ? -ENOPKG : PTR_ERR(tfm);
 
@@ -117,7 +117,7 @@ static int x509_key_preparse(struct key_preparsed_payload *prep)
 
 	pr_devel("Cert Issuer: %s\n", cert->issuer);
 	pr_devel("Cert Subject: %s\n", cert->subject);
-	pr_devel("Cert Key Algo: %s\n", pkey_algo[cert->pkey_algo]);
+	pr_devel("Cert Key Algo: %s\n", pkey_algo_name[cert->pkey_algo]);
 	pr_devel("Cert Valid From: %04ld-%02d-%02d %02d:%02d:%02d\n",
 		 cert->valid_from.tm_year + 1900, cert->valid_from.tm_mon + 1,
 		 cert->valid_from.tm_mday, cert->valid_from.tm_hour,
@@ -127,8 +127,8 @@ static int x509_key_preparse(struct key_preparsed_payload *prep)
 		 cert->valid_to.tm_mday, cert->valid_to.tm_hour,
 		 cert->valid_to.tm_min,  cert->valid_to.tm_sec);
 	pr_devel("Cert Signature: %s + %s\n",
-		 pkey_algo[cert->sig_pkey_algo],
-		 pkey_hash_algo[cert->sig_hash_algo]);
+		 pkey_algo_name[cert->sig_pkey_algo],
+		 pkey_hash_algo_name[cert->sig_hash_algo]);
 
 	if (!cert->fingerprint || !cert->authority) {
 		pr_warn("Cert for '%s' must have SubjKeyId and AuthKeyId extensions\n",
