@@ -45,7 +45,7 @@ int au_do_open_nondir(struct file *file, int flags)
 	memset(&finfo->fi_htop, 0, sizeof(finfo->fi_htop));
 	atomic_set(&finfo->fi_mmapped, 0);
 	bindex = au_dbstart(dentry);
-	h_file = au_h_open(dentry, bindex, flags, file);
+	h_file = au_h_open(dentry, bindex, flags, file, /*force_wr*/0);
 	if (IS_ERR(h_file))
 		err = PTR_ERR(h_file);
 	else {

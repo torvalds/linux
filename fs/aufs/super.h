@@ -39,8 +39,15 @@ struct au_wbr_copyup_operations {
 	int (*copyup)(struct dentry *dentry);
 };
 
+#define AuWbr_DIR	1		/* target is a dir */
+#define AuWbr_PARENT	(1 << 1)	/* always require a parent */
+
+#define au_ftest_wbr(flags, name)	((flags) & AuWbr_##name)
+#define au_fset_wbr(flags, name)	{ (flags) |= AuWbr_##name; }
+#define au_fclr_wbr(flags, name)	{ (flags) &= ~AuWbr_##name; }
+
 struct au_wbr_create_operations {
-	int (*create)(struct dentry *dentry, int isdir);
+	int (*create)(struct dentry *dentry, unsigned int flags);
 	int (*init)(struct super_block *sb);
 	int (*fin)(struct super_block *sb);
 };

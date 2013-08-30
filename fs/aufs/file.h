@@ -70,7 +70,7 @@ struct au_finfo {
 extern const struct address_space_operations aufs_aop;
 unsigned int au_file_roflags(unsigned int flags);
 struct file *au_h_open(struct dentry *dentry, aufs_bindex_t bindex, int flags,
-		       struct file *file);
+		       struct file *file, int force_wr);
 int au_do_open(struct file *file, int (*open)(struct file *file, int flags),
 	       struct au_fidir *fidir);
 int au_reopen_nondir(struct file *file);
@@ -88,12 +88,14 @@ unsigned int aufs_poll(struct file *file, poll_table *wait);
 
 #ifdef CONFIG_AUFS_BR_HFSPLUS
 /* hfsplus.c */
-struct file *au_h_open_pre(struct dentry *dentry, aufs_bindex_t bindex);
+struct file *au_h_open_pre(struct dentry *dentry, aufs_bindex_t bindex,
+			   int force_wr);
 void au_h_open_post(struct dentry *dentry, aufs_bindex_t bindex,
 		    struct file *h_file);
 #else
 static inline
-struct file *au_h_open_pre(struct dentry *dentry, aufs_bindex_t bindex)
+struct file *au_h_open_pre(struct dentry *dentry, aufs_bindex_t bindex,
+			   int force_wr)
 {
 	return NULL;
 }
