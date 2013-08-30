@@ -196,18 +196,19 @@ static int pcl726_di_insn_bits(struct comedi_device *dev,
 
 static int pcl726_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
 	const struct pcl726_board *board = comedi_board(dev);
+	unsigned int mask;
 
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= data[0] & data[1];
+	mask = comedi_dio_update_state(s, data);
+	if (mask) {
+		if (mask & 0x00ff)
+			outb(s->state & 0xff, dev->iobase + board->do_lo);
+		if (mask & 0xff00)
+			outb((s->state >> 8), dev->iobase + board->do_hi);
 	}
-	if (data[1] & 0x00ff)
-		outb(s->state & 0xff, dev->iobase + board->do_lo);
-	if (data[1] & 0xff00)
-		outb((s->state >> 8), dev->iobase + board->do_hi);
 
 	data[1] = s->state;
 

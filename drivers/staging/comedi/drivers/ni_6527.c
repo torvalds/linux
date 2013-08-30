@@ -163,29 +163,29 @@ static int ni6527_di_insn_bits(struct comedi_device *dev,
 
 static int ni6527_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
 	struct ni6527_private *devpriv = dev->private;
+	unsigned int mask;
 
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
-
-		/* The open relay state on the board cooresponds to 1,
-		 * but in Comedi, it is represented by 0. */
-		if (data[0] & 0x0000ff) {
-			writeb((s->state ^ 0xff),
+	mask = comedi_dio_update_state(s, data);
+	if (mask) {
+		/* Outputs are inverted */
+		if (mask & 0x0000ff) {
+			writeb(s->state ^ 0xff,
 			       devpriv->mite->daq_io_addr + Port_Register(3));
 		}
-		if (data[0] & 0x00ff00) {
+		if (mask & 0x00ff00) {
 			writeb((s->state >> 8) ^ 0xff,
 			       devpriv->mite->daq_io_addr + Port_Register(4));
 		}
-		if (data[0] & 0xff0000) {
+		if (mask & 0xff0000) {
 			writeb((s->state >> 16) ^ 0xff,
 			       devpriv->mite->daq_io_addr + Port_Register(5));
 		}
 	}
+
 	data[1] = s->state;
 
 	return insn->n;
