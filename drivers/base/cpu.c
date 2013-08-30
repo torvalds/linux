@@ -93,7 +93,17 @@ static ssize_t cpu_probe_store(struct device *dev,
 			       const char *buf,
 			       size_t count)
 {
-	return arch_cpu_probe(buf, count);
+	ssize_t cnt;
+	int ret;
+
+	ret = lock_device_hotplug_sysfs();
+	if (ret)
+		return ret;
+
+	cnt = arch_cpu_probe(buf, count);
+
+	unlock_device_hotplug();
+	return cnt;
 }
 
 static ssize_t cpu_release_store(struct device *dev,
@@ -101,7 +111,17 @@ static ssize_t cpu_release_store(struct device *dev,
 				 const char *buf,
 				 size_t count)
 {
-	return arch_cpu_release(buf, count);
+	ssize_t cnt;
+	int ret;
+
+	ret = lock_device_hotplug_sysfs();
+	if (ret)
+		return ret;
+
+	cnt = arch_cpu_release(buf, count);
+
+	unlock_device_hotplug();
+	return cnt;
 }
 
 static DEVICE_ATTR(probe, S_IWUSR, NULL, cpu_probe_store);
