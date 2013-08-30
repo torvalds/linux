@@ -2067,7 +2067,7 @@ static int smc911x_drv_probe(struct platform_device *pdev)
 	lp->netdev = ndev;
 #ifdef SMC_DYNAMIC_BUS_CONFIG
 	{
-		struct smc911x_platdata *pd = pdev->dev.platform_data;
+		struct smc911x_platdata *pd = dev_get_platdata(&pdev->dev);
 		if (!pd) {
 			ret = -EINVAL;
 			goto release_both;
