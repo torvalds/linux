@@ -66,7 +66,7 @@ struct net_device * hostap_add_interface(struct local_info *local,
 	list_add(&iface->list, &local->hostap_interfaces);
 
 	mdev = local->dev;
-	memcpy(dev->dev_addr, mdev->dev_addr, ETH_ALEN);
+	eth_hw_addr_inherit(dev, mdev);
 	dev->base_addr = mdev->base_addr;
 	dev->irq = mdev->irq;
 	dev->mem_start = mdev->mem_start;
