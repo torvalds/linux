@@ -90,6 +90,7 @@ struct public_key_signature {
 	u8 *digest;
 	u8 digest_size;			/* Number of bytes in digest */
 	u8 nr_mpi;			/* Occupancy of mpi[] */
+	enum pkey_algo pkey_algo : 8;
 	enum pkey_hash_algo pkey_hash_algo : 8;
 	union {
 		MPI mpi[2];
