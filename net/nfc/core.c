@@ -44,7 +44,7 @@ DEFINE_MUTEX(nfc_devlist_mutex);
 /* NFC device ID bitmap */
 static DEFINE_IDA(nfc_index_ida);
 
-int nfc_fw_upload(struct nfc_dev *dev, const char *firmware_name)
+int nfc_fw_download(struct nfc_dev *dev, const char *firmware_name)
 {
 	int rc = 0;
 
@@ -62,28 +62,28 @@ int nfc_fw_upload(struct nfc_dev *dev, const char *firmware_name)
 		goto error;
 	}
 
-	if (!dev->ops->fw_upload) {
+	if (!dev->ops->fw_download) {
 		rc = -EOPNOTSUPP;
 		goto error;
 	}
 
-	dev->fw_upload_in_progress = true;
-	rc = dev->ops->fw_upload(dev, firmware_name);
+	dev->fw_download_in_progress = true;
+	rc = dev->ops->fw_download(dev, firmware_name);
 	if (rc)
-		dev->fw_upload_in_progress = false;
+		dev->fw_download_in_progress = false;
 
 error:
 	device_unlock(&dev->dev);
 	return rc;
 }
 
-int nfc_fw_upload_done(struct nfc_dev *dev, const char *firmware_name)
+int nfc_fw_download_done(struct nfc_dev *dev, const char *firmware_name)
 {
-	dev->fw_upload_in_progress = false;
+	dev->fw_download_in_progress = false;
 
-	return nfc_genl_fw_upload_done(dev, firmware_name);
+	return nfc_genl_fw_download_done(dev, firmware_name);
 }
-EXPORT_SYMBOL(nfc_fw_upload_done);
+EXPORT_SYMBOL(nfc_fw_download_done);
 
 /**
  * nfc_dev_up - turn on the NFC device
@@ -110,7 +110,7 @@ int nfc_dev_up(struct nfc_dev *dev)
 		goto error;
 	}
 
-	if (dev->fw_upload_in_progress) {
+	if (dev->fw_download_in_progress) {
 		rc = -EBUSY;
 		goto error;
 	}

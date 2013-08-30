@@ -17,6 +17,8 @@
 #define current_cpu_type()	current_cpu_data.cputype
 #endif
 
+#define boot_cpu_type()		cpu_data[0].cputype
+
 /*
  * SMP assumption: Options of CPU 0 are a superset of all processors.
  * This is true for all known MIPS systems.

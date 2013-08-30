@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <asm/hw_irq.h>
 #include <linux/device.h>
+#include <uapi/asm/perf_event.h>
 
 #define MAX_HWEVENTS		8
 #define MAX_EVENT_ALTERNATIVES	8
@@ -68,11 +69,6 @@ struct power_pmu {
 #define PPMU_LIMITED_PMC_OK	1	/* can put this on a limited PMC */
 #define PPMU_LIMITED_PMC_REQD	2	/* have to put this on a limited PMC */
 #define PPMU_ONLY_COUNT_RUN	4	/* only counting in run state */
-
-/*
- * We use the event config bit 63 as a flag to request EBB.
- */
-#define EVENT_CONFIG_EBB_SHIFT	63
 
 extern int register_power_pmu(struct power_pmu *);
 

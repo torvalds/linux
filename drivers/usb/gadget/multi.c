@@ -160,10 +160,8 @@ static __init int rndis_do_config(struct usb_configuration *c)
 		return ret;
 
 	f_acm_rndis = usb_get_function(fi_acm);
-	if (IS_ERR(f_acm_rndis)) {
-		ret = PTR_ERR(f_acm_rndis);
-		goto err_func_acm;
-	}
+	if (IS_ERR(f_acm_rndis))
+		return PTR_ERR(f_acm_rndis);
 
 	ret = usb_add_function(c, f_acm_rndis);
 	if (ret)
@@ -178,7 +176,6 @@ err_fsg:
 	usb_remove_function(c, f_acm_rndis);
 err_conf:
 	usb_put_function(f_acm_rndis);
-err_func_acm:
 	return ret;
 }
 
@@ -226,7 +223,7 @@ static __init int cdc_do_config(struct usb_configuration *c)
 	/* implicit port_num is zero */
 	f_acm_multi = usb_get_function(fi_acm);
 	if (IS_ERR(f_acm_multi))
-		goto err_func_acm;
+		return PTR_ERR(f_acm_multi);
 
 	ret = usb_add_function(c, f_acm_multi);
 	if (ret)
@@ -241,7 +238,6 @@ err_fsg:
 	usb_remove_function(c, f_acm_multi);
 err_conf:
 	usb_put_function(f_acm_multi);
-err_func_acm:
 	return ret;
 }
 
