@@ -507,7 +507,7 @@ void dwc2_disable_host_interrupts(struct dwc2_hsotg *hsotg)
 static void dwc2_config_fifos(struct dwc2_hsotg *hsotg)
 {
 	struct dwc2_core_params *params = hsotg->core_params;
-	u32 rxfsiz, nptxfsiz, hptxfsiz, dfifocfg;
+	u32 nptxfsiz, hptxfsiz, dfifocfg;
 
 	if (!params->enable_dynamic_fifo)
 		return;
@@ -555,11 +555,10 @@ static void dwc2_config_fifos(struct dwc2_hsotg *hsotg)
 		 * include RxFIFO, NPTXFIFO and HPTXFIFO
 		 */
 		dfifocfg = readl(hsotg->regs + GDFIFOCFG);
-		rxfsiz = readl(hsotg->regs + GRXFSIZ) & 0x0000ffff;
-		nptxfsiz = readl(hsotg->regs + GNPTXFSIZ) >> 16 & 0xffff;
-		hptxfsiz = readl(hsotg->regs + HPTXFSIZ) >> 16 & 0xffff;
 		dfifocfg &= ~GDFIFOCFG_EPINFOBASE_MASK;
-		dfifocfg |= (rxfsiz + nptxfsiz + hptxfsiz) <<
+		dfifocfg |= (params->host_rx_fifo_size +
+			     params->host_nperio_tx_fifo_size +
+			     params->host_perio_tx_fifo_size) <<
 			    GDFIFOCFG_EPINFOBASE_SHIFT &
 			    GDFIFOCFG_EPINFOBASE_MASK;
 		writel(dfifocfg, hsotg->regs + GDFIFOCFG);
