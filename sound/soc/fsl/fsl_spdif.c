@@ -1071,9 +1071,9 @@ static int fsl_spdif_probe_txclk(struct fsl_spdif_priv *spdif_priv,
 			break;
 	}
 
-	dev_dbg(&pdev->dev, "use rxtx%d as tx clock source for %dHz sample rate",
+	dev_dbg(&pdev->dev, "use rxtx%d as tx clock source for %dHz sample rate\n",
 			spdif_priv->txclk_src[index], rate[index]);
-	dev_dbg(&pdev->dev, "use divisor %d for %dHz sample rate",
+	dev_dbg(&pdev->dev, "use divisor %d for %dHz sample rate\n",
 			spdif_priv->txclk_div[index], rate[index]);
 
 	return 0;
