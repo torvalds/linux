@@ -88,6 +88,10 @@ typedef void (*cam_pkt_op) (struct gspca_dev *gspca_dev,
 typedef int (*cam_int_pkt_op) (struct gspca_dev *gspca_dev,
 				u8 *data,
 				int len);
+typedef void (*cam_format_op) (struct gspca_dev *gspca_dev,
+				struct v4l2_format *fmt);
+typedef int (*cam_frmsize_op) (struct gspca_dev *gspca_dev,
+				struct v4l2_frmsizeenum *fsize);
 
 /* subdriver description */
 struct sd_desc {
@@ -109,6 +113,8 @@ struct sd_desc {
 	cam_set_jpg_op set_jcomp;
 	cam_streamparm_op get_streamparm;
 	cam_streamparm_op set_streamparm;
+	cam_format_op try_fmt;
+	cam_frmsize_op enum_framesizes;
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	cam_set_reg_op set_register;
 	cam_get_reg_op get_register;
