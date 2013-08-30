@@ -1020,7 +1020,9 @@ static void dwc2_process_periodic_channels(struct dwc2_hsotg *hsotg)
 	qh_ptr = hsotg->periodic_sched_assigned.next;
 	while (qh_ptr != &hsotg->periodic_sched_assigned) {
 		tx_status = readl(hsotg->regs + HPTXSTS);
-		if ((tx_status & TXSTS_QSPCAVAIL_MASK) == 0) {
+		qspcavail = (tx_status & TXSTS_QSPCAVAIL_MASK) >>
+			    TXSTS_QSPCAVAIL_SHIFT;
+		if (qspcavail == 0) {
 			no_queue_space = 1;
 			break;
 		}
