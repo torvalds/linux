@@ -1516,7 +1516,7 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 	printk(KERN_INFO "%s:Using random mac address\n", DRIVER_NAME);
 	eth_hw_addr_random(dev);
 
-	pep->pd = pdev->dev.platform_data;
+	pep->pd = dev_get_platdata(&pdev->dev);
 	pep->rx_ring_size = NUM_RX_DESCS;
 	if (pep->pd->rx_queue_size)
 		pep->rx_ring_size = pep->pd->rx_queue_size;
