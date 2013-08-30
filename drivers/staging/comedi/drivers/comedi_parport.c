@@ -222,7 +222,7 @@ static int parport_intr_cancel(struct comedi_device *dev,
 static irqreturn_t parport_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct comedi_subdevice *s = &dev->subdevices[3];
+	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned int ctrl;
 
 	ctrl = inb(dev->iobase + PARPORT_CTRL_REG);
