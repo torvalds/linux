@@ -138,6 +138,20 @@ static void iwl_mvm_roc_finished(struct iwl_mvm *mvm)
 	schedule_work(&mvm->roc_done_wk);
 }
 
+static bool iwl_mvm_te_check_disconnect(struct iwl_mvm *mvm,
+					struct ieee80211_vif *vif,
+					const char *errmsg)
+{
+	if (vif->type != NL80211_IFTYPE_STATION)
+		return false;
+	if (vif->bss_conf.assoc && vif->bss_conf.dtim_period)
+		return false;
+	if (errmsg)
+		IWL_ERR(mvm, "%s\n", errmsg);
+	ieee80211_connection_loss(vif);
+	return true;
+}
+
 /*
  * Handles a FW notification for an event that is known to the driver.
  *
@@ -163,8 +177,13 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 	 * P2P Device discoveribility, while there are other higher priority
 	 * events in the system).
 	 */
-	WARN_ONCE(!le32_to_cpu(notif->status),
-		  "Failed to schedule time event\n");
+	if (WARN_ONCE(!le32_to_cpu(notif->status),
+		      "Failed to schedule time event\n")) {
+		if (iwl_mvm_te_check_disconnect(mvm, te_data->vif, NULL)) {
+			iwl_mvm_te_clear_data(mvm, te_data);
+			return;
+		}
+	}
 
 	if (le32_to_cpu(notif->action) & TE_NOTIF_HOST_EVENT_END) {
 		IWL_DEBUG_TE(mvm,
@@ -180,14 +199,8 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 		 * By now, we should have finished association
 		 * and know the dtim period.
 		 */
-		if (te_data->vif->type == NL80211_IFTYPE_STATION &&
-		    (!te_data->vif->bss_conf.assoc ||
-		     !te_data->vif->bss_conf.dtim_period)) {
-			IWL_ERR(mvm,
-				"No assocation and the time event is over already...\n");
-			ieee80211_connection_loss(te_data->vif);
-		}
-
+		iwl_mvm_te_check_disconnect(mvm, te_data->vif,
+			"No assocation and the time event is over already...");
 		iwl_mvm_te_clear_data(mvm, te_data);
 	} else if (le32_to_cpu(notif->action) & TE_NOTIF_HOST_EVENT_START) {
 		te_data->running = true;

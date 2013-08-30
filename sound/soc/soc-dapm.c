@@ -2374,6 +2374,9 @@ static int snd_soc_dapm_add_path(struct snd_soc_dapm_context *dapm,
 			wsource->ext = 1;
 	}
 
+	dapm_mark_dirty(wsource, "Route added");
+	dapm_mark_dirty(wsink, "Route added");
+
 	/* connect static paths */
 	if (control == NULL) {
 		list_add(&path->list, &dapm->card->paths);
@@ -2435,9 +2438,6 @@ static int snd_soc_dapm_add_path(struct snd_soc_dapm_context *dapm,
 		path->connect = 0;
 		return 0;
 	}
-
-	dapm_mark_dirty(wsource, "Route added");
-	dapm_mark_dirty(wsink, "Route added");
 
 	return 0;
 err:
@@ -2712,9 +2712,8 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_weak_routes);
  *
  * Returns 0 for success.
  */
-int snd_soc_dapm_new_widgets(struct snd_soc_dapm_context *dapm)
+int snd_soc_dapm_new_widgets(struct snd_soc_card *card)
 {
-	struct snd_soc_card *card = dapm->card;
 	struct snd_soc_dapm_widget *w;
 	unsigned int val;
 
