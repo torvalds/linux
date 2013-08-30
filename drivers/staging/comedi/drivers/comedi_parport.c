@@ -91,10 +91,6 @@ pin, which can be used to wake up tasks.
 #define PARPORT_CTRL_IRQ_ENA	(1 << 4)
 #define PARPORT_CTRL_BIDIR_ENA	(1 << 5)
 
-struct parport_private {
-	int enable_irq;
-};
-
 static int parport_data_reg_insn_bits(struct comedi_device *dev,
 				      struct comedi_subdevice *s,
 				      struct comedi_insn *insn,
@@ -212,14 +208,11 @@ static int parport_intr_cmdtest(struct comedi_device *dev,
 static int parport_intr_cmd(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
-	struct parport_private *devpriv = dev->private;
 	unsigned int ctrl;
 
 	ctrl = inb(dev->iobase + PARPORT_CTRL_REG);
 	ctrl |= PARPORT_CTRL_IRQ_ENA;
 	outb(ctrl, dev->iobase + PARPORT_CTRL_REG);
-
-	devpriv->enable_irq = 1;
 
 	return 0;
 }
@@ -227,14 +220,11 @@ static int parport_intr_cmd(struct comedi_device *dev,
 static int parport_intr_cancel(struct comedi_device *dev,
 			       struct comedi_subdevice *s)
 {
-	struct parport_private *devpriv = dev->private;
 	unsigned int ctrl;
 
 	ctrl = inb(dev->iobase + PARPORT_CTRL_REG);
 	ctrl &= ~PARPORT_CTRL_IRQ_ENA;
 	outb(ctrl, dev->iobase + PARPORT_CTRL_REG);
-
-	devpriv->enable_irq = 0;
 
 	return 0;
 }
@@ -242,10 +232,11 @@ static int parport_intr_cancel(struct comedi_device *dev,
 static irqreturn_t parport_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct parport_private *devpriv = dev->private;
 	struct comedi_subdevice *s = &dev->subdevices[3];
+	unsigned int ctrl;
 
-	if (!devpriv->enable_irq)
+	ctrl = inb(dev->iobase + PARPORT_CTRL_REG);
+	if (!(ctrl & PARPORT_CTRL_IRQ_ENA))
 		return IRQ_NONE;
 
 	comedi_buf_put(s->async, 0);
@@ -258,7 +249,6 @@ static irqreturn_t parport_interrupt(int irq, void *d)
 static int parport_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
-	struct parport_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned int irq;
 	int ret;
@@ -281,10 +271,6 @@ static int parport_attach(struct comedi_device *dev,
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
 		return ret;
-
-	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
-	if (!devpriv)
-		return -ENOMEM;
 
 	s = &dev->subdevices[0];
 	s->type = COMEDI_SUBD_DIO;
