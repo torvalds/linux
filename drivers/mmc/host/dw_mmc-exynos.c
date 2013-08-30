@@ -72,22 +72,8 @@ static struct dw_mci_exynos_compatible {
 
 static int dw_mci_exynos_priv_init(struct dw_mci *host)
 {
-	struct dw_mci_exynos_priv_data *priv;
-	int idx;
+	struct dw_mci_exynos_priv_data *priv = host->priv;
 
-	priv = devm_kzalloc(host->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(host->dev, "mem alloc failed for private data\n");
-		return -ENOMEM;
-	}
-
-	for (idx = 0; idx < ARRAY_SIZE(exynos_compat); idx++) {
-		if (of_device_is_compatible(host->dev->of_node,
-					exynos_compat[idx].compatible))
-			priv->ctrl_type = exynos_compat[idx].ctrl_type;
-	}
-
-	host->priv = priv;
 	return 0;
 }
 
@@ -174,11 +160,23 @@ static void dw_mci_exynos_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 
 static int dw_mci_exynos_parse_dt(struct dw_mci *host)
 {
-	struct dw_mci_exynos_priv_data *priv = host->priv;
+	struct dw_mci_exynos_priv_data *priv;
 	struct device_node *np = host->dev->of_node;
 	u32 timing[2];
 	u32 div = 0;
+	int idx;
 	int ret;
+
+	priv = devm_kzalloc(host->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv) {
+		dev_err(host->dev, "mem alloc failed for private data\n");
+		return -ENOMEM;
+	}
+
+	for (idx = 0; idx < ARRAY_SIZE(exynos_compat); idx++) {
+		if (of_device_is_compatible(np, exynos_compat[idx].compatible))
+			priv->ctrl_type = exynos_compat[idx].ctrl_type;
+	}
 
 	of_property_read_u32(np, "samsung,dw-mshc-ciu-div", &div);
 	priv->ciu_div = div;
@@ -188,14 +186,14 @@ static int dw_mci_exynos_parse_dt(struct dw_mci *host)
 	if (ret)
 		return ret;
 
-	priv->sdr_timing = SDMMC_CLKSEL_TIMING(timing[0], timing[1], div);
-
 	ret = of_property_read_u32_array(np,
 			"samsung,dw-mshc-ddr-timing", timing, 2);
 	if (ret)
 		return ret;
 
+	priv->sdr_timing = SDMMC_CLKSEL_TIMING(timing[0], timing[1], div);
 	priv->ddr_timing = SDMMC_CLKSEL_TIMING(timing[0], timing[1], div);
+	host->priv = priv;
 	return 0;
 }
 
