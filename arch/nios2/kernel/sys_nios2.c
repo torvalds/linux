@@ -90,43 +90,7 @@ asmlinkage int sys_getpagesize(void)
 	return PAGE_SIZE;
 }
 
-/*
- * Do a system call from kernel instead of calling sys_execve so we
- * end up with proper pt_regs.
- */
 #ifdef CONFIG_MMU
-int kernel_execve(const char *filename,
-		  const char *const argv[],
-		  const char *const envp[])
-{
-	register long __res __asm__ ("r2");
-	register long __sc  __asm__ ("r2") = __NR_execve;
-	register long __a   __asm__ ("r4") = (long) filename;
-	register long __b   __asm__ ("r5") = (long) argv;
-	register long __c   __asm__ ("r6") = (long) envp;
-	__asm__ __volatile__ ("trap" : "=r" (__res)
-			: "0" (__sc), "r" (__a), "r" (__b), "r" (__c)
-			: "memory");
-
-	return __res;
-}
-#else
-int kernel_execve(const char *filename,
-		  const char *const argv[],
-		  const char *const envp[])
-{
-	register long __res __asm__ ("r2") = TRAP_ID_SYSCALL;
-	register long __sc  __asm__ ("r3") = __NR_execve;
-	register long __a   __asm__ ("r4") = (long) filename;
-	register long __b   __asm__ ("r5") = (long) argv;
-	register long __c   __asm__ ("r6") = (long) envp;
-	__asm__ __volatile__ ("trap" : "=r" (__res)
-			: "0" (__res), "r" (__sc), "r" (__a), "r" (__b),
-			"r" (__c) : "memory");
-
-	return __res;
-}
-
 #if defined(CONFIG_FB) || defined(CONFIG_FB_MODULE)
 #include <linux/fb.h>
 unsigned long get_fb_unmapped_area(struct file *filp, unsigned long orig_addr,
