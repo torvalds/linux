@@ -144,13 +144,19 @@ $(obj)/timeconst.h: $(obj)/hz.bc $(src)/timeconst.bc FORCE
 ifeq ($(CONFIG_MODULE_SIG),y)
 ###############################################################################
 #
-# Roll all the X.509 certificates that we can find together and pull
-# them into the kernel.
+# Roll all the X.509 certificates that we can find together and pull them into
+# the kernel.
+#
+# We look in the source root and the build root for all files whose name ends
+# in ".x509".  Unfortunately, this will generate duplicate filenames, so we
+# have make canonicalise the pathnames and then sort them to discard the
+# duplicates.
 #
 ###############################################################################
 X509_CERTIFICATES-y := $(wildcard *.x509) $(wildcard $(srctree)/*.x509)
 X509_CERTIFICATES-$(CONFIG_MODULE_SIG) += signing_key.x509
-X509_CERTIFICATES := $(sort $(X509_CERTIFICATES-y))
+X509_CERTIFICATES := $(sort $(foreach CERT,$(X509_CERTIFICATES-y), \
+				$(or $(realpath $(CERT)),$(CERT))))
 
 ifeq ($(X509_CERTIFICATES),)
 $(warning *** No X.509 certificates found ***)
