@@ -203,8 +203,10 @@ static int wm831x_isink_probe(struct platform_device *pdev)
 	}
 
 	irq = wm831x_irq(wm831x, platform_get_irq(pdev, 0));
-	ret = request_threaded_irq(irq, NULL, wm831x_isink_irq,
-				   IRQF_TRIGGER_RISING, isink->name, isink);
+	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
+					wm831x_isink_irq,
+					IRQF_TRIGGER_RISING, isink->name,
+					isink);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request ISINK IRQ %d: %d\n",
 			irq, ret);
@@ -224,8 +226,6 @@ err:
 static int wm831x_isink_remove(struct platform_device *pdev)
 {
 	struct wm831x_isink *isink = platform_get_drvdata(pdev);
-
-	free_irq(wm831x_irq(isink->wm831x, platform_get_irq(pdev, 0)), isink);
 
 	regulator_unregister(isink->regulator);
 
