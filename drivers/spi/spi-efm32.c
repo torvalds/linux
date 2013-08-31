@@ -496,7 +496,7 @@ static const struct of_device_id efm32_spi_dt_ids[] = {
 		/* sentinel */
 	}
 };
-MODULE_DEVICE_TABLE(of, efm32_uart_dt_ids);
+MODULE_DEVICE_TABLE(of, efm32_spi_dt_ids);
 
 static struct platform_driver efm32_spi_driver = {
 	.probe = efm32_spi_probe,
