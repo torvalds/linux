@@ -4962,10 +4962,10 @@ static int descriptors_changed(struct usb_device *udev,
 	if ((old_bos && !udev->bos) || (!old_bos && udev->bos))
 		return 1;
 	if (udev->bos) {
-		len = udev->bos->desc->wTotalLength;
-		if (len != old_bos->desc->wTotalLength)
+		len = le16_to_cpu(udev->bos->desc->wTotalLength);
+		if (len != le16_to_cpu(old_bos->desc->wTotalLength))
 			return 1;
-		if (memcmp(udev->bos->desc, old_bos->desc, le16_to_cpu(len)))
+		if (memcmp(udev->bos->desc, old_bos->desc, len))
 			return 1;
 	}
 
