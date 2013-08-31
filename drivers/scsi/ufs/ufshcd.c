@@ -260,6 +260,20 @@ ufshcd_get_rsp_upiu_result(struct utp_upiu_rsp *ucd_rsp_ptr)
 	return be32_to_cpu(ucd_rsp_ptr->header.dword_1) & MASK_RSP_UPIU_RESULT;
 }
 
+/*
+ * ufshcd_get_rsp_upiu_data_seg_len - Get the data segment length
+ *				from response UPIU
+ * @ucd_rsp_ptr: pointer to response UPIU
+ *
+ * Return the data segment length.
+ */
+static inline unsigned int
+ufshcd_get_rsp_upiu_data_seg_len(struct utp_upiu_rsp *ucd_rsp_ptr)
+{
+	return be32_to_cpu(ucd_rsp_ptr->header.dword_2) &
+		MASK_RSP_UPIU_DATA_SEG_LEN;
+}
+
 /**
  * ufshcd_is_exception_event - Check if the device raised an exception event
  * @ucd_rsp_ptr: pointer to response UPIU
@@ -355,7 +369,8 @@ void ufshcd_send_command(struct ufs_hba *hba, unsigned int task_tag)
 static inline void ufshcd_copy_sense_data(struct ufshcd_lrb *lrbp)
 {
 	int len;
-	if (lrbp->sense_buffer) {
+	if (lrbp->sense_buffer &&
+	    ufshcd_get_rsp_upiu_data_seg_len(lrbp->ucd_rsp_ptr)) {
 		len = be16_to_cpu(lrbp->ucd_rsp_ptr->sr.sense_data_len);
 		memcpy(lrbp->sense_buffer,
 			lrbp->ucd_rsp_ptr->sr.sense_data,
@@ -1788,32 +1803,24 @@ ufshcd_scsi_cmd_status(struct ufshcd_lrb *lrbp, int scsi_status)
 	int result = 0;
 
 	switch (scsi_status) {
+	case SAM_STAT_CHECK_CONDITION:
+		ufshcd_copy_sense_data(lrbp);
 	case SAM_STAT_GOOD:
 		result |= DID_OK << 16 |
 			  COMMAND_COMPLETE << 8 |
-			  SAM_STAT_GOOD;
-		break;
-	case SAM_STAT_CHECK_CONDITION:
-		result |= DID_OK << 16 |
-			  COMMAND_COMPLETE << 8 |
-			  SAM_STAT_CHECK_CONDITION;
-		ufshcd_copy_sense_data(lrbp);
-		break;
-	case SAM_STAT_BUSY:
-		result |= SAM_STAT_BUSY;
+			  scsi_status;
 		break;
 	case SAM_STAT_TASK_SET_FULL:
-
 		/*
 		 * If a LUN reports SAM_STAT_TASK_SET_FULL, then the LUN queue
 		 * depth needs to be adjusted to the exact number of
 		 * outstanding commands the LUN can handle at any given time.
 		 */
 		ufshcd_adjust_lun_qdepth(lrbp->cmd);
-		result |= SAM_STAT_TASK_SET_FULL;
-		break;
+	case SAM_STAT_BUSY:
 	case SAM_STAT_TASK_ABORTED:
-		result |= SAM_STAT_TASK_ABORTED;
+		ufshcd_copy_sense_data(lrbp);
+		result |= scsi_status;
 		break;
 	default:
 		result |= DID_ERROR << 16;
