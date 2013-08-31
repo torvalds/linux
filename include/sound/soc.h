@@ -330,7 +330,6 @@ struct soc_enum;
 struct snd_soc_jack;
 struct snd_soc_jack_zone;
 struct snd_soc_jack_pin;
-struct snd_soc_cache_ops;
 #include <sound/soc-dapm.h>
 #include <sound/soc-dpcm.h>
 
@@ -346,10 +345,6 @@ enum snd_soc_control_type {
 	SND_SOC_I2C = 1,
 	SND_SOC_SPI,
 	SND_SOC_REGMAP,
-};
-
-enum snd_soc_compress_type {
-	SND_SOC_FLAT_COMPRESSION = 1,
 };
 
 enum snd_soc_pcm_subclass {
@@ -635,19 +630,6 @@ struct snd_soc_compr_ops {
 	int (*trigger)(struct snd_compr_stream *);
 };
 
-/* SoC cache ops */
-struct snd_soc_cache_ops {
-	const char *name;
-	enum snd_soc_compress_type id;
-	int (*init)(struct snd_soc_codec *codec);
-	int (*exit)(struct snd_soc_codec *codec);
-	int (*read)(struct snd_soc_codec *codec, unsigned int reg,
-		unsigned int *value);
-	int (*write)(struct snd_soc_codec *codec, unsigned int reg,
-		unsigned int value);
-	int (*sync)(struct snd_soc_codec *codec);
-};
-
 /* SoC Audio Codec device */
 struct snd_soc_codec {
 	const char *name;
@@ -661,7 +643,6 @@ struct snd_soc_codec {
 	struct list_head list;
 	struct list_head card_list;
 	int num_dai;
-	enum snd_soc_compress_type compress_type;
 	int (*volatile_register)(struct snd_soc_codec *, unsigned int);
 	int (*readable_register)(struct snd_soc_codec *, unsigned int);
 	int (*writable_register)(struct snd_soc_codec *, unsigned int);
@@ -686,7 +667,6 @@ struct snd_soc_codec {
 	unsigned int (*read)(struct snd_soc_codec *, unsigned int);
 	int (*write)(struct snd_soc_codec *, unsigned int, unsigned int);
 	void *reg_cache;
-	const struct snd_soc_cache_ops *cache_ops;
 	struct mutex cache_rw_mutex;
 	int val_bytes;
 
@@ -735,7 +715,6 @@ struct snd_soc_codec_driver {
 	short reg_cache_step;
 	short reg_word_size;
 	const void *reg_cache_default;
-	enum snd_soc_compress_type compress_type;
 
 	/* codec bias level */
 	int (*set_bias_level)(struct snd_soc_codec *,
@@ -917,12 +896,6 @@ struct snd_soc_codec_conf {
 	 * associated per device
 	 */
 	const char *name_prefix;
-
-	/*
-	 * set this to the desired compression type if you want to
-	 * override the one supplied in codec->driver->compress_type
-	 */
-	enum snd_soc_compress_type compress_type;
 };
 
 struct snd_soc_aux_dev {

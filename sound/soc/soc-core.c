@@ -1590,17 +1590,13 @@ static void soc_remove_aux_dev(struct snd_soc_card *card, int num)
 		soc_remove_codec(codec);
 }
 
-static int snd_soc_init_codec_cache(struct snd_soc_codec *codec,
-				    enum snd_soc_compress_type compress_type)
+static int snd_soc_init_codec_cache(struct snd_soc_codec *codec)
 {
 	int ret;
 
 	if (codec->cache_init)
 		return 0;
 
-	/* override the compress_type if necessary */
-	if (compress_type && codec->compress_type != compress_type)
-		codec->compress_type = compress_type;
 	ret = snd_soc_cache_init(codec);
 	if (ret < 0) {
 		dev_err(codec->dev,
@@ -1615,8 +1611,6 @@ static int snd_soc_init_codec_cache(struct snd_soc_codec *codec,
 static int snd_soc_instantiate_card(struct snd_soc_card *card)
 {
 	struct snd_soc_codec *codec;
-	struct snd_soc_codec_conf *codec_conf;
-	enum snd_soc_compress_type compress_type;
 	struct snd_soc_dai_link *dai_link;
 	int ret, i, order, dai_fmt;
 
@@ -1640,19 +1634,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	list_for_each_entry(codec, &codec_list, list) {
 		if (codec->cache_init)
 			continue;
-		/* by default we don't override the compress_type */
-		compress_type = 0;
-		/* check to see if we need to override the compress_type */
-		for (i = 0; i < card->num_configs; ++i) {
-			codec_conf = &card->codec_conf[i];
-			if (!strcmp(codec->name, codec_conf->dev_name)) {
-				compress_type = codec_conf->compress_type;
-				if (compress_type && compress_type
-				    != codec->compress_type)
-					break;
-			}
-		}
-		ret = snd_soc_init_codec_cache(codec, compress_type);
+		ret = snd_soc_init_codec_cache(codec);
 		if (ret < 0)
 			goto base_error;
 	}
@@ -4174,11 +4156,6 @@ int snd_soc_register_codec(struct device *dev,
 		ret = -ENOMEM;
 		goto fail_codec;
 	}
-
-	if (codec_drv->compress_type)
-		codec->compress_type = codec_drv->compress_type;
-	else
-		codec->compress_type = SND_SOC_FLAT_COMPRESSION;
 
 	codec->write = codec_drv->write;
 	codec->read = codec_drv->read;
