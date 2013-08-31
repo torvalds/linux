@@ -131,11 +131,6 @@ static DEFINE_RWLOCK(qdisc_mod_lock);
  ************************************************/
 
 
-/* Qdisc to use by default */
-
-const struct Qdisc_ops *default_qdisc_ops = &pfifo_fast_ops;
-EXPORT_SYMBOL(default_qdisc_ops);
-
 /* The list of all installed queueing disciplines. */
 
 static struct Qdisc_ops *qdisc_base;
