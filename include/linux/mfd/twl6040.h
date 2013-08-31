@@ -229,7 +229,6 @@ struct twl6040 {
 	int audpwron;
 	int power_count;
 	int rev;
-	u8 vibra_ctrl_cache[2];
 
 	/* PLL configuration */
 	int pll;

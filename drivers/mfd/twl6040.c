@@ -63,15 +63,9 @@ int twl6040_reg_read(struct twl6040 *twl6040, unsigned int reg)
 	int ret;
 	unsigned int val;
 
-	/* Vibra control registers from cache */
-	if (unlikely(reg == TWL6040_REG_VIBCTLL ||
-		     reg == TWL6040_REG_VIBCTLR)) {
-		val = twl6040->vibra_ctrl_cache[VIBRACTRL_MEMBER(reg)];
-	} else {
-		ret = regmap_read(twl6040->regmap, reg, &val);
-		if (ret < 0)
-			return ret;
-	}
+	ret = regmap_read(twl6040->regmap, reg, &val);
+	if (ret < 0)
+		return ret;
 
 	return val;
 }
@@ -82,9 +76,6 @@ int twl6040_reg_write(struct twl6040 *twl6040, unsigned int reg, u8 val)
 	int ret;
 
 	ret = regmap_write(twl6040->regmap, reg, val);
-	/* Cache the vibra control registers */
-	if (reg == TWL6040_REG_VIBCTLL || reg == TWL6040_REG_VIBCTLR)
-		twl6040->vibra_ctrl_cache[VIBRACTRL_MEMBER(reg)] = val;
 
 	return ret;
 }
@@ -461,9 +452,20 @@ EXPORT_SYMBOL(twl6040_get_sysclk);
 /* Get the combined status of the vibra control register */
 int twl6040_get_vibralr_status(struct twl6040 *twl6040)
 {
+	unsigned int reg;
+	int ret;
 	u8 status;
 
-	status = twl6040->vibra_ctrl_cache[0] | twl6040->vibra_ctrl_cache[1];
+	ret = regmap_read(twl6040->regmap, TWL6040_REG_VIBCTLL, &reg);
+	if (ret != 0)
+		return ret;
+	status = reg;
+
+	ret = regmap_read(twl6040->regmap, TWL6040_REG_VIBCTLR, &reg);
+	if (ret != 0)
+		return ret;
+	status |= reg;
+
 	status &= (TWL6040_VIBENA | TWL6040_VIBSEL);
 
 	return status;
@@ -490,12 +492,27 @@ static bool twl6040_readable_reg(struct device *dev, unsigned int reg)
 	return true;
 }
 
+static bool twl6040_volatile_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case TWL6040_REG_VIBCTLL:
+	case TWL6040_REG_VIBCTLR:
+	case TWL6040_REG_INTMR:
+		return false;
+	default:
+		return true;
+	}
+}
+
 static struct regmap_config twl6040_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = TWL6040_REG_STATUS, /* 0x2e */
 
 	.readable_reg = twl6040_readable_reg,
+	.volatile_reg = twl6040_volatile_reg,
+
+	.cache_type = REGCACHE_RBTREE,
 };
 
 static const struct regmap_irq twl6040_irqs[] = {
