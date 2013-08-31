@@ -42,7 +42,7 @@ static const unsigned int ipipe_fmts[] = {
  */
 #define IPIPE_PRINT_REGISTER(iss, name)\
 	dev_dbg(iss->dev, "###IPIPE " #name "=0x%08x\n", \
-		readl(iss->regs[OMAP4_ISS_MEM_ISP_IPIPE] + IPIPE_##name))
+		iss_reg_read(iss, OMAP4_ISS_MEM_ISP_IPIPE, IPIPE_##name))
 
 static void ipipe_print_status(struct iss_ipipe_device *ipipe)
 {
@@ -73,10 +73,8 @@ static void ipipe_enable(struct iss_ipipe_device *ipipe, u8 enable)
 {
 	struct iss_device *iss = to_iss_device(ipipe);
 
-	writel((readl(iss->regs[OMAP4_ISS_MEM_ISP_IPIPE] + IPIPE_SRC_EN) &
-		~IPIPE_SRC_EN_EN) |
-		(enable ? IPIPE_SRC_EN_EN : 0),
-		iss->regs[OMAP4_ISS_MEM_ISP_IPIPE] + IPIPE_SRC_EN);
+	iss_reg_update(iss, OMAP4_ISS_MEM_ISP_IPIPE, IPIPE_SRC_EN,
+		       IPIPE_SRC_EN_EN, enable ? IPIPE_SRC_EN_EN : 0);
 }
 
 /* -----------------------------------------------------------------------------
@@ -92,31 +90,28 @@ static void ipipe_configure(struct iss_ipipe_device *ipipe)
 	format = &ipipe->formats[IPIPE_PAD_SINK];
 
 	/* NOTE: Currently just supporting pipeline IN: RGB, OUT: YUV422 */
-	writel(IPIPE_SRC_FMT_RAW2YUV,
-		iss->regs[OMAP4_ISS_MEM_ISP_IPIPE] + IPIPE_SRC_FMT);
+	iss_reg_write(iss, OMAP4_ISS_MEM_ISP_IPIPE, IPIPE_SRC_FMT,
+		      IPIPE_SRC_FMT_RAW2YUV);
 
 	/* Enable YUV444 -> YUV422 conversion */
-	writel(IPIPE_YUV_PHS_LPF,
-		iss->regs[OMAP4_ISS_MEM_ISP_IPIPE] + IPIPE_YUV_PHS);
+	iss_reg_write(iss, OMAP4_ISS_MEM_ISP_IPIPE, IPIPE_YUV_PHS,
+		      IPIPE_YUV_PHS_LPF);
 
-	writel(0, iss->regs[OMAP4_ISS_MEM_ISP_IPIPE] + IPIPE_SRC_VPS);
-	writel(0, iss->regs[OMAP4_ISS_MEM_ISP_IPIPE] + IPIPE_SRC_HPS);
-	writel((format->height - 2) & IPIPE_SRC_VSZ_MASK,
-		iss->regs[OMAP4_ISS_MEM_ISP_IPIPE] + IPIPE_SRC_VSZ);
-	writel((format->width - 1) & IPIPE_SRC_HSZ_MASK,
-		iss->regs[OMAP4_ISS_MEM_ISP_IPIPE] + IPIPE_SRC_HSZ);
+	iss_reg_write(iss, OMAP4_ISS_MEM_ISP_IPIPE, IPIPE_SRC_VPS, 0);
+	iss_reg_write(iss, OMAP4_ISS_MEM_ISP_IPIPE, IPIPE_SRC_HPS, 0);
+	iss_reg_write(iss, OMAP4_ISS_MEM_ISP_IPIPE, IPIPE_SRC_VSZ,
+		      (format->height - 2) & IPIPE_SRC_VSZ_MASK);
+	iss_reg_write(iss, OMAP4_ISS_MEM_ISP_IPIPE, IPIPE_SRC_HSZ,
+		      (format->width - 1) & IPIPE_SRC_HSZ_MASK);
 
 	/* Ignore ipipeif_wrt signal, and operate on-the-fly.  */
-	writel(readl(iss->regs[OMAP4_ISS_MEM_ISP_IPIPE] + IPIPE_SRC_MODE) &
-		~(IPIPE_SRC_MODE_WRT | IPIPE_SRC_MODE_OST),
-		iss->regs[OMAP4_ISS_MEM_ISP_IPIPE] + IPIPE_SRC_MODE);
+	iss_reg_clr(iss, OMAP4_ISS_MEM_ISP_IPIPE, IPIPE_SRC_MODE,
+		    IPIPE_SRC_MODE_WRT | IPIPE_SRC_MODE_OST);
 
 	/* HACK: Values tuned for Ducati SW (OV) */
-	writel(IPIPE_SRC_COL_EE_B |
-		IPIPE_SRC_COL_EO_GB |
-		IPIPE_SRC_COL_OE_GR |
-		IPIPE_SRC_COL_OO_R,
-		iss->regs[OMAP4_ISS_MEM_ISP_IPIPE] + IPIPE_SRC_COL);
+	iss_reg_write(iss, OMAP4_ISS_MEM_ISP_IPIPE, IPIPE_SRC_COL,
+		      IPIPE_SRC_COL_EE_B | IPIPE_SRC_COL_EO_GB |
+		      IPIPE_SRC_COL_OE_GR | IPIPE_SRC_COL_OO_R);
 
 	/* IPIPE_PAD_SOURCE_VP */
 	format = &ipipe->formats[IPIPE_PAD_SOURCE_VP];
@@ -147,15 +142,13 @@ static int ipipe_set_stream(struct v4l2_subdev *sd, int enable)
 		omap4iss_isp_subclk_enable(iss, OMAP4_ISS_ISP_SUBCLK_IPIPE);
 
 		/* Enable clk_arm_g0 */
-		writel(IPIPE_GCK_MMR_REG,
-			iss->regs[OMAP4_ISS_MEM_ISP_IPIPE] + IPIPE_GCK_MMR);
+		iss_reg_write(iss, OMAP4_ISS_MEM_ISP_IPIPE, IPIPE_GCK_MMR,
+			      IPIPE_GCK_MMR_REG);
 
 		/* Enable clk_pix_g[3:0] */
-		writel(IPIPE_GCK_PIX_G3 |
-			IPIPE_GCK_PIX_G2 |
-			IPIPE_GCK_PIX_G1 |
-			IPIPE_GCK_PIX_G0,
-			iss->regs[OMAP4_ISS_MEM_ISP_IPIPE] + IPIPE_GCK_PIX);
+		iss_reg_write(iss, OMAP4_ISS_MEM_ISP_IPIPE, IPIPE_GCK_PIX,
+			      IPIPE_GCK_PIX_G3 | IPIPE_GCK_PIX_G2 |
+			      IPIPE_GCK_PIX_G1 | IPIPE_GCK_PIX_G0);
 	}
 
 	switch (enable) {

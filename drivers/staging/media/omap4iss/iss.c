@@ -32,7 +32,7 @@
 
 #define ISS_PRINT_REGISTER(iss, name)\
 	dev_dbg(iss->dev, "###ISS " #name "=0x%08x\n", \
-		readl(iss->regs[OMAP4_ISS_MEM_TOP] + ISS_##name))
+		iss_reg_read(iss, OMAP4_ISS_MEM_TOP, ISS_##name))
 
 static void iss_print_status(struct iss_device *iss)
 {
@@ -62,8 +62,8 @@ static void iss_print_status(struct iss_device *iss)
  */
 void omap4iss_flush(struct iss_device *iss)
 {
-	writel(0, iss->regs[OMAP4_ISS_MEM_TOP] + ISS_HL_REVISION);
-	readl(iss->regs[OMAP4_ISS_MEM_TOP] + ISS_HL_REVISION);
+	iss_reg_write(iss, OMAP4_ISS_MEM_TOP, ISS_HL_REVISION, 0);
+	iss_reg_read(iss, OMAP4_ISS_MEM_TOP, ISS_HL_REVISION);
 }
 
 /*
@@ -75,8 +75,8 @@ static void iss_enable_interrupts(struct iss_device *iss)
 	static const u32 hl_irq = ISS_HL_IRQ_CSIA | ISS_HL_IRQ_CSIB | ISS_HL_IRQ_ISP(0);
 
 	/* Enable HL interrupts */
-	writel(hl_irq, iss->regs[OMAP4_ISS_MEM_TOP] + ISS_HL_IRQSTATUS(5));
-	writel(hl_irq, iss->regs[OMAP4_ISS_MEM_TOP] + ISS_HL_IRQENABLE_SET(5));
+	iss_reg_write(iss, OMAP4_ISS_MEM_TOP, ISS_HL_IRQSTATUS(5), hl_irq);
+	iss_reg_write(iss, OMAP4_ISS_MEM_TOP, ISS_HL_IRQENABLE_SET(5), hl_irq);
 
 }
 
@@ -86,7 +86,7 @@ static void iss_enable_interrupts(struct iss_device *iss)
  */
 static void iss_disable_interrupts(struct iss_device *iss)
 {
-	writel(-1, iss->regs[OMAP4_ISS_MEM_TOP] + ISS_HL_IRQENABLE_CLR(5));
+	iss_reg_write(iss, OMAP4_ISS_MEM_TOP, ISS_HL_IRQENABLE_CLR(5), -1);
 }
 
 /*
@@ -102,8 +102,9 @@ void omap4iss_isp_enable_interrupts(struct iss_device *iss)
 				   ISP5_IRQ_ISIF_INT(0);
 
 	/* Enable ISP interrupts */
-	writel(isp_irq, iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_IRQSTATUS(0));
-	writel(isp_irq, iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_IRQENABLE_SET(0));
+	iss_reg_write(iss, OMAP4_ISS_MEM_ISP_SYS1, ISP5_IRQSTATUS(0), isp_irq);
+	iss_reg_write(iss, OMAP4_ISS_MEM_ISP_SYS1, ISP5_IRQENABLE_SET(0),
+		      isp_irq);
 }
 
 /*
@@ -112,7 +113,7 @@ void omap4iss_isp_enable_interrupts(struct iss_device *iss)
  */
 void omap4iss_isp_disable_interrupts(struct iss_device *iss)
 {
-	writel(-1, iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_IRQENABLE_CLR(0));
+	iss_reg_write(iss, OMAP4_ISS_MEM_ISP_SYS1, ISP5_IRQENABLE_CLR(0), -1);
 }
 
 int omap4iss_get_external_info(struct iss_pipeline *pipe,
@@ -169,11 +170,11 @@ void omap4iss_configure_bridge(struct iss_device *iss,
 	u32 issctrl_val;
 	u32 isp5ctrl_val;
 
-	issctrl_val  = readl(iss->regs[OMAP4_ISS_MEM_TOP] + ISS_CTRL);
+	issctrl_val = iss_reg_read(iss, OMAP4_ISS_MEM_TOP, ISS_CTRL);
 	issctrl_val &= ~ISS_CTRL_INPUT_SEL_MASK;
 	issctrl_val &= ~ISS_CTRL_CLK_DIV_MASK;
 
-	isp5ctrl_val  = readl(iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_CTRL);
+	isp5ctrl_val = iss_reg_read(iss, OMAP4_ISS_MEM_ISP_SYS1, ISP5_CTRL);
 
 	switch (input) {
 	case IPIPEIF_INPUT_CSI2A:
@@ -193,8 +194,8 @@ void omap4iss_configure_bridge(struct iss_device *iss,
 	isp5ctrl_val |= ISP5_CTRL_VD_PULSE_EXT | ISP5_CTRL_PSYNC_CLK_SEL |
 			ISP5_CTRL_SYNC_ENABLE;
 
-	writel(issctrl_val, iss->regs[OMAP4_ISS_MEM_TOP] + ISS_CTRL);
-	writel(isp5ctrl_val, iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_CTRL);
+	iss_reg_write(iss, OMAP4_ISS_MEM_TOP, ISS_CTRL, issctrl_val);
+	iss_reg_write(iss, OMAP4_ISS_MEM_ISP_SYS1, ISP5_CTRL, isp5ctrl_val);
 }
 
 #if defined(DEBUG) && defined(ISS_ISR_DEBUG)
@@ -313,8 +314,8 @@ static irqreturn_t iss_isr(int irq, void *_iss)
 	struct iss_device *iss = _iss;
 	u32 irqstatus;
 
-	irqstatus = readl(iss->regs[OMAP4_ISS_MEM_TOP] + ISS_HL_IRQSTATUS(5));
-	writel(irqstatus, iss->regs[OMAP4_ISS_MEM_TOP] + ISS_HL_IRQSTATUS(5));
+	irqstatus = iss_reg_read(iss, OMAP4_ISS_MEM_TOP, ISS_HL_IRQSTATUS(5));
+	iss_reg_write(iss, OMAP4_ISS_MEM_TOP, ISS_HL_IRQSTATUS(5), irqstatus);
 
 	if (irqstatus & ISS_HL_IRQ_CSIA)
 		omap4iss_csi2_isr(&iss->csi2a);
@@ -323,10 +324,10 @@ static irqreturn_t iss_isr(int irq, void *_iss)
 		omap4iss_csi2_isr(&iss->csi2b);
 
 	if (irqstatus & ISS_HL_IRQ_ISP(0)) {
-		u32 isp_irqstatus = readl(iss->regs[OMAP4_ISS_MEM_ISP_SYS1] +
-					  ISP5_IRQSTATUS(0));
-		writel(isp_irqstatus, iss->regs[OMAP4_ISS_MEM_ISP_SYS1] +
-			ISP5_IRQSTATUS(0));
+		u32 isp_irqstatus = iss_reg_read(iss, OMAP4_ISS_MEM_ISP_SYS1,
+						 ISP5_IRQSTATUS(0));
+		iss_reg_write(iss, OMAP4_ISS_MEM_ISP_SYS1, ISP5_IRQSTATUS(0),
+			      isp_irqstatus);
 
 		if (isp_irqstatus & ISP5_IRQ_OCP_ERR)
 			dev_dbg(iss->dev, "ISP5 OCP Error!\n");
@@ -689,12 +690,11 @@ static int iss_reset(struct iss_device *iss)
 {
 	unsigned long timeout = 0;
 
-	writel(readl(iss->regs[OMAP4_ISS_MEM_TOP] + ISS_HL_SYSCONFIG) |
-		ISS_HL_SYSCONFIG_SOFTRESET,
-		iss->regs[OMAP4_ISS_MEM_TOP] + ISS_HL_SYSCONFIG);
+	iss_reg_set(iss, OMAP4_ISS_MEM_TOP, ISS_HL_SYSCONFIG,
+		    ISS_HL_SYSCONFIG_SOFTRESET);
 
-	while (readl(iss->regs[OMAP4_ISS_MEM_TOP] + ISS_HL_SYSCONFIG) &
-			ISS_HL_SYSCONFIG_SOFTRESET) {
+	while (iss_reg_read(iss, OMAP4_ISS_MEM_TOP, ISS_HL_SYSCONFIG) &
+	       ISS_HL_SYSCONFIG_SOFTRESET) {
 		if (timeout++ > 100) {
 			dev_alert(iss->dev, "cannot reset ISS\n");
 			return -ETIMEDOUT;
@@ -710,18 +710,15 @@ static int iss_isp_reset(struct iss_device *iss)
 	unsigned long timeout = 0;
 
 	/* Fist, ensure that the ISP is IDLE (no transactions happening) */
-	writel((readl(iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_SYSCONFIG) &
-		~ISP5_SYSCONFIG_STANDBYMODE_MASK) |
-		ISP5_SYSCONFIG_STANDBYMODE_SMART,
-		iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_SYSCONFIG);
+	iss_reg_update(iss, OMAP4_ISS_MEM_ISP_SYS1, ISP5_SYSCONFIG,
+		       ISP5_SYSCONFIG_STANDBYMODE_MASK,
+		       ISP5_SYSCONFIG_STANDBYMODE_SMART);
 
-	writel(readl(iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_CTRL) |
-		ISP5_CTRL_MSTANDBY,
-		iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_CTRL);
+	iss_reg_set(iss, OMAP4_ISS_MEM_ISP_SYS1, ISP5_CTRL, ISP5_CTRL_MSTANDBY);
 
 	for (;;) {
-		if (readl(iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_CTRL) &
-				ISP5_CTRL_MSTANDBY_WAIT)
+		if (iss_reg_read(iss, OMAP4_ISS_MEM_ISP_SYS1, ISP5_CTRL) &
+		    ISP5_CTRL_MSTANDBY_WAIT)
 			break;
 		if (timeout++ > 1000) {
 			dev_alert(iss->dev, "cannot set ISP5 to standby\n");
@@ -731,13 +728,12 @@ static int iss_isp_reset(struct iss_device *iss)
 	}
 
 	/* Now finally, do the reset */
-	writel(readl(iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_SYSCONFIG) |
-		ISP5_SYSCONFIG_SOFTRESET,
-		iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_SYSCONFIG);
+	iss_reg_set(iss, OMAP4_ISS_MEM_ISP_SYS1, ISP5_SYSCONFIG,
+		    ISP5_SYSCONFIG_SOFTRESET);
 
 	timeout = 0;
-	while (readl(iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_SYSCONFIG) &
-			ISP5_SYSCONFIG_SOFTRESET) {
+	while (iss_reg_read(iss, OMAP4_ISS_MEM_ISP_SYS1, ISP5_SYSCONFIG) &
+	       ISP5_SYSCONFIG_SOFTRESET) {
 		if (timeout++ > 1000) {
 			dev_alert(iss->dev, "cannot reset ISP5\n");
 			return -ETIMEDOUT;
@@ -848,15 +844,14 @@ static int __iss_subclk_update(struct iss_device *iss)
 	if (iss->subclk_resources & OMAP4_ISS_SUBCLK_ISP)
 		clk |= ISS_CLKCTRL_ISP;
 
-	writel((readl(iss->regs[OMAP4_ISS_MEM_TOP] + ISS_CLKCTRL) &
-		~ISS_CLKCTRL_MASK) | clk,
-		iss->regs[OMAP4_ISS_MEM_TOP] + ISS_CLKCTRL);
+	iss_reg_update(iss, OMAP4_ISS_MEM_TOP, ISS_CLKCTRL,
+		       ISS_CLKCTRL_MASK, clk);
 
 	/* Wait for HW assertion */
 	while (--timeout > 0) {
 		udelay(1);
-		if ((readl(iss->regs[OMAP4_ISS_MEM_TOP] + ISS_CLKSTAT) &
-		     ISS_CLKCTRL_MASK) == clk)
+		if ((iss_reg_read(iss, OMAP4_ISS_MEM_TOP, ISS_CLKSTAT) &
+		    ISS_CLKCTRL_MASK) == clk)
 			break;
 	}
 
@@ -911,9 +906,8 @@ static void __iss_isp_subclk_update(struct iss_device *iss)
 	if (clk)
 		clk |= ISP5_CTRL_BL_CLK_ENABLE;
 
-	writel((readl(iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_CTRL) &
-		~ISS_ISP5_CLKCTRL_MASK) | clk,
-		iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_CTRL);
+	iss_reg_update(iss, OMAP4_ISS_MEM_ISP_SYS1, ISP5_CTRL,
+		       ISS_ISP5_CLKCTRL_MASK, clk);
 }
 
 void omap4iss_isp_subclk_enable(struct iss_device *iss,
@@ -1380,7 +1374,7 @@ static int iss_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto error_iss;
 
-	iss->revision = readl(iss->regs[OMAP4_ISS_MEM_TOP] + ISS_HL_REVISION);
+	iss->revision = iss_reg_read(iss, OMAP4_ISS_MEM_TOP, ISS_HL_REVISION);
 	dev_info(iss->dev, "Revision %08x found\n", iss->revision);
 
 	for (i = 1; i < OMAP4_ISS_MEM_LAST; i++) {
@@ -1390,9 +1384,9 @@ static int iss_probe(struct platform_device *pdev)
 	}
 
 	/* Configure BTE BW_LIMITER field to max recommended value (1 GB) */
-	writel((readl(iss->regs[OMAP4_ISS_MEM_BTE] + BTE_CTRL) & ~BTE_CTRL_BW_LIMITER_MASK) |
-		(18 << BTE_CTRL_BW_LIMITER_SHIFT),
-		iss->regs[OMAP4_ISS_MEM_BTE] + BTE_CTRL);
+	iss_reg_update(iss, OMAP4_ISS_MEM_BTE, BTE_CTRL,
+		       BTE_CTRL_BW_LIMITER_MASK,
+		       18 << BTE_CTRL_BW_LIMITER_SHIFT);
 
 	/* Perform ISP reset */
 	ret = omap4iss_subclk_enable(iss, OMAP4_ISS_SUBCLK_ISP);
@@ -1404,7 +1398,7 @@ static int iss_probe(struct platform_device *pdev)
 		goto error_iss;
 
 	dev_info(iss->dev, "ISP Revision %08x found\n",
-		 readl(iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_REVISION));
+		 iss_reg_read(iss, OMAP4_ISS_MEM_ISP_SYS1, ISP5_REVISION));
 
 	/* Interrupt */
 	iss->irq_num = platform_get_irq(pdev, 0);
