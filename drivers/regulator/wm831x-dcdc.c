@@ -387,8 +387,9 @@ static struct regulator_ops wm831x_buckv_ops = {
  * Set up DVS control.  We just log errors since we can still run
  * (with reduced performance) if we fail.
  */
-static void wm831x_buckv_dvs_init(struct wm831x_dcdc *dcdc,
-					    struct wm831x_buckv_pdata *pdata)
+static void wm831x_buckv_dvs_init(struct platform_device *pdev,
+				  struct wm831x_dcdc *dcdc,
+				  struct wm831x_buckv_pdata *pdata)
 {
 	struct wm831x *wm831x = dcdc->wm831x;
 	int ret;
@@ -402,9 +403,9 @@ static void wm831x_buckv_dvs_init(struct wm831x_dcdc *dcdc,
 	 */
 	dcdc->dvs_gpio_state = pdata->dvs_init_state;
 
-	ret = gpio_request_one(pdata->dvs_gpio,
-			       dcdc->dvs_gpio_state ? GPIOF_INIT_HIGH : 0,
-			       "DCDC DVS");
+	ret = devm_gpio_request_one(&pdev->dev, pdata->dvs_gpio,
+				    dcdc->dvs_gpio_state ? GPIOF_INIT_HIGH : 0,
+				    "DCDC DVS");
 	if (ret < 0) {
 		dev_err(wm831x->dev, "Failed to get %s DVS GPIO: %d\n",
 			dcdc->name, ret);
@@ -513,7 +514,8 @@ static int wm831x_buckv_probe(struct platform_device *pdev)
 	dcdc->dvs_vsel = ret & WM831X_DC1_DVS_VSEL_MASK;
 
 	if (pdata && pdata->dcdc[id])
-		wm831x_buckv_dvs_init(dcdc, pdata->dcdc[id]->driver_data);
+		wm831x_buckv_dvs_init(pdev, dcdc,
+				      pdata->dcdc[id]->driver_data);
 
 	config.dev = pdev->dev.parent;
 	if (pdata)
@@ -557,8 +559,6 @@ err_uv:
 err_regulator:
 	regulator_unregister(dcdc->regulator);
 err:
-	if (dcdc->dvs_gpio)
-		gpio_free(dcdc->dvs_gpio);
 	return ret;
 }
 
@@ -572,8 +572,6 @@ static int wm831x_buckv_remove(struct platform_device *pdev)
 	free_irq(wm831x_irq(wm831x, platform_get_irq_byname(pdev, "UV")),
 			    dcdc);
 	regulator_unregister(dcdc->regulator);
-	if (dcdc->dvs_gpio)
-		gpio_free(dcdc->dvs_gpio);
 
 	return 0;
 }
