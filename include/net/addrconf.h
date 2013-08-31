@@ -141,6 +141,21 @@ bool ipv6_chk_mcast_addr(struct net_device *dev, const struct in6_addr *group,
 			 const struct in6_addr *src_addr);
 
 void ipv6_mc_dad_complete(struct inet6_dev *idev);
+
+/* A stub used by vxlan module. This is ugly, ideally these
+ * symbols should be built into the core kernel.
+ */
+struct ipv6_stub {
+	int (*ipv6_sock_mc_join)(struct sock *sk, int ifindex,
+				 const struct in6_addr *addr);
+	int (*ipv6_sock_mc_drop)(struct sock *sk, int ifindex,
+				 const struct in6_addr *addr);
+	int (*ipv6_dst_lookup)(struct sock *sk, struct dst_entry **dst,
+				struct flowi6 *fl6);
+	void (*udpv6_encap_enable)(void);
+};
+extern const struct ipv6_stub *ipv6_stub __read_mostly;
+
 /*
  * identify MLD packets for MLD filter exceptions
  */

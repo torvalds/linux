@@ -98,3 +98,6 @@ int inet6addr_notifier_call_chain(unsigned long val, void *v)
 	return atomic_notifier_call_chain(&inet6addr_chain, val, v);
 }
 EXPORT_SYMBOL(inet6addr_notifier_call_chain);
+
+const struct ipv6_stub *ipv6_stub __read_mostly;
+EXPORT_SYMBOL_GPL(ipv6_stub);

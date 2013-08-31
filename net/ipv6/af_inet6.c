@@ -810,6 +810,13 @@ static struct pernet_operations inet6_net_ops = {
 	.exit = inet6_net_exit,
 };
 
+static const struct ipv6_stub ipv6_stub_impl = {
+	.ipv6_sock_mc_join = ipv6_sock_mc_join,
+	.ipv6_sock_mc_drop = ipv6_sock_mc_drop,
+	.ipv6_dst_lookup = ip6_dst_lookup,
+	.udpv6_encap_enable = udpv6_encap_enable,
+};
+
 static int __init inet6_init(void)
 {
 	struct list_head *r;
@@ -884,6 +891,9 @@ static int __init inet6_init(void)
 	err = igmp6_init();
 	if (err)
 		goto igmp_fail;
+
+	ipv6_stub = &ipv6_stub_impl;
+
 	err = ipv6_netfilter_init();
 	if (err)
 		goto netfilter_fail;
@@ -1040,6 +1050,7 @@ static void __exit inet6_exit(void)
 	raw6_proc_exit();
 #endif
 	ipv6_netfilter_fini();
+	ipv6_stub = NULL;
 	igmp6_cleanup();
 	ndisc_cleanup();
 	ip6_mr_cleanup();
