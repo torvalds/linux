@@ -65,31 +65,6 @@ static unsigned int hw_read(struct snd_soc_codec *codec, unsigned int reg)
 	return val;
 }
 
-/* Primitive bulk write support for soc-cache.  The data pointed to by
- * `data' needs to already be in the form the hardware expects.  Any
- * data written through this function will not go through the cache as
- * it only handles writing to volatile or out of bounds registers.
- *
- * This is currently only supported for devices using the regmap API
- * wrappers.
- */
-static int snd_soc_hw_bulk_write_raw(struct snd_soc_codec *codec,
-				     unsigned int reg,
-				     const void *data, size_t len)
-{
-	/* To ensure that we don't get out of sync with the cache, check
-	 * whether the base register is volatile or if we've directly asked
-	 * to bypass the cache.  Out of bounds registers are considered
-	 * volatile.
-	 */
-	if (!codec->cache_bypass
-	    && !snd_soc_codec_volatile_register(codec, reg)
-	    && reg < codec->driver->reg_cache_size)
-		return -EINVAL;
-
-	return regmap_raw_write(codec->control_data, reg, data, len);
-}
-
 /**
  * snd_soc_codec_set_cache_io: Set up standard I/O functions.
  *
@@ -119,7 +94,6 @@ int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
 	memset(&config, 0, sizeof(config));
 	codec->write = hw_write;
 	codec->read = hw_read;
-	codec->bulk_write_raw = snd_soc_hw_bulk_write_raw;
 
 	config.reg_bits = addr_bits;
 	config.val_bits = data_bits;
