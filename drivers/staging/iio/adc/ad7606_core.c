@@ -466,12 +466,11 @@ struct iio_dev *ad7606_probe(struct device *dev, int irq,
 	struct ad7606_platform_data *pdata = dev->platform_data;
 	struct ad7606_state *st;
 	int ret;
-	struct iio_dev *indio_dev = iio_device_alloc(sizeof(*st));
+	struct iio_dev *indio_dev;
 
-	if (indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
+	if (!indio_dev)
+		return ERR_PTR(-ENOMEM);
 
 	st = iio_priv(indio_dev);
 
@@ -489,11 +488,11 @@ struct iio_dev *ad7606_probe(struct device *dev, int irq,
 		st->oversampling = pdata->default_os;
 	}
 
-	st->reg = regulator_get(dev, "vcc");
+	st->reg = devm_regulator_get(dev, "vcc");
 	if (!IS_ERR(st->reg)) {
 		ret = regulator_enable(st->reg);
 		if (ret)
-			goto error_put_reg;
+			return ERR_PTR(ret);
 	}
 
 	st->pdata = pdata;
@@ -554,11 +553,6 @@ error_free_gpios:
 error_disable_reg:
 	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
-error_put_reg:
-	if (!IS_ERR(st->reg))
-		regulator_put(st->reg);
-	iio_device_free(indio_dev);
-error_ret:
 	return ERR_PTR(ret);
 }
 
@@ -570,13 +564,10 @@ int ad7606_remove(struct iio_dev *indio_dev, int irq)
 	ad7606_ring_cleanup(indio_dev);
 
 	free_irq(irq, indio_dev);
-	if (!IS_ERR(st->reg)) {
+	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
-		regulator_put(st->reg);
-	}
 
 	ad7606_free_gpios(st);
-	iio_device_free(indio_dev);
 
 	return 0;
 }
