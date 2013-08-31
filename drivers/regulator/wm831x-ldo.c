@@ -279,7 +279,8 @@ static int wm831x_gp_ldo_probe(struct platform_device *pdev)
 	config.driver_data = ldo;
 	config.regmap = wm831x->regmap;
 
-	ldo->regulator = regulator_register(&ldo->desc, &config);
+	ldo->regulator = devm_regulator_register(&pdev->dev, &ldo->desc,
+						 &config);
 	if (IS_ERR(ldo->regulator)) {
 		ret = PTR_ERR(ldo->regulator);
 		dev_err(wm831x->dev, "Failed to register LDO%d: %d\n",
@@ -295,31 +296,19 @@ static int wm831x_gp_ldo_probe(struct platform_device *pdev)
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request UV IRQ %d: %d\n",
 			irq, ret);
-		goto err_regulator;
+		goto err;
 	}
 
 	platform_set_drvdata(pdev, ldo);
 
 	return 0;
 
-err_regulator:
-	regulator_unregister(ldo->regulator);
 err:
 	return ret;
 }
 
-static int wm831x_gp_ldo_remove(struct platform_device *pdev)
-{
-	struct wm831x_ldo *ldo = platform_get_drvdata(pdev);
-
-	regulator_unregister(ldo->regulator);
-
-	return 0;
-}
-
 static struct platform_driver wm831x_gp_ldo_driver = {
 	.probe = wm831x_gp_ldo_probe,
-	.remove = wm831x_gp_ldo_remove,
 	.driver		= {
 		.name	= "wm831x-ldo",
 		.owner	= THIS_MODULE,
@@ -504,7 +493,8 @@ static int wm831x_aldo_probe(struct platform_device *pdev)
 	config.driver_data = ldo;
 	config.regmap = wm831x->regmap;
 
-	ldo->regulator = regulator_register(&ldo->desc, &config);
+	ldo->regulator = devm_regulator_register(&pdev->dev, &ldo->desc,
+						 &config);
 	if (IS_ERR(ldo->regulator)) {
 		ret = PTR_ERR(ldo->regulator);
 		dev_err(wm831x->dev, "Failed to register LDO%d: %d\n",
@@ -519,31 +509,19 @@ static int wm831x_aldo_probe(struct platform_device *pdev)
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request UV IRQ %d: %d\n",
 			irq, ret);
-		goto err_regulator;
+		goto err;
 	}
 
 	platform_set_drvdata(pdev, ldo);
 
 	return 0;
 
-err_regulator:
-	regulator_unregister(ldo->regulator);
 err:
 	return ret;
 }
 
-static int wm831x_aldo_remove(struct platform_device *pdev)
-{
-	struct wm831x_ldo *ldo = platform_get_drvdata(pdev);
-
-	regulator_unregister(ldo->regulator);
-
-	return 0;
-}
-
 static struct platform_driver wm831x_aldo_driver = {
 	.probe = wm831x_aldo_probe,
-	.remove = wm831x_aldo_remove,
 	.driver		= {
 		.name	= "wm831x-aldo",
 		.owner	= THIS_MODULE,
@@ -661,7 +639,8 @@ static int wm831x_alive_ldo_probe(struct platform_device *pdev)
 	config.driver_data = ldo;
 	config.regmap = wm831x->regmap;
 
-	ldo->regulator = regulator_register(&ldo->desc, &config);
+	ldo->regulator = devm_regulator_register(&pdev->dev, &ldo->desc,
+						 &config);
 	if (IS_ERR(ldo->regulator)) {
 		ret = PTR_ERR(ldo->regulator);
 		dev_err(wm831x->dev, "Failed to register LDO%d: %d\n",
@@ -677,18 +656,8 @@ err:
 	return ret;
 }
 
-static int wm831x_alive_ldo_remove(struct platform_device *pdev)
-{
-	struct wm831x_ldo *ldo = platform_get_drvdata(pdev);
-
-	regulator_unregister(ldo->regulator);
-
-	return 0;
-}
-
 static struct platform_driver wm831x_alive_ldo_driver = {
 	.probe = wm831x_alive_ldo_probe,
-	.remove = wm831x_alive_ldo_remove,
 	.driver		= {
 		.name	= "wm831x-alive-ldo",
 		.owner	= THIS_MODULE,
