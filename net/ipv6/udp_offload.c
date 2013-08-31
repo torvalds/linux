@@ -38,60 +38,6 @@ static int udp6_ufo_send_check(struct sk_buff *skb)
 	return 0;
 }
 
-static struct sk_buff *skb_udp6_tunnel_segment(struct sk_buff *skb,
-					       netdev_features_t features)
-{
-	struct sk_buff *segs = ERR_PTR(-EINVAL);
-	int mac_len = skb->mac_len;
-	int tnl_hlen = skb_inner_mac_header(skb) - skb_transport_header(skb);
-	int outer_hlen;
-	netdev_features_t enc_features;
-
-	if (unlikely(!pskb_may_pull(skb, tnl_hlen)))
-		goto out;
-
-	skb->encapsulation = 0;
-	__skb_pull(skb, tnl_hlen);
-	skb_reset_mac_header(skb);
-	skb_set_network_header(skb, skb_inner_network_offset(skb));
-	skb->mac_len = skb_inner_network_offset(skb);
-
-	/* segment inner packet. */
-	enc_features = skb->dev->hw_enc_features & netif_skb_features(skb);
-	segs = skb_mac_gso_segment(skb, enc_features);
-	if (!segs || IS_ERR(segs))
-		goto out;
-
-	outer_hlen = skb_tnl_header_len(skb);
-	skb = segs;
-	do {
-		struct udphdr *uh;
-		struct ipv6hdr *ipv6h;
-		int udp_offset = outer_hlen - tnl_hlen;
-		u32 len;
-
-		skb->mac_len = mac_len;
-
-		skb_push(skb, outer_hlen);
-		skb_reset_mac_header(skb);
-		skb_set_network_header(skb, mac_len);
-		skb_set_transport_header(skb, udp_offset);
-		uh = udp_hdr(skb);
-		uh->len = htons(skb->len - udp_offset);
-		ipv6h = ipv6_hdr(skb);
-		len = skb->len - udp_offset;
-
-		uh->check = ~csum_ipv6_magic(&ipv6h->saddr, &ipv6h->daddr,
-					     len, IPPROTO_UDP, 0);
-		uh->check = csum_fold(skb_checksum(skb, udp_offset, len, 0));
-		if (uh->check == 0)
-			uh->check = CSUM_MANGLED_0;
-		skb->ip_summed = CHECKSUM_NONE;
-	} while ((skb = skb->next));
-out:
-	return segs;
-}
-
 static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb,
 					 netdev_features_t features)
 {
@@ -129,7 +75,7 @@ static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb,
 	}
 
 	if (skb->encapsulation && skb_shinfo(skb)->gso_type & SKB_GSO_UDP_TUNNEL)
-		segs = skb_udp6_tunnel_segment(skb, features);
+		segs = skb_udp_tunnel_segment(skb, features);
 	else {
 		/* Do software UFO. Complete and fill in the UDP checksum as HW cannot
 		 * do checksum of UDP packets sent as multiple IP fragments.

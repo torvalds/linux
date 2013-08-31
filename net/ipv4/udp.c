@@ -2337,7 +2337,7 @@ struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb,
 		uh->len = htons(skb->len - udp_offset);
 
 		/* csum segment if tunnel sets skb with csum. */
-		if (unlikely(uh->check)) {
+		if (protocol == htons(ETH_P_IP) && unlikely(uh->check)) {
 			struct iphdr *iph = ip_hdr(skb);
 
 			uh->check = ~csum_tcpudp_magic(iph->saddr, iph->daddr,
@@ -2348,7 +2348,18 @@ struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb,
 			if (uh->check == 0)
 				uh->check = CSUM_MANGLED_0;
 
+		} else if (protocol == htons(ETH_P_IPV6)) {
+			struct ipv6hdr *ipv6h = ipv6_hdr(skb);
+			u32 len = skb->len - udp_offset;
+
+			uh->check = ~csum_ipv6_magic(&ipv6h->saddr, &ipv6h->daddr,
+						     len, IPPROTO_UDP, 0);
+			uh->check = csum_fold(skb_checksum(skb, udp_offset, len, 0));
+			if (uh->check == 0)
+				uh->check = CSUM_MANGLED_0;
+			skb->ip_summed = CHECKSUM_NONE;
 		}
+
 		skb->protocol = protocol;
 	} while ((skb = skb->next));
 out:
