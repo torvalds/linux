@@ -1196,6 +1196,70 @@ out:
 	return NETDEV_TX_OK;
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
+static int neigh_reduce(struct net_device *dev, struct sk_buff *skb)
+{
+	struct vxlan_dev *vxlan = netdev_priv(dev);
+	struct neighbour *n;
+	union vxlan_addr ipa;
+	const struct ipv6hdr *iphdr;
+	const struct in6_addr *saddr, *daddr;
+	struct nd_msg *msg;
+	struct inet6_dev *in6_dev = NULL;
+
+	in6_dev = __in6_dev_get(dev);
+	if (!in6_dev)
+		goto out;
+
+	if (!pskb_may_pull(skb, skb->len))
+		goto out;
+
+	iphdr = ipv6_hdr(skb);
+	saddr = &iphdr->saddr;
+	daddr = &iphdr->daddr;
+
+	if (ipv6_addr_loopback(daddr) ||
+	    ipv6_addr_is_multicast(daddr))
+		goto out;
+
+	msg = (struct nd_msg *)skb_transport_header(skb);
+	if (msg->icmph.icmp6_code != 0 ||
+	    msg->icmph.icmp6_type != NDISC_NEIGHBOUR_SOLICITATION)
+		goto out;
+
+	n = neigh_lookup(ipv6_stub->nd_tbl, daddr, dev);
+
+	if (n) {
+		struct vxlan_fdb *f;
+
+		if (!(n->nud_state & NUD_CONNECTED)) {
+			neigh_release(n);
+			goto out;
+		}
+
+		f = vxlan_find_mac(vxlan, n->ha);
+		if (f && vxlan_addr_any(&(first_remote_rcu(f)->remote_ip))) {
+			/* bridge-local neighbor */
+			neigh_release(n);
+			goto out;
+		}
+
+		ipv6_stub->ndisc_send_na(dev, n, saddr, &msg->target,
+					 !!in6_dev->cnf.forwarding,
+					 true, false, false);
+		neigh_release(n);
+	} else if (vxlan->flags & VXLAN_F_L3MISS) {
+		ipa.sin6.sin6_addr = *daddr;
+		ipa.sa.sa_family = AF_INET6;
+		vxlan_ip_miss(dev, &ipa);
+	}
+
+out:
+	consume_skb(skb);
+	return NETDEV_TX_OK;
+}
+#endif
+
 static bool route_shortcircuit(struct net_device *dev, struct sk_buff *skb)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
@@ -1677,8 +1741,22 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_reset_mac_header(skb);
 	eth = eth_hdr(skb);
 
-	if ((vxlan->flags & VXLAN_F_PROXY) && ntohs(eth->h_proto) == ETH_P_ARP)
-		return arp_reduce(dev, skb);
+	if ((vxlan->flags & VXLAN_F_PROXY)) {
+		if (ntohs(eth->h_proto) == ETH_P_ARP)
+			return arp_reduce(dev, skb);
+#if IS_ENABLED(CONFIG_IPV6)
+		else if (ntohs(eth->h_proto) == ETH_P_IPV6 &&
+			 skb->len >= sizeof(struct ipv6hdr) + sizeof(struct nd_msg) &&
+			 ipv6_hdr(skb)->nexthdr == IPPROTO_ICMPV6) {
+				struct nd_msg *msg;
+
+				msg = (struct nd_msg *)skb_transport_header(skb);
+				if (msg->icmph.icmp6_code == 0 &&
+				    msg->icmph.icmp6_type == NDISC_NEIGHBOUR_SOLICITATION)
+					return neigh_reduce(dev, skb);
+		}
+#endif
+	}
 
 	f = vxlan_find_mac(vxlan, eth->h_dest);
 	did_rsc = false;
