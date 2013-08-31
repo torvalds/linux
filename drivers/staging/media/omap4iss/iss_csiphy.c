@@ -31,7 +31,7 @@ static void csiphy_lanes_config(struct iss_csiphy *phy)
 	unsigned int i;
 	u32 reg;
 
-	reg = readl(phy->cfg_regs + CSI2_COMPLEXIO_CFG);
+	reg = iss_reg_read(phy->iss, phy->cfg_regs, CSI2_COMPLEXIO_CFG);
 
 	for (i = 0; i < phy->max_data_lanes; i++) {
 		reg &= ~(CSI2_COMPLEXIO_CFG_DATA_POL(i + 1) |
@@ -47,7 +47,7 @@ static void csiphy_lanes_config(struct iss_csiphy *phy)
 	reg |= phy->lanes.clk.pol ? CSI2_COMPLEXIO_CFG_CLOCK_POL : 0;
 	reg |= phy->lanes.clk.pos << CSI2_COMPLEXIO_CFG_CLOCK_POSITION_SHIFT;
 
-	writel(reg, phy->cfg_regs + CSI2_COMPLEXIO_CFG);
+	iss_reg_write(phy->iss, phy->cfg_regs, CSI2_COMPLEXIO_CFG, reg);
 }
 
 /*
@@ -61,16 +61,15 @@ static int csiphy_set_power(struct iss_csiphy *phy, u32 power)
 	u32 reg;
 	u8 retry_count;
 
-	writel((readl(phy->cfg_regs + CSI2_COMPLEXIO_CFG) &
-		~CSI2_COMPLEXIO_CFG_PWD_CMD_MASK) |
-	       power | CSI2_COMPLEXIO_CFG_PWR_AUTO,
-	       phy->cfg_regs + CSI2_COMPLEXIO_CFG);
+	iss_reg_update(phy->iss, phy->cfg_regs, CSI2_COMPLEXIO_CFG,
+		       CSI2_COMPLEXIO_CFG_PWD_CMD_MASK,
+		       power | CSI2_COMPLEXIO_CFG_PWR_AUTO);
 
 	retry_count = 0;
 	do {
 		udelay(1);
-		reg = readl(phy->cfg_regs + CSI2_COMPLEXIO_CFG) &
-				CSI2_COMPLEXIO_CFG_PWD_STATUS_MASK;
+		reg = iss_reg_read(phy->iss, phy->cfg_regs, CSI2_COMPLEXIO_CFG)
+		    & CSI2_COMPLEXIO_CFG_PWD_STATUS_MASK;
 
 		if (reg != power >> 2)
 			retry_count++;
@@ -98,7 +97,7 @@ static void csiphy_dphy_config(struct iss_csiphy *phy)
 	reg = phy->dphy.ths_term << REGISTER0_THS_TERM_SHIFT;
 	reg |= phy->dphy.ths_settle << REGISTER0_THS_SETTLE_SHIFT;
 
-	writel(reg, phy->phy_regs + REGISTER0);
+	iss_reg_write(phy->iss, phy->phy_regs, REGISTER0, reg);
 
 	/* Set up REGISTER1 */
 	reg = phy->dphy.tclk_term << REGISTER1_TCLK_TERM_SHIFT;
@@ -106,7 +105,7 @@ static void csiphy_dphy_config(struct iss_csiphy *phy)
 	reg |= phy->dphy.tclk_settle << REGISTER1_TCLK_SETTLE_SHIFT;
 	reg |= 0xB8 << REGISTER1_DPHY_HS_SYNC_PATTERN_SHIFT;
 
-	writel(reg, phy->phy_regs + REGISTER1);
+	iss_reg_write(phy->iss, phy->phy_regs, REGISTER1, reg);
 }
 
 /*
@@ -264,16 +263,16 @@ int omap4iss_csiphy_init(struct iss_device *iss)
 	phy1->csi2 = &iss->csi2a;
 	phy1->max_data_lanes = ISS_CSIPHY1_NUM_DATA_LANES;
 	phy1->used_data_lanes = 0;
-	phy1->cfg_regs = iss->regs[OMAP4_ISS_MEM_CSI2_A_REGS1];
-	phy1->phy_regs = iss->regs[OMAP4_ISS_MEM_CAMERARX_CORE1];
+	phy1->cfg_regs = OMAP4_ISS_MEM_CSI2_A_REGS1;
+	phy1->phy_regs = OMAP4_ISS_MEM_CAMERARX_CORE1;
 	mutex_init(&phy1->mutex);
 
 	phy2->iss = iss;
 	phy2->csi2 = &iss->csi2b;
 	phy2->max_data_lanes = ISS_CSIPHY2_NUM_DATA_LANES;
 	phy2->used_data_lanes = 0;
-	phy2->cfg_regs = iss->regs[OMAP4_ISS_MEM_CSI2_B_REGS1];
-	phy2->phy_regs = iss->regs[OMAP4_ISS_MEM_CAMERARX_CORE2];
+	phy2->cfg_regs = OMAP4_ISS_MEM_CSI2_B_REGS1;
+	phy2->phy_regs = OMAP4_ISS_MEM_CAMERARX_CORE2;
 	mutex_init(&phy2->mutex);
 
 	return 0;

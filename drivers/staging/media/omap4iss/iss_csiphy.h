@@ -32,9 +32,9 @@ struct iss_csiphy {
 	u8 phy_in_use;
 	struct iss_csi2_device *csi2;
 
-	/* Pointer to register remaps into kernel space */
-	void __iomem *cfg_regs;
-	void __iomem *phy_regs;
+	/* memory resources, as defined in enum iss_mem_resources */
+	unsigned int cfg_regs;
+	unsigned int phy_regs;
 
 	u8 max_data_lanes;	/* number of CSI2 Data Lanes supported */
 	u8 used_data_lanes;	/* number of CSI2 Data Lanes used */

@@ -128,9 +128,9 @@ struct iss_csi2_device {
 
 	u8 available;		/* Is the IP present on the silicon? */
 
-	/* Pointer to register remaps into kernel space */
-	void __iomem *regs1;
-	void __iomem *regs2;
+	/* memory resources, as defined in enum iss_mem_resources */
+	unsigned int regs1;
+	unsigned int regs2;
 
 	u32 output; /* output to IPIPEIF, memory or both? */
 	bool dpcm_decompress;
