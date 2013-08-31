@@ -528,21 +528,19 @@ static int ad7291_probe(struct i2c_client *client,
 	struct iio_dev *indio_dev;
 	int ret = 0;
 
-	indio_dev = iio_device_alloc(sizeof(*chip));
-	if (indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
+	if (!indio_dev)
+		return -ENOMEM;
 	chip = iio_priv(indio_dev);
 
 	if (pdata && pdata->use_external_ref) {
-		chip->reg = regulator_get(&client->dev, "vref");
+		chip->reg = devm_regulator_get(&client->dev, "vref");
 		if (IS_ERR(chip->reg))
-			goto error_free;
+			return ret;
 
 		ret = regulator_enable(chip->reg);
 		if (ret)
-			goto error_put_reg;
+			return ret;
 	}
 
 	mutex_init(&chip->state_lock);
@@ -601,12 +599,7 @@ error_unreg_irq:
 error_disable_reg:
 	if (chip->reg)
 		regulator_disable(chip->reg);
-error_put_reg:
-	if (chip->reg)
-		regulator_put(chip->reg);
-error_free:
-	iio_device_free(indio_dev);
-error_ret:
+
 	return ret;
 }
 
@@ -620,12 +613,8 @@ static int ad7291_remove(struct i2c_client *client)
 	if (client->irq)
 		free_irq(client->irq, indio_dev);
 
-	if (chip->reg) {
+	if (chip->reg)
 		regulator_disable(chip->reg);
-		regulator_put(chip->reg);
-	}
-
-	iio_device_free(indio_dev);
 
 	return 0;
 }
