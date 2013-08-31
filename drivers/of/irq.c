@@ -28,7 +28,7 @@
 
 /**
  * irq_of_parse_and_map - Parse and map an interrupt into linux virq space
- * @device: Device node of the device whose interrupt is to be mapped
+ * @dev: Device node of the device whose interrupt is to be mapped
  * @index: Index of the interrupt to map
  *
  * This function is a wrapper that chains of_irq_map_one() and
