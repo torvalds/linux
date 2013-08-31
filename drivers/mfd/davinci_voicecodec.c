@@ -27,10 +27,16 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/clk.h>
+#include <linux/regmap.h>
 
 #include <sound/pcm.h>
 
 #include <linux/mfd/davinci_voicecodec.h>
+
+static struct regmap_config davinci_vc_regmap = {
+	.reg_bits = 32,
+	.val_bits = 32,
+};
 
 static int __init davinci_vc_probe(struct platform_device *pdev)
 {
@@ -60,6 +66,14 @@ static int __init davinci_vc_probe(struct platform_device *pdev)
 	davinci_vc->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(davinci_vc->base)) {
 		ret = PTR_ERR(davinci_vc->base);
+		goto fail;
+	}
+
+	davinci_vc->regmap = devm_regmap_init_mmio(&pdev->dev,
+						   davinci_vc->base,
+						   &davinci_vc_regmap);
+	if (IS_ERR(davinci_vc->regmap)) {
+		ret = PTR_ERR(davinci_vc->regmap);
 		goto fail;
 	}
 
