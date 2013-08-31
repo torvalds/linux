@@ -1169,7 +1169,7 @@ int spi_register_master(struct spi_master *master)
 	else {
 		status = spi_master_initialize_queue(master);
 		if (status) {
-			device_unregister(&master->dev);
+			device_del(&master->dev);
 			goto done;
 		}
 	}
