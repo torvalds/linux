@@ -523,7 +523,8 @@ static int wm831x_buckv_probe(struct platform_device *pdev)
 	config.driver_data = dcdc;
 	config.regmap = wm831x->regmap;
 
-	dcdc->regulator = regulator_register(&dcdc->desc, &config);
+	dcdc->regulator = devm_regulator_register(&pdev->dev, &dcdc->desc,
+						  &config);
 	if (IS_ERR(dcdc->regulator)) {
 		ret = PTR_ERR(dcdc->regulator);
 		dev_err(wm831x->dev, "Failed to register DCDC%d: %d\n",
@@ -538,7 +539,7 @@ static int wm831x_buckv_probe(struct platform_device *pdev)
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request UV IRQ %d: %d\n",
 			irq, ret);
-		goto err_regulator;
+		goto err;
 	}
 
 	irq = wm831x_irq(wm831x, platform_get_irq_byname(pdev, "HC"));
@@ -548,31 +549,19 @@ static int wm831x_buckv_probe(struct platform_device *pdev)
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request HC IRQ %d: %d\n",
 			irq, ret);
-		goto err_regulator;
+		goto err;
 	}
 
 	platform_set_drvdata(pdev, dcdc);
 
 	return 0;
 
-err_regulator:
-	regulator_unregister(dcdc->regulator);
 err:
 	return ret;
 }
 
-static int wm831x_buckv_remove(struct platform_device *pdev)
-{
-	struct wm831x_dcdc *dcdc = platform_get_drvdata(pdev);
-
-	regulator_unregister(dcdc->regulator);
-
-	return 0;
-}
-
 static struct platform_driver wm831x_buckv_driver = {
 	.probe = wm831x_buckv_probe,
-	.remove = wm831x_buckv_remove,
 	.driver		= {
 		.name	= "wm831x-buckv",
 		.owner	= THIS_MODULE,
@@ -673,7 +662,8 @@ static int wm831x_buckp_probe(struct platform_device *pdev)
 	config.driver_data = dcdc;
 	config.regmap = wm831x->regmap;
 
-	dcdc->regulator = regulator_register(&dcdc->desc, &config);
+	dcdc->regulator = devm_regulator_register(&pdev->dev, &dcdc->desc,
+						  &config);
 	if (IS_ERR(dcdc->regulator)) {
 		ret = PTR_ERR(dcdc->regulator);
 		dev_err(wm831x->dev, "Failed to register DCDC%d: %d\n",
@@ -688,31 +678,19 @@ static int wm831x_buckp_probe(struct platform_device *pdev)
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request UV IRQ %d: %d\n",
 			irq, ret);
-		goto err_regulator;
+		goto err;
 	}
 
 	platform_set_drvdata(pdev, dcdc);
 
 	return 0;
 
-err_regulator:
-	regulator_unregister(dcdc->regulator);
 err:
 	return ret;
 }
 
-static int wm831x_buckp_remove(struct platform_device *pdev)
-{
-	struct wm831x_dcdc *dcdc = platform_get_drvdata(pdev);
-
-	regulator_unregister(dcdc->regulator);
-
-	return 0;
-}
-
 static struct platform_driver wm831x_buckp_driver = {
 	.probe = wm831x_buckp_probe,
-	.remove = wm831x_buckp_remove,
 	.driver		= {
 		.name	= "wm831x-buckp",
 		.owner	= THIS_MODULE,
@@ -804,7 +782,8 @@ static int wm831x_boostp_probe(struct platform_device *pdev)
 	config.driver_data = dcdc;
 	config.regmap = wm831x->regmap;
 
-	dcdc->regulator = regulator_register(&dcdc->desc, &config);
+	dcdc->regulator = devm_regulator_register(&pdev->dev, &dcdc->desc,
+						  &config);
 	if (IS_ERR(dcdc->regulator)) {
 		ret = PTR_ERR(dcdc->regulator);
 		dev_err(wm831x->dev, "Failed to register DCDC%d: %d\n",
@@ -820,31 +799,19 @@ static int wm831x_boostp_probe(struct platform_device *pdev)
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request UV IRQ %d: %d\n",
 			irq, ret);
-		goto err_regulator;
+		goto err;
 	}
 
 	platform_set_drvdata(pdev, dcdc);
 
 	return 0;
 
-err_regulator:
-	regulator_unregister(dcdc->regulator);
 err:
 	return ret;
 }
 
-static int wm831x_boostp_remove(struct platform_device *pdev)
-{
-	struct wm831x_dcdc *dcdc = platform_get_drvdata(pdev);
-
-	regulator_unregister(dcdc->regulator);
-
-	return 0;
-}
-
 static struct platform_driver wm831x_boostp_driver = {
 	.probe = wm831x_boostp_probe,
-	.remove = wm831x_boostp_remove,
 	.driver		= {
 		.name	= "wm831x-boostp",
 		.owner	= THIS_MODULE,
@@ -904,7 +871,8 @@ static int wm831x_epe_probe(struct platform_device *pdev)
 	config.driver_data = dcdc;
 	config.regmap = wm831x->regmap;
 
-	dcdc->regulator = regulator_register(&dcdc->desc, &config);
+	dcdc->regulator = devm_regulator_register(&pdev->dev, &dcdc->desc,
+						  &config);
 	if (IS_ERR(dcdc->regulator)) {
 		ret = PTR_ERR(dcdc->regulator);
 		dev_err(wm831x->dev, "Failed to register EPE%d: %d\n",
@@ -920,18 +888,8 @@ err:
 	return ret;
 }
 
-static int wm831x_epe_remove(struct platform_device *pdev)
-{
-	struct wm831x_dcdc *dcdc = platform_get_drvdata(pdev);
-
-	regulator_unregister(dcdc->regulator);
-
-	return 0;
-}
-
 static struct platform_driver wm831x_epe_driver = {
 	.probe = wm831x_epe_probe,
-	.remove = wm831x_epe_remove,
 	.driver		= {
 		.name	= "wm831x-epe",
 		.owner	= THIS_MODULE,
