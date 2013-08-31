@@ -687,6 +687,10 @@ skip_format_initialization:
 			unsigned win_max = win_min +
 					   config->ranges[j].window_len - 1;
 
+			/* Allow data window inside its own virtual range */
+			if (j == i)
+				continue;
+
 			if (range_cfg->range_min <= sel_reg &&
 			    sel_reg <= range_cfg->range_max) {
 				dev_err(map->dev,
