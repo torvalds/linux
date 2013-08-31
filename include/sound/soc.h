@@ -701,7 +701,6 @@ struct snd_soc_codec {
 
 	/* codec IO */
 	void *control_data; /* codec control (i2c/3wire) data */
-	enum snd_soc_control_type control_type;
 	hw_write_t hw_write;
 	unsigned int (*hw_read)(struct snd_soc_codec *, unsigned int);
 	unsigned int (*read)(struct snd_soc_codec *, unsigned int);
