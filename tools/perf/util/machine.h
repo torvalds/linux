@@ -106,7 +106,8 @@ static inline bool machine__is_host(struct machine *machine)
 	return machine ? machine->pid == HOST_KERNEL_ID : false;
 }
 
-struct thread *machine__findnew_thread(struct machine *machine, pid_t tid);
+struct thread *machine__findnew_thread(struct machine *machine, pid_t pid,
+				       pid_t tid);
 
 size_t machine__fprintf(struct machine *machine, FILE *fp);
 

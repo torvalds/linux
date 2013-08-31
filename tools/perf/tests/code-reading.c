@@ -257,7 +257,7 @@ static int process_sample_event(struct machine *machine,
 		return -1;
 	}
 
-	thread = machine__findnew_thread(machine, sample.pid);
+	thread = machine__findnew_thread(machine, sample.pid, sample.pid);
 	if (!thread) {
 		pr_debug("machine__findnew_thread failed\n");
 		return -1;
@@ -446,7 +446,7 @@ static int do_test_code_reading(bool try_kcore)
 		goto out_err;
 	}
 
-	thread = machine__findnew_thread(machine, pid);
+	thread = machine__findnew_thread(machine, pid, pid);
 	if (!thread) {
 		pr_debug("machine__findnew_thread failed\n");
 		goto out_err;

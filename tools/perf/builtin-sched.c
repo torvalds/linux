@@ -724,8 +724,10 @@ static int replay_fork_event(struct perf_sched *sched,
 {
 	struct thread *child, *parent;
 
-	child = machine__findnew_thread(machine, event->fork.tid);
-	parent = machine__findnew_thread(machine, event->fork.ptid);
+	child = machine__findnew_thread(machine, event->fork.pid,
+					event->fork.tid);
+	parent = machine__findnew_thread(machine, event->fork.ppid,
+					 event->fork.ptid);
 
 	if (child == NULL || parent == NULL) {
 		pr_debug("thread does not exist on fork event: child %p, parent %p\n",
@@ -934,8 +936,8 @@ static int latency_switch_event(struct perf_sched *sched,
 		return -1;
 	}
 
-	sched_out = machine__findnew_thread(machine, prev_pid);
-	sched_in = machine__findnew_thread(machine, next_pid);
+	sched_out = machine__findnew_thread(machine, 0, prev_pid);
+	sched_in = machine__findnew_thread(machine, 0, next_pid);
 
 	out_events = thread_atoms_search(&sched->atom_root, sched_out, &sched->cmp_pid);
 	if (!out_events) {
@@ -978,7 +980,7 @@ static int latency_runtime_event(struct perf_sched *sched,
 {
 	const u32 pid	   = perf_evsel__intval(evsel, sample, "pid");
 	const u64 runtime  = perf_evsel__intval(evsel, sample, "runtime");
-	struct thread *thread = machine__findnew_thread(machine, pid);
+	struct thread *thread = machine__findnew_thread(machine, 0, pid);
 	struct work_atoms *atoms = thread_atoms_search(&sched->atom_root, thread, &sched->cmp_pid);
 	u64 timestamp = sample->time;
 	int cpu = sample->cpu;
@@ -1016,7 +1018,7 @@ static int latency_wakeup_event(struct perf_sched *sched,
 	if (!success)
 		return 0;
 
-	wakee = machine__findnew_thread(machine, pid);
+	wakee = machine__findnew_thread(machine, 0, pid);
 	atoms = thread_atoms_search(&sched->atom_root, wakee, &sched->cmp_pid);
 	if (!atoms) {
 		if (thread_atoms_insert(sched, wakee))
@@ -1070,7 +1072,7 @@ static int latency_migrate_task_event(struct perf_sched *sched,
 	if (sched->profile_cpu == -1)
 		return 0;
 
-	migrant = machine__findnew_thread(machine, pid);
+	migrant = machine__findnew_thread(machine, 0, pid);
 	atoms = thread_atoms_search(&sched->atom_root, migrant, &sched->cmp_pid);
 	if (!atoms) {
 		if (thread_atoms_insert(sched, migrant))
@@ -1289,8 +1291,8 @@ static int map_switch_event(struct perf_sched *sched, struct perf_evsel *evsel,
 		return -1;
 	}
 
-	sched_out = machine__findnew_thread(machine, prev_pid);
-	sched_in = machine__findnew_thread(machine, next_pid);
+	sched_out = machine__findnew_thread(machine, 0, prev_pid);
+	sched_in = machine__findnew_thread(machine, 0, next_pid);
 
 	sched->curr_thread[this_cpu] = sched_in;
 

@@ -49,26 +49,19 @@ struct perf_evlist *perf_evlist__new(void)
 	return evlist;
 }
 
-void perf_evlist__config(struct perf_evlist *evlist,
-			struct perf_record_opts *opts)
+/**
+ * perf_evlist__set_id_pos - set the positions of event ids.
+ * @evlist: selected event list
+ *
+ * Events with compatible sample types all have the same id_pos
+ * and is_pos.  For convenience, put a copy on evlist.
+ */
+void perf_evlist__set_id_pos(struct perf_evlist *evlist)
 {
-	struct perf_evsel *evsel;
-	/*
-	 * Set the evsel leader links before we configure attributes,
-	 * since some might depend on this info.
-	 */
-	if (opts->group)
-		perf_evlist__set_leader(evlist);
+	struct perf_evsel *first = perf_evlist__first(evlist);
 
-	if (evlist->cpus->map[0] < 0)
-		opts->no_inherit = true;
-
-	list_for_each_entry(evsel, &evlist->entries, node) {
-		perf_evsel__config(evsel, opts);
-
-		if (evlist->nr_entries > 1)
-			perf_evsel__set_sample_id(evsel);
-	}
+	evlist->id_pos = first->id_pos;
+	evlist->is_pos = first->is_pos;
 }
 
 static void perf_evlist__purge(struct perf_evlist *evlist)
@@ -101,15 +94,20 @@ void perf_evlist__delete(struct perf_evlist *evlist)
 void perf_evlist__add(struct perf_evlist *evlist, struct perf_evsel *entry)
 {
 	list_add_tail(&entry->node, &evlist->entries);
-	++evlist->nr_entries;
+	if (!evlist->nr_entries++)
+		perf_evlist__set_id_pos(evlist);
 }
 
 void perf_evlist__splice_list_tail(struct perf_evlist *evlist,
 				   struct list_head *list,
 				   int nr_entries)
 {
+	bool set_id_pos = !evlist->nr_entries;
+
 	list_splice_tail(list, &evlist->entries);
 	evlist->nr_entries += nr_entries;
+	if (set_id_pos)
+		perf_evlist__set_id_pos(evlist);
 }
 
 void __perf_evlist__set_leader(struct list_head *list)
@@ -204,6 +202,21 @@ perf_evlist__find_tracepoint_by_id(struct perf_evlist *evlist, int id)
 	list_for_each_entry(evsel, &evlist->entries, node) {
 		if (evsel->attr.type   == PERF_TYPE_TRACEPOINT &&
 		    (int)evsel->attr.config == id)
+			return evsel;
+	}
+
+	return NULL;
+}
+
+struct perf_evsel *
+perf_evlist__find_tracepoint_by_name(struct perf_evlist *evlist,
+				     const char *name)
+{
+	struct perf_evsel *evsel;
+
+	list_for_each_entry(evsel, &evlist->entries, node) {
+		if ((evsel->attr.type == PERF_TYPE_TRACEPOINT) &&
+		    (strcmp(evsel->name, name) == 0))
 			return evsel;
 	}
 
@@ -368,6 +381,55 @@ struct perf_evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id)
 	if (!perf_evlist__sample_id_all(evlist))
 		return perf_evlist__first(evlist);
 
+	return NULL;
+}
+
+static int perf_evlist__event2id(struct perf_evlist *evlist,
+				 union perf_event *event, u64 *id)
+{
+	const u64 *array = event->sample.array;
+	ssize_t n;
+
+	n = (event->header.size - sizeof(event->header)) >> 3;
+
+	if (event->header.type == PERF_RECORD_SAMPLE) {
+		if (evlist->id_pos >= n)
+			return -1;
+		*id = array[evlist->id_pos];
+	} else {
+		if (evlist->is_pos > n)
+			return -1;
+		n -= evlist->is_pos;
+		*id = array[n];
+	}
+	return 0;
+}
+
+static struct perf_evsel *perf_evlist__event2evsel(struct perf_evlist *evlist,
+						   union perf_event *event)
+{
+	struct hlist_head *head;
+	struct perf_sample_id *sid;
+	int hash;
+	u64 id;
+
+	if (evlist->nr_entries == 1)
+		return perf_evlist__first(evlist);
+
+	if (perf_evlist__event2id(evlist, event, &id))
+		return NULL;
+
+	/* Synthesized events have an id of zero */
+	if (!id)
+		return perf_evlist__first(evlist);
+
+	hash = hash_64(id, PERF_EVLIST__HLIST_BITS);
+	head = &evlist->heads[hash];
+
+	hlist_for_each_entry(sid, head, node) {
+		if (sid->id == id)
+			return sid->evsel;
+	}
 	return NULL;
 }
 
@@ -681,20 +743,40 @@ int perf_evlist__set_filter(struct perf_evlist *evlist, const char *filter)
 
 bool perf_evlist__valid_sample_type(struct perf_evlist *evlist)
 {
-	struct perf_evsel *first = perf_evlist__first(evlist), *pos = first;
+	struct perf_evsel *pos;
 
-	list_for_each_entry_continue(pos, &evlist->entries, node) {
-		if (first->attr.sample_type != pos->attr.sample_type)
+	if (evlist->nr_entries == 1)
+		return true;
+
+	if (evlist->id_pos < 0 || evlist->is_pos < 0)
+		return false;
+
+	list_for_each_entry(pos, &evlist->entries, node) {
+		if (pos->id_pos != evlist->id_pos ||
+		    pos->is_pos != evlist->is_pos)
 			return false;
 	}
 
 	return true;
 }
 
-u64 perf_evlist__sample_type(struct perf_evlist *evlist)
+u64 __perf_evlist__combined_sample_type(struct perf_evlist *evlist)
 {
-	struct perf_evsel *first = perf_evlist__first(evlist);
-	return first->attr.sample_type;
+	struct perf_evsel *evsel;
+
+	if (evlist->combined_sample_type)
+		return evlist->combined_sample_type;
+
+	list_for_each_entry(evsel, &evlist->entries, node)
+		evlist->combined_sample_type |= evsel->attr.sample_type;
+
+	return evlist->combined_sample_type;
+}
+
+u64 perf_evlist__combined_sample_type(struct perf_evlist *evlist)
+{
+	evlist->combined_sample_type = 0;
+	return __perf_evlist__combined_sample_type(evlist);
 }
 
 bool perf_evlist__valid_read_format(struct perf_evlist *evlist)
@@ -749,6 +831,9 @@ u16 perf_evlist__id_hdr_size(struct perf_evlist *evlist)
 
 	if (sample_type & PERF_SAMPLE_CPU)
 		size += sizeof(data->cpu) * 2;
+
+	if (sample_type & PERF_SAMPLE_IDENTIFIER)
+		size += sizeof(data->id);
 out:
 	return size;
 }
@@ -907,7 +992,10 @@ int perf_evlist__start_workload(struct perf_evlist *evlist)
 int perf_evlist__parse_sample(struct perf_evlist *evlist, union perf_event *event,
 			      struct perf_sample *sample)
 {
-	struct perf_evsel *evsel = perf_evlist__first(evlist);
+	struct perf_evsel *evsel = perf_evlist__event2evsel(evlist, event);
+
+	if (!evsel)
+		return -EFAULT;
 	return perf_evsel__parse_sample(evsel, event, sample);
 }
 

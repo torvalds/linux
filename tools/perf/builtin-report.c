@@ -365,7 +365,7 @@ static int process_read_event(struct perf_tool *tool,
 static int perf_report__setup_sample_type(struct perf_report *rep)
 {
 	struct perf_session *self = rep->session;
-	u64 sample_type = perf_evlist__sample_type(self->evlist);
+	u64 sample_type = perf_evlist__combined_sample_type(self->evlist);
 
 	if (!self->fd_pipe && !(sample_type & PERF_SAMPLE_CALLCHAIN)) {
 		if (sort__has_parent) {

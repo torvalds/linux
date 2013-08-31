@@ -4,9 +4,11 @@
 #include "util/debug.h"
 #include "util/evlist.h"
 #include "util/machine.h"
+#include "util/session.h"
 #include "util/thread.h"
 #include "util/parse-options.h"
 #include "util/strlist.h"
+#include "util/intlist.h"
 #include "util/thread_map.h"
 
 #include <libaudit.h>
@@ -69,7 +71,9 @@ static size_t syscall_arg__scnprintf_mmap_flags(char *bf, size_t size, unsigned 
 	P_MMAP_FLAG(FILE);
 	P_MMAP_FLAG(FIXED);
 	P_MMAP_FLAG(GROWSDOWN);
+#ifdef MAP_HUGETLB
 	P_MMAP_FLAG(HUGETLB);
+#endif
 	P_MMAP_FLAG(LOCKED);
 	P_MMAP_FLAG(NONBLOCK);
 	P_MMAP_FLAG(NORESERVE);
@@ -108,8 +112,12 @@ static size_t syscall_arg__scnprintf_madvise_behavior(char *bf, size_t size, uns
 #endif
 	P_MADV_BHV(MERGEABLE);
 	P_MADV_BHV(UNMERGEABLE);
+#ifdef MADV_HUGEPAGE
 	P_MADV_BHV(HUGEPAGE);
+#endif
+#ifdef MADV_NOHUGEPAGE
 	P_MADV_BHV(NOHUGEPAGE);
+#endif
 #ifdef MADV_DONTDUMP
 	P_MADV_BHV(DONTDUMP);
 #endif
@@ -258,6 +266,8 @@ struct trace {
 	unsigned long		nr_events;
 	struct strlist		*ev_qualifier;
 	bool			not_ev_qualifier;
+	struct intlist		*tid_list;
+	struct intlist		*pid_list;
 	bool			sched;
 	bool			multiple_threads;
 	double			duration_filter;
@@ -521,7 +531,8 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 	if (sc->filtered)
 		return 0;
 
-	thread = machine__findnew_thread(&trace->host, sample->tid);
+	thread = machine__findnew_thread(&trace->host, sample->pid,
+					 sample->tid);
 	ttrace = thread__trace(thread, trace->output);
 	if (ttrace == NULL)
 		return -1;
@@ -572,7 +583,8 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 	if (sc->filtered)
 		return 0;
 
-	thread = machine__findnew_thread(&trace->host, sample->tid);
+	thread = machine__findnew_thread(&trace->host, sample->pid,
+					 sample->tid);
 	ttrace = thread__trace(thread, trace->output);
 	if (ttrace == NULL)
 		return -1;
@@ -628,7 +640,9 @@ static int trace__sched_stat_runtime(struct trace *trace, struct perf_evsel *evs
 {
         u64 runtime = perf_evsel__intval(evsel, sample, "runtime");
 	double runtime_ms = (double)runtime / NSEC_PER_MSEC;
-	struct thread *thread = machine__findnew_thread(&trace->host, sample->tid);
+	struct thread *thread = machine__findnew_thread(&trace->host,
+							sample->pid,
+							sample->tid);
 	struct thread_trace *ttrace = thread__trace(thread, trace->output);
 
 	if (ttrace == NULL)
@@ -645,6 +659,72 @@ out_dump:
 	       (pid_t)perf_evsel__intval(evsel, sample, "pid"),
 	       runtime,
 	       perf_evsel__intval(evsel, sample, "vruntime"));
+	return 0;
+}
+
+static bool skip_sample(struct trace *trace, struct perf_sample *sample)
+{
+	if ((trace->pid_list && intlist__find(trace->pid_list, sample->pid)) ||
+	    (trace->tid_list && intlist__find(trace->tid_list, sample->tid)))
+		return false;
+
+	if (trace->pid_list || trace->tid_list)
+		return true;
+
+	return false;
+}
+
+static int trace__process_sample(struct perf_tool *tool,
+				 union perf_event *event __maybe_unused,
+				 struct perf_sample *sample,
+				 struct perf_evsel *evsel,
+				 struct machine *machine __maybe_unused)
+{
+	struct trace *trace = container_of(tool, struct trace, tool);
+	int err = 0;
+
+	tracepoint_handler handler = evsel->handler.func;
+
+	if (skip_sample(trace, sample))
+		return 0;
+
+	if (trace->base_time == 0)
+		trace->base_time = sample->time;
+
+	if (handler)
+		handler(trace, evsel, sample);
+
+	return err;
+}
+
+static bool
+perf_session__has_tp(struct perf_session *session, const char *name)
+{
+	struct perf_evsel *evsel;
+
+	evsel = perf_evlist__find_tracepoint_by_name(session->evlist, name);
+
+	return evsel != NULL;
+}
+
+static int parse_target_str(struct trace *trace)
+{
+	if (trace->opts.target.pid) {
+		trace->pid_list = intlist__new(trace->opts.target.pid);
+		if (trace->pid_list == NULL) {
+			pr_err("Error parsing process id string\n");
+			return -EINVAL;
+		}
+	}
+
+	if (trace->opts.target.tid) {
+		trace->tid_list = intlist__new(trace->opts.target.tid);
+		if (trace->tid_list == NULL) {
+			pr_err("Error parsing thread id string\n");
+			return -EINVAL;
+		}
+	}
+
 	return 0;
 }
 
@@ -787,6 +867,69 @@ out:
 	return err;
 }
 
+static int trace__replay(struct trace *trace)
+{
+	const struct perf_evsel_str_handler handlers[] = {
+		{ "raw_syscalls:sys_enter",  trace__sys_enter, },
+		{ "raw_syscalls:sys_exit",   trace__sys_exit, },
+	};
+
+	struct perf_session *session;
+	int err = -1;
+
+	trace->tool.sample	  = trace__process_sample;
+	trace->tool.mmap	  = perf_event__process_mmap;
+	trace->tool.comm	  = perf_event__process_comm;
+	trace->tool.exit	  = perf_event__process_exit;
+	trace->tool.fork	  = perf_event__process_fork;
+	trace->tool.attr	  = perf_event__process_attr;
+	trace->tool.tracing_data = perf_event__process_tracing_data;
+	trace->tool.build_id	  = perf_event__process_build_id;
+
+	trace->tool.ordered_samples = true;
+	trace->tool.ordering_requires_timestamps = true;
+
+	/* add tid to output */
+	trace->multiple_threads = true;
+
+	if (symbol__init() < 0)
+		return -1;
+
+	session = perf_session__new(input_name, O_RDONLY, 0, false,
+				    &trace->tool);
+	if (session == NULL)
+		return -ENOMEM;
+
+	err = perf_session__set_tracepoints_handlers(session, handlers);
+	if (err)
+		goto out;
+
+	if (!perf_session__has_tp(session, "raw_syscalls:sys_enter")) {
+		pr_err("Data file does not have raw_syscalls:sys_enter events\n");
+		goto out;
+	}
+
+	if (!perf_session__has_tp(session, "raw_syscalls:sys_exit")) {
+		pr_err("Data file does not have raw_syscalls:sys_exit events\n");
+		goto out;
+	}
+
+	err = parse_target_str(trace);
+	if (err != 0)
+		goto out;
+
+	setup_pager();
+
+	err = perf_session__process_events(session, &trace->tool);
+	if (err)
+		pr_err("Failed to process events, error %d", err);
+
+out:
+	perf_session__delete(session);
+
+	return err;
+}
+
 static size_t trace__fprintf_threads_header(FILE *fp)
 {
 	size_t printed;
@@ -888,6 +1031,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_STRING('e', "expr", &ev_qualifier_str, "expr",
 		    "list of events to trace"),
 	OPT_STRING('o', "output", &output_name, "file", "output file name"),
+	OPT_STRING('i', "input", &input_name, "file", "Analyze events in file"),
 	OPT_STRING('p', "pid", &trace.opts.target.pid, "pid",
 		    "trace events on existing process id"),
 	OPT_STRING('t', "tid", &trace.opts.target.tid, "tid",
@@ -896,7 +1040,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "system-wide collection from all CPUs"),
 	OPT_STRING('C', "cpu", &trace.opts.target.cpu_list, "cpu",
 		    "list of cpus to monitor"),
-	OPT_BOOLEAN('i', "no-inherit", &trace.opts.no_inherit,
+	OPT_BOOLEAN(0, "no-inherit", &trace.opts.no_inherit,
 		    "child tasks do not inherit counters"),
 	OPT_UINTEGER('m', "mmap-pages", &trace.opts.mmap_pages,
 		     "number of mmap data pages"),
@@ -954,7 +1098,10 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (!argc && perf_target__none(&trace.opts.target))
 		trace.opts.target.system_wide = true;
 
-	err = trace__run(&trace, argc, argv);
+	if (input_name)
+		err = trace__replay(&trace);
+	else
+		err = trace__run(&trace, argc, argv);
 
 	if (trace.sched && !err)
 		trace__fprintf_thread_summary(&trace, trace.output);
