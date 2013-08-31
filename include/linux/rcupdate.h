@@ -229,13 +229,9 @@ extern void rcu_irq_exit(void);
 #ifdef CONFIG_RCU_USER_QS
 extern void rcu_user_enter(void);
 extern void rcu_user_exit(void);
-extern void rcu_user_enter_after_irq(void);
-extern void rcu_user_exit_after_irq(void);
 #else
 static inline void rcu_user_enter(void) { }
 static inline void rcu_user_exit(void) { }
-static inline void rcu_user_enter_after_irq(void) { }
-static inline void rcu_user_exit_after_irq(void) { }
 static inline void rcu_user_hooks_switch(struct task_struct *prev,
 					 struct task_struct *next) { }
 #endif /* CONFIG_RCU_USER_QS */
@@ -1013,6 +1009,24 @@ extern bool rcu_is_nocb_cpu(int cpu);
 #else
 static inline bool rcu_is_nocb_cpu(int cpu) { return false; }
 #endif /* #else #ifdef CONFIG_RCU_NOCB_CPU */
+
+
+/* Only for use by adaptive-ticks code. */
+#ifdef CONFIG_NO_HZ_FULL_SYSIDLE
+extern bool rcu_sys_is_idle(void);
+extern void rcu_sysidle_force_exit(void);
+#else /* #ifdef CONFIG_NO_HZ_FULL_SYSIDLE */
+
+static inline bool rcu_sys_is_idle(void)
+{
+	return false;
+}
+
+static inline void rcu_sysidle_force_exit(void)
+{
+}
+
+#endif /* #else #ifdef CONFIG_NO_HZ_FULL_SYSIDLE */
 
 
 #endif /* __LINUX_RCUPDATE_H */
