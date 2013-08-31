@@ -465,6 +465,7 @@ endif # NO_LIBELF
 ifndef NO_LIBUNWIND
   LIB_OBJS += $(OUTPUT)util/unwind.o
 endif
+LIB_OBJS += $(OUTPUT)tests/keep-tracking.o
 
 ifndef NO_LIBAUDIT
   BUILTIN_OBJS += $(OUTPUT)builtin-trace.o
