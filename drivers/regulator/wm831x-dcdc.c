@@ -532,8 +532,9 @@ static int wm831x_buckv_probe(struct platform_device *pdev)
 	}
 
 	irq = wm831x_irq(wm831x, platform_get_irq_byname(pdev, "UV"));
-	ret = request_threaded_irq(irq, NULL, wm831x_dcdc_uv_irq,
-				   IRQF_TRIGGER_RISING, dcdc->name, dcdc);
+	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
+					wm831x_dcdc_uv_irq,
+					IRQF_TRIGGER_RISING, dcdc->name, dcdc);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request UV IRQ %d: %d\n",
 			irq, ret);
@@ -541,21 +542,19 @@ static int wm831x_buckv_probe(struct platform_device *pdev)
 	}
 
 	irq = wm831x_irq(wm831x, platform_get_irq_byname(pdev, "HC"));
-	ret = request_threaded_irq(irq, NULL, wm831x_dcdc_oc_irq,
-				   IRQF_TRIGGER_RISING, dcdc->name, dcdc);
+	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
+					wm831x_dcdc_oc_irq,
+					IRQF_TRIGGER_RISING, dcdc->name, dcdc);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request HC IRQ %d: %d\n",
 			irq, ret);
-		goto err_uv;
+		goto err_regulator;
 	}
 
 	platform_set_drvdata(pdev, dcdc);
 
 	return 0;
 
-err_uv:
-	free_irq(wm831x_irq(wm831x, platform_get_irq_byname(pdev, "UV")),
-		 dcdc);
 err_regulator:
 	regulator_unregister(dcdc->regulator);
 err:
@@ -565,12 +564,7 @@ err:
 static int wm831x_buckv_remove(struct platform_device *pdev)
 {
 	struct wm831x_dcdc *dcdc = platform_get_drvdata(pdev);
-	struct wm831x *wm831x = dcdc->wm831x;
 
-	free_irq(wm831x_irq(wm831x, platform_get_irq_byname(pdev, "HC")),
-			    dcdc);
-	free_irq(wm831x_irq(wm831x, platform_get_irq_byname(pdev, "UV")),
-			    dcdc);
 	regulator_unregister(dcdc->regulator);
 
 	return 0;
@@ -688,8 +682,9 @@ static int wm831x_buckp_probe(struct platform_device *pdev)
 	}
 
 	irq = wm831x_irq(wm831x, platform_get_irq_byname(pdev, "UV"));
-	ret = request_threaded_irq(irq, NULL, wm831x_dcdc_uv_irq,
-				   IRQF_TRIGGER_RISING,	dcdc->name, dcdc);
+	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
+					wm831x_dcdc_uv_irq,
+					IRQF_TRIGGER_RISING, dcdc->name, dcdc);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request UV IRQ %d: %d\n",
 			irq, ret);
@@ -710,8 +705,6 @@ static int wm831x_buckp_remove(struct platform_device *pdev)
 {
 	struct wm831x_dcdc *dcdc = platform_get_drvdata(pdev);
 
-	free_irq(wm831x_irq(dcdc->wm831x, platform_get_irq_byname(pdev, "UV")),
-			    dcdc);
 	regulator_unregister(dcdc->regulator);
 
 	return 0;
@@ -820,9 +813,10 @@ static int wm831x_boostp_probe(struct platform_device *pdev)
 	}
 
 	irq = wm831x_irq(wm831x, platform_get_irq_byname(pdev, "UV"));
-	ret = request_threaded_irq(irq, NULL, wm831x_dcdc_uv_irq,
-				   IRQF_TRIGGER_RISING, dcdc->name,
-				   dcdc);
+	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
+					wm831x_dcdc_uv_irq,
+					IRQF_TRIGGER_RISING, dcdc->name,
+					dcdc);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request UV IRQ %d: %d\n",
 			irq, ret);
@@ -843,8 +837,6 @@ static int wm831x_boostp_remove(struct platform_device *pdev)
 {
 	struct wm831x_dcdc *dcdc = platform_get_drvdata(pdev);
 
-	free_irq(wm831x_irq(dcdc->wm831x, platform_get_irq_byname(pdev, "UV")),
-		 dcdc);
 	regulator_unregister(dcdc->regulator);
 
 	return 0;
