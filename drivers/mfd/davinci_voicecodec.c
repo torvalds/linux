@@ -32,17 +32,6 @@
 
 #include <linux/mfd/davinci_voicecodec.h>
 
-u32 davinci_vc_read(struct davinci_vc *davinci_vc, int reg)
-{
-	return __raw_readl(davinci_vc->base + reg);
-}
-
-void davinci_vc_write(struct davinci_vc *davinci_vc,
-					   int reg, u32 val)
-{
-	__raw_writel(val, davinci_vc->base + reg);
-}
-
 static int __init davinci_vc_probe(struct platform_device *pdev)
 {
 	struct davinci_vc *davinci_vc;
