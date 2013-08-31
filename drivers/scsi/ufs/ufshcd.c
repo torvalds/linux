@@ -235,6 +235,18 @@ static inline int ufshcd_get_uic_cmd_result(struct ufs_hba *hba)
 }
 
 /**
+ * ufshcd_get_dme_attr_val - Get the value of attribute returned by UIC command
+ * @hba: Pointer to adapter instance
+ *
+ * This function gets UIC command argument3
+ * Returns 0 on success, non zero value on error
+ */
+static inline u32 ufshcd_get_dme_attr_val(struct ufs_hba *hba)
+{
+	return ufshcd_readl(hba, REG_UIC_COMMAND_ARG_3);
+}
+
+/**
  * ufshcd_get_req_rsp - returns the TR response transaction type
  * @ucd_rsp_ptr: pointer to response UPIU
  */
@@ -1374,6 +1386,80 @@ static int ufshcd_dme_link_startup(struct ufs_hba *hba)
 }
 
 /**
+ * ufshcd_dme_set_attr - UIC command for DME_SET, DME_PEER_SET
+ * @hba: per adapter instance
+ * @attr_sel: uic command argument1
+ * @attr_set: attribute set type as uic command argument2
+ * @mib_val: setting value as uic command argument3
+ * @peer: indicate whether peer or local
+ *
+ * Returns 0 on success, non-zero value on failure
+ */
+int ufshcd_dme_set_attr(struct ufs_hba *hba, u32 attr_sel,
+			u8 attr_set, u32 mib_val, u8 peer)
+{
+	struct uic_command uic_cmd = {0};
+	static const char *const action[] = {
+		"dme-set",
+		"dme-peer-set"
+	};
+	const char *set = action[!!peer];
+	int ret;
+
+	uic_cmd.command = peer ?
+		UIC_CMD_DME_PEER_SET : UIC_CMD_DME_SET;
+	uic_cmd.argument1 = attr_sel;
+	uic_cmd.argument2 = UIC_ARG_ATTR_TYPE(attr_set);
+	uic_cmd.argument3 = mib_val;
+
+	ret = ufshcd_send_uic_cmd(hba, &uic_cmd);
+	if (ret)
+		dev_err(hba->dev, "%s: attr-id 0x%x val 0x%x error code %d\n",
+			set, UIC_GET_ATTR_ID(attr_sel), mib_val, ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ufshcd_dme_set_attr);
+
+/**
+ * ufshcd_dme_get_attr - UIC command for DME_GET, DME_PEER_GET
+ * @hba: per adapter instance
+ * @attr_sel: uic command argument1
+ * @mib_val: the value of the attribute as returned by the UIC command
+ * @peer: indicate whether peer or local
+ *
+ * Returns 0 on success, non-zero value on failure
+ */
+int ufshcd_dme_get_attr(struct ufs_hba *hba, u32 attr_sel,
+			u32 *mib_val, u8 peer)
+{
+	struct uic_command uic_cmd = {0};
+	static const char *const action[] = {
+		"dme-get",
+		"dme-peer-get"
+	};
+	const char *get = action[!!peer];
+	int ret;
+
+	uic_cmd.command = peer ?
+		UIC_CMD_DME_PEER_GET : UIC_CMD_DME_GET;
+	uic_cmd.argument1 = attr_sel;
+
+	ret = ufshcd_send_uic_cmd(hba, &uic_cmd);
+	if (ret) {
+		dev_err(hba->dev, "%s: attr-id 0x%x error code %d\n",
+			get, UIC_GET_ATTR_ID(attr_sel), ret);
+		goto out;
+	}
+
+	if (mib_val)
+		*mib_val = uic_cmd.argument3;
+out:
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ufshcd_dme_get_attr);
+
+/**
  * ufshcd_complete_dev_init() - checks device readiness
  * hba: per-adapter instance
  *
@@ -1908,6 +1994,8 @@ static void ufshcd_uic_cmd_compl(struct ufs_hba *hba)
 	if (hba->active_uic_cmd) {
 		hba->active_uic_cmd->argument2 |=
 			ufshcd_get_uic_cmd_result(hba);
+		hba->active_uic_cmd->argument3 =
+			ufshcd_get_dme_attr_val(hba);
 		complete(&hba->active_uic_cmd->done);
 	}
 }

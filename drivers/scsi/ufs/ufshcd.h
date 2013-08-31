@@ -263,4 +263,55 @@ static inline void check_upiu_size(void)
 extern int ufshcd_runtime_suspend(struct ufs_hba *hba);
 extern int ufshcd_runtime_resume(struct ufs_hba *hba);
 extern int ufshcd_runtime_idle(struct ufs_hba *hba);
+extern int ufshcd_dme_set_attr(struct ufs_hba *hba, u32 attr_sel,
+			       u8 attr_set, u32 mib_val, u8 peer);
+extern int ufshcd_dme_get_attr(struct ufs_hba *hba, u32 attr_sel,
+			       u32 *mib_val, u8 peer);
+
+/* UIC command interfaces for DME primitives */
+#define DME_LOCAL	0
+#define DME_PEER	1
+#define ATTR_SET_NOR	0	/* NORMAL */
+#define ATTR_SET_ST	1	/* STATIC */
+
+static inline int ufshcd_dme_set(struct ufs_hba *hba, u32 attr_sel,
+				 u32 mib_val)
+{
+	return ufshcd_dme_set_attr(hba, attr_sel, ATTR_SET_NOR,
+				   mib_val, DME_LOCAL);
+}
+
+static inline int ufshcd_dme_st_set(struct ufs_hba *hba, u32 attr_sel,
+				    u32 mib_val)
+{
+	return ufshcd_dme_set_attr(hba, attr_sel, ATTR_SET_ST,
+				   mib_val, DME_LOCAL);
+}
+
+static inline int ufshcd_dme_peer_set(struct ufs_hba *hba, u32 attr_sel,
+				      u32 mib_val)
+{
+	return ufshcd_dme_set_attr(hba, attr_sel, ATTR_SET_NOR,
+				   mib_val, DME_PEER);
+}
+
+static inline int ufshcd_dme_peer_st_set(struct ufs_hba *hba, u32 attr_sel,
+					 u32 mib_val)
+{
+	return ufshcd_dme_set_attr(hba, attr_sel, ATTR_SET_ST,
+				   mib_val, DME_PEER);
+}
+
+static inline int ufshcd_dme_get(struct ufs_hba *hba,
+				 u32 attr_sel, u32 *mib_val)
+{
+	return ufshcd_dme_get_attr(hba, attr_sel, mib_val, DME_LOCAL);
+}
+
+static inline int ufshcd_dme_peer_get(struct ufs_hba *hba,
+				      u32 attr_sel, u32 *mib_val)
+{
+	return ufshcd_dme_get_attr(hba, attr_sel, mib_val, DME_PEER);
+}
+
 #endif /* End of Header */
