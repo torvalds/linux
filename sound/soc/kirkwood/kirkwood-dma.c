@@ -29,9 +29,7 @@
 #define KIRKWOOD_FORMATS \
 	(SNDRV_PCM_FMTBIT_S16_LE | \
 	 SNDRV_PCM_FMTBIT_S24_LE | \
-	 SNDRV_PCM_FMTBIT_S32_LE | \
-	 SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE | \
-	 SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_BE)
+	 SNDRV_PCM_FMTBIT_S32_LE)
 
 static struct kirkwood_dma_data *kirkwood_priv(struct snd_pcm_substream *subs)
 {
