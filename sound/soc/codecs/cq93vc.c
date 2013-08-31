@@ -64,13 +64,15 @@ static const struct snd_kcontrol_new cq93vc_snd_controls[] = {
 static int cq93vc_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	u8 reg = cq93vc_read(codec, DAVINCI_VC_REG09) & ~DAVINCI_VC_REG09_MUTE;
+	u8 reg;
 
 	if (mute)
-		cq93vc_write(codec, DAVINCI_VC_REG09,
-			     reg | DAVINCI_VC_REG09_MUTE);
+		reg = DAVINCI_VC_REG09_MUTE;
 	else
-		cq93vc_write(codec, DAVINCI_VC_REG09, reg);
+		reg = 0;
+
+	snd_soc_update_bits(codec, DAVINCI_VC_REG09, DAVINCI_VC_REG09_MUTE,
+			    reg);
 
 	return 0;
 }
@@ -97,18 +99,18 @@ static int cq93vc_set_bias_level(struct snd_soc_codec *codec,
 {
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		cq93vc_write(codec, DAVINCI_VC_REG12,
+		snd_soc_write(codec, DAVINCI_VC_REG12,
 			     DAVINCI_VC_REG12_POWER_ALL_ON);
 		break;
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		cq93vc_write(codec, DAVINCI_VC_REG12,
+		snd_soc_write(codec, DAVINCI_VC_REG12,
 			     DAVINCI_VC_REG12_POWER_ALL_OFF);
 		break;
 	case SND_SOC_BIAS_OFF:
 		/* force all power off */
-		cq93vc_write(codec, DAVINCI_VC_REG12,
+		snd_soc_write(codec, DAVINCI_VC_REG12,
 			     DAVINCI_VC_REG12_POWER_ALL_OFF);
 		break;
 	}
