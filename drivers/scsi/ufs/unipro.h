@@ -72,6 +72,21 @@
 #define PA_STALLNOCONFIGTIME	0x15A3
 #define PA_SAVECONFIGTIME	0x15A4
 
+/* PA power modes */
+enum {
+	FAST_MODE	= 1,
+	SLOW_MODE	= 2,
+	FASTAUTO_MODE	= 4,
+	SLOWAUTO_MODE	= 5,
+	UNCHANGED	= 7,
+};
+
+/* PA TX/RX Frequency Series */
+enum {
+	PA_HS_MODE_A	= 1,
+	PA_HS_MODE_B	= 2,
+};
+
 /*
  * Data Link Layer Attributes
  */
@@ -126,5 +141,11 @@
 #define T_CPORTMODE		0x402B
 #define T_TC0TXMAXSDUSIZE	0x4060
 #define T_TC1TXMAXSDUSIZE	0x4061
+
+/* Boolean attribute values */
+enum {
+	FALSE = 0,
+	TRUE,
+};
 
 #endif /* _UNIPRO_H_ */

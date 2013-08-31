@@ -1532,6 +1532,70 @@ out:
 }
 
 /**
+ * ufshcd_config_max_pwr_mode - Set & Change power mode with
+ *	maximum capability attribute information.
+ * @hba: per adapter instance
+ *
+ * Returns 0 on success, non-zero value on failure
+ */
+static int ufshcd_config_max_pwr_mode(struct ufs_hba *hba)
+{
+	enum {RX = 0, TX = 1};
+	u32 lanes[] = {1, 1};
+	u32 gear[] = {1, 1};
+	u8 pwr[] = {FASTAUTO_MODE, FASTAUTO_MODE};
+	int ret;
+
+	/* Get the connected lane count */
+	ufshcd_dme_get(hba, UIC_ARG_MIB(PA_CONNECTEDRXDATALANES), &lanes[RX]);
+	ufshcd_dme_get(hba, UIC_ARG_MIB(PA_CONNECTEDTXDATALANES), &lanes[TX]);
+
+	/*
+	 * First, get the maximum gears of HS speed.
+	 * If a zero value, it means there is no HSGEAR capability.
+	 * Then, get the maximum gears of PWM speed.
+	 */
+	ufshcd_dme_get(hba, UIC_ARG_MIB(PA_MAXRXHSGEAR), &gear[RX]);
+	if (!gear[RX]) {
+		ufshcd_dme_get(hba, UIC_ARG_MIB(PA_MAXRXPWMGEAR), &gear[RX]);
+		pwr[RX] = SLOWAUTO_MODE;
+	}
+
+	ufshcd_dme_peer_get(hba, UIC_ARG_MIB(PA_MAXRXHSGEAR), &gear[TX]);
+	if (!gear[TX]) {
+		ufshcd_dme_peer_get(hba, UIC_ARG_MIB(PA_MAXRXPWMGEAR),
+				    &gear[TX]);
+		pwr[TX] = SLOWAUTO_MODE;
+	}
+
+	/*
+	 * Configure attributes for power mode change with below.
+	 * - PA_RXGEAR, PA_ACTIVERXDATALANES, PA_RXTERMINATION,
+	 * - PA_TXGEAR, PA_ACTIVETXDATALANES, PA_TXTERMINATION,
+	 * - PA_HSSERIES
+	 */
+	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_RXGEAR), gear[RX]);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_ACTIVERXDATALANES), lanes[RX]);
+	if (pwr[RX] == FASTAUTO_MODE)
+		ufshcd_dme_set(hba, UIC_ARG_MIB(PA_RXTERMINATION), TRUE);
+
+	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_TXGEAR), gear[TX]);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_ACTIVETXDATALANES), lanes[TX]);
+	if (pwr[TX] == FASTAUTO_MODE)
+		ufshcd_dme_set(hba, UIC_ARG_MIB(PA_TXTERMINATION), TRUE);
+
+	if (pwr[RX] == FASTAUTO_MODE || pwr[TX] == FASTAUTO_MODE)
+		ufshcd_dme_set(hba, UIC_ARG_MIB(PA_HSSERIES), PA_HS_MODE_B);
+
+	ret = ufshcd_uic_change_pwr_mode(hba, pwr[RX] << 4 | pwr[TX]);
+	if (ret)
+		dev_err(hba->dev,
+			"pwr_mode: power mode change failed %d\n", ret);
+
+	return ret;
+}
+
+/**
  * ufshcd_complete_dev_init() - checks device readiness
  * hba: per-adapter instance
  *
@@ -2661,6 +2725,8 @@ static void ufshcd_async_scan(void *data, async_cookie_t cookie)
 	ret = ufshcd_link_startup(hba);
 	if (ret)
 		goto out;
+
+	ufshcd_config_max_pwr_mode(hba);
 
 	ret = ufshcd_verify_dev_init(hba);
 	if (ret)
