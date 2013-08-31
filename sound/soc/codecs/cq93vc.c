@@ -38,24 +38,6 @@
 #include <sound/soc.h>
 #include <sound/initval.h>
 
-static inline unsigned int cq93vc_read(struct snd_soc_codec *codec,
-						unsigned int reg)
-{
-	struct davinci_vc *davinci_vc = codec->control_data;
-
-	return readl(davinci_vc->base + reg);
-}
-
-static inline int cq93vc_write(struct snd_soc_codec *codec, unsigned int reg,
-		       unsigned int value)
-{
-	struct davinci_vc *davinci_vc = codec->control_data;
-
-	writel(value, davinci_vc->base + reg);
-
-	return 0;
-}
-
 static const struct snd_kcontrol_new cq93vc_snd_controls[] = {
 	SOC_SINGLE("PGA Capture Volume", DAVINCI_VC_REG05, 0, 0x03, 0),
 	SOC_SINGLE("Mono DAC Playback Volume", DAVINCI_VC_REG09, 0, 0x3f, 0),
@@ -156,7 +138,9 @@ static int cq93vc_probe(struct snd_soc_codec *codec)
 	struct davinci_vc *davinci_vc = codec->dev->platform_data;
 
 	davinci_vc->cq93vc.codec = codec;
-	codec->control_data = davinci_vc;
+	codec->control_data = davinci_vc->regmap;
+
+	snd_soc_codec_set_cache_io(codec, 32, 32, SND_SOC_REGMAP);
 
 	/* Off, with power on */
 	cq93vc_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
@@ -172,8 +156,6 @@ static int cq93vc_remove(struct snd_soc_codec *codec)
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_cq93vc = {
-	.read = cq93vc_read,
-	.write = cq93vc_write,
 	.set_bias_level = cq93vc_set_bias_level,
 	.probe = cq93vc_probe,
 	.remove = cq93vc_remove,
