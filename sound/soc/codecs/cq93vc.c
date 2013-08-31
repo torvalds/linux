@@ -156,10 +156,6 @@ static int cq93vc_probe(struct snd_soc_codec *codec)
 	davinci_vc->cq93vc.codec = codec;
 	codec->control_data = davinci_vc;
 
-	/* Set controls */
-	snd_soc_add_codec_controls(codec, cq93vc_snd_controls,
-			     ARRAY_SIZE(cq93vc_snd_controls));
-
 	/* Off, with power on */
 	cq93vc_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
@@ -180,6 +176,8 @@ static struct snd_soc_codec_driver soc_codec_dev_cq93vc = {
 	.probe = cq93vc_probe,
 	.remove = cq93vc_remove,
 	.resume = cq93vc_resume,
+	.controls = cq93vc_snd_controls,
+	.num_controls = ARRAY_SIZE(cq93vc_snd_controls),
 };
 
 static int cq93vc_platform_probe(struct platform_device *pdev)
