@@ -175,6 +175,7 @@ struct ufs_dev_cmd {
  * @active_uic_cmd: handle of active UIC command
  * @uic_cmd_mutex: mutex for uic command
  * @ufshcd_tm_wait_queue: wait queue for task management
+ * @pwr_done: completion for power mode change
  * @tm_condition: condition variable for task management
  * @ufshcd_state: UFSHCD states
  * @intr_mask: Interrupt Mask Bits
@@ -218,6 +219,8 @@ struct ufs_hba {
 
 	wait_queue_head_t ufshcd_tm_wait_queue;
 	unsigned long tm_condition;
+
+	struct completion *pwr_done;
 
 	u32 ufshcd_state;
 	u32 intr_mask;
