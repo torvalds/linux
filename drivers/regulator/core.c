@@ -3492,6 +3492,44 @@ clean:
 }
 EXPORT_SYMBOL_GPL(regulator_register);
 
+static void devm_rdev_release(struct device *dev, void *res)
+{
+	regulator_unregister(*(struct regulator_dev **)res);
+}
+
+/**
+ * devm_regulator_register - Resource managed regulator_register()
+ * @regulator_desc: regulator to register
+ * @config: runtime configuration for regulator
+ *
+ * Called by regulator drivers to register a regulator.  Returns a
+ * valid pointer to struct regulator_dev on success or an ERR_PTR() on
+ * error.  The regulator will automaticall be released when the device
+ * is unbound.
+ */
+struct regulator_dev *devm_regulator_register(struct device *dev,
+				  const struct regulator_desc *regulator_desc,
+				  const struct regulator_config *config)
+{
+	struct regulator_dev **ptr, *rdev;
+
+	ptr = devres_alloc(devm_rdev_release, sizeof(*ptr),
+			   GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	rdev = regulator_register(regulator_desc, config);
+	if (!IS_ERR(rdev)) {
+		*ptr = rdev;
+		devres_add(dev, ptr);
+	} else {
+		devres_free(ptr);
+	}
+
+	return rdev;
+}
+EXPORT_SYMBOL_GPL(devm_regulator_register);
+
 /**
  * regulator_unregister - unregister regulator
  * @rdev: regulator to unregister
@@ -3520,6 +3558,34 @@ void regulator_unregister(struct regulator_dev *rdev)
 	mutex_unlock(&regulator_list_mutex);
 }
 EXPORT_SYMBOL_GPL(regulator_unregister);
+
+static int devm_rdev_match(struct device *dev, void *res, void *data)
+{
+	struct regulator_dev **r = res;
+	if (!r || !*r) {
+		WARN_ON(!r || !*r);
+		return 0;
+	}
+	return *r == data;
+}
+
+/**
+ * devm_regulator_unregister - Resource managed regulator_unregister()
+ * @regulator: regulator to free
+ *
+ * Unregister a regulator registered with devm_regulator_register().
+ * Normally this function will not need to be called and the resource
+ * management code will ensure that the resource is freed.
+ */
+void devm_regulator_unregister(struct device *dev, struct regulator_dev *rdev)
+{
+	int rc;
+
+	rc = devres_release(dev, devm_rdev_release, devm_rdev_match, rdev);
+	if (rc != 0)
+		WARN_ON(rc);
+}
+EXPORT_SYMBOL_GPL(devm_regulator_unregister);
 
 /**
  * regulator_suspend_prepare - prepare regulators for system wide suspend
