@@ -101,3 +101,19 @@ EXPORT_SYMBOL(inet6addr_notifier_call_chain);
 
 const struct ipv6_stub *ipv6_stub __read_mostly;
 EXPORT_SYMBOL_GPL(ipv6_stub);
+
+/* IPv6 Wildcard Address and Loopback Address defined by RFC2553 */
+const struct in6_addr in6addr_loopback = IN6ADDR_LOOPBACK_INIT;
+EXPORT_SYMBOL(in6addr_loopback);
+const struct in6_addr in6addr_any = IN6ADDR_ANY_INIT;
+EXPORT_SYMBOL(in6addr_any);
+const struct in6_addr in6addr_linklocal_allnodes = IN6ADDR_LINKLOCAL_ALLNODES_INIT;
+EXPORT_SYMBOL(in6addr_linklocal_allnodes);
+const struct in6_addr in6addr_linklocal_allrouters = IN6ADDR_LINKLOCAL_ALLROUTERS_INIT;
+EXPORT_SYMBOL(in6addr_linklocal_allrouters);
+const struct in6_addr in6addr_interfacelocal_allnodes = IN6ADDR_INTERFACELOCAL_ALLNODES_INIT;
+EXPORT_SYMBOL(in6addr_interfacelocal_allnodes);
+const struct in6_addr in6addr_interfacelocal_allrouters = IN6ADDR_INTERFACELOCAL_ALLROUTERS_INIT;
+EXPORT_SYMBOL(in6addr_interfacelocal_allrouters);
+const struct in6_addr in6addr_sitelocal_allrouters = IN6ADDR_SITELOCAL_ALLROUTERS_INIT;
+EXPORT_SYMBOL(in6addr_sitelocal_allrouters);
