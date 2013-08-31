@@ -51,7 +51,7 @@ static int rx51_battery_read_adc(int channel)
 	if (twl4030_madc_conversion(&req) <= 0)
 		return -ENODATA;
 
-	return req.rbuf[channel];
+	return req.rbuf[ffs(channel) - 1];
 }
 
 /*
