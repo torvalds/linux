@@ -898,10 +898,8 @@ static int proc_control(struct dev_state *ps, void __user *arg)
 	snoop(&dev->dev, "control urb: bRequestType=%02x "
 		"bRequest=%02x wValue=%04x "
 		"wIndex=%04x wLength=%04x\n",
-		ctrl.bRequestType, ctrl.bRequest,
-		__le16_to_cpup(&ctrl.wValue),
-		__le16_to_cpup(&ctrl.wIndex),
-		__le16_to_cpup(&ctrl.wLength));
+		ctrl.bRequestType, ctrl.bRequest, ctrl.wValue,
+		ctrl.wIndex, ctrl.wLength);
 	if (ctrl.bRequestType & 0x80) {
 		if (ctrl.wLength && !access_ok(VERIFY_WRITE, ctrl.data,
 					       ctrl.wLength)) {
