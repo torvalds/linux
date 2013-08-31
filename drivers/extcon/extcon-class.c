@@ -74,7 +74,7 @@ static DEFINE_MUTEX(extcon_dev_list_lock);
 
 /**
  * check_mutually_exclusive - Check if new_state violates mutually_exclusive
- *			    condition.
+ *			      condition.
  * @edev:	the extcon device
  * @new_state:	new cable attach status for @edev
  *
@@ -189,7 +189,7 @@ static ssize_t cable_state_show(struct device *dev,
 
 /**
  * extcon_update_state() - Update the cable attach states of the extcon device
- *			only for the masked bits.
+ *			   only for the masked bits.
  * @edev:	the extcon device
  * @mask:	the bit mask to designate updated bits.
  * @state:	new cable attach status for @edev
@@ -227,7 +227,6 @@ int extcon_update_state(struct extcon_dev *edev, u32 mask, u32 state)
 		edev->state |= state & mask;
 
 		raw_notifier_call_chain(&edev->nh, old_state, edev);
-
 		/* This could be in interrupt handler */
 		prop_buf = (char *)get_zeroed_page(GFP_ATOMIC);
 		if (prop_buf) {
@@ -339,8 +338,9 @@ EXPORT_SYMBOL_GPL(extcon_get_cable_state);
 
 /**
  * extcon_set_cable_state_() - Set the status of a specific cable.
- * @edev:	the extcon device that has the cable.
- * @index:	cable index that can be retrieved by extcon_find_cable_index().
+ * @edev:		the extcon device that has the cable.
+ * @index:		cable index that can be retrieved by
+ *			extcon_find_cable_index().
  * @cable_state:	the new cable status. The default semantics is
  *			true: attached / false: detached.
  */
@@ -359,8 +359,8 @@ EXPORT_SYMBOL_GPL(extcon_set_cable_state_);
 
 /**
  * extcon_set_cable_state() - Set the status of a specific cable.
- * @edev:	the extcon device that has the cable.
- * @cable_name:	cable name.
+ * @edev:		the extcon device that has the cable.
+ * @cable_name:		cable name.
  * @cable_state:	the new cable status. The default semantics is
  *			true: attached / false: detached.
  *
@@ -419,14 +419,14 @@ static int _call_per_cable(struct notifier_block *nb, unsigned long val,
 
 /**
  * extcon_register_interest() - Register a notifier for a state change of a
- *			      specific cable, not an entier set of cables of a
- *			      extcon device.
- * @obj:	an empty extcon_specific_cable_nb object to be returned.
+ *				specific cable, not an entier set of cables of a
+ *				extcon device.
+ * @obj:		an empty extcon_specific_cable_nb object to be returned.
  * @extcon_name:	the name of extcon device.
  *			if NULL, extcon_register_interest will register
  *			every cable with the target cable_name given.
  * @cable_name:		the target cable name.
- * @nb:		the notifier block to get notified.
+ * @nb:			the notifier block to get notified.
  *
  * Provide an empty extcon_specific_cable_nb. extcon_register_interest() sets
  * the struct for you.
@@ -487,7 +487,7 @@ EXPORT_SYMBOL_GPL(extcon_register_interest);
 
 /**
  * extcon_unregister_interest() - Unregister the notifier registered by
- *				extcon_register_interest().
+ *				  extcon_register_interest().
  * @obj:	the extcon_specific_cable_nb object returned by
  *		extcon_register_interest().
  */
@@ -502,7 +502,7 @@ EXPORT_SYMBOL_GPL(extcon_unregister_interest);
 
 /**
  * extcon_register_notifier() - Register a notifiee to get notified by
- *			      any attach status changes from the extcon.
+ *				any attach status changes from the extcon.
  * @edev:	the extcon device.
  * @nb:		a notifier block to be registered.
  *

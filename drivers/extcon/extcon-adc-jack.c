@@ -27,16 +27,16 @@
 
 /**
  * struct adc_jack_data - internal data for adc_jack device driver
- * @edev        - extcon device.
- * @cable_names - list of supported cables.
- * @num_cables  - size of cable_names.
- * @adc_conditions       - list of adc value conditions.
- * @num_conditions       - size of adc_conditions.
- * @irq         - irq number of attach/detach event (0 if not exist).
- * @handling_delay      - interrupt handler will schedule extcon event
- *                      handling at handling_delay jiffies.
- * @handler     - extcon event handler called by interrupt handler.
- * @chan       - iio channel being queried.
+ * @edev:		extcon device.
+ * @cable_names:	list of supported cables.
+ * @num_cables:		size of cable_names.
+ * @adc_conditions:	list of adc value conditions.
+ * @num_conditions:	size of adc_conditions.
+ * @irq:		irq number of attach/detach event (0 if not exist).
+ * @handling_delay:	interrupt handler will schedule extcon event
+ *			handling at handling_delay jiffies.
+ * @handler:		extcon event handler called by interrupt handler.
+ * @chan:		iio channel being queried.
  */
 struct adc_jack_data {
 	struct extcon_dev edev;
