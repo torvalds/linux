@@ -726,7 +726,7 @@ static void rspi_release_dma(struct rspi_data *rspi)
 
 static int rspi_remove(struct platform_device *pdev)
 {
-	struct rspi_data *rspi = platform_get_drvdata(pdev);
+	struct rspi_data *rspi = spi_master_get(platform_get_drvdata(pdev));
 
 	spi_unregister_master(rspi->master);
 	rspi_release_dma(rspi);
