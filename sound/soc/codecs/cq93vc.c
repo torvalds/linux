@@ -79,7 +79,7 @@ static int cq93vc_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				 int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct davinci_vc *davinci_vc = codec->control_data;
+	struct davinci_vc *davinci_vc = codec->dev->platform_data;
 
 	switch (freq) {
 	case 22579200:
