@@ -4224,15 +4224,6 @@ int snd_soc_register_codec(struct device *dev,
 		}
 	}
 
-	if (codec_drv->reg_access_size && codec_drv->reg_access_default) {
-		if (!codec->volatile_register)
-			codec->volatile_register = snd_soc_default_volatile_register;
-		if (!codec->readable_register)
-			codec->readable_register = snd_soc_default_readable_register;
-		if (!codec->writable_register)
-			codec->writable_register = snd_soc_default_writable_register;
-	}
-
 	for (i = 0; i < num_dai; i++) {
 		fixup_codec_formats(&dai_drv[i].playback);
 		fixup_codec_formats(&dai_drv[i].capture);
