@@ -522,23 +522,6 @@ static int bnx2x_vfop_set_user_req(struct bnx2x *bp,
 	return 0;
 }
 
-static int
-bnx2x_vfop_config_vlan0(struct bnx2x *bp,
-			struct bnx2x_vlan_mac_ramrod_params *vlan_mac,
-			bool add)
-{
-	int rc;
-
-	vlan_mac->user_req.cmd = add ? BNX2X_VLAN_MAC_ADD :
-		BNX2X_VLAN_MAC_DEL;
-	vlan_mac->user_req.u.vlan.vlan = 0;
-
-	rc = bnx2x_config_vlan_mac(bp, vlan_mac);
-	if (rc == -EEXIST)
-		rc = 0;
-	return rc;
-}
-
 static int bnx2x_vfop_config_list(struct bnx2x *bp,
 				  struct bnx2x_vfop_filters *filters,
 				  struct bnx2x_vlan_mac_ramrod_params *vlan_mac)
@@ -643,30 +626,14 @@ static void bnx2x_vfop_vlan_mac(struct bnx2x *bp, struct bnx2x_virtf *vf)
 
 	case BNX2X_VFOP_VLAN_CONFIG_LIST:
 		/* next state */
-		vfop->state = BNX2X_VFOP_VLAN_CONFIG_LIST_0;
+		vfop->state = BNX2X_VFOP_VLAN_MAC_CHK_DONE;
 
-		/* remove vlan0 - could be no-op */
-		vfop->rc = bnx2x_vfop_config_vlan0(bp, vlan_mac, false);
-		if (vfop->rc)
-			goto op_err;
-
-		/* Do vlan list config. if this operation fails we try to
-		 * restore vlan0 to keep the queue is working order
-		 */
+		/* do list config */
 		vfop->rc = bnx2x_vfop_config_list(bp, filters, vlan_mac);
 		if (!vfop->rc) {
 			set_bit(RAMROD_CONT, &vlan_mac->ramrod_flags);
 			vfop->rc = bnx2x_config_vlan_mac(bp, vlan_mac);
 		}
-		bnx2x_vfop_finalize(vf, vfop->rc, VFOP_CONT); /* fall-through */
-
-	case BNX2X_VFOP_VLAN_CONFIG_LIST_0:
-		/* next state */
-		vfop->state = BNX2X_VFOP_VLAN_MAC_CHK_DONE;
-
-		if (list_empty(&obj->head))
-			/* add vlan0 */
-			vfop->rc = bnx2x_vfop_config_vlan0(bp, vlan_mac, true);
 		bnx2x_vfop_finalize(vf, vfop->rc, VFOP_DONE);
 
 	default:
@@ -2819,6 +2786,18 @@ int bnx2x_vf_init(struct bnx2x *bp, struct bnx2x_virtf *vf, dma_addr_t *sb_map)
 	return 0;
 }
 
+struct set_vf_state_cookie {
+	struct bnx2x_virtf *vf;
+	u8 state;
+};
+
+void bnx2x_set_vf_state(void *cookie)
+{
+	struct set_vf_state_cookie *p = (struct set_vf_state_cookie *)cookie;
+
+	p->vf->state = p->state;
+}
+
 /* VFOP close (teardown the queues, delete mcasts and close HW) */
 static void bnx2x_vfop_close(struct bnx2x *bp, struct bnx2x_virtf *vf)
 {
@@ -2869,7 +2848,19 @@ static void bnx2x_vfop_close(struct bnx2x *bp, struct bnx2x_virtf *vf)
 op_err:
 	BNX2X_ERR("VF[%d] CLOSE error: rc %d\n", vf->abs_vfid, vfop->rc);
 op_done:
-	vf->state = VF_ACQUIRED;
+
+	/* need to make sure there are no outstanding stats ramrods which may
+	 * cause the device to access the VF's stats buffer which it will free
+	 * as soon as we return from the close flow.
+	 */
+	{
+		struct set_vf_state_cookie cookie;
+
+		cookie.vf = vf;
+		cookie.state = VF_ACQUIRED;
+		bnx2x_stats_safe_exec(bp, bnx2x_set_vf_state, &cookie);
+	}
+
 	DP(BNX2X_MSG_IOV, "set state to acquired\n");
 	bnx2x_vfop_end(bp, vf, vfop);
 }

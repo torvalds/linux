@@ -29,15 +29,15 @@
 static struct kmem_cache *nsproxy_cachep;
 
 struct nsproxy init_nsproxy = {
-	.count	= ATOMIC_INIT(1),
-	.uts_ns	= &init_uts_ns,
+	.count			= ATOMIC_INIT(1),
+	.uts_ns			= &init_uts_ns,
 #if defined(CONFIG_POSIX_MQUEUE) || defined(CONFIG_SYSVIPC)
-	.ipc_ns	= &init_ipc_ns,
+	.ipc_ns			= &init_ipc_ns,
 #endif
-	.mnt_ns	= NULL,
-	.pid_ns	= &init_pid_ns,
+	.mnt_ns			= NULL,
+	.pid_ns_for_children	= &init_pid_ns,
 #ifdef CONFIG_NET
-	.net_ns	= &init_net,
+	.net_ns			= &init_net,
 #endif
 };
 
@@ -85,9 +85,10 @@ static struct nsproxy *create_new_namespaces(unsigned long flags,
 		goto out_ipc;
 	}
 
-	new_nsp->pid_ns = copy_pid_ns(flags, user_ns, tsk->nsproxy->pid_ns);
-	if (IS_ERR(new_nsp->pid_ns)) {
-		err = PTR_ERR(new_nsp->pid_ns);
+	new_nsp->pid_ns_for_children =
+		copy_pid_ns(flags, user_ns, tsk->nsproxy->pid_ns_for_children);
+	if (IS_ERR(new_nsp->pid_ns_for_children)) {
+		err = PTR_ERR(new_nsp->pid_ns_for_children);
 		goto out_pid;
 	}
 
@@ -100,8 +101,8 @@ static struct nsproxy *create_new_namespaces(unsigned long flags,
 	return new_nsp;
 
 out_net:
-	if (new_nsp->pid_ns)
-		put_pid_ns(new_nsp->pid_ns);
+	if (new_nsp->pid_ns_for_children)
+		put_pid_ns(new_nsp->pid_ns_for_children);
 out_pid:
 	if (new_nsp->ipc_ns)
 		put_ipc_ns(new_nsp->ipc_ns);
@@ -174,8 +175,8 @@ void free_nsproxy(struct nsproxy *ns)
 		put_uts_ns(ns->uts_ns);
 	if (ns->ipc_ns)
 		put_ipc_ns(ns->ipc_ns);
-	if (ns->pid_ns)
-		put_pid_ns(ns->pid_ns);
+	if (ns->pid_ns_for_children)
+		put_pid_ns(ns->pid_ns_for_children);
 	put_net(ns->net_ns);
 	kmem_cache_free(nsproxy_cachep, ns);
 }
