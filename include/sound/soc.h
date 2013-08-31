@@ -719,7 +719,6 @@ struct snd_soc_codec {
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_codec_root;
 	struct dentry *debugfs_reg;
-	struct dentry *debugfs_dapm;
 #endif
 };
 
@@ -844,7 +843,6 @@ struct snd_soc_platform {
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_platform_root;
-	struct dentry *debugfs_dapm;
 #endif
 };
 
