@@ -7362,19 +7362,16 @@ static const struct net_device_ops ixgbe_netdev_ops = {
  **/
 static inline int ixgbe_enumerate_functions(struct ixgbe_adapter *adapter)
 {
-	struct ixgbe_hw *hw = &adapter->hw;
 	struct list_head *entry;
 	int physfns = 0;
 
-	/* Some cards can not use the generic count PCIe functions method, and
-	 * so must be hardcoded to the correct value.
+	/* Some cards can not use the generic count PCIe functions method,
+	 * because they are behind a parent switch, so we hardcode these with
+	 * the correct number of functions.
 	 */
-	switch (hw->device_id) {
-	case IXGBE_DEV_ID_82599_SFP_SF_QP:
-	case IXGBE_DEV_ID_82599_QSFP_SF_QP:
+	if (ixgbe_pcie_from_parent(&adapter->hw)) {
 		physfns = 4;
-		break;
-	default:
+	} else {
 		list_for_each(entry, &adapter->pdev->bus_list) {
 			struct pci_dev *pdev =
 				list_entry(entry, struct pci_dev, bus_list);
