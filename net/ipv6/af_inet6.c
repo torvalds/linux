@@ -815,6 +815,7 @@ static const struct ipv6_stub ipv6_stub_impl = {
 	.ipv6_sock_mc_drop = ipv6_sock_mc_drop,
 	.ipv6_dst_lookup = ip6_dst_lookup,
 	.udpv6_encap_enable = udpv6_encap_enable,
+	.nd_tbl	= &nd_tbl,
 };
 
 static int __init inet6_init(void)

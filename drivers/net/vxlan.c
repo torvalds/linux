@@ -1200,7 +1200,6 @@ static bool route_shortcircuit(struct net_device *dev, struct sk_buff *skb)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct neighbour *n;
-	struct iphdr *pip;
 
 	if (is_multicast_ether_addr(eth_hdr(skb)->h_dest))
 		return false;
@@ -1208,6 +1207,9 @@ static bool route_shortcircuit(struct net_device *dev, struct sk_buff *skb)
 	n = NULL;
 	switch (ntohs(eth_hdr(skb)->h_proto)) {
 	case ETH_P_IP:
+	{
+		struct iphdr *pip;
+
 		if (!pskb_may_pull(skb, sizeof(struct iphdr)))
 			return false;
 		pip = ip_hdr(skb);
@@ -1223,6 +1225,29 @@ static bool route_shortcircuit(struct net_device *dev, struct sk_buff *skb)
 		}
 
 		break;
+	}
+#if IS_ENABLED(CONFIG_IPV6)
+	case ETH_P_IPV6:
+	{
+		struct ipv6hdr *pip6;
+
+		if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
+			return false;
+		pip6 = ipv6_hdr(skb);
+		n = neigh_lookup(ipv6_stub->nd_tbl, &pip6->daddr, dev);
+		if (!n && (vxlan->flags & VXLAN_F_L3MISS)) {
+			union vxlan_addr ipa = {
+				.sin6.sin6_addr = pip6->daddr,
+				.sa.sa_family = AF_INET6,
+			};
+
+			vxlan_ip_miss(dev, &ipa);
+			return false;
+		}
+
+		break;
+	}
+#endif
 	default:
 		return false;
 	}
@@ -1659,7 +1684,8 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 	did_rsc = false;
 
 	if (f && (f->flags & NTF_ROUTER) && (vxlan->flags & VXLAN_F_RSC) &&
-	    ntohs(eth->h_proto) == ETH_P_IP) {
+	    (ntohs(eth->h_proto) == ETH_P_IP ||
+	     ntohs(eth->h_proto) == ETH_P_IPV6)) {
 		did_rsc = route_shortcircuit(dev, skb);
 		if (did_rsc)
 			f = vxlan_find_mac(vxlan, eth->h_dest);
