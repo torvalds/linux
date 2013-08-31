@@ -662,7 +662,6 @@ struct snd_soc_codec {
 	struct list_head card_list;
 	int num_dai;
 	enum snd_soc_compress_type compress_type;
-	size_t reg_size;	/* reg_cache_size * reg_word_size */
 	int (*volatile_register)(struct snd_soc_codec *, unsigned int);
 	int (*readable_register)(struct snd_soc_codec *, unsigned int);
 	int (*writable_register)(struct snd_soc_codec *, unsigned int);

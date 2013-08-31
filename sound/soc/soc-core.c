@@ -4159,7 +4159,6 @@ int snd_soc_register_codec(struct device *dev,
 			   struct snd_soc_dai_driver *dai_drv,
 			   int num_dai)
 {
-	size_t reg_size;
 	struct snd_soc_codec *codec;
 	int ret, i;
 
@@ -4196,12 +4195,6 @@ int snd_soc_register_codec(struct device *dev,
 	codec->driver = codec_drv;
 	codec->num_dai = num_dai;
 	mutex_init(&codec->mutex);
-
-	/* allocate CODEC register cache */
-	if (codec_drv->reg_cache_size && codec_drv->reg_word_size) {
-		reg_size = codec_drv->reg_cache_size * codec_drv->reg_word_size;
-		codec->reg_size = reg_size;
-	}
 
 	for (i = 0; i < num_dai; i++) {
 		fixup_codec_formats(&dai_drv[i].playback);
