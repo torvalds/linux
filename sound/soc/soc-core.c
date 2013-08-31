@@ -4201,20 +4201,6 @@ int snd_soc_register_codec(struct device *dev,
 	if (codec_drv->reg_cache_size && codec_drv->reg_word_size) {
 		reg_size = codec_drv->reg_cache_size * codec_drv->reg_word_size;
 		codec->reg_size = reg_size;
-		/* it is necessary to make a copy of the default register cache
-		 * because in the case of using a compression type that requires
-		 * the default register cache to be marked as the
-		 * kernel might have freed the array by the time we initialize
-		 * the cache.
-		 */
-		if (codec_drv->reg_cache_default) {
-			codec->reg_def_copy = kmemdup(codec_drv->reg_cache_default,
-						      reg_size, GFP_KERNEL);
-			if (!codec->reg_def_copy) {
-				ret = -ENOMEM;
-				goto fail_codec_name;
-			}
-		}
 	}
 
 	for (i = 0; i < num_dai; i++) {
@@ -4273,7 +4259,6 @@ found:
 	dev_dbg(codec->dev, "ASoC: Unregistered codec '%s'\n", codec->name);
 
 	snd_soc_cache_exit(codec);
-	kfree(codec->reg_def_copy);
 	kfree(codec->name);
 	kfree(codec);
 }
