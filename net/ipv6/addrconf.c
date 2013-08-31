@@ -3090,6 +3090,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 static void addrconf_rs_timer(unsigned long data)
 {
 	struct inet6_dev *idev = (struct inet6_dev *)data;
+	struct net_device *dev = idev->dev;
 	struct in6_addr lladdr;
 
 	write_lock(&idev->lock);
@@ -3104,12 +3105,14 @@ static void addrconf_rs_timer(unsigned long data)
 		goto out;
 
 	if (idev->rs_probes++ < idev->cnf.rtr_solicits) {
-		if (!__ipv6_get_lladdr(idev, &lladdr, IFA_F_TENTATIVE))
-			ndisc_send_rs(idev->dev, &lladdr,
+		write_unlock(&idev->lock);
+		if (!ipv6_get_lladdr(dev, &lladdr, IFA_F_TENTATIVE))
+			ndisc_send_rs(dev, &lladdr,
 				      &in6addr_linklocal_allrouters);
 		else
-			goto out;
+			goto put;
 
+		write_lock(&idev->lock);
 		/* The wait after the last probe can be shorter */
 		addrconf_mod_rs_timer(idev, (idev->rs_probes ==
 					     idev->cnf.rtr_solicits) ?
@@ -3125,6 +3128,7 @@ static void addrconf_rs_timer(unsigned long data)
 
 out:
 	write_unlock(&idev->lock);
+put:
 	in6_dev_put(idev);
 }
 
