@@ -315,9 +315,9 @@ static void usb_set_lpm_parameters(struct usb_device *udev)
 		return;
 
 	udev_u1_del = udev->bos->ss_cap->bU1devExitLat;
-	udev_u2_del = udev->bos->ss_cap->bU2DevExitLat;
+	udev_u2_del = le16_to_cpu(udev->bos->ss_cap->bU2DevExitLat);
 	hub_u1_del = udev->parent->bos->ss_cap->bU1devExitLat;
-	hub_u2_del = udev->parent->bos->ss_cap->bU2DevExitLat;
+	hub_u2_del = le16_to_cpu(udev->parent->bos->ss_cap->bU2DevExitLat);
 
 	usb_set_lpm_mel(udev, &udev->u1_params, udev_u1_del,
 			hub, &udev->parent->u1_params, hub_u1_del);
