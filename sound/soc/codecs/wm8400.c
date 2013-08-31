@@ -67,25 +67,6 @@ struct wm8400_priv {
 	int fll_in, fll_out;
 };
 
-static inline unsigned int wm8400_read(struct snd_soc_codec *codec,
-				       unsigned int reg)
-{
-	struct wm8400_priv *wm8400 = snd_soc_codec_get_drvdata(codec);
-
-	return wm8400_reg_read(wm8400->wm8400, reg);
-}
-
-/*
- * write to the wm8400 register space
- */
-static int wm8400_write(struct snd_soc_codec *codec, unsigned int reg,
-	unsigned int value)
-{
-	struct wm8400_priv *wm8400 = snd_soc_codec_get_drvdata(codec);
-
-	return wm8400_set_bits(wm8400->wm8400, reg, 0xffff, value);
-}
-
 static void wm8400_codec_reset(struct snd_soc_codec *codec)
 {
 	struct wm8400_priv *wm8400 = snd_soc_codec_get_drvdata(codec);
@@ -1328,8 +1309,11 @@ static int wm8400_codec_probe(struct snd_soc_codec *codec)
 		return -ENOMEM;
 
 	snd_soc_codec_set_drvdata(codec, priv);
-	codec->control_data = priv->wm8400 = wm8400;
+	priv->wm8400 = wm8400;
+	codec->control_data = wm8400->regmap;
 	priv->codec = codec;
+
+	snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_REGMAP);
 
 	ret = devm_regulator_bulk_get(wm8400->dev,
 				 ARRAY_SIZE(power), &power[0]);
@@ -1377,8 +1361,6 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8400 = {
 	.remove =	wm8400_codec_remove,
 	.suspend =	wm8400_suspend,
 	.resume =	wm8400_resume,
-	.read = snd_soc_read,
-	.write = wm8400_write,
 	.set_bias_level = wm8400_set_bias_level,
 
 	.controls = wm8400_snd_controls,
