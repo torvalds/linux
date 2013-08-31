@@ -2106,11 +2106,9 @@ int adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 	unsigned short *adt7316_platform_data = dev->platform_data;
 	int ret = 0;
 
-	indio_dev = iio_device_alloc(sizeof(*chip));
-	if (indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*chip));
+	if (!indio_dev)
+		return -ENOMEM;
 	chip = iio_priv(indio_dev);
 	/* this is only used for device removal purposes */
 	dev_set_drvdata(dev, indio_dev);
@@ -2146,58 +2144,44 @@ int adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 		if (adt7316_platform_data[0])
 			chip->bus.irq_flags = adt7316_platform_data[0];
 
-		ret = request_threaded_irq(chip->bus.irq,
-					   NULL,
-					   &adt7316_event_handler,
-					   chip->bus.irq_flags | IRQF_ONESHOT,
-					   indio_dev->name,
-					   indio_dev);
+		ret = devm_request_threaded_irq(dev, chip->bus.irq,
+						NULL,
+						&adt7316_event_handler,
+						chip->bus.irq_flags |
+						IRQF_ONESHOT,
+						indio_dev->name,
+						indio_dev);
 		if (ret)
-			goto error_free_dev;
+			return ret;
 
 		if (chip->bus.irq_flags & IRQF_TRIGGER_HIGH)
 			chip->config1 |= ADT7316_INT_POLARITY;
 	}
 
 	ret = chip->bus.write(chip->bus.client, ADT7316_CONFIG1, chip->config1);
-	if (ret) {
-		ret = -EIO;
-		goto error_unreg_irq;
-	}
+	if (ret)
+		return -EIO;
 
 	ret = chip->bus.write(chip->bus.client, ADT7316_CONFIG3, chip->config3);
-	if (ret) {
-		ret = -EIO;
-		goto error_unreg_irq;
-	}
+	if (ret)
+		return -EIO;
 
 	ret = iio_device_register(indio_dev);
 	if (ret)
-		goto error_unreg_irq;
+		return ret;
 
 	dev_info(dev, "%s temperature sensor, ADC and DAC registered.\n",
 			indio_dev->name);
 
 	return 0;
-
-error_unreg_irq:
-	free_irq(chip->bus.irq, indio_dev);
-error_free_dev:
-	iio_device_free(indio_dev);
-error_ret:
-	return ret;
 }
 EXPORT_SYMBOL(adt7316_probe);
 
 int adt7316_remove(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct adt7316_chip_info *chip = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	if (chip->bus.irq)
-		free_irq(chip->bus.irq, indio_dev);
-	iio_device_free(indio_dev);
 
 	return 0;
 }
