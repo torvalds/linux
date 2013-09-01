@@ -870,7 +870,7 @@ static void of_register_spi_devices(struct spi_master *master)
 			spi->mode |= SPI_3WIRE;
 
 		/* Device DUAL/QUAD mode */
-		prop = of_get_property(nc, "spi-tx-nbits", &len);
+		prop = of_get_property(nc, "spi-tx-bus-width", &len);
 		if (prop && len == sizeof(*prop)) {
 			switch (be32_to_cpup(prop)) {
 			case SPI_NBITS_SINGLE:
@@ -883,14 +883,14 @@ static void of_register_spi_devices(struct spi_master *master)
 				break;
 			default:
 				dev_err(&master->dev,
-					"spi-tx-nbits %d not supported\n",
+					"spi-tx-bus-width %d not supported\n",
 					be32_to_cpup(prop));
 				spi_dev_put(spi);
 				continue;
 			}
 		}
 
-		prop = of_get_property(nc, "spi-rx-nbits", &len);
+		prop = of_get_property(nc, "spi-rx-bus-width", &len);
 		if (prop && len == sizeof(*prop)) {
 			switch (be32_to_cpup(prop)) {
 			case SPI_NBITS_SINGLE:
@@ -903,7 +903,7 @@ static void of_register_spi_devices(struct spi_master *master)
 				break;
 			default:
 				dev_err(&master->dev,
-					"spi-rx-nbits %d not supported\n",
+					"spi-rx-bus-width %d not supported\n",
 					be32_to_cpup(prop));
 				spi_dev_put(spi);
 				continue;
