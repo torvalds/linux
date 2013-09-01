@@ -64,15 +64,21 @@ config REGULATOR_USERSPACE_CONSUMER
 
 	  If unsure, say no.
 
-config REGULATOR_GPIO
-	tristate "GPIO regulator support"
-	depends on GPIOLIB
+config REGULATOR_88PM800
+	tristate "Marvell 88PM800 Power regulators"
+	depends on MFD_88PM800
 	help
-	  This driver provides support for regulators that can be
-	  controlled via gpios.
-	  It is capable of supporting current and voltage regulators
-	  and the platform has to provide a mapping of GPIO-states
-	  to target volts/amps.
+	  This driver supports Marvell 88PM800 voltage regulator chips.
+	  It delivers digitally programmable output,
+	  the voltage is programmed via I2C interface.
+	  It's suitable to support PXA988 chips to control VCC_MAIN and
+	  various voltages.
+
+config REGULATOR_88PM8607
+	bool "Marvell 88PM8607 Power regulators"
+	depends on MFD_88PM860X=y
+	help
+	  This driver supports 88PM8607 voltage regulator chips.
 
 config REGULATOR_AD5398
 	tristate "Analog Devices AD5398/AD5821 regulators"
@@ -81,12 +87,36 @@ config REGULATOR_AD5398
 	  This driver supports AD5398 and AD5821 current regulator chips.
 	  If building into module, its name is ad5398.ko.
 
+config REGULATOR_ANATOP
+	tristate "Freescale i.MX on-chip ANATOP LDO regulators"
+	depends on MFD_SYSCON
+	help
+	  Say y here to support Freescale i.MX on-chip ANATOP LDOs
+	  regulators. It is recommended that this option be
+	  enabled on i.MX6 platform.
+
 config REGULATOR_AAT2870
 	tristate "AnalogicTech AAT2870 Regulators"
 	depends on MFD_AAT2870_CORE
 	help
 	  If you have a AnalogicTech AAT2870 say Y to enable the
 	  regulator driver.
+
+config REGULATOR_AB3100
+	tristate "ST-Ericsson AB3100 Regulator functions"
+	depends on AB3100_CORE
+	default y if AB3100_CORE
+	help
+	 These regulators correspond to functionality in the
+	 AB3100 analog baseband dealing with power regulators
+	 for the system.
+
+config REGULATOR_AB8500
+	bool "ST-Ericsson AB8500 Power Regulators"
+	depends on AB8500_CORE
+	help
+	  This driver supports the regulators found on the ST-Ericsson mixed
+	  signal AB8500 PMIC
 
 config REGULATOR_ARIZONA
 	tristate "Wolfson Arizona class devices"
@@ -95,6 +125,13 @@ config REGULATOR_ARIZONA
 	help
 	  Support for the regulators found on Wolfson Arizona class
 	  devices.
+
+config REGULATOR_AS3711
+	tristate "AS3711 PMIC"
+	depends on MFD_AS3711
+	help
+	  This driver provides support for the voltage regulators on the
+	  AS3711 PMIC
 
 config REGULATOR_DA903X
 	tristate "Dialog Semiconductor DA9030/DA9034 regulators"
@@ -120,6 +157,17 @@ config REGULATOR_DA9055
 	  This driver can also be built as a module. If so, the module
 	  will be called da9055-regulator.
 
+config REGULATOR_DBX500_PRCMU
+	bool
+
+config REGULATOR_DB8500_PRCMU
+	bool "ST-Ericsson DB8500 Voltage Domain Regulators"
+	depends on MFD_DB8500_PRCMU
+	select REGULATOR_DBX500_PRCMU
+	help
+	  This driver supports the voltage domain regulators controlled by the
+	  DB8500 PRCMU
+
 config REGULATOR_FAN53555
 	tristate "Fairchild FAN53555 Regulator"
 	depends on I2C
@@ -131,32 +179,15 @@ config REGULATOR_FAN53555
 	  input voltage supply of 2.5V to 5.5V. The output voltage is
 	  programmed through an I2C interface.
 
-config REGULATOR_ANATOP
-	tristate "Freescale i.MX on-chip ANATOP LDO regulators"
-	depends on MFD_SYSCON
+config REGULATOR_GPIO
+	tristate "GPIO regulator support"
+	depends on GPIOLIB
 	help
-	  Say y here to support Freescale i.MX on-chip ANATOP LDOs
-	  regulators. It is recommended that this option be
-	  enabled on i.MX6 platform.
-
-config REGULATOR_MC13XXX_CORE
-	tristate
-
-config REGULATOR_MC13783
-	tristate "Freescale MC13783 regulator driver"
-	depends on MFD_MC13783
-	select REGULATOR_MC13XXX_CORE
-	help
-	  Say y here to support the regulators found on the Freescale MC13783
-	  PMIC.
-
-config REGULATOR_MC13892
-	tristate "Freescale MC13892 regulator driver"
-	depends on MFD_MC13XXX
-	select REGULATOR_MC13XXX_CORE
-	help
-	  Say y here to support the regulators found on the Freescale MC13892
-	  PMIC.
+	  This driver provides support for regulators that can be
+	  controlled via gpios.
+	  It is capable of supporting current and voltage regulators
+	  and the platform has to provide a mapping of GPIO-states
+	  to target volts/amps.
 
 config REGULATOR_ISL6271A
 	tristate "Intersil ISL6271A Power regulator"
@@ -164,11 +195,41 @@ config REGULATOR_ISL6271A
 	help
 	  This driver supports ISL6271A voltage regulator chip.
 
-config REGULATOR_88PM8607
-	bool "Marvell 88PM8607 Power regulators"
-	depends on MFD_88PM860X=y
+config REGULATOR_LP3971
+	tristate "National Semiconductors LP3971 PMIC regulator driver"
+	depends on I2C
 	help
-	  This driver supports 88PM8607 voltage regulator chips.
+	 Say Y here to support the voltage regulators and convertors
+	 on National Semiconductors LP3971 PMIC
+
+config REGULATOR_LP3972
+	tristate "National Semiconductors LP3972 PMIC regulator driver"
+	depends on I2C
+	help
+	 Say Y here to support the voltage regulators and convertors
+	 on National Semiconductors LP3972 PMIC
+
+config REGULATOR_LP872X
+	bool "TI/National Semiconductor LP8720/LP8725 voltage regulators"
+	depends on I2C=y
+	select REGMAP_I2C
+	help
+	  This driver supports LP8720/LP8725 PMIC
+
+config REGULATOR_LP8755
+	tristate "TI LP8755 High Performance PMU driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver supports LP8755 High Performance PMU driver. This
+	  chip contains six step-down DC/DC converters which can support
+	  9 mode multiphase configuration.
+
+config REGULATOR_LP8788
+	bool "TI LP8788 Power Regulators"
+	depends on MFD_LP8788
+	help
+	  This driver supports LP8788 voltage regulator chip.
 
 config REGULATOR_MAX1586
 	tristate "Maxim 1586/1587 voltage regulator"
@@ -259,48 +320,43 @@ config REGULATOR_MAX77693
 	  and one current regulator 'CHARGER'. This is suitable for
 	  Exynos-4x12 chips.
 
+config REGULATOR_MC13XXX_CORE
+	tristate
+
+config REGULATOR_MC13783
+	tristate "Freescale MC13783 regulator driver"
+	depends on MFD_MC13783
+	select REGULATOR_MC13XXX_CORE
+	help
+	  Say y here to support the regulators found on the Freescale MC13783
+	  PMIC.
+
+config REGULATOR_MC13892
+	tristate "Freescale MC13892 regulator driver"
+	depends on MFD_MC13XXX
+	select REGULATOR_MC13XXX_CORE
+	help
+	  Say y here to support the regulators found on the Freescale MC13892
+	  PMIC.
+
+config REGULATOR_PALMAS
+	tristate "TI Palmas PMIC Regulators"
+	depends on MFD_PALMAS
+	help
+	  If you wish to control the regulators on the Palmas series of
+	  chips say Y here. This will enable support for all the software
+	  controllable SMPS/LDO regulators.
+
+	  The regulators available on Palmas series chips vary depending
+	  on the muxing. This is handled automatically in the driver by
+	  reading the mux info from OTP.
+
 config REGULATOR_PCAP
 	tristate "Motorola PCAP2 regulator driver"
 	depends on EZX_PCAP
 	help
 	 This driver provides support for the voltage regulators of the
 	 PCAP2 PMIC.
-
-config REGULATOR_LP3971
-	tristate "National Semiconductors LP3971 PMIC regulator driver"
-	depends on I2C
-	help
-	 Say Y here to support the voltage regulators and convertors
-	 on National Semiconductors LP3971 PMIC
-
-config REGULATOR_LP3972
-	tristate "National Semiconductors LP3972 PMIC regulator driver"
-	depends on I2C
-	help
-	 Say Y here to support the voltage regulators and convertors
-	 on National Semiconductors LP3972 PMIC
-
-config REGULATOR_LP872X
-	bool "TI/National Semiconductor LP8720/LP8725 voltage regulators"
-	depends on I2C=y
-	select REGMAP_I2C
-	help
-	  This driver supports LP8720/LP8725 PMIC
-
-config REGULATOR_LP8755
-	tristate "TI LP8755 High Performance PMU driver"
-	depends on I2C
-	select REGMAP_I2C
-	help
-	  This driver supports LP8755 High Performance PMU driver. This
-	  chip contains six step-down DC/DC converters which can support
-	  9 mode multiphase configuration.
-
-config REGULATOR_LP8788
-	bool "TI LP8788 Power Regulators"
-	depends on MFD_LP8788
-	help
-	  This driver supports LP8788 voltage regulator chip.
 
 config REGULATOR_PCF50633
 	tristate "NXP PCF50633 regulator driver"
@@ -335,44 +391,15 @@ config REGULATOR_S5M8767
 	 via I2C bus. S5M8767A have 9 Bucks and 28 LDOs output and
 	 supports DVS mode with 8bits of output voltage control.
 
-config REGULATOR_AB3100
-	tristate "ST-Ericsson AB3100 Regulator functions"
-	depends on AB3100_CORE
-	default y if AB3100_CORE
+config REGULATOR_TI_ABB
+	bool "TI Adaptive Body Bias on-chip LDO"
+	depends on ARCH_OMAP
 	help
-	 These regulators correspond to functionality in the
-	 AB3100 analog baseband dealing with power regulators
-	 for the system.
-
-config REGULATOR_AB8500
-	bool "ST-Ericsson AB8500 Power Regulators"
-	depends on AB8500_CORE
-	help
-	  This driver supports the regulators found on the ST-Ericsson mixed
-	  signal AB8500 PMIC
-
-config REGULATOR_DBX500_PRCMU
-	bool
-
-config REGULATOR_DB8500_PRCMU
-	bool "ST-Ericsson DB8500 Voltage Domain Regulators"
-	depends on MFD_DB8500_PRCMU
-	select REGULATOR_DBX500_PRCMU
-	help
-	  This driver supports the voltage domain regulators controlled by the
-	  DB8500 PRCMU
-
-config REGULATOR_PALMAS
-	tristate "TI Palmas PMIC Regulators"
-	depends on MFD_PALMAS
-	help
-	  If you wish to control the regulators on the Palmas series of
-	  chips say Y here. This will enable support for all the software
-	  controllable SMPS/LDO regulators.
-
-	  The regulators available on Palmas series chips vary depending
-	  on the muxing. This is handled automatically in the driver by
-	  reading the mux info from OTP.
+	  Select this option to support Texas Instruments' on-chip Adaptive Body
+	  Bias (ABB) LDO regulators. It is recommended that this option be
+	  enabled on required TI SoC. Certain Operating Performance Points
+	  on TI SoCs may be unstable without enabling this as it provides
+	  device specific optimized bias to allow/optimize functionality.
 
 config REGULATOR_TPS51632
 	tristate "TI TPS51632 Power Regulator"
@@ -481,16 +508,6 @@ config REGULATOR_TWL4030
 	  This driver supports the voltage regulators provided by
 	  this family of companion chips.
 
-config REGULATOR_TI_ABB
-	bool "TI Adaptive Body Bias on-chip LDO"
-	depends on ARCH_OMAP
-	help
-	  Select this option to support Texas Instruments' on-chip Adaptive Body
-	  Bias (ABB) LDO regulators. It is recommended that this option be
-	  enabled on required TI SoC. Certain Operating Performance Points
-	  on TI SoCs may be unstable without enabling this as it provides
-	  device specific optimized bias to allow/optimize functionality.
-
 config REGULATOR_VEXPRESS
 	tristate "Versatile Express regulators"
 	depends on VEXPRESS_CONFIG
@@ -525,13 +542,6 @@ config REGULATOR_WM8994
 	help
 	  This driver provides support for the voltage regulators on the
 	  WM8994 CODEC.
-
-config REGULATOR_AS3711
-	tristate "AS3711 PMIC"
-	depends on MFD_AS3711
-	help
-	  This driver provides support for the voltage regulators on the
-	  AS3711 PMIC
 
 endif
 
