@@ -311,8 +311,6 @@ static int hspi_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
-	dev_info(&pdev->dev, "probed\n");
-
 	return 0;
 
  error1:
