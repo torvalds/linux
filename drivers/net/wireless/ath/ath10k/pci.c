@@ -58,24 +58,69 @@ static int ath10k_pci_start_intr(struct ath10k *ar);
 static void ath10k_pci_stop_intr(struct ath10k *ar);
 
 static const struct ce_attr host_ce_config_wlan[] = {
-	/* host->target HTC control and raw streams */
-	{ /* CE0 */ CE_ATTR_FLAGS, 16, 256, 0 },
-	/* could be moved to share CE3 */
-	/* target->host HTT + HTC control */
-	{ /* CE1 */ CE_ATTR_FLAGS, 0, 512, 512 },
-	/* target->host WMI */
-	{ /* CE2 */ CE_ATTR_FLAGS, 0, 2048, 32 },
-	/* host->target WMI */
-	{ /* CE3 */ CE_ATTR_FLAGS, 32, 2048, 0 },
-	/* host->target HTT */
-	{ /* CE4 */ CE_ATTR_FLAGS | CE_ATTR_DIS_INTR,
-		    CE_HTT_H2T_MSG_SRC_NENTRIES, 256, 0 },
-	/* unused */
-	{ /* CE5 */ CE_ATTR_FLAGS, 0, 0, 0 },
-	/* Target autonomous hif_memcpy */
-	{ /* CE6 */ CE_ATTR_FLAGS, 0, 0, 0 },
-	/* ce_diag, the Diagnostic Window */
-	{ /* CE7 */ CE_ATTR_FLAGS, 2, DIAG_TRANSFER_LIMIT, 2 },
+	/* CE0: host->target HTC control and raw streams */
+	{
+		.flags = CE_ATTR_FLAGS,
+		.src_nentries = 16,
+		.src_sz_max = 256,
+		.dest_nentries = 0,
+	},
+
+	/* CE1: target->host HTT + HTC control */
+	{
+		.flags = CE_ATTR_FLAGS,
+		.src_nentries = 0,
+		.src_sz_max = 512,
+		.dest_nentries = 512,
+	},
+
+	/* CE2: target->host WMI */
+	{
+		.flags = CE_ATTR_FLAGS,
+		.src_nentries = 0,
+		.src_sz_max = 2048,
+		.dest_nentries = 32,
+	},
+
+	/* CE3: host->target WMI */
+	{
+		.flags = CE_ATTR_FLAGS,
+		.src_nentries = 32,
+		.src_sz_max = 2048,
+		.dest_nentries = 0,
+	},
+
+	/* CE4: host->target HTT */
+	{
+		.flags = CE_ATTR_FLAGS | CE_ATTR_DIS_INTR,
+		.src_nentries = CE_HTT_H2T_MSG_SRC_NENTRIES,
+		.src_sz_max = 256,
+		.dest_nentries = 0,
+	},
+
+	/* CE5: unused */
+	{
+		.flags = CE_ATTR_FLAGS,
+		.src_nentries = 0,
+		.src_sz_max = 0,
+		.dest_nentries = 0,
+	},
+
+	/* CE6: target autonomous hif_memcpy */
+	{
+		.flags = CE_ATTR_FLAGS,
+		.src_nentries = 0,
+		.src_sz_max = 0,
+		.dest_nentries = 0,
+	},
+
+	/* CE7: ce_diag, the Diagnostic Window */
+	{
+		.flags = CE_ATTR_FLAGS,
+		.src_nentries = 2,
+		.src_sz_max = DIAG_TRANSFER_LIMIT,
+		.dest_nentries = 2,
+	},
 };
 
 /* Target firmware's Copy Engine configuration. */
