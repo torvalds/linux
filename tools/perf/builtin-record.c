@@ -233,10 +233,6 @@ try_again:
 			       "or try again with a smaller value of -m/--mmap_pages.\n"
 			       "(current value: %d)\n", opts->mmap_pages);
 			rc = -errno;
-		} else if (!is_power_of_2(opts->mmap_pages) &&
-			   (opts->mmap_pages != UINT_MAX)) {
-			pr_err("--mmap_pages/-m value must be a power of two.");
-			rc = -EINVAL;
 		} else {
 			pr_err("failed to mmap with %d (%s)\n", errno, strerror(errno));
 			rc = -errno;
@@ -854,8 +850,9 @@ const struct option record_options[] = {
 	OPT_BOOLEAN('i', "no-inherit", &record.opts.no_inherit,
 		    "child tasks do not inherit counters"),
 	OPT_UINTEGER('F', "freq", &record.opts.user_freq, "profile at this frequency"),
-	OPT_UINTEGER('m', "mmap-pages", &record.opts.mmap_pages,
-		     "number of mmap data pages"),
+	OPT_CALLBACK('m', "mmap-pages", &record.opts.mmap_pages, "pages",
+		     "number of mmap data pages",
+		     perf_evlist__parse_mmap_pages),
 	OPT_BOOLEAN(0, "group", &record.opts.group,
 		    "put the counters into a counter group"),
 	OPT_CALLBACK_DEFAULT('g', "call-graph", &record.opts,

@@ -18,6 +18,7 @@
 #include <unistd.h>
 
 #include "parse-events.h"
+#include "parse-options.h"
 
 #include <sys/mman.h>
 
@@ -672,6 +673,40 @@ out_unmap:
 	return -1;
 }
 
+static size_t perf_evlist__mmap_size(unsigned long pages)
+{
+	/* 512 kiB: default amount of unprivileged mlocked memory */
+	if (pages == UINT_MAX)
+		pages = (512 * 1024) / page_size;
+	else if (!is_power_of_2(pages))
+		return 0;
+
+	return (pages + 1) * page_size;
+}
+
+int perf_evlist__parse_mmap_pages(const struct option *opt, const char *str,
+				  int unset __maybe_unused)
+{
+	unsigned int pages, *mmap_pages = opt->value;
+	size_t size;
+	char *eptr;
+
+	pages = strtoul(str, &eptr, 10);
+	if (*eptr != '\0') {
+		pr_err("failed to parse --mmap_pages/-m value\n");
+		return -1;
+	}
+
+	size = perf_evlist__mmap_size(pages);
+	if (!size) {
+		pr_err("--mmap_pages/-m value must be a power of two.");
+		return -1;
+	}
+
+	*mmap_pages = pages;
+	return 0;
+}
+
 /** perf_evlist__mmap - Create per cpu maps to receive events
  *
  * @evlist - list of events
@@ -695,14 +730,6 @@ int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages,
 	const struct thread_map *threads = evlist->threads;
 	int prot = PROT_READ | (overwrite ? 0 : PROT_WRITE), mask;
 
-        /* 512 kiB: default amount of unprivileged mlocked memory */
-        if (pages == UINT_MAX)
-                pages = (512 * 1024) / page_size;
-	else if (!is_power_of_2(pages))
-		return -EINVAL;
-
-	mask = pages * page_size - 1;
-
 	if (evlist->mmap == NULL && perf_evlist__alloc_mmap(evlist) < 0)
 		return -ENOMEM;
 
@@ -710,7 +737,8 @@ int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages,
 		return -ENOMEM;
 
 	evlist->overwrite = overwrite;
-	evlist->mmap_len = (pages + 1) * page_size;
+	evlist->mmap_len = perf_evlist__mmap_size(pages);
+	mask = evlist->mmap_len - page_size - 1;
 
 	list_for_each_entry(evsel, &evlist->entries, node) {
 		if ((evsel->attr.read_format & PERF_FORMAT_ID) &&
