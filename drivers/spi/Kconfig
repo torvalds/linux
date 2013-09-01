@@ -164,6 +164,13 @@ config SPI_DAVINCI
 	help
 	  SPI master controller for DaVinci/DA8x/OMAP-L/AM1x SPI modules.
 
+config SPI_EFM32
+	tristate "EFM32 SPI controller"
+	depends on OF && ARM && (ARCH_EFM32 || COMPILE_TEST)
+	select SPI_BITBANG
+	help
+	  Driver for the spi controller found on Energy Micro's EFM32 SoCs.
+
 config SPI_EP93XX
 	tristate "Cirrus Logic EP93xx SPI controller"
 	depends on ARCH_EP93XX || COMPILE_TEST
