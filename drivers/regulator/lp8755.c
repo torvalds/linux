@@ -450,7 +450,7 @@ static int lp8755_probe(struct i2c_client *client,
 {
 	int ret, icnt;
 	struct lp8755_chip *pchip;
-	struct lp8755_platform_data *pdata = client->dev.platform_data;
+	struct lp8755_platform_data *pdata = dev_get_platdata(&client->dev);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev, "i2c functionality check fail.\n");

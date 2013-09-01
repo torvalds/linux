@@ -283,7 +283,7 @@ static int pm800_regulator_dt_init(struct platform_device *pdev)
 static int pm800_regulator_probe(struct platform_device *pdev)
 {
 	struct pm80x_chip *chip = dev_get_drvdata(pdev->dev.parent);
-	struct pm80x_platform_data *pdata = pdev->dev.parent->platform_data;
+	struct pm80x_platform_data *pdata = dev_get_platdata(pdev->dev.parent);
 	struct pm800_regulators *pm800_data;
 	struct pm800_regulator_info *info;
 	struct regulator_config config = { };
