@@ -50,6 +50,18 @@ struct perf_evlist *perf_evlist__new(void)
 	return evlist;
 }
 
+struct perf_evlist *perf_evlist__new_default(void)
+{
+	struct perf_evlist *evlist = perf_evlist__new();
+
+	if (evlist && perf_evlist__add_default(evlist)) {
+		perf_evlist__delete(evlist);
+		evlist = NULL;
+	}
+
+	return evlist;
+}
+
 /**
  * perf_evlist__set_id_pos - set the positions of event ids.
  * @evlist: selected event list

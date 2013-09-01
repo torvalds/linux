@@ -53,6 +53,7 @@ struct perf_evsel_str_handler {
 };
 
 struct perf_evlist *perf_evlist__new(void);
+struct perf_evlist *perf_evlist__new_default(void);
 void perf_evlist__init(struct perf_evlist *evlist, struct cpu_map *cpus,
 		       struct thread_map *threads);
 void perf_evlist__exit(struct perf_evlist *evlist);
