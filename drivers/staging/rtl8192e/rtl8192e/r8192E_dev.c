@@ -1866,15 +1866,15 @@ static void rtl8192_TranslateRxSignalStuff(struct net_device *dev,
 	type = WLAN_FC_GET_TYPE(fc);
 	praddr = hdr->addr1;
 
-	bpacket_match_bssid = ((RTLLIB_FTYPE_CTL != type) &&
-			(!compare_ether_addr(priv->rtllib->
-			current_network.bssid,
-			   (fc & RTLLIB_FCTL_TODS) ? hdr->addr1 :
-			   (fc & RTLLIB_FCTL_FROMDS) ? hdr->addr2 : hdr->addr3))
-		&& (!pstats->bHwError) && (!pstats->bCRC) && (!pstats->bICV));
-	bpacket_toself =  bpacket_match_bssid &&	/* check this */
-			  (!compare_ether_addr(praddr,
-			  priv->rtllib->dev->dev_addr));
+	bpacket_match_bssid =
+		((RTLLIB_FTYPE_CTL != type) &&
+		 ether_addr_equal(priv->rtllib->current_network.bssid,
+				  (fc & RTLLIB_FCTL_TODS) ? hdr->addr1 :
+				  (fc & RTLLIB_FCTL_FROMDS) ? hdr->addr2 :
+				  hdr->addr3) &&
+		 (!pstats->bHwError) && (!pstats->bCRC) && (!pstats->bICV));
+	bpacket_toself = bpacket_match_bssid &&		/* check this */
+			 ether_addr_equal(praddr, priv->rtllib->dev->dev_addr);
 	if (WLAN_FC_GET_FRAMETYPE(fc) == RTLLIB_STYPE_BEACON)
 		bPacketBeacon = true;
 	if (bpacket_match_bssid)

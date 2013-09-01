@@ -657,8 +657,8 @@ int iwctl_siwap(struct net_device *dev, struct iw_request_info *info,
 			unsigned uSameBssidNum = 0;
 			for (ii = 0; ii < MAX_BSS_NUM; ii++) {
 				if (pMgmt->sBSSList[ii].bActive &&
-					!compare_ether_addr(pMgmt->sBSSList[ii].abyBSSID,
-							pMgmt->abyDesireBSSID)) {
+					ether_addr_equal(pMgmt->sBSSList[ii].abyBSSID,
+							 pMgmt->abyDesireBSSID)) {
 					uSameBssidNum++;
 				}
 			}
@@ -840,8 +840,8 @@ int iwctl_siwessid(struct net_device *dev, struct iw_request_info *info,
 				// are two same BSSID exist in list ?
 				for (ii = 0; ii < MAX_BSS_NUM; ii++) {
 					if (pMgmt->sBSSList[ii].bActive &&
-						!compare_ether_addr(pMgmt->sBSSList[ii].abyBSSID,
-								pCurr->abyBSSID)) {
+						ether_addr_equal(pMgmt->sBSSList[ii].abyBSSID,
+								 pCurr->abyBSSID)) {
 						uSameBssidNum++;
 					}
 				}

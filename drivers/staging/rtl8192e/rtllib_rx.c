@@ -957,16 +957,15 @@ static void rtllib_rx_extract_addr(struct rtllib_device *ieee,
 static int rtllib_rx_data_filter(struct rtllib_device *ieee, u16 fc,
 				 u8 *dst, u8 *src, u8 *bssid, u8 *addr2)
 {
-	u8 zero_addr[ETH_ALEN] = {0};
 	u8 type, stype;
 
 	type = WLAN_FC_GET_TYPE(fc);
 	stype = WLAN_FC_GET_STYPE(fc);
 
 	/* Filter frames from different BSS */
-	if (((fc & RTLLIB_FCTL_DSTODS) != RTLLIB_FCTL_DSTODS)
-		&& (compare_ether_addr(ieee->current_network.bssid, bssid) != 0)
-		&& memcmp(ieee->current_network.bssid, zero_addr, ETH_ALEN)) {
+	if (((fc & RTLLIB_FCTL_DSTODS) != RTLLIB_FCTL_DSTODS) &&
+	    !ether_addr_equal(ieee->current_network.bssid, bssid) &&
+	    !is_zero_ether_addr(ieee->current_network.bssid)) {
 		return -1;
 	}
 
@@ -974,8 +973,8 @@ static int rtllib_rx_data_filter(struct rtllib_device *ieee, u16 fc,
 	if (ieee->IntelPromiscuousModeInfo.bPromiscuousOn  &&
 		ieee->IntelPromiscuousModeInfo.bFilterSourceStationFrame) {
 		if ((fc & RTLLIB_FCTL_TODS) && !(fc & RTLLIB_FCTL_FROMDS) &&
-			(compare_ether_addr(dst, ieee->current_network.bssid) != 0) &&
-			(compare_ether_addr(bssid, ieee->current_network.bssid) == 0)) {
+		    !ether_addr_equal(dst, ieee->current_network.bssid) &&
+		    ether_addr_equal(bssid, ieee->current_network.bssid)) {
 			return -1;
 		}
 	}
@@ -1275,7 +1274,7 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	/*Filter pkt not to me*/
 	multicast = is_multicast_ether_addr(hdr->addr1);
 	unicast = !multicast;
-	if (unicast && (compare_ether_addr(dev->dev_addr, hdr->addr1) != 0)) {
+	if (unicast && !ether_addr_equal(dev->dev_addr, hdr->addr1)) {
 		if (ieee->bNetPromiscuousMode)
 			bToOtherSTA = true;
 		else
