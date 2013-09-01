@@ -284,6 +284,7 @@ struct ath10k {
 	struct device *dev;
 	u8 mac_addr[ETH_ALEN];
 
+	u32 chip_id;
 	u32 target_version;
 	u8 fw_version_major;
 	u32 fw_version_minor;
@@ -403,7 +404,7 @@ void ath10k_core_destroy(struct ath10k *ar);
 
 int ath10k_core_start(struct ath10k *ar);
 void ath10k_core_stop(struct ath10k *ar);
-int ath10k_core_register(struct ath10k *ar);
+int ath10k_core_register(struct ath10k *ar, u32 chip_id);
 void ath10k_core_unregister(struct ath10k *ar);
 
 #endif /* _CORE_H_ */

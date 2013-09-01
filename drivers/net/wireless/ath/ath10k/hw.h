@@ -26,8 +26,12 @@
 #define SUPPORTED_FW_RELEASE	0
 #define SUPPORTED_FW_BUILD	636
 
+/* QCA988X 1.0 definitions (unsupported) */
+#define QCA988X_HW_1_0_CHIP_ID_REV	0x0
+
 /* QCA988X 2.0 definitions */
 #define QCA988X_HW_2_0_VERSION		0x4100016c
+#define QCA988X_HW_2_0_CHIP_ID_REV	0x2
 #define QCA988X_HW_2_0_FW_DIR		"ath10k/QCA988X/hw2.0"
 #define QCA988X_HW_2_0_FW_FILE		"firmware.bin"
 #define QCA988X_HW_2_0_OTP_FILE		"otp.bin"
@@ -163,6 +167,10 @@ enum ath10k_mcast2ucast_mode {
 #define SOC_LPO_CAL_OFFSET			0x000000e0
 #define SOC_LPO_CAL_ENABLE_LSB			20
 #define SOC_LPO_CAL_ENABLE_MASK			0x00100000
+
+#define SOC_CHIP_ID_ADDRESS			0x000000ec
+#define SOC_CHIP_ID_REV_LSB			8
+#define SOC_CHIP_ID_REV_MASK			0x00000f00
 
 #define WLAN_RESET_CONTROL_COLD_RST_MASK	0x00000008
 #define WLAN_RESET_CONTROL_WARM_RST_MASK	0x00000004

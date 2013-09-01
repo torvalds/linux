@@ -2390,7 +2390,7 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 	int ret = 0;
 	struct ath10k *ar;
 	struct ath10k_pci *ar_pci;
-	u32 lcr_val;
+	u32 lcr_val, chip_id;
 
 	ath10k_dbg(ATH10K_DBG_PCI, "%s\n", __func__);
 
@@ -2492,7 +2492,18 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 
 	spin_lock_init(&ar_pci->ce_lock);
 
-	ret = ath10k_core_register(ar);
+	ret = ath10k_do_pci_wake(ar);
+	if (ret) {
+		ath10k_err("Failed to get chip id: %d\n", ret);
+		return ret;
+	}
+
+	chip_id = ath10k_pci_read32(ar,
+				    RTC_SOC_BASE_ADDRESS + SOC_CHIP_ID_ADDRESS);
+
+	ath10k_do_pci_sleep(ar);
+
+	ret = ath10k_core_register(ar, chip_id);
 	if (ret) {
 		ath10k_err("could not register driver core (%d)\n", ret);
 		goto err_iomap;
