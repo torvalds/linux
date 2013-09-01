@@ -270,6 +270,13 @@ bool is_power_of_2(unsigned long n)
 	return (n != 0 && ((n & (n - 1)) == 0));
 }
 
+static inline unsigned next_pow2(unsigned x)
+{
+	if (!x)
+		return 1;
+	return 1ULL << (32 - __builtin_clz(x - 1));
+}
+
 size_t hex_width(u64 v);
 int hex2u64(const char *ptr, u64 *val);
 
@@ -281,4 +288,11 @@ void dump_stack(void);
 extern unsigned int page_size;
 
 void get_term_dimensions(struct winsize *ws);
+
+struct parse_tag {
+	char tag;
+	int mult;
+};
+
+unsigned long parse_tag_value(const char *str, struct parse_tag *tags);
 #endif /* GIT_COMPAT_UTIL_H */

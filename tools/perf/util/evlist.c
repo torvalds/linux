@@ -687,14 +687,33 @@ static size_t perf_evlist__mmap_size(unsigned long pages)
 int perf_evlist__parse_mmap_pages(const struct option *opt, const char *str,
 				  int unset __maybe_unused)
 {
-	unsigned int pages, *mmap_pages = opt->value;
+	unsigned int pages, val, *mmap_pages = opt->value;
 	size_t size;
-	char *eptr;
+	static struct parse_tag tags[] = {
+		{ .tag  = 'B', .mult = 1       },
+		{ .tag  = 'K', .mult = 1 << 10 },
+		{ .tag  = 'M', .mult = 1 << 20 },
+		{ .tag  = 'G', .mult = 1 << 30 },
+		{ .tag  = 0 },
+	};
 
-	pages = strtoul(str, &eptr, 10);
-	if (*eptr != '\0') {
-		pr_err("failed to parse --mmap_pages/-m value\n");
-		return -1;
+	val = parse_tag_value(str, tags);
+	if (val != (unsigned int) -1) {
+		/* we got file size value */
+		pages = PERF_ALIGN(val, page_size) / page_size;
+		if (!is_power_of_2(pages)) {
+			pages = next_pow2(pages);
+			pr_info("rounding mmap pages size to %u (%u pages)\n",
+				pages * page_size, pages);
+		}
+	} else {
+		/* we got pages count value */
+		char *eptr;
+		pages = strtoul(str, &eptr, 10);
+		if (*eptr != '\0') {
+			pr_err("failed to parse --mmap_pages/-m value\n");
+			return -1;
+		}
 	}
 
 	size = perf_evlist__mmap_size(pages);
@@ -738,6 +757,7 @@ int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages,
 
 	evlist->overwrite = overwrite;
 	evlist->mmap_len = perf_evlist__mmap_size(pages);
+	pr_debug("mmap size %luB\n", evlist->mmap_len);
 	mask = evlist->mmap_len - page_size - 1;
 
 	list_for_each_entry(evsel, &evlist->entries, node) {
