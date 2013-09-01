@@ -157,6 +157,26 @@ config REGULATOR_DA9055
 	  This driver can also be built as a module. If so, the module
 	  will be called da9055-regulator.
 
+config REGULATOR_DA9063
+	tristate "Dialog Semiconductor DA9063 regulators"
+	depends on MFD_DA9063
+	help
+	  Say y here to support the BUCKs and LDOs regulators found on
+	  DA9063 PMICs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called da9063-regulator.
+
+config REGULATOR_DA9210
+	tristate "Dialog Semiconductor DA9210 regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say y here to support for the Dialog Semiconductor DA9210.
+	  The DA9210 is a multi-phase synchronous step down
+	  converter 12A DC-DC Buck controlled through an I2C
+	  interface.
+
 config REGULATOR_DBX500_PRCMU
 	bool
 
