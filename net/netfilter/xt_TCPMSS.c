@@ -60,7 +60,7 @@ tcpmss_mangle_packet(struct sk_buff *skb,
 
 	/* This is a fragment, no TCP header is available */
 	if (par->fragoff != 0)
-		return XT_CONTINUE;
+		return 0;
 
 	if (!skb_make_writable(skb, skb->len))
 		return -1;
