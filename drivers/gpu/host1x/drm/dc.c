@@ -235,7 +235,7 @@ void tegra_dc_cancel_page_flip(struct drm_crtc *crtc, struct drm_file *file)
 }
 
 static int tegra_dc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
-			      struct drm_pending_vblank_event *event)
+			      struct drm_pending_vblank_event *event, uint32_t page_flip_flags)
 {
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 	struct drm_device *drm = crtc->dev;
