@@ -797,7 +797,6 @@ static int qlcnic_83xx_idc_init_state(struct qlcnic_adapter *adapter)
 			ret = qlcnic_83xx_idc_restart_hw(adapter, 1);
 	} else {
 		ret = qlcnic_83xx_idc_check_timeout(adapter, timeout);
-		return ret;
 	}
 
 	return ret;
@@ -1268,31 +1267,33 @@ static int qlcnic_83xx_copy_bootloader(struct qlcnic_adapter *adapter)
 
 static int qlcnic_83xx_copy_fw_file(struct qlcnic_adapter *adapter)
 {
+	struct qlc_83xx_fw_info *fw_info = adapter->ahw->fw_info;
+	const struct firmware *fw = fw_info->fw;
 	u32 dest, *p_cache;
-	u64 addr;
+	int i, ret = -EIO;
 	u8 data[16];
 	size_t size;
-	int i, ret = -EIO;
+	u64 addr;
 
 	dest = QLCRDX(adapter->ahw, QLCNIC_FW_IMAGE_ADDR);
-	size = (adapter->ahw->fw_info.fw->size & ~0xF);
-	p_cache = (u32 *)adapter->ahw->fw_info.fw->data;
+	size = (fw->size & ~0xF);
+	p_cache = (u32 *)fw->data;
 	addr = (u64)dest;
 
 	ret = qlcnic_83xx_ms_mem_write128(adapter, addr,
 					  (u32 *)p_cache, size / 16);
 	if (ret) {
 		dev_err(&adapter->pdev->dev, "MS memory write failed\n");
-		release_firmware(adapter->ahw->fw_info.fw);
-		adapter->ahw->fw_info.fw = NULL;
+		release_firmware(fw);
+		fw_info->fw = NULL;
 		return -EIO;
 	}
 
 	/* alignment check */
-	if (adapter->ahw->fw_info.fw->size & 0xF) {
+	if (fw->size & 0xF) {
 		addr = dest + size;
-		for (i = 0; i < (adapter->ahw->fw_info.fw->size & 0xF); i++)
-			data[i] = adapter->ahw->fw_info.fw->data[size + i];
+		for (i = 0; i < (fw->size & 0xF); i++)
+			data[i] = fw->data[size + i];
 		for (; i < 16; i++)
 			data[i] = 0;
 		ret = qlcnic_83xx_ms_mem_write128(adapter, addr,
@@ -1300,13 +1301,13 @@ static int qlcnic_83xx_copy_fw_file(struct qlcnic_adapter *adapter)
 		if (ret) {
 			dev_err(&adapter->pdev->dev,
 				"MS memory write failed\n");
-			release_firmware(adapter->ahw->fw_info.fw);
-			adapter->ahw->fw_info.fw = NULL;
+			release_firmware(fw);
+			fw_info->fw = NULL;
 			return -EIO;
 		}
 	}
-	release_firmware(adapter->ahw->fw_info.fw);
-	adapter->ahw->fw_info.fw = NULL;
+	release_firmware(fw);
+	fw_info->fw = NULL;
 
 	return 0;
 }
@@ -1950,35 +1951,12 @@ static void qlcnic_83xx_init_hw(struct qlcnic_adapter *p_dev)
 		dev_err(&p_dev->pdev->dev, "%s: failed\n", __func__);
 }
 
-static inline void qlcnic_83xx_get_fw_file_name(struct qlcnic_adapter *adapter,
-						char *file_name)
-{
-	struct pci_dev *pdev = adapter->pdev;
-
-	memset(file_name, 0, QLC_FW_FILE_NAME_LEN);
-
-	switch (pdev->device) {
-	case PCI_DEVICE_ID_QLOGIC_QLE834X:
-		strncpy(file_name, QLC_83XX_FW_FILE_NAME,
-			QLC_FW_FILE_NAME_LEN);
-		break;
-	case PCI_DEVICE_ID_QLOGIC_QLE844X:
-		strncpy(file_name, QLC_84XX_FW_FILE_NAME,
-			QLC_FW_FILE_NAME_LEN);
-		break;
-	default:
-		dev_err(&pdev->dev, "%s: Invalid device id\n",
-			__func__);
-	}
-}
-
 static int qlcnic_83xx_load_fw_image_from_host(struct qlcnic_adapter *adapter)
 {
-	char fw_file_name[QLC_FW_FILE_NAME_LEN];
+	struct qlc_83xx_fw_info *fw_info = adapter->ahw->fw_info;
 	int err = -EIO;
 
-	qlcnic_83xx_get_fw_file_name(adapter, fw_file_name);
-	if (request_firmware(&adapter->ahw->fw_info.fw, fw_file_name,
+	if (request_firmware(&fw_info->fw, fw_info->fw_file_name,
 			     &(adapter->pdev->dev))) {
 		dev_err(&adapter->pdev->dev,
 			"No file FW image, loading flash FW image.\n");
@@ -2025,36 +2003,6 @@ static int qlcnic_83xx_restart_hw(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
-/**
-* qlcnic_83xx_config_default_opmode
-*
-* @adapter: adapter structure
-*
-* Configure default driver operating mode
-*
-* Returns: Error code or Success(0)
-* */
-int qlcnic_83xx_config_default_opmode(struct qlcnic_adapter *adapter)
-{
-	u32 op_mode;
-	struct qlcnic_hardware_context *ahw = adapter->ahw;
-
-	qlcnic_get_func_no(adapter);
-	op_mode = QLCRDX(ahw, QLC_83XX_DRV_OP_MODE);
-
-	if (test_bit(__QLCNIC_SRIOV_CAPABLE, &adapter->state))
-		op_mode = QLC_83XX_DEFAULT_OPMODE;
-
-	if (op_mode == QLC_83XX_DEFAULT_OPMODE) {
-		adapter->nic_ops->init_driver = qlcnic_83xx_init_default_driver;
-		ahw->idc.state_entry = qlcnic_83xx_idc_ready_state_entry;
-	} else {
-		return -EIO;
-	}
-
-	return 0;
-}
-
 int qlcnic_83xx_get_nic_configuration(struct qlcnic_adapter *adapter)
 {
 	int err;
@@ -2074,26 +2022,26 @@ int qlcnic_83xx_get_nic_configuration(struct qlcnic_adapter *adapter)
 	ahw->max_mac_filters = nic_info.max_mac_filters;
 	ahw->max_mtu = nic_info.max_mtu;
 
-	/* VNIC mode is detected by BIT_23 in capabilities. This bit is also
-	 * set in case device is SRIOV capable. VNIC and SRIOV are mutually
-	 * exclusive. So in case of sriov capable device load driver in
-	 * default mode
+	/* eSwitch capability indicates vNIC mode.
+	 * vNIC and SRIOV are mutually exclusive operational modes.
+	 * If SR-IOV capability is detected, SR-IOV physical function
+	 * will get initialized in default mode.
+	 * SR-IOV virtual function initialization follows a
+	 * different code path and opmode.
+	 * SRIOV mode has precedence over vNIC mode.
 	 */
-	if (test_bit(__QLCNIC_SRIOV_CAPABLE, &adapter->state)) {
-		ahw->nic_mode = QLC_83XX_DEFAULT_MODE;
-		return ahw->nic_mode;
-	}
+	if (test_bit(__QLCNIC_SRIOV_CAPABLE, &adapter->state))
+		return QLC_83XX_DEFAULT_OPMODE;
 
-	if (ahw->capabilities & BIT_23)
-		ahw->nic_mode = QLC_83XX_VIRTUAL_NIC_MODE;
-	else
-		ahw->nic_mode = QLC_83XX_DEFAULT_MODE;
+	if (ahw->capabilities & QLC_83XX_ESWITCH_CAPABILITY)
+		return QLC_83XX_VIRTUAL_NIC_MODE;
 
-	return ahw->nic_mode;
+	return QLC_83XX_DEFAULT_OPMODE;
 }
 
 int qlcnic_83xx_configure_opmode(struct qlcnic_adapter *adapter)
 {
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	int ret;
 
 	ret = qlcnic_83xx_get_nic_configuration(adapter);
@@ -2101,11 +2049,16 @@ int qlcnic_83xx_configure_opmode(struct qlcnic_adapter *adapter)
 		return -EIO;
 
 	if (ret == QLC_83XX_VIRTUAL_NIC_MODE) {
+		ahw->nic_mode = QLC_83XX_VIRTUAL_NIC_MODE;
 		if (qlcnic_83xx_config_vnic_opmode(adapter))
 			return -EIO;
-	} else if (ret == QLC_83XX_DEFAULT_MODE) {
-		if (qlcnic_83xx_config_default_opmode(adapter))
-			return -EIO;
+
+	} else if (ret == QLC_83XX_DEFAULT_OPMODE) {
+		ahw->nic_mode = QLC_83XX_DEFAULT_MODE;
+		adapter->nic_ops->init_driver = qlcnic_83xx_init_default_driver;
+		ahw->idc.state_entry = qlcnic_83xx_idc_ready_state_entry;
+	} else {
+		return -EIO;
 	}
 
 	return 0;
@@ -2174,6 +2127,39 @@ static void qlcnic_83xx_clear_function_resources(struct qlcnic_adapter *adapter)
 	}
 }
 
+static int qlcnic_83xx_get_fw_info(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct pci_dev *pdev = adapter->pdev;
+	struct qlc_83xx_fw_info *fw_info;
+	int err = 0;
+
+	ahw->fw_info = kzalloc(sizeof(*fw_info), GFP_KERNEL);
+	if (!ahw->fw_info) {
+		err = -ENOMEM;
+	} else {
+		fw_info = ahw->fw_info;
+		switch (pdev->device) {
+		case PCI_DEVICE_ID_QLOGIC_QLE834X:
+			strncpy(fw_info->fw_file_name, QLC_83XX_FW_FILE_NAME,
+				QLC_FW_FILE_NAME_LEN);
+			break;
+		case PCI_DEVICE_ID_QLOGIC_QLE844X:
+			strncpy(fw_info->fw_file_name, QLC_84XX_FW_FILE_NAME,
+				QLC_FW_FILE_NAME_LEN);
+			break;
+		default:
+			dev_err(&pdev->dev, "%s: Invalid device id\n",
+				__func__);
+			err = -EINVAL;
+			break;
+		}
+	}
+
+	return err;
+}
+
+
 int qlcnic_83xx_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
@@ -2199,9 +2185,13 @@ int qlcnic_83xx_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 	if (!qlcnic_83xx_read_flash_descriptor_table(adapter))
 		qlcnic_83xx_read_flash_mfg_id(adapter);
 
-	err = qlcnic_83xx_idc_init(adapter);
+	err = qlcnic_83xx_get_fw_info(adapter);
 	if (err)
 		goto detach_mbx;
+
+	err = qlcnic_83xx_idc_init(adapter);
+	if (err)
+		goto clear_fw_info;
 
 	err = qlcnic_setup_intr(adapter, 0, 0);
 	if (err) {
@@ -2243,9 +2233,67 @@ disable_mbx_intr:
 disable_intr:
 	qlcnic_teardown_intr(adapter);
 
+clear_fw_info:
+	kfree(ahw->fw_info);
+
 detach_mbx:
 	qlcnic_83xx_detach_mailbox_work(adapter);
 	qlcnic_83xx_free_mailbox(ahw->mailbox);
 exit:
 	return err;
+}
+
+void qlcnic_83xx_aer_stop_poll_work(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct qlc_83xx_idc *idc = &ahw->idc;
+
+	clear_bit(QLC_83XX_MBX_READY, &idc->status);
+	cancel_delayed_work_sync(&adapter->fw_work);
+
+	if (ahw->nic_mode == QLC_83XX_VIRTUAL_NIC_MODE)
+		qlcnic_83xx_disable_vnic_mode(adapter, 1);
+
+	qlcnic_83xx_idc_detach_driver(adapter);
+	qlcnic_83xx_register_nic_idc_func(adapter, 0);
+
+	cancel_delayed_work_sync(&adapter->idc_aen_work);
+}
+
+int qlcnic_83xx_aer_reset(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct qlc_83xx_idc *idc = &ahw->idc;
+	int ret = 0;
+	u32 owner;
+
+	/* Mark the previous IDC state as NEED_RESET so
+	 * that state_entry() will perform the reattachment
+	 * and bringup the device
+	 */
+	idc->prev_state = QLC_83XX_IDC_DEV_NEED_RESET;
+	owner = qlcnic_83xx_idc_find_reset_owner_id(adapter);
+	if (ahw->pci_func == owner) {
+		ret = qlcnic_83xx_restart_hw(adapter);
+		if (ret < 0)
+			return ret;
+		qlcnic_83xx_idc_clear_registers(adapter, 0);
+	}
+
+	ret = idc->state_entry(adapter);
+	return ret;
+}
+
+void qlcnic_83xx_aer_start_poll_work(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct qlc_83xx_idc *idc = &ahw->idc;
+	u32 owner;
+
+	idc->prev_state = QLC_83XX_IDC_DEV_READY;
+	owner = qlcnic_83xx_idc_find_reset_owner_id(adapter);
+	if (ahw->pci_func == owner)
+		qlcnic_83xx_idc_enter_ready_state(adapter, 0);
+
+	qlcnic_schedule_work(adapter, qlcnic_83xx_idc_poll_dev_state, 0);
 }

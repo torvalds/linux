@@ -1183,9 +1183,18 @@ static int qlcnic_sriov_pf_get_acl_cmd(struct qlcnic_bc_trans *trans,
 	struct qlcnic_vf_info *vf = trans->vf;
 	struct qlcnic_vport *vp = vf->vp;
 	u8 cmd_op, mode = vp->vlan_mode;
+	struct qlcnic_adapter *adapter;
+
+	adapter = vf->adapter;
 
 	cmd_op = trans->req_hdr->cmd_op;
 	cmd->rsp.arg[0] |= 1 << 25;
+
+	/* For 84xx adapter in case of PVID , PFD should send vlan mode as
+	 * QLC_NO_VLAN_MODE to VFD which is zero in mailbox response
+	 */
+	if (qlcnic_84xx_check(adapter) && mode == QLC_PVID_MODE)
+		return 0;
 
 	switch (mode) {
 	case QLC_GUEST_VLAN_MODE:
@@ -1772,8 +1781,8 @@ int qlcnic_sriov_set_vf_vlan(struct net_device *netdev, int vf,
 	return 0;
 }
 
-static inline __u32 qlcnic_sriov_get_vf_vlan(struct qlcnic_adapter *adapter,
-					     struct qlcnic_vport *vp, int vf)
+static __u32 qlcnic_sriov_get_vf_vlan(struct qlcnic_adapter *adapter,
+				      struct qlcnic_vport *vp, int vf)
 {
 	__u32 vlan = 0;
 

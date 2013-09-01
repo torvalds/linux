@@ -540,6 +540,9 @@ static struct qlcnic_hardware_ops qlcnic_hw_ops = {
 	.set_mac_filter_count		= qlcnic_82xx_set_mac_filter_count,
 	.free_mac_list			= qlcnic_82xx_free_mac_list,
 	.read_phys_port_id		= qlcnic_82xx_read_phys_port_id,
+	.io_error_detected		= qlcnic_82xx_io_error_detected,
+	.io_slot_reset			= qlcnic_82xx_io_slot_reset,
+	.io_resume			= qlcnic_82xx_io_resume,
 };
 
 static void qlcnic_get_multiq_capability(struct qlcnic_adapter *adapter)
@@ -793,6 +796,23 @@ static int qlcnic_get_act_pci_func(struct qlcnic_adapter *adapter)
 	return ret;
 }
 
+static bool qlcnic_port_eswitch_cfg_capability(struct qlcnic_adapter *adapter)
+{
+	bool ret = false;
+
+	if (qlcnic_84xx_check(adapter)) {
+		ret = true;
+	} else if (qlcnic_83xx_check(adapter)) {
+		if (adapter->ahw->extra_capability[0] &
+		    QLCNIC_FW_CAPABILITY_2_PER_PORT_ESWITCH_CFG)
+			ret = true;
+		else
+			ret = false;
+	}
+
+	return ret;
+}
+
 int qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_pci_info *pci_info;
@@ -836,18 +856,30 @@ int qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
 		    (pci_info[i].type != QLCNIC_TYPE_NIC))
 			continue;
 
+		if (qlcnic_port_eswitch_cfg_capability(adapter)) {
+			if (!qlcnic_83xx_enable_port_eswitch(adapter, pfn))
+				adapter->npars[j].eswitch_status = true;
+			else
+				continue;
+		} else {
+			adapter->npars[j].eswitch_status = true;
+		}
+
 		adapter->npars[j].pci_func = pfn;
 		adapter->npars[j].active = (u8)pci_info[i].active;
 		adapter->npars[j].type = (u8)pci_info[i].type;
 		adapter->npars[j].phy_port = (u8)pci_info[i].default_port;
 		adapter->npars[j].min_bw = pci_info[i].tx_min_bw;
 		adapter->npars[j].max_bw = pci_info[i].tx_max_bw;
+
 		j++;
 	}
 
-	for (i = 0; i < QLCNIC_NIU_MAX_XG_PORTS; i++) {
-		adapter->eswitch[i].flags |= QLCNIC_SWITCH_ENABLE;
-		if (qlcnic_83xx_check(adapter))
+	if (qlcnic_82xx_check(adapter)) {
+		for (i = 0; i < QLCNIC_NIU_MAX_XG_PORTS; i++)
+			adapter->eswitch[i].flags |= QLCNIC_SWITCH_ENABLE;
+	} else if (!qlcnic_port_eswitch_cfg_capability(adapter)) {
+		for (i = 0; i < QLCNIC_NIU_MAX_XG_PORTS; i++)
 			qlcnic_enable_eswitch(adapter, i, 1);
 	}
 
@@ -969,8 +1001,8 @@ static int qlcnic_setup_pci_map(struct pci_dev *pdev,
 	return 0;
 }
 
-static inline bool qlcnic_validate_subsystem_id(struct qlcnic_adapter *adapter,
-						int index)
+static bool qlcnic_validate_subsystem_id(struct qlcnic_adapter *adapter,
+					 int index)
 {
 	struct pci_dev *pdev = adapter->pdev;
 	unsigned short subsystem_vendor;
@@ -1272,6 +1304,9 @@ int qlcnic_set_default_offload_settings(struct qlcnic_adapter *adapter)
 		return 0;
 
 	for (i = 0; i < adapter->ahw->act_pci_func; i++) {
+		if (!adapter->npars[i].eswitch_status)
+			continue;
+
 		memset(&esw_cfg, 0, sizeof(struct qlcnic_esw_func_cfg));
 		esw_cfg.pci_func = adapter->npars[i].pci_func;
 		esw_cfg.mac_override = BIT_0;
@@ -1334,6 +1369,9 @@ int qlcnic_reset_npar_config(struct qlcnic_adapter *adapter)
 	for (i = 0; i < adapter->ahw->act_pci_func; i++) {
 		npar = &adapter->npars[i];
 		pci_func = npar->pci_func;
+		if (!adapter->npars[i].eswitch_status)
+			continue;
+
 		memset(&nic_info, 0, sizeof(struct qlcnic_info));
 		err = qlcnic_get_nic_info(adapter, &nic_info, pci_func);
 		if (err)
@@ -2399,6 +2437,7 @@ static void qlcnic_remove(struct pci_dev *pdev)
 		qlcnic_83xx_free_mbx_intr(adapter);
 		qlcnic_83xx_detach_mailbox_work(adapter);
 		qlcnic_83xx_free_mailbox(ahw->mailbox);
+		kfree(ahw->fw_info);
 	}
 
 	qlcnic_detach(adapter);
@@ -3045,7 +3084,7 @@ skip_ack_check:
 		qlcnic_api_unlock(adapter);
 
 		rtnl_lock();
-		if (adapter->ahw->fw_dump.enable &&
+		if (qlcnic_check_fw_dump_state(adapter) &&
 		    (adapter->flags & QLCNIC_FW_RESET_OWNER)) {
 			QLCDB(adapter, DRV, "Take FW dump\n");
 			qlcnic_dump_fw(adapter);
@@ -3431,19 +3470,6 @@ static int qlcnic_attach_func(struct pci_dev *pdev)
 		return err;
 	}
 
-	if (qlcnic_83xx_check(adapter)) {
-		/* register for NIC IDC AEN Events */
-		qlcnic_83xx_register_nic_idc_func(adapter, 1);
-		err = qlcnic_83xx_setup_mbx_intr(adapter);
-		if (err) {
-			dev_err(&adapter->pdev->dev,
-				"failed to setup mbx interrupt\n");
-			qlcnic_clr_all_drv_state(adapter, 1);
-			clear_bit(__QLCNIC_AER, &adapter->state);
-			goto done;
-		}
-	}
-
 	if (netif_running(netdev)) {
 		err = qlcnic_attach(adapter);
 		if (err) {
@@ -3464,8 +3490,8 @@ static int qlcnic_attach_func(struct pci_dev *pdev)
 	return err;
 }
 
-static pci_ers_result_t qlcnic_io_error_detected(struct pci_dev *pdev,
-						pci_channel_state_t state)
+pci_ers_result_t qlcnic_82xx_io_error_detected(struct pci_dev *pdev,
+					       pci_channel_state_t state)
 {
 	struct qlcnic_adapter *adapter = pci_get_drvdata(pdev);
 	struct net_device *netdev = adapter->netdev;
@@ -3484,12 +3510,6 @@ static pci_ers_result_t qlcnic_io_error_detected(struct pci_dev *pdev,
 	if (netif_running(netdev))
 		qlcnic_down(adapter, netdev);
 
-	if (qlcnic_83xx_check(adapter)) {
-		qlcnic_83xx_free_mbx_intr(adapter);
-		qlcnic_83xx_register_nic_idc_func(adapter, 0);
-		cancel_delayed_work_sync(&adapter->idc_aen_work);
-	}
-
 	qlcnic_detach(adapter);
 	qlcnic_teardown_intr(adapter);
 
@@ -3501,13 +3521,13 @@ static pci_ers_result_t qlcnic_io_error_detected(struct pci_dev *pdev,
 	return PCI_ERS_RESULT_NEED_RESET;
 }
 
-static pci_ers_result_t qlcnic_io_slot_reset(struct pci_dev *pdev)
+pci_ers_result_t qlcnic_82xx_io_slot_reset(struct pci_dev *pdev)
 {
 	return qlcnic_attach_func(pdev) ? PCI_ERS_RESULT_DISCONNECT :
 				PCI_ERS_RESULT_RECOVERED;
 }
 
-static void qlcnic_io_resume(struct pci_dev *pdev)
+void qlcnic_82xx_io_resume(struct pci_dev *pdev)
 {
 	u32 state;
 	struct qlcnic_adapter *adapter = pci_get_drvdata(pdev);
@@ -3517,8 +3537,47 @@ static void qlcnic_io_resume(struct pci_dev *pdev)
 	if (state == QLCNIC_DEV_READY && test_and_clear_bit(__QLCNIC_AER,
 							    &adapter->state))
 		qlcnic_schedule_work(adapter, qlcnic_fw_poll_work,
-						FW_POLL_DELAY);
+				     FW_POLL_DELAY);
 }
+
+static pci_ers_result_t qlcnic_io_error_detected(struct pci_dev *pdev,
+						 pci_channel_state_t state)
+{
+	struct qlcnic_adapter *adapter = pci_get_drvdata(pdev);
+	struct qlcnic_hardware_ops *hw_ops = adapter->ahw->hw_ops;
+
+	if (hw_ops->io_error_detected) {
+		return hw_ops->io_error_detected(pdev, state);
+	} else {
+		dev_err(&pdev->dev, "AER error_detected handler not registered.\n");
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+}
+
+static pci_ers_result_t qlcnic_io_slot_reset(struct pci_dev *pdev)
+{
+	struct qlcnic_adapter *adapter = pci_get_drvdata(pdev);
+	struct qlcnic_hardware_ops *hw_ops = adapter->ahw->hw_ops;
+
+	if (hw_ops->io_slot_reset) {
+		return hw_ops->io_slot_reset(pdev);
+	} else {
+		dev_err(&pdev->dev, "AER slot_reset handler not registered.\n");
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+}
+
+static void qlcnic_io_resume(struct pci_dev *pdev)
+{
+	struct qlcnic_adapter *adapter = pci_get_drvdata(pdev);
+	struct qlcnic_hardware_ops *hw_ops = adapter->ahw->hw_ops;
+
+	if (hw_ops->io_resume)
+		hw_ops->io_resume(pdev);
+	else
+		dev_err(&pdev->dev, "AER resume handler not registered.\n");
+}
+
 
 static int
 qlcnicvf_start_firmware(struct qlcnic_adapter *adapter)

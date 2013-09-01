@@ -38,8 +38,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 3
-#define _QLCNIC_LINUX_SUBVERSION 49
-#define QLCNIC_LINUX_VERSIONID  "5.3.49"
+#define _QLCNIC_LINUX_SUBVERSION 50
+#define QLCNIC_LINUX_VERSIONID  "5.3.50"
 #define QLCNIC_DRV_IDC_VER  0x01
 #define QLCNIC_DRIVER_VERSION  ((_QLCNIC_LINUX_MAJOR << 16) |\
 		 (_QLCNIC_LINUX_MINOR << 8) | (_QLCNIC_LINUX_SUBVERSION))
@@ -392,7 +392,7 @@ struct qlcnic_dump_template_hdr {
 
 struct qlcnic_fw_dump {
 	u8	clr;	/* flag to indicate if dump is cleared */
-	u8	enable; /* enable/disable dump */
+	bool	enable; /* enable/disable dump */
 	u32	size;	/* total size of the dump */
 	void	*data;	/* dump data area */
 	struct	qlcnic_dump_template_hdr *tmpl_hdr;
@@ -463,7 +463,7 @@ struct qlcnic_hardware_context {
 	struct qlcnic_fdt fdt;
 	struct qlc_83xx_reset reset;
 	struct qlc_83xx_idc idc;
-	struct qlc_83xx_fw_info fw_info;
+	struct qlc_83xx_fw_info *fw_info;
 	struct qlcnic_intrpt_config *intr_tbl;
 	struct qlcnic_sriov *sriov;
 	u32 *reg_tbl;
@@ -837,6 +837,7 @@ struct qlcnic_mac_list_s {
 #define QLCNIC_FW_CAP2_HW_LRO_IPV6		BIT_3
 #define QLCNIC_FW_CAPABILITY_SET_DRV_VER	BIT_5
 #define QLCNIC_FW_CAPABILITY_2_BEACON		BIT_7
+#define QLCNIC_FW_CAPABILITY_2_PER_PORT_ESWITCH_CFG	BIT_8
 
 /* module types */
 #define LINKEVENT_MODULE_NOT_PRESENT			1
@@ -1184,6 +1185,7 @@ struct qlcnic_pci_info {
 };
 
 struct qlcnic_npar_info {
+	bool	eswitch_status;
 	u16	pvid;
 	u16	min_bw;
 	u16	max_bw;
@@ -1403,7 +1405,6 @@ struct qlcnic_esw_statistics {
 	struct __qlcnic_esw_statistics tx;
 };
 
-#define QLCNIC_DUMP_MASK_DEF		0x1f
 #define QLCNIC_FORCE_FW_DUMP_KEY	0xdeadfeed
 #define QLCNIC_ENABLE_FW_DUMP		0xaddfeed
 #define QLCNIC_DISABLE_FW_DUMP		0xbadfeed
@@ -1478,6 +1479,12 @@ int qlcnic_wol_supported(struct qlcnic_adapter *adapter);
 void qlcnic_prune_lb_filters(struct qlcnic_adapter *adapter);
 void qlcnic_delete_lb_filters(struct qlcnic_adapter *adapter);
 int qlcnic_dump_fw(struct qlcnic_adapter *);
+int qlcnic_enable_fw_dump_state(struct qlcnic_adapter *);
+bool qlcnic_check_fw_dump_state(struct qlcnic_adapter *);
+pci_ers_result_t qlcnic_82xx_io_error_detected(struct pci_dev *,
+					       pci_channel_state_t);
+pci_ers_result_t qlcnic_82xx_io_slot_reset(struct pci_dev *);
+void qlcnic_82xx_io_resume(struct pci_dev *);
 
 /* Functions from qlcnic_init.c */
 void qlcnic_schedule_work(struct qlcnic_adapter *, work_func_t, int);
@@ -1723,6 +1730,10 @@ struct qlcnic_hardware_ops {
 	void (*set_mac_filter_count) (struct qlcnic_adapter *);
 	void (*free_mac_list) (struct qlcnic_adapter *);
 	int (*read_phys_port_id) (struct qlcnic_adapter *);
+	pci_ers_result_t (*io_error_detected) (struct pci_dev *,
+					       pci_channel_state_t);
+	pci_ers_result_t (*io_slot_reset) (struct pci_dev *);
+	void (*io_resume) (struct pci_dev *);
 };
 
 extern struct qlcnic_nic_template qlcnic_vf_ops;
@@ -2067,6 +2078,14 @@ static inline bool qlcnic_82xx_check(struct qlcnic_adapter *adapter)
 {
 	unsigned short device = adapter->pdev->device;
 	return (device == PCI_DEVICE_ID_QLOGIC_QLE824X) ? true : false;
+}
+
+static inline bool qlcnic_84xx_check(struct qlcnic_adapter *adapter)
+{
+	unsigned short device = adapter->pdev->device;
+
+	return ((device == PCI_DEVICE_ID_QLOGIC_QLE844X) ||
+		(device == PCI_DEVICE_ID_QLOGIC_VF_QLE844X)) ? true : false;
 }
 
 static inline bool qlcnic_83xx_check(struct qlcnic_adapter *adapter)

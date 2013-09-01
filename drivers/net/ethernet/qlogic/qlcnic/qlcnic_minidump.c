@@ -1082,14 +1082,17 @@ flash_temp:
 	}
 
 	tmpl_hdr = ahw->fw_dump.tmpl_hdr;
-	tmpl_hdr->drv_cap_mask = QLCNIC_DUMP_MASK_DEF;
+	tmpl_hdr->drv_cap_mask = tmpl_hdr->cap_mask;
+	dev_info(&adapter->pdev->dev,
+		 "Default minidump capture mask 0x%x\n",
+		 tmpl_hdr->cap_mask);
 
 	if ((tmpl_hdr->version & 0xfffff) >= 0x20001)
 		ahw->fw_dump.use_pex_dma = true;
 	else
 		ahw->fw_dump.use_pex_dma = false;
 
-	ahw->fw_dump.enable = 1;
+	qlcnic_enable_fw_dump_state(adapter);
 
 	return 0;
 }
@@ -1112,7 +1115,11 @@ int qlcnic_dump_fw(struct qlcnic_adapter *adapter)
 
 	ahw = adapter->ahw;
 
-	if (!fw_dump->enable) {
+	/* Return if we don't have firmware dump template header */
+	if (!tmpl_hdr)
+		return -EIO;
+
+	if (!qlcnic_check_fw_dump_state(adapter)) {
 		dev_info(&adapter->pdev->dev, "Dump not enabled\n");
 		return -EIO;
 	}
