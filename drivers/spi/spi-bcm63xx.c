@@ -231,24 +231,6 @@ static int bcm63xx_txrx_bufs(struct spi_device *spi, struct spi_transfer *first,
 	return 0;
 }
 
-static int bcm63xx_spi_prepare_transfer(struct spi_master *master)
-{
-	struct bcm63xx_spi *bs = spi_master_get_devdata(master);
-
-	pm_runtime_get_sync(&bs->pdev->dev);
-
-	return 0;
-}
-
-static int bcm63xx_spi_unprepare_transfer(struct spi_master *master)
-{
-	struct bcm63xx_spi *bs = spi_master_get_devdata(master);
-
-	pm_runtime_put(&bs->pdev->dev);
-
-	return 0;
-}
-
 static int bcm63xx_spi_transfer_one(struct spi_master *master,
 					struct spi_message *m)
 {
@@ -406,11 +388,10 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 
 	master->bus_num = pdata->bus_num;
 	master->num_chipselect = pdata->num_chipselect;
-	master->prepare_transfer_hardware = bcm63xx_spi_prepare_transfer;
-	master->unprepare_transfer_hardware = bcm63xx_spi_unprepare_transfer;
 	master->transfer_one_message = bcm63xx_spi_transfer_one;
 	master->mode_bits = MODEBITS;
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
+	master->auto_runtime_pm = true;
 	bs->msg_type_shift = pdata->msg_type_shift;
 	bs->msg_ctl_width = pdata->msg_ctl_width;
 	bs->tx_io = (u8 *)(bs->regs + bcm63xx_spireg(SPI_MSG_DATA));

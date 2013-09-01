@@ -553,6 +553,10 @@ static void spi_pump_messages(struct kthread_work *work)
 		    master->unprepare_transfer_hardware(master))
 			dev_err(&master->dev,
 				"failed to unprepare transfer hardware\n");
+		if (master->auto_runtime_pm) {
+			pm_runtime_mark_last_busy(master->dev.parent);
+			pm_runtime_put_autosuspend(master->dev.parent);
+		}
 		return;
 	}
 
@@ -572,11 +576,23 @@ static void spi_pump_messages(struct kthread_work *work)
 		master->busy = true;
 	spin_unlock_irqrestore(&master->queue_lock, flags);
 
+	if (!was_busy && master->auto_runtime_pm) {
+		ret = pm_runtime_get_sync(master->dev.parent);
+		if (ret < 0) {
+			dev_err(&master->dev, "Failed to power device: %d\n",
+				ret);
+			return;
+		}
+	}
+
 	if (!was_busy && master->prepare_transfer_hardware) {
 		ret = master->prepare_transfer_hardware(master);
 		if (ret) {
 			dev_err(&master->dev,
 				"failed to prepare transfer hardware\n");
+
+			if (master->auto_runtime_pm)
+				pm_runtime_put(master->dev.parent);
 			return;
 		}
 	}
@@ -868,6 +884,51 @@ static void of_register_spi_devices(struct spi_master *master)
 			spi->mode |= SPI_CS_HIGH;
 		if (of_find_property(nc, "spi-3wire", NULL))
 			spi->mode |= SPI_3WIRE;
+
+		/* Device DUAL/QUAD mode */
+		prop = of_get_property(nc, "spi-tx-nbits", &len);
+		if (!prop || len < sizeof(*prop)) {
+			dev_err(&master->dev, "%s has no 'spi-tx-nbits' property\n",
+				nc->full_name);
+			spi_dev_put(spi);
+			continue;
+		}
+		switch (be32_to_cpup(prop)) {
+		case SPI_NBITS_SINGLE:
+			break;
+		case SPI_NBITS_DUAL:
+			spi->mode |= SPI_TX_DUAL;
+			break;
+		case SPI_NBITS_QUAD:
+			spi->mode |= SPI_TX_QUAD;
+			break;
+		default:
+			dev_err(&master->dev, "spi-tx-nbits value is not supported\n");
+			spi_dev_put(spi);
+			continue;
+		}
+
+		prop = of_get_property(nc, "spi-rx-nbits", &len);
+		if (!prop || len < sizeof(*prop)) {
+			dev_err(&master->dev, "%s has no 'spi-rx-nbits' property\n",
+				nc->full_name);
+			spi_dev_put(spi);
+			continue;
+		}
+		switch (be32_to_cpup(prop)) {
+		case SPI_NBITS_SINGLE:
+			break;
+		case SPI_NBITS_DUAL:
+			spi->mode |= SPI_RX_DUAL;
+			break;
+		case SPI_NBITS_QUAD:
+			spi->mode |= SPI_RX_QUAD;
+			break;
+		default:
+			dev_err(&master->dev, "spi-rx-nbits value is not supported\n");
+			spi_dev_put(spi);
+			continue;
+		}
 
 		/* Device speed */
 		prop = of_get_property(nc, "spi-max-frequency", &len);
@@ -1316,6 +1377,19 @@ int spi_setup(struct spi_device *spi)
 	unsigned	bad_bits;
 	int		status = 0;
 
+	/* check mode to prevent that DUAL and QUAD set at the same time
+	 */
+	if (((spi->mode & SPI_TX_DUAL) && (spi->mode & SPI_TX_QUAD)) ||
+		((spi->mode & SPI_RX_DUAL) && (spi->mode & SPI_RX_QUAD))) {
+		dev_err(&spi->dev,
+		"setup: can not select dual and quad at the same time\n");
+		return -EINVAL;
+	}
+	/* if it is SPI_3WIRE mode, DUAL and QUAD should be forbidden
+	 */
+	if ((spi->mode & SPI_3WIRE) && (spi->mode &
+		(SPI_TX_DUAL | SPI_TX_QUAD | SPI_RX_DUAL | SPI_RX_QUAD)))
+		return -EINVAL;
 	/* help drivers fail *cleanly* when they need options
 	 * that aren't supported with their current master
 	 */
@@ -1378,6 +1452,8 @@ static int __spi_async(struct spi_device *spi, struct spi_message *message)
 	/**
 	 * Set transfer bits_per_word and max speed as spi device default if
 	 * it is not set for this transfer.
+	 * Set transfer tx_nbits and rx_nbits as single transfer default
+	 * (SPI_NBITS_SINGLE) if it is not set for this transfer.
 	 */
 	list_for_each_entry(xfer, &message->transfers, transfer_list) {
 		message->frame_length += xfer->len;
@@ -1404,7 +1480,47 @@ static int __spi_async(struct spi_device *spi, struct spi_message *message)
 			return -EINVAL;
 		if (xfer->speed_hz && master->max_speed_hz &&
 		    xfer->speed_hz > master->max_speed_hz)
-			return -EINVAL;
+
+		if (xfer->tx_buf && !xfer->tx_nbits)
+			xfer->tx_nbits = SPI_NBITS_SINGLE;
+		if (xfer->rx_buf && !xfer->rx_nbits)
+			xfer->rx_nbits = SPI_NBITS_SINGLE;
+		/* check transfer tx/rx_nbits:
+		 * 1. keep the value is not out of single, dual and quad
+		 * 2. keep tx/rx_nbits is contained by mode in spi_device
+		 * 3. if SPI_3WIRE, tx/rx_nbits should be in single
+		 */
+		if (xfer->tx_buf) {
+			if (xfer->tx_nbits != SPI_NBITS_SINGLE &&
+				xfer->tx_nbits != SPI_NBITS_DUAL &&
+				xfer->tx_nbits != SPI_NBITS_QUAD)
+				return -EINVAL;
+			if ((xfer->tx_nbits == SPI_NBITS_DUAL) &&
+				!(spi->mode & (SPI_TX_DUAL | SPI_TX_QUAD)))
+				return -EINVAL;
+			if ((xfer->tx_nbits == SPI_NBITS_QUAD) &&
+				!(spi->mode & SPI_TX_QUAD))
+				return -EINVAL;
+			if ((spi->mode & SPI_3WIRE) &&
+				(xfer->tx_nbits != SPI_NBITS_SINGLE))
+				return -EINVAL;
+		}
+		/* check transfer rx_nbits */
+		if (xfer->rx_buf) {
+			if (xfer->rx_nbits != SPI_NBITS_SINGLE &&
+				xfer->rx_nbits != SPI_NBITS_DUAL &&
+				xfer->rx_nbits != SPI_NBITS_QUAD)
+				return -EINVAL;
+			if ((xfer->rx_nbits == SPI_NBITS_DUAL) &&
+				!(spi->mode & (SPI_RX_DUAL | SPI_RX_QUAD)))
+				return -EINVAL;
+			if ((xfer->rx_nbits == SPI_NBITS_QUAD) &&
+				!(spi->mode & SPI_RX_QUAD))
+				return -EINVAL;
+			if ((spi->mode & SPI_3WIRE) &&
+				(xfer->rx_nbits != SPI_NBITS_SINGLE))
+				return -EINVAL;
+		}
 	}
 
 	message->spi = spi;

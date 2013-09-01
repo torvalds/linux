@@ -306,6 +306,14 @@ config SPI_OMAP24XX
 	  SPI master controller for OMAP24XX and later Multichannel SPI
 	  (McSPI) modules.
 
+config SPI_TI_QSPI
+	tristate "DRA7xxx QSPI controller support"
+	depends on ARCH_OMAP2PLUS || COMPILE_TEST
+	help
+	  QSPI master controller for DRA7xxx used for flash devices.
+	  This device supports single, dual and quad read support, while
+	  it only supports single write mode.
+
 config SPI_OMAP_100K
 	tristate "OMAP SPI 100K"
 	depends on ARCH_OMAP850 || ARCH_OMAP730 || COMPILE_TEST
