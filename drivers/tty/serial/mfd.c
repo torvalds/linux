@@ -1504,4 +1504,4 @@ module_init(hsu_pci_init);
 module_exit(hsu_pci_exit);
 
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:medfield-hsu");
+MODULE_DEVICE_TABLE(pci, pci_ids);
