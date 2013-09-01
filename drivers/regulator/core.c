@@ -988,7 +988,8 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		}
 	}
 
-	if (rdev->constraints->ramp_delay && ops->set_ramp_delay) {
+	if ((rdev->constraints->ramp_delay || rdev->constraints->ramp_disable)
+		&& ops->set_ramp_delay) {
 		ret = ops->set_ramp_delay(rdev, rdev->constraints->ramp_delay);
 		if (ret < 0) {
 			rdev_err(rdev, "failed to set ramp_delay\n");
@@ -2241,8 +2242,8 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 	}
 
 	/* Call set_voltage_time_sel if successfully obtained old_selector */
-	if (ret == 0 && _regulator_is_enabled(rdev) && old_selector >= 0 &&
-	    old_selector != selector && rdev->desc->ops->set_voltage_time_sel) {
+	if (ret == 0 && !rdev->constraints->ramp_disable && old_selector >= 0
+		&& old_selector != selector) {
 
 		delay = rdev->desc->ops->set_voltage_time_sel(rdev,
 						old_selector, selector);
