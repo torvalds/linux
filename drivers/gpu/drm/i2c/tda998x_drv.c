@@ -596,6 +596,10 @@ tda998x_configure_audio(struct drm_encoder *encoder,
 		cts_n = CTS_N_M(3) | CTS_N_K(3);
 		ca_i2s = CA_I2S_CA_I2S(0);
 		break;
+
+	default:
+		BUG();
+		return;
 	}
 
 	reg_write(encoder, REG_AIP_CLKSEL, clksel_aip);
