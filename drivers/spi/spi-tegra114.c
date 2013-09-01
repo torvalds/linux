@@ -1051,18 +1051,12 @@ static int tegra_spi_probe(struct platform_device *pdev)
 	spin_lock_init(&tspi->lock);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r) {
-		dev_err(&pdev->dev, "No IO memory resource\n");
-		ret = -ENODEV;
-		goto exit_free_master;
-	}
-	tspi->phys = r->start;
 	tspi->base = devm_ioremap_resource(&pdev->dev, r);
 	if (IS_ERR(tspi->base)) {
 		ret = PTR_ERR(tspi->base);
-		dev_err(&pdev->dev, "ioremap failed: err = %d\n", ret);
 		goto exit_free_master;
 	}
+	tspi->phys = r->start;
 
 	spi_irq = platform_get_irq(pdev, 0);
 	tspi->irq = spi_irq;
