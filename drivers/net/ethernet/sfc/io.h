@@ -1,7 +1,7 @@
 /****************************************************************************
- * Driver for Solarflare Solarstorm network controllers and boards
+ * Driver for Solarflare network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
- * Copyright 2006-2010 Solarflare Communications Inc.
+ * Copyright 2006-2013 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -20,7 +20,7 @@
  *
  **************************************************************************
  *
- * Notes on locking strategy:
+ * Notes on locking strategy for the Falcon architecture:
  *
  * Many CSRs are very wide and cannot be read or written atomically.
  * Writes from the host are buffered by the Bus Interface Unit (BIU)
@@ -54,6 +54,12 @@
  *   register while the collector already holds values for some other
  *   register, the write is discarded and the collector maintains its
  *   current state.
+ *
+ * The EF10 architecture exposes very few registers to the host and
+ * most of them are only 32 bits wide.  The only exceptions are the MC
+ * doorbell register pair, which has its own latching, and
+ * TX_DESC_UPD, which works in a similar way to the Falcon
+ * architecture.
  */
 
 #if BITS_PER_LONG == 64
@@ -237,8 +243,8 @@ static inline void _efx_writeo_page(struct efx_nic *efx, efx_oword_t *value,
 			 BUILD_BUG_ON_ZERO((reg) != 0x830 && (reg) != 0xa10), \
 			 page)
 
-/* Write a page-mapped 32-bit CSR (EVQ_RPTR or the high bits of
- * RX_DESC_UPD or TX_DESC_UPD)
+/* Write a page-mapped 32-bit CSR (EVQ_RPTR, EVQ_TMR (EF10), or the
+ * high bits of RX_DESC_UPD or TX_DESC_UPD)
  */
 static inline void
 _efx_writed_page(struct efx_nic *efx, const efx_dword_t *value,
@@ -249,8 +255,12 @@ _efx_writed_page(struct efx_nic *efx, const efx_dword_t *value,
 #define efx_writed_page(efx, value, reg, page)				\
 	_efx_writed_page(efx, value,					\
 			 reg +						\
-			 BUILD_BUG_ON_ZERO((reg) != 0x400 && (reg) != 0x83c \
-					   && (reg) != 0xa1c),		\
+			 BUILD_BUG_ON_ZERO((reg) != 0x400 &&		\
+					   (reg) != 0x420 &&		\
+					   (reg) != 0x830 &&		\
+					   (reg) != 0x83c &&		\
+					   (reg) != 0xa18 &&		\
+					   (reg) != 0xa1c),		\
 			 page)
 
 /* Write TIMER_COMMAND.  This is a page-mapped 32-bit CSR, but a bug

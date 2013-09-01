@@ -1,7 +1,7 @@
 /****************************************************************************
- * Driver for Solarflare Solarstorm network controllers and boards
+ * Driver for Solarflare network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
- * Copyright 2006-2010 Solarflare Communications Inc.
+ * Copyright 2006-2013 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -79,13 +79,20 @@ extern void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue);
  * On success, return the filter ID.
  * On failure, return a negative error code.
  *
- * If an existing filter has equal match values to the new filter
- * spec, then the new filter might replace it, depending on the
- * relative priorities.  If the existing filter has lower priority, or
- * if @replace_equal is set and it has equal priority, then it is
- * replaced.  Otherwise the function fails, returning -%EPERM if
- * the existing filter has higher priority or -%EEXIST if it has
- * equal priority.
+ * If existing filters have equal match values to the new filter spec,
+ * then the new filter might replace them or the function might fail,
+ * as follows.
+ *
+ * 1. If the existing filters have lower priority, or @replace_equal
+ *    is set and they have equal priority, replace them.
+ *
+ * 2. If the existing filters have higher priority, return -%EPERM.
+ *
+ * 3. If !efx_filter_is_mc_recipient(@spec), or the NIC does not
+ *    support delivery to multiple recipients, return -%EEXIST.
+ *
+ * This implies that filters for multiple multicast recipients must
+ * all be inserted with the same priority and @replace_equal = %false.
  */
 static inline s32 efx_filter_insert_filter(struct efx_nic *efx,
 					   struct efx_filter_spec *spec,
@@ -169,6 +176,7 @@ static inline void efx_filter_rfs_expire(struct efx_channel *channel)
 static inline void efx_filter_rfs_expire(struct efx_channel *channel) {}
 #define efx_filter_rfs_enabled() 0
 #endif
+extern bool efx_filter_is_mc_recipient(const struct efx_filter_spec *spec);
 
 /* Channels */
 extern int efx_channel_dummy_op_int(struct efx_channel *channel);

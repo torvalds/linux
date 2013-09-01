@@ -1,7 +1,7 @@
 /****************************************************************************
- * Driver for Solarflare Solarstorm network controllers and boards
+ * Driver for Solarflare network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
- * Copyright 2005-2011 Solarflare Communications Inc.
+ * Copyright 2005-2013 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -39,7 +39,7 @@
  *
  **************************************************************************/
 
-#define EFX_DRIVER_VERSION	"3.2"
+#define EFX_DRIVER_VERSION	"4.0"
 
 #ifdef DEBUG
 #define EFX_BUG_ON_PARANOID(x) BUG_ON(x)
@@ -135,6 +135,7 @@ struct efx_special_buffer {
  *	freed when descriptor completes
  * @heap_buf: When @flags & %EFX_TX_BUF_HEAP, the associated heap buffer to be
  *	freed when descriptor completes.
+ * @option: When @flags & %EFX_TX_BUF_OPTION, a NIC-specific option descriptor.
  * @dma_addr: DMA address of the fragment.
  * @flags: Flags for allocation and DMA mapping type
  * @len: Length of this fragment.
@@ -146,7 +147,10 @@ struct efx_tx_buffer {
 		const struct sk_buff *skb;
 		void *heap_buf;
 	};
-	dma_addr_t dma_addr;
+	union {
+		efx_qword_t option;
+		dma_addr_t dma_addr;
+	};
 	unsigned short flags;
 	unsigned short len;
 	unsigned short unmap_len;
@@ -155,6 +159,7 @@ struct efx_tx_buffer {
 #define EFX_TX_BUF_SKB		2	/* buffer is last part of skb */
 #define EFX_TX_BUF_HEAP		4	/* buffer was allocated with kmalloc() */
 #define EFX_TX_BUF_MAP_SINGLE	8	/* buffer was mapped with dma_map_single() */
+#define EFX_TX_BUF_OPTION	0x10	/* empty buffer for option descriptor */
 
 /**
  * struct efx_tx_queue - An Efx TX queue
@@ -297,7 +302,8 @@ struct efx_rx_page_state {
  * @added_count: Number of buffers added to the receive queue.
  * @notified_count: Number of buffers given to NIC (<= @added_count).
  * @removed_count: Number of buffers removed from the receive queue.
- * @scatter_n: Number of buffers used by current packet
+ * @scatter_n: Used by NIC specific receive code.
+ * @scatter_len: Used by NIC specific receive code.
  * @page_ring: The ring to store DMA mapped pages for reuse.
  * @page_add: Counter to calculate the write pointer for the recycle ring.
  * @page_remove: Counter to calculate the read pointer for the recycle ring.
@@ -329,6 +335,7 @@ struct efx_rx_queue {
 	unsigned int notified_count;
 	unsigned int removed_count;
 	unsigned int scatter_n;
+	unsigned int scatter_len;
 	struct page **page_ring;
 	unsigned int page_add;
 	unsigned int page_remove;
@@ -382,6 +389,8 @@ enum efx_rx_alloc_method {
  * @n_skbuff_leaks: Count of skbuffs leaked due to RX overrun
  * @n_rx_nodesc_trunc: Number of RX packets truncated and then dropped due to
  *	lack of descriptors
+ * @n_rx_merge_events: Number of RX merged completion events
+ * @n_rx_merge_packets: Number of RX packets completed by merged events
  * @rx_pkt_n_frags: Number of fragments in next packet to be delivered by
  *	__efx_rx_packet(), or zero if there is none
  * @rx_pkt_index: Ring index of first buffer for next packet to be delivered
@@ -418,6 +427,8 @@ struct efx_channel {
 	unsigned n_rx_overlength;
 	unsigned n_skbuff_leaks;
 	unsigned int n_rx_nodesc_trunc;
+	unsigned int n_rx_merge_events;
+	unsigned int n_rx_merge_packets;
 
 	unsigned int rx_pkt_n_frags;
 	unsigned int rx_pkt_index;
@@ -721,7 +732,7 @@ struct vfdi_status;
  * @rps_flow_id: Flow IDs of filters allocated for accelerated RFS,
  *	indexed by filter ID
  * @rps_expire_index: Next index to check for expiry in @rps_flow_id
- * @drain_pending: Count of RX and TX queues that haven't been flushed and drained.
+ * @active_queues: Count of RX and TX queues that haven't been flushed and drained.
  * @rxq_flush_pending: Count of number of receive queues that need to be flushed.
  *	Decremented when the efx_flush_rx_queue() is called.
  * @rxq_flush_outstanding: Count of number of RX flushes started but not yet
@@ -862,7 +873,7 @@ struct efx_nic {
 	unsigned int rps_expire_index;
 #endif
 
-	atomic_t drain_pending;
+	atomic_t active_queues;
 	atomic_t rxq_flush_pending;
 	atomic_t rxq_flush_outstanding;
 	wait_queue_head_t flush_wq;
@@ -1023,7 +1034,8 @@ struct efx_mtd_partition {
  * @rx_prefix_size: Size of RX prefix before packet data
  * @rx_hash_offset: Offset of RX flow hash within prefix
  * @rx_buffer_padding: Size of padding at end of RX packet
- * @can_rx_scatter: NIC is able to scatter packet to multiple buffers
+ * @can_rx_scatter: NIC is able to scatter packets to multiple buffers
+ * @always_rx_scatter: NIC will always scatter packets to multiple buffers
  * @max_interrupt_mode: Highest capability interrupt mode supported
  *	from &enum efx_init_mode.
  * @timer_period_max: Maximum period of interrupt timer (in ticks)
@@ -1036,7 +1048,7 @@ struct efx_nic_type {
 	int (*probe)(struct efx_nic *efx);
 	void (*remove)(struct efx_nic *efx);
 	int (*init)(struct efx_nic *efx);
-	void (*dimension_resources)(struct efx_nic *efx);
+	int (*dimension_resources)(struct efx_nic *efx);
 	void (*fini)(struct efx_nic *efx);
 	void (*monitor)(struct efx_nic *efx);
 	enum reset_type (*map_reset_reason)(enum reset_type reason);
@@ -1087,7 +1099,7 @@ struct efx_nic_type {
 	void (*rx_write)(struct efx_rx_queue *rx_queue);
 	void (*rx_defer_refill)(struct efx_rx_queue *rx_queue);
 	int (*ev_probe)(struct efx_channel *channel);
-	void (*ev_init)(struct efx_channel *channel);
+	int (*ev_init)(struct efx_channel *channel);
 	void (*ev_fini)(struct efx_channel *channel);
 	void (*ev_remove)(struct efx_channel *channel);
 	int (*ev_process)(struct efx_channel *channel, int quota);
@@ -1142,6 +1154,7 @@ struct efx_nic_type {
 	unsigned int rx_hash_offset;
 	unsigned int rx_buffer_padding;
 	bool can_rx_scatter;
+	bool always_rx_scatter;
 	unsigned int max_interrupt_mode;
 	unsigned int timer_period_max;
 	netdev_features_t offload_features;

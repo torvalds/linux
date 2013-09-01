@@ -1,7 +1,7 @@
 /****************************************************************************
- * Driver for Solarflare Solarstorm network controllers and boards
+ * Driver for Solarflare network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
- * Copyright 2005-2011 Solarflare Communications Inc.
+ * Copyright 2005-2013 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -529,8 +529,8 @@ void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 		if (!(flags & EFX_RX_PKT_PREFIX_LEN))
 			efx_rx_packet__check_len(rx_queue, rx_buf, len);
 	} else if (unlikely(n_frags > EFX_RX_MAX_FRAGS) ||
-		   unlikely(len <= (n_frags - 1) * EFX_RX_USR_BUF_SIZE) ||
-		   unlikely(len > n_frags * EFX_RX_USR_BUF_SIZE) ||
+		   unlikely(len <= (n_frags - 1) * efx->rx_dma_len) ||
+		   unlikely(len > n_frags * efx->rx_dma_len) ||
 		   unlikely(!efx->rx_scatter)) {
 		/* If this isn't an explicit discard request, either
 		 * the hardware or the driver is broken.
@@ -581,9 +581,9 @@ void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 			rx_buf = efx_rx_buf_next(rx_queue, rx_buf);
 			if (--tail_frags == 0)
 				break;
-			efx_sync_rx_buffer(efx, rx_buf, EFX_RX_USR_BUF_SIZE);
+			efx_sync_rx_buffer(efx, rx_buf, efx->rx_dma_len);
 		}
-		rx_buf->len = len - (n_frags - 1) * EFX_RX_USR_BUF_SIZE;
+		rx_buf->len = len - (n_frags - 1) * efx->rx_dma_len;
 		efx_sync_rx_buffer(efx, rx_buf, rx_buf->len);
 	}
 
@@ -903,3 +903,37 @@ bool __efx_filter_rfs_expire(struct efx_nic *efx, unsigned int quota)
 }
 
 #endif /* CONFIG_RFS_ACCEL */
+
+/**
+ * efx_filter_is_mc_recipient - test whether spec is a multicast recipient
+ * @spec: Specification to test
+ *
+ * Return: %true if the specification is a non-drop RX filter that
+ * matches a local MAC address I/G bit value of 1 or matches a local
+ * IPv4 or IPv6 address value in the respective multicast address
+ * range.  Otherwise %false.
+ */
+bool efx_filter_is_mc_recipient(const struct efx_filter_spec *spec)
+{
+	if (!(spec->flags & EFX_FILTER_FLAG_RX) ||
+	    spec->dmaq_id == EFX_FILTER_RX_DMAQ_ID_DROP)
+		return false;
+
+	if (spec->match_flags &
+	    (EFX_FILTER_MATCH_LOC_MAC | EFX_FILTER_MATCH_LOC_MAC_IG) &&
+	    is_multicast_ether_addr(spec->loc_mac))
+		return true;
+
+	if ((spec->match_flags &
+	     (EFX_FILTER_MATCH_ETHER_TYPE | EFX_FILTER_MATCH_LOC_HOST)) ==
+	    (EFX_FILTER_MATCH_ETHER_TYPE | EFX_FILTER_MATCH_LOC_HOST)) {
+		if (spec->ether_type == htons(ETH_P_IP) &&
+		    ipv4_is_multicast(spec->loc_host[0]))
+			return true;
+		if (spec->ether_type == htons(ETH_P_IPV6) &&
+		    ((const u8 *)spec->loc_host)[0] == 0xff)
+			return true;
+	}
+
+	return false;
+}

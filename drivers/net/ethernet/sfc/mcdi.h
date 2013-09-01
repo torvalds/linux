@@ -1,6 +1,6 @@
 /****************************************************************************
- * Driver for Solarflare Solarstorm network controllers and boards
- * Copyright 2008-2010 Solarflare Communications Inc.
+ * Driver for Solarflare network controllers and boards
+ * Copyright 2008-2013 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -14,15 +14,17 @@
  * enum efx_mcdi_state - MCDI request handling state
  * @MCDI_STATE_QUIESCENT: No pending MCDI requests. If the caller holds the
  *	mcdi @iface_lock then they are able to move to %MCDI_STATE_RUNNING
- * @MCDI_STATE_RUNNING: There is an MCDI request pending. Only the thread that
- *	moved into this state is allowed to move out of it.
+ * @MCDI_STATE_RUNNING_SYNC: There is a synchronous MCDI request pending.
+ *	Only the thread that moved into this state is allowed to move out of it.
+ * @MCDI_STATE_RUNNING_ASYNC: There is an asynchronous MCDI request pending.
  * @MCDI_STATE_COMPLETED: An MCDI request has completed, but the owning thread
  *	has not yet consumed the result. For all other threads, equivalent to
  *	%MCDI_STATE_RUNNING.
  */
 enum efx_mcdi_state {
 	MCDI_STATE_QUIESCENT,
-	MCDI_STATE_RUNNING,
+	MCDI_STATE_RUNNING_SYNC,
+	MCDI_STATE_RUNNING_ASYNC,
 	MCDI_STATE_COMPLETED,
 };
 
@@ -33,20 +35,26 @@ enum efx_mcdi_mode {
 
 /**
  * struct efx_mcdi_iface - MCDI protocol context
+ * @efx: The associated NIC.
  * @state: Request handling state. Waited for by @wq.
  * @mode: Poll for mcdi completion, or wait for an mcdi_event.
  * @wq: Wait queue for threads waiting for @state != %MCDI_STATE_RUNNING
  * @new_epoch: Indicates start of day or start of MC reboot recovery
- * @iface_lock: Serialises access to all the following fields
+ * @iface_lock: Serialises access to @seqno, @credits and response metadata
  * @seqno: The next sequence number to use for mcdi requests.
  * @credits: Number of spurious MCDI completion events allowed before we
  *     trigger a fatal error
  * @resprc: Response error/success code (Linux numbering)
  * @resp_hdr_len: Response header length
  * @resp_data_len: Response data (SDU or error) length
+ * @async_lock: Serialises access to @async_list while event processing is
+ *	enabled
+ * @async_list: Queue of asynchronous requests
+ * @async_timer: Timer for asynchronous request timeout
  */
 struct efx_mcdi_iface {
-	atomic_t state;
+	struct efx_nic *efx;
+	enum efx_mcdi_state state;
 	enum efx_mcdi_mode mode;
 	wait_queue_head_t wq;
 	spinlock_t iface_lock;
@@ -56,6 +64,9 @@ struct efx_mcdi_iface {
 	int resprc;
 	size_t resp_hdr_len;
 	size_t resp_data_len;
+	spinlock_t async_lock;
+	struct list_head async_list;
+	struct timer_list async_timer;
 };
 
 struct efx_mcdi_mon {
@@ -70,7 +81,7 @@ struct efx_mcdi_mon {
 struct efx_mcdi_mtd_partition {
 	struct efx_mtd_partition common;
 	bool updating;
-	u8 nvram_type;
+	u16 nvram_type;
 	u16 fw_subtype;
 };
 
@@ -111,10 +122,20 @@ extern int efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned cmd, size_t inlen,
 			       efx_dword_t *outbuf, size_t outlen,
 			       size_t *outlen_actual);
 
+typedef void efx_mcdi_async_completer(struct efx_nic *efx,
+				      unsigned long cookie, int rc,
+				      efx_dword_t *outbuf,
+				      size_t outlen_actual);
+extern int efx_mcdi_rpc_async(struct efx_nic *efx, unsigned int cmd,
+			      const efx_dword_t *inbuf, size_t inlen,
+			      size_t outlen,
+			      efx_mcdi_async_completer *complete,
+			      unsigned long cookie);
 
 extern int efx_mcdi_poll_reboot(struct efx_nic *efx);
 extern void efx_mcdi_mode_poll(struct efx_nic *efx);
 extern void efx_mcdi_mode_event(struct efx_nic *efx);
+extern void efx_mcdi_flush_async(struct efx_nic *efx);
 
 extern void efx_mcdi_process_event(struct efx_channel *channel,
 				   efx_qword_t *event);
@@ -136,6 +157,9 @@ extern void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
 #define _MCDI_DWORD(_buf, _field)					\
 	((_buf) + (_MCDI_CHECK_ALIGN(MC_CMD_ ## _field ## _OFST, 4) >> 2))
 
+#define MCDI_WORD(_buf, _field)						\
+	((u16)BUILD_BUG_ON_ZERO(MC_CMD_ ## _field ## _LEN != 2) +	\
+	 le16_to_cpu(*(__force const __le16 *)MCDI_PTR(_buf, _field)))
 #define MCDI_SET_DWORD(_buf, _field, _value)				\
 	EFX_POPULATE_DWORD_1(*_MCDI_DWORD(_buf, _field), EFX_DWORD_0, _value)
 #define MCDI_DWORD(_buf, _field)					\
@@ -252,8 +276,6 @@ extern void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
 	EFX_QWORD_FIELD(_ev, MCDI_EVENT_ ## _field)
 
 extern void efx_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len);
-extern int efx_mcdi_drv_attach(struct efx_nic *efx, bool driver_operating,
-			       bool *was_attached_out);
 extern int efx_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
 				  u16 *fw_subtype_list, u32 *capabilities);
 extern int efx_mcdi_log_ctrl(struct efx_nic *efx, bool evq, bool uart,
@@ -274,6 +296,8 @@ extern int efx_mcdi_flush_rxqs(struct efx_nic *efx);
 extern int efx_mcdi_port_probe(struct efx_nic *efx);
 extern void efx_mcdi_port_remove(struct efx_nic *efx);
 extern int efx_mcdi_port_reconfigure(struct efx_nic *efx);
+extern int efx_mcdi_port_get_number(struct efx_nic *efx);
+extern u32 efx_mcdi_phy_get_caps(struct efx_nic *efx);
 extern void efx_mcdi_process_link_change(struct efx_nic *efx, efx_qword_t *ev);
 extern int efx_mcdi_set_mac(struct efx_nic *efx);
 #define EFX_MC_STATS_GENERATION_INVALID ((__force __le64)(-1))
@@ -282,6 +306,7 @@ extern void efx_mcdi_mac_stop_stats(struct efx_nic *efx);
 extern bool efx_mcdi_mac_check_fault(struct efx_nic *efx);
 extern enum reset_type efx_mcdi_map_reset_reason(enum reset_type reason);
 extern int efx_mcdi_reset(struct efx_nic *efx, enum reset_type method);
+extern int efx_mcdi_set_workaround(struct efx_nic *efx, u32 type, bool enabled);
 
 #ifdef CONFIG_SFC_MCDI_MON
 extern int efx_mcdi_mon_probe(struct efx_nic *efx);

@@ -1,7 +1,7 @@
 /****************************************************************************
- * Driver for Solarflare Solarstorm network controllers and boards
+ * Driver for Solarflare network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
- * Copyright 2006-2010 Solarflare Communications Inc.
+ * Copyright 2006-2013 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -2174,10 +2174,11 @@ out:
 	return rc;
 }
 
-static void falcon_dimension_resources(struct efx_nic *efx)
+static int falcon_dimension_resources(struct efx_nic *efx)
 {
 	efx->rx_dc_base = 0x20000;
 	efx->tx_dc_base = 0x26000;
+	return 0;
 }
 
 /* Probe all SPI devices on the NIC */

@@ -1,7 +1,7 @@
 /****************************************************************************
- * Driver for Solarflare Solarstorm network controllers and boards
+ * Driver for Solarflare network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
- * Copyright 2005-2010 Solarflare Communications Inc.
+ * Copyright 2005-2013 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -306,7 +306,9 @@ static void efx_dequeue_buffers(struct efx_tx_queue *tx_queue,
 
 	while (read_ptr != stop_index) {
 		struct efx_tx_buffer *buffer = &tx_queue->buffer[read_ptr];
-		if (unlikely(buffer->len == 0)) {
+
+		if (!(buffer->flags & EFX_TX_BUF_OPTION) &&
+		    unlikely(buffer->len == 0)) {
 			netif_err(efx, tx_err, efx->net_dev,
 				  "TX queue %d spurious TX completion id %x\n",
 				  tx_queue->queue, read_ptr);

@@ -1,5 +1,5 @@
 config SFC
-	tristate "Solarflare SFC4000/SFC9000-family support"
+	tristate "Solarflare SFC4000/SFC9000/SFC9100-family support"
 	depends on PCI
 	select MDIO
 	select CRC32
@@ -8,12 +8,13 @@ config SFC
 	select PTP_1588_CLOCK
 	---help---
 	  This driver supports 10-gigabit Ethernet cards based on
-	  the Solarflare SFC4000 and SFC9000-family controllers.
+	  the Solarflare SFC4000, SFC9000-family and SFC9100-family
+	  controllers.
 
 	  To compile this driver as a module, choose M here.  The module
 	  will be called sfc.
 config SFC_MTD
-	bool "Solarflare SFC4000/SFC9000-family MTD support"
+	bool "Solarflare SFC4000/SFC9000/SFC9100-family MTD support"
 	depends on SFC && MTD && !(SFC=y && MTD=m)
 	default y
 	---help---
@@ -21,7 +22,7 @@ config SFC_MTD
 	  (e.g. /dev/mtd1).  This is required to update the firmware or
 	  the boot configuration under Linux.
 config SFC_MCDI_MON
-	bool "Solarflare SFC9000-family hwmon support"
+	bool "Solarflare SFC9000/SFC9100-family hwmon support"
 	depends on SFC && HWMON && !(SFC=y && HWMON=m)
 	default y
 	---help---
