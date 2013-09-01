@@ -70,14 +70,14 @@ config SPI_ATH79
 
 config SPI_ATMEL
 	tristate "Atmel SPI Controller"
-	depends on (ARCH_AT91 || AVR32)
+	depends on (ARCH_AT91 || AVR32 || COMPILE_TEST)
 	help
 	  This selects a driver for the Atmel SPI Controller, present on
 	  many AT32 (AVR32) and AT91 (ARM) chips.
 
 config SPI_BCM2835
 	tristate "BCM2835 SPI controller"
-	depends on ARCH_BCM2835
+	depends on ARCH_BCM2835 || COMPILE_TEST
 	help
 	  This selects a driver for the Broadcom BCM2835 SPI master.
 
@@ -166,7 +166,7 @@ config SPI_DAVINCI
 
 config SPI_EP93XX
 	tristate "Cirrus Logic EP93xx SPI controller"
-	depends on ARCH_EP93XX
+	depends on ARCH_EP93XX || COMPILE_TEST
 	help
 	  This enables using the Cirrus EP93xx SPI controller in master
 	  mode.
@@ -198,7 +198,7 @@ config SPI_GPIO
 
 config SPI_IMX
 	tristate "Freescale i.MX SPI controllers"
-	depends on ARCH_MXC
+	depends on ARCH_MXC || COMPILE_TEST
 	select SPI_BITBANG
 	default m if IMX_HAVE_PLATFORM_SPI_IMX
 	help
@@ -287,20 +287,20 @@ config SPI_OMAP_UWIRE
 
 config SPI_OMAP24XX
 	tristate "McSPI driver for OMAP"
-	depends on ARCH_OMAP2PLUS
+	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	help
 	  SPI master controller for OMAP24XX and later Multichannel SPI
 	  (McSPI) modules.
 
 config SPI_OMAP_100K
 	tristate "OMAP SPI 100K"
-	depends on ARCH_OMAP850 || ARCH_OMAP730
+	depends on ARCH_OMAP850 || ARCH_OMAP730 || COMPILE_TEST
 	help
 	  OMAP SPI 100K master controller for omap7xx boards.
 
 config SPI_ORION
 	tristate "Orion SPI master"
-	depends on PLAT_ORION
+	depends on PLAT_ORION || COMPILE_TEST
 	help
 	  This enables using the SPI master controller on the Orion chips.
 
@@ -348,7 +348,7 @@ config SPI_PXA2XX_PCI
 
 config SPI_RSPI
 	tristate "Renesas RSPI controller"
-	depends on SUPERH
+	depends on SUPERH && SH_DMAE_BASE
 	help
 	  SPI driver for Renesas RSPI blocks.
 
@@ -392,7 +392,7 @@ config SPI_SH_MSIOF
 
 config SPI_SH
 	tristate "SuperH SPI controller"
-	depends on SUPERH
+	depends on SUPERH || COMPILE_TEST
 	help
 	  SPI driver for SuperH SPI blocks.
 
@@ -405,7 +405,7 @@ config SPI_SH_SCI
 
 config SPI_SH_HSPI
 	tristate "SuperH HSPI controller"
-	depends on ARCH_SHMOBILE
+	depends on ARCH_SHMOBILE || COMPILE_TEST
 	help
 	  SPI driver for SuperH HSPI blocks.
 
@@ -425,7 +425,7 @@ config SPI_MXS
 
 config SPI_TEGRA114
 	tristate "NVIDIA Tegra114 SPI Controller"
-	depends on ARCH_TEGRA && TEGRA20_APB_DMA
+	depends on (ARCH_TEGRA && TEGRA20_APB_DMA) || COMPILE_TEST
 	help
 	  SPI driver for NVIDIA Tegra114 SPI Controller interface. This controller
 	  is different than the older SoCs SPI controller and also register interface
@@ -433,7 +433,7 @@ config SPI_TEGRA114
 
 config SPI_TEGRA20_SFLASH
 	tristate "Nvidia Tegra20 Serial flash Controller"
-	depends on ARCH_TEGRA
+	depends on ARCH_TEGRA || COMPILE_TEST
 	help
 	  SPI driver for Nvidia Tegra20 Serial flash Controller interface.
 	  The main usecase of this controller is to use spi flash as boot
@@ -441,7 +441,7 @@ config SPI_TEGRA20_SFLASH
 
 config SPI_TEGRA20_SLINK
 	tristate "Nvidia Tegra20/Tegra30 SLINK Controller"
-	depends on ARCH_TEGRA && TEGRA20_APB_DMA
+	depends on (ARCH_TEGRA && TEGRA20_APB_DMA) || COMPILE_TEST
 	help
 	  SPI driver for Nvidia Tegra20/Tegra30 SLINK Controller interface.
 
@@ -464,7 +464,7 @@ config SPI_TOPCLIFF_PCH
 
 config SPI_TXX9
 	tristate "Toshiba TXx9 SPI controller"
-	depends on GPIOLIB && CPU_TX49XX
+	depends on GPIOLIB && (CPU_TX49XX || COMPILE_TEST)
 	help
 	  SPI driver for Toshiba TXx9 MIPS SoCs
 
