@@ -29,6 +29,7 @@
 #include <linux/kernel.h>
 #include <linux/hw_random.h>
 #include <linux/delay.h>
+#include <asm/cpu_device_id.h>
 #include <asm/io.h>
 #include <asm/msr.h>
 #include <asm/cpufeature.h>
@@ -220,5 +221,11 @@ static void __exit mod_exit(void)
 module_init(mod_init);
 module_exit(mod_exit);
 
+static struct x86_cpu_id via_rng_cpu_id[] = {
+	X86_FEATURE_MATCH(X86_FEATURE_XSTORE),
+	{}
+};
+
 MODULE_DESCRIPTION("H/W RNG driver for VIA CPU with PadLock");
 MODULE_LICENSE("GPL");
+MODULE_DEVICE_TABLE(x86cpu, via_rng_cpu_id);
