@@ -376,6 +376,7 @@ static int ti_qspi_start_transfer_one(struct spi_master *master,
 		ret = qspi_transfer_msg(qspi, t);
 		if (ret) {
 			dev_dbg(qspi->dev, "transfer message failed\n");
+			mutex_unlock(&qspi->list_lock);
 			return -EINVAL;
 		}
 
