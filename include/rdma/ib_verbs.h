@@ -1098,6 +1098,8 @@ enum ib_flow_spec_type {
 	IB_FLOW_SPEC_UDP	= 0x41
 };
 
+#define IB_FLOW_SPEC_SUPPORT_LAYERS 4
+
 /* Flow steering rule priority is set according to it's domain.
  * Lower domain value means higher priority.
  */

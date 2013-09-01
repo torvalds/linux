@@ -2652,9 +2652,24 @@ ssize_t ib_uverbs_create_flow(struct ib_uverbs_file *file,
 	if (copy_from_user(&cmd, buf, sizeof(cmd)))
 		return -EFAULT;
 
+	if (cmd.comp_mask)
+		return -EINVAL;
+
 	if ((cmd.flow_attr.type == IB_FLOW_ATTR_SNIFFER &&
 	     !capable(CAP_NET_ADMIN)) || !capable(CAP_NET_RAW))
 		return -EPERM;
+
+	if (cmd.flow_attr.num_of_specs < 0 ||
+	    cmd.flow_attr.num_of_specs > IB_FLOW_SPEC_SUPPORT_LAYERS)
+		return -EINVAL;
+
+	kern_attr_size = cmd.flow_attr.size - sizeof(cmd) -
+			 sizeof(struct ib_uverbs_cmd_hdr_ex);
+
+	if (cmd.flow_attr.size < 0 || cmd.flow_attr.size > in_len ||
+	    kern_attr_size < 0 || kern_attr_size >
+	    (cmd.flow_attr.num_of_specs * sizeof(struct ib_kern_spec)))
+		return -EINVAL;
 
 	if (cmd.flow_attr.num_of_specs) {
 		kern_flow_attr = kmalloc(cmd.flow_attr.size, GFP_KERNEL);
@@ -2662,7 +2677,6 @@ ssize_t ib_uverbs_create_flow(struct ib_uverbs_file *file,
 			return -ENOMEM;
 
 		memcpy(kern_flow_attr, &cmd.flow_attr, sizeof(*kern_flow_attr));
-		kern_attr_size = cmd.flow_attr.size - sizeof(cmd) - sizeof(struct ib_uverbs_cmd_hdr_ex);
 		if (copy_from_user(kern_flow_attr + 1, buf + sizeof(cmd),
 				   kern_attr_size)) {
 			err = -EFAULT;
