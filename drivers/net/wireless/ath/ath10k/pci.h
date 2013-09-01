@@ -54,7 +54,7 @@ struct ath10k_pci_compl {
 	enum ath10k_pci_compl_state state;
 	struct ath10k_ce_pipe *ce_state;
 	struct ath10k_pci_pipe *pipe_info;
-	void *transfer_context;
+	struct sk_buff *skb;
 	unsigned int nbytes;
 	unsigned int transfer_id;
 	unsigned int flags;

@@ -643,7 +643,7 @@ static void ath10k_pci_ce_send_done(struct ath10k_ce_pipe *ce_state,
 		compl->state = ATH10K_PCI_COMPL_SEND;
 		compl->ce_state = ce_state;
 		compl->pipe_info = pipe_info;
-		compl->transfer_context = transfer_context;
+		compl->skb = transfer_context;
 		compl->nbytes = nbytes;
 		compl->transfer_id = transfer_id;
 		compl->flags = 0;
@@ -693,7 +693,7 @@ static void ath10k_pci_ce_recv_data(struct ath10k_ce_pipe *ce_state,
 		compl->state = ATH10K_PCI_COMPL_RECV;
 		compl->ce_state = ce_state;
 		compl->pipe_info = pipe_info;
-		compl->transfer_context = transfer_context;
+		compl->skb = transfer_context;
 		compl->nbytes = nbytes;
 		compl->transfer_id = transfer_id;
 		compl->flags = flags;
@@ -939,7 +939,7 @@ static void ath10k_pci_stop_ce(struct ath10k *ar)
 	 * their associated resources */
 	spin_lock_bh(&ar_pci->compl_lock);
 	list_for_each_entry(compl, &ar_pci->compl_process, list) {
-		skb = (struct sk_buff *)compl->transfer_context;
+		skb = compl->skb;
 		ATH10K_SKB_CB(skb)->is_aborted = true;
 	}
 	spin_unlock_bh(&ar_pci->compl_lock);
@@ -960,7 +960,7 @@ static void ath10k_pci_cleanup_ce(struct ath10k *ar)
 
 	list_for_each_entry_safe(compl, tmp, &ar_pci->compl_process, list) {
 		list_del(&compl->list);
-		netbuf = (struct sk_buff *)compl->transfer_context;
+		netbuf = compl->skb;
 		dev_kfree_skb_any(netbuf);
 		kfree(compl);
 	}
@@ -1014,7 +1014,7 @@ static void ath10k_pci_process_ce(struct ath10k *ar)
 		switch (compl->state) {
 		case ATH10K_PCI_COMPL_SEND:
 			cb->tx_completion(ar,
-					  compl->transfer_context,
+					  compl->skb,
 					  compl->transfer_id);
 			send_done = 1;
 			break;
@@ -1026,7 +1026,7 @@ static void ath10k_pci_process_ce(struct ath10k *ar)
 				break;
 			}
 
-			skb = (struct sk_buff *)compl->transfer_context;
+			skb = compl->skb;
 			nbytes = compl->nbytes;
 
 			ath10k_dbg(ATH10K_DBG_PCI,
