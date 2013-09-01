@@ -930,6 +930,10 @@ struct snd_soc_dai_link {
 	/* machine stream operations */
 	const struct snd_soc_ops *ops;
 	const struct snd_soc_compr_ops *compr_ops;
+
+	/* For unidirectional dai links */
+	bool playback_only;
+	bool capture_only;
 };
 
 struct snd_soc_codec_conf {

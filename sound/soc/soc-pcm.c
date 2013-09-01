@@ -2020,6 +2020,16 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 			capture = 1;
 	}
 
+	if (rtd->dai_link->playback_only) {
+		playback = 1;
+		capture = 0;
+	}
+
+	if (rtd->dai_link->capture_only) {
+		playback = 0;
+		capture = 1;
+	}
+
 	/* create the PCM */
 	if (rtd->dai_link->no_pcm) {
 		snprintf(new_name, sizeof(new_name), "(%s)",

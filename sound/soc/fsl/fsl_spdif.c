@@ -411,8 +411,8 @@ static int spdif_set_sample_rate(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-int fsl_spdif_startup(struct snd_pcm_substream *substream,
-			struct snd_soc_dai *cpu_dai)
+static int fsl_spdif_startup(struct snd_pcm_substream *substream,
+			     struct snd_soc_dai *cpu_dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct fsl_spdif_priv *spdif_priv = snd_soc_dai_get_drvdata(rtd->cpu_dai);
@@ -546,7 +546,7 @@ static int fsl_spdif_trigger(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-struct snd_soc_dai_ops fsl_spdif_dai_ops = {
+static struct snd_soc_dai_ops fsl_spdif_dai_ops = {
 	.startup = fsl_spdif_startup,
 	.hw_params = fsl_spdif_hw_params,
 	.trigger = fsl_spdif_trigger,
@@ -919,7 +919,7 @@ static int fsl_spdif_dai_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
-struct snd_soc_dai_driver fsl_spdif_dai = {
+static struct snd_soc_dai_driver fsl_spdif_dai = {
 	.probe = &fsl_spdif_dai_probe,
 	.playback = {
 		.channels_min = 2,
@@ -1071,9 +1071,9 @@ static int fsl_spdif_probe_txclk(struct fsl_spdif_priv *spdif_priv,
 			break;
 	}
 
-	dev_dbg(&pdev->dev, "use rxtx%d as tx clock source for %dHz sample rate",
+	dev_dbg(&pdev->dev, "use rxtx%d as tx clock source for %dHz sample rate\n",
 			spdif_priv->txclk_src[index], rate[index]);
-	dev_dbg(&pdev->dev, "use divisor %d for %dHz sample rate",
+	dev_dbg(&pdev->dev, "use divisor %d for %dHz sample rate\n",
 			spdif_priv->txclk_div[index], rate[index]);
 
 	return 0;
