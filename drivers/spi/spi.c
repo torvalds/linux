@@ -1351,6 +1351,11 @@ static int __spi_async(struct spi_device *spi, struct spi_message *message)
 	struct spi_master *master = spi->master;
 	struct spi_transfer *xfer;
 
+	if (list_empty(&message->transfers))
+		return -EINVAL;
+	if (!message->complete)
+		return -EINVAL;
+
 	/* Half-duplex links include original MicroWire, and ones with
 	 * only one data pin like SPI_3WIRE (switches direction) or where
 	 * either MOSI or MISO is missing.  They can also be caused by
@@ -1377,8 +1382,13 @@ static int __spi_async(struct spi_device *spi, struct spi_message *message)
 	list_for_each_entry(xfer, &message->transfers, transfer_list) {
 		if (!xfer->bits_per_word)
 			xfer->bits_per_word = spi->bits_per_word;
-		if (!xfer->speed_hz)
+		if (!xfer->speed_hz) {
 			xfer->speed_hz = spi->max_speed_hz;
+			if (master->max_speed_hz &&
+			    xfer->speed_hz > master->max_speed_hz)
+				xfer->speed_hz = master->max_speed_hz;
+		}
+
 		if (master->bits_per_word_mask) {
 			/* Only 32 bits fit in the mask */
 			if (xfer->bits_per_word > 32)
@@ -1387,6 +1397,13 @@ static int __spi_async(struct spi_device *spi, struct spi_message *message)
 					BIT(xfer->bits_per_word - 1)))
 				return -EINVAL;
 		}
+
+		if (xfer->speed_hz && master->min_speed_hz &&
+		    xfer->speed_hz < master->min_speed_hz)
+			return -EINVAL;
+		if (xfer->speed_hz && master->max_speed_hz &&
+		    xfer->speed_hz > master->max_speed_hz)
+			return -EINVAL;
 	}
 
 	message->spi = spi;
