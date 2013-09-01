@@ -277,7 +277,9 @@ static int ath10k_ce_send_nolock(struct ath10k_ce_pipe *ce_state,
 		ath10k_warn("%s: send more we can (nbytes: %d, max: %d)\n",
 			    __func__, nbytes, ce_state->src_sz_max);
 
-	ath10k_pci_wake(ar);
+	ret = ath10k_pci_wake(ar);
+	if (ret)
+		return ret;
 
 	if (unlikely(CE_RING_DELTA(nentries_mask,
 				   write_index, sw_index - 1) <= 0)) {
@@ -419,7 +421,9 @@ int ath10k_ce_recv_buf_enqueue(struct ath10k_ce_pipe *ce_state,
 	write_index = dest_ring->write_index;
 	sw_index = dest_ring->sw_index;
 
-	ath10k_pci_wake(ar);
+	ret = ath10k_pci_wake(ar);
+	if (ret)
+		goto out;
 
 	if (CE_RING_DELTA(nentries_mask, write_index, sw_index - 1) > 0) {
 		struct ce_desc *base = dest_ring->base_addr_owner_space;
@@ -441,6 +445,8 @@ int ath10k_ce_recv_buf_enqueue(struct ath10k_ce_pipe *ce_state,
 		ret = -EIO;
 	}
 	ath10k_pci_sleep(ar);
+
+out:
 	spin_unlock_bh(&ar_pci->ce_lock);
 
 	return ret;
@@ -596,6 +602,7 @@ static int ath10k_ce_completed_send_next_nolock(struct ath10k_ce_pipe *ce_state,
 	unsigned int sw_index = src_ring->sw_index;
 	struct ce_desc *sdesc, *sbase;
 	unsigned int read_index;
+	int ret;
 
 	if (src_ring->hw_index == sw_index) {
 		/*
@@ -605,10 +612,15 @@ static int ath10k_ce_completed_send_next_nolock(struct ath10k_ce_pipe *ce_state,
 		 * the SW has really caught up to the HW, or if the cached
 		 * value of the HW index has become stale.
 		 */
-		ath10k_pci_wake(ar);
+
+		ret = ath10k_pci_wake(ar);
+		if (ret)
+			return ret;
+
 		src_ring->hw_index =
 			ath10k_ce_src_ring_read_index_get(ar, ctrl_addr);
 		src_ring->hw_index &= nentries_mask;
+
 		ath10k_pci_sleep(ar);
 	}
 
@@ -735,8 +747,12 @@ void ath10k_ce_per_engine_service(struct ath10k *ar, unsigned int ce_id)
 	unsigned int nbytes;
 	unsigned int id;
 	unsigned int flags;
+	int ret;
 
-	ath10k_pci_wake(ar);
+	ret = ath10k_pci_wake(ar);
+	if (ret)
+		return;
+
 	spin_lock_bh(&ar_pci->ce_lock);
 
 	/* Clear the copy-complete interrupts that will be handled here. */
@@ -795,10 +811,13 @@ void ath10k_ce_per_engine_service(struct ath10k *ar, unsigned int ce_id)
 void ath10k_ce_per_engine_service_any(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	int ce_id;
+	int ce_id, ret;
 	u32 intr_summary;
 
-	ath10k_pci_wake(ar);
+	ret = ath10k_pci_wake(ar);
+	if (ret)
+		return;
+
 	intr_summary = CE_INTERRUPT_SUMMARY(ar);
 
 	for (ce_id = 0; intr_summary && (ce_id < ar_pci->ce_count); ce_id++) {
@@ -826,8 +845,11 @@ static void ath10k_ce_per_engine_handler_adjust(struct ath10k_ce_pipe *ce_state,
 {
 	u32 ctrl_addr = ce_state->ctrl_addr;
 	struct ath10k *ar = ce_state->ar;
+	int ret;
 
-	ath10k_pci_wake(ar);
+	ret = ath10k_pci_wake(ar);
+	if (ret)
+		return;
 
 	if ((!disable_copy_compl_intr) &&
 	    (ce_state->send_cb || ce_state->recv_cb))
@@ -843,9 +865,12 @@ static void ath10k_ce_per_engine_handler_adjust(struct ath10k_ce_pipe *ce_state,
 void ath10k_ce_disable_interrupts(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	int ce_id;
+	int ce_id, ret;
 
-	ath10k_pci_wake(ar);
+	ret = ath10k_pci_wake(ar);
+	if (ret)
+		return;
+
 	for (ce_id = 0; ce_id < ar_pci->ce_count; ce_id++) {
 		struct ath10k_ce_pipe *ce_state = &ar_pci->ce_states[ce_id];
 		u32 ctrl_addr = ce_state->ctrl_addr;

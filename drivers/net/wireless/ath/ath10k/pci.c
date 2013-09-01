@@ -537,7 +537,7 @@ static void ath10k_pci_wait(struct ath10k *ar)
 		ath10k_warn("Unable to wakeup target\n");
 }
 
-void ath10k_do_pci_wake(struct ath10k *ar)
+int ath10k_do_pci_wake(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	void __iomem *pci_addr = ar_pci->mem;
@@ -553,18 +553,19 @@ void ath10k_do_pci_wake(struct ath10k *ar)
 	atomic_inc(&ar_pci->keep_awake_count);
 
 	if (ar_pci->verified_awake)
-		return;
+		return 0;
 
 	for (;;) {
 		if (ath10k_pci_target_is_awake(ar)) {
 			ar_pci->verified_awake = true;
-			break;
+			return 0;
 		}
 
 		if (tot_delay > PCIE_WAKE_TIMEOUT) {
-			ath10k_warn("target takes too long to wake up (awake count %d)\n",
+			ath10k_warn("target took longer %d us to wake up (awake count %d)\n",
+				    PCIE_WAKE_TIMEOUT,
 				    atomic_read(&ar_pci->keep_awake_count));
-			break;
+			return -ETIMEDOUT;
 		}
 
 		udelay(curr_delay);

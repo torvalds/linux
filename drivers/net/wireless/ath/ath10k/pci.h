@@ -321,15 +321,17 @@ static inline u32 ath10k_pci_read32(struct ath10k *ar, u32 offset)
 	return ioread32(ar_pci->mem + offset);
 }
 
-void ath10k_do_pci_wake(struct ath10k *ar);
+int ath10k_do_pci_wake(struct ath10k *ar);
 void ath10k_do_pci_sleep(struct ath10k *ar);
 
-static inline void ath10k_pci_wake(struct ath10k *ar)
+static inline int ath10k_pci_wake(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 
 	if (test_bit(ATH10K_PCI_FEATURE_SOC_POWER_SAVE, ar_pci->features))
-		ath10k_do_pci_wake(ar);
+		return ath10k_do_pci_wake(ar);
+
+	return 0;
 }
 
 static inline void ath10k_pci_sleep(struct ath10k *ar)
