@@ -592,7 +592,7 @@ static struct da9063_dev_model regulators_models[] = {
 };
 
 /* Regulator interrupt handlers */
-irqreturn_t da9063_ldo_lim_event(int irq, void *data)
+static irqreturn_t da9063_ldo_lim_event(int irq, void *data)
 {
 	struct da9063_regulators *regulators = data;
 	struct da9063 *hw = regulators->regulator[0].hw;
