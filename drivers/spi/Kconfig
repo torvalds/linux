@@ -433,7 +433,7 @@ config SPI_SH_HSPI
 
 config SPI_SIRF
 	tristate "CSR SiRFprimaII SPI controller"
-	depends on ARCH_SIRF
+	depends on SIRF_DMA
 	select SPI_BITBANG
 	help
 	  SPI driver for CSR SiRFprimaII SoCs
