@@ -393,11 +393,14 @@ int msm_gem_queue_inactive_work(struct drm_gem_object *obj,
 }
 
 void msm_gem_move_to_active(struct drm_gem_object *obj,
-		struct msm_gpu *gpu, uint32_t fence)
+		struct msm_gpu *gpu, bool write, uint32_t fence)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	msm_obj->gpu = gpu;
-	msm_obj->fence = fence;
+	if (write)
+		msm_obj->write_fence = fence;
+	else
+		msm_obj->read_fence = fence;
 	list_del_init(&msm_obj->mm_list);
 	list_add_tail(&msm_obj->mm_list, &gpu->active_list);
 }
@@ -411,7 +414,8 @@ void msm_gem_move_to_inactive(struct drm_gem_object *obj)
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
 	msm_obj->gpu = NULL;
-	msm_obj->fence = 0;
+	msm_obj->read_fence = 0;
+	msm_obj->write_fence = 0;
 	list_del_init(&msm_obj->mm_list);
 	list_add_tail(&msm_obj->mm_list, &priv->inactive_list);
 
@@ -433,8 +437,14 @@ int msm_gem_cpu_prep(struct drm_gem_object *obj, uint32_t op,
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	int ret = 0;
 
-	if (is_active(msm_obj) && !(op & MSM_PREP_NOSYNC))
-		ret = msm_wait_fence_interruptable(dev, msm_obj->fence, timeout);
+	if (is_active(msm_obj) && !(op & MSM_PREP_NOSYNC)) {
+		uint32_t fence = 0;
+		if (op & MSM_PREP_READ)
+			fence = msm_obj->write_fence;
+		if (op & MSM_PREP_WRITE)
+			fence = max(fence, msm_obj->read_fence);
+		ret = msm_wait_fence_interruptable(dev, fence, timeout);
+	}
 
 	/* TODO cache maintenance */
 
@@ -455,9 +465,10 @@ void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 	uint64_t off = drm_vma_node_start(&obj->vma_node);
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
-	seq_printf(m, "%08x: %c(%d) %2d (%2d) %08llx %p %d\n",
+	seq_printf(m, "%08x: %c(r=%u,w=%u) %2d (%2d) %08llx %p %d\n",
 			msm_obj->flags, is_active(msm_obj) ? 'A' : 'I',
-			msm_obj->fence, obj->name, obj->refcount.refcount.counter,
+			msm_obj->read_fence, msm_obj->write_fence,
+			obj->name, obj->refcount.refcount.counter,
 			off, msm_obj->vaddr, obj->size);
 }
 

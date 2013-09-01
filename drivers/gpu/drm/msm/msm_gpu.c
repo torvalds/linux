@@ -265,7 +265,8 @@ static void retire_worker(struct work_struct *work)
 		obj = list_first_entry(&gpu->active_list,
 				struct msm_gem_object, mm_list);
 
-		if (obj->fence <= fence) {
+		if ((obj->read_fence <= fence) &&
+				(obj->write_fence <= fence)) {
 			/* move to inactive: */
 			msm_gem_move_to_inactive(&obj->base);
 			msm_gem_put_iova(&obj->base, gpu->id);
@@ -321,7 +322,11 @@ int msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 					submit->gpu->id, &iova);
 		}
 
-		msm_gem_move_to_active(&msm_obj->base, gpu, submit->fence);
+		if (submit->bos[i].flags & MSM_SUBMIT_BO_READ)
+			msm_gem_move_to_active(&msm_obj->base, gpu, false, submit->fence);
+
+		if (submit->bos[i].flags & MSM_SUBMIT_BO_WRITE)
+			msm_gem_move_to_active(&msm_obj->base, gpu, true, submit->fence);
 	}
 	hangcheck_timer_reset(gpu);
 	mutex_unlock(&dev->struct_mutex);

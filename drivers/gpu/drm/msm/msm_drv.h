@@ -153,7 +153,7 @@ void *msm_gem_vaddr(struct drm_gem_object *obj);
 int msm_gem_queue_inactive_work(struct drm_gem_object *obj,
 		struct work_struct *work);
 void msm_gem_move_to_active(struct drm_gem_object *obj,
-		struct msm_gpu *gpu, uint32_t fence);
+		struct msm_gpu *gpu, bool write, uint32_t fence);
 void msm_gem_move_to_inactive(struct drm_gem_object *obj);
 int msm_gem_cpu_prep(struct drm_gem_object *obj, uint32_t op,
 		struct timespec *timeout);
