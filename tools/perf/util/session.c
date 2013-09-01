@@ -397,6 +397,17 @@ static void perf_event__read_swap(union perf_event *event, bool sample_id_all)
 		swap_sample_id_all(event, &event->read + 1);
 }
 
+static void perf_event__throttle_swap(union perf_event *event,
+				      bool sample_id_all)
+{
+	event->throttle.time	  = bswap_64(event->throttle.time);
+	event->throttle.id	  = bswap_64(event->throttle.id);
+	event->throttle.stream_id = bswap_64(event->throttle.stream_id);
+
+	if (sample_id_all)
+		swap_sample_id_all(event, &event->throttle + 1);
+}
+
 static u8 revbyte(u8 b)
 {
 	int rev = (b >> 4) | ((b & 0xf) << 4);
@@ -482,6 +493,8 @@ static perf_event__swap_op perf_event__swap_ops[] = {
 	[PERF_RECORD_EXIT]		  = perf_event__task_swap,
 	[PERF_RECORD_LOST]		  = perf_event__all64_swap,
 	[PERF_RECORD_READ]		  = perf_event__read_swap,
+	[PERF_RECORD_THROTTLE]		  = perf_event__throttle_swap,
+	[PERF_RECORD_UNTHROTTLE]	  = perf_event__throttle_swap,
 	[PERF_RECORD_SAMPLE]		  = perf_event__all64_swap,
 	[PERF_RECORD_HEADER_ATTR]	  = perf_event__hdr_attr_swap,
 	[PERF_RECORD_HEADER_EVENT_TYPE]	  = perf_event__event_type_swap,

@@ -33,13 +33,6 @@ int eprintf(int level, const char *fmt, ...)
 # define PyVarObject_HEAD_INIT(type, size) PyObject_HEAD_INIT(type) size,
 #endif
 
-struct throttle_event {
-	struct perf_event_header header;
-	u64			 time;
-	u64			 id;
-	u64			 stream_id;
-};
-
 PyMODINIT_FUNC initperf(void);
 
 #define member_def(type, member, ptype, help) \

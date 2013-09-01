@@ -61,6 +61,12 @@ struct read_event {
 	u64 id;
 };
 
+struct throttle_event {
+	struct perf_event_header header;
+	u64 time;
+	u64 id;
+	u64 stream_id;
+};
 
 #define PERF_SAMPLE_MASK				\
 	(PERF_SAMPLE_IP | PERF_SAMPLE_TID |		\
@@ -178,6 +184,7 @@ union perf_event {
 	struct fork_event		fork;
 	struct lost_event		lost;
 	struct read_event		read;
+	struct throttle_event		throttle;
 	struct sample_event		sample;
 	struct attr_event		attr;
 	struct event_type_event		event_type;
