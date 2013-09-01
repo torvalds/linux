@@ -148,7 +148,7 @@ int radeon_dynclks = -1;
 int radeon_r4xx_atom = 0;
 int radeon_agpmode = 0;
 int radeon_vram_limit = 0;
-int radeon_gart_size = 512; /* default gart size */
+int radeon_gart_size = -1; /* auto */
 int radeon_benchmarking = 0;
 int radeon_testing = 0;
 int radeon_connector_table = 0;
@@ -181,7 +181,7 @@ module_param_named(vramlimit, radeon_vram_limit, int, 0600);
 MODULE_PARM_DESC(agpmode, "AGP Mode (-1 == PCI)");
 module_param_named(agpmode, radeon_agpmode, int, 0444);
 
-MODULE_PARM_DESC(gartsize, "Size of PCIE/IGP gart to setup in megabytes (32, 64, etc)");
+MODULE_PARM_DESC(gartsize, "Size of PCIE/IGP gart to setup in megabytes (32, 64, etc., -1 = auto)");
 module_param_named(gartsize, radeon_gart_size, int, 0600);
 
 MODULE_PARM_DESC(benchmark, "Run benchmark");

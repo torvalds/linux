@@ -130,6 +130,7 @@ void r600_dpm_print_cap_info(u32 caps);
 void r600_dpm_print_ps_status(struct radeon_device *rdev,
 			      struct radeon_ps *rps);
 u32 r600_dpm_get_vblank_time(struct radeon_device *rdev);
+u32 r600_dpm_get_vrefresh(struct radeon_device *rdev);
 bool r600_is_uvd_state(u32 class, u32 class2);
 void r600_calculate_u_and_p(u32 i, u32 r_c, u32 p_b,
 			    u32 *p, u32 *u);
@@ -223,5 +224,10 @@ enum radeon_pcie_gen r600_get_pcie_gen_support(struct radeon_device *rdev,
 					       u32 sys_mask,
 					       enum radeon_pcie_gen asic_gen,
 					       enum radeon_pcie_gen default_gen);
+
+u16 r600_get_pcie_lane_support(struct radeon_device *rdev,
+			       u16 asic_lanes,
+			       u16 default_lanes);
+u8 r600_encode_pci_lane_width(u32 lanes);
 
 #endif

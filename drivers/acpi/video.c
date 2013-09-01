@@ -689,7 +689,7 @@ static int acpi_video_bqc_quirk(struct acpi_video_device *device,
 	 * Some systems always report current brightness level as maximum
 	 * through _BQC, we need to test another value for them.
 	 */
-	test_level = current_level == max_level ? br->levels[2] : max_level;
+	test_level = current_level == max_level ? br->levels[3] : max_level;
 
 	result = acpi_video_device_lcd_set_level(device, test_level);
 	if (result)
@@ -908,9 +908,6 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		device->cap._DDC = 1;
 	}
 
-	if (acpi_video_init_brightness(device))
-		return;
-
 	if (acpi_video_backlight_support()) {
 		struct backlight_properties props;
 		struct pci_dev *pdev;
@@ -920,6 +917,9 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		static int count = 0;
 		char *name;
 
+		result = acpi_video_init_brightness(device);
+		if (result)
+			return;
 		name = kasprintf(GFP_KERNEL, "acpi_video%d", count);
 		if (!name)
 			return;
@@ -979,11 +979,6 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		if (result)
 			printk(KERN_ERR PREFIX "Create sysfs link\n");
 
-	} else {
-		/* Remove the brightness object. */
-		kfree(device->brightness->levels);
-		kfree(device->brightness);
-		device->brightness = NULL;
 	}
 }
 

@@ -363,8 +363,7 @@ EXPORT_SYMBOL(out_of_line_wait_on_atomic_t);
 
 /**
  * wake_up_atomic_t - Wake up a waiter on a atomic_t
- * @word: The word being waited on, a kernel virtual address
- * @bit: The bit of the word being waited on
+ * @p: The atomic_t being waited on, a kernel virtual address
  *
  * Wake up anyone waiting for the atomic_t to go to zero.
  *

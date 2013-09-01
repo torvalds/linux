@@ -494,8 +494,11 @@ void intel_panel_set_backlight(struct drm_device *dev, u32 level, u32 max)
 		goto out;
 	}
 
-	/* scale to hardware */
-	level = level * freq / max;
+	/* scale to hardware, but be careful to not overflow */
+	if (freq < max)
+		level = level * freq / max;
+	else
+		level = freq / max * level;
 
 	dev_priv->backlight.level = level;
 	if (dev_priv->backlight.device)
@@ -511,6 +514,17 @@ void intel_panel_disable_backlight(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long flags;
+
+	/*
+	 * Do not disable backlight on the vgaswitcheroo path. When switching
+	 * away from i915, the other client may depend on i915 to handle the
+	 * backlight. This will leave the backlight on unnecessarily when
+	 * another client is not activated.
+	 */
+	if (dev->switch_power_state == DRM_SWITCH_POWER_CHANGING) {
+		DRM_DEBUG_DRIVER("Skipping backlight disable on vga switch\n");
+		return;
+	}
 
 	spin_lock_irqsave(&dev_priv->backlight.lock, flags);
 

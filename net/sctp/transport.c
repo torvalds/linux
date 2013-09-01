@@ -181,12 +181,12 @@ static void sctp_transport_destroy(struct sctp_transport *transport)
 		return;
 	}
 
-	call_rcu(&transport->rcu, sctp_transport_destroy_rcu);
-
 	sctp_packet_free(&transport->packet);
 
 	if (transport->asoc)
 		sctp_association_put(transport->asoc);
+
+	call_rcu(&transport->rcu, sctp_transport_destroy_rcu);
 }
 
 /* Start T3_rtx timer if it is not already running and update the heartbeat

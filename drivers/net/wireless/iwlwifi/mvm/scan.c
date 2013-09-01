@@ -137,8 +137,8 @@ static void iwl_mvm_scan_fill_ssids(struct iwl_scan_cmd *cmd,
 {
 	int fw_idx, req_idx;
 
-	fw_idx = 0;
-	for (req_idx = req->n_ssids - 1; req_idx > 0; req_idx--) {
+	for (req_idx = req->n_ssids - 1, fw_idx = 0; req_idx > 0;
+	     req_idx--, fw_idx++) {
 		cmd->direct_scan[fw_idx].id = WLAN_EID_SSID;
 		cmd->direct_scan[fw_idx].len = req->ssids[req_idx].ssid_len;
 		memcpy(cmd->direct_scan[fw_idx].ssid,
@@ -153,7 +153,9 @@ static void iwl_mvm_scan_fill_ssids(struct iwl_scan_cmd *cmd,
  * just to notify that this scan is active and not passive.
  * In order to notify the FW of the number of SSIDs we wish to scan (including
  * the zero-length one), we need to set the corresponding bits in chan->type,
- * one for each SSID, and set the active bit (first).
+ * one for each SSID, and set the active bit (first). The first SSID is already
+ * included in the probe template, so we need to set only req->n_ssids - 1 bits
+ * in addition to the first bit.
  */
 static u16 iwl_mvm_get_active_dwell(enum ieee80211_band band, int n_ssids)
 {
@@ -176,19 +178,12 @@ static void iwl_mvm_scan_fill_channels(struct iwl_scan_cmd *cmd,
 	struct iwl_scan_channel *chan = (struct iwl_scan_channel *)
 		(cmd->data + le16_to_cpu(cmd->tx_cmd.len));
 	int i;
-	__le32 chan_type_value;
-
-	if (req->n_ssids > 0)
-		chan_type_value = cpu_to_le32(BIT(req->n_ssids + 1) - 1);
-	else
-		chan_type_value = SCAN_CHANNEL_TYPE_PASSIVE;
 
 	for (i = 0; i < cmd->channel_count; i++) {
 		chan->channel = cpu_to_le16(req->channels[i]->hw_value);
+		chan->type = cpu_to_le32(BIT(req->n_ssids) - 1);
 		if (req->channels[i]->flags & IEEE80211_CHAN_PASSIVE_SCAN)
-			chan->type = SCAN_CHANNEL_TYPE_PASSIVE;
-		else
-			chan->type = chan_type_value;
+			chan->type &= cpu_to_le32(~SCAN_CHANNEL_TYPE_ACTIVE);
 		chan->active_dwell = cpu_to_le16(active_dwell);
 		chan->passive_dwell = cpu_to_le16(passive_dwell);
 		chan->iteration_count = cpu_to_le16(1);

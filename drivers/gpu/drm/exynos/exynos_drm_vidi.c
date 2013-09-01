@@ -13,7 +13,6 @@
 #include <drm/drmP.h>
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/platform_device.h>
 
 #include <drm/exynos_drm.h>

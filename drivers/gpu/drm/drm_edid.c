@@ -125,6 +125,9 @@ static struct edid_quirk {
 
 	/* ViewSonic VA2026w */
 	{ "VSC", 5020, EDID_QUIRK_FORCE_REDUCED_BLANKING },
+
+	/* Medion MD 30217 PG */
+	{ "MED", 0x7b8, EDID_QUIRK_PREFER_LARGE_75 },
 };
 
 /*
@@ -2880,6 +2883,58 @@ int drm_edid_to_sad(struct edid *edid, struct cea_sad **sads)
 	return count;
 }
 EXPORT_SYMBOL(drm_edid_to_sad);
+
+/**
+ * drm_edid_to_speaker_allocation - extracts Speaker Allocation Data Blocks from EDID
+ * @edid: EDID to parse
+ * @sadb: pointer to the speaker block
+ *
+ * Looks for CEA EDID block and extracts the Speaker Allocation Data Block from it.
+ * Note: returned pointer needs to be kfreed
+ *
+ * Return number of found Speaker Allocation Blocks or negative number on error.
+ */
+int drm_edid_to_speaker_allocation(struct edid *edid, u8 **sadb)
+{
+	int count = 0;
+	int i, start, end, dbl;
+	const u8 *cea;
+
+	cea = drm_find_cea_extension(edid);
+	if (!cea) {
+		DRM_DEBUG_KMS("SAD: no CEA Extension found\n");
+		return -ENOENT;
+	}
+
+	if (cea_revision(cea) < 3) {
+		DRM_DEBUG_KMS("SAD: wrong CEA revision\n");
+		return -ENOTSUPP;
+	}
+
+	if (cea_db_offsets(cea, &start, &end)) {
+		DRM_DEBUG_KMS("SAD: invalid data block offsets\n");
+		return -EPROTO;
+	}
+
+	for_each_cea_db(cea, i, start, end) {
+		const u8 *db = &cea[i];
+
+		if (cea_db_tag(db) == SPEAKER_BLOCK) {
+			dbl = cea_db_payload_len(db);
+
+			/* Speaker Allocation Data Block */
+			if (dbl == 3) {
+				*sadb = kmalloc(dbl, GFP_KERNEL);
+				memcpy(*sadb, &db[1], dbl);
+				count = dbl;
+				break;
+			}
+		}
+	}
+
+	return count;
+}
+EXPORT_SYMBOL(drm_edid_to_speaker_allocation);
 
 /**
  * drm_av_sync_delay - HDMI/DP sink audio-video sync delay in millisecond

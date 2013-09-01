@@ -225,6 +225,7 @@ struct radeon_afmt {
 	int offset;
 	bool last_buffer_filled_status;
 	int id;
+	struct r600_audio_pin *pin;
 };
 
 struct radeon_mode_info {
@@ -233,7 +234,7 @@ struct radeon_mode_info {
 	enum radeon_connector_table connector_table;
 	bool mode_config_initialized;
 	struct radeon_crtc *crtcs[6];
-	struct radeon_afmt *afmt[6];
+	struct radeon_afmt *afmt[7];
 	/* DVI-I properties */
 	struct drm_property *coherent_mode_property;
 	/* DAC enable load detect */

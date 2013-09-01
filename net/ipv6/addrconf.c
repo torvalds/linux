@@ -813,8 +813,9 @@ static u32 inet6_addr_hash(const struct in6_addr *addr)
 /* On success it returns ifp with increased reference count */
 
 static struct inet6_ifaddr *
-ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr, int pfxlen,
-	      int scope, u32 flags)
+ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr,
+	      const struct in6_addr *peer_addr, int pfxlen,
+	      int scope, u32 flags, u32 valid_lft, u32 prefered_lft)
 {
 	struct inet6_ifaddr *ifa = NULL;
 	struct rt6_info *rt;
@@ -863,6 +864,8 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr, int pfxlen,
 	}
 
 	ifa->addr = *addr;
+	if (peer_addr)
+		ifa->peer_addr = *peer_addr;
 
 	spin_lock_init(&ifa->lock);
 	spin_lock_init(&ifa->state_lock);
@@ -872,6 +875,8 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr, int pfxlen,
 	ifa->scope = scope;
 	ifa->prefix_len = pfxlen;
 	ifa->flags = flags | IFA_F_TENTATIVE;
+	ifa->valid_lft = valid_lft;
+	ifa->prefered_lft = prefered_lft;
 	ifa->cstamp = ifa->tstamp = jiffies;
 	ifa->tokenized = false;
 
@@ -1121,11 +1126,10 @@ retry:
 	if (ifp->flags & IFA_F_OPTIMISTIC)
 		addr_flags |= IFA_F_OPTIMISTIC;
 
-	ift = !max_addresses ||
-	      ipv6_count_addresses(idev) < max_addresses ?
-		ipv6_add_addr(idev, &addr, tmp_plen, ipv6_addr_scope(&addr),
-			      addr_flags) : NULL;
-	if (IS_ERR_OR_NULL(ift)) {
+	ift = ipv6_add_addr(idev, &addr, NULL, tmp_plen,
+			    ipv6_addr_scope(&addr), addr_flags,
+			    tmp_valid_lft, tmp_prefered_lft);
+	if (IS_ERR(ift)) {
 		in6_ifa_put(ifp);
 		in6_dev_put(idev);
 		pr_info("%s: retry temporary address regeneration\n", __func__);
@@ -1136,8 +1140,6 @@ retry:
 
 	spin_lock_bh(&ift->lock);
 	ift->ifpub = ifp;
-	ift->valid_lft = tmp_valid_lft;
-	ift->prefered_lft = tmp_prefered_lft;
 	ift->cstamp = now;
 	ift->tstamp = tmp_tstamp;
 	spin_unlock_bh(&ift->lock);
@@ -2179,16 +2181,19 @@ ok:
 			 */
 			if (!max_addresses ||
 			    ipv6_count_addresses(in6_dev) < max_addresses)
-				ifp = ipv6_add_addr(in6_dev, &addr, pinfo->prefix_len,
+				ifp = ipv6_add_addr(in6_dev, &addr, NULL,
+						    pinfo->prefix_len,
 						    addr_type&IPV6_ADDR_SCOPE_MASK,
-						    addr_flags);
+						    addr_flags, valid_lft,
+						    prefered_lft);
 
 			if (IS_ERR_OR_NULL(ifp)) {
 				in6_dev_put(in6_dev);
 				return;
 			}
 
-			update_lft = create = 1;
+			update_lft = 0;
+			create = 1;
 			ifp->cstamp = jiffies;
 			ifp->tokenized = tokenized;
 			addrconf_dad_start(ifp);
@@ -2209,7 +2214,7 @@ ok:
 				stored_lft = ifp->valid_lft - (now - ifp->tstamp) / HZ;
 			else
 				stored_lft = 0;
-			if (!update_lft && stored_lft) {
+			if (!update_lft && !create && stored_lft) {
 				if (valid_lft > MIN_VALID_LIFETIME ||
 				    valid_lft > stored_lft)
 					update_lft = 1;
@@ -2455,17 +2460,10 @@ static int inet6_addr_add(struct net *net, int ifindex, const struct in6_addr *p
 		prefered_lft = timeout;
 	}
 
-	ifp = ipv6_add_addr(idev, pfx, plen, scope, ifa_flags);
+	ifp = ipv6_add_addr(idev, pfx, peer_pfx, plen, scope, ifa_flags,
+			    valid_lft, prefered_lft);
 
 	if (!IS_ERR(ifp)) {
-		spin_lock_bh(&ifp->lock);
-		ifp->valid_lft = valid_lft;
-		ifp->prefered_lft = prefered_lft;
-		ifp->tstamp = jiffies;
-		if (peer_pfx)
-			ifp->peer_addr = *peer_pfx;
-		spin_unlock_bh(&ifp->lock);
-
 		addrconf_prefix_route(&ifp->addr, ifp->prefix_len, dev,
 				      expires, flags);
 		/*
@@ -2557,7 +2555,8 @@ static void add_addr(struct inet6_dev *idev, const struct in6_addr *addr,
 {
 	struct inet6_ifaddr *ifp;
 
-	ifp = ipv6_add_addr(idev, addr, plen, scope, IFA_F_PERMANENT);
+	ifp = ipv6_add_addr(idev, addr, NULL, plen,
+			    scope, IFA_F_PERMANENT, 0, 0);
 	if (!IS_ERR(ifp)) {
 		spin_lock_bh(&ifp->lock);
 		ifp->flags &= ~IFA_F_TENTATIVE;
@@ -2683,7 +2682,7 @@ static void addrconf_add_linklocal(struct inet6_dev *idev, const struct in6_addr
 #endif
 
 
-	ifp = ipv6_add_addr(idev, addr, 64, IFA_LINK, addr_flags);
+	ifp = ipv6_add_addr(idev, addr, NULL, 64, IFA_LINK, addr_flags, 0, 0);
 	if (!IS_ERR(ifp)) {
 		addrconf_prefix_route(&ifp->addr, ifp->prefix_len, idev->dev, 0, 0);
 		addrconf_dad_start(ifp);

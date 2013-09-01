@@ -2038,9 +2038,6 @@ int cypress_dpm_init(struct radeon_device *rdev)
 {
 	struct rv7xx_power_info *pi;
 	struct evergreen_power_info *eg_pi;
-	int index = GetIndexIntoMasterTable(DATA, ASIC_InternalSS_Info);
-	uint16_t data_offset, size;
-	uint8_t frev, crev;
 	struct atom_clock_dividers dividers;
 	int ret;
 
@@ -2092,16 +2089,7 @@ int cypress_dpm_init(struct radeon_device *rdev)
 	eg_pi->vddci_control =
 		radeon_atom_is_voltage_gpio(rdev, SET_VOLTAGE_TYPE_ASIC_VDDCI, 0);
 
-	if (atom_parse_data_header(rdev->mode_info.atom_context, index, &size,
-                                   &frev, &crev, &data_offset)) {
-		pi->sclk_ss = true;
-		pi->mclk_ss = true;
-		pi->dynamic_ss = true;
-	} else {
-		pi->sclk_ss = false;
-		pi->mclk_ss = false;
-		pi->dynamic_ss = true;
-	}
+	rv770_get_engine_memory_ss(rdev);
 
 	pi->asi = RV770_ASI_DFLT;
 	pi->pasi = CYPRESS_HASI_DFLT;
@@ -2122,8 +2110,7 @@ int cypress_dpm_init(struct radeon_device *rdev)
 
 	pi->dynamic_pcie_gen2 = true;
 
-	if (pi->gfx_clock_gating &&
-	    (rdev->pm.int_thermal_type != THERMAL_TYPE_NONE))
+	if (rdev->pm.int_thermal_type != THERMAL_TYPE_NONE)
 		pi->thermal_protection = true;
 	else
 		pi->thermal_protection = false;
@@ -2179,7 +2166,8 @@ bool cypress_dpm_vblank_too_short(struct radeon_device *rdev)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
 	u32 vblank_time = r600_dpm_get_vblank_time(rdev);
-	u32 switch_limit = pi->mem_gddr5 ? 450 : 300;
+	/* we never hit the non-gddr5 limit so disable it */
+	u32 switch_limit = pi->mem_gddr5 ? 450 : 0;
 
 	if (vblank_time < switch_limit)
 		return true;

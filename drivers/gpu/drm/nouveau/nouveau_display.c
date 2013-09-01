@@ -580,6 +580,9 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		ret = nv50_display_flip_next(crtc, fb, chan, 0);
 		if (ret)
 			goto fail_unreserve;
+	} else {
+		struct nv04_display *dispnv04 = nv04_display(dev);
+		nouveau_bo_ref(new_bo, &dispnv04->image[nouveau_crtc(crtc)->index]);
 	}
 
 	ret = nouveau_page_flip_emit(chan, old_bo, new_bo, s, &fence);
