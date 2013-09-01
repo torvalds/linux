@@ -1334,6 +1334,50 @@ out:
 	return regulator;
 }
 
+enum {
+	NORMAL_GET,
+	EXCLUSIVE_GET,
+	OPTIONAL_GET,
+};
+
+static void devm_regulator_release(struct device *dev, void *res)
+{
+	regulator_put(*(struct regulator **)res);
+}
+
+static struct regulator *_devm_regulator_get(struct device *dev, const char *id,
+					     int get_type)
+{
+	struct regulator **ptr, *regulator;
+
+	ptr = devres_alloc(devm_regulator_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	switch (get_type) {
+	case NORMAL_GET:
+		regulator = regulator_get(dev, id);
+		break;
+	case EXCLUSIVE_GET:
+		regulator = regulator_get_exclusive(dev, id);
+		break;
+	case OPTIONAL_GET:
+		regulator = regulator_get_optional(dev, id);
+		break;
+	default:
+		regulator = ERR_PTR(-EINVAL);
+	}
+
+	if (!IS_ERR(regulator)) {
+		*ptr = regulator;
+		devres_add(dev, ptr);
+	} else {
+		devres_free(ptr);
+	}
+
+	return regulator;
+}
+
 /**
  * regulator_get - lookup and obtain a reference to a regulator.
  * @dev: device for regulator "consumer"
@@ -1353,11 +1397,6 @@ struct regulator *regulator_get(struct device *dev, const char *id)
 }
 EXPORT_SYMBOL_GPL(regulator_get);
 
-static void devm_regulator_release(struct device *dev, void *res)
-{
-	regulator_put(*(struct regulator **)res);
-}
-
 /**
  * devm_regulator_get - Resource managed regulator_get()
  * @dev: device for regulator "consumer"
@@ -1369,21 +1408,7 @@ static void devm_regulator_release(struct device *dev, void *res)
  */
 struct regulator *devm_regulator_get(struct device *dev, const char *id)
 {
-	struct regulator **ptr, *regulator;
-
-	ptr = devres_alloc(devm_regulator_release, sizeof(*ptr), GFP_KERNEL);
-	if (!ptr)
-		return ERR_PTR(-ENOMEM);
-
-	regulator = regulator_get(dev, id);
-	if (!IS_ERR(regulator)) {
-		*ptr = regulator;
-		devres_add(dev, ptr);
-	} else {
-		devres_free(ptr);
-	}
-
-	return regulator;
+	return _devm_regulator_get(dev, id, NORMAL_GET);
 }
 EXPORT_SYMBOL_GPL(devm_regulator_get);
 
@@ -1413,6 +1438,22 @@ struct regulator *regulator_get_exclusive(struct device *dev, const char *id)
 	return _regulator_get(dev, id, true);
 }
 EXPORT_SYMBOL_GPL(regulator_get_exclusive);
+
+/**
+ * devm_regulator_get_exclusive - Resource managed regulator_get_exclusive()
+ * @dev: device for regulator "consumer"
+ * @id: Supply name or regulator ID.
+ *
+ * Managed regulator_get_exclusive(). Regulators returned from this function
+ * are automatically regulator_put() on driver detach. See regulator_get() for
+ * more information.
+ */
+struct regulator *devm_regulator_get_exclusive(struct device *dev,
+					       const char *id)
+{
+	return _devm_regulator_get(dev, id, EXCLUSIVE_GET);
+}
+EXPORT_SYMBOL_GPL(devm_regulator_get_exclusive);
 
 /**
  * regulator_get_optional - obtain optional access to a regulator.
@@ -1455,21 +1496,7 @@ EXPORT_SYMBOL_GPL(regulator_get_optional);
 struct regulator *devm_regulator_get_optional(struct device *dev,
 					      const char *id)
 {
-	struct regulator **ptr, *regulator;
-
-	ptr = devres_alloc(devm_regulator_release, sizeof(*ptr), GFP_KERNEL);
-	if (!ptr)
-		return ERR_PTR(-ENOMEM);
-
-	regulator = regulator_get_optional(dev, id);
-	if (!IS_ERR(regulator)) {
-		*ptr = regulator;
-		devres_add(dev, ptr);
-	} else {
-		devres_free(ptr);
-	}
-
-	return regulator;
+	return _devm_regulator_get(dev, id, OPTIONAL_GET);
 }
 EXPORT_SYMBOL_GPL(devm_regulator_get_optional);
 
@@ -1497,36 +1524,6 @@ static void _regulator_put(struct regulator *regulator)
 
 	module_put(rdev->owner);
 }
-
-/**
- * devm_regulator_get_exclusive - Resource managed regulator_get_exclusive()
- * @dev: device for regulator "consumer"
- * @id: Supply name or regulator ID.
- *
- * Managed regulator_get_exclusive(). Regulators returned from this function
- * are automatically regulator_put() on driver detach. See regulator_get() for
- * more information.
- */
-struct regulator *devm_regulator_get_exclusive(struct device *dev,
-					       const char *id)
-{
-	struct regulator **ptr, *regulator;
-
-	ptr = devres_alloc(devm_regulator_release, sizeof(*ptr), GFP_KERNEL);
-	if (!ptr)
-		return ERR_PTR(-ENOMEM);
-
-	regulator = _regulator_get(dev, id, 1);
-	if (!IS_ERR(regulator)) {
-		*ptr = regulator;
-		devres_add(dev, ptr);
-	} else {
-		devres_free(ptr);
-	}
-
-	return regulator;
-}
-EXPORT_SYMBOL_GPL(devm_regulator_get_exclusive);
 
 /**
  * regulator_put - "free" the regulator source
