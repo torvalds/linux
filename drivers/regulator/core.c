@@ -1413,6 +1413,65 @@ struct regulator *regulator_get_exclusive(struct device *dev, const char *id)
 }
 EXPORT_SYMBOL_GPL(regulator_get_exclusive);
 
+/**
+ * regulator_get_optional - obtain optional access to a regulator.
+ * @dev: device for regulator "consumer"
+ * @id: Supply name or regulator ID.
+ *
+ * Returns a struct regulator corresponding to the regulator producer,
+ * or IS_ERR() condition containing errno.  Other consumers will be
+ * unable to obtain this reference is held and the use count for the
+ * regulator will be initialised to reflect the current state of the
+ * regulator.
+ *
+ * This is intended for use by consumers for devices which can have
+ * some supplies unconnected in normal use, such as some MMC devices.
+ * It can allow the regulator core to provide stub supplies for other
+ * supplies requested using normal regulator_get() calls without
+ * disrupting the operation of drivers that can handle absent
+ * supplies.
+ *
+ * Use of supply names configured via regulator_set_device_supply() is
+ * strongly encouraged.  It is recommended that the supply name used
+ * should match the name used for the supply and/or the relevant
+ * device pins in the datasheet.
+ */
+struct regulator *regulator_get_optional(struct device *dev, const char *id)
+{
+	return _regulator_get(dev, id, 0);
+}
+EXPORT_SYMBOL_GPL(regulator_get_optional);
+
+/**
+ * devm_regulator_get_optional - Resource managed regulator_get_optional()
+ * @dev: device for regulator "consumer"
+ * @id: Supply name or regulator ID.
+ *
+ * Managed regulator_get_optional(). Regulators returned from this
+ * function are automatically regulator_put() on driver detach. See
+ * regulator_get_optional() for more information.
+ */
+struct regulator *devm_regulator_get_optional(struct device *dev,
+					      const char *id)
+{
+	struct regulator **ptr, *regulator;
+
+	ptr = devres_alloc(devm_regulator_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	regulator = regulator_get_optional(dev, id);
+	if (!IS_ERR(regulator)) {
+		*ptr = regulator;
+		devres_add(dev, ptr);
+	} else {
+		devres_free(ptr);
+	}
+
+	return regulator;
+}
+EXPORT_SYMBOL_GPL(devm_regulator_get_optional);
+
 /* Locks held by regulator_put() */
 static void _regulator_put(struct regulator *regulator)
 {
@@ -1437,6 +1496,36 @@ static void _regulator_put(struct regulator *regulator)
 
 	module_put(rdev->owner);
 }
+
+/**
+ * devm_regulator_get_exclusive - Resource managed regulator_get_exclusive()
+ * @dev: device for regulator "consumer"
+ * @id: Supply name or regulator ID.
+ *
+ * Managed regulator_get_exclusive(). Regulators returned from this function
+ * are automatically regulator_put() on driver detach. See regulator_get() for
+ * more information.
+ */
+struct regulator *devm_regulator_get_exclusive(struct device *dev,
+					       const char *id)
+{
+	struct regulator **ptr, *regulator;
+
+	ptr = devres_alloc(devm_regulator_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	regulator = _regulator_get(dev, id, 1);
+	if (!IS_ERR(regulator)) {
+		*ptr = regulator;
+		devres_add(dev, ptr);
+	} else {
+		devres_free(ptr);
+	}
+
+	return regulator;
+}
+EXPORT_SYMBOL_GPL(devm_regulator_get_exclusive);
 
 /**
  * regulator_put - "free" the regulator source
