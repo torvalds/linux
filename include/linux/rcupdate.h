@@ -551,7 +551,7 @@ static inline void rcu_preempt_sleep_check(void)
 #define __rcu_assign_pointer(p, v, space) \
 	do { \
 		smp_wmb(); \
-		(p) = (typeof(*v) __force space *)(v); \
+		ACCESS_ONCE(p) = (typeof(*(v)) __force space *)(v); \
 	} while (0)
 
 
