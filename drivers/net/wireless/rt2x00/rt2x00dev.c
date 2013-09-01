@@ -566,10 +566,10 @@ static void rt2x00lib_rxdone_check_ba(struct rt2x00_dev *rt2x00dev,
 
 #undef TID_CHECK
 
-		if (compare_ether_addr(ba->ra, entry->ta))
+		if (!ether_addr_equal(ba->ra, entry->ta))
 			continue;
 
-		if (compare_ether_addr(ba->ta, entry->ra))
+		if (!ether_addr_equal(ba->ta, entry->ra))
 			continue;
 
 		/* Mark BAR since we received the according BA */

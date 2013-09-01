@@ -544,7 +544,7 @@ static inline bool filter_packet(struct net_device *dev, void *buf)
 	/* Filter out packets that aren't for us. */
 	if (!(dev->flags & IFF_PROMISC) &&
 	    !is_multicast_ether_addr(buf) &&
-	    compare_ether_addr(dev->dev_addr, buf) != 0)
+	    !ether_addr_equal(dev->dev_addr, buf))
 		return true;
 
 	return false;

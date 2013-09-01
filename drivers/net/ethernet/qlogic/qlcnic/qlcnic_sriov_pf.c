@@ -1652,14 +1652,14 @@ int qlcnic_sriov_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 	if (!is_valid_ether_addr(mac) || vf >= num_vfs)
 		return -EINVAL;
 
-	if (!compare_ether_addr(adapter->mac_addr, mac)) {
+	if (ether_addr_equal(adapter->mac_addr, mac)) {
 		netdev_err(netdev, "MAC address is already in use by the PF\n");
 		return -EINVAL;
 	}
 
 	for (i = 0; i < num_vfs; i++) {
 		vf_info = &sriov->vf_info[i];
-		if (!compare_ether_addr(vf_info->vp->mac, mac)) {
+		if (ether_addr_equal(vf_info->vp->mac, mac)) {
 			netdev_err(netdev,
 				   "MAC address is already in use by VF %d\n",
 				   i);
