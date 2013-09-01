@@ -2323,18 +2323,13 @@ static int ath10k_pci_reset_target(struct ath10k *ar)
 
 static void ath10k_pci_device_reset(struct ath10k *ar)
 {
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	void __iomem *mem = ar_pci->mem;
 	int i;
 	u32 val;
 
 	if (!SOC_GLOBAL_RESET_ADDRESS)
 		return;
 
-	if (!mem)
-		return;
-
-	ath10k_pci_reg_write32(mem, PCIE_SOC_WAKE_ADDRESS,
+	ath10k_pci_reg_write32(ar, PCIE_SOC_WAKE_ADDRESS,
 			       PCIE_SOC_WAKE_V_MASK);
 	for (i = 0; i < ATH_PCI_RESET_WAIT_MAX; i++) {
 		if (ath10k_pci_target_is_awake(ar))
@@ -2343,12 +2338,12 @@ static void ath10k_pci_device_reset(struct ath10k *ar)
 	}
 
 	/* Put Target, including PCIe, into RESET. */
-	val = ath10k_pci_reg_read32(mem, SOC_GLOBAL_RESET_ADDRESS);
+	val = ath10k_pci_reg_read32(ar, SOC_GLOBAL_RESET_ADDRESS);
 	val |= 1;
-	ath10k_pci_reg_write32(mem, SOC_GLOBAL_RESET_ADDRESS, val);
+	ath10k_pci_reg_write32(ar, SOC_GLOBAL_RESET_ADDRESS, val);
 
 	for (i = 0; i < ATH_PCI_RESET_WAIT_MAX; i++) {
-		if (ath10k_pci_reg_read32(mem, RTC_STATE_ADDRESS) &
+		if (ath10k_pci_reg_read32(ar, RTC_STATE_ADDRESS) &
 					  RTC_STATE_COLD_RESET_MASK)
 			break;
 		msleep(1);
@@ -2356,16 +2351,16 @@ static void ath10k_pci_device_reset(struct ath10k *ar)
 
 	/* Pull Target, including PCIe, out of RESET. */
 	val &= ~1;
-	ath10k_pci_reg_write32(mem, SOC_GLOBAL_RESET_ADDRESS, val);
+	ath10k_pci_reg_write32(ar, SOC_GLOBAL_RESET_ADDRESS, val);
 
 	for (i = 0; i < ATH_PCI_RESET_WAIT_MAX; i++) {
-		if (!(ath10k_pci_reg_read32(mem, RTC_STATE_ADDRESS) &
+		if (!(ath10k_pci_reg_read32(ar, RTC_STATE_ADDRESS) &
 					    RTC_STATE_COLD_RESET_MASK))
 			break;
 		msleep(1);
 	}
 
-	ath10k_pci_reg_write32(mem, PCIE_SOC_WAKE_ADDRESS, PCIE_SOC_WAKE_RESET);
+	ath10k_pci_reg_write32(ar, PCIE_SOC_WAKE_ADDRESS, PCIE_SOC_WAKE_RESET);
 }
 
 static void ath10k_pci_dump_features(struct ath10k_pci *ar_pci)
