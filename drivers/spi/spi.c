@@ -886,48 +886,44 @@ static void of_register_spi_devices(struct spi_master *master)
 			spi->mode |= SPI_3WIRE;
 
 		/* Device DUAL/QUAD mode */
-		prop = of_get_property(nc, "spi-tx-nbits", &len);
-		if (!prop || len < sizeof(*prop)) {
-			dev_err(&master->dev, "%s has no 'spi-tx-nbits' property\n",
-				nc->full_name);
-			spi_dev_put(spi);
-			continue;
-		}
-		switch (be32_to_cpup(prop)) {
-		case SPI_NBITS_SINGLE:
-			break;
-		case SPI_NBITS_DUAL:
-			spi->mode |= SPI_TX_DUAL;
-			break;
-		case SPI_NBITS_QUAD:
-			spi->mode |= SPI_TX_QUAD;
-			break;
-		default:
-			dev_err(&master->dev, "spi-tx-nbits value is not supported\n");
-			spi_dev_put(spi);
-			continue;
+		prop = of_get_property(nc, "spi-tx-bus-width", &len);
+		if (prop && len == sizeof(*prop)) {
+			switch (be32_to_cpup(prop)) {
+			case SPI_NBITS_SINGLE:
+				break;
+			case SPI_NBITS_DUAL:
+				spi->mode |= SPI_TX_DUAL;
+				break;
+			case SPI_NBITS_QUAD:
+				spi->mode |= SPI_TX_QUAD;
+				break;
+			default:
+				dev_err(&master->dev,
+					"spi-tx-bus-width %d not supported\n",
+					be32_to_cpup(prop));
+				spi_dev_put(spi);
+				continue;
+			}
 		}
 
-		prop = of_get_property(nc, "spi-rx-nbits", &len);
-		if (!prop || len < sizeof(*prop)) {
-			dev_err(&master->dev, "%s has no 'spi-rx-nbits' property\n",
-				nc->full_name);
-			spi_dev_put(spi);
-			continue;
-		}
-		switch (be32_to_cpup(prop)) {
-		case SPI_NBITS_SINGLE:
-			break;
-		case SPI_NBITS_DUAL:
-			spi->mode |= SPI_RX_DUAL;
-			break;
-		case SPI_NBITS_QUAD:
-			spi->mode |= SPI_RX_QUAD;
-			break;
-		default:
-			dev_err(&master->dev, "spi-rx-nbits value is not supported\n");
-			spi_dev_put(spi);
-			continue;
+		prop = of_get_property(nc, "spi-rx-bus-width", &len);
+		if (prop && len == sizeof(*prop)) {
+			switch (be32_to_cpup(prop)) {
+			case SPI_NBITS_SINGLE:
+				break;
+			case SPI_NBITS_DUAL:
+				spi->mode |= SPI_RX_DUAL;
+				break;
+			case SPI_NBITS_QUAD:
+				spi->mode |= SPI_RX_QUAD;
+				break;
+			default:
+				dev_err(&master->dev,
+					"spi-rx-bus-width %d not supported\n",
+					be32_to_cpup(prop));
+				spi_dev_put(spi);
+				continue;
+			}
 		}
 
 		/* Device speed */
@@ -1480,6 +1476,7 @@ static int __spi_async(struct spi_device *spi, struct spi_message *message)
 			return -EINVAL;
 		if (xfer->speed_hz && master->max_speed_hz &&
 		    xfer->speed_hz > master->max_speed_hz)
+			return -EINVAL;
 
 		if (xfer->tx_buf && !xfer->tx_nbits)
 			xfer->tx_nbits = SPI_NBITS_SINGLE;
