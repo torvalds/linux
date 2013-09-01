@@ -774,7 +774,7 @@ static int spi_queued_transfer(struct spi_device *spi, struct spi_message *msg)
 	msg->status = -EINPROGRESS;
 
 	list_add_tail(&msg->queue, &master->queue);
-	if (master->running && !master->busy)
+	if (!master->busy)
 		queue_kthread_work(&master->kworker, &master->pump_messages);
 
 	spin_unlock_irqrestore(&master->queue_lock, flags);
@@ -1169,7 +1169,7 @@ int spi_register_master(struct spi_master *master)
 	else {
 		status = spi_master_initialize_queue(master);
 		if (status) {
-			device_unregister(&master->dev);
+			device_del(&master->dev);
 			goto done;
 		}
 	}
