@@ -2091,7 +2091,8 @@ pl022_platform_data_dt_get(struct device *dev)
 static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	struct device *dev = &adev->dev;
-	struct pl022_ssp_controller *platform_info = adev->dev.platform_data;
+	struct pl022_ssp_controller *platform_info =
+			dev_get_platdata(&adev->dev);
 	struct spi_master *master;
 	struct pl022 *pl022 = NULL;	/*Data for this driver */
 	struct device_node *np = adev->dev.of_node;

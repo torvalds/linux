@@ -599,8 +599,7 @@ static int  spi_sirfsoc_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int spi_sirfsoc_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct spi_master *master = platform_get_drvdata(pdev);
+	struct spi_master *master = dev_get_drvdata(dev);
 	struct sirfsoc_spi *sspi = spi_master_get_devdata(master);
 
 	clk_disable(sspi->clk);
@@ -609,8 +608,7 @@ static int spi_sirfsoc_suspend(struct device *dev)
 
 static int spi_sirfsoc_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct spi_master *master = platform_get_drvdata(pdev);
+	struct spi_master *master = dev_get_drvdata(dev);
 	struct sirfsoc_spi *sspi = spi_master_get_devdata(master);
 
 	clk_enable(sspi->clk);

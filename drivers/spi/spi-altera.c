@@ -200,7 +200,7 @@ static irqreturn_t altera_spi_irq(int irq, void *dev)
 
 static int altera_spi_probe(struct platform_device *pdev)
 {
-	struct altera_spi_platform_data *platp = pdev->dev.platform_data;
+	struct altera_spi_platform_data *platp = dev_get_platdata(&pdev->dev);
 	struct altera_spi *hw;
 	struct spi_master *master;
 	struct resource *res;

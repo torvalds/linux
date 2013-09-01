@@ -756,7 +756,7 @@ static int bfin_sport_spi_probe(struct platform_device *pdev)
 	struct bfin_sport_spi_master_data *drv_data;
 	int status;
 
-	platform_info = dev->platform_data;
+	platform_info = dev_get_platdata(dev);
 
 	/* Allocate master with space for drv_data */
 	master = spi_alloc_master(dev, sizeof(*master) + 16);

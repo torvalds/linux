@@ -773,7 +773,7 @@ static irqreturn_t bfin_spi_rx_dma_isr(int irq, void *dev_id)
 static int bfin_spi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct bfin_spi3_master *info = dev->platform_data;
+	struct bfin_spi3_master *info = dev_get_platdata(dev);
 	struct spi_master *master;
 	struct bfin_spi_master *drv_data;
 	struct resource *mem, *res;

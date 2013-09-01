@@ -874,7 +874,7 @@ static int ep93xx_spi_probe(struct platform_device *pdev)
 	int irq;
 	int error;
 
-	info = pdev->dev.platform_data;
+	info = dev_get_platdata(&pdev->dev);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {

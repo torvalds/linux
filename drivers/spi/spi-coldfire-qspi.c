@@ -400,7 +400,7 @@ static int mcfqspi_probe(struct platform_device *pdev)
 	struct mcfqspi_platform_data *pdata;
 	int status;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
 		dev_dbg(&pdev->dev, "platform data is missing\n");
 		return -ENOENT;
@@ -558,7 +558,7 @@ static int mcfqspi_resume(struct device *dev)
 #ifdef CONFIG_PM_RUNTIME
 static int mcfqspi_runtime_suspend(struct device *dev)
 {
-	struct mcfqspi *mcfqspi = platform_get_drvdata(to_platform_device(dev));
+	struct mcfqspi *mcfqspi = dev_get_drvdata(dev);
 
 	clk_disable(mcfqspi->clk);
 
@@ -567,7 +567,7 @@ static int mcfqspi_runtime_suspend(struct device *dev)
 
 static int mcfqspi_runtime_resume(struct device *dev)
 {
-	struct mcfqspi *mcfqspi = platform_get_drvdata(to_platform_device(dev));
+	struct mcfqspi *mcfqspi = dev_get_drvdata(dev);
 
 	clk_enable(mcfqspi->clk);
 
