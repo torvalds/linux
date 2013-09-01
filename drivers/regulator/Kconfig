@@ -385,6 +385,14 @@ config REGULATOR_PCF50633
 	 Say Y here to support the voltage regulators and convertors
 	 on PCF50633
 
+config REGULATOR_PFUZE100
+	tristate "Support regulators on Freescale PFUZE100 PMIC"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say y here to support the regulators found on the Freescale PFUZE100
+	  PMIC.
+
 config REGULATOR_RC5T583
 	tristate "RICOH RC5T583 Power regulators"
 	depends on MFD_RC5T583
