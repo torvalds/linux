@@ -364,47 +364,7 @@ struct bnx2x_bd_chain_next {
 
 #define BNX2X_FCOE_L5_CID_BASE		MAX_ISCSI_TBL_SZ
 
-#define BNX2X_CHIP_NUM_57710		0x164e
-#define BNX2X_CHIP_NUM_57711		0x164f
-#define BNX2X_CHIP_NUM_57711E		0x1650
-#define BNX2X_CHIP_NUM_57712		0x1662
-#define BNX2X_CHIP_NUM_57712E		0x1663
-#define BNX2X_CHIP_NUM_57713		0x1651
-#define BNX2X_CHIP_NUM_57713E		0x1652
-#define BNX2X_CHIP_NUM_57800		0x168a
-#define BNX2X_CHIP_NUM_57810		0x168e
-#define BNX2X_CHIP_NUM_57840		0x168d
-
-#define BNX2X_CHIP_NUM(x)		(x >> 16)
-#define BNX2X_CHIP_IS_57710(x)		\
-	(BNX2X_CHIP_NUM(x) == BNX2X_CHIP_NUM_57710)
-#define BNX2X_CHIP_IS_57711(x)		\
-	(BNX2X_CHIP_NUM(x) == BNX2X_CHIP_NUM_57711)
-#define BNX2X_CHIP_IS_57711E(x)		\
-	(BNX2X_CHIP_NUM(x) == BNX2X_CHIP_NUM_57711E)
-#define BNX2X_CHIP_IS_E1H(x)		\
-	(BNX2X_CHIP_IS_57711(x) || BNX2X_CHIP_IS_57711E(x))
-#define BNX2X_CHIP_IS_57712(x)		\
-	(BNX2X_CHIP_NUM(x) == BNX2X_CHIP_NUM_57712)
-#define BNX2X_CHIP_IS_57712E(x)		\
-	(BNX2X_CHIP_NUM(x) == BNX2X_CHIP_NUM_57712E)
-#define BNX2X_CHIP_IS_57713(x)		\
-	(BNX2X_CHIP_NUM(x) == BNX2X_CHIP_NUM_57713)
-#define BNX2X_CHIP_IS_57713E(x)		\
-	(BNX2X_CHIP_NUM(x) == BNX2X_CHIP_NUM_57713E)
-#define BNX2X_CHIP_IS_57800(x)		\
-	(BNX2X_CHIP_NUM(x) == BNX2X_CHIP_NUM_57800)
-#define BNX2X_CHIP_IS_57810(x)		\
-	(BNX2X_CHIP_NUM(x) == BNX2X_CHIP_NUM_57810)
-#define BNX2X_CHIP_IS_57840(x)		\
-	(BNX2X_CHIP_NUM(x) == BNX2X_CHIP_NUM_57840)
-#define BNX2X_CHIP_IS_E2(x)		\
-	(BNX2X_CHIP_IS_57712(x) || BNX2X_CHIP_IS_57712E(x) || \
-	 BNX2X_CHIP_IS_57713(x) || BNX2X_CHIP_IS_57713E(x))
-#define BNX2X_CHIP_IS_E3(x)			\
-	(BNX2X_CHIP_IS_57800(x) || BNX2X_CHIP_IS_57810(x) || \
-	 BNX2X_CHIP_IS_57840(x))
-#define BNX2X_CHIP_IS_E2_PLUS(x) (BNX2X_CHIP_IS_E2(x) || BNX2X_CHIP_IS_E3(x))
+#define BNX2X_CHIP_IS_E2_PLUS(bp) (CHIP_IS_E2(bp) || CHIP_IS_E3(bp))
 
 #define BNX2X_RX_DESC_CNT		(BNX2_PAGE_SIZE / \
 					 sizeof(struct eth_rx_bd))
@@ -441,8 +401,6 @@ struct bnx2x_bd_chain_next {
 
 #define CNIC_PORT(cp)			((cp)->pfid & 1)
 #define CNIC_FUNC(cp)			((cp)->func)
-#define CNIC_PATH(cp)			(!BNX2X_CHIP_IS_E2_PLUS(cp->chip_id) ? \
-					 0 : (CNIC_FUNC(cp) & 1))
 #define CNIC_E1HVN(cp)			((cp)->pfid >> 1)
 
 #define BNX2X_HW_CID(cp, x)		((CNIC_PORT(cp) << 23) | \
@@ -450,20 +408,19 @@ struct bnx2x_bd_chain_next {
 
 #define BNX2X_SW_CID(x)			(x & 0x1ffff)
 
-#define BNX2X_CL_QZONE_ID(cp, cli)					\
-		(BNX2X_CHIP_IS_E2_PLUS(cp->chip_id) ? cli :		\
-		 cli + (CNIC_PORT(cp) * ETH_MAX_RX_CLIENTS_E1H))
+#define BNX2X_CL_QZONE_ID(bp, cli)					\
+		(BNX2X_CHIP_IS_E2_PLUS(bp) ? cli :			\
+		 cli + (BP_PORT(bp) * ETH_MAX_RX_CLIENTS_E1H))
 
 #ifndef MAX_STAT_COUNTER_ID
 #define MAX_STAT_COUNTER_ID						\
-	(BNX2X_CHIP_IS_E1H((cp)->chip_id) ? MAX_STAT_COUNTER_ID_E1H :	\
-	 ((BNX2X_CHIP_IS_E2_PLUS((cp)->chip_id)) ? MAX_STAT_COUNTER_ID_E2 :\
+	(CHIP_IS_E1H(bp) ? MAX_STAT_COUNTER_ID_E1H :			\
+	 ((BNX2X_CHIP_IS_E2_PLUS(bp)) ? MAX_STAT_COUNTER_ID_E2 :	\
 	  MAX_STAT_COUNTER_ID_E1))
 #endif
 
-#define CNIC_SUPPORTS_FCOE(cp)					\
-	(BNX2X_CHIP_IS_E2_PLUS((cp)->chip_id) &&		\
-	 !((cp)->ethdev->drv_state & CNIC_DRV_STATE_NO_FCOE))
+#define CNIC_SUPPORTS_FCOE(cp)						\
+	(BNX2X_CHIP_IS_E2_PLUS(bp) && !NO_FCOE(bp))
 
 #define CNIC_RAMROD_TMO			(HZ / 4)
 
