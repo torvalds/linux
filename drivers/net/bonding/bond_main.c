@@ -828,7 +828,6 @@ static bool bond_should_notify_peers(struct bonding *bond)
 	    test_bit(__LINK_STATE_LINKWATCH_PENDING, &slave->dev->state))
 		return false;
 
-	bond->send_peer_notif--;
 	return true;
 }
 
@@ -2259,12 +2258,8 @@ re_arm:
 	read_unlock(&bond->lock);
 
 	if (should_notify_peers) {
-		if (!rtnl_trylock()) {
-			read_lock(&bond->lock);
-			bond->send_peer_notif++;
-			read_unlock(&bond->lock);
+		if (!rtnl_trylock())
 			return;
-		}
 		call_netdevice_notifiers(NETDEV_NOTIFY_PEERS, bond->dev);
 		rtnl_unlock();
 	}
@@ -2876,12 +2871,8 @@ re_arm:
 	read_unlock(&bond->lock);
 
 	if (should_notify_peers) {
-		if (!rtnl_trylock()) {
-			read_lock(&bond->lock);
-			bond->send_peer_notif++;
-			read_unlock(&bond->lock);
+		if (!rtnl_trylock())
 			return;
-		}
 		call_netdevice_notifiers(NETDEV_NOTIFY_PEERS, bond->dev);
 		rtnl_unlock();
 	}
@@ -2915,6 +2906,10 @@ static int bond_master_netdev_event(unsigned long event,
 		break;
 	case NETDEV_REGISTER:
 		bond_create_proc_entry(event_bond);
+		break;
+	case NETDEV_NOTIFY_PEERS:
+		if (event_bond->send_peer_notif)
+			event_bond->send_peer_notif--;
 		break;
 	default:
 		break;
@@ -3213,11 +3208,8 @@ static int bond_close(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 
-	write_lock_bh(&bond->lock);
-	bond->send_peer_notif = 0;
-	write_unlock_bh(&bond->lock);
-
 	bond_work_cancel_all(bond);
+	bond->send_peer_notif = 0;
 	if (bond_is_lb(bond)) {
 		/* Must be called only after all
 		 * slaves have been released
