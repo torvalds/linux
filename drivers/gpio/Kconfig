@@ -126,7 +126,7 @@ config GPIO_IT8761E
 
 config GPIO_EM
 	tristate "Emma Mobile GPIO"
-	depends on ARM
+	depends on ARM && OF_GPIO
 	help
 	  Say yes here to support GPIO on Renesas Emma Mobile SoCs.
 
