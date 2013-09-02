@@ -853,7 +853,7 @@ batadv_iv_ogm_orig_update(struct batadv_priv *bat_priv,
 		neigh_node->last_ttl = batadv_ogm_packet->header.ttl;
 	}
 
-	batadv_bonding_candidate_add(orig_node, neigh_node);
+	batadv_bonding_candidate_add(bat_priv, orig_node, neigh_node);
 
 	/* if this neighbor already is our next hop there is nothing
 	 * to change
