@@ -673,7 +673,10 @@ void mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 
 	case HOST_ENUM_RES_CMD:
 		enum_res = (struct hbm_host_enum_response *) mei_msg;
-		memcpy(dev->me_clients_map, enum_res->valid_addresses, 32);
+		BUILD_BUG_ON(sizeof(dev->me_clients_map)
+				< sizeof(enum_res->valid_addresses));
+		memcpy(dev->me_clients_map, enum_res->valid_addresses,
+			sizeof(enum_res->valid_addresses));
 		if (dev->dev_state == MEI_DEV_INIT_CLIENTS &&
 		    dev->hbm_state == MEI_HBM_ENUM_CLIENTS) {
 				dev->init_clients_timer = 0;
