@@ -404,43 +404,36 @@ static void handle_tx(struct vhost_net *net)
 			       iov_length(nvq->hdr, s), hdr_size);
 			break;
 		}
-		zcopy_used = zcopy && (len >= VHOST_GOODCOPY_LEN ||
-				       nvq->upend_idx != nvq->done_idx);
+
+		zcopy_used = zcopy && len >= VHOST_GOODCOPY_LEN
+				   && (nvq->upend_idx + 1) % UIO_MAXIOV !=
+				      nvq->done_idx
+				   && vhost_net_tx_select_zcopy(net);
 
 		/* use msg_control to pass vhost zerocopy ubuf info to skb */
 		if (zcopy_used) {
-			vq->heads[nvq->upend_idx].id = head;
-			if (!vhost_net_tx_select_zcopy(net) ||
-			    len < VHOST_GOODCOPY_LEN) {
-				/* copy don't need to wait for DMA done */
-				vq->heads[nvq->upend_idx].len =
-							VHOST_DMA_DONE_LEN;
-				msg.msg_control = NULL;
-				msg.msg_controllen = 0;
-				ubufs = NULL;
-			} else {
-				struct ubuf_info *ubuf;
-				ubuf = nvq->ubuf_info + nvq->upend_idx;
+			struct ubuf_info *ubuf;
+			ubuf = nvq->ubuf_info + nvq->upend_idx;
 
-				vq->heads[nvq->upend_idx].len =
-					VHOST_DMA_IN_PROGRESS;
-				ubuf->callback = vhost_zerocopy_callback;
-				ubuf->ctx = nvq->ubufs;
-				ubuf->desc = nvq->upend_idx;
-				msg.msg_control = ubuf;
-				msg.msg_controllen = sizeof(ubuf);
-				ubufs = nvq->ubufs;
-				kref_get(&ubufs->kref);
-			}
+			vq->heads[nvq->upend_idx].id = head;
+			vq->heads[nvq->upend_idx].len = VHOST_DMA_IN_PROGRESS;
+			ubuf->callback = vhost_zerocopy_callback;
+			ubuf->ctx = nvq->ubufs;
+			ubuf->desc = nvq->upend_idx;
+			msg.msg_control = ubuf;
+			msg.msg_controllen = sizeof(ubuf);
+			ubufs = nvq->ubufs;
+			kref_get(&ubufs->kref);
 			nvq->upend_idx = (nvq->upend_idx + 1) % UIO_MAXIOV;
-		} else
+		} else {
 			msg.msg_control = NULL;
+			ubufs = NULL;
+		}
 		/* TODO: Check specific error and bomb out unless ENOBUFS? */
 		err = sock->ops->sendmsg(NULL, sock, &msg, len);
 		if (unlikely(err < 0)) {
 			if (zcopy_used) {
-				if (ubufs)
-					vhost_net_ubuf_put(ubufs);
+				vhost_net_ubuf_put(ubufs);
 				nvq->upend_idx = ((unsigned)nvq->upend_idx - 1)
 					% UIO_MAXIOV;
 			}
