@@ -547,6 +547,9 @@ static void ath9k_init_platform(struct ath_softc *sc)
 	if (sc->driver_data & ATH9K_PCI_CUS217)
 		ath_info(common, "CUS217 card detected\n");
 
+	if (sc->driver_data & ATH9K_PCI_CUS252)
+		ath_info(common, "CUS252 card detected\n");
+
 	if (sc->driver_data & ATH9K_PCI_BT_ANT_DIV) {
 		pCap->hw_caps |= ATH9K_HW_CAP_BT_ANT_DIV;
 		ath_info(common, "Set BT/WLAN RX diversity capability\n");
