@@ -461,8 +461,7 @@ int ip_tunnel_rcv(struct ip_tunnel *tunnel, struct sk_buff *skb,
 		skb->dev = tunnel->dev;
 	}
 
-	if (!net_eq(tunnel->net, dev_net(tunnel->dev)))
-		skb_scrub_packet(skb, true);
+	skb_scrub_packet(skb, !net_eq(tunnel->net, dev_net(tunnel->dev)));
 
 	gro_cells_receive(&tunnel->gro_cells, skb);
 	return 0;

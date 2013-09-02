@@ -509,8 +509,6 @@ static int ip6gre_rcv(struct sk_buff *skb)
 			goto drop;
 		}
 
-		secpath_reset(skb);
-
 		skb->protocol = gre_proto;
 		/* WCCP version 1 and 2 protocol decoding.
 		 * - Change protocol to IP
@@ -525,7 +523,6 @@ static int ip6gre_rcv(struct sk_buff *skb)
 		skb->mac_header = skb->network_header;
 		__pskb_pull(skb, offset);
 		skb_postpull_rcsum(skb, skb_transport_header(skb), offset);
-		skb->pkt_type = PACKET_HOST;
 
 		if (((flags&GRE_CSUM) && csum) ||
 		    (!(flags&GRE_CSUM) && tunnel->parms.i_flags&GRE_CSUM)) {
@@ -557,7 +554,7 @@ static int ip6gre_rcv(struct sk_buff *skb)
 			skb_postpull_rcsum(skb, eth_hdr(skb), ETH_HLEN);
 		}
 
-		__skb_tunnel_rx(skb, tunnel->dev);
+		__skb_tunnel_rx(skb, tunnel->dev, tunnel->net);
 
 		skb_reset_network_header(skb);
 

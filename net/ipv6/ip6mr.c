@@ -672,9 +672,8 @@ static int pim6_rcv(struct sk_buff *skb)
 	skb_reset_network_header(skb);
 	skb->protocol = htons(ETH_P_IPV6);
 	skb->ip_summed = CHECKSUM_NONE;
-	skb->pkt_type = PACKET_HOST;
 
-	skb_tunnel_rx(skb, reg_dev);
+	skb_tunnel_rx(skb, reg_dev, dev_net(reg_dev));
 
 	netif_rx(skb);
 
