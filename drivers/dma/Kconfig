@@ -194,7 +194,7 @@ config SIRF_DMA
 	  Enable support for the CSR SiRFprimaII DMA engine.
 
 config TI_EDMA
-	tristate "TI EDMA support"
+	bool "TI EDMA support"
 	depends on ARCH_DAVINCI || ARCH_OMAP
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
