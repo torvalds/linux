@@ -1657,7 +1657,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 			f->frequency * 625UL / 10UL);
 }
 
-const struct v4l2_ioctl_ops msi3101_ioctl_ops = {
+static const struct v4l2_ioctl_ops msi3101_ioctl_ops = {
 	.vidioc_querycap          = msi3101_querycap,
 
 	.vidioc_enum_input        = msi3101_enum_input,
