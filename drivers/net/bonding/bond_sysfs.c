@@ -852,8 +852,11 @@ static ssize_t bonding_store_lacp(struct device *d,
 				  struct device_attribute *attr,
 				  const char *buf, size_t count)
 {
-	int new_value, ret = count;
 	struct bonding *bond = to_bond(d);
+	int new_value, ret = count;
+
+	if (!rtnl_trylock())
+		return restart_syscall();
 
 	if (bond->dev->flags & IFF_UP) {
 		pr_err("%s: Unable to update LACP rate because interface is up.\n",
@@ -883,6 +886,8 @@ static ssize_t bonding_store_lacp(struct device *d,
 		ret = -EINVAL;
 	}
 out:
+	rtnl_unlock();
+
 	return ret;
 }
 static DEVICE_ATTR(lacp_rate, S_IRUGO | S_IWUSR,

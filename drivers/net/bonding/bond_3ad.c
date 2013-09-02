@@ -2514,17 +2514,13 @@ int bond_3ad_lacpdu_recv(const struct sk_buff *skb, struct bonding *bond,
  */
 void bond_3ad_update_lacp_rate(struct bonding *bond)
 {
-	struct slave *slave;
 	struct port *port = NULL;
+	struct slave *slave;
 	int lacp_fast;
 
-	write_lock_bh(&bond->lock);
 	lacp_fast = bond->params.lacp_fast;
-
 	bond_for_each_slave(bond, slave) {
 		port = &(SLAVE_AD_INFO(slave).port);
-		if (port->slave == NULL)
-			continue;
 		__get_state_machine_lock(port);
 		if (lacp_fast)
 			port->actor_oper_port_state |= AD_STATE_LACP_TIMEOUT;
@@ -2532,6 +2528,4 @@ void bond_3ad_update_lacp_rate(struct bonding *bond)
 			port->actor_oper_port_state &= ~AD_STATE_LACP_TIMEOUT;
 		__release_state_machine_lock(port);
 	}
-
-	write_unlock_bh(&bond->lock);
 }
