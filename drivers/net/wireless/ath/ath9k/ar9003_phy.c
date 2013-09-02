@@ -1489,17 +1489,24 @@ static void ar9003_hw_set_bt_ant_diversity(struct ath_hw *ah, bool enable)
 	} else if (AR_SREV_9565(ah)) {
 		if (enable) {
 			REG_SET_BIT(ah, AR_PHY_MC_GAIN_CTRL,
+				    AR_ANT_DIV_ENABLE);
+			REG_SET_BIT(ah, AR_PHY_MC_GAIN_CTRL,
 				    (1 << AR_PHY_ANT_SW_RX_PROT_S));
-			if (ah->curchan && IS_CHAN_2GHZ(ah->curchan))
-				REG_SET_BIT(ah, AR_PHY_RESTART,
-					    AR_PHY_RESTART_ENABLE_DIV_M2FLAG);
+			REG_SET_BIT(ah, AR_PHY_CCK_DETECT,
+				    AR_FAST_DIV_ENABLE);
+			REG_SET_BIT(ah, AR_PHY_RESTART,
+				    AR_PHY_RESTART_ENABLE_DIV_M2FLAG);
 			REG_SET_BIT(ah, AR_BTCOEX_WL_LNADIV,
 				    AR_BTCOEX_WL_LNADIV_FORCE_ON);
 		} else {
-			REG_CLR_BIT(ah, AR_PHY_MC_GAIN_CTRL, AR_ANT_DIV_ENABLE);
+			REG_CLR_BIT(ah, AR_PHY_MC_GAIN_CTRL,
+				    AR_ANT_DIV_ENABLE);
 			REG_CLR_BIT(ah, AR_PHY_MC_GAIN_CTRL,
 				    (1 << AR_PHY_ANT_SW_RX_PROT_S));
-			REG_CLR_BIT(ah, AR_PHY_CCK_DETECT, AR_FAST_DIV_ENABLE);
+			REG_CLR_BIT(ah, AR_PHY_CCK_DETECT,
+				    AR_FAST_DIV_ENABLE);
+			REG_CLR_BIT(ah, AR_PHY_RESTART,
+				    AR_PHY_RESTART_ENABLE_DIV_M2FLAG);
 			REG_CLR_BIT(ah, AR_BTCOEX_WL_LNADIV,
 				    AR_BTCOEX_WL_LNADIV_FORCE_ON);
 

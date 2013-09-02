@@ -3659,9 +3659,23 @@ static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 		if (AR_SREV_9565(ah)) {
 			if (common->bt_ant_diversity) {
 				regval |= (1 << AR_PHY_ANT_SW_RX_PROT_S);
+
+				REG_SET_BIT(ah, AR_PHY_RESTART,
+					    AR_PHY_RESTART_ENABLE_DIV_M2FLAG);
+
+				/* Force WLAN LNA diversity ON */
+				REG_SET_BIT(ah, AR_BTCOEX_WL_LNADIV,
+					    AR_BTCOEX_WL_LNADIV_FORCE_ON);
 			} else {
 				regval &= ~(1 << AR_PHY_ANT_DIV_LNADIV_S);
 				regval &= ~(1 << AR_PHY_ANT_SW_RX_PROT_S);
+
+				REG_CLR_BIT(ah, AR_PHY_MC_GAIN_CTRL,
+					    (1 << AR_PHY_ANT_SW_RX_PROT_S));
+
+				/* Force WLAN LNA diversity OFF */
+				REG_CLR_BIT(ah, AR_BTCOEX_WL_LNADIV,
+					    AR_BTCOEX_WL_LNADIV_FORCE_ON);
 			}
 		}
 
@@ -3672,7 +3686,8 @@ static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 		regval &= (~AR_FAST_DIV_ENABLE);
 		regval |= ((value >> 7) & 0x1) << AR_FAST_DIV_ENABLE_S;
 
-		if (AR_SREV_9485(ah) && common->bt_ant_diversity)
+		if ((AR_SREV_9485(ah) || AR_SREV_9565(ah))
+		    && common->bt_ant_diversity)
 			regval |= AR_FAST_DIV_ENABLE;
 
 		REG_WRITE(ah, AR_PHY_CCK_DETECT, regval);
