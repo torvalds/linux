@@ -7766,6 +7766,10 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 		vmcs_write64(GUEST_PDPTR1, vmcs12->guest_pdptr1);
 		vmcs_write64(GUEST_PDPTR2, vmcs12->guest_pdptr2);
 		vmcs_write64(GUEST_PDPTR3, vmcs12->guest_pdptr3);
+		__clear_bit(VCPU_EXREG_PDPTR,
+				(unsigned long *)&vcpu->arch.regs_avail);
+		__clear_bit(VCPU_EXREG_PDPTR,
+				(unsigned long *)&vcpu->arch.regs_dirty);
 	}
 
 	kvm_register_write(vcpu, VCPU_REGS_RSP, vmcs12->guest_rsp);
