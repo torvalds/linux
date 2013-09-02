@@ -57,6 +57,7 @@ void mei_amthif_reset_params(struct mei_device *dev)
 	dev->iamthif_ioctl = false;
 	dev->iamthif_state = MEI_IAMTHIF_IDLE;
 	dev->iamthif_timer = 0;
+	dev->iamthif_stall_timer = 0;
 }
 
 /**
