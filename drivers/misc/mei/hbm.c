@@ -45,7 +45,7 @@ static void mei_hbm_me_cl_allocate(struct mei_device *dev)
 	kfree(dev->me_clients);
 	dev->me_clients = NULL;
 
-	dev_dbg(&dev->pdev->dev, "memory allocation for ME clients size=%zd.\n",
+	dev_dbg(&dev->pdev->dev, "memory allocation for ME clients size=%ld.\n",
 		dev->me_clients_num * sizeof(struct mei_me_client));
 	/* allocate storage for ME clients representation */
 	clients = kcalloc(dev->me_clients_num,
