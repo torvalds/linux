@@ -212,6 +212,7 @@ struct efx_tx_buffer {
  *	blocks
  * @tso_packets: Number of packets via the TSO xmit path
  * @pushes: Number of times the TX push feature has been used
+ * @pio_packets: Number of times the TX PIO feature has been used
  * @empty_read_count: If the completion path has seen the queue as empty
  *	and the transmission path has not yet checked this, the value of
  *	@read_count bitwise-added to %EFX_EMPTY_COUNT_VALID; otherwise 0.
@@ -243,6 +244,7 @@ struct efx_tx_queue {
 	unsigned int tso_long_headers;
 	unsigned int tso_packets;
 	unsigned int pushes;
+	unsigned int pio_packets;
 
 	/* Members shared between paths and sometimes updated */
 	unsigned int empty_read_count ____cacheline_aligned_in_smp;
