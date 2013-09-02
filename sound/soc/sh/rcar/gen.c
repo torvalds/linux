@@ -11,6 +11,11 @@
 #include "rsnd.h"
 
 struct rsnd_gen_ops {
+	int (*probe)(struct platform_device *pdev,
+		     struct rcar_snd_info *info,
+		     struct rsnd_priv *priv);
+	void (*remove)(struct platform_device *pdev,
+		      struct rsnd_priv *priv);
 	int (*path_init)(struct rsnd_priv *priv,
 			 struct rsnd_dai *rdai,
 			 struct rsnd_dai_stream *io);
@@ -98,11 +103,6 @@ static int rsnd_gen1_path_exit(struct rsnd_priv *priv,
 	return ret;
 }
 
-static struct rsnd_gen_ops rsnd_gen1_ops = {
-	.path_init	= rsnd_gen1_path_init,
-	.path_exit	= rsnd_gen1_path_exit,
-};
-
 #define RSND_GEN1_REG_MAP(g, s, i, oi, oa)				\
 	do {								\
 		(g)->reg_map[RSND_REG_##i].index  = RSND_GEN1_##s;	\
@@ -163,7 +163,6 @@ static int rsnd_gen1_probe(struct platform_device *pdev,
 	    IS_ERR(gen->base[RSND_GEN1_SSI]))
 		return -ENODEV;
 
-	gen->ops = &rsnd_gen1_ops;
 	rsnd_gen1_reg_map_init(gen);
 
 	dev_dbg(dev, "Gen1 device probed\n");
@@ -182,6 +181,13 @@ static void rsnd_gen1_remove(struct platform_device *pdev,
 			     struct rsnd_priv *priv)
 {
 }
+
+static struct rsnd_gen_ops rsnd_gen1_ops = {
+	.probe		= rsnd_gen1_probe,
+	.remove		= rsnd_gen1_remove,
+	.path_init	= rsnd_gen1_path_init,
+	.path_exit	= rsnd_gen1_path_exit,
+};
 
 /*
  *		Gen
@@ -251,6 +257,14 @@ int rsnd_gen_probe(struct platform_device *pdev,
 		return -ENOMEM;
 	}
 
+	if (rsnd_is_gen1(priv))
+		gen->ops = &rsnd_gen1_ops;
+
+	if (!gen->ops) {
+		dev_err(dev, "unknown generation R-Car sound device\n");
+		return -ENODEV;
+	}
+
 	priv->gen = gen;
 
 	/*
@@ -261,20 +275,13 @@ int rsnd_gen_probe(struct platform_device *pdev,
 	for (i = 0; i < RSND_REG_MAX; i++)
 		gen->reg_map[i].index = -1;
 
-	/*
-	 *	init each module
-	 */
-	if (rsnd_is_gen1(priv))
-		return rsnd_gen1_probe(pdev, info, priv);
-
-	dev_err(dev, "unknown generation R-Car sound device\n");
-
-	return -ENODEV;
+	return gen->ops->probe(pdev, info, priv);
 }
 
 void rsnd_gen_remove(struct platform_device *pdev,
 		     struct rsnd_priv *priv)
 {
-	if (rsnd_is_gen1(priv))
-		rsnd_gen1_remove(pdev, priv);
+	struct rsnd_gen *gen = rsnd_priv_to_gen(priv);
+
+	gen->ops->remove(pdev, priv);
 }
