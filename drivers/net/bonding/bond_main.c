@@ -1116,15 +1116,13 @@ static netdev_features_t bond_fix_features(struct net_device *dev,
 
 static void bond_compute_features(struct bonding *bond)
 {
-	struct slave *slave;
-	struct net_device *bond_dev = bond->dev;
+	unsigned int flags, dst_release_flag = IFF_XMIT_DST_RELEASE;
 	netdev_features_t vlan_features = BOND_VLAN_FEATURES;
 	unsigned short max_hard_header_len = ETH_HLEN;
 	unsigned int gso_max_size = GSO_MAX_SIZE;
+	struct net_device *bond_dev = bond->dev;
 	u16 gso_max_segs = GSO_MAX_SEGS;
-	unsigned int flags, dst_release_flag = IFF_XMIT_DST_RELEASE;
-
-	read_lock(&bond->lock);
+	struct slave *slave;
 
 	if (list_empty(&bond->slave_list))
 		goto done;
@@ -1149,8 +1147,6 @@ done:
 
 	flags = bond_dev->priv_flags & ~IFF_XMIT_DST_RELEASE;
 	bond_dev->priv_flags = flags | dst_release_flag;
-
-	read_unlock(&bond->lock);
 
 	netdev_change_features(bond_dev);
 }
