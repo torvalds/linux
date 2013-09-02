@@ -421,7 +421,7 @@ static const char *imx_ldb_bit_mappings[] = {
 	[LVDS_BIT_MAP_JEIDA] = "jeida",
 };
 
-const int of_get_data_mapping(struct device_node *np)
+static const int of_get_data_mapping(struct device_node *np)
 {
 	const char *bm;
 	int ret, i;
