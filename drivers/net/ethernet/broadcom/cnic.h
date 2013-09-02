@@ -401,10 +401,9 @@ struct bnx2x_bd_chain_next {
 
 #define CNIC_PORT(cp)			((cp)->pfid & 1)
 #define CNIC_FUNC(cp)			((cp)->func)
-#define CNIC_E1HVN(cp)			((cp)->pfid >> 1)
 
-#define BNX2X_HW_CID(cp, x)		((CNIC_PORT(cp) << 23) | \
-					 (CNIC_E1HVN(cp) << 17) | (x))
+#define BNX2X_HW_CID(bp, x)		((BP_PORT(bp) << 23) | \
+					 (BP_VN(bp) << 17) | (x))
 
 #define BNX2X_SW_CID(x)			(x & 0x1ffff)
 
