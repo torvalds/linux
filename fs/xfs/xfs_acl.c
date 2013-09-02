@@ -152,12 +152,9 @@ xfs_get_acl(struct inode *inode, int type)
 	 * go out to the disk.
 	 */
 	len = XFS_ACL_MAX_SIZE(ip->i_mount);
-	xfs_acl = kmem_zalloc(len, KM_SLEEP | KM_MAYFAIL);
-	if (!xfs_acl) {
-		xfs_acl = kmem_zalloc_large(len);
-		if (!xfs_acl)
-			return ERR_PTR(-ENOMEM);
-	}
+	xfs_acl = kmem_zalloc_large(len, KM_SLEEP);
+	if (!xfs_acl)
+		return ERR_PTR(-ENOMEM);
 
 	error = -xfs_attr_get(ip, ea_name, (unsigned char *)xfs_acl,
 							&len, ATTR_ROOT);
@@ -181,10 +178,7 @@ xfs_get_acl(struct inode *inode, int type)
 out_update_cache:
 	set_cached_acl(inode, type, acl);
 out:
-	if (is_vmalloc_addr(xfs_acl))
-		kmem_free_large(xfs_acl);
-	else
-		kfree(xfs_acl);
+	kmem_free(xfs_acl);
 	return acl;
 }
 
@@ -215,12 +209,9 @@ xfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 		struct xfs_acl *xfs_acl;
 		int len = XFS_ACL_MAX_SIZE(ip->i_mount);
 
-		xfs_acl = kmem_zalloc(len, KM_SLEEP | KM_MAYFAIL);
-		if (!xfs_acl) {
-			xfs_acl = kmem_zalloc_large(len);
-			if (!xfs_acl)
-				return -ENOMEM;
-		}
+		xfs_acl = kmem_zalloc_large(len, KM_SLEEP);
+		if (!xfs_acl)
+			return -ENOMEM;
 
 		xfs_acl_to_disk(xfs_acl, acl);
 
@@ -231,10 +222,7 @@ xfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 		error = -xfs_attr_set(ip, ea_name, (unsigned char *)xfs_acl,
 				len, ATTR_ROOT);
 
-		if (is_vmalloc_addr(xfs_acl))
-			kmem_free_large(xfs_acl);
-		else
-			kfree(xfs_acl);
+		kmem_free(xfs_acl);
 	} else {
 		/*
 		 * A NULL ACL argument means we want to remove the ACL.
