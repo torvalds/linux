@@ -164,6 +164,9 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 		memset(&dev->wr_ext_msg, 0, sizeof(dev->wr_ext_msg));
 	}
 
+	/* we're already in reset, cancel the init timer */
+	dev->init_clients_timer = 0;
+
 	dev->me_clients_num = 0;
 	dev->rd_msg_hdr = 0;
 	dev->wd_pending = false;
