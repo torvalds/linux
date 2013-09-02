@@ -673,9 +673,9 @@ static int k3_dma_probe(struct platform_device *op)
 	if (!d)
 		return -ENOMEM;
 
-	d->base = devm_request_and_ioremap(&op->dev, iores);
-	if (!d->base)
-		return -EADDRNOTAVAIL;
+	d->base = devm_ioremap_resource(&op->dev, iores);
+	if (IS_ERR(d->base))
+		return PTR_ERR(d->base);
 
 	of_id = of_match_device(k3_pdma_dt_ids, &op->dev);
 	if (of_id) {
