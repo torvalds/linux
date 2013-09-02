@@ -380,11 +380,6 @@ struct dma_slave_config {
  * 	should be checked by controller as well
  * @cmd_pause: true, if pause and thereby resume is supported
  * @cmd_terminate: true, if terminate cmd is supported
- *
- * @max_sg_nr: maximum number of SG segments supported
- * 	0 for no maximum
- * @max_sg_len: maximum length of a SG segment supported
- * 	0 for no maximum
  */
 struct dma_slave_caps {
 	u32 src_addr_widths;
@@ -392,9 +387,6 @@ struct dma_slave_caps {
 	u32 directions;
 	bool cmd_pause;
 	bool cmd_terminate;
-
-	u32 max_sg_nr;
-	u32 max_sg_len;
 };
 
 static inline const char *dma_chan_name(struct dma_chan *chan)
