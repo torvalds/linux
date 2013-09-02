@@ -59,13 +59,6 @@ static _mali_osk_resource_t arch_configuration [] =
 		.flags = _MALI_CPU_WRITEABLE | _MALI_CPU_READABLE | _MALI_MMU_READABLE | _MALI_MMU_WRITEABLE
 	},
 	{
-		.type = MEM_VALIDATION,
-		.description = "Framebuffer",
-		.base = 0x5A000000,
-		.size = 32 * 1024 * 1024,  /*32M*/
-		.flags = _MALI_CPU_WRITEABLE | _MALI_CPU_READABLE | _MALI_MMU_READABLE | _MALI_MMU_WRITEABLE
-	},
-	{
 		.type = OS_MEMORY,
 		.description = "OS Memory",
 		.alloc_order = 1, /* Lowest preference for this memory */
