@@ -3111,7 +3111,7 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 		goto err_out_iounmap;
 	}
 
-	dev_set_drvdata(&pdev->dev, hp);
+	pci_set_drvdata(pdev, hp);
 
 	if (!qfe_slot) {
 		struct pci_dev *qpdev = qp->quattro_dev;
@@ -3159,7 +3159,7 @@ err_out:
 
 static void happy_meal_pci_remove(struct pci_dev *pdev)
 {
-	struct happy_meal *hp = dev_get_drvdata(&pdev->dev);
+	struct happy_meal *hp = pci_get_drvdata(pdev);
 	struct net_device *net_dev = hp->dev;
 
 	unregister_netdev(net_dev);
@@ -3171,7 +3171,7 @@ static void happy_meal_pci_remove(struct pci_dev *pdev)
 
 	free_netdev(net_dev);
 
-	dev_set_drvdata(&pdev->dev, NULL);
+	pci_set_drvdata(pdev, NULL);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(happymeal_pci_ids) = {
