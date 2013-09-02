@@ -195,9 +195,9 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 	/* This is the biggest possible DATA chunk that can fit into
 	 * the packet
 	 */
-	max_data = asoc->pathmtu -
+	max_data = (asoc->pathmtu -
 		sctp_sk(asoc->base.sk)->pf->af->net_header_len -
-		sizeof(struct sctphdr) - sizeof(struct sctp_data_chunk);
+		sizeof(struct sctphdr) - sizeof(struct sctp_data_chunk)) & ~3;
 
 	max = asoc->frag_point;
 	/* If the the peer requested that we authenticate DATA chunks
