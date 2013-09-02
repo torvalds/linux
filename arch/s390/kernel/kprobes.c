@@ -252,7 +252,7 @@ static int __kprobes s390_get_insn_slot(struct kprobe *p)
 	p->ainsn.insn = NULL;
 	if (is_kernel_addr(p->addr))
 		p->ainsn.insn = get_dmainsn_slot();
-	if (is_module_addr(p->addr))
+	else if (is_module_addr(p->addr))
 		p->ainsn.insn = get_insn_slot();
 	return p->ainsn.insn ? 0 : -ENOMEM;
 }
