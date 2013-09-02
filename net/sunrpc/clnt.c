@@ -313,7 +313,9 @@ out:
 	return err;
 }
 
-static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args, struct rpc_xprt *xprt)
+static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args,
+		struct rpc_xprt *xprt,
+		struct rpc_clnt *parent)
 {
 	const struct rpc_program *program = args->program;
 	const struct rpc_version *version;
@@ -339,7 +341,7 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args, stru
 	clnt = kzalloc(sizeof(*clnt), GFP_KERNEL);
 	if (!clnt)
 		goto out_err;
-	clnt->cl_parent = clnt;
+	clnt->cl_parent = parent ? : clnt;
 
 	rcu_assign_pointer(clnt->cl_xprt, xprt);
 	clnt->cl_procinfo = version->procs;
@@ -377,6 +379,8 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args, stru
 	err = rpc_client_register(args, clnt);
 	if (err)
 		goto out_no_path;
+	if (parent)
+		atomic_inc(&parent->cl_count);
 	return clnt;
 
 out_no_path:
@@ -467,7 +471,7 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 	if (args->flags & RPC_CLNT_CREATE_NONPRIVPORT)
 		xprt->resvport = 0;
 
-	clnt = rpc_new_client(args, xprt);
+	clnt = rpc_new_client(args, xprt, NULL);
 	if (IS_ERR(clnt))
 		return clnt;
 
@@ -514,14 +518,11 @@ static struct rpc_clnt *__rpc_clone_client(struct rpc_create_args *args,
 		goto out_err;
 	args->servername = xprt->servername;
 
-	new = rpc_new_client(args, xprt);
+	new = rpc_new_client(args, xprt, clnt);
 	if (IS_ERR(new)) {
 		err = PTR_ERR(new);
 		goto out_err;
 	}
-
-	atomic_inc(&clnt->cl_count);
-	new->cl_parent = clnt;
 
 	/* Turn off autobind on clones */
 	new->cl_autobind = 0;
