@@ -1475,6 +1475,25 @@ next:
 		seq_puts(seq, "No batman nodes in range ...\n");
 }
 
+/**
+ * batadv_iv_ogm_neigh_cmp - compare the metrics of two neighbors
+ * @neigh1: the first neighbor object of the comparison
+ * @neigh2: the second neighbor object of the comparison
+ *
+ * Returns a value less, equal to or greater than 0 if the metric via neigh1 is
+ * lower, the same as or higher than the metric via neigh2
+ */
+static int batadv_iv_ogm_neigh_cmp(struct batadv_neigh_node *neigh1,
+				   struct batadv_neigh_node *neigh2)
+{
+	uint8_t tq1, tq2;
+
+	tq1 = neigh1->bat_iv.tq_avg;
+	tq2 = neigh2->bat_iv.tq_avg;
+
+	return tq1 - tq2;
+}
+
 static struct batadv_algo_ops batadv_batman_iv __read_mostly = {
 	.name = "BATMAN_IV",
 	.bat_iface_enable = batadv_iv_ogm_iface_enable,
@@ -1483,6 +1502,7 @@ static struct batadv_algo_ops batadv_batman_iv __read_mostly = {
 	.bat_primary_iface_set = batadv_iv_ogm_primary_iface_set,
 	.bat_ogm_schedule = batadv_iv_ogm_schedule,
 	.bat_ogm_emit = batadv_iv_ogm_emit,
+	.bat_neigh_cmp = batadv_iv_ogm_neigh_cmp,
 	.bat_orig_print = batadv_iv_ogm_orig_print,
 };
 
