@@ -150,7 +150,8 @@ static const struct sudmac_slave_config *sudmac_find_slave(
 	return NULL;
 }
 
-static int sudmac_set_slave(struct shdma_chan *schan, int slave_id, bool try)
+static int sudmac_set_slave(struct shdma_chan *schan, int slave_id,
+			    dma_addr_t slave_addr, bool try)
 {
 	struct sudmac_chan *sc = to_chan(schan);
 	const struct sudmac_slave_config *cfg = sudmac_find_slave(sc, slave_id);
@@ -298,11 +299,8 @@ static void sudmac_chan_remove(struct sudmac_device *su_dev)
 	int i;
 
 	shdma_for_each_chan(schan, &su_dev->shdma_dev, i) {
-		struct sudmac_chan *sc = to_chan(schan);
-
 		BUG_ON(!schan);
 
-		shdma_free_irq(&sc->shdma_chan);
 		shdma_chan_remove(schan);
 	}
 	dma_dev->chancnt = 0;
@@ -393,7 +391,6 @@ static int sudmac_probe(struct platform_device *pdev)
 chan_probe_err:
 	sudmac_chan_remove(su_dev);
 
-	platform_set_drvdata(pdev, NULL);
 	shdma_cleanup(&su_dev->shdma_dev);
 
 	return err;
@@ -407,7 +404,6 @@ static int sudmac_remove(struct platform_device *pdev)
 	dma_async_device_unregister(dma_dev);
 	sudmac_chan_remove(su_dev);
 	shdma_cleanup(&su_dev->shdma_dev);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
