@@ -17,7 +17,9 @@
 #include <linux/futex.h>
 
 static size_t syscall_arg__scnprintf_hex(char *bf, size_t size,
-					 unsigned long arg, u8 *arg_mask __maybe_unused)
+					 unsigned long arg,
+					 u8 arg_idx __maybe_unused,
+					 u8 *arg_mask __maybe_unused)
 {
 	return scnprintf(bf, size, "%#lx", arg);
 }
@@ -25,7 +27,9 @@ static size_t syscall_arg__scnprintf_hex(char *bf, size_t size,
 #define SCA_HEX syscall_arg__scnprintf_hex
 
 static size_t syscall_arg__scnprintf_whence(char *bf, size_t size,
-					    unsigned long arg, u8 *arg_mask __maybe_unused)
+					    unsigned long arg,
+					    u8 arg_idx __maybe_unused,
+					    u8 *arg_mask __maybe_unused)
 {
 	int whence = arg;
 
@@ -50,7 +54,9 @@ static size_t syscall_arg__scnprintf_whence(char *bf, size_t size,
 #define SCA_WHENCE syscall_arg__scnprintf_whence
 
 static size_t syscall_arg__scnprintf_mmap_prot(char *bf, size_t size,
-					       unsigned long arg, u8 *arg_mask __maybe_unused)
+					       unsigned long arg,
+					       u8 arg_idx __maybe_unused,
+					       u8 *arg_mask __maybe_unused)
 {
 	int printed = 0, prot = arg;
 
@@ -81,7 +87,8 @@ static size_t syscall_arg__scnprintf_mmap_prot(char *bf, size_t size,
 #define SCA_MMAP_PROT syscall_arg__scnprintf_mmap_prot
 
 static size_t syscall_arg__scnprintf_mmap_flags(char *bf, size_t size,
-						unsigned long arg, u8 *arg_mask __maybe_unused)
+						unsigned long arg, u8 arg_idx __maybe_unused,
+						u8 *arg_mask __maybe_unused)
 {
 	int printed = 0, flags = arg;
 
@@ -122,7 +129,8 @@ static size_t syscall_arg__scnprintf_mmap_flags(char *bf, size_t size,
 #define SCA_MMAP_FLAGS syscall_arg__scnprintf_mmap_flags
 
 static size_t syscall_arg__scnprintf_madvise_behavior(char *bf, size_t size,
-						      unsigned long arg, u8 *arg_mask __maybe_unused)
+						      unsigned long arg, u8 arg_idx __maybe_unused,
+						      u8 *arg_mask __maybe_unused)
 {
 	int behavior = arg;
 
@@ -163,7 +171,8 @@ static size_t syscall_arg__scnprintf_madvise_behavior(char *bf, size_t size,
 
 #define SCA_MADV_BHV syscall_arg__scnprintf_madvise_behavior
 
-static size_t syscall_arg__scnprintf_futex_op(char *bf, size_t size, unsigned long arg, u8 *arg_mask)
+static size_t syscall_arg__scnprintf_futex_op(char *bf, size_t size, unsigned long arg,
+					      u8 arg_idx __maybe_unused, u8 *arg_mask)
 {
 	enum syscall_futex_args {
 		SCF_UADDR   = (1 << 0),
@@ -207,12 +216,13 @@ static size_t syscall_arg__scnprintf_futex_op(char *bf, size_t size, unsigned lo
 #define SCA_FUTEX_OP  syscall_arg__scnprintf_futex_op
 
 static size_t syscall_arg__scnprintf_open_flags(char *bf, size_t size,
-					       unsigned long arg, u8 *arg_mask)
+					       unsigned long arg,
+					       u8 arg_idx, u8 *arg_mask)
 {
 	int printed = 0, flags = arg;
 
 	if (!(flags & O_CREAT))
-		*arg_mask |= 1 << 2; /* Mask the mode parm */
+		*arg_mask |= 1 << (arg_idx + 1); /* Mask the mode parm */
 
 	if (flags == 0)
 		return scnprintf(bf, size, "RDONLY");
@@ -265,7 +275,7 @@ static size_t syscall_arg__scnprintf_open_flags(char *bf, size_t size,
 static struct syscall_fmt {
 	const char *name;
 	const char *alias;
-	size_t	   (*arg_scnprintf[6])(char *bf, size_t size, unsigned long arg, u8 *arg_mask);
+	size_t	   (*arg_scnprintf[6])(char *bf, size_t size, unsigned long arg, u8 arg_idx, u8 *arg_mask);
 	bool	   errmsg;
 	bool	   timeout;
 	bool	   hexret;
@@ -302,6 +312,10 @@ static struct syscall_fmt {
 	  .arg_scnprintf = { [0] = SCA_HEX, /* addr */ }, },
 	{ .name	    = "open",	    .errmsg = true,
 	  .arg_scnprintf = { [1] = SCA_OPEN_FLAGS, /* flags */ }, },
+	{ .name	    = "open_by_handle_at", .errmsg = true,
+	  .arg_scnprintf = { [2] = SCA_OPEN_FLAGS, /* flags */ }, },
+	{ .name	    = "openat",	    .errmsg = true,
+	  .arg_scnprintf = { [2] = SCA_OPEN_FLAGS, /* flags */ }, },
 	{ .name	    = "poll",	    .errmsg = true, .timeout = true, },
 	{ .name	    = "ppoll",	    .errmsg = true, .timeout = true, },
 	{ .name	    = "pread",	    .errmsg = true, .alias = "pread64", },
@@ -332,7 +346,7 @@ struct syscall {
 	bool		    filtered;
 	struct syscall_fmt  *fmt;
 	size_t		    (**arg_scnprintf)(char *bf, size_t size,
-					      unsigned long arg, u8 *args_mask);
+					      unsigned long arg, u8 arg_idx, u8 *args_mask);
 };
 
 static size_t fprintf_duration(unsigned long t, FILE *fp)
@@ -589,7 +603,7 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 
 			if (sc->arg_scnprintf && sc->arg_scnprintf[i]) {
 				printed += sc->arg_scnprintf[i](bf + printed, size - printed,
-								args[i], &mask);
+								args[i], i, &mask);
 			} else {
 				printed += scnprintf(bf + printed, size - printed,
 						     "%ld", args[i]);
