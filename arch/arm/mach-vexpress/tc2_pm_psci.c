@@ -14,6 +14,7 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/of.h>
 #include <linux/spinlock.h>
 #include <linux/errno.h>
 
@@ -26,7 +27,6 @@
 #include <asm/cp15.h>
 
 #include <mach/motherboard.h>
-#include <mach/tc2.h>
 
 #include <linux/vexpress.h>
 
@@ -36,7 +36,10 @@
  */
 #define PSCI_POWER_STATE_ID           0
 
-static atomic_t tc2_pm_use_count[TC2_MAX_CPUS][TC2_MAX_CLUSTERS];
+#define TC2_CLUSTERS			2
+#define TC2_MAX_CPUS_PER_CLUSTER	3
+
+static atomic_t tc2_pm_use_count[TC2_MAX_CPUS_PER_CLUSTER][TC2_CLUSTERS];
 
 static int tc2_pm_psci_power_up(unsigned int cpu, unsigned int cluster)
 {
@@ -139,8 +142,7 @@ static void __init tc2_pm_usage_count_init(void)
 	cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
 
 	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
-	BUG_ON(cluster >= TC2_MAX_CLUSTERS ||
-	       cpu >= vexpress_spc_get_nb_cpus(cluster));
+	BUG_ON(cluster >= TC2_CLUSTERS || cpu >= TC2_MAX_CPUS_PER_CLUSTER);
 
 	atomic_set(&tc2_pm_use_count[cpu][cluster], 1);
 }
@@ -155,10 +157,8 @@ static int __init tc2_pm_psci_init(void)
 		return -ENODEV;
 	}
 
-	if (!vexpress_spc_check_loaded()) {
-		pr_debug("spc not found. Aborting psci init\n");
+	if (!of_machine_is_compatible("arm,vexpress,v2p-ca15_a7"))
 		return -ENODEV;
-	}
 
 	tc2_pm_usage_count_init();
 
@@ -166,7 +166,7 @@ static int __init tc2_pm_psci_init(void)
 	if (!ret)
 		ret = mcpm_sync_init(NULL);
 	if (!ret)
-		pr_info("TC2 power management initialized\n");
+		pr_info("TC2 power management using PSCI initialized\n");
 	return ret;
 }
 
