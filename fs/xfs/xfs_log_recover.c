@@ -2014,7 +2014,7 @@ xlog_recover_get_buf_lsn(
 	case XFS_ATTR3_RMT_MAGIC:
 		return be64_to_cpu(((struct xfs_attr3_rmt_hdr *)blk)->rm_lsn);
 	case XFS_SB_MAGIC:
-		return be64_to_cpu(((struct xfs_sb *)blk)->sb_lsn);
+		return be64_to_cpu(((struct xfs_dsb *)blk)->sb_lsn);
 	default:
 		break;
 	}
