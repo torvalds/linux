@@ -189,24 +189,31 @@ static int __init acpi_parse_madt(struct acpi_table_header *table)
 	return 0;
 }
 
-static void acpi_register_lapic(int id, u8 enabled)
+/**
+ * acpi_register_lapic - register a local apic and generates a logic cpu number
+ * @id: local apic id to register
+ * @enabled: this cpu is enabled or not
+ *
+ * Returns the logic cpu number which maps to the local apic
+ */
+static int acpi_register_lapic(int id, u8 enabled)
 {
 	unsigned int ver = 0;
 
 	if (id >= MAX_LOCAL_APIC) {
 		printk(KERN_INFO PREFIX "skipped apicid that is too big\n");
-		return;
+		return -EINVAL;
 	}
 
 	if (!enabled) {
 		++disabled_cpus;
-		return;
+		return -EINVAL;
 	}
 
 	if (boot_cpu_physical_apicid != -1U)
 		ver = apic_version[boot_cpu_physical_apicid];
 
-	generic_processor_info(id, ver);
+	return generic_processor_info(id, ver);
 }
 
 static int __init
@@ -616,44 +623,19 @@ static void acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
 
 static int _acpi_map_lsapic(acpi_handle handle, int physid, int *pcpu)
 {
-	cpumask_var_t tmp_map, new_map;
 	int cpu;
-	int retval = -ENOMEM;
 
-	if (!alloc_cpumask_var(&tmp_map, GFP_KERNEL))
-		goto out;
-
-	if (!alloc_cpumask_var(&new_map, GFP_KERNEL))
-		goto free_tmp_map;
-
-	cpumask_copy(tmp_map, cpu_present_mask);
-	acpi_register_lapic(physid, ACPI_MADT_ENABLED);
-
-	/*
-	 * If acpi_register_lapic successfully generates a new logical cpu
-	 * number, then the following will get us exactly what was mapped
-	 */
-	cpumask_andnot(new_map, cpu_present_mask, tmp_map);
-	if (cpumask_empty(new_map)) {
-		printk ("Unable to map lapic to logical cpu number\n");
-		retval = -EINVAL;
-		goto free_new_map;
+	cpu = acpi_register_lapic(physid, ACPI_MADT_ENABLED);
+	if (cpu < 0) {
+		pr_info(PREFIX "Unable to map lapic to logical cpu number\n");
+		return cpu;
 	}
 
 	acpi_processor_set_pdc(handle);
-
-	cpu = cpumask_first(new_map);
 	acpi_map_cpu2node(handle, cpu, physid);
 
 	*pcpu = cpu;
-	retval = 0;
-
-free_new_map:
-	free_cpumask_var(new_map);
-free_tmp_map:
-	free_cpumask_var(tmp_map);
-out:
-	return retval;
+	return 0;
 }
 
 /* wrapper to silence section mismatch warning */
