@@ -611,7 +611,22 @@ static inline void __dget(struct dentry *dentry)
 
 struct dentry *dget_parent(struct dentry *dentry)
 {
+	int gotref;
 	struct dentry *ret;
+
+	/*
+	 * Do optimistic parent lookup without any
+	 * locking.
+	 */
+	rcu_read_lock();
+	ret = ACCESS_ONCE(dentry->d_parent);
+	gotref = lockref_get_not_zero(&ret->d_lockref);
+	rcu_read_unlock();
+	if (likely(gotref)) {
+		if (likely(ret == ACCESS_ONCE(dentry->d_parent)))
+			return ret;
+		dput(ret);
+	}
 
 repeat:
 	/*
