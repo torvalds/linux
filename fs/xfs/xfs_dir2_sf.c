@@ -129,7 +129,7 @@ xfs_dir3_sfe_get_ino(
 	return xfs_dir2_sf_get_ino(hdr, xfs_dir3_sfe_inop(mp, sfep));
 }
 
-static void
+void
 xfs_dir3_sfe_put_ino(
 	struct xfs_mount	*mp,
 	struct xfs_dir2_sf_hdr	*hdr,
