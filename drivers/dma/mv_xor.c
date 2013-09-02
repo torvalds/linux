@@ -1036,10 +1036,8 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 	struct dma_device *dma_dev;
 
 	mv_chan = devm_kzalloc(&pdev->dev, sizeof(*mv_chan), GFP_KERNEL);
-	if (!mv_chan) {
-		ret = -ENOMEM;
-		goto err_free_dma;
-	}
+	if (!mv_chan)
+		return ERR_PTR(-ENOMEM);
 
 	mv_chan->idx = idx;
 	mv_chan->irq = irq;
