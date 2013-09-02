@@ -310,6 +310,9 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 	else
 		ret = relocate_entry_gtt(obj, reloc);
 
+	if (ret)
+		return ret;
+
 	/* and update the user's relocation entry */
 	reloc->presumed_offset = target_offset;
 
