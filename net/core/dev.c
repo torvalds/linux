@@ -4679,8 +4679,8 @@ static int __netdev_upper_dev_link(struct net_device *dev,
 	 * versa, and don't forget the devices itself. All of these
 	 * links are non-neighbours.
 	 */
-	list_for_each_entry(i, &upper_dev->upper_dev_list, list) {
-		list_for_each_entry(j, &dev->lower_dev_list, list) {
+	list_for_each_entry(i, &dev->lower_dev_list, list) {
+		list_for_each_entry(j, &upper_dev->upper_dev_list, list) {
 			ret = __netdev_adjacent_dev_link(i->dev, j->dev);
 			if (ret)
 				goto rollback_mesh;
