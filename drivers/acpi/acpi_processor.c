@@ -270,7 +270,9 @@ static int acpi_processor_get_info(struct acpi_device *device)
 		device_declaration = 1;
 		pr->acpi_id = value;
 	}
-	cpu_index = acpi_get_cpuid(pr->handle, device_declaration, pr->acpi_id);
+	pr->apic_id = acpi_get_apicid(pr->handle, device_declaration,
+					pr->acpi_id);
+	cpu_index = acpi_map_cpuid(pr->apic_id, pr->acpi_id);
 
 	/* Handle UP system running SMP kernel, with no LAPIC in MADT */
 	if (!cpu0_initialized && (cpu_index == -1) &&
