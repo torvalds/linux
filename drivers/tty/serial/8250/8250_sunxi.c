@@ -50,6 +50,10 @@
 #define UARTx_BASE(x)   (UART_BASE + (x) * UART_BASE_OS)
 #define RESSIZE(res)    (((res)->end - (res)->start)+1)
 
+#define UART_HALT           0x29 /* Halt TX register */
+#define UART_FORCE_CFG      (1 << 1)
+#define UART_FORCE_UPDATE   (1 << 2)
+
 struct sw_serial_port {
 	int port_no;
 	int line;
@@ -124,7 +128,7 @@ static int sw_serial_put_resource(struct sw_serial_port *sport)
 	return 0;
 }
 
-static void dw8250_serial_out32(struct uart_port *p, int offset, int value)
+static void sw_serial_out32(struct uart_port *p, int offset, int value)
 {
 	struct sw_serial_port *d = p->private_data;
 
@@ -135,14 +139,14 @@ static void dw8250_serial_out32(struct uart_port *p, int offset, int value)
 	writel(value, p->membase + offset);
 }
 
-static unsigned int dw8250_serial_in32(struct uart_port *p, int offset)
+static unsigned int sw_serial_in32(struct uart_port *p, int offset)
 {
 	offset <<= p->regshift;
 
 	return readl(p->membase + offset);
 }
 
-static int dw8250_handle_irq(struct uart_port *p)
+static int sw_serial_handle_irq(struct uart_port *p)
 {
 	struct sw_serial_port *d = p->private_data;
 	unsigned int iir = p->serial_in(p, UART_IIR);
@@ -150,10 +154,15 @@ static int dw8250_handle_irq(struct uart_port *p)
 	if (serial8250_handle_irq(p, iir)) {
 		return 1;
 	} else if ((iir & UART_IIR_BUSY) == UART_IIR_BUSY) {
-		/* Clear the USR and write the LCR again. */
-		(void)p->serial_in(p, UART_USR);
-		p->serial_out(p, d->last_lcr, UART_LCR);
-
+		if (p->serial_in(p, UART_USR) & 1) {
+			p->serial_out(p, UART_HALT, UART_FORCE_CFG);
+			p->serial_out(p, UART_LCR, d->last_lcr);
+			p->serial_out(p, UART_HALT, UART_FORCE_CFG | UART_FORCE_UPDATE);
+			while(p->serial_in(p, UART_HALT) & UART_FORCE_UPDATE);
+			p->serial_out(p, UART_HALT, 0x00);
+			p->serial_in(p, UART_USR);
+		} else
+			p->serial_out(p, UART_LCR, d->last_lcr);
 		return 1;
 	}
 
@@ -199,9 +208,9 @@ static int __devinit sw_serial_probe(struct platform_device *dev)
 	port.uartclk = sport->sclk;
 	port.pm = sw_serial_pm;
 	port.dev = &dev->dev;
-	port.serial_in = dw8250_serial_in32;
-	port.serial_out = dw8250_serial_out32;
-	port.handle_irq = dw8250_handle_irq;
+	port.serial_in = sw_serial_in32;
+	port.serial_out = sw_serial_out32;
+	port.handle_irq = sw_serial_handle_irq;
 
 	pr_info("serial probe %d irq %d mapbase 0x%08x\n", dev->id,
 		sport->irq, sport->mmres->start);
