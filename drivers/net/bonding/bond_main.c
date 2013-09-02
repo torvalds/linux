@@ -1084,18 +1084,16 @@ static void bond_netpoll_cleanup(struct net_device *bond_dev)
 /*---------------------------------- IOCTL ----------------------------------*/
 
 static netdev_features_t bond_fix_features(struct net_device *dev,
-	netdev_features_t features)
+					   netdev_features_t features)
 {
-	struct slave *slave;
 	struct bonding *bond = netdev_priv(dev);
 	netdev_features_t mask;
-
-	read_lock(&bond->lock);
+	struct slave *slave;
 
 	if (list_empty(&bond->slave_list)) {
 		/* Disable adding VLANs to empty bond. But why? --mq */
 		features |= NETIF_F_VLAN_CHALLENGED;
-		goto out;
+		return features;
 	}
 
 	mask = features;
@@ -1109,8 +1107,6 @@ static netdev_features_t bond_fix_features(struct net_device *dev,
 	}
 	features = netdev_add_tso_features(features, mask);
 
-out:
-	read_unlock(&bond->lock);
 	return features;
 }
 
