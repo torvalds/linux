@@ -1348,7 +1348,7 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 						DMA_FROM_DEVICE);
 			skb_put(skb, pkt_len);
 			skb->protocol = eth_type_trans(skb, ndev);
-			netif_rx(skb);
+			netif_receive_skb(skb);
 			ndev->stats.rx_packets++;
 			ndev->stats.rx_bytes += pkt_len;
 		}
