@@ -2871,13 +2871,6 @@ static int pl330_dma_device_slave_caps(struct dma_chan *dchan,
 	caps->cmd_pause = false;
 	caps->cmd_terminate = true;
 
-	/*
-	 * This is the limit for transfers with a buswidth of 1, larger
-	 * buswidths will have larger limits.
-	 */
-	caps->max_sg_len = 1900800;
-	caps->max_sg_nr = 0;
-
 	return 0;
 }
 
@@ -3001,6 +2994,14 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 			"unable to register DMA to the generic DT DMA helpers\n");
 		}
 	}
+	/*
+	 * This is the limit for transfers with a buswidth of 1, larger
+	 * buswidths will have larger limits.
+	 */
+	ret = dma_set_max_seg_size(&adev->dev, 1900800);
+	if (ret)
+		dev_err(&adev->dev, "unable to set the seg size\n");
+
 
 	dev_info(&adev->dev,
 		"Loaded driver for PL330 DMAC-%d\n", adev->periphid);
