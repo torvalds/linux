@@ -1494,6 +1494,23 @@ static int batadv_iv_ogm_neigh_cmp(struct batadv_neigh_node *neigh1,
 	return tq1 - tq2;
 }
 
+/**
+ * batadv_iv_ogm_neigh_is_eob - check if neigh1 is equally good or better than
+ *  neigh2 from the metric prospective
+ * @neigh1: the first neighbor object of the comparison
+ * @neigh2: the second neighbor object of the comparison
+ *
+ * Returns true if the metric via neigh1 is equally good or better than the
+ * metric via neigh2, false otherwise.
+ */
+static bool batadv_iv_ogm_neigh_is_eob(struct batadv_neigh_node *neigh1,
+				       struct batadv_neigh_node *neigh2)
+{
+	int diff = batadv_iv_ogm_neigh_cmp(neigh1, neigh2);
+
+	return diff > -BATADV_TQ_SIMILARITY_THRESHOLD;
+}
+
 static struct batadv_algo_ops batadv_batman_iv __read_mostly = {
 	.name = "BATMAN_IV",
 	.bat_iface_enable = batadv_iv_ogm_iface_enable,
@@ -1503,6 +1520,7 @@ static struct batadv_algo_ops batadv_batman_iv __read_mostly = {
 	.bat_ogm_schedule = batadv_iv_ogm_schedule,
 	.bat_ogm_emit = batadv_iv_ogm_emit,
 	.bat_neigh_cmp = batadv_iv_ogm_neigh_cmp,
+	.bat_neigh_is_equiv_or_better = batadv_iv_ogm_neigh_is_eob,
 	.bat_orig_print = batadv_iv_ogm_orig_print,
 };
 

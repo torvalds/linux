@@ -86,6 +86,12 @@
 /* numbers of originator to contact for any PUT/GET DHT operation */
 #define BATADV_DAT_CANDIDATES_NUM 3
 
+/**
+ * BATADV_TQ_SIMILARITY_THRESHOLD - TQ points that a secondary metric can differ
+ *  at most from the primary one in order to be still considered acceptable
+ */
+#define BATADV_TQ_SIMILARITY_THRESHOLD 50
+
 /* how much worse secondary interfaces may be to be considered as bonding
  * candidates
  */
