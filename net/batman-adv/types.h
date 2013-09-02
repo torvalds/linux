@@ -992,6 +992,7 @@ struct batadv_forw_packet {
  * @bat_primary_iface_set: called when primary interface is selected / changed
  * @bat_ogm_schedule: prepare a new outgoing OGM for the send queue
  * @bat_ogm_emit: send scheduled OGM
+ * @bat_orig_print: print the originator table (optional)
  */
 struct batadv_algo_ops {
 	struct hlist_node list;
@@ -1002,6 +1003,8 @@ struct batadv_algo_ops {
 	void (*bat_primary_iface_set)(struct batadv_hard_iface *hard_iface);
 	void (*bat_ogm_schedule)(struct batadv_hard_iface *hard_iface);
 	void (*bat_ogm_emit)(struct batadv_forw_packet *forw_packet);
+	/* orig_node handling API */
+	void (*bat_orig_print)(struct batadv_priv *priv, struct seq_file *seq);
 };
 
 /**

@@ -513,73 +513,27 @@ int batadv_orig_seq_print_text(struct seq_file *seq, void *offset)
 {
 	struct net_device *net_dev = (struct net_device *)seq->private;
 	struct batadv_priv *bat_priv = netdev_priv(net_dev);
-	struct batadv_hashtable *hash = bat_priv->orig_hash;
-	struct hlist_head *head;
 	struct batadv_hard_iface *primary_if;
-	struct batadv_orig_node *orig_node;
-	struct batadv_neigh_node *neigh_node, *neigh_node_tmp;
-	int batman_count = 0;
-	int last_seen_secs;
-	int last_seen_msecs;
-	unsigned long last_seen_jiffies;
-	uint32_t i;
 
 	primary_if = batadv_seq_print_text_primary_if_get(seq);
 	if (!primary_if)
-		goto out;
+		return 0;
 
-	seq_printf(seq, "[B.A.T.M.A.N. adv %s, MainIF/MAC: %s/%pM (%s)]\n",
+	seq_printf(seq, "[B.A.T.M.A.N. adv %s, MainIF/MAC: %s/%pM (%s %s)]\n",
 		   BATADV_SOURCE_VERSION, primary_if->net_dev->name,
-		   primary_if->net_dev->dev_addr, net_dev->name);
-	seq_printf(seq, "  %-15s %s (%s/%i) %17s [%10s]: %20s ...\n",
-		   "Originator", "last-seen", "#", BATADV_TQ_MAX_VALUE,
-		   "Nexthop", "outgoingIF", "Potential nexthops");
+		   primary_if->net_dev->dev_addr, net_dev->name,
+		   bat_priv->bat_algo_ops->name);
 
-	for (i = 0; i < hash->size; i++) {
-		head = &hash->table[i];
+	batadv_hardif_free_ref(primary_if);
 
-		rcu_read_lock();
-		hlist_for_each_entry_rcu(orig_node, head, hash_entry) {
-			neigh_node = batadv_orig_node_get_router(orig_node);
-			if (!neigh_node)
-				continue;
-
-			if (neigh_node->bat_iv.tq_avg == 0)
-				goto next;
-
-			last_seen_jiffies = jiffies - orig_node->last_seen;
-			last_seen_msecs = jiffies_to_msecs(last_seen_jiffies);
-			last_seen_secs = last_seen_msecs / 1000;
-			last_seen_msecs = last_seen_msecs % 1000;
-
-			seq_printf(seq, "%pM %4i.%03is   (%3i) %pM [%10s]:",
-				   orig_node->orig, last_seen_secs,
-				   last_seen_msecs, neigh_node->bat_iv.tq_avg,
-				   neigh_node->addr,
-				   neigh_node->if_incoming->net_dev->name);
-
-			hlist_for_each_entry_rcu(neigh_node_tmp,
-						 &orig_node->neigh_list, list) {
-				seq_printf(seq, " %pM (%3i)",
-					   neigh_node_tmp->addr,
-					   neigh_node_tmp->bat_iv.tq_avg);
-			}
-
-			seq_puts(seq, "\n");
-			batman_count++;
-
-next:
-			batadv_neigh_node_free_ref(neigh_node);
-		}
-		rcu_read_unlock();
+	if (!bat_priv->bat_algo_ops->bat_orig_print) {
+		seq_puts(seq,
+			 "No printing function for this routing protocol\n");
+		return 0;
 	}
 
-	if (batman_count == 0)
-		seq_puts(seq, "No batman nodes in range ...\n");
+	bat_priv->bat_algo_ops->bat_orig_print(bat_priv, seq);
 
-out:
-	if (primary_if)
-		batadv_hardif_free_ref(primary_if);
 	return 0;
 }
 

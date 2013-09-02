@@ -1411,6 +1411,70 @@ static int batadv_iv_ogm_receive(struct sk_buff *skb,
 	return NET_RX_SUCCESS;
 }
 
+/**
+ * batadv_iv_ogm_orig_print - print the originator table
+ * @bat_priv: the bat priv with all the soft interface information
+ * @seq: debugfs table seq_file struct
+ */
+static void batadv_iv_ogm_orig_print(struct batadv_priv *bat_priv,
+				     struct seq_file *seq)
+{
+	struct batadv_neigh_node *neigh_node, *neigh_node_tmp;
+	struct batadv_hashtable *hash = bat_priv->orig_hash;
+	int last_seen_msecs, last_seen_secs;
+	struct batadv_orig_node *orig_node;
+	unsigned long last_seen_jiffies;
+	struct hlist_head *head;
+	int batman_count = 0;
+	uint32_t i;
+
+	seq_printf(seq, "  %-15s %s (%s/%i) %17s [%10s]: %20s ...\n",
+		   "Originator", "last-seen", "#", BATADV_TQ_MAX_VALUE,
+		   "Nexthop", "outgoingIF", "Potential nexthops");
+
+	for (i = 0; i < hash->size; i++) {
+		head = &hash->table[i];
+
+		rcu_read_lock();
+		hlist_for_each_entry_rcu(orig_node, head, hash_entry) {
+			neigh_node = batadv_orig_node_get_router(orig_node);
+			if (!neigh_node)
+				continue;
+
+			if (neigh_node->bat_iv.tq_avg == 0)
+				goto next;
+
+			last_seen_jiffies = jiffies - orig_node->last_seen;
+			last_seen_msecs = jiffies_to_msecs(last_seen_jiffies);
+			last_seen_secs = last_seen_msecs / 1000;
+			last_seen_msecs = last_seen_msecs % 1000;
+
+			seq_printf(seq, "%pM %4i.%03is   (%3i) %pM [%10s]:",
+				   orig_node->orig, last_seen_secs,
+				   last_seen_msecs, neigh_node->bat_iv.tq_avg,
+				   neigh_node->addr,
+				   neigh_node->if_incoming->net_dev->name);
+
+			hlist_for_each_entry_rcu(neigh_node_tmp,
+						 &orig_node->neigh_list, list) {
+				seq_printf(seq, " %pM (%3i)",
+					   neigh_node_tmp->addr,
+					   neigh_node_tmp->bat_iv.tq_avg);
+			}
+
+			seq_puts(seq, "\n");
+			batman_count++;
+
+next:
+			batadv_neigh_node_free_ref(neigh_node);
+		}
+		rcu_read_unlock();
+	}
+
+	if (batman_count == 0)
+		seq_puts(seq, "No batman nodes in range ...\n");
+}
+
 static struct batadv_algo_ops batadv_batman_iv __read_mostly = {
 	.name = "BATMAN_IV",
 	.bat_iface_enable = batadv_iv_ogm_iface_enable,
@@ -1419,6 +1483,7 @@ static struct batadv_algo_ops batadv_batman_iv __read_mostly = {
 	.bat_primary_iface_set = batadv_iv_ogm_primary_iface_set,
 	.bat_ogm_schedule = batadv_iv_ogm_schedule,
 	.bat_ogm_emit = batadv_iv_ogm_emit,
+	.bat_orig_print = batadv_iv_ogm_orig_print,
 };
 
 int __init batadv_iv_init(void)
