@@ -128,8 +128,8 @@ static void intel_pre_enable_lvds(struct intel_encoder *encoder)
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
-	struct drm_display_mode *fixed_mode =
-		lvds_encoder->attached_connector->base.panel.fixed_mode;
+	const struct drm_display_mode *adjusted_mode =
+		&crtc->config.adjusted_mode;
 	int pipe = crtc->pipe;
 	u32 temp;
 
@@ -183,9 +183,9 @@ static void intel_pre_enable_lvds(struct intel_encoder *encoder)
 			temp &= ~LVDS_ENABLE_DITHER;
 	}
 	temp &= ~(LVDS_HSYNC_POLARITY | LVDS_VSYNC_POLARITY);
-	if (fixed_mode->flags & DRM_MODE_FLAG_NHSYNC)
+	if (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC)
 		temp |= LVDS_HSYNC_POLARITY;
-	if (fixed_mode->flags & DRM_MODE_FLAG_NVSYNC)
+	if (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC)
 		temp |= LVDS_VSYNC_POLARITY;
 
 	I915_WRITE(lvds_encoder->reg, temp);

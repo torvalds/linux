@@ -551,7 +551,7 @@ extern int intel_panel_init(struct intel_panel *panel,
 			    struct drm_display_mode *fixed_mode);
 extern void intel_panel_fini(struct intel_panel *panel);
 
-extern void intel_fixed_panel_mode(struct drm_display_mode *fixed_mode,
+extern void intel_fixed_panel_mode(const struct drm_display_mode *fixed_mode,
 				   struct drm_display_mode *adjusted_mode);
 extern void intel_pch_panel_fitting(struct intel_crtc *crtc,
 				    struct intel_crtc_config *pipe_config,
