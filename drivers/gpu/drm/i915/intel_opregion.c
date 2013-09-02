@@ -36,8 +36,11 @@
 #include "i915_drv.h"
 #include "intel_drv.h"
 
-#define PCI_ASLE 0xe4
-#define PCI_ASLS 0xfc
+#define PCI_ASLE		0xe4
+#define PCI_ASLS		0xfc
+#define PCI_SWSCI		0xe8
+#define PCI_SWSCI_SCISEL	(1 << 15)
+#define PCI_SWSCI_GSSCIE	(1 << 0)
 
 #define OPREGION_HEADER_OFFSET 0
 #define OPREGION_ACPI_OFFSET   0x100
@@ -151,6 +154,51 @@ struct opregion_asle {
 
 #define ASLE_CBLV_VALID         (1<<31)
 
+/* Software System Control Interrupt (SWSCI) */
+#define SWSCI_SCIC_INDICATOR		(1 << 0)
+#define SWSCI_SCIC_MAIN_FUNCTION_SHIFT	1
+#define SWSCI_SCIC_MAIN_FUNCTION_MASK	(0xf << 1)
+#define SWSCI_SCIC_SUB_FUNCTION_SHIFT	8
+#define SWSCI_SCIC_SUB_FUNCTION_MASK	(0xff << 8)
+#define SWSCI_SCIC_EXIT_PARAMETER_SHIFT	8
+#define SWSCI_SCIC_EXIT_PARAMETER_MASK	(0xff << 8)
+#define SWSCI_SCIC_EXIT_STATUS_SHIFT	5
+#define SWSCI_SCIC_EXIT_STATUS_MASK	(7 << 5)
+#define SWSCI_SCIC_EXIT_STATUS_SUCCESS	1
+
+#define SWSCI_FUNCTION_CODE(main, sub) \
+	((main) << SWSCI_SCIC_MAIN_FUNCTION_SHIFT | \
+	 (sub) << SWSCI_SCIC_SUB_FUNCTION_SHIFT)
+
+/* SWSCI: Get BIOS Data (GBDA) */
+#define SWSCI_GBDA			4
+#define SWSCI_GBDA_SUPPORTED_CALLS	SWSCI_FUNCTION_CODE(SWSCI_GBDA, 0)
+#define SWSCI_GBDA_REQUESTED_CALLBACKS	SWSCI_FUNCTION_CODE(SWSCI_GBDA, 1)
+#define SWSCI_GBDA_BOOT_DISPLAY_PREF	SWSCI_FUNCTION_CODE(SWSCI_GBDA, 4)
+#define SWSCI_GBDA_PANEL_DETAILS	SWSCI_FUNCTION_CODE(SWSCI_GBDA, 5)
+#define SWSCI_GBDA_TV_STANDARD		SWSCI_FUNCTION_CODE(SWSCI_GBDA, 6)
+#define SWSCI_GBDA_INTERNAL_GRAPHICS	SWSCI_FUNCTION_CODE(SWSCI_GBDA, 7)
+#define SWSCI_GBDA_SPREAD_SPECTRUM	SWSCI_FUNCTION_CODE(SWSCI_GBDA, 10)
+
+/* SWSCI: System BIOS Callbacks (SBCB) */
+#define SWSCI_SBCB			6
+#define SWSCI_SBCB_SUPPORTED_CALLBACKS	SWSCI_FUNCTION_CODE(SWSCI_SBCB, 0)
+#define SWSCI_SBCB_INIT_COMPLETION	SWSCI_FUNCTION_CODE(SWSCI_SBCB, 1)
+#define SWSCI_SBCB_PRE_HIRES_SET_MODE	SWSCI_FUNCTION_CODE(SWSCI_SBCB, 3)
+#define SWSCI_SBCB_POST_HIRES_SET_MODE	SWSCI_FUNCTION_CODE(SWSCI_SBCB, 4)
+#define SWSCI_SBCB_DISPLAY_SWITCH	SWSCI_FUNCTION_CODE(SWSCI_SBCB, 5)
+#define SWSCI_SBCB_SET_TV_FORMAT	SWSCI_FUNCTION_CODE(SWSCI_SBCB, 6)
+#define SWSCI_SBCB_ADAPTER_POWER_STATE	SWSCI_FUNCTION_CODE(SWSCI_SBCB, 7)
+#define SWSCI_SBCB_DISPLAY_POWER_STATE	SWSCI_FUNCTION_CODE(SWSCI_SBCB, 8)
+#define SWSCI_SBCB_SET_BOOT_DISPLAY	SWSCI_FUNCTION_CODE(SWSCI_SBCB, 9)
+#define SWSCI_SBCB_SET_PANEL_DETAILS	SWSCI_FUNCTION_CODE(SWSCI_SBCB, 10)
+#define SWSCI_SBCB_SET_INTERNAL_GFX	SWSCI_FUNCTION_CODE(SWSCI_SBCB, 11)
+#define SWSCI_SBCB_POST_HIRES_TO_DOS_FS	SWSCI_FUNCTION_CODE(SWSCI_SBCB, 16)
+#define SWSCI_SBCB_SUSPEND_RESUME	SWSCI_FUNCTION_CODE(SWSCI_SBCB, 17)
+#define SWSCI_SBCB_SET_SPREAD_SPECTRUM	SWSCI_FUNCTION_CODE(SWSCI_SBCB, 18)
+#define SWSCI_SBCB_POST_VBE_PM		SWSCI_FUNCTION_CODE(SWSCI_SBCB, 19)
+#define SWSCI_SBCB_ENABLE_DISABLE_AUDIO	SWSCI_FUNCTION_CODE(SWSCI_SBCB, 21)
+
 #define ACPI_OTHER_OUTPUT (0<<8)
 #define ACPI_VGA_OUTPUT (1<<8)
 #define ACPI_TV_OUTPUT (2<<8)
@@ -158,6 +206,91 @@ struct opregion_asle {
 #define ACPI_LVDS_OUTPUT (4<<8)
 
 #ifdef CONFIG_ACPI
+static int swsci(struct drm_device *dev, u32 function, u32 parm, u32 *parm_out)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct opregion_swsci __iomem *swsci = dev_priv->opregion.swsci;
+	u32 main_function, sub_function, scic;
+	u16 pci_swsci;
+	u32 dslp;
+
+	if (!swsci)
+		return -ENODEV;
+
+	main_function = (function & SWSCI_SCIC_MAIN_FUNCTION_MASK) >>
+		SWSCI_SCIC_MAIN_FUNCTION_SHIFT;
+	sub_function = (function & SWSCI_SCIC_SUB_FUNCTION_MASK) >>
+		SWSCI_SCIC_SUB_FUNCTION_SHIFT;
+
+	/* Check if we can call the function. See swsci_setup for details. */
+	if (main_function == SWSCI_SBCB) {
+		if ((dev_priv->opregion.swsci_sbcb_sub_functions &
+		     (1 << sub_function)) == 0)
+			return -EINVAL;
+	} else if (main_function == SWSCI_GBDA) {
+		if ((dev_priv->opregion.swsci_gbda_sub_functions &
+		     (1 << sub_function)) == 0)
+			return -EINVAL;
+	}
+
+	/* Driver sleep timeout in ms. */
+	dslp = ioread32(&swsci->dslp);
+	if (!dslp) {
+		dslp = 2;
+	} else if (dslp > 500) {
+		/* Hey bios, trust must be earned. */
+		WARN_ONCE(1, "excessive driver sleep timeout (DSPL) %u\n", dslp);
+		dslp = 500;
+	}
+
+	/* The spec tells us to do this, but we are the only user... */
+	scic = ioread32(&swsci->scic);
+	if (scic & SWSCI_SCIC_INDICATOR) {
+		DRM_DEBUG_DRIVER("SWSCI request already in progress\n");
+		return -EBUSY;
+	}
+
+	scic = function | SWSCI_SCIC_INDICATOR;
+
+	iowrite32(parm, &swsci->parm);
+	iowrite32(scic, &swsci->scic);
+
+	/* Ensure SCI event is selected and event trigger is cleared. */
+	pci_read_config_word(dev->pdev, PCI_SWSCI, &pci_swsci);
+	if (!(pci_swsci & PCI_SWSCI_SCISEL) || (pci_swsci & PCI_SWSCI_GSSCIE)) {
+		pci_swsci |= PCI_SWSCI_SCISEL;
+		pci_swsci &= ~PCI_SWSCI_GSSCIE;
+		pci_write_config_word(dev->pdev, PCI_SWSCI, pci_swsci);
+	}
+
+	/* Use event trigger to tell bios to check the mail. */
+	pci_swsci |= PCI_SWSCI_GSSCIE;
+	pci_write_config_word(dev->pdev, PCI_SWSCI, pci_swsci);
+
+	/* Poll for the result. */
+#define C (((scic = ioread32(&swsci->scic)) & SWSCI_SCIC_INDICATOR) == 0)
+	if (wait_for(C, dslp)) {
+		DRM_DEBUG_DRIVER("SWSCI request timed out\n");
+		return -ETIMEDOUT;
+	}
+
+	scic = (scic & SWSCI_SCIC_EXIT_STATUS_MASK) >>
+		SWSCI_SCIC_EXIT_STATUS_SHIFT;
+
+	/* Note: scic == 0 is an error! */
+	if (scic != SWSCI_SCIC_EXIT_STATUS_SUCCESS) {
+		DRM_DEBUG_DRIVER("SWSCI request error %u\n", scic);
+		return -EIO;
+	}
+
+	if (parm_out)
+		*parm_out = ioread32(&swsci->parm);
+
+	return 0;
+
+#undef C
+}
+
 static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -447,7 +580,66 @@ void intel_opregion_fini(struct drm_device *dev)
 	opregion->asle = NULL;
 	opregion->vbt = NULL;
 }
-#endif
+
+static void swsci_setup(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_opregion *opregion = &dev_priv->opregion;
+	bool requested_callbacks = false;
+	u32 tmp;
+
+	/* Sub-function code 0 is okay, let's allow them. */
+	opregion->swsci_gbda_sub_functions = 1;
+	opregion->swsci_sbcb_sub_functions = 1;
+
+	/* We use GBDA to ask for supported GBDA calls. */
+	if (swsci(dev, SWSCI_GBDA_SUPPORTED_CALLS, 0, &tmp) == 0) {
+		/* make the bits match the sub-function codes */
+		tmp <<= 1;
+		opregion->swsci_gbda_sub_functions |= tmp;
+	}
+
+	/*
+	 * We also use GBDA to ask for _requested_ SBCB callbacks. The driver
+	 * must not call interfaces that are not specifically requested by the
+	 * bios.
+	 */
+	if (swsci(dev, SWSCI_GBDA_REQUESTED_CALLBACKS, 0, &tmp) == 0) {
+		/* here, the bits already match sub-function codes */
+		opregion->swsci_sbcb_sub_functions |= tmp;
+		requested_callbacks = true;
+	}
+
+	/*
+	 * But we use SBCB to ask for _supported_ SBCB calls. This does not mean
+	 * the callback is _requested_. But we still can't call interfaces that
+	 * are not requested.
+	 */
+	if (swsci(dev, SWSCI_SBCB_SUPPORTED_CALLBACKS, 0, &tmp) == 0) {
+		/* make the bits match the sub-function codes */
+		u32 low = tmp & 0x7ff;
+		u32 high = tmp & ~0xfff; /* bit 11 is reserved */
+		tmp = (high << 4) | (low << 1) | 1;
+
+		/* best guess what to do with supported wrt requested */
+		if (requested_callbacks) {
+			u32 req = opregion->swsci_sbcb_sub_functions;
+			if ((req & tmp) != req)
+				DRM_DEBUG_DRIVER("SWSCI BIOS requested (%08x) SBCB callbacks that are not supported (%08x)\n", req, tmp);
+			/* XXX: for now, trust the requested callbacks */
+			/* opregion->swsci_sbcb_sub_functions &= tmp; */
+		} else {
+			opregion->swsci_sbcb_sub_functions |= tmp;
+		}
+	}
+
+	DRM_DEBUG_DRIVER("SWSCI GBDA callbacks %08x, SBCB callbacks %08x\n",
+			 opregion->swsci_gbda_sub_functions,
+			 opregion->swsci_sbcb_sub_functions);
+}
+#else /* CONFIG_ACPI */
+static inline void swsci_setup(struct drm_device *dev) {}
+#endif  /* CONFIG_ACPI */
 
 int intel_opregion_setup(struct drm_device *dev)
 {
@@ -490,6 +682,7 @@ int intel_opregion_setup(struct drm_device *dev)
 	if (mboxes & MBOX_SWSCI) {
 		DRM_DEBUG_DRIVER("SWSCI supported\n");
 		opregion->swsci = base + OPREGION_SWSCI_OFFSET;
+		swsci_setup(dev);
 	}
 	if (mboxes & MBOX_ASLE) {
 		DRM_DEBUG_DRIVER("ASLE supported\n");
