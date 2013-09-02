@@ -4208,6 +4208,7 @@ static void ci_request_link_speed_change_before_state_change(struct radeon_devic
 	pi->pspp_notify_required = false;
 	if (target_link_speed > current_link_speed) {
 		switch (target_link_speed) {
+#ifdef CONFIG_ACPI
 		case RADEON_PCIE_GEN3:
 			if (radeon_acpi_pcie_performance_request(rdev, PCIE_PERF_REQ_PECI_GEN3, false) == 0)
 				break;
@@ -4217,6 +4218,7 @@ static void ci_request_link_speed_change_before_state_change(struct radeon_devic
 		case RADEON_PCIE_GEN2:
 			if (radeon_acpi_pcie_performance_request(rdev, PCIE_PERF_REQ_PECI_GEN2, false) == 0)
 				break;
+#endif
 		default:
 			pi->force_pcie_gen = ci_get_current_pcie_speed(rdev);
 			break;
@@ -4248,7 +4250,9 @@ static void ci_notify_link_speed_change_after_state_change(struct radeon_device 
 		    (ci_get_current_pcie_speed(rdev) > 0))
 			return;
 
+#ifdef CONFIG_ACPI
 		radeon_acpi_pcie_performance_request(rdev, request, false);
+#endif
 	}
 }
 
