@@ -14,6 +14,7 @@
 #include <libaudit.h>
 #include <stdlib.h>
 #include <sys/mman.h>
+#include <linux/futex.h>
 
 static size_t syscall_arg__scnprintf_hex(char *bf, size_t size,
 					 unsigned long arg, u8 *arg_mask __maybe_unused)
@@ -137,6 +138,49 @@ static size_t syscall_arg__scnprintf_madvise_behavior(char *bf, size_t size,
 
 #define SCA_MADV_BHV syscall_arg__scnprintf_madvise_behavior
 
+static size_t syscall_arg__scnprintf_futex_op(char *bf, size_t size, unsigned long arg, u8 *arg_mask)
+{
+	enum syscall_futex_args {
+		SCF_UADDR   = (1 << 0),
+		SCF_OP	    = (1 << 1),
+		SCF_VAL	    = (1 << 2),
+		SCF_TIMEOUT = (1 << 3),
+		SCF_UADDR2  = (1 << 4),
+		SCF_VAL3    = (1 << 5),
+	};
+	int op = arg;
+	int cmd = op & FUTEX_CMD_MASK;
+	size_t printed = 0;
+
+	switch (cmd) {
+#define	P_FUTEX_OP(n) case FUTEX_##n: printed = scnprintf(bf, size, #n);
+	P_FUTEX_OP(WAIT);	    *arg_mask |= SCF_VAL3|SCF_UADDR2;		  break;
+	P_FUTEX_OP(WAKE);	    *arg_mask |= SCF_VAL3|SCF_UADDR2|SCF_TIMEOUT; break;
+	P_FUTEX_OP(FD);		    *arg_mask |= SCF_VAL3|SCF_UADDR2|SCF_TIMEOUT; break;
+	P_FUTEX_OP(REQUEUE);	    *arg_mask |= SCF_VAL3|SCF_TIMEOUT;	          break;
+	P_FUTEX_OP(CMP_REQUEUE);    *arg_mask |= SCF_TIMEOUT;			  break;
+	P_FUTEX_OP(CMP_REQUEUE_PI); *arg_mask |= SCF_TIMEOUT;			  break;
+	P_FUTEX_OP(WAKE_OP);							  break;
+	P_FUTEX_OP(LOCK_PI);	    *arg_mask |= SCF_VAL3|SCF_UADDR2|SCF_TIMEOUT; break;
+	P_FUTEX_OP(UNLOCK_PI);	    *arg_mask |= SCF_VAL3|SCF_UADDR2|SCF_TIMEOUT; break;
+	P_FUTEX_OP(TRYLOCK_PI);	    *arg_mask |= SCF_VAL3|SCF_UADDR2;		  break;
+	P_FUTEX_OP(WAIT_BITSET);    *arg_mask |= SCF_UADDR2;			  break;
+	P_FUTEX_OP(WAKE_BITSET);    *arg_mask |= SCF_UADDR2;			  break;
+	P_FUTEX_OP(WAIT_REQUEUE_PI);						  break;
+	default: printed = scnprintf(bf, size, "%#x", cmd);			  break;
+	}
+
+	if (op & FUTEX_PRIVATE_FLAG)
+		printed += scnprintf(bf + printed, size - printed, "|PRIV");
+
+	if (op & FUTEX_CLOCK_REALTIME)
+		printed += scnprintf(bf + printed, size - printed, "|CLKRT");
+
+	return printed;
+}
+
+#define SCA_FUTEX_OP  syscall_arg__scnprintf_futex_op
+
 static struct syscall_fmt {
 	const char *name;
 	const char *alias;
@@ -153,7 +197,8 @@ static struct syscall_fmt {
 	{ .name	    = "connect",    .errmsg = true, },
 	{ .name	    = "fstat",	    .errmsg = true, .alias = "newfstat", },
 	{ .name	    = "fstatat",    .errmsg = true, .alias = "newfstatat", },
-	{ .name	    = "futex",	    .errmsg = true, },
+	{ .name	    = "futex",	    .errmsg = true,
+	  .arg_scnprintf = { [1] = SCA_FUTEX_OP, /* op */ }, },
 	{ .name	    = "ioctl",	    .errmsg = true,
 	  .arg_scnprintf = { [2] = SCA_HEX, /* arg */ }, },
 	{ .name	    = "lstat",	    .errmsg = true, .alias = "newlstat", },
