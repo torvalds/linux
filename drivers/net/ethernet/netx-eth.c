@@ -390,7 +390,7 @@ static int netx_eth_drv_probe(struct platform_device *pdev)
 
 	priv = netdev_priv(ndev);
 
-	pdata = (struct netxeth_platform_data *)dev_get_platdata(&pdev->dev);
+	pdata = dev_get_platdata(&pdev->dev);
 	priv->xc = request_xc(pdata->xcno, &pdev->dev);
 	if (!priv->xc) {
 		dev_err(&pdev->dev, "unable to request xc engine\n");
