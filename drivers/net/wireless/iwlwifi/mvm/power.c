@@ -284,6 +284,7 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 	bool radar_detect = false;
 	struct iwl_mvm_vif *mvmvif __maybe_unused =
 		iwl_mvm_vif_from_mac80211(vif);
+	bool allow_uapsd = true;
 
 	cmd->id_and_color = cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id,
 							    mvmvif->color));
@@ -354,8 +355,19 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 			cpu_to_le32(IWL_MVM_WOWLAN_PS_TX_DATA_TIMEOUT);
 	}
 
-	if (memcmp(mvmvif->uapsd_misbehaving_bssid, vif->bss_conf.bssid,
-		   ETH_ALEN))
+	if (!memcmp(mvmvif->uapsd_misbehaving_bssid, vif->bss_conf.bssid,
+		    ETH_ALEN))
+		allow_uapsd = false;
+	/*
+	 * Avoid using uAPSD if P2P client is associated to GO that uses
+	 * opportunistic power save. This is due to current FW limitation.
+	 */
+	if (vif->p2p &&
+	    vif->bss_conf.p2p_noa_attr.oppps_ctwindow &
+	    IEEE80211_P2P_OPPPS_ENABLE_BIT)
+		allow_uapsd = false;
+
+	if (allow_uapsd)
 		iwl_mvm_power_configure_uapsd(mvm, vif, cmd);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
@@ -404,7 +416,11 @@ static int iwl_mvm_power_mac_update_mode(struct iwl_mvm *mvm,
 	bool ba_enable;
 	struct iwl_mac_power_cmd cmd = {};
 
-	if (vif->type != NL80211_IFTYPE_STATION || vif->p2p)
+	if (vif->type != NL80211_IFTYPE_STATION)
+		return 0;
+
+	if (vif->p2p &&
+	    !(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_P2P_PS))
 		return 0;
 
 	iwl_mvm_power_build_cmd(mvm, vif, &cmd);
