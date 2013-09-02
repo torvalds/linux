@@ -150,7 +150,7 @@ struct nci_spi_dev *nci_spi_allocate_device(struct spi_device *spi,
 	if (!supported_protocols)
 		return NULL;
 
-	ndev = devm_kzalloc(&spi->dev, sizeof(struct nci_dev), GFP_KERNEL);
+	ndev = devm_kzalloc(&spi->dev, sizeof(struct nci_spi_dev), GFP_KERNEL);
 	if (!ndev)
 		return NULL;
 
