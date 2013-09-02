@@ -1528,8 +1528,7 @@ int vxlan_xmit_skb(struct net *net, struct vxlan_sock *vs,
 	if (err)
 		return err;
 
-	return iptunnel_xmit(net, rt, skb, src, dst,
-			IPPROTO_UDP, tos, ttl, df);
+	return iptunnel_xmit(rt, skb, src, dst, IPPROTO_UDP, tos, ttl, df);
 }
 EXPORT_SYMBOL_GPL(vxlan_xmit_skb);
 

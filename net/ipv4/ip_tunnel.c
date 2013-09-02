@@ -654,8 +654,7 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 		}
 	}
 
-	err = iptunnel_xmit(tunnel->net, rt, skb,
-			    fl4.saddr, fl4.daddr, protocol,
+	err = iptunnel_xmit(rt, skb, fl4.saddr, fl4.daddr, protocol,
 			    ip_tunnel_ecn_encap(tos, inner_iph, skb), ttl, df);
 	iptunnel_xmit_stats(err, &dev->stats, dev->tstats);
 
