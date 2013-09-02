@@ -244,7 +244,7 @@ static int octeon_mdiobus_remove(struct platform_device *pdev)
 	struct octeon_mdiobus *bus;
 	union cvmx_smix_en smi_en;
 
-	bus = dev_get_drvdata(&pdev->dev);
+	bus = platform_get_drvdata(pdev);
 
 	mdiobus_unregister(bus->mii_bus);
 	mdiobus_free(bus->mii_bus);
