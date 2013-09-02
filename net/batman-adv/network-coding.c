@@ -1003,7 +1003,7 @@ static bool batadv_nc_code_packets(struct batadv_priv *bat_priv,
 				   struct batadv_nc_packet *nc_packet,
 				   struct batadv_neigh_node *neigh_node)
 {
-	uint8_t tq_weighted_neigh, tq_weighted_coding;
+	uint8_t tq_weighted_neigh, tq_weighted_coding, tq_tmp;
 	struct sk_buff *skb_dest, *skb_src;
 	struct batadv_unicast_packet *packet1;
 	struct batadv_unicast_packet *packet2;
@@ -1028,8 +1028,10 @@ static bool batadv_nc_code_packets(struct batadv_priv *bat_priv,
 	if (!router_coding)
 		goto out;
 
-	tq_weighted_neigh = batadv_nc_random_weight_tq(router_neigh->tq_avg);
-	tq_weighted_coding = batadv_nc_random_weight_tq(router_coding->tq_avg);
+	tq_tmp = batadv_nc_random_weight_tq(router_neigh->bat_iv.tq_avg);
+	tq_weighted_neigh = tq_tmp;
+	tq_tmp = batadv_nc_random_weight_tq(router_coding->bat_iv.tq_avg);
+	tq_weighted_coding = tq_tmp;
 
 	/* Select one destination for the MAC-header dst-field based on
 	 * weighted TQ-values.

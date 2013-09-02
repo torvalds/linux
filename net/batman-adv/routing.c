@@ -119,7 +119,7 @@ void batadv_bonding_candidate_add(struct batadv_orig_node *orig_node,
 				  struct batadv_neigh_node *neigh_node)
 {
 	struct batadv_neigh_node *tmp_neigh_node, *router = NULL;
-	uint8_t interference_candidate = 0;
+	uint8_t interference_candidate = 0, tq;
 
 	spin_lock_bh(&orig_node->neigh_list_lock);
 
@@ -132,8 +132,10 @@ void batadv_bonding_candidate_add(struct batadv_orig_node *orig_node,
 	if (!router)
 		goto candidate_del;
 
+
 	/* ... and is good enough to be considered */
-	if (neigh_node->tq_avg < router->tq_avg - BATADV_BONDING_TQ_THRESHOLD)
+	tq = router->bat_iv.tq_avg - BATADV_BONDING_TQ_THRESHOLD;
+	if (neigh_node->bat_iv.tq_avg < tq)
 		goto candidate_del;
 
 	/* check if we have another candidate with the same mac address or
@@ -502,7 +504,8 @@ batadv_find_ifalter_router(struct batadv_orig_node *primary_orig,
 		if (tmp_neigh_node->if_incoming == recv_if)
 			continue;
 
-		if (router && tmp_neigh_node->tq_avg <= router->tq_avg)
+		if (router &&
+		    tmp_neigh_node->bat_iv.tq_avg <= router->bat_iv.tq_avg)
 			continue;
 
 		if (!atomic_inc_not_zero(&tmp_neigh_node->refcount))

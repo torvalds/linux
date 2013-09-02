@@ -172,11 +172,20 @@ batadv_orig_node_get_router(struct batadv_orig_node *orig_node)
 	return router;
 }
 
+/**
+ * batadv_neigh_node_new - create and init a new neigh_node object
+ * @hard_iface: the interface where the neighbour is connected to
+ * @neigh_addr: the mac address of the neighbour interface
+ * @orig_node: originator object representing the neighbour
+ *
+ * Allocates a new neigh_node object and initialises all the generic fields.
+ * Returns the new object or NULL on failure.
+ */
 struct batadv_neigh_node *
 batadv_neigh_node_new(struct batadv_hard_iface *hard_iface,
-		      const uint8_t *neigh_addr)
+		      const uint8_t *neigh_addr,
+		      struct batadv_orig_node *orig_node)
 {
-	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 	struct batadv_neigh_node *neigh_node;
 
 	neigh_node = kzalloc(sizeof(*neigh_node), GFP_ATOMIC);
@@ -186,14 +195,13 @@ batadv_neigh_node_new(struct batadv_hard_iface *hard_iface,
 	INIT_HLIST_NODE(&neigh_node->list);
 
 	memcpy(neigh_node->addr, neigh_addr, ETH_ALEN);
-	spin_lock_init(&neigh_node->lq_update_lock);
+	neigh_node->if_incoming = hard_iface;
+	neigh_node->orig_node = orig_node;
+
+	INIT_LIST_HEAD(&neigh_node->bonding_list);
 
 	/* extra reference for return */
 	atomic_set(&neigh_node->refcount, 2);
-
-	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-		   "Creating new neighbor %pM on interface %s\n", neigh_addr,
-		   hard_iface->net_dev->name);
 
 out:
 	return neigh_node;
@@ -401,6 +409,7 @@ batadv_purge_orig_neighbors(struct batadv_priv *bat_priv,
 	bool neigh_purged = false;
 	unsigned long last_seen;
 	struct batadv_hard_iface *if_incoming;
+	uint8_t best_metric = 0;
 
 	*best_neigh_node = NULL;
 
@@ -436,8 +445,10 @@ batadv_purge_orig_neighbors(struct batadv_priv *bat_priv,
 			batadv_neigh_node_free_ref(neigh_node);
 		} else {
 			if ((!*best_neigh_node) ||
-			    (neigh_node->tq_avg > (*best_neigh_node)->tq_avg))
+			    (neigh_node->bat_iv.tq_avg > best_metric)) {
 				*best_neigh_node = neigh_node;
+				best_metric = neigh_node->bat_iv.tq_avg;
+			}
 		}
 	}
 
@@ -557,7 +568,7 @@ int batadv_orig_seq_print_text(struct seq_file *seq, void *offset)
 			if (!neigh_node)
 				continue;
 
-			if (neigh_node->tq_avg == 0)
+			if (neigh_node->bat_iv.tq_avg == 0)
 				goto next;
 
 			last_seen_jiffies = jiffies - orig_node->last_seen;
@@ -567,7 +578,7 @@ int batadv_orig_seq_print_text(struct seq_file *seq, void *offset)
 
 			seq_printf(seq, "%pM %4i.%03is   (%3i) %pM [%10s]:",
 				   orig_node->orig, last_seen_secs,
-				   last_seen_msecs, neigh_node->tq_avg,
+				   last_seen_msecs, neigh_node->bat_iv.tq_avg,
 				   neigh_node->addr,
 				   neigh_node->if_incoming->net_dev->name);
 
@@ -575,7 +586,7 @@ int batadv_orig_seq_print_text(struct seq_file *seq, void *offset)
 						 &orig_node->neigh_list, list) {
 				seq_printf(seq, " %pM (%3i)",
 					   neigh_node_tmp->addr,
-					   neigh_node_tmp->tq_avg);
+					   neigh_node_tmp->bat_iv.tq_avg);
 			}
 
 			seq_puts(seq, "\n");

@@ -1299,9 +1299,9 @@ batadv_transtable_best_orig(struct batadv_tt_global_entry *tt_global_entry)
 		if (!router)
 			continue;
 
-		if (router->tq_avg > best_tq) {
+		if (router->bat_iv.tq_avg > best_tq) {
 			best_entry = orig_entry;
-			best_tq = router->tq_avg;
+			best_tq = router->bat_iv.tq_avg;
 		}
 
 		batadv_neigh_node_free_ref(router);

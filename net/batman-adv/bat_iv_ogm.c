@@ -93,16 +93,18 @@ batadv_iv_ogm_neigh_new(struct batadv_hard_iface *hard_iface,
 			struct batadv_orig_node *orig_node,
 			struct batadv_orig_node *orig_neigh)
 {
+	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 	struct batadv_neigh_node *neigh_node;
 
-	neigh_node = batadv_neigh_node_new(hard_iface, neigh_addr);
+	neigh_node = batadv_neigh_node_new(hard_iface, neigh_addr, orig_node);
 	if (!neigh_node)
 		goto out;
 
-	INIT_LIST_HEAD(&neigh_node->bonding_list);
+	spin_lock_init(&neigh_node->bat_iv.lq_update_lock);
 
-	neigh_node->orig_node = orig_neigh;
-	neigh_node->if_incoming = hard_iface;
+	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
+		   "Creating new neighbor %pM for orig_node %pM on interface %s\n",
+		   neigh_addr, orig_node->orig, hard_iface->net_dev->name);
 
 	spin_lock_bh(&orig_node->neigh_list_lock);
 	hlist_add_head_rcu(&neigh_node->list, &orig_node->neigh_list);
@@ -755,12 +757,12 @@ batadv_iv_ogm_orig_update(struct batadv_priv *bat_priv,
 		if (dup_status != BATADV_NO_DUP)
 			continue;
 
-		spin_lock_bh(&tmp_neigh_node->lq_update_lock);
-		batadv_ring_buffer_set(tmp_neigh_node->tq_recv,
-				       &tmp_neigh_node->tq_index, 0);
-		tq_avg = batadv_ring_buffer_avg(tmp_neigh_node->tq_recv);
-		tmp_neigh_node->tq_avg = tq_avg;
-		spin_unlock_bh(&tmp_neigh_node->lq_update_lock);
+		spin_lock_bh(&tmp_neigh_node->bat_iv.lq_update_lock);
+		batadv_ring_buffer_set(tmp_neigh_node->bat_iv.tq_recv,
+				       &tmp_neigh_node->bat_iv.tq_index, 0);
+		tq_avg = batadv_ring_buffer_avg(tmp_neigh_node->bat_iv.tq_recv);
+		tmp_neigh_node->bat_iv.tq_avg = tq_avg;
+		spin_unlock_bh(&tmp_neigh_node->bat_iv.lq_update_lock);
 	}
 
 	if (!neigh_node) {
@@ -785,12 +787,13 @@ batadv_iv_ogm_orig_update(struct batadv_priv *bat_priv,
 
 	neigh_node->last_seen = jiffies;
 
-	spin_lock_bh(&neigh_node->lq_update_lock);
-	batadv_ring_buffer_set(neigh_node->tq_recv,
-			       &neigh_node->tq_index,
+	spin_lock_bh(&neigh_node->bat_iv.lq_update_lock);
+	batadv_ring_buffer_set(neigh_node->bat_iv.tq_recv,
+			       &neigh_node->bat_iv.tq_index,
 			       batadv_ogm_packet->tq);
-	neigh_node->tq_avg = batadv_ring_buffer_avg(neigh_node->tq_recv);
-	spin_unlock_bh(&neigh_node->lq_update_lock);
+	tq_avg = batadv_ring_buffer_avg(neigh_node->bat_iv.tq_recv);
+	neigh_node->bat_iv.tq_avg = tq_avg;
+	spin_unlock_bh(&neigh_node->bat_iv.lq_update_lock);
 
 	if (dup_status == BATADV_NO_DUP) {
 		orig_node->last_ttl = batadv_ogm_packet->header.ttl;
@@ -807,13 +810,13 @@ batadv_iv_ogm_orig_update(struct batadv_priv *bat_priv,
 		goto out;
 
 	/* if this neighbor does not offer a better TQ we won't consider it */
-	if (router && (router->tq_avg > neigh_node->tq_avg))
+	if (router && (router->bat_iv.tq_avg > neigh_node->bat_iv.tq_avg))
 		goto out;
 
 	/* if the TQ is the same and the link not more symmetric we
 	 * won't consider it either
 	 */
-	if (router && (neigh_node->tq_avg == router->tq_avg)) {
+	if (router && (neigh_node->bat_iv.tq_avg == router->bat_iv.tq_avg)) {
 		orig_node_tmp = router->orig_node;
 		spin_lock_bh(&orig_node_tmp->ogm_cnt_lock);
 		if_num = router->if_incoming->if_num;
@@ -892,7 +895,7 @@ static int batadv_iv_ogm_calc_tq(struct batadv_orig_node *orig_node,
 	/* find packet count of corresponding one hop neighbor */
 	spin_lock_bh(&orig_node->ogm_cnt_lock);
 	orig_eq_count = orig_neigh_node->bcast_own_sum[if_incoming->if_num];
-	neigh_rq_count = neigh_node->real_packet_count;
+	neigh_rq_count = neigh_node->bat_iv.real_packet_count;
 	spin_unlock_bh(&orig_node->ogm_cnt_lock);
 
 	/* pay attention to not get a value bigger than 100 % */
@@ -975,6 +978,7 @@ batadv_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 	uint32_t seqno = ntohl(batadv_ogm_packet->seqno);
 	uint8_t *neigh_addr;
 	uint8_t packet_count;
+	unsigned long *bitmap;
 
 	orig_node = batadv_get_orig_node(bat_priv, batadv_ogm_packet->orig);
 	if (!orig_node)
@@ -995,7 +999,7 @@ batadv_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 	hlist_for_each_entry_rcu(tmp_neigh_node,
 				 &orig_node->neigh_list, list) {
 		neigh_addr = tmp_neigh_node->addr;
-		is_dup = batadv_test_bit(tmp_neigh_node->real_bits,
+		is_dup = batadv_test_bit(tmp_neigh_node->bat_iv.real_bits,
 					 orig_node->last_real_seqno,
 					 seqno);
 
@@ -1011,13 +1015,13 @@ batadv_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 		}
 
 		/* if the window moved, set the update flag. */
-		need_update |= batadv_bit_get_packet(bat_priv,
-						     tmp_neigh_node->real_bits,
+		bitmap = tmp_neigh_node->bat_iv.real_bits;
+		need_update |= batadv_bit_get_packet(bat_priv, bitmap,
 						     seq_diff, set_mark);
 
-		packet_count = bitmap_weight(tmp_neigh_node->real_bits,
+		packet_count = bitmap_weight(tmp_neigh_node->bat_iv.real_bits,
 					     BATADV_TQ_LOCAL_WINDOW_SIZE);
-		tmp_neigh_node->real_packet_count = packet_count;
+		tmp_neigh_node->bat_iv.real_packet_count = packet_count;
 	}
 	rcu_read_unlock();
 
@@ -1041,7 +1045,7 @@ static void batadv_iv_ogm_process(const struct ethhdr *ethhdr,
 {
 	struct batadv_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
 	struct batadv_hard_iface *hard_iface;
-	struct batadv_orig_node *orig_neigh_node, *orig_node;
+	struct batadv_orig_node *orig_neigh_node, *orig_node, *orig_node_tmp;
 	struct batadv_neigh_node *router = NULL, *router_router = NULL;
 	struct batadv_neigh_node *orig_neigh_router = NULL;
 	int has_directlink_flag;
@@ -1192,10 +1196,12 @@ static void batadv_iv_ogm_process(const struct ethhdr *ethhdr,
 	}
 
 	router = batadv_orig_node_get_router(orig_node);
-	if (router)
-		router_router = batadv_orig_node_get_router(router->orig_node);
+	if (router) {
+		orig_node_tmp = router->orig_node;
+		router_router = batadv_orig_node_get_router(orig_node_tmp);
+	}
 
-	if ((router && router->tq_avg != 0) &&
+	if ((router && router->bat_iv.tq_avg != 0) &&
 	    (batadv_compare_eth(router->addr, ethhdr->h_source)))
 		is_from_best_next_hop = true;
 
