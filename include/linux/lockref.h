@@ -17,8 +17,15 @@
 #include <linux/spinlock.h>
 
 struct lockref {
-	spinlock_t lock;
-	unsigned int count;
+	union {
+#ifdef CONFIG_CMPXCHG_LOCKREF
+		aligned_u64 lock_count;
+#endif
+		struct {
+			spinlock_t lock;
+			unsigned int count;
+		};
+	};
 };
 
 extern void lockref_get(struct lockref *);

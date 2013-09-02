@@ -16,6 +16,7 @@ config X86_64
 	def_bool y
 	depends on 64BIT
 	select X86_DEV_DMA_OPS
+	select ARCH_USE_CMPXCHG_LOCKREF
 
 ### Arch settings
 config X86
