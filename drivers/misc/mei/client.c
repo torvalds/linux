@@ -287,6 +287,12 @@ int mei_cl_link(struct mei_cl *cl, int id)
 		return -ENOENT;
 	}
 
+	if (dev->open_handle_count >= MEI_MAX_OPEN_HANDLE_COUNT) {
+		dev_err(&dev->pdev->dev, "open_handle_count exceded %d",
+			MEI_MAX_OPEN_HANDLE_COUNT);
+		return -ENOENT;
+	}
+
 	dev->open_handle_count++;
 
 	cl->host_client_id = id;
