@@ -830,7 +830,7 @@ static int ip6_tnl_rcv(struct sk_buff *skb, __u16 protocol,
 		tstats->rx_bytes += skb->len;
 
 		if (!net_eq(t->net, dev_net(t->dev)))
-			skb_scrub_packet(skb);
+			skb_scrub_packet(skb, true);
 
 		netif_rx(skb);
 
@@ -1002,7 +1002,7 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 	}
 
 	if (!net_eq(t->net, dev_net(dev)))
-		skb_scrub_packet(skb);
+		skb_scrub_packet(skb, true);
 
 	/*
 	 * Okay, now see if we can stuff it in the buffer as-is.

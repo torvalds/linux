@@ -622,7 +622,7 @@ static int ipip6_rcv(struct sk_buff *skb)
 		tstats->rx_bytes += skb->len;
 
 		if (!net_eq(tunnel->net, dev_net(tunnel->dev)))
-			skb_scrub_packet(skb);
+			skb_scrub_packet(skb, true);
 		netif_rx(skb);
 
 		return 0;
@@ -861,7 +861,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 	}
 
 	if (!net_eq(tunnel->net, dev_net(dev)))
-		skb_scrub_packet(skb);
+		skb_scrub_packet(skb, true);
 
 	/*
 	 * Okay, now see if we can stuff it in the buffer as-is.

@@ -1697,7 +1697,7 @@ int dev_forward_skb(struct net_device *dev, struct sk_buff *skb)
 	 * call skb_scrub_packet() after it to clear pkt_type _after_ calling
 	 * eth_type_trans().
 	 */
-	skb_scrub_packet(skb);
+	skb_scrub_packet(skb, true);
 
 	return netif_rx(skb);
 }
