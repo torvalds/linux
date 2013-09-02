@@ -67,6 +67,11 @@ static int __kprobes is_prohibited_opcode(kprobe_opcode_t *insn)
 	case 0xac:	/* stnsm */
 	case 0xad:	/* stosm */
 		return -EINVAL;
+	case 0xc6:
+		switch (insn[0] & 0x0f) {
+		case 0x00: /* exrl   */
+			return -EINVAL;
+		}
 	}
 	switch (insn[0]) {
 	case 0x0101:	/* pr	 */
@@ -180,7 +185,6 @@ static int __kprobes is_insn_relative_long(kprobe_opcode_t *insn)
 		break;
 	case 0xc6:
 		switch (insn[0] & 0x0f) {
-		case 0x00: /* exrl   */
 		case 0x02: /* pfdrl  */
 		case 0x04: /* cghrl  */
 		case 0x05: /* chrl   */
