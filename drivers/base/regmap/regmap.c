@@ -1369,6 +1369,26 @@ int regmap_field_write(struct regmap_field *field, unsigned int val)
 }
 EXPORT_SYMBOL_GPL(regmap_field_write);
 
+/**
+ * regmap_field_update_bits():	Perform a read/modify/write cycle
+ *                              on the register field
+ *
+ * @field: Register field to write to
+ * @mask: Bitmask to change
+ * @val: Value to be written
+ *
+ * A value of zero will be returned on success, a negative errno will
+ * be returned in error cases.
+ */
+int regmap_field_update_bits(struct regmap_field *field, unsigned int mask, unsigned int val)
+{
+	mask = (mask << field->shift) & field->mask;
+
+	return regmap_update_bits(field->regmap, field->reg,
+				  mask, val << field->shift);
+}
+EXPORT_SYMBOL_GPL(regmap_field_update_bits);
+
 /*
  * regmap_bulk_write(): Write multiple registers to the device
  *

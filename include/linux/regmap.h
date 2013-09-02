@@ -448,6 +448,8 @@ void devm_regmap_field_free(struct device *dev,	struct regmap_field *field);
 
 int regmap_field_read(struct regmap_field *field, unsigned int *val);
 int regmap_field_write(struct regmap_field *field, unsigned int val);
+int regmap_field_update_bits(struct regmap_field *field,
+			     unsigned int mask, unsigned int val);
 
 /**
  * Description of an IRQ for the generic regmap irq_chip.
