@@ -54,6 +54,22 @@ static inline int lockref_get_not_zero(struct lockref *lockref)
 }
 
 /**
+ * lockref_get_or_lock - Increments count unless the count is 0
+ * @lockcnt: pointer to lockref structure
+ * Return: 1 if count updated successfully or 0 if count was zero
+ * and we got the lock instead.
+ */
+static inline int lockref_get_or_lock(struct lockref *lockref)
+{
+	spin_lock(&lockref->lock);
+	if (!lockref->count)
+		return 0;
+	lockref->count++;
+	spin_unlock(&lockref->lock);
+	return 1;
+}
+
+/**
  * lockref_put_or_lock - decrements count unless count <= 1 before decrement
  * @lockcnt: pointer to lockref structure
  * Return: 1 if count updated successfully or 0 if count <= 1 and lock taken
