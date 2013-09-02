@@ -1380,7 +1380,7 @@ static int handle_offloads(struct sk_buff *skb)
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
-static int vxlan6_xmit_skb(struct net *net, struct vxlan_sock *vs,
+static int vxlan6_xmit_skb(struct vxlan_sock *vs,
 			   struct dst_entry *dst, struct sk_buff *skb,
 			   struct net_device *dev, struct in6_addr *saddr,
 			   struct in6_addr *daddr, __u8 prio, __u8 ttl,
@@ -1475,7 +1475,7 @@ static int vxlan6_xmit_skb(struct net *net, struct vxlan_sock *vs,
 }
 #endif
 
-int vxlan_xmit_skb(struct net *net, struct vxlan_sock *vs,
+int vxlan_xmit_skb(struct vxlan_sock *vs,
 		   struct rtable *rt, struct sk_buff *skb,
 		   __be32 src, __be32 dst, __u8 tos, __u8 ttl, __be16 df,
 		   __be16 src_port, __be16 dst_port, __be32 vni)
@@ -1651,7 +1651,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		tos = ip_tunnel_ecn_encap(tos, old_iph, skb);
 		ttl = ttl ? : ip4_dst_hoplimit(&rt->dst);
 
-		err = vxlan_xmit_skb(dev_net(dev), vxlan->vn_sock, rt, skb,
+		err = vxlan_xmit_skb(vxlan->vn_sock, rt, skb,
 				     fl4.saddr, dst->sin.sin_addr.s_addr,
 				     tos, ttl, df, src_port, dst_port,
 				     htonl(vni << 8));
@@ -1703,7 +1703,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 
 		ttl = ttl ? : ip6_dst_hoplimit(ndst);
 
-		err = vxlan6_xmit_skb(dev_net(dev), vxlan->vn_sock, ndst, skb,
+		err = vxlan6_xmit_skb(vxlan->vn_sock, ndst, skb,
 				      dev, &fl6.saddr, &fl6.daddr, 0, ttl,
 				      src_port, dst_port, htonl(vni << 8));
 #endif

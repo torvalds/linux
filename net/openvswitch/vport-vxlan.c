@@ -176,7 +176,7 @@ static int vxlan_tnl_send(struct vport *vport, struct sk_buff *skb)
 	inet_get_local_port_range(&port_min, &port_max);
 	src_port = vxlan_src_port(port_min, port_max, skb);
 
-	err = vxlan_xmit_skb(net, vxlan_port->vs, rt, skb,
+	err = vxlan_xmit_skb(vxlan_port->vs, rt, skb,
 			     fl.saddr, OVS_CB(skb)->tun_key->ipv4_dst,
 			     OVS_CB(skb)->tun_key->ipv4_tos,
 			     OVS_CB(skb)->tun_key->ipv4_ttl, df,
