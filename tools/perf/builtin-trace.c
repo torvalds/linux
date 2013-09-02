@@ -15,14 +15,16 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 
-static size_t syscall_arg__scnprintf_hex(char *bf, size_t size, unsigned long arg)
+static size_t syscall_arg__scnprintf_hex(char *bf, size_t size,
+					 unsigned long arg, u8 *arg_mask __maybe_unused)
 {
 	return scnprintf(bf, size, "%#lx", arg);
 }
 
 #define SCA_HEX syscall_arg__scnprintf_hex
 
-static size_t syscall_arg__scnprintf_mmap_prot(char *bf, size_t size, unsigned long arg)
+static size_t syscall_arg__scnprintf_mmap_prot(char *bf, size_t size,
+					       unsigned long arg, u8 *arg_mask __maybe_unused)
 {
 	int printed = 0, prot = arg;
 
@@ -52,7 +54,8 @@ static size_t syscall_arg__scnprintf_mmap_prot(char *bf, size_t size, unsigned l
 
 #define SCA_MMAP_PROT syscall_arg__scnprintf_mmap_prot
 
-static size_t syscall_arg__scnprintf_mmap_flags(char *bf, size_t size, unsigned long arg)
+static size_t syscall_arg__scnprintf_mmap_flags(char *bf, size_t size,
+						unsigned long arg, u8 *arg_mask __maybe_unused)
 {
 	int printed = 0, flags = arg;
 
@@ -92,7 +95,8 @@ static size_t syscall_arg__scnprintf_mmap_flags(char *bf, size_t size, unsigned 
 
 #define SCA_MMAP_FLAGS syscall_arg__scnprintf_mmap_flags
 
-static size_t syscall_arg__scnprintf_madvise_behavior(char *bf, size_t size, unsigned long arg)
+static size_t syscall_arg__scnprintf_madvise_behavior(char *bf, size_t size,
+						      unsigned long arg, u8 *arg_mask __maybe_unused)
 {
 	int behavior = arg;
 
@@ -136,7 +140,7 @@ static size_t syscall_arg__scnprintf_madvise_behavior(char *bf, size_t size, uns
 static struct syscall_fmt {
 	const char *name;
 	const char *alias;
-	size_t	   (*arg_scnprintf[6])(char *bf, size_t size, unsigned long arg);
+	size_t	   (*arg_scnprintf[6])(char *bf, size_t size, unsigned long arg, u8 *arg_mask);
 	bool	   errmsg;
 	bool	   timeout;
 	bool	   hexret;
@@ -198,7 +202,8 @@ struct syscall {
 	const char	    *name;
 	bool		    filtered;
 	struct syscall_fmt  *fmt;
-	size_t		    (**arg_scnprintf)(char *bf, size_t size, unsigned long arg);
+	size_t		    (**arg_scnprintf)(char *bf, size_t size,
+					      unsigned long arg, u8 *args_mask);
 };
 
 static size_t fprintf_duration(unsigned long t, FILE *fp)
@@ -443,17 +448,23 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 
 	if (sc->tp_format != NULL) {
 		struct format_field *field;
+		u8 mask = 0, bit = 1;
 
-		for (field = sc->tp_format->format.fields->next; field; field = field->next) {
+		for (field = sc->tp_format->format.fields->next; field;
+		     field = field->next, ++i, bit <<= 1) {
+			if (mask & bit)
+				continue;
+
 			printed += scnprintf(bf + printed, size - printed,
 					     "%s%s: ", printed ? ", " : "", field->name);
 
-			if (sc->arg_scnprintf && sc->arg_scnprintf[i])
-				printed += sc->arg_scnprintf[i](bf + printed, size - printed, args[i]);
-			else
+			if (sc->arg_scnprintf && sc->arg_scnprintf[i]) {
+				printed += sc->arg_scnprintf[i](bf + printed, size - printed,
+								args[i], &mask);
+			} else {
 				printed += scnprintf(bf + printed, size - printed,
 						     "%ld", args[i]);
-                       ++i;
+			}
 		}
 	} else {
 		while (i < 6) {
