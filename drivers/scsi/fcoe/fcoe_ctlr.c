@@ -339,7 +339,7 @@ static void fcoe_ctlr_announce(struct fcoe_ctlr *fip)
 	spin_unlock_bh(&fip->ctlr_lock);
 	sel = fip->sel_fcf;
 
-	if (sel && !compare_ether_addr(sel->fcf_mac, fip->dest_addr))
+	if (sel && ether_addr_equal(sel->fcf_mac, fip->dest_addr))
 		goto unlock;
 	if (!is_zero_ether_addr(fip->dest_addr)) {
 		printk(KERN_NOTICE "libfcoe: host%d: "
@@ -1039,7 +1039,7 @@ static void fcoe_ctlr_recv_adv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 		if (fcf->switch_name == new.switch_name &&
 		    fcf->fabric_name == new.fabric_name &&
 		    fcf->fc_map == new.fc_map &&
-		    compare_ether_addr(fcf->fcf_mac, new.fcf_mac) == 0) {
+		    ether_addr_equal(fcf->fcf_mac, new.fcf_mac)) {
 			found = 1;
 			break;
 		}
@@ -1379,7 +1379,7 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 			mp = (struct fip_mac_desc *)desc;
 			if (dlen < sizeof(*mp))
 				goto err;
-			if (compare_ether_addr(mp->fd_mac, fcf->fcf_mac))
+			if (!ether_addr_equal(mp->fd_mac, fcf->fcf_mac))
 				goto err;
 			desc_mask &= ~BIT(FIP_DT_MAC);
 			break;
@@ -1457,8 +1457,8 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 			 * 'port_id' is already validated, check MAC address and
 			 * wwpn
 			 */
-			if (compare_ether_addr(fip->get_src_addr(vn_port),
-						vp->fd_mac) != 0 ||
+			if (!ether_addr_equal(fip->get_src_addr(vn_port),
+					      vp->fd_mac) ||
 				get_unaligned_be64(&vp->fd_wwpn) !=
 							vn_port->wwpn)
 				continue;
@@ -1521,12 +1521,12 @@ static int fcoe_ctlr_recv_handler(struct fcoe_ctlr *fip, struct sk_buff *skb)
 		goto drop;
 	eh = eth_hdr(skb);
 	if (fip->mode == FIP_MODE_VN2VN) {
-		if (compare_ether_addr(eh->h_dest, fip->ctl_src_addr) &&
-		    compare_ether_addr(eh->h_dest, fcoe_all_vn2vn) &&
-		    compare_ether_addr(eh->h_dest, fcoe_all_p2p))
+		if (!ether_addr_equal(eh->h_dest, fip->ctl_src_addr) &&
+		    !ether_addr_equal(eh->h_dest, fcoe_all_vn2vn) &&
+		    !ether_addr_equal(eh->h_dest, fcoe_all_p2p))
 			goto drop;
-	} else if (compare_ether_addr(eh->h_dest, fip->ctl_src_addr) &&
-		   compare_ether_addr(eh->h_dest, fcoe_all_enode))
+	} else if (!ether_addr_equal(eh->h_dest, fip->ctl_src_addr) &&
+		   !ether_addr_equal(eh->h_dest, fcoe_all_enode))
 		goto drop;
 	fiph = (struct fip_header *)skb->data;
 	op = ntohs(fiph->fip_op);
@@ -1898,7 +1898,7 @@ int fcoe_ctlr_recv_flogi(struct fcoe_ctlr *fip, struct fc_lport *lport,
 		 * address_mode flag to use FC_OUI-based Ethernet DA.
 		 * Otherwise we use the FCoE gateway addr
 		 */
-		if (!compare_ether_addr(sa, (u8[6])FC_FCOE_FLOGI_MAC)) {
+		if (ether_addr_equal(sa, (u8[6])FC_FCOE_FLOGI_MAC)) {
 			fcoe_ctlr_map_dest(fip);
 		} else {
 			memcpy(fip->dest_addr, sa, ETH_ALEN);

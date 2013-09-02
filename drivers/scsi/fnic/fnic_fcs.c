@@ -651,13 +651,13 @@ void fnic_update_mac_locked(struct fnic *fnic, u8 *new)
 
 	if (is_zero_ether_addr(new))
 		new = ctl;
-	if (!compare_ether_addr(data, new))
+	if (ether_addr_equal(data, new))
 		return;
 	FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host, "update_mac %pM\n", new);
-	if (!is_zero_ether_addr(data) && compare_ether_addr(data, ctl))
+	if (!is_zero_ether_addr(data) && !ether_addr_equal(data, ctl))
 		vnic_dev_del_addr(fnic->vdev, data);
 	memcpy(data, new, ETH_ALEN);
-	if (compare_ether_addr(new, ctl))
+	if (!ether_addr_equal(new, ctl))
 		vnic_dev_add_addr(fnic->vdev, new);
 }
 
