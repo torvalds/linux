@@ -327,7 +327,7 @@ struct sdma_engine {
 	const struct sdma_driver_data	*drvdata;
 };
 
-struct sdma_driver_data sdma_imx31 = {
+static struct sdma_driver_data sdma_imx31 = {
 	.chnenbl0 = SDMA_CHNENBL0_IMX31,
 	.num_events = 32,
 };
@@ -348,13 +348,13 @@ static struct sdma_script_start_addrs sdma_script_imx25 = {
 	.shp_2_mcu_addr = 979,
 };
 
-struct sdma_driver_data sdma_imx25 = {
+static struct sdma_driver_data sdma_imx25 = {
 	.chnenbl0 = SDMA_CHNENBL0_IMX35,
 	.num_events = 48,
 	.script_addrs = &sdma_script_imx25,
 };
 
-struct sdma_driver_data sdma_imx35 = {
+static struct sdma_driver_data sdma_imx35 = {
 	.chnenbl0 = SDMA_CHNENBL0_IMX35,
 	.num_events = 48,
 };
@@ -372,7 +372,7 @@ static struct sdma_script_start_addrs sdma_script_imx51 = {
 	.shp_2_mcu_addr = 892,
 };
 
-struct sdma_driver_data sdma_imx51 = {
+static struct sdma_driver_data sdma_imx51 = {
 	.chnenbl0 = SDMA_CHNENBL0_IMX35,
 	.num_events = 48,
 	.script_addrs = &sdma_script_imx51,
@@ -392,7 +392,7 @@ static struct sdma_script_start_addrs sdma_script_imx53 = {
 	.mcu_2_firi_addr = 1290,
 };
 
-struct sdma_driver_data sdma_imx53 = {
+static struct sdma_driver_data sdma_imx53 = {
 	.chnenbl0 = SDMA_CHNENBL0_IMX35,
 	.num_events = 48,
 	.script_addrs = &sdma_script_imx53,
@@ -411,7 +411,7 @@ static struct sdma_script_start_addrs sdma_script_imx6q = {
 	.mcu_2_spdif_addr = 1134,
 };
 
-struct sdma_driver_data sdma_imx6q = {
+static struct sdma_driver_data sdma_imx6q = {
 	.chnenbl0 = SDMA_CHNENBL0_IMX35,
 	.num_events = 48,
 	.script_addrs = &sdma_script_imx6q,
