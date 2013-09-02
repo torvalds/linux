@@ -252,6 +252,8 @@ struct hid_item {
 #define HID_OUTPUT_REPORT	1
 #define HID_FEATURE_REPORT	2
 
+#define HID_REPORT_TYPES	3
+
 /*
  * HID connect requests
  */
@@ -400,8 +402,6 @@ struct hid_report_enum {
 	struct list_head report_list;
 	struct hid_report *report_id_hash[HID_MAX_IDS];
 };
-
-#define HID_REPORT_TYPES 3
 
 #define HID_MIN_BUFFER_SIZE	64		/* make sure there is at least a packet size of space */
 #define HID_MAX_BUFFER_SIZE	4096		/* 4kb */
