@@ -257,7 +257,8 @@ xlog_grant_head_wait(
 	struct xlog		*log,
 	struct xlog_grant_head	*head,
 	struct xlog_ticket	*tic,
-	int			need_bytes)
+	int			need_bytes) __releases(&head->lock)
+					    __acquires(&head->lock)
 {
 	list_add_tail(&tic->t_queue, &head->waiters);
 
