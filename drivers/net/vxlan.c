@@ -1671,7 +1671,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		fl6.flowi6_oif = rdst->remote_ifindex;
 		fl6.daddr = dst->sin6.sin6_addr;
 		fl6.saddr = vxlan->saddr.sin6.sin6_addr;
-		fl6.flowi6_proto = skb->protocol;
+		fl6.flowi6_proto = IPPROTO_UDP;
 
 		if (ipv6_stub->ipv6_dst_lookup(sk, &ndst, &fl6)) {
 			netdev_dbg(dev, "no route to %pI6\n",
