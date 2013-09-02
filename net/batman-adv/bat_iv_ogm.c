@@ -87,6 +87,57 @@ static uint8_t batadv_ring_buffer_avg(const uint8_t lq_recv[])
 	return (uint8_t)(sum / count);
 }
 
+/**
+ * batadv_iv_ogm_orig_get - retrieve or create (if does not exist) an originator
+ * @bat_priv: the bat priv with all the soft interface information
+ * @addr: mac address of the originator
+ *
+ * Returns the originator object corresponding to the passed mac address or NULL
+ * on failure.
+ * If the object does not exists it is created an initialised.
+ */
+static struct batadv_orig_node *
+batadv_iv_ogm_orig_get(struct batadv_priv *bat_priv, const uint8_t *addr)
+{
+	struct batadv_orig_node *orig_node;
+	int size, hash_added;
+
+	orig_node = batadv_orig_hash_find(bat_priv, addr);
+	if (orig_node)
+		return orig_node;
+
+	orig_node = batadv_orig_node_new(bat_priv, addr);
+	if (!orig_node)
+		return NULL;
+
+	spin_lock_init(&orig_node->bat_iv.ogm_cnt_lock);
+
+	size = bat_priv->num_ifaces * sizeof(unsigned long) * BATADV_NUM_WORDS;
+	orig_node->bat_iv.bcast_own = kzalloc(size, GFP_ATOMIC);
+	if (!orig_node->bat_iv.bcast_own)
+		goto free_orig_node;
+
+	size = bat_priv->num_ifaces * sizeof(uint8_t);
+	orig_node->bat_iv.bcast_own_sum = kzalloc(size, GFP_ATOMIC);
+	if (!orig_node->bat_iv.bcast_own_sum)
+		goto free_bcast_own;
+
+	hash_added = batadv_hash_add(bat_priv->orig_hash, batadv_compare_orig,
+				     batadv_choose_orig, orig_node,
+				     &orig_node->hash_entry);
+	if (hash_added != 0)
+		goto free_bcast_own;
+
+	return orig_node;
+
+free_bcast_own:
+	kfree(orig_node->bat_iv.bcast_own);
+free_orig_node:
+	batadv_orig_node_free_ref(orig_node);
+
+	return NULL;
+}
+
 static struct batadv_neigh_node *
 batadv_iv_ogm_neigh_new(struct batadv_hard_iface *hard_iface,
 			const uint8_t *neigh_addr,
@@ -663,20 +714,22 @@ batadv_iv_ogm_slide_own_bcast_window(struct batadv_hard_iface *hard_iface)
 	uint32_t i;
 	size_t word_index;
 	uint8_t *w;
+	int if_num;
 
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
 
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(orig_node, head, hash_entry) {
-			spin_lock_bh(&orig_node->ogm_cnt_lock);
+			spin_lock_bh(&orig_node->bat_iv.ogm_cnt_lock);
 			word_index = hard_iface->if_num * BATADV_NUM_WORDS;
-			word = &(orig_node->bcast_own[word_index]);
+			word = &(orig_node->bat_iv.bcast_own[word_index]);
 
 			batadv_bit_get_packet(bat_priv, word, 1, 0);
-			w = &orig_node->bcast_own_sum[hard_iface->if_num];
+			if_num = hard_iface->if_num;
+			w = &orig_node->bat_iv.bcast_own_sum[if_num];
 			*w = bitmap_weight(word, BATADV_TQ_LOCAL_WINDOW_SIZE);
-			spin_unlock_bh(&orig_node->ogm_cnt_lock);
+			spin_unlock_bh(&orig_node->bat_iv.ogm_cnt_lock);
 		}
 		rcu_read_unlock();
 	}
@@ -768,7 +821,7 @@ batadv_iv_ogm_orig_update(struct batadv_priv *bat_priv,
 	if (!neigh_node) {
 		struct batadv_orig_node *orig_tmp;
 
-		orig_tmp = batadv_get_orig_node(bat_priv, ethhdr->h_source);
+		orig_tmp = batadv_iv_ogm_orig_get(bat_priv, ethhdr->h_source);
 		if (!orig_tmp)
 			goto unlock;
 
@@ -818,16 +871,16 @@ batadv_iv_ogm_orig_update(struct batadv_priv *bat_priv,
 	 */
 	if (router && (neigh_node->bat_iv.tq_avg == router->bat_iv.tq_avg)) {
 		orig_node_tmp = router->orig_node;
-		spin_lock_bh(&orig_node_tmp->ogm_cnt_lock);
+		spin_lock_bh(&orig_node_tmp->bat_iv.ogm_cnt_lock);
 		if_num = router->if_incoming->if_num;
-		sum_orig = orig_node_tmp->bcast_own_sum[if_num];
-		spin_unlock_bh(&orig_node_tmp->ogm_cnt_lock);
+		sum_orig = orig_node_tmp->bat_iv.bcast_own_sum[if_num];
+		spin_unlock_bh(&orig_node_tmp->bat_iv.ogm_cnt_lock);
 
 		orig_node_tmp = neigh_node->orig_node;
-		spin_lock_bh(&orig_node_tmp->ogm_cnt_lock);
+		spin_lock_bh(&orig_node_tmp->bat_iv.ogm_cnt_lock);
 		if_num = neigh_node->if_incoming->if_num;
-		sum_neigh = orig_node_tmp->bcast_own_sum[if_num];
-		spin_unlock_bh(&orig_node_tmp->ogm_cnt_lock);
+		sum_neigh = orig_node_tmp->bat_iv.bcast_own_sum[if_num];
+		spin_unlock_bh(&orig_node_tmp->bat_iv.ogm_cnt_lock);
 
 		if (sum_orig >= sum_neigh)
 			goto out;
@@ -855,7 +908,7 @@ static int batadv_iv_ogm_calc_tq(struct batadv_orig_node *orig_node,
 	uint8_t total_count;
 	uint8_t orig_eq_count, neigh_rq_count, neigh_rq_inv, tq_own;
 	unsigned int neigh_rq_inv_cube, neigh_rq_max_cube;
-	int tq_asym_penalty, inv_asym_penalty, ret = 0;
+	int tq_asym_penalty, inv_asym_penalty, if_num, ret = 0;
 	unsigned int combined_tq;
 
 	/* find corresponding one hop neighbor */
@@ -893,10 +946,11 @@ static int batadv_iv_ogm_calc_tq(struct batadv_orig_node *orig_node,
 	orig_node->last_seen = jiffies;
 
 	/* find packet count of corresponding one hop neighbor */
-	spin_lock_bh(&orig_node->ogm_cnt_lock);
-	orig_eq_count = orig_neigh_node->bcast_own_sum[if_incoming->if_num];
+	spin_lock_bh(&orig_node->bat_iv.ogm_cnt_lock);
+	if_num = if_incoming->if_num;
+	orig_eq_count = orig_neigh_node->bat_iv.bcast_own_sum[if_num];
 	neigh_rq_count = neigh_node->bat_iv.real_packet_count;
-	spin_unlock_bh(&orig_node->ogm_cnt_lock);
+	spin_unlock_bh(&orig_node->bat_iv.ogm_cnt_lock);
 
 	/* pay attention to not get a value bigger than 100 % */
 	if (orig_eq_count > neigh_rq_count)
@@ -980,11 +1034,11 @@ batadv_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 	uint8_t packet_count;
 	unsigned long *bitmap;
 
-	orig_node = batadv_get_orig_node(bat_priv, batadv_ogm_packet->orig);
+	orig_node = batadv_iv_ogm_orig_get(bat_priv, batadv_ogm_packet->orig);
 	if (!orig_node)
 		return BATADV_NO_DUP;
 
-	spin_lock_bh(&orig_node->ogm_cnt_lock);
+	spin_lock_bh(&orig_node->bat_iv.ogm_cnt_lock);
 	seq_diff = seqno - orig_node->last_real_seqno;
 
 	/* signalize caller that the packet is to be dropped. */
@@ -1033,7 +1087,7 @@ batadv_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 	}
 
 out:
-	spin_unlock_bh(&orig_node->ogm_cnt_lock);
+	spin_unlock_bh(&orig_node->bat_iv.ogm_cnt_lock);
 	batadv_orig_node_free_ref(orig_node);
 	return ret;
 }
@@ -1129,8 +1183,8 @@ static void batadv_iv_ogm_process(const struct ethhdr *ethhdr,
 		int16_t if_num;
 		uint8_t *weight;
 
-		orig_neigh_node = batadv_get_orig_node(bat_priv,
-						       ethhdr->h_source);
+		orig_neigh_node = batadv_iv_ogm_orig_get(bat_priv,
+							 ethhdr->h_source);
 		if (!orig_neigh_node)
 			return;
 
@@ -1144,15 +1198,15 @@ static void batadv_iv_ogm_process(const struct ethhdr *ethhdr,
 			if_num = if_incoming->if_num;
 			offset = if_num * BATADV_NUM_WORDS;
 
-			spin_lock_bh(&orig_neigh_node->ogm_cnt_lock);
-			word = &(orig_neigh_node->bcast_own[offset]);
+			spin_lock_bh(&orig_neigh_node->bat_iv.ogm_cnt_lock);
+			word = &(orig_neigh_node->bat_iv.bcast_own[offset]);
 			bit_pos = if_incoming_seqno - 2;
 			bit_pos -= ntohl(batadv_ogm_packet->seqno);
 			batadv_set_bit(word, bit_pos);
-			weight = &orig_neigh_node->bcast_own_sum[if_num];
+			weight = &orig_neigh_node->bat_iv.bcast_own_sum[if_num];
 			*weight = bitmap_weight(word,
 						BATADV_TQ_LOCAL_WINDOW_SIZE);
-			spin_unlock_bh(&orig_neigh_node->ogm_cnt_lock);
+			spin_unlock_bh(&orig_neigh_node->bat_iv.ogm_cnt_lock);
 		}
 
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
@@ -1175,7 +1229,7 @@ static void batadv_iv_ogm_process(const struct ethhdr *ethhdr,
 		return;
 	}
 
-	orig_node = batadv_get_orig_node(bat_priv, batadv_ogm_packet->orig);
+	orig_node = batadv_iv_ogm_orig_get(bat_priv, batadv_ogm_packet->orig);
 	if (!orig_node)
 		return;
 
@@ -1225,8 +1279,8 @@ static void batadv_iv_ogm_process(const struct ethhdr *ethhdr,
 	if (is_single_hop_neigh)
 		orig_neigh_node = orig_node;
 	else
-		orig_neigh_node = batadv_get_orig_node(bat_priv,
-						       ethhdr->h_source);
+		orig_neigh_node = batadv_iv_ogm_orig_get(bat_priv,
+							 ethhdr->h_source);
 
 	if (!orig_neigh_node)
 		goto out;

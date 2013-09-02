@@ -133,14 +133,28 @@ struct batadv_orig_node_vlan {
 };
 
 /**
+ * struct batadv_orig_bat_iv - B.A.T.M.A.N. IV private orig_node members
+ * @bcast_own: bitfield containing the number of our OGMs this orig_node
+ *  rebroadcasted "back" to us (relative to last_real_seqno)
+ * @bcast_own_sum: counted result of bcast_own
+ * @ogm_cnt_lock: lock protecting bcast_own, bcast_own_sum,
+ *  neigh_node->bat_iv.real_bits & neigh_node->bat_iv.real_packet_count
+ */
+struct batadv_orig_bat_iv {
+	unsigned long *bcast_own;
+	uint8_t *bcast_own_sum;
+	/* ogm_cnt_lock protects: bcast_own, bcast_own_sum,
+	 * neigh_node->bat_iv.real_bits & neigh_node->bat_iv.real_packet_count
+	 */
+	spinlock_t ogm_cnt_lock;
+};
+
+/**
  * struct batadv_orig_node - structure for orig_list maintaining nodes of mesh
  * @orig: originator ethernet address
  * @primary_addr: hosts primary interface address
  * @router: router that should be used to reach this originator
  * @batadv_dat_addr_t:  address of the orig node in the distributed hash
- * @bcast_own: bitfield containing the number of our OGMs this orig_node
- *  rebroadcasted "back" to us (relative to last_real_seqno)
- * @bcast_own_sum: counted result of bcast_own
  * @last_seen: time when last packet from this node was received
  * @bcast_seqno_reset: time when the broadcast seqno window was reset
  * @batman_seqno_reset: time when the batman seqno window was reset
@@ -166,8 +180,6 @@ struct batadv_orig_node_vlan {
  * @neigh_list_lock: lock protecting neigh_list, router and bonding_list
  * @hash_entry: hlist node for batadv_priv::orig_hash
  * @bat_priv: pointer to soft_iface this orig node belongs to
- * @ogm_cnt_lock: lock protecting bcast_own, bcast_own_sum,
- *  neigh_node->real_bits & neigh_node->real_packet_count
  * @bcast_seqno_lock: lock protecting bcast_bits & last_bcast_seqno
  * @bond_candidates: how many candidates are available
  * @bond_list: list of bonding candidates
@@ -181,6 +193,7 @@ struct batadv_orig_node_vlan {
  * @vlan_list: a list of orig_node_vlan structs, one per VLAN served by the
  *  originator represented by this object
  * @vlan_list_lock: lock protecting vlan_list
+ * @bat_iv: B.A.T.M.A.N. IV private structure
  */
 struct batadv_orig_node {
 	uint8_t orig[ETH_ALEN];
@@ -189,8 +202,6 @@ struct batadv_orig_node {
 #ifdef CONFIG_BATMAN_ADV_DAT
 	batadv_dat_addr_t dat_addr;
 #endif
-	unsigned long *bcast_own;
-	uint8_t *bcast_own_sum;
 	unsigned long last_seen;
 	unsigned long bcast_seqno_reset;
 	unsigned long batman_seqno_reset;
@@ -211,10 +222,6 @@ struct batadv_orig_node {
 	spinlock_t neigh_list_lock;
 	struct hlist_node hash_entry;
 	struct batadv_priv *bat_priv;
-	/* ogm_cnt_lock protects: bcast_own, bcast_own_sum,
-	 * neigh_node->real_bits & neigh_node->real_packet_count
-	 */
-	spinlock_t ogm_cnt_lock;
 	/* bcast_seqno_lock protects: bcast_bits & last_bcast_seqno */
 	spinlock_t bcast_seqno_lock;
 	atomic_t bond_candidates;
@@ -230,6 +237,7 @@ struct batadv_orig_node {
 	struct batadv_frag_table_entry fragments[BATADV_FRAG_BUFFER_COUNT];
 	struct list_head vlan_list;
 	spinlock_t vlan_list_lock; /* protects vlan_list */
+	struct batadv_orig_bat_iv bat_iv;
 };
 
 /**

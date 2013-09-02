@@ -36,7 +36,7 @@ static struct lock_class_key batadv_orig_hash_lock_class_key;
 static void batadv_purge_orig(struct work_struct *work);
 
 /* returns 1 if they are the same originator */
-static int batadv_compare_orig(const struct hlist_node *node, const void *data2)
+int batadv_compare_orig(const struct hlist_node *node, const void *data2)
 {
 	const void *data1 = container_of(node, struct batadv_orig_node,
 					 hash_entry);
@@ -242,8 +242,8 @@ static void batadv_orig_node_free_rcu(struct rcu_head *rcu)
 				  "originator timed out");
 
 	kfree(orig_node->tt_buff);
-	kfree(orig_node->bcast_own);
-	kfree(orig_node->bcast_own_sum);
+	kfree(orig_node->bat_iv.bcast_own);
+	kfree(orig_node->bat_iv.bcast_own_sum);
 	kfree(orig_node);
 }
 
@@ -301,21 +301,22 @@ void batadv_originator_free(struct batadv_priv *bat_priv)
 	batadv_hash_destroy(hash);
 }
 
-/* this function finds or creates an originator entry for the given
- * address if it does not exits
+/**
+ * batadv_orig_node_new - creates a new orig_node
+ * @bat_priv: the bat priv with all the soft interface information
+ * @addr: the mac address of the originator
+ *
+ * Creates a new originator object and initialise all the generic fields.
+ * The new object is not added to the originator list.
+ * Returns the newly created object or NULL on failure.
  */
-struct batadv_orig_node *batadv_get_orig_node(struct batadv_priv *bat_priv,
+struct batadv_orig_node *batadv_orig_node_new(struct batadv_priv *bat_priv,
 					      const uint8_t *addr)
 {
 	struct batadv_orig_node *orig_node;
 	struct batadv_orig_node_vlan *vlan;
-	int size, i;
-	int hash_added;
 	unsigned long reset_time;
-
-	orig_node = batadv_orig_hash_find(bat_priv, addr);
-	if (orig_node)
-		return orig_node;
+	int i;
 
 	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 		   "Creating new originator: %pM\n", addr);
@@ -327,7 +328,6 @@ struct batadv_orig_node *batadv_get_orig_node(struct batadv_priv *bat_priv,
 	INIT_HLIST_HEAD(&orig_node->neigh_list);
 	INIT_LIST_HEAD(&orig_node->bond_list);
 	INIT_LIST_HEAD(&orig_node->vlan_list);
-	spin_lock_init(&orig_node->ogm_cnt_lock);
 	spin_lock_init(&orig_node->bcast_seqno_lock);
 	spin_lock_init(&orig_node->neigh_list_lock);
 	spin_lock_init(&orig_node->tt_buff_lock);
@@ -363,37 +363,13 @@ struct batadv_orig_node *batadv_get_orig_node(struct batadv_priv *bat_priv,
 	 */
 	batadv_orig_node_vlan_free_ref(vlan);
 
-	size = bat_priv->num_ifaces * sizeof(unsigned long) * BATADV_NUM_WORDS;
-
-	orig_node->bcast_own = kzalloc(size, GFP_ATOMIC);
-	if (!orig_node->bcast_own)
-		goto free_vlan;
-
-	size = bat_priv->num_ifaces * sizeof(uint8_t);
-	orig_node->bcast_own_sum = kzalloc(size, GFP_ATOMIC);
-
 	for (i = 0; i < BATADV_FRAG_BUFFER_COUNT; i++) {
 		INIT_HLIST_HEAD(&orig_node->fragments[i].head);
 		spin_lock_init(&orig_node->fragments[i].lock);
 		orig_node->fragments[i].size = 0;
 	}
 
-	if (!orig_node->bcast_own_sum)
-		goto free_bcast_own;
-
-	hash_added = batadv_hash_add(bat_priv->orig_hash, batadv_compare_orig,
-				     batadv_choose_orig, orig_node,
-				     &orig_node->hash_entry);
-	if (hash_added != 0)
-		goto free_bcast_own_sum;
-
 	return orig_node;
-free_bcast_own_sum:
-	kfree(orig_node->bcast_own_sum);
-free_bcast_own:
-	kfree(orig_node->bcast_own);
-free_vlan:
-	batadv_orig_node_vlan_free_ref(vlan);
 free_orig_node:
 	kfree(orig_node);
 	return NULL;
@@ -619,18 +595,18 @@ static int batadv_orig_node_add_if(struct batadv_orig_node *orig_node,
 	if (!data_ptr)
 		return -ENOMEM;
 
-	memcpy(data_ptr, orig_node->bcast_own, old_size);
-	kfree(orig_node->bcast_own);
-	orig_node->bcast_own = data_ptr;
+	memcpy(data_ptr, orig_node->bat_iv.bcast_own, old_size);
+	kfree(orig_node->bat_iv.bcast_own);
+	orig_node->bat_iv.bcast_own = data_ptr;
 
 	data_ptr = kmalloc(max_if_num * sizeof(uint8_t), GFP_ATOMIC);
 	if (!data_ptr)
 		return -ENOMEM;
 
-	memcpy(data_ptr, orig_node->bcast_own_sum,
+	memcpy(data_ptr, orig_node->bat_iv.bcast_own_sum,
 	       (max_if_num - 1) * sizeof(uint8_t));
-	kfree(orig_node->bcast_own_sum);
-	orig_node->bcast_own_sum = data_ptr;
+	kfree(orig_node->bat_iv.bcast_own_sum);
+	orig_node->bat_iv.bcast_own_sum = data_ptr;
 
 	return 0;
 }
@@ -653,9 +629,9 @@ int batadv_orig_hash_add_if(struct batadv_hard_iface *hard_iface,
 
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(orig_node, head, hash_entry) {
-			spin_lock_bh(&orig_node->ogm_cnt_lock);
+			spin_lock_bh(&orig_node->bat_iv.ogm_cnt_lock);
 			ret = batadv_orig_node_add_if(orig_node, max_if_num);
-			spin_unlock_bh(&orig_node->ogm_cnt_lock);
+			spin_unlock_bh(&orig_node->bat_iv.ogm_cnt_lock);
 
 			if (ret == -ENOMEM)
 				goto err;
@@ -673,8 +649,8 @@ err:
 static int batadv_orig_node_del_if(struct batadv_orig_node *orig_node,
 				   int max_if_num, int del_if_num)
 {
+	int chunk_size, if_offset;
 	void *data_ptr = NULL;
-	int chunk_size;
 
 	/* last interface was removed */
 	if (max_if_num == 0)
@@ -686,16 +662,16 @@ static int batadv_orig_node_del_if(struct batadv_orig_node *orig_node,
 		return -ENOMEM;
 
 	/* copy first part */
-	memcpy(data_ptr, orig_node->bcast_own, del_if_num * chunk_size);
+	memcpy(data_ptr, orig_node->bat_iv.bcast_own, del_if_num * chunk_size);
 
 	/* copy second part */
 	memcpy((char *)data_ptr + del_if_num * chunk_size,
-	       orig_node->bcast_own + ((del_if_num + 1) * chunk_size),
+	       orig_node->bat_iv.bcast_own + ((del_if_num + 1) * chunk_size),
 	       (max_if_num - del_if_num) * chunk_size);
 
 free_bcast_own:
-	kfree(orig_node->bcast_own);
-	orig_node->bcast_own = data_ptr;
+	kfree(orig_node->bat_iv.bcast_own);
+	orig_node->bat_iv.bcast_own = data_ptr;
 
 	if (max_if_num == 0)
 		goto free_own_sum;
@@ -704,16 +680,17 @@ free_bcast_own:
 	if (!data_ptr)
 		return -ENOMEM;
 
-	memcpy(data_ptr, orig_node->bcast_own_sum,
+	memcpy(data_ptr, orig_node->bat_iv.bcast_own_sum,
 	       del_if_num * sizeof(uint8_t));
 
+	if_offset = (del_if_num + 1) * sizeof(uint8_t);
 	memcpy((char *)data_ptr + del_if_num * sizeof(uint8_t),
-	       orig_node->bcast_own_sum + ((del_if_num + 1) * sizeof(uint8_t)),
+	       orig_node->bat_iv.bcast_own_sum + if_offset,
 	       (max_if_num - del_if_num) * sizeof(uint8_t));
 
 free_own_sum:
-	kfree(orig_node->bcast_own_sum);
-	orig_node->bcast_own_sum = data_ptr;
+	kfree(orig_node->bat_iv.bcast_own_sum);
+	orig_node->bat_iv.bcast_own_sum = data_ptr;
 
 	return 0;
 }
@@ -737,10 +714,10 @@ int batadv_orig_hash_del_if(struct batadv_hard_iface *hard_iface,
 
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(orig_node, head, hash_entry) {
-			spin_lock_bh(&orig_node->ogm_cnt_lock);
+			spin_lock_bh(&orig_node->bat_iv.ogm_cnt_lock);
 			ret = batadv_orig_node_del_if(orig_node, max_if_num,
 						      hard_iface->if_num);
-			spin_unlock_bh(&orig_node->ogm_cnt_lock);
+			spin_unlock_bh(&orig_node->bat_iv.ogm_cnt_lock);
 
 			if (ret == -ENOMEM)
 				goto err;
