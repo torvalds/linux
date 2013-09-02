@@ -269,7 +269,11 @@ static DEFINE_PCI_DEVICE_TABLE(ath_pci_id_table) = {
 
 	{ PCI_VDEVICE(ATHEROS, 0x0034) }, /* PCI-E  AR9462 */
 	{ PCI_VDEVICE(ATHEROS, 0x0037) }, /* PCI-E  AR1111/AR9485 */
-	{ PCI_VDEVICE(ATHEROS, 0x0036) }, /* PCI-E  AR9565 */
+
+	/* PCI-E AR9565 (WB335) */
+	{ PCI_VDEVICE(ATHEROS, 0x0036),
+	  .driver_data = ATH9K_PCI_BT_ANT_DIV },
+
 	{ 0 }
 };
 
