@@ -304,7 +304,6 @@ struct cnic_local {
 	u32			chip_id;
 	int			func;
 	u32			pfid;
-	u8			port_mode;
 
 	u32			shmem_base;
 
@@ -399,7 +398,6 @@ struct bnx2x_bd_chain_next {
 #define ETH_MAX_RX_CLIENTS_E2 		ETH_MAX_RX_CLIENTS_E1H
 #endif
 
-#define CNIC_PORT(cp)			((cp)->pfid & 1)
 #define CNIC_FUNC(cp)			((cp)->func)
 
 #define BNX2X_HW_CID(bp, x)		((BP_PORT(bp) << 23) | \

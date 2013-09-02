@@ -1695,7 +1695,7 @@ static int cnic_setup_bnx2x_ctx(struct cnic_dev *dev, struct kwqe *wqes[],
 	struct iscsi_context *ictx;
 	struct regpair context_addr;
 	int i, j, n = 2, n_max;
-	u8 port = CNIC_PORT(cp);
+	u8 port = BP_PORT(bp);
 
 	ctx->ctx_flags = 0;
 	if (!req2->num_additional_wqes)
@@ -1750,7 +1750,7 @@ static int cnic_setup_bnx2x_ctx(struct cnic_dev *dev, struct kwqe *wqes[],
 	ictx->xstorm_st_context.common.ethernet.reserved_vlan_type =
 		ETH_P_8021Q;
 	if (BNX2X_CHIP_IS_E2_PLUS(bp) &&
-		cp->port_mode == CHIP_2_PORT_MODE) {
+	    bp->common.chip_port_mode == CHIP_2_PORT_MODE) {
 
 		port = 0;
 	}
@@ -3050,8 +3050,8 @@ static irqreturn_t cnic_irq(int irq, void *dev_instance)
 static inline void cnic_ack_bnx2x_int(struct cnic_dev *dev, u8 id, u8 storm,
 				      u16 index, u8 op, u8 update)
 {
-	struct cnic_local *cp = dev->cnic_priv;
-	u32 hc_addr = (HC_REG_COMMAND_REG + CNIC_PORT(cp) * 32 +
+	struct bnx2x *bp = netdev_priv(dev->netdev);
+	u32 hc_addr = (HC_REG_COMMAND_REG + BP_PORT(bp) * 32 +
 		       COMMAND_REG_INT_ACK);
 	struct igu_ack_register igu_ack;
 
@@ -4231,7 +4231,7 @@ static int cnic_cm_init_bnx2x_hw(struct cnic_dev *dev)
 	struct cnic_local *cp = dev->cnic_priv;
 	struct bnx2x *bp = netdev_priv(dev->netdev);
 	u32 pfid = cp->pfid;
-	u32 port = CNIC_PORT(cp);
+	u32 port = BP_PORT(bp);
 
 	cnic_init_bnx2x_mac(dev);
 	cnic_bnx2x_set_tcp_options(dev, 0, 1);
@@ -5090,7 +5090,6 @@ static int cnic_start_bnx2x_hw(struct cnic_dev *dev)
 	u32 pfid;
 
 	dev->stats_addr = ethdev->addr_drv_info_to_mcp;
-	cp->port_mode = bp->common.chip_port_mode;
 	cp->pfid = bp->pfid;
 	cp->func = bp->pf_num;
 
@@ -5190,7 +5189,7 @@ static void cnic_init_rings(struct cnic_dev *dev)
 		off = BAR_USTRORM_INTMEM +
 			(BNX2X_CHIP_IS_E2_PLUS(bp) ?
 			 USTORM_RX_PRODS_E2_OFFSET(cl_qzone_id) :
-			 USTORM_RX_PRODS_E1X_OFFSET(CNIC_PORT(cp), cli));
+			 USTORM_RX_PRODS_E1X_OFFSET(BP_PORT(bp), cli));
 
 		for (i = 0; i < sizeof(struct ustorm_eth_rx_producers) / 4; i++)
 			CNIC_WR(dev, off + i * 4, ((u32 *) &rx_prods)[i]);
