@@ -2991,7 +2991,10 @@ static u32 ath9k_hw_ar9300_get_eeprom(struct ath_hw *ah,
 	case EEP_CHAIN_MASK_REDUCE:
 		return (pBase->miscConfiguration >> 0x3) & 0x1;
 	case EEP_ANT_DIV_CTL1:
-		return eep->base_ext1.ant_div_control;
+		if (AR_SREV_9565(ah))
+			return AR9300_EEP_ANTDIV_CONTROL_DEFAULT_VALUE;
+		else
+			return eep->base_ext1.ant_div_control;
 	case EEP_ANTENNA_GAIN_5G:
 		return eep->modalHeader5G.antennaGain;
 	case EEP_ANTENNA_GAIN_2G:
