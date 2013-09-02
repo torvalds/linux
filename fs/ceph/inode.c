@@ -62,14 +62,6 @@ struct inode *ceph_get_inode(struct super_block *sb, struct ceph_vino vino)
 	return inode;
 }
 
-struct inode *ceph_lookup_inode(struct super_block *sb, struct ceph_vino vino)
-{
-	struct inode *inode;
-	ino_t t = ceph_vino_to_ino(vino);
-	inode = ilookup5_nowait(sb, t, ceph_ino_compare, &vino);
-	return inode;
-}
-
 /*
  * get/constuct snapdir inode for a given directory
  */

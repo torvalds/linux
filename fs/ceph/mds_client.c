@@ -1054,7 +1054,7 @@ static void remove_session_caps(struct ceph_mds_session *session)
 			vino = cap->ci->i_vino;
 			spin_unlock(&session->s_cap_lock);
 
-			inode = ceph_lookup_inode(sb, vino);
+			inode = ceph_find_inode(sb, vino);
 			iput(inode);
 
 			spin_lock(&session->s_cap_lock);
