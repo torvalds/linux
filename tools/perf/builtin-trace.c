@@ -206,6 +206,62 @@ static size_t syscall_arg__scnprintf_futex_op(char *bf, size_t size, unsigned lo
 
 #define SCA_FUTEX_OP  syscall_arg__scnprintf_futex_op
 
+static size_t syscall_arg__scnprintf_open_flags(char *bf, size_t size,
+					       unsigned long arg, u8 *arg_mask)
+{
+	int printed = 0, flags = arg;
+
+	if (!(flags & O_CREAT))
+		*arg_mask |= 1 << 2; /* Mask the mode parm */
+
+	if (flags == 0)
+		return scnprintf(bf, size, "RDONLY");
+#define	P_FLAG(n) \
+	if (flags & O_##n) { \
+		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", #n); \
+		flags &= ~O_##n; \
+	}
+
+	P_FLAG(APPEND);
+	P_FLAG(ASYNC);
+	P_FLAG(CLOEXEC);
+	P_FLAG(CREAT);
+	P_FLAG(DIRECT);
+	P_FLAG(DIRECTORY);
+	P_FLAG(EXCL);
+	P_FLAG(LARGEFILE);
+	P_FLAG(NOATIME);
+	P_FLAG(NOCTTY);
+#ifdef O_NONBLOCK
+	P_FLAG(NONBLOCK);
+#elif O_NDELAY
+	P_FLAG(NDELAY);
+#endif
+#ifdef O_PATH
+	P_FLAG(PATH);
+#endif
+	P_FLAG(RDWR);
+#ifdef O_DSYNC
+	if ((flags & O_SYNC) == O_SYNC)
+		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", "SYNC");
+	else {
+		P_FLAG(DSYNC);
+	}
+#else
+	P_FLAG(SYNC);
+#endif
+	P_FLAG(TRUNC);
+	P_FLAG(WRONLY);
+#undef P_FLAG
+
+	if (flags)
+		printed += scnprintf(bf + printed, size - printed, "%s%#x", printed ? "|" : "", flags);
+
+	return printed;
+}
+
+#define SCA_OPEN_FLAGS syscall_arg__scnprintf_open_flags
+
 static struct syscall_fmt {
 	const char *name;
 	const char *alias;
@@ -244,7 +300,8 @@ static struct syscall_fmt {
 			     [4] = SCA_HEX, /* new_addr */ }, },
 	{ .name	    = "munmap",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_HEX, /* addr */ }, },
-	{ .name	    = "open",	    .errmsg = true, },
+	{ .name	    = "open",	    .errmsg = true,
+	  .arg_scnprintf = { [1] = SCA_OPEN_FLAGS, /* flags */ }, },
 	{ .name	    = "poll",	    .errmsg = true, .timeout = true, },
 	{ .name	    = "ppoll",	    .errmsg = true, .timeout = true, },
 	{ .name	    = "pread",	    .errmsg = true, .alias = "pread64", },
