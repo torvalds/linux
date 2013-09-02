@@ -38,7 +38,7 @@
 #include <linux/jiffies.h>
 #include <linux/tick.h>
 #include <asm-generic/cputime.h>
-
+#include <mach/irqs.h>
 #include <mach/system.h>
 #include <mach/hardware.h>
 #include <plat/sys_config.h>
@@ -1735,8 +1735,8 @@ static void sun4i_ts_nop_release(struct device *dev)
 static struct resource sun4i_ts_resource[] = {
 	{
 	.flags  = IORESOURCE_IRQ,
-	.start  = IRQ_TP ,
-	.end    = IRQ_TP ,
+	.start  = SW_INT_IRQNO_TOUCH_PANEL ,
+	.end    = SW_INT_IRQNO_TOUCH_PANEL ,
 	},
 
 	{
