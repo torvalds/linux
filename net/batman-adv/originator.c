@@ -378,16 +378,16 @@ free_orig_node:
 static bool
 batadv_purge_orig_neighbors(struct batadv_priv *bat_priv,
 			    struct batadv_orig_node *orig_node,
-			    struct batadv_neigh_node **best_neigh_node)
+			    struct batadv_neigh_node **best_neigh)
 {
+	struct batadv_algo_ops *bao = bat_priv->bat_algo_ops;
 	struct hlist_node *node_tmp;
 	struct batadv_neigh_node *neigh_node;
 	bool neigh_purged = false;
 	unsigned long last_seen;
 	struct batadv_hard_iface *if_incoming;
-	uint8_t best_metric = 0;
 
-	*best_neigh_node = NULL;
+	*best_neigh = NULL;
 
 	spin_lock_bh(&orig_node->neigh_list_lock);
 
@@ -420,11 +420,12 @@ batadv_purge_orig_neighbors(struct batadv_priv *bat_priv,
 			batadv_bonding_candidate_del(orig_node, neigh_node);
 			batadv_neigh_node_free_ref(neigh_node);
 		} else {
-			if ((!*best_neigh_node) ||
-			    (neigh_node->bat_iv.tq_avg > best_metric)) {
-				*best_neigh_node = neigh_node;
-				best_metric = neigh_node->bat_iv.tq_avg;
-			}
+			/* store the best_neighbour if this is the first
+			 * iteration or if a better neighbor has been found
+			 */
+			if (!*best_neigh ||
+			    bao->bat_neigh_cmp(neigh_node, *best_neigh) > 0)
+				*best_neigh = neigh_node;
 		}
 	}
 
