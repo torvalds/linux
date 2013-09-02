@@ -24,6 +24,31 @@ static size_t syscall_arg__scnprintf_hex(char *bf, size_t size,
 
 #define SCA_HEX syscall_arg__scnprintf_hex
 
+static size_t syscall_arg__scnprintf_whence(char *bf, size_t size,
+					    unsigned long arg, u8 *arg_mask __maybe_unused)
+{
+	int whence = arg;
+
+	switch (whence) {
+#define P_WHENCE(n) case SEEK_##n: return scnprintf(bf, size, #n)
+	P_WHENCE(SET);
+	P_WHENCE(CUR);
+	P_WHENCE(END);
+#ifdef SEEK_DATA
+	P_WHENCE(DATA);
+#endif
+#ifdef SEEK_HOLE
+	P_WHENCE(HOLE);
+#endif
+#undef P_WHENCE
+	default: break;
+	}
+
+	return scnprintf(bf, size, "%#x", whence);
+}
+
+#define SCA_WHENCE syscall_arg__scnprintf_whence
+
 static size_t syscall_arg__scnprintf_mmap_prot(char *bf, size_t size,
 					       unsigned long arg, u8 *arg_mask __maybe_unused)
 {
@@ -201,6 +226,8 @@ static struct syscall_fmt {
 	  .arg_scnprintf = { [1] = SCA_FUTEX_OP, /* op */ }, },
 	{ .name	    = "ioctl",	    .errmsg = true,
 	  .arg_scnprintf = { [2] = SCA_HEX, /* arg */ }, },
+	{ .name	    = "lseek",	    .errmsg = true,
+	  .arg_scnprintf = { [2] = SCA_WHENCE, /* whence */ }, },
 	{ .name	    = "lstat",	    .errmsg = true, .alias = "newlstat", },
 	{ .name     = "madvise",    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_HEX,	 /* start */
