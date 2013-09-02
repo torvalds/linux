@@ -303,7 +303,6 @@ struct cnic_local {
 
 	u32			chip_id;
 	int			func;
-	u32			pfid;
 
 	u32			shmem_base;
 
