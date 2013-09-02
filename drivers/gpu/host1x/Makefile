@@ -7,6 +7,7 @@ host1x-y = \
 	channel.o \
 	job.o \
 	debug.o \
+	mipi.o \
 	hw/host1x01.o \
 	hw/host1x02.o
 
