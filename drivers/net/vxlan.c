@@ -44,6 +44,7 @@
 #include <net/ipv6.h>
 #include <net/addrconf.h>
 #include <net/ip6_tunnel.h>
+#include <net/ip6_checksum.h>
 #endif
 
 #define VXLAN_VERSION	"0.1"
