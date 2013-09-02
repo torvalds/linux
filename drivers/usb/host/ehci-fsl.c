@@ -264,8 +264,9 @@ static int ehci_fsl_setup_phy(struct usb_hcd *hcd,
 	if (pdata->have_sysif_regs && pdata->controller_ver &&
 	    (phy_mode == FSL_USB2_PHY_ULPI)) {
 		/* check PHY_CLK_VALID to get phy clk valid */
-		if (!spin_event_timeout(in_be32(non_ehci + FSL_SOC_USB_CTRL) &
-				PHY_CLK_VALID, FSL_USB_PHY_CLK_TIMEOUT, 0)) {
+		if (!(spin_event_timeout(in_be32(non_ehci + FSL_SOC_USB_CTRL) &
+				PHY_CLK_VALID, FSL_USB_PHY_CLK_TIMEOUT, 0) ||
+				in_be32(non_ehci + FSL_SOC_USB_PRICTRL))) {
 			printk(KERN_WARNING "fsl-ehci: USB PHY clock invalid\n");
 			return -EINVAL;
 		}
