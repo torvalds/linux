@@ -62,7 +62,11 @@
 static struct tegra_cpu_car_ops dummy_car_ops;
 struct tegra_cpu_car_ops *tegra_cpu_car_ops = &dummy_car_ops;
 
+int *periph_clk_enb_refcnt;
 static int periph_banks;
+static struct clk **clks;
+static int clk_num;
+static struct clk_onecell_data clk_data;
 
 static struct tegra_clk_periph_regs periph_regs[] = {
 	[0] = {
@@ -119,14 +123,25 @@ struct tegra_clk_periph_regs *get_reg_bank(int clkid)
 	}
 }
 
-int __init tegra_clk_set_periph_banks(int num)
+struct clk ** __init tegra_clk_init(int num, int banks)
 {
-	if (num > ARRAY_SIZE(periph_regs))
-		return -EINVAL;
+	if (WARN_ON(banks > ARRAY_SIZE(periph_regs)))
+		return NULL;
 
-	periph_banks = num;
+	periph_clk_enb_refcnt = kzalloc(32 * banks *
+				sizeof(*periph_clk_enb_refcnt), GFP_KERNEL);
+	if (!periph_clk_enb_refcnt)
+		return NULL;
 
-	return 0;
+	periph_banks = banks;
+
+	clks = kzalloc(num * sizeof(struct clk *), GFP_KERNEL);
+	if (!clks)
+		kfree(periph_clk_enb_refcnt);
+
+	clk_num = num;
+
+	return clks;
 }
 
 void __init tegra_init_dup_clks(struct tegra_clk_duplicate *dup_list,
@@ -176,6 +191,25 @@ void __init tegra_init_from_table(struct tegra_clk_init_table *tbl,
 				WARN_ON(1);
 			}
 	}
+}
+
+void __init tegra_add_of_provider(struct device_node *np)
+{
+	int i;
+
+	for (i = 0; i < clk_num; i++) {
+		if (IS_ERR(clks[i])) {
+			pr_err
+			    ("Tegra clk %d: register failed with %ld\n",
+			     i, PTR_ERR(clks[i]));
+		}
+		if (!clks[i])
+			clks[i] = ERR_PTR(-EINVAL);
+	}
+
+	clk_data.clks = clks;
+	clk_data.clk_num = clk_num;
+	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 }
 
 tegra_clk_apply_init_table_func tegra_clk_apply_init_table;
