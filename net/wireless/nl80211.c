@@ -5591,6 +5591,9 @@ static int nl80211_start_radar_detection(struct sk_buff *skb,
 	if (err)
 		return err;
 
+	if (netif_carrier_ok(dev))
+		return -EBUSY;
+
 	if (wdev->cac_started)
 		return -EBUSY;
 
