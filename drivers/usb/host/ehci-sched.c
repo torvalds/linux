@@ -1384,12 +1384,57 @@ iso_stream_schedule (
 
 	now = ehci_read_frame_index(ehci) & (mod - 1);
 
-	/* Typical case: reuse current schedule, stream is still active.
+	/*
+	 * Need to schedule; when's the next (u)frame we could start?
+	 * This is bigger than ehci->i_thresh allows; scheduling itself
+	 * isn't free, the delay should handle reasonably slow cpus.  It
+	 * can also help high bandwidth if the dma and irq loads don't
+	 * jump until after the queue is primed.
+	 */
+	if (unlikely(list_empty(&stream->td_list))) {
+		int done = 0;
+
+		base = now & ~0x07;
+		start = base + SCHEDULING_DELAY;
+
+		/* find a uframe slot with enough bandwidth.
+		 * Early uframes are more precious because full-speed
+		 * iso IN transfers can't use late uframes,
+		 * and therefore they should be allocated last.
+		 */
+		next = start;
+		start += period;
+		do {
+			start--;
+			/* check schedule: enough space? */
+			if (stream->highspeed) {
+				if (itd_slot_ok(ehci, mod, start,
+						stream->usecs, period))
+					done = 1;
+			} else {
+				if ((start % 8) >= 6)
+					continue;
+				if (sitd_slot_ok(ehci, mod, stream,
+						start, sched, period))
+					done = 1;
+			}
+		} while (start > next && !done);
+
+		/* no room in the schedule */
+		if (!done) {
+			ehci_dbg(ehci, "iso sched full %p", urb);
+			status = -ENOSPC;
+			goto fail;
+		}
+	}
+
+	/*
+	 * Typical case: reuse current schedule, stream is still active.
 	 * Hopefully there are no gaps from the host falling behind
 	 * (irq delays etc).  If there are, the behavior depends on
 	 * whether URB_ISO_ASAP is set.
 	 */
-	if (likely (!list_empty (&stream->td_list))) {
+	else {
 
 		/* Take the isochronous scheduling threshold into account */
 		if (ehci->i_thresh)
@@ -1434,49 +1479,6 @@ iso_stream_schedule (
 		}
 
 		start += base;
-	}
-
-	/* need to schedule; when's the next (u)frame we could start?
-	 * this is bigger than ehci->i_thresh allows; scheduling itself
-	 * isn't free, the delay should handle reasonably slow cpus.  it
-	 * can also help high bandwidth if the dma and irq loads don't
-	 * jump until after the queue is primed.
-	 */
-	else {
-		int done = 0;
-
-		base = now & ~0x07;
-		start = base + SCHEDULING_DELAY;
-
-		/* find a uframe slot with enough bandwidth.
-		 * Early uframes are more precious because full-speed
-		 * iso IN transfers can't use late uframes,
-		 * and therefore they should be allocated last.
-		 */
-		next = start;
-		start += period;
-		do {
-			start--;
-			/* check schedule: enough space? */
-			if (stream->highspeed) {
-				if (itd_slot_ok(ehci, mod, start,
-						stream->usecs, period))
-					done = 1;
-			} else {
-				if ((start % 8) >= 6)
-					continue;
-				if (sitd_slot_ok(ehci, mod, stream,
-						start, sched, period))
-					done = 1;
-			}
-		} while (start > next && !done);
-
-		/* no room in the schedule */
-		if (!done) {
-			ehci_dbg(ehci, "iso sched full %p", urb);
-			status = -ENOSPC;
-			goto fail;
-		}
 	}
 
 	/* Tried to schedule too far into the future? */
