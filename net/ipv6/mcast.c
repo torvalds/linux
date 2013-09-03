@@ -1040,12 +1040,9 @@ static void igmp6_group_queried(struct ifmcaddr6 *ma, unsigned long resptime)
 		delay = ma->mca_timer.expires - jiffies;
 	}
 
-	if (delay >= resptime) {
-		if (resptime)
-			delay = net_random() % resptime;
-		else
-			delay = 1;
-	}
+	if (delay >= resptime)
+		delay = net_random() % resptime;
+
 	ma->mca_timer.expires = jiffies + delay;
 	if (!mod_timer(&ma->mca_timer, jiffies + delay))
 		atomic_inc(&ma->mca_refcnt);
@@ -1258,12 +1255,15 @@ int igmp6_event_query(struct sk_buff *skb)
 		return -EINVAL;
 
 	if (len == MLD_V1_QUERY_LEN) {
+		unsigned long mldv1_md;
+
 		/* Ignore v1 queries */
 		if (mld_in_v2_mode_only(idev))
 			return 0;
 
 		/* MLDv1 router present */
-		max_delay = msecs_to_jiffies(ntohs(mld->mld_maxdelay));
+		mldv1_md = ntohs(mld->mld_maxdelay);
+		max_delay = max(msecs_to_jiffies(mldv1_md), 1UL);
 
 		mld_set_v1_mode(idev);
 
