@@ -58,8 +58,8 @@ static inline struct page *dma_addr_to_page(struct device *dev,
 static inline int cpu_is_noncoherent_r10000(struct device *dev)
 {
 	return !plat_device_is_coherent(dev) &&
-	       (current_cpu_type() == CPU_R10000 ||
-	       current_cpu_type() == CPU_R12000);
+	       (boot_cpu_type() == CPU_R10000 ||
+	       boot_cpu_type() == CPU_R12000);
 }
 
 static gfp_t massage_gfp_flags(const struct device *dev, gfp_t gfp)
