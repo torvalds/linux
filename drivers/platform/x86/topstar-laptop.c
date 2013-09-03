@@ -80,13 +80,9 @@ static void acpi_topstar_notify(struct acpi_device *device, u32 event)
 static int acpi_topstar_fncx_switch(struct acpi_device *device, bool state)
 {
 	acpi_status status;
-	union acpi_object fncx_params[1] = {
-		{ .type = ACPI_TYPE_INTEGER }
-	};
-	struct acpi_object_list fncx_arg_list = { 1, &fncx_params[0] };
 
-	fncx_params[0].integer.value = state ? 0x86 : 0x87;
-	status = acpi_evaluate_object(device->handle, "FNCX", &fncx_arg_list, NULL);
+	status = acpi_execute_simple_method(device->handle, "FNCX",
+						state ? 0x86 : 0x87);
 	if (ACPI_FAILURE(status)) {
 		pr_err("Unable to switch FNCX notifications\n");
 		return -ENODEV;
