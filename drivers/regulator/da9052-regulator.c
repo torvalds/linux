@@ -389,8 +389,9 @@ static int da9052_regulator_probe(struct platform_device *pdev)
 #endif
 	}
 
-	regulator->rdev = regulator_register(&regulator->info->reg_desc,
-					     &config);
+	regulator->rdev = devm_regulator_register(&pdev->dev,
+						  &regulator->info->reg_desc,
+						  &config);
 	if (IS_ERR(regulator->rdev)) {
 		dev_err(&pdev->dev, "failed to register regulator %s\n",
 			regulator->info->reg_desc.name);
@@ -402,17 +403,8 @@ static int da9052_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int da9052_regulator_remove(struct platform_device *pdev)
-{
-	struct da9052_regulator *regulator = platform_get_drvdata(pdev);
-
-	regulator_unregister(regulator->rdev);
-	return 0;
-}
-
 static struct platform_driver da9052_regulator_driver = {
 	.probe = da9052_regulator_probe,
-	.remove = da9052_regulator_remove,
 	.driver = {
 		.name = "da9052-regulator",
 		.owner = THIS_MODULE,
