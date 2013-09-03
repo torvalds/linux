@@ -6,7 +6,24 @@
 config USB_ARCH_HAS_OHCI
 	bool
 
+config USB_OHCI_BIG_ENDIAN_DESC
+	bool
+
+config USB_OHCI_BIG_ENDIAN_MMIO
+	bool
+
+config USB_OHCI_LITTLE_ENDIAN
+	bool
+	default n if STB03xxx || PPC_MPC52xx
+	default y
+
 config USB_ARCH_HAS_EHCI
+	bool
+
+config USB_EHCI_BIG_ENDIAN_MMIO
+	bool
+
+config USB_EHCI_BIG_ENDIAN_DESC
 	bool
 
 config USB_ARCH_HAS_XHCI

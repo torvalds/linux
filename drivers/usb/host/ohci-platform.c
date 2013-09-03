@@ -33,7 +33,7 @@ static const char hcd_name[] = "ohci-platform";
 static int ohci_platform_reset(struct usb_hcd *hcd)
 {
 	struct platform_device *pdev = to_platform_device(hcd->self.controller);
-	struct usb_ohci_pdata *pdata = pdev->dev.platform_data;
+	struct usb_ohci_pdata *pdata = dev_get_platdata(&pdev->dev);
 	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
 
 	if (pdata->big_endian_desc)
@@ -59,7 +59,7 @@ static int ohci_platform_probe(struct platform_device *dev)
 {
 	struct usb_hcd *hcd;
 	struct resource *res_mem;
-	struct usb_ohci_pdata *pdata = dev->dev.platform_data;
+	struct usb_ohci_pdata *pdata = dev_get_platdata(&dev->dev);
 	int irq;
 	int err = -ENOMEM;
 
@@ -124,7 +124,7 @@ err_power:
 static int ohci_platform_remove(struct platform_device *dev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(dev);
-	struct usb_ohci_pdata *pdata = dev->dev.platform_data;
+	struct usb_ohci_pdata *pdata = dev_get_platdata(&dev->dev);
 
 	usb_remove_hcd(hcd);
 	usb_put_hcd(hcd);
@@ -139,7 +139,7 @@ static int ohci_platform_remove(struct platform_device *dev)
 
 static int ohci_platform_suspend(struct device *dev)
 {
-	struct usb_ohci_pdata *pdata = dev->platform_data;
+	struct usb_ohci_pdata *pdata = dev_get_platdata(dev);
 	struct platform_device *pdev =
 		container_of(dev, struct platform_device, dev);
 
@@ -152,7 +152,7 @@ static int ohci_platform_suspend(struct device *dev)
 static int ohci_platform_resume(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
-	struct usb_ohci_pdata *pdata = dev->platform_data;
+	struct usb_ohci_pdata *pdata = dev_get_platdata(dev);
 	struct platform_device *pdev =
 		container_of(dev, struct platform_device, dev);
 

@@ -207,6 +207,22 @@
 			};
 		};
 
+		musb: usb@47400000 {
+			status = "okay";
+
+			control@44e10000 {
+				status = "okay";
+			};
+
+			usb-phy@47401300 {
+				status = "okay";
+			};
+
+			usb@47401000 {
+				status = "okay";
+			};
+		};
+
 		epwmss2: epwmss@48304000 {
 			status = "okay";
 

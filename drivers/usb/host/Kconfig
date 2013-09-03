@@ -29,15 +29,6 @@ if USB_XHCI_HCD
 config USB_XHCI_PLATFORM
 	tristate
 
-config USB_XHCI_HCD_DEBUGGING
-	bool "Debugging for the xHCI host controller"
-	---help---
-	  Say 'Y' to turn on debugging for the xHCI host controller driver.
-	  This will spew debugging output, even in interrupt context.
-	  This should only be used for debugging xHCI driver bugs.
-
-	  If unsure, say N.
-
 endif # USB_XHCI_HCD
 
 config USB_EHCI_HCD
@@ -113,12 +104,6 @@ config USB_EHCI_HCD_PMC_MSP
 		Enables support for the onchip USB controller on the PMC_MSP7100 Family SoC's.
 		If unsure, say N.
 
-config USB_EHCI_BIG_ENDIAN_MMIO
-	bool
-
-config USB_EHCI_BIG_ENDIAN_DESC
-	bool
-
 config XPS_USB_HCD_XILINX
 	bool "Use Xilinx usb host EHCI controller core"
 	depends on (PPC32 || MICROBLAZE)
@@ -148,13 +133,11 @@ config USB_EHCI_MXC
 config USB_EHCI_HCD_OMAP
 	tristate "EHCI support for OMAP3 and later chips"
 	depends on ARCH_OMAP
+	select NOP_USB_XCEIV
 	default y
 	---help---
 	  Enables support for the on-chip EHCI controller on
 	  OMAP3 and later chips.
-	  If your system uses a PHY on the USB port, you will need to
-	  enable USB_PHY and the appropriate PHY driver as well. Most
-	  boards need the NOP_USB_XCEIV PHY driver.
 
 config USB_EHCI_HCD_ORION
 	tristate  "Support for Marvell EBU on-chip EHCI USB controller"
@@ -186,7 +169,6 @@ config USB_EHCI_HCD_AT91
 config USB_EHCI_MSM
 	tristate "Support for Qualcomm QSD/MSM on-chip EHCI USB controller"
 	depends on ARCH_MSM
-	depends on USB_PHY
 	select USB_EHCI_ROOT_HUB_TT
 	select USB_MSM_OTG
 	---help---
@@ -354,6 +336,18 @@ config USB_FUSBH200_HCD
 	To compile this driver as a module, choose M here: the
 	module will be called fusbh200-hcd.
 
+config USB_FOTG210_HCD
+	tristate "FOTG210 HCD support"
+	depends on USB
+	default N
+	---help---
+	  Faraday FOTG210 is an OTG controller which can be configured as
+	  an USB2.0 host. It is designed to meet USB2.0 EHCI specification
+	  with minor modification.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called fotg210-hcd.
+
 config USB_OHCI_HCD
 	tristate "OHCI HCD (USB 1.1) support"
 	select ISP1301_OMAP if MACH_OMAP_H2 || MACH_OMAP_H3
@@ -496,20 +490,6 @@ config USB_OCTEON_OHCI
 	  Enable support for the Octeon II SOC's on-chip OHCI
 	  controller.  It is needed for low-speed USB 1.0 device
 	  support.  All CN6XXX based chips with USB are supported.
-
-
-config USB_OHCI_BIG_ENDIAN_DESC
-	bool
-	default n
-
-config USB_OHCI_BIG_ENDIAN_MMIO
-	bool
-	default n
-
-config USB_OHCI_LITTLE_ENDIAN
-	bool
-	default n if STB03xxx || PPC_MPC52xx
-	default y
 
 endif # USB_OHCI_HCD
 
@@ -710,3 +690,20 @@ config USB_HCD_SSB
 	  for ehci and ohci.
 
 	  If unsure, say N.
+
+config USB_HCD_TEST_MODE
+	bool "HCD test mode support"
+	---help---
+	  Say 'Y' to enable additional software test modes that may be
+	  supported by the host controller drivers.
+
+	  One such test mode is the Embedded High-speed Host Electrical Test
+	  (EHSET) for EHCI host controller hardware, specifically the "Single
+	  Step Set Feature" test.  Typically this will be enabled for On-the-Go
+	  or embedded hosts that need to undergo USB-IF compliance testing with
+	  the aid of special testing hardware.  In the future, this may expand
+	  to include other tests that require support from a HCD driver.
+
+	  This option is of interest only to developers who need to validate
+	  their USB hardware designs.  It is not needed for normal use.  If
+	  unsure, say N.
