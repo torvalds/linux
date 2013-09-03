@@ -1231,4 +1231,11 @@ static const u32 ar9565_1p0_modes_high_power_tx_gain_table[][5] = {
 	{0x00016054, 0x00000000, 0x00000000, 0x00000000, 0x00000000},
 };
 
+static const u32 ar9565_1p0_baseband_core_txfir_coeff_japan_2484[][2] = {
+	/* Addr      allmodes  */
+	{0x0000a398, 0x00000000},
+	{0x0000a39c, 0x6f7f0301},
+	{0x0000a3a0, 0xca9228ee},
+};
+
 #endif /* INITVALS_9565_1P0_H */
