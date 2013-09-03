@@ -28,6 +28,7 @@
 #define DISP_CTRL_MODE_STOP (0 << 5)
 #define DISP_CTRL_MODE_C_DISPLAY (1 << 5)
 #define DISP_CTRL_MODE_NC_DISPLAY (2 << 5)
+#define DISP_CTRL_MODE_MASK (3 << 5)
 #define DC_CMD_SIGNAL_RAISE			0x033
 #define DC_CMD_DISPLAY_POWER_CONTROL		0x036
 #define PW0_ENABLE (1 <<  0)
@@ -116,6 +117,7 @@
 
 #define DC_DISP_DISP_WIN_OPTIONS		0x402
 #define HDMI_ENABLE (1 << 30)
+#define DSI_ENABLE  (1 << 29)
 
 #define DC_DISP_DISP_MEM_HIGH_PRIORITY		0x403
 #define CURSOR_THRESHOLD(x)   (((x) & 0x03) << 24)
