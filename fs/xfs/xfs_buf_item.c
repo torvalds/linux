@@ -613,13 +613,27 @@ xfs_buf_item_unlock(
 			}
 		}
 	}
-	if (clean || aborted) {
-		if (atomic_dec_and_test(&bip->bli_refcount)) {
-			ASSERT(!aborted || XFS_FORCED_SHUTDOWN(lip->li_mountp));
+
+	/*
+	 * Clean buffers, by definition, cannot be in the AIL. However, aborted
+	 * buffers may be dirty and hence in the AIL. Therefore if we are
+	 * aborting a buffer and we've just taken the last refernce away, we
+	 * have to check if it is in the AIL before freeing it. We need to free
+	 * it in this case, because an aborted transaction has already shut the
+	 * filesystem down and this is the last chance we will have to do so.
+	 */
+	if (atomic_dec_and_test(&bip->bli_refcount)) {
+		if (clean)
+			xfs_buf_item_relse(bp);
+		else if (aborted) {
+			ASSERT(XFS_FORCED_SHUTDOWN(lip->li_mountp));
+			if (lip->li_flags & XFS_LI_IN_AIL) {
+				xfs_trans_ail_delete(lip->li_ailp, lip,
+						     SHUTDOWN_LOG_IO_ERROR);
+			}
 			xfs_buf_item_relse(bp);
 		}
-	} else
-		atomic_dec(&bip->bli_refcount);
+	}
 
 	if (!(flags & XFS_BLI_HOLD))
 		xfs_buf_relse(bp);
