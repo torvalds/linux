@@ -564,7 +564,7 @@ static int efivar_sysfs_destroy(struct efivar_entry *entry, void *data)
 	return 0;
 }
 
-void efivars_sysfs_exit(void)
+static void efivars_sysfs_exit(void)
 {
 	/* Remove all entries and destroy */
 	__efivar_entry_iter(efivar_sysfs_destroy, &efivar_sysfs_list, NULL, NULL);
