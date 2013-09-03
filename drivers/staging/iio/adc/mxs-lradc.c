@@ -1038,3 +1038,4 @@ module_platform_driver(mxs_lradc_driver);
 MODULE_AUTHOR("Marek Vasut <marex@denx.de>");
 MODULE_DESCRIPTION("Freescale i.MX28 LRADC driver");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:" DRIVER_NAME);
