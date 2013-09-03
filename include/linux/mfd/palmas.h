@@ -372,17 +372,15 @@ struct palmas_usb {
 
 	struct extcon_dev edev;
 
-	/* used to set vbus, in atomic path */
-	struct work_struct set_vbus_work;
-
 	int id_otg_irq;
 	int id_irq;
 	int vbus_otg_irq;
 	int vbus_irq;
 
-	int vbus_enable;
-
 	enum palmas_usb_state linkstat;
+	int wakeup;
+	bool enable_vbus_detection;
+	bool enable_id_detection;
 };
 
 #define comparator_to_palmas(x) container_of((x), struct palmas_usb, comparator)
