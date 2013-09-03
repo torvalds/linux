@@ -446,6 +446,8 @@ config RALINK
 	select SYS_HAS_EARLY_PRINTK
 	select HAVE_MACH_CLKDEV
 	select CLKDEV_LOOKUP
+	select ARCH_HAS_RESET_CONTROLLER
+	select RESET_CONTROLLER
 
 config SGI_IP22
 	bool "SGI IP22 (Indy/Indigo2)"
