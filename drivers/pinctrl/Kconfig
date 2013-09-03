@@ -49,6 +49,23 @@ config PINCTRL_AB8505
 	bool "AB8505 pin controller driver"
 	depends on PINCTRL_ABX500 && ARCH_U8500
 
+config PINCTRL_ADI2
+	bool "ADI pin controller driver"
+	select PINMUX
+	select IRQ_DOMAIN
+	help
+	  This is the pin controller and gpio driver for ADI BF54x, BF60x and
+	  future processors. This option is selected automatically when specific
+	  machine and arch are selected to build.
+
+config PINCTRL_BF54x
+	def_bool y if BF54x
+	select PINCTRL_ADI2
+
+config PINCTRL_BF60x
+	def_bool y if BF60x
+	select PINCTRL_ADI2
+
 config PINCTRL_AT91
 	bool "AT91 pinctrl driver"
 	depends on OF
