@@ -1375,7 +1375,7 @@ static void f71805f_init_device(struct f71805f_data *data)
 
 static int f71805f_probe(struct platform_device *pdev)
 {
-	struct f71805f_sio_data *sio_data = pdev->dev.platform_data;
+	struct f71805f_sio_data *sio_data = dev_get_platdata(&pdev->dev);
 	struct f71805f_data *data;
 	struct resource *res;
 	int i, err;
