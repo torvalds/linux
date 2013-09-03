@@ -1,0 +1,19 @@
+menuconfig BOARD_ID
+	bool "board id support for OneImage solution"
+	default n	
+
+choice
+	depends on BOARD_ID
+	prompt  "board id type"
+	
+config BOARD_ID_FLASH
+bool "board id save in flash"
+
+config BOARD_ID_AUTO_XML
+bool "auto print cust.xml"
+	depends on BOARD_ID_FLASH
+
+config BOARD_ID_HW
+bool "board id get from hardware such as gpios"
+
+endchoice
