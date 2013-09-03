@@ -114,9 +114,6 @@
 #define PLLXC_SW_MAX_P			6
 
 #define CCLKG_BURST_POLICY 0x368
-#define CCLKLP_BURST_POLICY 0x370
-#define SCLK_BURST_POLICY 0x028
-#define SYSTEM_CLK_RATE 0x030
 
 #define UTMIP_PLL_CFG2 0x488
 #define UTMIP_PLL_CFG2_STABLE_COUNT(x) (((x) & 0xffff) << 6)
@@ -170,7 +167,6 @@ static DEFINE_SPINLOCK(pll_d_lock);
 static DEFINE_SPINLOCK(pll_d2_lock);
 static DEFINE_SPINLOCK(pll_u_lock);
 static DEFINE_SPINLOCK(pll_re_lock);
-static DEFINE_SPINLOCK(sysrate_lock);
 
 static struct div_nmp pllxc_nmp = {
 	.divm_shift = 0,
@@ -1113,16 +1109,6 @@ static void __init tegra114_pll_init(void __iomem *clk_base,
 	clk = clk_register_fixed_factor(NULL, "pll_m_ud", "pll_m",
 					CLK_SET_RATE_PARENT, 1, 1);
 
-	/* PLLX */
-	clk = tegra_clk_register_pllxc("pll_x", "pll_ref", clk_base,
-			pmc, CLK_IGNORE_UNUSED, &pll_x_params, NULL);
-	clks[TEGRA114_CLK_PLL_X] = clk;
-
-	/* PLLX_OUT0 */
-	clk = clk_register_fixed_factor(NULL, "pll_x_out0", "pll_x",
-					CLK_SET_RATE_PARENT, 1, 2);
-	clks[TEGRA114_CLK_PLL_X_OUT0] = clk;
-
 	/* PLLU */
 	val = readl(clk_base + pll_u_params.base_reg);
 	val &= ~BIT(24); /* disable PLLU_OVERRIDE */
@@ -1189,65 +1175,6 @@ static void __init tegra114_pll_init(void __iomem *clk_base,
 	clk = tegra_clk_register_plle_tegra114("pll_e_out0", "pll_ref",
 				      clk_base, 0, &pll_e_params, NULL);
 	clks[TEGRA114_CLK_PLL_E_OUT0] = clk;
-}
-
-static const char *sclk_parents[] = { "clk_m", "pll_c_out1", "pll_p_out4",
-			       "pll_p", "pll_p_out2", "unused",
-			       "clk_32k", "pll_m_out1" };
-
-static const char *cclk_g_parents[] = { "clk_m", "pll_c", "clk_32k", "pll_m",
-					"pll_p", "pll_p_out4", "unused",
-					"unused", "pll_x" };
-
-static const char *cclk_lp_parents[] = { "clk_m", "pll_c", "clk_32k", "pll_m",
-					 "pll_p", "pll_p_out4", "unused",
-					 "unused", "pll_x", "pll_x_out0" };
-
-static void __init tegra114_super_clk_init(void __iomem *clk_base)
-{
-	struct clk *clk;
-
-	/* CCLKG */
-	clk = tegra_clk_register_super_mux("cclk_g", cclk_g_parents,
-					ARRAY_SIZE(cclk_g_parents),
-					CLK_SET_RATE_PARENT,
-					clk_base + CCLKG_BURST_POLICY,
-					0, 4, 0, 0, NULL);
-	clks[TEGRA114_CLK_CCLK_G] = clk;
-
-	/* CCLKLP */
-	clk = tegra_clk_register_super_mux("cclk_lp", cclk_lp_parents,
-					ARRAY_SIZE(cclk_lp_parents),
-					CLK_SET_RATE_PARENT,
-					clk_base + CCLKLP_BURST_POLICY,
-					0, 4, 8, 9, NULL);
-	clks[TEGRA114_CLK_CCLK_LP] = clk;
-
-	/* SCLK */
-	clk = tegra_clk_register_super_mux("sclk", sclk_parents,
-					ARRAY_SIZE(sclk_parents),
-					CLK_SET_RATE_PARENT,
-					clk_base + SCLK_BURST_POLICY,
-					0, 4, 0, 0, NULL);
-	clks[TEGRA114_CLK_SCLK] = clk;
-
-	/* HCLK */
-	clk = clk_register_divider(NULL, "hclk_div", "sclk", 0,
-				   clk_base + SYSTEM_CLK_RATE, 4, 2, 0,
-				   &sysrate_lock);
-	clk = clk_register_gate(NULL, "hclk", "hclk_div", CLK_SET_RATE_PARENT |
-				CLK_IGNORE_UNUSED, clk_base + SYSTEM_CLK_RATE,
-				7, CLK_GATE_SET_TO_DISABLE, &sysrate_lock);
-	clks[TEGRA114_CLK_HCLK] = clk;
-
-	/* PCLK */
-	clk = clk_register_divider(NULL, "pclk_div", "hclk", 0,
-				   clk_base + SYSTEM_CLK_RATE, 0, 2, 0,
-				   &sysrate_lock);
-	clk = clk_register_gate(NULL, "pclk", "pclk_div", CLK_SET_RATE_PARENT |
-				CLK_IGNORE_UNUSED, clk_base + SYSTEM_CLK_RATE,
-				3, CLK_GATE_SET_TO_DISABLE, &sysrate_lock);
-	clks[TEGRA114_CLK_PCLK] = clk;
 }
 
 static __init void tegra114_periph_clk_init(void __iomem *clk_base,
@@ -1540,7 +1467,8 @@ static void __init tegra114_clock_init(struct device_node *np)
 	tegra114_periph_clk_init(clk_base, pmc_base);
 	tegra_audio_clk_init(clk_base, pmc_base, tegra114_clks, &pll_a_params);
 	tegra_pmc_clk_init(pmc_base, tegra114_clks);
-	tegra114_super_clk_init(clk_base);
+	tegra_super_clk_gen4_init(clk_base, pmc_base, tegra114_clks,
+					&pll_x_params);
 
 	tegra_add_of_provider(np);
 	tegra_register_devclks(devclks, ARRAY_SIZE(devclks));

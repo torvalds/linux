@@ -610,6 +610,9 @@ int tegra_osc_clk_init(void __iomem *clk_base, struct tegra_clk *tegra_clks,
 				unsigned long *input_freqs, int num,
 				unsigned long *osc_freq,
 				unsigned long *pll_ref_freq);
+void tegra_super_clk_gen4_init(void __iomem *clk_base,
+			void __iomem *pmc_base, struct tegra_clk *tegra_clks,
+			struct tegra_clk_pll_params *pll_params);
 
 void tegra114_clock_tune_cpu_trimmers_high(void);
 void tegra114_clock_tune_cpu_trimmers_low(void);
