@@ -44,6 +44,9 @@
 #include <linux/regulator/driver.h>
 #include <linux/slab.h>
 #include <linux/regulator/max8660.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/regulator/of_regulator.h>
 
 #define MAX8660_DCDC_MIN_UV	 725000
 #define MAX8660_DCDC_MAX_UV	1800000
@@ -305,21 +308,105 @@ static const struct regulator_desc max8660_reg[] = {
 	},
 };
 
+enum {
+	MAX8660 = 0,
+	MAX8661 = 1,
+};
+
+#ifdef CONFIG_OF
+static const struct of_device_id max8660_dt_ids[] = {
+	{ .compatible = "maxim,max8660", .data = (void *) MAX8660 },
+	{ .compatible = "maxim,max8661", .data = (void *) MAX8661 },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, max8660_dt_ids);
+
+static int max8660_pdata_from_dt(struct device *dev,
+				 struct device_node **of_node,
+				 struct max8660_platform_data *pdata)
+{
+	int matched, i;
+	struct device_node *np;
+	struct max8660_subdev_data *sub;
+	struct of_regulator_match rmatch[ARRAY_SIZE(max8660_reg)];
+
+	np = of_find_node_by_name(dev->of_node, "regulators");
+	if (!np) {
+		dev_err(dev, "missing 'regulators' subnode in DT\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(rmatch); i++)
+		rmatch[i].name = max8660_reg[i].name;
+
+	matched = of_regulator_match(dev, np, rmatch, ARRAY_SIZE(rmatch));
+	if (matched <= 0)
+		return matched;
+
+	pdata->subdevs = devm_kzalloc(dev, sizeof(struct max8660_subdev_data) *
+						matched, GFP_KERNEL);
+	if (!pdata->subdevs)
+		return -ENOMEM;
+
+	pdata->num_subdevs = matched;
+	sub = pdata->subdevs;
+
+	for (i = 0; i < matched; i++) {
+		sub->id = i;
+		sub->name = rmatch[i].name;
+		sub->platform_data = rmatch[i].init_data;
+		of_node[i] = rmatch[i].of_node;
+		sub++;
+	}
+
+	return 0;
+}
+#else
+static inline int max8660_pdata_from_dt(struct device *dev,
+					struct device_node **of_node,
+					struct max8660_platform_data *pdata)
+{
+	return 0;
+}
+#endif
+
 static int max8660_probe(struct i2c_client *client,
 				   const struct i2c_device_id *i2c_id)
 {
 	struct regulator_dev **rdev;
-	struct max8660_platform_data *pdata = client->dev.platform_data;
+	struct device *dev = &client->dev;
+	struct max8660_platform_data *pdata = dev_get_platdata(dev);
 	struct regulator_config config = { };
 	struct max8660 *max8660;
 	int boot_on, i, id, ret = -EINVAL;
+	struct device_node *of_node[MAX8660_V_END];
+	unsigned long type;
+
+	if (dev->of_node && !pdata) {
+		const struct of_device_id *id;
+		struct max8660_platform_data pdata_of;
+
+		id = of_match_device(of_match_ptr(max8660_dt_ids), dev);
+		if (!id)
+			return -ENODEV;
+
+		ret = max8660_pdata_from_dt(dev, of_node, &pdata_of);
+		if (ret < 0)
+			return ret;
+
+		pdata = &pdata_of;
+		type = (unsigned long) id->data;
+	} else {
+		type = i2c_id->driver_data;
+		memset(of_node, 0, sizeof(of_node));
+	}
 
 	if (pdata->num_subdevs > MAX8660_V_END) {
-		dev_err(&client->dev, "Too many regulators found!\n");
+		dev_err(dev, "Too many regulators found!\n");
 		return -EINVAL;
 	}
 
-	max8660 = devm_kzalloc(&client->dev, sizeof(struct max8660) +
+	max8660 = devm_kzalloc(dev, sizeof(struct max8660) +
 			sizeof(struct regulator_dev *) * MAX8660_V_END,
 			GFP_KERNEL);
 	if (!max8660)
@@ -376,8 +463,8 @@ static int max8660_probe(struct i2c_client *client,
 			break;
 
 		case MAX8660_V7:
-			if (!strcmp(i2c_id->name, "max8661")) {
-				dev_err(&client->dev, "Regulator not on this chip!\n");
+			if (type == MAX8661) {
+				dev_err(dev, "Regulator not on this chip!\n");
 				goto err_out;
 			}
 
@@ -386,7 +473,7 @@ static int max8660_probe(struct i2c_client *client,
 			break;
 
 		default:
-			dev_err(&client->dev, "invalid regulator %s\n",
+			dev_err(dev, "invalid regulator %s\n",
 				 pdata->subdevs[i].name);
 			goto err_out;
 		}
@@ -397,14 +484,15 @@ static int max8660_probe(struct i2c_client *client,
 
 		id = pdata->subdevs[i].id;
 
-		config.dev = &client->dev;
+		config.dev = dev;
 		config.init_data = pdata->subdevs[i].platform_data;
+		config.of_node = of_node[i];
 		config.driver_data = max8660;
 
 		rdev[i] = regulator_register(&max8660_reg[id], &config);
 		if (IS_ERR(rdev[i])) {
 			ret = PTR_ERR(rdev[i]);
-			dev_err(&client->dev, "failed to register %s\n",
+			dev_err(dev, "failed to register %s\n",
 				max8660_reg[id].name);
 			goto err_unregister;
 		}
@@ -431,8 +519,8 @@ static int max8660_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id max8660_id[] = {
-	{ "max8660", 0 },
-	{ "max8661", 0 },
+	{ .name = "max8660", .driver_data = MAX8660 },
+	{ .name = "max8661", .driver_data = MAX8661 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max8660_id);

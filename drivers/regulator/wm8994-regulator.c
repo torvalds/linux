@@ -125,7 +125,7 @@ static const struct regulator_init_data wm8994_ldo_default[] = {
 static int wm8994_ldo_probe(struct platform_device *pdev)
 {
 	struct wm8994 *wm8994 = dev_get_drvdata(pdev->dev.parent);
-	struct wm8994_pdata *pdata = wm8994->dev->platform_data;
+	struct wm8994_pdata *pdata = dev_get_platdata(wm8994->dev);
 	int id = pdev->id % ARRAY_SIZE(pdata->ldo);
 	struct regulator_config config = { };
 	struct wm8994_ldo *ldo;

@@ -151,7 +151,7 @@ static irqreturn_t wm831x_isink_irq(int irq, void *data)
 static int wm831x_isink_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
-	struct wm831x_pdata *pdata = wm831x->dev->platform_data;
+	struct wm831x_pdata *pdata = dev_get_platdata(wm831x->dev);
 	struct wm831x_isink *isink;
 	int id = pdev->id % ARRAY_SIZE(pdata->isink);
 	struct regulator_config config = { };

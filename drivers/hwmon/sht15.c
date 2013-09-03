@@ -957,7 +957,7 @@ static int sht15_probe(struct platform_device *pdev)
 	 * If a regulator is available,
 	 * query what the supply voltage actually is!
 	 */
-	data->reg = devm_regulator_get(data->dev, "vcc");
+	data->reg = devm_regulator_get_optional(data->dev, "vcc");
 	if (!IS_ERR(data->reg)) {
 		int voltage;
 
