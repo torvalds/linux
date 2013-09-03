@@ -2727,10 +2727,13 @@ static int rcu_cpu_has_callbacks(int cpu, bool *all_lazy)
 
 	for_each_rcu_flavor(rsp) {
 		rdp = per_cpu_ptr(rsp->rda, cpu);
-		if (rdp->qlen != rdp->qlen_lazy)
+		if (!rdp->nxtlist)
+			continue;
+		hc = true;
+		if (rdp->qlen != rdp->qlen_lazy || !all_lazy) {
 			al = false;
-		if (rdp->nxtlist)
-			hc = true;
+			break;
+		}
 	}
 	if (all_lazy)
 		*all_lazy = al;
@@ -3297,8 +3300,8 @@ void __init rcu_init(void)
 
 	rcu_bootup_announce();
 	rcu_init_geometry();
-	rcu_init_one(&rcu_sched_state, &rcu_sched_data);
 	rcu_init_one(&rcu_bh_state, &rcu_bh_data);
+	rcu_init_one(&rcu_sched_state, &rcu_sched_data);
 	__rcu_init_preempt();
 	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
 
