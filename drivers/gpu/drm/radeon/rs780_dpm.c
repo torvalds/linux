@@ -376,9 +376,8 @@ static void rs780_disable_vbios_powersaving(struct radeon_device *rdev)
 	WREG32_P(CG_INTGFX_MISC, 0, ~0xFFF00000);
 }
 
-static void rs780_force_voltage_to_high(struct radeon_device *rdev)
+static void rs780_force_voltage(struct radeon_device *rdev, u16 voltage)
 {
-	struct igp_power_info *pi = rs780_get_pi(rdev);
 	struct igp_ps *current_state = rs780_get_ps(rdev->pm.dpm.current_ps);
 
 	if ((current_state->max_voltage == RS780_VDDC_LEVEL_HIGH) &&
@@ -390,7 +389,7 @@ static void rs780_force_voltage_to_high(struct radeon_device *rdev)
 	udelay(1);
 
 	WREG32_P(FVTHROT_PWM_CTRL_REG0,
-		 STARTING_PWM_HIGHTIME(pi->max_voltage),
+		 STARTING_PWM_HIGHTIME(voltage),
 		 ~STARTING_PWM_HIGHTIME_MASK);
 
 	WREG32_P(FVTHROT_PWM_CTRL_REG0,
@@ -400,6 +399,26 @@ static void rs780_force_voltage_to_high(struct radeon_device *rdev)
 		~RANGE_PWM_FEEDBACK_DIV_EN);
 
 	udelay(1);
+
+	WREG32_P(GFX_MACRO_BYPASS_CNTL, 0, ~SPLL_BYPASS_CNTL);
+}
+
+static void rs780_force_fbdiv(struct radeon_device *rdev, u32 fb_div)
+{
+	struct igp_ps *current_state = rs780_get_ps(rdev->pm.dpm.current_ps);
+
+	if (current_state->sclk_low == current_state->sclk_high)
+		return;
+
+	WREG32_P(GFX_MACRO_BYPASS_CNTL, SPLL_BYPASS_CNTL, ~SPLL_BYPASS_CNTL);
+
+	WREG32_P(FVTHROT_FBDIV_REG2, FORCED_FEEDBACK_DIV(fb_div),
+		 ~FORCED_FEEDBACK_DIV_MASK);
+	WREG32_P(FVTHROT_FBDIV_REG1, STARTING_FEEDBACK_DIV(fb_div),
+		 ~STARTING_FEEDBACK_DIV_MASK);
+	WREG32_P(FVTHROT_FBDIV_REG1, FORCE_FEEDBACK_DIV, ~FORCE_FEEDBACK_DIV);
+
+	udelay(100);
 
 	WREG32_P(GFX_MACRO_BYPASS_CNTL, 0, ~SPLL_BYPASS_CNTL);
 }
@@ -432,17 +451,7 @@ static int rs780_set_engine_clock_scaling(struct radeon_device *rdev,
 	if (ret)
 		return ret;
 
-	WREG32_P(GFX_MACRO_BYPASS_CNTL, SPLL_BYPASS_CNTL, ~SPLL_BYPASS_CNTL);
-
-	WREG32_P(FVTHROT_FBDIV_REG2, FORCED_FEEDBACK_DIV(max_dividers.fb_div),
-		 ~FORCED_FEEDBACK_DIV_MASK);
-	WREG32_P(FVTHROT_FBDIV_REG1, STARTING_FEEDBACK_DIV(max_dividers.fb_div),
-		 ~STARTING_FEEDBACK_DIV_MASK);
-	WREG32_P(FVTHROT_FBDIV_REG1, FORCE_FEEDBACK_DIV, ~FORCE_FEEDBACK_DIV);
-
-	udelay(100);
-
-	WREG32_P(GFX_MACRO_BYPASS_CNTL, 0, ~SPLL_BYPASS_CNTL);
+	rs780_force_fbdiv(rdev, max_dividers.fb_div);
 
 	if (max_dividers.fb_div > min_dividers.fb_div) {
 		WREG32_P(FVTHROT_FBDIV_REG0,
@@ -649,7 +658,7 @@ int rs780_dpm_set_power_state(struct radeon_device *rdev)
 	rs780_set_uvd_clock_before_set_eng_clock(rdev, new_ps, old_ps);
 
 	if (pi->voltage_control) {
-		rs780_force_voltage_to_high(rdev);
+		rs780_force_voltage(rdev, pi->max_voltage);
 		mdelay(5);
 	}
 
@@ -985,4 +994,54 @@ void rs780_dpm_debugfs_print_current_performance_level(struct radeon_device *rde
 	else
 		seq_printf(m, "power level 1    sclk: %u vddc_index: %d\n",
 			   ps->sclk_high, ps->max_voltage);
+}
+
+int rs780_dpm_force_performance_level(struct radeon_device *rdev,
+				      enum radeon_dpm_forced_level level)
+{
+	struct igp_power_info *pi = rs780_get_pi(rdev);
+	struct radeon_ps *rps = rdev->pm.dpm.current_ps;
+	struct igp_ps *ps = rs780_get_ps(rps);
+	struct atom_clock_dividers dividers;
+	int ret;
+
+	rs780_clk_scaling_enable(rdev, false);
+	rs780_voltage_scaling_enable(rdev, false);
+
+	if (level == RADEON_DPM_FORCED_LEVEL_HIGH) {
+		if (pi->voltage_control)
+			rs780_force_voltage(rdev, pi->max_voltage);
+
+		ret = radeon_atom_get_clock_dividers(rdev, COMPUTE_ENGINE_PLL_PARAM,
+						     ps->sclk_high, false, &dividers);
+		if (ret)
+			return ret;
+
+		rs780_force_fbdiv(rdev, dividers.fb_div);
+	} else if (level == RADEON_DPM_FORCED_LEVEL_LOW) {
+		ret = radeon_atom_get_clock_dividers(rdev, COMPUTE_ENGINE_PLL_PARAM,
+						     ps->sclk_low, false, &dividers);
+		if (ret)
+			return ret;
+
+		rs780_force_fbdiv(rdev, dividers.fb_div);
+
+		if (pi->voltage_control)
+			rs780_force_voltage(rdev, pi->min_voltage);
+	} else {
+		if (pi->voltage_control)
+			rs780_force_voltage(rdev, pi->max_voltage);
+
+		WREG32_P(FVTHROT_FBDIV_REG1, 0, ~FORCE_FEEDBACK_DIV);
+		rs780_clk_scaling_enable(rdev, true);
+
+		if (pi->voltage_control) {
+			rs780_voltage_scaling_enable(rdev, true);
+			rs780_enable_voltage_scaling(rdev, rps);
+		}
+	}
+
+	rdev->pm.dpm.forced_level = level;
+
+	return 0;
 }
