@@ -69,9 +69,6 @@ struct intel_limit {
 	intel_p2_t	    p2;
 };
 
-/* FDI */
-#define IRONLAKE_FDI_FREQ		2700000 /* in kHz for mode->clock */
-
 int
 intel_pch_rawclk(struct drm_device *dev)
 {
@@ -4106,13 +4103,6 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
-
-	if (HAS_PCH_SPLIT(dev)) {
-		/* FDI link clock is fixed at 2.7G */
-		if (pipe_config->requested_mode.clock * 3
-		    > IRONLAKE_FDI_FREQ * 4)
-			return -EINVAL;
-	}
 
 	/* Cantiga+ cannot handle modes with a hsync front porch of 0.
 	 * WaPruneModeWithIncorrectHsyncOffset:ctg,elk,ilk,snb,ivb,vlv,hsw.
