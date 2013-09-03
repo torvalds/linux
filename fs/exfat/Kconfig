@@ -1,0 +1,19 @@
+config EXFAT_FS
+	tristate "exFAT filesystem support"
+	select NLS
+	help
+	  exFAT driver from Samsung
+
+config EXFAT_DEFAULT_CODEPAGE
+	int "Default codepage for exFAT"
+	depends on EXFAT_FS
+	default 437
+	help
+	  This option should be set to the codepage of your exFAT filesystems.
+
+config EXFAT_DEFAULT_IOCHARSET
+	string "Default iocharset for exFAT"
+	depends on EXFAT_FS
+	default "utf8"
+	help
+	  Set this to the default input/output character set you'd like exFAT to use.
