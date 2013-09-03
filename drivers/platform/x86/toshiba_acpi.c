@@ -940,21 +940,17 @@ static void toshiba_acpi_hotkey_work(struct work_struct *work)
  */
 static int toshiba_acpi_query_hotkey(struct toshiba_acpi_dev *dev)
 {
-	struct acpi_buffer buf;
-	union acpi_object out_obj;
+	unsigned long long value;
 	acpi_status status;
 
-	buf.pointer = &out_obj;
-	buf.length = sizeof(out_obj);
-
-	status = acpi_evaluate_object(dev->acpi_dev->handle, "INFO",
-				      NULL, &buf);
-	if (ACPI_FAILURE(status) || out_obj.type != ACPI_TYPE_INTEGER) {
+	status = acpi_evaluate_integer(dev->acpi_dev->handle, "INFO",
+				      NULL, &value);
+	if (ACPI_FAILURE(status)) {
 		pr_err("ACPI INFO method execution failed\n");
 		return -EIO;
 	}
 
-	return out_obj.integer.value;
+	return value;
 }
 
 static void toshiba_acpi_report_hotkey(struct toshiba_acpi_dev *dev,
