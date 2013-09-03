@@ -1749,11 +1749,11 @@ static inline int pci_pcie_cap(struct pci_dev *dev)
  * pci_is_pcie - check if the PCI device is PCI Express capable
  * @dev: PCI device
  *
- * Retrun true if the PCI device is PCI Express capable, false otherwise.
+ * Returns: true if the PCI device is PCI Express capable, false otherwise.
  */
 static inline bool pci_is_pcie(struct pci_dev *dev)
 {
-	return !!pci_pcie_cap(dev);
+	return pci_pcie_cap(dev);
 }
 
 /**
