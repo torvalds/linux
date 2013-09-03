@@ -278,6 +278,25 @@ char GetSNSectorInfo(char * pbuf)
     return 0;
 }
 
+
+char GetSNSectorInfoBeforeNandInit(char * pbuf)
+{
+    char * sn_addr = ioremap(0x10501600,0x200);
+    memcpy(pbuf,sn_addr,0x200);
+    iounmap(sn_addr);
+	//print_hex_dump(KERN_WARNING, "sn:", DUMP_PREFIX_NONE, 16,1, sn_addr, 0x200, 0);
+    return 0;
+} 
+
+char GetVendor0InfoBeforeNandInit(char * pbuf)
+{
+    char * sn_addr = ioremap(0x10501400,0x200);
+    memcpy(pbuf,sn_addr + 8,504);
+    iounmap(sn_addr);
+	//print_hex_dump(KERN_WARNING, "sn:", DUMP_PREFIX_NONE, 16,1, sn_addr, 0x200, 0);
+    return 0;
+} 
+
 char GetChipSectorInfo(char * pbuf)
 {
     if(gpNandInfo->GetChipSectorInfo)
