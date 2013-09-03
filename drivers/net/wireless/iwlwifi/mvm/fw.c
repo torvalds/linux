@@ -243,7 +243,7 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (mvm->init_ucode_run)
+	if (mvm->init_ucode_complete)
 		return 0;
 
 	iwl_init_notification_wait(&mvm->notif_wait,
@@ -310,7 +310,7 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	ret = iwl_wait_notification(&mvm->notif_wait, &calib_wait,
 			MVM_UCODE_CALIB_TIMEOUT);
 	if (!ret)
-		mvm->init_ucode_run = true;
+		mvm->init_ucode_complete = true;
 	goto out;
 
 error:
@@ -353,8 +353,12 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	if (ret)
 		return ret;
 
-	/* If we were in RFKILL during module loading, load init ucode now */
-	if (!mvm->init_ucode_run) {
+	/*
+	 * If we haven't completed the run of the init ucode during
+	 * module loading, load init ucode now
+	 * (for example, if we were in RFKILL)
+	 */
+	if (!mvm->init_ucode_complete) {
 		ret = iwl_run_init_mvm_ucode(mvm, false);
 		if (ret && !iwlmvm_mod_params.init_dbg) {
 			IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", ret);
