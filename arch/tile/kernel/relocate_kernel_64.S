@@ -34,11 +34,11 @@ STD_ENTRY(relocate_new_kernel)
 	addi	sp, sp, -8
 	/* we now have a stack (whether we need one or not) */
 
+#ifdef RELOCATE_NEW_KERNEL_VERBOSE
 	moveli	r40, hw2_last(hv_console_putc)
 	shl16insli r40, r40, hw1(hv_console_putc)
 	shl16insli r40, r40, hw0(hv_console_putc)
 
-#ifdef RELOCATE_NEW_KERNEL_VERBOSE
 	moveli	r0, 'r'
 	jalr	r40
 
@@ -176,10 +176,12 @@ STD_ENTRY(relocate_new_kernel)
 
 	/* we should not get here */
 
+#ifdef RELOCATE_NEW_KERNEL_VERBOSE
 	moveli	r0, '?'
 	jalr	r40
 	moveli	r0, '\n'
 	jalr	r40
+#endif
 
 	j	.Lhalt
 
@@ -237,7 +239,9 @@ STD_ENTRY(relocate_new_kernel)
 	j	.Lloop
 
 
-.Lerr:	moveli	r0, 'e'
+.Lerr:
+#ifdef RELOCATE_NEW_KERNEL_VERBOSE
+	moveli	r0, 'e'
 	jalr	r40
 	moveli	r0, 'r'
 	jalr	r40
@@ -245,6 +249,7 @@ STD_ENTRY(relocate_new_kernel)
 	jalr	r40
 	moveli	r0, '\n'
 	jalr	r40
+#endif
 .Lhalt:
 	moveli r41, hw2_last(hv_halt)
 	shl16insli r41, r41, hw1(hv_halt)
