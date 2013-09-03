@@ -974,7 +974,7 @@ static void toshiba_acpi_report_hotkey(struct toshiba_acpi_dev *dev,
 static int toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 {
 	acpi_status status;
-	acpi_handle ec_handle, handle;
+	acpi_handle ec_handle;
 	int error;
 	u32 hci_result;
 
@@ -1001,10 +1001,7 @@ static int toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 	 */
 	status = AE_ERROR;
 	ec_handle = ec_get_handle();
-	if (ec_handle)
-		status = acpi_get_handle(ec_handle, "NTFY", &handle);
-
-	if (ACPI_SUCCESS(status)) {
+	if (ec_handle && acpi_has_method(ec_handle, "NTFY")) {
 		INIT_WORK(&dev->hotkey_work, toshiba_acpi_hotkey_work);
 
 		error = i8042_install_filter(toshiba_acpi_i8042_filter);
@@ -1020,10 +1017,9 @@ static int toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 	 * Determine hotkey query interface. Prefer using the INFO
 	 * method when it is available.
 	 */
-	status = acpi_get_handle(dev->acpi_dev->handle, "INFO", &handle);
-	if (ACPI_SUCCESS(status)) {
+	if (acpi_has_method(dev->acpi_dev->handle, "INFO"))
 		dev->info_supported = 1;
-	} else {
+	else {
 		hci_write1(dev, HCI_SYSTEM_EVENT, 1, &hci_result);
 		if (hci_result == HCI_SUCCESS)
 			dev->system_event_supported = 1;
@@ -1148,15 +1144,10 @@ static int toshiba_acpi_remove(struct acpi_device *acpi_dev)
 
 static const char *find_hci_method(acpi_handle handle)
 {
-	acpi_status status;
-	acpi_handle hci_handle;
-
-	status = acpi_get_handle(handle, "GHCI", &hci_handle);
-	if (ACPI_SUCCESS(status))
+	if (acpi_has_method(handle, "GHCI"))
 		return "GHCI";
 
-	status = acpi_get_handle(handle, "SPFC", &hci_handle);
-	if (ACPI_SUCCESS(status))
+	if (acpi_has_method(handle, "SPFC"))
 		return "SPFC";
 
 	return NULL;
