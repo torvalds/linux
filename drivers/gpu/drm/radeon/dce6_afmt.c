@@ -28,22 +28,30 @@
 static u32 dce6_endpoint_rreg(struct radeon_device *rdev,
 			      u32 block_offset, u32 reg)
 {
+	unsigned long flags;
 	u32 r;
 
+	spin_lock_irqsave(&rdev->end_idx_lock, flags);
 	WREG32(AZ_F0_CODEC_ENDPOINT_INDEX + block_offset, reg);
 	r = RREG32(AZ_F0_CODEC_ENDPOINT_DATA + block_offset);
+	spin_unlock_irqrestore(&rdev->end_idx_lock, flags);
+
 	return r;
 }
 
 static void dce6_endpoint_wreg(struct radeon_device *rdev,
 			       u32 block_offset, u32 reg, u32 v)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&rdev->end_idx_lock, flags);
 	if (ASIC_IS_DCE8(rdev))
 		WREG32(AZ_F0_CODEC_ENDPOINT_INDEX + block_offset, reg);
 	else
 		WREG32(AZ_F0_CODEC_ENDPOINT_INDEX + block_offset,
 		       AZ_ENDPOINT_REG_WRITE_EN | AZ_ENDPOINT_REG_INDEX(reg));
 	WREG32(AZ_F0_CODEC_ENDPOINT_DATA + block_offset, v);
+	spin_unlock_irqrestore(&rdev->end_idx_lock, flags);
 }
 
 #define RREG32_ENDPOINT(block, reg) dce6_endpoint_rreg(rdev, (block), (reg))

@@ -122,20 +122,27 @@ int kv_get_temp(struct radeon_device *rdev)
  */
 u32 cik_pciep_rreg(struct radeon_device *rdev, u32 reg)
 {
+	unsigned long flags;
 	u32 r;
 
+	spin_lock_irqsave(&rdev->pciep_idx_lock, flags);
 	WREG32(PCIE_INDEX, reg);
 	(void)RREG32(PCIE_INDEX);
 	r = RREG32(PCIE_DATA);
+	spin_unlock_irqrestore(&rdev->pciep_idx_lock, flags);
 	return r;
 }
 
 void cik_pciep_wreg(struct radeon_device *rdev, u32 reg, u32 v)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&rdev->pciep_idx_lock, flags);
 	WREG32(PCIE_INDEX, reg);
 	(void)RREG32(PCIE_INDEX);
 	WREG32(PCIE_DATA, v);
 	(void)RREG32(PCIE_DATA);
+	spin_unlock_irqrestore(&rdev->pciep_idx_lock, flags);
 }
 
 static const u32 spectre_rlc_save_restore_register_list[] =

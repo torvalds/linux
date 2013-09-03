@@ -1045,20 +1045,27 @@ int r600_mc_wait_for_idle(struct radeon_device *rdev)
 
 uint32_t rs780_mc_rreg(struct radeon_device *rdev, uint32_t reg)
 {
+	unsigned long flags;
 	uint32_t r;
 
+	spin_lock_irqsave(&rdev->mc_idx_lock, flags);
 	WREG32(R_0028F8_MC_INDEX, S_0028F8_MC_IND_ADDR(reg));
 	r = RREG32(R_0028FC_MC_DATA);
 	WREG32(R_0028F8_MC_INDEX, ~C_0028F8_MC_IND_ADDR);
+	spin_unlock_irqrestore(&rdev->mc_idx_lock, flags);
 	return r;
 }
 
 void rs780_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&rdev->mc_idx_lock, flags);
 	WREG32(R_0028F8_MC_INDEX, S_0028F8_MC_IND_ADDR(reg) |
 		S_0028F8_MC_IND_WR_EN(1));
 	WREG32(R_0028FC_MC_DATA, v);
 	WREG32(R_0028F8_MC_INDEX, 0x7F);
+	spin_unlock_irqrestore(&rdev->mc_idx_lock, flags);
 }
 
 static void r600_mc_program(struct radeon_device *rdev)
@@ -2092,20 +2099,27 @@ static void r600_gpu_init(struct radeon_device *rdev)
  */
 u32 r600_pciep_rreg(struct radeon_device *rdev, u32 reg)
 {
+	unsigned long flags;
 	u32 r;
 
+	spin_lock_irqsave(&rdev->pciep_idx_lock, flags);
 	WREG32(PCIE_PORT_INDEX, ((reg) & 0xff));
 	(void)RREG32(PCIE_PORT_INDEX);
 	r = RREG32(PCIE_PORT_DATA);
+	spin_unlock_irqrestore(&rdev->pciep_idx_lock, flags);
 	return r;
 }
 
 void r600_pciep_wreg(struct radeon_device *rdev, u32 reg, u32 v)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&rdev->pciep_idx_lock, flags);
 	WREG32(PCIE_PORT_INDEX, ((reg) & 0xff));
 	(void)RREG32(PCIE_PORT_INDEX);
 	WREG32(PCIE_PORT_DATA, (v));
 	(void)RREG32(PCIE_PORT_DATA);
+	spin_unlock_irqrestore(&rdev->pciep_idx_lock, flags);
 }
 
 /*
