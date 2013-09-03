@@ -435,6 +435,20 @@ wait_on_recovery:
 	return ret;
 }
 
+/*
+ * Return 'true' if 'clp' is using an rpc_client that is integrity protected
+ * or 'false' otherwise.
+ */
+static bool _nfs4_is_integrity_protected(struct nfs_client *clp)
+{
+	rpc_authflavor_t flavor = clp->cl_rpcclient->cl_auth->au_flavor;
+
+	if (flavor == RPC_AUTH_GSS_KRB5I ||
+	    flavor == RPC_AUTH_GSS_KRB5P)
+		return true;
+
+	return false;
+}
 
 static void do_renew_lease(struct nfs_client *clp, unsigned long timestamp)
 {
@@ -5842,10 +5856,13 @@ int nfs4_proc_fs_locations(struct rpc_clnt *client, struct inode *dir,
 }
 
 /**
- * Use the state managment nfs_client cl_rpcclient, which uses krb5i (if
- * possible) as per RFC3530bis and RFC5661 Security Considerations sections
+ * If 'use_integrity' is true and the state managment nfs_client
+ * cl_rpcclient is using krb5i/p, use the integrity protected cl_rpcclient
+ * and the machine credential as per RFC3530bis and RFC5661 Security
+ * Considerations sections. Otherwise, just use the user cred with the
+ * filesystem's rpc_client.
  */
-static int _nfs4_proc_secinfo(struct inode *dir, const struct qstr *name, struct nfs4_secinfo_flavors *flavors)
+static int _nfs4_proc_secinfo(struct inode *dir, const struct qstr *name, struct nfs4_secinfo_flavors *flavors, bool use_integrity)
 {
 	int status;
 	struct nfs4_secinfo_arg args = {
@@ -5860,11 +5877,21 @@ static int _nfs4_proc_secinfo(struct inode *dir, const struct qstr *name, struct
 		.rpc_argp = &args,
 		.rpc_resp = &res,
 	};
-	struct rpc_clnt *clnt = NFS_SERVER(dir)->nfs_client->cl_rpcclient;
+	struct rpc_clnt *clnt = NFS_SERVER(dir)->client;
+
+	if (use_integrity) {
+		clnt = NFS_SERVER(dir)->nfs_client->cl_rpcclient;
+		msg.rpc_cred = nfs4_get_clid_cred(NFS_SERVER(dir)->nfs_client);
+	}
 
 	dprintk("NFS call  secinfo %s\n", name->name);
-	status = nfs4_call_sync(clnt, NFS_SERVER(dir), &msg, &args.seq_args, &res.seq_res, 0);
+	status = nfs4_call_sync(clnt, NFS_SERVER(dir), &msg, &args.seq_args,
+				&res.seq_res, 0);
 	dprintk("NFS reply  secinfo: %d\n", status);
+
+	if (msg.rpc_cred)
+		put_rpccred(msg.rpc_cred);
+
 	return status;
 }
 
@@ -5874,7 +5901,21 @@ int nfs4_proc_secinfo(struct inode *dir, const struct qstr *name,
 	struct nfs4_exception exception = { };
 	int err;
 	do {
-		err = _nfs4_proc_secinfo(dir, name, flavors);
+		err = -NFS4ERR_WRONGSEC;
+
+		/* try to use integrity protection with machine cred */
+		if (_nfs4_is_integrity_protected(NFS_SERVER(dir)->nfs_client))
+			err = _nfs4_proc_secinfo(dir, name, flavors, true);
+
+		/*
+		 * if unable to use integrity protection, or SECINFO with
+		 * integrity protection returns NFS4ERR_WRONGSEC (which is
+		 * disallowed by spec, but exists in deployed servers) use
+		 * the current filesystem's rpc_client and the user cred.
+		 */
+		if (err == -NFS4ERR_WRONGSEC)
+			err = _nfs4_proc_secinfo(dir, name, flavors, false);
+
 		trace_nfs4_secinfo(dir, name, err);
 		err = nfs4_handle_exception(NFS_SERVER(dir), err,
 				&exception);
