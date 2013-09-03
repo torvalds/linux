@@ -203,6 +203,48 @@ int ath10k_htt_h2t_ver_req_msg(struct ath10k_htt *htt)
 	return 0;
 }
 
+int ath10k_htt_h2t_stats_req(struct ath10k_htt *htt, u8 mask, u64 cookie)
+{
+	struct htt_stats_req *req;
+	struct sk_buff *skb;
+	struct htt_cmd *cmd;
+	int len = 0, ret;
+
+	len += sizeof(cmd->hdr);
+	len += sizeof(cmd->stats_req);
+
+	skb = ath10k_htc_alloc_skb(len);
+	if (!skb)
+		return -ENOMEM;
+
+	skb_put(skb, len);
+	cmd = (struct htt_cmd *)skb->data;
+	cmd->hdr.msg_type = HTT_H2T_MSG_TYPE_STATS_REQ;
+
+	req = &cmd->stats_req;
+
+	memset(req, 0, sizeof(*req));
+
+	/* currently we support only max 8 bit masks so no need to worry
+	 * about endian support */
+	req->upload_types[0] = mask;
+	req->reset_types[0] = mask;
+	req->stat_type = HTT_STATS_REQ_CFG_STAT_TYPE_INVALID;
+	req->cookie_lsb = cpu_to_le32(cookie & 0xffffffff);
+	req->cookie_msb = cpu_to_le32((cookie & 0xffffffff00000000ULL) >> 32);
+
+	ATH10K_SKB_CB(skb)->htt.is_conf = true;
+
+	ret = ath10k_htc_send(&htt->ar->htc, htt->eid, skb);
+	if (ret) {
+		ath10k_warn("failed to send htt type stats request: %d", ret);
+		dev_kfree_skb_any(skb);
+		return ret;
+	}
+
+	return 0;
+}
+
 int ath10k_htt_send_rx_ring_cfg_ll(struct ath10k_htt *htt)
 {
 	struct sk_buff *skb;

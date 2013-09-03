@@ -246,6 +246,9 @@ struct ath10k_debug {
 	u32 wmi_service_bitmap[WMI_SERVICE_BM_SIZE];
 
 	struct completion event_stats_compl;
+
+	unsigned long htt_stats_mask;
+	struct delayed_work htt_stats_dwork;
 };
 
 enum ath10k_state {

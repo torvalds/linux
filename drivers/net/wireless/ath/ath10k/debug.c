@@ -21,6 +21,9 @@
 #include "core.h"
 #include "debug.h"
 
+/* ms */
+#define ATH10K_DEBUG_HTT_STATS_INTERVAL 1000
+
 static int ath10k_printk(const char *level, const char *fmt, ...)
 {
 	struct va_format vaf;
@@ -517,13 +520,115 @@ static const struct file_operations fops_chip_id = {
 	.llseek = default_llseek,
 };
 
+static int ath10k_debug_htt_stats_req(struct ath10k *ar)
+{
+	u64 cookie;
+	int ret;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	if (ar->debug.htt_stats_mask == 0)
+		/* htt stats are disabled */
+		return 0;
+
+	if (ar->state != ATH10K_STATE_ON)
+		return 0;
+
+	cookie = get_jiffies_64();
+
+	ret = ath10k_htt_h2t_stats_req(&ar->htt, ar->debug.htt_stats_mask,
+				       cookie);
+	if (ret) {
+		ath10k_warn("failed to send htt stats request: %d\n", ret);
+		return ret;
+	}
+
+	queue_delayed_work(ar->workqueue, &ar->debug.htt_stats_dwork,
+			   msecs_to_jiffies(ATH10K_DEBUG_HTT_STATS_INTERVAL));
+
+	return 0;
+}
+
+static void ath10k_debug_htt_stats_dwork(struct work_struct *work)
+{
+	struct ath10k *ar = container_of(work, struct ath10k,
+					 debug.htt_stats_dwork.work);
+
+	mutex_lock(&ar->conf_mutex);
+
+	ath10k_debug_htt_stats_req(ar);
+
+	mutex_unlock(&ar->conf_mutex);
+}
+
+static ssize_t ath10k_read_htt_stats_mask(struct file *file,
+					    char __user *user_buf,
+					    size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	char buf[32];
+	unsigned int len;
+
+	len = scnprintf(buf, sizeof(buf), "%lu\n", ar->debug.htt_stats_mask);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t ath10k_write_htt_stats_mask(struct file *file,
+					     const char __user *user_buf,
+					     size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	unsigned long mask;
+	int ret;
+
+	ret = kstrtoul_from_user(user_buf, count, 0, &mask);
+	if (ret)
+		return ret;
+
+	/* max 8 bit masks (for now) */
+	if (mask > 0xff)
+		return -E2BIG;
+
+	mutex_lock(&ar->conf_mutex);
+
+	ar->debug.htt_stats_mask = mask;
+
+	ret = ath10k_debug_htt_stats_req(ar);
+	if (ret)
+		goto out;
+
+	ret = count;
+
+out:
+	mutex_unlock(&ar->conf_mutex);
+
+	return ret;
+}
+
+static const struct file_operations fops_htt_stats_mask = {
+	.read = ath10k_read_htt_stats_mask,
+	.write = ath10k_write_htt_stats_mask,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 int ath10k_debug_start(struct ath10k *ar)
 {
+	int ret;
+
+	ret = ath10k_debug_htt_stats_req(ar);
+	if (ret)
+		/* continue normally anyway, this isn't serious */
+		ath10k_warn("failed to start htt stats workqueue: %d\n", ret);
+
 	return 0;
 }
 
 void ath10k_debug_stop(struct ath10k *ar)
 {
+	cancel_delayed_work_sync(&ar->debug.htt_stats_dwork);
 }
 
 int ath10k_debug_create(struct ath10k *ar)
@@ -533,6 +638,9 @@ int ath10k_debug_create(struct ath10k *ar)
 
 	if (!ar->debug.debugfs_phy)
 		return -ENOMEM;
+
+	INIT_DELAYED_WORK(&ar->debug.htt_stats_dwork,
+			  ath10k_debug_htt_stats_dwork);
 
 	init_completion(&ar->debug.event_stats_compl);
 
@@ -547,6 +655,9 @@ int ath10k_debug_create(struct ath10k *ar)
 
 	debugfs_create_file("chip_id", S_IRUSR, ar->debug.debugfs_phy,
 			    ar, &fops_chip_id);
+
+	debugfs_create_file("htt_stats_mask", S_IRUSR, ar->debug.debugfs_phy,
+			    ar, &fops_htt_stats_mask);
 
 	return 0;
 }
