@@ -324,6 +324,10 @@ config GPIO_ADI
 	def_bool y
 	depends on (BF51x || BF52x || BF53x || BF538 || BF539 || BF561)
 
+config PINCTRL
+	def_bool y
+	depends on BF54x || BF60x
+
 config MEM_MT48LC64M4A2FB_7E
 	bool
 	depends on (BFIN533_STAMP)
