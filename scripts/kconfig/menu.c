@@ -199,6 +199,12 @@ void menu_add_option(int token, char *arg)
 {
 	switch (token) {
 	case T_OPT_MODULES:
+		if (modules_sym)
+			zconf_error("symbol '%s' redefines option 'modules'"
+				    " already defined by symbol '%s'",
+				    current_entry->sym->name,
+				    modules_sym->name
+				    );
 		modules_sym = current_entry->sym;
 		break;
 	case T_OPT_DEFCONFIG_LIST:
