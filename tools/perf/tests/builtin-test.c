@@ -108,6 +108,10 @@ static struct test {
 		.func = test__sample_parsing,
 	},
 	{
+		.desc = "Test using a dummy software event to keep tracking",
+		.func = test__keep_tracking,
+	},
+	{
 		.func = NULL,
 	},
 };

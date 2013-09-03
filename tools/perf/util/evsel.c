@@ -323,6 +323,7 @@ const char *perf_evsel__sw_names[PERF_COUNT_SW_MAX] = {
 	"major-faults",
 	"alignment-faults",
 	"emulation-faults",
+	"dummy",
 };
 
 static const char *__perf_evsel__sw_name(u64 config)

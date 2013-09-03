@@ -1513,6 +1513,7 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, union perf_event *event,
 				printf(" ");
 				if (print_symoffset) {
 					al.addr = node->ip;
+					al.map  = node->map;
 					symbol__fprintf_symname_offs(node->sym, &al, stdout);
 				} else
 					symbol__fprintf_symname(node->sym, stdout);

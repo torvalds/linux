@@ -15,6 +15,7 @@
 #define YY_EXTRA_TYPE int
 #include "parse-events-flex.h"
 #include "pmu.h"
+#include "thread_map.h"
 
 #define MAX_NAME_LEN 100
 
@@ -106,6 +107,10 @@ static struct event_symbol event_symbols_sw[PERF_COUNT_SW_MAX] = {
 	},
 	[PERF_COUNT_SW_EMULATION_FAULTS] = {
 		.symbol = "emulation-faults",
+		.alias  = "",
+	},
+	[PERF_COUNT_SW_DUMMY] = {
+		.symbol = "dummy",
 		.alias  = "",
 	},
 };
@@ -1072,6 +1077,33 @@ int is_valid_tracepoint(const char *event_string)
 	return 0;
 }
 
+static bool is_event_supported(u8 type, unsigned config)
+{
+	bool ret = true;
+	struct perf_evsel *evsel;
+	struct perf_event_attr attr = {
+		.type = type,
+		.config = config,
+		.disabled = 1,
+		.exclude_kernel = 1,
+	};
+	struct {
+		struct thread_map map;
+		int threads[1];
+	} tmap = {
+		.map.nr	 = 1,
+		.threads = { 0 },
+	};
+
+	evsel = perf_evsel__new(&attr, 0);
+	if (evsel) {
+		ret = perf_evsel__open(evsel, NULL, &tmap.map) >= 0;
+		perf_evsel__delete(evsel);
+	}
+
+	return ret;
+}
+
 static void __print_events_type(u8 type, struct event_symbol *syms,
 				unsigned max)
 {
@@ -1079,14 +1111,16 @@ static void __print_events_type(u8 type, struct event_symbol *syms,
 	unsigned i;
 
 	for (i = 0; i < max ; i++, syms++) {
+		if (!is_event_supported(type, i))
+			continue;
+
 		if (strlen(syms->alias))
 			snprintf(name, sizeof(name),  "%s OR %s",
 				 syms->symbol, syms->alias);
 		else
 			snprintf(name, sizeof(name), "%s", syms->symbol);
 
-		printf("  %-50s [%s]\n", name,
-			event_type_descriptors[type]);
+		printf("  %-50s [%s]\n", name, event_type_descriptors[type]);
 	}
 }
 
@@ -1113,6 +1147,10 @@ int print_hwcache_events(const char *event_glob, bool name_only)
 				__perf_evsel__hw_cache_type_op_res_name(type, op, i,
 									name, sizeof(name));
 				if (event_glob != NULL && !strglobmatch(name, event_glob))
+					continue;
+
+				if (!is_event_supported(PERF_TYPE_HW_CACHE,
+							type | (op << 8) | (i << 16)))
 					continue;
 
 				if (name_only)
@@ -1142,6 +1180,9 @@ static void print_symbol_events(const char *event_glob, unsigned type,
 		if (event_glob != NULL && 
 		    !(strglobmatch(syms->symbol, event_glob) ||
 		      (syms->alias && strglobmatch(syms->alias, event_glob))))
+			continue;
+
+		if (!is_event_supported(type, i))
 			continue;
 
 		if (name_only) {

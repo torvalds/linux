@@ -246,7 +246,7 @@ void perf_evlist__disable(struct perf_evlist *evlist)
 
 	for (cpu = 0; cpu < nr_cpus; cpu++) {
 		list_for_each_entry(pos, &evlist->entries, node) {
-			if (!perf_evsel__is_group_leader(pos))
+			if (!perf_evsel__is_group_leader(pos) || !pos->fd)
 				continue;
 			for (thread = 0; thread < nr_threads; thread++)
 				ioctl(FD(pos, cpu, thread),
@@ -264,13 +264,51 @@ void perf_evlist__enable(struct perf_evlist *evlist)
 
 	for (cpu = 0; cpu < nr_cpus; cpu++) {
 		list_for_each_entry(pos, &evlist->entries, node) {
-			if (!perf_evsel__is_group_leader(pos))
+			if (!perf_evsel__is_group_leader(pos) || !pos->fd)
 				continue;
 			for (thread = 0; thread < nr_threads; thread++)
 				ioctl(FD(pos, cpu, thread),
 				      PERF_EVENT_IOC_ENABLE, 0);
 		}
 	}
+}
+
+int perf_evlist__disable_event(struct perf_evlist *evlist,
+			       struct perf_evsel *evsel)
+{
+	int cpu, thread, err;
+
+	if (!evsel->fd)
+		return 0;
+
+	for (cpu = 0; cpu < evlist->cpus->nr; cpu++) {
+		for (thread = 0; thread < evlist->threads->nr; thread++) {
+			err = ioctl(FD(evsel, cpu, thread),
+				    PERF_EVENT_IOC_DISABLE, 0);
+			if (err)
+				return err;
+		}
+	}
+	return 0;
+}
+
+int perf_evlist__enable_event(struct perf_evlist *evlist,
+			      struct perf_evsel *evsel)
+{
+	int cpu, thread, err;
+
+	if (!evsel->fd)
+		return -EINVAL;
+
+	for (cpu = 0; cpu < evlist->cpus->nr; cpu++) {
+		for (thread = 0; thread < evlist->threads->nr; thread++) {
+			err = ioctl(FD(evsel, cpu, thread),
+				    PERF_EVENT_IOC_ENABLE, 0);
+			if (err)
+				return err;
+		}
+	}
+	return 0;
 }
 
 static int perf_evlist__alloc_pollfd(struct perf_evlist *evlist)
