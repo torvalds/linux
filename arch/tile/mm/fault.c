@@ -283,7 +283,7 @@ static int handle_page_fault(struct pt_regs *regs,
 	flags = (FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE |
 		 (write ? FAULT_FLAG_WRITE : 0));
 
-	is_kernel_mode = (EX1_PL(regs->ex1) != USER_PL);
+	is_kernel_mode = !user_mode(regs);
 
 	tsk = validate_current();
 
@@ -824,7 +824,7 @@ void do_page_fault(struct pt_regs *regs, int fault_num,
 	}
 
 #if CHIP_HAS_TILE_DMA() || CHIP_HAS_SN_PROC()
-	if (EX1_PL(regs->ex1) != USER_PL) {
+	if (!user_mode(regs)) {
 		struct async_tlb *async;
 		switch (fault_num) {
 #if CHIP_HAS_TILE_DMA()

@@ -34,6 +34,16 @@
 
 #define PTREGS_OFFSET_SYSCALL PTREGS_OFFSET_REG(TREG_SYSCALL_NR)
 
+#if CONFIG_KERNEL_PL == 1 || CONFIG_KERNEL_PL == 2
+/*
+ * Set "result" non-zero if ex1 holds the PL of the kernel
+ * (with or without ICS being set).  Note this works only
+ * because we never find the PL at level 3.
+ */
+# define IS_KERNEL_EX1(result, ex1) andi result, ex1, CONFIG_KERNEL_PL
+#else
+# error Recode IS_KERNEL_EX1 for CONFIG_KERNEL_PL
+#endif
 
 	.macro  push_reg reg, ptr=sp, delta=-8
 	{
@@ -308,7 +318,7 @@ intvec_\vecname:
 	 */
 	{
 	 blbs   sp, 2f
-	 andi   r0, r0, SPR_EX_CONTEXT_1_1__PL_MASK  /* mask off ICS */
+	 IS_KERNEL_EX1(r0, r0)
 	}
 
 	.ifc    \vecnum, INT_DOUBLE_FAULT
@@ -641,11 +651,12 @@ intvec_\vecname:
 	/*
 	 * If we will be returning to the kernel, we will need to
 	 * reset the interrupt masks to the state they had before.
-	 * Set DISABLE_IRQ in flags iff we came from PL1 with irqs disabled.
+	 * Set DISABLE_IRQ in flags iff we came from kernel pl with
+	 * irqs disabled.
 	 */
 	mfspr   r32, SPR_EX_CONTEXT_K_1
 	{
-	 andi   r32, r32, SPR_EX_CONTEXT_1_1__PL_MASK  /* mask off ICS */
+	 IS_KERNEL_EX1(r22, r22)
 	 PTREGS_PTR(r21, PTREGS_OFFSET_FLAGS)
 	}
 	beqzt   r32, 1f       /* zero if from user space */
@@ -812,7 +823,7 @@ STD_ENTRY(interrupt_return)
 	 PTREGS_PTR(r29, PTREGS_OFFSET_EX1)
 	}
 	ld      r29, r29
-	andi    r29, r29, SPR_EX_CONTEXT_1_1__PL_MASK  /* mask off ICS */
+	IS_KERNEL_EX1(r29, r29)
 	{
 	 beqzt  r29, .Lresume_userspace
 	 move   r29, sp
@@ -936,7 +947,7 @@ STD_ENTRY(interrupt_return)
 	 PTREGS_PTR(r32, PTREGS_OFFSET_FLAGS)
 	}
 	{
-	 andi   r0, r0, SPR_EX_CONTEXT_1_1__PL_MASK
+	 IS_KERNEL_EX1(r0, r0)
 	 ld     r32, r32
 	}
 	bnez    r0, 1f
@@ -1007,7 +1018,7 @@ STD_ENTRY(interrupt_return)
 	pop_reg r21, sp, PTREGS_OFFSET_REG(31) - PTREGS_OFFSET_PC
 	{
 	 mtspr  SPR_EX_CONTEXT_K_1, lr
-	 andi   lr, lr, SPR_EX_CONTEXT_1_1__PL_MASK  /* mask off ICS */
+	 IS_KERNEL_EX1(lr, lr)
 	}
 	{
 	 mtspr  SPR_EX_CONTEXT_K_0, r21

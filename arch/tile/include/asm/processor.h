@@ -15,6 +15,8 @@
 #ifndef _ASM_TILE_PROCESSOR_H
 #define _ASM_TILE_PROCESSOR_H
 
+#include <arch/chip.h>
+
 #ifndef __ASSEMBLY__
 
 /*
@@ -25,7 +27,6 @@
 #include <asm/ptrace.h>
 #include <asm/percpu.h>
 
-#include <arch/chip.h>
 #include <arch/spr_def.h>
 
 struct task_struct;
@@ -347,7 +348,6 @@ extern int kdata_huge;
 
 /*
  * Provide symbolic constants for PLs.
- * Note that assembly code assumes that USER_PL is zero.
  */
 #define USER_PL 0
 #if CONFIG_KERNEL_PL == 2

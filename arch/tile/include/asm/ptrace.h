@@ -39,7 +39,7 @@ typedef unsigned long pt_reg_t;
 #define user_stack_pointer(regs) ((regs)->sp)
 
 /* Does the process account for user or for system time? */
-#define user_mode(regs) (EX1_PL((regs)->ex1) == USER_PL)
+#define user_mode(regs) (EX1_PL((regs)->ex1) < KERNEL_PL)
 
 /* Fill in a struct pt_regs with the current kernel registers. */
 struct pt_regs *get_pt_regs(struct pt_regs *);

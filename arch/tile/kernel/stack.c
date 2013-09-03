@@ -103,7 +103,7 @@ static struct pt_regs *valid_fault_handler(struct KBacktraceIterator* kbt)
 	    p->sp >= sp) {
 		if (kbt->verbose)
 			pr_err("  <%s while in kernel mode>\n", fault);
-	} else if (EX1_PL(p->ex1) == USER_PL &&
+	} else if (user_mode(p) &&
 		   p->sp < PAGE_OFFSET && p->sp != 0) {
 		if (kbt->verbose)
 			pr_err("  <%s while in user mode>\n", fault);
