@@ -43,6 +43,13 @@
 		mux-int-port = <1>;
 		mux-ext-port = <3>;
 	};
+
+	sound-spdif {
+		compatible = "fsl,imx-audio-spdif";
+		model = "imx-spdif";
+		spdif-controller = <&spdif>;
+		spdif-out;
+	};
 };
 
 &audmux {
@@ -90,6 +97,12 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet_1>;
 	phy-mode = "rgmii";
+	status = "okay";
+};
+
+&spdif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spdif_3>;
 	status = "okay";
 };
 
