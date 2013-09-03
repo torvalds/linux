@@ -53,18 +53,27 @@ static inline u32 __raw_readl(const volatile void __iomem *addr)
 #endif
 
 #define readb __raw_readb
+#ifndef readb_relaxed
+#define readb_relaxed readb
+#endif
 
 #define readw readw
 static inline u16 readw(const volatile void __iomem *addr)
 {
 	return __le16_to_cpu(__raw_readw(addr));
 }
+#ifndef readw_relaxed
+#define readw_relaxed readw
+#endif
 
 #define readl readl
 static inline u32 readl(const volatile void __iomem *addr)
 {
 	return __le32_to_cpu(__raw_readl(addr));
 }
+#ifndef readl_relaxed
+#define readl_relaxed readl
+#endif
 
 #ifndef __raw_writeb
 static inline void __raw_writeb(u8 b, volatile void __iomem *addr)
@@ -88,8 +97,19 @@ static inline void __raw_writel(u32 b, volatile void __iomem *addr)
 #endif
 
 #define writeb __raw_writeb
+#ifndef writeb_relaxed
+#define writeb_relaxed writeb
+#endif
+
 #define writew(b,addr) __raw_writew(__cpu_to_le16(b),addr)
+#ifndef writew_relaxed
+#define writew_relaxed writew
+#endif
+
 #define writel(b,addr) __raw_writel(__cpu_to_le32(b),addr)
+#ifndef writel_relaxed
+#define writel_relaxed writel
+#endif
 
 #ifdef CONFIG_64BIT
 #ifndef __raw_readq
@@ -104,6 +124,9 @@ static inline u64 readq(const volatile void __iomem *addr)
 {
 	return __le64_to_cpu(__raw_readq(addr));
 }
+#ifndef readq_relaxed
+#define readq_relaxed readq
+#endif
 
 #ifndef __raw_writeq
 static inline void __raw_writeq(u64 b, volatile void __iomem *addr)
@@ -113,6 +136,9 @@ static inline void __raw_writeq(u64 b, volatile void __iomem *addr)
 #endif
 
 #define writeq(b, addr) __raw_writeq(__cpu_to_le64(b), addr)
+#ifndef writeq_relaxed
+#define writeq_relaxed writeq
+#endif
 #endif /* CONFIG_64BIT */
 
 #ifndef PCI_IOBASE
