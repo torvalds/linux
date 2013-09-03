@@ -1195,20 +1195,7 @@ static void mld_update_qri(struct inet6_dev *idev,
 	 *  - 5.1.3. Maximum Response Code
 	 *  - 9.3. Query Response Interval
 	 */
-	unsigned long mc_qri, mc_mrc = ntohs(mlh2->mld2q_mrc);
-
-	if (mc_mrc < 32768) {
-		mc_qri = mc_mrc;
-	} else {
-		unsigned long mc_man, mc_exp;
-
-		mc_exp = MLDV2_MRC_EXP(mc_mrc);
-		mc_man = MLDV2_MRC_MAN(mc_mrc);
-
-		mc_qri = (mc_man | 0x1000) << (mc_exp + 3);
-	}
-
-	idev->mc_qri = msecs_to_jiffies(mc_qri);
+	idev->mc_qri = msecs_to_jiffies(mldv2_mrc(mlh2));
 }
 
 /* called with rcu_read_lock() */
@@ -1277,8 +1264,7 @@ int igmp6_event_query(struct sk_buff *skb)
 
 		mlh2 = (struct mld2_query *)skb_transport_header(skb);
 
-		max_delay = max(msecs_to_jiffies(MLDV2_MRC(ntohs(mlh2->mld2q_mrc))), 1UL);
-
+		max_delay = max(msecs_to_jiffies(mldv2_mrc(mlh2)), 1UL);
 		idev->mc_maxdelay = max_delay;
 
 		mld_update_qrv(idev, mlh2);
