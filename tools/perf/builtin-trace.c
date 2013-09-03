@@ -72,31 +72,6 @@ static size_t syscall_arg__scnprintf_hex(char *bf, size_t size,
 
 #define SCA_HEX syscall_arg__scnprintf_hex
 
-static size_t syscall_arg__scnprintf_whence(char *bf, size_t size,
-					    struct syscall_arg *arg)
-{
-	int whence = arg->val;
-
-	switch (whence) {
-#define P_WHENCE(n) case SEEK_##n: return scnprintf(bf, size, #n)
-	P_WHENCE(SET);
-	P_WHENCE(CUR);
-	P_WHENCE(END);
-#ifdef SEEK_DATA
-	P_WHENCE(DATA);
-#endif
-#ifdef SEEK_HOLE
-	P_WHENCE(HOLE);
-#endif
-#undef P_WHENCE
-	default: break;
-	}
-
-	return scnprintf(bf, size, "%#x", whence);
-}
-
-#define SCA_WHENCE syscall_arg__scnprintf_whence
-
 static size_t syscall_arg__scnprintf_mmap_prot(char *bf, size_t size,
 					       struct syscall_arg *arg)
 {
@@ -254,10 +229,20 @@ static size_t syscall_arg__scnprintf_futex_op(char *bf, size_t size, struct sysc
 	return printed;
 }
 
+#define SCA_FUTEX_OP  syscall_arg__scnprintf_futex_op
+
 static const char *itimers[] = { "REAL", "VIRTUAL", "PROF", };
 static DEFINE_STRARRAY(itimers);
 
-#define SCA_FUTEX_OP  syscall_arg__scnprintf_futex_op
+static const char *whences[] = { "SET", "CUR", "END",
+#ifdef SEEK_DATA
+"DATA",
+#endif
+#ifdef SEEK_HOLE
+"HOLE",
+#endif
+};
+static DEFINE_STRARRAY(whences);
 
 static size_t syscall_arg__scnprintf_open_flags(char *bf, size_t size,
 					       struct syscall_arg *arg)
@@ -340,7 +325,8 @@ static struct syscall_fmt {
 	{ .name	    = "ioctl",	    .errmsg = true,
 	  .arg_scnprintf = { [2] = SCA_HEX, /* arg */ }, },
 	{ .name	    = "lseek",	    .errmsg = true,
-	  .arg_scnprintf = { [2] = SCA_WHENCE, /* whence */ }, },
+	  .arg_scnprintf = { [2] = SCA_STRARRAY, /* whence */ },
+	  .arg_parm	 = { [2] = &strarray__whences, /* whence */ }, },
 	{ .name	    = "lstat",	    .errmsg = true, .alias = "newlstat", },
 	{ .name     = "madvise",    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_HEX,	 /* start */
