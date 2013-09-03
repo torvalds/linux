@@ -1112,11 +1112,34 @@ static bool mld_marksources(struct ifmcaddr6 *pmc, int nsrcs,
 	return true;
 }
 
+static int mld_force_mld_version(const struct inet6_dev *idev)
+{
+	/* Normally, both are 0 here. If enforcement to a particular is
+	 * being used, individual device enforcement will have a lower
+	 * precedence over 'all' device (.../conf/all/force_mld_version).
+	 */
+
+	if (dev_net(idev->dev)->ipv6.devconf_all->force_mld_version != 0)
+		return dev_net(idev->dev)->ipv6.devconf_all->force_mld_version;
+	else
+		return idev->cnf.force_mld_version;
+}
+
+static bool mld_in_v2_mode_only(const struct inet6_dev *idev)
+{
+	return mld_force_mld_version(idev) == 2;
+}
+
+static bool mld_in_v1_mode_only(const struct inet6_dev *idev)
+{
+	return mld_force_mld_version(idev) == 1;
+}
+
 static bool mld_in_v1_mode(const struct inet6_dev *idev)
 {
-	if (dev_net(idev->dev)->ipv6.devconf_all->force_mld_version == 1)
-		return true;
-	if (idev->cnf.force_mld_version == 1)
+	if (mld_in_v2_mode_only(idev))
+		return false;
+	if (mld_in_v1_mode_only(idev))
 		return true;
 	if (idev->mc_v1_seen && time_before(jiffies, idev->mc_v1_seen))
 		return true;
@@ -1223,7 +1246,6 @@ int igmp6_event_query(struct sk_buff *skb)
 		return -EINVAL;
 
 	idev = __in6_dev_get(skb->dev);
-
 	if (idev == NULL)
 		return 0;
 
@@ -1236,6 +1258,10 @@ int igmp6_event_query(struct sk_buff *skb)
 		return -EINVAL;
 
 	if (len == MLD_V1_QUERY_LEN) {
+		/* Ignore v1 queries */
+		if (mld_in_v2_mode_only(idev))
+			return 0;
+
 		/* MLDv1 router present */
 		max_delay = msecs_to_jiffies(ntohs(mld->mld_maxdelay));
 
