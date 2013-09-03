@@ -1762,6 +1762,9 @@ static void btrfs_print_info(void)
 #ifdef CONFIG_BTRFS_DEBUG
 			", debug=on"
 #endif
+#ifdef CONFIG_BTRFS_ASSERT
+			", assert=on"
+#endif
 #ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
 			", integrity-checker=on"
 #endif
