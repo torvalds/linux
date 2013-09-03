@@ -7317,8 +7317,7 @@ static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 		}
 	}
 
-	pipe_config->adjusted_mode.clock = clock.dot *
-		pipe_config->pixel_multiplier;
+	pipe_config->adjusted_mode.clock = clock.dot;
 }
 
 static void ironlake_crtc_clock_get(struct intel_crtc *crtc,
