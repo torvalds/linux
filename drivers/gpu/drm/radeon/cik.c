@@ -77,6 +77,8 @@ static void cik_pcie_gen3_enable(struct radeon_device *rdev);
 static void cik_program_aspm(struct radeon_device *rdev);
 static void cik_init_pg(struct radeon_device *rdev);
 static void cik_init_cg(struct radeon_device *rdev);
+static void cik_enable_gui_idle_interrupt(struct radeon_device *rdev,
+					  bool enable);
 
 /* get temperature in millidegrees */
 int ci_get_temp(struct radeon_device *rdev)
@@ -4013,6 +4015,8 @@ static int cik_cp_resume(struct radeon_device *rdev)
 {
 	int r;
 
+	cik_enable_gui_idle_interrupt(rdev, false);
+
 	r = cik_cp_load_microcode(rdev);
 	if (r)
 		return r;
@@ -4023,6 +4027,8 @@ static int cik_cp_resume(struct radeon_device *rdev)
 	r = cik_cp_compute_resume(rdev);
 	if (r)
 		return r;
+
+	cik_enable_gui_idle_interrupt(rdev, true);
 
 	return 0;
 }
@@ -5376,7 +5382,9 @@ static void cik_enable_hdp_ls(struct radeon_device *rdev,
 void cik_update_cg(struct radeon_device *rdev,
 		   u32 block, bool enable)
 {
+
 	if (block & RADEON_CG_BLOCK_GFX) {
+		cik_enable_gui_idle_interrupt(rdev, false);
 		/* order matters! */
 		if (enable) {
 			cik_enable_mgcg(rdev, true);
@@ -5385,6 +5393,7 @@ void cik_update_cg(struct radeon_device *rdev,
 			cik_enable_cgcg(rdev, false);
 			cik_enable_mgcg(rdev, false);
 		}
+		cik_enable_gui_idle_interrupt(rdev, true);
 	}
 
 	if (block & RADEON_CG_BLOCK_MC) {
@@ -5895,7 +5904,9 @@ static void cik_disable_interrupt_state(struct radeon_device *rdev)
 	u32 tmp;
 
 	/* gfx ring */
-	WREG32(CP_INT_CNTL_RING0, CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE);
+	tmp = RREG32(CP_INT_CNTL_RING0) &
+		(CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE);
+	WREG32(CP_INT_CNTL_RING0, tmp);
 	/* sdma */
 	tmp = RREG32(SDMA0_CNTL + SDMA0_REGISTER_OFFSET) & ~TRAP_ENABLE;
 	WREG32(SDMA0_CNTL + SDMA0_REGISTER_OFFSET, tmp);
@@ -6036,8 +6047,7 @@ static int cik_irq_init(struct radeon_device *rdev)
  */
 int cik_irq_set(struct radeon_device *rdev)
 {
-	u32 cp_int_cntl = CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE |
-		PRIV_INSTR_INT_ENABLE | PRIV_REG_INT_ENABLE;
+	u32 cp_int_cntl;
 	u32 cp_m1p0, cp_m1p1, cp_m1p2, cp_m1p3;
 	u32 cp_m2p0, cp_m2p1, cp_m2p2, cp_m2p3;
 	u32 crtc1 = 0, crtc2 = 0, crtc3 = 0, crtc4 = 0, crtc5 = 0, crtc6 = 0;
@@ -6057,6 +6067,10 @@ int cik_irq_set(struct radeon_device *rdev)
 		cik_disable_interrupt_state(rdev);
 		return 0;
 	}
+
+	cp_int_cntl = RREG32(CP_INT_CNTL_RING0) &
+		(CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE);
+	cp_int_cntl |= PRIV_INSTR_INT_ENABLE | PRIV_REG_INT_ENABLE;
 
 	hpd1 = RREG32(DC_HPD1_INT_CONTROL) & ~DC_HPDx_INT_EN;
 	hpd2 = RREG32(DC_HPD2_INT_CONTROL) & ~DC_HPDx_INT_EN;
