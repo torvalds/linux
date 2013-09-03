@@ -29,24 +29,16 @@ static ssize_t irst_show_wakeup_events(struct device *dev,
 				       char *buf)
 {
 	struct acpi_device *acpi;
-	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *result;
+	unsigned long long value;
 	acpi_status status;
 
 	acpi = to_acpi_device(dev);
 
-	status = acpi_evaluate_object(acpi->handle, "GFFS", NULL, &output);
+	status = acpi_evaluate_integer(acpi->handle, "GFFS", NULL, &value);
 	if (!ACPI_SUCCESS(status))
 		return -EINVAL;
 
-	result = output.pointer;
-
-	if (result->type != ACPI_TYPE_INTEGER) {
-		kfree(result);
-		return -EINVAL;
-	}
-
-	return sprintf(buf, "%lld\n", result->integer.value);
+	return sprintf(buf, "%lld\n", value);
 }
 
 static ssize_t irst_store_wakeup_events(struct device *dev,
@@ -83,24 +75,16 @@ static ssize_t irst_show_wakeup_time(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
 	struct acpi_device *acpi;
-	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *result;
+	unsigned long long value;
 	acpi_status status;
 
 	acpi = to_acpi_device(dev);
 
-	status = acpi_evaluate_object(acpi->handle, "GFTV", NULL, &output);
+	status = acpi_evaluate_integer(acpi->handle, "GFTV", NULL, &value);
 	if (!ACPI_SUCCESS(status))
 		return -EINVAL;
 
-	result = output.pointer;
-
-	if (result->type != ACPI_TYPE_INTEGER) {
-		kfree(result);
-		return -EINVAL;
-	}
-
-	return sprintf(buf, "%lld\n", result->integer.value);
+	return sprintf(buf, "%lld\n", value);
 }
 
 static ssize_t irst_store_wakeup_time(struct device *dev,
