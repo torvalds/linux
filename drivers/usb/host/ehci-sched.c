@@ -1370,10 +1370,12 @@ iso_stream_schedule (
 	struct ehci_iso_stream	*stream
 )
 {
-	u32			now, base, next, start, period, span;
-	int			status;
+	u32			now, base, next, start, period, span, now2;
+	u32			wrap = 0, skip = 0;
+	int			status = 0;
 	unsigned		mod = ehci->periodic_size << 3;
 	struct ehci_iso_sched	*sched = urb->hcpriv;
+	bool			empty = list_empty(&stream->td_list);
 
 	period = urb->interval;
 	span = sched->span;
@@ -1384,6 +1386,19 @@ iso_stream_schedule (
 
 	now = ehci_read_frame_index(ehci) & (mod - 1);
 
+	/* Take the isochronous scheduling threshold into account */
+	if (ehci->i_thresh)
+		next = now + ehci->i_thresh;	/* uframe cache */
+	else
+		next = (now + 2 + 7) & ~0x07;	/* full frame cache */
+
+	/*
+	 * Use ehci->last_iso_frame as the base.  There can't be any
+	 * TDs scheduled for earlier than that.
+	 */
+	base = ehci->last_iso_frame << 3;
+	next = (next - base) & (mod - 1);
+
 	/*
 	 * Need to schedule; when's the next (u)frame we could start?
 	 * This is bigger than ehci->i_thresh allows; scheduling itself
@@ -1391,11 +1406,11 @@ iso_stream_schedule (
 	 * can also help high bandwidth if the dma and irq loads don't
 	 * jump until after the queue is primed.
 	 */
-	if (unlikely(list_empty(&stream->td_list))) {
+	if (unlikely(empty && !hcd_periodic_completion_in_progress(
+			ehci_to_hcd(ehci), urb->ep))) {
 		int done = 0;
 
-		base = now & ~0x07;
-		start = base + SCHEDULING_DELAY;
+		start = (now & ~0x07) + SCHEDULING_DELAY;
 
 		/* find a uframe slot with enough bandwidth.
 		 * Early uframes are more precious because full-speed
@@ -1426,6 +1441,9 @@ iso_stream_schedule (
 			status = -ENOSPC;
 			goto fail;
 		}
+
+		start = (start - base) & (mod - 1);
+		goto use_start;
 	}
 
 	/*
@@ -1434,72 +1452,85 @@ iso_stream_schedule (
 	 * (irq delays etc).  If there are, the behavior depends on
 	 * whether URB_ISO_ASAP is set.
 	 */
-	else {
+	start = (stream->next_uframe - base) & (mod - 1);
+	now2 = (now - base) & (mod - 1);
 
-		/* Take the isochronous scheduling threshold into account */
-		if (ehci->i_thresh)
-			next = now + ehci->i_thresh;	/* uframe cache */
-		else
-			next = (now + 2 + 7) & ~0x07;	/* full frame cache */
-
-		/*
-		 * Use ehci->last_iso_frame as the base.  There can't be any
-		 * TDs scheduled for earlier than that.
-		 */
-		base = ehci->last_iso_frame << 3;
-		next = (next - base) & (mod - 1);
-		start = (stream->next_uframe - base) & (mod - 1);
-
-		/* Is the schedule already full? */
-		if (unlikely(start < period)) {
-			ehci_dbg(ehci, "iso sched full %p (%u-%u < %u mod %u)\n",
-					urb, stream->next_uframe, base,
-					period, mod);
-			status = -ENOSPC;
-			goto fail;
-		}
-
-		/* Behind the scheduling threshold? */
-		if (unlikely(start < next)) {
-			unsigned now2 = (now - base) & (mod - 1);
-
-			/* USB_ISO_ASAP: Round up to the first available slot */
-			if (urb->transfer_flags & URB_ISO_ASAP)
-				start += (next - start + period - 1) & -period;
-
-			/*
-			 * Not ASAP: Use the next slot in the stream,
-			 * no matter what.
-			 */
-			else if (start + span - period < now2) {
-				ehci_dbg(ehci, "iso underrun %p (%u+%u < %u)\n",
-						urb, start + base,
-						span - period, now2 + base);
-			}
-		}
-
-		start += base;
+	/* Is the schedule already full? */
+	if (unlikely(!empty && start < period)) {
+		ehci_dbg(ehci, "iso sched full %p (%u-%u < %u mod %u)\n",
+				urb, stream->next_uframe, base, period, mod);
+		status = -ENOSPC;
+		goto fail;
 	}
 
+	/* Is the next packet scheduled after the base time? */
+	if (likely(!empty || start <= now2 + period)) {
+
+		/* URB_ISO_ASAP: make sure that start >= next */
+		if (unlikely(start < next &&
+				(urb->transfer_flags & URB_ISO_ASAP)))
+			goto do_ASAP;
+
+		/* Otherwise use start, if it's not in the past */
+		if (likely(start >= now2))
+			goto use_start;
+
+	/* Otherwise we got an underrun while the queue was empty */
+	} else {
+		if (urb->transfer_flags & URB_ISO_ASAP)
+			goto do_ASAP;
+		wrap = mod;
+		now2 += mod;
+	}
+
+	/* How many uframes and packets do we need to skip? */
+	skip = (now2 - start + period - 1) & -period;
+	if (skip >= span) {		/* Entirely in the past? */
+		ehci_dbg(ehci, "iso underrun %p (%u+%u < %u) [%u]\n",
+				urb, start + base, span - period, now2 + base,
+				base);
+
+		/* Try to keep the last TD intact for scanning later */
+		skip = span - period;
+
+		/* Will it come before the current scan position? */
+		if (empty) {
+			skip = span;	/* Skip the entire URB */
+			status = 1;	/* and give it back immediately */
+			iso_sched_free(stream, sched);
+			sched = NULL;
+		}
+	}
+	urb->error_count = skip / period;
+	if (sched)
+		sched->first_packet = urb->error_count;
+	goto use_start;
+
+ do_ASAP:
+	/* Use the first slot after "next" */
+	start = next + ((start - next) & (period - 1));
+
+ use_start:
 	/* Tried to schedule too far into the future? */
-	if (unlikely(start - base + span - period >= mod)) {
+	if (unlikely(start + span - period >= mod + wrap)) {
 		ehci_dbg(ehci, "request %p would overflow (%u+%u >= %u)\n",
-				urb, start - base, span - period, mod);
+				urb, start, span - period, mod + wrap);
 		status = -EFBIG;
 		goto fail;
 	}
 
-	stream->next_uframe = start & (mod - 1);
+	start += base;
+	stream->next_uframe = (start + skip) & (mod - 1);
 
 	/* report high speed start in uframes; full speed, in frames */
-	urb->start_frame = stream->next_uframe;
+	urb->start_frame = start & (mod - 1);
 	if (!stream->highspeed)
 		urb->start_frame >>= 3;
 
 	/* Make sure scan_isoc() sees these */
 	if (ehci->isoc_count == 0)
 		ehci->last_iso_frame = now >> 3;
-	return 0;
+	return status;
 
  fail:
 	iso_sched_free(stream, sched);
@@ -1612,7 +1643,8 @@ static void itd_link_urb(
 	ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs++;
 
 	/* fill iTDs uframe by uframe */
-	for (packet = 0, itd = NULL; packet < urb->number_of_packets; ) {
+	for (packet = iso_sched->first_packet, itd = NULL;
+			packet < urb->number_of_packets;) {
 		if (itd == NULL) {
 			/* ASSERT:  we have all necessary itds */
 			// BUG_ON (list_empty (&iso_sched->td_list));
@@ -1806,10 +1838,14 @@ static int itd_submit (struct ehci_hcd *ehci, struct urb *urb,
 	if (unlikely(status))
 		goto done_not_linked;
 	status = iso_stream_schedule(ehci, urb, stream);
-	if (likely (status == 0))
+	if (likely(status == 0)) {
 		itd_link_urb (ehci, urb, ehci->periodic_size << 3, stream);
-	else
+	} else if (status > 0) {
+		status = 0;
+		ehci_urb_done(ehci, urb, 0);
+	} else {
 		usb_hcd_unlink_urb_from_ep(ehci_to_hcd(ehci), urb);
+	}
  done_not_linked:
 	spin_unlock_irqrestore (&ehci->lock, flags);
  done:
@@ -2010,7 +2046,7 @@ static void sitd_link_urb(
 	ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs++;
 
 	/* fill sITDs frame by frame */
-	for (packet = 0, sitd = NULL;
+	for (packet = sched->first_packet, sitd = NULL;
 			packet < urb->number_of_packets;
 			packet++) {
 
@@ -2180,10 +2216,14 @@ static int sitd_submit (struct ehci_hcd *ehci, struct urb *urb,
 	if (unlikely(status))
 		goto done_not_linked;
 	status = iso_stream_schedule(ehci, urb, stream);
-	if (status == 0)
+	if (likely(status == 0)) {
 		sitd_link_urb (ehci, urb, ehci->periodic_size << 3, stream);
-	else
+	} else if (status > 0) {
+		status = 0;
+		ehci_urb_done(ehci, urb, 0);
+	} else {
 		usb_hcd_unlink_urb_from_ep(ehci_to_hcd(ehci), urb);
+	}
  done_not_linked:
 	spin_unlock_irqrestore (&ehci->lock, flags);
  done:
