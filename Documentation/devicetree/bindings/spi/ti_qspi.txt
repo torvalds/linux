@@ -1,0 +1,22 @@
+TI QSPI controller.
+
+Required properties:
+- compatible : should be "ti,dra7xxx-qspi" or "ti,am4372-qspi".
+- reg: Should contain QSPI registers location and length.
+- #address-cells, #size-cells : Must be present if the device has sub-nodes
+- ti,hwmods: Name of the hwmod associated to the QSPI
+
+Recommended properties:
+- spi-max-frequency: Definition as per
+                     Documentation/devicetree/bindings/spi/spi-bus.txt
+
+Example:
+
+qspi: qspi@4b300000 {
+	compatible = "ti,dra7xxx-qspi";
+	reg = <0x4b300000 0x100>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	spi-max-frequency = <25000000>;
+	ti,hwmods = "qspi";
+};

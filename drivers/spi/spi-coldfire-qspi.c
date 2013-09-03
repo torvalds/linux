@@ -354,24 +354,6 @@ static int mcfqspi_transfer_one_message(struct spi_master *master,
 
 }
 
-static int mcfqspi_prepare_transfer_hw(struct spi_master *master)
-{
-	struct mcfqspi *mcfqspi = spi_master_get_devdata(master);
-
-	pm_runtime_get_sync(mcfqspi->dev);
-
-	return 0;
-}
-
-static int mcfqspi_unprepare_transfer_hw(struct spi_master *master)
-{
-	struct mcfqspi *mcfqspi = spi_master_get_devdata(master);
-
-	pm_runtime_put_sync(mcfqspi->dev);
-
-	return 0;
-}
-
 static int mcfqspi_setup(struct spi_device *spi)
 {
 	if (spi->chip_select >= spi->master->num_chipselect) {
@@ -400,7 +382,7 @@ static int mcfqspi_probe(struct platform_device *pdev)
 	struct mcfqspi_platform_data *pdata;
 	int status;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
 		dev_dbg(&pdev->dev, "platform data is missing\n");
 		return -ENOENT;
@@ -473,8 +455,7 @@ static int mcfqspi_probe(struct platform_device *pdev)
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(8, 16);
 	master->setup = mcfqspi_setup;
 	master->transfer_one_message = mcfqspi_transfer_one_message;
-	master->prepare_transfer_hardware = mcfqspi_prepare_transfer_hw;
-	master->unprepare_transfer_hardware = mcfqspi_unprepare_transfer_hw;
+	master->auto_runtime_pm = true;
 
 	platform_set_drvdata(pdev, master);
 
@@ -558,7 +539,7 @@ static int mcfqspi_resume(struct device *dev)
 #ifdef CONFIG_PM_RUNTIME
 static int mcfqspi_runtime_suspend(struct device *dev)
 {
-	struct mcfqspi *mcfqspi = platform_get_drvdata(to_platform_device(dev));
+	struct mcfqspi *mcfqspi = dev_get_drvdata(dev);
 
 	clk_disable(mcfqspi->clk);
 
@@ -567,7 +548,7 @@ static int mcfqspi_runtime_suspend(struct device *dev)
 
 static int mcfqspi_runtime_resume(struct device *dev)
 {
-	struct mcfqspi *mcfqspi = platform_get_drvdata(to_platform_device(dev));
+	struct mcfqspi *mcfqspi = dev_get_drvdata(dev);
 
 	clk_enable(mcfqspi->clk);
 

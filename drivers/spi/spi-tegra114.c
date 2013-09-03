@@ -816,14 +816,6 @@ static int tegra_spi_transfer_one_message(struct spi_master *master,
 	msg->status = 0;
 	msg->actual_length = 0;
 
-	ret = pm_runtime_get_sync(tspi->dev);
-	if (ret < 0) {
-		dev_err(tspi->dev, "runtime PM get failed: %d\n", ret);
-		msg->status = ret;
-		spi_finalize_current_message(master);
-		return ret;
-	}
-
 	single_xfer = list_is_singular(&msg->transfers);
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
 		INIT_COMPLETION(tspi->xfer_completion);
@@ -859,7 +851,6 @@ static int tegra_spi_transfer_one_message(struct spi_master *master,
 	ret = 0;
 exit:
 	tegra_spi_writel(tspi, tspi->def_command1_reg, SPI_COMMAND1);
-	pm_runtime_put(tspi->dev);
 	msg->status = ret;
 	spi_finalize_current_message(master);
 	return ret;
@@ -1053,24 +1044,19 @@ static int tegra_spi_probe(struct platform_device *pdev)
 	master->transfer_one_message = tegra_spi_transfer_one_message;
 	master->num_chipselect = MAX_CHIP_SELECT;
 	master->bus_num = -1;
+	master->auto_runtime_pm = true;
 
 	tspi->master = master;
 	tspi->dev = &pdev->dev;
 	spin_lock_init(&tspi->lock);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r) {
-		dev_err(&pdev->dev, "No IO memory resource\n");
-		ret = -ENODEV;
-		goto exit_free_master;
-	}
-	tspi->phys = r->start;
 	tspi->base = devm_ioremap_resource(&pdev->dev, r);
 	if (IS_ERR(tspi->base)) {
 		ret = PTR_ERR(tspi->base);
-		dev_err(&pdev->dev, "ioremap failed: err = %d\n", ret);
 		goto exit_free_master;
 	}
+	tspi->phys = r->start;
 
 	spi_irq = platform_get_irq(pdev, 0);
 	tspi->irq = spi_irq;

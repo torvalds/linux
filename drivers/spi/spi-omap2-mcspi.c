@@ -335,23 +335,6 @@ static void omap2_mcspi_restore_ctx(struct omap2_mcspi *mcspi)
 		__raw_writel(cs->chconf0, cs->base + OMAP2_MCSPI_CHCONF0);
 }
 
-static int omap2_prepare_transfer(struct spi_master *master)
-{
-	struct omap2_mcspi *mcspi = spi_master_get_devdata(master);
-
-	pm_runtime_get_sync(mcspi->dev);
-	return 0;
-}
-
-static int omap2_unprepare_transfer(struct spi_master *master)
-{
-	struct omap2_mcspi *mcspi = spi_master_get_devdata(master);
-
-	pm_runtime_mark_last_busy(mcspi->dev);
-	pm_runtime_put_autosuspend(mcspi->dev);
-	return 0;
-}
-
 static int mcspi_wait_for_reg_bit(void __iomem *reg, unsigned long bit)
 {
 	unsigned long timeout;
@@ -1318,8 +1301,7 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
 	master->setup = omap2_mcspi_setup;
-	master->prepare_transfer_hardware = omap2_prepare_transfer;
-	master->unprepare_transfer_hardware = omap2_unprepare_transfer;
+	master->auto_runtime_pm = true;
 	master->transfer_one_message = omap2_mcspi_transfer_one_message;
 	master->cleanup = omap2_mcspi_cleanup;
 	master->dev.of_node = node;
@@ -1340,7 +1322,7 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 		if (of_get_property(node, "ti,pindir-d0-out-d1-in", NULL))
 			mcspi->pin_dir = MCSPI_PINDIR_D0_OUT_D1_IN;
 	} else {
-		pdata = pdev->dev.platform_data;
+		pdata = dev_get_platdata(&pdev->dev);
 		master->num_chipselect = pdata->num_cs;
 		if (pdev->id != -1)
 			master->bus_num = pdev->id;
