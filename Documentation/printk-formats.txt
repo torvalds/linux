@@ -168,6 +168,15 @@ UUID/GUID addresses:
 	Where no additional specifiers are used the default little endian
 	order with lower case hex characters will be printed.
 
+dentry names:
+	%pd{,2,3,4}
+	%pD{,2,3,4}
+
+	For printing dentry name; if we race with d_move(), the name might be
+	a mix of old and new ones, but it won't oops.  %pd dentry is a safer
+	equivalent of %s dentry->d_name.name we used to use, %pd<n> prints
+	n last components.  %pD does the same thing for struct file.
+
 struct va_format:
 
 	%pV
