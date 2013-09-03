@@ -396,15 +396,14 @@ static int __init pcc_cpufreq_probe(void)
 	struct pcc_memory_resource *mem_resource;
 	struct pcc_register_resource *reg_resource;
 	union acpi_object *out_obj, *member;
-	acpi_handle handle, osc_handle, pcch_handle;
+	acpi_handle handle, osc_handle;
 	int ret = 0;
 
 	status = acpi_get_handle(NULL, "\\_SB", &handle);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
-	status = acpi_get_handle(handle, "PCCH", &pcch_handle);
-	if (ACPI_FAILURE(status))
+	if (!acpi_has_method(handle, "PCCH"))
 		return -ENODEV;
 
 	status = acpi_get_handle(handle, "_OSC", &osc_handle);
