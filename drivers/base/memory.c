@@ -321,7 +321,9 @@ store_mem_state(struct device *dev,
 	struct memory_block *mem = to_memory_block(dev);
 	int ret, online_type;
 
-	lock_device_hotplug();
+	ret = lock_device_hotplug_sysfs();
+	if (ret)
+		return ret;
 
 	if (!strncmp(buf, "online_kernel", min_t(int, count, 13)))
 		online_type = ONLINE_KERNEL;

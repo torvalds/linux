@@ -50,6 +50,28 @@ static struct kobject *dev_kobj;
 struct kobject *sysfs_dev_char_kobj;
 struct kobject *sysfs_dev_block_kobj;
 
+static DEFINE_MUTEX(device_hotplug_lock);
+
+void lock_device_hotplug(void)
+{
+	mutex_lock(&device_hotplug_lock);
+}
+
+void unlock_device_hotplug(void)
+{
+	mutex_unlock(&device_hotplug_lock);
+}
+
+int lock_device_hotplug_sysfs(void)
+{
+	if (mutex_trylock(&device_hotplug_lock))
+		return 0;
+
+	/* Avoid busy looping (5 ms of sleep should do). */
+	msleep(5);
+	return restart_syscall();
+}
+
 #ifdef CONFIG_BLOCK
 static inline int device_is_not_partition(struct device *dev)
 {
@@ -407,9 +429,9 @@ static ssize_t online_show(struct device *dev, struct device_attribute *attr,
 {
 	bool val;
 
-	lock_device_hotplug();
+	device_lock(dev);
 	val = !dev->offline;
-	unlock_device_hotplug();
+	device_unlock(dev);
 	return sprintf(buf, "%u\n", val);
 }
 
@@ -423,7 +445,10 @@ static ssize_t online_store(struct device *dev, struct device_attribute *attr,
 	if (ret < 0)
 		return ret;
 
-	lock_device_hotplug();
+	ret = lock_device_hotplug_sysfs();
+	if (ret)
+		return ret;
+
 	ret = val ? device_online(dev) : device_offline(dev);
 	unlock_device_hotplug();
 	return ret < 0 ? ret : count;
@@ -1448,18 +1473,6 @@ int __init devices_init(void)
  dev_kobj_err:
 	kset_unregister(devices_kset);
 	return -ENOMEM;
-}
-
-static DEFINE_MUTEX(device_hotplug_lock);
-
-void lock_device_hotplug(void)
-{
-	mutex_lock(&device_hotplug_lock);
-}
-
-void unlock_device_hotplug(void)
-{
-	mutex_unlock(&device_hotplug_lock);
 }
 
 static int device_check_offline(struct device *dev, void *not_used)

@@ -186,18 +186,6 @@ static int cpufreq_set_cur_state(unsigned int cpu, int state)
 
 #endif
 
-int acpi_processor_get_limit_info(struct acpi_processor *pr)
-{
-
-	if (!pr)
-		return -EINVAL;
-
-	if (pr->flags.throttling)
-		pr->flags.limit = 1;
-
-	return 0;
-}
-
 /* thermal coolign device callbacks */
 static int acpi_processor_max_state(struct acpi_processor *pr)
 {
