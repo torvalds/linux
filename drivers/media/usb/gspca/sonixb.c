@@ -513,10 +513,7 @@ static void i2c_w(struct gspca_dev *gspca_dev, const u8 *buf)
 		if (gspca_dev->usb_buf[0] & 0x04) {
 			if (gspca_dev->usb_buf[0] & 0x08) {
 				dev_err(gspca_dev->v4l2_dev.dev,
-					"i2c error writing %02x %02x %02x %02x"
-					" %02x %02x %02x %02x\n",
-					buf[0], buf[1], buf[2], buf[3],
-					buf[4], buf[5], buf[6], buf[7]);
+					"i2c error writing %8ph\n", buf);
 				gspca_dev->usb_err = -EIO;
 			}
 			return;

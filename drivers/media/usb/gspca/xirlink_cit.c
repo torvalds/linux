@@ -2864,20 +2864,16 @@ static u8 *cit_find_sof(struct gspca_dev *gspca_dev, u8 *data, int len)
 				if (data[i] == 0xff) {
 					if (i >= 4)
 						PDEBUG(D_FRAM,
-						       "header found at offset: %d: %02x %02x 00 %02x %02x %02x\n",
+						       "header found at offset: %d: %02x %02x 00 %3ph\n",
 						       i - 1,
 						       data[i - 4],
 						       data[i - 3],
-						       data[i],
-						       data[i + 1],
-						       data[i + 2]);
+						       &data[i]);
 					else
 						PDEBUG(D_FRAM,
-						       "header found at offset: %d: 00 %02x %02x %02x\n",
+						       "header found at offset: %d: 00 %3ph\n",
 						       i - 1,
-						       data[i],
-						       data[i + 1],
-						       data[i + 2]);
+						       &data[i]);
 					return data + i + (sd->sof_len - 1);
 				}
 				break;
