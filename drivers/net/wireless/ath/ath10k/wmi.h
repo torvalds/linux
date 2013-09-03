@@ -763,14 +763,6 @@ struct wmi_service_ready_event {
 	struct wlan_host_mem_req mem_reqs[1];
 } __packed;
 
-/*
- * status consists of  upper 16 bits fo int status and lower 16 bits of
- * module ID that retuned status
- */
-#define WLAN_INIT_STATUS_SUCCESS   0x0
-#define WLAN_GET_INIT_STATUS_REASON(status)    ((status) & 0xffff)
-#define WLAN_GET_INIT_STATUS_MODULE_ID(status) (((status) >> 16) & 0xffff)
-
 #define WMI_SERVICE_READY_TIMEOUT_HZ (5*HZ)
 #define WMI_UNIFIED_READY_TIMEOUT_HZ (5*HZ)
 
