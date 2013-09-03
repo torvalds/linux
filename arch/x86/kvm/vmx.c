@@ -8199,7 +8199,7 @@ static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
 	 * fpu_active (which may have changed).
 	 * Note that vmx_set_cr0 refers to efer set above.
 	 */
-	kvm_set_cr0(vcpu, vmcs12->host_cr0);
+	vmx_set_cr0(vcpu, vmcs12->host_cr0);
 	/*
 	 * If we did fpu_activate()/fpu_deactivate() during L2's run, we need
 	 * to apply the same changes to L1's vmcs. We just set cr0 correctly,
