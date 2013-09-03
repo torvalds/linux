@@ -105,9 +105,8 @@ static int squashfs_readdir(struct file *file, struct dir_context *ctx)
 	struct inode *inode = file_inode(file);
 	struct squashfs_sb_info *msblk = inode->i_sb->s_fs_info;
 	u64 block = squashfs_i(inode)->start + msblk->directory_table;
-	int offset = squashfs_i(inode)->offset, length, dir_count, size,
-				type, err;
-	unsigned int inode_number;
+	int offset = squashfs_i(inode)->offset, length, type, err;
+	unsigned int inode_number, dir_count, size;
 	struct squashfs_dir_header dirh;
 	struct squashfs_dir_entry *dire;
 
