@@ -53,9 +53,8 @@ xfs_inobp_check(
 					i * mp->m_sb.sb_inodesize);
 		if (!dip->di_next_unlinked)  {
 			xfs_alert(mp,
-	"Detected bogus zero next_unlinked field in incore inode buffer 0x%p.",
-				bp);
-			ASSERT(dip->di_next_unlinked);
+	"Detected bogus zero next_unlinked field in inode %d buffer 0x%llx.",
+				i, (long long)bp->b_bn);
 		}
 	}
 }
@@ -106,11 +105,10 @@ xfs_inode_buf_verify(
 			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_HIGH,
 					     mp, dip);
 #ifdef DEBUG
-			xfs_emerg(mp,
+			xfs_alert(mp,
 				"bad inode magic/vsn daddr %lld #%d (magic=%x)",
 				(unsigned long long)bp->b_bn, i,
 				be16_to_cpu(dip->di_magic));
-			ASSERT(0);
 #endif
 		}
 	}
