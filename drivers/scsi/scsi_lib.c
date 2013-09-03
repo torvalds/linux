@@ -716,6 +716,20 @@ void scsi_release_buffers(struct scsi_cmnd *cmd)
 }
 EXPORT_SYMBOL(scsi_release_buffers);
 
+/**
+ * __scsi_error_from_host_byte - translate SCSI error code into errno
+ * @cmd:	SCSI command (unused)
+ * @result:	scsi error code
+ *
+ * Translate SCSI error code into standard UNIX errno.
+ * Return values:
+ * -ENOLINK	temporary transport failure
+ * -EREMOTEIO	permanent target failure, do not retry
+ * -EBADE	permanent nexus failure, retry on other path
+ * -ENOSPC	No write space available
+ * -ENODATA	Medium error
+ * -EIO		unspecified I/O error
+ */
 static int __scsi_error_from_host_byte(struct scsi_cmnd *cmd, int result)
 {
 	int error = 0;
@@ -731,6 +745,14 @@ static int __scsi_error_from_host_byte(struct scsi_cmnd *cmd, int result)
 	case DID_NEXUS_FAILURE:
 		set_host_byte(cmd, DID_OK);
 		error = -EBADE;
+		break;
+	case DID_ALLOC_FAILURE:
+		set_host_byte(cmd, DID_OK);
+		error = -ENOSPC;
+		break;
+	case DID_MEDIUM_ERROR:
+		set_host_byte(cmd, DID_OK);
+		error = -ENODATA;
 		break;
 	default:
 		error = -EIO;
@@ -2231,7 +2253,21 @@ static void scsi_evt_emit(struct scsi_device *sdev, struct scsi_event *evt)
 	case SDEV_EVT_MEDIA_CHANGE:
 		envp[idx++] = "SDEV_MEDIA_CHANGE=1";
 		break;
-
+	case SDEV_EVT_INQUIRY_CHANGE_REPORTED:
+		envp[idx++] = "SDEV_UA=INQUIRY_DATA_HAS_CHANGED";
+		break;
+	case SDEV_EVT_CAPACITY_CHANGE_REPORTED:
+		envp[idx++] = "SDEV_UA=CAPACITY_DATA_HAS_CHANGED";
+		break;
+	case SDEV_EVT_SOFT_THRESHOLD_REACHED_REPORTED:
+	       envp[idx++] = "SDEV_UA=THIN_PROVISIONING_SOFT_THRESHOLD_REACHED";
+		break;
+	case SDEV_EVT_MODE_PARAMETER_CHANGE_REPORTED:
+		envp[idx++] = "SDEV_UA=MODE_PARAMETERS_CHANGED";
+		break;
+	case SDEV_EVT_LUN_CHANGE_REPORTED:
+		envp[idx++] = "SDEV_UA=REPORTED_LUNS_DATA_HAS_CHANGED";
+		break;
 	default:
 		/* do nothing */
 		break;
@@ -2252,9 +2288,14 @@ static void scsi_evt_emit(struct scsi_device *sdev, struct scsi_event *evt)
 void scsi_evt_thread(struct work_struct *work)
 {
 	struct scsi_device *sdev;
+	enum scsi_device_event evt_type;
 	LIST_HEAD(event_list);
 
 	sdev = container_of(work, struct scsi_device, event_work);
+
+	for (evt_type = SDEV_EVT_FIRST; evt_type <= SDEV_EVT_LAST; evt_type++)
+		if (test_and_clear_bit(evt_type, sdev->pending_events))
+			sdev_evt_send_simple(sdev, evt_type, GFP_KERNEL);
 
 	while (1) {
 		struct scsi_event *evt;
@@ -2325,6 +2366,11 @@ struct scsi_event *sdev_evt_alloc(enum scsi_device_event evt_type,
 	/* evt_type-specific initialization, if any */
 	switch (evt_type) {
 	case SDEV_EVT_MEDIA_CHANGE:
+	case SDEV_EVT_INQUIRY_CHANGE_REPORTED:
+	case SDEV_EVT_CAPACITY_CHANGE_REPORTED:
+	case SDEV_EVT_SOFT_THRESHOLD_REACHED_REPORTED:
+	case SDEV_EVT_MODE_PARAMETER_CHANGE_REPORTED:
+	case SDEV_EVT_LUN_CHANGE_REPORTED:
 	default:
 		/* do nothing */
 		break;

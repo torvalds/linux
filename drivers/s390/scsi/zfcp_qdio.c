@@ -16,9 +16,9 @@
 
 #define QBUFF_PER_PAGE		(PAGE_SIZE / sizeof(struct qdio_buffer))
 
-static bool enable_multibuffer;
+static bool enable_multibuffer = 1;
 module_param_named(datarouter, enable_multibuffer, bool, 0400);
-MODULE_PARM_DESC(datarouter, "Enable hardware data router support");
+MODULE_PARM_DESC(datarouter, "Enable hardware data router support (default on)");
 
 static int zfcp_qdio_buffers_enqueue(struct qdio_buffer **sbal)
 {

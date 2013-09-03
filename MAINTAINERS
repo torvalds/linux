@@ -1547,6 +1547,13 @@ W:	http://atmelwlandriver.sourceforge.net/
 S:	Maintained
 F:	drivers/net/wireless/atmel*
 
+ATTO EXPRESSSAS SAS/SATA RAID SCSI DRIVER
+M:      Bradley Grove <linuxdrivers@attotech.com>
+L:      linux-scsi@vger.kernel.org
+W:      http://www.attotech.com
+S:      Supported
+F:      drivers/scsi/esas2r
+
 AUDIT SUBSYSTEM
 M:	Al Viro <viro@zeniv.linux.org.uk>
 M:	Eric Paris <eparis@redhat.com>
@@ -1822,6 +1829,12 @@ M:	Bhanu Prakash Gollapudi <bprakash@broadcom.com>
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/scsi/bnx2fc/
+
+BROADCOM BNX2I 1/10 GIGABIT iSCSI DRIVER
+M:	Eddie Wai <eddie.wai@broadcom.com>
+L:	linux-scsi@vger.kernel.org
+S:	Supported
+F:	drivers/scsi/bnx2i/
 
 BROADCOM SPECIFIC AMBA DRIVER (BCMA)
 M:	Rafał Miłecki <zajec5@gmail.com>
@@ -6676,11 +6689,11 @@ F:	Documentation/scsi/LICENSE.qla2xxx
 F:	drivers/scsi/qla2xxx/
 
 QLOGIC QLA4XXX iSCSI DRIVER
-M:	Ravi Anand <ravi.anand@qlogic.com>
 M:	Vikas Chaudhary <vikas.chaudhary@qlogic.com>
 M:	iscsi-driver@qlogic.com
 L:	linux-scsi@vger.kernel.org
 S:	Supported
+F:	Documentation/scsi/LICENSE.qla4xxx
 F:	drivers/scsi/qla4xxx/
 
 QLOGIC QLA3XXX NETWORK DRIVER
