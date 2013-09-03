@@ -27,7 +27,7 @@
 /* TODO: refine locking ?*/
 
 /* Sysfs entry to show port status */
-static ssize_t show_status(struct device *dev, struct device_attribute *attr,
+static ssize_t status_show(struct device *dev, struct device_attribute *attr,
 			   char *out)
 {
 	char *s = out;
@@ -74,7 +74,7 @@ static ssize_t show_status(struct device *dev, struct device_attribute *attr,
 
 	return out - s;
 }
-static DEVICE_ATTR(status, S_IRUGO, show_status, NULL);
+static DEVICE_ATTR_RO(status);
 
 /* Sysfs entry to shutdown a virtual connection */
 static int vhci_port_disconnect(__u32 rhport)

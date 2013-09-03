@@ -7890,11 +7890,11 @@ S:	Maintained
 F:	drivers/staging/nvec/
 
 STAGING - OLPC SECONDARY DISPLAY CONTROLLER (DCON)
-M:	Andres Salomon <dilinger@queued.net>
-M:	Chris Ball <cjb@laptop.org>
+M:	Jens Frederich <jfrederich@gmail.com>
+M:	Daniel Drake <dsd@laptop.org>
 M:	Jon Nettleton <jon.nettleton@gmail.com>
 W:	http://wiki.laptop.org/go/DCON
-S:	Odd Fixes
+S:	Maintained
 F:	drivers/staging/olpc_dcon/
 
 STAGING - OZMO DEVICES USB OVER WIFI DRIVER

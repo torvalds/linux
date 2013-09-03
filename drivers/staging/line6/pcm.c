@@ -34,8 +34,8 @@ static struct snd_line6_pcm *dev2pcm(struct device *dev)
 /*
 	"read" request on "impulse_volume" special file.
 */
-static ssize_t pcm_get_impulse_volume(struct device *dev,
-				      struct device_attribute *attr, char *buf)
+static ssize_t impulse_volume_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", dev2pcm(dev)->impulse_volume);
 }
@@ -43,9 +43,9 @@ static ssize_t pcm_get_impulse_volume(struct device *dev,
 /*
 	"write" request on "impulse_volume" special file.
 */
-static ssize_t pcm_set_impulse_volume(struct device *dev,
-				      struct device_attribute *attr,
-				      const char *buf, size_t count)
+static ssize_t impulse_volume_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
 {
 	struct snd_line6_pcm *line6pcm = dev2pcm(dev);
 	int value;
@@ -64,12 +64,13 @@ static ssize_t pcm_set_impulse_volume(struct device *dev,
 
 	return count;
 }
+static DEVICE_ATTR_RW(impulse_volume);
 
 /*
 	"read" request on "impulse_period" special file.
 */
-static ssize_t pcm_get_impulse_period(struct device *dev,
-				      struct device_attribute *attr, char *buf)
+static ssize_t impulse_period_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", dev2pcm(dev)->impulse_period);
 }
@@ -77,9 +78,9 @@ static ssize_t pcm_get_impulse_period(struct device *dev,
 /*
 	"write" request on "impulse_period" special file.
 */
-static ssize_t pcm_set_impulse_period(struct device *dev,
-				      struct device_attribute *attr,
-				      const char *buf, size_t count)
+static ssize_t impulse_period_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
 {
 	int value;
 	int ret;
@@ -91,11 +92,7 @@ static ssize_t pcm_set_impulse_period(struct device *dev,
 	dev2pcm(dev)->impulse_period = value;
 	return count;
 }
-
-static DEVICE_ATTR(impulse_volume, S_IWUSR | S_IRUGO, pcm_get_impulse_volume,
-		   pcm_set_impulse_volume);
-static DEVICE_ATTR(impulse_period, S_IWUSR | S_IRUGO, pcm_get_impulse_period,
-		   pcm_set_impulse_period);
+static DEVICE_ATTR_RW(impulse_period);
 
 #endif
 

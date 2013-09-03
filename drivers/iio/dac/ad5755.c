@@ -565,7 +565,7 @@ static int ad5755_probe(struct spi_device *spi)
 	struct ad5755_state *st;
 	int ret;
 
-	indio_dev = iio_device_alloc(sizeof(*st));
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL) {
 		dev_err(&spi->dev, "Failed to allocate iio device\n");
 		return  -ENOMEM;
@@ -589,24 +589,19 @@ static int ad5755_probe(struct spi_device *spi)
 
 	ret = ad5755_init_channels(indio_dev, pdata);
 	if (ret)
-		goto error_free;
+		return ret;
 
 	ret = ad5755_setup_pdata(indio_dev, pdata);
 	if (ret)
-		goto error_free;
+		return ret;
 
 	ret = iio_device_register(indio_dev);
 	if (ret) {
 		dev_err(&spi->dev, "Failed to register iio device: %d\n", ret);
-		goto error_free;
+		return ret;
 	}
 
 	return 0;
-
-error_free:
-	iio_device_free(indio_dev);
-
-	return ret;
 }
 
 static int ad5755_remove(struct spi_device *spi)
@@ -614,7 +609,6 @@ static int ad5755_remove(struct spi_device *spi)
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 
 	iio_device_unregister(indio_dev);
-	iio_device_free(indio_dev);
 
 	return 0;
 }

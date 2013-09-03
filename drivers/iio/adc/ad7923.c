@@ -275,10 +275,11 @@ static const struct iio_info ad7923_info = {
 static int ad7923_probe(struct spi_device *spi)
 {
 	struct ad7923_state *st;
-	struct iio_dev *indio_dev = iio_device_alloc(sizeof(*st));
+	struct iio_dev *indio_dev;
 	const struct ad7923_chip_info *info;
 	int ret;
 
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (indio_dev == NULL)
 		return -ENOMEM;
 
@@ -311,14 +312,13 @@ static int ad7923_probe(struct spi_device *spi)
 	spi_message_add_tail(&st->scan_single_xfer[0], &st->scan_single_msg);
 	spi_message_add_tail(&st->scan_single_xfer[1], &st->scan_single_msg);
 
-	st->reg = regulator_get(&spi->dev, "refin");
-	if (IS_ERR(st->reg)) {
-		ret = PTR_ERR(st->reg);
-		goto error_free;
-	}
+	st->reg = devm_regulator_get(&spi->dev, "refin");
+	if (IS_ERR(st->reg))
+		return PTR_ERR(st->reg);
+
 	ret = regulator_enable(st->reg);
 	if (ret)
-		goto error_put_reg;
+		return ret;
 
 	ret = iio_triggered_buffer_setup(indio_dev, NULL,
 			&ad7923_trigger_handler, NULL);
@@ -335,10 +335,6 @@ error_cleanup_ring:
 	iio_triggered_buffer_cleanup(indio_dev);
 error_disable_reg:
 	regulator_disable(st->reg);
-error_put_reg:
-	regulator_put(st->reg);
-error_free:
-	iio_device_free(indio_dev);
 
 	return ret;
 }
@@ -351,8 +347,6 @@ static int ad7923_remove(struct spi_device *spi)
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
 	regulator_disable(st->reg);
-	regulator_put(st->reg);
-	iio_device_free(indio_dev);
 
 	return 0;
 }

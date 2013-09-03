@@ -29,9 +29,9 @@ Configuration options:
   [5] - D/A 1 range (same choices)
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
 #include <linux/delay.h>
-#include <linux/ioport.h>
 
 #define DT2801_TIMEOUT 1000
 
@@ -551,32 +551,19 @@ static int dt2801_dio_insn_bits(struct comedi_device *dev,
 
 static int dt2801_dio_insn_config(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
-	int which = 0;
+	int ret;
 
-	if (s == &dev->subdevices[3])
-		which = 1;
+	ret = comedi_dio_insn_config(dev, s, insn, data, 0xff);
+	if (ret)
+		return ret;
 
-	/* configure */
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits = 0xff;
-		dt2801_writecmd(dev, DT_C_SET_DIGOUT);
-		break;
-	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits = 0;
-		dt2801_writecmd(dev, DT_C_SET_DIGIN);
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] = s->io_bits ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
-	default:
-		return -EINVAL;
-	}
-	dt2801_writedata(dev, which);
+	dt2801_writecmd(dev, s->io_bits ? DT_C_SET_DIGOUT : DT_C_SET_DIGIN);
+	dt2801_writedata(dev, (s == &dev->subdevices[3]) ? 1 : 0);
 
-	return 1;
+	return insn->n;
 }
 
 /*
@@ -627,10 +614,9 @@ havetype:
 	if (ret)
 		goto out;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	dev->board_name = board->name;
 

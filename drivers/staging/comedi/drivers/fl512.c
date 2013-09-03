@@ -18,10 +18,10 @@ Configuration options:
 
 #define DEBUG 0
 
+#include <linux/module.h>
 #include "../comedidev.h"
 
 #include <linux/delay.h>
-#include <linux/ioport.h>
 
 #define FL512_SIZE 16		/* the size of the used memory */
 struct fl512_private {
@@ -118,10 +118,9 @@ static int fl512_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)

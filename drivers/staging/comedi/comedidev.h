@@ -19,22 +19,7 @@
 #ifndef _COMEDIDEV_H
 #define _COMEDIDEV_H
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/kdev_t.h>
-#include <linux/slab.h>
-#include <linux/delay.h>
-#include <linux/errno.h>
-#include <linux/spinlock.h>
-#include <linux/mutex.h>
-#include <linux/wait.h>
-#include <linux/mm.h>
-#include <linux/init.h>
-#include <linux/vmalloc.h>
 #include <linux/dma-mapping.h>
-#include <linux/uaccess.h>
-#include <linux/io.h>
-#include <linux/timer.h>
 
 #include "comedi.h"
 
@@ -357,6 +342,11 @@ void comedi_buf_memcpy_from(struct comedi_async *async, unsigned int offset,
 
 /* drivers.c - general comedi driver functions */
 
+int comedi_dio_insn_config(struct comedi_device *, struct comedi_subdevice *,
+			   struct comedi_insn *, unsigned int *data,
+			   unsigned int mask);
+
+void *comedi_alloc_devpriv(struct comedi_device *, size_t);
 int comedi_alloc_subdevices(struct comedi_device *, int);
 
 int comedi_load_firmware(struct comedi_device *, struct device *,
@@ -377,7 +367,7 @@ int comedi_auto_config(struct device *, struct comedi_driver *,
 void comedi_auto_unconfig(struct device *);
 
 int comedi_driver_register(struct comedi_driver *);
-int comedi_driver_unregister(struct comedi_driver *);
+void comedi_driver_unregister(struct comedi_driver *);
 
 /**
  * module_comedi_driver() - Helper macro for registering a comedi driver
