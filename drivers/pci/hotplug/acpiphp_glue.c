@@ -572,7 +572,6 @@ static void __ref enable_slot(struct acpiphp_slot *slot)
 	acpiphp_sanitize_bus(bus);
 	acpiphp_set_hpp_values(bus);
 	acpiphp_set_acpi_region(slot);
-	pci_enable_bridges(bus);
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		/* Assume that newly added devices are powered on already. */
