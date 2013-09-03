@@ -311,6 +311,51 @@ static size_t syscall_arg__scnprintf_open_flags(char *bf, size_t size,
 
 #define SCA_OPEN_FLAGS syscall_arg__scnprintf_open_flags
 
+static size_t syscall_arg__scnprintf_signum(char *bf, size_t size, struct syscall_arg *arg)
+{
+	int sig = arg->val;
+
+	switch (sig) {
+#define	P_SIGNUM(n) case SIG##n: return scnprintf(bf, size, #n)
+	P_SIGNUM(HUP);
+	P_SIGNUM(INT);
+	P_SIGNUM(QUIT);
+	P_SIGNUM(ILL);
+	P_SIGNUM(TRAP);
+	P_SIGNUM(ABRT);
+	P_SIGNUM(BUS);
+	P_SIGNUM(FPE);
+	P_SIGNUM(KILL);
+	P_SIGNUM(USR1);
+	P_SIGNUM(SEGV);
+	P_SIGNUM(USR2);
+	P_SIGNUM(PIPE);
+	P_SIGNUM(ALRM);
+	P_SIGNUM(TERM);
+	P_SIGNUM(STKFLT);
+	P_SIGNUM(CHLD);
+	P_SIGNUM(CONT);
+	P_SIGNUM(STOP);
+	P_SIGNUM(TSTP);
+	P_SIGNUM(TTIN);
+	P_SIGNUM(TTOU);
+	P_SIGNUM(URG);
+	P_SIGNUM(XCPU);
+	P_SIGNUM(XFSZ);
+	P_SIGNUM(VTALRM);
+	P_SIGNUM(PROF);
+	P_SIGNUM(WINCH);
+	P_SIGNUM(IO);
+	P_SIGNUM(PWR);
+	P_SIGNUM(SYS);
+	default: break;
+	}
+
+	return scnprintf(bf, size, "%#x", sig);
+}
+
+#define SCA_SIGNUM syscall_arg__scnprintf_signum
+
 static struct syscall_fmt {
 	const char *name;
 	const char *alias;
@@ -338,6 +383,8 @@ static struct syscall_fmt {
 	  .arg_parm	 = { [0] = &strarray__itimers, /* which */ }, },
 	{ .name	    = "ioctl",	    .errmsg = true,
 	  .arg_scnprintf = { [2] = SCA_HEX, /* arg */ }, },
+	{ .name	    = "kill",	    .errmsg = true,
+	  .arg_scnprintf = { [1] = SCA_SIGNUM, /* sig */ }, },
 	{ .name	    = "lseek",	    .errmsg = true,
 	  .arg_scnprintf = { [2] = SCA_STRARRAY, /* whence */ },
 	  .arg_parm	 = { [2] = &strarray__whences, /* whence */ }, },
@@ -369,15 +416,25 @@ static struct syscall_fmt {
 	{ .name	    = "pwrite",	    .errmsg = true, .alias = "pwrite64", },
 	{ .name	    = "read",	    .errmsg = true, },
 	{ .name	    = "recvfrom",   .errmsg = true, },
+	{ .name	    = "rt_sigaction", .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_SIGNUM, /* sig */ }, },
 	{ .name	    = "rt_sigprocmask", .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_STRARRAY, /* how */ },
 	  .arg_parm	 = { [0] = &strarray__sighow, /* how */ }, },
+	{ .name	    = "rt_sigqueueinfo", .errmsg = true,
+	  .arg_scnprintf = { [1] = SCA_SIGNUM, /* sig */ }, },
+	{ .name	    = "rt_tgsigqueueinfo", .errmsg = true,
+	  .arg_scnprintf = { [2] = SCA_SIGNUM, /* sig */ }, },
 	{ .name	    = "select",	    .errmsg = true, .timeout = true, },
 	{ .name	    = "setitimer",  .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_STRARRAY, /* which */ },
 	  .arg_parm	 = { [0] = &strarray__itimers, /* which */ }, },
 	{ .name	    = "socket",	    .errmsg = true, },
 	{ .name	    = "stat",	    .errmsg = true, .alias = "newstat", },
+	{ .name	    = "tgkill",	    .errmsg = true,
+	  .arg_scnprintf = { [2] = SCA_SIGNUM, /* sig */ }, },
+	{ .name	    = "tkill",	    .errmsg = true,
+	  .arg_scnprintf = { [1] = SCA_SIGNUM, /* sig */ }, },
 	{ .name	    = "uname",	    .errmsg = true, .alias = "newuname", },
 };
 
