@@ -630,6 +630,10 @@ int ath10k_core_start(struct ath10k *ar)
 	if (status)
 		goto err_disconnect_htc;
 
+	status = ath10k_debug_start(ar);
+	if (status)
+		goto err_disconnect_htc;
+
 	ar->free_vdev_map = (1 << TARGET_NUM_VDEVS) - 1;
 
 	return 0;
@@ -647,6 +651,7 @@ EXPORT_SYMBOL(ath10k_core_start);
 
 void ath10k_core_stop(struct ath10k *ar)
 {
+	ath10k_debug_stop(ar);
 	ath10k_htc_stop(&ar->htc);
 	ath10k_htt_detach(&ar->htt);
 	ath10k_wmi_detach(ar);
@@ -777,6 +782,7 @@ void ath10k_core_unregister(struct ath10k *ar)
 	 * Otherwise we will fail to submit commands to FW and mac80211 will be
 	 * unhappy about callback failures. */
 	ath10k_mac_unregister(ar);
+
 	ath10k_core_free_firmware_files(ar);
 }
 EXPORT_SYMBOL(ath10k_core_unregister);

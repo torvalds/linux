@@ -42,6 +42,8 @@ extern __printf(1, 2) int ath10k_err(const char *fmt, ...);
 extern __printf(1, 2) int ath10k_warn(const char *fmt, ...);
 
 #ifdef CONFIG_ATH10K_DEBUGFS
+int ath10k_debug_start(struct ath10k *ar);
+void ath10k_debug_stop(struct ath10k *ar);
 int ath10k_debug_create(struct ath10k *ar);
 void ath10k_debug_read_service_map(struct ath10k *ar,
 				   void *service_map,
@@ -50,6 +52,15 @@ void ath10k_debug_read_target_stats(struct ath10k *ar,
 				    struct wmi_stats_event *ev);
 
 #else
+int ath10k_debug_start(struct ath10k *ar)
+{
+	return 0;
+}
+
+void ath10k_debug_stop(struct ath10k *ar)
+{
+}
+
 static inline int ath10k_debug_create(struct ath10k *ar)
 {
 	return 0;

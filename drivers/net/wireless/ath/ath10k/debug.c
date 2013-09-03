@@ -517,6 +517,15 @@ static const struct file_operations fops_chip_id = {
 	.llseek = default_llseek,
 };
 
+int ath10k_debug_start(struct ath10k *ar)
+{
+	return 0;
+}
+
+void ath10k_debug_stop(struct ath10k *ar)
+{
+}
+
 int ath10k_debug_create(struct ath10k *ar)
 {
 	ar->debug.debugfs_phy = debugfs_create_dir("ath10k",
@@ -541,6 +550,7 @@ int ath10k_debug_create(struct ath10k *ar)
 
 	return 0;
 }
+
 #endif /* CONFIG_ATH10K_DEBUGFS */
 
 #ifdef CONFIG_ATH10K_DEBUG
