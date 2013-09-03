@@ -481,13 +481,27 @@ void tcp_init_metrics(struct sock *sk)
 	crtt = tcp_metric_get_jiffies(tm, TCP_METRIC_RTT);
 	rcu_read_unlock();
 reset:
+	/* The initial RTT measurement from the SYN/SYN-ACK is not ideal
+	 * to seed the RTO for later data packets because SYN packets are
+	 * small. Use the per-dst cached values to seed the RTO but keep
+	 * the RTT estimator variables intact (e.g., srtt, mdev, rttvar).
+	 * Later the RTO will be updated immediately upon obtaining the first
+	 * data RTT sample (tcp_rtt_estimator()). Hence the cached RTT only
+	 * influences the first RTO but not later RTT estimation.
+	 *
+	 * But if RTT is not available from the SYN (due to retransmits or
+	 * syn cookies) or the cache, force a conservative 3secs timeout.
+	 *
+	 * A bit of theory. RTT is time passed after "normal" sized packet
+	 * is sent until it is ACKed. In normal circumstances sending small
+	 * packets force peer to delay ACKs and calculation is correct too.
+	 * The algorithm is adaptive and, provided we follow specs, it
+	 * NEVER underestimate RTT. BUT! If peer tries to make some clever
+	 * tricks sort of "quick acks" for time long enough to decrease RTT
+	 * to low value, and then abruptly stops to do it and starts to delay
+	 * ACKs, wait for troubles.
+	 */
 	if (crtt > tp->srtt) {
-		/* Initial RTT (tp->srtt) from SYN usually don't measure
-		 * serialization delay on low BW links well so RTO may be
-		 * under-estimated. Stay conservative and seed RTO with
-		 * the RTTs from past data exchanges, using the same seeding
-		 * formula in tcp_rtt_estimator().
-		 */
 		inet_csk(sk)->icsk_rto = crtt + max(crtt >> 2, tcp_rto_min(sk));
 	} else if (tp->srtt == 0) {
 		/* RFC6298: 5.7 We've failed to get a valid RTT sample from
