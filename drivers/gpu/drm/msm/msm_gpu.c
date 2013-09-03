@@ -237,8 +237,15 @@ static void hangcheck_handler(unsigned long data)
 		gpu->hangcheck_fence = fence;
 	} else if (fence < gpu->submitted_fence) {
 		/* no progress and not done.. hung! */
-		struct msm_drm_private *priv = gpu->dev->dev_private;
+		struct drm_device *dev = gpu->dev;
+		struct msm_drm_private *priv = dev->dev_private;
 		gpu->hangcheck_fence = fence;
+		dev_err(dev->dev, "%s: hangcheck detected gpu lockup!\n",
+				gpu->name);
+		dev_err(dev->dev, "%s:     completed fence: %u\n",
+				gpu->name, fence);
+		dev_err(dev->dev, "%s:     submitted fence: %u\n",
+				gpu->name, gpu->submitted_fence);
 		queue_work(priv->wq, &gpu->recover_work);
 	}
 
