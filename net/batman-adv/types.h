@@ -996,6 +996,12 @@ struct batadv_forw_packet {
  * @bat_neigh_is_equiv_or_better: check if neigh1 is equally good or
  *  better than neigh2 from the metric prospective
  * @bat_orig_print: print the originator table (optional)
+ * @bat_orig_free: free the resources allocated by the routing algorithm for an
+ *  orig_node object
+ * @bat_orig_add_if: ask the routing algorithm to apply the needed changes to
+ *  the orig_node due to a new hard-interface being added into the mesh
+ * @bat_orig_del_if: ask the routing algorithm to apply the needed changes to
+ *  the orig_node due to an hard-interface being removed from the mesh
  */
 struct batadv_algo_ops {
 	struct hlist_node list;
@@ -1012,6 +1018,11 @@ struct batadv_algo_ops {
 					     struct batadv_neigh_node *neigh2);
 	/* orig_node handling API */
 	void (*bat_orig_print)(struct batadv_priv *priv, struct seq_file *seq);
+	void (*bat_orig_free)(struct batadv_orig_node *orig_node);
+	int (*bat_orig_add_if)(struct batadv_orig_node *orig_node,
+			       int max_if_num);
+	int (*bat_orig_del_if)(struct batadv_orig_node *orig_node,
+			       int max_if_num, int del_if_num);
 };
 
 /**

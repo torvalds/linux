@@ -88,6 +88,129 @@ static uint8_t batadv_ring_buffer_avg(const uint8_t lq_recv[])
 }
 
 /**
+ * batadv_iv_ogm_orig_free - free the private resources allocated for this
+ *  orig_node
+ * @orig_node: the orig_node for which the resources have to be free'd
+ */
+static void batadv_iv_ogm_orig_free(struct batadv_orig_node *orig_node)
+{
+	kfree(orig_node->bat_iv.bcast_own);
+	kfree(orig_node->bat_iv.bcast_own_sum);
+}
+
+/**
+ * batadv_iv_ogm_orig_add_if - change the private structures of the orig_node to
+ *  include the new hard-interface
+ * @orig_node: the orig_node that has to be changed
+ * @max_if_num: the current amount of interfaces
+ *
+ * Returns 0 on success, a negative error code otherwise.
+ */
+static int batadv_iv_ogm_orig_add_if(struct batadv_orig_node *orig_node,
+				     int max_if_num)
+{
+	void *data_ptr;
+	size_t data_size, old_size;
+	int ret = -ENOMEM;
+
+	spin_lock_bh(&orig_node->bat_iv.ogm_cnt_lock);
+
+	data_size = max_if_num * sizeof(unsigned long) * BATADV_NUM_WORDS;
+	old_size = (max_if_num - 1) * sizeof(unsigned long) * BATADV_NUM_WORDS;
+	data_ptr = kmalloc(data_size, GFP_ATOMIC);
+	if (!data_ptr)
+		goto unlock;
+
+	memcpy(data_ptr, orig_node->bat_iv.bcast_own, old_size);
+	kfree(orig_node->bat_iv.bcast_own);
+	orig_node->bat_iv.bcast_own = data_ptr;
+
+	data_ptr = kmalloc(max_if_num * sizeof(uint8_t), GFP_ATOMIC);
+	if (!data_ptr) {
+		kfree(orig_node->bat_iv.bcast_own);
+		goto unlock;
+	}
+
+	memcpy(data_ptr, orig_node->bat_iv.bcast_own_sum,
+	       (max_if_num - 1) * sizeof(uint8_t));
+	kfree(orig_node->bat_iv.bcast_own_sum);
+	orig_node->bat_iv.bcast_own_sum = data_ptr;
+
+	ret = 0;
+
+unlock:
+	spin_unlock_bh(&orig_node->bat_iv.ogm_cnt_lock);
+
+	return ret;
+}
+
+/**
+ * batadv_iv_ogm_orig_del_if - change the private structures of the orig_node to
+ *  exclude the removed interface
+ * @orig_node: the orig_node that has to be changed
+ * @max_if_num: the current amount of interfaces
+ * @del_if_num: the index of the interface being removed
+ *
+ * Returns 0 on success, a negative error code otherwise.
+ */
+static int batadv_iv_ogm_orig_del_if(struct batadv_orig_node *orig_node,
+				     int max_if_num, int del_if_num)
+{
+	int chunk_size,  ret = -ENOMEM, if_offset;
+	void *data_ptr = NULL;
+
+	spin_lock_bh(&orig_node->bat_iv.ogm_cnt_lock);
+
+	/* last interface was removed */
+	if (max_if_num == 0)
+		goto free_bcast_own;
+
+	chunk_size = sizeof(unsigned long) * BATADV_NUM_WORDS;
+	data_ptr = kmalloc(max_if_num * chunk_size, GFP_ATOMIC);
+	if (!data_ptr)
+		goto unlock;
+
+	/* copy first part */
+	memcpy(data_ptr, orig_node->bat_iv.bcast_own, del_if_num * chunk_size);
+
+	/* copy second part */
+	memcpy((char *)data_ptr + del_if_num * chunk_size,
+	       orig_node->bat_iv.bcast_own + ((del_if_num + 1) * chunk_size),
+	       (max_if_num - del_if_num) * chunk_size);
+
+free_bcast_own:
+	kfree(orig_node->bat_iv.bcast_own);
+	orig_node->bat_iv.bcast_own = data_ptr;
+
+	if (max_if_num == 0)
+		goto free_own_sum;
+
+	data_ptr = kmalloc(max_if_num * sizeof(uint8_t), GFP_ATOMIC);
+	if (!data_ptr) {
+		kfree(orig_node->bat_iv.bcast_own);
+		goto unlock;
+	}
+
+	memcpy(data_ptr, orig_node->bat_iv.bcast_own_sum,
+	       del_if_num * sizeof(uint8_t));
+
+	if_offset = (del_if_num + 1) * sizeof(uint8_t);
+	memcpy((char *)data_ptr + del_if_num * sizeof(uint8_t),
+	       orig_node->bat_iv.bcast_own_sum + if_offset,
+	       (max_if_num - del_if_num) * sizeof(uint8_t));
+
+free_own_sum:
+	kfree(orig_node->bat_iv.bcast_own_sum);
+	orig_node->bat_iv.bcast_own_sum = data_ptr;
+
+	ret = 0;
+unlock:
+	spin_unlock_bh(&orig_node->bat_iv.ogm_cnt_lock);
+
+	return ret;
+}
+
+/**
  * batadv_iv_ogm_orig_get - retrieve or create (if does not exist) an originator
  * @bat_priv: the bat priv with all the soft interface information
  * @addr: mac address of the originator
@@ -1522,6 +1645,9 @@ static struct batadv_algo_ops batadv_batman_iv __read_mostly = {
 	.bat_neigh_cmp = batadv_iv_ogm_neigh_cmp,
 	.bat_neigh_is_equiv_or_better = batadv_iv_ogm_neigh_is_eob,
 	.bat_orig_print = batadv_iv_ogm_orig_print,
+	.bat_orig_free = batadv_iv_ogm_orig_free,
+	.bat_orig_add_if = batadv_iv_ogm_orig_add_if,
+	.bat_orig_del_if = batadv_iv_ogm_orig_del_if,
 };
 
 int __init batadv_iv_init(void)
