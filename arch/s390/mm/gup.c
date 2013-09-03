@@ -24,7 +24,7 @@ static inline int gup_pte_range(pmd_t *pmdp, pmd_t pmd, unsigned long addr,
 	pte_t *ptep, pte;
 	struct page *page;
 
-	mask = (write ? _PAGE_RO : 0) | _PAGE_INVALID | _PAGE_SPECIAL;
+	mask = (write ? _PAGE_PROTECT : 0) | _PAGE_INVALID | _PAGE_SPECIAL;
 
 	ptep = ((pte_t *) pmd_deref(pmd)) + pte_index(addr);
 	do {
@@ -55,8 +55,8 @@ static inline int gup_huge_pmd(pmd_t *pmdp, pmd_t pmd, unsigned long addr,
 	struct page *head, *page, *tail;
 	int refs;
 
-	result = write ? 0 : _SEGMENT_ENTRY_RO;
-	mask = result | _SEGMENT_ENTRY_INV;
+	result = write ? 0 : _SEGMENT_ENTRY_PROTECT;
+	mask = result | _SEGMENT_ENTRY_INVALID;
 	if ((pmd_val(pmd) & mask) != result)
 		return 0;
 	VM_BUG_ON(!pfn_valid(pmd_val(pmd) >> PAGE_SHIFT));

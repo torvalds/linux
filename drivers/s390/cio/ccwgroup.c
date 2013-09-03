@@ -137,7 +137,7 @@ static ssize_t ccwgroup_online_store(struct device *dev,
 	if (!try_module_get(gdrv->driver.owner))
 		return -EINVAL;
 
-	ret = strict_strtoul(buf, 0, &value);
+	ret = kstrtoul(buf, 0, &value);
 	if (ret)
 		goto out;
 

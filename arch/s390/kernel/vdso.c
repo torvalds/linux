@@ -63,7 +63,7 @@ static int __init vdso_setup(char *s)
 	else if (strncmp(s, "off", 4) == 0)
 		vdso_enabled = 0;
 	else {
-		rc = strict_strtoul(s, 0, &val);
+		rc = kstrtoul(s, 0, &val);
 		vdso_enabled = rc ? 0 : !!val;
 	}
 	return !rc;
@@ -113,11 +113,11 @@ int vdso_alloc_per_cpu(struct _lowcore *lowcore)
 
 	clear_table((unsigned long *) segment_table, _SEGMENT_ENTRY_EMPTY,
 		    PAGE_SIZE << SEGMENT_ORDER);
-	clear_table((unsigned long *) page_table, _PAGE_TYPE_EMPTY,
+	clear_table((unsigned long *) page_table, _PAGE_INVALID,
 		    256*sizeof(unsigned long));
 
 	*(unsigned long *) segment_table = _SEGMENT_ENTRY + page_table;
-	*(unsigned long *) page_table = _PAGE_RO + page_frame;
+	*(unsigned long *) page_table = _PAGE_PROTECT + page_frame;
 
 	psal = (u32 *) (page_table + 256*sizeof(unsigned long));
 	aste = psal + 32;

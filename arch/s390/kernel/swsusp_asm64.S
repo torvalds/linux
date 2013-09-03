@@ -281,11 +281,8 @@ restore_registers:
 	lghi	%r2,0
 	brasl	%r14,arch_set_page_states
 
-	/* Log potential guest relocation */
-	brasl	%r14,lgr_info_log
-
-	/* Reinitialize the channel subsystem */
-	brasl	%r14,channel_subsystem_reinit
+	/* Call arch specific early resume code */
+	brasl	%r14,s390_early_resume
 
 	/* Return 0 */
 	lmg	%r6,%r15,STACK_FRAME_OVERHEAD + __SF_GPRS(%r15)

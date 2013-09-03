@@ -69,7 +69,7 @@ static void zpci_event_log_avail(struct zpci_ccdf_avail *ccdf)
 		clp_add_pci_device(ccdf->fid, ccdf->fh, 0);
 		break;
 	case 0x0306:
-		clp_find_pci_devices();
+		clp_rescan_pci_devices();
 		break;
 	default:
 		break;
