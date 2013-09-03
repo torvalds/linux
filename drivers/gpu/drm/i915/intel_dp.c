@@ -57,6 +57,13 @@ static const struct dp_link_dpll pch_dpll[] = {
 		{ .p1 = 1, .p2 = 10, .n = 2, .m1 = 14, .m2 = 8 } }
 };
 
+static const struct dp_link_dpll vlv_dpll[] = {
+	{ DP_LINK_BW_1_62,
+		{ .p1 = 3, .p2 = 2, .n = 5, .m1 = 5, .m2 = 3 } },
+	{ DP_LINK_BW_2_7,
+		{ .p1 = 2, .p2 = 2, .n = 1, .m1 = 2, .m2 = 27 } }
+};
+
 /**
  * is_edp - is the given port attached to an eDP panel (either CPU or PCH)
  * @intel_dp: DP struct
@@ -691,7 +698,8 @@ intel_dp_set_clock(struct intel_encoder *encoder,
 		divisor = pch_dpll;
 		count = ARRAY_SIZE(pch_dpll);
 	} else if (IS_VALLEYVIEW(dev)) {
-		/* FIXME: Need to figure out optimized DP clocks for vlv. */
+		divisor = vlv_dpll;
+		count = ARRAY_SIZE(vlv_dpll);
 	}
 
 	if (divisor && count) {

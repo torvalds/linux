@@ -339,19 +339,6 @@ static const intel_limit_t intel_limits_vlv_hdmi = {
 		.p2_slow = 2, .p2_fast = 20 },
 };
 
-static const intel_limit_t intel_limits_vlv_dp = {
-	.dot = { .min = 25000, .max = 270000 },
-	.vco = { .min = 4000000, .max = 6000000 },
-	.n = { .min = 1, .max = 7 },
-	.m = { .min = 22, .max = 450 },
-	.m1 = { .min = 2, .max = 3 },
-	.m2 = { .min = 11, .max = 156 },
-	.p = { .min = 10, .max = 30 },
-	.p1 = { .min = 1, .max = 3 },
-	.p2 = { .dot_limit = 270000,
-		.p2_slow = 2, .p2_fast = 20 },
-};
-
 static const intel_limit_t *intel_ironlake_limit(struct drm_crtc *crtc,
 						int refclk)
 {
@@ -414,10 +401,8 @@ static const intel_limit_t *intel_limit(struct drm_crtc *crtc, int refclk)
 	} else if (IS_VALLEYVIEW(dev)) {
 		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_ANALOG))
 			limit = &intel_limits_vlv_dac;
-		else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_HDMI))
-			limit = &intel_limits_vlv_hdmi;
 		else
-			limit = &intel_limits_vlv_dp;
+			limit = &intel_limits_vlv_hdmi;
 	} else if (!IS_GEN2(dev)) {
 		if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
 			limit = &intel_limits_i9xx_lvds;
@@ -4896,7 +4881,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 
 	refclk = i9xx_get_refclk(crtc, num_connectors);
 
-	if (!is_dsi) {
+	if (!is_dsi && !intel_crtc->config.clock_set) {
 		/*
 		 * Returns a set of divisors for the desired target clock with
 		 * the given refclk, or FALSE.  The returned values represent
@@ -4923,6 +4908,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 		 * by using the FP0/FP1. In such case we will disable the LVDS
 		 * downclock feature.
 		*/
+		limit = intel_limit(crtc, refclk);
 		has_reduced_clock =
 			dev_priv->display.find_dpll(limit, crtc,
 						    dev_priv->lvds_downclock,
