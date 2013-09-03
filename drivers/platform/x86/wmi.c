@@ -347,7 +347,7 @@ struct acpi_buffer *out)
 {
 	struct guid_block *block = NULL;
 	struct wmi_block *wblock = NULL;
-	acpi_handle handle, wc_handle;
+	acpi_handle handle;
 	acpi_status status, wc_status = AE_ERROR;
 	struct acpi_object_list input;
 	union acpi_object wq_params[1];
@@ -387,8 +387,7 @@ struct acpi_buffer *out)
 		 * expensive, but have no corresponding WCxx method. So we
 		 * should not fail if this happens.
 		 */
-		wc_status = acpi_get_handle(handle, wc_method, &wc_handle);
-		if (ACPI_SUCCESS(wc_status))
+		if (acpi_has_method(handle, wc_method))
 			wc_status = acpi_execute_simple_method(handle,
 								wc_method, 1);
 	}
