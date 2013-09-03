@@ -653,6 +653,8 @@ static void __put_nommu_region(struct vm_region *region)
 
 		if (region->vm_file)
 			fput(region->vm_file);
+		if (region->vm_prfile)
+			fput(region->vm_prfile);
 
 		/* IO memory and memory shared directly out of the pagecache
 		 * from ramfs/tmpfs mustn't be released here */
@@ -811,6 +813,8 @@ static void delete_vma(struct mm_struct *mm, struct vm_area_struct *vma)
 		vma->vm_ops->close(vma);
 	if (vma->vm_file)
 		fput(vma->vm_file);
+	if (vma->vm_prfile)
+		fput(vma->vm_prfile);
 	put_nommu_region(vma->vm_region);
 	kmem_cache_free(vm_area_cachep, vma);
 }
@@ -1377,6 +1381,8 @@ unsigned long do_mmap_pgoff(struct file *file,
 				}
 			}
 			fput(region->vm_file);
+			if (region->vm_prfile)
+				fput(region->vm_prfile);
 			kmem_cache_free(vm_region_jar, region);
 			region = pregion;
 			result = start;
@@ -1453,9 +1459,13 @@ error_just_free:
 error:
 	if (region->vm_file)
 		fput(region->vm_file);
+	if (region->vm_prfile)
+		fput(region->vm_prfile);
 	kmem_cache_free(vm_region_jar, region);
 	if (vma->vm_file)
 		fput(vma->vm_file);
+	if (vma->vm_prfile)
+		fput(vma->vm_prfile);
 	kmem_cache_free(vm_area_cachep, vma);
 	kleave(" = %d", ret);
 	return ret;

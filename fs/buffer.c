@@ -2437,6 +2437,8 @@ int block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
 	 * fault so this update may be superfluous but who really cares...
 	 */
 	file_update_time(vma->vm_file);
+	if (vma->vm_prfile)
+		file_update_time(vma->vm_prfile);
 
 	ret = __block_page_mkwrite(vma, vmf, get_block);
 	sb_end_pagefault(sb);

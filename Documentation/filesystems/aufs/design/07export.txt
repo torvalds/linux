@@ -1,0 +1,59 @@
+
+# Copyright (C) 2005-2013 Junjiro R. Okajima
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+Export Aufs via NFS
+----------------------------------------------------------------------
+Here is an approach.
+- like xino/xib, add a new file 'xigen' which stores aufs inode
+  generation.
+- iget_locked(): initialize aufs inode generation for a new inode, and
+  store it in xigen file.
+- destroy_inode(): increment aufs inode generation and store it in xigen
+  file. it is necessary even if it is not unlinked, because any data of
+  inode may be changed by UDBA.
+- encode_fh(): for a root dir, simply return FILEID_ROOT. otherwise
+  build file handle by
+  + branch id (4 bytes)
+  + superblock generation (4 bytes)
+  + inode number (4 or 8 bytes)
+  + parent dir inode number (4 or 8 bytes)
+  + inode generation (4 bytes))
+  + return value of exportfs_encode_fh() for the parent on a branch (4
+    bytes)
+  + file handle for a branch (by exportfs_encode_fh())
+- fh_to_dentry():
+  + find the index of a branch from its id in handle, and check it is
+    still exist in aufs.
+  + 1st level: get the inode number from handle and search it in cache.
+  + 2nd level: if not found, get the parent inode number from handle and
+    search it in cache. and then open the parent dir, find the matching
+    inode number by vfs_readdir() and get its name, and call
+    lookup_one_len() for the target dentry.
+  + 3rd level: if the parent dir is not cached, call
+    exportfs_decode_fh() for a branch and get the parent on a branch,
+    build a pathname of it, convert it a pathname in aufs, call
+    path_lookup(). now aufs gets a parent dir dentry, then handle it as
+    the 2nd level.
+  + to open the dir, aufs needs struct vfsmount. aufs keeps vfsmount
+    for every branch, but not itself. to get this, (currently) aufs
+    searches in current->nsproxy->mnt_ns list. it may not be a good
+    idea, but I didn't get other approach.
+  + test the generation of the gotten inode.
+- every inode operation: they may get EBUSY due to UDBA. in this case,
+  convert it into ESTALE for NFSD.
+- readdir(): call lockdep_on/off() because filldir in NFSD calls
+  lookup_one_len(), vfs_getattr(), encode_fh() and others.

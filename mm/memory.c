@@ -3466,6 +3466,8 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		/* file_update_time outside page_lock */
 		if (vma->vm_file && !page_mkwrite)
 			file_update_time(vma->vm_file);
+		if (vma->vm_prfile && !page_mkwrite)
+			file_update_time(vma->vm_prfile);
 	} else {
 		unlock_page(vmf.page);
 		if (anon)

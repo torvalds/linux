@@ -1,0 +1,96 @@
+
+# Copyright (C) 2005-2013 Junjiro R. Okajima
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+Plan
+
+Restoring some features which was implemented in aufs1.
+They were dropped in aufs2 in order to make source files simpler and
+easier to be reviewed.
+
+
+Test Only the Highest One for the Directory Permission (dirperm1 option)
+----------------------------------------------------------------------
+Let's try case study.
+- aufs has two branches, upper readwrite and lower readonly.
+  /au = /rw + /ro
+- "dirA" exists under /ro, but /rw. and its mode is 0700.
+- user invoked "chmod a+rx /au/dirA"
+- then "dirA" becomes world readable?
+
+In this case, /ro/dirA is still 0700 since it exists in readonly branch,
+or it may be a natively readonly filesystem. If aufs respects the lower
+branch, it should not respond readdir request from other users. But user
+allowed it by chmod. Should really aufs rejects showing the entries
+under /ro/dirA?
+
+To be honest, I don't have a best solution for this case. So I
+implemented 'dirperm1' and 'nodirperm1' option in aufs1, and leave it to
+users.
+When dirperm1 is specified, aufs checks only the highest one for the
+directory permission, and shows the entries. Otherwise, as usual, checks
+every dir existing on all branches and rejects the request.
+
+As a side effect, dirperm1 option improves the performance of aufs
+because the number of permission check is reduced.
+
+
+Being Another Aufs's Readonly Branch (robr)
+----------------------------------------------------------------------
+Aufs1 allows aufs to be another aufs's readonly branch.
+This feature was developed by a user's request. But it may not be used
+currecnly.
+
+
+Copy-up on Open (coo=)
+----------------------------------------------------------------------
+By default the internal copy-up is executed when it is really necessary.
+It is not done when a file is opened for writing, but when write(2) is
+done. Users who have many (over 100) branches want to know and analyse
+when and what file is copied-up. To insert a new upper branch which
+contains such files only may improve the performance of aufs.
+
+Aufs1 implemented "coo=none | leaf | all" option.
+
+
+Refresh the Opened File (refrof)
+----------------------------------------------------------------------
+This option is implemented in aufs1 but incomplete.
+
+When user reads from a file, he expects to get its latest filedata
+generally. If the file is removed and a new same named file is created,
+the content he gets is unchanged, ie. the unlinked filedata.
+
+Let's try case study again.
+- aufs has two branches.
+  /au = /rw + /ro
+- "fileA" exists under /ro, but /rw.
+- user opened "/au/fileA".
+- he or someone else inserts a branch (/new) between /rw and /ro.
+  /au = /rw + /new + /ro
+- the new branch has "fileA".
+- user reads from the opened "fileA"
+- which filedata should aufs return, from /ro or /new?
+
+Some people says it has to be "from /ro" and it is a semantics of Unix.
+The others say it should be "from /new" because the file is not removed
+and it is equivalent to the case of someone else modifies the file.
+
+Here again I don't have a best and final answer. I got an idea to
+implement 'refrof' and 'norefrof' option. When 'refrof' (REFResh the
+Opened File) is specified (by default), aufs returns the filedata from
+/new.
+Otherwise from /new.
