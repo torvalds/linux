@@ -317,8 +317,6 @@ static enum led_brightness kblamps_get(struct led_classdev *cdev)
 static int set_lcd_level(int level)
 {
 	acpi_status status = AE_OK;
-	union acpi_object arg0 = { ACPI_TYPE_INTEGER };
-	struct acpi_object_list arg_list = { 1, &arg0 };
 	acpi_handle handle = NULL;
 
 	vdbg_printk(FUJLAPTOP_DBG_TRACE, "set lcd level via SBLL [%d]\n",
@@ -333,9 +331,8 @@ static int set_lcd_level(int level)
 		return -ENODEV;
 	}
 
-	arg0.integer.value = level;
 
-	status = acpi_evaluate_object(handle, NULL, &arg_list, NULL);
+	status = acpi_execute_simple_method(handle, NULL, level);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
@@ -345,8 +342,6 @@ static int set_lcd_level(int level)
 static int set_lcd_level_alt(int level)
 {
 	acpi_status status = AE_OK;
-	union acpi_object arg0 = { ACPI_TYPE_INTEGER };
-	struct acpi_object_list arg_list = { 1, &arg0 };
 	acpi_handle handle = NULL;
 
 	vdbg_printk(FUJLAPTOP_DBG_TRACE, "set lcd level via SBL2 [%d]\n",
@@ -361,9 +356,7 @@ static int set_lcd_level_alt(int level)
 		return -ENODEV;
 	}
 
-	arg0.integer.value = level;
-
-	status = acpi_evaluate_object(handle, NULL, &arg_list, NULL);
+	status = acpi_execute_simple_method(handle, NULL, level);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
