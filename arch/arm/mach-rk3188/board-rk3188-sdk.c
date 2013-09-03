@@ -79,6 +79,10 @@
 #include "../../../drivers/staging/android/timed_gpio.h"
 #endif
 
+#if defined(CONFIG_BOARD_ID)
+#include <linux/board-id.h>
+#endif
+
 #if defined(CONFIG_MT6620)
 #include <linux/gps.h>
 #endif
@@ -2323,6 +2327,193 @@ static void rk30_pm_power_off(void)
 	while (1);
 }
 
+
+#if defined(CONFIG_BOARD_ID)
+static int board_id_init(void)
+{
+
+	return 0;
+}
+
+static int board_id_deinit(void)
+{
+
+	return 0;
+}
+
+#if defined(CONFIG_BOARD_ID_FLASH)
+static struct valid_invalid_name __initdata valid_device_name[] = {
+	{"rk-fb"},
+	{"mali400_ump"},
+	{"rk30-lcdc"},
+	{"ion-rockchip"},
+
+	{"a10_tp_syn"},
+
+	//pmic
+	{"act8846"},
+	{"wm8326"},
+	{"tps65910"},
+
+	/*angle*/	
+	{"angle_kxtik"},
+	{"angle_lis3dh"},
+	{"angle_mma7660"},
+	/*gsensor*/
+	{"gsensor"},
+	{"gs_mma8452"},
+	{"gs_kxtik"},
+	{"gs_kxtj9"},
+	{"gs_lis3dh"},
+	{"gs_mma7660"},
+	{"gs_mxc6225"},
+	/*compass*/
+	{"compass"},
+	{"ak8975"},
+	{"ak8963"},
+	{"ak09911"},
+	{"mmc314x"},
+	/*gyroscope*/
+	{"gyro"},
+	{"l3g4200d_gryo"},
+	{"l3g20d_gryo"},
+	{"k3g"},
+	/*light sensor*/
+	{"lightsensor"},
+	{"light_cm3217"},
+	{"light_cm3232"},
+	{"light_al3006"},
+	{"ls_stk3171"},
+	{"ls_isl29023"},
+	{"ls_ap321xx"},
+	{"ls_photoresistor"},
+	{"ls_us5152"},
+	/*proximity sensor*/
+	{"psensor"},
+	{"proximity_al3006"},
+	{"ps_stk3171"},
+	{"ps_ap321xx"},
+	
+	/*temperature*/
+	{"temperature"},
+	{"tmp_ms5607"},
+
+	/*pressure*/
+	{"pressure"},
+	{"pr_ms5607"},
+
+	{"rk610_ctl"},
+
+	{"rk-lid"},
+	{"rt3261"},
+};
+
+
+static struct valid_invalid_name __initdata invalid_device_name[5] = {
+	{"st480"},
+	{"rk1000_i2c_codec"},
+	{"rk1000_control"},
+
+	{"leds-lm3642"},
+	{"leds-lm2759"},
+};
+
+
+
+static struct board_device_table __initdata device_table[] = {
+	//don't move
+	{.addr = (int *)valid_device_name, .size = ARRAY_SIZE(valid_device_name), .type = BOARD_DEVICE_TYPE_VALID},	
+	{.addr = (int *)invalid_device_name, .size = ARRAY_SIZE(invalid_device_name), .type = BOARD_DEVICE_TYPE_INVALID},
+
+	
+#if defined(CONFIG_I2C0_RK30)
+	{.addr = (int *)i2c0_info, .size = ARRAY_SIZE(i2c0_info), .type = BOARD_DEVICE_TYPE_I2C, .bus = BUS_NUM_I2C_0},
+#endif
+#if defined(CONFIG_I2C1_RK30)
+	{.addr = (int *)i2c1_info, .size = ARRAY_SIZE(i2c1_info), .type = BOARD_DEVICE_TYPE_I2C, .bus = BUS_NUM_I2C_1},
+#endif
+#if defined(CONFIG_I2C2_RK30)
+	{.addr = (int *)i2c2_info, .size = ARRAY_SIZE(i2c2_info), .type = BOARD_DEVICE_TYPE_I2C, .bus = BUS_NUM_I2C_2},
+#endif
+#if defined(CONFIG_I2C3_RK30)
+	{.addr = (int *)i2c3_info, .size = ARRAY_SIZE(i2c3_info), .type = BOARD_DEVICE_TYPE_I2C, .bus = BUS_NUM_I2C_3},
+#endif
+#if defined(CONFIG_I2C4_RK30)
+	{.addr = (int *)i2c4_info, .size = ARRAY_SIZE(i2c4_info), .type = BOARD_DEVICE_TYPE_I2C, .bus = BUS_NUM_I2C_4},
+#endif
+#if defined(CONFIG_I2C_GPIO_RK30)
+	{.addr = (int *)i2c_gpio_info, .size = ARRAY_SIZE(i2c_gpio_info), .type = BOARD_DEVICE_TYPE_I2C, .bus = BUS_NUM_I2C_GPIO},
+#endif
+	{.addr = (int *)board_spi_devices, .size = ARRAY_SIZE(board_spi_devices), .type = BOARD_DEVICE_TYPE_SPI},
+	{.addr = (int *)devices, .size = ARRAY_SIZE(devices), .type = BOARD_DEVICE_TYPE_PLATFORM},
+	
+};
+#endif
+
+
+#if defined(CONFIG_BOARD_ID_HW)
+static int board_id_hw_init_paramter(int id)
+{
+	if(id < 0)
+		return -1;
+
+	switch(id)
+	{
+		case BOARD_ID_DS763:
+			//to do
+			break;
+		case BOARD_ID_AIO_BAT:
+			//to do
+			break;
+		default:
+			break;
+
+	}
+	
+	return 0;
+}
+#endif
+
+
+static struct board_id_platform_data  board_id_info = {
+	.init_platform_hw 	= board_id_init,	
+	.exit_platform_hw 	= board_id_deinit,
+	
+#if defined(CONFIG_BOARD_ID_FLASH)	
+	//board_id_flash
+	.device_table_size	= ARRAY_SIZE(device_table),
+#endif
+
+#if defined(CONFIG_BOARD_ID_HW)
+	//or board_id_hw
+	.gpio_pin = {RK30_PIN0_PC4,RK30_PIN0_PC5,RK30_PIN0_PC6,RK30_PIN0_PC7},
+	.num_gpio = 4,	
+	.init_parameter		= board_id_hw_init_paramter,
+#endif
+};
+
+
+static struct platform_device  device_board_id = {
+#if defined(CONFIG_BOARD_ID_FLASH)
+    .name = "board_id",	
+#elif defined(CONFIG_BOARD_ID_HW)
+    .name = "board_id_hw", 
+#endif
+    .id = -1,	
+	.dev		= {
+		.platform_data = &board_id_info,
+	},
+
+};
+
+
+static struct platform_device *devices_id[] __initdata = {
+	&device_board_id,
+};
+
+#endif
+
+
 static void __init machine_rk30_board_init(void)
 {
 	//avs_init();
@@ -2333,11 +2524,25 @@ static void __init machine_rk30_board_init(void)
 	
         gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
 
-
+#if defined(CONFIG_BOARD_ID)
+	#if defined(CONFIG_BOARD_ID_FLASH)
+	board_id_info.device_table = device_table;
+	platform_add_devices(devices_id, ARRAY_SIZE(devices_id));
+	rk_platform_add_display_devices();
+	
+	#elif defined(CONFIG_BOARD_ID_HW)
 	rk30_i2c_register_board_info();
 	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	rk_platform_add_display_devices();
+	platform_add_devices(devices_id, ARRAY_SIZE(devices_id));
+	#endif
+#else
+	rk30_i2c_register_board_info();
+	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
+	platform_add_devices(devices, ARRAY_SIZE(devices));
+	rk_platform_add_display_devices();
+#endif
 	board_usb_detect_init(RK30_PIN0_PA7);
 
 #if defined(CONFIG_WIFI_CONTROL_FUNC)
