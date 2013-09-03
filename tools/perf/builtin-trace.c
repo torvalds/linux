@@ -252,6 +252,9 @@ static const char *fcntl_cmds[] = {
 };
 static DEFINE_STRARRAY(fcntl_cmds);
 
+static const char *sighow[] = { "BLOCK", "UNBLOCK", "SETMASK", };
+static DEFINE_STRARRAY(sighow);
+
 static size_t syscall_arg__scnprintf_open_flags(char *bf, size_t size,
 					       struct syscall_arg *arg)
 {
@@ -366,6 +369,9 @@ static struct syscall_fmt {
 	{ .name	    = "pwrite",	    .errmsg = true, .alias = "pwrite64", },
 	{ .name	    = "read",	    .errmsg = true, },
 	{ .name	    = "recvfrom",   .errmsg = true, },
+	{ .name	    = "rt_sigprocmask", .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_STRARRAY, /* how */ },
+	  .arg_parm	 = { [0] = &strarray__sighow, /* how */ }, },
 	{ .name	    = "select",	    .errmsg = true, .timeout = true, },
 	{ .name	    = "setitimer",  .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_STRARRAY, /* which */ },
