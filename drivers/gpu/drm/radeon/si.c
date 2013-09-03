@@ -83,6 +83,8 @@ extern void si_dma_vm_set_page(struct radeon_device *rdev,
 			       uint64_t pe,
 			       uint64_t addr, unsigned count,
 			       uint32_t incr, uint32_t flags);
+static void si_enable_gui_idle_interrupt(struct radeon_device *rdev,
+					 bool enable);
 
 static const u32 verde_rlc_save_restore_register_list[] =
 {
@@ -3386,6 +3388,8 @@ static int si_cp_resume(struct radeon_device *rdev)
 	u32 rb_bufsz;
 	int r;
 
+	si_enable_gui_idle_interrupt(rdev, false);
+
 	WREG32(CP_SEM_WAIT_TIMER, 0x0);
 	WREG32(CP_SEM_INCOMPLETE_TIMER_CNTL, 0x0);
 
@@ -3500,6 +3504,8 @@ static int si_cp_resume(struct radeon_device *rdev)
 	if (r) {
 		rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX].ready = false;
 	}
+
+	si_enable_gui_idle_interrupt(rdev, true);
 
 	return 0;
 }
@@ -5250,6 +5256,7 @@ void si_update_cg(struct radeon_device *rdev,
 		  u32 block, bool enable)
 {
 	if (block & RADEON_CG_BLOCK_GFX) {
+		si_enable_gui_idle_interrupt(rdev, false);
 		/* order matters! */
 		if (enable) {
 			si_enable_mgcg(rdev, true);
@@ -5258,6 +5265,7 @@ void si_update_cg(struct radeon_device *rdev,
 			si_enable_cgcg(rdev, false);
 			si_enable_mgcg(rdev, false);
 		}
+		si_enable_gui_idle_interrupt(rdev, true);
 	}
 
 	if (block & RADEON_CG_BLOCK_MC) {
@@ -5560,7 +5568,9 @@ static void si_disable_interrupt_state(struct radeon_device *rdev)
 {
 	u32 tmp;
 
-	WREG32(CP_INT_CNTL_RING0, CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE);
+	tmp = RREG32(CP_INT_CNTL_RING0) &
+		(CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE);
+	WREG32(CP_INT_CNTL_RING0, tmp);
 	WREG32(CP_INT_CNTL_RING1, 0);
 	WREG32(CP_INT_CNTL_RING2, 0);
 	tmp = RREG32(DMA_CNTL + DMA0_REGISTER_OFFSET) & ~TRAP_ENABLE;
@@ -5685,7 +5695,7 @@ static int si_irq_init(struct radeon_device *rdev)
 
 int si_irq_set(struct radeon_device *rdev)
 {
-	u32 cp_int_cntl = CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE;
+	u32 cp_int_cntl;
 	u32 cp_int_cntl1 = 0, cp_int_cntl2 = 0;
 	u32 crtc1 = 0, crtc2 = 0, crtc3 = 0, crtc4 = 0, crtc5 = 0, crtc6 = 0;
 	u32 hpd1 = 0, hpd2 = 0, hpd3 = 0, hpd4 = 0, hpd5 = 0, hpd6 = 0;
@@ -5705,6 +5715,9 @@ int si_irq_set(struct radeon_device *rdev)
 		si_disable_interrupt_state(rdev);
 		return 0;
 	}
+
+	cp_int_cntl = RREG32(CP_INT_CNTL_RING0) &
+		(CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE);
 
 	if (!ASIC_IS_NODCE(rdev)) {
 		hpd1 = RREG32(DC_HPD1_INT_CONTROL) & ~DC_HPDx_INT_EN;
