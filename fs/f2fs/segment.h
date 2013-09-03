@@ -471,7 +471,7 @@ static inline bool has_not_enough_free_secs(struct f2fs_sb_info *sbi, int freed)
 
 static inline int utilization(struct f2fs_sb_info *sbi)
 {
-	return div_u64(valid_user_blocks(sbi) * 100, sbi->user_block_count);
+	return div_u64((u64)valid_user_blocks(sbi) * 100, sbi->user_block_count);
 }
 
 /*
