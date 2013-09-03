@@ -197,12 +197,9 @@ void menu_add_symbol(enum prop_type type, struct symbol *sym, struct expr *dep)
 
 void menu_add_option(int token, char *arg)
 {
-	struct property *prop;
-
 	switch (token) {
 	case T_OPT_MODULES:
-		prop = prop_alloc(P_DEFAULT, modules_sym);
-		prop->expr = expr_alloc_symbol(current_entry->sym);
+		modules_sym = current_entry->sym;
 		break;
 	case T_OPT_DEFCONFIG_LIST:
 		if (!sym_defconfig_list)
