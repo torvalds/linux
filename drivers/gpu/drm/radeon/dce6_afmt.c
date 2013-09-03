@@ -86,12 +86,12 @@ void dce6_afmt_select_pin(struct drm_encoder *encoder)
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 	u32 offset = dig->afmt->offset;
-	u32 id = dig->afmt->pin->id;
 
 	if (!dig->afmt->pin)
 		return;
 
-	WREG32(AFMT_AUDIO_SRC_CONTROL + offset, AFMT_AUDIO_SRC_SELECT(id));
+	WREG32(AFMT_AUDIO_SRC_CONTROL + offset,
+	       AFMT_AUDIO_SRC_SELECT(dig->afmt->pin->id));
 }
 
 void dce6_afmt_write_speaker_allocation(struct drm_encoder *encoder)
