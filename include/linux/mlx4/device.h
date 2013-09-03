@@ -1052,11 +1052,6 @@ struct _rule_hw {
 	};
 };
 
-/* translating DMFS verbs sniffer rule to the FW API would need two reg IDs */
-struct mlx4_flow_handle {
-	u64 reg_id[2];
-};
-
 int mlx4_flow_steer_promisc_add(struct mlx4_dev *dev, u8 port, u32 qpn,
 				enum mlx4_net_trans_promisc_mode mode);
 int mlx4_flow_steer_promisc_remove(struct mlx4_dev *dev, u8 port,

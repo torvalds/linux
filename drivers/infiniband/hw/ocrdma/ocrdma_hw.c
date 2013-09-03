@@ -94,7 +94,7 @@ enum cqe_status {
 
 static inline void *ocrdma_get_eqe(struct ocrdma_eq *eq)
 {
-	return (u8 *)eq->q.va + (eq->q.tail * sizeof(struct ocrdma_eqe));
+	return eq->q.va + (eq->q.tail * sizeof(struct ocrdma_eqe));
 }
 
 static inline void ocrdma_eq_inc_tail(struct ocrdma_eq *eq)
@@ -105,8 +105,7 @@ static inline void ocrdma_eq_inc_tail(struct ocrdma_eq *eq)
 static inline void *ocrdma_get_mcqe(struct ocrdma_dev *dev)
 {
 	struct ocrdma_mcqe *cqe = (struct ocrdma_mcqe *)
-	    ((u8 *) dev->mq.cq.va +
-	     (dev->mq.cq.tail * sizeof(struct ocrdma_mcqe)));
+	    (dev->mq.cq.va + (dev->mq.cq.tail * sizeof(struct ocrdma_mcqe)));
 
 	if (!(le32_to_cpu(cqe->valid_ae_cmpl_cons) & OCRDMA_MCQE_VALID_MASK))
 		return NULL;
@@ -120,9 +119,7 @@ static inline void ocrdma_mcq_inc_tail(struct ocrdma_dev *dev)
 
 static inline struct ocrdma_mqe *ocrdma_get_mqe(struct ocrdma_dev *dev)
 {
-	return (struct ocrdma_mqe *)((u8 *) dev->mq.sq.va +
-				     (dev->mq.sq.head *
-				      sizeof(struct ocrdma_mqe)));
+	return dev->mq.sq.va + (dev->mq.sq.head * sizeof(struct ocrdma_mqe));
 }
 
 static inline void ocrdma_mq_inc_head(struct ocrdma_dev *dev)
@@ -132,8 +129,7 @@ static inline void ocrdma_mq_inc_head(struct ocrdma_dev *dev)
 
 static inline void *ocrdma_get_mqe_rsp(struct ocrdma_dev *dev)
 {
-	return (void *)((u8 *) dev->mq.sq.va +
-			(dev->mqe_ctx.tag * sizeof(struct ocrdma_mqe)));
+	return dev->mq.sq.va + (dev->mqe_ctx.tag * sizeof(struct ocrdma_mqe));
 }
 
 enum ib_qp_state get_ibqp_state(enum ocrdma_qp_state qps)
@@ -181,7 +177,7 @@ static enum ocrdma_qp_state get_ocrdma_qp_state(enum ib_qp_state qps)
 
 static int ocrdma_get_mbx_errno(u32 status)
 {
-	int err_num = -EFAULT;
+	int err_num;
 	u8 mbox_status = (status & OCRDMA_MBX_RSP_STATUS_MASK) >>
 					OCRDMA_MBX_RSP_STATUS_SHIFT;
 	u8 add_status = (status & OCRDMA_MBX_RSP_ASTATUS_MASK) >>
@@ -260,10 +256,11 @@ static int ocrdma_get_mbx_cqe_errno(u16 cqe_status)
 		break;
 	case OCRDMA_MBX_CQE_STATUS_INSUFFICIENT_RESOURCES:
 	case OCRDMA_MBX_CQE_STATUS_QUEUE_FLUSHING:
-		err_num = -EAGAIN;
+		err_num = -EINVAL;
 		break;
 	case OCRDMA_MBX_CQE_STATUS_DMA_FAILED:
-		err_num = -EIO;
+	default:
+		err_num = -EINVAL;
 		break;
 	}
 	return err_num;
@@ -367,22 +364,6 @@ static void ocrdma_build_q_pages(struct ocrdma_pa *q_pa, int cnt,
 	}
 }
 
-static void ocrdma_assign_eq_vect_gen2(struct ocrdma_dev *dev,
-				       struct ocrdma_eq *eq)
-{
-	/* assign vector and update vector id for next EQ */
-	eq->vector = dev->nic_info.msix.start_vector;
-	dev->nic_info.msix.start_vector += 1;
-}
-
-static void ocrdma_free_eq_vect_gen2(struct ocrdma_dev *dev)
-{
-	/* this assumes that EQs are freed in exactly reverse order
-	 * as its allocation.
-	 */
-	dev->nic_info.msix.start_vector -= 1;
-}
-
 static int ocrdma_mbx_delete_q(struct ocrdma_dev *dev, struct ocrdma_queue_info *q,
 			       int queue_type)
 {
@@ -423,11 +404,8 @@ static int ocrdma_mbx_create_eq(struct ocrdma_dev *dev, struct ocrdma_eq *eq)
 	memset(cmd, 0, sizeof(*cmd));
 	ocrdma_init_mch(&cmd->req, OCRDMA_CMD_CREATE_EQ, OCRDMA_SUBSYS_COMMON,
 			sizeof(*cmd));
-	if (dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY)
-		cmd->req.rsvd_version = 0;
-	else
-		cmd->req.rsvd_version = 2;
 
+	cmd->req.rsvd_version = 2;
 	cmd->num_pages = 4;
 	cmd->valid = OCRDMA_CREATE_EQ_VALID;
 	cmd->cnt = 4 << OCRDMA_CREATE_EQ_CNT_SHIFT;
@@ -438,12 +416,7 @@ static int ocrdma_mbx_create_eq(struct ocrdma_dev *dev, struct ocrdma_eq *eq)
 				 NULL);
 	if (!status) {
 		eq->q.id = rsp->vector_eqid & 0xffff;
-		if (dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY)
-			ocrdma_assign_eq_vect_gen2(dev, eq);
-		else {
-			eq->vector = (rsp->vector_eqid >> 16) & 0xffff;
-			dev->nic_info.msix.start_vector += 1;
-		}
+		eq->vector = (rsp->vector_eqid >> 16) & 0xffff;
 		eq->q.created = true;
 	}
 	return status;
@@ -486,8 +459,6 @@ static void _ocrdma_destroy_eq(struct ocrdma_dev *dev, struct ocrdma_eq *eq)
 {
 	if (eq->q.created) {
 		ocrdma_mbx_delete_q(dev, &eq->q, QTYPE_EQ);
-		if (dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY)
-			ocrdma_free_eq_vect_gen2(dev);
 		ocrdma_free_q(dev, &eq->q);
 	}
 }
@@ -506,13 +477,12 @@ static void ocrdma_destroy_eq(struct ocrdma_dev *dev, struct ocrdma_eq *eq)
 	_ocrdma_destroy_eq(dev, eq);
 }
 
-static void ocrdma_destroy_qp_eqs(struct ocrdma_dev *dev)
+static void ocrdma_destroy_eqs(struct ocrdma_dev *dev)
 {
 	int i;
 
-	/* deallocate the data path eqs */
 	for (i = 0; i < dev->eq_cnt; i++)
-		ocrdma_destroy_eq(dev, &dev->qp_eq_tbl[i]);
+		ocrdma_destroy_eq(dev, &dev->eq_tbl[i]);
 }
 
 static int ocrdma_mbx_mq_cq_create(struct ocrdma_dev *dev,
@@ -527,16 +497,21 @@ static int ocrdma_mbx_mq_cq_create(struct ocrdma_dev *dev,
 	ocrdma_init_mch(&cmd->req, OCRDMA_CMD_CREATE_CQ,
 			OCRDMA_SUBSYS_COMMON, sizeof(*cmd));
 
-	cmd->pgsz_pgcnt = PAGES_4K_SPANNED(cq->va, cq->size);
-	cmd->ev_cnt_flags = OCRDMA_CREATE_CQ_DEF_FLAGS;
-	cmd->eqn = (eq->id << OCRDMA_CREATE_CQ_EQID_SHIFT);
+	cmd->req.rsvd_version = OCRDMA_CREATE_CQ_VER2;
+	cmd->pgsz_pgcnt = (cq->size / OCRDMA_MIN_Q_PAGE_SIZE) <<
+		OCRDMA_CREATE_CQ_PAGE_SIZE_SHIFT;
+	cmd->pgsz_pgcnt |= PAGES_4K_SPANNED(cq->va, cq->size);
 
-	ocrdma_build_q_pages(&cmd->pa[0], cmd->pgsz_pgcnt,
+	cmd->ev_cnt_flags = OCRDMA_CREATE_CQ_DEF_FLAGS;
+	cmd->eqn = eq->id;
+	cmd->cqe_count = cq->size / sizeof(struct ocrdma_mcqe);
+
+	ocrdma_build_q_pages(&cmd->pa[0], cq->size / OCRDMA_MIN_Q_PAGE_SIZE,
 			     cq->dma, PAGE_SIZE_4K);
 	status = be_roce_mcc_cmd(dev->nic_info.netdev,
 				 cmd, sizeof(*cmd), NULL, NULL);
 	if (!status) {
-		cq->id = (rsp->cq_id & OCRDMA_CREATE_CQ_RSP_CQ_ID_MASK);
+		cq->id = (u16) (rsp->cq_id & OCRDMA_CREATE_CQ_RSP_CQ_ID_MASK);
 		cq->created = true;
 	}
 	return status;
@@ -569,7 +544,10 @@ static int ocrdma_mbx_create_mq(struct ocrdma_dev *dev,
 	cmd->cqid_pages = num_pages;
 	cmd->cqid_pages |= (cq->id << OCRDMA_CREATE_MQ_CQ_ID_SHIFT);
 	cmd->async_cqid_valid = OCRDMA_CREATE_MQ_ASYNC_CQ_VALID;
-	cmd->async_event_bitmap = Bit(20);
+
+	cmd->async_event_bitmap = Bit(OCRDMA_ASYNC_GRP5_EVE_CODE);
+	cmd->async_event_bitmap |= Bit(OCRDMA_ASYNC_RDMA_EVE_CODE);
+
 	cmd->async_cqid_ringsize = cq->id;
 	cmd->async_cqid_ringsize |= (ocrdma_encoded_q_len(mq->len) <<
 				OCRDMA_CREATE_MQ_RING_SIZE_SHIFT);
@@ -596,7 +574,7 @@ static int ocrdma_create_mq(struct ocrdma_dev *dev)
 	if (status)
 		goto alloc_err;
 
-	status = ocrdma_mbx_mq_cq_create(dev, &dev->mq.cq, &dev->meq.q);
+	status = ocrdma_mbx_mq_cq_create(dev, &dev->mq.cq, &dev->eq_tbl[0].q);
 	if (status)
 		goto mbx_cq_free;
 
@@ -653,7 +631,7 @@ static void ocrdma_process_qpcat_error(struct ocrdma_dev *dev,
 
 	if (qp == NULL)
 		BUG();
-	ocrdma_qp_state_machine(qp, new_ib_qps, &old_ib_qps);
+	ocrdma_qp_state_change(qp, new_ib_qps, &old_ib_qps);
 }
 
 static void ocrdma_dispatch_ibevent(struct ocrdma_dev *dev,
@@ -746,10 +724,34 @@ static void ocrdma_dispatch_ibevent(struct ocrdma_dev *dev,
 			qp->srq->ibsrq.event_handler(&ib_evt,
 						     qp->srq->ibsrq.
 						     srq_context);
-	} else if (dev_event)
+	} else if (dev_event) {
 		ib_dispatch_event(&ib_evt);
+	}
 
 }
+
+static void ocrdma_process_grp5_aync(struct ocrdma_dev *dev,
+					struct ocrdma_ae_mcqe *cqe)
+{
+	struct ocrdma_ae_pvid_mcqe *evt;
+	int type = (cqe->valid_ae_event & OCRDMA_AE_MCQE_EVENT_TYPE_MASK) >>
+			OCRDMA_AE_MCQE_EVENT_TYPE_SHIFT;
+
+	switch (type) {
+	case OCRDMA_ASYNC_EVENT_PVID_STATE:
+		evt = (struct ocrdma_ae_pvid_mcqe *)cqe;
+		if ((evt->tag_enabled & OCRDMA_AE_PVID_MCQE_ENABLED_MASK) >>
+			OCRDMA_AE_PVID_MCQE_ENABLED_SHIFT)
+			dev->pvid = ((evt->tag_enabled &
+					OCRDMA_AE_PVID_MCQE_TAG_MASK) >>
+					OCRDMA_AE_PVID_MCQE_TAG_SHIFT);
+		break;
+	default:
+		/* Not interested evts. */
+		break;
+	}
+}
+
 
 static void ocrdma_process_acqe(struct ocrdma_dev *dev, void *ae_cqe)
 {
@@ -758,8 +760,10 @@ static void ocrdma_process_acqe(struct ocrdma_dev *dev, void *ae_cqe)
 	u32 evt_code = (cqe->valid_ae_event & OCRDMA_AE_MCQE_EVENT_CODE_MASK) >>
 			OCRDMA_AE_MCQE_EVENT_CODE_SHIFT;
 
-	if (evt_code == OCRDMA_ASYNC_EVE_CODE)
+	if (evt_code == OCRDMA_ASYNC_RDMA_EVE_CODE)
 		ocrdma_dispatch_ibevent(dev, cqe);
+	else if (evt_code == OCRDMA_ASYNC_GRP5_EVE_CODE)
+		ocrdma_process_grp5_aync(dev, cqe);
 	else
 		pr_err("%s(%d) invalid evt code=0x%x\n", __func__,
 		       dev->id, evt_code);
@@ -957,9 +961,8 @@ static int ocrdma_mbx_cmd(struct ocrdma_dev *dev, struct ocrdma_mqe *mqe)
 	rsp = ocrdma_get_mqe_rsp(dev);
 	ocrdma_copy_le32_to_cpu(mqe, rsp, (sizeof(*mqe)));
 	if (cqe_status || ext_status) {
-		pr_err
-		    ("%s() opcode=0x%x, cqe_status=0x%x, ext_status=0x%x\n",
-		     __func__,
+		pr_err("%s() opcode=0x%x, cqe_status=0x%x, ext_status=0x%x\n",
+		       __func__,
 		     (rsp->u.rsp.subsys_op & OCRDMA_MBX_RSP_OPCODE_MASK) >>
 		     OCRDMA_MBX_RSP_OPCODE_SHIFT, cqe_status, ext_status);
 		status = ocrdma_get_mbx_cqe_errno(cqe_status);
@@ -991,9 +994,15 @@ static void ocrdma_get_attr(struct ocrdma_dev *dev,
 	attr->max_srq_sge = (rsp->max_srq_rqe_sge &
 			      OCRDMA_MBX_QUERY_CFG_MAX_SRQ_SGE_MASK) >>
 	    OCRDMA_MBX_QUERY_CFG_MAX_SRQ_SGE_OFFSET;
+	attr->max_rdma_sge = (rsp->max_write_send_sge &
+			      OCRDMA_MBX_QUERY_CFG_MAX_WRITE_SGE_MASK) >>
+	    OCRDMA_MBX_QUERY_CFG_MAX_WRITE_SGE_SHIFT;
 	attr->max_ord_per_qp = (rsp->max_ird_ord_per_qp &
 				OCRDMA_MBX_QUERY_CFG_MAX_ORD_PER_QP_MASK) >>
 	    OCRDMA_MBX_QUERY_CFG_MAX_ORD_PER_QP_SHIFT;
+	attr->max_srq =
+		(rsp->max_srq_rpir_qps & OCRDMA_MBX_QUERY_CFG_MAX_SRQ_MASK) >>
+		OCRDMA_MBX_QUERY_CFG_MAX_SRQ_OFFSET;
 	attr->max_ird_per_qp = (rsp->max_ird_ord_per_qp &
 				OCRDMA_MBX_QUERY_CFG_MAX_IRD_PER_QP_MASK) >>
 	    OCRDMA_MBX_QUERY_CFG_MAX_IRD_PER_QP_SHIFT;
@@ -1013,6 +1022,9 @@ static void ocrdma_get_attr(struct ocrdma_dev *dev,
 	attr->max_num_mr_pbl = rsp->max_num_mr_pbl;
 	attr->max_cqe = rsp->max_cq_cqes_per_cq &
 			OCRDMA_MBX_QUERY_CFG_MAX_CQES_PER_CQ_MASK;
+	attr->max_cq = (rsp->max_cq_cqes_per_cq &
+			OCRDMA_MBX_QUERY_CFG_MAX_CQ_MASK) >>
+			OCRDMA_MBX_QUERY_CFG_MAX_CQ_OFFSET;
 	attr->wqe_size = ((rsp->wqe_rqe_stride_max_dpp_cqs &
 		OCRDMA_MBX_QUERY_CFG_MAX_WQE_SIZE_MASK) >>
 		OCRDMA_MBX_QUERY_CFG_MAX_WQE_SIZE_OFFSET) *
@@ -1045,7 +1057,6 @@ static int ocrdma_check_fw_config(struct ocrdma_dev *dev,
 		return -EINVAL;
 	dev->base_eqid = conf->base_eqid;
 	dev->max_eq = conf->max_eq;
-	dev->attr.max_cq = OCRDMA_MAX_CQ - 1;
 	return 0;
 }
 
@@ -1113,6 +1124,34 @@ static int ocrdma_mbx_query_dev(struct ocrdma_dev *dev)
 		goto mbx_err;
 	rsp = (struct ocrdma_mbx_query_config *)cmd;
 	ocrdma_get_attr(dev, &dev->attr, rsp);
+mbx_err:
+	kfree(cmd);
+	return status;
+}
+
+int ocrdma_mbx_get_link_speed(struct ocrdma_dev *dev, u8 *lnk_speed)
+{
+	int status = -ENOMEM;
+	struct ocrdma_get_link_speed_rsp *rsp;
+	struct ocrdma_mqe *cmd;
+
+	cmd = ocrdma_init_emb_mqe(OCRDMA_CMD_QUERY_NTWK_LINK_CONFIG_V1,
+				  sizeof(*cmd));
+	if (!cmd)
+		return status;
+	ocrdma_init_mch((struct ocrdma_mbx_hdr *)&cmd->u.cmd[0],
+			OCRDMA_CMD_QUERY_NTWK_LINK_CONFIG_V1,
+			OCRDMA_SUBSYS_COMMON, sizeof(*cmd));
+
+	((struct ocrdma_mbx_hdr *)cmd->u.cmd)->rsvd_version = 0x1;
+
+	status = ocrdma_mbx_cmd(dev, (struct ocrdma_mqe *)cmd);
+	if (status)
+		goto mbx_err;
+
+	rsp = (struct ocrdma_get_link_speed_rsp *)cmd;
+	*lnk_speed = rsp->phys_port_speed;
+
 mbx_err:
 	kfree(cmd);
 	return status;
@@ -1296,19 +1335,19 @@ static u16 ocrdma_bind_eq(struct ocrdma_dev *dev)
 	u16 eq_id;
 
 	mutex_lock(&dev->dev_lock);
-	cq_cnt = dev->qp_eq_tbl[0].cq_cnt;
-	eq_id = dev->qp_eq_tbl[0].q.id;
+	cq_cnt = dev->eq_tbl[0].cq_cnt;
+	eq_id = dev->eq_tbl[0].q.id;
 	/* find the EQ which is has the least number of
 	 * CQs associated with it.
 	 */
 	for (i = 0; i < dev->eq_cnt; i++) {
-		if (dev->qp_eq_tbl[i].cq_cnt < cq_cnt) {
-			cq_cnt = dev->qp_eq_tbl[i].cq_cnt;
-			eq_id = dev->qp_eq_tbl[i].q.id;
+		if (dev->eq_tbl[i].cq_cnt < cq_cnt) {
+			cq_cnt = dev->eq_tbl[i].cq_cnt;
+			eq_id = dev->eq_tbl[i].q.id;
 			selected_eq = i;
 		}
 	}
-	dev->qp_eq_tbl[selected_eq].cq_cnt += 1;
+	dev->eq_tbl[selected_eq].cq_cnt += 1;
 	mutex_unlock(&dev->dev_lock);
 	return eq_id;
 }
@@ -1319,16 +1358,16 @@ static void ocrdma_unbind_eq(struct ocrdma_dev *dev, u16 eq_id)
 
 	mutex_lock(&dev->dev_lock);
 	for (i = 0; i < dev->eq_cnt; i++) {
-		if (dev->qp_eq_tbl[i].q.id != eq_id)
+		if (dev->eq_tbl[i].q.id != eq_id)
 			continue;
-		dev->qp_eq_tbl[i].cq_cnt -= 1;
+		dev->eq_tbl[i].cq_cnt -= 1;
 		break;
 	}
 	mutex_unlock(&dev->dev_lock);
 }
 
 int ocrdma_mbx_create_cq(struct ocrdma_dev *dev, struct ocrdma_cq *cq,
-			 int entries, int dpp_cq)
+			 int entries, int dpp_cq, u16 pd_id)
 {
 	int status = -ENOMEM; int max_hw_cqe;
 	struct pci_dev *pdev = dev->nic_info.pdev;
@@ -1336,8 +1375,6 @@ int ocrdma_mbx_create_cq(struct ocrdma_dev *dev, struct ocrdma_cq *cq,
 	struct ocrdma_create_cq_rsp *rsp;
 	u32 hw_pages, cqe_size, page_size, cqe_count;
 
-	if (dpp_cq)
-		return -EINVAL;
 	if (entries > dev->attr.max_cqe) {
 		pr_err("%s(%d) max_cqe=0x%x, requester_cqe=0x%x\n",
 		       __func__, dev->id, dev->attr.max_cqe, entries);
@@ -1377,15 +1414,13 @@ int ocrdma_mbx_create_cq(struct ocrdma_dev *dev, struct ocrdma_cq *cq,
 	cmd->cmd.pgsz_pgcnt |= hw_pages;
 	cmd->cmd.ev_cnt_flags = OCRDMA_CREATE_CQ_DEF_FLAGS;
 
-	if (dev->eq_cnt < 0)
-		goto eq_err;
 	cq->eqn = ocrdma_bind_eq(dev);
-	cmd->cmd.req.rsvd_version = OCRDMA_CREATE_CQ_VER2;
+	cmd->cmd.req.rsvd_version = OCRDMA_CREATE_CQ_VER3;
 	cqe_count = cq->len / cqe_size;
-	if (cqe_count > 1024)
+	if (cqe_count > 1024) {
 		/* Set cnt to 3 to indicate more than 1024 cq entries */
 		cmd->cmd.ev_cnt_flags |= (0x3 << OCRDMA_CREATE_CQ_CNT_SHIFT);
-	else {
+	} else {
 		u8 count = 0;
 		switch (cqe_count) {
 		case 256:
@@ -1416,6 +1451,7 @@ int ocrdma_mbx_create_cq(struct ocrdma_dev *dev, struct ocrdma_cq *cq,
 		cq->phase_change = true;
 	}
 
+	cmd->cmd.pd_id = pd_id; /* valid only for v3 */
 	ocrdma_build_q_pages(&cmd->cmd.pa[0], hw_pages, cq->pa, page_size);
 	status = ocrdma_mbx_cmd(dev, (struct ocrdma_mqe *)cmd);
 	if (status)
@@ -1427,7 +1463,6 @@ int ocrdma_mbx_create_cq(struct ocrdma_dev *dev, struct ocrdma_cq *cq,
 	return 0;
 mbx_err:
 	ocrdma_unbind_eq(dev, cq->eqn);
-eq_err:
 	dma_free_coherent(&pdev->dev, cq->len, cq->va, cq->pa);
 mem_err:
 	kfree(cmd);
@@ -1524,6 +1559,7 @@ static int ocrdma_mbx_reg_mr(struct ocrdma_dev *dev, struct ocrdma_hw_mr *hwmr,
 		return -ENOMEM;
 	cmd->num_pbl_pdid =
 	    pdid | (hwmr->num_pbls << OCRDMA_REG_NSMR_NUM_PBL_SHIFT);
+	cmd->fr_mr = hwmr->fr_mr;
 
 	cmd->flags_hpage_pbe_sz |= (hwmr->remote_wr <<
 				    OCRDMA_REG_NSMR_REMOTE_WR_SHIFT);
@@ -1678,8 +1714,16 @@ void ocrdma_flush_qp(struct ocrdma_qp *qp)
 	spin_unlock_irqrestore(&qp->dev->flush_q_lock, flags);
 }
 
-int ocrdma_qp_state_machine(struct ocrdma_qp *qp, enum ib_qp_state new_ib_state,
-			    enum ib_qp_state *old_ib_state)
+static void ocrdma_init_hwq_ptr(struct ocrdma_qp *qp)
+{
+	qp->sq.head = 0;
+	qp->sq.tail = 0;
+	qp->rq.head = 0;
+	qp->rq.tail = 0;
+}
+
+int ocrdma_qp_state_change(struct ocrdma_qp *qp, enum ib_qp_state new_ib_state,
+			   enum ib_qp_state *old_ib_state)
 {
 	unsigned long flags;
 	int status = 0;
@@ -1696,96 +1740,15 @@ int ocrdma_qp_state_machine(struct ocrdma_qp *qp, enum ib_qp_state new_ib_state,
 		return 1;
 	}
 
-	switch (qp->state) {
-	case OCRDMA_QPS_RST:
-		switch (new_state) {
-		case OCRDMA_QPS_RST:
-		case OCRDMA_QPS_INIT:
-			break;
-		default:
-			status = -EINVAL;
-			break;
-		};
-		break;
-	case OCRDMA_QPS_INIT:
-		/* qps: INIT->XXX */
-		switch (new_state) {
-		case OCRDMA_QPS_INIT:
-		case OCRDMA_QPS_RTR:
-			break;
-		case OCRDMA_QPS_ERR:
-			ocrdma_flush_qp(qp);
-			break;
-		default:
-			status = -EINVAL;
-			break;
-		};
-		break;
-	case OCRDMA_QPS_RTR:
-		/* qps: RTS->XXX */
-		switch (new_state) {
-		case OCRDMA_QPS_RTS:
-			break;
-		case OCRDMA_QPS_ERR:
-			ocrdma_flush_qp(qp);
-			break;
-		default:
-			status = -EINVAL;
-			break;
-		};
-		break;
-	case OCRDMA_QPS_RTS:
-		/* qps: RTS->XXX */
-		switch (new_state) {
-		case OCRDMA_QPS_SQD:
-		case OCRDMA_QPS_SQE:
-			break;
-		case OCRDMA_QPS_ERR:
-			ocrdma_flush_qp(qp);
-			break;
-		default:
-			status = -EINVAL;
-			break;
-		};
-		break;
-	case OCRDMA_QPS_SQD:
-		/* qps: SQD->XXX */
-		switch (new_state) {
-		case OCRDMA_QPS_RTS:
-		case OCRDMA_QPS_SQE:
-		case OCRDMA_QPS_ERR:
-			break;
-		default:
-			status = -EINVAL;
-			break;
-		};
-		break;
-	case OCRDMA_QPS_SQE:
-		switch (new_state) {
-		case OCRDMA_QPS_RTS:
-		case OCRDMA_QPS_ERR:
-			break;
-		default:
-			status = -EINVAL;
-			break;
-		};
-		break;
-	case OCRDMA_QPS_ERR:
-		/* qps: ERR->XXX */
-		switch (new_state) {
-		case OCRDMA_QPS_RST:
-			break;
-		default:
-			status = -EINVAL;
-			break;
-		};
-		break;
-	default:
-		status = -EINVAL;
-		break;
-	};
-	if (!status)
-		qp->state = new_state;
+
+	if (new_state == OCRDMA_QPS_INIT) {
+		ocrdma_init_hwq_ptr(qp);
+		ocrdma_del_flush_qp(qp);
+	} else if (new_state == OCRDMA_QPS_ERR) {
+		ocrdma_flush_qp(qp);
+	}
+
+	qp->state = new_state;
 
 	spin_unlock_irqrestore(&qp->q_lock, flags);
 	return status;
@@ -1819,10 +1782,9 @@ static int ocrdma_set_create_qp_sq_cmd(struct ocrdma_create_qp_req *cmd,
 	u32 max_wqe_allocated;
 	u32 max_sges = attrs->cap.max_send_sge;
 
-	max_wqe_allocated = attrs->cap.max_send_wr;
-	/* need to allocate one extra to for GEN1 family */
-	if (dev->nic_info.dev_family != OCRDMA_GEN2_FAMILY)
-		max_wqe_allocated += 1;
+	/* QP1 may exceed 127 */
+	max_wqe_allocated = min_t(int, attrs->cap.max_send_wr + 1,
+				dev->attr.max_wqe);
 
 	status = ocrdma_build_q_conf(&max_wqe_allocated,
 		dev->attr.wqe_size, &hw_pages, &hw_page_size);
@@ -1934,6 +1896,8 @@ static int ocrdma_set_create_qp_ird_cmd(struct ocrdma_create_qp_req *cmd,
 	dma_addr_t pa = 0;
 	int ird_page_size = dev->attr.ird_page_size;
 	int ird_q_len = dev->attr.num_ird_pages * ird_page_size;
+	struct ocrdma_hdr_wqe *rqe;
+	int i  = 0;
 
 	if (dev->attr.ird == 0)
 		return 0;
@@ -1945,6 +1909,15 @@ static int ocrdma_set_create_qp_ird_cmd(struct ocrdma_create_qp_req *cmd,
 	memset(qp->ird_q_va, 0, ird_q_len);
 	ocrdma_build_q_pages(&cmd->ird_addr[0], dev->attr.num_ird_pages,
 			     pa, ird_page_size);
+	for (; i < ird_q_len / dev->attr.rqe_size; i++) {
+		rqe = (struct ocrdma_hdr_wqe *)(qp->ird_q_va +
+			(i * dev->attr.rqe_size));
+		rqe->cw = 0;
+		rqe->cw |= 2;
+		rqe->cw |= (OCRDMA_TYPE_LKEY << OCRDMA_WQE_TYPE_SHIFT);
+		rqe->cw |= (8 << OCRDMA_WQE_SIZE_SHIFT);
+		rqe->cw |= (8 << OCRDMA_WQE_NXT_WQE_SIZE_SHIFT);
+	}
 	return 0;
 }
 
@@ -2057,9 +2030,10 @@ int ocrdma_mbx_create_qp(struct ocrdma_qp *qp, struct ib_qp_init_attr *attrs,
 	qp->rq_cq = cq;
 
 	if (pd->dpp_enabled && attrs->cap.max_inline_data && pd->num_dpp_qp &&
-	    (attrs->cap.max_inline_data <= dev->attr.max_inline_data))
+	    (attrs->cap.max_inline_data <= dev->attr.max_inline_data)) {
 		ocrdma_set_create_qp_dpp_cmd(cmd, pd, qp, enable_dpp_cq,
 					     dpp_cq_id);
+	}
 
 	status = ocrdma_mbx_cmd(dev, (struct ocrdma_mqe *)cmd);
 	if (status)
@@ -2108,38 +2082,48 @@ int ocrdma_resolve_dgid(struct ocrdma_dev *dev, union ib_gid *dgid,
 	struct in6_addr in6;
 
 	memcpy(&in6, dgid, sizeof in6);
-	if (rdma_is_multicast_addr(&in6))
+	if (rdma_is_multicast_addr(&in6)) {
 		rdma_get_mcast_mac(&in6, mac_addr);
-	else if (rdma_link_local_addr(&in6))
+	} else if (rdma_link_local_addr(&in6)) {
 		rdma_get_ll_mac(&in6, mac_addr);
-	else {
+	} else {
 		pr_err("%s() fail to resolve mac_addr.\n", __func__);
 		return -EINVAL;
 	}
 	return 0;
 }
 
-static void ocrdma_set_av_params(struct ocrdma_qp *qp,
+static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 				struct ocrdma_modify_qp *cmd,
 				struct ib_qp_attr *attrs)
 {
+	int status;
 	struct ib_ah_attr *ah_attr = &attrs->ah_attr;
-	union ib_gid sgid;
+	union ib_gid sgid, zgid;
 	u32 vlan_id;
 	u8 mac_addr[6];
+
 	if ((ah_attr->ah_flags & IB_AH_GRH) == 0)
-		return;
+		return -EINVAL;
 	cmd->params.tclass_sq_psn |=
 	    (ah_attr->grh.traffic_class << OCRDMA_QP_PARAMS_TCLASS_SHIFT);
 	cmd->params.rnt_rc_sl_fl |=
 	    (ah_attr->grh.flow_label & OCRDMA_QP_PARAMS_FLOW_LABEL_MASK);
+	cmd->params.rnt_rc_sl_fl |= (ah_attr->sl << OCRDMA_QP_PARAMS_SL_SHIFT);
 	cmd->params.hop_lmt_rq_psn |=
 	    (ah_attr->grh.hop_limit << OCRDMA_QP_PARAMS_HOP_LMT_SHIFT);
 	cmd->flags |= OCRDMA_QP_PARA_FLOW_LBL_VALID;
 	memcpy(&cmd->params.dgid[0], &ah_attr->grh.dgid.raw[0],
 	       sizeof(cmd->params.dgid));
-	ocrdma_query_gid(&qp->dev->ibdev, 1,
+	status = ocrdma_query_gid(&qp->dev->ibdev, 1,
 			 ah_attr->grh.sgid_index, &sgid);
+	if (status)
+		return status;
+
+	memset(&zgid, 0, sizeof(zgid));
+	if (!memcmp(&sgid, &zgid, sizeof(zgid)))
+		return -EINVAL;
+
 	qp->sgid_idx = ah_attr->grh.sgid_index;
 	memcpy(&cmd->params.sgid[0], &sgid.raw[0], sizeof(cmd->params.sgid));
 	ocrdma_resolve_dgid(qp->dev, &ah_attr->grh.dgid, &mac_addr[0]);
@@ -2155,6 +2139,7 @@ static void ocrdma_set_av_params(struct ocrdma_qp *qp,
 		    vlan_id << OCRDMA_QP_PARAMS_VLAN_SHIFT;
 		cmd->flags |= OCRDMA_QP_PARA_VLAN_EN_VALID;
 	}
+	return 0;
 }
 
 static int ocrdma_set_qp_params(struct ocrdma_qp *qp,
@@ -2163,8 +2148,6 @@ static int ocrdma_set_qp_params(struct ocrdma_qp *qp,
 				enum ib_qp_state old_qps)
 {
 	int status = 0;
-	struct net_device *netdev = qp->dev->nic_info.netdev;
-	int eth_mtu = iboe_get_mtu(netdev->mtu);
 
 	if (attr_mask & IB_QP_PKEY_INDEX) {
 		cmd->params.path_mtu_pkey_indx |= (attrs->pkey_index &
@@ -2176,9 +2159,11 @@ static int ocrdma_set_qp_params(struct ocrdma_qp *qp,
 		cmd->params.qkey = attrs->qkey;
 		cmd->flags |= OCRDMA_QP_PARA_QKEY_VALID;
 	}
-	if (attr_mask & IB_QP_AV)
-		ocrdma_set_av_params(qp, cmd, attrs);
-	else if (qp->qp_type == IB_QPT_GSI || qp->qp_type == IB_QPT_UD) {
+	if (attr_mask & IB_QP_AV) {
+		status = ocrdma_set_av_params(qp, cmd, attrs);
+		if (status)
+			return status;
+	} else if (qp->qp_type == IB_QPT_GSI || qp->qp_type == IB_QPT_UD) {
 		/* set the default mac address for UD, GSI QPs */
 		cmd->params.dmac_b0_to_b3 = qp->dev->nic_info.mac_addr[0] |
 			(qp->dev->nic_info.mac_addr[1] << 8) |
@@ -2199,8 +2184,8 @@ static int ocrdma_set_qp_params(struct ocrdma_qp *qp,
 		cmd->flags |= OCRDMA_QP_PARA_DST_QPN_VALID;
 	}
 	if (attr_mask & IB_QP_PATH_MTU) {
-		if (ib_mtu_enum_to_int(eth_mtu) <
-		    ib_mtu_enum_to_int(attrs->path_mtu)) {
+		if (attrs->path_mtu < IB_MTU_256 ||
+		    attrs->path_mtu > IB_MTU_4096) {
 			status = -EINVAL;
 			goto pmtu_err;
 		}
@@ -2283,10 +2268,12 @@ int ocrdma_mbx_modify_qp(struct ocrdma_dev *dev, struct ocrdma_qp *qp,
 		     OCRDMA_QP_PARAMS_STATE_SHIFT) &
 		    OCRDMA_QP_PARAMS_STATE_MASK;
 		cmd->flags |= OCRDMA_QP_PARA_QPS_VALID;
-	} else
+	} else {
 		cmd->params.max_sge_recv_flags |=
 		    (qp->state << OCRDMA_QP_PARAMS_STATE_SHIFT) &
 		    OCRDMA_QP_PARAMS_STATE_MASK;
+	}
+
 	status = ocrdma_set_qp_params(qp, cmd, attrs, attr_mask, old_qps);
 	if (status)
 		goto mbx_err;
@@ -2324,7 +2311,7 @@ mbx_err:
 	return status;
 }
 
-int ocrdma_mbx_create_srq(struct ocrdma_srq *srq,
+int ocrdma_mbx_create_srq(struct ocrdma_dev *dev, struct ocrdma_srq *srq,
 			  struct ib_srq_init_attr *srq_attr,
 			  struct ocrdma_pd *pd)
 {
@@ -2334,7 +2321,6 @@ int ocrdma_mbx_create_srq(struct ocrdma_srq *srq,
 	struct ocrdma_create_srq_rsp *rsp;
 	struct ocrdma_create_srq *cmd;
 	dma_addr_t pa;
-	struct ocrdma_dev *dev = srq->dev;
 	struct pci_dev *pdev = dev->nic_info.pdev;
 	u32 max_rqe_allocated;
 
@@ -2404,13 +2390,16 @@ int ocrdma_mbx_modify_srq(struct ocrdma_srq *srq, struct ib_srq_attr *srq_attr)
 {
 	int status = -ENOMEM;
 	struct ocrdma_modify_srq *cmd;
-	cmd = ocrdma_init_emb_mqe(OCRDMA_CMD_CREATE_SRQ, sizeof(*cmd));
+	struct ocrdma_pd *pd = srq->pd;
+	struct ocrdma_dev *dev = get_ocrdma_dev(pd->ibpd.device);
+
+	cmd = ocrdma_init_emb_mqe(OCRDMA_CMD_MODIFY_SRQ, sizeof(*cmd));
 	if (!cmd)
 		return status;
 	cmd->id = srq->id;
 	cmd->limit_max_rqe |= srq_attr->srq_limit <<
 	    OCRDMA_MODIFY_SRQ_LIMIT_SHIFT;
-	status = ocrdma_mbx_cmd(srq->dev, (struct ocrdma_mqe *)cmd);
+	status = ocrdma_mbx_cmd(dev, (struct ocrdma_mqe *)cmd);
 	kfree(cmd);
 	return status;
 }
@@ -2419,11 +2408,13 @@ int ocrdma_mbx_query_srq(struct ocrdma_srq *srq, struct ib_srq_attr *srq_attr)
 {
 	int status = -ENOMEM;
 	struct ocrdma_query_srq *cmd;
-	cmd = ocrdma_init_emb_mqe(OCRDMA_CMD_CREATE_SRQ, sizeof(*cmd));
+	struct ocrdma_dev *dev = get_ocrdma_dev(srq->ibsrq.device);
+
+	cmd = ocrdma_init_emb_mqe(OCRDMA_CMD_QUERY_SRQ, sizeof(*cmd));
 	if (!cmd)
 		return status;
 	cmd->id = srq->rq.dbid;
-	status = ocrdma_mbx_cmd(srq->dev, (struct ocrdma_mqe *)cmd);
+	status = ocrdma_mbx_cmd(dev, (struct ocrdma_mqe *)cmd);
 	if (status == 0) {
 		struct ocrdma_query_srq_rsp *rsp =
 		    (struct ocrdma_query_srq_rsp *)cmd;
@@ -2448,7 +2439,7 @@ int ocrdma_mbx_destroy_srq(struct ocrdma_dev *dev, struct ocrdma_srq *srq)
 	if (!cmd)
 		return status;
 	cmd->id = srq->id;
-	status = ocrdma_mbx_cmd(srq->dev, (struct ocrdma_mqe *)cmd);
+	status = ocrdma_mbx_cmd(dev, (struct ocrdma_mqe *)cmd);
 	if (srq->rq.va)
 		dma_free_coherent(&pdev->dev, srq->rq.len,
 				  srq->rq.va, srq->rq.pa);
@@ -2490,38 +2481,7 @@ int ocrdma_free_av(struct ocrdma_dev *dev, struct ocrdma_ah *ah)
 	return 0;
 }
 
-static int ocrdma_create_mq_eq(struct ocrdma_dev *dev)
-{
-	int status;
-	int irq;
-	unsigned long flags = 0;
-	int num_eq = 0;
-
-	if (dev->nic_info.intr_mode == BE_INTERRUPT_MODE_INTX)
-		flags = IRQF_SHARED;
-	else {
-		num_eq = dev->nic_info.msix.num_vectors -
-				dev->nic_info.msix.start_vector;
-		/* minimum two vectors/eq are required for rdma to work.
-		 * one for control path and one for data path.
-		 */
-		if (num_eq < 2)
-			return -EBUSY;
-	}
-
-	status = ocrdma_create_eq(dev, &dev->meq, OCRDMA_EQ_LEN);
-	if (status)
-		return status;
-	sprintf(dev->meq.irq_name, "ocrdma_mq%d", dev->id);
-	irq = ocrdma_get_irq(dev, &dev->meq);
-	status = request_irq(irq, ocrdma_irq_handler, flags, dev->meq.irq_name,
-			     &dev->meq);
-	if (status)
-		_ocrdma_destroy_eq(dev, &dev->meq);
-	return status;
-}
-
-static int ocrdma_create_qp_eqs(struct ocrdma_dev *dev)
+static int ocrdma_create_eqs(struct ocrdma_dev *dev)
 {
 	int num_eq, i, status = 0;
 	int irq;
@@ -2532,49 +2492,47 @@ static int ocrdma_create_qp_eqs(struct ocrdma_dev *dev)
 	if (dev->nic_info.intr_mode == BE_INTERRUPT_MODE_INTX) {
 		num_eq = 1;
 		flags = IRQF_SHARED;
-	} else
+	} else {
 		num_eq = min_t(u32, num_eq, num_online_cpus());
-	dev->qp_eq_tbl = kzalloc(sizeof(struct ocrdma_eq) * num_eq, GFP_KERNEL);
-	if (!dev->qp_eq_tbl)
+	}
+
+	if (!num_eq)
+		return -EINVAL;
+
+	dev->eq_tbl = kzalloc(sizeof(struct ocrdma_eq) * num_eq, GFP_KERNEL);
+	if (!dev->eq_tbl)
 		return -ENOMEM;
 
 	for (i = 0; i < num_eq; i++) {
-		status = ocrdma_create_eq(dev, &dev->qp_eq_tbl[i],
+		status = ocrdma_create_eq(dev, &dev->eq_tbl[i],
 					  OCRDMA_EQ_LEN);
 		if (status) {
 			status = -EINVAL;
 			break;
 		}
-		sprintf(dev->qp_eq_tbl[i].irq_name, "ocrdma_qp%d-%d",
+		sprintf(dev->eq_tbl[i].irq_name, "ocrdma%d-%d",
 			dev->id, i);
-		irq = ocrdma_get_irq(dev, &dev->qp_eq_tbl[i]);
+		irq = ocrdma_get_irq(dev, &dev->eq_tbl[i]);
 		status = request_irq(irq, ocrdma_irq_handler, flags,
-				     dev->qp_eq_tbl[i].irq_name,
-				     &dev->qp_eq_tbl[i]);
-		if (status) {
-			_ocrdma_destroy_eq(dev, &dev->qp_eq_tbl[i]);
-			status = -EINVAL;
-			break;
-		}
+				     dev->eq_tbl[i].irq_name,
+				     &dev->eq_tbl[i]);
+		if (status)
+			goto done;
 		dev->eq_cnt += 1;
 	}
 	/* one eq is sufficient for data path to work */
-	if (dev->eq_cnt >= 1)
-		return 0;
-	if (status)
-		ocrdma_destroy_qp_eqs(dev);
+	return 0;
+done:
+	ocrdma_destroy_eqs(dev);
 	return status;
 }
 
 int ocrdma_init_hw(struct ocrdma_dev *dev)
 {
 	int status;
-	/* set up control path eq */
-	status = ocrdma_create_mq_eq(dev);
-	if (status)
-		return status;
-	/* set up data path eq */
-	status = ocrdma_create_qp_eqs(dev);
+
+	/* create the eqs  */
+	status = ocrdma_create_eqs(dev);
 	if (status)
 		goto qpeq_err;
 	status = ocrdma_create_mq(dev);
@@ -2597,9 +2555,8 @@ int ocrdma_init_hw(struct ocrdma_dev *dev)
 conf_err:
 	ocrdma_destroy_mq(dev);
 mq_err:
-	ocrdma_destroy_qp_eqs(dev);
+	ocrdma_destroy_eqs(dev);
 qpeq_err:
-	ocrdma_destroy_eq(dev, &dev->meq);
 	pr_err("%s() status=%d\n", __func__, status);
 	return status;
 }
@@ -2608,10 +2565,9 @@ void ocrdma_cleanup_hw(struct ocrdma_dev *dev)
 {
 	ocrdma_mbx_delete_ah_tbl(dev);
 
-	/* cleanup the data path eqs */
-	ocrdma_destroy_qp_eqs(dev);
+	/* cleanup the eqs */
+	ocrdma_destroy_eqs(dev);
 
 	/* cleanup the control path */
 	ocrdma_destroy_mq(dev);
-	ocrdma_destroy_eq(dev, &dev->meq);
 }

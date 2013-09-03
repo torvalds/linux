@@ -39,6 +39,7 @@
 #include "ocrdma_ah.h"
 #include "be_roce.h"
 #include "ocrdma_hw.h"
+#include "ocrdma_abi.h"
 
 MODULE_VERSION(OCRDMA_ROCE_DEV_VERSION);
 MODULE_DESCRIPTION("Emulex RoCE HCA Driver");
@@ -265,6 +266,7 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 	memcpy(dev->ibdev.node_desc, OCRDMA_NODE_DESC,
 	       sizeof(OCRDMA_NODE_DESC));
 	dev->ibdev.owner = THIS_MODULE;
+	dev->ibdev.uverbs_abi_ver = OCRDMA_ABI_VERSION;
 	dev->ibdev.uverbs_cmd_mask =
 	    OCRDMA_UVERBS(GET_CONTEXT) |
 	    OCRDMA_UVERBS(QUERY_DEVICE) |
@@ -326,8 +328,13 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 	dev->ibdev.req_notify_cq = ocrdma_arm_cq;
 
 	dev->ibdev.get_dma_mr = ocrdma_get_dma_mr;
+	dev->ibdev.reg_phys_mr = ocrdma_reg_kernel_mr;
 	dev->ibdev.dereg_mr = ocrdma_dereg_mr;
 	dev->ibdev.reg_user_mr = ocrdma_reg_user_mr;
+
+	dev->ibdev.alloc_fast_reg_mr = ocrdma_alloc_frmr;
+	dev->ibdev.alloc_fast_reg_page_list = ocrdma_alloc_frmr_page_list;
+	dev->ibdev.free_fast_reg_page_list = ocrdma_free_frmr_page_list;
 
 	/* mandatory to support user space verbs consumer. */
 	dev->ibdev.alloc_ucontext = ocrdma_alloc_ucontext;

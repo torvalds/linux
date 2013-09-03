@@ -73,6 +73,7 @@ DEFINE_IDR(ib_uverbs_cq_idr);
 DEFINE_IDR(ib_uverbs_qp_idr);
 DEFINE_IDR(ib_uverbs_srq_idr);
 DEFINE_IDR(ib_uverbs_xrcd_idr);
+DEFINE_IDR(ib_uverbs_rule_idr);
 
 static DEFINE_SPINLOCK(map_lock);
 static DECLARE_BITMAP(dev_map, IB_UVERBS_MAX_DEVICES);
@@ -113,7 +114,9 @@ static ssize_t (*uverbs_cmd_table[])(struct ib_uverbs_file *file,
 	[IB_USER_VERBS_CMD_OPEN_XRCD]		= ib_uverbs_open_xrcd,
 	[IB_USER_VERBS_CMD_CLOSE_XRCD]		= ib_uverbs_close_xrcd,
 	[IB_USER_VERBS_CMD_CREATE_XSRQ]		= ib_uverbs_create_xsrq,
-	[IB_USER_VERBS_CMD_OPEN_QP]		= ib_uverbs_open_qp
+	[IB_USER_VERBS_CMD_OPEN_QP]		= ib_uverbs_open_qp,
+	[IB_USER_VERBS_CMD_CREATE_FLOW]		= ib_uverbs_create_flow,
+	[IB_USER_VERBS_CMD_DESTROY_FLOW]	= ib_uverbs_destroy_flow
 };
 
 static void ib_uverbs_add_one(struct ib_device *device);
@@ -209,6 +212,14 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 
 		idr_remove_uobj(&ib_uverbs_mw_idr, uobj);
 		ib_dealloc_mw(mw);
+		kfree(uobj);
+	}
+
+	list_for_each_entry_safe(uobj, tmp, &context->rule_list, list) {
+		struct ib_flow *flow_id = uobj->object;
+
+		idr_remove_uobj(&ib_uverbs_rule_idr, uobj);
+		ib_destroy_flow(flow_id);
 		kfree(uobj);
 	}
 
@@ -583,9 +594,6 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 	if (copy_from_user(&hdr, buf, sizeof hdr))
 		return -EFAULT;
 
-	if (hdr.in_words * 4 != count)
-		return -EINVAL;
-
 	if (hdr.command >= ARRAY_SIZE(uverbs_cmd_table) ||
 	    !uverbs_cmd_table[hdr.command])
 		return -EINVAL;
@@ -597,8 +605,30 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 	if (!(file->device->ib_dev->uverbs_cmd_mask & (1ull << hdr.command)))
 		return -ENOSYS;
 
-	return uverbs_cmd_table[hdr.command](file, buf + sizeof hdr,
-					     hdr.in_words * 4, hdr.out_words * 4);
+	if (hdr.command >= IB_USER_VERBS_CMD_THRESHOLD) {
+		struct ib_uverbs_cmd_hdr_ex hdr_ex;
+
+		if (copy_from_user(&hdr_ex, buf, sizeof(hdr_ex)))
+			return -EFAULT;
+
+		if (((hdr_ex.in_words + hdr_ex.provider_in_words) * 4) != count)
+			return -EINVAL;
+
+		return uverbs_cmd_table[hdr.command](file,
+						     buf + sizeof(hdr_ex),
+						     (hdr_ex.in_words +
+						      hdr_ex.provider_in_words) * 4,
+						     (hdr_ex.out_words +
+						      hdr_ex.provider_out_words) * 4);
+	} else {
+		if (hdr.in_words * 4 != count)
+			return -EINVAL;
+
+		return uverbs_cmd_table[hdr.command](file,
+						     buf + sizeof(hdr),
+						     hdr.in_words * 4,
+						     hdr.out_words * 4);
+	}
 }
 
 static int ib_uverbs_mmap(struct file *filp, struct vm_area_struct *vma)
