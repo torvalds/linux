@@ -611,7 +611,22 @@ static inline void __dget(struct dentry *dentry)
 
 struct dentry *dget_parent(struct dentry *dentry)
 {
+	int gotref;
 	struct dentry *ret;
+
+	/*
+	 * Do optimistic parent lookup without any
+	 * locking.
+	 */
+	rcu_read_lock();
+	ret = ACCESS_ONCE(dentry->d_parent);
+	gotref = lockref_get_not_zero(&ret->d_lockref);
+	rcu_read_unlock();
+	if (likely(gotref)) {
+		if (likely(ret == ACCESS_ONCE(dentry->d_parent)))
+			return ret;
+		dput(ret);
+	}
 
 repeat:
 	/*
@@ -1771,7 +1786,7 @@ static noinline enum slow_d_compare slow_dentry_cmp(
  * without taking d_lock and checking d_seq sequence count against @seq
  * returned here.
  *
- * A refcount may be taken on the found dentry with the __d_rcu_to_refcount
+ * A refcount may be taken on the found dentry with the d_rcu_to_refcount
  * function.
  *
  * Alternatively, __d_lookup_rcu may be called again to look up the child of

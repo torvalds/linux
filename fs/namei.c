@@ -494,6 +494,50 @@ static inline void unlock_rcu_walk(void)
 	br_read_unlock(&vfsmount_lock);
 }
 
+/*
+ * When we move over from the RCU domain to properly refcounted
+ * long-lived dentries, we need to check the sequence numbers
+ * we got before lookup very carefully.
+ *
+ * We cannot blindly increment a dentry refcount - even if it
+ * is not locked - if it is zero, because it may have gone
+ * through the final d_kill() logic already.
+ *
+ * So for a zero refcount, we need to get the spinlock (which is
+ * safe even for a dead dentry because the de-allocation is
+ * RCU-delayed), and check the sequence count under the lock.
+ *
+ * Once we have checked the sequence count, we know it is live,
+ * and since we hold the spinlock it cannot die from under us.
+ *
+ * In contrast, if the reference count wasn't zero, we can just
+ * increment the lockref without having to take the spinlock.
+ * Even if the sequence number ends up being stale, we haven't
+ * gone through the final dput() and killed the dentry yet.
+ */
+static inline int d_rcu_to_refcount(struct dentry *dentry, seqcount_t *validate, unsigned seq)
+{
+	int gotref;
+
+	gotref = lockref_get_or_lock(&dentry->d_lockref);
+
+	/* Does the sequence number still match? */
+	if (read_seqcount_retry(validate, seq)) {
+		if (gotref)
+			dput(dentry);
+		else
+			spin_unlock(&dentry->d_lock);
+		return -ECHILD;
+	}
+
+	/* Get the ref now, if we couldn't get it originally */
+	if (!gotref) {
+		dentry->d_lockref.count++;
+		spin_unlock(&dentry->d_lock);
+	}
+	return 0;
+}
+
 /**
  * unlazy_walk - try to switch to ref-walk mode.
  * @nd: nameidata pathwalk data
@@ -518,29 +562,28 @@ static int unlazy_walk(struct nameidata *nd, struct dentry *dentry)
 				nd->root.dentry != fs->root.dentry)
 			goto err_root;
 	}
-	spin_lock(&parent->d_lock);
+
+	/*
+	 * For a negative lookup, the lookup sequence point is the parents
+	 * sequence point, and it only needs to revalidate the parent dentry.
+	 *
+	 * For a positive lookup, we need to move both the parent and the
+	 * dentry from the RCU domain to be properly refcounted. And the
+	 * sequence number in the dentry validates *both* dentry counters,
+	 * since we checked the sequence number of the parent after we got
+	 * the child sequence number. So we know the parent must still
+	 * be valid if the child sequence number is still valid.
+	 */
 	if (!dentry) {
-		if (!__d_rcu_to_refcount(parent, nd->seq))
-			goto err_parent;
+		if (d_rcu_to_refcount(parent, &parent->d_seq, nd->seq) < 0)
+			goto err_root;
 		BUG_ON(nd->inode != parent->d_inode);
 	} else {
-		if (dentry->d_parent != parent)
+		if (d_rcu_to_refcount(dentry, &dentry->d_seq, nd->seq) < 0)
+			goto err_root;
+		if (d_rcu_to_refcount(parent, &dentry->d_seq, nd->seq) < 0)
 			goto err_parent;
-		spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
-		if (!__d_rcu_to_refcount(dentry, nd->seq))
-			goto err_child;
-		/*
-		 * If the sequence check on the child dentry passed, then
-		 * the child has not been removed from its parent. This
-		 * means the parent dentry must be valid and able to take
-		 * a reference at this point.
-		 */
-		BUG_ON(!IS_ROOT(dentry) && dentry->d_parent != parent);
-		BUG_ON(!parent->d_lockref.count);
-		parent->d_lockref.count++;
-		spin_unlock(&dentry->d_lock);
 	}
-	spin_unlock(&parent->d_lock);
 	if (want_root) {
 		path_get(&nd->root);
 		spin_unlock(&fs->lock);
@@ -551,10 +594,8 @@ static int unlazy_walk(struct nameidata *nd, struct dentry *dentry)
 	nd->flags &= ~LOOKUP_RCU;
 	return 0;
 
-err_child:
-	spin_unlock(&dentry->d_lock);
 err_parent:
-	spin_unlock(&parent->d_lock);
+	dput(dentry);
 err_root:
 	if (want_root)
 		spin_unlock(&fs->lock);
@@ -585,14 +626,11 @@ static int complete_walk(struct nameidata *nd)
 		nd->flags &= ~LOOKUP_RCU;
 		if (!(nd->flags & LOOKUP_ROOT))
 			nd->root.mnt = NULL;
-		spin_lock(&dentry->d_lock);
-		if (unlikely(!__d_rcu_to_refcount(dentry, nd->seq))) {
-			spin_unlock(&dentry->d_lock);
+
+		if (d_rcu_to_refcount(dentry, &dentry->d_seq, nd->seq) < 0) {
 			unlock_rcu_walk();
 			return -ECHILD;
 		}
-		BUG_ON(nd->inode != dentry->d_inode);
-		spin_unlock(&dentry->d_lock);
 		mntget(nd->path.mnt);
 		unlock_rcu_walk();
 	}

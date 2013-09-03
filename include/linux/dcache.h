@@ -304,28 +304,6 @@ extern struct dentry *__d_lookup(const struct dentry *, const struct qstr *);
 extern struct dentry *__d_lookup_rcu(const struct dentry *parent,
 				const struct qstr *name, unsigned *seq);
 
-/**
- * __d_rcu_to_refcount - take a refcount on dentry if sequence check is ok
- * @dentry: dentry to take a ref on
- * @seq: seqcount to verify against
- * Returns: 0 on failure, else 1.
- *
- * __d_rcu_to_refcount operates on a dentry,seq pair that was returned
- * by __d_lookup_rcu, to get a reference on an rcu-walk dentry.
- */
-static inline int __d_rcu_to_refcount(struct dentry *dentry, unsigned seq)
-{
-	int ret = 0;
-
-	assert_spin_locked(&dentry->d_lock);
-	if (!read_seqcount_retry(&dentry->d_seq, seq)) {
-		ret = 1;
-		dentry->d_lockref.count++;
-	}
-
-	return ret;
-}
-
 static inline unsigned d_count(const struct dentry *dentry)
 {
 	return dentry->d_lockref.count;

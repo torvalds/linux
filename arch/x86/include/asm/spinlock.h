@@ -34,6 +34,11 @@
 # define UNLOCK_LOCK_PREFIX
 #endif
 
+static __always_inline int arch_spin_value_unlocked(arch_spinlock_t lock)
+{
+	return lock.tickets.head == lock.tickets.tail;
+}
+
 /*
  * Ticket locks are conceptually two parts, one indicating the current head of
  * the queue, and the other indicating the current tail. The lock is acquired
