@@ -13,6 +13,14 @@ Optional properties:
     of R51 (Class D Control 2) gets set, indicating that the speaker is
     in mono mode.
 
+  - amic-mono: This is a boolean property. If present, indicating that the
+    analog micphone is hardware mono input, the driver would enable monomix
+    for it.
+
+  - dmic-mono: This is a boolean property. If present, indicating that the
+    digital micphone is hardware mono input, the driver would enable monomix
+    for it.
+
   - mic-cfg : Default register value for R48 (Additional Control 4).
     If absent, the default should be the register default.
 
