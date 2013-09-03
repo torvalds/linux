@@ -435,6 +435,13 @@ static int ath10k_init_uart(struct ath10k *ar)
 		return ret;
 	}
 
+	/* Set the UART baud rate to 19200. */
+	ret = ath10k_bmi_write32(ar, hi_desired_baud_rate, 19200);
+	if (ret) {
+		ath10k_warn("could not set the baud rate (%d)\n", ret);
+		return ret;
+	}
+
 	ath10k_info("UART prints enabled\n");
 	return 0;
 }
