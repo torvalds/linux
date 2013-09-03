@@ -2010,7 +2010,7 @@ static int ocrdma_build_fr(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
 	fast_reg->num_sges = wr->wr.fast_reg.page_list_len;
 	fast_reg->size_sge =
 		get_encoded_page_size(1 << wr->wr.fast_reg.page_shift);
-	mr = (struct ocrdma_mr *)qp->dev->stag_arr[(hdr->lkey >> 8) &
+	mr = (struct ocrdma_mr *) (unsigned long) qp->dev->stag_arr[(hdr->lkey >> 8) &
 		(OCRDMA_MAX_STAG - 1)];
 	build_frmr_pbes(wr, mr->hwmr.pbl_table, &mr->hwmr);
 	return 0;
@@ -2839,7 +2839,7 @@ struct ib_mr *ocrdma_alloc_frmr(struct ib_pd *ibpd, int max_page_list_len)
 		goto mbx_err;
 	mr->ibmr.rkey = mr->hwmr.lkey;
 	mr->ibmr.lkey = mr->hwmr.lkey;
-	dev->stag_arr[(mr->hwmr.lkey >> 8) & (OCRDMA_MAX_STAG - 1)] = (u64) mr;
+	dev->stag_arr[(mr->hwmr.lkey >> 8) & (OCRDMA_MAX_STAG - 1)] = (unsigned long) mr;
 	return &mr->ibmr;
 mbx_err:
 	ocrdma_free_mr_pbl_tbl(dev, &mr->hwmr);
