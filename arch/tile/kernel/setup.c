@@ -268,7 +268,7 @@ early_param("vmalloc", parse_vmalloc);
 /*
  * Determine for each controller where its lowmem is mapped and how much of
  * it is mapped there.  On controller zero, the first few megabytes are
- * already mapped in as code at MEM_SV_INTRPT, so in principle we could
+ * already mapped in as code at MEM_SV_START, so in principle we could
  * start our data mappings higher up, but for now we don't bother, to avoid
  * additional confusion.
  *
@@ -1242,7 +1242,7 @@ static void __init validate_va(void)
 #ifndef __tilegx__   /* FIXME: GX: probably some validation relevant here */
 	/*
 	 * Similarly, make sure we're only using allowed VAs.
-	 * We assume we can contiguously use MEM_USER_INTRPT .. MEM_HV_INTRPT,
+	 * We assume we can contiguously use MEM_USER_INTRPT .. MEM_HV_START,
 	 * and 0 .. KERNEL_HIGH_VADDR.
 	 * In addition, make sure we CAN'T use the end of memory, since
 	 * we use the last chunk of each pgd for the pgd_list.
@@ -1257,7 +1257,7 @@ static void __init validate_va(void)
 		if (range.size == 0)
 			break;
 		if (range.start <= MEM_USER_INTRPT &&
-		    range.start + range.size >= MEM_HV_INTRPT)
+		    range.start + range.size >= MEM_HV_START)
 			user_kernel_ok = 1;
 		if (range.start == 0)
 			max_va = range.size;
@@ -1693,7 +1693,7 @@ insert_ram_resource(u64 start_pfn, u64 end_pfn, bool reserved)
 static int __init request_standard_resources(void)
 {
 	int i;
-	enum { CODE_DELTA = MEM_SV_INTRPT - PAGE_OFFSET };
+	enum { CODE_DELTA = MEM_SV_START - PAGE_OFFSET };
 
 #if defined(CONFIG_PCI) && !defined(__tilegx__)
 	insert_non_bus_resource();

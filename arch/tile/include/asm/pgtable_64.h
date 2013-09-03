@@ -140,8 +140,7 @@ static inline unsigned long pgd_addr_normalize(unsigned long addr)
 /* We don't define any pgds for these addresses. */
 static inline int pgd_addr_invalid(unsigned long addr)
 {
-	return addr >= MEM_HV_START ||
-		(addr > MEM_LOW_END && addr < MEM_HIGH_START);
+	return addr >= KERNEL_HIGH_VADDR || addr != pgd_addr_normalize(addr);
 }
 
 /*

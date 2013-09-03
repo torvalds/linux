@@ -89,7 +89,7 @@ static inline int pud_huge_page(pud_t pud)	{ return 0; }
 /* We don't define any pgds for these addresses. */
 static inline int pgd_addr_invalid(unsigned long addr)
 {
-	return addr >= MEM_HV_INTRPT;
+	return addr >= MEM_HV_START;
 }
 
 /*

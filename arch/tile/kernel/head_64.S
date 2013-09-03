@@ -135,9 +135,9 @@ ENTRY(_start)
 1:
 
 	/* Install the interrupt base. */
-	moveli r0, hw2_last(MEM_SV_START)
-	shl16insli r0, r0, hw1(MEM_SV_START)
-	shl16insli r0, r0, hw0(MEM_SV_START)
+	moveli r0, hw2_last(intrpt_start)
+	shl16insli r0, r0, hw1(intrpt_start)
+	shl16insli r0, r0, hw0(intrpt_start)
 	mtspr SPR_INTERRUPT_VECTOR_BASE_K, r0
 
 	/* Get our processor number and save it away in SAVE_K_0. */

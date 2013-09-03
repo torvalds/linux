@@ -162,8 +162,8 @@ ENTRY(swapper_pg_dir)
 	.set addr, addr + PGDIR_SIZE
 	.endr
 
-	/* The true text VAs are mapped as VA = PA + MEM_SV_INTRPT */
-	PTE MEM_SV_INTRPT, 0, (1 << (HV_PTE_INDEX_READABLE - 32)) | \
+	/* The true text VAs are mapped as VA = PA + MEM_SV_START */
+	PTE MEM_SV_START, 0, (1 << (HV_PTE_INDEX_READABLE - 32)) | \
 			      (1 << (HV_PTE_INDEX_EXECUTABLE - 32))
 	.org swapper_pg_dir + PGDIR_SIZE
 	END(swapper_pg_dir)

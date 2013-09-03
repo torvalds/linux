@@ -30,7 +30,7 @@
 
 void __init trap_init(void)
 {
-	/* Nothing needed here since we link code at .intrpt1 */
+	/* Nothing needed here since we link code at .intrpt */
 }
 
 int unaligned_fixup = 1;

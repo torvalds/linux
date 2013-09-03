@@ -353,7 +353,7 @@ intvec_\vecname:
 #ifdef __COLLECT_LINKER_FEEDBACK__
 	.pushsection .text.intvec_feedback,"ax"
 	.org    (\vecnum << 5)
-	FEEDBACK_ENTER_EXPLICIT(intvec_\vecname, .intrpt1, 1 << 8)
+	FEEDBACK_ENTER_EXPLICIT(intvec_\vecname, .intrpt, 1 << 8)
 	jrp     lr
 	.popsection
 #endif
@@ -1890,8 +1890,8 @@ int_unalign:
 	push_extra_callee_saves r0
 	j       do_trap
 
-/* Include .intrpt1 array of interrupt vectors */
-	.section ".intrpt1", "ax"
+/* Include .intrpt array of interrupt vectors */
+	.section ".intrpt", "ax"
 
 #define op_handle_perf_interrupt bad_intr
 #define op_handle_aux_perf_interrupt bad_intr

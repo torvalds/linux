@@ -168,7 +168,7 @@ struct thread_struct {
 #ifndef __ASSEMBLY__
 
 #ifdef __tilegx__
-#define TASK_SIZE_MAX		(MEM_LOW_END + 1)
+#define TASK_SIZE_MAX		(_AC(1, UL) << (MAX_VA_WIDTH - 1))
 #else
 #define TASK_SIZE_MAX		PAGE_OFFSET
 #endif

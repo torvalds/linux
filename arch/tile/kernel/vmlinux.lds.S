@@ -5,7 +5,7 @@
 #include <hv/hypervisor.h>
 
 /* Text loads starting from the supervisor interrupt vector address. */
-#define TEXT_OFFSET MEM_SV_INTRPT
+#define TEXT_OFFSET MEM_SV_START
 
 OUTPUT_ARCH(tile)
 ENTRY(_start)
@@ -13,7 +13,7 @@ jiffies = jiffies_64;
 
 PHDRS
 {
-  intrpt1 PT_LOAD ;
+  intrpt PT_LOAD ;
   text PT_LOAD ;
   data PT_LOAD ;
 }
@@ -24,11 +24,11 @@ SECTIONS
   #define LOAD_OFFSET TEXT_OFFSET
 
   /* Interrupt vectors */
-  .intrpt1 (LOAD_OFFSET) : AT ( 0 )   /* put at the start of physical memory */
+  .intrpt (LOAD_OFFSET) : AT ( 0 )   /* put at the start of physical memory */
   {
     _text = .;
-    *(.intrpt1)
-  } :intrpt1 =0
+    *(.intrpt)
+  } :intrpt =0
 
   /* Hypervisor call vectors */
   . = ALIGN(0x10000);
