@@ -1151,11 +1151,10 @@ static void intel_sdvo_mode_set(struct intel_encoder *intel_encoder)
 {
 	struct drm_device *dev = intel_encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc = intel_encoder->base.crtc;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc *crtc = to_intel_crtc(intel_encoder->base.crtc);
 	struct drm_display_mode *adjusted_mode =
-		&intel_crtc->config.adjusted_mode;
-	struct drm_display_mode *mode = &intel_crtc->config.requested_mode;
+		&crtc->config.adjusted_mode;
+	struct drm_display_mode *mode = &crtc->config.requested_mode;
 	struct intel_sdvo *intel_sdvo = to_sdvo(intel_encoder);
 	u32 sdvox;
 	struct intel_sdvo_in_out_map in_out;
@@ -1213,13 +1212,15 @@ static void intel_sdvo_mode_set(struct intel_encoder *intel_encoder)
 	 * adjusted_mode.
 	 */
 	intel_sdvo_get_dtd_from_mode(&input_dtd, adjusted_mode);
+	input_dtd.part1.clock /= crtc->config.pixel_multiplier;
+
 	if (intel_sdvo->is_tv || intel_sdvo->is_lvds)
 		input_dtd.part2.sdvo_flags = intel_sdvo->dtd_sdvo_flags;
 	if (!intel_sdvo_set_input_timing(intel_sdvo, &input_dtd))
 		DRM_INFO("Setting input timings on %s failed\n",
 			 SDVO_NAME(intel_sdvo));
 
-	switch (intel_crtc->config.pixel_multiplier) {
+	switch (crtc->config.pixel_multiplier) {
 	default:
 		WARN(1, "unknown pixel mutlipler specified\n");
 	case 1: rate = SDVO_CLOCK_RATE_MULT_1X; break;
@@ -1252,9 +1253,9 @@ static void intel_sdvo_mode_set(struct intel_encoder *intel_encoder)
 	}
 
 	if (INTEL_PCH_TYPE(dev) >= PCH_CPT)
-		sdvox |= SDVO_PIPE_SEL_CPT(intel_crtc->pipe);
+		sdvox |= SDVO_PIPE_SEL_CPT(crtc->pipe);
 	else
-		sdvox |= SDVO_PIPE_SEL(intel_crtc->pipe);
+		sdvox |= SDVO_PIPE_SEL(crtc->pipe);
 
 	if (intel_sdvo->has_hdmi_audio)
 		sdvox |= SDVO_AUDIO_ENABLE;
@@ -1264,7 +1265,7 @@ static void intel_sdvo_mode_set(struct intel_encoder *intel_encoder)
 	} else if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev)) {
 		/* done in crtc_mode_set as it lives inside the dpll register */
 	} else {
-		sdvox |= (intel_crtc->config.pixel_multiplier - 1)
+		sdvox |= (crtc->config.pixel_multiplier - 1)
 			<< SDVO_PORT_MULTIPLY_SHIFT;
 	}
 
