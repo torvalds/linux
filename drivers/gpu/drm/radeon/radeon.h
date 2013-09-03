@@ -2110,6 +2110,8 @@ struct radeon_device {
 	resource_size_t			rmmio_size;
 	/* protects concurrent MM_INDEX/DATA based register access */
 	spinlock_t mmio_idx_lock;
+	/* protects concurrent SMC based register access */
+	spinlock_t smc_idx_lock;
 	void __iomem			*rmmio;
 	radeon_rreg_t			mc_rreg;
 	radeon_wreg_t			mc_wreg;
@@ -2292,17 +2294,24 @@ static inline void rv370_pcie_wreg(struct radeon_device *rdev, uint32_t reg, uin
 
 static inline u32 tn_smc_rreg(struct radeon_device *rdev, u32 reg)
 {
+	unsigned long flags;
 	u32 r;
 
+	spin_lock_irqsave(&rdev->smc_idx_lock, flags);
 	WREG32(TN_SMC_IND_INDEX_0, (reg));
 	r = RREG32(TN_SMC_IND_DATA_0);
+	spin_unlock_irqrestore(&rdev->smc_idx_lock, flags);
 	return r;
 }
 
 static inline void tn_smc_wreg(struct radeon_device *rdev, u32 reg, u32 v)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&rdev->smc_idx_lock, flags);
 	WREG32(TN_SMC_IND_INDEX_0, (reg));
 	WREG32(TN_SMC_IND_DATA_0, (v));
+	spin_unlock_irqrestore(&rdev->smc_idx_lock, flags);
 }
 
 static inline u32 r600_rcu_rreg(struct radeon_device *rdev, u32 reg)
