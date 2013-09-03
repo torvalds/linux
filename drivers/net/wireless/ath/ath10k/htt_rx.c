@@ -20,6 +20,7 @@
 #include "htt.h"
 #include "txrx.h"
 #include "debug.h"
+#include "trace.h"
 
 #include <linux/log2.h>
 
@@ -1198,8 +1199,10 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 	case HTT_T2H_MSG_TYPE_TEST:
 		/* FIX THIS */
 		break;
-	case HTT_T2H_MSG_TYPE_TX_INSPECT_IND:
 	case HTT_T2H_MSG_TYPE_STATS_CONF:
+		trace_ath10k_htt_stats(skb->data, skb->len);
+		break;
+	case HTT_T2H_MSG_TYPE_TX_INSPECT_IND:
 	case HTT_T2H_MSG_TYPE_RX_ADDBA:
 	case HTT_T2H_MSG_TYPE_RX_DELBA:
 	case HTT_T2H_MSG_TYPE_RX_FLUSH:
