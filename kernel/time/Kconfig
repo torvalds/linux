@@ -134,6 +134,56 @@ config NO_HZ_FULL_ALL
 	 Note the boot CPU will still be kept outside the range to
 	 handle the timekeeping duty.
 
+config NO_HZ_FULL_SYSIDLE
+	bool "Detect full-system idle state for full dynticks system"
+	depends on NO_HZ_FULL
+	default n
+	help
+	 At least one CPU must keep the scheduling-clock tick running for
+	 timekeeping purposes whenever there is a non-idle CPU, where
+	 "non-idle" also includes dynticks CPUs as long as they are
+	 running non-idle tasks.  Because the underlying adaptive-tick
+	 support cannot distinguish between all CPUs being idle and
+	 all CPUs each running a single task in dynticks mode, the
+	 underlying support simply ensures that there is always a CPU
+	 handling the scheduling-clock tick, whether or not all CPUs
+	 are idle.  This Kconfig option enables scalable detection of
+	 the all-CPUs-idle state, thus allowing the scheduling-clock
+	 tick to be disabled when all CPUs are idle.  Note that scalable
+	 detection of the all-CPUs-idle state means that larger systems
+	 will be slower to declare the all-CPUs-idle state.
+
+	 Say Y if you would like to help debug all-CPUs-idle detection.
+
+	 Say N if you are unsure.
+
+config NO_HZ_FULL_SYSIDLE_SMALL
+	int "Number of CPUs above which large-system approach is used"
+	depends on NO_HZ_FULL_SYSIDLE
+	range 1 NR_CPUS
+	default 8
+	help
+	 The full-system idle detection mechanism takes a lazy approach
+	 on large systems, as is required to attain decent scalability.
+	 However, on smaller systems, scalability is not anywhere near as
+	 large a concern as is energy efficiency.  The sysidle subsystem
+	 therefore uses a fast but non-scalable algorithm for small
+	 systems and a lazier but scalable algorithm for large systems.
+	 This Kconfig parameter defines the number of CPUs in the largest
+	 system that will be considered to be "small".
+
+	 The default value will be fine in most cases.	Battery-powered
+	 systems that (1) enable NO_HZ_FULL_SYSIDLE, (2) have larger
+	 numbers of CPUs, and (3) are suffering from battery-lifetime
+	 problems due to long sysidle latencies might wish to experiment
+	 with larger values for this Kconfig parameter.  On the other
+	 hand, they might be even better served by disabling NO_HZ_FULL
+	 entirely, given that NO_HZ_FULL is intended for HPC and
+	 real-time workloads that at present do not tend to be run on
+	 battery-powered systems.
+
+	 Take the default if you are unsure.
+
 config NO_HZ
 	bool "Old Idle dynticks config"
 	depends on !ARCH_USES_GETTIMEOFFSET && GENERIC_CLOCKEVENTS

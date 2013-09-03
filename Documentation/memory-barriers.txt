@@ -531,9 +531,10 @@ dependency barrier to make it work correctly.  Consider the following bit of
 code:
 
 	q = &a;
-	if (p)
+	if (p) {
+		<data dependency barrier>
 		q = &b;
-	<data dependency barrier>
+	}
 	x = *q;
 
 This will not have the desired effect because there is no actual data
@@ -542,9 +543,10 @@ attempting to predict the outcome in advance.  In such a case what's actually
 required is:
 
 	q = &a;
-	if (p)
+	if (p) {
+		<read barrier>
 		q = &b;
-	<read barrier>
+	}
 	x = *q;
 
 
