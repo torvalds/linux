@@ -73,6 +73,7 @@ struct giveback_urb_bh {
 	spinlock_t lock;
 	struct list_head  head;
 	struct tasklet_struct bh;
+	struct usb_host_endpoint *completing_ep;
 };
 
 struct usb_hcd {
@@ -376,6 +377,12 @@ struct hc_driver {
 static inline int hcd_giveback_urb_in_bh(struct usb_hcd *hcd)
 {
 	return hcd->driver->flags & HCD_BH;
+}
+
+static inline bool hcd_periodic_completion_in_progress(struct usb_hcd *hcd,
+		struct usb_host_endpoint *ep)
+{
+	return hcd->high_prio_bh.completing_ep == ep;
 }
 
 extern int usb_hcd_link_urb_to_ep(struct usb_hcd *hcd, struct urb *urb);

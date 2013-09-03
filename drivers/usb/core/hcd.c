@@ -1703,7 +1703,9 @@ static void usb_giveback_urb_bh(unsigned long param)
 
 		urb = list_entry(local_list.next, struct urb, urb_list);
 		list_del_init(&urb->urb_list);
+		bh->completing_ep = urb->ep;
 		__usb_hcd_giveback_urb(urb);
+		bh->completing_ep = NULL;
 	}
 
 	/* check if there are new URBs to giveback */
