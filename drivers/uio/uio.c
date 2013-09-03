@@ -223,38 +223,42 @@ static struct kobj_type portio_attr_type = {
 	.default_attrs	= portio_attrs,
 };
 
-static ssize_t show_name(struct device *dev,
+static ssize_t name_show(struct device *dev,
 			 struct device_attribute *attr, char *buf)
 {
 	struct uio_device *idev = dev_get_drvdata(dev);
 	return sprintf(buf, "%s\n", idev->info->name);
 }
+static DEVICE_ATTR_RO(name);
 
-static ssize_t show_version(struct device *dev,
+static ssize_t version_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
 	struct uio_device *idev = dev_get_drvdata(dev);
 	return sprintf(buf, "%s\n", idev->info->version);
 }
+static DEVICE_ATTR_RO(version);
 
-static ssize_t show_event(struct device *dev,
+static ssize_t event_show(struct device *dev,
 			  struct device_attribute *attr, char *buf)
 {
 	struct uio_device *idev = dev_get_drvdata(dev);
 	return sprintf(buf, "%u\n", (unsigned int)atomic_read(&idev->event));
 }
+static DEVICE_ATTR_RO(event);
 
-static struct device_attribute uio_class_attributes[] = {
-	__ATTR(name, S_IRUGO, show_name, NULL),
-	__ATTR(version, S_IRUGO, show_version, NULL),
-	__ATTR(event, S_IRUGO, show_event, NULL),
-	{}
+static struct attribute *uio_attrs[] = {
+	&dev_attr_name.attr,
+	&dev_attr_version.attr,
+	&dev_attr_event.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(uio);
 
 /* UIO class infrastructure */
 static struct class uio_class = {
 	.name = "uio",
-	.dev_attrs = uio_class_attributes,
+	.dev_groups = uio_groups,
 };
 
 /*

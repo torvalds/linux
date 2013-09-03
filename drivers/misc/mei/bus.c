@@ -108,11 +108,13 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *a,
 
 	return (len >= PAGE_SIZE) ? (PAGE_SIZE - 1) : len;
 }
+static DEVICE_ATTR_RO(modalias);
 
-static struct device_attribute mei_cl_dev_attrs[] = {
-	__ATTR_RO(modalias),
-	__ATTR_NULL,
+static struct attribute *mei_cl_dev_attrs[] = {
+	&dev_attr_modalias.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(mei_cl_dev);
 
 static int mei_cl_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
@@ -124,7 +126,7 @@ static int mei_cl_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 static struct bus_type mei_cl_bus_type = {
 	.name		= "mei",
-	.dev_attrs	= mei_cl_dev_attrs,
+	.dev_groups	= mei_cl_dev_groups,
 	.match		= mei_cl_device_match,
 	.probe		= mei_cl_device_probe,
 	.remove		= mei_cl_device_remove,

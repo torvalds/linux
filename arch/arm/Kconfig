@@ -2064,8 +2064,7 @@ config KEXEC
 
 	  It is an ongoing process to be certain the hardware in a machine
 	  is properly shutdown, so do not be surprised if this code does not
-	  initially work for you.  It may help to enable device hotplugging
-	  support.
+	  initially work for you.
 
 config ATAGS_PROC
 	bool "Export atags in procfs"

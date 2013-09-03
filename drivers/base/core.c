@@ -26,6 +26,7 @@
 #include <linux/async.h>
 #include <linux/pm_runtime.h>
 #include <linux/netdevice.h>
+#include <linux/sysfs.h>
 
 #include "base.h"
 #include "power/power.h"
@@ -36,9 +37,9 @@ long sysfs_deprecated = 1;
 #else
 long sysfs_deprecated = 0;
 #endif
-static __init int sysfs_deprecated_setup(char *arg)
+static int __init sysfs_deprecated_setup(char *arg)
 {
-	return strict_strtol(arg, 10, &sysfs_deprecated);
+	return kstrtol(arg, 10, &sysfs_deprecated);
 }
 early_param("sysfs.deprecated", sysfs_deprecated_setup);
 #endif
@@ -345,7 +346,7 @@ static const struct kset_uevent_ops device_uevent_ops = {
 	.uevent =	dev_uevent,
 };
 
-static ssize_t show_uevent(struct device *dev, struct device_attribute *attr,
+static ssize_t uevent_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
 	struct kobject *top_kobj;
@@ -388,7 +389,7 @@ out:
 	return count;
 }
 
-static ssize_t store_uevent(struct device *dev, struct device_attribute *attr,
+static ssize_t uevent_store(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
 	enum kobject_action action;
@@ -399,11 +400,9 @@ static ssize_t store_uevent(struct device *dev, struct device_attribute *attr,
 		dev_err(dev, "uevent: unknown action-string\n");
 	return count;
 }
+static DEVICE_ATTR_RW(uevent);
 
-static struct device_attribute uevent_attr =
-	__ATTR(uevent, S_IRUGO | S_IWUSR, show_uevent, store_uevent);
-
-static ssize_t show_online(struct device *dev, struct device_attribute *attr,
+static ssize_t online_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
 	bool val;
@@ -414,7 +413,7 @@ static ssize_t show_online(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%u\n", val);
 }
 
-static ssize_t store_online(struct device *dev, struct device_attribute *attr,
+static ssize_t online_store(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
 	bool val;
@@ -429,9 +428,7 @@ static ssize_t store_online(struct device *dev, struct device_attribute *attr,
 	unlock_device_hotplug();
 	return ret < 0 ? ret : count;
 }
-
-static struct device_attribute online_attr =
-	__ATTR(online, S_IRUGO | S_IWUSR, show_online, store_online);
+static DEVICE_ATTR_RW(online);
 
 static int device_add_attributes(struct device *dev,
 				 struct device_attribute *attrs)
@@ -440,7 +437,7 @@ static int device_add_attributes(struct device *dev,
 	int i;
 
 	if (attrs) {
-		for (i = 0; attr_name(attrs[i]); i++) {
+		for (i = 0; attrs[i].attr.name; i++) {
 			error = device_create_file(dev, &attrs[i]);
 			if (error)
 				break;
@@ -458,7 +455,7 @@ static void device_remove_attributes(struct device *dev,
 	int i;
 
 	if (attrs)
-		for (i = 0; attr_name(attrs[i]); i++)
+		for (i = 0; attrs[i].attr.name; i++)
 			device_remove_file(dev, &attrs[i]);
 }
 
@@ -469,7 +466,7 @@ static int device_add_bin_attributes(struct device *dev,
 	int i;
 
 	if (attrs) {
-		for (i = 0; attr_name(attrs[i]); i++) {
+		for (i = 0; attrs[i].attr.name; i++) {
 			error = device_create_bin_file(dev, &attrs[i]);
 			if (error)
 				break;
@@ -487,38 +484,19 @@ static void device_remove_bin_attributes(struct device *dev,
 	int i;
 
 	if (attrs)
-		for (i = 0; attr_name(attrs[i]); i++)
+		for (i = 0; attrs[i].attr.name; i++)
 			device_remove_bin_file(dev, &attrs[i]);
 }
 
-static int device_add_groups(struct device *dev,
-			     const struct attribute_group **groups)
+int device_add_groups(struct device *dev, const struct attribute_group **groups)
 {
-	int error = 0;
-	int i;
-
-	if (groups) {
-		for (i = 0; groups[i]; i++) {
-			error = sysfs_create_group(&dev->kobj, groups[i]);
-			if (error) {
-				while (--i >= 0)
-					sysfs_remove_group(&dev->kobj,
-							   groups[i]);
-				break;
-			}
-		}
-	}
-	return error;
+	return sysfs_create_groups(&dev->kobj, groups);
 }
 
-static void device_remove_groups(struct device *dev,
-				 const struct attribute_group **groups)
+void device_remove_groups(struct device *dev,
+			  const struct attribute_group **groups)
 {
-	int i;
-
-	if (groups)
-		for (i = 0; groups[i]; i++)
-			sysfs_remove_group(&dev->kobj, groups[i]);
+	sysfs_remove_groups(&dev->kobj, groups);
 }
 
 static int device_add_attrs(struct device *dev)
@@ -550,7 +528,7 @@ static int device_add_attrs(struct device *dev)
 		goto err_remove_type_groups;
 
 	if (device_supports_offline(dev) && !dev->offline_disabled) {
-		error = device_create_file(dev, &online_attr);
+		error = device_create_file(dev, &dev_attr_online);
 		if (error)
 			goto err_remove_type_groups;
 	}
@@ -578,7 +556,7 @@ static void device_remove_attrs(struct device *dev)
 	struct class *class = dev->class;
 	const struct device_type *type = dev->type;
 
-	device_remove_file(dev, &online_attr);
+	device_remove_file(dev, &dev_attr_online);
 	device_remove_groups(dev, dev->groups);
 
 	if (type)
@@ -591,15 +569,12 @@ static void device_remove_attrs(struct device *dev)
 	}
 }
 
-
-static ssize_t show_dev(struct device *dev, struct device_attribute *attr,
+static ssize_t dev_show(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
 	return print_dev_t(buf, dev->devt);
 }
-
-static struct device_attribute devt_attr =
-	__ATTR(dev, S_IRUGO, show_dev, NULL);
+static DEVICE_ATTR_RO(dev);
 
 /* /sys/devices/ */
 struct kset *devices_kset;
@@ -626,6 +601,7 @@ int device_create_file(struct device *dev,
 
 	return error;
 }
+EXPORT_SYMBOL_GPL(device_create_file);
 
 /**
  * device_remove_file - remove sysfs attribute file.
@@ -638,6 +614,7 @@ void device_remove_file(struct device *dev,
 	if (dev)
 		sysfs_remove_file(&dev->kobj, &attr->attr);
 }
+EXPORT_SYMBOL_GPL(device_remove_file);
 
 /**
  * device_create_bin_file - create sysfs binary attribute file for device.
@@ -748,6 +725,7 @@ void device_initialize(struct device *dev)
 	device_pm_init(dev);
 	set_dev_node(dev, -1);
 }
+EXPORT_SYMBOL_GPL(device_initialize);
 
 struct kobject *virtual_device_parent(struct device *dev)
 {
@@ -1100,12 +1078,12 @@ int device_add(struct device *dev)
 	if (platform_notify)
 		platform_notify(dev);
 
-	error = device_create_file(dev, &uevent_attr);
+	error = device_create_file(dev, &dev_attr_uevent);
 	if (error)
 		goto attrError;
 
 	if (MAJOR(dev->devt)) {
-		error = device_create_file(dev, &devt_attr);
+		error = device_create_file(dev, &dev_attr_dev);
 		if (error)
 			goto ueventattrError;
 
@@ -1172,9 +1150,9 @@ done:
 		device_remove_sys_dev_entry(dev);
  devtattrError:
 	if (MAJOR(dev->devt))
-		device_remove_file(dev, &devt_attr);
+		device_remove_file(dev, &dev_attr_dev);
  ueventattrError:
-	device_remove_file(dev, &uevent_attr);
+	device_remove_file(dev, &dev_attr_uevent);
  attrError:
 	kobject_uevent(&dev->kobj, KOBJ_REMOVE);
 	kobject_del(&dev->kobj);
@@ -1187,6 +1165,7 @@ name_error:
 	dev->p = NULL;
 	goto done;
 }
+EXPORT_SYMBOL_GPL(device_add);
 
 /**
  * device_register - register a device with the system.
@@ -1211,6 +1190,7 @@ int device_register(struct device *dev)
 	device_initialize(dev);
 	return device_add(dev);
 }
+EXPORT_SYMBOL_GPL(device_register);
 
 /**
  * get_device - increment reference count for device.
@@ -1224,6 +1204,7 @@ struct device *get_device(struct device *dev)
 {
 	return dev ? kobj_to_dev(kobject_get(&dev->kobj)) : NULL;
 }
+EXPORT_SYMBOL_GPL(get_device);
 
 /**
  * put_device - decrement reference count.
@@ -1235,6 +1216,7 @@ void put_device(struct device *dev)
 	if (dev)
 		kobject_put(&dev->kobj);
 }
+EXPORT_SYMBOL_GPL(put_device);
 
 /**
  * device_del - delete device from system.
@@ -1266,7 +1248,7 @@ void device_del(struct device *dev)
 	if (MAJOR(dev->devt)) {
 		devtmpfs_delete_node(dev);
 		device_remove_sys_dev_entry(dev);
-		device_remove_file(dev, &devt_attr);
+		device_remove_file(dev, &dev_attr_dev);
 	}
 	if (dev->class) {
 		device_remove_class_symlinks(dev);
@@ -1281,7 +1263,7 @@ void device_del(struct device *dev)
 		klist_del(&dev->knode_class);
 		mutex_unlock(&dev->class->p->mutex);
 	}
-	device_remove_file(dev, &uevent_attr);
+	device_remove_file(dev, &dev_attr_uevent);
 	device_remove_attrs(dev);
 	bus_remove_device(dev);
 	device_pm_remove(dev);
@@ -1297,6 +1279,7 @@ void device_del(struct device *dev)
 	kobject_del(&dev->kobj);
 	put_device(parent);
 }
+EXPORT_SYMBOL_GPL(device_del);
 
 /**
  * device_unregister - unregister device from system.
@@ -1315,6 +1298,7 @@ void device_unregister(struct device *dev)
 	device_del(dev);
 	put_device(dev);
 }
+EXPORT_SYMBOL_GPL(device_unregister);
 
 static struct device *next_device(struct klist_iter *i)
 {
@@ -1403,6 +1387,7 @@ int device_for_each_child(struct device *parent, void *data,
 	klist_iter_exit(&i);
 	return error;
 }
+EXPORT_SYMBOL_GPL(device_for_each_child);
 
 /**
  * device_find_child - device iterator for locating a particular device.
@@ -1437,6 +1422,7 @@ struct device *device_find_child(struct device *parent, void *data,
 	klist_iter_exit(&i);
 	return child;
 }
+EXPORT_SYMBOL_GPL(device_find_child);
 
 int __init devices_init(void)
 {
@@ -1463,21 +1449,6 @@ int __init devices_init(void)
 	kset_unregister(devices_kset);
 	return -ENOMEM;
 }
-
-EXPORT_SYMBOL_GPL(device_for_each_child);
-EXPORT_SYMBOL_GPL(device_find_child);
-
-EXPORT_SYMBOL_GPL(device_initialize);
-EXPORT_SYMBOL_GPL(device_add);
-EXPORT_SYMBOL_GPL(device_register);
-
-EXPORT_SYMBOL_GPL(device_del);
-EXPORT_SYMBOL_GPL(device_unregister);
-EXPORT_SYMBOL_GPL(get_device);
-EXPORT_SYMBOL_GPL(put_device);
-
-EXPORT_SYMBOL_GPL(device_create_file);
-EXPORT_SYMBOL_GPL(device_remove_file);
 
 static DEFINE_MUTEX(device_hotplug_lock);
 

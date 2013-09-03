@@ -281,7 +281,7 @@ static ssize_t regmap_map_write_file(struct file *file,
 	reg = simple_strtoul(start, &start, 16);
 	while (*start == ' ')
 		start++;
-	if (strict_strtoul(start, 16, &value))
+	if (kstrtoul(start, 16, &value))
 		return -EINVAL;
 
 	/* Userspace has been fiddling around behind the kernel's back */
