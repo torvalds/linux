@@ -2134,6 +2134,7 @@ static void transport_write_pending_qf(struct se_cmd *cmd)
 
 int transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 {
+	unsigned long flags;
 	int ret = 0;
 
 	if (!(cmd->se_cmd_flags & SCF_SE_LUN_CMD)) {
@@ -2144,6 +2145,16 @@ int transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 	} else {
 		if (wait_for_tasks)
 			transport_wait_for_tasks(cmd);
+		/*
+		 * Handle WRITE failure case where transport_generic_new_cmd()
+		 * has already added se_cmd to state_list, but fabric has
+		 * failed command before I/O submission.
+		 */
+		if (cmd->state_active) {
+			spin_lock_irqsave(&cmd->t_state_lock, flags);
+			target_remove_from_state_list(cmd);
+			spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+		}
 
 		if (cmd->se_lun)
 			transport_lun_remove_cmd(cmd);
