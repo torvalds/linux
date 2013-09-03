@@ -3322,6 +3322,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			            them quite hard to use for exploits but
 			            might break your system.
 
+	vt.color=	[VT] Default text color.
+			Format: 0xYX, X = foreground, Y = background.
+			Default: 0x07 = light gray on black.
+
 	vt.cur_default=	[VT] Default cursor shape.
 			Format: 0xCCBBAA, where AA, BB, and CC are the same as
 			the parameters of the <Esc>[?A;B;Cc escape sequence;
@@ -3360,6 +3364,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			i.e. cursors will be created by default unless
 			overridden by individual drivers. 0 will hide
 			cursors, 1 will display them.
+
+	vt.italic=	[VT] Default color for italic text; 0-15.
+			Default: 2 = green.
+
+	vt.underline=	[VT] Default color for underlined text; 0-15.
+			Default: 3 = cyan.
 
 	watchdog timers	[HW,WDT] For information on watchdog timers,
 			see Documentation/watchdog/watchdog-parameters.txt

@@ -343,6 +343,8 @@ const char *of_prop_next_string(struct property *prop, const char *cur);
 		s;						\
 		s = of_prop_next_string(prop, s))
 
+int of_device_is_stdout_path(struct device_node *dn);
+
 #else /* CONFIG_OF */
 
 static inline const char* of_node_full_name(struct device_node *np)
@@ -501,6 +503,11 @@ static inline int of_alias_get_id(struct device_node *np, const char *stem)
 }
 
 static inline int of_machine_is_compatible(const char *compat)
+{
+	return 0;
+}
+
+static inline int of_device_is_stdout_path(struct device_node *dn)
 {
 	return 0;
 }

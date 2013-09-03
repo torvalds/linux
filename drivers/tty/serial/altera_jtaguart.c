@@ -139,7 +139,9 @@ static void altera_jtaguart_rx_chars(struct altera_jtaguart *pp)
 		uart_insert_char(port, 0, 0, ch, flag);
 	}
 
+	spin_unlock(&port->lock);
 	tty_flip_buffer_push(&port->state->port);
+	spin_lock(&port->lock);
 }
 
 static void altera_jtaguart_tx_chars(struct altera_jtaguart *pp)
@@ -408,7 +410,8 @@ static struct uart_driver altera_jtaguart_driver = {
 
 static int altera_jtaguart_probe(struct platform_device *pdev)
 {
-	struct altera_jtaguart_platform_uart *platp = pdev->dev.platform_data;
+	struct altera_jtaguart_platform_uart *platp =
+			dev_get_platdata(&pdev->dev);
 	struct uart_port *port;
 	struct resource *res_irq, *res_mem;
 	int i = pdev->id;
