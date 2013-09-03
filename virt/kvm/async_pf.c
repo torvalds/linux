@@ -113,11 +113,16 @@ void kvm_clear_async_pf_completion_queue(struct kvm_vcpu *vcpu)
 			list_entry(vcpu->async_pf.queue.next,
 				   typeof(*work), queue);
 		list_del(&work->queue);
+
+#ifdef CONFIG_KVM_ASYNC_PF_SYNC
+		flush_work(&work->work);
+#else
 		if (cancel_work_sync(&work->work)) {
 			mmdrop(work->mm);
 			kvm_put_kvm(vcpu->kvm); /* == work->vcpu->kvm */
 			kmem_cache_free(async_pf_cache, work);
 		}
+#endif
 	}
 
 	spin_lock(&vcpu->async_pf.lock);
