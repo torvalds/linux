@@ -970,7 +970,6 @@ void ntb_transport_free(void *transport)
 {
 	struct ntb_transport *nt = transport;
 	struct ntb_device *ndev = nt->ndev;
-	struct pci_dev *pdev;
 	int i;
 
 	nt->transport_link = NTB_LINK_DOWN;
@@ -987,8 +986,6 @@ void ntb_transport_free(void *transport)
 	cancel_delayed_work_sync(&nt->link_work);
 
 	ntb_unregister_event_callback(ndev);
-
-	pdev = ntb_query_pdev(ndev);
 
 	for (i = 0; i < ntb_max_mw(ndev); i++)
 		ntb_free_mw(nt, i);
