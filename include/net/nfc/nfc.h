@@ -31,6 +31,12 @@
 #define nfc_info(dev, fmt, ...) dev_info((dev), "NFC: " fmt, ##__VA_ARGS__)
 #define nfc_err(dev, fmt, ...) dev_err((dev), "NFC: " fmt, ##__VA_ARGS__)
 
+struct nfc_phy_ops {
+	int (*write)(void *dev_id, struct sk_buff *skb);
+	int (*enable)(void *dev_id);
+	void (*disable)(void *dev_id);
+};
+
 struct nfc_dev;
 
 /**
