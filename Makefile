@@ -1,8 +1,8 @@
 VERSION = 3
 PATCHLEVEL = 11
 SUBLEVEL = 0
-EXTRAVERSION =
-NAME = Linux for Workgroups
+EXTRAVERSION = -zen
+NAME = Dancing Doughnuts
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
