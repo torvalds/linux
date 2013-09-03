@@ -246,13 +246,31 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
-static ssize_t iwl_dbgfs_power_down_allow_write(struct file *file,
-						const char __user *user_buf,
+static ssize_t iwl_dbgfs_disable_power_off_read(struct file *file,
+						char __user *user_buf,
 						size_t count, loff_t *ppos)
 {
 	struct iwl_mvm *mvm = file->private_data;
-	char buf[8] = {};
-	int allow;
+	char buf[64];
+	int bufsz = sizeof(buf);
+	int pos = 0;
+
+	pos += scnprintf(buf+pos, bufsz-pos, "disable_power_off_d0=%d\n",
+			 mvm->disable_power_off);
+	pos += scnprintf(buf+pos, bufsz-pos, "disable_power_off_d3=%d\n",
+			 mvm->disable_power_off_d3);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
+static ssize_t iwl_dbgfs_disable_power_off_write(struct file *file,
+						 const char __user *user_buf,
+						 size_t count, loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+	char buf[64] = {};
+	int ret;
+	int val;
 
 	if (!mvm->ucode_loaded)
 		return -EIO;
@@ -261,45 +279,23 @@ static ssize_t iwl_dbgfs_power_down_allow_write(struct file *file,
 	if (copy_from_user(buf, user_buf, count))
 		return -EFAULT;
 
-	if (sscanf(buf, "%d", &allow) != 1)
+	if (!strncmp("disable_power_off_d0=", buf, 21)) {
+		if (sscanf(buf + 21, "%d", &val) != 1)
+			return -EINVAL;
+		mvm->disable_power_off = val;
+	} else if (!strncmp("disable_power_off_d3=", buf, 21)) {
+		if (sscanf(buf + 21, "%d", &val) != 1)
+			return -EINVAL;
+		mvm->disable_power_off_d3 = val;
+	} else {
 		return -EINVAL;
+	}
 
-	IWL_DEBUG_POWER(mvm, "%s device power down\n",
-			allow ? "allow" : "prevent");
+	mutex_lock(&mvm->mutex);
+	ret = iwl_mvm_power_update_device_mode(mvm);
+	mutex_unlock(&mvm->mutex);
 
-	/*
-	 * TODO: Send REPLY_DEBUG_CMD (0xf0) when FW support it
-	 */
-
-	return count;
-}
-
-static ssize_t iwl_dbgfs_power_down_d3_allow_write(struct file *file,
-						   const char __user *user_buf,
-						   size_t count, loff_t *ppos)
-{
-	struct iwl_mvm *mvm = file->private_data;
-	char buf[8] = {};
-	int allow;
-
-	count = min_t(size_t, count, sizeof(buf) - 1);
-	if (copy_from_user(buf, user_buf, count))
-		return -EFAULT;
-
-	if (sscanf(buf, "%d", &allow) != 1)
-		return -EINVAL;
-
-	IWL_DEBUG_POWER(mvm, "%s device power down in d3\n",
-			allow ? "allow" : "prevent");
-
-	/*
-	 * TODO: When WoWLAN FW alive notification happens, driver will send
-	 * REPLY_DEBUG_CMD setting power_down_allow flag according to
-	 * mvm->prevent_power_down_d3
-	 */
-	mvm->prevent_power_down_d3 = !allow;
-
-	return count;
+	return ret ?: count;
 }
 
 static void iwl_dbgfs_update_pm(struct iwl_mvm *mvm,
@@ -397,7 +393,9 @@ static ssize_t iwl_dbgfs_pm_params_write(struct file *file,
 		if (sscanf(buf + 16, "%d", &val) != 1)
 			return -EINVAL;
 		param = MVM_DEBUGFS_PM_TX_DATA_TIMEOUT;
-	} else if (!strncmp("disable_power_off=", buf, 18)) {
+	} else if (!strncmp("disable_power_off=", buf, 18) &&
+		   !(mvm->fw->ucode_capa.flags &
+		     IWL_UCODE_TLV_FLAGS_DEVICE_PS_CMD)) {
 		if (sscanf(buf + 18, "%d", &val) != 1)
 			return -EINVAL;
 		param = MVM_DEBUGFS_PM_DISABLE_POWER_OFF;
@@ -1159,8 +1157,7 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(sram);
 MVM_DEBUGFS_READ_FILE_OPS(stations);
 MVM_DEBUGFS_READ_FILE_OPS(bt_notif);
 MVM_DEBUGFS_READ_FILE_OPS(bt_cmd);
-MVM_DEBUGFS_WRITE_FILE_OPS(power_down_allow);
-MVM_DEBUGFS_WRITE_FILE_OPS(power_down_d3_allow);
+MVM_DEBUGFS_READ_WRITE_FILE_OPS(disable_power_off);
 MVM_DEBUGFS_READ_FILE_OPS(fw_rx_stats);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_restart);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(scan_ant_rxchain);
@@ -1186,8 +1183,9 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(stations, dbgfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(bt_notif, dbgfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(bt_cmd, dbgfs_dir, S_IRUSR);
-	MVM_DEBUGFS_ADD_FILE(power_down_allow, mvm->debugfs_dir, S_IWUSR);
-	MVM_DEBUGFS_ADD_FILE(power_down_d3_allow, mvm->debugfs_dir, S_IWUSR);
+	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_DEVICE_PS_CMD)
+		MVM_DEBUGFS_ADD_FILE(disable_power_off, mvm->debugfs_dir,
+				     S_IRUSR | S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(fw_rx_stats, mvm->debugfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(fw_restart, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(scan_ant_rxchain, mvm->debugfs_dir,

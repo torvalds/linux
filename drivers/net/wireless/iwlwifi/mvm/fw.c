@@ -428,6 +428,10 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 			goto error;
 	}
 
+	ret = iwl_mvm_power_update_device_mode(mvm);
+	if (ret)
+		goto error;
+
 	IWL_DEBUG_INFO(mvm, "RT uCode started.\n");
 	return 0;
  error:

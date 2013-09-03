@@ -88,6 +88,8 @@
  * @IWL_UCODE_TLV_FLAGS_NEW_NSOFFL_LARGE: new NS offload (large version)
  * @IWL_UCODE_TLV_FLAGS_SCHED_SCAN: this uCode image supports scheduled scan.
  * @IWL_UCODE_TLV_FLAGS_STA_KEY_CMD: new ADD_STA and ADD_STA_KEY command API
+ * @IWL_UCODE_TLV_FLAGS_DEVICE_PS_CMD: support device wide power command
+ *	containing CAM (Continuous Active Mode) indication.
  */
 enum iwl_ucode_tlv_flag {
 	IWL_UCODE_TLV_FLAGS_PAN			= BIT(0),
@@ -107,6 +109,7 @@ enum iwl_ucode_tlv_flag {
 	IWL_UCODE_TLV_FLAGS_NEW_NSOFFL_LARGE	= BIT(16),
 	IWL_UCODE_TLV_FLAGS_SCHED_SCAN		= BIT(17),
 	IWL_UCODE_TLV_FLAGS_STA_KEY_CMD		= BIT(19),
+	IWL_UCODE_TLV_FLAGS_DEVICE_PS_CMD	= BIT(20),
 };
 
 /* The default calibrate table size if not specified by firmware file */
