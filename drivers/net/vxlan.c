@@ -916,6 +916,8 @@ void vxlan_sock_release(struct vxlan_sock *vs)
 
 	spin_lock(&vn->sock_lock);
 	hlist_del_rcu(&vs->hlist);
+	smp_wmb();
+	vs->sock->sk->sk_user_data = NULL;
 	spin_unlock(&vn->sock_lock);
 
 	queue_work(vxlan_wq, &vs->del_work);
@@ -1009,7 +1011,8 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 
 	port = inet_sk(sk)->inet_sport;
 
-	vs = vxlan_find_sock(sock_net(sk), port);
+	smp_read_barrier_depends();
+	vs = (struct vxlan_sock *)sk->sk_user_data;
 	if (!vs)
 		goto drop;
 
@@ -2236,6 +2239,8 @@ static struct vxlan_sock *vxlan_socket_create(struct net *net, __be16 port,
 	atomic_set(&vs->refcnt, 1);
 	vs->rcv = rcv;
 	vs->data = data;
+	smp_wmb();
+	vs->sock->sk->sk_user_data = vs;
 
 	spin_lock(&vn->sock_lock);
 	hlist_add_head_rcu(&vs->hlist, vs_head(net, port));
