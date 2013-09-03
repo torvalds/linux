@@ -191,16 +191,9 @@ static __inline__ void _set_bit(u32 * word, u32 mask, int value)
 
 static int write_acpi_int(const char *methodName, int val)
 {
-	struct acpi_object_list params;
-	union acpi_object in_objs[1];
 	acpi_status status;
 
-	params.count = ARRAY_SIZE(in_objs);
-	params.pointer = in_objs;
-	in_objs[0].type = ACPI_TYPE_INTEGER;
-	in_objs[0].integer.value = val;
-
-	status = acpi_evaluate_object(NULL, (char *)methodName, &params, NULL);
+	status = acpi_execute_simple_method(NULL, (char *)methodName, val);
 	return (status == AE_OK) ? 0 : -EIO;
 }
 
