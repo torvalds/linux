@@ -38,6 +38,25 @@
 
 #define DP_LINK_CHECK_TIMEOUT	(10 * 1000)
 
+struct dp_link_dpll {
+	int link_bw;
+	struct dpll dpll;
+};
+
+static const struct dp_link_dpll gen4_dpll[] = {
+	{ DP_LINK_BW_1_62,
+		{ .p1 = 2, .p2 = 10, .n = 2, .m1 = 23, .m2 = 8 } },
+	{ DP_LINK_BW_2_7,
+		{ .p1 = 1, .p2 = 10, .n = 1, .m1 = 14, .m2 = 2 } }
+};
+
+static const struct dp_link_dpll pch_dpll[] = {
+	{ DP_LINK_BW_1_62,
+		{ .p1 = 2, .p2 = 10, .n = 1, .m1 = 12, .m2 = 9 } },
+	{ DP_LINK_BW_2_7,
+		{ .p1 = 1, .p2 = 10, .n = 2, .m1 = 14, .m2 = 8 } }
+};
+
 /**
  * is_edp - is the given port attached to an eDP panel (either CPU or PCH)
  * @intel_dp: DP struct
@@ -660,41 +679,29 @@ intel_dp_set_clock(struct intel_encoder *encoder,
 		   struct intel_crtc_config *pipe_config, int link_bw)
 {
 	struct drm_device *dev = encoder->base.dev;
+	const struct dp_link_dpll *divisor = NULL;
+	int i, count = 0;
 
 	if (IS_G4X(dev)) {
-		if (link_bw == DP_LINK_BW_1_62) {
-			pipe_config->dpll.p1 = 2;
-			pipe_config->dpll.p2 = 10;
-			pipe_config->dpll.n = 2;
-			pipe_config->dpll.m1 = 23;
-			pipe_config->dpll.m2 = 8;
-		} else {
-			pipe_config->dpll.p1 = 1;
-			pipe_config->dpll.p2 = 10;
-			pipe_config->dpll.n = 1;
-			pipe_config->dpll.m1 = 14;
-			pipe_config->dpll.m2 = 2;
-		}
-		pipe_config->clock_set = true;
+		divisor = gen4_dpll;
+		count = ARRAY_SIZE(gen4_dpll);
 	} else if (IS_HASWELL(dev)) {
 		/* Haswell has special-purpose DP DDI clocks. */
 	} else if (HAS_PCH_SPLIT(dev)) {
-		if (link_bw == DP_LINK_BW_1_62) {
-			pipe_config->dpll.n = 1;
-			pipe_config->dpll.p1 = 2;
-			pipe_config->dpll.p2 = 10;
-			pipe_config->dpll.m1 = 12;
-			pipe_config->dpll.m2 = 9;
-		} else {
-			pipe_config->dpll.n = 2;
-			pipe_config->dpll.p1 = 1;
-			pipe_config->dpll.p2 = 10;
-			pipe_config->dpll.m1 = 14;
-			pipe_config->dpll.m2 = 8;
-		}
-		pipe_config->clock_set = true;
+		divisor = pch_dpll;
+		count = ARRAY_SIZE(pch_dpll);
 	} else if (IS_VALLEYVIEW(dev)) {
 		/* FIXME: Need to figure out optimized DP clocks for vlv. */
+	}
+
+	if (divisor && count) {
+		for (i = 0; i < count; i++) {
+			if (link_bw == divisor[i].link_bw) {
+				pipe_config->dpll = divisor[i].dpll;
+				pipe_config->clock_set = true;
+				break;
+			}
+		}
 	}
 }
 
