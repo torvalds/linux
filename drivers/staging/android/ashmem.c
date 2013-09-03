@@ -196,10 +196,17 @@ static void range_del(struct ashmem_range *range)
 	kmem_cache_free(ashmem_range_cachep, range);
 }
 
-/*
- * range_shrink - shrinks a range
+/**
+ * range_shrink() - Shrinks an ashmem_range
+ * @range:	    The associated ashmem_range being shrunk
+ * @start:	    The starting byte of the new range
+ * @end:	    The ending byte of the new range
  *
- * Caller must hold ashmem_mutex.
+ * This does not modify the data inside the existing range in any way - It
+ * simply shrinks the boundaries of the range.
+ *
+ * Theoretically, with a little tweaking, this could eventually be changed
+ * to range_resize, and expand the lru_count if the new range is larger.
  */
 static inline void range_shrink(struct ashmem_range *range,
 				size_t start, size_t end)
@@ -213,6 +220,16 @@ static inline void range_shrink(struct ashmem_range *range,
 		lru_count -= pre - range_size(range);
 }
 
+/**
+ * ashmem_open() - Opens an Anonymous Shared Memory structure
+ * @inode:	   The backing file's index node(?)
+ * @file:	   The backing file
+ *
+ * Please note that the ashmem_area is not returned by this function - It is
+ * instead written to "file->private_data".
+ *
+ * Return: 0 if successful, or another code if unsuccessful.
+ */
 static int ashmem_open(struct inode *inode, struct file *file)
 {
 	struct ashmem_area *asma;
@@ -234,6 +251,14 @@ static int ashmem_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+/**
+ * ashmem_release() - Releases an Anonymous Shared Memory structure
+ * @ignored:	      The backing file's Index Node(?) - It is ignored here.
+ * @file:	      The backing file
+ *
+ * Return: 0 if successful. If it is anything else, go have a coffee and
+ * try again.
+ */
 static int ashmem_release(struct inode *ignored, struct file *file)
 {
 	struct ashmem_area *asma = file->private_data;
@@ -251,6 +276,15 @@ static int ashmem_release(struct inode *ignored, struct file *file)
 	return 0;
 }
 
+/**
+ * ashmem_read() - Reads a set of bytes from an Ashmem-enabled file
+ * @file:	   The associated backing file.
+ * @buf:	   The buffer of data being written to
+ * @len:	   The number of bytes being read
+ * @pos:	   The position of the first byte to read.
+ *
+ * Return: 0 if successful, or another return code if not.
+ */
 static ssize_t ashmem_read(struct file *file, char __user *buf,
 			   size_t len, loff_t *pos)
 {
