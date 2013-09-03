@@ -248,7 +248,7 @@ static inline void __qlcnic_init_dcbnl_ops(struct qlcnic_adapter *adapter)
 		adapter->netdev->dcbnl_ops = &qlcnic_dcbnl_ops;
 }
 
-void qlcnic_set_dcb_ops(struct qlcnic_adapter *adapter)
+static void qlcnic_set_dcb_ops(struct qlcnic_adapter *adapter)
 {
 	if (qlcnic_82xx_check(adapter))
 		adapter->dcb->ops = &qlcnic_82xx_dcb_ops;
