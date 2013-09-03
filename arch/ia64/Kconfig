@@ -43,6 +43,7 @@ config IA64
 	select SYSCTL_ARCH_UNALIGN_NO_WARN
 	select HAVE_MOD_ARCH_SPECIFIC
 	select MODULES_USE_ELF_RELA
+	select ARCH_USE_CMPXCHG_LOCKREF
 	default y
 	help
 	  The Itanium Processor Family is Intel's 64-bit successor to
