@@ -915,7 +915,14 @@ static const struct kset_uevent_ops module_uevent_ops = {
 struct kset *module_kset;
 int module_sysfs_initialized;
 
+static void module_kobj_release(struct kobject *kobj)
+{
+	struct module_kobject *mk = to_module_kobject(kobj);
+	complete(mk->kobj_completion);
+}
+
 struct kobj_type module_ktype = {
+	.release   =	module_kobj_release,
 	.sysfs_ops =	&module_sysfs_ops,
 };
 
