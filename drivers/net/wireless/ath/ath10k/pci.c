@@ -612,19 +612,20 @@ exit:
 }
 
 /* Called by lower (CE) layer when a send to Target completes. */
-static void ath10k_pci_ce_send_done(struct ath10k_ce_pipe *ce_state,
-				    void *transfer_context,
-				    u32 ce_data,
-				    unsigned int nbytes,
-				    unsigned int transfer_id)
+static void ath10k_pci_ce_send_done(struct ath10k_ce_pipe *ce_state)
 {
 	struct ath10k *ar = ce_state->ar;
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct ath10k_pci_pipe *pipe_info =  &ar_pci->pipe_info[ce_state->id];
 	struct ath10k_pci_compl *compl;
-	bool process = false;
+	void *transfer_context;
+	u32 ce_data;
+	unsigned int nbytes;
+	unsigned int transfer_id;
 
-	do {
+	while (ath10k_ce_completed_send_next(ce_state, &transfer_context,
+					     &ce_data, &nbytes,
+					     &transfer_id) == 0) {
 		/*
 		 * For the send completion of an item in sendlist, just
 		 * increment num_sends_allowed. The upper layer callback will
@@ -655,38 +656,28 @@ static void ath10k_pci_ce_send_done(struct ath10k_ce_pipe *ce_state,
 		spin_lock_bh(&ar_pci->compl_lock);
 		list_add_tail(&compl->list, &ar_pci->compl_process);
 		spin_unlock_bh(&ar_pci->compl_lock);
-
-		process = true;
-	} while (ath10k_ce_completed_send_next(ce_state,
-							   &transfer_context,
-							   &ce_data, &nbytes,
-							   &transfer_id) == 0);
-
-	/*
-	 * If only some of the items within a sendlist have completed,
-	 * don't invoke completion processing until the entire sendlist
-	 * has been sent.
-	 */
-	if (!process)
-		return;
+	}
 
 	ath10k_pci_process_ce(ar);
 }
 
 /* Called by lower (CE) layer when data is received from the Target. */
-static void ath10k_pci_ce_recv_data(struct ath10k_ce_pipe *ce_state,
-				    void *transfer_context, u32 ce_data,
-				    unsigned int nbytes,
-				    unsigned int transfer_id,
-				    unsigned int flags)
+static void ath10k_pci_ce_recv_data(struct ath10k_ce_pipe *ce_state)
 {
 	struct ath10k *ar = ce_state->ar;
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct ath10k_pci_pipe *pipe_info =  &ar_pci->pipe_info[ce_state->id];
 	struct ath10k_pci_compl *compl;
 	struct sk_buff *skb;
+	void *transfer_context;
+	u32 ce_data;
+	unsigned int nbytes;
+	unsigned int transfer_id;
+	unsigned int flags;
 
-	do {
+	while (ath10k_ce_completed_recv_next(ce_state, &transfer_context,
+					     &ce_data, &nbytes, &transfer_id,
+					     &flags) == 0) {
 		compl = get_free_compl(pipe_info);
 		if (!compl)
 			break;
@@ -709,12 +700,7 @@ static void ath10k_pci_ce_recv_data(struct ath10k_ce_pipe *ce_state,
 		spin_lock_bh(&ar_pci->compl_lock);
 		list_add_tail(&compl->list, &ar_pci->compl_process);
 		spin_unlock_bh(&ar_pci->compl_lock);
-
-	} while (ath10k_ce_completed_recv_next(ce_state,
-							   &transfer_context,
-							   &ce_data, &nbytes,
-							   &transfer_id,
-							   &flags) == 0);
+	}
 
 	ath10k_pci_process_ce(ar);
 }
@@ -1491,13 +1477,16 @@ err_dma:
 	return ret;
 }
 
-static void ath10k_pci_bmi_send_done(struct ath10k_ce_pipe *ce_state,
-				     void *transfer_context,
-				     u32 data,
-				     unsigned int nbytes,
-				     unsigned int transfer_id)
+static void ath10k_pci_bmi_send_done(struct ath10k_ce_pipe *ce_state)
 {
-	struct bmi_xfer *xfer = transfer_context;
+	struct bmi_xfer *xfer;
+	u32 ce_data;
+	unsigned int nbytes;
+	unsigned int transfer_id;
+
+	if (ath10k_ce_completed_send_next(ce_state, (void **)&xfer, &ce_data,
+					  &nbytes, &transfer_id))
+		return;
 
 	if (xfer->wait_for_resp)
 		return;
@@ -1505,14 +1494,17 @@ static void ath10k_pci_bmi_send_done(struct ath10k_ce_pipe *ce_state,
 	complete(&xfer->done);
 }
 
-static void ath10k_pci_bmi_recv_data(struct ath10k_ce_pipe *ce_state,
-				     void *transfer_context,
-				     u32 data,
-				     unsigned int nbytes,
-				     unsigned int transfer_id,
-				     unsigned int flags)
+static void ath10k_pci_bmi_recv_data(struct ath10k_ce_pipe *ce_state)
 {
-	struct bmi_xfer *xfer = transfer_context;
+	struct bmi_xfer *xfer;
+	u32 ce_data;
+	unsigned int nbytes;
+	unsigned int transfer_id;
+	unsigned int flags;
+
+	if (ath10k_ce_completed_recv_next(ce_state, (void **)&xfer, &ce_data,
+					  &nbytes, &transfer_id, &flags))
+		return;
 
 	if (!xfer->wait_for_resp) {
 		ath10k_warn("unexpected: BMI data received; ignoring\n");

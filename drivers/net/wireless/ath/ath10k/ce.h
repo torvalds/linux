@@ -116,17 +116,8 @@ struct ath10k_ce_pipe {
 
 	u32 ctrl_addr;
 
-	void (*send_cb) (struct ath10k_ce_pipe *ce_state,
-			 void *per_transfer_send_context,
-			 u32 buffer,
-			 unsigned int nbytes,
-			 unsigned int transfer_id);
-	void (*recv_cb) (struct ath10k_ce_pipe *ce_state,
-			 void *per_transfer_recv_context,
-			 u32 buffer,
-			 unsigned int nbytes,
-			 unsigned int transfer_id,
-			 unsigned int flags);
+	void (*send_cb)(struct ath10k_ce_pipe *);
+	void (*recv_cb)(struct ath10k_ce_pipe *);
 
 	unsigned int src_sz_max;
 	struct ath10k_ce_ring *src_ring;
@@ -181,11 +172,7 @@ int ath10k_ce_send(struct ath10k_ce_pipe *ce_state,
 		   unsigned int flags);
 
 void ath10k_ce_send_cb_register(struct ath10k_ce_pipe *ce_state,
-				void (*send_cb)(struct ath10k_ce_pipe *ce_state,
-						void *transfer_context,
-						u32 buffer,
-						unsigned int nbytes,
-						unsigned int transfer_id),
+				void (*send_cb)(struct ath10k_ce_pipe *),
 				int disable_interrupts);
 
 /* Append a simple buffer (address/length) to a sendlist. */
@@ -228,12 +215,7 @@ int ath10k_ce_recv_buf_enqueue(struct ath10k_ce_pipe *ce_state,
 			       u32 buffer);
 
 void ath10k_ce_recv_cb_register(struct ath10k_ce_pipe *ce_state,
-				void (*recv_cb)(struct ath10k_ce_pipe *ce_state,
-						void *transfer_context,
-						u32 buffer,
-						unsigned int nbytes,
-						unsigned int transfer_id,
-						unsigned int flags));
+				void (*recv_cb)(struct ath10k_ce_pipe *));
 
 /* recv flags */
 /* Data is byte-swapped */

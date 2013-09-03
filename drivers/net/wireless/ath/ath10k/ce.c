@@ -742,11 +742,6 @@ void ath10k_ce_per_engine_service(struct ath10k *ar, unsigned int ce_id)
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct ath10k_ce_pipe *ce_state = &ar_pci->ce_states[ce_id];
 	u32 ctrl_addr = ce_state->ctrl_addr;
-	void *transfer_context;
-	u32 buf;
-	unsigned int nbytes;
-	unsigned int id;
-	unsigned int flags;
 	int ret;
 
 	ret = ath10k_pci_wake(ar);
@@ -759,38 +754,15 @@ void ath10k_ce_per_engine_service(struct ath10k *ar, unsigned int ce_id)
 	ath10k_ce_engine_int_status_clear(ar, ctrl_addr,
 					  HOST_IS_COPY_COMPLETE_MASK);
 
-	if (ce_state->recv_cb) {
-		/*
-		 * Pop completed recv buffers and call the registered
-		 * recv callback for each
-		 */
-		while (ath10k_ce_completed_recv_next_nolock(ce_state,
-							    &transfer_context,
-							    &buf, &nbytes,
-							    &id, &flags) == 0) {
-			spin_unlock_bh(&ar_pci->ce_lock);
-			ce_state->recv_cb(ce_state, transfer_context, buf,
-					  nbytes, id, flags);
-			spin_lock_bh(&ar_pci->ce_lock);
-		}
-	}
+	spin_unlock_bh(&ar_pci->ce_lock);
 
-	if (ce_state->send_cb) {
-		/*
-		 * Pop completed send buffers and call the registered
-		 * send callback for each
-		 */
-		while (ath10k_ce_completed_send_next_nolock(ce_state,
-							    &transfer_context,
-							    &buf,
-							    &nbytes,
-							    &id) == 0) {
-			spin_unlock_bh(&ar_pci->ce_lock);
-			ce_state->send_cb(ce_state, transfer_context,
-					  buf, nbytes, id);
-			spin_lock_bh(&ar_pci->ce_lock);
-		}
-	}
+	if (ce_state->recv_cb)
+		ce_state->recv_cb(ce_state);
+
+	if (ce_state->send_cb)
+		ce_state->send_cb(ce_state);
+
+	spin_lock_bh(&ar_pci->ce_lock);
 
 	/*
 	 * Misc CE interrupts are not being handled, but still need
@@ -881,11 +853,7 @@ void ath10k_ce_disable_interrupts(struct ath10k *ar)
 }
 
 void ath10k_ce_send_cb_register(struct ath10k_ce_pipe *ce_state,
-				void (*send_cb)(struct ath10k_ce_pipe *ce_state,
-						void *transfer_context,
-						u32 buffer,
-						unsigned int nbytes,
-						unsigned int transfer_id),
+				void (*send_cb)(struct ath10k_ce_pipe *),
 				int disable_interrupts)
 {
 	struct ath10k *ar = ce_state->ar;
@@ -898,12 +866,7 @@ void ath10k_ce_send_cb_register(struct ath10k_ce_pipe *ce_state,
 }
 
 void ath10k_ce_recv_cb_register(struct ath10k_ce_pipe *ce_state,
-				void (*recv_cb)(struct ath10k_ce_pipe *ce_state,
-						void *transfer_context,
-						u32 buffer,
-						unsigned int nbytes,
-						unsigned int transfer_id,
-						unsigned int flags))
+				void (*recv_cb)(struct ath10k_ce_pipe *))
 {
 	struct ath10k *ar = ce_state->ar;
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
