@@ -56,6 +56,7 @@ struct edma_desc {
 	struct list_head		node;
 	int				absync;
 	int				pset_nr;
+	int				processed;
 	struct edmacc_param		pset[0];
 };
 
@@ -104,22 +105,34 @@ static void edma_desc_free(struct virt_dma_desc *vdesc)
 /* Dispatch a queued descriptor to the controller (caller holds lock) */
 static void edma_execute(struct edma_chan *echan)
 {
-	struct virt_dma_desc *vdesc = vchan_next_desc(&echan->vchan);
+	struct virt_dma_desc *vdesc;
 	struct edma_desc *edesc;
-	int i;
+	struct device *dev = echan->vchan.chan.device->dev;
+	int i, j, left, nslots;
 
-	if (!vdesc) {
-		echan->edesc = NULL;
-		return;
+	/* If either we processed all psets or we're still not started */
+	if (!echan->edesc ||
+	    echan->edesc->pset_nr == echan->edesc->processed) {
+		/* Get next vdesc */
+		vdesc = vchan_next_desc(&echan->vchan);
+		if (!vdesc) {
+			echan->edesc = NULL;
+			return;
+		}
+		list_del(&vdesc->node);
+		echan->edesc = to_edma_desc(&vdesc->tx);
 	}
 
-	list_del(&vdesc->node);
+	edesc = echan->edesc;
 
-	echan->edesc = edesc = to_edma_desc(&vdesc->tx);
+	/* Find out how many left */
+	left = edesc->pset_nr - edesc->processed;
+	nslots = min(MAX_NR_SG, left);
 
 	/* Write descriptor PaRAM set(s) */
-	for (i = 0; i < edesc->pset_nr; i++) {
-		edma_write_slot(echan->slot[i], &edesc->pset[i]);
+	for (i = 0; i < nslots; i++) {
+		j = i + edesc->processed;
+		edma_write_slot(echan->slot[i], &edesc->pset[j]);
 		dev_dbg(echan->vchan.chan.device->dev,
 			"\n pset[%d]:\n"
 			"  chnum\t%d\n"
@@ -132,24 +145,31 @@ static void edma_execute(struct edma_chan *echan)
 			"  bidx\t%08x\n"
 			"  cidx\t%08x\n"
 			"  lkrld\t%08x\n",
-			i, echan->ch_num, echan->slot[i],
-			edesc->pset[i].opt,
-			edesc->pset[i].src,
-			edesc->pset[i].dst,
-			edesc->pset[i].a_b_cnt,
-			edesc->pset[i].ccnt,
-			edesc->pset[i].src_dst_bidx,
-			edesc->pset[i].src_dst_cidx,
-			edesc->pset[i].link_bcntrld);
+			j, echan->ch_num, echan->slot[i],
+			edesc->pset[j].opt,
+			edesc->pset[j].src,
+			edesc->pset[j].dst,
+			edesc->pset[j].a_b_cnt,
+			edesc->pset[j].ccnt,
+			edesc->pset[j].src_dst_bidx,
+			edesc->pset[j].src_dst_cidx,
+			edesc->pset[j].link_bcntrld);
 		/* Link to the previous slot if not the last set */
-		if (i != (edesc->pset_nr - 1))
+		if (i != (nslots - 1))
 			edma_link(echan->slot[i], echan->slot[i+1]);
 		/* Final pset links to the dummy pset */
 		else
 			edma_link(echan->slot[i], echan->ecc->dummy_slot);
 	}
 
-	edma_start(echan->ch_num);
+	edesc->processed += nslots;
+
+	edma_resume(echan->ch_num);
+
+	if (edesc->processed <= MAX_NR_SG) {
+		dev_dbg(dev, "first transfer starting %d\n", echan->ch_num);
+		edma_start(echan->ch_num);
+	}
 }
 
 static int edma_terminate_all(struct edma_chan *echan)
@@ -368,19 +388,24 @@ static void edma_callback(unsigned ch_num, u16 ch_status, void *data)
 	struct edma_desc *edesc;
 	unsigned long flags;
 
-	/* Stop the channel */
-	edma_stop(echan->ch_num);
+	/* Pause the channel */
+	edma_pause(echan->ch_num);
 
 	switch (ch_status) {
 	case DMA_COMPLETE:
-		dev_dbg(dev, "transfer complete on channel %d\n", ch_num);
-
 		spin_lock_irqsave(&echan->vchan.lock, flags);
 
 		edesc = echan->edesc;
 		if (edesc) {
+			if (edesc->processed == edesc->pset_nr) {
+				dev_dbg(dev, "Transfer complete, stopping channel %d\n", ch_num);
+				edma_stop(echan->ch_num);
+				vchan_cookie_complete(&edesc->vdesc);
+			} else {
+				dev_dbg(dev, "Intermediate transfer complete on channel %d\n", ch_num);
+			}
+
 			edma_execute(echan);
-			vchan_cookie_complete(&edesc->vdesc);
 		}
 
 		spin_unlock_irqrestore(&echan->vchan.lock, flags);
