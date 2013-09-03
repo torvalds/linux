@@ -196,13 +196,13 @@ asmlinkage void do_softirq(void)
  * ext_int_hash[index] is the list head for all external interrupts that hash
  * to this index.
  */
-static struct list_head ext_int_hash[256];
+static struct hlist_head ext_int_hash[256];
 
 struct ext_int_info {
 	ext_int_handler_t handler;
-	u16 code;
-	struct list_head entry;
+	struct hlist_node entry;
 	struct rcu_head rcu;
+	u16 code;
 };
 
 /* ext_int_hash_lock protects the handler lists for external interrupts */
@@ -227,7 +227,7 @@ int register_external_interrupt(u16 code, ext_int_handler_t handler)
 	index = ext_hash(code);
 
 	spin_lock_irqsave(&ext_int_hash_lock, flags);
-	list_add_rcu(&p->entry, &ext_int_hash[index]);
+	hlist_add_head_rcu(&p->entry, &ext_int_hash[index]);
 	spin_unlock_irqrestore(&ext_int_hash_lock, flags);
 	return 0;
 }
@@ -240,9 +240,9 @@ int unregister_external_interrupt(u16 code, ext_int_handler_t handler)
 	int index = ext_hash(code);
 
 	spin_lock_irqsave(&ext_int_hash_lock, flags);
-	list_for_each_entry_rcu(p, &ext_int_hash[index], entry) {
+	hlist_for_each_entry_rcu(p, &ext_int_hash[index], entry) {
 		if (p->code == code && p->handler == handler) {
-			list_del_rcu(&p->entry);
+			hlist_del_rcu(&p->entry);
 			kfree_rcu(p, rcu);
 		}
 	}
@@ -264,12 +264,12 @@ static irqreturn_t do_ext_interrupt(int irq, void *dummy)
 
 	index = ext_hash(ext_code.code);
 	rcu_read_lock();
-	list_for_each_entry_rcu(p, &ext_int_hash[index], entry)
-		if (likely(p->code == ext_code.code))
-			p->handler(ext_code, regs->int_parm,
-				   regs->int_parm_long);
+	hlist_for_each_entry_rcu(p, &ext_int_hash[index], entry) {
+		if (unlikely(p->code != ext_code.code))
+			continue;
+		p->handler(ext_code, regs->int_parm, regs->int_parm_long);
+	}
 	rcu_read_unlock();
-
 	return IRQ_HANDLED;
 }
 
@@ -283,7 +283,7 @@ void __init init_ext_interrupts(void)
 	int idx;
 
 	for (idx = 0; idx < ARRAY_SIZE(ext_int_hash); idx++)
-		INIT_LIST_HEAD(&ext_int_hash[idx]);
+		INIT_HLIST_HEAD(&ext_int_hash[idx]);
 
 	irq_set_chip_and_handler(EXT_INTERRUPT,
 				 &dummy_irq_chip, handle_percpu_irq);
