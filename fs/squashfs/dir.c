@@ -54,6 +54,7 @@ static int get_dir_index_using_offset(struct super_block *sb,
 {
 	struct squashfs_sb_info *msblk = sb->s_fs_info;
 	int err, i, index, length = 0;
+	unsigned int size;
 	struct squashfs_dir_index dir_index;
 
 	TRACE("Entered get_dir_index_using_offset, i_count %d, f_pos %lld\n",
@@ -81,8 +82,14 @@ static int get_dir_index_using_offset(struct super_block *sb,
 			 */
 			break;
 
+		size = le32_to_cpu(dir_index.size) + 1;
+
+		/* size should never be larger than SQUASHFS_NAME_LEN */
+		if (size > SQUASHFS_NAME_LEN)
+			break;
+
 		err = squashfs_read_metadata(sb, NULL, &index_start,
-				&index_offset, le32_to_cpu(dir_index.size) + 1);
+				&index_offset, size);
 		if (err < 0)
 			break;
 
