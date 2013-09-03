@@ -168,6 +168,7 @@
 #define LINKRATE_15			(0x01 << 8)
 #define LINKRATE_30			(0x02 << 8)
 #define LINKRATE_60			(0x06 << 8)
+#define LINKRATE_120			(0x08 << 8)
 
 /* Thermal related */
 #define	THERMAL_ENABLE			0x1
@@ -1223,10 +1224,10 @@ typedef struct SASProtocolTimerConfig SASProtocolTimerConfig_t;
 
 /* MSGU CONFIGURATION TABLE*/
 
-#define SPCv_MSGU_CFG_TABLE_UPDATE		0x01
-#define SPCv_MSGU_CFG_TABLE_RESET		0x02
-#define SPCv_MSGU_CFG_TABLE_FREEZE		0x04
-#define SPCv_MSGU_CFG_TABLE_UNFREEZE		0x08
+#define SPCv_MSGU_CFG_TABLE_UPDATE		0x001
+#define SPCv_MSGU_CFG_TABLE_RESET		0x002
+#define SPCv_MSGU_CFG_TABLE_FREEZE		0x004
+#define SPCv_MSGU_CFG_TABLE_UNFREEZE		0x008
 #define MSGU_IBDB_SET				0x00
 #define MSGU_HOST_INT_STATUS			0x08
 #define MSGU_HOST_INT_MASK			0x0C

@@ -104,6 +104,9 @@ do {						\
 
 
 #define DEV_IS_EXPANDER(type)	((type == SAS_EDGE_EXPANDER_DEVICE) || (type == SAS_FANOUT_EXPANDER_DEVICE))
+#define IS_SPCV_12G(dev)	((dev->device == 0X8074)		\
+				|| (dev->device == 0X8076)		\
+				|| (dev->device == 0X8077))
 
 #define PM8001_NAME_LENGTH		32/* generic length of strings */
 extern struct list_head hba_list;

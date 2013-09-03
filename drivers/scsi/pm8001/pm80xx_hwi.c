@@ -430,7 +430,11 @@ static int mpi_init_check(struct pm8001_hba_info *pm8001_ha)
 	table is updated */
 	pm8001_cw32(pm8001_ha, 0, MSGU_IBDB_SET, SPCv_MSGU_CFG_TABLE_UPDATE);
 	/* wait until Inbound DoorBell Clear Register toggled */
-	max_wait_count = 2 * 1000 * 1000;/* 2 sec for spcv/ve */
+	if (IS_SPCV_12G(pm8001_ha->pdev)) {
+		max_wait_count = 4 * 1000 * 1000;/* 4 sec */
+	} else {
+		max_wait_count = 2 * 1000 * 1000;/* 2 sec */
+	}
 	do {
 		udelay(1);
 		value = pm8001_cr32(pm8001_ha, 0, MSGU_IBDB_SET);
@@ -913,7 +917,11 @@ static int mpi_uninit_check(struct pm8001_hba_info *pm8001_ha)
 	pm8001_cw32(pm8001_ha, 0, MSGU_IBDB_SET, SPCv_MSGU_CFG_TABLE_RESET);
 
 	/* wait until Inbound DoorBell Clear Register toggled */
-	max_wait_count = 2 * 1000 * 1000;	/* 2 sec for spcv/ve */
+	if (IS_SPCV_12G(pm8001_ha->pdev)) {
+		max_wait_count = 4 * 1000 * 1000;/* 4 sec */
+	} else {
+		max_wait_count = 2 * 1000 * 1000;/* 2 sec */
+	}
 	do {
 		udelay(1);
 		value = pm8001_cr32(pm8001_ha, 0, MSGU_IBDB_SET);
@@ -3941,9 +3949,16 @@ pm80xx_chip_phy_start_req(struct pm8001_hba_info *pm8001_ha, u8 phy_id)
 	 ** [14]	0b disable spin up hold; 1b enable spin up hold
 	 ** [15] ob no change in current PHY analig setup 1b enable using SPAST
 	 */
-	payload.ase_sh_lm_slr_phyid = cpu_to_le32(SPINHOLD_DISABLE |
-			LINKMODE_AUTO | LINKRATE_15 |
-			LINKRATE_30 | LINKRATE_60 | phy_id);
+	if (!IS_SPCV_12G(pm8001_ha->pdev))
+		payload.ase_sh_lm_slr_phyid = cpu_to_le32(SPINHOLD_DISABLE |
+				LINKMODE_AUTO | LINKRATE_15 |
+				LINKRATE_30 | LINKRATE_60 | phy_id);
+	else
+		payload.ase_sh_lm_slr_phyid = cpu_to_le32(SPINHOLD_DISABLE |
+				LINKMODE_AUTO | LINKRATE_15 |
+				LINKRATE_30 | LINKRATE_60 | LINKRATE_120 |
+				phy_id);
+
 	/* SSC Disable and SAS Analog ST configuration */
 	/**
 	payload.ase_sh_lm_slr_phyid =
