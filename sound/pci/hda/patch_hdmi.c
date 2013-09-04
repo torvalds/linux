@@ -44,6 +44,8 @@ static bool static_hdmi_pcm;
 module_param(static_hdmi_pcm, bool, 0644);
 MODULE_PARM_DESC(static_hdmi_pcm, "Don't restrict PCM parameters per ELD info");
 
+#define is_haswell(codec)  ((codec)->vendor_id == 0x80862807)
+
 struct hdmi_spec_per_cvt {
 	hda_nid_t cvt_nid;
 	int assigned;
@@ -1087,7 +1089,7 @@ static int hdmi_setup_stream(struct hda_codec *codec, hda_nid_t cvt_nid,
 	int pinctl;
 	int new_pinctl = 0;
 
-	if (codec->vendor_id == 0x80862807)
+	if (is_haswell(codec))
 		haswell_verify_pin_D0(codec, cvt_nid, pin_nid);
 
 	if (snd_hda_query_pin_caps(codec, pin_nid) & AC_PINCAP_HBR) {
@@ -1227,7 +1229,7 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 			    mux_idx);
 
 	/* configure unused pins to choose other converters */
-	if (codec->vendor_id == 0x80862807)
+	if (is_haswell(codec))
 		haswell_config_cvts(codec, pin_idx, mux_idx);
 
 	snd_hda_spdif_ctls_assign(codec, pin_idx, per_cvt->cvt_nid);
@@ -1358,7 +1360,7 @@ static void hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 		/* Haswell-specific workaround: re-setup when the transcoder is
 		 * changed during the stream playback
 		 */
-		if (codec->vendor_id == 0x80862807 &&
+		if (is_haswell(codec) &&
 		    eld->eld_valid && !old_eld_valid && per_pin->setup) {
 			snd_hda_codec_write(codec, pin_nid, 0,
 					    AC_VERB_SET_AMP_GAIN_MUTE,
@@ -1405,7 +1407,7 @@ static int hdmi_add_pin(struct hda_codec *codec, hda_nid_t pin_nid)
 	if (get_defcfg_connect(config) == AC_JACK_PORT_NONE)
 		return 0;
 
-	if (codec->vendor_id == 0x80862807)
+	if (is_haswell(codec))
 		intel_haswell_fixup_connect_list(codec, pin_nid);
 
 	pin_idx = spec->num_pins;
@@ -2011,7 +2013,7 @@ static int patch_generic_hdmi(struct hda_codec *codec)
 	codec->spec = spec;
 	hdmi_array_init(spec, 4);
 
-	if (codec->vendor_id == 0x80862807) {
+	if (is_haswell(codec)) {
 		intel_haswell_enable_all_pins(codec, true);
 		intel_haswell_fixup_enable_dp12(codec);
 	}
@@ -2022,7 +2024,7 @@ static int patch_generic_hdmi(struct hda_codec *codec)
 		return -EINVAL;
 	}
 	codec->patch_ops = generic_hdmi_patch_ops;
-	if (codec->vendor_id == 0x80862807) {
+	if (is_haswell(codec)) {
 		codec->patch_ops.set_power_state = haswell_set_power_state;
 		codec->dp_mst = true;
 	}
