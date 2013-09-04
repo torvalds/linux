@@ -37,7 +37,7 @@
 
 #define ENIC_BARS_MAX		6
 
-#define ENIC_WQ_MAX		1
+#define ENIC_WQ_MAX		8
 #define ENIC_RQ_MAX		8
 #define ENIC_CQ_MAX		(ENIC_WQ_MAX + ENIC_RQ_MAX)
 #define ENIC_INTR_MAX		(ENIC_CQ_MAX + 2)
