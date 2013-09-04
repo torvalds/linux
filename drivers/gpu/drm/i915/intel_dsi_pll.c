@@ -50,7 +50,7 @@ static const u32 lfsr_converts[] = {
 	71, 35							/* 91 - 92 */
 };
 
-static u32 dsi_rr_formula(struct drm_display_mode *mode,
+static u32 dsi_rr_formula(const struct drm_display_mode *mode,
 			  int pixel_format, int video_mode_format,
 			  int lane_count, bool eotp)
 {
@@ -245,7 +245,7 @@ static void vlv_configure_dsi_pll(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
-	struct drm_display_mode *mode = &intel_crtc->config.requested_mode;
+	const struct drm_display_mode *mode = &intel_crtc->config.adjusted_mode;
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	int ret;
 	struct dsi_mnp dsi_mnp;
