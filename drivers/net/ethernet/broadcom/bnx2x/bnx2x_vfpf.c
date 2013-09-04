@@ -379,6 +379,8 @@ int bnx2x_vfpf_init(struct bnx2x *bp)
 	req->stats_addr = bp->fw_stats_data_mapping +
 			  offsetof(struct bnx2x_fw_stats_data, queue_stats);
 
+	req->stats_stride = sizeof(struct per_queue_stats);
+
 	/* add list termination tlv */
 	bnx2x_add_tlv(bp, req, req->first_tlv.tl.length, CHANNEL_TLV_LIST_END,
 		      sizeof(struct channel_list_end_tlv));
@@ -506,11 +508,12 @@ static void bnx2x_leading_vfq_init(struct bnx2x *bp, struct bnx2x_virtf *vf,
 }
 
 /* ask the pf to open a queue for the vf */
-int bnx2x_vfpf_setup_q(struct bnx2x *bp, int fp_idx)
+int bnx2x_vfpf_setup_q(struct bnx2x *bp, struct bnx2x_fastpath *fp,
+		       bool is_leading)
 {
 	struct vfpf_setup_q_tlv *req = &bp->vf2pf_mbox->req.setup_q;
 	struct pfvf_general_resp_tlv *resp = &bp->vf2pf_mbox->resp.general_resp;
-	struct bnx2x_fastpath *fp = &bp->fp[fp_idx];
+	u8 fp_idx = fp->index;
 	u16 tpa_agg_size = 0, flags = 0;
 	int rc;
 
@@ -525,6 +528,9 @@ int bnx2x_vfpf_setup_q(struct bnx2x *bp, int fp_idx)
 			flags |= VFPF_QUEUE_FLG_TPA_GRO;
 		tpa_agg_size = TPA_AGG_SIZE;
 	}
+
+	if (is_leading)
+		flags |= VFPF_QUEUE_FLG_LEADING_RSS;
 
 	/* calculate queue flags */
 	flags |= VFPF_QUEUE_FLG_STATS;
@@ -691,6 +697,71 @@ int bnx2x_vfpf_config_mac(struct bnx2x *bp, u8 *addr, u8 vf_qid, bool set)
 
 	if (resp->hdr.status != PFVF_STATUS_SUCCESS) {
 		BNX2X_ERR("vfpf SET MAC failed: %d\n", resp->hdr.status);
+		rc = -EINVAL;
+	}
+out:
+	bnx2x_vfpf_finalize(bp, &req->first_tlv);
+
+	return 0;
+}
+
+/* request pf to config rss table for vf queues*/
+int bnx2x_vfpf_config_rss(struct bnx2x *bp,
+			  struct bnx2x_config_rss_params *params)
+{
+	struct pfvf_general_resp_tlv *resp = &bp->vf2pf_mbox->resp.general_resp;
+	struct vfpf_rss_tlv *req = &bp->vf2pf_mbox->req.update_rss;
+	int rc = 0;
+
+	/* clear mailbox and prep first tlv */
+	bnx2x_vfpf_prep(bp, &req->first_tlv, CHANNEL_TLV_UPDATE_RSS,
+			sizeof(*req));
+
+	/* add list termination tlv */
+	bnx2x_add_tlv(bp, req, req->first_tlv.tl.length, CHANNEL_TLV_LIST_END,
+		      sizeof(struct channel_list_end_tlv));
+
+	memcpy(req->ind_table, params->ind_table, T_ETH_INDIRECTION_TABLE_SIZE);
+	memcpy(req->rss_key, params->rss_key, sizeof(params->rss_key));
+	req->ind_table_size = T_ETH_INDIRECTION_TABLE_SIZE;
+	req->rss_key_size = T_ETH_RSS_KEY;
+	req->rss_result_mask = params->rss_result_mask;
+
+	/* flags handled individually for backward/forward compatability */
+	if (params->rss_flags & (1 << BNX2X_RSS_MODE_DISABLED))
+		req->rss_flags |= VFPF_RSS_MODE_DISABLED;
+	if (params->rss_flags & (1 << BNX2X_RSS_MODE_REGULAR))
+		req->rss_flags |= VFPF_RSS_MODE_REGULAR;
+	if (params->rss_flags & (1 << BNX2X_RSS_SET_SRCH))
+		req->rss_flags |= VFPF_RSS_SET_SRCH;
+	if (params->rss_flags & (1 << BNX2X_RSS_IPV4))
+		req->rss_flags |= VFPF_RSS_IPV4;
+	if (params->rss_flags & (1 << BNX2X_RSS_IPV4_TCP))
+		req->rss_flags |= VFPF_RSS_IPV4_TCP;
+	if (params->rss_flags & (1 << BNX2X_RSS_IPV4_UDP))
+		req->rss_flags |= VFPF_RSS_IPV4_UDP;
+	if (params->rss_flags & (1 << BNX2X_RSS_IPV6))
+		req->rss_flags |= VFPF_RSS_IPV6;
+	if (params->rss_flags & (1 << BNX2X_RSS_IPV6_TCP))
+		req->rss_flags |= VFPF_RSS_IPV6_TCP;
+	if (params->rss_flags & (1 << BNX2X_RSS_IPV6_UDP))
+		req->rss_flags |= VFPF_RSS_IPV6_UDP;
+
+	DP(BNX2X_MSG_IOV, "rss flags %x\n", req->rss_flags);
+
+	/* output tlvs list */
+	bnx2x_dp_tlv_list(bp, req);
+
+	/* send message to pf */
+	rc = bnx2x_send_msg2pf(bp, &resp->hdr.status, bp->vf2pf_mbox_mapping);
+	if (rc) {
+		BNX2X_ERR("failed to send message to pf. rc was %d\n", rc);
+		goto out;
+	}
+
+	if (resp->hdr.status != PFVF_STATUS_SUCCESS) {
+		BNX2X_ERR("failed to send rss message to PF over Vf PF channel %d\n",
+			  resp->hdr.status);
 		rc = -EINVAL;
 	}
 out:
