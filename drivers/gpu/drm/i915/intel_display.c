@@ -4809,7 +4809,7 @@ static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc)
 		 * XXX: No double-wide on 915GM pipe B. Is that the only reason for the
 		 * pipe == 0 check?
 		 */
-		if (intel_crtc->config.requested_mode.clock >
+		if (intel_crtc->config.adjusted_mode.clock >
 		    dev_priv->display.get_display_clock_speed(dev) * 9 / 10)
 			pipeconf |= PIPECONF_DOUBLE_WIDE;
 	}
