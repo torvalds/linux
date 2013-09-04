@@ -1525,4 +1525,6 @@ typedef struct SASProtocolTimerConfig SASProtocolTimerConfig_t;
 #define DEVREG_FAILURE_PORT_NOT_VALID_STATE		0x06
 #define DEVREG_FAILURE_DEVICE_TYPE_NOT_VALID		0x07
 
+
+#define MEMBASE_II_SHIFT_REGISTER       0x1010
 #endif

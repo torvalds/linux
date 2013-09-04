@@ -5001,6 +5001,89 @@ pm8001_chip_fw_flash_update_req(struct pm8001_hba_info *pm8001_ha,
 	return rc;
 }
 
+ssize_t
+pm8001_get_gsm_dump(struct device *cdev, u32 length, char *buf)
+{
+	u32 value, rem, offset = 0, bar = 0;
+	u32 index, work_offset, dw_length;
+	u32 shift_value, gsm_base, gsm_dump_offset;
+	char *direct_data;
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
+
+	direct_data = buf;
+	gsm_dump_offset = pm8001_ha->fatal_forensic_shift_offset;
+
+	/* check max is 1 Mbytes */
+	if ((length > 0x100000) || (gsm_dump_offset & 3) ||
+		((gsm_dump_offset + length) > 0x1000000))
+			return 1;
+
+	if (pm8001_ha->chip_id == chip_8001)
+		bar = 2;
+	else
+		bar = 1;
+
+	work_offset = gsm_dump_offset & 0xFFFF0000;
+	offset = gsm_dump_offset & 0x0000FFFF;
+	gsm_dump_offset = work_offset;
+	/* adjust length to dword boundary */
+	rem = length & 3;
+	dw_length = length >> 2;
+
+	for (index = 0; index < dw_length; index++) {
+		if ((work_offset + offset) & 0xFFFF0000) {
+			if (pm8001_ha->chip_id == chip_8001)
+				shift_value = ((gsm_dump_offset + offset) &
+						SHIFT_REG_64K_MASK);
+			else
+				shift_value = (((gsm_dump_offset + offset) &
+						SHIFT_REG_64K_MASK) >>
+						SHIFT_REG_BIT_SHIFT);
+
+			if (pm8001_ha->chip_id == chip_8001) {
+				gsm_base = GSM_BASE;
+				if (-1 == pm8001_bar4_shift(pm8001_ha,
+						(gsm_base + shift_value)))
+					return 1;
+			} else {
+				gsm_base = 0;
+				if (-1 == pm80xx_bar4_shift(pm8001_ha,
+						(gsm_base + shift_value)))
+					return 1;
+			}
+			gsm_dump_offset = (gsm_dump_offset + offset) &
+						0xFFFF0000;
+			work_offset = 0;
+			offset = offset & 0x0000FFFF;
+		}
+		value = pm8001_cr32(pm8001_ha, bar, (work_offset + offset) &
+						0x0000FFFF);
+		direct_data += sprintf(direct_data, "%08x ", value);
+		offset += 4;
+	}
+	if (rem != 0) {
+		value = pm8001_cr32(pm8001_ha, bar, (work_offset + offset) &
+						0x0000FFFF);
+		/* xfr for non_dw */
+		direct_data += sprintf(direct_data, "%08x ", value);
+	}
+	/* Shift back to BAR4 original address */
+	if (pm8001_ha->chip_id == chip_8001) {
+		if (-1 == pm8001_bar4_shift(pm8001_ha, 0))
+			return 1;
+	} else {
+		if (-1 == pm80xx_bar4_shift(pm8001_ha, 0))
+			return 1;
+	}
+	pm8001_ha->fatal_forensic_shift_offset += 1024;
+
+	if (pm8001_ha->fatal_forensic_shift_offset >= 0x100000)
+		pm8001_ha->fatal_forensic_shift_offset = 0;
+	return direct_data - buf;
+}
+
 int
 pm8001_chip_set_dev_state_req(struct pm8001_hba_info *pm8001_ha,
 	struct pm8001_device *pm8001_dev, u32 state)

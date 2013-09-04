@@ -347,6 +347,10 @@ static int pm8001_alloc(struct pm8001_hba_info *pm8001_ha,
 	/* Memory region for fw flash */
 	pm8001_ha->memoryMap.region[FW_FLASH].total_len = 4096;
 
+	pm8001_ha->memoryMap.region[FORENSIC_MEM].num_elements = 1;
+	pm8001_ha->memoryMap.region[FORENSIC_MEM].total_len = 0x10000;
+	pm8001_ha->memoryMap.region[FORENSIC_MEM].element_size = 0x10000;
+	pm8001_ha->memoryMap.region[FORENSIC_MEM].alignment = 0x10000;
 	for (i = 0; i < USI_MAX_MEMCNT; i++) {
 		if (pm8001_mem_alloc(pm8001_ha->pdev,
 			&pm8001_ha->memoryMap.region[i].virt_ptr,

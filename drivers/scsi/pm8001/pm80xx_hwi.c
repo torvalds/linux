@@ -45,6 +45,228 @@
 
 #define SMP_DIRECT 1
 #define SMP_INDIRECT 2
+
+
+int pm80xx_bar4_shift(struct pm8001_hba_info *pm8001_ha, u32 shift_value)
+{
+	u32 reg_val;
+	unsigned long start;
+	pm8001_cw32(pm8001_ha, 0, MEMBASE_II_SHIFT_REGISTER, shift_value);
+	/* confirm the setting is written */
+	start = jiffies + HZ; /* 1 sec */
+	do {
+		reg_val = pm8001_cr32(pm8001_ha, 0, MEMBASE_II_SHIFT_REGISTER);
+	} while ((reg_val != shift_value) && time_before(jiffies, start));
+	if (reg_val != shift_value) {
+		PM8001_FAIL_DBG(pm8001_ha,
+			pm8001_printk("TIMEOUT:MEMBASE_II_SHIFT_REGISTER"
+			" = 0x%x\n", reg_val));
+		return -1;
+	}
+	return 0;
+}
+
+void pm80xx_pci_mem_copy(struct pm8001_hba_info  *pm8001_ha, u32 soffset,
+				const void *destination,
+				u32 dw_count, u32 bus_base_number)
+{
+	u32 index, value, offset;
+	u32 *destination1;
+	destination1 = (u32 *)destination;
+
+	for (index = 0; index < dw_count; index += 4, destination1++) {
+		offset = (soffset + index / 4);
+		if (offset < (64 * 1024)) {
+			value = pm8001_cr32(pm8001_ha, bus_base_number, offset);
+			*destination1 =  cpu_to_le32(value);
+		}
+	}
+	return;
+}
+
+ssize_t pm80xx_get_fatal_dump(struct device *cdev,
+	struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
+	void __iomem *fatal_table_address = pm8001_ha->fatal_tbl_addr;
+	u32 status = 1;
+	u32 accum_len , reg_val, index, *temp;
+	unsigned long start;
+	u8 *direct_data;
+	char *fatal_error_data = buf;
+
+	pm8001_ha->forensic_info.data_buf.direct_data = buf;
+	if (pm8001_ha->chip_id == chip_8001) {
+		pm8001_ha->forensic_info.data_buf.direct_data +=
+			sprintf(pm8001_ha->forensic_info.data_buf.direct_data,
+			"Not supported for SPC controller");
+		return (char *)pm8001_ha->forensic_info.data_buf.direct_data -
+			(char *)buf;
+	}
+	if (pm8001_ha->forensic_info.data_buf.direct_offset == 0) {
+		PM8001_IO_DBG(pm8001_ha,
+		pm8001_printk("forensic_info TYPE_NON_FATAL..............\n"));
+		direct_data = (u8 *)fatal_error_data;
+		pm8001_ha->forensic_info.data_type = TYPE_NON_FATAL;
+		pm8001_ha->forensic_info.data_buf.direct_len = SYSFS_OFFSET;
+		pm8001_ha->forensic_info.data_buf.direct_offset = 0;
+		pm8001_ha->forensic_info.data_buf.read_len = 0;
+
+		pm8001_ha->forensic_info.data_buf.direct_data = direct_data;
+	}
+
+	if (pm8001_ha->forensic_info.data_buf.direct_offset == 0) {
+		/* start to get data */
+		/* Program the MEMBASE II Shifting Register with 0x00.*/
+		pm8001_cw32(pm8001_ha, 0, MEMBASE_II_SHIFT_REGISTER,
+				pm8001_ha->fatal_forensic_shift_offset);
+		pm8001_ha->forensic_last_offset = 0;
+		pm8001_ha->forensic_fatal_step = 0;
+		pm8001_ha->fatal_bar_loc = 0;
+	}
+	/* Read until accum_len is retrived */
+	accum_len = pm8001_mr32(fatal_table_address,
+				MPI_FATAL_EDUMP_TABLE_ACCUM_LEN);
+	PM8001_IO_DBG(pm8001_ha, pm8001_printk("accum_len 0x%x\n",
+						accum_len));
+	if (accum_len == 0xFFFFFFFF) {
+		PM8001_IO_DBG(pm8001_ha,
+			pm8001_printk("Possible PCI issue 0x%x not expected\n",
+				accum_len));
+		return status;
+	}
+	if (accum_len == 0 || accum_len >= 0x100000) {
+		pm8001_ha->forensic_info.data_buf.direct_data +=
+			sprintf(pm8001_ha->forensic_info.data_buf.direct_data,
+				"%08x ", 0xFFFFFFFF);
+		return (char *)pm8001_ha->forensic_info.data_buf.direct_data -
+			(char *)buf;
+	}
+	temp = (u32 *)pm8001_ha->memoryMap.region[FORENSIC_MEM].virt_ptr;
+	if (pm8001_ha->forensic_fatal_step == 0) {
+moreData:
+		if (pm8001_ha->forensic_info.data_buf.direct_data) {
+			/* Data is in bar, copy to host memory */
+			pm80xx_pci_mem_copy(pm8001_ha, pm8001_ha->fatal_bar_loc,
+			 pm8001_ha->memoryMap.region[FORENSIC_MEM].virt_ptr,
+				pm8001_ha->forensic_info.data_buf.direct_len ,
+					1);
+		}
+		pm8001_ha->fatal_bar_loc +=
+			pm8001_ha->forensic_info.data_buf.direct_len;
+		pm8001_ha->forensic_info.data_buf.direct_offset +=
+			pm8001_ha->forensic_info.data_buf.direct_len;
+		pm8001_ha->forensic_last_offset	+=
+			pm8001_ha->forensic_info.data_buf.direct_len;
+		pm8001_ha->forensic_info.data_buf.read_len =
+			pm8001_ha->forensic_info.data_buf.direct_len;
+
+		if (pm8001_ha->forensic_last_offset  >= accum_len) {
+			pm8001_ha->forensic_info.data_buf.direct_data +=
+			sprintf(pm8001_ha->forensic_info.data_buf.direct_data,
+				"%08x ", 3);
+			for (index = 0; index < (SYSFS_OFFSET / 4); index++) {
+				pm8001_ha->forensic_info.data_buf.direct_data +=
+					sprintf(pm8001_ha->
+					 forensic_info.data_buf.direct_data,
+						"%08x ", *(temp + index));
+			}
+
+			pm8001_ha->fatal_bar_loc = 0;
+			pm8001_ha->forensic_fatal_step = 1;
+			pm8001_ha->fatal_forensic_shift_offset = 0;
+			pm8001_ha->forensic_last_offset	= 0;
+			status = 0;
+			return (char *)pm8001_ha->
+				forensic_info.data_buf.direct_data -
+				(char *)buf;
+		}
+		if (pm8001_ha->fatal_bar_loc < (64 * 1024)) {
+			pm8001_ha->forensic_info.data_buf.direct_data +=
+				sprintf(pm8001_ha->
+					forensic_info.data_buf.direct_data,
+					"%08x ", 2);
+			for (index = 0; index < (SYSFS_OFFSET / 4); index++) {
+				pm8001_ha->forensic_info.data_buf.direct_data +=
+					sprintf(pm8001_ha->
+					forensic_info.data_buf.direct_data,
+					"%08x ", *(temp + index));
+			}
+			status = 0;
+			return (char *)pm8001_ha->
+				forensic_info.data_buf.direct_data -
+				(char *)buf;
+		}
+
+		/* Increment the MEMBASE II Shifting Register value by 0x100.*/
+		pm8001_ha->forensic_info.data_buf.direct_data +=
+			sprintf(pm8001_ha->forensic_info.data_buf.direct_data,
+				"%08x ", 2);
+		for (index = 0; index < 256; index++) {
+			pm8001_ha->forensic_info.data_buf.direct_data +=
+				sprintf(pm8001_ha->
+					forensic_info.data_buf.direct_data,
+						"%08x ", *(temp + index));
+		}
+		pm8001_ha->fatal_forensic_shift_offset += 0x100;
+		pm8001_cw32(pm8001_ha, 0, MEMBASE_II_SHIFT_REGISTER,
+			pm8001_ha->fatal_forensic_shift_offset);
+		pm8001_ha->fatal_bar_loc = 0;
+		status = 0;
+		return (char *)pm8001_ha->forensic_info.data_buf.direct_data -
+			(char *)buf;
+	}
+	if (pm8001_ha->forensic_fatal_step == 1) {
+		pm8001_ha->fatal_forensic_shift_offset = 0;
+		/* Read 64K of the debug data. */
+		pm8001_cw32(pm8001_ha, 0, MEMBASE_II_SHIFT_REGISTER,
+			pm8001_ha->fatal_forensic_shift_offset);
+		pm8001_mw32(fatal_table_address,
+			MPI_FATAL_EDUMP_TABLE_HANDSHAKE,
+				MPI_FATAL_EDUMP_HANDSHAKE_RDY);
+
+		/* Poll FDDHSHK  until clear  */
+		start = jiffies + (2 * HZ); /* 2 sec */
+
+		do {
+			reg_val = pm8001_mr32(fatal_table_address,
+					MPI_FATAL_EDUMP_TABLE_HANDSHAKE);
+		} while ((reg_val) && time_before(jiffies, start));
+
+		if (reg_val != 0) {
+			PM8001_FAIL_DBG(pm8001_ha,
+			pm8001_printk("TIMEOUT:MEMBASE_II_SHIFT_REGISTER"
+			" = 0x%x\n", reg_val));
+			return -1;
+		}
+
+		/* Read the next 64K of the debug data. */
+		pm8001_ha->forensic_fatal_step = 0;
+		if (pm8001_mr32(fatal_table_address,
+			MPI_FATAL_EDUMP_TABLE_STATUS) !=
+				MPI_FATAL_EDUMP_TABLE_STAT_NF_SUCCESS_DONE) {
+			pm8001_mw32(fatal_table_address,
+				MPI_FATAL_EDUMP_TABLE_HANDSHAKE, 0);
+			goto moreData;
+		} else {
+			pm8001_ha->forensic_info.data_buf.direct_data +=
+				sprintf(pm8001_ha->
+					forensic_info.data_buf.direct_data,
+						"%08x ", 4);
+			pm8001_ha->forensic_info.data_buf.read_len = 0xFFFFFFFF;
+			pm8001_ha->forensic_info.data_buf.direct_len =  0;
+			pm8001_ha->forensic_info.data_buf.direct_offset = 0;
+			pm8001_ha->forensic_info.data_buf.read_len = 0;
+			status = 0;
+		}
+	}
+
+	return (char *)pm8001_ha->forensic_info.data_buf.direct_data -
+		(char *)buf;
+}
+
 /**
  * read_main_config_table - read the configure table and save it.
  * @pm8001_ha: our hba card information
@@ -582,6 +804,9 @@ static void init_pci_device_addresses(struct pm8001_hba_info *pm8001_ha)
 					0xFFFFFF);
 	pm8001_ha->pspa_q_tbl_addr =
 		base_addr + (pm8001_cr32(pm8001_ha, pcibar, offset + 0x90) &
+					0xFFFFFF);
+	pm8001_ha->fatal_tbl_addr =
+		base_addr + (pm8001_cr32(pm8001_ha, pcibar, offset + 0xA0) &
 					0xFFFFFF);
 
 	PM8001_INIT_DBG(pm8001_ha,

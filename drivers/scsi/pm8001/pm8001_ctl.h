@@ -55,5 +55,9 @@
 #define FAIL_OUT_MEMORY                 0x000c00
 #define FLASH_IN_PROGRESS               0x001000
 
+#define IB_OB_READ_TIMES                256
+#define SYSFS_OFFSET                    1024
+#define PM80XX_IB_OB_QUEUE_SIZE         (32 * 1024)
+#define PM8001_IB_OB_QUEUE_SIZE         (16 * 1024)
 #endif /* PM8001_CTL_H_INCLUDED */
 

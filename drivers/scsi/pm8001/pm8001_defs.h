@@ -102,7 +102,8 @@ enum memory_region_num {
 	NVMD,	    /* NVM device */
 	DEV_MEM,    /* memory for devices */
 	CCB_MEM,    /* memory for command control block */
-	FW_FLASH    /* memory for fw flash update */
+	FW_FLASH,    /* memory for fw flash update */
+	FORENSIC_MEM  /* memory for fw forensic data */
 };
 #define	PM8001_EVENT_LOG_SIZE	 (128 * 1024)
 
