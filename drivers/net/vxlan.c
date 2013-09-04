@@ -1794,7 +1794,8 @@ static void vxlan_dellink(struct net_device *dev, struct list_head *head)
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 
 	spin_lock(&vn->sock_lock);
-	hlist_del_rcu(&vxlan->hlist);
+	if (!hlist_unhashed(&vxlan->hlist))
+		hlist_del_rcu(&vxlan->hlist);
 	spin_unlock(&vn->sock_lock);
 
 	list_del(&vxlan->next);
