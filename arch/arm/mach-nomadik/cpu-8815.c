@@ -25,8 +25,6 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/dma-mapping.h>
-#include <linux/clk-provider.h>
-#include <linux/clocksource.h>
 #include <linux/of_irq.h>
 #include <linux/of_gpio.h>
 #include <linux/of_address.h>
@@ -111,12 +109,6 @@ static void cpu8815_restart(enum reboot_mode mode, const char *cmd)
 
 	/* Write anything to Reset status register */
 	writel(1, srcbase + 0x18);
-}
-
-static void __init cpu8815_timer_init_of(void)
-{
-	of_clk_init(NULL);
-	clocksource_of_init();
 }
 
 static struct fsmc_nand_timings cpu8815_nand_timings = {
@@ -232,7 +224,6 @@ static const char * cpu8815_board_compat[] = {
 
 DT_MACHINE_START(NOMADIK_DT, "Nomadik STn8815")
 	.map_io		= cpu8815_map_io,
-	.init_time	= cpu8815_timer_init_of,
 	.init_machine	= cpu8815_init_of,
 	.restart	= cpu8815_restart,
 	.dt_compat      = cpu8815_board_compat,
