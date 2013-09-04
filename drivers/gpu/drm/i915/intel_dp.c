@@ -1639,7 +1639,8 @@ static bool intel_edp_psr_match_conditions(struct intel_dp *intel_dp)
 	}
 
 	intel_crtc = to_intel_crtc(crtc);
-	if (!intel_crtc->active || !crtc->fb || !crtc->mode.clock) {
+	if (!intel_crtc->active || !crtc->fb ||
+	    !intel_crtc->config.adjusted_mode.clock) {
 		DRM_DEBUG_KMS("crtc not active for PSR\n");
 		dev_priv->no_psr_reason = PSR_CRTC_NOT_ACTIVE;
 		return false;
@@ -1666,7 +1667,7 @@ static bool intel_edp_psr_match_conditions(struct intel_dp *intel_dp)
 		return false;
 	}
 
-	if (crtc->mode.flags & DRM_MODE_FLAG_INTERLACE) {
+	if (intel_crtc->config.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE) {
 		DRM_DEBUG_KMS("PSR condition failed: Interlaced is Enabled\n");
 		dev_priv->no_psr_reason = PSR_INTERLACED_ENABLED;
 		return false;
