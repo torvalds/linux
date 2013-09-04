@@ -6,6 +6,7 @@
  * Licensed under GPLv2 or later.
  */
 
+#include <linux/clk-provider.h>
 #include <linux/clocksource.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -23,8 +24,7 @@ void __init sirfsoc_init_late(void)
 
 static __init void sirfsoc_init_time(void)
 {
-	/* initialize clocking early, we want to set the OS timer */
-	sirfsoc_of_clk_init();
+	of_clk_init(NULL);
 	clocksource_of_init();
 }
 
