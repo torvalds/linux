@@ -1143,9 +1143,9 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "Unable to get drvdata\n");
 			return -EFAULT;
 		}
-		snd_soc_register_component(&sec_dai->pdev->dev,
-					   &samsung_i2s_component,
-					   &sec_dai->i2s_dai_drv, 1);
+		devm_snd_soc_register_component(&sec_dai->pdev->dev,
+						&samsung_i2s_component,
+						&sec_dai->i2s_dai_drv, 1);
 		samsung_asoc_dma_platform_register(&pdev->dev);
 		return 0;
 	}
@@ -1258,8 +1258,9 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	snd_soc_register_component(&pri_dai->pdev->dev, &samsung_i2s_component,
-				   &pri_dai->i2s_dai_drv, 1);
+	devm_snd_soc_register_component(&pri_dai->pdev->dev,
+					&samsung_i2s_component,
+					&pri_dai->i2s_dai_drv, 1);
 
 	pm_runtime_enable(&pdev->dev);
 
@@ -1294,7 +1295,6 @@ static int samsung_i2s_remove(struct platform_device *pdev)
 	i2s->sec_dai = NULL;
 
 	samsung_asoc_dma_platform_unregister(&pdev->dev);
-	snd_soc_unregister_component(&pdev->dev);
 
 	return 0;
 }
