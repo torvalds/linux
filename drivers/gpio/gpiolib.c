@@ -1763,6 +1763,9 @@ EXPORT_SYMBOL_GPL(gpio_direction_output);
  * gpio_set_debounce - sets @debounce time for a @gpio
  * @gpio: the gpio to set debounce time
  * @debounce: debounce time is microseconds
+ *
+ * returns -ENOTSUPP if the controller does not support setting
+ * debounce.
  */
 static int gpiod_set_debounce(struct gpio_desc *desc, unsigned debounce)
 {
@@ -1778,9 +1781,9 @@ static int gpiod_set_debounce(struct gpio_desc *desc, unsigned debounce)
 
 	chip = desc->chip;
 	if (!chip->set || !chip->set_debounce) {
-		pr_warn("%s: missing set() or set_debounce() operations\n",
+		pr_debug("%s: missing set() or set_debounce() operations\n",
 			__func__);
-		return -EIO;
+		return -ENOTSUPP;
 	}
 
 	spin_lock_irqsave(&gpio_lock, flags);
