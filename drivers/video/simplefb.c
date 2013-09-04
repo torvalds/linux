@@ -24,6 +24,7 @@
 #include <linux/fb.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/platform_data/simplefb.h>
 #include <linux/platform_device.h>
 
 static struct fb_fix_screeninfo simplefb_fix = {
@@ -73,18 +74,7 @@ static struct fb_ops simplefb_ops = {
 	.fb_imageblit	= cfb_imageblit,
 };
 
-struct simplefb_format {
-	const char *name;
-	u32 bits_per_pixel;
-	struct fb_bitfield red;
-	struct fb_bitfield green;
-	struct fb_bitfield blue;
-	struct fb_bitfield transp;
-};
-
-static struct simplefb_format simplefb_formats[] = {
-	{ "r5g6b5", 16, {11, 5}, {5, 6}, {0, 5}, {0, 0} },
-};
+static struct simplefb_format simplefb_formats[] = SIMPLEFB_FORMATS;
 
 struct simplefb_params {
 	u32 width;
@@ -139,6 +129,33 @@ static int simplefb_parse_dt(struct platform_device *pdev,
 	return 0;
 }
 
+static int simplefb_parse_pd(struct platform_device *pdev,
+			     struct simplefb_params *params)
+{
+	struct simplefb_platform_data *pd = pdev->dev.platform_data;
+	int i;
+
+	params->width = pd->width;
+	params->height = pd->height;
+	params->stride = pd->stride;
+
+	params->format = NULL;
+	for (i = 0; i < ARRAY_SIZE(simplefb_formats); i++) {
+		if (strcmp(pd->format, simplefb_formats[i].name))
+			continue;
+
+		params->format = &simplefb_formats[i];
+		break;
+	}
+
+	if (!params->format) {
+		dev_err(&pdev->dev, "Invalid format value\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int simplefb_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -149,7 +166,12 @@ static int simplefb_probe(struct platform_device *pdev)
 	if (fb_get_options("simplefb", NULL))
 		return -ENODEV;
 
-	ret = simplefb_parse_dt(pdev, &params);
+	ret = -ENODEV;
+	if (pdev->dev.platform_data)
+		ret = simplefb_parse_pd(pdev, &params);
+	else if (pdev->dev.of_node)
+		ret = simplefb_parse_dt(pdev, &params);
+
 	if (ret)
 		return ret;
 
@@ -180,8 +202,16 @@ static int simplefb_probe(struct platform_device *pdev)
 	info->var.blue = params.format->blue;
 	info->var.transp = params.format->transp;
 
+	info->apertures = alloc_apertures(1);
+	if (!info->apertures) {
+		framebuffer_release(info);
+		return -ENOMEM;
+	}
+	info->apertures->ranges[0].base = info->fix.smem_start;
+	info->apertures->ranges[0].size = info->fix.smem_len;
+
 	info->fbops = &simplefb_ops;
-	info->flags = FBINFO_DEFAULT;
+	info->flags = FBINFO_DEFAULT | FBINFO_MISC_FIRMWARE;
 	info->screen_base = devm_ioremap(&pdev->dev, info->fix.smem_start,
 					 info->fix.smem_len);
 	if (!info->screen_base) {
