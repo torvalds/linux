@@ -123,6 +123,7 @@ config RK_CLOCK_PROC
 	depends on PROC_FS
 
 source arch/arm/plat-rk/rk_pm_tests/Kconfig
+source arch/arm/plat-rk/bid/Kconfig
 
 if !ARCH_RK29
 menu "Support for RK power manage"

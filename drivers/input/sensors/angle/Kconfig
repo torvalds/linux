@@ -1,0 +1,26 @@
+#
+# gsensor drivers configuration
+#
+
+menuconfig ANGLE_DEVICE
+	bool "angle device support"
+	help
+	  Enable this to be able to choose the drivers for controlling the
+	  g_sensor on some platforms, for example on PDAs.
+
+if ANGLE_DEVICE
+
+config ANGLE_KXTIK
+  bool "angle kxtik"
+  help
+    To have support for your specific gsesnor you will have to
+    select the proper drivers which depend on this option.
+
+config ANGLE_LIS3DH
+  bool "angle lis3dh"
+  help
+    To have support for your specific gsesnor you will have to
+    select the proper drivers which depend on this option.
+
+endif
+

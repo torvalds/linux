@@ -232,8 +232,11 @@ struct sensor_platform_data {
 struct board_id_platform_data {
 	int gpio_pin[32];
 	int num_gpio;
-	int (*init_platform_hw)(void);	
+	char *board_id_buf;
+	int (*init_platform_hw)(void);
 	int (*exit_platform_hw)(void);
+	struct board_device_table *device_table;
+	int device_table_size;
 	int (*init_parameter)(int id);  
 };
 

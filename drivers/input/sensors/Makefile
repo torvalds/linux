@@ -1,4 +1,5 @@
 # sensor drivers
+obj-$(CONFIG_ANGLE_DEVICE)                    += angle/
 obj-$(CONFIG_GSENSOR_DEVICE)			+= accel/
 obj-$(CONFIG_COMPASS_DEVICE)			+= compass/
 obj-$(CONFIG_GYROSCOPE_DEVICE)			+= gyro/

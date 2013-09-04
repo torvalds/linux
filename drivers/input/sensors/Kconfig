@@ -5,10 +5,10 @@
 comment "handle all sensors"
 
 menuconfig SENSOR_DEVICE
-	tristate "handle gsensor,compass,gyroscope,lsensor psensor etc"
+	tristate "handle angle,accel,compass,gyroscope,lsensor psensor etc"
 	
 if SENSOR_DEVICE
-
+source "drivers/input/sensors/angle/Kconfig"
 source "drivers/input/sensors/accel/Kconfig"
 source "drivers/input/sensors/compass/Kconfig"
 source "drivers/input/sensors/gyro/Kconfig"
