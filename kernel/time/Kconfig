@@ -105,7 +105,6 @@ config NO_HZ_FULL
 	select RCU_USER_QS
 	select RCU_NOCB_CPU
 	select VIRT_CPU_ACCOUNTING_GEN
-	select CONTEXT_TRACKING_FORCE
 	select IRQ_WORK
 	help
 	 Adaptively try to shutdown the tick whenever possible, even when

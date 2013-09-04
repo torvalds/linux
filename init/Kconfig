@@ -528,13 +528,29 @@ config RCU_USER_QS
 config CONTEXT_TRACKING_FORCE
 	bool "Force context tracking"
 	depends on CONTEXT_TRACKING
-	default CONTEXT_TRACKING
+	default y if !NO_HZ_FULL
 	help
-	  Probe on user/kernel boundaries by default in order to
-	  test the features that rely on it such as userspace RCU extended
-	  quiescent states.
-	  This test is there for debugging until we have a real user like the
-	  full dynticks mode.
+	  The major pre-requirement for full dynticks to work is to
+	  support the context tracking subsystem. But there are also
+	  other dependencies to provide in order to make the full
+	  dynticks working.
+
+	  This option stands for testing when an arch implements the
+	  context tracking backend but doesn't yet fullfill all the
+	  requirements to make the full dynticks feature working.
+	  Without the full dynticks, there is no way to test the support
+	  for context tracking and the subsystems that rely on it: RCU
+	  userspace extended quiescent state and tickless cputime
+	  accounting. This option copes with the absence of the full
+	  dynticks subsystem by forcing the context tracking on all
+	  CPUs in the system.
+
+	  Say Y only if you're working on the developpement of an
+	  architecture backend for the context tracking.
+
+	  Say N otherwise, this option brings an overhead that you
+	  don't want in production.
+
 
 config RCU_FANOUT
 	int "Tree-based hierarchical RCU fanout value"

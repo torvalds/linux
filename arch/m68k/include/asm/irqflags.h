@@ -3,7 +3,7 @@
 
 #include <linux/types.h>
 #ifdef CONFIG_MMU
-#include <linux/hardirq.h>
+#include <linux/preempt_mask.h>
 #endif
 #include <linux/preempt.h>
 #include <asm/thread_info.h>
