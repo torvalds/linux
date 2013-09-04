@@ -38,6 +38,8 @@
 #include <linux/bootmem.h>
 #include <linux/iommu-helper.h>
 
+#include <trace/events/swiotlb.h>
+
 #define OFFSET(val,align) ((unsigned long)	\
 	                   ( (val) & ( (align) - 1)))
 
@@ -725,6 +727,8 @@ dma_addr_t swiotlb_map_page(struct device *dev, struct page *page,
 	 */
 	if (dma_capable(dev, dev_addr, size) && !swiotlb_force)
 		return dev_addr;
+
+	trace_swiotlb_bounced(dev, dev_addr, size, swiotlb_force);
 
 	/* Oh well, have to allocate and map a bounce buffer. */
 	map = map_single(dev, phys, size, dir);
