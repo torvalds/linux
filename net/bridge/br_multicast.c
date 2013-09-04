@@ -29,6 +29,7 @@
 #include <net/ipv6.h>
 #include <net/mld.h>
 #include <net/ip6_checksum.h>
+#include <net/addrconf.h>
 #endif
 
 #include "br_private.h"
@@ -723,7 +724,7 @@ static int br_ip6_multicast_add_group(struct net_bridge *br,
 {
 	struct br_ip br_group;
 
-	if (!ipv6_is_transient_multicast(group))
+	if (ipv6_addr_is_ll_all_nodes(group))
 		return 0;
 
 	br_group.u.ip6 = *group;
@@ -1354,7 +1355,7 @@ static void br_ip6_multicast_leave_group(struct net_bridge *br,
 {
 	struct br_ip br_group;
 
-	if (!ipv6_is_transient_multicast(group))
+	if (ipv6_addr_is_ll_all_nodes(group))
 		return;
 
 	br_group.u.ip6 = *group;
@@ -1495,7 +1496,7 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 		return 0;
 
 	/* Prevent flooding this packet if there is no listener present */
-	if (ipv6_is_transient_multicast(&ip6h->daddr))
+	if (!ipv6_addr_is_ll_all_nodes(&ip6h->daddr))
 		BR_INPUT_SKB_CB(skb)->mrouters_only = 1;
 
 	if (ip6h->nexthdr != IPPROTO_HOPOPTS ||
