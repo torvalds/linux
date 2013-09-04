@@ -808,4 +808,6 @@ extern int intel_dotclock_calculate(int link_freq,
 extern void ironlake_check_encoder_dotclock(const struct intel_crtc_config *pipe_config,
 					    int dotclock);
 
+extern bool intel_crtc_active(struct drm_crtc *crtc);
+
 #endif /* __INTEL_DRV_H__ */
