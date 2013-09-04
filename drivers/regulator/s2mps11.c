@@ -448,7 +448,8 @@ common_reg:
 			config.of_node = rdata[i].of_node;
 		}
 
-		s2mps11->rdev[i] = regulator_register(&regulators[i], &config);
+		s2mps11->rdev[i] = devm_regulator_register(&pdev->dev,
+						&regulators[i], &config);
 		if (IS_ERR(s2mps11->rdev[i])) {
 			ret = PTR_ERR(s2mps11->rdev[i]);
 			dev_err(&pdev->dev, "regulator init failed for %d\n",
