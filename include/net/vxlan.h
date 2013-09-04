@@ -36,4 +36,5 @@ int vxlan_xmit_skb(struct vxlan_sock *vs,
 
 __be16 vxlan_src_port(__u16 port_min, __u16 port_max, struct sk_buff *skb);
 
+void vxlan_get_rx_port(struct net_device *netdev);
 #endif

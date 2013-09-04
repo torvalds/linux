@@ -558,6 +558,40 @@ static int vxlan_fdb_append(struct vxlan_fdb *f,
 	return 1;
 }
 
+/* Notify netdevs that UDP port started listening */
+static void vxlan_notify_add_rx_port(struct sock *sk)
+{
+	struct net_device *dev;
+	struct net *net = sock_net(sk);
+	sa_family_t sa_family = sk->sk_family;
+	u16 port = htons(inet_sk(sk)->inet_sport);
+
+	rcu_read_lock();
+	for_each_netdev_rcu(net, dev) {
+		if (dev->netdev_ops->ndo_add_vxlan_port)
+			dev->netdev_ops->ndo_add_vxlan_port(dev, sa_family,
+							    port);
+	}
+	rcu_read_unlock();
+}
+
+/* Notify netdevs that UDP port is no more listening */
+static void vxlan_notify_del_rx_port(struct sock *sk)
+{
+	struct net_device *dev;
+	struct net *net = sock_net(sk);
+	sa_family_t sa_family = sk->sk_family;
+	u16 port = htons(inet_sk(sk)->inet_sport);
+
+	rcu_read_lock();
+	for_each_netdev_rcu(net, dev) {
+		if (dev->netdev_ops->ndo_del_vxlan_port)
+			dev->netdev_ops->ndo_del_vxlan_port(dev, sa_family,
+							    port);
+	}
+	rcu_read_unlock();
+}
+
 /* Add new entry to forwarding table -- assumes lock held */
 static int vxlan_fdb_create(struct vxlan_dev *vxlan,
 			    const u8 *mac, union vxlan_addr *ip,
@@ -909,7 +943,9 @@ static void vxlan_sock_hold(struct vxlan_sock *vs)
 
 void vxlan_sock_release(struct vxlan_sock *vs)
 {
-	struct vxlan_net *vn = net_generic(sock_net(vs->sock->sk), vxlan_net_id);
+	struct sock *sk = vs->sock->sk;
+	struct net *net = sock_net(sk);
+	struct vxlan_net *vn = net_generic(net, vxlan_net_id);
 
 	if (!atomic_dec_and_test(&vs->refcnt))
 		return;
@@ -918,6 +954,7 @@ void vxlan_sock_release(struct vxlan_sock *vs)
 	hlist_del_rcu(&vs->hlist);
 	smp_wmb();
 	vs->sock->sk->sk_user_data = NULL;
+	vxlan_notify_del_rx_port(sk);
 	spin_unlock(&vn->sock_lock);
 
 	queue_work(vxlan_wq, &vs->del_work);
@@ -1983,6 +2020,34 @@ static struct device_type vxlan_type = {
 	.name = "vxlan",
 };
 
+/* Calls the ndo_add_vxlan_port of the caller in order to
+ * supply the listening VXLAN udp ports.
+ */
+void vxlan_get_rx_port(struct net_device *dev)
+{
+	struct vxlan_sock *vs;
+	struct net *net = dev_net(dev);
+	struct vxlan_net *vn = net_generic(net, vxlan_net_id);
+	sa_family_t sa_family;
+	u16 port;
+	int i;
+
+	if (!dev || !dev->netdev_ops || !dev->netdev_ops->ndo_add_vxlan_port)
+		return;
+
+	spin_lock(&vn->sock_lock);
+	for (i = 0; i < PORT_HASH_SIZE; ++i) {
+		hlist_for_each_entry_rcu(vs, vs_head(net, i), hlist) {
+			port = htons(inet_sk(vs->sock->sk)->inet_sport);
+			sa_family = vs->sock->sk->sk_family;
+			dev->netdev_ops->ndo_add_vxlan_port(dev, sa_family,
+							    port);
+		}
+	}
+	spin_unlock(&vn->sock_lock);
+}
+EXPORT_SYMBOL_GPL(vxlan_get_rx_port);
+
 /* Initialize the device structure. */
 static void vxlan_setup(struct net_device *dev)
 {
@@ -2244,6 +2309,7 @@ static struct vxlan_sock *vxlan_socket_create(struct net *net, __be16 port,
 
 	spin_lock(&vn->sock_lock);
 	hlist_add_head_rcu(&vs->hlist, vs_head(net, port));
+	vxlan_notify_add_rx_port(sk);
 	spin_unlock(&vn->sock_lock);
 
 	/* Mark socket as an encapsulation socket. */

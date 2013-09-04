@@ -948,6 +948,19 @@ struct netdev_phys_port_id {
  *	Called to get ID of physical port of this device. If driver does
  *	not implement this, it is assumed that the hw is not able to have
  *	multiple net devices on single physical port.
+ *
+ * void (*ndo_add_vxlan_port)(struct  net_device *dev,
+ *			      sa_family_t sa_family, __u16 port);
+ *	Called by vxlan to notiy a driver about the UDP port and socket
+ *	address family that vxlan is listnening to. It is called only when
+ *	a new port starts listening. The operation is protected by the
+ *	vxlan_net->sock_lock.
+ *
+ * void (*ndo_del_vxlan_port)(struct  net_device *dev,
+ *			      sa_family_t sa_family, __u16 port);
+ *	Called by vxlan to notify the driver about a UDP port and socket
+ *	address family that vxlan is not listening to anymore. The operation
+ *	is protected by the vxlan_net->sock_lock.
  */
 struct net_device_ops {
 	int			(*ndo_init)(struct net_device *dev);
@@ -1078,6 +1091,12 @@ struct net_device_ops {
 						      bool new_carrier);
 	int			(*ndo_get_phys_port_id)(struct net_device *dev,
 							struct netdev_phys_port_id *ppid);
+	void			(*ndo_add_vxlan_port)(struct  net_device *dev,
+						      sa_family_t sa_family,
+						      __u16 port);
+	void			(*ndo_del_vxlan_port)(struct  net_device *dev,
+						      sa_family_t sa_family,
+						      __u16 port);
 };
 
 /*
