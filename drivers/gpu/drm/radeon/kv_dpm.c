@@ -667,9 +667,8 @@ static int kv_program_bootup_state(struct radeon_device *rdev)
 		&rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk;
 
 	if (table && table->count) {
-		for (i = pi->graphics_dpm_level_count - 1; i >= 0; i--) {
-			if ((table->entries[i].clk == pi->boot_pl.sclk) ||
-			    (i == 0))
+		for (i = pi->graphics_dpm_level_count - 1; i > 0; i--) {
+			if (table->entries[i].clk == pi->boot_pl.sclk)
 				break;
 		}
 
@@ -682,9 +681,8 @@ static int kv_program_bootup_state(struct radeon_device *rdev)
 		if (table->num_max_dpm_entries == 0)
 			return -EINVAL;
 
-		for (i = pi->graphics_dpm_level_count - 1; i >= 0; i--) {
-			if ((table->entries[i].sclk_frequency == pi->boot_pl.sclk) ||
-			    (i == 0))
+		for (i = pi->graphics_dpm_level_count - 1; i > 0; i--) {
+			if (table->entries[i].sclk_frequency == pi->boot_pl.sclk)
 				break;
 		}
 
@@ -1588,13 +1586,11 @@ static void kv_set_valid_clock_range(struct radeon_device *rdev,
 			}
 		}
 
-		for (i = pi->graphics_dpm_level_count - 1; i >= 0; i--) {
-			if ((table->entries[i].clk <= new_ps->levels[new_ps->num_levels -1].sclk) ||
-			    (i == 0)) {
-				pi->highest_valid = i;
+		for (i = pi->graphics_dpm_level_count - 1; i > 0; i--) {
+			if (table->entries[i].clk <= new_ps->levels[new_ps->num_levels - 1].sclk)
 				break;
-			}
 		}
+		pi->highest_valid = i;
 
 		if (pi->lowest_valid > pi->highest_valid) {
 			if ((new_ps->levels[0].sclk - table->entries[pi->highest_valid].clk) >
@@ -1615,14 +1611,12 @@ static void kv_set_valid_clock_range(struct radeon_device *rdev,
 			}
 		}
 
-		for (i = pi->graphics_dpm_level_count - 1; i >= 0; i--) {
+		for (i = pi->graphics_dpm_level_count - 1; i > 0; i--) {
 			if (table->entries[i].sclk_frequency <=
-			    new_ps->levels[new_ps->num_levels - 1].sclk ||
-			    i == 0) {
-				pi->highest_valid = i;
+			    new_ps->levels[new_ps->num_levels - 1].sclk)
 				break;
-			}
 		}
+		pi->highest_valid = i;
 
 		if (pi->lowest_valid > pi->highest_valid) {
 			if ((new_ps->levels[0].sclk -
@@ -1871,7 +1865,7 @@ static int kv_force_dpm_highest(struct radeon_device *rdev)
 	if (ret)
 		return ret;
 
-	for (i = SMU7_MAX_LEVELS_GRAPHICS - 1; i >= 0; i--) {
+	for (i = SMU7_MAX_LEVELS_GRAPHICS - 1; i > 0; i--) {
 		if (enable_mask & (1 << i))
 			break;
 	}
@@ -1911,9 +1905,9 @@ static u8 kv_get_sleep_divider_id_from_clock(struct radeon_device *rdev,
 	if (!pi->caps_sclk_ds)
 		return 0;
 
-	for (i = KV_MAX_DEEPSLEEP_DIVIDER_ID; i <= 0; i--) {
+	for (i = KV_MAX_DEEPSLEEP_DIVIDER_ID; i > 0; i--) {
 		temp = sclk / sumo_get_sleep_divider_from_id(i);
-		if ((temp >= min) || (i == 0))
+		if (temp >= min)
 			break;
 	}
 
