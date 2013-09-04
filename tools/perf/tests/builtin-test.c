@@ -112,6 +112,10 @@ static struct test {
 		.func = test__keep_tracking,
 	},
 	{
+		.desc = "Test parsing with no sample_id_all bit set",
+		.func = test__parse_no_sample_id_all,
+	},
+	{
 		.func = NULL,
 	},
 };
