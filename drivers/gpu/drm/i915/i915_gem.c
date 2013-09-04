@@ -2041,8 +2041,8 @@ int __i915_add_request(struct intel_ring_buffer *ring,
 	if (ret)
 		return ret;
 
-	request = kmalloc(sizeof(*request), GFP_KERNEL);
-	if (request == NULL)
+	request = ring->preallocated_lazy_request;
+	if (WARN_ON(request == NULL))
 		return -ENOMEM;
 
 	/* Record the position of the start of the request so that
@@ -2053,10 +2053,8 @@ int __i915_add_request(struct intel_ring_buffer *ring,
 	request_ring_position = intel_ring_get_tail(ring);
 
 	ret = ring->add_request(ring);
-	if (ret) {
-		kfree(request);
+	if (ret)
 		return ret;
-	}
 
 	request->seqno = intel_ring_get_seqno(ring);
 	request->ring = ring;
@@ -2095,6 +2093,7 @@ int __i915_add_request(struct intel_ring_buffer *ring,
 
 	trace_i915_gem_request_add(ring, request->seqno);
 	ring->outstanding_lazy_seqno = 0;
+	ring->preallocated_lazy_request = NULL;
 
 	if (!dev_priv->ums.mm_suspended) {
 		i915_queue_hangcheck(ring->dev);

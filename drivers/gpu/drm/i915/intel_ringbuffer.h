@@ -140,6 +140,7 @@ struct  intel_ring_buffer {
 	/**
 	 * Do we have some not yet emitted requests outstanding?
 	 */
+	struct drm_i915_gem_request *preallocated_lazy_request;
 	u32 outstanding_lazy_seqno;
 	bool gpu_caches_dirty;
 	bool fbc_dirty;

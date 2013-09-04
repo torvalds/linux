@@ -1498,6 +1498,16 @@ intel_ring_alloc_seqno(struct intel_ring_buffer *ring)
 	if (ring->outstanding_lazy_seqno)
 		return 0;
 
+	if (ring->preallocated_lazy_request == NULL) {
+		struct drm_i915_gem_request *request;
+
+		request = kmalloc(sizeof(*request), GFP_KERNEL);
+		if (request == NULL)
+			return -ENOMEM;
+
+		ring->preallocated_lazy_request = request;
+	}
+
 	return i915_gem_get_seqno(ring->dev, &ring->outstanding_lazy_seqno);
 }
 
