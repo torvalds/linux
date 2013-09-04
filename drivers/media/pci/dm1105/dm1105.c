@@ -1201,8 +1201,7 @@ static void dm1105_remove(struct pci_dev *pdev)
 	dvb_dmxdev_release(&dev->dmxdev);
 	dvb_dmx_release(dvbdemux);
 	dvb_unregister_adapter(dvb_adapter);
-	if (&dev->i2c_adap)
-		i2c_del_adapter(&dev->i2c_adap);
+	i2c_del_adapter(&dev->i2c_adap);
 
 	dm1105_hw_exit(dev);
 	synchronize_irq(pdev->irq);
