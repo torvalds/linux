@@ -2391,7 +2391,7 @@ int radeon_asic_init(struct radeon_device *rdev)
 				RADEON_CG_SUPPORT_HDP_LS |
 				RADEON_CG_SUPPORT_HDP_MGCG;
 			rdev->pg_flags = 0 |
-				/*RADEON_PG_SUPPORT_GFX_CG | */
+				/*RADEON_PG_SUPPORT_GFX_PG | */
 				RADEON_PG_SUPPORT_SDMA;
 			break;
 		case CHIP_OLAND:
@@ -2480,7 +2480,7 @@ int radeon_asic_init(struct radeon_device *rdev)
 				RADEON_CG_SUPPORT_HDP_LS |
 				RADEON_CG_SUPPORT_HDP_MGCG;
 			rdev->pg_flags = 0;
-				/*RADEON_PG_SUPPORT_GFX_CG |
+				/*RADEON_PG_SUPPORT_GFX_PG |
 				RADEON_PG_SUPPORT_GFX_SMG |
 				RADEON_PG_SUPPORT_GFX_DMG |
 				RADEON_PG_SUPPORT_UVD |
@@ -2508,7 +2508,7 @@ int radeon_asic_init(struct radeon_device *rdev)
 				RADEON_CG_SUPPORT_HDP_LS |
 				RADEON_CG_SUPPORT_HDP_MGCG;
 			rdev->pg_flags = 0;
-				/*RADEON_PG_SUPPORT_GFX_CG |
+				/*RADEON_PG_SUPPORT_GFX_PG |
 				RADEON_PG_SUPPORT_GFX_SMG |
 				RADEON_PG_SUPPORT_UVD |
 				RADEON_PG_SUPPORT_VCE |

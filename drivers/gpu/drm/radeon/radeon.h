@@ -181,7 +181,7 @@ extern int radeon_aspm;
 #define RADEON_CG_SUPPORT_HDP_MGCG		(1 << 16)
 
 /* PG flags */
-#define RADEON_PG_SUPPORT_GFX_CG		(1 << 0)
+#define RADEON_PG_SUPPORT_GFX_PG		(1 << 0)
 #define RADEON_PG_SUPPORT_GFX_SMG		(1 << 1)
 #define RADEON_PG_SUPPORT_GFX_DMG		(1 << 2)
 #define RADEON_PG_SUPPORT_UVD			(1 << 3)

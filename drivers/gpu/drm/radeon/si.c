@@ -4894,7 +4894,7 @@ static void si_enable_gfx_cgpg(struct radeon_device *rdev,
 {
 	u32 tmp;
 
-	if (enable && (rdev->pg_flags & RADEON_PG_SUPPORT_GFX_CG)) {
+	if (enable && (rdev->pg_flags & RADEON_PG_SUPPORT_GFX_PG)) {
 		tmp = RLC_PUD(0x10) | RLC_PDD(0x10) | RLC_TTPD(0x10) | RLC_MSD(0x10);
 		WREG32(RLC_TTOP_D, tmp);
 
@@ -5416,7 +5416,7 @@ static void si_init_pg(struct radeon_device *rdev)
 			si_init_dma_pg(rdev);
 		}
 		si_init_ao_cu_mask(rdev);
-		if (rdev->pg_flags & RADEON_PG_SUPPORT_GFX_CG) {
+		if (rdev->pg_flags & RADEON_PG_SUPPORT_GFX_PG) {
 			si_init_gfx_cgpg(rdev);
 		}
 		si_enable_dma_pg(rdev, true);

@@ -5558,7 +5558,7 @@ static void cik_enable_gfx_cgpg(struct radeon_device *rdev,
 {
 	u32 data, orig;
 
-	if (enable && (rdev->pg_flags & RADEON_PG_SUPPORT_GFX_CG)) {
+	if (enable && (rdev->pg_flags & RADEON_PG_SUPPORT_GFX_PG)) {
 		orig = data = RREG32(RLC_PG_CNTL);
 		data |= GFX_PG_ENABLE;
 		if (orig != data)
@@ -5822,7 +5822,7 @@ static void cik_init_pg(struct radeon_device *rdev)
 	if (rdev->pg_flags) {
 		cik_enable_sck_slowdown_on_pu(rdev, true);
 		cik_enable_sck_slowdown_on_pd(rdev, true);
-		if (rdev->pg_flags & RADEON_PG_SUPPORT_GFX_CG) {
+		if (rdev->pg_flags & RADEON_PG_SUPPORT_GFX_PG) {
 			cik_init_gfx_cgpg(rdev);
 			cik_enable_cp_pg(rdev, true);
 			cik_enable_gds_pg(rdev, true);
@@ -5836,7 +5836,7 @@ static void cik_fini_pg(struct radeon_device *rdev)
 {
 	if (rdev->pg_flags) {
 		cik_update_gfx_pg(rdev, false);
-		if (rdev->pg_flags & RADEON_PG_SUPPORT_GFX_CG) {
+		if (rdev->pg_flags & RADEON_PG_SUPPORT_GFX_PG) {
 			cik_enable_cp_pg(rdev, false);
 			cik_enable_gds_pg(rdev, false);
 		}
