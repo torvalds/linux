@@ -14,6 +14,7 @@
 /dts-v1/;
 
 #include "am33xx.dtsi"
+#include <dt-bindings/pwm/pwm.h>
 
 / {
 	model = "TI AM335x EVM-SK";
@@ -314,7 +315,7 @@
 
 	backlight {
 		compatible = "pwm-backlight";
-		pwms = <&ecap2 0 50000 1>;
+		pwms = <&ecap2 0 50000 PWM_POLARITY_INVERTED>;
 		brightness-levels = <0 58 61 66 75 90 125 170 255>;
 		default-brightness-level = <8>;
 	};
