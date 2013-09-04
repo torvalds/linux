@@ -78,6 +78,10 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 --input
 	Process events from a given perf data file.
 
+-T
+--time
+	Print full timestamp rather time relative to first sample.
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-script[1]
