@@ -18,6 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <linux/clk-provider.h>
 #include <linux/clocksource.h>
 #include <linux/io.h>
 #include <linux/pm.h>
@@ -32,8 +33,6 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
-
-#include "common.h"
 
 #define LEGACY_GPIO_BASE	0xD8110000
 #define LEGACY_PMC_BASE		0xD8130000
@@ -73,6 +72,12 @@ static void vt8500_power_off(void)
 	local_irq_disable();
 	writew(5, pmc_base + VT8500_HCR_REG);
 	asm("mcr%? p15, 0, %0, c7, c0, 4" : : "r" (0));
+}
+
+static void __init vt8500_init_time(void)
+{
+	of_clk_init(NULL);
+	clocksource_of_init();
 }
 
 void __init vt8500_init(void)
@@ -162,8 +167,6 @@ void __init vt8500_init(void)
 	else
 		pr_err("%s: PMC Hibernation register could not be remapped, not enabling power off!\n", __func__);
 
-	vtwm_clk_init(pmc_base);
-
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
@@ -180,7 +183,7 @@ DT_MACHINE_START(WMT_DT, "VIA/Wondermedia SoC (Device Tree Support)")
 	.dt_compat	= vt8500_dt_compat,
 	.map_io		= vt8500_map_io,
 	.init_machine	= vt8500_init,
-	.init_time	= clocksource_of_init,
+	.init_time	= vt8500_init_time,
 	.restart	= vt8500_restart,
 MACHINE_END
 

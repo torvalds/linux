@@ -718,13 +718,3 @@ static void __init wm8850_pll_init(struct device_node *node)
 	vtwm_pll_clk_init(node, PLL_TYPE_WM8850);
 }
 CLK_OF_DECLARE(wm8850_pll, "wm,wm8850-pll-clock", wm8850_pll_init);
-
-void __init vtwm_clk_init(void __iomem *base)
-{
-	if (!base)
-		return;
-
-	pmc_base = base;
-
-	of_clk_init(NULL);
-}
