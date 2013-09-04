@@ -284,7 +284,7 @@ synproxy_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 
 	synproxy_parse_options(skb, par->thoff, th, &opts);
 
-	if (th->syn) {
+	if (th->syn && !(th->ack || th->fin || th->rst)) {
 		/* Initial SYN from client */
 		this_cpu_inc(snet->stats->syn_received);
 
@@ -300,11 +300,15 @@ synproxy_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 					  XT_SYNPROXY_OPT_ECN);
 
 		synproxy_send_client_synack(skb, th, &opts);
-	} else if (th->ack && !(th->fin || th->rst))
+		return NF_DROP;
+
+	} else if (th->ack && !(th->fin || th->rst || th->syn)) {
 		/* ACK from client */
 		synproxy_recv_client_ack(snet, skb, th, &opts, ntohl(th->seq));
+		return NF_DROP;
+	}
 
-	return NF_DROP;
+	return XT_CONTINUE;
 }
 
 static unsigned int ipv6_synproxy_hook(unsigned int hooknum,

@@ -356,12 +356,12 @@ static int __net_init synproxy_net_init(struct net *net)
 		goto err1;
 	}
 
-	__set_bit(IPS_TEMPLATE_BIT, &ct->status);
-	__set_bit(IPS_CONFIRMED_BIT, &ct->status);
 	if (!nfct_seqadj_ext_add(ct))
 		goto err2;
 	if (!nfct_synproxy_ext_add(ct))
 		goto err2;
+	__set_bit(IPS_TEMPLATE_BIT, &ct->status);
+	__set_bit(IPS_CONFIRMED_BIT, &ct->status);
 
 	snet->tmpl = ct;
 
