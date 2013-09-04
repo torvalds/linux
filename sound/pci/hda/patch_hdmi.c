@@ -896,6 +896,11 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec,
 	if (!channels)
 		return;
 
+	if (is_haswell(codec))
+		snd_hda_codec_write(codec, pin_nid, 0,
+					    AC_VERB_SET_AMP_GAIN_MUTE,
+					    AMP_OUT_UNMUTE);
+
 	eld = &per_pin->sink_eld;
 	if (!eld->monitor_present)
 		return;
@@ -1035,10 +1040,10 @@ static void hdmi_unsol_event(struct hda_codec *codec, unsigned int res)
 		hdmi_non_intrinsic_event(codec, res);
 }
 
-static void haswell_verify_pin_D0(struct hda_codec *codec,
+static void haswell_verify_D0(struct hda_codec *codec,
 		hda_nid_t cvt_nid, hda_nid_t nid)
 {
-	int pwr, lamp, ramp;
+	int pwr;
 
 	/* For Haswell, the converter 1/2 may keep in D3 state after bootup,
 	 * thus pins could only choose converter 0 for use. Make sure the
@@ -1053,25 +1058,6 @@ static void haswell_verify_pin_D0(struct hda_codec *codec,
 		pwr = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_POWER_STATE, 0);
 		pwr = (pwr & AC_PWRST_ACTUAL) >> AC_PWRST_ACTUAL_SHIFT;
 		snd_printd("Haswell HDMI audio: Power for pin 0x%x is now D%d\n", nid, pwr);
-	}
-
-	lamp = snd_hda_codec_read(codec, nid, 0,
-				  AC_VERB_GET_AMP_GAIN_MUTE,
-				  AC_AMP_GET_LEFT | AC_AMP_GET_OUTPUT);
-	ramp = snd_hda_codec_read(codec, nid, 0,
-				  AC_VERB_GET_AMP_GAIN_MUTE,
-				  AC_AMP_GET_RIGHT | AC_AMP_GET_OUTPUT);
-	if (lamp != ramp) {
-		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
-				    AC_AMP_SET_RIGHT | AC_AMP_SET_OUTPUT | lamp);
-
-		lamp = snd_hda_codec_read(codec, nid, 0,
-				  AC_VERB_GET_AMP_GAIN_MUTE,
-				  AC_AMP_GET_LEFT | AC_AMP_GET_OUTPUT);
-		ramp = snd_hda_codec_read(codec, nid, 0,
-				  AC_VERB_GET_AMP_GAIN_MUTE,
-				  AC_AMP_GET_RIGHT | AC_AMP_GET_OUTPUT);
-		snd_printd("Haswell HDMI audio: Mute after set on pin 0x%x: [0x%x 0x%x]\n", nid, lamp, ramp);
 	}
 }
 
@@ -1090,7 +1076,7 @@ static int hdmi_setup_stream(struct hda_codec *codec, hda_nid_t cvt_nid,
 	int new_pinctl = 0;
 
 	if (is_haswell(codec))
-		haswell_verify_pin_D0(codec, cvt_nid, pin_nid);
+		haswell_verify_D0(codec, cvt_nid, pin_nid);
 
 	if (snd_hda_query_pin_caps(codec, pin_nid) & AC_PINCAP_HBR) {
 		pinctl = snd_hda_codec_read(codec, pin_nid, 0,
@@ -1361,13 +1347,9 @@ static void hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 		 * changed during the stream playback
 		 */
 		if (is_haswell(codec) &&
-		    eld->eld_valid && !old_eld_valid && per_pin->setup) {
-			snd_hda_codec_write(codec, pin_nid, 0,
-					    AC_VERB_SET_AMP_GAIN_MUTE,
-					    AMP_OUT_UNMUTE);
+		    eld->eld_valid && !old_eld_valid && per_pin->setup)
 			hdmi_setup_audio_infoframe(codec, per_pin,
 						   per_pin->non_pcm);
-		}
 	}
 	mutex_unlock(&pin_eld->lock);
 
