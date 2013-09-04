@@ -4139,6 +4139,23 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
 
+	if (INTEL_INFO(dev)->gen < 4) {
+		struct drm_i915_private *dev_priv = dev->dev_private;
+		int clock_limit =
+			dev_priv->display.get_display_clock_speed(dev);
+
+		/*
+		 * Enable pixel doubling when the dot clock
+		 * is > 90% of the (display) core speed.
+		 *
+		 * XXX: No double-wide on 915GM pipe B. Is that
+		 * the only reason for the pipe == PIPE_A check?
+		 */
+		if (crtc->pipe == PIPE_A &&
+		    adjusted_mode->clock > clock_limit * 9 / 10)
+			pipe_config->double_wide = true;
+	}
+
 	/* Cantiga+ cannot handle modes with a hsync front porch of 0.
 	 * WaPruneModeWithIncorrectHsyncOffset:ctg,elk,ilk,snb,ivb,vlv,hsw.
 	 */
@@ -4801,17 +4818,8 @@ static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc)
 	    I915_READ(PIPECONF(intel_crtc->pipe)) & PIPECONF_ENABLE)
 		pipeconf |= PIPECONF_ENABLE;
 
-	if (intel_crtc->pipe == 0 && INTEL_INFO(dev)->gen < 4) {
-		/* Enable pixel doubling when the dot clock is > 90% of the (display)
-		 * core speed.
-		 *
-		 * XXX: No double-wide on 915GM pipe B. Is that the only reason for the
-		 * pipe == 0 check?
-		 */
-		if (intel_crtc->config.adjusted_mode.clock >
-		    dev_priv->display.get_display_clock_speed(dev) * 9 / 10)
-			pipeconf |= PIPECONF_DOUBLE_WIDE;
-	}
+	if (intel_crtc->config.double_wide)
+		pipeconf |= PIPECONF_DOUBLE_WIDE;
 
 	/* only g4x and later have fancy bpc/dither controls */
 	if (IS_G4X(dev) || IS_VALLEYVIEW(dev)) {
@@ -8342,6 +8350,7 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 		      pipe_config->pch_pfit.size,
 		      pipe_config->pch_pfit.enabled ? "enabled" : "disabled");
 	DRM_DEBUG_KMS("ips: %i\n", pipe_config->ips_enabled);
+	DRM_DEBUG_KMS("double wide: %i\n", pipe_config->double_wide);
 }
 
 static bool check_encoder_cloning(struct drm_crtc *crtc)
