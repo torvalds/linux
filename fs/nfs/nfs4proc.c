@@ -5523,12 +5523,6 @@ static int nfs4_lock_reclaim(struct nfs4_state *state, struct file_lock *request
 	return err;
 }
 
-bool recover_locks = true;
-module_param(recover_locks, bool, 0644);
-MODULE_PARM_DESC(recover_locks,
-		 "If the server reports that a lock might be lost, "
-		 "try to recovery it risking corruption.");
-
 static int nfs4_lock_expired(struct nfs4_state *state, struct file_lock *request)
 {
 	struct nfs_server *server = NFS_SERVER(state->inode);
@@ -5540,7 +5534,7 @@ static int nfs4_lock_expired(struct nfs4_state *state, struct file_lock *request
 	err = nfs4_set_lock_state(state, request);
 	if (err != 0)
 		return err;
-	if (!recover_locks) {
+	if (!recover_lost_locks) {
 		set_bit(NFS_LOCK_LOST, &request->fl_u.nfs4_fl.owner->ls_flags);
 		return 0;
 	}
