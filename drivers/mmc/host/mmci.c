@@ -1510,23 +1510,6 @@ static int mmci_probe(struct amba_device *dev,
 		mmc->f_max = min(host->mclk, fmax);
 	dev_dbg(mmc_dev(mmc), "clocking block at %u Hz\n", mmc->f_max);
 
-	host->pinctrl = devm_pinctrl_get(&dev->dev);
-	if (IS_ERR(host->pinctrl)) {
-		ret = PTR_ERR(host->pinctrl);
-		goto clk_disable;
-	}
-
-	host->pins_default = pinctrl_lookup_state(host->pinctrl,
-			PINCTRL_STATE_DEFAULT);
-
-	/* enable pins to be muxed in and configured */
-	if (!IS_ERR(host->pins_default)) {
-		ret = pinctrl_select_state(host->pinctrl, host->pins_default);
-		if (ret)
-			dev_warn(&dev->dev, "could not set default pins\n");
-	} else
-		dev_warn(&dev->dev, "could not get default pinstate\n");
-
 	/* Get regulators and the supported OCR mask */
 	mmc_regulator_get_supply(mmc);
 	if (!mmc->ocr_avail)
