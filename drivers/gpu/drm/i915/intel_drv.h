@@ -305,6 +305,8 @@ struct intel_crtc_config {
 	struct intel_link_m_n fdi_m_n;
 
 	bool ips_enabled;
+
+	bool double_wide;
 };
 
 struct intel_crtc {
