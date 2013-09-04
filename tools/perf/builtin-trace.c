@@ -312,6 +312,33 @@ static size_t syscall_arg__scnprintf_socket_type(char *bf, size_t size,
 
 #define SCA_SK_TYPE syscall_arg__scnprintf_socket_type
 
+static size_t syscall_arg__scnprintf_access_mode(char *bf, size_t size,
+						 struct syscall_arg *arg)
+{
+	size_t printed = 0;
+	int mode = arg->val;
+
+	if (mode == F_OK) /* 0 */
+		return scnprintf(bf, size, "F");
+#define	P_MODE(n) \
+	if (mode & n##_OK) { \
+		printed += scnprintf(bf + printed, size - printed, "%s", #n); \
+		mode &= ~n##_OK; \
+	}
+
+	P_MODE(R);
+	P_MODE(W);
+	P_MODE(X);
+#undef P_MODE
+
+	if (mode)
+		printed += scnprintf(bf + printed, size - printed, "|%#x", mode);
+
+	return printed;
+}
+
+#define SCA_ACCMODE syscall_arg__scnprintf_access_mode
+
 static size_t syscall_arg__scnprintf_open_flags(char *bf, size_t size,
 					       struct syscall_arg *arg)
 {
@@ -422,7 +449,8 @@ static struct syscall_fmt {
 	bool	   timeout;
 	bool	   hexret;
 } syscall_fmts[] = {
-	{ .name	    = "access",	    .errmsg = true, },
+	{ .name	    = "access",	    .errmsg = true,
+	  .arg_scnprintf = { [1] = SCA_ACCMODE, /* mode */ }, },
 	{ .name	    = "arch_prctl", .errmsg = true, .alias = "prctl", },
 	{ .name	    = "brk",	    .hexret = true,
 	  .arg_scnprintf = { [0] = SCA_HEX, /* brk */ }, },
