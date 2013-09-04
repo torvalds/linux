@@ -506,9 +506,13 @@ static int rockchip_headsetobserve_probe(struct platform_device *pdev)
 	input_set_capability(headset->input_dev, EV_KEY, pdata->hook_key_code);
 //------------------------------------------------------------------
 	if (pdata->Headset_gpio) {
-		ret = pdata->headset_io_init(pdata->Headset_gpio, pdata->headset_gpio_info.iomux_name, pdata->headset_gpio_info.iomux_mode);
+		if(pdata->Headset_gpio == NULL){
+			dev_err(&pdev->dev,"failed init headset,please full hook_io_init function in board\n");
+			goto failed_free_dev;
+		}
+		ret = pdata->headset_io_init(pdata->Headset_gpio);
 		if (ret) 
-			goto failed_free;
+			goto failed_free_dev;
 
 		headset->irq[HEADSET] = gpio_to_irq(pdata->Headset_gpio);
 
@@ -518,11 +522,11 @@ static int rockchip_headsetobserve_probe(struct platform_device *pdev)
 			headset->irq_type[HEADSET] = IRQF_TRIGGER_LOW|IRQF_ONESHOT;
 		ret = request_threaded_irq(headset->irq[HEADSET], NULL,headset_interrupt, headset->irq_type[HEADSET]|IRQF_NO_SUSPEND, "headset_input", NULL);
 		if (ret) 
-			goto failed_free;
+			goto failed_free_dev;
 		enable_irq_wake(headset->irq[HEADSET]);
 	}
 	else
-		goto failed_free;
+		goto failed_free_dev;
 //------------------------------------------------------------------
 	if(pdata->Hook_adc_chn>=0 && 3>=pdata->Hook_adc_chn)
 	{
@@ -530,7 +534,7 @@ static int rockchip_headsetobserve_probe(struct platform_device *pdev)
 		if(!headset->client) {
 			printk("hook adc register error\n");
 			ret = -EINVAL;
-			goto failed_free;
+			goto failed_free_dev;
 		}
 		setup_timer(&headset->hook_timer,hook_timer_callback, (unsigned long)headset);	
 		printk("headset adc default value = %d\n",adc_sync_read(headset->client));
