@@ -37,8 +37,7 @@ struct task_struct *_current_task[NR_CPUS];	/* For stack switching */
 
 struct cpuinfo_arc cpuinfo_arc700[NR_CPUS];
 
-
-void read_arc_build_cfg_regs(void)
+static void read_arc_build_cfg_regs(void)
 {
 	struct bcr_perip uncached_space;
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
@@ -106,7 +105,7 @@ static const struct cpuinfo_data arc_cpu_tbl[] = {
 	{ {0x00, NULL		} }
 };
 
-char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
+static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 {
 	int n = 0;
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[cpu_id];
@@ -171,7 +170,7 @@ static const struct id_to_str mac_mul_nm[] = {
 	{0x6, "Dual 16x16 and 32x16"}
 };
 
-char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
+static char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 {
 	int n = 0;
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[cpu_id];
@@ -234,7 +233,7 @@ char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 	return buf;
 }
 
-void arc_chk_ccms(void)
+static void arc_chk_ccms(void)
 {
 #if defined(CONFIG_ARC_HAS_DCCM) || defined(CONFIG_ARC_HAS_ICCM)
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
@@ -269,7 +268,7 @@ void arc_chk_ccms(void)
  * hardware has dedicated regs which need to be saved/restored on ctx-sw
  * (Single Precision uses core regs), thus kernel is kind of oblivious to it
  */
-void arc_chk_fpu(void)
+static void arc_chk_fpu(void)
 {
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
 
