@@ -125,8 +125,9 @@ static inline struct thread_info *current_thread_info(void) __attribute_const__;
 
 static inline struct thread_info *current_thread_info(void)
 {
-	register unsigned long sp asm ("sp");
-	return (struct thread_info *)(sp & ~(THREAD_SIZE - 1));
+	return (struct thread_info *)
+		((u32)(__builtin_stack_pointer())
+		& ~(THREAD_SIZE - 1));
 }
 
 #define thread_saved_pc(tsk)	\
