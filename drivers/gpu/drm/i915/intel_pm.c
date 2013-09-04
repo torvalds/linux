@@ -450,9 +450,8 @@ void intel_update_fbc(struct drm_device *dev)
 	struct drm_framebuffer *fb;
 	struct intel_framebuffer *intel_fb;
 	struct drm_i915_gem_object *obj;
-	const struct drm_display_mode *mode;
 	const struct drm_display_mode *adjusted_mode;
-	unsigned int max_hdisplay, max_vdisplay;
+	unsigned int max_width, max_height;
 
 	if (!I915_HAS_FBC(dev)) {
 		set_no_fbc_reason(dev_priv, FBC_UNSUPPORTED);
@@ -496,7 +495,6 @@ void intel_update_fbc(struct drm_device *dev)
 	fb = crtc->fb;
 	intel_fb = to_intel_framebuffer(fb);
 	obj = intel_fb->obj;
-	mode = &intel_crtc->config.requested_mode;
 	adjusted_mode = &intel_crtc->config.adjusted_mode;
 
 	if (i915_enable_fbc < 0 &&
@@ -519,14 +517,14 @@ void intel_update_fbc(struct drm_device *dev)
 	}
 
 	if (IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5) {
-		max_hdisplay = 4096;
-		max_vdisplay = 2048;
+		max_width = 4096;
+		max_height = 2048;
 	} else {
-		max_hdisplay = 2048;
-		max_vdisplay = 1536;
+		max_width = 2048;
+		max_height = 1536;
 	}
-	if ((mode->hdisplay > max_hdisplay) ||
-	    (mode->vdisplay > max_vdisplay)) {
+	if (intel_crtc->config.pipe_src_w > max_width ||
+	    intel_crtc->config.pipe_src_h > max_height) {
 		if (set_no_fbc_reason(dev_priv, FBC_MODE_TOO_LARGE))
 			DRM_DEBUG_KMS("mode too large for compression, disabling\n");
 		goto out_disable;
@@ -1178,7 +1176,7 @@ static bool g4x_compute_wm0(struct drm_device *dev,
 	adjusted_mode = &to_intel_crtc(crtc)->config.adjusted_mode;
 	clock = adjusted_mode->clock;
 	htotal = adjusted_mode->htotal;
-	hdisplay = to_intel_crtc(crtc)->config.requested_mode.hdisplay;
+	hdisplay = to_intel_crtc(crtc)->config.pipe_src_w;
 	pixel_size = crtc->fb->bits_per_pixel / 8;
 
 	/* Use the small buffer method to calculate plane watermark */
@@ -1265,7 +1263,7 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 	adjusted_mode = &to_intel_crtc(crtc)->config.adjusted_mode;
 	clock = adjusted_mode->clock;
 	htotal = adjusted_mode->htotal;
-	hdisplay = to_intel_crtc(crtc)->config.requested_mode.hdisplay;
+	hdisplay = to_intel_crtc(crtc)->config.pipe_src_w;
 	pixel_size = crtc->fb->bits_per_pixel / 8;
 
 	line_time_us = (htotal * 1000) / clock;
@@ -1496,7 +1494,7 @@ static void i965_update_wm(struct drm_crtc *unused_crtc)
 			&to_intel_crtc(crtc)->config.adjusted_mode;
 		int clock = adjusted_mode->clock;
 		int htotal = adjusted_mode->htotal;
-		int hdisplay = to_intel_crtc(crtc)->config.requested_mode.hdisplay;
+		int hdisplay = to_intel_crtc(crtc)->config.pipe_src_w;
 		int pixel_size = crtc->fb->bits_per_pixel / 8;
 		unsigned long line_time_us;
 		int entries;
@@ -1618,7 +1616,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 			&to_intel_crtc(enabled)->config.adjusted_mode;
 		int clock = adjusted_mode->clock;
 		int htotal = adjusted_mode->htotal;
-		int hdisplay = to_intel_crtc(crtc)->config.requested_mode.hdisplay;
+		int hdisplay = to_intel_crtc(crtc)->config.pipe_src_w;
 		int pixel_size = enabled->fb->bits_per_pixel / 8;
 		unsigned long line_time_us;
 		int entries;
@@ -1768,7 +1766,7 @@ static bool ironlake_compute_srwm(struct drm_device *dev, int level, int plane,
 	adjusted_mode = &to_intel_crtc(crtc)->config.adjusted_mode;
 	clock = adjusted_mode->clock;
 	htotal = adjusted_mode->htotal;
-	hdisplay = to_intel_crtc(crtc)->config.requested_mode.hdisplay;
+	hdisplay = to_intel_crtc(crtc)->config.pipe_src_w;
 	pixel_size = crtc->fb->bits_per_pixel / 8;
 
 	line_time_us = (htotal * 1000) / clock;
@@ -2123,8 +2121,8 @@ static uint32_t ilk_pipe_pixel_rate(struct drm_device *dev,
 		uint64_t pipe_w, pipe_h, pfit_w, pfit_h;
 		uint32_t pfit_size = intel_crtc->config.pch_pfit.size;
 
-		pipe_w = intel_crtc->config.requested_mode.hdisplay;
-		pipe_h = intel_crtc->config.requested_mode.vdisplay;
+		pipe_w = intel_crtc->config.pipe_src_w;
+		pipe_h = intel_crtc->config.pipe_src_h;
 		pfit_w = (pfit_size >> 16) & 0xFFFF;
 		pfit_h = pfit_size & 0xFFFF;
 		if (pipe_w < pfit_w)
@@ -2650,8 +2648,7 @@ static void hsw_compute_wm_parameters(struct drm_device *dev,
 		p->pixel_rate = ilk_pipe_pixel_rate(dev, crtc);
 		p->pri.bytes_per_pixel = crtc->fb->bits_per_pixel / 8;
 		p->cur.bytes_per_pixel = 4;
-		p->pri.horiz_pixels =
-			intel_crtc->config.requested_mode.hdisplay;
+		p->pri.horiz_pixels = intel_crtc->config.pipe_src_w;
 		p->cur.horiz_pixels = 64;
 		/* TODO: for now, assume primary and cursor planes are always enabled. */
 		p->pri.enabled = true;

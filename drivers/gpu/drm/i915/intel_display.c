@@ -4692,7 +4692,6 @@ static void intel_set_pipe_timings(struct intel_crtc *intel_crtc)
 	enum transcoder cpu_transcoder = intel_crtc->config.cpu_transcoder;
 	struct drm_display_mode *adjusted_mode =
 		&intel_crtc->config.adjusted_mode;
-	struct drm_display_mode *mode = &intel_crtc->config.requested_mode;
 	uint32_t vsyncshift, crtc_vtotal, crtc_vblank_end;
 
 	/* We need to be careful not to changed the adjusted mode, for otherwise
@@ -4745,7 +4744,8 @@ static void intel_set_pipe_timings(struct intel_crtc *intel_crtc)
 	 * always be the user's requested size.
 	 */
 	I915_WRITE(PIPESRC(pipe),
-		   ((mode->hdisplay - 1) << 16) | (mode->vdisplay - 1));
+		   ((intel_crtc->config.pipe_src_w - 1) << 16) |
+		   (intel_crtc->config.pipe_src_h - 1));
 }
 
 static void intel_get_pipe_timings(struct intel_crtc *crtc,
@@ -4783,8 +4783,11 @@ static void intel_get_pipe_timings(struct intel_crtc *crtc,
 	}
 
 	tmp = I915_READ(PIPESRC(crtc->pipe));
-	pipe_config->requested_mode.vdisplay = (tmp & 0xffff) + 1;
-	pipe_config->requested_mode.hdisplay = ((tmp >> 16) & 0xffff) + 1;
+	pipe_config->pipe_src_h = (tmp & 0xffff) + 1;
+	pipe_config->pipe_src_w = ((tmp >> 16) & 0xffff) + 1;
+
+	pipe_config->requested_mode.vdisplay = pipe_config->pipe_src_h;
+	pipe_config->requested_mode.hdisplay = pipe_config->pipe_src_w;
 }
 
 static void intel_crtc_mode_from_pipe_config(struct intel_crtc *intel_crtc,
@@ -4884,7 +4887,6 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct drm_display_mode *mode = &intel_crtc->config.requested_mode;
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
 	int refclk, num_connectors = 0;
@@ -4983,8 +4985,8 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	 * which should always be the user's requested size.
 	 */
 	I915_WRITE(DSPSIZE(plane),
-		   ((mode->vdisplay - 1) << 16) |
-		   (mode->hdisplay - 1));
+		   ((intel_crtc->config.pipe_src_h - 1) << 16) |
+		   (intel_crtc->config.pipe_src_w - 1));
 	I915_WRITE(DSPPOS(plane), 0);
 
 	i9xx_set_pipeconf(intel_crtc);
@@ -8354,6 +8356,8 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 	DRM_DEBUG_KMS("adjusted mode:\n");
 	drm_mode_debug_printmodeline(&pipe_config->adjusted_mode);
 	DRM_DEBUG_KMS("port clock: %d\n", pipe_config->port_clock);
+	DRM_DEBUG_KMS("pipe src size: %dx%d\n",
+		      pipe_config->pipe_src_w, pipe_config->pipe_src_h);
 	DRM_DEBUG_KMS("gmch pfit: control: 0x%08x, ratios: 0x%08x, lvds border: 0x%08x\n",
 		      pipe_config->gmch_pfit.control,
 		      pipe_config->gmch_pfit.pgm_ratios,
@@ -8406,6 +8410,10 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 
 	drm_mode_copy(&pipe_config->adjusted_mode, mode);
 	drm_mode_copy(&pipe_config->requested_mode, mode);
+
+	pipe_config->pipe_src_w = mode->hdisplay;
+	pipe_config->pipe_src_h = mode->vdisplay;
+
 	pipe_config->cpu_transcoder =
 		(enum transcoder) to_intel_crtc(crtc)->pipe;
 	pipe_config->shared_dpll = DPLL_ID_PRIVATE;
@@ -8762,8 +8770,8 @@ intel_pipe_config_compare(struct drm_device *dev,
 				      DRM_MODE_FLAG_NVSYNC);
 	}
 
-	PIPE_CONF_CHECK_I(requested_mode.hdisplay);
-	PIPE_CONF_CHECK_I(requested_mode.vdisplay);
+	PIPE_CONF_CHECK_I(pipe_src_w);
+	PIPE_CONF_CHECK_I(pipe_src_h);
 
 	PIPE_CONF_CHECK_I(gmch_pfit.control);
 	/* pfit ratios are autocomputed by the hw on gen4+ */

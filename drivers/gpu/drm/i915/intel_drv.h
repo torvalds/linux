@@ -215,6 +215,12 @@ struct intel_crtc_config {
 	/* Actual pipe timings ie. what we program into the pipe timing
 	 * registers. adjusted_mode.clock is the pipe pixel clock. */
 	struct drm_display_mode adjusted_mode;
+
+	/* Pipe source size (ie. panel fitter input size)
+	 * All planes will be positioned inside this space,
+	 * and get clipped at the edges. */
+	int pipe_src_w, pipe_src_h;
+
 	/* Whether to set up the PCH/FDI. Note that we never allow sharing
 	 * between pch encoders and cpu encoders. */
 	bool has_pch_encoder;
