@@ -4162,6 +4162,16 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 			return -EINVAL;
 	}
 
+	/*
+	 * Pipe horizontal size must be even in:
+	 * - DVO ganged mode
+	 * - LVDS dual channel mode
+	 * - Double wide pipe
+	 */
+	if ((intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_LVDS) &&
+	     intel_is_dual_link_lvds(dev)) || pipe_config->double_wide)
+		pipe_config->pipe_src_w &= ~1;
+
 	/* Cantiga+ cannot handle modes with a hsync front porch of 0.
 	 * WaPruneModeWithIncorrectHsyncOffset:ctg,elk,ilk,snb,ivb,vlv,hsw.
 	 */
