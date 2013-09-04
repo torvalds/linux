@@ -138,9 +138,9 @@ static inline unsigned long user_stack_pointer(struct pt_regs *regs)
 	return regs->ARM_sp;
 }
 
-#define current_pt_regs(void) ({				\
-	register unsigned long sp asm ("sp");			\
-	(struct pt_regs *)((sp | (THREAD_SIZE - 1)) - 7) - 1;	\
+#define current_pt_regs(void) ({					\
+	(struct pt_regs *)(((unsigned long)(__builtin_stack_pointer())	\
+		| (THREAD_SIZE - 1)) - 7) - 1;				\
 })
 
 #endif /* __ASSEMBLY__ */
