@@ -290,48 +290,25 @@ void __init init_ext_interrupts(void)
 	setup_irq(EXT_INTERRUPT, &external_interrupt);
 }
 
-static DEFINE_SPINLOCK(sc_irq_lock);
-static int sc_irq_refcount;
+static DEFINE_SPINLOCK(irq_subclass_lock);
+static unsigned char irq_subclass_refcount[64];
 
-void service_subclass_irq_register(void)
+void irq_subclass_register(enum irq_subclass subclass)
 {
-	spin_lock(&sc_irq_lock);
-	if (!sc_irq_refcount)
-		ctl_set_bit(0, 9);
-	sc_irq_refcount++;
-	spin_unlock(&sc_irq_lock);
+	spin_lock(&irq_subclass_lock);
+	if (!irq_subclass_refcount[subclass])
+		ctl_set_bit(0, subclass);
+	irq_subclass_refcount[subclass]++;
+	spin_unlock(&irq_subclass_lock);
 }
-EXPORT_SYMBOL(service_subclass_irq_register);
+EXPORT_SYMBOL(irq_subclass_register);
 
-void service_subclass_irq_unregister(void)
+void irq_subclass_unregister(enum irq_subclass subclass)
 {
-	spin_lock(&sc_irq_lock);
-	sc_irq_refcount--;
-	if (!sc_irq_refcount)
-		ctl_clear_bit(0, 9);
-	spin_unlock(&sc_irq_lock);
+	spin_lock(&irq_subclass_lock);
+	irq_subclass_refcount[subclass]--;
+	if (!irq_subclass_refcount[subclass])
+		ctl_clear_bit(0, subclass);
+	spin_unlock(&irq_subclass_lock);
 }
-EXPORT_SYMBOL(service_subclass_irq_unregister);
-
-static DEFINE_SPINLOCK(ma_subclass_lock);
-static int ma_subclass_refcount;
-
-void measurement_alert_subclass_register(void)
-{
-	spin_lock(&ma_subclass_lock);
-	if (!ma_subclass_refcount)
-		ctl_set_bit(0, 5);
-	ma_subclass_refcount++;
-	spin_unlock(&ma_subclass_lock);
-}
-EXPORT_SYMBOL(measurement_alert_subclass_register);
-
-void measurement_alert_subclass_unregister(void)
-{
-	spin_lock(&ma_subclass_lock);
-	ma_subclass_refcount--;
-	if (!ma_subclass_refcount)
-		ctl_clear_bit(0, 5);
-	spin_unlock(&ma_subclass_lock);
-}
-EXPORT_SYMBOL(measurement_alert_subclass_unregister);
+EXPORT_SYMBOL(irq_subclass_unregister);
