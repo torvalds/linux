@@ -18,8 +18,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <linux/clk-provider.h>
-#include <linux/clocksource.h>
 #include <linux/io.h>
 #include <linux/pm.h>
 #include <linux/reboot.h>
@@ -72,12 +70,6 @@ static void vt8500_power_off(void)
 	local_irq_disable();
 	writew(5, pmc_base + VT8500_HCR_REG);
 	asm("mcr%? p15, 0, %0, c7, c0, 4" : : "r" (0));
-}
-
-static void __init vt8500_init_time(void)
-{
-	of_clk_init(NULL);
-	clocksource_of_init();
 }
 
 void __init vt8500_init(void)
@@ -183,7 +175,6 @@ DT_MACHINE_START(WMT_DT, "VIA/Wondermedia SoC (Device Tree Support)")
 	.dt_compat	= vt8500_dt_compat,
 	.map_io		= vt8500_map_io,
 	.init_machine	= vt8500_init,
-	.init_time	= vt8500_init_time,
 	.restart	= vt8500_restart,
 MACHINE_END
 
