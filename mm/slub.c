@@ -3326,43 +3326,6 @@ size_t ksize(const void *object)
 }
 EXPORT_SYMBOL(ksize);
 
-#ifdef CONFIG_SLUB_DEBUG
-bool verify_mem_not_deleted(const void *x)
-{
-	struct page *page;
-	void *object = (void *)x;
-	unsigned long flags;
-	bool rv;
-
-	if (unlikely(ZERO_OR_NULL_PTR(x)))
-		return false;
-
-	local_irq_save(flags);
-
-	page = virt_to_head_page(x);
-	if (unlikely(!PageSlab(page))) {
-		/* maybe it was from stack? */
-		rv = true;
-		goto out_unlock;
-	}
-
-	slab_lock(page);
-	if (on_freelist(page->slab_cache, page, object)) {
-		object_err(page->slab_cache, page, object,
-				"Object is on free-list");
-		rv = false;
-	} else {
-		rv = true;
-	}
-	slab_unlock(page);
-
-out_unlock:
-	local_irq_restore(flags);
-	return rv;
-}
-EXPORT_SYMBOL(verify_mem_not_deleted);
-#endif
-
 void kfree(const void *x)
 {
 	struct page *page;

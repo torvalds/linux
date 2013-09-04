@@ -98,17 +98,4 @@ struct kmem_cache {
 	struct kmem_cache_node *node[MAX_NUMNODES];
 };
 
-/**
- * Calling this on allocated memory will check that the memory
- * is expected to be in use, and print warnings if not.
- */
-#ifdef CONFIG_SLUB_DEBUG
-extern bool verify_mem_not_deleted(const void *x);
-#else
-static inline bool verify_mem_not_deleted(const void *x)
-{
-	return true;
-}
-#endif
-
 #endif /* _LINUX_SLUB_DEF_H */
