@@ -5042,6 +5042,9 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 		}
 	}
 
+	if (INTEL_INFO(dev)->gen < 4)
+		pipe_config->double_wide = tmp & PIPECONF_DOUBLE_WIDE;
+
 	intel_get_pipe_timings(crtc, pipe_config);
 
 	i9xx_get_pfit_config(crtc, pipe_config);
@@ -8769,6 +8772,8 @@ intel_pipe_config_compare(struct drm_device *dev,
 	}
 
 	PIPE_CONF_CHECK_I(ips_enabled);
+
+	PIPE_CONF_CHECK_I(double_wide);
 
 	PIPE_CONF_CHECK_I(shared_dpll);
 	PIPE_CONF_CHECK_X(dpll_hw_state.dpll);
