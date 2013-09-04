@@ -6,6 +6,8 @@
 
 #include <linux/sunrpc/sched.h>
 #include <linux/sunrpc/clnt.h>
+#include <net/tcp_states.h>
+#include <linux/net.h>
 #include <linux/tracepoint.h>
 
 DECLARE_EVENT_CLASS(rpc_task_status,
@@ -171,6 +173,135 @@ DEFINE_EVENT(rpc_task_queued, rpc_task_wakeup,
 	TP_ARGS(clnt, task, q)
 
 );
+
+#define rpc_show_socket_state(state) \
+	__print_symbolic(state, \
+		{ SS_FREE, "FREE" }, \
+		{ SS_UNCONNECTED, "UNCONNECTED" }, \
+		{ SS_CONNECTING, "CONNECTING," }, \
+		{ SS_CONNECTED, "CONNECTED," }, \
+		{ SS_DISCONNECTING, "DISCONNECTING" })
+
+#define rpc_show_sock_state(state) \
+	__print_symbolic(state, \
+		{ TCP_ESTABLISHED, "ESTABLISHED" }, \
+		{ TCP_SYN_SENT, "SYN_SENT" }, \
+		{ TCP_SYN_RECV, "SYN_RECV" }, \
+		{ TCP_FIN_WAIT1, "FIN_WAIT1" }, \
+		{ TCP_FIN_WAIT2, "FIN_WAIT2" }, \
+		{ TCP_TIME_WAIT, "TIME_WAIT" }, \
+		{ TCP_CLOSE, "CLOSE" }, \
+		{ TCP_CLOSE_WAIT, "CLOSE_WAIT" }, \
+		{ TCP_LAST_ACK, "LAST_ACK" }, \
+		{ TCP_LISTEN, "LISTEN" }, \
+		{ TCP_CLOSING, "CLOSING" })
+
+DECLARE_EVENT_CLASS(xs_socket_event,
+
+		TP_PROTO(
+			struct rpc_xprt *xprt,
+			struct socket *socket
+		),
+
+		TP_ARGS(xprt, socket),
+
+		TP_STRUCT__entry(
+			__field(unsigned int, socket_state)
+			__field(unsigned int, sock_state)
+			__field(unsigned long long, ino)
+			__string(dstaddr,
+				xprt->address_strings[RPC_DISPLAY_ADDR])
+			__string(dstport,
+				xprt->address_strings[RPC_DISPLAY_PORT])
+		),
+
+		TP_fast_assign(
+			struct inode *inode = SOCK_INODE(socket);
+			__entry->socket_state = socket->state;
+			__entry->sock_state = socket->sk->sk_state;
+			__entry->ino = (unsigned long long)inode->i_ino;
+			__assign_str(dstaddr,
+				xprt->address_strings[RPC_DISPLAY_ADDR]);
+			__assign_str(dstport,
+				xprt->address_strings[RPC_DISPLAY_PORT]);
+		),
+
+		TP_printk(
+			"socket:[%llu] dstaddr=%s/%s "
+			"state=%u (%s) sk_state=%u (%s)",
+			__entry->ino, __get_str(dstaddr), __get_str(dstport),
+			__entry->socket_state,
+			rpc_show_socket_state(__entry->socket_state),
+			__entry->sock_state,
+			rpc_show_sock_state(__entry->sock_state)
+		)
+);
+#define DEFINE_RPC_SOCKET_EVENT(name) \
+	DEFINE_EVENT(xs_socket_event, name, \
+			TP_PROTO( \
+				struct rpc_xprt *xprt, \
+				struct socket *socket \
+			), \
+			TP_ARGS(xprt, socket))
+
+DECLARE_EVENT_CLASS(xs_socket_event_done,
+
+		TP_PROTO(
+			struct rpc_xprt *xprt,
+			struct socket *socket,
+			int error
+		),
+
+		TP_ARGS(xprt, socket, error),
+
+		TP_STRUCT__entry(
+			__field(int, error)
+			__field(unsigned int, socket_state)
+			__field(unsigned int, sock_state)
+			__field(unsigned long long, ino)
+			__string(dstaddr,
+				xprt->address_strings[RPC_DISPLAY_ADDR])
+			__string(dstport,
+				xprt->address_strings[RPC_DISPLAY_PORT])
+		),
+
+		TP_fast_assign(
+			struct inode *inode = SOCK_INODE(socket);
+			__entry->socket_state = socket->state;
+			__entry->sock_state = socket->sk->sk_state;
+			__entry->ino = (unsigned long long)inode->i_ino;
+			__entry->error = error;
+			__assign_str(dstaddr,
+				xprt->address_strings[RPC_DISPLAY_ADDR]);
+			__assign_str(dstport,
+				xprt->address_strings[RPC_DISPLAY_PORT]);
+		),
+
+		TP_printk(
+			"error=%d socket:[%llu] dstaddr=%s/%s "
+			"state=%u (%s) sk_state=%u (%s)",
+			__entry->error,
+			__entry->ino, __get_str(dstaddr), __get_str(dstport),
+			__entry->socket_state,
+			rpc_show_socket_state(__entry->socket_state),
+			__entry->sock_state,
+			rpc_show_sock_state(__entry->sock_state)
+		)
+);
+#define DEFINE_RPC_SOCKET_EVENT_DONE(name) \
+	DEFINE_EVENT(xs_socket_event_done, name, \
+			TP_PROTO( \
+				struct rpc_xprt *xprt, \
+				struct socket *socket, \
+				int error \
+			), \
+			TP_ARGS(xprt, socket, error))
+
+DEFINE_RPC_SOCKET_EVENT(rpc_socket_state_change);
+DEFINE_RPC_SOCKET_EVENT_DONE(rpc_socket_connect);
+DEFINE_RPC_SOCKET_EVENT_DONE(rpc_socket_reset_connection);
+DEFINE_RPC_SOCKET_EVENT(rpc_socket_close);
+DEFINE_RPC_SOCKET_EVENT(rpc_socket_shutdown);
 
 #endif /* _TRACE_SUNRPC_H */
 
