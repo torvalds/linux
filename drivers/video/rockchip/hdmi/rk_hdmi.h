@@ -239,6 +239,7 @@ struct hdmi_edid {
 	struct list_head modelist;			//Device supported display mode list
 	struct hdmi_audio *audio;			//Device supported audio info
 	int	audio_num;						//Device supported audio type number
+	int	base_audio_support;				//Device supported base audio
 };
 
 /* RK HDMI Video Configure Parameters */

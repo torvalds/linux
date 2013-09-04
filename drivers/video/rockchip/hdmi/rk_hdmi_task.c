@@ -80,6 +80,10 @@ int hdmi_sys_init(void)
 
 void hdmi_sys_remove(void)
 {
+	int audio_need;
+
+	audio_need = hdmi->edid.base_audio_support == 1 &&  hdmi->edid.sink_hdmi == 1;
+	
 	fb_destroy_modelist(&hdmi->edid.modelist);
 	if(hdmi->edid.audio)
 		kfree(hdmi->edid.audio);
@@ -96,8 +100,10 @@ void hdmi_sys_remove(void)
 		hdmi->set_vif(hdmi->lcdc->screen1,0);
 	rk_fb_switch_screen(hdmi->lcdc->screen1, 0, hdmi->lcdc->id);
 	kobject_uevent_env(&hdmi->dev->kobj, KOBJ_REMOVE, envp);
+
 	#ifdef CONFIG_SWITCH
-	switch_set_state(&(hdmi->switch_hdmi), 0);
+	if(audio_need)
+		switch_set_state(&(hdmi->switch_hdmi), 0);
 	#endif
 	#ifdef CONFIG_RK_HDMI_CTL_CODEC
 #ifdef CONFIG_MACH_RK_FAC
@@ -194,7 +200,7 @@ void hdmi_work(struct work_struct *work)
 	int hotplug, state_last;
 	int rc = HDMI_ERROR_SUCESS, trytimes = 0;
 	struct hdmi_video_para video;
-	
+
 	mutex_lock(&work_mutex);
 	/* Process hdmi command */
 	hdmi->state = hdmi_process_command();
@@ -249,8 +255,10 @@ void hdmi_work(struct work_struct *work)
 				{
 					hdmi->state = SYSTEM_CONFIG;	
 					kobject_uevent_env(&hdmi->dev->kobj, KOBJ_ADD, envp);
+					hdmi_dbg(hdmi->dev,"[%s],base_audio_support =%d,sink_hdmi = %d\n",hdmi->edid.base_audio_support,hdmi->edid.sink_hdmi );
 					#ifdef CONFIG_SWITCH
-					switch_set_state(&(hdmi->switch_hdmi), 1);
+					if(hdmi->edid.base_audio_support == 1 &&  hdmi->edid.sink_hdmi == 1)
+						switch_set_state(&(hdmi->switch_hdmi), 1);
 					#endif
 					#ifdef CONFIG_RK_HDMI_CTL_CODEC
 					#ifdef CONFIG_MACH_RK_FAC
