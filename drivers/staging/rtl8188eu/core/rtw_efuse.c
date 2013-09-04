@@ -542,7 +542,7 @@ u8 rtw_efuse_map_write(struct adapter *padapter, u16 addr, u16 cnts, u8 *data)
 {
 	u8 offset, word_en;
 	u8 *map;
-	u8 newdata[PGPKT_DATA_SIZE];
+	u8 newdata[PGPKT_DATA_SIZE + 1];
 	s32	i, idx;
 	u8 ret = _SUCCESS;
 	u16 mapLen = 0;
@@ -564,7 +564,7 @@ u8 rtw_efuse_map_write(struct adapter *padapter, u16 addr, u16 cnts, u8 *data)
 
 	offset = (addr >> 3);
 	word_en = 0xF;
-	_rtw_memset(newdata, 0xFF, PGPKT_DATA_SIZE);
+	_rtw_memset(newdata, 0xFF, PGPKT_DATA_SIZE + 1);
 	i = addr & 0x7;	/*  index of one package */
 	idx = 0;	/*  data index */
 
@@ -634,7 +634,7 @@ u8 rtw_BT_efuse_map_write(struct adapter *padapter, u16 addr, u16 cnts, u8 *data
 {
 	u8 offset, word_en;
 	u8 *map;
-	u8 newdata[PGPKT_DATA_SIZE];
+	u8 newdata[PGPKT_DATA_SIZE + 1];
 	s32	i, idx;
 	u8 ret = _SUCCESS;
 	u16 mapLen = 0;
@@ -656,7 +656,7 @@ u8 rtw_BT_efuse_map_write(struct adapter *padapter, u16 addr, u16 cnts, u8 *data
 
 	offset = (addr >> 3);
 	word_en = 0xF;
-	_rtw_memset(newdata, 0xFF, PGPKT_DATA_SIZE);
+	_rtw_memset(newdata, 0xFF, PGPKT_DATA_SIZE + 1);
 	i = addr & 0x7;	/*  index of one package */
 	idx = 0;	/*  data index */
 
