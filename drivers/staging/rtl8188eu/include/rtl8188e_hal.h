@@ -188,7 +188,7 @@ enum ChannelPlan {
 
 struct txpowerinfo24g {
 	u8 IndexCCK_Base[MAX_RF_PATH][MAX_CHNL_GROUP_24G];
-	u8 IndexBW40_Base[MAX_RF_PATH][MAX_CHNL_GROUP_24G-1];
+	u8 IndexBW40_Base[MAX_RF_PATH][MAX_CHNL_GROUP_24G];
 	/* If only one tx, only BW20 and OFDM are used. */
 	s8 CCK_Diff[MAX_RF_PATH][MAX_TX_COUNT];
 	s8 OFDM_Diff[MAX_RF_PATH][MAX_TX_COUNT];
