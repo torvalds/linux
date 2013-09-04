@@ -857,3 +857,13 @@ void key_change_session_keyring(struct callback_head *twork)
 
 	commit_creds(new);
 }
+
+/*
+ * Make sure that root's user and user-session keyrings exist.
+ */
+static int __init init_root_keyring(void)
+{
+	return install_user_keyrings();
+}
+
+late_initcall(init_root_keyring);
