@@ -4784,6 +4784,11 @@ int bnx2x_resume(struct pci_dev *pdev)
 void bnx2x_set_ctx_validation(struct bnx2x *bp, struct eth_context *cxt,
 			      u32 cid)
 {
+	if (!cxt) {
+		BNX2X_ERR("bad context pointer %p\n", cxt);
+		return;
+	}
+
 	/* ustorm cxt validation */
 	cxt->ustorm_ag_context.cdu_usage =
 		CDU_RSRVD_VALUE_TYPE_A(HW_CID(bp, cid),

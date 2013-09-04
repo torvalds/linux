@@ -1407,4 +1407,6 @@ int bnx2x_config_rss(struct bnx2x *bp,
 void bnx2x_get_rss_ind_table(struct bnx2x_rss_config_obj *rss_obj,
 			     u8 *ind_table);
 
+int validate_vlan_mac(struct bnx2x *bp,
+		      struct bnx2x_vlan_mac_obj *vlan_mac);
 #endif /* BNX2X_SP_VERBS */

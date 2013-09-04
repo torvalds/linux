@@ -81,6 +81,7 @@ struct bnx2x_vf_queue {
 	u32 cid;
 	u16 index;
 	u16 sb_idx;
+	bool is_leading;
 };
 
 /* struct bnx2x_vfop_qctor_params - prepare queue construction parameters:
@@ -194,6 +195,7 @@ struct bnx2x_virtf {
 #define VF_CFG_INT_SIMD		0x0008
 #define VF_CACHE_LINE		0x0010
 #define VF_CFG_VLAN		0x0020
+#define VF_CFG_STATS_COALESCE	0x0040
 
 	u8 state;
 #define VF_FREE		0	/* VF ready to be acquired holds no resc */
@@ -213,6 +215,7 @@ struct bnx2x_virtf {
 
 	/* dma */
 	dma_addr_t fw_stat_map;		/* valid iff VF_CFG_STATS */
+	u16 stats_stride;
 	dma_addr_t spq_map;
 	dma_addr_t bulletin_map;
 
@@ -239,7 +242,10 @@ struct bnx2x_virtf {
 	u8 igu_base_id;	/* base igu status block id */
 
 	struct bnx2x_vf_queue	*vfqs;
-#define bnx2x_vfq(vf, nr, var)	((vf)->vfqs[(nr)].var)
+#define LEADING_IDX			0
+#define bnx2x_vfq_is_leading(vfq)	((vfq)->index == LEADING_IDX)
+#define bnx2x_vfq(vf, nr, var)		((vf)->vfqs[(nr)].var)
+#define bnx2x_leading_vfq(vf, var)	((vf)->vfqs[LEADING_IDX].var)
 
 	u8 index;	/* index in the vf array */
 	u8 abs_vfid;
@@ -358,6 +364,10 @@ struct bnx2x_vf_sp {
 		struct client_init_ramrod_data  init_data;
 		struct client_update_ramrod_data update_data;
 	} q_data;
+
+	union {
+		struct eth_rss_update_ramrod_data e2;
+	} rss_rdata;
 };
 
 struct hw_dma {
@@ -403,17 +413,16 @@ struct bnx2x_vfdb {
 
 #define FLRD_VFS_DWORDS (BNX2X_MAX_NUM_OF_VFS / 32)
 	u32 flrd_vfs[FLRD_VFS_DWORDS];
+
+	/* the number of msix vectors belonging to this PF designated for VFs */
+	u16 vf_sbs_pool;
+	u16 first_vf_igu_entry;
 };
 
 /* queue access */
 static inline struct bnx2x_vf_queue *vfq_get(struct bnx2x_virtf *vf, u8 index)
 {
 	return &(vf->vfqs[index]);
-}
-
-static inline bool vfq_is_leading(struct bnx2x_vf_queue *vfq)
-{
-	return (vfq->index == 0);
 }
 
 /* FW ids */
@@ -434,7 +443,10 @@ static u8 vfq_cl_id(struct bnx2x_virtf *vf, struct bnx2x_vf_queue *q)
 
 static inline u8 vfq_stat_id(struct bnx2x_virtf *vf, struct bnx2x_vf_queue *q)
 {
-	return vfq_cl_id(vf, q);
+	if (vf->cfg_flags & VF_CFG_STATS_COALESCE)
+		return vf->leading_rss;
+	else
+		return vfq_cl_id(vf, q);
 }
 
 static inline u8 vfq_qzone_id(struct bnx2x_virtf *vf, struct bnx2x_vf_queue *q)
@@ -691,6 +703,10 @@ int bnx2x_vfop_release_cmd(struct bnx2x *bp,
 			   struct bnx2x_virtf *vf,
 			   struct bnx2x_vfop_cmd *cmd);
 
+int bnx2x_vfop_rss_cmd(struct bnx2x *bp,
+		       struct bnx2x_virtf *vf,
+		       struct bnx2x_vfop_cmd *cmd);
+
 /* VF release ~ VF close + VF release-resources
  *
  * Release is the ultimate SW shutdown and is called whenever an
@@ -758,7 +774,7 @@ int bnx2x_enable_sriov(struct bnx2x *bp);
 void bnx2x_disable_sriov(struct bnx2x *bp);
 static inline int bnx2x_vf_headroom(struct bnx2x *bp)
 {
-	return bp->vfdb->sriov.nr_virtfn * BNX2X_CLIENTS_PER_VF;
+	return bp->vfdb->sriov.nr_virtfn * BNX2X_CIDS_PER_VF;
 }
 void bnx2x_pf_set_vfs_vlan(struct bnx2x *bp);
 int bnx2x_sriov_configure(struct pci_dev *dev, int num_vfs);
