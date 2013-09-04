@@ -460,7 +460,10 @@ struct clk *tegra_clk_register_periph_nodiv(const char *name,
 struct tegra_periph_init_data {
 	const char *name;
 	int clk_id;
-	const char **parent_names;
+	union {
+		const char **parent_names;
+		const char *parent_name;
+	} p;
 	int num_parents;
 	struct tegra_clk_periph periph;
 	u32 offset;
@@ -477,7 +480,7 @@ struct tegra_periph_init_data {
 	{								\
 		.name = _name,						\
 		.clk_id = _clk_id,					\
-		.parent_names = _parent_names,				\
+		.p.parent_names = _parent_names,			\
 		.num_parents = ARRAY_SIZE(_parent_names),		\
 		.periph = TEGRA_CLK_PERIPH(_mux_shift, _mux_mask,	\
 					   _mux_flags, _div_shift,	\
@@ -595,6 +598,10 @@ void tegra_register_devclks(struct tegra_devclk *dev_clks, int num);
 
 void tegra_audio_clk_init(void __iomem *clk_base,
 			void __iomem *pmc_base, struct tegra_clk *tegra_clks,
+			struct tegra_clk_pll_params *pll_params);
+
+void tegra_periph_clk_init(void __iomem *clk_base, void __iomem *pmc_base,
+			struct tegra_clk *tegra_clks,
 			struct tegra_clk_pll_params *pll_params);
 
 void tegra114_clock_tune_cpu_trimmers_high(void);

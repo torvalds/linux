@@ -973,7 +973,7 @@ static void __init tegra20_periph_clk_init(void)
 
 	for (i = 0; i < ARRAY_SIZE(tegra_periph_clk_list); i++) {
 		data = &tegra_periph_clk_list[i];
-		clk = tegra_clk_register_periph(data->name, data->parent_names,
+		clk = tegra_clk_register_periph(data->name, data->p.parent_names,
 				data->num_parents, &data->periph,
 				clk_base, data->offset, data->flags);
 		clk_register_clkdev(clk, data->con_id, data->dev_id);
@@ -983,7 +983,7 @@ static void __init tegra20_periph_clk_init(void)
 	for (i = 0; i < ARRAY_SIZE(tegra_periph_nodiv_clk_list); i++) {
 		data = &tegra_periph_nodiv_clk_list[i];
 		clk = tegra_clk_register_periph_nodiv(data->name,
-					data->parent_names,
+					data->p.parent_names,
 					data->num_parents, &data->periph,
 					clk_base, data->offset);
 		clk_register_clkdev(clk, data->con_id, data->dev_id);
