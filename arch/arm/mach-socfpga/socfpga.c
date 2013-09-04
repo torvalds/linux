@@ -15,6 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/clk-provider.h>
+#include <linux/clocksource.h>
 #include <linux/irqchip.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -90,6 +91,12 @@ static void __init socfpga_init_irq(void)
 	socfpga_sysmgr_init();
 }
 
+static void __init socfpga_init_time(void)
+{
+	of_clk_init(NULL);
+	clocksource_of_init();
+}
+
 static void socfpga_cyclone5_restart(enum reboot_mode mode, const char *cmd)
 {
 	u32 temp;
@@ -107,7 +114,6 @@ static void __init socfpga_cyclone5_init(void)
 {
 	l2x0_of_init(0, ~0UL);
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
-	of_clk_init(NULL);
 	socfpga_init_clocks();
 }
 
@@ -120,6 +126,7 @@ DT_MACHINE_START(SOCFPGA, "Altera SOCFPGA")
 	.smp		= smp_ops(socfpga_smp_ops),
 	.map_io		= socfpga_map_io,
 	.init_irq	= socfpga_init_irq,
+	.init_time	= socfpga_init_time,
 	.init_machine	= socfpga_cyclone5_init,
 	.restart	= socfpga_cyclone5_restart,
 	.dt_compat	= altera_dt_match,
