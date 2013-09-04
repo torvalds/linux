@@ -23,6 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/of_platform.h>
 #include <linux/serial_sci.h>
+#include <linux/sh_timer.h>
 #include <mach/common.h>
 #include <mach/irqs.h>
 #include <mach/r8a7791.h>
@@ -89,6 +90,25 @@ static inline void r8a7791_register_scif(int idx)
 				      sizeof(struct plat_sci_port));
 }
 
+static const struct sh_timer_config cmt00_platform_data __initconst = {
+	.name = "CMT00",
+	.timer_bit = 0,
+	.clockevent_rating = 80,
+};
+
+static const struct resource cmt00_resources[] __initconst = {
+	DEFINE_RES_MEM(0xffca0510, 0x0c),
+	DEFINE_RES_MEM(0xffca0500, 0x04),
+	DEFINE_RES_IRQ(gic_spi(142)), /* CMT0_0 */
+};
+
+#define r8a7791_register_cmt(idx)					\
+	platform_device_register_resndata(&platform_bus, "sh_cmt",	\
+					  idx, cmt##idx##_resources,	\
+					  ARRAY_SIZE(cmt##idx##_resources), \
+					  &cmt##idx##_platform_data,	\
+					  sizeof(struct sh_timer_config))
+
 void __init r8a7791_add_dt_devices(void)
 {
 	r8a7791_register_scif(SCIFA0);
@@ -106,6 +126,14 @@ void __init r8a7791_add_dt_devices(void)
 	r8a7791_register_scif(SCIFA3);
 	r8a7791_register_scif(SCIFA4);
 	r8a7791_register_scif(SCIFA5);
+	r8a7791_register_cmt(00);
+}
+
+void __init r8a7791_init_early(void)
+{
+#ifndef CONFIG_ARM_ARCH_TIMER
+	shmobile_setup_delay(1300, 2, 4); /* Cortex-A15 @ 1300MHz */
+#endif
 }
 
 #ifdef CONFIG_USE_OF
@@ -115,6 +143,7 @@ static const char *r8a7791_boards_compat_dt[] __initdata = {
 };
 
 DT_MACHINE_START(R8A7791_DT, "Generic R8A7791 (Flattened Device Tree)")
+	.init_early	= r8a7791_init_early,
 	.dt_compat	= r8a7791_boards_compat_dt,
 MACHINE_END
 #endif /* CONFIG_USE_OF */

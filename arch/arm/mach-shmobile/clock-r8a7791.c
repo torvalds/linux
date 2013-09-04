@@ -101,7 +101,7 @@ SH_FIXED_RATIO_CLK_SET(cp_clk,			extal_clk,	1, 2);
 SH_FIXED_RATIO_CLK_SET(pll1_div2_clk,		pll1_clk,	1, 2);
 SH_FIXED_RATIO_CLK_SET(hp_clk,			pll1_clk,	1, 12);
 SH_FIXED_RATIO_CLK_SET(p_clk,			pll1_clk,	1, 24);
-
+SH_FIXED_RATIO_CLK_SET(rclk_clk,		pll1_clk,	1, (48 * 1024));
 SH_FIXED_RATIO_CLK_SET(mp_clk,			pll1_div2_clk,	1, 15);
 
 static struct clk *main_clks[] = {
@@ -113,6 +113,7 @@ static struct clk *main_clks[] = {
 	&pll3_clk,
 	&hp_clk,
 	&p_clk,
+	&rclk_clk,
 	&mp_clk,
 	&cp_clk,
 };
@@ -123,6 +124,7 @@ enum {
 	MSTP719, MSTP718, MSTP715, MSTP714,
 	MSTP216, MSTP207, MSTP206,
 	MSTP204, MSTP203, MSTP202, MSTP1105, MSTP1106, MSTP1107,
+	MSTP124,
 	MSTP_NR
 };
 
@@ -142,6 +144,7 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP1105] = SH_CLK_MSTP32(&mp_clk, SMSTPCR11, 5, 0), /* SCIFA3 */
 	[MSTP1106] = SH_CLK_MSTP32(&mp_clk, SMSTPCR11, 6, 0), /* SCIFA4 */
 	[MSTP1107] = SH_CLK_MSTP32(&mp_clk, SMSTPCR11, 7, 0), /* SCIFA5 */
+	[MSTP124] = SH_CLK_MSTP32(&rclk_clk, SMSTPCR1, 24, 0), /* CMT0 */
 };
 
 static struct clk_lookup lookups[] = {
@@ -155,6 +158,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("pll3",		&pll3_clk),
 	CLKDEV_CON_ID("hp",		&hp_clk),
 	CLKDEV_CON_ID("p",		&p_clk),
+	CLKDEV_CON_ID("rclk",		&rclk_clk),
 	CLKDEV_CON_ID("mp",		&mp_clk),
 	CLKDEV_CON_ID("cp",		&cp_clk),
 	CLKDEV_CON_ID("peripheral_clk", &hp_clk),
@@ -175,6 +179,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("sh-sci.12", &mstp_clks[MSTP1105]), /* SCIFA3 */
 	CLKDEV_DEV_ID("sh-sci.13", &mstp_clks[MSTP1106]), /* SCIFA4 */
 	CLKDEV_DEV_ID("sh-sci.14", &mstp_clks[MSTP1107]), /* SCIFA5 */
+	CLKDEV_DEV_ID("sh_cmt.0", &mstp_clks[MSTP124]),
 };
 
 #define R8A7791_CLOCK_ROOT(e, m, p0, p1, p30, p31)		\
