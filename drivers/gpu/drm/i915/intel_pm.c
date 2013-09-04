@@ -458,6 +458,8 @@ void intel_update_fbc(struct drm_device *dev)
 	struct drm_framebuffer *fb;
 	struct intel_framebuffer *intel_fb;
 	struct drm_i915_gem_object *obj;
+	const struct drm_display_mode *mode;
+	const struct drm_display_mode *adjusted_mode;
 	unsigned int max_hdisplay, max_vdisplay;
 
 	if (!I915_HAS_FBC(dev)) {
@@ -502,6 +504,8 @@ void intel_update_fbc(struct drm_device *dev)
 	fb = crtc->fb;
 	intel_fb = to_intel_framebuffer(fb);
 	obj = intel_fb->obj;
+	mode = &intel_crtc->config.requested_mode;
+	adjusted_mode = &intel_crtc->config.adjusted_mode;
 
 	if (i915_enable_fbc < 0 &&
 	    INTEL_INFO(dev)->gen <= 7 && !IS_HASWELL(dev)) {
@@ -514,8 +518,8 @@ void intel_update_fbc(struct drm_device *dev)
 			DRM_DEBUG_KMS("fbc disabled per module param\n");
 		goto out_disable;
 	}
-	if ((crtc->mode.flags & DRM_MODE_FLAG_INTERLACE) ||
-	    (crtc->mode.flags & DRM_MODE_FLAG_DBLSCAN)) {
+	if ((adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) ||
+	    (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)) {
 		if (set_no_fbc_reason(dev_priv, FBC_UNSUPPORTED_MODE))
 			DRM_DEBUG_KMS("mode incompatible with compression, "
 				      "disabling\n");
@@ -529,8 +533,8 @@ void intel_update_fbc(struct drm_device *dev)
 		max_hdisplay = 2048;
 		max_vdisplay = 1536;
 	}
-	if ((crtc->mode.hdisplay > max_hdisplay) ||
-	    (crtc->mode.vdisplay > max_vdisplay)) {
+	if ((mode->hdisplay > max_hdisplay) ||
+	    (mode->vdisplay > max_vdisplay)) {
 		if (set_no_fbc_reason(dev_priv, FBC_MODE_TOO_LARGE))
 			DRM_DEBUG_KMS("mode too large for compression, disabling\n");
 		goto out_disable;
