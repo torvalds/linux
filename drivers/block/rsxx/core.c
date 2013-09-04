@@ -749,10 +749,6 @@ static pci_ers_result_t rsxx_slot_reset(struct pci_dev *dev)
 
 	card->eeh_state = 0;
 
-	st = rsxx_eeh_remap_dmas(card);
-	if (st)
-		goto failed_remap_dmas;
-
 	spin_lock_irqsave(&card->irq_lock, flags);
 	if (card->n_targets & RSXX_MAX_TARGETS)
 		rsxx_enable_ier_and_isr(card, CR_INTR_ALL_G);
@@ -779,7 +775,6 @@ static pci_ers_result_t rsxx_slot_reset(struct pci_dev *dev)
 	return PCI_ERS_RESULT_RECOVERED;
 
 failed_hw_buffers_init:
-failed_remap_dmas:
 	for (i = 0; i < card->n_targets; i++) {
 		if (card->ctrl[i].status.buf)
 			pci_free_consistent(card->dev,

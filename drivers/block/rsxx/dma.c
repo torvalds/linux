@@ -397,6 +397,7 @@ static void rsxx_issue_dmas(struct rsxx_dma_ctrl *ctrl)
 	int tag;
 	int cmds_pending = 0;
 	struct hw_cmd *hw_cmd_buf;
+	int dir;
 
 	hw_cmd_buf = ctrl->cmd.buf;
 
@@ -428,6 +429,28 @@ static void rsxx_issue_dmas(struct rsxx_dma_ctrl *ctrl)
 		 * cancelled.
 		 */
 		if (unlikely(ctrl->card->dma_fault)) {
+			push_tracker(ctrl->trackers, tag);
+			rsxx_complete_dma(ctrl, dma, DMA_CANCELLED);
+			continue;
+		}
+
+		if (dma->cmd == HW_CMD_BLK_WRITE)
+			dir = PCI_DMA_TODEVICE;
+		else
+			dir = PCI_DMA_FROMDEVICE;
+
+		/*
+		 * The function pci_map_page is placed here because we can
+		 * only, by design, issue up to 255 commands to the hardware
+		 * at one time per DMA channel. So the maximum amount of mapped
+		 * memory would be 255 * 4 channels * 4096 Bytes which is less
+		 * than 2GB, the limit of a x8 Non-HWWD PCIe slot. This way the
+		 * pci_map_page function should never fail because of a
+		 * lack of mappable memory.
+		 */
+		dma->dma_addr = pci_map_page(ctrl->card->dev, dma->page,
+				     dma->pg_off, dma->sub_page.cnt << 9, dir);
+		if (pci_dma_mapping_error(ctrl->card->dev, dma->dma_addr)) {
 			push_tracker(ctrl->trackers, tag);
 			rsxx_complete_dma(ctrl, dma, DMA_CANCELLED);
 			continue;
@@ -628,14 +651,6 @@ static int rsxx_queue_dma(struct rsxx_cardinfo *card,
 	dma = kmem_cache_alloc(rsxx_dma_pool, GFP_KERNEL);
 	if (!dma)
 		return -ENOMEM;
-
-	dma->dma_addr = pci_map_page(card->dev, page, pg_off, dma_len,
-				     dir ? PCI_DMA_TODEVICE :
-				     PCI_DMA_FROMDEVICE);
-	if (pci_dma_mapping_error(card->dev, dma->dma_addr)) {
-		kmem_cache_free(rsxx_dma_pool, dma);
-		return -ENOMEM;
-	}
 
 	dma->cmd          = dir ? HW_CMD_BLK_WRITE : HW_CMD_BLK_READ;
 	dma->laddr        = laddr;
@@ -1039,6 +1054,11 @@ int rsxx_eeh_save_issued_dmas(struct rsxx_cardinfo *card)
 			else
 				card->ctrl[i].stats.reads_issued--;
 
+			pci_unmap_page(card->dev, dma->dma_addr,
+				       get_dma_size(dma),
+				       dma->cmd == HW_CMD_BLK_WRITE ?
+				       PCI_DMA_TODEVICE :
+				       PCI_DMA_FROMDEVICE);
 			list_add_tail(&dma->list, &issued_dmas[i]);
 			push_tracker(card->ctrl[i].trackers, j);
 			cnt++;
@@ -1050,44 +1070,10 @@ int rsxx_eeh_save_issued_dmas(struct rsxx_cardinfo *card)
 		atomic_sub(cnt, &card->ctrl[i].stats.hw_q_depth);
 		card->ctrl[i].stats.sw_q_depth += cnt;
 		card->ctrl[i].e_cnt = 0;
-
-		list_for_each_entry(dma, &card->ctrl[i].queue, list) {
-			if (!pci_dma_mapping_error(card->dev, dma->dma_addr))
-				pci_unmap_page(card->dev, dma->dma_addr,
-					       get_dma_size(dma),
-					       dma->cmd == HW_CMD_BLK_WRITE ?
-					       PCI_DMA_TODEVICE :
-					       PCI_DMA_FROMDEVICE);
-		}
 		spin_unlock_bh(&card->ctrl[i].queue_lock);
 	}
 
 	kfree(issued_dmas);
-
-	return 0;
-}
-
-int rsxx_eeh_remap_dmas(struct rsxx_cardinfo *card)
-{
-	struct rsxx_dma *dma;
-	int i;
-
-	for (i = 0; i < card->n_targets; i++) {
-		spin_lock_bh(&card->ctrl[i].queue_lock);
-		list_for_each_entry(dma, &card->ctrl[i].queue, list) {
-			dma->dma_addr = pci_map_page(card->dev, dma->page,
-					dma->pg_off, get_dma_size(dma),
-					dma->cmd == HW_CMD_BLK_WRITE ?
-					PCI_DMA_TODEVICE :
-					PCI_DMA_FROMDEVICE);
-			if (pci_dma_mapping_error(card->dev, dma->dma_addr)) {
-				spin_unlock_bh(&card->ctrl[i].queue_lock);
-				kmem_cache_free(rsxx_dma_pool, dma);
-				return -ENOMEM;
-			}
-		}
-		spin_unlock_bh(&card->ctrl[i].queue_lock);
-	}
 
 	return 0;
 }
