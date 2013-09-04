@@ -83,7 +83,7 @@ struct signal_stat {
 	u32	total_num;		/* num of valid elements */
 	u32	total_val;		/* sum of valid elements */
 };
-#define MAX_PATH_NUM_92CS		2
+#define MAX_PATH_NUM_92CS		3
 struct phy_info {
 	u8	RxPWDBAll;
 	u8	SignalQuality;	 /*  in 0-100 index. */

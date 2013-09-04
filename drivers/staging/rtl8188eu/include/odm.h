@@ -283,8 +283,6 @@ struct odm_rate_adapt {
 
 /*  Declare for common info */
 
-#define MAX_PATH_NUM_92CS	2
-
 struct odm_phy_status_info {
 	u8	RxPWDBAll;
 	u8	SignalQuality;	 /*  in 0-100 index. */
