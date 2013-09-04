@@ -491,6 +491,7 @@ int ath9k_hw_process_rxdesc_edma(struct ath_hw *ah, struct ath_rx_status *rxs,
 	rxs->rs_rate = MS(rxsp->status1, AR_RxRate);
 	rxs->rs_more = (rxsp->status2 & AR_RxMore) ? 1 : 0;
 
+	rxs->rs_firstaggr = (rxsp->status11 & AR_RxFirstAggr) ? 1 : 0;
 	rxs->rs_isaggr = (rxsp->status11 & AR_RxAggr) ? 1 : 0;
 	rxs->rs_moreaggr = (rxsp->status11 & AR_RxMoreAggr) ? 1 : 0;
 	rxs->rs_antenna = (MS(rxsp->status4, AR_RxAntenna) & 0x7);

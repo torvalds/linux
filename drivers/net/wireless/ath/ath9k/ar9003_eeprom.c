@@ -3615,8 +3615,8 @@ static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 
 	value = ar9003_hw_ant_ctrl_common_2_get(ah, is2ghz);
 	if (AR_SREV_9485(ah) && common->bt_ant_diversity) {
-		regval &= ~AR_SWITCH_TABLE_COM2_ALL;
-		regval |= ah->config.ant_ctrl_comm2g_switch_enable;
+		value &= ~AR_SWITCH_TABLE_COM2_ALL;
+		value |= ah->config.ant_ctrl_comm2g_switch_enable;
 
 	}
 	REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM_2, AR_SWITCH_TABLE_COM2_ALL, value);
@@ -3824,6 +3824,11 @@ static void ar9003_hw_atten_apply(struct ath_hw *ah, struct ath9k_channel *chan)
 				value = 5;
 			else
 				value = ar9003_hw_atten_chain_get_margin(ah, i, chan);
+
+			if (ah->config.alt_mingainidx)
+				REG_RMW_FIELD(ah, AR_PHY_EXT_ATTEN_CTL_0,
+					      AR_PHY_EXT_ATTEN_CTL_XATTEN1_MARGIN,
+					      value);
 
 			REG_RMW_FIELD(ah, ext_atten_reg[i],
 				      AR_PHY_EXT_ATTEN_CTL_XATTEN1_MARGIN,

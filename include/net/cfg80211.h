@@ -2081,7 +2081,7 @@ struct cfg80211_update_ft_ies_params {
  * @mgmt_tx_cancel_wait: Cancel the wait time from transmitting a management
  *	frame on another channel
  *
- * @testmode_cmd: run a test mode command
+ * @testmode_cmd: run a test mode command; @wdev may be %NULL
  * @testmode_dump: Implement a test mode dump. The cb->args[2] and up may be
  *	used by the function, but 0 and 1 must not be touched. Additionally,
  *	return error codes other than -ENOBUFS and -ENOENT will terminate the
@@ -2290,7 +2290,8 @@ struct cfg80211_ops {
 	void	(*rfkill_poll)(struct wiphy *wiphy);
 
 #ifdef CONFIG_NL80211_TESTMODE
-	int	(*testmode_cmd)(struct wiphy *wiphy, void *data, int len);
+	int	(*testmode_cmd)(struct wiphy *wiphy, struct wireless_dev *wdev,
+				void *data, int len);
 	int	(*testmode_dump)(struct wiphy *wiphy, struct sk_buff *skb,
 				 struct netlink_callback *cb,
 				 void *data, int len);
@@ -4055,6 +4056,7 @@ void cfg80211_conn_failed(struct net_device *dev, const u8 *mac_addr,
  * @sig_dbm: signal strength in mBm, or 0 if unknown
  * @buf: Management frame (header + body)
  * @len: length of the frame data
+ * @flags: flags, as defined in enum nl80211_rxmgmt_flags
  * @gfp: context flags
  *
  * This function is called whenever an Action frame is received for a station
@@ -4066,7 +4068,7 @@ void cfg80211_conn_failed(struct net_device *dev, const u8 *mac_addr,
  * driver is responsible for rejecting the frame.
  */
 bool cfg80211_rx_mgmt(struct wireless_dev *wdev, int freq, int sig_dbm,
-		      const u8 *buf, size_t len, gfp_t gfp);
+		      const u8 *buf, size_t len, u32 flags, gfp_t gfp);
 
 /**
  * cfg80211_mgmt_tx_status - notification of TX status for management frame

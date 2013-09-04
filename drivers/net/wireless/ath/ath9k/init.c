@@ -146,14 +146,22 @@ static struct ieee80211_rate ath9k_legacy_rates[] = {
 	RATE(20, 0x1a, IEEE80211_RATE_SHORT_PREAMBLE),
 	RATE(55, 0x19, IEEE80211_RATE_SHORT_PREAMBLE),
 	RATE(110, 0x18, IEEE80211_RATE_SHORT_PREAMBLE),
-	RATE(60, 0x0b, 0),
-	RATE(90, 0x0f, 0),
-	RATE(120, 0x0a, 0),
-	RATE(180, 0x0e, 0),
-	RATE(240, 0x09, 0),
-	RATE(360, 0x0d, 0),
-	RATE(480, 0x08, 0),
-	RATE(540, 0x0c, 0),
+	RATE(60, 0x0b, (IEEE80211_RATE_SUPPORTS_5MHZ |
+			IEEE80211_RATE_SUPPORTS_10MHZ)),
+	RATE(90, 0x0f, (IEEE80211_RATE_SUPPORTS_5MHZ |
+			IEEE80211_RATE_SUPPORTS_10MHZ)),
+	RATE(120, 0x0a, (IEEE80211_RATE_SUPPORTS_5MHZ |
+			 IEEE80211_RATE_SUPPORTS_10MHZ)),
+	RATE(180, 0x0e, (IEEE80211_RATE_SUPPORTS_5MHZ |
+			 IEEE80211_RATE_SUPPORTS_10MHZ)),
+	RATE(240, 0x09, (IEEE80211_RATE_SUPPORTS_5MHZ |
+			 IEEE80211_RATE_SUPPORTS_10MHZ)),
+	RATE(360, 0x0d, (IEEE80211_RATE_SUPPORTS_5MHZ |
+			 IEEE80211_RATE_SUPPORTS_10MHZ)),
+	RATE(480, 0x08, (IEEE80211_RATE_SUPPORTS_5MHZ |
+			 IEEE80211_RATE_SUPPORTS_10MHZ)),
+	RATE(540, 0x0c, (IEEE80211_RATE_SUPPORTS_5MHZ |
+			 IEEE80211_RATE_SUPPORTS_10MHZ)),
 };
 
 #ifdef CONFIG_MAC80211_LEDS
@@ -526,6 +534,7 @@ static void ath9k_init_platform(struct ath_softc *sc)
 			       ATH9K_PCI_CUS230)) {
 		ah->config.xlna_gpio = 9;
 		ah->config.xatten_margin_cfg = true;
+		ah->config.alt_mingainidx = true;
 		ah->config.ant_ctrl_comm2g_switch_enable = 0x000BBB88;
 		sc->ant_comb.low_rssi_thresh = 20;
 		sc->ant_comb.fast_div_bias = 3;
@@ -541,6 +550,11 @@ static void ath9k_init_platform(struct ath_softc *sc)
 	if (sc->driver_data & ATH9K_PCI_BT_ANT_DIV) {
 		pCap->hw_caps |= ATH9K_HW_CAP_BT_ANT_DIV;
 		ath_info(common, "Set BT/WLAN RX diversity capability\n");
+	}
+
+	if (sc->driver_data & ATH9K_PCI_D3_L1_WAR) {
+		ah->config.pcie_waen = 0x0040473b;
+		ath_info(common, "Enable WAR for ASPM D3/L1\n");
 	}
 }
 
@@ -726,13 +740,15 @@ static void ath9k_init_band_txpower(struct ath_softc *sc, int band)
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *chan;
 	struct ath_hw *ah = sc->sc_ah;
+	struct cfg80211_chan_def chandef;
 	int i;
 
 	sband = &sc->sbands[band];
 	for (i = 0; i < sband->n_channels; i++) {
 		chan = &sband->channels[i];
 		ah->curchan = &ah->channels[chan->hw_value];
-		ath9k_cmn_update_ichannel(ah->curchan, chan, NL80211_CHAN_HT20);
+		cfg80211_chandef_create(&chandef, chan, NL80211_CHAN_HT20);
+		ath9k_cmn_update_ichannel(ah->curchan, &chandef);
 		ath9k_hw_set_txpowerlimit(ah, MAX_RATE_POWER, true);
 	}
 }
@@ -818,7 +834,8 @@ void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 		IEEE80211_HW_PS_NULLFUNC_STACK |
 		IEEE80211_HW_SPECTRUM_MGMT |
 		IEEE80211_HW_REPORTS_TX_ACK_STATUS |
-		IEEE80211_HW_SUPPORTS_RC_TABLE;
+		IEEE80211_HW_SUPPORTS_RC_TABLE |
+		IEEE80211_HW_SUPPORTS_HT_CCK_RATES;
 
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT) {
 		hw->flags |= IEEE80211_HW_AMPDU_AGGREGATION;
@@ -850,6 +867,8 @@ void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
 	hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS;
 	hw->wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
+	hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_5_10_MHZ;
+	hw->wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
 
 #ifdef CONFIG_PM_SLEEP
 	if ((ah->caps.hw_caps & ATH9K_HW_WOW_DEVICE_CAPABLE) &&

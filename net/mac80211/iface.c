@@ -308,12 +308,13 @@ static int ieee80211_check_concurrent_iface(struct ieee80211_sub_if_data *sdata,
 	return 0;
 }
 
-static int ieee80211_check_queues(struct ieee80211_sub_if_data *sdata)
+static int ieee80211_check_queues(struct ieee80211_sub_if_data *sdata,
+				  enum nl80211_iftype iftype)
 {
 	int n_queues = sdata->local->hw.queues;
 	int i;
 
-	if (sdata->vif.type != NL80211_IFTYPE_P2P_DEVICE) {
+	if (iftype != NL80211_IFTYPE_P2P_DEVICE) {
 		for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 			if (WARN_ON_ONCE(sdata->vif.hw_queue[i] ==
 					 IEEE80211_INVAL_HW_QUEUE))
@@ -324,8 +325,9 @@ static int ieee80211_check_queues(struct ieee80211_sub_if_data *sdata)
 		}
 	}
 
-	if ((sdata->vif.type != NL80211_IFTYPE_AP &&
-	     sdata->vif.type != NL80211_IFTYPE_MESH_POINT) ||
+	if ((iftype != NL80211_IFTYPE_AP &&
+	     iftype != NL80211_IFTYPE_P2P_GO &&
+	     iftype != NL80211_IFTYPE_MESH_POINT) ||
 	    !(sdata->local->hw.flags & IEEE80211_HW_QUEUE_CONTROL)) {
 		sdata->vif.cab_queue = IEEE80211_INVAL_HW_QUEUE;
 		return 0;
@@ -408,7 +410,7 @@ int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 		return ret;
 	}
 
-	ret = ieee80211_check_queues(sdata);
+	ret = ieee80211_check_queues(sdata, NL80211_IFTYPE_MONITOR);
 	if (ret) {
 		kfree(sdata);
 		return ret;
@@ -592,7 +594,8 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 			res = drv_add_interface(local, sdata);
 			if (res)
 				goto err_stop;
-			res = ieee80211_check_queues(sdata);
+			res = ieee80211_check_queues(sdata,
+				ieee80211_vif_type_p2p(&sdata->vif));
 			if (res)
 				goto err_del_interface;
 		}
@@ -1389,14 +1392,14 @@ static int ieee80211_runtime_change_iftype(struct ieee80211_sub_if_data *sdata,
 
 	ret = drv_change_interface(local, sdata, internal_type, p2p);
 	if (ret)
-		type = sdata->vif.type;
+		type = ieee80211_vif_type_p2p(&sdata->vif);
 
 	/*
 	 * Ignore return value here, there's not much we can do since
 	 * the driver changed the interface type internally already.
 	 * The warnings will hopefully make driver authors fix it :-)
 	 */
-	ieee80211_check_queues(sdata);
+	ieee80211_check_queues(sdata, type);
 
 	ieee80211_setup_sdata(sdata, type);
 

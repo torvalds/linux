@@ -153,6 +153,11 @@ enum iwl_power_scheme {
 };
 
 #define IWL_CONN_MAX_LISTEN_INTERVAL	70
+#define IWL_UAPSD_AC_INFO		(IEEE80211_WMM_IE_STA_QOSINFO_AC_VO |\
+					 IEEE80211_WMM_IE_STA_QOSINFO_AC_VI |\
+					 IEEE80211_WMM_IE_STA_QOSINFO_AC_BK |\
+					 IEEE80211_WMM_IE_STA_QOSINFO_AC_BE)
+#define IWL_UAPSD_MAX_SP		IEEE80211_WMM_IE_STA_QOSINFO_SP_2
 
 struct iwl_mvm_power_ops {
 	int (*power_update_mode)(struct iwl_mvm *mvm,
@@ -175,6 +180,7 @@ enum iwl_dbgfs_pm_mask {
 	MVM_DEBUGFS_PM_DISABLE_POWER_OFF = BIT(5),
 	MVM_DEBUGFS_PM_LPRX_ENA = BIT(6),
 	MVM_DEBUGFS_PM_LPRX_RSSI_THRESHOLD = BIT(7),
+	MVM_DEBUGFS_PM_SNOOZE_ENABLE = BIT(8),
 };
 
 struct iwl_dbgfs_pm {
@@ -186,6 +192,7 @@ struct iwl_dbgfs_pm {
 	bool disable_power_off;
 	bool lprx_ena;
 	u32 lprx_rssi_threshold;
+	bool snooze_ena;
 	int mask;
 };
 
@@ -228,6 +235,21 @@ enum iwl_mvm_smps_type_request {
 };
 
 /**
+* struct iwl_mvm_vif_bf_data - beacon filtering related data
+* @bf_enabled: indicates if beacon filtering is enabled
+* @ba_enabled: indicated if beacon abort is enabled
+* @last_beacon_signal: last beacon rssi signal in dbm
+* @ave_beacon_signal: average beacon signal
+* @last_cqm_event: rssi of the last cqm event
+*/
+struct iwl_mvm_vif_bf_data {
+	bool bf_enabled;
+	bool ba_enabled;
+	s8 ave_beacon_signal;
+	s8 last_cqm_event;
+};
+
+/**
  * struct iwl_mvm_vif - data per Virtual Interface, it is a MAC context
  * @id: between 0 and 3
  * @color: to solve races upon MAC addition and removal
@@ -252,8 +274,7 @@ struct iwl_mvm_vif {
 	bool uploaded;
 	bool ap_active;
 	bool monitor_active;
-	/* indicate whether beacon filtering is enabled */
-	bool bf_enabled;
+	struct iwl_mvm_vif_bf_data bf_data;
 
 	u32 ap_beacon_time;
 
@@ -754,6 +775,8 @@ int iwl_mvm_beacon_filter_send_cmd(struct iwl_mvm *mvm,
 				   struct iwl_beacon_filter_cmd *cmd);
 int iwl_mvm_update_beacon_abort(struct iwl_mvm *mvm,
 				struct ieee80211_vif *vif, bool enable);
+int iwl_mvm_update_beacon_filter(struct iwl_mvm *mvm,
+				  struct ieee80211_vif *vif);
 
 /* SMPS */
 void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,

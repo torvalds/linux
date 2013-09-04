@@ -32,7 +32,7 @@
 #include "ce.h"
 #include "pci.h"
 
-unsigned int ath10k_target_ps;
+static unsigned int ath10k_target_ps;
 module_param(ath10k_target_ps, uint, 0644);
 MODULE_PARM_DESC(ath10k_target_ps, "Enable ath10k Target (SoC) PS option");
 
@@ -56,6 +56,8 @@ static void ath10k_pci_rx_pipe_cleanup(struct hif_ce_pipe_info *pipe_info);
 static void ath10k_pci_stop_ce(struct ath10k *ar);
 static void ath10k_pci_device_reset(struct ath10k *ar);
 static int ath10k_pci_reset_target(struct ath10k *ar);
+static int ath10k_pci_start_intr(struct ath10k *ar);
+static void ath10k_pci_stop_intr(struct ath10k *ar);
 
 static const struct ce_attr host_ce_config_wlan[] = {
 	/* host->target HTC control and raw streams */
@@ -1254,9 +1256,24 @@ static void ath10k_pci_ce_deinit(struct ath10k *ar)
 	}
 }
 
+static void ath10k_pci_disable_irqs(struct ath10k *ar)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	int i;
+
+	for (i = 0; i < max(1, ar_pci->num_msi_intrs); i++)
+		disable_irq(ar_pci->pdev->irq + i);
+}
+
 static void ath10k_pci_hif_stop(struct ath10k *ar)
 {
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+
 	ath10k_dbg(ATH10K_DBG_PCI, "%s\n", __func__);
+
+	/* Irqs are never explicitly re-enabled. They are implicitly re-enabled
+	 * by ath10k_pci_start_intr(). */
+	ath10k_pci_disable_irqs(ar);
 
 	ath10k_pci_stop_ce(ar);
 
@@ -1267,6 +1284,8 @@ static void ath10k_pci_hif_stop(struct ath10k *ar)
 	ath10k_pci_process_ce(ar);
 	ath10k_pci_cleanup_ce(ar);
 	ath10k_pci_buffer_cleanup(ar);
+
+	ar_pci->started = 0;
 }
 
 static int ath10k_pci_hif_exchange_bmi_msg(struct ath10k *ar,
@@ -1740,7 +1759,14 @@ static void ath10k_pci_fw_interrupt_handler(struct ath10k *ar)
 
 static int ath10k_pci_hif_power_up(struct ath10k *ar)
 {
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	int ret;
+
+	ret = ath10k_pci_start_intr(ar);
+	if (ret) {
+		ath10k_err("could not start interrupt handling (%d)\n", ret);
+		goto err;
+	}
 
 	/*
 	 * Bring the target up cleanly.
@@ -1756,15 +1782,11 @@ static int ath10k_pci_hif_power_up(struct ath10k *ar)
 
 	ret = ath10k_pci_reset_target(ar);
 	if (ret)
-		goto err;
+		goto err_irq;
 
-	if (ath10k_target_ps) {
-		ath10k_dbg(ATH10K_DBG_PCI, "on-chip power save enabled\n");
-	} else {
+	if (!test_bit(ATH10K_PCI_FEATURE_SOC_POWER_SAVE, ar_pci->features))
 		/* Force AWAKE forever */
-		ath10k_dbg(ATH10K_DBG_PCI, "on-chip power save disabled\n");
 		ath10k_do_pci_wake(ar);
-	}
 
 	ret = ath10k_pci_ce_init(ar);
 	if (ret)
@@ -1785,16 +1807,22 @@ static int ath10k_pci_hif_power_up(struct ath10k *ar)
 err_ce:
 	ath10k_pci_ce_deinit(ar);
 err_ps:
-	if (!ath10k_target_ps)
+	if (!test_bit(ATH10K_PCI_FEATURE_SOC_POWER_SAVE, ar_pci->features))
 		ath10k_do_pci_sleep(ar);
+err_irq:
+	ath10k_pci_stop_intr(ar);
 err:
 	return ret;
 }
 
 static void ath10k_pci_hif_power_down(struct ath10k *ar)
 {
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+
+	ath10k_pci_stop_intr(ar);
+
 	ath10k_pci_ce_deinit(ar);
-	if (!ath10k_target_ps)
+	if (!test_bit(ATH10K_PCI_FEATURE_SOC_POWER_SAVE, ar_pci->features))
 		ath10k_do_pci_sleep(ar);
 }
 
@@ -1990,8 +2018,13 @@ static int ath10k_pci_start_intr_msix(struct ath10k *ar, int num)
 	ret = request_irq(ar_pci->pdev->irq + MSI_ASSIGN_FW,
 			  ath10k_pci_msi_fw_handler,
 			  IRQF_SHARED, "ath10k_pci", ar);
-	if (ret)
+	if (ret) {
+		ath10k_warn("request_irq(%d) failed %d\n",
+			    ar_pci->pdev->irq + MSI_ASSIGN_FW, ret);
+
+		pci_disable_msi(ar_pci->pdev);
 		return ret;
+	}
 
 	for (i = MSI_ASSIGN_CE_INITIAL; i <= MSI_ASSIGN_CE_MAX; i++) {
 		ret = request_irq(ar_pci->pdev->irq + i,
@@ -2239,6 +2272,9 @@ static void ath10k_pci_dump_features(struct ath10k_pci *ar_pci)
 		case ATH10K_PCI_FEATURE_HW_1_0_WORKAROUND:
 			ath10k_dbg(ATH10K_DBG_PCI, "QCA988X_1.0 workaround enabled\n");
 			break;
+		case ATH10K_PCI_FEATURE_SOC_POWER_SAVE:
+			ath10k_dbg(ATH10K_DBG_PCI, "QCA98XX SoC power save enabled\n");
+			break;
 		}
 	}
 }
@@ -2273,6 +2309,9 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 		ath10k_err("Unkown device ID: %d\n", pci_dev->device);
 		goto err_ar_pci;
 	}
+
+	if (ath10k_target_ps)
+		set_bit(ATH10K_PCI_FEATURE_SOC_POWER_SAVE, ar_pci->features);
 
 	ath10k_pci_dump_features(ar_pci);
 
@@ -2358,22 +2397,14 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 
 	ar_pci->cacheline_sz = dma_get_cache_alignment();
 
-	ret = ath10k_pci_start_intr(ar);
-	if (ret) {
-		ath10k_err("could not start interrupt handling (%d)\n", ret);
-		goto err_iomap;
-	}
-
 	ret = ath10k_core_register(ar);
 	if (ret) {
 		ath10k_err("could not register driver core (%d)\n", ret);
-		goto err_intr;
+		goto err_iomap;
 	}
 
 	return 0;
 
-err_intr:
-	ath10k_pci_stop_intr(ar);
 err_iomap:
 	pci_iounmap(pdev, mem);
 err_master:
@@ -2410,7 +2441,6 @@ static void ath10k_pci_remove(struct pci_dev *pdev)
 	tasklet_kill(&ar_pci->msi_fw_err);
 
 	ath10k_core_unregister(ar);
-	ath10k_pci_stop_intr(ar);
 
 	pci_set_drvdata(pdev, NULL);
 	pci_iounmap(pdev, ar_pci->mem);

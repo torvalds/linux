@@ -42,8 +42,6 @@ static void ath_rx_buf_link(struct ath_softc *sc, struct ath_buf *bf)
 	struct ath_desc *ds;
 	struct sk_buff *skb;
 
-	ATH_RXBUF_RESET(bf);
-
 	ds = bf->bf_desc;
 	ds->ds_link = 0; /* link to null */
 	ds->ds_data = bf->bf_buf_addr;
@@ -68,6 +66,14 @@ static void ath_rx_buf_link(struct ath_softc *sc, struct ath_buf *bf)
 		*sc->rx.rxlink = bf->bf_daddr;
 
 	sc->rx.rxlink = &ds->ds_link;
+}
+
+static void ath_rx_buf_relink(struct ath_softc *sc, struct ath_buf *bf)
+{
+	if (sc->rx.buf_hold)
+		ath_rx_buf_link(sc, sc->rx.buf_hold);
+
+	sc->rx.buf_hold = bf;
 }
 
 static void ath_setdefantenna(struct ath_softc *sc, u32 antenna)
@@ -117,7 +123,6 @@ static bool ath_rx_edma_buf_link(struct ath_softc *sc,
 
 	skb = bf->bf_mpdu;
 
-	ATH_RXBUF_RESET(bf);
 	memset(skb->data, 0, ah->caps.rx_status_len);
 	dma_sync_single_for_device(sc->dev, bf->bf_buf_addr,
 				ah->caps.rx_status_len, DMA_TO_DEVICE);
@@ -185,7 +190,7 @@ static void ath_rx_edma_cleanup(struct ath_softc *sc)
 
 static void ath_rx_edma_init_queue(struct ath_rx_edma *rx_edma, int size)
 {
-	skb_queue_head_init(&rx_edma->rx_fifo);
+	__skb_queue_head_init(&rx_edma->rx_fifo);
 	rx_edma->rx_fifo_hwsize = size;
 }
 
@@ -432,6 +437,7 @@ int ath_startrecv(struct ath_softc *sc)
 	if (list_empty(&sc->rx.rxbuf))
 		goto start_recv;
 
+	sc->rx.buf_hold = NULL;
 	sc->rx.rxlink = NULL;
 	list_for_each_entry_safe(bf, tbf, &sc->rx.rxbuf, list) {
 		ath_rx_buf_link(sc, bf);
@@ -677,6 +683,9 @@ static struct ath_buf *ath_get_next_rx_buf(struct ath_softc *sc,
 	}
 
 	bf = list_first_entry(&sc->rx.rxbuf, struct ath_buf, list);
+	if (bf == sc->rx.buf_hold)
+		return NULL;
+
 	ds = bf->bf_desc;
 
 	/*
@@ -755,7 +764,6 @@ static bool ath9k_rx_accept(struct ath_common *common,
 	bool is_mc, is_valid_tkip, strip_mic, mic_error;
 	struct ath_hw *ah = common->ah;
 	__le16 fc;
-	u8 rx_status_len = ah->caps.rx_status_len;
 
 	fc = hdr->frame_control;
 
@@ -777,25 +785,6 @@ static bool ath9k_rx_accept(struct ath_common *common,
 	    !test_bit(rx_stats->rs_keyix, common->ccmp_keymap))
 		rx_stats->rs_status &= ~ATH9K_RXERR_KEYMISS;
 
-	if (!rx_stats->rs_datalen) {
-		RX_STAT_INC(rx_len_err);
-		return false;
-	}
-
-        /*
-         * rs_status follows rs_datalen so if rs_datalen is too large
-         * we can take a hint that hardware corrupted it, so ignore
-         * those frames.
-         */
-	if (rx_stats->rs_datalen > (common->rx_bufsize - rx_status_len)) {
-		RX_STAT_INC(rx_len_err);
-		return false;
-	}
-
-	/* Only use error bits from the last fragment */
-	if (rx_stats->rs_more)
-		return true;
-
 	mic_error = is_valid_tkip && !ieee80211_is_ctl(fc) &&
 		!ieee80211_has_morefrags(fc) &&
 		!(le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_FRAG) &&
@@ -814,8 +803,6 @@ static bool ath9k_rx_accept(struct ath_common *common,
 			rxs->flag |= RX_FLAG_FAILED_FCS_CRC;
 			mic_error = false;
 		}
-		if (rx_stats->rs_status & ATH9K_RXERR_PHY)
-			return false;
 
 		if ((rx_stats->rs_status & ATH9K_RXERR_DECRYPT) ||
 		    (!is_mc && (rx_stats->rs_status & ATH9K_RXERR_KEYMISS))) {
@@ -865,6 +852,17 @@ static int ath9k_process_rate(struct ath_common *common,
 	band = hw->conf.chandef.chan->band;
 	sband = hw->wiphy->bands[band];
 
+	switch (hw->conf.chandef.width) {
+	case NL80211_CHAN_WIDTH_5:
+		rxs->flag |= RX_FLAG_5MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_10:
+		rxs->flag |= RX_FLAG_10MHZ;
+		break;
+	default:
+		break;
+	}
+
 	if (rx_stats->rs_rate & 0x80) {
 		/* HT rate */
 		rxs->flag |= RX_FLAG_HT;
@@ -898,129 +896,65 @@ static int ath9k_process_rate(struct ath_common *common,
 
 static void ath9k_process_rssi(struct ath_common *common,
 			       struct ieee80211_hw *hw,
-			       struct ieee80211_hdr *hdr,
-			       struct ath_rx_status *rx_stats)
+			       struct ath_rx_status *rx_stats,
+			       struct ieee80211_rx_status *rxs)
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = common->ah;
 	int last_rssi;
 	int rssi = rx_stats->rs_rssi;
 
-	if (!rx_stats->is_mybeacon ||
-	    ((ah->opmode != NL80211_IFTYPE_STATION) &&
-	     (ah->opmode != NL80211_IFTYPE_ADHOC)))
+	/*
+	 * RSSI is not available for subframes in an A-MPDU.
+	 */
+	if (rx_stats->rs_moreaggr) {
+		rxs->flag |= RX_FLAG_NO_SIGNAL_VAL;
 		return;
-
-	if (rx_stats->rs_rssi != ATH9K_RSSI_BAD && !rx_stats->rs_moreaggr)
-		ATH_RSSI_LPF(sc->last_rssi, rx_stats->rs_rssi);
-
-	last_rssi = sc->last_rssi;
-	if (likely(last_rssi != ATH_RSSI_DUMMY_MARKER))
-		rssi = ATH_EP_RND(last_rssi, ATH_RSSI_EP_MULTIPLIER);
-	if (rssi < 0)
-		rssi = 0;
-
-	/* Update Beacon RSSI, this is used by ANI. */
-	ah->stats.avgbrssi = rssi;
-}
-
-/*
- * For Decrypt or Demic errors, we only mark packet status here and always push
- * up the frame up to let mac80211 handle the actual error case, be it no
- * decryption key or real decryption error. This let us keep statistics there.
- */
-static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
-				   struct ieee80211_hdr *hdr,
-				   struct ath_rx_status *rx_stats,
-				   struct ieee80211_rx_status *rx_status,
-				   bool *decrypt_error)
-{
-	struct ieee80211_hw *hw = sc->hw;
-	struct ath_hw *ah = sc->sc_ah;
-	struct ath_common *common = ath9k_hw_common(ah);
-	bool discard_current = sc->rx.discard_next;
-
-	sc->rx.discard_next = rx_stats->rs_more;
-	if (discard_current)
-		return -EINVAL;
+	}
 
 	/*
-	 * everything but the rate is checked here, the rate check is done
-	 * separately to avoid doing two lookups for a rate for each frame.
+	 * Check if the RSSI for the last subframe in an A-MPDU
+	 * or an unaggregated frame is valid.
 	 */
-	if (!ath9k_rx_accept(common, hdr, rx_status, rx_stats, decrypt_error))
-		return -EINVAL;
+	if (rx_stats->rs_rssi == ATH9K_RSSI_BAD) {
+		rxs->flag |= RX_FLAG_NO_SIGNAL_VAL;
+		return;
+	}
 
-	/* Only use status info from the last fragment */
-	if (rx_stats->rs_more)
-		return 0;
+	/*
+	 * Update Beacon RSSI, this is used by ANI.
+	 */
+	if (rx_stats->is_mybeacon &&
+	    ((ah->opmode == NL80211_IFTYPE_STATION) ||
+	     (ah->opmode == NL80211_IFTYPE_ADHOC))) {
+		ATH_RSSI_LPF(sc->last_rssi, rx_stats->rs_rssi);
+		last_rssi = sc->last_rssi;
 
-	if (ath9k_process_rate(common, hw, rx_stats, rx_status))
-		return -EINVAL;
+		if (likely(last_rssi != ATH_RSSI_DUMMY_MARKER))
+			rssi = ATH_EP_RND(last_rssi, ATH_RSSI_EP_MULTIPLIER);
+		if (rssi < 0)
+			rssi = 0;
 
-	ath9k_process_rssi(common, hw, hdr, rx_stats);
+		ah->stats.avgbrssi = rssi;
+	}
 
-	rx_status->band = hw->conf.chandef.chan->band;
-	rx_status->freq = hw->conf.chandef.chan->center_freq;
-	rx_status->signal = ah->noise + rx_stats->rs_rssi;
-	rx_status->antenna = rx_stats->rs_antenna;
-	rx_status->flag |= RX_FLAG_MACTIME_END;
-	if (rx_stats->rs_moreaggr)
-		rx_status->flag |= RX_FLAG_NO_SIGNAL_VAL;
-
-	sc->rx.discard_next = false;
-	return 0;
+	rxs->signal = ah->noise + rx_stats->rs_rssi;
 }
 
-static void ath9k_rx_skb_postprocess(struct ath_common *common,
-				     struct sk_buff *skb,
-				     struct ath_rx_status *rx_stats,
-				     struct ieee80211_rx_status *rxs,
-				     bool decrypt_error)
+static void ath9k_process_tsf(struct ath_rx_status *rs,
+			      struct ieee80211_rx_status *rxs,
+			      u64 tsf)
 {
-	struct ath_hw *ah = common->ah;
-	struct ieee80211_hdr *hdr;
-	int hdrlen, padpos, padsize;
-	u8 keyix;
-	__le16 fc;
+	u32 tsf_lower = tsf & 0xffffffff;
 
-	/* see if any padding is done by the hw and remove it */
-	hdr = (struct ieee80211_hdr *) skb->data;
-	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
-	fc = hdr->frame_control;
-	padpos = ieee80211_hdrlen(fc);
+	rxs->mactime = (tsf & ~0xffffffffULL) | rs->rs_tstamp;
+	if (rs->rs_tstamp > tsf_lower &&
+	    unlikely(rs->rs_tstamp - tsf_lower > 0x10000000))
+		rxs->mactime -= 0x100000000ULL;
 
-	/* The MAC header is padded to have 32-bit boundary if the
-	 * packet payload is non-zero. The general calculation for
-	 * padsize would take into account odd header lengths:
-	 * padsize = (4 - padpos % 4) % 4; However, since only
-	 * even-length headers are used, padding can only be 0 or 2
-	 * bytes and we can optimize this a bit. In addition, we must
-	 * not try to remove padding from short control frames that do
-	 * not have payload. */
-	padsize = padpos & 3;
-	if (padsize && skb->len>=padpos+padsize+FCS_LEN) {
-		memmove(skb->data + padsize, skb->data, padpos);
-		skb_pull(skb, padsize);
-	}
-
-	keyix = rx_stats->rs_keyix;
-
-	if (!(keyix == ATH9K_RXKEYIX_INVALID) && !decrypt_error &&
-	    ieee80211_has_protected(fc)) {
-		rxs->flag |= RX_FLAG_DECRYPTED;
-	} else if (ieee80211_has_protected(fc)
-		   && !decrypt_error && skb->len >= hdrlen + 4) {
-		keyix = skb->data[hdrlen + 3] >> 6;
-
-		if (test_bit(keyix, common->keymap))
-			rxs->flag |= RX_FLAG_DECRYPTED;
-	}
-	if (ah->sw_mgmt_crypto &&
-	    (rxs->flag & RX_FLAG_DECRYPTED) &&
-	    ieee80211_is_mgmt(fc))
-		/* Use software decrypt for management frames. */
-		rxs->flag &= ~RX_FLAG_DECRYPTED;
+	if (rs->rs_tstamp < tsf_lower &&
+	    unlikely(tsf_lower - rs->rs_tstamp > 0x10000000))
+		rxs->mactime += 0x100000000ULL;
 }
 
 #ifdef CONFIG_ATH9K_DEBUGFS
@@ -1133,6 +1067,234 @@ static int ath_process_fft(struct ath_softc *sc, struct ieee80211_hdr *hdr,
 #endif
 }
 
+static bool ath9k_is_mybeacon(struct ath_softc *sc, struct ieee80211_hdr *hdr)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	if (ieee80211_is_beacon(hdr->frame_control)) {
+		RX_STAT_INC(rx_beacons);
+		if (!is_zero_ether_addr(common->curbssid) &&
+		    ether_addr_equal(hdr->addr3, common->curbssid))
+			return true;
+	}
+
+	return false;
+}
+
+/*
+ * For Decrypt or Demic errors, we only mark packet status here and always push
+ * up the frame up to let mac80211 handle the actual error case, be it no
+ * decryption key or real decryption error. This let us keep statistics there.
+ */
+static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
+				   struct sk_buff *skb,
+				   struct ath_rx_status *rx_stats,
+				   struct ieee80211_rx_status *rx_status,
+				   bool *decrypt_error, u64 tsf)
+{
+	struct ieee80211_hw *hw = sc->hw;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ieee80211_hdr *hdr;
+	bool discard_current = sc->rx.discard_next;
+	int ret = 0;
+
+	/*
+	 * Discard corrupt descriptors which are marked in
+	 * ath_get_next_rx_buf().
+	 */
+	sc->rx.discard_next = rx_stats->rs_more;
+	if (discard_current)
+		return -EINVAL;
+
+	/*
+	 * Discard zero-length packets.
+	 */
+	if (!rx_stats->rs_datalen) {
+		RX_STAT_INC(rx_len_err);
+		return -EINVAL;
+	}
+
+        /*
+         * rs_status follows rs_datalen so if rs_datalen is too large
+         * we can take a hint that hardware corrupted it, so ignore
+         * those frames.
+         */
+	if (rx_stats->rs_datalen > (common->rx_bufsize - ah->caps.rx_status_len)) {
+		RX_STAT_INC(rx_len_err);
+		return -EINVAL;
+	}
+
+	/* Only use status info from the last fragment */
+	if (rx_stats->rs_more)
+		return 0;
+
+	/*
+	 * Return immediately if the RX descriptor has been marked
+	 * as corrupt based on the various error bits.
+	 *
+	 * This is different from the other corrupt descriptor
+	 * condition handled above.
+	 */
+	if (rx_stats->rs_status & ATH9K_RXERR_CORRUPT_DESC) {
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	hdr = (struct ieee80211_hdr *) (skb->data + ah->caps.rx_status_len);
+
+	ath9k_process_tsf(rx_stats, rx_status, tsf);
+	ath_debug_stat_rx(sc, rx_stats);
+
+	/*
+	 * Process PHY errors and return so that the packet
+	 * can be dropped.
+	 */
+	if (rx_stats->rs_status & ATH9K_RXERR_PHY) {
+		ath9k_dfs_process_phyerr(sc, hdr, rx_stats, rx_status->mactime);
+		if (ath_process_fft(sc, hdr, rx_stats, rx_status->mactime))
+			RX_STAT_INC(rx_spectral);
+
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	/*
+	 * everything but the rate is checked here, the rate check is done
+	 * separately to avoid doing two lookups for a rate for each frame.
+	 */
+	if (!ath9k_rx_accept(common, hdr, rx_status, rx_stats, decrypt_error)) {
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	rx_stats->is_mybeacon = ath9k_is_mybeacon(sc, hdr);
+	if (rx_stats->is_mybeacon) {
+		sc->hw_busy_count = 0;
+		ath_start_rx_poll(sc, 3);
+	}
+
+	if (ath9k_process_rate(common, hw, rx_stats, rx_status)) {
+		ret =-EINVAL;
+		goto exit;
+	}
+
+	ath9k_process_rssi(common, hw, rx_stats, rx_status);
+
+	rx_status->band = hw->conf.chandef.chan->band;
+	rx_status->freq = hw->conf.chandef.chan->center_freq;
+	rx_status->antenna = rx_stats->rs_antenna;
+	rx_status->flag |= RX_FLAG_MACTIME_END;
+
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+	if (ieee80211_is_data_present(hdr->frame_control) &&
+	    !ieee80211_is_qos_nullfunc(hdr->frame_control))
+		sc->rx.num_pkts++;
+#endif
+
+exit:
+	sc->rx.discard_next = false;
+	return ret;
+}
+
+static void ath9k_rx_skb_postprocess(struct ath_common *common,
+				     struct sk_buff *skb,
+				     struct ath_rx_status *rx_stats,
+				     struct ieee80211_rx_status *rxs,
+				     bool decrypt_error)
+{
+	struct ath_hw *ah = common->ah;
+	struct ieee80211_hdr *hdr;
+	int hdrlen, padpos, padsize;
+	u8 keyix;
+	__le16 fc;
+
+	/* see if any padding is done by the hw and remove it */
+	hdr = (struct ieee80211_hdr *) skb->data;
+	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
+	fc = hdr->frame_control;
+	padpos = ieee80211_hdrlen(fc);
+
+	/* The MAC header is padded to have 32-bit boundary if the
+	 * packet payload is non-zero. The general calculation for
+	 * padsize would take into account odd header lengths:
+	 * padsize = (4 - padpos % 4) % 4; However, since only
+	 * even-length headers are used, padding can only be 0 or 2
+	 * bytes and we can optimize this a bit. In addition, we must
+	 * not try to remove padding from short control frames that do
+	 * not have payload. */
+	padsize = padpos & 3;
+	if (padsize && skb->len>=padpos+padsize+FCS_LEN) {
+		memmove(skb->data + padsize, skb->data, padpos);
+		skb_pull(skb, padsize);
+	}
+
+	keyix = rx_stats->rs_keyix;
+
+	if (!(keyix == ATH9K_RXKEYIX_INVALID) && !decrypt_error &&
+	    ieee80211_has_protected(fc)) {
+		rxs->flag |= RX_FLAG_DECRYPTED;
+	} else if (ieee80211_has_protected(fc)
+		   && !decrypt_error && skb->len >= hdrlen + 4) {
+		keyix = skb->data[hdrlen + 3] >> 6;
+
+		if (test_bit(keyix, common->keymap))
+			rxs->flag |= RX_FLAG_DECRYPTED;
+	}
+	if (ah->sw_mgmt_crypto &&
+	    (rxs->flag & RX_FLAG_DECRYPTED) &&
+	    ieee80211_is_mgmt(fc))
+		/* Use software decrypt for management frames. */
+		rxs->flag &= ~RX_FLAG_DECRYPTED;
+}
+
+/*
+ * Run the LNA combining algorithm only in these cases:
+ *
+ * Standalone WLAN cards with both LNA/Antenna diversity
+ * enabled in the EEPROM.
+ *
+ * WLAN+BT cards which are in the supported card list
+ * in ath_pci_id_table and the user has loaded the
+ * driver with "bt_ant_diversity" set to true.
+ */
+static void ath9k_antenna_check(struct ath_softc *sc,
+				struct ath_rx_status *rs)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath9k_hw_capabilities *pCap = &ah->caps;
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	if (!(ah->caps.hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB))
+		return;
+
+	/*
+	 * All MPDUs in an aggregate will use the same LNA
+	 * as the first MPDU.
+	 */
+	if (rs->rs_isaggr && !rs->rs_firstaggr)
+		return;
+
+	/*
+	 * Change the default rx antenna if rx diversity
+	 * chooses the other antenna 3 times in a row.
+	 */
+	if (sc->rx.defant != rs->rs_antenna) {
+		if (++sc->rx.rxotherant >= 3)
+			ath_setdefantenna(sc, rs->rs_antenna);
+	} else {
+		sc->rx.rxotherant = 0;
+	}
+
+	if (pCap->hw_caps & ATH9K_HW_CAP_BT_ANT_DIV) {
+		if (common->bt_ant_diversity)
+			ath_ant_comb_scan(sc, rs);
+	} else {
+		ath_ant_comb_scan(sc, rs);
+	}
+}
+
 static void ath9k_apply_ampdu_details(struct ath_softc *sc,
 	struct ath_rx_status *rs, struct ieee80211_rx_status *rxs)
 {
@@ -1157,18 +1319,14 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 	struct sk_buff *skb = NULL, *requeue_skb, *hdr_skb;
 	struct ieee80211_rx_status *rxs;
 	struct ath_hw *ah = sc->sc_ah;
-	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_hw *hw = sc->hw;
-	struct ieee80211_hdr *hdr;
 	int retval;
 	struct ath_rx_status rs;
 	enum ath9k_rx_qtype qtype;
 	bool edma = !!(ah->caps.hw_caps & ATH9K_HW_CAP_EDMA);
 	int dma_type;
-	u8 rx_status_len = ah->caps.rx_status_len;
 	u64 tsf = 0;
-	u32 tsf_lower = 0;
 	unsigned long flags;
 	dma_addr_t new_buf_addr;
 
@@ -1180,7 +1338,6 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 	qtype = hp ? ATH9K_RX_QUEUE_HP : ATH9K_RX_QUEUE_LP;
 
 	tsf = ath9k_hw_gettsf64(ah);
-	tsf_lower = tsf & 0xffffffff;
 
 	do {
 		bool decrypt_error = false;
@@ -1207,55 +1364,14 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		else
 			hdr_skb = skb;
 
-		hdr = (struct ieee80211_hdr *) (hdr_skb->data + rx_status_len);
 		rxs = IEEE80211_SKB_RXCB(hdr_skb);
-		if (ieee80211_is_beacon(hdr->frame_control)) {
-			RX_STAT_INC(rx_beacons);
-			if (!is_zero_ether_addr(common->curbssid) &&
-			    ether_addr_equal(hdr->addr3, common->curbssid))
-				rs.is_mybeacon = true;
-			else
-				rs.is_mybeacon = false;
-		}
-		else
-			rs.is_mybeacon = false;
-
-		if (ieee80211_is_data_present(hdr->frame_control) &&
-		    !ieee80211_is_qos_nullfunc(hdr->frame_control))
-			sc->rx.num_pkts++;
-
-		ath_debug_stat_rx(sc, &rs);
-
 		memset(rxs, 0, sizeof(struct ieee80211_rx_status));
 
-		rxs->mactime = (tsf & ~0xffffffffULL) | rs.rs_tstamp;
-		if (rs.rs_tstamp > tsf_lower &&
-		    unlikely(rs.rs_tstamp - tsf_lower > 0x10000000))
-			rxs->mactime -= 0x100000000ULL;
-
-		if (rs.rs_tstamp < tsf_lower &&
-		    unlikely(tsf_lower - rs.rs_tstamp > 0x10000000))
-			rxs->mactime += 0x100000000ULL;
-
-		if (rs.rs_phyerr == ATH9K_PHYERR_RADAR)
-			ath9k_dfs_process_phyerr(sc, hdr, &rs, rxs->mactime);
-
-		if (rs.rs_status & ATH9K_RXERR_PHY) {
-			if (ath_process_fft(sc, hdr, &rs, rxs->mactime)) {
-				RX_STAT_INC(rx_spectral);
-				goto requeue_drop_frag;
-			}
-		}
-
-		retval = ath9k_rx_skb_preprocess(sc, hdr, &rs, rxs,
-						 &decrypt_error);
+		retval = ath9k_rx_skb_preprocess(sc, hdr_skb, &rs, rxs,
+						 &decrypt_error, tsf);
 		if (retval)
 			goto requeue_drop_frag;
 
-		if (rs.is_mybeacon) {
-			sc->hw_busy_count = 0;
-			ath_start_rx_poll(sc, 3);
-		}
 		/* Ensure we always have an skb to requeue once we are done
 		 * processing the current buffer's skb */
 		requeue_skb = ath_rxbuf_alloc(common, common->rx_bufsize, GFP_ATOMIC);
@@ -1309,8 +1425,6 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 			sc->rx.frag = skb;
 			goto requeue;
 		}
-		if (rs.rs_status & ATH9K_RXERR_CORRUPT_DESC)
-			goto requeue_drop_frag;
 
 		if (sc->rx.frag) {
 			int space = skb->len - skb_tailroom(hdr_skb);
@@ -1340,35 +1454,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 			ath_rx_ps(sc, skb, rs.is_mybeacon);
 		spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 
-		/*
-		 * Run the LNA combining algorithm only in these cases:
-		 *
-		 * Standalone WLAN cards with both LNA/Antenna diversity
-		 * enabled in the EEPROM.
-		 *
-		 * WLAN+BT cards which are in the supported card list
-		 * in ath_pci_id_table and the user has loaded the
-		 * driver with "bt_ant_diversity" set to true.
-		 */
-		if (ah->caps.hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB) {
-			/*
-			 * Change the default rx antenna if rx diversity
-			 * chooses the other antenna 3 times in a row.
-			 */
-			if (sc->rx.defant != rs.rs_antenna) {
-				if (++sc->rx.rxotherant >= 3)
-					ath_setdefantenna(sc, rs.rs_antenna);
-			} else {
-				sc->rx.rxotherant = 0;
-			}
-
-			if (pCap->hw_caps & ATH9K_HW_CAP_BT_ANT_DIV) {
-				if (common->bt_ant_diversity)
-					ath_ant_comb_scan(sc, &rs);
-			} else {
-				ath_ant_comb_scan(sc, &rs);
-			}
-		}
+		ath9k_antenna_check(sc, &rs);
 
 		ath9k_apply_ampdu_details(sc, &rs, rxs);
 
@@ -1387,7 +1473,7 @@ requeue:
 		if (edma) {
 			ath_rx_edma_buf_link(sc, qtype);
 		} else {
-			ath_rx_buf_link(sc, bf);
+			ath_rx_buf_relink(sc, bf);
 			ath9k_hw_rxena(ah);
 		}
 	} while (1);

@@ -390,9 +390,82 @@ static int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 	return 0;
 }
 
+static int freq_to_idx(struct ath10k *ar, int freq)
+{
+	struct ieee80211_supported_band *sband;
+	int band, ch, idx = 0;
+
+	for (band = IEEE80211_BAND_2GHZ; band < IEEE80211_NUM_BANDS; band++) {
+		sband = ar->hw->wiphy->bands[band];
+		if (!sband)
+			continue;
+
+		for (ch = 0; ch < sband->n_channels; ch++, idx++)
+			if (sband->channels[ch].center_freq == freq)
+				goto exit;
+	}
+
+exit:
+	return idx;
+}
+
 static void ath10k_wmi_event_chan_info(struct ath10k *ar, struct sk_buff *skb)
 {
-	ath10k_dbg(ATH10K_DBG_WMI, "WMI_CHAN_INFO_EVENTID\n");
+	struct wmi_chan_info_event *ev;
+	struct survey_info *survey;
+	u32 err_code, freq, cmd_flags, noise_floor, rx_clear_count, cycle_count;
+	int idx;
+
+	ev = (struct wmi_chan_info_event *)skb->data;
+
+	err_code = __le32_to_cpu(ev->err_code);
+	freq = __le32_to_cpu(ev->freq);
+	cmd_flags = __le32_to_cpu(ev->cmd_flags);
+	noise_floor = __le32_to_cpu(ev->noise_floor);
+	rx_clear_count = __le32_to_cpu(ev->rx_clear_count);
+	cycle_count = __le32_to_cpu(ev->cycle_count);
+
+	ath10k_dbg(ATH10K_DBG_WMI,
+		   "chan info err_code %d freq %d cmd_flags %d noise_floor %d rx_clear_count %d cycle_count %d\n",
+		   err_code, freq, cmd_flags, noise_floor, rx_clear_count,
+		   cycle_count);
+
+	spin_lock_bh(&ar->data_lock);
+
+	if (!ar->scan.in_progress) {
+		ath10k_warn("chan info event without a scan request?\n");
+		goto exit;
+	}
+
+	idx = freq_to_idx(ar, freq);
+	if (idx >= ARRAY_SIZE(ar->survey)) {
+		ath10k_warn("chan info: invalid frequency %d (idx %d out of bounds)\n",
+			    freq, idx);
+		goto exit;
+	}
+
+	if (cmd_flags & WMI_CHAN_INFO_FLAG_COMPLETE) {
+		/* During scanning chan info is reported twice for each
+		 * visited channel. The reported cycle count is global
+		 * and per-channel cycle count must be calculated */
+
+		cycle_count -= ar->survey_last_cycle_count;
+		rx_clear_count -= ar->survey_last_rx_clear_count;
+
+		survey = &ar->survey[idx];
+		survey->channel_time = WMI_CHAN_INFO_MSEC(cycle_count);
+		survey->channel_time_rx = WMI_CHAN_INFO_MSEC(rx_clear_count);
+		survey->noise = noise_floor;
+		survey->filled = SURVEY_INFO_CHANNEL_TIME |
+				 SURVEY_INFO_CHANNEL_TIME_RX |
+				 SURVEY_INFO_NOISE_DBM;
+	}
+
+	ar->survey_last_rx_clear_count = rx_clear_count;
+	ar->survey_last_cycle_count = cycle_count;
+
+exit:
+	spin_unlock_bh(&ar->data_lock);
 }
 
 static void ath10k_wmi_event_echo(struct ath10k *ar, struct sk_buff *skb)
@@ -868,6 +941,13 @@ static void ath10k_wmi_service_ready_event_rx(struct ath10k *ar,
 		(__le32_to_cpu(ev->sw_version_1) & 0xffff0000) >> 16;
 	ar->fw_version_build = (__le32_to_cpu(ev->sw_version_1) & 0x0000ffff);
 	ar->phy_capability = __le32_to_cpu(ev->phy_capability);
+	ar->num_rf_chains = __le32_to_cpu(ev->num_rf_chains);
+
+	if (ar->num_rf_chains > WMI_MAX_SPATIAL_STREAM) {
+		ath10k_warn("hardware advertises support for more spatial streams than it should (%d > %d)\n",
+			    ar->num_rf_chains, WMI_MAX_SPATIAL_STREAM);
+		ar->num_rf_chains = WMI_MAX_SPATIAL_STREAM;
+	}
 
 	ar->ath_common.regulatory.current_rd =
 		__le32_to_cpu(ev->hal_reg_capabilities.eeprom_rd);
@@ -892,7 +972,7 @@ static void ath10k_wmi_service_ready_event_rx(struct ath10k *ar,
 	}
 
 	ath10k_dbg(ATH10K_DBG_WMI,
-		   "wmi event service ready sw_ver 0x%08x sw_ver1 0x%08x abi_ver %u phy_cap 0x%08x ht_cap 0x%08x vht_cap 0x%08x vht_supp_msc 0x%08x sys_cap_info 0x%08x mem_reqs %u\n",
+		   "wmi event service ready sw_ver 0x%08x sw_ver1 0x%08x abi_ver %u phy_cap 0x%08x ht_cap 0x%08x vht_cap 0x%08x vht_supp_msc 0x%08x sys_cap_info 0x%08x mem_reqs %u num_rf_chains %u\n",
 		   __le32_to_cpu(ev->sw_version),
 		   __le32_to_cpu(ev->sw_version_1),
 		   __le32_to_cpu(ev->abi_version),
@@ -901,7 +981,8 @@ static void ath10k_wmi_service_ready_event_rx(struct ath10k *ar,
 		   __le32_to_cpu(ev->vht_cap_info),
 		   __le32_to_cpu(ev->vht_supp_mcs),
 		   __le32_to_cpu(ev->sys_cap_info),
-		   __le32_to_cpu(ev->num_mem_reqs));
+		   __le32_to_cpu(ev->num_mem_reqs),
+		   __le32_to_cpu(ev->num_rf_chains));
 
 	complete(&ar->wmi.service_ready);
 }

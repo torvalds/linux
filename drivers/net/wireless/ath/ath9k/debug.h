@@ -292,10 +292,6 @@ void ath9k_sta_add_debugfs(struct ieee80211_hw *hw,
 			   struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta,
 			   struct dentry *dir);
-void ath9k_sta_remove_debugfs(struct ieee80211_hw *hw,
-			      struct ieee80211_vif *vif,
-			      struct ieee80211_sta *sta,
-			      struct dentry *dir);
 void ath_debug_send_fft_sample(struct ath_softc *sc,
 			       struct fft_sample_tlv *fft_sample);
 void ath9k_debug_stat_ant(struct ath_softc *sc,

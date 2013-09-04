@@ -280,7 +280,7 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 
 	tlv_buf = ((u8 *)rate_cfg) +
 			sizeof(struct host_cmd_ds_tx_rate_cfg);
-	tlv_buf_len = *(u16 *) (tlv_buf + sizeof(u16));
+	tlv_buf_len = le16_to_cpu(*(__le16 *) (tlv_buf + sizeof(u16)));
 
 	while (tlv_buf && tlv_buf_len > 0) {
 		tlv = (*tlv_buf);

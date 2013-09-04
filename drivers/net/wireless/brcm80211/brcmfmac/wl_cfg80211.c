@@ -3155,7 +3155,9 @@ static int brcmf_cfg80211_sched_scan_stop(struct wiphy *wiphy,
 }
 
 #ifdef CONFIG_NL80211_TESTMODE
-static int brcmf_cfg80211_testmode(struct wiphy *wiphy, void *data, int len)
+static int brcmf_cfg80211_testmode(struct wiphy *wiphy,
+				   struct wireless_dev *wdev,
+				   void *data, int len)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct net_device *ndev = cfg_to_ndev(cfg);
@@ -4126,6 +4128,53 @@ static void brcmf_cfg80211_crit_proto_stop(struct wiphy *wiphy,
 	clear_bit(BRCMF_SCAN_STATUS_SUPPRESS, &cfg->scan_status);
 }
 
+static int brcmf_convert_nl80211_tdls_oper(enum nl80211_tdls_operation oper)
+{
+	int ret;
+
+	switch (oper) {
+	case NL80211_TDLS_DISCOVERY_REQ:
+		ret = BRCMF_TDLS_MANUAL_EP_DISCOVERY;
+		break;
+	case NL80211_TDLS_SETUP:
+		ret = BRCMF_TDLS_MANUAL_EP_CREATE;
+		break;
+	case NL80211_TDLS_TEARDOWN:
+		ret = BRCMF_TDLS_MANUAL_EP_DELETE;
+		break;
+	default:
+		brcmf_err("unsupported operation: %d\n", oper);
+		ret = -EOPNOTSUPP;
+	}
+	return ret;
+}
+
+static int brcmf_cfg80211_tdls_oper(struct wiphy *wiphy,
+				    struct net_device *ndev, u8 *peer,
+				    enum nl80211_tdls_operation oper)
+{
+	struct brcmf_if *ifp;
+	struct brcmf_tdls_iovar_le info;
+	int ret = 0;
+
+	ret = brcmf_convert_nl80211_tdls_oper(oper);
+	if (ret < 0)
+		return ret;
+
+	ifp = netdev_priv(ndev);
+	memset(&info, 0, sizeof(info));
+	info.mode = (u8)ret;
+	if (peer)
+		memcpy(info.ea, peer, ETH_ALEN);
+
+	ret = brcmf_fil_iovar_data_set(ifp, "tdls_endpoint",
+				       &info, sizeof(info));
+	if (ret < 0)
+		brcmf_err("tdls_endpoint iovar failed: ret=%d\n", ret);
+
+	return ret;
+}
+
 static struct cfg80211_ops wl_cfg80211_ops = {
 	.add_virtual_intf = brcmf_cfg80211_add_iface,
 	.del_virtual_intf = brcmf_cfg80211_del_iface,
@@ -4164,6 +4213,7 @@ static struct cfg80211_ops wl_cfg80211_ops = {
 	.stop_p2p_device = brcmf_p2p_stop_device,
 	.crit_proto_start = brcmf_cfg80211_crit_proto_start,
 	.crit_proto_stop = brcmf_cfg80211_crit_proto_stop,
+	.tdls_oper = brcmf_cfg80211_tdls_oper,
 	CFG80211_TESTMODE_CMD(brcmf_cfg80211_testmode)
 };
 
@@ -4285,7 +4335,8 @@ static struct wiphy *brcmf_setup_wiphy(struct device *phydev)
 	wiphy->n_cipher_suites = ARRAY_SIZE(__wl_cipher_suites);
 	wiphy->flags |= WIPHY_FLAG_PS_ON_BY_DEFAULT |
 			WIPHY_FLAG_OFFCHAN_TX |
-			WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
+			WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
+			WIPHY_FLAG_SUPPORTS_TDLS;
 	wiphy->mgmt_stypes = brcmf_txrx_stypes;
 	wiphy->max_remain_on_channel_duration = 5000;
 	brcmf_wiphy_pno_params(wiphy);
@@ -4904,6 +4955,12 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 		brcmf_err("BT-coex initialisation failed (%d)\n", err);
 		brcmf_p2p_detach(&cfg->p2p);
 		goto cfg80211_p2p_attach_out;
+	}
+
+	err = brcmf_fil_iovar_int_set(ifp, "tdls_enable", 1);
+	if (err) {
+		brcmf_dbg(INFO, "TDLS not enabled (%d)\n", err);
+		wiphy->flags &= ~WIPHY_FLAG_SUPPORTS_TDLS;
 	}
 
 	err = brcmf_fil_cmd_int_get(ifp, BRCMF_C_GET_VERSION,

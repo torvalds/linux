@@ -5792,7 +5792,7 @@ M:	Aloisio Almeida Jr <aloisio.almeida@openbossa.org>
 M:	Samuel Ortiz <sameo@linux.intel.com>
 L:	linux-wireless@vger.kernel.org
 L:	linux-nfc@lists.01.org (moderated for non-subscribers)
-S:	Maintained
+S:	Supported
 F:	net/nfc/
 F:	include/net/nfc/
 F:	include/uapi/linux/nfc.h

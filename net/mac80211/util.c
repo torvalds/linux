@@ -1453,8 +1453,8 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		local->resuming = true;
 
 	if (local->wowlan) {
-		local->wowlan = false;
 		res = drv_resume(local);
+		local->wowlan = false;
 		if (res < 0) {
 			local->resuming = false;
 			return res;

@@ -352,6 +352,10 @@ static void iwl_dbgfs_update_pm(struct iwl_mvm *mvm,
 		IWL_DEBUG_POWER(mvm, "lprx_rssi_threshold=%d\n", val);
 		dbgfs_pm->lprx_rssi_threshold = val;
 		break;
+	case MVM_DEBUGFS_PM_SNOOZE_ENABLE:
+		IWL_DEBUG_POWER(mvm, "snooze_enable=%d\n", val);
+		dbgfs_pm->snooze_ena = val;
+		break;
 	}
 }
 
@@ -405,6 +409,10 @@ static ssize_t iwl_dbgfs_pm_params_write(struct file *file,
 		    POWER_LPRX_RSSI_THRESHOLD_MIN)
 			return -EINVAL;
 		param = MVM_DEBUGFS_PM_LPRX_RSSI_THRESHOLD;
+	} else if (!strncmp("snooze_enable=", buf, 14)) {
+		if (sscanf(buf + 14, "%d", &val) != 1)
+			return -EINVAL;
+		param = MVM_DEBUGFS_PM_SNOOZE_ENABLE;
 	} else {
 		return -EINVAL;
 	}
@@ -424,7 +432,7 @@ static ssize_t iwl_dbgfs_pm_params_read(struct file *file,
 	struct ieee80211_vif *vif = file->private_data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm *mvm = mvmvif->dbgfs_data;
-	char buf[256];
+	char buf[512];
 	int bufsz = sizeof(buf);
 	int pos;
 
@@ -895,10 +903,7 @@ static ssize_t iwl_dbgfs_bf_params_write(struct file *file,
 	if (param == MVM_DEBUGFS_BF_ENABLE_BEACON_FILTER && !value) {
 		ret = iwl_mvm_disable_beacon_filter(mvm, vif);
 	} else {
-		if (mvmvif->bf_enabled)
-			ret = iwl_mvm_enable_beacon_filter(mvm, vif);
-		else
-			ret = iwl_mvm_disable_beacon_filter(mvm, vif);
+		ret = iwl_mvm_enable_beacon_filter(mvm, vif);
 	}
 	mutex_unlock(&mvm->mutex);
 
@@ -923,7 +928,7 @@ static ssize_t iwl_dbgfs_bf_params_read(struct file *file,
 	};
 
 	iwl_mvm_beacon_filter_debugfs_parameters(vif, &cmd);
-	if (mvmvif->bf_enabled)
+	if (mvmvif->bf_data.bf_enabled)
 		cmd.bf_enable_beacon_filter = cpu_to_le32(1);
 	else
 		cmd.bf_enable_beacon_filter = 0;

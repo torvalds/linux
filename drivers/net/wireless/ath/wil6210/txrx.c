@@ -416,13 +416,13 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	 */
 	if (d->dma.status & RX_DMA_STATUS_L4_IDENT) {
 		/* L4 protocol identified, csum calculated */
-		if ((d->dma.error & RX_DMA_ERROR_L4_ERR) == 0) {
+		if ((d->dma.error & RX_DMA_ERROR_L4_ERR) == 0)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
-		} else {
-			wil_err(wil, "Incorrect checksum reported\n");
-			kfree_skb(skb);
-			return NULL;
-		}
+		/* If HW reports bad checksum, let IP stack re-check it
+		 * For example, HW don't understand Microsoft IP stack that
+		 * mis-calculates TCP checksum - if it should be 0x0,
+		 * it writes 0xffff in violation of RFC 1624
+		 */
 	}
 
 	ds_bits = wil_rxdesc_ds_bits(d);

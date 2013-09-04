@@ -1364,6 +1364,7 @@ static const struct nla_policy hwsim_testmode_policy[HWSIM_TM_ATTR_MAX + 1] = {
 static int hwsim_fops_ps_write(void *dat, u64 val);
 
 static int mac80211_hwsim_testmode_cmd(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif,
 				       void *data, int len)
 {
 	struct mac80211_hwsim_data *hwsim = hw->priv;
@@ -2527,8 +2528,10 @@ static int __init init_mac80211_hwsim(void)
 	}
 
 	hwsim_mon = alloc_netdev(0, "hwsim%d", hwsim_mon_setup);
-	if (hwsim_mon == NULL)
+	if (hwsim_mon == NULL) {
+		err = -ENOMEM;
 		goto failed;
+	}
 
 	rtnl_lock();
 

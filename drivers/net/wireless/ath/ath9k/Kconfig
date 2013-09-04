@@ -56,7 +56,7 @@ config ATH9K_AHB
 
 config ATH9K_DEBUGFS
 	bool "Atheros ath9k debugging"
-	depends on ATH9K
+	depends on ATH9K && DEBUG_FS
 	select MAC80211_DEBUGFS
 	select RELAY
 	---help---

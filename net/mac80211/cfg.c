@@ -2302,14 +2302,25 @@ static void ieee80211_rfkill_poll(struct wiphy *wiphy)
 }
 
 #ifdef CONFIG_NL80211_TESTMODE
-static int ieee80211_testmode_cmd(struct wiphy *wiphy, void *data, int len)
+static int ieee80211_testmode_cmd(struct wiphy *wiphy,
+				  struct wireless_dev *wdev,
+				  void *data, int len)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
+	struct ieee80211_vif *vif = NULL;
 
 	if (!local->ops->testmode_cmd)
 		return -EOPNOTSUPP;
 
-	return local->ops->testmode_cmd(&local->hw, data, len);
+	if (wdev) {
+		struct ieee80211_sub_if_data *sdata;
+
+		sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
+		if (sdata->flags & IEEE80211_SDATA_IN_DRIVER)
+			vif = &sdata->vif;
+	}
+
+	return local->ops->testmode_cmd(&local->hw, vif, data, len);
 }
 
 static int ieee80211_testmode_dump(struct wiphy *wiphy,

@@ -776,7 +776,7 @@ minstrel_ht_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 
 	/* Don't use EAPOL frames for sampling on non-mrr hw */
 	if (mp->hw->max_rates == 1 &&
-	    txrc->skb->protocol == cpu_to_be16(ETH_P_PAE))
+	    (info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO))
 		sample_idx = -1;
 	else
 		sample_idx = minstrel_get_sample_rate(mp, mi);
@@ -826,6 +826,9 @@ minstrel_ht_update_cck(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	int i;
 
 	if (sband->band != IEEE80211_BAND_2GHZ)
+		return;
+
+	if (!(mp->hw->flags & IEEE80211_HW_SUPPORTS_HT_CCK_RATES))
 		return;
 
 	mi->cck_supported = 0;

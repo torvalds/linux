@@ -1113,6 +1113,15 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	case -1:
 		cfg80211_chandef_create(&new_chandef, new_chan,
 					NL80211_CHAN_NO_HT);
+		/* keep width for 5/10 MHz channels */
+		switch (sdata->vif.bss_conf.chandef.width) {
+		case NL80211_CHAN_WIDTH_5:
+		case NL80211_CHAN_WIDTH_10:
+			new_chandef.width = sdata->vif.bss_conf.chandef.width;
+			break;
+		default:
+			break;
+		}
 		break;
 	}
 
@@ -2852,14 +2861,6 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		ieee80211_rx_bss_put(local, bss);
 		sdata->vif.bss_conf.beacon_rate = bss->beacon_rate;
 	}
-
-	if (!sdata->u.mgd.associated ||
-	    !ether_addr_equal(mgmt->bssid, sdata->u.mgd.associated->bssid))
-		return;
-
-	ieee80211_sta_process_chanswitch(sdata, rx_status->mactime,
-					 elems, true);
-
 }
 
 
@@ -3147,6 +3148,9 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	ifmgd->beacon_crc_valid = true;
 
 	ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, &elems);
+
+	ieee80211_sta_process_chanswitch(sdata, rx_status->mactime,
+					 &elems, true);
 
 	if (ieee80211_sta_wmm_params(local, sdata, elems.wmm_param,
 				     elems.wmm_param_len))

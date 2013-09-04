@@ -155,7 +155,8 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		    IEEE80211_HW_TIMING_BEACON_ONLY |
 		    IEEE80211_HW_CONNECTION_MONITOR |
 		    IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |
-		    IEEE80211_HW_SUPPORTS_STATIC_SMPS;
+		    IEEE80211_HW_SUPPORTS_STATIC_SMPS |
+		    IEEE80211_HW_SUPPORTS_UAPSD;
 
 	hw->queues = IWL_MVM_FIRST_AGG_QUEUE;
 	hw->offchannel_tx_hw_queue = IWL_MVM_OFFCHANNEL_QUEUE;
@@ -190,6 +191,8 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 
 	hw->wiphy->max_remain_on_channel_duration = 10000;
 	hw->max_listen_interval = IWL_CONN_MAX_LISTEN_INTERVAL;
+	hw->uapsd_queues = IWL_UAPSD_AC_INFO;
+	hw->uapsd_max_sp_len = IWL_UAPSD_MAX_SP;
 
 	/* Extract MAC address */
 	memcpy(mvm->addresses[0].addr, mvm->nvm_data->hw_addr, ETH_ALEN);
@@ -577,7 +580,8 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	    vif->type == NL80211_IFTYPE_STATION && !vif->p2p &&
 	    mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_BF_UPDATED){
 		mvm->bf_allowed_vif = mvmvif;
-		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER;
+		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER |
+				     IEEE80211_VIF_SUPPORTS_CQM_RSSI;
 	}
 
 	/*
@@ -617,7 +621,8 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
  out_free_bf:
 	if (mvm->bf_allowed_vif == mvmvif) {
 		mvm->bf_allowed_vif = NULL;
-		vif->driver_flags &= ~IEEE80211_VIF_BEACON_FILTER;
+		vif->driver_flags &= ~(IEEE80211_VIF_BEACON_FILTER |
+				       IEEE80211_VIF_SUPPORTS_CQM_RSSI);
 	}
  out_remove_mac:
 	mvmvif->phy_ctxt = NULL;
@@ -683,7 +688,8 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 
 	if (mvm->bf_allowed_vif == mvmvif) {
 		mvm->bf_allowed_vif = NULL;
-		vif->driver_flags &= ~IEEE80211_VIF_BEACON_FILTER;
+		vif->driver_flags &= ~(IEEE80211_VIF_BEACON_FILTER |
+				       IEEE80211_VIF_SUPPORTS_CQM_RSSI);
 	}
 
 	iwl_mvm_vif_dbgfs_clean(mvm, vif);
@@ -801,6 +807,10 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 			if (ret)
 				IWL_ERR(mvm, "failed to update quotas\n");
 		}
+
+		/* reset rssi values */
+		mvmvif->bf_data.ave_beacon_signal = 0;
+
 		if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_UAPSD)) {
 			/* Workaround for FW bug, otherwise FW disables device
 			 * power save upon disassociation
@@ -817,7 +827,7 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 		 */
 		iwl_mvm_remove_time_event(mvm, mvmvif,
 					  &mvmvif->time_event_data);
-	} else if (changes & BSS_CHANGED_PS) {
+	} else if (changes & (BSS_CHANGED_PS | BSS_CHANGED_QOS)) {
 		ret = iwl_mvm_power_update_mode(mvm, vif);
 		if (ret)
 			IWL_ERR(mvm, "failed to update power mode\n");
@@ -826,6 +836,15 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 		IWL_DEBUG_CALIB(mvm, "Changing TX Power to %d\n",
 				bss_conf->txpower);
 		iwl_mvm_set_tx_power(mvm, vif, bss_conf->txpower);
+	}
+
+	if (changes & BSS_CHANGED_CQM) {
+		IWL_DEBUG_MAC80211(mvm, "cqm info_changed");
+		/* reset cqm events tracking */
+		mvmvif->bf_data.last_cqm_event = 0;
+		ret = iwl_mvm_update_beacon_filter(mvm, vif);
+		if (ret)
+			IWL_ERR(mvm, "failed to update CQM thresholds\n");
 	}
 }
 

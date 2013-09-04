@@ -396,11 +396,62 @@ static void iwl_mvm_update_rx_statistics(struct iwl_mvm *mvm,
 	memcpy(&mvm->rx_stats, &stats->rx, sizeof(struct mvm_statistics_rx));
 }
 
+struct iwl_mvm_stat_data {
+	struct iwl_notif_statistics *stats;
+	struct iwl_mvm *mvm;
+};
+
+static void iwl_mvm_stat_iterator(void *_data, u8 *mac,
+				  struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_stat_data *data = _data;
+	struct iwl_notif_statistics *stats = data->stats;
+	struct iwl_mvm *mvm = data->mvm;
+	int sig = -stats->general.beacon_filter_average_energy;
+	int last_event;
+	int thold = vif->bss_conf.cqm_rssi_thold;
+	int hyst = vif->bss_conf.cqm_rssi_hyst;
+	u16 id = le32_to_cpu(stats->rx.general.mac_id);
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	if (mvmvif->id != id)
+		return;
+
+	if (vif->type != NL80211_IFTYPE_STATION)
+		return;
+
+	mvmvif->bf_data.ave_beacon_signal = sig;
+
+	if (!(vif->driver_flags & IEEE80211_VIF_SUPPORTS_CQM_RSSI))
+		return;
+
+	/* CQM Notification */
+	last_event = mvmvif->bf_data.last_cqm_event;
+	if (thold && sig < thold && (last_event == 0 ||
+				     sig < last_event - hyst)) {
+		mvmvif->bf_data.last_cqm_event = sig;
+		IWL_DEBUG_RX(mvm, "cqm_iterator cqm low %d\n",
+			     sig);
+		ieee80211_cqm_rssi_notify(
+			vif,
+			NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW,
+			GFP_KERNEL);
+	} else if (sig > thold &&
+		   (last_event == 0 || sig > last_event + hyst)) {
+		mvmvif->bf_data.last_cqm_event = sig;
+		IWL_DEBUG_RX(mvm, "cqm_iterator cqm high %d\n",
+			     sig);
+		ieee80211_cqm_rssi_notify(
+			vif,
+			NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH,
+			GFP_KERNEL);
+	}
+}
+
 /*
  * iwl_mvm_rx_statistics - STATISTICS_NOTIFICATION handler
  *
  * TODO: This handler is implemented partially.
- * It only gets the NIC's temperature.
  */
 int iwl_mvm_rx_statistics(struct iwl_mvm *mvm,
 			  struct iwl_rx_cmd_buffer *rxb,
@@ -409,6 +460,10 @@ int iwl_mvm_rx_statistics(struct iwl_mvm *mvm,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_notif_statistics *stats = (void *)&pkt->data;
 	struct mvm_statistics_general_common *common = &stats->general.common;
+	struct iwl_mvm_stat_data data = {
+		.stats = stats,
+		.mvm = mvm,
+	};
 
 	if (mvm->temperature != le32_to_cpu(common->temperature)) {
 		mvm->temperature = le32_to_cpu(common->temperature);
@@ -416,5 +471,9 @@ int iwl_mvm_rx_statistics(struct iwl_mvm *mvm,
 	}
 	iwl_mvm_update_rx_statistics(mvm, stats);
 
+	ieee80211_iterate_active_interfaces(mvm->hw,
+					    IEEE80211_IFACE_ITER_NORMAL,
+					    iwl_mvm_stat_iterator,
+					    &data);
 	return 0;
 }

@@ -65,18 +65,30 @@
  ***************************************************/
 static int iwl_queue_space(const struct iwl_queue *q)
 {
-	int s = q->read_ptr - q->write_ptr;
+	unsigned int max;
+	unsigned int used;
 
-	if (q->read_ptr > q->write_ptr)
-		s -= q->n_bd;
+	/*
+	 * To avoid ambiguity between empty and completely full queues, there
+	 * should always be less than q->n_bd elements in the queue.
+	 * If q->n_window is smaller than q->n_bd, there is no need to reserve
+	 * any queue entries for this purpose.
+	 */
+	if (q->n_window < q->n_bd)
+		max = q->n_window;
+	else
+		max = q->n_bd - 1;
 
-	if (s <= 0)
-		s += q->n_window;
-	/* keep some reserve to not confuse empty and full situations */
-	s -= 2;
-	if (s < 0)
-		s = 0;
-	return s;
+	/*
+	 * q->n_bd is a power of 2, so the following is equivalent to modulo by
+	 * q->n_bd and is well defined for negative dividends.
+	 */
+	used = (q->write_ptr - q->read_ptr) & (q->n_bd - 1);
+
+	if (WARN_ON(used > max))
+		return 0;
+
+	return max - used;
 }
 
 /*
@@ -826,7 +838,7 @@ static int iwl_pcie_tx_alloc(struct iwl_trans *trans)
 				  sizeof(struct iwl_txq), GFP_KERNEL);
 	if (!trans_pcie->txq) {
 		IWL_ERR(trans, "Not enough memory for txq\n");
-		ret = ENOMEM;
+		ret = -ENOMEM;
 		goto error;
 	}
 

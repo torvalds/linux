@@ -1,6 +1,6 @@
 /*
    This is part of rtl818x pci OpenSource driver - v 0.1
-   Copyright (C) Andrea Merello 2004-2005  <andreamrl@tiscali.it>
+   Copyright (C) Andrea Merello 2004-2005  <andrea.merello@gmail.com>
    Released under the terms of GPL (General Public License)
 
    Parts of this driver are based on the GPL part of the official
@@ -70,7 +70,7 @@ static int hwwep;
 
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, rtl8180_pci_id_tbl);
-MODULE_AUTHOR("Andrea Merello <andreamrl@tiscali.it>");
+MODULE_AUTHOR("Andrea Merello <andrea.merello@gmail.com>");
 MODULE_DESCRIPTION("Linux driver for Realtek RTL8187SE WiFi cards");
 
 module_param_string(ifname, ifname, sizeof(ifname), S_IRUGO|S_IWUSR);
