@@ -68,28 +68,6 @@ static struct scsi_host_sg_pool scsi_sg_pools[] = {
 
 struct kmem_cache *scsi_sdb_cache;
 
-#ifdef CONFIG_ACPI
-#include <acpi/acpi_bus.h>
-
-static bool acpi_scsi_bus_match(struct device *dev)
-{
-	return dev->bus == &scsi_bus_type;
-}
-
-int scsi_register_acpi_bus_type(struct acpi_bus_type *bus)
-{
-        bus->match = acpi_scsi_bus_match;
-        return register_acpi_bus_type(bus);
-}
-EXPORT_SYMBOL_GPL(scsi_register_acpi_bus_type);
-
-void scsi_unregister_acpi_bus_type(struct acpi_bus_type *bus)
-{
-	unregister_acpi_bus_type(bus);
-}
-EXPORT_SYMBOL_GPL(scsi_unregister_acpi_bus_type);
-#endif
-
 /*
  * When to reinvoke queueing after a resource shortage. It's 3 msecs to
  * not change behaviour from the previous unplug mechanism, experimentation
