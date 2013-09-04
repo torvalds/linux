@@ -24,7 +24,7 @@ config MXC_IRQ_PRIOR
 	help
 	  Select this if you want to use prioritized IRQ handling.
 	  This feature prevents higher priority ISR to be interrupted
-	  by lower priority IRQ even IRQF_DISABLED flag is not set.
+	  by lower priority IRQ.
 	  This may be useful in embedded applications, where are strong
 	  requirements for timing.
 	  Say N here, unless you have a specialized requirement.

@@ -371,8 +371,7 @@ static int pcm970_sdhc1_init(struct device *dev, irq_handler_t detect_irq,
 #endif
 
 	ret = request_irq(gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_SCK6)), detect_irq,
-			IRQF_DISABLED | IRQF_TRIGGER_FALLING,
-				"sdhc-detect", data);
+			IRQF_TRIGGER_FALLING, "sdhc-detect", data);
 	if (ret)
 		goto err_gpio_free_2;
 
