@@ -580,7 +580,7 @@ static int sync_serial_open(struct inode *inode, struct file *file)
 			if (port == &ports[0]) {
 				if (request_irq(8,
 						manual_interrupt,
-						IRQF_SHARED | IRQF_DISABLED,
+						IRQF_SHARED,
 						"synchronous serial manual irq",
 						&ports[0])) {
 					printk(KERN_CRIT "Can't alloc "
@@ -590,7 +590,7 @@ static int sync_serial_open(struct inode *inode, struct file *file)
 			} else if (port == &ports[1]) {
 				if (request_irq(8,
 						manual_interrupt,
-						IRQF_SHARED | IRQF_DISABLED,
+						IRQF_SHARED,
 						"synchronous serial manual irq",
 						&ports[1])) {
 					printk(KERN_CRIT "Can't alloc "
