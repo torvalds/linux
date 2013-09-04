@@ -45,10 +45,13 @@
 
 static bool intel_crtc_active(struct drm_crtc *crtc)
 {
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+
 	/* Be paranoid as we can arrive here with only partial
 	 * state retrieved from the hardware during setup.
 	 */
-	return to_intel_crtc(crtc)->active && crtc->fb && crtc->mode.clock;
+	return intel_crtc->active && crtc->fb &&
+		intel_crtc->config.adjusted_mode.clock;
 }
 
 static void i8xx_disable_fbc(struct drm_device *dev)
