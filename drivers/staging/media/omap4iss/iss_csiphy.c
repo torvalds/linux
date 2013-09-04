@@ -103,7 +103,7 @@ static void csiphy_dphy_config(struct iss_csiphy *phy)
 	reg = phy->dphy.tclk_term << REGISTER1_TCLK_TERM_SHIFT;
 	reg |= phy->dphy.tclk_miss << REGISTER1_CTRLCLK_DIV_FACTOR_SHIFT;
 	reg |= phy->dphy.tclk_settle << REGISTER1_TCLK_SETTLE_SHIFT;
-	reg |= 0xB8 << REGISTER1_DPHY_HS_SYNC_PATTERN_SHIFT;
+	reg |= 0xb8 << REGISTER1_DPHY_HS_SYNC_PATTERN_SHIFT;
 
 	iss_reg_write(phy->iss, phy->phy_regs, REGISTER1, reg);
 }
@@ -150,7 +150,7 @@ int omap4iss_csiphy_config(struct iss_device *iss,
 		/* NOTE: Leave CSIPHY1 config to 0x0: D-PHY mode */
 		/* Enable all lanes for now */
 		cam_rx_ctrl |=
-			0x1F << OMAP4_CAMERARX_CSI21_LANEENABLE_SHIFT;
+			0x1f << OMAP4_CAMERARX_CSI21_LANEENABLE_SHIFT;
 		/* Enable CTRLCLK */
 		cam_rx_ctrl |= OMAP4_CAMERARX_CSI21_CTRLCLKEN_MASK;
 	}

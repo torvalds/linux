@@ -273,7 +273,7 @@ static void csi2_set_outaddr(struct iss_csi2_device *csi2, u32 addr)
  */
 static inline int is_usr_def_mapping(u32 format_id)
 {
-	return (format_id & 0xF0) == 0x40 ? 1 : 0;
+	return (format_id & 0xf0) == 0x40 ? 1 : 0;
 }
 
 /*
@@ -572,7 +572,7 @@ static int csi2_configure(struct iss_csi2_device *csi2)
 	timing->force_rx_mode = 1;
 	timing->stop_state_16x = 1;
 	timing->stop_state_4x = 1;
-	timing->stop_state_counter = 0x1FF;
+	timing->stop_state_counter = 0x1ff;
 
 	/*
 	 * The CSI2 receiver can't do any format conversion except DPCM
