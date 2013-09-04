@@ -310,6 +310,8 @@ void nfs41_wake_slot_table(struct nfs4_slot_table *tbl)
 	}
 }
 
+#if defined(CONFIG_NFS_V4_1)
+
 static void nfs41_set_max_slotid_locked(struct nfs4_slot_table *tbl,
 		u32 target_highest_slotid)
 {
@@ -419,8 +421,6 @@ void nfs41_update_target_slotid(struct nfs4_slot_table *tbl,
 	nfs41_set_max_slotid_locked(tbl, res->sr_target_highest_slotid);
 	spin_unlock(&tbl->slot_tbl_lock);
 }
-
-#if defined(CONFIG_NFS_V4_1)
 
 static void nfs4_destroy_session_slot_tables(struct nfs4_session *session)
 {
