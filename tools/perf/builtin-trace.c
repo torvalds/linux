@@ -265,6 +265,53 @@ static const char *socket_families[] = {
 };
 static DEFINE_STRARRAY(socket_families);
 
+#ifndef SOCK_TYPE_MASK
+#define SOCK_TYPE_MASK 0xf
+#endif
+
+static size_t syscall_arg__scnprintf_socket_type(char *bf, size_t size,
+						      struct syscall_arg *arg)
+{
+	size_t printed;
+	int type = arg->val,
+	    flags = type & ~SOCK_TYPE_MASK;
+
+	type &= SOCK_TYPE_MASK;
+	/*
+ 	 * Can't use a strarray, MIPS may override for ABI reasons.
+ 	 */
+	switch (type) {
+#define	P_SK_TYPE(n) case SOCK_##n: printed = scnprintf(bf, size, #n); break;
+	P_SK_TYPE(STREAM);
+	P_SK_TYPE(DGRAM);
+	P_SK_TYPE(RAW);
+	P_SK_TYPE(RDM);
+	P_SK_TYPE(SEQPACKET);
+	P_SK_TYPE(DCCP);
+	P_SK_TYPE(PACKET);
+#undef P_SK_TYPE
+	default:
+		printed = scnprintf(bf, size, "%#x", type);
+	}
+
+#define	P_SK_FLAG(n) \
+	if (flags & SOCK_##n) { \
+		printed += scnprintf(bf + printed, size - printed, "|%s", #n); \
+		flags &= ~SOCK_##n; \
+	}
+
+	P_SK_FLAG(CLOEXEC);
+	P_SK_FLAG(NONBLOCK);
+#undef P_SK_FLAG
+
+	if (flags)
+		printed += scnprintf(bf + printed, size - printed, "|%#x", flags);
+
+	return printed;
+}
+
+#define SCA_SK_TYPE syscall_arg__scnprintf_socket_type
+
 static size_t syscall_arg__scnprintf_open_flags(char *bf, size_t size,
 					       struct syscall_arg *arg)
 {
@@ -440,7 +487,8 @@ static struct syscall_fmt {
 	  .arg_scnprintf = { [0] = SCA_STRARRAY, /* which */ },
 	  .arg_parm	 = { [0] = &strarray__itimers, /* which */ }, },
 	{ .name	    = "socket",	    .errmsg = true,
-	  .arg_scnprintf = { [0] = SCA_STRARRAY, /* family */ },
+	  .arg_scnprintf = { [0] = SCA_STRARRAY, /* family */
+			     [1] = SCA_SK_TYPE, /* type */ },
 	  .arg_parm	 = { [0] = &strarray__socket_families, /* family */ }, },
 	{ .name	    = "stat",	    .errmsg = true, .alias = "newstat", },
 	{ .name	    = "tgkill",	    .errmsg = true,
