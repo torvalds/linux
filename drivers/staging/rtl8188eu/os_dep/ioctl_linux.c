@@ -938,7 +938,7 @@ static int rtw_wx_set_pmkid(struct net_device *dev,
 	memcpy(strIssueBssid, pPMK->bssid.sa_data, ETH_ALEN);
 	if (pPMK->cmd == IW_PMKSA_ADD) {
 		DBG_88E("[rtw_wx_set_pmkid] IW_PMKSA_ADD!\n");
-		if (!memcmp(strIssueBssid, strZeroMacAddress, ETH_ALEN) == true)
+		if (!memcmp(strIssueBssid, strZeroMacAddress, ETH_ALEN))
 			return ret;
 		else
 			ret = true;
@@ -1039,7 +1039,7 @@ static int rtw_wx_get_range(struct net_device *dev,
 
 	range->avg_qual.qual = 92; /* > 8% missed beacons is 'bad' */
 	/* TODO: Find real 'good' to 'bad' threshol value for RSSI */
-	range->avg_qual.level = 20 + -98;
+	range->avg_qual.level = 178; /* -78 dBm */
 	range->avg_qual.noise = 0;
 	range->avg_qual.updated = 7; /* Updated all three */
 
@@ -2626,7 +2626,7 @@ static int rtw_get_ap_info(struct net_device *dev,
 			return -EINVAL;
 		}
 
-		if (!memcmp(bssid, pnetwork->network.MacAddress, ETH_ALEN) == true) {
+		if (!memcmp(bssid, pnetwork->network.MacAddress, ETH_ALEN)) {
 			/* BSSID match, then check if supporting wpa/wpa2 */
 			DBG_88E("BSSID:%pM\n", (bssid));
 
@@ -4040,7 +4040,7 @@ static int rtw_rereg_nd_name(struct net_device *dev,
 	if (0 != ret)
 		goto exit;
 
-	if (!memcmp(rereg_priv->old_ifname, "disable%d", 9) == true) {
+	if (!memcmp(rereg_priv->old_ifname, "disable%d", 9)) {
 		padapter->ledpriv.bRegUseLed = rereg_priv->old_bRegUseLed;
 		rtw_hal_sw_led_init(padapter);
 		rtw_ips_mode_req(&padapter->pwrctrlpriv, rereg_priv->old_ips_mode);
@@ -4049,7 +4049,7 @@ static int rtw_rereg_nd_name(struct net_device *dev,
 	strncpy(rereg_priv->old_ifname, new_ifname, IFNAMSIZ);
 	rereg_priv->old_ifname[IFNAMSIZ-1] = 0;
 
-	if (!memcmp(new_ifname, "disable%d", 9) == true) {
+	if (!memcmp(new_ifname, "disable%d", 9)) {
 		DBG_88E("%s disable\n", __func__);
 		/*  free network queue for Android's timming issue */
 		rtw_free_network_queue(padapter, true);
