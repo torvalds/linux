@@ -7844,7 +7844,7 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 	int len, ret;
 
 	ring = obj->ring;
-	if (ring == NULL || ring->id != RCS)
+	if (IS_VALLEYVIEW(dev) || ring == NULL || ring->id != RCS)
 		ring = &dev_priv->ring[BCS];
 
 	ret = intel_pin_and_fence_fb_obj(dev, obj, ring);
