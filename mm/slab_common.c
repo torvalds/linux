@@ -19,6 +19,7 @@
 #include <asm/tlbflush.h>
 #include <asm/page.h>
 #include <linux/memcontrol.h>
+#include <trace/events/kmem.h>
 
 #include "slab.h"
 
@@ -495,6 +496,15 @@ void __init create_kmalloc_caches(unsigned long flags)
 }
 #endif /* !CONFIG_SLOB */
 
+#ifdef CONFIG_TRACING
+void *kmalloc_order_trace(size_t size, gfp_t flags, unsigned int order)
+{
+	void *ret = kmalloc_order(size, flags, order);
+	trace_kmalloc(_RET_IP_, ret, size, PAGE_SIZE << order, flags);
+	return ret;
+}
+EXPORT_SYMBOL(kmalloc_order_trace);
+#endif
 
 #ifdef CONFIG_SLABINFO
 
