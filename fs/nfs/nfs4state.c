@@ -969,7 +969,9 @@ static int nfs4_copy_lock_stateid(nfs4_stateid *dst,
 	fl_pid = lockowner->l_pid;
 	spin_lock(&state->state_lock);
 	lsp = __nfs4_find_lock_state(state, fl_owner, fl_pid, NFS4_ANY_LOCK_TYPE);
-	if (lsp != NULL && test_bit(NFS_LOCK_INITIALIZED, &lsp->ls_flags) != 0) {
+	if (lsp && test_bit(NFS_LOCK_LOST, &lsp->ls_flags))
+		ret = -EIO;
+	else if (lsp != NULL && test_bit(NFS_LOCK_INITIALIZED, &lsp->ls_flags) != 0) {
 		nfs4_stateid_copy(dst, &lsp->ls_stateid);
 		ret = 0;
 		smp_rmb();
@@ -1009,11 +1011,17 @@ static int nfs4_copy_open_stateid(nfs4_stateid *dst, struct nfs4_state *state)
 int nfs4_select_rw_stateid(nfs4_stateid *dst, struct nfs4_state *state,
 		fmode_t fmode, const struct nfs_lockowner *lockowner)
 {
-	int ret = 0;
+	int ret = nfs4_copy_lock_stateid(dst, state, lockowner);
+	if (ret == -EIO)
+		/* A lost lock - don't even consider delegations */
+		goto out;
 	if (nfs4_copy_delegation_stateid(dst, state->inode, fmode))
 		goto out;
-	ret = nfs4_copy_lock_stateid(dst, state, lockowner);
 	if (ret != -ENOENT)
+		/* nfs4_copy_delegation_stateid() didn't over-write
+		 * dst, so it still has the lock stateid which we now
+		 * choose to use.
+		 */
 		goto out;
 	ret = nfs4_copy_open_stateid(dst, state);
 out:
