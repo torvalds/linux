@@ -384,7 +384,7 @@ void __init clps711x_timer_init(void)
 	setup_irq(IRQ_TC2OI, &clps711x_timer_irq);
 }
 
-void clps711x_restart(char mode, const char *cmd)
+void clps711x_restart(enum reboot_mode mode, const char *cmd)
 {
 	soft_restart(0);
 }

@@ -45,6 +45,11 @@ static int arizona_i2c_probe(struct i2c_client *i2c,
 		regmap_config = &wm5110_i2c_regmap;
 		break;
 #endif
+#ifdef CONFIG_MFD_WM8997
+	case WM8997:
+		regmap_config = &wm8997_i2c_regmap;
+		break;
+#endif
 	default:
 		dev_err(&i2c->dev, "Unknown device type %ld\n",
 			id->driver_data);
@@ -80,6 +85,7 @@ static int arizona_i2c_remove(struct i2c_client *i2c)
 static const struct i2c_device_id arizona_i2c_id[] = {
 	{ "wm5102", WM5102 },
 	{ "wm5110", WM5110 },
+	{ "wm8997", WM8997 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, arizona_i2c_id);

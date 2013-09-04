@@ -433,7 +433,6 @@ extern int SMBNTencrypt(unsigned char *, unsigned char *, unsigned char *,
 			const struct nls_table *);
 extern int setup_ntlm_response(struct cifs_ses *, const struct nls_table *);
 extern int setup_ntlmv2_rsp(struct cifs_ses *, const struct nls_table *);
-extern int cifs_crypto_shash_allocate(struct TCP_Server_Info *);
 extern void cifs_crypto_shash_release(struct TCP_Server_Info *);
 extern int calc_seckey(struct cifs_ses *);
 extern void generate_smb3signingkey(struct TCP_Server_Info *);

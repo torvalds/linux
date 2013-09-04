@@ -1798,7 +1798,8 @@ static loff_t shmem_file_llseek(struct file *file, loff_t offset, int whence)
 		}
 	}
 
-	offset = vfs_setpos(file, offset, MAX_LFS_FILESIZE);
+	if (offset >= 0)
+		offset = vfs_setpos(file, offset, MAX_LFS_FILESIZE);
 	mutex_unlock(&inode->i_mutex);
 	return offset;
 }

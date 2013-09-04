@@ -16,7 +16,7 @@ OMAP MUSB GLUE
    specifying ULPI and UTMI respectively.
  - mode : Should be "3" to represent OTG. "1" signifies HOST and "2"
    represents PERIPHERAL.
- - power : Should be "50". This signifies the controller can supply upto
+ - power : Should be "50". This signifies the controller can supply up to
    100mA when operating in host mode.
  - usb-phy : the phandle for the PHY device
 

@@ -233,6 +233,21 @@ static int xilinx_spi_setup_transfer(struct spi_device *spi,
 	return 0;
 }
 
+static int xilinx_spi_setup(struct spi_device *spi)
+{
+	/* always return 0, we can not check the number of bits.
+	 * There are cases when SPI setup is called before any driver is
+	 * there, in that case the SPI core defaults to 8 bits, which we
+	 * do not support in some cases. But if we return an error, the
+	 * SPI device would not be registered and no driver can get hold of it
+	 * When the driver is there, it will call SPI setup again with the
+	 * correct number of bits per transfer.
+	 * If a driver setups with the wrong bit number, it will fail when
+	 * it tries to do a transfer
+	 */
+	return 0;
+}
+
 static void xilinx_spi_fill_tx_fifo(struct xilinx_spi *xspi)
 {
 	u8 sr;
@@ -360,6 +375,7 @@ struct spi_master *xilinx_spi_init(struct device *dev, struct resource *mem,
 	xspi->bitbang.chipselect = xilinx_spi_chipselect;
 	xspi->bitbang.setup_transfer = xilinx_spi_setup_transfer;
 	xspi->bitbang.txrx_bufs = xilinx_spi_txrx_bufs;
+	xspi->bitbang.master->setup = xilinx_spi_setup;
 	init_completion(&xspi->done);
 
 	if (!request_mem_region(mem->start, resource_size(mem),

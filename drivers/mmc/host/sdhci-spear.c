@@ -258,7 +258,6 @@ static int sdhci_probe(struct platform_device *pdev)
 	return 0;
 
 set_drvdata:
-	platform_set_drvdata(pdev, NULL);
 	sdhci_remove_host(host, 1);
 free_host:
 	sdhci_free_host(host);
@@ -278,7 +277,6 @@ static int sdhci_remove(struct platform_device *pdev)
 	int dead = 0;
 	u32 scratch;
 
-	platform_set_drvdata(pdev, NULL);
 	scratch = readl(host->ioaddr + SDHCI_INT_STATUS);
 	if (scratch == (u32)-1)
 		dead = 1;

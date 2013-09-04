@@ -1330,3 +1330,4 @@ const struct ieee80211_ops rtl_ops = {
 	.rfkill_poll = rtl_op_rfkill_poll,
 	.flush = rtl_op_flush,
 };
+EXPORT_SYMBOL_GPL(rtl_ops);

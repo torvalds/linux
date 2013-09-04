@@ -97,7 +97,7 @@ static inline u32 arch_timer_get_cntfrq(void)
 	return val;
 }
 
-static inline void __cpuinit arch_counter_set_user_access(void)
+static inline void arch_counter_set_user_access(void)
 {
 	u32 cntkctl;
 

@@ -481,7 +481,7 @@ static u64 omap2430_dmamask = DMA_BIT_MASK(32);
 
 static int omap2430_probe(struct platform_device *pdev)
 {
-	struct resource			musb_resources[2];
+	struct resource			musb_resources[3];
 	struct musb_hdrc_platform_data	*pdata = pdev->dev.platform_data;
 	struct omap_musb_board_data	*data;
 	struct platform_device		*musb;
@@ -514,7 +514,7 @@ static int omap2430_probe(struct platform_device *pdev)
 		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 		if (!pdata) {
 			dev_err(&pdev->dev,
-				"failed to allocate musb platfrom data\n");
+				"failed to allocate musb platform data\n");
 			goto err2;
 		}
 
@@ -580,6 +580,11 @@ static int omap2430_probe(struct platform_device *pdev)
 	musb_resources[1].start = pdev->resource[1].start;
 	musb_resources[1].end = pdev->resource[1].end;
 	musb_resources[1].flags = pdev->resource[1].flags;
+
+	musb_resources[2].name = pdev->resource[2].name;
+	musb_resources[2].start = pdev->resource[2].start;
+	musb_resources[2].end = pdev->resource[2].end;
+	musb_resources[2].flags = pdev->resource[2].flags;
 
 	ret = platform_device_add_resources(musb, musb_resources,
 			ARRAY_SIZE(musb_resources));

@@ -115,6 +115,7 @@ static int highbank_platform_notifier(struct notifier_block *nb,
 {
 	struct resource *res;
 	int reg = -1;
+	u32 val;
 	struct device *dev = __dev;
 
 	if (event != BUS_NOTIFY_ADD_DEVICE)
@@ -141,10 +142,10 @@ static int highbank_platform_notifier(struct notifier_block *nb,
 		return NOTIFY_DONE;
 
 	if (of_property_read_bool(dev->of_node, "dma-coherent")) {
-		writel(0xff31, sregs_base + reg);
+		val = readl(sregs_base + reg);
+		writel(val | 0xff01, sregs_base + reg);
 		set_dma_ops(dev, &arm_coherent_dma_ops);
-	} else
-		writel(0, sregs_base + reg);
+	}
 
 	return NOTIFY_OK;
 }

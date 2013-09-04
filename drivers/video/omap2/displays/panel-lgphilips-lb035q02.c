@@ -109,12 +109,12 @@ static int lb035q02_panel_probe(struct omap_dss_device *dssdev)
 
 	dssdev->panel.timings = lb035q02_timings;
 
-	ld = devm_kzalloc(&dssdev->dev, sizeof(*ld), GFP_KERNEL);
+	ld = devm_kzalloc(dssdev->dev, sizeof(*ld), GFP_KERNEL);
 	if (!ld)
 		return -ENOMEM;
 
 	for (i = 0; i < panel_data->num_gpios; ++i) {
-		r = devm_gpio_request_one(&dssdev->dev, panel_data->gpios[i],
+		r = devm_gpio_request_one(dssdev->dev, panel_data->gpios[i],
 				panel_data->gpio_invert[i] ?
 				GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW,
 				"panel gpio");
@@ -123,7 +123,7 @@ static int lb035q02_panel_probe(struct omap_dss_device *dssdev)
 	}
 
 	mutex_init(&ld->lock);
-	dev_set_drvdata(&dssdev->dev, ld);
+	dev_set_drvdata(dssdev->dev, ld);
 
 	return 0;
 }
@@ -134,7 +134,7 @@ static void lb035q02_panel_remove(struct omap_dss_device *dssdev)
 
 static int lb035q02_panel_enable(struct omap_dss_device *dssdev)
 {
-	struct lb035q02_data *ld = dev_get_drvdata(&dssdev->dev);
+	struct lb035q02_data *ld = dev_get_drvdata(dssdev->dev);
 	int r;
 
 	mutex_lock(&ld->lock);
@@ -153,7 +153,7 @@ err:
 
 static void lb035q02_panel_disable(struct omap_dss_device *dssdev)
 {
-	struct lb035q02_data *ld = dev_get_drvdata(&dssdev->dev);
+	struct lb035q02_data *ld = dev_get_drvdata(dssdev->dev);
 
 	mutex_lock(&ld->lock);
 

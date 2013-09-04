@@ -12,6 +12,7 @@
 #ifndef __ARCH_ARM_MACH_EXYNOS_COMMON_H
 #define __ARCH_ARM_MACH_EXYNOS_COMMON_H
 
+#include <linux/reboot.h>
 #include <linux/of.h>
 
 void mct_init(void __iomem *base, int irq_g0, int irq_l0, int irq_l1);
@@ -20,8 +21,8 @@ extern unsigned long xxti_f, xusbxti_f;
 
 struct map_desc;
 void exynos_init_io(void);
-void exynos4_restart(char mode, const char *cmd);
-void exynos5_restart(char mode, const char *cmd);
+void exynos4_restart(enum reboot_mode mode, const char *cmd);
+void exynos5_restart(enum reboot_mode mode, const char *cmd);
 void exynos_init_late(void);
 
 /* ToDo: remove these after migrating legacy exynos4 platforms to dt */
@@ -96,6 +97,5 @@ struct exynos_pmu_conf {
 };
 
 extern void exynos_sys_powerdown_conf(enum sys_powerdown mode);
-extern void s3c_cpu_resume(void);
 
 #endif /* __ARCH_ARM_MACH_EXYNOS_COMMON_H */

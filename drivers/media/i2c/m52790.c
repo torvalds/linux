@@ -29,7 +29,6 @@
 #include <linux/videodev2.h>
 #include <media/m52790.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 
 MODULE_DESCRIPTION("i2c device driver for m52790 A/V switch");
 MODULE_AUTHOR("Hans Verkuil");
@@ -83,12 +82,7 @@ static int m52790_s_routing(struct v4l2_subdev *sd,
 static int m52790_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	struct m52790_state *state = to_state(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	if (reg->reg != 0)
 		return -EINVAL;
 	reg->size = 1;
@@ -99,12 +93,7 @@ static int m52790_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *r
 static int m52790_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_register *reg)
 {
 	struct m52790_state *state = to_state(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (!v4l2_chip_match_i2c_client(client, &reg->match))
-		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	if (reg->reg != 0)
 		return -EINVAL;
 	state->input = reg->val & 0x0303;
@@ -113,13 +102,6 @@ static int m52790_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_regis
 	return 0;
 }
 #endif
-
-static int m52790_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_M52790, 0);
-}
 
 static int m52790_log_status(struct v4l2_subdev *sd)
 {
@@ -136,7 +118,6 @@ static int m52790_log_status(struct v4l2_subdev *sd)
 
 static const struct v4l2_subdev_core_ops m52790_core_ops = {
 	.log_status = m52790_log_status,
-	.g_chip_ident = m52790_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = m52790_g_register,
 	.s_register = m52790_s_register,
@@ -174,7 +155,7 @@ static int m52790_probe(struct i2c_client *client,
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	state = kzalloc(sizeof(struct m52790_state), GFP_KERNEL);
+	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (state == NULL)
 		return -ENOMEM;
 
@@ -191,7 +172,6 @@ static int m52790_remove(struct i2c_client *client)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
 	v4l2_device_unregister_subdev(sd);
-	kfree(to_state(sd));
 	return 0;
 }
 

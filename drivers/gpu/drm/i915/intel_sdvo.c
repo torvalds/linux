@@ -80,7 +80,7 @@ struct intel_sdvo {
 
 	/*
 	 * Capabilities of the SDVO device returned by
-	 * i830_sdvo_get_capabilities()
+	 * intel_sdvo_get_capabilities()
 	 */
 	struct intel_sdvo_caps caps;
 
@@ -712,6 +712,13 @@ static bool intel_sdvo_set_timing(struct intel_sdvo *intel_sdvo, u8 cmd,
 		intel_sdvo_set_value(intel_sdvo, cmd + 1, &dtd->part2, sizeof(dtd->part2));
 }
 
+static bool intel_sdvo_get_timing(struct intel_sdvo *intel_sdvo, u8 cmd,
+				  struct intel_sdvo_dtd *dtd)
+{
+	return intel_sdvo_get_value(intel_sdvo, cmd, &dtd->part1, sizeof(dtd->part1)) &&
+		intel_sdvo_get_value(intel_sdvo, cmd + 1, &dtd->part2, sizeof(dtd->part2));
+}
+
 static bool intel_sdvo_set_input_timing(struct intel_sdvo *intel_sdvo,
 					 struct intel_sdvo_dtd *dtd)
 {
@@ -724,6 +731,13 @@ static bool intel_sdvo_set_output_timing(struct intel_sdvo *intel_sdvo,
 {
 	return intel_sdvo_set_timing(intel_sdvo,
 				     SDVO_CMD_SET_OUTPUT_TIMINGS_PART1, dtd);
+}
+
+static bool intel_sdvo_get_input_timing(struct intel_sdvo *intel_sdvo,
+					struct intel_sdvo_dtd *dtd)
+{
+	return intel_sdvo_get_timing(intel_sdvo,
+				     SDVO_CMD_GET_INPUT_TIMINGS_PART1, dtd);
 }
 
 static bool
@@ -1041,6 +1055,32 @@ intel_sdvo_get_preferred_input_mode(struct intel_sdvo *intel_sdvo,
 	return true;
 }
 
+static void i9xx_adjust_sdvo_tv_clock(struct intel_crtc_config *pipe_config)
+{
+	unsigned dotclock = pipe_config->adjusted_mode.clock;
+	struct dpll *clock = &pipe_config->dpll;
+
+	/* SDVO TV has fixed PLL values depend on its clock range,
+	   this mirrors vbios setting. */
+	if (dotclock >= 100000 && dotclock < 140500) {
+		clock->p1 = 2;
+		clock->p2 = 10;
+		clock->n = 3;
+		clock->m1 = 16;
+		clock->m2 = 8;
+	} else if (dotclock >= 140500 && dotclock <= 200000) {
+		clock->p1 = 1;
+		clock->p2 = 10;
+		clock->n = 6;
+		clock->m1 = 12;
+		clock->m2 = 8;
+	} else {
+		WARN(1, "SDVO TV clock out of range: %i\n", dotclock);
+	}
+
+	pipe_config->clock_set = true;
+}
+
 static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 				      struct intel_crtc_config *pipe_config)
 {
@@ -1066,6 +1106,7 @@ static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 		(void) intel_sdvo_get_preferred_input_mode(intel_sdvo,
 							   mode,
 							   adjusted_mode);
+		pipe_config->sdvo_tv_clock = true;
 	} else if (intel_sdvo->is_lvds) {
 		if (!intel_sdvo_set_output_timings_from_mode(intel_sdvo,
 							     intel_sdvo->sdvo_lvds_fixed_mode))
@@ -1096,6 +1137,10 @@ static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 
 	if (intel_sdvo->color_range)
 		pipe_config->limited_color_range = true;
+
+	/* Clock computation needs to happen after pixel multiplier. */
+	if (intel_sdvo->is_tv)
+		i9xx_adjust_sdvo_tv_clock(pipe_config);
 
 	return true;
 }
@@ -1174,6 +1219,7 @@ static void intel_sdvo_mode_set(struct intel_encoder *intel_encoder)
 
 	switch (intel_crtc->config.pixel_multiplier) {
 	default:
+		WARN(1, "unknown pixel mutlipler specified\n");
 	case 1: rate = SDVO_CLOCK_RATE_MULT_1X; break;
 	case 2: rate = SDVO_CLOCK_RATE_MULT_2X; break;
 	case 4: rate = SDVO_CLOCK_RATE_MULT_4X; break;
@@ -1231,7 +1277,7 @@ static bool intel_sdvo_connector_get_hw_state(struct intel_connector *connector)
 	struct intel_sdvo_connector *intel_sdvo_connector =
 		to_intel_sdvo_connector(&connector->base);
 	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(&connector->base);
-	u16 active_outputs;
+	u16 active_outputs = 0;
 
 	intel_sdvo_get_active_outputs(intel_sdvo, &active_outputs);
 
@@ -1247,7 +1293,7 @@ static bool intel_sdvo_get_hw_state(struct intel_encoder *encoder,
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_sdvo *intel_sdvo = to_intel_sdvo(&encoder->base);
-	u16 active_outputs;
+	u16 active_outputs = 0;
 	u32 tmp;
 
 	tmp = I915_READ(intel_sdvo->sdvo_reg);
@@ -1262,6 +1308,74 @@ static bool intel_sdvo_get_hw_state(struct intel_encoder *encoder,
 		*pipe = PORT_TO_PIPE(tmp);
 
 	return true;
+}
+
+static void intel_sdvo_get_config(struct intel_encoder *encoder,
+				  struct intel_crtc_config *pipe_config)
+{
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_sdvo *intel_sdvo = to_intel_sdvo(&encoder->base);
+	struct intel_sdvo_dtd dtd;
+	int encoder_pixel_multiplier = 0;
+	u32 flags = 0, sdvox;
+	u8 val;
+	bool ret;
+
+	ret = intel_sdvo_get_input_timing(intel_sdvo, &dtd);
+	if (!ret) {
+		/* Some sdvo encoders are not spec compliant and don't
+		 * implement the mandatory get_timings function. */
+		DRM_DEBUG_DRIVER("failed to retrieve SDVO DTD\n");
+		pipe_config->quirks |= PIPE_CONFIG_QUIRK_MODE_SYNC_FLAGS;
+	} else {
+		if (dtd.part2.dtd_flags & DTD_FLAG_HSYNC_POSITIVE)
+			flags |= DRM_MODE_FLAG_PHSYNC;
+		else
+			flags |= DRM_MODE_FLAG_NHSYNC;
+
+		if (dtd.part2.dtd_flags & DTD_FLAG_VSYNC_POSITIVE)
+			flags |= DRM_MODE_FLAG_PVSYNC;
+		else
+			flags |= DRM_MODE_FLAG_NVSYNC;
+	}
+
+	pipe_config->adjusted_mode.flags |= flags;
+
+	/*
+	 * pixel multiplier readout is tricky: Only on i915g/gm it is stored in
+	 * the sdvo port register, on all other platforms it is part of the dpll
+	 * state. Since the general pipe state readout happens before the
+	 * encoder->get_config we so already have a valid pixel multplier on all
+	 * other platfroms.
+	 */
+	if (IS_I915G(dev) || IS_I915GM(dev)) {
+		sdvox = I915_READ(intel_sdvo->sdvo_reg);
+		pipe_config->pixel_multiplier =
+			((sdvox & SDVO_PORT_MULTIPLY_MASK)
+			 >> SDVO_PORT_MULTIPLY_SHIFT) + 1;
+	}
+
+	/* Cross check the port pixel multiplier with the sdvo encoder state. */
+	intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_CLOCK_RATE_MULT, &val, 1);
+	switch (val) {
+	case SDVO_CLOCK_RATE_MULT_1X:
+		encoder_pixel_multiplier = 1;
+		break;
+	case SDVO_CLOCK_RATE_MULT_2X:
+		encoder_pixel_multiplier = 2;
+		break;
+	case SDVO_CLOCK_RATE_MULT_4X:
+		encoder_pixel_multiplier = 4;
+		break;
+	}
+
+	if(HAS_PCH_SPLIT(dev))
+		return; /* no pixel multiplier readout support yet */
+
+	WARN(encoder_pixel_multiplier != pipe_config->pixel_multiplier,
+	     "SDVO pixel multiplier mismatch, port: %i, encoder: %i\n",
+	     pipe_config->pixel_multiplier, encoder_pixel_multiplier);
 }
 
 static void intel_disable_sdvo(struct intel_encoder *encoder)
@@ -1344,6 +1458,7 @@ static void intel_enable_sdvo(struct intel_encoder *encoder)
 	intel_sdvo_set_active_outputs(intel_sdvo, intel_sdvo->attached_output);
 }
 
+/* Special dpms function to support cloning between dvo/sdvo/crt. */
 static void intel_sdvo_dpms(struct drm_connector *connector, int mode)
 {
 	struct drm_crtc *crtc;
@@ -1365,6 +1480,8 @@ static void intel_sdvo_dpms(struct drm_connector *connector, int mode)
 		return;
 	}
 
+	/* We set active outputs manually below in case pipe dpms doesn't change
+	 * due to cloning. */
 	if (mode != DRM_MODE_DPMS_ON) {
 		intel_sdvo_set_active_outputs(intel_sdvo, 0);
 		if (0)
@@ -1495,7 +1612,7 @@ intel_sdvo_get_analog_edid(struct drm_connector *connector)
 
 	return drm_get_edid(connector,
 			    intel_gmbus_get_adapter(dev_priv,
-						    dev_priv->crt_ddc_pin));
+						    dev_priv->vbt.crt_ddc_pin));
 }
 
 static enum drm_connector_status
@@ -1625,12 +1742,9 @@ intel_sdvo_detect(struct drm_connector *connector, bool force)
 	if (ret == connector_status_connected) {
 		intel_sdvo->is_tv = false;
 		intel_sdvo->is_lvds = false;
-		intel_sdvo->base.needs_tv_clock = false;
 
-		if (response & SDVO_TV_MASK) {
+		if (response & SDVO_TV_MASK)
 			intel_sdvo->is_tv = true;
-			intel_sdvo->base.needs_tv_clock = true;
-		}
 		if (response & SDVO_LVDS_MASK)
 			intel_sdvo->is_lvds = intel_sdvo->sdvo_lvds_fixed_mode != NULL;
 	}
@@ -1772,21 +1886,12 @@ static void intel_sdvo_get_lvds_modes(struct drm_connector *connector)
 	struct drm_display_mode *newmode;
 
 	/*
-	 * Attempt to get the mode list from DDC.
-	 * Assume that the preferred modes are
-	 * arranged in priority order.
-	 */
-	intel_ddc_get_modes(connector, &intel_sdvo->ddc);
-
-	/*
 	 * Fetch modes from VBT. For SDVO prefer the VBT mode since some
-	 * SDVO->LVDS transcoders can't cope with the EDID mode. Since
-	 * drm_mode_probed_add adds the mode at the head of the list we add it
-	 * last.
+	 * SDVO->LVDS transcoders can't cope with the EDID mode.
 	 */
-	if (dev_priv->sdvo_lvds_vbt_mode != NULL) {
+	if (dev_priv->vbt.sdvo_lvds_vbt_mode != NULL) {
 		newmode = drm_mode_duplicate(connector->dev,
-					     dev_priv->sdvo_lvds_vbt_mode);
+					     dev_priv->vbt.sdvo_lvds_vbt_mode);
 		if (newmode != NULL) {
 			/* Guarantee the mode is preferred */
 			newmode->type = (DRM_MODE_TYPE_PREFERRED |
@@ -1794,6 +1899,13 @@ static void intel_sdvo_get_lvds_modes(struct drm_connector *connector)
 			drm_mode_probed_add(connector, newmode);
 		}
 	}
+
+	/*
+	 * Attempt to get the mode list from DDC.
+	 * Assume that the preferred modes are
+	 * arranged in priority order.
+	 */
+	intel_ddc_get_modes(connector, &intel_sdvo->ddc);
 
 	list_for_each_entry(newmode, &connector->probed_modes, head) {
 		if (newmode->type & DRM_MODE_TYPE_PREFERRED) {
@@ -2329,7 +2441,6 @@ intel_sdvo_tv_init(struct intel_sdvo *intel_sdvo, int type)
 	intel_sdvo_connector->output_flag = type;
 
 	intel_sdvo->is_tv = true;
-	intel_sdvo->base.needs_tv_clock = true;
 
 	intel_sdvo_connector_init(intel_sdvo_connector, intel_sdvo);
 
@@ -2417,7 +2528,6 @@ static bool
 intel_sdvo_output_setup(struct intel_sdvo *intel_sdvo, uint16_t flags)
 {
 	intel_sdvo->is_tv = false;
-	intel_sdvo->base.needs_tv_clock = false;
 	intel_sdvo->is_lvds = false;
 
 	/* SDVO requires XXX1 function may not exist unless it has XXX0 function.*/
@@ -2751,7 +2861,6 @@ bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_encoder *intel_encoder;
 	struct intel_sdvo *intel_sdvo;
-	u32 hotplug_mask;
 	int i;
 	intel_sdvo = kzalloc(sizeof(struct intel_sdvo), GFP_KERNEL);
 	if (!intel_sdvo)
@@ -2780,23 +2889,12 @@ bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob)
 		}
 	}
 
-	hotplug_mask = 0;
-	if (IS_G4X(dev)) {
-		hotplug_mask = intel_sdvo->is_sdvob ?
-			SDVOB_HOTPLUG_INT_STATUS_G4X : SDVOC_HOTPLUG_INT_STATUS_G4X;
-	} else if (IS_GEN4(dev)) {
-		hotplug_mask = intel_sdvo->is_sdvob ?
-			SDVOB_HOTPLUG_INT_STATUS_I965 : SDVOC_HOTPLUG_INT_STATUS_I965;
-	} else {
-		hotplug_mask = intel_sdvo->is_sdvob ?
-			SDVOB_HOTPLUG_INT_STATUS_I915 : SDVOC_HOTPLUG_INT_STATUS_I915;
-	}
-
 	intel_encoder->compute_config = intel_sdvo_compute_config;
 	intel_encoder->disable = intel_disable_sdvo;
 	intel_encoder->mode_set = intel_sdvo_mode_set;
 	intel_encoder->enable = intel_enable_sdvo;
 	intel_encoder->get_hw_state = intel_sdvo_get_hw_state;
+	intel_encoder->get_config = intel_sdvo_get_config;
 
 	/* In default case sdvo lvds is false */
 	if (!intel_sdvo_get_capabilities(intel_sdvo, &intel_sdvo->caps))

@@ -68,9 +68,8 @@
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>
 
-SCTP_STATIC
-struct sctp_chunk *sctp_make_chunk(const struct sctp_association *asoc,
-				   __u8 type, __u8 flags, int paylen);
+static struct sctp_chunk *sctp_make_chunk(const struct sctp_association *asoc,
+					  __u8 type, __u8 flags, int paylen);
 static sctp_cookie_param_t *sctp_pack_cookie(const struct sctp_endpoint *ep,
 					const struct sctp_association *asoc,
 					const struct sctp_chunk *init_chunk,
@@ -742,7 +741,8 @@ struct sctp_chunk *sctp_make_sack(const struct sctp_association *asoc)
 
 	memset(gabs, 0, sizeof(gabs));
 	ctsn = sctp_tsnmap_get_ctsn(map);
-	SCTP_DEBUG_PRINTK("sackCTSNAck sent:  0x%x.\n", ctsn);
+
+	pr_debug("%s: sackCTSNAck sent:0x%x\n", __func__, ctsn);
 
 	/* How much room is needed in the chunk? */
 	num_gabs = sctp_tsnmap_num_gabs(map, gabs);
@@ -1288,10 +1288,8 @@ struct sctp_chunk *sctp_chunkify(struct sk_buff *skb,
 
 	if (!retval)
 		goto nodata;
-
-	if (!sk) {
-		SCTP_DEBUG_PRINTK("chunkifying skb %p w/o an sk\n", skb);
-	}
+	if (!sk)
+		pr_debug("%s: chunkifying skb:%p w/o an sk\n", __func__, skb);
 
 	INIT_LIST_HEAD(&retval->list);
 	retval->skb		= skb;
@@ -1353,9 +1351,8 @@ const union sctp_addr *sctp_source(const struct sctp_chunk *chunk)
 /* Create a new chunk, setting the type and flags headers from the
  * arguments, reserving enough space for a 'paylen' byte payload.
  */
-SCTP_STATIC
-struct sctp_chunk *sctp_make_chunk(const struct sctp_association *asoc,
-				   __u8 type, __u8 flags, int paylen)
+static struct sctp_chunk *sctp_make_chunk(const struct sctp_association *asoc,
+					  __u8 type, __u8 flags, int paylen)
 {
 	struct sctp_chunk *retval;
 	sctp_chunkhdr_t *chunk_hdr;
@@ -1632,8 +1629,8 @@ static sctp_cookie_param_t *sctp_pack_cookie(const struct sctp_endpoint *ep,
 	cookie->c.adaptation_ind = asoc->peer.adaptation_ind;
 
 	/* Set an expiration time for the cookie.  */
-	do_gettimeofday(&cookie->c.expiration);
-	TIMEVAL_ADD(asoc->cookie_life, cookie->c.expiration);
+	cookie->c.expiration = ktime_add(asoc->cookie_life,
+					 ktime_get());
 
 	/* Copy the peer's init packet.  */
 	memcpy(&cookie->c.peer_init[0], init_chunk->chunk_hdr,
@@ -1682,7 +1679,7 @@ struct sctp_association *sctp_unpack_cookie(
 	unsigned int len;
 	sctp_scope_t scope;
 	struct sk_buff *skb = chunk->skb;
-	struct timeval tv;
+	ktime_t kt;
 	struct hash_desc desc;
 
 	/* Header size is static data prior to the actual cookie, including
@@ -1759,11 +1756,11 @@ no_hmac:
 	 * down the new association establishment instead of every packet.
 	 */
 	if (sock_flag(ep->base.sk, SOCK_TIMESTAMP))
-		skb_get_timestamp(skb, &tv);
+		kt = skb_get_ktime(skb);
 	else
-		do_gettimeofday(&tv);
+		kt = ktime_get();
 
-	if (!asoc && tv_lt(bear_cookie->expiration, tv)) {
+	if (!asoc && ktime_compare(bear_cookie->expiration, kt) < 0) {
 		/*
 		 * Section 3.3.10.3 Stale Cookie Error (3)
 		 *
@@ -1775,9 +1772,7 @@ no_hmac:
 		len = ntohs(chunk->chunk_hdr->length);
 		*errp = sctp_make_op_error_space(asoc, chunk, len);
 		if (*errp) {
-			suseconds_t usecs = (tv.tv_sec -
-				bear_cookie->expiration.tv_sec) * 1000000L +
-				tv.tv_usec - bear_cookie->expiration.tv_usec;
+			suseconds_t usecs = ktime_to_us(ktime_sub(kt, bear_cookie->expiration));
 			__be32 n = htonl(usecs);
 
 			sctp_init_cause(*errp, SCTP_ERROR_STALE_COOKIE,
@@ -2195,8 +2190,9 @@ static sctp_ierror_t sctp_verify_param(struct net *net,
 		break;
 fallthrough:
 	default:
-		SCTP_DEBUG_PRINTK("Unrecognized param: %d for chunk %d.\n",
-				ntohs(param.p->type), cid);
+		pr_debug("%s: unrecognized param:%d for chunk:%d\n",
+			 __func__, ntohs(param.p->type), cid);
+
 		retval = sctp_process_unk_param(asoc, param, chunk, err_chunk);
 		break;
 	}
@@ -2516,12 +2512,11 @@ do_addr_param:
 		/* Suggested Cookie Life span increment's unit is msec,
 		 * (1/1000sec).
 		 */
-		asoc->cookie_life.tv_sec += stale / 1000;
-		asoc->cookie_life.tv_usec += (stale % 1000) * 1000;
+		asoc->cookie_life = ktime_add_ms(asoc->cookie_life, stale);
 		break;
 
 	case SCTP_PARAM_HOST_NAME_ADDRESS:
-		SCTP_DEBUG_PRINTK("unimplemented SCTP_HOST_NAME_ADDRESS\n");
+		pr_debug("%s: unimplemented SCTP_HOST_NAME_ADDRESS\n", __func__);
 		break;
 
 	case SCTP_PARAM_SUPPORTED_ADDRESS_TYPES:
@@ -2667,8 +2662,8 @@ fall_through:
 		 * called prior to this routine.  Simply log the error
 		 * here.
 		 */
-		SCTP_DEBUG_PRINTK("Ignoring param: %d for association %p.\n",
-				  ntohs(param.p->type), asoc);
+		pr_debug("%s: ignoring param:%d for association:%p.\n",
+			 __func__, ntohs(param.p->type), asoc);
 		break;
 	}
 
@@ -2810,7 +2805,10 @@ struct sctp_chunk *sctp_make_asconf_update_ip(struct sctp_association *asoc,
 			totallen += paramlen;
 			totallen += addr_param_len;
 			del_pickup = 1;
-			SCTP_DEBUG_PRINTK("mkasconf_update_ip: picked same-scope del_pending addr, totallen for all addresses is %d\n", totallen);
+
+			pr_debug("%s: picked same-scope del_pending addr, "
+				 "totallen for all addresses is %d\n",
+				 __func__, totallen);
 		}
 	}
 

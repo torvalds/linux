@@ -38,7 +38,7 @@ const char *mei_dev_state_str(int state)
 	MEI_DEV_STATE(POWER_DOWN);
 	MEI_DEV_STATE(POWER_UP);
 	default:
-		return "unkown";
+		return "unknown";
 	}
 #undef MEI_DEV_STATE
 }
@@ -148,7 +148,8 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 
 	dev->hbm_state = MEI_HBM_IDLE;
 
-	if (dev->dev_state != MEI_DEV_INITIALIZING) {
+	if (dev->dev_state != MEI_DEV_INITIALIZING &&
+	    dev->dev_state != MEI_DEV_POWER_UP) {
 		if (dev->dev_state != MEI_DEV_DISABLED &&
 		    dev->dev_state != MEI_DEV_POWER_DOWN)
 			dev->dev_state = MEI_DEV_RESETTING;

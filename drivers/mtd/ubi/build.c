@@ -47,7 +47,7 @@
 #define MTD_PARAM_LEN_MAX 64
 
 /* Maximum number of comma-separated items in the 'mtd=' parameter */
-#define MTD_PARAM_MAX_COUNT 3
+#define MTD_PARAM_MAX_COUNT 4
 
 /* Maximum value for the number of bad PEBs per 1024 PEBs */
 #define MAX_MTD_UBI_BEB_LIMIT 768
@@ -67,6 +67,7 @@
  */
 struct mtd_dev_param {
 	char name[MTD_PARAM_LEN_MAX];
+	int ubi_num;
 	int vid_hdr_offs;
 	int max_beb_per1024;
 };
@@ -1261,11 +1262,15 @@ static int __init ubi_init(void)
 		mtd = open_mtd_device(p->name);
 		if (IS_ERR(mtd)) {
 			err = PTR_ERR(mtd);
-			goto out_detach;
+			ubi_err("cannot open mtd %s, error %d", p->name, err);
+			/* See comment below re-ubi_is_module(). */
+			if (ubi_is_module())
+				goto out_detach;
+			continue;
 		}
 
 		mutex_lock(&ubi_devices_mutex);
-		err = ubi_attach_mtd_dev(mtd, UBI_DEV_NUM_AUTO,
+		err = ubi_attach_mtd_dev(mtd, p->ubi_num,
 					 p->vid_hdr_offs, p->max_beb_per1024);
 		mutex_unlock(&ubi_devices_mutex);
 		if (err < 0) {
@@ -1309,7 +1314,7 @@ out_version:
 out_class:
 	class_destroy(ubi_class);
 out:
-	ubi_err("UBI error: cannot initialize UBI, error %d", err);
+	ubi_err("cannot initialize UBI, error %d", err);
 	return err;
 }
 late_initcall(ubi_init);
@@ -1346,7 +1351,7 @@ static int __init bytes_str_to_int(const char *str)
 
 	result = simple_strtoul(str, &endp, 0);
 	if (str == endp || result >= INT_MAX) {
-		ubi_err("UBI error: incorrect bytes count: \"%s\"\n", str);
+		ubi_err("incorrect bytes count: \"%s\"\n", str);
 		return -EINVAL;
 	}
 
@@ -1362,7 +1367,7 @@ static int __init bytes_str_to_int(const char *str)
 	case '\0':
 		break;
 	default:
-		ubi_err("UBI error: incorrect bytes count: \"%s\"\n", str);
+		ubi_err("incorrect bytes count: \"%s\"\n", str);
 		return -EINVAL;
 	}
 
@@ -1383,20 +1388,20 @@ static int __init ubi_mtd_param_parse(const char *val, struct kernel_param *kp)
 	struct mtd_dev_param *p;
 	char buf[MTD_PARAM_LEN_MAX];
 	char *pbuf = &buf[0];
-	char *tokens[MTD_PARAM_MAX_COUNT];
+	char *tokens[MTD_PARAM_MAX_COUNT], *token;
 
 	if (!val)
 		return -EINVAL;
 
 	if (mtd_devs == UBI_MAX_DEVICES) {
-		ubi_err("UBI error: too many parameters, max. is %d\n",
+		ubi_err("too many parameters, max. is %d\n",
 			UBI_MAX_DEVICES);
 		return -EINVAL;
 	}
 
 	len = strnlen(val, MTD_PARAM_LEN_MAX);
 	if (len == MTD_PARAM_LEN_MAX) {
-		ubi_err("UBI error: parameter \"%s\" is too long, max. is %d\n",
+		ubi_err("parameter \"%s\" is too long, max. is %d\n",
 			val, MTD_PARAM_LEN_MAX);
 		return -EINVAL;
 	}
@@ -1416,44 +1421,60 @@ static int __init ubi_mtd_param_parse(const char *val, struct kernel_param *kp)
 		tokens[i] = strsep(&pbuf, ",");
 
 	if (pbuf) {
-		ubi_err("UBI error: too many arguments at \"%s\"\n", val);
+		ubi_err("too many arguments at \"%s\"\n", val);
 		return -EINVAL;
 	}
 
 	p = &mtd_dev_param[mtd_devs];
 	strcpy(&p->name[0], tokens[0]);
 
-	if (tokens[1])
-		p->vid_hdr_offs = bytes_str_to_int(tokens[1]);
+	token = tokens[1];
+	if (token) {
+		p->vid_hdr_offs = bytes_str_to_int(token);
 
-	if (p->vid_hdr_offs < 0)
-		return p->vid_hdr_offs;
+		if (p->vid_hdr_offs < 0)
+			return p->vid_hdr_offs;
+	}
 
-	if (tokens[2]) {
-		int err = kstrtoint(tokens[2], 10, &p->max_beb_per1024);
+	token = tokens[2];
+	if (token) {
+		int err = kstrtoint(token, 10, &p->max_beb_per1024);
 
 		if (err) {
-			ubi_err("UBI error: bad value for max_beb_per1024 parameter: %s",
-				tokens[2]);
+			ubi_err("bad value for max_beb_per1024 parameter: %s",
+				token);
 			return -EINVAL;
 		}
 	}
+
+	token = tokens[3];
+	if (token) {
+		int err = kstrtoint(token, 10, &p->ubi_num);
+
+		if (err) {
+			ubi_err("bad value for ubi_num parameter: %s", token);
+			return -EINVAL;
+		}
+	} else
+		p->ubi_num = UBI_DEV_NUM_AUTO;
 
 	mtd_devs += 1;
 	return 0;
 }
 
 module_param_call(mtd, ubi_mtd_param_parse, NULL, NULL, 000);
-MODULE_PARM_DESC(mtd, "MTD devices to attach. Parameter format: mtd=<name|num|path>[,<vid_hdr_offs>[,max_beb_per1024]].\n"
+MODULE_PARM_DESC(mtd, "MTD devices to attach. Parameter format: mtd=<name|num|path>[,<vid_hdr_offs>[,max_beb_per1024[,ubi_num]]].\n"
 		      "Multiple \"mtd\" parameters may be specified.\n"
 		      "MTD devices may be specified by their number, name, or path to the MTD character device node.\n"
 		      "Optional \"vid_hdr_offs\" parameter specifies UBI VID header position to be used by UBI. (default value if 0)\n"
 		      "Optional \"max_beb_per1024\" parameter specifies the maximum expected bad eraseblock per 1024 eraseblocks. (default value ("
 		      __stringify(CONFIG_MTD_UBI_BEB_LIMIT) ") if 0)\n"
+		      "Optional \"ubi_num\" parameter specifies UBI device number which have to be assigned to the newly created UBI device (assigned automatically by default)\n"
 		      "\n"
 		      "Example 1: mtd=/dev/mtd0 - attach MTD device /dev/mtd0.\n"
 		      "Example 2: mtd=content,1984 mtd=4 - attach MTD device with name \"content\" using VID header offset 1984, and MTD device number 4 with default VID header offset.\n"
 		      "Example 3: mtd=/dev/mtd1,0,25 - attach MTD device /dev/mtd1 using default VID header offset and reserve 25*nand_size_in_blocks/1024 erase blocks for bad block handling.\n"
+		      "Example 4: mtd=/dev/mtd1,0,0,5 - attach MTD device /dev/mtd1 to UBI 5 and using default values for the other fields.\n"
 		      "\t(e.g. if the NAND *chipset* has 4096 PEB, 100 will be reserved for this UBI device).");
 #ifdef CONFIG_MTD_UBI_FASTMAP
 module_param(fm_autoconvert, bool, 0644);

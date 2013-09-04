@@ -66,9 +66,6 @@ struct nfs4_session {
 	struct nfs4_channel_attrs	bc_attrs;
 	struct nfs4_slot_table		bc_slot_table;
 	struct nfs_client		*clp;
-	/* Create session arguments */
-	unsigned int			fc_target_max_rqst_sz;
-	unsigned int			fc_target_max_resp_sz;
 };
 
 enum nfs4_session_state {
@@ -89,7 +86,7 @@ extern int nfs4_setup_session_slot_tables(struct nfs4_session *ses);
 
 extern struct nfs4_session *nfs4_alloc_session(struct nfs_client *clp);
 extern void nfs4_destroy_session(struct nfs4_session *session);
-extern int nfs4_init_session(struct nfs_server *server);
+extern int nfs4_init_session(struct nfs_client *clp);
 extern int nfs4_init_ds_session(struct nfs_client *, unsigned long);
 
 extern void nfs4_slot_tbl_drain_complete(struct nfs4_slot_table *tbl);
@@ -122,7 +119,7 @@ static inline int nfs4_has_persistent_session(const struct nfs_client *clp)
 
 #else /* defined(CONFIG_NFS_V4_1) */
 
-static inline int nfs4_init_session(struct nfs_server *server)
+static inline int nfs4_init_session(struct nfs_client *clp)
 {
 	return 0;
 }

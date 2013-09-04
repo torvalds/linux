@@ -129,6 +129,7 @@ static int create_fixed_stream_quirk(struct snd_usb_audio *chip,
 {
 	struct audioformat *fp;
 	struct usb_host_interface *alts;
+	struct usb_interface_descriptor *altsd;
 	int stream, err;
 	unsigned *rate_table = NULL;
 
@@ -166,6 +167,9 @@ static int create_fixed_stream_quirk(struct snd_usb_audio *chip,
 		return -EINVAL;
 	}
 	alts = &iface->altsetting[fp->altset_idx];
+	altsd = get_iface_desc(alts);
+	fp->protocol = altsd->bInterfaceProtocol;
+
 	if (fp->datainterval == 0)
 		fp->datainterval = snd_usb_parse_datainterval(chip, alts);
 	if (fp->maxpacksize == 0)

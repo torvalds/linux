@@ -291,7 +291,7 @@ Since the pin controller subsystem have its pinspace local to the pin
 controller we need a mapping so that the pin control subsystem can figure out
 which pin controller handles control of a certain GPIO pin. Since a single
 pin controller may be muxing several GPIO ranges (typically SoCs that have
-one set of pins but internally several GPIO silicon blocks, each modeled as
+one set of pins but internally several GPIO silicon blocks, each modelled as
 a struct gpio_chip) any number of GPIO ranges can be added to a pin controller
 instance like this:
 

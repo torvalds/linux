@@ -96,6 +96,7 @@ struct nouveau_drm {
 		int (*move)(struct nouveau_channel *,
 			    struct ttm_buffer_object *,
 			    struct ttm_mem_reg *, struct ttm_mem_reg *);
+		struct nouveau_channel *chan;
 		int mtrr;
 	} ttm;
 

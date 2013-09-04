@@ -26,6 +26,7 @@
 #include <linux/init.h>
 #include <linux/of_address.h>
 #include <linux/io.h>
+#include <linux/reboot.h>
 
 static void __iomem *system_controller_base;
 
@@ -63,7 +64,7 @@ static struct of_device_id of_system_controller_table[] = {
 	{ /* end of list */ },
 };
 
-void mvebu_restart(char mode, const char *cmd)
+void mvebu_restart(enum reboot_mode mode, const char *cmd)
 {
 	if (!system_controller_base) {
 		pr_err("Cannot restart, system-controller not available: check the device tree\n");

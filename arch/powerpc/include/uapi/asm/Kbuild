@@ -20,6 +20,7 @@ header-y += mman.h
 header-y += msgbuf.h
 header-y += nvram.h
 header-y += param.h
+header-y += perf_event.h
 header-y += poll.h
 header-y += posix_types.h
 header-y += ps3fb.h

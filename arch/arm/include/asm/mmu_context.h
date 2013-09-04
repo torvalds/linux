@@ -56,7 +56,7 @@ static inline void check_and_switch_context(struct mm_struct *mm,
 		 * on non-ASID CPUs, the old mm will remain valid until the
 		 * finish_arch_post_lock_switch() call.
 		 */
-		set_ti_thread_flag(task_thread_info(tsk), TIF_SWITCH_MM);
+		mm->context.switch_pending = 1;
 	else
 		cpu_switch_mm(mm->pgd, mm);
 }
@@ -65,9 +65,21 @@ static inline void check_and_switch_context(struct mm_struct *mm,
 	finish_arch_post_lock_switch
 static inline void finish_arch_post_lock_switch(void)
 {
-	if (test_and_clear_thread_flag(TIF_SWITCH_MM)) {
-		struct mm_struct *mm = current->mm;
-		cpu_switch_mm(mm->pgd, mm);
+	struct mm_struct *mm = current->mm;
+
+	if (mm && mm->context.switch_pending) {
+		/*
+		 * Preemption must be disabled during cpu_switch_mm() as we
+		 * have some stateful cache flush implementations. Check
+		 * switch_pending again in case we were preempted and the
+		 * switch to this mm was already done.
+		 */
+		preempt_disable();
+		if (mm->context.switch_pending) {
+			mm->context.switch_pending = 0;
+			cpu_switch_mm(mm->pgd, mm);
+		}
+		preempt_enable_no_resched();
 	}
 }
 

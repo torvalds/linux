@@ -997,7 +997,6 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 
 	return 0;
 err_clk:
-	platform_set_drvdata(pdev, NULL);
 	clk_unprepare(data->clk);
 	return ret;
 }
@@ -1011,8 +1010,6 @@ static int exynos_tmu_remove(struct platform_device *pdev)
 	exynos_unregister_thermal();
 
 	clk_unprepare(data->clk);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

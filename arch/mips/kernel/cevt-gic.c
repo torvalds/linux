@@ -59,7 +59,7 @@ void gic_event_handler(struct clock_event_device *dev)
 {
 }
 
-int __cpuinit gic_clockevent_init(void)
+int gic_clockevent_init(void)
 {
 	unsigned int cpu = smp_processor_id();
 	struct clock_event_device *cd;

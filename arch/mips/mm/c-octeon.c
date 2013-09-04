@@ -180,7 +180,7 @@ static void octeon_flush_kernel_vmap_range(unsigned long vaddr, int size)
  * Probe Octeon's caches
  *
  */
-static void __cpuinit probe_octeon(void)
+static void probe_octeon(void)
 {
 	unsigned long icache_size;
 	unsigned long dcache_size;
@@ -251,7 +251,7 @@ static void __cpuinit probe_octeon(void)
 	}
 }
 
-static void  __cpuinit octeon_cache_error_setup(void)
+static void  octeon_cache_error_setup(void)
 {
 	extern char except_vec2_octeon;
 	set_handler(0x100, &except_vec2_octeon, 0x80);
@@ -261,7 +261,7 @@ static void  __cpuinit octeon_cache_error_setup(void)
  * Setup the Octeon cache flush routines
  *
  */
-void __cpuinit octeon_cache_init(void)
+void octeon_cache_init(void)
 {
 	probe_octeon();
 

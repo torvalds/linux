@@ -124,21 +124,21 @@ struct dtsplit {
 #define DT_PAGE(IP, MP) BT_PAGE(IP, MP, dtpage_t, i_dtroot)
 
 /* get page buffer for specified block address */
-#define DT_GETPAGE(IP, BN, MP, SIZE, P, RC)\
-{\
-	BT_GETPAGE(IP, BN, MP, dtpage_t, SIZE, P, RC, i_dtroot)\
-	if (!(RC))\
-	{\
-		if (((P)->header.nextindex > (((BN)==0)?DTROOTMAXSLOT:(P)->header.maxslot)) ||\
-		    ((BN) && ((P)->header.maxslot > DTPAGEMAXSLOT)))\
-		{\
-			BT_PUTPAGE(MP);\
-			jfs_error((IP)->i_sb, "DT_GETPAGE: dtree page corrupt");\
-			MP = NULL;\
-			RC = -EIO;\
-		}\
-	}\
-}
+#define DT_GETPAGE(IP, BN, MP, SIZE, P, RC)				\
+do {									\
+	BT_GETPAGE(IP, BN, MP, dtpage_t, SIZE, P, RC, i_dtroot);	\
+	if (!(RC)) {							\
+		if (((P)->header.nextindex >				\
+		     (((BN) == 0) ? DTROOTMAXSLOT : (P)->header.maxslot)) || \
+		    ((BN) && ((P)->header.maxslot > DTPAGEMAXSLOT))) {	\
+			BT_PUTPAGE(MP);					\
+			jfs_error((IP)->i_sb,				\
+				  "DT_GETPAGE: dtree page corrupt\n");	\
+			MP = NULL;					\
+			RC = -EIO;					\
+		}							\
+	}								\
+} while (0)
 
 /* for consistency */
 #define DT_PUTPAGE(MP) BT_PUTPAGE(MP)
@@ -776,7 +776,7 @@ int dtSearch(struct inode *ip, struct component_name * key, ino_t * data,
 			/* Something's corrupted, mark filesystem dirty so
 			 * chkdsk will fix it.
 			 */
-			jfs_error(sb, "stack overrun in dtSearch!");
+			jfs_error(sb, "stack overrun!\n");
 			BT_STACK_DUMP(btstack);
 			rc = -EIO;
 			goto out;
@@ -3247,8 +3247,7 @@ int jfs_readdir(struct file *file, struct dir_context *ctx)
 				/* Sanity Check */
 				if (d_namleft == 0) {
 					jfs_error(ip->i_sb,
-						  "JFS:Dtree error: ino = "
-						  "%ld, bn=%Ld, index = %d",
+						  "JFS:Dtree error: ino = %ld, bn=%lld, index = %d\n",
 						  (long)ip->i_ino,
 						  (long long)bn,
 						  i);
@@ -3368,7 +3367,7 @@ static int dtReadFirst(struct inode *ip, struct btstack * btstack)
 		 */
 		if (BT_STACK_FULL(btstack)) {
 			DT_PUTPAGE(mp);
-			jfs_error(ip->i_sb, "dtReadFirst: btstack overrun");
+			jfs_error(ip->i_sb, "btstack overrun\n");
 			BT_STACK_DUMP(btstack);
 			return -EIO;
 		}

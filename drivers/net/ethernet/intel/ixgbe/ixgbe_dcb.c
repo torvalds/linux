@@ -380,3 +380,26 @@ s32 ixgbe_dcb_hw_ets_config(struct ixgbe_hw *hw,
 	}
 	return 0;
 }
+
+static void ixgbe_dcb_read_rtrup2tc_82599(struct ixgbe_hw *hw, u8 *map)
+{
+	u32 reg, i;
+
+	reg = IXGBE_READ_REG(hw, IXGBE_RTRUP2TC);
+	for (i = 0; i < MAX_USER_PRIORITY; i++)
+		map[i] = IXGBE_RTRUP2TC_UP_MASK &
+			(reg >> (i * IXGBE_RTRUP2TC_UP_SHIFT));
+	return;
+}
+
+void ixgbe_dcb_read_rtrup2tc(struct ixgbe_hw *hw, u8 *map)
+{
+	switch (hw->mac.type) {
+	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
+		ixgbe_dcb_read_rtrup2tc_82599(hw, map);
+		break;
+	default:
+		break;
+	}
+}

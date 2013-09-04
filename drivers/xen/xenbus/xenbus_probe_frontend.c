@@ -115,13 +115,22 @@ static int xenbus_frontend_dev_resume(struct device *dev)
 			return -EFAULT;
 		}
 
-		INIT_WORK(&xdev->work, xenbus_frontend_delayed_resume);
 		queue_work(xenbus_frontend_wq, &xdev->work);
 
 		return 0;
 	}
 
 	return xenbus_dev_resume(dev);
+}
+
+static int xenbus_frontend_dev_probe(struct device *dev)
+{
+	if (xen_store_domain_type == XS_LOCAL) {
+		struct xenbus_device *xdev = to_xenbus_device(dev);
+		INIT_WORK(&xdev->work, xenbus_frontend_delayed_resume);
+	}
+
+	return xenbus_dev_probe(dev);
 }
 
 static const struct dev_pm_ops xenbus_pm_ops = {
@@ -142,7 +151,7 @@ static struct xen_bus_type xenbus_frontend = {
 		.name		= "xen",
 		.match		= xenbus_match,
 		.uevent		= xenbus_uevent_frontend,
-		.probe		= xenbus_dev_probe,
+		.probe		= xenbus_frontend_dev_probe,
 		.remove		= xenbus_dev_remove,
 		.shutdown	= xenbus_dev_shutdown,
 		.dev_attrs	= xenbus_dev_attrs,
@@ -474,7 +483,11 @@ static int __init xenbus_probe_frontend_init(void)
 
 	register_xenstore_notifier(&xenstore_notifier);
 
-	xenbus_frontend_wq = create_workqueue("xenbus_frontend");
+	if (xen_store_domain_type == XS_LOCAL) {
+		xenbus_frontend_wq = create_workqueue("xenbus_frontend");
+		if (!xenbus_frontend_wq)
+			pr_warn("create xenbus frontend workqueue failed, S3 resume is likely to fail\n");
+	}
 
 	return 0;
 }

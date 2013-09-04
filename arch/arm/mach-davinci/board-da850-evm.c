@@ -985,7 +985,6 @@ static struct regulator_init_data tps65070_regulator_data[] = {
 static struct touchscreen_init_data tps6507x_touchscreen_data = {
 	.poll_period =  30,	/* ms between touch samples */
 	.min_pressure = 0x30,	/* minimum pressure to trigger touch */
-	.vref = 0,		/* turn off vref when not using A/D */
 	.vendor = 0,		/* /sys/class/input/input?/id/vendor */
 	.product = 65070,	/* /sys/class/input/input?/id/product */
 	.version = 0x100,	/* /sys/class/input/input?/id/version */

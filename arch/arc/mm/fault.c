@@ -207,8 +207,10 @@ out_of_memory:
 	}
 	up_read(&mm->mmap_sem);
 
-	if (user_mode(regs))
-		do_group_exit(SIGKILL);	/* This will never return */
+	if (user_mode(regs)) {
+		pagefault_out_of_memory();
+		return;
+	}
 
 	goto no_context;
 

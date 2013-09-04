@@ -567,7 +567,6 @@ static int sh_mipi_remove(struct platform_device *pdev)
 	iounmap(mipi->base);
 	if (res)
 		release_mem_region(res->start, resource_size(res));
-	platform_set_drvdata(pdev, NULL);
 	kfree(mipi);
 
 	return 0;

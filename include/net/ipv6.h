@@ -260,6 +260,12 @@ static inline void fl6_sock_release(struct ip6_flowlabel *fl)
 
 extern void icmpv6_notify(struct sk_buff *skb, u8 type, u8 code, __be32 info);
 
+int icmpv6_push_pending_frames(struct sock *sk, struct flowi6 *fl6,
+			       struct icmp6hdr *thdr, int len);
+
+struct dst_entry *icmpv6_route_lookup(struct net *net, struct sk_buff *skb,
+				      struct sock *sk, struct flowi6 *fl6);
+
 extern int 			ip6_ra_control(struct sock *sk, int sel);
 
 extern int			ipv6_parse_hopopts(struct sk_buff *skb);
@@ -853,8 +859,8 @@ static inline int snmp6_unregister_dev(struct inet6_dev *idev) { return 0; }
 #endif
 
 #ifdef CONFIG_SYSCTL
-extern ctl_table ipv6_route_table_template[];
-extern ctl_table ipv6_icmp_table_template[];
+extern struct ctl_table ipv6_route_table_template[];
+extern struct ctl_table ipv6_icmp_table_template[];
 
 extern struct ctl_table *ipv6_icmp_sysctl_init(struct net *net);
 extern struct ctl_table *ipv6_route_sysctl_init(struct net *net);

@@ -703,7 +703,7 @@ static int cb710_mmc_init(struct platform_device *pdev)
 	if (!mmc)
 		return -ENOMEM;
 
-	dev_set_drvdata(&pdev->dev, mmc);
+	platform_set_drvdata(pdev, mmc);
 
 	/* harmless (maybe) magic */
 	pci_read_config_dword(chip->pdev, 0x48, &val);

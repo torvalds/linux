@@ -220,12 +220,13 @@ int apply_microcode_amd(int cpu)
 		return 0;
 	}
 
-	if (__apply_microcode_amd(mc_amd))
+	if (__apply_microcode_amd(mc_amd)) {
 		pr_err("CPU%d: update failed for patch_level=0x%08x\n",
 			cpu, mc_amd->hdr.patch_id);
-	else
-		pr_info("CPU%d: new patch_level=0x%08x\n", cpu,
-			mc_amd->hdr.patch_id);
+		return -1;
+	}
+	pr_info("CPU%d: new patch_level=0x%08x\n", cpu,
+		mc_amd->hdr.patch_id);
 
 	uci->cpu_sig.rev = mc_amd->hdr.patch_id;
 	c->microcode = mc_amd->hdr.patch_id;

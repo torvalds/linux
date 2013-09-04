@@ -29,6 +29,7 @@ static void mga_crtc_load_lut(struct drm_crtc *crtc)
 	struct mga_crtc *mga_crtc = to_mga_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct mga_device *mdev = dev->dev_private;
+	struct drm_framebuffer *fb = crtc->fb;
 	int i;
 
 	if (!crtc->enabled)
@@ -36,6 +37,28 @@ static void mga_crtc_load_lut(struct drm_crtc *crtc)
 
 	WREG8(DAC_INDEX + MGA1064_INDEX, 0);
 
+	if (fb && fb->bits_per_pixel == 16) {
+		int inc = (fb->depth == 15) ? 8 : 4;
+		u8 r, b;
+		for (i = 0; i < MGAG200_LUT_SIZE; i += inc) {
+			if (fb->depth == 16) {
+				if (i > (MGAG200_LUT_SIZE >> 1)) {
+					r = b = 0;
+				} else {
+					r = mga_crtc->lut_r[i << 1];
+					b = mga_crtc->lut_b[i << 1];
+				}
+			} else {
+				r = mga_crtc->lut_r[i];
+				b = mga_crtc->lut_b[i];
+			}
+			/* VGA registers */
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, r);
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, mga_crtc->lut_g[i]);
+			WREG8(DAC_INDEX + MGA1064_COL_PAL, b);
+		}
+		return;
+	}
 	for (i = 0; i < MGAG200_LUT_SIZE; i++) {
 		/* VGA registers */
 		WREG8(DAC_INDEX + MGA1064_COL_PAL, mga_crtc->lut_r[i]);
@@ -877,7 +900,7 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 
 	pitch = crtc->fb->pitches[0] / (crtc->fb->bits_per_pixel / 8);
 	if (crtc->fb->bits_per_pixel == 24)
-		pitch = pitch >> (4 - bppshift);
+		pitch = (pitch * 3) >> (4 - bppshift);
 	else
 		pitch = pitch >> (4 - bppshift);
 
@@ -1008,7 +1031,7 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 
 
 	if (IS_G200_SE(mdev)) {
-		if (mdev->reg_1e24 >= 0x02) {
+		if (mdev->unique_rev_id >= 0x02) {
 			u8 hi_pri_lvl;
 			u32 bpp;
 			u32 mb;
@@ -1038,7 +1061,7 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 			WREG8(MGAREG_CRTCEXT_DATA, hi_pri_lvl);
 		} else {
 			WREG8(MGAREG_CRTCEXT_INDEX, 0x06);
-			if (mdev->reg_1e24 >= 0x01)
+			if (mdev->unique_rev_id >= 0x01)
 				WREG8(MGAREG_CRTCEXT_DATA, 0x03);
 			else
 				WREG8(MGAREG_CRTCEXT_DATA, 0x04);
@@ -1251,14 +1274,35 @@ static void mga_crtc_destroy(struct drm_crtc *crtc)
 	kfree(mga_crtc);
 }
 
+static void mga_crtc_disable(struct drm_crtc *crtc)
+{
+	int ret;
+	DRM_DEBUG_KMS("\n");
+	mga_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
+	if (crtc->fb) {
+		struct mga_framebuffer *mga_fb = to_mga_framebuffer(crtc->fb);
+		struct drm_gem_object *obj = mga_fb->obj;
+		struct mgag200_bo *bo = gem_to_mga_bo(obj);
+		ret = mgag200_bo_reserve(bo, false);
+		if (ret)
+			return;
+		mgag200_bo_push_sysram(bo);
+		mgag200_bo_unreserve(bo);
+	}
+	crtc->fb = NULL;
+}
+
 /* These provide the minimum set of functions required to handle a CRTC */
 static const struct drm_crtc_funcs mga_crtc_funcs = {
+	.cursor_set = mga_crtc_cursor_set,
+	.cursor_move = mga_crtc_cursor_move,
 	.gamma_set = mga_crtc_gamma_set,
 	.set_config = drm_crtc_helper_set_config,
 	.destroy = mga_crtc_destroy,
 };
 
 static const struct drm_crtc_helper_funcs mga_helper_funcs = {
+	.disable = mga_crtc_disable,
 	.dpms = mga_crtc_dpms,
 	.mode_fixup = mga_crtc_mode_fixup,
 	.mode_set = mga_crtc_mode_set,
@@ -1410,6 +1454,32 @@ static int mga_vga_get_modes(struct drm_connector *connector)
 	return ret;
 }
 
+static uint32_t mga_vga_calculate_mode_bandwidth(struct drm_display_mode *mode,
+							int bits_per_pixel)
+{
+	uint32_t total_area, divisor;
+	int64_t active_area, pixels_per_second, bandwidth;
+	uint64_t bytes_per_pixel = (bits_per_pixel + 7) / 8;
+
+	divisor = 1024;
+
+	if (!mode->htotal || !mode->vtotal || !mode->clock)
+		return 0;
+
+	active_area = mode->hdisplay * mode->vdisplay;
+	total_area = mode->htotal * mode->vtotal;
+
+	pixels_per_second = active_area * mode->clock * 1000;
+	do_div(pixels_per_second, total_area);
+
+	bandwidth = pixels_per_second * bytes_per_pixel * 100;
+	do_div(bandwidth, divisor);
+
+	return (uint32_t)(bandwidth);
+}
+
+#define MODE_BANDWIDTH	MODE_BAD
+
 static int mga_vga_mode_valid(struct drm_connector *connector,
 				 struct drm_display_mode *mode)
 {
@@ -1421,7 +1491,45 @@ static int mga_vga_mode_valid(struct drm_connector *connector,
 	int bpp = 32;
 	int i = 0;
 
-	/* FIXME: Add bandwidth and g200se limitations */
+	if (IS_G200_SE(mdev)) {
+		if (mdev->unique_rev_id == 0x01) {
+			if (mode->hdisplay > 1600)
+				return MODE_VIRTUAL_X;
+			if (mode->vdisplay > 1200)
+				return MODE_VIRTUAL_Y;
+			if (mga_vga_calculate_mode_bandwidth(mode, bpp)
+				> (24400 * 1024))
+				return MODE_BANDWIDTH;
+		} else if (mdev->unique_rev_id >= 0x02) {
+			if (mode->hdisplay > 1920)
+				return MODE_VIRTUAL_X;
+			if (mode->vdisplay > 1200)
+				return MODE_VIRTUAL_Y;
+			if (mga_vga_calculate_mode_bandwidth(mode, bpp)
+				> (30100 * 1024))
+				return MODE_BANDWIDTH;
+		}
+	} else if (mdev->type == G200_WB) {
+		if (mode->hdisplay > 1280)
+			return MODE_VIRTUAL_X;
+		if (mode->vdisplay > 1024)
+			return MODE_VIRTUAL_Y;
+		if (mga_vga_calculate_mode_bandwidth(mode,
+			bpp > (31877 * 1024)))
+			return MODE_BANDWIDTH;
+	} else if (mdev->type == G200_EV &&
+		(mga_vga_calculate_mode_bandwidth(mode, bpp)
+			> (32700 * 1024))) {
+		return MODE_BANDWIDTH;
+	} else if (mode->type == G200_EH &&
+		(mga_vga_calculate_mode_bandwidth(mode, bpp)
+			> (37500 * 1024))) {
+		return MODE_BANDWIDTH;
+	} else if (mode->type == G200_ER &&
+		(mga_vga_calculate_mode_bandwidth(mode,
+			bpp) > (55000 * 1024))) {
+		return MODE_BANDWIDTH;
+	}
 
 	if (mode->crtc_hdisplay > 2048 || mode->crtc_hsync_start > 4096 ||
 	    mode->crtc_hsync_end > 4096 || mode->crtc_htotal > 4096 ||
@@ -1514,6 +1622,8 @@ static struct drm_connector *mga_vga_init(struct drm_device *dev)
 			   &mga_vga_connector_funcs, DRM_MODE_CONNECTOR_VGA);
 
 	drm_connector_helper_add(connector, &mga_vga_connector_helper_funcs);
+
+	drm_sysfs_connector_add(connector);
 
 	mga_connector->i2c = mgag200_i2c_create(dev);
 	if (!mga_connector->i2c)

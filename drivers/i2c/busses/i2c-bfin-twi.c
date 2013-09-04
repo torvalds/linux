@@ -39,33 +39,40 @@ static void bfin_twi_handle_interrupt(struct bfin_twi_iface *iface,
 	unsigned short mast_stat = read_MASTER_STAT(iface);
 
 	if (twi_int_status & XMTSERV) {
+		if (iface->writeNum <= 0) {
+			/* start receive immediately after complete sending in
+			 * combine mode.
+			 */
+			if (iface->cur_mode == TWI_I2C_MODE_COMBINED)
+				write_MASTER_CTL(iface,
+					read_MASTER_CTL(iface) | MDIR);
+			else if (iface->manual_stop)
+				write_MASTER_CTL(iface,
+					read_MASTER_CTL(iface) | STOP);
+			else if (iface->cur_mode == TWI_I2C_MODE_REPEAT &&
+				iface->cur_msg + 1 < iface->msg_num) {
+				if (iface->pmsg[iface->cur_msg + 1].flags &
+					I2C_M_RD)
+					write_MASTER_CTL(iface,
+						read_MASTER_CTL(iface) |
+						MDIR);
+				else
+					write_MASTER_CTL(iface,
+						read_MASTER_CTL(iface) &
+						~MDIR);
+			}
+		}
 		/* Transmit next data */
-		if (iface->writeNum > 0) {
+		while (iface->writeNum > 0 &&
+			(read_FIFO_STAT(iface) & XMTSTAT) != XMT_FULL) {
 			SSYNC();
 			write_XMT_DATA8(iface, *(iface->transPtr++));
 			iface->writeNum--;
 		}
-		/* start receive immediately after complete sending in
-		 * combine mode.
-		 */
-		else if (iface->cur_mode == TWI_I2C_MODE_COMBINED)
-			write_MASTER_CTL(iface,
-				read_MASTER_CTL(iface) | MDIR);
-		else if (iface->manual_stop)
-			write_MASTER_CTL(iface,
-				read_MASTER_CTL(iface) | STOP);
-		else if (iface->cur_mode == TWI_I2C_MODE_REPEAT &&
-		         iface->cur_msg + 1 < iface->msg_num) {
-			if (iface->pmsg[iface->cur_msg + 1].flags & I2C_M_RD)
-				write_MASTER_CTL(iface,
-					read_MASTER_CTL(iface) | MDIR);
-			else
-				write_MASTER_CTL(iface,
-					read_MASTER_CTL(iface) & ~MDIR);
-		}
 	}
 	if (twi_int_status & RCVSERV) {
-		if (iface->readNum > 0) {
+		while (iface->readNum > 0 &&
+			(read_FIFO_STAT(iface) & RCVSTAT)) {
 			/* Receive next data */
 			*(iface->transPtr) = read_RCV_DATA8(iface);
 			if (iface->cur_mode == TWI_I2C_MODE_COMBINED) {

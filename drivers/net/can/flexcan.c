@@ -24,7 +24,6 @@
 #include <linux/can/dev.h>
 #include <linux/can/error.h>
 #include <linux/can/led.h>
-#include <linux/can/platform/flexcan.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/if_arp.h>
@@ -37,7 +36,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
-#include <linux/pinctrl/consumer.h>
+#include <linux/regulator/consumer.h>
 
 #define DRV_NAME			"flexcan"
 
@@ -212,6 +211,7 @@ struct flexcan_priv {
 	struct clk *clk_per;
 	struct flexcan_platform_data *pdata;
 	const struct flexcan_devtype_data *devtype_data;
+	struct regulator *reg_xceiver;
 };
 
 static struct flexcan_devtype_data fsl_p1010_devtype_data = {
@@ -258,15 +258,6 @@ static inline void flexcan_write(u32 val, void __iomem *addr)
 	writel(val, addr);
 }
 #endif
-
-/*
- * Swtich transceiver on or off
- */
-static void flexcan_transceiver_switch(const struct flexcan_priv *priv, int on)
-{
-	if (priv->pdata && priv->pdata->transceiver_switch)
-		priv->pdata->transceiver_switch(on);
-}
 
 static inline int flexcan_has_and_handle_berr(const struct flexcan_priv *priv,
 					      u32 reg_esr)
@@ -800,7 +791,11 @@ static int flexcan_chip_start(struct net_device *dev)
 	if (priv->devtype_data->features & FLEXCAN_HAS_V10_FEATURES)
 		flexcan_write(0x0, &regs->rxfgmask);
 
-	flexcan_transceiver_switch(priv, 1);
+	if (priv->reg_xceiver)	{
+		err = regulator_enable(priv->reg_xceiver);
+		if (err)
+			goto out;
+	}
 
 	/* synchronize with the can bus */
 	reg_mcr = flexcan_read(&regs->mcr);
@@ -843,7 +838,8 @@ static void flexcan_chip_stop(struct net_device *dev)
 	reg |= FLEXCAN_MCR_MDIS | FLEXCAN_MCR_HALT;
 	flexcan_write(reg, &regs->mcr);
 
-	flexcan_transceiver_switch(priv, 0);
+	if (priv->reg_xceiver)
+		regulator_disable(priv->reg_xceiver);
 	priv->can.state = CAN_STATE_STOPPED;
 
 	return;
@@ -1004,15 +1000,10 @@ static int flexcan_probe(struct platform_device *pdev)
 	struct flexcan_priv *priv;
 	struct resource *mem;
 	struct clk *clk_ipg = NULL, *clk_per = NULL;
-	struct pinctrl *pinctrl;
 	void __iomem *base;
 	resource_size_t mem_size;
 	int err, irq;
 	u32 clock_freq = 0;
-
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl))
-		return PTR_ERR(pinctrl);
 
 	if (pdev->dev.of_node)
 		of_property_read_u32(pdev->dev.of_node,
@@ -1090,6 +1081,10 @@ static int flexcan_probe(struct platform_device *pdev)
 	priv->pdata = pdev->dev.platform_data;
 	priv->devtype_data = devtype_data;
 
+	priv->reg_xceiver = devm_regulator_get(&pdev->dev, "xceiver");
+	if (IS_ERR(priv->reg_xceiver))
+		priv->reg_xceiver = NULL;
+
 	netif_napi_add(dev, &priv->napi, flexcan_poll, FLEXCAN_NAPI_WEIGHT);
 
 	dev_set_drvdata(&pdev->dev, dev);
@@ -1127,7 +1122,6 @@ static int flexcan_remove(struct platform_device *pdev)
 	struct resource *mem;
 
 	unregister_flexcandev(dev);
-	platform_set_drvdata(pdev, NULL);
 	iounmap(priv->base);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1138,10 +1132,10 @@ static int flexcan_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int flexcan_suspend(struct platform_device *pdev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int flexcan_suspend(struct device *device)
 {
-	struct net_device *dev = platform_get_drvdata(pdev);
+	struct net_device *dev = dev_get_drvdata(device);
 	struct flexcan_priv *priv = netdev_priv(dev);
 
 	flexcan_chip_disable(priv);
@@ -1155,9 +1149,9 @@ static int flexcan_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int flexcan_resume(struct platform_device *pdev)
+static int flexcan_resume(struct device *device)
 {
-	struct net_device *dev = platform_get_drvdata(pdev);
+	struct net_device *dev = dev_get_drvdata(device);
 	struct flexcan_priv *priv = netdev_priv(dev);
 
 	priv->can.state = CAN_STATE_ERROR_ACTIVE;
@@ -1169,21 +1163,19 @@ static int flexcan_resume(struct platform_device *pdev)
 
 	return 0;
 }
-#else
-#define flexcan_suspend NULL
-#define flexcan_resume NULL
-#endif
+#endif /* CONFIG_PM_SLEEP */
+
+static SIMPLE_DEV_PM_OPS(flexcan_pm_ops, flexcan_suspend, flexcan_resume);
 
 static struct platform_driver flexcan_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,
+		.pm = &flexcan_pm_ops,
 		.of_match_table = flexcan_of_match,
 	},
 	.probe = flexcan_probe,
 	.remove = flexcan_remove,
-	.suspend = flexcan_suspend,
-	.resume = flexcan_resume,
 	.id_table = flexcan_id_table,
 };
 

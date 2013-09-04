@@ -32,26 +32,6 @@ EXPORT_SYMBOL_GPL(blkcg_root);
 
 static struct blkcg_policy *blkcg_policy[BLKCG_MAX_POLS];
 
-static struct blkcg_gq *__blkg_lookup(struct blkcg *blkcg,
-				      struct request_queue *q, bool update_hint);
-
-/**
- * blkg_for_each_descendant_pre - pre-order walk of a blkg's descendants
- * @d_blkg: loop cursor pointing to the current descendant
- * @pos_cgrp: used for iteration
- * @p_blkg: target blkg to walk descendants of
- *
- * Walk @c_blkg through the descendants of @p_blkg.  Must be used with RCU
- * read locked.  If called under either blkcg or queue lock, the iteration
- * is guaranteed to include all and only online blkgs.  The caller may
- * update @pos_cgrp by calling cgroup_rightmost_descendant() to skip
- * subtree.
- */
-#define blkg_for_each_descendant_pre(d_blkg, pos_cgrp, p_blkg)		\
-	cgroup_for_each_descendant_pre((pos_cgrp), (p_blkg)->blkcg->css.cgroup) \
-		if (((d_blkg) = __blkg_lookup(cgroup_to_blkcg(pos_cgrp), \
-					      (p_blkg)->q, false)))
-
 static bool blkcg_policy_enabled(struct request_queue *q,
 				 const struct blkcg_policy *pol)
 {
@@ -71,18 +51,8 @@ static void blkg_free(struct blkcg_gq *blkg)
 	if (!blkg)
 		return;
 
-	for (i = 0; i < BLKCG_MAX_POLS; i++) {
-		struct blkcg_policy *pol = blkcg_policy[i];
-		struct blkg_policy_data *pd = blkg->pd[i];
-
-		if (!pd)
-			continue;
-
-		if (pol && pol->pd_exit_fn)
-			pol->pd_exit_fn(blkg);
-
-		kfree(pd);
-	}
+	for (i = 0; i < BLKCG_MAX_POLS; i++)
+		kfree(blkg->pd[i]);
 
 	blk_exit_rl(&blkg->rl);
 	kfree(blkg);
@@ -134,10 +104,6 @@ static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct request_queue *q,
 		blkg->pd[i] = pd;
 		pd->blkg = blkg;
 		pd->plid = i;
-
-		/* invoke per-policy init */
-		if (pol->pd_init_fn)
-			pol->pd_init_fn(blkg);
 	}
 
 	return blkg;
@@ -158,8 +124,8 @@ err_free:
  * @q's bypass state.  If @update_hint is %true, the caller should be
  * holding @q->queue_lock and lookup hint is updated on success.
  */
-static struct blkcg_gq *__blkg_lookup(struct blkcg *blkcg,
-				      struct request_queue *q, bool update_hint)
+struct blkcg_gq *__blkg_lookup(struct blkcg *blkcg, struct request_queue *q,
+			       bool update_hint)
 {
 	struct blkcg_gq *blkg;
 
@@ -234,16 +200,25 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 	}
 	blkg = new_blkg;
 
-	/* link parent and insert */
+	/* link parent */
 	if (blkcg_parent(blkcg)) {
 		blkg->parent = __blkg_lookup(blkcg_parent(blkcg), q, false);
 		if (WARN_ON_ONCE(!blkg->parent)) {
-			blkg = ERR_PTR(-EINVAL);
+			ret = -EINVAL;
 			goto err_put_css;
 		}
 		blkg_get(blkg->parent);
 	}
 
+	/* invoke per-policy init */
+	for (i = 0; i < BLKCG_MAX_POLS; i++) {
+		struct blkcg_policy *pol = blkcg_policy[i];
+
+		if (blkg->pd[i] && pol->pd_init_fn)
+			pol->pd_init_fn(blkg);
+	}
+
+	/* insert */
 	spin_lock(&blkcg->lock);
 	ret = radix_tree_insert(&blkcg->blkg_tree, q->id, blkg);
 	if (likely(!ret)) {
@@ -394,30 +369,38 @@ static void blkg_destroy_all(struct request_queue *q)
 	q->root_rl.blkg = NULL;
 }
 
-static void blkg_rcu_free(struct rcu_head *rcu_head)
+/*
+ * A group is RCU protected, but having an rcu lock does not mean that one
+ * can access all the fields of blkg and assume these are valid.  For
+ * example, don't try to follow throtl_data and request queue links.
+ *
+ * Having a reference to blkg under an rcu allows accesses to only values
+ * local to groups like group stats and group rate limits.
+ */
+void __blkg_release_rcu(struct rcu_head *rcu_head)
 {
-	blkg_free(container_of(rcu_head, struct blkcg_gq, rcu_head));
-}
+	struct blkcg_gq *blkg = container_of(rcu_head, struct blkcg_gq, rcu_head);
+	int i;
 
-void __blkg_release(struct blkcg_gq *blkg)
-{
+	/* tell policies that this one is being freed */
+	for (i = 0; i < BLKCG_MAX_POLS; i++) {
+		struct blkcg_policy *pol = blkcg_policy[i];
+
+		if (blkg->pd[i] && pol->pd_exit_fn)
+			pol->pd_exit_fn(blkg);
+	}
+
 	/* release the blkcg and parent blkg refs this blkg has been holding */
 	css_put(&blkg->blkcg->css);
-	if (blkg->parent)
+	if (blkg->parent) {
+		spin_lock_irq(blkg->q->queue_lock);
 		blkg_put(blkg->parent);
+		spin_unlock_irq(blkg->q->queue_lock);
+	}
 
-	/*
-	 * A group is freed in rcu manner. But having an rcu lock does not
-	 * mean that one can access all the fields of blkg and assume these
-	 * are valid. For example, don't try to follow throtl_data and
-	 * request queue links.
-	 *
-	 * Having a reference to blkg under an rcu allows acess to only
-	 * values local to groups like group stats and group rate limits
-	 */
-	call_rcu(&blkg->rcu_head, blkg_rcu_free);
+	blkg_free(blkg);
 }
-EXPORT_SYMBOL_GPL(__blkg_release);
+EXPORT_SYMBOL_GPL(__blkg_release_rcu);
 
 /*
  * The next function used by blk_queue_for_each_rl().  It's a bit tricky
@@ -928,14 +911,6 @@ struct cgroup_subsys blkio_subsys = {
 	.subsys_id = blkio_subsys_id,
 	.base_cftypes = blkcg_files,
 	.module = THIS_MODULE,
-
-	/*
-	 * blkio subsystem is utterly broken in terms of hierarchy support.
-	 * It treats all cgroups equally regardless of where they're
-	 * located in the hierarchy - all cgroups are treated as if they're
-	 * right below the root.  Fix it and remove the following.
-	 */
-	.broken_hierarchy = true,
 };
 EXPORT_SYMBOL_GPL(blkio_subsys);
 

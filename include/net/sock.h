@@ -229,6 +229,8 @@ struct cg_proto;
   *	@sk_omem_alloc: "o" is "option" or "other"
   *	@sk_wmem_queued: persistent queue size
   *	@sk_forward_alloc: space allocated forward
+  *	@sk_napi_id: id of the last napi context to receive data for sk
+  *	@sk_ll_usec: usecs to busypoll when there is no data
   *	@sk_allocation: allocation mode
   *	@sk_sndbuf: size of send buffer in bytes
   *	@sk_flags: %SO_LINGER (l_onoff), %SO_BROADCAST, %SO_KEEPALIVE,
@@ -324,6 +326,10 @@ struct sock {
 	int			sk_forward_alloc;
 #ifdef CONFIG_RPS
 	__u32			sk_rxhash;
+#endif
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	unsigned int		sk_napi_id;
+	unsigned int		sk_ll_usec;
 #endif
 	atomic_t		sk_drops;
 	int			sk_rcvbuf;
@@ -2041,18 +2047,21 @@ static inline void sk_wake_async(struct sock *sk, int how, int band)
 		sock_wake_async(sk->sk_socket, how, band);
 }
 
-#define SOCK_MIN_SNDBUF 2048
-/*
- * Since sk_rmem_alloc sums skb->truesize, even a small frame might need
- * sizeof(sk_buff) + MTU + padding, unless net driver perform copybreak
+/* Since sk_{r,w}mem_alloc sums skb->truesize, even a small frame might
+ * need sizeof(sk_buff) + MTU + padding, unless net driver perform copybreak.
+ * Note: for send buffers, TCP works better if we can build two skbs at
+ * minimum.
  */
-#define SOCK_MIN_RCVBUF (2048 + sizeof(struct sk_buff))
+#define TCP_SKB_MIN_TRUESIZE	(2048 + SKB_DATA_ALIGN(sizeof(struct sk_buff)))
+
+#define SOCK_MIN_SNDBUF		(TCP_SKB_MIN_TRUESIZE * 2)
+#define SOCK_MIN_RCVBUF		 TCP_SKB_MIN_TRUESIZE
 
 static inline void sk_stream_moderate_sndbuf(struct sock *sk)
 {
 	if (!(sk->sk_userlocks & SOCK_SNDBUF_LOCK)) {
 		sk->sk_sndbuf = min(sk->sk_sndbuf, sk->sk_wmem_queued >> 1);
-		sk->sk_sndbuf = max(sk->sk_sndbuf, SOCK_MIN_SNDBUF);
+		sk->sk_sndbuf = max_t(u32, sk->sk_sndbuf, SOCK_MIN_SNDBUF);
 	}
 }
 

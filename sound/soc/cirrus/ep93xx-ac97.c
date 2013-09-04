@@ -102,13 +102,13 @@ static struct ep93xx_ac97_info *ep93xx_ac97_info;
 
 static struct ep93xx_dma_data ep93xx_ac97_pcm_out = {
 	.name		= "ac97-pcm-out",
-	.dma_port	= EP93XX_DMA_AAC1,
+	.port		= EP93XX_DMA_AAC1,
 	.direction	= DMA_MEM_TO_DEV,
 };
 
 static struct ep93xx_dma_data ep93xx_ac97_pcm_in = {
 	.name		= "ac97-pcm-in",
-	.dma_port	= EP93XX_DMA_AAC1,
+	.port		= EP93XX_DMA_AAC1,
 	.direction	= DMA_DEV_TO_MEM,
 };
 

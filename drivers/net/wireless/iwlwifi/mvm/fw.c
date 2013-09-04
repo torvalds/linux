@@ -326,6 +326,17 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	ret = iwl_nvm_check_version(mvm->nvm_data, mvm->trans);
 	WARN_ON(ret);
 
+	/*
+	 * abort after reading the nvm in case RF Kill is on, we will complete
+	 * the init seq later when RF kill will switch to off
+	 */
+	if (iwl_mvm_is_radio_killed(mvm)) {
+		IWL_DEBUG_RF_KILL(mvm,
+				  "jump over all phy activities due to RF kill\n");
+		iwl_remove_notification(&mvm->notif_wait, &calib_wait);
+		return 1;
+	}
+
 	/* Send TX valid antennas before triggering calibrations */
 	ret = iwl_send_tx_ant_cfg(mvm, iwl_fw_valid_tx_ant(mvm->fw));
 	if (ret)
@@ -388,6 +399,8 @@ out:
 int iwl_mvm_up(struct iwl_mvm *mvm)
 {
 	int ret, i;
+	struct ieee80211_channel *chan;
+	struct cfg80211_chan_def chandef;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -400,8 +413,16 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		ret = iwl_run_init_mvm_ucode(mvm, false);
 		if (ret && !iwlmvm_mod_params.init_dbg) {
 			IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", ret);
+			/* this can't happen */
+			if (WARN_ON(ret > 0))
+				ret = -ERFKILL;
 			goto error;
 		}
+		/* should stop & start HW since that INIT image just loaded */
+		iwl_trans_stop_hw(mvm->trans, false);
+		ret = iwl_trans_start_hw(mvm->trans);
+		if (ret)
+			return ret;
 	}
 
 	if (iwlmvm_mod_params.init_dbg)
@@ -443,8 +464,22 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	if (ret)
 		goto error;
 
-	IWL_DEBUG_INFO(mvm, "RT uCode started.\n");
+	/* Add all the PHY contexts */
+	chan = &mvm->hw->wiphy->bands[IEEE80211_BAND_2GHZ]->channels[0];
+	cfg80211_chandef_create(&chandef, chan, NL80211_CHAN_NO_HT);
+	for (i = 0; i < NUM_PHY_CTX; i++) {
+		/*
+		 * The channel used here isn't relevant as it's
+		 * going to be overwritten in the other flows.
+		 * For now use the first channel we have.
+		 */
+		ret = iwl_mvm_phy_ctxt_add(mvm, &mvm->phy_ctxts[i],
+					   &chandef, 1, 1);
+		if (ret)
+			goto error;
+	}
 
+	IWL_DEBUG_INFO(mvm, "RT uCode started.\n");
 	return 0;
  error:
 	iwl_trans_stop_device(mvm->trans);

@@ -278,6 +278,8 @@ enum {
 	 *
 	 * - memcg: use_hierarchy is on by default and the cgroup file for
 	 *   the flag is not created.
+	 *
+	 * - blkcg: blk-throttle becomes properly hierarchical.
 	 */
 	CGRP_ROOT_SANE_BEHAVIOR	= (1 << 0),
 
@@ -540,8 +542,7 @@ int cgroup_rm_cftypes(struct cgroup_subsys *ss, struct cftype *cfts);
 bool cgroup_is_descendant(struct cgroup *cgrp, struct cgroup *ancestor);
 
 int cgroup_path(const struct cgroup *cgrp, char *buf, int buflen);
-int task_cgroup_path_from_hierarchy(struct task_struct *task, int hierarchy_id,
-				    char *buf, size_t buflen);
+int task_cgroup_path(struct task_struct *task, char *buf, size_t buflen);
 
 int cgroup_task_count(const struct cgroup *cgrp);
 

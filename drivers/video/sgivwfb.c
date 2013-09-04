@@ -713,7 +713,7 @@ static int sgivwfb_mmap(struct fb_info *info,
 	r = vm_iomap_memory(vma, sgivwfb_mem_phys, sgivwfb_mem_size);
 
 	printk(KERN_DEBUG "sgivwfb: mmap framebuffer P(%lx)->V(%lx)\n",
-	       offset, vma->vm_start);
+		sgivwfb_mem_phys + (vma->vm_pgoff << PAGE_SHIFT), vma->vm_start);
 
 	return r;
 }

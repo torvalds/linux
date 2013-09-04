@@ -477,7 +477,7 @@ mclk_mrg(struct nouveau_mem_exec_func *exec, int mr)
 {
 	struct nouveau_device *device = nouveau_dev(exec->dev);
 	struct nouveau_fb *pfb = nouveau_fb(device);
-	if (pfb->ram.type != NV_MEM_TYPE_GDDR5) {
+	if (pfb->ram->type != NV_MEM_TYPE_GDDR5) {
 		if (mr <= 1)
 			return nv_rd32(device, 0x10f300 + ((mr - 0) * 4));
 		return nv_rd32(device, 0x10f320 + ((mr - 2) * 4));
@@ -496,15 +496,15 @@ mclk_mrs(struct nouveau_mem_exec_func *exec, int mr, u32 data)
 {
 	struct nouveau_device *device = nouveau_dev(exec->dev);
 	struct nouveau_fb *pfb = nouveau_fb(device);
-	if (pfb->ram.type != NV_MEM_TYPE_GDDR5) {
+	if (pfb->ram->type != NV_MEM_TYPE_GDDR5) {
 		if (mr <= 1) {
 			nv_wr32(device, 0x10f300 + ((mr - 0) * 4), data);
-			if (pfb->ram.ranks > 1)
+			if (pfb->ram->ranks > 1)
 				nv_wr32(device, 0x10f308 + ((mr - 0) * 4), data);
 		} else
 		if (mr <= 3) {
 			nv_wr32(device, 0x10f320 + ((mr - 2) * 4), data);
-			if (pfb->ram.ranks > 1)
+			if (pfb->ram->ranks > 1)
 				nv_wr32(device, 0x10f328 + ((mr - 2) * 4), data);
 		}
 	} else {

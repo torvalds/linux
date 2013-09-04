@@ -3564,7 +3564,7 @@ static void ucc_geth_timeout(struct net_device *dev)
 
 static int ucc_geth_suspend(struct platform_device *ofdev, pm_message_t state)
 {
-	struct net_device *ndev = dev_get_drvdata(&ofdev->dev);
+	struct net_device *ndev = platform_get_drvdata(ofdev);
 	struct ucc_geth_private *ugeth = netdev_priv(ndev);
 
 	if (!netif_running(ndev))
@@ -3592,7 +3592,7 @@ static int ucc_geth_suspend(struct platform_device *ofdev, pm_message_t state)
 
 static int ucc_geth_resume(struct platform_device *ofdev)
 {
-	struct net_device *ndev = dev_get_drvdata(&ofdev->dev);
+	struct net_device *ndev = platform_get_drvdata(ofdev);
 	struct ucc_geth_private *ugeth = netdev_priv(ndev);
 	int err;
 

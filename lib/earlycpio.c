@@ -63,7 +63,7 @@ enum cpio_fields {
  *          the match returned an empty filename string.
  */
 
-struct cpio_data __cpuinit find_cpio_data(const char *path, void *data,
+struct cpio_data find_cpio_data(const char *path, void *data,
 					  size_t len,  long *offset)
 {
 	const size_t cpio_header_len = 8*C_NFIELDS - 2;

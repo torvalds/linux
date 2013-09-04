@@ -29,7 +29,6 @@
 #include <net/netevent.h>
 
 #include <rdma/ib_addr.h>
-#include <rdma/ib_cache.h>
 
 #include "ocrdma.h"
 #include "ocrdma_verbs.h"

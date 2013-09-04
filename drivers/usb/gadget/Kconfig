@@ -193,6 +193,7 @@ config USB_FUSB300
 	   Faraday usb device controller FUSB300 driver
 
 config USB_FOTG210_UDC
+	depends on HAS_DMA
 	tristate "Faraday FOTG210 USB Peripheral Controller"
 	help
 	   Faraday USB2.0 OTG controller which can be configured as
@@ -328,13 +329,14 @@ config USB_S3C_HSUDC
 
 config USB_MV_UDC
 	tristate "Marvell USB2.0 Device Controller"
-	depends on GENERIC_HARDIRQS
+	depends on GENERIC_HARDIRQS && HAS_DMA
 	help
 	  Marvell Socs (including PXA and MMP series) include a high speed
 	  USB2.0 OTG controller, which can be configured as high speed or
 	  full speed USB peripheral.
 
 config USB_MV_U3D
+	depends on HAS_DMA
 	tristate "MARVELL PXA2128 USB 3.0 controller"
 	help
 	  MARVELL PXA2128 Processor series include a super speed USB3.0 device
@@ -639,6 +641,7 @@ config USB_CONFIGFS_RNDIS
 	depends on USB_CONFIGFS
 	depends on NET
 	select USB_U_ETHER
+	select USB_U_RNDIS
 	select USB_F_RNDIS
 	help
 	   Microsoft Windows XP bundles the "Remote NDIS" (RNDIS) protocol,

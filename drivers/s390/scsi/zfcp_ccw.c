@@ -72,15 +72,6 @@ static struct ccw_device_id zfcp_ccw_device_id[] = {
 MODULE_DEVICE_TABLE(ccw, zfcp_ccw_device_id);
 
 /**
- * zfcp_ccw_priv_sch - check if subchannel is privileged
- * @adapter: Adapter/Subchannel to check
- */
-int zfcp_ccw_priv_sch(struct zfcp_adapter *adapter)
-{
-	return adapter->ccw_device->id.dev_model == ZFCP_MODEL_PRIV;
-}
-
-/**
  * zfcp_ccw_probe - probe function of zfcp driver
  * @cdev: pointer to belonging ccw device
  *
@@ -129,10 +120,10 @@ static void zfcp_ccw_remove(struct ccw_device *cdev)
 	zfcp_ccw_adapter_put(adapter); /* put from zfcp_ccw_adapter_by_cdev */
 
 	list_for_each_entry_safe(unit, u, &unit_remove_lh, list)
-		zfcp_device_unregister(&unit->dev, &zfcp_sysfs_unit_attrs);
+		device_unregister(&unit->dev);
 
 	list_for_each_entry_safe(port, p, &port_remove_lh, list)
-		zfcp_device_unregister(&port->dev, &zfcp_sysfs_port_attrs);
+		device_unregister(&port->dev);
 
 	zfcp_adapter_unregister(adapter);
 }

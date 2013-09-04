@@ -186,13 +186,6 @@ nv50_graph_cclass = {
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
-static int
-nv50_graph_tlb_flush(struct nouveau_engine *engine)
-{
-	nv50_vm_flush_engine(&engine->base, 0x00);
-	return 0;
-}
-
 static const struct nouveau_bitfield nv50_pgraph_status[] = {
 	{ 0x00000001, "BUSY" }, /* set when any bit is set */
 	{ 0x00000002, "DISPATCH" },
@@ -302,8 +295,10 @@ nv84_graph_tlb_flush(struct nouveau_engine *engine)
 				nv_rd32(priv, 0x400388));
 	}
 
-	nv50_vm_flush_engine(&engine->base, 0x00);
 
+	nv_wr32(priv, 0x100c80, 0x00000001);
+	if (!nv_wait(priv, 0x100c80, 0x00000001, 0x00000000))
+		nv_error(priv, "vm flush timeout\n");
 	nv_mask(priv, 0x400500, 0x00000001, 0x00000001);
 	spin_unlock_irqrestore(&priv->lock, flags);
 	return timeout ? -EBUSY : 0;
@@ -857,10 +852,9 @@ nv50_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 
 	};
 
-	if (nv_device(priv)->chipset == 0x50 ||
-	    nv_device(priv)->chipset == 0xac)
-		nv_engine(priv)->tlb_flush = nv50_graph_tlb_flush;
-	else
+	/* unfortunate hw bug workaround... */
+	if (nv_device(priv)->chipset != 0x50 &&
+	    nv_device(priv)->chipset != 0xac)
 		nv_engine(priv)->tlb_flush = nv84_graph_tlb_flush;
 
 	spin_lock_init(&priv->lock);

@@ -137,7 +137,6 @@ static int bcm63xx_rng_probe(struct platform_device *pdev)
 out_clk_disable:
 	clk_disable(clk);
 out_free_rng:
-	platform_set_drvdata(pdev, NULL);
 	kfree(rng);
 out_free_priv:
 	kfree(priv);
@@ -154,7 +153,6 @@ static int bcm63xx_rng_remove(struct platform_device *pdev)
 	clk_disable(priv->clk);
 	kfree(priv);
 	kfree(rng);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

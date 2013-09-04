@@ -188,8 +188,12 @@ static int ipip_rcv(struct sk_buff *skb)
 	struct net *net = dev_net(skb->dev);
 	struct ip_tunnel_net *itn = net_generic(net, ipip_net_id);
 	struct ip_tunnel *tunnel;
-	const struct iphdr *iph = ip_hdr(skb);
+	const struct iphdr *iph;
 
+	if (iptunnel_pull_header(skb, 0, tpi.proto))
+		goto drop;
+
+	iph = ip_hdr(skb);
 	tunnel = ip_tunnel_lookup(itn, skb->dev->ifindex, TUNNEL_NO_KEY,
 			iph->saddr, iph->daddr, 0);
 	if (tunnel) {
@@ -222,7 +226,7 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 		skb->encapsulation = 1;
 	}
 
-	ip_tunnel_xmit(skb, dev, tiph);
+	ip_tunnel_xmit(skb, dev, tiph, tiph->protocol);
 	return NETDEV_TX_OK;
 
 tx_error:
@@ -240,11 +244,13 @@ ipip_tunnel_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	if (copy_from_user(&p, ifr->ifr_ifru.ifru_data, sizeof(p)))
 		return -EFAULT;
 
-	if (p.iph.version != 4 || p.iph.protocol != IPPROTO_IPIP ||
-			p.iph.ihl != 5 || (p.iph.frag_off&htons(~IP_DF)))
-		return -EINVAL;
-	if (p.i_key || p.o_key || p.i_flags || p.o_flags)
-		return -EINVAL;
+	if (cmd == SIOCADDTUNNEL || cmd == SIOCCHGTUNNEL) {
+		if (p.iph.version != 4 || p.iph.protocol != IPPROTO_IPIP ||
+		    p.iph.ihl != 5 || (p.iph.frag_off&htons(~IP_DF)))
+			return -EINVAL;
+	}
+
+	p.i_key = p.o_key = p.i_flags = p.o_flags = 0;
 	if (p.iph.ttl)
 		p.iph.frag_off |= htons(IP_DF);
 

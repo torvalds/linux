@@ -228,23 +228,22 @@ static int nfs41_setup_state_renewal(struct nfs_client *clp)
 	return status;
 }
 
-/*
- * Back channel returns NFS4ERR_DELAY for new requests when
- * NFS4_SESSION_DRAINING is set so there is no work to be done when draining
- * is ended.
- */
-static void nfs4_end_drain_session(struct nfs_client *clp)
+static void nfs4_end_drain_slot_table(struct nfs4_slot_table *tbl)
 {
-	struct nfs4_session *ses = clp->cl_session;
-	struct nfs4_slot_table *tbl;
-
-	if (ses == NULL)
-		return;
-	tbl = &ses->fc_slot_table;
 	if (test_and_clear_bit(NFS4_SLOT_TBL_DRAINING, &tbl->slot_tbl_state)) {
 		spin_lock(&tbl->slot_tbl_lock);
 		nfs41_wake_slot_table(tbl);
 		spin_unlock(&tbl->slot_tbl_lock);
+	}
+}
+
+static void nfs4_end_drain_session(struct nfs_client *clp)
+{
+	struct nfs4_session *ses = clp->cl_session;
+
+	if (ses != NULL) {
+		nfs4_end_drain_slot_table(&ses->bc_slot_table);
+		nfs4_end_drain_slot_table(&ses->fc_slot_table);
 	}
 }
 
@@ -1563,11 +1562,12 @@ static void nfs4_state_start_reclaim_reboot(struct nfs_client *clp)
 }
 
 static void nfs4_reclaim_complete(struct nfs_client *clp,
-				 const struct nfs4_state_recovery_ops *ops)
+				 const struct nfs4_state_recovery_ops *ops,
+				 struct rpc_cred *cred)
 {
 	/* Notify the server we're done reclaiming our state */
 	if (ops->reclaim_complete)
-		(void)ops->reclaim_complete(clp);
+		(void)ops->reclaim_complete(clp, cred);
 }
 
 static void nfs4_clear_reclaim_server(struct nfs_server *server)
@@ -1612,9 +1612,15 @@ static int nfs4_state_clear_reclaim_reboot(struct nfs_client *clp)
 
 static void nfs4_state_end_reclaim_reboot(struct nfs_client *clp)
 {
+	const struct nfs4_state_recovery_ops *ops;
+	struct rpc_cred *cred;
+
 	if (!nfs4_state_clear_reclaim_reboot(clp))
 		return;
-	nfs4_reclaim_complete(clp, clp->cl_mvops->reboot_recovery_ops);
+	ops = clp->cl_mvops->reboot_recovery_ops;
+	cred = ops->get_clid_cred(clp);
+	nfs4_reclaim_complete(clp, ops, cred);
+	put_rpccred(cred);
 }
 
 static void nfs_delegation_clear_all(struct nfs_client *clp)

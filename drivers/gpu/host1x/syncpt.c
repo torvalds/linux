@@ -32,7 +32,7 @@
 
 static struct host1x_syncpt *_host1x_syncpt_alloc(struct host1x *host,
 						  struct device *dev,
-						  int client_managed)
+						  bool client_managed)
 {
 	int i;
 	struct host1x_syncpt *sp = host->syncpt;
@@ -40,7 +40,8 @@ static struct host1x_syncpt *_host1x_syncpt_alloc(struct host1x *host,
 
 	for (i = 0; i < host->info->nb_pts && sp->name; i++, sp++)
 		;
-	if (sp->dev)
+
+	if (i >= host->info->nb_pts)
 		return NULL;
 
 	name = kasprintf(GFP_KERNEL, "%02d-%s", sp->id,
@@ -128,22 +129,11 @@ u32 host1x_syncpt_load_wait_base(struct host1x_syncpt *sp)
 }
 
 /*
- * Write a cpu syncpoint increment to the hardware, without touching
- * the cache. Caller is responsible for host being powered.
- */
-void host1x_syncpt_cpu_incr(struct host1x_syncpt *sp)
-{
-	host1x_hw_syncpt_cpu_incr(sp->host, sp);
-}
-
-/*
  * Increment syncpoint value from cpu, updating cache
  */
-void host1x_syncpt_incr(struct host1x_syncpt *sp)
+int host1x_syncpt_incr(struct host1x_syncpt *sp)
 {
-	if (host1x_syncpt_client_managed(sp))
-		host1x_syncpt_incr_max(sp, 1);
-	host1x_syncpt_cpu_incr(sp);
+	return host1x_hw_syncpt_cpu_incr(sp->host, sp);
 }
 
 /*
@@ -331,7 +321,7 @@ int host1x_syncpt_init(struct host1x *host)
 	host1x_syncpt_restore(host);
 
 	/* Allocate sync point to use for clearing waits for expired fences */
-	host->nop_sp = _host1x_syncpt_alloc(host, NULL, 0);
+	host->nop_sp = _host1x_syncpt_alloc(host, NULL, false);
 	if (!host->nop_sp)
 		return -ENOMEM;
 
@@ -339,7 +329,7 @@ int host1x_syncpt_init(struct host1x *host)
 }
 
 struct host1x_syncpt *host1x_syncpt_request(struct device *dev,
-					    int client_managed)
+					    bool client_managed)
 {
 	struct host1x *host = dev_get_drvdata(dev->parent);
 	return _host1x_syncpt_alloc(host, dev, client_managed);
@@ -353,7 +343,7 @@ void host1x_syncpt_free(struct host1x_syncpt *sp)
 	kfree(sp->name);
 	sp->dev = NULL;
 	sp->name = NULL;
-	sp->client_managed = 0;
+	sp->client_managed = false;
 }
 
 void host1x_syncpt_deinit(struct host1x *host)

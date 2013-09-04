@@ -24,6 +24,7 @@ Supported adapters:
   * Intel Lynx Point-LP (PCH)
   * Intel Avoton (SOC)
   * Intel Wellsburg (PCH)
+  * Intel Coleto Creek (PCH)
    Datasheets: Publicly available at the Intel website
 
 On Intel Patsburg and later chipsets, both the normal host SMBus controller

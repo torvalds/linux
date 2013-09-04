@@ -2090,7 +2090,11 @@ static struct fc_rport_operations fcoe_ctlr_vn_rport_ops = {
  */
 static void fcoe_ctlr_disc_stop_locked(struct fc_lport *lport)
 {
+	struct fc_rport_priv *rdata;
+
 	mutex_lock(&lport->disc.disc_mutex);
+	list_for_each_entry_rcu(rdata, &lport->disc.rports, peers)
+		lport->tt.rport_logoff(rdata);
 	lport->disc.disc_callback = NULL;
 	mutex_unlock(&lport->disc.disc_mutex);
 }

@@ -299,7 +299,7 @@ struct ip_vs_lblcr_table {
  *      IPVS LBLCR sysctl table
  */
 
-static ctl_table vs_vars_table[] = {
+static struct ctl_table vs_vars_table[] = {
 	{
 		.procname	= "lblcr_expiration",
 		.data		= NULL,
@@ -655,19 +655,17 @@ is_overloaded(struct ip_vs_dest *dest, struct ip_vs_service *svc)
  *    Locality-Based (weighted) Least-Connection scheduling
  */
 static struct ip_vs_dest *
-ip_vs_lblcr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
+ip_vs_lblcr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
+		     struct ip_vs_iphdr *iph)
 {
 	struct ip_vs_lblcr_table *tbl = svc->sched_data;
-	struct ip_vs_iphdr iph;
 	struct ip_vs_dest *dest;
 	struct ip_vs_lblcr_entry *en;
-
-	ip_vs_fill_iph_addr_only(svc->af, skb, &iph);
 
 	IP_VS_DBG(6, "%s(): Scheduling...\n", __func__);
 
 	/* First look in our cache */
-	en = ip_vs_lblcr_get(svc->af, tbl, &iph.daddr);
+	en = ip_vs_lblcr_get(svc->af, tbl, &iph->daddr);
 	if (en) {
 		en->lastuse = jiffies;
 
@@ -718,12 +716,12 @@ ip_vs_lblcr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	/* If we fail to create a cache entry, we'll just use the valid dest */
 	spin_lock_bh(&svc->sched_lock);
 	if (!tbl->dead)
-		ip_vs_lblcr_new(tbl, &iph.daddr, dest);
+		ip_vs_lblcr_new(tbl, &iph->daddr, dest);
 	spin_unlock_bh(&svc->sched_lock);
 
 out:
 	IP_VS_DBG_BUF(6, "LBLCR: destination IP address %s --> server %s:%d\n",
-		      IP_VS_DBG_ADDR(svc->af, &iph.daddr),
+		      IP_VS_DBG_ADDR(svc->af, &iph->daddr),
 		      IP_VS_DBG_ADDR(svc->af, &dest->addr), ntohs(dest->port));
 
 	return dest;

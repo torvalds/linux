@@ -1684,7 +1684,7 @@ The parameter is defined like this:
 
 This ioctl maps the memory at "user_addr" with the length "length" to
 the vcpu's address space starting at "vcpu_addr". All parameters need to
-be alligned by 1 megabyte.
+be aligned by 1 megabyte.
 
 
 4.66 KVM_S390_UCAS_UNMAP
@@ -1704,7 +1704,7 @@ The parameter is defined like this:
 
 This ioctl unmaps the memory in the vcpu's address space starting at
 "vcpu_addr" with the length "length". The field "user_addr" is ignored.
-All parameters need to be alligned by 1 megabyte.
+All parameters need to be aligned by 1 megabyte.
 
 
 4.67 KVM_S390_VCPU_FAULT
@@ -1989,7 +1989,7 @@ Returns: 0 on success, -1 on error
 
 This populates and returns a structure describing the features of
 the "Server" class MMU emulation supported by KVM.
-This can in turn be used by userspace to generate the appropariate
+This can in turn be used by userspace to generate the appropriate
 device-tree properties for the guest operating system.
 
 The structure contains some global informations, followed by an
@@ -2036,7 +2036,7 @@ be OR'ed into the "vsid" argument of the slbmte instruction.
 The "enc" array is a list which for each of those segment base page
 size provides the list of supported actual page sizes (which can be
 only larger or equal to the base page size), along with the
-corresponding encoding in the hash PTE. Similarily, the array is
+corresponding encoding in the hash PTE. Similarly, the array is
 8 entries sorted by increasing sizes and an entry with a "0" shift
 is an empty entry and a terminator:
 

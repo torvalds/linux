@@ -262,29 +262,42 @@ static ssize_t nfs_idmap_get_desc(const char *name, size_t namelen,
 	return desclen;
 }
 
-static ssize_t nfs_idmap_request_key(struct key_type *key_type,
-				     const char *name, size_t namelen,
-				     const char *type, void *data,
-				     size_t data_size, struct idmap *idmap)
+static struct key *nfs_idmap_request_key(const char *name, size_t namelen,
+					 const char *type, struct idmap *idmap)
 {
-	const struct cred *saved_cred;
-	struct key *rkey;
 	char *desc;
-	struct user_key_payload *payload;
+	struct key *rkey;
 	ssize_t ret;
 
 	ret = nfs_idmap_get_desc(name, namelen, type, strlen(type), &desc);
 	if (ret <= 0)
-		goto out;
+		return ERR_PTR(ret);
 
-	saved_cred = override_creds(id_resolver_cache);
-	if (idmap)
-		rkey = request_key_with_auxdata(key_type, desc, "", 0, idmap);
-	else
-		rkey = request_key(&key_type_id_resolver, desc, "");
-	revert_creds(saved_cred);
+	rkey = request_key(&key_type_id_resolver, desc, "");
+	if (IS_ERR(rkey)) {
+		mutex_lock(&idmap->idmap_mutex);
+		rkey = request_key_with_auxdata(&key_type_id_resolver_legacy,
+						desc, "", 0, idmap);
+		mutex_unlock(&idmap->idmap_mutex);
+	}
 
 	kfree(desc);
+	return rkey;
+}
+
+static ssize_t nfs_idmap_get_key(const char *name, size_t namelen,
+				 const char *type, void *data,
+				 size_t data_size, struct idmap *idmap)
+{
+	const struct cred *saved_cred;
+	struct key *rkey;
+	struct user_key_payload *payload;
+	ssize_t ret;
+
+	saved_cred = override_creds(id_resolver_cache);
+	rkey = nfs_idmap_request_key(name, namelen, type, idmap);
+	revert_creds(saved_cred);
+
 	if (IS_ERR(rkey)) {
 		ret = PTR_ERR(rkey);
 		goto out;
@@ -313,23 +326,6 @@ out_up:
 	rcu_read_unlock();
 	key_put(rkey);
 out:
-	return ret;
-}
-
-static ssize_t nfs_idmap_get_key(const char *name, size_t namelen,
-				 const char *type, void *data,
-				 size_t data_size, struct idmap *idmap)
-{
-	ssize_t ret = nfs_idmap_request_key(&key_type_id_resolver,
-					    name, namelen, type, data,
-					    data_size, NULL);
-	if (ret < 0) {
-		mutex_lock(&idmap->idmap_mutex);
-		ret = nfs_idmap_request_key(&key_type_id_resolver_legacy,
-					    name, namelen, type, data,
-					    data_size, idmap);
-		mutex_unlock(&idmap->idmap_mutex);
-	}
 	return ret;
 }
 

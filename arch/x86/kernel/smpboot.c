@@ -130,7 +130,7 @@ atomic_t init_deasserted;
  * Report back to the Boot Processor during boot time or to the caller processor
  * during CPU online.
  */
-static void __cpuinit smp_callin(void)
+static void smp_callin(void)
 {
 	int cpuid, phys_id;
 	unsigned long timeout;
@@ -237,7 +237,7 @@ static int enable_start_cpu0;
 /*
  * Activate a secondary processor.
  */
-notrace static void __cpuinit start_secondary(void *unused)
+static void notrace start_secondary(void *unused)
 {
 	/*
 	 * Don't put *anything* before cpu_init(), SMP booting is too
@@ -300,7 +300,7 @@ void __init smp_store_boot_cpu_info(void)
  * The bootstrap kernel entry code has set these up. Save them for
  * a given CPU
  */
-void __cpuinit smp_store_cpu_info(int id)
+void smp_store_cpu_info(int id)
 {
 	struct cpuinfo_x86 *c = &cpu_data(id);
 
@@ -313,7 +313,7 @@ void __cpuinit smp_store_cpu_info(int id)
 	identify_secondary_cpu(c);
 }
 
-static bool __cpuinit
+static bool
 topology_sane(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o, const char *name)
 {
 	int cpu1 = c->cpu_index, cpu2 = o->cpu_index;
@@ -330,7 +330,7 @@ do {									\
 	cpumask_set_cpu((c2), cpu_##_m##_mask(c1));			\
 } while (0)
 
-static bool __cpuinit match_smt(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
+static bool match_smt(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 {
 	if (cpu_has_topoext) {
 		int cpu1 = c->cpu_index, cpu2 = o->cpu_index;
@@ -348,7 +348,7 @@ static bool __cpuinit match_smt(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 	return false;
 }
 
-static bool __cpuinit match_llc(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
+static bool match_llc(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 {
 	int cpu1 = c->cpu_index, cpu2 = o->cpu_index;
 
@@ -359,7 +359,7 @@ static bool __cpuinit match_llc(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 	return false;
 }
 
-static bool __cpuinit match_mc(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
+static bool match_mc(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 {
 	if (c->phys_proc_id == o->phys_proc_id) {
 		if (cpu_has(c, X86_FEATURE_AMD_DCM))
@@ -370,7 +370,7 @@ static bool __cpuinit match_mc(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 	return false;
 }
 
-void __cpuinit set_cpu_sibling_map(int cpu)
+void set_cpu_sibling_map(int cpu)
 {
 	bool has_smt = smp_num_siblings > 1;
 	bool has_mp = has_smt || boot_cpu_data.x86_max_cores > 1;
@@ -499,7 +499,7 @@ void __inquire_remote_apic(int apicid)
  * INIT, INIT, STARTUP sequence will reset the chip hard for us, and this
  * won't ... remember to clear down the APIC, etc later.
  */
-int __cpuinit
+int
 wakeup_secondary_cpu_via_nmi(int apicid, unsigned long start_eip)
 {
 	unsigned long send_status, accept_status = 0;
@@ -533,7 +533,7 @@ wakeup_secondary_cpu_via_nmi(int apicid, unsigned long start_eip)
 	return (send_status | accept_status);
 }
 
-static int __cpuinit
+static int
 wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 {
 	unsigned long send_status, accept_status = 0;
@@ -649,7 +649,7 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 }
 
 /* reduce the number of lines printed when booting a large cpu count system */
-static void __cpuinit announce_cpu(int cpu, int apicid)
+static void announce_cpu(int cpu, int apicid)
 {
 	static int current_node = -1;
 	int node = early_cpu_to_node(cpu);
@@ -691,7 +691,7 @@ static int wakeup_cpu0_nmi(unsigned int cmd, struct pt_regs *regs)
  * We'll change this code in the future to wake up hard offlined CPU0 if
  * real platform and request are available.
  */
-static int __cpuinit
+static int
 wakeup_cpu_via_init_nmi(int cpu, unsigned long start_ip, int apicid,
 	       int *cpu0_nmi_registered)
 {
@@ -731,7 +731,7 @@ wakeup_cpu_via_init_nmi(int cpu, unsigned long start_ip, int apicid,
  * Returns zero if CPU booted OK, else error code from
  * ->wakeup_secondary_cpu.
  */
-static int __cpuinit do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
+static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 {
 	volatile u32 *trampoline_status =
 		(volatile u32 *) __va(real_mode_header->trampoline_status);
@@ -872,7 +872,7 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 	return boot_error;
 }
 
-int __cpuinit native_cpu_up(unsigned int cpu, struct task_struct *tidle)
+int native_cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	int apicid = apic->cpu_present_to_apicid(cpu);
 	unsigned long flags;

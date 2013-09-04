@@ -1682,7 +1682,6 @@ static int tsi108_ether_remove(struct platform_device *pdev)
 
 	unregister_netdev(dev);
 	tsi108_stop_ethernet(dev);
-	platform_set_drvdata(pdev, NULL);
 	iounmap(priv->regs);
 	iounmap(priv->phyregs);
 	free_netdev(dev);

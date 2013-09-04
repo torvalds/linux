@@ -82,6 +82,23 @@ static void radeon_hotplug_work_func(struct work_struct *work)
 }
 
 /**
+ * radeon_irq_reset_work_func - execute gpu reset
+ *
+ * @work: work struct
+ *
+ * Execute scheduled gpu reset (cayman+).
+ * This function is called when the irq handler
+ * thinks we need a gpu reset.
+ */
+static void radeon_irq_reset_work_func(struct work_struct *work)
+{
+	struct radeon_device *rdev = container_of(work, struct radeon_device,
+						  reset_work);
+
+	radeon_gpu_reset(rdev);
+}
+
+/**
  * radeon_driver_irq_preinstall_kms - drm irq preinstall callback
  *
  * @dev: drm dev pointer
@@ -99,6 +116,7 @@ void radeon_driver_irq_preinstall_kms(struct drm_device *dev)
 	/* Disable *all* interrupts */
 	for (i = 0; i < RADEON_NUM_RINGS; i++)
 		atomic_set(&rdev->irq.ring_int[i], 0);
+	rdev->irq.dpm_thermal = false;
 	for (i = 0; i < RADEON_MAX_HPD_PINS; i++)
 		rdev->irq.hpd[i] = false;
 	for (i = 0; i < RADEON_MAX_CRTCS; i++) {
@@ -146,6 +164,7 @@ void radeon_driver_irq_uninstall_kms(struct drm_device *dev)
 	/* Disable *all* interrupts */
 	for (i = 0; i < RADEON_NUM_RINGS; i++)
 		atomic_set(&rdev->irq.ring_int[i], 0);
+	rdev->irq.dpm_thermal = false;
 	for (i = 0; i < RADEON_MAX_HPD_PINS; i++)
 		rdev->irq.hpd[i] = false;
 	for (i = 0; i < RADEON_MAX_CRTCS; i++) {
@@ -241,9 +260,6 @@ int radeon_irq_kms_init(struct radeon_device *rdev)
 {
 	int r = 0;
 
-	INIT_WORK(&rdev->hotplug_work, radeon_hotplug_work_func);
-	INIT_WORK(&rdev->audio_work, r600_audio_update_hdmi);
-
 	spin_lock_init(&rdev->irq.lock);
 	r = drm_vblank_init(rdev->ddev, rdev->num_crtc);
 	if (r) {
@@ -265,6 +281,11 @@ int radeon_irq_kms_init(struct radeon_device *rdev)
 		rdev->irq.installed = false;
 		return r;
 	}
+
+	INIT_WORK(&rdev->hotplug_work, radeon_hotplug_work_func);
+	INIT_WORK(&rdev->audio_work, r600_audio_update_hdmi);
+	INIT_WORK(&rdev->reset_work, radeon_irq_reset_work_func);
+
 	DRM_INFO("radeon: irq initialized.\n");
 	return 0;
 }
@@ -284,8 +305,8 @@ void radeon_irq_kms_fini(struct radeon_device *rdev)
 		rdev->irq.installed = false;
 		if (rdev->msi_enabled)
 			pci_disable_msi(rdev->pdev);
+		flush_work(&rdev->hotplug_work);
 	}
-	flush_work(&rdev->hotplug_work);
 }
 
 /**

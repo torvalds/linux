@@ -10,7 +10,6 @@ config SOC_IMX28
 	select ARM_AMBA
 	select ARM_CPU_SUSPEND if PM
 	select CPU_ARM926T
-	select HAVE_CAN_FLEXCAN if CAN
 	select PINCTRL_IMX28
 
 config ARCH_MXS

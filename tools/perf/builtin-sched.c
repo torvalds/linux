@@ -1632,7 +1632,6 @@ static int __cmd_record(int argc, const char **argv)
 		"record",
 		"-a",
 		"-R",
-		"-f",
 		"-m", "1024",
 		"-c", "1",
 		"-e", "sched:sched_switch",

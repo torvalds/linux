@@ -180,6 +180,9 @@ struct platform_driver {
 	const struct platform_device_id *id_table;
 };
 
+#define to_platform_driver(drv)	(container_of((drv), struct platform_driver, \
+				 driver))
+
 /*
  * use a macro to avoid include chaining to get THIS_MODULE
  */

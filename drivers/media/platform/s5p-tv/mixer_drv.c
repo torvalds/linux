@@ -211,6 +211,15 @@ fail:
 	return ret;
 }
 
+static void mxr_resource_clear_clocks(struct mxr_resources *res)
+{
+	res->mixer	= ERR_PTR(-EINVAL);
+	res->vp		= ERR_PTR(-EINVAL);
+	res->sclk_mixer	= ERR_PTR(-EINVAL);
+	res->sclk_hdmi	= ERR_PTR(-EINVAL);
+	res->sclk_dac	= ERR_PTR(-EINVAL);
+}
+
 static void mxr_release_plat_resources(struct mxr_device *mdev)
 {
 	free_irq(mdev->res.irq, mdev);
@@ -222,15 +231,15 @@ static void mxr_release_clocks(struct mxr_device *mdev)
 {
 	struct mxr_resources *res = &mdev->res;
 
-	if (!IS_ERR_OR_NULL(res->sclk_dac))
+	if (!IS_ERR(res->sclk_dac))
 		clk_put(res->sclk_dac);
-	if (!IS_ERR_OR_NULL(res->sclk_hdmi))
+	if (!IS_ERR(res->sclk_hdmi))
 		clk_put(res->sclk_hdmi);
-	if (!IS_ERR_OR_NULL(res->sclk_mixer))
+	if (!IS_ERR(res->sclk_mixer))
 		clk_put(res->sclk_mixer);
-	if (!IS_ERR_OR_NULL(res->vp))
+	if (!IS_ERR(res->vp))
 		clk_put(res->vp);
-	if (!IS_ERR_OR_NULL(res->mixer))
+	if (!IS_ERR(res->mixer))
 		clk_put(res->mixer);
 }
 
@@ -238,6 +247,8 @@ static int mxr_acquire_clocks(struct mxr_device *mdev)
 {
 	struct mxr_resources *res = &mdev->res;
 	struct device *dev = mdev->dev;
+
+	mxr_resource_clear_clocks(res);
 
 	res->mixer = clk_get(dev, "mixer");
 	if (IS_ERR(res->mixer)) {
@@ -299,6 +310,7 @@ static void mxr_release_resources(struct mxr_device *mdev)
 	mxr_release_clocks(mdev);
 	mxr_release_plat_resources(mdev);
 	memset(&mdev->res, 0, sizeof(mdev->res));
+	mxr_resource_clear_clocks(&mdev->res);
 }
 
 static void mxr_release_layers(struct mxr_device *mdev)

@@ -15,7 +15,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/amba/bus.h>
-#include <linux/atomic.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
@@ -106,6 +105,16 @@
 /* maximum threshold value */
 #define MAX_I2C_FIFO_THRESHOLD	15
 
+/**
+ * struct i2c_vendor_data - per-vendor variations
+ * @has_mtdws: variant has the MTDWS bit
+ * @fifodepth: variant FIFO depth
+ */
+struct i2c_vendor_data {
+	bool has_mtdws;
+	u32 fifodepth;
+};
+
 enum i2c_status {
 	I2C_NOP,
 	I2C_ON_GOING,
@@ -138,6 +147,7 @@ struct i2c_nmk_client {
 
 /**
  * struct nmk_i2c_dev - private data structure of the controller.
+ * @vendor: vendor data for this variant.
  * @adev: parent amba device.
  * @adap: corresponding I2C adapter.
  * @irq: interrupt line for the controller.
@@ -151,6 +161,7 @@ struct i2c_nmk_client {
  * @busy: Busy doing transfer.
  */
 struct nmk_i2c_dev {
+	struct i2c_vendor_data		*vendor;
 	struct amba_device		*adev;
 	struct i2c_adapter		adap;
 	int				irq;
@@ -422,7 +433,7 @@ static int read_i2c(struct nmk_i2c_dev *dev, u16 flags)
 	irq_mask = (I2C_IT_RXFNF | I2C_IT_RXFF |
 			I2C_IT_MAL | I2C_IT_BERR);
 
-	if (dev->stop)
+	if (dev->stop || !dev->vendor->has_mtdws)
 		irq_mask |= I2C_IT_MTD;
 	else
 		irq_mask |= I2C_IT_MTDWS;
@@ -502,7 +513,7 @@ static int write_i2c(struct nmk_i2c_dev *dev, u16 flags)
 	 * set the MTDWS bit (Master Transaction Done Without Stop)
 	 * to start repeated start operation
 	 */
-	if (dev->stop)
+	if (dev->stop || !dev->vendor->has_mtdws)
 		irq_mask |= I2C_IT_MTD;
 	else
 		irq_mask |= I2C_IT_MTDWS;
@@ -929,8 +940,6 @@ static void nmk_i2c_of_probe(struct device_node *np,
 		pdata->sm = I2C_FREQ_MODE_FAST;
 }
 
-static atomic_t adapter_id = ATOMIC_INIT(0);
-
 static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	int ret = 0;
@@ -938,6 +947,8 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 	struct device_node *np = adev->dev.of_node;
 	struct nmk_i2c_dev	*dev;
 	struct i2c_adapter *adap;
+	struct i2c_vendor_data *vendor = id->data;
+	u32 max_fifo_threshold = (vendor->fifodepth / 2) - 1;
 
 	if (!pdata) {
 		if (np) {
@@ -954,12 +965,25 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 			pdata = &u8500_i2c;
 	}
 
+	if (pdata->tft > max_fifo_threshold) {
+		dev_warn(&adev->dev, "requested TX FIFO threshold %u, adjusted down to %u\n",
+			pdata->tft, max_fifo_threshold);
+		pdata->tft = max_fifo_threshold;
+	}
+
+	if (pdata->rft > max_fifo_threshold) {
+		dev_warn(&adev->dev, "requested RX FIFO threshold %u, adjusted down to %u\n",
+			pdata->rft, max_fifo_threshold);
+		pdata->rft = max_fifo_threshold;
+	}
+
 	dev = kzalloc(sizeof(struct nmk_i2c_dev), GFP_KERNEL);
 	if (!dev) {
 		dev_err(&adev->dev, "cannot allocate memory\n");
 		ret = -ENOMEM;
 		goto err_no_mem;
 	}
+	dev->vendor = vendor;
 	dev->busy = false;
 	dev->adev = adev;
 	amba_set_drvdata(adev, dev);
@@ -999,10 +1023,8 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 	adap->class	= I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	adap->algo	= &nmk_i2c_algo;
 	adap->timeout	= msecs_to_jiffies(pdata->timeout);
-	adap->nr = atomic_read(&adapter_id);
 	snprintf(adap->name, sizeof(adap->name),
-		 "Nomadik I2C%d at %pR", adap->nr, &adev->res);
-	atomic_inc(&adapter_id);
+		 "Nomadik I2C at %pR", &adev->res);
 
 	/* fetch the controller configuration from machine */
 	dev->cfg.clk_freq = pdata->clk_freq;
@@ -1017,7 +1039,7 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 		 "initialize %s on virtual base %p\n",
 		 adap->name, dev->virtbase);
 
-	ret = i2c_add_numbered_adapter(adap);
+	ret = i2c_add_adapter(adap);
 	if (ret) {
 		dev_err(&adev->dev, "failed to add adapter\n");
 		goto err_add_adap;
@@ -1064,14 +1086,26 @@ static int nmk_i2c_remove(struct amba_device *adev)
 	return 0;
 }
 
+static struct i2c_vendor_data vendor_stn8815 = {
+	.has_mtdws = false,
+	.fifodepth = 16, /* Guessed from TFTR/RFTR = 7 */
+};
+
+static struct i2c_vendor_data vendor_db8500 = {
+	.has_mtdws = true,
+	.fifodepth = 32, /* Guessed from TFTR/RFTR = 15 */
+};
+
 static struct amba_id nmk_i2c_ids[] = {
 	{
 		.id	= 0x00180024,
 		.mask	= 0x00ffffff,
+		.data	= &vendor_stn8815,
 	},
 	{
 		.id	= 0x00380024,
 		.mask	= 0x00ffffff,
+		.data	= &vendor_db8500,
 	},
 	{},
 };

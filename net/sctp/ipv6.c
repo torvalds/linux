@@ -145,15 +145,15 @@ static struct notifier_block sctp_inet6addr_notifier = {
 };
 
 /* ICMP error handler. */
-SCTP_STATIC void sctp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
-			     u8 type, u8 code, int offset, __be32 info)
+static void sctp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
+			u8 type, u8 code, int offset, __be32 info)
 {
 	struct inet6_dev *idev;
 	struct sock *sk;
 	struct sctp_association *asoc;
 	struct sctp_transport *transport;
 	struct ipv6_pinfo *np;
-	sk_buff_data_t saveip, savesctp;
+	__u16 saveip, savesctp;
 	int err;
 	struct net *net = dev_net(skb->dev);
 
@@ -239,9 +239,8 @@ static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport)
 		fl6.daddr = *rt0->addr;
 	}
 
-	SCTP_DEBUG_PRINTK("%s: skb:%p, len:%d, src:%pI6 dst:%pI6\n",
-			  __func__, skb, skb->len,
-			  &fl6.saddr, &fl6.daddr);
+	pr_debug("%s: skb:%p, len:%d, src:%pI6 dst:%pI6\n", __func__, skb,
+		 skb->len, &fl6.saddr, &fl6.daddr);
 
 	SCTP_INC_STATS(sock_net(sk), SCTP_MIB_OUTSCTPPACKS);
 
@@ -276,7 +275,7 @@ static void sctp_v6_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 	if (ipv6_addr_type(&daddr->v6.sin6_addr) & IPV6_ADDR_LINKLOCAL)
 		fl6->flowi6_oif = daddr->v6.sin6_scope_id;
 
-	SCTP_DEBUG_PRINTK("%s: DST=%pI6 ", __func__, &fl6->daddr);
+	pr_debug("%s: dst=%pI6 ", __func__, &fl6->daddr);
 
 	if (asoc)
 		fl6->fl6_sport = htons(asoc->base.bind_addr.port);
@@ -284,7 +283,8 @@ static void sctp_v6_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 	if (saddr) {
 		fl6->saddr = saddr->v6.sin6_addr;
 		fl6->fl6_sport = saddr->v6.sin6_port;
-		SCTP_DEBUG_PRINTK("SRC=%pI6 - ", &fl6->saddr);
+
+		pr_debug("src=%pI6 - ", &fl6->saddr);
 	}
 
 	dst = ip6_dst_lookup_flow(sk, fl6, NULL, false);
@@ -348,13 +348,16 @@ static void sctp_v6_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 out:
 	if (!IS_ERR_OR_NULL(dst)) {
 		struct rt6_info *rt;
+
 		rt = (struct rt6_info *)dst;
 		t->dst = dst;
-		SCTP_DEBUG_PRINTK("rt6_dst:%pI6 rt6_src:%pI6\n",
-			&rt->rt6i_dst.addr, &fl6->saddr);
+
+		pr_debug("rt6_dst:%pI6 rt6_src:%pI6\n", &rt->rt6i_dst.addr,
+			 &fl6->saddr);
 	} else {
 		t->dst = NULL;
-		SCTP_DEBUG_PRINTK("NO ROUTE\n");
+
+		pr_debug("no route\n");
 	}
 }
 
@@ -377,7 +380,7 @@ static void sctp_v6_get_saddr(struct sctp_sock *sk,
 	struct flowi6 *fl6 = &fl->u.ip6;
 	union sctp_addr *saddr = &t->saddr;
 
-	SCTP_DEBUG_PRINTK("%s: asoc:%p dst:%p\n", __func__, t->asoc, t->dst);
+	pr_debug("%s: asoc:%p dst:%p\n", __func__, t->asoc, t->dst);
 
 	if (t->dst) {
 		saddr->v6.sin6_family = AF_INET6;
@@ -402,7 +405,7 @@ static void sctp_v6_copy_addrlist(struct list_head *addrlist,
 	read_lock_bh(&in6_dev->lock);
 	list_for_each_entry(ifp, &in6_dev->addr_list, if_list) {
 		/* Add the address to the local list.  */
-		addr = t_new(struct sctp_sockaddr_entry, GFP_ATOMIC);
+		addr = kzalloc(sizeof(*addr), GFP_ATOMIC);
 		if (addr) {
 			addr->a.v6.sin6_family = AF_INET6;
 			addr->a.v6.sin6_port = 0;

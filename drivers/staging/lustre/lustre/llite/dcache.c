@@ -98,7 +98,7 @@ int ll_dcompare(const struct dentry *parent, const struct inode *pinode,
 
 	CDEBUG(D_DENTRY, "found name %.*s(%p) flags %#x refc %d\n",
 	       name->len, name->name, dentry, dentry->d_flags,
-	       d_refcount(dentry));
+	       d_count(dentry));
 
 	/* mountpoint is always valid */
 	if (d_mountpoint((struct dentry *)dentry))
@@ -165,7 +165,7 @@ static int ll_ddelete(const struct dentry *de)
 	       list_empty(&de->d_subdirs) ? "" : "subdirs");
 
 	/* kernel >= 2.6.38 last refcount is decreased after this function. */
-	LASSERT(d_refcount(de) == 1);
+	LASSERT(d_count(de) == 1);
 
 	/* Disable this piece of code temproarily because this is called
 	 * inside dcache_lock so it's not appropriate to do lots of work
@@ -190,7 +190,7 @@ static int ll_set_dd(struct dentry *de)
 
 	CDEBUG(D_DENTRY, "ldd on dentry %.*s (%p) parent %p inode %p refc %d\n",
 		de->d_name.len, de->d_name.name, de, de->d_parent, de->d_inode,
-		d_refcount(de));
+		d_count(de));
 
 	if (de->d_fsdata == NULL) {
 		struct ll_dentry_data *lld;
@@ -540,7 +540,7 @@ out:
 		CDEBUG(D_DENTRY, "revalidated dentry %.*s (%p) parent %p "
 		       "inode %p refc %d\n", de->d_name.len,
 		       de->d_name.name, de, de->d_parent, de->d_inode,
-		       d_refcount(de));
+		       d_count(de));
 
 		ll_set_lock_data(exp, de->d_inode, it, &bits);
 

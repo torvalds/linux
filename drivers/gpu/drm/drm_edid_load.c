@@ -133,8 +133,8 @@ static u8 generic_edid[GENERIC_EDIDS][128] = {
 	},
 };
 
-static u8 *edid_load(struct drm_connector *connector, char *name,
-			char *connector_name)
+static u8 *edid_load(struct drm_connector *connector, const char *name,
+			const char *connector_name)
 {
 	const struct firmware *fw;
 	struct platform_device *pdev;
@@ -186,12 +186,11 @@ static u8 *edid_load(struct drm_connector *connector, char *name,
 		goto relfw_out;
 	}
 
-	edid = kmalloc(fwsize, GFP_KERNEL);
+	edid = kmemdup(fwdata, fwsize, GFP_KERNEL);
 	if (edid == NULL) {
 		err = -ENOMEM;
 		goto relfw_out;
 	}
-	memcpy(edid, fwdata, fwsize);
 
 	if (!drm_edid_block_valid(edid, 0, print_bad_edid)) {
 		connector->bad_edid_counter++;
@@ -243,7 +242,7 @@ out:
 
 int drm_load_edid_firmware(struct drm_connector *connector)
 {
-	char *connector_name = drm_get_connector_name(connector);
+	const char *connector_name = drm_get_connector_name(connector);
 	char *edidname = edid_firmware, *last, *colon;
 	int ret;
 	struct edid *edid;

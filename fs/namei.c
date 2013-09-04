@@ -2977,7 +2977,7 @@ static struct file *path_openat(int dfd, struct filename *pathname,
 
 	file->f_flags = op->open_flag;
 
-	if (unlikely(file->f_flags & O_TMPFILE)) {
+	if (unlikely(file->f_flags & __O_TMPFILE)) {
 		error = do_tmpfile(dfd, pathname, nd, flags, op, file, &opened);
 		goto out;
 	}
@@ -3671,15 +3671,11 @@ SYSCALL_DEFINE5(linkat, int, olddfd, const char __user *, oldname,
 	if ((flags & ~(AT_SYMLINK_FOLLOW | AT_EMPTY_PATH)) != 0)
 		return -EINVAL;
 	/*
-	 * To use null names we require CAP_DAC_READ_SEARCH
-	 * This ensures that not everyone will be able to create
-	 * handlink using the passed filedescriptor.
+	 * Using empty names is equivalent to using AT_SYMLINK_FOLLOW
+	 * on /proc/self/fd/<fd>.
 	 */
-	if (flags & AT_EMPTY_PATH) {
-		if (!capable(CAP_DAC_READ_SEARCH))
-			return -ENOENT;
+	if (flags & AT_EMPTY_PATH)
 		how = LOOKUP_EMPTY;
-	}
 
 	if (flags & AT_SYMLINK_FOLLOW)
 		how |= LOOKUP_FOLLOW;

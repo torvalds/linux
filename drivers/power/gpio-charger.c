@@ -155,8 +155,6 @@ static int gpio_charger_remove(struct platform_device *pdev)
 
 	gpio_free(gpio_charger->pdata->gpio);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 

@@ -30,7 +30,6 @@ platforms += sibyte
 platforms += sni
 platforms += txx9
 platforms += vr41xx
-platforms += wrppmc
 
 # include the platform specific files
 include $(patsubst %, $(srctree)/arch/mips/%/Platform, $(platforms))

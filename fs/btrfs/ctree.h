@@ -961,8 +961,8 @@ struct btrfs_dev_replace_item {
 #define BTRFS_BLOCK_GROUP_RAID1		(1ULL << 4)
 #define BTRFS_BLOCK_GROUP_DUP		(1ULL << 5)
 #define BTRFS_BLOCK_GROUP_RAID10	(1ULL << 6)
-#define BTRFS_BLOCK_GROUP_RAID5    (1 << 7)
-#define BTRFS_BLOCK_GROUP_RAID6    (1 << 8)
+#define BTRFS_BLOCK_GROUP_RAID5         (1ULL << 7)
+#define BTRFS_BLOCK_GROUP_RAID6         (1ULL << 8)
 #define BTRFS_BLOCK_GROUP_RESERVED	BTRFS_AVAIL_ALLOC_BIT_SINGLE
 
 enum btrfs_raid_types {
@@ -1100,6 +1100,18 @@ struct btrfs_space_info {
 	u64 disk_used;		/* total bytes used on disk */
 	u64 disk_total;		/* total bytes on disk, takes mirrors into
 				   account */
+
+	/*
+	 * bytes_pinned is kept in line with what is actually pinned, as in
+	 * we've called update_block_group and dropped the bytes_used counter
+	 * and increased the bytes_pinned counter.  However this means that
+	 * bytes_pinned does not reflect the bytes that will be pinned once the
+	 * delayed refs are flushed, so this counter is inc'ed everytime we call
+	 * btrfs_free_extent so it is a realtime count of what will be freed
+	 * once the transaction is committed.  It will be zero'ed everytime the
+	 * transaction commits.
+	 */
+	struct percpu_counter total_bytes_pinned;
 
 	/*
 	 * we bump reservation progress every time we decrement
@@ -1437,25 +1449,22 @@ struct btrfs_fs_info {
 	atomic_t open_ioctl_trans;
 
 	/*
-	 * this is used by the balancing code to wait for all the pending
-	 * ordered extents
+	 * this is used to protect the following list -- ordered_roots.
 	 */
-	spinlock_t ordered_extent_lock;
+	spinlock_t ordered_root_lock;
 
 	/*
-	 * all of the data=ordered extents pending writeback
+	 * all fs/file tree roots in which there are data=ordered extents
+	 * pending writeback are added into this list.
+	 *
 	 * these can span multiple transactions and basically include
 	 * every dirty data page that isn't from nodatacow
 	 */
-	struct list_head ordered_extents;
+	struct list_head ordered_roots;
 
-	spinlock_t delalloc_lock;
-	/*
-	 * all of the inodes that have delalloc bytes.  It is possible for
-	 * this list to be empty even when there is still dirty data=ordered
-	 * extents waiting to finish IO.
-	 */
-	struct list_head delalloc_inodes;
+	spinlock_t delalloc_root_lock;
+	/* all fs/file tree roots that have delalloc inodes. */
+	struct list_head delalloc_roots;
 
 	/*
 	 * there is a pool of worker threads for checksumming during writes
@@ -1498,8 +1507,6 @@ struct btrfs_fs_info {
 	int do_barriers;
 	int closing;
 	int log_root_recovering;
-	int enospc_unlink;
-	int trans_no_join;
 
 	u64 total_pinned;
 
@@ -1594,6 +1601,12 @@ struct btrfs_fs_info {
 	struct rb_root qgroup_tree;
 	spinlock_t qgroup_lock;
 
+	/*
+	 * used to avoid frequently calling ulist_alloc()/ulist_free()
+	 * when doing qgroup accounting, it must be protected by qgroup_lock.
+	 */
+	struct ulist *qgroup_ulist;
+
 	/* protect user change for quota operations */
 	struct mutex qgroup_ioctl_lock;
 
@@ -1607,6 +1620,8 @@ struct btrfs_fs_info {
 	struct mutex qgroup_rescan_lock; /* protects the progress item */
 	struct btrfs_key qgroup_rescan_progress;
 	struct btrfs_workers qgroup_rescan_workers;
+	struct completion qgroup_rescan_completion;
+	struct btrfs_work qgroup_rescan_work;
 
 	/* filesystem state */
 	unsigned long fs_state;
@@ -1739,6 +1754,31 @@ struct btrfs_root {
 	int force_cow;
 
 	spinlock_t root_item_lock;
+	atomic_t refs;
+
+	spinlock_t delalloc_lock;
+	/*
+	 * all of the inodes that have delalloc bytes.  It is possible for
+	 * this list to be empty even when there is still dirty data=ordered
+	 * extents waiting to finish IO.
+	 */
+	struct list_head delalloc_inodes;
+	struct list_head delalloc_root;
+	u64 nr_delalloc_inodes;
+	/*
+	 * this is used by the balancing code to wait for all the pending
+	 * ordered extents
+	 */
+	spinlock_t ordered_extent_lock;
+
+	/*
+	 * all of the data=ordered extents pending writeback
+	 * these can span multiple transactions and basically include
+	 * every dirty data page that isn't from nodatacow
+	 */
+	struct list_head ordered_extents;
+	struct list_head ordered_root;
+	u64 nr_ordered_extents;
 };
 
 struct btrfs_ioctl_defrag_range_args {
@@ -3028,6 +3068,8 @@ static inline u64 btrfs_calc_trunc_metadata_size(struct btrfs_root *root,
 		num_items;
 }
 
+int btrfs_should_throttle_delayed_refs(struct btrfs_trans_handle *trans,
+				       struct btrfs_root *root);
 void btrfs_put_block_group(struct btrfs_block_group_cache *cache);
 int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root, unsigned long count);
@@ -3039,6 +3081,8 @@ int btrfs_pin_extent(struct btrfs_root *root,
 		     u64 bytenr, u64 num, int reserved);
 int btrfs_pin_extent_for_log_replay(struct btrfs_root *root,
 				    u64 bytenr, u64 num_bytes);
+int btrfs_exclude_logged_extents(struct btrfs_root *root,
+				 struct extent_buffer *eb);
 int btrfs_cross_ref_exist(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root,
 			  u64 objectid, u64 offset, u64 bytenr);
@@ -3155,6 +3199,9 @@ int btrfs_block_rsv_refill(struct btrfs_root *root,
 int btrfs_block_rsv_migrate(struct btrfs_block_rsv *src_rsv,
 			    struct btrfs_block_rsv *dst_rsv,
 			    u64 num_bytes);
+int btrfs_cond_migrate_bytes(struct btrfs_fs_info *fs_info,
+			     struct btrfs_block_rsv *dest, u64 num_bytes,
+			     int min_factor);
 void btrfs_block_rsv_release(struct btrfs_root *root,
 			     struct btrfs_block_rsv *block_rsv,
 			     u64 num_bytes);
@@ -3311,6 +3358,18 @@ static inline int btrfs_fs_closing(struct btrfs_fs_info *fs_info)
 	smp_mb();
 	return fs_info->closing;
 }
+
+/*
+ * If we remount the fs to be R/O or umount the fs, the cleaner needn't do
+ * anything except sleeping. This function is used to check the status of
+ * the fs.
+ */
+static inline int btrfs_need_cleaner_sleep(struct btrfs_root *root)
+{
+	return (root->fs_info->sb->s_flags & MS_RDONLY ||
+		btrfs_fs_closing(root->fs_info));
+}
+
 static inline void free_fs_info(struct btrfs_fs_info *fs_info)
 {
 	kfree(fs_info->balance_ctl);
@@ -3357,9 +3416,9 @@ int __must_check btrfs_update_root(struct btrfs_trans_handle *trans,
 				   struct btrfs_root_item *item);
 void btrfs_read_root_item(struct extent_buffer *eb, int slot,
 			  struct btrfs_root_item *item);
-int btrfs_find_last_root(struct btrfs_root *root, u64 objectid, struct
-			 btrfs_root_item *item, struct btrfs_key *key);
-int btrfs_find_dead_roots(struct btrfs_root *root, u64 objectid);
+int btrfs_find_root(struct btrfs_root *root, struct btrfs_key *search_key,
+		    struct btrfs_path *path, struct btrfs_root_item *root_item,
+		    struct btrfs_key *root_key);
 int btrfs_find_orphan_roots(struct btrfs_root *tree_root);
 void btrfs_set_root_node(struct btrfs_root_item *item,
 			 struct extent_buffer *node);
@@ -3493,6 +3552,10 @@ void btrfs_wait_and_free_delalloc_work(struct btrfs_delalloc_work *work);
 struct extent_map *btrfs_get_extent_fiemap(struct inode *inode, struct page *page,
 					   size_t pg_offset, u64 start, u64 len,
 					   int create);
+noinline int can_nocow_extent(struct btrfs_trans_handle *trans,
+			      struct inode *inode, u64 offset, u64 *len,
+			      u64 *orig_start, u64 *orig_block_len,
+			      u64 *ram_bytes);
 
 /* RHEL and EL kernels have a patch that renames PG_checked to FsMisc */
 #if defined(ClearPageFsMisc) && !defined(ClearPageChecked)
@@ -3530,6 +3593,8 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 			       u32 min_type);
 
 int btrfs_start_delalloc_inodes(struct btrfs_root *root, int delay_iput);
+int btrfs_start_all_delalloc_inodes(struct btrfs_fs_info *fs_info,
+				    int delay_iput);
 int btrfs_set_extent_delalloc(struct inode *inode, u64 start, u64 end,
 			      struct extent_state **cached_state);
 int btrfs_create_subvol_root(struct btrfs_trans_handle *trans,
@@ -3814,6 +3879,8 @@ int btrfs_quota_enable(struct btrfs_trans_handle *trans,
 int btrfs_quota_disable(struct btrfs_trans_handle *trans,
 			struct btrfs_fs_info *fs_info);
 int btrfs_qgroup_rescan(struct btrfs_fs_info *fs_info);
+void btrfs_qgroup_rescan_resume(struct btrfs_fs_info *fs_info);
+int btrfs_qgroup_wait_for_completion(struct btrfs_fs_info *fs_info);
 int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans,
 			      struct btrfs_fs_info *fs_info, u64 src, u64 dst);
 int btrfs_del_qgroup_relation(struct btrfs_trans_handle *trans,

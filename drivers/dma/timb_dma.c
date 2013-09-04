@@ -811,8 +811,6 @@ static int td_remove(struct platform_device *pdev)
 	kfree(td);
 	release_mem_region(iomem->start, resource_size(iomem));
 
-	platform_set_drvdata(pdev, NULL);
-
 	dev_dbg(&pdev->dev, "Removed...\n");
 	return 0;
 }

@@ -122,6 +122,16 @@ static int netback_probe(struct xenbus_device *dev,
 		goto fail;
 	}
 
+	/*
+	 * Split event channels support, this is optional so it is not
+	 * put inside the above loop.
+	 */
+	err = xenbus_printf(XBT_NIL, dev->nodename,
+			    "feature-split-event-channels",
+			    "%u", separate_tx_rx_irq);
+	if (err)
+		pr_debug("Error writing feature-split-event-channels\n");
+
 	err = xenbus_switch_state(dev, XenbusStateInitWait);
 	if (err)
 		goto fail;
@@ -135,7 +145,7 @@ abort_transaction:
 	xenbus_transaction_end(xbt, 1);
 	xenbus_dev_fatal(dev, err, "%s", message);
 fail:
-	pr_debug("failed");
+	pr_debug("failed\n");
 	netback_remove(dev);
 	return err;
 }
@@ -218,15 +228,14 @@ static void frontend_changed(struct xenbus_device *dev,
 {
 	struct backend_info *be = dev_get_drvdata(&dev->dev);
 
-	pr_debug("frontend state %s", xenbus_strstate(frontend_state));
+	pr_debug("frontend state %s\n", xenbus_strstate(frontend_state));
 
 	be->frontend_state = frontend_state;
 
 	switch (frontend_state) {
 	case XenbusStateInitialising:
 		if (dev->state == XenbusStateClosed) {
-			printk(KERN_INFO "%s: %s: prepare for reconnect\n",
-			       __func__, dev->nodename);
+			pr_info("%s: prepare for reconnect\n", dev->nodename);
 			xenbus_switch_state(dev, XenbusStateInitWait);
 		}
 		break;
@@ -393,19 +402,34 @@ static int connect_rings(struct backend_info *be)
 	struct xenvif *vif = be->vif;
 	struct xenbus_device *dev = be->dev;
 	unsigned long tx_ring_ref, rx_ring_ref;
-	unsigned int evtchn, rx_copy;
+	unsigned int tx_evtchn, rx_evtchn, rx_copy;
 	int err;
 	int val;
 
 	err = xenbus_gather(XBT_NIL, dev->otherend,
 			    "tx-ring-ref", "%lu", &tx_ring_ref,
-			    "rx-ring-ref", "%lu", &rx_ring_ref,
-			    "event-channel", "%u", &evtchn, NULL);
+			    "rx-ring-ref", "%lu", &rx_ring_ref, NULL);
 	if (err) {
 		xenbus_dev_fatal(dev, err,
-				 "reading %s/ring-ref and event-channel",
+				 "reading %s/ring-ref",
 				 dev->otherend);
 		return err;
+	}
+
+	/* Try split event channels first, then single event channel. */
+	err = xenbus_gather(XBT_NIL, dev->otherend,
+			    "event-channel-tx", "%u", &tx_evtchn,
+			    "event-channel-rx", "%u", &rx_evtchn, NULL);
+	if (err < 0) {
+		err = xenbus_scanf(XBT_NIL, dev->otherend,
+				   "event-channel", "%u", &tx_evtchn);
+		if (err < 0) {
+			xenbus_dev_fatal(dev, err,
+					 "reading %s/event-channel(-tx/rx)",
+					 dev->otherend);
+			return err;
+		}
+		rx_evtchn = tx_evtchn;
 	}
 
 	err = xenbus_scanf(XBT_NIL, dev->otherend, "request-rx-copy", "%u",
@@ -454,11 +478,13 @@ static int connect_rings(struct backend_info *be)
 	vif->csum = !val;
 
 	/* Map the shared frame, irq etc. */
-	err = xenvif_connect(vif, tx_ring_ref, rx_ring_ref, evtchn);
+	err = xenvif_connect(vif, tx_ring_ref, rx_ring_ref,
+			     tx_evtchn, rx_evtchn);
 	if (err) {
 		xenbus_dev_fatal(dev, err,
-				 "mapping shared-frames %lu/%lu port %u",
-				 tx_ring_ref, rx_ring_ref, evtchn);
+				 "mapping shared-frames %lu/%lu port tx %u rx %u",
+				 tx_ring_ref, rx_ring_ref,
+				 tx_evtchn, rx_evtchn);
 		return err;
 	}
 	return 0;
@@ -484,4 +510,9 @@ static DEFINE_XENBUS_DRIVER(netback, ,
 int xenvif_xenbus_init(void)
 {
 	return xenbus_register_backend(&netback_driver);
+}
+
+void xenvif_xenbus_fini(void)
+{
+	return xenbus_unregister_driver(&netback_driver);
 }

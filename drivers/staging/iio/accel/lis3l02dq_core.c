@@ -257,6 +257,8 @@ static int lis3l02dq_read_raw(struct iio_dev *indio_dev,
 			ret = lis3l02dq_read_reg_s16(indio_dev, reg, val);
 		}
 		mutex_unlock(&indio_dev->mlock);
+		if (ret < 0)
+			goto error_ret;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		*val = 0;

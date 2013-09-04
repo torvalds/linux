@@ -950,8 +950,7 @@ static void zfcp_erp_lun_strategy_clearstati(struct scsi_device *sdev)
 {
 	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(sdev);
 
-	atomic_clear_mask(ZFCP_STATUS_COMMON_ACCESS_DENIED |
-			  ZFCP_STATUS_LUN_SHARED | ZFCP_STATUS_LUN_READONLY,
+	atomic_clear_mask(ZFCP_STATUS_COMMON_ACCESS_DENIED,
 			  &zfcp_sdev->status);
 }
 

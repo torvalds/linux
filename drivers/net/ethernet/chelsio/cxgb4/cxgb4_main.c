@@ -4842,8 +4842,17 @@ static int adap_init0(struct adapter *adap)
 	 * is excessively mismatched relative to the driver.)
 	 */
 	ret = t4_check_fw_version(adap);
+
+	/* The error code -EFAULT is returned by t4_check_fw_version() if
+	 * firmware on adapter < supported firmware. If firmware on adapter
+	 * is too old (not supported by driver) and we're the MASTER_PF set
+	 * adapter state to DEV_STATE_UNINIT to force firmware upgrade
+	 * and reinitialization.
+	 */
+	if ((adap->flags & MASTER_PF) && ret == -EFAULT)
+		state = DEV_STATE_UNINIT;
 	if ((adap->flags & MASTER_PF) && state != DEV_STATE_INIT) {
-		if (ret == -EINVAL || ret > 0) {
+		if (ret == -EINVAL || ret == -EFAULT || ret > 0) {
 			if (upgrade_fw(adap) >= 0) {
 				/*
 				 * Note that the chip was reset as part of the
@@ -4852,7 +4861,21 @@ static int adap_init0(struct adapter *adap)
 				 */
 				reset = 0;
 				ret = t4_check_fw_version(adap);
-			}
+			} else
+				if (ret == -EFAULT) {
+					/*
+					 * Firmware is old but still might
+					 * work if we force reinitialization
+					 * of the adapter. Ignoring FW upgrade
+					 * failure.
+					 */
+					dev_warn(adap->pdev_dev,
+						 "Ignoring firmware upgrade "
+						 "failure, and forcing driver "
+						 "to reinitialize the "
+						 "adapter.\n");
+					ret = 0;
+				}
 		}
 		if (ret < 0)
 			return ret;

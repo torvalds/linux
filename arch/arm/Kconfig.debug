@@ -510,6 +510,16 @@ choice
 		  Say Y here if you want the debug print routines to direct
 		  their output to the uart1 port on SiRFmarco devices.
 
+	config DEBUG_STI_UART
+		depends on ARCH_STI
+		bool "Use StiH415/416 ASC for low-level debug"
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on StiH415/416 based platforms like B2000, B2020.
+		  It support UART2 and SBC_UART1.
+
+		  If unsure, say N.
+
 	config DEBUG_U300_UART
 		bool "Kernel low-level debugging messages via U300 UART0"
 		depends on ARCH_U300
@@ -563,16 +573,6 @@ choice
 		help
 		  This option selects UART0 on VIA/Wondermedia System-on-a-chip
 		  devices, including VT8500, WM8505, WM8650 and WM8850.
-
-	config DEBUG_STI_UART
-		depends on ARCH_STI
-		bool "Use StiH415/416 ASC for low-level debug"
-		help
-		  Say Y here if you want kernel low-level debugging support
-		  on StiH415/416 based platforms like B2000, B2020.
-		  It support UART2 and SBC_UART1.
-
-		  If unsure, say N.
 
 	config DEBUG_LL_UART_NONE
 		bool "No low-level debugging UART"
@@ -804,9 +804,19 @@ config DEBUG_LL_INCLUDE
 
 config DEBUG_UNCOMPRESS
 	bool
-	default y if ARCH_MULTIPLATFORM && DEBUG_LL && \
-		     !DEBUG_OMAP2PLUS_UART && \
+	depends on ARCH_MULTIPLATFORM
+	default y if DEBUG_LL && !DEBUG_OMAP2PLUS_UART && \
 		     !DEBUG_TEGRA_UART
+	help
+	  This option influences the normal decompressor output for
+	  multiplatform kernels.  Normally, multiplatform kernels disable
+	  decompressor output because it is not possible to know where to
+	  send the decompressor output.
+
+	  When this option is set, the selected DEBUG_LL output method
+	  will be re-used for normal decompressor output on multiplatform
+	  kernels.
+	  
 
 config UNCOMPRESS_INCLUDE
 	string

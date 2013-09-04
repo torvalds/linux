@@ -736,7 +736,7 @@
 			dcp@80028000 {
 				reg = <0x80028000 0x2000>;
 				interrupts = <52 53 54>;
-				status = "disabled";
+				compatible = "fsl-dcp";
 			};
 
 			pxp@8002a000 {
@@ -837,6 +837,7 @@
 				compatible = "fsl,imx28-saif";
 				reg = <0x80042000 0x2000>;
 				interrupts = <59 80>;
+				#clock-cells = <0>;
 				clocks = <&clks 53>;
 				dmas = <&dma_apbx 4>;
 				dma-names = "rx-tx";

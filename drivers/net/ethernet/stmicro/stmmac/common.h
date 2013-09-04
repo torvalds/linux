@@ -38,16 +38,6 @@
 #include "descs.h"
 #include "mmc.h"
 
-#undef CHIP_DEBUG_PRINT
-/* Turn-on extra printk debug for MAC core, dma and descriptors */
-/* #define CHIP_DEBUG_PRINT */
-
-#ifdef CHIP_DEBUG_PRINT
-#define CHIP_DBG(fmt, args...)  printk(fmt, ## args)
-#else
-#define CHIP_DBG(fmt, args...)  do { } while (0)
-#endif
-
 /* Synopsys Core versions */
 #define	DWMAC_CORE_3_40	0x34
 #define	DWMAC_CORE_3_50	0x35

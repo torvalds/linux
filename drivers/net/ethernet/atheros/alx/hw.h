@@ -412,12 +412,11 @@ struct alx_hw {
 	u32 smb_timer;
 	/* SPEED_* + DUPLEX_*, SPEED_UNKNOWN if link is down */
 	int link_speed;
+	u8 duplex;
 
 	/* auto-neg advertisement or force mode config */
-	u32 adv_cfg;
 	u8 flowctrl;
-
-	u32 sleep_ctrl;
+	u32 adv_cfg;
 
 	spinlock_t mdio_lock;
 	struct mdio_if_info mdio;
@@ -478,14 +477,12 @@ void alx_reset_pcie(struct alx_hw *hw);
 void alx_enable_aspm(struct alx_hw *hw, bool l0s_en, bool l1_en);
 int alx_setup_speed_duplex(struct alx_hw *hw, u32 ethadv, u8 flowctrl);
 void alx_post_phy_link(struct alx_hw *hw);
-int alx_pre_suspend(struct alx_hw *hw, int speed);
 int alx_read_phy_reg(struct alx_hw *hw, u16 reg, u16 *phy_data);
 int alx_write_phy_reg(struct alx_hw *hw, u16 reg, u16 phy_data);
 int alx_read_phy_ext(struct alx_hw *hw, u8 dev, u16 reg, u16 *pdata);
 int alx_write_phy_ext(struct alx_hw *hw, u8 dev, u16 reg, u16 data);
-int alx_get_phy_link(struct alx_hw *hw, int *speed);
+int alx_read_phy_link(struct alx_hw *hw);
 int alx_clear_phy_intr(struct alx_hw *hw);
-int alx_config_wol(struct alx_hw *hw);
 void alx_cfg_mac_flowcontrol(struct alx_hw *hw, u8 fc);
 void alx_start_mac(struct alx_hw *hw);
 int alx_reset_mac(struct alx_hw *hw);
@@ -493,7 +490,21 @@ void alx_set_macaddr(struct alx_hw *hw, const u8 *addr);
 bool alx_phy_configured(struct alx_hw *hw);
 void alx_configure_basic(struct alx_hw *hw);
 void alx_disable_rss(struct alx_hw *hw);
-int alx_select_powersaving_speed(struct alx_hw *hw, int *speed);
 bool alx_get_phy_info(struct alx_hw *hw);
+
+static inline u32 alx_speed_to_ethadv(int speed, u8 duplex)
+{
+	if (speed == SPEED_1000 && duplex == DUPLEX_FULL)
+		return ADVERTISED_1000baseT_Full;
+	if (speed == SPEED_100 && duplex == DUPLEX_FULL)
+		return ADVERTISED_100baseT_Full;
+	if (speed == SPEED_100 && duplex== DUPLEX_HALF)
+		return ADVERTISED_100baseT_Half;
+	if (speed == SPEED_10 && duplex == DUPLEX_FULL)
+		return ADVERTISED_10baseT_Full;
+	if (speed == SPEED_10 && duplex == DUPLEX_HALF)
+		return ADVERTISED_10baseT_Half;
+	return 0;
+}
 
 #endif

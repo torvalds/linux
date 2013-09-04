@@ -1095,7 +1095,7 @@ static void octeon_irq_ip3_ciu(void)
 
 static bool octeon_irq_use_ip4;
 
-static void __cpuinit octeon_irq_local_enable_ip4(void *arg)
+static void octeon_irq_local_enable_ip4(void *arg)
 {
 	set_c0_status(STATUSF_IP4);
 }
@@ -1110,21 +1110,21 @@ static void (*octeon_irq_ip2)(void);
 static void (*octeon_irq_ip3)(void);
 static void (*octeon_irq_ip4)(void);
 
-void __cpuinitdata (*octeon_irq_setup_secondary)(void);
+void (*octeon_irq_setup_secondary)(void);
 
-void __cpuinit octeon_irq_set_ip4_handler(octeon_irq_ip4_handler_t h)
+void octeon_irq_set_ip4_handler(octeon_irq_ip4_handler_t h)
 {
 	octeon_irq_ip4 = h;
 	octeon_irq_use_ip4 = true;
 	on_each_cpu(octeon_irq_local_enable_ip4, NULL, 1);
 }
 
-static void __cpuinit octeon_irq_percpu_enable(void)
+static void octeon_irq_percpu_enable(void)
 {
 	irq_cpu_online();
 }
 
-static void __cpuinit octeon_irq_init_ciu_percpu(void)
+static void octeon_irq_init_ciu_percpu(void)
 {
 	int coreid = cvmx_get_core_num();
 
@@ -1167,7 +1167,7 @@ static void octeon_irq_init_ciu2_percpu(void)
 	cvmx_read_csr(CVMX_CIU2_SUM_PPX_IP2(coreid));
 }
 
-static void __cpuinit octeon_irq_setup_secondary_ciu(void)
+static void octeon_irq_setup_secondary_ciu(void)
 {
 	octeon_irq_init_ciu_percpu();
 	octeon_irq_percpu_enable();

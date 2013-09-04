@@ -15,6 +15,7 @@
 #include <linux/math64.h>
 #include <linux/gfp.h>
 #include <linux/slab.h>
+#include <linux/pvclock_gtod.h>
 
 #include <asm/pvclock.h>
 #include <asm/xen/hypervisor.h>
@@ -179,33 +180,55 @@ static void xen_read_wallclock(struct timespec *ts)
 	put_cpu_var(xen_vcpu);
 }
 
-static unsigned long xen_get_wallclock(void)
+static void xen_get_wallclock(struct timespec *now)
 {
-	struct timespec ts;
-
-	xen_read_wallclock(&ts);
-	return ts.tv_sec;
+	xen_read_wallclock(now);
 }
 
-static int xen_set_wallclock(unsigned long now)
+static int xen_set_wallclock(const struct timespec *now)
 {
-	struct xen_platform_op op;
-	int rc;
+	return -1;
+}
 
-	/* do nothing for domU */
-	if (!xen_initial_domain())
-		return -1;
+static int xen_pvclock_gtod_notify(struct notifier_block *nb,
+				   unsigned long was_set, void *priv)
+{
+	/* Protected by the calling core code serialization */
+	static struct timespec next_sync;
+
+	struct xen_platform_op op;
+	struct timespec now;
+
+	now = __current_kernel_time();
+
+	/*
+	 * We only take the expensive HV call when the clock was set
+	 * or when the 11 minutes RTC synchronization time elapsed.
+	 */
+	if (!was_set && timespec_compare(&now, &next_sync) < 0)
+		return NOTIFY_OK;
 
 	op.cmd = XENPF_settime;
-	op.u.settime.secs = now;
-	op.u.settime.nsecs = 0;
+	op.u.settime.secs = now.tv_sec;
+	op.u.settime.nsecs = now.tv_nsec;
 	op.u.settime.system_time = xen_clocksource_read();
 
-	rc = HYPERVISOR_dom0_op(&op);
-	WARN(rc != 0, "XENPF_settime failed: now=%ld\n", now);
+	(void)HYPERVISOR_dom0_op(&op);
 
-	return rc;
+	/*
+	 * Move the next drift compensation time 11 minutes
+	 * ahead. That's emulating the sync_cmos_clock() update for
+	 * the hardware RTC.
+	 */
+	next_sync = now;
+	next_sync.tv_sec += 11 * 60;
+
+	return NOTIFY_OK;
 }
+
+static struct notifier_block xen_pvclock_gtod_notifier = {
+	.notifier_call = xen_pvclock_gtod_notify,
+};
 
 static struct clocksource xen_clocksource __read_mostly = {
 	.name = "xen",
@@ -482,6 +505,9 @@ static void __init xen_time_init(void)
 	xen_setup_runstate_info(cpu);
 	xen_setup_timer(cpu);
 	xen_setup_cpu_clockevents();
+
+	if (xen_initial_domain())
+		pvclock_gtod_register_notifier(&xen_pvclock_gtod_notifier);
 }
 
 void __init xen_init_time_ops(void)
@@ -494,7 +520,9 @@ void __init xen_init_time_ops(void)
 
 	x86_platform.calibrate_tsc = xen_tsc_khz;
 	x86_platform.get_wallclock = xen_get_wallclock;
-	x86_platform.set_wallclock = xen_set_wallclock;
+	/* Dom0 uses the native method to set the hardware RTC. */
+	if (!xen_initial_domain())
+		x86_platform.set_wallclock = xen_set_wallclock;
 }
 
 #ifdef CONFIG_XEN_PVHVM

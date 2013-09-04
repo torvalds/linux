@@ -116,7 +116,7 @@ static void dwmac1000_dma_operation_mode(void __iomem *ioaddr, int txmode,
 	u32 csr6 = readl(ioaddr + DMA_CONTROL);
 
 	if (txmode == SF_DMA_MODE) {
-		CHIP_DBG(KERN_DEBUG "GMAC: enable TX store and forward mode\n");
+		pr_debug("GMAC: enable TX store and forward mode\n");
 		/* Transmit COE type 2 cannot be done in cut-through mode. */
 		csr6 |= DMA_CONTROL_TSF;
 		/* Operating on second frame increase the performance
@@ -124,8 +124,7 @@ static void dwmac1000_dma_operation_mode(void __iomem *ioaddr, int txmode,
 		 */
 		csr6 |= DMA_CONTROL_OSF;
 	} else {
-		CHIP_DBG(KERN_DEBUG "GMAC: disabling TX SF (threshold %d)\n",
-			 txmode);
+		pr_debug("GMAC: disabling TX SF (threshold %d)\n", txmode);
 		csr6 &= ~DMA_CONTROL_TSF;
 		csr6 &= DMA_CONTROL_TC_TX_MASK;
 		/* Set the transmit threshold */
@@ -142,11 +141,10 @@ static void dwmac1000_dma_operation_mode(void __iomem *ioaddr, int txmode,
 	}
 
 	if (rxmode == SF_DMA_MODE) {
-		CHIP_DBG(KERN_DEBUG "GMAC: enable RX store and forward mode\n");
+		pr_debug("GMAC: enable RX store and forward mode\n");
 		csr6 |= DMA_CONTROL_RSF;
 	} else {
-		CHIP_DBG(KERN_DEBUG "GMAC: disable RX SF mode (threshold %d)\n",
-			 rxmode);
+		pr_debug("GMAC: disable RX SF mode (threshold %d)\n", rxmode);
 		csr6 &= ~DMA_CONTROL_RSF;
 		csr6 &= DMA_CONTROL_TC_RX_MASK;
 		if (rxmode <= 32)

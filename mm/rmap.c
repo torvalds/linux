@@ -720,7 +720,7 @@ int page_referenced_one(struct page *page, struct vm_area_struct *vma,
 			 * mapping is already gone, the unmap path will have
 			 * set PG_referenced or activated the page.
 			 */
-			if (likely(!VM_SequentialReadHint(vma)))
+			if (likely(!(vma->vm_flags & VM_SEQ_READ)))
 				referenced++;
 		}
 		pte_unmap_unlock(pte, ptl);

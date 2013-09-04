@@ -91,7 +91,7 @@ static void __init zynq_map_io(void)
 	zynq_scu_map_io();
 }
 
-static void zynq_system_reset(char mode, const char *cmd)
+static void zynq_system_reset(enum reboot_mode mode, const char *cmd)
 {
 	zynq_slcr_system_reset();
 }
@@ -101,7 +101,7 @@ static const char * const zynq_dt_match[] = {
 	NULL
 };
 
-MACHINE_START(XILINX_EP107, "Xilinx Zynq Platform")
+DT_MACHINE_START(XILINX_EP107, "Xilinx Zynq Platform")
 	.smp		= smp_ops(zynq_smp_ops),
 	.map_io		= zynq_map_io,
 	.init_machine	= zynq_init_machine,

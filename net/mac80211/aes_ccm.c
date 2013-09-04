@@ -85,7 +85,7 @@ void ieee80211_aes_ccm_encrypt(struct crypto_cipher *tfm, u8 *scratch,
 			*cpos++ = *pos++ ^ e[i];
 	}
 
-	for (i = 0; i < CCMP_MIC_LEN; i++)
+	for (i = 0; i < IEEE80211_CCMP_MIC_LEN; i++)
 		mic[i] = b[i] ^ s_0[i];
 }
 
@@ -123,7 +123,7 @@ int ieee80211_aes_ccm_decrypt(struct crypto_cipher *tfm, u8 *scratch,
 		crypto_cipher_encrypt_one(tfm, a, a);
 	}
 
-	for (i = 0; i < CCMP_MIC_LEN; i++) {
+	for (i = 0; i < IEEE80211_CCMP_MIC_LEN; i++) {
 		if ((mic[i] ^ s_0[i]) != a[i])
 			return -1;
 	}
@@ -138,7 +138,7 @@ struct crypto_cipher *ieee80211_aes_key_setup_encrypt(const u8 key[])
 
 	tfm = crypto_alloc_cipher("aes", 0, CRYPTO_ALG_ASYNC);
 	if (!IS_ERR(tfm))
-		crypto_cipher_setkey(tfm, key, ALG_CCMP_KEY_LEN);
+		crypto_cipher_setkey(tfm, key, WLAN_KEY_LEN_CCMP);
 
 	return tfm;
 }

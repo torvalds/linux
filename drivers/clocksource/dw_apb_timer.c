@@ -387,15 +387,3 @@ cycle_t dw_apb_clocksource_read(struct dw_apb_clocksource *dw_cs)
 {
 	return (cycle_t)~apbt_readl(&dw_cs->timer, APBTMR_N_CURRENT_VALUE);
 }
-
-/**
- * dw_apb_clocksource_unregister() - unregister and free a clocksource.
- *
- * @dw_cs:	The clocksource to unregister/free.
- */
-void dw_apb_clocksource_unregister(struct dw_apb_clocksource *dw_cs)
-{
-	clocksource_unregister(&dw_cs->cs);
-
-	kfree(dw_cs);
-}

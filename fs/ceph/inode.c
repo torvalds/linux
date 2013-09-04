@@ -903,8 +903,8 @@ static struct dentry *splice_dentry(struct dentry *dn, struct inode *in,
 	} else if (realdn) {
 		dout("dn %p (%d) spliced with %p (%d) "
 		     "inode %p ino %llx.%llx\n",
-		     dn, dn->d_count,
-		     realdn, realdn->d_count,
+		     dn, d_count(dn),
+		     realdn, d_count(realdn),
 		     realdn->d_inode, ceph_vinop(realdn->d_inode));
 		dput(dn);
 		dn = realdn;
@@ -1465,7 +1465,9 @@ static void ceph_vmtruncate_work(struct work_struct *work)
 	struct inode *inode = &ci->vfs_inode;
 
 	dout("vmtruncate_work %p\n", inode);
-	__ceph_do_pending_vmtruncate(inode, true);
+	mutex_lock(&inode->i_mutex);
+	__ceph_do_pending_vmtruncate(inode);
+	mutex_unlock(&inode->i_mutex);
 	iput(inode);
 }
 
@@ -1492,7 +1494,7 @@ void ceph_queue_vmtruncate(struct inode *inode)
  * Make sure any pending truncation is applied before doing anything
  * that may depend on it.
  */
-void __ceph_do_pending_vmtruncate(struct inode *inode, bool needlock)
+void __ceph_do_pending_vmtruncate(struct inode *inode)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	u64 to;
@@ -1525,11 +1527,7 @@ retry:
 	     ci->i_truncate_pending, to);
 	spin_unlock(&ci->i_ceph_lock);
 
-	if (needlock)
-		mutex_lock(&inode->i_mutex);
 	truncate_inode_pages(inode->i_mapping, to);
-	if (needlock)
-		mutex_unlock(&inode->i_mutex);
 
 	spin_lock(&ci->i_ceph_lock);
 	if (to == ci->i_truncate_size) {
@@ -1588,7 +1586,7 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 	if (ceph_snap(inode) != CEPH_NOSNAP)
 		return -EROFS;
 
-	__ceph_do_pending_vmtruncate(inode, false);
+	__ceph_do_pending_vmtruncate(inode);
 
 	err = inode_change_ok(inode, attr);
 	if (err != 0)
@@ -1770,7 +1768,7 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 	     ceph_cap_string(dirtied), mask);
 
 	ceph_mdsc_put_request(req);
-	__ceph_do_pending_vmtruncate(inode, false);
+	__ceph_do_pending_vmtruncate(inode);
 	return err;
 out:
 	spin_unlock(&ci->i_ceph_lock);

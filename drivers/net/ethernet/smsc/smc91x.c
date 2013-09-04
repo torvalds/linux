@@ -2299,7 +2299,6 @@ static int smc_drv_probe(struct platform_device *pdev)
 	return 0;
 
  out_iounmap:
-	platform_set_drvdata(pdev, NULL);
 	iounmap(addr);
  out_release_attrib:
 	smc_release_attrib(pdev, ndev);
@@ -2318,8 +2317,6 @@ static int smc_drv_remove(struct platform_device *pdev)
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct smc_local *lp = netdev_priv(ndev);
 	struct resource *res;
-
-	platform_set_drvdata(pdev, NULL);
 
 	unregister_netdev(ndev);
 

@@ -767,7 +767,6 @@ static int gpio_keys_probe(struct platform_device *pdev)
 	while (--i >= 0)
 		gpio_remove_key(&ddata->data[i]);
 
-	platform_set_drvdata(pdev, NULL);
  fail1:
 	input_free_device(input);
 	kfree(ddata);

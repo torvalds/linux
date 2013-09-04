@@ -289,9 +289,9 @@ static void vp_free_vectors(struct virtio_device *vdev)
 
 		pci_disable_msix(vp_dev->pci_dev);
 		vp_dev->msix_enabled = 0;
-		vp_dev->msix_vectors = 0;
 	}
 
+	vp_dev->msix_vectors = 0;
 	vp_dev->msix_used_vectors = 0;
 	kfree(vp_dev->msix_names);
 	vp_dev->msix_names = NULL;
@@ -308,6 +308,8 @@ static int vp_request_msix_vectors(struct virtio_device *vdev, int nvectors,
 	const char *name = dev_name(&vp_dev->vdev.dev);
 	unsigned i, v;
 	int err = -ENOMEM;
+
+	vp_dev->msix_vectors = nvectors;
 
 	vp_dev->msix_entries = kmalloc(nvectors * sizeof *vp_dev->msix_entries,
 				       GFP_KERNEL);
@@ -336,7 +338,6 @@ static int vp_request_msix_vectors(struct virtio_device *vdev, int nvectors,
 		err = -ENOSPC;
 	if (err)
 		goto error;
-	vp_dev->msix_vectors = nvectors;
 	vp_dev->msix_enabled = 1;
 
 	/* Set the vector used for configuration */

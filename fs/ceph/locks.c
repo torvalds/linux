@@ -169,7 +169,7 @@ int ceph_flock(struct file *file, int cmd, struct file_lock *fl)
 }
 
 /**
- * Must be called with BKL already held. Fills in the passed
+ * Must be called with lock_flocks() already held. Fills in the passed
  * counter variables, so you can prepare pagelist metadata before calling
  * ceph_encode_locks.
  */

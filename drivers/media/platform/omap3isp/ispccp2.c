@@ -158,13 +158,17 @@ static void ccp2_pwr_cfg(struct isp_ccp2_device *ccp2)
  * @ccp2: pointer to ISP CCP2 device
  * @enable: enable/disable flag
  */
-static void ccp2_if_enable(struct isp_ccp2_device *ccp2, u8 enable)
+static int ccp2_if_enable(struct isp_ccp2_device *ccp2, u8 enable)
 {
 	struct isp_device *isp = to_isp_device(ccp2);
+	int ret;
 	int i;
 
-	if (enable && ccp2->vdds_csib)
-		regulator_enable(ccp2->vdds_csib);
+	if (enable && ccp2->vdds_csib) {
+		ret = regulator_enable(ccp2->vdds_csib);
+		if (ret < 0)
+			return ret;
+	}
 
 	/* Enable/Disable all the LCx channels */
 	for (i = 0; i < CCP2_LCx_CHANS_NUM; i++)
@@ -179,6 +183,8 @@ static void ccp2_if_enable(struct isp_ccp2_device *ccp2, u8 enable)
 
 	if (!enable && ccp2->vdds_csib)
 		regulator_disable(ccp2->vdds_csib);
+
+	return 0;
 }
 
 /*
@@ -360,7 +366,7 @@ static int ccp2_if_configure(struct isp_ccp2_device *ccp2)
 
 	ccp2_pwr_cfg(ccp2);
 
-	pad = media_entity_remote_source(&ccp2->pads[CCP2_PAD_SINK]);
+	pad = media_entity_remote_pad(&ccp2->pads[CCP2_PAD_SINK]);
 	sensor = media_entity_to_v4l2_subdev(pad->entity);
 	pdata = sensor->host_priv;
 
@@ -851,7 +857,12 @@ static int ccp2_s_stream(struct v4l2_subdev *sd, int enable)
 		ccp2_print_status(ccp2);
 
 		/* Enable CSI1/CCP2 interface */
-		ccp2_if_enable(ccp2, 1);
+		ret = ccp2_if_enable(ccp2, 1);
+		if (ret < 0) {
+			if (ccp2->phy)
+				omap3isp_csiphy_release(ccp2->phy);
+			return ret;
+		}
 		break;
 
 	case ISP_PIPELINE_STREAM_SINGLESHOT:

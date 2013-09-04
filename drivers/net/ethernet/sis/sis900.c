@@ -1318,7 +1318,7 @@ static void sis900_timer(unsigned long data)
 		if (duplex){
 			sis900_set_mode(sis_priv, speed, duplex);
 			sis630_set_eq(net_dev, sis_priv->chipset_rev);
-			netif_start_queue(net_dev);
+			netif_carrier_on(net_dev);
 		}
 
 		sis_priv->timer.expires = jiffies + HZ;
@@ -1336,10 +1336,8 @@ static void sis900_timer(unsigned long data)
 		status = sis900_default_phy(net_dev);
 		mii_phy = sis_priv->mii;
 
-		if (status & MII_STAT_LINK){
+		if (status & MII_STAT_LINK)
 			sis900_check_mode(net_dev, mii_phy);
-			netif_carrier_on(net_dev);
-		}
 	} else {
 	/* Link ON -> OFF */
                 if (!(status & MII_STAT_LINK)){
@@ -1611,12 +1609,6 @@ sis900_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 	unsigned long flags;
 	unsigned int  index_cur_tx, index_dirty_tx;
 	unsigned int  count_dirty_tx;
-
-	/* Don't transmit data before the complete of auto-negotiation */
-	if(!sis_priv->autong_complete){
-		netif_stop_queue(net_dev);
-		return NETDEV_TX_BUSY;
-	}
 
 	spin_lock_irqsave(&sis_priv->lock, flags);
 

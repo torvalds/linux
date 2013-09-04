@@ -266,7 +266,6 @@ static int sh_keysc_probe(struct platform_device *pdev)
  err2:
 	iounmap(priv->iomem_base);
  err1:
-	platform_set_drvdata(pdev, NULL);
 	kfree(priv);
  err0:
 	return error;
@@ -285,7 +284,6 @@ static int sh_keysc_remove(struct platform_device *pdev)
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
-	platform_set_drvdata(pdev, NULL);
 	kfree(priv);
 
 	return 0;

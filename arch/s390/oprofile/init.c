@@ -440,7 +440,7 @@ static int oprofile_hwsampler_init(struct oprofile_operations *ops)
 		switch (id.machine) {
 		case 0x2097: case 0x2098: ops->cpu_type = "s390/z10"; break;
 		case 0x2817: case 0x2818: ops->cpu_type = "s390/z196"; break;
-		case 0x2827:              ops->cpu_type = "s390/zEC12"; break;
+		case 0x2827: case 0x2828: ops->cpu_type = "s390/zEC12"; break;
 		default: return -ENODEV;
 		}
 	}

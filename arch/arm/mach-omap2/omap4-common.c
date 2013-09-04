@@ -23,6 +23,7 @@
 #include <linux/export.h>
 #include <linux/irqchip/arm-gic.h>
 #include <linux/of_address.h>
+#include <linux/reboot.h>
 
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/map.h>

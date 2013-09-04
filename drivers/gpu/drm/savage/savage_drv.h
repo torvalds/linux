@@ -160,10 +160,7 @@ typedef struct drm_savage_private {
 	drm_local_map_t *cmd_dma;
 	drm_local_map_t fake_dma;
 
-	struct {
-		int handle;
-		unsigned long base, size;
-	} mtrr[3];
+	int mtrr_handles[3];
 
 	/* BCI and status-related stuff */
 	volatile uint32_t *status_ptr, *bci_ptr;

@@ -26,18 +26,6 @@ struct btrfs_ordered_inode_tree {
 	struct rb_node *last;
 };
 
-/*
- * these are used to collect checksums done just before bios submission.
- * They are attached via a list into the ordered extent, and
- * checksum items are inserted into the tree after all the blocks in
- * the ordered extent are on disk
- */
-struct btrfs_sector_sum {
-	/* bytenr on disk */
-	u64 bytenr;
-	u32 sum;
-};
-
 struct btrfs_ordered_sum {
 	/* bytenr is the start of this extent on disk */
 	u64 bytenr;
@@ -45,10 +33,10 @@ struct btrfs_ordered_sum {
 	/*
 	 * this is the length in bytes covered by the sums array below.
 	 */
-	unsigned long len;
+	int len;
 	struct list_head list;
-	/* last field is a variable length array of btrfs_sector_sums */
-	struct btrfs_sector_sum sums[];
+	/* last field is a variable length array of csums */
+	u32 sums[];
 };
 
 /*
@@ -149,11 +137,8 @@ struct btrfs_ordered_extent {
 static inline int btrfs_ordered_sum_size(struct btrfs_root *root,
 					 unsigned long bytes)
 {
-	unsigned long num_sectors = (bytes + root->sectorsize - 1) /
-		root->sectorsize;
-	num_sectors++;
-	return sizeof(struct btrfs_ordered_sum) +
-		num_sectors * sizeof(struct btrfs_sector_sum);
+	int num_sectors = (int)DIV_ROUND_UP(bytes, root->sectorsize);
+	return sizeof(struct btrfs_ordered_sum) + num_sectors * sizeof(u32);
 }
 
 static inline void
@@ -204,6 +189,8 @@ void btrfs_add_ordered_operation(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root,
 				 struct inode *inode);
 void btrfs_wait_ordered_extents(struct btrfs_root *root, int delay_iput);
+void btrfs_wait_all_ordered_extents(struct btrfs_fs_info *fs_info,
+				    int delay_iput);
 void btrfs_get_logged_extents(struct btrfs_root *log, struct inode *inode);
 void btrfs_wait_logged_extents(struct btrfs_root *log, u64 transid);
 void btrfs_free_logged_extents(struct btrfs_root *log, u64 transid);

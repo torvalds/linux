@@ -1413,33 +1413,17 @@ static int mmc_omap_probe(struct platform_device *pdev)
 	else
 		sig = host->id == 0 ? OMAP_DMA_MMC_TX : OMAP_DMA_MMC2_TX;
 	host->dma_tx = dma_request_channel(mask, omap_dma_filter_fn, &sig);
-#if 0
-	if (!host->dma_tx) {
-		dev_err(host->dev, "unable to obtain TX DMA engine channel %u\n",
-			sig);
-		goto err_dma;
-	}
-#else
 	if (!host->dma_tx)
 		dev_warn(host->dev, "unable to obtain TX DMA engine channel %u\n",
 			sig);
-#endif
 	if (mmc_omap2())
 		sig = host->id == 0 ? OMAP24XX_DMA_MMC1_RX : OMAP24XX_DMA_MMC2_RX;
 	else
 		sig = host->id == 0 ? OMAP_DMA_MMC_RX : OMAP_DMA_MMC2_RX;
 	host->dma_rx = dma_request_channel(mask, omap_dma_filter_fn, &sig);
-#if 0
-	if (!host->dma_rx) {
-		dev_err(host->dev, "unable to obtain RX DMA engine channel %u\n",
-			sig);
-		goto err_dma;
-	}
-#else
 	if (!host->dma_rx)
 		dev_warn(host->dev, "unable to obtain RX DMA engine channel %u\n",
 			sig);
-#endif
 
 	ret = request_irq(host->irq, mmc_omap_irq, 0, DRIVER_NAME, host);
 	if (ret)
@@ -1499,8 +1483,6 @@ static int mmc_omap_remove(struct platform_device *pdev)
 {
 	struct mmc_omap_host *host = platform_get_drvdata(pdev);
 	int i;
-
-	platform_set_drvdata(pdev, NULL);
 
 	BUG_ON(host == NULL);
 

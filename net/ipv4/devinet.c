@@ -215,6 +215,7 @@ void in_dev_finish_destroy(struct in_device *idev)
 
 	WARN_ON(idev->ifa_list);
 	WARN_ON(idev->mc_list);
+	kfree(rcu_dereference_protected(idev->mc_hash, 1));
 #ifdef NET_REFCNT_DEBUG
 	pr_debug("%s: %p=%s\n", __func__, idev, dev ? dev->name : "NIL");
 #endif
@@ -771,7 +772,7 @@ static struct in_ifaddr *rtm_to_ifaddr(struct net *net, struct nlmsghdr *nlh,
 		ci = nla_data(tb[IFA_CACHEINFO]);
 		if (!ci->ifa_valid || ci->ifa_prefered > ci->ifa_valid) {
 			err = -EINVAL;
-			goto errout;
+			goto errout_free;
 		}
 		*pvalid_lft = ci->ifa_valid;
 		*pprefered_lft = ci->ifa_prefered;
@@ -779,6 +780,8 @@ static struct in_ifaddr *rtm_to_ifaddr(struct net *net, struct nlmsghdr *nlh,
 
 	return ifa;
 
+errout_free:
+	inet_free_ifa(ifa);
 errout:
 	return ERR_PTR(err);
 }
@@ -1333,7 +1336,7 @@ static void inetdev_send_gratuitous_arp(struct net_device *dev,
 static int inetdev_event(struct notifier_block *this, unsigned long event,
 			 void *ptr)
 {
-	struct net_device *dev = ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct in_device *in_dev = __in_dev_get_rtnl(dev);
 
 	ASSERT_RTNL();
@@ -1941,7 +1944,7 @@ static void inet_forward_change(struct net *net)
 	}
 }
 
-static int devinet_conf_proc(ctl_table *ctl, int write,
+static int devinet_conf_proc(struct ctl_table *ctl, int write,
 			     void __user *buffer,
 			     size_t *lenp, loff_t *ppos)
 {
@@ -1984,7 +1987,7 @@ static int devinet_conf_proc(ctl_table *ctl, int write,
 	return ret;
 }
 
-static int devinet_sysctl_forward(ctl_table *ctl, int write,
+static int devinet_sysctl_forward(struct ctl_table *ctl, int write,
 				  void __user *buffer,
 				  size_t *lenp, loff_t *ppos)
 {
@@ -2027,7 +2030,7 @@ static int devinet_sysctl_forward(ctl_table *ctl, int write,
 	return ret;
 }
 
-static int ipv4_doint_and_flush(ctl_table *ctl, int write,
+static int ipv4_doint_and_flush(struct ctl_table *ctl, int write,
 				void __user *buffer,
 				size_t *lenp, loff_t *ppos)
 {

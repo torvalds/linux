@@ -249,7 +249,7 @@ static void __init mx25pdk_init(void)
 	imx25_add_imx_i2c0(&mx25_3ds_i2c0_data);
 
 	gpio_request_one(MX25PDK_CAN_PWDN, GPIOF_OUT_INIT_LOW, "can-pwdn");
-	imx25_add_flexcan0(NULL);
+	imx25_add_flexcan0();
 }
 
 static void __init mx25pdk_timer_init(void)

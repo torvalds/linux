@@ -469,7 +469,7 @@ static enum fsl_diu_monitor_port fsl_diu_name_to_port(const char *s)
 	unsigned long val;
 
 	if (s) {
-		if (!strict_strtoul(s, 10, &val) && (val <= 2))
+		if (!kstrtoul(s, 10, &val) && (val <= 2))
 			port = (enum fsl_diu_monitor_port) val;
 		else if (strncmp(s, "lvds", 4) == 0)
 			port = FSL_DIU_PORT_LVDS;
@@ -1853,7 +1853,7 @@ static int __init fsl_diu_setup(char *options)
 		if (!strncmp(opt, "monitor=", 8)) {
 			monitor_port = fsl_diu_name_to_port(opt + 8);
 		} else if (!strncmp(opt, "bpp=", 4)) {
-			if (!strict_strtoul(opt + 4, 10, &val))
+			if (!kstrtoul(opt + 4, 10, &val))
 				default_bpp = val;
 		} else
 			fb_mode = opt;

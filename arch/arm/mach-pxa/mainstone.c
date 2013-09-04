@@ -408,7 +408,7 @@ static int mainstone_mci_init(struct device *dev, irq_handler_t mstone_detect_in
 	return err;
 }
 
-static void mainstone_mci_setpower(struct device *dev, unsigned int vdd)
+static int mainstone_mci_setpower(struct device *dev, unsigned int vdd)
 {
 	struct pxamci_platform_data* p_d = dev->platform_data;
 
@@ -420,6 +420,7 @@ static void mainstone_mci_setpower(struct device *dev, unsigned int vdd)
 		printk(KERN_DEBUG "%s: off\n", __func__);
 		MST_MSCWR1 &= ~MST_MSCWR1_MMC_ON;
 	}
+	return 0;
 }
 
 static void mainstone_mci_exit(struct device *dev, void *data)
@@ -498,7 +499,7 @@ static struct pxaohci_platform_data mainstone_ohci_platform_data = {
 };
 
 #if defined(CONFIG_KEYBOARD_PXA27x) || defined(CONFIG_KEYBOARD_PXA27x_MODULE)
-static unsigned int mainstone_matrix_keys[] = {
+static const unsigned int mainstone_matrix_keys[] = {
 	KEY(0, 0, KEY_A), KEY(1, 0, KEY_B), KEY(2, 0, KEY_C),
 	KEY(3, 0, KEY_D), KEY(4, 0, KEY_E), KEY(5, 0, KEY_F),
 	KEY(0, 1, KEY_G), KEY(1, 1, KEY_H), KEY(2, 1, KEY_I),
@@ -527,11 +528,15 @@ static unsigned int mainstone_matrix_keys[] = {
 	KEY(4, 6, KEY_SELECT),
 };
 
+static struct matrix_keymap_data mainstone_matrix_keymap_data = {
+	.keymap			= mainstone_matrix_keys,
+	.keymap_size		= ARRAY_SIZE(mainstone_matrix_keys),
+};
+
 struct pxa27x_keypad_platform_data mainstone_keypad_info = {
 	.matrix_key_rows	= 6,
 	.matrix_key_cols	= 7,
-	.matrix_key_map		= mainstone_matrix_keys,
-	.matrix_key_map_size	= ARRAY_SIZE(mainstone_matrix_keys),
+	.matrix_keymap_data	= &mainstone_matrix_keymap_data,
 
 	.enable_rotary0		= 1,
 	.rotary0_up_key		= KEY_UP,

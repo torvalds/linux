@@ -26,7 +26,6 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/edma.h>
-#include <linux/err.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/of_dma.h>

@@ -59,8 +59,10 @@ ctnl_timeout_parse_policy(struct ctnl_timeout *timeout,
 	if (likely(l4proto->ctnl_timeout.nlattr_to_obj)) {
 		struct nlattr *tb[l4proto->ctnl_timeout.nlattr_max+1];
 
-		nla_parse_nested(tb, l4proto->ctnl_timeout.nlattr_max,
-				 attr, l4proto->ctnl_timeout.nla_policy);
+		ret = nla_parse_nested(tb, l4proto->ctnl_timeout.nlattr_max,
+				       attr, l4proto->ctnl_timeout.nla_policy);
+		if (ret < 0)
+			return ret;
 
 		ret = l4proto->ctnl_timeout.nlattr_to_obj(tb, net,
 							  &timeout->data);

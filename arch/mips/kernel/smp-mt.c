@@ -149,7 +149,7 @@ static void vsmp_send_ipi_mask(const struct cpumask *mask, unsigned int action)
 		vsmp_send_ipi_single(i, action);
 }
 
-static void __cpuinit vsmp_init_secondary(void)
+static void vsmp_init_secondary(void)
 {
 #ifdef CONFIG_IRQ_GIC
 	/* This is Malta specific: IPI,performance and timer interrupts */
@@ -162,7 +162,7 @@ static void __cpuinit vsmp_init_secondary(void)
 					 STATUSF_IP6 | STATUSF_IP7);
 }
 
-static void __cpuinit vsmp_smp_finish(void)
+static void vsmp_smp_finish(void)
 {
 	/* CDFIXME: remove this? */
 	write_c0_compare(read_c0_count() + (8* mips_hpt_frequency/HZ));
@@ -188,7 +188,7 @@ static void vsmp_cpus_done(void)
  * (unsigned long)idle->thread_info the gp
  * assumes a 1:1 mapping of TC => VPE
  */
-static void __cpuinit vsmp_boot_secondary(int cpu, struct task_struct *idle)
+static void vsmp_boot_secondary(int cpu, struct task_struct *idle)
 {
 	struct thread_info *gp = task_thread_info(idle);
 	dvpe();

@@ -103,10 +103,10 @@ struct pstate_adjust_policy {
 static struct pstate_adjust_policy default_policy = {
 	.sample_rate_ms = 10,
 	.deadband = 0,
-	.setpoint = 109,
-	.p_gain_pct = 17,
+	.setpoint = 97,
+	.p_gain_pct = 20,
 	.d_gain_pct = 0,
-	.i_gain_pct = 4,
+	.i_gain_pct = 0,
 };
 
 struct perf_limits {
@@ -468,12 +468,12 @@ static inline void intel_pstate_set_sample_time(struct cpudata *cpu)
 static inline int intel_pstate_get_scaled_busy(struct cpudata *cpu)
 {
 	int32_t busy_scaled;
-	int32_t core_busy, turbo_pstate, current_pstate;
+	int32_t core_busy, max_pstate, current_pstate;
 
 	core_busy = int_tofp(cpu->samples[cpu->sample_ptr].core_pct_busy);
-	turbo_pstate = int_tofp(cpu->pstate.turbo_pstate);
+	max_pstate = int_tofp(cpu->pstate.max_pstate);
 	current_pstate = int_tofp(cpu->pstate.current_pstate);
-	busy_scaled = mul_fp(core_busy, div_fp(turbo_pstate, current_pstate));
+	busy_scaled = mul_fp(core_busy, div_fp(max_pstate, current_pstate));
 
 	return fp_toint(busy_scaled);
 }
@@ -617,7 +617,7 @@ static int intel_pstate_verify_policy(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static int __cpuinit intel_pstate_cpu_exit(struct cpufreq_policy *policy)
+static int intel_pstate_cpu_exit(struct cpufreq_policy *policy)
 {
 	int cpu = policy->cpu;
 
@@ -627,7 +627,7 @@ static int __cpuinit intel_pstate_cpu_exit(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static int __cpuinit intel_pstate_cpu_init(struct cpufreq_policy *policy)
+static int intel_pstate_cpu_init(struct cpufreq_policy *policy)
 {
 	int rc, min_pstate, max_pstate;
 	struct cpudata *cpu;

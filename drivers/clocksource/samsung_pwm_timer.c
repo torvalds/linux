@@ -21,10 +21,10 @@
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/sched_clock.h>
 
 #include <clocksource/samsung_pwm.h>
 
-#include <asm/sched_clock.h>
 
 /*
  * Clocksource driver

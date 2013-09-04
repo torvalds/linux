@@ -690,6 +690,8 @@ xfs_attr_shortform_to_leaf(xfs_da_args_t *args)
 	sf = (xfs_attr_shortform_t *)tmpbuffer;
 
 	xfs_idata_realloc(dp, -size, XFS_ATTR_FORK);
+	xfs_bmap_local_to_extents_empty(dp, XFS_ATTR_FORK);
+
 	bp = NULL;
 	error = xfs_da_grow_inode(args, &blkno);
 	if (error) {

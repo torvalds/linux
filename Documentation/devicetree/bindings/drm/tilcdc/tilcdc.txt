@@ -10,6 +10,14 @@ Recommended properties:
    services interrupts for this device.
  - ti,hwmods: Name of the hwmod associated to the LCDC
 
+Optional properties:
+ - max-bandwidth: The maximum pixels per second that the memory
+   interface / lcd controller combination can sustain
+ - max-width: The maximum horizontal pixel width supported by
+   the lcd controller.
+ - max-pixelclock: The maximum pixel clock that can be supported
+   by the lcd controller in KHz.
+
 Example:
 
 	fb: fb@4830e000 {

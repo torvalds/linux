@@ -135,7 +135,7 @@ void irq_gc_ack_clr_bit(struct irq_data *d)
 }
 
 /**
- * irq_gc_mask_disable_reg_and_ack- Mask and ack pending interrupt
+ * irq_gc_mask_disable_reg_and_ack - Mask and ack pending interrupt
  * @d: irq_data
  */
 void irq_gc_mask_disable_reg_and_ack(struct irq_data *d)
@@ -275,10 +275,7 @@ int irq_alloc_domain_generic_chips(struct irq_domain *d, int irqs_per_chip,
 	if (d->gc)
 		return -EBUSY;
 
-	if (d->revmap_type != IRQ_DOMAIN_MAP_LINEAR)
-		return -EINVAL;
-
-	numchips = d->revmap_data.linear.size / irqs_per_chip;
+	numchips = DIV_ROUND_UP(d->revmap_size, irqs_per_chip);
 	if (!numchips)
 		return -EINVAL;
 
@@ -310,6 +307,7 @@ int irq_alloc_domain_generic_chips(struct irq_domain *d, int irqs_per_chip,
 		/* Calc pointer to the next generic chip */
 		tmp += sizeof(*gc) + num_ct * sizeof(struct irq_chip_type);
 	}
+	d->name = name;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(irq_alloc_domain_generic_chips);

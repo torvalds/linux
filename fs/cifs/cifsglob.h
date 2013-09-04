@@ -194,6 +194,7 @@ struct cifs_writedata;
 struct cifs_io_parms;
 struct cifs_search_info;
 struct cifsInodeInfo;
+struct cifs_open_parms;
 
 struct smb_version_operations {
 	int (*send_cancel)(struct TCP_Server_Info *, void *,
@@ -307,9 +308,8 @@ struct smb_version_operations {
 			       const char *, const char *,
 			       struct cifs_sb_info *);
 	/* open a file for non-posix mounts */
-	int (*open)(const unsigned int, struct cifs_tcon *, const char *, int,
-		    int, int, struct cifs_fid *, __u32 *, FILE_ALL_INFO *,
-		    struct cifs_sb_info *);
+	int (*open)(const unsigned int, struct cifs_open_parms *,
+		    __u32 *, FILE_ALL_INFO *);
 	/* set fid protocol-specific info */
 	void (*set_fid)(struct cifsFileInfo *, struct cifs_fid *, __u32);
 	/* close a file */
@@ -910,6 +910,17 @@ struct cifs_search_info {
 	bool emptyDir:1;
 	bool unicode:1;
 	bool smallBuf:1; /* so we know which buf_release function to call */
+};
+
+struct cifs_open_parms {
+	struct cifs_tcon *tcon;
+	struct cifs_sb_info *cifs_sb;
+	int disposition;
+	int desired_access;
+	int create_options;
+	const char *path;
+	struct cifs_fid *fid;
+	bool reconnect:1;
 };
 
 struct cifs_fid {
