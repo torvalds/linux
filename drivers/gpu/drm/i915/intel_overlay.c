@@ -821,14 +821,11 @@ int intel_overlay_switch_off(struct intel_overlay *overlay)
 static int check_overlay_possible_on_crtc(struct intel_overlay *overlay,
 					  struct intel_crtc *crtc)
 {
-	drm_i915_private_t *dev_priv = overlay->dev->dev_private;
-
 	if (!crtc->active)
 		return -EINVAL;
 
 	/* can't use the overlay with double wide pipe */
-	if (INTEL_INFO(overlay->dev)->gen < 4 &&
-	    (I915_READ(PIPECONF(crtc->pipe)) & (PIPECONF_DOUBLE_WIDE | PIPECONF_ENABLE)) != PIPECONF_ENABLE)
+	if (crtc->config.double_wide)
 		return -EINVAL;
 
 	return 0;
