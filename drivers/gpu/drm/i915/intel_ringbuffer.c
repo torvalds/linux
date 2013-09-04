@@ -593,7 +593,7 @@ update_mboxes(struct intel_ring_buffer *ring,
 #define MBOX_UPDATE_DWORDS 4
 	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
 	intel_ring_emit(ring, mmio_offset);
-	intel_ring_emit(ring, ring->outstanding_lazy_request);
+	intel_ring_emit(ring, ring->outstanding_lazy_seqno);
 	intel_ring_emit(ring, MI_NOOP);
 }
 
@@ -629,7 +629,7 @@ gen6_add_request(struct intel_ring_buffer *ring)
 
 	intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
 	intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
-	intel_ring_emit(ring, ring->outstanding_lazy_request);
+	intel_ring_emit(ring, ring->outstanding_lazy_seqno);
 	intel_ring_emit(ring, MI_USER_INTERRUPT);
 	intel_ring_advance(ring);
 
@@ -723,7 +723,7 @@ pc_render_add_request(struct intel_ring_buffer *ring)
 			PIPE_CONTROL_WRITE_FLUSH |
 			PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE);
 	intel_ring_emit(ring, ring->scratch.gtt_offset | PIPE_CONTROL_GLOBAL_GTT);
-	intel_ring_emit(ring, ring->outstanding_lazy_request);
+	intel_ring_emit(ring, ring->outstanding_lazy_seqno);
 	intel_ring_emit(ring, 0);
 	PIPE_CONTROL_FLUSH(ring, scratch_addr);
 	scratch_addr += 128; /* write to separate cachelines */
@@ -742,7 +742,7 @@ pc_render_add_request(struct intel_ring_buffer *ring)
 			PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE |
 			PIPE_CONTROL_NOTIFY);
 	intel_ring_emit(ring, ring->scratch.gtt_offset | PIPE_CONTROL_GLOBAL_GTT);
-	intel_ring_emit(ring, ring->outstanding_lazy_request);
+	intel_ring_emit(ring, ring->outstanding_lazy_seqno);
 	intel_ring_emit(ring, 0);
 	intel_ring_advance(ring);
 
@@ -963,7 +963,7 @@ i9xx_add_request(struct intel_ring_buffer *ring)
 
 	intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
 	intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
-	intel_ring_emit(ring, ring->outstanding_lazy_request);
+	intel_ring_emit(ring, ring->outstanding_lazy_seqno);
 	intel_ring_emit(ring, MI_USER_INTERRUPT);
 	intel_ring_advance(ring);
 
@@ -1475,7 +1475,7 @@ int intel_ring_idle(struct intel_ring_buffer *ring)
 	int ret;
 
 	/* We need to add any requests required to flush the objects and ring */
-	if (ring->outstanding_lazy_request) {
+	if (ring->outstanding_lazy_seqno) {
 		ret = i915_add_request(ring, NULL);
 		if (ret)
 			return ret;
@@ -1495,10 +1495,10 @@ int intel_ring_idle(struct intel_ring_buffer *ring)
 static int
 intel_ring_alloc_seqno(struct intel_ring_buffer *ring)
 {
-	if (ring->outstanding_lazy_request)
+	if (ring->outstanding_lazy_seqno)
 		return 0;
 
-	return i915_gem_get_seqno(ring->dev, &ring->outstanding_lazy_request);
+	return i915_gem_get_seqno(ring->dev, &ring->outstanding_lazy_seqno);
 }
 
 static int __intel_ring_begin(struct intel_ring_buffer *ring,
@@ -1545,7 +1545,7 @@ void intel_ring_init_seqno(struct intel_ring_buffer *ring, u32 seqno)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 
-	BUG_ON(ring->outstanding_lazy_request);
+	BUG_ON(ring->outstanding_lazy_seqno);
 
 	if (INTEL_INFO(ring->dev)->gen >= 6) {
 		I915_WRITE(RING_SYNC_0(ring->mmio_base), 0);
