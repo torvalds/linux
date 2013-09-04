@@ -211,6 +211,11 @@ struct intel_crtc_config {
 #define PIPE_CONFIG_QUIRK_MODE_SYNC_FLAGS (1<<0) /* unreliable sync mode.flags */
 	unsigned long quirks;
 
+	/* User requested mode, only valid as a starting point to
+	 * compute adjusted_mode, except in the case of (S)DVO where
+	 * it's also for the output timings of the (S)DVO chip.
+	 * adjusted_mode will then correspond to the S(DVO) chip's
+	 * preferred input timings. */
 	struct drm_display_mode requested_mode;
 	/* Actual pipe timings ie. what we program into the pipe timing
 	 * registers. adjusted_mode.clock is the pipe pixel clock. */
