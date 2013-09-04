@@ -172,10 +172,7 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 				   SUPPORTED_Autoneg |
 				   SUPPORTED_Pause);
 		ecmd->advertising = ADVERTISED_FIBRE;
-		if (hw->mac.type == e1000_i354) {
-			ecmd->supported |= SUPPORTED_2500baseX_Full;
-			ecmd->advertising |= ADVERTISED_2500baseX_Full;
-		}
+
 		if ((eth_flags->e1000_base_lx) || (eth_flags->e1000_base_sx)) {
 			ecmd->supported |= SUPPORTED_1000baseT_Full;
 			ecmd->advertising |= ADVERTISED_1000baseT_Full;
@@ -209,16 +206,23 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 	status = rd32(E1000_STATUS);
 
 	if (status & E1000_STATUS_LU) {
-		if ((hw->mac.type == e1000_i354) &&
-		    (status & E1000_STATUS_2P5_SKU) &&
-		    !(status & E1000_STATUS_2P5_SKU_OVER))
-			ecmd->speed = SPEED_2500;
-		else if (status & E1000_STATUS_SPEED_1000)
+		if (hw->mac.type == e1000_i354) {
+			if ((status & E1000_STATUS_2P5_SKU) &&
+			    !(status & E1000_STATUS_2P5_SKU_OVER)) {
+				ecmd->supported = SUPPORTED_2500baseX_Full;
+				ecmd->advertising = ADVERTISED_2500baseX_Full;
+				ecmd->speed = SPEED_2500;
+			} else {
+				ecmd->supported = SUPPORTED_1000baseT_Full;
+				ecmd->advertising = ADVERTISED_1000baseT_Full;
+			}
+		} else if (status & E1000_STATUS_SPEED_1000) {
 			ecmd->speed = SPEED_1000;
-		else if (status & E1000_STATUS_SPEED_100)
+		} else if (status & E1000_STATUS_SPEED_100) {
 			ecmd->speed = SPEED_100;
-		else
+		} else {
 			ecmd->speed = SPEED_10;
+		}
 		if ((status & E1000_STATUS_FD) ||
 		    hw->phy.media_type != e1000_media_type_copper)
 			ecmd->duplex = DUPLEX_FULL;

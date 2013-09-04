@@ -176,7 +176,7 @@ static s32 igb_init_phy_params_82575(struct e1000_hw *hw)
 
 	/* Verify phy id and set remaining function pointers */
 	switch (phy->id) {
-	case M88E1545_E_PHY_ID:
+	case M88E1543_E_PHY_ID:
 	case I347AT4_E_PHY_ID:
 	case M88E1112_E_PHY_ID:
 	case M88E1111_I_PHY_ID:
@@ -1141,6 +1141,31 @@ static s32 igb_get_cfg_done_82575(struct e1000_hw *hw)
 }
 
 /**
+ *  igb_get_link_up_info_82575 - Get link speed/duplex info
+ *  @hw: pointer to the HW structure
+ *  @speed: stores the current speed
+ *  @duplex: stores the current duplex
+ *
+ *  This is a wrapper function, if using the serial gigabit media independent
+ *  interface, use PCS to retrieve the link speed and duplex information.
+ *  Otherwise, use the generic function to get the link speed and duplex info.
+ **/
+static s32 igb_get_link_up_info_82575(struct e1000_hw *hw, u16 *speed,
+					u16 *duplex)
+{
+	s32 ret_val;
+
+	if (hw->phy.media_type != e1000_media_type_copper)
+		ret_val = igb_get_pcs_speed_and_duplex_82575(hw, speed,
+							       duplex);
+	else
+		ret_val = igb_get_speed_and_duplex_copper(hw, speed,
+								    duplex);
+
+	return ret_val;
+}
+
+/**
  *  igb_check_for_link_82575 - Check for link
  *  @hw: pointer to the HW structure
  *
@@ -1217,7 +1242,7 @@ static s32 igb_get_pcs_speed_and_duplex_82575(struct e1000_hw *hw, u16 *speed,
 						u16 *duplex)
 {
 	struct e1000_mac_info *mac = &hw->mac;
-	u32 pcs;
+	u32 pcs, status;
 
 	/* Set up defaults for the return values of this function */
 	mac->serdes_has_link = false;
@@ -1238,20 +1263,31 @@ static s32 igb_get_pcs_speed_and_duplex_82575(struct e1000_hw *hw, u16 *speed,
 		mac->serdes_has_link = true;
 
 		/* Detect and store PCS speed */
-		if (pcs & E1000_PCS_LSTS_SPEED_1000) {
+		if (pcs & E1000_PCS_LSTS_SPEED_1000)
 			*speed = SPEED_1000;
-		} else if (pcs & E1000_PCS_LSTS_SPEED_100) {
+		else if (pcs & E1000_PCS_LSTS_SPEED_100)
 			*speed = SPEED_100;
-		} else {
+		else
 			*speed = SPEED_10;
-		}
 
 		/* Detect and store PCS duplex */
-		if (pcs & E1000_PCS_LSTS_DUPLEX_FULL) {
+		if (pcs & E1000_PCS_LSTS_DUPLEX_FULL)
 			*duplex = FULL_DUPLEX;
-		} else {
+		else
 			*duplex = HALF_DUPLEX;
+
+	/* Check if it is an I354 2.5Gb backplane connection. */
+		if (mac->type == e1000_i354) {
+			status = rd32(E1000_STATUS);
+			if ((status & E1000_STATUS_2P5_SKU) &&
+			    !(status & E1000_STATUS_2P5_SKU_OVER)) {
+				*speed = SPEED_2500;
+				*duplex = FULL_DUPLEX;
+				hw_dbg("2500 Mbs, ");
+				hw_dbg("Full Duplex\n");
+			}
 		}
+
 	}
 
 	return 0;
@@ -1421,11 +1457,18 @@ static s32 igb_setup_copper_link_82575(struct e1000_hw *hw)
 	ctrl &= ~(E1000_CTRL_FRCSPD | E1000_CTRL_FRCDPX);
 	wr32(E1000_CTRL, ctrl);
 
-	/* Clear Go Link Disconnect bit */
-	if (hw->mac.type >= e1000_82580) {
+	/* Clear Go Link Disconnect bit on supported devices */
+	switch (hw->mac.type) {
+	case e1000_82580:
+	case e1000_i350:
+	case e1000_i210:
+	case e1000_i211:
 		phpm_reg = rd32(E1000_82580_PHY_POWER_MGMT);
 		phpm_reg &= ~E1000_82580_PM_GO_LINKD;
 		wr32(E1000_82580_PHY_POWER_MGMT, phpm_reg);
+		break;
+	default:
+		break;
 	}
 
 	ret_val = igb_setup_serdes_link_82575(hw);
@@ -1448,7 +1491,7 @@ static s32 igb_setup_copper_link_82575(struct e1000_hw *hw)
 		switch (hw->phy.id) {
 		case I347AT4_E_PHY_ID:
 		case M88E1112_E_PHY_ID:
-		case M88E1545_E_PHY_ID:
+		case M88E1543_E_PHY_ID:
 		case I210_I_PHY_ID:
 			ret_val = igb_copper_link_setup_m88_gen2(hw);
 			break;
@@ -2477,28 +2520,28 @@ s32 igb_set_eee_i354(struct e1000_hw *hw)
 	u16 phy_data;
 
 	if ((hw->phy.media_type != e1000_media_type_copper) ||
-	    (phy->id != M88E1545_E_PHY_ID))
+	    (phy->id != M88E1543_E_PHY_ID))
 		goto out;
 
 	if (!hw->dev_spec._82575.eee_disable) {
 		/* Switch to PHY page 18. */
-		ret_val = phy->ops.write_reg(hw, E1000_M88E1545_PAGE_ADDR, 18);
+		ret_val = phy->ops.write_reg(hw, E1000_M88E1543_PAGE_ADDR, 18);
 		if (ret_val)
 			goto out;
 
-		ret_val = phy->ops.read_reg(hw, E1000_M88E1545_EEE_CTRL_1,
+		ret_val = phy->ops.read_reg(hw, E1000_M88E1543_EEE_CTRL_1,
 					    &phy_data);
 		if (ret_val)
 			goto out;
 
-		phy_data |= E1000_M88E1545_EEE_CTRL_1_MS;
-		ret_val = phy->ops.write_reg(hw, E1000_M88E1545_EEE_CTRL_1,
+		phy_data |= E1000_M88E1543_EEE_CTRL_1_MS;
+		ret_val = phy->ops.write_reg(hw, E1000_M88E1543_EEE_CTRL_1,
 					     phy_data);
 		if (ret_val)
 			goto out;
 
 		/* Return the PHY to page 0. */
-		ret_val = phy->ops.write_reg(hw, E1000_M88E1545_PAGE_ADDR, 0);
+		ret_val = phy->ops.write_reg(hw, E1000_M88E1543_PAGE_ADDR, 0);
 		if (ret_val)
 			goto out;
 
@@ -2549,7 +2592,7 @@ s32 igb_get_eee_status_i354(struct e1000_hw *hw, bool *status)
 
 	/* Check if EEE is supported on this device. */
 	if ((hw->phy.media_type != e1000_media_type_copper) ||
-	    (phy->id != M88E1545_E_PHY_ID))
+	    (phy->id != M88E1543_E_PHY_ID))
 		goto out;
 
 	ret_val = igb_read_xmdio_reg(hw, E1000_PCS_STATUS_ADDR_I354,
@@ -2705,7 +2748,7 @@ static struct e1000_mac_operations e1000_mac_ops_82575 = {
 	.check_for_link       = igb_check_for_link_82575,
 	.rar_set              = igb_rar_set,
 	.read_mac_addr        = igb_read_mac_addr_82575,
-	.get_speed_and_duplex = igb_get_speed_and_duplex_copper,
+	.get_speed_and_duplex = igb_get_link_up_info_82575,
 #ifdef CONFIG_IGB_HWMON
 	.get_thermal_sensor_data = igb_get_thermal_sensor_data_generic,
 	.init_thermal_sensor_thresh = igb_init_thermal_sensor_thresh_generic,
