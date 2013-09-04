@@ -714,6 +714,19 @@ smb21_is_read_op(__u32 oplock)
 	       !(oplock & SMB2_LEASE_WRITE_CACHING_HE);
 }
 
+static __le32
+map_oplock_to_lease(u8 oplock)
+{
+	if (oplock == SMB2_OPLOCK_LEVEL_EXCLUSIVE)
+		return SMB2_LEASE_WRITE_CACHING | SMB2_LEASE_READ_CACHING;
+	else if (oplock == SMB2_OPLOCK_LEVEL_II)
+		return SMB2_LEASE_READ_CACHING;
+	else if (oplock == SMB2_OPLOCK_LEVEL_BATCH)
+		return SMB2_LEASE_HANDLE_CACHING | SMB2_LEASE_READ_CACHING |
+		       SMB2_LEASE_WRITE_CACHING;
+	return 0;
+}
+
 static char *
 smb2_create_lease_buf(u8 *lease_key, u8 oplock)
 {
@@ -725,15 +738,7 @@ smb2_create_lease_buf(u8 *lease_key, u8 oplock)
 
 	buf->lcontext.LeaseKeyLow = cpu_to_le64(*((u64 *)lease_key));
 	buf->lcontext.LeaseKeyHigh = cpu_to_le64(*((u64 *)(lease_key + 8)));
-	if (oplock == SMB2_OPLOCK_LEVEL_EXCLUSIVE)
-		buf->lcontext.LeaseState = SMB2_LEASE_WRITE_CACHING |
-					   SMB2_LEASE_READ_CACHING;
-	else if (oplock == SMB2_OPLOCK_LEVEL_II)
-		buf->lcontext.LeaseState = SMB2_LEASE_READ_CACHING;
-	else if (oplock == SMB2_OPLOCK_LEVEL_BATCH)
-		buf->lcontext.LeaseState = SMB2_LEASE_HANDLE_CACHING |
-					   SMB2_LEASE_READ_CACHING |
-					   SMB2_LEASE_WRITE_CACHING;
+	buf->lcontext.LeaseState = map_oplock_to_lease(oplock);
 
 	buf->ccontext.DataOffset = cpu_to_le16(offsetof
 					(struct create_lease, lcontext));
@@ -748,10 +753,46 @@ smb2_create_lease_buf(u8 *lease_key, u8 oplock)
 	return (char *)buf;
 }
 
+static char *
+smb3_create_lease_buf(u8 *lease_key, u8 oplock)
+{
+	struct create_lease_v2 *buf;
+
+	buf = kzalloc(sizeof(struct create_lease_v2), GFP_KERNEL);
+	if (!buf)
+		return NULL;
+
+	buf->lcontext.LeaseKeyLow = cpu_to_le64(*((u64 *)lease_key));
+	buf->lcontext.LeaseKeyHigh = cpu_to_le64(*((u64 *)(lease_key + 8)));
+	buf->lcontext.LeaseState = map_oplock_to_lease(oplock);
+
+	buf->ccontext.DataOffset = cpu_to_le16(offsetof
+					(struct create_lease_v2, lcontext));
+	buf->ccontext.DataLength = cpu_to_le32(sizeof(struct lease_context_v2));
+	buf->ccontext.NameOffset = cpu_to_le16(offsetof
+				(struct create_lease_v2, Name));
+	buf->ccontext.NameLength = cpu_to_le16(4);
+	buf->Name[0] = 'R';
+	buf->Name[1] = 'q';
+	buf->Name[2] = 'L';
+	buf->Name[3] = 's';
+	return (char *)buf;
+}
+
 static __u8
 smb2_parse_lease_buf(void *buf)
 {
 	struct create_lease *lc = (struct create_lease *)buf;
+
+	if (lc->lcontext.LeaseFlags & SMB2_LEASE_FLAG_BREAK_IN_PROGRESS)
+		return SMB2_OPLOCK_LEVEL_NOCHANGE;
+	return le32_to_cpu(lc->lcontext.LeaseState);
+}
+
+static __u8
+smb3_parse_lease_buf(void *buf)
+{
+	struct create_lease_v2 *lc = (struct create_lease_v2 *)buf;
 
 	if (lc->lcontext.LeaseFlags & SMB2_LEASE_FLAG_BREAK_IN_PROGRESS)
 		return SMB2_OPLOCK_LEVEL_NOCHANGE;
@@ -969,8 +1010,8 @@ struct smb_version_operations smb30_operations = {
 	.calc_signature = smb3_calc_signature,
 	.is_read_op = smb21_is_read_op,
 	.set_oplock_level = smb21_set_oplock_level,
-	.create_lease_buf = smb2_create_lease_buf,
-	.parse_lease_buf = smb2_parse_lease_buf,
+	.create_lease_buf = smb3_create_lease_buf,
+	.parse_lease_buf = smb3_parse_lease_buf,
 };
 
 struct smb_version_values smb20_values = {
@@ -1030,7 +1071,7 @@ struct smb_version_values smb30_values = {
 	.cap_large_files = SMB2_LARGE_FILES,
 	.signing_enabled = SMB2_NEGOTIATE_SIGNING_ENABLED | SMB2_NEGOTIATE_SIGNING_REQUIRED,
 	.signing_required = SMB2_NEGOTIATE_SIGNING_REQUIRED,
-	.create_lease_size = sizeof(struct create_lease),
+	.create_lease_size = sizeof(struct create_lease_v2),
 };
 
 struct smb_version_values smb302_values = {
@@ -1050,5 +1091,5 @@ struct smb_version_values smb302_values = {
 	.cap_large_files = SMB2_LARGE_FILES,
 	.signing_enabled = SMB2_NEGOTIATE_SIGNING_ENABLED | SMB2_NEGOTIATE_SIGNING_REQUIRED,
 	.signing_required = SMB2_NEGOTIATE_SIGNING_REQUIRED,
-	.create_lease_size = sizeof(struct create_lease),
+	.create_lease_size = sizeof(struct create_lease_v2),
 };
