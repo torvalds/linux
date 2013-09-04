@@ -1750,6 +1750,7 @@ static int mmci_runtime_suspend(struct device *dev)
 
 	if (mmc) {
 		struct mmci_host *host = mmc_priv(mmc);
+		pinctrl_pm_select_sleep_state(dev);
 		clk_disable_unprepare(host->clk);
 	}
 
@@ -1764,6 +1765,7 @@ static int mmci_runtime_resume(struct device *dev)
 	if (mmc) {
 		struct mmci_host *host = mmc_priv(mmc);
 		clk_prepare_enable(host->clk);
+		pinctrl_pm_select_default_state(dev);
 	}
 
 	return 0;
