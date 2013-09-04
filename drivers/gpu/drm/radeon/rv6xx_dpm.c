@@ -1944,9 +1944,7 @@ static int rv6xx_parse_power_table(struct radeon_device *rdev)
 
 int rv6xx_dpm_init(struct radeon_device *rdev)
 {
-	int index = GetIndexIntoMasterTable(DATA, ASIC_InternalSS_Info);
-	uint16_t data_offset, size;
-	uint8_t frev, crev;
+	struct radeon_atom_ss ss;
 	struct atom_clock_dividers dividers;
 	struct rv6xx_power_info *pi;
 	int ret;
@@ -1989,16 +1987,18 @@ int rv6xx_dpm_init(struct radeon_device *rdev)
 
 	pi->gfx_clock_gating = true;
 
-	if (atom_parse_data_header(rdev->mode_info.atom_context, index, &size,
-                                   &frev, &crev, &data_offset)) {
-		pi->sclk_ss = true;
-		pi->mclk_ss = true;
+	pi->sclk_ss = radeon_atombios_get_asic_ss_info(rdev, &ss,
+						       ASIC_INTERNAL_ENGINE_SS, 0);
+	pi->mclk_ss = radeon_atombios_get_asic_ss_info(rdev, &ss,
+						       ASIC_INTERNAL_MEMORY_SS, 0);
+
+	/* Disable sclk ss, causes hangs on a lot of systems */
+	pi->sclk_ss = false;
+
+	if (pi->sclk_ss || pi->mclk_ss)
 		pi->dynamic_ss = true;
-	} else {
-		pi->sclk_ss = false;
-		pi->mclk_ss = false;
+	else
 		pi->dynamic_ss = false;
-	}
 
 	pi->dynamic_pcie_gen2 = true;
 

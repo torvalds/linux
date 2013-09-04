@@ -1,6 +1,0 @@
-config ASUS_OLED
-	tristate "Asus OLED driver"
-	depends on USB
-	default N
-	---help---
-	  Enable support for the OLED display present in some Asus laptops.

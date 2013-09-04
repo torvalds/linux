@@ -337,7 +337,6 @@ union cvmx_usbnx_clk_ctl {
 	struct cvmx_usbnx_clk_ctl_cn50xx cn52xx;
 	struct cvmx_usbnx_clk_ctl_cn50xx cn56xx;
 };
-typedef union cvmx_usbnx_clk_ctl cvmx_usbnx_clk_ctl_t;
 
 /**
  * cvmx_usbn#_usbp_ctl_status
@@ -882,6 +881,5 @@ union cvmx_usbnx_usbp_ctl_status {
 		uint64_t ate_reset		: 1;
 	} cn52xx;
 };
-typedef union cvmx_usbnx_usbp_ctl_status cvmx_usbnx_usbp_ctl_status_t;
 
 #endif

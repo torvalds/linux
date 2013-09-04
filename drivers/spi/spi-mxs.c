@@ -67,12 +67,7 @@ static int mxs_spi_setup_transfer(struct spi_device *dev,
 {
 	struct mxs_spi *spi = spi_master_get_devdata(dev->master);
 	struct mxs_ssp *ssp = &spi->ssp;
-	uint8_t bits_per_word;
 	uint32_t hz = 0;
-
-	bits_per_word = dev->bits_per_word;
-	if (t && t->bits_per_word)
-		bits_per_word = t->bits_per_word;
 
 	hz = dev->max_speed_hz;
 	if (t && t->speed_hz)
@@ -513,7 +508,7 @@ static int mxs_spi_probe(struct platform_device *pdev)
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq_err = platform_get_irq(pdev, 0);
-	if (!iores || irq_err < 0)
+	if (irq_err < 0)
 		return -EINVAL;
 
 	base = devm_ioremap_resource(&pdev->dev, iores);
@@ -563,25 +558,31 @@ static int mxs_spi_probe(struct platform_device *pdev)
 		goto out_master_free;
 	}
 
-	clk_prepare_enable(ssp->clk);
+	ret = clk_prepare_enable(ssp->clk);
+	if (ret)
+		goto out_dma_release;
+
 	clk_set_rate(ssp->clk, clk_freq);
 	ssp->clk_rate = clk_get_rate(ssp->clk) / 1000;
 
-	stmp_reset_block(ssp->base);
+	ret = stmp_reset_block(ssp->base);
+	if (ret)
+		goto out_disable_clk;
 
 	platform_set_drvdata(pdev, master);
 
 	ret = spi_register_master(master);
 	if (ret) {
 		dev_err(&pdev->dev, "Cannot register SPI master, %d\n", ret);
-		goto out_free_dma;
+		goto out_disable_clk;
 	}
 
 	return 0;
 
-out_free_dma:
-	dma_release_channel(ssp->dmach);
+out_disable_clk:
 	clk_disable_unprepare(ssp->clk);
+out_dma_release:
+	dma_release_channel(ssp->dmach);
 out_master_free:
 	spi_master_put(master);
 	return ret;
@@ -598,11 +599,8 @@ static int mxs_spi_remove(struct platform_device *pdev)
 	ssp = &spi->ssp;
 
 	spi_unregister_master(master);
-
-	dma_release_channel(ssp->dmach);
-
 	clk_disable_unprepare(ssp->clk);
-
+	dma_release_channel(ssp->dmach);
 	spi_master_put(master);
 
 	return 0;

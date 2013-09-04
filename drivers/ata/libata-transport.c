@@ -287,6 +287,7 @@ int ata_tport_add(struct device *parent,
 	dev->release = ata_tport_release;
 	dev_set_name(dev, "ata%d", ap->print_id);
 	transport_setup_device(dev);
+	ata_acpi_bind_port(ap);
 	error = device_add(dev);
 	if (error) {
 		goto tport_err;
@@ -644,6 +645,7 @@ static int ata_tdev_add(struct ata_device *ata_dev)
 		dev_set_name(dev, "dev%d.%d.0", ap->print_id, link->pmp);
 
 	transport_setup_device(dev);
+	ata_acpi_bind_dev(ata_dev);
 	error = device_add(dev);
 	if (error) {
 		ata_tdev_free(ata_dev);

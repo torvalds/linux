@@ -1061,7 +1061,7 @@ static const struct file_operations proc_eeh_operations = {
 
 static int __init eeh_init_proc(void)
 {
-	if (machine_is(pseries))
+	if (machine_is(pseries) || machine_is(powernv))
 		proc_create("powerpc/eeh", 0, NULL, &proc_eeh_operations);
 	return 0;
 }

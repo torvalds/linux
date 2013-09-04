@@ -1386,7 +1386,7 @@ static int vxlan_open(struct net_device *dev)
 		return -ENOTCONN;
 
 	if (IN_MULTICAST(ntohl(vxlan->default_dst.remote_ip)) &&
-	    ! vxlan_group_used(vn, vxlan->default_dst.remote_ip)) {
+	    vxlan_group_used(vn, vxlan->default_dst.remote_ip)) {
 		vxlan_sock_hold(vs);
 		dev_hold(dev);
 		queue_work(vxlan_wq, &vxlan->igmp_join);
@@ -1792,8 +1792,6 @@ static void vxlan_dellink(struct net_device *dev, struct list_head *head)
 {
 	struct vxlan_net *vn = net_generic(dev_net(dev), vxlan_net_id);
 	struct vxlan_dev *vxlan = netdev_priv(dev);
-
-	flush_workqueue(vxlan_wq);
 
 	spin_lock(&vn->sock_lock);
 	hlist_del_rcu(&vxlan->hlist);

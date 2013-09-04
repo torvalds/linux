@@ -69,27 +69,19 @@ struct imx_drm_connector {
 	struct module				*owner;
 };
 
-static int imx_drm_driver_firstopen(struct drm_device *drm)
-{
-	if (!imx_drm_device_get())
-		return -EINVAL;
-
-	return 0;
-}
-
 static void imx_drm_driver_lastclose(struct drm_device *drm)
 {
 	struct imx_drm_device *imxdrm = drm->dev_private;
 
 	if (imxdrm->fbhelper)
 		drm_fbdev_cma_restore_mode(imxdrm->fbhelper);
-
-	imx_drm_device_put();
 }
 
 static int imx_drm_driver_unload(struct drm_device *drm)
 {
 	struct imx_drm_device *imxdrm = drm->dev_private;
+
+	imx_drm_device_put();
 
 	drm_mode_config_cleanup(imxdrm->drm);
 	drm_kms_helper_poll_fini(imxdrm->drm);
@@ -226,8 +218,6 @@ struct drm_device *imx_drm_device_get(void)
 	struct imx_drm_connector *con;
 	struct imx_drm_crtc *crtc;
 
-	mutex_lock(&imxdrm->mutex);
-
 	list_for_each_entry(enc, &imxdrm->encoder_list, list) {
 		if (!try_module_get(enc->owner)) {
 			dev_err(imxdrm->dev, "could not get module %s\n",
@@ -253,8 +243,6 @@ struct drm_device *imx_drm_device_get(void)
 	}
 
 	imxdrm->references++;
-
-	mutex_unlock(&imxdrm->mutex);
 
 	return imxdrm->drm;
 
@@ -446,6 +434,9 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 	 * vblank event.(after drm_vblank_put function is called)
 	 */
 	imxdrm->drm->vblank_disable_allowed = 1;
+
+	if (!imx_drm_device_get())
+		ret = -EINVAL;
 
 	ret = 0;
 
@@ -678,6 +669,7 @@ found:
 
 	return i;
 }
+EXPORT_SYMBOL_GPL(imx_drm_encoder_get_mux_id);
 
 /*
  * imx_drm_remove_encoder - remove an encoder
@@ -791,7 +783,6 @@ static struct drm_driver imx_drm_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_GEM,
 	.load			= imx_drm_driver_load,
 	.unload			= imx_drm_driver_unload,
-	.firstopen		= imx_drm_driver_firstopen,
 	.lastclose		= imx_drm_driver_lastclose,
 	.gem_free_object	= drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,

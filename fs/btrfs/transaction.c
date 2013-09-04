@@ -983,12 +983,12 @@ static noinline int commit_cowonly_roots(struct btrfs_trans_handle *trans,
  * a dirty root struct and adds it into the list of dead roots that need to
  * be deleted
  */
-int btrfs_add_dead_root(struct btrfs_root *root)
+void btrfs_add_dead_root(struct btrfs_root *root)
 {
 	spin_lock(&root->fs_info->trans_lock);
-	list_add_tail(&root->root_list, &root->fs_info->dead_roots);
+	if (list_empty(&root->root_list))
+		list_add_tail(&root->root_list, &root->fs_info->dead_roots);
 	spin_unlock(&root->fs_info->trans_lock);
-	return 0;
 }
 
 /*
@@ -1925,7 +1925,7 @@ int btrfs_clean_one_deleted_snapshot(struct btrfs_root *root)
 	}
 	root = list_first_entry(&fs_info->dead_roots,
 			struct btrfs_root, root_list);
-	list_del(&root->root_list);
+	list_del_init(&root->root_list);
 	spin_unlock(&fs_info->trans_lock);
 
 	pr_debug("btrfs: cleaner removing %llu\n",

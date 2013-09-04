@@ -161,14 +161,15 @@ int ipu_dc_init_sync(struct ipu_dc *dc, struct ipu_di *di, bool interlaced,
 		u32 pixel_fmt, u32 width)
 {
 	struct ipu_dc_priv *priv = dc->priv;
-	u32 reg = 0, map;
+	u32 reg = 0;
+	int map;
 
 	dc->di = ipu_di_get_num(di);
 
 	map = ipu_pixfmt_to_map(pixel_fmt);
 	if (map < 0) {
 		dev_dbg(priv->dev, "IPU_DISP: No MAP\n");
-		return -EINVAL;
+		return map;
 	}
 
 	if (interlaced) {

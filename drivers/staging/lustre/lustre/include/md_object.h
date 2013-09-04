@@ -503,11 +503,6 @@ static inline struct md_device *md_obj2dev(const struct md_object *o)
 	return container_of0(o->mo_lu.lo_dev, struct md_device, md_lu_dev);
 }
 
-static inline struct seq_server_site *lu_site2seq(const struct lu_site *s)
-{
-	return s->ld_seq_site;
-}
-
 static inline int md_device_init(struct md_device *md, struct lu_device_type *t)
 {
 	return lu_device_init(&md->md_lu_dev, t);
@@ -876,7 +871,7 @@ struct lu_ucred {
 	__u32	       uc_suppgids[2];
 	cfs_cap_t	   uc_cap;
 	__u32	       uc_umask;
-	group_info_t   *uc_ginfo;
+	struct group_info *uc_ginfo;
 	struct md_identity *uc_identity;
 };
 

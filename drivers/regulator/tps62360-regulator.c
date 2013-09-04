@@ -350,7 +350,7 @@ static int tps62360_probe(struct i2c_client *client,
 	int i;
 	int chip_id;
 
-	pdata = client->dev.platform_data;
+	pdata = dev_get_platdata(&client->dev);
 
 	if (client->dev.of_node) {
 		const struct of_device_id *match;

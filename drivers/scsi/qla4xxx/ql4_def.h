@@ -1,6 +1,6 @@
 /*
  * QLogic iSCSI HBA Driver
- * Copyright (c)  2003-2012 QLogic Corporation
+ * Copyright (c)  2003-2013 QLogic Corporation
  *
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
@@ -62,6 +62,10 @@
 
 #ifndef PCI_DEVICE_ID_QLOGIC_ISP8324
 #define PCI_DEVICE_ID_QLOGIC_ISP8324	0x8032
+#endif
+
+#ifndef PCI_DEVICE_ID_QLOGIC_ISP8042
+#define PCI_DEVICE_ID_QLOGIC_ISP8042	0x8042
 #endif
 
 #define ISP4XXX_PCI_FN_1	0x1
@@ -201,6 +205,7 @@
 
 #define MAX_RESET_HA_RETRIES		2
 #define FW_ALIVE_WAIT_TOV		3
+#define IDC_EXTEND_TOV			8
 
 #define CMD_SP(Cmnd)			((Cmnd)->SCp.ptr)
 
@@ -335,6 +340,7 @@ struct ql4_tuple_ddb {
 #define DF_BOOT_TGT		1	/* Boot target entry */
 #define DF_ISNS_DISCOVERED	2	/* Device was discovered via iSNS */
 #define DF_FO_MASKED		3
+#define DF_DISABLE_RELOGIN		4	/* Disable relogin to device */
 
 enum qla4_work_type {
 	QLA4_EVENT_AEN,
@@ -557,6 +563,7 @@ struct scsi_qla_host {
 #define DPC_HA_UNRECOVERABLE		21 /* 0x00080000 ISP-82xx only*/
 #define DPC_HA_NEED_QUIESCENT		22 /* 0x00100000 ISP-82xx only*/
 #define DPC_POST_IDC_ACK		23 /* 0x00200000 */
+#define DPC_RESTORE_ACB			24 /* 0x01000000 */
 
 	struct Scsi_Host *host; /* pointer to host data */
 	uint32_t tot_ddbs;
@@ -734,12 +741,9 @@ struct scsi_qla_host {
 	struct iscsi_iface *iface_ipv6_1;
 
 	/* --- From About Firmware --- */
-	uint16_t iscsi_major;
-	uint16_t iscsi_minor;
-	uint16_t bootload_major;
-	uint16_t bootload_minor;
-	uint16_t bootload_patch;
-	uint16_t bootload_build;
+	struct about_fw_info fw_info;
+	uint32_t fw_uptime_secs;  /* seconds elapsed since fw bootup */
+	uint32_t fw_uptime_msecs; /* milliseconds beyond elapsed seconds */
 	uint16_t def_timeout; /* Default login timeout */
 
 	uint32_t flash_state;
@@ -780,9 +784,11 @@ struct scsi_qla_host {
 	uint32_t *reg_tbl;
 	struct qla4_83xx_reset_template reset_tmplt;
 	struct device_reg_83xx  __iomem *qla4_83xx_reg; /* Base I/O address
-							   for ISP8324 */
+							   for ISP8324 and
+							   and ISP8042 */
 	uint32_t pf_bit;
 	struct qla4_83xx_idc_information idc_info;
+	struct addr_ctrl_blk *saved_acb;
 };
 
 struct ql4_task_data {
@@ -850,9 +856,14 @@ static inline int is_qla8032(struct scsi_qla_host *ha)
 	return ha->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP8324;
 }
 
+static inline int is_qla8042(struct scsi_qla_host *ha)
+{
+	return ha->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP8042;
+}
+
 static inline int is_qla80XX(struct scsi_qla_host *ha)
 {
-	return is_qla8022(ha) || is_qla8032(ha);
+	return is_qla8022(ha) || is_qla8032(ha) || is_qla8042(ha);
 }
 
 static inline int is_aer_supported(struct scsi_qla_host *ha)

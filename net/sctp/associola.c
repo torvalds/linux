@@ -846,12 +846,12 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 		else
 			spc_state = SCTP_ADDR_AVAILABLE;
 		/* Don't inform ULP about transition from PF to
-		 * active state and set cwnd to 1, see SCTP
+		 * active state and set cwnd to 1 MTU, see SCTP
 		 * Quick failover draft section 5.1, point 5
 		 */
 		if (transport->state == SCTP_PF) {
 			ulp_notify = false;
-			transport->cwnd = 1;
+			transport->cwnd = asoc->pathmtu;
 		}
 		transport->state = SCTP_ACTIVE;
 		break;

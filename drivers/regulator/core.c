@@ -323,13 +323,14 @@ static ssize_t regulator_uA_show(struct device *dev,
 }
 static DEVICE_ATTR(microamps, 0444, regulator_uA_show, NULL);
 
-static ssize_t regulator_name_show(struct device *dev,
-			     struct device_attribute *attr, char *buf)
+static ssize_t name_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	struct regulator_dev *rdev = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%s\n", rdev_get_name(rdev));
 }
+static DEVICE_ATTR_RO(name);
 
 static ssize_t regulator_print_opmode(char *buf, int mode)
 {
@@ -489,15 +490,16 @@ static ssize_t regulator_total_uA_show(struct device *dev,
 }
 static DEVICE_ATTR(requested_microamps, 0444, regulator_total_uA_show, NULL);
 
-static ssize_t regulator_num_users_show(struct device *dev,
-				      struct device_attribute *attr, char *buf)
+static ssize_t num_users_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
 {
 	struct regulator_dev *rdev = dev_get_drvdata(dev);
 	return sprintf(buf, "%d\n", rdev->use_count);
 }
+static DEVICE_ATTR_RO(num_users);
 
-static ssize_t regulator_type_show(struct device *dev,
-				  struct device_attribute *attr, char *buf)
+static ssize_t type_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	struct regulator_dev *rdev = dev_get_drvdata(dev);
 
@@ -509,6 +511,7 @@ static ssize_t regulator_type_show(struct device *dev,
 	}
 	return sprintf(buf, "unknown\n");
 }
+static DEVICE_ATTR_RO(type);
 
 static ssize_t regulator_suspend_mem_uV_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -632,12 +635,13 @@ static DEVICE_ATTR(bypass, 0444,
  * These are the only attributes are present for all regulators.
  * Other attributes are a function of regulator functionality.
  */
-static struct device_attribute regulator_dev_attrs[] = {
-	__ATTR(name, 0444, regulator_name_show, NULL),
-	__ATTR(num_users, 0444, regulator_num_users_show, NULL),
-	__ATTR(type, 0444, regulator_type_show, NULL),
-	__ATTR_NULL,
+static struct attribute *regulator_dev_attrs[] = {
+	&dev_attr_name.attr,
+	&dev_attr_num_users.attr,
+	&dev_attr_type.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(regulator_dev);
 
 static void regulator_dev_release(struct device *dev)
 {
@@ -648,7 +652,7 @@ static void regulator_dev_release(struct device *dev)
 static struct class regulator_class = {
 	.name = "regulator",
 	.dev_release = regulator_dev_release,
-	.dev_attrs = regulator_dev_attrs,
+	.dev_groups = regulator_dev_groups,
 };
 
 /* Calculate the new optimum regulator operating mode based on the new total
@@ -984,7 +988,8 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		}
 	}
 
-	if (rdev->constraints->ramp_delay && ops->set_ramp_delay) {
+	if ((rdev->constraints->ramp_delay || rdev->constraints->ramp_disable)
+		&& ops->set_ramp_delay) {
 		ret = ops->set_ramp_delay(rdev, rdev->constraints->ramp_delay);
 		if (ret < 0) {
 			rdev_err(rdev, "failed to set ramp_delay\n");
@@ -1238,7 +1243,7 @@ static struct regulator_dev *regulator_dev_lookup(struct device *dev,
 
 /* Internal regulator request function */
 static struct regulator *_regulator_get(struct device *dev, const char *id,
-					int exclusive)
+					bool exclusive)
 {
 	struct regulator_dev *rdev;
 	struct regulator *regulator = ERR_PTR(-EPROBE_DEFER);
@@ -1344,7 +1349,7 @@ out:
  */
 struct regulator *regulator_get(struct device *dev, const char *id)
 {
-	return _regulator_get(dev, id, 0);
+	return _regulator_get(dev, id, false);
 }
 EXPORT_SYMBOL_GPL(regulator_get);
 
@@ -1405,9 +1410,68 @@ EXPORT_SYMBOL_GPL(devm_regulator_get);
  */
 struct regulator *regulator_get_exclusive(struct device *dev, const char *id)
 {
-	return _regulator_get(dev, id, 1);
+	return _regulator_get(dev, id, true);
 }
 EXPORT_SYMBOL_GPL(regulator_get_exclusive);
+
+/**
+ * regulator_get_optional - obtain optional access to a regulator.
+ * @dev: device for regulator "consumer"
+ * @id: Supply name or regulator ID.
+ *
+ * Returns a struct regulator corresponding to the regulator producer,
+ * or IS_ERR() condition containing errno.  Other consumers will be
+ * unable to obtain this reference is held and the use count for the
+ * regulator will be initialised to reflect the current state of the
+ * regulator.
+ *
+ * This is intended for use by consumers for devices which can have
+ * some supplies unconnected in normal use, such as some MMC devices.
+ * It can allow the regulator core to provide stub supplies for other
+ * supplies requested using normal regulator_get() calls without
+ * disrupting the operation of drivers that can handle absent
+ * supplies.
+ *
+ * Use of supply names configured via regulator_set_device_supply() is
+ * strongly encouraged.  It is recommended that the supply name used
+ * should match the name used for the supply and/or the relevant
+ * device pins in the datasheet.
+ */
+struct regulator *regulator_get_optional(struct device *dev, const char *id)
+{
+	return _regulator_get(dev, id, 0);
+}
+EXPORT_SYMBOL_GPL(regulator_get_optional);
+
+/**
+ * devm_regulator_get_optional - Resource managed regulator_get_optional()
+ * @dev: device for regulator "consumer"
+ * @id: Supply name or regulator ID.
+ *
+ * Managed regulator_get_optional(). Regulators returned from this
+ * function are automatically regulator_put() on driver detach. See
+ * regulator_get_optional() for more information.
+ */
+struct regulator *devm_regulator_get_optional(struct device *dev,
+					      const char *id)
+{
+	struct regulator **ptr, *regulator;
+
+	ptr = devres_alloc(devm_regulator_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	regulator = regulator_get_optional(dev, id);
+	if (!IS_ERR(regulator)) {
+		*ptr = regulator;
+		devres_add(dev, ptr);
+	} else {
+		devres_free(ptr);
+	}
+
+	return regulator;
+}
+EXPORT_SYMBOL_GPL(devm_regulator_get_optional);
 
 /* Locks held by regulator_put() */
 static void _regulator_put(struct regulator *regulator)
@@ -1433,6 +1497,36 @@ static void _regulator_put(struct regulator *regulator)
 
 	module_put(rdev->owner);
 }
+
+/**
+ * devm_regulator_get_exclusive - Resource managed regulator_get_exclusive()
+ * @dev: device for regulator "consumer"
+ * @id: Supply name or regulator ID.
+ *
+ * Managed regulator_get_exclusive(). Regulators returned from this function
+ * are automatically regulator_put() on driver detach. See regulator_get() for
+ * more information.
+ */
+struct regulator *devm_regulator_get_exclusive(struct device *dev,
+					       const char *id)
+{
+	struct regulator **ptr, *regulator;
+
+	ptr = devres_alloc(devm_regulator_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	regulator = _regulator_get(dev, id, 1);
+	if (!IS_ERR(regulator)) {
+		*ptr = regulator;
+		devres_add(dev, ptr);
+	} else {
+		devres_free(ptr);
+	}
+
+	return regulator;
+}
+EXPORT_SYMBOL_GPL(devm_regulator_get_exclusive);
 
 /**
  * regulator_put - "free" the regulator source
@@ -1890,85 +1984,15 @@ int regulator_disable_deferred(struct regulator *regulator, int ms)
 	rdev->deferred_disables++;
 	mutex_unlock(&rdev->mutex);
 
-	ret = schedule_delayed_work(&rdev->disable_work,
-				    msecs_to_jiffies(ms));
+	ret = queue_delayed_work(system_power_efficient_wq,
+				 &rdev->disable_work,
+				 msecs_to_jiffies(ms));
 	if (ret < 0)
 		return ret;
 	else
 		return 0;
 }
 EXPORT_SYMBOL_GPL(regulator_disable_deferred);
-
-/**
- * regulator_is_enabled_regmap - standard is_enabled() for regmap users
- *
- * @rdev: regulator to operate on
- *
- * Regulators that use regmap for their register I/O can set the
- * enable_reg and enable_mask fields in their descriptor and then use
- * this as their is_enabled operation, saving some code.
- */
-int regulator_is_enabled_regmap(struct regulator_dev *rdev)
-{
-	unsigned int val;
-	int ret;
-
-	ret = regmap_read(rdev->regmap, rdev->desc->enable_reg, &val);
-	if (ret != 0)
-		return ret;
-
-	if (rdev->desc->enable_is_inverted)
-		return (val & rdev->desc->enable_mask) == 0;
-	else
-		return (val & rdev->desc->enable_mask) != 0;
-}
-EXPORT_SYMBOL_GPL(regulator_is_enabled_regmap);
-
-/**
- * regulator_enable_regmap - standard enable() for regmap users
- *
- * @rdev: regulator to operate on
- *
- * Regulators that use regmap for their register I/O can set the
- * enable_reg and enable_mask fields in their descriptor and then use
- * this as their enable() operation, saving some code.
- */
-int regulator_enable_regmap(struct regulator_dev *rdev)
-{
-	unsigned int val;
-
-	if (rdev->desc->enable_is_inverted)
-		val = 0;
-	else
-		val = rdev->desc->enable_mask;
-
-	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
-				  rdev->desc->enable_mask, val);
-}
-EXPORT_SYMBOL_GPL(regulator_enable_regmap);
-
-/**
- * regulator_disable_regmap - standard disable() for regmap users
- *
- * @rdev: regulator to operate on
- *
- * Regulators that use regmap for their register I/O can set the
- * enable_reg and enable_mask fields in their descriptor and then use
- * this as their disable() operation, saving some code.
- */
-int regulator_disable_regmap(struct regulator_dev *rdev)
-{
-	unsigned int val;
-
-	if (rdev->desc->enable_is_inverted)
-		val = rdev->desc->enable_mask;
-	else
-		val = 0;
-
-	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
-				  rdev->desc->enable_mask, val);
-}
-EXPORT_SYMBOL_GPL(regulator_disable_regmap);
 
 static int _regulator_is_enabled(struct regulator_dev *rdev)
 {
@@ -2053,55 +2077,6 @@ int regulator_count_voltages(struct regulator *regulator)
 	return rdev->desc->n_voltages ? : -EINVAL;
 }
 EXPORT_SYMBOL_GPL(regulator_count_voltages);
-
-/**
- * regulator_list_voltage_linear - List voltages with simple calculation
- *
- * @rdev: Regulator device
- * @selector: Selector to convert into a voltage
- *
- * Regulators with a simple linear mapping between voltages and
- * selectors can set min_uV and uV_step in the regulator descriptor
- * and then use this function as their list_voltage() operation,
- */
-int regulator_list_voltage_linear(struct regulator_dev *rdev,
-				  unsigned int selector)
-{
-	if (selector >= rdev->desc->n_voltages)
-		return -EINVAL;
-	if (selector < rdev->desc->linear_min_sel)
-		return 0;
-
-	selector -= rdev->desc->linear_min_sel;
-
-	return rdev->desc->min_uV + (rdev->desc->uV_step * selector);
-}
-EXPORT_SYMBOL_GPL(regulator_list_voltage_linear);
-
-/**
- * regulator_list_voltage_table - List voltages with table based mapping
- *
- * @rdev: Regulator device
- * @selector: Selector to convert into a voltage
- *
- * Regulators with table based mapping between voltages and
- * selectors can set volt_table in the regulator descriptor
- * and then use this function as their list_voltage() operation.
- */
-int regulator_list_voltage_table(struct regulator_dev *rdev,
-				 unsigned int selector)
-{
-	if (!rdev->desc->volt_table) {
-		BUG_ON(!rdev->desc->volt_table);
-		return -EINVAL;
-	}
-
-	if (selector >= rdev->desc->n_voltages)
-		return -EINVAL;
-
-	return rdev->desc->volt_table[selector];
-}
-EXPORT_SYMBOL_GPL(regulator_list_voltage_table);
 
 /**
  * regulator_list_voltage - enumerate supported voltages
@@ -2197,177 +2172,6 @@ int regulator_is_supported_voltage(struct regulator *regulator,
 }
 EXPORT_SYMBOL_GPL(regulator_is_supported_voltage);
 
-/**
- * regulator_get_voltage_sel_regmap - standard get_voltage_sel for regmap users
- *
- * @rdev: regulator to operate on
- *
- * Regulators that use regmap for their register I/O can set the
- * vsel_reg and vsel_mask fields in their descriptor and then use this
- * as their get_voltage_vsel operation, saving some code.
- */
-int regulator_get_voltage_sel_regmap(struct regulator_dev *rdev)
-{
-	unsigned int val;
-	int ret;
-
-	ret = regmap_read(rdev->regmap, rdev->desc->vsel_reg, &val);
-	if (ret != 0)
-		return ret;
-
-	val &= rdev->desc->vsel_mask;
-	val >>= ffs(rdev->desc->vsel_mask) - 1;
-
-	return val;
-}
-EXPORT_SYMBOL_GPL(regulator_get_voltage_sel_regmap);
-
-/**
- * regulator_set_voltage_sel_regmap - standard set_voltage_sel for regmap users
- *
- * @rdev: regulator to operate on
- * @sel: Selector to set
- *
- * Regulators that use regmap for their register I/O can set the
- * vsel_reg and vsel_mask fields in their descriptor and then use this
- * as their set_voltage_vsel operation, saving some code.
- */
-int regulator_set_voltage_sel_regmap(struct regulator_dev *rdev, unsigned sel)
-{
-	int ret;
-
-	sel <<= ffs(rdev->desc->vsel_mask) - 1;
-
-	ret = regmap_update_bits(rdev->regmap, rdev->desc->vsel_reg,
-				  rdev->desc->vsel_mask, sel);
-	if (ret)
-		return ret;
-
-	if (rdev->desc->apply_bit)
-		ret = regmap_update_bits(rdev->regmap, rdev->desc->apply_reg,
-					 rdev->desc->apply_bit,
-					 rdev->desc->apply_bit);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(regulator_set_voltage_sel_regmap);
-
-/**
- * regulator_map_voltage_iterate - map_voltage() based on list_voltage()
- *
- * @rdev: Regulator to operate on
- * @min_uV: Lower bound for voltage
- * @max_uV: Upper bound for voltage
- *
- * Drivers implementing set_voltage_sel() and list_voltage() can use
- * this as their map_voltage() operation.  It will find a suitable
- * voltage by calling list_voltage() until it gets something in bounds
- * for the requested voltages.
- */
-int regulator_map_voltage_iterate(struct regulator_dev *rdev,
-				  int min_uV, int max_uV)
-{
-	int best_val = INT_MAX;
-	int selector = 0;
-	int i, ret;
-
-	/* Find the smallest voltage that falls within the specified
-	 * range.
-	 */
-	for (i = 0; i < rdev->desc->n_voltages; i++) {
-		ret = rdev->desc->ops->list_voltage(rdev, i);
-		if (ret < 0)
-			continue;
-
-		if (ret < best_val && ret >= min_uV && ret <= max_uV) {
-			best_val = ret;
-			selector = i;
-		}
-	}
-
-	if (best_val != INT_MAX)
-		return selector;
-	else
-		return -EINVAL;
-}
-EXPORT_SYMBOL_GPL(regulator_map_voltage_iterate);
-
-/**
- * regulator_map_voltage_ascend - map_voltage() for ascendant voltage list
- *
- * @rdev: Regulator to operate on
- * @min_uV: Lower bound for voltage
- * @max_uV: Upper bound for voltage
- *
- * Drivers that have ascendant voltage list can use this as their
- * map_voltage() operation.
- */
-int regulator_map_voltage_ascend(struct regulator_dev *rdev,
-				 int min_uV, int max_uV)
-{
-	int i, ret;
-
-	for (i = 0; i < rdev->desc->n_voltages; i++) {
-		ret = rdev->desc->ops->list_voltage(rdev, i);
-		if (ret < 0)
-			continue;
-
-		if (ret > max_uV)
-			break;
-
-		if (ret >= min_uV && ret <= max_uV)
-			return i;
-	}
-
-	return -EINVAL;
-}
-EXPORT_SYMBOL_GPL(regulator_map_voltage_ascend);
-
-/**
- * regulator_map_voltage_linear - map_voltage() for simple linear mappings
- *
- * @rdev: Regulator to operate on
- * @min_uV: Lower bound for voltage
- * @max_uV: Upper bound for voltage
- *
- * Drivers providing min_uV and uV_step in their regulator_desc can
- * use this as their map_voltage() operation.
- */
-int regulator_map_voltage_linear(struct regulator_dev *rdev,
-				 int min_uV, int max_uV)
-{
-	int ret, voltage;
-
-	/* Allow uV_step to be 0 for fixed voltage */
-	if (rdev->desc->n_voltages == 1 && rdev->desc->uV_step == 0) {
-		if (min_uV <= rdev->desc->min_uV && rdev->desc->min_uV <= max_uV)
-			return 0;
-		else
-			return -EINVAL;
-	}
-
-	if (!rdev->desc->uV_step) {
-		BUG_ON(!rdev->desc->uV_step);
-		return -EINVAL;
-	}
-
-	if (min_uV < rdev->desc->min_uV)
-		min_uV = rdev->desc->min_uV;
-
-	ret = DIV_ROUND_UP(min_uV - rdev->desc->min_uV, rdev->desc->uV_step);
-	if (ret < 0)
-		return ret;
-
-	ret += rdev->desc->linear_min_sel;
-
-	/* Map back into a voltage to verify we're still in bounds */
-	voltage = rdev->desc->ops->list_voltage(rdev, ret);
-	if (voltage < min_uV || voltage > max_uV)
-		return -EINVAL;
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(regulator_map_voltage_linear);
-
 static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 				     int min_uV, int max_uV)
 {
@@ -2438,8 +2242,8 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 	}
 
 	/* Call set_voltage_time_sel if successfully obtained old_selector */
-	if (ret == 0 && _regulator_is_enabled(rdev) && old_selector >= 0 &&
-	    old_selector != selector && rdev->desc->ops->set_voltage_time_sel) {
+	if (ret == 0 && !rdev->constraints->ramp_disable && old_selector >= 0
+		&& old_selector != selector) {
 
 		delay = rdev->desc->ops->set_voltage_time_sel(rdev,
 						old_selector, selector);
@@ -2969,47 +2773,6 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(regulator_set_optimum_mode);
-
-/**
- * regulator_set_bypass_regmap - Default set_bypass() using regmap
- *
- * @rdev: device to operate on.
- * @enable: state to set.
- */
-int regulator_set_bypass_regmap(struct regulator_dev *rdev, bool enable)
-{
-	unsigned int val;
-
-	if (enable)
-		val = rdev->desc->bypass_mask;
-	else
-		val = 0;
-
-	return regmap_update_bits(rdev->regmap, rdev->desc->bypass_reg,
-				  rdev->desc->bypass_mask, val);
-}
-EXPORT_SYMBOL_GPL(regulator_set_bypass_regmap);
-
-/**
- * regulator_get_bypass_regmap - Default get_bypass() using regmap
- *
- * @rdev: device to operate on.
- * @enable: current state.
- */
-int regulator_get_bypass_regmap(struct regulator_dev *rdev, bool *enable)
-{
-	unsigned int val;
-	int ret;
-
-	ret = regmap_read(rdev->regmap, rdev->desc->bypass_reg, &val);
-	if (ret != 0)
-		return ret;
-
-	*enable = val & rdev->desc->bypass_mask;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(regulator_get_bypass_regmap);
 
 /**
  * regulator_allow_bypass - allow the regulator to go into bypass mode
@@ -3740,8 +3503,11 @@ void regulator_unregister(struct regulator_dev *rdev)
 	if (rdev == NULL)
 		return;
 
-	if (rdev->supply)
+	if (rdev->supply) {
+		while (rdev->use_count--)
+			regulator_disable(rdev->supply);
 		regulator_put(rdev->supply);
+	}
 	mutex_lock(&regulator_list_mutex);
 	debugfs_remove_recursive(rdev->debugfs);
 	flush_work(&rdev->disable_work.work);

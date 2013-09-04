@@ -1275,9 +1275,6 @@ static void sony_nc_notify(struct acpi_device *device, u32 event)
 		ev_type = HOTKEY;
 		sony_laptop_report_input_event(real_ev);
 	}
-
-	acpi_bus_generate_proc_event(sony_nc_acpi_device, ev_type, real_ev);
-
 	acpi_bus_generate_netlink_event(sony_nc_acpi_device->pnp.device_class,
 			dev_name(&sony_nc_acpi_device->dev), ev_type, real_ev);
 }
@@ -2440,7 +2437,10 @@ static ssize_t sony_nc_gfx_switch_status_show(struct device *dev,
 	if (pos < 0)
 		return pos;
 
-	return snprintf(buffer, PAGE_SIZE, "%s\n", pos ? "speed" : "stamina");
+	return snprintf(buffer, PAGE_SIZE, "%s\n",
+					pos == SPEED ? "speed" :
+					pos == STAMINA ? "stamina" :
+					pos == AUTO ? "auto" : "unknown");
 }
 
 static int sony_nc_gfx_switch_setup(struct platform_device *pd,
@@ -4243,7 +4243,6 @@ static irqreturn_t sony_pic_irq(int irq, void *dev_id)
 
 found:
 	sony_laptop_report_input_event(device_event);
-	acpi_bus_generate_proc_event(dev->acpi_dev, 1, device_event);
 	sonypi_compat_report_event(device_event);
 	return IRQ_HANDLED;
 }
@@ -4320,7 +4319,8 @@ static int sony_pic_add(struct acpi_device *device)
 		goto err_free_resources;
 	}
 
-	if (sonypi_compat_init())
+	result = sonypi_compat_init();
+	if (result)
 		goto err_remove_input;
 
 	/* request io port */

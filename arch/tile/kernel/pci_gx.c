@@ -508,13 +508,8 @@ static void fixup_read_and_payload_sizes(struct pci_controller *controller)
 						rc_dev_cap.word);
 
 	/* Configure PCI Express MPS setting. */
-	list_for_each_entry(child, &root_bus->children, node) {
-		struct pci_dev *self = child->self;
-		if (!self)
-			continue;
-
-		pcie_bus_configure_settings(child, self->pcie_mpss);
-	}
+	list_for_each_entry(child, &root_bus->children, node)
+		pcie_bus_configure_settings(child);
 
 	/*
 	 * Set the mac_config register in trio based on the MPS/MRS of the link.

@@ -109,12 +109,12 @@ static ssize_t isku_sysfs_set_actual_profile(struct device *dev,
 
 	return size;
 }
+static DEVICE_ATTR(actual_profile, 0660, isku_sysfs_show_actual_profile,
+		   isku_sysfs_set_actual_profile);
 
-static struct device_attribute isku_attributes[] = {
-	__ATTR(actual_profile, 0660,
-			isku_sysfs_show_actual_profile,
-			isku_sysfs_set_actual_profile),
-	__ATTR_NULL
+static struct attribute *isku_attrs[] = {
+	&dev_attr_actual_profile.attr,
+	NULL,
 };
 
 static ssize_t isku_sysfs_read(struct file *fp, struct kobject *kobj,
@@ -184,7 +184,8 @@ ISKU_SYSFS_R(thingy, THINGY) \
 ISKU_SYSFS_W(thingy, THINGY)
 
 #define ISKU_BIN_ATTR_RW(thingy, THINGY) \
-{ \
+ISKU_SYSFS_RW(thingy, THINGY); \
+static struct bin_attribute bin_attr_##thingy = { \
 	.attr = { .name = #thingy, .mode = 0660 }, \
 	.size = ISKU_SIZE_ ## THINGY, \
 	.read = isku_sysfs_read_ ## thingy, \
@@ -192,52 +193,64 @@ ISKU_SYSFS_W(thingy, THINGY)
 }
 
 #define ISKU_BIN_ATTR_R(thingy, THINGY) \
-{ \
+ISKU_SYSFS_R(thingy, THINGY); \
+static struct bin_attribute bin_attr_##thingy = { \
 	.attr = { .name = #thingy, .mode = 0440 }, \
 	.size = ISKU_SIZE_ ## THINGY, \
 	.read = isku_sysfs_read_ ## thingy, \
 }
 
 #define ISKU_BIN_ATTR_W(thingy, THINGY) \
-{ \
+ISKU_SYSFS_W(thingy, THINGY); \
+static struct bin_attribute bin_attr_##thingy = { \
 	.attr = { .name = #thingy, .mode = 0220 }, \
 	.size = ISKU_SIZE_ ## THINGY, \
 	.write = isku_sysfs_write_ ## thingy \
 }
 
-ISKU_SYSFS_RW(macro, MACRO)
-ISKU_SYSFS_RW(keys_function, KEYS_FUNCTION)
-ISKU_SYSFS_RW(keys_easyzone, KEYS_EASYZONE)
-ISKU_SYSFS_RW(keys_media, KEYS_MEDIA)
-ISKU_SYSFS_RW(keys_thumbster, KEYS_THUMBSTER)
-ISKU_SYSFS_RW(keys_macro, KEYS_MACRO)
-ISKU_SYSFS_RW(keys_capslock, KEYS_CAPSLOCK)
-ISKU_SYSFS_RW(light, LIGHT)
-ISKU_SYSFS_RW(key_mask, KEY_MASK)
-ISKU_SYSFS_RW(last_set, LAST_SET)
-ISKU_SYSFS_W(talk, TALK)
-ISKU_SYSFS_W(talkfx, TALKFX)
-ISKU_SYSFS_R(info, INFO)
-ISKU_SYSFS_W(control, CONTROL)
-ISKU_SYSFS_W(reset, RESET)
+ISKU_BIN_ATTR_RW(macro, MACRO);
+ISKU_BIN_ATTR_RW(keys_function, KEYS_FUNCTION);
+ISKU_BIN_ATTR_RW(keys_easyzone, KEYS_EASYZONE);
+ISKU_BIN_ATTR_RW(keys_media, KEYS_MEDIA);
+ISKU_BIN_ATTR_RW(keys_thumbster, KEYS_THUMBSTER);
+ISKU_BIN_ATTR_RW(keys_macro, KEYS_MACRO);
+ISKU_BIN_ATTR_RW(keys_capslock, KEYS_CAPSLOCK);
+ISKU_BIN_ATTR_RW(light, LIGHT);
+ISKU_BIN_ATTR_RW(key_mask, KEY_MASK);
+ISKU_BIN_ATTR_RW(last_set, LAST_SET);
+ISKU_BIN_ATTR_W(talk, TALK);
+ISKU_BIN_ATTR_W(talkfx, TALKFX);
+ISKU_BIN_ATTR_W(control, CONTROL);
+ISKU_BIN_ATTR_W(reset, RESET);
+ISKU_BIN_ATTR_R(info, INFO);
 
-static struct bin_attribute isku_bin_attributes[] = {
-	ISKU_BIN_ATTR_RW(macro, MACRO),
-	ISKU_BIN_ATTR_RW(keys_function, KEYS_FUNCTION),
-	ISKU_BIN_ATTR_RW(keys_easyzone, KEYS_EASYZONE),
-	ISKU_BIN_ATTR_RW(keys_media, KEYS_MEDIA),
-	ISKU_BIN_ATTR_RW(keys_thumbster, KEYS_THUMBSTER),
-	ISKU_BIN_ATTR_RW(keys_macro, KEYS_MACRO),
-	ISKU_BIN_ATTR_RW(keys_capslock, KEYS_CAPSLOCK),
-	ISKU_BIN_ATTR_RW(light, LIGHT),
-	ISKU_BIN_ATTR_RW(key_mask, KEY_MASK),
-	ISKU_BIN_ATTR_RW(last_set, LAST_SET),
-	ISKU_BIN_ATTR_W(talk, TALK),
-	ISKU_BIN_ATTR_W(talkfx, TALKFX),
-	ISKU_BIN_ATTR_R(info, INFO),
-	ISKU_BIN_ATTR_W(control, CONTROL),
-	ISKU_BIN_ATTR_W(reset, RESET),
-	__ATTR_NULL
+static struct bin_attribute *isku_bin_attributes[] = {
+	&bin_attr_macro,
+	&bin_attr_keys_function,
+	&bin_attr_keys_easyzone,
+	&bin_attr_keys_media,
+	&bin_attr_keys_thumbster,
+	&bin_attr_keys_macro,
+	&bin_attr_keys_capslock,
+	&bin_attr_light,
+	&bin_attr_key_mask,
+	&bin_attr_last_set,
+	&bin_attr_talk,
+	&bin_attr_talkfx,
+	&bin_attr_control,
+	&bin_attr_reset,
+	&bin_attr_info,
+	NULL,
+};
+
+static const struct attribute_group isku_group = {
+	.attrs = isku_attrs,
+	.bin_attrs = isku_bin_attributes,
+};
+
+static const struct attribute_group *isku_groups[] = {
+	&isku_group,
+	NULL,
 };
 
 static int isku_init_isku_device_struct(struct usb_device *usb_dev,
@@ -427,8 +440,7 @@ static int __init isku_init(void)
 	isku_class = class_create(THIS_MODULE, "isku");
 	if (IS_ERR(isku_class))
 		return PTR_ERR(isku_class);
-	isku_class->dev_attrs = isku_attributes;
-	isku_class->dev_bin_attrs = isku_bin_attributes;
+	isku_class->dev_groups = isku_groups;
 
 	retval = hid_register_driver(&isku_driver);
 	if (retval)

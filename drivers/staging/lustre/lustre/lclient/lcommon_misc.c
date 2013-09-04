@@ -57,12 +57,11 @@ int cl_init_ea_size(struct obd_export *md_exp, struct obd_export *dt_exp)
 	int rc, easize, def_easize, cookiesize;
 	struct lov_desc desc;
 	__u16 stripes;
-	ENTRY;
 
 	rc = obd_get_info(NULL, dt_exp, sizeof(KEY_LOVDESC), KEY_LOVDESC,
 			  &valsize, &desc, NULL);
 	if (rc)
-		RETURN(rc);
+		return rc;
 
 	stripes = min(desc.ld_tgt_count, (__u32)LOV_MAX_STRIPE_COUNT);
 	lsm.lsm_stripe_count = stripes;
@@ -77,7 +76,7 @@ int cl_init_ea_size(struct obd_export *md_exp, struct obd_export *dt_exp)
 	       easize, cookiesize);
 
 	rc = md_init_ea_size(md_exp, easize, def_easize, cookiesize);
-	RETURN(rc);
+	return rc;
 }
 
 /**
@@ -95,7 +94,6 @@ int cl_ocd_update(struct obd_device *host,
 	__u64 flags;
 	int   result;
 
-	ENTRY;
 	if (!strcmp(watched->obd_type->typ_name, LUSTRE_OSC_NAME)) {
 		cli = &watched->u.cli;
 		lco = owner;
@@ -116,7 +114,7 @@ int cl_ocd_update(struct obd_device *host,
 		       watched->obd_name);
 		result = -EINVAL;
 	}
-	RETURN(result);
+	return result;
 }
 
 #define GROUPLOCK_SCOPE "grouplock"

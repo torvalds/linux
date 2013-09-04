@@ -115,7 +115,7 @@ OPTIONS
 --dump-raw-trace::
         Dump raw trace in ASCII.
 
--g [type,min[,limit],order]::
+-g [type,min[,limit],order[,key]]::
 --call-graph::
         Display call chains using type, min percent threshold, optional print
 	limit and order.
@@ -129,11 +129,20 @@ OPTIONS
 	- callee: callee based call graph.
 	- caller: inverted caller based call graph.
 
-	Default: fractal,0.5,callee.
+	key can be:
+	- function: compare on functions
+	- address: compare on individual code addresses
+
+	Default: fractal,0.5,callee,function.
 
 -G::
 --inverted::
         alias for inverted caller based call graph.
+
+--ignore-callees=<regex>::
+        Ignore callees of the function(s) matching the given regex.
+        This has the effect of collecting the callers of each such
+        function into one place in the call-graph tree.
 
 --pretty=<key>::
         Pretty printing style.  key: normal, raw

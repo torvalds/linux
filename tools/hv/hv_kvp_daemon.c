@@ -79,8 +79,6 @@ enum {
 	DNS
 };
 
-static char kvp_send_buffer[4096];
-static char kvp_recv_buffer[4096 * 2];
 static struct sockaddr_nl addr;
 static int in_hand_shake = 1;
 
@@ -1301,6 +1299,7 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 	}
 
 	error = kvp_write_file(file, "HWADDR", "", mac_addr);
+	free(mac_addr);
 	if (error)
 		goto setval_error;
 
@@ -1346,7 +1345,6 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 		goto setval_error;
 
 setval_done:
-	free(mac_addr);
 	fclose(file);
 
 	/*
@@ -1355,12 +1353,15 @@ setval_done:
 	 */
 
 	snprintf(cmd, sizeof(cmd), "%s %s", "hv_set_ifconfig", if_file);
-	system(cmd);
+	if (system(cmd)) {
+		syslog(LOG_ERR, "Failed to execute cmd '%s'; error: %d %s",
+				cmd, errno, strerror(errno));
+		return HV_E_FAIL;
+	}
 	return 0;
 
 setval_error:
 	syslog(LOG_ERR, "Failed to write config file");
-	free(mac_addr);
 	fclose(file);
 	return error;
 }
@@ -1391,23 +1392,18 @@ kvp_get_domain_name(char *buffer, int length)
 static int
 netlink_send(int fd, struct cn_msg *msg)
 {
-	struct nlmsghdr *nlh;
+	struct nlmsghdr nlh = { .nlmsg_type = NLMSG_DONE };
 	unsigned int size;
 	struct msghdr message;
-	char buffer[64];
 	struct iovec iov[2];
 
-	size = NLMSG_SPACE(sizeof(struct cn_msg) + msg->len);
+	size = sizeof(struct cn_msg) + msg->len;
 
-	nlh = (struct nlmsghdr *)buffer;
-	nlh->nlmsg_seq = 0;
-	nlh->nlmsg_pid = getpid();
-	nlh->nlmsg_type = NLMSG_DONE;
-	nlh->nlmsg_len = NLMSG_LENGTH(size - sizeof(*nlh));
-	nlh->nlmsg_flags = 0;
+	nlh.nlmsg_pid = getpid();
+	nlh.nlmsg_len = NLMSG_LENGTH(size);
 
-	iov[0].iov_base = nlh;
-	iov[0].iov_len = sizeof(*nlh);
+	iov[0].iov_base = &nlh;
+	iov[0].iov_len = sizeof(nlh);
 
 	iov[1].iov_base = msg;
 	iov[1].iov_len = size;
@@ -1437,10 +1433,22 @@ int main(void)
 	int	pool;
 	char	*if_name;
 	struct hv_kvp_ipaddr_value *kvp_ip_val;
+	char *kvp_send_buffer;
+	char *kvp_recv_buffer;
+	size_t kvp_recv_buffer_len;
 
-	daemon(1, 0);
+	if (daemon(1, 0))
+		return 1;
 	openlog("KVP", 0, LOG_USER);
 	syslog(LOG_INFO, "KVP starting; pid is:%d", getpid());
+
+	kvp_recv_buffer_len = NLMSG_HDRLEN + sizeof(struct cn_msg) + sizeof(struct hv_kvp_msg);
+	kvp_send_buffer = calloc(1, kvp_recv_buffer_len);
+	kvp_recv_buffer = calloc(1, kvp_recv_buffer_len);
+	if (!(kvp_send_buffer && kvp_recv_buffer)) {
+		syslog(LOG_ERR, "Failed to allocate netlink buffers");
+		exit(EXIT_FAILURE);
+	}
 	/*
 	 * Retrieve OS release information.
 	 */
@@ -1514,7 +1522,7 @@ int main(void)
 				continue;
 		}
 
-		len = recvfrom(fd, kvp_recv_buffer, sizeof(kvp_recv_buffer), 0,
+		len = recvfrom(fd, kvp_recv_buffer, kvp_recv_buffer_len, 0,
 				addr_p, &addr_l);
 
 		if (len < 0) {

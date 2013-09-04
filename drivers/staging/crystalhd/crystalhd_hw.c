@@ -1061,7 +1061,7 @@ static void cpy_pib_to_app(struct c011_pib *src_pib,
 	dst_pib->aspect_ratio        = src_pib->ppb.aspect_ratio;
 	dst_pib->colour_primaries     = src_pib->ppb.colour_primaries;
 	dst_pib->picture_meta_payload = src_pib->ppb.picture_meta_payload;
-	dst_pib->frame_rate		= src_pib->resolution ;
+	dst_pib->frame_rate		= src_pib->resolution;
 	return;
 }
 
@@ -1553,11 +1553,10 @@ static void crystalhd_rx_isr(struct crystalhd_hw *hw, uint32_t intr_sts)
 				crystalhd_get_dnsz(hw, i, &y_dn_sz, &uv_dn_sz);
 				/* FIXME: jarod: this is where
 				 my mini pci-e card is tripping up */
-				BCMLOG(BCMLOG_DBG, "list_index:%x rx[%d] Y:%x "
-				       "UV:%x Int:%x YDnSz:%x UVDnSz:%x\n",
+				BCMLOG(BCMLOG_DBG, "list_index:%x rx[%d] Y:%x UV:%x Int:%x YDnSz:%x UVDnSz:%x\n",
 				       i, hw->stats.rx_errors, y_err_sts,
 				       uv_err_sts, intr_sts, y_dn_sz,
-				       		 uv_dn_sz);
+				       uv_dn_sz);
 				hw->rx_list_sts[i] = sts_free;
 				comp_sts = BC_STS_ERROR;
 				break;

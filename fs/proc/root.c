@@ -205,7 +205,9 @@ static struct dentry *proc_root_lookup(struct inode * dir, struct dentry * dentr
 static int proc_root_readdir(struct file *file, struct dir_context *ctx)
 {
 	if (ctx->pos < FIRST_PROCESS_ENTRY) {
-		proc_readdir(file, ctx);
+		int error = proc_readdir(file, ctx);
+		if (unlikely(error <= 0))
+			return error;
 		ctx->pos = FIRST_PROCESS_ENTRY;
 	}
 

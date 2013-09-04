@@ -18,6 +18,7 @@ Required properties:
 - interrupt-map-mask and interrupt-map: standard PCI properties
 	to define the mapping of the PCIe interface to interrupt
 	numbers.
+- num-lanes: number of lanes to use
 - reset-gpio: gpio pin number of power good signal
 
 Example:
@@ -41,6 +42,7 @@ SoC specific DT Entry:
 		#interrupt-cells = <1>;
 		interrupt-map-mask = <0 0 0 0>;
 		interrupt-map = <0x0 0 &gic 53>;
+		num-lanes = <4>;
 	};
 
 	pcie@2a0000 {
@@ -60,6 +62,7 @@ SoC specific DT Entry:
 		#interrupt-cells = <1>;
 		interrupt-map-mask = <0 0 0 0>;
 		interrupt-map = <0x0 0 &gic 56>;
+		num-lanes = <4>;
 	};
 
 Board specific DT Entry:

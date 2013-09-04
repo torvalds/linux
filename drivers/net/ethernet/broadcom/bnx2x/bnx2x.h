@@ -1333,6 +1333,8 @@ enum {
 	BNX2X_SP_RTNL_VFPF_CHANNEL_DOWN,
 	BNX2X_SP_RTNL_VFPF_STORM_RX_MODE,
 	BNX2X_SP_RTNL_HYPERVISOR_VLAN,
+	BNX2X_SP_RTNL_TX_STOP,
+	BNX2X_SP_RTNL_TX_RESUME,
 };
 
 struct bnx2x_prev_path_list {
@@ -1502,6 +1504,7 @@ struct bnx2x {
 #define BC_SUPPORTS_DCBX_MSG_NON_PMF	(1 << 21)
 #define IS_VF_FLAG			(1 << 22)
 #define INTERRUPTS_ENABLED_FLAG		(1 << 23)
+#define BC_SUPPORTS_RMMOD_CMD		(1 << 24)
 
 #define BP_NOMCP(bp)			((bp)->flags & NO_MCP_FLAG)
 
@@ -1830,6 +1833,8 @@ struct bnx2x {
 
 	int fp_array_size;
 	u32 dump_preset_idx;
+	bool					stats_started;
+	struct semaphore			stats_sema;
 };
 
 /* Tx queues may be less or equal to Rx queues */
@@ -2451,4 +2456,6 @@ enum bnx2x_pci_bus_speed {
 	BNX2X_PCI_LINK_SPEED_5000 = 5000,
 	BNX2X_PCI_LINK_SPEED_8000 = 8000
 };
+
+void bnx2x_set_local_cmng(struct bnx2x *bp);
 #endif /* bnx2x.h */

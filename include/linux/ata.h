@@ -239,6 +239,8 @@ enum {
 	ATA_CMD_WRITE_QUEUED_FUA_EXT = 0x3E,
 	ATA_CMD_FPDMA_READ	= 0x60,
 	ATA_CMD_FPDMA_WRITE	= 0x61,
+	ATA_CMD_FPDMA_SEND	= 0x64,
+	ATA_CMD_FPDMA_RECV	= 0x65,
 	ATA_CMD_PIO_READ	= 0x20,
 	ATA_CMD_PIO_READ_EXT	= 0x24,
 	ATA_CMD_PIO_WRITE	= 0x30,
@@ -293,8 +295,13 @@ enum {
 	/* marked obsolete in the ATA/ATAPI-7 spec */
 	ATA_CMD_RESTORE		= 0x10,
 
+	/* Subcmds for ATA_CMD_FPDMA_SEND */
+	ATA_SUBCMD_FPDMA_SEND_DSM            = 0x00,
+	ATA_SUBCMD_FPDMA_SEND_WR_LOG_DMA_EXT = 0x02,
+
 	/* READ_LOG_EXT pages */
 	ATA_LOG_SATA_NCQ	= 0x10,
+	ATA_LOG_NCQ_SEND_RECV	  = 0x13,
 	ATA_LOG_SATA_ID_DEV_DATA  = 0x30,
 	ATA_LOG_SATA_SETTINGS	  = 0x08,
 	ATA_LOG_DEVSLP_OFFSET	  = 0x30,
@@ -304,6 +311,15 @@ enum {
 	ATA_LOG_DEVSLP_DETO	  = 0x01,
 	ATA_LOG_DEVSLP_VALID	  = 0x07,
 	ATA_LOG_DEVSLP_VALID_MASK = 0x80,
+
+	/* NCQ send and receive log */
+	ATA_LOG_NCQ_SEND_RECV_SUBCMDS_OFFSET	= 0x00,
+	ATA_LOG_NCQ_SEND_RECV_SUBCMDS_DSM	= (1 << 0),
+	ATA_LOG_NCQ_SEND_RECV_DSM_OFFSET	= 0x04,
+	ATA_LOG_NCQ_SEND_RECV_DSM_TRIM		= (1 << 0),
+	ATA_LOG_NCQ_SEND_RECV_RD_LOG_OFFSET	= 0x08,
+	ATA_LOG_NCQ_SEND_RECV_WR_LOG_OFFSET	= 0x0C,
+	ATA_LOG_NCQ_SEND_RECV_SIZE		= 0x10,
 
 	/* READ/WRITE LONG (obsolete) */
 	ATA_CMD_READ_LONG	= 0x22,
@@ -446,22 +462,6 @@ enum {
 	SERR_TRANS_ST_ERROR	= (1 << 24), /* Transport state trans. error */
 	SERR_UNRECOG_FIS	= (1 << 25), /* Unrecognized FIS */
 	SERR_DEV_XCHG		= (1 << 26), /* device exchanged */
-
-	/* struct ata_taskfile flags */
-	ATA_TFLAG_LBA48		= (1 << 0), /* enable 48-bit LBA and "HOB" */
-	ATA_TFLAG_ISADDR	= (1 << 1), /* enable r/w to nsect/lba regs */
-	ATA_TFLAG_DEVICE	= (1 << 2), /* enable r/w to device reg */
-	ATA_TFLAG_WRITE		= (1 << 3), /* data dir: host->dev==1 (write) */
-	ATA_TFLAG_LBA		= (1 << 4), /* enable LBA */
-	ATA_TFLAG_FUA		= (1 << 5), /* enable FUA */
-	ATA_TFLAG_POLLING	= (1 << 6), /* set nIEN to 1 and use polling */
-
-	/* protocol flags */
-	ATA_PROT_FLAG_PIO	= (1 << 0), /* is PIO */
-	ATA_PROT_FLAG_DMA	= (1 << 1), /* is DMA */
-	ATA_PROT_FLAG_DATA	= ATA_PROT_FLAG_PIO | ATA_PROT_FLAG_DMA,
-	ATA_PROT_FLAG_NCQ	= (1 << 2), /* is NCQ */
-	ATA_PROT_FLAG_ATAPI	= (1 << 3), /* is ATAPI */
 };
 
 enum ata_tf_protocols {
@@ -487,83 +487,6 @@ struct ata_bmdma_prd {
 	__le32			addr;
 	__le32			flags_len;
 };
-
-struct ata_taskfile {
-	unsigned long		flags;		/* ATA_TFLAG_xxx */
-	u8			protocol;	/* ATA_PROT_xxx */
-
-	u8			ctl;		/* control reg */
-
-	u8			hob_feature;	/* additional data */
-	u8			hob_nsect;	/* to support LBA48 */
-	u8			hob_lbal;
-	u8			hob_lbam;
-	u8			hob_lbah;
-
-	u8			feature;
-	u8			nsect;
-	u8			lbal;
-	u8			lbam;
-	u8			lbah;
-
-	u8			device;
-
-	u8			command;	/* IO operation */
-};
-
-/*
- * protocol tests
- */
-static inline unsigned int ata_prot_flags(u8 prot)
-{
-	switch (prot) {
-	case ATA_PROT_NODATA:
-		return 0;
-	case ATA_PROT_PIO:
-		return ATA_PROT_FLAG_PIO;
-	case ATA_PROT_DMA:
-		return ATA_PROT_FLAG_DMA;
-	case ATA_PROT_NCQ:
-		return ATA_PROT_FLAG_DMA | ATA_PROT_FLAG_NCQ;
-	case ATAPI_PROT_NODATA:
-		return ATA_PROT_FLAG_ATAPI;
-	case ATAPI_PROT_PIO:
-		return ATA_PROT_FLAG_ATAPI | ATA_PROT_FLAG_PIO;
-	case ATAPI_PROT_DMA:
-		return ATA_PROT_FLAG_ATAPI | ATA_PROT_FLAG_DMA;
-	}
-	return 0;
-}
-
-static inline int ata_is_atapi(u8 prot)
-{
-	return ata_prot_flags(prot) & ATA_PROT_FLAG_ATAPI;
-}
-
-static inline int ata_is_nodata(u8 prot)
-{
-	return !(ata_prot_flags(prot) & ATA_PROT_FLAG_DATA);
-}
-
-static inline int ata_is_pio(u8 prot)
-{
-	return ata_prot_flags(prot) & ATA_PROT_FLAG_PIO;
-}
-
-static inline int ata_is_dma(u8 prot)
-{
-	return ata_prot_flags(prot) & ATA_PROT_FLAG_DMA;
-}
-
-static inline int ata_is_ncq(u8 prot)
-{
-	return ata_prot_flags(prot) & ATA_PROT_FLAG_NCQ;
-}
-
-static inline int ata_is_data(u8 prot)
-{
-	return ata_prot_flags(prot) & ATA_PROT_FLAG_DATA;
-}
 
 /*
  * id tests
@@ -865,6 +788,11 @@ static inline int ata_id_rotation_rate(const u16 *id)
 	return val;
 }
 
+static inline bool ata_id_has_ncq_send_and_recv(const u16 *id)
+{
+	return id[ATA_ID_SATA_CAPABILITY_2] & BIT(6);
+}
+
 static inline bool ata_id_has_trim(const u16 *id)
 {
 	if (ata_id_major_version(id) >= 7 &&
@@ -1058,15 +986,6 @@ static inline unsigned ata_set_lba_range_entries(void *_buffer,
 	used_bytes = ALIGN(i * 8, 512);
 	memset(buffer + i, 0, used_bytes - i * 8);
 	return used_bytes;
-}
-
-static inline int is_multi_taskfile(struct ata_taskfile *tf)
-{
-	return (tf->command == ATA_CMD_READ_MULTI) ||
-	       (tf->command == ATA_CMD_WRITE_MULTI) ||
-	       (tf->command == ATA_CMD_READ_MULTI_EXT) ||
-	       (tf->command == ATA_CMD_WRITE_MULTI_EXT) ||
-	       (tf->command == ATA_CMD_WRITE_MULTI_FUA_EXT);
 }
 
 static inline bool ata_ok(u8 status)

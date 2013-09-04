@@ -61,7 +61,7 @@ static const struct hc_driver ehci_tilegx_hc_driver = {
 	 * Generic hardware linkage.
 	 */
 	.irq			= ehci_irq,
-	.flags			= HCD_MEMORY | HCD_USB2,
+	.flags			= HCD_MEMORY | HCD_USB2 | HCD_BH,
 
 	/*
 	 * Basic lifecycle operations.
@@ -101,7 +101,7 @@ static int ehci_hcd_tilegx_drv_probe(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd;
 	struct ehci_hcd *ehci;
-	struct tilegx_usb_platform_data *pdata = pdev->dev.platform_data;
+	struct tilegx_usb_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	pte_t pte = { 0 };
 	int my_cpu = smp_processor_id();
 	int ret;
@@ -186,7 +186,7 @@ err_hcd:
 static int ehci_hcd_tilegx_drv_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
-	struct tilegx_usb_platform_data *pdata = pdev->dev.platform_data;
+	struct tilegx_usb_platform_data *pdata = dev_get_platdata(&pdev->dev);
 
 	usb_remove_hcd(hcd);
 	usb_put_hcd(hcd);

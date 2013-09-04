@@ -1,6 +1,8 @@
 #
 # Magnetometer sensors
 #
+# When adding new entries keep the list in alphabetical order
+
 menu "Magnetometer sensors"
 
 config AK8975
@@ -36,8 +38,8 @@ config IIO_ST_MAGN_3AXIS
 	  Say yes here to build support for STMicroelectronics magnetometers:
 	  LSM303DLHC, LSM303DLM, LIS3MDL.
 
-	  This driver can also be built as a module. If so, will be created
-	  these modules:
+	  This driver can also be built as a module. If so, these modules
+	  will be created:
 	  - st_magn (core functions for the driver [it is mandatory]);
 	  - st_magn_i2c (necessary for the I2C devices [optional*]);
 	  - st_magn_spi (necessary for the SPI devices [optional*]);

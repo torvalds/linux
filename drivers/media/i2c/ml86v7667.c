@@ -117,7 +117,7 @@ static int ml86v7667_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_subdev *sd = to_sd(ctrl);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret;
+	int ret = -EINVAL;
 
 	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
@@ -157,7 +157,7 @@ static int ml86v7667_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
-	return 0;
+	return ret;
 }
 
 static int ml86v7667_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)

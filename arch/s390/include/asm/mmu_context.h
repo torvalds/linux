@@ -77,8 +77,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	WARN_ON(atomic_read(&prev->context.attach_count) < 0);
 	atomic_inc(&next->context.attach_count);
 	/* Check for TLBs not flushed yet */
-	if (next->context.flush_mm)
-		__tlb_flush_mm(next);
+	__tlb_flush_mm_lazy(next);
 }
 
 #define enter_lazy_tlb(mm,tsk)	do { } while (0)

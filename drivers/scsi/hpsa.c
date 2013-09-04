@@ -583,7 +583,7 @@ static void set_performant_mode(struct ctlr_info *h, struct CommandList *c)
 		c->busaddr |= 1 | (h->blockFetchTable[c->Header.SGList] << 1);
 		if (likely(h->msix_vector))
 			c->Header.ReplyQueue =
-				smp_processor_id() % h->nreply_queues;
+				raw_smp_processor_id() % h->nreply_queues;
 	}
 }
 
@@ -1205,8 +1205,8 @@ static void complete_scsi_command(struct CommandList *cp)
 	scsi_set_resid(cmd, ei->ResidualCnt);
 
 	if (ei->CommandStatus == 0) {
-		cmd->scsi_done(cmd);
 		cmd_free(h, cp);
+		cmd->scsi_done(cmd);
 		return;
 	}
 
@@ -1379,8 +1379,8 @@ static void complete_scsi_command(struct CommandList *cp)
 		dev_warn(&h->pdev->dev, "cp %p returned unknown status %x\n",
 				cp, ei->CommandStatus);
 	}
-	cmd->scsi_done(cmd);
 	cmd_free(h, cp);
+	cmd->scsi_done(cmd);
 }
 
 static void hpsa_pci_unmap(struct pci_dev *pdev,
@@ -2721,7 +2721,6 @@ static struct CommandList *cmd_alloc(struct ctlr_info *h)
 	} while (test_and_set_bit
 		 (i & (BITS_PER_LONG - 1),
 		  h->cmd_pool_bits + (i / BITS_PER_LONG)) != 0);
-	h->nr_allocs++;
 	spin_unlock_irqrestore(&h->lock, flags);
 
 	c = h->cmd_pool + i;
@@ -2793,7 +2792,6 @@ static void cmd_free(struct ctlr_info *h, struct CommandList *c)
 	spin_lock_irqsave(&h->lock, flags);
 	clear_bit(i & (BITS_PER_LONG - 1),
 		  h->cmd_pool_bits + (i / BITS_PER_LONG));
-	h->nr_frees++;
 	spin_unlock_irqrestore(&h->lock, flags);
 }
 

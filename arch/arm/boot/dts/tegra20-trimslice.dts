@@ -312,7 +312,6 @@
 
 	usb@c5000000 {
 		status = "okay";
-		nvidia,vbus-gpio = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_HIGH>;
 	};
 
 	usb-phy@c5000000 {
@@ -412,6 +411,8 @@
 			regulator-max-microvolt = <5000000>;
 			enable-active-high;
 			gpio = <&gpio 170 0>; /* PV2 */
+			regulator-always-on;
+			regulator-boot-on;
 		};
 	};
 

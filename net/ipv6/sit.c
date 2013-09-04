@@ -645,11 +645,7 @@ static int ipip_rcv(struct sk_buff *skb)
 	const struct iphdr *iph;
 	struct ip_tunnel *tunnel;
 
-	if (iptunnel_pull_header(skb, 0, tpi.proto))
-		goto drop;
-
 	iph = ip_hdr(skb);
-
 	tunnel = ipip6_tunnel_lookup(dev_net(skb->dev), skb->dev,
 				     iph->saddr, iph->daddr);
 	if (tunnel != NULL) {
@@ -658,6 +654,8 @@ static int ipip_rcv(struct sk_buff *skb)
 			goto drop;
 
 		if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb))
+			goto drop;
+		if (iptunnel_pull_header(skb, 0, tpi.proto))
 			goto drop;
 		return ip_tunnel_rcv(tunnel, skb, &tpi, log_ecn_error);
 	}
@@ -887,6 +885,11 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 	if (ttl == 0)
 		ttl = iph6->hop_limit;
 	tos = INET_ECN_encapsulate(tos, ipv6_get_dsfield(iph6));
+
+	if (likely(!skb->encapsulation)) {
+		skb_reset_inner_headers(skb);
+		skb->encapsulation = 1;
+	}
 
 	err = iptunnel_xmit(dev_net(dev), rt, skb, fl4.saddr, fl4.daddr,
 			    IPPROTO_IPV6, tos, ttl, df);

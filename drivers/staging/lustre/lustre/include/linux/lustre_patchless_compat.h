@@ -53,7 +53,7 @@ truncate_complete_page(struct address_space *mapping, struct page *page)
 		return;
 
 	if (PagePrivate(page))
-		page->mapping->a_ops->invalidatepage(page, 0);
+		page->mapping->a_ops->invalidatepage(page, 0, PAGE_CACHE_SIZE);
 
 	cancel_dirty_page(page, PAGE_SIZE);
 	ClearPageMappedToDisk(page);

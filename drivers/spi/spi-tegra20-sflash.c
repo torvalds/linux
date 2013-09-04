@@ -335,12 +335,6 @@ static int tegra_sflash_transfer_one_message(struct spi_master *master,
 	struct spi_device *spi = msg->spi;
 	int ret;
 
-	ret = pm_runtime_get_sync(tsd->dev);
-	if (ret < 0) {
-		dev_err(tsd->dev, "pm_runtime_get() failed, err = %d\n", ret);
-		return ret;
-	}
-
 	msg->status = 0;
 	msg->actual_length = 0;
 	single_xfer = list_is_singular(&msg->transfers);
@@ -380,7 +374,6 @@ exit:
 	tegra_sflash_writel(tsd, tsd->def_command_reg, SPI_COMMAND);
 	msg->status = ret;
 	spi_finalize_current_message(master);
-	pm_runtime_put(tsd->dev);
 	return ret;
 }
 
@@ -477,6 +470,7 @@ static int tegra_sflash_probe(struct platform_device *pdev)
 	master->mode_bits = SPI_CPOL | SPI_CPHA;
 	master->setup = tegra_sflash_setup;
 	master->transfer_one_message = tegra_sflash_transfer_one_message;
+	master->auto_runtime_pm = true;
 	master->num_chipselect = MAX_CHIP_SELECT;
 	master->bus_num = -1;
 

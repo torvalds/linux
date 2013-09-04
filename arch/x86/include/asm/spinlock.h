@@ -34,6 +34,11 @@
 # define UNLOCK_LOCK_PREFIX
 #endif
 
+static __always_inline int arch_spin_value_unlocked(arch_spinlock_t lock)
+{
+	return lock.tickets.head == lock.tickets.tail;
+}
+
 /*
  * Ticket locks are conceptually two parts, one indicating the current head of
  * the queue, and the other indicating the current tail. The lock is acquired
@@ -232,9 +237,5 @@ static inline void arch_write_unlock(arch_rwlock_t *rw)
 #define arch_spin_relax(lock)	cpu_relax()
 #define arch_read_relax(lock)	cpu_relax()
 #define arch_write_relax(lock)	cpu_relax()
-
-/* The {read|write|spin}_lock() on x86 are full memory barriers. */
-static inline void smp_mb__after_lock(void) { }
-#define ARCH_HAS_SMP_MB_AFTER_LOCK
 
 #endif /* _ASM_X86_SPINLOCK_H */

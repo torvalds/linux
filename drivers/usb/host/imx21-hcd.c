@@ -1860,7 +1860,7 @@ static int imx21_probe(struct platform_device *pdev)
 	imx21 = hcd_to_imx21(hcd);
 	imx21->hcd = hcd;
 	imx21->dev = &pdev->dev;
-	imx21->pdata = pdev->dev.platform_data;
+	imx21->pdata = dev_get_platdata(&pdev->dev);
 	if (!imx21->pdata)
 		imx21->pdata = &default_pdata;
 

@@ -315,7 +315,7 @@ static struct ata_port_operations pata_at91_port_ops = {
 
 static int pata_at91_probe(struct platform_device *pdev)
 {
-	struct at91_cf_data *board = pdev->dev.platform_data;
+	struct at91_cf_data *board = dev_get_platdata(&pdev->dev);
 	struct device *dev = &pdev->dev;
 	struct at91_ide_info *info;
 	struct resource *mem_res;

@@ -976,21 +976,19 @@ int cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 			struct net_device *dev, u16 reason, bool wextev)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	int err;
+	int err = 0;
 
 	ASSERT_WDEV_LOCK(wdev);
 
 	kfree(wdev->connect_keys);
 	wdev->connect_keys = NULL;
 
-	if (wdev->conn) {
+	if (wdev->conn)
 		err = cfg80211_sme_disconnect(wdev, reason);
-	} else if (!rdev->ops->disconnect) {
+	else if (!rdev->ops->disconnect)
 		cfg80211_mlme_down(rdev, dev);
-		err = 0;
-	} else {
+	else if (wdev->current_bss)
 		err = rdev_disconnect(rdev, dev, reason);
-	}
 
 	return err;
 }

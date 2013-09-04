@@ -1,9 +1,6 @@
 #
 # Makefile for physical layer USB drivers
 #
-
-ccflags-$(CONFIG_USB_DEBUG) := -DDEBUG
-
 obj-$(CONFIG_USB_PHY)			+= phy.o
 obj-$(CONFIG_OF)			+= of.o
 
@@ -14,8 +11,10 @@ phy-fsl-usb2-objs			:= phy-fsl-usb.o phy-fsm-usb.o
 obj-$(CONFIG_FSL_USB2_OTG)		+= phy-fsl-usb2.o
 obj-$(CONFIG_ISP1301_OMAP)		+= phy-isp1301-omap.o
 obj-$(CONFIG_MV_U3D_PHY)		+= phy-mv-u3d-usb.o
-obj-$(CONFIG_NOP_USB_XCEIV)		+= phy-nop.o
+obj-$(CONFIG_NOP_USB_XCEIV)		+= phy-generic.o
 obj-$(CONFIG_OMAP_CONTROL_USB)		+= phy-omap-control.o
+obj-$(CONFIG_AM335X_CONTROL_USB)	+= phy-am335x-control.o
+obj-$(CONFIG_AM335X_PHY_USB)		+= phy-am335x.o
 obj-$(CONFIG_OMAP_USB2)			+= phy-omap-usb2.o
 obj-$(CONFIG_OMAP_USB3)			+= phy-omap-usb3.o
 obj-$(CONFIG_SAMSUNG_USBPHY)		+= phy-samsung-usb.o
