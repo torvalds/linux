@@ -448,9 +448,13 @@ static int rockchip_headsetobserve_probe(struct platform_device *pdev)
 #endif
 	//------------------------------------------------------------------
 	if (pdata->Headset_gpio) {
-		ret = pdata->headset_io_init(pdata->Headset_gpio, pdata->headset_gpio_info.iomux_name, pdata->headset_gpio_info.iomux_mode);
+		if(pdata->Headset_gpio == NULL){
+			dev_err(&pdev->dev,"failed init hook,please full hook_io_init function in board\n");
+			goto failed_free_dev;
+		}	
+		ret = pdata->headset_io_init(pdata->Headset_gpio);
 		if (ret) 
-			goto failed_free;	
+			goto failed_free_dev;	
 
 		headset->irq[HEADSET] = gpio_to_irq(pdata->Headset_gpio);
 
@@ -467,9 +471,13 @@ static int rockchip_headsetobserve_probe(struct platform_device *pdev)
 		goto failed_free_dev;
 //------------------------------------------------------------------
 	if (pdata->Hook_gpio) {
-		ret = pdata->hook_io_init(pdata->Hook_gpio, pdata->hook_gpio_info.iomux_name, pdata->hook_gpio_info.iomux_mode);
+		if(pdata->hook_io_init == NULL){
+			dev_err(&pdev->dev,"failed init hook,please full hook_io_init function in board\n");
+			goto failed_free_dev;
+		}	
+		ret = pdata->hook_io_init(pdata->Hook_gpio);
 		if (ret) 
-			goto failed_free;
+			goto failed_free_dev;
 		headset->irq[HOOK] = gpio_to_irq(pdata->Hook_gpio);
 		headset->irq_type[HOOK] = pdata->Hook_down_type == HOOK_DOWN_HIGH ? IRQF_TRIGGER_RISING : IRQF_TRIGGER_FALLING;
 			
