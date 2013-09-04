@@ -1479,7 +1479,6 @@ static bool hal_EfusePgPacketWrite1ByteHeader(struct adapter *pAdapter, u8 efuse
 
 static bool hal_EfusePgPacketWriteData(struct adapter *pAdapter, u8 efuseType, u16 *pAddr, struct pgpkt *pTargetPkt, bool bPseudoTest)
 {
-	bool bRet = false;
 	u16	efuse_addr = *pAddr;
 	u8 badworden = 0;
 	u32	PgWriteSuccess = 0;
@@ -1497,7 +1496,6 @@ static bool hal_EfusePgPacketWriteData(struct adapter *pAdapter, u8 efuseType, u
 		else
 			return true;
 	}
-	return bRet;
 }
 
 static bool
@@ -2182,7 +2180,7 @@ void Hal_ReadTxPowerInfo88E(struct adapter *padapter, u8 *PROMContent, bool Auto
 		pHalData->bTXPowerDataReadFromEEPORM = true;
 
 	for (rfPath = 0; rfPath < pHalData->NumTotalRFPath; rfPath++) {
-		for (ch = 0; ch <= CHANNEL_MAX_NUMBER; ch++) {
+		for (ch = 0; ch < CHANNEL_MAX_NUMBER; ch++) {
 			bIn24G = Hal_GetChnlGroup88E(ch, &group);
 			if (bIn24G) {
 				pHalData->Index24G_CCK_Base[rfPath][ch] = pwrInfo24G.IndexCCK_Base[rfPath][group];
