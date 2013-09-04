@@ -4139,6 +4139,7 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
 
+	/* FIXME should check pixel clock limits on all platforms */
 	if (INTEL_INFO(dev)->gen < 4) {
 		struct drm_i915_private *dev_priv = dev->dev_private;
 		int clock_limit =
@@ -4152,8 +4153,13 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 		 * the only reason for the pipe == PIPE_A check?
 		 */
 		if (crtc->pipe == PIPE_A &&
-		    adjusted_mode->clock > clock_limit * 9 / 10)
+		    adjusted_mode->clock > clock_limit * 9 / 10) {
+			clock_limit *= 2;
 			pipe_config->double_wide = true;
+		}
+
+		if (adjusted_mode->clock > clock_limit * 9 / 10)
+			return -EINVAL;
 	}
 
 	/* Cantiga+ cannot handle modes with a hsync front porch of 0.
