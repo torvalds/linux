@@ -1583,7 +1583,7 @@ nv50_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 		load = 340;
 
 	ret = nv_exec(disp->core, NV50_DISP_DAC_LOAD + or, &load, sizeof(load));
-	if (ret || load != 7)
+	if (ret || !load)
 		return connector_status_disconnected;
 
 	return connector_status_connected;

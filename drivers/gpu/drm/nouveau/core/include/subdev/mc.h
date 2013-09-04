@@ -12,6 +12,7 @@ struct nouveau_mc_intr {
 struct nouveau_mc {
 	struct nouveau_subdev base;
 	const struct nouveau_mc_intr *intr_map;
+	bool use_msi;
 };
 
 static inline struct nouveau_mc *

@@ -107,6 +107,11 @@ nouveau_framebuffer_init(struct drm_device *dev,
 			 return -EINVAL;
 		}
 
+		if (nvbo->tile_flags & NOUVEAU_GEM_TILE_NONCONTIG) {
+			NV_ERROR(drm, "framebuffer requires contiguous bo\n");
+			return -EINVAL;
+		}
+
 		if (nv_device(drm->device)->chipset == 0x50)
 			nv_fb->r_format |= (tile_flags << 8);
 
