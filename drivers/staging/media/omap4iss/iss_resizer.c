@@ -266,10 +266,12 @@ static void resizer_configure(struct iss_resizer_device *resizer)
 
 static void resizer_isr_buffer(struct iss_resizer_device *resizer)
 {
-	struct iss_device *iss = to_iss_device(resizer);
 	struct iss_buffer *buffer;
 
-	iss_reg_clr(iss, OMAP4_ISS_MEM_ISP_RESIZER, RZA_EN, RSZ_EN_EN);
+	/* The whole resizer needs to be stopped. Disabling RZA only produces
+	 * input FIFO overflows, most probably when the next frame is received.
+	 */
+	resizer_enable(resizer, 0);
 
 	buffer = omap4iss_video_buffer_next(&resizer->video_out);
 	if (buffer == NULL)
@@ -277,7 +279,7 @@ static void resizer_isr_buffer(struct iss_resizer_device *resizer)
 
 	resizer_set_outaddr(resizer, buffer->iss_addr);
 
-	iss_reg_set(iss, OMAP4_ISS_MEM_ISP_RESIZER, RZA_EN, RSZ_EN_EN);
+	resizer_enable(resizer, 1);
 }
 
 /*
