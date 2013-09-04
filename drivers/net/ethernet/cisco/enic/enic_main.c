@@ -1034,6 +1034,14 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 
 		skb_put(skb, bytes_written);
 		skb->protocol = eth_type_trans(skb, netdev);
+		skb_record_rx_queue(skb, q_number);
+		if (netdev->features & NETIF_F_RXHASH) {
+			skb->rxhash = rss_hash;
+			if (rss_type & (NIC_CFG_RSS_HASH_TYPE_TCP_IPV6_EX |
+					NIC_CFG_RSS_HASH_TYPE_TCP_IPV6 |
+					NIC_CFG_RSS_HASH_TYPE_TCP_IPV4))
+				skb->l4_rxhash = true;
+		}
 
 		if ((netdev->features & NETIF_F_RXCSUM) && !csum_not_calc) {
 			skb->csum = htons(checksum);
@@ -2209,6 +2217,7 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	netif_set_real_num_tx_queues(netdev, enic->wq_count);
+	netif_set_real_num_rx_queues(netdev, enic->rq_count);
 
 	/* Setup notification timer, HW reset task, and wq locks
 	 */
@@ -2258,6 +2267,8 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ENIC_SETTING(enic, TSO))
 		netdev->hw_features |= NETIF_F_TSO |
 			NETIF_F_TSO6 | NETIF_F_TSO_ECN;
+	if (ENIC_SETTING(enic, RSS))
+		netdev->hw_features |= NETIF_F_RXHASH;
 	if (ENIC_SETTING(enic, RXCSUM))
 		netdev->hw_features |= NETIF_F_RXCSUM;
 
