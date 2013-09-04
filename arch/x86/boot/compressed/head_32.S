@@ -181,8 +181,9 @@ relocated:
 /*
  * Do the decompression, and jump to the new kernel..
  */
-	leal	z_extract_offset_negative(%ebx), %ebp
 				/* push arguments for decompress_kernel: */
+	pushl	$z_output_len	/* decompressed length */
+	leal	z_extract_offset_negative(%ebx), %ebp
 	pushl	%ebp		/* output address */
 	pushl	$z_input_len	/* input_len */
 	leal	input_data(%ebx), %eax
@@ -191,33 +192,7 @@ relocated:
 	pushl	%eax		/* heap area */
 	pushl	%esi		/* real mode pointer */
 	call	decompress_kernel
-	addl	$20, %esp
-
-#if CONFIG_RELOCATABLE
-/*
- * Find the address of the relocations.
- */
-	leal	z_output_len(%ebp), %edi
-
-/*
- * Calculate the delta between where vmlinux was compiled to run
- * and where it was actually loaded.
- */
-	movl	%ebp, %ebx
-	subl	$LOAD_PHYSICAL_ADDR, %ebx
-	jz	2f	/* Nothing to be done if loaded at compiled addr. */
-/*
- * Process relocations.
- */
-
-1:	subl	$4, %edi
-	movl	(%edi), %ecx
-	testl	%ecx, %ecx
-	jz	2f
-	addl	%ebx, -__PAGE_OFFSET(%ebx, %ecx)
-	jmp	1b
-2:
-#endif
+	addl	$24, %esp
 
 /*
  * Jump to the decompressed kernel.
