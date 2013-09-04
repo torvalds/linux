@@ -1974,7 +1974,7 @@ static void team_setup_by_port(struct net_device *dev,
 	dev->addr_len = port_dev->addr_len;
 	dev->mtu = port_dev->mtu;
 	memcpy(dev->broadcast, port_dev->broadcast, port_dev->addr_len);
-	memcpy(dev->dev_addr, port_dev->dev_addr, port_dev->addr_len);
+	eth_hw_addr_inherit(dev, port_dev);
 }
 
 static int team_dev_type_check_change(struct net_device *dev,
