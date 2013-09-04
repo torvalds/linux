@@ -546,8 +546,17 @@ static irqreturn_t ssp_int(int irq, void *dev_id)
 	if (pm_runtime_suspended(&drv_data->pdev->dev))
 		return IRQ_NONE;
 
-	sccr1_reg = read_SSCR1(reg);
+	/*
+	 * If the device is not yet in RPM suspended state and we get an
+	 * interrupt that is meant for another device, check if status bits
+	 * are all set to one. That means that the device is already
+	 * powered off.
+	 */
 	status = read_SSSR(reg);
+	if (status == ~0)
+		return IRQ_NONE;
+
+	sccr1_reg = read_SSCR1(reg);
 
 	/* Ignore possible writes if we don't need to write */
 	if (!(sccr1_reg & SSCR1_TIE))
