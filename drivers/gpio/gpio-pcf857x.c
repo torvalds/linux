@@ -69,6 +69,7 @@ struct pcf857x {
 	spinlock_t		slock;		/* protect irq demux */
 	unsigned		out;		/* software latch */
 	unsigned		status;		/* current status */
+	unsigned		irq_mapped;	/* mapped gpio irqs */
 
 	int (*write)(struct i2c_client *client, unsigned data);
 	int (*read)(struct i2c_client *client);
@@ -161,8 +162,13 @@ static void pcf857x_set(struct gpio_chip *chip, unsigned offset, int value)
 static int pcf857x_to_irq(struct gpio_chip *chip, unsigned offset)
 {
 	struct pcf857x *gpio = container_of(chip, struct pcf857x, chip);
+	int ret;
 
-	return irq_create_mapping(gpio->irq_domain, offset);
+	ret = irq_create_mapping(gpio->irq_domain, offset);
+	if (ret > 0)
+		gpio->irq_mapped |= (1 << offset);
+
+	return ret;
 }
 
 static irqreturn_t pcf857x_irq(int irq, void *data)
@@ -174,7 +180,12 @@ static irqreturn_t pcf857x_irq(int irq, void *data)
 
 	spin_lock_irqsave(&gpio->slock, flags);
 
-	change = gpio->status ^ status;
+	/*
+	 * call the interrupt handler iff gpio is used as
+	 * interrupt source, just to avoid bad irqs
+	 */
+
+	change = ((gpio->status ^ status) & gpio->irq_mapped);
 	for_each_set_bit(i, &change, gpio->chip.ngpio)
 		generic_handle_irq(irq_find_mapping(gpio->irq_domain, i));
 	gpio->status = status;
@@ -187,9 +198,14 @@ static irqreturn_t pcf857x_irq(int irq, void *data)
 static int pcf857x_irq_domain_map(struct irq_domain *domain, unsigned int virq,
 				 irq_hw_number_t hw)
 {
+	struct pcf857x *gpio = domain->host_data;
+
 	irq_set_chip_and_handler(virq,
 				 &dummy_irq_chip,
 				 handle_level_irq);
+	set_irq_flags(virq, IRQF_VALID);
+	gpio->irq_mapped |= (1 << hw);
+
 	return 0;
 }
 
@@ -212,7 +228,7 @@ static int pcf857x_irq_domain_init(struct pcf857x *gpio,
 	gpio->irq_domain = irq_domain_add_linear(client->dev.of_node,
 						 gpio->chip.ngpio,
 						 &pcf857x_irq_domain_ops,
-						 NULL);
+						 gpio);
 	if (!gpio->irq_domain)
 		goto fail;
 
