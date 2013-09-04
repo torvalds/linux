@@ -343,21 +343,13 @@ static int tps51632_probe(struct i2c_client *client,
 	config.regmap = tps->regmap;
 	config.of_node = client->dev.of_node;
 
-	rdev = regulator_register(&tps->desc, &config);
+	rdev = devm_regulator_register(&client->dev, &tps->desc, &config);
 	if (IS_ERR(rdev)) {
 		dev_err(tps->dev, "regulator register failed\n");
 		return PTR_ERR(rdev);
 	}
 
 	tps->rdev = rdev;
-	return 0;
-}
-
-static int tps51632_remove(struct i2c_client *client)
-{
-	struct tps51632_chip *tps = i2c_get_clientdata(client);
-
-	regulator_unregister(tps->rdev);
 	return 0;
 }
 
@@ -375,7 +367,6 @@ static struct i2c_driver tps51632_i2c_driver = {
 		.of_match_table = of_match_ptr(tps51632_of_match),
 	},
 	.probe = tps51632_probe,
-	.remove = tps51632_remove,
 	.id_table = tps51632_id,
 };
 
