@@ -1096,13 +1096,13 @@ int rtw_check_bcn_info(struct adapter  *Adapter, u8 *pframe, u32 packet_len)
 	}
 
 	kfree(bssid);
+	_func_exit_;
 	return _SUCCESS;
 
 _mismatch:
 	kfree(bssid);
-	return _FAIL;
-
 	_func_exit_;
+	return _FAIL;
 }
 
 void update_beacon_info(struct adapter *padapter, u8 *pframe, uint pkt_len, struct sta_info *psta)
