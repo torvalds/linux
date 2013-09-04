@@ -873,7 +873,7 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
-	int clock_12bpc = pipe_config->requested_mode.clock * 3 / 2;
+	int clock_12bpc = pipe_config->adjusted_mode.clock * 3 / 2;
 	int portclock_limit = hdmi_portclock_limit(intel_hdmi);
 	int desired_bpp;
 
