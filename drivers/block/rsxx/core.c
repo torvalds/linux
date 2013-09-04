@@ -654,7 +654,8 @@ static void rsxx_eeh_failure(struct pci_dev *dev)
 	for (i = 0; i < card->n_targets; i++) {
 		spin_lock_bh(&card->ctrl[i].queue_lock);
 		cnt = rsxx_cleanup_dma_queue(&card->ctrl[i],
-					     &card->ctrl[i].queue);
+					     &card->ctrl[i].queue,
+					     COMPLETE_DMA);
 		spin_unlock_bh(&card->ctrl[i].queue_lock);
 
 		cnt += rsxx_dma_cancel(&card->ctrl[i]);

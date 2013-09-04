@@ -221,6 +221,19 @@ static void dma_intr_coal_auto_tune(struct rsxx_cardinfo *card)
 }
 
 /*----------------- RSXX DMA Handling -------------------*/
+static void rsxx_free_dma(struct rsxx_dma_ctrl *ctrl, struct rsxx_dma *dma)
+{
+	if (!pci_dma_mapping_error(ctrl->card->dev, dma->dma_addr)) {
+		pci_unmap_page(ctrl->card->dev, dma->dma_addr,
+			       get_dma_size(dma),
+			       dma->cmd == HW_CMD_BLK_WRITE ?
+					   PCI_DMA_TODEVICE :
+					   PCI_DMA_FROMDEVICE);
+	}
+
+	kmem_cache_free(rsxx_dma_pool, dma);
+}
+
 static void rsxx_complete_dma(struct rsxx_dma_ctrl *ctrl,
 				  struct rsxx_dma *dma,
 				  unsigned int status)
@@ -232,21 +245,14 @@ static void rsxx_complete_dma(struct rsxx_dma_ctrl *ctrl,
 	if (status & DMA_CANCELLED)
 		ctrl->stats.dma_cancelled++;
 
-	if (dma->dma_addr)
-		pci_unmap_page(ctrl->card->dev, dma->dma_addr,
-			       get_dma_size(dma),
-			       dma->cmd == HW_CMD_BLK_WRITE ?
-					   PCI_DMA_TODEVICE :
-					   PCI_DMA_FROMDEVICE);
-
 	if (dma->cb)
 		dma->cb(ctrl->card, dma->cb_data, status ? 1 : 0);
 
-	kmem_cache_free(rsxx_dma_pool, dma);
+	rsxx_free_dma(ctrl, dma);
 }
 
 int rsxx_cleanup_dma_queue(struct rsxx_dma_ctrl *ctrl,
-			   struct list_head *q)
+			   struct list_head *q, unsigned int done)
 {
 	struct rsxx_dma *dma;
 	struct rsxx_dma *tmp;
@@ -254,7 +260,10 @@ int rsxx_cleanup_dma_queue(struct rsxx_dma_ctrl *ctrl,
 
 	list_for_each_entry_safe(dma, tmp, q, list) {
 		list_del(&dma->list);
-		rsxx_complete_dma(ctrl, dma, DMA_CANCELLED);
+		if (done & COMPLETE_DMA)
+			rsxx_complete_dma(ctrl, dma, DMA_CANCELLED);
+		else
+			rsxx_free_dma(ctrl, dma);
 		cnt++;
 	}
 
@@ -370,7 +379,7 @@ static void dma_engine_stalled(unsigned long data)
 
 		/* Clean up the DMA queue */
 		spin_lock(&ctrl->queue_lock);
-		cnt = rsxx_cleanup_dma_queue(ctrl, &ctrl->queue);
+		cnt = rsxx_cleanup_dma_queue(ctrl, &ctrl->queue, COMPLETE_DMA);
 		spin_unlock(&ctrl->queue_lock);
 
 		cnt += rsxx_dma_cancel(ctrl);
@@ -623,7 +632,7 @@ static int rsxx_queue_dma(struct rsxx_cardinfo *card,
 	dma->dma_addr = pci_map_page(card->dev, page, pg_off, dma_len,
 				     dir ? PCI_DMA_TODEVICE :
 				     PCI_DMA_FROMDEVICE);
-	if (!dma->dma_addr) {
+	if (pci_dma_mapping_error(card->dev, dma->dma_addr)) {
 		kmem_cache_free(rsxx_dma_pool, dma);
 		return -ENOMEM;
 	}
@@ -736,11 +745,9 @@ int rsxx_dma_queue_bio(struct rsxx_cardinfo *card,
 	return 0;
 
 bvec_err:
-	for (i = 0; i < card->n_targets; i++) {
-		spin_lock_bh(&card->ctrl[i].queue_lock);
-		rsxx_cleanup_dma_queue(&card->ctrl[i], &dma_list[i]);
-		spin_unlock_bh(&card->ctrl[i].queue_lock);
-	}
+	for (i = 0; i < card->n_targets; i++)
+		rsxx_cleanup_dma_queue(&card->ctrl[i], &dma_list[i],
+					FREE_DMA);
 
 	return st;
 }
@@ -990,7 +997,7 @@ void rsxx_dma_destroy(struct rsxx_cardinfo *card)
 
 		/* Clean up the DMA queue */
 		spin_lock_bh(&ctrl->queue_lock);
-		rsxx_cleanup_dma_queue(ctrl, &ctrl->queue);
+		rsxx_cleanup_dma_queue(ctrl, &ctrl->queue, COMPLETE_DMA);
 		spin_unlock_bh(&ctrl->queue_lock);
 
 		rsxx_dma_cancel(ctrl);
@@ -1045,7 +1052,7 @@ int rsxx_eeh_save_issued_dmas(struct rsxx_cardinfo *card)
 		card->ctrl[i].e_cnt = 0;
 
 		list_for_each_entry(dma, &card->ctrl[i].queue, list) {
-			if (dma->dma_addr)
+			if (!pci_dma_mapping_error(card->dev, dma->dma_addr))
 				pci_unmap_page(card->dev, dma->dma_addr,
 					       get_dma_size(dma),
 					       dma->cmd == HW_CMD_BLK_WRITE ?
@@ -1073,7 +1080,7 @@ int rsxx_eeh_remap_dmas(struct rsxx_cardinfo *card)
 					dma->cmd == HW_CMD_BLK_WRITE ?
 					PCI_DMA_TODEVICE :
 					PCI_DMA_FROMDEVICE);
-			if (!dma->dma_addr) {
+			if (pci_dma_mapping_error(card->dev, dma->dma_addr)) {
 				spin_unlock_bh(&card->ctrl[i].queue_lock);
 				kmem_cache_free(rsxx_dma_pool, dma);
 				return -ENOMEM;
