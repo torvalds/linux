@@ -518,6 +518,7 @@ struct hci_dev *hci_get_route(bdaddr_t *dst, bdaddr_t *src)
 	list_for_each_entry(d, &hci_dev_list, list) {
 		if (!test_bit(HCI_UP, &d->flags) ||
 		    test_bit(HCI_RAW, &d->flags) ||
+		    test_bit(HCI_USER_CHANNEL, &d->dev_flags) ||
 		    d->dev_type != HCI_BREDR)
 			continue;
 
