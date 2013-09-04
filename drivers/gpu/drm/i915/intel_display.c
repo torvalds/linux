@@ -733,6 +733,23 @@ vlv_find_best_dpll(const intel_limit_t *limit, struct drm_crtc *crtc,
 	return true;
 }
 
+bool intel_crtc_active(struct drm_crtc *crtc)
+{
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+
+	/* Be paranoid as we can arrive here with only partial
+	 * state retrieved from the hardware during setup.
+	 *
+	 * We can ditch the adjusted_mode.clock check as soon
+	 * as Haswell has gained clock readout/fastboot support.
+	 *
+	 * We can ditch the crtc->fb check as soon as we can
+	 * properly reconstruct framebuffers.
+	 */
+	return intel_crtc->active && crtc->fb &&
+		intel_crtc->config.adjusted_mode.clock;
+}
+
 enum transcoder intel_pipe_to_cpu_transcoder(struct drm_i915_private *dev_priv,
 					     enum pipe pipe)
 {

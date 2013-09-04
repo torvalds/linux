@@ -43,17 +43,6 @@
  * i915.i915_enable_fbc parameter
  */
 
-static bool intel_crtc_active(struct drm_crtc *crtc)
-{
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
-	/* Be paranoid as we can arrive here with only partial
-	 * state retrieved from the hardware during setup.
-	 */
-	return intel_crtc->active && crtc->fb &&
-		intel_crtc->config.adjusted_mode.clock;
-}
-
 static void i8xx_disable_fbc(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;

@@ -810,4 +810,6 @@ extern void ironlake_check_encoder_dotclock(const struct intel_crtc_config *pipe
 					    int dotclock);
 extern void i915_disable_vga_mem(struct drm_device *dev);
 
+extern bool intel_crtc_active(struct drm_crtc *crtc);
+
 #endif /* __INTEL_DRV_H__ */

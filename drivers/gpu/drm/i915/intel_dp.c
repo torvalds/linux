@@ -1639,8 +1639,7 @@ static bool intel_edp_psr_match_conditions(struct intel_dp *intel_dp)
 	}
 
 	intel_crtc = to_intel_crtc(crtc);
-	if (!intel_crtc->active || !crtc->fb ||
-	    !intel_crtc->config.adjusted_mode.clock) {
+	if (!intel_crtc_active(crtc)) {
 		DRM_DEBUG_KMS("crtc not active for PSR\n");
 		dev_priv->no_psr_reason = PSR_CRTC_NOT_ACTIVE;
 		return false;
