@@ -45,9 +45,9 @@ sees fit.)
 
 Requirement: MANDATORY
 
-The device tree blob (dtb) must be no bigger than 2 megabytes in size
-and placed at a 2-megabyte boundary within the first 512 megabytes from
-the start of the kernel image. This is to allow the kernel to map the
+The device tree blob (dtb) must be placed on an 8-byte boundary within
+the first 512 megabytes from the start of the kernel image and must not
+cross a 2-megabyte boundary. This is to allow the kernel to map the
 blob using a single section mapping in the initial page tables.
 
 
