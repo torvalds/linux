@@ -239,6 +239,8 @@ static void nfs4_end_drain_session(struct nfs_client *clp)
 	}
 }
 
+#if defined(CONFIG_NFS_V4_1)
+
 static int nfs4_drain_slot_tbl(struct nfs4_slot_table *tbl)
 {
 	set_bit(NFS4_SLOT_TBL_DRAINING, &tbl->slot_tbl_state);
@@ -267,8 +269,6 @@ static int nfs4_begin_drain_session(struct nfs_client *clp)
 	/* fore channel */
 	return nfs4_drain_slot_tbl(&ses->fc_slot_table);
 }
-
-#if defined(CONFIG_NFS_V4_1)
 
 static int nfs41_setup_state_renewal(struct nfs_client *clp)
 {
