@@ -37,7 +37,19 @@ static void __jump_label_transform(struct jump_entry *entry,
 	} else
 		memcpy(&code, ideal_nops[NOP_ATOMIC5], JUMP_LABEL_NOP_SIZE);
 
-	(*poker)((void *)entry->code, &code, JUMP_LABEL_NOP_SIZE);
+	/*
+	 * Make text_poke_bp() a default fallback poker.
+	 *
+	 * At the time the change is being done, just ignore whether we
+	 * are doing nop -> jump or jump -> nop transition, and assume
+	 * always nop being the 'currently valid' instruction
+	 *
+	 */
+	if (poker)
+		(*poker)((void *)entry->code, &code, JUMP_LABEL_NOP_SIZE);
+	else
+		text_poke_bp((void *)entry->code, &code, JUMP_LABEL_NOP_SIZE,
+			     (void *)entry->code + JUMP_LABEL_NOP_SIZE);
 }
 
 void arch_jump_label_transform(struct jump_entry *entry,
@@ -45,7 +57,7 @@ void arch_jump_label_transform(struct jump_entry *entry,
 {
 	get_online_cpus();
 	mutex_lock(&text_mutex);
-	__jump_label_transform(entry, type, text_poke_smp);
+	__jump_label_transform(entry, type, NULL);
 	mutex_unlock(&text_mutex);
 	put_online_cpus();
 }

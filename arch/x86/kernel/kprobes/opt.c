@@ -371,31 +371,6 @@ int __kprobes arch_prepare_optimized_kprobe(struct optimized_kprobe *op)
 	return 0;
 }
 
-#define MAX_OPTIMIZE_PROBES 256
-static struct text_poke_param *jump_poke_params;
-static struct jump_poke_buffer {
-	u8 buf[RELATIVEJUMP_SIZE];
-} *jump_poke_bufs;
-
-static void __kprobes setup_optimize_kprobe(struct text_poke_param *tprm,
-					    u8 *insn_buf,
-					    struct optimized_kprobe *op)
-{
-	s32 rel = (s32)((long)op->optinsn.insn -
-			((long)op->kp.addr + RELATIVEJUMP_SIZE));
-
-	/* Backup instructions which will be replaced by jump address */
-	memcpy(op->optinsn.copied_insn, op->kp.addr + INT3_SIZE,
-	       RELATIVE_ADDR_SIZE);
-
-	insn_buf[0] = RELATIVEJUMP_OPCODE;
-	*(s32 *)(&insn_buf[1]) = rel;
-
-	tprm->addr = op->kp.addr;
-	tprm->opcode = insn_buf;
-	tprm->len = RELATIVEJUMP_SIZE;
-}
-
 /*
  * Replace breakpoints (int3) with relative jumps.
  * Caller must call with locking kprobe_mutex and text_mutex.
@@ -403,37 +378,38 @@ static void __kprobes setup_optimize_kprobe(struct text_poke_param *tprm,
 void __kprobes arch_optimize_kprobes(struct list_head *oplist)
 {
 	struct optimized_kprobe *op, *tmp;
-	int c = 0;
+	u8 insn_buf[RELATIVEJUMP_SIZE];
 
 	list_for_each_entry_safe(op, tmp, oplist, list) {
-		WARN_ON(kprobe_disabled(&op->kp));
-		/* Setup param */
-		setup_optimize_kprobe(&jump_poke_params[c],
-				      jump_poke_bufs[c].buf, op);
-		list_del_init(&op->list);
-		if (++c >= MAX_OPTIMIZE_PROBES)
-			break;
-	}
+		s32 rel = (s32)((long)op->optinsn.insn -
+			((long)op->kp.addr + RELATIVEJUMP_SIZE));
 
-	/*
-	 * text_poke_smp doesn't support NMI/MCE code modifying.
-	 * However, since kprobes itself also doesn't support NMI/MCE
-	 * code probing, it's not a problem.
-	 */
-	text_poke_smp_batch(jump_poke_params, c);
+		WARN_ON(kprobe_disabled(&op->kp));
+
+		/* Backup instructions which will be replaced by jump address */
+		memcpy(op->optinsn.copied_insn, op->kp.addr + INT3_SIZE,
+		       RELATIVE_ADDR_SIZE);
+
+		insn_buf[0] = RELATIVEJUMP_OPCODE;
+		*(s32 *)(&insn_buf[1]) = rel;
+
+		text_poke_bp(op->kp.addr, insn_buf, RELATIVEJUMP_SIZE,
+			     op->optinsn.insn);
+
+		list_del_init(&op->list);
+	}
 }
 
-static void __kprobes setup_unoptimize_kprobe(struct text_poke_param *tprm,
-					      u8 *insn_buf,
-					      struct optimized_kprobe *op)
+/* Replace a relative jump with a breakpoint (int3).  */
+void __kprobes arch_unoptimize_kprobe(struct optimized_kprobe *op)
 {
+	u8 insn_buf[RELATIVEJUMP_SIZE];
+
 	/* Set int3 to first byte for kprobes */
 	insn_buf[0] = BREAKPOINT_INSTRUCTION;
 	memcpy(insn_buf + 1, op->optinsn.copied_insn, RELATIVE_ADDR_SIZE);
-
-	tprm->addr = op->kp.addr;
-	tprm->opcode = insn_buf;
-	tprm->len = RELATIVEJUMP_SIZE;
+	text_poke_bp(op->kp.addr, insn_buf, RELATIVEJUMP_SIZE,
+		     op->optinsn.insn);
 }
 
 /*
@@ -444,34 +420,11 @@ extern void arch_unoptimize_kprobes(struct list_head *oplist,
 				    struct list_head *done_list)
 {
 	struct optimized_kprobe *op, *tmp;
-	int c = 0;
 
 	list_for_each_entry_safe(op, tmp, oplist, list) {
-		/* Setup param */
-		setup_unoptimize_kprobe(&jump_poke_params[c],
-					jump_poke_bufs[c].buf, op);
+		arch_unoptimize_kprobe(op);
 		list_move(&op->list, done_list);
-		if (++c >= MAX_OPTIMIZE_PROBES)
-			break;
 	}
-
-	/*
-	 * text_poke_smp doesn't support NMI/MCE code modifying.
-	 * However, since kprobes itself also doesn't support NMI/MCE
-	 * code probing, it's not a problem.
-	 */
-	text_poke_smp_batch(jump_poke_params, c);
-}
-
-/* Replace a relative jump with a breakpoint (int3).  */
-void __kprobes arch_unoptimize_kprobe(struct optimized_kprobe *op)
-{
-	u8 buf[RELATIVEJUMP_SIZE];
-
-	/* Set int3 to first byte for kprobes */
-	buf[0] = BREAKPOINT_INSTRUCTION;
-	memcpy(buf + 1, op->optinsn.copied_insn, RELATIVE_ADDR_SIZE);
-	text_poke_smp(op->kp.addr, buf, RELATIVEJUMP_SIZE);
 }
 
 int  __kprobes
@@ -489,24 +442,5 @@ setup_detour_execution(struct kprobe *p, struct pt_regs *regs, int reenter)
 		preempt_enable_no_resched();
 		return 1;
 	}
-	return 0;
-}
-
-int __kprobes arch_init_optprobes(void)
-{
-	/* Allocate code buffer and parameter array */
-	jump_poke_bufs = kmalloc(sizeof(struct jump_poke_buffer) *
-				 MAX_OPTIMIZE_PROBES, GFP_KERNEL);
-	if (!jump_poke_bufs)
-		return -ENOMEM;
-
-	jump_poke_params = kmalloc(sizeof(struct text_poke_param) *
-				   MAX_OPTIMIZE_PROBES, GFP_KERNEL);
-	if (!jump_poke_params) {
-		kfree(jump_poke_bufs);
-		jump_poke_bufs = NULL;
-		return -ENOMEM;
-	}
-
 	return 0;
 }

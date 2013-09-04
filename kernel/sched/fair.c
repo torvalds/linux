@@ -3018,6 +3018,23 @@ static unsigned long cpu_avg_load_per_task(int cpu)
 	return 0;
 }
 
+static void record_wakee(struct task_struct *p)
+{
+	/*
+	 * Rough decay (wiping) for cost saving, don't worry
+	 * about the boundary, really active task won't care
+	 * about the loss.
+	 */
+	if (jiffies > current->wakee_flip_decay_ts + HZ) {
+		current->wakee_flips = 0;
+		current->wakee_flip_decay_ts = jiffies;
+	}
+
+	if (current->last_wakee != p) {
+		current->last_wakee = p;
+		current->wakee_flips++;
+	}
+}
 
 static void task_waking_fair(struct task_struct *p)
 {
@@ -3038,6 +3055,7 @@ static void task_waking_fair(struct task_struct *p)
 #endif
 
 	se->vruntime -= min_vruntime;
+	record_wakee(p);
 }
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
@@ -3156,6 +3174,28 @@ static inline unsigned long effective_load(struct task_group *tg, int cpu,
 
 #endif
 
+static int wake_wide(struct task_struct *p)
+{
+	int factor = this_cpu_read(sd_llc_size);
+
+	/*
+	 * Yeah, it's the switching-frequency, could means many wakee or
+	 * rapidly switch, use factor here will just help to automatically
+	 * adjust the loose-degree, so bigger node will lead to more pull.
+	 */
+	if (p->wakee_flips > factor) {
+		/*
+		 * wakee is somewhat hot, it needs certain amount of cpu
+		 * resource, so if waker is far more hot, prefer to leave
+		 * it alone.
+		 */
+		if (current->wakee_flips > (factor * p->wakee_flips))
+			return 1;
+	}
+
+	return 0;
+}
+
 static int wake_affine(struct sched_domain *sd, struct task_struct *p, int sync)
 {
 	s64 this_load, load;
@@ -3164,6 +3204,13 @@ static int wake_affine(struct sched_domain *sd, struct task_struct *p, int sync)
 	struct task_group *tg;
 	unsigned long weight;
 	int balanced;
+
+	/*
+	 * If we wake multiple tasks be careful to not bounce
+	 * ourselves around too much.
+	 */
+	if (wake_wide(p))
+		return 0;
 
 	idx	  = sd->wake_idx;
 	this_cpu  = smp_processor_id();
@@ -4172,56 +4219,53 @@ static void update_blocked_averages(int cpu)
 }
 
 /*
- * Compute the cpu's hierarchical load factor for each task group.
+ * Compute the hierarchical load factor for cfs_rq and all its ascendants.
  * This needs to be done in a top-down fashion because the load of a child
  * group is a fraction of its parents load.
  */
-static int tg_load_down(struct task_group *tg, void *data)
+static void update_cfs_rq_h_load(struct cfs_rq *cfs_rq)
 {
-	unsigned long load;
-	long cpu = (long)data;
-
-	if (!tg->parent) {
-		load = cpu_rq(cpu)->avg.load_avg_contrib;
-	} else {
-		load = tg->parent->cfs_rq[cpu]->h_load;
-		load = div64_ul(load * tg->se[cpu]->avg.load_avg_contrib,
-				tg->parent->cfs_rq[cpu]->runnable_load_avg + 1);
-	}
-
-	tg->cfs_rq[cpu]->h_load = load;
-
-	return 0;
-}
-
-static void update_h_load(long cpu)
-{
-	struct rq *rq = cpu_rq(cpu);
+	struct rq *rq = rq_of(cfs_rq);
+	struct sched_entity *se = cfs_rq->tg->se[cpu_of(rq)];
 	unsigned long now = jiffies;
+	unsigned long load;
 
-	if (rq->h_load_throttle == now)
+	if (cfs_rq->last_h_load_update == now)
 		return;
 
-	rq->h_load_throttle = now;
+	cfs_rq->h_load_next = NULL;
+	for_each_sched_entity(se) {
+		cfs_rq = cfs_rq_of(se);
+		cfs_rq->h_load_next = se;
+		if (cfs_rq->last_h_load_update == now)
+			break;
+	}
 
-	rcu_read_lock();
-	walk_tg_tree(tg_load_down, tg_nop, (void *)cpu);
-	rcu_read_unlock();
+	if (!se) {
+		cfs_rq->h_load = rq->avg.load_avg_contrib;
+		cfs_rq->last_h_load_update = now;
+	}
+
+	while ((se = cfs_rq->h_load_next) != NULL) {
+		load = cfs_rq->h_load;
+		load = div64_ul(load * se->avg.load_avg_contrib,
+				cfs_rq->runnable_load_avg + 1);
+		cfs_rq = group_cfs_rq(se);
+		cfs_rq->h_load = load;
+		cfs_rq->last_h_load_update = now;
+	}
 }
 
 static unsigned long task_h_load(struct task_struct *p)
 {
 	struct cfs_rq *cfs_rq = task_cfs_rq(p);
 
+	update_cfs_rq_h_load(cfs_rq);
 	return div64_ul(p->se.avg.load_avg_contrib * cfs_rq->h_load,
 			cfs_rq->runnable_load_avg + 1);
 }
 #else
 static inline void update_blocked_averages(int cpu)
-{
-}
-
-static inline void update_h_load(long cpu)
 {
 }
 
@@ -5114,7 +5158,6 @@ redo:
 		env.src_rq    = busiest;
 		env.loop_max  = min(sysctl_sched_nr_migrate, busiest->nr_running);
 
-		update_h_load(env.src_cpu);
 more_balance:
 		local_irq_save(flags);
 		double_rq_lock(env.dst_rq, busiest);

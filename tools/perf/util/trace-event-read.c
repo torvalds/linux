@@ -39,10 +39,6 @@
 
 static int input_fd;
 
-int file_bigendian;
-int host_bigendian;
-static int long_size;
-
 static ssize_t trace_data_size;
 static bool repipe;
 
@@ -216,7 +212,7 @@ static int read_ftrace_printk(struct pevent *pevent)
 static int read_header_files(struct pevent *pevent)
 {
 	unsigned long long size;
-	char *header_event;
+	char *header_page;
 	char buf[BUFSIZ];
 	int ret = 0;
 
@@ -229,13 +225,26 @@ static int read_header_files(struct pevent *pevent)
 	}
 
 	size = read8(pevent);
-	skip(size);
 
-	/*
-	 * The size field in the page is of type long,
-	 * use that instead, since it represents the kernel.
-	 */
-	long_size = header_page_size_size;
+	header_page = malloc(size);
+	if (header_page == NULL)
+		return -1;
+
+	if (do_read(header_page, size) < 0) {
+		pr_debug("did not read header page");
+		free(header_page);
+		return -1;
+	}
+
+	if (!pevent_parse_header_page(pevent, header_page, size,
+				      pevent_get_long_size(pevent))) {
+		/*
+		 * The commit field in the page is of type long,
+		 * use that instead, since it represents the kernel.
+		 */
+		pevent_set_long_size(pevent, pevent->header_page_size_size);
+	}
+	free(header_page);
 
 	if (do_read(buf, 13) < 0)
 		return -1;
@@ -246,14 +255,8 @@ static int read_header_files(struct pevent *pevent)
 	}
 
 	size = read8(pevent);
-	header_event = malloc(size);
-	if (header_event == NULL)
-		return -1;
+	skip(size);
 
-	if (do_read(header_event, size) < 0)
-		ret = -1;
-
-	free(header_event);
 	return ret;
 }
 
@@ -349,6 +352,10 @@ ssize_t trace_report(int fd, struct pevent **ppevent, bool __repipe)
 	int show_funcs = 0;
 	int show_printk = 0;
 	ssize_t size = -1;
+	int file_bigendian;
+	int host_bigendian;
+	int file_long_size;
+	int file_page_size;
 	struct pevent *pevent;
 	int err;
 
@@ -391,11 +398,14 @@ ssize_t trace_report(int fd, struct pevent **ppevent, bool __repipe)
 
 	if (do_read(buf, 1) < 0)
 		goto out;
-	long_size = buf[0];
+	file_long_size = buf[0];
 
-	page_size = read4(pevent);
-	if (!page_size)
+	file_page_size = read4(pevent);
+	if (!file_page_size)
 		goto out;
+
+	pevent_set_long_size(pevent, file_long_size);
+	pevent_set_page_size(pevent, file_page_size);
 
 	err = read_header_files(pevent);
 	if (err)

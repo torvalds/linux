@@ -110,10 +110,10 @@ static int jump__parse(struct ins_operands *ops)
 {
 	const char *s = strchr(ops->raw, '+');
 
-	ops->target.addr = strtoll(ops->raw, NULL, 16);
+	ops->target.addr = strtoull(ops->raw, NULL, 16);
 
 	if (s++ != NULL)
-		ops->target.offset = strtoll(s, NULL, 16);
+		ops->target.offset = strtoull(s, NULL, 16);
 	else
 		ops->target.offset = UINT64_MAX;
 
@@ -821,9 +821,53 @@ static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
 	if (dl == NULL)
 		return -1;
 
+	if (dl->ops.target.offset == UINT64_MAX)
+		dl->ops.target.offset = dl->ops.target.addr -
+					map__rip_2objdump(map, sym->start);
+
+	/*
+	 * kcore has no symbols, so add the call target name if it is on the
+	 * same map.
+	 */
+	if (dl->ins && ins__is_call(dl->ins) && !dl->ops.target.name) {
+		struct symbol *s;
+		u64 ip = dl->ops.target.addr;
+
+		if (ip >= map->start && ip <= map->end) {
+			ip = map->map_ip(map, ip);
+			s = map__find_symbol(map, ip, NULL);
+			if (s && s->start == ip)
+				dl->ops.target.name = strdup(s->name);
+		}
+	}
+
 	disasm__add(&notes->src->source, dl);
 
 	return 0;
+}
+
+static void delete_last_nop(struct symbol *sym)
+{
+	struct annotation *notes = symbol__annotation(sym);
+	struct list_head *list = &notes->src->source;
+	struct disasm_line *dl;
+
+	while (!list_empty(list)) {
+		dl = list_entry(list->prev, struct disasm_line, node);
+
+		if (dl->ins && dl->ins->ops) {
+			if (dl->ins->ops != &nop_ops)
+				return;
+		} else {
+			if (!strstr(dl->line, " nop ") &&
+			    !strstr(dl->line, " nopl ") &&
+			    !strstr(dl->line, " nopw "))
+				return;
+		}
+
+		list_del(&dl->node);
+		disasm_line__free(dl);
+	}
 }
 
 int symbol__annotate(struct symbol *sym, struct map *map, size_t privsize)
@@ -864,7 +908,8 @@ fallback:
 		free_filename = false;
 	}
 
-	if (dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS) {
+	if (dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS &&
+	    !dso__is_kcore(dso)) {
 		char bf[BUILD_ID_SIZE * 2 + 16] = " with build id ";
 		char *build_id_msg = NULL;
 
@@ -898,7 +943,7 @@ fallback:
 	snprintf(command, sizeof(command),
 		 "%s %s%s --start-address=0x%016" PRIx64
 		 " --stop-address=0x%016" PRIx64
-		 " -d %s %s -C %s|grep -v %s|expand",
+		 " -d %s %s -C %s 2>/dev/null|grep -v %s|expand",
 		 objdump_path ? objdump_path : "objdump",
 		 disassembler_style ? "-M " : "",
 		 disassembler_style ? disassembler_style : "",
@@ -917,6 +962,13 @@ fallback:
 	while (!feof(file))
 		if (symbol__parse_objdump_line(sym, map, file, privsize) < 0)
 			break;
+
+	/*
+	 * kallsyms does not have symbol sizes so there may a nop at the end.
+	 * Remove it.
+	 */
+	if (dso__is_kcore(dso))
+		delete_last_nop(sym);
 
 	pclose(file);
 out_free_filename:

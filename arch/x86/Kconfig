@@ -82,7 +82,6 @@ config X86
 	select HAVE_USER_RETURN_NOTIFIER
 	select ARCH_BINFMT_ELF_RANDOMIZE_PIE
 	select HAVE_ARCH_JUMP_LABEL
-	select HAVE_TEXT_POKE_SMP
 	select HAVE_GENERIC_HARDIRQS
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select SPARSE_IRQ
@@ -2332,10 +2331,6 @@ endmenu
 config HAVE_ATOMIC_IOMAP
 	def_bool y
 	depends on X86_32
-
-config HAVE_TEXT_POKE_SMP
-	bool
-	select STOP_MACHINE if SMP
 
 config X86_DEV_DMA_OPS
 	bool
