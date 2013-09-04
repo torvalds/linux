@@ -1177,34 +1177,18 @@ static int tps65910_probe(struct platform_device *pdev)
 		if (tps65910_reg_matches)
 			config.of_node = tps65910_reg_matches[i].of_node;
 
-		rdev = regulator_register(&pmic->desc[i], &config);
+		rdev = devm_regulator_register(&pdev->dev, &pmic->desc[i],
+					       &config);
 		if (IS_ERR(rdev)) {
 			dev_err(tps65910->dev,
 				"failed to register %s regulator\n",
 				pdev->name);
-			err = PTR_ERR(rdev);
-			goto err_unregister_regulator;
+			return PTR_ERR(rdev);
 		}
 
 		/* Save regulator for cleanup */
 		pmic->rdev[i] = rdev;
 	}
-	return 0;
-
-err_unregister_regulator:
-	while (--i >= 0)
-		regulator_unregister(pmic->rdev[i]);
-	return err;
-}
-
-static int tps65910_remove(struct platform_device *pdev)
-{
-	struct tps65910_reg *pmic = platform_get_drvdata(pdev);
-	int i;
-
-	for (i = 0; i < pmic->num_regulators; i++)
-		regulator_unregister(pmic->rdev[i]);
-
 	return 0;
 }
 
@@ -1244,7 +1228,6 @@ static struct platform_driver tps65910_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = tps65910_probe,
-	.remove = tps65910_remove,
 	.shutdown = tps65910_shutdown,
 };
 
