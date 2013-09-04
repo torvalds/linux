@@ -6926,19 +6926,16 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 	int pipe = intel_crtc->pipe;
 	int x = intel_crtc->cursor_x;
 	int y = intel_crtc->cursor_y;
-	u32 base, pos;
+	u32 base = 0, pos = 0;
 	bool visible;
 
-	pos = 0;
-
-	if (on && crtc->enabled && crtc->fb) {
+	if (on)
 		base = intel_crtc->cursor_addr;
-		if (x > (int) crtc->fb->width)
-			base = 0;
 
-		if (y > (int) crtc->fb->height)
-			base = 0;
-	} else
+	if (x >= intel_crtc->config.pipe_src_w)
+		base = 0;
+
+	if (y >= intel_crtc->config.pipe_src_h)
 		base = 0;
 
 	if (x < 0) {
