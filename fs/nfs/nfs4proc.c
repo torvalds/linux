@@ -7483,7 +7483,8 @@ out:
  */
 static int
 _nfs41_proc_secinfo_no_name(struct nfs_server *server, struct nfs_fh *fhandle,
-		    struct nfs_fsinfo *info, struct nfs4_secinfo_flavors *flavors)
+		    struct nfs_fsinfo *info,
+		    struct nfs4_secinfo_flavors *flavors, bool use_integrity)
 {
 	struct nfs41_secinfo_no_name_args args = {
 		.style = SECINFO_STYLE_CURRENT_FH,
@@ -7496,8 +7497,23 @@ _nfs41_proc_secinfo_no_name(struct nfs_server *server, struct nfs_fh *fhandle,
 		.rpc_argp = &args,
 		.rpc_resp = &res,
 	};
-	return nfs4_call_sync(server->nfs_client->cl_rpcclient, server, &msg,
-				&args.seq_args, &res.seq_res, 0);
+	struct rpc_clnt *clnt = server->client;
+	int status;
+
+	if (use_integrity) {
+		clnt = server->nfs_client->cl_rpcclient;
+		msg.rpc_cred = nfs4_get_clid_cred(server->nfs_client);
+	}
+
+	dprintk("--> %s\n", __func__);
+	status = nfs4_call_sync(clnt, server, &msg, &args.seq_args,
+				&res.seq_res, 0);
+	dprintk("<-- %s status=%d\n", __func__, status);
+
+	if (msg.rpc_cred)
+		put_rpccred(msg.rpc_cred);
+
+	return status;
 }
 
 static int
@@ -7507,7 +7523,24 @@ nfs41_proc_secinfo_no_name(struct nfs_server *server, struct nfs_fh *fhandle,
 	struct nfs4_exception exception = { };
 	int err;
 	do {
-		err = _nfs41_proc_secinfo_no_name(server, fhandle, info, flavors);
+		/* first try using integrity protection */
+		err = -NFS4ERR_WRONGSEC;
+
+		/* try to use integrity protection with machine cred */
+		if (_nfs4_is_integrity_protected(server->nfs_client))
+			err = _nfs41_proc_secinfo_no_name(server, fhandle, info,
+							  flavors, true);
+
+		/*
+		 * if unable to use integrity protection, or SECINFO with
+		 * integrity protection returns NFS4ERR_WRONGSEC (which is
+		 * disallowed by spec, but exists in deployed servers) use
+		 * the current filesystem's rpc_client and the user cred.
+		 */
+		if (err == -NFS4ERR_WRONGSEC)
+			err = _nfs41_proc_secinfo_no_name(server, fhandle, info,
+							  flavors, false);
+
 		switch (err) {
 		case 0:
 		case -NFS4ERR_WRONGSEC:
