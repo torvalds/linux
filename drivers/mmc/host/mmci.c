@@ -62,6 +62,7 @@ static unsigned int fmax = 515633;
  * @signal_direction: input/out direction of bus signals can be indicated
  * @pwrreg_clkgate: MMCIPOWER register must be used to gate the clock
  * @busy_detect: true if busy detection on dat0 is supported
+ * @pwrreg_nopower: bits in MMCIPOWER don't controls ext. power supply
  */
 struct variant_data {
 	unsigned int		clkreg;
@@ -76,6 +77,7 @@ struct variant_data {
 	bool			signal_direction;
 	bool			pwrreg_clkgate;
 	bool			busy_detect;
+	bool			pwrreg_nopower;
 };
 
 static struct variant_data variant_arm = {
@@ -109,6 +111,7 @@ static struct variant_data variant_u300 = {
 	.pwrreg_powerup		= MCI_PWR_ON,
 	.signal_direction	= true,
 	.pwrreg_clkgate		= true,
+	.pwrreg_nopower		= true,
 };
 
 static struct variant_data variant_nomadik = {
@@ -121,6 +124,7 @@ static struct variant_data variant_nomadik = {
 	.pwrreg_powerup		= MCI_PWR_ON,
 	.signal_direction	= true,
 	.pwrreg_clkgate		= true,
+	.pwrreg_nopower		= true,
 };
 
 static struct variant_data variant_ux500 = {
@@ -135,6 +139,7 @@ static struct variant_data variant_ux500 = {
 	.signal_direction	= true,
 	.pwrreg_clkgate		= true,
 	.busy_detect		= true,
+	.pwrreg_nopower		= true,
 };
 
 static struct variant_data variant_ux500v2 = {
@@ -150,6 +155,7 @@ static struct variant_data variant_ux500v2 = {
 	.signal_direction	= true,
 	.pwrreg_clkgate		= true,
 	.busy_detect		= true,
+	.pwrreg_nopower		= true,
 };
 
 static int mmci_card_busy(struct mmc_host *mmc)
@@ -1759,6 +1765,41 @@ static int mmci_resume(struct device *dev)
 #endif
 
 #ifdef CONFIG_PM_RUNTIME
+static void mmci_save(struct mmci_host *host)
+{
+	unsigned long flags;
+
+	if (host->variant->pwrreg_nopower) {
+		spin_lock_irqsave(&host->lock, flags);
+
+		writel(0, host->base + MMCIMASK0);
+		writel(0, host->base + MMCIDATACTRL);
+		writel(0, host->base + MMCIPOWER);
+		writel(0, host->base + MMCICLOCK);
+		mmci_reg_delay(host);
+
+		spin_unlock_irqrestore(&host->lock, flags);
+	}
+
+}
+
+static void mmci_restore(struct mmci_host *host)
+{
+	unsigned long flags;
+
+	if (host->variant->pwrreg_nopower) {
+		spin_lock_irqsave(&host->lock, flags);
+
+		writel(host->clk_reg, host->base + MMCICLOCK);
+		writel(host->datactrl_reg, host->base + MMCIDATACTRL);
+		writel(host->pwr_reg, host->base + MMCIPOWER);
+		writel(MCI_IRQENABLE, host->base + MMCIMASK0);
+		mmci_reg_delay(host);
+
+		spin_unlock_irqrestore(&host->lock, flags);
+	}
+}
+
 static int mmci_runtime_suspend(struct device *dev)
 {
 	struct amba_device *adev = to_amba_device(dev);
@@ -1767,6 +1808,7 @@ static int mmci_runtime_suspend(struct device *dev)
 	if (mmc) {
 		struct mmci_host *host = mmc_priv(mmc);
 		pinctrl_pm_select_sleep_state(dev);
+		mmci_save(host);
 		clk_disable_unprepare(host->clk);
 	}
 
@@ -1781,6 +1823,7 @@ static int mmci_runtime_resume(struct device *dev)
 	if (mmc) {
 		struct mmci_host *host = mmc_priv(mmc);
 		clk_prepare_enable(host->clk);
+		mmci_restore(host);
 		pinctrl_pm_select_default_state(dev);
 	}
 
