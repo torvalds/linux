@@ -714,6 +714,40 @@ smb21_is_read_op(__u32 oplock)
 	       !(oplock & SMB2_LEASE_WRITE_CACHING_HE);
 }
 
+static char *
+smb2_create_lease_buf(u8 *lease_key, u8 oplock)
+{
+	struct create_lease *buf;
+
+	buf = kzalloc(sizeof(struct create_lease), GFP_KERNEL);
+	if (!buf)
+		return NULL;
+
+	buf->lcontext.LeaseKeyLow = cpu_to_le64(*((u64 *)lease_key));
+	buf->lcontext.LeaseKeyHigh = cpu_to_le64(*((u64 *)(lease_key + 8)));
+	if (oplock == SMB2_OPLOCK_LEVEL_EXCLUSIVE)
+		buf->lcontext.LeaseState = SMB2_LEASE_WRITE_CACHING |
+					   SMB2_LEASE_READ_CACHING;
+	else if (oplock == SMB2_OPLOCK_LEVEL_II)
+		buf->lcontext.LeaseState = SMB2_LEASE_READ_CACHING;
+	else if (oplock == SMB2_OPLOCK_LEVEL_BATCH)
+		buf->lcontext.LeaseState = SMB2_LEASE_HANDLE_CACHING |
+					   SMB2_LEASE_READ_CACHING |
+					   SMB2_LEASE_WRITE_CACHING;
+
+	buf->ccontext.DataOffset = cpu_to_le16(offsetof
+					(struct create_lease, lcontext));
+	buf->ccontext.DataLength = cpu_to_le32(sizeof(struct lease_context));
+	buf->ccontext.NameOffset = cpu_to_le16(offsetof
+				(struct create_lease, Name));
+	buf->ccontext.NameLength = cpu_to_le16(4);
+	buf->Name[0] = 'R';
+	buf->Name[1] = 'q';
+	buf->Name[2] = 'L';
+	buf->Name[3] = 's';
+	return (char *)buf;
+}
+
 struct smb_version_operations smb20_operations = {
 	.compare_fids = smb2_compare_fids,
 	.setup_request = smb2_setup_request,
@@ -781,6 +815,7 @@ struct smb_version_operations smb20_operations = {
 	.calc_signature = smb2_calc_signature,
 	.is_read_op = smb2_is_read_op,
 	.set_oplock_level = smb2_set_oplock_level,
+	.create_lease_buf = smb2_create_lease_buf,
 };
 
 struct smb_version_operations smb21_operations = {
@@ -850,6 +885,7 @@ struct smb_version_operations smb21_operations = {
 	.calc_signature = smb2_calc_signature,
 	.is_read_op = smb21_is_read_op,
 	.set_oplock_level = smb21_set_oplock_level,
+	.create_lease_buf = smb2_create_lease_buf,
 };
 
 struct smb_version_operations smb30_operations = {
@@ -921,6 +957,7 @@ struct smb_version_operations smb30_operations = {
 	.calc_signature = smb3_calc_signature,
 	.is_read_op = smb21_is_read_op,
 	.set_oplock_level = smb21_set_oplock_level,
+	.create_lease_buf = smb2_create_lease_buf,
 };
 
 struct smb_version_values smb20_values = {
@@ -940,6 +977,7 @@ struct smb_version_values smb20_values = {
 	.cap_large_files = SMB2_LARGE_FILES,
 	.signing_enabled = SMB2_NEGOTIATE_SIGNING_ENABLED | SMB2_NEGOTIATE_SIGNING_REQUIRED,
 	.signing_required = SMB2_NEGOTIATE_SIGNING_REQUIRED,
+	.create_lease_size = sizeof(struct create_lease),
 };
 
 struct smb_version_values smb21_values = {
@@ -959,6 +997,7 @@ struct smb_version_values smb21_values = {
 	.cap_large_files = SMB2_LARGE_FILES,
 	.signing_enabled = SMB2_NEGOTIATE_SIGNING_ENABLED | SMB2_NEGOTIATE_SIGNING_REQUIRED,
 	.signing_required = SMB2_NEGOTIATE_SIGNING_REQUIRED,
+	.create_lease_size = sizeof(struct create_lease),
 };
 
 struct smb_version_values smb30_values = {
@@ -978,6 +1017,7 @@ struct smb_version_values smb30_values = {
 	.cap_large_files = SMB2_LARGE_FILES,
 	.signing_enabled = SMB2_NEGOTIATE_SIGNING_ENABLED | SMB2_NEGOTIATE_SIGNING_REQUIRED,
 	.signing_required = SMB2_NEGOTIATE_SIGNING_REQUIRED,
+	.create_lease_size = sizeof(struct create_lease),
 };
 
 struct smb_version_values smb302_values = {
@@ -997,4 +1037,5 @@ struct smb_version_values smb302_values = {
 	.cap_large_files = SMB2_LARGE_FILES,
 	.signing_enabled = SMB2_NEGOTIATE_SIGNING_ENABLED | SMB2_NEGOTIATE_SIGNING_REQUIRED,
 	.signing_required = SMB2_NEGOTIATE_SIGNING_REQUIRED,
+	.create_lease_size = sizeof(struct create_lease),
 };
