@@ -1259,6 +1259,8 @@ enum radeon_dpm_event_src {
 	RADEON_DPM_EVENT_SRC_DIGIAL_OR_EXTERNAL = 4
 };
 
+#define RADEON_MAX_VCE_LEVELS 6
+
 enum radeon_vce_level {
 	RADEON_VCE_LEVEL_AC_ALL = 0,     /* AC, All cases */
 	RADEON_VCE_LEVEL_DC_EE = 1,      /* DC, entropy encoding */
@@ -1454,6 +1456,17 @@ enum radeon_dpm_forced_level {
 	RADEON_DPM_FORCED_LEVEL_HIGH = 2,
 };
 
+struct radeon_vce_state {
+	/* vce clocks */
+	u32 evclk;
+	u32 ecclk;
+	/* gpu clocks */
+	u32 sclk;
+	u32 mclk;
+	u8 clk_idx;
+	u8 pstate;
+};
+
 struct radeon_dpm {
 	struct radeon_ps        *ps;
 	/* number of valid power states */
@@ -1466,6 +1479,9 @@ struct radeon_dpm {
 	struct radeon_ps        *boot_ps;
 	/* default uvd power state */
 	struct radeon_ps        *uvd_ps;
+	/* vce requirements */
+	struct radeon_vce_state vce_states[RADEON_MAX_VCE_LEVELS];
+	enum radeon_vce_level vce_level;
 	enum radeon_pm_state_type state;
 	enum radeon_pm_state_type user_state;
 	u32                     platform_caps;
