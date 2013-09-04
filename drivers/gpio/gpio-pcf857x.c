@@ -168,6 +168,25 @@ static int pcf857x_to_irq(struct gpio_chip *chip, unsigned offset)
 	return irq_create_mapping(gpio->irq_domain, offset);
 }
 
+static irqreturn_t pcf857x_irq(int irq, void *data)
+{
+	struct pcf857x  *gpio = data;
+	unsigned long change, i, status, flags;
+
+	status = gpio->read(gpio->client);
+
+	spin_lock_irqsave(&gpio->slock, flags);
+
+	change = gpio->status ^ status;
+	for_each_set_bit(i, &change, gpio->chip.ngpio)
+		generic_handle_irq(irq_find_mapping(gpio->irq_domain, i));
+	gpio->status = status;
+
+	spin_unlock_irqrestore(&gpio->slock, flags);
+
+	return IRQ_HANDLED;
+}
+
 static void pcf857x_irq_demux_work(struct work_struct *work)
 {
 	struct pcf857x *gpio = container_of(work,
@@ -218,8 +237,6 @@ static void pcf857x_irq_domain_cleanup(struct pcf857x *gpio)
 	if (gpio->irq_domain)
 		irq_domain_remove(gpio->irq_domain);
 
-	if (gpio->irq)
-		free_irq(gpio->irq, gpio);
 }
 
 static int pcf857x_irq_domain_init(struct pcf857x *gpio,
@@ -235,8 +252,11 @@ static int pcf857x_irq_domain_init(struct pcf857x *gpio,
 		goto fail;
 
 	/* enable real irq */
-	status = request_irq(client->irq, pcf857x_irq_demux, 0,
-			     dev_name(&client->dev), gpio);
+	status = devm_request_threaded_irq(&client->dev, client->irq,
+				NULL, pcf857x_irq, IRQF_ONESHOT |
+				IRQF_TRIGGER_FALLING,
+				dev_name(&client->dev), gpio);
+
 	if (status)
 		goto fail;
 
