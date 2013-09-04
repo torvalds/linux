@@ -252,6 +252,13 @@ static const char *fcntl_cmds[] = {
 };
 static DEFINE_STRARRAY(fcntl_cmds);
 
+static const char *rlimit_resources[] = {
+	"CPU", "FSIZE", "DATA", "STACK", "CORE", "RSS", "NPROC", "NOFILE",
+	"MEMLOCK", "AS", "LOCKS", "SIGPENDING", "MSGQUEUE", "NICE", "RTPRIO",
+	"RTTIME",
+};
+static DEFINE_STRARRAY(rlimit_resources);
+
 static const char *sighow[] = { "BLOCK", "UNBLOCK", "SETMASK", };
 static DEFINE_STRARRAY(sighow);
 
@@ -466,6 +473,9 @@ static struct syscall_fmt {
 	{ .name	    = "getitimer",  .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_STRARRAY, /* which */ },
 	  .arg_parm	 = { [0] = &strarray__itimers, /* which */ }, },
+	{ .name	    = "getrlimit",  .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_STRARRAY, /* resource */ },
+	  .arg_parm	 = { [0] = &strarray__rlimit_resources, /* resource */ }, },
 	{ .name	    = "ioctl",	    .errmsg = true,
 	  .arg_scnprintf = { [2] = SCA_HEX, /* arg */ }, },
 	{ .name	    = "kill",	    .errmsg = true,
@@ -498,6 +508,9 @@ static struct syscall_fmt {
 	{ .name	    = "poll",	    .errmsg = true, .timeout = true, },
 	{ .name	    = "ppoll",	    .errmsg = true, .timeout = true, },
 	{ .name	    = "pread",	    .errmsg = true, .alias = "pread64", },
+	{ .name	    = "prlimit64",  .errmsg = true,
+	  .arg_scnprintf = { [1] = SCA_STRARRAY, /* resource */ },
+	  .arg_parm	 = { [1] = &strarray__rlimit_resources, /* resource */ }, },
 	{ .name	    = "pwrite",	    .errmsg = true, .alias = "pwrite64", },
 	{ .name	    = "read",	    .errmsg = true, },
 	{ .name	    = "recvfrom",   .errmsg = true, },
@@ -514,6 +527,9 @@ static struct syscall_fmt {
 	{ .name	    = "setitimer",  .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_STRARRAY, /* which */ },
 	  .arg_parm	 = { [0] = &strarray__itimers, /* which */ }, },
+	{ .name	    = "setrlimit",  .errmsg = true,
+	  .arg_scnprintf = { [0] = SCA_STRARRAY, /* resource */ },
+	  .arg_parm	 = { [0] = &strarray__rlimit_resources, /* resource */ }, },
 	{ .name	    = "socket",	    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_STRARRAY, /* family */
 			     [1] = SCA_SK_TYPE, /* type */ },
