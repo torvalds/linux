@@ -3292,15 +3292,13 @@ static void hci_tx_work(struct work_struct *work)
 	BT_DBG("%s acl %d sco %d le %d", hdev->name, hdev->acl_cnt,
 	       hdev->sco_cnt, hdev->le_cnt);
 
-	/* Schedule queues and send stuff to HCI driver */
-
-	hci_sched_acl(hdev);
-
-	hci_sched_sco(hdev);
-
-	hci_sched_esco(hdev);
-
-	hci_sched_le(hdev);
+	if (!test_bit(HCI_USER_CHANNEL, &hdev->dev_flags)) {
+		/* Schedule queues and send stuff to HCI driver */
+		hci_sched_acl(hdev);
+		hci_sched_sco(hdev);
+		hci_sched_esco(hdev);
+		hci_sched_le(hdev);
+	}
 
 	/* Send next queued raw (unknown type) packet */
 	while ((skb = skb_dequeue(&hdev->raw_q)))
