@@ -221,6 +221,11 @@ config MACH_LAGER_REFERENCE
 
 	   This is intended to aid developers
 
+config MACH_KOELSCH
+	bool "Koelsch board"
+	depends on ARCH_R8A7791
+	select USE_OF
+
 config MACH_KZM9D
 	bool "KZM9D board"
 	depends on ARCH_EMEV2
