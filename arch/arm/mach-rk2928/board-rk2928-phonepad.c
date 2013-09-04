@@ -746,28 +746,28 @@ struct platform_device rk29_device_sc6610 = {
     };
 #endif
 #if defined (CONFIG_RK_HEADSET_DET) || defined (CONFIG_RK_HEADSET_IRQ_HOOK_ADC_DET)
-static int rk_headset_io_init(int gpio, char *iomux_name, int iomux_mode)
+static int rk_headset_io_init(int gpio)
 {
 	int ret;
 	ret = gpio_request(gpio, "headset_io");
 	if(ret) 
 		return ret;
 
-	rk30_mux_api_set(iomux_name, iomux_mode);
+	rk30_mux_api_set(GPIO1B4_SPI_CSN1_NAME, GPIO1B_GPIO1B4);
 	gpio_pull_updown(gpio, PullDisable);
 	gpio_direction_input(gpio);
 	mdelay(50);
 	return 0;
 };
 
-static int rk_hook_io_init(int gpio, char *iomux_name, int iomux_mode)
+static int rk_hook_io_init(int gpio)
 {
 	int ret;
 	ret = gpio_request(gpio, "hook_io");
 	if(ret) 
 		return ret;
 
-	rk30_mux_api_set(iomux_name, iomux_mode);
+	rk30_mux_api_set(GPIO0D1_UART2_CTSN_NAME, GPIO0D_GPIO0D1);
 	gpio_pull_updown(gpio, PullDisable);
 	gpio_direction_input(gpio);
 	mdelay(50);
@@ -780,9 +780,7 @@ struct rk_headset_pdata rk_headset_info = {
 		.Hook_down_type = HOOK_DOWN_HIGH,
 		.headset_in_type = HEADSET_IN_HIGH,
 		.hook_key_code = KEY_MEDIA,
-		.headset_gpio_info = {GPIO1B4_SPI_CSN1_NAME, GPIO1B_GPIO1B4},
 		.headset_io_init = rk_headset_io_init,
-		.hook_gpio_info = {GPIO0D1_UART2_CTSN_NAME, GPIO0D_GPIO0D1},
 		.hook_io_init = rk_hook_io_init,
 };
 struct platform_device rk_device_headset = {

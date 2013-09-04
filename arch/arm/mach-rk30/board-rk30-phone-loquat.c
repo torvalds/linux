@@ -917,14 +917,14 @@ static struct gsensor_platform_data lis3dh_info = {
 
 #if defined (CONFIG_RK_HEADSET_DET) || defined (CONFIG_RK_HEADSET_IRQ_HOOK_ADC_DET)
 
-static int rk_headset_io_init(int gpio, char *iomux_name, int iomux_mode)
+static int rk_headset_io_init(int gpio)
 {
 	int ret;
-	ret = gpio_request(gpio, NULL);
+	ret = gpio_request(gpio, "headset_input");
 	if(ret) 
 		return ret;
 
-	rk30_mux_api_set(iomux_name, iomux_mode);
+	rk30_mux_api_set(GPIO0D3_I2S22CHLRCKTX_SMCADVN_NAME, GPIO0D_GPIO0D3);
 	gpio_pull_updown(gpio, PullDisable);
 	gpio_direction_input(gpio);
 	return 0;
@@ -935,7 +935,6 @@ struct rk_headset_pdata rk_headset_info = {
 	.headset_in_type = HEADSET_IN_LOW,
 	.Hook_adc_chn = 2,
 	.hook_key_code = KEY_MEDIA,
-	.headset_gpio_info = {GPIO0D3_I2S22CHLRCKTX_SMCADVN_NAME, GPIO0D_GPIO0D3},
 	.headset_io_init = rk_headset_io_init,
 };
 
