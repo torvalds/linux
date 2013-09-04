@@ -4149,10 +4149,10 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 		 * Enable pixel doubling when the dot clock
 		 * is > 90% of the (display) core speed.
 		 *
-		 * XXX: No double-wide on 915GM pipe B. Is that
-		 * the only reason for the pipe == PIPE_A check?
+		 * GDG double wide on either pipe,
+		 * otherwise pipe A only.
 		 */
-		if (crtc->pipe == PIPE_A &&
+		if ((crtc->pipe == PIPE_A || IS_I915G(dev)) &&
 		    adjusted_mode->clock > clock_limit * 9 / 10) {
 			clock_limit *= 2;
 			pipe_config->double_wide = true;
