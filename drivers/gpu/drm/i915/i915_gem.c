@@ -964,7 +964,7 @@ i915_gem_check_olr(struct intel_ring_buffer *ring, u32 seqno)
 	BUG_ON(!mutex_is_locked(&ring->dev->struct_mutex));
 
 	ret = 0;
-	if (seqno == ring->outstanding_lazy_request)
+	if (seqno == ring->outstanding_lazy_seqno)
 		ret = i915_add_request(ring, NULL);
 
 	return ret;
@@ -2094,7 +2094,7 @@ int __i915_add_request(struct intel_ring_buffer *ring,
 	}
 
 	trace_i915_gem_request_add(ring, request->seqno);
-	ring->outstanding_lazy_request = 0;
+	ring->outstanding_lazy_seqno = 0;
 
 	if (!dev_priv->ums.mm_suspended) {
 		i915_queue_hangcheck(ring->dev);

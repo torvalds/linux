@@ -140,7 +140,7 @@ struct  intel_ring_buffer {
 	/**
 	 * Do we have some not yet emitted requests outstanding?
 	 */
-	u32 outstanding_lazy_request;
+	u32 outstanding_lazy_seqno;
 	bool gpu_caches_dirty;
 	bool fbc_dirty;
 
@@ -258,8 +258,8 @@ static inline u32 intel_ring_get_tail(struct intel_ring_buffer *ring)
 
 static inline u32 intel_ring_get_seqno(struct intel_ring_buffer *ring)
 {
-	BUG_ON(ring->outstanding_lazy_request == 0);
-	return ring->outstanding_lazy_request;
+	BUG_ON(ring->outstanding_lazy_seqno == 0);
+	return ring->outstanding_lazy_seqno;
 }
 
 static inline void i915_trace_irq_get(struct intel_ring_buffer *ring, u32 seqno)
