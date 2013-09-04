@@ -208,7 +208,8 @@ int rtw_free_recvframe(union recv_frame *precvframe, struct __queue *pfree_recv_
 	struct recv_priv *precvpriv = &padapter->recvpriv;
 
 _func_enter_;
-
+	if (!precvframe)
+		return _FAIL;
 	if (precvframe->u.hdr.pkt) {
 		dev_kfree_skb_any(precvframe->u.hdr.pkt);/* free skb by driver */
 		precvframe->u.hdr.pkt = NULL;
