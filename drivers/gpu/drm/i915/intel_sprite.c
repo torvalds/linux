@@ -652,8 +652,8 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		.y2 = crtc_y + crtc_h,
 	};
 	const struct drm_rect clip = {
-		.x2 = crtc->mode.hdisplay,
-		.y2 = crtc->mode.vdisplay,
+		.x2 = intel_crtc->config.requested_mode.hdisplay,
+		.y2 = intel_crtc->config.requested_mode.vdisplay,
 	};
 
 	intel_fb = to_intel_framebuffer(fb);
