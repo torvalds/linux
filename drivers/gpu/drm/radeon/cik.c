@@ -2731,7 +2731,8 @@ static void cik_gpu_init(struct radeon_device *rdev)
 		} else if ((rdev->pdev->device == 0x1309) ||
 			   (rdev->pdev->device == 0x130A) ||
 			   (rdev->pdev->device == 0x130D) ||
-			   (rdev->pdev->device == 0x1313)) {
+			   (rdev->pdev->device == 0x1313) ||
+			   (rdev->pdev->device == 0x131D)) {
 			rdev->config.cik.max_cu_per_sh = 6;
 			rdev->config.cik.max_backends_per_se = 2;
 		} else if ((rdev->pdev->device == 0x1306) ||
