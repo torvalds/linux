@@ -1660,7 +1660,13 @@ void i915_handle_error(struct drm_device *dev, bool wedged)
 			wake_up_all(&ring->irq_queue);
 	}
 
-	queue_work(dev_priv->wq, &dev_priv->gpu_error.work);
+	/*
+	 * Our reset work can grab modeset locks (since it needs to reset the
+	 * state of outstanding pagelips). Hence it must not be run on our own
+	 * dev-priv->wq work queue for otherwise the flush_work in the pageflip
+	 * code will deadlock.
+	 */
+	schedule_work(&dev_priv->gpu_error.work);
 }
 
 static void __always_unused i915_pageflip_stall_check(struct drm_device *dev, int pipe)
