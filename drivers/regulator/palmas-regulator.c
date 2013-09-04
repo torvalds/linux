@@ -207,7 +207,7 @@ static unsigned int palmas_smps_ramp_delay[4] = {0, 10000, 5000, 2500};
  *
  * So they are basically (maxV-minV)/stepV
  */
-#define PALMAS_SMPS_NUM_VOLTAGES	117
+#define PALMAS_SMPS_NUM_VOLTAGES	122
 #define PALMAS_SMPS10_NUM_VOLTAGES	2
 #define PALMAS_LDO_NUM_VOLTAGES		50
 
