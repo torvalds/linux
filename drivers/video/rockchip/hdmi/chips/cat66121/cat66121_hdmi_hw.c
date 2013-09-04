@@ -379,6 +379,7 @@ static void cat66121_sys_config_avi(int VIC, int bOutputColorMode, int aspec, in
 			AviInfo->pktbyte.AVI_DB[0] = (0<<5)|(1<<4);
 			break ;
 	}
+	AviInfo->pktbyte.AVI_DB[0] |= 0x02 ;
 	AviInfo->pktbyte.AVI_DB[1] = 8 ;
 	AviInfo->pktbyte.AVI_DB[1] |= (aspec != HDMI_16x9)?(1<<4):(2<<4); // 4:3 or 16:9
 	AviInfo->pktbyte.AVI_DB[1] |= (Colorimetry != HDMI_ITU709)?(1<<6):(2<<6); // 4:3 or 16:9
