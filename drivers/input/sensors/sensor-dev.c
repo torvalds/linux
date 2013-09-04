@@ -40,9 +40,10 @@
 sensor-dev.c v1.1 add pressure and temperature support 2013-2-27
 sensor-dev.c v1.2 add akm8963 support 2013-3-10
 sensor-dev.c v1.3 add sensor debug support 2013-3-15
+sensor-dev.c v1.4 add angle calculation support between two gsensors 2013-09-01
 */
 
-#define SENSOR_VERSION_AND_TIME  "sensor-dev.c v1.3 add sensor debug support 2013-3-15"
+#define SENSOR_VERSION_AND_TIME  "sensor-dev.c v1.4 add angle calculation support between two gsensors 2013-09-01"
 
 
 struct sensor_private_data *g_sensor[SENSOR_NUM_TYPES];
