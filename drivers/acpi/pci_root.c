@@ -49,10 +49,10 @@ static int acpi_pci_root_add(struct acpi_device *device,
 			     const struct acpi_device_id *not_used);
 static void acpi_pci_root_remove(struct acpi_device *device);
 
-#define ACPI_PCIE_REQ_SUPPORT (OSC_EXT_PCI_CONFIG_SUPPORT \
-				| OSC_ACTIVE_STATE_PWR_SUPPORT \
-				| OSC_CLOCK_PWR_CAPABILITY_SUPPORT \
-				| OSC_MSI_SUPPORT)
+#define ACPI_PCIE_REQ_SUPPORT (OSC_PCI_EXT_CONFIG_SUPPORT \
+				| OSC_PCI_ASPM_SUPPORT \
+				| OSC_PCI_CLOCK_PM_SUPPORT \
+				| OSC_PCI_MSI_SUPPORT)
 
 static const struct acpi_device_id root_device_ids[] = {
 	{"PNP0A03", 0},
@@ -439,13 +439,12 @@ static int acpi_pci_root_add(struct acpi_device *device,
 	acpi_pci_osc_support(root, flags);
 
 	if (pci_ext_cfg_avail())
-		flags |= OSC_EXT_PCI_CONFIG_SUPPORT;
+		flags |= OSC_PCI_EXT_CONFIG_SUPPORT;
 	if (pcie_aspm_support_enabled()) {
-		flags |= OSC_ACTIVE_STATE_PWR_SUPPORT |
-		OSC_CLOCK_PWR_CAPABILITY_SUPPORT;
+		flags |= OSC_PCI_ASPM_SUPPORT | OSC_PCI_CLOCK_PM_SUPPORT;
 	}
 	if (pci_msi_enabled())
-		flags |= OSC_MSI_SUPPORT;
+		flags |= OSC_PCI_MSI_SUPPORT;
 	if (flags != base_flags) {
 		status = acpi_pci_osc_support(root, flags);
 		if (ACPI_FAILURE(status)) {
@@ -458,7 +457,7 @@ static int acpi_pci_root_add(struct acpi_device *device,
 
 	if (!pcie_ports_disabled
 	    && (flags & ACPI_PCIE_REQ_SUPPORT) == ACPI_PCIE_REQ_SUPPORT) {
-		flags = OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL
+		flags = OSC_PCI_EXPRESS_CAPABILITY_CONTROL
 			| OSC_PCI_EXPRESS_NATIVE_HP_CONTROL
 			| OSC_PCI_EXPRESS_PME_CONTROL;
 
@@ -474,7 +473,7 @@ static int acpi_pci_root_add(struct acpi_device *device,
 			"Requesting ACPI _OSC control (0x%02x)\n", flags);
 
 		status = acpi_pci_osc_control_set(handle, &flags,
-				       OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL);
+				       OSC_PCI_EXPRESS_CAPABILITY_CONTROL);
 		if (ACPI_SUCCESS(status)) {
 			dev_info(&device->dev,
 				"ACPI _OSC control (0x%02x) granted\n", flags);
