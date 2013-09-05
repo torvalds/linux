@@ -344,6 +344,14 @@ static void bind_evtchn_to_cpu(unsigned int chn, unsigned int cpu)
 	info->cpu = cpu;
 }
 
+static void xen_evtchn_mask_all(void)
+{
+	unsigned int evtchn;
+
+	for (evtchn = 0; evtchn < xen_evtchn_nr_channels(); evtchn++)
+		mask_evtchn(evtchn);
+}
+
 /**
  * notify_remote_via_irq - send event to remote end of event channel via irq
  * @irq: irq of event channel to send event to
@@ -1520,12 +1528,11 @@ EXPORT_SYMBOL_GPL(xen_test_irq_shared);
 
 void xen_irq_resume(void)
 {
-	unsigned int cpu, evtchn;
+	unsigned int cpu;
 	struct irq_info *info;
 
 	/* New event-channel space is not 'live' yet. */
-	for (evtchn = 0; evtchn < xen_evtchn_nr_channels(); evtchn++)
-		mask_evtchn(evtchn);
+	xen_evtchn_mask_all();
 
 	/* No IRQ <-> event-channel mappings. */
 	list_for_each_entry(info, &xen_irq_list_head, list)
@@ -1624,8 +1631,6 @@ void xen_callback_vector(void) {}
 
 void __init xen_init_IRQ(void)
 {
-	int i;
-
 	xen_evtchn_2l_init();
 
 	evtchn_to_irq = kcalloc(EVTCHN_ROW(xen_evtchn_max_channels()),
@@ -1633,8 +1638,7 @@ void __init xen_init_IRQ(void)
 	BUG_ON(!evtchn_to_irq);
 
 	/* No event channels are 'live' right now. */
-	for (i = 0; i < xen_evtchn_nr_channels(); i++)
-		mask_evtchn(i);
+	xen_evtchn_mask_all();
 
 	pirq_needs_eoi = pirq_needs_eoi_flag;
 
