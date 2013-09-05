@@ -294,11 +294,13 @@ void __init acpi_nvs_nosave_s3(void);
 #endif /* CONFIG_PM_SLEEP */
 
 struct acpi_osc_context {
-	char *uuid_str; /* uuid string */
+	char *uuid_str;			/* UUID string */
 	int rev;
-	struct acpi_buffer cap; /* arg2/arg3 */
-	struct acpi_buffer ret; /* free by caller if success */
+	struct acpi_buffer cap;		/* list of DWORD capabilities */
+	struct acpi_buffer ret;		/* free by caller if success */
 };
+
+acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context);
 
 /* Indexes into _OSC Capabilities Buffer (DWORDs 2 & 3 are device-specific) */
 #define OSC_QUERY_DWORD				0	/* DWORD 1 */
@@ -311,8 +313,6 @@ struct acpi_osc_context {
 #define OSC_INVALID_UUID_ERROR			0x00000004  /* return */
 #define OSC_INVALID_REVISION_ERROR		0x00000008  /* return */
 #define OSC_CAPABILITIES_MASK_ERROR		0x00000010  /* return */
-
-acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context);
 
 /* Platform-Wide Capabilities _OSC: Capabilities DWORD 2: Support Field */
 #define OSC_SB_PAD_SUPPORT			0x00000001
