@@ -63,7 +63,8 @@ static int lowlevel_buffer_allocate(struct drm_device *dev,
 			return -ENOMEM;
 		}
 
-		buf->kvaddr = dma_alloc_attrs(dev->dev, buf->size,
+		buf->kvaddr = (void __iomem *)dma_alloc_attrs(dev->dev,
+					buf->size,
 					&buf->dma_addr, GFP_KERNEL,
 					&buf->dma_attrs);
 		if (!buf->kvaddr) {
