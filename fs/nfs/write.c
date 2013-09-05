@@ -863,7 +863,7 @@ int nfs_flush_incompatible(struct file *file, struct page *page)
 			return 0;
 		l_ctx = req->wb_lock_context;
 		do_flush = req->wb_page != page || req->wb_context != ctx;
-		if (l_ctx) {
+		if (l_ctx && ctx->dentry->d_inode->i_flock != NULL) {
 			do_flush |= l_ctx->lockowner.l_owner != current->files
 				|| l_ctx->lockowner.l_pid != current->tgid;
 		}
