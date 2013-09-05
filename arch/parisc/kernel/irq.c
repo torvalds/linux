@@ -499,22 +499,9 @@ static void execute_on_irq_stack(void *func, unsigned long param1)
 	*irq_stack_in_use = 1;
 }
 
-asmlinkage void do_softirq(void)
+void do_softirq_own_stack(void)
 {
-	__u32 pending;
-	unsigned long flags;
-
-	if (in_interrupt())
-		return;
-
-	local_irq_save(flags);
-
-	pending = local_softirq_pending();
-
-	if (pending)
-		execute_on_irq_stack(__do_softirq, 0);
-
-	local_irq_restore(flags);
+	execute_on_irq_stack(__do_softirq, 0);
 }
 #endif /* CONFIG_IRQSTACKS */
 

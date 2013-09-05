@@ -29,7 +29,6 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/irq.h>
 
-#include <asm/irq.h>
 /*
    - No shared variables, all the data are CPU local.
    - If a softirq needs serialization, let it serialize itself
@@ -283,7 +282,7 @@ restart:
 	tsk_restore_flags(current, old_flags, PF_MEMALLOC);
 }
 
-#ifndef __ARCH_HAS_DO_SOFTIRQ
+
 
 asmlinkage void do_softirq(void)
 {
@@ -298,12 +297,11 @@ asmlinkage void do_softirq(void)
 	pending = local_softirq_pending();
 
 	if (pending)
-		__do_softirq();
+		do_softirq_own_stack();
 
+	WARN_ON_ONCE(softirq_count());
 	local_irq_restore(flags);
 }
-
-#endif
 
 /*
  * Enter an interrupt context.
