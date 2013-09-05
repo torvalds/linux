@@ -182,7 +182,7 @@ void arc_cache_init(void)
 
 #ifdef CONFIG_ARC_HAS_ICACHE
 	/* 1. Confirm some of I-cache params which Linux assumes */
-	if (ic->line_len != ARC_ICACHE_LINE_LEN)
+	if (ic->line_len != L1_CACHE_BYTES)
 		panic("Cache H/W doesn't match kernel Config");
 
 	if (ic->ver != CONFIG_ARC_MMU_VER)
@@ -205,7 +205,7 @@ chk_dc:
 		return;
 
 #ifdef CONFIG_ARC_HAS_DCACHE
-	if (dc->line_len != ARC_DCACHE_LINE_LEN)
+	if (dc->line_len != L1_CACHE_BYTES)
 		panic("Cache H/W doesn't match kernel Config");
 
 	/* check for D-Cache aliasing */
@@ -298,7 +298,7 @@ static inline void __dc_entire_op(const int cacheop)
 static inline void __dc_line_loop(unsigned long paddr, unsigned long vaddr,
 				  unsigned long sz, const int cacheop)
 {
-	/* which MMU cmd: INV (discard or wback-n-discard) OR FLUSH (wback) */
+	/* d$ cmd: INV (discard or wback-n-discard) OR FLUSH (wback) */
 	const int aux = cacheop & OP_INV ? ARC_REG_DC_IVDL : ARC_REG_DC_FLDL;
 	int num_lines;
 
@@ -309,12 +309,12 @@ static inline void __dc_line_loop(unsigned long paddr, unsigned long vaddr,
 	 *  -@sz will be integral multiple of line size (being page sized).
 	 */
 	if (!(__builtin_constant_p(sz) && sz == PAGE_SIZE)) {
-		sz += paddr & ~DCACHE_LINE_MASK;
-		paddr &= DCACHE_LINE_MASK;
-		vaddr &= DCACHE_LINE_MASK;
+		sz += paddr & ~CACHE_LINE_MASK;
+		paddr &= CACHE_LINE_MASK;
+		vaddr &= CACHE_LINE_MASK;
 	}
 
-	num_lines = DIV_ROUND_UP(sz, ARC_DCACHE_LINE_LEN);
+	num_lines = DIV_ROUND_UP(sz, L1_CACHE_BYTES);
 
 #if (CONFIG_ARC_MMU_VER <= 2)
 	paddr |= (vaddr >> PAGE_SHIFT) & 0x1F;
@@ -329,12 +329,12 @@ static inline void __dc_line_loop(unsigned long paddr, unsigned long vaddr,
 		write_aux_reg(ARC_REG_DC_PTAG, paddr);
 
 		write_aux_reg(aux, vaddr);
-		vaddr += ARC_DCACHE_LINE_LEN;
+		vaddr += L1_CACHE_BYTES;
 #else
 		/* paddr contains stuffed vaddrs bits */
 		write_aux_reg(aux, paddr);
 #endif
-		paddr += ARC_DCACHE_LINE_LEN;
+		paddr += L1_CACHE_BYTES;
 	}
 }
 
@@ -443,12 +443,12 @@ static void __ic_line_inv_vaddr(unsigned long paddr, unsigned long vaddr,
 	 *  -@sz will be integral multiple of line size (being page sized).
 	 */
 	if (!(__builtin_constant_p(sz) && sz == PAGE_SIZE)) {
-		sz += paddr & ~ICACHE_LINE_MASK;
-		paddr &= ICACHE_LINE_MASK;
-		vaddr &= ICACHE_LINE_MASK;
+		sz += paddr & ~CACHE_LINE_MASK;
+		paddr &= CACHE_LINE_MASK;
+		vaddr &= CACHE_LINE_MASK;
 	}
 
-	num_lines = DIV_ROUND_UP(sz, ARC_ICACHE_LINE_LEN);
+	num_lines = DIV_ROUND_UP(sz, L1_CACHE_BYTES);
 
 #if (CONFIG_ARC_MMU_VER <= 2)
 	/* bits 17:13 of vaddr go as bits 4:0 of paddr */
@@ -463,12 +463,12 @@ static void __ic_line_inv_vaddr(unsigned long paddr, unsigned long vaddr,
 
 		/* index bits come from vaddr */
 		write_aux_reg(ARC_REG_IC_IVIL, vaddr);
-		vaddr += ARC_ICACHE_LINE_LEN;
+		vaddr += L1_CACHE_BYTES;
 #else
 		/* paddr contains stuffed vaddrs bits */
 		write_aux_reg(ARC_REG_IC_IVIL, paddr);
 #endif
-		paddr += ARC_ICACHE_LINE_LEN;
+		paddr += L1_CACHE_BYTES;
 	}
 	local_irq_restore(flags);
 }
