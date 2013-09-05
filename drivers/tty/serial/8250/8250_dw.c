@@ -154,6 +154,14 @@ dw8250_do_pm(struct uart_port *port, unsigned int state, unsigned int old)
 		pm_runtime_put_sync_suspend(port->dev);
 }
 
+static bool dw8250_dma_filter(struct dma_chan *chan, void *param)
+{
+	struct dw8250_data *data = param;
+
+	return chan->chan_id == data->dma.tx_chan_id ||
+	       chan->chan_id == data->dma.rx_chan_id;
+}
+
 static void dw8250_setup_port(struct uart_8250_port *up)
 {
 	struct uart_port	*p = &up->port;
@@ -313,6 +321,12 @@ static int dw8250_probe(struct platform_device *pdev)
 		clk_prepare_enable(data->clk);
 		uart.port.uartclk = clk_get_rate(data->clk);
 	}
+
+	data->dma.rx_chan_id = -1;
+	data->dma.tx_chan_id = -1;
+	data->dma.rx_param = data;
+	data->dma.tx_param = data;
+	data->dma.fn = dw8250_dma_filter;
 
 	uart.port.iotype = UPIO_MEM;
 	uart.port.serial_in = dw8250_serial_in;
