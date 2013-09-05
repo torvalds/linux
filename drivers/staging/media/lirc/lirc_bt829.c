@@ -63,7 +63,7 @@ static bool debug;
 	} while (0)
 
 static int atir_minor;
-static unsigned long pci_addr_phys;
+static phys_addr_t pci_addr_phys;
 static unsigned char *pci_addr_lin;
 
 static struct lirc_driver atir_driver;
@@ -78,8 +78,7 @@ static struct pci_dev *do_pci_probe(void)
 		pci_addr_phys = 0;
 		if (my_dev->resource[0].flags & IORESOURCE_MEM) {
 			pci_addr_phys = my_dev->resource[0].start;
-			pr_info("memory at 0x%08X\n",
-			       (unsigned int)pci_addr_phys);
+			pr_info("memory at %pa\n", &pci_addr_phys);
 		}
 		if (pci_addr_phys == 0) {
 			pr_err("no memory resource ?\n");
