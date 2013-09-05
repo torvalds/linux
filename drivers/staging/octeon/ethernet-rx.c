@@ -337,9 +337,6 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 			 */
 			skb = dev_alloc_skb(work->len);
 			if (!skb) {
-				printk_ratelimited("Port %d failed to allocate "
-						   "skbuff, packet dropped\n",
-						   work->ipprt);
 				cvm_oct_free_work(work);
 				continue;
 			}
