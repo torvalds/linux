@@ -260,8 +260,6 @@ static int efx_ef10_probe(struct efx_nic *efx)
 	if (rc)
 		goto fail3;
 
-	efx_ptp_probe(efx);
-
 	return 0;
 
 fail3:
