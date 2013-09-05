@@ -412,8 +412,7 @@ int btrfs_save_ino_cache(struct btrfs_root *root,
 		return 0;
 
 	/* Don't save inode cache if we are deleting this root */
-	if (btrfs_root_refs(&root->root_item) == 0 &&
-	    root != root->fs_info->tree_root)
+	if (btrfs_root_refs(&root->root_item) == 0)
 		return 0;
 
 	if (!btrfs_test_opt(root, INODE_MAP_CACHE))

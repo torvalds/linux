@@ -4472,8 +4472,10 @@ void btrfs_evict_inode(struct inode *inode)
 	trace_btrfs_inode_evict(inode);
 
 	truncate_inode_pages(&inode->i_data, 0);
-	if (inode->i_nlink && (btrfs_root_refs(&root->root_item) != 0 ||
-			       btrfs_is_free_space_inode(inode)))
+	if (inode->i_nlink &&
+	    ((btrfs_root_refs(&root->root_item) != 0 &&
+	      root->root_key.objectid != BTRFS_ROOT_TREE_OBJECTID) ||
+	     btrfs_is_free_space_inode(inode)))
 		goto no_delete;
 
 	if (is_bad_inode(inode)) {
@@ -4490,7 +4492,8 @@ void btrfs_evict_inode(struct inode *inode)
 	}
 
 	if (inode->i_nlink > 0) {
-		BUG_ON(btrfs_root_refs(&root->root_item) != 0);
+		BUG_ON(btrfs_root_refs(&root->root_item) != 0 &&
+		       root->root_key.objectid != BTRFS_ROOT_TREE_OBJECTID);
 		goto no_delete;
 	}
 
@@ -4731,14 +4734,7 @@ static void inode_tree_del(struct inode *inode)
 	}
 	spin_unlock(&root->inode_lock);
 
-	/*
-	 * Free space cache has inodes in the tree root, but the tree root has a
-	 * root_refs of 0, so this could end up dropping the tree root as a
-	 * snapshot, so we need the extra !root->fs_info->tree_root check to
-	 * make sure we don't drop it.
-	 */
-	if (empty && btrfs_root_refs(&root->root_item) == 0 &&
-	    root != root->fs_info->tree_root) {
+	if (empty && btrfs_root_refs(&root->root_item) == 0) {
 		synchronize_srcu(&root->fs_info->subvol_srcu);
 		spin_lock(&root->inode_lock);
 		empty = RB_EMPTY_ROOT(&root->inode_tree);
@@ -7857,8 +7853,7 @@ int btrfs_drop_inode(struct inode *inode)
 		return 1;
 
 	/* the snap/subvol tree is on deleting */
-	if (btrfs_root_refs(&root->root_item) == 0 &&
-	    root != root->fs_info->tree_root)
+	if (btrfs_root_refs(&root->root_item) == 0)
 		return 1;
 	else
 		return generic_drop_inode(inode);

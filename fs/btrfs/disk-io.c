@@ -2670,6 +2670,7 @@ retry_root_backup:
 
 	btrfs_set_root_node(&tree_root->root_item, tree_root->node);
 	tree_root->commit_root = btrfs_root_node(tree_root);
+	btrfs_set_root_refs(&tree_root->root_item, 1);
 
 	location.objectid = BTRFS_EXTENT_TREE_OBJECTID;
 	location.type = BTRFS_ROOT_ITEM_KEY;
