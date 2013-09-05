@@ -119,6 +119,11 @@ u32 r600_get_xclk(struct radeon_device *rdev)
 	return rdev->clock.spll.reference_freq;
 }
 
+int r600_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
+{
+	return 0;
+}
+
 /* get temperature in millidegrees */
 int rv6xx_get_temp(struct radeon_device *rdev)
 {
