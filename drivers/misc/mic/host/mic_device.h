@@ -63,6 +63,23 @@ enum mic_stepping {
  * @smpt: MIC SMPT information.
  * @intr_info: H/W specific interrupt information.
  * @irq_info: The OS specific irq information
+ * @dbg_dir: debugfs directory of this MIC device.
+ * @cmdline: Kernel command line.
+ * @firmware: Firmware file name.
+ * @ramdisk: Ramdisk file name.
+ * @bootmode: Boot mode i.e. "linux" or "elf" for flash updates.
+ * @bootaddr: MIC boot address.
+ * @reset_trigger_work: Work for triggering reset requests.
+ * @shutdown_work: Work for handling shutdown interrupts.
+ * @state: MIC state.
+ * @shutdown_status: MIC status reported by card for shutdown/crashes.
+ * @state_sysfs: Sysfs dirent for notifying ring 3 about MIC state changes.
+ * @log_buf_addr: Log buffer address for MIC.
+ * @log_buf_len: Log buffer length address for MIC.
+ * @dp: virtio device page
+ * @dp_dma_addr: virtio device page DMA address.
+ * @shutdown_db: shutdown doorbell.
+ * @shutdown_cookie: shutdown cookie.
  */
 struct mic_device {
 	struct mic_mw mmio;
@@ -79,6 +96,23 @@ struct mic_device {
 	struct mic_smpt_info *smpt;
 	struct mic_intr_info *intr_info;
 	struct mic_irq_info irq_info;
+	struct dentry *dbg_dir;
+	char *cmdline;
+	char *firmware;
+	char *ramdisk;
+	char *bootmode;
+	u32 bootaddr;
+	struct work_struct reset_trigger_work;
+	struct work_struct shutdown_work;
+	u8 state;
+	u8 shutdown_status;
+	struct sysfs_dirent *state_sysfs;
+	void *log_buf_addr;
+	int *log_buf_len;
+	void *dp;
+	dma_addr_t dp_dma_addr;
+	int shutdown_db;
+	struct mic_irq *shutdown_cookie;
 };
 
 /**
@@ -90,6 +124,13 @@ struct mic_device {
  * @send_intr: Send an interrupt for a particular doorbell on the card.
  * @ack_interrupt: Hardware specific operations to ack the h/w on
  * receipt of an interrupt.
+ * @reset: Reset the remote processor.
+ * @reset_fw_ready: Reset firmware ready field.
+ * @is_fw_ready: Check if firmware is ready for OS download.
+ * @send_firmware_intr: Send an interrupt to the card firmware.
+ * @load_mic_fw: Load firmware segments required to boot the card
+ * into card memory. This includes the kernel, command line, ramdisk etc.
+ * @get_postcode: Get post code status from firmware.
  */
 struct mic_hw_ops {
 	u8 aper_bar;
@@ -98,6 +139,12 @@ struct mic_hw_ops {
 	void (*write_spad)(struct mic_device *mdev, unsigned int idx, u32 val);
 	void (*send_intr)(struct mic_device *mdev, int doorbell);
 	u32 (*ack_interrupt)(struct mic_device *mdev);
+	void (*reset)(struct mic_device *mdev);
+	void (*reset_fw_ready)(struct mic_device *mdev);
+	bool (*is_fw_ready)(struct mic_device *mdev);
+	void (*send_firmware_intr)(struct mic_device *mdev);
+	int (*load_mic_fw)(struct mic_device *mdev, const char *buf);
+	u32 (*get_postcode)(struct mic_device *mdev);
 };
 
 /**
@@ -127,4 +174,17 @@ mic_mmio_write(struct mic_mw *mw, u32 val, u32 offset)
 }
 
 void mic_sysfs_init(struct mic_device *mdev);
+int mic_start(struct mic_device *mdev, const char *buf);
+void mic_stop(struct mic_device *mdev, bool force);
+void mic_shutdown(struct mic_device *mdev);
+void mic_reset_delayed_work(struct work_struct *work);
+void mic_reset_trigger_work(struct work_struct *work);
+void mic_shutdown_work(struct work_struct *work);
+void mic_bootparam_init(struct mic_device *mdev);
+void mic_set_state(struct mic_device *mdev, u8 state);
+void mic_set_shutdown_status(struct mic_device *mdev, u8 status);
+void mic_create_debug_dir(struct mic_device *dev);
+void mic_delete_debug_dir(struct mic_device *dev);
+void __init mic_init_debugfs(void);
+void mic_exit_debugfs(void);
 #endif

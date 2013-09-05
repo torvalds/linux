@@ -32,3 +32,116 @@ Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
 Description:
 		Provides information about the silicon stepping for an Intel
 		MIC device. For example - "A0" or "B0"
+
+What:		/sys/class/mic/mic(x)/state
+Date:		August 2013
+KernelVersion:	3.11
+Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
+Description:
+		When read, this entry provides the current state of an Intel
+		MIC device in the context of the card OS. Possible values that
+		will be read are:
+		"offline" - The MIC device is ready to boot the card OS.
+		"online" - The MIC device has initiated booting a card OS.
+		"shutting_down" - The card OS is shutting down.
+		"reset_failed" - The MIC device has failed to reset.
+
+		When written, this sysfs entry triggers different state change
+		operations depending upon the current state of the card OS.
+		Acceptable values are:
+		"boot" - Boot the card OS image specified by the combination
+			 of firmware, ramdisk, cmdline and bootmode
+			sysfs entries.
+		"reset" - Initiates device reset.
+		"shutdown" - Initiates card OS shutdown.
+
+What:		/sys/class/mic/mic(x)/shutdown_status
+Date:		August 2013
+KernelVersion:	3.11
+Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
+Description:
+		An Intel MIC device runs a Linux OS during its operation. This
+		OS can shutdown because of various reasons. When read, this
+		entry provides the status on why the card OS was shutdown.
+		Possible values are:
+		"nop" -  shutdown status is not applicable, when the card OS is
+			"online"
+		"crashed" - Shutdown because of a HW or SW crash.
+		"halted" - Shutdown because of a halt command.
+		"poweroff" - Shutdown because of a poweroff command.
+		"restart" - Shutdown because of a restart command.
+
+What:		/sys/class/mic/mic(x)/cmdline
+Date:		August 2013
+KernelVersion:	3.11
+Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
+Description:
+		An Intel MIC device runs a Linux OS during its operation. Before
+		booting this card OS, it is possible to pass kernel command line
+		options to configure various features in it, similar to
+		self-bootable machines. When read, this entry provides
+		information about the current kernel command line options set to
+		boot the card OS. This entry can be written to change the
+		existing kernel command line options. Typically, the user would
+		want to read the current command line options, append new ones
+		or modify existing ones and then write the whole kernel command
+		line back to this entry.
+
+What:		/sys/class/mic/mic(x)/firmware
+Date:		August 2013
+KernelVersion:	3.11
+Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
+Description:
+		When read, this sysfs entry provides the path name under
+		/lib/firmware/ where the firmware image to be booted on the
+		card can be found. The entry can be written to change the
+		firmware image location under /lib/firmware/.
+
+What:		/sys/class/mic/mic(x)/ramdisk
+Date:		August 2013
+KernelVersion:	3.11
+Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
+Description:
+		When read, this sysfs entry provides the path name under
+		/lib/firmware/ where the ramdisk image to be used during card
+		OS boot can be found. The entry can be written to change
+		the ramdisk image location under /lib/firmware/.
+
+What:		/sys/class/mic/mic(x)/bootmode
+Date:		August 2013
+KernelVersion:	3.11
+Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
+Description:
+		When read, this sysfs entry provides the current bootmode for
+		the card. This sysfs entry can be written with the following
+		valid strings:
+		a) linux - Boot a Linux image.
+		b) elf - Boot an elf image for flash updates.
+
+What:		/sys/class/mic/mic(x)/log_buf_addr
+Date:		August 2013
+KernelVersion:	3.11
+Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
+Description:
+		An Intel MIC device runs a Linux OS during its operation. For
+		debugging purpose and early kernel boot messages, the user can
+		access the card OS log buffer via debugfs. When read, this entry
+		provides the kernel virtual address of the buffer where the card
+		OS log buffer can be read. This entry is written by the host
+		configuration daemon to set the log buffer address. The correct
+		log buffer address to be written can be found in the System.map
+		file of the card OS.
+
+What:		/sys/class/mic/mic(x)/log_buf_len
+Date:		August 2013
+KernelVersion:	3.11
+Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
+Description:
+		An Intel MIC device runs a Linux OS during its operation. For
+		debugging purpose and early kernel boot messages, the user can
+		access the card OS log buffer via debugfs. When read, this entry
+		provides the kernel virtual address where the card OS log buffer
+		length can be read. This entry is written by host configuration
+		daemon to set the log buffer length address. The correct log
+		buffer length address to be written can be found in the
+		System.map file of the card OS.

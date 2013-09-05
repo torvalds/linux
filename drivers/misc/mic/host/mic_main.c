@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 
+#include <linux/mic_common.h>
 #include "../common/mic_device.h"
 #include "mic_device.h"
 #include "mic_x100.h"
@@ -62,6 +63,60 @@ static struct ida g_mic_ida;
 static struct class *g_mic_class;
 /* Base device node number for MIC devices */
 static dev_t g_mic_devno;
+
+/* Initialize the device page */
+static int mic_dp_init(struct mic_device *mdev)
+{
+	mdev->dp = kzalloc(MIC_DP_SIZE, GFP_KERNEL);
+	if (!mdev->dp) {
+		dev_err(mdev->sdev->parent, "%s %d err %d\n",
+			__func__, __LINE__, -ENOMEM);
+		return -ENOMEM;
+	}
+
+	mdev->dp_dma_addr = mic_map_single(mdev,
+		mdev->dp, MIC_DP_SIZE);
+	if (mic_map_error(mdev->dp_dma_addr)) {
+		kfree(mdev->dp);
+		dev_err(mdev->sdev->parent, "%s %d err %d\n",
+			__func__, __LINE__, -ENOMEM);
+		return -ENOMEM;
+	}
+	mdev->ops->write_spad(mdev, MIC_DPLO_SPAD, mdev->dp_dma_addr);
+	mdev->ops->write_spad(mdev, MIC_DPHI_SPAD, mdev->dp_dma_addr >> 32);
+	return 0;
+}
+
+/* Uninitialize the device page */
+static void mic_dp_uninit(struct mic_device *mdev)
+{
+	mic_unmap_single(mdev, mdev->dp_dma_addr, MIC_DP_SIZE);
+	kfree(mdev->dp);
+}
+
+/**
+ * mic_shutdown_db - Shutdown doorbell interrupt handler.
+ */
+static irqreturn_t mic_shutdown_db(int irq, void *data)
+{
+	struct mic_device *mdev = data;
+	struct mic_bootparam *bootparam = mdev->dp;
+
+	mdev->ops->ack_interrupt(mdev);
+
+	switch (bootparam->shutdown_status) {
+	case MIC_HALTED:
+	case MIC_POWER_OFF:
+	case MIC_RESTART:
+		/* Fall through */
+	case MIC_CRASHED:
+		schedule_work(&mdev->shutdown_work);
+		break;
+	default:
+		break;
+	};
+	return IRQ_HANDLED;
+}
 
 /**
  * mic_ops_init: Initialize HW specific operation tables.
@@ -136,6 +191,26 @@ mic_device_init(struct mic_device *mdev, struct pci_dev *pdev)
 	mic_sysfs_init(mdev);
 	mutex_init(&mdev->mic_mutex);
 	mdev->irq_info.next_avail_src = 0;
+	INIT_WORK(&mdev->reset_trigger_work, mic_reset_trigger_work);
+	INIT_WORK(&mdev->shutdown_work, mic_shutdown_work);
+}
+
+/**
+ * mic_device_uninit - Frees resources allocated during mic_device_init(..)
+ *
+ * @mdev: pointer to mic_device instance
+ *
+ * returns none
+ */
+static void mic_device_uninit(struct mic_device *mdev)
+{
+	/* The cmdline sysfs entry might have allocated cmdline */
+	kfree(mdev->cmdline);
+	kfree(mdev->firmware);
+	kfree(mdev->ramdisk);
+	kfree(mdev->bootmode);
+	flush_work(&mdev->reset_trigger_work);
+	flush_work(&mdev->shutdown_work);
 }
 
 /**
@@ -170,7 +245,7 @@ static int mic_probe(struct pci_dev *pdev,
 	rc = pci_enable_device(pdev);
 	if (rc) {
 		dev_err(&pdev->dev, "failed to enable pci device.\n");
-		goto ida_remove;
+		goto uninit_device;
 	}
 
 	pci_set_master(pdev);
@@ -228,7 +303,40 @@ static int mic_probe(struct pci_dev *pdev,
 			"device_create_with_groups failed rc %d\n", rc);
 		goto smpt_uninit;
 	}
+	mdev->state_sysfs = sysfs_get_dirent(mdev->sdev->kobj.sd,
+		NULL, "state");
+	if (!mdev->state_sysfs) {
+		rc = -ENODEV;
+		dev_err(&pdev->dev, "sysfs_get_dirent failed rc %d\n", rc);
+		goto destroy_device;
+	}
+
+	rc = mic_dp_init(mdev);
+	if (rc) {
+		dev_err(&pdev->dev, "mic_dp_init failed rc %d\n", rc);
+		goto sysfs_put;
+	}
+	mutex_lock(&mdev->mic_mutex);
+
+	mdev->shutdown_db = mic_next_db(mdev);
+	mdev->shutdown_cookie = mic_request_irq(mdev, mic_shutdown_db,
+		"shutdown-interrupt", mdev, mdev->shutdown_db, MIC_INTR_DB);
+	if (IS_ERR(mdev->shutdown_cookie)) {
+		rc = PTR_ERR(mdev->shutdown_cookie);
+		mutex_unlock(&mdev->mic_mutex);
+		goto dp_uninit;
+	}
+	mutex_unlock(&mdev->mic_mutex);
+	mic_bootparam_init(mdev);
+
+	mic_create_debug_dir(mdev);
 	return 0;
+dp_uninit:
+	mic_dp_uninit(mdev);
+sysfs_put:
+	sysfs_put(mdev->state_sysfs);
+destroy_device:
+	device_destroy(g_mic_class, MKDEV(MAJOR(g_mic_devno), mdev->id));
 smpt_uninit:
 	mic_smpt_uninit(mdev);
 free_interrupts:
@@ -241,7 +349,8 @@ release_regions:
 	pci_release_regions(pdev);
 disable_device:
 	pci_disable_device(pdev);
-ida_remove:
+uninit_device:
+	mic_device_uninit(mdev);
 	ida_simple_remove(&g_mic_ida, mdev->id);
 ida_fail:
 	kfree(mdev);
@@ -265,11 +374,20 @@ static void mic_remove(struct pci_dev *pdev)
 	if (!mdev)
 		return;
 
+	mic_stop(mdev, false);
+	mic_delete_debug_dir(mdev);
+	mutex_lock(&mdev->mic_mutex);
+	mic_free_irq(mdev, mdev->shutdown_cookie, mdev);
+	mutex_unlock(&mdev->mic_mutex);
+	flush_work(&mdev->shutdown_work);
+	mic_dp_uninit(mdev);
+	sysfs_put(mdev->state_sysfs);
 	device_destroy(g_mic_class, MKDEV(MAJOR(g_mic_devno), mdev->id));
 	mic_smpt_uninit(mdev);
 	mic_free_interrupts(mdev, pdev);
 	iounmap(mdev->mmio.va);
 	iounmap(mdev->aper.va);
+	mic_device_uninit(mdev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	ida_simple_remove(&g_mic_ida, mdev->id);
@@ -300,14 +418,16 @@ static int __init mic_init(void)
 		goto cleanup_chrdev;
 	}
 
+	mic_init_debugfs();
 	ida_init(&g_mic_ida);
 	ret = pci_register_driver(&mic_driver);
 	if (ret) {
 		pr_err("pci_register_driver failed ret %d\n", ret);
-		goto class_destroy;
+		goto cleanup_debugfs;
 	}
 	return ret;
-class_destroy:
+cleanup_debugfs:
+	mic_exit_debugfs();
 	class_destroy(g_mic_class);
 cleanup_chrdev:
 	unregister_chrdev_region(g_mic_devno, MIC_MAX_NUM_DEVS);
@@ -319,6 +439,7 @@ static void __exit mic_exit(void)
 {
 	pci_unregister_driver(&mic_driver);
 	ida_destroy(&g_mic_ida);
+	mic_exit_debugfs();
 	class_destroy(g_mic_class);
 	unregister_chrdev_region(g_mic_devno, MIC_MAX_NUM_DEVS);
 }

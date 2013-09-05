@@ -69,6 +69,15 @@
 #define MIC_X100_NUM_SBOX_IRQ 8
 #define MIC_X100_NUM_RDMASR_IRQ 8
 #define MIC_X100_RDMASR_IRQ_BASE 17
+#define MIC_X100_SPAD2_DOWNLOAD_STATUS(x) ((x) & 0x1)
+#define MIC_X100_SPAD2_APIC_ID(x)	(((x) >> 1) & 0x1ff)
+#define MIC_X100_SPAD2_DOWNLOAD_ADDR(x) ((x) & 0xfffff000)
+#define MIC_X100_SBOX_APICICR7 0x0000AA08
+#define MIC_X100_SBOX_RGCR 0x00004010
+#define MIC_X100_SBOX_SDBIC0 0x0000CC90
+#define MIC_X100_DOWNLOAD_INFO 2
+#define MIC_X100_FW_SIZE 5
+#define MIC_X100_POSTCODE 0x242c
 
 static const u16 mic_x100_intr_init[] = {
 		MIC_X100_DOORBELL_IDX_START,
@@ -78,6 +87,9 @@ static const u16 mic_x100_intr_init[] = {
 		MIC_X100_NUM_DMA,
 		MIC_X100_NUM_ERR,
 };
+
+/* Host->Card(bootstrap) Interrupt Vector */
+#define MIC_X100_BSP_INTERRUPT_VECTOR 229
 
 extern struct mic_hw_ops mic_x100_ops;
 extern struct mic_smpt_ops mic_x100_smpt_ops;

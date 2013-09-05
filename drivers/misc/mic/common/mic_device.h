@@ -34,4 +34,11 @@ struct mic_mw {
 	resource_size_t len;
 };
 
+/*
+ * Scratch pad register offsets used by the host to communicate
+ * device page DMA address to the card.
+ */
+#define MIC_DPLO_SPAD 14
+#define MIC_DPHI_SPAD 15
+
 #endif

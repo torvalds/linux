@@ -20,6 +20,9 @@
  */
 #include <linux/fs.h>
 #include <linux/pci.h>
+#include <linux/sched.h>
+#include <linux/firmware.h>
+#include <linux/delay.h>
 
 #include "../common/mic_device.h"
 #include "mic_device.h"
@@ -256,6 +259,248 @@ mic_x100_program_msi_to_src_map(struct mic_device *mdev,
 	mic_mmio_write(mw, reg, mxar);
 }
 
+/*
+ * mic_x100_reset_fw_ready - Reset Firmware ready status field.
+ * @mdev: pointer to mic_device instance
+ */
+static void mic_x100_reset_fw_ready(struct mic_device *mdev)
+{
+	mdev->ops->write_spad(mdev, MIC_X100_DOWNLOAD_INFO, 0);
+}
+
+/*
+ * mic_x100_is_fw_ready - Check if firmware is ready.
+ * @mdev: pointer to mic_device instance
+ */
+static bool mic_x100_is_fw_ready(struct mic_device *mdev)
+{
+	u32 scratch2 = mdev->ops->read_spad(mdev, MIC_X100_DOWNLOAD_INFO);
+	return MIC_X100_SPAD2_DOWNLOAD_STATUS(scratch2) ? true : false;
+}
+
+/**
+ * mic_x100_get_apic_id - Get bootstrap APIC ID.
+ * @mdev: pointer to mic_device instance
+ */
+static u32 mic_x100_get_apic_id(struct mic_device *mdev)
+{
+	u32 scratch2 = 0;
+
+	scratch2 = mdev->ops->read_spad(mdev, MIC_X100_DOWNLOAD_INFO);
+	return MIC_X100_SPAD2_APIC_ID(scratch2);
+}
+
+/**
+ * mic_x100_send_firmware_intr - Send an interrupt to the firmware on MIC.
+ * @mdev: pointer to mic_device instance
+ */
+static void mic_x100_send_firmware_intr(struct mic_device *mdev)
+{
+	u32 apicicr_low;
+	u64 apic_icr_offset = MIC_X100_SBOX_APICICR7;
+	int vector = MIC_X100_BSP_INTERRUPT_VECTOR;
+	struct mic_mw *mw = &mdev->mmio;
+
+	/*
+	 * For MIC we need to make sure we "hit"
+	 * the send_icr bit (13).
+	 */
+	apicicr_low = (vector | (1 << 13));
+
+	mic_mmio_write(mw, mic_x100_get_apic_id(mdev),
+		MIC_X100_SBOX_BASE_ADDRESS + apic_icr_offset + 4);
+
+	/* Ensure that the interrupt is ordered w.r.t. previous stores. */
+	wmb();
+	mic_mmio_write(mw, apicicr_low,
+		MIC_X100_SBOX_BASE_ADDRESS + apic_icr_offset);
+}
+
+/**
+ * mic_x100_hw_reset - Reset the MIC device.
+ * @mdev: pointer to mic_device instance
+ */
+static void mic_x100_hw_reset(struct mic_device *mdev)
+{
+	u32 reset_reg;
+	u32 rgcr = MIC_X100_SBOX_BASE_ADDRESS + MIC_X100_SBOX_RGCR;
+	struct mic_mw *mw = &mdev->mmio;
+
+	/* Ensure that the reset is ordered w.r.t. previous loads and stores */
+	mb();
+	/* Trigger reset */
+	reset_reg = mic_mmio_read(mw, rgcr);
+	reset_reg |= 0x1;
+	mic_mmio_write(mw, reset_reg, rgcr);
+	/*
+	 * It seems we really want to delay at least 1 second
+	 * after touching reset to prevent a lot of problems.
+	 */
+	msleep(1000);
+}
+
+/**
+ * mic_x100_load_command_line - Load command line to MIC.
+ * @mdev: pointer to mic_device instance
+ * @fw: the firmware image
+ *
+ * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
+ */
+static int
+mic_x100_load_command_line(struct mic_device *mdev, const struct firmware *fw)
+{
+	u32 len = 0;
+	u32 boot_mem;
+	char *buf;
+	void __iomem *cmd_line_va = mdev->aper.va + mdev->bootaddr + fw->size;
+#define CMDLINE_SIZE 2048
+
+	boot_mem = mdev->aper.len >> 20;
+	buf = kzalloc(CMDLINE_SIZE, GFP_KERNEL);
+	if (!buf) {
+		dev_err(mdev->sdev->parent,
+			"%s %d allocation failed\n", __func__, __LINE__);
+		return -ENOMEM;
+	}
+	len += snprintf(buf, CMDLINE_SIZE - len,
+		" mem=%dM", boot_mem);
+	if (mdev->cmdline)
+		snprintf(buf + len, CMDLINE_SIZE - len,
+				" %s", mdev->cmdline);
+	memcpy_toio(cmd_line_va, buf, strlen(buf) + 1);
+	kfree(buf);
+	return 0;
+}
+
+/**
+ * mic_x100_load_ramdisk - Load ramdisk to MIC.
+ * @mdev: pointer to mic_device instance
+ *
+ * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
+ */
+static int
+mic_x100_load_ramdisk(struct mic_device *mdev)
+{
+	const struct firmware *fw;
+	int rc;
+	struct boot_params __iomem *bp = mdev->aper.va + mdev->bootaddr;
+
+	rc = request_firmware(&fw,
+			mdev->ramdisk, mdev->sdev->parent);
+	if (rc < 0) {
+		dev_err(mdev->sdev->parent,
+			"ramdisk request_firmware failed: %d %s\n",
+			rc, mdev->ramdisk);
+		goto error;
+	}
+	/*
+	 * Typically the bootaddr for card OS is 64M
+	 * so copy over the ramdisk @ 128M.
+	 */
+	memcpy_toio(mdev->aper.va + (mdev->bootaddr << 1),
+		fw->data, fw->size);
+	iowrite32(cpu_to_le32(mdev->bootaddr << 1), &bp->hdr.ramdisk_image);
+	iowrite32(cpu_to_le32(fw->size), &bp->hdr.ramdisk_size);
+	release_firmware(fw);
+error:
+	return rc;
+}
+
+/**
+ * mic_x100_get_boot_addr - Get MIC boot address.
+ * @mdev: pointer to mic_device instance
+ *
+ * This function is called during firmware load to determine
+ * the address at which the OS should be downloaded in card
+ * memory i.e. GDDR.
+ * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
+ */
+static int
+mic_x100_get_boot_addr(struct mic_device *mdev)
+{
+	u32 scratch2, boot_addr;
+	int rc = 0;
+
+	scratch2 = mdev->ops->read_spad(mdev, MIC_X100_DOWNLOAD_INFO);
+	boot_addr = MIC_X100_SPAD2_DOWNLOAD_ADDR(scratch2);
+	dev_dbg(mdev->sdev->parent, "%s %d boot_addr 0x%x\n",
+		__func__, __LINE__, boot_addr);
+	if (boot_addr > (1 << 31)) {
+		dev_err(mdev->sdev->parent,
+			"incorrect bootaddr 0x%x\n",
+			boot_addr);
+		rc = -EINVAL;
+		goto error;
+	}
+	mdev->bootaddr = boot_addr;
+error:
+	return rc;
+}
+
+/**
+ * mic_x100_load_firmware - Load firmware to MIC.
+ * @mdev: pointer to mic_device instance
+ * @buf: buffer containing boot string including firmware/ramdisk path.
+ *
+ * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
+ */
+static int
+mic_x100_load_firmware(struct mic_device *mdev, const char *buf)
+{
+	int rc;
+	const struct firmware *fw;
+
+	rc = mic_x100_get_boot_addr(mdev);
+	if (rc)
+		goto error;
+	/* load OS */
+	rc = request_firmware(&fw, mdev->firmware, mdev->sdev->parent);
+	if (rc < 0) {
+		dev_err(mdev->sdev->parent,
+			"ramdisk request_firmware failed: %d %s\n",
+			rc, mdev->firmware);
+		goto error;
+	}
+	if (mdev->bootaddr > mdev->aper.len - fw->size) {
+		rc = -EINVAL;
+		dev_err(mdev->sdev->parent, "%s %d rc %d bootaddr 0x%x\n",
+			__func__, __LINE__, rc, mdev->bootaddr);
+		release_firmware(fw);
+		goto error;
+	}
+	memcpy_toio(mdev->aper.va + mdev->bootaddr, fw->data, fw->size);
+	mdev->ops->write_spad(mdev, MIC_X100_FW_SIZE, fw->size);
+	if (!strcmp(mdev->bootmode, "elf"))
+		goto done;
+	/* load command line */
+	rc = mic_x100_load_command_line(mdev, fw);
+	if (rc) {
+		dev_err(mdev->sdev->parent, "%s %d rc %d\n",
+			__func__, __LINE__, rc);
+		goto error;
+	}
+	release_firmware(fw);
+	/* load ramdisk */
+	if (mdev->ramdisk)
+		rc = mic_x100_load_ramdisk(mdev);
+error:
+	dev_dbg(mdev->sdev->parent, "%s %d rc %d\n",
+			__func__, __LINE__, rc);
+done:
+	return rc;
+}
+
+/**
+ * mic_x100_get_postcode - Get postcode status from firmware.
+ * @mdev: pointer to mic_device instance
+ *
+ * RETURNS: postcode.
+ */
+static u32 mic_x100_get_postcode(struct mic_device *mdev)
+{
+	return mic_mmio_read(&mdev->mmio, MIC_X100_POSTCODE);
+}
+
 /**
  * mic_x100_smpt_set - Update an SMPT entry with a DMA address.
  * @mdev: pointer to mic_device instance
@@ -311,6 +556,12 @@ struct mic_hw_ops mic_x100_ops = {
 	.write_spad = mic_x100_write_spad,
 	.send_intr = mic_x100_send_intr,
 	.ack_interrupt = mic_x100_ack_interrupt,
+	.reset = mic_x100_hw_reset,
+	.reset_fw_ready = mic_x100_reset_fw_ready,
+	.is_fw_ready = mic_x100_is_fw_ready,
+	.send_firmware_intr = mic_x100_send_firmware_intr,
+	.load_mic_fw = mic_x100_load_firmware,
+	.get_postcode = mic_x100_get_postcode,
 };
 
 struct mic_hw_intr_ops mic_x100_intr_ops = {
