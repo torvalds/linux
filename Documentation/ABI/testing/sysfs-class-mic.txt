@@ -1,0 +1,34 @@
+What:		/sys/class/mic/
+Date:		August 2013
+KernelVersion:	3.11
+Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
+Description:
+		The mic class directory belongs to Intel MIC devices and
+		provides information per MIC device. An Intel MIC device is a
+		PCIe form factor add-in Coprocessor card based on the Intel Many
+		Integrated Core (MIC) architecture that runs a Linux OS.
+
+What:		/sys/class/mic/mic(x)
+Date:		August 2013
+KernelVersion:	3.11
+Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
+Description:
+		The directories /sys/class/mic/mic0, /sys/class/mic/mic1 etc.,
+		represent MIC devices (0,1,..etc). Each directory has
+		information specific to that MIC device.
+
+What:		/sys/class/mic/mic(x)/family
+Date:		August 2013
+KernelVersion:	3.11
+Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
+Description:
+		Provides information about the Coprocessor family for an Intel
+		MIC device. For example - "x100"
+
+What:		/sys/class/mic/mic(x)/stepping
+Date:		August 2013
+KernelVersion:	3.11
+Contact:	Sudeep Dutt <sudeep.dutt@intel.com>
+Description:
+		Provides information about the silicon stepping for an Intel
+		MIC device. For example - "A0" or "B0"
