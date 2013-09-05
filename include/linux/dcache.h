@@ -212,7 +212,7 @@ struct dentry_operations {
 
 extern seqlock_t rename_lock;
 
-static inline int dname_external(struct dentry *dentry)
+static inline int dname_external(const struct dentry *dentry)
 {
 	return dentry->d_name.name != dentry->d_iname;
 }
@@ -358,17 +358,17 @@ extern struct dentry *dget_parent(struct dentry *dentry);
  *	Returns true if the dentry passed is not currently hashed.
  */
  
-static inline int d_unhashed(struct dentry *dentry)
+static inline int d_unhashed(const struct dentry *dentry)
 {
 	return hlist_bl_unhashed(&dentry->d_hash);
 }
 
-static inline int d_unlinked(struct dentry *dentry)
+static inline int d_unlinked(const struct dentry *dentry)
 {
 	return d_unhashed(dentry) && !IS_ROOT(dentry);
 }
 
-static inline int cant_mount(struct dentry *dentry)
+static inline int cant_mount(const struct dentry *dentry)
 {
 	return (dentry->d_flags & DCACHE_CANT_MOUNT);
 }
@@ -382,12 +382,12 @@ static inline void dont_mount(struct dentry *dentry)
 
 extern void dput(struct dentry *);
 
-static inline bool d_managed(struct dentry *dentry)
+static inline bool d_managed(const struct dentry *dentry)
 {
 	return dentry->d_flags & DCACHE_MANAGED_DENTRY;
 }
 
-static inline bool d_mountpoint(struct dentry *dentry)
+static inline bool d_mountpoint(const struct dentry *dentry)
 {
 	return dentry->d_flags & DCACHE_MOUNTED;
 }
