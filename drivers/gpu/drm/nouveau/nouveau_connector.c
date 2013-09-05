@@ -215,9 +215,10 @@ nouveau_connector_set_encoder(struct drm_connector *connector,
 	} else {
 		connector->doublescan_allowed = true;
 		if (nv_device(drm->device)->card_type == NV_20 ||
-		   (nv_device(drm->device)->card_type == NV_10 &&
-		    (dev->pdev->device & 0x0ff0) != 0x0100 &&
-		    (dev->pdev->device & 0x0ff0) != 0x0150))
+		    ((nv_device(drm->device)->card_type == NV_10 ||
+		      nv_device(drm->device)->card_type == NV_11) &&
+		     (dev->pdev->device & 0x0ff0) != 0x0100 &&
+		     (dev->pdev->device & 0x0ff0) != 0x0150))
 			/* HW is broken */
 			connector->interlace_allowed = false;
 		else

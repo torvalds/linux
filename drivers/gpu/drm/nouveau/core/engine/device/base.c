@@ -161,7 +161,13 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 		if ((boot0 & 0x0f000000) > 0) {
 			device->chipset = (boot0 & 0xff00000) >> 20;
 			switch (device->chipset & 0xf0) {
-			case 0x10: device->card_type = NV_10; break;
+			case 0x10: {
+				if (0x461 & (1 << (device->chipset & 0xf)))
+					device->card_type = NV_10;
+				else
+					device->card_type = NV_11;
+				break;
+			}
 			case 0x20: device->card_type = NV_20; break;
 			case 0x30: device->card_type = NV_30; break;
 			case 0x40:
@@ -188,7 +194,8 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 
 		switch (device->card_type) {
 		case NV_04: ret = nv04_identify(device); break;
-		case NV_10: ret = nv10_identify(device); break;
+		case NV_10:
+		case NV_11: ret = nv10_identify(device); break;
 		case NV_20: ret = nv20_identify(device); break;
 		case NV_30: ret = nv30_identify(device); break;
 		case NV_40: ret = nv40_identify(device); break;

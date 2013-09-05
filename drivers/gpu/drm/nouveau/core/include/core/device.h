@@ -72,6 +72,7 @@ struct nouveau_device {
 	enum {
 		NV_04    = 0x04,
 		NV_10    = 0x10,
+		NV_11    = 0x11,
 		NV_20    = 0x20,
 		NV_30    = 0x30,
 		NV_40    = 0x40,
