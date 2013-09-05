@@ -3315,9 +3315,9 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 		port_sel = I915_READ(pp_on_reg) & 0xc0000000;
 	} else if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev)) {
 		if (dp_to_dig_port(intel_dp)->port == PORT_A)
-			port_sel = PANEL_POWER_PORT_DP_A;
+			port_sel = PANEL_PORT_SELECT_DPA;
 		else
-			port_sel = PANEL_POWER_PORT_DP_D;
+			port_sel = PANEL_PORT_SELECT_DPD;
 	}
 
 	pp_on |= port_sel;
