@@ -343,6 +343,13 @@ static int efx_ef10_init_nic(struct efx_nic *efx)
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	int rc;
 
+	if (nic_data->must_check_datapath_caps) {
+		rc = efx_ef10_init_datapath_caps(efx);
+		if (rc)
+			return rc;
+		nic_data->must_check_datapath_caps = false;
+	}
+
 	if (nic_data->must_realloc_vis) {
 		/* We cannot let the number of VIs change now */
 		rc = efx_ef10_alloc_vis(efx, nic_data->n_allocated_vis,
@@ -710,6 +717,9 @@ static int efx_ef10_mcdi_poll_reboot(struct efx_nic *efx)
 	nic_data->must_realloc_vis = true;
 	nic_data->must_restore_filters = true;
 	nic_data->rx_rss_context = EFX_EF10_RSS_CONTEXT_INVALID;
+
+	/* The datapath firmware might have been changed */
+	nic_data->must_check_datapath_caps = true;
 
 	/* MAC statistics have been cleared on the NIC; clear the local
 	 * statistic that we update with efx_update_diff_stat().
