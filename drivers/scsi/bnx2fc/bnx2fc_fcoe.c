@@ -1381,6 +1381,7 @@ struct bnx2fc_interface *bnx2fc_interface_create(struct bnx2fc_hba *hba,
 		return NULL;
 	}
 	ctlr = fcoe_ctlr_device_priv(ctlr_dev);
+	ctlr->cdev = ctlr_dev;
 	interface = fcoe_ctlr_priv(ctlr);
 	dev_hold(netdev);
 	kref_init(&interface->kref);
