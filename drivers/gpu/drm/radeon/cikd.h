@@ -2029,8 +2029,18 @@
 #define VCE_RB_RPTR			0x2018c
 #define VCE_RB_WPTR			0x20190
 #define VCE_CLOCK_GATING_A		0x202f8
+#	define CGC_CLK_GATE_DLY_TIMER_MASK	(0xf << 0)
+#	define CGC_CLK_GATE_DLY_TIMER(x)	((x) << 0)
+#	define CGC_CLK_GATER_OFF_DLY_TIMER_MASK	(0xff << 4)
+#	define CGC_CLK_GATER_OFF_DLY_TIMER(x)	((x) << 4)
+#	define CGC_UENC_WAIT_AWAKE	(1 << 18)
 #define VCE_CLOCK_GATING_B		0x202fc
+#define VCE_CGTT_CLK_OVERRIDE		0x207a0
 #define VCE_UENC_CLOCK_GATING		0x207bc
+#	define CLOCK_ON_DELAY_MASK	(0xf << 0)
+#	define CLOCK_ON_DELAY(x)	((x) << 0)
+#	define CLOCK_OFF_DELAY_MASK	(0xff << 4)
+#	define CLOCK_OFF_DELAY(x)	((x) << 4)
 #define VCE_UENC_REG_CLOCK_GATING	0x207c0
 #define VCE_SYS_INT_EN			0x21300
 #	define VCE_SYS_INT_TRAP_INTERRUPT_EN	(1 << 3)
