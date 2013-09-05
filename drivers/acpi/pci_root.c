@@ -180,11 +180,7 @@ static acpi_status acpi_pci_query_osc(struct acpi_pci_root *root,
 static acpi_status acpi_pci_osc_support(struct acpi_pci_root *root, u32 flags)
 {
 	acpi_status status;
-	acpi_handle tmp;
 
-	status = acpi_get_handle(root->device->handle, "_OSC", &tmp);
-	if (ACPI_FAILURE(status))
-		return status;
 	mutex_lock(&osc_lock);
 	status = acpi_pci_query_osc(root, flags, NULL);
 	mutex_unlock(&osc_lock);
@@ -316,9 +312,8 @@ EXPORT_SYMBOL_GPL(acpi_get_pci_dev);
 acpi_status acpi_pci_osc_control_set(acpi_handle handle, u32 *mask, u32 req)
 {
 	struct acpi_pci_root *root;
-	acpi_status status;
+	acpi_status status = AE_OK;
 	u32 ctrl, capbuf[3];
-	acpi_handle tmp;
 
 	if (!mask)
 		return AE_BAD_PARAMETER;
@@ -330,10 +325,6 @@ acpi_status acpi_pci_osc_control_set(acpi_handle handle, u32 *mask, u32 req)
 	root = acpi_pci_find_root(handle);
 	if (!root)
 		return AE_NOT_EXIST;
-
-	status = acpi_get_handle(handle, "_OSC", &tmp);
-	if (ACPI_FAILURE(status))
-		return status;
 
 	mutex_lock(&osc_lock);
 
