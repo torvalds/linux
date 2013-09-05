@@ -300,9 +300,10 @@ struct acpi_osc_context {
 	struct acpi_buffer ret; /* free by caller if success */
 };
 
-#define OSC_QUERY_TYPE			0
-#define OSC_SUPPORT_TYPE 		1
-#define OSC_CONTROL_TYPE		2
+/* Indexes into _OSC Capabilities Buffer (DWORDs 2 & 3 are device-specific) */
+#define OSC_QUERY_DWORD				0	/* DWORD 1 */
+#define OSC_SUPPORT_DWORD			1	/* DWORD 2 */
+#define OSC_CONTROL_DWORD			2	/* DWORD 3 */
 
 /* _OSC Capabilities DWORD 1: Query/Control and Error Returns (generic) */
 #define OSC_QUERY_ENABLE			0x00000001  /* input */

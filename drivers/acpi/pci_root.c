@@ -158,14 +158,14 @@ static acpi_status acpi_pci_query_osc(struct acpi_pci_root *root,
 	support &= OSC_PCI_SUPPORT_MASKS;
 	support |= root->osc_support_set;
 
-	capbuf[OSC_QUERY_TYPE] = OSC_QUERY_ENABLE;
-	capbuf[OSC_SUPPORT_TYPE] = support;
+	capbuf[OSC_QUERY_DWORD] = OSC_QUERY_ENABLE;
+	capbuf[OSC_SUPPORT_DWORD] = support;
 	if (control) {
 		*control &= OSC_PCI_CONTROL_MASKS;
-		capbuf[OSC_CONTROL_TYPE] = *control | root->osc_control_set;
+		capbuf[OSC_CONTROL_DWORD] = *control | root->osc_control_set;
 	} else {
 		/* Run _OSC query only with existing controls. */
-		capbuf[OSC_CONTROL_TYPE] = root->osc_control_set;
+		capbuf[OSC_CONTROL_DWORD] = root->osc_control_set;
 	}
 
 	status = acpi_pci_run_osc(root->device->handle, capbuf, &result);
@@ -357,9 +357,9 @@ acpi_status acpi_pci_osc_control_set(acpi_handle handle, u32 *mask, u32 req)
 		goto out;
 	}
 
-	capbuf[OSC_QUERY_TYPE] = 0;
-	capbuf[OSC_SUPPORT_TYPE] = root->osc_support_set;
-	capbuf[OSC_CONTROL_TYPE] = ctrl;
+	capbuf[OSC_QUERY_DWORD] = 0;
+	capbuf[OSC_SUPPORT_DWORD] = root->osc_support_set;
+	capbuf[OSC_CONTROL_DWORD] = ctrl;
 	status = acpi_pci_run_osc(handle, capbuf, mask);
 	if (ACPI_SUCCESS(status))
 		root->osc_control_set = *mask;
