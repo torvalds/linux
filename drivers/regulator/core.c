@@ -3504,7 +3504,7 @@ static void devm_rdev_release(struct device *dev, void *res)
  *
  * Called by regulator drivers to register a regulator.  Returns a
  * valid pointer to struct regulator_dev on success or an ERR_PTR() on
- * error.  The regulator will automaticall be released when the device
+ * error.  The regulator will automatically be released when the device
  * is unbound.
  */
 struct regulator_dev *devm_regulator_register(struct device *dev,
