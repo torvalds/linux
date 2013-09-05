@@ -9,7 +9,7 @@
 #include <scsi/iscsi_proto.h>
 #include <target/target_core_base.h>
 
-#define ISCSIT_VERSION			"v4.1.0-rc2"
+#define ISCSIT_VERSION			"v4.1.0"
 #define ISCSI_MAX_DATASN_MISSING_COUNT	16
 #define ISCSI_TX_THREAD_TCP_TIMEOUT	2
 #define ISCSI_RX_THREAD_TCP_TIMEOUT	2
