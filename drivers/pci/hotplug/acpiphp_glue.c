@@ -487,7 +487,6 @@ static void acpiphp_bus_add(acpi_handle handle)
 {
 	struct acpi_device *adev = NULL;
 
-	acpiphp_bus_trim(handle);
 	acpi_bus_scan(handle);
 	acpi_bus_get_device(handle, &adev);
 	if (adev)
