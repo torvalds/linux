@@ -1,6 +1,6 @@
 /****************************************************************************
- * Driver for Solarflare Solarstorm network controllers and boards
- * Copyright 2005-2010 Solarflare Communications Inc.
+ * Driver for Solarflare network controllers and boards
+ * Copyright 2005-2013 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -11,32 +11,49 @@
 #define EFX_FILTER_H
 
 #include <linux/types.h>
+#include <linux/if_ether.h>
+#include <asm/byteorder.h>
 
 /**
- * enum efx_filter_type - type of hardware filter
- * @EFX_FILTER_TCP_FULL: Matching TCP/IPv4 4-tuple
- * @EFX_FILTER_TCP_WILD: Matching TCP/IPv4 destination (host, port)
- * @EFX_FILTER_UDP_FULL: Matching UDP/IPv4 4-tuple
- * @EFX_FILTER_UDP_WILD: Matching UDP/IPv4 destination (host, port)
- * @EFX_FILTER_MAC_FULL: Matching Ethernet destination MAC address, VID
- * @EFX_FILTER_MAC_WILD: Matching Ethernet destination MAC address
- * @EFX_FILTER_UC_DEF: Matching all otherwise unmatched unicast
- * @EFX_FILTER_MC_DEF: Matching all otherwise unmatched multicast
- * @EFX_FILTER_UNSPEC: Match type is unspecified
+ * enum efx_filter_match_flags - Flags for hardware filter match type
+ * @EFX_FILTER_MATCH_REM_HOST: Match by remote IP host address
+ * @EFX_FILTER_MATCH_LOC_HOST: Match by local IP host address
+ * @EFX_FILTER_MATCH_REM_MAC: Match by remote MAC address
+ * @EFX_FILTER_MATCH_REM_PORT: Match by remote TCP/UDP port
+ * @EFX_FILTER_MATCH_LOC_MAC: Match by local MAC address
+ * @EFX_FILTER_MATCH_LOC_PORT: Match by local TCP/UDP port
+ * @EFX_FILTER_MATCH_ETHER_TYPE: Match by Ether-type
+ * @EFX_FILTER_MATCH_INNER_VID: Match by inner VLAN ID
+ * @EFX_FILTER_MATCH_OUTER_VID: Match by outer VLAN ID
+ * @EFX_FILTER_MATCH_IP_PROTO: Match by IP transport protocol
+ * @EFX_FILTER_MATCH_LOC_MAC_IG: Match by local MAC address I/G bit.
+ *	Used for RX default unicast and multicast/broadcast filters.
  *
- * Falcon NICs only support the TCP/IPv4 and UDP/IPv4 filter types.
+ * Only some combinations are supported, depending on NIC type:
+ *
+ * - Falcon supports RX filters matching by {TCP,UDP}/IPv4 4-tuple or
+ *   local 2-tuple (only implemented for Falcon B0)
+ *
+ * - Siena supports RX and TX filters matching by {TCP,UDP}/IPv4 4-tuple
+ *   or local 2-tuple, or local MAC with or without outer VID, and RX
+ *   default filters
+ *
+ * - Huntington supports filter matching controlled by firmware, potentially
+ *   using {TCP,UDP}/IPv{4,6} 4-tuple or local 2-tuple, local MAC or I/G bit,
+ *   with or without outer and inner VID
  */
-enum efx_filter_type {
-	EFX_FILTER_TCP_FULL = 0,
-	EFX_FILTER_TCP_WILD,
-	EFX_FILTER_UDP_FULL,
-	EFX_FILTER_UDP_WILD,
-	EFX_FILTER_MAC_FULL = 4,
-	EFX_FILTER_MAC_WILD,
-	EFX_FILTER_UC_DEF = 8,
-	EFX_FILTER_MC_DEF,
-	EFX_FILTER_TYPE_COUNT,		/* number of specific types */
-	EFX_FILTER_UNSPEC = 0xf,
+enum efx_filter_match_flags {
+	EFX_FILTER_MATCH_REM_HOST =	0x0001,
+	EFX_FILTER_MATCH_LOC_HOST =	0x0002,
+	EFX_FILTER_MATCH_REM_MAC =	0x0004,
+	EFX_FILTER_MATCH_REM_PORT =	0x0008,
+	EFX_FILTER_MATCH_LOC_MAC =	0x0010,
+	EFX_FILTER_MATCH_LOC_PORT =	0x0020,
+	EFX_FILTER_MATCH_ETHER_TYPE =	0x0040,
+	EFX_FILTER_MATCH_INNER_VID =	0x0080,
+	EFX_FILTER_MATCH_OUTER_VID =	0x0100,
+	EFX_FILTER_MATCH_IP_PROTO =	0x0200,
+	EFX_FILTER_MATCH_LOC_MAC_IG =	0x0400,
 };
 
 /**
@@ -61,37 +78,75 @@ enum efx_filter_priority {
  *	according to the indirection table.
  * @EFX_FILTER_FLAG_RX_SCATTER: Enable DMA scatter on the receiving
  *	queue.
+ * @EFX_FILTER_FLAG_RX_STACK: Indicates a filter inserted for the
+ *	network stack.  The filter must have a priority of
+ *	%EFX_FILTER_PRI_REQUIRED.  It can be steered by a replacement
+ *	request with priority %EFX_FILTER_PRI_MANUAL, and a removal
+ *	request with priority %EFX_FILTER_PRI_MANUAL will reset the
+ *	steering (but not remove the filter).
  * @EFX_FILTER_FLAG_RX: Filter is for RX
  * @EFX_FILTER_FLAG_TX: Filter is for TX
  */
 enum efx_filter_flags {
 	EFX_FILTER_FLAG_RX_RSS = 0x01,
 	EFX_FILTER_FLAG_RX_SCATTER = 0x02,
+	EFX_FILTER_FLAG_RX_STACK = 0x04,
 	EFX_FILTER_FLAG_RX = 0x08,
 	EFX_FILTER_FLAG_TX = 0x10,
 };
 
 /**
  * struct efx_filter_spec - specification for a hardware filter
- * @type: Type of match to be performed, from &enum efx_filter_type
+ * @match_flags: Match type flags, from &enum efx_filter_match_flags
  * @priority: Priority of the filter, from &enum efx_filter_priority
  * @flags: Miscellaneous flags, from &enum efx_filter_flags
- * @dmaq_id: Source/target queue index
- * @data: Match data (type-dependent)
+ * @rss_context: RSS context to use, if %EFX_FILTER_FLAG_RX_RSS is set
+ * @dmaq_id: Source/target queue index, or %EFX_FILTER_RX_DMAQ_ID_DROP for
+ *	an RX drop filter
+ * @outer_vid: Outer VLAN ID to match, if %EFX_FILTER_MATCH_OUTER_VID is set
+ * @inner_vid: Inner VLAN ID to match, if %EFX_FILTER_MATCH_INNER_VID is set
+ * @loc_mac: Local MAC address to match, if %EFX_FILTER_MATCH_LOC_MAC or
+ *	%EFX_FILTER_MATCH_LOC_MAC_IG is set
+ * @rem_mac: Remote MAC address to match, if %EFX_FILTER_MATCH_REM_MAC is set
+ * @ether_type: Ether-type to match, if %EFX_FILTER_MATCH_ETHER_TYPE is set
+ * @ip_proto: IP transport protocol to match, if %EFX_FILTER_MATCH_IP_PROTO
+ *	is set
+ * @loc_host: Local IP host to match, if %EFX_FILTER_MATCH_LOC_HOST is set
+ * @rem_host: Remote IP host to match, if %EFX_FILTER_MATCH_REM_HOST is set
+ * @loc_port: Local TCP/UDP port to match, if %EFX_FILTER_MATCH_LOC_PORT is set
+ * @rem_port: Remote TCP/UDP port to match, if %EFX_FILTER_MATCH_REM_PORT is set
  *
- * Use the efx_filter_set_*() functions to initialise the @type and
- * @data fields.
+ * The efx_filter_init_rx() or efx_filter_init_tx() function *must* be
+ * used to initialise the structure.  The efx_filter_set_*() functions
+ * may then be used to set @rss_context, @match_flags and related
+ * fields.
  *
  * The @priority field is used by software to determine whether a new
  * filter may replace an old one.  The hardware priority of a filter
- * depends on the filter type.
+ * depends on which fields are matched.
  */
 struct efx_filter_spec {
-	u8	type:4;
-	u8	priority:4;
-	u8	flags;
-	u16	dmaq_id;
-	u32	data[3];
+	u32	match_flags:12;
+	u32	priority:2;
+	u32	flags:6;
+	u32	dmaq_id:12;
+	u32	rss_context;
+	__be16	outer_vid __aligned(4); /* allow jhash2() of match values */
+	__be16	inner_vid;
+	u8	loc_mac[ETH_ALEN];
+	u8	rem_mac[ETH_ALEN];
+	__be16	ether_type;
+	u8	ip_proto;
+	__be32	loc_host[4];
+	__be32	rem_host[4];
+	__be16	loc_port;
+	__be16	rem_port;
+	/* total 64 bytes */
+};
+
+enum {
+	EFX_FILTER_RSS_CONTEXT_DEFAULT = 0xffffffff,
+	EFX_FILTER_RX_DMAQ_ID_DROP = 0xfff
 };
 
 static inline void efx_filter_init_rx(struct efx_filter_spec *spec,
@@ -99,39 +154,116 @@ static inline void efx_filter_init_rx(struct efx_filter_spec *spec,
 				      enum efx_filter_flags flags,
 				      unsigned rxq_id)
 {
-	spec->type = EFX_FILTER_UNSPEC;
+	memset(spec, 0, sizeof(*spec));
 	spec->priority = priority;
 	spec->flags = EFX_FILTER_FLAG_RX | flags;
+	spec->rss_context = EFX_FILTER_RSS_CONTEXT_DEFAULT;
 	spec->dmaq_id = rxq_id;
 }
 
 static inline void efx_filter_init_tx(struct efx_filter_spec *spec,
 				      unsigned txq_id)
 {
-	spec->type = EFX_FILTER_UNSPEC;
+	memset(spec, 0, sizeof(*spec));
 	spec->priority = EFX_FILTER_PRI_REQUIRED;
 	spec->flags = EFX_FILTER_FLAG_TX;
 	spec->dmaq_id = txq_id;
 }
 
-extern int efx_filter_set_ipv4_local(struct efx_filter_spec *spec, u8 proto,
-				     __be32 host, __be16 port);
-extern int efx_filter_get_ipv4_local(const struct efx_filter_spec *spec,
-				     u8 *proto, __be32 *host, __be16 *port);
-extern int efx_filter_set_ipv4_full(struct efx_filter_spec *spec, u8 proto,
-				    __be32 host, __be16 port,
-				    __be32 rhost, __be16 rport);
-extern int efx_filter_get_ipv4_full(const struct efx_filter_spec *spec,
-				    u8 *proto, __be32 *host, __be16 *port,
-				    __be32 *rhost, __be16 *rport);
-extern int efx_filter_set_eth_local(struct efx_filter_spec *spec,
-				    u16 vid, const u8 *addr);
-extern int efx_filter_get_eth_local(const struct efx_filter_spec *spec,
-				    u16 *vid, u8 *addr);
-extern int efx_filter_set_uc_def(struct efx_filter_spec *spec);
-extern int efx_filter_set_mc_def(struct efx_filter_spec *spec);
+/**
+ * efx_filter_set_ipv4_local - specify IPv4 host, transport protocol and port
+ * @spec: Specification to initialise
+ * @proto: Transport layer protocol number
+ * @host: Local host address (network byte order)
+ * @port: Local port (network byte order)
+ */
+static inline int
+efx_filter_set_ipv4_local(struct efx_filter_spec *spec, u8 proto,
+			  __be32 host, __be16 port)
+{
+	spec->match_flags |=
+		EFX_FILTER_MATCH_ETHER_TYPE | EFX_FILTER_MATCH_IP_PROTO |
+		EFX_FILTER_MATCH_LOC_HOST | EFX_FILTER_MATCH_LOC_PORT;
+	spec->ether_type = htons(ETH_P_IP);
+	spec->ip_proto = proto;
+	spec->loc_host[0] = host;
+	spec->loc_port = port;
+	return 0;
+}
+
+/**
+ * efx_filter_set_ipv4_full - specify IPv4 hosts, transport protocol and ports
+ * @spec: Specification to initialise
+ * @proto: Transport layer protocol number
+ * @lhost: Local host address (network byte order)
+ * @lport: Local port (network byte order)
+ * @rhost: Remote host address (network byte order)
+ * @rport: Remote port (network byte order)
+ */
+static inline int
+efx_filter_set_ipv4_full(struct efx_filter_spec *spec, u8 proto,
+			 __be32 lhost, __be16 lport,
+			 __be32 rhost, __be16 rport)
+{
+	spec->match_flags |=
+		EFX_FILTER_MATCH_ETHER_TYPE | EFX_FILTER_MATCH_IP_PROTO |
+		EFX_FILTER_MATCH_LOC_HOST | EFX_FILTER_MATCH_LOC_PORT |
+		EFX_FILTER_MATCH_REM_HOST | EFX_FILTER_MATCH_REM_PORT;
+	spec->ether_type = htons(ETH_P_IP);
+	spec->ip_proto = proto;
+	spec->loc_host[0] = lhost;
+	spec->loc_port = lport;
+	spec->rem_host[0] = rhost;
+	spec->rem_port = rport;
+	return 0;
+}
+
 enum {
 	EFX_FILTER_VID_UNSPEC = 0xffff,
 };
+
+/**
+ * efx_filter_set_eth_local - specify local Ethernet address and/or VID
+ * @spec: Specification to initialise
+ * @vid: Outer VLAN ID to match, or %EFX_FILTER_VID_UNSPEC
+ * @addr: Local Ethernet MAC address, or %NULL
+ */
+static inline int efx_filter_set_eth_local(struct efx_filter_spec *spec,
+					   u16 vid, const u8 *addr)
+{
+	if (vid == EFX_FILTER_VID_UNSPEC && addr == NULL)
+		return -EINVAL;
+
+	if (vid != EFX_FILTER_VID_UNSPEC) {
+		spec->match_flags |= EFX_FILTER_MATCH_OUTER_VID;
+		spec->outer_vid = htons(vid);
+	}
+	if (addr != NULL) {
+		spec->match_flags |= EFX_FILTER_MATCH_LOC_MAC;
+		memcpy(spec->loc_mac, addr, ETH_ALEN);
+	}
+	return 0;
+}
+
+/**
+ * efx_filter_set_uc_def - specify matching otherwise-unmatched unicast
+ * @spec: Specification to initialise
+ */
+static inline int efx_filter_set_uc_def(struct efx_filter_spec *spec)
+{
+	spec->match_flags |= EFX_FILTER_MATCH_LOC_MAC_IG;
+	return 0;
+}
+
+/**
+ * efx_filter_set_mc_def - specify matching otherwise-unmatched multicast
+ * @spec: Specification to initialise
+ */
+static inline int efx_filter_set_mc_def(struct efx_filter_spec *spec)
+{
+	spec->match_flags |= EFX_FILTER_MATCH_LOC_MAC_IG;
+	spec->loc_mac[0] = 1;
+	return 0;
+}
 
 #endif /* EFX_FILTER_H */

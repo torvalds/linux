@@ -1183,9 +1183,18 @@ static int qlcnic_sriov_pf_get_acl_cmd(struct qlcnic_bc_trans *trans,
 	struct qlcnic_vf_info *vf = trans->vf;
 	struct qlcnic_vport *vp = vf->vp;
 	u8 cmd_op, mode = vp->vlan_mode;
+	struct qlcnic_adapter *adapter;
+
+	adapter = vf->adapter;
 
 	cmd_op = trans->req_hdr->cmd_op;
 	cmd->rsp.arg[0] |= 1 << 25;
+
+	/* For 84xx adapter in case of PVID , PFD should send vlan mode as
+	 * QLC_NO_VLAN_MODE to VFD which is zero in mailbox response
+	 */
+	if (qlcnic_84xx_check(adapter) && mode == QLC_PVID_MODE)
+		return 0;
 
 	switch (mode) {
 	case QLC_GUEST_VLAN_MODE:
@@ -1284,6 +1293,10 @@ static const int qlcnic_pf_passthru_supp_cmds[] = {
 	QLCNIC_CMD_GET_STATISTICS,
 	QLCNIC_CMD_GET_PORT_CONFIG,
 	QLCNIC_CMD_GET_LINK_STATUS,
+	QLCNIC_CMD_DCB_QUERY_CAP,
+	QLCNIC_CMD_DCB_QUERY_PARAM,
+	QLCNIC_CMD_INIT_NIC_FUNC,
+	QLCNIC_CMD_STOP_NIC_FUNC,
 };
 
 static const struct qlcnic_sriov_cmd_handler qlcnic_pf_bc_cmd_hdlr[] = {
@@ -1639,14 +1652,14 @@ int qlcnic_sriov_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 	if (!is_valid_ether_addr(mac) || vf >= num_vfs)
 		return -EINVAL;
 
-	if (!compare_ether_addr(adapter->mac_addr, mac)) {
+	if (ether_addr_equal(adapter->mac_addr, mac)) {
 		netdev_err(netdev, "MAC address is already in use by the PF\n");
 		return -EINVAL;
 	}
 
 	for (i = 0; i < num_vfs; i++) {
 		vf_info = &sriov->vf_info[i];
-		if (!compare_ether_addr(vf_info->vp->mac, mac)) {
+		if (ether_addr_equal(vf_info->vp->mac, mac)) {
 			netdev_err(netdev,
 				   "MAC address is already in use by VF %d\n",
 				   i);
@@ -1768,8 +1781,8 @@ int qlcnic_sriov_set_vf_vlan(struct net_device *netdev, int vf,
 	return 0;
 }
 
-static inline __u32 qlcnic_sriov_get_vf_vlan(struct qlcnic_adapter *adapter,
-					     struct qlcnic_vport *vp, int vf)
+static __u32 qlcnic_sriov_get_vf_vlan(struct qlcnic_adapter *adapter,
+				      struct qlcnic_vport *vp, int vf)
 {
 	__u32 vlan = 0;
 

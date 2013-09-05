@@ -1948,7 +1948,7 @@ static void bnx2x_set_rx_buf_size(struct bnx2x *bp)
 	}
 }
 
-static int bnx2x_init_rss_pf(struct bnx2x *bp)
+static int bnx2x_init_rss(struct bnx2x *bp)
 {
 	int i;
 	u8 num_eth_queues = BNX2X_NUM_ETH_QUEUES(bp);
@@ -1972,8 +1972,8 @@ static int bnx2x_init_rss_pf(struct bnx2x *bp)
 	return bnx2x_config_rss_eth(bp, bp->port.pmf || !CHIP_IS_E1x(bp));
 }
 
-int bnx2x_config_rss_pf(struct bnx2x *bp, struct bnx2x_rss_config_obj *rss_obj,
-			bool config_hash)
+int bnx2x_rss(struct bnx2x *bp, struct bnx2x_rss_config_obj *rss_obj,
+	      bool config_hash, bool enable)
 {
 	struct bnx2x_config_rss_params params = {NULL};
 
@@ -1988,17 +1988,21 @@ int bnx2x_config_rss_pf(struct bnx2x *bp, struct bnx2x_rss_config_obj *rss_obj,
 
 	__set_bit(RAMROD_COMP_WAIT, &params.ramrod_flags);
 
-	__set_bit(BNX2X_RSS_MODE_REGULAR, &params.rss_flags);
+	if (enable) {
+		__set_bit(BNX2X_RSS_MODE_REGULAR, &params.rss_flags);
 
-	/* RSS configuration */
-	__set_bit(BNX2X_RSS_IPV4, &params.rss_flags);
-	__set_bit(BNX2X_RSS_IPV4_TCP, &params.rss_flags);
-	__set_bit(BNX2X_RSS_IPV6, &params.rss_flags);
-	__set_bit(BNX2X_RSS_IPV6_TCP, &params.rss_flags);
-	if (rss_obj->udp_rss_v4)
-		__set_bit(BNX2X_RSS_IPV4_UDP, &params.rss_flags);
-	if (rss_obj->udp_rss_v6)
-		__set_bit(BNX2X_RSS_IPV6_UDP, &params.rss_flags);
+		/* RSS configuration */
+		__set_bit(BNX2X_RSS_IPV4, &params.rss_flags);
+		__set_bit(BNX2X_RSS_IPV4_TCP, &params.rss_flags);
+		__set_bit(BNX2X_RSS_IPV6, &params.rss_flags);
+		__set_bit(BNX2X_RSS_IPV6_TCP, &params.rss_flags);
+		if (rss_obj->udp_rss_v4)
+			__set_bit(BNX2X_RSS_IPV4_UDP, &params.rss_flags);
+		if (rss_obj->udp_rss_v6)
+			__set_bit(BNX2X_RSS_IPV6_UDP, &params.rss_flags);
+	} else {
+		__set_bit(BNX2X_RSS_MODE_DISABLED, &params.rss_flags);
+	}
 
 	/* Hash bits */
 	params.rss_result_mask = MULTI_MASK;
@@ -2007,11 +2011,14 @@ int bnx2x_config_rss_pf(struct bnx2x *bp, struct bnx2x_rss_config_obj *rss_obj,
 
 	if (config_hash) {
 		/* RSS keys */
-		prandom_bytes(params.rss_key, sizeof(params.rss_key));
+		prandom_bytes(params.rss_key, T_ETH_RSS_KEY * 4);
 		__set_bit(BNX2X_RSS_SET_SRCH, &params.rss_flags);
 	}
 
-	return bnx2x_config_rss(bp, &params);
+	if (IS_PF(bp))
+		return bnx2x_config_rss(bp, &params);
+	else
+		return bnx2x_vfpf_config_rss(bp, &params);
 }
 
 static int bnx2x_init_hw(struct bnx2x *bp, u32 load_code)
@@ -2066,7 +2073,11 @@ void bnx2x_squeeze_objects(struct bnx2x *bp)
 	rparam.mcast_obj = &bp->mcast_obj;
 	__set_bit(RAMROD_DRV_CLR_ONLY, &rparam.ramrod_flags);
 
-	/* Add a DEL command... */
+	/* Add a DEL command... - Since we're doing a driver cleanup only,
+	 * we take a lock surrounding both the initial send and the CONTs,
+	 * as we don't want a true completion to disrupt us in the middle.
+	 */
+	netif_addr_lock_bh(bp->dev);
 	rc = bnx2x_config_mcast(bp, &rparam, BNX2X_MCAST_CMD_DEL);
 	if (rc < 0)
 		BNX2X_ERR("Failed to add a new DEL command to a multi-cast object: %d\n",
@@ -2078,11 +2089,13 @@ void bnx2x_squeeze_objects(struct bnx2x *bp)
 		if (rc < 0) {
 			BNX2X_ERR("Failed to clean multi-cast object: %d\n",
 				  rc);
+			netif_addr_unlock_bh(bp->dev);
 			return;
 		}
 
 		rc = bnx2x_config_mcast(bp, &rparam, BNX2X_MCAST_CMD_CONT);
 	}
+	netif_addr_unlock_bh(bp->dev);
 }
 
 #ifndef BNX2X_STOP_ON_ERROR
@@ -2438,9 +2451,7 @@ int bnx2x_load_cnic(struct bnx2x *bp)
 	}
 
 	/* Initialize Rx filter. */
-	netif_addr_lock_bh(bp->dev);
-	bnx2x_set_rx_mode(bp->dev);
-	netif_addr_unlock_bh(bp->dev);
+	bnx2x_set_rx_mode_inner(bp);
 
 	/* re-read iscsi info */
 	bnx2x_get_iscsi_info(bp);
@@ -2647,38 +2658,32 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 
 		/* initialize FW coalescing state machines in RAM */
 		bnx2x_update_coalesce(bp);
+	}
 
-		/* setup the leading queue */
-		rc = bnx2x_setup_leading(bp);
+	/* setup the leading queue */
+	rc = bnx2x_setup_leading(bp);
+	if (rc) {
+		BNX2X_ERR("Setup leading failed!\n");
+		LOAD_ERROR_EXIT(bp, load_error3);
+	}
+
+	/* set up the rest of the queues */
+	for_each_nondefault_eth_queue(bp, i) {
+		if (IS_PF(bp))
+			rc = bnx2x_setup_queue(bp, &bp->fp[i], false);
+		else /* VF */
+			rc = bnx2x_vfpf_setup_q(bp, &bp->fp[i], false);
 		if (rc) {
-			BNX2X_ERR("Setup leading failed!\n");
+			BNX2X_ERR("Queue %d setup failed\n", i);
 			LOAD_ERROR_EXIT(bp, load_error3);
 		}
+	}
 
-		/* set up the rest of the queues */
-		for_each_nondefault_eth_queue(bp, i) {
-			rc = bnx2x_setup_queue(bp, &bp->fp[i], 0);
-			if (rc) {
-				BNX2X_ERR("Queue setup failed\n");
-				LOAD_ERROR_EXIT(bp, load_error3);
-			}
-		}
-
-		/* setup rss */
-		rc = bnx2x_init_rss_pf(bp);
-		if (rc) {
-			BNX2X_ERR("PF RSS init failed\n");
-			LOAD_ERROR_EXIT(bp, load_error3);
-		}
-
-	} else { /* vf */
-		for_each_eth_queue(bp, i) {
-			rc = bnx2x_vfpf_setup_q(bp, i);
-			if (rc) {
-				BNX2X_ERR("Queue setup failed\n");
-				LOAD_ERROR_EXIT(bp, load_error3);
-			}
-		}
+	/* setup rss */
+	rc = bnx2x_init_rss(bp);
+	if (rc) {
+		BNX2X_ERR("PF RSS init failed\n");
+		LOAD_ERROR_EXIT(bp, load_error3);
 	}
 
 	/* Now when Clients are configured we are ready to work */
@@ -2710,9 +2715,7 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	/* Start fast path */
 
 	/* Initialize Rx filter. */
-	netif_addr_lock_bh(bp->dev);
-	bnx2x_set_rx_mode(bp->dev);
-	netif_addr_unlock_bh(bp->dev);
+	bnx2x_set_rx_mode_inner(bp);
 
 	/* Start the Tx */
 	switch (load_mode) {
@@ -4789,6 +4792,11 @@ int bnx2x_resume(struct pci_dev *pdev)
 void bnx2x_set_ctx_validation(struct bnx2x *bp, struct eth_context *cxt,
 			      u32 cid)
 {
+	if (!cxt) {
+		BNX2X_ERR("bad context pointer %p\n", cxt);
+		return;
+	}
+
 	/* ustorm cxt validation */
 	cxt->ustorm_ag_context.cdu_usage =
 		CDU_RSRVD_VALUE_TYPE_A(HW_CID(bp, cid),

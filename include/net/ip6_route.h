@@ -112,8 +112,6 @@ extern struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 					   const struct in6_addr *addr,
 					   bool anycast);
 
-extern int			ip6_dst_hoplimit(struct dst_entry *dst);
-
 /*
  *	support functions for ND
  *

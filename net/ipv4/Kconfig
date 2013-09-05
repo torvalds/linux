@@ -259,22 +259,6 @@ config IP_PIMSM_V2
 	  gated-5). This routing protocol is not used widely, so say N unless
 	  you want to play with it.
 
-config ARPD
-	bool "IP: ARP daemon support"
-	---help---
-	  The kernel maintains an internal cache which maps IP addresses to
-	  hardware addresses on the local network, so that Ethernet
-	  frames are sent to the proper address on the physical networking
-	  layer. Normally, kernel uses the ARP protocol to resolve these
-	  mappings.
-
-	  Saying Y here adds support to have an user space daemon to do this
-	  resolution instead. This is useful for implementing an alternate
-	  address resolution protocol (e.g. NHRP on mGRE tunnels) and also for
-	  testing purposes.
-
-	  If unsure, say N.
-
 config SYN_COOKIES
 	bool "IP: TCP syncookie support"
 	---help---

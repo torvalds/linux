@@ -77,11 +77,19 @@ error:
 	return rc;
 }
 
-int nfc_fw_download_done(struct nfc_dev *dev, const char *firmware_name)
+/**
+ * nfc_fw_download_done - inform that a firmware download was completed
+ *
+ * @dev: The nfc device to which firmware was downloaded
+ * @firmware_name: The firmware filename
+ * @result: The positive value of a standard errno value
+ */
+int nfc_fw_download_done(struct nfc_dev *dev, const char *firmware_name,
+			 u32 result)
 {
 	dev->fw_download_in_progress = false;
 
-	return nfc_genl_fw_download_done(dev, firmware_name);
+	return nfc_genl_fw_download_done(dev, firmware_name, result);
 }
 EXPORT_SYMBOL(nfc_fw_download_done);
 
@@ -129,7 +137,7 @@ int nfc_dev_up(struct nfc_dev *dev)
 	/* We have to enable the device before discovering SEs */
 	if (dev->ops->discover_se) {
 		rc = dev->ops->discover_se(dev);
-		if (!rc)
+		if (rc)
 			pr_warn("SE discovery failed\n");
 	}
 
@@ -575,12 +583,14 @@ int nfc_enable_se(struct nfc_dev *dev, u32 se_idx)
 		goto error;
 	}
 
-	if (se->type == NFC_SE_ENABLED) {
+	if (se->state == NFC_SE_ENABLED) {
 		rc = -EALREADY;
 		goto error;
 	}
 
 	rc = dev->ops->enable_se(dev, se_idx);
+	if (rc >= 0)
+		se->state = NFC_SE_ENABLED;
 
 error:
 	device_unlock(&dev->dev);
@@ -618,12 +628,14 @@ int nfc_disable_se(struct nfc_dev *dev, u32 se_idx)
 		goto error;
 	}
 
-	if (se->type == NFC_SE_DISABLED) {
+	if (se->state == NFC_SE_DISABLED) {
 		rc = -EALREADY;
 		goto error;
 	}
 
 	rc = dev->ops->disable_se(dev, se_idx);
+	if (rc >= 0)
+		se->state = NFC_SE_DISABLED;
 
 error:
 	device_unlock(&dev->dev);

@@ -63,6 +63,8 @@
 #include <linux/seq_file.h>
 #include <linux/export.h>
 
+#define	ICMPV6_HDRLEN	4	/* ICMPv6 header, RFC 4443 Section 2.1 */
+
 static struct raw_hashinfo raw_v6_hashinfo = {
 	.lock = __RW_LOCK_UNLOCKED(raw_v6_hashinfo.lock),
 };
@@ -108,11 +110,14 @@ found:
  */
 static int icmpv6_filter(const struct sock *sk, const struct sk_buff *skb)
 {
-	struct icmp6hdr *_hdr;
+	struct icmp6hdr _hdr;
 	const struct icmp6hdr *hdr;
 
+	/* We require only the four bytes of the ICMPv6 header, not any
+	 * additional bytes of message body in "struct icmp6hdr".
+	 */
 	hdr = skb_header_pointer(skb, skb_transport_offset(skb),
-				 sizeof(_hdr), &_hdr);
+				 ICMPV6_HDRLEN, &_hdr);
 	if (hdr) {
 		const __u32 *data = &raw6_sk(sk)->filter.data[0];
 		unsigned int type = hdr->icmp6_type;

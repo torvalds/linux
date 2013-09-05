@@ -717,7 +717,7 @@ static int hci_disable_se(struct nfc_dev *nfc_dev, u32 se_idx)
 	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
 
 	if (hdev->ops->disable_se)
-		return hdev->ops->enable_se(hdev, se_idx);
+		return hdev->ops->disable_se(hdev, se_idx);
 
 	return 0;
 }

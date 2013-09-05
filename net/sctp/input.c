@@ -29,10 +29,7 @@
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
- *    lksctp developers <lksctp-developers@lists.sourceforge.net>
- *
- * Or submit a bug report through the following website:
- *    http://www.sf.net/projects/lksctp
+ *    lksctp developers <linux-sctp@vger.kernel.org>
  *
  * Written or modified by:
  *    La Monte H.P. Yarroll <piggy@acm.org>
@@ -43,9 +40,6 @@
  *    Daisy Chang <daisyc@us.ibm.com>
  *    Sridhar Samudrala <sri@us.ibm.com>
  *    Ardelle Fan <ardelle.fan@intel.com>
- *
- * Any bugs reported given to us we will try to fix... any fixes shared will
- * be incorporated into the next SCTP release.
  */
 
 #include <linux/types.h>
@@ -87,15 +81,7 @@ static inline int sctp_rcv_checksum(struct net *net, struct sk_buff *skb)
 {
 	struct sctphdr *sh = sctp_hdr(skb);
 	__le32 cmp = sh->checksum;
-	struct sk_buff *list;
-	__le32 val;
-	__u32 tmp = sctp_start_cksum((__u8 *)sh, skb_headlen(skb));
-
-	skb_walk_frags(skb, list)
-		tmp = sctp_update_cksum((__u8 *)list->data, skb_headlen(list),
-					tmp);
-
-	val = sctp_end_cksum(tmp);
+	__le32 val = sctp_compute_cksum(skb, 0);
 
 	if (val != cmp) {
 		/* CRC failure, dump it. */

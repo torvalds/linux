@@ -146,6 +146,10 @@ extern const char gfar_driver_version[];
 		| SUPPORTED_Autoneg \
 		| SUPPORTED_MII)
 
+#define GFAR_SUPPORTED_GBIT (SUPPORTED_1000baseT_Full \
+		| SUPPORTED_Pause \
+		| SUPPORTED_Asym_Pause)
+
 /* TBI register addresses */
 #define MII_TBICON		0x11
 
@@ -571,7 +575,7 @@ struct rxfcb {
 };
 
 struct gianfar_skb_cb {
-	int alignamount;
+	unsigned int bytes_sent; /* bytes-on-wire (i.e. no FCB) */
 };
 
 #define GFAR_CB(skb) ((struct gianfar_skb_cb *)((skb)->cb))
@@ -1009,7 +1013,6 @@ struct gfar_irqinfo {
  *	@napi: the napi poll function
  *	@priv: back pointer to the priv structure
  *	@regs: the ioremapped register space for this group
- *	@grp_id: group id for this group
  *	@irqinfo: TX/RX/ER irq data for this group
  */
 
@@ -1018,11 +1021,10 @@ struct gfar_priv_grp {
 	struct	napi_struct napi;
 	struct gfar_private *priv;
 	struct gfar __iomem *regs;
-	unsigned int grp_id;
+	unsigned int rstat;
 	unsigned long num_rx_queues;
 	unsigned long rx_bit_map;
 	/* cacheline 3 */
-	unsigned int rstat;
 	unsigned int tstat;
 	unsigned long num_tx_queues;
 	unsigned long tx_bit_map;
@@ -1102,7 +1104,11 @@ struct gfar_private {
 		/* Wake-on-LAN enabled */
 		wol_en:1,
 		/* Enable priorty based Tx scheduling in Hw */
-		prio_sched_en:1;
+		prio_sched_en:1,
+		/* Flow control flags */
+		pause_aneg_en:1,
+		tx_pause_en:1,
+		rx_pause_en:1;
 
 	/* The total tx and rx ring size for the enabled queues */
 	unsigned int total_tx_ring_size;

@@ -13,4 +13,4 @@ config SH_ETH
 	  Renesas SuperH Ethernet device driver.
 	  This driver supporting CPUs are:
 		- SH7619, SH7710, SH7712, SH7724, SH7734, SH7763, SH7757,
-		  R8A7740 and R8A7779.
+		  R8A7740, R8A777x and R8A7790.

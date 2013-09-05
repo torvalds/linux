@@ -352,11 +352,6 @@ extern void br_dev_delete(struct net_device *dev, struct list_head *list);
 extern netdev_tx_t br_dev_xmit(struct sk_buff *skb,
 			       struct net_device *dev);
 #ifdef CONFIG_NET_POLL_CONTROLLER
-static inline struct netpoll_info *br_netpoll_info(struct net_bridge *br)
-{
-	return br->dev->npinfo;
-}
-
 static inline void br_netpoll_send_skb(const struct net_bridge_port *p,
 				       struct sk_buff *skb)
 {
@@ -369,11 +364,6 @@ static inline void br_netpoll_send_skb(const struct net_bridge_port *p,
 extern int br_netpoll_enable(struct net_bridge_port *p, gfp_t gfp);
 extern void br_netpoll_disable(struct net_bridge_port *p);
 #else
-static inline struct netpoll_info *br_netpoll_info(struct net_bridge *br)
-{
-	return NULL;
-}
-
 static inline void br_netpoll_send_skb(const struct net_bridge_port *p,
 				       struct sk_buff *skb)
 {
@@ -494,7 +484,7 @@ extern void br_multicast_free_pg(struct rcu_head *head);
 extern struct net_bridge_port_group *br_multicast_new_port_group(
 				struct net_bridge_port *port,
 				struct br_ip *group,
-				struct net_bridge_port_group *next,
+				struct net_bridge_port_group __rcu *next,
 				unsigned char state);
 extern void br_mdb_init(void);
 extern void br_mdb_uninit(void);
@@ -503,16 +493,6 @@ extern void br_mdb_notify(struct net_device *dev, struct net_bridge_port *port,
 
 #define mlock_dereference(X, br) \
 	rcu_dereference_protected(X, lockdep_is_held(&br->multicast_lock))
-
-#if IS_ENABLED(CONFIG_IPV6)
-#include <net/addrconf.h>
-static inline int ipv6_is_transient_multicast(const struct in6_addr *addr)
-{
-	if (ipv6_addr_is_multicast(addr) && IPV6_ADDR_MC_FLAG_TRANSIENT(addr))
-		return 1;
-	return 0;
-}
-#endif
 
 static inline bool br_multicast_is_router(struct net_bridge *br)
 {

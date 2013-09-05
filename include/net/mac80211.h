@@ -152,11 +152,14 @@ struct ieee80211_low_level_stats {
  * @IEEE80211_CHANCTX_CHANGE_WIDTH: The channel width changed
  * @IEEE80211_CHANCTX_CHANGE_RX_CHAINS: The number of RX chains changed
  * @IEEE80211_CHANCTX_CHANGE_RADAR: radar detection flag changed
+ * @IEEE80211_CHANCTX_CHANGE_CHANNEL: switched to another operating channel,
+ *	this is used only with channel switching with CSA
  */
 enum ieee80211_chanctx_change {
 	IEEE80211_CHANCTX_CHANGE_WIDTH		= BIT(0),
 	IEEE80211_CHANCTX_CHANGE_RX_CHAINS	= BIT(1),
 	IEEE80211_CHANCTX_CHANGE_RADAR		= BIT(2),
+	IEEE80211_CHANCTX_CHANGE_CHANNEL	= BIT(3),
 };
 
 /**
@@ -372,7 +375,7 @@ struct ieee80211_bss_conf {
 };
 
 /**
- * enum mac80211_tx_control_flags - flags to describe transmission information/status
+ * enum mac80211_tx_info_flags - flags to describe transmission information/status
  *
  * These flags are used with the @flags member of &ieee80211_tx_info.
  *
@@ -468,7 +471,7 @@ struct ieee80211_bss_conf {
  * Note: If you have to add new flags to the enumeration, then don't
  *	 forget to update %IEEE80211_TX_TEMPORARY_FLAGS when necessary.
  */
-enum mac80211_tx_control_flags {
+enum mac80211_tx_info_flags {
 	IEEE80211_TX_CTL_REQ_TX_STATUS		= BIT(0),
 	IEEE80211_TX_CTL_ASSIGN_SEQ		= BIT(1),
 	IEEE80211_TX_CTL_NO_ACK			= BIT(2),
@@ -503,6 +506,18 @@ enum mac80211_tx_control_flags {
 };
 
 #define IEEE80211_TX_CTL_STBC_SHIFT		23
+
+/**
+ * enum mac80211_tx_control_flags - flags to describe transmit control
+ *
+ * @IEEE80211_TX_CTRL_PORT_CTRL_PROTO: this frame is a port control
+ *	protocol frame (e.g. EAP)
+ *
+ * These flags are used in tx_info->control.flags.
+ */
+enum mac80211_tx_control_flags {
+	IEEE80211_TX_CTRL_PORT_CTRL_PROTO	= BIT(0),
+};
 
 /*
  * This definition is used as a mask to clear all temporary flags, which are
@@ -677,7 +692,8 @@ struct ieee80211_tx_info {
 			/* NB: vif can be NULL for injected frames */
 			struct ieee80211_vif *vif;
 			struct ieee80211_key_conf *hw_key;
-			/* 8 bytes free */
+			u32 flags;
+			/* 4 bytes free */
 		} control;
 		struct {
 			struct ieee80211_tx_rate rates[IEEE80211_TX_MAX_RATES];
@@ -811,6 +827,8 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  * @RX_FLAG_AMPDU_DELIM_CRC_KNOWN: The delimiter CRC field is known (the CRC
  *	is stored in the @ampdu_delimiter_crc field)
  * @RX_FLAG_STBC_MASK: STBC 2 bit bitmask. 1 - Nss=1, 2 - Nss=2, 3 - Nss=3
+ * @RX_FLAG_10MHZ: 10 MHz (half channel) was used
+ * @RX_FLAG_5MHZ: 5 MHz (quarter channel) was used
  */
 enum mac80211_rx_flags {
 	RX_FLAG_MMIC_ERROR		= BIT(0),
@@ -839,6 +857,8 @@ enum mac80211_rx_flags {
 	RX_FLAG_80P80MHZ		= BIT(24),
 	RX_FLAG_160MHZ			= BIT(25),
 	RX_FLAG_STBC_MASK		= BIT(26) | BIT(27),
+	RX_FLAG_10MHZ			= BIT(28),
+	RX_FLAG_5MHZ			= BIT(29),
 };
 
 #define RX_FLAG_STBC_SHIFT		26
@@ -1004,11 +1024,11 @@ enum ieee80211_smps_mode {
  * @radar_enabled: whether radar detection is enabled
  *
  * @long_frame_max_tx_count: Maximum number of transmissions for a "long" frame
- *    (a frame not RTS protected), called "dot11LongRetryLimit" in 802.11,
- *    but actually means the number of transmissions not the number of retries
+ *	(a frame not RTS protected), called "dot11LongRetryLimit" in 802.11,
+ *	but actually means the number of transmissions not the number of retries
  * @short_frame_max_tx_count: Maximum number of transmissions for a "short"
- *    frame, called "dot11ShortRetryLimit" in 802.11, but actually means the
- *    number of transmissions not the number of retries
+ *	frame, called "dot11ShortRetryLimit" in 802.11, but actually means the
+ *	number of transmissions not the number of retries
  *
  * @smps_mode: spatial multiplexing powersave mode; note that
  *	%IEEE80211_SMPS_STATIC is used when the device is not
@@ -1080,6 +1100,7 @@ enum ieee80211_vif_flags {
  * @addr: address of this interface
  * @p2p: indicates whether this AP or STA interface is a p2p
  *	interface, i.e. a GO or p2p-sta respectively
+ * @csa_active: marks whether a channel switch is going on
  * @driver_flags: flags/capabilities the driver has for this interface,
  *	these need to be set (or cleared) when the interface is added
  *	or, if supported by the driver, the interface type is changed
@@ -1092,7 +1113,7 @@ enum ieee80211_vif_flags {
  *	be off when it is %NULL there can still be races and packets could be
  *	processed after it switches back to %NULL.
  * @debugfs_dir: debugfs dentry, can be used by drivers to create own per
- *      interface debug files. Note that it will be NULL for the virtual
+ *	interface debug files. Note that it will be NULL for the virtual
  *	monitor interface (if that is requested.)
  * @drv_priv: data area for driver use, will always be aligned to
  *	sizeof(void *).
@@ -1102,6 +1123,7 @@ struct ieee80211_vif {
 	struct ieee80211_bss_conf bss_conf;
 	u8 addr[ETH_ALEN];
 	bool p2p;
+	bool csa_active;
 
 	u8 cab_queue;
 	u8 hw_queue[IEEE80211_NUM_ACS];
@@ -1425,10 +1447,10 @@ struct ieee80211_tx_control {
  *	the stack.
  *
  * @IEEE80211_HW_CONNECTION_MONITOR:
- *      The hardware performs its own connection monitoring, including
- *      periodic keep-alives to the AP and probing the AP on beacon loss.
- *      When this flag is set, signaling beacon-loss will cause an immediate
- *      change to disassociated state.
+ *	The hardware performs its own connection monitoring, including
+ *	periodic keep-alives to the AP and probing the AP on beacon loss.
+ *	When this flag is set, signaling beacon-loss will cause an immediate
+ *	change to disassociated state.
  *
  * @IEEE80211_HW_NEED_DTIM_BEFORE_ASSOC:
  *	This device needs to get data from beacon before association (i.e.
@@ -1527,10 +1549,10 @@ enum ieee80211_hw_flags {
  * @channel_change_time: time (in microseconds) it takes to change channels.
  *
  * @max_signal: Maximum value for signal (rssi) in RX information, used
- *     only when @IEEE80211_HW_SIGNAL_UNSPEC or @IEEE80211_HW_SIGNAL_DB
+ *	only when @IEEE80211_HW_SIGNAL_UNSPEC or @IEEE80211_HW_SIGNAL_DB
  *
  * @max_listen_interval: max listen interval in units of beacon interval
- *     that HW supports
+ *	that HW supports
  *
  * @queues: number of available hardware transmit queues for
  *	data packets. WMM/QoS requires at least four, these
@@ -2444,7 +2466,7 @@ enum ieee80211_roc_type {
  *	The callback can sleep.
  *
  * @set_tsf: Set the TSF timer to the specified value in the firmware/hardware.
- *      Currently, this is only used for IBSS mode debugging. Is not a
+ *	Currently, this is only used for IBSS mode debugging. Is not a
  *	required function.
  *	The callback can sleep.
  *
@@ -2495,8 +2517,8 @@ enum ieee80211_roc_type {
  *	in IEEE 802.11-2007 section 17.3.8.6 and modify ACK timeout
  *	accordingly. This callback is not required and may sleep.
  *
- * @testmode_cmd: Implement a cfg80211 test mode command.
- *	The callback can sleep.
+ * @testmode_cmd: Implement a cfg80211 test mode command. The passed @vif may
+ *	be %NULL. The callback can sleep.
  * @testmode_dump: Implement a cfg80211 test mode dump. The callback can sleep.
  *
  * @flush: Flush all pending frames from the hardware queue, making sure
@@ -2634,6 +2656,16 @@ enum ieee80211_roc_type {
  * @ipv6_addr_change: IPv6 address assignment on the given interface changed.
  *	Currently, this is only called for managed or P2P client interfaces.
  *	This callback is optional; it must not sleep.
+ *
+ * @channel_switch_beacon: Starts a channel switch to a new channel.
+ *	Beacons are modified to include CSA or ECSA IEs before calling this
+ *	function. The corresponding count fields in these IEs must be
+ *	decremented, and when they reach zero the driver must call
+ *	ieee80211_csa_finish(). Drivers which use ieee80211_beacon_get()
+ *	get the csa counter decremented by mac80211, but must check if it is
+ *	zero using ieee80211_csa_is_complete() after the beacon has been
+ *	transmitted and then call ieee80211_csa_finish().
+ *
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw,
@@ -2747,7 +2779,8 @@ struct ieee80211_ops {
 	void (*rfkill_poll)(struct ieee80211_hw *hw);
 	void (*set_coverage_class)(struct ieee80211_hw *hw, u8 coverage_class);
 #ifdef CONFIG_NL80211_TESTMODE
-	int (*testmode_cmd)(struct ieee80211_hw *hw, void *data, int len);
+	int (*testmode_cmd)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			    void *data, int len);
 	int (*testmode_dump)(struct ieee80211_hw *hw, struct sk_buff *skb,
 			     struct netlink_callback *cb,
 			     void *data, int len);
@@ -2821,6 +2854,9 @@ struct ieee80211_ops {
 				 struct ieee80211_vif *vif,
 				 struct inet6_dev *idev);
 #endif
+	void (*channel_switch_beacon)(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      struct cfg80211_chan_def *chandef);
 };
 
 /**
@@ -2878,14 +2914,14 @@ enum ieee80211_tpt_led_trigger_flags {
 };
 
 #ifdef CONFIG_MAC80211_LEDS
-extern char *__ieee80211_get_tx_led_name(struct ieee80211_hw *hw);
-extern char *__ieee80211_get_rx_led_name(struct ieee80211_hw *hw);
-extern char *__ieee80211_get_assoc_led_name(struct ieee80211_hw *hw);
-extern char *__ieee80211_get_radio_led_name(struct ieee80211_hw *hw);
-extern char *__ieee80211_create_tpt_led_trigger(
-				struct ieee80211_hw *hw, unsigned int flags,
-				const struct ieee80211_tpt_blink *blink_table,
-				unsigned int blink_table_len);
+char *__ieee80211_get_tx_led_name(struct ieee80211_hw *hw);
+char *__ieee80211_get_rx_led_name(struct ieee80211_hw *hw);
+char *__ieee80211_get_assoc_led_name(struct ieee80211_hw *hw);
+char *__ieee80211_get_radio_led_name(struct ieee80211_hw *hw);
+char *__ieee80211_create_tpt_led_trigger(struct ieee80211_hw *hw,
+					 unsigned int flags,
+					 const struct ieee80211_tpt_blink *blink_table,
+					 unsigned int blink_table_len);
 #endif
 /**
  * ieee80211_get_tx_led_name - get name of TX LED
@@ -3316,6 +3352,25 @@ static inline struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 }
 
 /**
+ * ieee80211_csa_finish - notify mac80211 about channel switch
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ *
+ * After a channel switch announcement was scheduled and the counter in this
+ * announcement hit zero, this function must be called by the driver to
+ * notify mac80211 that the channel can be changed.
+ */
+void ieee80211_csa_finish(struct ieee80211_vif *vif);
+
+/**
+ * ieee80211_csa_is_complete - find out if counters reached zero
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ *
+ * This function returns whether the channel switch counters reached zero.
+ */
+bool ieee80211_csa_is_complete(struct ieee80211_vif *vif);
+
+
+/**
  * ieee80211_proberesp_get - retrieve a Probe Response template
  * @hw: pointer obtained from ieee80211_alloc_hw().
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
@@ -3632,6 +3687,89 @@ void ieee80211_get_key_tx_seq(struct ieee80211_key_conf *keyconf,
  */
 void ieee80211_get_key_rx_seq(struct ieee80211_key_conf *keyconf,
 			      int tid, struct ieee80211_key_seq *seq);
+
+/**
+ * ieee80211_set_key_tx_seq - set key TX sequence counter
+ *
+ * @keyconf: the parameter passed with the set key
+ * @seq: new sequence data
+ *
+ * This function allows a driver to set the current TX IV/PNs for the
+ * given key. This is useful when resuming from WoWLAN sleep and the
+ * device may have transmitted frames using the PTK, e.g. replies to
+ * ARP requests.
+ *
+ * Note that this function may only be called when no TX processing
+ * can be done concurrently.
+ */
+void ieee80211_set_key_tx_seq(struct ieee80211_key_conf *keyconf,
+			      struct ieee80211_key_seq *seq);
+
+/**
+ * ieee80211_set_key_rx_seq - set key RX sequence counter
+ *
+ * @keyconf: the parameter passed with the set key
+ * @tid: The TID, or -1 for the management frame value (CCMP only);
+ *	the value on TID 0 is also used for non-QoS frames. For
+ *	CMAC, only TID 0 is valid.
+ * @seq: new sequence data
+ *
+ * This function allows a driver to set the current RX IV/PNs for the
+ * given key. This is useful when resuming from WoWLAN sleep and GTK
+ * rekey may have been done while suspended. It should not be called
+ * if IV checking is done by the device and not by mac80211.
+ *
+ * Note that this function may only be called when no RX processing
+ * can be done concurrently.
+ */
+void ieee80211_set_key_rx_seq(struct ieee80211_key_conf *keyconf,
+			      int tid, struct ieee80211_key_seq *seq);
+
+/**
+ * ieee80211_remove_key - remove the given key
+ * @keyconf: the parameter passed with the set key
+ *
+ * Remove the given key. If the key was uploaded to the hardware at the
+ * time this function is called, it is not deleted in the hardware but
+ * instead assumed to have been removed already.
+ *
+ * Note that due to locking considerations this function can (currently)
+ * only be called during key iteration (ieee80211_iter_keys().)
+ */
+void ieee80211_remove_key(struct ieee80211_key_conf *keyconf);
+
+/**
+ * ieee80211_gtk_rekey_add - add a GTK key from rekeying during WoWLAN
+ * @vif: the virtual interface to add the key on
+ * @keyconf: new key data
+ *
+ * When GTK rekeying was done while the system was suspended, (a) new
+ * key(s) will be available. These will be needed by mac80211 for proper
+ * RX processing, so this function allows setting them.
+ *
+ * The function returns the newly allocated key structure, which will
+ * have similar contents to the passed key configuration but point to
+ * mac80211-owned memory. In case of errors, the function returns an
+ * ERR_PTR(), use IS_ERR() etc.
+ *
+ * Note that this function assumes the key isn't added to hardware
+ * acceleration, so no TX will be done with the key. Since it's a GTK
+ * on managed (station) networks, this is true anyway. If the driver
+ * calls this function from the resume callback and subsequently uses
+ * the return code 1 to reconfigure the device, this key will be part
+ * of the reconfiguration.
+ *
+ * Note that the driver should also call ieee80211_set_key_rx_seq()
+ * for the new key for each TID to set up sequence counters properly.
+ *
+ * IMPORTANT: If this replaces a key that is present in the hardware,
+ * then it will attempt to remove it during this call. In many cases
+ * this isn't what you want, so call ieee80211_remove_key() first for
+ * the key that's being replaced.
+ */
+struct ieee80211_key_conf *
+ieee80211_gtk_rekey_add(struct ieee80211_vif *vif,
+			struct ieee80211_key_conf *keyconf);
 
 /**
  * ieee80211_gtk_rekey_notify - notify userspace supplicant of rekeying
@@ -4205,8 +4343,10 @@ struct rate_control_ops {
 
 	void *(*alloc_sta)(void *priv, struct ieee80211_sta *sta, gfp_t gfp);
 	void (*rate_init)(void *priv, struct ieee80211_supported_band *sband,
+			  struct cfg80211_chan_def *chandef,
 			  struct ieee80211_sta *sta, void *priv_sta);
 	void (*rate_update)(void *priv, struct ieee80211_supported_band *sband,
+			    struct cfg80211_chan_def *chandef,
 			    struct ieee80211_sta *sta, void *priv_sta,
 			    u32 changed);
 	void (*free_sta)(void *priv, struct ieee80211_sta *sta,

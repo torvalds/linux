@@ -235,7 +235,16 @@ struct vring_tx_mac {
 
 #define DMA_CFG_DESC_TX_0_L4_TYPE_POS 30
 #define DMA_CFG_DESC_TX_0_L4_TYPE_LEN 2
-#define DMA_CFG_DESC_TX_0_L4_TYPE_MSK 0xC0000000
+#define DMA_CFG_DESC_TX_0_L4_TYPE_MSK 0xC0000000 /* L4 type: 0-UDP, 2-TCP */
+
+
+#define DMA_CFG_DESC_TX_OFFLOAD_CFG_MAC_LEN_POS 0
+#define DMA_CFG_DESC_TX_OFFLOAD_CFG_MAC_LEN_LEN 7
+#define DMA_CFG_DESC_TX_OFFLOAD_CFG_MAC_LEN_MSK 0x7F /* MAC hdr len */
+
+#define DMA_CFG_DESC_TX_OFFLOAD_CFG_L3T_IPV4_POS 7
+#define DMA_CFG_DESC_TX_OFFLOAD_CFG_L3T_IPV4_LEN 1
+#define DMA_CFG_DESC_TX_OFFLOAD_CFG_L3T_IPV4_MSK 0x80 /* 1-IPv4, 0-IPv6 */
 
 
 #define TX_DMA_STATUS_DU         BIT(0)
@@ -334,8 +343,17 @@ struct vring_rx_mac {
 
 #define RX_DMA_D0_CMD_DMA_IT     BIT(10)
 
+/* Error field, offload bits */
+#define RX_DMA_ERROR_L3_ERR   BIT(4)
+#define RX_DMA_ERROR_L4_ERR   BIT(5)
+
+
+/* Status field */
 #define RX_DMA_STATUS_DU         BIT(0)
 #define RX_DMA_STATUS_ERROR      BIT(2)
+
+#define RX_DMA_STATUS_L3_IDENT   BIT(4)
+#define RX_DMA_STATUS_L4_IDENT   BIT(5)
 #define RX_DMA_STATUS_PHY_INFO   BIT(6)
 
 struct vring_rx_dma {

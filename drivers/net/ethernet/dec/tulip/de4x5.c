@@ -2319,7 +2319,7 @@ static void de4x5_pci_remove(struct pci_dev *pdev)
 	struct net_device *dev;
 	u_long iobase;
 
-	dev = dev_get_drvdata(&pdev->dev);
+	dev = pci_get_drvdata(pdev);
 	iobase = dev->base_addr;
 
 	unregister_netdev (dev);

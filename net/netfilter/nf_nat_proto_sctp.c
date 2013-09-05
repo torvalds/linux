@@ -34,9 +34,7 @@ sctp_manip_pkt(struct sk_buff *skb,
 	       const struct nf_conntrack_tuple *tuple,
 	       enum nf_nat_manip_type maniptype)
 {
-	struct sk_buff *frag;
 	sctp_sctphdr_t *hdr;
-	__u32 crc32;
 
 	if (!skb_make_writable(skb, hdroff + sizeof(*hdr)))
 		return false;
@@ -51,11 +49,7 @@ sctp_manip_pkt(struct sk_buff *skb,
 		hdr->dest = tuple->dst.u.sctp.port;
 	}
 
-	crc32 = sctp_start_cksum((u8 *)hdr, skb_headlen(skb) - hdroff);
-	skb_walk_frags(skb, frag)
-		crc32 = sctp_update_cksum((u8 *)frag->data, skb_headlen(frag),
-					  crc32);
-	hdr->checksum = sctp_end_cksum(crc32);
+	hdr->checksum = sctp_compute_cksum(skb, hdroff);
 
 	return true;
 }

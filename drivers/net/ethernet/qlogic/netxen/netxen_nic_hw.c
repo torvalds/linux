@@ -536,10 +536,10 @@ static void netxen_p2_nic_set_multi(struct net_device *netdev)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
 	struct netdev_hw_addr *ha;
-	u8 null_addr[6];
+	u8 null_addr[ETH_ALEN];
 	int i;
 
-	memset(null_addr, 0, 6);
+	memset(null_addr, 0, ETH_ALEN);
 
 	if (netdev->flags & IFF_PROMISC) {
 

@@ -1602,7 +1602,7 @@ static void xs_tcp_write_space(struct sock *sk)
 	read_lock_bh(&sk->sk_callback_lock);
 
 	/* from net/core/stream.c:sk_stream_write_space */
-	if (sk_stream_wspace(sk) >= sk_stream_min_wspace(sk))
+	if (sk_stream_is_writeable(sk))
 		xs_write_space(sk);
 
 	read_unlock_bh(&sk->sk_callback_lock);

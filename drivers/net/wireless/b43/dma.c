@@ -431,9 +431,9 @@ static int alloc_ringmemory(struct b43_dmaring *ring)
 	u16 ring_mem_size = (ring->type == B43_DMA_64BIT) ?
 				B43_DMA64_RINGMEMSIZE : B43_DMA32_RINGMEMSIZE;
 
-	ring->descbase = dma_alloc_coherent(ring->dev->dev->dma_dev,
-					    ring_mem_size, &(ring->dmabase),
-					    GFP_KERNEL | __GFP_ZERO);
+	ring->descbase = dma_zalloc_coherent(ring->dev->dev->dma_dev,
+					     ring_mem_size, &(ring->dmabase),
+					     GFP_KERNEL);
 	if (!ring->descbase)
 		return -ENOMEM;
 
