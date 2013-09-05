@@ -157,19 +157,27 @@ void vlv_gps_core_write(struct drm_i915_private *dev_priv, u32 reg, u32 val)
 			PUNIT_OPCODE_REG_WRITE, reg, &val);
 }
 
-u32 vlv_dpio_read(struct drm_i915_private *dev_priv, int reg)
+static u32 vlv_get_phy_port(enum pipe pipe)
+{
+	u32 port = IOSF_PORT_DPIO;
+
+	WARN_ON ((pipe != PIPE_A) && (pipe != PIPE_B));
+
+	return port;
+}
+
+u32 vlv_dpio_read(struct drm_i915_private *dev_priv, enum pipe pipe, int reg)
 {
 	u32 val = 0;
 
-	vlv_sideband_rw(dev_priv, DPIO_DEVFN, IOSF_PORT_DPIO,
+	vlv_sideband_rw(dev_priv, DPIO_DEVFN, vlv_get_phy_port(pipe),
 			DPIO_OPCODE_REG_READ, reg, &val);
-
 	return val;
 }
 
-void vlv_dpio_write(struct drm_i915_private *dev_priv, int reg, u32 val)
+void vlv_dpio_write(struct drm_i915_private *dev_priv, enum pipe pipe, int reg, u32 val)
 {
-	vlv_sideband_rw(dev_priv, DPIO_DEVFN, IOSF_PORT_DPIO,
+	vlv_sideband_rw(dev_priv, DPIO_DEVFN, vlv_get_phy_port(pipe),
 			DPIO_OPCODE_REG_WRITE, reg, &val);
 }
 
