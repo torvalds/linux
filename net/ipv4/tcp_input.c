@@ -3162,16 +3162,14 @@ static inline bool tcp_may_raise_cwnd(const struct sock *sk, const int flag)
 
 	/* If reordering is high then always grow cwnd whenever data is
 	 * delivered regardless of its ordering. Otherwise stay conservative
-	 * and only grow cwnd on in-order delivery in Open state, and retain
-	 * cwnd in Disordered state (RFC5681). A stretched ACK with
+	 * and only grow cwnd on in-order delivery (RFC5681). A stretched ACK w/
 	 * new SACK or ECE mark may first advance cwnd here and later reduce
 	 * cwnd in tcp_fastretrans_alert() based on more states.
 	 */
 	if (tcp_sk(sk)->reordering > sysctl_tcp_reordering)
 		return flag & FLAG_FORWARD_PROGRESS;
 
-	return inet_csk(sk)->icsk_ca_state == TCP_CA_Open &&
-	       flag & FLAG_DATA_ACKED;
+	return flag & FLAG_DATA_ACKED;
 }
 
 /* Check that window update is acceptable.
