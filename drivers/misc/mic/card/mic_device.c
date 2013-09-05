@@ -32,6 +32,7 @@
 #include <linux/mic_common.h>
 #include "../common/mic_device.h"
 #include "mic_device.h"
+#include "mic_virtio.h"
 
 static struct mic_driver *g_drv;
 static struct mic_irq *shutdown_cookie;
@@ -265,10 +266,15 @@ int __init mic_driver_init(struct mic_driver *mdrv)
 	rc = mic_shutdown_init();
 	if (rc)
 		goto irq_uninit;
+	rc = mic_devices_init(mdrv);
+	if (rc)
+		goto shutdown_uninit;
 	mic_create_card_debug_dir(mdrv);
 	atomic_notifier_chain_register(&panic_notifier_list, &mic_panic);
 done:
 	return rc;
+shutdown_uninit:
+	mic_shutdown_uninit();
 irq_uninit:
 	mic_uninit_irq();
 dp_uninit:
@@ -286,6 +292,7 @@ put:
 void mic_driver_uninit(struct mic_driver *mdrv)
 {
 	mic_delete_card_debug_dir(mdrv);
+	mic_devices_uninit(mdrv);
 	/*
 	 * Inform the host about the shutdown status i.e. poweroff/restart etc.
 	 * The module cannot be unloaded so the only code path to call

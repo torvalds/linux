@@ -24,6 +24,7 @@ comment "Intel MIC Card Driver"
 config INTEL_MIC_CARD
 	tristate "Intel MIC Card Driver"
 	depends on 64BIT
+	select VIRTIO
 	default N
 	help
 	  This enables card driver support for the Intel Many Integrated
