@@ -1400,6 +1400,12 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 			inc_deq(xhci, xhci->cmd_ring);
 			return;
 		}
+		/* There is no command to handle if we get a stop event when the
+		 * command ring is empty, event->cmd_trb points to the next
+		 * unset command
+		 */
+		if (xhci->cmd_ring->dequeue == xhci->cmd_ring->enqueue)
+			return;
 	}
 
 	switch (le32_to_cpu(xhci->cmd_ring->dequeue->generic.field[3])
