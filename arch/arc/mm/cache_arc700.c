@@ -240,6 +240,59 @@ chk_dc:
 #define OP_INV		0x1
 #define OP_FLUSH	0x2
 #define OP_FLUSH_N_INV	0x3
+#define OP_INV_IC	0x4
+
+/*
+ * Common Helper for Line Operations on {I,D}-Cache
+ */
+static inline void __cache_line_loop(unsigned long paddr, unsigned long vaddr,
+				     unsigned long sz, const int cacheop)
+{
+	unsigned int aux_cmd, aux_tag;
+	int num_lines;
+
+	if (cacheop == OP_INV_IC) {
+		aux_cmd = ARC_REG_IC_IVIL;
+		aux_tag = ARC_REG_IC_PTAG;
+	}
+	else {
+		/* d$ cmd: INV (discard or wback-n-discard) OR FLUSH (wback) */
+		aux_cmd = cacheop & OP_INV ? ARC_REG_DC_IVDL : ARC_REG_DC_FLDL;
+		aux_tag = ARC_REG_DC_PTAG;
+	}
+
+	/* Ensure we properly floor/ceil the non-line aligned/sized requests
+	 * and have @paddr - aligned to cache line and integral @num_lines.
+	 * This however can be avoided for page sized since:
+	 *  -@paddr will be cache-line aligned already (being page aligned)
+	 *  -@sz will be integral multiple of line size (being page sized).
+	 */
+	if (!(__builtin_constant_p(sz) && sz == PAGE_SIZE)) {
+		sz += paddr & ~CACHE_LINE_MASK;
+		paddr &= CACHE_LINE_MASK;
+		vaddr &= CACHE_LINE_MASK;
+	}
+
+	num_lines = DIV_ROUND_UP(sz, L1_CACHE_BYTES);
+
+#if (CONFIG_ARC_MMU_VER <= 2)
+	/* MMUv2 and before: paddr contains stuffed vaddrs bits */
+	paddr |= (vaddr >> PAGE_SHIFT) & 0x1F;
+#endif
+
+	while (num_lines-- > 0) {
+#if (CONFIG_ARC_MMU_VER > 2)
+		/* MMUv3, cache ops require paddr seperately */
+		write_aux_reg(ARC_REG_DC_PTAG, paddr);
+
+		write_aux_reg(aux_cmd, vaddr);
+		vaddr += L1_CACHE_BYTES;
+#else
+		write_aux_reg(aux, paddr);
+#endif
+		paddr += L1_CACHE_BYTES;
+	}
+}
 
 #ifdef CONFIG_ARC_HAS_DCACHE
 
@@ -289,55 +342,6 @@ static inline void __dc_entire_op(const int cacheop)
 		write_aux_reg(ARC_REG_DC_CTRL, tmp & ~DC_CTRL_INV_MODE_FLUSH);
 }
 
-/*
- * Per Line Operation on D-Cache
- * Doesn't deal with type-of-op/IRQ-disabling/waiting-for-flush-to-complete
- * It's sole purpose is to help gcc generate ZOL
- * (aliasing VIPT dcache flushing needs both vaddr and paddr)
- */
-static inline void __dc_line_loop(unsigned long paddr, unsigned long vaddr,
-				  unsigned long sz, const int cacheop)
-{
-	/* d$ cmd: INV (discard or wback-n-discard) OR FLUSH (wback) */
-	const int aux = cacheop & OP_INV ? ARC_REG_DC_IVDL : ARC_REG_DC_FLDL;
-	int num_lines;
-
-	/* Ensure we properly floor/ceil the non-line aligned/sized requests
-	 * and have @paddr - aligned to cache line and integral @num_lines.
-	 * This however can be avoided for page sized since:
-	 *  -@paddr will be cache-line aligned already (being page aligned)
-	 *  -@sz will be integral multiple of line size (being page sized).
-	 */
-	if (!(__builtin_constant_p(sz) && sz == PAGE_SIZE)) {
-		sz += paddr & ~CACHE_LINE_MASK;
-		paddr &= CACHE_LINE_MASK;
-		vaddr &= CACHE_LINE_MASK;
-	}
-
-	num_lines = DIV_ROUND_UP(sz, L1_CACHE_BYTES);
-
-#if (CONFIG_ARC_MMU_VER <= 2)
-	paddr |= (vaddr >> PAGE_SHIFT) & 0x1F;
-#endif
-
-	while (num_lines-- > 0) {
-#if (CONFIG_ARC_MMU_VER > 2)
-		/*
-		 * Just as for I$, in MMU v3, D$ ops also require
-		 * "tag" bits in DC_PTAG, "index" bits in FLDL,IVDL ops
-		 */
-		write_aux_reg(ARC_REG_DC_PTAG, paddr);
-
-		write_aux_reg(aux, vaddr);
-		vaddr += L1_CACHE_BYTES;
-#else
-		/* paddr contains stuffed vaddrs bits */
-		write_aux_reg(aux, paddr);
-#endif
-		paddr += L1_CACHE_BYTES;
-	}
-}
-
 /* For kernel mappings cache operation: index is same as paddr */
 #define __dc_line_op_k(p, sz, op)	__dc_line_op(p, p, sz, op)
 
@@ -362,7 +366,7 @@ static inline void __dc_line_op(unsigned long paddr, unsigned long vaddr,
 		write_aux_reg(ARC_REG_DC_CTRL, tmp | DC_CTRL_INV_MODE_FLUSH);
 	}
 
-	__dc_line_loop(paddr, vaddr, sz, cacheop);
+	__cache_line_loop(paddr, vaddr, sz, cacheop);
 
 	if (cacheop & OP_FLUSH)	/* flush / flush-n-inv both wait */
 		wait_for_flush();
@@ -434,42 +438,9 @@ static void __ic_line_inv_vaddr(unsigned long paddr, unsigned long vaddr,
 				unsigned long sz)
 {
 	unsigned long flags;
-	int num_lines;
-
-	/*
-	 * Ensure we properly floor/ceil the non-line aligned/sized requests:
-	 * However page sized flushes can be compile time optimised.
-	 *  -@paddr will be cache-line aligned already (being page aligned)
-	 *  -@sz will be integral multiple of line size (being page sized).
-	 */
-	if (!(__builtin_constant_p(sz) && sz == PAGE_SIZE)) {
-		sz += paddr & ~CACHE_LINE_MASK;
-		paddr &= CACHE_LINE_MASK;
-		vaddr &= CACHE_LINE_MASK;
-	}
-
-	num_lines = DIV_ROUND_UP(sz, L1_CACHE_BYTES);
-
-#if (CONFIG_ARC_MMU_VER <= 2)
-	/* bits 17:13 of vaddr go as bits 4:0 of paddr */
-	paddr |= (vaddr >> PAGE_SHIFT) & 0x1F;
-#endif
 
 	local_irq_save(flags);
-	while (num_lines-- > 0) {
-#if (CONFIG_ARC_MMU_VER > 2)
-		/* tag comes from phy addr */
-		write_aux_reg(ARC_REG_IC_PTAG, paddr);
-
-		/* index bits come from vaddr */
-		write_aux_reg(ARC_REG_IC_IVIL, vaddr);
-		vaddr += L1_CACHE_BYTES;
-#else
-		/* paddr contains stuffed vaddrs bits */
-		write_aux_reg(ARC_REG_IC_IVIL, paddr);
-#endif
-		paddr += L1_CACHE_BYTES;
-	}
+	__cache_line_loop(paddr, vaddr, sz, OP_INV_IC);
 	local_irq_restore(flags);
 }
 
