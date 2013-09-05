@@ -126,9 +126,13 @@ int init_module(void)
 	if (pdev == NULL)
 		return -ENODEV;
 
+	rc = pci_enable_device(pdev);
+	if (rc)
+		goto err_put_dev;
+
 	if (!atir_init_start()) {
 		rc = -ENODEV;
-		goto err_put_dev;
+		goto err_disable;
 	}
 
 	strcpy(atir_driver.name, "ATIR");
@@ -154,6 +158,8 @@ int init_module(void)
 
 err_unmap:
 	iounmap(pci_addr_lin);
+err_disable:
+	pci_disable_device(pdev);
 err_put_dev:
 	pci_dev_put(pdev);
 	return rc;
@@ -166,6 +172,7 @@ void cleanup_module(void)
 
 	lirc_unregister_driver(atir_minor);
 	iounmap(pci_addr_lin);
+	pci_disable_device(pdev);
 	pci_dev_put(pdev);
 }
 
