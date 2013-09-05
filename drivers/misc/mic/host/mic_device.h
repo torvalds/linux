@@ -21,6 +21,10 @@
 #ifndef _MIC_DEVICE_H_
 #define _MIC_DEVICE_H_
 
+#include <linux/idr.h>
+
+#include "mic_intr.h"
+
 /* The maximum number of MIC devices supported in a single host system. */
 #define MIC_MAX_NUM_DEVS 256
 
@@ -53,6 +57,12 @@ enum mic_stepping {
  * @stepping: Stepping ID.
  * @attr_group: Pointer to list of sysfs attribute groups.
  * @sdev: Device for sysfs entries.
+ * @mic_mutex: Mutex for synchronizing access to mic_device.
+ * @intr_ops: HW specific interrupt operations.
+ * @smpt_ops: Hardware specific SMPT operations.
+ * @smpt: MIC SMPT information.
+ * @intr_info: H/W specific interrupt information.
+ * @irq_info: The OS specific irq information
  */
 struct mic_device {
 	struct mic_mw mmio;
@@ -63,6 +73,12 @@ struct mic_device {
 	enum mic_stepping stepping;
 	const struct attribute_group **attr_group;
 	struct device *sdev;
+	struct mutex mic_mutex;
+	struct mic_hw_intr_ops *intr_ops;
+	struct mic_smpt_ops *smpt_ops;
+	struct mic_smpt_info *smpt;
+	struct mic_intr_info *intr_info;
+	struct mic_irq_info irq_info;
 };
 
 /**
@@ -71,12 +87,17 @@ struct mic_device {
  * @mmio_bar: MMIO bar resource number.
  * @read_spad: Read from scratch pad register.
  * @write_spad: Write to scratch pad register.
+ * @send_intr: Send an interrupt for a particular doorbell on the card.
+ * @ack_interrupt: Hardware specific operations to ack the h/w on
+ * receipt of an interrupt.
  */
 struct mic_hw_ops {
 	u8 aper_bar;
 	u8 mmio_bar;
 	u32 (*read_spad)(struct mic_device *mdev, unsigned int idx);
 	void (*write_spad)(struct mic_device *mdev, unsigned int idx, u32 val);
+	void (*send_intr)(struct mic_device *mdev, int doorbell);
+	u32 (*ack_interrupt)(struct mic_device *mdev);
 };
 
 /**

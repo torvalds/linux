@@ -23,13 +23,13 @@
  * 2) Enable per vring interrupt support.
  */
 #include <linux/fs.h>
-#include <linux/idr.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 
 #include "../common/mic_device.h"
 #include "mic_device.h"
 #include "mic_x100.h"
+#include "mic_smpt.h"
 
 static const char mic_driver_name[] = "mic";
 
@@ -75,6 +75,8 @@ static void mic_ops_init(struct mic_device *mdev)
 	switch (mdev->family) {
 	case MIC_FAMILY_X100:
 		mdev->ops = &mic_x100_ops;
+		mdev->intr_ops = &mic_x100_intr_ops;
+		mdev->smpt_ops = &mic_x100_smpt_ops;
 		break;
 	default:
 		break;
@@ -132,6 +134,8 @@ mic_device_init(struct mic_device *mdev, struct pci_dev *pdev)
 	mdev->stepping = pdev->revision;
 	mic_ops_init(mdev);
 	mic_sysfs_init(mdev);
+	mutex_init(&mdev->mic_mutex);
+	mdev->irq_info.next_avail_src = 0;
 }
 
 /**
@@ -201,6 +205,18 @@ static int mic_probe(struct pci_dev *pdev,
 		goto unmap_mmio;
 	}
 
+	mdev->intr_ops->intr_init(mdev);
+	rc = mic_setup_interrupts(mdev, pdev);
+	if (rc) {
+		dev_err(&pdev->dev, "mic_setup_interrupts failed %d\n", rc);
+		goto unmap_aper;
+	}
+	rc = mic_smpt_init(mdev);
+	if (rc) {
+		dev_err(&pdev->dev, "smpt_init failed %d\n", rc);
+		goto free_interrupts;
+	}
+
 	pci_set_drvdata(pdev, mdev);
 
 	mdev->sdev = device_create_with_groups(g_mic_class, &pdev->dev,
@@ -210,9 +226,13 @@ static int mic_probe(struct pci_dev *pdev,
 		rc = PTR_ERR(mdev->sdev);
 		dev_err(&pdev->dev,
 			"device_create_with_groups failed rc %d\n", rc);
-		goto unmap_aper;
+		goto smpt_uninit;
 	}
 	return 0;
+smpt_uninit:
+	mic_smpt_uninit(mdev);
+free_interrupts:
+	mic_free_interrupts(mdev, pdev);
 unmap_aper:
 	iounmap(mdev->aper.va);
 unmap_mmio:
@@ -246,6 +266,8 @@ static void mic_remove(struct pci_dev *pdev)
 		return;
 
 	device_destroy(g_mic_class, MKDEV(MAJOR(g_mic_devno), mdev->id));
+	mic_smpt_uninit(mdev);
+	mic_free_interrupts(mdev, pdev);
 	iounmap(mdev->mmio.va);
 	iounmap(mdev->aper.va);
 	pci_release_regions(pdev);
