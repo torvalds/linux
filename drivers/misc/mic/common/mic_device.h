@@ -41,4 +41,11 @@ struct mic_mw {
 #define MIC_DPLO_SPAD 14
 #define MIC_DPHI_SPAD 15
 
+/*
+ * These values are supposed to be in the config_change field of the
+ * device page when the host sends a config change interrupt to the card.
+ */
+#define MIC_VIRTIO_PARAM_DEV_REMOVE 0x1
+#define MIC_VIRTIO_PARAM_CONFIG_CHANGED 0x2
+
 #endif

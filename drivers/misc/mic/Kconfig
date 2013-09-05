@@ -3,6 +3,7 @@ comment "Intel MIC Host Driver"
 config INTEL_MIC_HOST
 	tristate "Intel MIC Host Driver"
 	depends on 64BIT && PCI
+	select VHOST_RING
 	default N
 	help
 	  This enables Host Driver support for the Intel Many Integrated

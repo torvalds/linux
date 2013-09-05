@@ -21,6 +21,7 @@
 #ifndef _MIC_DEVICE_H_
 #define _MIC_DEVICE_H_
 
+#include <linux/cdev.h>
 #include <linux/idr.h>
 
 #include "mic_intr.h"
@@ -80,6 +81,8 @@ enum mic_stepping {
  * @dp_dma_addr: virtio device page DMA address.
  * @shutdown_db: shutdown doorbell.
  * @shutdown_cookie: shutdown cookie.
+ * @cdev: Character device for MIC.
+ * @vdev_list: list of virtio devices.
  */
 struct mic_device {
 	struct mic_mw mmio;
@@ -113,6 +116,8 @@ struct mic_device {
 	dma_addr_t dp_dma_addr;
 	int shutdown_db;
 	struct mic_irq *shutdown_cookie;
+	struct cdev cdev;
+	struct list_head vdev_list;
 };
 
 /**

@@ -20,12 +20,12 @@
  */
 #include <linux/delay.h>
 #include <linux/firmware.h>
-#include <linux/interrupt.h>
 
 #include <linux/mic_common.h>
 #include "../common/mic_device.h"
 #include "mic_device.h"
 #include "mic_smpt.h"
+#include "mic_virtio.h"
 
 /**
  * mic_reset - Reset the MIC device.
@@ -117,6 +117,7 @@ void mic_stop(struct mic_device *mdev, bool force)
 {
 	mutex_lock(&mdev->mic_mutex);
 	if (MIC_OFFLINE != mdev->state || force) {
+		mic_virtio_reset_devices(mdev);
 		mic_bootparam_init(mdev);
 		mic_reset(mdev);
 		if (MIC_RESET_FAILED == mdev->state)

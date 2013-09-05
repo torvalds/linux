@@ -25,12 +25,15 @@
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/poll.h>
 
 #include <linux/mic_common.h>
 #include "../common/mic_device.h"
 #include "mic_device.h"
 #include "mic_x100.h"
 #include "mic_smpt.h"
+#include "mic_fops.h"
+#include "mic_virtio.h"
 
 static const char mic_driver_name[] = "mic";
 
@@ -63,6 +66,15 @@ static struct ida g_mic_ida;
 static struct class *g_mic_class;
 /* Base device node number for MIC devices */
 static dev_t g_mic_devno;
+
+static const struct file_operations mic_fops = {
+	.open = mic_open,
+	.release = mic_release,
+	.unlocked_ioctl = mic_ioctl,
+	.poll = mic_poll,
+	.mmap = mic_mmap,
+	.owner = THIS_MODULE,
+};
 
 /* Initialize the device page */
 static int mic_dp_init(struct mic_device *mdev)
@@ -193,6 +205,7 @@ mic_device_init(struct mic_device *mdev, struct pci_dev *pdev)
 	mdev->irq_info.next_avail_src = 0;
 	INIT_WORK(&mdev->reset_trigger_work, mic_reset_trigger_work);
 	INIT_WORK(&mdev->shutdown_work, mic_shutdown_work);
+	INIT_LIST_HEAD(&mdev->vdev_list);
 }
 
 /**
@@ -330,7 +343,19 @@ static int mic_probe(struct pci_dev *pdev,
 	mic_bootparam_init(mdev);
 
 	mic_create_debug_dir(mdev);
+	cdev_init(&mdev->cdev, &mic_fops);
+	mdev->cdev.owner = THIS_MODULE;
+	rc = cdev_add(&mdev->cdev, MKDEV(MAJOR(g_mic_devno), mdev->id), 1);
+	if (rc) {
+		dev_err(&pdev->dev, "cdev_add err id %d rc %d\n", mdev->id, rc);
+		goto cleanup_debug_dir;
+	}
 	return 0;
+cleanup_debug_dir:
+	mic_delete_debug_dir(mdev);
+	mutex_lock(&mdev->mic_mutex);
+	mic_free_irq(mdev, mdev->shutdown_cookie, mdev);
+	mutex_unlock(&mdev->mic_mutex);
 dp_uninit:
 	mic_dp_uninit(mdev);
 sysfs_put:
@@ -375,6 +400,7 @@ static void mic_remove(struct pci_dev *pdev)
 		return;
 
 	mic_stop(mdev, false);
+	cdev_del(&mdev->cdev);
 	mic_delete_debug_dir(mdev);
 	mutex_lock(&mdev->mic_mutex);
 	mic_free_irq(mdev, mdev->shutdown_cookie, mdev);
