@@ -708,6 +708,11 @@ static int efx_ef10_mcdi_poll_reboot(struct efx_nic *efx)
 	nic_data->must_restore_filters = true;
 	nic_data->rx_rss_context = EFX_EF10_RSS_CONTEXT_INVALID;
 
+	/* MAC statistics have been cleared on the NIC; clear the local
+	 * statistic that we update with efx_update_diff_stat().
+	 */
+	nic_data->stats[EF10_STAT_rx_bad_bytes] = 0;
+
 	return -EIO;
 }
 
