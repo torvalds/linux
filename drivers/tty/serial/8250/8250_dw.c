@@ -56,11 +56,12 @@
 
 
 struct dw8250_data {
-	int		last_lcr;
-	int		last_mcr;
-	int		line;
-	struct clk	*clk;
-	u8		usr_reg;
+	u8			usr_reg;
+	int			last_lcr;
+	int			last_mcr;
+	int			line;
+	struct clk		*clk;
+	struct uart_8250_dma	dma;
 };
 
 static inline int dw8250_modify_msr(struct uart_port *p, int offset, int value)
@@ -241,7 +242,8 @@ static int dw8250_probe_of(struct uart_port *p,
 }
 
 #ifdef CONFIG_ACPI
-static int dw8250_probe_acpi(struct uart_8250_port *up)
+static int dw8250_probe_acpi(struct uart_8250_port *up,
+			     struct dw8250_data *data)
 {
 	const struct acpi_device_id *id;
 	struct uart_port *p = &up->port;
@@ -260,9 +262,7 @@ static int dw8250_probe_acpi(struct uart_8250_port *up)
 	if (!p->uartclk)
 		p->uartclk = (unsigned int)id->driver_data;
 
-	up->dma = devm_kzalloc(p->dev, sizeof(*up->dma), GFP_KERNEL);
-	if (!up->dma)
-		return -ENOMEM;
+	up->dma = &data->dma;
 
 	up->dma->rxconf.src_maxburst = p->fifosize / 4;
 	up->dma->txconf.dst_maxburst = p->fifosize / 4;
@@ -324,7 +324,7 @@ static int dw8250_probe(struct platform_device *pdev)
 		if (err)
 			return err;
 	} else if (ACPI_HANDLE(&pdev->dev)) {
-		err = dw8250_probe_acpi(&uart);
+		err = dw8250_probe_acpi(&uart, data);
 		if (err)
 			return err;
 	} else {
