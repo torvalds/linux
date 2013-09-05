@@ -392,55 +392,55 @@ static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm,
 		return;
 	}
 
-	if ((support & ACPI_PCIE_REQ_SUPPORT) == ACPI_PCIE_REQ_SUPPORT) {
-		control = OSC_PCI_EXPRESS_CAPABILITY_CONTROL
-			| OSC_PCI_EXPRESS_NATIVE_HP_CONTROL
-			| OSC_PCI_EXPRESS_PME_CONTROL;
+	if ((support & ACPI_PCIE_REQ_SUPPORT) != ACPI_PCIE_REQ_SUPPORT) {
+		dev_info(&device->dev, "Not requesting _OSC control (we support %#02x but %#02x are required)\n",
+			 support, ACPI_PCIE_REQ_SUPPORT);
+		return;
+	}
 
-		if (pci_aer_available()) {
-			if (aer_acpi_firmware_first())
-				dev_dbg(&device->dev,
-					"PCIe errors handled by BIOS.\n");
-			else
-				control |= OSC_PCI_EXPRESS_AER_CONTROL;
-		}
+	control = OSC_PCI_EXPRESS_CAPABILITY_CONTROL
+		| OSC_PCI_EXPRESS_NATIVE_HP_CONTROL
+		| OSC_PCI_EXPRESS_PME_CONTROL;
 
+	if (pci_aer_available()) {
+		if (aer_acpi_firmware_first())
+			dev_dbg(&device->dev,
+				"PCIe errors handled by BIOS.\n");
+		else
+			control |= OSC_PCI_EXPRESS_AER_CONTROL;
+	}
+
+	dev_info(&device->dev,
+		 "Requesting ACPI _OSC control (0x%02x)\n", control);
+
+	status = acpi_pci_osc_control_set(handle, &control,
+					  OSC_PCI_EXPRESS_CAPABILITY_CONTROL);
+	if (ACPI_SUCCESS(status)) {
 		dev_info(&device->dev,
-			"Requesting ACPI _OSC control (0x%02x)\n", control);
-
-		status = acpi_pci_osc_control_set(handle, &control,
-				       OSC_PCI_EXPRESS_CAPABILITY_CONTROL);
-		if (ACPI_SUCCESS(status)) {
-			dev_info(&device->dev,
-				"ACPI _OSC control (0x%02x) granted\n",
-				control);
-			if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_ASPM) {
-				/*
-				 * We have ASPM control, but the FADT indicates
-				 * that it's unsupported. Clear it.
-				 */
-				*clear_aspm = 1;
-			}
-		} else {
-			dev_info(&device->dev,
-				"ACPI _OSC request failed (%s), "
-				"returned control mask: 0x%02x\n",
-				acpi_format_exception(status), control);
-			dev_info(&device->dev,
-				 "ACPI _OSC control for PCIe not granted, disabling ASPM\n");
+			 "ACPI _OSC control (0x%02x) granted\n",
+			 control);
+		if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_ASPM) {
 			/*
-			 * We want to disable ASPM here, but aspm_disabled
-			 * needs to remain in its state from boot so that we
-			 * properly handle PCIe 1.1 devices.  So we set this
-			 * flag here, to defer the action until after the ACPI
-			 * root scan.
+			 * We have ASPM control, but the FADT indicates
+			 * that it's unsupported. Clear it.
 			 */
-			*no_aspm = 1;
+			*clear_aspm = 1;
 		}
 	} else {
 		dev_info(&device->dev,
-			 "Unable to request _OSC control "
-			 "(_OSC support mask: 0x%02x)\n", support);
+			"ACPI _OSC request failed (%s), "
+			"returned control mask: 0x%02x\n",
+			acpi_format_exception(status), control);
+		dev_info(&device->dev,
+			 "ACPI _OSC control for PCIe not granted, disabling ASPM\n");
+		/*
+		 * We want to disable ASPM here, but aspm_disabled
+		 * needs to remain in its state from boot so that we
+		 * properly handle PCIe 1.1 devices.  So we set this
+		 * flag here, to defer the action until after the ACPI
+		 * root scan.
+		 */
+		*no_aspm = 1;
 	}
 }
 
