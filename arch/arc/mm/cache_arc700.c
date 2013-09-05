@@ -296,8 +296,10 @@ static inline void __dc_entire_op(const int cacheop)
  * (aliasing VIPT dcache flushing needs both vaddr and paddr)
  */
 static inline void __dc_line_loop(unsigned long paddr, unsigned long vaddr,
-				  unsigned long sz, const int aux_reg)
+				  unsigned long sz, const int cacheop)
 {
+	/* which MMU cmd: INV (discard or wback-n-discard) OR FLUSH (wback) */
+	const int aux = cacheop & OP_INV ? ARC_REG_DC_IVDL : ARC_REG_DC_FLDL;
 	int num_lines;
 
 	/* Ensure we properly floor/ceil the non-line aligned/sized requests
@@ -326,11 +328,11 @@ static inline void __dc_line_loop(unsigned long paddr, unsigned long vaddr,
 		 */
 		write_aux_reg(ARC_REG_DC_PTAG, paddr);
 
-		write_aux_reg(aux_reg, vaddr);
+		write_aux_reg(aux, vaddr);
 		vaddr += ARC_DCACHE_LINE_LEN;
 #else
 		/* paddr contains stuffed vaddrs bits */
-		write_aux_reg(aux_reg, paddr);
+		write_aux_reg(aux, paddr);
 #endif
 		paddr += ARC_DCACHE_LINE_LEN;
 	}
@@ -346,7 +348,6 @@ static inline void __dc_line_op(unsigned long paddr, unsigned long vaddr,
 				unsigned long sz, const int cacheop)
 {
 	unsigned long flags, tmp = tmp;
-	int aux;
 
 	local_irq_save(flags);
 
@@ -361,12 +362,7 @@ static inline void __dc_line_op(unsigned long paddr, unsigned long vaddr,
 		write_aux_reg(ARC_REG_DC_CTRL, tmp | DC_CTRL_INV_MODE_FLUSH);
 	}
 
-	if (cacheop & OP_INV)	/* Inv / flush-n-inv use same cmd reg */
-		aux = ARC_REG_DC_IVDL;
-	else
-		aux = ARC_REG_DC_FLDL;
-
-	__dc_line_loop(paddr, vaddr, sz, aux);
+	__dc_line_loop(paddr, vaddr, sz, cacheop);
 
 	if (cacheop & OP_FLUSH)	/* flush / flush-n-inv both wait */
 		wait_for_flush();
