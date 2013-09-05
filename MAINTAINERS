@@ -9075,6 +9075,12 @@ F:	drivers/staging/vme/
 F:	drivers/vme/
 F:	include/linux/vme*
 
+VMWARE HYPERVISOR INTERFACE
+M:	Alok Kataria <akataria@vmware.com>
+L:	virtualization@lists.linux-foundation.org
+S:	Supported
+F:	arch/x86/kernel/cpu/vmware.c
+
 VMWARE VMXNET3 ETHERNET DRIVER
 M:	Shreyas Bhatewara <sbhatewara@vmware.com>
 M:	"VMware, Inc." <pv-drivers@vmware.com>
