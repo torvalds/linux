@@ -338,12 +338,7 @@ extern bool osc_sb_apei_support_acked;
 #define OSC_PCI_EXPRESS_PME_CONTROL		0x00000004
 #define OSC_PCI_EXPRESS_AER_CONTROL		0x00000008
 #define OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL	0x00000010
-
-#define OSC_PCI_CONTROL_MASKS 	(OSC_PCI_EXPRESS_NATIVE_HP_CONTROL | 	\
-				OSC_SHPC_NATIVE_HP_CONTROL | 		\
-				OSC_PCI_EXPRESS_PME_CONTROL |		\
-				OSC_PCI_EXPRESS_AER_CONTROL |		\
-				OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL)
+#define OSC_PCI_CONTROL_MASKS			0x0000001f
 
 extern acpi_status acpi_pci_osc_control_set(acpi_handle handle,
 					     u32 *mask, u32 req);
