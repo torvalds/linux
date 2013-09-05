@@ -477,6 +477,7 @@ smb2_is_valid_lease_break(char *buffer, struct TCP_Server_Info *server)
 
 				queue_work(cifsiod_wq, &cfile->oplock_break);
 
+				kfree(lw);
 				spin_unlock(&cifs_file_list_lock);
 				spin_unlock(&cifs_tcp_ses_lock);
 				return true;
