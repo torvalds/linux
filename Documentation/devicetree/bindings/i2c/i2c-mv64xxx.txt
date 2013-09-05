@@ -5,6 +5,7 @@ Required properties :
 
  - reg             : Offset and length of the register set for the device
  - compatible      : Should be "marvell,mv64xxx-i2c" or "allwinner,sun4i-i2c"
+                     or "marvell,mv78230-i2c"
  - interrupts      : The interrupt number
 
 Optional properties :
@@ -17,6 +18,15 @@ Examples:
 	i2c@11000 {
 		compatible = "marvell,mv64xxx-i2c";
 		reg = <0x11000 0x20>;
+		interrupts = <29>;
+		clock-frequency = <100000>;
+	};
+
+For the Armada XP:
+
+	i2c@11000 {
+		compatible = "marvell,mv78230-i2c", "marvell,mv64xxx-i2c";
+		reg = <0x11000 0x100>;
 		interrupts = <29>;
 		clock-frequency = <100000>;
 	};

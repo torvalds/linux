@@ -137,7 +137,7 @@ static irqreturn_t smbalert_irq(int irq, void *d)
 static int smbalert_probe(struct i2c_client *ara,
 			  const struct i2c_device_id *id)
 {
-	struct i2c_smbus_alert_setup *setup = ara->dev.platform_data;
+	struct i2c_smbus_alert_setup *setup = dev_get_platdata(&ara->dev);
 	struct i2c_smbus_alert *alert;
 	struct i2c_adapter *adapter = ara->adapter;
 	int res;

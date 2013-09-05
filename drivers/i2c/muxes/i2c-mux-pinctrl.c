@@ -20,7 +20,6 @@
 #include <linux/i2c-mux.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/of_i2c.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/i2c-mux-pinctrl.h>
 #include <linux/platform_device.h>
@@ -145,7 +144,7 @@ static int i2c_mux_pinctrl_probe(struct platform_device *pdev)
 
 	mux->dev = &pdev->dev;
 
-	mux->pdata = pdev->dev.platform_data;
+	mux->pdata = dev_get_platdata(&pdev->dev);
 	if (!mux->pdata) {
 		ret = i2c_mux_pinctrl_parse_dt(mux, pdev);
 		if (ret < 0)
