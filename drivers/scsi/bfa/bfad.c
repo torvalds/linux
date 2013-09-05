@@ -766,49 +766,20 @@ bfad_pci_init(struct pci_dev *pdev, struct bfad_s *bfad)
 	bfad->pcidev = pdev;
 
 	/* Adjust PCIe Maximum Read Request Size */
-	if (pcie_max_read_reqsz > 0) {
-		int pcie_cap_reg;
-		u16 pcie_dev_ctl;
-		u16 mask = 0xffff;
-
-		switch (pcie_max_read_reqsz) {
-		case 128:
-			mask = 0x0;
-			break;
-		case 256:
-			mask = 0x1000;
-			break;
-		case 512:
-			mask = 0x2000;
-			break;
-		case 1024:
-			mask = 0x3000;
-			break;
-		case 2048:
-			mask = 0x4000;
-			break;
-		case 4096:
-			mask = 0x5000;
-			break;
-		default:
-			break;
-		}
-
-		pcie_cap_reg = pci_find_capability(pdev, PCI_CAP_ID_EXP);
-		if (mask != 0xffff && pcie_cap_reg) {
-			pcie_cap_reg += 0x08;
-			pci_read_config_word(pdev, pcie_cap_reg, &pcie_dev_ctl);
-			if ((pcie_dev_ctl & 0x7000) != mask) {
-				printk(KERN_WARNING "BFA[%s]: "
+	if (pci_is_pcie(pdev) && pcie_max_read_reqsz) {
+		if (pcie_max_read_reqsz >= 128 &&
+		    pcie_max_read_reqsz <= 4096 &&
+		    is_power_of_2(pcie_max_read_reqsz)) {
+			int max_rq = pcie_get_readrq(pdev);
+			printk(KERN_WARNING "BFA[%s]: "
 				"pcie_max_read_request_size is %d, "
-				"reset to %d\n", bfad->pci_name,
-				(1 << ((pcie_dev_ctl & 0x7000) >> 12)) << 7,
+				"reset to %d\n", bfad->pci_name, max_rq,
 				pcie_max_read_reqsz);
-
-				pcie_dev_ctl &= ~0x7000;
-				pci_write_config_word(pdev, pcie_cap_reg,
-						pcie_dev_ctl | mask);
-			}
+			pcie_set_readrq(pdev, pcie_max_read_reqsz);
+		} else {
+			printk(KERN_WARNING "BFA[%s]: invalid "
+			       "pcie_max_read_request_size %d ignored\n",
+			       bfad->pci_name, pcie_max_read_reqsz);
 		}
 	}
 
