@@ -34,29 +34,6 @@
 #include "fscache.h"
 #include "smb2proto.h"
 
-void
-smb2_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock)
-{
-	oplock &= 0xFF;
-	if (oplock == SMB2_OPLOCK_LEVEL_NOCHANGE)
-		return;
-	if (oplock == SMB2_OPLOCK_LEVEL_BATCH) {
-		cinode->oplock = CIFS_CACHE_READ_FLG | CIFS_CACHE_WRITE_FLG |
-				 CIFS_CACHE_HANDLE_FLG;
-		cifs_dbg(FYI, "Batch Oplock granted on inode %p\n",
-			 &cinode->vfs_inode);
-	} else if (oplock == SMB2_OPLOCK_LEVEL_EXCLUSIVE) {
-		cinode->oplock = CIFS_CACHE_READ_FLG | CIFS_CACHE_WRITE_FLG;
-		cifs_dbg(FYI, "Exclusive Oplock granted on inode %p\n",
-			 &cinode->vfs_inode);
-	} else if (oplock == SMB2_OPLOCK_LEVEL_II) {
-		cinode->oplock = CIFS_CACHE_READ_FLG;
-		cifs_dbg(FYI, "Level II Oplock granted on inode %p\n",
-			 &cinode->vfs_inode);
-	} else
-		cinode->oplock = 0;
-}
-
 int
 smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
 	       __u32 *oplock, FILE_ALL_INFO *buf)

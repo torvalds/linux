@@ -313,8 +313,7 @@ cifs_new_fileinfo(struct cifs_fid *fid, struct file *file,
 	 * If the server returned a read oplock and we have mandatory brlocks,
 	 * set oplock level to None.
 	 */
-	if (oplock == server->vals->oplock_read &&
-						cifs_has_mand_locks(cinode)) {
+	if (server->ops->is_read_op(oplock) && cifs_has_mand_locks(cinode)) {
 		cifs_dbg(FYI, "Reset oplock val from read to None due to mand locks\n");
 		oplock = 0;
 	}

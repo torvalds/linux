@@ -963,7 +963,7 @@ parse_lease_state(struct smb2_create_rsp *rsp)
 	if (!found)
 		return 0;
 
-	return smb2_map_lease_to_oplock(lc->lcontext.LeaseState);
+	return le32_to_cpu(lc->lcontext.LeaseState);
 }
 
 static int

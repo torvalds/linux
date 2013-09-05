@@ -1116,7 +1116,7 @@ cifs_parse_smb_version(char *value, struct smb_vol *vol)
 		break;
 #ifdef CONFIG_CIFS_SMB2
 	case Smb_20:
-		vol->ops = &smb21_operations; /* currently identical with 2.1 */
+		vol->ops = &smb20_operations;
 		vol->vals = &smb20_values;
 		break;
 	case Smb_21:

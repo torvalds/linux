@@ -380,23 +380,15 @@ cifs_convert_path_to_utf16(const char *from, struct cifs_sb_info *cifs_sb)
 __le32
 smb2_get_lease_state(struct cifsInodeInfo *cinode)
 {
-	if (CIFS_CACHE_WRITE(cinode))
-		return SMB2_LEASE_WRITE_CACHING | SMB2_LEASE_READ_CACHING;
-	else if (CIFS_CACHE_READ(cinode))
-		return SMB2_LEASE_READ_CACHING;
-	return 0;
-}
+	__le32 lease = 0;
 
-__u8 smb2_map_lease_to_oplock(__le32 lease_state)
-{
-	if (lease_state & SMB2_LEASE_WRITE_CACHING) {
-		if (lease_state & SMB2_LEASE_HANDLE_CACHING)
-			return SMB2_OPLOCK_LEVEL_BATCH;
-		else
-			return SMB2_OPLOCK_LEVEL_EXCLUSIVE;
-	} else if (lease_state & SMB2_LEASE_READ_CACHING)
-		return SMB2_OPLOCK_LEVEL_II;
-	return 0;
+	if (CIFS_CACHE_WRITE(cinode))
+		lease |= SMB2_LEASE_WRITE_CACHING;
+	if (CIFS_CACHE_HANDLE(cinode))
+		lease |= SMB2_LEASE_HANDLE_CACHING;
+	if (CIFS_CACHE_READ(cinode))
+		lease |= SMB2_LEASE_READ_CACHING;
+	return lease;
 }
 
 struct smb2_lease_break_work {
@@ -433,7 +425,7 @@ smb2_tcon_has_lease(struct cifs_tcon *tcon, struct smb2_lease_break *rsp,
 	int ack_req = le32_to_cpu(rsp->Flags &
 				  SMB2_NOTIFY_BREAK_LEASE_FLAG_ACK_REQUIRED);
 
-	lease_state = smb2_map_lease_to_oplock(rsp->NewLeaseState);
+	lease_state = le32_to_cpu(rsp->NewLeaseState);
 
 	list_for_each(tmp, &tcon->openFileList) {
 		cfile = list_entry(tmp, struct cifsFileInfo, tlist);
@@ -447,7 +439,7 @@ smb2_tcon_has_lease(struct cifs_tcon *tcon, struct smb2_lease_break *rsp,
 		cifs_dbg(FYI, "lease key match, lease break 0x%d\n",
 			 le32_to_cpu(rsp->NewLeaseState));
 
-		smb2_set_oplock_level(cinode, lease_state);
+		tcon->ses->server->ops->set_oplock_level(cinode, lease_state);
 
 		if (ack_req)
 			cfile->oplock_break_cancelled = false;
@@ -582,7 +574,7 @@ smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 				else
 					cfile->oplock_break_cancelled = false;
 
-				smb2_set_oplock_level(cinode,
+				server->ops->set_oplock_level(cinode,
 				  rsp->OplockLevel ? SMB2_OPLOCK_LEVEL_II : 0);
 
 				queue_work(cifsiod_wq, &cfile->oplock_break);

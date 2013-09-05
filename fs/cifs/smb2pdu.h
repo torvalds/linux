@@ -476,6 +476,10 @@ struct create_context {
 	__u8 Buffer[0];
 } __packed;
 
+#define SMB2_LEASE_READ_CACHING_HE	0x01
+#define SMB2_LEASE_HANDLE_CACHING_HE	0x02
+#define SMB2_LEASE_WRITE_CACHING_HE	0x04
+
 #define SMB2_LEASE_NONE			__constant_cpu_to_le32(0x00)
 #define SMB2_LEASE_READ_CACHING		__constant_cpu_to_le32(0x01)
 #define SMB2_LEASE_HANDLE_CACHING	__constant_cpu_to_le32(0x02)
