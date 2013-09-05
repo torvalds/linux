@@ -18,6 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/random.h>
 #include <linux/slab.h>
 
 #ifdef CONFIG_SOC_BUS
@@ -129,6 +130,17 @@ void omap_get_die_id(struct omap_die_id *odi)
 	odi->id_2 = read_tap_reg(OMAP_TAP_DIE_ID_2);
 	odi->id_3 = read_tap_reg(OMAP_TAP_DIE_ID_3);
 }
+
+static int __init omap_feed_randpool(void)
+{
+	struct omap_die_id odi;
+
+	/* Throw the die ID into the entropy pool at boot */
+	omap_get_die_id(&odi);
+	add_device_randomness(&odi, sizeof(odi));
+	return 0;
+}
+omap_device_initcall(omap_feed_randpool);
 
 void __init omap2xxx_check_revision(void)
 {
