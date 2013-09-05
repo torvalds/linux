@@ -4,7 +4,7 @@
  * This file contains generic fabric module configfs infrastructure for
  * TCM v4.x code
  *
- * (c) Copyright 2010-2012 RisingTide Systems LLC.
+ * (c) Copyright 2010-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@linux-iscsi.org>
 *

@@ -3,7 +3,7 @@
  *
  * This file contains SPC-3 compliant asymmetric logical unit assigntment (ALUA)
  *
- * (c) Copyright 2009-2012 RisingTide Systems LLC.
+ * (c) Copyright 2009-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
  *

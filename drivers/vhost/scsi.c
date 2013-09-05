@@ -1,12 +1,12 @@
 /*******************************************************************************
  * Vhost kernel TCM fabric driver for virtio SCSI initiators
  *
- * (C) Copyright 2010-2012 RisingTide Systems LLC.
+ * (C) Copyright 2010-2013 Datera, Inc.
  * (C) Copyright 2010-2012 IBM Corp.
  *
  * Licensed to the Linux Foundation under the General Public License (GPL) version 2.
  *
- * Authors: Nicholas A. Bellinger <nab@risingtidesystems.com>
+ * Authors: Nicholas A. Bellinger <nab@daterainc.com>
  *          Stefan Hajnoczi <stefanha@linux.vnet.ibm.com>
  *
  * This program is free software; you can redistribute it and/or modify

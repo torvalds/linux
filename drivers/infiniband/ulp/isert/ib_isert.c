@@ -1,7 +1,7 @@
 /*******************************************************************************
  * This file contains iSCSI extentions for RDMA (iSER) Verbs
  *
- * (c) Copyright 2013 RisingTide Systems LLC.
+ * (c) Copyright 2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@linux-iscsi.org>
  *

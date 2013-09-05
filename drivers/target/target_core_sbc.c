@@ -1,7 +1,7 @@
 /*
  * SCSI Block Commands (SBC) parsing and emulation.
  *
- * (c) Copyright 2002-2012 RisingTide Systems LLC.
+ * (c) Copyright 2002-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
  *

@@ -3,7 +3,7 @@
  *
  * This file contains ConfigFS logic for the Generic Target Engine project.
  *
- * (c) Copyright 2008-2012 RisingTide Systems LLC.
+ * (c) Copyright 2008-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
  *

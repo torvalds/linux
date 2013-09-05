@@ -2,9 +2,7 @@
  * This file contains the configfs implementation for iSCSI Target mode
  * from the LIO-Target Project.
  *
- * \u00a9 Copyright 2007-2011 RisingTide Systems LLC.
- *
- * Licensed to the Linux Foundation under the General Public License (GPL) version 2.
+ * (c) Copyright 2007-2013 Datera, Inc.
  *
  * Author: Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
@@ -1481,7 +1479,7 @@ static ssize_t lio_target_wwn_show_attr_lio_version(
 	struct target_fabric_configfs *tf,
 	char *page)
 {
-	return sprintf(page, "RisingTide Systems Linux-iSCSI Target "ISCSIT_VERSION"\n");
+	return sprintf(page, "Datera Inc. iSCSI Target "ISCSIT_VERSION"\n");
 }
 
 TF_WWN_ATTR_RO(lio_target, lio_version);

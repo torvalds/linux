@@ -2,9 +2,7 @@
  * Modern ConfigFS group context specific iSCSI statistics based on original
  * iscsi_target_mib.c code
  *
- * Copyright (c) 2011 Rising Tide Systems
- *
- * Licensed to the Linux Foundation under the General Public License (GPL) version 2.
+ * Copyright (c) 2011-2013 Datera, Inc.
  *
  * Author: Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
@@ -177,7 +175,7 @@ ISCSI_STAT_INSTANCE_ATTR_RO(description);
 static ssize_t iscsi_stat_instance_show_attr_vendor(
 	struct iscsi_wwn_stat_grps *igrps, char *page)
 {
-	return snprintf(page, PAGE_SIZE, "RisingTide Systems iSCSI-Target\n");
+	return snprintf(page, PAGE_SIZE, "Datera, Inc. iSCSI-Target\n");
 }
 ISCSI_STAT_INSTANCE_ATTR_RO(vendor);
 

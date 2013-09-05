@@ -4,7 +4,7 @@
  * This file contains SPC-3 compliant persistent reservations and
  * legacy SPC-2 reservations with compatible reservation handling (CRH=1)
  *
- * (c) Copyright 2009-2012 RisingTide Systems LLC.
+ * (c) Copyright 2009-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
  *

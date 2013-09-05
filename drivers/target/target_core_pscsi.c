@@ -3,7 +3,7 @@
  *
  * This file contains the generic target mode <-> Linux SCSI subsystem plugin.
  *
- * (c) Copyright 2003-2012 RisingTide Systems LLC.
+ * (c) Copyright 2003-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
  *
