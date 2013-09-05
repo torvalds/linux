@@ -374,7 +374,11 @@ out:
 
 void ceph_queue_revalidate(struct inode *inode)
 {
+	struct ceph_fs_client *fsc = ceph_sb_to_client(inode->i_sb);
 	struct ceph_inode_info *ci = ceph_inode(inode);
+
+	if (fsc->revalidate_wq == NULL || ci->fscache == NULL)
+		return;
 
 	ihold(inode);
 
