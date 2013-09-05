@@ -937,12 +937,14 @@ static const char *rbd_dev_v1_snap_name(struct rbd_device *rbd_dev,
 					u64 snap_id)
 {
 	u32 which;
+	const char *snap_name;
 
 	which = rbd_dev_snap_index(rbd_dev, snap_id);
 	if (which == BAD_SNAP_INDEX)
-		return NULL;
+		return ERR_PTR(-ENOENT);
 
-	return _rbd_dev_v1_snap_name(rbd_dev, which);
+	snap_name = _rbd_dev_v1_snap_name(rbd_dev, which);
+	return snap_name ? snap_name : ERR_PTR(-ENOMEM);
 }
 
 static const char *rbd_snap_name(struct rbd_device *rbd_dev, u64 snap_id)
@@ -4140,8 +4142,8 @@ static int rbd_dev_spec_update(struct rbd_device *rbd_dev)
 	/* Look up the snapshot name, and make a copy */
 
 	snap_name = rbd_snap_name(rbd_dev, spec->snap_id);
-	if (!snap_name) {
-		ret = -ENOMEM;
+	if (IS_ERR(snap_name)) {
+		ret = PTR_ERR(snap_name);
 		goto out_err;
 	}
 
