@@ -373,23 +373,18 @@ static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm,
 	 * PCI domains, so we indicate this in _OSC support capabilities.
 	 */
 	support = base_support = OSC_PCI_SEGMENT_GROUPS_SUPPORT;
-	acpi_pci_osc_support(root, support);
-
 	if (pci_ext_cfg_avail())
 		support |= OSC_PCI_EXT_CONFIG_SUPPORT;
-	if (pcie_aspm_support_enabled()) {
+	if (pcie_aspm_support_enabled())
 		support |= OSC_PCI_ASPM_SUPPORT | OSC_PCI_CLOCK_PM_SUPPORT;
-	}
 	if (pci_msi_enabled())
 		support |= OSC_PCI_MSI_SUPPORT;
-	if (support != base_support) {
-		status = acpi_pci_osc_support(root, support);
-		if (ACPI_FAILURE(status)) {
-			dev_info(&device->dev, "ACPI _OSC support "
-				"notification failed, disabling PCIe ASPM\n");
-			*no_aspm = 1;
-			support = base_support;
-		}
+	status = acpi_pci_osc_support(root, support);
+	if (ACPI_FAILURE(status)) {
+		dev_info(&device->dev, "ACPI _OSC support "
+			"notification failed, disabling PCIe ASPM\n");
+		*no_aspm = 1;
+		support = base_support;
 	}
 
 	if (!pcie_ports_disabled
