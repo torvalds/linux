@@ -20,6 +20,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <linux/bitmap.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <media/media-entity.h>
@@ -121,7 +122,6 @@ static struct media_entity *stack_pop(struct media_entity_graph *graph)
 	return entity;
 }
 
-#define stack_peek(en)	((en)->stack[(en)->top - 1].entity)
 #define link_top(en)	((en)->stack[(en)->top].link)
 #define stack_top(en)	((en)->stack[(en)->top].entity)
 
@@ -140,6 +140,12 @@ void media_entity_graph_walk_start(struct media_entity_graph *graph,
 {
 	graph->top = 0;
 	graph->stack[graph->top].entity = NULL;
+	bitmap_zero(graph->entities, MEDIA_ENTITY_ENUM_MAX_ID);
+
+	if (WARN_ON(entity->id >= MEDIA_ENTITY_ENUM_MAX_ID))
+		return;
+
+	__set_bit(entity->id, graph->entities);
 	stack_push(graph, entity);
 }
 EXPORT_SYMBOL_GPL(media_entity_graph_walk_start);
@@ -180,9 +186,11 @@ media_entity_graph_walk_next(struct media_entity_graph *graph)
 
 		/* Get the entity in the other end of the link . */
 		next = media_entity_other(entity, link);
+		if (WARN_ON(next->id >= MEDIA_ENTITY_ENUM_MAX_ID))
+			return NULL;
 
-		/* Was it the entity we came here from? */
-		if (next == stack_peek(graph)) {
+		/* Has the entity already been visited? */
+		if (__test_and_set_bit(next->id, graph->entities)) {
 			link_top(graph)++;
 			continue;
 		}

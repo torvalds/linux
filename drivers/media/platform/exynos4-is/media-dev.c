@@ -1149,7 +1149,6 @@ static void fimc_md_put_clocks(struct fimc_md *fmd)
 	while (--i >= 0) {
 		if (IS_ERR(fmd->camclk[i].clock))
 			continue;
-		clk_unprepare(fmd->camclk[i].clock);
 		clk_put(fmd->camclk[i].clock);
 		fmd->camclk[i].clock = ERR_PTR(-EINVAL);
 	}
@@ -1168,7 +1167,7 @@ static int fimc_md_get_clocks(struct fimc_md *fmd)
 	struct device *dev = NULL;
 	char clk_name[32];
 	struct clk *clock;
-	int ret, i;
+	int i, ret = 0;
 
 	for (i = 0; i < FIMC_MAX_CAMCLKS; i++)
 		fmd->camclk[i].clock = ERR_PTR(-EINVAL);
@@ -1184,12 +1183,6 @@ static int fimc_md_get_clocks(struct fimc_md *fmd)
 			dev_err(&fmd->pdev->dev, "Failed to get clock: %s\n",
 								clk_name);
 			ret = PTR_ERR(clock);
-			break;
-		}
-		ret = clk_prepare(clock);
-		if (ret < 0) {
-			clk_put(clock);
-			fmd->camclk[i].clock = ERR_PTR(-EINVAL);
 			break;
 		}
 		fmd->camclk[i].clock = clock;
@@ -1248,7 +1241,7 @@ static int __fimc_md_set_camclk(struct fimc_md *fmd,
 			ret = pm_runtime_get_sync(fmd->pmf);
 			if (ret < 0)
 				return ret;
-			ret = clk_enable(camclk->clock);
+			ret = clk_prepare_enable(camclk->clock);
 			dbg("Enabled camclk %d: f: %lu", si->clk_id,
 			    clk_get_rate(camclk->clock));
 		}
@@ -1259,7 +1252,7 @@ static int __fimc_md_set_camclk(struct fimc_md *fmd,
 		return 0;
 
 	if (--camclk->use_count == 0) {
-		clk_disable(camclk->clock);
+		clk_disable_unprepare(camclk->clock);
 		pm_runtime_put(fmd->pmf);
 		dbg("Disabled camclk %d", si->clk_id);
 	}
@@ -1529,9 +1522,9 @@ static int fimc_md_probe(struct platform_device *pdev)
 err_unlock:
 	mutex_unlock(&fmd->media_dev.graph_mutex);
 err_clk:
-	media_device_unregister(&fmd->media_dev);
 	fimc_md_put_clocks(fmd);
 	fimc_md_unregister_entities(fmd);
+	media_device_unregister(&fmd->media_dev);
 err_md:
 	v4l2_device_unregister(&fmd->v4l2_dev);
 	return ret;
@@ -1543,6 +1536,8 @@ static int fimc_md_remove(struct platform_device *pdev)
 
 	if (!fmd)
 		return 0;
+
+	v4l2_device_unregister(&fmd->v4l2_dev);
 	device_remove_file(&pdev->dev, &dev_attr_subdev_conf_mode);
 	fimc_md_unregister_entities(fmd);
 	fimc_md_pipelines_free(fmd);

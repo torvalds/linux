@@ -161,6 +161,8 @@ enum v4l2_colorfx {
 #define V4L2_CID_USER_SI476X_BASE		(V4L2_CID_USER_BASE + 0x1040)
 
 /* MPEG-class control IDs */
+/* The MPEG controls are applicable to all codec controls
+ * and the 'MPEG' part of the define is historical */
 
 #define V4L2_CID_MPEG_BASE 			(V4L2_CTRL_CLASS_MPEG | 0x900)
 #define V4L2_CID_MPEG_CLASS 			(V4L2_CTRL_CLASS_MPEG | 1)
@@ -521,6 +523,33 @@ enum v4l2_mpeg_video_mpeg4_profile {
 	V4L2_MPEG_VIDEO_MPEG4_PROFILE_ADVANCED_CODING_EFFICIENCY	= 4,
 };
 #define V4L2_CID_MPEG_VIDEO_MPEG4_QPEL		(V4L2_CID_MPEG_BASE+407)
+
+/*  Control IDs for VP8 streams
+ *  Although VP8 is not part of MPEG we add these controls to the MPEG class
+ *  as that class is already handling other video compression standards
+ */
+#define V4L2_CID_MPEG_VIDEO_VPX_NUM_PARTITIONS		(V4L2_CID_MPEG_BASE+500)
+enum v4l2_vp8_num_partitions {
+	V4L2_CID_MPEG_VIDEO_VPX_1_PARTITION	= 0,
+	V4L2_CID_MPEG_VIDEO_VPX_2_PARTITIONS	= 1,
+	V4L2_CID_MPEG_VIDEO_VPX_4_PARTITIONS	= 2,
+	V4L2_CID_MPEG_VIDEO_VPX_8_PARTITIONS	= 3,
+};
+#define V4L2_CID_MPEG_VIDEO_VPX_IMD_DISABLE_4X4		(V4L2_CID_MPEG_BASE+501)
+#define V4L2_CID_MPEG_VIDEO_VPX_NUM_REF_FRAMES		(V4L2_CID_MPEG_BASE+502)
+enum v4l2_vp8_num_ref_frames {
+	V4L2_CID_MPEG_VIDEO_VPX_1_REF_FRAME	= 0,
+	V4L2_CID_MPEG_VIDEO_VPX_2_REF_FRAME	= 1,
+	V4L2_CID_MPEG_VIDEO_VPX_3_REF_FRAME	= 2,
+};
+#define V4L2_CID_MPEG_VIDEO_VPX_FILTER_LEVEL		(V4L2_CID_MPEG_BASE+503)
+#define V4L2_CID_MPEG_VIDEO_VPX_FILTER_SHARPNESS	(V4L2_CID_MPEG_BASE+504)
+#define V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_REF_PERIOD	(V4L2_CID_MPEG_BASE+505)
+#define V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_SEL	(V4L2_CID_MPEG_BASE+506)
+enum v4l2_vp8_golden_frame_sel {
+	V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_USE_PREV		= 0,
+	V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_USE_REF_PERIOD	= 1,
+};
 
 /*  MPEG-class control IDs specific to the CX2341x driver as defined by V4L2 */
 #define V4L2_CID_MPEG_CX2341X_BASE 				(V4L2_CTRL_CLASS_MPEG | 0x1000)
