@@ -94,7 +94,7 @@ static unsigned int efx_ef10_mem_map_size(struct efx_nic *efx)
 	return resource_size(&efx->pci_dev->resource[EFX_MEM_BAR]);
 }
 
-static int efx_ef10_init_capabilities(struct efx_nic *efx)
+static int efx_ef10_init_datapath_caps(struct efx_nic *efx)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_CAPABILITIES_OUT_LEN);
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
@@ -107,16 +107,27 @@ static int efx_ef10_init_capabilities(struct efx_nic *efx)
 			  outbuf, sizeof(outbuf), &outlen);
 	if (rc)
 		return rc;
+	if (outlen < sizeof(outbuf)) {
+		netif_err(efx, drv, efx->net_dev,
+			  "unable to read datapath firmware capabilities\n");
+		return -EIO;
+	}
 
-	if (outlen >= sizeof(outbuf)) {
-		nic_data->datapath_caps =
-			MCDI_DWORD(outbuf, GET_CAPABILITIES_OUT_FLAGS1);
-		if (!(nic_data->datapath_caps &
-		     (1 << MC_CMD_GET_CAPABILITIES_OUT_TX_TSO_LBN))) {
-			netif_err(efx, drv, efx->net_dev,
-				  "Capabilities don't indicate TSO support.\n");
-			return -ENODEV;
-		}
+	nic_data->datapath_caps =
+		MCDI_DWORD(outbuf, GET_CAPABILITIES_OUT_FLAGS1);
+
+	if (!(nic_data->datapath_caps &
+	      (1 << MC_CMD_GET_CAPABILITIES_OUT_TX_TSO_LBN))) {
+		netif_err(efx, drv, efx->net_dev,
+			  "current firmware does not support TSO\n");
+		return -ENODEV;
+	}
+
+	if (!(nic_data->datapath_caps &
+	      (1 << MC_CMD_GET_CAPABILITIES_OUT_RX_PREFIX_LEN_14_LBN))) {
+		netif_err(efx, probe, efx->net_dev,
+			  "current firmware does not support an RX prefix\n");
+		return -ENODEV;
 	}
 
 	return 0;
@@ -217,20 +228,12 @@ static int efx_ef10_probe(struct efx_nic *efx)
 	if (rc)
 		goto fail3;
 
-	rc = efx_ef10_init_capabilities(efx);
+	rc = efx_ef10_init_datapath_caps(efx);
 	if (rc < 0)
 		goto fail3;
 
 	efx->rx_packet_len_offset =
 		ES_DZ_RX_PREFIX_PKTLEN_OFST - ES_DZ_RX_PREFIX_SIZE;
-
-	if (!(nic_data->datapath_caps &
-	      (1 << MC_CMD_GET_CAPABILITIES_OUT_RX_PREFIX_LEN_14_LBN))) {
-		netif_err(efx, probe, efx->net_dev,
-			  "current firmware does not support an RX prefix\n");
-		rc = -ENODEV;
-		goto fail3;
-	}
 
 	rc = efx_mcdi_port_get_number(efx);
 	if (rc < 0)
