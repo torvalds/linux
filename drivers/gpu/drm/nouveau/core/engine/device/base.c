@@ -219,7 +219,7 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 		nv_info(device, "Family : NV%02X\n", device->card_type);
 
 		/* determine frequency of timing crystal */
-		if ( device->chipset < 0x17 ||
+		if ( device->card_type <= NV_10 || device->chipset < 0x17 ||
 		    (device->chipset >= 0x20 && device->chipset < 0x25))
 			strap &= 0x00000040;
 		else
