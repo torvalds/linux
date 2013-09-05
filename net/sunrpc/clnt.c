@@ -313,6 +313,24 @@ out:
 	return err;
 }
 
+static DEFINE_IDA(rpc_clids);
+
+static int rpc_alloc_clid(struct rpc_clnt *clnt)
+{
+	int clid;
+
+	clid = ida_simple_get(&rpc_clids, 0, 0, GFP_KERNEL);
+	if (clid < 0)
+		return clid;
+	clnt->cl_clid = clid;
+	return 0;
+}
+
+static void rpc_free_clid(struct rpc_clnt *clnt)
+{
+	ida_simple_remove(&rpc_clids, clnt->cl_clid);
+}
+
 static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args,
 		struct rpc_xprt *xprt,
 		struct rpc_clnt *parent)
@@ -342,6 +360,10 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args,
 	if (!clnt)
 		goto out_err;
 	clnt->cl_parent = parent ? : clnt;
+
+	err = rpc_alloc_clid(clnt);
+	if (err)
+		goto out_no_clid;
 
 	rcu_assign_pointer(clnt->cl_xprt, xprt);
 	clnt->cl_procinfo = version->procs;
@@ -386,6 +408,8 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args,
 out_no_path:
 	rpc_free_iostats(clnt->cl_metrics);
 out_no_stats:
+	rpc_free_clid(clnt);
+out_no_clid:
 	kfree(clnt);
 out_err:
 	rpciod_down();
@@ -646,6 +670,7 @@ rpc_free_client(struct rpc_clnt *clnt)
 	clnt->cl_metrics = NULL;
 	xprt_put(rcu_dereference_raw(clnt->cl_xprt));
 	rpciod_down();
+	rpc_free_clid(clnt);
 	kfree(clnt);
 }
 

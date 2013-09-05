@@ -33,6 +33,7 @@ struct rpc_inode;
  */
 struct rpc_clnt {
 	atomic_t		cl_count;	/* Number of references */
+	unsigned int		cl_clid;	/* client id */
 	struct list_head	cl_clients;	/* Global list of clients */
 	struct list_head	cl_tasks;	/* List of tasks */
 	spinlock_t		cl_lock;	/* spinlock */
