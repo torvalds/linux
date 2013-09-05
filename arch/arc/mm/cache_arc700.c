@@ -250,6 +250,7 @@ static inline void __cache_line_loop(unsigned long paddr, unsigned long vaddr,
 {
 	unsigned int aux_cmd, aux_tag;
 	int num_lines;
+	const int full_page_op = __builtin_constant_p(sz) && sz == PAGE_SIZE;
 
 	if (cacheop == OP_INV_IC) {
 		aux_cmd = ARC_REG_IC_IVIL;
@@ -267,7 +268,7 @@ static inline void __cache_line_loop(unsigned long paddr, unsigned long vaddr,
 	 *  -@paddr will be cache-line aligned already (being page aligned)
 	 *  -@sz will be integral multiple of line size (being page sized).
 	 */
-	if (!(__builtin_constant_p(sz) && sz == PAGE_SIZE)) {
+	if (!full_page_op) {
 		sz += paddr & ~CACHE_LINE_MASK;
 		paddr &= CACHE_LINE_MASK;
 		vaddr &= CACHE_LINE_MASK;
@@ -278,19 +279,26 @@ static inline void __cache_line_loop(unsigned long paddr, unsigned long vaddr,
 #if (CONFIG_ARC_MMU_VER <= 2)
 	/* MMUv2 and before: paddr contains stuffed vaddrs bits */
 	paddr |= (vaddr >> PAGE_SHIFT) & 0x1F;
+#else
+	/* if V-P const for loop, PTAG can be written once outside loop */
+	if (full_page_op)
+		write_aux_reg(ARC_REG_DC_PTAG, paddr);
 #endif
 
 	while (num_lines-- > 0) {
 #if (CONFIG_ARC_MMU_VER > 2)
 		/* MMUv3, cache ops require paddr seperately */
-		write_aux_reg(ARC_REG_DC_PTAG, paddr);
+		if (!full_page_op) {
+			write_aux_reg(aux_tag, paddr);
+			paddr += L1_CACHE_BYTES;
+		}
 
 		write_aux_reg(aux_cmd, vaddr);
 		vaddr += L1_CACHE_BYTES;
 #else
 		write_aux_reg(aux, paddr);
-#endif
 		paddr += L1_CACHE_BYTES;
+#endif
 	}
 }
 
