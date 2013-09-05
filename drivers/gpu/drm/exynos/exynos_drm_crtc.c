@@ -15,6 +15,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 
+#include "exynos_drm_crtc.h"
 #include "exynos_drm_drv.h"
 #include "exynos_drm_encoder.h"
 #include "exynos_drm_plane.h"
@@ -324,10 +325,8 @@ int exynos_drm_crtc_create(struct drm_device *dev, unsigned int nr)
 	struct drm_crtc *crtc;
 
 	exynos_crtc = kzalloc(sizeof(*exynos_crtc), GFP_KERNEL);
-	if (!exynos_crtc) {
-		DRM_ERROR("failed to allocate exynos crtc\n");
+	if (!exynos_crtc)
 		return -ENOMEM;
-	}
 
 	exynos_crtc->pipe = nr;
 	exynos_crtc->dpms = DRM_MODE_DPMS_OFF;

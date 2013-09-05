@@ -156,10 +156,8 @@ exynos_drm_framebuffer_init(struct drm_device *dev,
 	}
 
 	exynos_fb = kzalloc(sizeof(*exynos_fb), GFP_KERNEL);
-	if (!exynos_fb) {
-		DRM_ERROR("failed to allocate exynos drm framebuffer\n");
+	if (!exynos_fb)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	drm_helper_mode_fill_fb_struct(&exynos_fb->fb, mode_cmd);
 	exynos_fb->exynos_gem_obj[0] = exynos_gem_obj;
@@ -220,10 +218,8 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 	int i, ret;
 
 	exynos_fb = kzalloc(sizeof(*exynos_fb), GFP_KERNEL);
-	if (!exynos_fb) {
-		DRM_ERROR("failed to allocate exynos drm framebuffer\n");
+	if (!exynos_fb)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	obj = drm_gem_object_lookup(dev, file_priv, mode_cmd->handles[0]);
 	if (!obj) {
