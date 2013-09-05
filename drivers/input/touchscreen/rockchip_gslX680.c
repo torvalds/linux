@@ -27,7 +27,7 @@
 #include <linux/workqueue.h>
 #include <linux/proc_fs.h>
 #include <linux/input/mt.h>
-#if defined(CONFIG_MACH_RK3168_86V)||||defined(CONFIG_MACH_RK_FAC)
+#if defined(CONFIG_MACH_RK3168_86V)||defined(CONFIG_MACH_RK3168_FAC)
 #include <rockchip_gslX680_86v.h>
 #else
 #include "rockchip_gslX680.h"

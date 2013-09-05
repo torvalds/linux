@@ -210,7 +210,7 @@ static struct rkcamera_platform_data new_camera[] = {
 static void rk_cif_power(int on)
 {
     struct regulator *ldo_18,*ldo_28;
-    #if defined(CONFIG_MACH_RK3028A_86V)
+    #if defined(CONFIG_MACH_RK3028A_86V)||defined(CONFIG_MACH_RK3028A_FAC)
 	ldo_28 = regulator_get(NULL, "ldo7");	// vcc28_cif
 	ldo_18 = regulator_get(NULL, "ldo1");	// vcc18_cif
     #else
