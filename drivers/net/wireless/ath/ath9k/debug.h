@@ -193,12 +193,12 @@ struct ath_tx_stats {
 #define TXSTATS sc->debug.stats.txstats
 #define PR(str, elem)							\
 	do {								\
-		len += snprintf(buf + len, size - len,			\
-				"%s%13u%11u%10u%10u\n", str,		\
-				TXSTATS[PR_QNUM(IEEE80211_AC_BE)].elem,	\
-				TXSTATS[PR_QNUM(IEEE80211_AC_BK)].elem,	\
-				TXSTATS[PR_QNUM(IEEE80211_AC_VI)].elem,	\
-				TXSTATS[PR_QNUM(IEEE80211_AC_VO)].elem); \
+		len += scnprintf(buf + len, size - len,			\
+				 "%s%13u%11u%10u%10u\n", str,		\
+				 TXSTATS[PR_QNUM(IEEE80211_AC_BE)].elem,\
+				 TXSTATS[PR_QNUM(IEEE80211_AC_BK)].elem,\
+				 TXSTATS[PR_QNUM(IEEE80211_AC_VI)].elem,\
+				 TXSTATS[PR_QNUM(IEEE80211_AC_VO)].elem); \
 	} while(0)
 
 #define RX_STAT_INC(c) (sc->debug.stats.rxstats.c++)

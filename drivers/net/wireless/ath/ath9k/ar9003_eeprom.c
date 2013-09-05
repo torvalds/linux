@@ -3427,12 +3427,12 @@ static u32 ath9k_hw_ar9003_dump_eeprom(struct ath_hw *ah, bool dump_base_hdr,
 	struct ar9300_base_eep_hdr *pBase;
 
 	if (!dump_base_hdr) {
-		len += snprintf(buf + len, size - len,
-				"%20s :\n", "2GHz modal Header");
+		len += scnprintf(buf + len, size - len,
+				 "%20s :\n", "2GHz modal Header");
 		len = ar9003_dump_modal_eeprom(buf, len, size,
 						&eep->modalHeader2G);
-		len += snprintf(buf + len, size - len,
-				"%20s :\n", "5GHz modal Header");
+		len += scnprintf(buf + len, size - len,
+				 "%20s :\n", "5GHz modal Header");
 		len = ar9003_dump_modal_eeprom(buf, len, size,
 						&eep->modalHeader5G);
 		goto out;
@@ -3482,8 +3482,8 @@ static u32 ath9k_hw_ar9003_dump_eeprom(struct ath_hw *ah, bool dump_base_hdr,
 	PR_EEP("Rx Gain", pBase->txrxgain & 0xf);
 	PR_EEP("SW Reg", le32_to_cpu(pBase->swreg));
 
-	len += snprintf(buf + len, size - len, "%20s : %pM\n", "MacAddress",
-			ah->eeprom.ar9300_eep.macAddr);
+	len += scnprintf(buf + len, size - len, "%20s : %pM\n", "MacAddress",
+			 ah->eeprom.ar9300_eep.macAddr);
 out:
 	if (len > size)
 		len = size;

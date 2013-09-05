@@ -459,8 +459,8 @@ void ath9k_queue_reset(struct ath_softc *sc, enum ath_reset_type type);
 
 #define ATH_DUMP_BTCOEX(_s, _val)				\
 	do {							\
-		len += snprintf(buf + len, size - len,		\
-				"%20s : %10d\n", _s, (_val));	\
+		len += scnprintf(buf + len, size - len,		\
+				 "%20s : %10d\n", _s, (_val));	\
 	} while (0)
 
 enum bt_op_flags {
