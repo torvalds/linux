@@ -409,6 +409,12 @@ static struct tun_struct *tun_enable_queue(struct tun_file *tfile)
 	return tun;
 }
 
+static void tun_queue_purge(struct tun_file *tfile)
+{
+	skb_queue_purge(&tfile->sk.sk_receive_queue);
+	skb_queue_purge(&tfile->sk.sk_error_queue);
+}
+
 static void __tun_detach(struct tun_file *tfile, bool clean)
 {
 	struct tun_file *ntfile;
@@ -435,7 +441,7 @@ static void __tun_detach(struct tun_file *tfile, bool clean)
 		synchronize_net();
 		tun_flow_delete_by_queue(tun, tun->numqueues + 1);
 		/* Drop read queue */
-		skb_queue_purge(&tfile->sk.sk_receive_queue);
+		tun_queue_purge(tfile);
 		tun_set_real_num_queues(tun);
 	} else if (tfile->detached && clean) {
 		tun = tun_enable_queue(tfile);
@@ -487,12 +493,12 @@ static void tun_detach_all(struct net_device *dev)
 	for (i = 0; i < n; i++) {
 		tfile = rtnl_dereference(tun->tfiles[i]);
 		/* Drop read queue */
-		skb_queue_purge(&tfile->sk.sk_receive_queue);
+		tun_queue_purge(tfile);
 		sock_put(&tfile->sk);
 	}
 	list_for_each_entry_safe(tfile, tmp, &tun->disabled, next) {
 		tun_enable_queue(tfile);
-		skb_queue_purge(&tfile->sk.sk_receive_queue);
+		tun_queue_purge(tfile);
 		sock_put(&tfile->sk);
 	}
 	BUG_ON(tun->numdisabled != 0);
