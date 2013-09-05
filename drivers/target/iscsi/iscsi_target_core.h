@@ -555,11 +555,13 @@ struct iscsi_conn {
 	/* socket used by this connection */
 	struct socket		*sock;
 	void			(*orig_data_ready)(struct sock *, int);
+	void			(*orig_state_change)(struct sock *);
 #define LOGIN_FLAGS_READ_ACTIVE		1
 #define LOGIN_FLAGS_CLOSED		2
 #define LOGIN_FLAGS_READY		4
 	unsigned long		login_flags;
 	struct delayed_work	login_work;
+	struct delayed_work	login_cleanup_work;
 	struct iscsi_login	*login;
 	struct timer_list	nopin_timer;
 	struct timer_list	nopin_response_timer;

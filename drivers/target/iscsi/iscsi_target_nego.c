@@ -413,6 +413,8 @@ static void iscsi_target_sk_data_ready(struct sock *sk, int count)
 	write_unlock_bh(&sk->sk_callback_lock);
 }
 
+static void iscsi_target_sk_state_change(struct sock *);
+
 static void iscsi_target_set_sock_callbacks(struct iscsi_conn *conn)
 {
 	struct sock *sk;
@@ -426,8 +428,13 @@ static void iscsi_target_set_sock_callbacks(struct iscsi_conn *conn)
 	write_lock_bh(&sk->sk_callback_lock);
 	sk->sk_user_data = conn;
 	conn->orig_data_ready = sk->sk_data_ready;
+	conn->orig_state_change = sk->sk_state_change;
 	sk->sk_data_ready = iscsi_target_sk_data_ready;
+	sk->sk_state_change = iscsi_target_sk_state_change;
 	write_unlock_bh(&sk->sk_callback_lock);
+
+	sk->sk_sndtimeo = TA_LOGIN_TIMEOUT * HZ;
+	sk->sk_rcvtimeo = TA_LOGIN_TIMEOUT * HZ;
 }
 
 static void iscsi_target_restore_sock_callbacks(struct iscsi_conn *conn)
@@ -447,7 +454,11 @@ static void iscsi_target_restore_sock_callbacks(struct iscsi_conn *conn)
 	}
 	sk->sk_user_data = NULL;
 	sk->sk_data_ready = conn->orig_data_ready;
+	sk->sk_state_change = conn->orig_state_change;
 	write_unlock_bh(&sk->sk_callback_lock);
+
+	sk->sk_sndtimeo = MAX_SCHEDULE_TIMEOUT;
+	sk->sk_rcvtimeo = MAX_SCHEDULE_TIMEOUT;
 }
 
 static int iscsi_target_do_login(struct iscsi_conn *, struct iscsi_login *);
@@ -571,6 +582,79 @@ static void iscsi_target_do_login_rx(struct work_struct *work)
 		iscsi_post_login_handler(np, conn, zero_tsih);
 		iscsit_deaccess_np(np, tpg, tpg_np);
 	}
+}
+
+static void iscsi_target_do_cleanup(struct work_struct *work)
+{
+	struct iscsi_conn *conn = container_of(work,
+				struct iscsi_conn, login_cleanup_work.work);
+	struct sock *sk = conn->sock->sk;
+	struct iscsi_login *login = conn->login;
+	struct iscsi_np *np = login->np;
+	struct iscsi_portal_group *tpg = conn->tpg;
+	struct iscsi_tpg_np *tpg_np = conn->tpg_np;
+
+	pr_debug("Entering iscsi_target_do_cleanup\n");
+
+	cancel_delayed_work_sync(&conn->login_work);
+	conn->orig_state_change(sk);
+
+	iscsi_target_restore_sock_callbacks(conn);
+	iscsi_target_login_drop(conn, login);
+	iscsit_deaccess_np(np, tpg, tpg_np);
+
+	pr_debug("iscsi_target_do_cleanup done()\n");
+}
+
+static void iscsi_target_sk_state_change(struct sock *sk)
+{
+	struct iscsi_conn *conn;
+	void (*orig_state_change)(struct sock *);
+	bool state;
+
+	pr_debug("Entering iscsi_target_sk_state_change\n");
+
+	write_lock_bh(&sk->sk_callback_lock);
+	conn = sk->sk_user_data;
+	if (!conn) {
+		write_unlock_bh(&sk->sk_callback_lock);
+		return;
+	}
+	orig_state_change = conn->orig_state_change;
+
+	if (!test_bit(LOGIN_FLAGS_READY, &conn->login_flags)) {
+		pr_debug("Got LOGIN_FLAGS_READY=0 sk_state_change conn: %p\n",
+			 conn);
+		write_unlock_bh(&sk->sk_callback_lock);
+		orig_state_change(sk);
+		return;
+	}
+	if (test_bit(LOGIN_FLAGS_READ_ACTIVE, &conn->login_flags)) {
+		pr_debug("Got LOGIN_FLAGS_READ_ACTIVE=1 sk_state_change"
+			 " conn: %p\n", conn);
+		write_unlock_bh(&sk->sk_callback_lock);
+		orig_state_change(sk);
+		return;
+	}
+	if (test_and_set_bit(LOGIN_FLAGS_CLOSED, &conn->login_flags)) {
+		pr_debug("Got LOGIN_FLAGS_CLOSED=1 sk_state_change conn: %p\n",
+			 conn);
+		write_unlock_bh(&sk->sk_callback_lock);
+		orig_state_change(sk);
+		return;
+	}
+
+	state = iscsi_target_sk_state_check(sk);
+	write_unlock_bh(&sk->sk_callback_lock);
+
+	pr_debug("iscsi_target_sk_state_change: state: %d\n", state);
+
+	if (!state) {
+		pr_debug("iscsi_target_sk_state_change got failed state\n");
+		schedule_delayed_work(&conn->login_cleanup_work, 0);
+		return;
+	}
+	orig_state_change(sk);
 }
 
 static int iscsi_target_do_login_io(struct iscsi_conn *conn, struct iscsi_login *login)
@@ -860,6 +944,21 @@ static int iscsi_target_do_login(struct iscsi_conn *conn, struct iscsi_login *lo
 		break;
 	}
 
+	if (conn->sock) {
+		struct sock *sk = conn->sock->sk;
+		bool state;
+
+		read_lock_bh(&sk->sk_callback_lock);
+		state = iscsi_target_sk_state_check(sk);
+		read_unlock_bh(&sk->sk_callback_lock);
+
+		if (!state) {
+			pr_debug("iscsi_target_do_login() failed state for"
+				 " conn: %p\n", conn);
+			return -1;
+		}
+	}
+
 	return 0;
 }
 
@@ -896,6 +995,7 @@ int iscsi_target_locate_portal(
 	int sessiontype = 0, ret = 0;
 
 	INIT_DELAYED_WORK(&conn->login_work, iscsi_target_do_login_rx);
+	INIT_DELAYED_WORK(&conn->login_cleanup_work, iscsi_target_do_cleanup);
 	iscsi_target_set_sock_callbacks(conn);
 
 	login->np = np;
@@ -1113,6 +1213,7 @@ int iscsi_target_start_negotiation(
 		}
 	} else if (ret < 0) {
 		cancel_delayed_work_sync(&conn->login_work);
+		cancel_delayed_work_sync(&conn->login_cleanup_work);
 		iscsi_target_restore_sock_callbacks(conn);
 		iscsi_remove_failed_auth_entry(conn);
 	}
