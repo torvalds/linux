@@ -965,6 +965,12 @@ M:	Lennert Buytenhek <kernel@wantstofly.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 
+ARM/TEXAS INSTRUMENT KEYSTONE ARCHITECTURE
+M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-keystone/
+
 ARM/LOGICPD PXA270 MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -1259,7 +1265,6 @@ F:	drivers/rtc/rtc-coh901331.c
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-stericsson.git
 
 ARM/Ux500 ARM ARCHITECTURE
-M:	Srinidhi Kasagar <srinidhi.kasagar@stericsson.com>
 M:	Linus Walleij <linus.walleij@linaro.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
@@ -8663,6 +8668,11 @@ L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 T:	git git://git.alsa-project.org/alsa-kernel.git
 S:	Maintained
 F:	sound/usb/midi.*
+
+USB NETWORKING DRIVERS
+L:	linux-usb@vger.kernel.org
+S:	Odd Fixes
+F:	drivers/net/usb/
 
 USB OHCI DRIVER
 M:	Alan Stern <stern@rowland.harvard.edu>

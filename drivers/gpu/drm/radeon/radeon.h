@@ -1468,7 +1468,6 @@ struct radeon_uvd {
 	void			*cpu_addr;
 	uint64_t		gpu_addr;
 	void			*saved_bo;
-	unsigned		fw_size;
 	atomic_t		handles[RADEON_MAX_UVD_HANDLES];
 	struct drm_file		*filp[RADEON_MAX_UVD_HANDLES];
 	struct delayed_work	idle_work;
@@ -2066,6 +2065,7 @@ struct radeon_device {
 	const struct firmware *mec_fw;	/* CIK MEC firmware */
 	const struct firmware *sdma_fw;	/* CIK SDMA firmware */
 	const struct firmware *smc_fw;	/* SMC firmware */
+	const struct firmware *uvd_fw;	/* UVD firmware */
 	struct r600_blit r600_blit;
 	struct r600_vram_scratch vram_scratch;
 	int msi_enabled; /* msi enabled */
@@ -2095,6 +2095,8 @@ struct radeon_device {
 	/* ACPI interface */
 	struct radeon_atif		atif;
 	struct radeon_atcs		atcs;
+	/* srbm instance registers */
+	struct mutex			srbm_mutex;
 };
 
 int radeon_device_init(struct radeon_device *rdev,

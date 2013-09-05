@@ -2903,7 +2903,8 @@ static void si_apply_state_adjust_rules(struct radeon_device *rdev,
 {
 	struct ni_ps *ps = ni_get_ps(rps);
 	struct radeon_clock_and_voltage_limits *max_limits;
-	bool disable_mclk_switching;
+	bool disable_mclk_switching = false;
+	bool disable_sclk_switching = false;
 	u32 mclk, sclk;
 	u16 vddc, vddci;
 	int i;
@@ -2911,8 +2912,11 @@ static void si_apply_state_adjust_rules(struct radeon_device *rdev,
 	if ((rdev->pm.dpm.new_active_crtc_count > 1) ||
 	    ni_dpm_vblank_too_short(rdev))
 		disable_mclk_switching = true;
-	else
-		disable_mclk_switching = false;
+
+	if (rps->vclk || rps->dclk) {
+		disable_mclk_switching = true;
+		disable_sclk_switching = true;
+	}
 
 	if (rdev->pm.dpm.ac_power)
 		max_limits = &rdev->pm.dpm.dyn_state.max_clock_voltage_on_ac;
@@ -2940,14 +2944,18 @@ static void si_apply_state_adjust_rules(struct radeon_device *rdev,
 
 	if (disable_mclk_switching) {
 		mclk  = ps->performance_levels[ps->performance_level_count - 1].mclk;
-		sclk = ps->performance_levels[0].sclk;
-		vddc = ps->performance_levels[0].vddc;
 		vddci = ps->performance_levels[ps->performance_level_count - 1].vddci;
 	} else {
-		sclk = ps->performance_levels[0].sclk;
 		mclk = ps->performance_levels[0].mclk;
-		vddc = ps->performance_levels[0].vddc;
 		vddci = ps->performance_levels[0].vddci;
+	}
+
+	if (disable_sclk_switching) {
+		sclk = ps->performance_levels[ps->performance_level_count - 1].sclk;
+		vddc = ps->performance_levels[ps->performance_level_count - 1].vddc;
+	} else {
+		sclk = ps->performance_levels[0].sclk;
+		vddc = ps->performance_levels[0].vddc;
 	}
 
 	/* adjusted low state */
@@ -2956,11 +2964,23 @@ static void si_apply_state_adjust_rules(struct radeon_device *rdev,
 	ps->performance_levels[0].vddc = vddc;
 	ps->performance_levels[0].vddci = vddci;
 
-	for (i = 1; i < ps->performance_level_count; i++) {
-		if (ps->performance_levels[i].sclk < ps->performance_levels[i - 1].sclk)
-			ps->performance_levels[i].sclk = ps->performance_levels[i - 1].sclk;
-		if (ps->performance_levels[i].vddc < ps->performance_levels[i - 1].vddc)
-			ps->performance_levels[i].vddc = ps->performance_levels[i - 1].vddc;
+	if (disable_sclk_switching) {
+		sclk = ps->performance_levels[0].sclk;
+		for (i = 1; i < ps->performance_level_count; i++) {
+			if (sclk < ps->performance_levels[i].sclk)
+				sclk = ps->performance_levels[i].sclk;
+		}
+		for (i = 0; i < ps->performance_level_count; i++) {
+			ps->performance_levels[i].sclk = sclk;
+			ps->performance_levels[i].vddc = vddc;
+		}
+	} else {
+		for (i = 1; i < ps->performance_level_count; i++) {
+			if (ps->performance_levels[i].sclk < ps->performance_levels[i - 1].sclk)
+				ps->performance_levels[i].sclk = ps->performance_levels[i - 1].sclk;
+			if (ps->performance_levels[i].vddc < ps->performance_levels[i - 1].vddc)
+				ps->performance_levels[i].vddc = ps->performance_levels[i - 1].vddc;
+		}
 	}
 
 	if (disable_mclk_switching) {
@@ -6253,9 +6273,6 @@ int si_dpm_init(struct radeon_device *rdev)
 	struct evergreen_power_info *eg_pi;
 	struct ni_power_info *ni_pi;
 	struct si_power_info *si_pi;
-	int index = GetIndexIntoMasterTable(DATA, ASIC_InternalSS_Info);
-	u16 data_offset, size;
-	u8 frev, crev;
 	struct atom_clock_dividers dividers;
 	int ret;
 	u32 mask;
@@ -6346,16 +6363,7 @@ int si_dpm_init(struct radeon_device *rdev)
 	si_pi->vddc_phase_shed_control =
 		radeon_atom_is_voltage_gpio(rdev, SET_VOLTAGE_TYPE_ASIC_VDDC, VOLTAGE_OBJ_PHASE_LUT);
 
-	if (atom_parse_data_header(rdev->mode_info.atom_context, index, &size,
-                                   &frev, &crev, &data_offset)) {
-		pi->sclk_ss = true;
-		pi->mclk_ss = true;
-		pi->dynamic_ss = true;
-	} else {
-		pi->sclk_ss = false;
-		pi->mclk_ss = false;
-		pi->dynamic_ss = true;
-	}
+	rv770_get_engine_memory_ss(rdev);
 
 	pi->asi = RV770_ASI_DFLT;
 	pi->pasi = CYPRESS_HASI_DFLT;
@@ -6366,8 +6374,7 @@ int si_dpm_init(struct radeon_device *rdev)
 	eg_pi->sclk_deep_sleep = true;
 	si_pi->sclk_deep_sleep_above_low = false;
 
-	if (pi->gfx_clock_gating &&
-	    (rdev->pm.int_thermal_type != THERMAL_TYPE_NONE))
+	if (rdev->pm.int_thermal_type != THERMAL_TYPE_NONE)
 		pi->thermal_protection = true;
 	else
 		pi->thermal_protection = false;

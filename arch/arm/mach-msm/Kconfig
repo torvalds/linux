@@ -121,8 +121,7 @@ config MSM_SMD
 	bool
 
 config MSM_GPIOMUX
-	depends on !(ARCH_MSM8X60 || ARCH_MSM8960)
-	bool "MSM V1 TLMM GPIOMUX architecture"
+	bool
 	help
 	  Support for MSM V1 TLMM GPIOMUX architecture.
 

@@ -148,9 +148,31 @@ static void evergreen_audio_set_dto(struct drm_encoder *encoder, u32 clock)
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(encoder->crtc);
 	u32 base_rate = 24000;
+	u32 max_ratio = clock / base_rate;
+	u32 dto_phase;
+	u32 dto_modulo = clock;
+	u32 wallclock_ratio;
+	u32 dto_cntl;
 
 	if (!dig || !dig->afmt)
 		return;
+
+	if (max_ratio >= 8) {
+		dto_phase = 192 * 1000;
+		wallclock_ratio = 3;
+	} else if (max_ratio >= 4) {
+		dto_phase = 96 * 1000;
+		wallclock_ratio = 2;
+	} else if (max_ratio >= 2) {
+		dto_phase = 48 * 1000;
+		wallclock_ratio = 1;
+	} else {
+		dto_phase = 24 * 1000;
+		wallclock_ratio = 0;
+	}
+	dto_cntl = RREG32(DCCG_AUDIO_DTO0_CNTL) & ~DCCG_AUDIO_DTO_WALLCLOCK_RATIO_MASK;
+	dto_cntl |= DCCG_AUDIO_DTO_WALLCLOCK_RATIO(wallclock_ratio);
+	WREG32(DCCG_AUDIO_DTO0_CNTL, dto_cntl);
 
 	/* XXX two dtos; generally use dto0 for hdmi */
 	/* Express [24MHz / target pixel clock] as an exact rational
@@ -158,8 +180,8 @@ static void evergreen_audio_set_dto(struct drm_encoder *encoder, u32 clock)
 	 * is the numerator, DCCG_AUDIO_DTOx_MODULE is the denominator
 	 */
 	WREG32(DCCG_AUDIO_DTO_SOURCE, DCCG_AUDIO_DTO0_SOURCE_SEL(radeon_crtc->crtc_id));
-	WREG32(DCCG_AUDIO_DTO0_PHASE, base_rate * 100);
-	WREG32(DCCG_AUDIO_DTO0_MODULE, clock * 100);
+	WREG32(DCCG_AUDIO_DTO0_PHASE, dto_phase);
+	WREG32(DCCG_AUDIO_DTO0_MODULE, dto_modulo);
 }
 
 
