@@ -1551,8 +1551,7 @@ void esas2r_reset_chip(struct esas2r_adapter *a)
 	 * to not overwrite a previous crash that was saved.
 	 */
 	if ((a->flags2 & AF2_COREDUMP_AVAIL)
-	    && !(a->flags2 & AF2_COREDUMP_SAVED)
-	    && a->fw_coredump_buff) {
+	    && !(a->flags2 & AF2_COREDUMP_SAVED)) {
 		esas2r_read_mem_block(a,
 				      a->fw_coredump_buff,
 				      MW_DATA_ADDR_SRAM + 0x80000,
