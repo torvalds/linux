@@ -100,7 +100,9 @@ static size_t syscall_arg__scnprintf_mmap_flags(char *bf, size_t size,
 
 	P_MMAP_FLAG(SHARED);
 	P_MMAP_FLAG(PRIVATE);
+#ifdef MAP_32BIT
 	P_MMAP_FLAG(32BIT);
+#endif
 	P_MMAP_FLAG(ANONYMOUS);
 	P_MMAP_FLAG(DENYWRITE);
 	P_MMAP_FLAG(EXECUTABLE);
