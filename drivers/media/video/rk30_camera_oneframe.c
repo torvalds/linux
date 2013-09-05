@@ -327,10 +327,13 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 *         1. fix vb struct may be used again which have been free after stream off, some code modify in soc_camera.c,
 *            version is v0.1.1;
 *         1. fix cif clk out can't be turn off;
+*
+*v0.3.0x12:
+*         1. modify cif irq ,remove judge reg_lastpixel==host_width. 
 * 
 */
 
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 3, 0x11)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 3, 0x12)
 static int version = RK_CAM_VERSION_CODE;
 module_param(version, int, S_IRUGO);
 
@@ -1342,7 +1345,7 @@ static inline irqreturn_t rk_camera_cifirq(int irq, void *data)
     reg_lastline = read_cif_reg(pcdev->base,CIF_CIF_LAST_LINE);
 	
     pcdev->irqinfo.cifirq_idx++;    
-    if ((reg_lastline != pcdev->host_height) || (reg_lastpix != pcdev->host_width)) {
+    if ((reg_lastline != pcdev->host_height) /*|| (reg_lastpix != pcdev->host_width)*/) {
         pcdev->irqinfo.cifirq_abnormal_idx = pcdev->irqinfo.cifirq_idx;
         RKCAMERA_DG2("Cif irq-%ld is error, %dx%d != %dx%d\n",pcdev->irqinfo.cifirq_abnormal_idx,
                     reg_lastpix,reg_lastline,pcdev->host_width,pcdev->host_height);
