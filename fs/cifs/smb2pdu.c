@@ -903,34 +903,27 @@ create_reconnect_durable_buf(struct cifs_fid *fid)
 }
 
 static __u8
-parse_lease_state(struct smb2_create_rsp *rsp)
+parse_lease_state(struct TCP_Server_Info *server, struct smb2_create_rsp *rsp)
 {
 	char *data_offset;
-	struct create_lease *lc;
-	bool found = false;
+	struct create_context *cc;
 	unsigned int next = 0;
 	char *name;
 
 	data_offset = (char *)rsp + 4 + le32_to_cpu(rsp->CreateContextsOffset);
-	lc = (struct create_lease *)data_offset;
+	cc = (struct create_context *)data_offset;
 	do {
-		lc = (struct create_lease *)((char *)lc + next);
-		name = le16_to_cpu(lc->ccontext.NameOffset) + (char *)lc;
-		if (le16_to_cpu(lc->ccontext.NameLength) != 4 ||
+		cc = (struct create_context *)((char *)cc + next);
+		name = le16_to_cpu(cc->NameOffset) + (char *)cc;
+		if (le16_to_cpu(cc->NameLength) != 4 ||
 		    strncmp(name, "RqLs", 4)) {
-			next = le32_to_cpu(lc->ccontext.Next);
+			next = le32_to_cpu(cc->Next);
 			continue;
 		}
-		if (lc->lcontext.LeaseFlags & SMB2_LEASE_FLAG_BREAK_IN_PROGRESS)
-			return SMB2_OPLOCK_LEVEL_NOCHANGE;
-		found = true;
-		break;
+		return server->ops->parse_lease_buf(cc);
 	} while (next != 0);
 
-	if (!found)
-		return 0;
-
-	return le32_to_cpu(lc->lcontext.LeaseState);
+	return 0;
 }
 
 static int
@@ -1109,7 +1102,7 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 	}
 
 	if (rsp->OplockLevel == SMB2_OPLOCK_LEVEL_LEASE)
-		*oplock = parse_lease_state(rsp);
+		*oplock = parse_lease_state(server, rsp);
 	else
 		*oplock = rsp->OplockLevel;
 creat_exit:
