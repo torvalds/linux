@@ -657,14 +657,6 @@ static void iscsi_target_sk_state_change(struct sock *sk)
 	orig_state_change(sk);
 }
 
-static int iscsi_target_do_login_io(struct iscsi_conn *conn, struct iscsi_login *login)
-{
-	if (iscsi_target_do_tx_login_io(conn, login) < 0)
-		return -1;
-
-	return 0;
-}
-
 /*
  *	NOTE: We check for existing sessions or connections AFTER the initiator
  *	has been successfully authenticated in order to protect against faked
@@ -934,7 +926,7 @@ static int iscsi_target_do_login(struct iscsi_conn *conn, struct iscsi_login *lo
 			break;
 		}
 
-		if (iscsi_target_do_login_io(conn, login) < 0)
+		if (iscsi_target_do_tx_login_io(conn, login) < 0)
 			return -1;
 
 		if (login_rsp->flags & ISCSI_FLAG_LOGIN_TRANSIT) {
