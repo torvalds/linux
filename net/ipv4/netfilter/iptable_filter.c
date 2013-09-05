@@ -69,7 +69,7 @@ static int __net_init iptable_filter_net_init(struct net *net)
 	net->ipv4.iptable_filter =
 		ipt_register_table(net, &packet_filter, repl);
 	kfree(repl);
-	return PTR_RET(net->ipv4.iptable_filter);
+	return PTR_ERR_OR_ZERO(net->ipv4.iptable_filter);
 }
 
 static void __net_exit iptable_filter_net_exit(struct net *net)

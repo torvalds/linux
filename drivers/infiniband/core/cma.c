@@ -3208,7 +3208,7 @@ static int cma_join_ib_multicast(struct rdma_id_private *id_priv,
 						id_priv->id.port_num, &rec,
 						comp_mask, GFP_KERNEL,
 						cma_ib_mc_handler, mc);
-	return PTR_RET(mc->multicast.ib);
+	return PTR_ERR_OR_ZERO(mc->multicast.ib);
 }
 
 static void iboe_mcast_work_handler(struct work_struct *work)
