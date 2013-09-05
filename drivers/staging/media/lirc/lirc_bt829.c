@@ -82,6 +82,7 @@ static struct pci_dev *do_pci_probe(void)
 		}
 		if (pci_addr_phys == 0) {
 			pr_err("no memory resource ?\n");
+			pci_dev_put(my_dev);
 			return NULL;
 		}
 	} else {
@@ -119,13 +120,16 @@ static void atir_set_use_dec(void *data)
 int init_module(void)
 {
 	struct pci_dev *pdev;
+	int rc;
 
 	pdev = do_pci_probe();
 	if (pdev == NULL)
 		return -ENODEV;
 
-	if (!atir_init_start())
-		return -ENODEV;
+	if (!atir_init_start()) {
+		rc = -ENODEV;
+		goto err_put_dev;
+	}
 
 	strcpy(atir_driver.name, "ATIR");
 	atir_driver.minor       = -1;
@@ -141,17 +145,28 @@ int init_module(void)
 	atir_minor = lirc_register_driver(&atir_driver);
 	if (atir_minor < 0) {
 		pr_err("failed to register driver!\n");
-		return atir_minor;
+		rc = atir_minor;
+		goto err_unmap;
 	}
 	dprintk("driver is registered on minor %d\n", atir_minor);
 
 	return 0;
+
+err_unmap:
+	iounmap(pci_addr_lin);
+err_put_dev:
+	pci_dev_put(pdev);
+	return rc;
 }
 
 
 void cleanup_module(void)
 {
+	struct pci_dev *pdev = to_pci_dev(atir_driver.dev);
+
 	lirc_unregister_driver(atir_minor);
+	iounmap(pci_addr_lin);
+	pci_dev_put(pdev);
 }
 
 
