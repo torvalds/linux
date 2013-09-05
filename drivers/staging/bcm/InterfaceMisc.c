@@ -104,7 +104,7 @@ int BcmRDM(void *arg,
 	void *buff,
 	int len)
 {
-	return InterfaceRDM((struct bcm_interface_adapter*)arg, addr, buff, len);
+	return InterfaceRDM((struct bcm_interface_adapter *)arg, addr, buff, len);
 }
 
 int BcmWRM(void *arg,
