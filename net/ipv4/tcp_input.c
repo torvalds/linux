@@ -3574,7 +3574,10 @@ static bool tcp_parse_aligned_timestamp(struct tcp_sock *tp, const struct tcphdr
 		++ptr;
 		tp->rx_opt.rcv_tsval = ntohl(*ptr);
 		++ptr;
-		tp->rx_opt.rcv_tsecr = ntohl(*ptr) - tp->tsoffset;
+		if (*ptr)
+			tp->rx_opt.rcv_tsecr = ntohl(*ptr) - tp->tsoffset;
+		else
+			tp->rx_opt.rcv_tsecr = 0;
 		return true;
 	}
 	return false;
@@ -3599,7 +3602,7 @@ static bool tcp_fast_parse_options(const struct sk_buff *skb,
 	}
 
 	tcp_parse_options(skb, &tp->rx_opt, 1, NULL);
-	if (tp->rx_opt.saw_tstamp)
+	if (tp->rx_opt.saw_tstamp && tp->rx_opt.rcv_tsecr)
 		tp->rx_opt.rcv_tsecr -= tp->tsoffset;
 
 	return true;
@@ -5354,7 +5357,7 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 	int saved_clamp = tp->rx_opt.mss_clamp;
 
 	tcp_parse_options(skb, &tp->rx_opt, 0, &foc);
-	if (tp->rx_opt.saw_tstamp)
+	if (tp->rx_opt.saw_tstamp && tp->rx_opt.rcv_tsecr)
 		tp->rx_opt.rcv_tsecr -= tp->tsoffset;
 
 	if (th->ack) {

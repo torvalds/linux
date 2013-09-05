@@ -2909,14 +2909,8 @@ EXPORT_SYMBOL_GPL(shmem_truncate_range);
 
 /* common code */
 
-static char *shmem_dname(struct dentry *dentry, char *buffer, int buflen)
-{
-	return dynamic_dname(dentry, buffer, buflen, "/%s (deleted)",
-				dentry->d_name.name);
-}
-
 static struct dentry_operations anon_ops = {
-	.d_dname = shmem_dname
+	.d_dname = simple_dname
 };
 
 /**

@@ -500,7 +500,8 @@ static bool psb_intel_sdvo_read_response(struct psb_intel_sdvo *psb_intel_sdvo,
 				  &status))
 		goto log_fail;
 
-	while (status == SDVO_CMD_STATUS_PENDING && retry--) {
+	while ((status == SDVO_CMD_STATUS_PENDING ||
+		status == SDVO_CMD_STATUS_TARGET_NOT_SPECIFIED) && retry--) {
 		udelay(15);
 		if (!psb_intel_sdvo_read_byte(psb_intel_sdvo,
 					  SDVO_I2C_CMD_STATUS,

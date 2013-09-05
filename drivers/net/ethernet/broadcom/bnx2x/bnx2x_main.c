@@ -7855,11 +7855,14 @@ void bnx2x_free_mem(struct bnx2x *bp)
 {
 	int i;
 
-	BNX2X_PCI_FREE(bp->def_status_blk, bp->def_status_blk_mapping,
-		       sizeof(struct host_sp_status_block));
-
 	BNX2X_PCI_FREE(bp->fw_stats, bp->fw_stats_mapping,
 		       bp->fw_stats_data_sz + bp->fw_stats_req_sz);
+
+	if (IS_VF(bp))
+		return;
+
+	BNX2X_PCI_FREE(bp->def_status_blk, bp->def_status_blk_mapping,
+		       sizeof(struct host_sp_status_block));
 
 	BNX2X_PCI_FREE(bp->slowpath, bp->slowpath_mapping,
 		       sizeof(struct bnx2x_slowpath));

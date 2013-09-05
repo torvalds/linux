@@ -53,6 +53,7 @@ static inline void bnx2x_move_fp(struct bnx2x *bp, int from, int to)
 	struct bnx2x_fp_stats *to_fp_stats = &bp->fp_stats[to];
 	int old_max_eth_txqs, new_max_eth_txqs;
 	int old_txdata_index = 0, new_txdata_index = 0;
+	struct bnx2x_agg_info *old_tpa_info = to_fp->tpa_info;
 
 	/* Copy the NAPI object as it has been already initialized */
 	from_fp->napi = to_fp->napi;
@@ -60,6 +61,11 @@ static inline void bnx2x_move_fp(struct bnx2x *bp, int from, int to)
 	/* Move bnx2x_fastpath contents */
 	memcpy(to_fp, from_fp, sizeof(*to_fp));
 	to_fp->index = to;
+
+	/* Retain the tpa_info of the original `to' version as we don't want
+	 * 2 FPs to contain the same tpa_info pointer.
+	 */
+	to_fp->tpa_info = old_tpa_info;
 
 	/* move sp_objs contents as well, as their indices match fp ones */
 	memcpy(to_sp_objs, from_sp_objs, sizeof(*to_sp_objs));
@@ -2959,8 +2965,9 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode, bool keep_link)
 	if (IS_PF(bp)) {
 		if (CNIC_LOADED(bp))
 			bnx2x_free_mem_cnic(bp);
-		bnx2x_free_mem(bp);
 	}
+	bnx2x_free_mem(bp);
+
 	bp->state = BNX2X_STATE_CLOSED;
 	bp->cnic_loaded = false;
 

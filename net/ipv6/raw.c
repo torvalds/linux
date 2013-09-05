@@ -633,6 +633,7 @@ static int rawv6_send_hdrinc(struct sock *sk, void *from, int length,
 		goto error;
 	skb_reserve(skb, hlen);
 
+	skb->protocol = htons(ETH_P_IPV6);
 	skb->priority = sk->sk_priority;
 	skb->mark = sk->sk_mark;
 	skb_dst_set(skb, &rt->dst);

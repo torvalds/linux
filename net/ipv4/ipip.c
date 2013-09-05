@@ -190,14 +190,13 @@ static int ipip_rcv(struct sk_buff *skb)
 	struct ip_tunnel *tunnel;
 	const struct iphdr *iph;
 
-	if (iptunnel_pull_header(skb, 0, tpi.proto))
-		goto drop;
-
 	iph = ip_hdr(skb);
 	tunnel = ip_tunnel_lookup(itn, skb->dev->ifindex, TUNNEL_NO_KEY,
 			iph->saddr, iph->daddr, 0);
 	if (tunnel) {
 		if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb))
+			goto drop;
+		if (iptunnel_pull_header(skb, 0, tpi.proto))
 			goto drop;
 		return ip_tunnel_rcv(tunnel, skb, &tpi, log_ecn_error);
 	}
