@@ -153,12 +153,18 @@ static void select_policy(struct f2fs_sb_info *sbi, int gc_type,
 	if (p->alloc_mode == SSR) {
 		p->gc_mode = GC_GREEDY;
 		p->dirty_segmap = dirty_i->dirty_segmap[type];
+		p->max_search = dirty_i->nr_dirty[type];
 		p->ofs_unit = 1;
 	} else {
 		p->gc_mode = select_gc_type(sbi->gc_thread, gc_type);
 		p->dirty_segmap = dirty_i->dirty_segmap[DIRTY];
+		p->max_search = dirty_i->nr_dirty[DIRTY];
 		p->ofs_unit = sbi->segs_per_sec;
 	}
+
+	if (p->max_search > MAX_VICTIM_SEARCH)
+		p->max_search = MAX_VICTIM_SEARCH;
+
 	p->offset = sbi->last_victim[p->gc_mode];
 }
 
@@ -305,7 +311,7 @@ static int get_victim_by_default(struct f2fs_sb_info *sbi,
 		if (cost == max_cost)
 			continue;
 
-		if (nsearched++ >= MAX_VICTIM_SEARCH) {
+		if (nsearched++ >= p.max_search) {
 			sbi->last_victim[p.gc_mode] = segno;
 			break;
 		}
