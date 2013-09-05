@@ -363,7 +363,7 @@ EXPORT_SYMBOL(acpi_pci_osc_control_set);
 static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm,
 				 int *clear_aspm)
 {
-	u32 support, base_support, control;
+	u32 support, control;
 	acpi_status status;
 	struct acpi_device *device = root->device;
 	acpi_handle handle = device->handle;
@@ -372,7 +372,7 @@ static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm,
 	 * All supported architectures that use ACPI have support for
 	 * PCI domains, so we indicate this in _OSC support capabilities.
 	 */
-	support = base_support = OSC_PCI_SEGMENT_GROUPS_SUPPORT;
+	support = OSC_PCI_SEGMENT_GROUPS_SUPPORT;
 	if (pci_ext_cfg_avail())
 		support |= OSC_PCI_EXT_CONFIG_SUPPORT;
 	if (pcie_aspm_support_enabled())
@@ -381,10 +381,10 @@ static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm,
 		support |= OSC_PCI_MSI_SUPPORT;
 	status = acpi_pci_osc_support(root, support);
 	if (ACPI_FAILURE(status)) {
-		dev_info(&device->dev, "ACPI _OSC support "
-			"notification failed, disabling PCIe ASPM\n");
+		dev_info(&device->dev, "_OSC failed (%s); disabling ASPM\n",
+			 acpi_format_exception(status));
 		*no_aspm = 1;
-		support = base_support;
+		return;
 	}
 
 	if (!pcie_ports_disabled
