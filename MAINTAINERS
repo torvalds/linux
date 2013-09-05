@@ -9278,9 +9278,9 @@ F:	drivers/media/tuners/tuner-xc2028.*
 
 XEN HYPERVISOR INTERFACE
 M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-M:	Jeremy Fitzhardinge <jeremy@goop.org>
-L:	xen-devel@lists.xensource.com (moderated for non-subscribers)
-L:	virtualization@lists.linux-foundation.org
+M:	Boris Ostrovsky <boris.ostrovsky@oracle.com>
+M:	David Vrabel <david.vrabel@citrix.com>
+L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 S:	Supported
 F:	arch/x86/xen/
 F:	drivers/*/xen-*front.c
@@ -9291,35 +9291,35 @@ F:	include/uapi/xen/
 
 XEN HYPERVISOR ARM
 M:	Stefano Stabellini <stefano.stabellini@eu.citrix.com>
-L:	xen-devel@lists.xensource.com (moderated for non-subscribers)
+L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 S:	Supported
 F:	arch/arm/xen/
 F:	arch/arm/include/asm/xen/
 
 XEN HYPERVISOR ARM64
 M:	Stefano Stabellini <stefano.stabellini@eu.citrix.com>
-L:	xen-devel@lists.xensource.com (moderated for non-subscribers)
+L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 S:	Supported
 F:	arch/arm64/xen/
 F:	arch/arm64/include/asm/xen/
 
 XEN NETWORK BACKEND DRIVER
 M:	Ian Campbell <ian.campbell@citrix.com>
-L:	xen-devel@lists.xensource.com (moderated for non-subscribers)
+L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/xen-netback/*
 
 XEN PCI SUBSYSTEM
 M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-L:	xen-devel@lists.xensource.com (moderated for non-subscribers)
+L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 S:	Supported
 F:	arch/x86/pci/*xen*
 F:	drivers/pci/*xen*
 
 XEN SWIOTLB SUBSYSTEM
 M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-L:	xen-devel@lists.xensource.com (moderated for non-subscribers)
+L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 S:	Supported
 F:	arch/x86/xen/*swiotlb*
 F:	drivers/xen/*swiotlb*
