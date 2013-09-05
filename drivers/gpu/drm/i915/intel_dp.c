@@ -1728,16 +1728,21 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 	ironlake_edp_panel_vdd_off(intel_dp, true);
 	intel_dp_complete_link_train(intel_dp);
 	intel_dp_stop_link_train(intel_dp);
-	ironlake_edp_backlight_on(intel_dp);
 }
 
 static void g4x_enable_dp(struct intel_encoder *encoder)
 {
+	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+
 	intel_enable_dp(encoder);
+	ironlake_edp_backlight_on(intel_dp);
 }
 
 static void vlv_enable_dp(struct intel_encoder *encoder)
 {
+	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+
+	ironlake_edp_backlight_on(intel_dp);
 }
 
 static void g4x_pre_enable_dp(struct intel_encoder *encoder)
