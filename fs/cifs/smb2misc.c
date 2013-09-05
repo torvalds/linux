@@ -420,6 +420,7 @@ smb2_tcon_has_lease(struct cifs_tcon *tcon, struct smb2_lease_break *rsp,
 	__u8 lease_state;
 	struct list_head *tmp;
 	struct cifsFileInfo *cfile;
+	struct TCP_Server_Info *server = tcon->ses->server;
 	struct cifs_pending_open *open;
 	struct cifsInodeInfo *cinode;
 	int ack_req = le32_to_cpu(rsp->Flags &
@@ -439,7 +440,7 @@ smb2_tcon_has_lease(struct cifs_tcon *tcon, struct smb2_lease_break *rsp,
 		cifs_dbg(FYI, "lease key match, lease break 0x%d\n",
 			 le32_to_cpu(rsp->NewLeaseState));
 
-		tcon->ses->server->ops->set_oplock_level(cinode, lease_state);
+		server->ops->set_oplock_level(cinode, lease_state, 0, NULL);
 
 		if (ack_req)
 			cfile->oplock_break_cancelled = false;
@@ -575,7 +576,8 @@ smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 					cfile->oplock_break_cancelled = false;
 
 				server->ops->set_oplock_level(cinode,
-				  rsp->OplockLevel ? SMB2_OPLOCK_LEVEL_II : 0);
+				  rsp->OplockLevel ? SMB2_OPLOCK_LEVEL_II : 0,
+				  0, NULL);
 
 				queue_work(cifsiod_wq, &cfile->oplock_break);
 

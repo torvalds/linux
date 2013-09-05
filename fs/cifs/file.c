@@ -323,6 +323,7 @@ cifs_new_fileinfo(struct cifs_fid *fid, struct file *file,
 		oplock = fid->pending_open->oplock;
 	list_del(&fid->pending_open->olist);
 
+	fid->purge_cache = false;
 	server->ops->set_fid(cfile, fid, oplock);
 
 	list_add(&cfile->tlist, &tcon->openFileList);
@@ -332,6 +333,9 @@ cifs_new_fileinfo(struct cifs_fid *fid, struct file *file,
 	else
 		list_add_tail(&cfile->flist, &cinode->openFileList);
 	spin_unlock(&cifs_file_list_lock);
+
+	if (fid->purge_cache)
+		cifs_invalidate_mapping(inode);
 
 	file->private_data = cfile;
 	return cfile;

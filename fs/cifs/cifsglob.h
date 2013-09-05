@@ -373,11 +373,12 @@ struct smb_version_operations {
 	/* if we can do cache read operations */
 	bool (*is_read_op)(__u32);
 	/* set oplock level for the inode */
-	void (*set_oplock_level)(struct cifsInodeInfo *, __u32);
+	void (*set_oplock_level)(struct cifsInodeInfo *, __u32, unsigned int,
+				 bool *);
 	/* create lease context buffer for CREATE request */
 	char * (*create_lease_buf)(u8 *, u8);
-	/* parse lease context buffer and return oplock info */
-	__u8 (*parse_lease_buf)(void *);
+	/* parse lease context buffer and return oplock/epoch info */
+	__u8 (*parse_lease_buf)(void *, unsigned int *);
 };
 
 struct smb_version_values {
@@ -940,6 +941,8 @@ struct cifs_fid {
 	__u8 lease_key[SMB2_LEASE_KEY_SIZE];	/* lease key for smb2 */
 #endif
 	struct cifs_pending_open *pending_open;
+	unsigned int epoch;
+	bool purge_cache;
 };
 
 struct cifs_fid_locks {
@@ -1039,7 +1042,10 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file);
 
 #define CIFS_CACHE_READ_FLG	1
 #define CIFS_CACHE_HANDLE_FLG	2
+#define CIFS_CACHE_RH_FLG	(CIFS_CACHE_READ_FLG | CIFS_CACHE_HANDLE_FLG)
 #define CIFS_CACHE_WRITE_FLG	4
+#define CIFS_CACHE_RW_FLG	(CIFS_CACHE_READ_FLG | CIFS_CACHE_WRITE_FLG)
+#define CIFS_CACHE_RHW_FLG	(CIFS_CACHE_RW_FLG | CIFS_CACHE_HANDLE_FLG)
 
 #define CIFS_CACHE_READ(cinode) (cinode->oplock & CIFS_CACHE_READ_FLG)
 #define CIFS_CACHE_HANDLE(cinode) (cinode->oplock & CIFS_CACHE_HANDLE_FLG)
@@ -1057,6 +1063,7 @@ struct cifsInodeInfo {
 	struct list_head openFileList;
 	__u32 cifsAttrs; /* e.g. DOS archive bit, sparse, compressed, system */
 	unsigned int oplock;		/* oplock/lease level we have */
+	unsigned int epoch;		/* used to track lease state changes */
 	bool delete_pending;		/* DELETE_ON_CLOSE is set */
 	bool invalid_mapping;		/* pagecache is invalid */
 	unsigned long time;		/* jiffies of last update of inode */

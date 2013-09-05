@@ -903,7 +903,8 @@ create_reconnect_durable_buf(struct cifs_fid *fid)
 }
 
 static __u8
-parse_lease_state(struct TCP_Server_Info *server, struct smb2_create_rsp *rsp)
+parse_lease_state(struct TCP_Server_Info *server, struct smb2_create_rsp *rsp,
+		  unsigned int *epoch)
 {
 	char *data_offset;
 	struct create_context *cc;
@@ -920,7 +921,7 @@ parse_lease_state(struct TCP_Server_Info *server, struct smb2_create_rsp *rsp)
 			next = le32_to_cpu(cc->Next);
 			continue;
 		}
-		return server->ops->parse_lease_buf(cc);
+		return server->ops->parse_lease_buf(cc, epoch);
 	} while (next != 0);
 
 	return 0;
@@ -1102,7 +1103,7 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 	}
 
 	if (rsp->OplockLevel == SMB2_OPLOCK_LEVEL_LEASE)
-		*oplock = parse_lease_state(server, rsp);
+		*oplock = parse_lease_state(server, rsp, &oparms->fid->epoch);
 	else
 		*oplock = rsp->OplockLevel;
 creat_exit:

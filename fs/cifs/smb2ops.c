@@ -381,7 +381,8 @@ smb2_set_fid(struct cifsFileInfo *cfile, struct cifs_fid *fid, __u32 oplock)
 
 	cfile->fid.persistent_fid = fid->persistent_fid;
 	cfile->fid.volatile_fid = fid->volatile_fid;
-	server->ops->set_oplock_level(cinode, oplock);
+	server->ops->set_oplock_level(cinode, oplock, fid->epoch,
+				      &fid->purge_cache);
 	cinode->can_cache_brlcks = CIFS_CACHE_WRITE(cinode);
 }
 
@@ -651,18 +652,18 @@ smb2_query_symlink(const unsigned int xid, struct cifs_tcon *tcon,
 }
 
 static void
-smb2_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock)
+smb2_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock,
+		      unsigned int epoch, bool *purge_cache)
 {
 	oplock &= 0xFF;
 	if (oplock == SMB2_OPLOCK_LEVEL_NOCHANGE)
 		return;
 	if (oplock == SMB2_OPLOCK_LEVEL_BATCH) {
-		cinode->oplock = CIFS_CACHE_READ_FLG | CIFS_CACHE_WRITE_FLG |
-				 CIFS_CACHE_HANDLE_FLG;
+		cinode->oplock = CIFS_CACHE_RHW_FLG;
 		cifs_dbg(FYI, "Batch Oplock granted on inode %p\n",
 			 &cinode->vfs_inode);
 	} else if (oplock == SMB2_OPLOCK_LEVEL_EXCLUSIVE) {
-		cinode->oplock = CIFS_CACHE_READ_FLG | CIFS_CACHE_WRITE_FLG;
+		cinode->oplock = CIFS_CACHE_RW_FLG;
 		cifs_dbg(FYI, "Exclusive Oplock granted on inode %p\n",
 			 &cinode->vfs_inode);
 	} else if (oplock == SMB2_OPLOCK_LEVEL_II) {
@@ -674,7 +675,8 @@ smb2_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock)
 }
 
 static void
-smb21_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock)
+smb21_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock,
+		       unsigned int epoch, bool *purge_cache)
 {
 	char message[5] = {0};
 
@@ -699,6 +701,41 @@ smb21_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock)
 		strcat(message, "None");
 	cifs_dbg(FYI, "%s Lease granted on inode %p\n", message,
 		 &cinode->vfs_inode);
+}
+
+static void
+smb3_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock,
+		      unsigned int epoch, bool *purge_cache)
+{
+	unsigned int old_oplock = cinode->oplock;
+
+	smb21_set_oplock_level(cinode, oplock, epoch, purge_cache);
+
+	if (purge_cache) {
+		*purge_cache = false;
+		if (old_oplock == CIFS_CACHE_READ_FLG) {
+			if (cinode->oplock == CIFS_CACHE_READ_FLG &&
+			    (epoch - cinode->epoch > 0))
+				*purge_cache = true;
+			else if (cinode->oplock == CIFS_CACHE_RH_FLG &&
+				 (epoch - cinode->epoch > 1))
+				*purge_cache = true;
+			else if (cinode->oplock == CIFS_CACHE_RHW_FLG &&
+				 (epoch - cinode->epoch > 1))
+				*purge_cache = true;
+			else if (cinode->oplock == 0 &&
+				 (epoch - cinode->epoch > 0))
+				*purge_cache = true;
+		} else if (old_oplock == CIFS_CACHE_RH_FLG) {
+			if (cinode->oplock == CIFS_CACHE_RH_FLG &&
+			    (epoch - cinode->epoch > 0))
+				*purge_cache = true;
+			else if (cinode->oplock == CIFS_CACHE_RHW_FLG &&
+				 (epoch - cinode->epoch > 1))
+				*purge_cache = true;
+		}
+		cinode->epoch = epoch;
+	}
 }
 
 static bool
@@ -780,20 +817,22 @@ smb3_create_lease_buf(u8 *lease_key, u8 oplock)
 }
 
 static __u8
-smb2_parse_lease_buf(void *buf)
+smb2_parse_lease_buf(void *buf, unsigned int *epoch)
 {
 	struct create_lease *lc = (struct create_lease *)buf;
 
+	*epoch = 0; /* not used */
 	if (lc->lcontext.LeaseFlags & SMB2_LEASE_FLAG_BREAK_IN_PROGRESS)
 		return SMB2_OPLOCK_LEVEL_NOCHANGE;
 	return le32_to_cpu(lc->lcontext.LeaseState);
 }
 
 static __u8
-smb3_parse_lease_buf(void *buf)
+smb3_parse_lease_buf(void *buf, unsigned int *epoch)
 {
 	struct create_lease_v2 *lc = (struct create_lease_v2 *)buf;
 
+	*epoch = le16_to_cpu(lc->lcontext.Epoch);
 	if (lc->lcontext.LeaseFlags & SMB2_LEASE_FLAG_BREAK_IN_PROGRESS)
 		return SMB2_OPLOCK_LEVEL_NOCHANGE;
 	return le32_to_cpu(lc->lcontext.LeaseState);
@@ -1009,7 +1048,7 @@ struct smb_version_operations smb30_operations = {
 	.generate_signingkey = generate_smb3signingkey,
 	.calc_signature = smb3_calc_signature,
 	.is_read_op = smb21_is_read_op,
-	.set_oplock_level = smb21_set_oplock_level,
+	.set_oplock_level = smb3_set_oplock_level,
 	.create_lease_buf = smb3_create_lease_buf,
 	.parse_lease_buf = smb3_parse_lease_buf,
 };
