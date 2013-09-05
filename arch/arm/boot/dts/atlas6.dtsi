@@ -132,6 +132,20 @@
 			};
 		};
 
+		graphics2d-iobg {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0xa0000000 0xa0000000 0x8000000>;
+
+			ble@a0000000 {
+				compatible = "sirf,atlas6-ble";
+				reg = <0xa0000000 0x2000>;
+				interrupts = <5>;
+				clocks = <&clks 33>;
+			};
+		};
+
 		dsp-iobg {
 			compatible = "simple-bus";
 			#address-cells = <1>;
