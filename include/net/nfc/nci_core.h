@@ -207,16 +207,14 @@ int nci_to_errno(__u8 code);
 #define NCI_SPI_CRC_ENABLED	0x01
 
 /* ----- NCI SPI structures ----- */
-struct nci_spi_dev;
+struct nci_spi;
 
 struct nci_spi_ops {
-	int (*open)(struct nci_spi_dev *nsdev);
-	int (*close)(struct nci_spi_dev *nsdev);
-	void (*assert_int)(struct nci_spi_dev *nsdev);
-	void (*deassert_int)(struct nci_spi_dev *nsdev);
+	void (*assert_int)(struct nci_spi *nspi);
+	void (*deassert_int)(struct nci_spi *nspi);
 };
 
-struct nci_spi_dev {
+struct nci_spi {
 	struct nci_dev		*ndev;
 	struct spi_device	*spi;
 	struct nci_spi_ops	*ops;
@@ -227,31 +225,14 @@ struct nci_spi_dev {
 
 	struct completion	req_completion;
 	u8			req_result;
-
-	void			*driver_data;
 };
 
-/* ----- NCI SPI Devices ----- */
-struct nci_spi_dev *nci_spi_allocate_device(struct spi_device *spi,
-						struct nci_spi_ops *ops,
-						u32 supported_protocols,
-						u32 supported_se,
-						u8 acknowledge_mode,
-						unsigned int delay);
-void nci_spi_free_device(struct nci_spi_dev *nsdev);
-int nci_spi_register_device(struct nci_spi_dev *nsdev);
-void nci_spi_unregister_device(struct nci_spi_dev *nsdev);
-int nci_spi_recv_frame(struct nci_spi_dev *nsdev);
-
-static inline void nci_spi_set_drvdata(struct nci_spi_dev *nsdev,
-					    void *data)
-{
-	nsdev->driver_data = data;
-}
-
-static inline void *nci_spi_get_drvdata(struct nci_spi_dev *nsdev)
-{
-	return nsdev->driver_data;
-}
+/* ----- NCI SPI ----- */
+struct nci_spi *nci_spi_allocate_spi(struct spi_device *spi,
+				     struct nci_spi_ops *ops,
+				     u8 acknowledge_mode, unsigned int delay,
+				     struct nci_dev *ndev);
+int nci_spi_send(struct nci_spi *nspi, struct sk_buff *skb);
+int nci_spi_recv_frame(struct nci_spi *nspi);
 
 #endif /* __NCI_CORE_H */
