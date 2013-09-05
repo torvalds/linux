@@ -478,6 +478,30 @@ config FRONTSWAP
 
 	  If unsure, say Y to enable frontswap.
 
+config CMA
+	bool "Contiguous Memory Allocator"
+	depends on HAVE_MEMBLOCK
+	select MIGRATION
+	select MEMORY_ISOLATION
+	help
+	  This enables the Contiguous Memory Allocator which allows other
+	  subsystems to allocate big physically-contiguous blocks of memory.
+	  CMA reserves a region of memory and allows only movable pages to
+	  be allocated from it. This way, the kernel can use the memory for
+	  pagecache and when a subsystem requests for contiguous area, the
+	  allocated pages are migrated away to serve the contiguous request.
+
+	  If unsure, say "n".
+
+config CMA_DEBUG
+	bool "CMA debug messages (DEVELOPMENT)"
+	depends on DEBUG_KERNEL && CMA
+	help
+	  Turns on debug messages in CMA.  This produces KERN_DEBUG
+	  messages for every CMA call as well as various messages while
+	  processing calls such as dma_alloc_from_contiguous().
+	  This option does not affect warning and error messages.
+
 config ZBUD
 	tristate
 	default n

@@ -1442,6 +1442,17 @@ static inline pmd_t pmd_mkwrite(pmd_t pmd)
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLB_PAGE */
 
+static inline void pmdp_flush_lazy(struct mm_struct *mm,
+				   unsigned long address, pmd_t *pmdp)
+{
+	int active = (mm == current->active_mm) ? 1 : 0;
+
+	if ((atomic_read(&mm->context.attach_count) & 0xffff) > active)
+		__pmd_idte(address, pmdp);
+	else
+		mm->context.flush_mm = 1;
+}
+
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 
 #define __HAVE_ARCH_PGTABLE_DEPOSIT

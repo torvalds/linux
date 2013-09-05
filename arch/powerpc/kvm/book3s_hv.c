@@ -680,13 +680,12 @@ static int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 }
 
 int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
-                                  struct kvm_sregs *sregs)
+				  struct kvm_sregs *sregs)
 {
 	int i;
 
-	sregs->pvr = vcpu->arch.pvr;
-
 	memset(sregs, 0, sizeof(struct kvm_sregs));
+	sregs->pvr = vcpu->arch.pvr;
 	for (i = 0; i < vcpu->arch.slb_max; i++) {
 		sregs->u.s.ppc64.slb[i].slbe = vcpu->arch.slb[i].orige;
 		sregs->u.s.ppc64.slb[i].slbv = vcpu->arch.slb[i].origv;
@@ -696,7 +695,7 @@ int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 }
 
 int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
-                                  struct kvm_sregs *sregs)
+				  struct kvm_sregs *sregs)
 {
 	int i, j;
 
@@ -1511,10 +1510,10 @@ static inline int lpcr_rmls(unsigned long rma_size)
 
 static int kvm_rma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	struct kvmppc_linear_info *ri = vma->vm_file->private_data;
 	struct page *page;
+	struct kvm_rma_info *ri = vma->vm_file->private_data;
 
-	if (vmf->pgoff >= ri->npages)
+	if (vmf->pgoff >= kvm_rma_pages)
 		return VM_FAULT_SIGBUS;
 
 	page = pfn_to_page(ri->base_pfn + vmf->pgoff);
@@ -1536,7 +1535,7 @@ static int kvm_rma_mmap(struct file *file, struct vm_area_struct *vma)
 
 static int kvm_rma_release(struct inode *inode, struct file *filp)
 {
-	struct kvmppc_linear_info *ri = filp->private_data;
+	struct kvm_rma_info *ri = filp->private_data;
 
 	kvm_release_rma(ri);
 	return 0;
@@ -1549,18 +1548,27 @@ static const struct file_operations kvm_rma_fops = {
 
 long kvm_vm_ioctl_allocate_rma(struct kvm *kvm, struct kvm_allocate_rma *ret)
 {
-	struct kvmppc_linear_info *ri;
 	long fd;
+	struct kvm_rma_info *ri;
+	/*
+	 * Only do this on PPC970 in HV mode
+	 */
+	if (!cpu_has_feature(CPU_FTR_HVMODE) ||
+	    !cpu_has_feature(CPU_FTR_ARCH_201))
+		return -EINVAL;
+
+	if (!kvm_rma_pages)
+		return -EINVAL;
 
 	ri = kvm_alloc_rma();
 	if (!ri)
 		return -ENOMEM;
 
-	fd = anon_inode_getfd("kvm-rma", &kvm_rma_fops, ri, O_RDWR);
+	fd = anon_inode_getfd("kvm-rma", &kvm_rma_fops, ri, O_RDWR | O_CLOEXEC);
 	if (fd < 0)
 		kvm_release_rma(ri);
 
-	ret->rma_size = ri->npages << PAGE_SHIFT;
+	ret->rma_size = kvm_rma_pages << PAGE_SHIFT;
 	return fd;
 }
 
@@ -1725,7 +1733,7 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 {
 	int err = 0;
 	struct kvm *kvm = vcpu->kvm;
-	struct kvmppc_linear_info *ri = NULL;
+	struct kvm_rma_info *ri = NULL;
 	unsigned long hva;
 	struct kvm_memory_slot *memslot;
 	struct vm_area_struct *vma;
@@ -1803,7 +1811,7 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 
 	} else {
 		/* Set up to use an RMO region */
-		rma_size = ri->npages;
+		rma_size = kvm_rma_pages;
 		if (rma_size > memslot->npages)
 			rma_size = memslot->npages;
 		rma_size <<= PAGE_SHIFT;
@@ -1831,14 +1839,14 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 			/* POWER7 */
 			lpcr &= ~(LPCR_VPM0 | LPCR_VRMA_L);
 			lpcr |= rmls << LPCR_RMLS_SH;
-			kvm->arch.rmor = kvm->arch.rma->base_pfn << PAGE_SHIFT;
+			kvm->arch.rmor = ri->base_pfn << PAGE_SHIFT;
 		}
 		kvm->arch.lpcr = lpcr;
 		pr_info("KVM: Using RMO at %lx size %lx (LPCR = %lx)\n",
 			ri->base_pfn << PAGE_SHIFT, rma_size, lpcr);
 
 		/* Initialize phys addrs of pages in RMO */
-		npages = ri->npages;
+		npages = kvm_rma_pages;
 		porder = __ilog2(npages);
 		physp = memslot->arch.slot_phys;
 		if (physp) {

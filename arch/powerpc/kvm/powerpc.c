@@ -117,8 +117,6 @@ int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 			kvm_guest_exit();
 			continue;
 		}
-
-		trace_hardirqs_on();
 #endif
 
 		kvm_guest_enter();
@@ -418,6 +416,10 @@ void kvm_arch_free_memslot(struct kvm_memory_slot *free,
 int kvm_arch_create_memslot(struct kvm_memory_slot *slot, unsigned long npages)
 {
 	return kvmppc_core_create_memslot(slot, npages);
+}
+
+void kvm_arch_memslots_updated(struct kvm *kvm)
+{
 }
 
 int kvm_arch_prepare_memory_region(struct kvm *kvm,

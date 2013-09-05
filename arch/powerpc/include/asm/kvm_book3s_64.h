@@ -37,7 +37,7 @@ static inline void svcpu_put(struct kvmppc_book3s_shadow_vcpu *svcpu)
 
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 #define KVM_DEFAULT_HPT_ORDER	24	/* 16MB HPT by default */
-extern int kvm_hpt_order;		/* order of preallocated HPTs */
+extern unsigned long kvm_rma_pages;
 #endif
 
 #define VRMA_VSID	0x1ffffffUL	/* 1TB VSID reserved for VRMA */
@@ -100,7 +100,7 @@ static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 			/* (masks depend on page size) */
 			rb |= 0x1000;		/* page encoding in LP field */
 			rb |= (va_low & 0x7f) << 16; /* 7b of VA in AVA/LP field */
-			rb |= (va_low & 0xfe);	/* AVAL field (P7 doesn't seem to care) */
+			rb |= ((va_low << 4) & 0xf0);	/* AVAL field (P7 doesn't seem to care) */
 		}
 	} else {
 		/* 4kB page */
