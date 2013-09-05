@@ -46,6 +46,10 @@ extern void socfpga_secondary_startup(void);
  #define RSTMGR_MPUMODRST_SCUPER	0x8	/*SCU and periphs reset*/
  #define RSTMGR_MPUMODRST_L2		0x10	/*L2 Cache reset*/
 
+/* Peripheral Module Reset Register bits */
+#define RSTMGR_PERMODRST_EMAC0	0x1
+#define RSTMGR_PERMODRST_EMAC1	0x2
+
 #define SYSMGR_SILICON_ID1_OFFSET 0x0
 #define SYSMGR_SILICON_ID1_REV_SHIFT 0
 #define SYSMGR_SILICON_ID1_REV_MASK 0x0000FFFF
