@@ -1316,7 +1316,7 @@ static void ath10k_pci_tx_pipe_cleanup(struct ath10k_pci_pipe *pipe_info)
 
 	while (ath10k_ce_cancel_send_next(ce_hdl, (void **)&netbuf,
 					  &ce_data, &nbytes, &id) == 0) {
-		if (netbuf != CE_SENDLIST_ITEM_CTXT)
+		if (netbuf != CE_SENDLIST_ITEM_CTXT) {
 			/*
 			 * Indicate the completion to higer layer to free
 			 * the buffer
@@ -1325,6 +1325,7 @@ static void ath10k_pci_tx_pipe_cleanup(struct ath10k_pci_pipe *pipe_info)
 			ar_pci->msg_callbacks_current.tx_completion(ar,
 								    netbuf,
 								    id);
+		}
 	}
 }
 
