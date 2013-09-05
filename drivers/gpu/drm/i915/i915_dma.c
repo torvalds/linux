@@ -1359,6 +1359,12 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	 */
 	intel_fbdev_initial_config(dev);
 
+	/*
+	 * Must do this after fbcon init so that
+	 * vgacon_save_screen() works during the handover.
+	 */
+	i915_disable_vga_mem(dev);
+
 	/* Only enable hotplug handling once the fbdev is fully set up. */
 	dev_priv->enable_hotplug_processing = true;
 
