@@ -730,6 +730,6 @@ static struct i2c_driver hmc5843_driver = {
 };
 module_i2c_driver(hmc5843_driver);
 
-MODULE_AUTHOR("Shubhrajyoti Datta <shubhrajyoti@ti.com");
+MODULE_AUTHOR("Shubhrajyoti Datta <shubhrajyoti@ti.com>");
 MODULE_DESCRIPTION("HMC5843/5883/5883L driver");
 MODULE_LICENSE("GPL");
