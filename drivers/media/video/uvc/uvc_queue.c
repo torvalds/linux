@@ -390,9 +390,9 @@ checks:
         /* ddl@rock-chips.com: It is timeout */
         if (ret == 0) {
             ret = -EINVAL;
-            printk(KERN_ERR "uvcvideo: uvc_dequeue_buffer is timeout!!");
+            printk(KERN_ERR "uvcvideo: uvc_dequeue_buffer is timeout!!\n");
         } else {
-            printk(KERN_ERR "uvcvideo: uvc_dequeue_buffer is failed!!(ret:%d)",ret);
+            printk(KERN_ERR "uvcvideo: uvc_dequeue_buffer is failed!!(ret:%d)\n",ret);
         }
 		goto done;
 	}

@@ -452,7 +452,10 @@ struct uvc_video_chain {
 
 	struct mutex ctrl_mutex;		/* Protects ctrl.info */
 };
-
+enum uvc_urb_state {
+    UrbActive,
+    UrbDeactive
+};
 struct uvc_streaming {
 	struct list_head list;
 	struct uvc_device *dev;
@@ -501,6 +504,8 @@ struct uvc_streaming {
 	__u8 last_fid;
 
     struct tasklet_struct *tasklet[UVC_URBS];     /* ddl@rock-chips.com */
+    atomic_t urb_state[UVC_URBS];
+    
     unsigned int flags;
 };
 
