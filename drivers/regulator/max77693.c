@@ -271,7 +271,6 @@ static int max77693_pmic_probe(struct platform_device *pdev)
 		if (IS_ERR(max77693_pmic->rdev[i])) {
 			dev_err(max77693_pmic->dev,
 				"Failed to initialize regulator-%d\n", id);
-			max77693_pmic->rdev[i] = NULL;
 			return PTR_ERR(max77693_pmic->rdev[i]);
 		}
 	}

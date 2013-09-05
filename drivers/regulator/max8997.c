@@ -1209,7 +1209,6 @@ static int max8997_pmic_probe(struct platform_device *pdev)
 		if (IS_ERR(rdev[i])) {
 			dev_err(max8997->dev, "regulator init failed for %d\n",
 					id);
-			rdev[i] = NULL;
 			return PTR_ERR(rdev[i]);
 		}
 	}
