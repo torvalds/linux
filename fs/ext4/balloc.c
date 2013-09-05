@@ -184,6 +184,7 @@ void ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	ext4_fsblk_t start, tmp;
 	int flex_bg = 0;
+	struct ext4_group_info *grp;
 
 	J_ASSERT_BH(bh, buffer_locked(bh));
 
@@ -191,11 +192,9 @@ void ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
 	 * essentially implementing a per-group read-only flag. */
 	if (!ext4_group_desc_csum_verify(sb, block_group, gdp)) {
 		ext4_error(sb, "Checksum bad for group %u", block_group);
-		ext4_free_group_clusters_set(sb, gdp, 0);
-		ext4_free_inodes_set(sb, gdp, 0);
-		ext4_itable_unused_set(sb, gdp, 0);
-		memset(bh->b_data, 0xff, sb->s_blocksize);
-		ext4_block_bitmap_csum_set(sb, block_group, gdp, bh);
+		grp = ext4_get_group_info(sb, block_group);
+		set_bit(EXT4_GROUP_INFO_BBITMAP_CORRUPT_BIT, &grp->bb_state);
+		set_bit(EXT4_GROUP_INFO_IBITMAP_CORRUPT_BIT, &grp->bb_state);
 		return;
 	}
 	memset(bh->b_data, 0, sb->s_blocksize);
@@ -305,7 +304,7 @@ struct ext4_group_desc * ext4_get_group_desc(struct super_block *sb,
  */
 static ext4_fsblk_t ext4_valid_block_bitmap(struct super_block *sb,
 					    struct ext4_group_desc *desc,
-					    unsigned int block_group,
+					    ext4_group_t block_group,
 					    struct buffer_head *bh)
 {
 	ext4_grpblk_t offset;
@@ -352,10 +351,11 @@ static ext4_fsblk_t ext4_valid_block_bitmap(struct super_block *sb,
 
 void ext4_validate_block_bitmap(struct super_block *sb,
 			       struct ext4_group_desc *desc,
-			       unsigned int block_group,
+			       ext4_group_t block_group,
 			       struct buffer_head *bh)
 {
 	ext4_fsblk_t	blk;
+	struct ext4_group_info *grp = ext4_get_group_info(sb, block_group);
 
 	if (buffer_verified(bh))
 		return;
@@ -366,12 +366,14 @@ void ext4_validate_block_bitmap(struct super_block *sb,
 		ext4_unlock_group(sb, block_group);
 		ext4_error(sb, "bg %u: block %llu: invalid block bitmap",
 			   block_group, blk);
+		set_bit(EXT4_GROUP_INFO_BBITMAP_CORRUPT_BIT, &grp->bb_state);
 		return;
 	}
 	if (unlikely(!ext4_block_bitmap_csum_verify(sb, block_group,
 			desc, bh))) {
 		ext4_unlock_group(sb, block_group);
 		ext4_error(sb, "bg %u: bad block bitmap checksum", block_group);
+		set_bit(EXT4_GROUP_INFO_BBITMAP_CORRUPT_BIT, &grp->bb_state);
 		return;
 	}
 	set_buffer_verified(bh);
@@ -445,7 +447,10 @@ ext4_read_block_bitmap_nowait(struct super_block *sb, ext4_group_t block_group)
 	return bh;
 verify:
 	ext4_validate_block_bitmap(sb, desc, block_group, bh);
-	return bh;
+	if (buffer_verified(bh))
+		return bh;
+	put_bh(bh);
+	return NULL;
 }
 
 /* Returns 0 on success, 1 on error */
@@ -469,7 +474,8 @@ int ext4_wait_block_bitmap(struct super_block *sb, ext4_group_t block_group,
 	clear_buffer_new(bh);
 	/* Panic or remount fs read-only if block bitmap is invalid */
 	ext4_validate_block_bitmap(sb, desc, block_group, bh);
-	return 0;
+	/* ...but check for error just in case errors=continue. */
+	return !buffer_verified(bh);
 }
 
 struct buffer_head *
