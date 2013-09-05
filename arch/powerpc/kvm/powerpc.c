@@ -825,39 +825,39 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 #endif
 #ifdef CONFIG_KVM_MPIC
 	case KVM_CAP_IRQ_MPIC: {
-		struct file *filp;
+		struct fd f;
 		struct kvm_device *dev;
 
 		r = -EBADF;
-		filp = fget(cap->args[0]);
-		if (!filp)
+		f = fdget(cap->args[0]);
+		if (!f.file)
 			break;
 
 		r = -EPERM;
-		dev = kvm_device_from_filp(filp);
+		dev = kvm_device_from_filp(f.file);
 		if (dev)
 			r = kvmppc_mpic_connect_vcpu(dev, vcpu, cap->args[1]);
 
-		fput(filp);
+		fdput(f);
 		break;
 	}
 #endif
 #ifdef CONFIG_KVM_XICS
 	case KVM_CAP_IRQ_XICS: {
-		struct file *filp;
+		struct fd f;
 		struct kvm_device *dev;
 
 		r = -EBADF;
-		filp = fget(cap->args[0]);
-		if (!filp)
+		f = fdget(cap->args[0]);
+		if (!f.file)
 			break;
 
 		r = -EPERM;
-		dev = kvm_device_from_filp(filp);
+		dev = kvm_device_from_filp(f.file);
 		if (dev)
 			r = kvmppc_xics_connect_vcpu(dev, vcpu, cap->args[1]);
 
-		fput(filp);
+		fdput(f);
 		break;
 	}
 #endif /* CONFIG_KVM_XICS */

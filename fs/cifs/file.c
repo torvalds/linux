@@ -2553,7 +2553,7 @@ cifs_writev(struct kiocb *iocb, const struct iovec *iov,
 		mutex_unlock(&inode->i_mutex);
 	}
 
-	if (rc > 0 || rc == -EIOCBQUEUED) {
+	if (rc > 0) {
 		ssize_t err;
 
 		err = generic_write_sync(file, pos, rc);
