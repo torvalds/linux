@@ -733,7 +733,7 @@ static ssize_t cifs_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 
 	written = generic_file_aio_write(iocb, iov, nr_segs, pos);
 
-	if (CIFS_I(inode)->clientCanCacheAll)
+	if (CIFS_CACHE_WRITE(CIFS_I(inode)))
 		return written;
 
 	rc = filemap_fdatawrite(inode->i_mapping);
@@ -758,7 +758,7 @@ static loff_t cifs_llseek(struct file *file, loff_t offset, int whence)
 		 * We need to be sure that all dirty pages are written and the
 		 * server has the newest file length.
 		 */
-		if (!CIFS_I(inode)->clientCanCacheRead && inode->i_mapping &&
+		if (!CIFS_CACHE_READ(CIFS_I(inode)) && inode->i_mapping &&
 		    inode->i_mapping->nrpages != 0) {
 			rc = filemap_fdatawait(inode->i_mapping);
 			if (rc) {
@@ -782,8 +782,10 @@ static loff_t cifs_llseek(struct file *file, loff_t offset, int whence)
 
 static int cifs_setlease(struct file *file, long arg, struct file_lock **lease)
 {
-	/* note that this is called by vfs setlease with i_lock held
-	   to protect *lease from going away */
+	/*
+	 * Note that this is called by vfs setlease with i_lock held to
+	 * protect *lease from going away.
+	 */
 	struct inode *inode = file_inode(file);
 	struct cifsFileInfo *cfile = file->private_data;
 
@@ -791,20 +793,19 @@ static int cifs_setlease(struct file *file, long arg, struct file_lock **lease)
 		return -EINVAL;
 
 	/* check if file is oplocked */
-	if (((arg == F_RDLCK) &&
-		(CIFS_I(inode)->clientCanCacheRead)) ||
-	    ((arg == F_WRLCK) &&
-		(CIFS_I(inode)->clientCanCacheAll)))
+	if (((arg == F_RDLCK) && CIFS_CACHE_READ(CIFS_I(inode))) ||
+	    ((arg == F_WRLCK) && CIFS_CACHE_WRITE(CIFS_I(inode))))
 		return generic_setlease(file, arg, lease);
 	else if (tlink_tcon(cfile->tlink)->local_lease &&
-		 !CIFS_I(inode)->clientCanCacheRead)
-		/* If the server claims to support oplock on this
-		   file, then we still need to check oplock even
-		   if the local_lease mount option is set, but there
-		   are servers which do not support oplock for which
-		   this mount option may be useful if the user
-		   knows that the file won't be changed on the server
-		   by anyone else */
+		 !CIFS_CACHE_READ(CIFS_I(inode)))
+		/*
+		 * If the server claims to support oplock on this file, then we
+		 * still need to check oplock even if the local_lease mount
+		 * option is set, but there are servers which do not support
+		 * oplock for which this mount option may be useful if the user
+		 * knows that the file won't be changed on the server by anyone
+		 * else.
+		 */
 		return generic_setlease(file, arg, lease);
 	else
 		return -EAGAIN;

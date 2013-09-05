@@ -1031,6 +1031,13 @@ cifsFileInfo_get_locked(struct cifsFileInfo *cifs_file)
 struct cifsFileInfo *cifsFileInfo_get(struct cifsFileInfo *cifs_file);
 void cifsFileInfo_put(struct cifsFileInfo *cifs_file);
 
+#define CIFS_CACHE_READ_FLG	1
+#define CIFS_CACHE_HANDLE_FLG	2
+#define CIFS_CACHE_WRITE_FLG	4
+
+#define CIFS_CACHE_READ(cinode) (cinode->oplock & CIFS_CACHE_READ_FLG)
+#define CIFS_CACHE_WRITE(cinode) (cinode->oplock & CIFS_CACHE_WRITE_FLG)
+
 /*
  * One of these for each file inode
  */
@@ -1042,8 +1049,7 @@ struct cifsInodeInfo {
 	/* BB add in lists for dirty pages i.e. write caching info for oplock */
 	struct list_head openFileList;
 	__u32 cifsAttrs; /* e.g. DOS archive bit, sparse, compressed, system */
-	bool clientCanCacheRead;	/* read oplock */
-	bool clientCanCacheAll;		/* read and writebehind oplock */
+	unsigned int oplock;		/* oplock/lease level we have */
 	bool delete_pending;		/* DELETE_ON_CLOSE is set */
 	bool invalid_mapping;		/* pagecache is invalid */
 	unsigned long time;		/* jiffies of last update of inode */

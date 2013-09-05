@@ -700,7 +700,7 @@ cifs_set_fid(struct cifsFileInfo *cfile, struct cifs_fid *fid, __u32 oplock)
 	struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode);
 	cfile->fid.netfid = fid->netfid;
 	cifs_set_oplock_level(cinode, oplock);
-	cinode->can_cache_brlcks = cinode->clientCanCacheAll;
+	cinode->can_cache_brlcks = CIFS_CACHE_WRITE(cinode);
 }
 
 static void
@@ -837,7 +837,7 @@ cifs_oplock_response(struct cifs_tcon *tcon, struct cifs_fid *fid,
 {
 	return CIFSSMBLock(0, tcon, fid->netfid, current->tgid, 0, 0, 0, 0,
 			   LOCKING_ANDX_OPLOCK_RELEASE, false,
-			   cinode->clientCanCacheRead ? 1 : 0);
+			   CIFS_CACHE_READ(cinode) ? 1 : 0);
 }
 
 static int

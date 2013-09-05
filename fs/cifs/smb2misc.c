@@ -380,9 +380,9 @@ cifs_convert_path_to_utf16(const char *from, struct cifs_sb_info *cifs_sb)
 __le32
 smb2_get_lease_state(struct cifsInodeInfo *cinode)
 {
-	if (cinode->clientCanCacheAll)
+	if (CIFS_CACHE_WRITE(cinode))
 		return SMB2_LEASE_WRITE_CACHING | SMB2_LEASE_READ_CACHING;
-	else if (cinode->clientCanCacheRead)
+	else if (CIFS_CACHE_READ(cinode))
 		return SMB2_LEASE_READ_CACHING;
 	return 0;
 }
@@ -576,7 +576,7 @@ smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 				cifs_dbg(FYI, "file id match, oplock break\n");
 				cinode = CIFS_I(cfile->dentry->d_inode);
 
-				if (!cinode->clientCanCacheAll &&
+				if (!CIFS_CACHE_WRITE(cinode) &&
 				    rsp->OplockLevel == SMB2_OPLOCK_LEVEL_NONE)
 					cfile->oplock_break_cancelled = true;
 				else

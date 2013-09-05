@@ -380,7 +380,7 @@ smb2_set_fid(struct cifsFileInfo *cfile, struct cifs_fid *fid, __u32 oplock)
 	cfile->fid.persistent_fid = fid->persistent_fid;
 	cfile->fid.volatile_fid = fid->volatile_fid;
 	smb2_set_oplock_level(cinode, oplock);
-	cinode->can_cache_brlcks = cinode->clientCanCacheAll;
+	cinode->can_cache_brlcks = CIFS_CACHE_WRITE(cinode);
 }
 
 static void
@@ -531,7 +531,7 @@ smb2_oplock_response(struct cifs_tcon *tcon, struct cifs_fid *fid,
 
 	return SMB2_oplock_break(0, tcon, fid->persistent_fid,
 				 fid->volatile_fid,
-				 cinode->clientCanCacheRead ? 1 : 0);
+				 CIFS_CACHE_READ(cinode) ? 1 : 0);
 }
 
 static int
