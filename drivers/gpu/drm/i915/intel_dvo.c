@@ -265,11 +265,6 @@ static bool intel_dvo_compute_config(struct intel_encoder *encoder,
 #undef C
 	}
 
-	if (intel_dvo->dev.dev_ops->mode_fixup)
-		return intel_dvo->dev.dev_ops->mode_fixup(&intel_dvo->dev,
-							  &pipe_config->requested_mode,
-							  adjusted_mode);
-
 	return true;
 }
 

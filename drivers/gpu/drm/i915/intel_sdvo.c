@@ -1208,9 +1208,6 @@ static void intel_sdvo_mode_set(struct intel_encoder *intel_encoder)
 	    !intel_sdvo_set_tv_format(intel_sdvo))
 		return;
 
-	/* We have tried to get input timing in mode_fixup, and filled into
-	 * adjusted_mode.
-	 */
 	intel_sdvo_get_dtd_from_mode(&input_dtd, adjusted_mode);
 	input_dtd.part1.clock /= crtc->config.pixel_multiplier;
 
