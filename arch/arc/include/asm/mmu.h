@@ -59,7 +59,7 @@ void tlb_paranoid_check(unsigned int mm_asid, unsigned long address);
 
 void arc_mmu_init(void);
 extern char *arc_mmu_mumbojumbo(int cpu_id, char *buf, int len);
-void __init read_decode_mmu_bcr(void);
+void read_decode_mmu_bcr(void);
 
 #endif	/* !__ASSEMBLY__ */
 
