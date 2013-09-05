@@ -107,7 +107,4 @@ nouveau_crtc_connector_get(struct nouveau_crtc *nv_crtc)
 struct drm_connector *
 nouveau_connector_create(struct drm_device *, int index);
 
-int
-nouveau_connector_bpp(struct drm_connector *);
-
 #endif /* __NOUVEAU_CONNECTOR_H__ */
