@@ -9,8 +9,8 @@
       ---help---
         Espressif 8089 sdio Wi-Fi support
 	
-  config ESP8089_BK3515A
-	  depends on WLAN_80211 && MMC
+  config BK3515A_COMBO
+	  depends on ESP8089
 	  select WIRELESS_EXT
 	  select WEXT_PRIV
 	  select CFG80211
