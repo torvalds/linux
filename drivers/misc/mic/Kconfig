@@ -17,3 +17,21 @@ config INTEL_MIC_HOST
 	  More information about the Intel MIC family as well as the Linux
 	  OS and tools for MIC to use with this driver are available from
 	  <http://software.intel.com/en-us/mic-developer>.
+
+comment "Intel MIC Card Driver"
+
+config INTEL_MIC_CARD
+	tristate "Intel MIC Card Driver"
+	depends on 64BIT
+	default N
+	help
+	  This enables card driver support for the Intel Many Integrated
+	  Core (MIC) device family. The card driver communicates shutdown/
+	  crash events to the host and allows registration/configuration of
+	  virtio devices. Intel MIC X100 devices are currently supported.
+
+	  If you are building a card kernel for an Intel MIC device then
+	  say M (recommended) or Y, else say N. If unsure say N.
+
+	  For more information see
+	  <http://software.intel.com/en-us/mic-developer>.
