@@ -108,7 +108,7 @@ struct fsl_dspi {
 	struct spi_bitbang	bitbang;
 	struct platform_device	*pdev;
 
-	void			*base;
+	void __iomem		*base;
 	int			irq;
 	struct clk 		*clk;
 
