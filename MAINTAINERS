@@ -2076,7 +2076,8 @@ F:	drivers/usb/chipidea/
 
 CISCO VIC ETHERNET NIC DRIVER
 M:	Christian Benvenuti <benve@cisco.com>
-M:	Roopa Prabhu <roprabhu@cisco.com>
+M:	Sujith Sankar <ssujith@cisco.com>
+M:	Govindarajulu Varadarajan <govindarajulu90@gmail.com>
 M:	Neel Patel <neepatel@cisco.com>
 M:	Nishank Trivedi <nistrive@cisco.com>
 S:	Supported
