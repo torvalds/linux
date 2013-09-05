@@ -792,5 +792,6 @@ extern void hsw_pc8_disable_interrupts(struct drm_device *dev);
 extern void hsw_pc8_restore_interrupts(struct drm_device *dev);
 extern void intel_aux_display_runtime_get(struct drm_i915_private *dev_priv);
 extern void intel_aux_display_runtime_put(struct drm_i915_private *dev_priv);
+extern void i915_disable_vga_mem(struct drm_device *dev);
 
 #endif /* __INTEL_DRV_H__ */
