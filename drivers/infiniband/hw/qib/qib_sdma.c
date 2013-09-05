@@ -423,8 +423,11 @@ void qib_sdma_intr(struct qib_pportdata *ppd)
 
 void __qib_sdma_intr(struct qib_pportdata *ppd)
 {
-	if (__qib_sdma_running(ppd))
+	if (__qib_sdma_running(ppd)) {
 		qib_sdma_make_progress(ppd);
+		if (!list_empty(&ppd->sdma_userpending))
+			qib_user_sdma_send_desc(ppd, &ppd->sdma_userpending);
+	}
 }
 
 int qib_setup_sdma(struct qib_pportdata *ppd)
@@ -451,6 +454,9 @@ int qib_setup_sdma(struct qib_pportdata *ppd)
 	ppd->sdma_descq_head = 0;
 	ppd->sdma_descq_removed = 0;
 	ppd->sdma_descq_added = 0;
+
+	ppd->sdma_intrequest = 0;
+	INIT_LIST_HEAD(&ppd->sdma_userpending);
 
 	INIT_LIST_HEAD(&ppd->sdma_activelist);
 

@@ -78,6 +78,11 @@ static inline void ocrdma_copy_le32_to_cpu(void *dst, void *src, u32 len)
 #endif
 }
 
+static inline u64 ocrdma_get_db_addr(struct ocrdma_dev *dev, u32 pdid)
+{
+	return dev->nic_info.unmapped_db + (pdid * dev->nic_info.db_page_size);
+}
+
 int ocrdma_init_hw(struct ocrdma_dev *);
 void ocrdma_cleanup_hw(struct ocrdma_dev *);
 
@@ -86,6 +91,7 @@ void ocrdma_ring_cq_db(struct ocrdma_dev *, u16 cq_id, bool armed,
 		       bool solicited, u16 cqe_popped);
 
 /* verbs specific mailbox commands */
+int ocrdma_mbx_get_link_speed(struct ocrdma_dev *dev, u8 *lnk_speed);
 int ocrdma_query_config(struct ocrdma_dev *,
 			struct ocrdma_mbx_query_config *config);
 int ocrdma_resolve_dgid(struct ocrdma_dev *, union ib_gid *dgid, u8 *mac_addr);
@@ -100,7 +106,7 @@ int ocrdma_mbx_dealloc_lkey(struct ocrdma_dev *, int fmr, u32 lkey);
 int ocrdma_reg_mr(struct ocrdma_dev *, struct ocrdma_hw_mr *hwmr,
 			u32 pd_id, int acc);
 int ocrdma_mbx_create_cq(struct ocrdma_dev *, struct ocrdma_cq *,
-				int entries, int dpp_cq);
+				int entries, int dpp_cq, u16 pd_id);
 int ocrdma_mbx_destroy_cq(struct ocrdma_dev *, struct ocrdma_cq *);
 
 int ocrdma_mbx_create_qp(struct ocrdma_qp *, struct ib_qp_init_attr *attrs,
@@ -112,8 +118,7 @@ int ocrdma_mbx_modify_qp(struct ocrdma_dev *, struct ocrdma_qp *,
 int ocrdma_mbx_query_qp(struct ocrdma_dev *, struct ocrdma_qp *,
 			struct ocrdma_qp_params *param);
 int ocrdma_mbx_destroy_qp(struct ocrdma_dev *, struct ocrdma_qp *);
-
-int ocrdma_mbx_create_srq(struct ocrdma_srq *,
+int ocrdma_mbx_create_srq(struct ocrdma_dev *, struct ocrdma_srq *,
 			  struct ib_srq_init_attr *,
 			  struct ocrdma_pd *);
 int ocrdma_mbx_modify_srq(struct ocrdma_srq *, struct ib_srq_attr *);
@@ -123,7 +128,7 @@ int ocrdma_mbx_destroy_srq(struct ocrdma_dev *, struct ocrdma_srq *);
 int ocrdma_alloc_av(struct ocrdma_dev *, struct ocrdma_ah *);
 int ocrdma_free_av(struct ocrdma_dev *, struct ocrdma_ah *);
 
-int ocrdma_qp_state_machine(struct ocrdma_qp *, enum ib_qp_state new_state,
+int ocrdma_qp_state_change(struct ocrdma_qp *, enum ib_qp_state new_state,
 			    enum ib_qp_state *old_ib_state);
 bool ocrdma_is_qp_in_sq_flushlist(struct ocrdma_cq *, struct ocrdma_qp *);
 bool ocrdma_is_qp_in_rq_flushlist(struct ocrdma_cq *, struct ocrdma_qp *);
