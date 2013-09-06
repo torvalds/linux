@@ -1745,6 +1745,8 @@ static void rcu_prepare_for_idle(int cpu)
 	 */
 	if (rdtp->all_lazy &&
 	    rdtp->nonlazy_posted != rdtp->nonlazy_posted_snap) {
+		rdtp->all_lazy = false;
+		rdtp->nonlazy_posted_snap = rdtp->nonlazy_posted;
 		invoke_rcu_core();
 		return;
 	}
