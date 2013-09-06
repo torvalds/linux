@@ -1620,52 +1620,26 @@ int __perf_session__set_tracepoints_handlers(struct perf_session *session,
 					     const struct perf_evsel_str_handler *assocs,
 					     size_t nr_assocs)
 {
-	struct perf_evlist *evlist = session->evlist;
-	struct event_format *format;
 	struct perf_evsel *evsel;
-	char *tracepoint, *name;
 	size_t i;
 	int err;
 
 	for (i = 0; i < nr_assocs; i++) {
-		err = -ENOMEM;
-		tracepoint = strdup(assocs[i].name);
-		if (tracepoint == NULL)
-			goto out;
-
-		err = -ENOENT;
-		name = strchr(tracepoint, ':');
-		if (name == NULL)
-			goto out_free;
-
-		*name++ = '\0';
-		format = pevent_find_event_by_name(session->pevent,
-						   tracepoint, name);
-		if (format == NULL) {
-			/*
-			 * Adding a handler for an event not in the session,
-			 * just ignore it.
-			 */
-			goto next;
-		}
-
-		evsel = perf_evlist__find_tracepoint_by_id(evlist, format->id);
+		/*
+		 * Adding a handler for an event not in the session,
+		 * just ignore it.
+		 */
+		evsel = perf_evlist__find_tracepoint_by_name(session->evlist, assocs[i].name);
 		if (evsel == NULL)
-			goto next;
+			continue;
 
 		err = -EEXIST;
 		if (evsel->handler.func != NULL)
-			goto out_free;
+			goto out;
 		evsel->handler.func = assocs[i].handler;
-next:
-		free(tracepoint);
 	}
 
 	err = 0;
 out:
 	return err;
-
-out_free:
-	free(tracepoint);
-	goto out;
 }
