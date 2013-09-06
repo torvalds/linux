@@ -26,6 +26,8 @@
 
 #ifdef CONFIG_CEPH_FSCACHE
 
+extern struct fscache_netfs ceph_cache_netfs;
+
 int ceph_fscache_register(void);
 void ceph_fscache_unregister(void);
 
