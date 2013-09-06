@@ -749,6 +749,12 @@ int kvmppc_get_one_reg(struct kvm_vcpu *vcpu, u64 id, union kvmppc_one_reg *val)
 		i = id - KVM_REG_PPC_PMC1;
 		*val = get_reg_val(id, vcpu->arch.pmc[i]);
 		break;
+	case KVM_REG_PPC_SIAR:
+		*val = get_reg_val(id, vcpu->arch.siar);
+		break;
+	case KVM_REG_PPC_SDAR:
+		*val = get_reg_val(id, vcpu->arch.sdar);
+		break;
 #ifdef CONFIG_VSX
 	case KVM_REG_PPC_FPR0 ... KVM_REG_PPC_FPR31:
 		if (cpu_has_feature(CPU_FTR_VSX)) {
@@ -832,6 +838,12 @@ int kvmppc_set_one_reg(struct kvm_vcpu *vcpu, u64 id, union kvmppc_one_reg *val)
 	case KVM_REG_PPC_PMC1 ... KVM_REG_PPC_PMC8:
 		i = id - KVM_REG_PPC_PMC1;
 		vcpu->arch.pmc[i] = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_SIAR:
+		vcpu->arch.siar = set_reg_val(id, *val);
+		break;
+	case KVM_REG_PPC_SDAR:
+		vcpu->arch.sdar = set_reg_val(id, *val);
 		break;
 #ifdef CONFIG_VSX
 	case KVM_REG_PPC_FPR0 ... KVM_REG_PPC_FPR31:

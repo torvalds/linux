@@ -508,6 +508,8 @@ int main(void)
 	DEFINE(VCPU_PRODDED, offsetof(struct kvm_vcpu, arch.prodded));
 	DEFINE(VCPU_MMCR, offsetof(struct kvm_vcpu, arch.mmcr));
 	DEFINE(VCPU_PMC, offsetof(struct kvm_vcpu, arch.pmc));
+	DEFINE(VCPU_SIAR, offsetof(struct kvm_vcpu, arch.siar));
+	DEFINE(VCPU_SDAR, offsetof(struct kvm_vcpu, arch.sdar));
 	DEFINE(VCPU_SLB, offsetof(struct kvm_vcpu, arch.slb));
 	DEFINE(VCPU_SLB_MAX, offsetof(struct kvm_vcpu, arch.slb_max));
 	DEFINE(VCPU_SLB_NR, offsetof(struct kvm_vcpu, arch.slb_nr));

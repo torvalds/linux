@@ -493,6 +493,8 @@ struct kvm_vcpu_arch {
 
 	u64 mmcr[3];
 	u32 pmc[8];
+	u64 siar;
+	u64 sdar;
 
 #ifdef CONFIG_KVM_EXIT_TIMING
 	struct mutex exit_timing_lock;

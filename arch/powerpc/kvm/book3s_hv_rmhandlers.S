@@ -200,8 +200,12 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 	ld	r3, VCPU_MMCR(r4)
 	ld	r5, VCPU_MMCR + 8(r4)
 	ld	r6, VCPU_MMCR + 16(r4)
+	ld	r7, VCPU_SIAR(r4)
+	ld	r8, VCPU_SDAR(r4)
 	mtspr	SPRN_MMCR1, r5
 	mtspr	SPRN_MMCRA, r6
+	mtspr	SPRN_SIAR, r7
+	mtspr	SPRN_SDAR, r8
 	mtspr	SPRN_MMCR0, r3
 	isync
 
@@ -1134,9 +1138,13 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 	std	r3, VCPU_MMCR(r9)	/* if not, set saved MMCR0 to FC */
 	b	22f
 21:	mfspr	r5, SPRN_MMCR1
+	mfspr	r7, SPRN_SIAR
+	mfspr	r8, SPRN_SDAR
 	std	r4, VCPU_MMCR(r9)
 	std	r5, VCPU_MMCR + 8(r9)
 	std	r6, VCPU_MMCR + 16(r9)
+	std	r7, VCPU_SIAR(r9)
+	std	r8, VCPU_SDAR(r9)
 	mfspr	r3, SPRN_PMC1
 	mfspr	r4, SPRN_PMC2
 	mfspr	r5, SPRN_PMC3
