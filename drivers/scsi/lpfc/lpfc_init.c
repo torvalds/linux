@@ -8691,9 +8691,12 @@ enable_msix_vectors:
 
 cfg_fail_out:
 	/* free the irq already requested */
-	for (--index; index >= 0; index--)
+	for (--index; index >= 0; index--) {
+		irq_set_affinity_hint(phba->sli4_hba.msix_entries[index].
+					  vector, NULL);
 		free_irq(phba->sli4_hba.msix_entries[index].vector,
 			 &phba->sli4_hba.fcp_eq_hdl[index]);
+	}
 
 msi_fail_out:
 	/* Unconfigure MSI-X capability structure */
@@ -8714,9 +8717,12 @@ lpfc_sli4_disable_msix(struct lpfc_hba *phba)
 	int index;
 
 	/* Free up MSI-X multi-message vectors */
-	for (index = 0; index < phba->cfg_fcp_io_channel; index++)
+	for (index = 0; index < phba->cfg_fcp_io_channel; index++) {
+		irq_set_affinity_hint(phba->sli4_hba.msix_entries[index].
+					  vector, NULL);
 		free_irq(phba->sli4_hba.msix_entries[index].vector,
 			 &phba->sli4_hba.fcp_eq_hdl[index]);
+	}
 
 	/* Disable MSI-X */
 	pci_disable_msix(phba->pcidev);
