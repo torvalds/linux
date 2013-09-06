@@ -122,7 +122,8 @@ static inline bool sk_busy_loop(struct sock *sk, int nonblock)
 		if (rc > 0)
 			/* local bh are disabled so it is ok to use _BH */
 			NET_ADD_STATS_BH(sock_net(sk),
-					 LINUX_MIB_LOWLATENCYRXPACKETS, rc);
+					 LINUX_MIB_BUSYPOLLRXPACKETS, rc);
+		cpu_relax();
 
 	} while (!nonblock && skb_queue_empty(&sk->sk_receive_queue) &&
 		 !need_resched() && !busy_loop_timeout(end_time));
@@ -158,11 +159,6 @@ static inline unsigned long busy_loop_end_time(void)
 }
 
 static inline bool sk_can_busy_loop(struct sock *sk)
-{
-	return false;
-}
-
-static inline bool sk_busy_poll(struct sock *sk, int nonblock)
 {
 	return false;
 }

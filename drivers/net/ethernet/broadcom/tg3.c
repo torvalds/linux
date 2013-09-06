@@ -17796,8 +17796,10 @@ static pci_ers_result_t tg3_io_error_detected(struct pci_dev *pdev,
 
 done:
 	if (state == pci_channel_io_perm_failure) {
-		tg3_napi_enable(tp);
-		dev_close(netdev);
+		if (netdev) {
+			tg3_napi_enable(tp);
+			dev_close(netdev);
+		}
 		err = PCI_ERS_RESULT_DISCONNECT;
 	} else {
 		pci_disable_device(pdev);
@@ -17827,7 +17829,8 @@ static pci_ers_result_t tg3_io_slot_reset(struct pci_dev *pdev)
 	rtnl_lock();
 
 	if (pci_enable_device(pdev)) {
-		netdev_err(netdev, "Cannot re-enable PCI device after reset.\n");
+		dev_err(&pdev->dev,
+			"Cannot re-enable PCI device after reset.\n");
 		goto done;
 	}
 
@@ -17835,7 +17838,7 @@ static pci_ers_result_t tg3_io_slot_reset(struct pci_dev *pdev)
 	pci_restore_state(pdev);
 	pci_save_state(pdev);
 
-	if (!netif_running(netdev)) {
+	if (!netdev || !netif_running(netdev)) {
 		rc = PCI_ERS_RESULT_RECOVERED;
 		goto done;
 	}
@@ -17847,7 +17850,7 @@ static pci_ers_result_t tg3_io_slot_reset(struct pci_dev *pdev)
 	rc = PCI_ERS_RESULT_RECOVERED;
 
 done:
-	if (rc != PCI_ERS_RESULT_RECOVERED && netif_running(netdev)) {
+	if (rc != PCI_ERS_RESULT_RECOVERED && netdev && netif_running(netdev)) {
 		tg3_napi_enable(tp);
 		dev_close(netdev);
 	}

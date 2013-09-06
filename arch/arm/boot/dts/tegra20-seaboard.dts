@@ -830,6 +830,8 @@
 			regulator-max-microvolt = <5000000>;
 			enable-active-high;
 			gpio = <&gpio 24 0>; /* PD0 */
+			regulator-always-on;
+			regulator-boot-on;
 		};
 	};
 

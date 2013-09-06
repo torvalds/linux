@@ -2076,9 +2076,6 @@ static int ovs_vport_cmd_set(struct sk_buff *skb, struct genl_info *info)
 	ovs_notify(reply, info, &ovs_dp_vport_multicast_group);
 	return 0;
 
-	rtnl_unlock();
-	return 0;
-
 exit_free:
 	kfree_skb(reply);
 exit_unlock:

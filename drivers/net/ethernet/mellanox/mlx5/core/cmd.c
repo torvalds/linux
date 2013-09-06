@@ -46,7 +46,7 @@
 #include "mlx5_core.h"
 
 enum {
-	CMD_IF_REV = 4,
+	CMD_IF_REV = 5,
 };
 
 enum {

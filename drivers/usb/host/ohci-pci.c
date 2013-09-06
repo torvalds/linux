@@ -304,6 +304,13 @@ static int __init ohci_pci_init(void)
 	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
 
 	ohci_init_driver(&ohci_pci_hc_driver, &pci_overrides);
+
+#ifdef	CONFIG_PM
+	/* Entries for the PCI suspend/resume callbacks are special */
+	ohci_pci_hc_driver.pci_suspend = ohci_suspend;
+	ohci_pci_hc_driver.pci_resume = ohci_resume;
+#endif
+
 	return pci_register_driver(&ohci_pci_driver);
 }
 module_init(ohci_pci_init);
