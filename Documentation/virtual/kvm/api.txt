@@ -1834,6 +1834,7 @@ registers, find a list below:
   PPC   | KVM_REG_PPC_TCSCR	| 64
   PPC   | KVM_REG_PPC_PID	| 64
   PPC   | KVM_REG_PPC_ACOP	| 64
+  PPC   | KVM_REG_PPC_VRSAVE	| 32
   PPC   | KVM_REG_PPC_TM_GPR0	| 64
           ...
   PPC   | KVM_REG_PPC_TM_GPR31	| 64

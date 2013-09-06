@@ -528,6 +528,9 @@ int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 			}
 			val = get_reg_val(reg->id, vcpu->arch.vscr.u[3]);
 			break;
+		case KVM_REG_PPC_VRSAVE:
+			val = get_reg_val(reg->id, vcpu->arch.vrsave);
+			break;
 #endif /* CONFIG_ALTIVEC */
 		case KVM_REG_PPC_DEBUG_INST: {
 			u32 opcode = INS_TW;
@@ -604,6 +607,13 @@ int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 				break;
 			}
 			vcpu->arch.vscr.u[3] = set_reg_val(reg->id, val);
+			break;
+		case KVM_REG_PPC_VRSAVE:
+			if (!cpu_has_feature(CPU_FTR_ALTIVEC)) {
+				r = -ENXIO;
+				break;
+			}
+			vcpu->arch.vrsave = set_reg_val(reg->id, val);
 			break;
 #endif /* CONFIG_ALTIVEC */
 #ifdef CONFIG_KVM_XICS
