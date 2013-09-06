@@ -666,6 +666,64 @@ int snd_hda_get_conn_index(struct hda_codec *codec, hda_nid_t mux,
 }
 EXPORT_SYMBOL_HDA(snd_hda_get_conn_index);
 
+
+/* return DEVLIST_LEN parameter of the given widget */
+static unsigned int get_num_devices(struct hda_codec *codec, hda_nid_t nid)
+{
+	unsigned int wcaps = get_wcaps(codec, nid);
+	unsigned int parm;
+
+	if (!codec->dp_mst || !(wcaps & AC_WCAP_DIGITAL) ||
+	    get_wcaps_type(wcaps) != AC_WID_PIN)
+		return 0;
+
+	parm = snd_hda_param_read(codec, nid, AC_PAR_DEVLIST_LEN);
+	if (parm == -1 && codec->bus->rirb_error)
+		parm = 0;
+	return parm & AC_DEV_LIST_LEN_MASK;
+}
+
+/**
+ * snd_hda_get_devices - copy device list without cache
+ * @codec: the HDA codec
+ * @nid: NID of the pin to parse
+ * @dev_list: device list array
+ * @max_devices: max. number of devices to store
+ *
+ * Copy the device list. This info is dynamic and so not cached.
+ * Currently called only from hda_proc.c, so not exported.
+ */
+int snd_hda_get_devices(struct hda_codec *codec, hda_nid_t nid,
+			u8 *dev_list, int max_devices)
+{
+	unsigned int parm;
+	int i, dev_len, devices;
+
+	parm = get_num_devices(codec, nid);
+	if (!parm)	/* not multi-stream capable */
+		return 0;
+
+	dev_len = parm + 1;
+	dev_len = dev_len < max_devices ? dev_len : max_devices;
+
+	devices = 0;
+	while (devices < dev_len) {
+		parm = snd_hda_codec_read(codec, nid, 0,
+					  AC_VERB_GET_DEVICE_LIST, devices);
+		if (parm == -1 && codec->bus->rirb_error)
+			break;
+
+		for (i = 0; i < 8; i++) {
+			dev_list[devices] = (u8)parm;
+			parm >>= 4;
+			devices++;
+			if (devices >= dev_len)
+				break;
+		}
+	}
+	return devices;
+}
+
 /**
  * snd_hda_queue_unsol_event - add an unsolicited event to queue
  * @bus: the BUS
@@ -1216,11 +1274,13 @@ static void hda_jackpoll_work(struct work_struct *work)
 {
 	struct hda_codec *codec =
 		container_of(work, struct hda_codec, jackpoll_work.work);
-	if (!codec->jackpoll_interval)
-		return;
 
 	snd_hda_jack_set_dirty_all(codec);
 	snd_hda_jack_poll_all(codec);
+
+	if (!codec->jackpoll_interval)
+		return;
+
 	queue_delayed_work(codec->bus->workq, &codec->jackpoll_work,
 			   codec->jackpoll_interval);
 }

@@ -1,6 +1,8 @@
 #
 # IIO imu drivers configuration
 #
+# When adding new entries keep the list in alphabetical order
+
 menu "Inertial measurement units"
 
 config ADIS16400

@@ -6,6 +6,7 @@
 #define __LINUX_MV643XX_ETH_H
 
 #include <linux/mbus.h>
+#include <linux/if_ether.h>
 
 #define MV643XX_ETH_SHARED_NAME		"mv643xx_eth"
 #define MV643XX_ETH_NAME		"mv643xx_eth_port"
@@ -48,7 +49,7 @@ struct mv643xx_eth_platform_data {
 	 * Use this MAC address if it is valid, overriding the
 	 * address that is already in the hardware.
 	 */
-	u8			mac_addr[6];
+	u8			mac_addr[ETH_ALEN];
 
 	/*
 	 * If speed is 0, autonegotiation is enabled.

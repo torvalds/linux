@@ -126,6 +126,31 @@
  */
 
 /**
+ * DOC: packet coalesce support
+ *
+ * In most cases, host that receives IPv4 and IPv6 multicast/broadcast
+ * packets does not do anything with these packets. Therefore the
+ * reception of these unwanted packets causes unnecessary processing
+ * and power consumption.
+ *
+ * Packet coalesce feature helps to reduce number of received interrupts
+ * to host by buffering these packets in firmware/hardware for some
+ * predefined time. Received interrupt will be generated when one of the
+ * following events occur.
+ * a) Expiration of hardware timer whose expiration time is set to maximum
+ * coalescing delay of matching coalesce rule.
+ * b) Coalescing buffer in hardware reaches it's limit.
+ * c) Packet doesn't match any of the configured coalesce rules.
+ *
+ * User needs to configure following parameters for creating a coalesce
+ * rule.
+ * a) Maximum coalescing delay
+ * b) List of packet patterns which needs to be matched
+ * c) Condition for coalescence. pattern 'match' or 'no match'
+ * Multiple such rules can be created.
+ */
+
+/**
  * enum nl80211_commands - supported nl80211 commands
  *
  * @NL80211_CMD_UNSPEC: unspecified command to catch errors
@@ -648,6 +673,19 @@
  * @NL80211_CMD_CRIT_PROTOCOL_STOP: Indicates the connection reliability can
  *	return back to normal.
  *
+ * @NL80211_CMD_GET_COALESCE: Get currently supported coalesce rules.
+ * @NL80211_CMD_SET_COALESCE: Configure coalesce rules or clear existing rules.
+ *
+ * @NL80211_CMD_CHANNEL_SWITCH: Perform a channel switch by announcing the
+ *	the new channel information (Channel Switch Announcement - CSA)
+ *	in the beacon for some time (as defined in the
+ *	%NL80211_ATTR_CH_SWITCH_COUNT parameter) and then change to the
+ *	new channel. Userspace provides the new channel information (using
+ *	%NL80211_ATTR_WIPHY_FREQ and the attributes determining channel
+ *	width). %NL80211_ATTR_CH_SWITCH_BLOCK_TX may be supplied to inform
+ *	other station that transmission must be blocked until the channel
+ *	switch is complete.
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -809,6 +847,11 @@ enum nl80211_commands {
 
 	NL80211_CMD_CRIT_PROTOCOL_START,
 	NL80211_CMD_CRIT_PROTOCOL_STOP,
+
+	NL80211_CMD_GET_COALESCE,
+	NL80211_CMD_SET_COALESCE,
+
+	NL80211_CMD_CHANNEL_SWITCH,
 
 	/* add new commands above here */
 
@@ -1436,6 +1479,23 @@ enum nl80211_commands {
  *	allowed to be used with the first @NL80211_CMD_SET_STATION command to
  *	update a TDLS peer STA entry.
  *
+ * @NL80211_ATTR_COALESCE_RULE: Coalesce rule information.
+ *
+ * @NL80211_ATTR_CH_SWITCH_COUNT: u32 attribute specifying the number of TBTT's
+ *	until the channel switch event.
+ * @NL80211_ATTR_CH_SWITCH_BLOCK_TX: flag attribute specifying that transmission
+ *	must be blocked on the current channel (before the channel switch
+ *	operation).
+ * @NL80211_ATTR_CSA_IES: Nested set of attributes containing the IE information
+ *	for the time while performing a channel switch.
+ * @NL80211_ATTR_CSA_C_OFF_BEACON: Offset of the channel switch counter
+ *	field in the beacons tail (%NL80211_ATTR_BEACON_TAIL).
+ * @NL80211_ATTR_CSA_C_OFF_PRESP: Offset of the channel switch counter
+ *	field in the probe response (%NL80211_ATTR_PROBE_RESP).
+ *
+ * @NL80211_ATTR_RXMGMT_FLAGS: flags for nl80211_send_mgmt(), u32.
+ *	As specified in the &enum nl80211_rxmgmt_flags.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -1735,6 +1795,16 @@ enum nl80211_attrs {
 	NL80211_ATTR_MAX_CRIT_PROT_DURATION,
 
 	NL80211_ATTR_PEER_AID,
+
+	NL80211_ATTR_COALESCE_RULE,
+
+	NL80211_ATTR_CH_SWITCH_COUNT,
+	NL80211_ATTR_CH_SWITCH_BLOCK_TX,
+	NL80211_ATTR_CSA_IES,
+	NL80211_ATTR_CSA_C_OFF_BEACON,
+	NL80211_ATTR_CSA_C_OFF_PRESP,
+
+	NL80211_ATTR_RXMGMT_FLAGS,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -2773,6 +2843,21 @@ enum nl80211_chan_width {
 };
 
 /**
+ * enum nl80211_bss_scan_width - control channel width for a BSS
+ *
+ * These values are used with the %NL80211_BSS_CHAN_WIDTH attribute.
+ *
+ * @NL80211_BSS_CHAN_WIDTH_20: control channel is 20 MHz wide or compatible
+ * @NL80211_BSS_CHAN_WIDTH_10: control channel is 10 MHz wide
+ * @NL80211_BSS_CHAN_WIDTH_5: control channel is 5 MHz wide
+ */
+enum nl80211_bss_scan_width {
+	NL80211_BSS_CHAN_WIDTH_20,
+	NL80211_BSS_CHAN_WIDTH_10,
+	NL80211_BSS_CHAN_WIDTH_5,
+};
+
+/**
  * enum nl80211_bss - netlink attributes for a BSS
  *
  * @__NL80211_BSS_INVALID: invalid
@@ -2796,6 +2881,8 @@ enum nl80211_chan_width {
  * @NL80211_BSS_BEACON_IES: binary attribute containing the raw information
  *	elements from a Beacon frame (bin); not present if no Beacon frame has
  *	yet been received
+ * @NL80211_BSS_CHAN_WIDTH: channel width of the control channel
+ *	(u32, enum nl80211_bss_scan_width)
  * @__NL80211_BSS_AFTER_LAST: internal
  * @NL80211_BSS_MAX: highest BSS attribute
  */
@@ -2812,6 +2899,7 @@ enum nl80211_bss {
 	NL80211_BSS_STATUS,
 	NL80211_BSS_SEEN_MS_AGO,
 	NL80211_BSS_BEACON_IES,
+	NL80211_BSS_CHAN_WIDTH,
 
 	/* keep last */
 	__NL80211_BSS_AFTER_LAST,
@@ -3060,11 +3148,11 @@ enum nl80211_tx_power_setting {
 };
 
 /**
- * enum nl80211_wowlan_packet_pattern_attr - WoWLAN packet pattern attribute
- * @__NL80211_WOWLAN_PKTPAT_INVALID: invalid number for nested attribute
- * @NL80211_WOWLAN_PKTPAT_PATTERN: the pattern, values where the mask has
+ * enum nl80211_packet_pattern_attr - packet pattern attribute
+ * @__NL80211_PKTPAT_INVALID: invalid number for nested attribute
+ * @NL80211_PKTPAT_PATTERN: the pattern, values where the mask has
  *	a zero bit are ignored
- * @NL80211_WOWLAN_PKTPAT_MASK: pattern mask, must be long enough to have
+ * @NL80211_PKTPAT_MASK: pattern mask, must be long enough to have
  *	a bit for each byte in the pattern. The lowest-order bit corresponds
  *	to the first byte of the pattern, but the bytes of the pattern are
  *	in a little-endian-like format, i.e. the 9th byte of the pattern
@@ -3075,38 +3163,49 @@ enum nl80211_tx_power_setting {
  *	Note that the pattern matching is done as though frames were not
  *	802.11 frames but 802.3 frames, i.e. the frame is fully unpacked
  *	first (including SNAP header unpacking) and then matched.
- * @NL80211_WOWLAN_PKTPAT_OFFSET: packet offset, pattern is matched after
+ * @NL80211_PKTPAT_OFFSET: packet offset, pattern is matched after
  *	these fixed number of bytes of received packet
- * @NUM_NL80211_WOWLAN_PKTPAT: number of attributes
- * @MAX_NL80211_WOWLAN_PKTPAT: max attribute number
+ * @NUM_NL80211_PKTPAT: number of attributes
+ * @MAX_NL80211_PKTPAT: max attribute number
  */
-enum nl80211_wowlan_packet_pattern_attr {
-	__NL80211_WOWLAN_PKTPAT_INVALID,
-	NL80211_WOWLAN_PKTPAT_MASK,
-	NL80211_WOWLAN_PKTPAT_PATTERN,
-	NL80211_WOWLAN_PKTPAT_OFFSET,
+enum nl80211_packet_pattern_attr {
+	__NL80211_PKTPAT_INVALID,
+	NL80211_PKTPAT_MASK,
+	NL80211_PKTPAT_PATTERN,
+	NL80211_PKTPAT_OFFSET,
 
-	NUM_NL80211_WOWLAN_PKTPAT,
-	MAX_NL80211_WOWLAN_PKTPAT = NUM_NL80211_WOWLAN_PKTPAT - 1,
+	NUM_NL80211_PKTPAT,
+	MAX_NL80211_PKTPAT = NUM_NL80211_PKTPAT - 1,
 };
 
 /**
- * struct nl80211_wowlan_pattern_support - pattern support information
+ * struct nl80211_pattern_support - packet pattern support information
  * @max_patterns: maximum number of patterns supported
  * @min_pattern_len: minimum length of each pattern
  * @max_pattern_len: maximum length of each pattern
  * @max_pkt_offset: maximum Rx packet offset
  *
  * This struct is carried in %NL80211_WOWLAN_TRIG_PKT_PATTERN when
- * that is part of %NL80211_ATTR_WOWLAN_TRIGGERS_SUPPORTED in the
- * capability information given by the kernel to userspace.
+ * that is part of %NL80211_ATTR_WOWLAN_TRIGGERS_SUPPORTED or in
+ * %NL80211_ATTR_COALESCE_RULE_PKT_PATTERN when that is part of
+ * %NL80211_ATTR_COALESCE_RULE in the capability information given
+ * by the kernel to userspace.
  */
-struct nl80211_wowlan_pattern_support {
+struct nl80211_pattern_support {
 	__u32 max_patterns;
 	__u32 min_pattern_len;
 	__u32 max_pattern_len;
 	__u32 max_pkt_offset;
 } __attribute__((packed));
+
+/* only for backward compatibility */
+#define __NL80211_WOWLAN_PKTPAT_INVALID __NL80211_PKTPAT_INVALID
+#define NL80211_WOWLAN_PKTPAT_MASK NL80211_PKTPAT_MASK
+#define NL80211_WOWLAN_PKTPAT_PATTERN NL80211_PKTPAT_PATTERN
+#define NL80211_WOWLAN_PKTPAT_OFFSET NL80211_PKTPAT_OFFSET
+#define NUM_NL80211_WOWLAN_PKTPAT NUM_NL80211_PKTPAT
+#define MAX_NL80211_WOWLAN_PKTPAT MAX_NL80211_PKTPAT
+#define nl80211_wowlan_pattern_support nl80211_pattern_support
 
 /**
  * enum nl80211_wowlan_triggers - WoWLAN trigger definitions
@@ -3127,7 +3226,7 @@ struct nl80211_wowlan_pattern_support {
  *	pattern matching is done after the packet is converted to the MSDU.
  *
  *	In %NL80211_ATTR_WOWLAN_TRIGGERS_SUPPORTED, it is a binary attribute
- *	carrying a &struct nl80211_wowlan_pattern_support.
+ *	carrying a &struct nl80211_pattern_support.
  *
  *	When reporting wakeup. it is a u32 attribute containing the 0-based
  *	index of the pattern that caused the wakeup, in the patterns passed
@@ -3284,7 +3383,7 @@ struct nl80211_wowlan_tcp_data_token_feature {
  * @NL80211_WOWLAN_TCP_WAKE_PAYLOAD: wake packet payload, for advertising a
  *	u32 attribute holding the maximum length
  * @NL80211_WOWLAN_TCP_WAKE_MASK: Wake packet payload mask, not used for
- *	feature advertising. The mask works like @NL80211_WOWLAN_PKTPAT_MASK
+ *	feature advertising. The mask works like @NL80211_PKTPAT_MASK
  *	but on the TCP payload only.
  * @NUM_NL80211_WOWLAN_TCP: number of TCP attributes
  * @MAX_NL80211_WOWLAN_TCP: highest attribute number
@@ -3306,6 +3405,55 @@ enum nl80211_wowlan_tcp_attrs {
 	/* keep last */
 	NUM_NL80211_WOWLAN_TCP,
 	MAX_NL80211_WOWLAN_TCP = NUM_NL80211_WOWLAN_TCP - 1
+};
+
+/**
+ * struct nl80211_coalesce_rule_support - coalesce rule support information
+ * @max_rules: maximum number of rules supported
+ * @pat: packet pattern support information
+ * @max_delay: maximum supported coalescing delay in msecs
+ *
+ * This struct is carried in %NL80211_ATTR_COALESCE_RULE in the
+ * capability information given by the kernel to userspace.
+ */
+struct nl80211_coalesce_rule_support {
+	__u32 max_rules;
+	struct nl80211_pattern_support pat;
+	__u32 max_delay;
+} __attribute__((packed));
+
+/**
+ * enum nl80211_attr_coalesce_rule - coalesce rule attribute
+ * @__NL80211_COALESCE_RULE_INVALID: invalid number for nested attribute
+ * @NL80211_ATTR_COALESCE_RULE_DELAY: delay in msecs used for packet coalescing
+ * @NL80211_ATTR_COALESCE_RULE_CONDITION: condition for packet coalescence,
+ *	see &enum nl80211_coalesce_condition.
+ * @NL80211_ATTR_COALESCE_RULE_PKT_PATTERN: packet offset, pattern is matched
+ *	after these fixed number of bytes of received packet
+ * @NUM_NL80211_ATTR_COALESCE_RULE: number of attributes
+ * @NL80211_ATTR_COALESCE_RULE_MAX: max attribute number
+ */
+enum nl80211_attr_coalesce_rule {
+	__NL80211_COALESCE_RULE_INVALID,
+	NL80211_ATTR_COALESCE_RULE_DELAY,
+	NL80211_ATTR_COALESCE_RULE_CONDITION,
+	NL80211_ATTR_COALESCE_RULE_PKT_PATTERN,
+
+	/* keep last */
+	NUM_NL80211_ATTR_COALESCE_RULE,
+	NL80211_ATTR_COALESCE_RULE_MAX = NUM_NL80211_ATTR_COALESCE_RULE - 1
+};
+
+/**
+ * enum nl80211_coalesce_condition - coalesce rule conditions
+ * @NL80211_COALESCE_CONDITION_MATCH: coalaesce Rx packets when patterns
+ *	in a rule are matched.
+ * @NL80211_COALESCE_CONDITION_NO_MATCH: coalesce Rx packets when patterns
+ *	in a rule are not matched.
+ */
+enum nl80211_coalesce_condition {
+	NL80211_COALESCE_CONDITION_MATCH,
+	NL80211_COALESCE_CONDITION_NO_MATCH
 };
 
 /**
@@ -3757,5 +3905,16 @@ enum nl80211_crit_proto_id {
 
 /* maximum duration for critical protocol measures */
 #define NL80211_CRIT_PROTO_MAX_DURATION		5000 /* msec */
+
+/**
+ * enum nl80211_rxmgmt_flags - flags for received management frame.
+ *
+ * Used by cfg80211_rx_mgmt()
+ *
+ * @NL80211_RXMGMT_FLAG_ANSWERED: frame was answered by device/driver.
+ */
+enum nl80211_rxmgmt_flags {
+	NL80211_RXMGMT_FLAG_ANSWERED = 1 << 0,
+};
 
 #endif /* __LINUX_NL80211_H */

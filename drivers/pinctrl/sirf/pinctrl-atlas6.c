@@ -831,6 +831,7 @@ static const struct sirfsoc_pin_group sirfsoc_pin_groups[] = {
 	SIRFSOC_PIN_GROUP("lcd_24bitsgrp", lcd_24bits_pins),
 	SIRFSOC_PIN_GROUP("lcdrom_grp", lcdrom_pins),
 	SIRFSOC_PIN_GROUP("uart0grp", uart0_pins),
+	SIRFSOC_PIN_GROUP("uart0_nostreamctrlgrp", uart0_nostreamctrl_pins),
 	SIRFSOC_PIN_GROUP("uart1grp", uart1_pins),
 	SIRFSOC_PIN_GROUP("uart2grp", uart2_pins),
 	SIRFSOC_PIN_GROUP("uart2_nostreamctrlgrp", uart2_nostreamctrl_pins),
@@ -874,6 +875,7 @@ static const char * const lcd_18bitsgrp[] = { "lcd_18bitsgrp" };
 static const char * const lcd_24bitsgrp[] = { "lcd_24bitsgrp" };
 static const char * const lcdromgrp[] = { "lcdromgrp" };
 static const char * const uart0grp[] = { "uart0grp" };
+static const char * const uart0_nostreamctrlgrp[] = { "uart0_nostreamctrlgrp" };
 static const char * const uart1grp[] = { "uart1grp" };
 static const char * const uart2grp[] = { "uart2grp" };
 static const char * const uart2_nostreamctrlgrp[] = { "uart2_nostreamctrlgrp" };
@@ -917,6 +919,8 @@ static const struct sirfsoc_pmx_func sirfsoc_pmx_functions[] = {
 	SIRFSOC_PMX_FUNCTION("lcd_24bits", lcd_24bitsgrp, lcd_24bits_padmux),
 	SIRFSOC_PMX_FUNCTION("lcdrom", lcdromgrp, lcdrom_padmux),
 	SIRFSOC_PMX_FUNCTION("uart0", uart0grp, uart0_padmux),
+	SIRFSOC_PMX_FUNCTION("uart0_nostreamctrl", uart0_nostreamctrlgrp,
+						uart0_nostreamctrl_padmux),
 	SIRFSOC_PMX_FUNCTION("uart1", uart1grp, uart1_padmux),
 	SIRFSOC_PMX_FUNCTION("uart2", uart2grp, uart2_padmux),
 	SIRFSOC_PMX_FUNCTION("uart2_nostreamctrl", uart2_nostreamctrlgrp, uart2_nostreamctrl_padmux),

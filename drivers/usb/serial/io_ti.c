@@ -64,8 +64,6 @@
 
 #define EDGE_CLOSING_WAIT	4000	/* in .01 sec */
 
-#define EDGE_OUT_BUF_SIZE	1024
-
 
 /* Product information read from the Edgeport */
 struct product_info {
@@ -93,7 +91,6 @@ struct edgeport_port {
 	spinlock_t ep_lock;
 	int ep_read_urb_state;
 	int ep_write_urb_in_use;
-	struct kfifo write_fifo;
 };
 
 struct edgeport_serial {
@@ -1732,22 +1729,6 @@ static int edge_open(struct tty_struct *tty, struct usb_serial_port *port)
 		return -ENODEV;
 
 	port_number = port->port_number;
-	switch (port_number) {
-	case 0:
-		edge_port->uart_base = UMPMEM_BASE_UART1;
-		edge_port->dma_address = UMPD_OEDB1_ADDRESS;
-		break;
-	case 1:
-		edge_port->uart_base = UMPMEM_BASE_UART2;
-		edge_port->dma_address = UMPD_OEDB2_ADDRESS;
-		break;
-	default:
-		dev_err(&port->dev, "Unknown port number!!!\n");
-		return -ENODEV;
-	}
-
-	dev_dbg(&port->dev, "%s - port_number = %d, uart_base = %04x, dma_address = %04x\n",
-		__func__, port_number, edge_port->uart_base, edge_port->dma_address);
 
 	dev = port->serial->dev;
 
@@ -1872,8 +1853,6 @@ static int edge_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	++edge_serial->num_ports_open;
 
-	port->port.drain_delay = 1;
-
 	goto release_es_lock;
 
 unlink_int_urb:
@@ -1905,7 +1884,7 @@ static void edge_close(struct usb_serial_port *port)
 	usb_kill_urb(port->write_urb);
 	edge_port->ep_write_urb_in_use = 0;
 	spin_lock_irqsave(&edge_port->ep_lock, flags);
-	kfifo_reset_out(&edge_port->write_fifo);
+	kfifo_reset_out(&port->write_fifo);
 	spin_unlock_irqrestore(&edge_port->ep_lock, flags);
 
 	dev_dbg(&port->dev, "%s - send umpc_close_port\n", __func__);
@@ -1939,7 +1918,7 @@ static int edge_write(struct tty_struct *tty, struct usb_serial_port *port,
 	if (edge_port->close_pending == 1)
 		return -ENODEV;
 
-	count = kfifo_in_locked(&edge_port->write_fifo, data, count,
+	count = kfifo_in_locked(&port->write_fifo, data, count,
 							&edge_port->ep_lock);
 	edge_send(port, tty);
 
@@ -1959,7 +1938,7 @@ static void edge_send(struct usb_serial_port *port, struct tty_struct *tty)
 		return;
 	}
 
-	count = kfifo_out(&edge_port->write_fifo,
+	count = kfifo_out(&port->write_fifo,
 				port->write_urb->transfer_buffer,
 				port->bulk_out_size);
 
@@ -2007,7 +1986,7 @@ static int edge_write_room(struct tty_struct *tty)
 		return 0;
 
 	spin_lock_irqsave(&edge_port->ep_lock, flags);
-	room = kfifo_avail(&edge_port->write_fifo);
+	room = kfifo_avail(&port->write_fifo);
 	spin_unlock_irqrestore(&edge_port->ep_lock, flags);
 
 	dev_dbg(&port->dev, "%s - returns %d\n", __func__, room);
@@ -2024,7 +2003,7 @@ static int edge_chars_in_buffer(struct tty_struct *tty)
 		return 0;
 
 	spin_lock_irqsave(&edge_port->ep_lock, flags);
-	chars = kfifo_len(&edge_port->write_fifo);
+	chars = kfifo_len(&port->write_fifo);
 	spin_unlock_irqrestore(&edge_port->ep_lock, flags);
 
 	dev_dbg(&port->dev, "%s - returns %d\n", __func__, chars);
@@ -2451,30 +2430,45 @@ static int edge_port_probe(struct usb_serial_port *port)
 	if (!edge_port)
 		return -ENOMEM;
 
-	ret = kfifo_alloc(&edge_port->write_fifo, EDGE_OUT_BUF_SIZE,
-								GFP_KERNEL);
-	if (ret) {
-		kfree(edge_port);
-		return -ENOMEM;
-	}
-
 	spin_lock_init(&edge_port->ep_lock);
 	edge_port->port = port;
 	edge_port->edge_serial = usb_get_serial_data(port->serial);
 	edge_port->bUartMode = default_uart_mode;
 
+	switch (port->port_number) {
+	case 0:
+		edge_port->uart_base = UMPMEM_BASE_UART1;
+		edge_port->dma_address = UMPD_OEDB1_ADDRESS;
+		break;
+	case 1:
+		edge_port->uart_base = UMPMEM_BASE_UART2;
+		edge_port->dma_address = UMPD_OEDB2_ADDRESS;
+		break;
+	default:
+		dev_err(&port->dev, "unknown port number\n");
+		ret = -ENODEV;
+		goto err;
+	}
+
+	dev_dbg(&port->dev,
+		"%s - port_number = %d, uart_base = %04x, dma_address = %04x\n",
+		__func__, port->port_number, edge_port->uart_base,
+		edge_port->dma_address);
+
 	usb_set_serial_port_data(port, edge_port);
 
 	ret = edge_create_sysfs_attrs(port);
-	if (ret) {
-		kfifo_free(&edge_port->write_fifo);
-		kfree(edge_port);
-		return ret;
-	}
+	if (ret)
+		goto err;
 
 	port->port.closing_wait = msecs_to_jiffies(closing_wait * 10);
+	port->port.drain_delay = 1;
 
 	return 0;
+err:
+	kfree(edge_port);
+
+	return ret;
 }
 
 static int edge_port_remove(struct usb_serial_port *port)
@@ -2483,7 +2477,6 @@ static int edge_port_remove(struct usb_serial_port *port)
 
 	edge_port = usb_get_serial_port_data(port);
 	edge_remove_sysfs_attrs(port);
-	kfifo_free(&edge_port->write_fifo);
 	kfree(edge_port);
 
 	return 0;
@@ -2491,7 +2484,7 @@ static int edge_port_remove(struct usb_serial_port *port)
 
 /* Sysfs Attributes */
 
-static ssize_t show_uart_mode(struct device *dev,
+static ssize_t uart_mode_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct usb_serial_port *port = to_usb_serial_port(dev);
@@ -2500,7 +2493,7 @@ static ssize_t show_uart_mode(struct device *dev,
 	return sprintf(buf, "%d\n", edge_port->bUartMode);
 }
 
-static ssize_t store_uart_mode(struct device *dev,
+static ssize_t uart_mode_store(struct device *dev,
 	struct device_attribute *attr, const char *valbuf, size_t count)
 {
 	struct usb_serial_port *port = to_usb_serial_port(dev);
@@ -2516,9 +2509,7 @@ static ssize_t store_uart_mode(struct device *dev,
 
 	return count;
 }
-
-static DEVICE_ATTR(uart_mode, S_IWUSR | S_IRUGO, show_uart_mode,
-							store_uart_mode);
+static DEVICE_ATTR_RW(uart_mode);
 
 static int edge_create_sysfs_attrs(struct usb_serial_port *port)
 {

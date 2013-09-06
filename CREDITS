@@ -1120,6 +1120,7 @@ D: author of userfs filesystem
 D: Improved mmap and munmap handling
 D: General mm minor tidyups
 D: autofs v4 maintainer
+D: Xen subsystem
 S: 987 Alabama St
 S: San Francisco
 S: CA, 94110

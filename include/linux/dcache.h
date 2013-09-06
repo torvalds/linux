@@ -9,6 +9,7 @@
 #include <linux/seqlock.h>
 #include <linux/cache.h>
 #include <linux/rcupdate.h>
+#include <linux/lockref.h>
 
 struct nameidata;
 struct path;
@@ -100,6 +101,8 @@ extern unsigned int full_name_hash(const unsigned char *, unsigned int);
 # endif
 #endif
 
+#define d_lock	d_lockref.lock
+
 struct dentry {
 	/* RCU lookup touched fields */
 	unsigned int d_flags;		/* protected by d_lock */
@@ -112,8 +115,7 @@ struct dentry {
 	unsigned char d_iname[DNAME_INLINE_LEN];	/* small names */
 
 	/* Ref lookup also touches following */
-	unsigned int d_count;		/* protected by d_lock */
-	spinlock_t d_lock;		/* per dentry lock */
+	struct lockref d_lockref;	/* per-dentry lock and refcount */
 	const struct dentry_operations *d_op;
 	struct super_block *d_sb;	/* The root of the dentry tree */
 	unsigned long d_time;		/* used by d_revalidate */
@@ -302,31 +304,9 @@ extern struct dentry *__d_lookup(const struct dentry *, const struct qstr *);
 extern struct dentry *__d_lookup_rcu(const struct dentry *parent,
 				const struct qstr *name, unsigned *seq);
 
-/**
- * __d_rcu_to_refcount - take a refcount on dentry if sequence check is ok
- * @dentry: dentry to take a ref on
- * @seq: seqcount to verify against
- * Returns: 0 on failure, else 1.
- *
- * __d_rcu_to_refcount operates on a dentry,seq pair that was returned
- * by __d_lookup_rcu, to get a reference on an rcu-walk dentry.
- */
-static inline int __d_rcu_to_refcount(struct dentry *dentry, unsigned seq)
-{
-	int ret = 0;
-
-	assert_spin_locked(&dentry->d_lock);
-	if (!read_seqcount_retry(&dentry->d_seq, seq)) {
-		ret = 1;
-		dentry->d_count++;
-	}
-
-	return ret;
-}
-
 static inline unsigned d_count(const struct dentry *dentry)
 {
-	return dentry->d_count;
+	return dentry->d_lockref.count;
 }
 
 /* validate "insecure" dentry pointer */
@@ -336,6 +316,7 @@ extern int d_validate(struct dentry *, struct dentry *);
  * helper function for dentry_operations.d_dname() members
  */
 extern char *dynamic_dname(struct dentry *, char *, int, const char *, ...);
+extern char *simple_dname(struct dentry *, char *, int);
 
 extern char *__d_path(const struct path *, const struct path *, char *, int);
 extern char *d_absolute_path(const struct path *, char *, int);
@@ -356,17 +337,14 @@ extern char *dentry_path(struct dentry *, char *, int);
 static inline struct dentry *dget_dlock(struct dentry *dentry)
 {
 	if (dentry)
-		dentry->d_count++;
+		dentry->d_lockref.count++;
 	return dentry;
 }
 
 static inline struct dentry *dget(struct dentry *dentry)
 {
-	if (dentry) {
-		spin_lock(&dentry->d_lock);
-		dget_dlock(dentry);
-		spin_unlock(&dentry->d_lock);
-	}
+	if (dentry)
+		lockref_get(&dentry->d_lockref);
 	return dentry;
 }
 

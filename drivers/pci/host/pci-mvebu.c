@@ -86,10 +86,6 @@ struct mvebu_sw_pci_bridge {
 	u16 secondary_status;
 	u16 membase;
 	u16 memlimit;
-	u16 prefmembase;
-	u16 prefmemlimit;
-	u32 prefbaseupper;
-	u32 preflimitupper;
 	u16 iobaseupper;
 	u16 iolimitupper;
 	u8 cappointer;
@@ -419,15 +415,7 @@ static int mvebu_sw_pci_bridge_read(struct mvebu_pcie_port *port,
 		break;
 
 	case PCI_PREF_MEMORY_BASE:
-		*value = (bridge->prefmemlimit << 16 | bridge->prefmembase);
-		break;
-
-	case PCI_PREF_BASE_UPPER32:
-		*value = bridge->prefbaseupper;
-		break;
-
-	case PCI_PREF_LIMIT_UPPER32:
-		*value = bridge->preflimitupper;
+		*value = 0;
 		break;
 
 	case PCI_IO_BASE_UPPER16:
@@ -499,19 +487,6 @@ static int mvebu_sw_pci_bridge_write(struct mvebu_pcie_port *port,
 		bridge->membase = value & 0xffff;
 		bridge->memlimit = value >> 16;
 		mvebu_pcie_handle_membase_change(port);
-		break;
-
-	case PCI_PREF_MEMORY_BASE:
-		bridge->prefmembase = value & 0xffff;
-		bridge->prefmemlimit = value >> 16;
-		break;
-
-	case PCI_PREF_BASE_UPPER32:
-		bridge->prefbaseupper = value;
-		break;
-
-	case PCI_PREF_LIMIT_UPPER32:
-		bridge->preflimitupper = value;
 		break;
 
 	case PCI_IO_BASE_UPPER16:
@@ -750,9 +725,9 @@ mvebu_pcie_map_registers(struct platform_device *pdev,
 
 	ret = of_address_to_resource(np, 0, &regs);
 	if (ret)
-		return NULL;
+		return ERR_PTR(ret);
 
-	return devm_request_and_ioremap(&pdev->dev, &regs);
+	return devm_ioremap_resource(&pdev->dev, &regs);
 }
 
 static int __init mvebu_pcie_probe(struct platform_device *pdev)
@@ -842,9 +817,10 @@ static int __init mvebu_pcie_probe(struct platform_device *pdev)
 			continue;
 
 		port->base = mvebu_pcie_map_registers(pdev, child, port);
-		if (!port->base) {
+		if (IS_ERR(port->base)) {
 			dev_err(&pdev->dev, "PCIe%d.%d: cannot map registers\n",
 				port->port, port->lane);
+			port->base = NULL;
 			continue;
 		}
 

@@ -52,11 +52,11 @@ cfs_bitmap_t *CFS_ALLOCATE_BITMAP(int size)
 
 	OBD_ALLOC(ptr, CFS_BITMAP_SIZE(size));
 	if (ptr == NULL)
-		RETURN(ptr);
+		return ptr;
 
 	ptr->size = size;
 
-	RETURN (ptr);
+	return ptr;
 }
 
 #define CFS_FREE_BITMAP(ptr)	OBD_FREE(ptr, CFS_BITMAP_SIZE(ptr->size))

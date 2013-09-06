@@ -203,9 +203,8 @@ struct drm_framebuffer *omap_framebuffer_create(struct drm_device *dev,
 struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 		struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_object **bos);
 struct drm_gem_object *omap_framebuffer_bo(struct drm_framebuffer *fb, int p);
-int omap_framebuffer_replace(struct drm_framebuffer *a,
-		struct drm_framebuffer *b, void *arg,
-		void (*unpin)(void *arg, struct drm_gem_object *bo));
+int omap_framebuffer_pin(struct drm_framebuffer *fb);
+int omap_framebuffer_unpin(struct drm_framebuffer *fb);
 void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 		struct omap_drm_window *win, struct omap_overlay_info *info);
 struct drm_connector *omap_framebuffer_get_next_connector(
@@ -225,8 +224,6 @@ int omap_gem_init_object(struct drm_gem_object *obj);
 void *omap_gem_vaddr(struct drm_gem_object *obj);
 int omap_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
 		uint32_t handle, uint64_t *offset);
-int omap_gem_dumb_destroy(struct drm_file *file, struct drm_device *dev,
-		uint32_t handle);
 int omap_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 		struct drm_mode_create_dumb *args);
 int omap_gem_mmap(struct file *filp, struct vm_area_struct *vma);

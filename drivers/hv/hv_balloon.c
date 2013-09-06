@@ -825,7 +825,6 @@ static void hot_add_req(struct work_struct *dummy)
 	memset(&resp, 0, sizeof(struct dm_hot_add_response));
 	resp.hdr.type = DM_MEM_HOT_ADD_RESPONSE;
 	resp.hdr.size = sizeof(struct dm_hot_add_response);
-	resp.hdr.trans_id = atomic_inc_return(&trans_id);
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 	pg_start = dm->ha_wrk.ha_page_range.finfo.start_page;
@@ -887,6 +886,7 @@ static void hot_add_req(struct work_struct *dummy)
 		pr_info("Memory hot add failed\n");
 
 	dm->state = DM_INITIALIZED;
+	resp.hdr.trans_id = atomic_inc_return(&trans_id);
 	vmbus_sendpacket(dm->dev->channel, &resp,
 			sizeof(struct dm_hot_add_response),
 			(unsigned long)NULL,
@@ -1081,7 +1081,6 @@ static void balloon_up(struct work_struct *dummy)
 		bl_resp = (struct dm_balloon_response *)send_buffer;
 		memset(send_buffer, 0, PAGE_SIZE);
 		bl_resp->hdr.type = DM_BALLOON_RESPONSE;
-		bl_resp->hdr.trans_id = atomic_inc_return(&trans_id);
 		bl_resp->hdr.size = sizeof(struct dm_balloon_response);
 		bl_resp->more_pages = 1;
 
@@ -1109,6 +1108,7 @@ static void balloon_up(struct work_struct *dummy)
 		 */
 
 		do {
+			bl_resp->hdr.trans_id = atomic_inc_return(&trans_id);
 			ret = vmbus_sendpacket(dm_device.dev->channel,
 						bl_resp,
 						bl_resp->hdr.size,
@@ -1526,5 +1526,4 @@ static int __init init_balloon_drv(void)
 module_init(init_balloon_drv);
 
 MODULE_DESCRIPTION("Hyper-V Balloon");
-MODULE_VERSION(HV_DRV_VERSION);
 MODULE_LICENSE("GPL");

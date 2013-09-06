@@ -1083,7 +1083,7 @@ file_priv)
 	return 0;
 }
 
-struct drm_ioctl_desc mga_ioctls[] = {
+const struct drm_ioctl_desc mga_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(MGA_INIT, mga_dma_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(MGA_FLUSH, mga_dma_flush, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(MGA_RESET, mga_dma_reset, DRM_AUTH),

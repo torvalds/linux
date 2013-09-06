@@ -237,55 +237,49 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 	}
 }
 
-/* Call for unpin 'a' (if not NULL), and pin 'b' (if not NULL).  Although
- * buffers to unpin are just pushed to the unpin fifo so that the
- * caller can defer unpin until vblank.
- *
- * Note if this fails (ie. something went very wrong!), all buffers are
- * unpinned, and the caller disables the overlay.  We could have tried
- * to revert back to the previous set of pinned buffers but if things are
- * hosed there is no guarantee that would succeed.
- */
-int omap_framebuffer_replace(struct drm_framebuffer *a,
-		struct drm_framebuffer *b, void *arg,
-		void (*unpin)(void *arg, struct drm_gem_object *bo))
+/* pin, prepare for scanout: */
+int omap_framebuffer_pin(struct drm_framebuffer *fb)
 {
-	int ret = 0, i, na, nb;
-	struct omap_framebuffer *ofba = to_omap_framebuffer(a);
-	struct omap_framebuffer *ofbb = to_omap_framebuffer(b);
-	uint32_t pinned_mask = 0;
+	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
+	int ret, i, n = drm_format_num_planes(fb->pixel_format);
 
-	na = a ? drm_format_num_planes(a->pixel_format) : 0;
-	nb = b ? drm_format_num_planes(b->pixel_format) : 0;
-
-	for (i = 0; i < max(na, nb); i++) {
-		struct plane *pa, *pb;
-
-		pa = (i < na) ? &ofba->planes[i] : NULL;
-		pb = (i < nb) ? &ofbb->planes[i] : NULL;
-
-		if (pa)
-			unpin(arg, pa->bo);
-
-		if (pb && !ret) {
-			ret = omap_gem_get_paddr(pb->bo, &pb->paddr, true);
-			if (!ret) {
-				omap_gem_dma_sync(pb->bo, DMA_TO_DEVICE);
-				pinned_mask |= (1 << i);
-			}
-		}
+	for (i = 0; i < n; i++) {
+		struct plane *plane = &omap_fb->planes[i];
+		ret = omap_gem_get_paddr(plane->bo, &plane->paddr, true);
+		if (ret)
+			goto fail;
+		omap_gem_dma_sync(plane->bo, DMA_TO_DEVICE);
 	}
 
-	if (ret) {
-		/* something went wrong.. unpin what has been pinned */
-		for (i = 0; i < nb; i++) {
-			if (pinned_mask & (1 << i)) {
-				struct plane *pb = &ofba->planes[i];
-				unpin(arg, pb->bo);
-			}
-		}
+	return 0;
+
+fail:
+	for (i--; i >= 0; i--) {
+		struct plane *plane = &omap_fb->planes[i];
+		omap_gem_put_paddr(plane->bo);
+		plane->paddr = 0;
 	}
 
+	return ret;
+}
+
+/* unpin, no longer being scanned out: */
+int omap_framebuffer_unpin(struct drm_framebuffer *fb)
+{
+	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
+	int ret, i, n = drm_format_num_planes(fb->pixel_format);
+
+	for (i = 0; i < n; i++) {
+		struct plane *plane = &omap_fb->planes[i];
+		ret = omap_gem_put_paddr(plane->bo);
+		if (ret)
+			goto fail;
+		plane->paddr = 0;
+	}
+
+	return 0;
+
+fail:
 	return ret;
 }
 

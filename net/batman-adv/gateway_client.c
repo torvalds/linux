@@ -190,6 +190,33 @@ next:
 	return curr_gw;
 }
 
+/**
+ * batadv_gw_check_client_stop - check if client mode has been switched off
+ * @bat_priv: the bat priv with all the soft interface information
+ *
+ * This function assumes the caller has checked that the gw state *is actually
+ * changing*. This function is not supposed to be called when there is no state
+ * change.
+ */
+void batadv_gw_check_client_stop(struct batadv_priv *bat_priv)
+{
+	struct batadv_gw_node *curr_gw;
+
+	if (atomic_read(&bat_priv->gw_mode) != BATADV_GW_MODE_CLIENT)
+		return;
+
+	curr_gw = batadv_gw_get_selected_gw_node(bat_priv);
+	if (!curr_gw)
+		return;
+
+	/* if batman-adv is switching the gw client mode off and a gateway was
+	 * already selected, send a DEL uevent
+	 */
+	batadv_throw_uevent(bat_priv, BATADV_UEV_GW, BATADV_UEV_DEL, NULL);
+
+	batadv_gw_node_free_ref(curr_gw);
+}
+
 void batadv_gw_election(struct batadv_priv *bat_priv)
 {
 	struct batadv_gw_node *curr_gw = NULL, *next_gw = NULL;
@@ -508,6 +535,7 @@ out:
 	return 0;
 }
 
+/* this call might reallocate skb data */
 static bool batadv_is_type_dhcprequest(struct sk_buff *skb, int header_len)
 {
 	int ret = false;
@@ -568,6 +596,7 @@ out:
 	return ret;
 }
 
+/* this call might reallocate skb data */
 bool batadv_gw_is_dhcp_target(struct sk_buff *skb, unsigned int *header_len)
 {
 	struct ethhdr *ethhdr;
@@ -619,6 +648,12 @@ bool batadv_gw_is_dhcp_target(struct sk_buff *skb, unsigned int *header_len)
 
 	if (!pskb_may_pull(skb, *header_len + sizeof(*udphdr)))
 		return false;
+
+	/* skb->data might have been reallocated by pskb_may_pull() */
+	ethhdr = (struct ethhdr *)skb->data;
+	if (ntohs(ethhdr->h_proto) == ETH_P_8021Q)
+		ethhdr = (struct ethhdr *)(skb->data + VLAN_HLEN);
+
 	udphdr = (struct udphdr *)(skb->data + *header_len);
 	*header_len += sizeof(*udphdr);
 
@@ -634,12 +669,14 @@ bool batadv_gw_is_dhcp_target(struct sk_buff *skb, unsigned int *header_len)
 	return true;
 }
 
+/* this call might reallocate skb data */
 bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
-			    struct sk_buff *skb, struct ethhdr *ethhdr)
+			    struct sk_buff *skb)
 {
 	struct batadv_neigh_node *neigh_curr = NULL, *neigh_old = NULL;
 	struct batadv_orig_node *orig_dst_node = NULL;
 	struct batadv_gw_node *curr_gw = NULL;
+	struct ethhdr *ethhdr;
 	bool ret, out_of_range = false;
 	unsigned int header_len = 0;
 	uint8_t curr_tq_avg;
@@ -648,6 +685,7 @@ bool batadv_gw_out_of_range(struct batadv_priv *bat_priv,
 	if (!ret)
 		goto out;
 
+	ethhdr = (struct ethhdr *)skb->data;
 	orig_dst_node = batadv_transtable_search(bat_priv, ethhdr->h_source,
 						 ethhdr->h_dest);
 	if (!orig_dst_node)

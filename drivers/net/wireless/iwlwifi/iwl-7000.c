@@ -99,6 +99,7 @@ static const struct iwl_base_params iwl7000_base_params = {
 	.wd_timeout = IWL_LONG_WD_TIMEOUT,
 	.max_event_log_size = 512,
 	.shadow_reg_enable = true,
+	.pcie_l1_allowed = true,
 };
 
 static const struct iwl_ht_params iwl7000_ht_params = {
@@ -124,6 +125,16 @@ const struct iwl_cfg iwl7260_2ac_cfg = {
 	.ht_params = &iwl7000_ht_params,
 	.nvm_ver = IWL7260_NVM_VERSION,
 	.nvm_calib_ver = IWL7260_TX_POWER_VERSION,
+};
+
+const struct iwl_cfg iwl7260_2ac_cfg_high_temp = {
+	.name = "Intel(R) Dual Band Wireless AC 7260",
+	.fw_name_pre = IWL7260_FW_PRE,
+	IWL_DEVICE_7000,
+	.ht_params = &iwl7000_ht_params,
+	.nvm_ver = IWL7260_NVM_VERSION,
+	.nvm_calib_ver = IWL7260_TX_POWER_VERSION,
+	.high_temp = true,
 };
 
 const struct iwl_cfg iwl7260_2n_cfg = {

@@ -25,12 +25,15 @@ int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
 	machine->kmaps.machine = machine;
 	machine->pid = pid;
 
+	machine->symbol_filter = NULL;
+
 	machine->root_dir = strdup(root_dir);
 	if (machine->root_dir == NULL)
 		return -ENOMEM;
 
 	if (pid != HOST_KERNEL_ID) {
-		struct thread *thread = machine__findnew_thread(machine, pid);
+		struct thread *thread = machine__findnew_thread(machine, 0,
+								pid);
 		char comm[64];
 
 		if (thread == NULL)
@@ -95,6 +98,7 @@ void machines__init(struct machines *machines)
 {
 	machine__init(&machines->host, "", HOST_KERNEL_ID);
 	machines->guests = RB_ROOT;
+	machines->symbol_filter = NULL;
 }
 
 void machines__exit(struct machines *machines)
@@ -118,6 +122,8 @@ struct machine *machines__add(struct machines *machines, pid_t pid,
 		return NULL;
 	}
 
+	machine->symbol_filter = machines->symbol_filter;
+
 	while (*p != NULL) {
 		parent = *p;
 		pos = rb_entry(parent, struct machine, rb_node);
@@ -131,6 +137,21 @@ struct machine *machines__add(struct machines *machines, pid_t pid,
 	rb_insert_color(&machine->rb_node, &machines->guests);
 
 	return machine;
+}
+
+void machines__set_symbol_filter(struct machines *machines,
+				 symbol_filter_t symbol_filter)
+{
+	struct rb_node *nd;
+
+	machines->symbol_filter = symbol_filter;
+	machines->host.symbol_filter = symbol_filter;
+
+	for (nd = rb_first(&machines->guests); nd; nd = rb_next(nd)) {
+		struct machine *machine = rb_entry(nd, struct machine, rb_node);
+
+		machine->symbol_filter = symbol_filter;
+	}
 }
 
 struct machine *machines__find(struct machines *machines, pid_t pid)
@@ -233,7 +254,8 @@ void machines__set_id_hdr_size(struct machines *machines, u16 id_hdr_size)
 	return;
 }
 
-static struct thread *__machine__findnew_thread(struct machine *machine, pid_t pid,
+static struct thread *__machine__findnew_thread(struct machine *machine,
+						pid_t pid, pid_t tid,
 						bool create)
 {
 	struct rb_node **p = &machine->threads.rb_node;
@@ -241,23 +263,28 @@ static struct thread *__machine__findnew_thread(struct machine *machine, pid_t p
 	struct thread *th;
 
 	/*
-	 * Font-end cache - PID lookups come in blocks,
+	 * Front-end cache - TID lookups come in blocks,
 	 * so most of the time we dont have to look up
 	 * the full rbtree:
 	 */
-	if (machine->last_match && machine->last_match->pid == pid)
+	if (machine->last_match && machine->last_match->tid == tid) {
+		if (pid && pid != machine->last_match->pid_)
+			machine->last_match->pid_ = pid;
 		return machine->last_match;
+	}
 
 	while (*p != NULL) {
 		parent = *p;
 		th = rb_entry(parent, struct thread, rb_node);
 
-		if (th->pid == pid) {
+		if (th->tid == tid) {
 			machine->last_match = th;
+			if (pid && pid != th->pid_)
+				th->pid_ = pid;
 			return th;
 		}
 
-		if (pid < th->pid)
+		if (tid < th->tid)
 			p = &(*p)->rb_left;
 		else
 			p = &(*p)->rb_right;
@@ -266,7 +293,7 @@ static struct thread *__machine__findnew_thread(struct machine *machine, pid_t p
 	if (!create)
 		return NULL;
 
-	th = thread__new(pid);
+	th = thread__new(pid, tid);
 	if (th != NULL) {
 		rb_link_node(&th->rb_node, parent, p);
 		rb_insert_color(&th->rb_node, &machine->threads);
@@ -276,19 +303,22 @@ static struct thread *__machine__findnew_thread(struct machine *machine, pid_t p
 	return th;
 }
 
-struct thread *machine__findnew_thread(struct machine *machine, pid_t pid)
+struct thread *machine__findnew_thread(struct machine *machine, pid_t pid,
+				       pid_t tid)
 {
-	return __machine__findnew_thread(machine, pid, true);
+	return __machine__findnew_thread(machine, pid, tid, true);
 }
 
-struct thread *machine__find_thread(struct machine *machine, pid_t pid)
+struct thread *machine__find_thread(struct machine *machine, pid_t tid)
 {
-	return __machine__findnew_thread(machine, pid, false);
+	return __machine__findnew_thread(machine, 0, tid, false);
 }
 
 int machine__process_comm_event(struct machine *machine, union perf_event *event)
 {
-	struct thread *thread = machine__findnew_thread(machine, event->comm.tid);
+	struct thread *thread = machine__findnew_thread(machine,
+							event->comm.pid,
+							event->comm.tid);
 
 	if (dump_trace)
 		perf_event__fprintf_comm(event, stdout);
@@ -628,10 +658,8 @@ int machine__load_vmlinux_path(struct machine *machine, enum map_type type,
 	struct map *map = machine->vmlinux_maps[type];
 	int ret = dso__load_vmlinux_path(map->dso, map, filter);
 
-	if (ret > 0) {
+	if (ret > 0)
 		dso__set_loaded(map->dso, type);
-		map__reloc_vmlinux(map);
-	}
 
 	return ret;
 }
@@ -808,7 +836,10 @@ static int machine__create_modules(struct machine *machine)
 	free(line);
 	fclose(file);
 
-	return machine__set_modules_path(machine);
+	if (machine__set_modules_path(machine) < 0) {
+		pr_debug("Problems setting modules path maps, continuing anyway...\n");
+	}
+	return 0;
 
 out_delete_line:
 	free(line);
@@ -858,6 +889,18 @@ static void machine__set_kernel_mmap_len(struct machine *machine,
 	}
 }
 
+static bool machine__uses_kcore(struct machine *machine)
+{
+	struct dso *dso;
+
+	list_for_each_entry(dso, &machine->kernel_dsos, node) {
+		if (dso__is_kcore(dso))
+			return true;
+	}
+
+	return false;
+}
+
 static int machine__process_kernel_mmap_event(struct machine *machine,
 					      union perf_event *event)
 {
@@ -865,6 +908,10 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 	char kmmap_prefix[PATH_MAX];
 	enum dso_kernel_type kernel_type;
 	bool is_kernel_mmap;
+
+	/* If we have maps from kcore then we do not need or want any others */
+	if (machine__uses_kcore(machine))
+		return 0;
 
 	machine__mmap_name(machine, kmmap_prefix, sizeof(kmmap_prefix));
 	if (machine__is_host(machine))
@@ -969,7 +1016,8 @@ int machine__process_mmap_event(struct machine *machine, union perf_event *event
 		return 0;
 	}
 
-	thread = machine__findnew_thread(machine, event->mmap.pid);
+	thread = machine__findnew_thread(machine, event->mmap.pid,
+					 event->mmap.pid);
 	if (thread == NULL)
 		goto out_problem;
 
@@ -994,11 +1042,30 @@ out_problem:
 	return 0;
 }
 
+static void machine__remove_thread(struct machine *machine, struct thread *th)
+{
+	machine->last_match = NULL;
+	rb_erase(&th->rb_node, &machine->threads);
+	/*
+	 * We may have references to this thread, for instance in some hist_entry
+	 * instances, so just move them to a separate list.
+	 */
+	list_add_tail(&th->node, &machine->dead_threads);
+}
+
 int machine__process_fork_event(struct machine *machine, union perf_event *event)
 {
-	struct thread *thread = machine__findnew_thread(machine, event->fork.tid);
-	struct thread *parent = machine__findnew_thread(machine, event->fork.ptid);
+	struct thread *thread = machine__find_thread(machine, event->fork.tid);
+	struct thread *parent = machine__findnew_thread(machine,
+							event->fork.ppid,
+							event->fork.ptid);
 
+	/* if a thread currently exists for the thread id remove it */
+	if (thread != NULL)
+		machine__remove_thread(machine, thread);
+
+	thread = machine__findnew_thread(machine, event->fork.pid,
+					 event->fork.tid);
 	if (dump_trace)
 		perf_event__fprintf_task(event, stdout);
 
@@ -1011,18 +1078,8 @@ int machine__process_fork_event(struct machine *machine, union perf_event *event
 	return 0;
 }
 
-static void machine__remove_thread(struct machine *machine, struct thread *th)
-{
-	machine->last_match = NULL;
-	rb_erase(&th->rb_node, &machine->threads);
-	/*
-	 * We may have references to this thread, for instance in some hist_entry
-	 * instances, so just move them to a separate list.
-	 */
-	list_add_tail(&th->node, &machine->dead_threads);
-}
-
-int machine__process_exit_event(struct machine *machine, union perf_event *event)
+int machine__process_exit_event(struct machine *machine __maybe_unused,
+				union perf_event *event)
 {
 	struct thread *thread = machine__find_thread(machine, event->fork.tid);
 
@@ -1030,7 +1087,7 @@ int machine__process_exit_event(struct machine *machine, union perf_event *event
 		perf_event__fprintf_task(event, stdout);
 
 	if (thread != NULL)
-		machine__remove_thread(machine, thread);
+		thread__exited(thread);
 
 	return 0;
 }
@@ -1058,11 +1115,10 @@ int machine__process_event(struct machine *machine, union perf_event *event)
 	return ret;
 }
 
-static bool symbol__match_parent_regex(struct symbol *sym)
+static bool symbol__match_regex(struct symbol *sym, regex_t *regex)
 {
-	if (sym->name && !regexec(&parent_regex, sym->name, 0, NULL, 0))
+	if (sym->name && !regexec(regex, sym->name, 0, NULL, 0))
 		return 1;
-
 	return 0;
 }
 
@@ -1094,7 +1150,7 @@ static void ip__resolve_ams(struct machine *machine, struct thread *thread,
 		 * or else, the symbol is unknown
 		 */
 		thread__find_addr_location(thread, machine, m, MAP__FUNCTION,
-				ip, &al, NULL);
+				ip, &al);
 		if (al.sym)
 			goto found;
 	}
@@ -1112,8 +1168,8 @@ static void ip__resolve_data(struct machine *machine, struct thread *thread,
 
 	memset(&al, 0, sizeof(al));
 
-	thread__find_addr_location(thread, machine, m, MAP__VARIABLE, addr, &al,
-				   NULL);
+	thread__find_addr_location(thread, machine, m, MAP__VARIABLE, addr,
+				   &al);
 	ams->addr = addr;
 	ams->al_addr = al.addr;
 	ams->sym = al.sym;
@@ -1159,8 +1215,8 @@ struct branch_info *machine__resolve_bstack(struct machine *machine,
 static int machine__resolve_callchain_sample(struct machine *machine,
 					     struct thread *thread,
 					     struct ip_callchain *chain,
-					     struct symbol **parent)
-
+					     struct symbol **parent,
+					     struct addr_location *root_al)
 {
 	u8 cpumode = PERF_RECORD_MISC_USER;
 	unsigned int i;
@@ -1208,11 +1264,18 @@ static int machine__resolve_callchain_sample(struct machine *machine,
 
 		al.filtered = false;
 		thread__find_addr_location(thread, machine, cpumode,
-					   MAP__FUNCTION, ip, &al, NULL);
+					   MAP__FUNCTION, ip, &al);
 		if (al.sym != NULL) {
 			if (sort__has_parent && !*parent &&
-			    symbol__match_parent_regex(al.sym))
+			    symbol__match_regex(al.sym, &parent_regex))
 				*parent = al.sym;
+			else if (have_ignore_callees && root_al &&
+			  symbol__match_regex(al.sym, &ignore_callees_regex)) {
+				/* Treat this symbol as the root,
+				   forgetting its callees. */
+				*root_al = al;
+				callchain_cursor_reset(&callchain_cursor);
+			}
 			if (!symbol_conf.use_callchain)
 				break;
 		}
@@ -1237,15 +1300,13 @@ int machine__resolve_callchain(struct machine *machine,
 			       struct perf_evsel *evsel,
 			       struct thread *thread,
 			       struct perf_sample *sample,
-			       struct symbol **parent)
-
+			       struct symbol **parent,
+			       struct addr_location *root_al)
 {
 	int ret;
 
-	callchain_cursor_reset(&callchain_cursor);
-
 	ret = machine__resolve_callchain_sample(machine, thread,
-						sample->callchain, parent);
+						sample->callchain, parent, root_al);
 	if (ret)
 		return ret;
 

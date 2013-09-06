@@ -87,7 +87,8 @@ static struct dma_chan *dev_to_dma_chan(struct device *dev)
 	return chan_dev->chan;
 }
 
-static ssize_t show_memcpy_count(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t memcpy_count_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
 {
 	struct dma_chan *chan;
 	unsigned long count = 0;
@@ -106,9 +107,10 @@ static ssize_t show_memcpy_count(struct device *dev, struct device_attribute *at
 
 	return err;
 }
+static DEVICE_ATTR_RO(memcpy_count);
 
-static ssize_t show_bytes_transferred(struct device *dev, struct device_attribute *attr,
-				      char *buf)
+static ssize_t bytes_transferred_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
 {
 	struct dma_chan *chan;
 	unsigned long count = 0;
@@ -127,8 +129,10 @@ static ssize_t show_bytes_transferred(struct device *dev, struct device_attribut
 
 	return err;
 }
+static DEVICE_ATTR_RO(bytes_transferred);
 
-static ssize_t show_in_use(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t in_use_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
 	struct dma_chan *chan;
 	int err;
@@ -143,13 +147,15 @@ static ssize_t show_in_use(struct device *dev, struct device_attribute *attr, ch
 
 	return err;
 }
+static DEVICE_ATTR_RO(in_use);
 
-static struct device_attribute dma_attrs[] = {
-	__ATTR(memcpy_count, S_IRUGO, show_memcpy_count, NULL),
-	__ATTR(bytes_transferred, S_IRUGO, show_bytes_transferred, NULL),
-	__ATTR(in_use, S_IRUGO, show_in_use, NULL),
-	__ATTR_NULL
+static struct attribute *dma_dev_attrs[] = {
+	&dev_attr_memcpy_count.attr,
+	&dev_attr_bytes_transferred.attr,
+	&dev_attr_in_use.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(dma_dev);
 
 static void chan_dev_release(struct device *dev)
 {
@@ -167,7 +173,7 @@ static void chan_dev_release(struct device *dev)
 
 static struct class dma_devclass = {
 	.name		= "dma",
-	.dev_attrs	= dma_attrs,
+	.dev_groups	= dma_dev_groups,
 	.dev_release	= chan_dev_release,
 };
 

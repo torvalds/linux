@@ -285,6 +285,12 @@ struct bnx2x_vlan_mac_obj {
 	 * entries.
 	 */
 	struct list_head		head;
+	/* Implement a simple reader/writer lock on the head list.
+	 * all these fields should only be accessed under the exe_queue lock
+	 */
+	u8		head_reader; /* Num. of readers accessing head list */
+	bool		head_exe_request; /* Pending execution request. */
+	unsigned long	saved_ramrod_flags; /* Ramrods of pending execution */
 
 	/* TODO: Add it's initialization in the init functions */
 	struct bnx2x_exe_queue_obj	exe_queue;
@@ -1302,8 +1308,16 @@ void bnx2x_init_vlan_mac_obj(struct bnx2x *bp,
 			     struct bnx2x_credit_pool_obj *macs_pool,
 			     struct bnx2x_credit_pool_obj *vlans_pool);
 
+int bnx2x_vlan_mac_h_read_lock(struct bnx2x *bp,
+					struct bnx2x_vlan_mac_obj *o);
+void bnx2x_vlan_mac_h_read_unlock(struct bnx2x *bp,
+				  struct bnx2x_vlan_mac_obj *o);
+int bnx2x_vlan_mac_h_write_lock(struct bnx2x *bp,
+				struct bnx2x_vlan_mac_obj *o);
+void bnx2x_vlan_mac_h_write_unlock(struct bnx2x *bp,
+					  struct bnx2x_vlan_mac_obj *o);
 int bnx2x_config_vlan_mac(struct bnx2x *bp,
-			  struct bnx2x_vlan_mac_ramrod_params *p);
+			   struct bnx2x_vlan_mac_ramrod_params *p);
 
 int bnx2x_vlan_mac_move(struct bnx2x *bp,
 			struct bnx2x_vlan_mac_ramrod_params *p,
@@ -1393,4 +1407,6 @@ int bnx2x_config_rss(struct bnx2x *bp,
 void bnx2x_get_rss_ind_table(struct bnx2x_rss_config_obj *rss_obj,
 			     u8 *ind_table);
 
+int validate_vlan_mac(struct bnx2x *bp,
+		      struct bnx2x_vlan_mac_obj *vlan_mac);
 #endif /* BNX2X_SP_VERBS */

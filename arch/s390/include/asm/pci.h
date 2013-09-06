@@ -6,6 +6,7 @@
 /* must be set before including pci_clp.h */
 #define PCI_BAR_COUNT	6
 
+#include <linux/pci.h>
 #include <asm-generic/pci.h>
 #include <asm-generic/pci-dma-compat.h>
 #include <asm/pci_clp.h>
@@ -53,14 +54,9 @@ struct zpci_fmb {
 	atomic64_t unmapped_pages;
 } __packed __aligned(16);
 
-struct msi_map {
-	unsigned long irq;
-	struct msi_desc *msi;
-	struct hlist_node msi_chain;
-};
-
-#define ZPCI_NR_MSI_VECS	64
-#define ZPCI_MSI_MASK		(ZPCI_NR_MSI_VECS - 1)
+#define ZPCI_MSI_VEC_BITS	11
+#define ZPCI_MSI_VEC_MAX	(1 << ZPCI_MSI_VEC_BITS)
+#define ZPCI_MSI_VEC_MASK	(ZPCI_MSI_VEC_MAX - 1)
 
 enum zpci_state {
 	ZPCI_FN_STATE_RESERVED,
@@ -91,8 +87,7 @@ struct zpci_dev {
 
 	/* IRQ stuff */
 	u64		msi_addr;	/* MSI address */
-	struct zdev_irq_map *irq_map;
-	struct msi_map *msi_map[ZPCI_NR_MSI_VECS];
+	struct airq_iv *aibv;		/* adapter interrupt bit vector */
 	unsigned int	aisb;		/* number of the summary bit */
 
 	/* DMA stuff */
@@ -122,11 +117,6 @@ struct zpci_dev {
 	struct dentry	*debugfs_perf;
 };
 
-struct pci_hp_callback_ops {
-	int (*create_slot)	(struct zpci_dev *zdev);
-	void (*remove_slot)	(struct zpci_dev *zdev);
-};
-
 static inline bool zdev_enabled(struct zpci_dev *zdev)
 {
 	return (zdev->fh & (1UL << 31)) ? true : false;
@@ -146,32 +136,38 @@ int zpci_register_ioat(struct zpci_dev *, u8, u64, u64, u64);
 int zpci_unregister_ioat(struct zpci_dev *, u8);
 
 /* CLP */
-int clp_find_pci_devices(void);
+int clp_scan_pci_devices(void);
+int clp_rescan_pci_devices(void);
+int clp_rescan_pci_devices_simple(void);
 int clp_add_pci_device(u32, u32, int);
 int clp_enable_fh(struct zpci_dev *, u8);
 int clp_disable_fh(struct zpci_dev *);
-
-/* MSI */
-struct msi_desc *__irq_get_msi_desc(unsigned int);
-int zpci_msi_set_mask_bits(struct msi_desc *, u32, u32);
-int zpci_setup_msi_irq(struct zpci_dev *, struct msi_desc *, unsigned int, int);
-void zpci_teardown_msi_irq(struct zpci_dev *, struct msi_desc *);
-int zpci_msihash_init(void);
-void zpci_msihash_exit(void);
 
 #ifdef CONFIG_PCI
 /* Error handling and recovery */
 void zpci_event_error(void *);
 void zpci_event_availability(void *);
+void zpci_rescan(void);
 #else /* CONFIG_PCI */
 static inline void zpci_event_error(void *e) {}
 static inline void zpci_event_availability(void *e) {}
+static inline void zpci_rescan(void) {}
 #endif /* CONFIG_PCI */
+
+#ifdef CONFIG_HOTPLUG_PCI_S390
+int zpci_init_slot(struct zpci_dev *);
+void zpci_exit_slot(struct zpci_dev *);
+#else /* CONFIG_HOTPLUG_PCI_S390 */
+static inline int zpci_init_slot(struct zpci_dev *zdev)
+{
+	return 0;
+}
+static inline void zpci_exit_slot(struct zpci_dev *zdev) {}
+#endif /* CONFIG_HOTPLUG_PCI_S390 */
 
 /* Helpers */
 struct zpci_dev *get_zdev(struct pci_dev *);
 struct zpci_dev *get_zdev_by_fid(u32);
-bool zpci_fid_present(u32);
 
 /* sysfs */
 int zpci_sysfs_add_device(struct device *);
@@ -180,14 +176,6 @@ void zpci_sysfs_remove_device(struct device *);
 /* DMA */
 int zpci_dma_init(void);
 void zpci_dma_exit(void);
-
-/* Hotplug */
-extern struct mutex zpci_list_lock;
-extern struct list_head zpci_list;
-extern unsigned int s390_pci_probe;
-
-void zpci_register_hp_ops(struct pci_hp_callback_ops *);
-void zpci_deregister_hp_ops(void);
 
 /* FMB */
 int zpci_fmb_enable_device(struct zpci_dev *);

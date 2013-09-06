@@ -785,7 +785,7 @@ static int dove_pinctrl_probe(struct platform_device *pdev)
 	clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(clk)) {
 		dev_err(&pdev->dev, "Unable to get pdma clock");
-		return PTR_RET(clk);
+		return PTR_ERR(clk);
 	}
 	clk_prepare_enable(clk);
 

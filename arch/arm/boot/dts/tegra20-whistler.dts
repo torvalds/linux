@@ -509,7 +509,6 @@
 
 	usb@c5000000 {
 		status = "okay";
-		nvidia,vbus-gpio = <&tca6416 0 GPIO_ACTIVE_HIGH>;
 	};
 
 	usb-phy@c5000000 {
@@ -519,7 +518,6 @@
 
 	usb@c5008000 {
 		status = "okay";
-		nvidia,vbus-gpio = <&tca6416 1 GPIO_ACTIVE_HIGH>;
 	};
 
 	usb-phy@c5008000 {
@@ -588,6 +586,8 @@
 			regulator-max-microvolt = <5000000>;
 			enable-active-high;
 			gpio = <&tca6416 0 0>; /* GPIO_PMU0 */
+			regulator-always-on;
+			regulator-boot-on;
 		};
 
 		vbus3_reg: regulator@3 {
@@ -598,6 +598,8 @@
 			regulator-max-microvolt = <5000000>;
 			enable-active-high;
 			gpio = <&tca6416 1 0>; /* GPIO_PMU1 */
+			regulator-always-on;
+			regulator-boot-on;
 		};
 	};
 

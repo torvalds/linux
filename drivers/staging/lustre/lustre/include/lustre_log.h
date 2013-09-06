@@ -469,16 +469,14 @@ static inline int llog_destroy(const struct lu_env *env,
 	struct llog_operations *lop;
 	int rc;
 
-	ENTRY;
-
 	rc = llog_handle2ops(handle, &lop);
 	if (rc)
-		RETURN(rc);
+		return rc;
 	if (lop->lop_destroy == NULL)
-		RETURN(-EOPNOTSUPP);
+		return -EOPNOTSUPP;
 
 	rc = lop->lop_destroy(env, handle);
-	RETURN(rc);
+	return rc;
 }
 
 static inline int llog_next_block(const struct lu_env *env,
@@ -489,17 +487,15 @@ static inline int llog_next_block(const struct lu_env *env,
 	struct llog_operations *lop;
 	int rc;
 
-	ENTRY;
-
 	rc = llog_handle2ops(loghandle, &lop);
 	if (rc)
-		RETURN(rc);
+		return rc;
 	if (lop->lop_next_block == NULL)
-		RETURN(-EOPNOTSUPP);
+		return -EOPNOTSUPP;
 
 	rc = lop->lop_next_block(env, loghandle, cur_idx, next_idx,
 				 cur_offset, buf, len);
-	RETURN(rc);
+	return rc;
 }
 
 static inline int llog_prev_block(const struct lu_env *env,
@@ -509,16 +505,14 @@ static inline int llog_prev_block(const struct lu_env *env,
 	struct llog_operations *lop;
 	int rc;
 
-	ENTRY;
-
 	rc = llog_handle2ops(loghandle, &lop);
 	if (rc)
-		RETURN(rc);
+		return rc;
 	if (lop->lop_prev_block == NULL)
-		RETURN(-EOPNOTSUPP);
+		return -EOPNOTSUPP;
 
 	rc = lop->lop_prev_block(env, loghandle, prev_idx, buf, len);
-	RETURN(rc);
+	return rc;
 }
 
 static inline int llog_connect(struct llog_ctxt *ctxt,
@@ -528,16 +522,14 @@ static inline int llog_connect(struct llog_ctxt *ctxt,
 	struct llog_operations	*lop;
 	int			 rc;
 
-	ENTRY;
-
 	rc = llog_obd2ops(ctxt, &lop);
 	if (rc)
-		RETURN(rc);
+		return rc;
 	if (lop->lop_connect == NULL)
-		RETURN(-EOPNOTSUPP);
+		return -EOPNOTSUPP;
 
 	rc = lop->lop_connect(ctxt, logid, gen, uuid);
-	RETURN(rc);
+	return rc;
 }
 
 /* llog.c */

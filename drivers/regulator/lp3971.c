@@ -425,7 +425,7 @@ static int lp3971_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct lp3971 *lp3971;
-	struct lp3971_platform_data *pdata = i2c->dev.platform_data;
+	struct lp3971_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	int ret;
 	u16 val;
 

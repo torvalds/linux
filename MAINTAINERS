@@ -580,11 +580,23 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/i2c/ad9389b*
 
+ANALOG DEVICES INC ADV7511 DRIVER
+M:	Hans Verkuil <hans.verkuil@cisco.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/i2c/adv7511*
+
 ANALOG DEVICES INC ADV7604 DRIVER
 M:	Hans Verkuil <hans.verkuil@cisco.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/i2c/adv7604*
+
+ANALOG DEVICES INC ADV7842 DRIVER
+M:	Hans Verkuil <hans.verkuil@cisco.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/i2c/adv7842*
 
 ANALOG DEVICES INC ASOC CODEC DRIVERS
 M:	Lars-Peter Clausen <lars@metafoo.de>
@@ -595,6 +607,7 @@ S:	Supported
 F:	sound/soc/codecs/adau*
 F:	sound/soc/codecs/adav*
 F:	sound/soc/codecs/ad1*
+F:	sound/soc/codecs/ad7*
 F:	sound/soc/codecs/ssm*
 F:	sound/soc/codecs/sigmadsp.*
 
@@ -637,6 +650,12 @@ M:	Arnaldo Carvalho de Melo <acme@ghostprotocols.net>
 S:	Maintained
 F:	drivers/net/appletalk/
 F:	net/appletalk/
+
+APTINA CAMERA SENSOR PLL
+M:	Laurent Pinchart <Laurent.pinchart@ideasonboard.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/i2c/aptina-pll.*
 
 ARASAN COMPACT FLASH PATA CONTROLLER
 M:	Viresh Kumar <viresh.linux@gmail.com>
@@ -813,7 +832,7 @@ F:	arch/arm/mach-prima2/
 F:	drivers/dma/sirf-dma.c
 F:	drivers/i2c/busses/i2c-sirf.c
 F:	drivers/mmc/host/sdhci-sirf.c
-F:	drivers/pinctrl/pinctrl-sirf.c
+F:	drivers/pinctrl/sirf/
 F:	drivers/spi/spi-sirf.c
 
 ARM/EBSA110 MACHINE SUPPORT
@@ -964,6 +983,12 @@ ARM/IP FABRICS DOUBLE ESPRESSO MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
+
+ARM/TEXAS INSTRUMENT KEYSTONE ARCHITECTURE
+M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-keystone/
 
 ARM/LOGICPD PXA270 MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
@@ -1259,7 +1284,6 @@ F:	drivers/rtc/rtc-coh901331.c
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-stericsson.git
 
 ARM/Ux500 ARM ARCHITECTURE
-M:	Srinidhi Kasagar <srinidhi.kasagar@stericsson.com>
 M:	Linus Walleij <linus.walleij@linaro.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
@@ -1406,7 +1430,7 @@ ATHEROS ATH6KL WIRELESS DRIVER
 M:	Kalle Valo <kvalo@qca.qualcomm.com>
 L:	linux-wireless@vger.kernel.org
 W:	http://wireless.kernel.org/en/users/Drivers/ath6kl
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kvalo/ath6kl.git
+T:	git git://github.com/kvalo/ath.git
 S:	Supported
 F:	drivers/net/wireless/ath/ath6kl/
 
@@ -1541,6 +1565,13 @@ W:	http://www.thekelleys.org.uk/atmel
 W:	http://atmelwlandriver.sourceforge.net/
 S:	Maintained
 F:	drivers/net/wireless/atmel*
+
+ATTO EXPRESSSAS SAS/SATA RAID SCSI DRIVER
+M:      Bradley Grove <linuxdrivers@attotech.com>
+L:      linux-scsi@vger.kernel.org
+W:      http://www.attotech.com
+S:      Supported
+F:      drivers/scsi/esas2r
 
 AUDIT SUBSYSTEM
 M:	Al Viro <viro@zeniv.linux.org.uk>
@@ -1818,6 +1849,12 @@ L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/scsi/bnx2fc/
 
+BROADCOM BNX2I 1/10 GIGABIT iSCSI DRIVER
+M:	Eddie Wai <eddie.wai@broadcom.com>
+L:	linux-scsi@vger.kernel.org
+S:	Supported
+F:	drivers/scsi/bnx2i/
+
 BROADCOM SPECIFIC AMBA DRIVER (BCMA)
 M:	Rafał Miłecki <zajec5@gmail.com>
 L:	linux-wireless@vger.kernel.org
@@ -2071,7 +2108,8 @@ F:	drivers/usb/chipidea/
 
 CISCO VIC ETHERNET NIC DRIVER
 M:	Christian Benvenuti <benve@cisco.com>
-M:	Roopa Prabhu <roprabhu@cisco.com>
+M:	Sujith Sankar <ssujith@cisco.com>
+M:	Govindarajulu Varadarajan <govindarajulu90@gmail.com>
 M:	Neel Patel <neepatel@cisco.com>
 M:	Nishank Trivedi <nistrive@cisco.com>
 S:	Supported
@@ -2106,6 +2144,13 @@ CLK API
 M:	Russell King <linux@arm.linux.org.uk>
 S:	Maintained
 F:	include/linux/clk.h
+
+CLOCKSOURCE, CLOCKEVENT DRIVERS
+M:	Daniel Lezcano <daniel.lezcano@linaro.org>
+M:	Thomas Gleixner <tglx@linutronix.de>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git timers/core
+S:	Supported
+F:	drivers/clocksource
 
 CISCO FCOE HBA DRIVER
 M:	Hiral Patel <hiralpat@cisco.com>
@@ -4360,7 +4405,7 @@ F:	drivers/net/wireless/iwlegacy/
 
 INTEL WIRELESS WIFI LINK (iwlwifi)
 M:	Johannes Berg <johannes.berg@intel.com>
-M:	Wey-Yi Guy <wey-yi.w.guy@intel.com>
+M:	Emmanuel Grumbach <emmanuel.grumbach@intel.com>
 M:	Intel Linux Wireless <ilw@linux.intel.com>
 L:	linux-wireless@vger.kernel.org
 W:	http://intellinuxwireless.org
@@ -5492,7 +5537,7 @@ L:	platform-driver-x86@vger.kernel.org
 S:	Supported
 F:	drivers/platform/x86/msi-wmi.c
 
-MT9M032 SENSOR DRIVER
+MT9M032 APTINA SENSOR DRIVER
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
@@ -5500,7 +5545,7 @@ S:	Maintained
 F:	drivers/media/i2c/mt9m032.c
 F:	include/media/mt9m032.h
 
-MT9P031 SENSOR DRIVER
+MT9P031 APTINA CAMERA SENSOR
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
@@ -5508,7 +5553,7 @@ S:	Maintained
 F:	drivers/media/i2c/mt9p031.c
 F:	include/media/mt9p031.h
 
-MT9T001 SENSOR DRIVER
+MT9T001 APTINA CAMERA SENSOR
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
@@ -5516,7 +5561,7 @@ S:	Maintained
 F:	drivers/media/i2c/mt9t001.c
 F:	include/media/mt9t001.h
 
-MT9V032 SENSOR DRIVER
+MT9V032 APTINA CAMERA SENSOR
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
@@ -5576,9 +5621,9 @@ S:	Maintained
 F:	drivers/media/tuners/mxl5007t.*
 
 MYRICOM MYRI-10G 10GbE DRIVER (MYRI10GE)
-M:	Andrew Gallatin <gallatin@myri.com>
+M:	Hyong-Youb Kim <hykim@myri.com>
 L:	netdev@vger.kernel.org
-W:	http://www.myri.com/scs/download-Myri10GE.html
+W:	https://www.myricom.com/support/downloads/myri10ge.html
 S:	Supported
 F:	drivers/net/ethernet/myricom/myri10ge/
 
@@ -5787,7 +5832,7 @@ M:	Aloisio Almeida Jr <aloisio.almeida@openbossa.org>
 M:	Samuel Ortiz <sameo@linux.intel.com>
 L:	linux-wireless@vger.kernel.org
 L:	linux-nfc@lists.01.org (moderated for non-subscribers)
-S:	Maintained
+S:	Supported
 F:	net/nfc/
 F:	include/net/nfc/
 F:	include/uapi/linux/nfc.h
@@ -5879,7 +5924,7 @@ F:	drivers/i2c/busses/i2c-omap.c
 F:	include/linux/i2c-omap.h
 
 OMAP DEVICE TREE SUPPORT
-M:	Benoît Cousson <b-cousson@ti.com>
+M:	Benoît Cousson <bcousson@baylibre.com>
 M:	Tony Lindgren <tony@atomide.com>
 L:	linux-omap@vger.kernel.org
 L:	devicetree@vger.kernel.org
@@ -5959,14 +6004,14 @@ S:	Maintained
 F:	drivers/char/hw_random/omap-rng.c
 
 OMAP HWMOD SUPPORT
-M:	Benoît Cousson <b-cousson@ti.com>
+M:	Benoît Cousson <bcousson@baylibre.com>
 M:	Paul Walmsley <paul@pwsan.com>
 L:	linux-omap@vger.kernel.org
 S:	Maintained
 F:	arch/arm/mach-omap2/omap_hwmod.*
 
 OMAP HWMOD DATA FOR OMAP4-BASED DEVICES
-M:	Benoît Cousson <b-cousson@ti.com>
+M:	Benoît Cousson <bcousson@baylibre.com>
 L:	linux-omap@vger.kernel.org
 S:	Maintained
 F:	arch/arm/mach-omap2/omap_hwmod_44xx_data.c
@@ -6061,7 +6106,7 @@ M:	Rob Herring <rob.herring@calxeda.com>
 M:	Pawel Moll <pawel.moll@arm.com>
 M:	Mark Rutland <mark.rutland@arm.com>
 M:	Stephen Warren <swarren@wwwdotorg.org>
-M:	Ian Campbell <ian.campbell@citrix.com>
+M:	Ian Campbell <ijc+devicetree@hellion.org.uk>
 L:	devicetree@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/
@@ -6671,11 +6716,11 @@ F:	Documentation/scsi/LICENSE.qla2xxx
 F:	drivers/scsi/qla2xxx/
 
 QLOGIC QLA4XXX iSCSI DRIVER
-M:	Ravi Anand <ravi.anand@qlogic.com>
 M:	Vikas Chaudhary <vikas.chaudhary@qlogic.com>
 M:	iscsi-driver@qlogic.com
 L:	linux-scsi@vger.kernel.org
 S:	Supported
+F:	Documentation/scsi/LICENSE.qla4xxx
 F:	drivers/scsi/qla4xxx/
 
 QLOGIC QLA3XXX NETWORK DRIVER
@@ -6725,6 +6770,14 @@ Q:	http://patchwork.linuxtv.org/project/linux-media/list/
 T:	git git://linuxtv.org/anttip/media_tree.git
 S:	Maintained
 F:	drivers/media/tuners/qt1010*
+
+QUALCOMM ATHEROS ATH10K WIRELESS DRIVER
+M:	Kalle Valo <kvalo@qca.qualcomm.com>
+L:	ath10k@lists.infradead.org
+W:	http://wireless.kernel.org/en/users/Drivers/ath10k
+T:	git git://github.com/kvalo/ath.git
+S:	Supported
+F:	drivers/net/wireless/ath/ath10k/
 
 QUALCOMM HEXAGON ARCHITECTURE
 M:	Richard Kuo <rkuo@codeaurora.org>
@@ -7130,7 +7183,7 @@ S:	Maintained
 F:	include/linux/mmc/dw_mmc.h
 F:	drivers/mmc/host/dw_mmc*
 
-TIMEKEEPING, NTP
+TIMEKEEPING, CLOCKSOURCE CORE, NTP
 M:	John Stultz <john.stultz@linaro.org>
 M:	Thomas Gleixner <tglx@linutronix.de>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git timers/core
@@ -7143,7 +7196,6 @@ F:	include/uapi/linux/timex.h
 F:	kernel/time/clocksource.c
 F:	kernel/time/time*.c
 F:	kernel/time/ntp.c
-F:	drivers/clocksource
 
 TLG2300 VIDEO4LINUX-2 DRIVER
 M:	Huang Shijie <shijie8@gmail.com>
@@ -7223,6 +7275,7 @@ W:	http://lksctp.sourceforge.net
 S:	Maintained
 F:	Documentation/networking/sctp.txt
 F:	include/linux/sctp.h
+F:	include/uapi/linux/sctp.h
 F:	include/net/sctp/
 F:	net/sctp/
 
@@ -7353,7 +7406,6 @@ F:	drivers/net/ethernet/sfc/
 
 SGI GRU DRIVER
 M:	Dimitri Sivanich <sivanich@sgi.com>
-M:	Robin Holt <holt@sgi.com>
 S:	Maintained
 F:	drivers/misc/sgi-gru/
 
@@ -7373,7 +7425,8 @@ S:	Maintained for 2.6.
 F:	Documentation/sgi-visws.txt
 
 SGI XP/XPC/XPNET DRIVER
-M:	Robin Holt <holt@sgi.com>
+M:	Cliff Whickman <cpw@sgi.com>
+M:	Robin Holt <robinmholt@gmail.com>
 S:	Maintained
 F:	drivers/misc/sgi-xp/
 
@@ -7662,6 +7715,17 @@ F:	include/sound/
 F:	include/uapi/sound/
 F:	sound/
 
+SOUND - COMPRESSED AUDIO
+M:	Vinod Koul <vinod.koul@intel.com>
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound.git
+S:	Supported
+F:	Documentation/sound/alsa/compress_offload.txt
+F:	include/sound/compress_driver.h
+F:	include/uapi/sound/compress_*
+F:	sound/core/compress_offload.c
+F:	sound/soc/soc-compress.c
+
 SOUND - SOC LAYER / DYNAMIC AUDIO POWER MANAGEMENT (ASoC)
 M:	Liam Girdwood <lgirdwood@gmail.com>
 M:	Mark Brown <broonie@kernel.org>
@@ -7669,6 +7733,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/broonie/sound.git
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 W:	http://alsa-project.org/main/index.php/ASoC
 S:	Supported
+F:	Documentation/sound/alsa/soc/
 F:	sound/soc/
 F:	include/sound/soc*
 
@@ -7877,11 +7942,11 @@ S:	Maintained
 F:	drivers/staging/nvec/
 
 STAGING - OLPC SECONDARY DISPLAY CONTROLLER (DCON)
-M:	Andres Salomon <dilinger@queued.net>
-M:	Chris Ball <cjb@laptop.org>
+M:	Jens Frederich <jfrederich@gmail.com>
+M:	Daniel Drake <dsd@laptop.org>
 M:	Jon Nettleton <jon.nettleton@gmail.com>
 W:	http://wiki.laptop.org/go/DCON
-S:	Odd Fixes
+S:	Maintained
 F:	drivers/staging/olpc_dcon/
 
 STAGING - OZMO DEVICES USB OVER WIFI DRIVER
@@ -7958,6 +8023,12 @@ F:	arch/m68k/kernel/*sun3*
 F:	arch/m68k/sun3*/
 F:	arch/m68k/include/asm/sun3*
 F:	drivers/net/ethernet/i825xx/sun3*
+
+SUNDANCE NETWORK DRIVER
+M:	Denis Kirjanov <kda@linux-powerpc.org>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/ethernet/dlink/sundance.c
 
 SUPERH
 M:	Paul Mundt <lethal@linux-sh.org>
@@ -8270,7 +8341,7 @@ S:	Maintained
 F:	sound/soc/codecs/twl4030*
 
 TI WILINK WIRELESS DRIVERS
-M:	Luciano Coelho <coelho@ti.com>
+M:	Luciano Coelho <luca@coelho.fi>
 L:	linux-wireless@vger.kernel.org
 W:	http://wireless.kernel.org/en/users/Drivers/wl12xx
 W:	http://wireless.kernel.org/en/users/Drivers/wl1251
@@ -8656,6 +8727,11 @@ T:	git git://git.alsa-project.org/alsa-kernel.git
 S:	Maintained
 F:	sound/usb/midi.*
 
+USB NETWORKING DRIVERS
+L:	linux-usb@vger.kernel.org
+S:	Odd Fixes
+F:	drivers/net/usb/
+
 USB OHCI DRIVER
 M:	Alan Stern <stern@rowland.harvard.edu>
 L:	linux-usb@vger.kernel.org
@@ -8785,7 +8861,6 @@ W:	http://www.linux-usb.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/usb.git
 S:	Supported
 F:	Documentation/usb/
-F:	drivers/net/usb/
 F:	drivers/usb/
 F:	include/linux/usb.h
 F:	include/linux/usb/
@@ -9008,6 +9083,12 @@ F:	drivers/staging/vme/
 F:	drivers/vme/
 F:	include/linux/vme*
 
+VMWARE HYPERVISOR INTERFACE
+M:	Alok Kataria <akataria@vmware.com>
+L:	virtualization@lists.linux-foundation.org
+S:	Supported
+F:	arch/x86/kernel/cpu/vmware.c
+
 VMWARE VMXNET3 ETHERNET DRIVER
 M:	Shreyas Bhatewara <sbhatewara@vmware.com>
 M:	"VMware, Inc." <pv-drivers@vmware.com>
@@ -9229,9 +9310,9 @@ F:	drivers/media/tuners/tuner-xc2028.*
 
 XEN HYPERVISOR INTERFACE
 M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-M:	Jeremy Fitzhardinge <jeremy@goop.org>
-L:	xen-devel@lists.xensource.com (moderated for non-subscribers)
-L:	virtualization@lists.linux-foundation.org
+M:	Boris Ostrovsky <boris.ostrovsky@oracle.com>
+M:	David Vrabel <david.vrabel@citrix.com>
+L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 S:	Supported
 F:	arch/x86/xen/
 F:	drivers/*/xen-*front.c
@@ -9242,35 +9323,35 @@ F:	include/uapi/xen/
 
 XEN HYPERVISOR ARM
 M:	Stefano Stabellini <stefano.stabellini@eu.citrix.com>
-L:	xen-devel@lists.xensource.com (moderated for non-subscribers)
+L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 S:	Supported
 F:	arch/arm/xen/
 F:	arch/arm/include/asm/xen/
 
 XEN HYPERVISOR ARM64
 M:	Stefano Stabellini <stefano.stabellini@eu.citrix.com>
-L:	xen-devel@lists.xensource.com (moderated for non-subscribers)
+L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 S:	Supported
 F:	arch/arm64/xen/
 F:	arch/arm64/include/asm/xen/
 
 XEN NETWORK BACKEND DRIVER
 M:	Ian Campbell <ian.campbell@citrix.com>
-L:	xen-devel@lists.xensource.com (moderated for non-subscribers)
+L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/xen-netback/*
 
 XEN PCI SUBSYSTEM
 M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-L:	xen-devel@lists.xensource.com (moderated for non-subscribers)
+L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 S:	Supported
 F:	arch/x86/pci/*xen*
 F:	drivers/pci/*xen*
 
 XEN SWIOTLB SUBSYSTEM
 M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-L:	xen-devel@lists.xensource.com (moderated for non-subscribers)
+L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 S:	Supported
 F:	arch/x86/xen/*swiotlb*
 F:	drivers/xen/*swiotlb*

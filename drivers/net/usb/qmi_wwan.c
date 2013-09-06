@@ -323,7 +323,7 @@ next_desc:
 	/* Never use the same address on both ends of the link, even
 	 * if the buggy firmware told us to.
 	 */
-	if (!compare_ether_addr(dev->net->dev_addr, default_modem_addr))
+	if (ether_addr_equal(dev->net->dev_addr, default_modem_addr))
 		eth_hw_addr_random(dev->net);
 
 	/* make MAC addr easily distinguishable from an IP header */

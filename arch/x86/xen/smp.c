@@ -279,6 +279,7 @@ static void __init xen_smp_prepare_boot_cpu(void)
 
 	xen_filter_cpu_maps();
 	xen_setup_vcpu_info_placement();
+	xen_init_spinlocks();
 }
 
 static void __init xen_smp_prepare_cpus(unsigned int max_cpus)
@@ -572,6 +573,12 @@ static inline int xen_map_vector(int vector)
 	case IRQ_WORK_VECTOR:
 		xen_vector = XEN_IRQ_WORK_VECTOR;
 		break;
+#ifdef CONFIG_X86_64
+	case NMI_VECTOR:
+	case APIC_DM_NMI: /* Some use that instead of NMI_VECTOR */
+		xen_vector = XEN_NMI_VECTOR;
+		break;
+#endif
 	default:
 		xen_vector = -1;
 		printk(KERN_ERR "xen: vector 0x%x is not implemented\n",
@@ -680,7 +687,6 @@ void __init xen_smp_init(void)
 {
 	smp_ops = xen_smp_ops;
 	xen_fill_possible_map();
-	xen_init_spinlocks();
 }
 
 static void __init xen_hvm_smp_prepare_cpus(unsigned int max_cpus)
@@ -694,8 +700,15 @@ static void __init xen_hvm_smp_prepare_cpus(unsigned int max_cpus)
 static int xen_hvm_cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	int rc;
-	rc = native_cpu_up(cpu, tidle);
-	WARN_ON (xen_smp_intr_init(cpu));
+	/*
+	 * xen_smp_intr_init() needs to run before native_cpu_up()
+	 * so that IPI vectors are set up on the booting CPU before
+	 * it is marked online in native_cpu_up().
+	*/
+	rc = xen_smp_intr_init(cpu);
+	WARN_ON(rc);
+	if (!rc)
+		rc =  native_cpu_up(cpu, tidle);
 	return rc;
 }
 

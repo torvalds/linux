@@ -383,6 +383,80 @@ static inline int try_lock_tlbie(unsigned int *lock)
 	return old == 0;
 }
 
+/*
+ * tlbie/tlbiel is a bit different on the PPC970 compared to later
+ * processors such as POWER7; the large page bit is in the instruction
+ * not RB, and the top 16 bits and the bottom 12 bits of the VA
+ * in RB must be 0.
+ */
+static void do_tlbies_970(struct kvm *kvm, unsigned long *rbvalues,
+			  long npages, int global, bool need_sync)
+{
+	long i;
+
+	if (global) {
+		while (!try_lock_tlbie(&kvm->arch.tlbie_lock))
+			cpu_relax();
+		if (need_sync)
+			asm volatile("ptesync" : : : "memory");
+		for (i = 0; i < npages; ++i) {
+			unsigned long rb = rbvalues[i];
+
+			if (rb & 1)		/* large page */
+				asm volatile("tlbie %0,1" : :
+					     "r" (rb & 0x0000fffffffff000ul));
+			else
+				asm volatile("tlbie %0,0" : :
+					     "r" (rb & 0x0000fffffffff000ul));
+		}
+		asm volatile("eieio; tlbsync; ptesync" : : : "memory");
+		kvm->arch.tlbie_lock = 0;
+	} else {
+		if (need_sync)
+			asm volatile("ptesync" : : : "memory");
+		for (i = 0; i < npages; ++i) {
+			unsigned long rb = rbvalues[i];
+
+			if (rb & 1)		/* large page */
+				asm volatile("tlbiel %0,1" : :
+					     "r" (rb & 0x0000fffffffff000ul));
+			else
+				asm volatile("tlbiel %0,0" : :
+					     "r" (rb & 0x0000fffffffff000ul));
+		}
+		asm volatile("ptesync" : : : "memory");
+	}
+}
+
+static void do_tlbies(struct kvm *kvm, unsigned long *rbvalues,
+		      long npages, int global, bool need_sync)
+{
+	long i;
+
+	if (cpu_has_feature(CPU_FTR_ARCH_201)) {
+		/* PPC970 tlbie instruction is a bit different */
+		do_tlbies_970(kvm, rbvalues, npages, global, need_sync);
+		return;
+	}
+	if (global) {
+		while (!try_lock_tlbie(&kvm->arch.tlbie_lock))
+			cpu_relax();
+		if (need_sync)
+			asm volatile("ptesync" : : : "memory");
+		for (i = 0; i < npages; ++i)
+			asm volatile(PPC_TLBIE(%1,%0) : :
+				     "r" (rbvalues[i]), "r" (kvm->arch.lpid));
+		asm volatile("eieio; tlbsync; ptesync" : : : "memory");
+		kvm->arch.tlbie_lock = 0;
+	} else {
+		if (need_sync)
+			asm volatile("ptesync" : : : "memory");
+		for (i = 0; i < npages; ++i)
+			asm volatile("tlbiel %0" : : "r" (rbvalues[i]));
+		asm volatile("ptesync" : : : "memory");
+	}
+}
+
 long kvmppc_do_h_remove(struct kvm *kvm, unsigned long flags,
 			unsigned long pte_index, unsigned long avpn,
 			unsigned long *hpret)
@@ -408,19 +482,7 @@ long kvmppc_do_h_remove(struct kvm *kvm, unsigned long flags,
 	if (v & HPTE_V_VALID) {
 		hpte[0] &= ~HPTE_V_VALID;
 		rb = compute_tlbie_rb(v, hpte[1], pte_index);
-		if (global_invalidates(kvm, flags)) {
-			while (!try_lock_tlbie(&kvm->arch.tlbie_lock))
-				cpu_relax();
-			asm volatile("ptesync" : : : "memory");
-			asm volatile(PPC_TLBIE(%1,%0)"; eieio; tlbsync"
-				     : : "r" (rb), "r" (kvm->arch.lpid));
-			asm volatile("ptesync" : : : "memory");
-			kvm->arch.tlbie_lock = 0;
-		} else {
-			asm volatile("ptesync" : : : "memory");
-			asm volatile("tlbiel %0" : : "r" (rb));
-			asm volatile("ptesync" : : : "memory");
-		}
+		do_tlbies(kvm, &rb, 1, global_invalidates(kvm, flags), true);
 		/* Read PTE low word after tlbie to get final R/C values */
 		remove_revmap_chain(kvm, pte_index, rev, v, hpte[1]);
 	}
@@ -448,12 +510,11 @@ long kvmppc_h_bulk_remove(struct kvm_vcpu *vcpu)
 	unsigned long *hp, *hptes[4], tlbrb[4];
 	long int i, j, k, n, found, indexes[4];
 	unsigned long flags, req, pte_index, rcbits;
-	long int local = 0;
+	int global;
 	long int ret = H_SUCCESS;
 	struct revmap_entry *rev, *revs[4];
 
-	if (atomic_read(&kvm->online_vcpus) == 1)
-		local = 1;
+	global = global_invalidates(kvm, 0);
 	for (i = 0; i < 4 && ret == H_SUCCESS; ) {
 		n = 0;
 		for (; i < 4; ++i) {
@@ -529,22 +590,7 @@ long kvmppc_h_bulk_remove(struct kvm_vcpu *vcpu)
 			break;
 
 		/* Now that we've collected a batch, do the tlbies */
-		if (!local) {
-			while(!try_lock_tlbie(&kvm->arch.tlbie_lock))
-				cpu_relax();
-			asm volatile("ptesync" : : : "memory");
-			for (k = 0; k < n; ++k)
-				asm volatile(PPC_TLBIE(%1,%0) : :
-					     "r" (tlbrb[k]),
-					     "r" (kvm->arch.lpid));
-			asm volatile("eieio; tlbsync; ptesync" : : : "memory");
-			kvm->arch.tlbie_lock = 0;
-		} else {
-			asm volatile("ptesync" : : : "memory");
-			for (k = 0; k < n; ++k)
-				asm volatile("tlbiel %0" : : "r" (tlbrb[k]));
-			asm volatile("ptesync" : : : "memory");
-		}
+		do_tlbies(kvm, tlbrb, n, global, true);
 
 		/* Read PTE low words after tlbie to get final R/C values */
 		for (k = 0; k < n; ++k) {
@@ -603,19 +649,7 @@ long kvmppc_h_protect(struct kvm_vcpu *vcpu, unsigned long flags,
 	if (v & HPTE_V_VALID) {
 		rb = compute_tlbie_rb(v, r, pte_index);
 		hpte[0] = v & ~HPTE_V_VALID;
-		if (global_invalidates(kvm, flags)) {
-			while(!try_lock_tlbie(&kvm->arch.tlbie_lock))
-				cpu_relax();
-			asm volatile("ptesync" : : : "memory");
-			asm volatile(PPC_TLBIE(%1,%0)"; eieio; tlbsync"
-				     : : "r" (rb), "r" (kvm->arch.lpid));
-			asm volatile("ptesync" : : : "memory");
-			kvm->arch.tlbie_lock = 0;
-		} else {
-			asm volatile("ptesync" : : : "memory");
-			asm volatile("tlbiel %0" : : "r" (rb));
-			asm volatile("ptesync" : : : "memory");
-		}
+		do_tlbies(kvm, &rb, 1, global_invalidates(kvm, flags), true);
 		/*
 		 * If the host has this page as readonly but the guest
 		 * wants to make it read/write, reduce the permissions.
@@ -686,13 +720,7 @@ void kvmppc_invalidate_hpte(struct kvm *kvm, unsigned long *hptep,
 
 	hptep[0] &= ~HPTE_V_VALID;
 	rb = compute_tlbie_rb(hptep[0], hptep[1], pte_index);
-	while (!try_lock_tlbie(&kvm->arch.tlbie_lock))
-		cpu_relax();
-	asm volatile("ptesync" : : : "memory");
-	asm volatile(PPC_TLBIE(%1,%0)"; eieio; tlbsync"
-		     : : "r" (rb), "r" (kvm->arch.lpid));
-	asm volatile("ptesync" : : : "memory");
-	kvm->arch.tlbie_lock = 0;
+	do_tlbies(kvm, &rb, 1, 1, true);
 }
 EXPORT_SYMBOL_GPL(kvmppc_invalidate_hpte);
 
@@ -706,12 +734,7 @@ void kvmppc_clear_ref_hpte(struct kvm *kvm, unsigned long *hptep,
 	rbyte = (hptep[1] & ~HPTE_R_R) >> 8;
 	/* modify only the second-last byte, which contains the ref bit */
 	*((char *)hptep + 14) = rbyte;
-	while (!try_lock_tlbie(&kvm->arch.tlbie_lock))
-		cpu_relax();
-	asm volatile(PPC_TLBIE(%1,%0)"; eieio; tlbsync"
-		     : : "r" (rb), "r" (kvm->arch.lpid));
-	asm volatile("ptesync" : : : "memory");
-	kvm->arch.tlbie_lock = 0;
+	do_tlbies(kvm, &rb, 1, 1, false);
 }
 EXPORT_SYMBOL_GPL(kvmppc_clear_ref_hpte);
 

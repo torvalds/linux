@@ -145,6 +145,16 @@ int boot_secondary(unsigned int cpu, struct task_struct *idle)
 	return -ENOSYS;
 }
 
+int platform_can_cpu_hotplug(void)
+{
+#ifdef CONFIG_HOTPLUG_CPU
+	if (smp_ops.cpu_kill)
+		return 1;
+#endif
+
+	return 0;
+}
+
 #ifdef CONFIG_HOTPLUG_CPU
 static void percpu_timer_stop(void);
 
@@ -388,17 +398,8 @@ asmlinkage void secondary_start_kernel(void)
 
 void __init smp_cpus_done(unsigned int max_cpus)
 {
-	int cpu;
-	unsigned long bogosum = 0;
-
-	for_each_online_cpu(cpu)
-		bogosum += per_cpu(cpu_data, cpu).loops_per_jiffy;
-
-	printk(KERN_INFO "SMP: Total of %d processors activated "
-	       "(%lu.%02lu BogoMIPS).\n",
-	       num_online_cpus(),
-	       bogosum / (500000/HZ),
-	       (bogosum / (5000/HZ)) % 100);
+	printk(KERN_INFO "SMP: Total of %d processors activated.\n",
+	       num_online_cpus());
 
 	hyp_mode_check();
 }

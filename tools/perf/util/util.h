@@ -80,6 +80,9 @@ extern char buildid_dir[];
 extern char tracing_events_path[];
 extern void perf_debugfs_set_path(const char *mountpoint);
 const char *perf_debugfs_mount(const char *mountpoint);
+const char *find_tracing_dir(void);
+char *get_tracing_file(const char *name);
+void put_tracing_file(char *file);
 
 /* On most systems <limits.h> would have given us this, but
  * not on some systems (e.g. GNU/Hurd).
@@ -204,6 +207,8 @@ static inline int has_extension(const char *filename, const char *ext)
 #ifndef NSEC_PER_MSEC
 #define NSEC_PER_MSEC	1000000L
 #endif
+
+int parse_nsec_time(const char *str, u64 *ptime);
 
 extern unsigned char sane_ctype[256];
 #define GIT_SPACE		0x01

@@ -2,7 +2,7 @@
  * A hwmon driver for the Analog Devices ADT7462
  * Copyright (C) 2008 IBM
  *
- * Author: Darrick J. Wong <djwong@us.ibm.com>
+ * Author: Darrick J. Wong <darrick.wong@oracle.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -333,7 +333,7 @@ static int ADT7462_REG_VOLT_MAX(struct adt7462_data *data, int which)
 			return 0x4C;
 		break;
 	}
-	return -ENODEV;
+	return 0;
 }
 
 static int ADT7462_REG_VOLT_MIN(struct adt7462_data *data, int which)
@@ -392,7 +392,7 @@ static int ADT7462_REG_VOLT_MIN(struct adt7462_data *data, int which)
 			return 0x77;
 		break;
 	}
-	return -ENODEV;
+	return 0;
 }
 
 static int ADT7462_REG_VOLT(struct adt7462_data *data, int which)
@@ -1970,6 +1970,6 @@ static int adt7462_remove(struct i2c_client *client)
 
 module_i2c_driver(adt7462_driver);
 
-MODULE_AUTHOR("Darrick J. Wong <djwong@us.ibm.com>");
+MODULE_AUTHOR("Darrick J. Wong <darrick.wong@oracle.com>");
 MODULE_DESCRIPTION("ADT7462 driver");
 MODULE_LICENSE("GPL");

@@ -96,8 +96,7 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <net/sock.h>
-
-#include "af_vsock.h"
+#include <net/af_vsock.h>
 
 static int __vsock_bind(struct sock *sk, struct sockaddr_vm *addr);
 static void vsock_sk_destruct(struct sock *sk);
@@ -347,7 +346,7 @@ void vsock_for_each_connected_socket(void (*fn)(struct sock *sk))
 	for (i = 0; i < ARRAY_SIZE(vsock_connected_table); i++) {
 		struct vsock_sock *vsk;
 		list_for_each_entry(vsk, &vsock_connected_table[i],
-				    connected_table);
+				    connected_table)
 			fn(sk_vsock(vsk));
 	}
 

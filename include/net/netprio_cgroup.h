@@ -25,11 +25,7 @@ struct netprio_map {
 	u32 priomap[];
 };
 
-struct cgroup_netprio_state {
-	struct cgroup_subsys_state css;
-};
-
-extern void sock_update_netprioidx(struct sock *sk);
+void sock_update_netprioidx(struct sock *sk);
 
 #if IS_BUILTIN(CONFIG_NETPRIO_CGROUP)
 
@@ -39,7 +35,7 @@ static inline u32 task_netprioidx(struct task_struct *p)
 	u32 idx;
 
 	rcu_read_lock();
-	css = task_subsys_state(p, net_prio_subsys_id);
+	css = task_css(p, net_prio_subsys_id);
 	idx = css->cgroup->id;
 	rcu_read_unlock();
 	return idx;
@@ -53,7 +49,7 @@ static inline u32 task_netprioidx(struct task_struct *p)
 	u32 idx = 0;
 
 	rcu_read_lock();
-	css = task_subsys_state(p, net_prio_subsys_id);
+	css = task_css(p, net_prio_subsys_id);
 	if (css)
 		idx = css->cgroup->id;
 	rcu_read_unlock();

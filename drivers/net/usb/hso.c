@@ -2816,13 +2816,16 @@ exit:
 static int hso_get_config_data(struct usb_interface *interface)
 {
 	struct usb_device *usbdev = interface_to_usbdev(interface);
-	u8 config_data[17];
+	u8 *config_data = kmalloc(17, GFP_KERNEL);
 	u32 if_num = interface->altsetting->desc.bInterfaceNumber;
 	s32 result;
 
+	if (!config_data)
+		return -ENOMEM;
 	if (usb_control_msg(usbdev, usb_rcvctrlpipe(usbdev, 0),
 			    0x86, 0xC0, 0, 0, config_data, 17,
 			    USB_CTRL_SET_TIMEOUT) != 0x11) {
+		kfree(config_data);
 		return -EIO;
 	}
 
@@ -2873,6 +2876,7 @@ static int hso_get_config_data(struct usb_interface *interface)
 	if (config_data[16] & 0x1)
 		result |= HSO_INFO_CRC_BUG;
 
+	kfree(config_data);
 	return result;
 }
 
@@ -2886,6 +2890,11 @@ static int hso_probe(struct usb_interface *interface,
 	struct hso_shared_int *shared_int;
 	struct hso_device *tmp_dev = NULL;
 
+	if (interface->cur_altsetting->desc.bInterfaceClass != 0xFF) {
+		dev_err(&interface->dev, "Not our interface\n");
+		return -ENODEV;
+	}
+
 	if_num = interface->altsetting->desc.bInterfaceNumber;
 
 	/* Get the interface/port specification from either driver_info or from
@@ -2895,10 +2904,6 @@ static int hso_probe(struct usb_interface *interface,
 	else
 		port_spec = hso_get_config_data(interface);
 
-	if (interface->cur_altsetting->desc.bInterfaceClass != 0xFF) {
-		dev_err(&interface->dev, "Not our interface\n");
-		return -ENODEV;
-	}
 	/* Check if we need to switch to alt interfaces prior to port
 	 * configuration */
 	if (interface->num_altsetting > 1)

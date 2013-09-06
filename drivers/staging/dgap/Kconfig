@@ -1,0 +1,6 @@
+config DGAP
+       tristate "Digi EPCA PCI products"
+       default n
+       depends on TTY
+       ---help---
+       Driver for the Digi International EPCA PCI based product line

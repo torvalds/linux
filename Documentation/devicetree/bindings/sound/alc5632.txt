@@ -13,6 +13,25 @@ Required properties:
   - #gpio-cells : Should be two. The first cell is the pin number and the
     second cell is used to specify optional parameters (currently unused).
 
+Pins on the device (for linking into audio routes):
+
+  * SPK_OUTP
+  * SPK_OUTN
+  * HP_OUT_L
+  * HP_OUT_R
+  * AUX_OUT_P
+  * AUX_OUT_N
+  * LINE_IN_L
+  * LINE_IN_R
+  * PHONE_P
+  * PHONE_N
+  * MIC1_P
+  * MIC1_N
+  * MIC2_P
+  * MIC2_N
+  * MICBIAS1
+  * DMICDAT
+
 Example:
 
 alc5632: alc5632@1e {

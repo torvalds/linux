@@ -176,7 +176,7 @@ static int __init samsungq10_init(void)
 						   samsungq10_probe,
 						   NULL, 0, NULL, 0);
 
-	return PTR_RET(samsungq10_device);
+	return PTR_ERR_OR_ZERO(samsungq10_device);
 }
 
 static void __exit samsungq10_exit(void)

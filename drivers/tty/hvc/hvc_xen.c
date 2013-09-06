@@ -208,7 +208,7 @@ static int xen_hvm_console_init(void)
 
 	info = vtermno_to_xencons(HVC_COOKIE);
 	if (!info) {
-		info = kzalloc(sizeof(struct xencons_info), GFP_KERNEL | __GFP_ZERO);
+		info = kzalloc(sizeof(struct xencons_info), GFP_KERNEL);
 		if (!info)
 			return -ENOMEM;
 	} else if (info->intf != NULL) {
@@ -257,7 +257,7 @@ static int xen_pv_console_init(void)
 
 	info = vtermno_to_xencons(HVC_COOKIE);
 	if (!info) {
-		info = kzalloc(sizeof(struct xencons_info), GFP_KERNEL | __GFP_ZERO);
+		info = kzalloc(sizeof(struct xencons_info), GFP_KERNEL);
 		if (!info)
 			return -ENOMEM;
 	} else if (info->intf != NULL) {
@@ -284,7 +284,7 @@ static int xen_initial_domain_console_init(void)
 
 	info = vtermno_to_xencons(HVC_COOKIE);
 	if (!info) {
-		info = kzalloc(sizeof(struct xencons_info), GFP_KERNEL | __GFP_ZERO);
+		info = kzalloc(sizeof(struct xencons_info), GFP_KERNEL);
 		if (!info)
 			return -ENOMEM;
 	}

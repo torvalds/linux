@@ -54,7 +54,7 @@
 
 #include <net/busy_poll.h>
 
-#ifdef CONFIG_NET_LL_RX_POLL
+#ifdef CONFIG_NET_RX_BUSY_POLL
 #define LL_EXTENDED_STATS
 #endif
 /* common prefix used by pr_<> macros */
@@ -366,7 +366,7 @@ struct ixgbe_q_vector {
 	struct rcu_head rcu;	/* to avoid race with update stats on free */
 	char name[IFNAMSIZ + 9];
 
-#ifdef CONFIG_NET_LL_RX_POLL
+#ifdef CONFIG_NET_RX_BUSY_POLL
 	unsigned int state;
 #define IXGBE_QV_STATE_IDLE        0
 #define IXGBE_QV_STATE_NAPI	   1    /* NAPI owns this QV */
@@ -377,12 +377,12 @@ struct ixgbe_q_vector {
 #define IXGBE_QV_YIELD (IXGBE_QV_STATE_NAPI_YIELD | IXGBE_QV_STATE_POLL_YIELD)
 #define IXGBE_QV_USER_PEND (IXGBE_QV_STATE_POLL | IXGBE_QV_STATE_POLL_YIELD)
 	spinlock_t lock;
-#endif  /* CONFIG_NET_LL_RX_POLL */
+#endif  /* CONFIG_NET_RX_BUSY_POLL */
 
 	/* for dynamic allocation of rings associated with this q_vector */
 	struct ixgbe_ring ring[0] ____cacheline_internodealigned_in_smp;
 };
-#ifdef CONFIG_NET_LL_RX_POLL
+#ifdef CONFIG_NET_RX_BUSY_POLL
 static inline void ixgbe_qv_init_lock(struct ixgbe_q_vector *q_vector)
 {
 
@@ -462,7 +462,7 @@ static inline bool ixgbe_qv_ll_polling(struct ixgbe_q_vector *q_vector)
 	WARN_ON(!(q_vector->state & IXGBE_QV_LOCKED));
 	return q_vector->state & IXGBE_QV_USER_PEND;
 }
-#else /* CONFIG_NET_LL_RX_POLL */
+#else /* CONFIG_NET_RX_BUSY_POLL */
 static inline void ixgbe_qv_init_lock(struct ixgbe_q_vector *q_vector)
 {
 }
@@ -491,7 +491,7 @@ static inline bool ixgbe_qv_ll_polling(struct ixgbe_q_vector *q_vector)
 {
 	return false;
 }
-#endif /* CONFIG_NET_LL_RX_POLL */
+#endif /* CONFIG_NET_RX_BUSY_POLL */
 
 #ifdef CONFIG_IXGBE_HWMON
 
@@ -618,9 +618,8 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG2_FDIR_REQUIRES_REINIT        (u32)(1 << 7)
 #define IXGBE_FLAG2_RSS_FIELD_IPV4_UDP		(u32)(1 << 8)
 #define IXGBE_FLAG2_RSS_FIELD_IPV6_UDP		(u32)(1 << 9)
-#define IXGBE_FLAG2_PTP_ENABLED			(u32)(1 << 10)
-#define IXGBE_FLAG2_PTP_PPS_ENABLED		(u32)(1 << 11)
-#define IXGBE_FLAG2_BRIDGE_MODE_VEB		(u32)(1 << 12)
+#define IXGBE_FLAG2_PTP_PPS_ENABLED		(u32)(1 << 10)
+#define IXGBE_FLAG2_BRIDGE_MODE_VEB		(u32)(1 << 11)
 
 	/* Tx fast path data */
 	int num_tx_queues;
@@ -754,7 +753,7 @@ enum ixgbe_state_t {
 	__IXGBE_DOWN,
 	__IXGBE_SERVICE_SCHED,
 	__IXGBE_IN_SFP_INIT,
-	__IXGBE_READ_I2C,
+	__IXGBE_PTP_RUNNING,
 };
 
 struct ixgbe_cb {

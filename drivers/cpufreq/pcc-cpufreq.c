@@ -587,7 +587,6 @@ static struct cpufreq_driver pcc_cpufreq_driver = {
 	.init = pcc_cpufreq_cpu_init,
 	.exit = pcc_cpufreq_cpu_exit,
 	.name = "pcc-cpufreq",
-	.owner = THIS_MODULE,
 };
 
 static int __init pcc_cpufreq_init(void)

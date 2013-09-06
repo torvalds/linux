@@ -124,25 +124,26 @@ You add non-menu controls by calling v4l2_ctrl_new_std:
 			const struct v4l2_ctrl_ops *ops,
 			u32 id, s32 min, s32 max, u32 step, s32 def);
 
-Menu controls are added by calling v4l2_ctrl_new_std_menu:
+Menu and integer menu controls are added by calling v4l2_ctrl_new_std_menu:
 
 	struct v4l2_ctrl *v4l2_ctrl_new_std_menu(struct v4l2_ctrl_handler *hdl,
 			const struct v4l2_ctrl_ops *ops,
 			u32 id, s32 max, s32 skip_mask, s32 def);
 
-Or alternatively for integer menu controls, by calling v4l2_ctrl_new_int_menu:
+Menu controls with a driver specific menu are added by calling
+v4l2_ctrl_new_std_menu_items:
+
+       struct v4l2_ctrl *v4l2_ctrl_new_std_menu_items(
+                       struct v4l2_ctrl_handler *hdl,
+                       const struct v4l2_ctrl_ops *ops, u32 id, s32 max,
+                       s32 skip_mask, s32 def, const char * const *qmenu);
+
+Integer menu controls with a driver specific menu can be added by calling
+v4l2_ctrl_new_int_menu:
 
 	struct v4l2_ctrl *v4l2_ctrl_new_int_menu(struct v4l2_ctrl_handler *hdl,
 			const struct v4l2_ctrl_ops *ops,
 			u32 id, s32 max, s32 def, const s64 *qmenu_int);
-
-Standard menu controls with a driver specific menu are added by calling
-v4l2_ctrl_new_std_menu_items:
-
-	struct v4l2_ctrl *v4l2_ctrl_new_std_menu_items(
-		struct v4l2_ctrl_handler *hdl,
-		const struct v4l2_ctrl_ops *ops, u32 id, s32 max,
-		s32 skip_mask, s32 def, const char * const *qmenu);
 
 These functions are typically called right after the v4l2_ctrl_handler_init:
 

@@ -154,7 +154,7 @@ static int pnp_bus_match(struct device *dev, struct device_driver *drv)
 	return 1;
 }
 
-static int pnp_bus_suspend(struct device *dev, pm_message_t state)
+static int __pnp_bus_suspend(struct device *dev, pm_message_t state)
 {
 	struct pnp_dev *pnp_dev = to_pnp_dev(dev);
 	struct pnp_driver *pnp_drv = pnp_dev->driver;
@@ -178,6 +178,16 @@ static int pnp_bus_suspend(struct device *dev, pm_message_t state)
 	if (pnp_dev->protocol->suspend)
 		pnp_dev->protocol->suspend(pnp_dev, state);
 	return 0;
+}
+
+static int pnp_bus_suspend(struct device *dev)
+{
+	return __pnp_bus_suspend(dev, PMSG_SUSPEND);
+}
+
+static int pnp_bus_freeze(struct device *dev)
+{
+	return __pnp_bus_suspend(dev, PMSG_FREEZE);
 }
 
 static int pnp_bus_resume(struct device *dev)
@@ -210,14 +220,19 @@ static int pnp_bus_resume(struct device *dev)
 	return 0;
 }
 
+static const struct dev_pm_ops pnp_bus_dev_pm_ops = {
+	.suspend = pnp_bus_suspend,
+	.freeze = pnp_bus_freeze,
+	.resume = pnp_bus_resume,
+};
+
 struct bus_type pnp_bus_type = {
 	.name    = "pnp",
 	.match   = pnp_bus_match,
 	.probe   = pnp_device_probe,
 	.remove  = pnp_device_remove,
 	.shutdown = pnp_device_shutdown,
-	.suspend = pnp_bus_suspend,
-	.resume  = pnp_bus_resume,
+	.pm	 = &pnp_bus_dev_pm_ops,
 	.dev_attrs = pnp_interface_attrs,
 };
 

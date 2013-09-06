@@ -51,6 +51,7 @@ struct hw_sb_info {
 #define VFPF_QUEUE_FLG_COS		0x0080
 #define VFPF_QUEUE_FLG_HC		0x0100
 #define VFPF_QUEUE_FLG_DHC		0x0200
+#define VFPF_QUEUE_FLG_LEADING_RSS	0x0400
 
 #define VFPF_QUEUE_DROP_IP_CS_ERR	(1 << 0)
 #define VFPF_QUEUE_DROP_TCP_CS_ERR	(1 << 1)
@@ -131,6 +132,27 @@ struct vfpf_q_op_tlv {
 	u8 padding[3];
 };
 
+/* receive side scaling tlv */
+struct vfpf_rss_tlv {
+	struct vfpf_first_tlv	first_tlv;
+	u32			rss_flags;
+#define VFPF_RSS_MODE_DISABLED	(1 << 0)
+#define VFPF_RSS_MODE_REGULAR	(1 << 1)
+#define VFPF_RSS_SET_SRCH	(1 << 2)
+#define VFPF_RSS_IPV4		(1 << 3)
+#define VFPF_RSS_IPV4_TCP	(1 << 4)
+#define VFPF_RSS_IPV4_UDP	(1 << 5)
+#define VFPF_RSS_IPV6		(1 << 6)
+#define VFPF_RSS_IPV6_TCP	(1 << 7)
+#define VFPF_RSS_IPV6_UDP	(1 << 8)
+	u8			rss_result_mask;
+	u8			ind_table_size;
+	u8			rss_key_size;
+	u8			padding;
+	u8			ind_table[T_ETH_INDIRECTION_TABLE_SIZE];
+	u32			rss_key[T_ETH_RSS_KEY];	/* hash values */
+};
+
 /* acquire response tlv - carries the allocated resources */
 struct pfvf_acquire_resp_tlv {
 	struct pfvf_tlv hdr;
@@ -166,12 +188,20 @@ struct pfvf_acquire_resp_tlv {
 	} resc;
 };
 
+#define VFPF_INIT_FLG_STATS_COALESCE	(1 << 0) /* when set the VFs queues
+						  * stats will be coalesced on
+						  * the leading RSS queue
+						  */
+
 /* Init VF */
 struct vfpf_init_tlv {
 	struct vfpf_first_tlv first_tlv;
 	aligned_u64 sb_addr[PFVF_MAX_SBS_PER_VF]; /* vf_sb based */
 	aligned_u64 spq_addr;
 	aligned_u64 stats_addr;
+	u16 stats_stride;
+	u32 flags;
+	u32 padding[2];
 };
 
 /* Setup Queue */
@@ -293,13 +323,14 @@ union vfpf_tlvs {
 	struct vfpf_q_op_tlv		q_op;
 	struct vfpf_setup_q_tlv		setup_q;
 	struct vfpf_set_q_filters_tlv	set_q_filters;
-	struct vfpf_release_tlv         release;
-	struct channel_list_end_tlv     list_end;
+	struct vfpf_release_tlv		release;
+	struct vfpf_rss_tlv		update_rss;
+	struct channel_list_end_tlv	list_end;
 	struct tlv_buffer_size		tlv_buf_size;
 };
 
 union pfvf_tlvs {
-	struct pfvf_general_resp_tlv    general_resp;
+	struct pfvf_general_resp_tlv	general_resp;
 	struct pfvf_acquire_resp_tlv	acquire_resp;
 	struct channel_list_end_tlv	list_end;
 	struct tlv_buffer_size		tlv_buf_size;
@@ -355,14 +386,18 @@ enum channel_tlvs {
 	CHANNEL_TLV_INIT,
 	CHANNEL_TLV_SETUP_Q,
 	CHANNEL_TLV_SET_Q_FILTERS,
+	CHANNEL_TLV_ACTIVATE_Q,
+	CHANNEL_TLV_DEACTIVATE_Q,
 	CHANNEL_TLV_TEARDOWN_Q,
 	CHANNEL_TLV_CLOSE,
 	CHANNEL_TLV_RELEASE,
+	CHANNEL_TLV_UPDATE_RSS_DEPRECATED,
 	CHANNEL_TLV_PF_RELEASE_VF,
 	CHANNEL_TLV_LIST_END,
 	CHANNEL_TLV_FLR,
 	CHANNEL_TLV_PF_SET_MAC,
 	CHANNEL_TLV_PF_SET_VLAN,
+	CHANNEL_TLV_UPDATE_RSS,
 	CHANNEL_TLV_MAX
 };
 

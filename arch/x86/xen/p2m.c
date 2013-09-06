@@ -161,6 +161,7 @@
 #include <asm/xen/page.h>
 #include <asm/xen/hypercall.h>
 #include <asm/xen/hypervisor.h>
+#include <xen/balloon.h>
 #include <xen/grant_table.h>
 
 #include "multicalls.h"
@@ -967,7 +968,10 @@ int m2p_remove_override(struct page *page,
 	if (kmap_op != NULL) {
 		if (!PageHighMem(page)) {
 			struct multicall_space mcs;
-			struct gnttab_unmap_grant_ref *unmap_op;
+			struct gnttab_unmap_and_replace *unmap_op;
+			struct page *scratch_page = get_balloon_scratch_page();
+			unsigned long scratch_page_address = (unsigned long)
+				__va(page_to_pfn(scratch_page) << PAGE_SHIFT);
 
 			/*
 			 * It might be that we queued all the m2p grant table
@@ -990,21 +994,25 @@ int m2p_remove_override(struct page *page,
 			}
 
 			mcs = xen_mc_entry(
-					sizeof(struct gnttab_unmap_grant_ref));
+					sizeof(struct gnttab_unmap_and_replace));
 			unmap_op = mcs.args;
 			unmap_op->host_addr = kmap_op->host_addr;
+			unmap_op->new_addr = scratch_page_address;
 			unmap_op->handle = kmap_op->handle;
-			unmap_op->dev_bus_addr = 0;
 
 			MULTI_grant_table_op(mcs.mc,
-					GNTTABOP_unmap_grant_ref, unmap_op, 1);
+					GNTTABOP_unmap_and_replace, unmap_op, 1);
 
 			xen_mc_issue(PARAVIRT_LAZY_MMU);
 
-			set_pte_at(&init_mm, address, ptep,
-					pfn_pte(pfn, PAGE_KERNEL));
-			__flush_tlb_single(address);
+			mcs = __xen_mc_entry(0);
+			MULTI_update_va_mapping(mcs.mc, scratch_page_address,
+					pfn_pte(page_to_pfn(get_balloon_scratch_page()),
+					PAGE_KERNEL_RO), 0);
+			xen_mc_issue(PARAVIRT_LAZY_MMU);
+
 			kmap_op->host_addr = 0;
+			put_balloon_scratch_page();
 		}
 	}
 

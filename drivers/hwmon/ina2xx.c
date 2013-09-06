@@ -232,9 +232,9 @@ static int ina2xx_probe(struct i2c_client *client,
 	if (!data)
 		return -ENOMEM;
 
-	if (client->dev.platform_data) {
+	if (dev_get_platdata(&client->dev)) {
 		pdata =
-		  (struct ina2xx_platform_data *)client->dev.platform_data;
+		  (struct ina2xx_platform_data *)dev_get_platdata(&client->dev);
 		shunt = pdata->shunt_uohms;
 	} else if (!of_property_read_u32(client->dev.of_node,
 				"shunt-resistor", &val)) {

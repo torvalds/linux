@@ -86,6 +86,7 @@ extern int acpi_pci_disabled;
 extern int acpi_skip_timer_override;
 extern int acpi_use_timer_override;
 extern int acpi_fix_pin2_polarity;
+extern int acpi_disable_cmcff;
 
 extern u8 acpi_sci_flags;
 extern int acpi_sci_override_gsi;
@@ -168,6 +169,7 @@ static inline void arch_acpi_set_pdc_bits(u32 *buf)
 
 #define acpi_lapic 0
 #define acpi_ioapic 0
+#define acpi_disable_cmcff 0
 static inline void acpi_noirq_set(void) { }
 static inline void acpi_disable_pci(void) { }
 static inline void disable_acpi(void) { }

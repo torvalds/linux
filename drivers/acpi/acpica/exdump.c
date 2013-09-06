@@ -338,6 +338,7 @@ acpi_ex_dump_object(union acpi_operand_object *obj_desc,
 {
 	u8 *target;
 	char *name;
+	const char *reference_name;
 	u8 count;
 
 	if (!info) {
@@ -426,10 +427,9 @@ acpi_ex_dump_object(union acpi_operand_object *obj_desc,
 
 		case ACPI_EXD_REFERENCE:
 
+			reference_name = acpi_ut_get_reference_name(obj_desc);
 			acpi_ex_out_string("Class Name",
-					   ACPI_CAST_PTR(char,
-							 acpi_ut_get_reference_name
-							 (obj_desc)));
+					   ACPI_CAST_PTR(char, reference_name));
 			acpi_ex_dump_reference_obj(obj_desc);
 			break;
 

@@ -212,7 +212,9 @@ static void qxl_evict_flags(struct ttm_buffer_object *bo,
 
 static int qxl_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 {
-	return 0;
+	struct qxl_bo *qbo = to_qxl_bo(bo);
+
+	return drm_vma_node_verify_access(&qbo->gem_base.vma_node, filp);
 }
 
 static int qxl_ttm_io_mem_reserve(struct ttm_bo_device *bdev,

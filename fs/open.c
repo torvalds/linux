@@ -485,14 +485,13 @@ out_unlock:
 
 SYSCALL_DEFINE2(fchmod, unsigned int, fd, umode_t, mode)
 {
-	struct file * file;
+	struct fd f = fdget(fd);
 	int err = -EBADF;
 
-	file = fget(fd);
-	if (file) {
-		audit_inode(NULL, file->f_path.dentry, 0);
-		err = chmod_common(&file->f_path, mode);
-		fput(file);
+	if (f.file) {
+		audit_inode(NULL, f.file->f_path.dentry, 0);
+		err = chmod_common(&f.file->f_path, mode);
+		fdput(f);
 	}
 	return err;
 }
@@ -823,7 +822,7 @@ static inline int build_open_flags(int flags, umode_t mode, struct open_flags *o
 	int lookup_flags = 0;
 	int acc_mode;
 
-	if (flags & O_CREAT)
+	if (flags & (O_CREAT | __O_TMPFILE))
 		op->mode = (mode & S_IALLUGO) | S_IFREG;
 	else
 		op->mode = 0;

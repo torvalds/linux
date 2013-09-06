@@ -40,8 +40,10 @@
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/gpio.h>
-#include <linux/pinctrl/consumer.h>
+#include <linux/of_gpio.h>
 #include <linux/platform_data/serial-omap.h>
+
+#include <dt-bindings/gpio/gpio.h>
 
 #define OMAP_MAX_HSUART_PORTS	6
 
@@ -51,6 +53,11 @@
 #define OMAP_UART_REV_46 0x0406
 #define OMAP_UART_REV_52 0x0502
 #define OMAP_UART_REV_63 0x0603
+
+#define OMAP_UART_TX_WAKEUP_EN		BIT(7)
+
+/* Feature flags */
+#define OMAP_UART_WER_HAS_TX_WAKEUP	BIT(0)
 
 #define UART_ERRATA_i202_MDR1_ACCESS	BIT(0)
 #define UART_ERRATA_i291_DMA_FORCEIDLE	BIT(1)
@@ -137,6 +144,7 @@ struct uart_omap_port {
 	unsigned char		dlh;
 	unsigned char		mdr1;
 	unsigned char		scr;
+	unsigned char		wer;
 
 	int			use_dma;
 	/*
@@ -151,16 +159,19 @@ struct uart_omap_port {
 	int			context_loss_cnt;
 	u32			errata;
 	u8			wakeups_enabled;
+	u32			features;
 
 	int			DTR_gpio;
 	int			DTR_inverted;
 	int			DTR_active;
 
+	struct serial_rs485	rs485;
+	int			rts_gpio;
+
 	struct pm_qos_request	pm_qos_request;
 	u32			latency;
 	u32			calc_latency;
 	struct work_struct	qos_work;
-	struct pinctrl		*pins;
 	bool			is_suspending;
 };
 
@@ -195,7 +206,7 @@ static inline void serial_omap_clear_fifos(struct uart_omap_port *up)
 
 static int serial_omap_get_context_loss_count(struct uart_omap_port *up)
 {
-	struct omap_uart_port_info *pdata = up->dev->platform_data;
+	struct omap_uart_port_info *pdata = dev_get_platdata(up->dev);
 
 	if (!pdata || !pdata->get_context_loss_count)
 		return -EINVAL;
@@ -205,7 +216,7 @@ static int serial_omap_get_context_loss_count(struct uart_omap_port *up)
 
 static void serial_omap_enable_wakeup(struct uart_omap_port *up, bool enable)
 {
-	struct omap_uart_port_info *pdata = up->dev->platform_data;
+	struct omap_uart_port_info *pdata = dev_get_platdata(up->dev);
 
 	if (!pdata || !pdata->enable_wakeup)
 		return;
@@ -272,10 +283,39 @@ static void serial_omap_enable_ms(struct uart_port *port)
 static void serial_omap_stop_tx(struct uart_port *port)
 {
 	struct uart_omap_port *up = to_uart_omap_port(port);
+	struct circ_buf *xmit = &up->port.state->xmit;
+	int res;
 
 	pm_runtime_get_sync(up->dev);
+
+	/* handle rs485 */
+	if (up->rs485.flags & SER_RS485_ENABLED) {
+		/* do nothing if current tx not yet completed */
+		res = serial_in(up, UART_LSR) & UART_LSR_TEMT;
+		if (!res)
+			return;
+
+		/* if there's no more data to send, turn off rts */
+		if (uart_circ_empty(xmit)) {
+			/* if rts not already disabled */
+			res = (up->rs485.flags & SER_RS485_RTS_AFTER_SEND) ? 1 : 0;
+			if (gpio_get_value(up->rts_gpio) != res) {
+				if (up->rs485.delay_rts_after_send > 0) {
+					mdelay(up->rs485.delay_rts_after_send);
+				}
+				gpio_set_value(up->rts_gpio, res);
+			}
+		}
+	}
+
 	if (up->ier & UART_IER_THRI) {
 		up->ier &= ~UART_IER_THRI;
+		serial_out(up, UART_IER, up->ier);
+	}
+
+	if ((up->rs485.flags & SER_RS485_ENABLED) &&
+	    !(up->rs485.flags & SER_RS485_RX_DURING_TX)) {
+		up->ier = UART_IER_RLSI | UART_IER_RDI;
 		serial_out(up, UART_IER, up->ier);
 	}
 
@@ -340,8 +380,26 @@ static inline void serial_omap_enable_ier_thri(struct uart_omap_port *up)
 static void serial_omap_start_tx(struct uart_port *port)
 {
 	struct uart_omap_port *up = to_uart_omap_port(port);
+	int res;
 
 	pm_runtime_get_sync(up->dev);
+
+	/* handle rs485 */
+	if (up->rs485.flags & SER_RS485_ENABLED) {
+		/* if rts not already enabled */
+		res = (up->rs485.flags & SER_RS485_RTS_ON_SEND) ? 1 : 0;
+		if (gpio_get_value(up->rts_gpio) != res) {
+			gpio_set_value(up->rts_gpio, res);
+			if (up->rs485.delay_rts_before_send > 0) {
+				mdelay(up->rs485.delay_rts_before_send);
+			}
+		}
+	}
+
+	if ((up->rs485.flags & SER_RS485_ENABLED) &&
+	    !(up->rs485.flags & SER_RS485_RX_DURING_TX))
+		serial_omap_stop_rx(port);
+
 	serial_omap_enable_ier_thri(up);
 	pm_runtime_mark_last_busy(up->dev);
 	pm_runtime_put_autosuspend(up->dev);
@@ -683,7 +741,11 @@ static int serial_omap_startup(struct uart_port *port)
 	serial_out(up, UART_IER, up->ier);
 
 	/* Enable module level wake up */
-	serial_out(up, UART_OMAP_WER, OMAP_UART_WER_MOD_WKUP);
+	up->wer = OMAP_UART_WER_MOD_WKUP;
+	if (up->features & OMAP_UART_WER_HAS_TX_WAKEUP)
+		up->wer |= OMAP_UART_TX_WAKEUP_EN;
+
+	serial_out(up, UART_OMAP_WER, up->wer);
 
 	pm_runtime_mark_last_busy(up->dev);
 	pm_runtime_put_autosuspend(up->dev);
@@ -1254,6 +1316,76 @@ static inline void serial_omap_add_console_port(struct uart_omap_port *up)
 
 #endif
 
+/* Enable or disable the rs485 support */
+static void
+serial_omap_config_rs485(struct uart_port *port, struct serial_rs485 *rs485conf)
+{
+	struct uart_omap_port *up = to_uart_omap_port(port);
+	unsigned long flags;
+	unsigned int mode;
+	int val;
+
+	pm_runtime_get_sync(up->dev);
+	spin_lock_irqsave(&up->port.lock, flags);
+
+	/* Disable interrupts from this port */
+	mode = up->ier;
+	up->ier = 0;
+	serial_out(up, UART_IER, 0);
+
+	/* store new config */
+	up->rs485 = *rs485conf;
+
+	/*
+	 * Just as a precaution, only allow rs485
+	 * to be enabled if the gpio pin is valid
+	 */
+	if (gpio_is_valid(up->rts_gpio)) {
+		/* enable / disable rts */
+		val = (up->rs485.flags & SER_RS485_ENABLED) ?
+			SER_RS485_RTS_AFTER_SEND : SER_RS485_RTS_ON_SEND;
+		val = (up->rs485.flags & val) ? 1 : 0;
+		gpio_set_value(up->rts_gpio, val);
+	} else
+		up->rs485.flags &= ~SER_RS485_ENABLED;
+
+	/* Enable interrupts */
+	up->ier = mode;
+	serial_out(up, UART_IER, up->ier);
+
+	spin_unlock_irqrestore(&up->port.lock, flags);
+	pm_runtime_mark_last_busy(up->dev);
+	pm_runtime_put_autosuspend(up->dev);
+}
+
+static int
+serial_omap_ioctl(struct uart_port *port, unsigned int cmd, unsigned long arg)
+{
+	struct serial_rs485 rs485conf;
+
+	switch (cmd) {
+	case TIOCSRS485:
+		if (copy_from_user(&rs485conf, (struct serial_rs485 *) arg,
+					sizeof(rs485conf)))
+			return -EFAULT;
+
+		serial_omap_config_rs485(port, &rs485conf);
+		break;
+
+	case TIOCGRS485:
+		if (copy_to_user((struct serial_rs485 *) arg,
+					&(to_uart_omap_port(port)->rs485),
+					sizeof(rs485conf)))
+			return -EFAULT;
+		break;
+
+	default:
+		return -ENOIOCTLCMD;
+	}
+	return 0;
+}
+
+
 static struct uart_ops serial_omap_pops = {
 	.tx_empty	= serial_omap_tx_empty,
 	.set_mctrl	= serial_omap_set_mctrl,
@@ -1275,6 +1407,7 @@ static struct uart_ops serial_omap_pops = {
 	.request_port	= serial_omap_request_port,
 	.config_port	= serial_omap_config_port,
 	.verify_port	= serial_omap_verify_port,
+	.ioctl		= serial_omap_ioctl,
 #ifdef CONFIG_CONSOLE_POLL
 	.poll_put_char  = serial_omap_poll_put_char,
 	.poll_get_char  = serial_omap_poll_get_char,
@@ -1334,7 +1467,7 @@ static void omap_serial_fill_features_erratas(struct uart_omap_port *up)
 	u32 mvr, scheme;
 	u16 revision, major, minor;
 
-	mvr = serial_in(up, UART_OMAP_MVER);
+	mvr = readl(up->port.membase + (UART_OMAP_MVER << up->port.regshift));
 
 	/* Check revision register scheme */
 	scheme = mvr >> OMAP_UART_MVR_SCHEME_SHIFT;
@@ -1373,9 +1506,11 @@ static void omap_serial_fill_features_erratas(struct uart_omap_port *up)
 	case OMAP_UART_REV_52:
 		up->errata |= (UART_ERRATA_i202_MDR1_ACCESS |
 				UART_ERRATA_i291_DMA_FORCEIDLE);
+		up->features |= OMAP_UART_WER_HAS_TX_WAKEUP;
 		break;
 	case OMAP_UART_REV_63:
 		up->errata |= UART_ERRATA_i202_MDR1_ACCESS;
+		up->features |= OMAP_UART_WER_HAS_TX_WAKEUP;
 		break;
 	default:
 		break;
@@ -1395,15 +1530,64 @@ static struct omap_uart_port_info *of_get_uart_port_info(struct device *dev)
 	return omap_up_info;
 }
 
+static int serial_omap_probe_rs485(struct uart_omap_port *up,
+				   struct device_node *np)
+{
+	struct serial_rs485 *rs485conf = &up->rs485;
+	u32 rs485_delay[2];
+	enum of_gpio_flags flags;
+	int ret;
+
+	rs485conf->flags = 0;
+	up->rts_gpio = -EINVAL;
+
+	if (!np)
+		return 0;
+
+	if (of_property_read_bool(np, "rs485-rts-active-high"))
+		rs485conf->flags |= SER_RS485_RTS_ON_SEND;
+	else
+		rs485conf->flags |= SER_RS485_RTS_AFTER_SEND;
+
+	/* check for tx enable gpio */
+	up->rts_gpio = of_get_named_gpio_flags(np, "rts-gpio", 0, &flags);
+	if (gpio_is_valid(up->rts_gpio)) {
+		ret = gpio_request(up->rts_gpio, "omap-serial");
+		if (ret < 0)
+			return ret;
+		ret = gpio_direction_output(up->rts_gpio,
+					    flags & SER_RS485_RTS_AFTER_SEND);
+		if (ret < 0)
+			return ret;
+	} else
+		up->rts_gpio = -EINVAL;
+
+	if (of_property_read_u32_array(np, "rs485-rts-delay",
+				    rs485_delay, 2) == 0) {
+		rs485conf->delay_rts_before_send = rs485_delay[0];
+		rs485conf->delay_rts_after_send = rs485_delay[1];
+	}
+
+	if (of_property_read_bool(np, "rs485-rx-during-tx"))
+		rs485conf->flags |= SER_RS485_RX_DURING_TX;
+
+	if (of_property_read_bool(np, "linux,rs485-enabled-at-boot-time"))
+		rs485conf->flags |= SER_RS485_ENABLED;
+
+	return 0;
+}
+
 static int serial_omap_probe(struct platform_device *pdev)
 {
 	struct uart_omap_port	*up;
 	struct resource		*mem, *irq;
-	struct omap_uart_port_info *omap_up_info = pdev->dev.platform_data;
+	struct omap_uart_port_info *omap_up_info = dev_get_platdata(&pdev->dev);
 	int ret;
 
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_node) {
 		omap_up_info = of_get_uart_port_info(&pdev->dev);
+		pdev->dev.platform_data = omap_up_info;
+	}
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem) {
@@ -1468,12 +1652,9 @@ static int serial_omap_probe(struct platform_device *pdev)
 		goto err_port_line;
 	}
 
-	up->pins = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(up->pins)) {
-		dev_warn(&pdev->dev, "did not get pins for uart%i error: %li\n",
-			 up->port.line, PTR_ERR(up->pins));
-		up->pins = NULL;
-	}
+	ret = serial_omap_probe_rs485(up, pdev->dev.of_node);
+	if (ret < 0)
+		goto err_rs485;
 
 	sprintf(up->name, "OMAP UART%d", up->port.line);
 	up->port.mapbase = mem->start;
@@ -1501,7 +1682,6 @@ static int serial_omap_probe(struct platform_device *pdev)
 	INIT_WORK(&up->qos_work, serial_omap_uart_qos_work);
 
 	platform_set_drvdata(pdev, up);
-	pm_runtime_enable(&pdev->dev);
 	if (omap_up_info->autosuspend_timeout == 0)
 		omap_up_info->autosuspend_timeout = -1;
 	device_init_wakeup(up->dev, true);
@@ -1510,6 +1690,8 @@ static int serial_omap_probe(struct platform_device *pdev)
 			omap_up_info->autosuspend_timeout);
 
 	pm_runtime_irq_safe(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+
 	pm_runtime_get_sync(&pdev->dev);
 
 	omap_serial_fill_features_erratas(up);
@@ -1529,6 +1711,7 @@ err_add_port:
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 err_ioremap:
+err_rs485:
 err_port_line:
 	dev_err(&pdev->dev, "[UART%d]: failure [%s]: %d\n",
 				pdev->id, __func__, ret);
@@ -1609,6 +1792,7 @@ static void serial_omap_restore_context(struct uart_omap_port *up)
 		serial_omap_mdr1_errataset(up, up->mdr1);
 	else
 		serial_out(up, UART_OMAP_MDR1, up->mdr1);
+	serial_out(up, UART_OMAP_WER, up->wer);
 }
 
 static int serial_omap_runtime_suspend(struct device *dev)

@@ -119,7 +119,7 @@ extern struct ndisc_options *ndisc_parse_options(u8 *opt, int opt_len,
  * if RFC 3831 IPv6-over-Fibre Channel is ever implemented it may
  * also need a pad of 2.
  */
-static int ndisc_addr_option_pad(unsigned short type)
+static inline int ndisc_addr_option_pad(unsigned short type)
 {
 	switch (type) {
 	case ARPHRD_INFINIBAND: return 2;
@@ -204,6 +204,11 @@ extern void			ndisc_send_ns(struct net_device *dev,
 extern void			ndisc_send_rs(struct net_device *dev,
 					      const struct in6_addr *saddr,
 					      const struct in6_addr *daddr);
+extern void			ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
+					      const struct in6_addr *daddr,
+					      const struct in6_addr *solicited_addr,
+					      bool router, bool solicited, bool override,
+					      bool inc_opt);
 
 extern void			ndisc_send_redirect(struct sk_buff *skb,
 						    const struct in6_addr *target);

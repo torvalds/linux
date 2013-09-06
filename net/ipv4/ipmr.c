@@ -127,9 +127,9 @@ static struct kmem_cache *mrt_cachep __read_mostly;
 static struct mr_table *ipmr_new_table(struct net *net, u32 id);
 static void ipmr_free_table(struct mr_table *mrt);
 
-static int ip_mr_forward(struct net *net, struct mr_table *mrt,
-			 struct sk_buff *skb, struct mfc_cache *cache,
-			 int local);
+static void ip_mr_forward(struct net *net, struct mr_table *mrt,
+			  struct sk_buff *skb, struct mfc_cache *cache,
+			  int local);
 static int ipmr_cache_report(struct mr_table *mrt,
 			     struct sk_buff *pkt, vifi_t vifi, int assert);
 static int __ipmr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
@@ -1795,9 +1795,9 @@ static int ipmr_find_vif(struct mr_table *mrt, struct net_device *dev)
 
 /* "local" means that we should preserve one skb (for local delivery) */
 
-static int ip_mr_forward(struct net *net, struct mr_table *mrt,
-			 struct sk_buff *skb, struct mfc_cache *cache,
-			 int local)
+static void ip_mr_forward(struct net *net, struct mr_table *mrt,
+			  struct sk_buff *skb, struct mfc_cache *cache,
+			  int local)
 {
 	int psend = -1;
 	int vif, ct;
@@ -1903,14 +1903,13 @@ last_forward:
 				ipmr_queue_xmit(net, mrt, skb2, cache, psend);
 		} else {
 			ipmr_queue_xmit(net, mrt, skb, cache, psend);
-			return 0;
+			return;
 		}
 	}
 
 dont_forward:
 	if (!local)
 		kfree_skb(skb);
-	return 0;
 }
 
 static struct mr_table *ipmr_rt_fib_lookup(struct net *net, struct sk_buff *skb)
@@ -2068,9 +2067,8 @@ static int __pim_rcv(struct mr_table *mrt, struct sk_buff *skb,
 	skb_reset_network_header(skb);
 	skb->protocol = htons(ETH_P_IP);
 	skb->ip_summed = CHECKSUM_NONE;
-	skb->pkt_type = PACKET_HOST;
 
-	skb_tunnel_rx(skb, reg_dev);
+	skb_tunnel_rx(skb, reg_dev, dev_net(reg_dev));
 
 	netif_rx(skb);
 

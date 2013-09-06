@@ -333,7 +333,8 @@ acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer)
  * FUNCTION:    acpi_ut_print_string
  *
  * PARAMETERS:  string          - Null terminated ASCII string
- *              max_length      - Maximum output length
+ *              max_length      - Maximum output length. Used to constrain the
+ *                                length of strings during debug output only.
  *
  * RETURN:      None
  *
@@ -342,7 +343,7 @@ acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer)
  *
  ******************************************************************************/
 
-void acpi_ut_print_string(char *string, u8 max_length)
+void acpi_ut_print_string(char *string, u16 max_length)
 {
 	u32 i;
 

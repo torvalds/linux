@@ -657,6 +657,7 @@ static int dvb_init(struct cx231xx *dev)
 		}
 		break;
 	case CX231XX_BOARD_CNXT_RDU_253S:
+	case CX231XX_BOARD_KWORLD_UB445_USB_HYBRID:
 
 		dev->dvb->frontend = dvb_attach(s5h1411_attach,
 					       &tda18271_s5h1411_config,

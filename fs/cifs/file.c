@@ -647,6 +647,7 @@ cifs_reopen_file(struct cifsFileInfo *cfile, bool can_flush)
 				     oflags, &oplock, &cfile->fid.netfid, xid);
 		if (rc == 0) {
 			cifs_dbg(FYI, "posix reopen succeeded\n");
+			oparms.reconnect = true;
 			goto reopen_success;
 		}
 		/*
@@ -2552,7 +2553,7 @@ cifs_writev(struct kiocb *iocb, const struct iovec *iov,
 		mutex_unlock(&inode->i_mutex);
 	}
 
-	if (rc > 0 || rc == -EIOCBQUEUED) {
+	if (rc > 0) {
 		ssize_t err;
 
 		err = generic_write_sync(file, pos, rc);

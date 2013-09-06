@@ -55,32 +55,8 @@ enum {
 };
 
 static DEFINE_SPINLOCK(health_lock);
-
 static LIST_HEAD(health_list);
 static struct work_struct health_work;
-
-static health_handler_t reg_handler;
-int mlx5_register_health_report_handler(health_handler_t handler)
-{
-	spin_lock_irq(&health_lock);
-	if (reg_handler) {
-		spin_unlock_irq(&health_lock);
-		return -EEXIST;
-	}
-	reg_handler = handler;
-	spin_unlock_irq(&health_lock);
-
-	return 0;
-}
-EXPORT_SYMBOL(mlx5_register_health_report_handler);
-
-void mlx5_unregister_health_report_handler(void)
-{
-	spin_lock_irq(&health_lock);
-	reg_handler = NULL;
-	spin_unlock_irq(&health_lock);
-}
-EXPORT_SYMBOL(mlx5_unregister_health_report_handler);
 
 static void health_care(struct work_struct *work)
 {
@@ -98,11 +74,8 @@ static void health_care(struct work_struct *work)
 		priv = container_of(health, struct mlx5_priv, health);
 		dev = container_of(priv, struct mlx5_core_dev, priv);
 		mlx5_core_warn(dev, "handling bad device here\n");
+		/* nothing yet */
 		spin_lock_irq(&health_lock);
-		if (reg_handler)
-			reg_handler(dev->pdev, health->health,
-				    sizeof(health->health));
-
 		list_del_init(&health->list);
 		spin_unlock_irq(&health_lock);
 	}

@@ -249,12 +249,11 @@ static int mdfld_dsi_connector_set_property(struct drm_connector *connector,
 	struct drm_encoder *encoder = connector->encoder;
 
 	if (!strcmp(property->name, "scaling mode") && encoder) {
-		struct psb_intel_crtc *psb_crtc =
-					to_psb_intel_crtc(encoder->crtc);
+		struct gma_crtc *gma_crtc = to_gma_crtc(encoder->crtc);
 		bool centerechange;
 		uint64_t val;
 
-		if (!psb_crtc)
+		if (!gma_crtc)
 			goto set_prop_error;
 
 		switch (value) {
@@ -281,11 +280,11 @@ static int mdfld_dsi_connector_set_property(struct drm_connector *connector,
 		centerechange = (val == DRM_MODE_SCALE_NO_SCALE) ||
 			(value == DRM_MODE_SCALE_NO_SCALE);
 
-		if (psb_crtc->saved_mode.hdisplay != 0 &&
-		    psb_crtc->saved_mode.vdisplay != 0) {
+		if (gma_crtc->saved_mode.hdisplay != 0 &&
+		    gma_crtc->saved_mode.vdisplay != 0) {
 			if (centerechange) {
 				if (!drm_crtc_helper_set_mode(encoder->crtc,
-						&psb_crtc->saved_mode,
+						&gma_crtc->saved_mode,
 						encoder->crtc->x,
 						encoder->crtc->y,
 						encoder->crtc->fb))
@@ -294,8 +293,8 @@ static int mdfld_dsi_connector_set_property(struct drm_connector *connector,
 				struct drm_encoder_helper_funcs *funcs =
 						encoder->helper_private;
 				funcs->mode_set(encoder,
-					&psb_crtc->saved_mode,
-					&psb_crtc->saved_adjusted_mode);
+					&gma_crtc->saved_mode,
+					&gma_crtc->saved_adjusted_mode);
 			}
 		}
 	} else if (!strcmp(property->name, "backlight") && encoder) {

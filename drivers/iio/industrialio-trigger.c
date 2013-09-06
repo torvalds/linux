@@ -127,12 +127,17 @@ static struct iio_trigger *iio_trigger_find_by_name(const char *name,
 void iio_trigger_poll(struct iio_trigger *trig, s64 time)
 {
 	int i;
-	if (!trig->use_count)
-		for (i = 0; i < CONFIG_IIO_CONSUMERS_PER_TRIGGER; i++)
-			if (trig->subirqs[i].enabled) {
-				trig->use_count++;
+
+	if (!atomic_read(&trig->use_count)) {
+		atomic_set(&trig->use_count, CONFIG_IIO_CONSUMERS_PER_TRIGGER);
+
+		for (i = 0; i < CONFIG_IIO_CONSUMERS_PER_TRIGGER; i++) {
+			if (trig->subirqs[i].enabled)
 				generic_handle_irq(trig->subirq_base + i);
-			}
+			else
+				iio_trigger_notify_done(trig);
+		}
+	}
 }
 EXPORT_SYMBOL(iio_trigger_poll);
 
@@ -146,19 +151,24 @@ EXPORT_SYMBOL(iio_trigger_generic_data_rdy_poll);
 void iio_trigger_poll_chained(struct iio_trigger *trig, s64 time)
 {
 	int i;
-	if (!trig->use_count)
-		for (i = 0; i < CONFIG_IIO_CONSUMERS_PER_TRIGGER; i++)
-			if (trig->subirqs[i].enabled) {
-				trig->use_count++;
+
+	if (!atomic_read(&trig->use_count)) {
+		atomic_set(&trig->use_count, CONFIG_IIO_CONSUMERS_PER_TRIGGER);
+
+		for (i = 0; i < CONFIG_IIO_CONSUMERS_PER_TRIGGER; i++) {
+			if (trig->subirqs[i].enabled)
 				handle_nested_irq(trig->subirq_base + i);
-			}
+			else
+				iio_trigger_notify_done(trig);
+		}
+	}
 }
 EXPORT_SYMBOL(iio_trigger_poll_chained);
 
 void iio_trigger_notify_done(struct iio_trigger *trig)
 {
-	trig->use_count--;
-	if (trig->use_count == 0 && trig->ops && trig->ops->try_reenable)
+	if (atomic_dec_and_test(&trig->use_count) && trig->ops &&
+		trig->ops->try_reenable)
 		if (trig->ops->try_reenable(trig))
 			/* Missed an interrupt so launch new poll now */
 			iio_trigger_poll(trig, 0);
@@ -414,9 +424,8 @@ static void iio_trig_subirqunmask(struct irq_data *d)
 	trig->subirqs[d->irq - trig->subirq_base].enabled = true;
 }
 
-struct iio_trigger *iio_trigger_alloc(const char *fmt, ...)
+static struct iio_trigger *viio_trigger_alloc(const char *fmt, va_list vargs)
 {
-	va_list vargs;
 	struct iio_trigger *trig;
 	trig = kzalloc(sizeof *trig, GFP_KERNEL);
 	if (trig) {
@@ -434,9 +443,8 @@ struct iio_trigger *iio_trigger_alloc(const char *fmt, ...)
 			kfree(trig);
 			return NULL;
 		}
-		va_start(vargs, fmt);
+
 		trig->name = kvasprintf(GFP_KERNEL, fmt, vargs);
-		va_end(vargs);
 		if (trig->name == NULL) {
 			irq_free_descs(trig->subirq_base,
 				       CONFIG_IIO_CONSUMERS_PER_TRIGGER);
@@ -457,6 +465,19 @@ struct iio_trigger *iio_trigger_alloc(const char *fmt, ...)
 		}
 		get_device(&trig->dev);
 	}
+
+	return trig;
+}
+
+struct iio_trigger *iio_trigger_alloc(const char *fmt, ...)
+{
+	struct iio_trigger *trig;
+	va_list vargs;
+
+	va_start(vargs, fmt);
+	trig = viio_trigger_alloc(fmt, vargs);
+	va_end(vargs);
+
 	return trig;
 }
 EXPORT_SYMBOL(iio_trigger_alloc);
@@ -467,6 +488,59 @@ void iio_trigger_free(struct iio_trigger *trig)
 		put_device(&trig->dev);
 }
 EXPORT_SYMBOL(iio_trigger_free);
+
+static void devm_iio_trigger_release(struct device *dev, void *res)
+{
+	iio_trigger_free(*(struct iio_trigger **)res);
+}
+
+static int devm_iio_trigger_match(struct device *dev, void *res, void *data)
+{
+	struct iio_trigger **r = res;
+
+	if (!r || !*r) {
+		WARN_ON(!r || !*r);
+		return 0;
+	}
+
+	return *r == data;
+}
+
+struct iio_trigger *devm_iio_trigger_alloc(struct device *dev,
+						const char *fmt, ...)
+{
+	struct iio_trigger **ptr, *trig;
+	va_list vargs;
+
+	ptr = devres_alloc(devm_iio_trigger_release, sizeof(*ptr),
+			   GFP_KERNEL);
+	if (!ptr)
+		return NULL;
+
+	/* use raw alloc_dr for kmalloc caller tracing */
+	va_start(vargs, fmt);
+	trig = viio_trigger_alloc(fmt, vargs);
+	va_end(vargs);
+	if (trig) {
+		*ptr = trig;
+		devres_add(dev, ptr);
+	} else {
+		devres_free(ptr);
+	}
+
+	return trig;
+}
+EXPORT_SYMBOL_GPL(devm_iio_trigger_alloc);
+
+void devm_iio_trigger_free(struct device *dev, struct iio_trigger *iio_trig)
+{
+	int rc;
+
+	rc = devres_release(dev, devm_iio_trigger_release,
+			    devm_iio_trigger_match, iio_trig);
+	WARN_ON(rc);
+}
+EXPORT_SYMBOL_GPL(devm_iio_trigger_free);
 
 void iio_device_register_trigger_consumer(struct iio_dev *indio_dev)
 {

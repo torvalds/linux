@@ -661,7 +661,7 @@ static void __used __kprobes kretprobe_trampoline_holder(void)
 /*
  * Called from kretprobe_trampoline
  */
-static __used __kprobes void *trampoline_handler(struct pt_regs *regs)
+__visible __used __kprobes void *trampoline_handler(struct pt_regs *regs)
 {
 	struct kretprobe_instance *ri = NULL;
 	struct hlist_head *head, empty_rp;
@@ -1068,7 +1068,7 @@ int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 
 int __init arch_init_kprobes(void)
 {
-	return arch_init_optprobes();
+	return 0;
 }
 
 int __kprobes arch_trampoline_kprobe(struct kprobe *p)

@@ -291,13 +291,13 @@ config SERIAL_MAX3100
 
 config SERIAL_MAX310X
 	bool "MAX310X support"
-	depends on SPI
+	depends on SPI_MASTER
 	select SERIAL_CORE
-	select REGMAP_SPI if SPI
+	select REGMAP_SPI if SPI_MASTER
 	default n
 	help
 	  This selects support for an advanced UART from Maxim (Dallas).
-	  Supported ICs are MAX3107, MAX3108.
+	  Supported ICs are MAX3107, MAX3108, MAX3109, MAX14830.
 	  Each IC contains 128 words each of receive and transmit FIFO
 	  that can be controlled through I2C or high-speed SPI.
 
@@ -1401,12 +1401,15 @@ config SERIAL_XILINX_PS_UART_CONSOLE
 	  Enable a Xilinx PS UART port to be the system console.
 
 config SERIAL_AR933X
-	bool "AR933X serial port support"
-	depends on SOC_AR933X
+	tristate "AR933X serial port support"
+	depends on HAVE_CLK && SOC_AR933X
 	select SERIAL_CORE
 	help
 	  If you have an Atheros AR933X SOC based board and want to use the
 	  built-in UART of the SoC, say Y to this option.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ar933x_uart.
 
 config SERIAL_AR933X_CONSOLE
 	bool "Console on AR933X serial port"
@@ -1424,8 +1427,8 @@ config SERIAL_AR933X_NR_UARTS
 	  to support.
 
 config SERIAL_EFM32_UART
-	tristate "EFM32 UART/USART port."
-	depends on ARCH_EFM32
+	tristate "EFM32 UART/USART port"
+	depends on ARM && (ARCH_EFM32 || COMPILE_TEST)
 	select SERIAL_CORE
 	help
 	  This driver support the USART and UART ports on
@@ -1496,6 +1499,22 @@ config SERIAL_FSL_LPUART_CONSOLE
 	help
 	  If you have enabled the lpuart serial port on the Freescale SoCs,
 	  you can make it the console by answering Y to this option.
+
+config SERIAL_ST_ASC
+	tristate "ST ASC serial port support"
+	select SERIAL_CORE
+	help
+	  This driver is for the on-chip Asychronous Serial Controller on
+	  STMicroelectronics STi SoCs.
+	  ASC is embedded in ST COMMS IP block. It supports Rx & Tx functionality.
+	  It support all industry standard baud rates.
+
+	  If unsure, say N.
+
+config SERIAL_ST_ASC_CONSOLE
+	bool "Support for console on ST ASC"
+	depends on SERIAL_ST_ASC=y
+	select SERIAL_CORE_CONSOLE
 
 endmenu
 

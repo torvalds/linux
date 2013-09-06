@@ -26,7 +26,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <asm/gpio.h>
+#include <linux/gpio.h>
 
 
 #define SPI_FIFO_SIZE 4

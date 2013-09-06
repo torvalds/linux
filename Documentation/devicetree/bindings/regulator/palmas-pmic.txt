@@ -25,15 +25,14 @@ Optional nodes:
 	       Additional custom properties  are listed below.
 
 	       For ti,palmas-pmic - smps12, smps123, smps3 depending on OTP,
-	       smps45, smps457, smps7 depending on variant, smps6, smps[8-10],
-	       ldo[1-9], ldoln, ldousb.
+	       smps45, smps457, smps7 depending on variant, smps6, smps[8-9],
+	       smps10_out2, smps10_out1, do[1-9], ldoln, ldousb.
 
 	       Optional sub-node properties:
 	       ti,warm-reset - maintain voltage during warm reset(boolean)
 	       ti,roof-floor - control voltage selection by pin(boolean)
-	       ti,sleep-mode - mode to adopt in pmic sleep 0 - off, 1 - auto,
+	       ti,mode-sleep - mode to adopt in pmic sleep 0 - off, 1 - auto,
 	       2 - eco, 3 - forced pwm
-	       ti,tstep - slope control 0 - Jump, 1 10mV/us, 2 5mV/us, 3 2.5mV/us
 	       ti,smps-range - OTP has the wrong range set for the hardware so override
 	       0 - low range, 1 - high range.
 
@@ -59,7 +58,6 @@ pmic {
 			ti,warm-reset;
 			ti,roof-floor;
 			ti,mode-sleep = <0>;
-			ti,tstep = <0>;
 			ti,smps-range = <1>;
 		};
 
