@@ -30,10 +30,13 @@
 /*
  * Framework version for util services.
  */
+#define UTIL_FW_MINOR  0
+
+#define UTIL_WS2K8_FW_MAJOR  1
+#define UTIL_WS2K8_FW_VERSION     (UTIL_WS2K8_FW_MAJOR << 16 | UTIL_FW_MINOR)
 
 #define UTIL_FW_MAJOR  3
-#define UTIL_FW_MINOR  0
-#define UTIL_FW_MAJOR_MINOR     (UTIL_FW_MAJOR << 16 | UTIL_FW_MINOR)
+#define UTIL_FW_VERSION     (UTIL_FW_MAJOR << 16 | UTIL_FW_MINOR)
 
 
 /*
