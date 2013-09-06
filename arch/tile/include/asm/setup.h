@@ -24,9 +24,8 @@
  */
 #define MAXMEM_PFN	PFN_DOWN(MAXMEM)
 
+int tile_console_write(const char *buf, int count);
 void early_panic(const char *fmt, ...);
-void warn_early_printk(void);
-void __init disable_early_printk(void);
 
 /* Init-time routine to do tile-specific per-cpu setup. */
 void setup_cpu(int boot);

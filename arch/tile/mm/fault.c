@@ -34,6 +34,7 @@
 #include <linux/hugetlb.h>
 #include <linux/syscalls.h>
 #include <linux/uaccess.h>
+#include <linux/kdebug.h>
 
 #include <asm/pgalloc.h>
 #include <asm/sections.h>
@@ -122,10 +123,9 @@ static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
 	pmd_k = pmd_offset(pud_k, address);
 	if (!pmd_present(*pmd_k))
 		return NULL;
-	if (!pmd_present(*pmd)) {
+	if (!pmd_present(*pmd))
 		set_pmd(pmd, *pmd_k);
-		arch_flush_lazy_mmu_mode();
-	} else
+	else
 		BUG_ON(pmd_ptfn(*pmd) != pmd_ptfn(*pmd_k));
 	return pmd_k;
 }
@@ -283,7 +283,7 @@ static int handle_page_fault(struct pt_regs *regs,
 	flags = (FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE |
 		 (write ? FAULT_FLAG_WRITE : 0));
 
-	is_kernel_mode = (EX1_PL(regs->ex1) != USER_PL);
+	is_kernel_mode = !user_mode(regs);
 
 	tsk = validate_current();
 
@@ -466,28 +466,15 @@ good_area:
 		}
 	}
 
-#if CHIP_HAS_TILE_DMA() || CHIP_HAS_SN_PROC()
-	/*
-	 * If this was an asynchronous fault,
-	 * restart the appropriate engine.
-	 */
-	switch (fault_num) {
 #if CHIP_HAS_TILE_DMA()
+	/* If this was a DMA TLB fault, restart the DMA engine. */
+	switch (fault_num) {
 	case INT_DMATLB_MISS:
 	case INT_DMATLB_MISS_DWNCL:
 	case INT_DMATLB_ACCESS:
 	case INT_DMATLB_ACCESS_DWNCL:
 		__insn_mtspr(SPR_DMA_CTR, SPR_DMA_CTR__REQUEST_MASK);
 		break;
-#endif
-#if CHIP_HAS_SN_PROC()
-	case INT_SNITLB_MISS:
-	case INT_SNITLB_MISS_DWNCL:
-		__insn_mtspr(SPR_SNCTL,
-			     __insn_mfspr(SPR_SNCTL) &
-			     ~SPR_SNCTL__FRZPROC_MASK);
-		break;
-#endif
 	}
 #endif
 
@@ -722,8 +709,60 @@ void do_page_fault(struct pt_regs *regs, int fault_num,
 {
 	int is_page_fault;
 
+#ifdef CONFIG_KPROBES
+	/*
+	 * This is to notify the fault handler of the kprobes.  The
+	 * exception code is redundant as it is also carried in REGS,
+	 * but we pass it anyhow.
+	 */
+	if (notify_die(DIE_PAGE_FAULT, "page fault", regs, -1,
+		       regs->faultnum, SIGSEGV) == NOTIFY_STOP)
+		return;
+#endif
+
+#ifdef __tilegx__
+	/*
+	 * We don't need early do_page_fault_ics() support, since unlike
+	 * Pro we don't need to worry about unlocking the atomic locks.
+	 * There is only one current case in GX where we touch any memory
+	 * under ICS other than our own kernel stack, and we handle that
+	 * here.  (If we crash due to trying to touch our own stack,
+	 * we're in too much trouble for C code to help out anyway.)
+	 */
+	if (write & ~1) {
+		unsigned long pc = write & ~1;
+		if (pc >= (unsigned long) __start_unalign_asm_code &&
+		    pc < (unsigned long) __end_unalign_asm_code) {
+			struct thread_info *ti = current_thread_info();
+			/*
+			 * Our EX_CONTEXT is still what it was from the
+			 * initial unalign exception, but now we've faulted
+			 * on the JIT page.  We would like to complete the
+			 * page fault however is appropriate, and then retry
+			 * the instruction that caused the unalign exception.
+			 * Our state has been "corrupted" by setting the low
+			 * bit in "sp", and stashing r0..r3 in the
+			 * thread_info area, so we revert all of that, then
+			 * continue as if this were a normal page fault.
+			 */
+			regs->sp &= ~1UL;
+			regs->regs[0] = ti->unalign_jit_tmp[0];
+			regs->regs[1] = ti->unalign_jit_tmp[1];
+			regs->regs[2] = ti->unalign_jit_tmp[2];
+			regs->regs[3] = ti->unalign_jit_tmp[3];
+			write &= 1;
+		} else {
+			pr_alert("%s/%d: ICS set at page fault at %#lx: %#lx\n",
+				 current->comm, current->pid, pc, address);
+			show_regs(regs);
+			do_group_exit(SIGKILL);
+			return;
+		}
+	}
+#else
 	/* This case should have been handled by do_page_fault_ics(). */
 	BUG_ON(write & ~1);
+#endif
 
 #if CHIP_HAS_TILE_DMA()
 	/*
@@ -752,10 +791,6 @@ void do_page_fault(struct pt_regs *regs, int fault_num,
 	case INT_DMATLB_MISS:
 	case INT_DMATLB_MISS_DWNCL:
 #endif
-#if CHIP_HAS_SN_PROC()
-	case INT_SNITLB_MISS:
-	case INT_SNITLB_MISS_DWNCL:
-#endif
 		is_page_fault = 1;
 		break;
 
@@ -771,8 +806,8 @@ void do_page_fault(struct pt_regs *regs, int fault_num,
 		panic("Bad fault number %d in do_page_fault", fault_num);
 	}
 
-#if CHIP_HAS_TILE_DMA() || CHIP_HAS_SN_PROC()
-	if (EX1_PL(regs->ex1) != USER_PL) {
+#if CHIP_HAS_TILE_DMA()
+	if (!user_mode(regs)) {
 		struct async_tlb *async;
 		switch (fault_num) {
 #if CHIP_HAS_TILE_DMA()
@@ -781,12 +816,6 @@ void do_page_fault(struct pt_regs *regs, int fault_num,
 		case INT_DMATLB_MISS_DWNCL:
 		case INT_DMATLB_ACCESS_DWNCL:
 			async = &current->thread.dma_async_tlb;
-			break;
-#endif
-#if CHIP_HAS_SN_PROC()
-		case INT_SNITLB_MISS:
-		case INT_SNITLB_MISS_DWNCL:
-			async = &current->thread.sn_async_tlb;
 			break;
 #endif
 		default:
@@ -821,14 +850,22 @@ void do_page_fault(struct pt_regs *regs, int fault_num,
 }
 
 
-#if CHIP_HAS_TILE_DMA() || CHIP_HAS_SN_PROC()
+#if CHIP_HAS_TILE_DMA()
 /*
- * Check an async_tlb structure to see if a deferred fault is waiting,
- * and if so pass it to the page-fault code.
+ * This routine effectively re-issues asynchronous page faults
+ * when we are returning to user space.
  */
-static void handle_async_page_fault(struct pt_regs *regs,
-				    struct async_tlb *async)
+void do_async_page_fault(struct pt_regs *regs)
 {
+	struct async_tlb *async = &current->thread.dma_async_tlb;
+
+	/*
+	 * Clear thread flag early.  If we re-interrupt while processing
+	 * code here, we will reset it and recall this routine before
+	 * returning to user space.
+	 */
+	clear_thread_flag(TIF_ASYNC_TLB);
+
 	if (async->fault_num) {
 		/*
 		 * Clear async->fault_num before calling the page-fault
@@ -842,35 +879,15 @@ static void handle_async_page_fault(struct pt_regs *regs,
 				  async->address, async->is_write);
 	}
 }
-
-/*
- * This routine effectively re-issues asynchronous page faults
- * when we are returning to user space.
- */
-void do_async_page_fault(struct pt_regs *regs)
-{
-	/*
-	 * Clear thread flag early.  If we re-interrupt while processing
-	 * code here, we will reset it and recall this routine before
-	 * returning to user space.
-	 */
-	clear_thread_flag(TIF_ASYNC_TLB);
-
-#if CHIP_HAS_TILE_DMA()
-	handle_async_page_fault(regs, &current->thread.dma_async_tlb);
-#endif
-#if CHIP_HAS_SN_PROC()
-	handle_async_page_fault(regs, &current->thread.sn_async_tlb);
-#endif
-}
-#endif /* CHIP_HAS_TILE_DMA() || CHIP_HAS_SN_PROC() */
+#endif /* CHIP_HAS_TILE_DMA() */
 
 
 void vmalloc_sync_all(void)
 {
 #ifdef __tilegx__
 	/* Currently all L1 kernel pmd's are static and shared. */
-	BUG_ON(pgd_index(VMALLOC_END) != pgd_index(VMALLOC_START));
+	BUILD_BUG_ON(pgd_index(VMALLOC_END - PAGE_SIZE) !=
+		     pgd_index(VMALLOC_START));
 #else
 	/*
 	 * Note that races in the updates of insync and start aren't
