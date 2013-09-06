@@ -1077,63 +1077,6 @@ static __init void tegra114_utmi_param_configure(void __iomem *clk_base)
 	writel_relaxed(reg, clk_base + UTMIPLL_HW_PWRDN_CFG0);
 }
 
-static void __init _clip_vco_min(struct tegra_clk_pll_params *pll_params)
-{
-	pll_params->vco_min =
-		DIV_ROUND_UP(pll_params->vco_min, pll_ref_freq) * pll_ref_freq;
-}
-
-static int __init _setup_dynamic_ramp(struct tegra_clk_pll_params *pll_params,
-				      void __iomem *clk_base)
-{
-	u32 val;
-	u32 step_a, step_b;
-
-	switch (pll_ref_freq) {
-	case 12000000:
-	case 13000000:
-	case 26000000:
-		step_a = 0x2B;
-		step_b = 0x0B;
-		break;
-	case 16800000:
-		step_a = 0x1A;
-		step_b = 0x09;
-		break;
-	case 19200000:
-		step_a = 0x12;
-		step_b = 0x08;
-		break;
-	default:
-		pr_err("%s: Unexpected reference rate %lu\n",
-			__func__, pll_ref_freq);
-		WARN_ON(1);
-		return -EINVAL;
-	}
-
-	val = step_a << pll_params->stepa_shift;
-	val |= step_b << pll_params->stepb_shift;
-	writel_relaxed(val, clk_base + pll_params->dyn_ramp_reg);
-
-	return 0;
-}
-
-static void __init _init_iddq(struct tegra_clk_pll_params *pll_params,
-			      void __iomem *clk_base)
-{
-	u32 val, val_iddq;
-
-	val = readl_relaxed(clk_base + pll_params->base_reg);
-	val_iddq = readl_relaxed(clk_base + pll_params->iddq_reg);
-
-	if (val & BIT(30))
-		WARN_ON(val_iddq & BIT(pll_params->iddq_bit_idx));
-	else {
-		val_iddq |= BIT(pll_params->iddq_bit_idx);
-		writel_relaxed(val_iddq, clk_base + pll_params->iddq_reg);
-	}
-}
-
 static void __init tegra114_pll_init(void __iomem *clk_base,
 				     void __iomem *pmc)
 {
@@ -1141,28 +1084,23 @@ static void __init tegra114_pll_init(void __iomem *clk_base,
 	struct clk *clk;
 
 	/* PLLC */
-	_clip_vco_min(&pll_c_params);
-	if (_setup_dynamic_ramp(&pll_c_params, clk_base) >= 0) {
-		_init_iddq(&pll_c_params, clk_base);
-		clk = tegra_clk_register_pllxc("pll_c", "pll_ref", clk_base,
-				pmc, 0, 0, &pll_c_params, TEGRA_PLL_USE_LOCK,
-				pll_c_freq_table, NULL);
-		clk_register_clkdev(clk, "pll_c", NULL);
-		clks[TEGRA114_CLK_PLL_C] = clk;
+	clk = tegra_clk_register_pllxc("pll_c", "pll_ref", clk_base,
+			pmc, 0, 0, &pll_c_params, TEGRA_PLL_USE_LOCK,
+			pll_c_freq_table, NULL);
+	clk_register_clkdev(clk, "pll_c", NULL);
+	clks[TEGRA114_CLK_PLL_C] = clk;
 
-		/* PLLC_OUT1 */
-		clk = tegra_clk_register_divider("pll_c_out1_div", "pll_c",
-				clk_base + PLLC_OUT, 0, TEGRA_DIVIDER_ROUND_UP,
-				8, 8, 1, NULL);
-		clk = tegra_clk_register_pll_out("pll_c_out1", "pll_c_out1_div",
-					clk_base + PLLC_OUT, 1, 0,
-					CLK_SET_RATE_PARENT, 0, NULL);
-		clk_register_clkdev(clk, "pll_c_out1", NULL);
-		clks[TEGRA114_CLK_PLL_C_OUT1] = clk;
-	}
+	/* PLLC_OUT1 */
+	clk = tegra_clk_register_divider("pll_c_out1_div", "pll_c",
+			clk_base + PLLC_OUT, 0, TEGRA_DIVIDER_ROUND_UP,
+			8, 8, 1, NULL);
+	clk = tegra_clk_register_pll_out("pll_c_out1", "pll_c_out1_div",
+				clk_base + PLLC_OUT, 1, 0,
+				CLK_SET_RATE_PARENT, 0, NULL);
+	clk_register_clkdev(clk, "pll_c_out1", NULL);
+	clks[TEGRA114_CLK_PLL_C_OUT1] = clk;
 
 	/* PLLC2 */
-	_clip_vco_min(&pll_c2_params);
 	clk = tegra_clk_register_pllc("pll_c2", "pll_ref", clk_base, pmc, 0, 0,
 			     &pll_c2_params, TEGRA_PLL_USE_LOCK,
 			     pll_cx_freq_table, NULL);
@@ -1170,7 +1108,6 @@ static void __init tegra114_pll_init(void __iomem *clk_base,
 	clks[TEGRA114_CLK_PLL_C2] = clk;
 
 	/* PLLC3 */
-	_clip_vco_min(&pll_c3_params);
 	clk = tegra_clk_register_pllc("pll_c3", "pll_ref", clk_base, pmc, 0, 0,
 			     &pll_c3_params, TEGRA_PLL_USE_LOCK,
 			     pll_cx_freq_table, NULL);
@@ -1232,7 +1169,6 @@ static void __init tegra114_pll_init(void __iomem *clk_base,
 	clks[TEGRA114_CLK_PLL_P_OUT4] = clk;
 
 	/* PLLM */
-	_clip_vco_min(&pll_m_params);
 	clk = tegra_clk_register_pllm("pll_m", "pll_ref", clk_base, pmc,
 			     CLK_IGNORE_UNUSED | CLK_SET_RATE_GATE, 0,
 			     &pll_m_params, TEGRA_PLL_USE_LOCK,
@@ -1255,15 +1191,11 @@ static void __init tegra114_pll_init(void __iomem *clk_base,
 					CLK_SET_RATE_PARENT, 1, 1);
 
 	/* PLLX */
-	_clip_vco_min(&pll_x_params);
-	if (_setup_dynamic_ramp(&pll_x_params, clk_base) >= 0) {
-		_init_iddq(&pll_x_params, clk_base);
-		clk = tegra_clk_register_pllxc("pll_x", "pll_ref", clk_base,
-				pmc, CLK_IGNORE_UNUSED, 0, &pll_x_params,
-				TEGRA_PLL_USE_LOCK, pll_x_freq_table, NULL);
-		clk_register_clkdev(clk, "pll_x", NULL);
-		clks[TEGRA114_CLK_PLL_X] = clk;
-	}
+	clk = tegra_clk_register_pllxc("pll_x", "pll_ref", clk_base,
+			pmc, CLK_IGNORE_UNUSED, 0, &pll_x_params,
+			TEGRA_PLL_USE_LOCK, pll_x_freq_table, NULL);
+	clk_register_clkdev(clk, "pll_x", NULL);
+	clks[TEGRA114_CLK_PLL_X] = clk;
 
 	/* PLLX_OUT0 */
 	clk = clk_register_fixed_factor(NULL, "pll_x_out0", "pll_x",
@@ -1356,7 +1288,6 @@ static void __init tegra114_pll_init(void __iomem *clk_base,
 	clks[TEGRA114_CLK_PLL_A_OUT0] = clk;
 
 	/* PLLRE */
-	_clip_vco_min(&pll_re_vco_params);
 	clk = tegra_clk_register_pllre("pll_re_vco", "pll_ref", clk_base, pmc,
 			     0, 0, &pll_re_vco_params, TEGRA_PLL_USE_LOCK,
 			     NULL, &pll_re_lock, pll_ref_freq);

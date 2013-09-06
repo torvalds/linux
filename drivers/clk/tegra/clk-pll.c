@@ -773,6 +773,48 @@ static int _pll_fixed_mdiv(struct tegra_clk_pll_params *pll_params,
 		return 1;
 }
 
+static unsigned long _clip_vco_min(unsigned long vco_min,
+				   unsigned long parent_rate)
+{
+	return DIV_ROUND_UP(vco_min, parent_rate) * parent_rate;
+}
+
+static int _setup_dynamic_ramp(struct tegra_clk_pll_params *pll_params,
+			       void __iomem *clk_base,
+			       unsigned long parent_rate)
+{
+	u32 val;
+	u32 step_a, step_b;
+
+	switch (parent_rate) {
+	case 12000000:
+	case 13000000:
+	case 26000000:
+		step_a = 0x2B;
+		step_b = 0x0B;
+		break;
+	case 16800000:
+		step_a = 0x1A;
+		step_b = 0x09;
+		break;
+	case 19200000:
+		step_a = 0x12;
+		step_b = 0x08;
+		break;
+	default:
+		pr_err("%s: Unexpected reference rate %lu\n",
+			__func__, parent_rate);
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	val = step_a << pll_params->stepa_shift;
+	val |= step_b << pll_params->stepb_shift;
+	writel_relaxed(val, clk_base + pll_params->dyn_ramp_reg);
+
+	return 0;
+}
+
 static int clk_pll_iddq_enable(struct clk_hw *hw)
 {
 	struct tegra_clk_pll *pll = to_clk_pll(hw);
@@ -1423,10 +1465,38 @@ struct clk *tegra_clk_register_pllxc(const char *name, const char *parent_name,
 			  spinlock_t *lock)
 {
 	struct tegra_clk_pll *pll;
-	struct clk *clk;
+	struct clk *clk, *parent;
+	unsigned long parent_rate;
+	int err;
+	u32 val, val_iddq;
+
+	parent = __clk_lookup(parent_name);
+	if (IS_ERR(parent)) {
+		WARN(1, "parent clk %s of %s must be registered first\n",
+			name, parent_name);
+		return ERR_PTR(-EINVAL);
+	}
 
 	if (!pll_params->pdiv_tohw)
 		return ERR_PTR(-EINVAL);
+
+	parent_rate = __clk_get_rate(parent);
+
+	pll_params->vco_min = _clip_vco_min(pll_params->vco_min, parent_rate);
+
+	err = _setup_dynamic_ramp(pll_params, clk_base, parent_rate);
+	if (err)
+		return ERR_PTR(err);
+
+	val = readl_relaxed(clk_base + pll_params->base_reg);
+	val_iddq = readl_relaxed(clk_base + pll_params->iddq_reg);
+
+	if (val & PLL_BASE_ENABLE)
+		WARN_ON(val_iddq & BIT(pll_params->iddq_bit_idx));
+	else {
+		val_iddq |= BIT(pll_params->iddq_bit_idx);
+		writel_relaxed(val_iddq, clk_base + pll_params->iddq_reg);
+	}
 
 	pll_flags |= TEGRA_PLL_HAS_LOCK_ENABLE;
 	pll = _tegra_init_pll(clk_base, pmc, fixed_rate, pll_params, pll_flags,
@@ -1455,6 +1525,9 @@ struct clk *tegra_clk_register_pllre(const char *name, const char *parent_name,
 	struct clk *clk;
 
 	pll_flags |= TEGRA_PLL_HAS_LOCK_ENABLE | TEGRA_PLL_LOCK_MISC;
+
+	pll_params->vco_min = _clip_vco_min(pll_params->vco_min, parent_rate);
+
 	pll = _tegra_init_pll(clk_base, pmc, fixed_rate, pll_params, pll_flags,
 			      freq_table, lock);
 	if (IS_ERR(pll))
@@ -1498,10 +1571,22 @@ struct clk *tegra_clk_register_pllm(const char *name, const char *parent_name,
 			  spinlock_t *lock)
 {
 	struct tegra_clk_pll *pll;
-	struct clk *clk;
+	struct clk *clk, *parent;
+	unsigned long parent_rate;
 
 	if (!pll_params->pdiv_tohw)
 		return ERR_PTR(-EINVAL);
+
+	parent = __clk_lookup(parent_name);
+	if (IS_ERR(parent)) {
+		WARN(1, "parent clk %s of %s must be registered first\n",
+			name, parent_name);
+		return ERR_PTR(-EINVAL);
+	}
+
+	parent_rate = __clk_get_rate(parent);
+
+	pll_params->vco_min = _clip_vco_min(pll_params->vco_min, parent_rate);
 
 	pll_flags |= TEGRA_PLL_BYPASS;
 	pll_flags |= TEGRA_PLL_HAS_LOCK_ENABLE;
@@ -1543,13 +1628,15 @@ struct clk *tegra_clk_register_pllc(const char *name, const char *parent_name,
 		return ERR_PTR(-EINVAL);
 	}
 
+	parent_rate = __clk_get_rate(parent);
+
+	pll_params->vco_min = _clip_vco_min(pll_params->vco_min, parent_rate);
+
 	pll_flags |= TEGRA_PLL_BYPASS;
 	pll = _tegra_init_pll(clk_base, pmc, fixed_rate, pll_params, pll_flags,
 			      freq_table, lock);
 	if (IS_ERR(pll))
 		return ERR_CAST(pll);
-
-	parent_rate = __clk_get_rate(parent);
 
 	/*
 	 * Most of PLLC register fields are shadowed, and can not be read
