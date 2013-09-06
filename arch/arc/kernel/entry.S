@@ -250,6 +250,14 @@ ARC_ENTRY handle_interrupt_level1
 	lr  r0, [icause1]
 	and r0, r0, 0x1f
 
+#ifdef CONFIG_TRACE_IRQFLAGS
+	; icause1 needs to be read early, before calling tracing, which
+	; can clobber scratch regs, hence use of stack to stash it
+	push r0
+	TRACE_ASM_IRQ_DISABLE
+	pop  r0
+#endif
+
 	bl.d  @arch_do_IRQ
 	mov r1, sp
 
@@ -570,6 +578,7 @@ resume_user_mode_begin:
 	; --- (Slow Path #2) pending signal  ---
 	mov r0, sp	; pt_regs for arg to do_signal()/do_notify_resume()
 
+	GET_CURR_THR_INFO_FLAGS   r9
 	bbit0  r9, TIF_SIGPENDING, .Lchk_notify_resume
 
 	; Normal Trap/IRQ entry only saves Scratch (caller-saved) regs
@@ -634,6 +643,8 @@ resume_kernel_mode:
 ; All 2 entry points to here already disable interrupts
 
 restore_regs :
+
+	TRACE_ASM_IRQ_ENABLE
 
 	lr	r10, [status32]
 

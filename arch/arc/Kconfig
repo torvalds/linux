@@ -35,6 +35,12 @@ config ARC
 	select PERF_USE_VMALLOC
 	select HAVE_DEBUG_STACKOVERFLOW
 
+config TRACE_IRQFLAGS_SUPPORT
+	def_bool y
+
+config LOCKDEP_SUPPORT
+	def_bool y
+
 config SCHED_OMIT_FRAME_POINTER
 	def_bool y
 
