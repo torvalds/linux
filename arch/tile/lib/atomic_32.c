@@ -59,33 +59,32 @@ static inline int *__atomic_setup(volatile void *v)
 	return __atomic_hashed_lock(v);
 }
 
-int _atomic_xchg(atomic_t *v, int n)
+int _atomic_xchg(int *v, int n)
 {
-	return __atomic_xchg(&v->counter, __atomic_setup(v), n).val;
+	return __atomic_xchg(v, __atomic_setup(v), n).val;
 }
 EXPORT_SYMBOL(_atomic_xchg);
 
-int _atomic_xchg_add(atomic_t *v, int i)
+int _atomic_xchg_add(int *v, int i)
 {
-	return __atomic_xchg_add(&v->counter, __atomic_setup(v), i).val;
+	return __atomic_xchg_add(v, __atomic_setup(v), i).val;
 }
 EXPORT_SYMBOL(_atomic_xchg_add);
 
-int _atomic_xchg_add_unless(atomic_t *v, int a, int u)
+int _atomic_xchg_add_unless(int *v, int a, int u)
 {
 	/*
 	 * Note: argument order is switched here since it is easier
 	 * to use the first argument consistently as the "old value"
 	 * in the assembly, as is done for _atomic_cmpxchg().
 	 */
-	return __atomic_xchg_add_unless(&v->counter, __atomic_setup(v), u, a)
-		.val;
+	return __atomic_xchg_add_unless(v, __atomic_setup(v), u, a).val;
 }
 EXPORT_SYMBOL(_atomic_xchg_add_unless);
 
-int _atomic_cmpxchg(atomic_t *v, int o, int n)
+int _atomic_cmpxchg(int *v, int o, int n)
 {
-	return __atomic_cmpxchg(&v->counter, __atomic_setup(v), o, n).val;
+	return __atomic_cmpxchg(v, __atomic_setup(v), o, n).val;
 }
 EXPORT_SYMBOL(_atomic_cmpxchg);
 
@@ -108,33 +107,32 @@ unsigned long _atomic_xor(volatile unsigned long *p, unsigned long mask)
 EXPORT_SYMBOL(_atomic_xor);
 
 
-u64 _atomic64_xchg(atomic64_t *v, u64 n)
+u64 _atomic64_xchg(u64 *v, u64 n)
 {
-	return __atomic64_xchg(&v->counter, __atomic_setup(v), n);
+	return __atomic64_xchg(v, __atomic_setup(v), n);
 }
 EXPORT_SYMBOL(_atomic64_xchg);
 
-u64 _atomic64_xchg_add(atomic64_t *v, u64 i)
+u64 _atomic64_xchg_add(u64 *v, u64 i)
 {
-	return __atomic64_xchg_add(&v->counter, __atomic_setup(v), i);
+	return __atomic64_xchg_add(v, __atomic_setup(v), i);
 }
 EXPORT_SYMBOL(_atomic64_xchg_add);
 
-u64 _atomic64_xchg_add_unless(atomic64_t *v, u64 a, u64 u)
+u64 _atomic64_xchg_add_unless(u64 *v, u64 a, u64 u)
 {
 	/*
 	 * Note: argument order is switched here since it is easier
 	 * to use the first argument consistently as the "old value"
 	 * in the assembly, as is done for _atomic_cmpxchg().
 	 */
-	return __atomic64_xchg_add_unless(&v->counter, __atomic_setup(v),
-					  u, a);
+	return __atomic64_xchg_add_unless(v, __atomic_setup(v), u, a);
 }
 EXPORT_SYMBOL(_atomic64_xchg_add_unless);
 
-u64 _atomic64_cmpxchg(atomic64_t *v, u64 o, u64 n)
+u64 _atomic64_cmpxchg(u64 *v, u64 o, u64 n)
 {
-	return __atomic64_cmpxchg(&v->counter, __atomic_setup(v), o, n);
+	return __atomic64_cmpxchg(v, __atomic_setup(v), o, n);
 }
 EXPORT_SYMBOL(_atomic64_cmpxchg);
 
