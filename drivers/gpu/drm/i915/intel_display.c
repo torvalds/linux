@@ -8684,6 +8684,15 @@ intel_pipe_config_compare(struct drm_device *dev,
 		return false; \
 	}
 
+#define PIPE_CONF_CHECK_CLOCK_FUZZY(name) \
+	if (!intel_fuzzy_clock_check(current_config->name, pipe_config->name)) { \
+		DRM_ERROR("mismatch in " #name " " \
+			  "(expected %i, found %i)\n", \
+			  current_config->name, \
+			  pipe_config->name); \
+		return false; \
+	}
+
 #define PIPE_CONF_QUIRK(quirk)	\
 	((current_config->quirks | pipe_config->quirks) & (quirk))
 
@@ -8759,20 +8768,14 @@ intel_pipe_config_compare(struct drm_device *dev,
 	if (IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5)
 		PIPE_CONF_CHECK_I(pipe_bpp);
 
+	if (!IS_HASWELL(dev))
+		PIPE_CONF_CHECK_CLOCK_FUZZY(adjusted_mode.clock);
+
 #undef PIPE_CONF_CHECK_X
 #undef PIPE_CONF_CHECK_I
 #undef PIPE_CONF_CHECK_FLAGS
+#undef PIPE_CONF_CHECK_CLOCK_FUZZY
 #undef PIPE_CONF_QUIRK
-
-	if (!IS_HASWELL(dev)) {
-		if (!intel_fuzzy_clock_check(current_config->adjusted_mode.clock,
-					     pipe_config->adjusted_mode.clock)) {
-			DRM_ERROR("mismatch in clock (expected %d, found %d)\n",
-				  current_config->adjusted_mode.clock,
-				  pipe_config->adjusted_mode.clock);
-			return false;
-		}
-	}
 
 	return true;
 }
