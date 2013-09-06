@@ -205,7 +205,7 @@ static int pm2xxx_charger_batt_therm_mngt(struct pm2xxx_charger *pm2, int val)
 }
 
 
-int pm2xxx_charger_die_therm_mngt(struct pm2xxx_charger *pm2, int val)
+static int pm2xxx_charger_die_therm_mngt(struct pm2xxx_charger *pm2, int val)
 {
 	queue_work(pm2->charger_wq, &pm2->check_main_thermal_prot_work);
 
