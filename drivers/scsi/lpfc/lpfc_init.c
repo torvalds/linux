@@ -7135,19 +7135,6 @@ lpfc_sli4_queue_destroy(struct lpfc_hba *phba)
 		phba->sli4_hba.fcp_wq = NULL;
 	}
 
-	if (phba->pci_bar0_memmap_p) {
-		iounmap(phba->pci_bar0_memmap_p);
-		phba->pci_bar0_memmap_p = NULL;
-	}
-	if (phba->pci_bar2_memmap_p) {
-		iounmap(phba->pci_bar2_memmap_p);
-		phba->pci_bar2_memmap_p = NULL;
-	}
-	if (phba->pci_bar4_memmap_p) {
-		iounmap(phba->pci_bar4_memmap_p);
-		phba->pci_bar4_memmap_p = NULL;
-	}
-
 	/* Release FCP CQ mapping array */
 	if (phba->sli4_hba.fcp_cq_map != NULL) {
 		kfree(phba->sli4_hba.fcp_cq_map);
@@ -7936,9 +7923,9 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 	 * particular PCI BARs regions is dependent on the type of
 	 * SLI4 device.
 	 */
-	if (pci_resource_start(pdev, 0)) {
-		phba->pci_bar0_map = pci_resource_start(pdev, 0);
-		bar0map_len = pci_resource_len(pdev, 0);
+	if (pci_resource_start(pdev, PCI_64BIT_BAR0)) {
+		phba->pci_bar0_map = pci_resource_start(pdev, PCI_64BIT_BAR0);
+		bar0map_len = pci_resource_len(pdev, PCI_64BIT_BAR0);
 
 		/*
 		 * Map SLI4 PCI Config Space Register base to a kernel virtual
@@ -7952,6 +7939,7 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 				   "registers.\n");
 			goto out;
 		}
+		phba->pci_bar0_memmap_p = phba->sli4_hba.conf_regs_memmap_p;
 		/* Set up BAR0 PCI config space register memory map */
 		lpfc_sli4_bar0_register_memmap(phba, if_type);
 	} else {
@@ -7974,13 +7962,13 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 	}
 
 	if ((if_type == LPFC_SLI_INTF_IF_TYPE_0) &&
-	    (pci_resource_start(pdev, 2))) {
+	    (pci_resource_start(pdev, PCI_64BIT_BAR2))) {
 		/*
 		 * Map SLI4 if type 0 HBA Control Register base to a kernel
 		 * virtual address and setup the registers.
 		 */
-		phba->pci_bar1_map = pci_resource_start(pdev, 2);
-		bar1map_len = pci_resource_len(pdev, 2);
+		phba->pci_bar1_map = pci_resource_start(pdev, PCI_64BIT_BAR2);
+		bar1map_len = pci_resource_len(pdev, PCI_64BIT_BAR2);
 		phba->sli4_hba.ctrl_regs_memmap_p =
 				ioremap(phba->pci_bar1_map, bar1map_len);
 		if (!phba->sli4_hba.ctrl_regs_memmap_p) {
@@ -7988,17 +7976,18 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 			   "ioremap failed for SLI4 HBA control registers.\n");
 			goto out_iounmap_conf;
 		}
+		phba->pci_bar2_memmap_p = phba->sli4_hba.ctrl_regs_memmap_p;
 		lpfc_sli4_bar1_register_memmap(phba);
 	}
 
 	if ((if_type == LPFC_SLI_INTF_IF_TYPE_0) &&
-	    (pci_resource_start(pdev, 4))) {
+	    (pci_resource_start(pdev, PCI_64BIT_BAR4))) {
 		/*
 		 * Map SLI4 if type 0 HBA Doorbell Register base to a kernel
 		 * virtual address and setup the registers.
 		 */
-		phba->pci_bar2_map = pci_resource_start(pdev, 4);
-		bar2map_len = pci_resource_len(pdev, 4);
+		phba->pci_bar2_map = pci_resource_start(pdev, PCI_64BIT_BAR4);
+		bar2map_len = pci_resource_len(pdev, PCI_64BIT_BAR4);
 		phba->sli4_hba.drbl_regs_memmap_p =
 				ioremap(phba->pci_bar2_map, bar2map_len);
 		if (!phba->sli4_hba.drbl_regs_memmap_p) {
@@ -8006,6 +7995,7 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 			   "ioremap failed for SLI4 HBA doorbell registers.\n");
 			goto out_iounmap_ctrl;
 		}
+		phba->pci_bar4_memmap_p = phba->sli4_hba.drbl_regs_memmap_p;
 		error = lpfc_sli4_bar2_register_memmap(phba, LPFC_VF0);
 		if (error)
 			goto out_iounmap_all;

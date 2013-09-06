@@ -12233,7 +12233,6 @@ static void __iomem *
 lpfc_dual_chute_pci_bar_map(struct lpfc_hba *phba, uint16_t pci_barset)
 {
 	struct pci_dev *pdev;
-	unsigned long bar_map, bar_map_len;
 
 	if (!phba->pcidev)
 		return NULL;
@@ -12242,25 +12241,10 @@ lpfc_dual_chute_pci_bar_map(struct lpfc_hba *phba, uint16_t pci_barset)
 
 	switch (pci_barset) {
 	case WQ_PCI_BAR_0_AND_1:
-		if (!phba->pci_bar0_memmap_p) {
-			bar_map = pci_resource_start(pdev, PCI_64BIT_BAR0);
-			bar_map_len = pci_resource_len(pdev, PCI_64BIT_BAR0);
-			phba->pci_bar0_memmap_p = ioremap(bar_map, bar_map_len);
-		}
 		return phba->pci_bar0_memmap_p;
 	case WQ_PCI_BAR_2_AND_3:
-		if (!phba->pci_bar2_memmap_p) {
-			bar_map = pci_resource_start(pdev, PCI_64BIT_BAR2);
-			bar_map_len = pci_resource_len(pdev, PCI_64BIT_BAR2);
-			phba->pci_bar2_memmap_p = ioremap(bar_map, bar_map_len);
-		}
 		return phba->pci_bar2_memmap_p;
 	case WQ_PCI_BAR_4_AND_5:
-		if (!phba->pci_bar4_memmap_p) {
-			bar_map = pci_resource_start(pdev, PCI_64BIT_BAR4);
-			bar_map_len = pci_resource_len(pdev, PCI_64BIT_BAR4);
-			phba->pci_bar4_memmap_p = ioremap(bar_map, bar_map_len);
-		}
 		return phba->pci_bar4_memmap_p;
 	default:
 		break;
