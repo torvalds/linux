@@ -4057,7 +4057,6 @@ retry:
 	link_bw = intel_fdi_link_freq(dev) * MHz(100)/KHz(1)/10;
 
 	fdi_dotclock = adjusted_mode->clock;
-	fdi_dotclock /= pipe_config->pixel_multiplier;
 
 	lane = ironlake_get_lanes_required(fdi_dotclock, link_bw,
 					   pipe_config->pipe_bpp);
@@ -7375,8 +7374,7 @@ static void ironlake_crtc_clock_get(struct intel_crtc *crtc,
 	clock = ((u64)link_m * (u64)link_freq);
 	do_div(clock, link_n);
 
-	pipe_config->adjusted_mode.clock = clock *
-		pipe_config->pixel_multiplier;
+	pipe_config->adjusted_mode.clock = clock;
 }
 
 /** Returns the currently programmed mode of the given pipe. */
@@ -8322,7 +8320,8 @@ encoder_retry:
 	/* Set default port clock if not overwritten by the encoder. Needs to be
 	 * done afterwards in case the encoder adjusts the mode. */
 	if (!pipe_config->port_clock)
-		pipe_config->port_clock = pipe_config->adjusted_mode.clock;
+		pipe_config->port_clock = pipe_config->adjusted_mode.clock *
+			pipe_config->pixel_multiplier;
 
 	ret = intel_crtc_compute_config(to_intel_crtc(crtc), pipe_config);
 	if (ret < 0) {
