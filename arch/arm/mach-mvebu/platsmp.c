@@ -82,27 +82,10 @@ static int armada_xp_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 static void __init armada_xp_smp_init_cpus(void)
 {
-	struct device_node *np;
-	unsigned int i, ncores;
+	unsigned int ncores = num_possible_cpus();
 
-	np = of_find_node_by_name(NULL, "cpus");
-	if (!np)
-		panic("No 'cpus' node found\n");
-
-	ncores = of_get_child_count(np);
 	if (ncores == 0 || ncores > ARMADA_XP_MAX_CPUS)
 		panic("Invalid number of CPUs in DT\n");
-
-	/* Limit possible CPUs to defconfig */
-	if (ncores > nr_cpu_ids) {
-		pr_warn("SMP: %d CPUs physically present. Only %d configured.",
-			ncores, nr_cpu_ids);
-		pr_warn("Clipping CPU count to %d\n", nr_cpu_ids);
-		ncores = nr_cpu_ids;
-	}
-
-	for (i = 0; i < ncores; i++)
-		set_cpu_possible(i, true);
 
 	set_smp_cross_call(armada_mpic_send_doorbell);
 }

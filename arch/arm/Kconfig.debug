@@ -895,6 +895,11 @@ config DEBUG_LL_INCLUDE
 				 DEBUG_IMX53_UART ||\
 				 DEBUG_IMX6Q_UART || \
 				 DEBUG_IMX6SL_UART
+	default "debug/msm.S" if DEBUG_MSM_UART1 || \
+				 DEBUG_MSM_UART2 || \
+				 DEBUG_MSM_UART3 || \
+				 DEBUG_MSM8660_UART || \
+				 DEBUG_MSM8960_UART
 	default "debug/omap2plus.S" if DEBUG_OMAP2PLUS_UART
 	default "debug/sirf.S" if DEBUG_SIRFPRIMA2_UART1 || DEBUG_SIRFMARCO_UART1
 	default "debug/sti.S" if DEBUG_STI_UART
@@ -1056,7 +1061,7 @@ config DEBUG_UART_8250_FLOW_CONTROL
 
 config DEBUG_UNCOMPRESS
 	bool
-	depends on ARCH_MULTIPLATFORM
+	depends on ARCH_MULTIPLATFORM || ARCH_MSM
 	default y if DEBUG_LL && !DEBUG_OMAP2PLUS_UART && \
 		     (!DEBUG_TEGRA_UART || !ZBOOT_ROM)
 	help
@@ -1072,7 +1077,7 @@ config DEBUG_UNCOMPRESS
 
 config UNCOMPRESS_INCLUDE
 	string
-	default "debug/uncompress.h" if ARCH_MULTIPLATFORM
+	default "debug/uncompress.h" if ARCH_MULTIPLATFORM || ARCH_MSM
 	default "mach/uncompress.h"
 
 config EARLY_PRINTK

@@ -18,6 +18,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/bug.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/export.h>
@@ -26,8 +27,6 @@
 #include <asm/page.h>
 #include <mach/msm_iomap.h>
 #include <asm/mach/map.h>
-
-#include <mach/board.h>
 
 #include "common.h"
 
@@ -52,26 +51,38 @@ static struct map_desc msm_io_desc[] __initdata = {
 	MSM_CHIP_DEVICE_TYPE(GPIO1, MSM7X00, MT_DEVICE_NONSHARED),
 	MSM_CHIP_DEVICE_TYPE(GPIO2, MSM7X00, MT_DEVICE_NONSHARED),
 	MSM_DEVICE_TYPE(CLK_CTL, MT_DEVICE_NONSHARED),
-#if defined(CONFIG_DEBUG_MSM_UART1) || defined(CONFIG_DEBUG_MSM_UART2) || \
-	defined(CONFIG_DEBUG_MSM_UART3)
-	MSM_DEVICE_TYPE(DEBUG_UART, MT_DEVICE_NONSHARED),
-#endif
 	{
 		.virtual =  (unsigned long) MSM_SHARED_RAM_BASE,
 		.pfn = __phys_to_pfn(MSM_SHARED_RAM_PHYS),
 		.length =   MSM_SHARED_RAM_SIZE,
 		.type =     MT_DEVICE,
 	},
+#if defined(CONFIG_DEBUG_MSM_UART1) || defined(CONFIG_DEBUG_MSM_UART2) || \
+		defined(CONFIG_DEBUG_MSM_UART3)
+	{
+		/* Must be last: virtual and pfn filled in by debug_ll_addr() */
+		.length = SZ_4K,
+		.type = MT_DEVICE_NONSHARED,
+	}
+#endif
 };
 
 void __init msm_map_common_io(void)
 {
+	size_t size = ARRAY_SIZE(msm_io_desc);
+
 	/* Make sure the peripheral register window is closed, since
 	 * we will use PTE flags (TEX[1]=1,B=0,C=1) to determine which
 	 * pages are peripheral interface or not.
 	 */
 	asm("mcr p15, 0, %0, c15, c2, 4" : : "r" (0));
-	iotable_init(msm_io_desc, ARRAY_SIZE(msm_io_desc));
+#if defined(CONFIG_DEBUG_MSM_UART1) || defined(CONFIG_DEBUG_MSM_UART2) || \
+		defined(CONFIG_DEBUG_MSM_UART3)
+	debug_ll_addr(&msm_io_desc[size - 1].pfn,
+		      &msm_io_desc[size - 1].virtual);
+	msm_io_desc[size - 1].pfn = __phys_to_pfn(msm_io_desc[size - 1].pfn);
+#endif
+	iotable_init(msm_io_desc, size);
 }
 #endif
 
@@ -87,10 +98,6 @@ static struct map_desc qsd8x50_io_desc[] __initdata = {
 	MSM_DEVICE(SCPLL),
 	MSM_DEVICE(AD5),
 	MSM_DEVICE(MDC),
-#if defined(CONFIG_DEBUG_MSM_UART1) || defined(CONFIG_DEBUG_MSM_UART2) || \
-	defined(CONFIG_DEBUG_MSM_UART3)
-	MSM_DEVICE(DEBUG_UART),
-#endif
 	{
 		.virtual =  (unsigned long) MSM_SHARED_RAM_BASE,
 		.pfn = __phys_to_pfn(MSM_SHARED_RAM_PHYS),
@@ -101,39 +108,10 @@ static struct map_desc qsd8x50_io_desc[] __initdata = {
 
 void __init msm_map_qsd8x50_io(void)
 {
+	debug_ll_io_init();
 	iotable_init(qsd8x50_io_desc, ARRAY_SIZE(qsd8x50_io_desc));
 }
 #endif /* CONFIG_ARCH_QSD8X50 */
-
-#ifdef CONFIG_ARCH_MSM8X60
-static struct map_desc msm8x60_io_desc[] __initdata = {
-	MSM_CHIP_DEVICE(TMR, MSM8X60),
-	MSM_CHIP_DEVICE(TMR0, MSM8X60),
-#ifdef CONFIG_DEBUG_MSM8660_UART
-	MSM_DEVICE(DEBUG_UART),
-#endif
-};
-
-void __init msm_map_msm8x60_io(void)
-{
-	iotable_init(msm8x60_io_desc, ARRAY_SIZE(msm8x60_io_desc));
-}
-#endif /* CONFIG_ARCH_MSM8X60 */
-
-#ifdef CONFIG_ARCH_MSM8960
-static struct map_desc msm8960_io_desc[] __initdata = {
-	MSM_CHIP_DEVICE(TMR, MSM8960),
-	MSM_CHIP_DEVICE(TMR0, MSM8960),
-#ifdef CONFIG_DEBUG_MSM8960_UART
-	MSM_DEVICE(DEBUG_UART),
-#endif
-};
-
-void __init msm_map_msm8960_io(void)
-{
-	iotable_init(msm8960_io_desc, ARRAY_SIZE(msm8960_io_desc));
-}
-#endif /* CONFIG_ARCH_MSM8960 */
 
 #ifdef CONFIG_ARCH_MSM7X30
 static struct map_desc msm7x30_io_desc[] __initdata = {
@@ -150,10 +128,6 @@ static struct map_desc msm7x30_io_desc[] __initdata = {
 	MSM_DEVICE(SAW),
 	MSM_DEVICE(GCC),
 	MSM_DEVICE(TCSR),
-#if defined(CONFIG_DEBUG_MSM_UART1) || defined(CONFIG_DEBUG_MSM_UART2) || \
-	defined(CONFIG_DEBUG_MSM_UART3)
-	MSM_DEVICE(DEBUG_UART),
-#endif
 	{
 		.virtual =  (unsigned long) MSM_SHARED_RAM_BASE,
 		.pfn = __phys_to_pfn(MSM_SHARED_RAM_PHYS),
@@ -164,10 +138,12 @@ static struct map_desc msm7x30_io_desc[] __initdata = {
 
 void __init msm_map_msm7x30_io(void)
 {
+	debug_ll_io_init();
 	iotable_init(msm7x30_io_desc, ARRAY_SIZE(msm7x30_io_desc));
 }
 #endif /* CONFIG_ARCH_MSM7X30 */
 
+#ifdef CONFIG_ARCH_MSM7X00A
 void __iomem *__msm_ioremap_caller(phys_addr_t phys_addr, size_t size,
 				   unsigned int mtype, void *caller)
 {
@@ -182,3 +158,4 @@ void __iomem *__msm_ioremap_caller(phys_addr_t phys_addr, size_t size,
 
 	return __arm_ioremap_caller(phys_addr, size, mtype, caller);
 }
+#endif
