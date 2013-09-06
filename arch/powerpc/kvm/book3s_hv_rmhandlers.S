@@ -405,16 +405,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 	/* Save R1 in the PACA */
 	std	r1, HSTATE_HOST_R1(r13)
 
-	/* Increment yield count if they have a VPA */
-	ld	r3, VCPU_VPA(r4)
-	cmpdi	r3, 0
-	beq	25f
-	lwz	r5, LPPACA_YIELDCOUNT(r3)
-	addi	r5, r5, 1
-	stw	r5, LPPACA_YIELDCOUNT(r3)
-	li	r6, 1
-	stb	r6, VCPU_VPA_DIRTY(r4)
-25:
 	/* Load up DAR and DSISR */
 	ld	r5, VCPU_DAR(r4)
 	lwz	r6, VCPU_DSISR(r4)
@@ -525,6 +515,16 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 	mtspr	SPRN_RMOR,r8
 	isync
 
+	/* Increment yield count if they have a VPA */
+	ld	r3, VCPU_VPA(r4)
+	cmpdi	r3, 0
+	beq	25f
+	lwz	r5, LPPACA_YIELDCOUNT(r3)
+	addi	r5, r5, 1
+	stw	r5, LPPACA_YIELDCOUNT(r3)
+	li	r6, 1
+	stb	r6, VCPU_VPA_DIRTY(r4)
+25:
 	/* Check if HDEC expires soon */
 	mfspr	r3,SPRN_HDEC
 	cmpwi	r3,10
