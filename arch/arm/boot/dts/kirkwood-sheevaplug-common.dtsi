@@ -91,3 +91,19 @@
 		};
 	};
 };
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		device_type = "ethernet-phy";
+		reg = <0>;
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
+	};
+};

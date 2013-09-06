@@ -10,11 +10,14 @@
 
 #include <linux/init.h>
 #include <linux/clk-provider.h>
+#include <linux/clocksource.h>
+#include <linux/irqchip.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_data/usb-ehci-orion.h>
 #include <asm/hardware/cache-tauros2.h>
 #include <asm/mach/arch.h>
+#include <mach/dove.h>
 #include <mach/pm.h>
 #include <plat/common.h>
 #include <plat/irq.h>
@@ -33,10 +36,6 @@ static void __init dove_legacy_clk_init(void)
 	clkspec.np = np;
 	clkspec.args_count = 1;
 
-	clkspec.args[0] = CLOCK_GATING_BIT_GBE;
-	orion_clkdev_add(NULL, "mv643xx_eth_port.0",
-			 of_clk_get_from_provider(&clkspec));
-
 	clkspec.args[0] = CLOCK_GATING_BIT_PCIE0;
 	orion_clkdev_add("0", "pcie",
 			 of_clk_get_from_provider(&clkspec));
@@ -46,15 +45,18 @@ static void __init dove_legacy_clk_init(void)
 			 of_clk_get_from_provider(&clkspec));
 }
 
-static void __init dove_of_clk_init(void)
+static void __init dove_dt_time_init(void)
 {
 	of_clk_init(NULL);
-	dove_legacy_clk_init();
+	clocksource_of_init();
 }
 
-static struct mv643xx_eth_platform_data dove_dt_ge00_data = {
-	.phy_addr = MV643XX_ETH_PHY_ADDR_DEFAULT,
-};
+static void __init dove_dt_init_early(void)
+{
+	mvebu_mbus_init("marvell,dove-mbus",
+			BRIDGE_WINS_BASE, BRIDGE_WINS_SZ,
+			DOVE_MC_WINS_BASE, DOVE_MC_WINS_SZ);
+}
 
 static void __init dove_dt_init(void)
 {
@@ -65,11 +67,10 @@ static void __init dove_dt_init(void)
 #endif
 	dove_setup_cpu_wins();
 
-	/* Setup root of clk tree */
-	dove_of_clk_init();
+	/* Setup clocks for legacy devices */
+	dove_legacy_clk_init();
 
 	/* Internal devices not ported to DT yet */
-	dove_ge00_init(&dove_dt_ge00_data);
 	dove_pcie_init(1, 1);
 
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
@@ -82,9 +83,8 @@ static const char * const dove_dt_board_compat[] = {
 
 DT_MACHINE_START(DOVE_DT, "Marvell Dove (Flattened Device Tree)")
 	.map_io		= dove_map_io,
-	.init_early	= dove_init_early,
-	.init_irq	= orion_dt_init_irq,
-	.init_time	= dove_timer_init,
+	.init_early	= dove_dt_init_early,
+	.init_time	= dove_dt_time_init,
 	.init_machine	= dove_dt_init,
 	.restart	= dove_restart,
 	.dt_compat	= dove_dt_board_compat,

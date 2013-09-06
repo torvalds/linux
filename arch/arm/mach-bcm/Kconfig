@@ -12,6 +12,7 @@ config ARCH_BCM
 	select GPIO_BCM
 	select SPARSE_IRQ
 	select TICK_ONESHOT
+	select CACHE_L2X0
 	help
 	  This enables support for system based on Broadcom SoCs.
 	  It currently supports the 'BCM281XX' family, which includes
