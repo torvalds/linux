@@ -17,7 +17,7 @@ enum pnv_phb_model {
 	PNV_PHB_MODEL_PHB3,
 };
 
-#define PNV_PCI_DIAG_BUF_SIZE	4096
+#define PNV_PCI_DIAG_BUF_SIZE	8192
 #define PNV_IODA_PE_DEV		(1 << 0)	/* PE has single PCI device	*/
 #define PNV_IODA_PE_BUS		(1 << 1)	/* PE has primary PCI bus	*/
 #define PNV_IODA_PE_BUS_ALL	(1 << 2)	/* PE has subordinate buses	*/
