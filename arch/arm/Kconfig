@@ -52,6 +52,7 @@ config ARM
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_UID16
+	select IRQ_FORCED_THREADING
 	select KTIME_SCALAR
 	select PERF_USE_VMALLOC
 	select RTC_LIB
@@ -1372,6 +1373,15 @@ config ARM_ERRATA_798181
 	  which sends an IPI to the CPUs that are running the same ASID
 	  as the one being invalidated.
 
+config ARM_ERRATA_773022
+	bool "ARM errata: incorrect instructions may be executed from loop buffer"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 773022 Cortex-A15
+	  (up to r0p4) erratum. In certain rare sequences of code, the
+	  loop buffer may deliver incorrect instructions. This
+	  workaround disables the loop buffer to avoid the erratum.
+
 endmenu
 
 source "arch/arm/common/Kconfig"
@@ -1613,13 +1623,49 @@ config ARCH_NR_GPIO
 
 source kernel/Kconfig.preempt
 
-config HZ
+config HZ_FIXED
 	int
 	default 200 if ARCH_EBSA110 || ARCH_S3C24XX || ARCH_S5P64X0 || \
 		ARCH_S5PV210 || ARCH_EXYNOS4
 	default AT91_TIMER_HZ if ARCH_AT91
 	default SHMOBILE_TIMER_HZ if ARCH_SHMOBILE
-	default 100
+
+choice
+	depends on !HZ_FIXED
+	prompt "Timer frequency"
+
+config HZ_100
+	bool "100 Hz"
+
+config HZ_200
+	bool "200 Hz"
+
+config HZ_250
+	bool "250 Hz"
+
+config HZ_300
+	bool "300 Hz"
+
+config HZ_500
+	bool "500 Hz"
+
+config HZ_1000
+	bool "1000 Hz"
+
+endchoice
+
+config HZ
+	int
+	default HZ_FIXED if HZ_FIXED
+	default 100 if HZ_100
+	default 200 if HZ_200
+	default 250 if HZ_250
+	default 300 if HZ_300
+	default 500 if HZ_500
+	default 1000
+
+config SCHED_HRTICK
+	def_bool HIGH_RES_TIMERS
 
 config SCHED_HRTICK
 	def_bool HIGH_RES_TIMERS
@@ -1755,6 +1801,9 @@ config SYS_SUPPORTS_HUGETLBFS
 config HAVE_ARCH_TRANSPARENT_HUGEPAGE
        def_bool y
        depends on ARM_LPAE
+
+config ARCH_WANT_GENERAL_HUGETLB
+	def_bool y
 
 source "mm/Kconfig"
 
@@ -2174,6 +2223,13 @@ config NEON
 	  Say Y to include support code for NEON, the ARMv7 Advanced SIMD
 	  Extension.
 
+config KERNEL_MODE_NEON
+	bool "Support for NEON in kernel mode"
+	default n
+	depends on NEON
+	help
+	  Say Y to include support for NEON in kernel mode.
+
 endmenu
 
 menu "Userspace binary formats"
@@ -2198,7 +2254,7 @@ source "kernel/power/Kconfig"
 
 config ARCH_SUSPEND_POSSIBLE
 	depends on !ARCH_S5PC100
-	depends on CPU_ARM920T || CPU_ARM926T || CPU_SA1100 || \
+	depends on CPU_ARM920T || CPU_ARM926T || CPU_FEROCEON || CPU_SA1100 || \
 		CPU_V6 || CPU_V6K || CPU_V7 || CPU_XSC3 || CPU_XSCALE || CPU_MOHAWK
 	def_bool y
 
