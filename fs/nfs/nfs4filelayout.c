@@ -528,6 +528,7 @@ filelayout_read_pagelist(struct nfs_read_data *data)
 	struct nfs_pgio_header *hdr = data->header;
 	struct pnfs_layout_segment *lseg = hdr->lseg;
 	struct nfs4_pnfs_ds *ds;
+	struct rpc_clnt *ds_clnt;
 	loff_t offset = data->args.offset;
 	u32 j, idx;
 	struct nfs_fh *fh;
@@ -542,6 +543,11 @@ filelayout_read_pagelist(struct nfs_read_data *data)
 	ds = nfs4_fl_prepare_ds(lseg, idx);
 	if (!ds)
 		return PNFS_NOT_ATTEMPTED;
+
+	ds_clnt = nfs4_find_or_create_ds_client(ds->ds_clp, hdr->inode);
+	if (IS_ERR(ds_clnt))
+		return PNFS_NOT_ATTEMPTED;
+
 	dprintk("%s USE DS: %s cl_count %d\n", __func__,
 		ds->ds_remotestr, atomic_read(&ds->ds_clp->cl_count));
 
@@ -556,7 +562,7 @@ filelayout_read_pagelist(struct nfs_read_data *data)
 	data->mds_offset = offset;
 
 	/* Perform an asynchronous read to ds */
-	nfs_initiate_read(ds->ds_clp->cl_rpcclient, data,
+	nfs_initiate_read(ds_clnt, data,
 				  &filelayout_read_call_ops, RPC_TASK_SOFTCONN);
 	return PNFS_ATTEMPTED;
 }
@@ -568,6 +574,7 @@ filelayout_write_pagelist(struct nfs_write_data *data, int sync)
 	struct nfs_pgio_header *hdr = data->header;
 	struct pnfs_layout_segment *lseg = hdr->lseg;
 	struct nfs4_pnfs_ds *ds;
+	struct rpc_clnt *ds_clnt;
 	loff_t offset = data->args.offset;
 	u32 j, idx;
 	struct nfs_fh *fh;
@@ -578,6 +585,11 @@ filelayout_write_pagelist(struct nfs_write_data *data, int sync)
 	ds = nfs4_fl_prepare_ds(lseg, idx);
 	if (!ds)
 		return PNFS_NOT_ATTEMPTED;
+
+	ds_clnt = nfs4_find_or_create_ds_client(ds->ds_clp, hdr->inode);
+	if (IS_ERR(ds_clnt))
+		return PNFS_NOT_ATTEMPTED;
+
 	dprintk("%s ino %lu sync %d req %Zu@%llu DS: %s cl_count %d\n",
 		__func__, hdr->inode->i_ino, sync, (size_t) data->args.count,
 		offset, ds->ds_remotestr, atomic_read(&ds->ds_clp->cl_count));
@@ -595,7 +607,7 @@ filelayout_write_pagelist(struct nfs_write_data *data, int sync)
 	data->args.offset = filelayout_get_dserver_offset(lseg, offset);
 
 	/* Perform an asynchronous write */
-	nfs_initiate_write(ds->ds_clp->cl_rpcclient, data,
+	nfs_initiate_write(ds_clnt, data,
 				    &filelayout_write_call_ops, sync,
 				    RPC_TASK_SOFTCONN);
 	return PNFS_ATTEMPTED;
@@ -1105,16 +1117,19 @@ static int filelayout_initiate_commit(struct nfs_commit_data *data, int how)
 {
 	struct pnfs_layout_segment *lseg = data->lseg;
 	struct nfs4_pnfs_ds *ds;
+	struct rpc_clnt *ds_clnt;
 	u32 idx;
 	struct nfs_fh *fh;
 
 	idx = calc_ds_index_from_commit(lseg, data->ds_commit_index);
 	ds = nfs4_fl_prepare_ds(lseg, idx);
-	if (!ds) {
-		prepare_to_resend_writes(data);
-		filelayout_commit_release(data);
-		return -EAGAIN;
-	}
+	if (!ds)
+		goto out_err;
+
+	ds_clnt = nfs4_find_or_create_ds_client(ds->ds_clp, data->inode);
+	if (IS_ERR(ds_clnt))
+		goto out_err;
+
 	dprintk("%s ino %lu, how %d cl_count %d\n", __func__,
 		data->inode->i_ino, how, atomic_read(&ds->ds_clp->cl_count));
 	data->commit_done_cb = filelayout_commit_done_cb;
@@ -1123,9 +1138,13 @@ static int filelayout_initiate_commit(struct nfs_commit_data *data, int how)
 	fh = select_ds_fh_from_commit(lseg, data->ds_commit_index);
 	if (fh)
 		data->args.fh = fh;
-	return nfs_initiate_commit(ds->ds_clp->cl_rpcclient, data,
+	return nfs_initiate_commit(ds_clnt, data,
 				   &filelayout_commit_call_ops, how,
 				   RPC_TASK_SOFTCONN);
+out_err:
+	prepare_to_resend_writes(data);
+	filelayout_commit_release(data);
+	return -EAGAIN;
 }
 
 static int
