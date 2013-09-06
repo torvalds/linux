@@ -4437,6 +4437,7 @@ lpfc_nlp_logo_unreg(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	if (!ndlp)
 		return;
 	lpfc_issue_els_logo(vport, ndlp, 0);
+	mempool_free(pmb, phba->mbox_mem_pool);
 }
 
 /*
