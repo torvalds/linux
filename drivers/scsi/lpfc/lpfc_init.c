@@ -8399,7 +8399,8 @@ static int
 lpfc_sli4_set_affinity(struct lpfc_hba *phba, int vectors)
 {
 	int i, idx, saved_chann, used_chann, cpu, phys_id;
-	int max_phys_id, num_io_channel, first_cpu;
+	int max_phys_id, min_phys_id;
+	int num_io_channel, first_cpu, chan;
 	struct lpfc_vector_map_info *cpup;
 #ifdef CONFIG_X86
 	struct cpuinfo_x86 *cpuinfo;
@@ -8417,6 +8418,7 @@ lpfc_sli4_set_affinity(struct lpfc_hba *phba, int vectors)
 		phba->sli4_hba.num_present_cpu));
 
 	max_phys_id = 0;
+	min_phys_id = 0xff;
 	phys_id = 0;
 	num_io_channel = 0;
 	first_cpu = LPFC_VECTOR_MAP_EMPTY;
@@ -8440,9 +8442,12 @@ lpfc_sli4_set_affinity(struct lpfc_hba *phba, int vectors)
 
 		if (cpup->phys_id > max_phys_id)
 			max_phys_id = cpup->phys_id;
+		if (cpup->phys_id < min_phys_id)
+			min_phys_id = cpup->phys_id;
 		cpup++;
 	}
 
+	phys_id = min_phys_id;
 	/* Now associate the HBA vectors with specific CPUs */
 	for (idx = 0; idx < vectors; idx++) {
 		cpup = phba->sli4_hba.cpu_map;
@@ -8453,11 +8458,23 @@ lpfc_sli4_set_affinity(struct lpfc_hba *phba, int vectors)
 			for (i = 1; i < max_phys_id; i++) {
 				phys_id++;
 				if (phys_id > max_phys_id)
-					phys_id = 0;
+					phys_id = min_phys_id;
 				cpu = lpfc_find_next_cpu(phba, phys_id);
 				if (cpu == LPFC_VECTOR_MAP_EMPTY)
 					continue;
 				goto found;
+			}
+
+			/* Use round robin for scheduling */
+			phba->cfg_fcp_io_sched = LPFC_FCP_SCHED_ROUND_ROBIN;
+			chan = 0;
+			cpup = phba->sli4_hba.cpu_map;
+			for (i = 0; i < phba->sli4_hba.num_present_cpu; i++) {
+				cpup->channel_id = chan;
+				cpup++;
+				chan++;
+				if (chan >= phba->cfg_fcp_io_channel)
+					chan = 0;
 			}
 
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -8497,7 +8514,7 @@ found:
 		/* Spread vector mapping across multple physical CPU nodes */
 		phys_id++;
 		if (phys_id > max_phys_id)
-			phys_id = 0;
+			phys_id = min_phys_id;
 	}
 
 	/*
@@ -8507,7 +8524,7 @@ found:
 	 * Base the remaining IO channel assigned, to IO channels already
 	 * assigned to other CPUs on the same phys_id.
 	 */
-	for (i = 0; i <= max_phys_id; i++) {
+	for (i = min_phys_id; i <= max_phys_id; i++) {
 		/*
 		 * If there are no io channels already mapped to
 		 * this phys_id, just round robin thru the io_channels.
@@ -8589,10 +8606,11 @@ out:
 	if (num_io_channel != phba->sli4_hba.num_present_cpu)
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"3333 Set affinity mismatch:"
-				"%d chann != %d cpus: %d vactors\n",
+				"%d chann != %d cpus: %d vectors\n",
 				num_io_channel, phba->sli4_hba.num_present_cpu,
 				vectors);
 
+	/* Enable using cpu affinity for scheduling */
 	phba->cfg_fcp_io_sched = LPFC_FCP_SCHED_BY_CPU;
 	return 1;
 }
