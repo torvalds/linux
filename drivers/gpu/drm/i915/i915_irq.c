@@ -2021,6 +2021,8 @@ static void i915_hangcheck_elapsed(unsigned long data)
 
 		if (ring->hangcheck.seqno == seqno) {
 			if (ring_idle(ring, seqno)) {
+				ring->hangcheck.action = HANGCHECK_IDLE;
+
 				if (waitqueue_active(&ring->irq_queue)) {
 					/* Issue a wake-up to catch stuck h/w. */
 					DRM_ERROR("Hangcheck timer elapsed... %s idle\n",
@@ -2049,6 +2051,7 @@ static void i915_hangcheck_elapsed(unsigned long data)
 								    acthd);
 
 				switch (ring->hangcheck.action) {
+				case HANGCHECK_IDLE:
 				case HANGCHECK_WAIT:
 					break;
 				case HANGCHECK_ACTIVE:
@@ -2064,6 +2067,8 @@ static void i915_hangcheck_elapsed(unsigned long data)
 				}
 			}
 		} else {
+			ring->hangcheck.action = HANGCHECK_ACTIVE;
+
 			/* Gradually reduce the count so that we catch DoS
 			 * attempts across multiple batches.
 			 */
