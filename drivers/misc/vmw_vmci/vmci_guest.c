@@ -649,7 +649,7 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	return 0;
 
 err_free_irq:
-	free_irq(vmci_dev->irq, &vmci_dev);
+	free_irq(vmci_dev->irq, vmci_dev);
 	tasklet_kill(&vmci_dev->datagram_tasklet);
 	tasklet_kill(&vmci_dev->bm_tasklet);
 
