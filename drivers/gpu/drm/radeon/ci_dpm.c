@@ -172,6 +172,8 @@ extern void si_trim_voltage_table_to_fit_state_table(struct radeon_device *rdev,
 extern void cik_enter_rlc_safe_mode(struct radeon_device *rdev);
 extern void cik_exit_rlc_safe_mode(struct radeon_device *rdev);
 extern int ci_mc_load_microcode(struct radeon_device *rdev);
+extern void cik_update_cg(struct radeon_device *rdev,
+			  u32 block, bool enable);
 
 static int ci_get_std_voltage_value_sidd(struct radeon_device *rdev,
 					 struct atom_voltage_table_entry *voltage_table,
@@ -3627,8 +3629,10 @@ static int ci_update_vce_dpm(struct radeon_device *rdev,
 
 	if (radeon_current_state->evclk != radeon_new_state->evclk) {
 		if (radeon_new_state->evclk) {
-			pi->smc_state_table.VceBootLevel = ci_get_vce_boot_level(rdev);
+			/* turn the clocks on when encoding */
+			cik_update_cg(rdev, RADEON_CG_BLOCK_VCE, false);
 
+			pi->smc_state_table.VceBootLevel = ci_get_vce_boot_level(rdev);
 			tmp = RREG32_SMC(DPM_TABLE_475);
 			tmp &= ~VceBootLevel_MASK;
 			tmp |= VceBootLevel(pi->smc_state_table.VceBootLevel);
@@ -3636,6 +3640,9 @@ static int ci_update_vce_dpm(struct radeon_device *rdev,
 
 			ret = ci_enable_vce_dpm(rdev, true);
 		} else {
+			/* turn the clocks off when not encoding */
+			cik_update_cg(rdev, RADEON_CG_BLOCK_VCE, true);
+
 			ret = ci_enable_vce_dpm(rdev, false);
 		}
 	}

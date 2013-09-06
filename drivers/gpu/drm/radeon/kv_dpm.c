@@ -1412,6 +1412,8 @@ static int kv_update_vce_dpm(struct radeon_device *rdev,
 
 	if (radeon_new_state->evclk > 0 && radeon_current_state->evclk == 0) {
 		kv_dpm_powergate_vce(rdev, false);
+		/* turn the clocks on when encoding */
+		cik_update_cg(rdev, RADEON_CG_BLOCK_VCE, false);
 		if (pi->caps_stable_p_state)
 			pi->vce_boot_level = table->count - 1;
 		else
@@ -1434,6 +1436,8 @@ static int kv_update_vce_dpm(struct radeon_device *rdev,
 		kv_enable_vce_dpm(rdev, true);
 	} else if (radeon_new_state->evclk == 0 && radeon_current_state->evclk > 0) {
 		kv_enable_vce_dpm(rdev, false);
+		/* turn the clocks off when not encoding */
+		cik_update_cg(rdev, RADEON_CG_BLOCK_VCE, true);
 		kv_dpm_powergate_vce(rdev, true);
 	}
 

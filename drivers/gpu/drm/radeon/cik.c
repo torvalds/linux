@@ -75,6 +75,7 @@ extern void si_init_uvd_internal_cg(struct radeon_device *rdev);
 extern int cik_sdma_resume(struct radeon_device *rdev);
 extern void cik_sdma_enable(struct radeon_device *rdev, bool enable);
 extern void cik_sdma_fini(struct radeon_device *rdev);
+extern void vce_v2_0_enable_mgcg(struct radeon_device *rdev, bool enable);
 static void cik_rlc_stop(struct radeon_device *rdev);
 static void cik_pcie_gen3_enable(struct radeon_device *rdev);
 static void cik_program_aspm(struct radeon_device *rdev);
@@ -6140,6 +6141,10 @@ void cik_update_cg(struct radeon_device *rdev,
 	if (block & RADEON_CG_BLOCK_HDP) {
 		cik_enable_hdp_mgcg(rdev, enable);
 		cik_enable_hdp_ls(rdev, enable);
+	}
+
+	if (block & RADEON_CG_BLOCK_VCE) {
+		vce_v2_0_enable_mgcg(rdev, enable);
 	}
 }
 
