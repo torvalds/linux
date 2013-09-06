@@ -8330,6 +8330,7 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 	drm_mode_debug_printmodeline(&pipe_config->requested_mode);
 	DRM_DEBUG_KMS("adjusted mode:\n");
 	drm_mode_debug_printmodeline(&pipe_config->adjusted_mode);
+	DRM_DEBUG_KMS("port clock: %d\n", pipe_config->port_clock);
 	DRM_DEBUG_KMS("gmch pfit: control: 0x%08x, ratios: 0x%08x, lvds border: 0x%08x\n",
 		      pipe_config->gmch_pfit.control,
 		      pipe_config->gmch_pfit.pgm_ratios,
@@ -8759,8 +8760,10 @@ intel_pipe_config_compare(struct drm_device *dev,
 	if (IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5)
 		PIPE_CONF_CHECK_I(pipe_bpp);
 
-	if (!IS_HASWELL(dev))
+	if (!IS_HASWELL(dev)) {
 		PIPE_CONF_CHECK_CLOCK_FUZZY(adjusted_mode.clock);
+		PIPE_CONF_CHECK_CLOCK_FUZZY(port_clock);
+	}
 
 #undef PIPE_CONF_CHECK_X
 #undef PIPE_CONF_CHECK_I
