@@ -59,6 +59,25 @@ static inline unsigned long mips_get_syscall_arg(unsigned long *arg,
 	}
 }
 
+static inline long syscall_get_return_value(struct task_struct *task,
+					    struct pt_regs *regs)
+{
+	return regs->regs[2];
+}
+
+static inline void syscall_set_return_value(struct task_struct *task,
+					    struct pt_regs *regs,
+					    int error, long val)
+{
+	if (error) {
+		regs->regs[2] = -error;
+		regs->regs[7] = -1;
+	} else {
+		regs->regs[2] = val;
+		regs->regs[7] = 0;
+	}
+}
+
 static inline void syscall_get_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
 					 unsigned int i, unsigned int n,
