@@ -460,10 +460,12 @@ enum {
 
 enum {
 	OPAL_PHB_ERROR_DATA_TYPE_P7IOC = 1,
+	OPAL_PHB_ERROR_DATA_TYPE_PHB3 = 2
 };
 
 enum {
 	OPAL_P7IOC_NUM_PEST_REGS = 128,
+	OPAL_PHB3_NUM_PEST_REGS = 256
 };
 
 struct OpalIoPhbErrorCommon {
@@ -529,6 +531,69 @@ struct OpalIoP7IOCPhbErrorData {
 	uint64_t dma1ErrorLog1;             // nE48
 	uint64_t pestA[OPAL_P7IOC_NUM_PEST_REGS];
 	uint64_t pestB[OPAL_P7IOC_NUM_PEST_REGS];
+};
+
+struct OpalIoPhb3ErrorData {
+	struct OpalIoPhbErrorCommon common;
+
+	uint32_t brdgCtl;
+
+	/* PHB3 UTL regs */
+	uint32_t portStatusReg;
+	uint32_t rootCmplxStatus;
+	uint32_t busAgentStatus;
+
+	/* PHB3 cfg regs */
+	uint32_t deviceStatus;
+	uint32_t slotStatus;
+	uint32_t linkStatus;
+	uint32_t devCmdStatus;
+	uint32_t devSecStatus;
+
+	/* cfg AER regs */
+	uint32_t rootErrorStatus;
+	uint32_t uncorrErrorStatus;
+	uint32_t corrErrorStatus;
+	uint32_t tlpHdr1;
+	uint32_t tlpHdr2;
+	uint32_t tlpHdr3;
+	uint32_t tlpHdr4;
+	uint32_t sourceId;
+
+	uint32_t rsv3;
+
+	/* Record data about the call to allocate a buffer */
+	uint64_t errorClass;
+	uint64_t correlator;
+
+	uint64_t nFir;			/* 000 */
+	uint64_t nFirMask;		/* 003 */
+	uint64_t nFirWOF;		/* 008 */
+
+	/* PHB3 MMIO Error Regs */
+	uint64_t phbPlssr;		/* 120 */
+	uint64_t phbCsr;		/* 110 */
+	uint64_t lemFir;		/* C00 */
+	uint64_t lemErrorMask;		/* C18 */
+	uint64_t lemWOF;		/* C40 */
+	uint64_t phbErrorStatus;	/* C80 */
+	uint64_t phbFirstErrorStatus;	/* C88 */
+	uint64_t phbErrorLog0;		/* CC0 */
+	uint64_t phbErrorLog1;		/* CC8 */
+	uint64_t mmioErrorStatus;	/* D00 */
+	uint64_t mmioFirstErrorStatus;	/* D08 */
+	uint64_t mmioErrorLog0;		/* D40 */
+	uint64_t mmioErrorLog1;		/* D48 */
+	uint64_t dma0ErrorStatus;	/* D80 */
+	uint64_t dma0FirstErrorStatus;	/* D88 */
+	uint64_t dma0ErrorLog0;		/* DC0 */
+	uint64_t dma0ErrorLog1;		/* DC8 */
+	uint64_t dma1ErrorStatus;	/* E00 */
+	uint64_t dma1FirstErrorStatus;	/* E08 */
+	uint64_t dma1ErrorLog0;		/* E40 */
+	uint64_t dma1ErrorLog1;		/* E48 */
+	uint64_t pestA[OPAL_PHB3_NUM_PEST_REGS];
+	uint64_t pestB[OPAL_PHB3_NUM_PEST_REGS];
 };
 
 typedef struct oppanel_line {
