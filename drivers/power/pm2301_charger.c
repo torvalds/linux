@@ -722,8 +722,12 @@ static int pm2xxx_charger_ac_en(struct ux500_charger *charger,
 
 		dev_dbg(pm2->dev, "Enable AC: %dmV %dmA\n", vset, iset);
 		if (!pm2->vddadc_en_ac) {
-			regulator_enable(pm2->regu);
-			pm2->vddadc_en_ac = true;
+			ret = regulator_enable(pm2->regu);
+			if (ret)
+				dev_warn(pm2->dev,
+					"Failed to enable vddadc regulator\n");
+			else
+				pm2->vddadc_en_ac = true;
 		}
 
 		ret = pm2xxx_charging_init(pm2);
