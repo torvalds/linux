@@ -265,7 +265,7 @@ int au_xino_trunc(struct super_block *sb, aufs_bindex_t bindex)
 	if (unlikely(err))
 		AuErr1("statfs err %d, ignored\n", err);
 	jiffy = jiffies;
-	blocks = file->f_dentry->d_inode->i_blocks;
+	blocks = file_inode(file)->i_blocks;
 	pr_info("begin truncating xino(b%d), ib%llu, %llu/%llu free blks\n",
 		bindex, (u64)blocks, st.f_bfree, st.f_blocks);
 
@@ -298,9 +298,9 @@ int au_xino_trunc(struct super_block *sb, aufs_bindex_t bindex)
 	err = vfs_statfs(&new_xino->f_path, &st);
 	if (!err) {
 		pr_info("end truncating xino(b%d), ib%llu, %llu/%llu free blks\n",
-			bindex, (u64)new_xino->f_dentry->d_inode->i_blocks,
+			bindex, (u64)file_inode(new_xino)->i_blocks,
 			st.f_bfree, st.f_blocks);
-		if (new_xino->f_dentry->d_inode->i_blocks < blocks)
+		if (file_inode(new_xino)->i_blocks < blocks)
 			au_sbi(sb)->si_xino_jiffy = jiffy;
 	} else
 		AuErr1("statfs err %d, ignored\n", err);
