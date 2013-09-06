@@ -4859,6 +4859,9 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	struct lpfc_mqe *mqe;
 	int longs;
 
+	/* Get all the module params for configuring this host */
+	lpfc_get_cfgparam(phba);
+
 	/* Before proceed, wait for POST done and device ready */
 	rc = lpfc_sli4_post_status_check(phba);
 	if (rc)
@@ -4902,15 +4905,6 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		sizeof(struct lpfc_mbox_ext_buf_ctx));
 	INIT_LIST_HEAD(&phba->mbox_ext_buf_ctx.ext_dmabuf_list);
 
-	/*
-	 * We need to do a READ_CONFIG mailbox command here before
-	 * calling lpfc_get_cfgparam. For VFs this will report the
-	 * MAX_XRI, MAX_VPI, MAX_RPI, MAX_IOCB, and MAX_VFI settings.
-	 * All of the resources allocated
-	 * for this Port are tied to these values.
-	 */
-	/* Get all the module params for configuring this host */
-	lpfc_get_cfgparam(phba);
 	phba->max_vpi = LPFC_MAX_VPI;
 
 	/* This will be set to correct value after the read_config mbox */
