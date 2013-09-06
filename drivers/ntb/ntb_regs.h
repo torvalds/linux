@@ -55,6 +55,7 @@
 #define SNB_MAX_COMPAT_SPADS	16
 /* Reserve the uppermost bit for link interrupt */
 #define SNB_MAX_DB_BITS		15
+#define SNB_LINK_DB		15
 #define SNB_DB_BITS_PER_VEC	5
 #define SNB_MAX_MW		2
 #define SNB_ERRATA_MAX_MW	1

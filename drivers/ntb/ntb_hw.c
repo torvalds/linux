@@ -678,6 +678,7 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 				return -EINVAL;
 
 			ndev->limits.max_mw = SNB_ERRATA_MAX_MW;
+			ndev->limits.max_db_bits = SNB_MAX_DB_BITS;
 			ndev->reg_ofs.spad_write = ndev->mw[1].vbase +
 						   SNB_SPAD_OFFSET;
 			ndev->reg_ofs.rdb = ndev->mw[1].vbase +
@@ -690,6 +691,13 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 			       SNB_PBAR4LMT_OFFSET);
 		} else {
 			ndev->limits.max_mw = SNB_MAX_MW;
+
+			/* HW Errata on bit 14 of b2bdoorbell register.  Writes
+			 * will not be mirrored to the remote system.  Shrink
+			 * the number of bits by one, since bit 14 is the last
+			 * bit.
+			 */
+			ndev->limits.max_db_bits = SNB_MAX_DB_BITS - 1;
 			ndev->reg_ofs.spad_write = ndev->reg_base +
 						   SNB_B2B_SPAD_OFFSET;
 			ndev->reg_ofs.rdb = ndev->reg_base +
@@ -769,6 +777,7 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 		 * have an equal amount.
 		 */
 		ndev->limits.max_spads = SNB_MAX_COMPAT_SPADS / 2;
+		ndev->limits.max_db_bits = SNB_MAX_DB_BITS;
 		/* Note: The SDOORBELL is the cause of the errata.  You REALLY
 		 * don't want to touch it.
 		 */
@@ -793,6 +802,7 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 		 * have an equal amount.
 		 */
 		ndev->limits.max_spads = SNB_MAX_COMPAT_SPADS / 2;
+		ndev->limits.max_db_bits = SNB_MAX_DB_BITS;
 		ndev->reg_ofs.rdb = ndev->reg_base + SNB_PDOORBELL_OFFSET;
 		ndev->reg_ofs.ldb = ndev->reg_base + SNB_SDOORBELL_OFFSET;
 		ndev->reg_ofs.ldb_mask = ndev->reg_base + SNB_SDBMSK_OFFSET;
@@ -819,7 +829,6 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 	ndev->reg_ofs.lnk_stat = ndev->reg_base + SNB_SLINK_STATUS_OFFSET;
 	ndev->reg_ofs.spci_cmd = ndev->reg_base + SNB_PCICMD_OFFSET;
 
-	ndev->limits.max_db_bits = SNB_MAX_DB_BITS;
 	ndev->limits.msix_cnt = SNB_MSIX_CNT;
 	ndev->bits_per_vector = SNB_DB_BITS_PER_VEC;
 
@@ -986,7 +995,7 @@ static irqreturn_t xeon_event_msix_irq(int irq, void *dev)
 		dev_err(&ndev->pdev->dev, "Error determining link status\n");
 
 	/* bit 15 is always the link bit */
-	writew(1 << ndev->limits.max_db_bits, ndev->reg_ofs.ldb);
+	writew(1 << SNB_LINK_DB, ndev->reg_ofs.ldb);
 
 	return IRQ_HANDLED;
 }
@@ -1176,9 +1185,10 @@ static int ntb_setup_interrupts(struct ntb_device *ndev)
 	 */
 	if (ndev->hw_type == BWD_HW)
 		writeq(~0, ndev->reg_ofs.ldb_mask);
-	else
-		writew(~(1 << ndev->limits.max_db_bits),
-		       ndev->reg_ofs.ldb_mask);
+	else {
+		u16 var = 1 << SNB_LINK_DB;
+		writew(~var, ndev->reg_ofs.ldb_mask);
+	}
 
 	rc = ntb_setup_msix(ndev);
 	if (!rc)
