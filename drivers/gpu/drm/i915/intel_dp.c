@@ -1731,11 +1731,16 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 	ironlake_edp_backlight_on(intel_dp);
 }
 
+static void g4x_enable_dp(struct intel_encoder *encoder)
+{
+	intel_enable_dp(encoder);
+}
+
 static void vlv_enable_dp(struct intel_encoder *encoder)
 {
 }
 
-static void intel_pre_enable_dp(struct intel_encoder *encoder)
+static void g4x_pre_enable_dp(struct intel_encoder *encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	struct intel_digital_port *dport = dp_to_dig_port(intel_dp);
@@ -1775,7 +1780,7 @@ static void vlv_pre_enable_dp(struct intel_encoder *encoder)
 	vlv_wait_port_ready(dev_priv, port);
 }
 
-static void intel_dp_pre_pll_enable(struct intel_encoder *encoder)
+static void vlv_dp_pre_pll_enable(struct intel_encoder *encoder)
 {
 	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
 	struct drm_device *dev = encoder->base.dev;
@@ -1784,9 +1789,6 @@ static void intel_dp_pre_pll_enable(struct intel_encoder *encoder)
 		to_intel_crtc(encoder->base.crtc);
 	int port = vlv_dport_to_channel(dport);
 	int pipe = intel_crtc->pipe;
-
-	if (!IS_VALLEYVIEW(dev))
-		return;
 
 	/* Program Tx lane resets to default */
 	mutex_lock(&dev_priv->dpio_lock);
@@ -3576,12 +3578,12 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 	intel_encoder->get_hw_state = intel_dp_get_hw_state;
 	intel_encoder->get_config = intel_dp_get_config;
 	if (IS_VALLEYVIEW(dev)) {
-		intel_encoder->pre_pll_enable = intel_dp_pre_pll_enable;
+		intel_encoder->pre_pll_enable = vlv_dp_pre_pll_enable;
 		intel_encoder->pre_enable = vlv_pre_enable_dp;
 		intel_encoder->enable = vlv_enable_dp;
 	} else {
-		intel_encoder->pre_enable = intel_pre_enable_dp;
-		intel_encoder->enable = intel_enable_dp;
+		intel_encoder->pre_enable = g4x_pre_enable_dp;
+		intel_encoder->enable = g4x_enable_dp;
 	}
 
 	intel_dig_port->port = port;
