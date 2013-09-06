@@ -106,27 +106,23 @@ static int ioda_eeh_post_init(struct pci_controller *hose)
 		ioda_eeh_nb_init = 1;
 	}
 
-	/* FIXME: Enable it for PHB3 later */
-	if (phb->type == PNV_PHB_IODA1) {
+	/* We needn't HUB diag-data on PHB3 */
+	if (phb->type == PNV_PHB_IODA1 && !hub_diag) {
+		hub_diag = (char *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
 		if (!hub_diag) {
-			hub_diag = (char *)__get_free_page(GFP_KERNEL |
-							   __GFP_ZERO);
-			if (!hub_diag) {
-				pr_err("%s: Out of memory !\n",
-				       __func__);
-				return -ENOMEM;
-			}
+			pr_err("%s: Out of memory !\n", __func__);
+			return -ENOMEM;
 		}
+	}
 
 #ifdef CONFIG_DEBUG_FS
-		if (phb->dbgfs)
-			debugfs_create_file("err_injct", 0600,
-					    phb->dbgfs, hose,
-					    &ioda_eeh_dbgfs_ops);
+	if (phb->dbgfs)
+		debugfs_create_file("err_injct", 0600,
+				    phb->dbgfs, hose,
+				    &ioda_eeh_dbgfs_ops);
 #endif
 
-		phb->eeh_state |= PNV_EEH_STATE_ENABLED;
-	}
+	phb->eeh_state |= PNV_EEH_STATE_ENABLED;
 
 	return 0;
 }
