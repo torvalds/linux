@@ -153,7 +153,6 @@ long aufs_ioctl_nondir(struct file *file, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case AUFS_CTL_MVDOWN:
-		WARN_ONCE(1, "move-down is still testing...\n");
 		err = au_mvdown(file->f_dentry, (void __user *)arg);
 		break;
 
