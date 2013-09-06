@@ -3966,11 +3966,11 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 
 	/*
 	 * Check SLI validation that all the transfer was actually done
-	 * (fcpi_parm should be zero).
+	 * (fcpi_parm should be zero). Apply check only to reads.
 	 */
-	} else if (fcpi_parm) {
+	} else if (fcpi_parm && (cmnd->sc_data_direction == DMA_FROM_DEVICE)) {
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP | LOG_FCP_ERROR,
-				 "9029 FCP Data Transfer Check Error: "
+				 "9029 FCP Read Check Error Data: "
 				 "x%x x%x x%x x%x x%x\n",
 				 be32_to_cpu(fcpcmd->fcpDl),
 				 be32_to_cpu(fcprsp->rspResId),
