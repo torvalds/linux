@@ -1541,7 +1541,7 @@ int r300_init(struct radeon_device *rdev)
 	rdev->accel_working = true;
 	r = r300_startup(rdev);
 	if (r) {
-		/* Somethings want wront with the accel init stop accel */
+		/* Something went wrong with the accel init, so stop accel */
 		dev_err(rdev->dev, "Disabling GPU acceleration\n");
 		r100_cp_fini(rdev);
 		radeon_wb_fini(rdev);

@@ -1054,7 +1054,7 @@ free_and_out:
 }
 
 /*
- * Lookup bus/target/lun and retrun corresponding struct hpsa_scsi_dev_t *
+ * Lookup bus/target/lun and return corresponding struct hpsa_scsi_dev_t *
  * Assume's h->devlock is held.
  */
 static struct hpsa_scsi_dev_t *lookup_hpsa_scsi_dev(struct ctlr_info *h,

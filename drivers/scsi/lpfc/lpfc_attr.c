@@ -816,7 +816,7 @@ lpfc_issue_reset(struct device *dev, struct device_attribute *attr,
  * the readyness after performing a firmware reset.
  *
  * Returns:
- * zero for success, -EPERM when port does not have privilage to perform the
+ * zero for success, -EPERM when port does not have privilege to perform the
  * reset, -EIO when port timeout from recovering from the reset.
  *
  * Note:
@@ -833,7 +833,7 @@ lpfc_sli4_pdev_status_reg_wait(struct lpfc_hba *phba)
 	lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
 		   &portstat_reg.word0);
 
-	/* verify if privilaged for the request operation */
+	/* verify if privileged for the request operation */
 	if (!bf_get(lpfc_sliport_status_rn, &portstat_reg) &&
 	    !bf_get(lpfc_sliport_status_err, &portstat_reg))
 		return -EPERM;
@@ -925,9 +925,9 @@ lpfc_sli4_pdev_reg_request(struct lpfc_hba *phba, uint32_t opcode)
 	rc = lpfc_sli4_pdev_status_reg_wait(phba);
 
 	if (rc == -EPERM) {
-		/* no privilage for reset */
+		/* no privilege for reset */
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-				"3150 No privilage to perform the requested "
+				"3150 No privilege to perform the requested "
 				"access: x%x\n", reg_val);
 	} else if (rc == -EIO) {
 		/* reset failed, there is nothing more we can do */

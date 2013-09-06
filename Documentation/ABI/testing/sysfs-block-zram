@@ -5,20 +5,21 @@ Description:
 		The disksize file is read-write and specifies the disk size
 		which represents the limit on the *uncompressed* worth of data
 		that can be stored in this disk.
+		Unit: bytes
 
 What:		/sys/block/zram<id>/initstate
 Date:		August 2010
 Contact:	Nitin Gupta <ngupta@vflare.org>
 Description:
-		The disksize file is read-only and shows the initialization
+		The initstate file is read-only and shows the initialization
 		state of the device.
 
 What:		/sys/block/zram<id>/reset
 Date:		August 2010
 Contact:	Nitin Gupta <ngupta@vflare.org>
 Description:
-		The disksize file is write-only and allows resetting the
-		device. The reset operation frees all the memory assocaited
+		The reset file is write-only and allows resetting the
+		device. The reset operation frees all the memory associated
 		with this device.
 
 What:		/sys/block/zram<id>/num_reads
@@ -48,7 +49,7 @@ Contact:	Nitin Gupta <ngupta@vflare.org>
 Description:
 		The notify_free file is read-only and specifies the number of
 		swap slot free notifications received by this device. These
-		notifications are send to a swap block device when a swap slot
+		notifications are sent to a swap block device when a swap slot
 		is freed. This statistic is applicable only when this disk is
 		being used as a swap disk.
 

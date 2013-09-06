@@ -2628,7 +2628,7 @@ err_get_xri_exit:
  * @phba: Pointer to HBA context object
  *
  * This function allocates BSG_MBOX_SIZE (4KB) page size dma buffer and.
- * retruns the pointer to the buffer.
+ * returns the pointer to the buffer.
  **/
 static struct lpfc_dmabuf *
 lpfc_bsg_dma_page_alloc(struct lpfc_hba *phba)

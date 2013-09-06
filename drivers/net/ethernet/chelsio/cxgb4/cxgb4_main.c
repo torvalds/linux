@@ -1142,7 +1142,7 @@ out:	release_firmware(fw);
  */
 void *t4_alloc_mem(size_t size)
 {
-	void *p = kzalloc(size, GFP_KERNEL);
+	void *p = kzalloc(size, GFP_KERNEL | __GFP_NOWARN);
 
 	if (!p)
 		p = vzalloc(size);

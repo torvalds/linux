@@ -207,7 +207,7 @@ passing those. One idea is to return this in _DSM method like:
 			Return (Local0)
 		}
 
-Then the at25 SPI driver can get this configation by calling _DSM on its
+Then the at25 SPI driver can get this configuration by calling _DSM on its
 ACPI handle like:
 
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
