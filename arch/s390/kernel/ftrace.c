@@ -15,6 +15,7 @@
 #include <linux/kprobes.h>
 #include <trace/syscall.h>
 #include <asm/asm-offsets.h>
+#include "entry.h"
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 

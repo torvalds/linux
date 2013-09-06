@@ -206,7 +206,7 @@ struct ext_int_info {
 };
 
 /* ext_int_hash_lock protects the handler lists for external interrupts */
-DEFINE_SPINLOCK(ext_int_hash_lock);
+static DEFINE_SPINLOCK(ext_int_hash_lock);
 
 static inline int ext_hash(u16 code)
 {
