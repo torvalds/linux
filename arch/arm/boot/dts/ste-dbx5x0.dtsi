@@ -245,7 +245,7 @@
 					     <22 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-names = "IRQ_HOTMON_LOW", "IRQ_HOTMON_HIGH";
 				status = "disabled";
-			 };
+			};
 
 			db8500-prcmu-regulators {
 				compatible = "stericsson,db8500-prcmu-regulator";
@@ -457,8 +457,36 @@
 					stericsson,earpeice-cmv = <950>; /* Units in mV. */
 				};
 
+				ext_regulators: ab8500-ext-regulators {
+					compatible = "stericsson,ab8500-ext-regulator";
+
+					ab8500_ext1_reg: ab8500_ext1 {
+						regulator-compatible = "ab8500_ext1";
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+						regulator-boot-on;
+						regulator-always-on;
+					};
+
+					ab8500_ext2_reg: ab8500_ext2 {
+						regulator-compatible = "ab8500_ext2";
+						regulator-min-microvolt = <1360000>;
+						regulator-max-microvolt = <1360000>;
+						regulator-boot-on;
+						regulator-always-on;
+					};
+
+					ab8500_ext3_reg: ab8500_ext3 {
+						regulator-compatible = "ab8500_ext3";
+						regulator-min-microvolt = <3400000>;
+						regulator-max-microvolt = <3400000>;
+						regulator-boot-on;
+					};
+				};
+
 				ab8500-regulators {
 					compatible = "stericsson,ab8500-regulator";
+					vin-supply = <&ab8500_ext3_reg>;
 
 					// supplies to the display/camera
 					ab8500_ldo_aux1_reg: ab8500_ldo_aux1 {

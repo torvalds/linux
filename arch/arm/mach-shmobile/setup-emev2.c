@@ -38,13 +38,6 @@
 
 static struct map_desc emev2_io_desc[] __initdata = {
 #ifdef CONFIG_SMP
-	/* 128K entity map for 0xe0100000 (SMU) */
-	{
-		.virtual	= 0xe0100000,
-		.pfn		= __phys_to_pfn(0xe0100000),
-		.length		= SZ_128K,
-		.type		= MT_DEVICE
-	},
 	/* 2M mapping for SCU + L2 controller */
 	{
 		.virtual	= 0xf0000000,
@@ -182,7 +175,8 @@ static struct resource pmu_resources[] = {
 
 void __init emev2_add_standard_devices(void)
 {
-	emev2_clock_init();
+	if (!IS_ENABLED(CONFIG_COMMON_CLK))
+		emev2_clock_init();
 
 	emev2_register_uart(0);
 	emev2_register_uart(1);
@@ -202,20 +196,6 @@ void __init emev2_init_delay(void)
 	shmobile_setup_delay(533, 1, 3); /* Cortex-A9 @ 533MHz */
 }
 
-void __init emev2_init_irq(void)
-{
-	void __iomem *gic_dist_base;
-	void __iomem *gic_cpu_base;
-
-	/* Static mappings, never released */
-	gic_dist_base = ioremap(0xe0028000, PAGE_SIZE);
-	gic_cpu_base = ioremap(0xe0020000, PAGE_SIZE);
-	BUG_ON(!gic_dist_base || !gic_cpu_base);
-
-	/* Use GIC to handle interrupts */
-	gic_init(0, 29, gic_dist_base, gic_cpu_base);
-}
-
 #ifdef CONFIG_USE_OF
 
 static const char *emev2_boards_compat_dt[] __initdata = {
@@ -225,8 +205,8 @@ static const char *emev2_boards_compat_dt[] __initdata = {
 
 DT_MACHINE_START(EMEV2_DT, "Generic Emma Mobile EV2 (Flattened Device Tree)")
 	.smp		= smp_ops(emev2_smp_ops),
+	.map_io		= emev2_map_io,
 	.init_early	= emev2_init_delay,
-	.nr_irqs	= NR_IRQS_LEGACY,
 	.dt_compat	= emev2_boards_compat_dt,
 MACHINE_END
 

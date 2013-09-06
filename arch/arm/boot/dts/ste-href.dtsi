@@ -9,25 +9,100 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-/dts-v1/;
-#include "dbx5x0.dtsi"
-#include "href.dtsi"
-#include "stuib.dtsi"
+#include <dt-bindings/interrupt-controller/irq.h>
+#include "ste-dbx5x0.dtsi"
 
 / {
-	model = "ST-Ericsson HREF (v60+) platform with Device Tree";
-	compatible = "st-ericsson,hrefv60+", "st-ericsson,u8500";
+	memory {
+		reg = <0x00000000 0x20000000>;
+	};
 
 	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
 		button@1 {
-			gpios = <&gpio6 25 0x4>;
+			linux,code = <11>;
+			label = "SFH7741 Proximity Sensor";
 		};
 	};
 
 	soc {
-		i2c@80110000 {
-			bu21013_tp@0x5c {
-				reset-gpio = <&gpio4 15 0x4>;
+		uart@80120000 {
+			status = "okay";
+		};
+
+		uart@80121000 {
+			status = "okay";
+		};
+
+		uart@80007000 {
+			status = "okay";
+		};
+
+		i2c@80004000 {
+			tc3589x@42 {
+				compatible = "tc3589x";
+				reg = <0x42>;
+				interrupt-parent = <&gpio6>;
+				interrupts = <25 IRQ_TYPE_EDGE_RISING>;
+
+				interrupt-controller;
+				#interrupt-cells = <2>;
+
+				tc3589x_gpio: tc3589x_gpio {
+					compatible = "tc3589x-gpio";
+					interrupts = <0 IRQ_TYPE_EDGE_RISING>;
+
+					interrupt-controller;
+					#interrupt-cells = <2>;
+					gpio-controller;
+					#gpio-cells = <2>;
+				};
+			};
+		};
+
+		i2c@80128000 {
+			lp5521@33 {
+				compatible = "national,lp5521";
+				reg = <0x33>;
+				label = "lp5521_pri";
+				clock-mode = /bits/ 8 <2>;
+				chan0 {
+					led-cur = /bits/ 8 <0x2f>;
+					max-cur = /bits/ 8 <0x5f>;
+				};
+				chan1 {
+					led-cur = /bits/ 8 <0x2f>;
+					max-cur = /bits/ 8 <0x5f>;
+				};
+				chan2 {
+					led-cur = /bits/ 8 <0x2f>;
+					max-cur = /bits/ 8 <0x5f>;
+				};
+			};
+			lp5521@34 {
+				compatible = "national,lp5521";
+				reg = <0x34>;
+				label = "lp5521_sec";
+				clock-mode = /bits/ 8 <2>;
+				chan0 {
+					led-cur = /bits/ 8 <0x2f>;
+					max-cur = /bits/ 8 <0x5f>;
+				};
+				chan1 {
+					led-cur = /bits/ 8 <0x2f>;
+					max-cur = /bits/ 8 <0x5f>;
+				};
+				chan2 {
+					led-cur = /bits/ 8 <0x2f>;
+					max-cur = /bits/ 8 <0x5f>;
+				};
+			};
+			bh1780@29 {
+				compatible = "rohm,bh1780gli";
+				reg = <0x33>;
 			};
 		};
 
@@ -39,6 +114,7 @@
 			mmc-cap-sd-highspeed;
 			mmc-cap-mmc-highspeed;
 			vmmc-supply = <&ab8500_ldo_aux3_reg>;
+			vqmmc-supply = <&vmmci>;
 
 			cd-gpios  = <&tc3589x_gpio 3 0x4>;
 
@@ -72,6 +148,21 @@
 			mmc-cap-mmc-highspeed;
 			vmmc-supply = <&ab8500_ldo_aux2_reg>;
 
+			status = "okay";
+		};
+
+		sound {
+			compatible = "stericsson,snd-soc-mop500";
+
+			stericsson,cpu-dai = <&msp1 &msp3>;
+			stericsson,audio-codec = <&codec>;
+		};
+
+		msp1: msp@80124000 {
+			status = "okay";
+		};
+
+		msp3: msp@80125000 {
 			status = "okay";
 		};
 

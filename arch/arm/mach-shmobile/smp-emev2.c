@@ -38,9 +38,12 @@ static int emev2_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 static void __init emev2_smp_prepare_cpus(unsigned int max_cpus)
 {
+	/* setup EMEV2 specific SCU base, enable */
+	shmobile_scu_base = ioremap(EMEV2_SCU_BASE, PAGE_SIZE);
 	scu_enable(shmobile_scu_base);
 
 	/* Tell ROM loader about our vector (in headsmp-scu.S, headsmp.S) */
+	emev2_clock_init(); /* need ioremapped SMU */
 	emev2_set_boot_vector(__pa(shmobile_boot_vector));
 	shmobile_boot_fn = virt_to_phys(shmobile_boot_scu);
 	shmobile_boot_arg = (unsigned long)shmobile_scu_base;
@@ -49,21 +52,7 @@ static void __init emev2_smp_prepare_cpus(unsigned int max_cpus)
 	scu_power_mode(shmobile_scu_base, SCU_PM_NORMAL);
 }
 
-static void __init emev2_smp_init_cpus(void)
-{
-	unsigned int ncores;
-
-	/* setup EMEV2 specific SCU base */
-	shmobile_scu_base = ioremap(EMEV2_SCU_BASE, PAGE_SIZE);
-	emev2_clock_init(); /* need ioremapped SMU */
-
-	ncores = shmobile_scu_base ? scu_get_core_count(shmobile_scu_base) : 1;
-
-	shmobile_smp_init_cpus(ncores);
-}
-
 struct smp_operations emev2_smp_ops __initdata = {
-	.smp_init_cpus		= emev2_smp_init_cpus,
 	.smp_prepare_cpus	= emev2_smp_prepare_cpus,
 	.smp_boot_secondary	= emev2_boot_secondary,
 };
