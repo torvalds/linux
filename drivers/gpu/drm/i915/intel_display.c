@@ -8590,13 +8590,9 @@ intel_modeset_update_state(struct drm_device *dev, unsigned prepare_pipes)
 
 }
 
-static bool intel_fuzzy_clock_check(struct intel_crtc_config *cur,
-				    struct intel_crtc_config *new)
+static bool intel_fuzzy_clock_check(int clock1, int clock2)
 {
-	int clock1, clock2, diff;
-
-	clock1 = cur->adjusted_mode.clock;
-	clock2 = new->adjusted_mode.clock;
+	int diff;
 
 	if (clock1 == clock2)
 		return true;
@@ -8731,7 +8727,8 @@ intel_pipe_config_compare(struct drm_device *dev,
 #undef PIPE_CONF_QUIRK
 
 	if (!IS_HASWELL(dev)) {
-		if (!intel_fuzzy_clock_check(current_config, pipe_config)) {
+		if (!intel_fuzzy_clock_check(current_config->adjusted_mode.clock,
+					     pipe_config->adjusted_mode.clock)) {
 			DRM_ERROR("mismatch in clock (expected %d, found %d)\n",
 				  current_config->adjusted_mode.clock,
 				  pipe_config->adjusted_mode.clock);
