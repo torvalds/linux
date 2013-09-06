@@ -1136,7 +1136,7 @@ void __ref __pci_bus_size_bridges(struct pci_bus *bus,
 	}
 
 	/* The root bus? */
-	if (!bus->self)
+	if (pci_is_root_bus(bus))
 		return;
 
 	switch (bus->self->class >> 8) {
