@@ -1059,7 +1059,7 @@ intel_sdvo_get_preferred_input_mode(struct intel_sdvo *intel_sdvo,
 
 static void i9xx_adjust_sdvo_tv_clock(struct intel_crtc_config *pipe_config)
 {
-	unsigned dotclock = pipe_config->adjusted_mode.clock;
+	unsigned dotclock = pipe_config->port_clock;
 	struct dpll *clock = &pipe_config->dpll;
 
 	/* SDVO TV has fixed PLL values depend on its clock range,
@@ -1124,7 +1124,6 @@ static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 	 */
 	pipe_config->pixel_multiplier =
 		intel_sdvo_get_pixel_multiplier(adjusted_mode);
-	adjusted_mode->clock *= pipe_config->pixel_multiplier;
 
 	if (intel_sdvo->color_range_auto) {
 		/* See CEA-861-E - 5.1 Default Encoding Parameters */
@@ -1209,7 +1208,6 @@ static void intel_sdvo_mode_set(struct intel_encoder *intel_encoder)
 		return;
 
 	intel_sdvo_get_dtd_from_mode(&input_dtd, adjusted_mode);
-	input_dtd.part1.clock /= crtc->config.pixel_multiplier;
 
 	if (intel_sdvo->is_tv || intel_sdvo->is_lvds)
 		input_dtd.part2.sdvo_flags = intel_sdvo->dtd_sdvo_flags;
