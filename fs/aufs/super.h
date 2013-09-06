@@ -137,6 +137,8 @@ struct au_sbinfo {
 	unsigned long		si_xib_last_pindex;
 	int			si_xib_next_bit;
 	aufs_bindex_t		si_xino_brid;
+	unsigned long		si_xino_jiffy;
+	unsigned long		si_xino_expire;
 	/* reserved for future use */
 	/* unsigned long long	si_xib_limit; */	/* Max xib file size */
 
