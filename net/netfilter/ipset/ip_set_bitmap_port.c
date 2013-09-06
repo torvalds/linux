@@ -39,7 +39,7 @@ struct bitmap_port {
 	u32 elements;		/* number of max elements in the set */
 	size_t memsize;		/* members size */
 	size_t dsize;		/* extensions struct size */
-	size_t offset[IPSET_OFFSET_MAX]; /* Offsets to extensions */
+	size_t offset[IPSET_EXT_ID_MAX]; /* Offsets to extensions */
 	u32 timeout;		/* timeout parameter */
 	struct timer_list gc;	/* garbage collection */
 };
@@ -282,9 +282,9 @@ bitmap_port_create(struct ip_set *set, struct nlattr *tb[], u32 flags)
 		set->extensions |= IPSET_EXT_COUNTER;
 		if (tb[IPSET_ATTR_TIMEOUT]) {
 			map->dsize = sizeof(struct bitmap_portct_elem);
-			map->offset[IPSET_OFFSET_TIMEOUT] =
+			map->offset[IPSET_EXT_ID_TIMEOUT] =
 				offsetof(struct bitmap_portct_elem, timeout);
-			map->offset[IPSET_OFFSET_COUNTER] =
+			map->offset[IPSET_EXT_ID_COUNTER] =
 				offsetof(struct bitmap_portct_elem, counter);
 			if (!init_map_port(set, map, first_port, last_port)) {
 				kfree(map);
@@ -297,7 +297,7 @@ bitmap_port_create(struct ip_set *set, struct nlattr *tb[], u32 flags)
 			bitmap_port_gc_init(set, bitmap_port_gc);
 		} else {
 			map->dsize = sizeof(struct bitmap_portc_elem);
-			map->offset[IPSET_OFFSET_COUNTER] =
+			map->offset[IPSET_EXT_ID_COUNTER] =
 				offsetof(struct bitmap_portc_elem, counter);
 			if (!init_map_port(set, map, first_port, last_port)) {
 				kfree(map);
@@ -306,7 +306,7 @@ bitmap_port_create(struct ip_set *set, struct nlattr *tb[], u32 flags)
 		}
 	} else if (tb[IPSET_ATTR_TIMEOUT]) {
 		map->dsize = sizeof(struct bitmap_portt_elem);
-		map->offset[IPSET_OFFSET_TIMEOUT] =
+		map->offset[IPSET_EXT_ID_TIMEOUT] =
 			offsetof(struct bitmap_portt_elem, timeout);
 		if (!init_map_port(set, map, first_port, last_port)) {
 			kfree(map);

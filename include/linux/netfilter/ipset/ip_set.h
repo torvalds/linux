@@ -56,20 +56,20 @@ enum ip_set_extension {
 	IPSET_EXT_COUNTER = (1 << IPSET_EXT_BIT_COUNTER),
 };
 
-/* Extension offsets */
-enum ip_set_offset {
-	IPSET_OFFSET_TIMEOUT = 0,
-	IPSET_OFFSET_COUNTER,
-	IPSET_OFFSET_MAX,
-};
-
 #define SET_WITH_TIMEOUT(s)	((s)->extensions & IPSET_EXT_TIMEOUT)
 #define SET_WITH_COUNTER(s)	((s)->extensions & IPSET_EXT_COUNTER)
 
+/* Extension id, in size order */
+enum ip_set_ext_id {
+	IPSET_EXT_ID_COUNTER = 0,
+	IPSET_EXT_ID_TIMEOUT,
+	IPSET_EXT_ID_MAX,
+};
+
 struct ip_set_ext {
-	u32 timeout;
 	u64 packets;
 	u64 bytes;
+	u32 timeout;
 };
 
 struct ip_set;

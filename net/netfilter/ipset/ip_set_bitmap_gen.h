@@ -33,9 +33,9 @@
 #define mtype			MTYPE
 
 #define ext_timeout(e, m)	\
-	(unsigned long *)((e) + (m)->offset[IPSET_OFFSET_TIMEOUT])
+	(unsigned long *)((e) + (m)->offset[IPSET_EXT_ID_TIMEOUT])
 #define ext_counter(e, m)	\
-	(struct ip_set_counter *)((e) + (m)->offset[IPSET_OFFSET_COUNTER])
+	(struct ip_set_counter *)((e) + (m)->offset[IPSET_EXT_ID_COUNTER])
 #define get_ext(map, id)	((map)->extensions + (map)->dsize * (id))
 
 static void

@@ -45,7 +45,7 @@ struct bitmap_ip {
 	u32 hosts;		/* number of hosts in a subnet */
 	size_t memsize;		/* members size */
 	size_t dsize;		/* extensions struct size */
-	size_t offset[IPSET_OFFSET_MAX]; /* Offsets to extensions */
+	size_t offset[IPSET_EXT_ID_MAX]; /* Offsets to extensions */
 	u8 netmask;		/* subnet netmask */
 	u32 timeout;		/* timeout parameter */
 	struct timer_list gc;	/* garbage collection */
@@ -342,9 +342,9 @@ bitmap_ip_create(struct ip_set *set, struct nlattr *tb[], u32 flags)
 		set->extensions |= IPSET_EXT_COUNTER;
 		if (tb[IPSET_ATTR_TIMEOUT]) {
 			map->dsize = sizeof(struct bitmap_ipct_elem);
-			map->offset[IPSET_OFFSET_TIMEOUT] =
+			map->offset[IPSET_EXT_ID_TIMEOUT] =
 				offsetof(struct bitmap_ipct_elem, timeout);
-			map->offset[IPSET_OFFSET_COUNTER] =
+			map->offset[IPSET_EXT_ID_COUNTER] =
 				offsetof(struct bitmap_ipct_elem, counter);
 
 			if (!init_map_ip(set, map, first_ip, last_ip,
@@ -360,7 +360,7 @@ bitmap_ip_create(struct ip_set *set, struct nlattr *tb[], u32 flags)
 			bitmap_ip_gc_init(set, bitmap_ip_gc);
 		} else {
 			map->dsize = sizeof(struct bitmap_ipc_elem);
-			map->offset[IPSET_OFFSET_COUNTER] =
+			map->offset[IPSET_EXT_ID_COUNTER] =
 				offsetof(struct bitmap_ipc_elem, counter);
 
 			if (!init_map_ip(set, map, first_ip, last_ip,
@@ -371,7 +371,7 @@ bitmap_ip_create(struct ip_set *set, struct nlattr *tb[], u32 flags)
 		}
 	} else if (tb[IPSET_ATTR_TIMEOUT]) {
 		map->dsize = sizeof(struct bitmap_ipt_elem);
-		map->offset[IPSET_OFFSET_TIMEOUT] =
+		map->offset[IPSET_EXT_ID_TIMEOUT] =
 			offsetof(struct bitmap_ipt_elem, timeout);
 
 		if (!init_map_ip(set, map, first_ip, last_ip,
