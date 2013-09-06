@@ -2404,8 +2404,8 @@ static void bond_validate_arp(struct bonding *bond, struct slave *slave, __be32 
 	slave->target_last_arp_rx[i] = jiffies;
 }
 
-static int bond_arp_rcv(const struct sk_buff *skb, struct bonding *bond,
-			struct slave *slave)
+int bond_arp_rcv(const struct sk_buff *skb, struct bonding *bond,
+		 struct slave *slave)
 {
 	struct arphdr *arp = (struct arphdr *)skb->data;
 	unsigned char *arp_ptr;
