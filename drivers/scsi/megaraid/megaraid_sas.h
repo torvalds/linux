@@ -492,21 +492,39 @@ struct megasas_ctrl_prop {
 	* a bit in the following structure.
 	*/
 	struct {
-		u32     copyBackDisabled            : 1;
-		u32     SMARTerEnabled              : 1;
-		u32     prCorrectUnconfiguredAreas  : 1;
-		u32     useFdeOnly                  : 1;
-		u32     disableNCQ                  : 1;
-		u32     SSDSMARTerEnabled           : 1;
-		u32     SSDPatrolReadEnabled        : 1;
-		u32     enableSpinDownUnconfigured  : 1;
-		u32     autoEnhancedImport          : 1;
-		u32     enableSecretKeyControl      : 1;
-		u32     disableOnlineCtrlReset      : 1;
-		u32     allowBootWithPinnedCache    : 1;
-		u32     disableSpinDownHS           : 1;
-		u32     enableJBOD                  : 1;
-		u32     reserved                    :18;
+#if   defined(__BIG_ENDIAN_BITFIELD)
+		u32     reserved:18;
+		u32     enableJBOD:1;
+		u32     disableSpinDownHS:1;
+		u32     allowBootWithPinnedCache:1;
+		u32     disableOnlineCtrlReset:1;
+		u32     enableSecretKeyControl:1;
+		u32     autoEnhancedImport:1;
+		u32     enableSpinDownUnconfigured:1;
+		u32     SSDPatrolReadEnabled:1;
+		u32     SSDSMARTerEnabled:1;
+		u32     disableNCQ:1;
+		u32     useFdeOnly:1;
+		u32     prCorrectUnconfiguredAreas:1;
+		u32     SMARTerEnabled:1;
+		u32     copyBackDisabled:1;
+#else
+		u32     copyBackDisabled:1;
+		u32     SMARTerEnabled:1;
+		u32     prCorrectUnconfiguredAreas:1;
+		u32     useFdeOnly:1;
+		u32     disableNCQ:1;
+		u32     SSDSMARTerEnabled:1;
+		u32     SSDPatrolReadEnabled:1;
+		u32     enableSpinDownUnconfigured:1;
+		u32     autoEnhancedImport:1;
+		u32     enableSecretKeyControl:1;
+		u32     disableOnlineCtrlReset:1;
+		u32     allowBootWithPinnedCache:1;
+		u32     disableSpinDownHS:1;
+		u32     enableJBOD:1;
+		u32     reserved:18;
+#endif
 	} OnOffProperties;
 	u8 autoSnapVDSpace;
 	u8 viewSpace;
@@ -820,6 +838,30 @@ struct megasas_ctrl_info {
 	u16 cacheMemorySize;                    /*7A2h */
 
 	struct {                                /*7A4h */
+#if   defined(__BIG_ENDIAN_BITFIELD)
+		u32     reserved:11;
+		u32     supportUnevenSpans:1;
+		u32     dedicatedHotSparesLimited:1;
+		u32     headlessMode:1;
+		u32     supportEmulatedDrives:1;
+		u32     supportResetNow:1;
+		u32     realTimeScheduler:1;
+		u32     supportSSDPatrolRead:1;
+		u32     supportPerfTuning:1;
+		u32     disableOnlinePFKChange:1;
+		u32     supportJBOD:1;
+		u32     supportBootTimePFKChange:1;
+		u32     supportSetLinkSpeed:1;
+		u32     supportEmergencySpares:1;
+		u32     supportSuspendResumeBGops:1;
+		u32     blockSSDWriteCacheChange:1;
+		u32     supportShieldState:1;
+		u32     supportLdBBMInfo:1;
+		u32     supportLdPIType3:1;
+		u32     supportLdPIType2:1;
+		u32     supportLdPIType1:1;
+		u32     supportPIcontroller:1;
+#else
 		u32     supportPIcontroller:1;
 		u32     supportLdPIType1:1;
 		u32     supportLdPIType2:1;
@@ -845,6 +887,7 @@ struct megasas_ctrl_info {
 
 		u32     supportUnevenSpans:1;
 		u32     reserved:11;
+#endif
 	} adapterOperations2;
 
 	u8  driverVersion[32];                  /*7A8h */
@@ -1069,9 +1112,15 @@ union megasas_sgl_frame {
 
 typedef union _MFI_CAPABILITIES {
 	struct {
+#if   defined(__BIG_ENDIAN_BITFIELD)
+		u32     reserved:30;
+		u32     support_additional_msix:1;
+		u32     support_fp_remote_lun:1;
+#else
 		u32     support_fp_remote_lun:1;
 		u32     support_additional_msix:1;
 		u32     reserved:30;
+#endif
 	} mfi_capabilities;
 	u32     reg;
 } MFI_CAPABILITIES;
