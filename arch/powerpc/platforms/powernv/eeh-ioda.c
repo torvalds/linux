@@ -583,8 +583,8 @@ static int ioda_eeh_get_log(struct eeh_pe *pe, int severity,
 			phb->diag.blob, PNV_PCI_DIAG_BUF_SIZE);
 	if (ret) {
 		spin_unlock_irqrestore(&phb->lock, flags);
-		pr_warning("%s: Failed to get log for PHB#%x-PE#%x\n",
-			   __func__, hose->global_number, pe->addr);
+		pr_warning("%s: Can't get log for PHB#%x-PE#%x (%lld)\n",
+			   __func__, hose->global_number, pe->addr, ret);
 		return -EIO;
 	}
 
