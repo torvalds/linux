@@ -78,18 +78,28 @@ struct exynos_pcie {
 #define PCIE_PHY_PLL_BIAS		0x00c
 #define PCIE_PHY_DCC_FEEDBACK		0x014
 #define PCIE_PHY_PLL_DIV_1		0x05c
+#define PCIE_PHY_COMMON_POWER		0x064
+#define PCIE_PHY_COMMON_PD_CMN		(0x1 << 3)
 #define PCIE_PHY_TRSV0_EMP_LVL		0x084
 #define PCIE_PHY_TRSV0_DRV_LVL		0x088
 #define PCIE_PHY_TRSV0_RXCDR		0x0ac
+#define PCIE_PHY_TRSV0_POWER		0x0c4
+#define PCIE_PHY_TRSV0_PD_TSV		(0x1 << 7)
 #define PCIE_PHY_TRSV0_LVCC		0x0dc
 #define PCIE_PHY_TRSV1_EMP_LVL		0x144
 #define PCIE_PHY_TRSV1_RXCDR		0x16c
+#define PCIE_PHY_TRSV1_POWER		0x184
+#define PCIE_PHY_TRSV1_PD_TSV		(0x1 << 7)
 #define PCIE_PHY_TRSV1_LVCC		0x19c
 #define PCIE_PHY_TRSV2_EMP_LVL		0x204
 #define PCIE_PHY_TRSV2_RXCDR		0x22c
+#define PCIE_PHY_TRSV2_POWER		0x244
+#define PCIE_PHY_TRSV2_PD_TSV		(0x1 << 7)
 #define PCIE_PHY_TRSV2_LVCC		0x25c
 #define PCIE_PHY_TRSV3_EMP_LVL		0x2c4
 #define PCIE_PHY_TRSV3_RXCDR		0x2ec
+#define PCIE_PHY_TRSV3_POWER		0x304
+#define PCIE_PHY_TRSV3_PD_TSV		(0x1 << 7)
 #define PCIE_PHY_TRSV3_LVCC		0x31c
 
 static inline void exynos_elb_writel(struct exynos_pcie *pcie, u32 val, u32 reg)
@@ -203,6 +213,58 @@ static void exynos_pcie_deassert_phy_reset(struct pcie_port *pp)
 	exynos_blk_writel(exynos_pcie, 0, PCIE_PHY_TRSV_RESET);
 }
 
+static void exynos_pcie_power_on_phy(struct pcie_port *pp)
+{
+	u32 val;
+	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pp);
+
+	val = exynos_phy_readl(exynos_pcie, PCIE_PHY_COMMON_POWER);
+	val &= ~PCIE_PHY_COMMON_PD_CMN;
+	exynos_phy_writel(exynos_pcie, val, PCIE_PHY_COMMON_POWER);
+
+	val = exynos_phy_readl(exynos_pcie, PCIE_PHY_TRSV0_POWER);
+	val &= ~PCIE_PHY_TRSV0_PD_TSV;
+	exynos_phy_writel(exynos_pcie, val, PCIE_PHY_TRSV0_POWER);
+
+	val = exynos_phy_readl(exynos_pcie, PCIE_PHY_TRSV1_POWER);
+	val &= ~PCIE_PHY_TRSV1_PD_TSV;
+	exynos_phy_writel(exynos_pcie, val, PCIE_PHY_TRSV1_POWER);
+
+	val = exynos_phy_readl(exynos_pcie, PCIE_PHY_TRSV2_POWER);
+	val &= ~PCIE_PHY_TRSV2_PD_TSV;
+	exynos_phy_writel(exynos_pcie, val, PCIE_PHY_TRSV2_POWER);
+
+	val = exynos_phy_readl(exynos_pcie, PCIE_PHY_TRSV3_POWER);
+	val &= ~PCIE_PHY_TRSV3_PD_TSV;
+	exynos_phy_writel(exynos_pcie, val, PCIE_PHY_TRSV3_POWER);
+}
+
+static void exynos_pcie_power_off_phy(struct pcie_port *pp)
+{
+	u32 val;
+	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pp);
+
+	val = exynos_phy_readl(exynos_pcie, PCIE_PHY_COMMON_POWER);
+	val |= PCIE_PHY_COMMON_PD_CMN;
+	exynos_phy_writel(exynos_pcie, val, PCIE_PHY_COMMON_POWER);
+
+	val = exynos_phy_readl(exynos_pcie, PCIE_PHY_TRSV0_POWER);
+	val |= PCIE_PHY_TRSV0_PD_TSV;
+	exynos_phy_writel(exynos_pcie, val, PCIE_PHY_TRSV0_POWER);
+
+	val = exynos_phy_readl(exynos_pcie, PCIE_PHY_TRSV1_POWER);
+	val |= PCIE_PHY_TRSV1_PD_TSV;
+	exynos_phy_writel(exynos_pcie, val, PCIE_PHY_TRSV1_POWER);
+
+	val = exynos_phy_readl(exynos_pcie, PCIE_PHY_TRSV2_POWER);
+	val |= PCIE_PHY_TRSV2_PD_TSV;
+	exynos_phy_writel(exynos_pcie, val, PCIE_PHY_TRSV2_POWER);
+
+	val = exynos_phy_readl(exynos_pcie, PCIE_PHY_TRSV3_POWER);
+	val |= PCIE_PHY_TRSV3_PD_TSV;
+	exynos_phy_writel(exynos_pcie, val, PCIE_PHY_TRSV3_POWER);
+}
+
 static void exynos_pcie_init_phy(struct pcie_port *pp)
 {
 	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pp);
@@ -271,6 +333,9 @@ static int exynos_pcie_establish_link(struct pcie_port *pp)
 	/* de-assert phy reset */
 	exynos_pcie_deassert_phy_reset(pp);
 
+	/* power on phy */
+	exynos_pcie_power_on_phy(pp);
+
 	/* initialize phy */
 	exynos_pcie_init_phy(pp);
 
@@ -303,6 +368,9 @@ static int exynos_pcie_establish_link(struct pcie_port *pp)
 						       PCIE_PHY_PLL_LOCKED);
 				dev_info(pp->dev, "PLL Locked: 0x%x\n", val);
 			}
+			/* power off phy */
+			exynos_pcie_power_off_phy(pp);
+
 			dev_err(pp->dev, "PCIe Link Fail\n");
 			return -EINVAL;
 		}
