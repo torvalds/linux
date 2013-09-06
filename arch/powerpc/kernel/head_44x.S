@@ -784,16 +784,6 @@ _GLOBAL(__fixup_440A_mcheck)
 	sync
 	blr
 
-/*
- * extern void giveup_fpu(struct task_struct *prev)
- *
- * The 44x core does not have an FPU.
- */
-#ifndef CONFIG_PPC_FPU
-_GLOBAL(giveup_fpu)
-	blr
-#endif
-
 _GLOBAL(set_context)
 
 #ifdef CONFIG_BDI_SWITCH

@@ -171,7 +171,7 @@ static void parse_ppp_data(struct seq_file *m)
 	           ppp_data.active_system_procs);
 
 	/* pool related entries are appropriate for shared configs */
-	if (lppaca_of(0).shared_proc) {
+	if (lppaca_shared_proc(get_lppaca())) {
 		unsigned long pool_idle_time, pool_procs;
 
 		seq_printf(m, "pool=%d\n", ppp_data.pool_num);
@@ -393,8 +393,8 @@ static void pseries_cmo_data(struct seq_file *m)
 		return;
 
 	for_each_possible_cpu(cpu) {
-		cmo_faults += lppaca_of(cpu).cmo_faults;
-		cmo_fault_time += lppaca_of(cpu).cmo_fault_time;
+		cmo_faults += be64_to_cpu(lppaca_of(cpu).cmo_faults);
+		cmo_fault_time += be64_to_cpu(lppaca_of(cpu).cmo_fault_time);
 	}
 
 	seq_printf(m, "cmo_faults=%lu\n", cmo_faults);
@@ -412,8 +412,9 @@ static void splpar_dispatch_data(struct seq_file *m)
 	unsigned long dispatch_dispersions = 0;
 
 	for_each_possible_cpu(cpu) {
-		dispatches += lppaca_of(cpu).yield_count;
-		dispatch_dispersions += lppaca_of(cpu).dispersion_count;
+		dispatches += be32_to_cpu(lppaca_of(cpu).yield_count);
+		dispatch_dispersions +=
+			be32_to_cpu(lppaca_of(cpu).dispersion_count);
 	}
 
 	seq_printf(m, "dispatches=%lu\n", dispatches);
@@ -480,7 +481,8 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 	seq_printf(m, "partition_potential_processors=%d\n",
 		   partition_potential_processors);
 
-	seq_printf(m, "shared_processor_mode=%d\n", lppaca_of(0).shared_proc);
+	seq_printf(m, "shared_processor_mode=%d\n",
+		   lppaca_shared_proc(get_lppaca()));
 
 	seq_printf(m, "slb_size=%d\n", mmu_slb_size);
 

@@ -1,5 +1,5 @@
-#ifndef _PSERIES_PLPAR_WRAPPERS_H
-#define _PSERIES_PLPAR_WRAPPERS_H
+#ifndef _ASM_POWERPC_PLPAR_WRAPPERS_H
+#define _ASM_POWERPC_PLPAR_WRAPPERS_H
 
 #include <linux/string.h>
 #include <linux/irqflags.h>
@@ -256,30 +256,6 @@ static inline long plpar_tce_stuff(unsigned long liobn, unsigned long ioba,
 	return plpar_hcall_norets(H_STUFF_TCE, liobn, ioba, tceval, count);
 }
 
-static inline long plpar_get_term_char(unsigned long termno,
-		unsigned long *len_ret, char *buf_ret)
-{
-	long rc;
-	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
-	unsigned long *lbuf = (unsigned long *)buf_ret;	/* TODO: alignment? */
-
-	rc = plpar_hcall(H_GET_TERM_CHAR, retbuf, termno);
-
-	*len_ret = retbuf[0];
-	lbuf[0] = retbuf[1];
-	lbuf[1] = retbuf[2];
-
-	return rc;
-}
-
-static inline long plpar_put_term_char(unsigned long termno, unsigned long len,
-		const char *buffer)
-{
-	unsigned long *lbuf = (unsigned long *)buffer;	/* TODO: alignment? */
-	return plpar_hcall_norets(H_PUT_TERM_CHAR, termno, len, lbuf[0],
-			lbuf[1]);
-}
-
 /* Set various resource mode parameters */
 static inline long plpar_set_mode(unsigned long mflags, unsigned long resource,
 		unsigned long value1, unsigned long value2)
@@ -321,4 +297,4 @@ static inline long plapr_set_watchpoint0(unsigned long dawr0, unsigned long dawr
 	return plpar_set_mode(0, 2, dawr0, dawrx0);
 }
 
-#endif /* _PSERIES_PLPAR_WRAPPERS_H */
+#endif /* _ASM_POWERPC_PLPAR_WRAPPERS_H */

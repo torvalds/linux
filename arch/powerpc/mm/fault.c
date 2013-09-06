@@ -443,8 +443,12 @@ good_area:
 				      regs, address);
 #ifdef CONFIG_PPC_SMLPAR
 			if (firmware_has_feature(FW_FEATURE_CMO)) {
+				u32 page_ins;
+
 				preempt_disable();
-				get_lppaca()->page_ins += (1 << PAGE_FACTOR);
+				page_ins = be32_to_cpu(get_lppaca()->page_ins);
+				page_ins += 1 << PAGE_FACTOR;
+				get_lppaca()->page_ins = cpu_to_be32(page_ins);
 				preempt_enable();
 			}
 #endif /* CONFIG_PPC_SMLPAR */
