@@ -42,7 +42,6 @@
 #include <linux/platform_data/dma-ste-dma40.h>
 
 #include <asm/mach-types.h>
-#include <asm/mach/arch.h>
 
 #include "setup.h"
 #include "devices.h"
@@ -686,6 +685,7 @@ MACHINE_START(U8500, "ST-Ericsson MOP500 platform")
 	.init_time	= ux500_timer_init,
 	.init_machine	= mop500_init_machine,
 	.init_late	= ux500_init_late,
+	.restart        = ux500_restart,
 MACHINE_END
 
 MACHINE_START(U8520, "ST-Ericsson U8520 Platform HREFP520")
@@ -695,6 +695,7 @@ MACHINE_START(U8520, "ST-Ericsson U8520 Platform HREFP520")
 	.init_time	= ux500_timer_init,
 	.init_machine	= mop500_init_machine,
 	.init_late	= ux500_init_late,
+	.restart        = ux500_restart,
 MACHINE_END
 
 MACHINE_START(HREFV60, "ST-Ericsson U8500 Platform HREFv60+")
@@ -705,6 +706,7 @@ MACHINE_START(HREFV60, "ST-Ericsson U8500 Platform HREFv60+")
 	.init_time	= ux500_timer_init,
 	.init_machine	= hrefv60_init_machine,
 	.init_late	= ux500_init_late,
+	.restart        = ux500_restart,
 MACHINE_END
 
 MACHINE_START(SNOWBALL, "Calao Systems Snowball platform")
@@ -716,4 +718,5 @@ MACHINE_START(SNOWBALL, "Calao Systems Snowball platform")
 	.init_time	= ux500_timer_init,
 	.init_machine	= snowball_init_machine,
 	.init_late	= NULL,
+	.restart        = ux500_restart,
 MACHINE_END

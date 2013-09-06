@@ -1,7 +1,7 @@
 /dts-v1/;
 
-/include/ "kirkwood.dtsi"
-/include/ "kirkwood-6281.dtsi"
+#include "kirkwood.dtsi"
+#include "kirkwood-6281.dtsi"
 
 / {
 	model = "MPL CEC4";
@@ -15,6 +15,17 @@
         chosen {
                 bootargs = "console=ttyS0,115200n8 earlyprintk";
         };
+
+	mbus {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000>;
+		pcie-controller {
+			status = "okay";
+
+			pcie@1,0 {
+				status = "okay";
+			};
+		};
+	};
 
 	ocp@f1000000 {
 		pinctrl: pinctrl@10000 {
@@ -133,14 +144,6 @@
 			status = "okay";
 			cd-gpios = <&gpio1 15 1>;
 			/* No WP GPIO */
-		};
-
-		pcie-controller {
-			status = "okay";
-
-			pcie@1,0 {
-				status = "okay";
-			};
 		};
 	};
 

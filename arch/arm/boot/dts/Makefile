@@ -91,6 +91,7 @@ dtb-$(CONFIG_ARCH_KIRKWOOD) += kirkwood-cloudbox.dtb \
 	kirkwood-ns2max.dtb \
 	kirkwood-ns2mini.dtb \
 	kirkwood-nsa310.dtb \
+	kirkwood-nsa310a.dtb \
 	kirkwood-sheevaplug.dtb \
 	kirkwood-sheevaplug-esata.dtb \
 	kirkwood-topkick.dtb \
@@ -102,7 +103,9 @@ dtb-$(CONFIG_ARCH_MSM) += msm8660-surf.dtb \
 	msm8960-cdp.dtb
 dtb-$(CONFIG_ARCH_MVEBU) += armada-370-db.dtb \
 	armada-370-mirabox.dtb \
+	armada-370-netgear-rn102.dtb \
 	armada-370-rd.dtb \
+	armada-xp-axpwifiap.dtb \
 	armada-xp-db.dtb \
 	armada-xp-gp.dtb \
 	armada-xp-openblocks-ax3-4.dtb
@@ -114,6 +117,8 @@ dtb-$(CONFIG_ARCH_MXC) += \
 	imx27-pdk.dtb \
 	imx27-phytec-phycore-som.dtb \
 	imx27-phytec-phycore-rdk.dtb \
+	imx27-phytec-phycard-s-som.dtb \
+	imx27-phytec-phycard-s-rdk.dtb \
 	imx31-bug.dtb \
 	imx51-apf51.dtb \
 	imx51-apf51dev.dtb \
@@ -133,6 +138,7 @@ dtb-$(CONFIG_ARCH_MXC) += \
 	imx6q-sabrelite.dtb \
 	imx6q-sabresd.dtb \
 	imx6q-sbc6x.dtb \
+	imx6q-wandboard.dtb \
 	imx6sl-evk.dtb \
 	vf610-twr.dtb
 dtb-$(CONFIG_ARCH_MXS) += imx23-evk.dtb \

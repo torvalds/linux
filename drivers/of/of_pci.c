@@ -89,3 +89,48 @@ int of_pci_parse_bus_range(struct device_node *node, struct resource *res)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(of_pci_parse_bus_range);
+
+#ifdef CONFIG_PCI_MSI
+
+static LIST_HEAD(of_pci_msi_chip_list);
+static DEFINE_MUTEX(of_pci_msi_chip_mutex);
+
+int of_pci_msi_chip_add(struct msi_chip *chip)
+{
+	if (!of_property_read_bool(chip->of_node, "msi-controller"))
+		return -EINVAL;
+
+	mutex_lock(&of_pci_msi_chip_mutex);
+	list_add(&chip->list, &of_pci_msi_chip_list);
+	mutex_unlock(&of_pci_msi_chip_mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(of_pci_msi_chip_add);
+
+void of_pci_msi_chip_remove(struct msi_chip *chip)
+{
+	mutex_lock(&of_pci_msi_chip_mutex);
+	list_del(&chip->list);
+	mutex_unlock(&of_pci_msi_chip_mutex);
+}
+EXPORT_SYMBOL_GPL(of_pci_msi_chip_remove);
+
+struct msi_chip *of_pci_find_msi_chip_by_node(struct device_node *of_node)
+{
+	struct msi_chip *c;
+
+	mutex_lock(&of_pci_msi_chip_mutex);
+	list_for_each_entry(c, &of_pci_msi_chip_list, list) {
+		if (c->of_node == of_node) {
+			mutex_unlock(&of_pci_msi_chip_mutex);
+			return c;
+		}
+	}
+	mutex_unlock(&of_pci_msi_chip_mutex);
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(of_pci_find_msi_chip_by_node);
+
+#endif /* CONFIG_PCI_MSI */

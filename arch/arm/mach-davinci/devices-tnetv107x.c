@@ -126,7 +126,7 @@ static struct platform_device edma_device = {
 	.dev.platform_data = tnetv107x_edma_info,
 };
 
-static struct plat_serial8250_port serial_data[] = {
+static struct plat_serial8250_port serial0_platform_data[] = {
 	{
 		.mapbase	= TNETV107X_UART0_BASE,
 		.irq		= IRQ_TNETV107X_UART0,
@@ -137,6 +137,11 @@ static struct plat_serial8250_port serial_data[] = {
 		.regshift	= 2,
 	},
 	{
+		.flags	= 0,
+	}
+};
+static struct plat_serial8250_port serial1_platform_data[] = {
+	{
 		.mapbase	= TNETV107X_UART1_BASE,
 		.irq		= IRQ_TNETV107X_UART1,
 		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST |
@@ -145,6 +150,11 @@ static struct plat_serial8250_port serial_data[] = {
 		.iotype		= UPIO_MEM32,
 		.regshift	= 2,
 	},
+	{
+		.flags	= 0,
+	}
+};
+static struct plat_serial8250_port serial2_platform_data[] = {
 	{
 		.mapbase	= TNETV107X_UART2_BASE,
 		.irq		= IRQ_TNETV107X_UART2,
@@ -156,13 +166,28 @@ static struct plat_serial8250_port serial_data[] = {
 	},
 	{
 		.flags	= 0,
-	},
+	}
 };
 
-struct platform_device tnetv107x_serial_device = {
-	.name			= "serial8250",
-	.id			= PLAT8250_DEV_PLATFORM,
-	.dev.platform_data	= serial_data,
+
+struct platform_device tnetv107x_serial_device[] = {
+	{
+		.name			= "serial8250",
+		.id			= PLAT8250_DEV_PLATFORM,
+		.dev.platform_data	= serial0_platform_data,
+	},
+	{
+		.name			= "serial8250",
+		.id			= PLAT8250_DEV_PLATFORM1,
+		.dev.platform_data	= serial1_platform_data,
+	},
+	{
+		.name			= "serial8250",
+		.id			= PLAT8250_DEV_PLATFORM2,
+		.dev.platform_data	= serial2_platform_data,
+	},
+	{
+	}
 };
 
 static struct resource mmc0_resources[] = {
@@ -385,7 +410,7 @@ void __init tnetv107x_devices_init(struct tnetv107x_device_info *info)
 	platform_device_register(&tsc_device);
 
 	if (info->serial_config)
-		davinci_serial_init(info->serial_config);
+		davinci_serial_init(tnetv107x_serial_device);
 
 	for (i = 0; i < 2; i++)
 		if (info->mmc_config[i]) {

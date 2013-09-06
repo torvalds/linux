@@ -290,6 +290,14 @@
 /* Tegra CPU clock and reset control regs */
 #define CLK_RST_CONTROLLER_CPU_CMPLX_STATUS	0x470
 
+#ifdef CONFIG_PM_SLEEP
+static struct cpu_clk_suspend_context {
+	u32 clk_csite_src;
+	u32 cclkg_burst;
+	u32 cclkg_divider;
+} tegra114_cpu_clk_sctx;
+#endif
+
 static int periph_clk_enb_refcnt[CLK_OUT_ENB_NUM * 32];
 
 static void __iomem *clk_base;
@@ -2142,9 +2150,39 @@ static void tegra114_disable_cpu_clock(u32 cpu)
 	/* flow controller would take care in the power sequence. */
 }
 
+#ifdef CONFIG_PM_SLEEP
+static void tegra114_cpu_clock_suspend(void)
+{
+	/* switch coresite to clk_m, save off original source */
+	tegra114_cpu_clk_sctx.clk_csite_src =
+				readl(clk_base + CLK_SOURCE_CSITE);
+	writel(3 << 30, clk_base + CLK_SOURCE_CSITE);
+
+	tegra114_cpu_clk_sctx.cclkg_burst =
+				readl(clk_base + CCLKG_BURST_POLICY);
+	tegra114_cpu_clk_sctx.cclkg_divider =
+				readl(clk_base + CCLKG_BURST_POLICY + 4);
+}
+
+static void tegra114_cpu_clock_resume(void)
+{
+	writel(tegra114_cpu_clk_sctx.clk_csite_src,
+					clk_base + CLK_SOURCE_CSITE);
+
+	writel(tegra114_cpu_clk_sctx.cclkg_burst,
+					clk_base + CCLKG_BURST_POLICY);
+	writel(tegra114_cpu_clk_sctx.cclkg_divider,
+					clk_base + CCLKG_BURST_POLICY + 4);
+}
+#endif
+
 static struct tegra_cpu_car_ops tegra114_cpu_car_ops = {
 	.wait_for_reset	= tegra114_wait_cpu_in_reset,
 	.disable_clock	= tegra114_disable_cpu_clock,
+#ifdef CONFIG_PM_SLEEP
+	.suspend	= tegra114_cpu_clock_suspend,
+	.resume		= tegra114_cpu_clock_resume,
+#endif
 };
 
 static const struct of_device_id pmc_match[] __initconst = {

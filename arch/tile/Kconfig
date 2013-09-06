@@ -395,7 +395,6 @@ config PCI
 	select PCI_DOMAINS
 	select GENERIC_PCI_IOMAP
 	select TILE_GXIO_TRIO if TILEGX
-	select ARCH_SUPPORTS_MSI if TILEGX
 	select PCI_MSI if TILEGX
 	---help---
 	  Enable PCI root complex support, so PCIe endpoint devices can

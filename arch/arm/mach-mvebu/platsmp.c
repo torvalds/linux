@@ -21,6 +21,7 @@
 #include <linux/smp.h>
 #include <linux/clk.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/mbus.h>
 #include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
@@ -28,6 +29,9 @@
 #include "armada-370-xp.h"
 #include "pmsu.h"
 #include "coherency.h"
+
+#define AXP_BOOTROM_BASE 0xfff00000
+#define AXP_BOOTROM_SIZE 0x100000
 
 static struct clk *__init get_cpu_clk(int cpu)
 {
@@ -92,10 +96,29 @@ static void __init armada_xp_smp_init_cpus(void)
 
 void __init armada_xp_smp_prepare_cpus(unsigned int max_cpus)
 {
+	struct device_node *node;
+	struct resource res;
+	int err;
+
 	set_secondary_cpus_clock();
 	flush_cache_all();
 	set_cpu_coherent(cpu_logical_map(smp_processor_id()), 0);
-	mvebu_mbus_add_window("bootrom", 0xfff00000, SZ_1M);
+
+	/*
+	 * In order to boot the secondary CPUs we need to ensure
+	 * the bootROM is mapped at the correct address.
+	 */
+	node = of_find_compatible_node(NULL, NULL, "marvell,bootrom");
+	if (!node)
+		panic("Cannot find 'marvell,bootrom' compatible node");
+
+	err = of_address_to_resource(node, 0, &res);
+	if (err < 0)
+		panic("Cannot get 'bootrom' node address");
+
+	if (res.start != AXP_BOOTROM_BASE ||
+	    resource_size(&res) != AXP_BOOTROM_SIZE)
+		panic("The address for the BootROM is incorrect");
 }
 
 struct smp_operations armada_xp_smp_ops __initdata = {

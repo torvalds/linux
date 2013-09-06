@@ -434,10 +434,6 @@ static void __init mityomapl138_setup_nand(void)
 				 ARRAY_SIZE(mityomapl138_devices));
 }
 
-static struct davinci_uart_config mityomapl138_uart_config __initdata = {
-	.enabled_uarts = 0x7,
-};
-
 static const short mityomap_mii_pins[] = {
 	DA850_MII_TXEN, DA850_MII_TXCLK, DA850_MII_COL, DA850_MII_TXD_3,
 	DA850_MII_TXD_2, DA850_MII_TXD_1, DA850_MII_TXD_0, DA850_MII_RXER,
@@ -517,7 +513,7 @@ static void __init mityomapl138_init(void)
 	if (ret)
 		pr_warning("watchdog registration failed: %d\n", ret);
 
-	davinci_serial_init(&mityomapl138_uart_config);
+	davinci_serial_init(da8xx_serial_device);
 
 	ret = da8xx_register_i2c(0, &mityomap_i2c_0_pdata);
 	if (ret)

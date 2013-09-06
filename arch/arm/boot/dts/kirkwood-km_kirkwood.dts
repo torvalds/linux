@@ -1,7 +1,7 @@
 /dts-v1/;
 
-/include/ "kirkwood.dtsi"
-/include/ "kirkwood-98dx4122.dtsi"
+#include "kirkwood.dtsi"
+#include "kirkwood-98dx4122.dtsi"
 
 / {
 	model = "Keymile Kirkwood Reference Design";

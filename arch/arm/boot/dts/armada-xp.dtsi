@@ -16,7 +16,7 @@
  * common to all Armada SoCs.
  */
 
-/include/ "armada-370-xp.dtsi"
+#include "armada-370-xp.dtsi"
 
 / {
 	model = "Marvell Armada XP family SoC";
@@ -27,6 +27,13 @@
 	};
 
 	soc {
+		compatible = "marvell,armadaxp-mbus", "simple-bus";
+
+		bootrom {
+			compatible = "marvell,bootrom";
+			reg = <MBUS_ID(0x01, 0x1d) 0 0x100000>;
+		};
+
 		internal-regs {
 			L2: l2-cache {
 				compatible = "marvell,aurora-system-cache";
@@ -62,7 +69,7 @@
 			};
 
 			timer@20300 {
-				marvell,timer-25Mhz;
+				compatible = "marvell,armada-xp-timer";
 			};
 
 			coreclk: mvebu-sar@18230 {

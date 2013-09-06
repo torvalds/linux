@@ -31,7 +31,7 @@
 #include <linux/regmap.h>
 #include <linux/micrel_phy.h>
 #include <linux/mfd/syscon.h>
-#include <asm/hardware/cache-l2x0.h>
+#include <linux/mfd/syscon/imx6q-iomuxc-gpr.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/system_misc.h>
@@ -103,87 +103,77 @@ static int ksz9021rn_phy_fixup(struct phy_device *phydev)
 {
 	if (IS_BUILTIN(CONFIG_PHYLIB)) {
 		/* min rx data delay */
-		phy_write(phydev, 0x0b, 0x8105);
-		phy_write(phydev, 0x0c, 0x0000);
+		phy_write(phydev, MICREL_KSZ9021_EXTREG_CTRL,
+			0x8000 | MICREL_KSZ9021_RGMII_RX_DATA_PAD_SCEW);
+		phy_write(phydev, MICREL_KSZ9021_EXTREG_DATA_WRITE, 0x0000);
 
 		/* max rx/tx clock delay, min rx/tx control delay */
-		phy_write(phydev, 0x0b, 0x8104);
-		phy_write(phydev, 0x0c, 0xf0f0);
-		phy_write(phydev, 0x0b, 0x104);
+		phy_write(phydev, MICREL_KSZ9021_EXTREG_CTRL,
+			0x8000 | MICREL_KSZ9021_RGMII_CLK_CTRL_PAD_SCEW);
+		phy_write(phydev, MICREL_KSZ9021_EXTREG_DATA_WRITE, 0xf0f0);
+		phy_write(phydev, MICREL_KSZ9021_EXTREG_CTRL,
+			MICREL_KSZ9021_RGMII_CLK_CTRL_PAD_SCEW);
 	}
 
 	return 0;
 }
 
-static void __init imx6q_sabrelite_cko1_setup(void)
+static void mmd_write_reg(struct phy_device *dev, int device, int reg, int val)
 {
-	struct clk *cko1_sel, *ahb, *cko1;
-	unsigned long rate;
-
-	cko1_sel = clk_get_sys(NULL, "cko1_sel");
-	ahb = clk_get_sys(NULL, "ahb");
-	cko1 = clk_get_sys(NULL, "cko1");
-	if (IS_ERR(cko1_sel) || IS_ERR(ahb) || IS_ERR(cko1)) {
-		pr_err("cko1 setup failed!\n");
-		goto put_clk;
-	}
-	clk_set_parent(cko1_sel, ahb);
-	rate = clk_round_rate(cko1, 16000000);
-	clk_set_rate(cko1, rate);
-put_clk:
-	if (!IS_ERR(cko1_sel))
-		clk_put(cko1_sel);
-	if (!IS_ERR(ahb))
-		clk_put(ahb);
-	if (!IS_ERR(cko1))
-		clk_put(cko1);
+	phy_write(dev, 0x0d, device);
+	phy_write(dev, 0x0e, reg);
+	phy_write(dev, 0x0d, (1 << 14) | device);
+	phy_write(dev, 0x0e, val);
 }
 
-static void __init imx6q_sabrelite_init(void)
+static int ksz9031rn_phy_fixup(struct phy_device *dev)
 {
-	if (IS_BUILTIN(CONFIG_PHYLIB))
+	/*
+	 * min rx data delay, max rx/tx clock delay,
+	 * min rx/tx control delay
+	 */
+	mmd_write_reg(dev, 2, 4, 0);
+	mmd_write_reg(dev, 2, 5, 0);
+	mmd_write_reg(dev, 2, 8, 0x003ff);
+
+	return 0;
+}
+
+static int ar8031_phy_fixup(struct phy_device *dev)
+{
+	u16 val;
+
+	/* To enable AR8031 output a 125MHz clk from CLK_25M */
+	phy_write(dev, 0xd, 0x7);
+	phy_write(dev, 0xe, 0x8016);
+	phy_write(dev, 0xd, 0x4007);
+
+	val = phy_read(dev, 0xe);
+	val &= 0xffe3;
+	val |= 0x18;
+	phy_write(dev, 0xe, val);
+
+	/* introduce tx clock delay */
+	phy_write(dev, 0x1d, 0x5);
+	val = phy_read(dev, 0x1e);
+	val |= 0x0100;
+	phy_write(dev, 0x1e, val);
+
+	return 0;
+}
+
+#define PHY_ID_AR8031	0x004dd074
+
+static void __init imx6q_enet_phy_init(void)
+{
+	if (IS_BUILTIN(CONFIG_PHYLIB)) {
 		phy_register_fixup_for_uid(PHY_ID_KSZ9021, MICREL_PHY_ID_MASK,
 				ksz9021rn_phy_fixup);
-	imx6q_sabrelite_cko1_setup();
-}
-
-static void __init imx6q_sabresd_cko1_setup(void)
-{
-	struct clk *cko1_sel, *pll4, *pll4_post, *cko1;
-	unsigned long rate;
-
-	cko1_sel = clk_get_sys(NULL, "cko1_sel");
-	pll4 = clk_get_sys(NULL, "pll4_audio");
-	pll4_post = clk_get_sys(NULL, "pll4_post_div");
-	cko1 = clk_get_sys(NULL, "cko1");
-	if (IS_ERR(cko1_sel) || IS_ERR(pll4)
-			|| IS_ERR(pll4_post) || IS_ERR(cko1)) {
-		pr_err("cko1 setup failed!\n");
-		goto put_clk;
+		phy_register_fixup_for_uid(PHY_ID_KSZ9031, MICREL_PHY_ID_MASK,
+				ksz9031rn_phy_fixup);
+		phy_register_fixup_for_uid(PHY_ID_AR8031, 0xffffffff,
+				ar8031_phy_fixup);
 	}
-	/*
-	 * Setting pll4 at 768MHz (24MHz * 32)
-	 * So its child clock can get 24MHz easily
-	 */
-	clk_set_rate(pll4, 768000000);
-
-	clk_set_parent(cko1_sel, pll4_post);
-	rate = clk_round_rate(cko1, 24000000);
-	clk_set_rate(cko1, rate);
-put_clk:
-	if (!IS_ERR(cko1_sel))
-		clk_put(cko1_sel);
-	if (!IS_ERR(pll4_post))
-		clk_put(pll4_post);
-	if (!IS_ERR(pll4))
-		clk_put(pll4);
-	if (!IS_ERR(cko1))
-		clk_put(cko1);
-}
-
-static void __init imx6q_sabresd_init(void)
-{
-	imx6q_sabresd_cko1_setup();
 }
 
 static void __init imx6q_1588_init(void)
@@ -192,29 +182,22 @@ static void __init imx6q_1588_init(void)
 
 	gpr = syscon_regmap_lookup_by_compatible("fsl,imx6q-iomuxc-gpr");
 	if (!IS_ERR(gpr))
-		regmap_update_bits(gpr, 0x4, 1 << 21, 1 << 21);
+		regmap_update_bits(gpr, IOMUXC_GPR1,
+				IMX6Q_GPR1_ENET_CLK_SEL_MASK,
+				IMX6Q_GPR1_ENET_CLK_SEL_ANATOP);
 	else
 		pr_err("failed to find fsl,imx6q-iomux-gpr regmap\n");
 
 }
-static void __init imx6q_usb_init(void)
-{
-	imx_anatop_usb_chrg_detect_disable();
-}
 
 static void __init imx6q_init_machine(void)
 {
-	if (of_machine_is_compatible("fsl,imx6q-sabrelite"))
-		imx6q_sabrelite_init();
-	else if (of_machine_is_compatible("fsl,imx6q-sabresd") ||
-			of_machine_is_compatible("fsl,imx6dl-sabresd"))
-		imx6q_sabresd_init();
+	imx6q_enet_phy_init();
 
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 
 	imx_anatop_init();
 	imx6q_pm_init();
-	imx6q_usb_init();
 	imx6q_1588_init();
 }
 
@@ -296,44 +279,10 @@ static void __init imx6q_map_io(void)
 	imx_scu_map_io();
 }
 
-#ifdef CONFIG_CACHE_L2X0
-static void __init imx6q_init_l2cache(void)
-{
-	void __iomem *l2x0_base;
-	struct device_node *np;
-	unsigned int val;
-
-	np = of_find_compatible_node(NULL, NULL, "arm,pl310-cache");
-	if (!np)
-		goto out;
-
-	l2x0_base = of_iomap(np, 0);
-	if (!l2x0_base) {
-		of_node_put(np);
-		goto out;
-	}
-
-	/* Configure the L2 PREFETCH and POWER registers */
-	val = readl_relaxed(l2x0_base + L2X0_PREFETCH_CTRL);
-	val |= 0x70800000;
-	writel_relaxed(val, l2x0_base + L2X0_PREFETCH_CTRL);
-	val = L2X0_DYNAMIC_CLK_GATING_EN | L2X0_STNDBY_MODE_EN;
-	writel_relaxed(val, l2x0_base + L2X0_POWER_CTRL);
-
-	iounmap(l2x0_base);
-	of_node_put(np);
-
-out:
-	l2x0_of_init(0, ~0UL);
-}
-#else
-static inline void imx6q_init_l2cache(void) {}
-#endif
-
 static void __init imx6q_init_irq(void)
 {
 	imx6q_init_revision();
-	imx6q_init_l2cache();
+	imx_init_l2cache();
 	imx_src_init();
 	imx_gpc_init();
 	irqchip_init();

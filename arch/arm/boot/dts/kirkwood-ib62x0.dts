@@ -1,7 +1,7 @@
 /dts-v1/;
 
-/include/ "kirkwood.dtsi"
-/include/ "kirkwood-6281.dtsi"
+#include "kirkwood.dtsi"
+#include "kirkwood-6281.dtsi"
 
 / {
 	model = "RaidSonic ICY BOX IB-NAS62x0 (Rev B)";

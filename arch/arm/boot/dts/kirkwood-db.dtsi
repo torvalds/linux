@@ -12,7 +12,7 @@
  * and 6282 variants of the Marvell Kirkwood Development Board.
  */
 
-/include/ "kirkwood.dtsi"
+#include "kirkwood.dtsi"
 
 / {
 	memory {
@@ -76,14 +76,6 @@
 			wp-gpios = <&gpio1 5 0>;
 			cd-gpios = <&gpio1 6 0>;
 			status = "okay";
-		};
-
-		pcie-controller {
-			status = "okay";
-
-			pcie@1,0 {
-				status = "okay";
-			};
 		};
 	};
 };

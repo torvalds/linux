@@ -747,7 +747,6 @@ config PCI
 	default y if !40x && !CPM2 && !8xx && !PPC_83xx \
 		&& !PPC_85xx && !PPC_86xx && !GAMECUBE_COMMON
 	default PCI_QSPAN if !4xx && !CPM2 && 8xx
-	select ARCH_SUPPORTS_MSI
 	select GENERIC_PCI_IOMAP
 	help
 	  Find out whether your system includes a PCI bus. PCI is the name of

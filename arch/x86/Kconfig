@@ -2032,7 +2032,6 @@ menu "Bus options (PCI etc.)"
 config PCI
 	bool "PCI support"
 	default y
-	select ARCH_SUPPORTS_MSI if (X86_LOCAL_APIC && X86_IO_APIC)
 	---help---
 	  Find out whether you have a PCI motherboard. PCI is the name of a
 	  bus system, i.e. the way the CPU talks to the other stuff inside

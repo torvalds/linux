@@ -117,7 +117,7 @@ config ARCH_OMAP2PLUS_TYPICAL
 	select I2C
 	select I2C_OMAP
 	select MENELAUS if ARCH_OMAP2
-	select NEON if ARCH_OMAP3 || ARCH_OMAP4 || SOC_OMAP5
+	select NEON if CPU_V7
 	select PM_RUNTIME
 	select REGULATOR
 	select TWL4030_CORE if ARCH_OMAP3 || ARCH_OMAP4
@@ -131,8 +131,16 @@ config SOC_HAS_OMAP2_SDRC
 
 config SOC_HAS_REALTIME_COUNTER
 	bool "Real time free running counter"
-	depends on SOC_OMAP5
+	depends on SOC_OMAP5 || SOC_DRA7XX
 	default y
+
+config SOC_DRA7XX
+	bool "TI DRA7XX"
+	select ARM_ARCH_TIMER
+	select CPU_V7
+	select ARM_GIC
+	select HAVE_SMP
+	select COMMON_CLK
 
 comment "OMAP Core Type"
 	depends on ARCH_OMAP2

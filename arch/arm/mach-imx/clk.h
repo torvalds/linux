@@ -6,6 +6,8 @@
 
 extern spinlock_t imx_ccm_lock;
 
+extern void imx_cscmr1_fixup(u32 *val);
+
 struct clk *imx_clk_pllv1(const char *name, const char *parent,
 		void __iomem *base);
 
@@ -48,6 +50,14 @@ struct clk *imx_clk_busy_divider(const char *name, const char *parent_name,
 struct clk *imx_clk_busy_mux(const char *name, void __iomem *reg, u8 shift,
 			     u8 width, void __iomem *busy_reg, u8 busy_shift,
 			     const char **parent_names, int num_parents);
+
+struct clk *imx_clk_fixup_divider(const char *name, const char *parent,
+				  void __iomem *reg, u8 shift, u8 width,
+				  void (*fixup)(u32 *val));
+
+struct clk *imx_clk_fixup_mux(const char *name, void __iomem *reg,
+			      u8 shift, u8 width, const char **parents,
+			      int num_parents, void (*fixup)(u32 *val));
 
 static inline struct clk *imx_clk_fixed(const char *name, int rate)
 {
