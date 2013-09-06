@@ -327,11 +327,11 @@ static int eeh_phb_check_failure(struct eeh_pe *pe)
 	/* Isolate the PHB and send event */
 	eeh_pe_state_mark(phb_pe, EEH_PE_ISOLATED);
 	eeh_serialize_unlock(flags);
-	eeh_send_failure_event(phb_pe);
 
 	pr_err("EEH: PHB#%x failure detected\n",
 		phb_pe->phb->global_number);
 	dump_stack();
+	eeh_send_failure_event(phb_pe);
 
 	return 1;
 out:
@@ -454,8 +454,6 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
 	eeh_serialize_unlock(flags);
 
-	eeh_send_failure_event(pe);
-
 	/* Most EEH events are due to device driver bugs.  Having
 	 * a stack trace will help the device-driver authors figure
 	 * out what happened.  So print that out.
@@ -463,6 +461,8 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	pr_err("EEH: Frozen PE#%x detected on PHB#%x\n",
 		pe->addr, pe->phb->global_number);
 	dump_stack();
+
+	eeh_send_failure_event(pe);
 
 	return 1;
 
