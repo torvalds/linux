@@ -65,7 +65,7 @@ config SOC_OMAP5
 	select ARM_ERRATA_798181 if SMP
 
 config SOC_AM33XX
-	bool "AM33XX support"
+	bool "TI AM33XX"
 	depends on ARCH_MULTI_V7
 	select ARCH_OMAP2PLUS
 	select ARM_CPU_SUSPEND if PM
