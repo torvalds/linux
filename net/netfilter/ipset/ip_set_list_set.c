@@ -28,28 +28,6 @@ struct set_elem {
 	ip_set_id_t id;
 };
 
-struct sett_elem {
-	struct {
-		ip_set_id_t id;
-	} __attribute__ ((aligned));
-	unsigned long timeout;
-};
-
-struct setc_elem {
-	struct {
-		ip_set_id_t id;
-	} __attribute__ ((aligned));
-	struct ip_set_counter counter;
-};
-
-struct setct_elem {
-	struct {
-		ip_set_id_t id;
-	} __attribute__ ((aligned));
-	struct ip_set_counter counter;
-	unsigned long timeout;
-};
-
 struct set_adt_elem {
 	ip_set_id_t id;
 	ip_set_id_t refid;
@@ -600,21 +578,18 @@ list_set_gc_init(struct ip_set *set, void (*gc)(unsigned long ul_set))
 
 /* Create list:set type of sets */
 
-static struct list_set *
-init_list_set(struct ip_set *set, u32 size, size_t dsize,
-	      unsigned long timeout)
+static bool
+init_list_set(struct ip_set *set, u32 size)
 {
 	struct list_set *map;
 	struct set_elem *e;
 	u32 i;
 
-	map = kzalloc(sizeof(*map) + size * dsize, GFP_KERNEL);
+	map = kzalloc(sizeof(*map) + size * set->dsize, GFP_KERNEL);
 	if (!map)
-		return NULL;
+		return false;
 
 	map->size = size;
-	set->dsize = dsize;
-	set->timeout = timeout;
 	set->data = map;
 
 	for (i = 0; i < size; i++) {
@@ -622,15 +597,13 @@ init_list_set(struct ip_set *set, u32 size, size_t dsize,
 		e->id = IPSET_INVALID_ID;
 	}
 
-	return map;
+	return true;
 }
 
 static int
 list_set_create(struct ip_set *set, struct nlattr *tb[], u32 flags)
 {
-	struct list_set *map;
-	u32 size = IP_SET_LIST_DEFAULT_SIZE, cadt_flags = 0;
-	unsigned long timeout = 0;
+	u32 size = IP_SET_LIST_DEFAULT_SIZE;
 
 	if (unlikely(!ip_set_optattr_netorder(tb, IPSET_ATTR_SIZE) ||
 		     !ip_set_optattr_netorder(tb, IPSET_ATTR_TIMEOUT) ||
@@ -642,45 +615,13 @@ list_set_create(struct ip_set *set, struct nlattr *tb[], u32 flags)
 	if (size < IP_SET_LIST_MIN_SIZE)
 		size = IP_SET_LIST_MIN_SIZE;
 
-	if (tb[IPSET_ATTR_CADT_FLAGS])
-		cadt_flags = ip_set_get_h32(tb[IPSET_ATTR_CADT_FLAGS]);
-	if (tb[IPSET_ATTR_TIMEOUT])
-		timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
 	set->variant = &set_variant;
-	if (cadt_flags & IPSET_FLAG_WITH_COUNTERS) {
-		set->extensions |= IPSET_EXT_COUNTER;
-		if (tb[IPSET_ATTR_TIMEOUT]) {
-			map = init_list_set(set, size,
-					sizeof(struct setct_elem), timeout);
-			if (!map)
-				return -ENOMEM;
-			set->extensions |= IPSET_EXT_TIMEOUT;
-			set->offset[IPSET_EXT_ID_TIMEOUT] =
-				offsetof(struct setct_elem, timeout);
-			set->offset[IPSET_EXT_ID_COUNTER] =
-				offsetof(struct setct_elem, counter);
-			list_set_gc_init(set, list_set_gc);
-		} else {
-			map = init_list_set(set, size,
-					    sizeof(struct setc_elem), 0);
-			if (!map)
-				return -ENOMEM;
-			set->offset[IPSET_EXT_ID_COUNTER] =
-				offsetof(struct setc_elem, counter);
-		}
-	} else if (tb[IPSET_ATTR_TIMEOUT]) {
-		map = init_list_set(set, size,
-				    sizeof(struct sett_elem), timeout);
-		if (!map)
-			return -ENOMEM;
-		set->extensions |= IPSET_EXT_TIMEOUT;
-		set->offset[IPSET_EXT_ID_TIMEOUT] =
-			offsetof(struct sett_elem, timeout);
+	set->dsize = ip_set_elem_len(set, tb, sizeof(struct set_elem));
+	if (!init_list_set(set, size))
+		return -ENOMEM;
+	if (tb[IPSET_ATTR_TIMEOUT]) {
+		set->timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
 		list_set_gc_init(set, list_set_gc);
-	} else {
-		map = init_list_set(set, size, sizeof(struct set_elem), 0);
-		if (!map)
-			return -ENOMEM;
 	}
 	return 0;
 }

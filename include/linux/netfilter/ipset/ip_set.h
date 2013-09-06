@@ -66,6 +66,17 @@ enum ip_set_ext_id {
 	IPSET_EXT_ID_MAX,
 };
 
+/* Extension type */
+struct ip_set_ext_type {
+	enum ip_set_extension type;
+	enum ipset_cadt_flags flag;
+	/* Size and minimal alignment */
+	u8 len;
+	u8 align;
+};
+
+extern const struct ip_set_ext_type ip_set_extensions[];
+
 struct ip_set_ext {
 	u64 packets;
 	u64 bytes;
@@ -283,6 +294,8 @@ extern void *ip_set_alloc(size_t size);
 extern void ip_set_free(void *members);
 extern int ip_set_get_ipaddr4(struct nlattr *nla,  __be32 *ipaddr);
 extern int ip_set_get_ipaddr6(struct nlattr *nla, union nf_inet_addr *ipaddr);
+extern size_t ip_set_elem_len(struct ip_set *set, struct nlattr *tb[],
+			      size_t len);
 extern int ip_set_get_extensions(struct ip_set *set, struct nlattr *tb[],
 				 struct ip_set_ext *ext);
 

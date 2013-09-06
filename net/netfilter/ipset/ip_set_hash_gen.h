@@ -960,7 +960,6 @@ static int
 IPSET_TOKEN(HTYPE, _create)(struct ip_set *set, struct nlattr *tb[], u32 flags)
 {
 	u32 hashsize = IPSET_DEFAULT_HASHSIZE, maxelem = IPSET_DEFAULT_MAXELEM;
-	u32 cadt_flags = 0;
 	u8 hbits;
 #ifdef IP_SET_HASH_WITH_NETMASK
 	u8 netmask;
@@ -1034,88 +1033,23 @@ IPSET_TOKEN(HTYPE, _create)(struct ip_set *set, struct nlattr *tb[], u32 flags)
 	rcu_assign_pointer(h->table, t);
 
 	set->data = h;
-	if (set->family ==  NFPROTO_IPV4)
+	if (set->family ==  NFPROTO_IPV4) {
 		set->variant = &IPSET_TOKEN(HTYPE, 4_variant);
-	else
+		set->dsize = ip_set_elem_len(set, tb,
+				sizeof(struct IPSET_TOKEN(HTYPE, 4_elem)));
+	} else {
 		set->variant = &IPSET_TOKEN(HTYPE, 6_variant);
-
-	if (tb[IPSET_ATTR_CADT_FLAGS])
-		cadt_flags = ip_set_get_h32(tb[IPSET_ATTR_CADT_FLAGS]);
-	if (cadt_flags & IPSET_FLAG_WITH_COUNTERS) {
-		set->extensions |= IPSET_EXT_COUNTER;
-		if (tb[IPSET_ATTR_TIMEOUT]) {
-			set->timeout =
-				ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
-			set->extensions |= IPSET_EXT_TIMEOUT;
-			if (set->family == NFPROTO_IPV4) {
-				set->dsize = sizeof(struct
-					IPSET_TOKEN(HTYPE, 4ct_elem));
-				set->offset[IPSET_EXT_ID_TIMEOUT] =
-					offsetof(struct
-						IPSET_TOKEN(HTYPE, 4ct_elem),
-						timeout);
-				set->offset[IPSET_EXT_ID_COUNTER] =
-					offsetof(struct
-						IPSET_TOKEN(HTYPE, 4ct_elem),
-						counter);
-				IPSET_TOKEN(HTYPE, 4_gc_init)(set,
-					IPSET_TOKEN(HTYPE, 4_gc));
-			} else {
-				set->dsize = sizeof(struct
-					IPSET_TOKEN(HTYPE, 6ct_elem));
-				set->offset[IPSET_EXT_ID_TIMEOUT] =
-					offsetof(struct
-						IPSET_TOKEN(HTYPE, 6ct_elem),
-						timeout);
-				set->offset[IPSET_EXT_ID_COUNTER] =
-					offsetof(struct
-						IPSET_TOKEN(HTYPE, 6ct_elem),
-						counter);
-				IPSET_TOKEN(HTYPE, 6_gc_init)(set,
-					IPSET_TOKEN(HTYPE, 6_gc));
-			}
-		} else {
-			if (set->family == NFPROTO_IPV4) {
-				set->dsize =
-					sizeof(struct
-						IPSET_TOKEN(HTYPE, 4c_elem));
-				set->offset[IPSET_EXT_ID_COUNTER] =
-					offsetof(struct
-						IPSET_TOKEN(HTYPE, 4c_elem),
-						counter);
-			} else {
-				set->dsize =
-					sizeof(struct
-						IPSET_TOKEN(HTYPE, 6c_elem));
-				set->offset[IPSET_EXT_ID_COUNTER] =
-					offsetof(struct
-						IPSET_TOKEN(HTYPE, 6c_elem),
-						counter);
-			}
-		}
-	} else if (tb[IPSET_ATTR_TIMEOUT]) {
+		set->dsize = ip_set_elem_len(set, tb,
+				sizeof(struct IPSET_TOKEN(HTYPE, 6_elem)));
+	}
+	if (tb[IPSET_ATTR_TIMEOUT]) {
 		set->timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
-		set->extensions |= IPSET_EXT_TIMEOUT;
-		if (set->family == NFPROTO_IPV4) {
-			set->dsize = sizeof(struct IPSET_TOKEN(HTYPE, 4t_elem));
-			set->offset[IPSET_EXT_ID_TIMEOUT] =
-				offsetof(struct IPSET_TOKEN(HTYPE, 4t_elem),
-					 timeout);
+		if (set->family == NFPROTO_IPV4)
 			IPSET_TOKEN(HTYPE, 4_gc_init)(set,
 				IPSET_TOKEN(HTYPE, 4_gc));
-		} else {
-			set->dsize = sizeof(struct IPSET_TOKEN(HTYPE, 6t_elem));
-			set->offset[IPSET_EXT_ID_TIMEOUT] =
-				offsetof(struct IPSET_TOKEN(HTYPE, 6t_elem),
-					 timeout);
+		else
 			IPSET_TOKEN(HTYPE, 6_gc_init)(set,
 				IPSET_TOKEN(HTYPE, 6_gc));
-		}
-	} else {
-		if (set->family == NFPROTO_IPV4)
-			set->dsize = sizeof(struct IPSET_TOKEN(HTYPE, 4_elem));
-		else
-			set->dsize = sizeof(struct IPSET_TOKEN(HTYPE, 6_elem));
 	}
 
 	pr_debug("create %s hashsize %u (%u) maxelem %u: %p(%p)\n",

@@ -208,25 +208,6 @@ bitmap_ip_same_set(const struct ip_set *a, const struct ip_set *b)
 struct bitmap_ip_elem {
 };
 
-/* Timeout variant */
-
-struct bitmap_ipt_elem {
-	unsigned long timeout;
-};
-
-/* Plain variant with counter */
-
-struct bitmap_ipc_elem {
-	struct ip_set_counter counter;
-};
-
-/* Timeout variant with counter */
-
-struct bitmap_ipct_elem {
-	unsigned long timeout;
-	struct ip_set_counter counter;
-};
-
 #include "ip_set_bitmap_gen.h"
 
 /* Create bitmap:ip type of sets */
@@ -263,7 +244,7 @@ static int
 bitmap_ip_create(struct ip_set *set, struct nlattr *tb[], u32 flags)
 {
 	struct bitmap_ip *map;
-	u32 first_ip = 0, last_ip = 0, hosts, cadt_flags = 0;
+	u32 first_ip = 0, last_ip = 0, hosts;
 	u64 elements;
 	u8 netmask = 32;
 	int ret;
@@ -335,61 +316,15 @@ bitmap_ip_create(struct ip_set *set, struct nlattr *tb[], u32 flags)
 
 	map->memsize = bitmap_bytes(0, elements - 1);
 	set->variant = &bitmap_ip;
-	if (tb[IPSET_ATTR_CADT_FLAGS])
-		cadt_flags = ip_set_get_h32(tb[IPSET_ATTR_CADT_FLAGS]);
-	if (cadt_flags & IPSET_FLAG_WITH_COUNTERS) {
-		set->extensions |= IPSET_EXT_COUNTER;
-		if (tb[IPSET_ATTR_TIMEOUT]) {
-			set->dsize = sizeof(struct bitmap_ipct_elem);
-			set->offset[IPSET_EXT_ID_TIMEOUT] =
-				offsetof(struct bitmap_ipct_elem, timeout);
-			set->offset[IPSET_EXT_ID_COUNTER] =
-				offsetof(struct bitmap_ipct_elem, counter);
-
-			if (!init_map_ip(set, map, first_ip, last_ip,
-					 elements, hosts, netmask)) {
-				kfree(map);
-				return -ENOMEM;
-			}
-
-			set->timeout = ip_set_timeout_uget(
-				tb[IPSET_ATTR_TIMEOUT]);
-			set->extensions |= IPSET_EXT_TIMEOUT;
-
-			bitmap_ip_gc_init(set, bitmap_ip_gc);
-		} else {
-			set->dsize = sizeof(struct bitmap_ipc_elem);
-			set->offset[IPSET_EXT_ID_COUNTER] =
-				offsetof(struct bitmap_ipc_elem, counter);
-
-			if (!init_map_ip(set, map, first_ip, last_ip,
-					 elements, hosts, netmask)) {
-				kfree(map);
-				return -ENOMEM;
-			}
-		}
-	} else if (tb[IPSET_ATTR_TIMEOUT]) {
-		set->dsize = sizeof(struct bitmap_ipt_elem);
-		set->offset[IPSET_EXT_ID_TIMEOUT] =
-			offsetof(struct bitmap_ipt_elem, timeout);
-
-		if (!init_map_ip(set, map, first_ip, last_ip,
-				 elements, hosts, netmask)) {
-			kfree(map);
-			return -ENOMEM;
-		}
-
+	set->dsize = ip_set_elem_len(set, tb, 0);
+	if (!init_map_ip(set, map, first_ip, last_ip,
+			 elements, hosts, netmask)) {
+		kfree(map);
+		return -ENOMEM;
+	}
+	if (tb[IPSET_ATTR_TIMEOUT]) {
 		set->timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
-		set->extensions |= IPSET_EXT_TIMEOUT;
-
 		bitmap_ip_gc_init(set, bitmap_ip_gc);
-	} else {
-		set->dsize = 0;
-		if (!init_map_ip(set, map, first_ip, last_ip,
-				 elements, hosts, netmask)) {
-			kfree(map);
-			return -ENOMEM;
-		}
 	}
 	return 0;
 }

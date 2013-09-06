@@ -35,28 +35,12 @@ MODULE_ALIAS("ip_set_hash:ip");
 #define HTYPE		hash_ip
 #define IP_SET_HASH_WITH_NETMASK
 
-/* IPv4 variants */
+/* IPv4 variant */
 
 /* Member elements */
 struct hash_ip4_elem {
 	/* Zero valued IP addresses cannot be stored */
 	__be32 ip;
-};
-
-struct hash_ip4t_elem {
-	__be32 ip;
-	unsigned long timeout;
-};
-
-struct hash_ip4c_elem {
-	__be32 ip;
-	struct ip_set_counter counter;
-};
-
-struct hash_ip4ct_elem {
-	__be32 ip;
-	struct ip_set_counter counter;
-	unsigned long timeout;
 };
 
 /* Common functions */
@@ -178,27 +162,11 @@ hash_ip4_uadt(struct ip_set *set, struct nlattr *tb[],
 	return ret;
 }
 
-/* IPv6 variants */
+/* IPv6 variant */
 
 /* Member elements */
 struct hash_ip6_elem {
 	union nf_inet_addr ip;
-};
-
-struct hash_ip6t_elem {
-	union nf_inet_addr ip;
-	unsigned long timeout;
-};
-
-struct hash_ip6c_elem {
-	union nf_inet_addr ip;
-	struct ip_set_counter counter;
-};
-
-struct hash_ip6ct_elem {
-	union nf_inet_addr ip;
-	struct ip_set_counter counter;
-	unsigned long timeout;
 };
 
 /* Common functions */

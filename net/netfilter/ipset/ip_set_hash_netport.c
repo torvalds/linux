@@ -45,7 +45,7 @@ MODULE_ALIAS("ip_set_hash:net,port");
  */
 #define IP_SET_HASH_WITH_NETS_PACKED
 
-/* IPv4 variants */
+/* IPv4 variant */
 
 /* Member elements */
 struct hash_netport4_elem {
@@ -54,34 +54,6 @@ struct hash_netport4_elem {
 	u8 proto;
 	u8 cidr:7;
 	u8 nomatch:1;
-};
-
-struct hash_netport4t_elem {
-	__be32 ip;
-	__be16 port;
-	u8 proto;
-	u8 cidr:7;
-	u8 nomatch:1;
-	unsigned long timeout;
-};
-
-struct hash_netport4c_elem {
-	__be32 ip;
-	__be16 port;
-	u8 proto;
-	u8 cidr:7;
-	u8 nomatch:1;
-	struct ip_set_counter counter;
-};
-
-struct hash_netport4ct_elem {
-	__be32 ip;
-	__be16 port;
-	u8 proto;
-	u8 cidr:7;
-	u8 nomatch:1;
-	struct ip_set_counter counter;
-	unsigned long timeout;
 };
 
 /* Common functions */
@@ -287,7 +259,7 @@ hash_netport4_uadt(struct ip_set *set, struct nlattr *tb[],
 	return ret;
 }
 
-/* IPv6 variants */
+/* IPv6 variant */
 
 struct hash_netport6_elem {
 	union nf_inet_addr ip;
@@ -295,34 +267,6 @@ struct hash_netport6_elem {
 	u8 proto;
 	u8 cidr:7;
 	u8 nomatch:1;
-};
-
-struct hash_netport6t_elem {
-	union nf_inet_addr ip;
-	__be16 port;
-	u8 proto;
-	u8 cidr:7;
-	u8 nomatch:1;
-	unsigned long timeout;
-};
-
-struct hash_netport6c_elem {
-	union nf_inet_addr ip;
-	__be16 port;
-	u8 proto;
-	u8 cidr:7;
-	u8 nomatch:1;
-	struct ip_set_counter counter;
-};
-
-struct hash_netport6ct_elem {
-	union nf_inet_addr ip;
-	__be16 port;
-	u8 proto;
-	u8 cidr:7;
-	u8 nomatch:1;
-	struct ip_set_counter counter;
-	unsigned long timeout;
 };
 
 /* Common functions */

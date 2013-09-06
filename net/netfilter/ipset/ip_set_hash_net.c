@@ -36,7 +36,7 @@ MODULE_ALIAS("ip_set_hash:net");
 #define HTYPE		hash_net
 #define IP_SET_HASH_WITH_NETS
 
-/* IPv4 variants */
+/* IPv4 variant */
 
 /* Member elements  */
 struct hash_net4_elem {
@@ -44,31 +44,6 @@ struct hash_net4_elem {
 	u16 padding0;
 	u8 nomatch;
 	u8 cidr;
-};
-
-struct hash_net4t_elem {
-	__be32 ip;
-	u16 padding0;
-	u8 nomatch;
-	u8 cidr;
-	unsigned long timeout;
-};
-
-struct hash_net4c_elem {
-	__be32 ip;
-	u16 padding0;
-	u8 nomatch;
-	u8 cidr;
-	struct ip_set_counter counter;
-};
-
-struct hash_net4ct_elem {
-	__be32 ip;
-	u16 padding0;
-	u8 nomatch;
-	u8 cidr;
-	struct ip_set_counter counter;
-	unsigned long timeout;
 };
 
 /* Common functions */
@@ -228,38 +203,13 @@ hash_net4_uadt(struct ip_set *set, struct nlattr *tb[],
 	return ret;
 }
 
-/* IPv6 variants */
+/* IPv6 variant */
 
 struct hash_net6_elem {
 	union nf_inet_addr ip;
 	u16 padding0;
 	u8 nomatch;
 	u8 cidr;
-};
-
-struct hash_net6t_elem {
-	union nf_inet_addr ip;
-	u16 padding0;
-	u8 nomatch;
-	u8 cidr;
-	unsigned long timeout;
-};
-
-struct hash_net6c_elem {
-	union nf_inet_addr ip;
-	u16 padding0;
-	u8 nomatch;
-	u8 cidr;
-	struct ip_set_counter counter;
-};
-
-struct hash_net6ct_elem {
-	union nf_inet_addr ip;
-	u16 padding0;
-	u8 nomatch;
-	u8 cidr;
-	struct ip_set_counter counter;
-	unsigned long timeout;
 };
 
 /* Common functions */

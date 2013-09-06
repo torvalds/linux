@@ -36,7 +36,7 @@ MODULE_ALIAS("ip_set_hash:ip,port,ip");
 /* Type specific function prefix */
 #define HTYPE		hash_ipportip
 
-/* IPv4 variants */
+/* IPv4 variant */
 
 /* Member elements  */
 struct hash_ipportip4_elem {
@@ -45,34 +45,6 @@ struct hash_ipportip4_elem {
 	__be16 port;
 	u8 proto;
 	u8 padding;
-};
-
-struct hash_ipportip4t_elem {
-	__be32 ip;
-	__be32 ip2;
-	__be16 port;
-	u8 proto;
-	u8 padding;
-	unsigned long timeout;
-};
-
-struct hash_ipportip4c_elem {
-	__be32 ip;
-	__be32 ip2;
-	__be16 port;
-	u8 proto;
-	u8 padding;
-	struct ip_set_counter counter;
-};
-
-struct hash_ipportip4ct_elem {
-	__be32 ip;
-	__be32 ip2;
-	__be16 port;
-	u8 proto;
-	u8 padding;
-	struct ip_set_counter counter;
-	unsigned long timeout;
 };
 
 static inline bool
@@ -230,7 +202,7 @@ hash_ipportip4_uadt(struct ip_set *set, struct nlattr *tb[],
 	return ret;
 }
 
-/* IPv6 variants */
+/* IPv6 variant */
 
 struct hash_ipportip6_elem {
 	union nf_inet_addr ip;
@@ -238,34 +210,6 @@ struct hash_ipportip6_elem {
 	__be16 port;
 	u8 proto;
 	u8 padding;
-};
-
-struct hash_ipportip6t_elem {
-	union nf_inet_addr ip;
-	union nf_inet_addr ip2;
-	__be16 port;
-	u8 proto;
-	u8 padding;
-	unsigned long timeout;
-};
-
-struct hash_ipportip6c_elem {
-	union nf_inet_addr ip;
-	union nf_inet_addr ip2;
-	__be16 port;
-	u8 proto;
-	u8 padding;
-	struct ip_set_counter counter;
-};
-
-struct hash_ipportip6ct_elem {
-	union nf_inet_addr ip;
-	union nf_inet_addr ip2;
-	__be16 port;
-	u8 proto;
-	u8 padding;
-	struct ip_set_counter counter;
-	unsigned long timeout;
 };
 
 /* Common functions */
