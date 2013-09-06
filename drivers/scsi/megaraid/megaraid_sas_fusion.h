@@ -527,7 +527,8 @@ struct MR_LD_RAID {
 		u32     fpReadCapable:1;
 		u32     fpWriteAcrossStripe:1;
 		u32     fpReadAcrossStripe:1;
-		u32     reserved4:8;
+		u32	fpNonRWCapable:1;
+		u32     reserved4:7;
 	} capability;
 	u32     reserved6;
 	u64     size;
@@ -551,7 +552,9 @@ struct MR_LD_RAID {
 		u32 reserved:31;
 	} flags;
 
-	u8      reserved3[0x5C];
+	u8	LUN[8]; /* 0x24 8 byte LUN field used for SCSI IO's */
+	u8	fpIoTimeoutForLd;/*0x2C timeout value used by driver in FP IO*/
+	u8      reserved3[0x80-0x2D]; /* 0x2D */
 };
 
 struct MR_LD_SPAN_MAP {

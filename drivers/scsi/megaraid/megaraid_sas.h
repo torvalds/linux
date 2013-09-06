@@ -170,6 +170,7 @@
 
 #define MR_DCMD_CTRL_GET_INFO			0x01010000
 #define MR_DCMD_LD_GET_LIST			0x03010000
+#define MR_DCMD_LD_LIST_QUERY			0x03010100
 
 #define MR_DCMD_CTRL_CACHE_FLUSH		0x01101000
 #define MR_FLUSH_CTRL_CACHE			0x01
@@ -345,6 +346,15 @@ enum MR_PD_QUERY_TYPE {
 	MR_PD_QUERY_TYPE_EXPOSED_TO_HOST    = 5,
 };
 
+enum MR_LD_QUERY_TYPE {
+	MR_LD_QUERY_TYPE_ALL	         = 0,
+	MR_LD_QUERY_TYPE_EXPOSED_TO_HOST = 1,
+	MR_LD_QUERY_TYPE_USED_TGT_IDS    = 2,
+	MR_LD_QUERY_TYPE_CLUSTER_ACCESS  = 3,
+	MR_LD_QUERY_TYPE_CLUSTER_LOCALE  = 4,
+};
+
+
 #define MR_EVT_CFG_CLEARED                              0x0004
 #define MR_EVT_LD_STATE_CHANGE                          0x0051
 #define MR_EVT_PD_INSERTED                              0x005b
@@ -434,6 +444,14 @@ struct MR_LD_LIST {
 		u64         size;
 	} ldList[MAX_LOGICAL_DRIVES];
 } __packed;
+
+struct MR_LD_TARGETID_LIST {
+	u32	size;
+	u32	count;
+	u8	pad[3];
+	u8	targetId[MAX_LOGICAL_DRIVES];
+};
+
 
 /*
  * SAS controller properties
@@ -863,7 +881,7 @@ struct megasas_ctrl_info {
  * ===============================
  */
 #define MEGASAS_MAX_PD_CHANNELS			2
-#define MEGASAS_MAX_LD_CHANNELS			2
+#define MEGASAS_MAX_LD_CHANNELS			1
 #define MEGASAS_MAX_CHANNELS			(MEGASAS_MAX_PD_CHANNELS + \
 						MEGASAS_MAX_LD_CHANNELS)
 #define MEGASAS_MAX_DEV_PER_CHANNEL		128
@@ -1655,5 +1673,17 @@ struct megasas_mgmt_info {
 	struct megasas_instance *instance[MAX_MGMT_ADAPTERS];
 	int max_index;
 };
+
+u8
+MR_BuildRaidContext(struct megasas_instance *instance,
+		    struct IO_REQUEST_INFO *io_info,
+		    struct RAID_CONTEXT *pRAID_Context,
+		    struct MR_FW_RAID_MAP_ALL *map, u8 **raidLUN);
+u16 MR_TargetIdToLdGet(u32 ldTgtId, struct MR_FW_RAID_MAP_ALL *map);
+struct MR_LD_RAID *MR_LdRaidGet(u32 ld, struct MR_FW_RAID_MAP_ALL *map);
+u16 MR_ArPdGet(u32 ar, u32 arm, struct MR_FW_RAID_MAP_ALL *map);
+u16 MR_LdSpanArrayGet(u32 ld, u32 span, struct MR_FW_RAID_MAP_ALL *map);
+u16 MR_PdDevHandleGet(u32 pd, struct MR_FW_RAID_MAP_ALL *map);
+u16 MR_GetLDTgtId(u32 ld, struct MR_FW_RAID_MAP_ALL *map);
 
 #endif				/*LSI_MEGARAID_SAS_H */

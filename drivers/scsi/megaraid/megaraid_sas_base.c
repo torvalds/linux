@@ -92,6 +92,8 @@ MODULE_DESCRIPTION("LSI MegaRAID SAS Driver");
 
 int megasas_transition_to_ready(struct megasas_instance *instance, int ocr);
 static int megasas_get_pd_list(struct megasas_instance *instance);
+static int megasas_ld_list_query(struct megasas_instance *instance,
+				 u8 query_type);
 static int megasas_issue_init_mfi(struct megasas_instance *instance);
 static int megasas_register_aen(struct megasas_instance *instance,
 				u32 seq_num, u32 class_locale_word);
@@ -3271,6 +3273,84 @@ megasas_get_ld_list(struct megasas_instance *instance)
 }
 
 /**
+ * megasas_ld_list_query -	Returns FW's ld_list structure
+ * @instance:				Adapter soft state
+ * @ld_list:				ld_list structure
+ *
+ * Issues an internal command (DCMD) to get the FW's controller PD
+ * list structure.  This information is mainly used to find out SYSTEM
+ * supported by the FW.
+ */
+static int
+megasas_ld_list_query(struct megasas_instance *instance, u8 query_type)
+{
+	int ret = 0, ld_index = 0, ids = 0;
+	struct megasas_cmd *cmd;
+	struct megasas_dcmd_frame *dcmd;
+	struct MR_LD_TARGETID_LIST *ci;
+	dma_addr_t ci_h = 0;
+
+	cmd = megasas_get_cmd(instance);
+
+	if (!cmd) {
+		printk(KERN_WARNING
+		       "megasas:(megasas_ld_list_query): Failed to get cmd\n");
+		return -ENOMEM;
+	}
+
+	dcmd = &cmd->frame->dcmd;
+
+	ci = pci_alloc_consistent(instance->pdev,
+				  sizeof(struct MR_LD_TARGETID_LIST), &ci_h);
+
+	if (!ci) {
+		printk(KERN_WARNING
+		       "megasas: Failed to alloc mem for ld_list_query\n");
+		megasas_return_cmd(instance, cmd);
+		return -ENOMEM;
+	}
+
+	memset(ci, 0, sizeof(*ci));
+	memset(dcmd->mbox.b, 0, MFI_MBOX_SIZE);
+
+	dcmd->mbox.b[0] = query_type;
+
+	dcmd->cmd = MFI_CMD_DCMD;
+	dcmd->cmd_status = 0xFF;
+	dcmd->sge_count = 1;
+	dcmd->flags = MFI_FRAME_DIR_READ;
+	dcmd->timeout = 0;
+	dcmd->data_xfer_len = sizeof(struct MR_LD_TARGETID_LIST);
+	dcmd->opcode = MR_DCMD_LD_LIST_QUERY;
+	dcmd->sgl.sge32[0].phys_addr = ci_h;
+	dcmd->sgl.sge32[0].length = sizeof(struct MR_LD_TARGETID_LIST);
+	dcmd->pad_0  = 0;
+
+	if (!megasas_issue_polled(instance, cmd) && !dcmd->cmd_status) {
+		ret = 0;
+	} else {
+		/* On failure, call older LD list DCMD */
+		ret = 1;
+	}
+
+	if ((ret == 0) && (ci->count <= (MAX_LOGICAL_DRIVES))) {
+		memset(instance->ld_ids, 0xff, MEGASAS_MAX_LD_IDS);
+		for (ld_index = 0; ld_index < ci->count; ld_index++) {
+			ids = ci->targetId[ld_index];
+			instance->ld_ids[ids] = ci->targetId[ld_index];
+		}
+
+	}
+
+	pci_free_consistent(instance->pdev, sizeof(struct MR_LD_TARGETID_LIST),
+			    ci, ci_h);
+
+	megasas_return_cmd(instance, cmd);
+
+	return ret;
+}
+
+/**
  * megasas_get_controller_info -	Returns FW's controller structure
  * @instance:				Adapter soft state
  * @ctrl_info:				Controller information structure
@@ -3648,7 +3728,9 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	megasas_get_pd_list(instance);
 
 	memset(instance->ld_ids, 0xff, MEGASAS_MAX_LD_IDS);
-	megasas_get_ld_list(instance);
+	if (megasas_ld_list_query(instance,
+				  MR_LD_QUERY_TYPE_EXPOSED_TO_HOST))
+		megasas_get_ld_list(instance);
 
 	ctrl_info = kmalloc(sizeof(struct megasas_ctrl_info), GFP_KERNEL);
 
@@ -5389,7 +5471,9 @@ megasas_aen_polling(struct work_struct *work)
 		case MR_EVT_LD_OFFLINE:
 		case MR_EVT_CFG_CLEARED:
 		case MR_EVT_LD_DELETED:
-			megasas_get_ld_list(instance);
+			if (megasas_ld_list_query(instance,
+					MR_LD_QUERY_TYPE_EXPOSED_TO_HOST))
+				megasas_get_ld_list(instance);
 			for (i = 0; i < MEGASAS_MAX_LD_CHANNELS; i++) {
 				for (j = 0;
 				j < MEGASAS_MAX_DEV_PER_CHANNEL;
@@ -5399,7 +5483,7 @@ megasas_aen_polling(struct work_struct *work)
 				(i * MEGASAS_MAX_DEV_PER_CHANNEL) + j;
 
 				sdev1 = scsi_device_lookup(host,
-					i + MEGASAS_MAX_LD_CHANNELS,
+					MEGASAS_MAX_PD_CHANNELS + i,
 					j,
 					0);
 
@@ -5418,7 +5502,9 @@ megasas_aen_polling(struct work_struct *work)
 			doscan = 0;
 			break;
 		case MR_EVT_LD_CREATED:
-			megasas_get_ld_list(instance);
+			if (megasas_ld_list_query(instance,
+					MR_LD_QUERY_TYPE_EXPOSED_TO_HOST))
+				megasas_get_ld_list(instance);
 			for (i = 0; i < MEGASAS_MAX_LD_CHANNELS; i++) {
 				for (j = 0;
 					j < MEGASAS_MAX_DEV_PER_CHANNEL;
@@ -5427,14 +5513,14 @@ megasas_aen_polling(struct work_struct *work)
 					(i * MEGASAS_MAX_DEV_PER_CHANNEL) + j;
 
 					sdev1 = scsi_device_lookup(host,
-						i+MEGASAS_MAX_LD_CHANNELS,
+						MEGASAS_MAX_PD_CHANNELS + i,
 						j, 0);
 
 					if (instance->ld_ids[ld_index] !=
 								0xff) {
 						if (!sdev1) {
 							scsi_add_device(host,
-								i + 2,
+						MEGASAS_MAX_PD_CHANNELS + i,
 								j, 0);
 						}
 					}
@@ -5483,18 +5569,20 @@ megasas_aen_polling(struct work_struct *work)
 			}
 		}
 
-		megasas_get_ld_list(instance);
+		if (megasas_ld_list_query(instance,
+					  MR_LD_QUERY_TYPE_EXPOSED_TO_HOST))
+			megasas_get_ld_list(instance);
 		for (i = 0; i < MEGASAS_MAX_LD_CHANNELS; i++) {
 			for (j = 0; j < MEGASAS_MAX_DEV_PER_CHANNEL; j++) {
 				ld_index =
 				(i * MEGASAS_MAX_DEV_PER_CHANNEL) + j;
 
 				sdev1 = scsi_device_lookup(host,
-					i+MEGASAS_MAX_LD_CHANNELS, j, 0);
+					MEGASAS_MAX_PD_CHANNELS + i, j, 0);
 				if (instance->ld_ids[ld_index] != 0xff) {
 					if (!sdev1) {
 						scsi_add_device(host,
-								i+2,
+						MEGASAS_MAX_PD_CHANNELS + i,
 								j, 0);
 					} else {
 						scsi_device_put(sdev1);

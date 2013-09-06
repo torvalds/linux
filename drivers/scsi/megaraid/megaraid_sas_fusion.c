@@ -72,17 +72,6 @@ megasas_clear_intr_fusion(struct megasas_register_set __iomem *regs);
 int
 megasas_issue_polled(struct megasas_instance *instance,
 		     struct megasas_cmd *cmd);
-
-u8
-MR_BuildRaidContext(struct megasas_instance *instance,
-		    struct IO_REQUEST_INFO *io_info,
-		    struct RAID_CONTEXT *pRAID_Context,
-		    struct MR_FW_RAID_MAP_ALL *map);
-u16 MR_TargetIdToLdGet(u32 ldTgtId, struct MR_FW_RAID_MAP_ALL *map);
-struct MR_LD_RAID *MR_LdRaidGet(u32 ld, struct MR_FW_RAID_MAP_ALL *map);
-
-u16 MR_GetLDTgtId(u32 ld, struct MR_FW_RAID_MAP_ALL *map);
-
 void
 megasas_check_and_restore_queue_depth(struct megasas_instance *instance);
 
@@ -652,6 +641,10 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 		(instance->pdev->device == PCI_DEVICE_ID_LSI_FURY))
 		init_frame->driver_operations.
 			mfi_capabilities.support_additional_msix = 1;
+	/* driver supports HA / Remote LUN over Fast Path interface */
+	init_frame->driver_operations.mfi_capabilities.support_fp_remote_lun
+		= 1;
+
 
 	init_frame->queue_info_new_phys_addr_lo = ioc_init_handle;
 	init_frame->data_xfer_len = sizeof(struct MPI2_IOC_INIT_REQUEST);
@@ -1410,6 +1403,7 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 	struct IO_REQUEST_INFO io_info;
 	struct fusion_context *fusion;
 	struct MR_FW_RAID_MAP_ALL *local_map_ptr;
+	u8 *raidLUN;
 
 	device_id = MEGASAS_DEV_INDEX(instance, scp);
 
@@ -1494,7 +1488,7 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 	} else {
 		if (MR_BuildRaidContext(instance, &io_info,
 					&io_request->RaidContext,
-					local_map_ptr))
+					local_map_ptr, &raidLUN))
 			fp_possible = io_info.fpOkForIo;
 	}
 
@@ -1537,6 +1531,8 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 			scp->SCp.Status &= ~MEGASAS_LOAD_BALANCE_FLAG;
 		cmd->request_desc->SCSIIO.DevHandle = io_info.devHandle;
 		io_request->DevHandle = io_info.devHandle;
+		/* populate the LUN field */
+		memcpy(io_request->LUN, raidLUN, 8);
 	} else {
 		io_request->RaidContext.timeoutValue =
 			local_map_ptr->raidMap.fpPdIoTimeoutSec;
@@ -1579,12 +1575,20 @@ megasas_build_dcdb_fusion(struct megasas_instance *instance,
 	u16 pd_index = 0;
 	struct MR_FW_RAID_MAP_ALL *local_map_ptr;
 	struct fusion_context *fusion = instance->ctrl_context;
+	u8                          span, physArm;
+	u16                         devHandle;
+	u32                         ld, arRef, pd;
+	struct MR_LD_RAID                  *raid;
+	struct RAID_CONTEXT                *pRAID_Context;
 
 	io_request = cmd->io_request;
 	device_id = MEGASAS_DEV_INDEX(instance, scmd);
 	pd_index = (scmd->device->channel * MEGASAS_MAX_DEV_PER_CHANNEL)
 		+scmd->device->id;
 	local_map_ptr = fusion->ld_map[(instance->map_id & 1)];
+
+	io_request->DataLength = scsi_bufflen(scmd);
+
 
 	/* Check if this is a system PD I/O */
 	if (scmd->device->channel < MEGASAS_MAX_PD_CHANNELS &&
@@ -1623,6 +1627,54 @@ megasas_build_dcdb_fusion(struct megasas_instance *instance,
 					scmd->request->timeout / HZ;
 		}
 	} else {
+		if (scmd->device->channel < MEGASAS_MAX_PD_CHANNELS)
+			goto NonFastPath;
+
+		ld = MR_TargetIdToLdGet(device_id, local_map_ptr);
+		if ((ld >= MAX_LOGICAL_DRIVES) || (!fusion->fast_path_io))
+			goto NonFastPath;
+
+		raid = MR_LdRaidGet(ld, local_map_ptr);
+
+		/* check if this LD is FP capable */
+		if (!(raid->capability.fpNonRWCapable))
+			/* not FP capable, send as non-FP */
+			goto NonFastPath;
+
+		/* get RAID_Context pointer */
+		pRAID_Context = &io_request->RaidContext;
+
+		/* set RAID context values */
+		pRAID_Context->regLockFlags     = REGION_TYPE_SHARED_READ;
+		pRAID_Context->timeoutValue     = raid->fpIoTimeoutForLd;
+		pRAID_Context->VirtualDiskTgtId = device_id;
+		pRAID_Context->regLockRowLBA    = 0;
+		pRAID_Context->regLockLength    = 0;
+		pRAID_Context->configSeqNum     = raid->seqNum;
+
+		/* get the DevHandle for the PD (since this is
+		   fpNonRWCapable, this is a single disk RAID0) */
+		span = physArm = 0;
+		arRef = MR_LdSpanArrayGet(ld, span, local_map_ptr);
+		pd = MR_ArPdGet(arRef, physArm, local_map_ptr);
+		devHandle = MR_PdDevHandleGet(pd, local_map_ptr);
+
+		/* build request descriptor */
+		cmd->request_desc->SCSIIO.RequestFlags =
+			(MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY <<
+			 MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
+		cmd->request_desc->SCSIIO.DevHandle = devHandle;
+
+		/* populate the LUN field */
+		memcpy(io_request->LUN, raid->LUN, 8);
+
+		/* build the raidScsiIO structure */
+		io_request->Function = MPI2_FUNCTION_SCSI_IO_REQUEST;
+		io_request->DevHandle = devHandle;
+
+		return;
+
+NonFastPath:
 		io_request->Function  = MEGASAS_MPI2_FUNCTION_LD_IO_REQUEST;
 		io_request->DevHandle = device_id;
 		cmd->request_desc->SCSIIO.RequestFlags =
@@ -1631,7 +1683,6 @@ megasas_build_dcdb_fusion(struct megasas_instance *instance,
 	}
 	io_request->RaidContext.VirtualDiskTgtId = device_id;
 	io_request->LUN[1] = scmd->device->lun;
-	io_request->DataLength = scsi_bufflen(scmd);
 }
 
 /**

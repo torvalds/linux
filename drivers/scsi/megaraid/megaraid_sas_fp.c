@@ -126,17 +126,17 @@ static u8 MR_LdDataArmGet(u32 ld, u32 armIdx, struct MR_FW_RAID_MAP_ALL *map)
 	return map->raidMap.ldSpanMap[ld].dataArmMap[armIdx];
 }
 
-static u16 MR_ArPdGet(u32 ar, u32 arm, struct MR_FW_RAID_MAP_ALL *map)
+u16 MR_ArPdGet(u32 ar, u32 arm, struct MR_FW_RAID_MAP_ALL *map)
 {
 	return map->raidMap.arMapInfo[ar].pd[arm];
 }
 
-static u16 MR_LdSpanArrayGet(u32 ld, u32 span, struct MR_FW_RAID_MAP_ALL *map)
+u16 MR_LdSpanArrayGet(u32 ld, u32 span, struct MR_FW_RAID_MAP_ALL *map)
 {
 	return map->raidMap.ldSpanMap[ld].spanBlock[span].span.arrayRef;
 }
 
-static u16 MR_PdDevHandleGet(u32 pd, struct MR_FW_RAID_MAP_ALL *map)
+u16 MR_PdDevHandleGet(u32 pd, struct MR_FW_RAID_MAP_ALL *map)
 {
 	return map->raidMap.devHndlInfo[pd].curDevHdl;
 }
@@ -784,7 +784,7 @@ u8
 MR_BuildRaidContext(struct megasas_instance *instance,
 		    struct IO_REQUEST_INFO *io_info,
 		    struct RAID_CONTEXT *pRAID_Context,
-		    struct MR_FW_RAID_MAP_ALL *map)
+		    struct MR_FW_RAID_MAP_ALL *map, u8 **raidLUN)
 {
 	struct MR_LD_RAID  *raid;
 	u32         ld, stripSize, stripe_mask;
@@ -977,6 +977,9 @@ MR_BuildRaidContext(struct megasas_instance *instance,
 	pRAID_Context->regLockRowLBA    = regStart;
 	pRAID_Context->regLockLength    = regSize;
 	pRAID_Context->configSeqNum	= raid->seqNum;
+	/* save pointer to raid->LUN array */
+	*raidLUN = raid->LUN;
+
 
 	/*Get Phy Params only if FP capable, or else leave it to MR firmware
 	  to do the calculation.*/
