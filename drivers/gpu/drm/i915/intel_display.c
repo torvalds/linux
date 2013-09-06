@@ -7334,20 +7334,18 @@ static void ironlake_crtc_clock_get(struct intel_crtc *crtc,
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
-	int link_freq, repeat;
+	int link_freq;
 	u64 clock;
 	u32 link_m, link_n;
 
-	repeat = pipe_config->pixel_multiplier;
-
 	/*
 	 * The calculation for the data clock is:
-	 * pixel_clock = ((m/n)*(link_clock * nr_lanes * repeat))/bpp
+	 * pixel_clock = ((m/n)*(link_clock * nr_lanes))/bpp
 	 * But we want to avoid losing precison if possible, so:
-	 * pixel_clock = ((m * link_clock * nr_lanes * repeat)/(n*bpp))
+	 * pixel_clock = ((m * link_clock * nr_lanes)/(n*bpp))
 	 *
 	 * and the link clock is simpler:
-	 * link_clock = (m * link_clock * repeat) / n
+	 * link_clock = (m * link_clock) / n
 	 */
 
 	/*
@@ -7369,10 +7367,11 @@ static void ironlake_crtc_clock_get(struct intel_crtc *crtc,
 	if (!link_m || !link_n)
 		return;
 
-	clock = ((u64)link_m * (u64)link_freq * (u64)repeat);
+	clock = ((u64)link_m * (u64)link_freq);
 	do_div(clock, link_n);
 
-	pipe_config->adjusted_mode.clock = clock;
+	pipe_config->adjusted_mode.clock = clock *
+		pipe_config->pixel_multiplier;
 }
 
 /** Returns the currently programmed mode of the given pipe. */
