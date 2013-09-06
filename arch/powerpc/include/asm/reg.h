@@ -243,6 +243,7 @@
 #define SPRN_TBRU	0x10D	/* Time Base Read Upper Register (user, R/O) */
 #define SPRN_TBWL	0x11C	/* Time Base Lower Register (super, R/W) */
 #define SPRN_TBWU	0x11D	/* Time Base Upper Register (super, R/W) */
+#define SPRN_TBU40	0x11E	/* Timebase upper 40 bits (hyper, R/W) */
 #define SPRN_SPURR	0x134	/* Scaled PURR */
 #define SPRN_HSPRG0	0x130	/* Hypervisor Scratch 0 */
 #define SPRN_HSPRG1	0x131	/* Hypervisor Scratch 1 */

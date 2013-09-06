@@ -504,6 +504,9 @@ struct kvm_get_htab_header {
 #define KVM_REG_PPC_TLB3PS	(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0x9a)
 #define KVM_REG_PPC_EPTCFG	(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0x9b)
 
+/* Timebase offset */
+#define KVM_REG_PPC_TB_OFFSET	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x9c)
+
 /* POWER8 registers */
 #define KVM_REG_PPC_SPMC1	(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0x9d)
 #define KVM_REG_PPC_SPMC2	(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0x9e)

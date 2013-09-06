@@ -489,7 +489,7 @@ static void kvmppc_create_dtl_entry(struct kvm_vcpu *vcpu,
 	memset(dt, 0, sizeof(struct dtl_entry));
 	dt->dispatch_reason = 7;
 	dt->processor_id = vc->pcpu + vcpu->arch.ptid;
-	dt->timebase = now;
+	dt->timebase = now + vc->tb_offset;
 	dt->enqueue_to_dispatch_time = stolen;
 	dt->srr0 = kvmppc_get_pc(vcpu);
 	dt->srr1 = vcpu->arch.shregs.msr;
@@ -793,6 +793,9 @@ int kvmppc_get_one_reg(struct kvm_vcpu *vcpu, u64 id, union kvmppc_one_reg *val)
 		val->vpaval.length = vcpu->arch.dtl.len;
 		spin_unlock(&vcpu->arch.vpa_update_lock);
 		break;
+	case KVM_REG_PPC_TB_OFFSET:
+		*val = get_reg_val(id, vcpu->arch.vcore->tb_offset);
+		break;
 	default:
 		r = -EINVAL;
 		break;
@@ -891,6 +894,11 @@ int kvmppc_set_one_reg(struct kvm_vcpu *vcpu, u64 id, union kvmppc_one_reg *val)
 			break;
 		len -= len % sizeof(struct dtl_entry);
 		r = set_vpa(vcpu, &vcpu->arch.dtl, addr, len);
+		break;
+	case KVM_REG_PPC_TB_OFFSET:
+		/* round up to multiple of 2^24 */
+		vcpu->arch.vcore->tb_offset =
+			ALIGN(set_reg_val(id, *val), 1UL << 24);
 		break;
 	default:
 		r = -EINVAL;

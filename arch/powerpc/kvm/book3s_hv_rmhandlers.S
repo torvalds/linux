@@ -347,7 +347,22 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 	bdnz	28b
 	ptesync
 
-22:	li	r0,1
+	/* Add timebase offset onto timebase */
+22:	ld	r8,VCORE_TB_OFFSET(r5)
+	cmpdi	r8,0
+	beq	37f
+	mftb	r6		/* current host timebase */
+	add	r8,r8,r6
+	mtspr	SPRN_TBU40,r8	/* update upper 40 bits */
+	mftb	r7		/* check if lower 24 bits overflowed */
+	clrldi	r6,r6,40
+	clrldi	r7,r7,40
+	cmpld	r7,r6
+	bge	37f
+	addis	r8,r8,0x100	/* if so, increment upper 40 bits */
+	mtspr	SPRN_TBU40,r8
+
+37:	li	r0,1
 	stb	r0,VCORE_IN_GUEST(r5)	/* signal secondaries to continue */
 	b	10f
 
@@ -782,13 +797,6 @@ ext_stash_for_host:
 ext_interrupt_to_host:
 
 guest_exit_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
-	/* Save DEC */
-	mfspr	r5,SPRN_DEC
-	mftb	r6
-	extsw	r5,r5
-	add	r5,r5,r6
-	std	r5,VCPU_DEC_EXPIRES(r9)
-
 	/* Save more register state  */
 	mfdar	r6
 	mfdsisr	r7
@@ -958,7 +966,24 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 	mtspr	SPRN_SDR1,r6		/* switch to partition page table */
 	mtspr	SPRN_LPID,r7
 	isync
-	li	r0,0
+
+	/* Subtract timebase offset from timebase */
+	ld	r8,VCORE_TB_OFFSET(r5)
+	cmpdi	r8,0
+	beq	17f
+	mftb	r6			/* current host timebase */
+	subf	r8,r8,r6
+	mtspr	SPRN_TBU40,r8		/* update upper 40 bits */
+	mftb	r7			/* check if lower 24 bits overflowed */
+	clrldi	r6,r6,40
+	clrldi	r7,r7,40
+	cmpld	r7,r6
+	bge	17f
+	addis	r8,r8,0x100		/* if so, increment upper 40 bits */
+	mtspr	SPRN_TBU40,r8
+
+	/* Signal secondary CPUs to continue */
+17:	li	r0,0
 	stb	r0,VCORE_IN_GUEST(r5)
 	lis	r8,0x7fff		/* MAX_INT@h */
 	mtspr	SPRN_HDEC,r8
@@ -1055,6 +1080,13 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 	slbmte	r6,r5
 1:	addi	r8,r8,16
 	.endr
+
+	/* Save DEC */
+	mfspr	r5,SPRN_DEC
+	mftb	r6
+	extsw	r5,r5
+	add	r5,r5,r6
+	std	r5,VCPU_DEC_EXPIRES(r9)
 
 	/* Save and reset AMR and UAMOR before turning on the MMU */
 BEGIN_FTR_SECTION

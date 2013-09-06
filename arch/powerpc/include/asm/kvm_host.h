@@ -289,6 +289,7 @@ struct kvmppc_vcore {
 	u64 stolen_tb;
 	u64 preempt_tb;
 	struct kvm_vcpu *runner;
+	u64 tb_offset;		/* guest timebase - host timebase */
 };
 
 #define VCORE_ENTRY_COUNT(vc)	((vc)->entry_exit_count & 0xff)
