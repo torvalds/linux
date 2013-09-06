@@ -4886,6 +4886,9 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 		goto out_unlock;
 	}
 
+	/* Indicate the IO is being aborted by the driver. */
+	iocb->iocb_flag |= LPFC_DRIVER_ABORTED;
+
 	/*
 	 * The scsi command can not be in txq and it is in flight because the
 	 * pCmd is still pointig at the SCSI command we have to abort. There
