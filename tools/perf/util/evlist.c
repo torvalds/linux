@@ -446,20 +446,25 @@ static int perf_evlist__event2id(struct perf_evlist *evlist,
 static struct perf_evsel *perf_evlist__event2evsel(struct perf_evlist *evlist,
 						   union perf_event *event)
 {
+	struct perf_evsel *first = perf_evlist__first(evlist);
 	struct hlist_head *head;
 	struct perf_sample_id *sid;
 	int hash;
 	u64 id;
 
 	if (evlist->nr_entries == 1)
-		return perf_evlist__first(evlist);
+		return first;
+
+	if (!first->attr.sample_id_all &&
+	    event->header.type != PERF_RECORD_SAMPLE)
+		return first;
 
 	if (perf_evlist__event2id(evlist, event, &id))
 		return NULL;
 
 	/* Synthesized events have an id of zero */
 	if (!id)
-		return perf_evlist__first(evlist);
+		return first;
 
 	hash = hash_64(id, PERF_EVLIST__HLIST_BITS);
 	head = &evlist->heads[hash];
