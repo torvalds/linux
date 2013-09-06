@@ -1847,6 +1847,10 @@ static void handle_ep0( dwc_otg_pcd_t *_pcd )
 		{
 			dwc_otg_ep0_continue_transfer ( GET_CORE_IF(_pcd), &ep0->dwc_ep );
 			DWC_DEBUGPL(DBG_PCD, "CONTINUE TRANSFER\n"); 
+		}else if (ep0->dwc_ep.sent_zlp) {
+			dwc_otg_ep0_continue_transfer(GET_CORE_IF(_pcd), &ep0->dwc_ep);
+			ep0->dwc_ep.sent_zlp = 0;
+			DWC_DEBUGPL(DBG_PCD, "CONTINUE TRANSFER sent zlp\n");
 		}
 		else 
 		{		
