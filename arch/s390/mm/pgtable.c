@@ -245,7 +245,9 @@ EXPORT_SYMBOL_GPL(gmap_disable);
  * gmap_alloc_table is assumed to be called with mmap_sem held
  */
 static int gmap_alloc_table(struct gmap *gmap,
-			       unsigned long *table, unsigned long init)
+			    unsigned long *table, unsigned long init)
+	__releases(&gmap->mm->page_table_lock)
+	__acquires(&gmap->mm->page_table_lock)
 {
 	struct page *page;
 	unsigned long *new;
