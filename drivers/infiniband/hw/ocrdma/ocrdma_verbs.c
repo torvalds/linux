@@ -2839,7 +2839,7 @@ struct ib_mr *ocrdma_alloc_frmr(struct ib_pd *ibpd, int max_page_list_len)
 		goto mbx_err;
 	mr->ibmr.rkey = mr->hwmr.lkey;
 	mr->ibmr.lkey = mr->hwmr.lkey;
-	dev->stag_arr[(mr->hwmr.lkey >> 8) & (OCRDMA_MAX_STAG - 1)] = (unsigned long) mr;
+	dev->stag_arr[(mr->hwmr.lkey >> 8) & (OCRDMA_MAX_STAG - 1)] = mr;
 	return &mr->ibmr;
 mbx_err:
 	ocrdma_free_mr_pbl_tbl(dev, &mr->hwmr);
