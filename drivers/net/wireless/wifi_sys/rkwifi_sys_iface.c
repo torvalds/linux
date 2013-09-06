@@ -233,7 +233,7 @@ static ssize_t wifi_p2p_read(struct class *cls, char *_buf)
 	int count = 0;
 
 #ifdef CONFIG_BK3515A_COMBO
-	count = sprintf(_buf, "%s", "true");
+	count = sprintf(_buf, "%s", "BK3515A");
 	printk("Current WiFi chip is ESP8089+BK3515A Combo.\n");
 #endif
 
