@@ -1249,7 +1249,7 @@ lpfc_bsg_hba_get_event(struct fc_bsg_job *job)
 	struct lpfc_hba *phba = vport->phba;
 	struct get_ct_event *event_req;
 	struct get_ct_event_reply *event_reply;
-	struct lpfc_bsg_event *evt;
+	struct lpfc_bsg_event *evt, *evt_next;
 	struct event_data *evt_dat = NULL;
 	unsigned long flags;
 	uint32_t rc = 0;
@@ -1269,7 +1269,7 @@ lpfc_bsg_hba_get_event(struct fc_bsg_job *job)
 	event_reply = (struct get_ct_event_reply *)
 		job->reply->reply_data.vendor_reply.vendor_rsp;
 	spin_lock_irqsave(&phba->ct_ev_lock, flags);
-	list_for_each_entry(evt, &phba->ct_ev_waiters, node) {
+	list_for_each_entry_safe(evt, evt_next, &phba->ct_ev_waiters, node) {
 		if (evt->reg_id == event_req->ev_reg_id) {
 			if (list_empty(&evt->events_to_get))
 				break;
