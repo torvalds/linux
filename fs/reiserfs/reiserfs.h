@@ -630,8 +630,8 @@ static inline int __reiserfs_is_journal_aborted(struct reiserfs_journal
  */
 void reiserfs_write_lock(struct super_block *s);
 void reiserfs_write_unlock(struct super_block *s);
-int reiserfs_write_lock_once(struct super_block *s);
-void reiserfs_write_unlock_once(struct super_block *s, int lock_depth);
+int __must_check reiserfs_write_unlock_nested(struct super_block *s);
+void reiserfs_write_lock_nested(struct super_block *s, int depth);
 
 #ifdef CONFIG_REISERFS_CHECK
 void reiserfs_lock_check_recursive(struct super_block *s);
@@ -667,31 +667,33 @@ static inline void reiserfs_lock_check_recursive(struct super_block *s) { }
  * - The inode mutex
  */
 static inline void reiserfs_mutex_lock_safe(struct mutex *m,
-			       struct super_block *s)
+					    struct super_block *s)
 {
-	reiserfs_lock_check_recursive(s);
-	reiserfs_write_unlock(s);
+	int depth;
+
+	depth = reiserfs_write_unlock_nested(s);
 	mutex_lock(m);
-	reiserfs_write_lock(s);
+	reiserfs_write_lock_nested(s, depth);
 }
 
 static inline void
 reiserfs_mutex_lock_nested_safe(struct mutex *m, unsigned int subclass,
-			       struct super_block *s)
+				struct super_block *s)
 {
-	reiserfs_lock_check_recursive(s);
-	reiserfs_write_unlock(s);
+	int depth;
+
+	depth = reiserfs_write_unlock_nested(s);
 	mutex_lock_nested(m, subclass);
-	reiserfs_write_lock(s);
+	reiserfs_write_lock_nested(s, depth);
 }
 
 static inline void
 reiserfs_down_read_safe(struct rw_semaphore *sem, struct super_block *s)
 {
-	reiserfs_lock_check_recursive(s);
-	reiserfs_write_unlock(s);
-	down_read(sem);
-	reiserfs_write_lock(s);
+       int depth;
+       depth = reiserfs_write_unlock_nested(s);
+       down_read(sem);
+       reiserfs_write_lock_nested(s, depth);
 }
 
 /*
@@ -701,9 +703,11 @@ reiserfs_down_read_safe(struct rw_semaphore *sem, struct super_block *s)
 static inline void reiserfs_cond_resched(struct super_block *s)
 {
 	if (need_resched()) {
-		reiserfs_write_unlock(s);
+		int depth;
+
+		depth = reiserfs_write_unlock_nested(s);
 		schedule();
-		reiserfs_write_lock(s);
+		reiserfs_write_lock_nested(s, depth);
 	}
 }
 
