@@ -59,26 +59,60 @@ static struct notifier_block ioda_eeh_nb = {
 };
 
 #ifdef CONFIG_DEBUG_FS
-static int ioda_eeh_dbgfs_set(void *data, u64 val)
+static int ioda_eeh_dbgfs_set(void *data, int offset, u64 val)
 {
 	struct pci_controller *hose = data;
 	struct pnv_phb *phb = hose->private_data;
 
-	out_be64(phb->regs + 0xD10, val);
+	out_be64(phb->regs + offset, val);
 	return 0;
 }
 
-static int ioda_eeh_dbgfs_get(void *data, u64 *val)
+static int ioda_eeh_dbgfs_get(void *data, int offset, u64 *val)
 {
 	struct pci_controller *hose = data;
 	struct pnv_phb *phb = hose->private_data;
 
-	*val = in_be64(phb->regs + 0xD10);
+	*val = in_be64(phb->regs + offset);
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(ioda_eeh_dbgfs_ops, ioda_eeh_dbgfs_get,
-			ioda_eeh_dbgfs_set, "0x%llx\n");
+static int ioda_eeh_outb_dbgfs_set(void *data, u64 val)
+{
+	return ioda_eeh_dbgfs_set(data, 0xD10, val);
+}
+
+static int ioda_eeh_outb_dbgfs_get(void *data, u64 *val)
+{
+	return ioda_eeh_dbgfs_get(data, 0xD10, val);
+}
+
+static int ioda_eeh_inbA_dbgfs_set(void *data, u64 val)
+{
+	return ioda_eeh_dbgfs_set(data, 0xD90, val);
+}
+
+static int ioda_eeh_inbA_dbgfs_get(void *data, u64 *val)
+{
+	return ioda_eeh_dbgfs_get(data, 0xD90, val);
+}
+
+static int ioda_eeh_inbB_dbgfs_set(void *data, u64 val)
+{
+	return ioda_eeh_dbgfs_set(data, 0xE10, val);
+}
+
+static int ioda_eeh_inbB_dbgfs_get(void *data, u64 *val)
+{
+	return ioda_eeh_dbgfs_get(data, 0xE10, val);
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(ioda_eeh_outb_dbgfs_ops, ioda_eeh_outb_dbgfs_get,
+			ioda_eeh_outb_dbgfs_set, "0x%llx\n");
+DEFINE_SIMPLE_ATTRIBUTE(ioda_eeh_inbA_dbgfs_ops, ioda_eeh_inbA_dbgfs_get,
+			ioda_eeh_inbA_dbgfs_set, "0x%llx\n");
+DEFINE_SIMPLE_ATTRIBUTE(ioda_eeh_inbB_dbgfs_ops, ioda_eeh_inbB_dbgfs_get,
+			ioda_eeh_inbB_dbgfs_set, "0x%llx\n");
 #endif /* CONFIG_DEBUG_FS */
 
 /**
@@ -116,10 +150,17 @@ static int ioda_eeh_post_init(struct pci_controller *hose)
 	}
 
 #ifdef CONFIG_DEBUG_FS
-	if (phb->dbgfs)
-		debugfs_create_file("err_injct", 0600,
+	if (phb->dbgfs) {
+		debugfs_create_file("err_injct_outbound", 0600,
 				    phb->dbgfs, hose,
-				    &ioda_eeh_dbgfs_ops);
+				    &ioda_eeh_outb_dbgfs_ops);
+		debugfs_create_file("err_injct_inboundA", 0600,
+				    phb->dbgfs, hose,
+				    &ioda_eeh_inbA_dbgfs_ops);
+		debugfs_create_file("err_injct_inboundB", 0600,
+				    phb->dbgfs, hose,
+				    &ioda_eeh_inbB_dbgfs_ops);
+	}
 #endif
 
 	phb->eeh_state |= PNV_EEH_STATE_ENABLED;
