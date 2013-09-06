@@ -178,7 +178,7 @@ int ftrace_enable_ftrace_graph_caller(void)
 
 	offset = ((void *) prepare_ftrace_return -
 		  (void *) ftrace_graph_caller) / 2;
-	return probe_kernel_write(ftrace_graph_caller + 2,
+	return probe_kernel_write((void *) ftrace_graph_caller + 2,
 				  &offset, sizeof(offset));
 }
 
@@ -186,7 +186,7 @@ int ftrace_disable_ftrace_graph_caller(void)
 {
 	static unsigned short offset = 0x0002;
 
-	return probe_kernel_write(ftrace_graph_caller + 2,
+	return probe_kernel_write((void *) ftrace_graph_caller + 2,
 				  &offset, sizeof(offset));
 }
 
