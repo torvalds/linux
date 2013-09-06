@@ -32,11 +32,7 @@
 #define mtype_gc		IPSET_TOKEN(MTYPE, _gc)
 #define mtype			MTYPE
 
-#define ext_timeout(e, m)	\
-	(unsigned long *)((e) + (m)->offset[IPSET_EXT_ID_TIMEOUT])
-#define ext_counter(e, m)	\
-	(struct ip_set_counter *)((e) + (m)->offset[IPSET_EXT_ID_COUNTER])
-#define get_ext(map, id)	((map)->extensions + (map)->dsize * (id))
+#define get_ext(set, map, id)	((map)->extensions + (set)->dsize * (id))
 
 static void
 mtype_gc_init(struct ip_set *set, void (*gc)(unsigned long ul_set))
@@ -46,7 +42,7 @@ mtype_gc_init(struct ip_set *set, void (*gc)(unsigned long ul_set))
 	init_timer(&map->gc);
 	map->gc.data = (unsigned long) set;
 	map->gc.function = gc;
-	map->gc.expires = jiffies + IPSET_GC_PERIOD(map->timeout) * HZ;
+	map->gc.expires = jiffies + IPSET_GC_PERIOD(set->timeout) * HZ;
 	add_timer(&map->gc);
 }
 
@@ -59,7 +55,7 @@ mtype_destroy(struct ip_set *set)
 		del_timer_sync(&map->gc);
 
 	ip_set_free(map->members);
-	if (map->dsize)
+	if (set->dsize)
 		ip_set_free(map->extensions);
 	kfree(map);
 
@@ -88,9 +84,9 @@ mtype_head(struct ip_set *set, struct sk_buff *skb)
 	    nla_put_net32(skb, IPSET_ATTR_MEMSIZE,
 			  htonl(sizeof(*map) +
 				map->memsize +
-				map->dsize * map->elements)) ||
+				set->dsize * map->elements)) ||
 	    (SET_WITH_TIMEOUT(set) &&
-	     nla_put_net32(skb, IPSET_ATTR_TIMEOUT, htonl(map->timeout))) ||
+	     nla_put_net32(skb, IPSET_ATTR_TIMEOUT, htonl(set->timeout))) ||
 	    (SET_WITH_COUNTER(set) &&
 	     nla_put_net32(skb, IPSET_ATTR_CADT_FLAGS,
 			   htonl(IPSET_FLAG_WITH_COUNTERS))))
@@ -108,16 +104,16 @@ mtype_test(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 {
 	struct mtype *map = set->data;
 	const struct mtype_adt_elem *e = value;
-	void *x = get_ext(map, e->id);
-	int ret = mtype_do_test(e, map);
+	void *x = get_ext(set, map, e->id);
+	int ret = mtype_do_test(e, map, set->dsize);
 
 	if (ret <= 0)
 		return ret;
 	if (SET_WITH_TIMEOUT(set) &&
-	    ip_set_timeout_expired(ext_timeout(x, map)))
+	    ip_set_timeout_expired(ext_timeout(x, set)))
 		return 0;
 	if (SET_WITH_COUNTER(set))
-		ip_set_update_counter(ext_counter(x, map), ext, mext, flags);
+		ip_set_update_counter(ext_counter(x, set), ext, mext, flags);
 	return 1;
 }
 
@@ -127,12 +123,12 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 {
 	struct mtype *map = set->data;
 	const struct mtype_adt_elem *e = value;
-	void *x = get_ext(map, e->id);
-	int ret = mtype_do_add(e, map, flags);
+	void *x = get_ext(set, map, e->id);
+	int ret = mtype_do_add(e, map, flags, set->dsize);
 
 	if (ret == IPSET_ADD_FAILED) {
 		if (SET_WITH_TIMEOUT(set) &&
-		    ip_set_timeout_expired(ext_timeout(x, map)))
+		    ip_set_timeout_expired(ext_timeout(x, set)))
 			ret = 0;
 		else if (!(flags & IPSET_FLAG_EXIST))
 			return -IPSET_ERR_EXIST;
@@ -140,13 +136,13 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 
 	if (SET_WITH_TIMEOUT(set))
 #ifdef IP_SET_BITMAP_STORED_TIMEOUT
-		mtype_add_timeout(ext_timeout(x, map), e, ext, map, ret);
+		mtype_add_timeout(ext_timeout(x, set), e, ext, set, map, ret);
 #else
-		ip_set_timeout_set(ext_timeout(x, map), ext->timeout);
+		ip_set_timeout_set(ext_timeout(x, set), ext->timeout);
 #endif
 
 	if (SET_WITH_COUNTER(set))
-		ip_set_init_counter(ext_counter(x, map), ext);
+		ip_set_init_counter(ext_counter(x, set), ext);
 	return 0;
 }
 
@@ -156,11 +152,11 @@ mtype_del(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 {
 	struct mtype *map = set->data;
 	const struct mtype_adt_elem *e = value;
-	const void *x = get_ext(map, e->id);
+	const void *x = get_ext(set, map, e->id);
 
 	if (mtype_do_del(e, map) ||
 	    (SET_WITH_TIMEOUT(set) &&
-	     ip_set_timeout_expired(ext_timeout(x, map))))
+	     ip_set_timeout_expired(ext_timeout(x, set))))
 		return -IPSET_ERR_EXIST;
 
 	return 0;
@@ -180,13 +176,13 @@ mtype_list(const struct ip_set *set,
 		return -EMSGSIZE;
 	for (; cb->args[2] < map->elements; cb->args[2]++) {
 		id = cb->args[2];
-		x = get_ext(map, id);
+		x = get_ext(set, map, id);
 		if (!test_bit(id, map->members) ||
 		    (SET_WITH_TIMEOUT(set) &&
 #ifdef IP_SET_BITMAP_STORED_TIMEOUT
 		     mtype_is_filled((const struct mtype_elem *) x) &&
 #endif
-		     ip_set_timeout_expired(ext_timeout(x, map))))
+		     ip_set_timeout_expired(ext_timeout(x, set))))
 			continue;
 		nested = ipset_nest_start(skb, IPSET_ATTR_DATA);
 		if (!nested) {
@@ -196,23 +192,24 @@ mtype_list(const struct ip_set *set,
 			} else
 				goto nla_put_failure;
 		}
-		if (mtype_do_list(skb, map, id))
+		if (mtype_do_list(skb, map, id, set->dsize))
 			goto nla_put_failure;
 		if (SET_WITH_TIMEOUT(set)) {
 #ifdef IP_SET_BITMAP_STORED_TIMEOUT
 			if (nla_put_net32(skb, IPSET_ATTR_TIMEOUT,
 					  htonl(ip_set_timeout_stored(map, id,
-							ext_timeout(x, map)))))
+							ext_timeout(x, set),
+							set->dsize))))
 				goto nla_put_failure;
 #else
 			if (nla_put_net32(skb, IPSET_ATTR_TIMEOUT,
 					  htonl(ip_set_timeout_get(
-							ext_timeout(x, map)))))
+							ext_timeout(x, set)))))
 				goto nla_put_failure;
 #endif
 		}
 		if (SET_WITH_COUNTER(set) &&
-		    ip_set_put_counter(skb, ext_counter(x, map)))
+		    ip_set_put_counter(skb, ext_counter(x, set)))
 			goto nla_put_failure;
 		ipset_nest_end(skb, nested);
 	}
@@ -245,14 +242,14 @@ mtype_gc(unsigned long ul_set)
 	 * but adding/deleting new entries is locked out */
 	read_lock_bh(&set->lock);
 	for (id = 0; id < map->elements; id++)
-		if (mtype_gc_test(id, map)) {
-			x = get_ext(map, id);
-			if (ip_set_timeout_expired(ext_timeout(x, map)))
+		if (mtype_gc_test(id, map, set->dsize)) {
+			x = get_ext(set, map, id);
+			if (ip_set_timeout_expired(ext_timeout(x, set)))
 				clear_bit(id, map->members);
 		}
 	read_unlock_bh(&set->lock);
 
-	map->gc.expires = jiffies + IPSET_GC_PERIOD(map->timeout) * HZ;
+	map->gc.expires = jiffies + IPSET_GC_PERIOD(set->timeout) * HZ;
 	add_timer(&map->gc);
 }
 

@@ -164,7 +164,7 @@ hash_netport4_kadt(struct ip_set *set, const struct sk_buff *skb,
 	struct hash_netport4_elem e = {
 		.cidr = IP_SET_INIT_CIDR(h->nets[0].cidr[0], HOST_MASK) - 1,
 	};
-	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, h);
+	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, set);
 
 	if (adt == IPSET_TEST)
 		e.cidr = HOST_MASK - 1;
@@ -186,7 +186,7 @@ hash_netport4_uadt(struct ip_set *set, struct nlattr *tb[],
 	const struct hash_netport *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_netport4_elem e = { .cidr = HOST_MASK - 1 };
-	struct ip_set_ext ext = IP_SET_INIT_UEXT(h);
+	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
 	u32 port, port_to, p = 0, ip = 0, ip_to = 0, last;
 	bool with_ports = false;
 	u8 cidr;
@@ -409,7 +409,7 @@ hash_netport6_kadt(struct ip_set *set, const struct sk_buff *skb,
 	struct hash_netport6_elem e = {
 		.cidr = IP_SET_INIT_CIDR(h->nets[0].cidr[0], HOST_MASK) - 1,
 	};
-	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, h);
+	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, set);
 
 	if (adt == IPSET_TEST)
 		e.cidr = HOST_MASK - 1;
@@ -431,7 +431,7 @@ hash_netport6_uadt(struct ip_set *set, struct nlattr *tb[],
 	const struct hash_netport *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_netport6_elem e = { .cidr = HOST_MASK  - 1 };
-	struct ip_set_ext ext = IP_SET_INIT_UEXT(h);
+	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
 	u32 port, port_to;
 	bool with_ports = false;
 	u8 cidr;

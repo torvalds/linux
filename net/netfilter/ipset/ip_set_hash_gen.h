@@ -178,11 +178,6 @@ hbucket_elem_add(struct hbucket *n, u8 ahash_max, size_t dsize)
 #define NLEN(family)		0
 #endif /* IP_SET_HASH_WITH_NETS */
 
-#define ext_timeout(e, h)	\
-(unsigned long *)(((void *)(e)) + (h)->offset[IPSET_EXT_ID_TIMEOUT])
-#define ext_counter(e, h)	\
-(struct ip_set_counter *)(((void *)(e)) + (h)->offset[IPSET_EXT_ID_COUNTER])
-
 #endif /* _IP_SET_HASH_GEN_H */
 
 /* Family dependent templates */
@@ -276,9 +271,6 @@ struct htype {
 	u32 maxelem;		/* max elements in the hash */
 	u32 elements;		/* current element (vs timeout) */
 	u32 initval;		/* random jhash init value */
-	u32 timeout;		/* timeout value, if enabled */
-	size_t dsize;		/* data struct size */
-	size_t offset[IPSET_EXT_ID_MAX]; /* Offsets to extensions */
 	struct timer_list gc;	/* garbage collection when timeout enabled */
 	struct mtype_elem next; /* temporary storage for uadd */
 #ifdef IP_SET_HASH_WITH_MULTI
@@ -351,7 +343,7 @@ mtype_del_cidr(struct htype *h, u8 cidr, u8 nets_length, u8 n)
 /* Calculate the actual memory size of the set data */
 static size_t
 mtype_ahash_memsize(const struct htype *h, const struct htable *t,
-		    u8 nets_length)
+		    u8 nets_length, size_t dsize)
 {
 	u32 i;
 	size_t memsize = sizeof(*h)
@@ -362,7 +354,7 @@ mtype_ahash_memsize(const struct htype *h, const struct htable *t,
 			 + jhash_size(t->htable_bits) * sizeof(struct hbucket);
 
 	for (i = 0; i < jhash_size(t->htable_bits); i++)
-		memsize += t->bucket[i].size * h->dsize;
+		memsize += t->bucket[i].size * dsize;
 
 	return memsize;
 }
@@ -417,10 +409,10 @@ mtype_gc_init(struct ip_set *set, void (*gc)(unsigned long ul_set))
 	init_timer(&h->gc);
 	h->gc.data = (unsigned long) set;
 	h->gc.function = gc;
-	h->gc.expires = jiffies + IPSET_GC_PERIOD(h->timeout) * HZ;
+	h->gc.expires = jiffies + IPSET_GC_PERIOD(set->timeout) * HZ;
 	add_timer(&h->gc);
 	pr_debug("gc initialized, run in every %u\n",
-		 IPSET_GC_PERIOD(h->timeout));
+		 IPSET_GC_PERIOD(set->timeout));
 }
 
 static bool
@@ -431,7 +423,7 @@ mtype_same_set(const struct ip_set *a, const struct ip_set *b)
 
 	/* Resizing changes htable_bits, so we ignore it */
 	return x->maxelem == y->maxelem &&
-	       x->timeout == y->timeout &&
+	       a->timeout == b->timeout &&
 #ifdef IP_SET_HASH_WITH_NETMASK
 	       x->netmask == y->netmask &&
 #endif
@@ -444,7 +436,7 @@ mtype_same_set(const struct ip_set *a, const struct ip_set *b)
 
 /* Delete expired elements from the hashtable */
 static void
-mtype_expire(struct htype *h, u8 nets_length, size_t dsize)
+mtype_expire(struct ip_set *set, struct htype *h, u8 nets_length, size_t dsize)
 {
 	struct htable *t;
 	struct hbucket *n;
@@ -458,7 +450,7 @@ mtype_expire(struct htype *h, u8 nets_length, size_t dsize)
 		n = hbucket(t, i);
 		for (j = 0; j < n->pos; j++) {
 			data = ahash_data(n, j, dsize);
-			if (ip_set_timeout_expired(ext_timeout(data, h))) {
+			if (ip_set_timeout_expired(ext_timeout(data, set))) {
 				pr_debug("expired %u/%u\n", i, j);
 #ifdef IP_SET_HASH_WITH_NETS
 				mtype_del_cidr(h, CIDR(data->cidr),
@@ -497,10 +489,10 @@ mtype_gc(unsigned long ul_set)
 
 	pr_debug("called\n");
 	write_lock_bh(&set->lock);
-	mtype_expire(h, NLEN(set->family), h->dsize);
+	mtype_expire(set, h, NLEN(set->family), set->dsize);
 	write_unlock_bh(&set->lock);
 
-	h->gc.expires = jiffies + IPSET_GC_PERIOD(h->timeout) * HZ;
+	h->gc.expires = jiffies + IPSET_GC_PERIOD(set->timeout) * HZ;
 	add_timer(&h->gc);
 }
 
@@ -526,7 +518,7 @@ mtype_resize(struct ip_set *set, bool retried)
 	if (SET_WITH_TIMEOUT(set) && !retried) {
 		i = h->elements;
 		write_lock_bh(&set->lock);
-		mtype_expire(set->data, NLEN(set->family), h->dsize);
+		mtype_expire(set, set->data, NLEN(set->family), set->dsize);
 		write_unlock_bh(&set->lock);
 		if (h->elements < i)
 			return 0;
@@ -553,13 +545,13 @@ retry:
 	for (i = 0; i < jhash_size(orig->htable_bits); i++) {
 		n = hbucket(orig, i);
 		for (j = 0; j < n->pos; j++) {
-			data = ahash_data(n, j, h->dsize);
+			data = ahash_data(n, j, set->dsize);
 #ifdef IP_SET_HASH_WITH_NETS
 			flags = 0;
 			mtype_data_reset_flags(data, &flags);
 #endif
 			m = hbucket(t, HKEY(data, h->initval, htable_bits));
-			ret = hbucket_elem_add(m, AHASH_MAX(h), h->dsize);
+			ret = hbucket_elem_add(m, AHASH_MAX(h), set->dsize);
 			if (ret < 0) {
 #ifdef IP_SET_HASH_WITH_NETS
 				mtype_data_reset_flags(data, &flags);
@@ -570,8 +562,8 @@ retry:
 					goto retry;
 				return ret;
 			}
-			d = ahash_data(m, m->pos++, h->dsize);
-			memcpy(d, data, h->dsize);
+			d = ahash_data(m, m->pos++, set->dsize);
+			memcpy(d, data, set->dsize);
 #ifdef IP_SET_HASH_WITH_NETS
 			mtype_data_reset_flags(d, &flags);
 #endif
@@ -609,7 +601,7 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 
 	if (SET_WITH_TIMEOUT(set) && h->elements >= h->maxelem)
 		/* FIXME: when set is full, we slow down here */
-		mtype_expire(h, NLEN(set->family), h->dsize);
+		mtype_expire(set, h, NLEN(set->family), set->dsize);
 
 	if (h->elements >= h->maxelem) {
 		if (net_ratelimit())
@@ -623,11 +615,11 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 	key = HKEY(value, h->initval, t->htable_bits);
 	n = hbucket(t, key);
 	for (i = 0; i < n->pos; i++) {
-		data = ahash_data(n, i, h->dsize);
+		data = ahash_data(n, i, set->dsize);
 		if (mtype_data_equal(data, d, &multi)) {
 			if (flag_exist ||
 			    (SET_WITH_TIMEOUT(set) &&
-			     ip_set_timeout_expired(ext_timeout(data, h)))) {
+			     ip_set_timeout_expired(ext_timeout(data, set)))) {
 				/* Just the extensions could be overwritten */
 				j = i;
 				goto reuse_slot;
@@ -638,14 +630,14 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 		}
 		/* Reuse first timed out entry */
 		if (SET_WITH_TIMEOUT(set) &&
-		    ip_set_timeout_expired(ext_timeout(data, h)) &&
+		    ip_set_timeout_expired(ext_timeout(data, set)) &&
 		    j != AHASH_MAX(h) + 1)
 			j = i;
 	}
 reuse_slot:
 	if (j != AHASH_MAX(h) + 1) {
 		/* Fill out reused slot */
-		data = ahash_data(n, j, h->dsize);
+		data = ahash_data(n, j, set->dsize);
 #ifdef IP_SET_HASH_WITH_NETS
 		mtype_del_cidr(h, CIDR(data->cidr), NLEN(set->family), 0);
 		mtype_add_cidr(h, CIDR(d->cidr), NLEN(set->family), 0);
@@ -653,13 +645,13 @@ reuse_slot:
 	} else {
 		/* Use/create a new slot */
 		TUNE_AHASH_MAX(h, multi);
-		ret = hbucket_elem_add(n, AHASH_MAX(h), h->dsize);
+		ret = hbucket_elem_add(n, AHASH_MAX(h), set->dsize);
 		if (ret != 0) {
 			if (ret == -EAGAIN)
 				mtype_data_next(&h->next, d);
 			goto out;
 		}
-		data = ahash_data(n, n->pos++, h->dsize);
+		data = ahash_data(n, n->pos++, set->dsize);
 #ifdef IP_SET_HASH_WITH_NETS
 		mtype_add_cidr(h, CIDR(d->cidr), NLEN(set->family), 0);
 #endif
@@ -670,9 +662,9 @@ reuse_slot:
 	mtype_data_set_flags(data, flags);
 #endif
 	if (SET_WITH_TIMEOUT(set))
-		ip_set_timeout_set(ext_timeout(data, h), ext->timeout);
+		ip_set_timeout_set(ext_timeout(data, set), ext->timeout);
 	if (SET_WITH_COUNTER(set))
-		ip_set_init_counter(ext_counter(data, h), ext);
+		ip_set_init_counter(ext_counter(data, set), ext);
 
 out:
 	rcu_read_unlock_bh();
@@ -699,16 +691,16 @@ mtype_del(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 	key = HKEY(value, h->initval, t->htable_bits);
 	n = hbucket(t, key);
 	for (i = 0; i < n->pos; i++) {
-		data = ahash_data(n, i, h->dsize);
+		data = ahash_data(n, i, set->dsize);
 		if (!mtype_data_equal(data, d, &multi))
 			continue;
 		if (SET_WITH_TIMEOUT(set) &&
-		    ip_set_timeout_expired(ext_timeout(data, h)))
+		    ip_set_timeout_expired(ext_timeout(data, set)))
 			goto out;
 		if (i != n->pos - 1)
 			/* Not last one */
-			memcpy(data, ahash_data(n, n->pos - 1, h->dsize),
-			       h->dsize);
+			memcpy(data, ahash_data(n, n->pos - 1, set->dsize),
+			       set->dsize);
 
 		n->pos--;
 		h->elements--;
@@ -717,14 +709,14 @@ mtype_del(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 #endif
 		if (n->pos + AHASH_INIT_SIZE < n->size) {
 			void *tmp = kzalloc((n->size - AHASH_INIT_SIZE)
-					    * h->dsize,
+					    * set->dsize,
 					    GFP_ATOMIC);
 			if (!tmp) {
 				ret = 0;
 				goto out;
 			}
 			n->size -= AHASH_INIT_SIZE;
-			memcpy(tmp, n->value, n->size * h->dsize);
+			memcpy(tmp, n->value, n->size * set->dsize);
 			kfree(n->value);
 			n->value = tmp;
 		}
@@ -742,8 +734,7 @@ mtype_data_match(struct mtype_elem *data, const struct ip_set_ext *ext,
 		 struct ip_set_ext *mext, struct ip_set *set, u32 flags)
 {
 	if (SET_WITH_COUNTER(set))
-		ip_set_update_counter(ext_counter(data,
-						  (struct htype *)(set->data)),
+		ip_set_update_counter(ext_counter(data, set),
 				      ext, mext, flags);
 	return mtype_do_data_match(data);
 }
@@ -770,12 +761,12 @@ mtype_test_cidrs(struct ip_set *set, struct mtype_elem *d,
 		key = HKEY(d, h->initval, t->htable_bits);
 		n = hbucket(t, key);
 		for (i = 0; i < n->pos; i++) {
-			data = ahash_data(n, i, h->dsize);
+			data = ahash_data(n, i, set->dsize);
 			if (!mtype_data_equal(data, d, &multi))
 				continue;
 			if (SET_WITH_TIMEOUT(set)) {
 				if (!ip_set_timeout_expired(
-							ext_timeout(data, h)))
+						ext_timeout(data, set)))
 					return mtype_data_match(data, ext,
 								mext, set,
 								flags);
@@ -818,10 +809,10 @@ mtype_test(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 	key = HKEY(d, h->initval, t->htable_bits);
 	n = hbucket(t, key);
 	for (i = 0; i < n->pos; i++) {
-		data = ahash_data(n, i, h->dsize);
+		data = ahash_data(n, i, set->dsize);
 		if (mtype_data_equal(data, d, &multi) &&
 		    !(SET_WITH_TIMEOUT(set) &&
-		      ip_set_timeout_expired(ext_timeout(data, h)))) {
+		      ip_set_timeout_expired(ext_timeout(data, set)))) {
 			ret = mtype_data_match(data, ext, mext, set, flags);
 			goto out;
 		}
@@ -841,7 +832,7 @@ mtype_head(struct ip_set *set, struct sk_buff *skb)
 	size_t memsize;
 
 	t = rcu_dereference_bh_nfnl(h->table);
-	memsize = mtype_ahash_memsize(h, t, NLEN(set->family));
+	memsize = mtype_ahash_memsize(h, t, NLEN(set->family), set->dsize);
 
 	nested = ipset_nest_start(skb, IPSET_ATTR_DATA);
 	if (!nested)
@@ -858,7 +849,7 @@ mtype_head(struct ip_set *set, struct sk_buff *skb)
 	if (nla_put_net32(skb, IPSET_ATTR_REFERENCES, htonl(set->ref - 1)) ||
 	    nla_put_net32(skb, IPSET_ATTR_MEMSIZE, htonl(memsize)) ||
 	    ((set->extensions & IPSET_EXT_TIMEOUT) &&
-	     nla_put_net32(skb, IPSET_ATTR_TIMEOUT, htonl(h->timeout))) ||
+	     nla_put_net32(skb, IPSET_ATTR_TIMEOUT, htonl(set->timeout))) ||
 	    ((set->extensions & IPSET_EXT_COUNTER) &&
 	     nla_put_net32(skb, IPSET_ATTR_CADT_FLAGS,
 			   htonl(IPSET_FLAG_WITH_COUNTERS))))
@@ -894,9 +885,9 @@ mtype_list(const struct ip_set *set,
 		n = hbucket(t, cb->args[2]);
 		pr_debug("cb->args[2]: %lu, t %p n %p\n", cb->args[2], t, n);
 		for (i = 0; i < n->pos; i++) {
-			e = ahash_data(n, i, h->dsize);
+			e = ahash_data(n, i, set->dsize);
 			if (SET_WITH_TIMEOUT(set) &&
-			    ip_set_timeout_expired(ext_timeout(e, h)))
+			    ip_set_timeout_expired(ext_timeout(e, set)))
 				continue;
 			pr_debug("list hash %lu hbucket %p i %u, data %p\n",
 				 cb->args[2], n, i, e);
@@ -913,10 +904,10 @@ mtype_list(const struct ip_set *set,
 			if (SET_WITH_TIMEOUT(set) &&
 			    nla_put_net32(skb, IPSET_ATTR_TIMEOUT,
 					  htonl(ip_set_timeout_get(
-						ext_timeout(e, h)))))
+						ext_timeout(e, set)))))
 				goto nla_put_failure;
 			if (SET_WITH_COUNTER(set) &&
-			    ip_set_put_counter(skb, ext_counter(e, h)))
+			    ip_set_put_counter(skb, ext_counter(e, set)))
 				goto nla_put_failure;
 			ipset_nest_end(skb, nested);
 		}
@@ -1026,7 +1017,7 @@ IPSET_TOKEN(HTYPE, _create)(struct ip_set *set, struct nlattr *tb[], u32 flags)
 	h->netmask = netmask;
 #endif
 	get_random_bytes(&h->initval, sizeof(h->initval));
-	h->timeout = IPSET_NO_TIMEOUT;
+	set->timeout = IPSET_NO_TIMEOUT;
 
 	hbits = htable_bits(hashsize);
 	hsize = htable_size(hbits);
@@ -1053,30 +1044,30 @@ IPSET_TOKEN(HTYPE, _create)(struct ip_set *set, struct nlattr *tb[], u32 flags)
 	if (cadt_flags & IPSET_FLAG_WITH_COUNTERS) {
 		set->extensions |= IPSET_EXT_COUNTER;
 		if (tb[IPSET_ATTR_TIMEOUT]) {
-			h->timeout =
+			set->timeout =
 				ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
 			set->extensions |= IPSET_EXT_TIMEOUT;
 			if (set->family == NFPROTO_IPV4) {
-				h->dsize = sizeof(struct
+				set->dsize = sizeof(struct
 					IPSET_TOKEN(HTYPE, 4ct_elem));
-				h->offset[IPSET_EXT_ID_TIMEOUT] =
+				set->offset[IPSET_EXT_ID_TIMEOUT] =
 					offsetof(struct
 						IPSET_TOKEN(HTYPE, 4ct_elem),
 						timeout);
-				h->offset[IPSET_EXT_ID_COUNTER] =
+				set->offset[IPSET_EXT_ID_COUNTER] =
 					offsetof(struct
 						IPSET_TOKEN(HTYPE, 4ct_elem),
 						counter);
 				IPSET_TOKEN(HTYPE, 4_gc_init)(set,
 					IPSET_TOKEN(HTYPE, 4_gc));
 			} else {
-				h->dsize = sizeof(struct
+				set->dsize = sizeof(struct
 					IPSET_TOKEN(HTYPE, 6ct_elem));
-				h->offset[IPSET_EXT_ID_TIMEOUT] =
+				set->offset[IPSET_EXT_ID_TIMEOUT] =
 					offsetof(struct
 						IPSET_TOKEN(HTYPE, 6ct_elem),
 						timeout);
-				h->offset[IPSET_EXT_ID_COUNTER] =
+				set->offset[IPSET_EXT_ID_COUNTER] =
 					offsetof(struct
 						IPSET_TOKEN(HTYPE, 6ct_elem),
 						counter);
@@ -1085,36 +1076,36 @@ IPSET_TOKEN(HTYPE, _create)(struct ip_set *set, struct nlattr *tb[], u32 flags)
 			}
 		} else {
 			if (set->family == NFPROTO_IPV4) {
-				h->dsize =
+				set->dsize =
 					sizeof(struct
 						IPSET_TOKEN(HTYPE, 4c_elem));
-				h->offset[IPSET_EXT_ID_COUNTER] =
+				set->offset[IPSET_EXT_ID_COUNTER] =
 					offsetof(struct
 						IPSET_TOKEN(HTYPE, 4c_elem),
 						counter);
 			} else {
-				h->dsize =
+				set->dsize =
 					sizeof(struct
 						IPSET_TOKEN(HTYPE, 6c_elem));
-				h->offset[IPSET_EXT_ID_COUNTER] =
+				set->offset[IPSET_EXT_ID_COUNTER] =
 					offsetof(struct
 						IPSET_TOKEN(HTYPE, 6c_elem),
 						counter);
 			}
 		}
 	} else if (tb[IPSET_ATTR_TIMEOUT]) {
-		h->timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
+		set->timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
 		set->extensions |= IPSET_EXT_TIMEOUT;
 		if (set->family == NFPROTO_IPV4) {
-			h->dsize = sizeof(struct IPSET_TOKEN(HTYPE, 4t_elem));
-			h->offset[IPSET_EXT_ID_TIMEOUT] =
+			set->dsize = sizeof(struct IPSET_TOKEN(HTYPE, 4t_elem));
+			set->offset[IPSET_EXT_ID_TIMEOUT] =
 				offsetof(struct IPSET_TOKEN(HTYPE, 4t_elem),
 					 timeout);
 			IPSET_TOKEN(HTYPE, 4_gc_init)(set,
 				IPSET_TOKEN(HTYPE, 4_gc));
 		} else {
-			h->dsize = sizeof(struct IPSET_TOKEN(HTYPE, 6t_elem));
-			h->offset[IPSET_EXT_ID_TIMEOUT] =
+			set->dsize = sizeof(struct IPSET_TOKEN(HTYPE, 6t_elem));
+			set->offset[IPSET_EXT_ID_TIMEOUT] =
 				offsetof(struct IPSET_TOKEN(HTYPE, 6t_elem),
 					 timeout);
 			IPSET_TOKEN(HTYPE, 6_gc_init)(set,
@@ -1122,9 +1113,9 @@ IPSET_TOKEN(HTYPE, _create)(struct ip_set *set, struct nlattr *tb[], u32 flags)
 		}
 	} else {
 		if (set->family == NFPROTO_IPV4)
-			h->dsize = sizeof(struct IPSET_TOKEN(HTYPE, 4_elem));
+			set->dsize = sizeof(struct IPSET_TOKEN(HTYPE, 4_elem));
 		else
-			h->dsize = sizeof(struct IPSET_TOKEN(HTYPE, 6_elem));
+			set->dsize = sizeof(struct IPSET_TOKEN(HTYPE, 6_elem));
 	}
 
 	pr_debug("create %s hashsize %u (%u) maxelem %u: %p(%p)\n",

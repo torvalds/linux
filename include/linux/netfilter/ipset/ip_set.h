@@ -72,6 +72,16 @@ struct ip_set_ext {
 	u32 timeout;
 };
 
+struct ip_set_counter {
+	atomic64_t bytes;
+	atomic64_t packets;
+};
+
+#define ext_timeout(e, s)	\
+(unsigned long *)(((void *)(e)) + (s)->offset[IPSET_EXT_ID_TIMEOUT])
+#define ext_counter(e, s)	\
+(struct ip_set_counter *)(((void *)(e)) + (s)->offset[IPSET_EXT_ID_COUNTER])
+
 struct ip_set;
 
 typedef int (*ipset_adtfn)(struct ip_set *set, void *value,
@@ -179,13 +189,14 @@ struct ip_set {
 	u8 revision;
 	/* Extensions */
 	u8 extensions;
+	/* Default timeout value, if enabled */
+	u32 timeout;
+	/* Element data size */
+	size_t dsize;
+	/* Offsets to extensions in elements */
+	size_t offset[IPSET_EXT_ID_MAX];
 	/* The type specific data */
 	void *data;
-};
-
-struct ip_set_counter {
-	atomic64_t bytes;
-	atomic64_t packets;
 };
 
 static inline void
@@ -390,13 +401,13 @@ bitmap_bytes(u32 a, u32 b)
 
 #include <linux/netfilter/ipset/ip_set_timeout.h>
 
-#define IP_SET_INIT_KEXT(skb, opt, map)			\
+#define IP_SET_INIT_KEXT(skb, opt, set)			\
 	{ .bytes = (skb)->len, .packets = 1,		\
-	  .timeout = ip_set_adt_opt_timeout(opt, map) }
+	  .timeout = ip_set_adt_opt_timeout(opt, set) }
 
-#define IP_SET_INIT_UEXT(map)				\
+#define IP_SET_INIT_UEXT(set)				\
 	{ .bytes = ULLONG_MAX, .packets = ULLONG_MAX,	\
-	  .timeout = (map)->timeout }
+	  .timeout = (set)->timeout }
 
 #define IP_SET_INIT_CIDR(a, b) ((a) ? (a) : (b))
 

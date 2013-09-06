@@ -172,7 +172,7 @@ hash_ipportnet4_kadt(struct ip_set *set, const struct sk_buff *skb,
 	struct hash_ipportnet4_elem e = {
 		.cidr = IP_SET_INIT_CIDR(h->nets[0].cidr[0], HOST_MASK) - 1,
 	};
-	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, h);
+	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, set);
 
 	if (adt == IPSET_TEST)
 		e.cidr = HOST_MASK - 1;
@@ -195,7 +195,7 @@ hash_ipportnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 	const struct hash_ipportnet *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ipportnet4_elem e = { .cidr = HOST_MASK - 1 };
-	struct ip_set_ext ext = IP_SET_INIT_UEXT(h);
+	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
 	u32 ip = 0, ip_to = 0, p = 0, port, port_to;
 	u32 ip2_from = 0, ip2_to = 0, ip2_last, ip2;
 	bool with_ports = false;
@@ -306,9 +306,9 @@ hash_ipportnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 						       : port;
 		for (; p <= port_to; p++) {
 			e.port = htons(p);
-			ip2 = retried
-			      && ip == ntohl(h->next.ip)
-			      && p == ntohs(h->next.port)
+			ip2 = retried &&
+			      ip == ntohl(h->next.ip) &&
+			      p == ntohs(h->next.port)
 				? ntohl(h->next.ip2) : ip2_from;
 			while (!after(ip2, ip2_to)) {
 				e.ip2 = htonl(ip2);
@@ -456,7 +456,7 @@ hash_ipportnet6_kadt(struct ip_set *set, const struct sk_buff *skb,
 	struct hash_ipportnet6_elem e = {
 		.cidr = IP_SET_INIT_CIDR(h->nets[0].cidr[0], HOST_MASK) - 1,
 	};
-	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, h);
+	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, set);
 
 	if (adt == IPSET_TEST)
 		e.cidr = HOST_MASK - 1;
@@ -479,7 +479,7 @@ hash_ipportnet6_uadt(struct ip_set *set, struct nlattr *tb[],
 	const struct hash_ipportnet *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ipportnet6_elem e = { .cidr = HOST_MASK - 1 };
-	struct ip_set_ext ext = IP_SET_INIT_UEXT(h);
+	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
 	u32 port, port_to;
 	bool with_ports = false;
 	u8 cidr;

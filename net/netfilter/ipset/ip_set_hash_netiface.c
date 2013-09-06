@@ -268,7 +268,7 @@ hash_netiface4_kadt(struct ip_set *set, const struct sk_buff *skb,
 		.cidr = IP_SET_INIT_CIDR(h->nets[0].cidr[0], HOST_MASK),
 		.elem = 1,
 	};
-	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, h);
+	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, set);
 	int ret;
 
 	if (e.cidr == 0)
@@ -319,7 +319,7 @@ hash_netiface4_uadt(struct ip_set *set, struct nlattr *tb[],
 	struct hash_netiface *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_netiface4_elem e = { .cidr = HOST_MASK, .elem = 1 };
-	struct ip_set_ext ext = IP_SET_INIT_UEXT(h);
+	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
 	u32 ip = 0, ip_to = 0, last;
 	char iface[IFNAMSIZ];
 	int ret;
@@ -537,7 +537,7 @@ hash_netiface6_kadt(struct ip_set *set, const struct sk_buff *skb,
 		.cidr = IP_SET_INIT_CIDR(h->nets[0].cidr[0], HOST_MASK),
 		.elem = 1,
 	};
-	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, h);
+	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, set);
 	int ret;
 
 	if (e.cidr == 0)
@@ -584,7 +584,7 @@ hash_netiface6_uadt(struct ip_set *set, struct nlattr *tb[],
 	struct hash_netiface *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_netiface6_elem e = { .cidr = HOST_MASK, .elem = 1 };
-	struct ip_set_ext ext = IP_SET_INIT_UEXT(h);
+	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
 	char iface[IFNAMSIZ];
 	int ret;
 
