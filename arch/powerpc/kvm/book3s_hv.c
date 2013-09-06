@@ -538,6 +538,15 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 		}
 		break;
 	case H_CONFER:
+		target = kvmppc_get_gpr(vcpu, 4);
+		if (target == -1)
+			break;
+		tvcpu = kvmppc_find_vcpu(vcpu->kvm, target);
+		if (!tvcpu) {
+			ret = H_PARAMETER;
+			break;
+		}
+		kvm_vcpu_yield_to(tvcpu);
 		break;
 	case H_REGISTER_VPA:
 		ret = do_h_register_vpa(vcpu, kvmppc_get_gpr(vcpu, 4),
