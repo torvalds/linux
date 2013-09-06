@@ -870,6 +870,8 @@ static void hotplug_event_work(struct work_struct *work)
 	hotplug_event(hp_work->handle, hp_work->type, context);
 
 	acpi_scan_lock_release();
+	acpi_evaluate_hotplug_ost(hp_work->handle, hp_work->type,
+				  ACPI_OST_SC_SUCCESS, NULL);
 	kfree(hp_work); /* allocated in handle_hotplug_event() */
 	put_bridge(context->func.parent);
 }
@@ -885,11 +887,15 @@ static void hotplug_event_work(struct work_struct *work)
 static void handle_hotplug_event(acpi_handle handle, u32 type, void *data)
 {
 	struct acpiphp_context *context;
+	u32 ost_code = ACPI_OST_SC_SUCCESS;
 
 	switch (type) {
 	case ACPI_NOTIFY_BUS_CHECK:
 	case ACPI_NOTIFY_DEVICE_CHECK:
+		break;
 	case ACPI_NOTIFY_EJECT_REQUEST:
+		ost_code = ACPI_OST_SC_EJECT_IN_PROGRESS;
+		acpi_evaluate_hotplug_ost(handle, type, ost_code, NULL);
 		break;
 
 	case ACPI_NOTIFY_DEVICE_WAKE:
@@ -898,20 +904,21 @@ static void handle_hotplug_event(acpi_handle handle, u32 type, void *data)
 	case ACPI_NOTIFY_FREQUENCY_MISMATCH:
 		acpi_handle_err(handle, "Device cannot be configured due "
 				"to a frequency mismatch\n");
-		return;
+		goto out;
 
 	case ACPI_NOTIFY_BUS_MODE_MISMATCH:
 		acpi_handle_err(handle, "Device cannot be configured due "
 				"to a bus mode mismatch\n");
-		return;
+		goto out;
 
 	case ACPI_NOTIFY_POWER_FAULT:
 		acpi_handle_err(handle, "Device has suffered a power fault\n");
-		return;
+		goto out;
 
 	default:
 		acpi_handle_warn(handle, "Unsupported event type 0x%x\n", type);
-		return;
+		ost_code = ACPI_OST_SC_UNRECOGNIZED_NOTIFY;
+		goto out;
 	}
 
 	mutex_lock(&acpiphp_context_lock);
@@ -920,8 +927,14 @@ static void handle_hotplug_event(acpi_handle handle, u32 type, void *data)
 		get_bridge(context->func.parent);
 		acpiphp_put_context(context);
 		alloc_acpi_hp_work(handle, type, context, hotplug_event_work);
+		mutex_unlock(&acpiphp_context_lock);
+		return;
 	}
 	mutex_unlock(&acpiphp_context_lock);
+	ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE;
+
+ out:
+	acpi_evaluate_hotplug_ost(handle, type, ost_code, NULL);
 }
 
 /*
