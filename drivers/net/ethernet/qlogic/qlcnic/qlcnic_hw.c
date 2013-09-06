@@ -317,16 +317,20 @@ static void qlcnic_write_window_reg(u32 addr, void __iomem *bar0, u32 data)
 int
 qlcnic_pcie_sem_lock(struct qlcnic_adapter *adapter, int sem, u32 id_reg)
 {
-	int done = 0, timeout = 0;
+	int timeout = 0;
+	int err = 0;
+	u32 done = 0;
 
 	while (!done) {
-		done = QLCRD32(adapter, QLCNIC_PCIE_REG(PCIE_SEM_LOCK(sem)));
+		done = QLCRD32(adapter, QLCNIC_PCIE_REG(PCIE_SEM_LOCK(sem)),
+			       &err);
 		if (done == 1)
 			break;
 		if (++timeout >= QLCNIC_PCIE_SEM_TIMEOUT) {
 			dev_err(&adapter->pdev->dev,
 				"Failed to acquire sem=%d lock; holdby=%d\n",
-				sem, id_reg ? QLCRD32(adapter, id_reg) : -1);
+				sem,
+				id_reg ? QLCRD32(adapter, id_reg, &err) : -1);
 			return -EIO;
 		}
 		msleep(1);
@@ -341,19 +345,22 @@ qlcnic_pcie_sem_lock(struct qlcnic_adapter *adapter, int sem, u32 id_reg)
 void
 qlcnic_pcie_sem_unlock(struct qlcnic_adapter *adapter, int sem)
 {
-	QLCRD32(adapter, QLCNIC_PCIE_REG(PCIE_SEM_UNLOCK(sem)));
+	int err = 0;
+
+	QLCRD32(adapter, QLCNIC_PCIE_REG(PCIE_SEM_UNLOCK(sem)), &err);
 }
 
 int qlcnic_ind_rd(struct qlcnic_adapter *adapter, u32 addr)
 {
+	int err = 0;
 	u32 data;
 
 	if (qlcnic_82xx_check(adapter))
 		qlcnic_read_window_reg(addr, adapter->ahw->pci_base0, &data);
 	else {
-		data = qlcnic_83xx_rd_reg_indirect(adapter, addr);
-		if (data == -EIO)
-			return -EIO;
+		data = QLCRD32(adapter, addr, &err);
+		if (err == -EIO)
+			return err;
 	}
 	return data;
 }
@@ -516,19 +523,17 @@ void __qlcnic_set_multi(struct net_device *netdev, u16 vlan)
 	if (netdev->flags & IFF_PROMISC) {
 		if (!(adapter->flags & QLCNIC_PROMISC_DISABLED))
 			mode = VPORT_MISS_MODE_ACCEPT_ALL;
-	} else if (netdev->flags & IFF_ALLMULTI) {
-		if (netdev_mc_count(netdev) > ahw->max_mc_count) {
-			mode = VPORT_MISS_MODE_ACCEPT_MULTI;
-		} else if (!netdev_mc_empty(netdev) &&
-			   !qlcnic_sriov_vf_check(adapter)) {
-				netdev_for_each_mc_addr(ha, netdev)
-					qlcnic_nic_add_mac(adapter, ha->addr,
-							   vlan);
-		}
-		if (mode != VPORT_MISS_MODE_ACCEPT_MULTI &&
-		    qlcnic_sriov_vf_check(adapter))
-			qlcnic_vf_add_mc_list(netdev, vlan);
+	} else if ((netdev->flags & IFF_ALLMULTI) ||
+		   (netdev_mc_count(netdev) > ahw->max_mc_count)) {
+		mode = VPORT_MISS_MODE_ACCEPT_MULTI;
+	} else if (!netdev_mc_empty(netdev) &&
+		   !qlcnic_sriov_vf_check(adapter)) {
+		netdev_for_each_mc_addr(ha, netdev)
+			qlcnic_nic_add_mac(adapter, ha->addr, vlan);
 	}
+
+	if (qlcnic_sriov_vf_check(adapter))
+		qlcnic_vf_add_mc_list(netdev, vlan);
 
 	/* configure unicast MAC address, if there is not sufficient space
 	 * to store all the unicast addresses then enable promiscuous mode
@@ -1161,7 +1166,8 @@ int qlcnic_82xx_hw_write_wx_2M(struct qlcnic_adapter *adapter, ulong off,
 	return -EIO;
 }
 
-int qlcnic_82xx_hw_read_wx_2M(struct qlcnic_adapter *adapter, ulong off)
+int qlcnic_82xx_hw_read_wx_2M(struct qlcnic_adapter *adapter, ulong off,
+			      int *err)
 {
 	unsigned long flags;
 	int rv;
@@ -1417,7 +1423,7 @@ int qlcnic_pci_mem_read_2M(struct qlcnic_adapter *adapter, u64 off, u64 *data)
 
 int qlcnic_82xx_get_board_info(struct qlcnic_adapter *adapter)
 {
-	int offset, board_type, magic;
+	int offset, board_type, magic, err = 0;
 	struct pci_dev *pdev = adapter->pdev;
 
 	offset = QLCNIC_FW_MAGIC_OFFSET;
@@ -1437,7 +1443,9 @@ int qlcnic_82xx_get_board_info(struct qlcnic_adapter *adapter)
 	adapter->ahw->board_type = board_type;
 
 	if (board_type == QLCNIC_BRDTYPE_P3P_4_GB_MM) {
-		u32 gpio = QLCRD32(adapter, QLCNIC_ROMUSB_GLB_PAD_GPIO_I);
+		u32 gpio = QLCRD32(adapter, QLCNIC_ROMUSB_GLB_PAD_GPIO_I, &err);
+		if (err == -EIO)
+			return err;
 		if ((gpio & 0x8000) == 0)
 			board_type = QLCNIC_BRDTYPE_P3P_10G_TP;
 	}
@@ -1477,10 +1485,13 @@ int
 qlcnic_wol_supported(struct qlcnic_adapter *adapter)
 {
 	u32 wol_cfg;
+	int err = 0;
 
-	wol_cfg = QLCRD32(adapter, QLCNIC_WOL_CONFIG_NV);
+	wol_cfg = QLCRD32(adapter, QLCNIC_WOL_CONFIG_NV, &err);
 	if (wol_cfg & (1UL << adapter->portnum)) {
-		wol_cfg = QLCRD32(adapter, QLCNIC_WOL_CONFIG);
+		wol_cfg = QLCRD32(adapter, QLCNIC_WOL_CONFIG, &err);
+		if (err == -EIO)
+			return err;
 		if (wol_cfg & (1 << adapter->portnum))
 			return 1;
 	}
@@ -1541,6 +1552,7 @@ void qlcnic_82xx_get_func_no(struct qlcnic_adapter *adapter)
 void qlcnic_82xx_read_crb(struct qlcnic_adapter *adapter, char *buf,
 			  loff_t offset, size_t size)
 {
+	int err = 0;
 	u32 data;
 	u64 qmdata;
 
@@ -1548,7 +1560,7 @@ void qlcnic_82xx_read_crb(struct qlcnic_adapter *adapter, char *buf,
 		qlcnic_pci_camqm_read_2M(adapter, offset, &qmdata);
 		memcpy(buf, &qmdata, size);
 	} else {
-		data = QLCRD32(adapter, offset);
+		data = QLCRD32(adapter, offset, &err);
 		memcpy(buf, &data, size);
 	}
 }

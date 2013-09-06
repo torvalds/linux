@@ -2563,8 +2563,8 @@ static int be_close(struct net_device *netdev)
 	/* Wait for all pending tx completions to arrive so that
 	 * all tx skbs are freed.
 	 */
-	be_tx_compl_clean(adapter);
 	netif_tx_disable(netdev);
+	be_tx_compl_clean(adapter);
 
 	be_rx_qs_destroy(adapter);
 
@@ -4372,6 +4372,10 @@ static int be_resume(struct pci_dev *pdev)
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
+
+	status = be_fw_wait_ready(adapter);
+	if (status)
+		return status;
 
 	/* tell fw we're ready to fire cmds */
 	status = be_cmd_fw_init(adapter);

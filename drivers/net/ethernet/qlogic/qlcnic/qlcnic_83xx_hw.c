@@ -228,17 +228,17 @@ static int __qlcnic_set_win_base(struct qlcnic_adapter *adapter, u32 addr)
 	return 0;
 }
 
-int qlcnic_83xx_rd_reg_indirect(struct qlcnic_adapter *adapter, ulong addr)
+int qlcnic_83xx_rd_reg_indirect(struct qlcnic_adapter *adapter, ulong addr,
+				int *err)
 {
-	int ret;
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 
-	ret = __qlcnic_set_win_base(adapter, (u32) addr);
-	if (!ret) {
+	*err = __qlcnic_set_win_base(adapter, (u32) addr);
+	if (!*err) {
 		return QLCRDX(ahw, QLCNIC_WILDCARD);
 	} else {
 		dev_err(&adapter->pdev->dev,
-			"%s failed, addr = 0x%x\n", __func__, (int)addr);
+			"%s failed, addr = 0x%lx\n", __func__, addr);
 		return -EIO;
 	}
 }
@@ -561,7 +561,7 @@ void qlcnic_83xx_cam_unlock(struct qlcnic_adapter *adapter)
 void qlcnic_83xx_read_crb(struct qlcnic_adapter *adapter, char *buf,
 			  loff_t offset, size_t size)
 {
-	int ret;
+	int ret = 0;
 	u32 data;
 
 	if (qlcnic_api_lock(adapter)) {
@@ -571,7 +571,7 @@ void qlcnic_83xx_read_crb(struct qlcnic_adapter *adapter, char *buf,
 		return;
 	}
 
-	ret = qlcnic_83xx_rd_reg_indirect(adapter, (u32) offset);
+	data = QLCRD32(adapter, (u32) offset, &ret);
 	qlcnic_api_unlock(adapter);
 
 	if (ret == -EIO) {
@@ -580,7 +580,6 @@ void qlcnic_83xx_read_crb(struct qlcnic_adapter *adapter, char *buf,
 			__func__, (u32)offset);
 		return;
 	}
-	data = ret;
 	memcpy(buf, &data, size);
 }
 
@@ -2075,18 +2074,25 @@ void qlcnic_83xx_config_intr_coal(struct qlcnic_adapter *adapter)
 static void qlcnic_83xx_handle_link_aen(struct qlcnic_adapter *adapter,
 					u32 data[])
 {
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	u8 link_status, duplex;
 	/* link speed */
 	link_status = LSB(data[3]) & 1;
-	adapter->ahw->link_speed = MSW(data[2]);
-	adapter->ahw->link_autoneg = MSB(MSW(data[3]));
-	adapter->ahw->module_type = MSB(LSW(data[3]));
-	duplex = LSB(MSW(data[3]));
-	if (duplex)
-		adapter->ahw->link_duplex = DUPLEX_FULL;
-	else
-		adapter->ahw->link_duplex = DUPLEX_HALF;
-	adapter->ahw->has_link_events = 1;
+	if (link_status) {
+		ahw->link_speed = MSW(data[2]);
+		duplex = LSB(MSW(data[3]));
+		if (duplex)
+			ahw->link_duplex = DUPLEX_FULL;
+		else
+			ahw->link_duplex = DUPLEX_HALF;
+	} else {
+		ahw->link_speed = SPEED_UNKNOWN;
+		ahw->link_duplex = DUPLEX_UNKNOWN;
+	}
+
+	ahw->link_autoneg = MSB(MSW(data[3]));
+	ahw->module_type = MSB(LSW(data[3]));
+	ahw->has_link_events = 1;
 	qlcnic_advert_link_change(adapter, link_status);
 }
 
@@ -2384,9 +2390,9 @@ int qlcnic_83xx_lockless_flash_read32(struct qlcnic_adapter *adapter,
 				      u32 flash_addr, u8 *p_data,
 				      int count)
 {
-	int i, ret;
-	u32 word, range, flash_offset, addr = flash_addr;
+	u32 word, range, flash_offset, addr = flash_addr, ret;
 	ulong indirect_add, direct_window;
+	int i, err = 0;
 
 	flash_offset = addr & (QLCNIC_FLASH_SECTOR_SIZE - 1);
 	if (addr & 0x3) {
@@ -2404,10 +2410,9 @@ int qlcnic_83xx_lockless_flash_read32(struct qlcnic_adapter *adapter,
 		/* Multi sector read */
 		for (i = 0; i < count; i++) {
 			indirect_add = QLC_83XX_FLASH_DIRECT_DATA(addr);
-			ret = qlcnic_83xx_rd_reg_indirect(adapter,
-							  indirect_add);
-			if (ret == -EIO)
-				return -EIO;
+			ret = QLCRD32(adapter, indirect_add, &err);
+			if (err == -EIO)
+				return err;
 
 			word = ret;
 			*(u32 *)p_data  = word;
@@ -2428,10 +2433,9 @@ int qlcnic_83xx_lockless_flash_read32(struct qlcnic_adapter *adapter,
 		/* Single sector read */
 		for (i = 0; i < count; i++) {
 			indirect_add = QLC_83XX_FLASH_DIRECT_DATA(addr);
-			ret = qlcnic_83xx_rd_reg_indirect(adapter,
-							  indirect_add);
-			if (ret == -EIO)
-				return -EIO;
+			ret = QLCRD32(adapter, indirect_add, &err);
+			if (err == -EIO)
+				return err;
 
 			word = ret;
 			*(u32 *)p_data  = word;
@@ -2447,10 +2451,13 @@ static int qlcnic_83xx_poll_flash_status_reg(struct qlcnic_adapter *adapter)
 {
 	u32 status;
 	int retries = QLC_83XX_FLASH_READ_RETRY_COUNT;
+	int err = 0;
 
 	do {
-		status = qlcnic_83xx_rd_reg_indirect(adapter,
-						     QLC_83XX_FLASH_STATUS);
+		status = QLCRD32(adapter, QLC_83XX_FLASH_STATUS, &err);
+		if (err == -EIO)
+			return err;
+
 		if ((status & QLC_83XX_FLASH_STATUS_READY) ==
 		    QLC_83XX_FLASH_STATUS_READY)
 			break;
@@ -2502,7 +2509,8 @@ int qlcnic_83xx_disable_flash_write(struct qlcnic_adapter *adapter)
 
 int qlcnic_83xx_read_flash_mfg_id(struct qlcnic_adapter *adapter)
 {
-	int ret, mfg_id;
+	int ret, err = 0;
+	u32 mfg_id;
 
 	if (qlcnic_83xx_lock_flash(adapter))
 		return -EIO;
@@ -2517,9 +2525,11 @@ int qlcnic_83xx_read_flash_mfg_id(struct qlcnic_adapter *adapter)
 		return -EIO;
 	}
 
-	mfg_id = qlcnic_83xx_rd_reg_indirect(adapter, QLC_83XX_FLASH_RDDATA);
-	if (mfg_id == -EIO)
-		return -EIO;
+	mfg_id = QLCRD32(adapter, QLC_83XX_FLASH_RDDATA, &err);
+	if (err == -EIO) {
+		qlcnic_83xx_unlock_flash(adapter);
+		return err;
+	}
 
 	adapter->flash_mfg_id = (mfg_id & 0xFF);
 	qlcnic_83xx_unlock_flash(adapter);
@@ -2636,7 +2646,7 @@ int qlcnic_83xx_flash_bulk_write(struct qlcnic_adapter *adapter, u32 addr,
 				 u32 *p_data, int count)
 {
 	u32 temp;
-	int ret = -EIO;
+	int ret = -EIO, err = 0;
 
 	if ((count < QLC_83XX_FLASH_WRITE_MIN) ||
 	    (count > QLC_83XX_FLASH_WRITE_MAX)) {
@@ -2645,8 +2655,10 @@ int qlcnic_83xx_flash_bulk_write(struct qlcnic_adapter *adapter, u32 addr,
 		return -EIO;
 	}
 
-	temp = qlcnic_83xx_rd_reg_indirect(adapter,
-					   QLC_83XX_FLASH_SPI_CONTROL);
+	temp = QLCRD32(adapter, QLC_83XX_FLASH_SPI_CONTROL, &err);
+	if (err == -EIO)
+		return err;
+
 	qlcnic_83xx_wrt_reg_indirect(adapter, QLC_83XX_FLASH_SPI_CONTROL,
 				     (temp | QLC_83XX_FLASH_SPI_CTRL));
 	qlcnic_83xx_wrt_reg_indirect(adapter, QLC_83XX_FLASH_ADDR,
@@ -2695,13 +2707,18 @@ int qlcnic_83xx_flash_bulk_write(struct qlcnic_adapter *adapter, u32 addr,
 		return -EIO;
 	}
 
-	ret = qlcnic_83xx_rd_reg_indirect(adapter, QLC_83XX_FLASH_SPI_STATUS);
+	ret = QLCRD32(adapter, QLC_83XX_FLASH_SPI_STATUS, &err);
+	if (err == -EIO)
+		return err;
+
 	if ((ret & QLC_83XX_FLASH_SPI_CTRL) == QLC_83XX_FLASH_SPI_CTRL) {
 		dev_err(&adapter->pdev->dev, "%s: failed at %d\n",
 			__func__, __LINE__);
 		/* Operation failed, clear error bit */
-		temp = qlcnic_83xx_rd_reg_indirect(adapter,
-						   QLC_83XX_FLASH_SPI_CONTROL);
+		temp = QLCRD32(adapter, QLC_83XX_FLASH_SPI_CONTROL, &err);
+		if (err == -EIO)
+			return err;
+
 		qlcnic_83xx_wrt_reg_indirect(adapter,
 					     QLC_83XX_FLASH_SPI_CONTROL,
 					     (temp | QLC_83XX_FLASH_SPI_CTRL));
@@ -2823,6 +2840,7 @@ int qlcnic_83xx_ms_mem_write128(struct qlcnic_adapter *adapter, u64 addr,
 {
 	int i, j, ret = 0;
 	u32 temp;
+	int err = 0;
 
 	/* Check alignment */
 	if (addr & 0xF)
@@ -2855,8 +2873,12 @@ int qlcnic_83xx_ms_mem_write128(struct qlcnic_adapter *adapter, u64 addr,
 					     QLCNIC_TA_WRITE_START);
 
 		for (j = 0; j < MAX_CTL_CHECK; j++) {
-			temp = qlcnic_83xx_rd_reg_indirect(adapter,
-							   QLCNIC_MS_CTRL);
+			temp = QLCRD32(adapter, QLCNIC_MS_CTRL, &err);
+			if (err == -EIO) {
+				mutex_unlock(&adapter->ahw->mem_lock);
+				return err;
+			}
+
 			if ((temp & TA_CTL_BUSY) == 0)
 				break;
 		}
@@ -2878,9 +2900,9 @@ int qlcnic_83xx_ms_mem_write128(struct qlcnic_adapter *adapter, u64 addr,
 int qlcnic_83xx_flash_read32(struct qlcnic_adapter *adapter, u32 flash_addr,
 			     u8 *p_data, int count)
 {
-	int i, ret;
-	u32 word, addr = flash_addr;
+	u32 word, addr = flash_addr, ret;
 	ulong  indirect_addr;
+	int i, err = 0;
 
 	if (qlcnic_83xx_lock_flash(adapter) != 0)
 		return -EIO;
@@ -2900,10 +2922,10 @@ int qlcnic_83xx_flash_read32(struct qlcnic_adapter *adapter, u32 flash_addr,
 		}
 
 		indirect_addr = QLC_83XX_FLASH_DIRECT_DATA(addr);
-		ret = qlcnic_83xx_rd_reg_indirect(adapter,
-						  indirect_addr);
-		if (ret == -EIO)
-			return -EIO;
+		ret = QLCRD32(adapter, indirect_addr, &err);
+		if (err == -EIO)
+			return err;
+
 		word = ret;
 		*(u32 *)p_data  = word;
 		p_data = p_data + 4;
@@ -3014,8 +3036,8 @@ int qlcnic_83xx_get_settings(struct qlcnic_adapter *adapter,
 	}
 
 	if (ahw->port_type == QLCNIC_XGBE) {
-		ecmd->supported = SUPPORTED_1000baseT_Full;
-		ecmd->advertising = ADVERTISED_1000baseT_Full;
+		ecmd->supported = SUPPORTED_10000baseT_Full;
+		ecmd->advertising = ADVERTISED_10000baseT_Full;
 	} else {
 		ecmd->supported = (SUPPORTED_10baseT_Half |
 				   SUPPORTED_10baseT_Full |
@@ -3244,6 +3266,11 @@ int qlcnic_83xx_interrupt_test(struct net_device *netdev)
 	u8 val;
 	int ret, max_sds_rings = adapter->max_sds_rings;
 
+	if (test_bit(__QLCNIC_RESETTING, &adapter->state)) {
+		netdev_info(netdev, "Device is resetting\n");
+		return -EBUSY;
+	}
+
 	if (qlcnic_get_diag_lock(adapter)) {
 		netdev_info(netdev, "Device in diagnostics mode\n");
 		return -EBUSY;
@@ -3369,7 +3396,8 @@ int qlcnic_83xx_set_pauseparam(struct qlcnic_adapter *adapter,
 
 static int qlcnic_83xx_read_flash_status_reg(struct qlcnic_adapter *adapter)
 {
-	int ret;
+	int ret, err = 0;
+	u32 temp;
 
 	qlcnic_83xx_wrt_reg_indirect(adapter, QLC_83XX_FLASH_ADDR,
 				     QLC_83XX_FLASH_OEM_READ_SIG);
@@ -3379,8 +3407,11 @@ static int qlcnic_83xx_read_flash_status_reg(struct qlcnic_adapter *adapter)
 	if (ret)
 		return -EIO;
 
-	ret = qlcnic_83xx_rd_reg_indirect(adapter, QLC_83XX_FLASH_RDDATA);
-	return ret & 0xFF;
+	temp = QLCRD32(adapter, QLC_83XX_FLASH_RDDATA, &err);
+	if (err == -EIO)
+		return err;
+
+	return temp & 0xFF;
 }
 
 int qlcnic_83xx_flash_test(struct qlcnic_adapter *adapter)

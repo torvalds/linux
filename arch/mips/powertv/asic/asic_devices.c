@@ -529,8 +529,7 @@ EXPORT_SYMBOL(asic_resource_get);
  */
 void platform_release_memory(void *ptr, int size)
 {
-	free_reserved_area((unsigned long)ptr, (unsigned long)(ptr + size),
-			   -1, NULL);
+	free_reserved_area(ptr, ptr + size, -1, NULL);
 }
 EXPORT_SYMBOL(platform_release_memory);
 

@@ -166,6 +166,15 @@
 				reg		= <0x9000 0x100>;
 				st,bank-name	= "PIO31";
 			};
+
+			serial2-oe {
+				pinctrl_serial2_oe: serial2-1 {
+					st,pins {
+						output-enable	= <&PIO11 3 ALT2 OUT>;
+					};
+				};
+			};
+
 		};
 
 		pin-controller-rear {
@@ -218,7 +227,6 @@
 					st,pins {
 						tx	= <&PIO17 4 ALT2 OUT>;
 						rx	= <&PIO17 5 ALT2 IN>;
-						output-enable	= <&PIO11 3 ALT2 OUT>;
 					};
 				};
 			};

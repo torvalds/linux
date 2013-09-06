@@ -1118,11 +1118,11 @@ static void encode_attrs(struct xdr_stream *xdr, const struct iattr *iap,
 				len, ((char *)p - (char *)q) + 4);
 		BUG();
 	}
-	len = (char *)p - (char *)q - (bmval_len << 2);
 	*q++ = htonl(bmval0);
 	*q++ = htonl(bmval1);
 	if (bmval_len == 3)
 		*q++ = htonl(bmval2);
+	len = (char *)p - (char *)(q + 1);
 	*q = htonl(len);
 
 /* out: */

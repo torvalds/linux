@@ -522,23 +522,6 @@ static int bnx2x_vfop_set_user_req(struct bnx2x *bp,
 	return 0;
 }
 
-static int
-bnx2x_vfop_config_vlan0(struct bnx2x *bp,
-			struct bnx2x_vlan_mac_ramrod_params *vlan_mac,
-			bool add)
-{
-	int rc;
-
-	vlan_mac->user_req.cmd = add ? BNX2X_VLAN_MAC_ADD :
-		BNX2X_VLAN_MAC_DEL;
-	vlan_mac->user_req.u.vlan.vlan = 0;
-
-	rc = bnx2x_config_vlan_mac(bp, vlan_mac);
-	if (rc == -EEXIST)
-		rc = 0;
-	return rc;
-}
-
 static int bnx2x_vfop_config_list(struct bnx2x *bp,
 				  struct bnx2x_vfop_filters *filters,
 				  struct bnx2x_vlan_mac_ramrod_params *vlan_mac)
@@ -643,30 +626,14 @@ static void bnx2x_vfop_vlan_mac(struct bnx2x *bp, struct bnx2x_virtf *vf)
 
 	case BNX2X_VFOP_VLAN_CONFIG_LIST:
 		/* next state */
-		vfop->state = BNX2X_VFOP_VLAN_CONFIG_LIST_0;
+		vfop->state = BNX2X_VFOP_VLAN_MAC_CHK_DONE;
 
-		/* remove vlan0 - could be no-op */
-		vfop->rc = bnx2x_vfop_config_vlan0(bp, vlan_mac, false);
-		if (vfop->rc)
-			goto op_err;
-
-		/* Do vlan list config. if this operation fails we try to
-		 * restore vlan0 to keep the queue is working order
-		 */
+		/* do list config */
 		vfop->rc = bnx2x_vfop_config_list(bp, filters, vlan_mac);
 		if (!vfop->rc) {
 			set_bit(RAMROD_CONT, &vlan_mac->ramrod_flags);
 			vfop->rc = bnx2x_config_vlan_mac(bp, vlan_mac);
 		}
-		bnx2x_vfop_finalize(vf, vfop->rc, VFOP_CONT); /* fall-through */
-
-	case BNX2X_VFOP_VLAN_CONFIG_LIST_0:
-		/* next state */
-		vfop->state = BNX2X_VFOP_VLAN_MAC_CHK_DONE;
-
-		if (list_empty(&obj->head))
-			/* add vlan0 */
-			vfop->rc = bnx2x_vfop_config_vlan0(bp, vlan_mac, true);
 		bnx2x_vfop_finalize(vf, vfop->rc, VFOP_DONE);
 
 	default:
@@ -1747,11 +1714,8 @@ void bnx2x_iov_init_dq(struct bnx2x *bp)
 
 void bnx2x_iov_init_dmae(struct bnx2x *bp)
 {
-	DP(BNX2X_MSG_IOV, "SRIOV is %s\n", IS_SRIOV(bp) ? "ON" : "OFF");
-	if (!IS_SRIOV(bp))
-		return;
-
-	REG_WR(bp, DMAE_REG_BACKWARD_COMP_EN, 0);
+	if (pci_find_ext_capability(bp->pdev, PCI_EXT_CAP_ID_SRIOV))
+		REG_WR(bp, DMAE_REG_BACKWARD_COMP_EN, 0);
 }
 
 static int bnx2x_vf_bus(struct bnx2x *bp, int vfid)
@@ -2822,6 +2786,18 @@ int bnx2x_vf_init(struct bnx2x *bp, struct bnx2x_virtf *vf, dma_addr_t *sb_map)
 	return 0;
 }
 
+struct set_vf_state_cookie {
+	struct bnx2x_virtf *vf;
+	u8 state;
+};
+
+void bnx2x_set_vf_state(void *cookie)
+{
+	struct set_vf_state_cookie *p = (struct set_vf_state_cookie *)cookie;
+
+	p->vf->state = p->state;
+}
+
 /* VFOP close (teardown the queues, delete mcasts and close HW) */
 static void bnx2x_vfop_close(struct bnx2x *bp, struct bnx2x_virtf *vf)
 {
@@ -2872,7 +2848,19 @@ static void bnx2x_vfop_close(struct bnx2x *bp, struct bnx2x_virtf *vf)
 op_err:
 	BNX2X_ERR("VF[%d] CLOSE error: rc %d\n", vf->abs_vfid, vfop->rc);
 op_done:
-	vf->state = VF_ACQUIRED;
+
+	/* need to make sure there are no outstanding stats ramrods which may
+	 * cause the device to access the VF's stats buffer which it will free
+	 * as soon as we return from the close flow.
+	 */
+	{
+		struct set_vf_state_cookie cookie;
+
+		cookie.vf = vf;
+		cookie.state = VF_ACQUIRED;
+		bnx2x_stats_safe_exec(bp, bnx2x_set_vf_state, &cookie);
+	}
+
 	DP(BNX2X_MSG_IOV, "set state to acquired\n");
 	bnx2x_vfop_end(bp, vf, vfop);
 }
@@ -3084,8 +3072,9 @@ void bnx2x_disable_sriov(struct bnx2x *bp)
 	pci_disable_sriov(bp->pdev);
 }
 
-static int bnx2x_vf_ndo_sanity(struct bnx2x *bp, int vfidx,
-			       struct bnx2x_virtf *vf)
+static int bnx2x_vf_ndo_prep(struct bnx2x *bp, int vfidx,
+			     struct bnx2x_virtf **vf,
+			     struct pf_vf_bulletin_content **bulletin)
 {
 	if (bp->state != BNX2X_STATE_OPEN) {
 		BNX2X_ERR("vf ndo called though PF is down\n");
@@ -3103,8 +3092,18 @@ static int bnx2x_vf_ndo_sanity(struct bnx2x *bp, int vfidx,
 		return -EINVAL;
 	}
 
-	if (!vf) {
+	/* init members */
+	*vf = BP_VF(bp, vfidx);
+	*bulletin = BP_VF_BULLETIN(bp, vfidx);
+
+	if (!*vf) {
 		BNX2X_ERR("vf ndo called but vf was null. vfidx was %d\n",
+			  vfidx);
+		return -EINVAL;
+	}
+
+	if (!*bulletin) {
+		BNX2X_ERR("vf ndo called but Bulletin Board struct is null. vfidx was %d\n",
 			  vfidx);
 		return -EINVAL;
 	}
@@ -3116,17 +3115,19 @@ int bnx2x_get_vf_config(struct net_device *dev, int vfidx,
 			struct ifla_vf_info *ivi)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-	struct bnx2x_virtf *vf = BP_VF(bp, vfidx);
-	struct bnx2x_vlan_mac_obj *mac_obj = &bnx2x_vfq(vf, 0, mac_obj);
-	struct bnx2x_vlan_mac_obj *vlan_obj = &bnx2x_vfq(vf, 0, vlan_obj);
-	struct pf_vf_bulletin_content *bulletin = BP_VF_BULLETIN(bp, vfidx);
+	struct bnx2x_virtf *vf = NULL;
+	struct pf_vf_bulletin_content *bulletin = NULL;
+	struct bnx2x_vlan_mac_obj *mac_obj;
+	struct bnx2x_vlan_mac_obj *vlan_obj;
 	int rc;
 
-	/* sanity */
-	rc = bnx2x_vf_ndo_sanity(bp, vfidx, vf);
+	/* sanity and init */
+	rc = bnx2x_vf_ndo_prep(bp, vfidx, &vf, &bulletin);
 	if (rc)
 		return rc;
-	if (!mac_obj || !vlan_obj || !bulletin) {
+	mac_obj = &bnx2x_vfq(vf, 0, mac_obj);
+	vlan_obj = &bnx2x_vfq(vf, 0, vlan_obj);
+	if (!mac_obj || !vlan_obj) {
 		BNX2X_ERR("VF partially initialized\n");
 		return -EINVAL;
 	}
@@ -3183,11 +3184,11 @@ int bnx2x_set_vf_mac(struct net_device *dev, int vfidx, u8 *mac)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	int rc, q_logical_state;
-	struct bnx2x_virtf *vf = BP_VF(bp, vfidx);
-	struct pf_vf_bulletin_content *bulletin = BP_VF_BULLETIN(bp, vfidx);
+	struct bnx2x_virtf *vf = NULL;
+	struct pf_vf_bulletin_content *bulletin = NULL;
 
-	/* sanity */
-	rc = bnx2x_vf_ndo_sanity(bp, vfidx, vf);
+	/* sanity and init */
+	rc = bnx2x_vf_ndo_prep(bp, vfidx, &vf, &bulletin);
 	if (rc)
 		return rc;
 	if (!is_valid_ether_addr(mac)) {
@@ -3249,11 +3250,11 @@ int bnx2x_set_vf_vlan(struct net_device *dev, int vfidx, u16 vlan, u8 qos)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	int rc, q_logical_state;
-	struct bnx2x_virtf *vf = BP_VF(bp, vfidx);
-	struct pf_vf_bulletin_content *bulletin = BP_VF_BULLETIN(bp, vfidx);
+	struct bnx2x_virtf *vf = NULL;
+	struct pf_vf_bulletin_content *bulletin = NULL;
 
-	/* sanity */
-	rc = bnx2x_vf_ndo_sanity(bp, vfidx, vf);
+	/* sanity and init */
+	rc = bnx2x_vf_ndo_prep(bp, vfidx, &vf, &bulletin);
 	if (rc)
 		return rc;
 
@@ -3463,7 +3464,7 @@ int bnx2x_vf_pci_alloc(struct bnx2x *bp)
 alloc_mem_err:
 	BNX2X_PCI_FREE(bp->vf2pf_mbox, bp->vf2pf_mbox_mapping,
 		       sizeof(struct bnx2x_vf_mbx_msg));
-	BNX2X_PCI_FREE(bp->vf2pf_mbox, bp->vf2pf_mbox_mapping,
+	BNX2X_PCI_FREE(bp->vf2pf_mbox, bp->pf2vf_bulletin_mapping,
 		       sizeof(union pf_vf_bulletin));
 	return -ENOMEM;
 }

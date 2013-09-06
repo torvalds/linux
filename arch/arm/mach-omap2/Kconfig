@@ -62,7 +62,7 @@ config SOC_OMAP5
 	select HAVE_SMP
 	select COMMON_CLK
 	select HAVE_ARM_ARCH_TIMER
-	select ARM_ERRATA_798181
+	select ARM_ERRATA_798181 if SMP
 
 config SOC_AM33XX
 	bool "AM33XX support"

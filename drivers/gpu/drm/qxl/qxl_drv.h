@@ -42,6 +42,9 @@
 #include <ttm/ttm_placement.h>
 #include <ttm/ttm_module.h>
 
+/* just for ttm_validate_buffer */
+#include <ttm/ttm_execbuf_util.h>
+
 #include <drm/qxl_drm.h>
 #include "qxl_dev.h"
 
@@ -118,9 +121,9 @@ struct qxl_bo {
 	uint32_t surface_id;
 	struct qxl_fence fence; /* per bo fence  - list of releases */
 	struct qxl_release *surf_create;
-	atomic_t reserve_count;
 };
 #define gem_to_qxl_bo(gobj) container_of((gobj), struct qxl_bo, gem_base)
+#define to_qxl_bo(tobj) container_of((tobj), struct qxl_bo, tbo)
 
 struct qxl_gem {
 	struct mutex		mutex;
@@ -128,12 +131,7 @@ struct qxl_gem {
 };
 
 struct qxl_bo_list {
-	struct list_head lhead;
-	struct qxl_bo *bo;
-};
-
-struct qxl_reloc_list {
-	struct list_head bos;
+	struct ttm_validate_buffer tv;
 };
 
 struct qxl_crtc {
@@ -195,10 +193,20 @@ enum {
 struct qxl_release {
 	int id;
 	int type;
-	int bo_count;
 	uint32_t release_offset;
 	uint32_t surface_release_id;
-	struct qxl_bo *bos[QXL_MAX_RES];
+	struct ww_acquire_ctx ticket;
+	struct list_head bos;
+};
+
+struct qxl_drm_chunk {
+	struct list_head head;
+	struct qxl_bo *bo;
+};
+
+struct qxl_drm_image {
+	struct qxl_bo *bo;
+	struct list_head chunk_list;
 };
 
 struct qxl_fb_image {
@@ -314,6 +322,7 @@ struct qxl_device {
 	struct workqueue_struct *gc_queue;
 	struct work_struct gc_work;
 
+	struct work_struct fb_work;
 };
 
 /* forward declaration for QXL_INFO_IO */
@@ -433,12 +442,19 @@ int qxl_mmap(struct file *filp, struct vm_area_struct *vma);
 
 /* qxl image */
 
-int qxl_image_create(struct qxl_device *qdev,
-		     struct qxl_release *release,
-		     struct qxl_bo **image_bo,
-		     const uint8_t *data,
-		     int x, int y, int width, int height,
-		     int depth, int stride);
+int qxl_image_init(struct qxl_device *qdev,
+		   struct qxl_release *release,
+		   struct qxl_drm_image *dimage,
+		   const uint8_t *data,
+		   int x, int y, int width, int height,
+		   int depth, int stride);
+int
+qxl_image_alloc_objects(struct qxl_device *qdev,
+			struct qxl_release *release,
+			struct qxl_drm_image **image_ptr,
+			int height, int stride);
+void qxl_image_free_objects(struct qxl_device *qdev, struct qxl_drm_image *dimage);
+
 void qxl_update_screen(struct qxl_device *qxl);
 
 /* qxl io operations (qxl_cmd.c) */
@@ -459,20 +475,15 @@ int qxl_ring_push(struct qxl_ring *ring, const void *new_elt, bool interruptible
 void qxl_io_flush_release(struct qxl_device *qdev);
 void qxl_io_flush_surfaces(struct qxl_device *qdev);
 
-int qxl_release_reserve(struct qxl_device *qdev,
-			struct qxl_release *release, bool no_wait);
-void qxl_release_unreserve(struct qxl_device *qdev,
-			   struct qxl_release *release);
 union qxl_release_info *qxl_release_map(struct qxl_device *qdev,
 					struct qxl_release *release);
 void qxl_release_unmap(struct qxl_device *qdev,
 		       struct qxl_release *release,
 		       union qxl_release_info *info);
-/*
- * qxl_bo_add_resource.
- *
- */
-void qxl_bo_add_resource(struct qxl_bo *main_bo, struct qxl_bo *resource);
+int qxl_release_list_add(struct qxl_release *release, struct qxl_bo *bo);
+int qxl_release_reserve_list(struct qxl_release *release, bool no_intr);
+void qxl_release_backoff_reserve_list(struct qxl_release *release);
+void qxl_release_fence_buffer_objects(struct qxl_release *release);
 
 int qxl_alloc_surface_release_reserved(struct qxl_device *qdev,
 				       enum qxl_surface_cmd_type surface_cmd_type,
@@ -481,15 +492,16 @@ int qxl_alloc_surface_release_reserved(struct qxl_device *qdev,
 int qxl_alloc_release_reserved(struct qxl_device *qdev, unsigned long size,
 			       int type, struct qxl_release **release,
 			       struct qxl_bo **rbo);
-int qxl_fence_releaseable(struct qxl_device *qdev,
-			  struct qxl_release *release);
+
 int
 qxl_push_command_ring_release(struct qxl_device *qdev, struct qxl_release *release,
 			      uint32_t type, bool interruptible);
 int
 qxl_push_cursor_ring_release(struct qxl_device *qdev, struct qxl_release *release,
 			     uint32_t type, bool interruptible);
-int qxl_alloc_bo_reserved(struct qxl_device *qdev, unsigned long size,
+int qxl_alloc_bo_reserved(struct qxl_device *qdev,
+			  struct qxl_release *release,
+			  unsigned long size,
 			  struct qxl_bo **_bo);
 /* qxl drawing commands */
 
@@ -510,15 +522,9 @@ void qxl_draw_copyarea(struct qxl_device *qdev,
 		       u32 sx, u32 sy,
 		       u32 dx, u32 dy);
 
-uint64_t
-qxl_release_alloc(struct qxl_device *qdev, int type,
-		  struct qxl_release **ret);
-
 void qxl_release_free(struct qxl_device *qdev,
 		      struct qxl_release *release);
-void qxl_release_add_res(struct qxl_device *qdev,
-			 struct qxl_release *release,
-			 struct qxl_bo *bo);
+
 /* used by qxl_debugfs_release */
 struct qxl_release *qxl_release_from_id_locked(struct qxl_device *qdev,
 						   uint64_t id);
@@ -561,7 +567,7 @@ void qxl_surface_evict(struct qxl_device *qdev, struct qxl_bo *surf, bool freein
 int qxl_update_surface(struct qxl_device *qdev, struct qxl_bo *surf);
 
 /* qxl_fence.c */
-int qxl_fence_add_release(struct qxl_fence *qfence, uint32_t rel_id);
+void qxl_fence_add_release_locked(struct qxl_fence *qfence, uint32_t rel_id);
 int qxl_fence_remove_release(struct qxl_fence *qfence, uint32_t rel_id);
 int qxl_fence_init(struct qxl_device *qdev, struct qxl_fence *qfence);
 void qxl_fence_fini(struct qxl_fence *qfence);

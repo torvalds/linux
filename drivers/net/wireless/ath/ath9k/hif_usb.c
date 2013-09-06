@@ -1082,7 +1082,7 @@ static void ath9k_hif_usb_firmware_fail(struct hif_device_usb *hif_dev)
 	struct device *dev = &hif_dev->udev->dev;
 	struct device *parent = dev->parent;
 
-	complete(&hif_dev->fw_done);
+	complete_all(&hif_dev->fw_done);
 
 	if (parent)
 		device_lock(parent);
@@ -1131,7 +1131,7 @@ static void ath9k_hif_usb_firmware_cb(const struct firmware *fw, void *context)
 
 	release_firmware(fw);
 	hif_dev->flags |= HIF_USB_READY;
-	complete(&hif_dev->fw_done);
+	complete_all(&hif_dev->fw_done);
 
 	return;
 
@@ -1295,7 +1295,9 @@ static void ath9k_hif_usb_disconnect(struct usb_interface *interface)
 
 	usb_set_intfdata(interface, NULL);
 
-	if (!unplugged && (hif_dev->flags & HIF_USB_START))
+	/* If firmware was loaded we should drop it
+	 * go back to first stage bootloader. */
+	if (!unplugged && (hif_dev->flags & HIF_USB_READY))
 		ath9k_hif_usb_reboot(udev);
 
 	kfree(hif_dev);
@@ -1316,7 +1318,10 @@ static int ath9k_hif_usb_suspend(struct usb_interface *interface,
 	if (!(hif_dev->flags & HIF_USB_START))
 		ath9k_htc_suspend(hif_dev->htc_handle);
 
-	ath9k_hif_usb_dealloc_urbs(hif_dev);
+	wait_for_completion(&hif_dev->fw_done);
+
+	if (hif_dev->flags & HIF_USB_READY)
+		ath9k_hif_usb_dealloc_urbs(hif_dev);
 
 	return 0;
 }

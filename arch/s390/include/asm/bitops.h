@@ -693,7 +693,7 @@ static inline int find_next_bit_left(const unsigned long *addr,
 	size -= offset;
 	p = addr + offset / BITS_PER_LONG;
 	if (bit) {
-		set = __flo_word(0, *p & (~0UL << bit));
+		set = __flo_word(0, *p & (~0UL >> bit));
 		if (set >= size)
 			return size + offset;
 		if (set < BITS_PER_LONG)

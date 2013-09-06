@@ -238,12 +238,7 @@ static void acpi_video_caps_check(void)
 
 bool acpi_video_backlight_quirks(void)
 {
-	if (acpi_gbl_osi_data >= ACPI_OSI_WIN_8) {
-		acpi_video_caps_check();
-		acpi_video_support |= ACPI_VIDEO_SKIP_BACKLIGHT;
-		return true;
-	}
-	return false;
+	return acpi_gbl_osi_data >= ACPI_OSI_WIN_8;
 }
 EXPORT_SYMBOL(acpi_video_backlight_quirks);
 
@@ -290,14 +285,6 @@ int acpi_video_backlight_support(void)
 	return acpi_video_support & ACPI_VIDEO_BACKLIGHT;
 }
 EXPORT_SYMBOL(acpi_video_backlight_support);
-
-/* For the ACPI video driver use only. */
-bool acpi_video_verify_backlight_support(void)
-{
-	return (acpi_video_support & ACPI_VIDEO_SKIP_BACKLIGHT) ?
-		false : acpi_video_backlight_support();
-}
-EXPORT_SYMBOL(acpi_video_verify_backlight_support);
 
 /*
  * Use acpi_backlight=vendor/video to force that backlight switching

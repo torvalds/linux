@@ -207,7 +207,6 @@ void radeon_gart_table_vram_free(struct radeon_device *rdev)
 	if (rdev->gart.robj == NULL) {
 		return;
 	}
-	radeon_gart_table_vram_unpin(rdev);
 	radeon_bo_unref(&rdev->gart.robj);
 }
 
@@ -466,7 +465,7 @@ int radeon_vm_manager_init(struct radeon_device *rdev)
 		size += rdev->vm_manager.max_pfn * 8;
 		size *= 2;
 		r = radeon_sa_bo_manager_init(rdev, &rdev->vm_manager.sa_manager,
-					      RADEON_VM_PTB_ALIGN(size),
+					      RADEON_GPU_PAGE_ALIGN(size),
 					      RADEON_VM_PTB_ALIGN_SIZE,
 					      RADEON_GEM_DOMAIN_VRAM);
 		if (r) {
@@ -621,7 +620,7 @@ int radeon_vm_alloc_pt(struct radeon_device *rdev, struct radeon_vm *vm)
 	}
 
 retry:
-	pd_size = RADEON_VM_PTB_ALIGN(radeon_vm_directory_size(rdev));
+	pd_size = radeon_vm_directory_size(rdev);
 	r = radeon_sa_bo_new(rdev, &rdev->vm_manager.sa_manager,
 			     &vm->page_directory, pd_size,
 			     RADEON_VM_PTB_ALIGN_SIZE, false);
@@ -953,8 +952,8 @@ static int radeon_vm_update_pdes(struct radeon_device *rdev,
 retry:
 		r = radeon_sa_bo_new(rdev, &rdev->vm_manager.sa_manager,
 				     &vm->page_tables[pt_idx],
-				     RADEON_VM_PTB_ALIGN(RADEON_VM_PTE_COUNT * 8),
-				     RADEON_VM_PTB_ALIGN_SIZE, false);
+				     RADEON_VM_PTE_COUNT * 8,
+				     RADEON_GPU_PAGE_SIZE, false);
 
 		if (r == -ENOMEM) {
 			r = radeon_vm_evict(rdev, vm);

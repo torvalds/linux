@@ -50,7 +50,7 @@
 #define PORTSC_PTC            (0x0FUL << 16)
 /* PTS and PTW for non lpm version only */
 #define PORTSC_PTS(d)						\
-	((((d) & 0x3) << 30) | (((d) & 0x4) ? BIT(25) : 0))
+	(u32)((((d) & 0x3) << 30) | (((d) & 0x4) ? BIT(25) : 0))
 #define PORTSC_PTW            BIT(28)
 #define PORTSC_STS            BIT(29)
 
@@ -59,7 +59,7 @@
 #define DEVLC_PSPD_HS         (0x02UL << 25)
 #define DEVLC_PTW             BIT(27)
 #define DEVLC_STS             BIT(28)
-#define DEVLC_PTS(d)          (((d) & 0x7) << 29)
+#define DEVLC_PTS(d)          (u32)(((d) & 0x7) << 29)
 
 /* Encoding for DEVLC_PTS and PORTSC_PTS */
 #define PTS_UTMI              0

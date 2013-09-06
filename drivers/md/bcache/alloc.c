@@ -63,7 +63,10 @@
 #include "bcache.h"
 #include "btree.h"
 
+#include <linux/freezer.h>
+#include <linux/kthread.h>
 #include <linux/random.h>
+#include <trace/events/bcache.h>
 
 #define MAX_IN_FLIGHT_DISCARDS		8U
 
@@ -151,7 +154,7 @@ static void discard_finish(struct work_struct *w)
 	mutex_unlock(&ca->set->bucket_lock);
 
 	closure_wake_up(&ca->set->bucket_wait);
-	wake_up(&ca->set->alloc_wait);
+	wake_up_process(ca->alloc_thread);
 
 	closure_put(&ca->set->cl);
 }
@@ -350,38 +353,30 @@ static void invalidate_buckets(struct cache *ca)
 		break;
 	}
 
-	pr_debug("free %zu/%zu free_inc %zu/%zu unused %zu/%zu",
-		 fifo_used(&ca->free), ca->free.size,
-		 fifo_used(&ca->free_inc), ca->free_inc.size,
-		 fifo_used(&ca->unused), ca->unused.size);
+	trace_bcache_alloc_invalidate(ca);
 }
 
 #define allocator_wait(ca, cond)					\
 do {									\
-	DEFINE_WAIT(__wait);						\
-									\
 	while (1) {							\
-		prepare_to_wait(&ca->set->alloc_wait,			\
-				&__wait, TASK_INTERRUPTIBLE);		\
+		set_current_state(TASK_INTERRUPTIBLE);			\
 		if (cond)						\
 			break;						\
 									\
 		mutex_unlock(&(ca)->set->bucket_lock);			\
-		if (test_bit(CACHE_SET_STOPPING_2, &ca->set->flags)) {	\
-			finish_wait(&ca->set->alloc_wait, &__wait);	\
-			closure_return(cl);				\
-		}							\
+		if (kthread_should_stop())				\
+			return 0;					\
 									\
+		try_to_freeze();					\
 		schedule();						\
 		mutex_lock(&(ca)->set->bucket_lock);			\
 	}								\
-									\
-	finish_wait(&ca->set->alloc_wait, &__wait);			\
+	__set_current_state(TASK_RUNNING);				\
 } while (0)
 
-void bch_allocator_thread(struct closure *cl)
+static int bch_allocator_thread(void *arg)
 {
-	struct cache *ca = container_of(cl, struct cache, alloc);
+	struct cache *ca = arg;
 
 	mutex_lock(&ca->set->bucket_lock);
 
@@ -442,7 +437,7 @@ long bch_bucket_alloc(struct cache *ca, unsigned watermark, struct closure *cl)
 {
 	long r = -1;
 again:
-	wake_up(&ca->set->alloc_wait);
+	wake_up_process(ca->alloc_thread);
 
 	if (fifo_used(&ca->free) > ca->watermark[watermark] &&
 	    fifo_pop(&ca->free, r)) {
@@ -476,9 +471,7 @@ again:
 		return r;
 	}
 
-	pr_debug("alloc failure: blocked %i free %zu free_inc %zu unused %zu",
-		 atomic_read(&ca->set->prio_blocked), fifo_used(&ca->free),
-		 fifo_used(&ca->free_inc), fifo_used(&ca->unused));
+	trace_bcache_alloc_fail(ca);
 
 	if (cl) {
 		closure_wait(&ca->set->bucket_wait, cl);
@@ -551,6 +544,17 @@ int bch_bucket_alloc_set(struct cache_set *c, unsigned watermark,
 }
 
 /* Init */
+
+int bch_cache_allocator_start(struct cache *ca)
+{
+	struct task_struct *k = kthread_run(bch_allocator_thread,
+					    ca, "bcache_allocator");
+	if (IS_ERR(k))
+		return PTR_ERR(k);
+
+	ca->alloc_thread = k;
+	return 0;
+}
 
 void bch_cache_allocator_exit(struct cache *ca)
 {

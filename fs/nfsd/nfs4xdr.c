@@ -3360,7 +3360,8 @@ nfsd4_encode_exchange_id(struct nfsd4_compoundres *resp, __be32 nfserr,
 		8 /* eir_clientid */ +
 		4 /* eir_sequenceid */ +
 		4 /* eir_flags */ +
-		4 /* spr_how (SP4_NONE) */ +
+		4 /* spr_how */ +
+		8 /* spo_must_enforce, spo_must_allow */ +
 		8 /* so_minor_id */ +
 		4 /* so_major_id.len */ +
 		(XDR_QUADLEN(major_id_sz) * 4) +
@@ -3372,8 +3373,6 @@ nfsd4_encode_exchange_id(struct nfsd4_compoundres *resp, __be32 nfserr,
 	WRITE32(exid->seqid);
 	WRITE32(exid->flags);
 
-	/* state_protect4_r. Currently only support SP4_NONE */
-	BUG_ON(exid->spa_how != SP4_NONE);
 	WRITE32(exid->spa_how);
 	switch (exid->spa_how) {
 	case SP4_NONE:

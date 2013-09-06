@@ -292,7 +292,7 @@ struct mlx4_en_rx_ring {
 	void *rx_info;
 	unsigned long bytes;
 	unsigned long packets;
-#ifdef CONFIG_NET_LL_RX_POLL
+#ifdef CONFIG_NET_RX_BUSY_POLL
 	unsigned long yields;
 	unsigned long misses;
 	unsigned long cleaned;
@@ -318,7 +318,7 @@ struct mlx4_en_cq {
 	struct mlx4_cqe *buf;
 #define MLX4_EN_OPCODE_ERROR	0x1e
 
-#ifdef CONFIG_NET_LL_RX_POLL
+#ifdef CONFIG_NET_RX_BUSY_POLL
 	unsigned int state;
 #define MLX4_EN_CQ_STATE_IDLE        0
 #define MLX4_EN_CQ_STATE_NAPI     1    /* NAPI owns this CQ */
@@ -329,7 +329,7 @@ struct mlx4_en_cq {
 #define CQ_YIELD (MLX4_EN_CQ_STATE_NAPI_YIELD | MLX4_EN_CQ_STATE_POLL_YIELD)
 #define CQ_USER_PEND (MLX4_EN_CQ_STATE_POLL | MLX4_EN_CQ_STATE_POLL_YIELD)
 	spinlock_t poll_lock; /* protects from LLS/napi conflicts */
-#endif  /* CONFIG_NET_LL_RX_POLL */
+#endif  /* CONFIG_NET_RX_BUSY_POLL */
 };
 
 struct mlx4_en_port_profile {
@@ -580,7 +580,7 @@ struct mlx4_mac_entry {
 	struct rcu_head rcu;
 };
 
-#ifdef CONFIG_NET_LL_RX_POLL
+#ifdef CONFIG_NET_RX_BUSY_POLL
 static inline void mlx4_en_cq_init_lock(struct mlx4_en_cq *cq)
 {
 	spin_lock_init(&cq->poll_lock);
@@ -687,7 +687,7 @@ static inline bool mlx4_en_cq_ll_polling(struct mlx4_en_cq *cq)
 {
 	return false;
 }
-#endif /* CONFIG_NET_LL_RX_POLL */
+#endif /* CONFIG_NET_RX_BUSY_POLL */
 
 #define MLX4_EN_WOL_DO_MODIFY (1ULL << 63)
 

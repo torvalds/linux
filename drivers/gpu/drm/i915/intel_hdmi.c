@@ -785,10 +785,22 @@ static void intel_disable_hdmi(struct intel_encoder *encoder)
 	}
 }
 
+static int hdmi_portclock_limit(struct intel_hdmi *hdmi)
+{
+	struct drm_device *dev = intel_hdmi_to_dev(hdmi);
+
+	if (IS_G4X(dev))
+		return 165000;
+	else if (IS_HASWELL(dev))
+		return 300000;
+	else
+		return 225000;
+}
+
 static int intel_hdmi_mode_valid(struct drm_connector *connector,
 				 struct drm_display_mode *mode)
 {
-	if (mode->clock > 165000)
+	if (mode->clock > hdmi_portclock_limit(intel_attached_hdmi(connector)))
 		return MODE_CLOCK_HIGH;
 	if (mode->clock < 20000)
 		return MODE_CLOCK_LOW;
@@ -806,6 +818,7 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
 	int clock_12bpc = pipe_config->requested_mode.clock * 3 / 2;
+	int portclock_limit = hdmi_portclock_limit(intel_hdmi);
 	int desired_bpp;
 
 	if (intel_hdmi->color_range_auto) {
@@ -829,7 +842,7 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	 * outputs. We also need to check that the higher clock still fits
 	 * within limits.
 	 */
-	if (pipe_config->pipe_bpp > 8*3 && clock_12bpc <= 225000
+	if (pipe_config->pipe_bpp > 8*3 && clock_12bpc <= portclock_limit
 	    && HAS_PCH_SPLIT(dev)) {
 		DRM_DEBUG_KMS("picking bpc to 12 for HDMI output\n");
 		desired_bpp = 12*3;
@@ -846,7 +859,7 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 		pipe_config->pipe_bpp = desired_bpp;
 	}
 
-	if (adjusted_mode->clock > 225000) {
+	if (adjusted_mode->clock > portclock_limit) {
 		DRM_DEBUG_KMS("too high HDMI clock, rejecting mode\n");
 		return false;
 	}

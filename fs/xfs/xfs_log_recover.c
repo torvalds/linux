@@ -2592,8 +2592,16 @@ xlog_recover_inode_pass2(
 		goto error;
 	}
 
-	/* Skip replay when the on disk inode is newer than the log one */
-	if (dicp->di_flushiter < be16_to_cpu(dip->di_flushiter)) {
+	/*
+	 * di_flushiter is only valid for v1/2 inodes. All changes for v3 inodes
+	 * are transactional and if ordering is necessary we can determine that
+	 * more accurately by the LSN field in the V3 inode core. Don't trust
+	 * the inode versions we might be changing them here - use the
+	 * superblock flag to determine whether we need to look at di_flushiter
+	 * to skip replay when the on disk inode is newer than the log one
+	 */
+	if (!xfs_sb_version_hascrc(&mp->m_sb) &&
+	    dicp->di_flushiter < be16_to_cpu(dip->di_flushiter)) {
 		/*
 		 * Deal with the wrap case, DI_MAX_FLUSH is less
 		 * than smaller numbers
@@ -2608,6 +2616,7 @@ xlog_recover_inode_pass2(
 			goto error;
 		}
 	}
+
 	/* Take the opportunity to reset the flush iteration count */
 	dicp->di_flushiter = 0;
 

@@ -1089,7 +1089,7 @@ exit:
 	return rc;
 }
 
-static int nfc_genl_fw_upload(struct sk_buff *skb, struct genl_info *info)
+static int nfc_genl_fw_download(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nfc_dev *dev;
 	int rc;
@@ -1108,13 +1108,13 @@ static int nfc_genl_fw_upload(struct sk_buff *skb, struct genl_info *info)
 	nla_strlcpy(firmware_name, info->attrs[NFC_ATTR_FIRMWARE_NAME],
 		    sizeof(firmware_name));
 
-	rc = nfc_fw_upload(dev, firmware_name);
+	rc = nfc_fw_download(dev, firmware_name);
 
 	nfc_put_device(dev);
 	return rc;
 }
 
-int nfc_genl_fw_upload_done(struct nfc_dev *dev, const char *firmware_name)
+int nfc_genl_fw_download_done(struct nfc_dev *dev, const char *firmware_name)
 {
 	struct sk_buff *msg;
 	void *hdr;
@@ -1124,7 +1124,7 @@ int nfc_genl_fw_upload_done(struct nfc_dev *dev, const char *firmware_name)
 		return -ENOMEM;
 
 	hdr = genlmsg_put(msg, 0, 0, &nfc_genl_family, 0,
-			  NFC_CMD_FW_UPLOAD);
+			  NFC_CMD_FW_DOWNLOAD);
 	if (!hdr)
 		goto free_msg;
 
@@ -1251,8 +1251,8 @@ static struct genl_ops nfc_genl_ops[] = {
 		.policy = nfc_genl_policy,
 	},
 	{
-		.cmd = NFC_CMD_FW_UPLOAD,
-		.doit = nfc_genl_fw_upload,
+		.cmd = NFC_CMD_FW_DOWNLOAD,
+		.doit = nfc_genl_fw_download,
 		.policy = nfc_genl_policy,
 	},
 	{

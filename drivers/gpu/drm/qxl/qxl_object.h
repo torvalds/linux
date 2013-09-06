@@ -88,7 +88,7 @@ static inline int qxl_bo_wait(struct qxl_bo *bo, u32 *mem_type,
 
 extern int qxl_bo_create(struct qxl_device *qdev,
 			 unsigned long size,
-			 bool kernel, u32 domain,
+			 bool kernel, bool pinned, u32 domain,
 			 struct qxl_surface *surf,
 			 struct qxl_bo **bo_ptr);
 extern int qxl_bo_kmap(struct qxl_bo *bo, void **ptr);
@@ -99,9 +99,7 @@ extern struct qxl_bo *qxl_bo_ref(struct qxl_bo *bo);
 extern void qxl_bo_unref(struct qxl_bo **bo);
 extern int qxl_bo_pin(struct qxl_bo *bo, u32 domain, u64 *gpu_addr);
 extern int qxl_bo_unpin(struct qxl_bo *bo);
-extern void qxl_ttm_placement_from_domain(struct qxl_bo *qbo, u32 domain);
+extern void qxl_ttm_placement_from_domain(struct qxl_bo *qbo, u32 domain, bool pinned);
 extern bool qxl_ttm_bo_is_qxl_bo(struct ttm_buffer_object *bo);
 
-extern int qxl_bo_list_add(struct qxl_reloc_list *reloc_list, struct qxl_bo *bo);
-extern void qxl_bo_list_unreserve(struct qxl_reloc_list *reloc_list, bool failed);
 #endif

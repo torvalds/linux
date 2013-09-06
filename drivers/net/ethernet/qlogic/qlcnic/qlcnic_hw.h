@@ -154,7 +154,7 @@ struct qlcnic_hardware_context;
 struct qlcnic_adapter;
 
 int qlcnic_82xx_start_firmware(struct qlcnic_adapter *);
-int qlcnic_82xx_hw_read_wx_2M(struct qlcnic_adapter *adapter, ulong);
+int qlcnic_82xx_hw_read_wx_2M(struct qlcnic_adapter *adapter, ulong, int *);
 int qlcnic_82xx_hw_write_wx_2M(struct qlcnic_adapter *, ulong, u32);
 int qlcnic_82xx_config_hw_lro(struct qlcnic_adapter *adapter, int);
 int qlcnic_82xx_nic_set_promisc(struct qlcnic_adapter *adapter, u32);

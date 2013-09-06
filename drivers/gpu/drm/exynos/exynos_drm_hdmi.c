@@ -15,7 +15,6 @@
 
 #include <linux/kernel.h>
 #include <linux/wait.h>
-#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 

@@ -486,7 +486,7 @@ struct bnx2x_fastpath {
 
 	struct napi_struct	napi;
 
-#ifdef CONFIG_NET_LL_RX_POLL
+#ifdef CONFIG_NET_RX_BUSY_POLL
 	unsigned int state;
 #define BNX2X_FP_STATE_IDLE		      0
 #define BNX2X_FP_STATE_NAPI		(1 << 0)    /* NAPI owns this FP */
@@ -498,7 +498,7 @@ struct bnx2x_fastpath {
 #define BNX2X_FP_USER_PEND (BNX2X_FP_STATE_POLL | BNX2X_FP_STATE_POLL_YIELD)
 	/* protect state */
 	spinlock_t lock;
-#endif /* CONFIG_NET_LL_RX_POLL */
+#endif /* CONFIG_NET_RX_BUSY_POLL */
 
 	union host_hc_status_block	status_blk;
 	/* chip independent shortcuts into sb structure */
@@ -572,7 +572,7 @@ struct bnx2x_fastpath {
 #define bnx2x_fp_stats(bp, fp)	(&((bp)->fp_stats[(fp)->index]))
 #define bnx2x_fp_qstats(bp, fp)	(&((bp)->fp_stats[(fp)->index].eth_q_stats))
 
-#ifdef CONFIG_NET_LL_RX_POLL
+#ifdef CONFIG_NET_RX_BUSY_POLL
 static inline void bnx2x_fp_init_lock(struct bnx2x_fastpath *fp)
 {
 	spin_lock_init(&fp->lock);
@@ -680,7 +680,7 @@ static inline bool bnx2x_fp_ll_polling(struct bnx2x_fastpath *fp)
 {
 	return false;
 }
-#endif /* CONFIG_NET_LL_RX_POLL */
+#endif /* CONFIG_NET_RX_BUSY_POLL */
 
 /* Use 2500 as a mini-jumbo MTU for FCoE */
 #define BNX2X_FCOE_MINI_JUMBO_MTU	2500
@@ -1333,6 +1333,8 @@ enum {
 	BNX2X_SP_RTNL_VFPF_CHANNEL_DOWN,
 	BNX2X_SP_RTNL_VFPF_STORM_RX_MODE,
 	BNX2X_SP_RTNL_HYPERVISOR_VLAN,
+	BNX2X_SP_RTNL_TX_STOP,
+	BNX2X_SP_RTNL_TX_RESUME,
 };
 
 struct bnx2x_prev_path_list {
@@ -1502,6 +1504,7 @@ struct bnx2x {
 #define BC_SUPPORTS_DCBX_MSG_NON_PMF	(1 << 21)
 #define IS_VF_FLAG			(1 << 22)
 #define INTERRUPTS_ENABLED_FLAG		(1 << 23)
+#define BC_SUPPORTS_RMMOD_CMD		(1 << 24)
 
 #define BP_NOMCP(bp)			((bp)->flags & NO_MCP_FLAG)
 
@@ -1830,6 +1833,8 @@ struct bnx2x {
 
 	int fp_array_size;
 	u32 dump_preset_idx;
+	bool					stats_started;
+	struct semaphore			stats_sema;
 };
 
 /* Tx queues may be less or equal to Rx queues */
@@ -2451,4 +2456,6 @@ enum bnx2x_pci_bus_speed {
 	BNX2X_PCI_LINK_SPEED_5000 = 5000,
 	BNX2X_PCI_LINK_SPEED_8000 = 8000
 };
+
+void bnx2x_set_local_cmng(struct bnx2x *bp);
 #endif /* bnx2x.h */

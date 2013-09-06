@@ -259,6 +259,7 @@ struct bufdesc_ex {
 struct fec_enet_delayed_work {
 	struct delayed_work delay_work;
 	bool timeout;
+	bool trig_tx;
 };
 
 /* The FEC buffer descriptors track the ring buffers.  The rx_bd_base and

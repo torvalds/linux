@@ -719,6 +719,13 @@ config USB_SERIAL_FLASHLOADER
 	  To compile this driver as a module, choose M here: the
 	  module will be called flashloader.
 
+config USB_SERIAL_SUUNTO
+	tristate "USB Suunto ANT+ driver"
+	help
+	  Say Y here if you want to use the Suunto ANT+ USB device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called suunto.
 
 config USB_SERIAL_DEBUG
 	tristate "USB Debugging Device"
