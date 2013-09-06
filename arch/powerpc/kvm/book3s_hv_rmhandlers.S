@@ -862,46 +862,11 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_206)
 	 * set, we know the host wants us out so let's do it now
 	 */
 do_ext_interrupt:
-	lbz	r0, HSTATE_HOST_IPI(r13)
-	cmpwi	r0, 0
-	bne	ext_interrupt_to_host
-
-	/* Now read the interrupt from the ICP */
-	ld	r5, HSTATE_XICS_PHYS(r13)
-	li	r7, XICS_XIRR
-	cmpdi	r5, 0
-	beq-	ext_interrupt_to_host
-	lwzcix	r3, r5, r7
-	rlwinm.	r0, r3, 0, 0xffffff
-	sync
-	beq	3f		/* if nothing pending in the ICP */
-
-	/* We found something in the ICP...
-	 *
-	 * If it's not an IPI, stash it in the PACA and return to
-	 * the host, we don't (yet) handle directing real external
-	 * interrupts directly to the guest
-	 */
-	cmpwi	r0, XICS_IPI
-	bne	ext_stash_for_host
-
-	/* It's an IPI, clear the MFRR and EOI it */
-	li	r0, 0xff
-	li	r6, XICS_MFRR
-	stbcix	r0, r5, r6		/* clear the IPI */
-	stwcix	r3, r5, r7		/* EOI it */
-	sync
-
-	/* We need to re-check host IPI now in case it got set in the
-	 * meantime. If it's clear, we bounce the interrupt to the
-	 * guest
-	 */
-	lbz	r0, HSTATE_HOST_IPI(r13)
-	cmpwi	r0, 0
-	bne-	1f
+	bl	kvmppc_read_intr
+	cmpdi	r3, 0
+	bgt	ext_interrupt_to_host
 
 	/* Allright, looks like an IPI for the guest, we need to set MER */
-3:
 	/* Check if any CPU is heading out to the host, if so head out too */
 	ld	r5, HSTATE_KVM_VCORE(r13)
 	lwz	r0, VCORE_ENTRY_EXIT(r5)
@@ -930,17 +895,6 @@ do_ext_interrupt:
 	mtspr	SPRN_LPCR, r8
 	b	fast_guest_return
 
-	/* We raced with the host, we need to resend that IPI, bummer */
-1:	li	r0, IPI_PRIORITY
-	stbcix	r0, r5, r6		/* set the IPI */
-	sync
-	b	ext_interrupt_to_host
-
-ext_stash_for_host:
-	/* It's not an IPI and it's for the host, stash it in the PACA
-	 * before exit, it will be picked up by the host ICP driver
-	 */
-	stw	r3, HSTATE_SAVED_XIRR(r13)
 ext_interrupt_to_host:
 
 guest_exit_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
@@ -1814,6 +1768,71 @@ machine_check_realmode:
 	li	r11, (MSR_ME << 1) | 1	/* synthesize MSR_SF | MSR_ME */
 	rotldi	r11, r11, 63
 	b	fast_interrupt_c_return
+
+/*
+ * Determine what sort of external interrupt is pending (if any).
+ * Returns:
+ *	0 if no interrupt is pending
+ *	1 if an interrupt is pending that needs to be handled by the host
+ *	-1 if there was a guest wakeup IPI (which has now been cleared)
+ */
+kvmppc_read_intr:
+	/* see if a host IPI is pending */
+	li	r3, 1
+	lbz	r0, HSTATE_HOST_IPI(r13)
+	cmpwi	r0, 0
+	bne	1f
+
+	/* Now read the interrupt from the ICP */
+	ld	r6, HSTATE_XICS_PHYS(r13)
+	li	r7, XICS_XIRR
+	cmpdi	r6, 0
+	beq-	1f
+	lwzcix	r0, r6, r7
+	rlwinm.	r3, r0, 0, 0xffffff
+	sync
+	beq	1f			/* if nothing pending in the ICP */
+
+	/* We found something in the ICP...
+	 *
+	 * If it's not an IPI, stash it in the PACA and return to
+	 * the host, we don't (yet) handle directing real external
+	 * interrupts directly to the guest
+	 */
+	cmpwi	r3, XICS_IPI		/* if there is, is it an IPI? */
+	li	r3, 1
+	bne	42f
+
+	/* It's an IPI, clear the MFRR and EOI it */
+	li	r3, 0xff
+	li	r8, XICS_MFRR
+	stbcix	r3, r6, r8		/* clear the IPI */
+	stwcix	r0, r6, r7		/* EOI it */
+	sync
+
+	/* We need to re-check host IPI now in case it got set in the
+	 * meantime. If it's clear, we bounce the interrupt to the
+	 * guest
+	 */
+	lbz	r0, HSTATE_HOST_IPI(r13)
+	cmpwi	r0, 0
+	bne-	43f
+
+	/* OK, it's an IPI for us */
+	li	r3, -1
+1:	blr
+
+42:	/* It's not an IPI and it's for the host, stash it in the PACA
+	 * before exit, it will be picked up by the host ICP driver
+	 */
+	stw	r0, HSTATE_SAVED_XIRR(r13)
+	b	1b
+
+43:	/* We raced with the host, we need to resend that IPI, bummer */
+	li	r0, IPI_PRIORITY
+	stbcix	r0, r6, r8		/* set the IPI */
+	sync
+	b	1b
 
 /*
  * Save away FP, VMX and VSX registers.
