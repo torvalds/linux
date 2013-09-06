@@ -34,6 +34,7 @@ struct  intel_hw_status_page {
 #define I915_WRITE_IMR(ring, val) I915_WRITE(RING_IMR((ring)->mmio_base), val)
 
 enum intel_ring_hangcheck_action {
+	HANGCHECK_IDLE = 0,
 	HANGCHECK_WAIT,
 	HANGCHECK_ACTIVE,
 	HANGCHECK_KICK,
