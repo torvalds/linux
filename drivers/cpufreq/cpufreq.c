@@ -1141,22 +1141,14 @@ static int cpufreq_nominate_new_policy_cpu(struct cpufreq_policy *policy,
 	return cpu_dev->id;
 }
 
-/**
- * __cpufreq_remove_dev - remove a CPU device
- *
- * Removes the cpufreq interface for a CPU device.
- * Caller should already have policy_rwsem in write mode for this CPU.
- * This routine frees the rwsem before returning.
- */
-static int __cpufreq_remove_dev(struct device *dev,
-				struct subsys_interface *sif, bool frozen)
+static int __cpufreq_remove_dev_prepare(struct device *dev,
+					struct subsys_interface *sif,
+					bool frozen)
 {
 	unsigned int cpu = dev->id, cpus;
 	int new_cpu, ret;
 	unsigned long flags;
 	struct cpufreq_policy *policy;
-	struct kobject *kobj;
-	struct completion *cmp;
 
 	pr_debug("%s: unregistering CPU %u\n", __func__, cpu);
 
@@ -1212,6 +1204,33 @@ static int __cpufreq_remove_dev(struct device *dev,
 			}
 		}
 	}
+
+	return 0;
+}
+
+static int __cpufreq_remove_dev_finish(struct device *dev,
+				       struct subsys_interface *sif,
+				       bool frozen)
+{
+	unsigned int cpu = dev->id, cpus;
+	int ret;
+	unsigned long flags;
+	struct cpufreq_policy *policy;
+	struct kobject *kobj;
+	struct completion *cmp;
+
+	read_lock_irqsave(&cpufreq_driver_lock, flags);
+	policy = per_cpu(cpufreq_cpu_data, cpu);
+	read_unlock_irqrestore(&cpufreq_driver_lock, flags);
+
+	if (!policy) {
+		pr_debug("%s: No cpu_data found\n", __func__);
+		return -EINVAL;
+	}
+
+	lock_policy_rwsem_read(cpu);
+	cpus = cpumask_weight(policy->cpus);
+	unlock_policy_rwsem_read(cpu);
 
 	/* If cpu is last user of policy, free policy */
 	if (cpus == 1) {
@@ -1270,6 +1289,27 @@ static int __cpufreq_remove_dev(struct device *dev,
 
 	per_cpu(cpufreq_cpu_data, cpu) = NULL;
 	return 0;
+}
+
+/**
+ * __cpufreq_remove_dev - remove a CPU device
+ *
+ * Removes the cpufreq interface for a CPU device.
+ * Caller should already have policy_rwsem in write mode for this CPU.
+ * This routine frees the rwsem before returning.
+ */
+static inline int __cpufreq_remove_dev(struct device *dev,
+				       struct subsys_interface *sif,
+				       bool frozen)
+{
+	int ret;
+
+	ret = __cpufreq_remove_dev_prepare(dev, sif, frozen);
+
+	if (!ret)
+		ret = __cpufreq_remove_dev_finish(dev, sif, frozen);
+
+	return ret;
 }
 
 static int cpufreq_remove_dev(struct device *dev, struct subsys_interface *sif)
@@ -2000,7 +2040,8 @@ static int cpufreq_cpu_callback(struct notifier_block *nfb,
 			break;
 
 		case CPU_DOWN_PREPARE:
-			__cpufreq_remove_dev(dev, NULL, frozen);
+			__cpufreq_remove_dev_prepare(dev, NULL, frozen);
+			__cpufreq_remove_dev_finish(dev, NULL, frozen);
 			break;
 
 		case CPU_DOWN_FAILED:
