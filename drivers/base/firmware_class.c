@@ -282,31 +282,35 @@ static noinline_for_stack long fw_file_size(struct file *file)
 	return st.size;
 }
 
-static bool fw_read_file_contents(struct file *file, struct firmware_buf *fw_buf)
+static int fw_read_file_contents(struct file *file, struct firmware_buf *fw_buf)
 {
 	long size;
 	char *buf;
+	int rc;
 
 	size = fw_file_size(file);
 	if (size <= 0)
-		return false;
+		return -EINVAL;
 	buf = vmalloc(size);
 	if (!buf)
-		return false;
-	if (kernel_read(file, 0, buf, size) != size) {
+		return -ENOMEM;
+	rc = kernel_read(file, 0, buf, size);
+	if (rc != size) {
+		if (rc > 0)
+			rc = -EIO;
 		vfree(buf);
-		return false;
+		return rc;
 	}
 	fw_buf->data = buf;
 	fw_buf->size = size;
-	return true;
+	return 0;
 }
 
-static bool fw_get_filesystem_firmware(struct device *device,
+static int fw_get_filesystem_firmware(struct device *device,
 				       struct firmware_buf *buf)
 {
 	int i;
-	bool success = false;
+	int rc = -ENOENT;
 	char *path = __getname();
 
 	for (i = 0; i < ARRAY_SIZE(fw_path); i++) {
@@ -321,14 +325,17 @@ static bool fw_get_filesystem_firmware(struct device *device,
 		file = filp_open(path, O_RDONLY, 0);
 		if (IS_ERR(file))
 			continue;
-		success = fw_read_file_contents(file, buf);
+		rc = fw_read_file_contents(file, buf);
 		fput(file);
-		if (success)
+		if (rc)
+			dev_warn(device, "firmware, attempted to load %s, but failed with error %d\n",
+				path, rc);
+		else
 			break;
 	}
 	__putname(path);
 
-	if (success) {
+	if (!rc) {
 		dev_dbg(device, "firmware: direct-loading firmware %s\n",
 			buf->fw_id);
 		mutex_lock(&fw_lock);
@@ -337,7 +344,7 @@ static bool fw_get_filesystem_firmware(struct device *device,
 		mutex_unlock(&fw_lock);
 	}
 
-	return success;
+	return rc;
 }
 
 /* firmware holds the ownership of pages */
@@ -1086,9 +1093,14 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
 		}
 	}
 
-	if (!fw_get_filesystem_firmware(device, fw->priv))
+	ret = fw_get_filesystem_firmware(device, fw->priv);
+	if (ret) {
+		dev_warn(device, "Direct firmware load failed with error %d\n",
+			 ret);
+		dev_warn(device, "Falling back to user helper\n");
 		ret = fw_load_from_user_helper(fw, name, device,
 					       uevent, nowait, timeout);
+	}
 
 	/* don't cache firmware handled without uevent */
 	if (!ret)
