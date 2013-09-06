@@ -1274,6 +1274,23 @@ static void intel_ddi_get_config(struct intel_encoder *encoder,
 		flags |= DRM_MODE_FLAG_NVSYNC;
 
 	pipe_config->adjusted_mode.flags |= flags;
+
+	switch (temp & TRANS_DDI_BPC_MASK) {
+	case TRANS_DDI_BPC_6:
+		pipe_config->pipe_bpp = 18;
+		break;
+	case TRANS_DDI_BPC_8:
+		pipe_config->pipe_bpp = 24;
+		break;
+	case TRANS_DDI_BPC_10:
+		pipe_config->pipe_bpp = 30;
+		break;
+	case TRANS_DDI_BPC_12:
+		pipe_config->pipe_bpp = 36;
+		break;
+	default:
+		break;
+	}
 }
 
 static void intel_ddi_destroy(struct drm_encoder *encoder)
