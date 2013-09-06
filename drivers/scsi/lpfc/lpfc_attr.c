@@ -1865,8 +1865,10 @@ lpfc_##attr##_set(struct lpfc_vport *vport, uint val) \
 { \
 	if (val >= minval && val <= maxval) {\
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT, \
-			"3053 lpfc_" #attr " changed from %d to %d\n", \
-			vport->cfg_##attr, val); \
+			"3053 lpfc_" #attr \
+			" changed from %d (x%x) to %d (x%x)\n", \
+			vport->cfg_##attr, vport->cfg_##attr, \
+			val, val); \
 		vport->cfg_##attr = val;\
 		return 0;\
 	}\
