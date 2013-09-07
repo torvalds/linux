@@ -30,11 +30,6 @@
 extern u64 of_translate_dma_address(struct device_node *dev,
 				    const __be32 *in_addr);
 
-#ifdef CONFIG_PCI
-extern unsigned long pci_address_to_pio(phys_addr_t address);
-#define pci_address_to_pio pci_address_to_pio
-#endif	/* CONFIG_PCI */
-
 /* Parse the ibm,dma-window property of an OF node into the busno, phys and
  * size parameters.
  */

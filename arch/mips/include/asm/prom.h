@@ -19,17 +19,6 @@
 
 extern void device_tree_init(void);
 
-static inline unsigned long pci_address_to_pio(phys_addr_t address)
-{
-	/*
-	 * The ioport address can be directly used by inX() / outX()
-	 */
-	BUG_ON(address > IO_SPACE_LIMIT);
-
-	return (unsigned long) address;
-}
-#define pci_address_to_pio pci_address_to_pio
-
 struct boot_param_header;
 
 extern void __dt_setup_arch(struct boot_param_header *bph);

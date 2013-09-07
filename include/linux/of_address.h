@@ -52,10 +52,7 @@ extern void __iomem *of_iomap(struct device_node *device, int index);
 extern const __be32 *of_get_address(struct device_node *dev, int index,
 			   u64 *size, unsigned int *flags);
 
-#ifndef pci_address_to_pio
-static inline unsigned long pci_address_to_pio(phys_addr_t addr) { return -1; }
-#define pci_address_to_pio pci_address_to_pio
-#endif
+extern unsigned long pci_address_to_pio(phys_addr_t addr);
 
 extern int of_pci_range_parser_init(struct of_pci_range_parser *parser,
 			struct device_node *node);
