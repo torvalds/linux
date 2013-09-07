@@ -2295,6 +2295,18 @@ void nfs_clone_super(struct super_block *sb, struct nfs_mount_info *mount_info)
  	nfs_initialise_sb(sb);
 }
 
+#define NFS_MOUNT_CMP_FLAGMASK ~(NFS_MOUNT_INTR \
+		| NFS_MOUNT_SECURE \
+		| NFS_MOUNT_TCP \
+		| NFS_MOUNT_VER3 \
+		| NFS_MOUNT_KERBEROS \
+		| NFS_MOUNT_NONLM \
+		| NFS_MOUNT_BROKEN_SUID \
+		| NFS_MOUNT_STRICTLOCK \
+		| NFS_MOUNT_UNSHARED \
+		| NFS_MOUNT_NORESVPORT \
+		| NFS_MOUNT_LEGACY_INTERFACE)
+
 static int nfs_compare_mount_options(const struct super_block *s, const struct nfs_server *b, int flags)
 {
 	const struct nfs_server *a = s->s_fs_info;
@@ -2305,7 +2317,7 @@ static int nfs_compare_mount_options(const struct super_block *s, const struct n
 		goto Ebusy;
 	if (a->nfs_client != b->nfs_client)
 		goto Ebusy;
-	if (a->flags != b->flags)
+	if ((a->flags ^ b->flags) & NFS_MOUNT_CMP_FLAGMASK)
 		goto Ebusy;
 	if (a->wsize != b->wsize)
 		goto Ebusy;
@@ -2319,7 +2331,8 @@ static int nfs_compare_mount_options(const struct super_block *s, const struct n
 		goto Ebusy;
 	if (a->acdirmax != b->acdirmax)
 		goto Ebusy;
-	if (clnt_a->cl_auth->au_flavor != clnt_b->cl_auth->au_flavor)
+	if (b->flags & NFS_MOUNT_SECFLAVOUR &&
+	   clnt_a->cl_auth->au_flavor != clnt_b->cl_auth->au_flavor)
 		goto Ebusy;
 	return 1;
 Ebusy:
