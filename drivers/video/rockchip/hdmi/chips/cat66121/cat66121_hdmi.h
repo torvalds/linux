@@ -8,18 +8,12 @@
 #define HDMI_SOURCE_DEFAULT HDMI_SOURCE_LCDC0
 #endif
 
-//#define HDMI_SOURCE_DEFAULT HDMI_SOURCE_LCDC0
-#define HDMI_USE_IRQ
 
 struct cat66121_hdmi_pdata {
 	int gpio;
 	struct i2c_client *client;
 	struct delayed_work delay_work;
-	#ifdef HDMI_USE_IRQ
-	struct work_struct	irq_work;
-	#else
 	struct workqueue_struct *workqueue;
-	#endif
 };
 
 extern struct cat66121_hdmi_pdata *cat66121_hdmi;
