@@ -116,7 +116,7 @@ static void braille_write(u16 *buf)
 	*c++ = csum;
 	*c++ = ETX;
 
-	braille_co->write(braille_co, data, c - data);
+	braille_co->write(braille_co, data, c - data, 0);
 }
 
 /* Follow the VC cursor*/

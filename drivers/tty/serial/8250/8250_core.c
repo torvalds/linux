@@ -2850,7 +2850,8 @@ static void serial8250_console_putchar(struct uart_port *port, int ch)
  *	The console_lock must be held when we get here.
  */
 static void
-serial8250_console_write(struct console *co, const char *s, unsigned int count)
+serial8250_console_write(struct console *co, const char *s, unsigned int count,
+                         unsigned int loglevel)
 {
 	struct uart_8250_port *up = &serial8250_ports[co->index];
 	struct uart_port *port = &up->port;
