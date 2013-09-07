@@ -28,6 +28,7 @@
 #include <drm/radeon_drm.h>
 #include "radeon_reg.h"
 #include "radeon.h"
+#include "radeon_trace.h"
 
 static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 {
@@ -558,6 +559,8 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		r = radeon_cs_handle_lockup(rdev, r);
 		return r;
 	}
+
+	trace_radeon_cs(&parser);
 
 	r = radeon_cs_ib_chunk(rdev, &parser);
 	if (r) {
