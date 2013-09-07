@@ -73,7 +73,7 @@ proc_dir_entry_t *lprocfs_add_simple(struct proc_dir_entry *root,
 				     struct file_operations *fops)
 {
 	proc_dir_entry_t *proc;
-	mode_t mode = 0;
+	umode_t mode = 0;
 
 	if (root == NULL || name == NULL || fops == NULL)
 		return ERR_PTR(-EINVAL);
@@ -140,7 +140,7 @@ int lprocfs_add_vars(struct proc_dir_entry *root, struct lprocfs_vars *list,
 
 	while (list->name != NULL) {
 		struct proc_dir_entry *proc;
-		mode_t mode = 0;
+		umode_t mode = 0;
 
 		if (list->proc_mode != 0000) {
 			mode = list->proc_mode;
@@ -1899,7 +1899,7 @@ EXPORT_SYMBOL(lprocfs_find_named_value);
 
 int lprocfs_seq_create(proc_dir_entry_t *parent,
 		       const char *name,
-		       mode_t mode,
+		       umode_t mode,
 		       const struct file_operations *seq_fops,
 		       void *data)
 {
@@ -1919,7 +1919,7 @@ EXPORT_SYMBOL(lprocfs_seq_create);
 
 int lprocfs_obd_seq_create(struct obd_device *dev,
 			   const char *name,
-			   mode_t mode,
+			   umode_t mode,
 			   const struct file_operations *seq_fops,
 			   void *data)
 {

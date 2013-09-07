@@ -334,8 +334,8 @@ static struct pl08x_platform_data spear6xx_pl080_plat_data = {
 	},
 	.lli_buses = PL08X_AHB1,
 	.mem_buses = PL08X_AHB1,
-	.get_signal = pl080_get_signal,
-	.put_signal = pl080_put_signal,
+	.get_xfer_signal = pl080_get_signal,
+	.put_xfer_signal = pl080_put_signal,
 	.slave_channels = spear600_dma_info,
 	.num_slave_channels = ARRAY_SIZE(spear600_dma_info),
 };

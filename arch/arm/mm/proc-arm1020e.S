@@ -425,8 +425,6 @@ ENTRY(cpu_arm1020e_set_pte_ext)
 #endif /* CONFIG_MMU */
 	mov	pc, lr
 
-	__CPUINIT
-
 	.type	__arm1020e_setup, #function
 __arm1020e_setup:
 	mov	r0, #0

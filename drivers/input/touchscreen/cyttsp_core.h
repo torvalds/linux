@@ -112,9 +112,9 @@ struct cyttsp;
 
 struct cyttsp_bus_ops {
 	u16 bustype;
-	int (*write)(struct device *dev, u8 *xfer_buf, u8 addr, u8 length,
+	int (*write)(struct device *dev, u8 *xfer_buf, u16 addr, u8 length,
 			const void *values);
-	int (*read)(struct device *dev, u8 *xfer_buf, u8 addr, u8 length,
+	int (*read)(struct device *dev, u8 *xfer_buf, u16 addr, u8 length,
 			void *values);
 };
 
@@ -145,9 +145,9 @@ struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 			    struct device *dev, int irq, size_t xfer_buf_size);
 void cyttsp_remove(struct cyttsp *ts);
 
-int cyttsp_i2c_write_block_data(struct device *dev, u8 *xfer_buf, u8 addr,
+int cyttsp_i2c_write_block_data(struct device *dev, u8 *xfer_buf, u16 addr,
 		u8 length, const void *values);
-int cyttsp_i2c_read_block_data(struct device *dev, u8 *xfer_buf, u8 addr,
+int cyttsp_i2c_read_block_data(struct device *dev, u8 *xfer_buf, u16 addr,
 		u8 length, void *values);
 extern const struct dev_pm_ops cyttsp_pm_ops;
 

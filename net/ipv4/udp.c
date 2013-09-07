@@ -109,6 +109,7 @@
 #include <trace/events/udp.h>
 #include <linux/static_key.h>
 #include <trace/events/skb.h>
+#include <net/busy_poll.h>
 #include "udp_impl.h"
 
 struct udp_table udp_table __read_mostly;
@@ -429,7 +430,7 @@ begin:
 			reuseport = sk->sk_reuseport;
 			if (reuseport) {
 				hash = inet_ehashfn(net, daddr, hnum,
-						    saddr, htons(sport));
+						    saddr, sport);
 				matches = 1;
 			}
 		} else if (score == badness && reuseport) {
@@ -510,7 +511,7 @@ begin:
 			reuseport = sk->sk_reuseport;
 			if (reuseport) {
 				hash = inet_ehashfn(net, daddr, hnum,
-						    saddr, htons(sport));
+						    saddr, sport);
 				matches = 1;
 			}
 		} else if (score == badness && reuseport) {
@@ -799,7 +800,7 @@ send:
 /*
  * Push out all pending data as one UDP datagram. Socket is locked.
  */
-static int udp_push_pending_frames(struct sock *sk)
+int udp_push_pending_frames(struct sock *sk)
 {
 	struct udp_sock  *up = udp_sk(sk);
 	struct inet_sock *inet = inet_sk(sk);
@@ -818,6 +819,7 @@ out:
 	up->pending = 0;
 	return err;
 }
+EXPORT_SYMBOL(udp_push_pending_frames);
 
 int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		size_t len)
@@ -1709,7 +1711,10 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 	sk = __udp4_lib_lookup_skb(skb, uh->source, uh->dest, udptable);
 
 	if (sk != NULL) {
-		int ret = udp_queue_rcv_skb(sk, skb);
+		int ret;
+
+		sk_mark_napi_id(sk, skb);
+		ret = udp_queue_rcv_skb(sk, skb);
 		sock_put(sk);
 
 		/* a return value > 0 means to resubmit the input, but
@@ -1966,6 +1971,8 @@ unsigned int udp_poll(struct file *file, struct socket *sock, poll_table *wait)
 {
 	unsigned int mask = datagram_poll(file, sock, wait);
 	struct sock *sk = sock->sk;
+
+	sock_rps_record_flow(sk);
 
 	/* Check for false positives due to checksum errors */
 	if ((mask & POLLRDNORM) && !(file->f_flags & O_NONBLOCK) &&
@@ -2284,29 +2291,8 @@ void __init udp_init(void)
 	sysctl_udp_wmem_min = SK_MEM_QUANTUM;
 }
 
-int udp4_ufo_send_check(struct sk_buff *skb)
-{
-	if (!pskb_may_pull(skb, sizeof(struct udphdr)))
-		return -EINVAL;
-
-	if (likely(!skb->encapsulation)) {
-		const struct iphdr *iph;
-		struct udphdr *uh;
-
-		iph = ip_hdr(skb);
-		uh = udp_hdr(skb);
-
-		uh->check = ~csum_tcpudp_magic(iph->saddr, iph->daddr, skb->len,
-				IPPROTO_UDP, 0);
-		skb->csum_start = skb_transport_header(skb) - skb->head;
-		skb->csum_offset = offsetof(struct udphdr, check);
-		skb->ip_summed = CHECKSUM_PARTIAL;
-	}
-	return 0;
-}
-
-static struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb,
-		netdev_features_t features)
+struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb,
+				       netdev_features_t features)
 {
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
 	int mac_len = skb->mac_len;
@@ -2337,6 +2323,9 @@ static struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb,
 		struct udphdr *uh;
 		int udp_offset = outer_hlen - tnl_hlen;
 
+		skb_reset_inner_headers(skb);
+		skb->encapsulation = 1;
+
 		skb->mac_len = mac_len;
 
 		skb_push(skb, outer_hlen);
@@ -2359,59 +2348,8 @@ static struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb,
 				uh->check = CSUM_MANGLED_0;
 
 		}
-		skb->ip_summed = CHECKSUM_NONE;
 		skb->protocol = protocol;
 	} while ((skb = skb->next));
-out:
-	return segs;
-}
-
-struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
-	netdev_features_t features)
-{
-	struct sk_buff *segs = ERR_PTR(-EINVAL);
-	unsigned int mss;
-	mss = skb_shinfo(skb)->gso_size;
-	if (unlikely(skb->len <= mss))
-		goto out;
-
-	if (skb_gso_ok(skb, features | NETIF_F_GSO_ROBUST)) {
-		/* Packet is from an untrusted source, reset gso_segs. */
-		int type = skb_shinfo(skb)->gso_type;
-
-		if (unlikely(type & ~(SKB_GSO_UDP | SKB_GSO_DODGY |
-				      SKB_GSO_UDP_TUNNEL |
-				      SKB_GSO_GRE) ||
-			     !(type & (SKB_GSO_UDP))))
-			goto out;
-
-		skb_shinfo(skb)->gso_segs = DIV_ROUND_UP(skb->len, mss);
-
-		segs = NULL;
-		goto out;
-	}
-
-	/* Fragment the skb. IP headers of the fragments are updated in
-	 * inet_gso_segment()
-	 */
-	if (skb->encapsulation && skb_shinfo(skb)->gso_type & SKB_GSO_UDP_TUNNEL)
-		segs = skb_udp_tunnel_segment(skb, features);
-	else {
-		int offset;
-		__wsum csum;
-
-		/* Do software UFO. Complete and fill in the UDP checksum as
-		 * HW cannot do checksum of UDP packets sent as multiple
-		 * IP fragments.
-		 */
-		offset = skb_checksum_start_offset(skb);
-		csum = skb_checksum(skb, offset, skb->len - offset, 0);
-		offset += skb->csum_offset;
-		*(__sum16 *)(skb->data + offset) = csum_fold(csum);
-		skb->ip_summed = CHECKSUM_NONE;
-
-		segs = skb_segment(skb, features);
-	}
 out:
 	return segs;
 }

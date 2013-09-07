@@ -167,9 +167,13 @@ ssize_t v9fs_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size)
 
 const struct xattr_handler *v9fs_xattr_handlers[] = {
 	&v9fs_xattr_user_handler,
+	&v9fs_xattr_trusted_handler,
 #ifdef CONFIG_9P_FS_POSIX_ACL
 	&v9fs_xattr_acl_access_handler,
 	&v9fs_xattr_acl_default_handler,
+#endif
+#ifdef CONFIG_9P_FS_SECURITY
+	&v9fs_xattr_security_handler,
 #endif
 	NULL
 };

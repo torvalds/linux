@@ -369,9 +369,9 @@ struct cyttsp4 {
 
 struct cyttsp4_bus_ops {
 	u16 bustype;
-	int (*write)(struct device *dev, u8 *xfer_buf, u8 addr, u8 length,
+	int (*write)(struct device *dev, u8 *xfer_buf, u16 addr, u8 length,
 			const void *values);
-	int (*read)(struct device *dev, u8 *xfer_buf, u8 addr, u8 length,
+	int (*read)(struct device *dev, u8 *xfer_buf, u16 addr, u8 length,
 			void *values);
 };
 
@@ -448,13 +448,13 @@ enum cyttsp4_event_id {
 /* y-axis, 0:origin is on top side of panel, 1: bottom */
 #define CY_PCFG_ORIGIN_Y_MASK		0x80
 
-static inline int cyttsp4_adap_read(struct cyttsp4 *ts, u8 addr, int size,
+static inline int cyttsp4_adap_read(struct cyttsp4 *ts, u16 addr, int size,
 		void *buf)
 {
 	return ts->bus_ops->read(ts->dev, ts->xfer_buf, addr, size, buf);
 }
 
-static inline int cyttsp4_adap_write(struct cyttsp4 *ts, u8 addr, int size,
+static inline int cyttsp4_adap_write(struct cyttsp4 *ts, u16 addr, int size,
 		const void *buf)
 {
 	return ts->bus_ops->write(ts->dev, ts->xfer_buf, addr, size, buf);
@@ -463,9 +463,9 @@ static inline int cyttsp4_adap_write(struct cyttsp4 *ts, u8 addr, int size,
 extern struct cyttsp4 *cyttsp4_probe(const struct cyttsp4_bus_ops *ops,
 		struct device *dev, u16 irq, size_t xfer_buf_size);
 extern int cyttsp4_remove(struct cyttsp4 *ts);
-int cyttsp_i2c_write_block_data(struct device *dev, u8 *xfer_buf, u8 addr,
+int cyttsp_i2c_write_block_data(struct device *dev, u8 *xfer_buf, u16 addr,
 		u8 length, const void *values);
-int cyttsp_i2c_read_block_data(struct device *dev, u8 *xfer_buf, u8 addr,
+int cyttsp_i2c_read_block_data(struct device *dev, u8 *xfer_buf, u16 addr,
 		u8 length, void *values);
 extern const struct dev_pm_ops cyttsp4_pm_ops;
 

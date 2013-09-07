@@ -659,7 +659,6 @@ failed_destroy_mutex:
 	mutex_destroy(&fbi->access_ok);
 failed:
 	dev_err(fbi->dev, "mmp-fb: frame buffer device init failed\n");
-	platform_set_drvdata(pdev, NULL);
 
 	framebuffer_release(info);
 

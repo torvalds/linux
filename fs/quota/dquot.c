@@ -2585,7 +2585,7 @@ static int do_proc_dqstats(struct ctl_table *table, int write,
 	return proc_dointvec(table, write, buffer, lenp, ppos);
 }
 
-static ctl_table fs_dqstats_table[] = {
+static struct ctl_table fs_dqstats_table[] = {
 	{
 		.procname	= "lookups",
 		.data		= &dqstats.stat[DQST_LOOKUPS],
@@ -2654,7 +2654,7 @@ static ctl_table fs_dqstats_table[] = {
 	{ },
 };
 
-static ctl_table fs_table[] = {
+static struct ctl_table fs_table[] = {
 	{
 		.procname	= "quota",
 		.mode		= 0555,
@@ -2663,7 +2663,7 @@ static ctl_table fs_table[] = {
 	{ },
 };
 
-static ctl_table sys_table[] = {
+static struct ctl_table sys_table[] = {
 	{
 		.procname	= "fs",
 		.mode		= 0555,

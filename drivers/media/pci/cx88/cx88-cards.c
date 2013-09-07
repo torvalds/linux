@@ -744,7 +744,7 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		/* Some variants use a tda9874 and so need the tvaudio module. */
-		.audio_chip     = V4L2_IDENT_TVAUDIO,
+		.audio_chip     = CX88_AUDIO_TVAUDIO,
 		.input          = {{
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
@@ -976,7 +976,7 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.audio_chip	= V4L2_IDENT_WM8775,
+		.audio_chip	= CX88_AUDIO_WM8775,
 		.i2sinputcntl   = 2,
 		.input		= {{
 			.type	= CX88_VMUX_DVB,
@@ -1014,7 +1014,7 @@ static const struct cx88_board cx88_boards[] = {
 		.radio_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.audio_chip = V4L2_IDENT_WM8775,
+		.audio_chip = CX88_AUDIO_WM8775,
 		.input		= {{
 			.type	= CX88_VMUX_DVB,
 			.vmux	= 0,
@@ -1376,7 +1376,7 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
-		.audio_chip     = V4L2_IDENT_WM8775,
+		.audio_chip     = CX88_AUDIO_WM8775,
 		.input          = {{
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
@@ -1461,7 +1461,7 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
-		.audio_chip     = V4L2_IDENT_WM8775,
+		.audio_chip     = CX88_AUDIO_WM8775,
 		/*
 		 * gpio0 as reported by Mike Crash <mike AT mikecrash.com>
 		 */
@@ -1929,7 +1929,7 @@ static const struct cx88_board cx88_boards[] = {
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
-		.audio_chip     = V4L2_IDENT_WM8775,
+		.audio_chip     = CX88_AUDIO_WM8775,
 		/*
 		 * GPIO0 (WINTV2000)
 		 *

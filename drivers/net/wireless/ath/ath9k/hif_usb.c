@@ -234,10 +234,15 @@ static inline void ath9k_skb_queue_complete(struct hif_device_usb *hif_dev,
 	struct sk_buff *skb;
 
 	while ((skb = __skb_dequeue(queue)) != NULL) {
+#ifdef CONFIG_ATH9K_HTC_DEBUGFS
+		int ln = skb->len;
+#endif
 		ath9k_htc_txcompletion_cb(hif_dev->htc_handle,
 					  skb, txok);
-		if (txok)
+		if (txok) {
 			TX_STAT_INC(skb_success);
+			TX_STAT_ADD(skb_success_bytes, ln);
+		}
 		else
 			TX_STAT_INC(skb_failed);
 	}
@@ -620,6 +625,7 @@ static void ath9k_hif_usb_rx_stream(struct hif_device_usb *hif_dev,
 
 err:
 	for (i = 0; i < pool_index; i++) {
+		RX_STAT_ADD(skb_completed_bytes, skb_pool[i]->len);
 		ath9k_htc_rx_msg(hif_dev->htc_handle, skb_pool[i],
 				 skb_pool[i]->len, USB_WLAN_RX_PIPE);
 		RX_STAT_INC(skb_completed);

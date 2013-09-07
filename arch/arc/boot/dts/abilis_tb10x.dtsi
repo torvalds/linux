@@ -19,10 +19,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-/* interrupt specifiers
- * --------------------
- * 0: rising, 1: low, 2: high, 3: falling,
- */
 
 / {
 	compatible		= "abilis,arc-tb10x";
@@ -78,7 +74,7 @@
 			#interrupt-cells = <1>;
 		};
 		tb10x_ictl: pic@fe002000 {
-			compatible = "abilis,tb10x_ictl";
+			compatible = "abilis,tb10x-ictl";
 			reg = <0xFE002000 0x20>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
@@ -91,7 +87,7 @@
 			compatible = "snps,dw-apb-uart";
 			reg = <0xFF100000 0x100>;
 			clock-frequency = <166666666>;
-			interrupts = <25 1>;
+			interrupts = <25 8>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			interrupt-parent = <&tb10x_ictl>;
@@ -100,7 +96,7 @@
 			compatible = "snps,dwmac-3.70a","snps,dwmac";
 			reg = <0xFE100000 0x1058>;
 			interrupt-parent = <&tb10x_ictl>;
-			interrupts = <6 1>;
+			interrupts = <6 8>;
 			interrupt-names = "macirq";
 			clocks = <&ahb_clk>;
 			clock-names = "stmmaceth";
@@ -109,7 +105,7 @@
 			compatible = "snps,dma-spear1340";
 			reg = <0xFE000000 0x400>;
 			interrupt-parent = <&tb10x_ictl>;
-			interrupts = <14 1>;
+			interrupts = <14 8>;
 			dma-channels = <6>;
 			dma-requests = <0>;
 			dma-masters = <1>;
@@ -128,7 +124,7 @@
 			compatible = "snps,designware-i2c";
 			reg = <0xFF120000 0x1000>;
 			interrupt-parent = <&tb10x_ictl>;
-			interrupts = <12 1>;
+			interrupts = <12 8>;
 			clocks = <&ahb_clk>;
 		};
 		i2c1: i2c@FF121000 {
@@ -137,7 +133,7 @@
 			compatible = "snps,designware-i2c";
 			reg = <0xFF121000 0x1000>;
 			interrupt-parent = <&tb10x_ictl>;
-			interrupts = <12 1>;
+			interrupts = <12 8>;
 			clocks = <&ahb_clk>;
 		};
 		i2c2: i2c@FF122000 {
@@ -146,7 +142,7 @@
 			compatible = "snps,designware-i2c";
 			reg = <0xFF122000 0x1000>;
 			interrupt-parent = <&tb10x_ictl>;
-			interrupts = <12 1>;
+			interrupts = <12 8>;
 			clocks = <&ahb_clk>;
 		};
 		i2c3: i2c@FF123000 {
@@ -155,7 +151,7 @@
 			compatible = "snps,designware-i2c";
 			reg = <0xFF123000 0x1000>;
 			interrupt-parent = <&tb10x_ictl>;
-			interrupts = <12 1>;
+			interrupts = <12 8>;
 			clocks = <&ahb_clk>;
 		};
 		i2c4: i2c@FF124000 {
@@ -164,7 +160,7 @@
 			compatible = "snps,designware-i2c";
 			reg = <0xFF124000 0x1000>;
 			interrupt-parent = <&tb10x_ictl>;
-			interrupts = <12 1>;
+			interrupts = <12 8>;
 			clocks = <&ahb_clk>;
 		};
 
@@ -176,7 +172,7 @@
 			num-cs = <1>;
 			reg = <0xFE010000 0x20>;
 			interrupt-parent = <&tb10x_ictl>;
-			interrupts = <26 1>;
+			interrupts = <26 8>;
 			clocks = <&ahb_clk>;
 		};
 		spi1: spi@0xFE011000 {
@@ -187,7 +183,7 @@
 			num-cs = <2>;
 			reg = <0xFE011000 0x20>;
 			interrupt-parent = <&tb10x_ictl>;
-			interrupts = <10 1>;
+			interrupts = <10 8>;
 			clocks = <&ahb_clk>;
 		};
 
@@ -195,7 +191,7 @@
 			compatible = "abilis,tb100-tsm";
 			reg = <0xff316000 0x400>;
 			interrupt-parent = <&tb10x_ictl>;
-			interrupts = <17 1>;
+			interrupts = <17 8>;
 			output-clkdiv = <4>;
 			global-packet-delay = <0x21>;
 			port-packet-delay = <0>;
@@ -213,7 +209,7 @@
 					"cpuctrl",
 					"a6it_int_force";
 			interrupt-parent = <&tb10x_ictl>;
-			interrupts = <20 1>, <19 1>;
+			interrupts = <20 2>, <19 2>;
 			interrupt-names = "cmd_irq", "event_irq";
 		};
 		tb10x_mdsc0: tb10x-mdscr@FF300000 {
@@ -239,7 +235,7 @@
 			compatible = "abilis,tb100-wfb";
 			reg = <0xff319000 0x1000>;
 			interrupt-parent = <&tb10x_ictl>;
-			interrupts = <16 1>;
+			interrupts = <16 8>;
 		};
 	};
 };

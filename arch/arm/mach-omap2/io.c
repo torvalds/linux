@@ -394,7 +394,7 @@ static void __init omap_hwmod_init_postsetup(void)
 	omap_pm_if_early_init();
 }
 
-static void __init omap_common_late_init(void)
+static void __init __maybe_unused omap_common_late_init(void)
 {
 	omap_mux_late_init();
 	omap2_common_pm_late_init();

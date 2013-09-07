@@ -200,7 +200,7 @@ static const struct file_operations msr_fops = {
 	.compat_ioctl = msr_ioctl,
 };
 
-static int __cpuinit msr_device_create(int cpu)
+static int msr_device_create(int cpu)
 {
 	struct device *dev;
 
@@ -214,8 +214,8 @@ static void msr_device_destroy(int cpu)
 	device_destroy(msr_class, MKDEV(MSR_MAJOR, cpu));
 }
 
-static int __cpuinit msr_class_cpu_callback(struct notifier_block *nfb,
-				unsigned long action, void *hcpu)
+static int msr_class_cpu_callback(struct notifier_block *nfb,
+				  unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
 	int err = 0;

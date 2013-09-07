@@ -85,16 +85,16 @@ struct alx_priv {
 	struct {
 		dma_addr_t dma;
 		void *virt;
-		int size;
+		unsigned int size;
 	} descmem;
 
 	/* protect int_mask updates */
 	spinlock_t irq_lock;
 	u32 int_mask;
 
-	int tx_ringsz;
-	int rx_ringsz;
-	int rxbuf_size;
+	unsigned int tx_ringsz;
+	unsigned int rx_ringsz;
+	unsigned int rxbuf_size;
 
 	struct napi_struct napi;
 	struct alx_tx_queue txq;

@@ -1,5 +1,6 @@
 menuconfig OMAP2_DSS
         tristate "OMAP2+ Display Subsystem support"
+	select VIDEOMODE_HELPERS
         help
 	  OMAP2+ Display Subsystem support.
 

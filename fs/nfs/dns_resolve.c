@@ -29,7 +29,6 @@ ssize_t nfs_dns_resolve_name(struct net *net, char *name, size_t namelen,
 	kfree(ip_addr);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(nfs_dns_resolve_name);
 
 #else
 
@@ -351,7 +350,6 @@ ssize_t nfs_dns_resolve_name(struct net *net, char *name,
 		ret = -ESRCH;
 	return ret;
 }
-EXPORT_SYMBOL_GPL(nfs_dns_resolve_name);
 
 static struct cache_detail nfs_dns_resolve_template = {
 	.owner		= THIS_MODULE,
@@ -396,6 +394,21 @@ void nfs_dns_resolver_cache_destroy(struct net *net)
 	cache_destroy_net(nn->nfs_dns_resolve, net);
 }
 
+static int nfs4_dns_net_init(struct net *net)
+{
+	return nfs_dns_resolver_cache_init(net);
+}
+
+static void nfs4_dns_net_exit(struct net *net)
+{
+	nfs_dns_resolver_cache_destroy(net);
+}
+
+static struct pernet_operations nfs4_dns_resolver_ops = {
+	.init = nfs4_dns_net_init,
+	.exit = nfs4_dns_net_exit,
+};
+
 static int rpc_pipefs_event(struct notifier_block *nb, unsigned long event,
 			   void *ptr)
 {
@@ -432,11 +445,24 @@ static struct notifier_block nfs_dns_resolver_block = {
 
 int nfs_dns_resolver_init(void)
 {
-	return rpc_pipefs_notifier_register(&nfs_dns_resolver_block);
+	int err;
+
+	err = register_pernet_subsys(&nfs4_dns_resolver_ops);
+	if (err < 0)
+		goto out;
+	err = rpc_pipefs_notifier_register(&nfs_dns_resolver_block);
+	if (err < 0)
+		goto out1;
+	return 0;
+out1:
+	unregister_pernet_subsys(&nfs4_dns_resolver_ops);
+out:
+	return err;
 }
 
 void nfs_dns_resolver_destroy(void)
 {
 	rpc_pipefs_notifier_unregister(&nfs_dns_resolver_block);
+	unregister_pernet_subsys(&nfs4_dns_resolver_ops);
 }
 #endif

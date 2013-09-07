@@ -200,7 +200,6 @@ static int armada_thermal_exit(struct platform_device *pdev)
 		platform_get_drvdata(pdev);
 
 	thermal_zone_device_unregister(armada_thermal);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
@@ -211,7 +210,7 @@ static struct platform_driver armada_thermal_driver = {
 	.driver = {
 		.name = "armada_thermal",
 		.owner = THIS_MODULE,
-		.of_match_table = of_match_ptr(armada_thermal_id_table),
+		.of_match_table = armada_thermal_id_table,
 	},
 };
 

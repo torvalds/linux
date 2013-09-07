@@ -555,7 +555,7 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 		if (rdev->family < CHIP_RV770)
 			radeon_crtc->pll_flags |= RADEON_PLL_PREFER_MINM_OVER_MAXP;
 		/* use frac fb div on APUs */
-		if (ASIC_IS_DCE41(rdev) || ASIC_IS_DCE61(rdev))
+		if (ASIC_IS_DCE41(rdev) || ASIC_IS_DCE61(rdev) || ASIC_IS_DCE8(rdev))
 			radeon_crtc->pll_flags |= RADEON_PLL_USE_FRAC_FB_DIV;
 		/* use frac fb div on RS780/RS880 */
 		if ((rdev->family == CHIP_RS780) || (rdev->family == CHIP_RS880))
@@ -743,7 +743,7 @@ static void atombios_crtc_set_disp_eng_pll(struct radeon_device *rdev,
 			 * SetPixelClock provides the dividers
 			 */
 			args.v6.ulDispEngClkFreq = cpu_to_le32(dispclk);
-			if (ASIC_IS_DCE61(rdev))
+			if (ASIC_IS_DCE61(rdev) || ASIC_IS_DCE8(rdev))
 				args.v6.ucPpll = ATOM_EXT_PLL1;
 			else if (ASIC_IS_DCE6(rdev))
 				args.v6.ucPpll = ATOM_PPLL0;
@@ -1143,7 +1143,9 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	}
 
 	if (tiling_flags & RADEON_TILING_MACRO) {
-		if (rdev->family >= CHIP_TAHITI)
+		if (rdev->family >= CHIP_BONAIRE)
+			tmp = rdev->config.cik.tile_config;
+		else if (rdev->family >= CHIP_TAHITI)
 			tmp = rdev->config.si.tile_config;
 		else if (rdev->family >= CHIP_CAYMAN)
 			tmp = rdev->config.cayman.tile_config;
@@ -1170,11 +1172,29 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 		fb_format |= EVERGREEN_GRPH_BANK_WIDTH(bankw);
 		fb_format |= EVERGREEN_GRPH_BANK_HEIGHT(bankh);
 		fb_format |= EVERGREEN_GRPH_MACRO_TILE_ASPECT(mtaspect);
+		if (rdev->family >= CHIP_BONAIRE) {
+			/* XXX need to know more about the surface tiling mode */
+			fb_format |= CIK_GRPH_MICRO_TILE_MODE(CIK_DISPLAY_MICRO_TILING);
+		}
 	} else if (tiling_flags & RADEON_TILING_MICRO)
 		fb_format |= EVERGREEN_GRPH_ARRAY_MODE(EVERGREEN_GRPH_ARRAY_1D_TILED_THIN1);
 
-	if ((rdev->family == CHIP_TAHITI) ||
-	    (rdev->family == CHIP_PITCAIRN))
+	if (rdev->family >= CHIP_BONAIRE) {
+		u32 num_pipe_configs = rdev->config.cik.max_tile_pipes;
+		u32 num_rb = rdev->config.cik.max_backends_per_se;
+		if (num_pipe_configs > 8)
+			num_pipe_configs = 8;
+		if (num_pipe_configs == 8)
+			fb_format |= CIK_GRPH_PIPE_CONFIG(CIK_ADDR_SURF_P8_32x32_16x16);
+		else if (num_pipe_configs == 4) {
+			if (num_rb == 4)
+				fb_format |= CIK_GRPH_PIPE_CONFIG(CIK_ADDR_SURF_P4_16x16);
+			else if (num_rb < 4)
+				fb_format |= CIK_GRPH_PIPE_CONFIG(CIK_ADDR_SURF_P4_8x16);
+		} else if (num_pipe_configs == 2)
+			fb_format |= CIK_GRPH_PIPE_CONFIG(CIK_ADDR_SURF_P2);
+	} else if ((rdev->family == CHIP_TAHITI) ||
+		   (rdev->family == CHIP_PITCAIRN))
 		fb_format |= SI_GRPH_PIPE_CONFIG(SI_ADDR_SURF_P8_32x32_8x16);
 	else if (rdev->family == CHIP_VERDE)
 		fb_format |= SI_GRPH_PIPE_CONFIG(SI_ADDR_SURF_P4_8x16);
@@ -1224,8 +1244,12 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	WREG32(EVERGREEN_GRPH_PITCH + radeon_crtc->crtc_offset, fb_pitch_pixels);
 	WREG32(EVERGREEN_GRPH_ENABLE + radeon_crtc->crtc_offset, 1);
 
-	WREG32(EVERGREEN_DESKTOP_HEIGHT + radeon_crtc->crtc_offset,
-	       target_fb->height);
+	if (rdev->family >= CHIP_BONAIRE)
+		WREG32(CIK_LB_DESKTOP_HEIGHT + radeon_crtc->crtc_offset,
+		       target_fb->height);
+	else
+		WREG32(EVERGREEN_DESKTOP_HEIGHT + radeon_crtc->crtc_offset,
+		       target_fb->height);
 	x &= ~3;
 	y &= ~1;
 	WREG32(EVERGREEN_VIEWPORT_START + radeon_crtc->crtc_offset,
@@ -1597,6 +1621,12 @@ static int radeon_get_shared_nondp_ppll(struct drm_crtc *crtc)
  *
  * Asic specific PLL information
  *
+ * DCE 8.x
+ * KB/KV
+ * - PPLL1, PPLL2 are available for all UNIPHY (both DP and non-DP)
+ * CI
+ * - PPLL0, PPLL1, PPLL2 are available for all UNIPHY (both DP and non-DP) and DAC
+ *
  * DCE 6.1
  * - PPLL2 is only available to UNIPHYA (both DP and non-DP)
  * - PPLL0, PPLL1 are available for UNIPHYB/C/D/E/F (both DP and non-DP)
@@ -1623,7 +1653,47 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 	u32 pll_in_use;
 	int pll;
 
-	if (ASIC_IS_DCE61(rdev)) {
+	if (ASIC_IS_DCE8(rdev)) {
+		if (ENCODER_MODE_IS_DP(atombios_get_encoder_mode(radeon_crtc->encoder))) {
+			if (rdev->clock.dp_extclk)
+				/* skip PPLL programming if using ext clock */
+				return ATOM_PPLL_INVALID;
+			else {
+				/* use the same PPLL for all DP monitors */
+				pll = radeon_get_shared_dp_ppll(crtc);
+				if (pll != ATOM_PPLL_INVALID)
+					return pll;
+			}
+		} else {
+			/* use the same PPLL for all monitors with the same clock */
+			pll = radeon_get_shared_nondp_ppll(crtc);
+			if (pll != ATOM_PPLL_INVALID)
+				return pll;
+		}
+		/* otherwise, pick one of the plls */
+		if ((rdev->family == CHIP_KAVERI) ||
+		    (rdev->family == CHIP_KABINI)) {
+			/* KB/KV has PPLL1 and PPLL2 */
+			pll_in_use = radeon_get_pll_use_mask(crtc);
+			if (!(pll_in_use & (1 << ATOM_PPLL2)))
+				return ATOM_PPLL2;
+			if (!(pll_in_use & (1 << ATOM_PPLL1)))
+				return ATOM_PPLL1;
+			DRM_ERROR("unable to allocate a PPLL\n");
+			return ATOM_PPLL_INVALID;
+		} else {
+			/* CI has PPLL0, PPLL1, and PPLL2 */
+			pll_in_use = radeon_get_pll_use_mask(crtc);
+			if (!(pll_in_use & (1 << ATOM_PPLL2)))
+				return ATOM_PPLL2;
+			if (!(pll_in_use & (1 << ATOM_PPLL1)))
+				return ATOM_PPLL1;
+			if (!(pll_in_use & (1 << ATOM_PPLL0)))
+				return ATOM_PPLL0;
+			DRM_ERROR("unable to allocate a PPLL\n");
+			return ATOM_PPLL_INVALID;
+		}
+	} else if (ASIC_IS_DCE61(rdev)) {
 		struct radeon_encoder_atom_dig *dig =
 			radeon_encoder->enc_priv;
 
@@ -1771,6 +1841,9 @@ int atombios_crtc_mode_set(struct drm_crtc *crtc,
 	atombios_crtc_set_base(crtc, x, y, old_fb);
 	atombios_overscan_setup(crtc, mode, adjusted_mode);
 	atombios_scaler_setup(crtc);
+	/* update the hw version fpr dpm */
+	radeon_crtc->hw_mode = *adjusted_mode;
+
 	return 0;
 }
 
@@ -1861,7 +1934,7 @@ static void atombios_crtc_disable(struct drm_crtc *crtc)
 		break;
 	case ATOM_PPLL0:
 		/* disable the ppll */
-		if (ASIC_IS_DCE61(rdev))
+		if ((rdev->family == CHIP_ARUBA) || (rdev->family == CHIP_BONAIRE))
 			atombios_crtc_program_pll(crtc, radeon_crtc->crtc_id, radeon_crtc->pll_id,
 						  0, 0, ATOM_DISABLE, 0, 0, 0, 0, 0, false, &ss);
 		break;

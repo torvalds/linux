@@ -1174,10 +1174,6 @@ static int do_test(int m)
 		ret += tcrypt_test("ghash");
 		break;
 
-	case 47:
-		ret += tcrypt_test("crct10dif");
-		break;
-
 	case 100:
 		ret += tcrypt_test("hmac(md5)");
 		break;
@@ -1500,10 +1496,6 @@ static int do_test(int m)
 
 	case 319:
 		test_hash_speed("crc32c", sec, generic_hash_speed_template);
-		if (mode > 300 && mode < 400) break;
-
-	case 320:
-		test_hash_speed("crct10dif", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
 
 	case 399:

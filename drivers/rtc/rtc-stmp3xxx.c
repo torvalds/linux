@@ -261,7 +261,12 @@ static int stmp3xxx_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rtc_data);
 
-	stmp_reset_block(rtc_data->io);
+	err = stmp_reset_block(rtc_data->io);
+	if (err) {
+		dev_err(&pdev->dev, "stmp_reset_block failed: %d\n", err);
+		return err;
+	}
+
 	writel(STMP3XXX_RTC_PERSISTENT0_ALARM_EN |
 			STMP3XXX_RTC_PERSISTENT0_ALARM_WAKE_EN |
 			STMP3XXX_RTC_PERSISTENT0_ALARM_WAKE,

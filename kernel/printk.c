@@ -1369,9 +1369,9 @@ static int console_trylock_for_printk(unsigned int cpu)
 		}
 	}
 	logbuf_cpu = UINT_MAX;
+	raw_spin_unlock(&logbuf_lock);
 	if (wake)
 		up(&console_sem);
-	raw_spin_unlock(&logbuf_lock);
 	return retval;
 }
 
@@ -1921,7 +1921,7 @@ void resume_console(void)
  * called when a new CPU comes online (or fails to come up), and ensures
  * that any such output gets printed.
  */
-static int __cpuinit console_cpu_notify(struct notifier_block *self,
+static int console_cpu_notify(struct notifier_block *self,
 	unsigned long action, void *hcpu)
 {
 	switch (action) {

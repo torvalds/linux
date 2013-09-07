@@ -77,10 +77,29 @@ void btrfs_leak_debug_check(void)
 		kmem_cache_free(extent_buffer_cache, eb);
 	}
 }
+
+#define btrfs_debug_check_extent_io_range(inode, start, end)		\
+	__btrfs_debug_check_extent_io_range(__func__, (inode), (start), (end))
+static inline void __btrfs_debug_check_extent_io_range(const char *caller,
+		struct inode *inode, u64 start, u64 end)
+{
+	u64 isize = i_size_read(inode);
+
+	if (end >= PAGE_SIZE && (end % 2) == 0 && end != isize - 1) {
+		printk_ratelimited(KERN_DEBUG
+		    "btrfs: %s: ino %llu isize %llu odd range [%llu,%llu]\n",
+				caller,
+				(unsigned long long)btrfs_ino(inode),
+				(unsigned long long)isize,
+				(unsigned long long)start,
+				(unsigned long long)end);
+	}
+}
 #else
 #define btrfs_leak_debug_add(new, head)	do {} while (0)
 #define btrfs_leak_debug_del(entry)	do {} while (0)
 #define btrfs_leak_debug_check()	do {} while (0)
+#define btrfs_debug_check_extent_io_range(c, s, e)	do {} while (0)
 #endif
 
 #define BUFFER_LRU_MAX 64
@@ -522,6 +541,11 @@ int clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	int err;
 	int clear = 0;
 
+	btrfs_debug_check_extent_io_range(tree->mapping->host, start, end);
+
+	if (bits & EXTENT_DELALLOC)
+		bits |= EXTENT_NORESERVE;
+
 	if (delete)
 		bits |= ~EXTENT_CTLBITS;
 	bits |= EXTENT_FIRST_DELALLOC;
@@ -677,6 +701,8 @@ static void wait_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	struct extent_state *state;
 	struct rb_node *node;
 
+	btrfs_debug_check_extent_io_range(tree->mapping->host, start, end);
+
 	spin_lock(&tree->lock);
 again:
 	while (1) {
@@ -768,6 +794,8 @@ __set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	int err = 0;
 	u64 last_start;
 	u64 last_end;
+
+	btrfs_debug_check_extent_io_range(tree->mapping->host, start, end);
 
 	bits |= EXTENT_FIRST_DELALLOC;
 again:
@@ -988,6 +1016,8 @@ int convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	int err = 0;
 	u64 last_start;
 	u64 last_end;
+
+	btrfs_debug_check_extent_io_range(tree->mapping->host, start, end);
 
 again:
 	if (!prealloc && (mask & __GFP_WAIT)) {
@@ -2450,11 +2480,12 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 		struct extent_state *cached = NULL;
 		struct extent_state *state;
 		struct btrfs_io_bio *io_bio = btrfs_io_bio(bio);
+		struct inode *inode = page->mapping->host;
 
 		pr_debug("end_bio_extent_readpage: bi_sector=%llu, err=%d, "
 			 "mirror=%lu\n", (u64)bio->bi_sector, err,
 			 io_bio->mirror_num);
-		tree = &BTRFS_I(page->mapping->host)->io_tree;
+		tree = &BTRFS_I(inode)->io_tree;
 
 		/* We always issue full-page reads, but if some block
 		 * in a page fails to read, blk_update_request() will
@@ -2528,6 +2559,14 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 		unlock_extent_cached(tree, start, end, &cached, GFP_ATOMIC);
 
 		if (uptodate) {
+			loff_t i_size = i_size_read(inode);
+			pgoff_t end_index = i_size >> PAGE_CACHE_SHIFT;
+			unsigned offset;
+
+			/* Zero out the end if this page straddles i_size */
+			offset = i_size & (PAGE_CACHE_SIZE-1);
+			if (page->index == end_index && offset)
+				zero_user_segment(page, offset, PAGE_CACHE_SIZE);
 			SetPageUptodate(page);
 		} else {
 			ClearPageUptodate(page);

@@ -61,9 +61,6 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
  */
 #define MAX_TCP_WINDOW		32767U
 
-/* Offer an initial receive window of 10 mss. */
-#define TCP_DEFAULT_INIT_RCVWND	10
-
 /* Minimal accepted MSS. It is (60+60+8) - (20+20). */
 #define TCP_MIN_MSS		88U
 
@@ -1047,6 +1044,8 @@ static inline void tcp_sack_reset(struct tcp_options_received *rx_opt)
 	rx_opt->num_sacks = 0;
 }
 
+extern u32 tcp_default_init_rwnd(u32 mss);
+
 /* Determine a window scaling and initial window to offer. */
 extern void tcp_select_initial_window(int __space, __u32 mss,
 				      __u32 *rcv_wnd, __u32 *window_clamp,
@@ -1193,7 +1192,6 @@ static inline void tcp_mib_init(struct net *net)
 static inline void tcp_clear_retrans_hints_partial(struct tcp_sock *tp)
 {
 	tp->lost_skb_hint = NULL;
-	tp->scoreboard_skb_hint = NULL;
 }
 
 static inline void tcp_clear_all_retrans_hints(struct tcp_sock *tp)
@@ -1284,11 +1282,13 @@ static inline struct tcp_md5sig_key *tcp_md5_do_lookup(struct sock *sk,
 #define tcp_twsk_md5_key(twsk)	NULL
 #endif
 
-extern struct tcp_md5sig_pool __percpu *tcp_alloc_md5sig_pool(struct sock *);
-extern void tcp_free_md5sig_pool(void);
+extern bool tcp_alloc_md5sig_pool(void);
 
 extern struct tcp_md5sig_pool	*tcp_get_md5sig_pool(void);
-extern void tcp_put_md5sig_pool(void);
+static inline void tcp_put_md5sig_pool(void)
+{
+	local_bh_enable();
+}
 
 extern int tcp_md5_hash_header(struct tcp_md5sig_pool *, const struct tcphdr *);
 extern int tcp_md5_hash_skb_data(struct tcp_md5sig_pool *, const struct sk_buff *,
@@ -1319,9 +1319,9 @@ void tcp_fastopen_cookie_gen(__be32 addr, struct tcp_fastopen_cookie *foc);
 
 /* Fastopen key context */
 struct tcp_fastopen_context {
-	struct crypto_cipher __rcu	*tfm;
-	__u8				key[TCP_FASTOPEN_KEY_LENGTH];
-	struct rcu_head			rcu;
+	struct crypto_cipher	*tfm;
+	__u8			key[TCP_FASTOPEN_KEY_LENGTH];
+	struct rcu_head		rcu;
 };
 
 /* write queue abstraction */
@@ -1540,15 +1540,14 @@ extern struct request_sock_ops tcp6_request_sock_ops;
 
 extern void tcp_v4_destroy_sock(struct sock *sk);
 
-extern int tcp_v4_gso_send_check(struct sk_buff *skb);
 extern struct sk_buff *tcp_tso_segment(struct sk_buff *skb,
 				       netdev_features_t features);
 extern struct sk_buff **tcp_gro_receive(struct sk_buff **head,
 					struct sk_buff *skb);
-extern struct sk_buff **tcp4_gro_receive(struct sk_buff **head,
-					 struct sk_buff *skb);
 extern int tcp_gro_complete(struct sk_buff *skb);
-extern int tcp4_gro_complete(struct sk_buff *skb);
+
+extern void __tcp_v4_send_check(struct sk_buff *skb, __be32 saddr,
+				__be32 daddr);
 
 #ifdef CONFIG_PROC_FS
 extern int tcp4_proc_init(void);
@@ -1582,6 +1581,8 @@ struct tcp_request_sock_ops {
 						  const struct sk_buff *skb);
 #endif
 };
+
+extern int tcpv4_offload_init(void);
 
 extern void tcp_v4_init(void);
 extern void tcp_init(void);

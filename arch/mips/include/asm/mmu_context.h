@@ -28,11 +28,7 @@
 
 #define TLBMISS_HANDLER_SETUP_PGD(pgd)					\
 do {									\
-	void (*tlbmiss_handler_setup_pgd)(unsigned long);		\
-	extern u32 tlbmiss_handler_setup_pgd_array[16];			\
-									\
-	tlbmiss_handler_setup_pgd =					\
-		(__typeof__(tlbmiss_handler_setup_pgd)) tlbmiss_handler_setup_pgd_array; \
+	extern void tlbmiss_handler_setup_pgd(unsigned long);		\
 	tlbmiss_handler_setup_pgd((unsigned long)(pgd));		\
 } while (0)
 

@@ -60,8 +60,6 @@ truncate_complete_page(struct address_space *mapping, struct page *page)
 	ll_delete_from_page_cache(page);
 }
 
-#  define d_refcount(d)		 ((d)->d_count)
-
 #ifdef ATTR_OPEN
 # define ATTR_FROM_OPEN ATTR_OPEN
 #else

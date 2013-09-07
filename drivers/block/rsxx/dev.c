@@ -155,7 +155,8 @@ static void bio_dma_done_cb(struct rsxx_cardinfo *card,
 		atomic_set(&meta->error, 1);
 
 	if (atomic_dec_and_test(&meta->pending_dmas)) {
-		disk_stats_complete(card, meta->bio, meta->start_time);
+		if (!card->eeh_state && card->gendisk)
+			disk_stats_complete(card, meta->bio, meta->start_time);
 
 		bio_endio(meta->bio, atomic_read(&meta->error) ? -EIO : 0);
 		kmem_cache_free(bio_meta_pool, meta);
@@ -169,6 +170,12 @@ static void rsxx_make_request(struct request_queue *q, struct bio *bio)
 	int st = -EINVAL;
 
 	might_sleep();
+
+	if (!card)
+		goto req_err;
+
+	if (bio->bi_sector + (bio->bi_size >> 9) > get_capacity(card->gendisk))
+		goto req_err;
 
 	if (unlikely(card->halt)) {
 		st = -EFAULT;
@@ -196,7 +203,8 @@ static void rsxx_make_request(struct request_queue *q, struct bio *bio)
 	atomic_set(&bio_meta->pending_dmas, 0);
 	bio_meta->start_time = jiffies;
 
-	disk_stats_start(card, bio);
+	if (!unlikely(card->halt))
+		disk_stats_start(card, bio);
 
 	dev_dbg(CARD_TO_DEV(card), "BIO[%c]: meta: %p addr8: x%llx size: %d\n",
 		 bio_data_dir(bio) ? 'W' : 'R', bio_meta,
@@ -223,24 +231,6 @@ static bool rsxx_discard_supported(struct rsxx_cardinfo *card)
 	pci_read_config_byte(card->dev, PCI_REVISION_ID, &pci_rev);
 
 	return (pci_rev >= RSXX_DISCARD_SUPPORT);
-}
-
-static unsigned short rsxx_get_logical_block_size(
-					struct rsxx_cardinfo *card)
-{
-	u32 capabilities = 0;
-	int st;
-
-	st = rsxx_get_card_capabilities(card, &capabilities);
-	if (st)
-		dev_warn(CARD_TO_DEV(card),
-			"Failed reading card capabilities register\n");
-
-	/* Earlier firmware did not have support for 512 byte accesses */
-	if (capabilities & CARD_CAP_SUBPAGE_WRITES)
-		return 512;
-	else
-		return RSXX_HW_BLK_SIZE;
 }
 
 int rsxx_attach_dev(struct rsxx_cardinfo *card)
@@ -305,7 +295,7 @@ int rsxx_setup_dev(struct rsxx_cardinfo *card)
 		return -ENOMEM;
 	}
 
-	blk_size = rsxx_get_logical_block_size(card);
+	blk_size = card->config.data.block_size;
 
 	blk_queue_make_request(card->queue, rsxx_make_request);
 	blk_queue_bounce_limit(card->queue, BLK_BOUNCE_ANY);
@@ -347,6 +337,7 @@ void rsxx_destroy_dev(struct rsxx_cardinfo *card)
 	card->gendisk = NULL;
 
 	blk_cleanup_queue(card->queue);
+	card->queue->queuedata = NULL;
 	unregister_blkdev(card->major, DRIVER_NAME);
 }
 

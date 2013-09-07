@@ -362,10 +362,14 @@ struct vfio_iommu_type1_dma_map {
 #define VFIO_IOMMU_MAP_DMA _IO(VFIO_TYPE, VFIO_BASE + 13)
 
 /**
- * VFIO_IOMMU_UNMAP_DMA - _IOW(VFIO_TYPE, VFIO_BASE + 14, struct vfio_dma_unmap)
+ * VFIO_IOMMU_UNMAP_DMA - _IOWR(VFIO_TYPE, VFIO_BASE + 14,
+ *							struct vfio_dma_unmap)
  *
  * Unmap IO virtual addresses using the provided struct vfio_dma_unmap.
- * Caller sets argsz.
+ * Caller sets argsz.  The actual unmapped size is returned in the size
+ * field.  No guarantee is made to the user that arbitrary unmaps of iova
+ * or size different from those used in the original mapping call will
+ * succeed.
  */
 struct vfio_iommu_type1_dma_unmap {
 	__u32	argsz;

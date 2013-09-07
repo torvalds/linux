@@ -217,7 +217,6 @@ static int tc6387xb_remove(struct platform_device *dev)
 	release_resource(&tc6387xb->rscr);
 	clk_disable(tc6387xb->clk32k);
 	clk_put(tc6387xb->clk32k);
-	platform_set_drvdata(dev, NULL);
 	kfree(tc6387xb);
 
 	return 0;

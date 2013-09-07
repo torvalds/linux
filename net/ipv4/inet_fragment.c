@@ -247,8 +247,6 @@ static struct inet_frag_queue *inet_frag_intern(struct netns_frags *nf,
 {
 	struct inet_frag_bucket *hb;
 	struct inet_frag_queue *qp;
-#ifdef CONFIG_SMP
-#endif
 	unsigned int hash;
 
 	read_lock(&f->lock); /* Protects against hash rebuild */

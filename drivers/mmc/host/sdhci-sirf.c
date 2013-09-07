@@ -13,7 +13,6 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/mmc/slot-gpio.h>
-#include <linux/pinctrl/consumer.h>
 #include "sdhci-pltfm.h"
 
 struct sdhci_sirf_priv {
@@ -24,7 +23,7 @@ struct sdhci_sirf_priv {
 static unsigned int sdhci_sirf_get_max_clk(struct sdhci_host *host)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct sdhci_sirf_priv *priv = pltfm_host->priv;
+	struct sdhci_sirf_priv *priv = sdhci_pltfm_priv(pltfm_host);
 	return clk_get_rate(priv->clk);
 }
 
@@ -46,47 +45,35 @@ static int sdhci_sirf_probe(struct platform_device *pdev)
 	struct sdhci_host *host;
 	struct sdhci_pltfm_host *pltfm_host;
 	struct sdhci_sirf_priv *priv;
-	struct pinctrl *pinctrl;
+	struct clk *clk;
+	int gpio_cd;
 	int ret;
 
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl)) {
-		dev_err(&pdev->dev, "unable to get pinmux");
-		return PTR_ERR(pinctrl);
-	}
-
-	priv = devm_kzalloc(&pdev->dev, sizeof(struct sdhci_sirf_priv),
-		GFP_KERNEL);
-	if (!priv) {
-		dev_err(&pdev->dev, "unable to allocate private data");
-		return -ENOMEM;
-	}
-
-	priv->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(priv->clk)) {
+	clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(clk)) {
 		dev_err(&pdev->dev, "unable to get clock");
-		return PTR_ERR(priv->clk);
+		return PTR_ERR(clk);
 	}
 
-	if (pdev->dev.of_node) {
-		priv->gpio_cd = of_get_named_gpio(pdev->dev.of_node,
-			"cd-gpios", 0);
-	} else {
-		priv->gpio_cd = -EINVAL;
-	}
+	if (pdev->dev.of_node)
+		gpio_cd = of_get_named_gpio(pdev->dev.of_node, "cd-gpios", 0);
+	else
+		gpio_cd = -EINVAL;
 
-	host = sdhci_pltfm_init(pdev, &sdhci_sirf_pdata);
-	if (IS_ERR(host)) {
-		ret = PTR_ERR(host);
-		goto err_sdhci_pltfm_init;
-	}
+	host = sdhci_pltfm_init(pdev, &sdhci_sirf_pdata, sizeof(struct sdhci_sirf_priv));
+	if (IS_ERR(host))
+		return PTR_ERR(host);
 
 	pltfm_host = sdhci_priv(host);
-	pltfm_host->priv = priv;
+	priv = sdhci_pltfm_priv(pltfm_host);
+	priv->clk = clk;
+	priv->gpio_cd = gpio_cd;
 
 	sdhci_get_of_property(pdev);
 
-	clk_prepare_enable(priv->clk);
+	ret = clk_prepare_enable(priv->clk);
+	if (ret)
+		goto err_clk_prepare;
 
 	ret = sdhci_add_host(host);
 	if (ret)
@@ -111,8 +98,8 @@ err_request_cd:
 	sdhci_remove_host(host, 0);
 err_sdhci_add:
 	clk_disable_unprepare(priv->clk);
+err_clk_prepare:
 	sdhci_pltfm_free(pdev);
-err_sdhci_pltfm_init:
 	return ret;
 }
 
@@ -120,7 +107,7 @@ static int sdhci_sirf_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct sdhci_sirf_priv *priv = pltfm_host->priv;
+	struct sdhci_sirf_priv *priv = sdhci_pltfm_priv(pltfm_host);
 
 	sdhci_pltfm_unregister(pdev);
 
@@ -136,7 +123,7 @@ static int sdhci_sirf_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct sdhci_sirf_priv *priv = pltfm_host->priv;
+	struct sdhci_sirf_priv *priv = sdhci_pltfm_priv(pltfm_host);
 	int ret;
 
 	ret = sdhci_suspend_host(host);
@@ -152,7 +139,7 @@ static int sdhci_sirf_resume(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct sdhci_sirf_priv *priv = pltfm_host->priv;
+	struct sdhci_sirf_priv *priv = sdhci_pltfm_priv(pltfm_host);
 	int ret;
 
 	ret = clk_enable(priv->clk);

@@ -159,7 +159,7 @@ static DEFINE_PER_CPU(struct clock_event_device, tile_timer) = {
 	.set_mode = tile_timer_set_mode,
 };
 
-void __cpuinit setup_tile_timer(void)
+void setup_tile_timer(void)
 {
 	struct clock_event_device *evt = &__get_cpu_var(tile_timer);
 

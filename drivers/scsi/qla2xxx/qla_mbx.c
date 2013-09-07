@@ -177,8 +177,14 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 			WRT_REG_WORD(&reg->isp.hccr, HCCR_SET_HOST_INT);
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
-		wait_for_completion_timeout(&ha->mbx_intr_comp, mcp->tov * HZ);
-
+		if (!wait_for_completion_timeout(&ha->mbx_intr_comp,
+		    mcp->tov * HZ)) {
+			ql_dbg(ql_dbg_mbx, vha, 0x117a,
+			    "cmd=%x Timeout.\n", command);
+			spin_lock_irqsave(&ha->hardware_lock, flags);
+			clear_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags);
+			spin_unlock_irqrestore(&ha->hardware_lock, flags);
+		}
 	} else {
 		ql_dbg(ql_dbg_mbx, vha, 0x1011,
 		    "Cmd=%x Polling Mode.\n", command);
@@ -275,9 +281,11 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 
 		/*
 		 * Attempt to capture a firmware dump for further analysis
-		 * of the current firmware state
+		 * of the current firmware state.  We do not need to do this
+		 * if we are intentionally generating a dump.
 		 */
-		ha->isp_ops->fw_dump(vha, 0);
+		if (mcp->mb[0] != MBC_GEN_SYSTEM_ERROR)
+			ha->isp_ops->fw_dump(vha, 0);
 
 		rval = QLA_FUNCTION_TIMEOUT;
 	}

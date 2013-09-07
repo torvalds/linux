@@ -58,7 +58,6 @@
 #include <linux/dma-mapping.h>
 #include <media/tveeprom.h>
 #include <media/saa7115.h>
-#include <media/v4l2-chip-ident.h>
 #include "tuner-xc2028.h"
 
 /* If you have already X v4l cards, then set this to X. This way
@@ -968,15 +967,10 @@ static void ivtv_load_and_init_modules(struct ivtv *itv)
 	}
 
 	if (hw & IVTV_HW_SAA711X) {
-		struct v4l2_dbg_chip_ident v;
-
 		/* determine the exact saa711x model */
 		itv->hw_flags &= ~IVTV_HW_SAA711X;
 
-		v.match.type = V4L2_CHIP_MATCH_I2C_DRIVER;
-		strlcpy(v.match.name, "saa7115", sizeof(v.match.name));
-		ivtv_call_hw(itv, IVTV_HW_SAA711X, core, g_chip_ident, &v);
-		if (v.ident == V4L2_IDENT_SAA7114) {
+		if (strstr(itv->sd_video->name, "saa7114")) {
 			itv->hw_flags |= IVTV_HW_SAA7114;
 			/* VBI is not yet supported by the saa7114 driver. */
 			itv->v4l2_cap &= ~(V4L2_CAP_SLICED_VBI_CAPTURE|V4L2_CAP_VBI_CAPTURE);

@@ -1686,15 +1686,4 @@ static struct pci_driver rr_driver = {
 	.remove		= rr_remove_one,
 };
 
-static int __init rr_init_module(void)
-{
-	return pci_register_driver(&rr_driver);
-}
-
-static void __exit rr_cleanup_module(void)
-{
-	pci_unregister_driver(&rr_driver);
-}
-
-module_init(rr_init_module);
-module_exit(rr_cleanup_module);
+module_pci_driver(rr_driver);

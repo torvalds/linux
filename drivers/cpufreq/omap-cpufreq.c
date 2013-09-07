@@ -165,7 +165,7 @@ static inline void freq_table_free(void)
 		opp_free_cpufreq_table(mpu_dev, &freq_table);
 }
 
-static int __cpuinit omap_cpu_init(struct cpufreq_policy *policy)
+static int omap_cpu_init(struct cpufreq_policy *policy)
 {
 	int result = 0;
 

@@ -594,7 +594,7 @@ __setup("iop13xx_init_adma", iop13xx_init_adma_setup);
 __setup("iop13xx_init_uart", iop13xx_init_uart_setup);
 __setup("iop13xx_init_i2c", iop13xx_init_i2c_setup);
 
-void iop13xx_restart(char mode, const char *cmd)
+void iop13xx_restart(enum reboot_mode mode, const char *cmd)
 {
 	/*
 	 * Reset the internal bus (warning both cores are reset)

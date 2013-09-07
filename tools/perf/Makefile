@@ -121,17 +121,16 @@ SCRIPT_SH += perf-archive.sh
 grep-libs = $(filter -l%,$(1))
 strip-libs = $(filter-out -l%,$(1))
 
-LK_PATH=$(LK_DIR)
-
 ifneq ($(OUTPUT),)
   TE_PATH=$(OUTPUT)
 ifneq ($(subdir),)
-  LK_PATH=$(OUTPUT)$(LK_DIR)
+  LK_PATH=$(objtree)/lib/lk/
 else
   LK_PATH=$(OUTPUT)
 endif
 else
   TE_PATH=$(TRACE_EVENT_DIR)
+  LK_PATH=$(LK_DIR)
 endif
 
 LIBTRACEEVENT = $(TE_PATH)libtraceevent.a

@@ -247,9 +247,10 @@ static int wm831x_wdt_probe(struct platform_device *pdev)
 		reg |= pdata->software << WM831X_WDOG_RST_SRC_SHIFT;
 
 		if (pdata->update_gpio) {
-			ret = gpio_request_one(pdata->update_gpio,
-					       GPIOF_DIR_OUT | GPIOF_INIT_LOW,
-					       "Watchdog update");
+			ret = devm_gpio_request_one(&pdev->dev,
+						pdata->update_gpio,
+						GPIOF_OUT_INIT_LOW,
+						"Watchdog update");
 			if (ret < 0) {
 				dev_err(wm831x->dev,
 					"Failed to request update GPIO: %d\n",
@@ -270,7 +271,7 @@ static int wm831x_wdt_probe(struct platform_device *pdev)
 		} else {
 			dev_err(wm831x->dev,
 				"Failed to unlock security key: %d\n", ret);
-			goto err_gpio;
+			goto err;
 		}
 	}
 
@@ -278,28 +279,22 @@ static int wm831x_wdt_probe(struct platform_device *pdev)
 	if (ret != 0) {
 		dev_err(wm831x->dev, "watchdog_register_device() failed: %d\n",
 			ret);
-		goto err_gpio;
+		goto err;
 	}
 
-	dev_set_drvdata(&pdev->dev, driver_data);
+	platform_set_drvdata(pdev, driver_data);
 
 	return 0;
 
-err_gpio:
-	if (driver_data->update_gpio)
-		gpio_free(driver_data->update_gpio);
 err:
 	return ret;
 }
 
 static int wm831x_wdt_remove(struct platform_device *pdev)
 {
-	struct wm831x_wdt_drvdata *driver_data = dev_get_drvdata(&pdev->dev);
+	struct wm831x_wdt_drvdata *driver_data = platform_get_drvdata(pdev);
 
 	watchdog_unregister_device(&driver_data->wdt);
-
-	if (driver_data->update_gpio)
-		gpio_free(driver_data->update_gpio);
 
 	return 0;
 }

@@ -11,7 +11,6 @@
 #include <linux/signal.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/mii.h>
@@ -935,7 +934,8 @@ static netdev_tx_t rtl8152_start_xmit(struct sk_buff *skb,
 	struct r8152 *tp = netdev_priv(netdev);
 	struct net_device_stats *stats = rtl8152_get_stats(netdev);
 	struct tx_desc *tx_desc;
-	int len, res;
+	unsigned int len;
+	int res;
 
 	netif_stop_queue(netdev);
 	len = skb->len;
@@ -1749,18 +1749,7 @@ static struct usb_driver rtl8152_driver = {
 	.resume =	rtl8152_resume
 };
 
-static int __init usb_rtl8152_init(void)
-{
-	return usb_register(&rtl8152_driver);
-}
-
-static void __exit usb_rtl8152_exit(void)
-{
-	usb_deregister(&rtl8152_driver);
-}
-
-module_init(usb_rtl8152_init);
-module_exit(usb_rtl8152_exit);
+module_usb_driver(rtl8152_driver);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

@@ -41,6 +41,7 @@
 #include <linux/stat.h>
 #include <linux/sys_soc.h>
 #include <linux/termios.h>
+#include <linux/sched_clock.h>
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
@@ -48,7 +49,6 @@
 #include <asm/setup.h>
 #include <asm/param.h>		/* HZ */
 #include <asm/mach-types.h>
-#include <asm/sched_clock.h>
 
 #include <mach/lm.h>
 #include <mach/irqs.h>

@@ -309,6 +309,9 @@ struct mwifiex_bssdescriptor {
 	u16 wapi_offset;
 	u8 *beacon_buf;
 	u32 beacon_buf_size;
+	u8 sensed_11h;
+	u8 local_constraint;
+	u8 chan_sw_ie_present;
 };
 
 struct mwifiex_current_bss_params {
@@ -492,7 +495,6 @@ struct mwifiex_private {
 	struct semaphore async_sem;
 	u8 report_scan_result;
 	struct cfg80211_scan_request *scan_request;
-	struct mwifiex_user_scan_cfg *user_scan_cfg;
 	u8 cfg_bssid[6];
 	struct wps wps;
 	u8 scan_block;
@@ -510,6 +512,9 @@ struct mwifiex_private {
 	u8 ap_11ac_enabled;
 	u32 mgmt_frame_mask;
 	struct mwifiex_roc_cfg roc_cfg;
+	bool scan_aborting;
+	u8 csa_chan;
+	unsigned long csa_expire_time;
 };
 
 enum mwifiex_ba_status {
@@ -730,6 +735,7 @@ struct mwifiex_adapter {
 	u16 max_mgmt_ie_index;
 	u8 scan_delay_cnt;
 	u8 empty_tx_q_cnt;
+	const struct firmware *cal_data;
 
 	/* 11AC */
 	u32 is_hw_11ac_capable;
@@ -1017,6 +1023,24 @@ static inline bool mwifiex_is_skb_mgmt_frame(struct sk_buff *skb)
 	return (*(u32 *)skb->data == PKT_TYPE_MGMT);
 }
 
+/* This function retrieves channel closed for operation by Channel
+ * Switch Announcement.
+ */
+static inline u8
+mwifiex_11h_get_csa_closed_channel(struct mwifiex_private *priv)
+{
+	if (!priv->csa_chan)
+		return 0;
+
+	/* Clear csa channel, if DFS channel move time has passed */
+	if (jiffies > priv->csa_expire_time) {
+		priv->csa_chan = 0;
+		priv->csa_expire_time = 0;
+	}
+
+	return priv->csa_chan;
+}
+
 int mwifiex_init_shutdown_fw(struct mwifiex_private *priv,
 			     u32 func_init_shutdown);
 int mwifiex_add_card(void *, struct semaphore *, struct mwifiex_if_ops *, u8);
@@ -1115,6 +1139,12 @@ int mwifiex_set_mgmt_ies(struct mwifiex_private *priv,
 			 struct cfg80211_beacon_data *data);
 int mwifiex_del_mgmt_ies(struct mwifiex_private *priv);
 u8 *mwifiex_11d_code_2_region(u8 code);
+void mwifiex_uap_del_sta_data(struct mwifiex_private *priv,
+			      struct mwifiex_sta_node *node);
+
+void mwifiex_11h_process_join(struct mwifiex_private *priv, u8 **buffer,
+			      struct mwifiex_bssdescriptor *bss_desc);
+int mwifiex_11h_handle_event_chanswann(struct mwifiex_private *priv);
 
 extern const struct ethtool_ops mwifiex_ethtool_ops;
 

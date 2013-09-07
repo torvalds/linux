@@ -376,25 +376,6 @@ config CRYPTO_CRC32_PCLMUL
 	  which will enable any routine to use the CRC-32-IEEE 802.3 checksum
 	  and gain better performance as compared with the table implementation.
 
-config CRYPTO_CRCT10DIF
-	tristate "CRCT10DIF algorithm"
-	select CRYPTO_HASH
-	help
-	  CRC T10 Data Integrity Field computation is being cast as
-	  a crypto transform.  This allows for faster crc t10 diff
-	  transforms to be used if they are available.
-
-config CRYPTO_CRCT10DIF_PCLMUL
-	tristate "CRCT10DIF PCLMULQDQ hardware acceleration"
-	depends on X86 && 64BIT && CRC_T10DIF
-	select CRYPTO_HASH
-	help
-	  For x86_64 processors with SSE4.2 and PCLMULQDQ supported,
-	  CRC T10 DIF PCLMULQDQ computation can be hardware
-	  accelerated PCLMULQDQ instruction. This option will create
-	  'crct10dif-plcmul' module, which is faster when computing the
-	  crct10dif checksum as compared with the generic table implementation.
-
 config CRYPTO_GHASH
 	tristate "GHASH digest algorithm"
 	select CRYPTO_GF128MUL
@@ -1335,6 +1316,22 @@ config CRYPTO_842
 	select LZO_DECOMPRESS
 	help
 	  This is the 842 algorithm.
+
+config CRYPTO_LZ4
+	tristate "LZ4 compression algorithm"
+	select CRYPTO_ALGAPI
+	select LZ4_COMPRESS
+	select LZ4_DECOMPRESS
+	help
+	  This is the LZ4 algorithm.
+
+config CRYPTO_LZ4HC
+	tristate "LZ4HC compression algorithm"
+	select CRYPTO_ALGAPI
+	select LZ4HC_COMPRESS
+	select LZ4_DECOMPRESS
+	help
+	  This is the LZ4 high compression mode algorithm.
 
 comment "Random Number Generation"
 

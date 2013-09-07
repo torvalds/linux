@@ -919,7 +919,7 @@ static int ab8500_gpadc_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct ab8500_gpadc *gpadc;
 
-	gpadc = kzalloc(sizeof(struct ab8500_gpadc), GFP_KERNEL);
+	gpadc = devm_kzalloc(&pdev->dev, sizeof(struct ab8500_gpadc), GFP_KERNEL);
 	if (!gpadc) {
 		dev_err(&pdev->dev, "Error: No memory\n");
 		return -ENOMEM;
@@ -999,8 +999,6 @@ fail_irq:
 	free_irq(gpadc->irq_sw, gpadc);
 	free_irq(gpadc->irq_hw, gpadc);
 fail:
-	kfree(gpadc);
-	gpadc = NULL;
 	return ret;
 }
 
@@ -1025,8 +1023,6 @@ static int ab8500_gpadc_remove(struct platform_device *pdev)
 
 	pm_runtime_put_noidle(gpadc->dev);
 
-	kfree(gpadc);
-	gpadc = NULL;
 	return 0;
 }
 

@@ -73,7 +73,7 @@ int s5c73m3_spi_write(struct s5c73m3 *state, const void *addr,
 
 	memset(padding, 0, sizeof(padding));
 
-	for (i = 0; i < count ; i++) {
+	for (i = 0; i < count; i++) {
 		r = spi_xmit(spi_dev, (void *)addr + j, tx_size, SPI_DIR_TX);
 		if (r < 0)
 			return r;
@@ -98,7 +98,7 @@ int s5c73m3_spi_read(struct s5c73m3 *state, void *addr,
 	unsigned int i, j = 0;
 	int r = 0;
 
-	for (i = 0; i < count ; i++) {
+	for (i = 0; i < count; i++) {
 		r = spi_xmit(spi_dev, addr + j, tx_size, SPI_DIR_RX);
 		if (r < 0)
 			return r;

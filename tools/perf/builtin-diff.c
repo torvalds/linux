@@ -607,7 +607,6 @@ int cmd_diff(int argc, const char **argv, const char *prefix __maybe_unused)
 		input_new = "perf.data.guest";
 	}
 
-	symbol_conf.exclude_other = false;
 	if (symbol__init() < 0)
 		return -1;
 

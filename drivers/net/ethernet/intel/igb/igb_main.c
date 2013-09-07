@@ -1667,10 +1667,13 @@ void igb_down(struct igb_adapter *adapter)
 	wrfl();
 	msleep(10);
 
-	for (i = 0; i < adapter->num_q_vectors; i++)
-		napi_disable(&(adapter->q_vector[i]->napi));
-
 	igb_irq_disable(adapter);
+
+	for (i = 0; i < adapter->num_q_vectors; i++) {
+		napi_synchronize(&(adapter->q_vector[i]->napi));
+		napi_disable(&(adapter->q_vector[i]->napi));
+	}
+
 
 	del_timer_sync(&adapter->watchdog_timer);
 	del_timer_sync(&adapter->phy_info_timer);
@@ -6622,7 +6625,7 @@ static void igb_process_skb_fields(struct igb_ring *rx_ring,
 
 	igb_rx_checksum(rx_ring, rx_desc, skb);
 
-	igb_ptp_rx_hwtstamp(rx_ring->q_vector, rx_desc, skb);
+	igb_ptp_rx_hwtstamp(rx_ring, rx_desc, skb);
 
 	if ((dev->features & NETIF_F_HW_VLAN_CTAG_RX) &&
 	    igb_test_staterr(rx_desc, E1000_RXD_STAT_VP)) {

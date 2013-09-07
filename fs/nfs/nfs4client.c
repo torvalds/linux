@@ -66,6 +66,11 @@ struct nfs_client *nfs4_alloc_client(const struct nfs_client_initdata *cl_init)
 	if (err)
 		goto error;
 
+	if (cl_init->minorversion > NFS4_MAX_MINOR_VERSION) {
+		err = -EINVAL;
+		goto error;
+	}
+
 	spin_lock_init(&clp->cl_lock);
 	INIT_DELAYED_WORK(&clp->cl_renewd, nfs4_renew_state);
 	rpc_init_wait_queue(&clp->cl_rpcwaitq, "NFS client");
@@ -562,14 +567,14 @@ static bool nfs4_cb_match_client(const struct sockaddr *addr,
  */
 struct nfs_client *
 nfs4_find_client_sessionid(struct net *net, const struct sockaddr *addr,
-			   struct nfs4_sessionid *sid)
+			   struct nfs4_sessionid *sid, u32 minorversion)
 {
 	struct nfs_client *clp;
 	struct nfs_net *nn = net_generic(net, nfs_net_id);
 
 	spin_lock(&nn->nfs_client_lock);
 	list_for_each_entry(clp, &nn->nfs_client_list, cl_share_link) {
-		if (nfs4_cb_match_client(addr, clp, 1) == false)
+		if (nfs4_cb_match_client(addr, clp, minorversion) == false)
 			continue;
 
 		if (!nfs4_has_session(clp))
@@ -592,7 +597,7 @@ nfs4_find_client_sessionid(struct net *net, const struct sockaddr *addr,
 
 struct nfs_client *
 nfs4_find_client_sessionid(struct net *net, const struct sockaddr *addr,
-			   struct nfs4_sessionid *sid)
+			   struct nfs4_sessionid *sid, u32 minorversion)
 {
 	return NULL;
 }
@@ -626,6 +631,8 @@ static int nfs4_set_client(struct nfs_server *server,
 
 	if (server->flags & NFS_MOUNT_NORESVPORT)
 		set_bit(NFS_CS_NORESVPORT, &cl_init.init_flags);
+	if (server->options & NFS_OPTION_MIGRATION)
+		set_bit(NFS_CS_MIGRATION, &cl_init.init_flags);
 
 	/* Allocate or find a client reference we can use */
 	clp = nfs_get_client(&cl_init, timeparms, ip_addr, authflavour);
@@ -730,7 +737,7 @@ static int nfs4_server_common_setup(struct nfs_server *server,
 		return -ENOMEM;
 
 	/* We must ensure the session is initialised first */
-	error = nfs4_init_session(server);
+	error = nfs4_init_session(server->nfs_client);
 	if (error < 0)
 		goto out;
 

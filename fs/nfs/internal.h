@@ -165,7 +165,7 @@ extern void nfs_free_client(struct nfs_client *);
 extern struct nfs_client *nfs4_find_client_ident(struct net *, int);
 extern struct nfs_client *
 nfs4_find_client_sessionid(struct net *, const struct sockaddr *,
-				struct nfs4_sessionid *);
+				struct nfs4_sessionid *, u32);
 extern struct nfs_server *nfs_create_server(struct nfs_mount_info *,
 					struct nfs_subversion *);
 extern struct nfs_server *nfs4_create_server(
@@ -255,6 +255,7 @@ extern int nfs4_decode_dirent(struct xdr_stream *,
 #ifdef CONFIG_NFS_V4_1
 extern const u32 nfs41_maxread_overhead;
 extern const u32 nfs41_maxwrite_overhead;
+extern const u32 nfs41_maxgetdevinfo_overhead;
 #endif
 
 /* nfs4proc.c */

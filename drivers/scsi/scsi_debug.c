@@ -258,7 +258,7 @@ struct sdebug_queued_cmd {
 static struct sdebug_queued_cmd queued_arr[SCSI_DEBUG_CANQUEUE];
 
 static unsigned char * fake_storep;	/* ramdisk storage */
-static unsigned char *dif_storep;	/* protection info */
+static struct sd_dif_tuple *dif_storep;	/* protection info */
 static void *map_storep;		/* provisioning map */
 
 static unsigned long map_size;
@@ -276,11 +276,6 @@ static DEFINE_RWLOCK(atomic_rw);
 static char sdebug_proc_name[] = "scsi_debug";
 
 static struct bus_type pseudo_lld_bus;
-
-static inline sector_t dif_offset(sector_t sector)
-{
-	return sector << 3;
-}
 
 static struct device_driver sdebug_driverfs_driver = {
 	.name 		= sdebug_proc_name,
@@ -439,10 +434,7 @@ static int fill_from_dev_buffer(struct scsi_cmnd *scp, unsigned char *arr,
 
 	act_len = sg_copy_from_buffer(sdb->table.sgl, sdb->table.nents,
 				      arr, arr_len);
-	if (sdb->resid)
-		sdb->resid -= act_len;
-	else
-		sdb->resid = scsi_bufflen(scp) - act_len;
+	sdb->resid = scsi_bufflen(scp) - act_len;
 
 	return 0;
 }
@@ -1693,26 +1685,94 @@ static int check_device_access_params(struct sdebug_dev_info *devi,
 	return 0;
 }
 
+/* Returns number of bytes copied or -1 if error. */
 static int do_device_access(struct scsi_cmnd *scmd,
 			    struct sdebug_dev_info *devi,
 			    unsigned long long lba, unsigned int num, int write)
 {
 	int ret;
 	unsigned long long block, rest = 0;
-	int (*func)(struct scsi_cmnd *, unsigned char *, int);
+	struct scsi_data_buffer *sdb;
+	enum dma_data_direction dir;
+	size_t (*func)(struct scatterlist *, unsigned int, void *, size_t,
+		       off_t);
 
-	func = write ? fetch_to_dev_buffer : fill_from_dev_buffer;
+	if (write) {
+		sdb = scsi_out(scmd);
+		dir = DMA_TO_DEVICE;
+		func = sg_pcopy_to_buffer;
+	} else {
+		sdb = scsi_in(scmd);
+		dir = DMA_FROM_DEVICE;
+		func = sg_pcopy_from_buffer;
+	}
+
+	if (!sdb->length)
+		return 0;
+	if (!(scsi_bidi_cmnd(scmd) || scmd->sc_data_direction == dir))
+		return -1;
 
 	block = do_div(lba, sdebug_store_sectors);
 	if (block + num > sdebug_store_sectors)
 		rest = block + num - sdebug_store_sectors;
 
-	ret = func(scmd, fake_storep + (block * scsi_debug_sector_size),
-		   (num - rest) * scsi_debug_sector_size);
-	if (!ret && rest)
-		ret = func(scmd, fake_storep, rest * scsi_debug_sector_size);
+	ret = func(sdb->table.sgl, sdb->table.nents,
+		   fake_storep + (block * scsi_debug_sector_size),
+		   (num - rest) * scsi_debug_sector_size, 0);
+	if (ret != (num - rest) * scsi_debug_sector_size)
+		return ret;
+
+	if (rest) {
+		ret += func(sdb->table.sgl, sdb->table.nents,
+			    fake_storep, rest * scsi_debug_sector_size,
+			    (num - rest) * scsi_debug_sector_size);
+	}
 
 	return ret;
+}
+
+static u16 dif_compute_csum(const void *buf, int len)
+{
+	u16 csum;
+
+	switch (scsi_debug_guard) {
+	case 1:
+		csum = ip_compute_csum(buf, len);
+		break;
+	case 0:
+		csum = cpu_to_be16(crc_t10dif(buf, len));
+		break;
+	}
+	return csum;
+}
+
+static int dif_verify(struct sd_dif_tuple *sdt, const void *data,
+		      sector_t sector, u32 ei_lba)
+{
+	u16 csum = dif_compute_csum(data, scsi_debug_sector_size);
+
+	if (sdt->guard_tag != csum) {
+		pr_err("%s: GUARD check failed on sector %lu rcvd 0x%04x, data 0x%04x\n",
+			__func__,
+			(unsigned long)sector,
+			be16_to_cpu(sdt->guard_tag),
+			be16_to_cpu(csum));
+		return 0x01;
+	}
+	if (scsi_debug_dif == SD_DIF_TYPE1_PROTECTION &&
+	    be32_to_cpu(sdt->ref_tag) != (sector & 0xffffffff)) {
+		pr_err("%s: REF check failed on sector %lu\n",
+			__func__, (unsigned long)sector);
+		return 0x03;
+	}
+	if (scsi_debug_dif == SD_DIF_TYPE2_PROTECTION &&
+	    be32_to_cpu(sdt->ref_tag) != ei_lba) {
+		pr_err("%s: REF check failed on sector %lu\n",
+			__func__, (unsigned long)sector);
+			dif_errors++;
+		return 0x03;
+	}
+	return 0;
 }
 
 static int prot_verify_read(struct scsi_cmnd *SCpnt, sector_t start_sec,
@@ -1727,71 +1787,38 @@ static int prot_verify_read(struct scsi_cmnd *SCpnt, sector_t start_sec,
 
 	start_sec = do_div(tmp_sec, sdebug_store_sectors);
 
-	sdt = (struct sd_dif_tuple *)(dif_storep + dif_offset(start_sec));
+	sdt = dif_storep + start_sec;
 
 	for (i = 0 ; i < sectors ; i++) {
-		u16 csum;
+		int ret;
 
 		if (sdt[i].app_tag == 0xffff)
 			continue;
 
 		sector = start_sec + i;
 
-		switch (scsi_debug_guard) {
-		case 1:
-			csum = ip_compute_csum(fake_storep +
-					       sector * scsi_debug_sector_size,
-					       scsi_debug_sector_size);
-			break;
-		case 0:
-			csum = crc_t10dif(fake_storep +
-					  sector * scsi_debug_sector_size,
-					  scsi_debug_sector_size);
-			csum = cpu_to_be16(csum);
-			break;
-		default:
-			BUG();
-		}
-
-		if (sdt[i].guard_tag != csum) {
-			printk(KERN_ERR "%s: GUARD check failed on sector %lu" \
-			       " rcvd 0x%04x, data 0x%04x\n", __func__,
-			       (unsigned long)sector,
-			       be16_to_cpu(sdt[i].guard_tag),
-			       be16_to_cpu(csum));
+		ret = dif_verify(&sdt[i],
+				 fake_storep + sector * scsi_debug_sector_size,
+				 sector, ei_lba);
+		if (ret) {
 			dif_errors++;
-			return 0x01;
-		}
-
-		if (scsi_debug_dif == SD_DIF_TYPE1_PROTECTION &&
-		    be32_to_cpu(sdt[i].ref_tag) != (sector & 0xffffffff)) {
-			printk(KERN_ERR "%s: REF check failed on sector %lu\n",
-			       __func__, (unsigned long)sector);
-			dif_errors++;
-			return 0x03;
-		}
-
-		if (scsi_debug_dif == SD_DIF_TYPE2_PROTECTION &&
-		    be32_to_cpu(sdt[i].ref_tag) != ei_lba) {
-			printk(KERN_ERR "%s: REF check failed on sector %lu\n",
-			       __func__, (unsigned long)sector);
-			dif_errors++;
-			return 0x03;
+			return ret;
 		}
 
 		ei_lba++;
 	}
 
-	resid = sectors * 8; /* Bytes of protection data to copy into sgl */
+	/* Bytes of protection data to copy into sgl */
+	resid = sectors * sizeof(*dif_storep);
 	sector = start_sec;
 
 	scsi_for_each_prot_sg(SCpnt, psgl, scsi_prot_sg_count(SCpnt), i) {
 		int len = min(psgl->length, resid);
 
 		paddr = kmap_atomic(sg_page(psgl)) + psgl->offset;
-		memcpy(paddr, dif_storep + dif_offset(sector), len);
+		memcpy(paddr, dif_storep + sector, len);
 
-		sector += len >> 3;
+		sector += len / sizeof(*dif_storep);
 		if (sector >= sdebug_store_sectors) {
 			/* Force wrap */
 			tmp_sec = sector;
@@ -1849,7 +1876,12 @@ static int resp_read(struct scsi_cmnd *SCpnt, unsigned long long lba,
 	read_lock_irqsave(&atomic_rw, iflags);
 	ret = do_device_access(SCpnt, devip, lba, num, 0);
 	read_unlock_irqrestore(&atomic_rw, iflags);
-	return ret;
+	if (ret == -1)
+		return DID_ERROR << 16;
+
+	scsi_in(SCpnt)->resid = scsi_bufflen(SCpnt) - ret;
+
+	return 0;
 }
 
 void dump_sector(unsigned char *buf, int len)
@@ -1884,22 +1916,21 @@ static int prot_verify_write(struct scsi_cmnd *SCpnt, sector_t start_sec,
 	sector_t tmp_sec = start_sec;
 	sector_t sector;
 	int ppage_offset;
-	unsigned short csum;
 
 	sector = do_div(tmp_sec, sdebug_store_sectors);
 
 	BUG_ON(scsi_sg_count(SCpnt) == 0);
 	BUG_ON(scsi_prot_sg_count(SCpnt) == 0);
 
-	paddr = kmap_atomic(sg_page(psgl)) + psgl->offset;
 	ppage_offset = 0;
 
 	/* For each data page */
 	scsi_for_each_sg(SCpnt, dsgl, scsi_sg_count(SCpnt), i) {
 		daddr = kmap_atomic(sg_page(dsgl)) + dsgl->offset;
+		paddr = kmap_atomic(sg_page(psgl)) + psgl->offset;
 
 		/* For each sector-sized chunk in data page */
-		for (j = 0 ; j < dsgl->length ; j += scsi_debug_sector_size) {
+		for (j = 0; j < dsgl->length; j += scsi_debug_sector_size) {
 
 			/* If we're at the end of the current
 			 * protection page advance to the next one
@@ -1915,51 +1946,9 @@ static int prot_verify_write(struct scsi_cmnd *SCpnt, sector_t start_sec,
 
 			sdt = paddr + ppage_offset;
 
-			switch (scsi_debug_guard) {
-			case 1:
-				csum = ip_compute_csum(daddr,
-						       scsi_debug_sector_size);
-				break;
-			case 0:
-				csum = cpu_to_be16(crc_t10dif(daddr,
-						      scsi_debug_sector_size));
-				break;
-			default:
-				BUG();
-				ret = 0;
-				goto out;
-			}
-
-			if (sdt->guard_tag != csum) {
-				printk(KERN_ERR
-				       "%s: GUARD check failed on sector %lu " \
-				       "rcvd 0x%04x, calculated 0x%04x\n",
-				       __func__, (unsigned long)sector,
-				       be16_to_cpu(sdt->guard_tag),
-				       be16_to_cpu(csum));
-				ret = 0x01;
-				dump_sector(daddr, scsi_debug_sector_size);
-				goto out;
-			}
-
-			if (scsi_debug_dif == SD_DIF_TYPE1_PROTECTION &&
-			    be32_to_cpu(sdt->ref_tag)
-			    != (start_sec & 0xffffffff)) {
-				printk(KERN_ERR
-				       "%s: REF check failed on sector %lu\n",
-				       __func__, (unsigned long)sector);
-				ret = 0x03;
-				dump_sector(daddr, scsi_debug_sector_size);
-				goto out;
-			}
-
-			if (scsi_debug_dif == SD_DIF_TYPE2_PROTECTION &&
-			    be32_to_cpu(sdt->ref_tag) != ei_lba) {
-				printk(KERN_ERR
-				       "%s: REF check failed on sector %lu\n",
-				       __func__, (unsigned long)sector);
-				ret = 0x03;
-				dump_sector(daddr, scsi_debug_sector_size);
+			ret = dif_verify(sdt, daddr + j, start_sec, ei_lba);
+			if (ret) {
+				dump_sector(daddr + j, scsi_debug_sector_size);
 				goto out;
 			}
 
@@ -1968,7 +1957,7 @@ static int prot_verify_write(struct scsi_cmnd *SCpnt, sector_t start_sec,
 			 * correctness we need to verify each sector
 			 * before writing it to "stable" storage
 			 */
-			memcpy(dif_storep + dif_offset(sector), sdt, 8);
+			memcpy(dif_storep + sector, sdt, sizeof(*sdt));
 
 			sector++;
 
@@ -1977,14 +1966,12 @@ static int prot_verify_write(struct scsi_cmnd *SCpnt, sector_t start_sec,
 
 			start_sec++;
 			ei_lba++;
-			daddr += scsi_debug_sector_size;
 			ppage_offset += sizeof(struct sd_dif_tuple);
 		}
 
+		kunmap_atomic(paddr);
 		kunmap_atomic(daddr);
 	}
-
-	kunmap_atomic(paddr);
 
 	dix_writes++;
 
@@ -1992,8 +1979,8 @@ static int prot_verify_write(struct scsi_cmnd *SCpnt, sector_t start_sec,
 
 out:
 	dif_errors++;
-	kunmap_atomic(daddr);
 	kunmap_atomic(paddr);
+	kunmap_atomic(daddr);
 	return ret;
 }
 
@@ -2064,6 +2051,11 @@ static void unmap_region(sector_t lba, unsigned int len)
 				memset(fake_storep +
 				       lba * scsi_debug_sector_size, 0,
 				       scsi_debug_sector_size *
+				       scsi_debug_unmap_granularity);
+			}
+			if (dif_storep) {
+				memset(dif_storep + lba, 0xff,
+				       sizeof(*dif_storep) *
 				       scsi_debug_unmap_granularity);
 			}
 		}
@@ -3374,7 +3366,7 @@ static int __init scsi_debug_init(void)
 	if (scsi_debug_num_parts > 0)
 		sdebug_build_parts(fake_storep, sz);
 
-	if (scsi_debug_dif) {
+	if (scsi_debug_dix) {
 		int dif_size;
 
 		dif_size = sdebug_store_sectors * sizeof(struct sd_dif_tuple);

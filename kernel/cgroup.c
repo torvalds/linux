@@ -802,7 +802,6 @@ static struct cgroup *task_cgroup_from_root(struct task_struct *task,
  */
 
 static int cgroup_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode);
-static struct dentry *cgroup_lookup(struct inode *, struct dentry *, unsigned int);
 static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry);
 static int cgroup_populate_dir(struct cgroup *cgrp, bool base_files,
 			       unsigned long subsys_mask);
@@ -1846,36 +1845,43 @@ out:
 EXPORT_SYMBOL_GPL(cgroup_path);
 
 /**
- * task_cgroup_path_from_hierarchy - cgroup path of a task on a hierarchy
+ * task_cgroup_path - cgroup path of a task in the first cgroup hierarchy
  * @task: target task
- * @hierarchy_id: the hierarchy to look up @task's cgroup from
  * @buf: the buffer to write the path into
  * @buflen: the length of the buffer
  *
- * Determine @task's cgroup on the hierarchy specified by @hierarchy_id and
- * copy its path into @buf.  This function grabs cgroup_mutex and shouldn't
- * be used inside locks used by cgroup controller callbacks.
+ * Determine @task's cgroup on the first (the one with the lowest non-zero
+ * hierarchy_id) cgroup hierarchy and copy its path into @buf.  This
+ * function grabs cgroup_mutex and shouldn't be used inside locks used by
+ * cgroup controller callbacks.
+ *
+ * Returns 0 on success, fails with -%ENAMETOOLONG if @buflen is too short.
  */
-int task_cgroup_path_from_hierarchy(struct task_struct *task, int hierarchy_id,
-				    char *buf, size_t buflen)
+int task_cgroup_path(struct task_struct *task, char *buf, size_t buflen)
 {
 	struct cgroupfs_root *root;
-	struct cgroup *cgrp = NULL;
-	int ret = -ENOENT;
+	struct cgroup *cgrp;
+	int hierarchy_id = 1, ret = 0;
+
+	if (buflen < 2)
+		return -ENAMETOOLONG;
 
 	mutex_lock(&cgroup_mutex);
 
-	root = idr_find(&cgroup_hierarchy_idr, hierarchy_id);
+	root = idr_get_next(&cgroup_hierarchy_idr, &hierarchy_id);
+
 	if (root) {
 		cgrp = task_cgroup_from_root(task, root);
 		ret = cgroup_path(cgrp, buf, buflen);
+	} else {
+		/* if no hierarchy exists, everyone is in "/" */
+		memcpy(buf, "/", 2);
 	}
 
 	mutex_unlock(&cgroup_mutex);
-
 	return ret;
 }
-EXPORT_SYMBOL_GPL(task_cgroup_path_from_hierarchy);
+EXPORT_SYMBOL_GPL(task_cgroup_path);
 
 /*
  * Control Group taskset
@@ -2642,7 +2648,7 @@ static const struct inode_operations cgroup_file_inode_operations = {
 };
 
 static const struct inode_operations cgroup_dir_inode_operations = {
-	.lookup = cgroup_lookup,
+	.lookup = simple_lookup,
 	.mkdir = cgroup_mkdir,
 	.rmdir = cgroup_rmdir,
 	.rename = cgroup_rename,
@@ -2651,14 +2657,6 @@ static const struct inode_operations cgroup_dir_inode_operations = {
 	.listxattr = cgroup_listxattr,
 	.removexattr = cgroup_removexattr,
 };
-
-static struct dentry *cgroup_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
-{
-	if (dentry->d_name.len > NAME_MAX)
-		return ERR_PTR(-ENAMETOOLONG);
-	d_add(dentry, NULL);
-	return NULL;
-}
 
 /*
  * Check if a file is a control file

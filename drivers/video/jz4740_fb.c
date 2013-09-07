@@ -737,8 +737,6 @@ static int jzfb_remove(struct platform_device *pdev)
 	fb_dealloc_cmap(&jzfb->fb->cmap);
 	jzfb_free_devmem(jzfb);
 
-	platform_set_drvdata(pdev, NULL);
-
 	framebuffer_release(jzfb->fb);
 
 	return 0;

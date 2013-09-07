@@ -2167,7 +2167,8 @@ static int rt73usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 		tx_power = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_A_START);
 		for (i = 14; i < spec->num_channels; i++) {
 			info[i].max_power = MAX_TXPOWER;
-			info[i].default_power1 = TXPOWER_FROM_DEV(tx_power[i]);
+			info[i].default_power1 =
+					TXPOWER_FROM_DEV(tx_power[i - 14]);
 		}
 	}
 
@@ -2359,26 +2360,40 @@ static const struct rt2x00lib_ops rt73usb_rt2x00_ops = {
 	.config			= rt73usb_config,
 };
 
-static const struct data_queue_desc rt73usb_queue_rx = {
-	.entry_num		= 32,
-	.data_size		= DATA_FRAME_SIZE,
-	.desc_size		= RXD_DESC_SIZE,
-	.priv_size		= sizeof(struct queue_entry_priv_usb),
-};
+static void rt73usb_queue_init(struct data_queue *queue)
+{
+	switch (queue->qid) {
+	case QID_RX:
+		queue->limit = 32;
+		queue->data_size = DATA_FRAME_SIZE;
+		queue->desc_size = RXD_DESC_SIZE;
+		queue->priv_size = sizeof(struct queue_entry_priv_usb);
+		break;
 
-static const struct data_queue_desc rt73usb_queue_tx = {
-	.entry_num		= 32,
-	.data_size		= DATA_FRAME_SIZE,
-	.desc_size		= TXD_DESC_SIZE,
-	.priv_size		= sizeof(struct queue_entry_priv_usb),
-};
+	case QID_AC_VO:
+	case QID_AC_VI:
+	case QID_AC_BE:
+	case QID_AC_BK:
+		queue->limit = 32;
+		queue->data_size = DATA_FRAME_SIZE;
+		queue->desc_size = TXD_DESC_SIZE;
+		queue->priv_size = sizeof(struct queue_entry_priv_usb);
+		break;
 
-static const struct data_queue_desc rt73usb_queue_bcn = {
-	.entry_num		= 4,
-	.data_size		= MGMT_FRAME_SIZE,
-	.desc_size		= TXINFO_SIZE,
-	.priv_size		= sizeof(struct queue_entry_priv_usb),
-};
+	case QID_BEACON:
+		queue->limit = 4;
+		queue->data_size = MGMT_FRAME_SIZE;
+		queue->desc_size = TXINFO_SIZE;
+		queue->priv_size = sizeof(struct queue_entry_priv_usb);
+		break;
+
+	case QID_ATIM:
+		/* fallthrough */
+	default:
+		BUG();
+		break;
+	}
+}
 
 static const struct rt2x00_ops rt73usb_ops = {
 	.name			= KBUILD_MODNAME,
@@ -2386,10 +2401,7 @@ static const struct rt2x00_ops rt73usb_ops = {
 	.eeprom_size		= EEPROM_SIZE,
 	.rf_size		= RF_SIZE,
 	.tx_queues		= NUM_TX_QUEUES,
-	.extra_tx_headroom	= TXD_DESC_SIZE,
-	.rx			= &rt73usb_queue_rx,
-	.tx			= &rt73usb_queue_tx,
-	.bcn			= &rt73usb_queue_bcn,
+	.queue_init		= rt73usb_queue_init,
 	.lib			= &rt73usb_rt2x00_ops,
 	.hw			= &rt73usb_mac80211_ops,
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS

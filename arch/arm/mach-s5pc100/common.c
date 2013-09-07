@@ -24,6 +24,7 @@
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 #include <linux/sched.h>
+#include <linux/reboot.h>
 
 #include <asm/irq.h>
 #include <asm/proc-fns.h>
@@ -217,9 +218,9 @@ void __init s5pc100_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 	s3c24xx_init_uartdevs("s3c6400-uart", s5p_uart_resources, cfg, no);
 }
 
-void s5pc100_restart(char mode, const char *cmd)
+void s5pc100_restart(enum reboot_mode mode, const char *cmd)
 {
-	if (mode != 's')
+	if (mode != REBOOT_SOFT)
 		samsung_wdt_reset();
 
 	soft_restart(0);

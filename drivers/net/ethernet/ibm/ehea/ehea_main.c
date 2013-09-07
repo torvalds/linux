@@ -3287,7 +3287,7 @@ static int ehea_probe_adapter(struct platform_device *dev)
 
 	adapter->pd = EHEA_PD_ID;
 
-	dev_set_drvdata(&dev->dev, adapter);
+	platform_set_drvdata(dev, adapter);
 
 
 	/* initialize adapter and ports */
@@ -3358,7 +3358,7 @@ out:
 
 static int ehea_remove(struct platform_device *dev)
 {
-	struct ehea_adapter *adapter = dev_get_drvdata(&dev->dev);
+	struct ehea_adapter *adapter = platform_get_drvdata(dev);
 	int i;
 
 	for (i = 0; i < EHEA_MAX_PORTS; i++)

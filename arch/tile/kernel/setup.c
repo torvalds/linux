@@ -58,8 +58,8 @@ struct pglist_data node_data[MAX_NUMNODES] __read_mostly;
 EXPORT_SYMBOL(node_data);
 
 /* Information on the NUMA nodes that we compute early */
-unsigned long __cpuinitdata node_start_pfn[MAX_NUMNODES];
-unsigned long __cpuinitdata node_end_pfn[MAX_NUMNODES];
+unsigned long node_start_pfn[MAX_NUMNODES];
+unsigned long node_end_pfn[MAX_NUMNODES];
 unsigned long __initdata node_memmap_pfn[MAX_NUMNODES];
 unsigned long __initdata node_percpu_pfn[MAX_NUMNODES];
 unsigned long __initdata node_free_pfn[MAX_NUMNODES];
@@ -84,7 +84,7 @@ unsigned long __initdata boot_pc = (unsigned long)start_kernel;
 
 #ifdef CONFIG_HIGHMEM
 /* Page frame index of end of lowmem on each controller. */
-unsigned long __cpuinitdata node_lowmem_end_pfn[MAX_NUMNODES];
+unsigned long node_lowmem_end_pfn[MAX_NUMNODES];
 
 /* Number of pages that can be mapped into lowmem. */
 static unsigned long __initdata mappable_physpages;
@@ -290,7 +290,7 @@ static void *__init setup_pa_va_mapping(void)
  * This is up to 4 mappings for lowmem, one mapping per memory
  * controller, plus one for our text segment.
  */
-static void __cpuinit store_permanent_mappings(void)
+static void store_permanent_mappings(void)
 {
 	int i;
 
@@ -935,7 +935,7 @@ subsys_initcall(topology_init);
  * So the values we set up here in the hypervisor may be overridden on
  * the boot cpu as arguments are parsed.
  */
-static __cpuinit void init_super_pages(void)
+static void init_super_pages(void)
 {
 #ifdef CONFIG_HUGETLB_SUPER_PAGES
 	int i;
@@ -950,7 +950,7 @@ static __cpuinit void init_super_pages(void)
  *
  * Called from setup_arch() on the boot cpu, or online_secondary().
  */
-void __cpuinit setup_cpu(int boot)
+void setup_cpu(int boot)
 {
 	/* The boot cpu sets up its permanent mappings much earlier. */
 	if (!boot)

@@ -28,8 +28,11 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
+#include <linux/regulator/of_regulator.h>
 #include <linux/mfd/max8998.h>
 #include <linux/mfd/max8998-private.h>
 
@@ -589,13 +592,13 @@ static struct regulator_desc regulators[] = {
 		.type		= REGULATOR_VOLTAGE,
 		.owner		= THIS_MODULE,
 	}, {
-		.name		= "EN32KHz AP",
+		.name		= "EN32KHz-AP",
 		.id		= MAX8998_EN32KHZ_AP,
 		.ops		= &max8998_others_ops,
 		.type		= REGULATOR_VOLTAGE,
 		.owner		= THIS_MODULE,
 	}, {
-		.name		= "EN32KHz CP",
+		.name		= "EN32KHz-CP",
 		.id		= MAX8998_EN32KHZ_CP,
 		.ops		= &max8998_others_ops,
 		.type		= REGULATOR_VOLTAGE,
@@ -621,19 +624,138 @@ static struct regulator_desc regulators[] = {
 	}
 };
 
+static int max8998_pmic_dt_parse_dvs_gpio(struct max8998_dev *iodev,
+			struct max8998_platform_data *pdata,
+			struct device_node *pmic_np)
+{
+	int gpio;
+
+	gpio = of_get_named_gpio(pmic_np, "max8998,pmic-buck1-dvs-gpios", 0);
+	if (!gpio_is_valid(gpio)) {
+		dev_err(iodev->dev, "invalid buck1 gpio[0]: %d\n", gpio);
+		return -EINVAL;
+	}
+	pdata->buck1_set1 = gpio;
+
+	gpio = of_get_named_gpio(pmic_np, "max8998,pmic-buck1-dvs-gpios", 1);
+	if (!gpio_is_valid(gpio)) {
+		dev_err(iodev->dev, "invalid buck1 gpio[1]: %d\n", gpio);
+		return -EINVAL;
+	}
+	pdata->buck1_set2 = gpio;
+
+	gpio = of_get_named_gpio(pmic_np, "max8998,pmic-buck2-dvs-gpio", 0);
+	if (!gpio_is_valid(gpio)) {
+		dev_err(iodev->dev, "invalid buck 2 gpio: %d\n", gpio);
+		return -EINVAL;
+	}
+	pdata->buck2_set3 = gpio;
+
+	return 0;
+}
+
+static int max8998_pmic_dt_parse_pdata(struct max8998_dev *iodev,
+					struct max8998_platform_data *pdata)
+{
+	struct device_node *pmic_np = iodev->dev->of_node;
+	struct device_node *regulators_np, *reg_np;
+	struct max8998_regulator_data *rdata;
+	unsigned int i;
+	int ret;
+
+	regulators_np = of_get_child_by_name(pmic_np, "regulators");
+	if (!regulators_np) {
+		dev_err(iodev->dev, "could not find regulators sub-node\n");
+		return -EINVAL;
+	}
+
+	/* count the number of regulators to be supported in pmic */
+	pdata->num_regulators = of_get_child_count(regulators_np);
+
+	rdata = devm_kzalloc(iodev->dev, sizeof(*rdata) *
+				pdata->num_regulators, GFP_KERNEL);
+	if (!rdata)
+		return -ENOMEM;
+
+	pdata->regulators = rdata;
+	for (i = 0; i < ARRAY_SIZE(regulators); ++i) {
+		reg_np = of_get_child_by_name(regulators_np,
+							regulators[i].name);
+		if (!reg_np)
+			continue;
+
+		rdata->id = regulators[i].id;
+		rdata->initdata = of_get_regulator_init_data(
+							iodev->dev, reg_np);
+		rdata->reg_node = reg_np;
+		++rdata;
+	}
+	pdata->num_regulators = rdata - pdata->regulators;
+
+	ret = max8998_pmic_dt_parse_dvs_gpio(iodev, pdata, pmic_np);
+	if (ret)
+		return -EINVAL;
+
+	if (of_find_property(pmic_np, "max8998,pmic-buck-voltage-lock", NULL))
+		pdata->buck_voltage_lock = true;
+
+	ret = of_property_read_u32(pmic_np,
+					"max8998,pmic-buck1-default-dvs-idx",
+					&pdata->buck1_default_idx);
+	if (!ret && pdata->buck1_default_idx >= 4) {
+		pdata->buck1_default_idx = 0;
+		dev_warn(iodev->dev, "invalid value for default dvs index, using 0 instead\n");
+	}
+
+	ret = of_property_read_u32(pmic_np,
+					"max8998,pmic-buck2-default-dvs-idx",
+					&pdata->buck2_default_idx);
+	if (!ret && pdata->buck2_default_idx >= 2) {
+		pdata->buck2_default_idx = 0;
+		dev_warn(iodev->dev, "invalid value for default dvs index, using 0 instead\n");
+	}
+
+	ret = of_property_read_u32_array(pmic_np,
+					"max8998,pmic-buck1-dvs-voltage",
+					pdata->buck1_voltage,
+					ARRAY_SIZE(pdata->buck1_voltage));
+	if (ret) {
+		dev_err(iodev->dev, "buck1 voltages not specified\n");
+		return -EINVAL;
+	}
+
+	ret = of_property_read_u32_array(pmic_np,
+					"max8998,pmic-buck2-dvs-voltage",
+					pdata->buck2_voltage,
+					ARRAY_SIZE(pdata->buck2_voltage));
+	if (ret) {
+		dev_err(iodev->dev, "buck2 voltages not specified\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int max8998_pmic_probe(struct platform_device *pdev)
 {
 	struct max8998_dev *iodev = dev_get_drvdata(pdev->dev.parent);
-	struct max8998_platform_data *pdata = dev_get_platdata(iodev->dev);
+	struct max8998_platform_data *pdata = iodev->pdata;
 	struct regulator_config config = { };
 	struct regulator_dev **rdev;
 	struct max8998_data *max8998;
 	struct i2c_client *i2c;
 	int i, ret, size;
+	unsigned int v;
 
 	if (!pdata) {
 		dev_err(pdev->dev.parent, "No platform init data supplied\n");
 		return -ENODEV;
+	}
+
+	if (IS_ENABLED(CONFIG_OF) && iodev->dev->of_node) {
+		ret = max8998_pmic_dt_parse_pdata(iodev, pdata);
+		if (ret)
+			return ret;
 	}
 
 	max8998 = devm_kzalloc(&pdev->dev, sizeof(struct max8998_data),
@@ -688,53 +810,21 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 		gpio_request(pdata->buck1_set2, "MAX8998 BUCK1_SET2");
 		gpio_direction_output(pdata->buck1_set2,
 				      (max8998->buck1_idx >> 1) & 0x1);
-		/* Set predefined value for BUCK1 register 1 */
-		i = 0;
-		while (buck12_voltage_map_desc.min +
-		       buck12_voltage_map_desc.step*i
-		       < pdata->buck1_voltage1)
-			i++;
-		max8998->buck1_vol[0] = i;
-		ret = max8998_write_reg(i2c, MAX8998_REG_BUCK1_VOLTAGE1, i);
-		if (ret)
-			goto err_out;
 
-		/* Set predefined value for BUCK1 register 2 */
-		i = 0;
-		while (buck12_voltage_map_desc.min +
-		       buck12_voltage_map_desc.step*i
-		       < pdata->buck1_voltage2)
-			i++;
+		/* Set predefined values for BUCK1 registers */
+		for (v = 0; v < ARRAY_SIZE(pdata->buck1_voltage); ++v) {
+			i = 0;
+			while (buck12_voltage_map_desc.min +
+			       buck12_voltage_map_desc.step*i
+			       < pdata->buck1_voltage[v])
+				i++;
 
-		max8998->buck1_vol[1] = i;
-		ret = max8998_write_reg(i2c, MAX8998_REG_BUCK1_VOLTAGE2, i);
-		if (ret)
-			goto err_out;
-
-		/* Set predefined value for BUCK1 register 3 */
-		i = 0;
-		while (buck12_voltage_map_desc.min +
-		       buck12_voltage_map_desc.step*i
-		       < pdata->buck1_voltage3)
-			i++;
-
-		max8998->buck1_vol[2] = i;
-		ret = max8998_write_reg(i2c, MAX8998_REG_BUCK1_VOLTAGE3, i);
-		if (ret)
-			goto err_out;
-
-		/* Set predefined value for BUCK1 register 4 */
-		i = 0;
-		while (buck12_voltage_map_desc.min +
-		       buck12_voltage_map_desc.step*i
-		       < pdata->buck1_voltage4)
-			i++;
-
-		max8998->buck1_vol[3] = i;
-		ret = max8998_write_reg(i2c, MAX8998_REG_BUCK1_VOLTAGE4, i);
-		if (ret)
-			goto err_out;
-
+			max8998->buck1_vol[v] = i;
+			ret = max8998_write_reg(i2c,
+					MAX8998_REG_BUCK1_VOLTAGE1 + v, i);
+			if (ret)
+				goto err_out;
+		}
 	}
 
 	if (gpio_is_valid(pdata->buck2_set3)) {
@@ -750,27 +840,20 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 		gpio_direction_output(pdata->buck2_set3,
 				      max8998->buck2_idx & 0x1);
 
-		/* BUCK2 register 1 */
-		i = 0;
-		while (buck12_voltage_map_desc.min +
-		       buck12_voltage_map_desc.step*i
-		       < pdata->buck2_voltage1)
-			i++;
-		max8998->buck2_vol[0] = i;
-		ret = max8998_write_reg(i2c, MAX8998_REG_BUCK2_VOLTAGE1, i);
-		if (ret)
-			goto err_out;
+		/* Set predefined values for BUCK2 registers */
+		for (v = 0; v < ARRAY_SIZE(pdata->buck2_voltage); ++v) {
+			i = 0;
+			while (buck12_voltage_map_desc.min +
+			       buck12_voltage_map_desc.step*i
+			       < pdata->buck2_voltage[v])
+				i++;
 
-		/* BUCK2 register 2 */
-		i = 0;
-		while (buck12_voltage_map_desc.min +
-		       buck12_voltage_map_desc.step*i
-		       < pdata->buck2_voltage2)
-			i++;
-		max8998->buck2_vol[1] = i;
-		ret = max8998_write_reg(i2c, MAX8998_REG_BUCK2_VOLTAGE2, i);
-		if (ret)
-			goto err_out;
+			max8998->buck2_vol[v] = i;
+			ret = max8998_write_reg(i2c,
+					MAX8998_REG_BUCK2_VOLTAGE1 + v, i);
+			if (ret)
+				goto err_out;
+		}
 	}
 
 	for (i = 0; i < pdata->num_regulators; i++) {
@@ -788,13 +871,15 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 		}
 
 		config.dev = max8998->dev;
+		config.of_node = pdata->regulators[i].reg_node;
 		config.init_data = pdata->regulators[i].initdata;
 		config.driver_data = max8998;
 
 		rdev[i] = regulator_register(&regulators[index], &config);
 		if (IS_ERR(rdev[i])) {
 			ret = PTR_ERR(rdev[i]);
-			dev_err(max8998->dev, "regulator init failed\n");
+			dev_err(max8998->dev, "regulator %s init failed (%d)\n",
+						regulators[index].name, ret);
 			rdev[i] = NULL;
 			goto err;
 		}

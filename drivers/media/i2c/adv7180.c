@@ -1,6 +1,8 @@
 /*
  * adv7180.c Analog Devices ADV7180 video decoder driver
  * Copyright (c) 2009 Intel Corporation
+ * Copyright (C) 2013 Cogent Embedded, Inc.
+ * Copyright (C) 2013 Renesas Solutions Corp.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -27,7 +29,6 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-chip-ident.h>
 #include <linux/mutex.h>
 
 #define ADV7180_INPUT_CONTROL_REG			0x00
@@ -272,14 +273,6 @@ static int adv7180_g_input_status(struct v4l2_subdev *sd, u32 *status)
 	return ret;
 }
 
-static int adv7180_g_chip_ident(struct v4l2_subdev *sd,
-				struct v4l2_dbg_chip_ident *chip)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_ADV7180, 0);
-}
-
 static int adv7180_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 {
 	struct adv7180_state *state = to_state(sd);
@@ -397,14 +390,57 @@ static void adv7180_exit_controls(struct adv7180_state *state)
 	v4l2_ctrl_handler_free(&state->ctrl_hdl);
 }
 
+static int adv7180_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned int index,
+				 enum v4l2_mbus_pixelcode *code)
+{
+	if (index > 0)
+		return -EINVAL;
+
+	*code = V4L2_MBUS_FMT_YUYV8_2X8;
+
+	return 0;
+}
+
+static int adv7180_mbus_fmt(struct v4l2_subdev *sd,
+			    struct v4l2_mbus_framefmt *fmt)
+{
+	struct adv7180_state *state = to_state(sd);
+
+	fmt->code = V4L2_MBUS_FMT_YUYV8_2X8;
+	fmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
+	fmt->field = V4L2_FIELD_INTERLACED;
+	fmt->width = 720;
+	fmt->height = state->curr_norm & V4L2_STD_525_60 ? 480 : 576;
+
+	return 0;
+}
+
+static int adv7180_g_mbus_config(struct v4l2_subdev *sd,
+				 struct v4l2_mbus_config *cfg)
+{
+	/*
+	 * The ADV7180 sensor supports BT.601/656 output modes.
+	 * The BT.656 is default and not yet configurable by s/w.
+	 */
+	cfg->flags = V4L2_MBUS_MASTER | V4L2_MBUS_PCLK_SAMPLE_RISING |
+		     V4L2_MBUS_DATA_ACTIVE_HIGH;
+	cfg->type = V4L2_MBUS_BT656;
+
+	return 0;
+}
+
 static const struct v4l2_subdev_video_ops adv7180_video_ops = {
 	.querystd = adv7180_querystd,
 	.g_input_status = adv7180_g_input_status,
 	.s_routing = adv7180_s_routing,
+	.enum_mbus_fmt = adv7180_enum_mbus_fmt,
+	.try_mbus_fmt = adv7180_mbus_fmt,
+	.g_mbus_fmt = adv7180_mbus_fmt,
+	.s_mbus_fmt = adv7180_mbus_fmt,
+	.g_mbus_config = adv7180_g_mbus_config,
 };
 
 static const struct v4l2_subdev_core_ops adv7180_core_ops = {
-	.g_chip_ident = adv7180_g_chip_ident,
 	.s_std = adv7180_s_std,
 };
 
@@ -555,7 +591,7 @@ static int adv7180_probe(struct i2c_client *client,
 	v4l_info(client, "chip found @ 0x%02x (%s)\n",
 		 client->addr, client->adapter->name);
 
-	state = kzalloc(sizeof(struct adv7180_state), GFP_KERNEL);
+	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (state == NULL) {
 		ret = -ENOMEM;
 		goto err;
@@ -582,7 +618,6 @@ err_free_ctrl:
 err_unreg_subdev:
 	mutex_destroy(&state->mutex);
 	v4l2_device_unregister_subdev(sd);
-	kfree(state);
 err:
 	printk(KERN_ERR KBUILD_MODNAME ": Failed to probe: %d\n", ret);
 	return ret;
@@ -607,7 +642,6 @@ static int adv7180_remove(struct i2c_client *client)
 
 	mutex_destroy(&state->mutex);
 	v4l2_device_unregister_subdev(sd);
-	kfree(to_state(sd));
 	return 0;
 }
 
@@ -616,9 +650,10 @@ static const struct i2c_device_id adv7180_id[] = {
 	{},
 };
 
-#ifdef CONFIG_PM
-static int adv7180_suspend(struct i2c_client *client, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int adv7180_suspend(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	int ret;
 
 	ret = i2c_smbus_write_byte_data(client, ADV7180_PWR_MAN_REG,
@@ -628,8 +663,9 @@ static int adv7180_suspend(struct i2c_client *client, pm_message_t state)
 	return 0;
 }
 
-static int adv7180_resume(struct i2c_client *client)
+static int adv7180_resume(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct adv7180_state *state = to_state(sd);
 	int ret;
@@ -643,6 +679,12 @@ static int adv7180_resume(struct i2c_client *client)
 		return ret;
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(adv7180_pm_ops, adv7180_suspend, adv7180_resume);
+#define ADV7180_PM_OPS (&adv7180_pm_ops)
+
+#else
+#define ADV7180_PM_OPS NULL
 #endif
 
 MODULE_DEVICE_TABLE(i2c, adv7180_id);
@@ -651,13 +693,10 @@ static struct i2c_driver adv7180_driver = {
 	.driver = {
 		   .owner = THIS_MODULE,
 		   .name = KBUILD_MODNAME,
+		   .pm = ADV7180_PM_OPS,
 		   },
 	.probe = adv7180_probe,
 	.remove = adv7180_remove,
-#ifdef CONFIG_PM
-	.suspend = adv7180_suspend,
-	.resume = adv7180_resume,
-#endif
 	.id_table = adv7180_id,
 };
 

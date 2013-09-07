@@ -110,9 +110,10 @@
 /*
  * iwl_rxq_space - Return number of free slots available in queue.
  */
-static int iwl_rxq_space(const struct iwl_rxq *q)
+static int iwl_rxq_space(const struct iwl_rxq *rxq)
 {
-	int s = q->read - q->write;
+	int s = rxq->read - rxq->write;
+
 	if (s <= 0)
 		s += RX_QUEUE_SIZE;
 	/* keep some buffer to not confuse full and empty queue */
@@ -143,21 +144,22 @@ int iwl_pcie_rx_stop(struct iwl_trans *trans)
 /*
  * iwl_pcie_rxq_inc_wr_ptr - Update the write pointer for the RX queue
  */
-static void iwl_pcie_rxq_inc_wr_ptr(struct iwl_trans *trans, struct iwl_rxq *q)
+static void iwl_pcie_rxq_inc_wr_ptr(struct iwl_trans *trans,
+				    struct iwl_rxq *rxq)
 {
 	unsigned long flags;
 	u32 reg;
 
-	spin_lock_irqsave(&q->lock, flags);
+	spin_lock_irqsave(&rxq->lock, flags);
 
-	if (q->need_update == 0)
+	if (rxq->need_update == 0)
 		goto exit_unlock;
 
 	if (trans->cfg->base_params->shadow_reg_enable) {
 		/* shadow register enabled */
 		/* Device expects a multiple of 8 */
-		q->write_actual = (q->write & ~0x7);
-		iwl_write32(trans, FH_RSCSR_CHNL0_WPTR, q->write_actual);
+		rxq->write_actual = (rxq->write & ~0x7);
+		iwl_write32(trans, FH_RSCSR_CHNL0_WPTR, rxq->write_actual);
 	} else {
 		struct iwl_trans_pcie *trans_pcie =
 			IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -175,22 +177,22 @@ static void iwl_pcie_rxq_inc_wr_ptr(struct iwl_trans *trans, struct iwl_rxq *q)
 				goto exit_unlock;
 			}
 
-			q->write_actual = (q->write & ~0x7);
+			rxq->write_actual = (rxq->write & ~0x7);
 			iwl_write_direct32(trans, FH_RSCSR_CHNL0_WPTR,
-					q->write_actual);
+					   rxq->write_actual);
 
 		/* Else device is assumed to be awake */
 		} else {
 			/* Device expects a multiple of 8 */
-			q->write_actual = (q->write & ~0x7);
+			rxq->write_actual = (rxq->write & ~0x7);
 			iwl_write_direct32(trans, FH_RSCSR_CHNL0_WPTR,
-				q->write_actual);
+					   rxq->write_actual);
 		}
 	}
-	q->need_update = 0;
+	rxq->need_update = 0;
 
  exit_unlock:
-	spin_unlock_irqrestore(&q->lock, flags);
+	spin_unlock_irqrestore(&rxq->lock, flags);
 }
 
 /*
@@ -355,19 +357,16 @@ static void iwl_pcie_rxq_free_rbs(struct iwl_trans *trans)
 	struct iwl_rxq *rxq = &trans_pcie->rxq;
 	int i;
 
-	/* Fill the rx_used queue with _all_ of the Rx buffers */
+	lockdep_assert_held(&rxq->lock);
+
 	for (i = 0; i < RX_FREE_BUFFERS + RX_QUEUE_SIZE; i++) {
-		/* In the reset function, these buffers may have been allocated
-		 * to an SKB, so we need to unmap and free potential storage */
-		if (rxq->pool[i].page != NULL) {
-			dma_unmap_page(trans->dev, rxq->pool[i].page_dma,
-				       PAGE_SIZE << trans_pcie->rx_page_order,
-				       DMA_FROM_DEVICE);
-			__free_pages(rxq->pool[i].page,
-				     trans_pcie->rx_page_order);
-			rxq->pool[i].page = NULL;
-		}
-		list_add_tail(&rxq->pool[i].list, &rxq->rx_used);
+		if (!rxq->pool[i].page)
+			continue;
+		dma_unmap_page(trans->dev, rxq->pool[i].page_dma,
+			       PAGE_SIZE << trans_pcie->rx_page_order,
+			       DMA_FROM_DEVICE);
+		__free_pages(rxq->pool[i].page, trans_pcie->rx_page_order);
+		rxq->pool[i].page = NULL;
 	}
 }
 
@@ -491,6 +490,20 @@ static void iwl_pcie_rx_hw_init(struct iwl_trans *trans, struct iwl_rxq *rxq)
 	iwl_write8(trans, CSR_INT_COALESCING, IWL_HOST_INT_TIMEOUT_DEF);
 }
 
+static void iwl_pcie_rx_init_rxb_lists(struct iwl_rxq *rxq)
+{
+	int i;
+
+	lockdep_assert_held(&rxq->lock);
+
+	INIT_LIST_HEAD(&rxq->rx_free);
+	INIT_LIST_HEAD(&rxq->rx_used);
+	rxq->free_count = 0;
+
+	for (i = 0; i < RX_FREE_BUFFERS + RX_QUEUE_SIZE; i++)
+		list_add(&rxq->pool[i].list, &rxq->rx_used);
+}
+
 int iwl_pcie_rx_init(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -505,13 +518,12 @@ int iwl_pcie_rx_init(struct iwl_trans *trans)
 	}
 
 	spin_lock_irqsave(&rxq->lock, flags);
-	INIT_LIST_HEAD(&rxq->rx_free);
-	INIT_LIST_HEAD(&rxq->rx_used);
 
-	INIT_WORK(&trans_pcie->rx_replenish,
-		  iwl_pcie_rx_replenish_work);
+	INIT_WORK(&trans_pcie->rx_replenish, iwl_pcie_rx_replenish_work);
 
+	/* free all first - we might be reconfigured for a different size */
 	iwl_pcie_rxq_free_rbs(trans);
+	iwl_pcie_rx_init_rxb_lists(rxq);
 
 	for (i = 0; i < RX_QUEUE_SIZE; i++)
 		rxq->queue[i] = NULL;
@@ -520,7 +532,6 @@ int iwl_pcie_rx_init(struct iwl_trans *trans)
 	 * not restocked the Rx queue with fresh buffers */
 	rxq->read = rxq->write = 0;
 	rxq->write_actual = 0;
-	rxq->free_count = 0;
 	memset(rxq->rb_stts, 0, sizeof(*rxq->rb_stts));
 	spin_unlock_irqrestore(&rxq->lock, flags);
 
@@ -802,9 +813,6 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 	u32 handled = 0;
 	unsigned long flags;
 	u32 i;
-#ifdef CONFIG_IWLWIFI_DEBUG
-	u32 inta_mask;
-#endif
 
 	lock_map_acquire(&trans->sync_cmd_lockdep_map);
 
@@ -826,14 +834,9 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 
 	inta = trans_pcie->inta;
 
-#ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_have_debug_level(IWL_DL_ISR)) {
-		/* just for debug */
-		inta_mask = iwl_read32(trans, CSR_INT_MASK);
+	if (iwl_have_debug_level(IWL_DL_ISR))
 		IWL_DEBUG_ISR(trans, "inta 0x%08x, enabled 0x%08x\n",
-			      inta, inta_mask);
-	}
-#endif
+			      inta, iwl_read32(trans, CSR_INT_MASK));
 
 	/* saved interrupt in inta variable now we can reset trans_pcie->inta */
 	trans_pcie->inta = 0;
@@ -855,12 +858,11 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 		goto out;
 	}
 
-#ifdef CONFIG_IWLWIFI_DEBUG
 	if (iwl_have_debug_level(IWL_DL_ISR)) {
 		/* NIC fires this, but we don't use it, redundant with WAKEUP */
 		if (inta & CSR_INT_BIT_SCD) {
-			IWL_DEBUG_ISR(trans, "Scheduler finished to transmit "
-				      "the frame/frames.\n");
+			IWL_DEBUG_ISR(trans,
+				      "Scheduler finished to transmit the frame/frames.\n");
 			isr_stats->sch++;
 		}
 
@@ -870,7 +872,7 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 			isr_stats->alive++;
 		}
 	}
-#endif
+
 	/* Safely ignore these bits for debug checks below */
 	inta &= ~(CSR_INT_BIT_SCD | CSR_INT_BIT_ALIVE);
 
@@ -1118,9 +1120,6 @@ static irqreturn_t iwl_pcie_isr(int irq, void *data)
 	struct iwl_trans *trans = data;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	u32 inta, inta_mask;
-#ifdef CONFIG_IWLWIFI_DEBUG
-	u32 inta_fh;
-#endif
 
 	lockdep_assert_held(&trans_pcie->irq_lock);
 
@@ -1159,13 +1158,11 @@ static irqreturn_t iwl_pcie_isr(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
-#ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_have_debug_level(IWL_DL_ISR)) {
-		inta_fh = iwl_read32(trans, CSR_FH_INT_STATUS);
-		IWL_DEBUG_ISR(trans, "ISR inta 0x%08x, enabled 0x%08x, "
-			      "fh 0x%08x\n", inta, inta_mask, inta_fh);
-	}
-#endif
+	if (iwl_have_debug_level(IWL_DL_ISR))
+		IWL_DEBUG_ISR(trans,
+			      "ISR inta 0x%08x, enabled 0x%08x, fh 0x%08x\n",
+			      inta, inta_mask,
+			      iwl_read32(trans, CSR_FH_INT_STATUS));
 
 	trans_pcie->inta |= inta;
 	/* the thread will service interrupts and re-enable them */
@@ -1198,7 +1195,7 @@ irqreturn_t iwl_pcie_isr_ict(int irq, void *data)
 {
 	struct iwl_trans *trans = data;
 	struct iwl_trans_pcie *trans_pcie;
-	u32 inta, inta_mask;
+	u32 inta;
 	u32 val = 0;
 	u32 read;
 	unsigned long flags;
@@ -1226,7 +1223,6 @@ irqreturn_t iwl_pcie_isr_ict(int irq, void *data)
 	 * If we have something to service, the tasklet will re-enable ints.
 	 * If we *don't* have something, we'll re-enable before leaving here.
 	 */
-	inta_mask = iwl_read32(trans, CSR_INT_MASK);
 	iwl_write32(trans, CSR_INT_MASK, 0x00000000);
 
 	/* Ignore interrupt if there's nothing in NIC to service.
@@ -1271,8 +1267,11 @@ irqreturn_t iwl_pcie_isr_ict(int irq, void *data)
 		val |= 0x8000;
 
 	inta = (0xff & val) | ((0xff00 & val) << 16);
-	IWL_DEBUG_ISR(trans, "ISR inta 0x%08x, enabled 0x%08x ict 0x%08x\n",
-		      inta, inta_mask, val);
+	IWL_DEBUG_ISR(trans, "ISR inta 0x%08x, enabled(sw) 0x%08x ict 0x%08x\n",
+		      inta, trans_pcie->inta_mask, val);
+	if (iwl_have_debug_level(IWL_DL_ISR))
+		IWL_DEBUG_ISR(trans, "enabled(hw) 0x%08x\n",
+			      iwl_read32(trans, CSR_INT_MASK));
 
 	inta &= trans_pcie->inta_mask;
 	trans_pcie->inta |= inta;

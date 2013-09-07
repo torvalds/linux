@@ -234,19 +234,12 @@ static int mxs_lradc_read_raw(struct iio_dev *iio_dev,
 {
 	struct mxs_lradc *lradc = iio_priv(iio_dev);
 	int ret;
-	unsigned long mask;
 
 	if (m != IIO_CHAN_INFO_RAW)
 		return -EINVAL;
 
 	/* Check for invalid channel */
 	if (chan->channel > LRADC_MAX_TOTAL_CHANS)
-		return -EINVAL;
-
-	/* Validate the channel if it doesn't intersect with reserved chans. */
-	bitmap_set(&mask, chan->channel, 1);
-	ret = iio_validate_scan_mask_onehot(iio_dev, &mask);
-	if (ret)
 		return -EINVAL;
 
 	/*
@@ -661,12 +654,13 @@ static int mxs_lradc_trigger_init(struct iio_dev *iio)
 {
 	int ret;
 	struct iio_trigger *trig;
+	struct mxs_lradc *lradc = iio_priv(iio);
 
 	trig = iio_trigger_alloc("%s-dev%i", iio->name, iio->id);
 	if (trig == NULL)
 		return -ENOMEM;
 
-	trig->dev.parent = iio->dev.parent;
+	trig->dev.parent = lradc->dev;
 	iio_trigger_set_drvdata(trig, iio);
 	trig->ops = &mxs_lradc_trigger_ops;
 
@@ -676,15 +670,17 @@ static int mxs_lradc_trigger_init(struct iio_dev *iio)
 		return ret;
 	}
 
-	iio->trig = trig;
+	lradc->trig = trig;
 
 	return 0;
 }
 
 static void mxs_lradc_trigger_remove(struct iio_dev *iio)
 {
-	iio_trigger_unregister(iio->trig);
-	iio_trigger_free(iio->trig);
+	struct mxs_lradc *lradc = iio_priv(iio);
+
+	iio_trigger_unregister(lradc->trig);
+	iio_trigger_free(lradc->trig);
 }
 
 static int mxs_lradc_buffer_preenable(struct iio_dev *iio)

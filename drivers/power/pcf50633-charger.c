@@ -191,9 +191,9 @@ static ssize_t set_usblim(struct device *dev,
 	unsigned long ma;
 	int ret;
 
-	ret = strict_strtoul(buf, 10, &ma);
+	ret = kstrtoul(buf, 10, &ma);
 	if (ret)
-		return -EINVAL;
+		return ret;
 
 	pcf50633_mbc_usb_curlim_set(mbc->pcf, ma);
 
@@ -228,9 +228,9 @@ static ssize_t set_chglim(struct device *dev,
 	if (!mbc->pcf->pdata->charger_reference_current_ma)
 		return -ENODEV;
 
-	ret = strict_strtoul(buf, 10, &ma);
+	ret = kstrtoul(buf, 10, &ma);
 	if (ret)
-		return -EINVAL;
+		return ret;
 
 	mbcc5 = (ma << 8) / mbc->pcf->pdata->charger_reference_current_ma;
 	if (mbcc5 > 255)

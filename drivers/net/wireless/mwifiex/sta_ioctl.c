@@ -104,16 +104,14 @@ int mwifiex_request_set_multicast_list(struct mwifiex_private *priv,
 		} else {
 			priv->curr_pkt_filter &=
 				~HostCmd_ACT_MAC_ALL_MULTICAST_ENABLE;
-			if (mcast_list->num_multicast_addr) {
-				dev_dbg(priv->adapter->dev,
-					"info: Set multicast list=%d\n",
-				       mcast_list->num_multicast_addr);
-				/* Send multicast addresses to firmware */
-				ret = mwifiex_send_cmd_async(priv,
-					HostCmd_CMD_MAC_MULTICAST_ADR,
-					HostCmd_ACT_GEN_SET, 0,
-					mcast_list);
-			}
+			dev_dbg(priv->adapter->dev,
+				"info: Set multicast list=%d\n",
+				mcast_list->num_multicast_addr);
+			/* Send multicast addresses to firmware */
+			ret = mwifiex_send_cmd_async(priv,
+				HostCmd_CMD_MAC_MULTICAST_ADR,
+				HostCmd_ACT_GEN_SET, 0,
+				mcast_list);
 		}
 	}
 	dev_dbg(priv->adapter->dev,
@@ -179,6 +177,9 @@ int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
 	 * exist VHT_CAP IE in AP beacon
 	 */
 	bss_desc->disable_11ac = true;
+
+	if (bss_desc->cap_info_bitmap & WLAN_CAPABILITY_SPECTRUM_MGMT)
+		bss_desc->sensed_11h = true;
 
 	return mwifiex_update_bss_desc_with_ie(priv->adapter, bss_desc);
 }
@@ -257,29 +258,36 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 	}
 
 	if (priv->bss_mode == NL80211_IFTYPE_STATION) {
+		u8 config_bands;
+
 		/* Infra mode */
 		ret = mwifiex_deauthenticate(priv, NULL);
 		if (ret)
 			goto done;
 
-		if (bss_desc) {
-			u8 config_bands = 0;
+		if (!bss_desc)
+			return -1;
 
-			if (mwifiex_band_to_radio_type((u8) bss_desc->bss_band)
-			    == HostCmd_SCAN_RADIO_TYPE_BG)
-				config_bands = BAND_B | BAND_G | BAND_GN |
-					       BAND_GAC;
-			else
-				config_bands = BAND_A | BAND_AN | BAND_AAC;
+		if (mwifiex_band_to_radio_type(bss_desc->bss_band) ==
+						HostCmd_SCAN_RADIO_TYPE_BG)
+			config_bands = BAND_B | BAND_G | BAND_GN | BAND_GAC;
+		else
+			config_bands = BAND_A | BAND_AN | BAND_AAC;
 
-			if (!((config_bands | adapter->fw_bands) &
-			      ~adapter->fw_bands))
-				adapter->config_bands = config_bands;
-		}
+		if (!((config_bands | adapter->fw_bands) & ~adapter->fw_bands))
+			adapter->config_bands = config_bands;
 
 		ret = mwifiex_check_network_compatibility(priv, bss_desc);
 		if (ret)
 			goto done;
+
+		if (mwifiex_11h_get_csa_closed_channel(priv) ==
+							(u8)bss_desc->channel) {
+			dev_err(adapter->dev,
+				"Attempt to reconnect on csa closed chan(%d)\n",
+				bss_desc->channel);
+			goto done;
+		}
 
 		dev_dbg(adapter->dev, "info: SSID found in scan list ... "
 				      "associating...\n");

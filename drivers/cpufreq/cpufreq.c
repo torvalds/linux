@@ -312,11 +312,12 @@ static void __cpufreq_notify_transition(struct cpufreq_policy *policy,
 	switch (state) {
 
 	case CPUFREQ_PRECHANGE:
-		if (WARN(policy->transition_ongoing,
+		if (WARN(policy->transition_ongoing ==
+					cpumask_weight(policy->cpus),
 				"In middle of another frequency transition\n"))
 			return;
 
-		policy->transition_ongoing = true;
+		policy->transition_ongoing++;
 
 		/* detect if the driver reported a value as "old frequency"
 		 * which is not equal to what the cpufreq core thinks is
@@ -341,7 +342,7 @@ static void __cpufreq_notify_transition(struct cpufreq_policy *policy,
 				"No frequency transition in progress\n"))
 			return;
 
-		policy->transition_ongoing = false;
+		policy->transition_ongoing--;
 
 		adjust_jiffies(CPUFREQ_POSTCHANGE, freqs);
 		pr_debug("FREQ: %lu - CPU: %lu", (unsigned long)freqs->new,
@@ -1931,7 +1932,7 @@ no_policy:
 }
 EXPORT_SYMBOL(cpufreq_update_policy);
 
-static int __cpuinit cpufreq_cpu_callback(struct notifier_block *nfb,
+static int cpufreq_cpu_callback(struct notifier_block *nfb,
 					unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
@@ -1941,13 +1942,15 @@ static int __cpuinit cpufreq_cpu_callback(struct notifier_block *nfb,
 	if (dev) {
 		switch (action) {
 		case CPU_ONLINE:
+		case CPU_ONLINE_FROZEN:
 			cpufreq_add_dev(dev, NULL);
 			break;
 		case CPU_DOWN_PREPARE:
-		case CPU_UP_CANCELED_FROZEN:
+		case CPU_DOWN_PREPARE_FROZEN:
 			__cpufreq_remove_dev(dev, NULL);
 			break;
 		case CPU_DOWN_FAILED:
+		case CPU_DOWN_FAILED_FROZEN:
 			cpufreq_add_dev(dev, NULL);
 			break;
 		}

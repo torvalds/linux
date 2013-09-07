@@ -311,7 +311,7 @@ static int __init ebsa110_init(void)
 
 arch_initcall(ebsa110_init);
 
-static void ebsa110_restart(char mode, const char *cmd)
+static void ebsa110_restart(enum reboot_mode mode, const char *cmd)
 {
 	soft_restart(0x80000000);
 }
@@ -321,7 +321,6 @@ MACHINE_START(EBSA110, "EBSA110")
 	.atag_offset	= 0x400,
 	.reserve_lp0	= 1,
 	.reserve_lp2	= 1,
-	.restart_mode	= 's',
 	.map_io		= ebsa110_map_io,
 	.init_early	= ebsa110_init_early,
 	.init_irq	= ebsa110_init_irq,

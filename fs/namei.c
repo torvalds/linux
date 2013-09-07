@@ -2977,7 +2977,7 @@ static struct file *path_openat(int dfd, struct filename *pathname,
 
 	file->f_flags = op->open_flag;
 
-	if (unlikely(file->f_flags & O_TMPFILE)) {
+	if (unlikely(file->f_flags & __O_TMPFILE)) {
 		error = do_tmpfile(dfd, pathname, nd, flags, op, file, &opened);
 		goto out;
 	}

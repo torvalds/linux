@@ -144,6 +144,7 @@ struct bcma_host_ops {
 
 /* Chip IDs of PCIe devices */
 #define BCMA_CHIP_ID_BCM4313	0x4313
+#define BCMA_CHIP_ID_BCM43142	43142
 #define BCMA_CHIP_ID_BCM43224	43224
 #define  BCMA_PKG_ID_BCM43224_FAB_CSM	0x8
 #define  BCMA_PKG_ID_BCM43224_FAB_SMIC	0xa

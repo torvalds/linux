@@ -659,7 +659,7 @@ void lustre_dump_dentry(struct dentry *dentry, int recur)
 	       " flags=0x%x, fsdata=%p, %d subdirs\n", dentry,
 	       dentry->d_name.len, dentry->d_name.name,
 	       dentry->d_parent->d_name.len, dentry->d_parent->d_name.name,
-	       dentry->d_parent, dentry->d_inode, d_refcount(dentry),
+	       dentry->d_parent, dentry->d_inode, d_count(dentry),
 	       dentry->d_flags, dentry->d_fsdata, subdirs);
 	if (dentry->d_inode != NULL)
 		ll_dump_inode(dentry->d_inode);

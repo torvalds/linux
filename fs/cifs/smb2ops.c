@@ -213,22 +213,29 @@ smb2_is_path_accessible(const unsigned int xid, struct cifs_tcon *tcon,
 			struct cifs_sb_info *cifs_sb, const char *full_path)
 {
 	int rc;
-	__u64 persistent_fid, volatile_fid;
 	__le16 *utf16_path;
 	__u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
+	struct cifs_open_parms oparms;
+	struct cifs_fid fid;
 
 	utf16_path = cifs_convert_path_to_utf16(full_path, cifs_sb);
 	if (!utf16_path)
 		return -ENOMEM;
 
-	rc = SMB2_open(xid, tcon, utf16_path, &persistent_fid, &volatile_fid,
-		       FILE_READ_ATTRIBUTES, FILE_OPEN, 0, 0, &oplock, NULL);
+	oparms.tcon = tcon;
+	oparms.desired_access = FILE_READ_ATTRIBUTES;
+	oparms.disposition = FILE_OPEN;
+	oparms.create_options = 0;
+	oparms.fid = &fid;
+	oparms.reconnect = false;
+
+	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL);
 	if (rc) {
 		kfree(utf16_path);
 		return rc;
 	}
 
-	rc = SMB2_close(xid, tcon, persistent_fid, volatile_fid);
+	rc = SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
 	kfree(utf16_path);
 	return rc;
 }
@@ -443,15 +450,20 @@ smb2_query_dir_first(const unsigned int xid, struct cifs_tcon *tcon,
 	__le16 *utf16_path;
 	int rc;
 	__u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
-	__u64 persistent_fid, volatile_fid;
+	struct cifs_open_parms oparms;
 
 	utf16_path = cifs_convert_path_to_utf16(path, cifs_sb);
 	if (!utf16_path)
 		return -ENOMEM;
 
-	rc = SMB2_open(xid, tcon, utf16_path, &persistent_fid, &volatile_fid,
-		       FILE_READ_ATTRIBUTES | FILE_READ_DATA, FILE_OPEN, 0, 0,
-		       &oplock, NULL);
+	oparms.tcon = tcon;
+	oparms.desired_access = FILE_READ_ATTRIBUTES | FILE_READ_DATA;
+	oparms.disposition = FILE_OPEN;
+	oparms.create_options = 0;
+	oparms.fid = fid;
+	oparms.reconnect = false;
+
+	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL);
 	kfree(utf16_path);
 	if (rc) {
 		cifs_dbg(VFS, "open dir failed\n");
@@ -460,14 +472,12 @@ smb2_query_dir_first(const unsigned int xid, struct cifs_tcon *tcon,
 
 	srch_inf->entries_in_buffer = 0;
 	srch_inf->index_of_last_entry = 0;
-	fid->persistent_fid = persistent_fid;
-	fid->volatile_fid = volatile_fid;
 
-	rc = SMB2_query_directory(xid, tcon, persistent_fid, volatile_fid, 0,
-				  srch_inf);
+	rc = SMB2_query_directory(xid, tcon, fid->persistent_fid,
+				  fid->volatile_fid, 0, srch_inf);
 	if (rc) {
 		cifs_dbg(VFS, "query directory failed\n");
-		SMB2_close(xid, tcon, persistent_fid, volatile_fid);
+		SMB2_close(xid, tcon, fid->persistent_fid, fid->volatile_fid);
 	}
 	return rc;
 }
@@ -528,17 +538,25 @@ smb2_queryfs(const unsigned int xid, struct cifs_tcon *tcon,
 	     struct kstatfs *buf)
 {
 	int rc;
-	u64 persistent_fid, volatile_fid;
 	__le16 srch_path = 0; /* Null - open root of share */
 	u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
+	struct cifs_open_parms oparms;
+	struct cifs_fid fid;
 
-	rc = SMB2_open(xid, tcon, &srch_path, &persistent_fid, &volatile_fid,
-		       FILE_READ_ATTRIBUTES, FILE_OPEN, 0, 0, &oplock, NULL);
+	oparms.tcon = tcon;
+	oparms.desired_access = FILE_READ_ATTRIBUTES;
+	oparms.disposition = FILE_OPEN;
+	oparms.create_options = 0;
+	oparms.fid = &fid;
+	oparms.reconnect = false;
+
+	rc = SMB2_open(xid, &oparms, &srch_path, &oplock, NULL);
 	if (rc)
 		return rc;
 	buf->f_type = SMB2_MAGIC_NUMBER;
-	rc = SMB2_QFS_info(xid, tcon, persistent_fid, volatile_fid, buf);
-	SMB2_close(xid, tcon, persistent_fid, volatile_fid);
+	rc = SMB2_QFS_info(xid, tcon, fid.persistent_fid, fid.volatile_fid,
+			   buf);
+	SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
 	return rc;
 }
 

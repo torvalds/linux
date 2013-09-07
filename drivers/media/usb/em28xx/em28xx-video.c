@@ -41,7 +41,6 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/msp3400.h>
 #include <media/tuner.h>
 
@@ -1309,28 +1308,6 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_g_chip_ident(struct file *file, void *priv,
-	       struct v4l2_dbg_chip_ident *chip)
-{
-	struct em28xx_fh      *fh  = priv;
-	struct em28xx         *dev = fh->dev;
-
-	chip->ident = V4L2_IDENT_NONE;
-	chip->revision = 0;
-	if (chip->match.type == V4L2_CHIP_MATCH_BRIDGE) {
-		if (chip->match.addr > 1)
-			return -EINVAL;
-		return 0;
-	}
-	if (chip->match.type != V4L2_CHIP_MATCH_I2C_DRIVER &&
-	    chip->match.type != V4L2_CHIP_MATCH_I2C_ADDR)
-		return -EINVAL;
-
-	v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_chip_ident, chip);
-
-	return 0;
-}
-
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int vidioc_g_chip_info(struct file *file, void *priv,
 	       struct v4l2_dbg_chip_info *chip)
@@ -1366,14 +1343,9 @@ static int vidioc_g_register(struct file *file, void *priv,
 	struct em28xx         *dev = fh->dev;
 	int ret;
 
-	switch (reg->match.type) {
-	case V4L2_CHIP_MATCH_BRIDGE:
-		if (reg->match.addr > 1)
-			return -EINVAL;
-		if (!reg->match.addr)
-			break;
-		/* fall-through */
-	case V4L2_CHIP_MATCH_AC97:
+	if (reg->match.addr > 1)
+		return -EINVAL;
+	if (reg->match.addr) {
 		ret = em28xx_read_ac97(dev, reg->reg);
 		if (ret < 0)
 			return ret;
@@ -1381,15 +1353,6 @@ static int vidioc_g_register(struct file *file, void *priv,
 		reg->val = ret;
 		reg->size = 1;
 		return 0;
-	case V4L2_CHIP_MATCH_I2C_DRIVER:
-		v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_register, reg);
-		return 0;
-	case V4L2_CHIP_MATCH_I2C_ADDR:
-		/* TODO: is this correct? */
-		v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_register, reg);
-		return 0;
-	default:
-		return -EINVAL;
 	}
 
 	/* Match host */
@@ -1421,25 +1384,10 @@ static int vidioc_s_register(struct file *file, void *priv,
 	struct em28xx         *dev = fh->dev;
 	__le16 buf;
 
-	switch (reg->match.type) {
-	case V4L2_CHIP_MATCH_BRIDGE:
-		if (reg->match.addr > 1)
-			return -EINVAL;
-		if (!reg->match.addr)
-			break;
-		/* fall-through */
-	case V4L2_CHIP_MATCH_AC97:
-		return em28xx_write_ac97(dev, reg->reg, reg->val);
-	case V4L2_CHIP_MATCH_I2C_DRIVER:
-		v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_register, reg);
-		return 0;
-	case V4L2_CHIP_MATCH_I2C_ADDR:
-		/* TODO: is this correct? */
-		v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_register, reg);
-		return 0;
-	default:
+	if (reg->match.addr > 1)
 		return -EINVAL;
-	}
+	if (reg->match.addr)
+		return em28xx_write_ac97(dev, reg->reg, reg->val);
 
 	/* Match host */
 	buf = cpu_to_le16(reg->val);
@@ -1795,7 +1743,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_s_frequency         = vidioc_s_frequency,
 	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
-	.vidioc_g_chip_ident        = vidioc_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_chip_info         = vidioc_g_chip_info,
 	.vidioc_g_register          = vidioc_g_register,
@@ -1826,7 +1773,6 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 	.vidioc_s_frequency   = vidioc_s_frequency,
 	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
-	.vidioc_g_chip_ident  = vidioc_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_chip_info   = vidioc_g_chip_info,
 	.vidioc_g_register    = vidioc_g_register,

@@ -170,7 +170,7 @@ static struct resource bss_resource = {
 
 #ifdef CONFIG_X86_32
 /* cpu data as detected by the assembly code in head.S */
-struct cpuinfo_x86 new_cpu_data __cpuinitdata = {
+struct cpuinfo_x86 new_cpu_data = {
 	.wp_works_ok = -1,
 };
 /* common cpu data for all cpus */

@@ -139,6 +139,11 @@ static int rd_build_device_space(struct rd_dev *rd_dev)
 			rd_dev->rd_page_count);
 		return -EINVAL;
 	}
+
+	/* Don't need backing pages for NULLIO */
+	if (rd_dev->rd_flags & RDF_NULLIO)
+		return 0;
+
 	total_sg_needed = rd_dev->rd_page_count;
 
 	sg_tables = (total_sg_needed / max_sg_per_table) + 1;

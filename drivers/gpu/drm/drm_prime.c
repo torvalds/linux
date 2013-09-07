@@ -62,20 +62,125 @@ struct drm_prime_member {
 	struct dma_buf *dma_buf;
 	uint32_t handle;
 };
-static int drm_prime_add_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf, uint32_t handle);
+
+struct drm_prime_attachment {
+	struct sg_table *sgt;
+	enum dma_data_direction dir;
+};
+
+static int drm_prime_add_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf, uint32_t handle)
+{
+	struct drm_prime_member *member;
+
+	member = kmalloc(sizeof(*member), GFP_KERNEL);
+	if (!member)
+		return -ENOMEM;
+
+	get_dma_buf(dma_buf);
+	member->dma_buf = dma_buf;
+	member->handle = handle;
+	list_add(&member->entry, &prime_fpriv->head);
+	return 0;
+}
+
+static int drm_gem_map_attach(struct dma_buf *dma_buf,
+			      struct device *target_dev,
+			      struct dma_buf_attachment *attach)
+{
+	struct drm_prime_attachment *prime_attach;
+	struct drm_gem_object *obj = dma_buf->priv;
+	struct drm_device *dev = obj->dev;
+
+	prime_attach = kzalloc(sizeof(*prime_attach), GFP_KERNEL);
+	if (!prime_attach)
+		return -ENOMEM;
+
+	prime_attach->dir = DMA_NONE;
+	attach->priv = prime_attach;
+
+	if (!dev->driver->gem_prime_pin)
+		return 0;
+
+	return dev->driver->gem_prime_pin(obj);
+}
+
+static void drm_gem_map_detach(struct dma_buf *dma_buf,
+			       struct dma_buf_attachment *attach)
+{
+	struct drm_prime_attachment *prime_attach = attach->priv;
+	struct drm_gem_object *obj = dma_buf->priv;
+	struct drm_device *dev = obj->dev;
+	struct sg_table *sgt;
+
+	if (dev->driver->gem_prime_unpin)
+		dev->driver->gem_prime_unpin(obj);
+
+	if (!prime_attach)
+		return;
+
+	sgt = prime_attach->sgt;
+	if (sgt) {
+		if (prime_attach->dir != DMA_NONE)
+			dma_unmap_sg(attach->dev, sgt->sgl, sgt->nents,
+					prime_attach->dir);
+		sg_free_table(sgt);
+	}
+
+	kfree(sgt);
+	kfree(prime_attach);
+	attach->priv = NULL;
+}
+
+static void drm_prime_remove_buf_handle_locked(
+		struct drm_prime_file_private *prime_fpriv,
+		struct dma_buf *dma_buf)
+{
+	struct drm_prime_member *member, *safe;
+
+	list_for_each_entry_safe(member, safe, &prime_fpriv->head, entry) {
+		if (member->dma_buf == dma_buf) {
+			dma_buf_put(dma_buf);
+			list_del(&member->entry);
+			kfree(member);
+		}
+	}
+}
 
 static struct sg_table *drm_gem_map_dma_buf(struct dma_buf_attachment *attach,
 		enum dma_data_direction dir)
 {
+	struct drm_prime_attachment *prime_attach = attach->priv;
 	struct drm_gem_object *obj = attach->dmabuf->priv;
 	struct sg_table *sgt;
+
+	if (WARN_ON(dir == DMA_NONE || !prime_attach))
+		return ERR_PTR(-EINVAL);
+
+	/* return the cached mapping when possible */
+	if (prime_attach->dir == dir)
+		return prime_attach->sgt;
+
+	/*
+	 * two mappings with different directions for the same attachment are
+	 * not allowed
+	 */
+	if (WARN_ON(prime_attach->dir != DMA_NONE))
+		return ERR_PTR(-EBUSY);
 
 	mutex_lock(&obj->dev->struct_mutex);
 
 	sgt = obj->dev->driver->gem_prime_get_sg_table(obj);
 
-	if (!IS_ERR_OR_NULL(sgt))
-		dma_map_sg(attach->dev, sgt->sgl, sgt->nents, dir);
+	if (!IS_ERR(sgt)) {
+		if (!dma_map_sg(attach->dev, sgt->sgl, sgt->nents, dir)) {
+			sg_free_table(sgt);
+			kfree(sgt);
+			sgt = ERR_PTR(-ENOMEM);
+		} else {
+			prime_attach->sgt = sgt;
+			prime_attach->dir = dir;
+		}
+	}
 
 	mutex_unlock(&obj->dev->struct_mutex);
 	return sgt;
@@ -84,9 +189,7 @@ static struct sg_table *drm_gem_map_dma_buf(struct dma_buf_attachment *attach,
 static void drm_gem_unmap_dma_buf(struct dma_buf_attachment *attach,
 		struct sg_table *sgt, enum dma_data_direction dir)
 {
-	dma_unmap_sg(attach->dev, sgt->sgl, sgt->nents, dir);
-	sg_free_table(sgt);
-	kfree(sgt);
+	/* nothing to be done here */
 }
 
 static void drm_gem_dmabuf_release(struct dma_buf *dma_buf)
@@ -142,10 +245,18 @@ static void drm_gem_dmabuf_kunmap(struct dma_buf *dma_buf,
 static int drm_gem_dmabuf_mmap(struct dma_buf *dma_buf,
 		struct vm_area_struct *vma)
 {
-	return -EINVAL;
+	struct drm_gem_object *obj = dma_buf->priv;
+	struct drm_device *dev = obj->dev;
+
+	if (!dev->driver->gem_prime_mmap)
+		return -ENOSYS;
+
+	return dev->driver->gem_prime_mmap(obj, vma);
 }
 
 static const struct dma_buf_ops drm_gem_prime_dmabuf_ops =  {
+	.attach = drm_gem_map_attach,
+	.detach = drm_gem_map_detach,
 	.map_dma_buf = drm_gem_map_dma_buf,
 	.unmap_dma_buf = drm_gem_unmap_dma_buf,
 	.release = drm_gem_dmabuf_release,
@@ -185,11 +296,6 @@ static const struct dma_buf_ops drm_gem_prime_dmabuf_ops =  {
 struct dma_buf *drm_gem_prime_export(struct drm_device *dev,
 				     struct drm_gem_object *obj, int flags)
 {
-	if (dev->driver->gem_prime_pin) {
-		int ret = dev->driver->gem_prime_pin(obj);
-		if (ret)
-			return ERR_PTR(ret);
-	}
 	return dma_buf_export(obj, &drm_gem_prime_dmabuf_ops, obj->size, flags);
 }
 EXPORT_SYMBOL(drm_gem_prime_export);
@@ -235,15 +341,34 @@ int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 	ret = drm_prime_add_buf_handle(&file_priv->prime,
 				       obj->export_dma_buf, handle);
 	if (ret)
-		goto out;
+		goto fail_put_dmabuf;
 
-	*prime_fd = dma_buf_fd(buf, flags);
+	ret = dma_buf_fd(buf, flags);
+	if (ret < 0)
+		goto fail_rm_handle;
+
+	*prime_fd = ret;
 	mutex_unlock(&file_priv->prime.lock);
 	return 0;
 
 out_have_obj:
 	get_dma_buf(dmabuf);
-	*prime_fd = dma_buf_fd(dmabuf, flags);
+	ret = dma_buf_fd(dmabuf, flags);
+	if (ret < 0) {
+		dma_buf_put(dmabuf);
+	} else {
+		*prime_fd = ret;
+		ret = 0;
+	}
+
+	goto out;
+
+fail_rm_handle:
+	drm_prime_remove_buf_handle_locked(&file_priv->prime, buf);
+fail_put_dmabuf:
+	/* clear NOT to be checked when releasing dma_buf */
+	obj->export_dma_buf = NULL;
+	dma_buf_put(buf);
 out:
 	drm_gem_object_unreference_unlocked(obj);
 	mutex_unlock(&file_priv->prime.lock);
@@ -276,7 +401,7 @@ struct drm_gem_object *drm_gem_prime_import(struct drm_device *dev,
 
 	attach = dma_buf_attach(dma_buf, dev->dev);
 	if (IS_ERR(attach))
-		return ERR_PTR(PTR_ERR(attach));
+		return ERR_CAST(attach);
 
 	get_dma_buf(dma_buf);
 
@@ -412,8 +537,10 @@ struct sg_table *drm_prime_pages_to_sg(struct page **pages, int nr_pages)
 	int ret;
 
 	sg = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
-	if (!sg)
+	if (!sg) {
+		ret = -ENOMEM;
 		goto out;
+	}
 
 	ret = sg_alloc_table_from_pages(sg, pages, nr_pages, 0,
 				nr_pages << PAGE_SHIFT, GFP_KERNEL);
@@ -423,7 +550,7 @@ struct sg_table *drm_prime_pages_to_sg(struct page **pages, int nr_pages)
 	return sg;
 out:
 	kfree(sg);
-	return NULL;
+	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL(drm_prime_pages_to_sg);
 
@@ -492,21 +619,6 @@ void drm_prime_destroy_file_private(struct drm_prime_file_private *prime_fpriv)
 }
 EXPORT_SYMBOL(drm_prime_destroy_file_private);
 
-static int drm_prime_add_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf, uint32_t handle)
-{
-	struct drm_prime_member *member;
-
-	member = kmalloc(sizeof(*member), GFP_KERNEL);
-	if (!member)
-		return -ENOMEM;
-
-	get_dma_buf(dma_buf);
-	member->dma_buf = dma_buf;
-	member->handle = handle;
-	list_add(&member->entry, &prime_fpriv->head);
-	return 0;
-}
-
 int drm_prime_lookup_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf, uint32_t *handle)
 {
 	struct drm_prime_member *member;
@@ -523,16 +635,8 @@ EXPORT_SYMBOL(drm_prime_lookup_buf_handle);
 
 void drm_prime_remove_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf)
 {
-	struct drm_prime_member *member, *safe;
-
 	mutex_lock(&prime_fpriv->lock);
-	list_for_each_entry_safe(member, safe, &prime_fpriv->head, entry) {
-		if (member->dma_buf == dma_buf) {
-			dma_buf_put(dma_buf);
-			list_del(&member->entry);
-			kfree(member);
-		}
-	}
+	drm_prime_remove_buf_handle_locked(prime_fpriv, dma_buf);
 	mutex_unlock(&prime_fpriv->lock);
 }
 EXPORT_SYMBOL(drm_prime_remove_buf_handle);

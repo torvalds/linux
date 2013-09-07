@@ -464,7 +464,7 @@ find_router:
 		goto out;
 	}
 
-	if (batadv_send_skb_to_orig(skb, orig_node, NULL))
+	if (batadv_send_skb_to_orig(skb, orig_node, NULL) != NET_XMIT_DROP)
 		ret = 0;
 
 out:

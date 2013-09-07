@@ -674,20 +674,23 @@ cifs_mkdir_setinfo(struct inode *inode, const char *full_path,
 }
 
 static int
-cifs_open_file(const unsigned int xid, struct cifs_tcon *tcon, const char *path,
-	       int disposition, int desired_access, int create_options,
-	       struct cifs_fid *fid, __u32 *oplock, FILE_ALL_INFO *buf,
-	       struct cifs_sb_info *cifs_sb)
+cifs_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
+	       __u32 *oplock, FILE_ALL_INFO *buf)
 {
-	if (!(tcon->ses->capabilities & CAP_NT_SMBS))
-		return SMBLegacyOpen(xid, tcon, path, disposition,
-				     desired_access, create_options,
-				     &fid->netfid, oplock, buf,
-				     cifs_sb->local_nls, cifs_sb->mnt_cifs_flags
+	if (!(oparms->tcon->ses->capabilities & CAP_NT_SMBS))
+		return SMBLegacyOpen(xid, oparms->tcon, oparms->path,
+				     oparms->disposition,
+				     oparms->desired_access,
+				     oparms->create_options,
+				     &oparms->fid->netfid, oplock, buf,
+				     oparms->cifs_sb->local_nls,
+				     oparms->cifs_sb->mnt_cifs_flags
 						& CIFS_MOUNT_MAP_SPECIAL_CHR);
-	return CIFSSMBOpen(xid, tcon, path, disposition, desired_access,
-			   create_options, &fid->netfid, oplock, buf,
-			   cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
+	return CIFSSMBOpen(xid, oparms->tcon, oparms->path,
+			   oparms->disposition, oparms->desired_access,
+			   oparms->create_options, &oparms->fid->netfid, oplock,
+			   buf, oparms->cifs_sb->local_nls,
+			   oparms->cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 }
 

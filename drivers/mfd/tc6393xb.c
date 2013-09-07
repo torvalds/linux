@@ -756,7 +756,6 @@ static int tc6393xb_remove(struct platform_device *dev)
 	clk_disable(tc6393xb->clk);
 	iounmap(tc6393xb->scr);
 	release_resource(&tc6393xb->rscr);
-	platform_set_drvdata(dev, NULL);
 	clk_put(tc6393xb->clk);
 	kfree(tc6393xb);
 

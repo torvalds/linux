@@ -141,6 +141,14 @@ structs, ioctls) must be noted in more detail in the history chapter
 applications. -->
 
       <revision>
+	<revnumber>3.11</revnumber>
+	<date>2013-05-26</date>
+	<authorinitials>hv</authorinitials>
+	<revremark>Remove obsolete VIDIOC_DBG_G_CHIP_IDENT ioctl.
+	</revremark>
+      </revision>
+
+      <revision>
 	<revnumber>3.10</revnumber>
 	<date>2013-03-25</date>
 	<authorinitials>hv</authorinitials>
@@ -493,7 +501,7 @@ and discussions on the V4L mailing list.</revremark>
 </partinfo>
 
 <title>Video for Linux Two API Specification</title>
- <subtitle>Revision 3.10</subtitle>
+ <subtitle>Revision 3.11</subtitle>
 
   <chapter id="common">
     &sub-common;
@@ -547,7 +555,6 @@ and discussions on the V4L mailing list.</revremark>
     <!-- All ioctls go here. -->
     &sub-create-bufs;
     &sub-cropcap;
-    &sub-dbg-g-chip-ident;
     &sub-dbg-g-chip-info;
     &sub-dbg-g-register;
     &sub-decoder-cmd;

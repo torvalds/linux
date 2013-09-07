@@ -381,7 +381,7 @@ void __init dove_init(void)
 	dove_xor1_init();
 }
 
-void dove_restart(char mode, const char *cmd)
+void dove_restart(enum reboot_mode mode, const char *cmd)
 {
 	/*
 	 * Enable soft reset to assert RSTOUTn.

@@ -15,6 +15,7 @@
 #include <linux/notifier.h>
 #include <linux/module.h>
 #include <linux/random.h>
+#include <linux/ftrace.h>
 #include <linux/reboot.h>
 #include <linux/delay.h>
 #include <linux/kexec.h>
@@ -399,8 +400,11 @@ struct slowpath_args {
 static void warn_slowpath_common(const char *file, int line, void *caller,
 				 unsigned taint, struct slowpath_args *args)
 {
-	printk(KERN_WARNING "------------[ cut here ]------------\n");
-	printk(KERN_WARNING "WARNING: at %s:%d %pS()\n", file, line, caller);
+	disable_trace_on_warning();
+
+	pr_warn("------------[ cut here ]------------\n");
+	pr_warn("WARNING: CPU: %d PID: %d at %s:%d %pS()\n",
+		raw_smp_processor_id(), current->pid, file, line, caller);
 
 	if (args)
 		vprintk(args->fmt, args->args);

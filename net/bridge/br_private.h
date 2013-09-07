@@ -112,6 +112,7 @@ struct net_bridge_mdb_entry
 	struct timer_list		timer;
 	struct br_ip			addr;
 	bool				mglist;
+	bool				timer_armed;
 };
 
 struct net_bridge_mdb_htable
@@ -157,6 +158,8 @@ struct net_bridge_port
 #define BR_ROOT_BLOCK		0x00000004
 #define BR_MULTICAST_FAST_LEAVE	0x00000008
 #define BR_ADMIN_COST		0x00000010
+#define BR_LEARNING		0x00000020
+#define BR_FLOOD		0x00000040
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	u32				multicast_startup_queries_sent;
@@ -249,6 +252,7 @@ struct net_bridge
 
 	u8				multicast_disabled:1;
 	u8				multicast_querier:1;
+	u8				multicast_query_use_ifaddr:1;
 
 	u32				hash_elasticity;
 	u32				hash_max;
@@ -411,9 +415,10 @@ extern int br_dev_queue_push_xmit(struct sk_buff *skb);
 extern void br_forward(const struct net_bridge_port *to,
 		struct sk_buff *skb, struct sk_buff *skb0);
 extern int br_forward_finish(struct sk_buff *skb);
-extern void br_flood_deliver(struct net_bridge *br, struct sk_buff *skb);
+extern void br_flood_deliver(struct net_bridge *br, struct sk_buff *skb,
+			     bool unicast);
 extern void br_flood_forward(struct net_bridge *br, struct sk_buff *skb,
-			     struct sk_buff *skb2);
+			     struct sk_buff *skb2, bool unicast);
 
 /* br_if.c */
 extern void br_port_carrier_check(struct net_bridge_port *p);

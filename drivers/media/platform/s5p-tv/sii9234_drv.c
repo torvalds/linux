@@ -249,7 +249,9 @@ static int sii9234_runtime_resume(struct device *dev)
 	int ret;
 
 	dev_info(dev, "resume start\n");
-	regulator_enable(ctx->power);
+	ret = regulator_enable(ctx->power);
+	if (ret < 0)
+		return ret;
 
 	ret = sii9234_reset(ctx);
 	if (ret)

@@ -478,6 +478,36 @@ config FRONTSWAP
 
 	  If unsure, say Y to enable frontswap.
 
+config ZBUD
+	tristate
+	default n
+	help
+	  A special purpose allocator for storing compressed pages.
+	  It is designed to store up to two compressed pages per physical
+	  page.  While this design limits storage density, it has simple and
+	  deterministic reclaim properties that make it preferable to a higher
+	  density approach when reclaim will be used.
+
+config ZSWAP
+	bool "Compressed cache for swap pages (EXPERIMENTAL)"
+	depends on FRONTSWAP && CRYPTO=y
+	select CRYPTO_LZO
+	select ZBUD
+	default n
+	help
+	  A lightweight compressed cache for swap pages.  It takes
+	  pages that are in the process of being swapped out and attempts to
+	  compress them into a dynamically allocated RAM-based memory pool.
+	  This can result in a significant I/O reduction on swap device and,
+	  in the case where decompressing from RAM is faster that swap device
+	  reads, can also improve workload performance.
+
+	  This is marked experimental because it is a new feature (as of
+	  v3.11) that interacts heavily with memory reclaim.  While these
+	  interactions don't cause any known issues on simple memory setups,
+	  they have not be fully explored on the large set of potential
+	  configurations and workloads that exist.
+
 config MEM_SOFT_DIRTY
 	bool "Track memory changes"
 	depends on CHECKPOINT_RESTORE && HAVE_ARCH_SOFT_DIRTY

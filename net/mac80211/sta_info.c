@@ -149,6 +149,7 @@ static void cleanup_single_sta(struct sta_info *sta)
 	 * directly by station destruction.
 	 */
 	for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
+		kfree(sta->ampdu_mlme.tid_start_tx[i]);
 		tid_tx = rcu_dereference_raw(sta->ampdu_mlme.tid_tx[i]);
 		if (!tid_tx)
 			continue;
@@ -346,6 +347,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	if (ieee80211_vif_is_mesh(&sdata->vif) &&
 	    !sdata->u.mesh.user_mpm)
 		init_timer(&sta->plink_timer);
+	sta->nonpeer_pm = NL80211_MESH_POWER_ACTIVE;
 #endif
 
 	memcpy(sta->sta.addr, addr, ETH_ALEN);
@@ -358,6 +360,8 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	do_posix_clock_monotonic_gettime(&uptime);
 	sta->last_connected = uptime.tv_sec;
 	ewma_init(&sta->avg_signal, 1024, 8);
+	for (i = 0; i < ARRAY_SIZE(sta->chain_signal_avg); i++)
+		ewma_init(&sta->chain_signal_avg[i], 1024, 8);
 
 	if (sta_prepare_rate_control(local, sta, gfp)) {
 		kfree(sta);
@@ -1130,6 +1134,7 @@ static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 	 * ends the poll/service period.
 	 */
 	info->flags |= IEEE80211_TX_CTL_NO_PS_BUFFER |
+		       IEEE80211_TX_CTL_PS_RESPONSE |
 		       IEEE80211_TX_STATUS_EOSP |
 		       IEEE80211_TX_CTL_REQ_TX_STATUS;
 
@@ -1267,7 +1272,8 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 			 * STA may still remain is PS mode after this frame
 			 * exchange.
 			 */
-			info->flags |= IEEE80211_TX_CTL_NO_PS_BUFFER;
+			info->flags |= IEEE80211_TX_CTL_NO_PS_BUFFER |
+				       IEEE80211_TX_CTL_PS_RESPONSE;
 
 			/*
 			 * Use MoreData flag to indicate whether there are

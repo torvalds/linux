@@ -18,9 +18,9 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/clocksource.h>
+#include <linux/sched_clock.h>
 
 #include <asm/mach/time.h>
-#include <asm/sched_clock.h>
 
 #include <plat/counter-32k.h>
 

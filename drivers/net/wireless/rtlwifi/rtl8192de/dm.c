@@ -842,7 +842,7 @@ static void rtl92d_dm_txpower_tracking_callback_thermalmeter(
 	long val_y, ele_c = 0;
 	u8 ofdm_index[2];
 	s8 cck_index = 0;
-	u8 ofdm_index_old[2];
+	u8 ofdm_index_old[2] = {0, 0};
 	s8 cck_index_old = 0;
 	u8 index;
 	int i;

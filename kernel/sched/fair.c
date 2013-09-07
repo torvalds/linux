@@ -5506,7 +5506,7 @@ void nohz_balance_enter_idle(int cpu)
 	set_bit(NOHZ_TICK_STOPPED, nohz_flags(cpu));
 }
 
-static int __cpuinit sched_ilb_notifier(struct notifier_block *nfb,
+static int sched_ilb_notifier(struct notifier_block *nfb,
 					unsigned long action, void *hcpu)
 {
 	switch (action & ~CPU_TASKS_FROZEN) {

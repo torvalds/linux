@@ -428,7 +428,7 @@ struct smb2_create_req {
 	__le16 NameLength;
 	__le32 CreateContextsOffset;
 	__le32 CreateContextsLength;
-	__u8   Buffer[8];
+	__u8   Buffer[0];
 } __packed;
 
 struct smb2_create_rsp {
@@ -483,6 +483,18 @@ struct create_lease {
 	struct create_context ccontext;
 	__u8   Name[8];
 	struct lease_context lcontext;
+} __packed;
+
+struct create_durable {
+	struct create_context ccontext;
+	__u8   Name[8];
+	union {
+		__u8  Reserved[16];
+		struct {
+			__u64 PersistentFileId;
+			__u64 VolatileFileId;
+		} Fid;
+	} Data;
 } __packed;
 
 /* this goes in the ioctl buffer when doing a copychunk request */

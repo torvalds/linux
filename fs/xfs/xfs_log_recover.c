@@ -45,6 +45,7 @@
 #include "xfs_cksum.h"
 #include "xfs_trace.h"
 #include "xfs_icache.h"
+#include "xfs_icreate_item.h"
 
 /* Need all the magic numbers and buffer ops structures from these headers */
 #include "xfs_symlink.h"
@@ -1617,7 +1618,10 @@ xlog_recover_add_to_trans(
  *	   form the cancelled buffer table. Hence they have tobe done last.
  *
  *	3. Inode allocation buffers must be replayed before inode items that
- *	   read the buffer and replay changes into it.
+ *	   read the buffer and replay changes into it. For filesystems using the
+ *	   ICREATE transactions, this means XFS_LI_ICREATE objects need to get
+ *	   treated the same as inode allocation buffers as they create and
+ *	   initialise the buffers directly.
  *
  *	4. Inode unlink buffers must be replayed after inode items are replayed.
  *	   This ensures that inodes are completely flushed to the inode buffer
@@ -1632,10 +1636,17 @@ xlog_recover_add_to_trans(
  * from all the other buffers and move them to last.
  *
  * Hence, 4 lists, in order from head to tail:
- * 	- buffer_list for all buffers except cancelled/inode unlink buffers
- * 	- item_list for all non-buffer items
- * 	- inode_buffer_list for inode unlink buffers
- * 	- cancel_list for the cancelled buffers
+ *	- buffer_list for all buffers except cancelled/inode unlink buffers
+ *	- item_list for all non-buffer items
+ *	- inode_buffer_list for inode unlink buffers
+ *	- cancel_list for the cancelled buffers
+ *
+ * Note that we add objects to the tail of the lists so that first-to-last
+ * ordering is preserved within the lists. Adding objects to the head of the
+ * list means when we traverse from the head we walk them in last-to-first
+ * order. For cancelled buffers and inode unlink buffers this doesn't matter,
+ * but for all other items there may be specific ordering that we need to
+ * preserve.
  */
 STATIC int
 xlog_recover_reorder_trans(
@@ -1655,6 +1666,9 @@ xlog_recover_reorder_trans(
 		xfs_buf_log_format_t	*buf_f = item->ri_buf[0].i_addr;
 
 		switch (ITEM_TYPE(item)) {
+		case XFS_LI_ICREATE:
+			list_move_tail(&item->ri_list, &buffer_list);
+			break;
 		case XFS_LI_BUF:
 			if (buf_f->blf_flags & XFS_BLF_CANCEL) {
 				trace_xfs_log_recover_item_reorder_head(log,
@@ -2982,6 +2996,93 @@ xlog_recover_efd_pass2(
 }
 
 /*
+ * This routine is called when an inode create format structure is found in a
+ * committed transaction in the log.  It's purpose is to initialise the inodes
+ * being allocated on disk. This requires us to get inode cluster buffers that
+ * match the range to be intialised, stamped with inode templates and written
+ * by delayed write so that subsequent modifications will hit the cached buffer
+ * and only need writing out at the end of recovery.
+ */
+STATIC int
+xlog_recover_do_icreate_pass2(
+	struct xlog		*log,
+	struct list_head	*buffer_list,
+	xlog_recover_item_t	*item)
+{
+	struct xfs_mount	*mp = log->l_mp;
+	struct xfs_icreate_log	*icl;
+	xfs_agnumber_t		agno;
+	xfs_agblock_t		agbno;
+	unsigned int		count;
+	unsigned int		isize;
+	xfs_agblock_t		length;
+
+	icl = (struct xfs_icreate_log *)item->ri_buf[0].i_addr;
+	if (icl->icl_type != XFS_LI_ICREATE) {
+		xfs_warn(log->l_mp, "xlog_recover_do_icreate_trans: bad type");
+		return EINVAL;
+	}
+
+	if (icl->icl_size != 1) {
+		xfs_warn(log->l_mp, "xlog_recover_do_icreate_trans: bad icl size");
+		return EINVAL;
+	}
+
+	agno = be32_to_cpu(icl->icl_ag);
+	if (agno >= mp->m_sb.sb_agcount) {
+		xfs_warn(log->l_mp, "xlog_recover_do_icreate_trans: bad agno");
+		return EINVAL;
+	}
+	agbno = be32_to_cpu(icl->icl_agbno);
+	if (!agbno || agbno == NULLAGBLOCK || agbno >= mp->m_sb.sb_agblocks) {
+		xfs_warn(log->l_mp, "xlog_recover_do_icreate_trans: bad agbno");
+		return EINVAL;
+	}
+	isize = be32_to_cpu(icl->icl_isize);
+	if (isize != mp->m_sb.sb_inodesize) {
+		xfs_warn(log->l_mp, "xlog_recover_do_icreate_trans: bad isize");
+		return EINVAL;
+	}
+	count = be32_to_cpu(icl->icl_count);
+	if (!count) {
+		xfs_warn(log->l_mp, "xlog_recover_do_icreate_trans: bad count");
+		return EINVAL;
+	}
+	length = be32_to_cpu(icl->icl_length);
+	if (!length || length >= mp->m_sb.sb_agblocks) {
+		xfs_warn(log->l_mp, "xlog_recover_do_icreate_trans: bad length");
+		return EINVAL;
+	}
+
+	/* existing allocation is fixed value */
+	ASSERT(count == XFS_IALLOC_INODES(mp));
+	ASSERT(length == XFS_IALLOC_BLOCKS(mp));
+	if (count != XFS_IALLOC_INODES(mp) ||
+	     length != XFS_IALLOC_BLOCKS(mp)) {
+		xfs_warn(log->l_mp, "xlog_recover_do_icreate_trans: bad count 2");
+		return EINVAL;
+	}
+
+	/*
+	 * Inode buffers can be freed. Do not replay the inode initialisation as
+	 * we could be overwriting something written after this inode buffer was
+	 * cancelled.
+	 *
+	 * XXX: we need to iterate all buffers and only init those that are not
+	 * cancelled. I think that a more fine grained factoring of
+	 * xfs_ialloc_inode_init may be appropriate here to enable this to be
+	 * done easily.
+	 */
+	if (xlog_check_buffer_cancelled(log,
+			XFS_AGB_TO_DADDR(mp, agno, agbno), length, 0))
+		return 0;
+
+	xfs_ialloc_inode_init(mp, NULL, buffer_list, agno, agbno, length,
+					be32_to_cpu(icl->icl_gen));
+	return 0;
+}
+
+/*
  * Free up any resources allocated by the transaction
  *
  * Remember that EFIs, EFDs, and IUNLINKs are handled later.
@@ -3023,6 +3124,7 @@ xlog_recover_commit_pass1(
 	case XFS_LI_EFI:
 	case XFS_LI_EFD:
 	case XFS_LI_DQUOT:
+	case XFS_LI_ICREATE:
 		/* nothing to do in pass 1 */
 		return 0;
 	default:
@@ -3053,6 +3155,8 @@ xlog_recover_commit_pass2(
 		return xlog_recover_efd_pass2(log, item);
 	case XFS_LI_DQUOT:
 		return xlog_recover_dquot_pass2(log, buffer_list, item);
+	case XFS_LI_ICREATE:
+		return xlog_recover_do_icreate_pass2(log, buffer_list, item);
 	case XFS_LI_QUOTAOFF:
 		/* nothing to do in pass2 */
 		return 0;
