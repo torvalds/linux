@@ -253,8 +253,10 @@ struct dentry *nfs4_try_mount(int flags, const char *dev_name,
 
 	dfprintk(MOUNT, "--> nfs4_try_mount()\n");
 
-	if (data->auth_flavors[0] == RPC_AUTH_MAXFLAVOR)
+	if (data->auth_flavor_len < 1) {
 		data->auth_flavors[0] = RPC_AUTH_UNIX;
+		data->auth_flavor_len = 1;
+	}
 	export_path = data->nfs_server.export_path;
 	data->nfs_server.export_path = "/";
 	root_mnt = nfs_do_root_mount(&nfs4_remote_fs_type, flags, mount_info,

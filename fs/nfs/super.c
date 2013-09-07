@@ -923,7 +923,7 @@ static struct nfs_parsed_mount_data *nfs_alloc_parsed_mount_data(void)
 		data->nfs_server.port	= NFS_UNSPEC_PORT;
 		data->nfs_server.protocol = XPRT_TRANSPORT_TCP;
 		data->auth_flavors[0]	= RPC_AUTH_MAXFLAVOR;
-		data->auth_flavor_len	= 1;
+		data->auth_flavor_len	= 0;
 		data->minorversion	= 0;
 		data->need_mount	= true;
 		data->net		= current->nsproxy->net_ns;
@@ -1016,6 +1016,13 @@ static void nfs_set_mount_transport_protocol(struct nfs_parsed_mount_data *mnt)
 	case XPRT_TRANSPORT_RDMA:
 		mnt->mount_server.protocol = XPRT_TRANSPORT_TCP;
 	}
+}
+
+static void nfs_set_auth_parsed_mount_data(struct nfs_parsed_mount_data *data,
+		rpc_authflavor_t pseudoflavor)
+{
+	data->auth_flavors[0] = pseudoflavor;
+	data->auth_flavor_len = 1;
 }
 
 /*
@@ -1729,7 +1736,7 @@ static struct nfs_server *nfs_try_mount_request(struct nfs_mount_info *mount_inf
 	 * Was a sec= authflavor specified in the options? First, verify
 	 * whether the server supports it, and then just try to use it if so.
 	 */
-	if (args->auth_flavors[0] != RPC_AUTH_MAXFLAVOR) {
+	if (args->auth_flavor_len > 0) {
 		status = nfs_verify_authflavor(args, authlist, authlist_len);
 		dfprintk(MOUNT, "NFS: using auth flavor %u\n", args->auth_flavors[0]);
 		if (status)
@@ -1760,7 +1767,7 @@ static struct nfs_server *nfs_try_mount_request(struct nfs_mount_info *mount_inf
 			/* Fallthrough */
 		}
 		dfprintk(MOUNT, "NFS: attempting to use auth flavor %u\n", flavor);
-		args->auth_flavors[0] = flavor;
+		nfs_set_auth_parsed_mount_data(args, flavor);
 		server = nfs_mod->rpc_ops->create_server(mount_info, nfs_mod);
 		if (!IS_ERR(server))
 			return server;
@@ -1776,7 +1783,7 @@ static struct nfs_server *nfs_try_mount_request(struct nfs_mount_info *mount_inf
 
 	/* Last chance! Try AUTH_UNIX */
 	dfprintk(MOUNT, "NFS: attempting to use auth flavor %u\n", RPC_AUTH_UNIX);
-	args->auth_flavors[0] = RPC_AUTH_UNIX;
+	nfs_set_auth_parsed_mount_data(args, RPC_AUTH_UNIX);
 	return nfs_mod->rpc_ops->create_server(mount_info, nfs_mod);
 }
 
@@ -1893,6 +1900,7 @@ static int nfs23_validate_mount_data(void *options,
 {
 	struct nfs_mount_data *data = (struct nfs_mount_data *)options;
 	struct sockaddr *sap = (struct sockaddr *)&args->nfs_server.address;
+	int extra_flags = NFS_MOUNT_LEGACY_INTERFACE;
 
 	if (data == NULL)
 		goto out_no_data;
@@ -1908,6 +1916,8 @@ static int nfs23_validate_mount_data(void *options,
 			goto out_no_v3;
 		data->root.size = NFS2_FHSIZE;
 		memcpy(data->root.data, data->old_root.data, NFS2_FHSIZE);
+		/* Turn off security negotiation */
+		extra_flags |= NFS_MOUNT_SECFLAVOUR;
 	case 4:
 		if (data->flags & NFS_MOUNT_SECFLAVOUR)
 			goto out_no_sec;
@@ -1935,7 +1945,7 @@ static int nfs23_validate_mount_data(void *options,
 		 * can deal with.
 		 */
 		args->flags		= data->flags & NFS_MOUNT_FLAGMASK;
-		args->flags		|= NFS_MOUNT_LEGACY_INTERFACE;
+		args->flags		|= extra_flags;
 		args->rsize		= data->rsize;
 		args->wsize		= data->wsize;
 		args->timeo		= data->timeo;
@@ -1959,9 +1969,10 @@ static int nfs23_validate_mount_data(void *options,
 		args->namlen		= data->namlen;
 		args->bsize		= data->bsize;
 
-		args->auth_flavors[0] = RPC_AUTH_UNIX;
 		if (data->flags & NFS_MOUNT_SECFLAVOUR)
-			args->auth_flavors[0] = data->pseudoflavor;
+			nfs_set_auth_parsed_mount_data(args, data->pseudoflavor);
+		else
+			nfs_set_auth_parsed_mount_data(args, RPC_AUTH_UNIX);
 		if (!args->nfs_server.hostname)
 			goto out_nomem;
 
@@ -2176,7 +2187,7 @@ nfs_remount(struct super_block *sb, int *flags, char *raw_data)
 	data->rsize = nfss->rsize;
 	data->wsize = nfss->wsize;
 	data->retrans = nfss->client->cl_timeout->to_retries;
-	data->auth_flavors[0] = nfss->client->cl_auth->au_flavor;
+	nfs_set_auth_parsed_mount_data(data, nfss->client->cl_auth->au_flavor);
 	data->acregmin = nfss->acregmin / HZ;
 	data->acregmax = nfss->acregmax / HZ;
 	data->acdirmin = nfss->acdirmin / HZ;
@@ -2675,15 +2686,17 @@ static int nfs4_validate_mount_data(void *options,
 			goto out_no_address;
 		args->nfs_server.port = ntohs(((struct sockaddr_in *)sap)->sin_port);
 
-		args->auth_flavors[0] = RPC_AUTH_UNIX;
 		if (data->auth_flavourlen) {
+			rpc_authflavor_t pseudoflavor;
 			if (data->auth_flavourlen > 1)
 				goto out_inval_auth;
-			if (copy_from_user(&args->auth_flavors[0],
+			if (copy_from_user(&pseudoflavor,
 					   data->auth_flavours,
-					   sizeof(args->auth_flavors[0])))
+					   sizeof(pseudoflavor)))
 				return -EFAULT;
-		}
+			nfs_set_auth_parsed_mount_data(args, pseudoflavor);
+		} else
+			nfs_set_auth_parsed_mount_data(args, RPC_AUTH_UNIX);
 
 		c = strndup_user(data->hostname.data, NFS4_MAXNAMLEN);
 		if (IS_ERR(c))
