@@ -1,0 +1,20 @@
+EXTRA_FLAGS += -I$(PWD)
+
+#KDIR	:= /usr/src/linux/
+KDIR	:= /lib/modules/$(shell uname -r)/build
+PWD		:= $(shell pwd)
+
+export CONFIG_EXFAT_FS := m
+
+all:
+	$(MAKE) -C $(KDIR) M=$(PWD) modules
+
+clean:
+	$(MAKE) -C $(KDIR) M=$(PWD) clean
+
+help:
+	$(MAKE) -C $(KDIR) M=$(PWD) help
+
+.PHONY : install
+install : all
+	sudo $(MAKE) -C $(KDIR) M=$(PWD) modules_install; sudo depmod
