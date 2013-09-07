@@ -31,7 +31,6 @@
 #include <linux/sort.h>
 #include <linux/of_fdt.h>
 
-#include <asm/prom.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/sizes.h>
