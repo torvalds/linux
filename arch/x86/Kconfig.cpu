@@ -290,6 +290,16 @@ config X86_GENERIC
 	  This is really intended for distributors who need more
 	  generic optimizations.
 
+config X86_MARCH_NATIVE
+	bool "Use -march=native cflag (EXPERIMENTAL)"
+	help
+	  Setting Y here, will result in passing the -march=native and
+	  -mtune=native cflags to GCC while compiling the kernel, which
+	  makes GCC check the CPU capabilities and use the best cflags
+	  for your computer.
+
+	  Set Y here only if you use >=gcc-4.2.0.
+
 #
 # Define implied options from the CPU selection here
 config X86_INTERNODE_CACHE_SHIFT
