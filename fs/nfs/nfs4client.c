@@ -1078,7 +1078,8 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 	if (error < 0)
 		goto error;
 
-	error = nfs4_server_common_setup(server, mntfh, false);
+	error = nfs4_server_common_setup(server, mntfh,
+			!(parent_server->flags & NFS_MOUNT_SECFLAVOUR));
 	if (error < 0)
 		goto error;
 

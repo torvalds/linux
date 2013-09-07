@@ -11,6 +11,7 @@
 #include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/nfs_fs.h>
+#include <linux/nfs_mount.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/sunrpc/clnt.h>
@@ -369,21 +370,33 @@ out:
 struct vfsmount *nfs4_submount(struct nfs_server *server, struct dentry *dentry,
 			       struct nfs_fh *fh, struct nfs_fattr *fattr)
 {
+	rpc_authflavor_t flavor = server->client->cl_auth->au_flavor;
 	struct dentry *parent = dget_parent(dentry);
+	struct inode *dir = parent->d_inode;
+	struct qstr *name = &dentry->d_name;
 	struct rpc_clnt *client;
 	struct vfsmount *mnt;
 
 	/* Look it up again to get its attributes and sec flavor */
-	client = nfs4_proc_lookup_mountpoint(parent->d_inode, &dentry->d_name, fh, fattr);
+	client = nfs4_proc_lookup_mountpoint(dir, name, fh, fattr);
 	dput(parent);
 	if (IS_ERR(client))
 		return ERR_CAST(client);
 
-	if (fattr->valid & NFS_ATTR_FATTR_V4_REFERRAL)
+	if (fattr->valid & NFS_ATTR_FATTR_V4_REFERRAL) {
 		mnt = nfs_do_refmount(client, dentry);
-	else
-		mnt = nfs_do_submount(dentry, fh, fattr, client->cl_auth->au_flavor);
+		goto out;
+	}
 
+	if (client->cl_auth->au_flavor != flavor)
+		flavor = client->cl_auth->au_flavor;
+	else if (!(server->flags & NFS_MOUNT_SECFLAVOUR)) {
+		rpc_authflavor_t new = nfs4_negotiate_security(dir, name);
+		if ((int)new >= 0)
+			flavor = new;
+	}
+	mnt = nfs_do_submount(dentry, fh, fattr, flavor);
+out:
 	rpc_shutdown_client(client);
 	return mnt;
 }
