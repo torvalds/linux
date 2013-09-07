@@ -34,6 +34,8 @@
 
 #include "sched.h"
 
+#include <linux/zentune.h>
+
 /*
  * Targeted preemption latency for CPU-bound tasks:
  * (default: 6ms * (1 + ilog(ncpus)), units: nanoseconds)
@@ -46,8 +48,13 @@
  * (to see the precise effective timeslice length of your workload,
  *  run vmstat and monitor the context-switches (cs) field)
  */
+#if defined(CONFIG_ZEN_DEFAULT)
 unsigned int sysctl_sched_latency = 6000000ULL;
 unsigned int normalized_sysctl_sched_latency = 6000000ULL;
+#elif defined(CONFIG_ZEN_CUSTOM)
+unsigned int sysctl_sched_latency = sysctl_sched_latency_custom;
+unsigned int normalized_sysctl_sched_latency = normalized_sysctl_sched_latency_custom;
+#endif
 
 /*
  * The initial- and re-scaling of tunables is configurable
@@ -65,13 +72,23 @@ enum sched_tunable_scaling sysctl_sched_tunable_scaling
  * Minimal preemption granularity for CPU-bound tasks:
  * (default: 0.75 msec * (1 + ilog(ncpus)), units: nanoseconds)
  */
+#if defined(CONFIG_ZEN_DEFAULT)
 unsigned int sysctl_sched_min_granularity = 750000ULL;
 unsigned int normalized_sysctl_sched_min_granularity = 750000ULL;
+#elif defined(CONFIG_ZEN_CUSTOM)
+unsigned int sysctl_sched_min_granularity = sysctl_sched_min_granularity_custom;
+unsigned int normalized_sysctl_sched_min_granularity = normalized_sysctl_sched_min_granularity_custom;
+#endif
 
 /*
  * is kept at sysctl_sched_latency / sysctl_sched_min_granularity
  */
+
+#if defined(CONFIG_ZEN_DEFAULT)
 static unsigned int sched_nr_latency = 8;
+#elif defined(CONFIG_ZEN_CUSTOM)
+static unsigned int sched_nr_latency = sched_nr_latency_custom;
+#endif
 
 /*
  * After fork, child runs first. If set to 0 (default) then
@@ -87,10 +104,16 @@ unsigned int sysctl_sched_child_runs_first __read_mostly;
  * and reduces their over-scheduling. Synchronous workloads will still
  * have immediate wakeup/sleep latencies.
  */
+#if defined(CONFIG_ZEN_DEFAULT)
 unsigned int sysctl_sched_wakeup_granularity = 1000000UL;
 unsigned int normalized_sysctl_sched_wakeup_granularity = 1000000UL;
-
 const_debug unsigned int sysctl_sched_migration_cost = 500000UL;
+#elif defined(CONFIG_ZEN_CUSTOM)
+unsigned int sysctl_sched_wakeup_granularity = sysctl_sched_wakeup_granularity_custom;
+unsigned int normalized_sysctl_sched_wakeup_granularity = normalized_sysctl_sched_wakeup_granularity_custom;
+const_debug unsigned int sysctl_sched_migration_cost = sysctl_sched_migration_cost_custom;
+#endif
+
 
 /*
  * The exponential sliding  window over which load is averaged for shares
@@ -110,7 +133,12 @@ unsigned int __read_mostly sysctl_sched_shares_window = 10000000UL;
  *
  * default: 5 msec, units: microseconds
   */
+#if defined(CONFIG_ZEN_DEFAULT)
 unsigned int sysctl_sched_cfs_bandwidth_slice = 5000UL;
+#elif defined(CONFIG_ZEN_CUSTOM)
+unsigned int sysctl_sched_cfs_bandwidth_slice = sysctl_sched_cfs_bandwidth_slice_custom;
+
+#endif
 #endif
 
 static inline void update_load_add(struct load_weight *lw, unsigned long inc)
