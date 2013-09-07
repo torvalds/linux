@@ -360,7 +360,7 @@ static int xino_trunc_test(struct super_block *sb, struct au_branch *br)
 		AuErr1("statfs err %d, ignored\n", err);
 		return 0;
 	}
-	if (st.f_bfree * 100 / st.f_blocks >= AUFS_XINO_DEF_TRUNC)
+	if (div64_u64(st.f_bfree * 100, st.f_blocks) >= AUFS_XINO_DEF_TRUNC)
 		return 0;
 
 	return 1;
