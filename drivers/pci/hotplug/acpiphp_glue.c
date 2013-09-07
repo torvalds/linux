@@ -528,6 +528,16 @@ static void check_hotplug_bridge(struct acpiphp_slot *slot, struct pci_dev *dev)
 	}
 }
 
+static int acpiphp_rescan_slot(struct acpiphp_slot *slot)
+{
+	struct acpiphp_func *func;
+
+	list_for_each_entry(func, &slot->funcs, sibling)
+		acpiphp_bus_add(func_to_handle(func));
+
+	return pci_scan_slot(slot->bus, PCI_DEVFN(slot->device, 0));
+}
+
 /**
  * enable_slot - enable, configure a slot
  * @slot: slot to be enabled
@@ -544,10 +554,7 @@ static void __ref enable_slot(struct acpiphp_slot *slot)
 	LIST_HEAD(add_list);
 	int nr_found;
 
-	list_for_each_entry(func, &slot->funcs, sibling)
-		acpiphp_bus_add(func_to_handle(func));
-
-	nr_found = pci_scan_slot(bus, PCI_DEVFN(slot->device, 0));
+	nr_found = acpiphp_rescan_slot(slot);
 	max = acpiphp_max_busnr(bus);
 	for (pass = 0; pass < 2; pass++) {
 		list_for_each_entry(dev, &bus->devices, bus_list) {
@@ -840,11 +847,22 @@ static void hotplug_event(acpi_handle handle, u32 type, void *data)
 	case ACPI_NOTIFY_DEVICE_CHECK:
 		/* device check */
 		dbg("%s: Device check notify on %s\n", __func__, objname);
-		if (bridge)
+		if (bridge) {
 			acpiphp_check_bridge(bridge);
-		else
-			acpiphp_check_bridge(func->parent);
+		} else {
+			struct acpiphp_slot *slot = func->slot;
+			int ret;
 
+			/*
+			 * Check if anything has changed in the slot and rescan
+			 * from the parent if that's the case.
+			 */
+			mutex_lock(&slot->crit_sect);
+			ret = acpiphp_rescan_slot(slot);
+			mutex_unlock(&slot->crit_sect);
+			if (ret)
+				acpiphp_check_bridge(func->parent);
+		}
 		break;
 
 	case ACPI_NOTIFY_EJECT_REQUEST:
