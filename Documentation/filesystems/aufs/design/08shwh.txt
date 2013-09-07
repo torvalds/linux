@@ -1,0 +1,53 @@
+
+# Copyright (C) 2005-2013 Junjiro R. Okajima
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+Show Whiteout Mode (shwh)
+----------------------------------------------------------------------
+Generally aufs hides the name of whiteouts. But in some cases, to show
+them is very useful for users. For instance, creating a new middle layer
+(branch) by merging existing layers.
+
+(borrowing aufs1 HOW-TO from a user, Michael Towers)
+When you have three branches,
+- Bottom: 'system', squashfs (underlying base system), read-only
+- Middle: 'mods', squashfs, read-only
+- Top: 'overlay', ram (tmpfs), read-write
+
+The top layer is loaded at boot time and saved at shutdown, to preserve
+the changes made to the system during the session.
+When larger changes have been made, or smaller changes have accumulated,
+the size of the saved top layer data grows. At this point, it would be
+nice to be able to merge the two overlay branches ('mods' and 'overlay')
+and rewrite the 'mods' squashfs, clearing the top layer and thus
+restoring save and load speed.
+
+This merging is simplified by the use of another aufs mount, of just the
+two overlay branches using the 'shwh' option.
+# mount -t aufs -o ro,shwh,br:/livesys/overlay=ro+wh:/livesys/mods=rr+wh \
+	aufs /livesys/merge_union
+
+A merged view of these two branches is then available at
+/livesys/merge_union, and the new feature is that the whiteouts are
+visible!
+Note that in 'shwh' mode the aufs mount must be 'ro', which will disable
+writing to all branches. Also the default mode for all branches is 'ro'.
+It is now possible to save the combined contents of the two overlay
+branches to a new squashfs, e.g.:
+# mksquashfs /livesys/merge_union /path/to/newmods.squash
+
+This new squashfs archive can be stored on the boot device and the
+initramfs will use it to replace the old one at the next boot.
