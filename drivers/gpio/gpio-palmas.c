@@ -43,9 +43,22 @@ static int palmas_gpio_get(struct gpio_chip *gc, unsigned offset)
 	unsigned int val;
 	int ret;
 
-	ret = palmas_read(palmas, PALMAS_GPIO_BASE, PALMAS_GPIO_DATA_IN, &val);
+	ret = palmas_read(palmas, PALMAS_GPIO_BASE, PALMAS_GPIO_DATA_DIR, &val);
 	if (ret < 0) {
-		dev_err(gc->dev, "GPIO_DATA_IN read failed, err = %d\n", ret);
+		dev_err(gc->dev, "GPIO_DATA_DIR read failed, err = %d\n", ret);
+		return ret;
+	}
+
+	if (val & (1 << offset)) {
+		ret = palmas_read(palmas, PALMAS_GPIO_BASE,
+				  PALMAS_GPIO_DATA_OUT, &val);
+	} else {
+		ret = palmas_read(palmas, PALMAS_GPIO_BASE,
+				  PALMAS_GPIO_DATA_IN, &val);
+	}
+	if (ret < 0) {
+		dev_err(gc->dev, "GPIO_DATA_IN/OUT read failed, err = %d\n",
+			ret);
 		return ret;
 	}
 	return !!(val & BIT(offset));
@@ -134,7 +147,7 @@ static int palmas_gpio_probe(struct platform_device *pdev)
 	palmas_gpio->gpio_chip.get	= palmas_gpio_get;
 	palmas_gpio->gpio_chip.dev = &pdev->dev;
 #ifdef CONFIG_OF_GPIO
-	palmas_gpio->gpio_chip.of_node = palmas->dev->of_node;
+	palmas_gpio->gpio_chip.of_node = pdev->dev.of_node;
 #endif
 	palmas_pdata = dev_get_platdata(palmas->dev);
 	if (palmas_pdata && palmas_pdata->gpio_base)
@@ -159,9 +172,19 @@ static int palmas_gpio_remove(struct platform_device *pdev)
 	return gpiochip_remove(&palmas_gpio->gpio_chip);
 }
 
+static struct of_device_id of_palmas_gpio_match[] = {
+	{ .compatible = "ti,palmas-gpio"},
+	{ .compatible = "ti,tps65913-gpio"},
+	{ .compatible = "ti,tps65914-gpio"},
+	{ .compatible = "ti,tps80036-gpio"},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, of_palmas_gpio_match);
+
 static struct platform_driver palmas_gpio_driver = {
 	.driver.name	= "palmas-gpio",
 	.driver.owner	= THIS_MODULE,
+	.driver.of_match_table = of_palmas_gpio_match,
 	.probe		= palmas_gpio_probe,
 	.remove		= palmas_gpio_remove,
 };

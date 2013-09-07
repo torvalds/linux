@@ -1030,7 +1030,7 @@ omap_mpuio_alloc_gc(struct gpio_bank *bank, unsigned int irq_start,
 	ct->chip.irq_set_type = gpio_irq_type;
 
 	if (bank->regs->wkup_en)
-		ct->chip.irq_set_wake = gpio_wake_enable,
+		ct->chip.irq_set_wake = gpio_wake_enable;
 
 	ct->regs.mask = OMAP_MPUIO_GPIO_INT / bank->stride;
 	irq_setup_generic_chip(gc, IRQ_MSK(num), IRQ_GC_INIT_MASK_CACHE,
@@ -1100,7 +1100,7 @@ static int omap_gpio_probe(struct platform_device *pdev)
 
 	match = of_match_device(of_match_ptr(omap_gpio_match), dev);
 
-	pdata = match ? match->data : dev->platform_data;
+	pdata = match ? match->data : dev_get_platdata(dev);
 	if (!pdata)
 		return -EINVAL;
 
