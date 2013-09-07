@@ -3154,7 +3154,9 @@ static int nfs4_proc_lookup_common(struct rpc_clnt **clnt, struct inode *dir,
 			err = -EPERM;
 			if (client != *clnt)
 				goto out;
-
+			/* No security negotiation if the user specified 'sec=' */
+			if (NFS_SERVER(dir)->flags & NFS_MOUNT_SECFLAVOUR)
+				goto out;
 			client = nfs4_create_sec_client(client, dir, name);
 			if (IS_ERR(client))
 				return PTR_ERR(client);
