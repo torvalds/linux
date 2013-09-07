@@ -2403,13 +2403,13 @@ int prism2_ap_get_sta_qual(local_info_t *local, struct sockaddr addr[],
 		addr[count].sa_family = ARPHRD_ETHER;
 		memcpy(addr[count].sa_data, sta->addr, ETH_ALEN);
 		if (sta->last_rx_silence == 0)
-			qual[count].qual = sta->last_rx_signal < 27 ?
-				0 : (sta->last_rx_signal - 27) * 92 / 127;
+                        qual[count].qual = (sta->last_rx_signal - 156) == 0 ?
+                                0 : (sta->last_rx_signal - 156) * 92 / 64;
 		else
-			qual[count].qual = sta->last_rx_signal -
-				sta->last_rx_silence - 35;
-		qual[count].level = HFA384X_LEVEL_TO_dBm(sta->last_rx_signal);
-		qual[count].noise = HFA384X_LEVEL_TO_dBm(sta->last_rx_silence);
+                        qual[count].qual = (sta->last_rx_signal -
+                                sta->last_rx_silence) * 92 / 64;
+                qual[count].level = sta->last_rx_signal;
+                qual[count].noise = sta->last_rx_silence;
 		qual[count].updated = sta->last_rx_updated;
 
 		sta->last_rx_updated = IW_QUAL_DBM;
@@ -2475,13 +2475,13 @@ int prism2_ap_translate_scan(struct net_device *dev,
 		memset(&iwe, 0, sizeof(iwe));
 		iwe.cmd = IWEVQUAL;
 		if (sta->last_rx_silence == 0)
-			iwe.u.qual.qual = sta->last_rx_signal < 27 ?
-				0 : (sta->last_rx_signal - 27) * 92 / 127;
+	                iwe.u.qual.qual = (sta->last_rx_signal -156) == 0 ?
+	                        0 : (sta->last_rx_signal - 156) * 92 / 64;
 		else
-			iwe.u.qual.qual = sta->last_rx_signal -
-				sta->last_rx_silence - 35;
-		iwe.u.qual.level = HFA384X_LEVEL_TO_dBm(sta->last_rx_signal);
-		iwe.u.qual.noise = HFA384X_LEVEL_TO_dBm(sta->last_rx_silence);
+                        iwe.u.qual.qual = (sta->last_rx_signal -
+                                sta->last_rx_silence) * 92 / 64;
+                iwe.u.qual.level = sta->last_rx_signal;
+                iwe.u.qual.noise = sta->last_rx_silence;
 		iwe.u.qual.updated = sta->last_rx_updated;
 		iwe.len = IW_EV_QUAL_LEN;
 		current_ev = iwe_stream_add_event(info, current_ev, end_buf,

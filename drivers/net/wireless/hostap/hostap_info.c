@@ -435,6 +435,11 @@ static void handle_info_queue_linkstatus(local_info_t *local)
 	}
 
 	/* Get BSSID if we have a valid AP address */
+
+	if ( val == HFA384X_LINKSTATUS_CONNECTED ||
+	     val == HFA384X_LINKSTATUS_DISCONNECTED )
+			hostap_restore_power(local->dev);
+
 	if (connected) {
 		netif_carrier_on(local->dev);
 		netif_carrier_on(local->ddev);

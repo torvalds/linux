@@ -650,8 +650,14 @@ acpi_video_bus_DOS(struct acpi_video_bus *video, int bios_flag, int lcd_flag)
 	video->dos_setting = arg0.integer.value;
 	status = acpi_evaluate_object(video->device->handle, "_DOS",
 		&args, NULL);
-	if (ACPI_FAILURE(status))
-		return -EIO;
+	if (ACPI_FAILURE(status)) {
+		/*
+		 * some platforms don't have _DOS, but the ACPI
+		 * backlight control still works
+		 */
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No _DOS\n"));
+		return 0;
+	}
 
 	return 0;
 }

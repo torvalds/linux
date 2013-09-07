@@ -777,6 +777,12 @@ config HID_SENSOR_HUB
 	  for events and handle data streams. Each sensor driver can format
 	  data and present to user mode using input or IIO interface.
 
+config HID_HUIONTABLET
+	tristate "Huion tablet"	
+	depends on USB_HID
+	---help---
+	Support for Huion tablet.
+
 endmenu
 
 endif # HID
