@@ -885,7 +885,7 @@ static void nfs4_session_set_rwsize(struct nfs_server *server)
 }
 
 static int nfs4_server_common_setup(struct nfs_server *server,
-		struct nfs_fh *mntfh)
+		struct nfs_fh *mntfh, bool auth_probe)
 {
 	struct nfs_fattr *fattr;
 	int error;
@@ -917,7 +917,7 @@ static int nfs4_server_common_setup(struct nfs_server *server,
 
 
 	/* Probe the root fh to retrieve its FSID and filehandle */
-	error = nfs4_get_rootfh(server, mntfh);
+	error = nfs4_get_rootfh(server, mntfh, auth_probe);
 	if (error < 0)
 		goto out;
 
@@ -949,6 +949,7 @@ out:
 static int nfs4_init_server(struct nfs_server *server,
 		const struct nfs_parsed_mount_data *data)
 {
+	rpc_authflavor_t pseudoflavor = RPC_AUTH_UNIX;
 	struct rpc_timeout timeparms;
 	int error;
 
@@ -961,13 +962,16 @@ static int nfs4_init_server(struct nfs_server *server,
 	server->flags = data->flags;
 	server->options = data->options;
 
+	if (data->auth_flavor_len >= 1)
+		pseudoflavor = data->auth_flavors[0];
+
 	/* Get a client record */
 	error = nfs4_set_client(server,
 			data->nfs_server.hostname,
 			(const struct sockaddr *)&data->nfs_server.address,
 			data->nfs_server.addrlen,
 			data->client_address,
-			data->auth_flavors[0],
+			pseudoflavor,
 			data->nfs_server.protocol,
 			&timeparms,
 			data->minorversion,
@@ -987,7 +991,7 @@ static int nfs4_init_server(struct nfs_server *server,
 
 	server->port = data->nfs_server.port;
 
-	error = nfs_init_server_rpcclient(server, &timeparms, data->auth_flavors[0]);
+	error = nfs_init_server_rpcclient(server, &timeparms, pseudoflavor);
 
 error:
 	/* Done */
@@ -1005,6 +1009,7 @@ struct nfs_server *nfs4_create_server(struct nfs_mount_info *mount_info,
 				      struct nfs_subversion *nfs_mod)
 {
 	struct nfs_server *server;
+	bool auth_probe;
 	int error;
 
 	dprintk("--> nfs4_create_server()\n");
@@ -1013,12 +1018,14 @@ struct nfs_server *nfs4_create_server(struct nfs_mount_info *mount_info,
 	if (!server)
 		return ERR_PTR(-ENOMEM);
 
+	auth_probe = mount_info->parsed->auth_flavor_len < 1;
+
 	/* set up the general RPC client */
 	error = nfs4_init_server(server, mount_info->parsed);
 	if (error < 0)
 		goto error;
 
-	error = nfs4_server_common_setup(server, mount_info->mntfh);
+	error = nfs4_server_common_setup(server, mount_info->mntfh, auth_probe);
 	if (error < 0)
 		goto error;
 
@@ -1071,7 +1078,7 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 	if (error < 0)
 		goto error;
 
-	error = nfs4_server_common_setup(server, mntfh);
+	error = nfs4_server_common_setup(server, mntfh, false);
 	if (error < 0)
 		goto error;
 

@@ -2884,18 +2884,27 @@ static int nfs4_do_find_root_sec(struct nfs_server *server,
  * @server: initialized nfs_server handle
  * @fhandle: we fill in the pseudo-fs root file handle
  * @info: we fill in an FSINFO struct
+ * @auth_probe: probe the auth flavours
  *
  * Returns zero on success, or a negative errno.
  */
 int nfs4_proc_get_rootfh(struct nfs_server *server, struct nfs_fh *fhandle,
-			 struct nfs_fsinfo *info)
+			 struct nfs_fsinfo *info,
+			 bool auth_probe)
 {
 	int status;
 
-	status = nfs4_lookup_root(server, fhandle, info);
-	if ((status == -NFS4ERR_WRONGSEC) &&
-	    !(server->flags & NFS_MOUNT_SECFLAVOUR))
+	switch (auth_probe) {
+	case false:
+		status = nfs4_lookup_root(server, fhandle, info);
+		if (status != -NFS4ERR_WRONGSEC)
+			break;
+		/* Did user force a 'sec=' mount option? */
+		if (server->flags & NFS_MOUNT_SECFLAVOUR)
+			break;
+	default:
 		status = nfs4_do_find_root_sec(server, fhandle, info);
+	}
 
 	if (status == 0)
 		status = nfs4_server_capabilities(server, fhandle);

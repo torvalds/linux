@@ -358,7 +358,7 @@ extern struct dentry *nfs_get_root(struct super_block *, struct nfs_fh *,
 extern struct dentry *nfs4_get_root(struct super_block *, struct nfs_fh *,
 				    const char *);
 
-extern int nfs4_get_rootfh(struct nfs_server *server, struct nfs_fh *mntfh);
+extern int nfs4_get_rootfh(struct nfs_server *server, struct nfs_fh *mntfh, bool);
 #endif
 
 struct nfs_pgio_completion_ops;
