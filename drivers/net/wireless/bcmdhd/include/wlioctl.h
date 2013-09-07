@@ -3869,6 +3869,7 @@ enum {
 #define IMMEDIATE_EVENT_BIT		8
 #define SUPPRESS_SSID_BIT		9
 #define ENABLE_NET_OFFLOAD_BIT	10
+/* report found/lost events for SSID and BSSID networks seperately */
 #define REPORT_SEPERATELY_BIT 	11
 
 #define SORT_CRITERIA_MASK		0x0001
@@ -3882,22 +3883,23 @@ enum {
 #define IMMEDIATE_EVENT_MASK	0x0100
 #define SUPPRESS_SSID_MASK	0x0200
 #define ENABLE_NET_OFFLOAD_MASK	0x0400
-#define REPORT_SEPERATELY_MASK 0x800
+/* report found/lost events for SSID and BSSID networks seperately */
+#define REPORT_SEPERATELY_MASK	0x0800
 
 #define PFN_VERSION		2
 #define PFN_SCANRESULT_VERSION	1
-#define PFN_LSCANRESULT_VERSION 2
 #define MAX_PFN_LIST_COUNT	16
 
 #define PFN_COMPLETE			1
 #define PFN_INCOMPLETE			0
-#define PFN_OUTOFMEMORY			2
 
 #define DEFAULT_BESTN			2
 #define DEFAULT_MSCAN			0
 #define DEFAULT_REPEAT			10
-#define DEFAULT_EXP				2
-#define DEFAULT_RTTN			0
+#define DEFAULT_EXP			2
+
+#define PFN_PARTIAL_SCAN_BIT		0
+#define PFN_PARTIAL_SCAN_MASK		1
 
 /* PFN network info structure */
 typedef struct wl_pfn_subnet_info {
@@ -3914,11 +3916,12 @@ typedef struct wl_pfn_net_info {
 } wl_pfn_net_info_t;
 
 typedef struct wl_pfn_lnet_info {
-	wl_pfn_subnet_info_t pfnsubnet;
-	int32 	RSSI;
-	uint32  timestamp;
-	uint16	rtt0;
-	uint16 	rtt1;
+	wl_pfn_subnet_info_t pfnsubnet; /* BSSID + channel + SSID len + SSID */
+	uint16	flags; /* partial scan, etc */
+	int16	RSSI; /* receive signal strength (in dBm) */
+	uint32	timestamp; /* age in miliseconds */
+	uint16	rtt0; /* estimated distance to this AP in centimeters */
+	uint16	rtt1; /* standard deviation of the distance to this AP in centimeters */
 } wl_pfn_lnet_info_t;
 
 typedef struct wl_pfn_lscanresults {
@@ -3956,7 +3959,6 @@ typedef struct wl_pfn_param {
 					*/
 	uint8 exp;			/* Exponent of 2 for maximum scan interval */
 	int32 slow_freq;		/* slow scan period */
-	uint8	rttn;
 } wl_pfn_param_t;
 
 typedef struct wl_pfn_bssid {
@@ -3970,13 +3972,17 @@ typedef struct wl_pfn_bssid {
 #define WL_PFN_RSSI_SHIFT		8
 
 typedef struct wl_pfn_cfg {
-	uint32			reporttype;
-	int32			channel_num;
-	uint16			channel_list[WL_NUMCHANNELS];
+	uint32	reporttype;
+	int32	channel_num;
+	uint16	channel_list[WL_NUMCHANNELS];
+	uint32	flags;
 } wl_pfn_cfg_t;
 #define WL_PFN_REPORT_ALLNET    0
 #define WL_PFN_REPORT_SSIDNET   1
 #define WL_PFN_REPORT_BSSIDNET  2
+
+#define WL_PFN_CFG_FLAGS_PROHIBITED	0x00000001	/* Accept and use prohibited channels */
+#define WL_PFN_CFG_FLAGS_RESERVED	0xfffffffe	/* Remaining reserved for future use */
 
 typedef struct wl_pfn {
 	wlc_ssid_t		ssid;		/* ssid name and its length */
@@ -3986,11 +3992,24 @@ typedef struct wl_pfn {
 	int32			wpa_auth;	/* WPA type */
 	int32			wsec;		/* wsec value */
 } wl_pfn_t;
+typedef struct wl_pfn_list {
+	uint32		version;
+	uint32		enabled;
+	uint32		count;
+	wl_pfn_t	pfn[1];
+} wl_pfn_list_t;
 #define WL_PFN_HIDDEN_BIT	2
 #define PNO_SCAN_MAX_FW		508*1000	/* max time scan time in msec */
 #define PNO_SCAN_MAX_FW_SEC	PNO_SCAN_MAX_FW/1000 /* max time scan time in SEC */
 #define PNO_SCAN_MIN_FW_SEC	10		/* min time scan time in SEC */
 #define WL_PFN_HIDDEN_MASK	0x4
+#ifndef BESTN_MAX
+#define BESTN_MAX			3
+#endif
+
+#ifndef MSCAN_MAX
+#define MSCAN_MAX			90
+#endif
 
 #endif /* LINUX_POSTMOGRIFY_REMOVAL */
 

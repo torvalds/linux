@@ -372,6 +372,9 @@ wls_parse_batching_cmd(struct net_device *dev, char *command, int total_len)
 		err = dhd_dev_pno_set_for_batch(dev, &batch_params);
 		if (err < 0) {
 			DHD_ERROR(("failed to configure batch scan\n"));
+		} else {
+			memset(command, 0, total_len);
+			err = sprintf(command, "%d", err);
 		}
 	} else if (!strncmp(pos, PNO_BATCHING_GET, strlen(PNO_BATCHING_GET))) {
 		err = dhd_dev_pno_get_for_batch(dev, command, total_len);
@@ -384,6 +387,9 @@ wls_parse_batching_cmd(struct net_device *dev, char *command, int total_len)
 		err = dhd_dev_pno_stop_for_batch(dev);
 		if (err < 0) {
 			DHD_ERROR(("failed to stop batching scan\n"));
+		} else {
+			memset(command, 0, total_len);
+			err = sprintf(command, "OK");
 		}
 	} else {
 		DHD_ERROR(("%s : unknown command\n", __FUNCTION__));

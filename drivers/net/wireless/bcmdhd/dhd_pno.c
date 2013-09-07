@@ -297,13 +297,13 @@ _dhd_pno_set(dhd_pub_t *dhd, const dhd_pno_params_t *pno_params, dhd_pno_mode_t 
 	if (mode == DHD_PNO_BATCH_MODE) {
 		int _tmp = pfn_param.bestn;
 		/* set bestn to calculate the max mscan which firmware supports */
-		err = dhd_iovar(dhd, 0, "pfnmscan", (char *)&_tmp, sizeof(_tmp), 1);
+		err = dhd_iovar(dhd, 0, "pfnmem", (char *)&_tmp, sizeof(_tmp), 1);
 		if (err < 0) {
 			DHD_ERROR(("%s : failed to set pfnmscan\n", __FUNCTION__));
 			goto exit;
 		}
 		/* get max mscan which the firmware supports */
-		err = dhd_iovar(dhd, 0, "pfnmscan", (char *)&_tmp, sizeof(_tmp), 0);
+		err = dhd_iovar(dhd, 0, "pfnmem", (char *)&_tmp, sizeof(_tmp), 0);
 		if (err < 0) {
 			DHD_ERROR(("%s : failed to get pfnmscan\n", __FUNCTION__));
 			goto exit;
@@ -1117,6 +1117,7 @@ exit:
 		kfree(p_ssid_list);
 	return err;
 }
+
 static int
 _dhd_pno_get_for_batch(dhd_pub_t *dhd, char *buf, int bufsize, int reason)
 {
@@ -1219,10 +1220,10 @@ _dhd_pno_get_for_batch(dhd_pub_t *dhd, char *buf, int bufsize, int reason)
 		}
 		DHD_PNO(("ver %d, status : %d, count %d\n", plbestnet->version,
 			plbestnet->status, plbestnet->count));
-		if (plbestnet->version != PFN_LSCANRESULT_VERSION) {
+		if (plbestnet->version != PFN_SCANRESULT_VERSION) {
 			err = BCME_VERSION;
 			DHD_ERROR(("bestnet version(%d) is mismatch with Driver version(%d)\n",
-				plbestnet->version, PFN_LSCANRESULT_VERSION));
+				plbestnet->version, PFN_SCANRESULT_VERSION));
 			goto exit;
 		}
 		plnetinfo = plbestnet->netinfo;
@@ -1274,11 +1275,11 @@ _dhd_pno_get_for_batch(dhd_pub_t *dhd, char *buf, int bufsize, int reason)
 			/* fills the best network info */
 			pbestnet_entry->channel = plnetinfo->pfnsubnet.channel;
 			pbestnet_entry->RSSI = plnetinfo->RSSI;
-			if (pbestnet_entry->RSSI > 0) {
+			if (plnetinfo->flags & PFN_PARTIAL_SCAN_MASK) {
 				/* if RSSI is positive value, we assume that
 				 * this scan is aborted by other scan
 				 */
-				pbestnet_entry->RSSI *= -1;
+				DHD_PNO(("This scan is aborted\n"));
 				pbestnetheader->reason = (ENABLE << PNO_STATUS_ABORT);
 			}
 			pbestnet_entry->rtt0 = plnetinfo->rtt0;
@@ -1324,18 +1325,17 @@ _dhd_pno_get_for_batch(dhd_pub_t *dhd, char *buf, int bufsize, int reason)
 				list_move_tail(&siter->list,
 					&_params->params_batch.get_batch.expired_scan_results_list);
 			}
+			/* reset gloval values after  moving to expired list */
 			_params->params_batch.get_batch.top_node_cnt = 0;
 			_params->params_batch.get_batch.expired_tot_scan_cnt =
 				_params->params_batch.get_batch.tot_scan_cnt;
 			_params->params_batch.get_batch.tot_scan_cnt = 0;
 		}
 convert_format:
-		if (!list_empty(&_params->params_batch.get_batch.expired_scan_results_list)) {
-			err = _dhd_pno_convert_format(dhd, &_params->params_batch, buf, bufsize);
-			if (err < 0) {
-				DHD_ERROR(("failed to convert the data into upper layer format\n"));
-				goto exit;
-			}
+		err = _dhd_pno_convert_format(dhd, &_params->params_batch, buf, bufsize);
+		if (err < 0) {
+			DHD_ERROR(("failed to convert the data into upper layer format\n"));
+			goto exit;
 		}
 	}
 exit:
