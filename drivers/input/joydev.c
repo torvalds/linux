@@ -28,15 +28,21 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/cdev.h>
+#include <linux/module.h>
+#include <linux/moduleparam.h>
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
 MODULE_DESCRIPTION("Joystick device interfaces");
 MODULE_SUPPORTED_DEVICE("input/js");
 MODULE_LICENSE("GPL");
-
 #define JOYDEV_MINOR_BASE	0
 #define JOYDEV_MINORS		16
 #define JOYDEV_BUFFER_SIZE	64
+#define MAX_REMAP_SIZE          10
+
+static int remap_array[MAX_REMAP_SIZE];
+static int remap_count = 0;
+static int free_buttons[MAX_REMAP_SIZE];
 
 struct joydev {
 	int open;
@@ -70,6 +76,9 @@ struct joydev_client {
 	struct joydev *joydev;
 	struct list_head node;
 };
+
+module_param_array(remap_array, int, &remap_count, 0 );
+MODULE_PARM_DESC( remap_array, "remap axis to buttons\n" );
 
 static int joydev_correct(int value, struct js_corr *corr)
 {
@@ -121,6 +130,17 @@ static void joydev_event(struct input_handle *handle,
 	struct joydev *joydev = handle->private;
 	struct joydev_client *client;
 	struct js_event event;
+        int i;
+
+        if( remap_count > 0 && remap_count < MAX_REMAP_SIZE ){
+                for( i = 0; i < remap_count; i++ )
+                        if( code == remap_array[i] ){
+                                type = EV_KEY;
+                                code = free_buttons[i];
+                                if( value == 255 )
+                                        value = 1;
+                        }
+        }
 
 	switch (type) {
 
@@ -765,7 +785,7 @@ static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
 			  const struct input_device_id *id)
 {
 	struct joydev *joydev;
-	int i, j, t, minor, dev_no;
+	int i, j = 0, t, minor, dev_no;
 	int error;
 
 	minor = input_get_new_minor(JOYDEV_MINOR_BASE, JOYDEV_MINORS, true);
@@ -810,15 +830,24 @@ static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
 			joydev->keymap[i] = joydev->nkey;
 			joydev->keypam[joydev->nkey] = i + BTN_MISC;
 			joydev->nkey++;
-		}
+                       j = i;
+                }
+        if( remap_count > 0 && remap_count < MAX_REMAP_SIZE ){
+                printk( "[joydev] axis remapping enabled\n" );
+                for( i = 0; i < remap_count; i++ ){
+                        joydev->keymap[j + i + 1] = joydev->nkey;
+                        joydev->keypam[joydev->nkey] = i + j + 1 + BTN_MISC;
+                        free_buttons[i] = j + i + 1 + BTN_MISC;
+                        joydev->nkey++;
 
+		}
 	for (i = 0; i < BTN_JOYSTICK - BTN_MISC; i++)
 		if (test_bit(i + BTN_MISC, dev->keybit)) {
 			joydev->keymap[i] = joydev->nkey;
 			joydev->keypam[joydev->nkey] = i + BTN_MISC;
 			joydev->nkey++;
 		}
-
+	}
 	for (i = 0; i < joydev->nabs; i++) {
 		j = joydev->abspam[i];
 		if (input_abs_get_max(dev, j) == input_abs_get_min(dev, j)) {
