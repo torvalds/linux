@@ -21,6 +21,8 @@ ep93xx-fb.txt
 	- info on the driver for EP93xx LCD controller.
 fbcon.txt
 	- intro to and usage guide for the framebuffer console (fbcon).
+fbcondecor.txt
+	- info on the Framebuffer Console Decoration
 framebuffer.txt
 	- introduction to frame buffer devices.
 gxfb.txt

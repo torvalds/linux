@@ -18,6 +18,7 @@
 #include <linux/console.h>
 #include <asm/types.h>
 #include "fbcon.h"
+#include "fbcondecor.h"
 
 /*
  * Accelerated handlers.
@@ -54,6 +55,13 @@ static void bit_bmove(struct vc_data *vc, struct fb_info *info, int sy,
 	area.dy = dy * vc->vc_font.height;
 	area.height = height * vc->vc_font.height;
 	area.width = width * vc->vc_font.width;
+
+	if (fbcon_decor_active(info, vc)) {
+ 		area.sx += vc->vc_decor.tx;
+ 		area.sy += vc->vc_decor.ty;
+ 		area.dx += vc->vc_decor.tx;
+ 		area.dy += vc->vc_decor.ty;
+ 	}
 
 	info->fbops->fb_copyarea(info, &area);
 }
@@ -380,11 +388,15 @@ static void bit_cursor(struct vc_data *vc, struct fb_info *info, int mode,
 	cursor.image.depth = 1;
 	cursor.rop = ROP_XOR;
 
-	if (info->fbops->fb_cursor)
-		err = info->fbops->fb_cursor(info, &cursor);
+	if (fbcon_decor_active(info, vc)) {
+		fbcon_decor_cursor(info, &cursor);
+	} else {
+		if (info->fbops->fb_cursor)
+			err = info->fbops->fb_cursor(info, &cursor);
 
-	if (err)
-		soft_cursor(info, &cursor);
+		if (err)
+			soft_cursor(info, &cursor);
+	}
 
 	ops->cursor_reset = 0;
 }
