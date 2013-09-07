@@ -594,6 +594,9 @@ choice
 	config DEFAULT_VEGAS
 		bool "Vegas" if TCP_CONG_VEGAS=y
 
+	config DEFAULT_YEAH
+		bool "YeAH" if TCP_CONG_YEAH=y
+
 	config DEFAULT_VENO
 		bool "Veno" if TCP_CONG_VENO=y
 
@@ -619,6 +622,7 @@ config DEFAULT_TCP_CONG
 	default "htcp" if DEFAULT_HTCP
 	default "hybla" if DEFAULT_HYBLA
 	default "vegas" if DEFAULT_VEGAS
+	default "yeah" if DEFAULT_YEAH
 	default "westwood" if DEFAULT_WESTWOOD
 	default "veno" if DEFAULT_VENO
 	default "reno" if DEFAULT_RENO
