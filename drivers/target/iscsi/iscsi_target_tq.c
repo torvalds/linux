@@ -222,25 +222,12 @@ void iscsi_activate_thread_set(struct iscsi_conn *conn, struct iscsi_thread_set 
 
 struct iscsi_thread_set *iscsi_get_thread_set(void)
 {
-	int allocate_ts = 0;
-	struct completion comp;
-	struct iscsi_thread_set *ts = NULL;
-	/*
-	 * If no inactive thread set is available on the first call to
-	 * iscsi_get_ts_from_inactive_list(), sleep for a second and
-	 * try again.  If still none are available after two attempts,
-	 * allocate a set ourselves.
-	 */
+	struct iscsi_thread_set *ts;
+
 get_set:
 	ts = iscsi_get_ts_from_inactive_list();
 	if (!ts) {
-		if (allocate_ts == 2)
-			iscsi_allocate_thread_sets(1);
-
-		init_completion(&comp);
-		wait_for_completion_timeout(&comp, 1 * HZ);
-
-		allocate_ts++;
+		iscsi_allocate_thread_sets(1);
 		goto get_set;
 	}
 
