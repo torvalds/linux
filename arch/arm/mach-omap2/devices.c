@@ -530,12 +530,12 @@ static int __init omap2_init_devices(void)
 		omap_init_mcspi();
 		omap_init_sham();
 		omap_init_aes();
+		omap_init_rng();
 	} else {
 		/* These can be removed when bindings are done */
 		omap_init_wl12xx_of();
 	}
 	omap_init_sti();
-	omap_init_rng();
 	omap_init_vout();
 
 	return 0;
