@@ -96,7 +96,6 @@ struct au_branch {
 	struct au_wbr		*br_wbr;
 
 	/* xino truncation */
-	blkcnt_t		br_xino_upper;	/* watermark in blocks */
 	atomic_t		br_xino_running;
 
 #ifdef CONFIG_AUFS_HFSNOTIFY
