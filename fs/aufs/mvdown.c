@@ -536,6 +536,8 @@ int au_mvdown(struct dentry *dentry, struct aufs_mvdown __user *uarg)
 	if (unlikely(!capable(CAP_SYS_ADMIN)))
 		goto out;
 
+	WARN_ONCE(1, "move-down is still testing...\n");
+
 	err = -ENOMEM;
 	args = kmalloc(sizeof(*args), GFP_NOFS);
 	if (unlikely(!args))
