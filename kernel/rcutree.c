@@ -671,6 +671,19 @@ int rcu_is_cpu_idle(void)
 }
 EXPORT_SYMBOL(rcu_is_cpu_idle);
 
+/**
+ * __rcu_is_watching - are RCU read-side critical sections safe?
+ *
+ * Return true if RCU is watching the running CPU, which means that
+ * this CPU can safely enter RCU read-side critical sections.  Unlike
+ * rcu_is_cpu_idle(), the caller of __rcu_is_watching() must have at
+ * least disabled preemption.
+ */
+bool __rcu_is_watching(void)
+{
+	return !!(atomic_read(this_cpu_ptr(&rcu_dynticks.dynticks)) & 0x1);
+}
+
 #if defined(CONFIG_PROVE_RCU) && defined(CONFIG_HOTPLUG_CPU)
 
 /*
