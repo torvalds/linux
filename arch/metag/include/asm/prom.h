@@ -14,7 +14,6 @@
 #ifndef __ASM_METAG_PROM_H
 #define __ASM_METAG_PROM_H
 
-#define HAVE_ARCH_DEVTREE_FIXUPS
 
 extern void copy_fdt(void);
 

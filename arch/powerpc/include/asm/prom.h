@@ -20,8 +20,6 @@
 #include <asm/irq.h>
 #include <linux/atomic.h>
 
-#define HAVE_ARCH_DEVTREE_FIXUPS
-
 /*
  * OF address retreival & translation
  */

@@ -17,6 +17,4 @@
 #ifndef _ASM_OPENRISC_PROM_H
 #define _ASM_OPENRISC_PROM_H
 
-#define HAVE_ARCH_DEVTREE_FIXUPS
-
 #endif /* _ASM_OPENRISC_PROM_H */

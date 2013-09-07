@@ -14,16 +14,13 @@
 #include <linux/of.h>
 #include <linux/export.h>
 #include <linux/slab.h>
-#include <asm/prom.h>
 #include <asm/uaccess.h>
 #include "internal.h"
 
 static inline void set_node_proc_entry(struct device_node *np,
 				       struct proc_dir_entry *de)
 {
-#ifdef HAVE_ARCH_DEVTREE_FIXUPS
 	np->pde = de;
-#endif
 }
 
 static struct proc_dir_entry *proc_device_tree;

@@ -39,7 +39,5 @@ static inline void x86_dtb_init(void) { }
 
 extern char cmd_line[COMMAND_LINE_SIZE];
 
-#define HAVE_ARCH_DEVTREE_FIXUPS
-
 #endif /* __ASSEMBLY__ */
 #endif

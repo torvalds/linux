@@ -9,6 +9,4 @@
 #ifndef _ASM_ARC_PROM_H_
 #define _ASM_ARC_PROM_H_
 
-#define HAVE_ARCH_DEVTREE_FIXUPS
-
 #endif
