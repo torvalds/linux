@@ -181,7 +181,7 @@ static struct timer_s timers[] = {
 		.name      = "clockevent",
 		.opts      = TIMER_OPTS_DISABLED,
 		.irqaction = {
-			.flags   = IRQF_DISABLED | IRQF_TIMER,
+			.flags   = IRQF_TIMER,
 			.handler = timer_interrupt,
 		}
 	},
@@ -190,7 +190,7 @@ static struct timer_s timers[] = {
 		.period     = ~0,
 		.opts       = TIMER_OPTS_PERIODIC,
 		.irqaction = {
-			.flags   = IRQF_DISABLED | IRQF_TIMER,
+			.flags   = IRQF_TIMER,
 			.handler = freerun_interrupt,
 		}
 	},
