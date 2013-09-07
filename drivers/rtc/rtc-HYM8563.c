@@ -307,9 +307,19 @@ static int hym8563_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	
 	if((diff_sec > 0) && (diff_sec < 256))
 	{	
-		printk("%s:diff_sec= %ds , use time\n",__func__, diff_sec);
-		hym8563_enable_count(client, 1);				
-		hym8563_set_count(client, diff_sec);
+		printk("%s:diff_sec= %ds , use time\n",__func__, diff_sec);	
+								
+		if (alarm->enabled == 1)
+		{
+			hym8563_set_count(client, diff_sec);
+			hym8563_enable_count(client, 1);
+		}
+			
+		else
+		{
+			hym8563_enable_count(client, 0);
+		}
+		
 	}
 	else
 	{				
@@ -354,7 +364,6 @@ static int hym8563_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 		regs[0] |= AIE;
 		else
 		regs[0] &= 0x0;
-		regs[0] |= TIE;
 		hym8563_i2c_set_regs(client, RTC_CTL2, regs, 1);
 		hym8563_i2c_read_regs(client, RTC_CTL2, regs, 1);
 
