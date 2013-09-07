@@ -2101,6 +2101,15 @@ static inline void netdev_tx_sent_queue(struct netdev_queue *dev_queue,
 #endif
 }
 
+/**
+ * 	netdev_sent_queue - report the number of bytes queued to hardware
+ * 	@dev: network device
+ * 	@bytes: number of bytes queued to the hardware device queue
+ *
+ * 	Report the number of bytes queued for sending/completion to the network
+ * 	device hardware queue. @bytes should be a good approximation and should
+ * 	exactly match netdev_completed_queue() @bytes
+ */
 static inline void netdev_sent_queue(struct net_device *dev, unsigned int bytes)
 {
 	netdev_tx_sent_queue(netdev_get_tx_queue(dev, 0), bytes);
@@ -2130,6 +2139,16 @@ static inline void netdev_tx_completed_queue(struct netdev_queue *dev_queue,
 #endif
 }
 
+/**
+ * 	netdev_completed_queue - report bytes and packets completed by device
+ * 	@dev: network device
+ * 	@pkts: actual number of packets sent over the medium
+ * 	@bytes: actual number of bytes sent over the medium
+ *
+ * 	Report the number of bytes and packets transmitted by the network device
+ * 	hardware queue over the physical medium, @bytes must exactly match the
+ * 	@bytes amount passed to netdev_sent_queue()
+ */
 static inline void netdev_completed_queue(struct net_device *dev,
 					  unsigned int pkts, unsigned int bytes)
 {
@@ -2144,6 +2163,13 @@ static inline void netdev_tx_reset_queue(struct netdev_queue *q)
 #endif
 }
 
+/**
+ * 	netdev_reset_queue - reset the packets and bytes count of a network device
+ * 	@dev_queue: network device
+ *
+ * 	Reset the bytes and packet count of a network device and clear the
+ * 	software flow control OFF bit for this network device
+ */
 static inline void netdev_reset_queue(struct net_device *dev_queue)
 {
 	netdev_tx_reset_queue(netdev_get_tx_queue(dev_queue, 0));

@@ -3162,16 +3162,14 @@ static inline bool tcp_may_raise_cwnd(const struct sock *sk, const int flag)
 
 	/* If reordering is high then always grow cwnd whenever data is
 	 * delivered regardless of its ordering. Otherwise stay conservative
-	 * and only grow cwnd on in-order delivery in Open state, and retain
-	 * cwnd in Disordered state (RFC5681). A stretched ACK with
+	 * and only grow cwnd on in-order delivery (RFC5681). A stretched ACK w/
 	 * new SACK or ECE mark may first advance cwnd here and later reduce
 	 * cwnd in tcp_fastretrans_alert() based on more states.
 	 */
 	if (tcp_sk(sk)->reordering > sysctl_tcp_reordering)
 		return flag & FLAG_FORWARD_PROGRESS;
 
-	return inet_csk(sk)->icsk_ca_state == TCP_CA_Open &&
-	       flag & FLAG_DATA_ACKED;
+	return flag & FLAG_DATA_ACKED;
 }
 
 /* Check that window update is acceptable.
@@ -4141,6 +4139,7 @@ static void tcp_data_queue_ofo(struct sock *sk, struct sk_buff *skb)
 		if (!tcp_try_coalesce(sk, skb1, skb, &fragstolen)) {
 			__skb_queue_after(&tp->out_of_order_queue, skb1, skb);
 		} else {
+			tcp_grow_window(sk, skb);
 			kfree_skb_partial(skb, fragstolen);
 			skb = NULL;
 		}
@@ -4216,8 +4215,10 @@ add_sack:
 	if (tcp_is_sack(tp))
 		tcp_sack_new_ofo_skb(sk, seq, end_seq);
 end:
-	if (skb)
+	if (skb) {
+		tcp_grow_window(sk, skb);
 		skb_set_owner_r(skb, sk);
+	}
 }
 
 static int __must_check tcp_queue_rcv(struct sock *sk, struct sk_buff *skb, int hdrlen,

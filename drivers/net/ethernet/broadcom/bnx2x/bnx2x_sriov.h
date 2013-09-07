@@ -816,6 +816,8 @@ static inline int bnx2x_vfpf_setup_q(struct bnx2x *bp, struct bnx2x_fastpath *fp
 static inline int bnx2x_vfpf_teardown_queue(struct bnx2x *bp, int qidx) {return 0; }
 static inline int bnx2x_vfpf_config_mac(struct bnx2x *bp, u8 *addr,
 					u8 vf_qid, bool set) {return 0; }
+static inline int bnx2x_vfpf_config_rss(struct bnx2x *bp,
+					struct bnx2x_config_rss_params *params) {return 0; }
 static inline int bnx2x_vfpf_set_mcast(struct net_device *dev) {return 0; }
 static inline int bnx2x_vfpf_storm_rx_mode(struct bnx2x *bp) {return 0; }
 static inline int bnx2x_iov_nic_init(struct bnx2x *bp) {return 0; }
