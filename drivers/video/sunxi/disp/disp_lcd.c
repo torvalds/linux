@@ -627,7 +627,12 @@ LCD_get_sys_config(__u32 sel, __disp_lcd_cfg_t *lcd_cfg)
 
 	/* init_brightness */
 	sprintf(primary_key, "disp_init");
-	sprintf(sub_name, "lcd%d_bright", sel);
+	/* This is messed up, the sun6i and sun7i fex files use a different
+	   key for this then the sun4i and sun5i fex files :| */
+	if (sunxi_is_sun7i())
+		sprintf(sub_name, "lcd%d_backlight", sel);
+	else
+		sprintf(sub_name, "lcd%d_bright", sel);
 
 	ret = script_parser_fetch(primary_key, sub_name, &value, 1);
 	if (ret < 0) {
