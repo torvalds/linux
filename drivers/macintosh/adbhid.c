@@ -261,6 +261,15 @@ static struct adb_ids buttons_ids;
 #define ADBMOUSE_MS_A3		8	/* Mouse systems A3 trackball (handler 3) */
 #define ADBMOUSE_MACALLY2	9	/* MacAlly 2-button mouse */
 
+#ifdef CONFIG_ADB_TRACKPAD_ABSOLUTE
+#define	ABS_XMIN	310
+#define	ABS_XMAX	1700
+#define	ABS_YMIN	200
+#define	ABS_YMAX	1000
+#define	ABS_ZMIN	0
+#define	ABS_ZMAX	55
+#endif
+
 static void
 adbhid_keyboard_input(unsigned char *data, int nb, int apoll)
 {
@@ -405,6 +414,9 @@ static void
 adbhid_mouse_input(unsigned char *data, int nb, int autopoll)
 {
 	int id = (data[0] >> 4) & 0x0f;
+#ifdef CONFIG_ADB_TRACKPAD_ABSOLUTE
+	int btn = 0; int x_axis = 0; int y_axis = 0; int z_axis = 0;
+#endif
 
 	if (!adbhid[id]) {
 		printk(KERN_ERR "ADB HID on ID %d not yet registered\n", id);
@@ -436,6 +448,17 @@ adbhid_mouse_input(unsigned char *data, int nb, int autopoll)
 	      high bits of y-axis motion.  XY is additional
 	      high bits of x-axis motion.
 
+    For ADB Absolute motion protocol the data array will contain the
+    following values:
+
+		BITS    COMMENTS
+    data[0] = dddd 1100 ADB command: Talk, register 0, for device dddd.
+    data[1] = byyy yyyy Left button and y-axis motion.
+    data[2] = bxxx xxxx Second button and x-axis motion.
+    data[3] = 1yyy 1xxx Half bits of y-axis and x-axis motion.
+    data[4] = 1yyy 1xxx Higher bits of y-axis and x-axis motion.
+    data[5] = 1zzz 1zzz Higher and lower bits of z-pressure.
+
     MacAlly 2-button mouse protocol.
 
     For MacAlly 2-button mouse protocol the data array will contain the
@@ -458,8 +481,17 @@ adbhid_mouse_input(unsigned char *data, int nb, int autopoll)
 	switch (adbhid[id]->mouse_kind)
 	{
 	    case ADBMOUSE_TRACKPAD:
+#ifdef CONFIG_ADB_TRACKPAD_ABSOLUTE
+		x_axis = (data[2] & 0x7f) | ((data[3] & 0x07) << 7) |
+			((data[4] & 0x07) << 10);
+		y_axis = (data[1] & 0x7f) | ((data[3] & 0x70) << 3) |
+			((data[4] & 0x70) << 6);
+		z_axis = (data[5] & 0x07) | ((data[5] & 0x70) >> 1);
+		btn = (!(data[1] >> 7)) & 1;
+#else
 		data[1] = (data[1] & 0x7f) | ((data[1] & data[2]) & 0x80);
 		data[2] = data[2] | 0x80;
+#endif
 		break;
 	    case ADBMOUSE_MICROSPEED:
 		data[1] = (data[1] & 0x7f) | ((data[3] & 0x01) << 7);
@@ -485,17 +517,39 @@ adbhid_mouse_input(unsigned char *data, int nb, int autopoll)
                 break;
 	}
 
-	input_report_key(adbhid[id]->input, BTN_LEFT,   !((data[1] >> 7) & 1));
-	input_report_key(adbhid[id]->input, BTN_MIDDLE, !((data[2] >> 7) & 1));
+#ifdef CONFIG_ADB_TRACKPAD_ABSOLUTE
+	if ( adbhid[id]->mouse_kind == ADBMOUSE_TRACKPAD ) {
 
-	if (nb >= 4 && adbhid[id]->mouse_kind != ADBMOUSE_TRACKPAD)
-		input_report_key(adbhid[id]->input, BTN_RIGHT,  !((data[3] >> 7) & 1));
+		if(z_axis > 30) input_report_key(adbhid[id]->input, BTN_TOUCH, 1);
+		if(z_axis < 25) input_report_key(adbhid[id]->input, BTN_TOUCH, 0);
 
-	input_report_rel(adbhid[id]->input, REL_X,
-			 ((data[2]&0x7f) < 64 ? (data[2]&0x7f) : (data[2]&0x7f)-128 ));
-	input_report_rel(adbhid[id]->input, REL_Y,
-			 ((data[1]&0x7f) < 64 ? (data[1]&0x7f) : (data[1]&0x7f)-128 ));
+		if(z_axis > 0){
+			input_report_abs(adbhid[id]->input, ABS_X, x_axis);
+			input_report_abs(adbhid[id]->input, ABS_Y, y_axis);
+			input_report_key(adbhid[id]->input, BTN_TOOL_FINGER, 1);
+			input_report_key(adbhid[id]->input, ABS_TOOL_WIDTH, 5);
+		} else {
+			input_report_key(adbhid[id]->input, BTN_TOOL_FINGER, 0);
+			input_report_key(adbhid[id]->input, ABS_TOOL_WIDTH, 0);
+		}
 
+		input_report_abs(adbhid[id]->input, ABS_PRESSURE, z_axis);
+		input_report_key(adbhid[id]->input, BTN_LEFT, btn);
+	} else {
+#endif
+		input_report_key(adbhid[id]->input, BTN_LEFT,   !((data[1] >> 7) & 1));
+		input_report_key(adbhid[id]->input, BTN_MIDDLE, !((data[2] >> 7) & 1));
+
+		if (nb >= 4 && adbhid[id]->mouse_kind != ADBMOUSE_TRACKPAD)
+			input_report_key(adbhid[id]->input, BTN_RIGHT,  !((data[3] >> 7) & 1));
+
+		input_report_rel(adbhid[id]->input, REL_X,
+				((data[2]&0x7f) < 64 ? (data[2]&0x7f) : (data[2]&0x7f)-128 ));
+		input_report_rel(adbhid[id]->input, REL_Y,
+				((data[1]&0x7f) < 64 ? (data[1]&0x7f) : (data[1]&0x7f)-128 ));
+#ifdef CONFIG_ADB_TRACKPAD_ABSOLUTE
+	}
+#endif
 	input_sync(adbhid[id]->input);
 }
 
@@ -849,6 +903,15 @@ adbhid_input_register(int id, int default_id, int original_handler_id,
 		input_dev->keybit[BIT_WORD(BTN_MOUSE)] = BIT_MASK(BTN_LEFT) |
 			BIT_MASK(BTN_MIDDLE) | BIT_MASK(BTN_RIGHT);
 		input_dev->relbit[0] = BIT_MASK(REL_X) | BIT_MASK(REL_Y);
+#ifdef CONFIG_ADB_TRACKPAD_ABSOLUTE
+                set_bit(EV_ABS, input_dev->evbit);
+		input_set_abs_params(input_dev, ABS_X, ABS_XMIN, ABS_XMAX, 0, 0);
+		input_set_abs_params(input_dev, ABS_Y, ABS_YMIN, ABS_YMAX, 0, 0);
+		input_set_abs_params(input_dev, ABS_PRESSURE, ABS_ZMIN, ABS_ZMAX, 0, 0);
+		set_bit(BTN_TOUCH, input_dev->keybit);
+		set_bit(BTN_TOOL_FINGER, input_dev->keybit);
+		set_bit(ABS_TOOL_WIDTH, input_dev->absbit);
+#endif
 		break;
 
 	case ADB_MISC:
@@ -1132,7 +1195,11 @@ init_trackpad(int id)
 	            r1_buffer[3],
 	            r1_buffer[4],
 	            r1_buffer[5],
+#ifdef CONFIG_ADB_TRACKPAD_ABSOLUTE
+		    0x00, /* Enable absolute mode */
+#else
 	            0x03, /*r1_buffer[6],*/
+#endif
 	            r1_buffer[7]);
 
 	    /* Without this flush, the trackpad may be locked up */
