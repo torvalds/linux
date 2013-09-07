@@ -189,16 +189,20 @@ static void iscsi_deallocate_extra_thread_sets(void)
 
 		spin_lock_bh(&ts->ts_state_lock);
 		ts->status = ISCSI_THREAD_SET_DIE;
-		spin_unlock_bh(&ts->ts_state_lock);
 
 		if (ts->rx_thread) {
-			send_sig(SIGINT, ts->rx_thread, 1);
+			complete(&ts->rx_start_comp);
+			spin_unlock_bh(&ts->ts_state_lock);
 			kthread_stop(ts->rx_thread);
+			spin_lock_bh(&ts->ts_state_lock);
 		}
 		if (ts->tx_thread) {
-			send_sig(SIGINT, ts->tx_thread, 1);
+			complete(&ts->tx_start_comp);
+			spin_unlock_bh(&ts->ts_state_lock);
 			kthread_stop(ts->tx_thread);
+			spin_lock_bh(&ts->ts_state_lock);
 		}
+		spin_unlock_bh(&ts->ts_state_lock);
 		/*
 		 * Release this thread_id in the thread_set_bitmap
 		 */
@@ -400,7 +404,8 @@ static void iscsi_check_to_add_additional_sets(void)
 static int iscsi_signal_thread_pre_handler(struct iscsi_thread_set *ts)
 {
 	spin_lock_bh(&ts->ts_state_lock);
-	if ((ts->status == ISCSI_THREAD_SET_DIE) || signal_pending(current)) {
+	if (ts->status == ISCSI_THREAD_SET_DIE || kthread_should_stop() ||
+	    signal_pending(current)) {
 		spin_unlock_bh(&ts->ts_state_lock);
 		return -1;
 	}
@@ -419,7 +424,8 @@ struct iscsi_conn *iscsi_rx_thread_pre_handler(struct iscsi_thread_set *ts)
 		goto sleep;
 	}
 
-	flush_signals(current);
+	if (ts->status != ISCSI_THREAD_SET_DIE)
+		flush_signals(current);
 
 	if (ts->delay_inactive && (--ts->thread_count == 0)) {
 		spin_unlock_bh(&ts->ts_state_lock);
@@ -472,7 +478,8 @@ struct iscsi_conn *iscsi_tx_thread_pre_handler(struct iscsi_thread_set *ts)
 		goto sleep;
 	}
 
-	flush_signals(current);
+	if (ts->status != ISCSI_THREAD_SET_DIE)
+		flush_signals(current);
 
 	if (ts->delay_inactive && (--ts->thread_count == 0)) {
 		spin_unlock_bh(&ts->ts_state_lock);
