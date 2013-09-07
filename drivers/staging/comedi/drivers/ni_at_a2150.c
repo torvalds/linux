@@ -684,13 +684,12 @@ static int a2150_set_chanlist(struct comedi_device *dev,
 		devpriv->config_bits |= CHANNEL_BITS(0x4 | start_channel);
 		break;
 	case 2:
-		if (start_channel == 0) {
+		if (start_channel == 0)
 			devpriv->config_bits |= CHANNEL_BITS(0x2);
-		} else if (start_channel == 2) {
+		else if (start_channel == 2)
 			devpriv->config_bits |= CHANNEL_BITS(0x3);
-		} else {
+		else
 			return -1;
-		}
 		break;
 	case 4:
 		devpriv->config_bits |= CHANNEL_BITS(0x1);
