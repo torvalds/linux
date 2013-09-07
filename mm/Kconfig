@@ -315,6 +315,32 @@ config KSM
 	  See Documentation/vm/ksm.txt for more information: KSM is inactive
 	  until a program has madvised that an area is MADV_MERGEABLE, and
 	  root has set /sys/kernel/mm/ksm/run to 1 (if CONFIG_SYSFS is set).
+choice
+	prompt "Choose UKSM/KSM strategy"
+	default UKSM
+	depends on KSM
+	help
+	  This option allows to select a UKSM/KSM stragety.
+
+config UKSM
+	bool "Ultra-KSM for page merging"
+	depends on KSM
+	help
+	UKSM is inspired by the Linux kernel project \u2014 KSM(Kernel Same
+	page Merging), but with a fundamentally rewritten core algorithm. With
+	an advanced algorithm, UKSM now can transparently scans all anonymously
+	mapped user space applications with an significantly improved scan speed
+	and CPU efficiency. Since KVM is friendly to KSM, KVM can also benefit from
+	UKSM. Now UKSM has its first stable release and first real world enterprise user.
+	For more information, please goto its project page.
+	(www.kerneldedup.org)
+
+config KSM_LEGACY
+	bool "Legacy KSM implementation"
+	depends on KSM
+	help
+	The legacy KSM implementation from Redhat.
+endchoice
 
 config DEFAULT_MMAP_MIN_ADDR
         int "Low address space to protect from user allocation"
