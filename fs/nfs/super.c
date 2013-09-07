@@ -1032,49 +1032,50 @@ static int nfs_parse_security_flavors(char *value,
 				      struct nfs_parsed_mount_data *mnt)
 {
 	substring_t args[MAX_OPT_ARGS];
+	rpc_authflavor_t pseudoflavor;
 
 	dfprintk(MOUNT, "NFS: parsing sec=%s option\n", value);
 
 	switch (match_token(value, nfs_secflavor_tokens, args)) {
 	case Opt_sec_none:
-		mnt->auth_flavors[0] = RPC_AUTH_NULL;
+		pseudoflavor = RPC_AUTH_NULL;
 		break;
 	case Opt_sec_sys:
-		mnt->auth_flavors[0] = RPC_AUTH_UNIX;
+		pseudoflavor = RPC_AUTH_UNIX;
 		break;
 	case Opt_sec_krb5:
-		mnt->auth_flavors[0] = RPC_AUTH_GSS_KRB5;
+		pseudoflavor = RPC_AUTH_GSS_KRB5;
 		break;
 	case Opt_sec_krb5i:
-		mnt->auth_flavors[0] = RPC_AUTH_GSS_KRB5I;
+		pseudoflavor = RPC_AUTH_GSS_KRB5I;
 		break;
 	case Opt_sec_krb5p:
-		mnt->auth_flavors[0] = RPC_AUTH_GSS_KRB5P;
+		pseudoflavor = RPC_AUTH_GSS_KRB5P;
 		break;
 	case Opt_sec_lkey:
-		mnt->auth_flavors[0] = RPC_AUTH_GSS_LKEY;
+		pseudoflavor = RPC_AUTH_GSS_LKEY;
 		break;
 	case Opt_sec_lkeyi:
-		mnt->auth_flavors[0] = RPC_AUTH_GSS_LKEYI;
+		pseudoflavor = RPC_AUTH_GSS_LKEYI;
 		break;
 	case Opt_sec_lkeyp:
-		mnt->auth_flavors[0] = RPC_AUTH_GSS_LKEYP;
+		pseudoflavor = RPC_AUTH_GSS_LKEYP;
 		break;
 	case Opt_sec_spkm:
-		mnt->auth_flavors[0] = RPC_AUTH_GSS_SPKM;
+		pseudoflavor = RPC_AUTH_GSS_SPKM;
 		break;
 	case Opt_sec_spkmi:
-		mnt->auth_flavors[0] = RPC_AUTH_GSS_SPKMI;
+		pseudoflavor = RPC_AUTH_GSS_SPKMI;
 		break;
 	case Opt_sec_spkmp:
-		mnt->auth_flavors[0] = RPC_AUTH_GSS_SPKMP;
+		pseudoflavor = RPC_AUTH_GSS_SPKMP;
 		break;
 	default:
 		return 0;
 	}
 
 	mnt->flags |= NFS_MOUNT_SECFLAVOUR;
-	mnt->auth_flavor_len = 1;
+	nfs_set_auth_parsed_mount_data(mnt, pseudoflavor);
 	return 1;
 }
 
