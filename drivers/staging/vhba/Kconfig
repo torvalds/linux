@@ -1,0 +1,9 @@
+config VHBA
+	tristate "Virtual (SCSI) Host Bus Adapter"
+	depends on SCSI
+	---help---
+        This is the in-kernel part of CDEmu, a CD/DVD-ROM device
+        emulator.
+
+	This driver can also be built as a module. If so, the module
+	will be called vhba.
