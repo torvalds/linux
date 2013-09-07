@@ -53,13 +53,6 @@ DEFINE_EVENT(radeon_fence_request, radeon_fence_emit,
 	    TP_ARGS(dev, seqno)
 );
 
-DEFINE_EVENT(radeon_fence_request, radeon_fence_retire,
-
-	    TP_PROTO(struct drm_device *dev, u32 seqno),
-
-	    TP_ARGS(dev, seqno)
-);
-
 DEFINE_EVENT(radeon_fence_request, radeon_fence_wait_begin,
 
 	    TP_PROTO(struct drm_device *dev, u32 seqno),
