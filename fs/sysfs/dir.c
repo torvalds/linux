@@ -297,7 +297,6 @@ static int sysfs_dentry_delete(const struct dentry *dentry)
 static int sysfs_dentry_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	struct sysfs_dirent *sd;
-	int is_dir;
 	int type;
 
 	if (flags & LOOKUP_RCU)
@@ -341,18 +340,15 @@ out_bad:
 	 * is performed at its new name the dentry will be readded
 	 * to the dcache hashes.
 	 */
-	is_dir = (sysfs_type(sd) == SYSFS_DIR);
 	mutex_unlock(&sysfs_mutex);
-	if (is_dir) {
-		/* If we have submounts we must allow the vfs caches
-		 * to lie about the state of the filesystem to prevent
-		 * leaks and other nasty things.
-		 */
-		if (have_submounts(dentry))
-			goto out_valid;
-		shrink_dcache_parent(dentry);
-	}
-	d_drop(dentry);
+
+	/* If we have submounts we must allow the vfs caches
+	 * to lie about the state of the filesystem to prevent
+	 * leaks and other nasty things.
+	 */
+	if (check_submounts_and_drop(dentry) != 0)
+		goto out_valid;
+
 	return 0;
 }
 
