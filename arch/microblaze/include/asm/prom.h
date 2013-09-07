@@ -11,17 +11,10 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  */
-
-#include <linux/of.h>	/* linux/of.h gets to determine #include ordering */
-
 #ifndef _ASM_MICROBLAZE_PROM_H
 #define _ASM_MICROBLAZE_PROM_H
-#ifdef __KERNEL__
-#ifndef __ASSEMBLY__
 
-#include <linux/types.h>
-#include <asm/irq.h>
-#include <linux/atomic.h>
+#include <linux/of.h>
 
 #define HAVE_ARCH_DEVTREE_FIXUPS
 
@@ -41,24 +34,5 @@ extern int of_early_console(void *version);
 extern unsigned long pci_address_to_pio(phys_addr_t address);
 #define pci_address_to_pio pci_address_to_pio
 #endif	/* CONFIG_PCI */
-
-/* Parse the ibm,dma-window property of an OF node into the busno, phys and
- * size parameters.
- */
-void of_parse_dma_window(struct device_node *dn, const void *dma_window_prop,
-		unsigned long *busno, unsigned long *phys, unsigned long *size);
-
-extern void kdump_move_device_tree(void);
-
-#endif /* __ASSEMBLY__ */
-#endif /* __KERNEL__ */
-
-/* These includes are put at the bottom because they may contain things
- * that are overridden by this file.  Ideally they shouldn't be included
- * by this file, but there are a bunch of .c files that currently depend
- * on it.  Eventually they will be cleaned up. */
-#include <linux/of_fdt.h>
-#include <linux/of_irq.h>
-#include <linux/platform_device.h>
 
 #endif /* _ASM_MICROBLAZE_PROM_H */

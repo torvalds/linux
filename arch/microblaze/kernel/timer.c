@@ -15,6 +15,7 @@
 #include <linux/clk.h>
 #include <linux/clockchips.h>
 #include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <asm/cpuinfo.h>
 #include <linux/cnt32_to_63.h>
 

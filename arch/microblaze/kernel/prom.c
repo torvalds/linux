@@ -30,6 +30,7 @@
 #include <linux/debugfs.h>
 #include <linux/irq.h>
 #include <linux/memblock.h>
+#include <linux/of_fdt.h>
 
 #include <asm/prom.h>
 #include <asm/page.h>
