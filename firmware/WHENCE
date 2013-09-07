@@ -862,3 +862,24 @@ Licence:
 Found in hex form in kernel source.
 
 --------------------------------------------------------------------------
+
+Driver: radeon - ATI Radeon
+
+File: radeon/R600_rlc.bin
+File: radeon/R700_rlc.bin
+File: radeon/CEDAR_me.bin
+File: radeon/CEDAR_pfp.bin
+File: radeon/CEDAR_rlc.bin
+File: radeon/CYPRESS_me.bin
+File: radeon/CYPRESS_pfp.bin
+File: radeon/CYPRESS_rlc.bin
+File: radeon/JUNIPER_me.bin
+File: radeon/JUNIPER_pfp.bin
+File: radeon/JUNIPER_rlc.bin
+File: radeon/REDWOOD_me.bin
+File: radeon/REDWOOD_pfp.bin
+File: radeon/REDWOOD_rlc.bin
+
+Licence: Redistributable. See LICENSE.radeon_rlc for details.
+
+--------------------------------------------------------------------------
