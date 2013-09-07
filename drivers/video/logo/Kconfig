@@ -15,71 +15,138 @@ config FB_LOGO_EXTRA
 	depends on FB=y
 	default y if SPU_BASE
 
+config LOGO_RANDOM
+	bool "Select random available logo"
+	default y
+	help
+	  Enable this option to use any available logo randomly at bootup.
+
+comment "Available logos"
+
+config LOGO_ZEN_CLUT224
+	bool "224-color Zen Kernel/Meditating Tux logo"
+	default y
+
 config LOGO_LINUX_MONO
 	bool "Standard black and white Linux logo"
-	default y
+	default n
 
 config LOGO_LINUX_VGA16
 	bool "Standard 16-color Linux logo"
-	default y
+	default n
 
 config LOGO_LINUX_CLUT224
 	bool "Standard 224-color Linux logo"
-	default y
+	default n
 
 config LOGO_BLACKFIN_VGA16
 	bool "16-colour Blackfin Processor Linux logo"
 	depends on BLACKFIN
-	default y
+	default n
 
 config LOGO_BLACKFIN_CLUT224
 	bool "224-colour Blackfin Processor Linux logo"
 	depends on BLACKFIN
-	default y
+	default n
+
+config LOGO_OLDZEN_CLUT224
+	bool "224-color Old Zen Kernel logo"
+	depends on LOGO
+	default n
+
+config LOGO_ARCH_CLUT224
+	bool "224-color Arch Linux logo"
+	depends on LOGO
+	default n
+
+config LOGO_GENTOO_CLUT224
+	bool "224-color Gentoo Linux logo"
+	depends on LOGO
+	default n
+
+config LOGO_EXHERBO_CLUT224
+	bool "224-color Exherbo Linux logo"
+	depends on LOGO
+	default n
+
+config LOGO_SLACKWARE_CLUT224
+	bool "224-color Slackware Linux logo"
+	depends on LOGO
+	default n
+
+config LOGO_DEBIAN_CLUT224
+	bool "224-color Debian Linux logo"
+	depends on LOGO
+	default n
+
+config LOGO_FEDORASIMPLE_CLUT224
+	bool "224-color Fedora Simple Linux logo"
+	depends on LOGO
+	default n
+
+config LOGO_FEDORAGLOSSY_CLUT224
+	bool "224-color Fedora Glossy Linux logo"
+	depends on LOGO
+	default n
+
+config LOGO_TITS_CLUT224
+	bool "224-color Tits logo"
+	depends on LOGO
+	default n
+
+config LOGO_BSD_CLUT224
+	bool "224-color BSD Devil logo"
+	depends on LOGO
+	default n
+
+config LOGO_FBSD_CLUT224
+	bool "224-color FreeBSD logo"
+	depends on LOGO
+	default n
 
 config LOGO_DEC_CLUT224
 	bool "224-color Digital Equipment Corporation Linux logo"
 	depends on MACH_DECSTATION || ALPHA
-	default y
+	default n
 
 config LOGO_MAC_CLUT224
 	bool "224-color Macintosh Linux logo"
 	depends on MAC
-	default y
+	default n
 
 config LOGO_PARISC_CLUT224
 	bool "224-color PA-RISC Linux logo"
 	depends on PARISC
-	default y
+	default n
 
 config LOGO_SGI_CLUT224
 	bool "224-color SGI Linux logo"
 	depends on SGI_IP22 || SGI_IP27 || SGI_IP32 || X86_VISWS
-	default y
+	default n
 
 config LOGO_SUN_CLUT224
 	bool "224-color Sun Linux logo"
 	depends on SPARC
-	default y
+	default n
 
 config LOGO_SUPERH_MONO
 	bool "Black and white SuperH Linux logo"
 	depends on SUPERH
-	default y
+	default n
 
 config LOGO_SUPERH_VGA16
 	bool "16-color SuperH Linux logo"
 	depends on SUPERH
-	default y
+	default n
 
 config LOGO_SUPERH_CLUT224
 	bool "224-color SuperH Linux logo"
 	depends on SUPERH
-	default y
+	default n
 
 config LOGO_M32R_CLUT224
 	bool "224-color M32R Linux logo"
 	depends on M32R
-	default y
+	default n
 
 endif # LOGO
