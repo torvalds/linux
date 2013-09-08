@@ -669,7 +669,7 @@ int rcu_is_cpu_idle(void)
 	preempt_enable();
 	return ret;
 }
-EXPORT_SYMBOL(rcu_is_cpu_idle);
+EXPORT_SYMBOL_GPL(rcu_is_cpu_idle);
 
 /**
  * __rcu_is_watching - are RCU read-side critical sections safe?
