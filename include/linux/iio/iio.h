@@ -147,12 +147,10 @@ ssize_t iio_enum_write(struct iio_dev *indio_dev,
  *			shift:		Shift right by this before masking out
  *					realbits.
  *			endianness:	little or big endian
- * @info_mask:		What information is to be exported about this channel.
- *			This includes calibbias, scale etc.
  * @info_mask_separate: What information is to be exported that is specific to
  *			this channel.
  * @info_mask_shared_by_type: What information is to be exported that is shared
-*			by all channels of the same type.
+ *			by all channels of the same type.
  * @event_mask:		What events can this channel produce.
  * @ext_info:		Array of extended info attributes for this channel.
  *			The array is NULL terminated, the last element should
@@ -187,7 +185,6 @@ struct iio_chan_spec {
 		u8	shift;
 		enum iio_endian endianness;
 	} scan_type;
-	long			info_mask;
 	long			info_mask_separate;
 	long			info_mask_shared_by_type;
 	long			event_mask;
