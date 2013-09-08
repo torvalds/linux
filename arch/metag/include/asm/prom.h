@@ -14,10 +14,8 @@
 #ifndef __ASM_METAG_PROM_H
 #define __ASM_METAG_PROM_H
 
-#include <asm/setup.h>
 #define HAVE_ARCH_DEVTREE_FIXUPS
 
-extern const struct machine_desc *setup_machine_fdt(void *dt);
 extern void copy_fdt(void);
 
 #endif /* __ASM_METAG_PROM_H */

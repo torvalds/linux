@@ -42,7 +42,6 @@
 #include <asm/mmu.h>
 #include <asm/mmzone.h>
 #include <asm/processor.h>
-#include <asm/prom.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/traps.h>
