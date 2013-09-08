@@ -752,8 +752,8 @@ int ath10k_htc_connect_service(struct ath10k_htc *htc,
 	tx_alloc = ath10k_htc_get_credit_allocation(htc,
 						    conn_req->service_id);
 	if (!tx_alloc)
-		ath10k_dbg(ATH10K_DBG_HTC,
-			   "HTC Service %s does not allocate target credits\n",
+		ath10k_dbg(ATH10K_DBG_BOOT,
+			   "boot htc service %s does not allocate target credits\n",
 			   htc_service_name(conn_req->service_id));
 
 	skb = ath10k_htc_build_tx_ctrl_skb(htc->ar);
@@ -873,19 +873,19 @@ setup:
 	if (status)
 		return status;
 
-	ath10k_dbg(ATH10K_DBG_HTC,
-		   "HTC service: %s UL pipe: %d DL pipe: %d eid: %d ready\n",
+	ath10k_dbg(ATH10K_DBG_BOOT,
+		   "boot htc service '%s' ul pipe %d dl pipe %d eid %d ready\n",
 		   htc_service_name(ep->service_id), ep->ul_pipe_id,
 		   ep->dl_pipe_id, ep->eid);
 
-	ath10k_dbg(ATH10K_DBG_HTC,
-		   "EP %d UL polled: %d, DL polled: %d\n",
+	ath10k_dbg(ATH10K_DBG_BOOT,
+		   "boot htc ep %d ul polled %d dl polled %d\n",
 		   ep->eid, ep->ul_is_polled, ep->dl_is_polled);
 
 	if (disable_credit_flow_ctrl && ep->tx_credit_flow_enabled) {
 		ep->tx_credit_flow_enabled = false;
-		ath10k_dbg(ATH10K_DBG_HTC,
-			   "HTC service: %s eid: %d TX flow control disabled\n",
+		ath10k_dbg(ATH10K_DBG_BOOT,
+			   "boot htc service '%s' eid %d TX flow control disabled\n",
 			   htc_service_name(ep->service_id), assigned_eid);
 	}
 
