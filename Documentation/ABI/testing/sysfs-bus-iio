@@ -811,3 +811,14 @@ Description:
 		Writing '1' stores the current device configuration into
 		on-chip EEPROM. After power-up or chip reset the device will
 		automatically load the saved configuration.
+
+What:		/sys/.../iio:deviceX/in_intensity_red_integration_time
+What:		/sys/.../iio:deviceX/in_intensity_green_integration_time
+What:		/sys/.../iio:deviceX/in_intensity_blue_integration_time
+What:		/sys/.../iio:deviceX/in_intensity_clear_integration_time
+What:		/sys/.../iio:deviceX/in_illuminance_integration_time
+KernelVersion:	3.12
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This attribute is used to get/set the integration time in
+		seconds.
