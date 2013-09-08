@@ -96,7 +96,7 @@ int ath10k_htt_tx_attach(struct ath10k_htt *htt)
 	htt->max_num_pending_tx = ath10k_hif_get_free_queue_number(htt->ar,
 								   pipe);
 
-	ath10k_dbg(ATH10K_DBG_HTT, "htt tx max num pending tx %d\n",
+	ath10k_dbg(ATH10K_DBG_BOOT, "htt tx max num pending tx %d\n",
 		   htt->max_num_pending_tx);
 
 	htt->pending_tx = kzalloc(sizeof(*htt->pending_tx) *
