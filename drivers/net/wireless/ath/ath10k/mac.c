@@ -1080,8 +1080,6 @@ static void ath10k_peer_assoc_h_phymode(struct ath10k *ar,
 {
 	enum wmi_phy_mode phymode = MODE_UNKNOWN;
 
-	/* FIXME: add VHT */
-
 	switch (ar->hw->conf.chandef.chan->band) {
 	case IEEE80211_BAND_2GHZ:
 		if (sta->ht_cap.ht_supported) {
@@ -1095,7 +1093,17 @@ static void ath10k_peer_assoc_h_phymode(struct ath10k *ar,
 
 		break;
 	case IEEE80211_BAND_5GHZ:
-		if (sta->ht_cap.ht_supported) {
+		/*
+		 * Check VHT first.
+		 */
+		if (sta->vht_cap.vht_supported) {
+			if (sta->bandwidth == IEEE80211_STA_RX_BW_80)
+				phymode = MODE_11AC_VHT80;
+			else if (sta->bandwidth == IEEE80211_STA_RX_BW_40)
+				phymode = MODE_11AC_VHT40;
+			else if (sta->bandwidth == IEEE80211_STA_RX_BW_20)
+				phymode = MODE_11AC_VHT20;
+		} else if (sta->ht_cap.ht_supported) {
 			if (sta->bandwidth == IEEE80211_STA_RX_BW_40)
 				phymode = MODE_11NA_HT40;
 			else
