@@ -308,8 +308,9 @@ static void dentry_unlink_inode(struct dentry * dentry)
  */
 static void dentry_lru_add(struct dentry *dentry)
 {
-	if (list_empty(&dentry->d_lru)) {
+	if (unlikely(!(dentry->d_flags & DCACHE_LRU_LIST))) {
 		spin_lock(&dcache_lru_lock);
+		dentry->d_flags |= DCACHE_LRU_LIST;
 		list_add(&dentry->d_lru, &dentry->d_sb->s_dentry_lru);
 		dentry->d_sb->s_nr_dentry_unused++;
 		dentry_stat.nr_unused++;
@@ -320,7 +321,7 @@ static void dentry_lru_add(struct dentry *dentry)
 static void __dentry_lru_del(struct dentry *dentry)
 {
 	list_del_init(&dentry->d_lru);
-	dentry->d_flags &= ~DCACHE_SHRINK_LIST;
+	dentry->d_flags &= ~(DCACHE_SHRINK_LIST | DCACHE_LRU_LIST);
 	dentry->d_sb->s_nr_dentry_unused--;
 	dentry_stat.nr_unused--;
 }
@@ -341,6 +342,7 @@ static void dentry_lru_move_list(struct dentry *dentry, struct list_head *list)
 {
 	spin_lock(&dcache_lru_lock);
 	if (list_empty(&dentry->d_lru)) {
+		dentry->d_flags |= DCACHE_LRU_LIST;
 		list_add_tail(&dentry->d_lru, list);
 		dentry->d_sb->s_nr_dentry_unused++;
 		dentry_stat.nr_unused++;
@@ -509,23 +511,21 @@ relock:
  */
 void dput(struct dentry *dentry)
 {
-	if (!dentry)
+	if (unlikely(!dentry))
 		return;
 
 repeat:
-	if (dentry->d_lockref.count == 1)
-		might_sleep();
 	if (lockref_put_or_lock(&dentry->d_lockref))
 		return;
 
-	if (dentry->d_flags & DCACHE_OP_DELETE) {
+	/* Unreachable? Get rid of it */
+	if (unlikely(d_unhashed(dentry)))
+		goto kill_it;
+
+	if (unlikely(dentry->d_flags & DCACHE_OP_DELETE)) {
 		if (dentry->d_op->d_delete(dentry))
 			goto kill_it;
 	}
-
-	/* Unreachable? Get rid of it */
- 	if (d_unhashed(dentry))
-		goto kill_it;
 
 	dentry->d_flags |= DCACHE_REFERENCED;
 	dentry_lru_add(dentry);
