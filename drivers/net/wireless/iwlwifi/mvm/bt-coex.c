@@ -490,6 +490,20 @@ struct iwl_bt_iterator_data {
 	struct ieee80211_chanctx_conf *secondary;
 };
 
+static inline
+void iwl_mvm_bt_coex_enable_rssi_event(struct iwl_mvm *mvm,
+				       struct ieee80211_vif *vif,
+				       bool enable, int rssi)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	mvmvif->bf_data.last_bt_coex_event = rssi;
+	mvmvif->bf_data.bt_coex_max_thold =
+		enable ? BT_ENABLE_REDUCED_TXPOWER_THRESHOLD : 0;
+	mvmvif->bf_data.bt_coex_min_thold =
+		enable ? BT_DISABLE_REDUCED_TXPOWER_THRESHOLD : 0;
+}
+
 /* must be called under rcu_read_lock */
 static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 				      struct ieee80211_vif *vif)
@@ -518,6 +532,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 		if (vif->type == NL80211_IFTYPE_STATION && vif->bss_conf.assoc)
 			iwl_mvm_update_smps(mvm, vif, IWL_MVM_SMPS_REQ_BT_COEX,
 					    smps_mode);
+		iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, false, 0);
 		return;
 	}
 
@@ -568,6 +583,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	if (iwl_get_coex_type(mvm, vif) == BT_COEX_LOOSE_LUT ||
 	    mvm->cfg->bt_shared_single_ant) {
 		data->reduced_tx_power = false;
+		iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, false, 0);
 		return;
 	}
 
@@ -579,9 +595,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 		data->reduced_tx_power = false;
 
 		/* ... and there is no need to get reports on RSSI any more. */
-		mvmvif->bf_data.last_bt_coex_event = 0;
-		mvmvif->bf_data.bt_coex_max_thold = 0;
-		mvmvif->bf_data.bt_coex_min_thold = 0;
+		iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, false, 0);
 		return;
 	}
 
@@ -614,13 +628,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	}
 
 	/* Begin to monitor the RSSI: it may influence the reduced Tx power */
-
-	/* reset previous bt coex event tracking */
-	mvmvif->bf_data.last_bt_coex_event = 0;
-	mvmvif->bf_data.bt_coex_max_thold =
-		BT_ENABLE_REDUCED_TXPOWER_THRESHOLD;
-	mvmvif->bf_data.bt_coex_min_thold =
-		BT_DISABLE_REDUCED_TXPOWER_THRESHOLD;
+	iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, true, ave_rssi);
 }
 
 static void iwl_mvm_bt_coex_notif_handle(struct iwl_mvm *mvm)
@@ -751,6 +759,18 @@ static void iwl_mvm_bt_rssi_iterator(void *_data, u8 *mac,
 
 	struct ieee80211_sta *sta;
 	struct iwl_mvm_sta *mvmsta;
+
+	struct ieee80211_chanctx_conf *chanctx_conf;
+
+	rcu_read_lock();
+	chanctx_conf = rcu_dereference(vif->chanctx_conf);
+	/* If channel context is invalid or not on 2.4GHz - don't count it */
+	if (!chanctx_conf ||
+	    chanctx_conf->def.chan->band != IEEE80211_BAND_2GHZ) {
+		rcu_read_unlock();
+		return;
+	}
+	rcu_read_unlock();
 
 	if (vif->type != NL80211_IFTYPE_STATION ||
 	    mvmvif->ap_sta_id == IWL_MVM_STATION_COUNT)
