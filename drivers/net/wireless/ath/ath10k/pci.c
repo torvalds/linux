@@ -2367,10 +2367,10 @@ static void ath10k_pci_dump_features(struct ath10k_pci *ar_pci)
 
 		switch (i) {
 		case ATH10K_PCI_FEATURE_MSI_X:
-			ath10k_dbg(ATH10K_DBG_PCI, "device supports MSI-X\n");
+			ath10k_dbg(ATH10K_DBG_BOOT, "device supports MSI-X\n");
 			break;
 		case ATH10K_PCI_FEATURE_SOC_POWER_SAVE:
-			ath10k_dbg(ATH10K_DBG_PCI, "QCA98XX SoC power save enabled\n");
+			ath10k_dbg(ATH10K_DBG_BOOT, "QCA98XX SoC power save enabled\n");
 			break;
 		}
 	}
@@ -2495,6 +2495,8 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 				    RTC_SOC_BASE_ADDRESS + SOC_CHIP_ID_ADDRESS);
 
 	ath10k_do_pci_sleep(ar);
+
+	ath10k_dbg(ATH10K_DBG_BOOT, "boot pci_mem 0x%p\n", ar_pci->mem);
 
 	ret = ath10k_core_register(ar, chip_id);
 	if (ret) {
