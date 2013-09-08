@@ -636,7 +636,8 @@ int nouveau_pmops_resume(struct device *dev)
 		nouveau_fbcon_set_suspend(drm_dev, 0);
 
 	nouveau_fbcon_zfill_all(drm_dev);
-	nouveau_display_resume(drm_dev);
+	if (drm_dev->mode_config.num_crtc)
+		nouveau_display_resume(drm_dev);
 	nv_suspend_set_printk_level(NV_DBG_DEBUG);
 	return 0;
 }
@@ -671,7 +672,8 @@ static int nouveau_pmops_thaw(struct device *dev)
 	if (drm_dev->mode_config.num_crtc)
 		nouveau_fbcon_set_suspend(drm_dev, 0);
 	nouveau_fbcon_zfill_all(drm_dev);
-	nouveau_display_resume(drm_dev);
+	if (drm_dev->mode_config.num_crtc)
+		nouveau_display_resume(drm_dev);
 	nv_suspend_set_printk_level(NV_DBG_DEBUG);
 	return 0;
 }
@@ -906,7 +908,8 @@ static int nouveau_pmops_runtime_resume(struct device *dev)
 	pci_set_master(pdev);
 
 	ret = nouveau_do_resume(drm_dev);
-	nouveau_display_resume(drm_dev);
+	if (drm_dev->mode_config.num_crtc)
+		nouveau_display_resume(drm_dev);
 	drm_kms_helper_poll_enable(drm_dev);
 	/* do magic */
 	nv_mask(device, 0x88488, (1 << 25), (1 << 25));
