@@ -147,6 +147,8 @@ nv31_mpeg_context_ctor(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
+	priv->chan = chan;
+
 	return 0;
 }
 
@@ -155,8 +157,11 @@ nv31_mpeg_context_dtor(struct nouveau_object *object)
 {
 	struct nv31_mpeg_priv *priv = (void *)object->engine;
 	struct nv31_mpeg_chan *chan = (void *)object;
-	atomic_dec(&priv->refcount);
+
+	WARN_ON(priv->chan != chan);
+	priv->chan = NULL;
 	nouveau_object_destroy(&chan->base);
+	atomic_dec(&priv->refcount);
 }
 
 struct nouveau_oclass
@@ -189,20 +194,19 @@ void
 nv31_mpeg_intr(struct nouveau_subdev *subdev)
 {
 	struct nouveau_fifo *pfifo = nouveau_fifo(subdev);
-	struct nouveau_engine *engine = nv_engine(subdev);
-	struct nouveau_object *engctx;
 	struct nouveau_handle *handle;
 	struct nv31_mpeg_priv *priv = (void *)subdev;
-	u32 inst = nv_rd32(priv, 0x00b318) & 0x000fffff;
+	struct nouveau_object *engctx = &priv->chan->base;
 	u32 stat = nv_rd32(priv, 0x00b100);
 	u32 type = nv_rd32(priv, 0x00b230);
 	u32 mthd = nv_rd32(priv, 0x00b234);
 	u32 data = nv_rd32(priv, 0x00b238);
 	u32 show = stat;
-	int chid;
+	int chid = pfifo->chid(pfifo, engctx);
 
-	engctx = nouveau_engctx_get(engine, inst);
-	chid   = pfifo->chid(pfifo, engctx);
+	if (engctx)
+		if (nouveau_object_inc(engctx))
+			engctx = NULL;
 
 	if (stat & 0x01000000) {
 		/* happens on initial binding of the object */
@@ -211,7 +215,7 @@ nv31_mpeg_intr(struct nouveau_subdev *subdev)
 			show &= ~0x01000000;
 		}
 
-		if (type == 0x00000010) {
+		if (type == 0x00000010 && engctx) {
 			handle = nouveau_handle_get_class(engctx, 0x3174);
 			if (handle && !nv_call(handle->object, mthd, data))
 				show &= ~0x01000000;
@@ -224,12 +228,13 @@ nv31_mpeg_intr(struct nouveau_subdev *subdev)
 
 	if (show) {
 		nv_error(priv,
-			 "ch %d [0x%08x %s] 0x%08x 0x%08x 0x%08x 0x%08x\n",
-			 chid, inst << 4, nouveau_client_name(engctx), stat,
+			 "ch %d [%s] 0x%08x 0x%08x 0x%08x 0x%08x\n",
+			 chid, nouveau_client_name(engctx), stat,
 			 type, mthd, data);
 	}
 
-	nouveau_engctx_put(engctx);
+	if (engctx)
+		WARN_ON(nouveau_object_dec(engctx, false));
 }
 
 static int
