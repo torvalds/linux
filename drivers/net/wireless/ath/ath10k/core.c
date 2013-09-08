@@ -53,7 +53,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 
 static void ath10k_send_suspend_complete(struct ath10k *ar)
 {
-	ath10k_dbg(ATH10K_DBG_CORE, "%s\n", __func__);
+	ath10k_dbg(ATH10K_DBG_BOOT, "%s\n", __func__);
 
 	ar->is_target_paused = true;
 	wake_up(&ar->event_queue);
@@ -101,7 +101,7 @@ static int ath10k_init_connect_htc(struct ath10k *ar)
 		goto timeout;
 	}
 
-	ath10k_dbg(ATH10K_DBG_CORE, "core wmi ready\n");
+	ath10k_dbg(ATH10K_DBG_BOOT, "core wmi ready\n");
 	return 0;
 
 timeout:
@@ -203,7 +203,7 @@ static int ath10k_push_board_ext_data(struct ath10k *ar,
 		return ret;
 	}
 
-	ath10k_dbg(ATH10K_DBG_CORE,
+	ath10k_dbg(ATH10K_DBG_BOOT,
 		   "ath10k: Board extended Data download addr: 0x%x\n",
 		   board_ext_data_addr);
 
