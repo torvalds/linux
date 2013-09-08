@@ -30,7 +30,7 @@ int __iio_add_chan_devattr(const char *postfix,
 						const char *buf,
 						size_t len),
 			   u64 mask,
-			   bool generic,
+			   enum iio_shared_by shared_by,
 			   struct device *dev,
 			   struct list_head *attr_list);
 
