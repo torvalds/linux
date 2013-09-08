@@ -42,6 +42,7 @@ struct nouveau_mpeg {
 
 extern struct nouveau_oclass nv31_mpeg_oclass;
 extern struct nouveau_oclass nv40_mpeg_oclass;
+extern struct nouveau_oclass nv44_mpeg_oclass;
 extern struct nouveau_oclass nv50_mpeg_oclass;
 extern struct nouveau_oclass nv84_mpeg_oclass;
 

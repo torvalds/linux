@@ -227,6 +227,7 @@ nouveau-y += core/engine/graph/nve4.o
 nouveau-y += core/engine/graph/nvf0.o
 nouveau-y += core/engine/mpeg/nv31.o
 nouveau-y += core/engine/mpeg/nv40.o
+nouveau-y += core/engine/mpeg/nv44.o
 nouveau-y += core/engine/mpeg/nv50.o
 nouveau-y += core/engine/mpeg/nv84.o
 nouveau-y += core/engine/ppp/nv98.o
