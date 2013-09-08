@@ -517,25 +517,12 @@ static inline void unlock_rcu_walk(void)
  */
 static inline int d_rcu_to_refcount(struct dentry *dentry, seqcount_t *validate, unsigned seq)
 {
-	int gotref;
-
-	gotref = lockref_get_or_lock(&dentry->d_lockref);
-
-	/* Does the sequence number still match? */
-	if (read_seqcount_retry(validate, seq)) {
-		if (gotref)
-			dput(dentry);
-		else
-			spin_unlock(&dentry->d_lock);
-		return -ECHILD;
+	if (likely(lockref_get_not_dead(&dentry->d_lockref))) {
+		if (!read_seqcount_retry(validate, seq))
+				return 0;
+		dput(dentry);
 	}
-
-	/* Get the ref now, if we couldn't get it originally */
-	if (!gotref) {
-		dentry->d_lockref.count++;
-		spin_unlock(&dentry->d_lock);
-	}
-	return 0;
+	return -ECHILD;
 }
 
 /**
