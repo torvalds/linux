@@ -1009,6 +1009,34 @@ done:
 	return ret;
 }
 
+static void i915_error_wake_up(struct drm_i915_private *dev_priv,
+			       bool reset_completed)
+{
+	struct intel_ring_buffer *ring;
+	int i;
+
+	/*
+	 * Notify all waiters for GPU completion events that reset state has
+	 * been changed, and that they need to restart their wait after
+	 * checking for potential errors (and bail out to drop locks if there is
+	 * a gpu reset pending so that i915_error_work_func can acquire them).
+	 */
+
+	/* Wake up __wait_seqno, potentially holding dev->struct_mutex. */
+	for_each_ring(ring, dev_priv, i)
+		wake_up_all(&ring->irq_queue);
+
+	/* Wake up intel_crtc_wait_for_pending_flips, holding crtc->mutex. */
+	wake_up_all(&dev_priv->pending_flip_queue);
+
+	/*
+	 * Signal tasks blocked in i915_gem_wait_for_error that the pending
+	 * reset state is cleared.
+	 */
+	if (reset_completed)
+		wake_up_all(&dev_priv->gpu_error.reset_queue);
+}
+
 /**
  * i915_error_work_func - do process context error handling work
  * @work: work struct
@@ -1023,11 +1051,10 @@ static void i915_error_work_func(struct work_struct *work)
 	drm_i915_private_t *dev_priv = container_of(error, drm_i915_private_t,
 						    gpu_error);
 	struct drm_device *dev = dev_priv->dev;
-	struct intel_ring_buffer *ring;
 	char *error_event[] = { "ERROR=1", NULL };
 	char *reset_event[] = { "RESET=1", NULL };
 	char *reset_done_event[] = { "ERROR=0", NULL };
-	int i, ret;
+	int ret;
 
 	kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, error_event);
 
@@ -1046,7 +1073,15 @@ static void i915_error_work_func(struct work_struct *work)
 		kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE,
 				   reset_event);
 
+		/*
+		 * All state reset _must_ be completed before we update the
+		 * reset counter, for otherwise waiters might miss the reset
+		 * pending state and not properly drop locks, resulting in
+		 * deadlocks with the reset work.
+		 */
 		ret = i915_reset(dev);
+
+		intel_display_handle_reset(dev);
 
 		if (ret == 0) {
 			/*
@@ -1068,12 +1103,11 @@ static void i915_error_work_func(struct work_struct *work)
 			atomic_set(&error->reset_counter, I915_WEDGED);
 		}
 
-		for_each_ring(ring, dev_priv, i)
-			wake_up_all(&ring->irq_queue);
-
-		intel_display_handle_reset(dev);
-
-		wake_up_all(&dev_priv->gpu_error.reset_queue);
+		/*
+		 * Note: The wake_up also serves as a memory barrier so that
+		 * waiters see the update value of the reset counter atomic_t.
+		 */
+		i915_error_wake_up(dev_priv, true);
 	}
 }
 
@@ -1709,8 +1743,6 @@ static void i915_report_and_clear_eir(struct drm_device *dev)
 void i915_handle_error(struct drm_device *dev, bool wedged)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring;
-	int i;
 
 	i915_capture_error_state(dev);
 	i915_report_and_clear_eir(dev);
@@ -1720,11 +1752,19 @@ void i915_handle_error(struct drm_device *dev, bool wedged)
 				&dev_priv->gpu_error.reset_counter);
 
 		/*
-		 * Wakeup waiting processes so that the reset work item
-		 * doesn't deadlock trying to grab various locks.
+		 * Wakeup waiting processes so that the reset work function
+		 * i915_error_work_func doesn't deadlock trying to grab various
+		 * locks. By bumping the reset counter first, the woken
+		 * processes will see a reset in progress and back off,
+		 * releasing their locks and then wait for the reset completion.
+		 * We must do this for _all_ gpu waiters that might hold locks
+		 * that the reset work needs to acquire.
+		 *
+		 * Note: The wake_up serves as the required memory barrier to
+		 * ensure that the waiters see the updated value of the reset
+		 * counter atomic_t.
 		 */
-		for_each_ring(ring, dev_priv, i)
-			wake_up_all(&ring->irq_queue);
+		i915_error_wake_up(dev_priv, false);
 	}
 
 	/*
