@@ -177,7 +177,7 @@ nv44_mpeg_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	nv_subdev(priv)->unit = 0x00000002;
 	nv_subdev(priv)->intr = nv44_mpeg_me_intr;
 	nv_engine(priv)->cclass = &nv44_mpeg_cclass;
-	nv_engine(priv)->sclass = nv31_mpeg_sclass;
+	nv_engine(priv)->sclass = nv40_mpeg_sclass;
 	nv_engine(priv)->tile_prog = nv31_mpeg_tile_prog;
 	return 0;
 }

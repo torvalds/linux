@@ -34,6 +34,63 @@
 #include <engine/mpeg/nv31.h>
 
 /*******************************************************************************
+ * MPEG object classes
+ ******************************************************************************/
+
+static int
+nv40_mpeg_mthd_dma(struct nouveau_object *object, u32 mthd, void *arg, u32 len)
+{
+	struct nouveau_instmem *imem = nouveau_instmem(object);
+	struct nv31_mpeg_priv *priv = (void *)object->engine;
+	u32 inst = *(u32 *)arg << 4;
+	u32 dma0 = nv_ro32(imem, inst + 0);
+	u32 dma1 = nv_ro32(imem, inst + 4);
+	u32 dma2 = nv_ro32(imem, inst + 8);
+	u32 base = (dma2 & 0xfffff000) | (dma0 >> 20);
+	u32 size = dma1 + 1;
+
+	/* only allow linear DMA objects */
+	if (!(dma0 & 0x00002000))
+		return -EINVAL;
+
+	if (mthd == 0x0190) {
+		/* DMA_CMD */
+		nv_mask(priv, 0x00b300, 0x00030000, (dma0 & 0x00030000));
+		nv_wr32(priv, 0x00b334, base);
+		nv_wr32(priv, 0x00b324, size);
+	} else
+	if (mthd == 0x01a0) {
+		/* DMA_DATA */
+		nv_mask(priv, 0x00b300, 0x000c0000, (dma0 & 0x00030000) << 2);
+		nv_wr32(priv, 0x00b360, base);
+		nv_wr32(priv, 0x00b364, size);
+	} else {
+		/* DMA_IMAGE, VRAM only */
+		if (dma0 & 0x00030000)
+			return -EINVAL;
+
+		nv_wr32(priv, 0x00b370, base);
+		nv_wr32(priv, 0x00b374, size);
+	}
+
+	return 0;
+}
+
+static struct nouveau_omthds
+nv40_mpeg_omthds[] = {
+	{ 0x0190, 0x0190, nv40_mpeg_mthd_dma },
+	{ 0x01a0, 0x01a0, nv40_mpeg_mthd_dma },
+	{ 0x01b0, 0x01b0, nv40_mpeg_mthd_dma },
+	{}
+};
+
+struct nouveau_oclass
+nv40_mpeg_sclass[] = {
+	{ 0x3174, &nv31_mpeg_ofuncs, nv40_mpeg_omthds },
+	{}
+};
+
+/*******************************************************************************
  * PMPEG engine/subdev functions
  ******************************************************************************/
 
@@ -68,7 +125,7 @@ nv40_mpeg_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	nv_subdev(priv)->unit = 0x00000002;
 	nv_subdev(priv)->intr = nv40_mpeg_intr;
 	nv_engine(priv)->cclass = &nv31_mpeg_cclass;
-	nv_engine(priv)->sclass = nv31_mpeg_sclass;
+	nv_engine(priv)->sclass = nv40_mpeg_sclass;
 	nv_engine(priv)->tile_prog = nv31_mpeg_tile_prog;
 	return 0;
 }

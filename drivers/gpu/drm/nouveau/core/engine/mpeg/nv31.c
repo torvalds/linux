@@ -80,18 +80,18 @@ nv31_mpeg_mthd_dma(struct nouveau_object *object, u32 mthd, void *arg, u32 len)
 
 	if (mthd == 0x0190) {
 		/* DMA_CMD */
-		nv_mask(priv, 0x00b300, 0x00030000, (dma0 & 0x00030000));
+		nv_mask(priv, 0x00b300, 0x00010000, (dma0 & 0x00030000) ? 0x00010000 : 0);
 		nv_wr32(priv, 0x00b334, base);
 		nv_wr32(priv, 0x00b324, size);
 	} else
 	if (mthd == 0x01a0) {
 		/* DMA_DATA */
-		nv_mask(priv, 0x00b300, 0x000c0000, (dma0 & 0x00030000) << 2);
+		nv_mask(priv, 0x00b300, 0x00020000, (dma0 & 0x00030000) ? 0x00020000 : 0);
 		nv_wr32(priv, 0x00b360, base);
 		nv_wr32(priv, 0x00b364, size);
 	} else {
 		/* DMA_IMAGE, VRAM only */
-		if (dma0 & 0x000c0000)
+		if (dma0 & 0x00030000)
 			return -EINVAL;
 
 		nv_wr32(priv, 0x00b370, base);
@@ -101,7 +101,7 @@ nv31_mpeg_mthd_dma(struct nouveau_object *object, u32 mthd, void *arg, u32 len)
 	return 0;
 }
 
-static struct nouveau_ofuncs
+struct nouveau_ofuncs
 nv31_mpeg_ofuncs = {
 	.ctor = nv31_mpeg_object_ctor,
 	.dtor = _nouveau_gpuobj_dtor,
