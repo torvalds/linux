@@ -551,6 +551,14 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 
 	if (chan->differential) { /* Differential can not have modifier */
 		switch (shared_by) {
+		case IIO_SHARED_BY_ALL:
+			name_format = kasprintf(GFP_KERNEL, "%s", full_postfix);
+			break;
+		case IIO_SHARED_BY_DIR:
+			name_format = kasprintf(GFP_KERNEL, "%s_%s",
+						iio_direction[chan->output],
+						full_postfix);
+			break;
 		case IIO_SHARED_BY_TYPE:
 			name_format
 				= kasprintf(GFP_KERNEL, "%s_%s-%s_%s",
@@ -578,6 +586,14 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 		}
 	} else { /* Single ended */
 		switch (shared_by) {
+		case IIO_SHARED_BY_ALL:
+			name_format = kasprintf(GFP_KERNEL, "%s", full_postfix);
+			break;
+		case IIO_SHARED_BY_DIR:
+			name_format = kasprintf(GFP_KERNEL, "%s_%s",
+						iio_direction[chan->output],
+						full_postfix);
+			break;
 		case IIO_SHARED_BY_TYPE:
 			name_format
 				= kasprintf(GFP_KERNEL, "%s_%s_%s",
@@ -732,6 +748,20 @@ static int iio_device_add_channel_sysfs(struct iio_dev *indio_dev,
 	ret = iio_device_add_info_mask_type(indio_dev, chan,
 					    IIO_SHARED_BY_TYPE,
 					    &chan->info_mask_shared_by_type);
+	if (ret < 0)
+		return ret;
+	attrcount += ret;
+
+	ret = iio_device_add_info_mask_type(indio_dev, chan,
+					    IIO_SHARED_BY_DIR,
+					    &chan->info_mask_shared_by_dir);
+	if (ret < 0)
+		return ret;
+	attrcount += ret;
+
+	ret = iio_device_add_info_mask_type(indio_dev, chan,
+					    IIO_SHARED_BY_ALL,
+					    &chan->info_mask_shared_by_all);
 	if (ret < 0)
 		return ret;
 	attrcount += ret;
