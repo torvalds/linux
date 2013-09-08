@@ -460,6 +460,11 @@ static int ath10k_vdev_start(struct ath10k_vif *arvif)
 		arg.ssid_len = arvif->vif->bss_conf.ssid_len;
 	}
 
+	ath10k_dbg(ATH10K_DBG_MAC,
+		   "mac vdev %d start center_freq %d phymode %s\n",
+		   arg.vdev_id, arg.channel.freq,
+		   ath10k_wmi_phymode_str(arg.channel.mode));
+
 	ret = ath10k_wmi_vdev_start(ar, &arg);
 	if (ret) {
 		ath10k_warn("WMI vdev start failed: ret %d\n", ret);
@@ -1104,8 +1109,8 @@ static void ath10k_peer_assoc_h_phymode(struct ath10k *ar,
 		break;
 	}
 
-	ath10k_dbg(ATH10K_DBG_MAC, "mac peer %pM phymode %d\n",
-		   sta->addr, phymode);
+	ath10k_dbg(ATH10K_DBG_MAC, "mac peer %pM phymode %s\n",
+		   sta->addr, ath10k_wmi_phymode_str(phymode));
 
 	arg->peer_phymode = phymode;
 	WARN_ON(phymode == MODE_UNKNOWN);
