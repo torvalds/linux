@@ -34,15 +34,7 @@
 
 #include <engine/fifo.h>
 #include <engine/mpeg.h>
-
-struct nv31_mpeg_priv {
-	struct nouveau_mpeg base;
-	atomic_t refcount;
-};
-
-struct nv31_mpeg_chan {
-	struct nouveau_object base;
-};
+#include <engine/mpeg/nv31.h>
 
 /*******************************************************************************
  * MPEG object classes
@@ -167,7 +159,7 @@ nv31_mpeg_context_dtor(struct nouveau_object *object)
 	nouveau_object_destroy(&chan->base);
 }
 
-static struct nouveau_oclass
+struct nouveau_oclass
 nv31_mpeg_cclass = {
 	.handle = NV_ENGCTX(MPEG, 0x31),
 	.ofuncs = &(struct nouveau_ofuncs) {
