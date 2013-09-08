@@ -14,7 +14,6 @@
 #include <linux/memblock.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
-#include <asm/prom.h>
 #include <asm/clk.h>
 #include <asm/mach_desc.h>
 

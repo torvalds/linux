@@ -21,7 +21,6 @@
 #include <asm/setup.h>
 #include <asm/page.h>
 #include <asm/irq.h>
-#include <asm/prom.h>
 #include <asm/unwind.h>
 #include <asm/clk.h>
 #include <asm/mach_desc.h>
