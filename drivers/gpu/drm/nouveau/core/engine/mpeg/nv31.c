@@ -34,7 +34,6 @@
 
 #include <engine/fifo.h>
 #include <engine/mpeg.h>
-#include <engine/graph/nv40.h>
 
 struct nv31_mpeg_priv {
 	struct nouveau_mpeg base;
@@ -284,10 +283,7 @@ nv31_mpeg_init(struct nouveau_object *object)
 	/* PMPEG init */
 	nv_wr32(priv, 0x00b32c, 0x00000000);
 	nv_wr32(priv, 0x00b314, 0x00000100);
-	if (nv_device(priv)->chipset >= 0x40 && nv44_graph_class(priv))
-		nv_wr32(priv, 0x00b220, 0x00000044);
-	else
-		nv_wr32(priv, 0x00b220, 0x00000031);
+	nv_wr32(priv, 0x00b220, 0x00000031);
 	nv_wr32(priv, 0x00b300, 0x02001ec1);
 	nv_mask(priv, 0x00b32c, 0x00000001, 0x00000001);
 
