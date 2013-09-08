@@ -53,7 +53,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 
 static void ath10k_send_suspend_complete(struct ath10k *ar)
 {
-	ath10k_dbg(ATH10K_DBG_BOOT, "%s\n", __func__);
+	ath10k_dbg(ATH10K_DBG_BOOT, "boot suspend complete\n");
 
 	ar->is_target_paused = true;
 	wake_up(&ar->event_queue);
@@ -101,7 +101,7 @@ static int ath10k_init_connect_htc(struct ath10k *ar)
 		goto timeout;
 	}
 
-	ath10k_dbg(ATH10K_DBG_BOOT, "core wmi ready\n");
+	ath10k_dbg(ATH10K_DBG_BOOT, "boot wmi ready\n");
 	return 0;
 
 timeout:
@@ -204,7 +204,7 @@ static int ath10k_push_board_ext_data(struct ath10k *ar,
 	}
 
 	ath10k_dbg(ATH10K_DBG_BOOT,
-		   "ath10k: Board extended Data download addr: 0x%x\n",
+		   "boot push board extended data addr 0x%x\n",
 		   board_ext_data_addr);
 
 	if (board_ext_data_addr == 0)
@@ -721,6 +721,9 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 static int ath10k_core_check_chip_id(struct ath10k *ar)
 {
 	u32 hw_revision = MS(ar->chip_id, SOC_CHIP_ID_REV);
+
+	ath10k_dbg(ATH10K_DBG_BOOT, "boot chip_id 0x%08x hw_revision 0x%x\n",
+		   ar->chip_id, hw_revision);
 
 	/* Check that we are not using hw1.0 (some of them have same pci id
 	 * as hw2.0) before doing anything else as ath10k crashes horribly
