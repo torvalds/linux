@@ -338,33 +338,19 @@ int ath10k_ce_send(struct ath10k_ce_pipe *ce_state,
 	return ret;
 }
 
-void ath10k_ce_sendlist_buf_add(struct ce_sendlist *sendlist, u32 buffer,
-				unsigned int nbytes, u32 flags)
-{
-	unsigned int num_items = sendlist->num_items;
-	struct ce_sendlist_item *item;
-
-	item = &sendlist->item[num_items];
-	item->data = buffer;
-	item->u.nbytes = nbytes;
-	item->flags = flags;
-	sendlist->num_items++;
-}
-
 int ath10k_ce_sendlist_send(struct ath10k_ce_pipe *ce_state,
 			    void *per_transfer_context,
-			    struct ce_sendlist *sendlist,
-			    unsigned int transfer_id)
+			    unsigned int transfer_id,
+			    u32 paddr, unsigned int nbytes,
+			    u32 flags)
 {
 	struct ath10k_ce_ring *src_ring = ce_state->src_ring;
-	struct ce_sendlist_item *item;
 	struct ath10k *ar = ce_state->ar;
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	unsigned int nentries_mask = src_ring->nentries_mask;
-	unsigned int num_items = sendlist->num_items;
 	unsigned int sw_index;
 	unsigned int write_index;
-	int i, delta, ret = -ENOMEM;
+	int delta, ret = -ENOMEM;
 
 	spin_lock_bh(&ar_pci->ce_lock);
 
@@ -373,30 +359,12 @@ int ath10k_ce_sendlist_send(struct ath10k_ce_pipe *ce_state,
 
 	delta = CE_RING_DELTA(nentries_mask, write_index, sw_index - 1);
 
-	if (delta >= num_items) {
-		/*
-		 * Handle all but the last item uniformly.
-		 */
-		for (i = 0; i < num_items - 1; i++) {
-			item = &sendlist->item[i];
-			ret = ath10k_ce_send_nolock(ce_state,
-						    CE_SENDLIST_ITEM_CTXT,
-						    (u32) item->data,
-						    item->u.nbytes, transfer_id,
-						    item->flags |
-						    CE_SEND_FLAG_GATHER);
-			if (ret)
-				ath10k_warn("CE send failed for item: %d\n", i);
-		}
-		/*
-		 * Provide valid context pointer for final item.
-		 */
-		item = &sendlist->item[i];
+	if (delta >= 1) {
 		ret = ath10k_ce_send_nolock(ce_state, per_transfer_context,
-					    (u32) item->data, item->u.nbytes,
-					    transfer_id, item->flags);
+					    paddr, nbytes,
+					    transfer_id, flags);
 		if (ret)
-			ath10k_warn("CE send failed for last item: %d\n", i);
+			ath10k_warn("CE send failed: %d\n", ret);
 	}
 
 	spin_unlock_bh(&ar_pci->ce_lock);

@@ -27,7 +27,6 @@
 
 /* Descriptor rings must be aligned to this boundary */
 #define CE_DESC_RING_ALIGN	8
-#define CE_SENDLIST_ITEMS_MAX	12
 #define CE_SEND_FLAG_GATHER	0x00010000
 
 /*
@@ -124,24 +123,6 @@ struct ath10k_ce_pipe {
 	struct ath10k_ce_ring *dest_ring;
 };
 
-struct ce_sendlist_item {
-	/* e.g. buffer or desc list */
-	dma_addr_t data;
-	union {
-		/* simple buffer */
-		unsigned int nbytes;
-		/* Rx descriptor list */
-		unsigned int ndesc;
-	} u;
-	/* externally-specified flags; OR-ed with internal flags */
-	u32 flags;
-};
-
-struct ce_sendlist {
-	unsigned int num_items;
-	struct ce_sendlist_item item[CE_SENDLIST_ITEMS_MAX];
-};
-
 /* Copy Engine settable attributes */
 struct ce_attr;
 
@@ -175,13 +156,6 @@ void ath10k_ce_send_cb_register(struct ath10k_ce_pipe *ce_state,
 				void (*send_cb)(struct ath10k_ce_pipe *),
 				int disable_interrupts);
 
-/* Append a simple buffer (address/length) to a sendlist. */
-void ath10k_ce_sendlist_buf_add(struct ce_sendlist *sendlist,
-				u32 buffer,
-				unsigned int nbytes,
-				/* OR-ed with internal flags */
-				u32 flags);
-
 /*
  * Queue a "sendlist" of buffers to be sent using gather to a single
  * anonymous destination buffer
@@ -193,10 +167,10 @@ void ath10k_ce_sendlist_buf_add(struct ce_sendlist *sendlist,
  * Implemenation note: Pushes multiple buffers with Gather to Source ring.
  */
 int ath10k_ce_sendlist_send(struct ath10k_ce_pipe *ce_state,
-			    void *per_transfer_send_context,
-			    struct ce_sendlist *sendlist,
-			    /* 14 bits */
-			    unsigned int transfer_id);
+			    void *per_transfer_context,
+			    unsigned int transfer_id,
+			    u32 paddr, unsigned int nbytes,
+			    u32 flags);
 
 /*==================Recv=======================*/
 
@@ -306,16 +280,6 @@ struct ce_attr {
 	/* #entries in destination ring - Must be a power of 2 */
 	unsigned int dest_nentries;
 };
-
-/*
- * When using sendlist_send to transfer multiple buffer fragments, the
- * transfer context of each fragment, except last one, will be filled
- * with CE_SENDLIST_ITEM_CTXT. ce_completed_send will return success for
- * each fragment done with send and the transfer context would be
- * CE_SENDLIST_ITEM_CTXT. Upper layer could use this to identify the
- * status of a send completion.
- */
-#define CE_SENDLIST_ITEM_CTXT	((void *)0xcecebeef)
 
 #define SR_BA_ADDRESS		0x0000
 #define SR_SIZE_ADDRESS		0x0004

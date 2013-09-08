@@ -626,17 +626,9 @@ static void ath10k_pci_ce_send_done(struct ath10k_ce_pipe *ce_state)
 	while (ath10k_ce_completed_send_next(ce_state, &transfer_context,
 					     &ce_data, &nbytes,
 					     &transfer_id) == 0) {
-		/*
-		 * For the send completion of an item in sendlist, just
-		 * increment num_sends_allowed. The upper layer callback will
-		 * be triggered when last fragment is done with send.
-		 */
-		if (transfer_context == CE_SENDLIST_ITEM_CTXT) {
-			spin_lock_bh(&pipe_info->pipe_lock);
-			pipe_info->num_sends_allowed++;
-			spin_unlock_bh(&pipe_info->pipe_lock);
-			continue;
-		}
+		spin_lock_bh(&pipe_info->pipe_lock);
+		pipe_info->num_sends_allowed++;
+		spin_unlock_bh(&pipe_info->pipe_lock);
 
 		compl = get_free_compl(pipe_info);
 		if (!compl)
@@ -714,12 +706,9 @@ static int ath10k_pci_hif_send_head(struct ath10k *ar, u8 pipe_id,
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct ath10k_pci_pipe *pipe_info = &(ar_pci->pipe_info[pipe_id]);
 	struct ath10k_ce_pipe *ce_hdl = pipe_info->ce_hdl;
-	struct ce_sendlist sendlist;
 	unsigned int len;
 	u32 flags = 0;
 	int ret;
-
-	memset(&sendlist, 0, sizeof(struct ce_sendlist));
 
 	len = min(bytes, nbuf->len);
 	bytes -= len;
@@ -735,8 +724,6 @@ static int ath10k_pci_hif_send_head(struct ath10k *ar, u8 pipe_id,
 			"ath10k tx: data: ",
 			nbuf->data, nbuf->len);
 
-	ath10k_ce_sendlist_buf_add(&sendlist, skb_cb->paddr, len, flags);
-
 	/* Make sure we have resources to handle this request */
 	spin_lock_bh(&pipe_info->pipe_lock);
 	if (!pipe_info->num_sends_allowed) {
@@ -747,7 +734,8 @@ static int ath10k_pci_hif_send_head(struct ath10k *ar, u8 pipe_id,
 	pipe_info->num_sends_allowed--;
 	spin_unlock_bh(&pipe_info->pipe_lock);
 
-	ret = ath10k_ce_sendlist_send(ce_hdl, nbuf, &sendlist, transfer_id);
+	ret = ath10k_ce_sendlist_send(ce_hdl, nbuf, transfer_id,
+				      skb_cb->paddr, len, flags);
 	if (ret)
 		ath10k_warn("CE send failed: %p\n", nbuf);
 
@@ -1302,16 +1290,14 @@ static void ath10k_pci_tx_pipe_cleanup(struct ath10k_pci_pipe *pipe_info)
 
 	while (ath10k_ce_cancel_send_next(ce_hdl, (void **)&netbuf,
 					  &ce_data, &nbytes, &id) == 0) {
-		if (netbuf != CE_SENDLIST_ITEM_CTXT) {
-			/*
-			 * Indicate the completion to higer layer to free
-			 * the buffer
-			 */
-			ATH10K_SKB_CB(netbuf)->is_aborted = true;
-			ar_pci->msg_callbacks_current.tx_completion(ar,
-								    netbuf,
-								    id);
-		}
+		/*
+		 * Indicate the completion to higer layer to free
+		 * the buffer
+		 */
+		ATH10K_SKB_CB(netbuf)->is_aborted = true;
+		ar_pci->msg_callbacks_current.tx_completion(ar,
+							    netbuf,
+							    id);
 	}
 }
 
