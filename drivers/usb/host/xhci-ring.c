@@ -1073,7 +1073,7 @@ static void update_ring_for_set_deq_completion(struct xhci_hcd *xhci,
  * cancellations pending.
  */
 static void xhci_handle_cmd_set_deq(struct xhci_hcd *xhci, int slot_id,
-		struct xhci_event_cmd *event, union xhci_trb *trb)
+		union xhci_trb *trb, u32 cmd_comp_code)
 {
 	unsigned int ep_index;
 	unsigned int stream_id;
@@ -1099,11 +1099,11 @@ static void xhci_handle_cmd_set_deq(struct xhci_hcd *xhci, int slot_id,
 	ep_ctx = xhci_get_ep_ctx(xhci, dev->out_ctx, ep_index);
 	slot_ctx = xhci_get_slot_ctx(xhci, dev->out_ctx);
 
-	if (GET_COMP_CODE(le32_to_cpu(event->status)) != COMP_SUCCESS) {
+	if (cmd_comp_code != COMP_SUCCESS) {
 		unsigned int ep_state;
 		unsigned int slot_state;
 
-		switch (GET_COMP_CODE(le32_to_cpu(event->status))) {
+		switch (cmd_comp_code) {
 		case COMP_TRB_ERR:
 			xhci_warn(xhci, "WARN Set TR Deq Ptr cmd invalid because "
 					"of stream ID configuration\n");
@@ -1126,7 +1126,7 @@ static void xhci_handle_cmd_set_deq(struct xhci_hcd *xhci, int slot_id,
 		default:
 			xhci_warn(xhci, "WARN Set TR Deq Ptr cmd with unknown "
 					"completion code of %u.\n",
-				  GET_COMP_CODE(le32_to_cpu(event->status)));
+				  cmd_comp_code);
 			break;
 		}
 		/* OK what do we do now?  The endpoint state is hosed, and we
@@ -1164,7 +1164,7 @@ static void xhci_handle_cmd_set_deq(struct xhci_hcd *xhci, int slot_id,
 }
 
 static void xhci_handle_cmd_reset_ep(struct xhci_hcd *xhci, int slot_id,
-		struct xhci_event_cmd *event, union xhci_trb *trb)
+		union xhci_trb *trb, u32 cmd_comp_code)
 {
 	unsigned int ep_index;
 
@@ -1173,8 +1173,7 @@ static void xhci_handle_cmd_reset_ep(struct xhci_hcd *xhci, int slot_id,
 	 * but we don't care.
 	 */
 	xhci_dbg_trace(xhci, trace_xhci_dbg_reset_ep,
-		"Ignoring reset ep completion code of %u",
-		 GET_COMP_CODE(le32_to_cpu(event->status)));
+		"Ignoring reset ep completion code of %u", cmd_comp_code);
 
 	/* HW with the reset endpoint quirk needs to have a configure endpoint
 	 * command complete before the endpoint can be used.  Queue that here
@@ -1576,14 +1575,14 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 	case TRB_SET_DEQ:
 		WARN_ON(slot_id != TRB_TO_SLOT_ID(
 				le32_to_cpu(cmd_trb->generic.field[3])));
-		xhci_handle_cmd_set_deq(xhci, slot_id, event, cmd_trb);
+		xhci_handle_cmd_set_deq(xhci, slot_id, cmd_trb, cmd_comp_code);
 		break;
 	case TRB_CMD_NOOP:
 		break;
 	case TRB_RESET_EP:
 		WARN_ON(slot_id != TRB_TO_SLOT_ID(
 				le32_to_cpu(cmd_trb->generic.field[3])));
-		xhci_handle_cmd_reset_ep(xhci, slot_id, event, cmd_trb);
+		xhci_handle_cmd_reset_ep(xhci, slot_id, cmd_trb, cmd_comp_code);
 		break;
 	case TRB_RESET_DEV:
 		WARN_ON(slot_id != TRB_TO_SLOT_ID(
