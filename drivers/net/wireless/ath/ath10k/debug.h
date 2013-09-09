@@ -52,12 +52,12 @@ void ath10k_debug_read_target_stats(struct ath10k *ar,
 				    struct wmi_stats_event *ev);
 
 #else
-int ath10k_debug_start(struct ath10k *ar)
+static inline int ath10k_debug_start(struct ath10k *ar)
 {
 	return 0;
 }
 
-void ath10k_debug_stop(struct ath10k *ar)
+static inline void ath10k_debug_stop(struct ath10k *ar)
 {
 }
 
