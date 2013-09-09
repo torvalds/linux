@@ -726,7 +726,7 @@ static void xhci_stop_watchdog_timer_in_irq(struct xhci_hcd *xhci,
 
 /* Must be called with xhci->lock held in interrupt context */
 static void xhci_giveback_urb_in_irq(struct xhci_hcd *xhci,
-		struct xhci_td *cur_td, int status, char *adjective)
+		struct xhci_td *cur_td, int status)
 {
 	struct usb_hcd *hcd;
 	struct urb	*urb;
@@ -891,7 +891,7 @@ remove_finished_td:
 		/* Doesn't matter what we pass for status, since the core will
 		 * just overwrite it (because the URB has been unlinked).
 		 */
-		xhci_giveback_urb_in_irq(xhci, cur_td, 0, "cancelled");
+		xhci_giveback_urb_in_irq(xhci, cur_td, 0);
 
 		/* Stop processing the cancelled list if the watchdog timer is
 		 * running.
@@ -1001,7 +1001,7 @@ void xhci_stop_endpoint_command_watchdog(unsigned long arg)
 				if (!list_empty(&cur_td->cancelled_td_list))
 					list_del_init(&cur_td->cancelled_td_list);
 				xhci_giveback_urb_in_irq(xhci, cur_td,
-						-ESHUTDOWN, "killed");
+						-ESHUTDOWN);
 			}
 			while (!list_empty(&temp_ep->cancelled_td_list)) {
 				cur_td = list_first_entry(
@@ -1010,7 +1010,7 @@ void xhci_stop_endpoint_command_watchdog(unsigned long arg)
 						cancelled_td_list);
 				list_del_init(&cur_td->cancelled_td_list);
 				xhci_giveback_urb_in_irq(xhci, cur_td,
-						-ESHUTDOWN, "killed");
+						-ESHUTDOWN);
 			}
 		}
 	}
