@@ -56,7 +56,9 @@ struct lock_stat {
 
 	unsigned int		nr_readlock;
 	unsigned int		nr_trylock;
+
 	/* these times are in nano sec. */
+	u64                     avg_wait_time;
 	u64			wait_time_total;
 	u64			wait_time_min;
 	u64			wait_time_max;
@@ -208,6 +210,7 @@ static struct thread_stat *thread_stat_findnew_first(u32 tid)
 
 SINGLE_KEY(nr_acquired)
 SINGLE_KEY(nr_contended)
+SINGLE_KEY(avg_wait_time)
 SINGLE_KEY(wait_time_total)
 SINGLE_KEY(wait_time_max)
 
@@ -244,6 +247,7 @@ static struct rb_root		result;	/* place to store sorted data */
 struct lock_key keys[] = {
 	DEF_KEY_LOCK(acquired, nr_acquired),
 	DEF_KEY_LOCK(contended, nr_contended),
+	DEF_KEY_LOCK(avg_wait, avg_wait_time),
 	DEF_KEY_LOCK(wait_total, wait_time_total),
 	DEF_KEY_LOCK(wait_min, wait_time_min),
 	DEF_KEY_LOCK(wait_max, wait_time_max),
@@ -516,6 +520,7 @@ static int report_lock_acquired_event(struct perf_evsel *evsel,
 
 	seq->state = SEQ_STATE_ACQUIRED;
 	ls->nr_acquired++;
+	ls->avg_wait_time = ls->nr_contended ? ls->wait_time_total/ls->nr_contended : 0;
 	seq->prev_event_time = sample->time;
 end:
 	return 0;
@@ -570,6 +575,7 @@ static int report_lock_contended_event(struct perf_evsel *evsel,
 
 	seq->state = SEQ_STATE_CONTENDED;
 	ls->nr_contended++;
+	ls->avg_wait_time = ls->wait_time_total/ls->nr_contended;
 	seq->prev_event_time = sample->time;
 end:
 	return 0;
@@ -703,6 +709,7 @@ static void print_result(void)
 	pr_info("%10s ", "acquired");
 	pr_info("%10s ", "contended");
 
+	pr_info("%15s ", "avg wait (ns)");
 	pr_info("%15s ", "total wait (ns)");
 	pr_info("%15s ", "max wait (ns)");
 	pr_info("%15s ", "min wait (ns)");
@@ -734,6 +741,7 @@ static void print_result(void)
 		pr_info("%10u ", st->nr_acquired);
 		pr_info("%10u ", st->nr_contended);
 
+		pr_info("%15" PRIu64 " ", st->avg_wait_time);
 		pr_info("%15" PRIu64 " ", st->wait_time_total);
 		pr_info("%15" PRIu64 " ", st->wait_time_max);
 		pr_info("%15" PRIu64 " ", st->wait_time_min == ULLONG_MAX ?
@@ -940,7 +948,7 @@ int cmd_lock(int argc, const char **argv, const char *prefix __maybe_unused)
 	};
 	const struct option report_options[] = {
 	OPT_STRING('k', "key", &sort_key, "acquired",
-		    "key for sorting (acquired / contended / wait_total / wait_max / wait_min)"),
+		    "key for sorting (acquired / contended / avg_wait / wait_total / wait_max / wait_min)"),
 	/* TODO: type */
 	OPT_END()
 	};
