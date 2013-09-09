@@ -40,6 +40,7 @@ struct v4l2_pix_format;
  *	shifted to be 8 bits per pixel. =0 if format is not shiftable.
  * @pixelformat: V4L2 pixel format FCC identifier
  * @bpp: Bits per pixel
+ * @description: Human-readable format description
  */
 struct iss_format_info {
 	enum v4l2_mbus_pixelcode code;
@@ -48,6 +49,7 @@ struct iss_format_info {
 	enum v4l2_mbus_pixelcode flavor;
 	u32 pixelformat;
 	unsigned int bpp;
+	const char *description;
 };
 
 enum iss_pipeline_stream_state {
