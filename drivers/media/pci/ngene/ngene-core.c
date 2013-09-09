@@ -1622,7 +1622,7 @@ static void ngene_unlink(struct ngene *dev)
 
 void ngene_shutdown(struct pci_dev *pdev)
 {
-	struct ngene *dev = (struct ngene *)pci_get_drvdata(pdev);
+	struct ngene *dev = pci_get_drvdata(pdev);
 
 	if (!dev || !shutdown_workaround)
 		return;
