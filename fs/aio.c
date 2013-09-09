@@ -307,15 +307,24 @@ static int aio_setup_ring(struct kioctx *ctx)
 		aio_free_ring(ctx);
 		return -EAGAIN;
 	}
-	up_write(&mm->mmap_sem);
-
-	mm_populate(ctx->mmap_base, populate);
 
 	pr_debug("mmap address: 0x%08lx\n", ctx->mmap_base);
+
+	/* We must do this while still holding mmap_sem for write, as we
+	 * need to be protected against userspace attempting to mremap()
+	 * or munmap() the ring buffer.
+	 */
 	ctx->nr_pages = get_user_pages(current, mm, ctx->mmap_base, nr_pages,
 				       1, 0, ctx->ring_pages, NULL);
+
+	/* Dropping the reference here is safe as the page cache will hold
+	 * onto the pages for us.  It is also required so that page migration
+	 * can unmap the pages and get the right reference count.
+	 */
 	for (i = 0; i < ctx->nr_pages; i++)
 		put_page(ctx->ring_pages[i]);
+
+	up_write(&mm->mmap_sem);
 
 	if (unlikely(ctx->nr_pages != nr_pages)) {
 		aio_free_ring(ctx);
