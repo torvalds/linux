@@ -20,6 +20,7 @@
 #include <asm/hpet.h>
 #include <asm/apic.h>
 #include <asm/pci_x86.h>
+#include <asm/setup.h>
 
 __initdata u64 initial_dtb;
 char __initdata cmd_line[COMMAND_LINE_SIZE];
