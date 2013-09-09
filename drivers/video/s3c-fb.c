@@ -388,6 +388,20 @@ struct s3c_fb {
 
 };
 
+#if defined(CONFIG_MACH_ODROIDXU)
+
+static  unsigned char   VoutBootArgs[5];
+static  bool            DP_Mode = false;
+
+static int __init vout_mode(char *line)
+{
+    sprintf(VoutBootArgs, "%s", line);
+    return  0;
+}
+__setup("vout=", vout_mode);
+
+#endif
+
 static void s3c_fb_dump_registers(struct s3c_fb *sfb)
 {
 #ifdef CONFIG_FB_EXYNOS_FIMD_V8
@@ -3558,6 +3572,10 @@ static int __devinit s3c_fb_probe(struct platform_device *pdev)
 	int ret = 0;
 	u32 reg;
 
+#if defined(CONFIG_MACH_ODROIDXU)
+    if(!strncmp(VoutBootArgs, "dp", sizeof("dp")))  DP_Mode = true;
+#endif        
+	
 	platid = platform_get_device_id(pdev);
 	fbdrv = (struct s3c_fb_driverdata *)platid->driver_data;
 
@@ -3808,8 +3826,12 @@ static int __devinit s3c_fb_probe(struct platform_device *pdev)
 	}
 #endif
 
-#ifdef CONFIG_S5P_DP
-	writel(DPCLKCON_ENABLE, sfb->regs + DPCLKCON);
+#if defined(CONFIG_MACH_ODROIDXU)
+    if(DP_Mode)     writel(DPCLKCON_ENABLE, sfb->regs + DPCLKCON);
+#else
+    #if defined(CONFIG_S5P_DP)
+        writel(DPCLKCON_ENABLE, sfb->regs + DPCLKCON);
+    #endif        
 #endif
 	platform_set_drvdata(pdev, sfb);
 
@@ -4115,9 +4137,13 @@ static int s3c_fb_enable(struct s3c_fb *sfb)
 #endif
 #endif
 
-#ifdef CONFIG_S5P_DP
-	writel(DPCLKCON_ENABLE, sfb->regs + DPCLKCON);
-#endif
+#if defined(CONFIG_MACH_ODROIDXU)    
+    if(DP_Mode) writel(DPCLKCON_ENABLE, sfb->regs + DPCLKCON);
+#else
+    #if defined(CONFIG_S5P_DP)
+	    writel(DPCLKCON_ENABLE, sfb->regs + DPCLKCON);
+	#endif
+#endif	
 
 	reg = readl(sfb->regs + VIDCON0);
 	reg |= VIDCON0_ENVID | VIDCON0_ENVID_F;
@@ -4270,9 +4296,13 @@ static int s3c_fb_resume(struct device *dev)
 	}
 #endif
 
-#ifdef CONFIG_S5P_DP
-	writel(DPCLKCON_ENABLE, sfb->regs + DPCLKCON);
-#endif
+#if defined(CONFIG_MACH_ODROIDXU)
+    if(DP_Mode) writel(DPCLKCON_ENABLE, sfb->regs + DPCLKCON);
+#else        
+    #if defined(CONFIG_S5P_DP)
+    	writel(DPCLKCON_ENABLE, sfb->regs + DPCLKCON);
+    #endif
+#endif    
 
 	reg = readl(sfb->regs + VIDCON0);
 	reg |= VIDCON0_ENVID | VIDCON0_ENVID_F;
