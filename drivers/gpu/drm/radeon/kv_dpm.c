@@ -1214,6 +1214,12 @@ int kv_dpm_enable(struct radeon_device *rdev)
 		radeon_irq_set(rdev);
 	}
 
+	ret = kv_smc_bapm_enable(rdev, false);
+	if (ret) {
+		DRM_ERROR("kv_smc_bapm_enable failed\n");
+		return ret;
+	}
+
 	/* powerdown unused blocks for now */
 	kv_dpm_powergate_acp(rdev, true);
 	kv_dpm_powergate_samu(rdev, true);
@@ -1236,6 +1242,8 @@ void kv_dpm_disable(struct radeon_device *rdev)
 			     RADEON_CG_BLOCK_SDMA |
 			     RADEON_CG_BLOCK_BIF |
 			     RADEON_CG_BLOCK_HDP), false);
+
+	kv_smc_bapm_enable(rdev, false);
 
 	/* powerup blocks */
 	kv_dpm_powergate_acp(rdev, false);
