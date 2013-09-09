@@ -1785,7 +1785,7 @@ static int vpbe_display_probe(struct platform_device *pdev)
 	}
 
 	irq = res->start;
-	err = devm_request_irq(&pdev->dev, irq, venc_isr, IRQF_DISABLED,
+	err = devm_request_irq(&pdev->dev, irq, venc_isr, 0,
 			       VPBE_DISPLAY_DRIVER, disp_dev);
 	if (err) {
 		v4l2_err(&disp_dev->vpbe_dev->v4l2_dev,
