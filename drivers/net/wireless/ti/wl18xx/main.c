@@ -988,9 +988,10 @@ static int wl18xx_boot(struct wl1271 *wl)
 		BA_SESSION_RX_CONSTRAINT_EVENT_ID |
 		REMAIN_ON_CHANNEL_COMPLETE_EVENT_ID |
 		INACTIVE_STA_EVENT_ID |
-		MAX_TX_FAILURE_EVENT_ID |
 		CHANNEL_SWITCH_COMPLETE_EVENT_ID |
 		DFS_CHANNELS_CONFIG_COMPLETE_EVENT;
+
+	wl->ap_event_mask = MAX_TX_FAILURE_EVENT_ID;
 
 	ret = wlcore_boot_run_firmware(wl);
 	if (ret < 0)

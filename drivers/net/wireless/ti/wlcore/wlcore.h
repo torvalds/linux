@@ -307,6 +307,8 @@ struct wl1271 {
 
 	/* The mbox event mask */
 	u32 event_mask;
+	/* events to unmask only when ap interface is up */
+	u32 ap_event_mask;
 
 	/* Mailbox pointers */
 	u32 mbox_size;
