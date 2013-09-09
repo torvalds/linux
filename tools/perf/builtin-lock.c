@@ -446,7 +446,6 @@ broken:
 		list_del(&seq->list);
 		free(seq);
 		goto end;
-		break;
 	default:
 		BUG_ON("Unknown state of lock sequence found!\n");
 		break;
@@ -508,8 +507,6 @@ static int report_lock_acquired_event(struct perf_evsel *evsel,
 		list_del(&seq->list);
 		free(seq);
 		goto end;
-		break;
-
 	default:
 		BUG_ON("Unknown state of lock sequence found!\n");
 		break;
@@ -564,7 +561,6 @@ static int report_lock_contended_event(struct perf_evsel *evsel,
 		list_del(&seq->list);
 		free(seq);
 		goto end;
-		break;
 	default:
 		BUG_ON("Unknown state of lock sequence found!\n");
 		break;
@@ -606,7 +602,6 @@ static int report_lock_release_event(struct perf_evsel *evsel,
 	switch (seq->state) {
 	case SEQ_STATE_UNINITIALIZED:
 		goto end;
-		break;
 	case SEQ_STATE_ACQUIRED:
 		break;
 	case SEQ_STATE_READ_ACQUIRED:
@@ -624,7 +619,6 @@ static int report_lock_release_event(struct perf_evsel *evsel,
 		ls->discard = 1;
 		bad_hist[BROKEN_RELEASE]++;
 		goto free_seq;
-		break;
 	default:
 		BUG_ON("Unknown state of lock sequence found!\n");
 		break;
