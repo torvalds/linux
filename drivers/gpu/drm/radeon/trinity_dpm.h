@@ -108,6 +108,7 @@ struct trinity_power_info {
 	bool enable_auto_thermal_throttling;
 	bool enable_dpm;
 	bool enable_sclk_ds;
+	bool enable_bapm;
 	bool uvd_dpm;
 	struct radeon_ps current_rps;
 	struct trinity_ps current_ps;

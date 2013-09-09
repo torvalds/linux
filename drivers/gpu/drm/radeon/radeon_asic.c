@@ -1794,6 +1794,7 @@ static struct radeon_asic trinity_asic = {
 		.print_power_state = &trinity_dpm_print_power_state,
 		.debugfs_print_current_performance_level = &trinity_dpm_debugfs_print_current_performance_level,
 		.force_performance_level = &trinity_dpm_force_performance_level,
+		.enable_bapm = &trinity_dpm_enable_bapm,
 	},
 	.pflip = {
 		.pre_page_flip = &evergreen_pre_page_flip,
