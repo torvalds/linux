@@ -1384,6 +1384,16 @@ static int handle_stopped_cmd_ring(struct xhci_hcd *xhci,
 	return cur_trb_is_good;
 }
 
+static void xhci_handle_cmd_enable_slot(struct xhci_hcd *xhci, int slot_id,
+		u32 cmd_comp_code)
+{
+	if (cmd_comp_code == COMP_SUCCESS)
+		xhci->slot_id = slot_id;
+	else
+		xhci->slot_id = 0;
+	complete(&xhci->addr_dev);
+}
+
 static void handle_cmd_completion(struct xhci_hcd *xhci,
 		struct xhci_event_cmd *event)
 {
@@ -1437,11 +1447,8 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 	switch (le32_to_cpu(xhci->cmd_ring->dequeue->generic.field[3])
 		& TRB_TYPE_BITMASK) {
 	case TRB_TYPE(TRB_ENABLE_SLOT):
-		if (GET_COMP_CODE(le32_to_cpu(event->status)) == COMP_SUCCESS)
-			xhci->slot_id = slot_id;
-		else
-			xhci->slot_id = 0;
-		complete(&xhci->addr_dev);
+		xhci_handle_cmd_enable_slot(xhci, slot_id,
+				GET_COMP_CODE(le32_to_cpu(event->status)));
 		break;
 	case TRB_TYPE(TRB_DISABLE_SLOT):
 		if (xhci->devs[slot_id]) {
