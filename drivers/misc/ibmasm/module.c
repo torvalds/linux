@@ -165,7 +165,7 @@ error_resources:
 
 static void ibmasm_remove_one(struct pci_dev *pdev)
 {
-	struct service_processor *sp = (struct service_processor *)pci_get_drvdata(pdev);
+	struct service_processor *sp = pci_get_drvdata(pdev);
 
 	dbg("Unregistering UART\n");
 	ibmasm_unregister_uart(sp);
