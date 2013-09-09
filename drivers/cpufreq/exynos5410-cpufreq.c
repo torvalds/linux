@@ -462,8 +462,8 @@ static const unsigned int exynos5410_max_op_freq_b_evt1[NR_CPUS + 1] = {
 
 static const unsigned int exynos5410_max_op_freq_b_evt2[NR_CPUS + 1] = {
 	UINT_MAX,
-	1600000,
-	1600000,
+	1800000,
+	1800000,
 	1600000,
 	1600000,
 };
@@ -478,8 +478,8 @@ static const unsigned int exynos5410_max_op_freq_b_evt1[NR_CPUS + 1] = {
 
 static const unsigned int exynos5410_max_op_freq_b_evt2[NR_CPUS + 1] = {
 	UINT_MAX,
-	1600000,
-	1600000,
+	1800000,
+	1800000,
 	1600000,
 	1600000,
 };
@@ -853,13 +853,13 @@ static void __init set_volt_table_CA15(void)
 				exynos5410_volt_table_CA15[i]);
 	}
 
-	max_support_idx_CA15 = L4;
+	max_support_idx_CA15 = L2;
 
 	exynos5410_freq_table_CA15[L0].frequency = CPUFREQ_ENTRY_INVALID;
 	exynos5410_freq_table_CA15[L1].frequency = CPUFREQ_ENTRY_INVALID;
-	exynos5410_freq_table_CA15[L2].frequency = CPUFREQ_ENTRY_INVALID;
-	exynos5410_freq_table_CA15[L3].frequency = CPUFREQ_ENTRY_INVALID;
 	if (samsung_rev() < EXYNOS5410_REV_2_0) {
+		exynos5410_freq_table_CA15[L2].frequency = CPUFREQ_ENTRY_INVALID;
+		exynos5410_freq_table_CA15[L3].frequency = CPUFREQ_ENTRY_INVALID;
 		exynos5410_freq_table_CA15[L4].frequency = CPUFREQ_ENTRY_INVALID;
 		exynos5410_freq_table_CA15[L5].frequency = CPUFREQ_ENTRY_INVALID;
 		exynos5410_freq_table_CA15[L6].frequency = CPUFREQ_ENTRY_INVALID;
