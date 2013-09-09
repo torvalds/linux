@@ -225,7 +225,7 @@ int dgnc_init_module(void)
 	rc = dgnc_start();
 
 	if (rc < 0) {
-		return(rc);
+		return rc;
 	}
 
 	/*
@@ -250,7 +250,7 @@ int dgnc_init_module(void)
 	}
 
 	DPR_INIT(("Finished init_module. Returning %d\n", rc));
-	return (rc);
+	return rc;
 }
 
 
@@ -286,7 +286,7 @@ static int dgnc_start(void)
 			if (rc <= 0) {
 				APR(("Can't register dgnc driver device (%d)\n", rc));
 				rc = -ENXIO;
-				return(rc);
+				return rc;
 			}
 			dgnc_Major = rc;
 
@@ -311,7 +311,7 @@ static int dgnc_start(void)
 
 		if (rc < 0) {
 			APR(("tty preinit - not enough memory (%d)\n", rc));
-			return(rc);
+			return rc;
 		}
 
 		/* Start the poller */
@@ -328,7 +328,7 @@ static int dgnc_start(void)
 		dgnc_driver_state = DRIVER_READY;
 	}
 
-	return(rc);
+	return rc;
 }
 
 /*
@@ -502,7 +502,7 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 	(struct dgnc_board *) kzalloc(sizeof(struct dgnc_board), GFP_KERNEL);
 	if (!brd) {
 		APR(("memory allocation for board structure failed\n"));
-		return(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	/* make a temporary message buffer for the boot messages */
@@ -511,7 +511,7 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 	if (!brd->msgbuf) {
 		kfree(brd);
 		APR(("memory allocation for board msgbuf failed\n"));
-		return(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	/* store the info for the board we've found */
@@ -663,7 +663,7 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 
 	default:
 		APR(("Did not find any compatible Neo or Classic PCI boards in system.\n"));
-		return (-ENXIO);
+		return -ENXIO;
 
 	}
 
@@ -725,11 +725,11 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 
 	wake_up_interruptible(&brd->state_wait);
 
-	return(0);
+	return 0;
 
 failed:
 
-	return (-ENXIO);
+	return -ENXIO;
 
 }
 
@@ -740,7 +740,7 @@ static int dgnc_finalize_board_init(struct dgnc_board *brd) {
 	DPR_INIT(("dgnc_finalize_board_init() - start\n"));
 
 	if (!brd || brd->magic != DGNC_BOARD_MAGIC)
-		return(-ENODEV);
+		return -ENODEV;
 
 	DPR_INIT(("dgnc_finalize_board_init() - start #2\n"));
 
@@ -756,7 +756,7 @@ static int dgnc_finalize_board_init(struct dgnc_board *brd) {
 			DPR_INIT(("Requested and received usage of IRQ %d\n", brd->irq));
 		}
 	}
-	return(rc);
+	return rc;
 }
 
 /*
@@ -900,7 +900,7 @@ int dgnc_ms_sleep(ulong ms)
 {
 	current->state = TASK_INTERRUPTIBLE;
 	schedule_timeout((ms * HZ) / 1000);
-	return (signal_pending(current));
+	return signal_pending(current);
 }
 
 
@@ -912,47 +912,47 @@ char *dgnc_ioctl_name(int cmd)
 {
 	switch(cmd) {
 
-	case TCGETA:		return("TCGETA");
-	case TCGETS:		return("TCGETS");
-	case TCSETA:		return("TCSETA");
-	case TCSETS:		return("TCSETS");
-	case TCSETAW:		return("TCSETAW");
-	case TCSETSW:		return("TCSETSW");
-	case TCSETAF:		return("TCSETAF");
-	case TCSETSF:		return("TCSETSF");
-	case TCSBRK:		return("TCSBRK");
-	case TCXONC:		return("TCXONC");
-	case TCFLSH:		return("TCFLSH");
-	case TIOCGSID:		return("TIOCGSID");
+	case TCGETA:		return "TCGETA";
+	case TCGETS:		return "TCGETS";
+	case TCSETA:		return "TCSETA";
+	case TCSETS:		return "TCSETS";
+	case TCSETAW:		return "TCSETAW";
+	case TCSETSW:		return "TCSETSW";
+	case TCSETAF:		return "TCSETAF";
+	case TCSETSF:		return "TCSETSF";
+	case TCSBRK:		return "TCSBRK";
+	case TCXONC:		return "TCXONC";
+	case TCFLSH:		return "TCFLSH";
+	case TIOCGSID:		return "TIOCGSID";
 
-	case TIOCGETD:		return("TIOCGETD");
-	case TIOCSETD:		return("TIOCSETD");
-	case TIOCGWINSZ:	return("TIOCGWINSZ");
-	case TIOCSWINSZ:	return("TIOCSWINSZ");
+	case TIOCGETD:		return "TIOCGETD";
+	case TIOCSETD:		return "TIOCSETD";
+	case TIOCGWINSZ:	return "TIOCGWINSZ";
+	case TIOCSWINSZ:	return "TIOCSWINSZ";
 
-	case TIOCMGET:		return("TIOCMGET");
-	case TIOCMSET:		return("TIOCMSET");
-	case TIOCMBIS:		return("TIOCMBIS");
-	case TIOCMBIC:		return("TIOCMBIC");
+	case TIOCMGET:		return "TIOCMGET";
+	case TIOCMSET:		return "TIOCMSET";
+	case TIOCMBIS:		return "TIOCMBIS";
+	case TIOCMBIC:		return "TIOCMBIC";
 
 	/* from digi.h */
-	case DIGI_SETA:		return("DIGI_SETA");
-	case DIGI_SETAW:	return("DIGI_SETAW");
-	case DIGI_SETAF:	return("DIGI_SETAF");
-	case DIGI_SETFLOW:	return("DIGI_SETFLOW");
-	case DIGI_SETAFLOW:	return("DIGI_SETAFLOW");
-	case DIGI_GETFLOW:	return("DIGI_GETFLOW");
-	case DIGI_GETAFLOW:	return("DIGI_GETAFLOW");
-	case DIGI_GETA:		return("DIGI_GETA");
-	case DIGI_GEDELAY:	return("DIGI_GEDELAY");
-	case DIGI_SEDELAY:	return("DIGI_SEDELAY");
-	case DIGI_GETCUSTOMBAUD: return("DIGI_GETCUSTOMBAUD");
-	case DIGI_SETCUSTOMBAUD: return("DIGI_SETCUSTOMBAUD");
-	case TIOCMODG:		return("TIOCMODG");
-	case TIOCMODS:		return("TIOCMODS");
-	case TIOCSDTR:		return("TIOCSDTR");
-	case TIOCCDTR:		return("TIOCCDTR");
+	case DIGI_SETA:		return "DIGI_SETA";
+	case DIGI_SETAW:	return "DIGI_SETAW";
+	case DIGI_SETAF:	return "DIGI_SETAF";
+	case DIGI_SETFLOW:	return "DIGI_SETFLOW";
+	case DIGI_SETAFLOW:	return "DIGI_SETAFLOW";
+	case DIGI_GETFLOW:	return "DIGI_GETFLOW";
+	case DIGI_GETAFLOW:	return "DIGI_GETAFLOW";
+	case DIGI_GETA:		return "DIGI_GETA";
+	case DIGI_GEDELAY:	return "DIGI_GEDELAY";
+	case DIGI_SEDELAY:	return "DIGI_SEDELAY";
+	case DIGI_GETCUSTOMBAUD: return "DIGI_GETCUSTOMBAUD";
+	case DIGI_SETCUSTOMBAUD: return "DIGI_SETCUSTOMBAUD";
+	case TIOCMODG:		return "TIOCMODG";
+	case TIOCMODS:		return "TIOCMODS";
+	case TIOCSDTR:		return "TIOCSDTR";
+	case TIOCCDTR:		return "TIOCCDTR";
 
-	default:		return("unknown");
+	default:		return "unknown";
 	}
 }

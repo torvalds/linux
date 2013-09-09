@@ -1404,17 +1404,17 @@ static int neo_drain(struct tty_struct *tty, uint seconds)
 	int rc = 0;
 
 	if (!tty || tty->magic != TTY_MAGIC) {
-		return (-ENXIO);
+		return -ENXIO;
 	}
 
 	un = (struct un_t *) tty->driver_data;
 	if (!un || un->magic != DGNC_UNIT_MAGIC) {
-		return (-ENXIO);
+		return -ENXIO;
 	}
 
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC) {
-		return (-ENXIO);
+		return -ENXIO;
 	}
 
 	DPR_IOCTL(("%d Drain wait started.\n", __LINE__));
@@ -1439,7 +1439,7 @@ static int neo_drain(struct tty_struct *tty, uint seconds)
 		DPR_IOCTL(("%d Drain wait finished.\n", __LINE__));
 	}
 
-	return (rc);
+	return rc;
 }
 
 

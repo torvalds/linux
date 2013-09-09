@@ -976,17 +976,17 @@ static int cls_drain(struct tty_struct *tty, uint seconds)
 	int rc = 0;
 
 	if (!tty || tty->magic != TTY_MAGIC) {
-		return (-ENXIO);
+		return -ENXIO;
 	}
 
 	un = (struct un_t *) tty->driver_data;
 	if (!un || un->magic != DGNC_UNIT_MAGIC) {
-		return (-ENXIO);
+		return -ENXIO;
 	}
 
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC) {
-		return (-ENXIO);
+		return -ENXIO;
 	}
 
 	DGNC_LOCK(ch->ch_lock, lock_flags);
@@ -1002,7 +1002,7 @@ static int cls_drain(struct tty_struct *tty, uint seconds)
 	if (rc)
 		DPR_IOCTL(("%d Drain - User ctrl c'ed\n", __LINE__));
 
-        return (rc);
+        return rc;
 }
 
 

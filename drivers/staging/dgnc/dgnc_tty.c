@@ -190,10 +190,10 @@ int dgnc_tty_preinit(void)
 
 	if (!dgnc_TmpWriteBuf) {
 		DPR_INIT(("unable to allocate tmp write buf"));
-		return (-ENOMEM);
+		return -ENOMEM;
 	}
 
-	return(0);
+	return 0;
 }
 
 
@@ -232,7 +232,7 @@ int dgnc_tty_register(struct dgnc_board *brd)
 	 */
 	brd->SerialDriver.ttys = kzalloc(brd->maxports * sizeof(struct tty_struct *), GFP_KERNEL);
 	if (!brd->SerialDriver.ttys)
-		return(-ENOMEM);
+		return -ENOMEM;
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
 	brd->SerialDriver.refcount = brd->TtyRefCnt;
@@ -242,12 +242,12 @@ int dgnc_tty_register(struct dgnc_board *brd)
 
 	brd->SerialDriver.termios = kzalloc(brd->maxports * sizeof(struct ktermios *), GFP_KERNEL);
 	if (!brd->SerialDriver.termios)
-		return(-ENOMEM);
+		return -ENOMEM;
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
 	brd->SerialDriver.termios_locked = kzalloc(brd->maxports * sizeof(struct ktermios *), GFP_KERNEL);
 	if (!brd->SerialDriver.termios_locked)
-		return(-ENOMEM);
+		return -ENOMEM;
 #endif
 	/*
 	 * Entry points for driver.  Called by the kernel from
@@ -260,7 +260,7 @@ int dgnc_tty_register(struct dgnc_board *brd)
 		rc = tty_register_driver(&brd->SerialDriver);
 		if (rc < 0) {
 			APR(("Can't register tty device (%d)\n", rc));
-			return(rc);
+			return rc;
 		}
 		brd->dgnc_Major_Serial_Registered = TRUE;
 	}
@@ -291,7 +291,7 @@ int dgnc_tty_register(struct dgnc_board *brd)
 	 */
 	brd->PrintDriver.ttys = kzalloc(brd->maxports * sizeof(struct tty_struct *), GFP_KERNEL);
 	if (!brd->PrintDriver.ttys)
-		return(-ENOMEM);
+		return -ENOMEM;
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
 	brd->PrintDriver.refcount = brd->TtyRefCnt;
@@ -301,12 +301,12 @@ int dgnc_tty_register(struct dgnc_board *brd)
 
 	brd->PrintDriver.termios = kzalloc(brd->maxports * sizeof(struct ktermios *), GFP_KERNEL);
 	if (!brd->PrintDriver.termios)
-		return(-ENOMEM);
+		return -ENOMEM;
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,0,0)
 	brd->PrintDriver.termios_locked = kzalloc(brd->maxports * sizeof(struct ktermios *), GFP_KERNEL);
 	if (!brd->PrintDriver.termios_locked)
-		return(-ENOMEM);
+		return -ENOMEM;
 #endif
 
 	/*
@@ -320,7 +320,7 @@ int dgnc_tty_register(struct dgnc_board *brd)
 		rc = tty_register_driver(&brd->PrintDriver);
 		if (rc < 0) {
 			APR(("Can't register Transparent Print device (%d)\n", rc));
-			return(rc);
+			return rc;
 		}
 		brd->dgnc_Major_TransparentPrint_Registered = TRUE;
 	}
@@ -331,7 +331,7 @@ int dgnc_tty_register(struct dgnc_board *brd)
 
 	DPR_INIT(("DGNC REGISTER TTY: MAJOR: %d\n", brd->SerialDriver.major));
 
-	return (rc);
+	return rc;
 }
 
 
@@ -348,7 +348,7 @@ int dgnc_tty_init(struct dgnc_board *brd)
 	struct channel_t *ch;
 
 	if (!brd)
-		return (-ENXIO);
+		return -ENXIO;
 
 	DPR_INIT(("dgnc_tty_init start\n"));
 
@@ -436,7 +436,7 @@ int dgnc_tty_init(struct dgnc_board *brd)
 
 	DPR_INIT(("dgnc_tty_init finish\n"));
 
-	return (0);
+	return 0;
 }
 
 
@@ -1473,7 +1473,7 @@ static int dgnc_tty_open(struct tty_struct *tty, struct file *file)
 	DGNC_UNLOCK(ch->ch_lock, lock_flags);
 
 	DPR_OPEN(("dgnc_tty_open finished\n"));
-	return (rc);
+	return rc;
 }
 
 
@@ -1491,12 +1491,12 @@ static int dgnc_block_til_ready(struct tty_struct *tty, struct file *file, struc
 	int	sleep_on_un_flags = 0;
 
 	if (!tty || tty->magic != TTY_MAGIC || !file || !ch || ch->magic != DGNC_CHANNEL_MAGIC) {
-		return (-ENXIO);
+		return -ENXIO;
 	}
 
 	un = tty->driver_data;
 	if (!un || un->magic != DGNC_UNIT_MAGIC) {
-		return (-ENXIO);
+		return -ENXIO;
 	}
 
 	DPR_OPEN(("dgnc_block_til_ready - before block.\n"));
@@ -1624,12 +1624,12 @@ static int dgnc_block_til_ready(struct tty_struct *tty, struct file *file, struc
 
 	if (retval) {
 		DPR_OPEN(("dgnc_block_til_ready - done. error. retval: %x\n", retval));
-		return(retval);
+		return retval;
 	}
 
 	DPR_OPEN(("dgnc_block_til_ready - done no error. jiffies: %lu\n", jiffies));
 
-	return(0);
+	return 0;
 }
 
 
@@ -1843,15 +1843,15 @@ static int dgnc_tty_chars_in_buffer(struct tty_struct *tty)
 	ulong   lock_flags = 0;
 
 	if (tty == NULL)
-		return(0);
+		return 0;
 
 	un = tty->driver_data;
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
-		return (0);
+		return 0;
 
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return (0);
+		return 0;
 
 	DGNC_LOCK(ch->ch_lock, lock_flags);
 
@@ -1873,7 +1873,7 @@ static int dgnc_tty_chars_in_buffer(struct tty_struct *tty)
 	DPR_WRITE(("dgnc_tty_chars_in_buffer. Port: %x - %d (head: %d tail: %d)\n",
 		ch->ch_portnum, chars, thead, ttail));
 
-	return(chars);
+	return chars;
 }
 
 
@@ -1891,22 +1891,22 @@ static int dgnc_maxcps_room(struct tty_struct *tty, int bytes_available)
 	struct un_t *un = NULL;
 
 	if (!tty)
-		return (bytes_available);
+		return bytes_available;
 
 	un = tty->driver_data;
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
-		return (bytes_available);
+		return bytes_available;
 
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return (bytes_available);
+		return bytes_available;
 
 	/*
 	 * If its not the Transparent print device, return
 	 * the full data amount.
 	 */
 	if (un->un_type != DGNC_PRINT)
-		return (bytes_available);
+		return bytes_available;
 
 	if (ch->ch_digi.digi_maxcps > 0 && ch->ch_digi.digi_bufsize > 0 ) {
 		int cps_limit = 0;
@@ -1931,7 +1931,7 @@ static int dgnc_maxcps_room(struct tty_struct *tty, int bytes_available)
 		bytes_available = min(cps_limit, bytes_available);
 	}
 
-	return (bytes_available);
+	return bytes_available;
 }
 
 
@@ -1951,15 +1951,15 @@ static int dgnc_tty_write_room(struct tty_struct *tty)
 	ulong   lock_flags = 0;
 
 	if (tty == NULL || dgnc_TmpWriteBuf == NULL)
-		return(0);
+		return 0;
 
 	un = tty->driver_data;
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
-		return (0);
+		return 0;
 
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return (0);
+		return 0;
 
 	DGNC_LOCK(ch->ch_lock, lock_flags);
 
@@ -1994,7 +1994,7 @@ static int dgnc_tty_write_room(struct tty_struct *tty)
 
 	DPR_WRITE(("dgnc_tty_write_room - %d tail: %d head: %d\n", ret, tail, head));
 
-	return(ret);
+	return ret;
 }
 
 
@@ -2037,18 +2037,18 @@ static int dgnc_tty_write(struct tty_struct *tty,
 	int from_user = 0;
 
 	if (tty == NULL || dgnc_TmpWriteBuf == NULL)
-		return(0);
+		return 0;
 
 	un = tty->driver_data;
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
-		return(0);
+		return 0;
 
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return(0);
+		return 0;
 
 	if (!count)
-		return(0);
+		return 0;
 
 	DPR_WRITE(("dgnc_tty_write: Port: %x tty=%p user=%d len=%d\n",
 		ch->ch_portnum, tty, from_user, count));
@@ -2090,7 +2090,7 @@ static int dgnc_tty_write(struct tty_struct *tty,
 	 */
 	if (count <= 0) {
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
-		return(0);
+		return 0;
 	}
 
 	/*
@@ -2120,7 +2120,7 @@ static int dgnc_tty_write(struct tty_struct *tty,
 	 */
 	if (count <= 0) {
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
-		return(0);
+		return 0;
 	}
 
 	if (from_user) {
@@ -2136,7 +2136,7 @@ static int dgnc_tty_write(struct tty_struct *tty,
 		 */
 		/* we're allowed to block if it's from_user */
 		if (down_interruptible(&dgnc_TmpWriteSem)) {
-			return (-EINTR);
+			return -EINTR;
 		}
 
 		/*
@@ -2147,7 +2147,7 @@ static int dgnc_tty_write(struct tty_struct *tty,
 
 		if (!count) {
 			up(&dgnc_TmpWriteSem);
-			return(-EFAULT);
+			return -EFAULT;
 		}
 
 		DGNC_LOCK(ch->ch_lock, lock_flags);
@@ -2229,7 +2229,7 @@ static int dgnc_tty_write(struct tty_struct *tty,
 		ch->ch_bd->bd_ops->copy_data_from_queue_to_uart(ch);
 	}
 
-	return (count);
+	return count;
 }
 
 
@@ -2349,7 +2349,7 @@ static int dgnc_tty_tiocmset(struct tty_struct *tty, struct file *file,
 
 	DPR_IOCTL(("dgnc_tty_tiocmset finish\n"));
 
-	return (0);
+	return 0;
 }
 
 
@@ -2402,7 +2402,7 @@ static int dgnc_tty_send_break(struct tty_struct *tty, int msec)
 
 	DPR_IOCTL(("dgnc_tty_send_break finish\n"));
 
-	return (0);
+	return 0;
 
 }
 
@@ -2497,7 +2497,7 @@ static inline int dgnc_get_mstat(struct channel_t *ch)
 	DPR_IOCTL(("dgnc_getmstat start\n"));
 
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return(-ENXIO);
+		return -ENXIO;
 
 	DGNC_LOCK(ch->ch_lock, lock_flags);
 
@@ -2522,7 +2522,7 @@ static inline int dgnc_get_mstat(struct channel_t *ch)
 
 	DPR_IOCTL(("dgnc_getmstat finish\n"));
 
-	return(result);
+	return result;
 }
 
 
@@ -2538,17 +2538,17 @@ static int dgnc_get_modem_info(struct channel_t *ch, unsigned int  __user *value
 	DPR_IOCTL(("dgnc_get_modem_info start\n"));
 
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return(-ENXIO);
+		return -ENXIO;
 
 	result = dgnc_get_mstat(ch);
 
 	if (result < 0)
-		return (-ENXIO);
+		return -ENXIO;
 
 	rc = put_user(result, value);
 
 	DPR_IOCTL(("dgnc_get_modem_info finish\n"));
-	return(rc);
+	return rc;
 }
 
 
@@ -2587,7 +2587,7 @@ static int dgnc_set_modem_info(struct tty_struct *tty, unsigned int command, uns
 
 	ret = get_user(arg, value);
 	if (ret)
-		return(ret);
+		return ret;
 
 	switch (command) {
 	case TIOCMBIS:
@@ -2631,7 +2631,7 @@ static int dgnc_set_modem_info(struct tty_struct *tty, unsigned int command, uns
 		break;
 
 	default:
-		return(-EINVAL);
+		return -EINVAL;
 	}
 
 	DGNC_LOCK(ch->ch_lock, lock_flags);
@@ -2642,7 +2642,7 @@ static int dgnc_set_modem_info(struct tty_struct *tty, unsigned int command, uns
 
 	DPR_IOCTL(("dgnc_set_modem_info finish\n"));
 
-	return (0);
+	return 0;
 }
 
 
@@ -2662,18 +2662,18 @@ static int dgnc_tty_digigeta(struct tty_struct *tty, struct digi_t __user *retin
 	ulong   lock_flags;
 
 	if (!retinfo)
-		return (-EFAULT);
+		return -EFAULT;
 
 	if (!tty || tty->magic != TTY_MAGIC)
-		return (-EFAULT);
+		return -EFAULT;
 
 	un = tty->driver_data;
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
-		return (-EFAULT);
+		return -EFAULT;
 
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return (-EFAULT);
+		return -EFAULT;
 
 	memset(&tmp, 0, sizeof(tmp));
 
@@ -2682,9 +2682,9 @@ static int dgnc_tty_digigeta(struct tty_struct *tty, struct digi_t __user *retin
 	DGNC_UNLOCK(ch->ch_lock, lock_flags);
 
 	if (copy_to_user(retinfo, &tmp, sizeof(*retinfo)))
-		return (-EFAULT);
+		return -EFAULT;
 
-	return (0);
+	return 0;
 }
 
 
@@ -2707,23 +2707,23 @@ static int dgnc_tty_digiseta(struct tty_struct *tty, struct digi_t __user *new_i
 	DPR_IOCTL(("DIGI_SETA start\n"));
 
 	if (!tty || tty->magic != TTY_MAGIC)
-		return (-EFAULT);
+		return -EFAULT;
 
 	un = tty->driver_data;
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
-		return (-EFAULT);
+		return -EFAULT;
 
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return (-EFAULT);
+		return -EFAULT;
 
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
-		return (-EFAULT);
+		return -EFAULT;
 
 	if (copy_from_user(&new_digi, new_info, sizeof(struct digi_t))) {
 		DPR_IOCTL(("DIGI_SETA failed copy_from_user\n"));
-		return(-EFAULT);
+		return -EFAULT;
 	}
 
 	DGNC_LOCK(ch->ch_lock, lock_flags);
@@ -2773,7 +2773,7 @@ static int dgnc_tty_digiseta(struct tty_struct *tty, struct digi_t __user *new_i
 
 	DPR_IOCTL(("DIGI_SETA finish\n"));
 
-	return(0);
+	return 0;
 }
 
 
@@ -3064,19 +3064,19 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	void __user *uarg = (void __user *) arg;
 
 	if (!tty || tty->magic != TTY_MAGIC)
-		return (-ENODEV);
+		return -ENODEV;
 
 	un = tty->driver_data;
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
-		return (-ENODEV);
+		return -ENODEV;
 
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return (-ENODEV);
+		return -ENODEV;
 
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
-		return (-ENODEV);
+		return -ENODEV;
 
 	DPR_IOCTL(("dgnc_tty_ioctl start on port %d - cmd %s (%x), arg %lx\n",
 		ch->ch_portnum, dgnc_ioctl_name(cmd), cmd, arg));
@@ -3086,7 +3086,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	if (un->un_open_count <= 0) {
 		DPR_BASIC(("dgnc_tty_ioctl - unit not open.\n"));
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
-		return(-EIO);
+		return -EIO;
 	}
 
 	switch (cmd) {
@@ -3105,14 +3105,14 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		rc = tty_check_change(tty);
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
 		if (rc) {
-			return(rc);
+			return rc;
 		}
 
 		rc = ch->ch_bd->bd_ops->drain(tty, 0);
 
 		if (rc) {
 			DPR_IOCTL(("dgnc_tty_ioctl - bad return: %d ", rc));
-			return(-EINTR);
+			return -EINTR;
 		}
 
 		DGNC_LOCK(ch->ch_lock, lock_flags);
@@ -3126,7 +3126,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		DPR_IOCTL(("dgnc_tty_ioctl finish on port %d - cmd %s (%x), arg %lx\n",
 			ch->ch_portnum, dgnc_ioctl_name(cmd), cmd, arg));
 
-		return(0);
+		return 0;
 
 
 	case TCSBRKP:
@@ -3138,13 +3138,13 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		rc = tty_check_change(tty);
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
 		if (rc) {
-			return(rc);
+			return rc;
 		}
 
 		rc = ch->ch_bd->bd_ops->drain(tty, 0);
 		if (rc) {
 			DPR_IOCTL(("dgnc_tty_ioctl - bad return: %d ", rc));
-			return(-EINTR);
+			return -EINTR;
 		}
 
 		DGNC_LOCK(ch->ch_lock, lock_flags);
@@ -3156,19 +3156,19 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		DPR_IOCTL(("dgnc_tty_ioctl finish on port %d - cmd %s (%x), arg %lx\n",
 			ch->ch_portnum, dgnc_ioctl_name(cmd), cmd, arg));
 
-		return(0);
+		return 0;
 
 	case TIOCSBRK:
 		rc = tty_check_change(tty);
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
 		if (rc) {
-			return(rc);
+			return rc;
 		}
 
 		rc = ch->ch_bd->bd_ops->drain(tty, 0);
 		if (rc) {
 			DPR_IOCTL(("dgnc_tty_ioctl - bad return: %d ", rc));
-			return(-EINTR);
+			return -EINTR;
 		}
 
 		DGNC_LOCK(ch->ch_lock, lock_flags);
@@ -3180,7 +3180,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		DPR_IOCTL(("dgnc_tty_ioctl finish on port %d - cmd %s (%x), arg %lx\n",
 			ch->ch_portnum, dgnc_ioctl_name(cmd), cmd, arg));
 
-		return(0);
+		return 0;
 
 	case TIOCCBRK:
 		/* Do Nothing */
@@ -3192,31 +3192,31 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
 
 		rc = put_user(C_CLOCAL(tty) ? 1 : 0, (unsigned long __user *) arg);
-		return(rc);
+		return rc;
 
 	case TIOCSSOFTCAR:
 
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
 		rc = get_user(arg, (unsigned long __user *) arg);
 		if (rc)
-			return(rc);
+			return rc;
 
 		DGNC_LOCK(ch->ch_lock, lock_flags);
 		tty->termios.c_cflag = ((tty->termios.c_cflag & ~CLOCAL) | (arg ? CLOCAL : 0));
 		ch->ch_bd->bd_ops->param(tty);
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
 
-		return(0);
+		return 0;
 
 	case TIOCMGET:
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
-		return(dgnc_get_modem_info(ch, uarg));
+		return dgnc_get_modem_info(ch, uarg);
 
 	case TIOCMBIS:
 	case TIOCMBIC:
 	case TIOCMSET:
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
-		return(dgnc_set_modem_info(tty, cmd, uarg));
+		return dgnc_set_modem_info(tty, cmd, uarg);
 
 		/*
 		 * Here are any additional ioctl's that we want to implement
@@ -3235,7 +3235,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		rc = tty_check_change(tty);
 		if (rc) {
 			DGNC_UNLOCK(ch->ch_lock, lock_flags);
-			return(rc);
+			return rc;
 		}
 
 		if ((arg == TCIFLUSH) || (arg == TCIOFLUSH)) {
@@ -3265,7 +3265,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 		/* pretend we didn't recognize this IOCTL */
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
-		return(-ENOIOCTLCMD);
+		return -ENOIOCTLCMD;
 	case TCSETSF:
 	case TCSETSW:
 		/*
@@ -3291,14 +3291,14 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		rc = ch->ch_bd->bd_ops->drain(tty, 0);
 		if (rc) {
 			DPR_IOCTL(("dgnc_tty_ioctl - bad return: %d\n", rc));
-			return(-EINTR);
+			return -EINTR;
 		}
 
 		DPR_IOCTL(("dgnc_tty_ioctl finish on port %d - cmd %s (%x), arg %lx\n",
 			ch->ch_portnum, dgnc_ioctl_name(cmd), cmd, arg));
 
 		/* pretend we didn't recognize this */
-		return(-ENOIOCTLCMD);
+		return -ENOIOCTLCMD;
 
 	case TCSETAW:
 
@@ -3306,21 +3306,21 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		rc = ch->ch_bd->bd_ops->drain(tty, 0);
 		if (rc) {
 			DPR_IOCTL(("dgnc_tty_ioctl - bad return: %d ", rc));
-			return(-EINTR);
+			return -EINTR;
 		}
 
 		/* pretend we didn't recognize this */
-		return(-ENOIOCTLCMD);
+		return -ENOIOCTLCMD;
 
 	case TCXONC:
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
 		/* Make the ld do it */
-		return(-ENOIOCTLCMD);
+		return -ENOIOCTLCMD;
 
 	case DIGI_GETA:
 		/* get information for ditty */
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
-		return(dgnc_tty_digigeta(tty, uarg));
+		return dgnc_tty_digigeta(tty, uarg);
 
 	case DIGI_SETAW:
 	case DIGI_SETAF:
@@ -3332,7 +3332,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 			rc = ch->ch_bd->bd_ops->drain(tty, 0);
 			if (rc) {
 				DPR_IOCTL(("dgnc_tty_ioctl - bad return: %d ", rc));
-				return(-EINTR);
+				return -EINTR;
 			}
 			DGNC_LOCK(ch->ch_lock, lock_flags);
 		}
@@ -3343,7 +3343,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 	case DIGI_SETA:
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
-		return(dgnc_tty_digiseta(tty, uarg));
+		return dgnc_tty_digiseta(tty, uarg);
 
 	case DIGI_LOOPBACK:
 		{
@@ -3352,7 +3352,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 			DGNC_UNLOCK(ch->ch_lock, lock_flags);
 			rc = get_user(loopback, (unsigned int __user *) arg);
 			if (rc)
-				return(rc);
+				return rc;
 			DGNC_LOCK(ch->ch_lock, lock_flags);
 
 			/* Enable/disable internal loopback for this port */
@@ -3363,13 +3363,13 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 			ch->ch_bd->bd_ops->param(tty);
 			DGNC_UNLOCK(ch->ch_lock, lock_flags);
-			return(0);
+			return 0;
 		}
 
 	case DIGI_GETCUSTOMBAUD:
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
 		rc = put_user(ch->ch_custom_speed, (unsigned int __user *) arg);
-		return(rc);
+		return rc;
 
 	case DIGI_SETCUSTOMBAUD:
 	{
@@ -3378,12 +3378,12 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
 		rc = get_user(new_rate, (unsigned int __user *) arg);
 		if (rc)
-			return(rc);
+			return rc;
 		DGNC_LOCK(ch->ch_lock, lock_flags);
 		dgnc_set_custom_speed(ch, new_rate);
 		ch->ch_bd->bd_ops->param(tty);
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
-		return(0);
+		return 0;
 	}
 
 	/*
@@ -3399,11 +3399,11 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
 		rc = get_user(c, (unsigned char __user *) arg);
 		if (rc)
-			return(rc);
+			return rc;
 		DGNC_LOCK(ch->ch_lock, lock_flags);
 		ch->ch_bd->bd_ops->send_immediate_char(ch, c);
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
-		return(0);
+		return 0;
 	}
 
 	/*
@@ -3427,9 +3427,9 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
 
 		if (copy_to_user(uarg, &buf, sizeof(struct digi_getcounter))) {
-			return (-EFAULT);
+			return -EFAULT;
 		}
-		return(0);
+		return 0;
 	}
 
 	/*
@@ -3454,7 +3454,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
 		rc = put_user(events, (unsigned int __user *) arg);
-		return(rc);
+		return rc;
 	}
 
 	/*
@@ -3475,7 +3475,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		 * Get data from user first.
 		 */
 		if (copy_from_user(&buf, uarg, sizeof(struct digi_getbuffer))) {
-			return (-EFAULT);
+			return -EFAULT;
 		}
 
 		DGNC_LOCK(ch->ch_lock, lock_flags);
@@ -3521,9 +3521,9 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
 
 		if (copy_to_user(uarg, &buf, sizeof(struct digi_getbuffer))) {
-			return (-EFAULT);
+			return -EFAULT;
 		}
-		return(0);
+		return 0;
 	}
 	default:
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
@@ -3532,7 +3532,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		DPR_IOCTL(("dgnc_tty_ioctl end - cmd %s (%x), arg %lx\n",
 			dgnc_ioctl_name(cmd), cmd, arg));
 
-		return(-ENOIOCTLCMD);
+		return -ENOIOCTLCMD;
 	}
 
 	DGNC_UNLOCK(ch->ch_lock, lock_flags);
@@ -3540,5 +3540,5 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	DPR_IOCTL(("dgnc_tty_ioctl end - cmd %s (%x), arg %lx\n",
 		dgnc_ioctl_name(cmd), cmd, arg));
 
-	return(0);
+	return 0;
 }

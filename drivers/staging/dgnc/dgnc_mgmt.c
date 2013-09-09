@@ -74,13 +74,13 @@ int dgnc_mgmt_open(struct inode *inode, struct file *file)
 		/* Only allow 1 open at a time on mgmt device */
 		if (dgnc_mgmt_in_use[minor]) {
 			DGNC_UNLOCK(dgnc_global_lock, lock_flags);
-			return (-EBUSY);
+			return -EBUSY;
 		}
 		dgnc_mgmt_in_use[minor]++;
 	}
 	else {
 		DGNC_UNLOCK(dgnc_global_lock, lock_flags);
-		return (-ENXIO);
+		return -ENXIO;
 	}
 
 	DGNC_UNLOCK(dgnc_global_lock, lock_flags);
@@ -154,7 +154,7 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			ddi.dinfo_nboards, ddi.dinfo_version));
 
 		if (copy_to_user(uarg, &ddi, sizeof (ddi)))
-			return(-EFAULT);
+			return -EFAULT;
 
 		break;
 	}
@@ -166,13 +166,13 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		struct digi_info di;
 
 		if (copy_from_user(&brd, uarg, sizeof(int))) {
-			return(-EFAULT);
+			return -EFAULT;
 		}
 
 		DPR_MGMT(("DIGI_GETBD asking about board: %d\n", brd));
 
 		if ((brd < 0) || (brd > dgnc_NumBoards) || (dgnc_NumBoards == 0))
-			return (-ENODEV);
+			return -ENODEV;
 
 		memset(&di, 0, sizeof(di));
 
@@ -196,7 +196,7 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			di.info_bdtype, di.info_bdstate, di.info_nports, di.info_physsize));
 
 		if (copy_to_user(uarg, &di, sizeof (di)))
-			return (-EFAULT);
+			return -EFAULT;
 
 		break;
 	}
@@ -210,7 +210,7 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		uint channel = 0;
 
 		if (copy_from_user(&ni, uarg, sizeof(struct ni_info))) {
-			return(-EFAULT);
+			return -EFAULT;
 		}
 
 		DPR_MGMT(("DIGI_GETBD asking about board: %d channel: %d\n",
@@ -221,16 +221,16 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		/* Verify boundaries on board */
 		if ((board < 0) || (board > dgnc_NumBoards) || (dgnc_NumBoards == 0))
-			return (-ENODEV);
+			return -ENODEV;
 
 		/* Verify boundaries on channel */
 		if ((channel < 0) || (channel > dgnc_Board[board]->nasync))
-			return (-ENODEV);
+			return -ENODEV;
 
 		ch = dgnc_Board[board]->channels[channel];
 
 		if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-			return (-ENODEV);
+			return -ENODEV;
 
 		memset(&ni, 0, sizeof(ni));
 		ni.board = board;
@@ -291,7 +291,7 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		DGNC_UNLOCK(ch->ch_lock, lock_flags);
 
 		if (copy_to_user(uarg, &ni, sizeof(ni)))
-			return (-EFAULT);
+			return -EFAULT;
 
 		break;
 	}

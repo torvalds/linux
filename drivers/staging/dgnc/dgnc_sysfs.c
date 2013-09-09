@@ -152,13 +152,13 @@ void dgnc_remove_driver_sysfiles(struct pci_driver *dgnc_driver)
 
 #define DGNC_VERIFY_BOARD(p, bd)			\
 	if (!p)						\
-		return (0);				\
+		return 0;				\
 							\
 	bd = dev_get_drvdata(p);			\
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)	\
-		return (0);				\
+		return 0;				\
 	if (bd->state != BOARD_READY)			\
-		return (0);				\
+		return 0;				\
 
 
 
@@ -432,18 +432,18 @@ static ssize_t dgnc_tty_state_show(struct device *d, struct device_attribute *at
 	struct un_t *un;
 
 	if (!d)
-		return (0);
+		return 0;
 	un = (struct un_t *) dev_get_drvdata(d);
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
-		return (0);
+		return 0;
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return (0);
+		return 0;
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
-		return (0);
+		return 0;
 	if (bd->state != BOARD_READY)
-		return (0);
+		return 0;
 
 	return snprintf(buf, PAGE_SIZE, "%s", un->un_open_count ? "Open" : "Closed");
 }
@@ -457,18 +457,18 @@ static ssize_t dgnc_tty_baud_show(struct device *d, struct device_attribute *att
 	struct un_t *un;
 
 	if (!d)
-		return (0);
+		return 0;
 	un = (struct un_t *) dev_get_drvdata(d);
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
-		return (0);
+		return 0;
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return (0);
+		return 0;
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
-		return (0);
+		return 0;
 	if (bd->state != BOARD_READY)
-		return (0);
+		return 0;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", ch->ch_old_baud);
 }
@@ -482,18 +482,18 @@ static ssize_t dgnc_tty_msignals_show(struct device *d, struct device_attribute 
 	struct un_t *un;
 
 	if (!d)
-		return (0);
+		return 0;
 	un = (struct un_t *) dev_get_drvdata(d);
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
-		return (0);
+		return 0;
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return (0);
+		return 0;
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
-		return (0);
+		return 0;
 	if (bd->state != BOARD_READY)
-		return (0);
+		return 0;
 
 	if (ch->ch_open_count) {
 		return snprintf(buf, PAGE_SIZE, "%s %s %s %s %s %s\n",
@@ -516,18 +516,18 @@ static ssize_t dgnc_tty_iflag_show(struct device *d, struct device_attribute *at
 	struct un_t *un;
 
 	if (!d)
-		return (0);
+		return 0;
 	un = (struct un_t *) dev_get_drvdata(d);
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
-		return (0);
+		return 0;
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return (0);
+		return 0;
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
-		return (0);
+		return 0;
 	if (bd->state != BOARD_READY)
-		return (0);
+		return 0;
 
 	return snprintf(buf, PAGE_SIZE, "%x\n", ch->ch_c_iflag);
 }
@@ -541,18 +541,18 @@ static ssize_t dgnc_tty_cflag_show(struct device *d, struct device_attribute *at
 	struct un_t *un;
 
 	if (!d)
-		return (0);
+		return 0;
 	un = (struct un_t *) dev_get_drvdata(d);
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
-		return (0);
+		return 0;
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return (0);
+		return 0;
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
-		return (0);
+		return 0;
 	if (bd->state != BOARD_READY)
-		return (0);
+		return 0;
 
 	return snprintf(buf, PAGE_SIZE, "%x\n", ch->ch_c_cflag);
 }
@@ -566,18 +566,18 @@ static ssize_t dgnc_tty_oflag_show(struct device *d, struct device_attribute *at
 	struct un_t *un;
 
 	if (!d)
-		return (0);
+		return 0;
 	un = (struct un_t *) dev_get_drvdata(d);
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
-		return (0);
+		return 0;
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return (0);
+		return 0;
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
-		return (0);
+		return 0;
 	if (bd->state != BOARD_READY)
-		return (0);
+		return 0;
 
 	return snprintf(buf, PAGE_SIZE, "%x\n", ch->ch_c_oflag);
 }
@@ -591,18 +591,18 @@ static ssize_t dgnc_tty_lflag_show(struct device *d, struct device_attribute *at
 	struct un_t *un;
 
 	if (!d)
-		return (0);
+		return 0;
 	un = (struct un_t *) dev_get_drvdata(d);
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
-		return (0);
+		return 0;
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return (0);
+		return 0;
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
-		return (0);
+		return 0;
 	if (bd->state != BOARD_READY)
-		return (0);
+		return 0;
 
 	return snprintf(buf, PAGE_SIZE, "%x\n", ch->ch_c_lflag);
 }
@@ -616,18 +616,18 @@ static ssize_t dgnc_tty_digi_flag_show(struct device *d, struct device_attribute
 	struct un_t *un;
 
 	if (!d)
-		return (0);
+		return 0;
 	un = (struct un_t *) dev_get_drvdata(d);
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
-		return (0);
+		return 0;
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return (0);
+		return 0;
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
-		return (0);
+		return 0;
 	if (bd->state != BOARD_READY)
-		return (0);
+		return 0;
 
 	return snprintf(buf, PAGE_SIZE, "%x\n", ch->ch_digi.digi_flags);
 }
@@ -641,18 +641,18 @@ static ssize_t dgnc_tty_rxcount_show(struct device *d, struct device_attribute *
 	struct un_t *un;
 
 	if (!d)
-		return (0);
+		return 0;
 	un = (struct un_t *) dev_get_drvdata(d);
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
-		return (0);
+		return 0;
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return (0);
+		return 0;
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
-		return (0);
+		return 0;
 	if (bd->state != BOARD_READY)
-		return (0);
+		return 0;
 
 	return snprintf(buf, PAGE_SIZE, "%ld\n", ch->ch_rxcount);
 }
@@ -666,18 +666,18 @@ static ssize_t dgnc_tty_txcount_show(struct device *d, struct device_attribute *
 	struct un_t *un;
 
 	if (!d)
-		return (0);
+		return 0;
 	un = (struct un_t *) dev_get_drvdata(d);
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
-		return (0);
+		return 0;
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return (0);
+		return 0;
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
-		return (0);
+		return 0;
 	if (bd->state != BOARD_READY)
-		return (0);
+		return 0;
 
 	return snprintf(buf, PAGE_SIZE, "%ld\n", ch->ch_txcount);
 }
@@ -691,18 +691,18 @@ static ssize_t dgnc_tty_name_show(struct device *d, struct device_attribute *att
 	struct un_t *un;
 
 	if (!d)
-		return (0);
+		return 0;
 	un = (struct un_t *) dev_get_drvdata(d);
 	if (!un || un->magic != DGNC_UNIT_MAGIC)
-		return (0);
+		return 0;
 	ch = un->un_ch;
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
-		return (0);
+		return 0;
 	bd = ch->ch_bd;
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
-		return (0);
+		return 0;
 	if (bd->state != BOARD_READY)
-		return (0);
+		return 0;
 
 	return snprintf(buf, PAGE_SIZE, "%sn%d%c\n",
 		(un->un_type == DGNC_PRINT) ? "pr" : "tty",
