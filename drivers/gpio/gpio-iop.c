@@ -17,6 +17,8 @@
 #include <linux/gpio.h>
 #include <linux/export.h>
 #include <linux/platform_device.h>
+#include <linux/bitops.h>
+#include <linux/io.h>
 
 #define IOP3XX_N_GPIOS	8
 
@@ -29,38 +31,44 @@
 static void __iomem *base;
 
 #define IOP3XX_GPIO_REG(reg)	(base + (reg))
-#define IOP3XX_GPOE		(volatile u32 *)IOP3XX_GPIO_REG(0x0000)
-#define IOP3XX_GPID		(volatile u32 *)IOP3XX_GPIO_REG(0x0004)
-#define IOP3XX_GPOD		(volatile u32 *)IOP3XX_GPIO_REG(0x0008)
+#define IOP3XX_GPOE		IOP3XX_GPIO_REG(0x0000)
+#define IOP3XX_GPID		IOP3XX_GPIO_REG(0x0004)
+#define IOP3XX_GPOD		IOP3XX_GPIO_REG(0x0008)
 
 static void gpio_line_config(int line, int direction)
 {
 	unsigned long flags;
+	u32 val;
 
 	local_irq_save(flags);
+	val = readl(IOP3XX_GPOE);
 	if (direction == GPIO_IN) {
-		*IOP3XX_GPOE |= 1 << line;
+		val |= BIT(line);
 	} else if (direction == GPIO_OUT) {
-		*IOP3XX_GPOE &= ~(1 << line);
+		val &= ~BIT(line);
 	}
+	writel(val, IOP3XX_GPOE);
 	local_irq_restore(flags);
 }
 
 static int gpio_line_get(int line)
 {
-	return !!(*IOP3XX_GPID & (1 << line));
+	return !!(readl(IOP3XX_GPID) & BIT(line));
 }
 
 static void gpio_line_set(int line, int value)
 {
 	unsigned long flags;
+	u32 val;
 
 	local_irq_save(flags);
+	val = readl(IOP3XX_GPOD);
 	if (value == GPIO_LOW) {
-		*IOP3XX_GPOD &= ~(1 << line);
+		val &= ~BIT(line);
 	} else if (value == GPIO_HIGH) {
-		*IOP3XX_GPOD |= 1 << line;
+		val |= BIT(line);
 	}
+	writel(val, IOP3XX_GPOD);
 	local_irq_restore(flags);
 }
 
