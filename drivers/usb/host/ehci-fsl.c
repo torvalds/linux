@@ -57,7 +57,7 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 	pr_debug("initializing FSL-SOC USB Controller\n");
 
 	/* Need platform data for setup */
-	pdata = (struct fsl_usb2_platform_data *)dev_get_platdata(&pdev->dev);
+	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
 		dev_err(&pdev->dev,
 			"No platform data for %s.\n", dev_name(&pdev->dev));
