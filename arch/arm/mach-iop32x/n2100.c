@@ -30,6 +30,7 @@
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
 #include <linux/io.h>
+#include <linux/gpio.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
@@ -288,8 +289,14 @@ static void n2100_power_off(void)
 
 static void n2100_restart(enum reboot_mode mode, const char *cmd)
 {
-	gpio_line_set(N2100_HARDWARE_RESET, GPIO_LOW);
-	gpio_line_config(N2100_HARDWARE_RESET, GPIO_OUT);
+	int ret;
+
+	ret = gpio_direction_output(N2100_HARDWARE_RESET, 0);
+	if (ret) {
+		pr_crit("could not drive reset GPIO low\n");
+		return;
+	}
+	/* Wait for reset to happen */
 	while (1)
 		;
 }
@@ -308,6 +315,19 @@ static void power_button_poll(unsigned long dummy)
 	add_timer(&power_button_poll_timer);
 }
 
+static int __init n2100_request_gpios(void)
+{
+	int ret;
+
+	if (!machine_is_n2100())
+		return 0;
+
+	ret = gpio_request(N2100_HARDWARE_RESET, "reset");
+	if (ret)
+		pr_err("could not request reset GPIO\n");
+	return 0;
+}
+device_initcall(n2100_request_gpios);
 
 static void __init n2100_init_machine(void)
 {
