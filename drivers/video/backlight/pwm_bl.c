@@ -48,6 +48,10 @@ static int pwm_backlight_update_status(struct backlight_device *bl)
 	if (pb->notify)
 		brightness = pb->notify(pb->dev, brightness);
 
+#if defined(CONFIG_LCD_MIPI_TC358764) && defined(CONFIG_MACH_ODROIDXU)
+    brightness = bl->props.max_brightness - brightness;
+#endif    
+
 	if (brightness == 0) {
 		pwm_config(pb->pwm, 0, pb->period);
 		pwm_disable(pb->pwm);
