@@ -31,6 +31,8 @@
 #include <linux/sched.h>
 #include <linux/random.h>
 
+#include "mtd_test.h"
+
 static int dev = -EINVAL;
 module_param(dev, int, S_IRUGO);
 MODULE_PARM_DESC(dev, "MTD device number to use");
@@ -48,52 +50,18 @@ static int pgcnt;
 static int errcnt;
 static struct rnd_state rnd_state;
 
-static int erase_eraseblock(int ebnum)
-{
-	int err;
-	struct erase_info ei;
-	loff_t addr = ebnum * mtd->erasesize;
-
-	memset(&ei, 0, sizeof(struct erase_info));
-	ei.mtd  = mtd;
-	ei.addr = addr;
-	ei.len  = mtd->erasesize;
-
-	err = mtd_erase(mtd, &ei);
-	if (err) {
-		pr_err("error %d while erasing EB %d\n", err, ebnum);
-		return err;
-	}
-
-	if (ei.state == MTD_ERASE_FAILED) {
-		pr_err("some erase error occurred at EB %d\n",
-		       ebnum);
-		return -EIO;
-	}
-
-	return 0;
-}
-
 static int write_eraseblock(int ebnum)
 {
-	int err = 0;
-	size_t written;
 	loff_t addr = ebnum * mtd->erasesize;
 
 	prandom_bytes_state(&rnd_state, writebuf, mtd->erasesize);
 	cond_resched();
-	err = mtd_write(mtd, addr, mtd->erasesize, &written, writebuf);
-	if (err || written != mtd->erasesize)
-		pr_err("error: write failed at %#llx\n",
-		       (long long)addr);
-
-	return err;
+	return mtdtest_write(mtd, addr, mtd->erasesize, writebuf);
 }
 
 static int verify_eraseblock(int ebnum)
 {
 	uint32_t j;
-	size_t read;
 	int err = 0, i;
 	loff_t addr0, addrn;
 	loff_t addr = ebnum * mtd->erasesize;
@@ -109,31 +77,16 @@ static int verify_eraseblock(int ebnum)
 	prandom_bytes_state(&rnd_state, writebuf, mtd->erasesize);
 	for (j = 0; j < pgcnt - 1; ++j, addr += pgsize) {
 		/* Do a read to set the internal dataRAMs to different data */
-		err = mtd_read(mtd, addr0, bufsize, &read, twopages);
-		if (mtd_is_bitflip(err))
-			err = 0;
-		if (err || read != bufsize) {
-			pr_err("error: read failed at %#llx\n",
-			       (long long)addr0);
+		err = mtdtest_read(mtd, addr0, bufsize, twopages);
+		if (err)
 			return err;
-		}
-		err = mtd_read(mtd, addrn - bufsize, bufsize, &read, twopages);
-		if (mtd_is_bitflip(err))
-			err = 0;
-		if (err || read != bufsize) {
-			pr_err("error: read failed at %#llx\n",
-			       (long long)(addrn - bufsize));
+		err = mtdtest_read(mtd, addrn - bufsize, bufsize, twopages);
+		if (err)
 			return err;
-		}
 		memset(twopages, 0, bufsize);
-		err = mtd_read(mtd, addr, bufsize, &read, twopages);
-		if (mtd_is_bitflip(err))
-			err = 0;
-		if (err || read != bufsize) {
-			pr_err("error: read failed at %#llx\n",
-			       (long long)addr);
+		err = mtdtest_read(mtd, addr, bufsize, twopages);
+		if (err)
 			break;
-		}
 		if (memcmp(twopages, writebuf + (j * pgsize), bufsize)) {
 			pr_err("error: verify failed at %#llx\n",
 			       (long long)addr);
@@ -145,31 +98,16 @@ static int verify_eraseblock(int ebnum)
 		struct rnd_state old_state = rnd_state;
 
 		/* Do a read to set the internal dataRAMs to different data */
-		err = mtd_read(mtd, addr0, bufsize, &read, twopages);
-		if (mtd_is_bitflip(err))
-			err = 0;
-		if (err || read != bufsize) {
-			pr_err("error: read failed at %#llx\n",
-			       (long long)addr0);
+		err = mtdtest_read(mtd, addr0, bufsize, twopages);
+		if (err)
 			return err;
-		}
-		err = mtd_read(mtd, addrn - bufsize, bufsize, &read, twopages);
-		if (mtd_is_bitflip(err))
-			err = 0;
-		if (err || read != bufsize) {
-			pr_err("error: read failed at %#llx\n",
-			       (long long)(addrn - bufsize));
+		err = mtdtest_read(mtd, addrn - bufsize, bufsize, twopages);
+		if (err)
 			return err;
-		}
 		memset(twopages, 0, bufsize);
-		err = mtd_read(mtd, addr, bufsize, &read, twopages);
-		if (mtd_is_bitflip(err))
-			err = 0;
-		if (err || read != bufsize) {
-			pr_err("error: read failed at %#llx\n",
-			       (long long)addr);
+		err = mtdtest_read(mtd, addr, bufsize, twopages);
+		if (err)
 			return err;
-		}
 		memcpy(boundary, writebuf + mtd->erasesize - pgsize, pgsize);
 		prandom_bytes_state(&rnd_state, boundary + pgsize, pgsize);
 		if (memcmp(twopages, boundary, bufsize)) {
@@ -184,17 +122,14 @@ static int verify_eraseblock(int ebnum)
 
 static int crosstest(void)
 {
-	size_t read;
 	int err = 0, i;
 	loff_t addr, addr0, addrn;
 	unsigned char *pp1, *pp2, *pp3, *pp4;
 
 	pr_info("crosstest\n");
 	pp1 = kmalloc(pgsize * 4, GFP_KERNEL);
-	if (!pp1) {
-		pr_err("error: cannot allocate memory\n");
+	if (!pp1)
 		return -ENOMEM;
-	}
 	pp2 = pp1 + pgsize;
 	pp3 = pp2 + pgsize;
 	pp4 = pp3 + pgsize;
@@ -210,24 +145,16 @@ static int crosstest(void)
 
 	/* Read 2nd-to-last page to pp1 */
 	addr = addrn - pgsize - pgsize;
-	err = mtd_read(mtd, addr, pgsize, &read, pp1);
-	if (mtd_is_bitflip(err))
-		err = 0;
-	if (err || read != pgsize) {
-		pr_err("error: read failed at %#llx\n",
-		       (long long)addr);
+	err = mtdtest_read(mtd, addr, pgsize, pp1);
+	if (err) {
 		kfree(pp1);
 		return err;
 	}
 
 	/* Read 3rd-to-last page to pp1 */
 	addr = addrn - pgsize - pgsize - pgsize;
-	err = mtd_read(mtd, addr, pgsize, &read, pp1);
-	if (mtd_is_bitflip(err))
-		err = 0;
-	if (err || read != pgsize) {
-		pr_err("error: read failed at %#llx\n",
-		       (long long)addr);
+	err = mtdtest_read(mtd, addr, pgsize, pp1);
+	if (err) {
 		kfree(pp1);
 		return err;
 	}
@@ -235,12 +162,8 @@ static int crosstest(void)
 	/* Read first page to pp2 */
 	addr = addr0;
 	pr_info("reading page at %#llx\n", (long long)addr);
-	err = mtd_read(mtd, addr, pgsize, &read, pp2);
-	if (mtd_is_bitflip(err))
-		err = 0;
-	if (err || read != pgsize) {
-		pr_err("error: read failed at %#llx\n",
-		       (long long)addr);
+	err = mtdtest_read(mtd, addr, pgsize, pp2);
+	if (err) {
 		kfree(pp1);
 		return err;
 	}
@@ -248,12 +171,8 @@ static int crosstest(void)
 	/* Read last page to pp3 */
 	addr = addrn - pgsize;
 	pr_info("reading page at %#llx\n", (long long)addr);
-	err = mtd_read(mtd, addr, pgsize, &read, pp3);
-	if (mtd_is_bitflip(err))
-		err = 0;
-	if (err || read != pgsize) {
-		pr_err("error: read failed at %#llx\n",
-		       (long long)addr);
+	err = mtdtest_read(mtd, addr, pgsize, pp3);
+	if (err) {
 		kfree(pp1);
 		return err;
 	}
@@ -261,12 +180,8 @@ static int crosstest(void)
 	/* Read first page again to pp4 */
 	addr = addr0;
 	pr_info("reading page at %#llx\n", (long long)addr);
-	err = mtd_read(mtd, addr, pgsize, &read, pp4);
-	if (mtd_is_bitflip(err))
-		err = 0;
-	if (err || read != pgsize) {
-		pr_err("error: read failed at %#llx\n",
-		       (long long)addr);
+	err = mtdtest_read(mtd, addr, pgsize, pp4);
+	if (err) {
 		kfree(pp1);
 		return err;
 	}
@@ -285,7 +200,6 @@ static int crosstest(void)
 
 static int erasecrosstest(void)
 {
-	size_t read, written;
 	int err = 0, i, ebnum, ebnum2;
 	loff_t addr0;
 	char *readbuf = twopages;
@@ -304,30 +218,22 @@ static int erasecrosstest(void)
 		ebnum2 -= 1;
 
 	pr_info("erasing block %d\n", ebnum);
-	err = erase_eraseblock(ebnum);
+	err = mtdtest_erase_eraseblock(mtd, ebnum);
 	if (err)
 		return err;
 
 	pr_info("writing 1st page of block %d\n", ebnum);
 	prandom_bytes_state(&rnd_state, writebuf, pgsize);
 	strcpy(writebuf, "There is no data like this!");
-	err = mtd_write(mtd, addr0, pgsize, &written, writebuf);
-	if (err || written != pgsize) {
-		pr_info("error: write failed at %#llx\n",
-		       (long long)addr0);
-		return err ? err : -1;
-	}
+	err = mtdtest_write(mtd, addr0, pgsize, writebuf);
+	if (err)
+		return err;
 
 	pr_info("reading 1st page of block %d\n", ebnum);
 	memset(readbuf, 0, pgsize);
-	err = mtd_read(mtd, addr0, pgsize, &read, readbuf);
-	if (mtd_is_bitflip(err))
-		err = 0;
-	if (err || read != pgsize) {
-		pr_err("error: read failed at %#llx\n",
-		       (long long)addr0);
-		return err ? err : -1;
-	}
+	err = mtdtest_read(mtd, addr0, pgsize, readbuf);
+	if (err)
+		return err;
 
 	pr_info("verifying 1st page of block %d\n", ebnum);
 	if (memcmp(writebuf, readbuf, pgsize)) {
@@ -337,35 +243,27 @@ static int erasecrosstest(void)
 	}
 
 	pr_info("erasing block %d\n", ebnum);
-	err = erase_eraseblock(ebnum);
+	err = mtdtest_erase_eraseblock(mtd, ebnum);
 	if (err)
 		return err;
 
 	pr_info("writing 1st page of block %d\n", ebnum);
 	prandom_bytes_state(&rnd_state, writebuf, pgsize);
 	strcpy(writebuf, "There is no data like this!");
-	err = mtd_write(mtd, addr0, pgsize, &written, writebuf);
-	if (err || written != pgsize) {
-		pr_err("error: write failed at %#llx\n",
-		       (long long)addr0);
-		return err ? err : -1;
-	}
+	err = mtdtest_write(mtd, addr0, pgsize, writebuf);
+	if (err)
+		return err;
 
 	pr_info("erasing block %d\n", ebnum2);
-	err = erase_eraseblock(ebnum2);
+	err = mtdtest_erase_eraseblock(mtd, ebnum2);
 	if (err)
 		return err;
 
 	pr_info("reading 1st page of block %d\n", ebnum);
 	memset(readbuf, 0, pgsize);
-	err = mtd_read(mtd, addr0, pgsize, &read, readbuf);
-	if (mtd_is_bitflip(err))
-		err = 0;
-	if (err || read != pgsize) {
-		pr_err("error: read failed at %#llx\n",
-		       (long long)addr0);
-		return err ? err : -1;
-	}
+	err = mtdtest_read(mtd, addr0, pgsize, readbuf);
+	if (err)
+		return err;
 
 	pr_info("verifying 1st page of block %d\n", ebnum);
 	if (memcmp(writebuf, readbuf, pgsize)) {
@@ -381,7 +279,6 @@ static int erasecrosstest(void)
 
 static int erasetest(void)
 {
-	size_t read, written;
 	int err = 0, i, ebnum, ok = 1;
 	loff_t addr0;
 
@@ -395,33 +292,25 @@ static int erasetest(void)
 	}
 
 	pr_info("erasing block %d\n", ebnum);
-	err = erase_eraseblock(ebnum);
+	err = mtdtest_erase_eraseblock(mtd, ebnum);
 	if (err)
 		return err;
 
 	pr_info("writing 1st page of block %d\n", ebnum);
 	prandom_bytes_state(&rnd_state, writebuf, pgsize);
-	err = mtd_write(mtd, addr0, pgsize, &written, writebuf);
-	if (err || written != pgsize) {
-		pr_err("error: write failed at %#llx\n",
-		       (long long)addr0);
-		return err ? err : -1;
-	}
+	err = mtdtest_write(mtd, addr0, pgsize, writebuf);
+	if (err)
+		return err;
 
 	pr_info("erasing block %d\n", ebnum);
-	err = erase_eraseblock(ebnum);
+	err = mtdtest_erase_eraseblock(mtd, ebnum);
 	if (err)
 		return err;
 
 	pr_info("reading 1st page of block %d\n", ebnum);
-	err = mtd_read(mtd, addr0, pgsize, &read, twopages);
-	if (mtd_is_bitflip(err))
-		err = 0;
-	if (err || read != pgsize) {
-		pr_err("error: read failed at %#llx\n",
-		       (long long)addr0);
-		return err ? err : -1;
-	}
+	err = mtdtest_read(mtd, addr0, pgsize, twopages);
+	if (err)
+		return err;
 
 	pr_info("verifying 1st page of block %d is all 0xff\n",
 	       ebnum);
@@ -438,38 +327,6 @@ static int erasetest(void)
 		pr_info("erasetest ok\n");
 
 	return err;
-}
-
-static int is_block_bad(int ebnum)
-{
-	loff_t addr = ebnum * mtd->erasesize;
-	int ret;
-
-	ret = mtd_block_isbad(mtd, addr);
-	if (ret)
-		pr_info("block %d is bad\n", ebnum);
-	return ret;
-}
-
-static int scan_for_bad_eraseblocks(void)
-{
-	int i, bad = 0;
-
-	bbt = kzalloc(ebcnt, GFP_KERNEL);
-	if (!bbt) {
-		pr_err("error: cannot allocate memory\n");
-		return -ENOMEM;
-	}
-
-	pr_info("scanning for bad eraseblocks\n");
-	for (i = 0; i < ebcnt; ++i) {
-		bbt[i] = is_block_bad(i) ? 1 : 0;
-		if (bbt[i])
-			bad += 1;
-		cond_resched();
-	}
-	pr_info("scanned %d eraseblocks, %d are bad\n", i, bad);
-	return 0;
 }
 
 static int __init mtd_pagetest_init(void)
@@ -516,36 +373,28 @@ static int __init mtd_pagetest_init(void)
 	err = -ENOMEM;
 	bufsize = pgsize * 2;
 	writebuf = kmalloc(mtd->erasesize, GFP_KERNEL);
-	if (!writebuf) {
-		pr_err("error: cannot allocate memory\n");
+	if (!writebuf)
 		goto out;
-	}
 	twopages = kmalloc(bufsize, GFP_KERNEL);
-	if (!twopages) {
-		pr_err("error: cannot allocate memory\n");
+	if (!twopages)
 		goto out;
-	}
 	boundary = kmalloc(bufsize, GFP_KERNEL);
-	if (!boundary) {
-		pr_err("error: cannot allocate memory\n");
+	if (!boundary)
 		goto out;
-	}
 
-	err = scan_for_bad_eraseblocks();
+	bbt = kzalloc(ebcnt, GFP_KERNEL);
+	if (!bbt)
+		goto out;
+	err = mtdtest_scan_for_bad_eraseblocks(mtd, bbt, 0, ebcnt);
 	if (err)
 		goto out;
 
 	/* Erase all eraseblocks */
 	pr_info("erasing whole device\n");
-	for (i = 0; i < ebcnt; ++i) {
-		if (bbt[i])
-			continue;
-		err = erase_eraseblock(i);
-		if (err)
-			goto out;
-		cond_resched();
-	}
-	pr_info("erased %u eraseblocks\n", i);
+	err = mtdtest_erase_good_eraseblocks(mtd, bbt, 0, ebcnt);
+	if (err)
+		goto out;
+	pr_info("erased %u eraseblocks\n", ebcnt);
 
 	/* Write all eraseblocks */
 	prandom_seed_state(&rnd_state, 1);

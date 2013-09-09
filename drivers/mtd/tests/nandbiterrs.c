@@ -49,6 +49,7 @@
 #include <linux/err.h>
 #include <linux/mtd/nand.h>
 #include <linux/slab.h>
+#include "mtd_test.h"
 
 static int dev;
 module_param(dev, int, S_IRUGO);
@@ -98,47 +99,13 @@ static uint8_t hash(unsigned offset)
 	return c;
 }
 
-static int erase_block(void)
-{
-	int err;
-	struct erase_info ei;
-	loff_t addr = eraseblock * mtd->erasesize;
-
-	pr_info("erase_block\n");
-
-	memset(&ei, 0, sizeof(struct erase_info));
-	ei.mtd  = mtd;
-	ei.addr = addr;
-	ei.len  = mtd->erasesize;
-
-	err = mtd_erase(mtd, &ei);
-	if (err || ei.state == MTD_ERASE_FAILED) {
-		pr_err("error %d while erasing\n", err);
-		if (!err)
-			err = -EIO;
-		return err;
-	}
-
-	return 0;
-}
-
 /* Writes wbuffer to page */
 static int write_page(int log)
 {
-	int err = 0;
-	size_t written;
-
 	if (log)
 		pr_info("write_page\n");
 
-	err = mtd_write(mtd, offset, mtd->writesize, &written, wbuffer);
-	if (err || written != mtd->writesize) {
-		pr_err("error: write failed at %#llx\n", (long long)offset);
-		if (!err)
-			err = -EIO;
-	}
-
-	return err;
+	return mtdtest_write(mtd, offset, mtd->writesize, wbuffer);
 }
 
 /* Re-writes the data area while leaving the OOB alone. */
@@ -415,7 +382,7 @@ static int __init mtd_nandbiterrs_init(void)
 		goto exit_rbuffer;
 	}
 
-	err = erase_block();
+	err = mtdtest_erase_eraseblock(mtd, eraseblock);
 	if (err)
 		goto exit_error;
 
@@ -428,7 +395,7 @@ static int __init mtd_nandbiterrs_init(void)
 		goto exit_error;
 
 	/* We leave the block un-erased in case of test failure. */
-	err = erase_block();
+	err = mtdtest_erase_eraseblock(mtd, eraseblock);
 	if (err)
 		goto exit_error;
 

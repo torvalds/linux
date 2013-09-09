@@ -32,6 +32,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include "mtd_test.h"
 
 #define RETRIES 3
 
@@ -90,35 +91,6 @@ static inline void start_timing(void)
 static inline void stop_timing(void)
 {
 	do_gettimeofday(&finish);
-}
-
-/*
- * Erase eraseblock number @ebnum.
- */
-static inline int erase_eraseblock(int ebnum)
-{
-	int err;
-	struct erase_info ei;
-	loff_t addr = ebnum * mtd->erasesize;
-
-	memset(&ei, 0, sizeof(struct erase_info));
-	ei.mtd  = mtd;
-	ei.addr = addr;
-	ei.len  = mtd->erasesize;
-
-	err = mtd_erase(mtd, &ei);
-	if (err) {
-		pr_err("error %d while erasing EB %d\n", err, ebnum);
-		return err;
-	}
-
-	if (ei.state == MTD_ERASE_FAILED) {
-		pr_err("some erase error occurred at EB %d\n",
-		       ebnum);
-		return -EIO;
-	}
-
-	return 0;
 }
 
 /*
@@ -208,7 +180,7 @@ static inline int write_pattern(int ebnum, void *buf)
 static int __init tort_init(void)
 {
 	int err = 0, i, infinite = !cycles_count;
-	int *bad_ebs;
+	unsigned char *bad_ebs;
 
 	printk(KERN_INFO "\n");
 	printk(KERN_INFO "=================================================\n");
@@ -265,7 +237,7 @@ static int __init tort_init(void)
 	if (!check_buf)
 		goto out_patt_FF;
 
-	bad_ebs = kcalloc(ebcnt, sizeof(*bad_ebs), GFP_KERNEL);
+	bad_ebs = kzalloc(ebcnt, GFP_KERNEL);
 	if (!bad_ebs)
 		goto out_check_buf;
 
@@ -283,40 +255,16 @@ static int __init tort_init(void)
 		}
 	}
 
-	/*
-	 * Check if there is a bad eraseblock among those we are going to test.
-	 */
-	if (mtd_can_have_bb(mtd)) {
-		for (i = eb; i < eb + ebcnt; i++) {
-			err = mtd_block_isbad(mtd, (loff_t)i * mtd->erasesize);
-
-			if (err < 0) {
-				pr_info("block_isbad() returned %d "
-				       "for EB %d\n", err, i);
-				goto out;
-			}
-
-			if (err) {
-				pr_err("EB %d is bad. Skip it.\n", i);
-				bad_ebs[i - eb] = 1;
-			}
-		}
-	}
+	err = mtdtest_scan_for_bad_eraseblocks(mtd, bad_ebs, eb, ebcnt);
+	if (err)
+		goto out;
 
 	start_timing();
 	while (1) {
 		int i;
 		void *patt;
 
-		/* Erase all eraseblocks */
-		for (i = eb; i < eb + ebcnt; i++) {
-			if (bad_ebs[i - eb])
-				continue;
-			err = erase_eraseblock(i);
-			if (err)
-				goto out;
-			cond_resched();
-		}
+		mtdtest_erase_good_eraseblocks(mtd, bad_ebs, eb, ebcnt);
 
 		/* Check if the eraseblocks contain only 0xFF bytes */
 		if (check) {
