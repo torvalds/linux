@@ -9,7 +9,6 @@ struct nv31_mpeg_chan {
 
 struct nv31_mpeg_priv {
 	struct nouveau_mpeg base;
-	atomic_t refcount;
 	struct nv31_mpeg_chan *chan;
 };
 

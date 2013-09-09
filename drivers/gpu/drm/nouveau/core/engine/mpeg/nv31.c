@@ -137,18 +137,23 @@ nv31_mpeg_context_ctor(struct nouveau_object *parent,
 {
 	struct nv31_mpeg_priv *priv = (void *)engine;
 	struct nv31_mpeg_chan *chan;
+	unsigned long flags;
 	int ret;
-
-	if (!atomic_add_unless(&priv->refcount, 1, 1))
-		return -EBUSY;
 
 	ret = nouveau_object_create(parent, engine, oclass, 0, &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
 
+	spin_lock_irqsave(&nv_engine(priv)->lock, flags);
+	if (priv->chan) {
+		spin_unlock_irqrestore(&nv_engine(priv)->lock, flags);
+		nouveau_object_destroy(&chan->base);
+		*pobject = NULL;
+		return -EBUSY;
+	}
 	priv->chan = chan;
-
+	spin_unlock_irqrestore(&nv_engine(priv)->lock, flags);
 	return 0;
 }
 
@@ -157,11 +162,12 @@ nv31_mpeg_context_dtor(struct nouveau_object *object)
 {
 	struct nv31_mpeg_priv *priv = (void *)object->engine;
 	struct nv31_mpeg_chan *chan = (void *)object;
+	unsigned long flags;
 
-	WARN_ON(priv->chan != chan);
+	spin_lock_irqsave(&nv_engine(priv)->lock, flags);
 	priv->chan = NULL;
+	spin_unlock_irqrestore(&nv_engine(priv)->lock, flags);
 	nouveau_object_destroy(&chan->base);
-	atomic_dec(&priv->refcount);
 }
 
 struct nouveau_oclass
@@ -193,20 +199,19 @@ nv31_mpeg_tile_prog(struct nouveau_engine *engine, int i)
 void
 nv31_mpeg_intr(struct nouveau_subdev *subdev)
 {
+	struct nv31_mpeg_priv *priv = (void *)subdev;
 	struct nouveau_fifo *pfifo = nouveau_fifo(subdev);
 	struct nouveau_handle *handle;
-	struct nv31_mpeg_priv *priv = (void *)subdev;
-	struct nouveau_object *engctx = &priv->chan->base;
+	struct nouveau_object *engctx;
 	u32 stat = nv_rd32(priv, 0x00b100);
 	u32 type = nv_rd32(priv, 0x00b230);
 	u32 mthd = nv_rd32(priv, 0x00b234);
 	u32 data = nv_rd32(priv, 0x00b238);
 	u32 show = stat;
-	int chid = pfifo->chid(pfifo, engctx);
+	unsigned long flags;
 
-	if (engctx)
-		if (nouveau_object_inc(engctx))
-			engctx = NULL;
+	spin_lock_irqsave(&nv_engine(priv)->lock, flags);
+	engctx = nv_object(priv->chan);
 
 	if (stat & 0x01000000) {
 		/* happens on initial binding of the object */
@@ -227,14 +232,12 @@ nv31_mpeg_intr(struct nouveau_subdev *subdev)
 	nv_wr32(priv, 0x00b230, 0x00000001);
 
 	if (show) {
-		nv_error(priv,
-			 "ch %d [%s] 0x%08x 0x%08x 0x%08x 0x%08x\n",
-			 chid, nouveau_client_name(engctx), stat,
-			 type, mthd, data);
+		nv_error(priv, "ch %d [%s] 0x%08x 0x%08x 0x%08x 0x%08x\n",
+			 pfifo->chid(pfifo, engctx),
+			 nouveau_client_name(engctx), stat, type, mthd, data);
 	}
 
-	if (engctx)
-		WARN_ON(nouveau_object_dec(engctx, false));
+	spin_unlock_irqrestore(&nv_engine(priv)->lock, flags);
 }
 
 static int
