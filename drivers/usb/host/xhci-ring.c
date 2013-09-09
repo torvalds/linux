@@ -1407,6 +1407,66 @@ static void xhci_handle_cmd_disable_slot(struct xhci_hcd *xhci, int slot_id)
 	xhci_free_virt_device(xhci, slot_id);
 }
 
+static void xhci_handle_cmd_config_ep(struct xhci_hcd *xhci, int slot_id,
+		struct xhci_event_cmd *event, u32 cmd_comp_code)
+{
+	struct xhci_virt_device *virt_dev;
+	struct xhci_input_control_ctx *ctrl_ctx;
+	unsigned int ep_index;
+	unsigned int ep_state;
+	u32 add_flags, drop_flags;
+
+	virt_dev = xhci->devs[slot_id];
+	if (handle_cmd_in_cmd_wait_list(xhci, virt_dev, event))
+		return;
+	/*
+	 * Configure endpoint commands can come from the USB core
+	 * configuration or alt setting changes, or because the HW
+	 * needed an extra configure endpoint command after a reset
+	 * endpoint command or streams were being configured.
+	 * If the command was for a halted endpoint, the xHCI driver
+	 * is not waiting on the configure endpoint command.
+	 */
+	ctrl_ctx = xhci_get_input_control_ctx(xhci, virt_dev->in_ctx);
+	if (!ctrl_ctx) {
+		xhci_warn(xhci, "Could not get input context, bad type.\n");
+		return;
+	}
+
+	add_flags = le32_to_cpu(ctrl_ctx->add_flags);
+	drop_flags = le32_to_cpu(ctrl_ctx->drop_flags);
+	/* Input ctx add_flags are the endpoint index plus one */
+	ep_index = xhci_last_valid_endpoint(add_flags) - 1;
+
+	/* A usb_set_interface() call directly after clearing a halted
+	 * condition may race on this quirky hardware.  Not worth
+	 * worrying about, since this is prototype hardware.  Not sure
+	 * if this will work for streams, but streams support was
+	 * untested on this prototype.
+	 */
+	if (xhci->quirks & XHCI_RESET_EP_QUIRK &&
+			ep_index != (unsigned int) -1 &&
+			add_flags - SLOT_FLAG == drop_flags) {
+		ep_state = virt_dev->eps[ep_index].ep_state;
+		if (!(ep_state & EP_HALTED))
+			goto bandwidth_change;
+		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+				"Completed config ep cmd - "
+				"last ep index = %d, state = %d",
+				ep_index, ep_state);
+		/* Clear internal halted state and restart ring(s) */
+		virt_dev->eps[ep_index].ep_state &= ~EP_HALTED;
+		ring_doorbell_for_active_rings(xhci, slot_id, ep_index);
+		return;
+	}
+bandwidth_change:
+	xhci_dbg_trace(xhci,  trace_xhci_dbg_context_change,
+			"Completed config ep cmd");
+	virt_dev->cmd_status = cmd_comp_code;
+	complete(&virt_dev->cmd_completion);
+	return;
+}
+
 static void xhci_handle_cmd_eval_ctx(struct xhci_hcd *xhci, int slot_id,
 		struct xhci_event_cmd *event, u32 cmd_comp_code)
 {
@@ -1459,10 +1519,6 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 	int slot_id = TRB_TO_SLOT_ID(le32_to_cpu(event->flags));
 	u64 cmd_dma;
 	dma_addr_t cmd_dequeue_dma;
-	struct xhci_input_control_ctx *ctrl_ctx;
-	struct xhci_virt_device *virt_dev;
-	unsigned int ep_index;
-	unsigned int ep_state;
 
 	cmd_dma = le64_to_cpu(event->cmd_trb);
 	cmd_dequeue_dma = xhci_trb_virt_to_dma(xhci->cmd_ring->deq_seg,
@@ -1512,54 +1568,8 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 		xhci_handle_cmd_disable_slot(xhci, slot_id);
 		break;
 	case TRB_TYPE(TRB_CONFIG_EP):
-		virt_dev = xhci->devs[slot_id];
-		if (handle_cmd_in_cmd_wait_list(xhci, virt_dev, event))
-			break;
-		/*
-		 * Configure endpoint commands can come from the USB core
-		 * configuration or alt setting changes, or because the HW
-		 * needed an extra configure endpoint command after a reset
-		 * endpoint command or streams were being configured.
-		 * If the command was for a halted endpoint, the xHCI driver
-		 * is not waiting on the configure endpoint command.
-		 */
-		ctrl_ctx = xhci_get_input_control_ctx(xhci,
-				virt_dev->in_ctx);
-		if (!ctrl_ctx) {
-			xhci_warn(xhci, "Could not get input context, bad type.\n");
-			break;
-		}
-		/* Input ctx add_flags are the endpoint index plus one */
-		ep_index = xhci_last_valid_endpoint(le32_to_cpu(ctrl_ctx->add_flags)) - 1;
-		/* A usb_set_interface() call directly after clearing a halted
-		 * condition may race on this quirky hardware.  Not worth
-		 * worrying about, since this is prototype hardware.  Not sure
-		 * if this will work for streams, but streams support was
-		 * untested on this prototype.
-		 */
-		if (xhci->quirks & XHCI_RESET_EP_QUIRK &&
-				ep_index != (unsigned int) -1 &&
-		    le32_to_cpu(ctrl_ctx->add_flags) - SLOT_FLAG ==
-		    le32_to_cpu(ctrl_ctx->drop_flags)) {
-			ep_state = xhci->devs[slot_id]->eps[ep_index].ep_state;
-			if (!(ep_state & EP_HALTED))
-				goto bandwidth_change;
-			xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
-					"Completed config ep cmd - "
-					"last ep index = %d, state = %d",
-					ep_index, ep_state);
-			/* Clear internal halted state and restart ring(s) */
-			xhci->devs[slot_id]->eps[ep_index].ep_state &=
-				~EP_HALTED;
-			ring_doorbell_for_active_rings(xhci, slot_id, ep_index);
-			break;
-		}
-bandwidth_change:
-		xhci_dbg_trace(xhci,  trace_xhci_dbg_context_change,
-				"Completed config ep cmd");
-		xhci->devs[slot_id]->cmd_status =
-			GET_COMP_CODE(le32_to_cpu(event->status));
-		complete(&xhci->devs[slot_id]->cmd_completion);
+		xhci_handle_cmd_config_ep(xhci, slot_id, event,
+				GET_COMP_CODE(le32_to_cpu(event->status)));
 		break;
 	case TRB_TYPE(TRB_EVAL_CONTEXT):
 		xhci_handle_cmd_eval_ctx(xhci, slot_id, event,
