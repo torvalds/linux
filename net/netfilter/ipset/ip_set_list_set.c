@@ -218,13 +218,16 @@ set_cleanup_entries(struct ip_set *set)
 {
 	struct list_set *map = set->data;
 	struct set_elem *e;
-	u32 i;
+	u32 i = 0;
 
-	for (i = 0; i < map->size; i++) {
+	while (i < map->size) {
 		e = list_set_elem(set, map, i);
 		if (e->id != IPSET_INVALID_ID &&
 		    ip_set_timeout_expired(ext_timeout(e, set)))
 			list_set_del(set, i);
+			/* Check element moved to position i in next loop */
+		else
+			i++;
 	}
 }
 
