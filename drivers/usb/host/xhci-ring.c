@@ -1462,7 +1462,6 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 	struct xhci_input_control_ctx *ctrl_ctx;
 	struct xhci_virt_device *virt_dev;
 	unsigned int ep_index;
-	struct xhci_ring *ep_ring;
 	unsigned int ep_state;
 
 	cmd_dma = le64_to_cpu(event->cmd_trb);
@@ -1542,7 +1541,6 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 				ep_index != (unsigned int) -1 &&
 		    le32_to_cpu(ctrl_ctx->add_flags) - SLOT_FLAG ==
 		    le32_to_cpu(ctrl_ctx->drop_flags)) {
-			ep_ring = xhci->devs[slot_id]->eps[ep_index].ring;
 			ep_state = xhci->devs[slot_id]->eps[ep_index].ep_state;
 			if (!(ep_state & EP_HALTED))
 				goto bandwidth_change;
