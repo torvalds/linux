@@ -67,7 +67,16 @@ int radeon_pm_get_type_index(struct radeon_device *rdev,
 
 void radeon_pm_acpi_event_handler(struct radeon_device *rdev)
 {
-	if (rdev->pm.pm_method == PM_METHOD_PROFILE) {
+	if ((rdev->pm.pm_method == PM_METHOD_DPM) && rdev->pm.dpm_enabled) {
+		mutex_lock(&rdev->pm.mutex);
+		if (power_supply_is_system_supplied() > 0)
+			rdev->pm.dpm.ac_power = true;
+		else
+			rdev->pm.dpm.ac_power = false;
+		if (rdev->asic->dpm.enable_bapm)
+			radeon_dpm_enable_bapm(rdev, rdev->pm.dpm.ac_power);
+		mutex_unlock(&rdev->pm.mutex);
+        } else if (rdev->pm.pm_method == PM_METHOD_PROFILE) {
 		if (rdev->pm.profile == PM_PROFILE_AUTO) {
 			mutex_lock(&rdev->pm.mutex);
 			radeon_pm_update_profile(rdev);

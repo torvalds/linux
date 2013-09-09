@@ -1778,6 +1778,7 @@ struct radeon_asic {
 		int (*force_performance_level)(struct radeon_device *rdev, enum radeon_dpm_forced_level level);
 		bool (*vblank_too_short)(struct radeon_device *rdev);
 		void (*powergate_uvd)(struct radeon_device *rdev, bool gate);
+		void (*enable_bapm)(struct radeon_device *rdev, bool enable);
 	} dpm;
 	/* pageflipping */
 	struct {
@@ -2647,6 +2648,7 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_dpm_force_performance_level(rdev, l) rdev->asic->dpm.force_performance_level((rdev), (l))
 #define radeon_dpm_vblank_too_short(rdev) rdev->asic->dpm.vblank_too_short((rdev))
 #define radeon_dpm_powergate_uvd(rdev, g) rdev->asic->dpm.powergate_uvd((rdev), (g))
+#define radeon_dpm_enable_bapm(rdev, e) rdev->asic->dpm.enable_bapm((rdev), (e))
 
 /* Common functions */
 /* AGP */
