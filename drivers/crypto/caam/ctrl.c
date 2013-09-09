@@ -73,6 +73,8 @@ static void build_instantiation_desc(u32 *desc)
 	/* generate secure keys (non-test) */
 	append_operation(desc, OP_TYPE_CLASS1_ALG | OP_ALG_ALGSEL_RNG |
 			 OP_ALG_RNG4_SK);
+
+	append_jump(desc, JUMP_CLASS_CLASS1 | JUMP_TYPE_HALT);
 }
 
 static int instantiate_rng(struct device *ctrldev)
@@ -83,7 +85,7 @@ static int instantiate_rng(struct device *ctrldev)
 	u32 *desc;
 	int i, ret = 0;
 
-	desc = kmalloc(CAAM_CMD_SZ * 6, GFP_KERNEL | GFP_DMA);
+	desc = kmalloc(CAAM_CMD_SZ * 7, GFP_KERNEL | GFP_DMA);
 	if (!desc) {
 		dev_err(ctrldev, "can't allocate RNG init descriptor memory\n");
 		return -ENOMEM;
