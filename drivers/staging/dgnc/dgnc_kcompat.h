@@ -28,8 +28,6 @@
 #ifndef __DGNC_KCOMPAT_H
 #define __DGNC_KCOMPAT_H
 
-#include <linux/version.h>
-
 # ifndef KERNEL_VERSION
 #  define KERNEL_VERSION(a,b,c)  (((a) << 16) + ((b) << 8) + (c))
 # endif
@@ -67,27 +65,5 @@
 		ulong dgnc_##VAR; \
 		module_param(VAR, long, PERM); \
 		MODULE_PARM_DESC(VAR, DESC);
-
-
-
-
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-
-
-
-/* NOTHING YET */
-
-
-
-# else
-
-
-
-# error "this driver does not support anything below the 2.6.27 kernel series."
-
-
-
-# endif
 
 #endif /* ! __DGNC_KCOMPAT_H */

@@ -31,15 +31,10 @@
 
 
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,39)
 #include <linux/sched.h>
-#endif
-
 #include "dgnc_driver.h"
 #include "dgnc_pci.h"
 #include "dpacompat.h"
@@ -291,16 +286,9 @@ static int dgnc_start(void)
 			dgnc_Major = rc;
 
 			dgnc_class = class_create(THIS_MODULE, "dgnc_mgmt");
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
-			device_create_drvdata(dgnc_class, NULL,
-				MKDEV(dgnc_Major, 0),
-				NULL, "dgnc_mgmt");
-#else
 			device_create(dgnc_class, NULL,
 				MKDEV(dgnc_Major, 0),
 				NULL, "dgnc_mgmt");
-#endif
-
 			dgnc_Major_Control_Registered = TRUE;
 		}
 
