@@ -590,7 +590,7 @@ static int qib_tune_pcie_caps(struct qib_devdata *dd)
 
 	/* Find out supported and configured values for parent (root) */
 	parent = dd->pcidev->bus->self;
-	if (parent->bus->parent) {
+	if (!pci_is_root_bus(parent->bus)) {
 		qib_devinfo(dd->pcidev, "Parent not root\n");
 		goto bail;
 	}
