@@ -721,7 +721,7 @@ static int hwicap_remove(struct device *dev)
 {
 	struct hwicap_drvdata *drvdata;
 
-	drvdata = (struct hwicap_drvdata *)dev_get_drvdata(dev);
+	drvdata = dev_get_drvdata(dev);
 
 	if (!drvdata)
 		return 0;
