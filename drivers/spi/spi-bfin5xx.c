@@ -1410,10 +1410,10 @@ static int bfin_spi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int bfin_spi_suspend(struct platform_device *pdev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int bfin_spi_suspend(struct device *dev)
 {
-	struct bfin_spi_master_data *drv_data = platform_get_drvdata(pdev);
+	struct bfin_spi_master_data *drv_data = dev_get_drvdata(dev);
 	int status = 0;
 
 	status = bfin_spi_stop_queue(drv_data);
@@ -1432,9 +1432,9 @@ static int bfin_spi_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int bfin_spi_resume(struct platform_device *pdev)
+static int bfin_spi_resume(struct device *dev)
 {
-	struct bfin_spi_master_data *drv_data = platform_get_drvdata(pdev);
+	struct bfin_spi_master_data *drv_data = dev_get_drvdata(dev);
 	int status = 0;
 
 	bfin_write(&drv_data->regs->ctl, drv_data->ctrl_reg);
@@ -1443,25 +1443,27 @@ static int bfin_spi_resume(struct platform_device *pdev)
 	/* Start the queue running */
 	status = bfin_spi_start_queue(drv_data);
 	if (status != 0) {
-		dev_err(&pdev->dev, "problem starting queue (%d)\n", status);
+		dev_err(dev, "problem starting queue (%d)\n", status);
 		return status;
 	}
 
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(bfin_spi_pm_ops, bfin_spi_suspend, bfin_spi_resume);
+
+#define BFIN_SPI_PM_OPS		(&bfin_spi_pm_ops)
 #else
-#define bfin_spi_suspend NULL
-#define bfin_spi_resume NULL
-#endif				/* CONFIG_PM */
+#define BFIN_SPI_PM_OPS		NULL
+#endif
 
 MODULE_ALIAS("platform:bfin-spi");
 static struct platform_driver bfin_spi_driver = {
 	.driver	= {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
+		.pm	= BFIN_SPI_PM_OPS,
 	},
-	.suspend	= bfin_spi_suspend,
-	.resume		= bfin_spi_resume,
 	.remove		= bfin_spi_remove,
 };
 
