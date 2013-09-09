@@ -6653,17 +6653,20 @@ int rt2800_enable_radio(struct rt2x00_dev *rt2x00dev)
 	u16 word;
 
 	/*
-	 * Initialize all registers.
+	 * Initialize MAC registers.
 	 */
 	if (unlikely(rt2800_wait_wpdma_ready(rt2x00dev) ||
 		     rt2800_init_registers(rt2x00dev)))
 		return -EIO;
 
+	/*
+	 * Wait BBP/RF to wake up.
+	 */
 	if (unlikely(rt2800_wait_bbp_rf_ready(rt2x00dev)))
 		return -EIO;
 
 	/*
-	 * Send signal to firmware during boot time.
+	 * Send signal during boot time to initialize firmware.
 	 */
 	rt2800_register_write(rt2x00dev, H2M_BBP_AGENT, 0);
 	rt2800_register_write(rt2x00dev, H2M_MAILBOX_CSR, 0);
@@ -6672,9 +6675,15 @@ int rt2800_enable_radio(struct rt2x00_dev *rt2x00dev)
 	rt2800_mcu_request(rt2x00dev, MCU_BOOT_SIGNAL, 0, 0, 0);
 	msleep(1);
 
+	/*
+	 * Make sure BBP is up and running.
+	 */
 	if (unlikely(rt2800_wait_bbp_ready(rt2x00dev)))
 		return -EIO;
 
+	/*
+	 * Initialize BBP/RF registers.
+	 */
 	rt2800_init_bbp(rt2x00dev);
 	rt2800_init_rfcsr(rt2x00dev);
 
