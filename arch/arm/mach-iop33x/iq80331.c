@@ -123,7 +123,7 @@ static struct platform_device iq80331_flash_device = {
 };
 
 static struct resource iq80331_gpio_res[] = {
-	DEFINE_RES_MEM((IOP3XX_PERIPHERAL_VIRT_BASE + 0x1780), 0x10),
+	DEFINE_RES_MEM((IOP3XX_PERIPHERAL_PHYS_BASE + 0x1780), 0x10),
 };
 
 static void __init iq80331_init_machine(void)

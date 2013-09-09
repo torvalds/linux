@@ -1,5 +1,5 @@
 static struct resource iop32x_gpio_res[] = {
-	DEFINE_RES_MEM((IOP3XX_PERIPHERAL_VIRT_BASE + 0x07c4), 0x10),
+	DEFINE_RES_MEM((IOP3XX_PERIPHERAL_PHYS_BASE + 0x07c4), 0x10),
 };
 
 static inline void register_iop32x_gpio(void)

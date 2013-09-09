@@ -110,7 +110,7 @@ static int iop3xx_gpio_probe(struct platform_device *pdev)
 	struct resource *res;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = (void *) res->start;
+	base = devm_ioremap_resource(&pdev->dev, res);
 
 	return gpiochip_add(&iop3xx_chip);
 }
