@@ -1013,8 +1013,10 @@ static void dgap_err(char *s)
 static struct cnode *dgap_newnode(int t)
 {
 	struct cnode *n;
-	if ( (n = (struct cnode *) kmalloc(sizeof(struct cnode ), GFP_ATOMIC) ) != NULL) {
-		memset( (char *)n, 0, sizeof(struct cnode ) );
+
+	n = kmalloc(sizeof(struct cnode), GFP_ATOMIC);
+	if (n != NULL) {
+		memset((char *)n, 0, sizeof(struct cnode));
 		n->type = t;
 	}
 	return(n);
