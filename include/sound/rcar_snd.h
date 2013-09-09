@@ -55,7 +55,7 @@ struct rsnd_ssi_platform_info {
 /*
  * flags
  */
-#define RSND_SCU_USB_HPBIF		(1 << 31) /* it needs RSND_SSI_DEPENDENT */
+#define RSND_SCU_USE_HPBIF		(1 << 31) /* it needs RSND_SSI_DEPENDENT */
 
 struct rsnd_scu_platform_info {
 	u32 flags;
