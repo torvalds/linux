@@ -55,7 +55,7 @@ struct platram_info {
 
 static inline struct platram_info *to_platram_info(struct platform_device *dev)
 {
-	return (struct platram_info *)platform_get_drvdata(dev);
+	return platform_get_drvdata(dev);
 }
 
 /* platram_setrw
