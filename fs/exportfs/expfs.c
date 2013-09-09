@@ -90,6 +90,24 @@ find_disconnected_root(struct dentry *dentry)
 	return dentry;
 }
 
+static void clear_disconnected(struct dentry *dentry)
+{
+	dget(dentry);
+	while (dentry->d_flags & DCACHE_DISCONNECTED) {
+		struct dentry *parent = dget_parent(dentry);
+
+		WARN_ON_ONCE(IS_ROOT(dentry));
+
+		spin_lock(&dentry->d_lock);
+		dentry->d_flags &= ~DCACHE_DISCONNECTED;
+		spin_unlock(&dentry->d_lock);
+
+		dput(dentry);
+		dentry = parent;
+	}
+	dput(dentry);
+}
+
 /*
  * Make sure target_dir is fully connected to the dentry tree.
  *
@@ -128,10 +146,9 @@ reconnect_path(struct vfsmount *mnt, struct dentry *target_dir, char *nbuf)
 
 		if (!IS_ROOT(pd)) {
 			/* must have found a connected parent - great */
-			spin_lock(&pd->d_lock);
-			pd->d_flags &= ~DCACHE_DISCONNECTED;
-			spin_unlock(&pd->d_lock);
-			noprogress = 0;
+			clear_disconnected(target_dir);
+			dput(pd);
+			break;
 		} else {
 			/*
 			 * We have hit the top of a disconnected path, try to
