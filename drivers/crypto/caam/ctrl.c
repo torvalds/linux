@@ -39,7 +39,7 @@ static void build_instantiation_desc(u32 *desc)
 
 	/* generate secure keys (non-test) */
 	append_operation(desc, OP_TYPE_CLASS1_ALG | OP_ALG_ALGSEL_RNG |
-			 OP_ALG_RNG4_SK);
+			 OP_ALG_AAI_RNG4_SK);
 
 	append_jump(desc, JUMP_CLASS_CLASS1 | JUMP_TYPE_HALT);
 }
