@@ -102,6 +102,26 @@ static int gpiod_export_link(struct device *dev, const char *name,
 static int gpiod_sysfs_set_active_low(struct gpio_desc *desc, int value);
 static void gpiod_unexport(struct gpio_desc *desc);
 
+#ifdef CONFIG_DEBUG_FS
+#define gpiod_emerg(desc, fmt, ...)			                \
+	pr_emerg("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label, \
+                 ##__VA_ARGS__)
+#define gpiod_crit(desc, fmt, ...)			                \
+	pr_crit("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label,  \
+                 ##__VA_ARGS__)
+#define gpiod_err(desc, fmt, ...)				        \
+	pr_err("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label,   \
+                 ##__VA_ARGS__)
+#define gpiod_warn(desc, fmt, ...)				        \
+	pr_warn("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label,  \
+                 ##__VA_ARGS__)
+#define gpiod_info(desc, fmt, ...)				        \
+	pr_info("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label,  \
+                ##__VA_ARGS__)
+#define gpiod_dbg(desc, fmt, ...)				   \
+	pr_debug("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label, \
+                 ##__VA_ARGS__)
+#else
 #define gpiod_emerg(desc, fmt, ...)			           \
 	pr_emerg("gpio-%d: " fmt, desc_to_gpio(desc), ##__VA_ARGS__)
 #define gpiod_crit(desc, fmt, ...)			           \
@@ -114,6 +134,7 @@ static void gpiod_unexport(struct gpio_desc *desc);
 	pr_info("gpio-%d: " fmt, desc_to_gpio(desc), ##__VA_ARGS__)
 #define gpiod_dbg(desc, fmt, ...)				   \
 	pr_debug("gpio-%d: " fmt, desc_to_gpio(desc), ##__VA_ARGS__)
+#endif
 
 static inline void desc_set_label(struct gpio_desc *d, const char *label)
 {
