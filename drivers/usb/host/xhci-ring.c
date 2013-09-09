@@ -1394,6 +1394,19 @@ static void xhci_handle_cmd_enable_slot(struct xhci_hcd *xhci, int slot_id,
 	complete(&xhci->addr_dev);
 }
 
+static void xhci_handle_cmd_disable_slot(struct xhci_hcd *xhci, int slot_id)
+{
+	struct xhci_virt_device *virt_dev;
+
+	virt_dev = xhci->devs[slot_id];
+	if (!virt_dev)
+		return;
+	if (xhci->quirks & XHCI_EP_LIMIT_QUIRK)
+		/* Delete default control endpoint resources */
+		xhci_free_device_endpoint_resources(xhci, virt_dev, true);
+	xhci_free_virt_device(xhci, slot_id);
+}
+
 static void handle_cmd_completion(struct xhci_hcd *xhci,
 		struct xhci_event_cmd *event)
 {
@@ -1451,13 +1464,7 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 				GET_COMP_CODE(le32_to_cpu(event->status)));
 		break;
 	case TRB_TYPE(TRB_DISABLE_SLOT):
-		if (xhci->devs[slot_id]) {
-			if (xhci->quirks & XHCI_EP_LIMIT_QUIRK)
-				/* Delete default control endpoint resources */
-				xhci_free_device_endpoint_resources(xhci,
-						xhci->devs[slot_id], true);
-			xhci_free_virt_device(xhci, slot_id);
-		}
+		xhci_handle_cmd_disable_slot(xhci, slot_id);
 		break;
 	case TRB_TYPE(TRB_CONFIG_EP):
 		virt_dev = xhci->devs[slot_id];
