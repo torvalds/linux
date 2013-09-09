@@ -16,8 +16,8 @@
 #include <linux/errno.h>
 #include <linux/gpio.h>
 #include <linux/export.h>
-#include <asm/hardware/iop3xx.h>
-#include <mach/gpio.h>
+
+#define IOP3XX_N_GPIOS	8
 
 void gpio_line_config(int line, int direction)
 {
