@@ -547,6 +547,11 @@ struct iwl_mvm {
 	u32 noa_duration;
 	struct ieee80211_vif *noa_vif;
 #endif
+
+	/* Tx queues */
+	u8 aux_queue;
+	u8 first_agg_queue;
+	u8 last_agg_queue;
 };
 
 /* Extract MVM priv from op_mode and _hw */

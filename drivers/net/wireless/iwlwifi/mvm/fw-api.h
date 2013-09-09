@@ -72,16 +72,16 @@
 #include "fw-api-d3.h"
 #include "fw-api-bt-coex.h"
 
-/* queue and FIFO numbers by usage */
+/* maximal number of Tx queues in any platform */
+#define IWL_MVM_MAX_QUEUES	20
+
+/* Tx queue numbers */
 enum {
 	IWL_MVM_OFFCHANNEL_QUEUE = 8,
 	IWL_MVM_CMD_QUEUE = 9,
-	IWL_MVM_AUX_QUEUE = 15,
-	IWL_MVM_FIRST_AGG_QUEUE = 16,
-	IWL_MVM_NUM_QUEUES = 20,
-	IWL_MVM_LAST_AGG_QUEUE = IWL_MVM_NUM_QUEUES - 1,
-	IWL_MVM_CMD_FIFO = 7
 };
+
+#define IWL_MVM_CMD_FIFO	7
 
 #define IWL_MVM_STATION_COUNT	16
 

@@ -417,7 +417,7 @@ int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	spin_unlock(&mvmsta->lock);
 
-	if (txq_id < IWL_MVM_FIRST_AGG_QUEUE)
+	if (txq_id < mvm->first_agg_queue)
 		atomic_inc(&mvm->pending_frames[mvmsta->sta_id]);
 
 	return 0;
@@ -613,7 +613,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 					    info);
 
 		/* Single frame failure in an AMPDU queue => send BAR */
-		if (txq_id >= IWL_MVM_FIRST_AGG_QUEUE &&
+		if (txq_id >= mvm->first_agg_queue &&
 		    !(info->flags & IEEE80211_TX_STAT_ACK))
 			info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
 
@@ -626,7 +626,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		ieee80211_tx_status_ni(mvm->hw, skb);
 	}
 
-	if (txq_id >= IWL_MVM_FIRST_AGG_QUEUE) {
+	if (txq_id >= mvm->first_agg_queue) {
 		/* If this is an aggregation queue, we use the ssn since:
 		 * ssn = wifi seq_num % 256.
 		 * The seq_ctl is the sequence control of the packet to which
@@ -684,7 +684,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	 * If the txq is not an AMPDU queue, there is no chance we freed
 	 * several skbs. Check that out...
 	 */
-	if (txq_id < IWL_MVM_FIRST_AGG_QUEUE && !WARN_ON(skb_freed > 1) &&
+	if (txq_id < mvm->first_agg_queue && !WARN_ON(skb_freed > 1) &&
 	    atomic_sub_and_test(skb_freed, &mvm->pending_frames[sta_id])) {
 		if (mvmsta) {
 			/*
@@ -780,7 +780,7 @@ static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	struct ieee80211_sta *sta;
 
-	if (WARN_ON_ONCE(SEQ_TO_QUEUE(sequence) < IWL_MVM_FIRST_AGG_QUEUE))
+	if (WARN_ON_ONCE(SEQ_TO_QUEUE(sequence) < mvm->first_agg_queue))
 		return;
 
 	if (WARN_ON_ONCE(tid == IWL_TID_NON_QOS))

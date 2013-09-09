@@ -352,6 +352,14 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	mvm->restart_fw = iwlwifi_mod_params.restart_fw ? -1 : 0;
 
+	mvm->aux_queue = 15;
+	mvm->first_agg_queue = 16;
+	mvm->last_agg_queue = mvm->cfg->base_params->num_of_queues - 1;
+	if (mvm->cfg->base_params->num_of_queues == 16) {
+		mvm->aux_queue = 11;
+		mvm->first_agg_queue = 12;
+	}
+
 	mutex_init(&mvm->mutex);
 	spin_lock_init(&mvm->async_handlers_lock);
 	INIT_LIST_HEAD(&mvm->time_event_list);

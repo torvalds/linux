@@ -847,13 +847,13 @@ int iwl_mvm_sta_tx_agg_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	for (txq_id = IWL_MVM_FIRST_AGG_QUEUE;
-	     txq_id <= IWL_MVM_LAST_AGG_QUEUE; txq_id++)
+	for (txq_id = mvm->first_agg_queue;
+	     txq_id <= mvm->last_agg_queue; txq_id++)
 		if (mvm->queue_to_mac80211[txq_id] ==
 		    IWL_INVALID_MAC80211_QUEUE)
 			break;
 
-	if (txq_id > IWL_MVM_LAST_AGG_QUEUE) {
+	if (txq_id > mvm->last_agg_queue) {
 		IWL_ERR(mvm, "Failed to allocate agg queue\n");
 		return -EIO;
 	}

@@ -80,7 +80,7 @@ struct iwl_mvm_mac_iface_iterator_data {
 	struct ieee80211_vif *vif;
 	unsigned long available_mac_ids[BITS_TO_LONGS(NUM_MAC_INDEX_DRIVER)];
 	unsigned long available_tsf_ids[BITS_TO_LONGS(NUM_TSF_IDS)];
-	unsigned long used_hw_queues[BITS_TO_LONGS(IWL_MVM_FIRST_AGG_QUEUE)];
+	unsigned long used_hw_queues[BITS_TO_LONGS(IWL_MVM_MAX_QUEUES)];
 	enum iwl_tsf_id preferred_tsf;
 	bool found_vif;
 };
@@ -218,7 +218,7 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 		.preferred_tsf = NUM_TSF_IDS,
 		.used_hw_queues = {
 			BIT(IWL_MVM_OFFCHANNEL_QUEUE) |
-			BIT(IWL_MVM_AUX_QUEUE) |
+			BIT(mvm->aux_queue) |
 			BIT(IWL_MVM_CMD_QUEUE)
 		},
 		.found_vif = false,
@@ -302,9 +302,9 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 	/* Find available queues, and allocate them to the ACs */
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		u8 queue = find_first_zero_bit(data.used_hw_queues,
-					       IWL_MVM_FIRST_AGG_QUEUE);
+					       mvm->first_agg_queue);
 
-		if (queue >= IWL_MVM_FIRST_AGG_QUEUE) {
+		if (queue >= mvm->first_agg_queue) {
 			IWL_ERR(mvm, "Failed to allocate queue\n");
 			ret = -EIO;
 			goto exit_fail;
@@ -317,9 +317,9 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 	/* Allocate the CAB queue for softAP and GO interfaces */
 	if (vif->type == NL80211_IFTYPE_AP) {
 		u8 queue = find_first_zero_bit(data.used_hw_queues,
-					       IWL_MVM_FIRST_AGG_QUEUE);
+					       mvm->first_agg_queue);
 
-		if (queue >= IWL_MVM_FIRST_AGG_QUEUE) {
+		if (queue >= mvm->first_agg_queue) {
 			IWL_ERR(mvm, "Failed to allocate cab queue\n");
 			ret = -EIO;
 			goto exit_fail;
