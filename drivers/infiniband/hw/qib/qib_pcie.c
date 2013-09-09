@@ -476,30 +476,6 @@ void qib_pcie_reenable(struct qib_devdata *dd, u16 cmd, u8 iline, u8 cline)
 			"pci_enable_device failed after reset: %d\n", r);
 }
 
-/* code to adjust PCIe capabilities. */
-
-static int fld2val(int wd, int mask)
-{
-	int lsbmask;
-
-	if (!mask)
-		return 0;
-	wd &= mask;
-	lsbmask = mask ^ (mask & (mask - 1));
-	wd /= lsbmask;
-	return wd;
-}
-
-static int val2fld(int wd, int mask)
-{
-	int lsbmask;
-
-	if (!mask)
-		return 0;
-	lsbmask = mask ^ (mask & (mask - 1));
-	wd *= lsbmask;
-	return wd;
-}
 
 static int qib_pcie_coalesce;
 module_param_named(pcie_coalesce, qib_pcie_coalesce, int, S_IRUGO);
@@ -584,9 +560,8 @@ static int qib_tune_pcie_caps(struct qib_devdata *dd)
 {
 	int ret = 1; /* Assume the worst */
 	struct pci_dev *parent;
-	u16 pcaps, pctl, ecaps, ectl;
-	int rc_sup, ep_sup;
-	int rc_cur, ep_cur;
+	u16 rc_mpss, rc_mps, ep_mpss, ep_mps;
+	u16 rc_mrrs, ep_mrrs, max_mrrs;
 
 	/* Find out supported and configured values for parent (root) */
 	parent = dd->pcidev->bus->self;
@@ -597,38 +572,29 @@ static int qib_tune_pcie_caps(struct qib_devdata *dd)
 
 	if (!pci_is_pcie(parent) || !pci_is_pcie(dd->pcidev))
 		goto bail;
-	pcie_capability_read_word(parent, PCI_EXP_DEVCAP, &pcaps);
-	pcie_capability_read_word(parent, PCI_EXP_DEVCTL, &pctl);
+	rc_mpss = parent->pcie_mpss;
+	rc_mps = ffs(pcie_get_mps(parent)) - 8;
 	/* Find out supported and configured values for endpoint (us) */
-	pcie_capability_read_word(dd->pcidev, PCI_EXP_DEVCAP, &ecaps);
-	pcie_capability_read_word(dd->pcidev, PCI_EXP_DEVCTL, &ectl);
+	ep_mpss = dd->pcidev->pcie_mpss;
+	ep_mps = ffs(pcie_get_mps(dd->pcidev)) - 8;
 
 	ret = 0;
 	/* Find max payload supported by root, endpoint */
-	rc_sup = fld2val(pcaps, PCI_EXP_DEVCAP_PAYLOAD);
-	ep_sup = fld2val(ecaps, PCI_EXP_DEVCAP_PAYLOAD);
-	if (rc_sup > ep_sup)
-		rc_sup = ep_sup;
-
-	rc_cur = fld2val(pctl, PCI_EXP_DEVCTL_PAYLOAD);
-	ep_cur = fld2val(ectl, PCI_EXP_DEVCTL_PAYLOAD);
+	if (rc_mpss > ep_mpss)
+		rc_mpss = ep_mpss;
 
 	/* If Supported greater than limit in module param, limit it */
-	if (rc_sup > (qib_pcie_caps & 7))
-		rc_sup = qib_pcie_caps & 7;
+	if (rc_mpss > (qib_pcie_caps & 7))
+		rc_mpss = qib_pcie_caps & 7;
 	/* If less than (allowed, supported), bump root payload */
-	if (rc_sup > rc_cur) {
-		rc_cur = rc_sup;
-		pctl = (pctl & ~PCI_EXP_DEVCTL_PAYLOAD) |
-			val2fld(rc_cur, PCI_EXP_DEVCTL_PAYLOAD);
-		pcie_capability_write_word(parent, PCI_EXP_DEVCTL, pctl);
+	if (rc_mpss > rc_mps) {
+		rc_mps = rc_mpss;
+		pcie_set_mps(parent, 128 << rc_mps);
 	}
 	/* If less than (allowed, supported), bump endpoint payload */
-	if (rc_sup > ep_cur) {
-		ep_cur = rc_sup;
-		ectl = (ectl & ~PCI_EXP_DEVCTL_PAYLOAD) |
-			val2fld(ep_cur, PCI_EXP_DEVCTL_PAYLOAD);
-		pcie_capability_write_word(dd->pcidev, PCI_EXP_DEVCTL, ectl);
+	if (rc_mpss > ep_mps) {
+		ep_mps = rc_mpss;
+		pcie_set_mps(dd->pcidev, 128 << ep_mps);
 	}
 
 	/*
@@ -636,23 +602,21 @@ static int qib_tune_pcie_caps(struct qib_devdata *dd)
 	 * No field for max supported, but PCIe spec limits it to 4096,
 	 * which is code '5' (log2(4096) - 7)
 	 */
-	rc_sup = 5;
-	if (rc_sup > ((qib_pcie_caps >> 4) & 7))
-		rc_sup = (qib_pcie_caps >> 4) & 7;
-	rc_cur = fld2val(pctl, PCI_EXP_DEVCTL_READRQ);
-	ep_cur = fld2val(ectl, PCI_EXP_DEVCTL_READRQ);
+	max_mrrs = 5;
+	if (max_mrrs > ((qib_pcie_caps >> 4) & 7))
+		max_mrrs = (qib_pcie_caps >> 4) & 7;
 
-	if (rc_sup > rc_cur) {
-		rc_cur = rc_sup;
-		pctl = (pctl & ~PCI_EXP_DEVCTL_READRQ) |
-			val2fld(rc_cur, PCI_EXP_DEVCTL_READRQ);
-		pcie_capability_write_word(parent, PCI_EXP_DEVCTL, pctl);
+	max_mrrs = 128 << max_mrrs;
+	rc_mrrs = pcie_get_readrq(parent);
+	ep_mrrs = pcie_get_readrq(dd->pcidev);
+
+	if (max_mrrs > rc_mrrs) {
+		rc_mrrs = max_mrrs;
+		pcie_set_readrq(parent, rc_mrrs);
 	}
-	if (rc_sup > ep_cur) {
-		ep_cur = rc_sup;
-		ectl = (ectl & ~PCI_EXP_DEVCTL_READRQ) |
-			val2fld(ep_cur, PCI_EXP_DEVCTL_READRQ);
-		pcie_capability_write_word(dd->pcidev, PCI_EXP_DEVCTL, ectl);
+	if (max_mrrs > ep_mrrs) {
+		ep_mrrs = max_mrrs;
+		pcie_set_readrq(dd->pcidev, ep_mrrs);
 	}
 bail:
 	return ret;
