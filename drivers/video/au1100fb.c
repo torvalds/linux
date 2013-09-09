@@ -588,7 +588,7 @@ int au1100fb_drv_remove(struct platform_device *dev)
 	if (!dev)
 		return -ENODEV;
 
-	fbdev = (struct au1100fb_device *) platform_get_drvdata(dev);
+	fbdev = platform_get_drvdata(dev);
 
 #if !defined(CONFIG_FRAMEBUFFER_CONSOLE) && defined(CONFIG_LOGO)
 	au1100fb_fb_blank(VESA_POWERDOWN, &fbdev->info);
