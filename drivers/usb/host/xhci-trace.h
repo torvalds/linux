@@ -116,7 +116,7 @@ DECLARE_EVENT_CLASS(xhci_log_event,
 		__field(u64, dma)
 		__field(u32, status)
 		__field(u32, flags)
-		__dynamic_array(__le32, trb, 4)
+		__dynamic_array(u8, trb, sizeof(struct xhci_generic_trb))
 	),
 	TP_fast_assign(
 		__entry->va = trb_va;
