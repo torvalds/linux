@@ -701,7 +701,6 @@ int __init_or_module do_one_initcall(initcall_t fn)
 	return ret;
 }
 
-
 extern initcall_t __initcall_start[];
 extern initcall_t __initcall0_start[];
 extern initcall_t __initcall1_start[];
@@ -820,6 +819,8 @@ static int __ref kernel_init(void *unused)
 	numa_default_policy();
 
 	flush_delayed_fput();
+
+	print_scheduler_version();
 
 	if (ramdisk_execute_command) {
 		if (!run_init_process(ramdisk_execute_command))

@@ -33,6 +33,7 @@
 #include <linux/cpu.h>
 #include <linux/completion.h>
 #include <linux/mutex.h>
+#include <linux/sched.h>
 #include <linux/syscore_ops.h>
 
 #include <trace/events/power.h>
@@ -1571,6 +1572,14 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 
 	if (cpufreq_driver->target)
 		retval = cpufreq_driver->target(policy, target_freq, relation);
+#ifdef CONFIG_SCHED_BFS
+	if (likely(retval != -EINVAL)) {
+		if (target_freq == policy->max)
+			cpu_nonscaling(policy->cpu);
+		else
+			cpu_scaling(policy->cpu);
+	}
+#endif
 
 	return retval;
 }
