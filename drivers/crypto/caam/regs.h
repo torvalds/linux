@@ -255,6 +255,8 @@ struct rng4tst {
 	};
 #define RTSDCTL_ENT_DLY_SHIFT 16
 #define RTSDCTL_ENT_DLY_MASK (0xffff << RTSDCTL_ENT_DLY_SHIFT)
+#define RTSDCTL_ENT_DLY_MIN 1200
+#define RTSDCTL_ENT_DLY_MAX 12800
 	u32 rtsdctl;		/* seed control register */
 	union {
 		u32 rtsblim;	/* PRGM=1: sparse bit limit register */
@@ -706,12 +708,13 @@ struct caam_deco {
 	u32 rsvd29[48];
 	u32 descbuf[64];	/* DxDESB - Descriptor buffer */
 	u32 rscvd30[193];
+#define DESC_DBG_DECO_STAT_HOST_ERR	0x00D00000
+#define DESC_DBG_DECO_STAT_VALID	0x80000000
+#define DESC_DBG_DECO_STAT_MASK		0x00F00000
 	u32 desc_dbg;		/* DxDDR - DECO Debug Register */
 	u32 rsvd31[126];
 };
 
-/* DECO DBG Register Valid Bit*/
-#define DECO_DBG_VALID		0x80000000
 #define DECO_JQCR_WHL		0x20000000
 #define DECO_JQCR_FOUR		0x10000000
 
