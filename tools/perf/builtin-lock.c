@@ -321,10 +321,12 @@ static struct lock_stat *lock_stat_findnew(void *addr, const char *name)
 
 	new->addr = addr;
 	new->name = zalloc(sizeof(char) * strlen(name) + 1);
-	if (!new->name)
+	if (!new->name) {
+		free(new);
 		goto alloc_failed;
-	strcpy(new->name, name);
+	}
 
+	strcpy(new->name, name);
 	new->wait_time_min = ULLONG_MAX;
 
 	list_add(&new->hash_entry, entry);
@@ -875,7 +877,7 @@ static int __cmd_record(int argc, const char **argv)
 	const char *record_args[] = {
 		"record", "-R", "-m", "1024", "-c", "1",
 	};
-	unsigned int rec_argc, i, j;
+	unsigned int rec_argc, i, j, ret;
 	const char **rec_argv;
 
 	for (i = 0; i < ARRAY_SIZE(lock_tracepoints); i++) {
@@ -892,7 +894,7 @@ static int __cmd_record(int argc, const char **argv)
 	rec_argc += 2 * ARRAY_SIZE(lock_tracepoints);
 
 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
-	if (rec_argv == NULL)
+	if (!rec_argv)
 		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(record_args); i++)
@@ -908,7 +910,9 @@ static int __cmd_record(int argc, const char **argv)
 
 	BUG_ON(i != rec_argc);
 
-	return cmd_record(i, rec_argv, NULL);
+	ret = cmd_record(i, rec_argv, NULL);
+	free(rec_argv);
+	return ret;
 }
 
 int cmd_lock(int argc, const char **argv, const char *prefix __maybe_unused)
