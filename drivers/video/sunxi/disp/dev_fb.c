@@ -1243,7 +1243,7 @@ static int Fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			      val);
 			((__u32 *) info->pseudo_palette)[regno] = val;
 		} else {
-			ret = -EINVAL;
+			ret = 0;
 		}
 		break;
 	default:
