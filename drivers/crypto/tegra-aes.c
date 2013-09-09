@@ -199,8 +199,6 @@ static void aes_workqueue_handler(struct work_struct *work);
 static DECLARE_WORK(aes_work, aes_workqueue_handler);
 static struct workqueue_struct *aes_wq;
 
-extern unsigned long long tegra_chip_uid(void);
-
 static inline u32 aes_readl(struct tegra_aes_dev *dd, u32 offset)
 {
 	return readl(dd->io_base + offset);
@@ -713,9 +711,8 @@ static int tegra_aes_rng_reset(struct crypto_rng *tfm, u8 *seed,
 	struct tegra_aes_dev *dd = aes_dev;
 	struct tegra_aes_ctx *ctx = &rng_ctx;
 	struct tegra_aes_slot *key_slot;
-	struct timespec ts;
 	int ret = 0;
-	u64 nsec, tmp[2];
+	u8 tmp[16]; /* 16 bytes = 128 bits of entropy */
 	u8 *dt;
 
 	if (!ctx || !dd) {
@@ -778,14 +775,8 @@ static int tegra_aes_rng_reset(struct crypto_rng *tfm, u8 *seed,
 	if (dd->ivlen >= (2 * DEFAULT_RNG_BLK_SZ + AES_KEYSIZE_128)) {
 		dt = dd->iv + DEFAULT_RNG_BLK_SZ + AES_KEYSIZE_128;
 	} else {
-		getnstimeofday(&ts);
-		nsec = timespec_to_ns(&ts);
-		do_div(nsec, 1000);
-		nsec ^= dd->ctr << 56;
-		dd->ctr++;
-		tmp[0] = nsec;
-		tmp[1] = tegra_chip_uid();
-		dt = (u8 *)tmp;
+		get_random_bytes(tmp, sizeof(tmp));
+		dt = tmp;
 	}
 	memcpy(dd->dt, dt, DEFAULT_RNG_BLK_SZ);
 
