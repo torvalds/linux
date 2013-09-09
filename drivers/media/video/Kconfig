@@ -719,9 +719,10 @@ endchoice
 
 source "drivers/media/video/exynos/fimc-is-sensor/Kconfig"
 source "drivers/media/video/m5mols/Kconfig"
+source "drivers/media/video/s5k4ecgx/Kconfig"
 
 choice
-depends on VIDEO_S5K4BA || VIDEO_S5K4EA || VIDEO_M5MO || VIDEO_M5MOLS
+depends on VIDEO_S5K4BA || VIDEO_S5K4EA || VIDEO_M5MO || VIDEO_M5MOLS || VIDEO_S5K4ECGX
 prompt "Select ITU / MIPI Camera port"
 default ITU_A
 config ITU_A
