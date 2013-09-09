@@ -2,7 +2,6 @@
 #include <linux/of_pci.h>
 #include <linux/of_irq.h>
 #include <linux/export.h>
-#include <asm/prom.h>
 
 /**
  * of_irq_map_pci - Resolve the interrupt for a PCI device
