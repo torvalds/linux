@@ -859,6 +859,12 @@ int cadence_qspi_apb_process_queue(struct struct_cqspi *cadence_qspi,
 		return -EINVAL;
 	}
 
+	/* Switch chip select. */
+	if (cadence_qspi->current_cs != spi->chip_select) {
+		cadence_qspi->current_cs = spi->chip_select;
+		cadence_qspi_switch_cs(cadence_qspi, spi->chip_select);
+	}
+
 	/* Setup baudrate divisor and delays */
 	f_pdata = &(pdata->f_pdata[cadence_qspi->current_cs]);
 	sclk = cmd_xfer->speed_hz ?
@@ -871,12 +877,6 @@ int cadence_qspi_apb_process_queue(struct struct_cqspi *cadence_qspi,
 	cadence_qspi_apb_readdata_capture(iobase, 1,
 		f_pdata->read_delay);
 	cadence_qspi_apb_controller_enable(iobase);
-
-	/* Switch chip select. */
-	if (cadence_qspi->current_cs != spi->chip_select) {
-		cadence_qspi->current_cs = spi->chip_select;
-		cadence_qspi_switch_cs(cadence_qspi, spi->chip_select);
-	}
 
 	/*
 	 * Use STIG command to send if the transfer length is less than
