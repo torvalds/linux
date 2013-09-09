@@ -196,7 +196,7 @@ asmlinkage void do_softirq(void)
  * ext_int_hash[index] is the list head for all external interrupts that hash
  * to this index.
  */
-static struct hlist_head ext_int_hash[256];
+static struct hlist_head ext_int_hash[32] ____cacheline_aligned;
 
 struct ext_int_info {
 	ext_int_handler_t handler;
@@ -210,7 +210,9 @@ static DEFINE_SPINLOCK(ext_int_hash_lock);
 
 static inline int ext_hash(u16 code)
 {
-	return (code + (code >> 9)) & 0xff;
+	BUILD_BUG_ON(!is_power_of_2(ARRAY_SIZE(ext_int_hash)));
+
+	return (code + (code >> 9)) & (ARRAY_SIZE(ext_int_hash) - 1);
 }
 
 int register_external_interrupt(u16 code, ext_int_handler_t handler)
