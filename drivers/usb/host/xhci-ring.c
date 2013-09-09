@@ -765,7 +765,7 @@ static void xhci_giveback_urb_in_irq(struct xhci_hcd *xhci,
  *  2. Otherwise, we turn all the TRBs in the TD into No-op TRBs (with the chain
  *     bit cleared) so that the HW will skip over them.
  */
-static void handle_stopped_endpoint(struct xhci_hcd *xhci,
+static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci,
 		union xhci_trb *trb, struct xhci_event_cmd *event)
 {
 	unsigned int slot_id;
@@ -1077,9 +1077,8 @@ static void update_ring_for_set_deq_completion(struct xhci_hcd *xhci,
  * endpoint doorbell to restart the ring, but only if there aren't more
  * cancellations pending.
  */
-static void handle_set_deq_completion(struct xhci_hcd *xhci,
-		struct xhci_event_cmd *event,
-		union xhci_trb *trb)
+static void xhci_handle_cmd_set_deq(struct xhci_hcd *xhci,
+		struct xhci_event_cmd *event, union xhci_trb *trb)
 {
 	unsigned int slot_id;
 	unsigned int ep_index;
@@ -1171,9 +1170,8 @@ static void handle_set_deq_completion(struct xhci_hcd *xhci,
 	ring_doorbell_for_active_rings(xhci, slot_id, ep_index);
 }
 
-static void handle_reset_ep_completion(struct xhci_hcd *xhci,
-		struct xhci_event_cmd *event,
-		union xhci_trb *trb)
+static void xhci_handle_cmd_reset_ep(struct xhci_hcd *xhci,
+		struct xhci_event_cmd *event, union xhci_trb *trb)
 {
 	int slot_id;
 	unsigned int ep_index;
@@ -1517,15 +1515,15 @@ bandwidth_change:
 		complete(&xhci->addr_dev);
 		break;
 	case TRB_TYPE(TRB_STOP_RING):
-		handle_stopped_endpoint(xhci, xhci->cmd_ring->dequeue, event);
+		xhci_handle_cmd_stop_ep(xhci, xhci->cmd_ring->dequeue, event);
 		break;
 	case TRB_TYPE(TRB_SET_DEQ):
-		handle_set_deq_completion(xhci, event, xhci->cmd_ring->dequeue);
+		xhci_handle_cmd_set_deq(xhci, event, xhci->cmd_ring->dequeue);
 		break;
 	case TRB_TYPE(TRB_CMD_NOOP):
 		break;
 	case TRB_TYPE(TRB_RESET_EP):
-		handle_reset_ep_completion(xhci, event, xhci->cmd_ring->dequeue);
+		xhci_handle_cmd_reset_ep(xhci, event, xhci->cmd_ring->dequeue);
 		break;
 	case TRB_TYPE(TRB_RESET_DEV):
 		xhci_dbg(xhci, "Completed reset device command.\n");
