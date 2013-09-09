@@ -785,6 +785,7 @@ void kv_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 int kv_dpm_force_performance_level(struct radeon_device *rdev,
 				   enum radeon_dpm_forced_level level);
 void kv_dpm_powergate_uvd(struct radeon_device *rdev, bool gate);
+void kv_dpm_enable_bapm(struct radeon_device *rdev, bool enable);
 
 /* uvd v1.0 */
 uint32_t uvd_v1_0_get_rptr(struct radeon_device *rdev,

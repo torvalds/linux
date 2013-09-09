@@ -1109,6 +1109,18 @@ static void kv_update_requested_ps(struct radeon_device *rdev,
 	pi->requested_rps.ps_priv = &pi->requested_ps;
 }
 
+void kv_dpm_enable_bapm(struct radeon_device *rdev, bool enable)
+{
+	struct kv_power_info *pi = kv_get_pi(rdev);
+	int ret;
+
+	if (pi->bapm_enable) {
+		ret = kv_smc_bapm_enable(rdev, enable);
+		if (ret)
+			DRM_ERROR("kv_smc_bapm_enable failed\n");
+	}
+}
+
 int kv_dpm_enable(struct radeon_device *rdev)
 {
 	struct kv_power_info *pi = kv_get_pi(rdev);
@@ -1771,6 +1783,14 @@ int kv_dpm_set_power_state(struct radeon_device *rdev)
 			     RADEON_CG_BLOCK_SDMA |
 			     RADEON_CG_BLOCK_BIF |
 			     RADEON_CG_BLOCK_HDP), false);
+
+	if (pi->bapm_enable) {
+		ret = kv_smc_bapm_enable(rdev, rdev->pm.dpm.ac_power);
+		if (ret) {
+			DRM_ERROR("kv_smc_bapm_enable failed\n");
+			return ret;
+		}
+	}
 
 	if (rdev->family == CHIP_KABINI) {
 		if (pi->enable_dpm) {
