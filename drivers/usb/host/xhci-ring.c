@@ -779,10 +779,8 @@ static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci,
 
 	struct xhci_dequeue_state deq_state;
 
-	if (unlikely(TRB_TO_SUSPEND_PORT(
-			     le32_to_cpu(xhci->cmd_ring->dequeue->generic.field[3])))) {
-		slot_id = TRB_TO_SLOT_ID(
-			le32_to_cpu(xhci->cmd_ring->dequeue->generic.field[3]));
+	if (unlikely(TRB_TO_SUSPEND_PORT(le32_to_cpu(trb->generic.field[3])))) {
+		slot_id = TRB_TO_SLOT_ID(le32_to_cpu(trb->generic.field[3]));
 		virt_dev = xhci->devs[slot_id];
 		if (virt_dev)
 			handle_cmd_in_cmd_wait_list(xhci, virt_dev,
