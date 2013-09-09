@@ -43,7 +43,7 @@
 #include "dgnc_tty.h"
 #include "dgnc_trace.h"
 
-static inline void cls_parse_isr(struct board_t *brd, uint port);
+static inline void cls_parse_isr(struct dgnc_board *brd, uint port);
 static inline void cls_clear_break(struct channel_t *ch, int force);
 static inline void cls_set_cts_flow_control(struct channel_t *ch);
 static inline void cls_set_rts_flow_control(struct channel_t *ch);
@@ -53,7 +53,7 @@ static inline void cls_set_no_output_flow_control(struct channel_t *ch);
 static inline void cls_set_no_input_flow_control(struct channel_t *ch);
 static void cls_parse_modem(struct channel_t *ch, uchar signals);
 static void cls_tasklet(unsigned long data);
-static void cls_vpd(struct board_t *brd);
+static void cls_vpd(struct dgnc_board *brd);
 static void cls_uart_init(struct channel_t *ch);
 static void cls_uart_off(struct channel_t *ch);
 static int cls_drain(struct tty_struct *tty, uint seconds);
@@ -393,7 +393,7 @@ static inline void cls_clear_break(struct channel_t *ch, int force)
 
 
 /* Parse the ISR register for the specific port */
-static inline void cls_parse_isr(struct board_t *brd, uint port)
+static inline void cls_parse_isr(struct dgnc_board *brd, uint port)
 {
 	struct channel_t *ch;
 	uchar isr = 0;
@@ -477,7 +477,7 @@ static void cls_param(struct tty_struct *tty)
 	uchar uart_ier = 0;
         uint baud = 9600;
 	int quot = 0;
-        struct board_t *bd;
+        struct dgnc_board *bd;
 	struct channel_t *ch;
         struct un_t   *un;
 
@@ -725,7 +725,7 @@ static void cls_param(struct tty_struct *tty)
  */
 static void cls_tasklet(unsigned long data)
 {
-        struct board_t *bd = (struct board_t *) data;
+        struct dgnc_board *bd = (struct dgnc_board *) data;
 	struct channel_t *ch;
 	ulong  lock_flags;
 	int i;
@@ -802,7 +802,7 @@ static void cls_tasklet(unsigned long data)
  */
 static irqreturn_t cls_intr(int irq, void *voidbrd)
 {
-	struct board_t *brd = (struct board_t *) voidbrd;
+	struct dgnc_board *brd = (struct dgnc_board *) voidbrd;
 	uint i = 0;
 	uchar poll_reg;
 	unsigned long lock_flags;
@@ -1378,7 +1378,7 @@ static void cls_send_immediate_char(struct channel_t *ch, unsigned char c)
 	writeb(c, &ch->ch_cls_uart->txrx);
 }
 
-static void cls_vpd(struct board_t *brd)
+static void cls_vpd(struct dgnc_board *brd)
 {
         ulong           vpdbase;        /* Start of io base of the card */
         u8 __iomem           *re_map_vpdbase;/* Remapped memory of the card */

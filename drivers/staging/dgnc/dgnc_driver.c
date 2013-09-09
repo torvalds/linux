@@ -71,16 +71,16 @@ PARM_INT(trcbuf_size,	0x100000,	0644, 	"Debugging trace buffer size.");
  *
  */
 static int		dgnc_start(void);
-static int		dgnc_finalize_board_init(struct board_t *brd);
+static int		dgnc_finalize_board_init(struct dgnc_board *brd);
 static void		dgnc_init_globals(void);
 static int		dgnc_found_board(struct pci_dev *pdev, int id);
-static void		dgnc_cleanup_board(struct board_t *brd);
+static void		dgnc_cleanup_board(struct dgnc_board *brd);
 static void		dgnc_poll_handler(ulong dummy);
 static int		dgnc_init_pci(void);
 static int		dgnc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 static void		dgnc_remove_one(struct pci_dev *dev);
 static int		dgnc_probe1(struct pci_dev *pdev, int card_type);
-static void		dgnc_do_remap(struct board_t *brd);
+static void		dgnc_do_remap(struct dgnc_board *brd);
 
 /* Driver load/unload functions */
 int		dgnc_init_module(void);
@@ -106,7 +106,7 @@ static struct file_operations dgnc_BoardFops =
  * Globals
  */
 uint			dgnc_NumBoards;
-struct board_t		*dgnc_Board[MAXBOARDS];
+struct dgnc_board		*dgnc_Board[MAXBOARDS];
 DEFINE_SPINLOCK(dgnc_global_lock);
 int			dgnc_driver_state = DRIVER_INITIALIZED;
 ulong			dgnc_poll_counter;
@@ -418,7 +418,7 @@ void dgnc_cleanup_module(void)
  *
  * Free all the memory associated with a board
  */
-static void dgnc_cleanup_board(struct board_t *brd)
+static void dgnc_cleanup_board(struct dgnc_board *brd)
 {
 	int i = 0;
 
@@ -491,7 +491,7 @@ static void dgnc_cleanup_board(struct board_t *brd)
  */
 static int dgnc_found_board(struct pci_dev *pdev, int id)
 {
-	struct board_t *brd;
+	struct dgnc_board *brd;
 	unsigned int pci_irq;
 	int i = 0;
 	int rc = 0;
@@ -499,7 +499,7 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 
 	/* get the board structure and prep it */
 	brd = dgnc_Board[dgnc_NumBoards] =
-	(struct board_t *) kzalloc(sizeof(struct board_t), GFP_KERNEL);
+	(struct dgnc_board *) kzalloc(sizeof(struct dgnc_board), GFP_KERNEL);
 	if (!brd) {
 		APR(("memory allocation for board structure failed\n"));
 		return(-ENOMEM);
@@ -734,7 +734,7 @@ failed:
 }
 
 
-static int dgnc_finalize_board_init(struct board_t *brd) {
+static int dgnc_finalize_board_init(struct dgnc_board *brd) {
 	int rc = 0;
 
 	DPR_INIT(("dgnc_finalize_board_init() - start\n"));
@@ -762,7 +762,7 @@ static int dgnc_finalize_board_init(struct board_t *brd) {
 /*
  * Remap PCI memory.
  */
-static void dgnc_do_remap(struct board_t *brd)
+static void dgnc_do_remap(struct dgnc_board *brd)
 {
 
 	if (!brd || brd->magic != DGNC_BOARD_MAGIC)
@@ -802,7 +802,7 @@ static void dgnc_do_remap(struct board_t *brd)
 
 static void dgnc_poll_handler(ulong dummy)
 {
-	struct board_t *brd;
+	struct dgnc_board *brd;
 	unsigned long lock_flags;
 	int i;
 	unsigned long new_time;

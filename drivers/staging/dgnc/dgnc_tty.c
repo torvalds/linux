@@ -69,7 +69,7 @@
 /*
  * internal variables
  */
-static struct board_t	*dgnc_BoardsByMajor[256];
+static struct dgnc_board	*dgnc_BoardsByMajor[256];
 static uchar		*dgnc_TmpWriteBuf = NULL;
 static DECLARE_MUTEX(dgnc_TmpWriteSem);
 
@@ -202,7 +202,7 @@ int dgnc_tty_preinit(void)
  *
  * Init the tty subsystem for this board.
  */
-int dgnc_tty_register(struct board_t *brd)
+int dgnc_tty_register(struct dgnc_board *brd)
 {
 	int rc = 0;
 
@@ -341,7 +341,7 @@ int dgnc_tty_register(struct board_t *brd)
  * Init the tty subsystem.  Called once per board after board has been
  * downloaded and init'ed.
  */
-int dgnc_tty_init(struct board_t *brd)
+int dgnc_tty_init(struct dgnc_board *brd)
 {
 	int i;
 	void __iomem *vaddr;
@@ -460,7 +460,7 @@ void dgnc_tty_post_uninit(void)
  * Uninitialize the TTY portion of this driver.  Free all memory and
  * resources.
  */
-void dgnc_tty_uninit(struct board_t *brd)
+void dgnc_tty_uninit(struct dgnc_board *brd)
 {
 	int i = 0;
 
@@ -671,7 +671,7 @@ static void dgnc_wmove(struct channel_t *ch, char *buf, uint n)
  *=======================================================================*/
 void dgnc_input(struct channel_t *ch)
 {
-	struct board_t *bd;
+	struct dgnc_board *bd;
 	struct tty_struct *tp;
 	struct tty_ldisc *ld;
 	uint	rmask;
@@ -867,7 +867,7 @@ void dgnc_input(struct channel_t *ch)
  ************************************************************************/
 void dgnc_carrier(struct channel_t *ch)
 {
-	struct board_t *bd;
+	struct dgnc_board *bd;
 
 	int virt_carrier = 0;
 	int phys_carrier = 0;
@@ -1260,7 +1260,7 @@ void dgnc_wakeup_writes(struct channel_t *ch)
  */
 static int dgnc_tty_open(struct tty_struct *tty, struct file *file)
 {
-	struct board_t	*brd;
+	struct dgnc_board	*brd;
 	struct channel_t *ch;
 	struct un_t	*un;
 	uint		major = 0;
@@ -1667,7 +1667,7 @@ static void dgnc_tty_hangup(struct tty_struct *tty)
 static void dgnc_tty_close(struct tty_struct *tty, struct file *file)
 {
 	struct ktermios *ts;
-	struct board_t *bd;
+	struct dgnc_board *bd;
 	struct channel_t *ch;
 	struct un_t *un;
 	ulong lock_flags;
@@ -2301,7 +2301,7 @@ static int dgnc_tty_tiocmset(struct tty_struct *tty, struct file *file,
 		unsigned int set, unsigned int clear)
 #endif
 {
-	struct board_t *bd;
+	struct dgnc_board *bd;
 	struct channel_t *ch;
 	struct un_t *un;
 	int ret = -EIO;
@@ -2360,7 +2360,7 @@ static int dgnc_tty_tiocmset(struct tty_struct *tty, struct file *file,
  */
 static int dgnc_tty_send_break(struct tty_struct *tty, int msec)
 {
-	struct board_t *bd;
+	struct dgnc_board *bd;
 	struct channel_t *ch;
 	struct un_t *un;
 	int ret = -EIO;
@@ -2414,7 +2414,7 @@ static int dgnc_tty_send_break(struct tty_struct *tty, int msec)
  */
 static void dgnc_tty_wait_until_sent(struct tty_struct *tty, int timeout)
 {
-	struct board_t *bd;
+	struct dgnc_board *bd;
 	struct channel_t *ch;
 	struct un_t *un;
 	int rc;
@@ -2450,7 +2450,7 @@ static void dgnc_tty_wait_until_sent(struct tty_struct *tty, int timeout)
  */
 static void dgnc_tty_send_xchar(struct tty_struct *tty, char c)
 {
-	struct board_t *bd;
+	struct dgnc_board *bd;
 	struct channel_t *ch;
 	struct un_t *un;
 	ulong   lock_flags;
@@ -2559,7 +2559,7 @@ static int dgnc_get_modem_info(struct channel_t *ch, unsigned int  __user *value
  */
 static int dgnc_set_modem_info(struct tty_struct *tty, unsigned int command, unsigned int __user *value)
 {
-	struct board_t *bd;
+	struct dgnc_board *bd;
 	struct channel_t *ch;
 	struct un_t *un;
 	int ret = -ENXIO;
@@ -2698,7 +2698,7 @@ static int dgnc_tty_digigeta(struct tty_struct *tty, struct digi_t __user *retin
  */
 static int dgnc_tty_digiseta(struct tty_struct *tty, struct digi_t __user *new_info)
 {
-	struct board_t *bd;
+	struct dgnc_board *bd;
 	struct channel_t *ch;
 	struct un_t *un;
 	struct digi_t new_digi;
@@ -2782,7 +2782,7 @@ static int dgnc_tty_digiseta(struct tty_struct *tty, struct digi_t __user *new_i
  */
 static void dgnc_tty_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
-	struct board_t *bd;
+	struct dgnc_board *bd;
 	struct channel_t *ch;
 	struct un_t *un;
 	unsigned long lock_flags;
@@ -2878,7 +2878,7 @@ static void dgnc_tty_unthrottle(struct tty_struct *tty)
 
 static void dgnc_tty_start(struct tty_struct *tty)
 {
-	struct board_t *bd;
+	struct dgnc_board *bd;
 	struct channel_t *ch;
 	struct un_t *un;
 	ulong lock_flags;
@@ -2912,7 +2912,7 @@ static void dgnc_tty_start(struct tty_struct *tty)
 
 static void dgnc_tty_stop(struct tty_struct *tty)
 {
-	struct board_t *bd;
+	struct dgnc_board *bd;
 	struct channel_t *ch;
 	struct un_t *un;
 	ulong lock_flags;
@@ -2959,7 +2959,7 @@ static void dgnc_tty_stop(struct tty_struct *tty)
  */
 static void dgnc_tty_flush_chars(struct tty_struct *tty)
 {
-	struct board_t *bd;
+	struct dgnc_board *bd;
 	struct channel_t *ch;
 	struct un_t *un;
 	ulong lock_flags;
@@ -3056,7 +3056,7 @@ static void dgnc_tty_flush_buffer(struct tty_struct *tty)
 static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		unsigned long arg)
 {
-	struct board_t *bd;
+	struct dgnc_board *bd;
 	struct channel_t *ch;
 	struct un_t *un;
 	int rc;
