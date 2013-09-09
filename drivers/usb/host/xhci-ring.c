@@ -1547,9 +1547,9 @@ bandwidth_change:
 		xhci_handle_cmd_reset_ep(xhci, event, xhci->cmd_ring->dequeue);
 		break;
 	case TRB_TYPE(TRB_RESET_DEV):
+		WARN_ON(slot_id != TRB_TO_SLOT_ID(
+				le32_to_cpu(xhci->cmd_ring->dequeue->generic.field[3])));
 		xhci_dbg(xhci, "Completed reset device command.\n");
-		slot_id = TRB_TO_SLOT_ID(
-			le32_to_cpu(xhci->cmd_ring->dequeue->generic.field[3]));
 		virt_dev = xhci->devs[slot_id];
 		if (virt_dev)
 			handle_cmd_in_cmd_wait_list(xhci, virt_dev, event);
