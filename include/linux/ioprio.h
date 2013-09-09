@@ -52,8 +52,6 @@ enum {
  */
 static inline int task_nice_ioprio(struct task_struct *task)
 {
-	if (iso_task(task))
-		return 0;
 	return (task_nice(task) + 20) / 5;
 }
 
