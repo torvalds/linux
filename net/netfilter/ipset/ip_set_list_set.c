@@ -168,16 +168,19 @@ list_set_add(struct ip_set *set, u32 i, struct set_adt_elem *d,
 	struct set_elem *e = list_set_elem(set, map, i);
 
 	if (e->id != IPSET_INVALID_ID) {
-		if (i == map->size - 1)
+		if (i == map->size - 1) {
 			/* Last element replaced: e.g. add new,before,last */
 			ip_set_put_byindex(e->id);
-		else {
+			ip_set_ext_destroy(set, e);
+		} else {
 			struct set_elem *x = list_set_elem(set, map,
 							   map->size - 1);
 
 			/* Last element pushed off */
-			if (x->id != IPSET_INVALID_ID)
+			if (x->id != IPSET_INVALID_ID) {
 				ip_set_put_byindex(x->id);
+				ip_set_ext_destroy(set, x);
+			}
 			memmove(list_set_elem(set, map, i + 1), e,
 				set->dsize * (map->size - (i + 1)));
 		}
@@ -198,6 +201,7 @@ list_set_del(struct ip_set *set, u32 i)
 	struct set_elem *e = list_set_elem(set, map, i);
 
 	ip_set_put_byindex(e->id);
+	ip_set_ext_destroy(set, e);
 
 	if (i < map->size - 1)
 		memmove(e, list_set_elem(set, map, i + 1),
@@ -266,14 +270,14 @@ list_set_uadd(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 	bool flag_exist = flags & IPSET_FLAG_EXIST;
 	u32 i, ret = 0;
 
+	if (SET_WITH_TIMEOUT(set))
+		set_cleanup_entries(set);
+
 	/* Check already added element */
 	for (i = 0; i < map->size; i++) {
 		e = list_set_elem(set, map, i);
 		if (e->id == IPSET_INVALID_ID)
 			goto insert;
-		else if (SET_WITH_TIMEOUT(set) &&
-			 ip_set_timeout_expired(ext_timeout(e, set)))
-			continue;
 		else if (e->id != d->id)
 			continue;
 
@@ -286,6 +290,8 @@ list_set_uadd(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 			/* Can't re-add */
 			return -IPSET_ERR_EXIST;
 		/* Update extensions */
+		ip_set_ext_destroy(set, e);
+
 		if (SET_WITH_TIMEOUT(set))
 			ip_set_timeout_set(ext_timeout(e, set), ext->timeout);
 		if (SET_WITH_COUNTER(set))
@@ -423,6 +429,7 @@ list_set_flush(struct ip_set *set)
 		e = list_set_elem(set, map, i);
 		if (e->id != IPSET_INVALID_ID) {
 			ip_set_put_byindex(e->id);
+			ip_set_ext_destroy(set, e);
 			e->id = IPSET_INVALID_ID;
 		}
 	}

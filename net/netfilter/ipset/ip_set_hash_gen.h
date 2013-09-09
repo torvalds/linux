@@ -117,23 +117,6 @@ htable_bits(u32 hashsize)
 	return bits;
 }
 
-/* Destroy the hashtable part of the set */
-static void
-ahash_destroy(struct htable *t)
-{
-	struct hbucket *n;
-	u32 i;
-
-	for (i = 0; i < jhash_size(t->htable_bits); i++) {
-		n = hbucket(t, i);
-		if (n->size)
-			/* FIXME: use slab cache */
-			kfree(n->value);
-	}
-
-	ip_set_free(t);
-}
-
 static int
 hbucket_elem_add(struct hbucket *n, u8 ahash_max, size_t dsize)
 {
@@ -192,6 +175,8 @@ hbucket_elem_add(struct hbucket *n, u8 ahash_max, size_t dsize)
 #undef mtype_data_next
 #undef mtype_elem
 
+#undef mtype_ahash_destroy
+#undef mtype_ext_cleanup
 #undef mtype_add_cidr
 #undef mtype_del_cidr
 #undef mtype_ahash_memsize
@@ -230,6 +215,8 @@ hbucket_elem_add(struct hbucket *n, u8 ahash_max, size_t dsize)
 #define mtype_data_list		IPSET_TOKEN(MTYPE, _data_list)
 #define mtype_data_next		IPSET_TOKEN(MTYPE, _data_next)
 #define mtype_elem		IPSET_TOKEN(MTYPE, _elem)
+#define mtype_ahash_destroy	IPSET_TOKEN(MTYPE, _ahash_destroy)
+#define mtype_ext_cleanup	IPSET_TOKEN(MTYPE, _ext_cleanup)
 #define mtype_add_cidr		IPSET_TOKEN(MTYPE, _add_cidr)
 #define mtype_del_cidr		IPSET_TOKEN(MTYPE, _del_cidr)
 #define mtype_ahash_memsize	IPSET_TOKEN(MTYPE, _ahash_memsize)
@@ -359,6 +346,19 @@ mtype_ahash_memsize(const struct htype *h, const struct htable *t,
 	return memsize;
 }
 
+/* Get the ith element from the array block n */
+#define ahash_data(n, i, dsize)	\
+	((struct mtype_elem *)((n)->value + ((i) * (dsize))))
+
+static void
+mtype_ext_cleanup(struct ip_set *set, struct hbucket *n)
+{
+	int i;
+
+	for (i = 0; i < n->pos; i++)
+		ip_set_ext_destroy(set, ahash_data(n, i, set->dsize));
+}
+
 /* Flush a hash type of set: destroy all elements */
 static void
 mtype_flush(struct ip_set *set)
@@ -372,6 +372,8 @@ mtype_flush(struct ip_set *set)
 	for (i = 0; i < jhash_size(t->htable_bits); i++) {
 		n = hbucket(t, i);
 		if (n->size) {
+			if (set->extensions & IPSET_EXT_DESTROY)
+				mtype_ext_cleanup(set, n);
 			n->size = n->pos = 0;
 			/* FIXME: use slab cache */
 			kfree(n->value);
@@ -383,6 +385,26 @@ mtype_flush(struct ip_set *set)
 	h->elements = 0;
 }
 
+/* Destroy the hashtable part of the set */
+static void
+mtype_ahash_destroy(struct ip_set *set, struct htable *t)
+{
+	struct hbucket *n;
+	u32 i;
+
+	for (i = 0; i < jhash_size(t->htable_bits); i++) {
+		n = hbucket(t, i);
+		if (n->size) {
+			if (set->extensions & IPSET_EXT_DESTROY)
+				mtype_ext_cleanup(set, n);
+			/* FIXME: use slab cache */
+			kfree(n->value);
+		}
+	}
+
+	ip_set_free(t);
+}
+
 /* Destroy a hash type of set */
 static void
 mtype_destroy(struct ip_set *set)
@@ -392,7 +414,7 @@ mtype_destroy(struct ip_set *set)
 	if (set->extensions & IPSET_EXT_TIMEOUT)
 		del_timer_sync(&h->gc);
 
-	ahash_destroy(rcu_dereference_bh_nfnl(h->table));
+	mtype_ahash_destroy(set, rcu_dereference_bh_nfnl(h->table));
 #ifdef IP_SET_HASH_WITH_RBTREE
 	rbtree_destroy(&h->rbtree);
 #endif
@@ -430,10 +452,6 @@ mtype_same_set(const struct ip_set *a, const struct ip_set *b)
 	       a->extensions == b->extensions;
 }
 
-/* Get the ith element from the array block n */
-#define ahash_data(n, i, dsize)	\
-	((struct mtype_elem *)((n)->value + ((i) * (dsize))))
-
 /* Delete expired elements from the hashtable */
 static void
 mtype_expire(struct ip_set *set, struct htype *h, u8 nets_length, size_t dsize)
@@ -456,6 +474,7 @@ mtype_expire(struct ip_set *set, struct htype *h, u8 nets_length, size_t dsize)
 				mtype_del_cidr(h, CIDR(data->cidr),
 					       nets_length, 0);
 #endif
+				ip_set_ext_destroy(set, data);
 				if (j != n->pos - 1)
 					/* Not last one */
 					memcpy(data,
@@ -557,7 +576,7 @@ retry:
 				mtype_data_reset_flags(data, &flags);
 #endif
 				read_unlock_bh(&set->lock);
-				ahash_destroy(t);
+				mtype_ahash_destroy(set, t);
 				if (ret == -EAGAIN)
 					goto retry;
 				return ret;
@@ -578,7 +597,7 @@ retry:
 
 	pr_debug("set %s resized from %u (%p) to %u (%p)\n", set->name,
 		 orig->htable_bits, orig, t->htable_bits, t);
-	ahash_destroy(orig);
+	mtype_ahash_destroy(set, orig);
 
 	return 0;
 }
@@ -642,6 +661,7 @@ reuse_slot:
 		mtype_del_cidr(h, CIDR(data->cidr), NLEN(set->family), 0);
 		mtype_add_cidr(h, CIDR(d->cidr), NLEN(set->family), 0);
 #endif
+		ip_set_ext_destroy(set, data);
 	} else {
 		/* Use/create a new slot */
 		TUNE_AHASH_MAX(h, multi);
@@ -707,6 +727,7 @@ mtype_del(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 #ifdef IP_SET_HASH_WITH_NETS
 		mtype_del_cidr(h, CIDR(d->cidr), NLEN(set->family), 0);
 #endif
+		ip_set_ext_destroy(set, data);
 		if (n->pos + AHASH_INIT_SIZE < n->size) {
 			void *tmp = kzalloc((n->size - AHASH_INIT_SIZE)
 					    * set->dsize,
@@ -1033,7 +1054,7 @@ IPSET_TOKEN(HTYPE, _create)(struct ip_set *set, struct nlattr *tb[], u32 flags)
 	rcu_assign_pointer(h->table, t);
 
 	set->data = h;
-	if (set->family ==  NFPROTO_IPV4) {
+	if (set->family == NFPROTO_IPV4) {
 		set->variant = &IPSET_TOKEN(HTYPE, 4_variant);
 		set->dsize = ip_set_elem_len(set, tb,
 				sizeof(struct IPSET_TOKEN(HTYPE, 4_elem)));

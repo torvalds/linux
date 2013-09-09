@@ -49,11 +49,13 @@ enum ip_set_feature {
 
 /* Set extensions */
 enum ip_set_extension {
-	IPSET_EXT_NONE = 0,
-	IPSET_EXT_BIT_TIMEOUT = 1,
+	IPSET_EXT_BIT_TIMEOUT = 0,
 	IPSET_EXT_TIMEOUT = (1 << IPSET_EXT_BIT_TIMEOUT),
-	IPSET_EXT_BIT_COUNTER = 2,
+	IPSET_EXT_BIT_COUNTER = 1,
 	IPSET_EXT_COUNTER = (1 << IPSET_EXT_BIT_COUNTER),
+	/* Mark set with an extension which needs to call destroy */
+	IPSET_EXT_BIT_DESTROY = 7,
+	IPSET_EXT_DESTROY = (1 << IPSET_EXT_BIT_DESTROY),
 };
 
 #define SET_WITH_TIMEOUT(s)	((s)->extensions & IPSET_EXT_TIMEOUT)
@@ -68,6 +70,8 @@ enum ip_set_ext_id {
 
 /* Extension type */
 struct ip_set_ext_type {
+	/* Destroy extension private data (can be NULL) */
+	void (*destroy)(void *ext);
 	enum ip_set_extension type;
 	enum ipset_cadt_flags flag;
 	/* Size and minimal alignment */
@@ -88,12 +92,20 @@ struct ip_set_counter {
 	atomic64_t packets;
 };
 
+struct ip_set;
+
+static inline void
+ip_set_ext_destroy(struct ip_set *set, void *data)
+{
+	/* Check that the extension is enabled for the set and
+	 * call it's destroy function for its extension part in data.
+	 */
+}
+
 #define ext_timeout(e, s)	\
 (unsigned long *)(((void *)(e)) + (s)->offset[IPSET_EXT_ID_TIMEOUT])
 #define ext_counter(e, s)	\
 (struct ip_set_counter *)(((void *)(e)) + (s)->offset[IPSET_EXT_ID_COUNTER])
-
-struct ip_set;
 
 typedef int (*ipset_adtfn)(struct ip_set *set, void *value,
 			   const struct ip_set_ext *ext,

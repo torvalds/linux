@@ -12,6 +12,7 @@
 #define mtype_gc_test		IPSET_TOKEN(MTYPE, _gc_test)
 #define mtype_is_filled		IPSET_TOKEN(MTYPE, _is_filled)
 #define mtype_do_add		IPSET_TOKEN(MTYPE, _do_add)
+#define mtype_ext_cleanup	IPSET_TOKEN(MTYPE, _ext_cleanup)
 #define mtype_do_del		IPSET_TOKEN(MTYPE, _do_del)
 #define mtype_do_list		IPSET_TOKEN(MTYPE, _do_list)
 #define mtype_do_head		IPSET_TOKEN(MTYPE, _do_head)
@@ -47,6 +48,17 @@ mtype_gc_init(struct ip_set *set, void (*gc)(unsigned long ul_set))
 }
 
 static void
+mtype_ext_cleanup(struct ip_set *set)
+{
+	struct mtype *map = set->data;
+	u32 id;
+
+	for (id = 0; id < map->elements; id++)
+		if (test_bit(id, map->members))
+			ip_set_ext_destroy(set, get_ext(set, map, id));
+}
+
+static void
 mtype_destroy(struct ip_set *set)
 {
 	struct mtype *map = set->data;
@@ -55,8 +67,11 @@ mtype_destroy(struct ip_set *set)
 		del_timer_sync(&map->gc);
 
 	ip_set_free(map->members);
-	if (set->dsize)
+	if (set->dsize) {
+		if (set->extensions & IPSET_EXT_DESTROY)
+			mtype_ext_cleanup(set);
 		ip_set_free(map->extensions);
+	}
 	kfree(map);
 
 	set->data = NULL;
@@ -67,6 +82,8 @@ mtype_flush(struct ip_set *set)
 {
 	struct mtype *map = set->data;
 
+	if (set->extensions & IPSET_EXT_DESTROY)
+		mtype_ext_cleanup(set);
 	memset(map->members, 0, map->memsize);
 }
 
@@ -132,6 +149,8 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 			ret = 0;
 		else if (!(flags & IPSET_FLAG_EXIST))
 			return -IPSET_ERR_EXIST;
+		/* Element is re-added, cleanup extensions */
+		ip_set_ext_destroy(set, x);
 	}
 
 	if (SET_WITH_TIMEOUT(set))
@@ -152,11 +171,14 @@ mtype_del(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 {
 	struct mtype *map = set->data;
 	const struct mtype_adt_elem *e = value;
-	const void *x = get_ext(set, map, e->id);
+	void *x = get_ext(set, map, e->id);
 
-	if (mtype_do_del(e, map) ||
-	    (SET_WITH_TIMEOUT(set) &&
-	     ip_set_timeout_expired(ext_timeout(x, set))))
+	if (mtype_do_del(e, map))
+		return -IPSET_ERR_EXIST;
+
+	ip_set_ext_destroy(set, x);
+	if (SET_WITH_TIMEOUT(set) &&
+	    ip_set_timeout_expired(ext_timeout(x, set)))
 		return -IPSET_ERR_EXIST;
 
 	return 0;
@@ -235,7 +257,7 @@ mtype_gc(unsigned long ul_set)
 {
 	struct ip_set *set = (struct ip_set *) ul_set;
 	struct mtype *map = set->data;
-	const void *x;
+	void *x;
 	u32 id;
 
 	/* We run parallel with other readers (test element)
@@ -244,8 +266,10 @@ mtype_gc(unsigned long ul_set)
 	for (id = 0; id < map->elements; id++)
 		if (mtype_gc_test(id, map, set->dsize)) {
 			x = get_ext(set, map, id);
-			if (ip_set_timeout_expired(ext_timeout(x, set)))
+			if (ip_set_timeout_expired(ext_timeout(x, set))) {
 				clear_bit(id, map->members);
+				ip_set_ext_destroy(set, x);
+			}
 		}
 	read_unlock_bh(&set->lock);
 
