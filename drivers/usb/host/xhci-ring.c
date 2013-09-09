@@ -1428,6 +1428,19 @@ static void xhci_handle_cmd_reset_dev(struct xhci_hcd *xhci, int slot_id,
 				"for disabled slot %u\n", slot_id);
 }
 
+static void xhci_handle_cmd_nec_get_fw(struct xhci_hcd *xhci,
+		struct xhci_event_cmd *event)
+{
+	if (!(xhci->quirks & XHCI_NEC_HOST)) {
+		xhci->error_bitmask |= 1 << 6;
+		return;
+	}
+	xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
+			"NEC firmware version %2x.%02x",
+			NEC_FW_MAJOR(le32_to_cpu(event->status)),
+			NEC_FW_MINOR(le32_to_cpu(event->status)));
+}
+
 static void handle_cmd_completion(struct xhci_hcd *xhci,
 		struct xhci_event_cmd *event)
 {
@@ -1566,14 +1579,7 @@ bandwidth_change:
 		xhci_handle_cmd_reset_dev(xhci, slot_id, event);
 		break;
 	case TRB_TYPE(TRB_NEC_GET_FW):
-		if (!(xhci->quirks & XHCI_NEC_HOST)) {
-			xhci->error_bitmask |= 1 << 6;
-			break;
-		}
-		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
-			"NEC firmware version %2x.%02x",
-			 NEC_FW_MAJOR(le32_to_cpu(event->status)),
-			 NEC_FW_MINOR(le32_to_cpu(event->status)));
+		xhci_handle_cmd_nec_get_fw(xhci, event);
 		break;
 	default:
 		/* Skip over unknown commands on the event ring */
