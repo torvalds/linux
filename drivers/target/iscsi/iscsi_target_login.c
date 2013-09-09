@@ -873,7 +873,7 @@ int iscsit_setup_np(
 	struct __kernel_sockaddr_storage *sockaddr)
 {
 	struct socket *sock = NULL;
-	int backlog = 5, ret, opt = 0, len;
+	int backlog = ISCSIT_TCP_BACKLOG, ret, opt = 0, len;
 
 	switch (np->np_network_transport) {
 	case ISCSI_TCP:
