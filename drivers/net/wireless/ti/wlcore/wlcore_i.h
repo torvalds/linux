@@ -550,6 +550,4 @@ void wl1271_rx_filter_flatten_fields(struct wl12xx_rx_filter *filter,
 #define HW_HT_RATES_OFFSET	16
 #define HW_MIMO_RATES_OFFSET	24
 
-#define WL12XX_HW_BLOCK_SIZE	256
-
 #endif /* __WLCORE_I_H__ */

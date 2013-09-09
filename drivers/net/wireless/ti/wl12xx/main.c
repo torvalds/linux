@@ -717,6 +717,9 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 		goto out;
 	}
 
+	wl->fw_mem_block_size = 256;
+	wl->fwlog_end = 0x2000000;
+
 	/* common settings */
 	wl->scan_templ_id_2_4 = CMD_TEMPL_APP_PROBE_REQ_2_4_LEGACY;
 	wl->scan_templ_id_5 = CMD_TEMPL_APP_PROBE_REQ_5_LEGACY;
@@ -1649,6 +1652,11 @@ static bool wl12xx_lnk_low_prio(struct wl1271 *wl, u8 hlid,
 	return true;
 }
 
+static u32 wl12xx_convert_hwaddr(struct wl1271 *wl, u32 hwaddr)
+{
+	return hwaddr << 5;
+}
+
 static int wl12xx_setup(struct wl1271 *wl);
 
 static struct wlcore_ops wl12xx_ops = {
@@ -1685,6 +1693,7 @@ static struct wlcore_ops wl12xx_ops = {
 	.channel_switch		= wl12xx_cmd_channel_switch,
 	.pre_pkt_send		= NULL,
 	.set_peer_cap		= wl12xx_set_peer_cap,
+	.convert_hwaddr		= wl12xx_convert_hwaddr,
 	.lnk_high_prio		= wl12xx_lnk_high_prio,
 	.lnk_low_prio		= wl12xx_lnk_low_prio,
 };
