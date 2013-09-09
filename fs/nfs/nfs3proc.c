@@ -336,8 +336,8 @@ nfs3_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 	data->arg.create.createmode = NFS3_CREATE_UNCHECKED;
 	if (flags & O_EXCL) {
 		data->arg.create.createmode  = NFS3_CREATE_EXCLUSIVE;
-		data->arg.create.verifier[0] = jiffies;
-		data->arg.create.verifier[1] = current->pid;
+		data->arg.create.verifier[0] = cpu_to_be32(jiffies);
+		data->arg.create.verifier[1] = cpu_to_be32(current->pid);
 	}
 
 	sattr->ia_mode &= ~current_umask();
@@ -826,9 +826,10 @@ static void nfs3_proc_read_setup(struct nfs_read_data *data, struct rpc_message 
 	msg->rpc_proc = &nfs3_procedures[NFS3PROC_READ];
 }
 
-static void nfs3_proc_read_rpc_prepare(struct rpc_task *task, struct nfs_read_data *data)
+static int nfs3_proc_read_rpc_prepare(struct rpc_task *task, struct nfs_read_data *data)
 {
 	rpc_call_start(task);
+	return 0;
 }
 
 static int nfs3_write_done(struct rpc_task *task, struct nfs_write_data *data)
@@ -847,9 +848,10 @@ static void nfs3_proc_write_setup(struct nfs_write_data *data, struct rpc_messag
 	msg->rpc_proc = &nfs3_procedures[NFS3PROC_WRITE];
 }
 
-static void nfs3_proc_write_rpc_prepare(struct rpc_task *task, struct nfs_write_data *data)
+static int nfs3_proc_write_rpc_prepare(struct rpc_task *task, struct nfs_write_data *data)
 {
 	rpc_call_start(task);
+	return 0;
 }
 
 static void nfs3_proc_commit_rpc_prepare(struct rpc_task *task, struct nfs_commit_data *data)

@@ -51,6 +51,7 @@
 #include <linux/sunrpc/rpc_pipe_fs.h>
 #include <linux/sunrpc/gss_api.h>
 #include <asm/uaccess.h>
+#include <linux/hashtable.h>
 
 #include "../netns.h"
 
@@ -62,6 +63,9 @@ static const struct rpc_credops gss_nullops;
 #define GSS_RETRY_EXPIRED 5
 static unsigned int gss_expired_cred_retry_delay = GSS_RETRY_EXPIRED;
 
+#define GSS_KEY_EXPIRE_TIMEO 240
+static unsigned int gss_key_expire_timeo = GSS_KEY_EXPIRE_TIMEO;
+
 #ifdef RPC_DEBUG
 # define RPCDBG_FACILITY	RPCDBG_AUTH
 #endif
@@ -71,19 +75,33 @@ static unsigned int gss_expired_cred_retry_delay = GSS_RETRY_EXPIRED;
  * using integrity (two 4-byte integers): */
 #define GSS_VERF_SLACK		100
 
+static DEFINE_HASHTABLE(gss_auth_hash_table, 16);
+static DEFINE_SPINLOCK(gss_auth_hash_lock);
+
+struct gss_pipe {
+	struct rpc_pipe_dir_object pdo;
+	struct rpc_pipe *pipe;
+	struct rpc_clnt *clnt;
+	const char *name;
+	struct kref kref;
+};
+
 struct gss_auth {
 	struct kref kref;
+	struct hlist_node hash;
 	struct rpc_auth rpc_auth;
 	struct gss_api_mech *mech;
 	enum rpc_gss_svc service;
 	struct rpc_clnt *client;
+	struct net *net;
 	/*
 	 * There are two upcall pipes; dentry[1], named "gssd", is used
 	 * for the new text-based upcall; dentry[0] is named after the
 	 * mechanism (for example, "krb5") and exists for
 	 * backwards-compatibility with older gssd's.
 	 */
-	struct rpc_pipe *pipe[2];
+	struct gss_pipe *gss_pipe[2];
+	const char *target_name;
 };
 
 /* pipe_version >= 0 if and only if someone has a pipe open. */
@@ -294,7 +312,7 @@ static void put_pipe_version(struct net *net)
 static void
 gss_release_msg(struct gss_upcall_msg *gss_msg)
 {
-	struct net *net = rpc_net_ns(gss_msg->auth->client);
+	struct net *net = gss_msg->auth->net;
 	if (!atomic_dec_and_test(&gss_msg->count))
 		return;
 	put_pipe_version(net);
@@ -406,8 +424,8 @@ static void gss_encode_v0_msg(struct gss_upcall_msg *gss_msg)
 }
 
 static void gss_encode_v1_msg(struct gss_upcall_msg *gss_msg,
-				struct rpc_clnt *clnt,
-				const char *service_name)
+				const char *service_name,
+				const char *target_name)
 {
 	struct gss_api_mech *mech = gss_msg->auth->mech;
 	char *p = gss_msg->databuf;
@@ -417,8 +435,8 @@ static void gss_encode_v1_msg(struct gss_upcall_msg *gss_msg,
 				   mech->gm_name,
 				   from_kuid(&init_user_ns, gss_msg->uid));
 	p += gss_msg->msg.len;
-	if (clnt->cl_principal) {
-		len = sprintf(p, "target=%s ", clnt->cl_principal);
+	if (target_name) {
+		len = sprintf(p, "target=%s ", target_name);
 		p += len;
 		gss_msg->msg.len += len;
 	}
@@ -439,21 +457,8 @@ static void gss_encode_v1_msg(struct gss_upcall_msg *gss_msg,
 	BUG_ON(gss_msg->msg.len > UPCALL_BUF_LEN);
 }
 
-static void gss_encode_msg(struct gss_upcall_msg *gss_msg,
-				struct rpc_clnt *clnt,
-				const char *service_name)
-{
-	struct net *net = rpc_net_ns(clnt);
-	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
-
-	if (sn->pipe_version == 0)
-		gss_encode_v0_msg(gss_msg);
-	else /* pipe_version == 1 */
-		gss_encode_v1_msg(gss_msg, clnt, service_name);
-}
-
 static struct gss_upcall_msg *
-gss_alloc_msg(struct gss_auth *gss_auth, struct rpc_clnt *clnt,
+gss_alloc_msg(struct gss_auth *gss_auth,
 		kuid_t uid, const char *service_name)
 {
 	struct gss_upcall_msg *gss_msg;
@@ -462,31 +467,36 @@ gss_alloc_msg(struct gss_auth *gss_auth, struct rpc_clnt *clnt,
 	gss_msg = kzalloc(sizeof(*gss_msg), GFP_NOFS);
 	if (gss_msg == NULL)
 		return ERR_PTR(-ENOMEM);
-	vers = get_pipe_version(rpc_net_ns(clnt));
+	vers = get_pipe_version(gss_auth->net);
 	if (vers < 0) {
 		kfree(gss_msg);
 		return ERR_PTR(vers);
 	}
-	gss_msg->pipe = gss_auth->pipe[vers];
+	gss_msg->pipe = gss_auth->gss_pipe[vers]->pipe;
 	INIT_LIST_HEAD(&gss_msg->list);
 	rpc_init_wait_queue(&gss_msg->rpc_waitqueue, "RPCSEC_GSS upcall waitq");
 	init_waitqueue_head(&gss_msg->waitqueue);
 	atomic_set(&gss_msg->count, 1);
 	gss_msg->uid = uid;
 	gss_msg->auth = gss_auth;
-	gss_encode_msg(gss_msg, clnt, service_name);
+	switch (vers) {
+	case 0:
+		gss_encode_v0_msg(gss_msg);
+	default:
+		gss_encode_v1_msg(gss_msg, service_name, gss_auth->target_name);
+	};
 	return gss_msg;
 }
 
 static struct gss_upcall_msg *
-gss_setup_upcall(struct rpc_clnt *clnt, struct gss_auth *gss_auth, struct rpc_cred *cred)
+gss_setup_upcall(struct gss_auth *gss_auth, struct rpc_cred *cred)
 {
 	struct gss_cred *gss_cred = container_of(cred,
 			struct gss_cred, gc_base);
 	struct gss_upcall_msg *gss_new, *gss_msg;
 	kuid_t uid = cred->cr_uid;
 
-	gss_new = gss_alloc_msg(gss_auth, clnt, uid, gss_cred->gc_principal);
+	gss_new = gss_alloc_msg(gss_auth, uid, gss_cred->gc_principal);
 	if (IS_ERR(gss_new))
 		return gss_new;
 	gss_msg = gss_add_msg(gss_new);
@@ -527,7 +537,7 @@ gss_refresh_upcall(struct rpc_task *task)
 
 	dprintk("RPC: %5u %s for uid %u\n",
 		task->tk_pid, __func__, from_kuid(&init_user_ns, cred->cr_uid));
-	gss_msg = gss_setup_upcall(task->tk_client, gss_auth, cred);
+	gss_msg = gss_setup_upcall(gss_auth, cred);
 	if (PTR_ERR(gss_msg) == -EAGAIN) {
 		/* XXX: warning on the first, under the assumption we
 		 * shouldn't normally hit this case on a refresh. */
@@ -566,7 +576,7 @@ out:
 static inline int
 gss_create_upcall(struct gss_auth *gss_auth, struct gss_cred *gss_cred)
 {
-	struct net *net = rpc_net_ns(gss_auth->client);
+	struct net *net = gss_auth->net;
 	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
 	struct rpc_pipe *pipe;
 	struct rpc_cred *cred = &gss_cred->gc_base;
@@ -583,7 +593,7 @@ retry:
 	timeout = 15 * HZ;
 	if (!sn->gssd_running)
 		timeout = HZ >> 2;
-	gss_msg = gss_setup_upcall(gss_auth->client, gss_auth, cred);
+	gss_msg = gss_setup_upcall(gss_auth, cred);
 	if (PTR_ERR(gss_msg) == -EAGAIN) {
 		err = wait_event_interruptible_timeout(pipe_version_waitqueue,
 				sn->pipe_version >= 0, timeout);
@@ -797,83 +807,153 @@ gss_pipe_destroy_msg(struct rpc_pipe_msg *msg)
 	}
 }
 
-static void gss_pipes_dentries_destroy(struct rpc_auth *auth)
+static void gss_pipe_dentry_destroy(struct dentry *dir,
+		struct rpc_pipe_dir_object *pdo)
 {
-	struct gss_auth *gss_auth;
+	struct gss_pipe *gss_pipe = pdo->pdo_data;
+	struct rpc_pipe *pipe = gss_pipe->pipe;
 
-	gss_auth = container_of(auth, struct gss_auth, rpc_auth);
-	if (gss_auth->pipe[0]->dentry)
-		rpc_unlink(gss_auth->pipe[0]->dentry);
-	if (gss_auth->pipe[1]->dentry)
-		rpc_unlink(gss_auth->pipe[1]->dentry);
+	if (pipe->dentry != NULL) {
+		rpc_unlink(pipe->dentry);
+		pipe->dentry = NULL;
+	}
 }
 
-static int gss_pipes_dentries_create(struct rpc_auth *auth)
+static int gss_pipe_dentry_create(struct dentry *dir,
+		struct rpc_pipe_dir_object *pdo)
 {
-	int err;
-	struct gss_auth *gss_auth;
-	struct rpc_clnt *clnt;
+	struct gss_pipe *p = pdo->pdo_data;
+	struct dentry *dentry;
 
-	gss_auth = container_of(auth, struct gss_auth, rpc_auth);
-	clnt = gss_auth->client;
-
-	gss_auth->pipe[1]->dentry = rpc_mkpipe_dentry(clnt->cl_dentry,
-						      "gssd",
-						      clnt, gss_auth->pipe[1]);
-	if (IS_ERR(gss_auth->pipe[1]->dentry))
-		return PTR_ERR(gss_auth->pipe[1]->dentry);
-	gss_auth->pipe[0]->dentry = rpc_mkpipe_dentry(clnt->cl_dentry,
-						      gss_auth->mech->gm_name,
-						      clnt, gss_auth->pipe[0]);
-	if (IS_ERR(gss_auth->pipe[0]->dentry)) {
-		err = PTR_ERR(gss_auth->pipe[0]->dentry);
-		goto err_unlink_pipe_1;
-	}
+	dentry = rpc_mkpipe_dentry(dir, p->name, p->clnt, p->pipe);
+	if (IS_ERR(dentry))
+		return PTR_ERR(dentry);
+	p->pipe->dentry = dentry;
 	return 0;
-
-err_unlink_pipe_1:
-	rpc_unlink(gss_auth->pipe[1]->dentry);
-	return err;
 }
 
-static void gss_pipes_dentries_destroy_net(struct rpc_clnt *clnt,
-					   struct rpc_auth *auth)
-{
-	struct net *net = rpc_net_ns(clnt);
-	struct super_block *sb;
+static const struct rpc_pipe_dir_object_ops gss_pipe_dir_object_ops = {
+	.create = gss_pipe_dentry_create,
+	.destroy = gss_pipe_dentry_destroy,
+};
 
-	sb = rpc_get_sb_net(net);
-	if (sb) {
-		if (clnt->cl_dentry)
-			gss_pipes_dentries_destroy(auth);
-		rpc_put_sb_net(net);
+static struct gss_pipe *gss_pipe_alloc(struct rpc_clnt *clnt,
+		const char *name,
+		const struct rpc_pipe_ops *upcall_ops)
+{
+	struct gss_pipe *p;
+	int err = -ENOMEM;
+
+	p = kmalloc(sizeof(*p), GFP_KERNEL);
+	if (p == NULL)
+		goto err;
+	p->pipe = rpc_mkpipe_data(upcall_ops, RPC_PIPE_WAIT_FOR_OPEN);
+	if (IS_ERR(p->pipe)) {
+		err = PTR_ERR(p->pipe);
+		goto err_free_gss_pipe;
 	}
+	p->name = name;
+	p->clnt = clnt;
+	kref_init(&p->kref);
+	rpc_init_pipe_dir_object(&p->pdo,
+			&gss_pipe_dir_object_ops,
+			p);
+	return p;
+err_free_gss_pipe:
+	kfree(p);
+err:
+	return ERR_PTR(err);
 }
 
-static int gss_pipes_dentries_create_net(struct rpc_clnt *clnt,
-					 struct rpc_auth *auth)
+struct gss_alloc_pdo {
+	struct rpc_clnt *clnt;
+	const char *name;
+	const struct rpc_pipe_ops *upcall_ops;
+};
+
+static int gss_pipe_match_pdo(struct rpc_pipe_dir_object *pdo, void *data)
+{
+	struct gss_pipe *gss_pipe;
+	struct gss_alloc_pdo *args = data;
+
+	if (pdo->pdo_ops != &gss_pipe_dir_object_ops)
+		return 0;
+	gss_pipe = container_of(pdo, struct gss_pipe, pdo);
+	if (strcmp(gss_pipe->name, args->name) != 0)
+		return 0;
+	if (!kref_get_unless_zero(&gss_pipe->kref))
+		return 0;
+	return 1;
+}
+
+static struct rpc_pipe_dir_object *gss_pipe_alloc_pdo(void *data)
+{
+	struct gss_pipe *gss_pipe;
+	struct gss_alloc_pdo *args = data;
+
+	gss_pipe = gss_pipe_alloc(args->clnt, args->name, args->upcall_ops);
+	if (!IS_ERR(gss_pipe))
+		return &gss_pipe->pdo;
+	return NULL;
+}
+
+static struct gss_pipe *gss_pipe_get(struct rpc_clnt *clnt,
+		const char *name,
+		const struct rpc_pipe_ops *upcall_ops)
 {
 	struct net *net = rpc_net_ns(clnt);
-	struct super_block *sb;
-	int err = 0;
+	struct rpc_pipe_dir_object *pdo;
+	struct gss_alloc_pdo args = {
+		.clnt = clnt,
+		.name = name,
+		.upcall_ops = upcall_ops,
+	};
 
-	sb = rpc_get_sb_net(net);
-	if (sb) {
-		if (clnt->cl_dentry)
-			err = gss_pipes_dentries_create(auth);
-		rpc_put_sb_net(net);
-	}
-	return err;
+	pdo = rpc_find_or_alloc_pipe_dir_object(net,
+			&clnt->cl_pipedir_objects,
+			gss_pipe_match_pdo,
+			gss_pipe_alloc_pdo,
+			&args);
+	if (pdo != NULL)
+		return container_of(pdo, struct gss_pipe, pdo);
+	return ERR_PTR(-ENOMEM);
+}
+
+static void __gss_pipe_free(struct gss_pipe *p)
+{
+	struct rpc_clnt *clnt = p->clnt;
+	struct net *net = rpc_net_ns(clnt);
+
+	rpc_remove_pipe_dir_object(net,
+			&clnt->cl_pipedir_objects,
+			&p->pdo);
+	rpc_destroy_pipe_data(p->pipe);
+	kfree(p);
+}
+
+static void __gss_pipe_release(struct kref *kref)
+{
+	struct gss_pipe *p = container_of(kref, struct gss_pipe, kref);
+
+	__gss_pipe_free(p);
+}
+
+static void gss_pipe_free(struct gss_pipe *p)
+{
+	if (p != NULL)
+		kref_put(&p->kref, __gss_pipe_release);
 }
 
 /*
  * NOTE: we have the opportunity to use different
  * parameters based on the input flavor (which must be a pseudoflavor)
  */
-static struct rpc_auth *
-gss_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
+static struct gss_auth *
+gss_create_new(struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
 {
+	rpc_authflavor_t flavor = args->pseudoflavor;
 	struct gss_auth *gss_auth;
+	struct gss_pipe *gss_pipe;
 	struct rpc_auth * auth;
 	int err = -ENOMEM; /* XXX? */
 
@@ -883,12 +963,20 @@ gss_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
 		return ERR_PTR(err);
 	if (!(gss_auth = kmalloc(sizeof(*gss_auth), GFP_KERNEL)))
 		goto out_dec;
+	INIT_HLIST_NODE(&gss_auth->hash);
+	gss_auth->target_name = NULL;
+	if (args->target_name) {
+		gss_auth->target_name = kstrdup(args->target_name, GFP_KERNEL);
+		if (gss_auth->target_name == NULL)
+			goto err_free;
+	}
 	gss_auth->client = clnt;
+	gss_auth->net = get_net(rpc_net_ns(clnt));
 	err = -EINVAL;
 	gss_auth->mech = gss_mech_get_by_pseudoflavor(flavor);
 	if (!gss_auth->mech) {
 		dprintk("RPC:       Pseudoflavor %d not found!\n", flavor);
-		goto err_free;
+		goto err_put_net;
 	}
 	gss_auth->service = gss_pseudoflavor_to_service(gss_auth->mech, flavor);
 	if (gss_auth->service == 0)
@@ -901,42 +989,41 @@ gss_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
 	atomic_set(&auth->au_count, 1);
 	kref_init(&gss_auth->kref);
 
+	err = rpcauth_init_credcache(auth);
+	if (err)
+		goto err_put_mech;
 	/*
 	 * Note: if we created the old pipe first, then someone who
 	 * examined the directory at the right moment might conclude
 	 * that we supported only the old pipe.  So we instead create
 	 * the new pipe first.
 	 */
-	gss_auth->pipe[1] = rpc_mkpipe_data(&gss_upcall_ops_v1,
-					    RPC_PIPE_WAIT_FOR_OPEN);
-	if (IS_ERR(gss_auth->pipe[1])) {
-		err = PTR_ERR(gss_auth->pipe[1]);
-		goto err_put_mech;
+	gss_pipe = gss_pipe_get(clnt, "gssd", &gss_upcall_ops_v1);
+	if (IS_ERR(gss_pipe)) {
+		err = PTR_ERR(gss_pipe);
+		goto err_destroy_credcache;
 	}
+	gss_auth->gss_pipe[1] = gss_pipe;
 
-	gss_auth->pipe[0] = rpc_mkpipe_data(&gss_upcall_ops_v0,
-					    RPC_PIPE_WAIT_FOR_OPEN);
-	if (IS_ERR(gss_auth->pipe[0])) {
-		err = PTR_ERR(gss_auth->pipe[0]);
+	gss_pipe = gss_pipe_get(clnt, gss_auth->mech->gm_name,
+			&gss_upcall_ops_v0);
+	if (IS_ERR(gss_pipe)) {
+		err = PTR_ERR(gss_pipe);
 		goto err_destroy_pipe_1;
 	}
-	err = gss_pipes_dentries_create_net(clnt, auth);
-	if (err)
-		goto err_destroy_pipe_0;
-	err = rpcauth_init_credcache(auth);
-	if (err)
-		goto err_unlink_pipes;
+	gss_auth->gss_pipe[0] = gss_pipe;
 
-	return auth;
-err_unlink_pipes:
-	gss_pipes_dentries_destroy_net(clnt, auth);
-err_destroy_pipe_0:
-	rpc_destroy_pipe_data(gss_auth->pipe[0]);
+	return gss_auth;
 err_destroy_pipe_1:
-	rpc_destroy_pipe_data(gss_auth->pipe[1]);
+	gss_pipe_free(gss_auth->gss_pipe[1]);
+err_destroy_credcache:
+	rpcauth_destroy_credcache(auth);
 err_put_mech:
 	gss_mech_put(gss_auth->mech);
+err_put_net:
+	put_net(gss_auth->net);
 err_free:
+	kfree(gss_auth->target_name);
 	kfree(gss_auth);
 out_dec:
 	module_put(THIS_MODULE);
@@ -946,10 +1033,11 @@ out_dec:
 static void
 gss_free(struct gss_auth *gss_auth)
 {
-	gss_pipes_dentries_destroy_net(gss_auth->client, &gss_auth->rpc_auth);
-	rpc_destroy_pipe_data(gss_auth->pipe[0]);
-	rpc_destroy_pipe_data(gss_auth->pipe[1]);
+	gss_pipe_free(gss_auth->gss_pipe[0]);
+	gss_pipe_free(gss_auth->gss_pipe[1]);
 	gss_mech_put(gss_auth->mech);
+	put_net(gss_auth->net);
+	kfree(gss_auth->target_name);
 
 	kfree(gss_auth);
 	module_put(THIS_MODULE);
@@ -966,15 +1054,99 @@ gss_free_callback(struct kref *kref)
 static void
 gss_destroy(struct rpc_auth *auth)
 {
-	struct gss_auth *gss_auth;
+	struct gss_auth *gss_auth = container_of(auth,
+			struct gss_auth, rpc_auth);
 
 	dprintk("RPC:       destroying GSS authenticator %p flavor %d\n",
 			auth, auth->au_flavor);
 
+	if (hash_hashed(&gss_auth->hash)) {
+		spin_lock(&gss_auth_hash_lock);
+		hash_del(&gss_auth->hash);
+		spin_unlock(&gss_auth_hash_lock);
+	}
+
+	gss_pipe_free(gss_auth->gss_pipe[0]);
+	gss_auth->gss_pipe[0] = NULL;
+	gss_pipe_free(gss_auth->gss_pipe[1]);
+	gss_auth->gss_pipe[1] = NULL;
 	rpcauth_destroy_credcache(auth);
 
-	gss_auth = container_of(auth, struct gss_auth, rpc_auth);
 	kref_put(&gss_auth->kref, gss_free_callback);
+}
+
+static struct gss_auth *
+gss_auth_find_or_add_hashed(struct rpc_auth_create_args *args,
+		struct rpc_clnt *clnt,
+		struct gss_auth *new)
+{
+	struct gss_auth *gss_auth;
+	unsigned long hashval = (unsigned long)clnt;
+
+	spin_lock(&gss_auth_hash_lock);
+	hash_for_each_possible(gss_auth_hash_table,
+			gss_auth,
+			hash,
+			hashval) {
+		if (gss_auth->rpc_auth.au_flavor != args->pseudoflavor)
+			continue;
+		if (gss_auth->target_name != args->target_name) {
+			if (gss_auth->target_name == NULL)
+				continue;
+			if (args->target_name == NULL)
+				continue;
+			if (strcmp(gss_auth->target_name, args->target_name))
+				continue;
+		}
+		if (!atomic_inc_not_zero(&gss_auth->rpc_auth.au_count))
+			continue;
+		goto out;
+	}
+	if (new)
+		hash_add(gss_auth_hash_table, &new->hash, hashval);
+	gss_auth = new;
+out:
+	spin_unlock(&gss_auth_hash_lock);
+	return gss_auth;
+}
+
+static struct gss_auth *
+gss_create_hashed(struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
+{
+	struct gss_auth *gss_auth;
+	struct gss_auth *new;
+
+	gss_auth = gss_auth_find_or_add_hashed(args, clnt, NULL);
+	if (gss_auth != NULL)
+		goto out;
+	new = gss_create_new(args, clnt);
+	if (IS_ERR(new))
+		return new;
+	gss_auth = gss_auth_find_or_add_hashed(args, clnt, new);
+	if (gss_auth != new)
+		gss_destroy(&new->rpc_auth);
+out:
+	return gss_auth;
+}
+
+static struct rpc_auth *
+gss_create(struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
+{
+	struct gss_auth *gss_auth;
+	struct rpc_xprt *xprt = rcu_access_pointer(clnt->cl_xprt);
+
+	while (clnt != clnt->cl_parent) {
+		struct rpc_clnt *parent = clnt->cl_parent;
+		/* Find the original parent for this transport */
+		if (rcu_access_pointer(parent->cl_xprt) != xprt)
+			break;
+		clnt = parent;
+	}
+
+	gss_auth = gss_create_hashed(args, clnt);
+	if (IS_ERR(gss_auth))
+		return ERR_CAST(gss_auth);
+	return &gss_auth->rpc_auth;
 }
 
 /*
@@ -1126,10 +1298,32 @@ gss_cred_init(struct rpc_auth *auth, struct rpc_cred *cred)
 	return err;
 }
 
+/*
+ * Returns -EACCES if GSS context is NULL or will expire within the
+ * timeout (miliseconds)
+ */
+static int
+gss_key_timeout(struct rpc_cred *rc)
+{
+	struct gss_cred *gss_cred = container_of(rc, struct gss_cred, gc_base);
+	unsigned long now = jiffies;
+	unsigned long expire;
+
+	if (gss_cred->gc_ctx == NULL)
+		return -EACCES;
+
+	expire = gss_cred->gc_ctx->gc_expiry - (gss_key_expire_timeo * HZ);
+
+	if (time_after(now, expire))
+		return -EACCES;
+	return 0;
+}
+
 static int
 gss_match(struct auth_cred *acred, struct rpc_cred *rc, int flags)
 {
 	struct gss_cred *gss_cred = container_of(rc, struct gss_cred, gc_base);
+	int ret;
 
 	if (test_bit(RPCAUTH_CRED_NEW, &rc->cr_flags))
 		goto out;
@@ -1142,11 +1336,26 @@ out:
 	if (acred->principal != NULL) {
 		if (gss_cred->gc_principal == NULL)
 			return 0;
-		return strcmp(acred->principal, gss_cred->gc_principal) == 0;
+		ret = strcmp(acred->principal, gss_cred->gc_principal) == 0;
+		goto check_expire;
 	}
 	if (gss_cred->gc_principal != NULL)
 		return 0;
-	return uid_eq(rc->cr_uid, acred->uid);
+	ret = uid_eq(rc->cr_uid, acred->uid);
+
+check_expire:
+	if (ret == 0)
+		return ret;
+
+	/* Notify acred users of GSS context expiration timeout */
+	if (test_bit(RPC_CRED_NOTIFY_TIMEOUT, &acred->ac_flags) &&
+	    (gss_key_timeout(rc) != 0)) {
+		/* test will now be done from generic cred */
+		test_and_clear_bit(RPC_CRED_NOTIFY_TIMEOUT, &acred->ac_flags);
+		/* tell NFS layer that key will expire soon */
+		set_bit(RPC_CRED_KEY_EXPIRE_SOON, &acred->ac_flags);
+	}
+	return ret;
 }
 
 /*
@@ -1292,6 +1501,7 @@ gss_validate(struct rpc_task *task, __be32 *p)
 	struct xdr_netobj mic;
 	u32		flav,len;
 	u32		maj_stat;
+	__be32		*ret = ERR_PTR(-EIO);
 
 	dprintk("RPC: %5u %s\n", task->tk_pid, __func__);
 
@@ -1307,6 +1517,7 @@ gss_validate(struct rpc_task *task, __be32 *p)
 	mic.data = (u8 *)p;
 	mic.len = len;
 
+	ret = ERR_PTR(-EACCES);
 	maj_stat = gss_verify_mic(ctx->gc_gss_ctx, &verf_buf, &mic);
 	if (maj_stat == GSS_S_CONTEXT_EXPIRED)
 		clear_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags);
@@ -1324,8 +1535,9 @@ gss_validate(struct rpc_task *task, __be32 *p)
 	return p + XDR_QUADLEN(len);
 out_bad:
 	gss_put_ctx(ctx);
-	dprintk("RPC: %5u %s failed.\n", task->tk_pid, __func__);
-	return NULL;
+	dprintk("RPC: %5u %s failed ret %ld.\n", task->tk_pid, __func__,
+		PTR_ERR(ret));
+	return ret;
 }
 
 static void gss_wrap_req_encode(kxdreproc_t encode, struct rpc_rqst *rqstp,
@@ -1657,8 +1869,6 @@ static const struct rpc_authops authgss_ops = {
 	.destroy	= gss_destroy,
 	.lookup_cred	= gss_lookup_cred,
 	.crcreate	= gss_create_cred,
-	.pipes_create	= gss_pipes_dentries_create,
-	.pipes_destroy	= gss_pipes_dentries_destroy,
 	.list_pseudoflavors = gss_mech_list_pseudoflavors,
 	.info2flavor	= gss_mech_info2flavor,
 	.flavor2info	= gss_mech_flavor2info,
@@ -1675,6 +1885,7 @@ static const struct rpc_credops gss_credops = {
 	.crvalidate	= gss_validate,
 	.crwrap_req	= gss_wrap_req,
 	.crunwrap_resp	= gss_unwrap_resp,
+	.crkey_timeout	= gss_key_timeout,
 };
 
 static const struct rpc_credops gss_nullops = {
@@ -1761,6 +1972,13 @@ module_param_named(expired_cred_retry_delay,
 		   uint, 0644);
 MODULE_PARM_DESC(expired_cred_retry_delay, "Timeout (in seconds) until "
 		"the RPC engine retries an expired credential");
+
+module_param_named(key_expire_timeo,
+		   gss_key_expire_timeo,
+		   uint, 0644);
+MODULE_PARM_DESC(key_expire_timeo, "Time (in seconds) at the end of a "
+		"credential keys lifetime where the NFS layer cleans up "
+		"prior to key expiration");
 
 module_init(init_rpcsec_gss)
 module_exit(exit_rpcsec_gss)

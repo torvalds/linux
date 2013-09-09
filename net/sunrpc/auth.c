@@ -250,11 +250,11 @@ rpcauth_list_flavors(rpc_authflavor_t *array, int size)
 EXPORT_SYMBOL_GPL(rpcauth_list_flavors);
 
 struct rpc_auth *
-rpcauth_create(rpc_authflavor_t pseudoflavor, struct rpc_clnt *clnt)
+rpcauth_create(struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
 {
 	struct rpc_auth		*auth;
 	const struct rpc_authops *ops;
-	u32			flavor = pseudoflavor_to_flavor(pseudoflavor);
+	u32			flavor = pseudoflavor_to_flavor(args->pseudoflavor);
 
 	auth = ERR_PTR(-EINVAL);
 	if (flavor >= RPC_AUTH_MAXFLAVOR)
@@ -269,7 +269,7 @@ rpcauth_create(rpc_authflavor_t pseudoflavor, struct rpc_clnt *clnt)
 		goto out;
 	}
 	spin_unlock(&rpc_authflavor_lock);
-	auth = ops->create(clnt, pseudoflavor);
+	auth = ops->create(args, clnt);
 	module_put(ops->owner);
 	if (IS_ERR(auth))
 		return auth;
@@ -341,6 +341,27 @@ out_nocache:
 	return -ENOMEM;
 }
 EXPORT_SYMBOL_GPL(rpcauth_init_credcache);
+
+/*
+ * Setup a credential key lifetime timeout notification
+ */
+int
+rpcauth_key_timeout_notify(struct rpc_auth *auth, struct rpc_cred *cred)
+{
+	if (!cred->cr_auth->au_ops->key_timeout)
+		return 0;
+	return cred->cr_auth->au_ops->key_timeout(auth, cred);
+}
+EXPORT_SYMBOL_GPL(rpcauth_key_timeout_notify);
+
+bool
+rpcauth_cred_key_to_expire(struct rpc_cred *cred)
+{
+	if (!cred->cr_ops->crkey_to_expire)
+		return false;
+	return cred->cr_ops->crkey_to_expire(cred);
+}
+EXPORT_SYMBOL_GPL(rpcauth_cred_key_to_expire);
 
 /*
  * Destroy a list of credentials
