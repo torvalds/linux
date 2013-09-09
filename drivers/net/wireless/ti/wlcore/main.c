@@ -1949,8 +1949,10 @@ static void wlcore_op_stop_locked(struct wl1271 *wl)
 
 	/*
 	 * FW channels must be re-calibrated after recovery,
-	 * clear the last Reg-Domain channel configuration.
+	 * save current Reg-Domain channel configuration and clear it.
 	 */
+	memcpy(wl->reg_ch_conf_pending, wl->reg_ch_conf_last,
+	       sizeof(wl->reg_ch_conf_pending));
 	memset(wl->reg_ch_conf_last, 0, sizeof(wl->reg_ch_conf_last));
 }
 
