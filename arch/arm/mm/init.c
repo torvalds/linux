@@ -17,6 +17,7 @@
 #include <linux/nodemask.h>
 #include <linux/initrd.h>
 #include <linux/of_fdt.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/highmem.h>
 #include <linux/gfp.h>
 #include <linux/memblock.h>
@@ -377,6 +378,8 @@ void __init arm_memblock_init(struct meminfo *mi,
 	/* reserve any platform specific memblock areas */
 	if (mdesc->reserve)
 		mdesc->reserve();
+
+	early_init_dt_scan_reserved_mem();
 
 	/*
 	 * reserve memory for DMA contigouos allocations,
