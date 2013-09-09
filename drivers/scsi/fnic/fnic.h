@@ -43,6 +43,8 @@
 #define DFX                     DRV_NAME "%d: "
 
 #define DESC_CLEAN_LOW_WATERMARK 8
+#define FNIC_UCSM_DFLT_THROTTLE_CNT_BLD	16 /* UCSM default throttle count */
+#define FNIC_MIN_IO_REQ			256 /* Min IO throttle count */
 #define FNIC_MAX_IO_REQ		2048 /* scsi_cmnd tag map entries */
 #define	FNIC_IO_LOCKS		64 /* IO locks: power of 2 */
 #define FNIC_DFLT_QUEUE_DEPTH	32
@@ -223,6 +225,7 @@ struct fnic {
 	char name[IFNAMSIZ];
 	struct timer_list notify_timer; /* used for MSI interrupts */
 
+	unsigned int fnic_max_tag_id;
 	unsigned int err_intr_offset;
 	unsigned int link_intr_offset;
 

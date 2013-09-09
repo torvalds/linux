@@ -74,6 +74,10 @@ module_param(fnic_trace_max_pages, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(fnic_trace_max_pages, "Total allocated memory pages "
 					"for fnic trace buffer");
 
+static unsigned int fnic_max_qdepth = FNIC_DFLT_QUEUE_DEPTH;
+module_param(fnic_max_qdepth, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(fnic_max_qdepth, "Queue depth to report for each LUN");
+
 static struct libfc_function_template fnic_transport_template = {
 	.frame_send = fnic_send,
 	.lport_set_port_id = fnic_set_port_id,
@@ -91,7 +95,7 @@ static int fnic_slave_alloc(struct scsi_device *sdev)
 	if (!rport || fc_remote_port_chkready(rport))
 		return -ENXIO;
 
-	scsi_activate_tcq(sdev, FNIC_DFLT_QUEUE_DEPTH);
+	scsi_activate_tcq(sdev, fnic_max_qdepth);
 	return 0;
 }
 
@@ -552,13 +556,6 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	host->transportt = fnic_fc_transport;
 
-	err = scsi_init_shared_tag_map(host, FNIC_MAX_IO_REQ);
-	if (err) {
-		shost_printk(KERN_ERR, fnic->lport->host,
-			     "Unable to alloc shared tag map\n");
-		goto err_out_free_hba;
-	}
-
 	/* Setup PCI resources */
 	pci_set_drvdata(pdev, fnic);
 
@@ -671,6 +668,22 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			     "aborting.\n");
 		goto err_out_dev_close;
 	}
+
+	/* Configure Maximum Outstanding IO reqs*/
+	if (fnic->config.io_throttle_count != FNIC_UCSM_DFLT_THROTTLE_CNT_BLD) {
+		host->can_queue = min_t(u32, FNIC_MAX_IO_REQ,
+					max_t(u32, FNIC_MIN_IO_REQ,
+					fnic->config.io_throttle_count));
+	}
+	fnic->fnic_max_tag_id = host->can_queue;
+
+	err = scsi_init_shared_tag_map(host, fnic->fnic_max_tag_id);
+	if (err) {
+		shost_printk(KERN_ERR, fnic->lport->host,
+			  "Unable to alloc shared tag map\n");
+		goto err_out_dev_close;
+	}
+
 	host->max_lun = fnic->config.luns_per_tgt;
 	host->max_id = FNIC_MAX_FCP_TARGET;
 	host->max_cmd_len = FCOE_MAX_CMD_LEN;

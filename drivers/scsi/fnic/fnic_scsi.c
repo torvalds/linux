@@ -736,7 +736,7 @@ static void fnic_fcpio_icmnd_cmpl_handler(struct fnic *fnic,
 	fcpio_tag_id_dec(&tag, &id);
 	icmnd_cmpl = &desc->u.icmnd_cmpl;
 
-	if (id >= FNIC_MAX_IO_REQ) {
+	if (id >= fnic->fnic_max_tag_id) {
 		shost_printk(KERN_ERR, fnic->lport->host,
 			"Tag out of range tag %x hdr status = %s\n",
 			     id, fnic_fcpio_status_to_str(hdr_status));
@@ -913,7 +913,7 @@ static void fnic_fcpio_itmf_cmpl_handler(struct fnic *fnic,
 	fcpio_header_dec(&desc->hdr, &type, &hdr_status, &tag);
 	fcpio_tag_id_dec(&tag, &id);
 
-	if ((id & FNIC_TAG_MASK) >= FNIC_MAX_IO_REQ) {
+	if ((id & FNIC_TAG_MASK) >= fnic->fnic_max_tag_id) {
 		shost_printk(KERN_ERR, fnic->lport->host,
 		"Tag out of range tag %x hdr status = %s\n",
 		id, fnic_fcpio_status_to_str(hdr_status));
@@ -1127,7 +1127,7 @@ static void fnic_cleanup_io(struct fnic *fnic, int exclude_id)
 	spinlock_t *io_lock;
 	unsigned long start_time = 0;
 
-	for (i = 0; i < FNIC_MAX_IO_REQ; i++) {
+	for (i = 0; i < fnic->fnic_max_tag_id; i++) {
 		if (i == exclude_id)
 			continue;
 
@@ -1210,7 +1210,7 @@ void fnic_wq_copy_cleanup_handler(struct vnic_wq_copy *wq,
 	fcpio_tag_id_dec(&desc->hdr.tag, &id);
 	id &= FNIC_TAG_MASK;
 
-	if (id >= FNIC_MAX_IO_REQ)
+	if (id >= fnic->fnic_max_tag_id)
 		return;
 
 	sc = scsi_host_find_tag(fnic->lport->host, id);
@@ -1314,7 +1314,7 @@ static void fnic_rport_exch_reset(struct fnic *fnic, u32 port_id)
 	if (fnic->in_remove)
 		return;
 
-	for (tag = 0; tag < FNIC_MAX_IO_REQ; tag++) {
+	for (tag = 0; tag < fnic->fnic_max_tag_id; tag++) {
 		abt_tag = tag;
 		io_lock = fnic_io_lock_tag(fnic, tag);
 		spin_lock_irqsave(io_lock, flags);
@@ -1448,7 +1448,7 @@ void fnic_terminate_rport_io(struct fc_rport *rport)
 	if (fnic->in_remove)
 		return;
 
-	for (tag = 0; tag < FNIC_MAX_IO_REQ; tag++) {
+	for (tag = 0; tag < fnic->fnic_max_tag_id; tag++) {
 		abt_tag = tag;
 		io_lock = fnic_io_lock_tag(fnic, tag);
 		spin_lock_irqsave(io_lock, flags);
@@ -1781,7 +1781,7 @@ static int fnic_clean_pending_aborts(struct fnic *fnic,
 	DECLARE_COMPLETION_ONSTACK(tm_done);
 	enum fnic_ioreq_state old_ioreq_state;
 
-	for (tag = 0; tag < FNIC_MAX_IO_REQ; tag++) {
+	for (tag = 0; tag < fnic->fnic_max_tag_id; tag++) {
 		io_lock = fnic_io_lock_tag(fnic, tag);
 		spin_lock_irqsave(io_lock, flags);
 		sc = scsi_host_find_tag(fnic->lport->host, tag);
@@ -2404,7 +2404,7 @@ int fnic_is_abts_pending(struct fnic *fnic, struct scsi_cmnd *lr_sc)
 		lun_dev = lr_sc->device;
 
 	/* walk again to check, if IOs are still pending in fw */
-	for (tag = 0; tag < FNIC_MAX_IO_REQ; tag++) {
+	for (tag = 0; tag < fnic->fnic_max_tag_id; tag++) {
 		sc = scsi_host_find_tag(fnic->lport->host, tag);
 		/*
 		 * ignore this lun reset cmd or cmds that do not belong to
