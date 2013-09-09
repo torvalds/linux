@@ -1091,6 +1091,7 @@ int trinity_dpm_enable(struct radeon_device *rdev)
 	trinity_program_sclk_dpm(rdev);
 	trinity_start_dpm(rdev);
 	trinity_wait_for_dpm_enabled(rdev);
+	trinity_dpm_bapm_enable(rdev, false);
 	trinity_release_mutex(rdev);
 
 	if (rdev->irq.installed &&
@@ -1116,6 +1117,7 @@ void trinity_dpm_disable(struct radeon_device *rdev)
 		trinity_release_mutex(rdev);
 		return;
 	}
+	trinity_dpm_bapm_enable(rdev, false);
 	trinity_disable_clock_power_gating(rdev);
 	sumo_clear_vc(rdev);
 	trinity_wait_for_level_0(rdev);

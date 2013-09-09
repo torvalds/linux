@@ -118,6 +118,7 @@ struct trinity_power_info {
 #define TRINITY_AT_DFLT            30
 
 /* trinity_smc.c */
+int trinity_dpm_bapm_enable(struct radeon_device *rdev, bool enable);
 int trinity_dpm_config(struct radeon_device *rdev, bool enable);
 int trinity_uvd_dpm_config(struct radeon_device *rdev);
 int trinity_dpm_force_state(struct radeon_device *rdev, u32 n);
