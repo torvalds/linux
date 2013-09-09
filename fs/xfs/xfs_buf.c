@@ -35,6 +35,7 @@
 #include <linux/freezer.h>
 
 #include "xfs_sb.h"
+#include "xfs_trans_resv.h"
 #include "xfs_log.h"
 #include "xfs_ag.h"
 #include "xfs_mount.h"
@@ -303,7 +304,7 @@ _xfs_buf_free_pages(
  *	Releases the specified buffer.
  *
  * 	The modification state of any associated pages is left unchanged.
- * 	The buffer most not be on any hash - use xfs_buf_rele instead for
+ * 	The buffer must not be on any hash - use xfs_buf_rele instead for
  * 	hashed and refcounted buffers
  */
 void
@@ -1621,7 +1622,7 @@ xfs_setsize_buftarg_flags(
 /*
  *	When allocating the initial buffer target we have not yet
  *	read in the superblock, so don't know what sized sectors
- *	are being used is at this early stage.  Play safe.
+ *	are being used at this early stage.  Play safe.
  */
 STATIC int
 xfs_setsize_buftarg_early(

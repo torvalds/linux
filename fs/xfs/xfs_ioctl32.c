@@ -33,8 +33,6 @@
 #include "xfs_inode.h"
 #include "xfs_itable.h"
 #include "xfs_error.h"
-#include "xfs_dfrag.h"
-#include "xfs_vnodeops.h"
 #include "xfs_fsops.h"
 #include "xfs_alloc.h"
 #include "xfs_rtalloc.h"
@@ -644,7 +642,7 @@ xfs_file_compat_ioctl(
 		error = mnt_want_write_file(filp);
 		if (error)
 			return error;
-		error = xfs_swapext(&sxp);
+		error = xfs_ioc_swapext(&sxp);
 		mnt_drop_write_file(filp);
 		return -error;
 	}

@@ -510,7 +510,7 @@ xfs_btree_ptr_addr(
 }
 
 /*
- * Get a the root block which is stored in the inode.
+ * Get the root block which is stored in the inode.
  *
  * For now this btree implementation assumes the btree root is always
  * stored in the if_broot field of an inode fork.
@@ -978,6 +978,7 @@ xfs_btree_init_block_int(
 			buf->bb_u.l.bb_owner = cpu_to_be64(owner);
 			uuid_copy(&buf->bb_u.l.bb_uuid, &mp->m_sb.sb_uuid);
 			buf->bb_u.l.bb_pad = 0;
+			buf->bb_u.l.bb_lsn = 0;
 		}
 	} else {
 		/* owner is a 32 bit value on short blocks */
@@ -989,6 +990,7 @@ xfs_btree_init_block_int(
 			buf->bb_u.s.bb_blkno = cpu_to_be64(blkno);
 			buf->bb_u.s.bb_owner = cpu_to_be32(__owner);
 			uuid_copy(&buf->bb_u.s.bb_uuid, &mp->m_sb.sb_uuid);
+			buf->bb_u.s.bb_lsn = 0;
 		}
 	}
 }
@@ -1684,7 +1686,7 @@ xfs_lookup_get_search_key(
 
 /*
  * Lookup the record.  The cursor is made to point to it, based on dir.
- * Return 0 if can't find any such record, 1 for success.
+ * stat is set to 0 if can't find any such record, 1 for success.
  */
 int					/* error */
 xfs_btree_lookup(
@@ -2756,7 +2758,6 @@ xfs_btree_make_block_unfull(
 
 		if (numrecs < cur->bc_ops->get_dmaxrecs(cur, level)) {
 			/* A root block that can be made bigger. */
-
 			xfs_iroot_realloc(ip, 1, cur->bc_private.b.whichfork);
 		} else {
 			/* A root block that needs replacing */
