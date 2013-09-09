@@ -188,7 +188,7 @@ static struct resource cmt10_resources[] = {
 					  &cmt##idx##_platform_data,	\
 					  sizeof(struct sh_timer_config))
 
-void __init r8a73a4_add_standard_devices(void)
+void __init r8a73a4_add_dt_devices(void)
 {
 	r8a73a4_register_scif(SCIFA0);
 	r8a73a4_register_scif(SCIFA1);
@@ -196,10 +196,15 @@ void __init r8a73a4_add_standard_devices(void)
 	r8a73a4_register_scif(SCIFB1);
 	r8a73a4_register_scif(SCIFB2);
 	r8a73a4_register_scif(SCIFB3);
+	r8a7790_register_cmt(10);
+}
+
+void __init r8a73a4_add_standard_devices(void)
+{
+	r8a73a4_add_dt_devices();
 	r8a73a4_register_irqc(0);
 	r8a73a4_register_irqc(1);
 	r8a73a4_register_thermal();
-	r8a7790_register_cmt(10);
 }
 
 void __init r8a73a4_init_delay(void)
@@ -210,11 +215,6 @@ void __init r8a73a4_init_delay(void)
 }
 
 #ifdef CONFIG_USE_OF
-void __init r8a73a4_add_standard_devices_dt(void)
-{
-	platform_device_register_simple("cpufreq-cpu0", -1, NULL, 0);
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
-}
 
 static const char *r8a73a4_boards_compat_dt[] __initdata = {
 	"renesas,r8a73a4",
@@ -223,8 +223,6 @@ static const char *r8a73a4_boards_compat_dt[] __initdata = {
 
 DT_MACHINE_START(R8A73A4_DT, "Generic R8A73A4 (Flattened Device Tree)")
 	.init_early	= r8a73a4_init_delay,
-	.init_machine	= r8a73a4_add_standard_devices_dt,
-	.init_time	= shmobile_timer_init,
 	.dt_compat	= r8a73a4_boards_compat_dt,
 MACHINE_END
 #endif /* CONFIG_USE_OF */

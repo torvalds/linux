@@ -38,6 +38,12 @@
 		      <0xf0000100 0x100>;
 	};
 
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupts = <0 55 4>,
+			     <0 56 4>;
+	};
+
 	irqpin0: irqpin@e6900000 {
 		compatible = "renesas,intc-irqpin";
 		#interrupt-cells = <2>;

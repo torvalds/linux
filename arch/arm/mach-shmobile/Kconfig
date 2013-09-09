@@ -109,17 +109,21 @@ config ARCH_EMEV2
 
 comment "SH-Mobile Board Type"
 
-config MACH_AG5EVM
-	bool "AG5EVM board"
-	depends on ARCH_SH73A0
-	select ARCH_REQUIRE_GPIOLIB
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-	select SH_LCD_MIPI_DSI
-
 config MACH_APE6EVM
 	bool "APE6EVM board"
 	depends on ARCH_R8A73A4
 	select USE_OF
+
+config MACH_APE6EVM_REFERENCE
+	bool "APE6EVM board - Reference Device Tree Implementation"
+	depends on ARCH_R8A73A4
+	select USE_OF
+	---help---
+	   Use reference implementation of APE6EVM board support
+	   which makes a greater use of device tree at the expense
+	   of not supporting a number of devices.
+
+	   This is intended to aid developers
 
 config MACH_MACKEREL
 	bool "mackerel board"
@@ -128,12 +132,6 @@ config MACH_MACKEREL
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	select SND_SOC_AK4642 if SND_SIMPLE_CARD
 	select USE_OF
-
-config MACH_KOTA2
-	bool "KOTA2 board"
-	depends on ARCH_SH73A0
-	select ARCH_REQUIRE_GPIOLIB
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
 config MACH_ARMADILLO800EVA
 	bool "Armadillo-800 EVA board"
@@ -165,11 +163,26 @@ config MACH_BOCKW
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	select USE_OF
 
+config MACH_BOCKW_REFERENCE
+	bool "BOCK-W  - Reference Device Tree Implementation"
+	depends on ARCH_R8A7778
+	select ARCH_REQUIRE_GPIOLIB
+	select RENESAS_INTC_IRQPIN
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
+	select USE_OF
+	---help---
+	   Use reference implementation of BockW board support
+	   which makes use of device tree at the expense
+	   of not supporting a number of devices.
+
+	   This is intended to aid developers
+
 config MACH_MARZEN
 	bool "MARZEN board"
 	depends on ARCH_R8A7779
 	select ARCH_REQUIRE_GPIOLIB
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
+	select USE_OF
 
 config MACH_MARZEN_REFERENCE
 	bool "MARZEN board - Reference Device Tree Implementation"
@@ -188,6 +201,17 @@ config MACH_LAGER
 	bool "Lager board"
 	depends on ARCH_R8A7790
 	select USE_OF
+
+config MACH_LAGER_REFERENCE
+	bool "Lager board - Reference Device Tree Implementation"
+	depends on ARCH_R8A7790
+	select USE_OF
+	---help---
+	   Use reference implementation of Lager board support
+	   which makes use of device tree at the expense
+	   of not supporting a number of devices.
+
+	   This is intended to aid developers
 
 config MACH_KZM9D
 	bool "KZM9D board"
