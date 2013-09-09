@@ -154,6 +154,9 @@ do {								\
 	FNIC_CHECK_LOGGING(FNIC_ISR_LOGGING,			\
 			 shost_printk(kern_level, host, fmt, ##args);)
 
+#define FNIC_MAIN_NOTE(kern_level, host, fmt, args...)          \
+	shost_printk(kern_level, host, fmt, ##args)
+
 extern const char *fnic_state_str[];
 
 enum fnic_intx_intr_index {
@@ -215,6 +218,7 @@ struct fnic {
 
 	struct vnic_stats *stats;
 	unsigned long stats_time;	/* time of stats update */
+	unsigned long stats_reset_time; /* time of stats reset */
 	struct vnic_nic_cfg *nic_cfg;
 	char name[IFNAMSIZ];
 	struct timer_list notify_timer; /* used for MSI interrupts */
@@ -359,4 +363,5 @@ fnic_chk_state_flags_locked(struct fnic *fnic, unsigned long st_flags)
 	return ((fnic->state_flags & st_flags) == st_flags);
 }
 void __fnic_set_state_flags(struct fnic *, unsigned long, unsigned long);
+void fnic_dump_fchost_stats(struct Scsi_Host *, struct fc_host_statistics *);
 #endif /* _FNIC_H_ */
