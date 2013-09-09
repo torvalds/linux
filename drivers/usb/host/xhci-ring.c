@@ -1521,6 +1521,7 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 	dma_addr_t cmd_dequeue_dma;
 	u32 cmd_comp_code;
 	union xhci_trb *cmd_trb;
+	u32 cmd_type;
 
 	cmd_dma = le64_to_cpu(event->cmd_trb);
 	cmd_trb = xhci->cmd_ring->dequeue;
@@ -1559,40 +1560,40 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 			return;
 	}
 
-	switch (le32_to_cpu(cmd_trb->generic.field[3])
-		& TRB_TYPE_BITMASK) {
-	case TRB_TYPE(TRB_ENABLE_SLOT):
+	cmd_type = TRB_FIELD_TO_TYPE(le32_to_cpu(cmd_trb->generic.field[3]));
+	switch (cmd_type) {
+	case TRB_ENABLE_SLOT:
 		xhci_handle_cmd_enable_slot(xhci, slot_id, cmd_comp_code);
 		break;
-	case TRB_TYPE(TRB_DISABLE_SLOT):
+	case TRB_DISABLE_SLOT:
 		xhci_handle_cmd_disable_slot(xhci, slot_id);
 		break;
-	case TRB_TYPE(TRB_CONFIG_EP):
+	case TRB_CONFIG_EP:
 		xhci_handle_cmd_config_ep(xhci, slot_id, event, cmd_comp_code);
 		break;
-	case TRB_TYPE(TRB_EVAL_CONTEXT):
+	case TRB_EVAL_CONTEXT:
 		xhci_handle_cmd_eval_ctx(xhci, slot_id, event, cmd_comp_code);
 		break;
-	case TRB_TYPE(TRB_ADDR_DEV):
+	case TRB_ADDR_DEV:
 		xhci_handle_cmd_addr_dev(xhci, slot_id, cmd_comp_code);
 		break;
-	case TRB_TYPE(TRB_STOP_RING):
+	case TRB_STOP_RING:
 		xhci_handle_cmd_stop_ep(xhci, cmd_trb, event);
 		break;
-	case TRB_TYPE(TRB_SET_DEQ):
+	case TRB_SET_DEQ:
 		xhci_handle_cmd_set_deq(xhci, event, cmd_trb);
 		break;
-	case TRB_TYPE(TRB_CMD_NOOP):
+	case TRB_CMD_NOOP:
 		break;
-	case TRB_TYPE(TRB_RESET_EP):
+	case TRB_RESET_EP:
 		xhci_handle_cmd_reset_ep(xhci, event, cmd_trb);
 		break;
-	case TRB_TYPE(TRB_RESET_DEV):
+	case TRB_RESET_DEV:
 		WARN_ON(slot_id != TRB_TO_SLOT_ID(
 				le32_to_cpu(cmd_trb->generic.field[3])));
 		xhci_handle_cmd_reset_dev(xhci, slot_id, event);
 		break;
-	case TRB_TYPE(TRB_NEC_GET_FW):
+	case TRB_NEC_GET_FW:
 		xhci_handle_cmd_nec_get_fw(xhci, event);
 		break;
 	default:
