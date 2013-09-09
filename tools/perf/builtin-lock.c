@@ -400,17 +400,17 @@ static int report_lock_acquire_event(struct perf_evsel *evsel,
 
 	ls = lock_stat_findnew(addr, name);
 	if (!ls)
-		return -1;
+		return -ENOMEM;
 	if (ls->discard)
 		return 0;
 
 	ts = thread_stat_findnew(sample->tid);
 	if (!ts)
-		return -1;
+		return -ENOMEM;
 
 	seq = get_seq(ts, addr);
 	if (!seq)
-		return -1;
+		return -ENOMEM;
 
 	switch (seq->state) {
 	case SEQ_STATE_UNINITIALIZED:
@@ -472,17 +472,17 @@ static int report_lock_acquired_event(struct perf_evsel *evsel,
 
 	ls = lock_stat_findnew(addr, name);
 	if (!ls)
-		return -1;
+		return -ENOMEM;
 	if (ls->discard)
 		return 0;
 
 	ts = thread_stat_findnew(sample->tid);
 	if (!ts)
-		return -1;
+		return -ENOMEM;
 
 	seq = get_seq(ts, addr);
 	if (!seq)
-		return -1;
+		return -ENOMEM;
 
 	switch (seq->state) {
 	case SEQ_STATE_UNINITIALIZED:
@@ -533,17 +533,17 @@ static int report_lock_contended_event(struct perf_evsel *evsel,
 
 	ls = lock_stat_findnew(addr, name);
 	if (!ls)
-		return -1;
+		return -ENOMEM;
 	if (ls->discard)
 		return 0;
 
 	ts = thread_stat_findnew(sample->tid);
 	if (!ts)
-		return -1;
+		return -ENOMEM;
 
 	seq = get_seq(ts, addr);
 	if (!seq)
-		return -1;
+		return -ENOMEM;
 
 	switch (seq->state) {
 	case SEQ_STATE_UNINITIALIZED:
@@ -587,17 +587,17 @@ static int report_lock_release_event(struct perf_evsel *evsel,
 
 	ls = lock_stat_findnew(addr, name);
 	if (!ls)
-		return -1;
+		return -ENOMEM;
 	if (ls->discard)
 		return 0;
 
 	ts = thread_stat_findnew(sample->tid);
 	if (!ts)
-		return -1;
+		return -ENOMEM;
 
 	seq = get_seq(ts, addr);
 	if (!seq)
-		return -1;
+		return -ENOMEM;
 
 	switch (seq->state) {
 	case SEQ_STATE_UNINITIALIZED:
