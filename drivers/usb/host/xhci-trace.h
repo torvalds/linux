@@ -120,8 +120,8 @@ DECLARE_EVENT_CLASS(xhci_log_event,
 	),
 	TP_fast_assign(
 		__entry->va = trb_va;
-		__entry->dma = le64_to_cpu(((u64)ev->field[1]) << 32 |
-						ev->field[0]);
+		__entry->dma = ((u64)le32_to_cpu(ev->field[1])) << 32 |
+					le32_to_cpu(ev->field[0]);
 		__entry->status = le32_to_cpu(ev->field[2]);
 		__entry->flags = le32_to_cpu(ev->field[3]);
 		memcpy(__get_dynamic_array(trb), trb_va,
