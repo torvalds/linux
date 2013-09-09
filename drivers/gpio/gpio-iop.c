@@ -16,8 +16,22 @@
 #include <linux/errno.h>
 #include <linux/gpio.h>
 #include <linux/export.h>
+#include <linux/platform_device.h>
 
 #define IOP3XX_N_GPIOS	8
+
+#define GPIO_IN			0
+#define GPIO_OUT		1
+#define GPIO_LOW		0
+#define GPIO_HIGH		1
+
+/* Memory base offset */
+static void __iomem *base;
+
+#define IOP3XX_GPIO_REG(reg)	(base + (reg))
+#define IOP3XX_GPOE		(volatile u32 *)IOP3XX_GPIO_REG(0x0000)
+#define IOP3XX_GPID		(volatile u32 *)IOP3XX_GPIO_REG(0x0004)
+#define IOP3XX_GPOD		(volatile u32 *)IOP3XX_GPIO_REG(0x0008)
 
 static void gpio_line_config(int line, int direction)
 {
@@ -83,8 +97,26 @@ static struct gpio_chip iop3xx_chip = {
 	.ngpio			= IOP3XX_N_GPIOS,
 };
 
-static int __init iop3xx_gpio_setup(void)
+static int iop3xx_gpio_probe(struct platform_device *pdev)
 {
+	struct resource *res;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	base = (void *) res->start;
+
 	return gpiochip_add(&iop3xx_chip);
 }
-arch_initcall(iop3xx_gpio_setup);
+
+static struct platform_driver iop3xx_gpio_driver = {
+	.driver = {
+		.name = "gpio-iop",
+		.owner = THIS_MODULE,
+	},
+	.probe = iop3xx_gpio_probe,
+};
+
+static int __init iop3xx_gpio_init(void)
+{
+	return platform_driver_register(&iop3xx_gpio_driver);
+}
+arch_initcall(iop3xx_gpio_init);

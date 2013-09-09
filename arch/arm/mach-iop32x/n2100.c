@@ -41,6 +41,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <mach/time.h>
+#include "gpio-iop32x.h"
 
 /*
  * N2100 timer tick configuration.
@@ -345,6 +346,7 @@ device_initcall(n2100_request_gpios);
 
 static void __init n2100_init_machine(void)
 {
+	register_iop32x_gpio();
 	platform_device_register(&iop3xx_i2c0_device);
 	platform_device_register(&n2100_flash_device);
 	platform_device_register(&n2100_serial_device);
