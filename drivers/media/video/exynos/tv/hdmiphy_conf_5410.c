@@ -12,6 +12,15 @@
 
 #include "hdmi.h"
 
+#if 0   // HDMI PHY Configuration
+    buffer[4]  |= 0xC0;   // PHY ADDR 0x10 : CH0 LEVEL MAX
+    buffer[19] |= 0x03;   // PHY ADDR 0x4C : CH1 LEVEL MAX
+    buffer[23] |= 0xFB;   // PHY ADDR 0x5C : CH2 LEVEL MAX & TX_CLK_LEVEL_MAX
+
+    buffer[15] |= 0x80;   // PHY ADDR 0x3C : TX_AMP_LEVEL MAX
+    buffer[16] |= 0x0F;   // PHY ADDR 0x40 : TX_AMP_LEVEL_MAX
+#endif	
+
 static const u8 hdmiphy_conf27[32] = {
 #if !defined(CONFIG_MACH_ODROIDXU)
 	0x01, 0xd1, 0x22, 0x51, 0x40, 0x08, 0xfc, 0x20,
