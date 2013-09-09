@@ -25,9 +25,6 @@
 #define IOP3XX_GPIO_LINE(x)	(x)
 
 #ifndef __ASSEMBLY__
-extern void gpio_line_config(int line, int direction);
-extern int  gpio_line_get(int line);
-extern void gpio_line_set(int line, int value);
 extern int init_atu;
 extern int iop3xx_get_init_atu(void);
 #endif
