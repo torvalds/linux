@@ -1655,7 +1655,7 @@ static void handle_device_notification(struct xhci_hcd *xhci,
 	u32 slot_id;
 	struct usb_device *udev;
 
-	slot_id = TRB_TO_SLOT_ID(event->generic.field[3]);
+	slot_id = TRB_TO_SLOT_ID(le32_to_cpu(event->generic.field[3]));
 	if (!xhci->devs[slot_id]) {
 		xhci_warn(xhci, "Device Notification event for "
 				"unused slot %u\n", slot_id);
