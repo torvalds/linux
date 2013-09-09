@@ -133,6 +133,8 @@ struct pl08x_bus_data {
 	u8 buswidth;
 };
 
+#define IS_BUS_ALIGNED(bus) IS_ALIGNED((bus)->addr, (bus)->buswidth)
+
 /**
  * struct pl08x_phy_chan - holder for the physical channels
  * @id: physical index to this channel
@@ -845,10 +847,13 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 
 		pl08x_choose_master_bus(&bd, &mbus, &sbus, cctl);
 
-		dev_vdbg(&pl08x->adev->dev, "src=0x%08x%s/%u dst=0x%08x%s/%u len=%zu\n",
-			bd.srcbus.addr, cctl & PL080_CONTROL_SRC_INCR ? "+" : "",
+		dev_vdbg(&pl08x->adev->dev,
+			"src=0x%08llx%s/%u dst=0x%08llx%s/%u len=%zu\n",
+			(u64)bd.srcbus.addr,
+			cctl & PL080_CONTROL_SRC_INCR ? "+" : "",
 			bd.srcbus.buswidth,
-			bd.dstbus.addr, cctl & PL080_CONTROL_DST_INCR ? "+" : "",
+			(u64)bd.dstbus.addr,
+			cctl & PL080_CONTROL_DST_INCR ? "+" : "",
 			bd.dstbus.buswidth,
 			bd.remainder);
 		dev_vdbg(&pl08x->adev->dev, "mbus=%s sbus=%s\n",
@@ -886,8 +891,8 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 				return 0;
 			}
 
-			if ((bd.srcbus.addr % bd.srcbus.buswidth) ||
-					(bd.dstbus.addr % bd.dstbus.buswidth)) {
+			if (!IS_BUS_ALIGNED(&bd.srcbus) ||
+				!IS_BUS_ALIGNED(&bd.dstbus)) {
 				dev_err(&pl08x->adev->dev,
 					"%s src & dst address must be aligned to src"
 					" & dst width if peripheral is flow controller",
@@ -908,9 +913,9 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 		 */
 		if (bd.remainder < mbus->buswidth)
 			early_bytes = bd.remainder;
-		else if ((mbus->addr) % (mbus->buswidth)) {
-			early_bytes = mbus->buswidth - (mbus->addr) %
-				(mbus->buswidth);
+		else if (!IS_BUS_ALIGNED(mbus)) {
+			early_bytes = mbus->buswidth -
+				(mbus->addr & (mbus->buswidth - 1));
 			if ((bd.remainder - early_bytes) < mbus->buswidth)
 				early_bytes = bd.remainder;
 		}
@@ -928,7 +933,7 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 			 * Master now aligned
 			 * - if slave is not then we must set its width down
 			 */
-			if (sbus->addr % sbus->buswidth) {
+			if (!IS_BUS_ALIGNED(sbus)) {
 				dev_dbg(&pl08x->adev->dev,
 					"%s set down bus width to one byte\n",
 					__func__);

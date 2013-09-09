@@ -156,7 +156,8 @@ static void __init db8500_add_gpios(struct device *parent)
 		.supports_sleepmode = true,
 	};
 
-	dbx500_add_gpios(parent, ARRAY_AND_SIZE(db8500_gpio_base),
+	dbx500_add_gpios(parent, db8500_gpio_base,
+			 ARRAY_SIZE(db8500_gpio_base),
 			 IRQ_DB8500_GPIO0, &pdata);
 	dbx500_add_pinctrl(parent, "pinctrl-db8500", U8500_PRCMU_BASE);
 }

@@ -15,15 +15,15 @@
 /include/ "sun7i-a20.dtsi"
 
 / {
-	model = "Olimex A20-Olinuxino Micro";
-	compatible = "olimex,a20-olinuxino-micro", "allwinner,sun7i-a20";
+	model = "Cubietech Cubieboard2";
+	compatible = "cubietech,cubieboard2", "allwinner,sun7i-a20";
 
 	soc@01c00000 {
 		pinctrl@01c20800 {
-			led_pins_olinuxino: led_pins@0 {
-				allwinner,pins = "PH2";
+			led_pins_cubieboard2: led_pins@0 {
+				allwinner,pins = "PH20", "PH21";
 				allwinner,function = "gpio_out";
-				allwinner,drive = <1>;
+				allwinner,drive = <0>;
 				allwinner,pull = <0>;
 			};
 		};
@@ -33,29 +33,21 @@
 			pinctrl-0 = <&uart0_pins_a>;
 			status = "okay";
 		};
-
-		uart6: serial@01c29800 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&uart6_pins_a>;
-			status = "okay";
-		};
-
-		uart7: serial@01c29c00 {
-			pinctrl-names = "default";
-			pinctrl-0 = <&uart7_pins_a>;
-			status = "okay";
-		};
 	};
 
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_olinuxino>;
+		pinctrl-0 = <&led_pins_cubieboard2>;
+
+		blue {
+			label = "cubieboard2:blue:usr";
+			gpios = <&pio 7 21 0>;
+		};
 
 		green {
-			label = "a20-olinuxino-micro:green:usr";
-			gpios = <&pio 7 2 0>;
-			default-state = "on";
+			label = "cubieboard2:green:usr";
+			gpios = <&pio 7 20 0>;
 		};
 	};
 };
