@@ -584,11 +584,8 @@ static int ntb_set_mw(struct ntb_transport *nt, int num_mw, unsigned int size)
 	return 0;
 }
 
-static void ntb_qp_link_cleanup(struct work_struct *work)
+static void ntb_qp_link_cleanup(struct ntb_transport_qp *qp)
 {
-	struct ntb_transport_qp *qp = container_of(work,
-						   struct ntb_transport_qp,
-						   link_cleanup);
 	struct ntb_transport *nt = qp->transport;
 	struct pci_dev *pdev = ntb_query_pdev(nt->ndev);
 
@@ -602,6 +599,16 @@ static void ntb_qp_link_cleanup(struct work_struct *work)
 
 	dev_info(&pdev->dev, "qp %d: Link Down\n", qp->qp_num);
 	qp->qp_link = NTB_LINK_DOWN;
+}
+
+static void ntb_qp_link_cleanup_work(struct work_struct *work)
+{
+	struct ntb_transport_qp *qp = container_of(work,
+						   struct ntb_transport_qp,
+						   link_cleanup);
+	struct ntb_transport *nt = qp->transport;
+
+	ntb_qp_link_cleanup(qp);
 
 	if (nt->transport_link == NTB_LINK_UP)
 		schedule_delayed_work(&qp->link_work,
@@ -613,21 +620,19 @@ static void ntb_qp_link_down(struct ntb_transport_qp *qp)
 	schedule_work(&qp->link_cleanup);
 }
 
-static void ntb_transport_link_cleanup(struct work_struct *work)
+static void ntb_transport_link_cleanup(struct ntb_transport *nt)
 {
-	struct ntb_transport *nt = container_of(work, struct ntb_transport,
-						link_cleanup);
 	int i;
+
+	/* Pass along the info to any clients */
+	for (i = 0; i < nt->max_qps; i++)
+		if (!test_bit(i, &nt->qp_bitmap))
+			ntb_qp_link_cleanup(&nt->qps[i]);
 
 	if (nt->transport_link == NTB_LINK_DOWN)
 		cancel_delayed_work_sync(&nt->link_work);
 	else
 		nt->transport_link = NTB_LINK_DOWN;
-
-	/* Pass along the info to any clients */
-	for (i = 0; i < nt->max_qps; i++)
-		if (!test_bit(i, &nt->qp_bitmap))
-			ntb_qp_link_down(&nt->qps[i]);
 
 	/* The scratchpad registers keep the values if the remote side
 	 * goes down, blast them now to give them a sane value the next
@@ -635,6 +640,14 @@ static void ntb_transport_link_cleanup(struct work_struct *work)
 	 */
 	for (i = 0; i < MAX_SPAD; i++)
 		ntb_write_local_spad(nt->ndev, i, 0);
+}
+
+static void ntb_transport_link_cleanup_work(struct work_struct *work)
+{
+	struct ntb_transport *nt = container_of(work, struct ntb_transport,
+						link_cleanup);
+
+	ntb_transport_link_cleanup(nt);
 }
 
 static void ntb_transport_event_callback(void *data, enum ntb_hw_event event)
@@ -880,7 +893,7 @@ static int ntb_transport_init_queue(struct ntb_transport *nt,
 	}
 
 	INIT_DELAYED_WORK(&qp->link_work, ntb_qp_link_work);
-	INIT_WORK(&qp->link_cleanup, ntb_qp_link_cleanup);
+	INIT_WORK(&qp->link_cleanup, ntb_qp_link_cleanup_work);
 
 	spin_lock_init(&qp->ntb_rx_pend_q_lock);
 	spin_lock_init(&qp->ntb_rx_free_q_lock);
@@ -936,7 +949,7 @@ int ntb_transport_init(struct pci_dev *pdev)
 	}
 
 	INIT_DELAYED_WORK(&nt->link_work, ntb_transport_link_work);
-	INIT_WORK(&nt->link_cleanup, ntb_transport_link_cleanup);
+	INIT_WORK(&nt->link_cleanup, ntb_transport_link_cleanup_work);
 
 	rc = ntb_register_event_callback(nt->ndev,
 					 ntb_transport_event_callback);
@@ -972,7 +985,7 @@ void ntb_transport_free(void *transport)
 	struct ntb_device *ndev = nt->ndev;
 	int i;
 
-	nt->transport_link = NTB_LINK_DOWN;
+	ntb_transport_link_cleanup(nt);
 
 	/* verify that all the qp's are freed */
 	for (i = 0; i < nt->max_qps; i++) {
