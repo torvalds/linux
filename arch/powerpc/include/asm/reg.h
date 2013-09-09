@@ -254,19 +254,28 @@
 #define SPRN_HRMOR	0x139	/* Real mode offset register */
 #define SPRN_HSRR0	0x13A	/* Hypervisor Save/Restore 0 */
 #define SPRN_HSRR1	0x13B	/* Hypervisor Save/Restore 1 */
+/* HFSCR and FSCR bit numbers are the same */
+#define FSCR_TAR_LG	8	/* Enable Target Address Register */
+#define FSCR_EBB_LG	7	/* Enable Event Based Branching */
+#define FSCR_TM_LG	5	/* Enable Transactional Memory */
+#define FSCR_PM_LG	4	/* Enable prob/priv access to PMU SPRs */
+#define FSCR_BHRB_LG	3	/* Enable Branch History Rolling Buffer*/
+#define FSCR_DSCR_LG	2	/* Enable Data Stream Control Register */
+#define FSCR_VECVSX_LG	1	/* Enable VMX/VSX  */
+#define FSCR_FP_LG	0	/* Enable Floating Point */
 #define SPRN_FSCR	0x099	/* Facility Status & Control Register */
-#define   FSCR_TAR	(1 << (63-55)) /* Enable Target Address Register */
-#define   FSCR_EBB	(1 << (63-56)) /* Enable Event Based Branching */
-#define   FSCR_DSCR	(1 << (63-61)) /* Enable Data Stream Control Register */
+#define   FSCR_TAR	__MASK(FSCR_TAR_LG)
+#define   FSCR_EBB	__MASK(FSCR_EBB_LG)
+#define   FSCR_DSCR	__MASK(FSCR_DSCR_LG)
 #define SPRN_HFSCR	0xbe	/* HV=1 Facility Status & Control Register */
-#define   HFSCR_TAR	(1 << (63-55)) /* Enable Target Address Register */
-#define   HFSCR_EBB	(1 << (63-56)) /* Enable Event Based Branching */
-#define   HFSCR_TM	(1 << (63-58)) /* Enable Transactional Memory */
-#define   HFSCR_PM	(1 << (63-60)) /* Enable prob/priv access to PMU SPRs */
-#define   HFSCR_BHRB	(1 << (63-59)) /* Enable Branch History Rolling Buffer*/
-#define   HFSCR_DSCR	(1 << (63-61)) /* Enable Data Stream Control Register */
-#define   HFSCR_VECVSX	(1 << (63-62)) /* Enable VMX/VSX  */
-#define   HFSCR_FP	(1 << (63-63)) /* Enable Floating Point */
+#define   HFSCR_TAR	__MASK(FSCR_TAR_LG)
+#define   HFSCR_EBB	__MASK(FSCR_EBB_LG)
+#define   HFSCR_TM	__MASK(FSCR_TM_LG)
+#define   HFSCR_PM	__MASK(FSCR_PM_LG)
+#define   HFSCR_BHRB	__MASK(FSCR_BHRB_LG)
+#define   HFSCR_DSCR	__MASK(FSCR_DSCR_LG)
+#define   HFSCR_VECVSX	__MASK(FSCR_VECVSX_LG)
+#define   HFSCR_FP	__MASK(FSCR_FP_LG)
 #define SPRN_TAR	0x32f	/* Target Address Register */
 #define SPRN_LPCR	0x13E	/* LPAR Control Register */
 #define   LPCR_VPM0	(1ul << (63-0))

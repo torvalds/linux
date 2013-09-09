@@ -63,7 +63,8 @@ int kvm_handle_mmio_return(struct kvm_vcpu *vcpu, struct kvm_run *run)
 static int decode_hsr(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		      struct kvm_exit_mmio *mmio)
 {
-	unsigned long rt, len;
+	unsigned long rt;
+	int len;
 	bool is_write, sign_extend;
 
 	if (kvm_vcpu_dabt_isextabt(vcpu)) {

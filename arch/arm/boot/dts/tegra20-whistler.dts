@@ -588,6 +588,8 @@
 			regulator-max-microvolt = <5000000>;
 			enable-active-high;
 			gpio = <&tca6416 0 0>; /* GPIO_PMU0 */
+			regulator-always-on;
+			regulator-boot-on;
 		};
 
 		vbus3_reg: regulator@3 {
@@ -598,6 +600,8 @@
 			regulator-max-microvolt = <5000000>;
 			enable-active-high;
 			gpio = <&tca6416 1 0>; /* GPIO_PMU1 */
+			regulator-always-on;
+			regulator-boot-on;
 		};
 	};
 

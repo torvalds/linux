@@ -49,7 +49,6 @@
 
 struct ocfs2_cow_context {
 	struct inode *inode;
-	struct file *file;
 	u32 cow_start;
 	u32 cow_len;
 	struct ocfs2_extent_tree data_et;
@@ -66,7 +65,7 @@ struct ocfs2_cow_context {
 			    u32 *num_clusters,
 			    unsigned int *extent_flags);
 	int (*cow_duplicate_clusters)(handle_t *handle,
-				      struct file *file,
+				      struct inode *inode,
 				      u32 cpos, u32 old_cluster,
 				      u32 new_cluster, u32 new_len);
 };
@@ -2922,14 +2921,12 @@ static int ocfs2_clear_cow_buffer(handle_t *handle, struct buffer_head *bh)
 }
 
 int ocfs2_duplicate_clusters_by_page(handle_t *handle,
-				     struct file *file,
+				     struct inode *inode,
 				     u32 cpos, u32 old_cluster,
 				     u32 new_cluster, u32 new_len)
 {
 	int ret = 0, partial;
-	struct inode *inode = file_inode(file);
-	struct ocfs2_caching_info *ci = INODE_CACHE(inode);
-	struct super_block *sb = ocfs2_metadata_cache_get_super(ci);
+	struct super_block *sb = inode->i_sb;
 	u64 new_block = ocfs2_clusters_to_blocks(sb, new_cluster);
 	struct page *page;
 	pgoff_t page_index;
@@ -2978,13 +2975,6 @@ int ocfs2_duplicate_clusters_by_page(handle_t *handle,
 		if (PAGE_CACHE_SIZE <= OCFS2_SB(sb)->s_clustersize)
 			BUG_ON(PageDirty(page));
 
-		if (PageReadahead(page)) {
-			page_cache_async_readahead(mapping,
-						   &file->f_ra, file,
-						   page, page_index,
-						   readahead_pages);
-		}
-
 		if (!PageUptodate(page)) {
 			ret = block_read_full_page(page, ocfs2_get_block);
 			if (ret) {
@@ -3004,7 +2994,8 @@ int ocfs2_duplicate_clusters_by_page(handle_t *handle,
 			}
 		}
 
-		ocfs2_map_and_dirty_page(inode, handle, from, to,
+		ocfs2_map_and_dirty_page(inode,
+					 handle, from, to,
 					 page, 0, &new_block);
 		mark_page_accessed(page);
 unlock:
@@ -3020,12 +3011,11 @@ unlock:
 }
 
 int ocfs2_duplicate_clusters_by_jbd(handle_t *handle,
-				    struct file *file,
+				    struct inode *inode,
 				    u32 cpos, u32 old_cluster,
 				    u32 new_cluster, u32 new_len)
 {
 	int ret = 0;
-	struct inode *inode = file_inode(file);
 	struct super_block *sb = inode->i_sb;
 	struct ocfs2_caching_info *ci = INODE_CACHE(inode);
 	int i, blocks = ocfs2_clusters_to_blocks(sb, new_len);
@@ -3150,7 +3140,7 @@ static int ocfs2_replace_clusters(handle_t *handle,
 
 	/*If the old clusters is unwritten, no need to duplicate. */
 	if (!(ext_flags & OCFS2_EXT_UNWRITTEN)) {
-		ret = context->cow_duplicate_clusters(handle, context->file,
+		ret = context->cow_duplicate_clusters(handle, context->inode,
 						      cpos, old, new, len);
 		if (ret) {
 			mlog_errno(ret);
@@ -3428,35 +3418,12 @@ static int ocfs2_replace_cow(struct ocfs2_cow_context *context)
 	return ret;
 }
 
-static void ocfs2_readahead_for_cow(struct inode *inode,
-				    struct file *file,
-				    u32 start, u32 len)
-{
-	struct address_space *mapping;
-	pgoff_t index;
-	unsigned long num_pages;
-	int cs_bits = OCFS2_SB(inode->i_sb)->s_clustersize_bits;
-
-	if (!file)
-		return;
-
-	mapping = file->f_mapping;
-	num_pages = (len << cs_bits) >> PAGE_CACHE_SHIFT;
-	if (!num_pages)
-		num_pages = 1;
-
-	index = ((loff_t)start << cs_bits) >> PAGE_CACHE_SHIFT;
-	page_cache_sync_readahead(mapping, &file->f_ra, file,
-				  index, num_pages);
-}
-
 /*
  * Starting at cpos, try to CoW write_len clusters.  Don't CoW
  * past max_cpos.  This will stop when it runs into a hole or an
  * unrefcounted extent.
  */
 static int ocfs2_refcount_cow_hunk(struct inode *inode,
-				   struct file *file,
 				   struct buffer_head *di_bh,
 				   u32 cpos, u32 write_len, u32 max_cpos)
 {
@@ -3485,8 +3452,6 @@ static int ocfs2_refcount_cow_hunk(struct inode *inode,
 
 	BUG_ON(cow_len == 0);
 
-	ocfs2_readahead_for_cow(inode, file, cow_start, cow_len);
-
 	context = kzalloc(sizeof(struct ocfs2_cow_context), GFP_NOFS);
 	if (!context) {
 		ret = -ENOMEM;
@@ -3508,7 +3473,6 @@ static int ocfs2_refcount_cow_hunk(struct inode *inode,
 	context->ref_root_bh = ref_root_bh;
 	context->cow_duplicate_clusters = ocfs2_duplicate_clusters_by_page;
 	context->get_clusters = ocfs2_di_get_clusters;
-	context->file = file;
 
 	ocfs2_init_dinode_extent_tree(&context->data_et,
 				      INODE_CACHE(inode), di_bh);
@@ -3537,7 +3501,6 @@ out:
  * clusters between cpos and cpos+write_len are safe to modify.
  */
 int ocfs2_refcount_cow(struct inode *inode,
-		       struct file *file,
 		       struct buffer_head *di_bh,
 		       u32 cpos, u32 write_len, u32 max_cpos)
 {
@@ -3557,7 +3520,7 @@ int ocfs2_refcount_cow(struct inode *inode,
 			num_clusters = write_len;
 
 		if (ext_flags & OCFS2_EXT_REFCOUNTED) {
-			ret = ocfs2_refcount_cow_hunk(inode, file, di_bh, cpos,
+			ret = ocfs2_refcount_cow_hunk(inode, di_bh, cpos,
 						      num_clusters, max_cpos);
 			if (ret) {
 				mlog_errno(ret);

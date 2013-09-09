@@ -232,7 +232,8 @@ static int adjd_s311_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = adjd_s311_read_data(indio_dev, chan->address, val);
+		ret = adjd_s311_read_data(indio_dev,
+			ADJD_S311_DATA_REG(chan->address), val);
 		if (ret < 0)
 			return ret;
 		return IIO_VAL_INT;

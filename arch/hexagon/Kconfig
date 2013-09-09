@@ -158,6 +158,7 @@ source "kernel/Kconfig.hz"
 endmenu
 
 source "init/Kconfig"
+source "kernel/Kconfig.freezer"
 source "drivers/Kconfig"
 source "fs/Kconfig"
 
