@@ -368,10 +368,6 @@ static void __init samsung_clocksource_init(void)
 
 static void __init samsung_timer_resources(void)
 {
-	pwm.timerclk = clk_get(NULL, "timers");
-	if (IS_ERR(pwm.timerclk))
-		panic("failed to get timers clock for timer");
-
 	clk_prepare_enable(pwm.timerclk);
 
 	pwm.tcnt_max = (1UL << pwm.variant.bits) - 1;
@@ -416,6 +412,10 @@ void __init samsung_pwm_clocksource_init(void __iomem *base,
 	memcpy(&pwm.variant, variant, sizeof(pwm.variant));
 	memcpy(pwm.irq, irqs, SAMSUNG_PWM_NUM * sizeof(*irqs));
 
+	pwm.timerclk = clk_get(NULL, "timers");
+	if (IS_ERR(pwm.timerclk))
+		panic("failed to get timers clock for timer");
+
 	_samsung_pwm_clocksource_init();
 }
 
@@ -446,6 +446,10 @@ static void __init samsung_pwm_alloc(struct device_node *np,
 		pr_err("%s: failed to map PWM registers\n", __func__);
 		return;
 	}
+
+	pwm.timerclk = of_clk_get_by_name(np, "timers");
+	if (IS_ERR(pwm.timerclk))
+		panic("failed to get timers clock for timer");
 
 	_samsung_pwm_clocksource_init();
 }
