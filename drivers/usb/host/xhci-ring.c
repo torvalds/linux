@@ -1407,6 +1407,18 @@ static void xhci_handle_cmd_disable_slot(struct xhci_hcd *xhci, int slot_id)
 	xhci_free_virt_device(xhci, slot_id);
 }
 
+static void xhci_handle_cmd_eval_ctx(struct xhci_hcd *xhci, int slot_id,
+		struct xhci_event_cmd *event, u32 cmd_comp_code)
+{
+	struct xhci_virt_device *virt_dev;
+
+	virt_dev = xhci->devs[slot_id];
+	if (handle_cmd_in_cmd_wait_list(xhci, virt_dev, event))
+		return;
+	virt_dev->cmd_status = cmd_comp_code;
+	complete(&virt_dev->cmd_completion);
+}
+
 static void xhci_handle_cmd_addr_dev(struct xhci_hcd *xhci, int slot_id,
 		u32 cmd_comp_code)
 {
@@ -1552,11 +1564,8 @@ bandwidth_change:
 		complete(&xhci->devs[slot_id]->cmd_completion);
 		break;
 	case TRB_TYPE(TRB_EVAL_CONTEXT):
-		virt_dev = xhci->devs[slot_id];
-		if (handle_cmd_in_cmd_wait_list(xhci, virt_dev, event))
-			break;
-		xhci->devs[slot_id]->cmd_status = GET_COMP_CODE(le32_to_cpu(event->status));
-		complete(&xhci->devs[slot_id]->cmd_completion);
+		xhci_handle_cmd_eval_ctx(xhci, slot_id, event,
+				GET_COMP_CODE(le32_to_cpu(event->status)));
 		break;
 	case TRB_TYPE(TRB_ADDR_DEV):
 		xhci_handle_cmd_addr_dev(xhci, slot_id,
