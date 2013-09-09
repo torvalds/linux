@@ -28,6 +28,20 @@ config BUILDTIME_EXTABLE_SORT
 
 menu "General setup"
 
+config SCHED_BFS
+	bool "BFS cpu scheduler"
+	---help---
+	  The Brain Fuck CPU Scheduler for excellent interactivity and
+	  responsiveness on the desktop and solid scalability on normal
+          hardware and commodity servers. Not recommended for 4096 CPUs.
+
+	  Currently incompatible with the Group CPU scheduler, and RCU TORTURE
+          TEST so these options are disabled.
+
+          Say Y here.
+	default y
+
+
 config BROKEN
 	bool
 
@@ -331,7 +345,7 @@ choice
 # Kind of a stub config for the pure tick based cputime accounting
 config TICK_CPU_ACCOUNTING
 	bool "Simple tick based cputime accounting"
-	depends on !S390 && !NO_HZ_FULL
+	depends on !S390 && !NO_HZ_FULL && !SCHED_BFS
 	help
 	  This is the basic tick based cputime accounting that maintains
 	  statistics about user, system and idle time spent on per jiffies
@@ -354,7 +368,7 @@ config VIRT_CPU_ACCOUNTING_NATIVE
 
 config VIRT_CPU_ACCOUNTING_GEN
 	bool "Full dynticks CPU time accounting"
-	depends on HAVE_CONTEXT_TRACKING && 64BIT
+	depends on HAVE_CONTEXT_TRACKING && 64BIT && !SCHED_BFS
 	select VIRT_CPU_ACCOUNTING
 	select CONTEXT_TRACKING
 	help
@@ -835,6 +849,7 @@ config NUMA_BALANCING
 	depends on ARCH_SUPPORTS_NUMA_BALANCING
 	depends on !ARCH_WANT_NUMA_VARIABLE_LOCALITY
 	depends on SMP && NUMA && MIGRATION
+	depends on !SCHED_BFS
 	help
 	  This option adds support for automatic NUMA aware memory/task placement.
 	  The mechanism is quite primitive and is based on migrating memory when
@@ -897,6 +912,7 @@ config PROC_PID_CPUSET
 
 config CGROUP_CPUACCT
 	bool "Simple CPU accounting cgroup subsystem"
+	depends on !SCHED_BFS
 	help
 	  Provides a simple Resource Controller for monitoring the
 	  total CPU consumed by the tasks in a cgroup.
@@ -999,6 +1015,7 @@ config CGROUP_PERF
 
 menuconfig CGROUP_SCHED
 	bool "Group CPU scheduler"
+	depends on !SCHED_BFS
 	default n
 	help
 	  This feature lets CPU scheduler recognize task groups and control CPU
@@ -1163,6 +1180,7 @@ config UIDGID_STRICT_TYPE_CHECKS
 
 config SCHED_AUTOGROUP
 	bool "Automatic process group scheduling"
+	depends on !SCHED_BFS
 	select EVENTFD
 	select CGROUPS
 	select CGROUP_SCHED
@@ -1563,38 +1581,8 @@ config COMPAT_BRK
 
 	  On non-ancient distros (post-2000 ones) N is usually a safe choice.
 
-choice
-	prompt "Choose SLAB allocator"
-	default SLUB
-	help
-	   This option allows to select a slab allocator.
-
-config SLAB
-	bool "SLAB"
-	help
-	  The regular slab allocator that is established and known to work
-	  well in all environments. It organizes cache hot objects in
-	  per cpu and per node queues.
-
 config SLUB
-	bool "SLUB (Unqueued Allocator)"
-	help
-	   SLUB is a slab allocator that minimizes cache line usage
-	   instead of managing queues of cached objects (SLAB approach).
-	   Per cpu caching is realized using slabs of objects instead
-	   of queues of objects. SLUB can use memory efficiently
-	   and has enhanced diagnostics. SLUB is the default choice for
-	   a slab allocator.
-
-config SLOB
-	depends on EXPERT
-	bool "SLOB (Simple Allocator)"
-	help
-	   SLOB replaces the stock allocator with a drastically simpler
-	   allocator. SLOB is generally more space efficient but
-	   does not perform as well on large systems.
-
-endchoice
+	def_bool y
 
 config SLUB_CPU_PARTIAL
 	default y
