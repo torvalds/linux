@@ -5442,6 +5442,7 @@ F:	drivers/watchdog/mena21_wdt.c
 
 METAG ARCHITECTURE
 M:	James Hogan <james.hogan@imgtec.com>
+L:	linux-metag@vger.kernel.org
 S:	Supported
 F:	arch/metag/
 F:	Documentation/metag/
