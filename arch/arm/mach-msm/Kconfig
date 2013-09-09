@@ -49,6 +49,7 @@ config ARCH_MSM8X60
 	select GPIO_MSM_V2
 	select HAVE_SMP
 	select MSM_SCM if SMP
+	select SPARSE_IRQ
 	select USE_OF
 
 config ARCH_MSM8960
@@ -58,6 +59,7 @@ config ARCH_MSM8960
 	select HAVE_SMP
 	select GPIO_MSM_V2
 	select MSM_SCM if SMP
+	select SPARSE_IRQ
 	select USE_OF
 
 config MSM_HAS_DEBUG_UART_HS
