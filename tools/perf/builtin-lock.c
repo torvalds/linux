@@ -818,34 +818,6 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
-static const struct perf_evsel_str_handler lock_tracepoints[] = {
-	{ "lock:lock_acquire",	 perf_evsel__process_lock_acquire,   }, /* CONFIG_LOCKDEP */
-	{ "lock:lock_acquired",	 perf_evsel__process_lock_acquired,  }, /* CONFIG_LOCKDEP, CONFIG_LOCK_STAT */
-	{ "lock:lock_contended", perf_evsel__process_lock_contended, }, /* CONFIG_LOCKDEP, CONFIG_LOCK_STAT */
-	{ "lock:lock_release",	 perf_evsel__process_lock_release,   }, /* CONFIG_LOCKDEP */
-};
-
-static int read_events(void)
-{
-	struct perf_tool eops = {
-		.sample		 = process_sample_event,
-		.comm		 = perf_event__process_comm,
-		.ordered_samples = true,
-	};
-	session = perf_session__new(input_name, O_RDONLY, 0, false, &eops);
-	if (!session) {
-		pr_err("Initializing perf session failed\n");
-		return -1;
-	}
-
-	if (perf_session__set_tracepoints_handlers(session, lock_tracepoints)) {
-		pr_err("Initializing perf session tracepoint handlers failed\n");
-		return -1;
-	}
-
-	return perf_session__process_events(session, &eops);
-}
-
 static void sort_result(void)
 {
 	unsigned int i;
@@ -858,18 +830,54 @@ static void sort_result(void)
 	}
 }
 
-static int __cmd_report(void)
+static const struct perf_evsel_str_handler lock_tracepoints[] = {
+	{ "lock:lock_acquire",	 perf_evsel__process_lock_acquire,   }, /* CONFIG_LOCKDEP */
+	{ "lock:lock_acquired",	 perf_evsel__process_lock_acquired,  }, /* CONFIG_LOCKDEP, CONFIG_LOCK_STAT */
+	{ "lock:lock_contended", perf_evsel__process_lock_contended, }, /* CONFIG_LOCKDEP, CONFIG_LOCK_STAT */
+	{ "lock:lock_release",	 perf_evsel__process_lock_release,   }, /* CONFIG_LOCKDEP */
+};
+
+static int __cmd_report(bool display_info)
 {
+	int err = -EINVAL;
+	struct perf_tool eops = {
+		.sample		 = process_sample_event,
+		.comm		 = perf_event__process_comm,
+		.ordered_samples = true,
+	};
+
+	session = perf_session__new(input_name, O_RDONLY, 0, false, &eops);
+	if (!session) {
+		pr_err("Initializing perf session failed\n");
+		return -ENOMEM;
+	}
+
+	if (!perf_session__has_traces(session, "lock record"))
+		goto out_delete;
+
+	if (perf_session__set_tracepoints_handlers(session, lock_tracepoints)) {
+		pr_err("Initializing perf session tracepoint handlers failed\n");
+		goto out_delete;
+	}
+
+	if (select_key())
+		goto out_delete;
+
+	err = perf_session__process_events(session, &eops);
+	if (err)
+		goto out_delete;
+
 	setup_pager();
+	if (display_info) /* used for info subcommand */
+		err = dump_info();
+	else {
+		sort_result();
+		print_result();
+	}
 
-	if ((select_key() != 0) ||
-	    (read_events() != 0))
-		return -1;
-
-	sort_result();
-	print_result();
-
-	return 0;
+out_delete:
+	perf_session__delete(session);
+	return err;
 }
 
 static int __cmd_record(int argc, const char **argv)
@@ -970,7 +978,7 @@ int cmd_lock(int argc, const char **argv, const char *prefix __maybe_unused)
 			if (argc)
 				usage_with_options(report_usage, report_options);
 		}
-		__cmd_report();
+		rc = __cmd_report(false);
 	} else if (!strcmp(argv[0], "script")) {
 		/* Aliased to 'perf script' */
 		return cmd_script(argc, argv, prefix);
@@ -983,11 +991,7 @@ int cmd_lock(int argc, const char **argv, const char *prefix __maybe_unused)
 		}
 		/* recycling report_lock_ops */
 		trace_handler = &report_lock_ops;
-		setup_pager();
-		if (read_events() != 0)
-			rc = -1;
-		else
-			rc = dump_info();
+		rc = __cmd_report(true);
 	} else {
 		usage_with_options(lock_usage, lock_options);
 	}
