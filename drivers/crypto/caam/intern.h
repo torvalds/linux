@@ -87,11 +87,11 @@ struct caam_drv_private {
 	/* list of registered hash algorithms (mk generic context handle?) */
 	struct list_head hash_list;
 
+#define	RNG4_MAX_HANDLES 2
 	/* RNG4 block */
-	bool rng4_init;		/* If RNG4 block is initialized by this driver,
-				   then this will be set; if it was initialized
-				   by another entity (e.g. u-boot), it will be
-				   cleared. */
+	u32 rng4_sh_init;	/* This bitmap shows which of the State
+				   Handles of the RNG4 block are initialized
+				   by this driver */
 
 	/*
 	 * debugfs entries for developer view into driver/device
