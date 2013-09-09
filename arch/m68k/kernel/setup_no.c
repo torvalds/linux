@@ -118,7 +118,7 @@ void (*mach_power_off)(void);
  *
  * Returns:
  */
-void parse_uboot_commandline(char *commandp, int size)
+static void __init parse_uboot_commandline(char *commandp, int size)
 {
 	extern unsigned long _init_sp;
 	unsigned long *sp;
