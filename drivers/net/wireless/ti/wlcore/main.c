@@ -793,6 +793,7 @@ void wl12xx_queue_recovery_work(struct wl1271 *wl)
 	if (wl->state == WLCORE_STATE_ON) {
 		wl->state = WLCORE_STATE_RESTARTING;
 		set_bit(WL1271_FLAG_RECOVERY_IN_PROGRESS, &wl->flags);
+		wl1271_ps_elp_wakeup(wl);
 		wlcore_disable_interrupts_nosync(wl);
 		ieee80211_queue_work(wl->hw, &wl->recovery_work);
 	}
