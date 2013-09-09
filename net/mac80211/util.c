@@ -1004,14 +1004,21 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 	 */
 	enable_qos = (sdata->vif.type != NL80211_IFTYPE_STATION);
 
-	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
-		/* Set defaults according to 802.11-2007 Table 7-37 */
-		aCWmax = 1023;
-		if (use_11b)
-			aCWmin = 31;
-		else
-			aCWmin = 15;
+	/* Set defaults according to 802.11-2007 Table 7-37 */
+	aCWmax = 1023;
+	if (use_11b)
+		aCWmin = 31;
+	else
+		aCWmin = 15;
 
+	/* Confiure old 802.11b/g medium access rules. */
+	qparam.cw_max = aCWmax;
+	qparam.cw_min = aCWmin;
+	qparam.txop = 0;
+	qparam.aifs = 2;
+
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+		/* Update if QoS is enabled. */
 		if (enable_qos) {
 			switch (ac) {
 			case IEEE80211_AC_BK:
@@ -1047,12 +1054,6 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 				qparam.aifs = 2;
 				break;
 			}
-		} else {
-			/* Confiure old 802.11b/g medium access rules. */
-			qparam.cw_max = aCWmax;
-			qparam.cw_min = aCWmin;
-			qparam.txop = 0;
-			qparam.aifs = 2;
 		}
 
 		qparam.uapsd = false;
