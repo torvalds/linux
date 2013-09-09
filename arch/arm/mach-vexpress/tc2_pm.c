@@ -18,6 +18,7 @@
 #include <linux/of_address.h>
 #include <linux/spinlock.h>
 #include <linux/errno.h>
+#include <linux/irqchip/arm-gic.h>
 
 #include <asm/mcpm.h>
 #include <asm/proc-fns.h>
@@ -230,6 +231,7 @@ static void tc2_pm_suspend(u64 residency)
 	cpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);
 	cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
 	ve_spc_set_resume_addr(cluster, cpu, virt_to_phys(mcpm_entry_point));
+	gic_cpu_if_down();
 	tc2_pm_down(residency);
 }
 

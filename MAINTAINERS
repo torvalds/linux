@@ -2307,6 +2307,15 @@ F:	drivers/cpufreq/arm_big_little.h
 F:	drivers/cpufreq/arm_big_little.c
 F:	drivers/cpufreq/arm_big_little_dt.c
 
+CPUIDLE DRIVER - ARM BIG LITTLE
+M:      Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
+M:      Daniel Lezcano <daniel.lezcano@linaro.org>
+L:      linux-pm@vger.kernel.org
+L:      linux-arm-kernel@lists.infradead.org
+T:      git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm.git
+S:      Maintained
+F:      drivers/cpuidle/cpuidle-big_little.c
+
 CPUIDLE DRIVERS
 M:	Rafael J. Wysocki <rjw@sisk.pl>
 M:	Daniel Lezcano <daniel.lezcano@linaro.org>
