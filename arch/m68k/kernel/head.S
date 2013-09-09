@@ -1532,7 +1532,7 @@ L(cache_done):
 
 /*
  * Find a tag record in the bootinfo structure
- * The bootinfo structure is located right after the kernel bss
+ * The bootinfo structure is located right after the kernel
  * Returns: d0: size (-1 if not found)
  *          a0: data pointer (end-of-records if not found)
  */

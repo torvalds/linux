@@ -220,7 +220,7 @@ void __init setup_arch(char **cmdline_p)
 	int i;
 #endif
 
-	/* The bootinfo is located right after the kernel bss */
+	/* The bootinfo is located right after the kernel */
 	if (!CPU_IS_COLDFIRE)
 		m68k_parse_bootinfo((const struct bi_record *)_end);
 

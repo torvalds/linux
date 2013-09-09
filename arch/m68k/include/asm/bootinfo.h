@@ -34,7 +34,7 @@
      *  This way I hope to keep all future changes back/forewards compatible.
      *  Thus, keep your fingers crossed...
      *
-     *  This structure is copied right after the kernel bss by the bootstrap
+     *  This structure is copied right after the kernel by the bootstrap
      *  routine.
      */
 
