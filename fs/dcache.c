@@ -100,30 +100,21 @@ static struct kmem_cache *dentry_cache __read_mostly;
  */
 static inline void read_seqbegin_or_lock(seqlock_t *lock, int *seq)
 {
-	if (!(*seq & 1)) {	/* Even */
+	if (!(*seq & 1))	/* Even */
 		*seq = read_seqbegin(lock);
-		rcu_read_lock();
-	} else			/* Odd */
+	else			/* Odd */
 		write_seqlock(lock);
 }
 
-/**
- * read_seqretry_or_unlock - end a seqretry or lock block & return retry status
- * lock	 : sequence lock
- * seq	 : sequence number
- * Return: 1 to retry operation again, 0 to continue
- */
-static inline int read_seqretry_or_unlock(seqlock_t *lock, int *seq)
+static inline int need_seqretry(seqlock_t *lock, int seq)
 {
-	if (!(*seq & 1)) {	/* Even */
-		rcu_read_unlock();
-		if (read_seqretry(lock, *seq)) {
-			(*seq)++;	/* Take writer lock */
-			return 1;
-		}
-	} else			/* Odd */
+	return !(seq & 1) && read_seqretry(lock, seq);
+}
+
+static inline void done_seqretry(seqlock_t *lock, int seq)
+{
+	if (seq & 1)
 		write_sequnlock(lock);
-	return 0;
 }
 
 /*
@@ -1047,7 +1038,7 @@ void shrink_dcache_for_umount(struct super_block *sb)
  * the parenthood after dropping the lock and check
  * that the sequence number still matches.
  */
-static struct dentry *try_to_ascend(struct dentry *old, int locked, unsigned seq)
+static struct dentry *try_to_ascend(struct dentry *old, unsigned seq)
 {
 	struct dentry *new = old->d_parent;
 
@@ -1061,7 +1052,7 @@ static struct dentry *try_to_ascend(struct dentry *old, int locked, unsigned seq
 	 */
 	if (new != old->d_parent ||
 		 (old->d_flags & DCACHE_DENTRY_KILLED) ||
-		 (!locked && read_seqretry(&rename_lock, seq))) {
+		 need_seqretry(&rename_lock, seq)) {
 		spin_unlock(&new->d_lock);
 		new = NULL;
 	}
@@ -1098,13 +1089,12 @@ static void d_walk(struct dentry *parent, void *data,
 {
 	struct dentry *this_parent;
 	struct list_head *next;
-	unsigned seq;
-	int locked = 0;
+	unsigned seq = 0;
 	enum d_walk_ret ret;
 	bool retry = true;
 
-	seq = read_seqbegin(&rename_lock);
 again:
+	read_seqbegin_or_lock(&rename_lock, &seq);
 	this_parent = parent;
 	spin_lock(&this_parent->d_lock);
 
@@ -1158,13 +1148,13 @@ resume:
 	 */
 	if (this_parent != parent) {
 		struct dentry *child = this_parent;
-		this_parent = try_to_ascend(this_parent, locked, seq);
+		this_parent = try_to_ascend(this_parent, seq);
 		if (!this_parent)
 			goto rename_retry;
 		next = child->d_u.d_child.next;
 		goto resume;
 	}
-	if (!locked && read_seqretry(&rename_lock, seq)) {
+	if (need_seqretry(&rename_lock, seq)) {
 		spin_unlock(&this_parent->d_lock);
 		goto rename_retry;
 	}
@@ -1173,17 +1163,13 @@ resume:
 
 out_unlock:
 	spin_unlock(&this_parent->d_lock);
-	if (locked)
-		write_sequnlock(&rename_lock);
+	done_seqretry(&rename_lock, seq);
 	return;
 
 rename_retry:
 	if (!retry)
 		return;
-	if (locked)
-		goto again;
-	locked = 1;
-	write_seqlock(&rename_lock);
+	seq = 1;
 	goto again;
 }
 
@@ -2745,6 +2731,7 @@ static int prepend_path(const struct path *path,
 	char *bptr;
 	int blen;
 
+	rcu_read_lock();
 restart:
 	bptr = *buffer;
 	blen = *buflen;
@@ -2783,8 +2770,13 @@ restart:
 
 		dentry = parent;
 	}
-	if (read_seqretry_or_unlock(&rename_lock, &seq))
+	if (!(seq & 1))
+		rcu_read_unlock();
+	if (need_seqretry(&rename_lock, seq)) {
+		seq = 1;
 		goto restart;
+	}
+	done_seqretry(&rename_lock, seq);
 
 	if (error >= 0 && bptr == *buffer) {
 		if (--blen < 0)
@@ -2957,6 +2949,7 @@ static char *__dentry_path(struct dentry *dentry, char *buf, int buflen)
 	int len, seq = 0;
 	int error = 0;
 
+	rcu_read_lock();
 restart:
 	end = buf + buflen;
 	len = buflen;
@@ -2979,8 +2972,13 @@ restart:
 		retval = end;
 		dentry = parent;
 	}
-	if (read_seqretry_or_unlock(&rename_lock, &seq))
+	if (!(seq & 1))
+		rcu_read_unlock();
+	if (need_seqretry(&rename_lock, seq)) {
+		seq = 1;
 		goto restart;
+	}
+	done_seqretry(&rename_lock, seq);
 	if (error)
 		goto Elong;
 	return retval;
