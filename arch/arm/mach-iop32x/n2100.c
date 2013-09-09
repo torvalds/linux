@@ -306,7 +306,7 @@ static struct timer_list power_button_poll_timer;
 
 static void power_button_poll(unsigned long dummy)
 {
-	if (gpio_line_get(N2100_POWER_BUTTON) == 0) {
+	if (gpio_get_value(N2100_POWER_BUTTON) == 0) {
 		ctrl_alt_del();
 		return;
 	}
@@ -325,6 +325,20 @@ static int __init n2100_request_gpios(void)
 	ret = gpio_request(N2100_HARDWARE_RESET, "reset");
 	if (ret)
 		pr_err("could not request reset GPIO\n");
+
+	ret = gpio_request(N2100_POWER_BUTTON, "power");
+	if (ret)
+		pr_err("could not request power GPIO\n");
+	else {
+		ret = gpio_direction_input(N2100_POWER_BUTTON);
+		if (ret)
+			pr_err("could not set power GPIO as input\n");
+	}
+	/* Set up power button poll timer */
+	init_timer(&power_button_poll_timer);
+	power_button_poll_timer.function = power_button_poll;
+	power_button_poll_timer.expires = jiffies + (HZ / 10);
+	add_timer(&power_button_poll_timer);
 	return 0;
 }
 device_initcall(n2100_request_gpios);
@@ -341,11 +355,6 @@ static void __init n2100_init_machine(void)
 		ARRAY_SIZE(n2100_i2c_devices));
 
 	pm_power_off = n2100_power_off;
-
-	init_timer(&power_button_poll_timer);
-	power_button_poll_timer.function = power_button_poll;
-	power_button_poll_timer.expires = jiffies + (HZ / 10);
-	add_timer(&power_button_poll_timer);
 }
 
 MACHINE_START(N2100, "Thecus N2100")
