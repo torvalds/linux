@@ -406,7 +406,7 @@ static int __init rk29sdk_wifi_bt_gpio_control_init(void)
 }
 
 #if (defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) || defined(CONFIG_RTL8723AU)) \
-	&& (defined(CONFIG_ARCH_RK2928) || defined(CONFIG_MACH_RK3026_86V))
+	&& (defined(CONFIG_ARCH_RK2928) || defined(CONFIG_MACH_RK3026_86V) ||defined(CONFIG_MACH_RK3026_86V_FAC))
 static int usbwifi_power_status = 1;
 int rk29sdk_wifi_power(int on)
 {

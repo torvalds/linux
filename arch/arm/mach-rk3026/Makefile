@@ -25,3 +25,4 @@ board-$(CONFIG_MACH_RK3026_86V) += board-rk3026-86v.o
 board-$(CONFIG_MACH_RK3028A_TB) += board-rk3028a-tb.o
 board-$(CONFIG_MACH_RK3028A_86V) += board-rk3028a-86v.o
 board-$(CONFIG_MACH_RK3028A_FAC) += board-rk3028a-86v-fac.o
+board-$(CONFIG_MACH_RK3026_86V_FAC) += board-rk3026-86v-fac.o

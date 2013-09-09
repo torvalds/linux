@@ -330,7 +330,7 @@ static struct regulator_consumer_supply tps65910_smps2_supply[] = {
 	{
                 .supply = "vdd_cpu",
         },
-        #elif defined(CONFIG_MACH_RK3026_86V)
+        #elif (defined(CONFIG_MACH_RK3026_86V)||defined(CONFIG_MACH_RK3026_86V_FAC))
 	{
 		.supply = "vdd_core",
 	},
