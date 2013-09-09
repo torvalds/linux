@@ -1084,8 +1084,7 @@ free_dev:
 
 static int deinterlace_remove(struct platform_device *pdev)
 {
-	struct deinterlace_dev *pcdev =
-		(struct deinterlace_dev *)platform_get_drvdata(pdev);
+	struct deinterlace_dev *pcdev = platform_get_drvdata(pdev);
 
 	v4l2_info(&pcdev->v4l2_dev, "Removing " MEM2MEM_TEST_MODULE_NAME);
 	v4l2_m2m_release(pcdev->m2m_dev);
