@@ -1909,8 +1909,8 @@ static unsigned int xhci_count_num_dropped_endpoints(struct xhci_hcd *xhci,
 	u32 valid_add_flags;
 	u32 valid_drop_flags;
 
-	valid_add_flags = ctrl_ctx->add_flags >> 2;
-	valid_drop_flags = ctrl_ctx->drop_flags >> 2;
+	valid_add_flags = le32_to_cpu(ctrl_ctx->add_flags) >> 2;
+	valid_drop_flags = le32_to_cpu(ctrl_ctx->drop_flags) >> 2;
 
 	return hweight32(valid_drop_flags) -
 		hweight32(valid_add_flags & valid_drop_flags);
