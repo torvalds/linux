@@ -457,6 +457,7 @@ config ARCH_IOP32X
 	depends on MMU
 	select ARCH_REQUIRE_GPIOLIB
 	select CPU_XSCALE
+	select GPIO_IOP
 	select NEED_MACH_GPIO_H
 	select NEED_RET_TO_USER
 	select PCI
@@ -470,6 +471,7 @@ config ARCH_IOP33X
 	depends on MMU
 	select ARCH_REQUIRE_GPIOLIB
 	select CPU_XSCALE
+	select GPIO_IOP
 	select NEED_MACH_GPIO_H
 	select NEED_RET_TO_USER
 	select PCI
