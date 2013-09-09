@@ -44,6 +44,17 @@ static void build_instantiation_desc(u32 *desc)
 	append_jump(desc, JUMP_CLASS_CLASS1 | JUMP_TYPE_HALT);
 }
 
+/* Descriptor for deinstantiation of State Handle 0 of the RNG block. */
+static void build_deinstantiation_desc(u32 *desc)
+{
+	init_job_desc(desc, 0);
+
+	/* Uninstantiate State Handle 0 */
+	append_operation(desc, OP_TYPE_CLASS1_ALG | OP_ALG_ALGSEL_RNG |
+			 OP_ALG_AS_INITFINAL);
+
+	append_jump(desc, JUMP_CLASS_CLASS1 | JUMP_TYPE_HALT);
+}
 
 /*
  * run_descriptor_deco0 - runs a descriptor on DECO0, under direct control of
@@ -59,7 +70,7 @@ static inline int run_descriptor_deco0(struct device *ctrldev, u32 *desc)
 	struct caam_full __iomem *topregs;
 	unsigned int timeout = 100000;
 	u32 deco_dbg_reg, flags;
-	int i, ret = 0;
+	int i;
 
 	/* Set the bit to request direct access to DECO0 */
 	topregs = (struct caam_full __iomem *)ctrlpriv->ctrl;
@@ -102,11 +113,6 @@ static inline int run_descriptor_deco0(struct device *ctrldev, u32 *desc)
 		cpu_relax();
 	} while ((deco_dbg_reg & DESC_DBG_DECO_STAT_VALID) && --timeout);
 
-	if (!timeout) {
-		dev_err(ctrldev, "failed to instantiate RNG\n");
-		ret = -EIO;
-	}
-
 	/* Mark the DECO as free */
 	clrbits32(&topregs->ctrl.deco_rq, DECORR_RQD0ENABLE);
 
@@ -146,6 +152,39 @@ static int instantiate_rng(struct device *ctrldev)
 	return ret;
 }
 
+/*
+ * deinstantiate_rng - builds and executes a descriptor on DECO0,
+ *		       which deinitializes the RNG block.
+ * @ctrldev - pointer to device
+ *
+ * Return: - 0 if no error occurred
+ *	   - -ENOMEM if there isn't enough memory to allocate the descriptor
+ *	   - -ENODEV if DECO0 couldn't be acquired
+ *	   - -EAGAIN if an error occurred when executing the descriptor
+ */
+static int deinstantiate_rng(struct device *ctrldev)
+{
+	u32 *desc;
+	int i, ret = 0;
+
+	desc = kmalloc(CAAM_CMD_SZ * 3, GFP_KERNEL);
+	if (!desc)
+		return -ENOMEM;
+
+	/* Create the descriptor for deinstantating RNG State Handle 0 */
+	build_deinstantiation_desc(desc);
+
+	/* Try to run it through DECO0 */
+	ret = run_descriptor_deco0(ctrldev, desc);
+
+	if (ret)
+		dev_err(ctrldev, "failed to deinstantiate RNG\n");
+
+	kfree(desc);
+
+	return ret;
+}
+
 static int caam_remove(struct platform_device *pdev)
 {
 	struct device *ctrldev;
@@ -164,6 +203,10 @@ static int caam_remove(struct platform_device *pdev)
 		jrpriv = dev_get_drvdata(ctrlpriv->jrdev[ring]);
 		irq_dispose_mapping(jrpriv->irq);
 	}
+
+	/* De-initialize RNG if it was initialized by this driver. */
+	if (ctrlpriv->rng4_init)
+		deinstantiate_rng(ctrldev);
 
 	/* Shut down debug views */
 #ifdef CONFIG_DEBUG_FS
@@ -383,6 +426,8 @@ static int caam_probe(struct platform_device *pdev)
 			caam_remove(pdev);
 			return ret;
 		}
+
+		ctrlpriv->rng4_init = 1;
 
 		/* Enable RDB bit so that RNG works faster */
 		setbits32(&topregs->ctrl.scfgr, SCFGR_RDBENABLE);
