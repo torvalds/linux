@@ -7645,6 +7645,7 @@ static int bnx2x_init_hw_func(struct bnx2x *bp)
 
 	bnx2x_init_block(bp, BLOCK_TM, init_phase);
 	bnx2x_init_block(bp, BLOCK_DORQ, init_phase);
+	REG_WR(bp, DORQ_REG_MODE_ACT, 1); /* no dpm */
 
 	bnx2x_iov_init_dq(bp);
 
