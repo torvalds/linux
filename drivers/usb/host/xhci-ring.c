@@ -1414,6 +1414,20 @@ static void xhci_handle_cmd_addr_dev(struct xhci_hcd *xhci, int slot_id,
 	complete(&xhci->addr_dev);
 }
 
+static void xhci_handle_cmd_reset_dev(struct xhci_hcd *xhci, int slot_id,
+		struct xhci_event_cmd *event)
+{
+	struct xhci_virt_device *virt_dev;
+
+	xhci_dbg(xhci, "Completed reset device command.\n");
+	virt_dev = xhci->devs[slot_id];
+	if (virt_dev)
+		handle_cmd_in_cmd_wait_list(xhci, virt_dev, event);
+	else
+		xhci_warn(xhci, "Reset device command completion "
+				"for disabled slot %u\n", slot_id);
+}
+
 static void handle_cmd_completion(struct xhci_hcd *xhci,
 		struct xhci_event_cmd *event)
 {
@@ -1549,13 +1563,7 @@ bandwidth_change:
 	case TRB_TYPE(TRB_RESET_DEV):
 		WARN_ON(slot_id != TRB_TO_SLOT_ID(
 				le32_to_cpu(xhci->cmd_ring->dequeue->generic.field[3])));
-		xhci_dbg(xhci, "Completed reset device command.\n");
-		virt_dev = xhci->devs[slot_id];
-		if (virt_dev)
-			handle_cmd_in_cmd_wait_list(xhci, virt_dev, event);
-		else
-			xhci_warn(xhci, "Reset device command completion "
-					"for disabled slot %u\n", slot_id);
+		xhci_handle_cmd_reset_dev(xhci, slot_id, event);
 		break;
 	case TRB_TYPE(TRB_NEC_GET_FW):
 		if (!(xhci->quirks & XHCI_NEC_HOST)) {
