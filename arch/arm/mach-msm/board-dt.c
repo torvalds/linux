@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2010-2012,2013 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -19,30 +19,14 @@
 
 #include "common.h"
 
-static void __init msm8x60_init_late(void)
-{
-	smd_debugfs_init();
-}
-
-static struct of_dev_auxdata msm_auxdata_lookup[] __initdata = {
-	{}
-};
-
-static void __init msm8x60_dt_init(void)
-{
-	of_platform_populate(NULL, of_default_bus_match_table,
-			msm_auxdata_lookup, NULL);
-}
-
-static const char *msm8x60_fluid_match[] __initdata = {
+static const char * const msm_dt_match[] __initconst = {
 	"qcom,msm8660-fluid",
 	"qcom,msm8660-surf",
+	"qcom,msm8960-cdp",
 	NULL
 };
 
 DT_MACHINE_START(MSM_DT, "Qualcomm MSM (Flattened Device Tree)")
 	.smp = smp_ops(msm_smp_ops),
-	.init_machine = msm8x60_dt_init,
-	.init_late = msm8x60_init_late,
-	.dt_compat = msm8x60_fluid_match,
+	.dt_compat = msm_dt_match,
 MACHINE_END
