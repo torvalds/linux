@@ -1675,29 +1675,30 @@ static int atmel_spi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef	CONFIG_PM
-
-static int atmel_spi_suspend(struct platform_device *pdev, pm_message_t mesg)
+#ifdef CONFIG_PM_SLEEP
+static int atmel_spi_suspend(struct device *dev)
 {
-	struct spi_master	*master = platform_get_drvdata(pdev);
+	struct spi_master	*master = dev_get_drvdata(dev);
 	struct atmel_spi	*as = spi_master_get_devdata(master);
 
 	clk_disable_unprepare(as->clk);
 	return 0;
 }
 
-static int atmel_spi_resume(struct platform_device *pdev)
+static int atmel_spi_resume(struct device *dev)
 {
-	struct spi_master	*master = platform_get_drvdata(pdev);
+	struct spi_master	*master = dev_get_drvdata(dev);
 	struct atmel_spi	*as = spi_master_get_devdata(master);
 
-	return clk_prepare_enable(as->clk);
+	clk_prepare_enable(as->clk);
 	return 0;
 }
 
+static SIMPLE_DEV_PM_OPS(atmel_spi_pm_ops, atmel_spi_suspend, atmel_spi_resume);
+
+#define ATMEL_SPI_PM_OPS	(&atmel_spi_pm_ops)
 #else
-#define	atmel_spi_suspend	NULL
-#define	atmel_spi_resume	NULL
+#define ATMEL_SPI_PM_OPS	NULL
 #endif
 
 #if defined(CONFIG_OF)
@@ -1713,10 +1714,9 @@ static struct platform_driver atmel_spi_driver = {
 	.driver		= {
 		.name	= "atmel_spi",
 		.owner	= THIS_MODULE,
+		.pm	= ATMEL_SPI_PM_OPS,
 		.of_match_table	= of_match_ptr(atmel_spi_dt_ids),
 	},
-	.suspend	= atmel_spi_suspend,
-	.resume		= atmel_spi_resume,
 	.probe		= atmel_spi_probe,
 	.remove		= atmel_spi_remove,
 };
