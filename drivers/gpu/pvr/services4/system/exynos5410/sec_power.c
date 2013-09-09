@@ -5,9 +5,16 @@
  *
  * Samsung SoC SGX power driver
  *
- * This program is free software; you can redistribute it and/or modify
+ * This software is proprietary of Samsung Electronics.
+ * No part of this software, either material or conceptual may be copied or distributed, transmitted,
+ * transcribed, stored in a retrieval system or translated into any human or computer language in any form by any means,
+ * electronic, mechanical, manual or otherwise, or disclosed
+ * to third parties without the express written permission of Samsung Electronics.
+ *
+ * Alternatively, this program is free software in case of Linux Kernel;
+ * you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software FoundatIon.
+ * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -43,7 +50,7 @@ MODULE_PARM_DESC(sgx_gpu_power_state, "SGX power current status");
 
 void gpu_voltage_set(int sgx_vol)
 {
-	PVR_LOG(("SGX change voltage [%d] -> [%d] mV", sgx_gpu_vol, sgx_vol));
+//	PVR_LOG(("SGX change voltage [%d] -> [%d] mV", sgx_gpu_vol, sgx_vol));
 	regulator_set_voltage(g3d_pd_regulator, sgx_vol, sgx_vol);
 	sgx_gpu_vol = regulator_get_voltage(g3d_pd_regulator);
 }
@@ -78,8 +85,13 @@ void gpu_power_init(void)
 int gpu_power_enable(void)
 {
 #ifdef CONFIG_PM_RUNTIME
+	int err;
 	int try_count = 50;
-	pm_runtime_get_sync(&gpsPVRLDMDev->dev);
+	err = pm_runtime_get_sync(&gpsPVRLDMDev->dev);
+	if (err && pm_runtime_suspended(&gpsPVRLDMDev->dev)) {
+		PVR_DPF((PVR_DBG_ERROR, "Error in pm_runtime_get_sync"));
+		return err;
+	}
 
 	do { /* wait for gpu power turned on */
 		if (!pm_runtime_suspended(&gpsPVRLDMDev->dev))

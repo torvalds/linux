@@ -1223,8 +1223,8 @@ PVRSRVUnmapDeviceClassMemoryBW(IMG_UINT32 ui32BridgeID,
 	}
 	return 0;
 }
-
-
+/* S.LSI does not use wrap function */
+#if defined(PVR_USING_EXT_WRAP_MEMORY)
 #if defined(OS_PVRSRV_WRAP_EXT_MEM_BW)
 IMG_INT
 PVRSRVWrapExtMemoryBW(IMG_UINT32 ui32BridgeID,
@@ -1411,6 +1411,7 @@ PVRSRVUnwrapExtMemoryBW(IMG_UINT32 ui32BridgeID,
 
 	return 0;
 }
+#endif
 
 #if defined(SUPPORT_ION)
 static IMG_INT
@@ -4532,8 +4533,9 @@ CommonBridgeInit(IMG_VOID)
 	SetDispatchTableEntry(PVRSRV_BRIDGE_GET_BUFFERCLASS_BUFFER, PVRSRVGetBCBufferBW);
 
 	/* Wrap/Unwrap external memory */
-	SetDispatchTableEntry(PVRSRV_BRIDGE_WRAP_EXT_MEMORY, PVRSRVWrapExtMemoryBW);
-	SetDispatchTableEntry(PVRSRV_BRIDGE_UNWRAP_EXT_MEMORY, PVRSRVUnwrapExtMemoryBW);
+	/* S.LSI does not use wrap function */
+	SetDispatchTableEntry(PVRSRV_BRIDGE_WRAP_EXT_MEMORY, DummyBW);
+	SetDispatchTableEntry(PVRSRV_BRIDGE_UNWRAP_EXT_MEMORY, DummyBW);
 
 	/* Shared memory */
 	SetDispatchTableEntry(PVRSRV_BRIDGE_ALLOC_SHARED_SYS_MEM, PVRSRVAllocSharedSysMemoryBW);

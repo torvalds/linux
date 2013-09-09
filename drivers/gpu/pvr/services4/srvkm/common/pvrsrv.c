@@ -1350,7 +1350,7 @@ PVRSRV_ERROR IMG_CALLCONV PVRSRVGetMiscInfoKM(PVRSRV_MISC_INFO *psMiscInfo)
 
 			if(psSysData->ePendingCacheOpType != PVRSRV_MISC_INFO_CPUCACHEOP_NONE)
 			{
-				PVR_DPF((PVR_DBG_WARNING, "PVRSRVGetMiscInfoKM: "
+				PVR_DPF((PVR_DBG_MESSAGE, "PVRSRVGetMiscInfoKM: "
 						 "Deferred cache op is pending. It is unlikely you want "
 						 "to combine deferred cache ops with immediate ones"));
 			}

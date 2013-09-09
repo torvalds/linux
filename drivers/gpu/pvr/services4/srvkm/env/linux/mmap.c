@@ -95,6 +95,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #error "The mmap code requires PVR_SECURE_HANDLES"
 #endif
 
+#define USING_REMAP_PFN_RANGE
+
 /* WARNING:
  * The mmap code has its own mutex, to prevent a possible deadlock,
  * when using gPVRSRVLock.
@@ -583,6 +585,9 @@ PVRMMapReleaseMMapData(PVRSRV_PER_PROCESS_DATA *psPerProc,
         }
     }
 
+    /* MMap data not found */
+    PVR_DPF((PVR_DBG_ERROR, "%s: Mapping data not found for handle %p (memory area %p)", __FUNCTION__, hMHandle, psLinuxMemArea));
+
     eError =  PVRSRV_ERROR_MAPPING_NOT_FOUND;
 
 exit_unlock:
@@ -744,7 +749,9 @@ DoMapToUser(LinuxMemArea *psLinuxMemArea,
 #if defined(PVR_MAKE_ALL_PFNS_SPECIAL)
 		if (bMixedMap)
 		{
-		        ps_vma->vm_flags |= VM_MIXEDMAP;
+#if !defined(USING_REMAP_PFN_RANGE)
+			ps_vma->vm_flags |= VM_MIXEDMAP;
+#endif
 		}
 #endif
 	/* Second pass, get the page structures and insert the pages */
@@ -772,7 +779,11 @@ DoMapToUser(LinuxMemArea *psLinuxMemArea,
 #if defined(PVR_MAKE_ALL_PFNS_SPECIAL)
 		    if (bMixedMap)
 		    {
+#if defined(USING_REMAP_PFN_RANGE)
+			result = IO_REMAP_PFN_RANGE(ps_vma, ulVMAPos, pfn, PAGE_SIZE, ps_vma->vm_page_prot);
+#else
 			result = vm_insert_mixed(ps_vma, ulVMAPos, pfn);
+#endif
 	                if(result != 0)
 	                {
 	                    PVR_DPF((PVR_DBG_ERROR,"%s: Error - vm_insert_mixed failed (%d)", __FUNCTION__, result));
@@ -787,8 +798,12 @@ DoMapToUser(LinuxMemArea *psLinuxMemArea,
 		        PVR_ASSERT(pfn_valid(pfn));
 	
 		        psPage = pfn_to_page(pfn);
-	
-		        result = VM_INSERT_PAGE(ps_vma,  ulVMAPos, psPage);
+
+#if defined(USING_REMAP_PFN_RANGE)
+			result = VM_INSERT_PAGE(ps_vma,  ulVMAPos, psPage);
+#else
+			result = IO_REMAP_PFN_RANGE(ps_vma, ulVMAPos, pfn, PAGE_SIZE, ps_vma->vm_page_prot);
+#endif
 	                if(result != 0)
 	                {
 	                    PVR_DPF((PVR_DBG_ERROR,"%s: Error - VM_INSERT_PAGE failed (%d)", __FUNCTION__, result));

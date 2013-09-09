@@ -265,9 +265,7 @@ static IMG_VOID SGXPollForClockGating (PVRSRV_SGXDEV_INFO	*psDevInfo,
 						MAX_HW_TIME_US/WAIT_TRY_COUNT,
 						IMG_FALSE) != PVRSRV_OK)
 	{
-		PVR_DPF((PVR_DBG_ERROR,"SGXPollForClockGating: %s failed.", pszComment));
-		SGXDumpDebugInfo(psDevInfo, IMG_FALSE);
-		PVR_DBG_BREAK;
+		PVR_DPF((PVR_DBG_WARNING, "SGXPollForClockGating: %s failed.", pszComment));
 	}
 	#endif /* NO_HARDWARE */
 
@@ -351,7 +349,7 @@ PVRSRV_ERROR SGXPrePowerState (IMG_HANDLE				hDevHandle,
 							IMG_FALSE) != PVRSRV_OK)
 		{
 			PVR_DPF((PVR_DBG_ERROR,"SGXPrePowerState: Wait for SGX ukernel power transition failed."));
-			SGXDumpDebugInfo(psDevInfo, IMG_FALSE);
+			SGXDumpDebugInfo(psDevInfo, IMG_TRUE);
 			PVR_DBG_BREAK;
 		}
 		#endif /* NO_HARDWARE */
@@ -380,9 +378,34 @@ PVRSRV_ERROR SGXPrePowerState (IMG_HANDLE				hDevHandle,
 							IMG_FALSE) != PVRSRV_OK)
 		{
 			PVR_DPF((PVR_DBG_ERROR, "SGXPrePowerState: Wait for pending interrupts failed."));
+			SGXDumpDebugInfo(psDevInfo, IMG_TRUE);
+			PVR_DBG_BREAK;
+		}
+		#if defined(EUR_CR_USE0_DM_SLOT)
+		if (PollForValueKM((IMG_UINT32 *)psDevInfo->pvRegsBaseKM + (SGX_MP_CORE_SELECT(EUR_CR_USE0_DM_SLOT, 0) >> 2),
+						0xAAAAAAAA,
+						0xFFFFFFFF,
+						MAX_HW_TIME_US,
+						MAX_HW_TIME_US/WAIT_TRY_COUNT,
+						IMG_FALSE) != PVRSRV_OK)
+		{
+			PVR_DPF((PVR_DBG_ERROR, "SGXPrePowerState: Wait for USE to be idle."));
 			SGXDumpDebugInfo(psDevInfo, IMG_FALSE);
 			PVR_DBG_BREAK;
 		}
+		#else
+		if (PollForValueKM((IMG_UINT32 *)psDevInfo->pvRegsBaseKM + (SGX_MP_CORE_SELECT(EUR_CR_USE1_DM_SLOT, 0) >> 2),
+						0xAAAAAAAA,
+						0xFFFFFFFF,
+						MAX_HW_TIME_US,
+						MAX_HW_TIME_US/WAIT_TRY_COUNT,
+						IMG_FALSE) != PVRSRV_OK)
+		{
+			PVR_DPF((PVR_DBG_ERROR, "SGXPrePowerState: Wait for USE to be idle."));
+			SGXDumpDebugInfo(psDevInfo, IMG_FALSE);
+			PVR_DBG_BREAK;
+		}
+		#endif /* EUR_CR_USE0_DM_SLOT */
 		#endif /* NO_HARDWARE */
 #if defined(SGX_FEATURE_MP)
 		ui32CoresEnabled = ((OSReadHWReg(psDevInfo->pvRegsBaseKM, EUR_CR_MASTER_CORE) & EUR_CR_MASTER_CORE_ENABLE_MASK) >> EUR_CR_MASTER_CORE_ENABLE_SHIFT) + 1;

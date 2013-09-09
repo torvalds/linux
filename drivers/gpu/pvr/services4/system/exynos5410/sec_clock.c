@@ -5,9 +5,16 @@
  *
  * Samsung SoC SGX clock driver
  *
- * This program is free software; you can redistribute it and/or modify
+ * This software is proprietary of Samsung Electronics.
+ * No part of this software, either material or conceptual may be copied or distributed, transmitted,
+ * transcribed, stored in a retrieval system or translated into any human or computer language in any form by any means,
+ * electronic, mechanical, manual or otherwise, or disclosed
+ * to third parties without the express written permission of Samsung Electronics.
+ *
+ * Alternatively, this program is free software in case of Linux Kernel;
+ * you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software FoundatIon.
+ * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -30,6 +37,8 @@ void __iomem *sgx_bts_base;
 unsigned int sgx_clk_status;
 #endif
 
+//#define DEBUG_BW
+
 /* clock control */
 static struct clk	*sgx_core;
 static struct clk	*sgx_hyd;
@@ -38,7 +47,6 @@ static struct clk	*g3d_clock_hydra_sub;
 static struct clk	*g3d_clock_core;
 static struct clk	*g3d_clock_hydra;
 static struct clk	*mout_g3d;
-static struct clk	*cpll_clock;
 static struct clk	*vpll_clock;
 static struct clk	*vpll_src;
 static struct clk	*fout_vpll_clock;
@@ -62,7 +70,7 @@ int gpu_clks_get(void)
 
 	if (vpll_clock == NULL) {
 		vpll_clock = clk_get(&pdev->dev, "mout_vpll");
-		if (IS_ERR(cpll_clock)) {
+		if (IS_ERR(vpll_clock)) {
 			PVR_DPF((PVR_DBG_ERROR, "failed to find vpll clock"));
 			return -1;
 		}
@@ -78,7 +86,7 @@ int gpu_clks_get(void)
 
 	if (fout_vpll_clock == NULL) {
 		fout_vpll_clock = clk_get(&pdev->dev, "fout_vpll");
-		if (IS_ERR(cpll_clock)) {
+		if (IS_ERR(fout_vpll_clock)) {
 			PVR_DPF((PVR_DBG_ERROR, "failed to find vpll clock"));
 			return -1;
 		}
@@ -204,20 +212,44 @@ void gpu_clks_put(void)
 #endif
 }
 
-void gpu_clock_set_parent()
+int gpu_clock_set_parent()
 {
-	clk_set_parent(mout_g3d, vpll_clock);
-	clk_set_parent(g3d_clock_core_sub, g3d_clock_core);
-	clk_set_parent(g3d_clock_hydra_sub, g3d_clock_hydra);
+	int err = 0;
+	err = clk_set_parent(mout_g3d, vpll_clock);
+	if (err) {
+		PVR_LOG(("SGX mout_g3d clk_set_parent fail!"));
+		return err;
+	}
+	err = clk_set_parent(g3d_clock_core_sub, g3d_clock_core);
+	if (err) {
+		PVR_LOG(("SGX g3d_clock_core_sub clk_set_parent fail!"));
+		return err;
+	}
+	err = clk_set_parent(g3d_clock_hydra_sub, g3d_clock_hydra);
+	if (err) {
+		PVR_LOG(("SGX g3d_clock_hydra_sub clk_set_parent fail!"));
+		return err;
+	}
+	return err;
 }
 
-void gpu_clock_enable()
+int gpu_clock_enable()
 {
-	clk_enable(sgx_core);
-	clk_enable(sgx_hyd);
+	int err = 0;
+	err = clk_enable(sgx_core);
+	if (err) {
+		PVR_LOG(("SGX sgx_core clock enable fail!"));
+		return err;
+	}
+	err = clk_enable(sgx_hyd);
+	if (err) {
+		PVR_LOG(("SGX sgx_hyd clock enable fail!"));
+		return err;
+	}
 #if defined(CONFIG_EXYNOS5410_BTS)
 	sgx_clk_status = 1;
 #endif
+	return err;
 }
 
 void gpu_clock_disable()
@@ -234,11 +266,11 @@ void gpu_clock_disable()
 /*this function using for DVFS*/
 void gpu_clock_set(int sgx_clk)
 {
-	if (clk_get_rate(fout_vpll_clock)/MHZ != sgx_clk) {
-		clk_set_parent(vpll_clock, vpll_src);
+#ifdef DEBUG_BW
+	int old_clk = clk_get_rate(g3d_clock_core)/MHZ;
+#endif
+	if (clk_get_rate(fout_vpll_clock)/MHZ != sgx_clk)
 		sgx_gpu_src_clk = clk_set_rate(fout_vpll_clock, sgx_clk * MHZ);
-		clk_set_parent(vpll_clock, fout_vpll_clock);
-	}
 
 	if (clk_get_rate(g3d_clock_core)/MHZ != sgx_clk)
 		clk_set_rate(g3d_clock_core, sgx_clk * MHZ);
@@ -258,8 +290,11 @@ void gpu_clock_set(int sgx_clk)
 #if defined(CONFIG_EXYNOS5410_BTS)
 		{
 			unsigned int bts = 0;
-			if (sgx_clk_status)
+			if (sgx_clk_status && __raw_readl(sgx_bts_base+0))
 				bts = __raw_readl(sgx_bts_base+0xc);
+			else
+				bts = 0;
+
 			PVR_LOG(("SGX change clock [%d] Mhz -> [%d] MHz req [%d] MHz / M[%d] / B[%d]", old_clk, sgx_gpu_clk, sgx_clk, (800 / mif_sdiv), bts));
 		}
 #else

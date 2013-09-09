@@ -751,7 +751,7 @@ PVRSRV_ERROR IMG_CALLCONV PVRSRVMapDeviceMemory (IMG_CONST PVRSRV_DEV_DATA *psDe
 
 IMG_IMPORT
 PVRSRV_ERROR IMG_CALLCONV PVRSRVUnmapDeviceMemory (IMG_CONST PVRSRV_DEV_DATA *psDevData,
-										PVRSRV_CLIENT_MEM_INFO *psMemInfo);
+										PVRSRV_CLIENT_MEM_INFO *psMemInfo, IMG_BOOL bMaps);
 
 IMG_IMPORT
 PVRSRV_ERROR IMG_CALLCONV PVRSRVMapExtMemory (IMG_CONST PVRSRV_DEV_DATA	*psDevData,
@@ -813,7 +813,8 @@ IMG_IMPORT
 PVRSRV_ERROR IMG_CALLCONV PVRSRVMapDeviceMemory2(IMG_CONST PVRSRV_DEV_DATA	*psDevData,
 												 IMG_INT					iFd,
 												 IMG_HANDLE					hDstDevMemHeap,
-												 PVRSRV_CLIENT_MEM_INFO		**ppsDstMemInfo);
+												 PVRSRV_CLIENT_MEM_INFO		**ppsDstMemInfo,
+												 IMG_BOOL					bMaps);
 #endif /* defined(LINUX) */
 
 #if defined(SUPPORT_ION)

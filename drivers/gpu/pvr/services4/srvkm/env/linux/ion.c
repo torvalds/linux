@@ -2,6 +2,7 @@
 @Title          Ion driver inter-operability code.
 @Copyright      Copyright (c) Imagination Technologies Ltd. All Rights Reserved
 @License        Dual MIT/GPLv2
+* Copyright 2012 by S.LSI. Samsung Electronics Inc.
 
 The contents of this file are subject to the MIT license as set out below.
 

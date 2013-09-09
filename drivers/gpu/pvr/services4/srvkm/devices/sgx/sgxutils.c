@@ -67,7 +67,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 IMG_UINT64 ui64KickCount;
-
+int g_debug_CCB_Info_WCNT;
 
 #if defined(SYS_CUSTOM_POWERDOWN)
 PVRSRV_ERROR SysPowerDownMISR(PVRSRV_DEVICE_NODE	* psDeviceNode, IMG_UINT32 ui32CallerID);
@@ -550,6 +550,7 @@ PVRSRV_ERROR SGXScheduleCCBCommand(PVRSRV_DEVICE_NODE	*psDeviceNode,
 		Increment the write offset
 	*/
 	*psKernelCCB->pui32WriteOffset = (*psKernelCCB->pui32WriteOffset + 1) & 255;
+	g_debug_CCB_Info_WCNT++;
 
 #if defined(PDUMP)
 	if ((ui32CallerID != ISR_ID) && (bPDumpIsSuspended == IMG_FALSE) &&
@@ -667,6 +668,9 @@ PVRSRV_ERROR SGXScheduleCCBCommandKM(PVRSRV_DEVICE_NODE		*psDeviceNode,
 	PVRSRV_SGXDEV_INFO      *psDevInfo = psDeviceNode->pvDevice;
 	eError = PVRSRVPowerLock(ui32CallerID, IMG_FALSE);
 
+	if (psDevInfo->psKernelCCBCtl->ui32ReadOffset  > 0xff || psDevInfo->psKernelCCBCtl->ui32WriteOffset > 0xff)
+		PVR_DPF((PVR_DBG_ERROR, "SGX CCB check error: RO: %x, WO:%x ", psDevInfo->psKernelCCBCtl->ui32ReadOffset,
+					psDevInfo->psKernelCCBCtl->ui32WriteOffset));
 	PVR_ASSERT(psDevInfo->psKernelCCBCtl->ui32ReadOffset <= 0xff &&
 		psDevInfo->psKernelCCBCtl->ui32WriteOffset <= 0xff);
 
@@ -719,6 +723,7 @@ PVRSRV_ERROR SGXScheduleCCBCommandKM(PVRSRV_DEVICE_NODE		*psDeviceNode,
 	{
 		PVR_DPF((PVR_DBG_ERROR,"SGXScheduleCCBCommandKM failed to acquire lock - "
 				 "ui32CallerID:%d eError:%u", ui32CallerID, eError));
+		PVRSRVPowerUnlock(ui32CallerID);
 		return eError;
 	}
 
@@ -853,7 +858,7 @@ PVRSRV_ERROR SGXCleanupRequest(PVRSRV_DEVICE_NODE *psDeviceNode,
 		if (eError != PVRSRV_OK)
 		{
 			PVR_DPF((PVR_DBG_ERROR, "SGXCleanupRequest: Failed to submit clean-up command %d", eError));
-			SGXDumpDebugInfo(psDevInfo, IMG_FALSE);
+			SGXDumpDebugInfo(psDevInfo, IMG_TRUE);
 			PVR_DBG_BREAK;
 			return eError;
 		}

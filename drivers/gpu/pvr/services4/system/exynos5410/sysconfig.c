@@ -1,7 +1,7 @@
 /**********************************************************************
  *
  * Copyright(c) 2008 Imagination Technologies Ltd. All rights reserved.
- * 		Samsung Electronics System LSI. modify
+ * Copyright 2013 by S.LSI. Samsung Electronics Inc.
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
  * version 2, as published by the Free Software Foundation.
@@ -320,7 +320,10 @@ PVRSRV_ERROR SysInitialise()
 #if defined(SUPPORT_ACTIVE_POWER_MANAGEMENT)
 	eError = sec_gpu_pwr_clk_state_set(GPU_PWR_CLK_STATE_OFF);
 	if (eError != PVRSRV_OK)
+	{
 		PVR_DPF((PVR_DBG_MESSAGE, "SysInitialise: SGX mode change (GPU_PWR_CLK_STATE_OFF) fail"));
+		return eError;
+	}
 #endif
 
 	PVR_LOG(("SysInitialise: end"));
@@ -388,7 +391,10 @@ PVRSRV_ERROR SysFinalise(IMG_VOID)
 #if defined(SUPPORT_ACTIVE_POWER_MANAGEMENT)
 	eError = sec_gpu_pwr_clk_state_set(GPU_PWR_CLK_STATE_OFF);
 	if (eError != PVRSRV_OK)
+	{
 		PVR_DPF((PVR_DBG_MESSAGE, "SysFinalise: SGX mode change (GPU_PWR_CLK_STATE_OFF) fail"));
+		return eError;
+	}
 #endif
 	
 	return PVRSRV_OK;
@@ -655,9 +661,13 @@ PVRSRV_ERROR SysDevicePostPowerState(IMG_UINT32			ui32DeviceIndex,
 	if (eNewPowerState == PVRSRV_DEV_POWER_STATE_ON)
 	{
 		PVR_DPF((PVR_DBG_MESSAGE, "SysDevicePostPowerState: SGX Leaving state D3"));
+		sec_gpu_dvfs_down_requirement_reset();
 		eError = sec_gpu_pwr_clk_state_set(GPU_PWR_CLK_STATE_ON);
 		if (eError != PVRSRV_OK)
+		{
 			PVR_DPF((PVR_DBG_MESSAGE, "SysDevicePostPowerState: SGX mode change (GPU_PWR_CLK_STATE_ON) fail"));
+			return eError;
+		}
 	}
 
 	return eError;

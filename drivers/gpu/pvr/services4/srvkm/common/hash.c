@@ -60,6 +60,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define	KEY_COMPARE(pHash, pKey1, pKey2) \
 	((pHash)->pfnKeyComp((pHash)->uKeySize, (pKey1), (pKey2)))
 
+#define _DISABLE_HASH_RESIZE
+
 /* Each entry in a hash table is placed into a bucket */
 struct _BUCKET_
 {
@@ -194,6 +196,11 @@ _ChainInsert (HASH_TABLE *pHash, BUCKET *pBucket, BUCKET **ppBucketTable, IMG_UI
 	PVR_ASSERT (ppBucketTable != IMG_NULL);
 	PVR_ASSERT (uSize != 0);
 
+	if ((int)pBucket == -1)
+	{
+		PVR_DPF((PVR_DBG_ERROR, "invalied bucket value, pBucket == -1"));
+	}
+
 	if ((pBucket == IMG_NULL) || (ppBucketTable == IMG_NULL) || (uSize == 0))
 	{
 		PVR_DPF((PVR_DBG_ERROR, "_ChainInsert: invalid parameter"));
@@ -207,6 +214,7 @@ _ChainInsert (HASH_TABLE *pHash, BUCKET *pBucket, BUCKET **ppBucketTable, IMG_UI
 	return PVRSRV_OK;
 }
 
+#ifndef _DISABLE_HASH_RESIZE
 /*!
 ******************************************************************************
 	@Function   	_Rehash
@@ -246,6 +254,7 @@ _Rehash (HASH_TABLE *pHash,
     }
 	return PVRSRV_OK;
 }
+#endif
 
 /*!
 ******************************************************************************
@@ -264,6 +273,7 @@ _Rehash (HASH_TABLE *pHash,
 static IMG_BOOL
 _Resize (HASH_TABLE *pHash, IMG_UINT32 uNewSize)
 {
+#ifndef _DISABLE_HASH_RESIZE
 	if (uNewSize != pHash->uSize)
     {
 		BUCKET **ppNewTable;
@@ -293,6 +303,11 @@ _Resize (HASH_TABLE *pHash, IMG_UINT32 uNewSize)
         pHash->ppBucketTable = ppNewTable;
         pHash->uSize = uNewSize;
     }
+#else
+	/* unused param */
+	*pHash = *pHash;
+	uNewSize = uNewSize;
+#endif
     return IMG_TRUE;
 }
 
@@ -320,6 +335,10 @@ HASH_TABLE * HASH_Create_Extended (IMG_UINT32 uInitialLen, IMG_SIZE_T uKeySize, 
 	IMG_UINT32 uIndex;
 
 	PVR_DPF ((PVR_DBG_MESSAGE, "HASH_Create_Extended: InitialSize=0x%x", uInitialLen));
+
+#ifdef _DISABLE_HASH_RESIZE
+	uInitialLen = 1024;
+#endif
 
 	if(OSAllocMem(PVRSRV_PAGEABLE_SELECT,
 					sizeof(HASH_TABLE),

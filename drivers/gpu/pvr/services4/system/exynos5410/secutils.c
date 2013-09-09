@@ -5,9 +5,16 @@
  *
  * Samsung SoC SGX DVFS driver
  *
- * This program is free software; you can redistribute it and/or modify
+ * This software is proprietary of Samsung Electronics.
+ * No part of this software, either material or conceptual may be copied or distributed, transmitted,
+ * transcribed, stored in a retrieval system or translated into any human or computer language in any form by any means,
+ * electronic, mechanical, manual or otherwise, or disclosed
+ * to third parties without the express written permission of Samsung Electronics.
+ *
+ * Alternatively, this program is free software in case of Linux Kernel;
+ * you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software FoundatIon.
+ * published by the Free Software Foundation.
  */
 #include <linux/module.h>
 #include <linux/pm_qos.h>
@@ -24,7 +31,7 @@
 /* clz func */
 #include <linux/bitops.h>
 
-#define GPU_UTILIZATION_TIME 1000 /*1 sec */
+#define GPU_UTILIZATION_TIME 100 /* 100 msec */
 
 #if defined(CONFIG_ARM_EXYNOS5410_BUS_DEVFREQ)
 extern struct pm_qos_request exynos5_g3d_mif_qos;
@@ -94,12 +101,7 @@ IMG_VOID SysSGXIdleTransition(IMG_BOOL bSGXIdle)
 	#endif
 }
 
-unsigned int inline _clz(unsigned int input)
-{
-	return 32-fls(input);
-}
-
-u64 _time_get_ns(void)
+u64 get_time_ns(void)
 {
 	struct timespec tsval;
 	getnstimeofday(&tsval);
@@ -111,7 +113,7 @@ void sgx_hw_start(void)
 	hw_running_state++;
 	if (hw_running_state == 1) {
 		mutex_lock(&time_data_lock);
-		hw_start_time = _time_get_ns();
+		hw_start_time = get_time_ns();
 
 		if (timer_running != true) { /* first time setting */
 			timer_running = true;
@@ -126,7 +128,7 @@ void sgx_hw_end(void)
 	if (hw_running_state > 0) {
 		hw_running_state--;
 		if (hw_running_state == 0) {
-			u64 time_now = _time_get_ns();
+			u64 time_now = get_time_ns();
 			mutex_lock(&time_data_lock);
 
 			total_work_time += (time_now - hw_start_time);
@@ -137,14 +139,18 @@ void sgx_hw_end(void)
 	}
 }
 
+/* convert the struct timeval to int */
+static u32 normalize_time(struct timeval time)
+{
+	return time.tv_sec * 1000000 + time.tv_usec;
+}
+
 static void sec_gpu_utilization_handler(void *arg)
 {
-	u64 time_now = _time_get_ns();
-	u64 time_period;
-	u32 leading_zeroes;
-	u32 shift_val;
-	u32 work_normalized;
-	u32 period_normalized;
+	u64 time_now = get_time_ns();
+
+	struct timeval working_time;
+	struct timeval period_time;
 
 	mutex_lock(&time_data_lock);
 
@@ -158,26 +164,16 @@ static void sec_gpu_utilization_handler(void *arg)
 		}
 	}
 
-	time_period = time_now - period_start_time;
-
-	/* If we are currently busy, update working period up to now */
 	if (hw_start_time != 0) {
 		total_work_time += (time_now - hw_start_time);
 		hw_start_time = time_now;
 	}
 
-	/* Shift the 64-bit values down so they fit inside a 32-bit integer */
-	leading_zeroes = _clz((u32)(time_period >> 32));
-	shift_val = 32 - leading_zeroes;
-	work_normalized = (u32)(total_work_time >> shift_val);
-	period_normalized = (u32)(time_period >> shift_val);
+	/* changed way to compute the utilization */
+	working_time = (struct timeval)ns_to_timeval(total_work_time);
+	period_time = (struct timeval)ns_to_timeval(time_now - period_start_time);
+	sgx_gpu_utilization = (normalize_time(working_time) * 256) / normalize_time(period_time);
 
-	if (period_normalized > 0x00FFFFFF)
-		period_normalized >>= 8;
-	else
-		work_normalized <<= 8;
-
-	sgx_gpu_utilization = work_normalized / period_normalized;
 
 	total_work_time = 0;
 	period_start_time = time_now;

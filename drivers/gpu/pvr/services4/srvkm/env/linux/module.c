@@ -2,6 +2,7 @@
 @Title          Linux module setup
 @Copyright      Copyright (c) Imagination Technologies Ltd. All Rights Reserved
 @License        Dual MIT/GPLv2
+* Copyright 2013 by S.LSI. Samsung Electronics Inc.
 
 The contents of this file are subject to the MIT license as set out below.
 
@@ -566,6 +567,12 @@ static void __devexit PVRSRVDriverRemove(LDM_DEV *pDevice)
 #endif /* defined(PVR_LDM_MODULE) */
 
 
+#if defined(PVR_LDM_MODULE) || defined(SUPPORT_DRI_DRM)
+static PVRSRV_LINUX_MUTEX gsPMMutex;
+static IMG_BOOL bDriverIsSuspended;
+static IMG_BOOL bDriverIsShutdown;
+#endif
+
 #if defined(PVR_LDM_MODULE) || defined(PVR_DRI_DRM_PLATFORM_DEV)
 /*!
 ******************************************************************************
@@ -592,7 +599,24 @@ PVR_MOD_STATIC void PVRSRVDriverShutdown(LDM_DEV *pDevice)
 {
 	PVR_TRACE(("PVRSRVDriverShutdown(pDevice=%p)", pDevice));
 
-	(void) PVRSRVSetPowerStateKM(PVRSRV_SYS_POWER_STATE_D1);
+	LinuxLockMutex(&gsPMMutex);
+
+	if (!bDriverIsShutdown && !bDriverIsSuspended)
+	{
+		/*
+		 * Take the bridge mutex, and never release it, to stop
+		 * processes trying to use the driver after it has been
+		 * shutdown.
+		 */
+		LinuxLockMutex(&gPVRSRVLock);
+
+		(void) PVRSRVSetPowerStateKM(PVRSRV_SYS_POWER_STATE_D1);
+	}
+
+	bDriverIsShutdown = IMG_TRUE;
+
+	/* The bridge mutex is held on exit */
+	LinuxUnLockMutex(&gsPMMutex);
 }
 
 #endif /* defined(PVR_LDM_MODULE) || defined(PVR_DRI_DRM_PLATFORM_DEV) */
@@ -637,16 +661,31 @@ int PVRSRVDriverSuspend(struct drm_device *pDevice, pm_message_t state)
 PVR_MOD_STATIC int PVRSRVDriverSuspend(struct device *pDevice)
 #endif
 {
+	int res = 0;
 #if !(defined(DEBUG) && defined(PVR_MANUAL_POWER_CONTROL) && !defined(SUPPORT_DRI_DRM))
 	PVR_TRACE(( "PVRSRVDriverSuspend(pDevice=%p)", pDevice));
 
-	if (PVRSRVSetPowerStateKM(PVRSRV_SYS_POWER_STATE_D3) != PVRSRV_OK)
+	LinuxLockMutex(&gsPMMutex);
+
+	if (!bDriverIsSuspended && !bDriverIsShutdown)
 	{
-		return -EINVAL;
+		LinuxLockMutex(&gPVRSRVLock);
+
+		if (PVRSRVSetPowerStateKM(PVRSRV_SYS_POWER_STATE_D3) == PVRSRV_OK)
+		{
+			/* The bridge mutex will be held until we resume */
+			bDriverIsSuspended = IMG_TRUE;
+		}
+		else
+		{
+			LinuxUnLockMutex(&gPVRSRVLock);
+			res = -EINVAL;
+		}
 	}
+
+	LinuxUnLockMutex(&gsPMMutex);
 #endif
-	SysSystemSetPowerMargin(VOLTAGE_OFFSET_MARGIN);
-	return 0;
+	return res;
 }
 
 
@@ -679,15 +718,29 @@ int PVRSRVDriverResume(struct drm_device *pDevice)
 PVR_MOD_STATIC int PVRSRVDriverResume(struct device *pDevice)
 #endif
 {
+	int res = 0;
 #if !(defined(DEBUG) && defined(PVR_MANUAL_POWER_CONTROL) && !defined(SUPPORT_DRI_DRM))
 	PVR_TRACE(("PVRSRVDriverResume(pDevice=%p)", pDevice));
 
-	if (PVRSRVSetPowerStateKM(PVRSRV_SYS_POWER_STATE_D0) != PVRSRV_OK)
+	LinuxLockMutex(&gsPMMutex);
+
+	if (bDriverIsSuspended && !bDriverIsShutdown)
 	{
-		return -EINVAL;
+		if (PVRSRVSetPowerStateKM(PVRSRV_SYS_POWER_STATE_D0) == PVRSRV_OK)
+		{
+			bDriverIsSuspended = IMG_FALSE;
+			LinuxUnLockMutex(&gPVRSRVLock);
+		}
+		else
+		{
+			/* The bridge mutex is not released on failure */
+			res = -EINVAL;
+		}
 	}
+
+	LinuxUnLockMutex(&gsPMMutex);
 #endif
-	return 0;
+	return res;
 }
 #endif /* defined(PVR_LDM_MODULE) || defined(SUPPORT_DRI_DRM) */
 
@@ -1007,6 +1060,7 @@ static int __init PVRCore_Init(void)
 #endif
 	PVR_TRACE(("PVRCore_Init"));
 
+	LinuxInitMutex(&gsPMMutex);
 	LinuxInitMutex(&gPVRSRVLock);
 
 	if (CreateProcEntries ())

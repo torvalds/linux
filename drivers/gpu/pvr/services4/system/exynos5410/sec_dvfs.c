@@ -5,9 +5,16 @@
  *
  * Samsung SoC SGX DVFS driver
  *
- * This program is free software; you can redistribute it and/or modify
+ * This software is proprietary of Samsung Electronics.
+ * No part of this software, either material or conceptual may be copied or distributed, transmitted,
+ * transcribed, stored in a retrieval system or translated into any human or computer language in any form by any means,
+ * electronic, mechanical, manual or otherwise, or disclosed
+ * to third parties without the express written permission of Samsung Electronics.
+ *
+ * Alternatively, this program is free software in case of Linux Kernel;
+ * you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software FoundatIon.
+ * published by the Free Software Foundation.
  */
 
 #include <linux/platform_device.h>
@@ -29,7 +36,8 @@
 #define BASE_DWON_STEP_LEVEL	1
 #define BASE_QUICK_UP_LEVEL		2
 #define BASE_QUICK_DOWN_LEVEL	2
-#define BASE_WAKE_UP_LEVEL		2
+#define BASE_WAKE_UP_LEVEL		3
+#define DOWN_REQUIREMENT_THRESHOLD	3
 #ifdef USING_640MHZ
 #define GPU_DVFS_MAX_LEVEL		6
 #else
@@ -37,7 +45,7 @@
 #endif
 
 /* boost mode need more test */
-#define USING_BOOST_UP_MODE
+/* #define USING_BOOST_UP_MODE */
 /* #define USING_BOOST_DOWN_MODE */
 
 #define setmask(a, b) (((1 < a) < 24)|b)
@@ -71,6 +79,7 @@ int sgx_dvfs_level = -1;
 int sgx_dvfs_custom_clock;
 int sgx_dvfs_min_lock;
 int sgx_dvfs_max_lock;
+int sgx_dvfs_down_requirement;
 int custom_min_lock_level;
 int custom_max_lock_level;
 int custom_threshold_change;
@@ -91,6 +100,15 @@ MODULE_PARM_DESC(custom_threshold_change, "SGX DVFS custom threshold set (0: do 
 module_param(sgx_dvfs_table, charp , S_IRUSR | S_IRGRP | S_IROTH);
 MODULE_PARM_DESC(sgx_dvfs_table, "SGX DVFS frequency array (Mhz)");
 
+#ifdef CONFIG_ASV_MARGIN_TEST
+static int set_g3d_freq;
+static int __init get_g3d_freq(char *str)
+{
+	get_option(&str, &set_g3d_freq);
+	return 0;
+}
+early_param("g3dfreq", get_g3d_freq);
+#endif
 /* end sys parameters */
 
 static int sec_gpu_lock_control_proc(int bmax, long value, size_t count)
@@ -109,6 +127,9 @@ static int sec_gpu_lock_control_proc(int bmax, long value, size_t count)
 			sec_gpu_vol_clk_change(g_gpu_dvfs_data[custom_min_lock_level].clock, g_gpu_dvfs_data[custom_min_lock_level].voltage);
 		else if (sgx_dvfs_max_lock && (sgx_dvfs_level < custom_max_lock_level)) /* max lock only - unlikely */
 			sec_gpu_vol_clk_change(g_gpu_dvfs_data[custom_max_lock_level].clock, g_gpu_dvfs_data[custom_max_lock_level].voltage);
+
+		if (value == 0)
+			retval = count;
 	} else{ /* lock something */
 		if (bmax) {
 			sgx_dvfs_max_lock = value;
@@ -192,12 +213,14 @@ void sec_gpu_dvfs_init(void)
 		g_gpu_dvfs_data[i].max_threadhold = default_dvfs_data[i].max_threadhold;
 		g_gpu_dvfs_data[i].quick_down_threadhold = default_dvfs_data[i].quick_down_threadhold;
 		g_gpu_dvfs_data[i].quick_up_threadhold = default_dvfs_data[i].quick_up_threadhold;
+		g_gpu_dvfs_data[i].stay_total_count = default_dvfs_data[i].stay_total_count;
 		g_gpu_dvfs_data[i].mask  = setmask(default_dvfs_data[i].level, default_dvfs_data[i].clock);
 		PVR_LOG(("G3D DVFS Info: Level:%d, Clock:%d MHz, Voltage:%d uV", g_gpu_dvfs_data[i].level, g_gpu_dvfs_data[i].clock, g_gpu_dvfs_data[i].voltage));
 	}
 	/* default dvfs level depend on default clock setting */
 	sgx_dvfs_level = sec_gpu_dvfs_level_from_clk_get(gpu_clock_get());
 	custom_threshold_change = 0;
+	sgx_dvfs_down_requirement = DOWN_REQUIREMENT_THRESHOLD;
 
 	pdev = gpsPVRLDMDev;
 
@@ -233,6 +256,22 @@ int sec_gpu_dvfs_level_from_clk_get(int clock)
 	return -1;
 }
 
+void sec_gpu_dvfs_down_requirement_reset()
+{
+	int level;
+
+	level = sec_gpu_dvfs_level_from_clk_get(gpu_clock_get());
+	if (level >= 0)
+		sgx_dvfs_down_requirement = g_gpu_dvfs_data[level].stay_total_count;
+	else
+		sgx_dvfs_down_requirement = DOWN_REQUIREMENT_THRESHOLD;
+}
+
+extern unsigned int *g_debug_CCB_Info_RO;
+extern unsigned int *g_debug_CCB_Info_WO;
+extern int g_debug_CCB_Info_WCNT;
+static int g_debug_CCB_Info_Flag;
+//static int g_debug_CCB_count = 1;
 int sec_clock_change_up(int level, int step)
 {
 	level -= step;
@@ -245,13 +284,24 @@ int sec_clock_change_up(int level, int step)
 			level = custom_max_lock_level;
 	}
 
+	sgx_dvfs_down_requirement = g_gpu_dvfs_data[level].stay_total_count;
 	sec_gpu_vol_clk_change(g_gpu_dvfs_data[level].clock, g_gpu_dvfs_data[level].voltage);
+
+//	if ((g_debug_CCB_Info_Flag % g_debug_CCB_count) == 0)
+//		PVR_LOG(("SGX CCB RO : %d, WO : %d, Total : %d", *g_debug_CCB_Info_RO, *g_debug_CCB_Info_WO, g_debug_CCB_Info_WCNT));
+
+	g_debug_CCB_Info_WCNT = 0;
+	g_debug_CCB_Info_Flag++;
 
 	return level;
 }
 
 int sec_clock_change_down(int level, int step)
 {
+	sgx_dvfs_down_requirement--;
+	if (sgx_dvfs_down_requirement > 0)
+		return level;
+
 	level += step;
 
 	if (level > GPU_DVFS_MAX_LEVEL - 1)
@@ -262,7 +312,14 @@ int sec_clock_change_down(int level, int step)
 			level = custom_min_lock_level;
 	}
 
+	sgx_dvfs_down_requirement = g_gpu_dvfs_data[level].stay_total_count;
 	sec_gpu_vol_clk_change(g_gpu_dvfs_data[level].clock, g_gpu_dvfs_data[level].voltage);
+
+//	if ((g_debug_CCB_Info_Flag % g_debug_CCB_count) == 0)
+//		PVR_LOG(("SGX CCB RO : %d, WO : %d, Total : %d", *g_debug_CCB_Info_RO, *g_debug_CCB_Info_WO, g_debug_CCB_Info_WCNT));
+
+	g_debug_CCB_Info_WCNT = 0;
+	g_debug_CCB_Info_Flag++;
 
 	return level;
 }
@@ -299,6 +356,7 @@ int sec_custom_threshold_set()
 	return 1;
 }
 
+unsigned int g_g3dfreq;
 void sec_gpu_dvfs_handler(int utilization_value)
 {
 	if (custom_threshold_change)
@@ -308,6 +366,9 @@ void sec_gpu_dvfs_handler(int utilization_value)
 	if (utilization_value == 0)
 		return;
 
+#ifdef CONFIG_ASV_MARGIN_TEST
+	sgx_dvfs_custom_clock = set_g3d_freq;
+#endif
 	/* this check for custom dvfs setting - 0:auto, others: custom lock clock*/
 	if (sgx_dvfs_custom_clock) {
 		if (sgx_dvfs_custom_clock != gpu_clock_get()) {
@@ -367,6 +428,8 @@ void sec_gpu_dvfs_handler(int utilization_value)
 #endif
 				/* need to up current clock */
 				sgx_dvfs_level = sec_clock_change_up(sgx_dvfs_level, BASE_UP_STEP_LEVEL);
+		} else
+			sgx_dvfs_down_requirement = g_gpu_dvfs_data[sgx_dvfs_level].stay_total_count;
 		}
-	}
+	g_g3dfreq = g_gpu_dvfs_data[sgx_dvfs_level].clock;
 }

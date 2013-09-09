@@ -328,6 +328,8 @@ DebugMemAllocRecordAdd(DEBUG_MEM_ALLOC_TYPE eAllocType,
     LinuxLockMutex(&g_sDebugMutex);
 
     psRecord = kmalloc(sizeof(DEBUG_MEM_ALLOC_REC), GFP_KERNEL);
+	if (!psRecord)
+		return;
 
     psRecord->eAllocType = eAllocType;
     psRecord->uiKey = uiKey;
@@ -1709,19 +1711,27 @@ static PVRSRV_ERROR SLSIIonAquirePhysAddr(IMG_HANDLE hIonDev,
 	struct sg_table *pSgtable;
 	/* Get the buffer handle */
 	psIonHandle = ion_import_dma_buf(psIonClient, fd);
+	if (IS_ERR_OR_NULL(psIonHandle))
+	{
+		PVR_DPF((PVR_DBG_ERROR, "%s: Failed to get ion_import_dma_buf - ionfd:%d ", __func__, fd));
+		eError = PVRSRV_ERROR_INVALID_PARAMS;
+		goto exitFailImport;
+	}
+
 #else
 	/* Get the buffer handle */
 	psIonHandle = ion_import_fd(psIonClient, fd);
 #endif
 	*ppretIonHandle = psIonHandle;
-	if (psIonHandle == IMG_NULL)
-	{
-		eError = PVRSRV_ERROR_BAD_MAPPING;
-		goto exitFailImport;
-	}
 
 #if defined (EXYNOS_ION_DMA_BUFFER_FD)
 	pSgtable = ion_sg_table(psIonClient, psIonHandle);
+	if (IS_ERR_OR_NULL(pSgtable))
+	{
+		PVR_DPF((PVR_DBG_ERROR, "%s: Failed to get ion_sg_table - ionfd:%d ", __func__, fd));
+		eError = PVRSRV_ERROR_INVALID_PARAMS;
+		goto exitFailMap;
+	}
 	psScatterList = pSgtable->sgl;
 #else
 	psScatterList = ion_map_dma(psIonClient, psIonHandle);
@@ -1729,6 +1739,7 @@ static PVRSRV_ERROR SLSIIonAquirePhysAddr(IMG_HANDLE hIonDev,
 
 	if (psScatterList == NULL)
 	{
+		PVR_DPF((PVR_DBG_ERROR, "%s: Failed to get psScatterList ", __func__));
 		eError = PVRSRV_ERROR_INVALID_PARAMS;
 		goto exitFailMap;
 	}

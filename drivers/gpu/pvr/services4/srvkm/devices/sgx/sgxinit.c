@@ -72,6 +72,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 IMG_UINT32 g_ui32HostIRQCountSample;
 
+unsigned int *g_debug_CCB_Info_RO;
+unsigned int *g_debug_CCB_Info_WO;
+
+extern unsigned int g_debug_CCB_Info_WCNT;
 #if defined(PVRSRV_USSE_EDM_STATUS_DEBUG)
 
 static const IMG_CHAR *SGXUKernelStatusString(IMG_UINT32 code)
@@ -212,6 +216,8 @@ static PVRSRV_ERROR InitDevInfo(PVRSRV_PER_PROCESS_DATA *psPerProc,
 
 	psDevInfo->psKernelCCBCtlMemInfo = (PVRSRV_KERNEL_MEM_INFO *)psInitInfo->hKernelCCBCtlMemInfo;
 	psDevInfo->psKernelCCBCtl = (PVRSRV_SGX_CCB_CTL *) psDevInfo->psKernelCCBCtlMemInfo->pvLinAddrKM;
+	g_debug_CCB_Info_RO = &(psDevInfo->psKernelCCBCtl->ui32ReadOffset);
+	g_debug_CCB_Info_WO = &(psDevInfo->psKernelCCBCtl->ui32WriteOffset);
 
 	psDevInfo->psKernelCCBEventKickerMemInfo = (PVRSRV_KERNEL_MEM_INFO *)psInitInfo->hKernelCCBEventKickerMemInfo;
 	psDevInfo->pui32KernelCCBEventKicker = (IMG_UINT32 *)psDevInfo->psKernelCCBEventKickerMemInfo->pvLinAddrKM;
@@ -1247,6 +1253,7 @@ IMG_VOID SGXDumpDebugInfo (PVRSRV_SGXDEV_INFO	*psDevInfo,
 		#if defined(EUR_CR_PDS_PC_BASE)
 			SGXDumpDebugReg(psDevInfo, ui32CoreNum, "EUR_CR_PDS_PC_BASE:      ", EUR_CR_PDS_PC_BASE);
 		#endif
+			SGXDumpDebugReg(psDevInfo, ui32CoreNum, "EUR_CR_CLKGATESTATUS:    ", EUR_CR_CLKGATESTATUS);
 		}
 
 	#if !defined(SGX_FEATURE_MULTIPLE_MEM_CONTEXTS) && !defined(FIX_HW_BRN_31620)
@@ -1361,7 +1368,7 @@ IMG_VOID SGXDumpDebugInfo (PVRSRV_SGXDEV_INFO	*psDevInfo,
 			#endif
 			PVR_LOG((" Host Ctl flags= %08x", ui32CtlFlags));
 		}
-		
+
 		if (psSGXHostCtl->ui32AssertFail != 0)
 		{
 			PVR_LOG(("SGX Microkernel assert fail: 0x%08X", psSGXHostCtl->ui32AssertFail));
@@ -1441,9 +1448,10 @@ IMG_VOID SGXDumpDebugInfo (PVRSRV_SGXDEV_INFO	*psDevInfo,
 		/*
 			Dump out the kernel CCB.
 		*/
-		PVR_LOG(("SGX Kernel CCB WO:0x%X RO:0x%X",
+		PVR_LOG(("SGX Kernel CCB WO:0x%X RO:0x%X Total:%d",
 				psDevInfo->psKernelCCBCtl->ui32WriteOffset,
-				psDevInfo->psKernelCCBCtl->ui32ReadOffset));
+				psDevInfo->psKernelCCBCtl->ui32ReadOffset,
+				g_debug_CCB_Info_WCNT));
 
 		#if defined(PVRSRV_DUMP_KERNEL_CCB)
 		{
@@ -1636,6 +1644,33 @@ IMG_VOID SGXOSTimer(IMG_VOID *pvData)
 			(psDevInfo->ui32NumResets == ui32NumResets))
 		{
 			ui32LockupCounter++;
+#if defined(DUMP_UKERNEL_INFO_AT_TIMEOUT)
+			{
+				SGXMKIF_HOST_CTL	*psSGXHostCtl = psDevInfo->psSGXHostCtl;
+
+				PVR_LOG(("Check counter %d", ui32LockupCounter));
+
+				PVR_LOG(("EDMTaskReg0 = 0x%08x", OSReadHWReg(psDevInfo->pvRegsBaseKM, psDevInfo->ui32EDMTaskReg0)));
+				PVR_LOG(("EDMTaskReg1 = 0x%08x", OSReadHWReg(psDevInfo->pvRegsBaseKM, psDevInfo->ui32EDMTaskReg1)));
+
+				if (psSGXHostCtl->ui32AssertFail != 0)
+				{
+					PVR_LOG(("SGX Microkernel assert fail: 0x%08X", psSGXHostCtl->ui32AssertFail));
+					psSGXHostCtl->ui32AssertFail = 0;
+				}
+				/*
+					Dump out the kernel CCB.
+				*/
+				PVR_LOG(("SGX Kernel CCB WO:0x%X RO:0x%X Total:%d",
+					psDevInfo->psKernelCCBCtl->ui32WriteOffset,
+					psDevInfo->psKernelCCBCtl->ui32ReadOffset,
+					g_debug_CCB_Info_WCNT));
+
+				SGXDumpDebugReg(psDevInfo, 0, "EUR_CR_BIF_MEM_REQ_STAT: ", EUR_CR_BIF_MEM_REQ_STAT);
+				SGXDumpDebugReg(psDevInfo, 1, "EUR_CR_BIF_MEM_REQ_STAT: ", EUR_CR_BIF_MEM_REQ_STAT);
+				SGXDumpDebugReg(psDevInfo, 2, "EUR_CR_BIF_MEM_REQ_STAT: ", EUR_CR_BIF_MEM_REQ_STAT);
+			}
+#endif
 			if (ui32LockupCounter == 3)
 			{
 				ui32LockupCounter = 0;
