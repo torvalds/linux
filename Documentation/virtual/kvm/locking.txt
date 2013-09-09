@@ -151,3 +151,14 @@ Type:		spinlock_t
 Arch:		any
 Protects:	-shadow page/shadow tlb entry
 Comment:	it is a spinlock since it is used in mmu notifier.
+
+Name:		kvm->srcu
+Type:		srcu lock
+Arch:		any
+Protects:	- kvm->memslots
+		- kvm->buses
+Comment:	The srcu read lock must be held while accessing memslots (e.g.
+		when using gfn_to_* functions) and while accessing in-kernel
+		MMIO/PIO address->device structure mapping (kvm->buses).
+		The srcu index can be stored in kvm_vcpu->srcu_idx per vcpu
+		if it is needed by multiple functions.
