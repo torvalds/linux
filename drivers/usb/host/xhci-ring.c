@@ -765,10 +765,9 @@ static void xhci_giveback_urb_in_irq(struct xhci_hcd *xhci,
  *  2. Otherwise, we turn all the TRBs in the TD into No-op TRBs (with the chain
  *     bit cleared) so that the HW will skip over them.
  */
-static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci,
+static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci, int slot_id,
 		union xhci_trb *trb, struct xhci_event_cmd *event)
 {
-	unsigned int slot_id;
 	unsigned int ep_index;
 	struct xhci_virt_device *virt_dev;
 	struct xhci_ring *ep_ring;
@@ -780,7 +779,6 @@ static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci,
 	struct xhci_dequeue_state deq_state;
 
 	if (unlikely(TRB_TO_SUSPEND_PORT(le32_to_cpu(trb->generic.field[3])))) {
-		slot_id = TRB_TO_SLOT_ID(le32_to_cpu(trb->generic.field[3]));
 		virt_dev = xhci->devs[slot_id];
 		if (virt_dev)
 			handle_cmd_in_cmd_wait_list(xhci, virt_dev,
@@ -793,7 +791,6 @@ static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci,
 	}
 
 	memset(&deq_state, 0, sizeof(deq_state));
-	slot_id = TRB_TO_SLOT_ID(le32_to_cpu(trb->generic.field[3]));
 	ep_index = TRB_TO_EP_INDEX(le32_to_cpu(trb->generic.field[3]));
 	ep = &xhci->devs[slot_id]->eps[ep_index];
 
@@ -1075,10 +1072,9 @@ static void update_ring_for_set_deq_completion(struct xhci_hcd *xhci,
  * endpoint doorbell to restart the ring, but only if there aren't more
  * cancellations pending.
  */
-static void xhci_handle_cmd_set_deq(struct xhci_hcd *xhci,
+static void xhci_handle_cmd_set_deq(struct xhci_hcd *xhci, int slot_id,
 		struct xhci_event_cmd *event, union xhci_trb *trb)
 {
-	unsigned int slot_id;
 	unsigned int ep_index;
 	unsigned int stream_id;
 	struct xhci_ring *ep_ring;
@@ -1086,7 +1082,6 @@ static void xhci_handle_cmd_set_deq(struct xhci_hcd *xhci,
 	struct xhci_ep_ctx *ep_ctx;
 	struct xhci_slot_ctx *slot_ctx;
 
-	slot_id = TRB_TO_SLOT_ID(le32_to_cpu(trb->generic.field[3]));
 	ep_index = TRB_TO_EP_INDEX(le32_to_cpu(trb->generic.field[3]));
 	stream_id = TRB_TO_STREAM_ID(le32_to_cpu(trb->generic.field[2]));
 	dev = xhci->devs[slot_id];
@@ -1168,13 +1163,11 @@ static void xhci_handle_cmd_set_deq(struct xhci_hcd *xhci,
 	ring_doorbell_for_active_rings(xhci, slot_id, ep_index);
 }
 
-static void xhci_handle_cmd_reset_ep(struct xhci_hcd *xhci,
+static void xhci_handle_cmd_reset_ep(struct xhci_hcd *xhci, int slot_id,
 		struct xhci_event_cmd *event, union xhci_trb *trb)
 {
-	int slot_id;
 	unsigned int ep_index;
 
-	slot_id = TRB_TO_SLOT_ID(le32_to_cpu(trb->generic.field[3]));
 	ep_index = TRB_TO_EP_INDEX(le32_to_cpu(trb->generic.field[3]));
 	/* This command will only fail if the endpoint wasn't halted,
 	 * but we don't care.
@@ -1576,15 +1569,21 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 		xhci_handle_cmd_addr_dev(xhci, slot_id, cmd_comp_code);
 		break;
 	case TRB_STOP_RING:
-		xhci_handle_cmd_stop_ep(xhci, cmd_trb, event);
+		WARN_ON(slot_id != TRB_TO_SLOT_ID(
+				le32_to_cpu(cmd_trb->generic.field[3])));
+		xhci_handle_cmd_stop_ep(xhci, slot_id, cmd_trb, event);
 		break;
 	case TRB_SET_DEQ:
-		xhci_handle_cmd_set_deq(xhci, event, cmd_trb);
+		WARN_ON(slot_id != TRB_TO_SLOT_ID(
+				le32_to_cpu(cmd_trb->generic.field[3])));
+		xhci_handle_cmd_set_deq(xhci, slot_id, event, cmd_trb);
 		break;
 	case TRB_CMD_NOOP:
 		break;
 	case TRB_RESET_EP:
-		xhci_handle_cmd_reset_ep(xhci, event, cmd_trb);
+		WARN_ON(slot_id != TRB_TO_SLOT_ID(
+				le32_to_cpu(cmd_trb->generic.field[3])));
+		xhci_handle_cmd_reset_ep(xhci, slot_id, event, cmd_trb);
 		break;
 	case TRB_RESET_DEV:
 		WARN_ON(slot_id != TRB_TO_SLOT_ID(
