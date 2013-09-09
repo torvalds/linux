@@ -206,6 +206,8 @@ source "drivers/gpu/drm/qxl/Kconfig"
 
 source "drivers/gpu/drm/bochs/Kconfig"
 
+source "drivers/gpu/drm/virtio/Kconfig"
+
 source "drivers/gpu/drm/msm/Kconfig"
 
 source "drivers/gpu/drm/tegra/Kconfig"
