@@ -232,7 +232,8 @@ iss_video_far_end(struct iss_video *video)
 }
 
 static int
-__iss_video_get_format(struct iss_video *video, struct v4l2_format *format)
+__iss_video_get_format(struct iss_video *video,
+		       struct v4l2_mbus_framefmt *format)
 {
 	struct v4l2_subdev_format fmt;
 	struct v4l2_subdev *subdev;
@@ -243,6 +244,7 @@ __iss_video_get_format(struct iss_video *video, struct v4l2_format *format)
 	if (subdev == NULL)
 		return -EINVAL;
 
+	memset(&fmt, 0, sizeof(fmt));
 	fmt.pad = pad;
 	fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 
@@ -253,26 +255,29 @@ __iss_video_get_format(struct iss_video *video, struct v4l2_format *format)
 	if (ret)
 		return ret;
 
-	format->type = video->type;
-	return iss_video_mbus_to_pix(video, &fmt.format, &format->fmt.pix);
+	*format = fmt.format;
+	return 0;
 }
 
 static int
 iss_video_check_format(struct iss_video *video, struct iss_video_fh *vfh)
 {
-	struct v4l2_format format;
+	struct v4l2_mbus_framefmt format;
+	struct v4l2_pix_format pixfmt;
 	int ret;
 
-	memcpy(&format, &vfh->format, sizeof(format));
 	ret = __iss_video_get_format(video, &format);
 	if (ret < 0)
 		return ret;
 
-	if (vfh->format.fmt.pix.pixelformat != format.fmt.pix.pixelformat ||
-	    vfh->format.fmt.pix.height != format.fmt.pix.height ||
-	    vfh->format.fmt.pix.width != format.fmt.pix.width ||
-	    vfh->format.fmt.pix.bytesperline != format.fmt.pix.bytesperline ||
-	    vfh->format.fmt.pix.sizeimage != format.fmt.pix.sizeimage)
+	pixfmt.bytesperline = 0;
+	ret = iss_video_mbus_to_pix(video, &format, &pixfmt);
+
+	if (vfh->format.fmt.pix.pixelformat != pixfmt.pixelformat ||
+	    vfh->format.fmt.pix.height != pixfmt.height ||
+	    vfh->format.fmt.pix.width != pixfmt.width ||
+	    vfh->format.fmt.pix.bytesperline != pixfmt.bytesperline ||
+	    vfh->format.fmt.pix.sizeimage != pixfmt.sizeimage)
 		return -EINVAL;
 
 	return ret;
