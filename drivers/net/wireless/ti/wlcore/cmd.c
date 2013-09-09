@@ -60,7 +60,8 @@ static int __wlcore_cmd_send(struct wl1271 *wl, u16 id, void *buf,
 	u16 status;
 	u16 poll_count = 0;
 
-	if (WARN_ON(unlikely(wl->state == WLCORE_STATE_RESTARTING)))
+	if (WARN_ON(wl->state == WLCORE_STATE_RESTARTING &&
+		    id != CMD_STOP_FWLOGGER))
 		return -EIO;
 
 	cmd = buf;
