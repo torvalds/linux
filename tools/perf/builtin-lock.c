@@ -686,7 +686,7 @@ static void print_bad_events(int bad, int total)
 
 	pr_info("\n=== output for debug===\n\n");
 	pr_info("bad: %d, total: %d\n", bad, total);
-	pr_info("bad rate: %f %%\n", (double)bad / (double)total * 100);
+	pr_info("bad rate: %.2f %%\n", (double)bad / (double)total * 100);
 	pr_info("histogram of events caused bad sequence\n");
 	for (i = 0; i < BROKEN_MAX; i++)
 		pr_info(" %10s: %d\n", name[i], bad_hist[i]);
