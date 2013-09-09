@@ -943,7 +943,8 @@ static void wl1271_recovery_work(struct work_struct *work)
 		goto out_unlock;
 
 	if (!test_bit(WL1271_FLAG_INTENDED_FW_RECOVERY, &wl->flags)) {
-		wl12xx_read_fwlog_panic(wl);
+		if (wl->conf.fwlog.output == WL12XX_FWLOG_OUTPUT_HOST)
+			wl12xx_read_fwlog_panic(wl);
 		wlcore_print_recovery(wl);
 	}
 
