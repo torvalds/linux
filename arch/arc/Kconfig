@@ -136,9 +136,6 @@ if SMP
 config ARC_HAS_COH_CACHES
 	def_bool n
 
-config ARC_HAS_COH_RTSC
-	def_bool n
-
 config ARC_HAS_REENTRANT_IRQ_LV2
 	def_bool n
 
@@ -332,8 +329,7 @@ config ARC_HAS_RTSC
 	bool "Insn: RTSC (64-bit r/o cycle counter)"
 	default y
 	depends on ARC_CPU_REL_4_10
-	# if SMP, enable RTSC only if counter is coherent across cores
-	depends on !SMP || ARC_HAS_COH_RTSC
+	depends on !SMP
 
 endmenu   # "ARC CPU Configuration"
 

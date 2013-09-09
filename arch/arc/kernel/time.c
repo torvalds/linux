@@ -63,9 +63,10 @@
 
 int arc_counter_setup(void)
 {
-	/* RTSC insn taps into cpu clk, needs no setup */
-
-	/* For SMP, only allowed if cross-core-sync, hence usable as cs */
+	/*
+	 * For SMP this needs to be 0. However Kconfig glue doesn't
+	 * enable this option for SMP configs
+	 */
 	return 1;
 }
 
