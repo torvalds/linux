@@ -26,6 +26,11 @@
 #include <plat/iic.h>
 #include <plat/watchdog.h>
 
+#include <linux/gpio.h>
+#include <mach/gpio.h>
+#include <mach/regs-gpio.h>
+#include <plat/gpio-cfg.h>
+
 #include <mach/exynos_fiq_debugger.h>
 #include <mach/map.h>
 #include <mach/hs-iic.h>
@@ -304,14 +309,31 @@ static void __init smdk5410_init_early(void)
 	persistent_ram_early_init(&smdk5410_pr);
 }
 
+static void exynos5_odroidxu_led_init(void)
+{
+	gpio_request(EXYNOS5410_GPB2(2), "LED BLUE");
+    gpio_set_value(EXYNOS5410_GPB2(2), 1);   
+	gpio_free(EXYNOS5410_GPB2(2));
+
+	gpio_request(EXYNOS5410_GPB2(1), "LED GREEN");
+    gpio_set_value(EXYNOS5410_GPB2(1), 0);   
+	gpio_free(EXYNOS5410_GPB2(1));
+
+	gpio_request(EXYNOS5410_GPX2(3), "LED RED");
+    gpio_set_value(EXYNOS5410_GPX2(3), 0);   
+	gpio_free(EXYNOS5410_GPX2(3));
+
+}
+
 static void __init smdk5410_machine_init(void)
 {
 #ifdef CONFIG_EXYNOS_FIQ_DEBUGGER
 	exynos_serial_debug_init(2, 0);
 #endif
-
 	s3c_watchdog_set_platdata(&smdk5410_watchdog_platform_data);
 
+    exynos5_odroidxu_led_init();
+	
 	exynos5_odroidxu_clock_init();
 	exynos5_odroidxu_mmc_init();
 
@@ -321,7 +343,8 @@ static void __init smdk5410_machine_init(void)
 	exynos5_odroidxu_input_init();
 	exynos5_odroidxu_media_init();
 	exynos5_odroidxu_display_init();
-
+    exynos5_odroidxu_ioboard_init();
+    
 	ramconsole_pdata.bootinfo = exynos_get_resetreason();
 	platform_add_devices(smdk5410_devices, ARRAY_SIZE(smdk5410_devices));
 

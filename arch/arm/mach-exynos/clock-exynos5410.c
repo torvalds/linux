@@ -3158,6 +3158,11 @@ static int exynos5_vpll_set_rate(struct clk *clk, unsigned long rate)
 	if (clk->rate == rate)
 		return 0;
 
+	/* Change MUX_VPLL_SEL 0: FINPLL */
+	tmp = __raw_readl(EXYNOS5_CLKSRC_TOP2);
+	tmp &= ~(1 << 16);
+	__raw_writel(tmp, EXYNOS5_CLKSRC_TOP2);
+
 	vpll_con0 = __raw_readl(EXYNOS5_VPLL_CON0);
 	vpll_con0 &= ~(PLL2650_MDIV_MASK << PLL2650_MDIV_SHIFT |\
 			PLL2650_PDIV_MASK << PLL2650_PDIV_SHIFT |\
@@ -3195,6 +3200,11 @@ static int exynos5_vpll_set_rate(struct clk *clk, unsigned long rate)
 	} while (!(tmp & (0x1 << EXYNOS5_VPLLCON0_LOCKED_SHIFT)));
 
 	clk->rate = rate;
+
+	/* Change MUX_VPLL_SEL 1: FOUTVPLL */
+	tmp = __raw_readl(EXYNOS5_CLKSRC_TOP2);
+	tmp |= (1 << 16);
+	__raw_writel(tmp, EXYNOS5_CLKSRC_TOP2);
 
 	return 0;
 }
@@ -3565,9 +3575,6 @@ void __init exynos5410_register_clocks(void)
 	clk_fout_epll.enable = exynos5_epll_ctrl;
 	clk_fout_epll.ctrlbit = (1 << 4);
 	clk_fout_epll.rate = 24000000;
-
-	clk_fout_vpll.enable = exynos5_vpll_ctrl;
-	clk_fout_vpll.ctrlbit = (1 << 4);
 
 	s3c24xx_register_clocks(exynos5_clks_off, ARRAY_SIZE(exynos5_clks_off));
 	for (ptr = 0; ptr < ARRAY_SIZE(exynos5_clks_off); ptr++)

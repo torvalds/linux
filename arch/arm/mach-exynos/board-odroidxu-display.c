@@ -28,18 +28,11 @@
 
 #include <mach/map.h>
 
-#ifdef CONFIG_FB_MIPI_DSIM
 #include <plat/dsim.h>
 #include <plat/mipi_dsi.h>
-#endif
 
-#if defined(CONFIG_LCD_MIPI_TC358764)
-    #define DEFAULT_FB_X    1280
-    #define DEFAULT_FB_Y    800
-#else
-    #define DEFAULT_FB_X    1280
-    #define DEFAULT_FB_Y    720
-#endif
+#define DEFAULT_FB_X    1280
+#define DEFAULT_FB_Y    800
 
 unsigned short  FrameBufferSizeX = DEFAULT_FB_X;
 unsigned short  FrameBufferSizeY = DEFAULT_FB_Y;
@@ -65,7 +58,53 @@ static int __init lcd_y_res(char *line)
 }
 __setup("fb_y_res=", lcd_y_res);
 
-#if defined(CONFIG_LCD_MIPI_TC358764)
+static  unsigned char   VoutBootArgs[5];
+
+static int __init vout_mode(char *line)
+{
+    sprintf(VoutBootArgs, "%s", line);    SetVirtualFB = true;
+    return  0;
+}
+__setup("vout=", vout_mode);
+
+static  unsigned char   FbLeft[5], FbRight[5], FbUpper[5], FbLower[5], FbHsync[5], FbVsync[5];
+
+static int __init timming_left(char *line)
+{
+    sprintf(FbLeft, "%s", line);    return  0;
+}
+__setup("left=", timming_left);
+
+static int __init timming_right(char *line)
+{
+    sprintf(FbRight, "%s", line);    return  0;
+}
+__setup("right=", timming_right);
+
+static int __init timming_upper(char *line)
+{
+    sprintf(FbUpper, "%s", line);    return  0;
+}
+__setup("upper=", timming_upper);
+
+static int __init timming_lower(char *line)
+{
+    sprintf(FbLower, "%s", line);    return  0;
+}
+__setup("lower=", timming_lower);
+
+static int __init timming_hsync(char *line)
+{
+    sprintf(FbHsync, "%s", line);    return  0;
+}
+__setup("hsync=", timming_hsync);
+
+static int __init timming_vsync(char *line)
+{
+    sprintf(FbVsync, "%s", line);    return  0;
+}
+__setup("vsync=", timming_vsync);
+
 
 #define LCD_RESET       EXYNOS5410_GPA0(4)
 #define LCD_BACKLIGHT   EXYNOS5410_GPA1(5)
@@ -76,30 +115,20 @@ static int mipi_lcd_power_control(struct mipi_dsim_device *dsim, unsigned int en
 	gpio_request_one(LCD_BACKLIGHT, GPIOF_OUT_INIT_HIGH, "LCD BACKLIGHT");
     // LCD RESET HIGH
 	gpio_request_one(LCD_RESET, GPIOF_OUT_INIT_HIGH, "LCD RESET");
-	usleep_range(20000, 21000);
+    gpio_set_value(LCD_RESET, 1);   
 
-	/* reset */
-	if (enable)  {
-    	/* fire nRESET on power up */
-    	gpio_set_value(LCD_RESET, 0);   usleep_range(20000, 21000);
-    	gpio_set_value(LCD_RESET, 1);   usleep_range(20000, 21000);
-	    // LCD BACLKIGHT OFF
-		gpio_set_value(LCD_BACKLIGHT, 0);
-	}
-	else    {
-    	/* fire nRESET on power up */
-    	gpio_set_value(LCD_RESET, 0);
-	    // LCD BACLKIGHT OFF
-		gpio_set_value(LCD_BACKLIGHT, 1);
-	}
+	// LCD BACLKIGHT ON/OFF
+	if (enable) gpio_set_value(LCD_BACKLIGHT, 0);
+	else		gpio_set_value(LCD_BACKLIGHT, 1);
 
 	gpio_free(LCD_RESET);   gpio_free(LCD_BACKLIGHT);
+
 	return  0;
 }
 
-#define LCD_FB_MAX  5
+#define ODROIDXU_FB_MAX  5
 
-static struct s3c_fb_pd_win lcd_fb_default = {
+static struct s3c_fb_pd_win odroidxu_fb_default = {
 	.win_mode = {
 		.left_margin	= 4,
 		.right_margin	= 4,
@@ -112,16 +141,12 @@ static struct s3c_fb_pd_win lcd_fb_default = {
 	},
 	.virtual_x		= DEFAULT_FB_X,
 	.virtual_y		= DEFAULT_FB_Y * 2,
-	.width			= 223,
-	.height			= 125,
 	.max_bpp		= 32,
 	.default_bpp	= 24,
 };
 
 
-static struct s3c_fb_pd_win odroidxu_fb[LCD_FB_MAX];
-
-#elif defined(CONFIG_S5P_DP)
+static struct s3c_fb_pd_win odroidxu_fb[ODROIDXU_FB_MAX];
 
 static struct platform_device odroidxu_dp_lcd = {
 	.name	= "platform-lcd",
@@ -130,8 +155,7 @@ static struct platform_device odroidxu_dp_lcd = {
 	},
 };
 
-#define LCD_FB_MAX   5
-
+#if 0
 static struct s3c_fb_pd_win odroidxu_fb_default = {
 #if 0   // WQXGA LCD
 	.win_mode = {
@@ -150,6 +174,24 @@ static struct s3c_fb_pd_win odroidxu_fb_default = {
 	.default_bpp    = 24,
 #endif	
 #if 1
+// AOC I2269V 22"(1920 X 1080)
+	.win_mode = {
+		.left_margin	= 56,
+		.right_margin	= 24,
+		.upper_margin	= 3,
+		.lower_margin	= 3,
+		.hsync_len	    = 14,
+		.vsync_len	    = 3,
+
+		.xres		    = 1920,
+		.yres		    = 1080,
+	},
+	.virtual_x      = 1920,
+	.virtual_y	    = 1080 * 2,
+	.max_bpp	    = 32,
+	.default_bpp    = 24,
+#endif
+#if 0
 // YAMAKASI Monitor 2560 * 1440
 	.win_mode = {
 		.left_margin	= 15,
@@ -158,6 +200,25 @@ static struct s3c_fb_pd_win odroidxu_fb_default = {
 		.lower_margin	= 10,
 		.hsync_len	    = 10,
 		.vsync_len	    = 10,
+
+		.xres		    = 2560,
+		.yres		    = 1440,
+	},
+	.virtual_x      = 2560,
+	.virtual_y	    = 1440 * 2,
+	.max_bpp	    = 32,
+	.default_bpp    = 24,
+#endif	
+#if 0
+// X-Star Monitor 27" (2560 X 1440)
+	.win_mode = {
+		.left_margin	= 56,
+		.right_margin	= 24,
+		.upper_margin	= 3,
+		.lower_margin	= 3,
+		.hsync_len	    = 14,
+		.vsync_len	    = 3,
+
 		.xres		    = 2560,
 		.yres		    = 1440,
 	},
@@ -196,8 +257,6 @@ static struct s3c_fb_pd_win odroidxu_fb_default = {
 	.default_bpp    = 24,
 #endif	
 };
-
-static struct s3c_fb_pd_win odroidxu_fb[LCD_FB_MAX];
 #endif
 
 static void exynos_fimd_gpio_setup_24bpp(void)
@@ -217,17 +276,17 @@ static void exynos_fimd_gpio_setup_24bpp(void)
 	reg |= (1 << 15);
 	__raw_writel(reg, S3C_VA_SYS + 0x0214);
 
-#if defined(CONFIG_S5P_DP)
-	/* Reference clcok selection for DPTX_PHY: PAD_OSC_IN */
-	reg = __raw_readl(S3C_VA_SYS + 0x04d4);
-	reg &= ~(1 << 0);
-	__raw_writel(reg, S3C_VA_SYS + 0x04d4);
-
-	/* DPTX_PHY: XXTI */
-	reg = __raw_readl(S3C_VA_SYS + 0x04d8);
-	reg &= ~(1 << 3);
-	__raw_writel(reg, S3C_VA_SYS + 0x04d8);
-#endif
+    if(!strncmp(VoutBootArgs, "dp", sizeof("dp")))  {
+    	/* Reference clcok selection for DPTX_PHY: PAD_OSC_IN */
+    	reg = __raw_readl(S3C_VA_SYS + 0x04d4);
+    	reg &= ~(1 << 0);
+    	__raw_writel(reg, S3C_VA_SYS + 0x04d4);
+    
+    	/* DPTX_PHY: XXTI */
+    	reg = __raw_readl(S3C_VA_SYS + 0x04d8);
+    	reg &= ~(1 << 3);
+    	__raw_writel(reg, S3C_VA_SYS + 0x04d8);
+    }
 }
 
 static struct s3c_fb_platdata odroidxu_lcd1_pdata __initdata = {
@@ -238,18 +297,10 @@ static struct s3c_fb_platdata odroidxu_lcd1_pdata __initdata = {
 	.win[4]		= &odroidxu_fb[4],
 	.default_win	= 0,
 	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB,
-#if defined(CONFIG_S5P_DP)
-	.vidcon1	= 0,
-#else
 	.vidcon1	= VIDCON1_INV_VCLK,
-#endif
 	.setup_gpio	= exynos_fimd_gpio_setup_24bpp,
 	.ip_version	= EXYNOS5_813,
 };
-
-#ifdef CONFIG_FB_MIPI_DSIM
-
-#if defined(CONFIG_LCD_MIPI_TC358764)
 
 static struct mipi_dsim_config dsim_info = {
 	.e_interface	= DSIM_VIDEO,
@@ -300,7 +351,6 @@ static struct mipi_dsim_lcd_config dsim_lcd_info = {
 	.lcd_size.width			    = DEFAULT_FB_X,
 	.lcd_size.height		    = DEFAULT_FB_Y,
 };
-#endif
 
 static struct s5p_platform_mipi_dsim dsim_platform_data = {
 	.clk_name		    = "dsim1",
@@ -319,9 +369,7 @@ static struct s5p_platform_mipi_dsim dsim_platform_data = {
 	 */
 	.delay_for_stabilization = 600,
 };
-#endif
 
-#ifdef CONFIG_S5P_DP
 static struct video_info odroidxu_dp_config = {
 	.name			= "DP Monitor",
 
@@ -343,19 +391,18 @@ static struct s5p_dp_platdata odroidxu_dp_data __initdata = {
 	.phy_init	    = s5p_dp_phy_init,
 	.phy_exit	    = s5p_dp_phy_exit,
 };
-#endif
 
 static struct platform_device *odroidxu_display_devices[] __initdata = {
-#ifdef CONFIG_FB_MIPI_DSIM
-	&s5p_device_mipi_dsim1,
-#endif
-
 	&s5p_device_fimd1,
+};
 
-#ifdef CONFIG_S5P_DP
+static struct platform_device *odroidxu_mipi_display_devices[] __initdata = {
+	&s5p_device_mipi_dsim1,
+};
+
+static struct platform_device *odroidxu_dp_display_devices[] __initdata = {
 	&s5p_device_dp,
 	&odroidxu_dp_lcd,
-#endif
 };
 
 /* LCD Backlight data */
@@ -369,51 +416,85 @@ static struct platform_pwm_backlight_data odroidxu_bl_data = {
 	.pwm_period_ns = 30000,
 };
 
+void    s5p_dp_set_parameter(void)
+{
+    odroidxu_fb_default.win_mode.left_margin	= simple_strtol(FbLeft , NULL, 10);
+    odroidxu_fb_default.win_mode.right_margin	= simple_strtol(FbRight, NULL, 10);
+    odroidxu_fb_default.win_mode.upper_margin	= simple_strtol(FbUpper, NULL, 10);
+    odroidxu_fb_default.win_mode.lower_margin	= simple_strtol(FbLower, NULL, 10);
+    odroidxu_fb_default.win_mode.hsync_len	    = simple_strtol(FbHsync, NULL, 10);
+    odroidxu_fb_default.win_mode.vsync_len	    = simple_strtol(FbVsync, NULL, 10);
+
+    if(!odroidxu_fb_default.win_mode.left_margin )  odroidxu_fb_default.win_mode.left_margin	= 56;
+    if(!odroidxu_fb_default.win_mode.right_margin)  odroidxu_fb_default.win_mode.right_margin	= 24;
+    if(!odroidxu_fb_default.win_mode.upper_margin)	odroidxu_fb_default.win_mode.upper_margin	= 3; 
+    if(!odroidxu_fb_default.win_mode.lower_margin)	odroidxu_fb_default.win_mode.lower_margin	= 3; 
+    if(!odroidxu_fb_default.win_mode.hsync_len	 )  odroidxu_fb_default.win_mode.hsync_len	    = 14;  
+    if(!odroidxu_fb_default.win_mode.vsync_len	 )  odroidxu_fb_default.win_mode.vsync_len	    = 3;   
+
+    printk("DP Timing left  = %d\n", odroidxu_fb_default.win_mode.left_margin );
+    printk("DP Timing right = %d\n", odroidxu_fb_default.win_mode.right_margin);
+    printk("DP Timing upper = %d\n", odroidxu_fb_default.win_mode.upper_margin);
+    printk("DP Timing lower = %d\n", odroidxu_fb_default.win_mode.lower_margin);
+    printk("DP Timing hsync = %d\n", odroidxu_fb_default.win_mode.hsync_len	  );
+    printk("DP Timing vsync = %d\n", odroidxu_fb_default.win_mode.vsync_len	  );
+}
+
 void __init exynos5_odroidxu_display_init(void)
 {
     int     i;
+
+    if(!strncmp(VoutBootArgs, "dp", sizeof("dp")))   {
+        printk("\n---------------------------------------------------------\n\n");
+        printk("%s : Display Port(DP) Monitor!\n\n", __func__);         
+        s5p_dp_set_parameter();
+        printk("\n---------------------------------------------------------\n\n");
+        odroidxu_lcd1_pdata.vidcon1	= 0,
+    	s5p_dp_set_platdata(&odroidxu_dp_data);
+    }
+    else    {
+        printk("\n---------------------------------------------------------\n\n");
+        printk("%s : LCD or HDMI or DVI Monitor!\n", __func__);
+        printk("\n---------------------------------------------------------\n\n");
+    	s5p_dsim1_set_platdata(&dsim_platform_data);
+    }
     
-#ifdef CONFIG_FB_MIPI_DSIM
-	s5p_dsim1_set_platdata(&dsim_platform_data);
-#endif
-
-#ifdef CONFIG_S5P_DP
-	s5p_dp_set_platdata(&odroidxu_dp_data);
-#endif
-
-#ifdef CONFIG_S5P_DP
-    for(i=0; i<LCD_FB_MAX; i++)
-        memcpy(&odroidxu_fb[i], &odroidxu_fb_default, sizeof(odroidxu_fb_default));
-#else
     if(SetVirtualFB)    {
         FrameBufferSizeX = simple_strtol(FbBootArgsX, NULL, 10);
         FrameBufferSizeY = simple_strtol(FbBootArgsY, NULL, 10);
-        printk("Virtual FB Size : X(%d), y(%d)\n", FrameBufferSizeX, FrameBufferSizeY);         
+        
+        if(!FrameBufferSizeX || !FrameBufferSizeY)  {
+            FrameBufferSizeX = DEFAULT_FB_X;
+            FrameBufferSizeY = DEFAULT_FB_Y;
+        }
+        printk("\n---------------------------------------------------------\n\n");
+        printk("Virtual FB Size from Boot Parameter : X(%d), y(%d)\n", FrameBufferSizeX, FrameBufferSizeY);         
+        printk("\n---------------------------------------------------------\n\n");
     }
-    lcd_fb_default.win_mode.xres = FrameBufferSizeX;
-    lcd_fb_default.win_mode.yres = FrameBufferSizeY;
-    lcd_fb_default.virtual_x = FrameBufferSizeX;
-    lcd_fb_default.virtual_y = FrameBufferSizeY * 2;
+    else    {
+        printk("\n---------------------------------------------------------\n\n");
+        printk("FB Size : X(%d), y(%d)\n", FrameBufferSizeX, FrameBufferSizeY);         
+        printk("\n---------------------------------------------------------\n\n");
+    }
+    odroidxu_fb_default.win_mode.xres = FrameBufferSizeX;
+    odroidxu_fb_default.win_mode.yres = FrameBufferSizeY;
+    odroidxu_fb_default.virtual_x = FrameBufferSizeX;
+    odroidxu_fb_default.virtual_y = FrameBufferSizeY * 2;
     
-    for(i=0; i<LCD_FB_MAX; i++)
-        memcpy(&odroidxu_fb[i], &lcd_fb_default, sizeof(lcd_fb_default));
-#endif
 	s5p_fimd1_set_platdata(&odroidxu_lcd1_pdata);
 
+    for(i=0; i<ODROIDXU_FB_MAX; i++)
+        memcpy(&odroidxu_fb[i], &odroidxu_fb_default, sizeof(odroidxu_fb_default));
+
 	samsung_bl_set(&odroidxu_bl_gpio_info, &odroidxu_bl_data);
-	platform_add_devices(odroidxu_display_devices,
-			ARRAY_SIZE(odroidxu_display_devices));
+	platform_add_devices(odroidxu_display_devices, ARRAY_SIZE(odroidxu_display_devices));
 
-#ifdef CONFIG_S5P_DP
-	/* 64MHz = 320MHz@CPLL / 6 */
-	exynos5_fimd1_setup_clock(&s5p_device_fimd1.dev,
-			"sclk_fimd", "mout_mpll_bpll", 267 * MHZ);
-#endif
-
-#ifdef CONFIG_FB_MIPI_DSIM
-	/* 64MHz = 320MHz@CPLL / 6 */
-	exynos5_fimd1_setup_clock(&s5p_device_fimd1.dev,
-			"sclk_fimd", "mout_cpll", 64 * MHZ);
-
-#endif
+    if(!strncmp(VoutBootArgs, "dp", sizeof("dp")))  {
+    	platform_add_devices(odroidxu_dp_display_devices, ARRAY_SIZE(odroidxu_dp_display_devices));
+    	exynos5_fimd1_setup_clock(&s5p_device_fimd1.dev, "sclk_fimd", "mout_mpll_bpll", 267 * MHZ);
+    }
+    else    {
+    	platform_add_devices(odroidxu_mipi_display_devices, ARRAY_SIZE(odroidxu_mipi_display_devices));
+    	exynos5_fimd1_setup_clock(&s5p_device_fimd1.dev, "sclk_fimd", "mout_cpll", 64 * MHZ);
+    }
 }

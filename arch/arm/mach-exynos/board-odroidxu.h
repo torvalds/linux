@@ -24,5 +24,6 @@ void exynos5_odroidxu_usb_init(void);
 void exynos5_odroidxu_input_init(void);
 void exynos5_odroidxu_media_init(void);
 void exynos5_odroidxu_display_init(void);
+void exynos5_odroidxu_ioboard_init(void);
 
 #endif

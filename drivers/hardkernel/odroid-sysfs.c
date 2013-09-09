@@ -49,6 +49,7 @@ enum	{
 	// Status LED Display
 	STATUS_LED_BLUE,
 	STATUS_LED_GREEN,
+	STATUS_LED_RED,
 	
 	GPIO_INDEX_END
 };
@@ -145,6 +146,7 @@ static 	ssize_t set_inform	            (struct device *dev, struct device_attrib
 //[*]--------------------------------------------------------------------------------------------------[*]
 static	DEVICE_ATTR(led_green,			S_IRWXUGO, show_gpio, set_gpio);
 static	DEVICE_ATTR(led_blue,			S_IRWXUGO, show_gpio, set_gpio);
+static	DEVICE_ATTR(led_red,			S_IRWXUGO, show_gpio, set_gpio);
 //[*]--------------------------------------------------------------------------------------------------[*]
 //[*]--------------------------------------------------------------------------------------------------[*]
 static	DEVICE_ATTR(hdmi_resolution,	S_IRWXUGO, show_resolution, NULL);
@@ -169,6 +171,7 @@ static  DEVICE_ATTR(inform7, S_IRWXUGO, show_inform, set_inform);
 static struct attribute *odroid_sysfs_entries[] = {
 	&dev_attr_led_green.attr,
 	&dev_attr_led_blue.attr,
+	&dev_attr_led_red.attr,
 
 	&dev_attr_hdmi_resolution.attr,
 	&dev_attr_vout_mode.attr,
@@ -359,16 +362,13 @@ static int	odroid_sysfs_suspend(struct platform_device *dev, pm_message_t state)
 static enum hrtimer_restart odroid_led_timer(struct hrtimer *timer)
 {
     if(!StatusLed->blink_off)    {
-        if(StatusLed->hold_time)    StatusLed->hold_time--;
-        else    {
+        if( StatusLed->hold_time)   StatusLed->hold_time--;
+        if(!StatusLed->hold_time)   {
             StatusLed->hold_time    = StatusLed->period;
             StatusLed->on_off       = !StatusLed->on_off;
             
             // LED Port write
-//			gpio_set_value(StatusLed->gpio, StatusLed->on_off);
-gpio_set_value(sControlGpios[STATUS_LED_GREEN].gpio, StatusLed->on_off);
-gpio_set_value(sControlGpios[STATUS_LED_BLUE].gpio, !StatusLed->on_off);
-
+			gpio_set_value(StatusLed->gpio, StatusLed->on_off);
         }
     }
 
@@ -393,15 +393,6 @@ static	int		odroid_sysfs_probe		(struct platform_device *pdev)
 	    return	-ENOMEM;
 	}
 
-    StatusLed->period = simple_strtol(LedBlinkBootArgs, NULL, 10);
-    // if bootargs not set, blink period 1 sec (default)
-    if(StatusLed->period < 0 || StatusLed->period > 255)  StatusLed->period = 1;    
-    if(StatusLed->period)   StatusLed->hold_time = StatusLed->period;
-        
-	hrtimer_init(&StatusLed->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	StatusLed->timer.function = odroid_led_timer;
-	StatusLed->gpio = sControlGpios[STATUS_LED_GREEN].gpio;
-
 	// Control GPIO Init
 	for (i = 0; i < ARRAY_SIZE(sControlGpios); i++) {
 		if(sControlGpios[i].gpio)	{
@@ -422,6 +413,18 @@ static	int		odroid_sysfs_probe		(struct platform_device *pdev)
 		wake_lock(&sleep_wake_lock);
 	#endif
 #endif
+
+    StatusLed->period = simple_strtol(LedBlinkBootArgs, NULL, 10);
+    // if bootargs not set, blink period 1 sec (default)
+    if(StatusLed->period < 0 || StatusLed->period > 255)  StatusLed->period = 1;    
+    if(StatusLed->period)   StatusLed->hold_time = StatusLed->period;
+    else    {
+        StatusLed->blink_off = 1;		gpio_set_value(StatusLed->gpio, 0);
+    }
+        
+	hrtimer_init(&StatusLed->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	StatusLed->timer.function = odroid_led_timer;
+	StatusLed->gpio = sControlGpios[STATUS_LED_BLUE].gpio;
 
     hrtimer_start(&StatusLed->timer, ktime_set(STATUS_TIMER_PEROID, 0), HRTIMER_MODE_REL);
 

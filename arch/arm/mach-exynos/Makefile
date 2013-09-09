@@ -95,6 +95,7 @@ obj-$(CONFIG_MACH_ODROIDXU)	+= board-odroidxu-input.o
 obj-$(CONFIG_MACH_ODROIDXU)	+= board-odroidxu-clock.o
 obj-$(CONFIG_MACH_ODROIDXU)	+= board-odroidxu-media.o
 obj-$(CONFIG_MACH_ODROIDXU)	+= board-odroidxu-display.o
+obj-$(CONFIG_MACH_ODROIDXU)	+= board-odroidxu-ioboard.o
 
 obj-$(CONFIG_MACH_EXYNOS4_DT)		+= mach-exynos4-dt.o
 obj-$(CONFIG_MACH_EXYNOS5_DT)		+= mach-exynos5-dt.o

@@ -15,8 +15,9 @@ static struct {
 	int 	value;			// Default Value(only for output)
 	int		pud;			// Pull up/down register setting : S3C_GPIO_PULL_DOWN, UP, NONE
 } sControlGpios[] = {
-	{	STATUS_LED_BLUE,  	EXYNOS5410_GPB2(2),  "led_blue",		1,	0,	S3C_GPIO_PULL_NONE	},
-	{	STATUS_LED_GREEN,  	EXYNOS5410_GPB2(1),  "led_green",		1,	1,	S3C_GPIO_PULL_NONE	},
+	{	STATUS_LED_BLUE,  	EXYNOS5410_GPB2(2),  "led_blue",		1,	1,	S3C_GPIO_PULL_NONE	},
+	{	STATUS_LED_GREEN,  	EXYNOS5410_GPB2(1),  "led_green",		1,	0,	S3C_GPIO_PULL_NONE	},
+	{	STATUS_LED_RED,  	EXYNOS5410_GPX2(3),  "led_red",	    	1,	0,	S3C_GPIO_PULL_NONE	},
 };
 
 #define STATUS_TIMER_PEROID     1   // 1 sec

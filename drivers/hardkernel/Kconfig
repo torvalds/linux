@@ -14,5 +14,12 @@ config ODROIDXU_SP
 	---help---
 		Enables the INA231 Sensor on ODROID-XU
 
+config ODROIDXU_IOBOARD
+    bool "Enable the ODROIDXU IOBOARD Drivers"
+	depends on MACH_ODROIDXU
+	default n
+	---help---
+		Enables the IOBOARD Drivers
+    
 endmenu
 

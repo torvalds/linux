@@ -397,11 +397,6 @@ static int exynos_pm_suspend(void)
 
 	s3c_pm_do_save(exynos_core_save, ARRAY_SIZE(exynos_core_save));
 
-	/* Setting Central Sequence Register for power down mode */
-	tmp = __raw_readl(EXYNOS_CENTRAL_SEQ_CONFIGURATION);
-	tmp &= ~EXYNOS_CENTRAL_LOWPWR_CFG;
-	__raw_writel(tmp, EXYNOS_CENTRAL_SEQ_CONFIGURATION);
-
 	if (!(soc_is_exynos4210() || soc_is_exynos5410()))
 		exynos_reset_assert_ctrl(false);
 #ifdef CONFIG_CPU_IDLE
@@ -411,11 +406,10 @@ static int exynos_pm_suspend(void)
 	if (soc_is_exynos5410()) {
 		cluster_id = read_cpuid(CPUID_MPIDR) >> 8 & 0xf;
 		if(!cluster_id)
-			__raw_writel(EXYNOS5410_ARM_USE_STANDBY_WFI0,
-				     EXYNOS_CENTRAL_SEQ_OPTION);
+			__raw_writel(0x000F00F0, EXYNOS_CENTRAL_SEQ_OPTION);
 		else
-			__raw_writel(EXYNOS5410_KFC_USE_STANDBY_WFI0,
-				     EXYNOS_CENTRAL_SEQ_OPTION);
+			__raw_writel(0x00F00F00, EXYNOS_CENTRAL_SEQ_OPTION);
+
 	} else if (!soc_is_exynos5250()) {
 		tmp = (EXYNOS4_USE_STANDBY_WFI0 | EXYNOS4_USE_STANDBY_WFE0);
 		__raw_writel(tmp, EXYNOS_CENTRAL_SEQ_OPTION);
@@ -430,6 +424,11 @@ static int exynos_pm_suspend(void)
 		     : "=r" (tmp) : : "cc");
 		save_arm_register[1] = tmp;
 	}
+
+	/* Setting Central Sequence Register for power down mode */
+	tmp = __raw_readl(EXYNOS_CENTRAL_SEQ_CONFIGURATION);
+	tmp &= ~EXYNOS_CENTRAL_LOWPWR_CFG;
+	__raw_writel(tmp, EXYNOS_CENTRAL_SEQ_CONFIGURATION);
 
 	return 0;
 }

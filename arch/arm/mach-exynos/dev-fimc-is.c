@@ -131,9 +131,9 @@ void __init exynos5_fimc_is_set_platdata(struct exynos5_platform_fimc_is *pd)
 		if (!npd->sensor_power_on)
 			npd->sensor_power_on = exynos5_fimc_is_sensor_power_on;
 		if (!npd->sensor_power_off)
-			npd->sensor_power_off =
-					exynos5_fimc_is_sensor_power_off;
-
+			npd->sensor_power_off = exynos5_fimc_is_sensor_power_off;
+		if (!npd->print_cfg)
+			npd->print_cfg = exynos5_fimc_is_print_cfg;
 
 		exynos5_device_fimc_is.dev.platform_data = npd;
 	}

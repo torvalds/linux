@@ -9,6 +9,7 @@
 
 #include <linux/errno.h>
 #include <linux/gpio.h>
+#include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
@@ -37,80 +38,55 @@
 
 #include <media/exynos_fimc_is.h>
 #include <media/exynos_fimc_is_sensor.h>
+#include <media/s5k4ecgx_platform.h>
+
 #include "board-odroidxu.h"
 
 #ifdef CONFIG_VIDEO_EXYNOS_FIMC_LITE
 /* 1 MIPI Cameras */
-#ifdef CONFIG_VIDEO_M5MOLS
-static struct m5mols_platform_data m5mols_platdata = {
-#ifdef CONFIG_CSI_C
-	.gpio_rst = EXYNOS5410_GPX1(2), /* ISP_RESET */
-#endif
-#ifdef CONFIG_CSI_D
-	.gpio_rst = EXYNOS5410_GPX1(0), /* ISP_RESET */
-#endif
-#ifdef CONFIG_CSI_E
-	.gpio_rst = EXYNOS5410_GPX1(1), /* ISP_RESET */
-#endif
-	.enable_rst = true, /* positive reset */
-	.irq = IRQ_EINT(22),
-};
+#ifdef CONFIG_VIDEO_S5K4ECGX
+static int s5k4ecgx_power(int enable)
+{
+	int err = 0;
 
-static struct i2c_board_info hs_i2c_devs1[] __initdata = {
-	{
-		I2C_BOARD_INFO("M5MOLS", 0x1F),
-		.platform_data = &m5mols_platdata,
-	},
-};
-#endif
+	err = gpio_request(EXYNOS5410_GPX3(3), "cam_reset");
+	if (err)
+		printk(KERN_ERR "#### failed to request GPX3_1 ####\n");
 
-/* For S5K6B2 vision sensor */
-#ifdef CONFIG_VIDEO_S5K6B2
-#ifdef CONFIG_VISION_MODE
-static struct exynos5_sensor_gpio_info gpio_vision_sensor_smdk5410 = {
-	.cfg = {
-		/* 2M AVDD_28V */
-		/* 2M DVDD_18V */
-		/* 2M VIS_STBY */
-		/* 2M MCLK */
-		{
-			/* MIPI-CSI2 */
-			.pin_type = PIN_GPIO,
-			.pin = EXYNOS5410_GPM7(7),
-			.name = "GPIO_VT_CAM_MCLK",
-			.value = (0x2<<28),
-			.act = GPIO_PULL_NONE,
-			.flite_id = FLITE_ID_C,
-			.count = 0,
-		},
+	s3c_gpio_setpull(EXYNOS5410_GPX3(3), S3C_GPIO_PULL_NONE);
+
+	if(enable) {
+		gpio_direction_output(EXYNOS5410_GPX3(3), 0);
+		mdelay(200);
+		gpio_direction_output(EXYNOS5410_GPX3(3), 1);
+		mdelay(50);
 	}
-};
+	else {
+		gpio_direction_output(EXYNOS5410_GPX3(3), 0);
+	}
+	gpio_free(EXYNOS5410_GPX3(3));
 
-static struct exynos_fimc_is_sensor_platform_data s5k6b2_platdata = {
-#ifdef CONFIG_S5K6B2_CSI_C
-	.gpio_rst = EXYNOS5410_GPX1(2), /* VT_CAM_RESET */
-#endif
-#ifdef CONFIG_S5K6B2_CSI_D
-	.gpio_rst = EXYNOS5410_GPX1(0), /* VT_CAM_RESET */
-#endif
-#ifdef CONFIG_S5K6B2_CSI_E
-	.gpio_rst = EXYNOS5410_GPX1(1), /* VT_CAM_RESET */
-#endif
-	.enable_rst = true, /* positive reset */
-	.gpio_info = &gpio_vision_sensor_smdk5410,
-	.clk_on = exynos5_fimc_is_sensor_clk_on,
-	.clk_off = exynos5_fimc_is_sensor_clk_off,
+	return 0;
+}
+
+static struct s5k4ecgx_platform_data s5k4ecgx_plat = {
+	.default_width = 640,
+	.default_height = 480,
+	.pixelformat = V4L2_PIX_FMT_UYVY,
+	.freq = 24000000UL,
+
+	.is_mipi = 1,
+	.streamoff_delay = 100,
+	.set_power = s5k4ecgx_power,
 };
 
 static struct i2c_board_info hs_i2c_devs1[] __initdata = {
 	{
-		I2C_BOARD_INFO("S5K6B2", 0x35),
-		.platform_data = &s5k6b2_platdata,
+		I2C_BOARD_INFO("S5K4ECGX", 0x5a>>1),
+		.platform_data = &s5k4ecgx_plat,
 	},
 };
 #endif
-#endif
-
 #endif /* CONFIG_VIDEO_EXYNOS_FIMC_LITE */
 
 #ifdef CONFIG_VIDEO_EXYNOS_MIPI_CSIS
@@ -140,40 +116,6 @@ static struct platform_device mipi_csi_fixed_voltage = {
 	.id		= 3,
 	.dev		= {
 		.platform_data	= &mipi_csi_fixed_voltage_config,
-	},
-};
-#endif
-
-#ifdef CONFIG_VIDEO_M5MOLS
-static struct regulator_consumer_supply m5mols_fixed_voltage_supplies[] = {
-	REGULATOR_SUPPLY("core", NULL),
-	REGULATOR_SUPPLY("dig_18", NULL),
-	REGULATOR_SUPPLY("d_sensor", NULL),
-	REGULATOR_SUPPLY("dig_28", NULL),
-	REGULATOR_SUPPLY("a_sensor", NULL),
-	REGULATOR_SUPPLY("dig_12", NULL),
-};
-
-static struct regulator_init_data m5mols_fixed_voltage_init_data = {
-	.constraints = {
-		.always_on = 1,
-	},
-	.num_consumer_supplies	= ARRAY_SIZE(m5mols_fixed_voltage_supplies),
-	.consumer_supplies	= m5mols_fixed_voltage_supplies,
-};
-
-static struct fixed_voltage_config m5mols_fixed_voltage_config = {
-	.supply_name	= "CAM_SENSOR",
-	.microvolts	= 1800000,
-	.gpio		= -EINVAL,
-	.init_data	= &m5mols_fixed_voltage_init_data,
-};
-
-static struct platform_device m5mols_fixed_voltage = {
-	.name		= "reg-fixed-voltage",
-	.id		= 4,
-	.dev		= {
-		.platform_data	= &m5mols_fixed_voltage_config,
 	},
 };
 #endif
@@ -312,7 +254,7 @@ static struct fimg2d_platdata fimg2d_data __initdata = {
 #endif
 
 static struct platform_device *smdk5410_media_devices[] __initdata = {
-#if defined (CONFIG_CSI_D) || defined (CONFIG_S5K6B2_CSI_D)
+#if defined (CONFIG_CSI_D) || defined (CONFIG_S5K6B2_CSI_D) || defined (CONFIG_CSI_C)
 	&exynos5_device_hs_i2c1,
 #endif
 #if defined (CONFIG_CSI_E) || defined (CONFIG_S5K6B2_CSI_E)
@@ -343,13 +285,6 @@ static struct platform_device *smdk5410_media_devices[] __initdata = {
 	&mipi_csi_fixed_voltage,
 #endif
 
-#ifdef CONFIG_VIDEO_M5MOLS
-	&m5mols_fixed_voltage,
-#endif
-#ifdef CONFIG_VIDEO_EXYNOS5_FIMC_IS
-	&s3c64xx_device_spi3,
-	&exynos5_device_fimc_is,
-#endif
 #ifdef CONFIG_VIDEO_EXYNOS_TV
 #ifdef CONFIG_VIDEO_EXYNOS_HDMI
     &i2c2_gpio_device,
@@ -379,275 +314,17 @@ static struct platform_device *smdk5410_media_devices[] __initdata = {
 	&exynos5_device_jpeg_hx,
 #endif
 };
-#ifdef CONFIG_VIDEO_EXYNOS5_FIMC_IS
-static struct exynos5_sensor_gpio_info gpio_smdk5410 = {
-	.cfg = {
-		/* 13M AVDD_28V */
-		{
-			.pin_type = PIN_GPIO,
-			.pin = EXYNOS5410_GPE0(2),
-			.name = "GPIO_CAM_IO_EN",
-			.value = (1),
-			.act = GPIO_OUTPUT,
-			.flite_id = FLITE_ID_A,
-			.count = 0,
-		},
-		/* 13M DVDD_1.05_12V */
-		/* AF_28V */
-		{
-			.pin_type = PIN_GPIO,
-			.pin = EXYNOS5410_GPE0(3),
-			.name = "GPIO_CAM_AF_EN",
-			.value = (1),
-			.act = GPIO_OUTPUT,
-			.flite_id = FLITE_ID_A,
-			.count = 0,
-		},
-		/* 13M HOST_18V */
-		/* 13M MCLK */
-		{
-			/* MIPI-CSI0 */
-			.pin_type = PIN_GPIO,
-			.pin = EXYNOS5410_GPM7(5),
-			.name = "GPIO_CAM_MCLK",
-			.value = (0x2 << 20),
-			.act = GPIO_PULL_NONE,
-			.flite_id = FLITE_ID_A,
-			.count = 0,
-		},
-		{
-			/* MIPI-CSI1 */
-			.pin_type = PIN_GPIO,
-			.pin = EXYNOS5410_GPM7(6),
-			.name = "GPIO_CAM_MCLK",
-			.value = (0x2 << 24),
-			.act = GPIO_PULL_NONE,
-			.flite_id = FLITE_ID_B,
-			.count = 0,
-		},
-		/* 13M X SHUT/DOWN */
-		{
-			/* MIPI-CSI0 */
-			.pin_type = PIN_GPIO,
-			.pin = EXYNOS5410_GPX1(2),
-			.name = "GPIO_MAIN_CAM_RESET",
-			.value = (1),
-			.act = GPIO_RESET,
-			.flite_id = FLITE_ID_A,
-			.count = 0,
-		},
-		{
-			/* MIPI-CSI1 */
-			.pin_type = PIN_GPIO,
-			.pin = EXYNOS5410_GPX1(0),
-			.name = "GPIO_MAIN_CAM_RESET",
-			.value = (1),
-			.act = GPIO_RESET,
-			.flite_id = FLITE_ID_B,
-			.count = 0,
-		},
-		/* 13M I2C */
-		{
-			.pin_type = PIN_GPIO,
-			.pin = EXYNOS5410_GPF0(0),
-			.name = "GPIO_MAIN_CAM_SDA_18V",
-			.value = (0x2 << 0),
-			.act = GPIO_PULL_NONE,
-			.flite_id = FLITE_ID_A,
-			.count = 0,
-		},
-		{
-			.pin_type = PIN_GPIO,
-			.pin = EXYNOS5410_GPF0(1),
-			.name = "GPIO_MAIN_CAM_SCL_18V",
-			.value = (0x2 << 4),
-			.act = GPIO_PULL_NONE,
-			.flite_id = FLITE_ID_A,
-			.count = 0,
-		},
-		{
-			.pin_type = PIN_GPIO,
-			.pin = EXYNOS5410_GPF0(2),
-			.name = "GPIO_AF_SDA",
-			.value = (0x2 << 8),
-			.act = GPIO_PULL_NONE,
-			.flite_id = FLITE_ID_B,
-			.count = 0,
-		},
-		{
-			.pin_type = PIN_GPIO,
-			.pin = EXYNOS5410_GPF0(3),
-			.name = "GPIO_AF_SCL",
-			.value = (0x2 << 12),
-			.act = GPIO_PULL_NONE,
-			.flite_id = FLITE_ID_B,
-			.count = 0,
-		},
-		/* 13M Flash */
-		{
-			.pin_type = PIN_GPIO,
-			.pin = EXYNOS5410_GPF1(0),
-			.name = "GPIO_CAM_FLASH_EN",
-			.value = (0x3 << 0),
-			.act = GPIO_PULL_NONE,
-			.flite_id = FLITE_ID_A,
-			.count = 0,
-		},
-		{
-			.pin_type = PIN_GPIO,
-			.pin = EXYNOS5410_GPF1(1),
-			.name = "GPIO_CAM_FLASH_SET",
-			.value = (0x3 << 4),
-			.act = GPIO_PULL_NONE,
-			.flite_id = FLITE_ID_A,
-			.count = 0,
-		},
-		/* 2M AVDD_28V */
-		/* 2M DVDD_18V */
-		/* 2M X SHUT/DOWN */
-		{
-			/* MIPI-CSI2 */
-			.pin_type = PIN_GPIO,
-			.pin = EXYNOS5410_GPX1(1),
-			.name = "GPIO_CAM_VT_nRST",
-			.value = (1),
-			.act = GPIO_RESET,
-			.flite_id = FLITE_ID_C,
-			.count = 0,
-		},
-		/* 2M MCLK */
-		{
-			/* MIPI-CSI2 */
-			.pin_type = PIN_GPIO,
-			.pin = EXYNOS5410_GPM7(7),
-			.name = "GPIO_VT_CAM_MCLK",
-			.value = (0x2 << 28),
-			.act = GPIO_PULL_NONE,
-			.flite_id = FLITE_ID_C,
-			.count = 0,
-		},
-		/* 2M I2C */
-		{
-			.pin_type = PIN_GPIO,
-			.pin = EXYNOS5410_GPF0(4),
-			.name = "GPIO_VT_CAM_SDA_18V",
-			.value = (0x2 << 16),
-			.act = GPIO_PULL_NONE,
-			.flite_id = FLITE_ID_C,
-			.count = 0,
-		},
-		{
-			.pin_type = PIN_GPIO,
-			.pin = EXYNOS5410_GPF0(5),
-			.name = "GPIO_VT_CAM_SCL_18V",
-			.value = (0x2 << 20),
-			.act = GPIO_PULL_NONE,
-			.flite_id = FLITE_ID_C,
-			.count = 0,
-		},
-		/* ETC */
-		/* Host use spi controller in image subsystem */
-		/*
-		{
-			.pin_type = PIN_GPIO,
-			.pin = EXYNOS5410_GPF1(0),
-			.name = "GPIO_CAM_SPI0_SCLK",
-			.value = (0x2 << 0),
-			.act = GPIO_PULL_NONE,
-		},
-		*/
-		/* chip select is controlled by gpio output */
-		/*
-		{
-			.pin_type = PIN_GPIO,
-			.pin = EXYNOS5410_GPF1(1),
-			.name = "GPIO_CAM_SPI0_SSN",
-			.value = (0x1 << 4),
-			.act = GPIO_PULL_NONE,
-		},
-		*/
-		{
-			.pin_type = PIN_GPIO,
-			.pin = EXYNOS5410_GPF1(2),
-			.name = "GPIO_CAM_SPI0_MISP",
-			.value = (0x2 << 8),
-			.act = GPIO_PULL_NONE,
-			.flite_id = FLITE_ID_A,
-			.count = 0,
-		},
-		{
-			.pin_type = PIN_GPIO,
-			.pin = EXYNOS5410_GPF1(3),
-			.name = "GPIO_CAM_SPI0_MOSI",
-			.value = (0x2 << 12),
-			.act = GPIO_PULL_NONE,
-			.flite_id = FLITE_ID_A,
-			.count = 0,
-		},
-		{
-			.pin_type = PIN_GPIO,
-			.pin = EXYNOS5410_GPE0(6),
-			.name = "GPIO_nRTS_UART_ISP",
-			.value = (0x3 << 24),
-			.act = GPIO_PULL_NONE,
-			.flite_id = FLITE_ID_A,
-			.count = 0,
-		},
-		{
-			.pin_type = PIN_GPIO,
-			.pin = EXYNOS5410_GPE0(7),
-			.name = "GPIO_TXD_UART_ISP",
-			.value = (0x3 << 28),
-			.act = GPIO_PULL_NONE,
-			.flite_id = FLITE_ID_A,
-			.count = 0,
-		},
-		{
-			.pin_type = PIN_GPIO,
-			.pin = EXYNOS5410_GPE1(0),
-			.name = "GPIO_nCTS_UART_ISP",
-			.value = (0x3 << 0),
-			.act = GPIO_PULL_NONE,
-			.flite_id = FLITE_ID_A,
-			.count = 0,
-		},
-		{
-			.pin_type = PIN_GPIO,
-			.pin = EXYNOS5410_GPE1(1),
-			.name = "GPIO_RXD_UART_ISP",
-			.value = (0x3 << 4),
-			.act = GPIO_PULL_NONE,
-			.flite_id = FLITE_ID_A,
-			.count = 0,
-		},
-	}
-};
-
-static struct s3c64xx_spi_csinfo spi3_csi[] = {
-	[0] = {
-		.line		= EXYNOS5410_GPF1(1),
-		.set_level	= gpio_set_value,
-		.fb_delay	= 0x2,
-	},
-};
-
-static struct spi_board_info spi3_board_info[] __initdata = {
-	{
-		.modalias		= "fimc_is_spi",
-		.platform_data		= NULL,
-		.max_speed_hz		= 50 * 1000 * 1000,
-		.bus_num		= 3,
-		.chip_select		= 0,
-		.mode			= SPI_MODE_0,
-		.controller_data	= &spi3_csi[0],
-	}
-};
-#endif
 
 #ifdef CONFIG_VIDEO_EXYNOS_FIMC_LITE
 static void __init smdk5410_camera_gpio_cfg(void)
 {
-#ifdef CONFIG_VIDEO_M5MOLS
+#ifdef CONFIG_VIDEO_S5K4ECGX
+#ifdef CONFIG_CSI_C
+	gpio_request(EXYNOS5410_GPM7(5), "GPM7");
+	s3c_gpio_cfgpin(EXYNOS5410_GPM7(5), S3C_GPIO_SFN(0x2));
+	s3c_gpio_setpull(EXYNOS5410_GPM7(5), S3C_GPIO_PULL_NONE);
+	gpio_free(EXYNOS5410_GPM7(5));
+#endif
 #ifdef CONFIG_CSI_D
 	gpio_request(EXYNOS5410_GPM7(6), "GPM7");
 	s3c_gpio_cfgpin(EXYNOS5410_GPM7(6), S3C_GPIO_SFN(0x2));
@@ -667,9 +344,9 @@ static void __init smdk5410_camera_gpio_cfg(void)
 #endif
 
 #if defined(CONFIG_VIDEO_EXYNOS_GSCALER) && defined(CONFIG_VIDEO_EXYNOS_FIMC_LITE)
-#if defined(CONFIG_VIDEO_M5MOLS)
-static struct exynos_isp_info m5mols = {
-	.board_info	= &hs_i2c_devs1,
+#ifdef CONFIG_VIDEO_S5K4ECGX
+static struct exynos_isp_info s5k4ecgx = {
+	.board_info	= hs_i2c_devs1,
 	.cam_srclk_name	= "sclk_isp_sensor",
 	.clk_frequency  = 24000000UL,
 	.bus_type	= CAM_TYPE_MIPI,
@@ -677,7 +354,7 @@ static struct exynos_isp_info m5mols = {
 	.cam_clk_name	= "aclk_333_432_gscl",
 #ifdef CONFIG_CSI_C
 	.camif_clk_name	= "gscl_flite0",
-	.i2c_bus_num	= 4,
+	.i2c_bus_num	= 5,
 	.cam_port	= CAM_PORT_A, /* A-Port : 0 */
 #endif
 #ifdef CONFIG_CSI_D
@@ -690,11 +367,11 @@ static struct exynos_isp_info m5mols = {
 	.i2c_bus_num	= 6,
 	.cam_port	= CAM_PORT_C, /* C-Port : 2 */
 #endif
-	.flags		= CAM_CLK_INV_PCLK | CAM_CLK_INV_VSYNC,
-	.csi_data_align = 32,
+	.flags		= CAM_CLK_INV_VSYNC,
+	.csi_data_align = 24,
 };
 /* This is for platdata of fimc-lite */
-static struct s3c_platform_camera flite_m5mo = {
+static struct s3c_platform_camera flite_s5k4ecgx = {
 	.type		= CAM_TYPE_MIPI,
 	.use_isp	= true,
 	.inv_pclk	= 1,
@@ -703,52 +380,6 @@ static struct s3c_platform_camera flite_m5mo = {
 	.inv_hsync	= 0,
 };
 #endif
-
-#ifdef CONFIG_VIDEO_S5K6B2
-#ifdef CONFIG_VISION_MODE
-static struct exynos_isp_info s5k6b2 = {
-	.board_info	= hs_i2c_devs1,
-	.cam_srclk_name	= "sclk_isp_sensor",
-	.clk_frequency	= 24000000UL,
-	.bus_type	= CAM_TYPE_MIPI,
-	.cam_clk_src_name	= "dout_aclk_333_432_gscl",
-	.cam_clk_name	= "aclk_333_432_gscl",
-#ifdef CONFIG_S5K6B2_CSI_C
-	.camif_clk_name	= "gscl_flite0",
-	.i2c_bus_num	= 4,
-	.cam_port	= CAM_PORT_A, /* A-Port : 0 */
-#endif
-#ifdef CONFIG_S5K6B2_CSI_D
-	.camif_clk_name	= "gscl_flite1",
-	.i2c_bus_num	= 5,
-	.cam_port	= CAM_PORT_B, /* B-Port : 1 */
-#endif
-#ifdef CONFIG_S5K6B2_CSI_E
-	.camif_clk_name	= "gscl_flite2",
-	.i2c_bus_num	= 6,
-	.cam_port	= CAM_PORT_C, /* C-Port : 2 */
-#endif
-	.flags		= 0,
-	.csi_data_align	= 24,
-};
-
-/* This is for platdata of fimc-lite */
-static struct s3c_platform_camera flite_s5k6b2 = {
-	.type		= CAM_TYPE_MIPI,
-	.use_isp	= false,
-	.inv_pclk	= 0,
-	.inv_vsync	= 0,
-	.inv_href	= 0,
-	.inv_hsync	= 0,
-};
-#endif
-#endif
-
-static void __set_mipi_csi_config(struct s5p_platform_mipi_csis *data,
-					u8 alignment)
-{
-	data->alignment = alignment;
-}
 
 static void __set_gsc_camera_config(struct exynos_platform_gscaler *data,
 					u32 active_index, u32 preview,
@@ -773,43 +404,23 @@ static void __init smdk5410_set_camera_platdata(void)
 	int flite0_cam_index = 0;
 	int flite1_cam_index = 0;
 	int flite2_cam_index = 0;
-#if defined(CONFIG_VIDEO_M5MOLS)
-	exynos_gsc1_default_data.isp_info[gsc_cam_index++] = &m5mols;
+
+#if defined(CONFIG_VIDEO_S5K4ECGX)
+	exynos_gsc1_default_data.isp_info[gsc_cam_index++] = &s5k4ecgx;
 #if defined(CONFIG_CSI_C)
-	exynos_flite0_default_data.cam[flite0_cam_index] = &flite_m5mo;
-	exynos_flite0_default_data.isp_info[flite0_cam_index] = &m5mols;
+	exynos_flite0_default_data.cam[flite0_cam_index] = &flite_s5k4ecgx;
+	exynos_flite0_default_data.isp_info[flite0_cam_index] = &s5k4ecgx;
 	flite0_cam_index++;
 #endif
 #if defined(CONFIG_CSI_D)
-	exynos_flite1_default_data.cam[flite1_cam_index] = &flite_m5mo;
-	exynos_flite1_default_data.isp_info[flite1_cam_index] = &m5mols;
+	exynos_flite1_default_data.cam[flite1_cam_index] = &flite_s5k4ecgx;
+	exynos_flite1_default_data.isp_info[flite1_cam_index] = &s5k4ecgx;
 	flite1_cam_index++;
 #endif
 #if defined(CONFIG_CSI_E)
-	exynos_flite2_default_data.cam[flite2_cam_index] = &flite_m5mo;
-	exynos_flite2_default_data.isp_info[flite2_cam_index] = &m5mols;
+	exynos_flite2_default_data.cam[flite2_cam_index] = &flite_s5k4ecgx;
+	exynos_flite2_default_data.isp_info[flite2_cam_index] = &s5k4ecgx;
 	flite2_cam_index++;
-#endif
-#endif
-
-#ifdef CONFIG_VIDEO_S5K6B2
-#ifdef CONFIG_VISION_MODE
-	exynos_gsc1_default_data.isp_info[gsc_cam_index++] = &s5k6b2;
-#if defined(CONFIG_S5K6B2_CSI_C)
-	exynos_flite0_default_data.cam[flite0_cam_index] = &flite_s5k6b2;
-	exynos_flite0_default_data.isp_info[flite0_cam_index] = &s5k6b2;
-	flite0_cam_index++;
-#endif
-#if defined(CONFIG_S5K6B2_CSI_D)
-	exynos_flite1_default_data.cam[flite1_cam_index] = &flite_s5k6b2;
-	exynos_flite1_default_data.isp_info[flite1_cam_index] = &s5k6b2;
-	flite1_cam_index++;
-#endif
-#if defined(CONFIG_S5K6B2_CSI_E)
-	exynos_flite2_default_data.cam[flite2_cam_index] = &flite_s5k6b2;
-	exynos_flite2_default_data.isp_info[flite2_cam_index] = &s5k6b2;
-	flite2_cam_index++;
-#endif
 #endif
 #endif
 
@@ -830,7 +441,7 @@ static void __init smdk5410_set_camera_platdata(void)
 
 void __init exynos5_odroidxu_media_init(void)
 {
-#if defined (CONFIG_CSI_D) || defined (CONFIG_S5K6B2_CSI_D)
+#if defined (CONFIG_CSI_D) || defined (CONFIG_S5K6B2_CSI_D) || defined (CONFIG_CSI_C)
 	exynos5_hs_i2c1_set_platdata(NULL);
 #endif
 #if defined (CONFIG_CSI_E) || defined (CONFIG_S5K6B2_CSI_E)
@@ -850,16 +461,6 @@ void __init exynos5_odroidxu_media_init(void)
 	s3c_set_platdata(&exynos5410_scaler_pd, sizeof(exynos5410_scaler_pd),
 			&exynos5_device_scaler0);
 
-#ifdef CONFIG_VIDEO_S5K6B2
-#if defined(CONFIG_S5K6B2_CSI_C)
-	__set_mipi_csi_config(&s5p_mipi_csis0_default_data, s5k6b2.csi_data_align);
-#elif defined(CONFIG_S5K6B2_CSI_D)
-	__set_mipi_csi_config(&s5p_mipi_csis1_default_data, s5k6b2.csi_data_align);
-#elif defined(CONFIG_S5K6B2_CSI_E)
-	__set_mipi_csi_config(&s5p_mipi_csis2_default_data, s5k6b2.csi_data_align);
-#endif
-#endif
-
 #ifdef CONFIG_VIDEO_EXYNOS_MIPI_CSIS
 	s3c_set_platdata(&s5p_mipi_csis0_default_data,
 			sizeof(s5p_mipi_csis0_default_data), &s5p_device_mipi_csis0);
@@ -871,6 +472,7 @@ void __init exynos5_odroidxu_media_init(void)
 #ifdef CONFIG_VIDEO_EXYNOS_FIMC_LITE
 	smdk5410_camera_gpio_cfg();
 	smdk5410_set_camera_platdata();
+
 	s3c_set_platdata(&exynos_flite0_default_data,
 			sizeof(exynos_flite0_default_data), &exynos_device_flite0);
 	s3c_set_platdata(&exynos_flite1_default_data,
@@ -909,30 +511,7 @@ void __init exynos5_odroidxu_media_init(void)
 	s3c_set_platdata(&exynos_gsc3_default_data, sizeof(exynos_gsc3_default_data),
 			&exynos5_device_gsc3);
 #endif
-#ifdef CONFIG_VIDEO_EXYNOS5_FIMC_IS
-	dev_set_name(&exynos5_device_fimc_is.dev, "s5p-mipi-csis.0");
-	clk_add_alias("gscl_wrap0", FIMC_IS_MODULE_NAME, "gscl_wrap0", &exynos5_device_fimc_is.dev);
-	dev_set_name(&exynos5_device_fimc_is.dev, "s5p-mipi-csis.1");
-	clk_add_alias("gscl_wrap1", FIMC_IS_MODULE_NAME, "gscl_wrap1", &exynos5_device_fimc_is.dev);
-	dev_set_name(&exynos5_device_fimc_is.dev, "s5p-mipi-csis.2");
-	clk_add_alias("gscl_wrap2", FIMC_IS_MODULE_NAME, "gscl_wrap2", &exynos5_device_fimc_is.dev);
 
-	dev_set_name(&exynos5_device_fimc_is.dev, FIMC_IS_MODULE_NAME);
-
-	exynos5_fimc_is_data.gpio_info = &gpio_smdk5410;
-
-	exynos5_fimc_is_set_platdata(&exynos5_fimc_is_data);
-
-	if (!exynos_spi_cfg_cs(spi3_csi[0].line, 3)) {
-		s3c64xx_spi3_set_platdata(&s3c64xx_spi3_pdata,
-			EXYNOS_SPI_SRCCLK_SCLK, ARRAY_SIZE(spi3_csi));
-
-		spi_register_board_info(spi3_board_info,
-			ARRAY_SIZE(spi3_board_info));
-	} else {
-		pr_err("%s: Error requesting gpio for SPI-CH1 CS\n", __func__);
-	}
-#endif
 #ifdef CONFIG_VIDEO_EXYNOS_FIMG2D
 	s5p_fimg2d_set_platdata(&fimg2d_data);
 #endif

@@ -236,9 +236,7 @@ static struct dw_mci_board smdk5410_dwmci2_pdata __initdata = {
 	.quirks			= DW_MCI_QUIRK_HIGHSPEED,
 	.bus_hz			= 80 * 1000 * 1000,
 	.caps			= 	MMC_CAP_CMD23 | MMC_CAP_4_BIT_DATA | 
-						MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED | 
-						MMC_CAP_UHS_DDR50 | MMC_CAP_UHS_SDR50 |
-						MMC_CAP_UHS_SDR104,
+						MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED,
 	.fifo_depth		= 0x80,
 	.detect_delay_ms	= 200,
 	.hclk_name		= "dwmci",

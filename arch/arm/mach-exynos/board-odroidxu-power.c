@@ -334,21 +334,26 @@ REGULATOR_INIT(ldo7, "vddq_lcd", 		1800000, 1800000, 0, REGULATOR_CHANGE_STATUS,
 REGULATOR_INIT(ldo8, "vdd10_hdmi",	 	1000000, 1000000, 1, REGULATOR_CHANGE_STATUS, 0);
 REGULATOR_INIT(ldo10, "vdd18_mipi", 	1800000, 1800000, 1, REGULATOR_CHANGE_STATUS, 0);
 REGULATOR_INIT(ldo11, "vddq_mmc01", 	1800000, 1800000, 1, REGULATOR_CHANGE_STATUS, 0);
-REGULATOR_INIT(ldo12, "vdd33_USB30", 	3000000, 3000000, 1, REGULATOR_CHANGE_STATUS, 0);
+REGULATOR_INIT(ldo12, "vdd33_USB30", 	3300000, 3300000, 1, REGULATOR_CHANGE_STATUS, 0);
 REGULATOR_INIT(ldo13, "vddq_abb0", 		1800000, 1800000, 1, REGULATOR_CHANGE_STATUS, 0);
 REGULATOR_INIT(ldo14, "vddq_abb1", 		1800000, 1800000, 1, REGULATOR_CHANGE_STATUS, 0);
 REGULATOR_INIT(ldo15, "vdd10_USB30", 	1000000, 1000000, 1, REGULATOR_CHANGE_STATUS, 0);
-REGULATOR_INIT(ldo17, "cam_sensor_core",1200000, 1200000, 0, REGULATOR_CHANGE_STATUS, 0);
 REGULATOR_INIT(ldo18, "LDO18",			1800000, 1800000, 0, REGULATOR_CHANGE_STATUS, 0);
 REGULATOR_INIT(ldo20, "vdd_emmc_1v8",	1800000, 1800000, 1, REGULATOR_CHANGE_STATUS, 0);
 REGULATOR_INIT(ldo21, "VDDF_2V8",		2850000, 2850000, 1, REGULATOR_CHANGE_STATUS, 0);
 REGULATOR_INIT(ldo23, "DP_P3V3", 		3300000, 3300000, 1, REGULATOR_CHANGE_STATUS, 0);
-REGULATOR_INIT(ldo24, "cam_af_2.8v",	2800000, 2800000, 0, REGULATOR_CHANGE_STATUS, 0);
 REGULATOR_INIT(ldo25, "ETH_P3V3",	 	3300000, 3300000, 1, REGULATOR_CHANGE_STATUS, 0);
 REGULATOR_INIT(ldo26, "USB30_EXTCLK", 	3300000, 3300000, 1, REGULATOR_CHANGE_STATUS, 0);
 REGULATOR_INIT(ldo30, "vddq_E12", 		1200000, 1200000, 1, REGULATOR_CHANGE_STATUS, 0);
 REGULATOR_INIT(ldo32, "vs_power_meter", 3300000, 3300000, 1, REGULATOR_CHANGE_STATUS, 0);
 
+#if defined(CONFIG_VIDEO_S5K4ECGX)
+REGULATOR_INIT(ldo17, "cam_sensor_core",1200000, 1200000, 1, REGULATOR_CHANGE_STATUS, 0);
+REGULATOR_INIT(ldo24, "cam_af_2.8v",	2800000, 2800000, 1, REGULATOR_CHANGE_STATUS, 0);
+#else
+REGULATOR_INIT(ldo17, "cam_sensor_core",1200000, 1200000, 0, REGULATOR_CHANGE_STATUS, 0);
+REGULATOR_INIT(ldo24, "cam_af_2.8v",	2800000, 2800000, 0, REGULATOR_CHANGE_STATUS, 0);
+#endif
 
 static struct max77802_regulator_data max77802_regulators[] = {
 	{MAX77802_BUCK1, &max77802_buck1_data,},
@@ -489,7 +494,7 @@ struct max77802_platform_data exynos5_max77802_info = {
 
 static  struct ina231_pd  sensor_arm = {
     .name           = "sensor_arm",
-    .enable         = 1,
+    .enable         = 0,
     .max_A          = 9,    // unit = A
     .shunt_R_mohm   = 10,   // unit = m ohm
     .config         = INA231_CONFIG(VSH_CT(eVSH_CT_8244uS)      | \
@@ -501,7 +506,7 @@ static  struct ina231_pd  sensor_arm = {
 
 static  struct ina231_pd  sensor_mem = {
     .name           = "sensor_mem",
-    .enable         = 1,
+    .enable         = 0,
     .max_A          = 3,    // unit = A
     .shunt_R_mohm   = 10,   // unit = m ohm
     .config         = INA231_CONFIG(VSH_CT(eVSH_CT_8244uS)      | \
@@ -513,7 +518,7 @@ static  struct ina231_pd  sensor_mem = {
 
 static  struct ina231_pd  sensor_kfc = {
     .name           = "sensor_kfc",
-    .enable         = 1,
+    .enable         = 0,
     .max_A          = 2,    // unit = A
     .shunt_R_mohm   = 10,   // unit = m ohm
     .config         = INA231_CONFIG(VSH_CT(eVSH_CT_8244uS)      | \
@@ -525,7 +530,7 @@ static  struct ina231_pd  sensor_kfc = {
 
 static  struct ina231_pd  sensor_g3d = {
     .name           = "sensor_g3d",
-    .enable         = 1,
+    .enable         = 0,
     .max_A          = 5,    // unit = A
     .shunt_R_mohm   = 10,   // unit = m ohm
     .config         = INA231_CONFIG(VSH_CT(eVSH_CT_8244uS)      | \
