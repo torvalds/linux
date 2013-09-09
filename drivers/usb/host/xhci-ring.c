@@ -1519,6 +1519,7 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 	int slot_id = TRB_TO_SLOT_ID(le32_to_cpu(event->flags));
 	u64 cmd_dma;
 	dma_addr_t cmd_dequeue_dma;
+	u32 cmd_comp_code;
 
 	cmd_dma = le64_to_cpu(event->cmd_trb);
 	cmd_dequeue_dma = xhci_trb_virt_to_dma(xhci->cmd_ring->deq_seg,
@@ -1537,16 +1538,15 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 	trace_xhci_cmd_completion(&xhci->cmd_ring->dequeue->generic,
 					(struct xhci_generic_trb *) event);
 
-	if ((GET_COMP_CODE(le32_to_cpu(event->status)) == COMP_CMD_ABORT) ||
-		(GET_COMP_CODE(le32_to_cpu(event->status)) == COMP_CMD_STOP)) {
+	cmd_comp_code = GET_COMP_CODE(le32_to_cpu(event->status));
+	if (cmd_comp_code == COMP_CMD_ABORT || cmd_comp_code == COMP_CMD_STOP) {
 		/* If the return value is 0, we think the trb pointed by
 		 * command ring dequeue pointer is a good trb. The good
 		 * trb means we don't want to cancel the trb, but it have
 		 * been stopped by host. So we should handle it normally.
 		 * Otherwise, driver should invoke inc_deq() and return.
 		 */
-		if (handle_stopped_cmd_ring(xhci,
-				GET_COMP_CODE(le32_to_cpu(event->status)))) {
+		if (handle_stopped_cmd_ring(xhci, cmd_comp_code)) {
 			inc_deq(xhci, xhci->cmd_ring);
 			return;
 		}
@@ -1561,23 +1561,19 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 	switch (le32_to_cpu(xhci->cmd_ring->dequeue->generic.field[3])
 		& TRB_TYPE_BITMASK) {
 	case TRB_TYPE(TRB_ENABLE_SLOT):
-		xhci_handle_cmd_enable_slot(xhci, slot_id,
-				GET_COMP_CODE(le32_to_cpu(event->status)));
+		xhci_handle_cmd_enable_slot(xhci, slot_id, cmd_comp_code);
 		break;
 	case TRB_TYPE(TRB_DISABLE_SLOT):
 		xhci_handle_cmd_disable_slot(xhci, slot_id);
 		break;
 	case TRB_TYPE(TRB_CONFIG_EP):
-		xhci_handle_cmd_config_ep(xhci, slot_id, event,
-				GET_COMP_CODE(le32_to_cpu(event->status)));
+		xhci_handle_cmd_config_ep(xhci, slot_id, event, cmd_comp_code);
 		break;
 	case TRB_TYPE(TRB_EVAL_CONTEXT):
-		xhci_handle_cmd_eval_ctx(xhci, slot_id, event,
-				GET_COMP_CODE(le32_to_cpu(event->status)));
+		xhci_handle_cmd_eval_ctx(xhci, slot_id, event, cmd_comp_code);
 		break;
 	case TRB_TYPE(TRB_ADDR_DEV):
-		xhci_handle_cmd_addr_dev(xhci, slot_id,
-				GET_COMP_CODE(le32_to_cpu(event->status)));
+		xhci_handle_cmd_addr_dev(xhci, slot_id, cmd_comp_code);
 		break;
 	case TRB_TYPE(TRB_STOP_RING):
 		xhci_handle_cmd_stop_ep(xhci, xhci->cmd_ring->dequeue, event);
