@@ -1520,10 +1520,12 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 	u64 cmd_dma;
 	dma_addr_t cmd_dequeue_dma;
 	u32 cmd_comp_code;
+	union xhci_trb *cmd_trb;
 
 	cmd_dma = le64_to_cpu(event->cmd_trb);
+	cmd_trb = xhci->cmd_ring->dequeue;
 	cmd_dequeue_dma = xhci_trb_virt_to_dma(xhci->cmd_ring->deq_seg,
-			xhci->cmd_ring->dequeue);
+			cmd_trb);
 	/* Is the command ring deq ptr out of sync with the deq seg ptr? */
 	if (cmd_dequeue_dma == 0) {
 		xhci->error_bitmask |= 1 << 4;
@@ -1535,8 +1537,7 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 		return;
 	}
 
-	trace_xhci_cmd_completion(&xhci->cmd_ring->dequeue->generic,
-					(struct xhci_generic_trb *) event);
+	trace_xhci_cmd_completion(cmd_trb, (struct xhci_generic_trb *) event);
 
 	cmd_comp_code = GET_COMP_CODE(le32_to_cpu(event->status));
 	if (cmd_comp_code == COMP_CMD_ABORT || cmd_comp_code == COMP_CMD_STOP) {
@@ -1558,7 +1559,7 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 			return;
 	}
 
-	switch (le32_to_cpu(xhci->cmd_ring->dequeue->generic.field[3])
+	switch (le32_to_cpu(cmd_trb->generic.field[3])
 		& TRB_TYPE_BITMASK) {
 	case TRB_TYPE(TRB_ENABLE_SLOT):
 		xhci_handle_cmd_enable_slot(xhci, slot_id, cmd_comp_code);
@@ -1576,19 +1577,19 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 		xhci_handle_cmd_addr_dev(xhci, slot_id, cmd_comp_code);
 		break;
 	case TRB_TYPE(TRB_STOP_RING):
-		xhci_handle_cmd_stop_ep(xhci, xhci->cmd_ring->dequeue, event);
+		xhci_handle_cmd_stop_ep(xhci, cmd_trb, event);
 		break;
 	case TRB_TYPE(TRB_SET_DEQ):
-		xhci_handle_cmd_set_deq(xhci, event, xhci->cmd_ring->dequeue);
+		xhci_handle_cmd_set_deq(xhci, event, cmd_trb);
 		break;
 	case TRB_TYPE(TRB_CMD_NOOP):
 		break;
 	case TRB_TYPE(TRB_RESET_EP):
-		xhci_handle_cmd_reset_ep(xhci, event, xhci->cmd_ring->dequeue);
+		xhci_handle_cmd_reset_ep(xhci, event, cmd_trb);
 		break;
 	case TRB_TYPE(TRB_RESET_DEV):
 		WARN_ON(slot_id != TRB_TO_SLOT_ID(
-				le32_to_cpu(xhci->cmd_ring->dequeue->generic.field[3])));
+				le32_to_cpu(cmd_trb->generic.field[3])));
 		xhci_handle_cmd_reset_dev(xhci, slot_id, event);
 		break;
 	case TRB_TYPE(TRB_NEC_GET_FW):
