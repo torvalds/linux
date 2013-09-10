@@ -48,6 +48,7 @@ REVISION 0.01
 #include <linux/err.h>
 #include <linux/kthread.h>
 #include <linux/clk.h>
+#include <linux/suspend.h>
 
 #include <linux/io.h>
 #include <linux/gpio.h>
@@ -58,94 +59,128 @@ REVISION 0.01
 	printk(KERN_EMERG fmt, ##arg)
  //KERN_DEBUG
 #define ft_printk_dbg(fmt, arg...) \
-	printk(KERN_WARNING fmt, ##arg)
+	printk(KERN_EMERG fmt, ##arg) 
 	
- //KERN_DEBUG
+ //KERN_WARNING
 #define ft_printk_info(fmt, arg...) \
-	printk(KERN_WARNING fmt, ##arg)
+	printk(KERN_EMERG fmt, ##arg)
 
+
+
+#define MHZ (1000*1000)
+#define TST_SETUPS (4)
+#define FT_END_CNT (0x21)
 
 #define ENABLE_FT_TEST_GPIO   // for ft seting 1.6G volt
 
+//#define ENABLE_FT_SUSPEND_TST   // for ft seting 1.6G volt
+
+static struct semaphore sem_step0 = __SEMAPHORE_INITIALIZER(sem_step0, 0);
+static struct semaphore sem_step1 = __SEMAPHORE_INITIALIZER(sem_step1, 0);
+static struct semaphore sem_step2 = __SEMAPHORE_INITIALIZER(sem_step2, 0);
+static struct semaphore sem_step3 = __SEMAPHORE_INITIALIZER(sem_step3, 0);
+
+static struct semaphore *sem_steps[TST_SETUPS]={&sem_step0,&sem_step1,&sem_step2,&sem_step3};
+
+static int setups_flag[TST_SETUPS]={0,0,0,0};
+
+
 #if defined(CONFIG_ARCH_RK3188)
 
-static unsigned long arm_setup2_rate=1608*1000*1000;//1608*1000*1000;
+#if 1  // ¡Ωµµ≤‚ ‘
+const static unsigned long arm_setups_rate[TST_SETUPS]={816*MHZ,1608*MHZ*1,0,0};
+const static unsigned long l1_tst_cnt[TST_SETUPS]={5*10*1,5*10*1,5*10*21,5*10*1};
+const static unsigned long l2_cpy_cnt[TST_SETUPS]={5*1+2,5*2+4,5*2+4,5*2+4};
 
-#define STEP1_L1_CNT  (5*10)
-#define STEP1_L2_CPY_CNT (5*1+2)
+#else
 
-#define STEP2_L1_CNT (5*10)
-#define STEP2_L2_CPY_CNT (5*2+4)  //(5*6)
+//const static unsigned long arm_setups_rate[TST_SETUPS]={312*MHZ,1656*MHZ*1,1608*MHZ*1,312*MHZ*1};
+
+const static unsigned long arm_setups_rate[TST_SETUPS]={816*MHZ,1608*MHZ*1,816*MHZ*1,1608*MHZ*1};
+const static unsigned long l1_tst_cnt[TST_SETUPS]={5*10*2,5*10*2,5*10*2,5*10*2};
+const static unsigned long l2_cpy_cnt[TST_SETUPS]={5*1+2,5*2+4,5*2+4,5*2+4};
+
+#endif
 
 #define FT_CLIENT_READY_PIN    RK30_PIN3_PB3
 #define FT_CLIENT_IDLE_PIN     RK30_PIN0_PA3
 
 #elif defined(CONFIG_SOC_RK3168)
 
-static unsigned long arm_setup2_rate=1608*1000*1000;//1608*1000*1000;
+const static unsigned long arm_setups_rate[4]={552*MHZ,1608*MHZ*1,0,0};
 
-#define STEP1_L1_CNT  (5*10)
-#define STEP1_L2_CPY_CNT (5*3)
+const static unsigned long l1_tst_cnt[TST_SETUPS]={5*10,5*10,0,0};
+const static unsigned long l2_cpy_cnt[TST_SETUPS]={5*3,5*4,0,0};
 
-#define STEP2_L1_CNT (5*10)
-#define STEP2_L2_CPY_CNT (5*4)  //(5*6)
 
 #define FT_CLIENT_READY_PIN    RK30_PIN3_PB3
 #define FT_CLIENT_IDLE_PIN     RK30_PIN0_PA3
 
-
 #elif defined(CONFIG_SOC_RK3028)
 
-static unsigned long arm_setup2_rate=1200*1000*1000;//1608*1000*1000;
+const static unsigned long arm_setups_rate[4]={552*MHZ,1200*MHZ*1,0,0};
 
-#define STEP1_L1_CNT  (5*10)
-#define STEP1_L2_CPY_CNT (5*3)
-
-#define STEP2_L1_CNT (5*10)
-#define STEP2_L2_CPY_CNT (5*4)  //(5*6)
+const static unsigned long l1_tst_cnt[TST_SETUPS]={5*10,5*10,0,0};
+const static unsigned long l2_cpy_cnt[TST_SETUPS]={5*3,5*4,0,0};
 
 #define FT_CLIENT_READY_PIN    RK30_PIN1_PA2
 #define FT_CLIENT_IDLE_PIN     RK30_PIN3_PD4
 
 #else
-static unsigned long arm_setup2_rate=1608*1000*1000;//1608*1000*1000;
 
-#define STEP1_L1_CNT  (5*10)
-#define STEP1_L2_CPY_CNT (5*1+2)
+const static unsigned long arm_setups_rate[4]={552*MHZ,0,0,0};
 
-#define STEP2_L1_CNT (5*10)
-#define STEP2_L2_CPY_CNT (5*2+4)  //(5*6)
+const static unsigned long l1_tst_cnt[TST_SETUPS]={5*10,5*10,0,0};
+const static unsigned long l2_cpy_cnt[TST_SETUPS]={5*3,5*4,0,0};
 
 #define FT_CLIENT_READY_PIN    RK30_PIN3_PB3
 #define FT_CLIENT_IDLE_PIN     RK30_PIN0_PA3
-
 #endif
 
 
-
-static int setup2_flag=0;
-
-//0-15 :test setup1
-#define CPU_TST_L1 (1<<0)
-#define CPU_TST_L2 (1<<1)
-#define CPU_TST_SETUP1_MSK (0xffff)
-//16-31 :test setup2
+//0-7 :test setup1
+#define CPU_TST_L1_STP0 (1<<0)
+#define CPU_TST_L2_STP0 (1<<1)
+#define CPU_TST_SETUP0_MSK (0xff)
+//7-15 :test setup2
+#define CPU_TST_L1_STP1 (1<<8)
+#define CPU_TST_L2_STP1 (1<<9)
+#define CPU_TST_SETUP1_MSK (0xff00)
+//16-23:test stetup3
 #define CPU_TST_L1_STP2 (1<<16)
 #define CPU_TST_L2_STP2 (1<<17)
-#define CPU_TST_SETUP2_MSK (0xffff0000)
+#define CPU_TST_SETUP2_MSK (0xff0000)
 
-static DEFINE_PER_CPU(int, cpu_tst_flags)=(CPU_TST_L1|CPU_TST_L2|CPU_TST_L1_STP2|CPU_TST_L2_STP2);
+//24-31:test stetup4
+#define CPU_TST_L1_STP3 (1<<24)
+#define CPU_TST_L2_STP3 (1<<25)
+#define CPU_TST_SETUP3_MSK (0xff000000)
+
+const static unsigned int setup_l1_bits[TST_SETUPS]={CPU_TST_L1_STP0,CPU_TST_L1_STP1,CPU_TST_L1_STP2,CPU_TST_L1_STP3};
+const static unsigned int setup_l2_bits[TST_SETUPS]={CPU_TST_L2_STP0,CPU_TST_L2_STP1,CPU_TST_L2_STP2,CPU_TST_L2_STP3};
+const static unsigned int setup_bits_msk[TST_SETUPS]={CPU_TST_SETUP0_MSK,CPU_TST_SETUP1_MSK,CPU_TST_SETUP2_MSK,CPU_TST_SETUP3_MSK};
+
+
+static DEFINE_PER_CPU(int, cpu_tst_flags)=(
+			  CPU_TST_L1_STP0|CPU_TST_L2_STP0
+			|CPU_TST_L1_STP1|CPU_TST_L2_STP1
+			|CPU_TST_L1_STP2|CPU_TST_L2_STP2
+			|CPU_TST_L1_STP3|CPU_TST_L2_STP3
+			);
 
 static struct clk *arm_clk;
+static DEFINE_PER_CPU(wait_queue_head_t [TST_SETUPS], wait_setups);
 
-static DEFINE_PER_CPU(wait_queue_head_t, wait_rate);
+unsigned long __init ft_test_init_arm_rate(void)
+{
+	return arm_setups_rate[0];
+
+}
 
 /************************************l1 tst***************************************/
 void test_cpus_l1(u32 *data);
 void test_cpus_l0(u32 *data);
 
-static struct semaphore sem = __SEMAPHORE_INITIALIZER(sem, 0);
- 
 void ft_cpu_l1_test(u32 cnt)
 {
 	u32 cpu = smp_processor_id();
@@ -157,6 +192,8 @@ void ft_cpu_l1_test(u32 cnt)
 		barrier();
 		
 	}
+	if(cpu==0)
+		ft_printk(".");
 	for(i=0;i<cnt;i++)
 	{
 		test_cpus_l0(&test_array[0]);
@@ -166,9 +203,7 @@ void ft_cpu_l1_test(u32 cnt)
 	
 }
 
-
 /************************************l2 tst***************************************/
-static struct semaphore sem_step2 = __SEMAPHORE_INITIALIZER(sem_step2, 0);
 
 int test_cpus_l2(char *data_s,char *data_e,u32 data);
 
@@ -326,7 +361,9 @@ int ft_test_cpus_l2_m(char *data_s,char *data_d,u32 buf_size,u32 cnt)
 
 int ft_test_cpus_l2_memcpy(char *data_d,char *data_s,u32 buf_size,u32 cnt)
 {
-	int i,j;
+	
+	u32 cpu = smp_processor_id();
+	int j;
 	int ret=0;
 	int test_size;
 	char *mem_start;
@@ -342,9 +379,13 @@ int ft_test_cpus_l2_memcpy(char *data_d,char *data_s,u32 buf_size,u32 cnt)
 		mem_start=data_s;
 		mem_end=data_s+test_size;
 
-		
-		cpy_start=data_d;
-		cpy_end=data_d+test_size;
+		if(data_d)
+		{	
+			cpy_start=data_d;
+			cpy_end=data_d+test_size;
+		}
+		else
+			cpy_start=NULL;
 
 		for(;mem_start<=(mem_end-2*l2_DCACHE_SIZE);)
 		{
@@ -426,10 +467,15 @@ int ft_test_cpus_l2_memcpy(char *data_d,char *data_s,u32 buf_size,u32 cnt)
 			}
 #endif
 			mem_start+=2*l2_DCACHE_SIZE;
+			if(cpy_start)
+			{
+				cpy_start+=2*l2_DCACHE_SIZE;
+			}
+
 			
 		}
-		if(j%15==0)
-		ft_printk(".");
+		if((j%20==0)&&(cpu==0))
+			ft_printk(".");
 	}
 
 	return 0;
@@ -437,89 +483,181 @@ int ft_test_cpus_l2_memcpy(char *data_d,char *data_s,u32 buf_size,u32 cnt)
 
 /*************************************816 tst case**************************************/
 
-void ft_cpu_test_step1(void)
+void ft_cpu_test_type0(int steps)
 {
 	u32 temp=-1;
 	u32 cpu = smp_processor_id();
-	int i;
 	
-	ft_printk_dbg("test step1 cpu=%d start\n",cpu);	
+	ft_printk_dbg("test typ0 step%d cpu=%d start\n",steps,cpu);	
 	//arm rate init
-	ft_cpu_l1_test(STEP1_L1_CNT);
-	per_cpu(cpu_tst_flags, cpu)&=~CPU_TST_L1;
+	ft_cpu_l1_test(l1_tst_cnt[steps]);
+	per_cpu(cpu_tst_flags, cpu)&=~setup_l1_bits[steps];
 
 	//temp=ft_test_cpus_l2(l2_test_buf[cpu],sizeof(char)*BUF_SIZE,20);
-	temp=ft_test_cpus_l2_memcpy(NULL,l2_test_buf[cpu],sizeof(char)*BUF_SIZE,STEP1_L2_CPY_CNT);
+	temp=ft_test_cpus_l2_memcpy(NULL,l2_test_buf[cpu],sizeof(char)*BUF_SIZE,l2_cpy_cnt[steps]);
 	
 	if(!temp)
-	per_cpu(cpu_tst_flags, cpu)&=~CPU_TST_L2;
+		per_cpu(cpu_tst_flags, cpu)&=~setup_l2_bits[steps];
 
-	ft_printk_dbg("test step1 cpu=%d end\n",cpu);	
-
-	up(&sem);
+	ft_printk_dbg("test typ0 step%d cpu=%d end\n",steps,cpu);	
 
 }
 
+int ft_cpu_test_type0_check(int steps,const char *str)
+{
 
-/*************************************hight rate tst case**************************************/
+	int cpu, ret = 0;
 
-void ft_cpu_test_step2(void)
+	for (cpu = 0; cpu < NR_CPUS; cpu++)
+		down(sem_steps[steps]);
+	
+	
+	for (cpu = 0; cpu < NR_CPUS; cpu++)
+	{
+		ret|=per_cpu(cpu_tst_flags, cpu);
+		ft_printk_dbg("setup%d,cpu%d flags=%x(%x)\n",steps,cpu,per_cpu(cpu_tst_flags, cpu)&setup_bits_msk[steps],
+						per_cpu(cpu_tst_flags, cpu));
+	}
+	
+	ret&=setup_bits_msk[steps];// test setup1
+	ft_printk("setup%d end:ret=%x,arm=%lu,ddr=%lu\n",
+			steps,ret,clk_get_rate(arm_clk)/MHZ,clk_get_rate(clk_get(NULL, "ddr"))/MHZ);
+	if(ret)
+	{
+		ft_printk("#R01%s*\n",str);
+		while(1);
+	}
+	else
+		ft_printk("#R00%s*\n",str);
+	
+	return ret;
+}	
+
+
+/*************************************type1 rate tst case**************************************/
+
+void ft_cpu_test_type1(int steps)
 {
 	u32 temp=-1;
 	u32 cpu = smp_processor_id();
 	int i;
 	
-	ft_printk_dbg("test step2 cpu=%d start\n",cpu);	
+	ft_printk_dbg("test typ1 step%d cpu=%d start\n",steps,cpu);	
 
 	//arm rate init
-	ft_cpu_l1_test(STEP2_L1_CNT);
-	per_cpu(cpu_tst_flags, cpu)&=~CPU_TST_L1_STP2;
-
-	ft_printk_dbg("ft test cpus l2 begin\n");
+	ft_cpu_l1_test(l1_tst_cnt[steps]);
 	
-	ft_printk(".");
-	temp=ft_test_cpus_l2_memcpy(l2_test_mbuf[cpu],l2_test_buf[cpu],sizeof(char)*BUF_SIZE_M,STEP2_L2_CPY_CNT);
+	per_cpu(cpu_tst_flags, cpu)&=~setup_l1_bits[steps];
+
+	//ft_printk_dbg("ft test cpus l2 begin\n");
+	
+	temp=ft_test_cpus_l2_memcpy(l2_test_mbuf[cpu],l2_test_buf[cpu],sizeof(char)*BUF_SIZE_M,l2_cpy_cnt[steps]);
+		
+	if(!temp)
+		per_cpu(cpu_tst_flags, cpu)&=~setup_l2_bits[steps];
 	
 	#if 0
-	if(temp)
-		ft_printk_info("******cpu=%d,l2,ret=%x\n",cpu,temp);
-	
-	if(l2_test_mbuf[cpu])
-	{	
-		temp|=ft_test_cpus_l2_m(l2_test_mbuf[cpu],l2_test_buf[cpu],sizeof(char)*BUF_SIZE_M,12*1);
-		if(temp)		
-			ft_printk_info("******cpu=%d,l2m,ret=%x\n",cpu,temp);
-	}
-	#endif
-	if(!temp)
-	per_cpu(cpu_tst_flags, cpu)&=~CPU_TST_L2_STP2;
-
-	ft_printk(".");
+	if(cpu==0)
+		ft_printk(".");
 	for(i=0;i<1200;i++)
 	{	
 		usleep_range(200, 200);//200
-		if( i%500 == 0)
+		if(( i%700 == 0)&&cpu==0)
 			ft_printk(".");
 	}
-	ft_printk(".");
-
-	ft_printk_dbg("test step2 cpu=%d end\n",cpu);	
+	#endif
 	
-	up(&sem_step2);
+	ft_printk_dbg("test typ1 step%d cpu=%d end\n",steps,cpu);	
+	
 }
 
+int ft_cpu_test_type1_check(int steps,const char *str)
+{
+	int cpu, ret = 0;
+	int rate;
+
+	if(arm_setups_rate[steps])
+	{	
+		setups_flag[steps]=1;
+		
+		ft_printk("#S%s*\n",str);
+		
+
+		rate=clk_get_rate(arm_clk);
+
+		if(arm_setups_rate[steps]<rate)
+			clk_set_rate(arm_clk,arm_setups_rate[steps]);
+		
+
+		#ifdef ENABLE_FT_TEST_GPIO
+		// send msg to ctr board to up the volt
+		gpio_direction_output(FT_CLIENT_READY_PIN, GPIO_HIGH);
+		gpio_direction_input(FT_CLIENT_IDLE_PIN);
+		
+		// waiting for volt upping ok 
+		if((steps%2))
+			while( 0 == gpio_get_value(FT_CLIENT_IDLE_PIN));
+		else
+			while( 1 == gpio_get_value(FT_CLIENT_IDLE_PIN));
+			
+		gpio_set_value(FT_CLIENT_READY_PIN, GPIO_LOW);    
+		#endif
+
+
+		if(arm_setups_rate[steps]>=rate)
+			clk_set_rate(arm_clk,arm_setups_rate[steps]);
+
+		for (cpu = 0; cpu < NR_CPUS; cpu++)
+			wake_up(&per_cpu(wait_setups, cpu)[steps]);
+
+
+		for (cpu = 0; cpu < NR_CPUS; cpu++)
+			down(sem_steps[steps]);
+			
+		ret=0;
+		for (cpu = 0; cpu < NR_CPUS; cpu++)
+		{
+			ret|=per_cpu(cpu_tst_flags, cpu);
+			ft_printk_dbg("setup%d,cpu%d flags=%x(%x)\n",steps,cpu,per_cpu(cpu_tst_flags, cpu)&setup_bits_msk[steps],
+						per_cpu(cpu_tst_flags, cpu));
+		}
+	
+		ret&=setup_bits_msk[steps];// test setup2
+	
+		ft_printk("setup%d end:ret=%x,arm=%lu,ddr=%lu\n",
+				steps,ret,clk_get_rate(arm_clk)/MHZ,clk_get_rate(clk_get(NULL, "ddr"))/MHZ);
+		if(ret)
+		{
+			ft_printk("#R01%s*\n",str);
+			while(1);
+		}
+		else
+			ft_printk("#R00%s*\n",str);
+		
+	}
+	return ret;
+
+}
 
 // tst thread callback for per cpu
 static int ft_cpu_test(void *data)
 {	
 	u32 cpu = smp_processor_id();
 	
-	ft_cpu_test_step1();
-
-	//arm hight rate
-	wait_event_freezable(per_cpu(wait_rate, cpu),  /*(clk_get_rate(arm_clk)==arm_setup2_rate)*/(setup2_flag==1)||kthread_should_stop());
+	ft_cpu_test_type0(0);
+	up(sem_steps[0]);
 	
-	ft_cpu_test_step2();
+	wait_event_freezable(per_cpu(wait_setups, cpu)[1],(setups_flag[1]==1)||kthread_should_stop());
+	ft_cpu_test_type1(1);
+	up(sem_steps[1]);
+	
+	wait_event_freezable(per_cpu(wait_setups, cpu)[2],(setups_flag[2]==1)||kthread_should_stop());
+	ft_cpu_test_type1(2);
+	up(sem_steps[2]);
+	
+	wait_event_freezable(per_cpu(wait_setups, cpu)[3],(setups_flag[3]==1)||kthread_should_stop());
+	ft_cpu_test_type1(3);
+	up(sem_steps[3]);
 
 	return 0;
 }
@@ -527,13 +665,11 @@ static int ft_cpu_test(void *data)
 
 static int __init rk_ft_tests_init(void)
 {
-	int cpu, ret = 0;
+	int cpu, i,ret = 0;
 	struct sched_param param = { .sched_priority = 0 };	
 	char *buf;
 	arm_clk=clk_get(NULL, "cpu");
-	if (IS_ERR(arm_clk))
-		arm_setup2_rate=0;
-
+	
 	for (cpu = 0; cpu < NR_CPUS; cpu++) {
 		l2_test_mbuf[cpu]=NULL;
 		buf = kmalloc(BUF_SIZE_M, GFP_KERNEL);
@@ -546,7 +682,11 @@ static int __init rk_ft_tests_init(void)
 	}
 
 	for (cpu = 0; cpu < NR_CPUS; cpu++) {
-		init_waitqueue_head(&per_cpu(wait_rate, cpu));
+		for(i=0;i<TST_SETUPS;i++)
+		{	
+			init_waitqueue_head(&per_cpu(wait_setups, cpu)[i]);
+		}
+		
 	}
 
 	for (cpu = 0; cpu < NR_CPUS; cpu++) {
@@ -561,83 +701,29 @@ static int __init rk_ft_tests_init(void)
 }
 core_initcall(rk_ft_tests_init);
 
+void ft_test_flag_seting(void);
+
 static int rk_ft_tests_over(void)
 {
-		int cpu, ret = 0;
+	int cpu, ret = 0;
 
+	ft_cpu_test_type0_check(0,"KERENL");
+	
+	ft_cpu_test_type1_check(1,"HSPEED");
+	
+	ft_cpu_test_type1_check(2,"HSPEED2");
+	
+	ft_cpu_test_type1_check(3,"KERNEL2");
 
-		for (cpu = 0; cpu < NR_CPUS; cpu++)
-			down(&sem);
-		
-		ft_printk("setup1 arm rate=%lu,ddr=%lu\n",clk_get_rate(arm_clk),clk_get_rate(clk_get(NULL, "ddr")));
-	
-		ret=0;
-		for (cpu = 0; cpu < NR_CPUS; cpu++)
-		{
-			ret|=per_cpu(cpu_tst_flags, cpu);
-		 	ft_printk_dbg("per cpu setup1,cpu%d=%x,\n",cpu,per_cpu(cpu_tst_flags, cpu)&CPU_TST_SETUP1_MSK);
-	  	}
-		ret&=CPU_TST_SETUP1_MSK;// test setup1
+	ft_printk("#END%x*\n",FT_END_CNT);
 
-		if(ret)
-		{
-			ft_printk("#R01KERNEL*\n");
-			while(1);
-		}
-		else
-			ft_printk("#R00KERNEL*\n");
 	
-	
-		if(arm_setup2_rate)
-		{	
-			setup2_flag=1;
-			ft_printk("#SHSPEED*\n");
-
-			#ifdef ENABLE_FT_TEST_GPIO
-			// send msg to ctr board to up the volt
-			gpio_direction_output(FT_CLIENT_READY_PIN, GPIO_HIGH);
-			gpio_direction_input(FT_CLIENT_IDLE_PIN);
-			
-			// waiting for volt upping ok 
-			while( 0 == gpio_get_value(FT_CLIENT_IDLE_PIN));
-
-			gpio_set_value(FT_CLIENT_READY_PIN, GPIO_LOW);    
-			#endif
-		
-		
-			clk_set_rate(arm_clk,arm_setup2_rate);
-	
-			for (cpu = 0; cpu < NR_CPUS; cpu++)
-				wake_up(&per_cpu(wait_rate, cpu));
-	
-	
-			for (cpu = 0; cpu < NR_CPUS; cpu++)
-				down(&sem_step2);
-				
-			ft_printk("setup2 arm=%lu,ddr=%lu\n",clk_get_rate(arm_clk),clk_get_rate(clk_get(NULL, "ddr")));
-			
-			ret=0;
-			for (cpu = 0; cpu < NR_CPUS; cpu++)
-			{
-				ret|=per_cpu(cpu_tst_flags, cpu);
-				ft_printk_dbg("per cpu setup2,cpu%d=%x,\n",cpu,per_cpu(cpu_tst_flags, cpu)&CPU_TST_SETUP2_MSK);
-			}
-			
-			ret&=CPU_TST_SETUP2_MSK;// test setup2
-			
-			ft_printk_dbg("per cpu setup2=%x,cpu0=%x,cpu1=%x,cpu2=%x,cpu3=%x\n",ret,per_cpu(cpu_tst_flags, 0),
-					per_cpu(cpu_tst_flags, 1),per_cpu(cpu_tst_flags, 2),per_cpu(cpu_tst_flags, 3));
-			
-			if(ret)
-				ft_printk("#R01HSPEED*\n");
-			else
-				ft_printk("#R00HSPEED*\n");
-			
-		}
-		
-	
-	
-	ft_printk("#END20*\n");
+	#ifdef ENABLE_FT_SUSPEND_TST
+	{	
+		ft_test_flag_seting();
+		pm_suspend(PM_SUSPEND_MEM);
+	}
+	#endif
 
 	while(1);
 

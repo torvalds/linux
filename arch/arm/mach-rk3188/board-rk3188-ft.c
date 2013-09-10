@@ -42,11 +42,12 @@ static void __init machine_rk30_board_init(void)
 
 #define ft_printk(fmt, arg...) \
 	printk(KERN_EMERG fmt, ##arg)
+unsigned long __init ft_test_init_arm_rate(void);
 
 void __init board_clock_init(void)
 {
 	rk30_clock_data_init(periph_pll_default, codec_pll_default, RK30_CLOCKS_DEFAULT_FLAGS);
-	clk_set_rate(clk_get(NULL, "cpu"), ARM_PLL_MHZ * 1000 * 1000);
+	clk_set_rate(clk_get(NULL, "cpu"), ft_test_init_arm_rate());
 	preset_lpj = loops_per_jiffy;
 }
 
