@@ -333,7 +333,7 @@ static ssize_t radeon_get_pm_profile(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
 {
-	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct radeon_device *rdev = ddev->dev_private;
 	int cp = rdev->pm.profile;
 
@@ -349,7 +349,7 @@ static ssize_t radeon_set_pm_profile(struct device *dev,
 				     const char *buf,
 				     size_t count)
 {
-	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct radeon_device *rdev = ddev->dev_private;
 
 	mutex_lock(&rdev->pm.mutex);
@@ -383,7 +383,7 @@ static ssize_t radeon_get_pm_method(struct device *dev,
 				    struct device_attribute *attr,
 				    char *buf)
 {
-	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct radeon_device *rdev = ddev->dev_private;
 	int pm = rdev->pm.pm_method;
 
@@ -397,7 +397,7 @@ static ssize_t radeon_set_pm_method(struct device *dev,
 				    const char *buf,
 				    size_t count)
 {
-	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct radeon_device *rdev = ddev->dev_private;
 
 	/* we don't support the legacy modes with dpm */
@@ -433,7 +433,7 @@ static ssize_t radeon_get_dpm_state(struct device *dev,
 				    struct device_attribute *attr,
 				    char *buf)
 {
-	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct radeon_device *rdev = ddev->dev_private;
 	enum radeon_pm_state_type pm = rdev->pm.dpm.user_state;
 
@@ -447,7 +447,7 @@ static ssize_t radeon_set_dpm_state(struct device *dev,
 				    const char *buf,
 				    size_t count)
 {
-	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct radeon_device *rdev = ddev->dev_private;
 
 	mutex_lock(&rdev->pm.mutex);
@@ -472,7 +472,7 @@ static ssize_t radeon_get_dpm_forced_performance_level(struct device *dev,
 						       struct device_attribute *attr,
 						       char *buf)
 {
-	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct radeon_device *rdev = ddev->dev_private;
 	enum radeon_dpm_forced_level level = rdev->pm.dpm.forced_level;
 
@@ -486,7 +486,7 @@ static ssize_t radeon_set_dpm_forced_performance_level(struct device *dev,
 						       const char *buf,
 						       size_t count)
 {
-	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct radeon_device *rdev = ddev->dev_private;
 	enum radeon_dpm_forced_level level;
 	int ret = 0;
@@ -524,7 +524,7 @@ static ssize_t radeon_hwmon_show_temp(struct device *dev,
 				      struct device_attribute *attr,
 				      char *buf)
 {
-	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct radeon_device *rdev = ddev->dev_private;
 	int temp;
 
