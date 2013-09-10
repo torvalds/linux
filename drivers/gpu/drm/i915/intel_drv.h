@@ -551,7 +551,7 @@ extern int intel_panel_init(struct intel_panel *panel,
 			    struct drm_display_mode *fixed_mode);
 extern void intel_panel_fini(struct intel_panel *panel);
 
-extern void intel_fixed_panel_mode(struct drm_display_mode *fixed_mode,
+extern void intel_fixed_panel_mode(const struct drm_display_mode *fixed_mode,
 				   struct drm_display_mode *adjusted_mode);
 extern void intel_pch_panel_fitting(struct intel_crtc *crtc,
 				    struct intel_crtc_config *pipe_config,
@@ -792,5 +792,6 @@ extern void hsw_pc8_disable_interrupts(struct drm_device *dev);
 extern void hsw_pc8_restore_interrupts(struct drm_device *dev);
 extern void intel_aux_display_runtime_get(struct drm_i915_private *dev_priv);
 extern void intel_aux_display_runtime_put(struct drm_i915_private *dev_priv);
+extern void i915_disable_vga_mem(struct drm_device *dev);
 
 #endif /* __INTEL_DRV_H__ */

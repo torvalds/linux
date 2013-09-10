@@ -212,7 +212,7 @@ i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 void *i915_gem_object_alloc(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	return kmem_cache_alloc(dev_priv->slab, GFP_KERNEL | __GFP_ZERO);
+	return kmem_cache_zalloc(dev_priv->slab, GFP_KERNEL);
 }
 
 void i915_gem_object_free(struct drm_i915_gem_object *obj)
@@ -1695,6 +1695,7 @@ static long
 __i915_gem_shrink(struct drm_i915_private *dev_priv, long target,
 		  bool purgeable_only)
 {
+	struct list_head still_bound_list;
 	struct drm_i915_gem_object *obj, *next;
 	long count = 0;
 
@@ -1709,23 +1710,55 @@ __i915_gem_shrink(struct drm_i915_private *dev_priv, long target,
 		}
 	}
 
-	list_for_each_entry_safe(obj, next, &dev_priv->mm.bound_list,
-				 global_list) {
+	/*
+	 * As we may completely rewrite the bound list whilst unbinding
+	 * (due to retiring requests) we have to strictly process only
+	 * one element of the list at the time, and recheck the list
+	 * on every iteration.
+	 */
+	INIT_LIST_HEAD(&still_bound_list);
+	while (count < target && !list_empty(&dev_priv->mm.bound_list)) {
 		struct i915_vma *vma, *v;
+
+		obj = list_first_entry(&dev_priv->mm.bound_list,
+				       typeof(*obj), global_list);
+		list_move_tail(&obj->global_list, &still_bound_list);
 
 		if (!i915_gem_object_is_purgeable(obj) && purgeable_only)
 			continue;
+
+		/*
+		 * Hold a reference whilst we unbind this object, as we may
+		 * end up waiting for and retiring requests. This might
+		 * release the final reference (held by the active list)
+		 * and result in the object being freed from under us.
+		 * in this object being freed.
+		 *
+		 * Note 1: Shrinking the bound list is special since only active
+		 * (and hence bound objects) can contain such limbo objects, so
+		 * we don't need special tricks for shrinking the unbound list.
+		 * The only other place where we have to be careful with active
+		 * objects suddenly disappearing due to retiring requests is the
+		 * eviction code.
+		 *
+		 * Note 2: Even though the bound list doesn't hold a reference
+		 * to the object we can safely grab one here: The final object
+		 * unreferencing and the bound_list are both protected by the
+		 * dev->struct_mutex and so we won't ever be able to observe an
+		 * object on the bound_list with a reference count equals 0.
+		 */
+		drm_gem_object_reference(&obj->base);
 
 		list_for_each_entry_safe(vma, v, &obj->vma_list, vma_link)
 			if (i915_vma_unbind(vma))
 				break;
 
-		if (!i915_gem_object_put_pages(obj)) {
+		if (i915_gem_object_put_pages(obj) == 0)
 			count += obj->base.size >> PAGE_SHIFT;
-			if (count >= target)
-				return count;
-		}
+
+		drm_gem_object_unreference(&obj->base);
 	}
+	list_splice(&still_bound_list, &dev_priv->mm.bound_list);
 
 	return count;
 }
@@ -1774,7 +1807,6 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 
 	page_count = obj->base.size / PAGE_SIZE;
 	if (sg_alloc_table(st, page_count, GFP_KERNEL)) {
-		sg_free_table(st);
 		kfree(st);
 		return -ENOMEM;
 	}

@@ -1290,9 +1290,12 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	 * then we do not take part in VGA arbitration and the
 	 * vga_client_register() fails with -ENODEV.
 	 */
-	ret = vga_client_register(dev->pdev, dev, NULL, i915_vga_set_decode);
-	if (ret && ret != -ENODEV)
-		goto out;
+	if (!HAS_PCH_SPLIT(dev)) {
+		ret = vga_client_register(dev->pdev, dev, NULL,
+					  i915_vga_set_decode);
+		if (ret && ret != -ENODEV)
+			goto out;
+	}
 
 	intel_register_dsm_handler();
 
@@ -1347,6 +1350,12 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	 * tiny window where we will loose hotplug notifactions.
 	 */
 	intel_fbdev_initial_config(dev);
+
+	/*
+	 * Must do this after fbcon init so that
+	 * vgacon_save_screen() works during the handover.
+	 */
+	i915_disable_vga_mem(dev);
 
 	/* Only enable hotplug handling once the fbdev is fully set up. */
 	dev_priv->enable_hotplug_processing = true;
