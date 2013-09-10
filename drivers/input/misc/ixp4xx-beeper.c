@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
+#include <linux/gpio.h>
 #include <mach/hardware.h>
 
 MODULE_AUTHOR("Alessandro Zummo <a.zummo@towertech.it>");
@@ -35,15 +36,12 @@ static void ixp4xx_spkr_control(unsigned int pin, unsigned int count)
 
 	spin_lock_irqsave(&beep_lock, flags);
 
-	 if (count) {
-		gpio_line_config(pin, IXP4XX_GPIO_OUT);
-		gpio_line_set(pin, IXP4XX_GPIO_LOW);
-
+	if (count) {
+		gpio_direction_output(pin, 0);
 		*IXP4XX_OSRT2 = (count & ~IXP4XX_OST_RELOAD_MASK) | IXP4XX_OST_ENABLE;
 	} else {
-		gpio_line_config(pin, IXP4XX_GPIO_IN);
-		gpio_line_set(pin, IXP4XX_GPIO_HIGH);
-
+		gpio_direction_output(pin, 1);
+		gpio_direction_input(pin);
 		*IXP4XX_OSRT2 = 0;
 	}
 
