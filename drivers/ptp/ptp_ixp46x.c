@@ -259,8 +259,15 @@ static struct ixp_clock ixp_clock;
 static int setup_interrupt(int gpio)
 {
 	int irq;
+	int err;
 
-	gpio_line_config(gpio, IXP4XX_GPIO_IN);
+	err = gpio_request(gpio, "ixp4-ptp");
+	if (err)
+		return err;
+
+	err = gpio_direction_input(gpio);
+	if (err)
+		return err;
 
 	irq = gpio_to_irq(gpio);
 
