@@ -361,7 +361,7 @@ struct drm_i915_display_funcs {
 			  int target, int refclk,
 			  struct dpll *match_clock,
 			  struct dpll *best_clock);
-	void (*update_wm)(struct drm_device *dev);
+	void (*update_wm)(struct drm_crtc *crtc);
 	void (*update_sprite_wm)(struct drm_plane *plane,
 				 struct drm_crtc *crtc,
 				 uint32_t sprite_width, int pixel_size,

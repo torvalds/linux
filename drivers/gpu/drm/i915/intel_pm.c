@@ -1087,8 +1087,9 @@ static struct drm_crtc *single_enabled_crtc(struct drm_device *dev)
 	return enabled;
 }
 
-static void pineview_update_wm(struct drm_device *dev)
+static void pineview_update_wm(struct drm_crtc *unused_crtc)
 {
+	struct drm_device *dev = unused_crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
 	const struct cxsr_latency *latency;
@@ -1365,8 +1366,9 @@ static void vlv_update_drain_latency(struct drm_device *dev)
 
 #define single_plane_enabled(mask) is_power_of_2(mask)
 
-static void valleyview_update_wm(struct drm_device *dev)
+static void valleyview_update_wm(struct drm_crtc *crtc)
 {
+	struct drm_device *dev = crtc->dev;
 	static const int sr_latency_ns = 12000;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int planea_wm, planeb_wm, cursora_wm, cursorb_wm;
@@ -1424,8 +1426,9 @@ static void valleyview_update_wm(struct drm_device *dev)
 		   (cursor_sr << DSPFW_CURSOR_SR_SHIFT));
 }
 
-static void g4x_update_wm(struct drm_device *dev)
+static void g4x_update_wm(struct drm_crtc *crtc)
 {
+	struct drm_device *dev = crtc->dev;
 	static const int sr_latency_ns = 12000;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int planea_wm, planeb_wm, cursora_wm, cursorb_wm;
@@ -1476,8 +1479,9 @@ static void g4x_update_wm(struct drm_device *dev)
 		   (cursor_sr << DSPFW_CURSOR_SR_SHIFT));
 }
 
-static void i965_update_wm(struct drm_device *dev)
+static void i965_update_wm(struct drm_crtc *unused_crtc)
 {
+	struct drm_device *dev = unused_crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
 	int srwm = 1;
@@ -1541,8 +1545,9 @@ static void i965_update_wm(struct drm_device *dev)
 	I915_WRITE(DSPFW3, (cursor_sr << DSPFW_CURSOR_SR_SHIFT));
 }
 
-static void i9xx_update_wm(struct drm_device *dev)
+static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 {
+	struct drm_device *dev = unused_crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	const struct intel_watermark_params *wm_info;
 	uint32_t fwater_lo;
@@ -1658,8 +1663,9 @@ static void i9xx_update_wm(struct drm_device *dev)
 	}
 }
 
-static void i830_update_wm(struct drm_device *dev)
+static void i830_update_wm(struct drm_crtc *unused_crtc)
 {
+	struct drm_device *dev = unused_crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
 	uint32_t fwater_lo;
@@ -1785,8 +1791,9 @@ static bool ironlake_compute_srwm(struct drm_device *dev, int level, int plane,
 				   display, cursor);
 }
 
-static void ironlake_update_wm(struct drm_device *dev)
+static void ironlake_update_wm(struct drm_crtc *crtc)
 {
+	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int fbc_wm, plane_wm, cursor_wm;
 	unsigned int enabled;
@@ -1868,8 +1875,9 @@ static void ironlake_update_wm(struct drm_device *dev)
 	 */
 }
 
-static void sandybridge_update_wm(struct drm_device *dev)
+static void sandybridge_update_wm(struct drm_crtc *crtc)
 {
+	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int latency = dev_priv->wm.pri_latency[0] * 100;	/* In unit 0.1us */
 	u32 val;
@@ -1970,8 +1978,9 @@ static void sandybridge_update_wm(struct drm_device *dev)
 		   cursor_wm);
 }
 
-static void ivybridge_update_wm(struct drm_device *dev)
+static void ivybridge_update_wm(struct drm_crtc *crtc)
 {
+	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int latency = dev_priv->wm.pri_latency[0] * 100;	/* In unit 0.1us */
 	u32 val;
@@ -2841,8 +2850,9 @@ static void hsw_write_wm_values(struct drm_i915_private *dev_priv,
 		I915_WRITE(WM3_LP_ILK, results->wm_lp[2]);
 }
 
-static void haswell_update_wm(struct drm_device *dev)
+static void haswell_update_wm(struct drm_crtc *crtc)
 {
+	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct hsw_wm_maximums lp_max_1_2, lp_max_5_6;
 	struct hsw_pipe_wm_parameters params[3];
@@ -2879,7 +2889,7 @@ static void haswell_update_sprite_wm(struct drm_plane *plane,
 	intel_plane->wm.horiz_pixels = sprite_width;
 	intel_plane->wm.bytes_per_pixel = pixel_size;
 
-	haswell_update_wm(plane->dev);
+	haswell_update_wm(crtc);
 }
 
 static bool
@@ -3076,12 +3086,12 @@ static void sandybridge_update_sprite_wm(struct drm_plane *plane,
  * We don't use the sprite, so we can ignore that.  And on Crestline we have
  * to set the non-SR watermarks to 8.
  */
-void intel_update_watermarks(struct drm_device *dev)
+void intel_update_watermarks(struct drm_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
 
 	if (dev_priv->display.update_wm)
-		dev_priv->display.update_wm(dev);
+		dev_priv->display.update_wm(crtc);
 }
 
 void intel_update_sprite_watermarks(struct drm_plane *plane,

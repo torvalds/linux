@@ -715,7 +715,7 @@ extern void intel_ddi_init(struct drm_device *dev, enum port port);
 extern enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder);
 
 /* For use by IVB LP watermark workaround in intel_sprite.c */
-extern void intel_update_watermarks(struct drm_device *dev);
+extern void intel_update_watermarks(struct drm_crtc *crtc);
 extern void intel_update_sprite_watermarks(struct drm_plane *plane,
 					   struct drm_crtc *crtc,
 					   uint32_t sprite_width, int pixel_size,
