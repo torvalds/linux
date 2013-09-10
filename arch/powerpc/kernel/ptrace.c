@@ -362,7 +362,7 @@ static int fpr_get(struct task_struct *target, const struct user_regset *regset,
 		   void *kbuf, void __user *ubuf)
 {
 #ifdef CONFIG_VSX
-	double buf[33];
+	u64 buf[33];
 	int i;
 #endif
 	flush_fp_to_thread(target);
@@ -371,15 +371,15 @@ static int fpr_get(struct task_struct *target, const struct user_regset *regset,
 	/* copy to local buffer then write that out */
 	for (i = 0; i < 32 ; i++)
 		buf[i] = target->thread.TS_FPR(i);
-	memcpy(&buf[32], &target->thread.fpscr, sizeof(double));
+	buf[32] = target->thread.fp_state.fpscr;
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, buf, 0, -1);
 
 #else
-	BUILD_BUG_ON(offsetof(struct thread_struct, fpscr) !=
-		     offsetof(struct thread_struct, TS_FPR(32)));
+	BUILD_BUG_ON(offsetof(struct thread_fp_state, fpscr) !=
+		     offsetof(struct thread_fp_state, fpr[32][0]));
 
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				   &target->thread.fpr, 0, -1);
+				   &target->thread.fp_state, 0, -1);
 #endif
 }
 
@@ -388,7 +388,7 @@ static int fpr_set(struct task_struct *target, const struct user_regset *regset,
 		   const void *kbuf, const void __user *ubuf)
 {
 #ifdef CONFIG_VSX
-	double buf[33];
+	u64 buf[33];
 	int i;
 #endif
 	flush_fp_to_thread(target);
@@ -400,14 +400,14 @@ static int fpr_set(struct task_struct *target, const struct user_regset *regset,
 		return i;
 	for (i = 0; i < 32 ; i++)
 		target->thread.TS_FPR(i) = buf[i];
-	memcpy(&target->thread.fpscr, &buf[32], sizeof(double));
+	target->thread.fp_state.fpscr = buf[32];
 	return 0;
 #else
-	BUILD_BUG_ON(offsetof(struct thread_struct, fpscr) !=
-		     offsetof(struct thread_struct, TS_FPR(32)));
+	BUILD_BUG_ON(offsetof(struct thread_fp_state, fpscr) !=
+		     offsetof(struct thread_fp_state, fpr[32][0]));
 
 	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-				  &target->thread.fpr, 0, -1);
+				  &target->thread.fp_state, 0, -1);
 #endif
 }
 
@@ -440,11 +440,11 @@ static int vr_get(struct task_struct *target, const struct user_regset *regset,
 
 	flush_altivec_to_thread(target);
 
-	BUILD_BUG_ON(offsetof(struct thread_struct, vscr) !=
-		     offsetof(struct thread_struct, vr[32]));
+	BUILD_BUG_ON(offsetof(struct thread_vr_state, vscr) !=
+		     offsetof(struct thread_vr_state, vr[32]));
 
 	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				  &target->thread.vr, 0,
+				  &target->thread.vr_state, 0,
 				  33 * sizeof(vector128));
 	if (!ret) {
 		/*
@@ -471,11 +471,12 @@ static int vr_set(struct task_struct *target, const struct user_regset *regset,
 
 	flush_altivec_to_thread(target);
 
-	BUILD_BUG_ON(offsetof(struct thread_struct, vscr) !=
-		     offsetof(struct thread_struct, vr[32]));
+	BUILD_BUG_ON(offsetof(struct thread_vr_state, vscr) !=
+		     offsetof(struct thread_vr_state, vr[32]));
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-				 &target->thread.vr, 0, 33 * sizeof(vector128));
+				 &target->thread.vr_state, 0,
+				 33 * sizeof(vector128));
 	if (!ret && count > 0) {
 		/*
 		 * We use only the first word of vrsave.
@@ -514,13 +515,13 @@ static int vsr_get(struct task_struct *target, const struct user_regset *regset,
 		   unsigned int pos, unsigned int count,
 		   void *kbuf, void __user *ubuf)
 {
-	double buf[32];
+	u64 buf[32];
 	int ret, i;
 
 	flush_vsx_to_thread(target);
 
 	for (i = 0; i < 32 ; i++)
-		buf[i] = target->thread.fpr[i][TS_VSRLOWOFFSET];
+		buf[i] = target->thread.fp_state.fpr[i][TS_VSRLOWOFFSET];
 	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
 				  buf, 0, 32 * sizeof(double));
 
@@ -531,7 +532,7 @@ static int vsr_set(struct task_struct *target, const struct user_regset *regset,
 		   unsigned int pos, unsigned int count,
 		   const void *kbuf, const void __user *ubuf)
 {
-	double buf[32];
+	u64 buf[32];
 	int ret,i;
 
 	flush_vsx_to_thread(target);
@@ -539,7 +540,7 @@ static int vsr_set(struct task_struct *target, const struct user_regset *regset,
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 				 buf, 0, 32 * sizeof(double));
 	for (i = 0; i < 32 ; i++)
-		target->thread.fpr[i][TS_VSRLOWOFFSET] = buf[i];
+		target->thread.fp_state.fpr[i][TS_VSRLOWOFFSET] = buf[i];
 
 
 	return ret;
@@ -1554,10 +1555,10 @@ long arch_ptrace(struct task_struct *child, long request,
 
 			flush_fp_to_thread(child);
 			if (fpidx < (PT_FPSCR - PT_FPR0))
-				tmp = ((unsigned long *)child->thread.fpr)
+				tmp = ((unsigned long *)child->thread.fp_state.fpr)
 					[fpidx * TS_FPRWIDTH];
 			else
-				tmp = child->thread.fpscr.val;
+				tmp = child->thread.fp_state.fpscr;
 		}
 		ret = put_user(tmp, datalp);
 		break;
@@ -1587,10 +1588,10 @@ long arch_ptrace(struct task_struct *child, long request,
 
 			flush_fp_to_thread(child);
 			if (fpidx < (PT_FPSCR - PT_FPR0))
-				((unsigned long *)child->thread.fpr)
+				((unsigned long *)child->thread.fp_state.fpr)
 					[fpidx * TS_FPRWIDTH] = data;
 			else
-				child->thread.fpscr.val = data;
+				child->thread.fp_state.fpscr = data;
 			ret = 0;
 		}
 		break;

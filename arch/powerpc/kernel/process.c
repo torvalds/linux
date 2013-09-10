@@ -1113,12 +1113,10 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 #ifdef CONFIG_VSX
 	current->thread.used_vsr = 0;
 #endif
-	memset(current->thread.fpr, 0, sizeof(current->thread.fpr));
-	current->thread.fpscr.val = 0;
+	memset(&current->thread.fp_state, 0, sizeof(current->thread.fp_state));
 #ifdef CONFIG_ALTIVEC
-	memset(current->thread.vr, 0, sizeof(current->thread.vr));
-	memset(&current->thread.vscr, 0, sizeof(current->thread.vscr));
-	current->thread.vscr.u[3] = 0x00010000; /* Java mode disabled */
+	memset(&current->thread.vr_state, 0, sizeof(current->thread.vr_state));
+	current->thread.vr_state.vscr.u[3] = 0x00010000; /* Java mode disabled */
 	current->thread.vrsave = 0;
 	current->thread.used_vr = 0;
 #endif /* CONFIG_ALTIVEC */
