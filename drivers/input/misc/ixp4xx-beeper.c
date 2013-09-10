@@ -76,11 +76,13 @@ static int ixp4xx_spkr_event(struct input_dev *dev, unsigned int type, unsigned 
 
 static irqreturn_t ixp4xx_spkr_interrupt(int irq, void *dev_id)
 {
+	unsigned int pin = (unsigned int) dev_id;
+
 	/* clear interrupt */
 	*IXP4XX_OSST = IXP4XX_OSST_TIMER_2_PEND;
 
 	/* flip the beeper output */
-	*IXP4XX_GPIO_GPOUTR ^= (1 << (unsigned int) dev_id);
+	gpio_set_value(pin, !gpio_get_value(pin));
 
 	return IRQ_HANDLED;
 }
@@ -108,11 +110,15 @@ static int ixp4xx_spkr_probe(struct platform_device *dev)
 	input_dev->sndbit[0] = BIT_MASK(SND_BELL) | BIT_MASK(SND_TONE);
 	input_dev->event = ixp4xx_spkr_event;
 
+	err = gpio_request(dev->id, "ixp4-beeper");
+	if (err)
+		goto err_free_device;
+
 	err = request_irq(IRQ_IXP4XX_TIMER2, &ixp4xx_spkr_interrupt,
 			  IRQF_NO_SUSPEND, "ixp4xx-beeper",
 			  (void *) dev->id);
 	if (err)
-		goto err_free_device;
+		goto err_free_gpio;
 
 	err = input_register_device(input_dev);
 	if (err)
@@ -124,6 +130,8 @@ static int ixp4xx_spkr_probe(struct platform_device *dev)
 
  err_free_irq:
 	free_irq(IRQ_IXP4XX_TIMER2, (void *)dev->id);
+ err_free_gpio:
+	gpio_free(dev->id);
  err_free_device:
 	input_free_device(input_dev);
 
@@ -142,6 +150,7 @@ static int ixp4xx_spkr_remove(struct platform_device *dev)
 	ixp4xx_spkr_control(pin, 0);
 
 	free_irq(IRQ_IXP4XX_TIMER2, (void *)dev->id);
+	gpio_free(dev->id);
 
 	return 0;
 }
