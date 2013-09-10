@@ -76,7 +76,7 @@
 #define RF5372				0x5372
 #define RF5390				0x5390
 #define RF5392				0x5392
-
+#define RF3070            	0x3070
 /*
  * Chipset revisions.
  */
