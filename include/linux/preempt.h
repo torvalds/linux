@@ -18,97 +18,86 @@
 #include <asm/preempt.h>
 
 #if defined(CONFIG_DEBUG_PREEMPT) || defined(CONFIG_PREEMPT_TRACER)
-  extern void add_preempt_count(int val);
-  extern void sub_preempt_count(int val);
+extern void preempt_count_add(int val);
+extern void preempt_count_sub(int val);
+#define preempt_count_dec_and_test() ({ preempt_count_sub(1); should_resched(); })
 #else
-# define add_preempt_count(val)	do { *preempt_count_ptr() += (val); } while (0)
-# define sub_preempt_count(val)	do { *preempt_count_ptr() -= (val); } while (0)
+#define preempt_count_add(val)	__preempt_count_add(val)
+#define preempt_count_sub(val)	__preempt_count_sub(val)
+#define preempt_count_dec_and_test() __preempt_count_dec_and_test()
 #endif
 
-#define inc_preempt_count() add_preempt_count(1)
-#define dec_preempt_count() sub_preempt_count(1)
+#define __preempt_count_inc() __preempt_count_add(1)
+#define __preempt_count_dec() __preempt_count_sub(1)
 
-#ifdef CONFIG_PREEMPT
-
-asmlinkage void preempt_schedule(void);
-
-#define preempt_check_resched() \
-do { \
-	if (unlikely(!*preempt_count_ptr())) \
-		preempt_schedule(); \
-} while (0)
-
-#ifdef CONFIG_CONTEXT_TRACKING
-
-void preempt_schedule_context(void);
-
-#define preempt_check_resched_context() \
-do { \
-	if (unlikely(!*preempt_count_ptr())) \
-		preempt_schedule_context(); \
-} while (0)
-#else
-
-#define preempt_check_resched_context() preempt_check_resched()
-
-#endif /* CONFIG_CONTEXT_TRACKING */
-
-#else /* !CONFIG_PREEMPT */
-
-#define preempt_check_resched()		do { } while (0)
-#define preempt_check_resched_context()	do { } while (0)
-
-#endif /* CONFIG_PREEMPT */
-
+#define preempt_count_inc() preempt_count_add(1)
+#define preempt_count_dec() preempt_count_sub(1)
 
 #ifdef CONFIG_PREEMPT_COUNT
 
 #define preempt_disable() \
 do { \
-	inc_preempt_count(); \
+	preempt_count_inc(); \
 	barrier(); \
 } while (0)
 
 #define sched_preempt_enable_no_resched() \
 do { \
 	barrier(); \
-	dec_preempt_count(); \
+	preempt_count_dec(); \
 } while (0)
 
-#define preempt_enable_no_resched()	sched_preempt_enable_no_resched()
+#define preempt_enable_no_resched() sched_preempt_enable_no_resched()
 
+#ifdef CONFIG_PREEMPT
+asmlinkage void preempt_schedule(void);
 #define preempt_enable() \
 do { \
-	preempt_enable_no_resched(); \
-	preempt_check_resched(); \
+	barrier(); \
+	if (unlikely(preempt_count_dec_and_test())) \
+		preempt_schedule(); \
 } while (0)
 
-/* For debugging and tracer internals only! */
-#define add_preempt_count_notrace(val)			\
-	do { *preempt_count_ptr() += (val); } while (0)
-#define sub_preempt_count_notrace(val)			\
-	do { *preempt_count_ptr() -= (val); } while (0)
-#define inc_preempt_count_notrace() add_preempt_count_notrace(1)
-#define dec_preempt_count_notrace() sub_preempt_count_notrace(1)
+#define preempt_check_resched() \
+do { \
+	if (should_resched()) \
+		preempt_schedule(); \
+} while (0)
+
+#else
+#define preempt_enable() preempt_enable_no_resched()
+#define preempt_check_resched() do { } while (0)
+#endif
 
 #define preempt_disable_notrace() \
 do { \
-	inc_preempt_count_notrace(); \
+	__preempt_count_inc(); \
 	barrier(); \
 } while (0)
 
 #define preempt_enable_no_resched_notrace() \
 do { \
 	barrier(); \
-	dec_preempt_count_notrace(); \
+	__preempt_count_dec(); \
 } while (0)
 
-/* preempt_check_resched is OK to trace */
+#ifdef CONFIG_PREEMPT
+
+#ifdef CONFIG_CONTEXT_TRACKING
+asmlinkage void preempt_schedule_context(void);
+#else
+#define preempt_schedule_context() preempt_schedule()
+#endif
+
 #define preempt_enable_notrace() \
 do { \
-	preempt_enable_no_resched_notrace(); \
-	preempt_check_resched_context(); \
+	barrier(); \
+	if (unlikely(__preempt_count_dec_and_test())) \
+		preempt_schedule_context(); \
 } while (0)
+#else
+#define preempt_enable_notrace() preempt_enable_no_resched_notrace()
+#endif
 
 #else /* !CONFIG_PREEMPT_COUNT */
 
@@ -118,10 +107,11 @@ do { \
  * that can cause faults and scheduling migrate into our preempt-protected
  * region.
  */
-#define preempt_disable()		barrier()
+#define preempt_disable()			barrier()
 #define sched_preempt_enable_no_resched()	barrier()
-#define preempt_enable_no_resched()	barrier()
-#define preempt_enable()		barrier()
+#define preempt_enable_no_resched()		barrier()
+#define preempt_enable()			barrier()
+#define preempt_check_resched()			do { } while (0)
 
 #define preempt_disable_notrace()		barrier()
 #define preempt_enable_no_resched_notrace()	barrier()

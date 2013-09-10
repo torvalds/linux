@@ -65,4 +65,39 @@ static __always_inline bool test_preempt_need_resched(void)
 	return !(*preempt_count_ptr() & PREEMPT_NEED_RESCHED);
 }
 
+/*
+ * The various preempt_count add/sub methods
+ */
+
+static __always_inline void __preempt_count_add(int val)
+{
+	*preempt_count_ptr() += val;
+}
+
+static __always_inline void __preempt_count_sub(int val)
+{
+	*preempt_count_ptr() -= val;
+}
+
+static __always_inline bool __preempt_count_dec_and_test(void)
+{
+	return !--*preempt_count_ptr();
+}
+
+/*
+ * Returns true when we need to resched -- even if we can not.
+ */
+static __always_inline bool need_resched(void)
+{
+	return unlikely(test_preempt_need_resched());
+}
+
+/*
+ * Returns true when we need to resched and can (barring IRQ state).
+ */
+static __always_inline bool should_resched(void)
+{
+	return unlikely(!*preempt_count_ptr());
+}
+
 #endif /* __ASM_PREEMPT_H */
