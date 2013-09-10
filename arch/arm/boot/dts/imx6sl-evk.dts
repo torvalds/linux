@@ -17,6 +17,28 @@
 	memory {
 		reg = <0x80000000 0x40000000>;
 	};
+
+	regulators {
+		compatible = "simple-bus";
+
+		reg_usb_otg1_vbus: usb_otg1_vbus {
+			compatible = "regulator-fixed";
+			regulator-name = "usb_otg1_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio4 0 0>;
+			enable-active-high;
+		};
+
+		reg_usb_otg2_vbus: usb_otg2_vbus {
+			compatible = "regulator-fixed";
+			regulator-name = "usb_otg2_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio4 2 0>;
+			enable-active-high;
+		};
+	};
 };
 
 &fec {
@@ -38,6 +60,8 @@
 				MX6SL_PAD_SD2_DAT7__GPIO5_IO00    0x17059
 				MX6SL_PAD_SD2_DAT6__GPIO4_IO29    0x17059
 				MX6SL_PAD_REF_CLK_32K__GPIO3_IO22 0x17059
+				MX6SL_PAD_KEY_COL4__GPIO4_IO00	0x80000000
+				MX6SL_PAD_KEY_COL5__GPIO4_IO02	0x80000000
 			>;
 		};
 	};
@@ -46,6 +70,21 @@
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1_1>;
+	status = "okay";
+};
+
+&usbotg1 {
+	vbus-supply = <&reg_usb_otg1_vbus>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbotg1_1>;
+	disable-over-current;
+	status = "okay";
+};
+
+&usbotg2 {
+	vbus-supply = <&reg_usb_otg2_vbus>;
+	dr_mode = "host";
+	disable-over-current;
 	status = "okay";
 };
 

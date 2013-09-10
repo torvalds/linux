@@ -562,6 +562,64 @@
 					};
 				};
 
+				usbotg1 {
+					pinctrl_usbotg1_1: usbotg1grp-1 {
+						fsl,pins = <
+							MX6SL_PAD_EPDC_PWRCOM__USB_OTG1_ID 0x17059
+						>;
+					};
+
+					pinctrl_usbotg1_2: usbotg1grp-2 {
+						fsl,pins = <
+							MX6SL_PAD_FEC_RXD0__USB_OTG1_ID 0x17059
+						>;
+					};
+
+					pinctrl_usbotg1_3: usbotg1grp-3 {
+						fsl,pins = <
+							MX6SL_PAD_LCD_DAT1__USB_OTG1_ID 0x17059
+						>;
+					};
+
+					pinctrl_usbotg1_4: usbotg1grp-4 {
+						fsl,pins = <
+							MX6SL_PAD_REF_CLK_32K__USB_OTG1_ID 0x17059
+						>;
+					};
+
+					pinctrl_usbotg1_5: usbotg1grp-5 {
+						fsl,pins = <
+							MX6SL_PAD_SD3_DAT0__USB_OTG1_ID 0x17059
+						>;
+					};
+				};
+
+				usbotg2 {
+					pinctrl_usbotg2_1: usbotg2grp-1 {
+						fsl,pins = <
+							MX6SL_PAD_ECSPI1_SCLK__USB_OTG2_OC 0x17059
+						>;
+					};
+
+					pinctrl_usbotg2_2: usbotg2grp-2 {
+						fsl,pins = <
+							MX6SL_PAD_ECSPI2_SCLK__USB_OTG2_OC 0x17059
+						>;
+					};
+
+					pinctrl_usbotg2_3: usbotg2grp-3 {
+						fsl,pins = <
+							MX6SL_PAD_KEY_ROW5__USB_OTG2_OC 0x17059
+						>;
+					};
+
+					pinctrl_usbotg2_4: usbotg2grp-4 {
+						fsl,pins = <
+							MX6SL_PAD_SD3_DAT2__USB_OTG2_OC 0x17059
+						>;
+					};
+				};
+
 				usdhc1 {
 					pinctrl_usdhc1_1: usdhc1grp-1 {
 						fsl,pins = <
@@ -669,7 +727,7 @@
 			usbotg2: usb@02184200 {
 				compatible = "fsl,imx6sl-usb", "fsl,imx27-usb";
 				reg = <0x02184200 0x200>;
-				interrupts = <0 40 0x04>;
+				interrupts = <0 42 0x04>;
 				clocks = <&clks IMX6SL_CLK_USBOH3>;
 				fsl,usbphy = <&usbphy2>;
 				fsl,usbmisc = <&usbmisc 1>;
@@ -679,7 +737,7 @@
 			usbh: usb@02184400 {
 				compatible = "fsl,imx6sl-usb", "fsl,imx27-usb";
 				reg = <0x02184400 0x200>;
-				interrupts = <0 42 0x04>;
+				interrupts = <0 40 0x04>;
 				clocks = <&clks IMX6SL_CLK_USBOH3>;
 				fsl,usbmisc = <&usbmisc 2>;
 				status = "disabled";
