@@ -37,6 +37,28 @@ _GLOBAL(do_load_up_transact_altivec)
 #endif
 
 /*
+ * Load state from memory into VMX registers including VSCR.
+ * Assumes the caller has enabled VMX in the MSR.
+ */
+_GLOBAL(load_vr_state)
+	li	r4,VRSTATE_VSCR
+	lvx	vr0,r4,r3
+	mtvscr	vr0
+	REST_32VRS(0,r4,r3)
+	blr
+
+/*
+ * Store VMX state into memory, including VSCR.
+ * Assumes the caller has enabled VMX in the MSR.
+ */
+_GLOBAL(store_vr_state)
+	SAVE_32VRS(0, r4, r3)
+	mfvscr	vr0
+	li	r4, VRSTATE_VSCR
+	stvx	vr0, r4, r3
+	blr
+
+/*
  * Disable VMX for the task which had it previously,
  * and save its vector registers in its thread_struct.
  * Enables the VMX for use in the kernel on return.
@@ -144,9 +166,12 @@ _GLOBAL(giveup_altivec)
 	PPC_LCMPI	0,r3,0
 	beqlr				/* if no previous owner, done */
 	addi	r3,r3,THREAD		/* want THREAD of task */
-	addi	r7,r3,THREAD_VRSTATE
+	PPC_LL	r7,THREAD_VRSAVEAREA(r3)
 	PPC_LL	r5,PT_REGS(r3)
-	PPC_LCMPI	0,r5,0
+	PPC_LCMPI	0,r7,0
+	bne	2f
+	addi	r7,r3,THREAD_VRSTATE
+2:	PPC_LCMPI	0,r5,0
 	SAVE_32VRS(0,r4,r7)
 	mfvscr	vr0
 	li	r4,VRSTATE_VSCR

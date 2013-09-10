@@ -81,6 +81,26 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 
 /*
+ * Load state from memory into FP registers including FPSCR.
+ * Assumes the caller has enabled FP in the MSR.
+ */
+_GLOBAL(load_fp_state)
+	lfd	fr0,FPSTATE_FPSCR(r3)
+	MTFSF_L(fr0)
+	REST_32FPVSRS(0, R4, R3)
+	blr
+
+/*
+ * Store FP state into memory, including FPSCR
+ * Assumes the caller has enabled FP in the MSR.
+ */
+_GLOBAL(store_fp_state)
+	SAVE_32FPVSRS(0, R4, R3)
+	mffs	fr0
+	stfd	fr0,FPSTATE_FPSCR(r3)
+	blr
+
+/*
  * This task wants to use the FPU now.
  * On UP, disable FP for the task which had the FPU previously,
  * and save its floating-point registers in its thread_struct.
@@ -172,9 +192,12 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 	PPC_LCMPI	0,r3,0
 	beqlr-				/* if no previous owner, done */
 	addi	r3,r3,THREAD	        /* want THREAD of task */
+	PPC_LL	r6,THREAD_FPSAVEAREA(r3)
 	PPC_LL	r5,PT_REGS(r3)
-	PPC_LCMPI	0,r5,0
+	PPC_LCMPI	0,r6,0
+	bne	2f
 	addi	r6,r3,THREAD_FPSTATE
+2:	PPC_LCMPI	0,r5,0
 	SAVE_32FPVSRS(0, R4, R6)
 	mffs	fr0
 	stfd	fr0,FPSTATE_FPSCR(r6)

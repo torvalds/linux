@@ -98,9 +98,13 @@ EXPORT_SYMBOL(start_thread);
 
 #ifdef CONFIG_PPC_FPU
 EXPORT_SYMBOL(giveup_fpu);
+EXPORT_SYMBOL(load_fp_state);
+EXPORT_SYMBOL(store_fp_state);
 #endif
 #ifdef CONFIG_ALTIVEC
 EXPORT_SYMBOL(giveup_altivec);
+EXPORT_SYMBOL(load_vr_state);
+EXPORT_SYMBOL(store_vr_state);
 #endif /* CONFIG_ALTIVEC */
 #ifdef CONFIG_VSX
 EXPORT_SYMBOL(giveup_vsx);
