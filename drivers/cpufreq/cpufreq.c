@@ -280,13 +280,6 @@ static void __cpufreq_notify_transition(struct cpufreq_policy *policy,
 	switch (state) {
 
 	case CPUFREQ_PRECHANGE:
-		if (WARN(policy->transition_ongoing ==
-					cpumask_weight(policy->cpus),
-				"In middle of another frequency transition\n"))
-			return;
-
-		policy->transition_ongoing++;
-
 		/* detect if the driver reported a value as "old frequency"
 		 * which is not equal to what the cpufreq core thinks is
 		 * "old frequency".
@@ -306,12 +299,6 @@ static void __cpufreq_notify_transition(struct cpufreq_policy *policy,
 		break;
 
 	case CPUFREQ_POSTCHANGE:
-		if (WARN(!policy->transition_ongoing,
-				"No frequency transition in progress\n"))
-			return;
-
-		policy->transition_ongoing--;
-
 		adjust_jiffies(CPUFREQ_POSTCHANGE, freqs);
 		pr_debug("FREQ: %lu - CPU: %lu", (unsigned long)freqs->new,
 			(unsigned long)freqs->cpu);
@@ -1657,8 +1644,6 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 
 	if (cpufreq_disabled())
 		return -ENODEV;
-	if (policy->transition_ongoing)
-		return -EBUSY;
 
 	/* Make sure that target_freq is within supported range */
 	if (target_freq > policy->max)
