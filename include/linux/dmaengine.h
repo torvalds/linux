@@ -38,7 +38,10 @@ typedef s32 dma_cookie_t;
 #define DMA_MIN_COOKIE	1
 #define DMA_MAX_COOKIE	INT_MAX
 
-#define dma_submit_error(cookie) ((cookie) < 0 ? 1 : 0)
+static inline int dma_submit_error(dma_cookie_t cookie)
+{
+	return cookie < 0 ? cookie : 0;
+}
 
 /**
  * enum dma_status - DMA transaction status
@@ -958,8 +961,9 @@ dma_set_tx_state(struct dma_tx_state *st, dma_cookie_t last, dma_cookie_t used, 
 	}
 }
 
-enum dma_status dma_sync_wait(struct dma_chan *chan, dma_cookie_t cookie);
 #ifdef CONFIG_DMA_ENGINE
+struct dma_chan *dma_find_channel(enum dma_transaction_type tx_type);
+enum dma_status dma_sync_wait(struct dma_chan *chan, dma_cookie_t cookie);
 enum dma_status dma_wait_for_async_tx(struct dma_async_tx_descriptor *tx);
 void dma_issue_pending_all(void);
 struct dma_chan *__dma_request_channel(const dma_cap_mask_t *mask,
@@ -967,6 +971,14 @@ struct dma_chan *__dma_request_channel(const dma_cap_mask_t *mask,
 struct dma_chan *dma_request_slave_channel(struct device *dev, const char *name);
 void dma_release_channel(struct dma_chan *chan);
 #else
+static inline struct dma_chan *dma_find_channel(enum dma_transaction_type tx_type)
+{
+	return NULL;
+}
+static inline enum dma_status dma_sync_wait(struct dma_chan *chan, dma_cookie_t cookie)
+{
+	return DMA_SUCCESS;
+}
 static inline enum dma_status dma_wait_for_async_tx(struct dma_async_tx_descriptor *tx)
 {
 	return DMA_SUCCESS;
@@ -994,7 +1006,6 @@ static inline void dma_release_channel(struct dma_chan *chan)
 int dma_async_device_register(struct dma_device *device);
 void dma_async_device_unregister(struct dma_device *device);
 void dma_run_dependencies(struct dma_async_tx_descriptor *tx);
-struct dma_chan *dma_find_channel(enum dma_transaction_type tx_type);
 struct dma_chan *net_dma_find_channel(void);
 #define dma_request_channel(mask, x, y) __dma_request_channel(&(mask), x, y)
 #define dma_request_slave_channel_compat(mask, x, y, dev, name) \
