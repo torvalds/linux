@@ -6135,7 +6135,10 @@ void hsw_disable_lcpll(struct drm_i915_private *dev_priv,
 
 	val = I915_READ(D_COMP);
 	val |= D_COMP_COMP_DISABLE;
-	I915_WRITE(D_COMP, val);
+	mutex_lock(&dev_priv->rps.hw_lock);
+	if (sandybridge_pcode_write(dev_priv, GEN6_PCODE_WRITE_D_COMP, val))
+		DRM_ERROR("Failed to disable D_COMP\n");
+	mutex_unlock(&dev_priv->rps.hw_lock);
 	POSTING_READ(D_COMP);
 	ndelay(100);
 
@@ -6177,7 +6180,10 @@ void hsw_restore_lcpll(struct drm_i915_private *dev_priv)
 	val = I915_READ(D_COMP);
 	val |= D_COMP_COMP_FORCE;
 	val &= ~D_COMP_COMP_DISABLE;
-	I915_WRITE(D_COMP, val);
+	mutex_lock(&dev_priv->rps.hw_lock);
+	if (sandybridge_pcode_write(dev_priv, GEN6_PCODE_WRITE_D_COMP, val))
+		DRM_ERROR("Failed to enable D_COMP\n");
+	mutex_unlock(&dev_priv->rps.hw_lock);
 	POSTING_READ(D_COMP);
 
 	val = I915_READ(LCPLL_CTL);

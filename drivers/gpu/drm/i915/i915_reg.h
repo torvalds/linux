@@ -1441,6 +1441,8 @@
  * device 0 function 0's pci config register 0x44 or 0x48 and matches it in
  * every way.  It is not accessible from the CP register read instructions.
  *
+ * Starting from Haswell, you can't write registers using the MCHBAR mirror,
+ * just read.
  */
 #define MCHBAR_MIRROR_BASE	0x10000
 
@@ -4728,6 +4730,8 @@
 #define   GEN6_PCODE_READ_MIN_FREQ_TABLE	0x9
 #define	  GEN6_PCODE_WRITE_RC6VIDS		0x4
 #define	  GEN6_PCODE_READ_RC6VIDS		0x5
+#define   GEN6_PCODE_READ_D_COMP		0x10
+#define   GEN6_PCODE_WRITE_D_COMP		0x11
 #define   GEN6_ENCODE_RC6_VID(mv)		(((mv) - 245) / 5)
 #define   GEN6_DECODE_RC6_VID(vids)		(((vids) * 5) + 245)
 #define GEN6_PCODE_DATA				0x138128
