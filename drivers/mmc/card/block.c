@@ -2009,7 +2009,8 @@ static int mmc_blk_probe(struct mmc_card *card)
 			goto out;
 	}
 #ifdef CONFIG_EMMC_RK
-	this_card = card;
+	if(HOST_IS_EMMC(card->host))
+		this_card = card;
 #endif
 	return 0;
 
@@ -2024,7 +2025,8 @@ static void mmc_blk_remove(struct mmc_card *card)
 	struct mmc_blk_data *md = mmc_get_drvdata(card);
 
 #ifdef CONFIG_EMMC_RK
-	this_card = NULL;
+	if(HOST_IS_EMMC(card->host))
+		this_card = NULL;
 #endif
 	mmc_blk_remove_parts(card, md);
 	mmc_claim_host(card->host);
