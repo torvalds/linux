@@ -103,7 +103,7 @@ static UCHAR ReadEEPROMStatusRegister(struct bcm_mini_adapter *Adapter)
 		}
 		if (!(dwRetries%RETRIES_PER_DELAY))
 			udelay(1000);
-		uiStatus = 0 ;
+		uiStatus = 0;
 	}
 	return uiData;
 } /* ReadEEPROMStatusRegister */
@@ -1095,7 +1095,7 @@ static int BeceemFlashBulkWrite(struct bcm_mini_adapter *Adapter,
 				goto BeceemFlashBulkWrite_EXIT;
 			}
 			uiTemp = uiTemp - 1;
-			index = index + 1 ;
+			index = index + 1;
 		}
 	}
 	Adapter->SelectedChip = RESET_CHIP_SELECT;
@@ -1276,7 +1276,7 @@ static int BeceemFlashBulkWriteStatus(struct bcm_mini_adapter *Adapter,
 				goto BeceemFlashBulkWriteStatus_EXIT;
 			}
 			uiTemp = uiTemp - 1;
-			index = index + 1 ;
+			index = index + 1;
 		}
 	}
 
@@ -2831,7 +2831,7 @@ int BcmGetSectionValEndOffset(struct bcm_mini_adapter *Adapter, enum bcm_flash2x
 		SectEndOffset = INVALID_OFFSET;
 	}
 
-	return SectEndOffset ;
+	return SectEndOffset;
 }
 
 /*
@@ -3358,7 +3358,7 @@ int BcmSetActiveSection(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_secti
 	/* struct bcm_dsd_header sDSD = {0};
 	 * struct bcm_iso_header sISO = {0};
 	 */
-	int HighestPriDSD = 0 ;
+	int HighestPriDSD = 0;
 	int HighestPriISO = 0;
 
 	Status = IsSectionWritable(Adapter, eFlash2xSectVal);
@@ -4450,7 +4450,7 @@ int WriteToFlashWithoutSectorErase(struct bcm_mini_adapter *Adapter,
 		BcmDoChipSelect(Adapter, uiOffset);
 		uiPartOffset = (uiOffset & (FLASH_PART_SIZE - 1)) + GetFlashBaseAddr(Adapter);
 
-		for (i = 0 ; i < uiNumBytes; i += Adapter->ulFlashWriteSize) {
+		for (i = 0; i < uiNumBytes; i += Adapter->ulFlashWriteSize) {
 			if (Adapter->ulFlashWriteSize == BYTE_WRITE_SUPPORT)
 				Status = flashByteWrite(Adapter, uiPartOffset, pcBuff);
 			else
