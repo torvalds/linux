@@ -3262,8 +3262,6 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	intel_set_cpu_fifo_underrun_reporting(dev, pipe, true);
 	intel_set_pch_fifo_underrun_reporting(dev, pipe, true);
 
-	intel_update_watermarks(crtc);
-
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_enable)
 			encoder->pre_enable(encoder);
@@ -3286,6 +3284,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	 */
 	intel_crtc_load_lut(crtc);
 
+	intel_update_watermarks(crtc);
 	intel_enable_pipe(dev_priv, pipe,
 			  intel_crtc->config.has_pch_encoder, false);
 	intel_enable_plane(dev_priv, plane, pipe);
@@ -3372,8 +3371,6 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	if (intel_crtc->config.has_pch_encoder)
 		intel_set_pch_fifo_underrun_reporting(dev, TRANSCODER_A, true);
 
-	intel_update_watermarks(crtc);
-
 	if (intel_crtc->config.has_pch_encoder)
 		dev_priv->display.fdi_link_train(crtc);
 
@@ -3394,6 +3391,7 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	intel_ddi_set_pipe_settings(crtc);
 	intel_ddi_enable_transcoder_func(crtc);
 
+	intel_update_watermarks(crtc);
 	intel_enable_pipe(dev_priv, pipe,
 			  intel_crtc->config.has_pch_encoder, false);
 	intel_enable_plane(dev_priv, plane, pipe);
@@ -3665,7 +3663,6 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 		return;
 
 	intel_crtc->active = true;
-	intel_update_watermarks(crtc);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_pll_enable)
@@ -3684,6 +3681,7 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 
 	intel_crtc_load_lut(crtc);
 
+	intel_update_watermarks(crtc);
 	intel_enable_pipe(dev_priv, pipe, false, is_dsi);
 	intel_enable_plane(dev_priv, plane, pipe);
 	intel_enable_planes(crtc);
@@ -3710,7 +3708,6 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 		return;
 
 	intel_crtc->active = true;
-	intel_update_watermarks(crtc);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_enable)
@@ -3722,6 +3719,7 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 
 	intel_crtc_load_lut(crtc);
 
+	intel_update_watermarks(crtc);
 	intel_enable_pipe(dev_priv, pipe, false, false);
 	intel_enable_plane(dev_priv, plane, pipe);
 	intel_enable_planes(crtc);
@@ -3793,8 +3791,9 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 		i9xx_disable_pll(dev_priv, pipe);
 
 	intel_crtc->active = false;
-	intel_update_fbc(dev);
 	intel_update_watermarks(crtc);
+
+	intel_update_fbc(dev);
 }
 
 static void i9xx_crtc_off(struct drm_crtc *crtc)
@@ -4955,8 +4954,6 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 
 	ret = intel_pipe_set_base(crtc, x, y, fb);
 
-	intel_update_watermarks(crtc);
-
 	return ret;
 }
 
@@ -5843,8 +5840,6 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 
 	ret = intel_pipe_set_base(crtc, x, y, fb);
 
-	intel_update_watermarks(crtc);
-
 	return ret;
 }
 
@@ -6299,8 +6294,6 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 	POSTING_READ(DSPCNTR(plane));
 
 	ret = intel_pipe_set_base(crtc, x, y, fb);
-
-	intel_update_watermarks(crtc);
 
 	return ret;
 }
