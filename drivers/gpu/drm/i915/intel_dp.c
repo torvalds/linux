@@ -1444,6 +1444,10 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 
 	pipe_config->adjusted_mode.flags |= flags;
 
+	pipe_config->has_dp_encoder = true;
+
+	intel_dp_get_m_n(crtc, pipe_config);
+
 	if (dp_to_dig_port(intel_dp)->port == PORT_A) {
 		if ((I915_READ(DP_A) & DP_PLL_FREQ_MASK) == DP_PLL_FREQ_160MHZ)
 			pipe_config->port_clock = 162000;
