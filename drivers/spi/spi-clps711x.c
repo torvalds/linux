@@ -247,7 +247,6 @@ err_out:
 			gpio_free(hw->chipselect[i]);
 
 	spi_master_put(master);
-	kfree(master);
 
 	return ret;
 }
@@ -263,7 +262,6 @@ static int spi_clps711x_remove(struct platform_device *pdev)
 			gpio_free(hw->chipselect[i]);
 
 	spi_unregister_master(master);
-	kfree(master);
 
 	return 0;
 }
