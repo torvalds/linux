@@ -352,27 +352,24 @@ int st_sensors_read_info_raw(struct iio_dev *indio_dev,
 	mutex_lock(&indio_dev->mlock);
 	if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
 		err = -EBUSY;
-		goto read_error;
+		goto out;
 	} else {
 		err = st_sensors_set_enable(indio_dev, true);
 		if (err < 0)
-			goto read_error;
+			goto out;
 
 		msleep((sdata->sensor->bootime * 1000) / sdata->odr);
 		err = st_sensors_read_axis_data(indio_dev, ch, val);
 		if (err < 0)
-			goto read_error;
+			goto out;
 
 		*val = *val >> ch->scan_type.shift;
 
 		err = st_sensors_set_enable(indio_dev, false);
 	}
+out:
 	mutex_unlock(&indio_dev->mlock);
 
-	return err;
-
-read_error:
-	mutex_unlock(&indio_dev->mlock);
 	return err;
 }
 EXPORT_SYMBOL(st_sensors_read_info_raw);
