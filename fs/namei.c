@@ -574,9 +574,12 @@ unlock_and_drop_dentry:
 drop_dentry:
 	unlock_rcu_walk();
 	dput(dentry);
-	return -ECHILD;
+	goto drop_root_mnt;
 out:
 	unlock_rcu_walk();
+drop_root_mnt:
+	if (!(nd->flags & LOOKUP_ROOT))
+		nd->root.mnt = NULL;
 	return -ECHILD;
 }
 
