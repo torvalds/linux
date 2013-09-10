@@ -215,7 +215,7 @@ struct getdents_callback {
 	struct dir_context ctx;
 	char *name;		/* name that was found. It already points to a
 				   buffer NAME_MAX+1 is size */
-	unsigned long ino;	/* the inum we are looking for */
+	u64 ino;		/* the inum we are looking for */
 	int found;		/* inode matched? */
 	int sequence;		/* sequence counter */
 };
@@ -255,10 +255,14 @@ static int get_name(const struct path *path, char *name, struct dentry *child)
 	struct inode *dir = path->dentry->d_inode;
 	int error;
 	struct file *file;
+	struct kstat stat;
+	struct path child_path = {
+		.mnt = path->mnt,
+		.dentry = child,
+	};
 	struct getdents_callback buffer = {
 		.ctx.actor = filldir_one,
 		.name = name,
-		.ino = child->d_inode->i_ino
 	};
 
 	error = -ENOTDIR;
@@ -267,6 +271,16 @@ static int get_name(const struct path *path, char *name, struct dentry *child)
 	error = -EINVAL;
 	if (!dir->i_fop)
 		goto out;
+	/*
+	 * inode->i_ino is unsigned long, kstat->ino is u64, so the
+	 * former would be insufficient on 32-bit hosts when the
+	 * filesystem supports 64-bit inode numbers.  So we need to
+	 * actually call ->getattr, not just read i_ino:
+	 */
+	error = vfs_getattr_nosec(&child_path, &stat);
+	if (error)
+		return error;
+	buffer.ino = stat.ino;
 	/*
 	 * Open the directory ...
 	 */
