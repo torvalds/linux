@@ -184,6 +184,7 @@ struct st_sensors {
 	u8 wai;
 	char sensors_supported[ST_SENSORS_MAX_4WAI][ST_SENSORS_MAX_NAME];
 	struct iio_chan_spec *ch;
+	int num_ch;
 	struct st_sensor_odr odr;
 	struct st_sensor_power pw;
 	struct st_sensor_axis enable_axis;
