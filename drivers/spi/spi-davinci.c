@@ -916,7 +916,7 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	if (ret)
 		goto unmap_io;
 
-	dspi->bitbang.master = spi_master_get(master);
+	dspi->bitbang.master = master;
 	if (dspi->bitbang.master == NULL) {
 		ret = -ENODEV;
 		goto irq_free;
@@ -925,7 +925,7 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	dspi->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dspi->clk)) {
 		ret = -ENODEV;
-		goto put_master;
+		goto irq_free;
 	}
 	clk_prepare_enable(dspi->clk);
 
@@ -1015,8 +1015,6 @@ free_dma:
 free_clk:
 	clk_disable_unprepare(dspi->clk);
 	clk_put(dspi->clk);
-put_master:
-	spi_master_put(master);
 irq_free:
 	free_irq(dspi->irq, dspi);
 unmap_io:
@@ -1024,7 +1022,7 @@ unmap_io:
 release_region:
 	release_mem_region(dspi->pbase, resource_size(r));
 free_master:
-	kfree(master);
+	spi_master_put(master);
 err:
 	return ret;
 }
@@ -1051,11 +1049,11 @@ static int davinci_spi_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(dspi->clk);
 	clk_put(dspi->clk);
-	spi_master_put(master);
 	free_irq(dspi->irq, dspi);
 	iounmap(dspi->base);
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(dspi->pbase, resource_size(r));
+	spi_master_put(master);
 
 	return 0;
 }
