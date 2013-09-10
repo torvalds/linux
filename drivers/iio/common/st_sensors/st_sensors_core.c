@@ -235,10 +235,13 @@ int st_sensors_init_sensor(struct iio_dev *indio_dev,
 	if (err < 0)
 		goto init_error;
 
-	err = st_sensors_set_fullscale(indio_dev,
-						sdata->current_fullscale->num);
-	if (err < 0)
-		goto init_error;
+	if (sdata->current_fullscale) {
+		err = st_sensors_set_fullscale(indio_dev,
+					       sdata->current_fullscale->num);
+		if (err < 0)
+			goto init_error;
+	} else
+		dev_info(&indio_dev->dev, "Full-scale not possible\n");
 
 	err = st_sensors_set_odr(indio_dev, sdata->odr);
 	if (err < 0)

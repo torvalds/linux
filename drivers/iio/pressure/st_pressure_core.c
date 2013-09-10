@@ -226,8 +226,10 @@ int st_press_common_probe(struct iio_dev *indio_dev,
 	indio_dev->channels = pdata->sensor->ch;
 	indio_dev->num_channels = ARRAY_SIZE(st_press_channels);
 
-	pdata->current_fullscale = (struct st_sensor_fullscale_avl *)
-						&pdata->sensor->fs.fs_avl[0];
+	if (pdata->sensor->fs.addr != 0)
+		pdata->current_fullscale = (struct st_sensor_fullscale_avl *)
+			&pdata->sensor->fs.fs_avl[0];
+
 	pdata->odr = pdata->sensor->odr.odr_avl[0].hz;
 
 	if (!plat_data)
