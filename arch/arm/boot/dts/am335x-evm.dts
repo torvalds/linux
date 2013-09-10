@@ -477,6 +477,8 @@
 		};
 
 		vmmc_reg: regulator@12 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <3300000>;
 			regulator-always-on;
 		};
 	};
@@ -516,4 +518,9 @@
 	adc {
 		ti,adc-channels = <4 5 6 7>;
 	};
+};
+
+&mmc1 {
+	status = "okay";
+	vmmc-supply = <&vmmc_reg>;
 };
