@@ -669,7 +669,7 @@ static irqreturn_t td_irq(int irq, void *devid)
 
 static int td_probe(struct platform_device *pdev)
 {
-	struct timb_dma_platform_data *pdata = pdev->dev.platform_data;
+	struct timb_dma_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct timb_dma *td;
 	struct resource *iomem;
 	int irq;

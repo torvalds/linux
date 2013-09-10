@@ -654,7 +654,7 @@ mv_xor_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 
 	dev_dbg(mv_chan_to_devp(mv_chan),
 		"%s sw_desc %p async_tx %p\n",
-		__func__, sw_desc, sw_desc ? &sw_desc->async_tx : 0);
+		__func__, sw_desc, sw_desc ? &sw_desc->async_tx : NULL);
 
 	return sw_desc ? &sw_desc->async_tx : NULL;
 }
@@ -1171,7 +1171,7 @@ static int mv_xor_probe(struct platform_device *pdev)
 {
 	const struct mbus_dram_target_info *dram;
 	struct mv_xor_device *xordev;
-	struct mv_xor_platform_data *pdata = pdev->dev.platform_data;
+	struct mv_xor_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct resource *res;
 	int i, ret;
 
