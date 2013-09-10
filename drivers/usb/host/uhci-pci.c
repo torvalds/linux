@@ -299,3 +299,5 @@ static struct pci_driver uhci_pci_driver = {
 	},
 #endif
 };
+
+MODULE_SOFTDEP("pre: ehci_pci");

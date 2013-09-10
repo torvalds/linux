@@ -323,3 +323,4 @@ module_exit(ohci_pci_cleanup);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
+MODULE_SOFTDEP("pre: ehci_pci");
