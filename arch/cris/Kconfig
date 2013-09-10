@@ -172,12 +172,6 @@ config ETRAX_FLASH_BUSWIDTH
 	help
 	  Width in bytes of the NOR Flash bus (1, 2 or 4). Is usually 2.
 
-config ETRAX_NANDFLASH_BUSWIDTH
-	int "Buswidth of NAND flash in bytes"
-	default "1"
-	help
-	  Width in bytes of the NAND flash (1 or 2).
-
 config ETRAX_FLASH1_SIZE
        int "FLASH1 size (dec, in MB. 0 = Unknown)"
        default "0"
@@ -543,26 +537,6 @@ config ETRAX_SERIAL_PORT3_DMA5_IN
 	depends on ETRAX_ARCH_V10
 	bool "DMA 5"
 
-config ETRAX_SERIAL_PORT3_DMA9_IN
-	bool "Ser3 uses DMA9 for input"
-	depends on ETRAXFS
-	help
-	  Enables the DMA9 input channel for ser3 (ttyS3).
-	  If you do not enable DMA, an interrupt for each character will be
-	  used when receiving data.
-	  Normally you want to use DMA, unless you use the DMA channel for
-	  something else.
-
-config ETRAX_SERIAL_PORT3_DMA3_IN
-	bool "Ser3 uses DMA3 for input"
-	depends on CRIS_MACH_ARTPEC3
-	help
-	  Enables the DMA3 input channel for ser3 (ttyS3).
-	  If you do not enable DMA, an interrupt for each character will be
-	  used when receiving data.
-	  Normally you want to use DMA, unless you use the DMA channel for
-	  something else.
-
 endchoice
 
 choice
@@ -579,26 +553,6 @@ config ETRAX_SERIAL_PORT3_NO_DMA_OUT
 config ETRAX_SERIAL_PORT3_DMA4_OUT
 	depends on ETRAX_ARCH_V10
 	bool "DMA 4"
-
-config ETRAX_SERIAL_PORT3_DMA8_OUT
-	bool "Ser3 uses DMA8 for output"
-	depends on ETRAXFS
-	help
-	  Enables the DMA8 output channel for ser3 (ttyS3).
-	  If you do not enable DMA, an interrupt for each character will be
-	  used when transmitting data.
-	  Normally you want to use DMA, unless you use the DMA channel for
-	  something else.
-
-config ETRAX_SERIAL_PORT3_DMA2_OUT
-	bool "Ser3 uses DMA2 for output"
-	depends on CRIS_MACH_ARTPEC3
-	help
-	  Enables the DMA2 output channel for ser3 (ttyS3).
-	  If you do not enable DMA, an interrupt for each character will be
-	  used when transmitting data.
-	  Normally you want to use DMA, unless you use the DMA channel for
-	  something else.
 
 endchoice
 

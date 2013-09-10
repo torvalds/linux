@@ -417,16 +417,6 @@ config ETRAX_USB_HOST
 	   for CTRL and BULK traffic only, INTR traffic may work as well
 	   however (depending on the requirements of timeliness).
 
-config ETRAX_USB_HOST_PORT1
-	bool "USB port 1 enabled"
-	depends on ETRAX_USB_HOST
-	default n
-
-config ETRAX_USB_HOST_PORT2
-	bool "USB port 2 enabled"
-	depends on ETRAX_USB_HOST
-	default n
-
 config ETRAX_PTABLE_SECTOR
 	int "Byte-offset of partition table sector"
 	depends on ETRAX_AXISFLASHMAP
@@ -526,19 +516,6 @@ config ETRAX_GPIO
 	  val = ioctl(fd, _IO(ETRAXGPIO_IOCTYPE, IO_READBITS), NULL);
 	  Remember that you need to setup the port directions appropriately in
 	  the General configuration.
-
-config ETRAX_PA_BUTTON_BITMASK
-	hex "PA-buttons bitmask"
-	depends on ETRAX_GPIO
-	default "02"
-	help
-	  This is a bitmask with information about what bits on PA that
-	  are used for buttons.
-	  Most products has a so called TEST button on PA1, if that's true
-	  use 02 here.
-	  Use 00 if there are no buttons on PA.
-	  If the bitmask is <> 00 a button driver will be included in the gpio
-	  driver. ETRAX general I/O support must be enabled.
 
 config ETRAX_PA_CHANGEABLE_DIR
 	hex "PA user changeable dir mask"
