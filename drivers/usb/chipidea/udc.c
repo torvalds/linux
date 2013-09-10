@@ -1600,6 +1600,8 @@ static void destroy_eps(struct ci_hdrc *ci)
 	for (i = 0; i < ci->hw_ep_max; i++) {
 		struct ci_hw_ep *hwep = &ci->ci_hw_ep[i];
 
+		if (hwep->pending_td)
+			free_pending_td(hwep);
 		dma_pool_free(ci->qh_pool, hwep->qh.ptr, hwep->qh.dma);
 	}
 }
