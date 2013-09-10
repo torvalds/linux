@@ -170,18 +170,18 @@
 /* Bit manipulation macros */
 #define SPI_BIT(name) \
 	(1 << SPI_##name##_OFFSET)
-#define SPI_BF(name,value) \
+#define SPI_BF(name, value) \
 	(((value) & ((1 << SPI_##name##_SIZE) - 1)) << SPI_##name##_OFFSET)
-#define SPI_BFEXT(name,value) \
+#define SPI_BFEXT(name, value) \
 	(((value) >> SPI_##name##_OFFSET) & ((1 << SPI_##name##_SIZE) - 1))
-#define SPI_BFINS(name,value,old) \
-	( ((old) & ~(((1 << SPI_##name##_SIZE) - 1) << SPI_##name##_OFFSET)) \
-	  | SPI_BF(name,value))
+#define SPI_BFINS(name, value, old) \
+	(((old) & ~(((1 << SPI_##name##_SIZE) - 1) << SPI_##name##_OFFSET)) \
+	  | SPI_BF(name, value))
 
 /* Register access macros */
-#define spi_readl(port,reg) \
+#define spi_readl(port, reg) \
 	__raw_readl((port)->regs + SPI_##reg)
-#define spi_writel(port,reg,value) \
+#define spi_writel(port, reg, value) \
 	__raw_writel((value), (port)->regs + SPI_##reg)
 
 /* use PIO for small transfers, avoiding DMA setup/teardown overhead and
@@ -1516,7 +1516,7 @@ static int atmel_spi_probe(struct platform_device *pdev)
 
 	/* setup spi core then atmel-specific driver state */
 	ret = -ENOMEM;
-	master = spi_alloc_master(&pdev->dev, sizeof *as);
+	master = spi_alloc_master(&pdev->dev, sizeof(*as));
 	if (!master)
 		goto out_free;
 
