@@ -280,7 +280,7 @@ static inline u32 ack_bit(unsigned int irq)
  * so the caller does not need to do anything more than start the transfer
  * as normal, since the IRQ will have been re-routed to the FIQ handler.
 */
-void s3c24xx_spi_tryfiq(struct s3c24xx_spi *hw)
+static void s3c24xx_spi_tryfiq(struct s3c24xx_spi *hw)
 {
 	struct pt_regs regs;
 	enum spi_fiq_mode mode;
