@@ -286,8 +286,8 @@ _nfs4_state_protect(struct nfs_client *clp, unsigned long sp4_mode,
 		msg->rpc_cred = newcred;
 
 		flavor = clp->cl_rpcclient->cl_auth->au_flavor;
-		WARN_ON(flavor != RPC_AUTH_GSS_KRB5I &&
-			flavor != RPC_AUTH_GSS_KRB5P);
+		WARN_ON_ONCE(flavor != RPC_AUTH_GSS_KRB5I &&
+			     flavor != RPC_AUTH_GSS_KRB5P);
 		*clntp = clp->cl_rpcclient;
 
 		return true;
