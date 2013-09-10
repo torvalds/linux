@@ -65,7 +65,10 @@ extern const char _sb_findmap[];
 #define __BITOPS_AND		"nr"
 #define __BITOPS_XOR		"xr"
 
-#define __BITOPS_LOOP(__old, __new, __addr, __val, __op_string)	\
+#define __BITOPS_LOOP(__addr, __val, __op_string)		\
+({								\
+	unsigned long __old, __new;				\
+								\
 	asm volatile(						\
 		"	l	%0,%2\n"			\
 		"0:	lr	%1,%0\n"			\
@@ -75,15 +78,40 @@ extern const char _sb_findmap[];
 		: "=&d" (__old), "=&d" (__new),			\
 		  "=Q" (*(unsigned long *) __addr)		\
 		: "d" (__val), "Q" (*(unsigned long *) __addr)	\
-		: "cc");
+		: "cc");					\
+	__old;							\
+})
 
 #else /* CONFIG_64BIT */
+
+#ifdef CONFIG_HAVE_MARCH_Z196_FEATURES
+
+#define __BITOPS_OR		"laog"
+#define __BITOPS_AND		"lang"
+#define __BITOPS_XOR		"laxg"
+
+#define __BITOPS_LOOP(__addr, __val, __op_string)		\
+({								\
+	unsigned long __old;					\
+								\
+	asm volatile(						\
+		__op_string "	%0,%2,%1\n"			\
+		: "=d" (__old),	"+Q" (*(unsigned long *)__addr)	\
+		: "d" (__val)					\
+		: "cc");					\
+	__old;							\
+})
+
+#else /* CONFIG_HAVE_MARCH_Z196_FEATURES */
 
 #define __BITOPS_OR		"ogr"
 #define __BITOPS_AND		"ngr"
 #define __BITOPS_XOR		"xgr"
 
-#define __BITOPS_LOOP(__old, __new, __addr, __val, __op_string)	\
+#define __BITOPS_LOOP(__addr, __val, __op_string)		\
+({								\
+	unsigned long __old, __new;				\
+								\
 	asm volatile(						\
 		"	lg	%0,%2\n"			\
 		"0:	lgr	%1,%0\n"			\
@@ -93,7 +121,11 @@ extern const char _sb_findmap[];
 		: "=&d" (__old), "=&d" (__new),			\
 		  "=Q" (*(unsigned long *) __addr)		\
 		: "d" (__val), "Q" (*(unsigned long *) __addr)	\
-		: "cc");
+		: "cc");					\
+	__old;							\
+})
+
+#endif /* CONFIG_HAVE_MARCH_Z196_FEATURES */
 
 #endif /* CONFIG_64BIT */
 
@@ -105,7 +137,7 @@ extern const char _sb_findmap[];
  */
 static inline void set_bit_cs(unsigned long nr, volatile unsigned long *ptr)
 {
-        unsigned long addr, old, new, mask;
+	unsigned long addr, mask;
 
 	addr = (unsigned long) ptr;
 	/* calculate address for CS */
@@ -113,7 +145,7 @@ static inline void set_bit_cs(unsigned long nr, volatile unsigned long *ptr)
 	/* make OR mask */
 	mask = 1UL << (nr & (BITS_PER_LONG - 1));
 	/* Do the atomic update. */
-	__BITOPS_LOOP(old, new, addr, mask, __BITOPS_OR);
+	__BITOPS_LOOP(addr, mask, __BITOPS_OR);
 }
 
 /*
@@ -121,7 +153,7 @@ static inline void set_bit_cs(unsigned long nr, volatile unsigned long *ptr)
  */
 static inline void clear_bit_cs(unsigned long nr, volatile unsigned long *ptr)
 {
-        unsigned long addr, old, new, mask;
+	unsigned long addr, mask;
 
 	addr = (unsigned long) ptr;
 	/* calculate address for CS */
@@ -129,7 +161,7 @@ static inline void clear_bit_cs(unsigned long nr, volatile unsigned long *ptr)
 	/* make AND mask */
 	mask = ~(1UL << (nr & (BITS_PER_LONG - 1)));
 	/* Do the atomic update. */
-	__BITOPS_LOOP(old, new, addr, mask, __BITOPS_AND);
+	__BITOPS_LOOP(addr, mask, __BITOPS_AND);
 }
 
 /*
@@ -137,7 +169,7 @@ static inline void clear_bit_cs(unsigned long nr, volatile unsigned long *ptr)
  */
 static inline void change_bit_cs(unsigned long nr, volatile unsigned long *ptr)
 {
-        unsigned long addr, old, new, mask;
+	unsigned long addr, mask;
 
 	addr = (unsigned long) ptr;
 	/* calculate address for CS */
@@ -145,7 +177,7 @@ static inline void change_bit_cs(unsigned long nr, volatile unsigned long *ptr)
 	/* make XOR mask */
 	mask = 1UL << (nr & (BITS_PER_LONG - 1));
 	/* Do the atomic update. */
-	__BITOPS_LOOP(old, new, addr, mask, __BITOPS_XOR);
+	__BITOPS_LOOP(addr, mask, __BITOPS_XOR);
 }
 
 /*
@@ -154,7 +186,7 @@ static inline void change_bit_cs(unsigned long nr, volatile unsigned long *ptr)
 static inline int
 test_and_set_bit_cs(unsigned long nr, volatile unsigned long *ptr)
 {
-        unsigned long addr, old, new, mask;
+	unsigned long addr, old, mask;
 
 	addr = (unsigned long) ptr;
 	/* calculate address for CS */
@@ -162,7 +194,7 @@ test_and_set_bit_cs(unsigned long nr, volatile unsigned long *ptr)
 	/* make OR/test mask */
 	mask = 1UL << (nr & (BITS_PER_LONG - 1));
 	/* Do the atomic update. */
-	__BITOPS_LOOP(old, new, addr, mask, __BITOPS_OR);
+	old = __BITOPS_LOOP(addr, mask, __BITOPS_OR);
 	barrier();
 	return (old & mask) != 0;
 }
@@ -173,7 +205,7 @@ test_and_set_bit_cs(unsigned long nr, volatile unsigned long *ptr)
 static inline int
 test_and_clear_bit_cs(unsigned long nr, volatile unsigned long *ptr)
 {
-        unsigned long addr, old, new, mask;
+	unsigned long addr, old, mask;
 
 	addr = (unsigned long) ptr;
 	/* calculate address for CS */
@@ -181,9 +213,9 @@ test_and_clear_bit_cs(unsigned long nr, volatile unsigned long *ptr)
 	/* make AND/test mask */
 	mask = ~(1UL << (nr & (BITS_PER_LONG - 1)));
 	/* Do the atomic update. */
-	__BITOPS_LOOP(old, new, addr, mask, __BITOPS_AND);
+	old = __BITOPS_LOOP(addr, mask, __BITOPS_AND);
 	barrier();
-	return (old ^ new) != 0;
+	return (old & ~mask) != 0;
 }
 
 /*
@@ -192,7 +224,7 @@ test_and_clear_bit_cs(unsigned long nr, volatile unsigned long *ptr)
 static inline int
 test_and_change_bit_cs(unsigned long nr, volatile unsigned long *ptr)
 {
-        unsigned long addr, old, new, mask;
+	unsigned long addr, old, mask;
 
 	addr = (unsigned long) ptr;
 	/* calculate address for CS */
@@ -200,7 +232,7 @@ test_and_change_bit_cs(unsigned long nr, volatile unsigned long *ptr)
 	/* make XOR/test mask */
 	mask = 1UL << (nr & (BITS_PER_LONG - 1));
 	/* Do the atomic update. */
-	__BITOPS_LOOP(old, new, addr, mask, __BITOPS_XOR);
+	old = __BITOPS_LOOP(addr, mask, __BITOPS_XOR);
 	barrier();
 	return (old & mask) != 0;
 }
