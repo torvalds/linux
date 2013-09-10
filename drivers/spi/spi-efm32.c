@@ -347,7 +347,7 @@ static int efm32_spi_probe(struct platform_device *pdev)
 
 	ddata = spi_master_get_devdata(master);
 
-	ddata->bitbang.master = spi_master_get(master);
+	ddata->bitbang.master = master;
 	ddata->bitbang.chipselect = efm32_spi_chipselect;
 	ddata->bitbang.setup_transfer = efm32_spi_setup_transfer;
 	ddata->bitbang.txrx_bufs = efm32_spi_txrx_bufs;

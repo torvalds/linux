@@ -786,7 +786,7 @@ static int spi_imx_probe(struct platform_device *pdev)
 	master->num_chipselect = num_cs;
 
 	spi_imx = spi_master_get_devdata(master);
-	spi_imx->bitbang.master = spi_master_get(master);
+	spi_imx->bitbang.master = master;
 
 	for (i = 0; i < master->num_chipselect; i++) {
 		int cs_gpio = of_get_named_gpio(np, "cs-gpios", i);
