@@ -11,8 +11,6 @@
  * License or (at your optional) any later version of the license.
  */
 
-#include <asm/dma-contiguous.h>
-
 #include <linux/memblock.h>
 #include <linux/err.h>
 #include <linux/of.h>
