@@ -91,9 +91,9 @@ static int lowlevel_buffer_allocate(struct drm_device *dev,
 	}
 
 	buf->sgt = drm_prime_pages_to_sg(buf->pages, nr_pages);
-	if (!buf->sgt) {
+	if (IS_ERR(buf->sgt)) {
 		DRM_ERROR("failed to get sg table.\n");
-		ret = -ENOMEM;
+		ret = PTR_ERR(buf->sgt);
 		goto err_free_attrs;
 	}
 
