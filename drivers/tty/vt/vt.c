@@ -1300,21 +1300,8 @@ static void csi_m(struct vc_data *vc)
 			case 27:
 				vc->vc_reverse = 0;
 				break;
-			case 38: /* ANSI X3.64-1979 (SCO-ish?)
-				  * Enables underscore, white foreground
-				  * with white underscore (Linux - use
-				  * default foreground).
-				  */
+			case 39:
 				vc->vc_color = (vc->vc_def_color & 0x0f) | (vc->vc_color & 0xf0);
-				vc->vc_underline = 1;
-				break;
-			case 39: /* ANSI X3.64-1979 (SCO-ish?)
-				  * Disable underline option.
-				  * Reset colour to default? It did this
-				  * before...
-				  */
-				vc->vc_color = (vc->vc_def_color & 0x0f) | (vc->vc_color & 0xf0);
-				vc->vc_underline = 0;
 				break;
 			case 49:
 				vc->vc_color = (vc->vc_def_color & 0xf0) | (vc->vc_color & 0x0f);
