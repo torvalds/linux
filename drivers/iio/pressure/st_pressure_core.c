@@ -64,16 +64,39 @@
 #define ST_PRESS_LPS331AP_OUT_XL_ADDR		0x28
 #define ST_TEMP_LPS331AP_OUT_L_ADDR		0x2b
 
-static const struct iio_chan_spec st_press_channels[] = {
-	ST_SENSORS_LSM_CHANNELS(IIO_PRESSURE,
+static const struct iio_chan_spec st_press_lps331ap_channels[] = {
+	{
+		.type = IIO_PRESSURE,
+		.channel2 = IIO_NO_MOD,
+		.address = ST_PRESS_LPS331AP_OUT_XL_ADDR,
+		.scan_index = ST_SENSORS_SCAN_X,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 24,
+			.storagebits = 24,
+			.endianness = IIO_LE,
+		},
+		.info_mask_separate =
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
-			ST_SENSORS_SCAN_X, 0, IIO_NO_MOD, 'u', IIO_LE, 24, 24,
-			ST_PRESS_LPS331AP_OUT_XL_ADDR),
-	ST_SENSORS_LSM_CHANNELS(IIO_TEMP,
-			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE) |
-						BIT(IIO_CHAN_INFO_OFFSET),
-			-1, 0, IIO_NO_MOD, 's', IIO_LE, 16, 16,
-			ST_TEMP_LPS331AP_OUT_L_ADDR),
+		.modified = 0,
+	},
+	{
+		.type = IIO_TEMP,
+		.channel2 = IIO_NO_MOD,
+		.address = ST_TEMP_LPS331AP_OUT_L_ADDR,
+		.scan_index = -1,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 16,
+			.storagebits = 16,
+			.endianness = IIO_LE,
+		},
+		.info_mask_separate =
+			BIT(IIO_CHAN_INFO_RAW) |
+			BIT(IIO_CHAN_INFO_SCALE) |
+			BIT(IIO_CHAN_INFO_OFFSET),
+		.modified = 0,
+	},
 	IIO_CHAN_SOFT_TIMESTAMP(1)
 };
 
@@ -83,7 +106,7 @@ static const struct st_sensors st_press_sensors[] = {
 		.sensors_supported = {
 			[0] = LPS331AP_PRESS_DEV_NAME,
 		},
-		.ch = (struct iio_chan_spec *)st_press_channels,
+		.ch = (struct iio_chan_spec *)st_press_lps331ap_channels,
 		.odr = {
 			.addr = ST_PRESS_LPS331AP_ODR_ADDR,
 			.mask = ST_PRESS_LPS331AP_ODR_MASK,
@@ -222,7 +245,7 @@ int st_press_common_probe(struct iio_dev *indio_dev,
 	pdata->num_data_channels = ST_PRESS_NUMBER_DATA_CHANNELS;
 	pdata->multiread_bit = pdata->sensor->multi_read_bit;
 	indio_dev->channels = pdata->sensor->ch;
-	indio_dev->num_channels = ARRAY_SIZE(st_press_channels);
+	indio_dev->num_channels = ARRAY_SIZE(st_press_lps331ap_channels);
 
 	if (pdata->sensor->fs.addr != 0)
 		pdata->current_fullscale = (struct st_sensor_fullscale_avl *)
