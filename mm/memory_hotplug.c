@@ -51,14 +51,10 @@ DEFINE_MUTEX(mem_hotplug_mutex);
 void lock_memory_hotplug(void)
 {
 	mutex_lock(&mem_hotplug_mutex);
-
-	/* for exclusive hibernation if CONFIG_HIBERNATION=y */
-	lock_system_sleep();
 }
 
 void unlock_memory_hotplug(void)
 {
-	unlock_system_sleep();
 	mutex_unlock(&mem_hotplug_mutex);
 }
 
