@@ -1297,7 +1297,8 @@ static void __init prom_query_opal(void)
 		prom_opal_align = 0x10000;
 }
 
-static int prom_rtas_call(int token, int nargs, int nret, int *outputs, ...)
+static int __init prom_rtas_call(int token, int nargs, int nret,
+				 int *outputs, ...)
 {
 	struct rtas_args rtas_args;
 	va_list list;
