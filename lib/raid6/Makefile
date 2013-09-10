@@ -6,6 +6,7 @@ raid6_pq-y	+= algos.o recov.o tables.o int1.o int2.o int4.o \
 raid6_pq-$(CONFIG_X86) += recov_ssse3.o recov_avx2.o mmx.o sse1.o sse2.o avx2.o
 raid6_pq-$(CONFIG_ALTIVEC) += altivec1.o altivec2.o altivec4.o altivec8.o
 raid6_pq-$(CONFIG_KERNEL_MODE_NEON) += neon.o neon1.o neon2.o neon4.o neon8.o
+raid6_pq-$(CONFIG_TILEGX) += tilegx8.o
 
 hostprogs-y	+= mktables
 
@@ -108,6 +109,11 @@ CFLAGS_neon8.o += $(NEON_FLAGS)
 targets += neon8.c
 $(obj)/neon8.c:   UNROLL := 8
 $(obj)/neon8.c:   $(src)/neon.uc $(src)/unroll.awk FORCE
+	$(call if_changed,unroll)
+
+targets += tilegx8.c
+$(obj)/tilegx8.c:   UNROLL := 8
+$(obj)/tilegx8.c:   $(src)/tilegx.uc $(src)/unroll.awk FORCE
 	$(call if_changed,unroll)
 
 quiet_cmd_mktable = TABLE   $@
