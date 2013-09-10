@@ -2520,7 +2520,6 @@ err_region:
 err_device:
 	pci_disable_device(pdev);
 err_ar:
-	pci_set_drvdata(pdev, NULL);
 	ath10k_core_destroy(ar);
 err_ar_pci:
 	/* call HIF PCI free here */
@@ -2548,7 +2547,6 @@ static void ath10k_pci_remove(struct pci_dev *pdev)
 
 	ath10k_core_unregister(ar);
 
-	pci_set_drvdata(pdev, NULL);
 	pci_iounmap(pdev, ar_pci->mem);
 	pci_release_region(pdev, BAR_NUM);
 	pci_clear_master(pdev);
