@@ -288,7 +288,7 @@ ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		dev_priv->sprite_scaling_enabled |= 1 << pipe;
 
 		if (!scaling_was_enabled) {
-			intel_update_watermarks(dev);
+			intel_update_watermarks(crtc);
 			intel_wait_for_vblank(dev, pipe);
 		}
 		sprscale = SPRITE_SCALE_ENABLE | (src_w << 16) | src_h;
@@ -323,7 +323,7 @@ ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	/* potentially re-enable LP watermarks */
 	if (scaling_was_enabled && !dev_priv->sprite_scaling_enabled)
-		intel_update_watermarks(dev);
+		intel_update_watermarks(crtc);
 }
 
 static void
@@ -349,7 +349,7 @@ ivb_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 
 	/* potentially re-enable LP watermarks */
 	if (scaling_was_enabled && !dev_priv->sprite_scaling_enabled)
-		intel_update_watermarks(dev);
+		intel_update_watermarks(crtc);
 }
 
 static int
