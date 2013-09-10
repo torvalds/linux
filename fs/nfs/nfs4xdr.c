@@ -414,7 +414,7 @@ static int nfs4_stat_to_errno(int);
 #define decode_test_stateid_maxsz	(op_decode_hdr_maxsz + 2 + 1)
 #define encode_free_stateid_maxsz	(op_encode_hdr_maxsz + 1 + \
 					 XDR_QUADLEN(NFS4_STATEID_SIZE))
-#define decode_free_stateid_maxsz	(op_decode_hdr_maxsz + 1)
+#define decode_free_stateid_maxsz	(op_decode_hdr_maxsz)
 #else /* CONFIG_NFS_V4_1 */
 #define encode_sequence_maxsz	0
 #define decode_sequence_maxsz	0
@@ -5966,21 +5966,8 @@ out:
 static int decode_free_stateid(struct xdr_stream *xdr,
 			       struct nfs41_free_stateid_res *res)
 {
-	__be32 *p;
-	int status;
-
-	status = decode_op_hdr(xdr, OP_FREE_STATEID);
-	if (status)
-		return status;
-
-	p = xdr_inline_decode(xdr, 4);
-	if (unlikely(!p))
-		goto out_overflow;
-	res->status = be32_to_cpup(p++);
+	res->status = decode_op_hdr(xdr, OP_FREE_STATEID);
 	return res->status;
-out_overflow:
-	print_overflow_msg(__func__, xdr);
-	return -EIO;
 }
 #endif /* CONFIG_NFS_V4_1 */
 
