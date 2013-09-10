@@ -1618,9 +1618,10 @@ config HZ_FIXED
 		ARCH_S5PV210 || ARCH_EXYNOS4
 	default AT91_TIMER_HZ if ARCH_AT91
 	default SHMOBILE_TIMER_HZ if ARCH_SHMOBILE
+	default 0
 
 choice
-	depends on !HZ_FIXED
+	depends on HZ_FIXED = 0
 	prompt "Timer frequency"
 
 config HZ_100
@@ -1645,7 +1646,7 @@ endchoice
 
 config HZ
 	int
-	default HZ_FIXED if HZ_FIXED
+	default HZ_FIXED if HZ_FIXED != 0
 	default 100 if HZ_100
 	default 200 if HZ_200
 	default 250 if HZ_250
