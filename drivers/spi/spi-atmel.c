@@ -1583,7 +1583,7 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	/* Initialize the hardware */
 	ret = clk_prepare_enable(clk);
 	if (ret)
-		goto out_unmap_regs;
+		goto out_free_irq;
 	spi_writel(as, CR, SPI_BIT(SWRST));
 	spi_writel(as, CR, SPI_BIT(SWRST)); /* AT91SAM9263 Rev B workaround */
 	if (as->caps.has_wdrbt) {
@@ -1614,6 +1614,7 @@ out_free_dma:
 	spi_writel(as, CR, SPI_BIT(SWRST));
 	spi_writel(as, CR, SPI_BIT(SWRST)); /* AT91SAM9263 Rev B workaround */
 	clk_disable_unprepare(clk);
+out_free_irq:
 	free_irq(irq, master);
 out_unmap_regs:
 	iounmap(as->regs);
