@@ -117,17 +117,6 @@ static int ixp4xx_gpio_to_irq(struct gpio_chip *chip, unsigned gpio)
 	return -EINVAL;
 }
 
-int irq_to_gpio(unsigned int irq)
-{
-	int gpio = (irq < 32) ? irq2gpio[irq] : -EINVAL;
-
-	if (gpio == -1)
-		return -EINVAL;
-
-	return gpio;
-}
-EXPORT_SYMBOL(irq_to_gpio);
-
 static int ixp4xx_set_irq_type(struct irq_data *d, unsigned int type)
 {
 	int line = irq2gpio[d->irq];
