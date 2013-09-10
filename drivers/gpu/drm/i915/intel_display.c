@@ -6495,15 +6495,15 @@ static void haswell_write_eld(struct drm_connector *connector,
 
 	/* Set ELD valid state */
 	tmp = I915_READ(aud_cntrl_st2);
-	DRM_DEBUG_DRIVER("HDMI audio: pin eld vld status=0x%8x\n", tmp);
+	DRM_DEBUG_DRIVER("HDMI audio: pin eld vld status=0x%08x\n", tmp);
 	tmp |= (AUDIO_ELD_VALID_A << (pipe * 4));
 	I915_WRITE(aud_cntrl_st2, tmp);
 	tmp = I915_READ(aud_cntrl_st2);
-	DRM_DEBUG_DRIVER("HDMI audio: eld vld status=0x%8x\n", tmp);
+	DRM_DEBUG_DRIVER("HDMI audio: eld vld status=0x%08x\n", tmp);
 
 	/* Enable HDMI mode */
 	tmp = I915_READ(aud_config);
-	DRM_DEBUG_DRIVER("HDMI audio: audio conf: 0x%8x\n", tmp);
+	DRM_DEBUG_DRIVER("HDMI audio: audio conf: 0x%08x\n", tmp);
 	/* clear N_programing_enable and N_value_index */
 	tmp &= ~(AUD_CONFIG_N_VALUE_INDEX | AUD_CONFIG_N_PROG_ENABLE);
 	I915_WRITE(aud_config, tmp);
