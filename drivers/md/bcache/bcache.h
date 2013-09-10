@@ -364,6 +364,7 @@ struct cached_dev {
 	unsigned		readahead;
 
 	unsigned		verify:1;
+	unsigned		bypass_torture_test:1;
 
 	unsigned		partial_stripes_expensive:1;
 	unsigned		writeback_metadata:1;

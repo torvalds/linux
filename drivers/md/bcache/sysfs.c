@@ -99,6 +99,7 @@ rw_attribute(errors);
 rw_attribute(io_error_limit);
 rw_attribute(io_error_halflife);
 rw_attribute(verify);
+rw_attribute(bypass_torture_test);
 rw_attribute(key_merging_disabled);
 rw_attribute(gc_always_rewrite);
 rw_attribute(expensive_debug_checks);
@@ -123,6 +124,7 @@ SHOW(__bch_cached_dev)
 
 	sysfs_printf(data_csum,		"%i", dc->disk.data_csum);
 	var_printf(verify,		"%i");
+	var_printf(bypass_torture_test,	"%i");
 	var_printf(writeback_metadata,	"%i");
 	var_printf(writeback_running,	"%i");
 	var_print(writeback_delay);
@@ -191,6 +193,7 @@ STORE(__cached_dev)
 
 	sysfs_strtoul(data_csum,	dc->disk.data_csum);
 	d_strtoul(verify);
+	d_strtoul(bypass_torture_test);
 	d_strtoul(writeback_metadata);
 	d_strtoul(writeback_running);
 	d_strtoul(writeback_delay);
@@ -323,6 +326,7 @@ static struct attribute *bch_cached_dev_files[] = {
 	&sysfs_readahead,
 #ifdef CONFIG_BCACHE_DEBUG
 	&sysfs_verify,
+	&sysfs_bypass_torture_test,
 #endif
 	NULL
 };
