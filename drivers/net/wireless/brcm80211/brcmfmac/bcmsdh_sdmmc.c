@@ -468,7 +468,7 @@ static int brcmf_sdio_pd_probe(struct platform_device *pdev)
 
 	brcmf_dbg(SDIO, "Enter\n");
 
-	brcmfmac_sdio_pdata = pdev->dev.platform_data;
+	brcmfmac_sdio_pdata = dev_get_platdata(&pdev->dev);
 
 	if (brcmfmac_sdio_pdata->power_on)
 		brcmfmac_sdio_pdata->power_on();
