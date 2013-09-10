@@ -40,9 +40,9 @@ static struct page **get_pages(struct drm_gem_object *obj)
 		}
 
 		msm_obj->sgt = drm_prime_pages_to_sg(p, npages);
-		if (!msm_obj->sgt) {
+		if (IS_ERR(msm_obj->sgt)) {
 			dev_err(dev->dev, "failed to allocate sgt\n");
-			return ERR_PTR(-ENOMEM);
+			return ERR_CAST(msm_obj->sgt);
 		}
 
 		msm_obj->pages = p;
