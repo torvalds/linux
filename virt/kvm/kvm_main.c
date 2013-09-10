@@ -2681,10 +2681,11 @@ static void hardware_enable_nolock(void *junk)
 	}
 }
 
-static void hardware_enable(void *junk)
+static void hardware_enable(void)
 {
 	raw_spin_lock(&kvm_lock);
-	hardware_enable_nolock(junk);
+	if (kvm_usage_count)
+		hardware_enable_nolock(NULL);
 	raw_spin_unlock(&kvm_lock);
 }
 
@@ -2698,10 +2699,11 @@ static void hardware_disable_nolock(void *junk)
 	kvm_arch_hardware_disable(NULL);
 }
 
-static void hardware_disable(void *junk)
+static void hardware_disable(void)
 {
 	raw_spin_lock(&kvm_lock);
-	hardware_disable_nolock(junk);
+	if (kvm_usage_count)
+		hardware_disable_nolock(NULL);
 	raw_spin_unlock(&kvm_lock);
 }
 
@@ -2748,20 +2750,17 @@ static int kvm_cpu_hotplug(struct notifier_block *notifier, unsigned long val,
 {
 	int cpu = (long)v;
 
-	if (!kvm_usage_count)
-		return NOTIFY_OK;
-
 	val &= ~CPU_TASKS_FROZEN;
 	switch (val) {
 	case CPU_DYING:
 		printk(KERN_INFO "kvm: disabling virtualization on CPU%d\n",
 		       cpu);
-		hardware_disable(NULL);
+		hardware_disable();
 		break;
 	case CPU_STARTING:
 		printk(KERN_INFO "kvm: enabling virtualization on CPU%d\n",
 		       cpu);
-		hardware_enable(NULL);
+		hardware_enable();
 		break;
 	}
 	return NOTIFY_OK;
