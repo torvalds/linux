@@ -165,7 +165,7 @@ static void hz_to_spi_baud(char *pbr, char *br, int speed_hz,
 			}
 		}
 
-	pr_warn("Can not find valid buad rate,speed_hz is %d,clkrate is %ld\
+	pr_warn("Can not find valid baud rate,speed_hz is %d,clkrate is %ld\
 		,we use the max prescaler value.\n", speed_hz, clkrate);
 	*pbr = ARRAY_SIZE(pbr_tbl) - 1;
 	*br =  ARRAY_SIZE(brs) - 1;
@@ -526,7 +526,6 @@ out_clk_put:
 	clk_disable_unprepare(dspi->clk);
 out_master_put:
 	spi_master_put(master);
-	platform_set_drvdata(pdev, NULL);
 
 	return ret;
 }
@@ -553,5 +552,5 @@ static struct platform_driver fsl_dspi_driver = {
 module_platform_driver(fsl_dspi_driver);
 
 MODULE_DESCRIPTION("Freescale DSPI Controller Driver");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRIVER_NAME);
