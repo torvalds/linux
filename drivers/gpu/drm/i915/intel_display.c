@@ -5858,20 +5858,64 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	return ret;
 }
 
-static void ironlake_get_fdi_m_n_config(struct intel_crtc *crtc,
-					struct intel_crtc_config *pipe_config)
+static void intel_pch_transcoder_get_m_n(struct intel_crtc *crtc,
+					 struct intel_link_m_n *m_n)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	enum transcoder transcoder = pipe_config->cpu_transcoder;
+	enum pipe pipe = crtc->pipe;
 
-	pipe_config->fdi_m_n.link_m = I915_READ(PIPE_LINK_M1(transcoder));
-	pipe_config->fdi_m_n.link_n = I915_READ(PIPE_LINK_N1(transcoder));
-	pipe_config->fdi_m_n.gmch_m = I915_READ(PIPE_DATA_M1(transcoder))
-					& ~TU_SIZE_MASK;
-	pipe_config->fdi_m_n.gmch_n = I915_READ(PIPE_DATA_N1(transcoder));
-	pipe_config->fdi_m_n.tu = ((I915_READ(PIPE_DATA_M1(transcoder))
-				   & TU_SIZE_MASK) >> TU_SIZE_SHIFT) + 1;
+	m_n->link_m = I915_READ(PCH_TRANS_LINK_M1(pipe));
+	m_n->link_n = I915_READ(PCH_TRANS_LINK_N1(pipe));
+	m_n->gmch_m = I915_READ(PCH_TRANS_DATA_M1(pipe))
+		& ~TU_SIZE_MASK;
+	m_n->gmch_n = I915_READ(PCH_TRANS_DATA_N1(pipe));
+	m_n->tu = ((I915_READ(PCH_TRANS_DATA_M1(pipe))
+		    & TU_SIZE_MASK) >> TU_SIZE_SHIFT) + 1;
+}
+
+static void intel_cpu_transcoder_get_m_n(struct intel_crtc *crtc,
+					 enum transcoder transcoder,
+					 struct intel_link_m_n *m_n)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum pipe pipe = crtc->pipe;
+
+	if (INTEL_INFO(dev)->gen >= 5) {
+		m_n->link_m = I915_READ(PIPE_LINK_M1(transcoder));
+		m_n->link_n = I915_READ(PIPE_LINK_N1(transcoder));
+		m_n->gmch_m = I915_READ(PIPE_DATA_M1(transcoder))
+			& ~TU_SIZE_MASK;
+		m_n->gmch_n = I915_READ(PIPE_DATA_N1(transcoder));
+		m_n->tu = ((I915_READ(PIPE_DATA_M1(transcoder))
+			    & TU_SIZE_MASK) >> TU_SIZE_SHIFT) + 1;
+	} else {
+		m_n->link_m = I915_READ(PIPE_LINK_M_G4X(pipe));
+		m_n->link_n = I915_READ(PIPE_LINK_N_G4X(pipe));
+		m_n->gmch_m = I915_READ(PIPE_DATA_M_G4X(pipe))
+			& ~TU_SIZE_MASK;
+		m_n->gmch_n = I915_READ(PIPE_DATA_N_G4X(pipe));
+		m_n->tu = ((I915_READ(PIPE_DATA_M_G4X(pipe))
+			    & TU_SIZE_MASK) >> TU_SIZE_SHIFT) + 1;
+	}
+}
+
+void intel_dp_get_m_n(struct intel_crtc *crtc,
+		      struct intel_crtc_config *pipe_config)
+{
+	if (crtc->config.has_pch_encoder)
+		intel_pch_transcoder_get_m_n(crtc, &pipe_config->dp_m_n);
+	else
+		intel_cpu_transcoder_get_m_n(crtc, pipe_config->cpu_transcoder,
+					     &pipe_config->dp_m_n);
+}
+
+static void ironlake_get_fdi_m_n_config(struct intel_crtc *crtc,
+					struct intel_crtc_config *pipe_config)
+{
+	intel_cpu_transcoder_get_m_n(crtc, pipe_config->cpu_transcoder,
+				     &pipe_config->fdi_m_n);
 }
 
 static void ironlake_get_pfit_config(struct intel_crtc *crtc,
@@ -8244,6 +8288,11 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 		      pipe_config->fdi_m_n.gmch_m, pipe_config->fdi_m_n.gmch_n,
 		      pipe_config->fdi_m_n.link_m, pipe_config->fdi_m_n.link_n,
 		      pipe_config->fdi_m_n.tu);
+	DRM_DEBUG_KMS("dp: %i, gmch_m: %u, gmch_n: %u, link_m: %u, link_n: %u, tu: %u\n",
+		      pipe_config->has_dp_encoder,
+		      pipe_config->dp_m_n.gmch_m, pipe_config->dp_m_n.gmch_n,
+		      pipe_config->dp_m_n.link_m, pipe_config->dp_m_n.link_n,
+		      pipe_config->dp_m_n.tu);
 	DRM_DEBUG_KMS("requested mode:\n");
 	drm_mode_debug_printmodeline(&pipe_config->requested_mode);
 	DRM_DEBUG_KMS("adjusted mode:\n");
@@ -8613,6 +8662,13 @@ intel_pipe_config_compare(struct drm_device *dev,
 	PIPE_CONF_CHECK_I(fdi_m_n.link_m);
 	PIPE_CONF_CHECK_I(fdi_m_n.link_n);
 	PIPE_CONF_CHECK_I(fdi_m_n.tu);
+
+	PIPE_CONF_CHECK_I(has_dp_encoder);
+	PIPE_CONF_CHECK_I(dp_m_n.gmch_m);
+	PIPE_CONF_CHECK_I(dp_m_n.gmch_n);
+	PIPE_CONF_CHECK_I(dp_m_n.link_m);
+	PIPE_CONF_CHECK_I(dp_m_n.link_n);
+	PIPE_CONF_CHECK_I(dp_m_n.tu);
 
 	PIPE_CONF_CHECK_I(adjusted_mode.crtc_hdisplay);
 	PIPE_CONF_CHECK_I(adjusted_mode.crtc_htotal);
