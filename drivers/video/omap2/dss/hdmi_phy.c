@@ -17,9 +17,6 @@
 #include "dss.h"
 #include "ti_hdmi.h"
 
-#define HDMI_IRQ_LINK_CONNECT		(1 << 25)
-#define HDMI_IRQ_LINK_DISCONNECT	(1 << 26)
-
 void hdmi_phy_dump(struct hdmi_phy_data *phy, struct seq_file *s)
 {
 #define DUMPPHY(r) seq_printf(s, "%-35s %08x\n", #r,\

@@ -49,6 +49,21 @@
 #define HDMI_WP_AUDIO_CTRL			0x88
 #define HDMI_WP_AUDIO_DATA			0x8C
 
+/* HDMI WP IRQ flags */
+
+#define HDMI_IRQ_OCP_TIMEOUT			(1 << 4)
+#define HDMI_IRQ_AUDIO_FIFO_UNDERFLOW		(1 << 8)
+#define HDMI_IRQ_AUDIO_FIFO_OVERFLOW		(1 << 9)
+#define HDMI_IRQ_AUDIO_FIFO_SAMPLE_REQ		(1 << 10)
+#define HDMI_IRQ_VIDEO_VSYNC			(1 << 16)
+#define HDMI_IRQ_VIDEO_FRAME_DONE		(1 << 17)
+#define HDMI_IRQ_PHY_LINE5V_ASSERT		(1 << 24)
+#define HDMI_IRQ_LINK_CONNECT			(1 << 25)
+#define HDMI_IRQ_LINK_DISCONNECT		(1 << 26)
+#define HDMI_IRQ_PLL_LOCK			(1 << 29)
+#define HDMI_IRQ_PLL_UNLOCK			(1 << 30)
+#define HDMI_IRQ_PLL_RECAL			(1 << 31)
+
 /* HDMI PLL */
 
 #define PLLCTRL_PLL_CONTROL			0x0
