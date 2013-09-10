@@ -1128,7 +1128,7 @@ static int if_spi_probe(struct spi_device *spi)
 {
 	struct if_spi_card *card;
 	struct lbs_private *priv = NULL;
-	struct libertas_spi_platform_data *pdata = spi->dev.platform_data;
+	struct libertas_spi_platform_data *pdata = dev_get_platdata(&spi->dev);
 	int err = 0;
 
 	lbs_deb_enter(LBS_DEB_SPI);
