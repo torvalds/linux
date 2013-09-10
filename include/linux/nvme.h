@@ -80,7 +80,7 @@ struct nvme_dev {
 	struct dma_pool *prp_small_pool;
 	int instance;
 	int queue_count;
-	int db_stride;
+	u32 db_stride;
 	u32 ctrl_config;
 	struct msix_entry *entry;
 	struct nvme_bar __iomem *bar;

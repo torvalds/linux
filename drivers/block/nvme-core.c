@@ -775,7 +775,7 @@ static int nvme_process_cq(struct nvme_queue *nvmeq)
 	if (head == nvmeq->cq_head && phase == nvmeq->cq_phase)
 		return 0;
 
-	writel(head, nvmeq->q_db + (1 << nvmeq->dev->db_stride));
+	writel(head, nvmeq->q_db + nvmeq->dev->db_stride);
 	nvmeq->cq_head = head;
 	nvmeq->cq_phase = phase;
 
@@ -1113,7 +1113,7 @@ static struct nvme_queue *nvme_alloc_queue(struct nvme_dev *dev, int qid,
 	init_waitqueue_head(&nvmeq->sq_full);
 	init_waitqueue_entry(&nvmeq->sq_cong_wait, nvme_thread);
 	bio_list_init(&nvmeq->sq_cong);
-	nvmeq->q_db = &dev->dbs[qid << (dev->db_stride + 1)];
+	nvmeq->q_db = &dev->dbs[qid * 2 * dev->db_stride];
 	nvmeq->q_depth = depth;
 	nvmeq->cq_vector = vector;
 	nvmeq->q_suspended = 1;
@@ -1149,7 +1149,7 @@ static void nvme_init_queue(struct nvme_queue *nvmeq, u16 qid)
 	nvmeq->sq_tail = 0;
 	nvmeq->cq_head = 0;
 	nvmeq->cq_phase = 1;
-	nvmeq->q_db = &dev->dbs[qid << (dev->db_stride + 1)];
+	nvmeq->q_db = &dev->dbs[qid * 2 * dev->db_stride];
 	memset(nvmeq->cmdid_data, 0, extra);
 	memset((void *)nvmeq->cqes, 0, CQ_SIZE(nvmeq->q_depth));
 	nvme_cancel_ios(nvmeq, false);
@@ -1741,7 +1741,7 @@ static int set_queue_count(struct nvme_dev *dev, int count)
 
 static size_t db_bar_size(struct nvme_dev *dev, unsigned nr_io_queues)
 {
-	return 4096 + ((nr_io_queues + 1) << (dev->db_stride + 3));
+	return 4096 + ((nr_io_queues + 1) * 8 * dev->db_stride);
 }
 
 static int nvme_setup_io_queues(struct nvme_dev *dev)
@@ -1958,7 +1958,7 @@ static int nvme_dev_map(struct nvme_dev *dev)
 	if (!dev->bar)
 		goto disable;
 
-	dev->db_stride = NVME_CAP_STRIDE(readq(&dev->bar->cap));
+	dev->db_stride = 1 << NVME_CAP_STRIDE(readq(&dev->bar->cap));
 	dev->dbs = ((void __iomem *)dev->bar) + 4096;
 
 	return 0;
