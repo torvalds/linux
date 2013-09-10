@@ -1,0 +1,10 @@
+config INFINIBAND_USNIC
+	tristate "Verbs support for Cisco VIC"
+	depends on NETDEVICES && ETHERNET && PCI && INTEL_IOMMU
+	select ENIC
+	select NET_VENDOR_CISCO
+	select PCI_IOV
+	select INFINIBAND_USER_ACCESS
+	---help---
+	  This is a low-level driver for Cisco's Virtual Interface
+	  Cards (VICs), including the VIC 1240 and 1280 cards.

@@ -1,0 +1,56 @@
+/*
+ * Copyright (c) 2013, Cisco Systems, Inc. All rights reserved.
+ *
+ * This program is free software; you may redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; version 2 of the License.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ */
+
+
+#ifndef USNIC_ABI_H
+#define USNIC_ABI_H
+
+/* ABI between userspace and kernel */
+#define USNIC_UVERBS_ABI_VERSION	2
+
+#define USNIC_QP_GRP_MAX_WQS		8
+#define USNIC_QP_GRP_MAX_RQS		8
+#define USNIC_QP_GRP_MAX_CQS		16
+
+enum usnic_transport_type {
+	USNIC_TRANSPORT_UNKNOWN		= 0,
+	USNIC_TRANSPORT_ROCE_CUSTOM	= 1,
+	USNIC_TRANSPORT_MAX		= 2,
+};
+
+/*TODO: Future - usnic_modify_qp needs to pass in generic filters */
+struct usnic_ib_create_qp_resp {
+	u32				vfid;
+	u32				qp_grp_id;
+	u64				bar_bus_addr;
+	u32				bar_len;
+/*
+ * WQ, RQ, CQ are explicity specified bc exposing a generic resources inteface
+ * expands the scope of ABI to many files.
+ */
+	u32				wq_cnt;
+	u32				rq_cnt;
+	u32				cq_cnt;
+	u32				wq_idx[USNIC_QP_GRP_MAX_WQS];
+	u32				rq_idx[USNIC_QP_GRP_MAX_RQS];
+	u32				cq_idx[USNIC_QP_GRP_MAX_CQS];
+	u32				transport;
+	u32				reserved[9];
+};
+
+#endif /* USNIC_ABI_H */

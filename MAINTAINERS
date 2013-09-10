@@ -2158,6 +2158,11 @@ M:	Nishank Trivedi <nistrive@cisco.com>
 S:	Supported
 F:	drivers/net/ethernet/cisco/enic/
 
+CISCO VIC LOW LATENCY NIC DRIVER
+M:      Upinder Malhi <umalhi@cisco.com>
+S:      Supported
+F:      drivers/infiniband/hw/usnic
+
 CIRRUS LOGIC EP93XX ETHERNET DRIVER
 M:	Hartley Sweeten <hsweeten@visionengravers.com>
 L:	netdev@vger.kernel.org
