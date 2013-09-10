@@ -2209,7 +2209,7 @@ user_path_parent(int dfd, const char __user *path, struct nameidata *nd,
 }
 
 /**
- * umount_lookup_last - look up last component for umount
+ * mountpoint_last - look up last component for umount
  * @nd:   pathwalk nameidata - currently pointing at parent directory of "last"
  * @path: pointer to container for result
  *
@@ -2236,25 +2236,28 @@ user_path_parent(int dfd, const char __user *path, struct nameidata *nd,
  *         to the link, and nd->path will *not* be put.
  */
 static int
-umount_lookup_last(struct nameidata *nd, struct path *path)
+mountpoint_last(struct nameidata *nd, struct path *path)
 {
 	int error = 0;
 	struct dentry *dentry;
 	struct dentry *dir = nd->path.dentry;
 
-	if (unlikely(nd->flags & LOOKUP_RCU)) {
-		WARN_ON_ONCE(1);
-		error = -ECHILD;
-		goto error_check;
+	/* If we're in rcuwalk, drop out of it to handle last component */
+	if (nd->flags & LOOKUP_RCU) {
+		if (unlazy_walk(nd, NULL)) {
+			error = -ECHILD;
+			goto out;
+		}
 	}
 
 	nd->flags &= ~LOOKUP_PARENT;
 
 	if (unlikely(nd->last_type != LAST_NORM)) {
 		error = handle_dots(nd, nd->last_type);
-		if (!error)
-			dentry = dget(nd->path.dentry);
-		goto error_check;
+		if (error)
+			goto out;
+		dentry = dget(nd->path.dentry);
+		goto done;
 	}
 
 	mutex_lock(&dir->d_inode->i_mutex);
@@ -2268,44 +2271,43 @@ umount_lookup_last(struct nameidata *nd, struct path *path)
 		dentry = d_alloc(dir, &nd->last);
 		if (!dentry) {
 			error = -ENOMEM;
-		} else {
-			dentry = lookup_real(dir->d_inode, dentry, nd->flags);
-			if (IS_ERR(dentry))
-				error = PTR_ERR(dentry);
+			goto out;
 		}
+		dentry = lookup_real(dir->d_inode, dentry, nd->flags);
+		error = PTR_ERR(dentry);
+		if (IS_ERR(dentry))
+			goto out;
 	}
 	mutex_unlock(&dir->d_inode->i_mutex);
 
-error_check:
-	if (!error) {
-		if (!dentry->d_inode) {
-			error = -ENOENT;
-			dput(dentry);
-		} else {
-			path->dentry = dentry;
-			path->mnt = mntget(nd->path.mnt);
-			if (should_follow_link(dentry->d_inode,
-						nd->flags & LOOKUP_FOLLOW))
-				return 1;
-			follow_mount(path);
-		}
+done:
+	if (!dentry->d_inode) {
+		error = -ENOENT;
+		dput(dentry);
+		goto out;
 	}
+	path->dentry = dentry;
+	path->mnt = mntget(nd->path.mnt);
+	if (should_follow_link(dentry->d_inode, nd->flags & LOOKUP_FOLLOW))
+		return 1;
+	follow_mount(path);
+	error = 0;
+out:
 	terminate_walk(nd);
 	return error;
 }
 
 /**
- * path_umountat - look up a path to be umounted
+ * path_mountpoint - look up a path to be umounted
  * @dfd:	directory file descriptor to start walk from
  * @name:	full pathname to walk
  * @flags:	lookup flags
- * @nd:		pathwalk nameidata
  *
  * Look up the given name, but don't attempt to revalidate the last component.
  * Returns 0 and "path" will be valid on success; Retuns error otherwise.
  */
 static int
-path_umountat(int dfd, const char *name, struct path *path, unsigned int flags)
+path_mountpoint(int dfd, const char *name, struct path *path, unsigned int flags)
 {
 	struct file *base = NULL;
 	struct nameidata nd;
@@ -2320,16 +2322,7 @@ path_umountat(int dfd, const char *name, struct path *path, unsigned int flags)
 	if (err)
 		goto out;
 
-	/* If we're in rcuwalk, drop out of it to handle last component */
-	if (nd.flags & LOOKUP_RCU) {
-		err = unlazy_walk(&nd, NULL);
-		if (err) {
-			terminate_walk(&nd);
-			goto out;
-		}
-	}
-
-	err = umount_lookup_last(&nd, path);
+	err = mountpoint_last(&nd, path);
 	while (err > 0) {
 		void *cookie;
 		struct path link = *path;
@@ -2340,7 +2333,7 @@ path_umountat(int dfd, const char *name, struct path *path, unsigned int flags)
 		err = follow_link(&link, &nd, &cookie);
 		if (err)
 			break;
-		err = umount_lookup_last(&nd, path);
+		err = mountpoint_last(&nd, path);
 		put_link(&nd, &link, cookie);
 	}
 out:
@@ -2353,8 +2346,22 @@ out:
 	return err;
 }
 
+static int
+filename_mountpoint(int dfd, struct filename *s, struct path *path,
+			unsigned int flags)
+{
+	int error = path_mountpoint(dfd, s->name, path, flags | LOOKUP_RCU);
+	if (unlikely(error == -ECHILD))
+		error = path_mountpoint(dfd, s->name, path, flags);
+	if (unlikely(error == -ESTALE))
+		error = path_mountpoint(dfd, s->name, path, flags | LOOKUP_REVAL);
+	if (likely(!error))
+		audit_inode(s, path->dentry, 0);
+	return error;
+}
+
 /**
- * user_path_umountat - lookup a path from userland in order to umount it
+ * user_path_mountpoint_at - lookup a path from userland in order to umount it
  * @dfd:	directory file descriptor
  * @name:	pathname from userland
  * @flags:	lookup flags
@@ -2368,27 +2375,26 @@ out:
  * Returns 0 and populates "path" on success.
  */
 int
-user_path_umountat(int dfd, const char __user *name, unsigned int flags,
+user_path_mountpoint_at(int dfd, const char __user *name, unsigned int flags,
 			struct path *path)
 {
 	struct filename *s = getname(name);
 	int error;
-
 	if (IS_ERR(s))
 		return PTR_ERR(s);
-
-	error = path_umountat(dfd, s->name, path, flags | LOOKUP_RCU);
-	if (unlikely(error == -ECHILD))
-		error = path_umountat(dfd, s->name, path, flags);
-	if (unlikely(error == -ESTALE))
-		error = path_umountat(dfd, s->name, path, flags | LOOKUP_REVAL);
-
-	if (likely(!error))
-		audit_inode(s, path->dentry, 0);
-
+	error = filename_mountpoint(dfd, s, path, flags);
 	putname(s);
 	return error;
 }
+
+int
+kern_path_mountpoint(int dfd, const char *name, struct path *path,
+			unsigned int flags)
+{
+	struct filename s = {.name = name};
+	return filename_mountpoint(dfd, &s, path, flags);
+}
+EXPORT_SYMBOL(kern_path_mountpoint);
 
 /*
  * It's inline, so penalty for filesystems that don't use sticky bit is
