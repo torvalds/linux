@@ -500,11 +500,6 @@ xfs_inode_ag_walk_grab(
 	if (!igrab(inode))
 		return ENOENT;
 
-	if (is_bad_inode(inode)) {
-		IRELE(ip);
-		return ENOENT;
-	}
-
 	/* inode is valid */
 	return 0;
 
@@ -918,8 +913,6 @@ restart:
 		xfs_iflock(ip);
 	}
 
-	if (is_bad_inode(VFS_I(ip)))
-		goto reclaim;
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
 		xfs_iunpin_wait(ip);
 		xfs_iflush_abort(ip, false);
