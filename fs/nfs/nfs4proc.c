@@ -6153,11 +6153,13 @@ static const struct nfs41_state_protection nfs4_sp4_mach_cred_request = {
 	},
 	.allow.u.words = {
 		[0] = 1 << (OP_CLOSE) |
-		      1 << (OP_LOCKU),
+		      1 << (OP_LOCKU) |
+		      1 << (OP_COMMIT),
 		[1] = 1 << (OP_SECINFO - 32) |
 		      1 << (OP_SECINFO_NO_NAME - 32) |
 		      1 << (OP_TEST_STATEID - 32) |
-		      1 << (OP_FREE_STATEID - 32)
+		      1 << (OP_FREE_STATEID - 32) |
+		      1 << (OP_WRITE - 32)
 	}
 };
 
