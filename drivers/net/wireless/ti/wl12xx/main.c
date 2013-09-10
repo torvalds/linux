@@ -1704,7 +1704,7 @@ static struct ieee80211_sta_ht_cap wl12xx_ht_cap = {
 static int wl12xx_setup(struct wl1271 *wl)
 {
 	struct wl12xx_priv *priv = wl->priv;
-	struct wlcore_platdev_data *pdev_data = wl->pdev->dev.platform_data;
+	struct wlcore_platdev_data *pdev_data = dev_get_platdata(&wl->pdev->dev);
 	struct wl12xx_platform_data *pdata = pdev_data->pdata;
 
 	wl->rtable = wl12xx_rtable;
