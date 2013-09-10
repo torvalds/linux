@@ -979,6 +979,7 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 			pmic->desc[id].min_uV = 900000;
 			pmic->desc[id].uV_step = 50000;
 			pmic->desc[id].linear_min_sel = 1;
+			pmic->desc[id].enable_time = 500;
 			pmic->desc[id].vsel_reg =
 					PALMAS_BASE_TO_REG(PALMAS_LDO_BASE,
 						palmas_regs_info[id].vsel_addr);
@@ -997,6 +998,11 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 				pmic->desc[id].min_uV = 450000;
 				pmic->desc[id].uV_step = 25000;
 			}
+
+			/* LOD6 in vibrator mode will have enable time 2000us */
+			if (pdata && pdata->ldo6_vibrator &&
+				(id == PALMAS_REG_LDO6))
+				pmic->desc[id].enable_time = 2000;
 		} else {
 			pmic->desc[id].n_voltages = 1;
 			pmic->desc[id].ops = &palmas_ops_extreg;
