@@ -999,12 +999,6 @@ static int vhci_hcd_probe(struct platform_device *pdev)
 
 	usbip_dbg_vhci_hc("name %s id %d\n", pdev->name, pdev->id);
 
-	/* will be removed */
-	if (pdev->dev.dma_mask) {
-		dev_info(&pdev->dev, "vhci_hcd DMA not supported\n");
-		return -EINVAL;
-	}
-
 	/*
 	 * Allocate and initialize hcd.
 	 * Our private data is also allocated automatically.
