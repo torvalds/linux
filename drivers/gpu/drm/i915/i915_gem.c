@@ -4887,11 +4887,10 @@ bool i915_gem_obj_bound(struct drm_i915_gem_object *o,
 
 bool i915_gem_obj_bound_any(struct drm_i915_gem_object *o)
 {
-	struct drm_i915_private *dev_priv = o->base.dev->dev_private;
-	struct i915_address_space *vm;
+	struct i915_vma *vma;
 
-	list_for_each_entry(vm, &dev_priv->vm_list, global_link)
-		if (i915_gem_obj_bound(o, vm))
+	list_for_each_entry(vma, &o->vma_list, vma_link)
+		if (drm_mm_node_allocated(&vma->node))
 			return true;
 
 	return false;
