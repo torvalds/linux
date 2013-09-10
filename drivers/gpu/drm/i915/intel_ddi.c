@@ -767,9 +767,9 @@ void intel_ddi_enable_transcoder_func(struct drm_crtc *crtc)
 		BUG();
 	}
 
-	if (crtc->mode.flags & DRM_MODE_FLAG_PVSYNC)
+	if (intel_crtc->config.adjusted_mode.flags & DRM_MODE_FLAG_PVSYNC)
 		temp |= TRANS_DDI_PVSYNC;
-	if (crtc->mode.flags & DRM_MODE_FLAG_PHSYNC)
+	if (intel_crtc->config.adjusted_mode.flags & DRM_MODE_FLAG_PHSYNC)
 		temp |= TRANS_DDI_PHSYNC;
 
 	if (cpu_transcoder == TRANSCODER_EDP) {
