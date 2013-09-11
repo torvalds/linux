@@ -11,6 +11,7 @@
 /dts-v1/;
 /include/ "r8a7740.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pwm/pwm.h>
 
 / {
 	model = "armadillo 800 eva reference";
@@ -49,6 +50,15 @@
 			gpios = <&pfc 177 GPIO_ACTIVE_HIGH>;
 		};
 	};
+
+	backlight {
+		compatible = "pwm-backlight";
+		pwms = <&tpu 2 33333 PWM_POLARITY_INVERTED>;
+		brightness-levels = <0 1 2 4 8 16 32 64 128 255>;
+		default-brightness-level = <9>;
+		pinctrl-0 = <&backlight_pins>;
+		pinctrl-names = "default";
+	};
 };
 
 &i2c0 {
@@ -77,4 +87,13 @@
 		renesas,groups = "intc_irq10";
 		renesas,function = "intc";
 	};
+
+	backlight_pins: backlight {
+		renesas,groups = "tpu0_to2_1";
+		renesas,function = "tpu0";
+	};
+};
+
+&tpu {
+	status = "okay";
 };
