@@ -250,7 +250,7 @@
 
 				mpu_periph_clk: mpu_periph_clk {
 					#clock-cells = <0>;
-					compatible = "altr,socfpga-gate-clk";
+					compatible = "altr,socfpga-perip-clk";
 					clocks = <&mpuclk>;
 					fixed-divider = <4>;
 					};
@@ -702,6 +702,7 @@
 			compatible = "arm,cortex-a9-twd-timer";
 			reg = <0xfffec600 0x100>;
 			interrupts = <1 13 0xf04>;
+			clocks = <&mpu_periph_clk>;
 		};
 
 		timer0: timer0@ffc08000 {

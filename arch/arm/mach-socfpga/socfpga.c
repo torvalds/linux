@@ -301,7 +301,6 @@ static void __init socfpga_init_irq(void)
 	socfpga_sysmgr_init();
 
 	of_clk_init(NULL);
-	socfpga_init_clocks();
 	clocksource_of_init();
 }
 

@@ -121,15 +121,14 @@ static __init struct clk *socfpga_clk_init(struct device_node *node,
 	int rc;
 	u32 fixed_div;
 
-	rc = of_property_read_u32(node, "reg", &reg);
-	if (WARN_ON(rc))
-		return NULL;
+	of_property_read_u32(node, "reg", &reg);
 
 	socfpga_clk = kzalloc(sizeof(*socfpga_clk), GFP_KERNEL);
 	if (WARN_ON(!socfpga_clk))
 		return NULL;
 
-	socfpga_clk->hw.reg = clk_mgr_base_addr + reg;
+	if (reg)
+		socfpga_clk->hw.reg = clk_mgr_base_addr + reg;
 
 	rc = of_property_read_u32(node, "fixed-divider", &fixed_div);
 	if (rc)
@@ -335,14 +334,3 @@ static void __init socfpga_gate_init(struct device_node *node)
 	socfpga_gate_clk_init(node, &gateclk_ops);
 }
 CLK_OF_DECLARE(socfpga_gate, "altr,socfpga-gate-clk", socfpga_gate_init);
-
-void __init socfpga_init_clocks(void)
-{
-	struct clk *clk;
-	int ret;
-
-	clk = clk_register_fixed_factor(NULL, "smp_twd", "mpuclk", 0, 1, 4);
-	ret = clk_register_clkdev(clk, NULL, "smp_twd");
-	if (ret)
-		pr_err("smp_twd alias not registered\n");
-}
