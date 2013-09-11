@@ -158,9 +158,6 @@ static inline int pmbr_part_valid(gpt_mbr_record *part)
 	if (le32_to_cpu(part->starting_lba) != GPT_PRIMARY_PARTITION_TABLE_LBA)
 		goto invalid;
 
-	if (le32_to_cpu(part->start_sector) != 1UL)
-		goto invalid;
-
 	return 1;
 invalid:
 	return 0;
