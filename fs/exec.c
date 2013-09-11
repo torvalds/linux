@@ -1418,7 +1418,8 @@ int search_binary_handler(struct linux_binprm *bprm)
 		if (printable(bprm->buf[0]) && printable(bprm->buf[1]) &&
 		    printable(bprm->buf[2]) && printable(bprm->buf[3]))
 			return retval;
-		request_module("binfmt-%04x", *(ushort *)(bprm->buf + 2));
+		if (request_module("binfmt-%04x", *(ushort *)(bprm->buf + 2)) < 0)
+			return retval;
 		need_retry = false;
 		goto retry;
 	}
