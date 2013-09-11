@@ -1367,13 +1367,15 @@ out:
 }
 EXPORT_SYMBOL(remove_arg_zero);
 
+#define printable(c) (((c)=='\t') || ((c)=='\n') || (0x20<=(c) && (c)<=0x7e))
 /*
  * cycle the list of binary formats handler, until one recognizes the image
  */
 int search_binary_handler(struct linux_binprm *bprm)
 {
-	int try, retval;
+	bool need_retry = IS_ENABLED(CONFIG_MODULES);
 	struct linux_binfmt *fmt;
+	int retval;
 
 	/* This allows 4 levels of binfmt rewrites before failing hard. */
 	if (bprm->recursion_depth > 5)
@@ -1388,47 +1390,39 @@ int search_binary_handler(struct linux_binprm *bprm)
 		return retval;
 
 	retval = -ENOENT;
-	for (try=0; try<2; try++) {
-		read_lock(&binfmt_lock);
-		list_for_each_entry(fmt, &formats, lh) {
-			if (!try_module_get(fmt->module))
-				continue;
-			read_unlock(&binfmt_lock);
-			bprm->recursion_depth++;
-			retval = fmt->load_binary(bprm);
-			bprm->recursion_depth--;
-			if (retval >= 0) {
-				put_binfmt(fmt);
-				return retval;
-			}
-			read_lock(&binfmt_lock);
-			put_binfmt(fmt);
-			if (retval != -ENOEXEC || bprm->mm == NULL)
-				break;
-			if (!bprm->file) {
-				read_unlock(&binfmt_lock);
-				return retval;
-			}
-		}
+ retry:
+	read_lock(&binfmt_lock);
+	list_for_each_entry(fmt, &formats, lh) {
+		if (!try_module_get(fmt->module))
+			continue;
 		read_unlock(&binfmt_lock);
-#ifdef CONFIG_MODULES
-		if (retval != -ENOEXEC || bprm->mm == NULL) {
-			break;
-		} else {
-#define printable(c) (((c)=='\t') || ((c)=='\n') || (0x20<=(c) && (c)<=0x7e))
-			if (printable(bprm->buf[0]) &&
-			    printable(bprm->buf[1]) &&
-			    printable(bprm->buf[2]) &&
-			    printable(bprm->buf[3]))
-				break; /* -ENOEXEC */
-			if (try)
-				break; /* -ENOEXEC */
-			request_module("binfmt-%04x", *(unsigned short *)(&bprm->buf[2]));
+		bprm->recursion_depth++;
+		retval = fmt->load_binary(bprm);
+		bprm->recursion_depth--;
+		if (retval >= 0) {
+			put_binfmt(fmt);
+			return retval;
 		}
-#else
-		break;
-#endif
+		read_lock(&binfmt_lock);
+		put_binfmt(fmt);
+		if (retval != -ENOEXEC || bprm->mm == NULL)
+			break;
+		if (!bprm->file) {
+			read_unlock(&binfmt_lock);
+			return retval;
+		}
 	}
+	read_unlock(&binfmt_lock);
+
+	if (need_retry && retval == -ENOEXEC && bprm->mm) {
+		if (printable(bprm->buf[0]) && printable(bprm->buf[1]) &&
+		    printable(bprm->buf[2]) && printable(bprm->buf[3]))
+			return retval;
+		request_module("binfmt-%04x", *(ushort *)(bprm->buf + 2));
+		need_retry = false;
+		goto retry;
+	}
+
 	return retval;
 }
 EXPORT_SYMBOL(search_binary_handler);
