@@ -132,6 +132,40 @@ static const struct attribute_group attr_group = {
 	.attrs = aoe_attrs,
 };
 
+static const struct file_operations aoe_debugfs_fops;
+
+static void
+aoedisk_add_debugfs(struct aoedev *d)
+{
+	struct dentry *entry;
+	char *p;
+
+	if (aoe_debugfs_dir == NULL)
+		return;
+	p = strchr(d->gd->disk_name, '/');
+	if (p == NULL)
+		p = d->gd->disk_name;
+	else
+		p++;
+	BUG_ON(*p == '\0');
+	entry = debugfs_create_file(p, 0444, aoe_debugfs_dir, d,
+				    &aoe_debugfs_fops);
+	if (IS_ERR_OR_NULL(entry)) {
+		pr_info("aoe: cannot create debugfs file for %s\n",
+			d->gd->disk_name);
+		return;
+	}
+	BUG_ON(d->debugfs);
+	d->debugfs = entry;
+}
+void
+aoedisk_rm_debugfs(struct aoedev *d)
+{
+	BUG_ON(d->debugfs == NULL);
+	debugfs_remove(d->debugfs);
+	d->debugfs = NULL;
+}
+
 static int
 aoedisk_add_sysfs(struct aoedev *d)
 {
@@ -332,6 +366,7 @@ aoeblk_gdalloc(void *vp)
 
 	add_disk(gd);
 	aoedisk_add_sysfs(d);
+	aoedisk_add_debugfs(d);
 
 	spin_lock_irqsave(&d->lock, flags);
 	WARN_ON(!(d->flags & DEVFL_GD_NOW));
