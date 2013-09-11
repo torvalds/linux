@@ -327,7 +327,7 @@ static inline char *alloc_elfnotes_buf(size_t notes_sz)
  * regions in the 1st kernel pointed to by PT_LOAD entries) into
  * virtually contiguous user-space in ELF layout.
  */
-#if defined(CONFIG_MMU) && !defined(CONFIG_S390)
+#ifdef CONFIG_MMU
 static int mmap_vmcore(struct file *file, struct vm_area_struct *vma)
 {
 	size_t size = vma->vm_end - vma->vm_start;
