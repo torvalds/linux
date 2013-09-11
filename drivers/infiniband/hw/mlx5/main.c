@@ -1006,6 +1006,11 @@ static void mlx5_ib_event(struct mlx5_core_dev *dev, enum mlx5_dev_event event,
 	ibev.device	      = &ibdev->ib_dev;
 	ibev.element.port_num = port;
 
+	if (port < 1 || port > ibdev->num_ports) {
+		mlx5_ib_warn(ibdev, "warning: event on port %d\n", port);
+		return;
+	}
+
 	if (ibdev->ib_active)
 		ib_dispatch_event(&ibev);
 }
