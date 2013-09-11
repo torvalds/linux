@@ -73,6 +73,18 @@ struct bkey *bch_keylist_pop(struct keylist *l)
 	return l->top = k;
 }
 
+void bch_keylist_pop_front(struct keylist *l)
+{
+	struct bkey *next = bkey_next(l->bottom);
+	size_t bytes = ((void *) l->top) - ((void *) next);
+
+	memmove(l->bottom,
+		next,
+		bytes);
+
+	l->top = ((void *) l->bottom) + bytes;
+}
+
 /* Pointer validation */
 
 bool __bch_ptr_invalid(struct cache_set *c, int level, const struct bkey *k)

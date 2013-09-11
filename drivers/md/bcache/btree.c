@@ -1849,15 +1849,43 @@ merged:
 	return true;
 }
 
-static bool bch_btree_insert_keys(struct btree *b, struct btree_op *op)
+static bool bch_btree_insert_keys(struct btree *b, struct btree_op *op,
+				  struct keylist *insert_keys)
 {
 	bool ret = false;
-	struct bkey *k;
 	unsigned oldsize = bch_count_data(b);
 
-	while ((k = bch_keylist_pop(&op->keys))) {
-		bkey_put(b->c, k, b->level);
-		ret |= btree_insert_key(b, op, k);
+	BUG_ON(!insert_lock(op, b));
+
+	while (!bch_keylist_empty(insert_keys)) {
+		struct bkey *k = insert_keys->bottom;
+
+		if (b->level ||
+		    bkey_cmp(k, &b->key) <= 0) {
+			bkey_put(b->c, k, b->level);
+
+			ret |= btree_insert_key(b, op, k);
+			bch_keylist_pop_front(insert_keys);
+		} else if (bkey_cmp(&START_KEY(k), &b->key) < 0) {
+#if 0
+			if (op->type == BTREE_REPLACE) {
+				bkey_put(b->c, k, b->level);
+				bch_keylist_pop_front(insert_keys);
+				op->insert_collision = true;
+				break;
+			}
+#endif
+			BKEY_PADDED(key) temp;
+			bkey_copy(&temp.key, insert_keys->bottom);
+
+			bch_cut_back(&b->key, &temp.key);
+			bch_cut_front(&b->key, insert_keys->bottom);
+
+			ret |= btree_insert_key(b, op, &temp.key);
+			break;
+		} else {
+			break;
+		}
 	}
 
 	BUG_ON(bch_count_data(b) < oldsize);
@@ -1897,7 +1925,9 @@ out:
 	return ret;
 }
 
-static int btree_split(struct btree *b, struct btree_op *op)
+static int btree_split(struct btree *b, struct btree_op *op,
+		       struct keylist *insert_keys,
+		       struct keylist *parent_keys)
 {
 	bool split;
 	struct btree *n1, *n2 = NULL, *n3 = NULL;
@@ -1927,7 +1957,7 @@ static int btree_split(struct btree *b, struct btree_op *op)
 				goto err_free2;
 		}
 
-		bch_btree_insert_keys(n1, op);
+		bch_btree_insert_keys(n1, op, insert_keys);
 
 		/*
 		 * Has to be a linear search because we don't have an auxiliary
@@ -1949,23 +1979,23 @@ static int btree_split(struct btree *b, struct btree_op *op)
 
 		bkey_copy_key(&n2->key, &b->key);
 
-		bch_keylist_add(&op->keys, &n2->key);
+		bch_keylist_add(parent_keys, &n2->key);
 		bch_btree_node_write(n2, &op->cl);
 		rw_unlock(true, n2);
 	} else {
 		trace_bcache_btree_node_compact(b, n1->sets[0].data->keys);
 
-		bch_btree_insert_keys(n1, op);
+		bch_btree_insert_keys(n1, op, insert_keys);
 	}
 
-	bch_keylist_add(&op->keys, &n1->key);
+	bch_keylist_add(parent_keys, &n1->key);
 	bch_btree_node_write(n1, &op->cl);
 
 	if (n3) {
 		/* Depth increases, make a new root */
 
 		bkey_copy_key(&n3->key, &MAX_KEY);
-		bch_btree_insert_keys(n3, op);
+		bch_btree_insert_keys(n3, op, parent_keys);
 		bch_btree_node_write(n3, &op->cl);
 
 		closure_sync(&op->cl);
@@ -1974,22 +2004,22 @@ static int btree_split(struct btree *b, struct btree_op *op)
 	} else if (!b->parent) {
 		/* Root filled up but didn't need to be split */
 
-		op->keys.top = op->keys.bottom;
+		parent_keys->top = parent_keys->bottom;
 		closure_sync(&op->cl);
 		bch_btree_set_root(n1);
 	} else {
 		unsigned i;
 
-		bkey_copy(op->keys.top, &b->key);
-		bkey_copy_key(op->keys.top, &ZERO_KEY);
+		bkey_copy(parent_keys->top, &b->key);
+		bkey_copy_key(parent_keys->top, &ZERO_KEY);
 
 		for (i = 0; i < KEY_PTRS(&b->key); i++) {
 			uint8_t g = PTR_BUCKET(b->c, &b->key, i)->gen + 1;
 
-			SET_PTR_GEN(op->keys.top, i, g);
+			SET_PTR_GEN(parent_keys->top, i, g);
 		}
 
-		bch_keylist_push(&op->keys);
+		bch_keylist_push(parent_keys);
 		closure_sync(&op->cl);
 		atomic_inc(&b->c->prio_blocked);
 	}
@@ -2018,11 +2048,50 @@ err:
 	return -ENOMEM;
 }
 
-static int bch_btree_insert_recurse(struct btree *b, struct btree_op *op,
-				    struct keylist *stack_keys)
+static int bch_btree_insert_node(struct btree *b, struct btree_op *op,
+				 struct keylist *insert_keys)
+{
+	int ret = 0;
+	struct keylist split_keys;
+
+	bch_keylist_init(&split_keys);
+
+	BUG_ON(b->level);
+
+	do {
+		if (should_split(b)) {
+			if (current->bio_list) {
+				op->lock = b->c->root->level + 1;
+				ret = -EAGAIN;
+			} else if (op->lock <= b->c->root->level) {
+				op->lock = b->c->root->level + 1;
+				ret = -EINTR;
+			} else {
+				struct btree *parent = b->parent;
+
+				ret = btree_split(b, op, insert_keys,
+						  &split_keys);
+				insert_keys = &split_keys;
+				b = parent;
+			}
+		} else {
+			BUG_ON(write_block(b) != b->sets[b->nsets].data);
+
+			if (bch_btree_insert_keys(b, op, insert_keys)) {
+				if (!b->level)
+					bch_btree_leaf_dirty(b, op);
+				else
+					bch_btree_node_write(b, &op->cl);
+			}
+		}
+	} while (!bch_keylist_empty(&split_keys));
+
+	return ret;
+}
+
+static int bch_btree_insert_recurse(struct btree *b, struct btree_op *op)
 {
 	if (b->level) {
-		int ret;
 		struct bkey *insert = op->keys.bottom;
 		struct bkey *k = bch_next_recurse_key(b, &START_KEY(insert));
 
@@ -2034,53 +2103,10 @@ static int bch_btree_insert_recurse(struct btree *b, struct btree_op *op,
 			return -EIO;
 		}
 
-		if (bkey_cmp(insert, k) > 0) {
-			unsigned i;
-
-			if (op->type == BTREE_REPLACE) {
-				__bkey_put(b->c, insert);
-				op->keys.top = op->keys.bottom;
-				op->insert_collision = true;
-				return 0;
-			}
-
-			for (i = 0; i < KEY_PTRS(insert); i++)
-				atomic_inc(&PTR_BUCKET(b->c, insert, i)->pin);
-
-			bkey_copy(stack_keys->top, insert);
-
-			bch_cut_back(k, insert);
-			bch_cut_front(k, stack_keys->top);
-
-			bch_keylist_push(stack_keys);
-		}
-
-		ret = btree(insert_recurse, k, b, op, stack_keys);
-		if (ret)
-			return ret;
+		return btree(insert_recurse, k, b, op);
+	} else {
+		return bch_btree_insert_node(b, op, &op->keys);
 	}
-
-	if (!bch_keylist_empty(&op->keys)) {
-		if (should_split(b)) {
-			if (op->lock <= b->c->root->level) {
-				BUG_ON(b->level);
-				op->lock = b->c->root->level + 1;
-				return -EINTR;
-			}
-			return btree_split(b, op);
-		}
-
-		BUG_ON(write_block(b) != b->sets[b->nsets].data);
-
-		if (bch_btree_insert_keys(b, op)) {
-			if (!b->level)
-				bch_btree_leaf_dirty(b, op);
-			else
-				bch_btree_node_write(b, &op->cl);
-		}
-	}
-
-	return 0;
 }
 
 int bch_btree_insert(struct btree_op *op, struct cache_set *c)
@@ -2106,7 +2132,7 @@ int bch_btree_insert(struct btree_op *op, struct cache_set *c)
 			op->lock = 0;
 		}
 
-		ret = btree_root(insert_recurse, c, op, &stack_keys);
+		ret = btree_root(insert_recurse, c, op);
 
 		if (ret == -EAGAIN) {
 			ret = 0;

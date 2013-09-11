@@ -267,6 +267,7 @@ static inline void bch_keylist_free(struct keylist *l)
 
 void bch_keylist_copy(struct keylist *, struct keylist *);
 struct bkey *bch_keylist_pop(struct keylist *);
+void bch_keylist_pop_front(struct keylist *);
 int bch_keylist_realloc(struct keylist *, int, struct cache_set *);
 
 void bch_bkey_copy_single_ptr(struct bkey *, const struct bkey *,
