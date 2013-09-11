@@ -2106,6 +2106,7 @@ int __must_check i915_gem_evict_something(struct drm_device *dev,
 					  unsigned cache_level,
 					  bool mappable,
 					  bool nonblock);
+int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle);
 int i915_gem_evict_everything(struct drm_device *dev);
 
 /* i915_gem_stolen.c */
