@@ -780,11 +780,10 @@ static int shmctl_down(struct ipc_namespace *ns, int shmid, int cmd,
 	down_write(&shm_ids(ns).rw_mutex);
 	rcu_read_lock();
 
-	ipcp = ipcctl_pre_down(ns, &shm_ids(ns), shmid, cmd,
-			       &shmid64.shm_perm, 0);
+	ipcp = ipcctl_pre_down_nolock(ns, &shm_ids(ns), shmid, cmd,
+				      &shmid64.shm_perm, 0);
 	if (IS_ERR(ipcp)) {
 		err = PTR_ERR(ipcp);
-		/* the ipc lock is not held upon failure */
 		goto out_unlock1;
 	}
 
@@ -792,14 +791,16 @@ static int shmctl_down(struct ipc_namespace *ns, int shmid, int cmd,
 
 	err = security_shm_shmctl(shp, cmd);
 	if (err)
-		goto out_unlock0;
+		goto out_unlock1;
 
 	switch (cmd) {
 	case IPC_RMID:
+		ipc_lock_object(&shp->shm_perm);
 		/* do_shm_rmid unlocks the ipc object and rcu */
 		do_shm_rmid(ns, ipcp);
 		goto out_up;
 	case IPC_SET:
+		ipc_lock_object(&shp->shm_perm);
 		err = ipc_update_perm(&shmid64.shm_perm, ipcp);
 		if (err)
 			goto out_unlock0;
@@ -807,6 +808,7 @@ static int shmctl_down(struct ipc_namespace *ns, int shmid, int cmd,
 		break;
 	default:
 		err = -EINVAL;
+		goto out_unlock1;
 	}
 
 out_unlock0:
