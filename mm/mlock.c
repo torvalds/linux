@@ -280,8 +280,7 @@ static void __putback_lru_fast(struct pagevec *pvec, int pgrescued)
  * The second phase finishes the munlock only for pages where isolation
  * succeeded.
  *
- * Note that pvec is modified during the process. Before returning
- * pagevec_reinit() is called on it.
+ * Note that the pagevec may be modified during the process.
  */
 static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
 {
@@ -356,8 +355,60 @@ skip_munlock:
 	 */
 	if (pagevec_count(&pvec_putback))
 		__putback_lru_fast(&pvec_putback, pgrescued);
+}
 
-	pagevec_reinit(pvec);
+/*
+ * Fill up pagevec for __munlock_pagevec using pte walk
+ *
+ * The function expects that the struct page corresponding to @start address is
+ * a non-TPH page already pinned and in the @pvec, and that it belongs to @zone.
+ *
+ * The rest of @pvec is filled by subsequent pages within the same pmd and same
+ * zone, as long as the pte's are present and vm_normal_page() succeeds. These
+ * pages also get pinned.
+ *
+ * Returns the address of the next page that should be scanned. This equals
+ * @start + PAGE_SIZE when no page could be added by the pte walk.
+ */
+static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,
+		struct vm_area_struct *vma, int zoneid,	unsigned long start,
+		unsigned long end)
+{
+	pte_t *pte;
+	spinlock_t *ptl;
+
+	/*
+	 * Initialize pte walk starting at the already pinned page where we
+	 * are sure that there is a pte.
+	 */
+	pte = get_locked_pte(vma->vm_mm, start,	&ptl);
+	end = min(end, pmd_addr_end(start, end));
+
+	/* The page next to the pinned page is the first we will try to get */
+	start += PAGE_SIZE;
+	while (start < end) {
+		struct page *page = NULL;
+		pte++;
+		if (pte_present(*pte))
+			page = vm_normal_page(vma, start, *pte);
+		/*
+		 * Break if page could not be obtained or the page's node+zone does not
+		 * match
+		 */
+		if (!page || page_zone_id(page) != zoneid)
+			break;
+
+		get_page(page);
+		/*
+		 * Increase the address that will be returned *before* the
+		 * eventual break due to pvec becoming full by adding the page
+		 */
+		start += PAGE_SIZE;
+		if (pagevec_add(pvec, page) == 0)
+			break;
+	}
+	pte_unmap_unlock(pte, ptl);
+	return start;
 }
 
 /*
@@ -381,17 +432,16 @@ skip_munlock:
 void munlock_vma_pages_range(struct vm_area_struct *vma,
 			     unsigned long start, unsigned long end)
 {
-	struct pagevec pvec;
-	struct zone *zone = NULL;
-
-	pagevec_init(&pvec, 0);
 	vma->vm_flags &= ~VM_LOCKED;
 
 	while (start < end) {
-		struct page *page;
+		struct page *page = NULL;
 		unsigned int page_mask, page_increm;
-		struct zone *pagezone;
+		struct pagevec pvec;
+		struct zone *zone;
+		int zoneid;
 
+		pagevec_init(&pvec, 0);
 		/*
 		 * Although FOLL_DUMP is intended for get_dump_page(),
 		 * it just so happens that its special treatment of the
@@ -400,22 +450,10 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
 		 * has sneaked into the range, we won't oops here: great).
 		 */
 		page = follow_page_mask(vma, start, FOLL_GET | FOLL_DUMP,
-					&page_mask);
+				&page_mask);
+
 		if (page && !IS_ERR(page)) {
-			pagezone = page_zone(page);
-			/* The whole pagevec must be in the same zone */
-			if (pagezone != zone) {
-				if (pagevec_count(&pvec))
-					__munlock_pagevec(&pvec, zone);
-				zone = pagezone;
-			}
 			if (PageTransHuge(page)) {
-				/*
-				 * THP pages are not handled by pagevec due
-				 * to their possible split (see below).
-				 */
-				if (pagevec_count(&pvec))
-					__munlock_pagevec(&pvec, zone);
 				lock_page(page);
 				/*
 				 * Any THP page found by follow_page_mask() may
@@ -428,21 +466,31 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
 				put_page(page); /* follow_page_mask() */
 			} else {
 				/*
-				 * Non-huge pages are handled in batches
-				 * via pagevec. The pin from
-				 * follow_page_mask() prevents them from
-				 * collapsing by THP.
+				 * Non-huge pages are handled in batches via
+				 * pagevec. The pin from follow_page_mask()
+				 * prevents them from collapsing by THP.
 				 */
-				if (pagevec_add(&pvec, page) == 0)
-					__munlock_pagevec(&pvec, zone);
+				pagevec_add(&pvec, page);
+				zone = page_zone(page);
+				zoneid = page_zone_id(page);
+
+				/*
+				 * Try to fill the rest of pagevec using fast
+				 * pte walk. This will also update start to
+				 * the next page to process. Then munlock the
+				 * pagevec.
+				 */
+				start = __munlock_pagevec_fill(&pvec, vma,
+						zoneid, start, end);
+				__munlock_pagevec(&pvec, zone);
+				goto next;
 			}
 		}
 		page_increm = 1 + (~(start >> PAGE_SHIFT) & page_mask);
 		start += page_increm * PAGE_SIZE;
+next:
 		cond_resched();
 	}
-	if (pagevec_count(&pvec))
-		__munlock_pagevec(&pvec, zone);
 }
 
 /*

@@ -643,12 +643,12 @@ static inline enum zone_type page_zonenum(const struct page *page)
 #endif
 
 /*
- * The identification function is only used by the buddy allocator for
- * determining if two pages could be buddies. We are not really
- * identifying a zone since we could be using a the section number
- * id if we have not node id available in page flags.
- * We guarantee only that it will return the same value for two
- * combinable pages in a zone.
+ * The identification function is mainly used by the buddy allocator for
+ * determining if two pages could be buddies. We are not really identifying
+ * the zone since we could be using the section number id if we do not have
+ * node id available in page flags.
+ * We only guarantee that it will return the same value for two combinable
+ * pages in a zone.
  */
 static inline int page_zone_id(struct page *page)
 {
