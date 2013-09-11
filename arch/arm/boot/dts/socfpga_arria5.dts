@@ -22,7 +22,7 @@
 	compatible = "altr,socfpga-arria5", "altr,socfpga";
 
 	chosen {
-		bootargs = "console=ttyS0,57600";
+		bootargs = "console=ttyS0,115200 root=/dev/mmcblk0p2 rw rootwait";
 	};
 
 	memory {

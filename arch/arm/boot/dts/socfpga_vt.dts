@@ -23,7 +23,7 @@
 	compatible = "altr,socfpga-vt", "altr,socfpga";
 
 	chosen {
-		bootargs = "console=ttyS0,57600";
+		bootargs = "console=ttyS0,115200";
 	};
 
 	memory {
