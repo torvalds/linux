@@ -152,6 +152,7 @@ static int __ocfs2_move_extent(handle_t *handle,
 	}
 
 out:
+	ocfs2_free_path(path);
 	return ret;
 }
 
