@@ -364,7 +364,7 @@ static ssize_t set_pwm1_enable(
 	if (config < 0) {
 			dev_err(&client->dev,
 			"Error reading configuration register, aborting.\n");
-			return -EIO;
+			return config;
 	}
 
 	switch (val) {
@@ -665,7 +665,7 @@ static ssize_t set_fan1_div(
 	if (config < 0) {
 		dev_err(&client->dev,
 			"Error reading configuration register, aborting.\n");
-		return -EIO;
+		return config;
 	}
 	mutex_lock(&data->update_lock);
 	switch (val) {
