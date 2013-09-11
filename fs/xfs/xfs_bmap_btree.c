@@ -957,9 +957,9 @@ xfs_bmbt_change_owner(
 	ASSERT(tp || buffer_list);
 	ASSERT(!(tp && buffer_list));
 	if (whichfork == XFS_DATA_FORK)
-		ASSERT(ip->i_d.di_format = XFS_DINODE_FMT_BTREE);
+		ASSERT(ip->i_d.di_format == XFS_DINODE_FMT_BTREE);
 	else
-		ASSERT(ip->i_d.di_aformat = XFS_DINODE_FMT_BTREE);
+		ASSERT(ip->i_d.di_aformat == XFS_DINODE_FMT_BTREE);
 
 	cur = xfs_bmbt_init_cursor(ip->i_mount, tp, ip, whichfork);
 	if (!cur)
