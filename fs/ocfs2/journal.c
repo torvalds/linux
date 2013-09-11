@@ -836,14 +836,14 @@ int ocfs2_journal_init(struct ocfs2_journal *journal, int *dirty)
 	inode_lock = 1;
 	di = (struct ocfs2_dinode *)bh->b_data;
 
-	if (inode->i_size <  OCFS2_MIN_JOURNAL_SIZE) {
+	if (i_size_read(inode) <  OCFS2_MIN_JOURNAL_SIZE) {
 		mlog(ML_ERROR, "Journal file size (%lld) is too small!\n",
-		     inode->i_size);
+		     i_size_read(inode));
 		status = -EINVAL;
 		goto done;
 	}
 
-	trace_ocfs2_journal_init(inode->i_size,
+	trace_ocfs2_journal_init(i_size_read(inode),
 				 (unsigned long long)inode->i_blocks,
 				 OCFS2_I(inode)->ip_clusters);
 
@@ -1131,7 +1131,7 @@ static int ocfs2_force_read_journal(struct inode *inode)
 
 	memset(bhs, 0, sizeof(struct buffer_head *) * CONCURRENT_JOURNAL_FILL);
 
-	num_blocks = ocfs2_blocks_for_bytes(inode->i_sb, inode->i_size);
+	num_blocks = ocfs2_blocks_for_bytes(inode->i_sb, i_size_read(inode));
 	v_blkno = 0;
 	while (v_blkno < num_blocks) {
 		status = ocfs2_extent_map_get_blocks(inode, v_blkno,

@@ -852,20 +852,20 @@ int ocfs2_seek_data_hole_offset(struct file *file, loff_t *offset, int whence)
 
 	down_read(&OCFS2_I(inode)->ip_alloc_sem);
 
-	if (*offset >= inode->i_size) {
+	if (*offset >= i_size_read(inode)) {
 		ret = -ENXIO;
 		goto out_unlock;
 	}
 
 	if (OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL) {
 		if (whence == SEEK_HOLE)
-			*offset = inode->i_size;
+			*offset = i_size_read(inode);
 		goto out_unlock;
 	}
 
 	clen = 0;
 	cpos = *offset >> cs_bits;
-	cend = ocfs2_clusters_for_bytes(inode->i_sb, inode->i_size);
+	cend = ocfs2_clusters_for_bytes(inode->i_sb, i_size_read(inode));
 
 	while (cpos < cend && !is_last) {
 		ret = ocfs2_get_clusters_nocache(inode, di_bh, cpos, &hole_size,
@@ -904,8 +904,8 @@ int ocfs2_seek_data_hole_offset(struct file *file, loff_t *offset, int whence)
 		extlen = clen;
 		extlen <<=  cs_bits;
 
-		if ((extoff + extlen) > inode->i_size)
-			extlen = inode->i_size - extoff;
+		if ((extoff + extlen) > i_size_read(inode))
+			extlen = i_size_read(inode) - extoff;
 		extoff += extlen;
 		if (extoff > *offset)
 			*offset = extoff;
