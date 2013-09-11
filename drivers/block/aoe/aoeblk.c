@@ -110,6 +110,24 @@ static ssize_t aoedisk_show_payload(struct device *dev,
 	return snprintf(page, PAGE_SIZE, "%lu\n", d->maxbcnt);
 }
 
+static int aoedisk_debugfs_show(struct seq_file *s, void *ignored)
+{
+	struct aoedev *d;
+	unsigned long flags;
+
+	d = s->private;
+	spin_lock_irqsave(&d->lock, flags);
+	seq_printf(s, "%s\n", d->gd->disk_name); /* place holder */
+	spin_unlock_irqrestore(&d->lock, flags);
+
+	return 0;
+}
+
+static int aoe_debugfs_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, aoedisk_debugfs_show, inode->i_private);
+}
+
 static DEVICE_ATTR(state, S_IRUGO, aoedisk_show_state, NULL);
 static DEVICE_ATTR(mac, S_IRUGO, aoedisk_show_mac, NULL);
 static DEVICE_ATTR(netif, S_IRUGO, aoedisk_show_netif, NULL);
@@ -132,7 +150,12 @@ static const struct attribute_group attr_group = {
 	.attrs = aoe_attrs,
 };
 
-static const struct file_operations aoe_debugfs_fops;
+static const struct file_operations aoe_debugfs_fops = {
+	.open = aoe_debugfs_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
 
 static void
 aoedisk_add_debugfs(struct aoedev *d)
