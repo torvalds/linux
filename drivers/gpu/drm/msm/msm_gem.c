@@ -437,12 +437,16 @@ int msm_gem_cpu_prep(struct drm_gem_object *obj, uint32_t op,
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	int ret = 0;
 
-	if (is_active(msm_obj) && !(op & MSM_PREP_NOSYNC)) {
+	if (is_active(msm_obj)) {
 		uint32_t fence = 0;
+
 		if (op & MSM_PREP_READ)
 			fence = msm_obj->write_fence;
 		if (op & MSM_PREP_WRITE)
 			fence = max(fence, msm_obj->read_fence);
+		if (op & MSM_PREP_NOSYNC)
+			timeout = NULL;
+
 		ret = msm_wait_fence_interruptable(dev, fence, timeout);
 	}
 

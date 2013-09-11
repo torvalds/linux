@@ -191,6 +191,12 @@ u32 msm_readl(const void __iomem *addr);
 #define DBG(fmt, ...) DRM_DEBUG(fmt"\n", ##__VA_ARGS__)
 #define VERB(fmt, ...) if (0) DRM_DEBUG(fmt"\n", ##__VA_ARGS__)
 
+static inline bool fence_completed(struct drm_device *dev, uint32_t fence)
+{
+	struct msm_drm_private *priv = dev->dev_private;
+	return priv->completed_fence >= fence;
+}
+
 static inline int align_pitch(int width, int bpp)
 {
 	int bytespp = (bpp + 7) / 8;
