@@ -810,7 +810,8 @@ static bool lvds_is_present_in_vbt(struct drm_device *dev,
 		return true;
 
 	for (i = 0; i < dev_priv->vbt.child_dev_num; i++) {
-		struct child_device_config *child = dev_priv->vbt.child_dev + i;
+		union child_device_config *uchild = dev_priv->vbt.child_dev + i;
+		struct old_child_dev_config *child = &uchild->old;
 
 		/* If the device type is not LFP, continue.
 		 * We have to check both the new identifiers as well as the

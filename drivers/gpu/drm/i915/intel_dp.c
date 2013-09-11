@@ -3227,7 +3227,7 @@ intel_trans_dp_port_sel(struct drm_crtc *crtc)
 bool intel_dpd_is_edp(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct child_device_config *p_child;
+	union child_device_config *p_child;
 	int i;
 
 	if (!dev_priv->vbt.child_dev_num)
@@ -3236,8 +3236,8 @@ bool intel_dpd_is_edp(struct drm_device *dev)
 	for (i = 0; i < dev_priv->vbt.child_dev_num; i++) {
 		p_child = dev_priv->vbt.child_dev + i;
 
-		if (p_child->dvo_port == PORT_IDPD &&
-		    p_child->device_type == DEVICE_TYPE_eDP)
+		if (p_child->common.dvo_port == PORT_IDPD &&
+		    p_child->common.device_type == DEVICE_TYPE_eDP)
 			return true;
 	}
 	return false;

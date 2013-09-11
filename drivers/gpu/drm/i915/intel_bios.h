@@ -202,7 +202,10 @@ struct bdb_general_features {
 #define DEVICE_PORT_DVOB	0x01
 #define DEVICE_PORT_DVOC	0x02
 
-struct child_device_config {
+/* We used to keep this struct but without any version control. We should avoid
+ * using it in the future, but it should be safe to keep using it in the old
+ * code. */
+struct old_child_dev_config {
 	u16 handle;
 	u16 device_type;
 	u8  device_id[10]; /* ascii string */
@@ -223,6 +226,32 @@ struct child_device_config {
 	u16 extended_type;
 	u8  dvo_function;
 } __attribute__((packed));
+
+/* This one contains field offsets that are known to be common for all BDB
+ * versions. Notice that the meaning of the contents contents may still change,
+ * but at least the offsets are consistent. */
+struct common_child_dev_config {
+	u16 handle;
+	u16 device_type;
+	u8 not_common1[12];
+	u8 dvo_port;
+	u8 not_common2[2];
+	u8 ddc_pin;
+	u16 edid_ptr;
+} __attribute__((packed));
+
+/* This field changes depending on the BDB version, so the most reliable way to
+ * read it is by checking the BDB version and reading the raw pointer. */
+union child_device_config {
+	/* This one is safe to be used anywhere, but the code should still check
+	 * the BDB version. */
+	u8 raw[33];
+	/* This one should only be kept for legacy code. */
+	struct old_child_dev_config old;
+	/* This one should also be safe to use anywhere, even without version
+	 * checks. */
+	struct common_child_dev_config common;
+};
 
 struct bdb_general_definitions {
 	/* DDC GPIO */
@@ -249,7 +278,7 @@ struct bdb_general_definitions {
 	 * number = (block_size - sizeof(bdb_general_definitions))/
 	 *	     sizeof(child_device_config);
 	 */
-	struct child_device_config devices[0];
+	union child_device_config devices[0];
 } __attribute__((packed));
 
 struct bdb_lvds_options {
