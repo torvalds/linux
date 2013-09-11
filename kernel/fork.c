@@ -1177,9 +1177,8 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	 * allow it to share a thread group or signal handlers with the
 	 * forking task.
 	 */
-	if ((clone_flags & (CLONE_SIGHAND | CLONE_NEWPID)) &&
-	    (task_active_pid_ns(current) !=
-	     current->nsproxy->pid_ns_for_children))
+	if ((clone_flags & CLONE_SIGHAND) && (task_active_pid_ns(current) !=
+					current->nsproxy->pid_ns_for_children))
 		return ERR_PTR(-EINVAL);
 
 	retval = security_task_create(clone_flags);
