@@ -1811,6 +1811,17 @@ L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/broadcom/bnx2x/
 
+BROADCOM BCM281XX/BCM11XXX ARM ARCHITECTURE
+M:	Christian Daudt <csd@broadcom.com>
+T:	git git://git.github.com/broadcom/bcm11351
+S:	Maintained
+F:	arch/arm/mach-bcm/
+F:	arch/arm/boot/dts/bcm113*
+F:	arch/arm/boot/dts/bcm281*
+F:	arch/arm/configs/bcm_defconfig
+F:	drivers/mmc/host/sdhci_bcm_kona.c
+F:	drivers/clocksource/bcm_kona_timer.c
+
 BROADCOM BCM2835 ARM ARCHICTURE
 M:	Stephen Warren <swarren@wwwdotorg.org>
 L:	linux-rpi-kernel@lists.infradead.org (moderated for non-subscribers)
