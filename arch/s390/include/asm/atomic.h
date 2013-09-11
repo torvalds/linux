@@ -19,7 +19,31 @@
 
 #define ATOMIC_INIT(i)  { (i) }
 
-#define __CS_LOOP(ptr, op_val, op_string) ({				\
+#ifdef CONFIG_HAVE_MARCH_Z196_FEATURES
+
+#define __ATOMIC_OR	"lao"
+#define __ATOMIC_AND	"lan"
+#define __ATOMIC_ADD	"laa"
+
+#define __ATOMIC_LOOP(ptr, op_val, op_string)				\
+({									\
+	int old_val;							\
+	asm volatile(							\
+		op_string "	%0,%2,%1\n"				\
+		: "=d" (old_val), "+Q" (((atomic_t *)(ptr))->counter)	\
+		: "d" (op_val)						\
+		: "cc", "memory");					\
+	old_val;							\
+})
+
+#else /* CONFIG_HAVE_MARCH_Z196_FEATURES */
+
+#define __ATOMIC_OR	"or"
+#define __ATOMIC_AND	"nr"
+#define __ATOMIC_ADD	"ar"
+
+#define __ATOMIC_LOOP(ptr, op_val, op_string)				\
+({									\
 	int old_val, new_val;						\
 	asm volatile(							\
 		"	l	%0,%2\n"				\
@@ -31,8 +55,10 @@
 		  "=Q" (((atomic_t *)(ptr))->counter)			\
 		: "d" (op_val),	 "Q" (((atomic_t *)(ptr))->counter)	\
 		: "cc", "memory");					\
-	new_val;							\
+	old_val;							\
 })
+
+#endif /* CONFIG_HAVE_MARCH_Z196_FEATURES */
 
 static inline int atomic_read(const atomic_t *v)
 {
@@ -53,8 +79,9 @@ static inline void atomic_set(atomic_t *v, int i)
 
 static inline int atomic_add_return(int i, atomic_t *v)
 {
-	return __CS_LOOP(v, i, "ar");
+	return __ATOMIC_LOOP(v, i, __ATOMIC_ADD) + i;
 }
+
 #define atomic_add(_i, _v)		atomic_add_return(_i, _v)
 #define atomic_add_negative(_i, _v)	(atomic_add_return(_i, _v) < 0)
 #define atomic_inc(_v)			atomic_add_return(1, _v)
@@ -69,12 +96,12 @@ static inline int atomic_add_return(int i, atomic_t *v)
 
 static inline void atomic_clear_mask(unsigned long mask, atomic_t *v)
 {
-	__CS_LOOP(v, ~mask, "nr");
+	__ATOMIC_LOOP(v, ~mask, __ATOMIC_AND);
 }
 
 static inline void atomic_set_mask(unsigned long mask, atomic_t *v)
 {
-	__CS_LOOP(v, mask, "or");
+	__ATOMIC_LOOP(v, mask, __ATOMIC_OR);
 }
 
 #define atomic_xchg(v, new) (xchg(&((v)->counter), new))
@@ -105,13 +132,37 @@ static inline int __atomic_add_unless(atomic_t *v, int a, int u)
 }
 
 
-#undef __CS_LOOP
+#undef __ATOMIC_LOOP
 
 #define ATOMIC64_INIT(i)  { (i) }
 
 #ifdef CONFIG_64BIT
 
-#define __CSG_LOOP(ptr, op_val, op_string) ({				\
+#ifdef CONFIG_HAVE_MARCH_Z196_FEATURES
+
+#define __ATOMIC64_OR	"laog"
+#define __ATOMIC64_AND	"lang"
+#define __ATOMIC64_ADD	"laag"
+
+#define __ATOMIC64_LOOP(ptr, op_val, op_string)				\
+({									\
+	long long old_val;						\
+	asm volatile(							\
+		op_string "	%0,%2,%1\n"				\
+		: "=d" (old_val), "+Q" (((atomic_t *)(ptr))->counter)	\
+		: "d" (op_val)						\
+		: "cc", "memory");					\
+	old_val;							\
+})
+
+#else /* CONFIG_HAVE_MARCH_Z196_FEATURES */
+
+#define __ATOMIC64_OR	"ogr"
+#define __ATOMIC64_AND	"ngr"
+#define __ATOMIC64_ADD	"agr"
+
+#define __ATOMIC64_LOOP(ptr, op_val, op_string)				\
+({									\
 	long long old_val, new_val;					\
 	asm volatile(							\
 		"	lg	%0,%2\n"				\
@@ -123,8 +174,10 @@ static inline int __atomic_add_unless(atomic_t *v, int a, int u)
 		  "=Q" (((atomic_t *)(ptr))->counter)			\
 		: "d" (op_val),	"Q" (((atomic_t *)(ptr))->counter)	\
 		: "cc", "memory");					\
-	new_val;							\
+	old_val;							\
 })
+
+#endif /* CONFIG_HAVE_MARCH_Z196_FEATURES */
 
 static inline long long atomic64_read(const atomic64_t *v)
 {
@@ -145,17 +198,17 @@ static inline void atomic64_set(atomic64_t *v, long long i)
 
 static inline long long atomic64_add_return(long long i, atomic64_t *v)
 {
-	return __CSG_LOOP(v, i, "agr");
+	return __ATOMIC64_LOOP(v, i, __ATOMIC64_ADD) + i;
 }
 
 static inline void atomic64_clear_mask(unsigned long mask, atomic64_t *v)
 {
-	__CSG_LOOP(v, ~mask, "ngr");
+	__ATOMIC64_LOOP(v, ~mask, __ATOMIC64_AND);
 }
 
 static inline void atomic64_set_mask(unsigned long mask, atomic64_t *v)
 {
-	__CSG_LOOP(v, mask, "ogr");
+	__ATOMIC64_LOOP(v, mask, __ATOMIC64_OR);
 }
 
 #define atomic64_xchg(v, new) (xchg(&((v)->counter), new))
@@ -171,7 +224,7 @@ static inline long long atomic64_cmpxchg(atomic64_t *v,
 	return old;
 }
 
-#undef __CSG_LOOP
+#undef __ATOMIC64_LOOP
 
 #else /* CONFIG_64BIT */
 
