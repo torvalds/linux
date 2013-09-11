@@ -493,7 +493,6 @@ struct et131x_adapter {
 	spinlock_t send_hw_lock;
 
 	spinlock_t rcv_lock;
-	spinlock_t rcv_pend_lock;
 	spinlock_t fbr_lock;
 
 	/* Packet Filter and look ahead size */
@@ -3924,7 +3923,6 @@ static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
 	spin_lock_init(&adapter->tcb_ready_qlock);
 	spin_lock_init(&adapter->send_hw_lock);
 	spin_lock_init(&adapter->rcv_lock);
-	spin_lock_init(&adapter->rcv_pend_lock);
 	spin_lock_init(&adapter->fbr_lock);
 
 	adapter->registry_jumbo_packet = 1514;	/* 1514-9216 */
