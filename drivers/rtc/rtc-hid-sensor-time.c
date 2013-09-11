@@ -23,10 +23,6 @@
 #include <linux/iio/iio.h>
 #include <linux/rtc.h>
 
-/* Format: HID-SENSOR-usage_id_in_hex */
-/* Usage ID from spec for Time: 0x2000A0 */
-#define DRIVER_NAME "HID-SENSOR-2000a0" /* must be lowercase */
-
 enum hid_time_channel {
 	CHANNEL_SCAN_INDEX_YEAR,
 	CHANNEL_SCAN_INDEX_MONTH,
@@ -300,9 +296,19 @@ static int hid_time_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static struct platform_device_id hid_time_ids[] = {
+	{
+		/* Format: HID-SENSOR-usage_id_in_hex_lowercase */
+		.name = "HID-SENSOR-2000a0",
+	},
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(platform, hid_time_ids);
+
 static struct platform_driver hid_time_platform_driver = {
+	.id_table = hid_time_ids,
 	.driver = {
-		.name	= DRIVER_NAME,
+		.name	= KBUILD_MODNAME,
 		.owner	= THIS_MODULE,
 	},
 	.probe		= hid_time_probe,
