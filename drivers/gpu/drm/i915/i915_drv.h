@@ -1090,7 +1090,7 @@ struct intel_vbt_data {
 	int crt_ddc_pin;
 
 	int child_dev_num;
-	struct child_device_config *child_dev;
+	union child_device_config *child_dev;
 };
 
 enum intel_ddb_partitioning {

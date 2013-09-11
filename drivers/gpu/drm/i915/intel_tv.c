@@ -1518,7 +1518,7 @@ static const struct drm_encoder_funcs intel_tv_enc_funcs = {
 static int tv_is_present_in_vbt(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct child_device_config *p_child;
+	union child_device_config *p_child;
 	int i, ret;
 
 	if (!dev_priv->vbt.child_dev_num)
@@ -1530,13 +1530,13 @@ static int tv_is_present_in_vbt(struct drm_device *dev)
 		/*
 		 * If the device type is not TV, continue.
 		 */
-		if (p_child->device_type != DEVICE_TYPE_INT_TV &&
-			p_child->device_type != DEVICE_TYPE_TV)
+		if (p_child->old.device_type != DEVICE_TYPE_INT_TV &&
+			p_child->old.device_type != DEVICE_TYPE_TV)
 			continue;
 		/* Only when the addin_offset is non-zero, it is regarded
 		 * as present.
 		 */
-		if (p_child->addin_offset) {
+		if (p_child->old.addin_offset) {
 			ret = 1;
 			break;
 		}
