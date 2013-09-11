@@ -416,11 +416,9 @@ static ssize_t get_temp_auto_point_temp(
 	case 1:
 		return sprintf(buf, "%d\n",
 			data->temp1_auto_point_temp[ix] * 1000);
-		break;
 	case 2:
 		return sprintf(buf, "%d\n",
 			data->temp2_auto_point_temp[ix] * 1000);
-		break;
 	default:
 		dev_dbg(dev, "Unknown attr->nr (%d).\n", nr);
 		return -EINVAL;
@@ -513,7 +511,6 @@ static ssize_t set_temp_auto_point_temp(
 				count = -EIO;
 		}
 		goto EXIT;
-		break;
 	case 1:
 		ptemp[1] = clamp_val(val / 1000, (ptemp[0] & 0x7C) + 4, 124);
 		ptemp[1] &= 0x7C;
