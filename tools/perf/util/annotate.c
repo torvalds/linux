@@ -1143,11 +1143,7 @@ static int symbol__get_source_line(struct symbol *sym, struct map *map,
 		if (getline(&path, &line_len, fp) < 0 || !line_len)
 			goto next_close;
 
-		src_line->path = malloc(sizeof(char) * line_len + 1);
-		if (!src_line->path)
-			goto next_close;
-
-		strcpy(src_line->path, path);
+		src_line->path = path;
 		insert_source_line(&tmp_root, src_line);
 
 	next_close:
