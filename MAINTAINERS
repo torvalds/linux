@@ -1028,7 +1028,7 @@ F:	arch/arm/mach-orion5x/ts78xx-*
 ARM/MICREL KS8695 ARCHITECTURE
 M:	Greg Ungerer <gerg@uclinux.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-F:	arch/arm/mach-ks8695
+F:	arch/arm/mach-ks8695/
 S:	Odd Fixes
 
 ARM/MIOA701 MACHINE SUPPORT
@@ -2042,10 +2042,10 @@ W:	http://ceph.com/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sage/ceph-client.git
 S:	Supported
 F:	Documentation/filesystems/ceph.txt
-F:	fs/ceph
-F:	net/ceph
-F:	include/linux/ceph
-F:	include/linux/crush
+F:	fs/ceph/
+F:	net/ceph/
+F:	include/linux/ceph/
+F:	include/linux/crush/
 
 CERTIFIED WIRELESS USB (WUSB) SUBSYSTEM:
 L:	linux-usb@vger.kernel.org
@@ -2342,7 +2342,7 @@ CPU POWER MONITORING SUBSYSTEM
 M:	Dominik Brodowski <linux@dominikbrodowski.net>
 M:	Thomas Renninger <trenn@suse.de>
 S:	Maintained
-F:	tools/power/cpupower
+F:	tools/power/cpupower/
 
 CPUSETS
 M:	Li Zefan <lizefan@huawei.com>
@@ -2780,7 +2780,7 @@ L:	intel-gfx@lists.freedesktop.org
 L:	dri-devel@lists.freedesktop.org
 T:	git git://people.freedesktop.org/~danvet/drm-intel
 S:	Supported
-F:	drivers/gpu/drm/i915
+F:	drivers/gpu/drm/i915/
 F:	include/drm/i915*
 F:	include/uapi/drm/i915*
 
@@ -2792,7 +2792,7 @@ M:	Kyungmin Park <kyungmin.park@samsung.com>
 L:	dri-devel@lists.freedesktop.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/daeinki/drm-exynos.git
 S:	Supported
-F:	drivers/gpu/drm/exynos
+F:	drivers/gpu/drm/exynos/
 F:	include/drm/exynos*
 F:	include/uapi/drm/exynos*
 
@@ -3651,8 +3651,8 @@ M:	Arnd Bergmann <arnd@arndb.de>
 L:	linux-arch@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/arnd/asm-generic.git
 S:	Maintained
-F:	include/asm-generic
-F:	include/uapi/asm-generic
+F:	include/asm-generic/
+F:	include/uapi/asm-generic/
 
 GENERIC UIO DRIVER FOR PCI DEVICES
 M:	"Michael S. Tsirkin" <mst@redhat.com>
@@ -3773,7 +3773,7 @@ L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
 W:	http://linuxtv.org
 S:	Odd Fixes
-F:	drivers/media/usb/hdpvr
+F:	drivers/media/usb/hdpvr/
 
 HWPOISON MEMORY FAILURE HANDLING
 M:	Andi Kleen <andi@firstfloor.org>
@@ -4581,7 +4581,7 @@ S:	Supported
 W:	http://www.openfabrics.org
 W:	www.open-iscsi.org
 Q:	http://patchwork.kernel.org/project/linux-rdma/list/
-F:	drivers/infiniband/ulp/iser
+F:	drivers/infiniband/ulp/iser/
 
 ISDN SUBSYSTEM
 M:	Karsten Keil <isdn@linux-pingi.de>
@@ -6142,7 +6142,7 @@ W:	http://openrisc.net
 L:	linux@lists.openrisc.net (moderated for non-subscribers)
 S:	Maintained
 T:	git git://openrisc.net/~jonas/linux
-F:	arch/openrisc
+F:	arch/openrisc/
 
 OPENVSWITCH
 M:	Jesse Gross <jesse@nicira.com>
@@ -6433,7 +6433,7 @@ M:	Jamie Iles <jamie@jamieiles.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 T:	git git://github.com/jamieiles/linux-2.6-ji.git
 S:	Supported
-F:	arch/arm/mach-picoxcell
+F:	arch/arm/mach-picoxcell/
 F:	drivers/*/picoxcell*
 F:	drivers/*/*/picoxcell*
 
@@ -6706,7 +6706,7 @@ F:	drivers/spi/spi-pxa2xx*
 F:	drivers/usb/gadget/pxa2*
 F:	include/sound/pxa2xx-lib.h
 F:	sound/arm/pxa*
-F:	sound/soc/pxa
+F:	sound/soc/pxa/
 
 MMP SUPPORT
 M:	Eric Miao <eric.y.miao@gmail.com>
@@ -7159,7 +7159,7 @@ SAMSUNG AUDIO (ASoC) DRIVERS
 M:	Sangbeom Kim <sbkim73@samsung.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Supported
-F:	sound/soc/samsung
+F:	sound/soc/samsung/
 
 SAMSUNG FRAMEBUFFER DRIVER
 M:	Jingoo Han <jg1.han@samsung.com>
@@ -7205,7 +7205,7 @@ SERIAL DRIVERS
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 L:	linux-serial@vger.kernel.org
 S:	Maintained
-F:	drivers/tty/serial
+F:	drivers/tty/serial/
 
 SYNOPSYS DESIGNWARE DMAC DRIVER
 M:	Viresh Kumar <viresh.linux@gmail.com>
@@ -7240,7 +7240,7 @@ TLG2300 VIDEO4LINUX-2 DRIVER
 M:	Huang Shijie <shijie8@gmail.com>
 M:	Hans Verkuil <hverkuil@xs4all.nl>
 S:	Odd Fixes
-F:	drivers/media/usb/tlg2300
+F:	drivers/media/usb/tlg2300/
 
 SC1200 WDT DRIVER
 M:	Zwane Mwaikambo <zwane@arm.linux.org.uk>
@@ -7512,7 +7512,7 @@ S:	Odd fixes
 F:	drivers/media/common/siano/
 F:	drivers/media/usb/siano/
 F:	drivers/media/usb/siano/
-F:	drivers/media/mmc/siano
+F:	drivers/media/mmc/siano/
 
 SH_VEU V4L2 MEM2MEM DRIVER
 M:	Guennadi Liakhovetski <g.liakhovetski@gmx.de>
@@ -7561,7 +7561,7 @@ L:	davinci-linux-open-source@linux.davincidsp.com (moderated for non-subscribers
 T:	git git://gitorious.org/linux-davinci/linux-davinci.git
 Q:	http://patchwork.kernel.org/project/linux-davinci/list/
 S:	Supported
-F:	arch/arm/mach-davinci
+F:	arch/arm/mach-davinci/
 F:	drivers/i2c/busses/i2c-davinci.c
 
 TI DAVINCI SERIES MEDIA DRIVER
@@ -7646,7 +7646,7 @@ SMIA AND SMIA++ IMAGE SENSOR DRIVER
 M:	Sakari Ailus <sakari.ailus@iki.fi>
 L:	linux-media@vger.kernel.org
 S:	Maintained
-F:	drivers/media/i2c/smiapp
+F:	drivers/media/i2c/smiapp/
 F:	include/media/smiapp.h
 F:	drivers/media/i2c/smiapp-pll.c
 F:	drivers/media/i2c/smiapp-pll.h
@@ -9314,7 +9314,7 @@ M:	Matthew Garrett <matthew.garrett@nebula.com>
 L:	platform-driver-x86@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mjg59/platform-drivers-x86.git
 S:	Maintained
-F:	drivers/platform/x86
+F:	drivers/platform/x86/
 
 X86 MCE INFRASTRUCTURE
 M:	Tony Luck <tony.luck@intel.com>
