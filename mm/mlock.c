@@ -303,8 +303,10 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
 			if (PageLRU(page)) {
 				lruvec = mem_cgroup_page_lruvec(page, zone);
 				lru = page_lru(page);
-
-				get_page(page);
+				/*
+				 * We already have pin from follow_page_mask()
+				 * so we can spare the get_page() here.
+				 */
 				ClearPageLRU(page);
 				del_page_from_lru_list(page, lruvec, lru);
 			} else {
@@ -336,24 +338,24 @@ skip_munlock:
 			lock_page(page);
 			if (!__putback_lru_fast_prepare(page, &pvec_putback,
 					&pgrescued)) {
-				/* Slow path */
+				/*
+				 * Slow path. We don't want to lose the last
+				 * pin before unlock_page()
+				 */
+				get_page(page); /* for putback_lru_page() */
 				__munlock_isolated_page(page);
 				unlock_page(page);
+				put_page(page); /* from follow_page_mask() */
 			}
 		}
 	}
 
-	/* Phase 3: page putback for pages that qualified for the fast path */
+	/*
+	 * Phase 3: page putback for pages that qualified for the fast path
+	 * This will also call put_page() to return pin from follow_page_mask()
+	 */
 	if (pagevec_count(&pvec_putback))
 		__putback_lru_fast(&pvec_putback, pgrescued);
-
-	/* Phase 4: put_page to return pin from follow_page_mask() */
-	for (i = 0; i < nr; i++) {
-		struct page *page = pvec->pages[i];
-
-		if (page)
-			put_page(page);
-	}
 
 	pagevec_reinit(pvec);
 }
