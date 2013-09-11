@@ -3416,6 +3416,7 @@ static int write_all_supers(struct btrfs_root *root, int max_mirrors)
 	if (total_errors > max_errors) {
 		printk(KERN_ERR "btrfs: %d errors while writing supers\n",
 		       total_errors);
+		mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
 
 		/* FUA is masked off if unsupported and can't be the reason */
 		btrfs_error(root->fs_info, -EIO,
