@@ -10,11 +10,13 @@
 int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 				int wait)
 {
+	unsigned long flags;
+
 	WARN_ON(cpu != 0);
 
-	local_irq_disable();
-	(func)(info);
-	local_irq_enable();
+	local_irq_save(flags);
+	func(info);
+	local_irq_restore(flags);
 
 	return 0;
 }
