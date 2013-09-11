@@ -2774,10 +2774,9 @@ static void et131x_handle_recv_interrupt(struct et131x_adapter *adapter)
 		adapter->net_stats.rx_packets++;
 
 		/* Set the status on the packet, either resources or success */
-		if (adapter->rx_ring.num_ready_recv < RFD_LOW_WATER_MARK) {
-			dev_warn(&adapter->pdev->dev,
-				    "RFD's are running out\n");
-		}
+		if (adapter->rx_ring.num_ready_recv < RFD_LOW_WATER_MARK)
+			dev_warn(&adapter->pdev->dev, "RFD's are running out\n");
+
 		count++;
 	}
 
@@ -3097,11 +3096,10 @@ static int send_packet(struct sk_buff *skb, struct et131x_adapter *adapter)
 		shbufva = (u16 *) skb->data;
 
 		if ((shbufva[0] == 0xffff) &&
-		    (shbufva[1] == 0xffff) && (shbufva[2] == 0xffff)) {
+		    (shbufva[1] == 0xffff) && (shbufva[2] == 0xffff))
 			tcb->flags |= FMP_DEST_BROAD;
-		} else if ((shbufva[0] & 0x3) == 0x0001) {
+		else if ((shbufva[0] & 0x3) == 0x0001)
 			tcb->flags |=  FMP_DEST_MULTI;
-		}
 	}
 
 	tcb->next = NULL;
