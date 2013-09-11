@@ -1059,14 +1059,14 @@ static void btree_node_free(struct btree *b)
 	mutex_unlock(&b->c->bucket_lock);
 }
 
-struct btree *bch_btree_node_alloc(struct cache_set *c, int level)
+struct btree *bch_btree_node_alloc(struct cache_set *c, int level, bool wait)
 {
 	BKEY_PADDED(key) k;
 	struct btree *b = ERR_PTR(-EAGAIN);
 
 	mutex_lock(&c->bucket_lock);
 retry:
-	if (__bch_bucket_alloc_set(c, WATERMARK_METADATA, &k.key, 1, true))
+	if (__bch_bucket_alloc_set(c, WATERMARK_METADATA, &k.key, 1, wait))
 		goto err;
 
 	bkey_put(c, &k.key);
@@ -1098,9 +1098,9 @@ err:
 	return b;
 }
 
-static struct btree *btree_node_alloc_replacement(struct btree *b)
+static struct btree *btree_node_alloc_replacement(struct btree *b, bool wait)
 {
-	struct btree *n = bch_btree_node_alloc(b->c, b->level);
+	struct btree *n = bch_btree_node_alloc(b->c, b->level, wait);
 	if (!IS_ERR_OR_NULL(n))
 		bch_btree_sort_into(b, n);
 
@@ -1250,7 +1250,7 @@ static int btree_gc_coalesce(struct btree *b, struct btree_op *op,
 		return 0;
 
 	for (i = 0; i < nodes; i++) {
-		new_nodes[i] = btree_node_alloc_replacement(r[i].b);
+		new_nodes[i] = btree_node_alloc_replacement(r[i].b, false);
 		if (IS_ERR_OR_NULL(new_nodes[i]))
 			goto out_nocoalesce;
 	}
@@ -1420,7 +1420,8 @@ static int btree_gc_recurse(struct btree *b, struct btree_op *op,
 		if (!IS_ERR(last->b)) {
 			should_rewrite = btree_gc_mark_node(last->b, gc);
 			if (should_rewrite) {
-				n = btree_node_alloc_replacement(last->b);
+				n = btree_node_alloc_replacement(last->b,
+								 false);
 
 				if (!IS_ERR_OR_NULL(n)) {
 					bch_btree_node_write_sync(n);
@@ -1492,7 +1493,7 @@ static int bch_btree_gc_root(struct btree *b, struct btree_op *op,
 
 	should_rewrite = btree_gc_mark_node(b, gc);
 	if (should_rewrite) {
-		n = btree_node_alloc_replacement(b);
+		n = btree_node_alloc_replacement(b, false);
 
 		if (!IS_ERR_OR_NULL(n)) {
 			bch_btree_node_write_sync(n);
@@ -2038,7 +2039,7 @@ static int btree_split(struct btree *b, struct btree_op *op,
 
 	closure_init_stack(&cl);
 
-	n1 = btree_node_alloc_replacement(b);
+	n1 = btree_node_alloc_replacement(b, true);
 	if (IS_ERR(n1))
 		goto err;
 
@@ -2049,12 +2050,12 @@ static int btree_split(struct btree *b, struct btree_op *op,
 
 		trace_bcache_btree_node_split(b, n1->sets[0].data->keys);
 
-		n2 = bch_btree_node_alloc(b->c, b->level);
+		n2 = bch_btree_node_alloc(b->c, b->level, true);
 		if (IS_ERR(n2))
 			goto err_free1;
 
 		if (!b->parent) {
-			n3 = bch_btree_node_alloc(b->c, b->level + 1);
+			n3 = bch_btree_node_alloc(b->c, b->level + 1, true);
 			if (IS_ERR(n3))
 				goto err_free2;
 		}
