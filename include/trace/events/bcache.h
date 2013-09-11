@@ -6,11 +6,9 @@
 
 #include <linux/tracepoint.h>
 
-struct search;
-
 DECLARE_EVENT_CLASS(bcache_request,
-	TP_PROTO(struct search *s, struct bio *bio),
-	TP_ARGS(s, bio),
+	TP_PROTO(struct bcache_device *d, struct bio *bio),
+	TP_ARGS(d, bio),
 
 	TP_STRUCT__entry(
 		__field(dev_t,		dev			)
@@ -24,8 +22,8 @@ DECLARE_EVENT_CLASS(bcache_request,
 
 	TP_fast_assign(
 		__entry->dev		= bio->bi_bdev->bd_dev;
-		__entry->orig_major	= s->d->disk->major;
-		__entry->orig_minor	= s->d->disk->first_minor;
+		__entry->orig_major	= d->disk->major;
+		__entry->orig_minor	= d->disk->first_minor;
 		__entry->sector		= bio->bi_sector;
 		__entry->orig_sector	= bio->bi_sector - 16;
 		__entry->nr_sector	= bio->bi_size >> 9;
@@ -79,13 +77,13 @@ DECLARE_EVENT_CLASS(btree_node,
 /* request.c */
 
 DEFINE_EVENT(bcache_request, bcache_request_start,
-	TP_PROTO(struct search *s, struct bio *bio),
-	TP_ARGS(s, bio)
+	TP_PROTO(struct bcache_device *d, struct bio *bio),
+	TP_ARGS(d, bio)
 );
 
 DEFINE_EVENT(bcache_request, bcache_request_end,
-	TP_PROTO(struct search *s, struct bio *bio),
-	TP_ARGS(s, bio)
+	TP_PROTO(struct bcache_device *d, struct bio *bio),
+	TP_ARGS(d, bio)
 );
 
 DECLARE_EVENT_CLASS(bcache_bio,

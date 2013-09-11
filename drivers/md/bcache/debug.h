@@ -29,12 +29,12 @@ void bch_check_keys(struct btree *, const char *, ...);
 #ifdef CONFIG_BCACHE_DEBUG
 
 void bch_btree_verify(struct btree *, struct bset *);
-void bch_data_verify(struct search *);
+void bch_data_verify(struct cached_dev *, struct bio *);
 
 #else /* DEBUG */
 
 static inline void bch_btree_verify(struct btree *b, struct bset *i) {}
-static inline void bch_data_verify(struct search *s) {};
+static inline void bch_data_verify(struct cached_dev *dc, struct bio *bio) {};
 
 #endif
 

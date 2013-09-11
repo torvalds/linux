@@ -8,7 +8,6 @@
 #include "bcache.h"
 #include "btree.h"
 #include "debug.h"
-#include "request.h"
 
 #include <linux/console.h>
 #include <linux/debugfs.h>
@@ -176,42 +175,25 @@ void bch_btree_verify(struct btree *b, struct bset *new)
 	mutex_unlock(&b->c->verify_lock);
 }
 
-static void data_verify_endio(struct bio *bio, int error)
-{
-	struct closure *cl = bio->bi_private;
-	closure_put(cl);
-}
-
-void bch_data_verify(struct search *s)
+void bch_data_verify(struct cached_dev *dc, struct bio *bio)
 {
 	char name[BDEVNAME_SIZE];
-	struct cached_dev *dc = container_of(s->d, struct cached_dev, disk);
-	struct closure *cl = &s->cl;
 	struct bio *check;
 	struct bio_vec *bv;
 	int i;
 
-	if (!s->unaligned_bvec)
-		bio_for_each_segment(bv, s->orig_bio, i)
-			bv->bv_offset = 0, bv->bv_len = PAGE_SIZE;
-
-	check = bio_clone(s->orig_bio, GFP_NOIO);
+	check = bio_clone(bio, GFP_NOIO);
 	if (!check)
 		return;
 
 	if (bio_alloc_pages(check, GFP_NOIO))
 		goto out_put;
 
-	check->bi_rw		= READ_SYNC;
-	check->bi_private	= cl;
-	check->bi_end_io	= data_verify_endio;
+	submit_bio_wait(READ_SYNC, check);
 
-	closure_bio_submit(check, cl, &dc->disk);
-	closure_sync(cl);
-
-	bio_for_each_segment(bv, s->orig_bio, i) {
-		void *p1 = kmap(bv->bv_page);
-		void *p2 = kmap(check->bi_io_vec[i].bv_page);
+	bio_for_each_segment(bv, bio, i) {
+		void *p1 = kmap_atomic(bv->bv_page);
+		void *p2 = page_address(check->bi_io_vec[i].bv_page);
 
 		if (memcmp(p1 + bv->bv_offset,
 			   p2 + bv->bv_offset,
@@ -219,13 +201,11 @@ void bch_data_verify(struct search *s)
 			printk(KERN_ERR
 			       "bcache (%s): verify failed at sector %llu\n",
 			       bdevname(dc->bdev, name),
-			       (uint64_t) s->orig_bio->bi_sector);
-
-		kunmap(bv->bv_page);
-		kunmap(check->bi_io_vec[i].bv_page);
+			       (uint64_t) bio->bi_sector);
+		kunmap_atomic(p1);
 	}
 
-	__bio_for_each_segment(bv, check, i, 0)
+	bio_for_each_segment_all(bv, check, i)
 		__free_page(bv->bv_page);
 out_put:
 	bio_put(check);
