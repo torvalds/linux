@@ -1756,9 +1756,6 @@ void bnx2x_iov_init_dq(struct bnx2x *bp)
 	REG_WR(bp, DORQ_REG_VF_TYPE_MIN_MCID_0, 0);
 	REG_WR(bp, DORQ_REG_VF_TYPE_MAX_MCID_0, 0x1ffff);
 
-	/* set the number of VF allowed doorbells to the full DQ range */
-	REG_WR(bp, DORQ_REG_VF_NORM_MAX_CID_COUNT, 0x20000);
-
 	/* set the VF doorbell threshold */
 	REG_WR(bp, DORQ_REG_VF_USAGE_CT_LIMIT, 4);
 }
