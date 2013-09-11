@@ -1529,7 +1529,6 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 				"Error sending %s: time out after %dms.\n",
 				get_cmd_string(trans_pcie, cmd->id),
 				jiffies_to_msecs(HOST_COMPLETE_TIMEOUT));
-			dump_stack();
 
 			IWL_ERR(trans,
 				"Current CMD queue read_ptr %d write_ptr %d\n",
@@ -1540,6 +1539,9 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 				       "Clearing HCMD_ACTIVE for command %s\n",
 				       get_cmd_string(trans_pcie, cmd->id));
 			ret = -ETIMEDOUT;
+
+			iwl_op_mode_nic_error(trans->op_mode);
+
 			goto cancel;
 		}
 	}
