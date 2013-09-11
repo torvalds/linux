@@ -210,45 +210,24 @@ out:
 		in6_dev_put(idev);
 }
 
-/* Based on tcp_v6_xmit() in tcp_ipv6.c. */
 static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport)
 {
 	struct sock *sk = skb->sk;
 	struct ipv6_pinfo *np = inet6_sk(sk);
-	struct flowi6 fl6;
-
-	memset(&fl6, 0, sizeof(fl6));
-
-	fl6.flowi6_proto = sk->sk_protocol;
-
-	/* Fill in the dest address from the route entry passed with the skb
-	 * and the source address from the transport.
-	 */
-	fl6.daddr = transport->ipaddr.v6.sin6_addr;
-	fl6.saddr = transport->saddr.v6.sin6_addr;
-
-	fl6.flowlabel = np->flow_label;
-	IP6_ECN_flow_xmit(sk, fl6.flowlabel);
-	if (ipv6_addr_type(&fl6.saddr) & IPV6_ADDR_LINKLOCAL)
-		fl6.flowi6_oif = transport->saddr.v6.sin6_scope_id;
-	else
-		fl6.flowi6_oif = sk->sk_bound_dev_if;
-
-	if (np->opt && np->opt->srcrt) {
-		struct rt0_hdr *rt0 = (struct rt0_hdr *) np->opt->srcrt;
-		fl6.daddr = *rt0->addr;
-	}
+	struct flowi6 *fl6 = &transport->fl.u.ip6;
 
 	SCTP_DEBUG_PRINTK("%s: skb:%p, len:%d, src:%pI6 dst:%pI6\n",
 			  __func__, skb, skb->len,
-			  &fl6.saddr, &fl6.daddr);
+			  &fl6->saddr, &fl6->daddr);
 
-	SCTP_INC_STATS(sock_net(sk), SCTP_MIB_OUTSCTPPACKS);
+	IP6_ECN_flow_xmit(sk, fl6->flowlabel);
 
 	if (!(transport->param_flags & SPP_PMTUD_ENABLE))
 		skb->local_df = 1;
 
-	return ip6_xmit(sk, skb, &fl6, np->opt, np->tclass);
+	SCTP_INC_STATS(sock_net(sk), SCTP_MIB_OUTSCTPPACKS);
+
+	return ip6_xmit(sk, skb, fl6, np->opt, np->tclass);
 }
 
 /* Returns the dst cache entry for the given source and destination ip
@@ -261,10 +240,12 @@ static void sctp_v6_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 	struct dst_entry *dst = NULL;
 	struct flowi6 *fl6 = &fl->u.ip6;
 	struct sctp_bind_addr *bp;
+	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct sctp_sockaddr_entry *laddr;
 	union sctp_addr *baddr = NULL;
 	union sctp_addr *daddr = &t->ipaddr;
 	union sctp_addr dst_saddr;
+	struct in6_addr *final_p, final;
 	__u8 matchlen = 0;
 	__u8 bmatchlen;
 	sctp_scope_t scope;
@@ -287,7 +268,8 @@ static void sctp_v6_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 		SCTP_DEBUG_PRINTK("SRC=%pI6 - ", &fl6->saddr);
 	}
 
-	dst = ip6_dst_lookup_flow(sk, fl6, NULL, false);
+	final_p = fl6_update_dst(fl6, np->opt, &final);
+	dst = ip6_dst_lookup_flow(sk, fl6, final_p, false);
 	if (!asoc || saddr)
 		goto out;
 
@@ -339,10 +321,12 @@ static void sctp_v6_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 		}
 	}
 	rcu_read_unlock();
+
 	if (baddr) {
 		fl6->saddr = baddr->v6.sin6_addr;
 		fl6->fl6_sport = baddr->v6.sin6_port;
-		dst = ip6_dst_lookup_flow(sk, fl6, NULL, false);
+		final_p = fl6_update_dst(fl6, np->opt, &final);
+		dst = ip6_dst_lookup_flow(sk, fl6, final_p, false);
 	}
 
 out:
