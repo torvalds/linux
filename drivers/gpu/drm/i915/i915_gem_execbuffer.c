@@ -549,9 +549,15 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 {
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
+	struct i915_address_space *vm;
 	struct list_head ordered_vmas;
 	bool has_fenced_gpu_access = INTEL_INFO(ring->dev)->gen < 4;
 	int retry;
+
+	if (list_empty(vmas))
+		return 0;
+
+	vm = list_first_entry(vmas, struct i915_vma, exec_list)->vm;
 
 	INIT_LIST_HEAD(&ordered_vmas);
 	while (!list_empty(vmas)) {
@@ -641,7 +647,7 @@ err:		/* Decrement pin count for bound objects */
 		if (ret != -ENOSPC || retry++)
 			return ret;
 
-		ret = i915_gem_evict_everything(ring->dev);
+		ret = i915_gem_evict_vm(vm, true);
 		if (ret)
 			return ret;
 	} while (1);

@@ -116,7 +116,7 @@ none:
 	}
 
 	/* We expect the caller to unpin, evict all and try again, or give up.
-	 * So calling i915_gem_evict_everything() is unnecessary.
+	 * So calling i915_gem_evict_vm() is unnecessary.
 	 */
 	return -ENOSPC;
 
@@ -155,7 +155,22 @@ found:
 	return ret;
 }
 
-static int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle)
+/**
+ * i915_gem_evict_vm - Try to free up VM space
+ *
+ * @vm: Address space to evict from
+ * @do_idle: Boolean directing whether to idle first.
+ *
+ * VM eviction is about freeing up virtual address space. If one wants fine
+ * grained eviction, they should see evict something for more details. In terms
+ * of freeing up actual system memory, this function may not accomplish the
+ * desired result. An object may be shared in multiple address space, and this
+ * function will not assert those objects be freed.
+ *
+ * Using do_idle will result in a more complete eviction because it retires, and
+ * inactivates current BOs.
+ */
+int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle)
 {
 	struct i915_vma *vma, *next;
 	int ret;
