@@ -62,8 +62,6 @@ static const char * __init dmi_string(const struct dmi_header *dm, u8 s)
 	str = dmi_alloc(len);
 	if (str != NULL)
 		strcpy(str, bp);
-	else
-		pr_err("dmi_string: cannot allocate %Zu bytes.\n", len);
 
 	return str;
 }
@@ -219,10 +217,8 @@ static void __init dmi_save_one_device(int type, const char *name)
 		return;
 
 	dev = dmi_alloc(sizeof(*dev) + strlen(name) + 1);
-	if (!dev) {
-		pr_err("dmi_save_one_device: out of memory.\n");
+	if (!dev)
 		return;
-	}
 
 	dev->type = type;
 	strcpy((char *)(dev + 1), name);
@@ -258,10 +254,8 @@ static void __init dmi_save_oem_strings_devices(const struct dmi_header *dm)
 			continue;
 
 		dev = dmi_alloc(sizeof(*dev));
-		if (!dev) {
-			pr_err("dmi_save_oem_strings_devices: out of memory.\n");
+		if (!dev)
 			break;
-		}
 
 		dev->type = DMI_DEV_TYPE_OEM_STRING;
 		dev->name = devname;
@@ -277,18 +271,14 @@ static void __init dmi_save_ipmi_device(const struct dmi_header *dm)
 	void *data;
 
 	data = dmi_alloc(dm->length);
-	if (data == NULL) {
-		pr_err("dmi_save_ipmi_device: out of memory.\n");
+	if (data == NULL)
 		return;
-	}
 
 	memcpy(data, dm, dm->length);
 
 	dev = dmi_alloc(sizeof(*dev));
-	if (!dev) {
-		pr_err("dmi_save_ipmi_device: out of memory.\n");
+	if (!dev)
 		return;
-	}
 
 	dev->type = DMI_DEV_TYPE_IPMI;
 	dev->name = "IPMI controller";
@@ -303,10 +293,9 @@ static void __init dmi_save_dev_onboard(int instance, int segment, int bus,
 	struct dmi_dev_onboard *onboard_dev;
 
 	onboard_dev = dmi_alloc(sizeof(*onboard_dev) + strlen(name) + 1);
-	if (!onboard_dev) {
-		pr_err("dmi_save_dev_onboard: out of memory.\n");
+	if (!onboard_dev)
 		return;
-	}
+
 	onboard_dev->instance = instance;
 	onboard_dev->segment = segment;
 	onboard_dev->bus = bus;
