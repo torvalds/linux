@@ -103,6 +103,7 @@ static void flush_tlb_func(void *info)
 	if (f->flush_mm != this_cpu_read(cpu_tlbstate.active_mm))
 		return;
 
+	count_vm_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
 	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK) {
 		if (f->flush_end == TLB_FLUSH_ALL)
 			local_flush_tlb();
@@ -130,6 +131,7 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
 	info.flush_start = start;
 	info.flush_end = end;
 
+	count_vm_event(NR_TLB_REMOTE_FLUSH);
 	if (is_uv_system()) {
 		unsigned int cpu;
 
@@ -149,6 +151,7 @@ void flush_tlb_current_task(void)
 
 	preempt_disable();
 
+	count_vm_event(NR_TLB_LOCAL_FLUSH_ALL);
 	local_flush_tlb();
 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
 		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
@@ -211,16 +214,19 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
 	act_entries = mm->total_vm > tlb_entries ? tlb_entries : mm->total_vm;
 
 	/* tlb_flushall_shift is on balance point, details in commit log */
-	if ((end - start) >> PAGE_SHIFT > act_entries >> tlb_flushall_shift)
+	if ((end - start) >> PAGE_SHIFT > act_entries >> tlb_flushall_shift) {
+		count_vm_event(NR_TLB_LOCAL_FLUSH_ALL);
 		local_flush_tlb();
-	else {
+	} else {
 		if (has_large_page(mm, start, end)) {
 			local_flush_tlb();
 			goto flush_all;
 		}
 		/* flush range by one by one 'invlpg' */
-		for (addr = start; addr < end;	addr += PAGE_SIZE)
+		for (addr = start; addr < end;	addr += PAGE_SIZE) {
+			count_vm_event(NR_TLB_LOCAL_FLUSH_ONE);
 			__flush_tlb_single(addr);
+		}
 
 		if (cpumask_any_but(mm_cpumask(mm),
 				smp_processor_id()) < nr_cpu_ids)
@@ -256,6 +262,7 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long start)
 
 static void do_flush_tlb_all(void *info)
 {
+	count_vm_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
 	__flush_tlb_all();
 	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_LAZY)
 		leave_mm(smp_processor_id());
@@ -263,6 +270,7 @@ static void do_flush_tlb_all(void *info)
 
 void flush_tlb_all(void)
 {
+	count_vm_event(NR_TLB_REMOTE_FLUSH);
 	on_each_cpu(do_flush_tlb_all, NULL, 1);
 }
 
@@ -272,8 +280,10 @@ static void do_kernel_range_flush(void *info)
 	unsigned long addr;
 
 	/* flush range by one by one 'invlpg' */
-	for (addr = f->flush_start; addr < f->flush_end; addr += PAGE_SIZE)
+	for (addr = f->flush_start; addr < f->flush_end; addr += PAGE_SIZE) {
+		count_vm_event(NR_TLB_LOCAL_FLUSH_ONE_KERNEL);
 		__flush_tlb_single(addr);
+	}
 }
 
 void flush_tlb_kernel_range(unsigned long start, unsigned long end)
