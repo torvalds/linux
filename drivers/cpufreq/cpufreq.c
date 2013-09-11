@@ -947,6 +947,18 @@ static void cpufreq_policy_free(struct cpufreq_policy *policy)
 	kfree(policy);
 }
 
+static void update_policy_cpu(struct cpufreq_policy *policy, unsigned int cpu)
+{
+	policy->last_cpu = policy->cpu;
+	policy->cpu = cpu;
+
+#ifdef CONFIG_CPU_FREQ_TABLE
+	cpufreq_frequency_table_update_policy_cpu(policy);
+#endif
+	blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
+			CPUFREQ_UPDATE_POLICY_CPU, policy);
+}
+
 static int __cpufreq_add_dev(struct device *dev, struct subsys_interface *sif,
 			     bool frozen)
 {
@@ -1000,7 +1012,18 @@ static int __cpufreq_add_dev(struct device *dev, struct subsys_interface *sif,
 	if (!policy)
 		goto nomem_out;
 
-	policy->cpu = cpu;
+
+	/*
+	 * In the resume path, since we restore a saved policy, the assignment
+	 * to policy->cpu is like an update of the existing policy, rather than
+	 * the creation of a brand new one. So we need to perform this update
+	 * by invoking update_policy_cpu().
+	 */
+	if (frozen && cpu != policy->cpu)
+		update_policy_cpu(policy, cpu);
+	else
+		policy->cpu = cpu;
+
 	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 	cpumask_copy(policy->cpus, cpumask_of(cpu));
 
@@ -1090,18 +1113,6 @@ nomem_out:
 static int cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 {
 	return __cpufreq_add_dev(dev, sif, false);
-}
-
-static void update_policy_cpu(struct cpufreq_policy *policy, unsigned int cpu)
-{
-	policy->last_cpu = policy->cpu;
-	policy->cpu = cpu;
-
-#ifdef CONFIG_CPU_FREQ_TABLE
-	cpufreq_frequency_table_update_policy_cpu(policy);
-#endif
-	blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
-			CPUFREQ_UPDATE_POLICY_CPU, policy);
 }
 
 static int cpufreq_nominate_new_policy_cpu(struct cpufreq_policy *policy,
