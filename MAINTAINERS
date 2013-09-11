@@ -7624,6 +7624,14 @@ S:	Maintained
 F:	Documentation/security/Smack.txt
 F:	security/smack/
 
+SMARTREFLEX DRIVERS FOR ADAPTIVE VOLTAGE SCALING (AVS)
+M:	Kevin Hilman <khilman@kernel.org>
+M:	Nishanth Menon <nm@ti.com>
+S:	Maintained
+F:	drivers/power/avs/smartreflex.c
+F:	include/linux/power/smartreflex.h
+L:	linux-pm@vger.kernel.org
+
 SMC91x ETHERNET DRIVER
 M:	Nicolas Pitre <nico@fluxnic.net>
 S:	Odd Fixes
