@@ -361,7 +361,7 @@ static int madvise_hwpoison(int bhv, unsigned long start, unsigned long end)
 				page_to_pfn(p), start);
 			ret = soft_offline_page(p, MF_COUNT_INCREASED);
 			if (ret)
-				break;
+				return ret;
 			continue;
 		}
 		pr_info("Injecting memory failure for page %#lx at %#lx\n",
