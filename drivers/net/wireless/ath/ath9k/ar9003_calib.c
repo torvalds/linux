@@ -1019,6 +1019,7 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 	bool is_reusable = true, status = true;
 	bool run_rtt_cal = false, run_agc_cal, sep_iq_cal = false;
 	bool rtt = !!(ah->caps.hw_caps & ATH9K_HW_CAP_RTT);
+	u32 rx_delay = 0;
 	u32 agc_ctrl = 0, agc_supp_cals = AR_PHY_AGC_CONTROL_OFFSET_CAL |
 					  AR_PHY_AGC_CONTROL_FLTR_CAL   |
 					  AR_PHY_AGC_CONTROL_PKDET_CAL;
@@ -1099,6 +1100,15 @@ skip_tx_iqcal:
 		REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_EN);
 	}
 
+	if (REG_READ(ah, AR_PHY_CL_CAL_CTL) & AR_PHY_CL_CAL_ENABLE) {
+		rx_delay = REG_READ(ah, AR_PHY_RX_DELAY);
+		/* Disable BB_active */
+		REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_DIS);
+		udelay(5);
+		REG_WRITE(ah, AR_PHY_RX_DELAY, AR_PHY_RX_DELAY_DELAY);
+		REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_EN);
+	}
+
 	if (run_agc_cal || !(ah->ah_flags & AH_FASTCC)) {
 		/* Calibrate the AGC */
 		REG_WRITE(ah, AR_PHY_AGC_CONTROL,
@@ -1111,6 +1121,11 @@ skip_tx_iqcal:
 				       0, AH_WAIT_TIMEOUT);
 
 		ar9003_hw_do_manual_peak_cal(ah, chan);
+	}
+
+	if (REG_READ(ah, AR_PHY_CL_CAL_CTL) & AR_PHY_CL_CAL_ENABLE) {
+		REG_WRITE(ah, AR_PHY_RX_DELAY, rx_delay);
+		udelay(5);
 	}
 
 	if (ath9k_hw_mci_is_enabled(ah) && IS_CHAN_2GHZ(chan) && run_agc_cal)
