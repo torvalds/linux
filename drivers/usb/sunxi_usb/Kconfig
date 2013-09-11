@@ -28,6 +28,7 @@ choice
 
     prompt "USB0 Controller support"
     depends on (USB_SW_SUNXI_USB && USB_SW_SUNXI_USB_MANAGER)
+    default USB_SW_SUNXI_USB0_OTG
     help
         usb0 Controller mode select. choice "device only", then usb0 can only use for device.
         choice "host only", then usb0 can only use for host. choice "OTG", then usb0 can only
@@ -44,14 +45,14 @@ config USB_SW_SUNXI_USB0_HOST_ONLY
 
 config USB_SW_SUNXI_USB0_OTG
     boolean "otg support"
-    depends on USB_SW_SUNXI_UDC0
     select USB_SW_SUNXI_HCD0
+    select USB_SW_SUNXI_UDC0
     help
         usb0 can only use for device and host.
 
 config USB_SW_SUNXI_USB0_DEVICE_ONLY
     boolean "device only support"
-    depends on USB_SW_SUNXI_UDC0
+    select USB_SW_SUNXI_UDC0
     help
         usb0 can only use for device.
 
