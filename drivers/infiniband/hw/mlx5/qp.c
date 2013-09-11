@@ -1661,29 +1661,6 @@ static __always_inline void set_raddr_seg(struct mlx5_wqe_raddr_seg *rseg,
 	rseg->reserved = 0;
 }
 
-static void set_atomic_seg(struct mlx5_wqe_atomic_seg *aseg, struct ib_send_wr *wr)
-{
-	if (wr->opcode == IB_WR_ATOMIC_CMP_AND_SWP) {
-		aseg->swap_add = cpu_to_be64(wr->wr.atomic.swap);
-		aseg->compare  = cpu_to_be64(wr->wr.atomic.compare_add);
-	} else if (wr->opcode == IB_WR_MASKED_ATOMIC_FETCH_AND_ADD) {
-		aseg->swap_add = cpu_to_be64(wr->wr.atomic.compare_add);
-		aseg->compare  = cpu_to_be64(wr->wr.atomic.compare_add_mask);
-	} else {
-		aseg->swap_add = cpu_to_be64(wr->wr.atomic.compare_add);
-		aseg->compare  = 0;
-	}
-}
-
-static void set_masked_atomic_seg(struct mlx5_wqe_masked_atomic_seg *aseg,
-				  struct ib_send_wr *wr)
-{
-	aseg->swap_add		= cpu_to_be64(wr->wr.atomic.swap);
-	aseg->swap_add_mask	= cpu_to_be64(wr->wr.atomic.swap_mask);
-	aseg->compare		= cpu_to_be64(wr->wr.atomic.compare_add);
-	aseg->compare_mask	= cpu_to_be64(wr->wr.atomic.compare_add_mask);
-}
-
 static void set_datagram_seg(struct mlx5_wqe_datagram_seg *dseg,
 			     struct ib_send_wr *wr)
 {
@@ -2073,28 +2050,11 @@ int mlx5_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 
 			case IB_WR_ATOMIC_CMP_AND_SWP:
 			case IB_WR_ATOMIC_FETCH_AND_ADD:
-				set_raddr_seg(seg, wr->wr.atomic.remote_addr,
-					      wr->wr.atomic.rkey);
-				seg  += sizeof(struct mlx5_wqe_raddr_seg);
-
-				set_atomic_seg(seg, wr);
-				seg  += sizeof(struct mlx5_wqe_atomic_seg);
-
-				size += (sizeof(struct mlx5_wqe_raddr_seg) +
-					 sizeof(struct mlx5_wqe_atomic_seg)) / 16;
-				break;
-
 			case IB_WR_MASKED_ATOMIC_CMP_AND_SWP:
-				set_raddr_seg(seg, wr->wr.atomic.remote_addr,
-					      wr->wr.atomic.rkey);
-				seg  += sizeof(struct mlx5_wqe_raddr_seg);
-
-				set_masked_atomic_seg(seg, wr);
-				seg  += sizeof(struct mlx5_wqe_masked_atomic_seg);
-
-				size += (sizeof(struct mlx5_wqe_raddr_seg) +
-					 sizeof(struct mlx5_wqe_masked_atomic_seg)) / 16;
-				break;
+				mlx5_ib_warn(dev, "Atomic operations are not supported yet\n");
+				err = -ENOSYS;
+				*bad_wr = wr;
+				goto out;
 
 			case IB_WR_LOCAL_INV:
 				next_fence = MLX5_FENCE_MODE_INITIATOR_SMALL;

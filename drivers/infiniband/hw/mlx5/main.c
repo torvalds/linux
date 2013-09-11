@@ -301,9 +301,8 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	props->max_srq_sge	   = max_rq_sg - 1;
 	props->max_fast_reg_page_list_len = (unsigned int)-1;
 	props->local_ca_ack_delay  = dev->mdev.caps.local_ca_ack_delay;
-	props->atomic_cap	   = dev->mdev.caps.flags & MLX5_DEV_CAP_FLAG_ATOMIC ?
-		IB_ATOMIC_HCA : IB_ATOMIC_NONE;
-	props->masked_atomic_cap   = IB_ATOMIC_HCA;
+	props->atomic_cap	   = IB_ATOMIC_NONE;
+	props->masked_atomic_cap   = IB_ATOMIC_NONE;
 	props->max_pkeys	   = be16_to_cpup((__be16 *)(out_mad->data + 28));
 	props->max_mcast_grp	   = 1 << dev->mdev.caps.log_max_mcg;
 	props->max_mcast_qp_attach = dev->mdev.caps.max_qp_mcg;
