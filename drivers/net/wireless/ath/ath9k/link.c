@@ -184,7 +184,7 @@ static void ath_paprd_activate(struct ath_softc *sc)
 	struct ath9k_hw_cal_data *caldata = ah->caldata;
 	int chain;
 
-	if (!caldata || !caldata->paprd_done) {
+	if (!caldata || !test_bit(PAPRD_DONE, &caldata->cal_flags)) {
 		ath_dbg(common, CALIBRATE, "Failed to activate PAPRD\n");
 		return;
 	}
@@ -256,7 +256,9 @@ void ath_paprd_calibrate(struct work_struct *work)
 	int len = 1800;
 	int ret;
 
-	if (!caldata || !caldata->paprd_packet_sent || caldata->paprd_done) {
+	if (!caldata ||
+	    !test_bit(PAPRD_PACKET_SENT, &caldata->cal_flags) ||
+	    test_bit(PAPRD_DONE, &caldata->cal_flags)) {
 		ath_dbg(common, CALIBRATE, "Skipping PAPRD calibration\n");
 		return;
 	}
@@ -316,7 +318,7 @@ void ath_paprd_calibrate(struct work_struct *work)
 	kfree_skb(skb);
 
 	if (chain_ok) {
-		caldata->paprd_done = true;
+		set_bit(PAPRD_DONE, &caldata->cal_flags);
 		ath_paprd_activate(sc);
 	}
 
@@ -343,7 +345,7 @@ void ath_ani_calibrate(unsigned long data)
 	u32 cal_interval, short_cal_interval, long_cal_interval;
 	unsigned long flags;
 
-	if (ah->caldata && ah->caldata->nfcal_interference)
+	if (ah->caldata && test_bit(NFCAL_INTF, &ah->caldata->cal_flags))
 		long_cal_interval = ATH_LONG_CALINTERVAL_INT;
 	else
 		long_cal_interval = ATH_LONG_CALINTERVAL;
@@ -432,7 +434,7 @@ set_timer:
 	mod_timer(&common->ani.timer, jiffies + msecs_to_jiffies(cal_interval));
 
 	if (ar9003_is_paprd_enabled(ah) && ah->caldata) {
-		if (!ah->caldata->paprd_done) {
+		if (!test_bit(PAPRD_DONE, &ah->caldata->cal_flags)) {
 			ieee80211_queue_work(sc->hw, &sc->paprd_work);
 		} else if (!ah->paprd_table_write_done) {
 			ath9k_ps_wakeup(sc);

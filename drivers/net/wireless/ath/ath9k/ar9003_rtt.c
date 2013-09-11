@@ -161,7 +161,7 @@ void ar9003_hw_rtt_fill_hist(struct ath_hw *ah)
 		}
 	}
 
-	ah->caldata->rtt_done = true;
+	set_bit(RTT_DONE, &ah->caldata->cal_flags);
 }
 
 void ar9003_hw_rtt_clear_hist(struct ath_hw *ah)
@@ -176,7 +176,7 @@ void ar9003_hw_rtt_clear_hist(struct ath_hw *ah)
 	}
 
 	if (ah->caldata)
-		ah->caldata->rtt_done = false;
+		clear_bit(RTT_DONE, &ah->caldata->cal_flags);
 }
 
 bool ar9003_hw_rtt_restore(struct ath_hw *ah, struct ath9k_channel *chan)
@@ -186,7 +186,7 @@ bool ar9003_hw_rtt_restore(struct ath_hw *ah, struct ath9k_channel *chan)
 	if (!ah->caldata)
 		return false;
 
-	if (!ah->caldata->rtt_done)
+	if (!test_bit(RTT_DONE, &ah->caldata->cal_flags))
 		return false;
 
 	ar9003_hw_rtt_enable(ah);

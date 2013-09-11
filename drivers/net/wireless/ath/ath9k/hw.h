@@ -404,20 +404,24 @@ enum ath9k_int {
 #define MAX_CL_TAB_ENTRY	16
 #define CL_TAB_ENTRY(reg_base)	(reg_base + (4 * j))
 
+enum ath9k_cal_flags {
+	RTT_DONE,
+	PAPRD_PACKET_SENT,
+	PAPRD_DONE,
+	NFCAL_PENDING,
+	NFCAL_INTF,
+	TXIQCAL_DONE,
+	TXCLCAL_DONE,
+};
+
 struct ath9k_hw_cal_data {
 	u16 channel;
 	u32 channelFlags;
 	u32 chanmode;
+	unsigned long cal_flags;
 	int32_t CalValid;
 	int8_t iCoff;
 	int8_t qCoff;
-	bool rtt_done;
-	bool paprd_packet_sent;
-	bool paprd_done;
-	bool nfcal_pending;
-	bool nfcal_interference;
-	bool done_txiqcal_once;
-	bool done_txclcal_once;
 	u16 small_signal_gain[AR9300_MAX_CHAINS];
 	u32 pa_table[AR9300_MAX_CHAINS][PAPRD_TABLE_SZ];
 	u32 num_measures[AR9300_MAX_CHAINS];

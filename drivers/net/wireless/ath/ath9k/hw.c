@@ -1847,9 +1847,9 @@ static int ath9k_hw_do_fastcc(struct ath_hw *ah, struct ath9k_channel *chan)
 	 * re-using are present.
 	 */
 	if (AR_SREV_9462(ah) && (ah->caldata &&
-				 (!ah->caldata->done_txiqcal_once ||
-				  !ah->caldata->done_txclcal_once ||
-				  !ah->caldata->rtt_done)))
+				 (!test_bit(TXIQCAL_DONE, &ah->caldata->cal_flags) ||
+				  !test_bit(TXCLCAL_DONE, &ah->caldata->cal_flags) ||
+				  !test_bit(RTT_DONE, &ah->caldata->cal_flags))))
 		goto fail;
 
 	ath_dbg(common, RESET, "FastChannelChange for %d -> %d\n",
@@ -1905,7 +1905,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		memset(caldata, 0, sizeof(*caldata));
 		ath9k_init_nfcal_hist_buffer(ah, chan);
 	} else if (caldata) {
-		caldata->paprd_packet_sent = false;
+		clear_bit(PAPRD_PACKET_SENT, &caldata->cal_flags);
 	}
 	ah->noise = ath9k_hw_getchan_noise(ah, chan);
 
@@ -2042,8 +2042,8 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	ath9k_hw_init_bb(ah, chan);
 
 	if (caldata) {
-		caldata->done_txiqcal_once = false;
-		caldata->done_txclcal_once = false;
+		clear_bit(TXIQCAL_DONE, &caldata->cal_flags);
+		clear_bit(TXCLCAL_DONE, &caldata->cal_flags);
 	}
 	if (!ath9k_hw_init_cal(ah, chan))
 		return -EIO;

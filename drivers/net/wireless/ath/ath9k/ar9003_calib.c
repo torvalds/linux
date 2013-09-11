@@ -727,8 +727,12 @@ static void ar9003_hw_tx_iqcal_load_avg_2_passes(struct ath_hw *ah,
 	REG_RMW_FIELD(ah, AR_PHY_RX_IQCAL_CORR_B0,
 		      AR_PHY_RX_IQCAL_CORR_B0_LOOPBACK_IQCORR_EN, 0x1);
 
-	if (caldata)
-		caldata->done_txiqcal_once = is_reusable;
+	if (caldata) {
+		if (is_reusable)
+			set_bit(TXIQCAL_DONE, &caldata->cal_flags);
+		else
+			clear_bit(TXIQCAL_DONE, &caldata->cal_flags);
+	}
 
 	return;
 }
@@ -990,7 +994,7 @@ static void ar9003_hw_cl_cal_post_proc(struct ath_hw *ah, bool is_reusable)
 	txclcal_done = !!(REG_READ(ah, AR_PHY_AGC_CONTROL) &
 			  AR_PHY_AGC_CONTROL_CLC_SUCCESS);
 
-	if (caldata->done_txclcal_once) {
+	if (test_bit(TXCLCAL_DONE, &caldata->cal_flags)) {
 		for (i = 0; i < AR9300_MAX_CHAINS; i++) {
 			if (!(ah->txchainmask & (1 << i)))
 				continue;
@@ -1006,7 +1010,7 @@ static void ar9003_hw_cl_cal_post_proc(struct ath_hw *ah, bool is_reusable)
 				caldata->tx_clcal[i][j] =
 					REG_READ(ah, CL_TAB_ENTRY(cl_idx[i]));
 		}
-		caldata->done_txclcal_once = true;
+		set_bit(TXCLCAL_DONE, &caldata->cal_flags);
 	}
 }
 
@@ -1053,7 +1057,7 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 	}
 
 	if (ah->enabled_cals & TX_CL_CAL) {
-		if (caldata && caldata->done_txclcal_once)
+		if (caldata && test_bit(TXCLCAL_DONE, &caldata->cal_flags))
 			REG_CLR_BIT(ah, AR_PHY_CL_CAL_CTL,
 				    AR_PHY_CL_CAL_ENABLE);
 		else {
@@ -1077,14 +1081,14 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 	 * AGC calibration
 	 */
 	if (ah->enabled_cals & TX_IQ_ON_AGC_CAL) {
-		if (caldata && !caldata->done_txiqcal_once)
+		if (caldata && !test_bit(TXIQCAL_DONE, &caldata->cal_flags))
 			REG_SET_BIT(ah, AR_PHY_TX_IQCAL_CONTROL_0,
 				    AR_PHY_TX_IQCAL_CONTROL_0_ENABLE_TXIQ_CAL);
 		else
 			REG_CLR_BIT(ah, AR_PHY_TX_IQCAL_CONTROL_0,
 				    AR_PHY_TX_IQCAL_CONTROL_0_ENABLE_TXIQ_CAL);
 		txiqcal_done = run_agc_cal = true;
-	} else if (caldata && !caldata->done_txiqcal_once) {
+	} else if (caldata && !test_bit(TXIQCAL_DONE, &caldata->cal_flags)) {
 		run_agc_cal = true;
 		sep_iq_cal = true;
 	}
@@ -1148,7 +1152,7 @@ skip_tx_iqcal:
 
 	if (txiqcal_done)
 		ar9003_hw_tx_iq_cal_post_proc(ah, is_reusable);
-	else if (caldata && caldata->done_txiqcal_once)
+	else if (caldata && test_bit(TXIQCAL_DONE, &caldata->cal_flags))
 		ar9003_hw_tx_iq_cal_reload(ah);
 
 	ar9003_hw_cl_cal_post_proc(ah, is_reusable);
