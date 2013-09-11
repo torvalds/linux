@@ -695,8 +695,8 @@ static void search_conf(void)
 	int dres;
 
 	title = str_new();
-	str_printf( &title, _("Enter %s (sub)string or regexp to search for "
-			      "(with or without \"%s\")"), CONFIG_, CONFIG_);
+	str_printf( &title, _("Enter (sub)string or regexp to search for "
+			      "(with or without \"%s\")"), CONFIG_);
 
 again:
 	dres = dialog_inputbox(main_window,

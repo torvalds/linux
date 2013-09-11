@@ -1670,6 +1670,7 @@ config BASE_SMALL
 
 menuconfig MODULES
 	bool "Enable loadable module support"
+	option modules
 	help
 	  Kernel modules are small pieces of compiled code which can
 	  be inserted in the running kernel, rather than being
