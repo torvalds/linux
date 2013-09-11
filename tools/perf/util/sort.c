@@ -259,9 +259,6 @@ static int hist_entry__srcline_snprintf(struct hist_entry *self, char *bf,
 	if (!self->ms.map)
 		goto out_ip;
 
-	if (!strncmp(self->ms.map->dso->long_name, "/tmp/perf-", 10))
-		goto out_ip;
-
 	path = get_srcline(self->ms.map->dso->long_name, self->ip);
 	self->srcline = path;
 

@@ -57,11 +57,17 @@ char *get_srcline(const char *dso_name, unsigned long addr)
 {
 	char *file;
 	unsigned line;
-	char *srcline;
+	char *srcline = SRCLINE_UNKNOWN;
 	size_t size;
 
+	if (dso_name[0] == '[')
+		goto out;
+
+	if (!strncmp(dso_name, "/tmp/perf-", 10))
+		goto out;
+
 	if (!addr2line(dso_name, addr, &file, &line))
-		return SRCLINE_UNKNOWN;
+		goto out;
 
 	/* just calculate actual length */
 	size = snprintf(NULL, 0, "%s:%u", file, line) + 1;
@@ -73,6 +79,7 @@ char *get_srcline(const char *dso_name, unsigned long addr)
 		srcline = SRCLINE_UNKNOWN;
 
 	free(file);
+out:
 	return srcline;
 }
 
