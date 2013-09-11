@@ -1544,6 +1544,7 @@ sub process {
 	my %suppress_export;
 	my $suppress_statement = 0;
 
+	my %signatures = ();
 
 	# Pre-scan the patch sanitizing the lines.
 	# Pre-scan the patch looking for any __setup documentation.
@@ -1792,6 +1793,17 @@ sub process {
 					WARN("BAD_SIGN_OFF",
 					     "email address '$email' might be better as '$suggested_email$comment'\n" . $herecurr);
 				}
+			}
+
+# Check for duplicate signatures
+			my $sig_nospace = $line;
+			$sig_nospace =~ s/\s//g;
+			$sig_nospace = lc($sig_nospace);
+			if (defined $signatures{$sig_nospace}) {
+				WARN("BAD_SIGN_OFF",
+				     "Duplicate signature\n" . $herecurr);
+			} else {
+				$signatures{$sig_nospace} = 1;
 			}
 		}
 
