@@ -1290,6 +1290,11 @@ static enum mlx5_qp_optpar opt_mask[MLX5_QP_NUM_STATE][MLX5_QP_NUM_STATE][MLX5_Q
 					  MLX5_QP_OPTPAR_Q_KEY,
 			[MLX5_QP_ST_MLX] = MLX5_QP_OPTPAR_PKEY_INDEX	|
 					   MLX5_QP_OPTPAR_Q_KEY,
+			[MLX5_QP_ST_XRC] = MLX5_QP_OPTPAR_ALT_ADDR_PATH |
+					  MLX5_QP_OPTPAR_RRE            |
+					  MLX5_QP_OPTPAR_RAE            |
+					  MLX5_QP_OPTPAR_RWE            |
+					  MLX5_QP_OPTPAR_PKEY_INDEX,
 		},
 	},
 	[MLX5_QP_STATE_RTR] = {
@@ -1325,6 +1330,10 @@ static enum mlx5_qp_optpar opt_mask[MLX5_QP_NUM_STATE][MLX5_QP_NUM_STATE][MLX5_Q
 			[MLX5_QP_ST_UD]	 = MLX5_QP_OPTPAR_Q_KEY,
 			[MLX5_QP_ST_MLX] = MLX5_QP_OPTPAR_Q_KEY,
 			[MLX5_QP_ST_UC]	 = MLX5_QP_OPTPAR_RWE,
+			[MLX5_QP_ST_RC]	 = MLX5_QP_OPTPAR_RNR_TIMEOUT	|
+					   MLX5_QP_OPTPAR_RWE		|
+					   MLX5_QP_OPTPAR_RAE		|
+					   MLX5_QP_OPTPAR_RRE,
 		},
 	},
 };
