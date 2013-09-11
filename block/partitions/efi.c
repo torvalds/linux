@@ -410,7 +410,12 @@ static int is_gpt_valid(struct parsed_partitions *state, u64 lba,
 			 (unsigned long long)lastlba);
 		goto fail;
 	}
-
+	if (le64_to_cpu((*gpt)->last_usable_lba) < le64_to_cpu((*gpt)->first_usable_lba)) {
+		pr_debug("GPT: last_usable_lba incorrect: %lld > %lld\n",
+			 (unsigned long long)le64_to_cpu((*gpt)->last_usable_lba),
+			 (unsigned long long)le64_to_cpu((*gpt)->first_usable_lba));
+		goto fail;
+	}
 	/* Check that sizeof_partition_entry has the correct value */
 	if (le32_to_cpu((*gpt)->sizeof_partition_entry) != sizeof(gpt_entry)) {
 		pr_debug("GUID Partitition Entry Size check failed.\n");
