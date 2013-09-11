@@ -25,6 +25,9 @@
  * TODO:
  *
  * Changelog:
+ * Mon August 5th, 2013 Davidlohr Bueso <davidlohr@hp.com>
+ * - detect hybrid MBRs, tighter pMBR checking & cleanups.
+ *
  * Mon Nov 09 2004 Matt Domsch <Matt_Domsch@dell.com>
  * - test for valid PMBR and valid PGPT before ever reading
  *   AGPT, allow override with 'gpt' kernel command line option.
@@ -289,8 +292,7 @@ static gpt_entry *alloc_read_gpt_entries(struct parsed_partitions *state,
 		return NULL;
 
 	if (read_lba(state, le64_to_cpu(gpt->partition_entry_lba),
-                     (u8 *) pte,
-		     count) < count) {
+			(u8 *) pte, count) < count) {
 		kfree(pte);
                 pte=NULL;
 		return NULL;
@@ -633,11 +635,8 @@ static int find_valid_gpt(struct parsed_partitions *state, gpt_header **gpt,
                 *ptes = pptes;
                 kfree(agpt);
                 kfree(aptes);
-                if (!good_agpt) {
-                        printk(KERN_WARNING 
-			       "Alternate GPT is invalid, "
-                               "using primary GPT.\n");
-                }
+		if (!good_agpt)
+                        printk(KERN_WARNING "Alternate GPT is invalid, using primary GPT.\n");
                 return 1;
         }
         else if (good_agpt) {
@@ -645,8 +644,7 @@ static int find_valid_gpt(struct parsed_partitions *state, gpt_header **gpt,
                 *ptes = aptes;
                 kfree(pgpt);
                 kfree(pptes);
-                printk(KERN_WARNING 
-                       "Primary GPT is invalid, using alternate GPT.\n");
+		printk(KERN_WARNING "Primary GPT is invalid, using alternate GPT.\n");
                 return 1;
         }
 
@@ -708,8 +706,7 @@ int efi_partition(struct parsed_partitions *state)
 		put_partition(state, i+1, start * ssz, size * ssz);
 
 		/* If this is a RAID volume, tell md */
-		if (!efi_guidcmp(ptes[i].partition_type_guid,
-				 PARTITION_LINUX_RAID_GUID))
+		if (!efi_guidcmp(ptes[i].partition_type_guid, PARTITION_LINUX_RAID_GUID))
 			state->parts[i + 1].flags = ADDPART_FLAG_RAID;
 
 		info = &state->parts[i + 1].info;
