@@ -651,7 +651,10 @@ ssize_t spk_var_store(struct kobject *kobj, struct kobj_attribute *attr,
 		* If voice was just changed, we might need to reset our default
 		* pitch and volume.
 		*/
-		if (param->var_id == VOICE) {
+		if (param->var_id == VOICE && synth &&
+		    (ret == 0 || ret == -ERESTART)) {
+			var_data = param->data;
+			value = var_data->u.n.value;
 			spk_reset_default_value("pitch", synth->default_pitch,
 				value);
 			spk_reset_default_value("vol", synth->default_vol,
