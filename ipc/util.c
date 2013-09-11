@@ -119,7 +119,7 @@ __initcall(ipc_init);
  
 void ipc_init_ids(struct ipc_ids *ids)
 {
-	init_rwsem(&ids->rw_mutex);
+	init_rwsem(&ids->rwsem);
 
 	ids->in_use = 0;
 	ids->seq = 0;
@@ -174,7 +174,7 @@ void __init ipc_init_proc_interface(const char *path, const char *header,
  *	@ids: Identifier set
  *	@key: The key to find
  *	
- *	Requires ipc_ids.rw_mutex locked.
+ *	Requires ipc_ids.rwsem locked.
  *	Returns the LOCKED pointer to the ipc structure if found or NULL
  *	if not.
  *	If key is found ipc points to the owning ipc structure
@@ -208,7 +208,7 @@ static struct kern_ipc_perm *ipc_findkey(struct ipc_ids *ids, key_t key)
  *	ipc_get_maxid 	-	get the last assigned id
  *	@ids: IPC identifier set
  *
- *	Called with ipc_ids.rw_mutex held.
+ *	Called with ipc_ids.rwsem held.
  */
 
 int ipc_get_maxid(struct ipc_ids *ids)
@@ -246,7 +246,7 @@ int ipc_get_maxid(struct ipc_ids *ids)
  *	is returned. The 'new' entry is returned in a locked state on success.
  *	On failure the entry is not locked and a negative err-code is returned.
  *
- *	Called with writer ipc_ids.rw_mutex held.
+ *	Called with writer ipc_ids.rwsem held.
  */
 int ipc_addid(struct ipc_ids* ids, struct kern_ipc_perm* new, int size)
 {
@@ -312,9 +312,9 @@ static int ipcget_new(struct ipc_namespace *ns, struct ipc_ids *ids,
 {
 	int err;
 
-	down_write(&ids->rw_mutex);
+	down_write(&ids->rwsem);
 	err = ops->getnew(ns, params);
-	up_write(&ids->rw_mutex);
+	up_write(&ids->rwsem);
 	return err;
 }
 
@@ -331,7 +331,7 @@ static int ipcget_new(struct ipc_namespace *ns, struct ipc_ids *ids,
  *
  *	On success, the IPC id is returned.
  *
- *	It is called with ipc_ids.rw_mutex and ipcp->lock held.
+ *	It is called with ipc_ids.rwsem and ipcp->lock held.
  */
 static int ipc_check_perms(struct ipc_namespace *ns,
 			   struct kern_ipc_perm *ipcp,
@@ -376,7 +376,7 @@ static int ipcget_public(struct ipc_namespace *ns, struct ipc_ids *ids,
 	 * Take the lock as a writer since we are potentially going to add
 	 * a new entry + read locks are not "upgradable"
 	 */
-	down_write(&ids->rw_mutex);
+	down_write(&ids->rwsem);
 	ipcp = ipc_findkey(ids, params->key);
 	if (ipcp == NULL) {
 		/* key not used */
@@ -402,7 +402,7 @@ static int ipcget_public(struct ipc_namespace *ns, struct ipc_ids *ids,
 		}
 		ipc_unlock(ipcp);
 	}
-	up_write(&ids->rw_mutex);
+	up_write(&ids->rwsem);
 
 	return err;
 }
@@ -413,7 +413,7 @@ static int ipcget_public(struct ipc_namespace *ns, struct ipc_ids *ids,
  *	@ids: IPC identifier set
  *	@ipcp: ipc perm structure containing the identifier to remove
  *
- *	ipc_ids.rw_mutex (as a writer) and the spinlock for this ID are held
+ *	ipc_ids.rwsem (as a writer) and the spinlock for this ID are held
  *	before this function is called, and remain locked on the exit.
  */
  
@@ -621,7 +621,7 @@ struct kern_ipc_perm *ipc_obtain_object(struct ipc_ids *ids, int id)
 }
 
 /**
- * ipc_lock - Lock an ipc structure without rw_mutex held
+ * ipc_lock - Lock an ipc structure without rwsem held
  * @ids: IPC identifier set
  * @id: ipc id to look for
  *
@@ -748,7 +748,7 @@ int ipc_update_perm(struct ipc64_perm *in, struct kern_ipc_perm *out)
  *  - performs some audit and permission check, depending on the given cmd
  *  - returns a pointer to the ipc object or otherwise, the corresponding error.
  *
- * Call holding the both the rw_mutex and the rcu read lock.
+ * Call holding the both the rwsem and the rcu read lock.
  */
 struct kern_ipc_perm *ipcctl_pre_down_nolock(struct ipc_namespace *ns,
 					struct ipc_ids *ids, int id, int cmd,
@@ -868,7 +868,7 @@ static void *sysvipc_proc_start(struct seq_file *s, loff_t *pos)
 	 * Take the lock - this will be released by the corresponding
 	 * call to stop().
 	 */
-	down_read(&ids->rw_mutex);
+	down_read(&ids->rwsem);
 
 	/* pos < 0 is invalid */
 	if (*pos < 0)
@@ -895,7 +895,7 @@ static void sysvipc_proc_stop(struct seq_file *s, void *it)
 
 	ids = &iter->ns->ids[iface->ids];
 	/* Release the lock we took in start() */
-	up_read(&ids->rw_mutex);
+	up_read(&ids->rwsem);
 }
 
 static int sysvipc_proc_show(struct seq_file *s, void *it)
