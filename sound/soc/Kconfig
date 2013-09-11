@@ -51,6 +51,7 @@ source "sound/soc/txx9/Kconfig"
 config SOUND_SUNXI
        tristate "SOUND driver for sunxi"
        depends on (ARCH_SUN4I || ARCH_SUN5I || ARCH_SUN7I)
+	default y
        help
          SOUND driver for sunxi
          

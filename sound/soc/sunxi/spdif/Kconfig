@@ -1,5 +1,3 @@
-
 config SND_SUNXI_SOC_SPDIF
 	tristate "sun4i and sun5i On-Chip spdif"
-	default n
-
+	default m
