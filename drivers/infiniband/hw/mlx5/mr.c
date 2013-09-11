@@ -42,6 +42,10 @@ enum {
 	DEF_CACHE_SIZE	= 10,
 };
 
+enum {
+	MLX5_UMR_ALIGN	= 2048
+};
+
 static __be64 *mr_align(__be64 *ptr, int align)
 {
 	unsigned long mask = align - 1;
@@ -671,12 +675,12 @@ static struct mlx5_ib_mr *reg_umr(struct ib_pd *pd, struct ib_umem *umem,
 	if (!mr)
 		return ERR_PTR(-EAGAIN);
 
-	mr->pas = kmalloc(size + 0x3f, GFP_KERNEL);
+	mr->pas = kmalloc(size + MLX5_UMR_ALIGN - 1, GFP_KERNEL);
 	if (!mr->pas) {
 		err = -ENOMEM;
 		goto error;
 	}
-	mr->dma = dma_map_single(ddev, mr_align(mr->pas, 0x40), size,
+	mr->dma = dma_map_single(ddev, mr_align(mr->pas, MLX5_UMR_ALIGN), size,
 				 DMA_TO_DEVICE);
 	if (dma_mapping_error(ddev, mr->dma)) {
 		kfree(mr->pas);
@@ -684,7 +688,8 @@ static struct mlx5_ib_mr *reg_umr(struct ib_pd *pd, struct ib_umem *umem,
 		goto error;
 	}
 
-	mlx5_ib_populate_pas(dev, umem, page_shift, mr_align(mr->pas, 0x40), 1);
+	mlx5_ib_populate_pas(dev, umem, page_shift,
+			     mr_align(mr->pas, MLX5_UMR_ALIGN), 1);
 
 	memset(&wr, 0, sizeof(wr));
 	wr.wr_id = (u64)(unsigned long)mr;
