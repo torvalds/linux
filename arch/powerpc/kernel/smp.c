@@ -611,6 +611,7 @@ int cpu_to_chip_id(int cpu)
 	of_node_put(np);
 	return of_get_ibm_chip_id(np);
 }
+EXPORT_SYMBOL(cpu_to_chip_id);
 
 /* Helper routines for cpu to core mapping */
 int cpu_core_index_of_thread(int cpu)
