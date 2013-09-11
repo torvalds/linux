@@ -455,6 +455,41 @@ bail:
 	return status;
 }
 
+/*
+ * If we have fewer than thresh credits, extend by OCFS2_MAX_TRANS_DATA.
+ * If that fails, restart the transaction & regain write access for the
+ * buffer head which is used for metadata modifications.
+ * Taken from Ext4: extend_or_restart_transaction()
+ */
+int ocfs2_allocate_extend_trans(handle_t *handle, int thresh)
+{
+	int status, old_nblks;
+
+	BUG_ON(!handle);
+
+	old_nblks = handle->h_buffer_credits;
+	trace_ocfs2_allocate_extend_trans(old_nblks, thresh);
+
+	if (old_nblks < thresh)
+		return 0;
+
+	status = jbd2_journal_extend(handle, OCFS2_MAX_TRANS_DATA);
+	if (status < 0) {
+		mlog_errno(status);
+		goto bail;
+	}
+
+	if (status > 0) {
+		status = jbd2_journal_restart(handle, OCFS2_MAX_TRANS_DATA);
+		if (status < 0)
+			mlog_errno(status);
+	}
+
+bail:
+	return status;
+}
+
+
 struct ocfs2_triggers {
 	struct jbd2_buffer_trigger_type	ot_triggers;
 	int				ot_offset;
