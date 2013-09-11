@@ -1202,7 +1202,6 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
 			unsigned long *populate)
 {
 	struct mm_struct * mm = current->mm;
-	struct inode *inode;
 	vm_flags_t vm_flags;
 
 	*populate = 0;
@@ -1265,9 +1264,9 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
 			return -EAGAIN;
 	}
 
-	inode = file ? file_inode(file) : NULL;
-
 	if (file) {
+		struct inode *inode = file_inode(file);
+
 		switch (flags & MAP_TYPE) {
 		case MAP_SHARED:
 			if ((prot&PROT_WRITE) && !(file->f_mode&FMODE_WRITE))
