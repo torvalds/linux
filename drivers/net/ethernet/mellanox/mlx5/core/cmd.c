@@ -180,28 +180,32 @@ static int verify_block_sig(struct mlx5_cmd_prot_block *block)
 	return 0;
 }
 
-static void calc_block_sig(struct mlx5_cmd_prot_block *block, u8 token)
+static void calc_block_sig(struct mlx5_cmd_prot_block *block, u8 token,
+			   int csum)
 {
 	block->token = token;
-	block->ctrl_sig = ~xor8_buf(block->rsvd0, sizeof(*block) - sizeof(block->data) - 2);
-	block->sig = ~xor8_buf(block, sizeof(*block) - 1);
+	if (csum) {
+		block->ctrl_sig = ~xor8_buf(block->rsvd0, sizeof(*block) -
+					    sizeof(block->data) - 2);
+		block->sig = ~xor8_buf(block, sizeof(*block) - 1);
+	}
 }
 
-static void calc_chain_sig(struct mlx5_cmd_msg *msg, u8 token)
+static void calc_chain_sig(struct mlx5_cmd_msg *msg, u8 token, int csum)
 {
 	struct mlx5_cmd_mailbox *next = msg->next;
 
 	while (next) {
-		calc_block_sig(next->buf, token);
+		calc_block_sig(next->buf, token, csum);
 		next = next->next;
 	}
 }
 
-static void set_signature(struct mlx5_cmd_work_ent *ent)
+static void set_signature(struct mlx5_cmd_work_ent *ent, int csum)
 {
 	ent->lay->sig = ~xor8_buf(ent->lay, sizeof(*ent->lay));
-	calc_chain_sig(ent->in, ent->token);
-	calc_chain_sig(ent->out, ent->token);
+	calc_chain_sig(ent->in, ent->token, csum);
+	calc_chain_sig(ent->out, ent->token, csum);
 }
 
 static void poll_timeout(struct mlx5_cmd_work_ent *ent)
@@ -539,8 +543,7 @@ static void cmd_work_handler(struct work_struct *work)
 	lay->type = MLX5_PCI_CMD_XPORT;
 	lay->token = ent->token;
 	lay->status_own = CMD_OWNER_HW;
-	if (!cmd->checksum_disabled)
-		set_signature(ent);
+	set_signature(ent, !cmd->checksum_disabled);
 	dump_command(dev, ent, 1);
 	ktime_get_ts(&ent->ts1);
 
@@ -773,8 +776,6 @@ static int mlx5_copy_from_msg(void *to, struct mlx5_cmd_msg *from, int size)
 
 		copy = min_t(int, size, MLX5_CMD_DATA_BLOCK_SIZE);
 		block = next->buf;
-		if (xor8_buf(block, sizeof(*block)) != 0xff)
-			return -EINVAL;
 
 		memcpy(to, block->data, copy);
 		to += copy;
@@ -1361,6 +1362,7 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 		goto err_map;
 	}
 
+	cmd->checksum_disabled = 1;
 	cmd->max_reg_cmds = (1 << cmd->log_sz) - 1;
 	cmd->bitmask = (1 << cmd->max_reg_cmds) - 1;
 

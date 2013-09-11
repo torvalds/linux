@@ -747,8 +747,7 @@ static inline u32 mlx5_idx_to_mkey(u32 mkey_idx)
 
 enum {
 	MLX5_PROF_MASK_QP_SIZE		= (u64)1 << 0,
-	MLX5_PROF_MASK_CMDIF_CSUM	= (u64)1 << 1,
-	MLX5_PROF_MASK_MR_CACHE		= (u64)1 << 2,
+	MLX5_PROF_MASK_MR_CACHE		= (u64)1 << 1,
 };
 
 enum {
@@ -758,7 +757,6 @@ enum {
 struct mlx5_profile {
 	u64	mask;
 	u32	log_max_qp;
-	int	cmdif_csum;
 	struct {
 		int	size;
 		int	limit;

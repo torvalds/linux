@@ -165,9 +165,7 @@ static int handle_hca_cap(struct mlx5_core_dev *dev)
 	struct mlx5_cmd_set_hca_cap_mbox_in *set_ctx = NULL;
 	struct mlx5_cmd_query_hca_cap_mbox_in query_ctx;
 	struct mlx5_cmd_set_hca_cap_mbox_out set_out;
-	struct mlx5_profile *prof = dev->profile;
 	u64 flags;
-	int csum = 1;
 	int err;
 
 	memset(&query_ctx, 0, sizeof(query_ctx));
@@ -197,20 +195,14 @@ static int handle_hca_cap(struct mlx5_core_dev *dev)
 	memcpy(&set_ctx->hca_cap, &query_out->hca_cap,
 	       sizeof(set_ctx->hca_cap));
 
-	if (prof->mask & MLX5_PROF_MASK_CMDIF_CSUM) {
-		csum = !!prof->cmdif_csum;
-		flags = be64_to_cpu(set_ctx->hca_cap.flags);
-		if (csum)
-			flags |= MLX5_DEV_CAP_FLAG_CMDIF_CSUM;
-		else
-			flags &= ~MLX5_DEV_CAP_FLAG_CMDIF_CSUM;
-
-		set_ctx->hca_cap.flags = cpu_to_be64(flags);
-	}
-
 	if (dev->profile->mask & MLX5_PROF_MASK_QP_SIZE)
 		set_ctx->hca_cap.log_max_qp = dev->profile->log_max_qp;
 
+	flags = be64_to_cpu(query_out->hca_cap.flags);
+	/* disable checksum */
+	flags &= ~MLX5_DEV_CAP_FLAG_CMDIF_CSUM;
+
+	set_ctx->hca_cap.flags = cpu_to_be64(flags);
 	memset(&set_out, 0, sizeof(set_out));
 	set_ctx->hca_cap.log_uar_page_sz = cpu_to_be16(PAGE_SHIFT - 12);
 	set_ctx->hdr.opcode = cpu_to_be16(MLX5_CMD_OP_SET_HCA_CAP);
@@ -224,9 +216,6 @@ static int handle_hca_cap(struct mlx5_core_dev *dev)
 	err = mlx5_cmd_status_to_err(&set_out.hdr);
 	if (err)
 		goto query_ex;
-
-	if (!csum)
-		dev->cmd.checksum_disabled = 1;
 
 query_ex:
 	kfree(query_out);
