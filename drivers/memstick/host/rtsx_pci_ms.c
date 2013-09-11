@@ -612,8 +612,6 @@ static int rtsx_pci_ms_drv_remove(struct platform_device *pdev)
 	memstick_remove_host(msh);
 	memstick_free_host(msh);
 
-	platform_set_drvdata(pdev, NULL);
-
 	dev_dbg(&(pdev->dev),
 		": Realtek PCI-E Memstick controller has been removed\n");
 

@@ -3854,7 +3854,10 @@ static int ocfs2_attach_refcount_tree(struct inode *inode,
 	while (cpos < clusters) {
 		ret = ocfs2_get_clusters(inode, cpos, &p_cluster,
 					 &num_clusters, &ext_flags);
-
+		if (ret) {
+			mlog_errno(ret);
+			goto unlock;
+		}
 		if (p_cluster && !(ext_flags & OCFS2_EXT_REFCOUNTED)) {
 			ret = ocfs2_add_refcount_flag(inode, &di_et,
 						      &ref_tree->rf_ci,
@@ -4025,7 +4028,10 @@ static int ocfs2_duplicate_extent_list(struct inode *s_inode,
 	while (cpos < clusters) {
 		ret = ocfs2_get_clusters(s_inode, cpos, &p_cluster,
 					 &num_clusters, &ext_flags);
-
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
 		if (p_cluster) {
 			ret = ocfs2_add_refcounted_extent(t_inode, &et,
 							  ref_ci, ref_root_bh,

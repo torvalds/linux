@@ -282,7 +282,6 @@ static int msm_iommu_remove(struct platform_device *pdev)
 		clk_put(drv->pclk);
 		memset(drv, 0, sizeof(*drv));
 		kfree(drv);
-		platform_set_drvdata(pdev, NULL);
 	}
 	return 0;
 }
@@ -366,7 +365,6 @@ static int msm_iommu_ctx_remove(struct platform_device *pdev)
 	if (drv) {
 		memset(drv, 0, sizeof(struct msm_iommu_ctx_drvdata));
 		kfree(drv);
-		platform_set_drvdata(pdev, NULL);
 	}
 	return 0;
 }

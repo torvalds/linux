@@ -182,6 +182,7 @@ core_pattern is used to specify a core dumpfile pattern name.
 	%<NUL>	'%' is dropped
 	%%	output one '%'
 	%p	pid
+	%P	global pid (init PID namespace)
 	%u	uid
 	%g	gid
 	%d	dump mode, matches PR_SET_DUMPABLE and

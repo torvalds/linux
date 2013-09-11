@@ -163,6 +163,13 @@ static int __pnp_bus_suspend(struct device *dev, pm_message_t state)
 	if (!pnp_drv)
 		return 0;
 
+	if (pnp_drv->driver.pm && pnp_drv->driver.pm->suspend) {
+		error = pnp_drv->driver.pm->suspend(dev);
+		suspend_report_result(pnp_drv->driver.pm->suspend, error);
+		if (error)
+			return error;
+	}
+
 	if (pnp_drv->suspend) {
 		error = pnp_drv->suspend(pnp_dev, state);
 		if (error)
@@ -207,6 +214,12 @@ static int pnp_bus_resume(struct device *dev)
 
 	if (pnp_can_write(pnp_dev)) {
 		error = pnp_start_dev(pnp_dev);
+		if (error)
+			return error;
+	}
+
+	if (pnp_drv->driver.pm && pnp_drv->driver.pm->resume) {
+		error = pnp_drv->driver.pm->resume(dev);
 		if (error)
 			return error;
 	}

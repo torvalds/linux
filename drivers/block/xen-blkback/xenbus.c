@@ -620,7 +620,7 @@ static void backend_changed(struct xenbus_watch *watch,
 	}
 
 	/* Front end dir is a number, which is used as the handle. */
-	err = strict_strtoul(strrchr(dev->otherend, '/') + 1, 0, &handle);
+	err = kstrtoul(strrchr(dev->otherend, '/') + 1, 0, &handle);
 	if (err)
 		return;
 
