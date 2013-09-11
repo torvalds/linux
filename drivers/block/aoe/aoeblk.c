@@ -17,11 +17,13 @@
 #include <linux/mutex.h>
 #include <linux/export.h>
 #include <linux/moduleparam.h>
+#include <linux/debugfs.h>
 #include <scsi/sg.h>
 #include "aoe.h"
 
 static DEFINE_MUTEX(aoeblk_mutex);
 static struct kmem_cache *buf_pool_cache;
+static struct dentry *aoe_debugfs_dir;
 
 /* GPFS needs a larger value than the default. */
 static int aoe_maxsectors;
@@ -351,6 +353,8 @@ err:
 void
 aoeblk_exit(void)
 {
+	debugfs_remove_recursive(aoe_debugfs_dir);
+	aoe_debugfs_dir = NULL;
 	kmem_cache_destroy(buf_pool_cache);
 }
 
@@ -362,7 +366,11 @@ aoeblk_init(void)
 					   0, 0, NULL);
 	if (buf_pool_cache == NULL)
 		return -ENOMEM;
-
+	aoe_debugfs_dir = debugfs_create_dir("aoe", NULL);
+	if (IS_ERR_OR_NULL(aoe_debugfs_dir)) {
+		pr_info("aoe: cannot create debugfs directory\n");
+		aoe_debugfs_dir = NULL;
+	}
 	return 0;
 }
 
