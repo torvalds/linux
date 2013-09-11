@@ -322,7 +322,7 @@ config HID_LCPOWER
 
 config HID_LENOVO_TPKBD
 	tristate "Lenovo ThinkPad USB Keyboard with TrackPoint"
-	depends on USB_HID
+	depends on HID
 	select NEW_LEDS
 	select LEDS_CLASS
 	---help---
