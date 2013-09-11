@@ -1549,11 +1549,9 @@ get_rq:
 	if (plug) {
 		/*
 		 * If this is the first request added after a plug, fire
-		 * of a plug trace. If others have been added before, check
-		 * if we have multiple devices in this plug. If so, make a
-		 * note to sort the list before dispatch.
+		 * of a plug trace.
 		 */
-		if (list_empty(&plug->list))
+		if (!request_count)
 			trace_block_plug(q);
 		else {
 			if (request_count >= BLK_MAX_REQUEST_COUNT) {
