@@ -1472,7 +1472,23 @@ sub check_absolute_file {
 sub trim {
 	my ($string) = @_;
 
-	$string =~ s/(^\s+|\s+$)//g;
+	$string =~ s/^\s+|\s+$//g;
+
+	return $string;
+}
+
+sub ltrim {
+	my ($string) = @_;
+
+	$string =~ s/^\s+//;
+
+	return $string;
+}
+
+sub rtrim {
+	my ($string) = @_;
+
+	$string =~ s/\s+$//;
 
 	return $string;
 }
@@ -2821,6 +2837,7 @@ sub process {
 			$off = 0;
 
 			my $blank = copy_spacing($opline);
+			my $last_after = -1;
 
 			for (my $n = 0; $n < $#elements; $n += 2) {
 
@@ -2886,7 +2903,7 @@ sub process {
 					    $cc !~ /^\\/ && $cc !~ /^;/) {
 						if (ERROR("SPACING",
 							  "space required after that '$op' $at\n" . $hereptr)) {
-							$good = trim($fix_elements[$n]) . " " . trim($fix_elements[$n + 1]) . " ";
+							$good = $fix_elements[$n] . trim($fix_elements[$n + 1]) . " ";
 							$line_fixed = 1;
 						}
 					}
@@ -2901,11 +2918,11 @@ sub process {
 					if ($ctx =~ /Wx.|.xW/) {
 						if (ERROR("SPACING",
 							  "spaces prohibited around that '$op' $at\n" . $hereptr)) {
-							$good = trim($fix_elements[$n]) . trim($fix_elements[$n + 1]);
-							$line_fixed = 1;
+							$good = rtrim($fix_elements[$n]) . trim($fix_elements[$n + 1]);
 							if (defined $fix_elements[$n + 2]) {
 								$fix_elements[$n + 2] =~ s/^\s+//;
 							}
+							$line_fixed = 1;
 						}
 					}
 
@@ -2914,8 +2931,9 @@ sub process {
 					if ($ctx !~ /.x[WEC]/ && $cc !~ /^}/) {
 						if (ERROR("SPACING",
 							  "space required after that '$op' $at\n" . $hereptr)) {
-							$good = trim($fix_elements[$n]) . trim($fix_elements[$n + 1]) . " ";
+							$good = $fix_elements[$n] . trim($fix_elements[$n + 1]) . " ";
 							$line_fixed = 1;
+							$last_after = $n;
 						}
 					}
 
@@ -2932,8 +2950,10 @@ sub process {
 					if ($ctx !~ /[WEBC]x./ && $ca !~ /(?:\)|!|~|\*|-|\&|\||\+\+|\-\-|\{)$/) {
 						if (ERROR("SPACING",
 							  "space required before that '$op' $at\n" . $hereptr)) {
-							$good = trim($fix_elements[$n]) . " " . trim($fix_elements[$n + 1]);
-							$line_fixed = 1;
+							if ($n != $last_after + 2) {
+								$good = $fix_elements[$n] . " " . ltrim($fix_elements[$n + 1]);
+								$line_fixed = 1;
+							}
 						}
 					}
 					if ($op eq '*' && $cc =~/\s*$Modifier\b/) {
@@ -2942,12 +2962,11 @@ sub process {
 					} elsif ($ctx =~ /.xW/) {
 						if (ERROR("SPACING",
 							  "space prohibited after that '$op' $at\n" . $hereptr)) {
-							$fixed_line =~ s/\s+$//;
-							$good = trim($fix_elements[$n]) . trim($fix_elements[$n + 1]);
-							$line_fixed = 1;
+							$good = $fix_elements[$n] . rtrim($fix_elements[$n + 1]);
 							if (defined $fix_elements[$n + 2]) {
 								$fix_elements[$n + 2] =~ s/^\s+//;
 							}
+							$line_fixed = 1;
 						}
 					}
 
@@ -2956,8 +2975,7 @@ sub process {
 					if ($ctx !~ /[WEOBC]x[^W]/ && $ctx !~ /[^W]x[WOBEC]/) {
 						if (ERROR("SPACING",
 							  "space required one side of that '$op' $at\n" . $hereptr)) {
-							$fixed_line =~ s/\s+$//;
-							$good = trim($fix_elements[$n]) . trim($fix_elements[$n + 1]) . " ";
+							$good = $fix_elements[$n] . trim($fix_elements[$n + 1]) . " ";
 							$line_fixed = 1;
 						}
 					}
@@ -2965,20 +2983,18 @@ sub process {
 					    ($ctx =~ /Wx./ && $cc =~ /^;/)) {
 						if (ERROR("SPACING",
 							  "space prohibited before that '$op' $at\n" . $hereptr)) {
-							$fixed_line =~ s/\s+$//;
-							$good = trim($fix_elements[$n]) . trim($fix_elements[$n + 1]);
+							$good = rtrim($fix_elements[$n]) . trim($fix_elements[$n + 1]);
 							$line_fixed = 1;
 						}
 					}
 					if ($ctx =~ /ExW/) {
 						if (ERROR("SPACING",
 							  "space prohibited after that '$op' $at\n" . $hereptr)) {
-							$fixed_line =~ s/\s+$//;
-							$good = trim($fix_elements[$n]) . trim($fix_elements[$n + 1]);
-							$line_fixed = 1;
+							$good = $fix_elements[$n] . trim($fix_elements[$n + 1]);
 							if (defined $fix_elements[$n + 2]) {
 								$fix_elements[$n + 2] =~ s/^\s+//;
 							}
+							$line_fixed = 1;
 						}
 					}
 
@@ -2992,8 +3008,10 @@ sub process {
 					if ($ctx =~ /Wx[^WCE]|[^WCE]xW/) {
 						if (ERROR("SPACING",
 							  "need consistent spacing around '$op' $at\n" . $hereptr)) {
-							$fixed_line =~ s/\s+$//;
-							$good = trim($fix_elements[$n]) . " " . trim($fix_elements[$n + 1]) . " ";
+							$good = rtrim($fix_elements[$n]) . " " . trim($fix_elements[$n + 1]) . " ";
+							if (defined $fix_elements[$n + 2]) {
+								$fix_elements[$n + 2] =~ s/^\s+//;
+							}
 							$line_fixed = 1;
 						}
 					}
@@ -3004,7 +3022,7 @@ sub process {
 					if ($ctx =~ /Wx./) {
 						if (ERROR("SPACING",
 							  "space prohibited before that '$op' $at\n" . $hereptr)) {
-							$good = trim($fix_elements[$n]) . trim($fix_elements[$n + 1]);
+							$good = rtrim($fix_elements[$n]) . trim($fix_elements[$n + 1]);
 							$line_fixed = 1;
 						}
 					}
@@ -3031,8 +3049,10 @@ sub process {
 					if ($ok == 0) {
 						if (ERROR("SPACING",
 							  "spaces required around that '$op' $at\n" . $hereptr)) {
-							$good = trim($fix_elements[$n]) . " " . trim($fix_elements[$n + 1]) . " ";
-							$good = $fix_elements[$n] . " " . trim($fix_elements[$n + 1]) . " ";
+							$good = rtrim($fix_elements[$n]) . " " . trim($fix_elements[$n + 1]) . " ";
+							if (defined $fix_elements[$n + 2]) {
+								$fix_elements[$n + 2] =~ s/^\s+//;
+							}
 							$line_fixed = 1;
 						}
 					}
