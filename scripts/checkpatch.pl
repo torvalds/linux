@@ -174,9 +174,9 @@ sub hash_save_array_words {
 sub hash_show_words {
 	my ($hashRef, $prefix) = @_;
 
-	if ($quiet == 0 && keys $hashRef) {
+	if ($quiet == 0 && keys %$hashRef) {
 		print "NOTE: $prefix message types:";
-		foreach my $word (sort keys $hashRef) {
+		foreach my $word (sort keys %$hashRef) {
 			print " $word";
 		}
 		print "\n\n";
