@@ -1114,7 +1114,7 @@ static size_t trace__fprintf_entry_head(struct trace *trace, struct thread *thre
 
 	if (trace->multiple_threads) {
 		if (trace->show_comm)
-			printed += fprintf(fp, "%.14s/", thread->comm);
+			printed += fprintf(fp, "%.14s/", thread__comm_str(thread));
 		printed += fprintf(fp, "%d ", thread->tid);
 	}
 
@@ -1986,7 +1986,7 @@ static int trace__fprintf_one_thread(struct thread *thread, void *priv)
 	else if (ratio > 5.0)
 		color = PERF_COLOR_YELLOW;
 
-	printed += color_fprintf(fp, color, "%20s", thread->comm);
+	printed += color_fprintf(fp, color, "%20s", thread__comm_str(thread));
 	printed += fprintf(fp, " - %-5d :%11lu   [", thread->tid, ttrace->nr_events);
 	printed += color_fprintf(fp, color, "%5.1f%%", ratio);
 	printed += fprintf(fp, " ] %10.3f ms\n", ttrace->runtime_ms);

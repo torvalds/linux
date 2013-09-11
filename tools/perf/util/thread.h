@@ -2,6 +2,7 @@
 #define __PERF_THREAD_H
 
 #include <linux/rbtree.h>
+#include <linux/list.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include "symbol.h"
@@ -18,7 +19,7 @@ struct thread {
 	char			shortname[3];
 	bool			comm_set;
 	bool			dead; /* if set thread has exited */
-	char			*comm;
+	struct list_head	comm_list;
 	int			comm_len;
 
 	void			*priv;
