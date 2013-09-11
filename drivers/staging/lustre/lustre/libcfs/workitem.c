@@ -397,7 +397,7 @@ cfs_wi_sched_create(char *name, struct cfs_cpt_table *cptab,
 				 sched->ws_name, sched->ws_nthreads);
 		}
 
-		task = kthread_run(cfs_wi_scheduler, sched, name);
+		task = kthread_run(cfs_wi_scheduler, sched, "%s", name);
 		if (!IS_ERR(task)) {
 			nthrs--;
 			continue;
