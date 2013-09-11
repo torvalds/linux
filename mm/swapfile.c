@@ -527,16 +527,16 @@ static struct swap_info_struct *swap_info_get(swp_entry_t entry)
 	return p;
 
 bad_free:
-	printk(KERN_ERR "swap_free: %s%08lx\n", Unused_offset, entry.val);
+	pr_err("swap_free: %s%08lx\n", Unused_offset, entry.val);
 	goto out;
 bad_offset:
-	printk(KERN_ERR "swap_free: %s%08lx\n", Bad_offset, entry.val);
+	pr_err("swap_free: %s%08lx\n", Bad_offset, entry.val);
 	goto out;
 bad_device:
-	printk(KERN_ERR "swap_free: %s%08lx\n", Unused_file, entry.val);
+	pr_err("swap_free: %s%08lx\n", Unused_file, entry.val);
 	goto out;
 bad_nofile:
-	printk(KERN_ERR "swap_free: %s%08lx\n", Bad_file, entry.val);
+	pr_err("swap_free: %s%08lx\n", Bad_file, entry.val);
 out:
 	return NULL;
 }
@@ -1929,7 +1929,7 @@ static unsigned long read_swap_header(struct swap_info_struct *p,
 	unsigned long last_page;
 
 	if (memcmp("SWAPSPACE2", swap_header->magic.magic, 10)) {
-		printk(KERN_ERR "Unable to find swap-space signature\n");
+		pr_err("Unable to find swap-space signature\n");
 		return 0;
 	}
 
@@ -1943,9 +1943,8 @@ static unsigned long read_swap_header(struct swap_info_struct *p,
 	}
 	/* Check the swap header's sub-version */
 	if (swap_header->info.version != 1) {
-		printk(KERN_WARNING
-		       "Unable to handle swap header version %d\n",
-		       swap_header->info.version);
+		pr_warn("Unable to handle swap header version %d\n",
+			swap_header->info.version);
 		return 0;
 	}
 
@@ -1971,8 +1970,7 @@ static unsigned long read_swap_header(struct swap_info_struct *p,
 			swp_entry_to_pte(swp_entry(0, ~0UL)))) + 1;
 	last_page = swap_header->info.last_page;
 	if (last_page > maxpages) {
-		printk(KERN_WARNING
-			"Truncating oversized swap area, only using %luk out of %luk\n",
+		pr_warn("Truncating oversized swap area, only using %luk out of %luk\n",
 			maxpages << (PAGE_SHIFT - 10),
 			last_page << (PAGE_SHIFT - 10));
 	}
@@ -1988,8 +1986,7 @@ static unsigned long read_swap_header(struct swap_info_struct *p,
 		return 0;
 	swapfilepages = i_size_read(inode) >> PAGE_SHIFT;
 	if (swapfilepages && maxpages > swapfilepages) {
-		printk(KERN_WARNING
-		       "Swap area shorter than signature indicates\n");
+		pr_warn("Swap area shorter than signature indicates\n");
 		return 0;
 	}
 	if (swap_header->info.nr_badpages && S_ISREG(inode->i_mode))
@@ -2032,7 +2029,7 @@ static int setup_swap_map_and_extents(struct swap_info_struct *p,
 		nr_good_pages = p->pages;
 	}
 	if (!nr_good_pages) {
-		printk(KERN_WARNING "Empty swap-file\n");
+		pr_warn("Empty swap-file\n");
 		return -EINVAL;
 	}
 
@@ -2186,8 +2183,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 			if (p->flags & SWP_AREA_DISCARD) {
 				int err = discard_swap(p);
 				if (unlikely(err))
-					printk(KERN_ERR
-					       "swapon: discard_swap(%p): %d\n",
+					pr_err("swapon: discard_swap(%p): %d\n",
 						p, err);
 			}
 		}
@@ -2200,7 +2196,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 		  (swap_flags & SWAP_FLAG_PRIO_MASK) >> SWAP_FLAG_PRIO_SHIFT;
 	enable_swap_info(p, prio, swap_map, frontswap_map);
 
-	printk(KERN_INFO "Adding %uk swap on %s.  "
+	pr_info("Adding %uk swap on %s.  "
 			"Priority:%d extents:%d across:%lluk %s%s%s%s%s\n",
 		p->pages<<(PAGE_SHIFT-10), name->name, p->prio,
 		nr_extents, (unsigned long long)span<<(PAGE_SHIFT-10),
@@ -2334,7 +2330,7 @@ out:
 	return err;
 
 bad_file:
-	printk(KERN_ERR "swap_dup: %s%08lx\n", Bad_file, entry.val);
+	pr_err("swap_dup: %s%08lx\n", Bad_file, entry.val);
 	goto out;
 }
 
