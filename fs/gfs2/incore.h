@@ -71,6 +71,7 @@ struct gfs2_bitmap {
 	u32 bi_offset;
 	u32 bi_start;
 	u32 bi_len;
+	u32 bi_blocks;
 };
 
 struct gfs2_rgrpd {

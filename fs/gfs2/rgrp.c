@@ -262,7 +262,7 @@ static int gfs2_rbm_from_block(struct gfs2_rbm *rbm, u64 block)
 	rbm->bi = rbm->rgd->rd_bits;
 	rbm->offset = (u32)(rblock);
 	/* Check if the block is within the first block */
-	if (rbm->offset < rbm->bi->bi_len * GFS2_NBBY)
+	if (rbm->offset < rbm->bi->bi_blocks)
 		return 0;
 
 	/* Adjust for the size diff between gfs2_meta_header and gfs2_rgrp */
@@ -743,18 +743,21 @@ static int compute_bitstructs(struct gfs2_rgrpd *rgd)
 			bi->bi_offset = sizeof(struct gfs2_rgrp);
 			bi->bi_start = 0;
 			bi->bi_len = bytes;
+			bi->bi_blocks = bytes * GFS2_NBBY;
 		/* header block */
 		} else if (x == 0) {
 			bytes = sdp->sd_sb.sb_bsize - sizeof(struct gfs2_rgrp);
 			bi->bi_offset = sizeof(struct gfs2_rgrp);
 			bi->bi_start = 0;
 			bi->bi_len = bytes;
+			bi->bi_blocks = bytes * GFS2_NBBY;
 		/* last block */
 		} else if (x + 1 == length) {
 			bytes = bytes_left;
 			bi->bi_offset = sizeof(struct gfs2_meta_header);
 			bi->bi_start = rgd->rd_bitbytes - bytes_left;
 			bi->bi_len = bytes;
+			bi->bi_blocks = bytes * GFS2_NBBY;
 		/* other blocks */
 		} else {
 			bytes = sdp->sd_sb.sb_bsize -
@@ -762,6 +765,7 @@ static int compute_bitstructs(struct gfs2_rgrpd *rgd)
 			bi->bi_offset = sizeof(struct gfs2_meta_header);
 			bi->bi_start = rgd->rd_bitbytes - bytes_left;
 			bi->bi_len = bytes;
+			bi->bi_blocks = bytes * GFS2_NBBY;
 		}
 
 		bytes_left -= bytes;
