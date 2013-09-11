@@ -949,6 +949,9 @@ static void cpufreq_policy_free(struct cpufreq_policy *policy)
 
 static void update_policy_cpu(struct cpufreq_policy *policy, unsigned int cpu)
 {
+	if (cpu == policy->cpu)
+		return;
+
 	policy->last_cpu = policy->cpu;
 	policy->cpu = cpu;
 
