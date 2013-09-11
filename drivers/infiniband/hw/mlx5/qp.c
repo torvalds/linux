@@ -1324,6 +1324,7 @@ static enum mlx5_qp_optpar opt_mask[MLX5_QP_NUM_STATE][MLX5_QP_NUM_STATE][MLX5_Q
 		[MLX5_QP_STATE_RTS] = {
 			[MLX5_QP_ST_UD]	 = MLX5_QP_OPTPAR_Q_KEY,
 			[MLX5_QP_ST_MLX] = MLX5_QP_OPTPAR_Q_KEY,
+			[MLX5_QP_ST_UC]	 = MLX5_QP_OPTPAR_RWE,
 		},
 	},
 };
