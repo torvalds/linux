@@ -280,10 +280,8 @@ static void do_kernel_range_flush(void *info)
 	unsigned long addr;
 
 	/* flush range by one by one 'invlpg' */
-	for (addr = f->flush_start; addr < f->flush_end; addr += PAGE_SIZE) {
-		count_vm_event(NR_TLB_LOCAL_FLUSH_ONE_KERNEL);
+	for (addr = f->flush_start; addr < f->flush_end; addr += PAGE_SIZE)
 		__flush_tlb_single(addr);
-	}
 }
 
 void flush_tlb_kernel_range(unsigned long start, unsigned long end)
