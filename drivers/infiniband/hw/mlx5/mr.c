@@ -415,6 +415,7 @@ static void clean_keys(struct mlx5_ib_dev *dev, int c)
 	int size;
 	int err;
 
+	cancel_delayed_work(&ent->dwork);
 	while (1) {
 		spin_lock(&ent->lock);
 		if (list_empty(&ent->head)) {
@@ -540,12 +541,14 @@ int mlx5_mr_cache_cleanup(struct mlx5_ib_dev *dev)
 	int i;
 
 	dev->cache.stopped = 1;
-	destroy_workqueue(dev->cache.wq);
+	flush_workqueue(dev->cache.wq);
 
 	mlx5_mr_cache_debugfs_cleanup(dev);
 
 	for (i = 0; i < MAX_MR_CACHE_ENTRIES; i++)
 		clean_keys(dev, i);
+
+	destroy_workqueue(dev->cache.wq);
 
 	return 0;
 }
