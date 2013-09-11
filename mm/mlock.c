@@ -247,7 +247,6 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
 					&page_mask);
 		if (page && !IS_ERR(page)) {
 			lock_page(page);
-			lru_add_drain();
 			/*
 			 * Any THP page found by follow_page_mask() may have
 			 * gotten split before reaching munlock_vma_page(),
