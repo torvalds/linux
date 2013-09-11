@@ -444,11 +444,9 @@ static int ade7759_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 
 	/* setup the industrialio driver allocated elements */
-	indio_dev = iio_device_alloc(sizeof(*st));
-	if (indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
+	if (!indio_dev)
+		return -ENOMEM;
 	/* this is only used for removal purposes */
 	spi_set_drvdata(spi, indio_dev);
 
@@ -463,18 +461,13 @@ static int ade7759_probe(struct spi_device *spi)
 	/* Get the device into a sane initial state */
 	ret = ade7759_initial_setup(indio_dev);
 	if (ret)
-		goto error_free_dev;
+		return ret;
 
 	ret = iio_device_register(indio_dev);
 	if (ret)
-		goto error_free_dev;
+		return ret;
 
 	return 0;
-
-error_free_dev:
-	iio_device_free(indio_dev);
-error_ret:
-	return ret;
 }
 
 /* fixme, confirm ordering in this function */
@@ -484,7 +477,6 @@ static int ade7759_remove(struct spi_device *spi)
 
 	iio_device_unregister(indio_dev);
 	ade7759_stop_device(&indio_dev->dev);
-	iio_device_free(indio_dev);
 
 	return 0;
 }
