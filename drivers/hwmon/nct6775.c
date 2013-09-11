@@ -1545,7 +1545,7 @@ static int find_temp_source(struct nct6775_data *data, int index, int count)
 		if (src == source)
 			return nr;
 	}
-	return -1;
+	return -ENODEV;
 }
 
 static ssize_t
@@ -1644,7 +1644,7 @@ store_temp_beep(struct device *dev, struct device_attribute *attr,
 
 	nr = find_temp_source(data, sattr->index, data->num_temp_beeps);
 	if (nr < 0)
-		return -ENODEV;
+		return nr;
 
 	bit = data->BEEP_BITS[nr + TEMP_ALARM_BASE];
 	regindex = bit >> 3;
