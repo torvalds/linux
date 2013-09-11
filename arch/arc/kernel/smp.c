@@ -211,7 +211,6 @@ enum ipi_msg_type {
 	IPI_NOP = 0,
 	IPI_RESCHEDULE = 1,
 	IPI_CALL_FUNC,
-	IPI_CALL_FUNC_SINGLE,
 	IPI_CPU_STOP
 };
 
@@ -255,7 +254,7 @@ void smp_send_stop(void)
 
 void arch_send_call_function_single_ipi(int cpu)
 {
-	ipi_send_msg(cpumask_of(cpu), IPI_CALL_FUNC_SINGLE);
+	ipi_send_msg(cpumask_of(cpu), IPI_CALL_FUNC);
 }
 
 void arch_send_call_function_ipi_mask(const struct cpumask *mask)
@@ -285,10 +284,6 @@ static inline void __do_IPI(unsigned long *ops, struct ipi_data *ipi, int cpu)
 
 		case IPI_CALL_FUNC:
 			generic_smp_call_function_interrupt();
-			break;
-
-		case IPI_CALL_FUNC_SINGLE:
-			generic_smp_call_function_single_interrupt();
 			break;
 
 		case IPI_CPU_STOP:
