@@ -1680,9 +1680,9 @@ int bch_gc_thread_start(struct cache_set *c)
 static int bch_btree_check_recurse(struct btree *b, struct btree_op *op,
 				   unsigned long **seen)
 {
-	int ret;
+	int ret = 0;
 	unsigned i;
-	struct bkey *k;
+	struct bkey *k, *p = NULL;
 	struct bucket *g;
 	struct btree_iter iter;
 
@@ -1709,19 +1709,18 @@ static int bch_btree_check_recurse(struct btree *b, struct btree_op *op,
 	}
 
 	if (b->level) {
-		k = bch_next_recurse_key(b, &ZERO_KEY);
+		bch_btree_iter_init(b, &iter, NULL);
 
-		while (k) {
-			struct bkey *p = bch_next_recurse_key(b, k);
+		do {
+			k = bch_btree_iter_next_filter(&iter, b, bch_ptr_bad);
+			if (k)
+				btree_node_prefetch(b->c, k, b->level - 1);
+
 			if (p)
-				btree_node_prefetch(b->c, p, b->level - 1);
+				ret = btree(check_recurse, p, b, op, seen);
 
-			ret = btree(check_recurse, k, b, op, seen);
-			if (ret)
-				return ret;
-
-			k = p;
-		}
+			p = k;
+		} while (p && !ret);
 	}
 
 	return 0;

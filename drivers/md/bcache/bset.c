@@ -952,14 +952,6 @@ struct bkey *bch_btree_iter_next_filter(struct btree_iter *iter,
 	return ret;
 }
 
-struct bkey *bch_next_recurse_key(struct btree *b, struct bkey *search)
-{
-	struct btree_iter iter;
-
-	bch_btree_iter_init(b, &iter, search);
-	return bch_btree_iter_next_filter(&iter, b, bch_ptr_bad);
-}
-
 /* Mergesort */
 
 static void sort_key_next(struct btree_iter *iter,

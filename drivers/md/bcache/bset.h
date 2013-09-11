@@ -303,7 +303,6 @@ static inline bool ptr_available(struct cache_set *c, const struct bkey *k,
 
 typedef bool (*ptr_filter_fn)(struct btree *, const struct bkey *);
 
-struct bkey *bch_next_recurse_key(struct btree *, struct bkey *);
 struct bkey *bch_btree_iter_next(struct btree_iter *);
 struct bkey *bch_btree_iter_next_filter(struct btree_iter *,
 					struct btree *, ptr_filter_fn);
