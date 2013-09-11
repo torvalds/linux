@@ -4590,6 +4590,41 @@ unsigned int snd_soc_of_parse_daifmt(struct device_node *np,
 }
 EXPORT_SYMBOL_GPL(snd_soc_of_parse_daifmt);
 
+int snd_soc_of_get_dai_name(struct device_node *of_node,
+			    const char **dai_name)
+{
+	struct snd_soc_component *pos;
+	struct of_phandle_args args;
+	int ret;
+
+	ret = of_parse_phandle_with_args(of_node, "sound-dai",
+					 "#sound-dai-cells", 0, &args);
+	if (ret)
+		return ret;
+
+	ret = -EPROBE_DEFER;
+
+	mutex_lock(&client_mutex);
+	list_for_each_entry(pos, &component_list, list) {
+		if (pos->dev->of_node != args.np)
+			continue;
+
+		if (!pos->driver->of_xlate_dai_name) {
+			ret = -ENOSYS;
+			break;
+		}
+
+		ret = pos->driver->of_xlate_dai_name(pos, &args, dai_name);
+		break;
+	}
+	mutex_unlock(&client_mutex);
+
+	of_node_put(args.np);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_of_get_dai_name);
+
 static int __init snd_soc_init(void)
 {
 #ifdef CONFIG_DEBUG_FS
