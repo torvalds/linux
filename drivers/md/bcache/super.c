@@ -1670,7 +1670,7 @@ static void run_cache_set(struct cache_set *c)
 err:
 	closure_sync(&cl);
 	/* XXX: test this, it's broken */
-	bch_cache_set_error(c, err);
+	bch_cache_set_error(c, "%s", err);
 }
 
 static bool can_attach_cache(struct cache *ca, struct cache_set *c)
