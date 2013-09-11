@@ -1656,6 +1656,19 @@ hang_check_iter:
 	return true;
 }
 
+void ath9k_hw_check_nav(struct ath_hw *ah)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	u32 val;
+
+	val = REG_READ(ah, AR_NAV);
+	if (val != 0xdeadbeef && val > 0x7fff) {
+		ath_dbg(common, BSTUCK, "Abnormal NAV: 0x%x\n", val);
+		REG_WRITE(ah, AR_NAV, 0);
+	}
+}
+EXPORT_SYMBOL(ath9k_hw_check_nav);
+
 bool ath9k_hw_check_alive(struct ath_hw *ah)
 {
 	int count = 50;
