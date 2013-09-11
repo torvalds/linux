@@ -384,8 +384,6 @@ struct keybuf_key {
 	void			*private;
 };
 
-typedef bool (keybuf_pred_fn)(struct keybuf *, struct bkey *);
-
 struct keybuf {
 	struct bkey		last_scanned;
 	spinlock_t		lock;

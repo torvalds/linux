@@ -842,6 +842,13 @@ struct bkey *__bch_bset_search(struct btree *b, struct bset_tree *t,
 
 /* Btree iterator */
 
+/*
+ * Returns true if l > r - unless l == r, in which case returns true if l is
+ * older than r.
+ *
+ * Necessary for btree_sort_fixup() - if there are multiple keys that compare
+ * equal in different sets, we have to process them newest to oldest.
+ */
 static inline bool btree_iter_cmp(struct btree_iter_set l,
 				  struct btree_iter_set r)
 {
@@ -1146,16 +1153,16 @@ out:
 /* Sysfs stuff */
 
 struct bset_stats {
+	struct btree_op op;
 	size_t nodes;
 	size_t sets_written, sets_unwritten;
 	size_t bytes_written, bytes_unwritten;
 	size_t floats, failed;
 };
 
-static int bch_btree_bset_stats(struct btree *b, struct btree_op *op,
-			    struct bset_stats *stats)
+static int btree_bset_stats(struct btree_op *op, struct btree *b)
 {
-	struct bkey *k;
+	struct bset_stats *stats = container_of(op, struct bset_stats, op);
 	unsigned i;
 
 	stats->nodes++;
@@ -1180,30 +1187,20 @@ static int bch_btree_bset_stats(struct btree *b, struct btree_op *op,
 		}
 	}
 
-	if (b->level) {
-		struct btree_iter iter;
-
-		for_each_key_filter(b, k, &iter, bch_ptr_bad) {
-			int ret = btree(bset_stats, k, b, op, stats);
-			if (ret)
-				return ret;
-		}
-	}
-
-	return 0;
+	return MAP_CONTINUE;
 }
 
 int bch_bset_print_stats(struct cache_set *c, char *buf)
 {
-	struct btree_op op;
 	struct bset_stats t;
 	int ret;
 
-	bch_btree_op_init_stack(&op);
 	memset(&t, 0, sizeof(struct bset_stats));
+	bch_btree_op_init_stack(&t.op);
+	t.op.c = c;
 
-	ret = btree_root(bset_stats, c, &op, &t);
-	if (ret)
+	ret = bch_btree_map_nodes(&t.op, c, &ZERO_KEY, btree_bset_stats);
+	if (ret < 0)
 		return ret;
 
 	return snprintf(buf, PAGE_SIZE,

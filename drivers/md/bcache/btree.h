@@ -400,9 +400,42 @@ static inline void wake_up_gc(struct cache_set *c)
 		wake_up_process(c->gc_thread);
 }
 
+#define MAP_DONE	0
+#define MAP_CONTINUE	1
+
+#define MAP_ALL_NODES	0
+#define MAP_LEAF_NODES	1
+
+#define MAP_END_KEY	1
+
+typedef int (btree_map_nodes_fn)(struct btree_op *, struct btree *);
+int __bch_btree_map_nodes(struct btree_op *, struct cache_set *,
+			  struct bkey *, btree_map_nodes_fn *, int);
+
+static inline int bch_btree_map_nodes(struct btree_op *op, struct cache_set *c,
+				      struct bkey *from, btree_map_nodes_fn *fn)
+{
+	return __bch_btree_map_nodes(op, c, from, fn, MAP_ALL_NODES);
+}
+
+static inline int bch_btree_map_leaf_nodes(struct btree_op *op,
+					   struct cache_set *c,
+					   struct bkey *from,
+					   btree_map_nodes_fn *fn)
+{
+	return __bch_btree_map_nodes(op, c, from, fn, MAP_LEAF_NODES);
+}
+
+typedef int (btree_map_keys_fn)(struct btree_op *, struct btree *,
+				struct bkey *);
+int bch_btree_map_keys(struct btree_op *, struct cache_set *,
+		       struct bkey *, btree_map_keys_fn *, int);
+
+typedef bool (keybuf_pred_fn)(struct keybuf *, struct bkey *);
+
 void bch_keybuf_init(struct keybuf *);
-void bch_refill_keybuf(struct cache_set *, struct keybuf *, struct bkey *,
-		       keybuf_pred_fn *);
+void bch_refill_keybuf(struct cache_set *, struct keybuf *,
+		       struct bkey *, keybuf_pred_fn *);
 bool bch_keybuf_check_overlapping(struct keybuf *, struct bkey *,
 				  struct bkey *);
 void bch_keybuf_del(struct keybuf *, struct keybuf_key *);

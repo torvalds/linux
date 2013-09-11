@@ -2296,6 +2296,82 @@ int bch_btree_search_recurse(struct btree *b, struct btree_op *op)
 	return ret;
 }
 
+/* Map across nodes or keys */
+
+static int bch_btree_map_nodes_recurse(struct btree *b, struct btree_op *op,
+				       struct bkey *from,
+				       btree_map_nodes_fn *fn, int flags)
+{
+	int ret = MAP_CONTINUE;
+
+	if (b->level) {
+		struct bkey *k;
+		struct btree_iter iter;
+
+		bch_btree_iter_init(b, &iter, from);
+
+		while ((k = bch_btree_iter_next_filter(&iter, b,
+						       bch_ptr_bad))) {
+			ret = btree(map_nodes_recurse, k, b,
+				    op, from, fn, flags);
+			from = NULL;
+
+			if (ret != MAP_CONTINUE)
+				return ret;
+		}
+	}
+
+	if (!b->level || flags == MAP_ALL_NODES)
+		ret = fn(op, b);
+
+	return ret;
+}
+
+int __bch_btree_map_nodes(struct btree_op *op, struct cache_set *c,
+			  struct bkey *from, btree_map_nodes_fn *fn, int flags)
+{
+	int ret = btree_root(map_nodes_recurse, c, op, from, fn, flags);
+	if (closure_blocking(&op->cl))
+		closure_sync(&op->cl);
+	return ret;
+}
+
+static int bch_btree_map_keys_recurse(struct btree *b, struct btree_op *op,
+				      struct bkey *from, btree_map_keys_fn *fn,
+				      int flags)
+{
+	int ret = MAP_CONTINUE;
+	struct bkey *k;
+	struct btree_iter iter;
+
+	bch_btree_iter_init(b, &iter, from);
+
+	while ((k = bch_btree_iter_next_filter(&iter, b, bch_ptr_bad))) {
+		ret = !b->level
+			? fn(op, b, k)
+			: btree(map_keys_recurse, k, b, op, from, fn, flags);
+		from = NULL;
+
+		if (ret != MAP_CONTINUE)
+			return ret;
+	}
+
+	if (!b->level && (flags & MAP_END_KEY))
+		ret = fn(op, b, &KEY(KEY_INODE(&b->key),
+				     KEY_OFFSET(&b->key), 0));
+
+	return ret;
+}
+
+int bch_btree_map_keys(struct btree_op *op, struct cache_set *c,
+		       struct bkey *from, btree_map_keys_fn *fn, int flags)
+{
+	int ret = btree_root(map_keys_recurse, c, op, from, fn, flags);
+	if (closure_blocking(&op->cl))
+		closure_sync(&op->cl);
+	return ret;
+}
+
 /* Keybuf code */
 
 static inline int keybuf_cmp(struct keybuf_key *l, struct keybuf_key *r)
@@ -2314,74 +2390,70 @@ static inline int keybuf_nonoverlapping_cmp(struct keybuf_key *l,
 	return clamp_t(int64_t, bkey_cmp(&l->key, &r->key), -1, 1);
 }
 
-static int bch_btree_refill_keybuf(struct btree *b, struct btree_op *op,
-				   struct keybuf *buf, struct bkey *end,
-				   keybuf_pred_fn *pred)
+struct refill {
+	struct btree_op	op;
+	struct keybuf	*buf;
+	struct bkey	*end;
+	keybuf_pred_fn	*pred;
+};
+
+static int refill_keybuf_fn(struct btree_op *op, struct btree *b,
+			    struct bkey *k)
 {
-	struct btree_iter iter;
-	bch_btree_iter_init(b, &iter, &buf->last_scanned);
+	struct refill *refill = container_of(op, struct refill, op);
+	struct keybuf *buf = refill->buf;
+	int ret = MAP_CONTINUE;
 
-	while (!array_freelist_empty(&buf->freelist)) {
-		struct bkey *k = bch_btree_iter_next_filter(&iter, b,
-							    bch_ptr_bad);
-
-		if (!b->level) {
-			if (!k) {
-				buf->last_scanned = b->key;
-				break;
-			}
-
-			buf->last_scanned = *k;
-			if (bkey_cmp(&buf->last_scanned, end) >= 0)
-				break;
-
-			if (pred(buf, k)) {
-				struct keybuf_key *w;
-
-				spin_lock(&buf->lock);
-
-				w = array_alloc(&buf->freelist);
-
-				w->private = NULL;
-				bkey_copy(&w->key, k);
-
-				if (RB_INSERT(&buf->keys, w, node, keybuf_cmp))
-					array_free(&buf->freelist, w);
-
-				spin_unlock(&buf->lock);
-			}
-		} else {
-			if (!k)
-				break;
-
-			btree(refill_keybuf, k, b, op, buf, end, pred);
-			/*
-			 * Might get an error here, but can't really do anything
-			 * and it'll get logged elsewhere. Just read what we
-			 * can.
-			 */
-
-			if (bkey_cmp(&buf->last_scanned, end) >= 0)
-				break;
-
-			cond_resched();
-		}
+	if (bkey_cmp(k, refill->end) >= 0) {
+		ret = MAP_DONE;
+		goto out;
 	}
 
-	return 0;
+	if (!KEY_SIZE(k)) /* end key */
+		goto out;
+
+	if (refill->pred(buf, k)) {
+		struct keybuf_key *w;
+
+		spin_lock(&buf->lock);
+
+		w = array_alloc(&buf->freelist);
+		if (!w) {
+			spin_unlock(&buf->lock);
+			return MAP_DONE;
+		}
+
+		w->private = NULL;
+		bkey_copy(&w->key, k);
+
+		if (RB_INSERT(&buf->keys, w, node, keybuf_cmp))
+			array_free(&buf->freelist, w);
+
+		if (array_freelist_empty(&buf->freelist))
+			ret = MAP_DONE;
+
+		spin_unlock(&buf->lock);
+	}
+out:
+	buf->last_scanned = *k;
+	return ret;
 }
 
 void bch_refill_keybuf(struct cache_set *c, struct keybuf *buf,
 		       struct bkey *end, keybuf_pred_fn *pred)
 {
 	struct bkey start = buf->last_scanned;
-	struct btree_op op;
-	bch_btree_op_init_stack(&op);
+	struct refill refill;
 
 	cond_resched();
 
-	btree_root(refill_keybuf, c, &op, buf, end, pred);
-	closure_sync(&op.cl);
+	bch_btree_op_init_stack(&refill.op);
+	refill.buf = buf;
+	refill.end = end;
+	refill.pred = pred;
+
+	bch_btree_map_keys(&refill.op, c, &buf->last_scanned,
+			   refill_keybuf_fn, MAP_END_KEY);
 
 	pr_debug("found %s keys from %llu:%llu to %llu:%llu",
 		 RB_EMPTY_ROOT(&buf->keys) ? "no" :
@@ -2465,9 +2537,9 @@ struct keybuf_key *bch_keybuf_next(struct keybuf *buf)
 }
 
 struct keybuf_key *bch_keybuf_next_rescan(struct cache_set *c,
-					     struct keybuf *buf,
-					     struct bkey *end,
-					     keybuf_pred_fn *pred)
+					  struct keybuf *buf,
+					  struct bkey *end,
+					  keybuf_pred_fn *pred)
 {
 	struct keybuf_key *ret;
 

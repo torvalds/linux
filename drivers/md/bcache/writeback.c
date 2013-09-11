@@ -433,31 +433,17 @@ static int bch_writeback_thread(void *arg)
 
 /* Init */
 
-static int bch_btree_sectors_dirty_init(struct btree *b, struct btree_op *op,
-					struct cached_dev *dc)
+static int sectors_dirty_init_fn(struct btree_op *op, struct btree *b,
+				 struct bkey *k)
 {
-	struct bkey *k;
-	struct btree_iter iter;
+	if (KEY_INODE(k) > op->inode)
+		return MAP_DONE;
 
-	bch_btree_iter_init(b, &iter, &KEY(dc->disk.id, 0, 0));
-	while ((k = bch_btree_iter_next_filter(&iter, b, bch_ptr_bad)))
-		if (!b->level) {
-			if (KEY_INODE(k) > dc->disk.id)
-				break;
+	if (KEY_DIRTY(k))
+		bcache_dev_sectors_dirty_add(b->c, KEY_INODE(k),
+					     KEY_START(k), KEY_SIZE(k));
 
-			if (KEY_DIRTY(k))
-				bcache_dev_sectors_dirty_add(b->c, dc->disk.id,
-							     KEY_START(k),
-							     KEY_SIZE(k));
-		} else {
-			btree(sectors_dirty_init, k, b, op, dc);
-			if (KEY_INODE(k) > dc->disk.id)
-				break;
-
-			cond_resched();
-		}
-
-	return 0;
+	return MAP_CONTINUE;
 }
 
 void bch_sectors_dirty_init(struct cached_dev *dc)
@@ -465,7 +451,10 @@ void bch_sectors_dirty_init(struct cached_dev *dc)
 	struct btree_op op;
 
 	bch_btree_op_init_stack(&op);
-	btree_root(sectors_dirty_init, dc->disk.c, &op, dc);
+	op.inode = dc->disk.id;
+
+	bch_btree_map_keys(&op, dc->disk.c, &KEY(op.inode, 0, 0),
+			   sectors_dirty_init_fn, 0);
 }
 
 int bch_cached_dev_writeback_init(struct cached_dev *dc)
