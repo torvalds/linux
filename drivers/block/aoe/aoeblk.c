@@ -215,7 +215,6 @@ aoedisk_add_debugfs(struct aoedev *d)
 void
 aoedisk_rm_debugfs(struct aoedev *d)
 {
-	BUG_ON(d->debugfs == NULL);
 	debugfs_remove(d->debugfs);
 	d->debugfs = NULL;
 }
