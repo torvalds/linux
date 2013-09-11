@@ -172,7 +172,7 @@ static inline void msg_rmid(struct ipc_namespace *ns, struct msg_queue *s)
  * @ns: namespace
  * @params: ptr to the structure that contains the key and msgflg
  *
- * Called with msg_ids.rw_mutex held (writer)
+ * Called with msg_ids.rwsem held (writer)
  */
 static int newque(struct ipc_namespace *ns, struct ipc_params *params)
 {
@@ -259,8 +259,8 @@ static void expunge_all(struct msg_queue *msq, int res)
  * removes the message queue from message queue ID IDR, and cleans up all the
  * messages associated with this queue.
  *
- * msg_ids.rw_mutex (writer) and the spinlock for this message queue are held
- * before freeque() is called. msg_ids.rw_mutex remains locked on exit.
+ * msg_ids.rwsem (writer) and the spinlock for this message queue are held
+ * before freeque() is called. msg_ids.rwsem remains locked on exit.
  */
 static void freeque(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
 {
@@ -282,7 +282,7 @@ static void freeque(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
 }
 
 /*
- * Called with msg_ids.rw_mutex and ipcp locked.
+ * Called with msg_ids.rwsem and ipcp locked.
  */
 static inline int msg_security(struct kern_ipc_perm *ipcp, int msgflg)
 {
@@ -386,9 +386,9 @@ copy_msqid_from_user(struct msqid64_ds *out, void __user *buf, int version)
 }
 
 /*
- * This function handles some msgctl commands which require the rw_mutex
+ * This function handles some msgctl commands which require the rwsem
  * to be held in write mode.
- * NOTE: no locks must be held, the rw_mutex is taken inside this function.
+ * NOTE: no locks must be held, the rwsem is taken inside this function.
  */
 static int msgctl_down(struct ipc_namespace *ns, int msqid, int cmd,
 		       struct msqid_ds __user *buf, int version)
@@ -403,7 +403,7 @@ static int msgctl_down(struct ipc_namespace *ns, int msqid, int cmd,
 			return -EFAULT;
 	}
 
-	down_write(&msg_ids(ns).rw_mutex);
+	down_write(&msg_ids(ns).rwsem);
 	rcu_read_lock();
 
 	ipcp = ipcctl_pre_down_nolock(ns, &msg_ids(ns), msqid, cmd,
@@ -459,7 +459,7 @@ out_unlock0:
 out_unlock1:
 	rcu_read_unlock();
 out_up:
-	up_write(&msg_ids(ns).rw_mutex);
+	up_write(&msg_ids(ns).rwsem);
 	return err;
 }
 
@@ -494,7 +494,7 @@ static int msgctl_nolock(struct ipc_namespace *ns, int msqid,
 		msginfo.msgmnb = ns->msg_ctlmnb;
 		msginfo.msgssz = MSGSSZ;
 		msginfo.msgseg = MSGSEG;
-		down_read(&msg_ids(ns).rw_mutex);
+		down_read(&msg_ids(ns).rwsem);
 		if (cmd == MSG_INFO) {
 			msginfo.msgpool = msg_ids(ns).in_use;
 			msginfo.msgmap = atomic_read(&ns->msg_hdrs);
@@ -505,7 +505,7 @@ static int msgctl_nolock(struct ipc_namespace *ns, int msqid,
 			msginfo.msgtql = MSGTQL;
 		}
 		max_id = ipc_get_maxid(&msg_ids(ns));
-		up_read(&msg_ids(ns).rw_mutex);
+		up_read(&msg_ids(ns).rwsem);
 		if (copy_to_user(buf, &msginfo, sizeof(struct msginfo)))
 			return -EFAULT;
 		return (max_id < 0) ? 0 : max_id;

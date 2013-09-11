@@ -81,7 +81,7 @@ void free_ipcs(struct ipc_namespace *ns, struct ipc_ids *ids,
 	int next_id;
 	int total, in_use;
 
-	down_write(&ids->rw_mutex);
+	down_write(&ids->rwsem);
 
 	in_use = ids->in_use;
 
@@ -93,7 +93,7 @@ void free_ipcs(struct ipc_namespace *ns, struct ipc_ids *ids,
 		free(ns, perm);
 		total++;
 	}
-	up_write(&ids->rw_mutex);
+	up_write(&ids->rwsem);
 }
 
 static void free_ipc_ns(struct ipc_namespace *ns)
