@@ -100,7 +100,13 @@ static int gpio_extcon_probe(struct platform_device *pdev)
 	extcon_data->state_off = pdata->state_off;
 	if (pdata->state_on && pdata->state_off)
 		extcon_data->edev.print_state = extcon_gpio_print_state;
-	extcon_data->debounce_jiffies = msecs_to_jiffies(pdata->debounce);
+	if (pdata->debounce) {
+		ret = gpio_set_debounce(extcon_data->gpio,
+					pdata->debounce * 1000);
+		if (ret < 0)
+			extcon_data->debounce_jiffies =
+				msecs_to_jiffies(pdata->debounce);
+	}
 
 	ret = extcon_dev_register(&extcon_data->edev, &pdev->dev);
 	if (ret < 0)
