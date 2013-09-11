@@ -118,6 +118,15 @@ void bch_btree_op_init_stack(struct btree_op *op)
 
 /* Btree key manipulation */
 
+void __bkey_put(struct cache_set *c, struct bkey *k)
+{
+	unsigned i;
+
+	for (i = 0; i < KEY_PTRS(k); i++)
+		if (ptr_available(c, k, i))
+			atomic_dec_bug(&PTR_BUCKET(c, k, i)->pin);
+}
+
 static void bkey_put(struct cache_set *c, struct bkey *k, int level)
 {
 	if ((level && KEY_OFFSET(k)) || !level)
@@ -1855,8 +1864,6 @@ static bool bch_btree_insert_keys(struct btree *b, struct btree_op *op,
 	bool ret = false;
 	unsigned oldsize = bch_count_data(b);
 
-	BUG_ON(!insert_lock(op, b));
-
 	while (!bch_keylist_empty(insert_keys)) {
 		struct bset *i = write_block(b);
 		struct bkey *k = insert_keys->bottom;
@@ -1895,39 +1902,6 @@ static bool bch_btree_insert_keys(struct btree *b, struct btree_op *op,
 	BUG_ON(!bch_keylist_empty(insert_keys) && b->level);
 
 	BUG_ON(bch_count_data(b) < oldsize);
-	return ret;
-}
-
-bool bch_btree_insert_check_key(struct btree *b, struct btree_op *op,
-				   struct bio *bio)
-{
-	bool ret = false;
-	uint64_t btree_ptr = b->key.ptr[0];
-	unsigned long seq = b->seq;
-	BKEY_PADDED(k) tmp;
-
-	rw_unlock(false, b);
-	rw_lock(true, b, b->level);
-
-	if (b->key.ptr[0] != btree_ptr ||
-	    b->seq != seq + 1 ||
-	    should_split(b))
-		goto out;
-
-	op->replace = KEY(op->inode, bio_end_sector(bio), bio_sectors(bio));
-
-	SET_KEY_PTRS(&op->replace, 1);
-	get_random_bytes(&op->replace.ptr[0], sizeof(uint64_t));
-
-	SET_PTR_DEV(&op->replace, 0, PTR_CHECK_DEV);
-
-	bkey_copy(&tmp.k, &op->replace);
-
-	BUG_ON(op->type != BTREE_INSERT);
-	BUG_ON(!btree_insert_key(b, op, &tmp.k));
-	ret = true;
-out:
-	downgrade_write(&b->lock);
 	return ret;
 }
 
@@ -2094,6 +2068,44 @@ static int bch_btree_insert_node(struct btree *b, struct btree_op *op,
 		}
 	} while (!bch_keylist_empty(&split_keys));
 
+	return ret;
+}
+
+int bch_btree_insert_check_key(struct btree *b, struct btree_op *op,
+			       struct bkey *check_key)
+{
+	int ret = -EINTR;
+	uint64_t btree_ptr = b->key.ptr[0];
+	unsigned long seq = b->seq;
+	struct keylist insert;
+	bool upgrade = op->lock == -1;
+
+	bch_keylist_init(&insert);
+
+	if (upgrade) {
+		rw_unlock(false, b);
+		rw_lock(true, b, b->level);
+
+		if (b->key.ptr[0] != btree_ptr ||
+		    b->seq != seq + 1)
+			goto out;
+	}
+
+	SET_KEY_PTRS(check_key, 1);
+	get_random_bytes(&check_key->ptr[0], sizeof(uint64_t));
+
+	SET_PTR_DEV(check_key, 0, PTR_CHECK_DEV);
+
+	bch_keylist_add(&insert, check_key);
+
+	BUG_ON(op->type != BTREE_INSERT);
+
+	ret = bch_btree_insert_node(b, op, &insert);
+
+	BUG_ON(!ret && !bch_keylist_empty(&insert));
+out:
+	if (upgrade)
+		downgrade_write(&b->lock);
 	return ret;
 }
 

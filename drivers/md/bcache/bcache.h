@@ -1091,14 +1091,6 @@ do {									\
 	for (b = (ca)->buckets + (ca)->sb.first_bucket;			\
 	     b < (ca)->buckets + (ca)->sb.nbuckets; b++)
 
-static inline void __bkey_put(struct cache_set *c, struct bkey *k)
-{
-	unsigned i;
-
-	for (i = 0; i < KEY_PTRS(k); i++)
-		atomic_dec_bug(&PTR_BUCKET(c, k, i)->pin);
-}
-
 static inline void cached_dev_put(struct cached_dev *dc)
 {
 	if (atomic_dec_and_test(&dc->count))

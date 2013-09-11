@@ -869,35 +869,39 @@ static int cached_dev_cache_miss(struct btree *b, struct search *s,
 				 struct bio *bio, unsigned sectors)
 {
 	int ret = 0;
-	unsigned reada;
+	unsigned reada = 0;
 	struct cached_dev *dc = container_of(s->d, struct cached_dev, disk);
 	struct bio *miss;
+
+	if (s->cache_miss || s->op.skip) {
+		miss = bch_bio_split(bio, sectors, GFP_NOIO, s->d->bio_split);
+		if (miss == bio)
+			s->op.lookup_done = true;
+		goto out_submit;
+	}
+
+	if (!(bio->bi_rw & REQ_RAHEAD) &&
+	    !(bio->bi_rw & REQ_META) &&
+	    s->op.c->gc_stats.in_use < CUTOFF_CACHE_READA)
+		reada = min_t(sector_t, dc->readahead >> 9,
+			      bdev_sectors(bio->bi_bdev) - bio_end_sector(bio));
+
+	s->cache_bio_sectors = min(sectors, bio_sectors(bio) + reada);
+
+	s->op.replace = KEY(s->op.inode, bio->bi_sector +
+			    s->cache_bio_sectors, s->cache_bio_sectors);
+
+	ret = bch_btree_insert_check_key(b, &s->op, &s->op.replace);
+	if (ret)
+		return ret;
 
 	miss = bch_bio_split(bio, sectors, GFP_NOIO, s->d->bio_split);
 	if (miss == bio)
 		s->op.lookup_done = true;
+	else
+		/* btree_search_recurse()'s btree iterator is no good anymore */
+		ret = -EINTR;
 
-	miss->bi_end_io		= request_endio;
-	miss->bi_private	= &s->cl;
-
-	if (s->cache_miss || s->op.skip)
-		goto out_submit;
-
-	if (miss != bio ||
-	    (bio->bi_rw & REQ_RAHEAD) ||
-	    (bio->bi_rw & REQ_META) ||
-	    s->op.c->gc_stats.in_use >= CUTOFF_CACHE_READA)
-		reada = 0;
-	else {
-		reada = min(dc->readahead >> 9,
-			    sectors - bio_sectors(miss));
-
-		if (bio_end_sector(miss) + reada > bdev_sectors(miss->bi_bdev))
-			reada = bdev_sectors(miss->bi_bdev) -
-				bio_end_sector(miss);
-	}
-
-	s->cache_bio_sectors = bio_sectors(miss) + reada;
 	s->op.cache_bio = bio_alloc_bioset(GFP_NOWAIT,
 			DIV_ROUND_UP(s->cache_bio_sectors, PAGE_SECTORS),
 			dc->disk.bio_split);
@@ -911,11 +915,6 @@ static int cached_dev_cache_miss(struct btree *b, struct search *s,
 
 	s->op.cache_bio->bi_end_io	= request_endio;
 	s->op.cache_bio->bi_private	= &s->cl;
-
-	/* btree_search_recurse()'s btree iterator is no good anymore */
-	ret = -EINTR;
-	if (!bch_btree_insert_check_key(b, &s->op, s->op.cache_bio))
-		goto out_put;
 
 	bch_bio_map(s->op.cache_bio, NULL);
 	if (bio_alloc_pages(s->op.cache_bio, __GFP_NOWARN|GFP_NOIO))
@@ -931,6 +930,8 @@ out_put:
 	bio_put(s->op.cache_bio);
 	s->op.cache_bio = NULL;
 out_submit:
+	miss->bi_end_io		= request_endio;
+	miss->bi_private	= &s->cl;
 	closure_bio_submit(miss, &s->cl, s->d);
 	return ret;
 }
