@@ -41,6 +41,9 @@ static void i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *o
 static void i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj,
 						   bool force);
 static __must_check int
+i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
+			       bool readonly);
+static __must_check int
 i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 			   struct i915_address_space *vm,
 			   unsigned alignment,
@@ -430,11 +433,9 @@ i915_gem_shmem_pread(struct drm_device *dev,
 		 * optimizes for the case when the gpu will dirty the data
 		 * anyway again before the next pread happens. */
 		needs_clflush = !cpu_cache_is_coherent(dev, obj->cache_level);
-		if (i915_gem_obj_bound_any(obj)) {
-			ret = i915_gem_object_set_to_gtt_domain(obj, false);
-			if (ret)
-				return ret;
-		}
+		ret = i915_gem_object_wait_rendering(obj, true);
+		if (ret)
+			return ret;
 	}
 
 	ret = i915_gem_object_get_pages(obj);
@@ -746,11 +747,9 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 		 * optimizes for the case when the gpu will use the data
 		 * right away and we therefore have to clflush anyway. */
 		needs_clflush_after = cpu_write_needs_clflush(obj);
-		if (i915_gem_obj_bound_any(obj)) {
-			ret = i915_gem_object_set_to_gtt_domain(obj, true);
-			if (ret)
-				return ret;
-		}
+		ret = i915_gem_object_wait_rendering(obj, false);
+		if (ret)
+			return ret;
 	}
 	/* Same trick applies to invalidate partially written cachelines read
 	 * before writing. */
