@@ -241,6 +241,7 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
 {
 	int i;
 	int nr = pagevec_count(pvec);
+	int delta_munlocked = -nr;
 
 	/* Phase 1: page isolation */
 	spin_lock_irq(&zone->lru_lock);
@@ -250,9 +251,6 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
 		if (TestClearPageMlocked(page)) {
 			struct lruvec *lruvec;
 			int lru;
-
-			/* we have disabled interrupts */
-			__mod_zone_page_state(zone, NR_MLOCK, -1);
 
 			if (PageLRU(page)) {
 				lruvec = mem_cgroup_page_lruvec(page, zone);
@@ -275,8 +273,10 @@ skip_munlock:
 			 */
 			pvec->pages[i] = NULL;
 			put_page(page);
+			delta_munlocked++;
 		}
 	}
+	__mod_zone_page_state(zone, NR_MLOCK, delta_munlocked);
 	spin_unlock_irq(&zone->lru_lock);
 
 	/* Phase 2: page munlock and putback */
