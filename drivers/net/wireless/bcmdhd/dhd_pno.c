@@ -1235,6 +1235,7 @@ _dhd_pno_get_for_batch(dhd_pub_t *dhd, char *buf, int bufsize, int reason)
 				DHD_ERROR(("failed to allocate dhd_pno_bestnet_entry\n"));
 				goto exit;
 			}
+			memset(pbestnet_entry, 0, BESTNET_ENTRY_SIZE);
 			pbestnet_entry->recorded_time = jiffies; /* record the current time */
 			/* create header for the first entry */
 			allocate_header = (i == 0)? TRUE : FALSE;
@@ -1343,8 +1344,10 @@ exit:
 		MFREE(dhd->osh, plbestnet, PNO_BESTNET_LEN);
 	_params->params_batch.get_batch.buf = NULL;
 	_params->params_batch.get_batch.bufsize = 0;
+	_params->params_batch.get_batch.bytes_written = err;
 	mutex_unlock(&_pno_state->pno_mutex);
-	complete(&_pno_state->get_batch_done);
+	if (waitqueue_active(&_pno_state->get_batch_done.wait))
+		complete(&_pno_state->get_batch_done);
 	return err;
 }
 static void
@@ -1370,6 +1373,7 @@ int
 dhd_pno_get_for_batch(dhd_pub_t *dhd, char *buf, int bufsize, int reason)
 {
 	int err = BCME_OK;
+	char *pbuf = buf;
 	dhd_pno_status_info_t *_pno_state;
 	struct dhd_pno_batch_params *params_batch;
 	NULL_CHECK(dhd, "dhd is NULL", err);
@@ -1389,13 +1393,19 @@ dhd_pno_get_for_batch(dhd_pub_t *dhd, char *buf, int bufsize, int reason)
 	params_batch = &_pno_state->pno_params_arr[INDEX_OF_BATCH_PARAMS].params_batch;
 	if (!(_pno_state->pno_mode & DHD_PNO_BATCH_MODE)) {
 		DHD_ERROR(("%s: Batching SCAN mode is not enabled\n", __FUNCTION__));
+		memset(pbuf, 0, bufsize);
+		pbuf += sprintf(pbuf, "scancount=%d\n", 0);
+		sprintf(pbuf, "%s", RESULTS_END_MARKER);
+		err = strlen(buf);
 		goto exit;
 	}
 	params_batch->get_batch.buf = buf;
 	params_batch->get_batch.bufsize = bufsize;
 	params_batch->get_batch.reason = reason;
+	params_batch->get_batch.bytes_written = 0;
 	schedule_work(&_pno_state->work);
 	wait_for_completion(&_pno_state->get_batch_done);
+	err = params_batch->get_batch.bytes_written;
 exit:
 	return err;
 }

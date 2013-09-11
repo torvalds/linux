@@ -152,6 +152,7 @@ struct dhd_pno_get_batch_info {
 	uint32 expired_tot_scan_cnt;
 	uint32 top_node_cnt;
 	uint32 bufsize;
+	uint32 bytes_written;
 	int reason;
 	struct list_head scan_results_list;
 	struct list_head expired_scan_results_list;
