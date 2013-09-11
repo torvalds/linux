@@ -52,7 +52,6 @@
 #define RTC_BATT_FLAG		0x80
 
 struct rtc_plat_data {
-	struct rtc_device *rtc;
 	void __iomem *ioaddr_nvram;
 	void __iomem *ioaddr_rtc;
 	size_t size_nvram;
@@ -206,7 +205,6 @@ static int ds1742_rtc_probe(struct platform_device *pdev)
 				  &ds1742_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
-	pdata->rtc = rtc;
 
 	ret = sysfs_create_bin_file(&pdev->dev.kobj, &pdata->nvram_attr);
 
