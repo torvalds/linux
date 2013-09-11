@@ -205,7 +205,8 @@ static struct kern_ipc_perm *ipc_findkey(struct ipc_ids *ids, key_t key)
 			continue;
 		}
 
-		ipc_lock_by_ptr(ipc);
+		rcu_read_lock();
+		ipc_lock_object(ipc);
 		return ipc;
 	}
 
@@ -838,7 +839,8 @@ static struct kern_ipc_perm *sysvipc_find_ipc(struct ipc_ids *ids, loff_t pos,
 		ipc = idr_find(&ids->ipcs_idr, pos);
 		if (ipc != NULL) {
 			*new_pos = pos + 1;
-			ipc_lock_by_ptr(ipc);
+			rcu_read_lock();
+			ipc_lock_object(ipc);
 			return ipc;
 		}
 	}
