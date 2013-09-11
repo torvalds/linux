@@ -75,6 +75,8 @@
 	pr_err("%s: " fmt, pd->name, ##__VA_ARGS__)
 #define pkt_notice(pd, fmt, ...)					\
 	pr_notice("%s: " fmt, pd->name, ##__VA_ARGS__)
+#define pkt_info(pd, fmt, ...)						\
+	pr_info("%s: " fmt, pd->name, ##__VA_ARGS__)
 
 #define pkt_dbg(level, pd, fmt, ...)					\
 do {									\
@@ -1561,10 +1563,10 @@ work_to_do:
 
 static void pkt_print_settings(struct pktcdvd_device *pd)
 {
-	pr_info("%s packets, %u blocks, Mode-%c disc\n",
-		pd->settings.fp ? "Fixed" : "Variable",
-		pd->settings.size >> 2,
-		pd->settings.block_mode == 8 ? '1' : '2');
+	pkt_info(pd, "%s packets, %u blocks, Mode-%c disc\n",
+		 pd->settings.fp ? "Fixed" : "Variable",
+		 pd->settings.size >> 2,
+		 pd->settings.block_mode == 8 ? '1' : '2');
 }
 
 static int pkt_mode_sense(struct pktcdvd_device *pd, struct packet_command *cgc, int page_code, int page_control)
@@ -2112,7 +2114,7 @@ static noinline_for_stack int pkt_media_speed(struct pktcdvd_device *pd,
 			return 1;
 	}
 	if (*speed) {
-		pr_info("maximum media speed: %d\n", *speed);
+		pkt_info(pd, "maximum media speed: %d\n", *speed);
 		return 0;
 	} else {
 		pkt_notice(pd, "unknown speed %d for sub-type %d\n", sp, st);
@@ -2239,7 +2241,7 @@ static int pkt_open_dev(struct pktcdvd_device *pd, fmode_t write)
 			ret = -ENOMEM;
 			goto out_putdev;
 		}
-		pr_info("%lukB available on disc\n", lba << 1);
+		pkt_info(pd, "%lukB available on disc\n", lba << 1);
 	}
 
 	return 0;
