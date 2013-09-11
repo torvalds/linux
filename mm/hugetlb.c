@@ -1115,9 +1115,9 @@ static long vma_needs_reservation(struct hstate *h,
 	} else  {
 		long err;
 		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
-		struct resv_map *reservations = vma_resv_map(vma);
+		struct resv_map *resv = vma_resv_map(vma);
 
-		err = region_chg(&reservations->regions, idx, idx + 1);
+		err = region_chg(&resv->regions, idx, idx + 1);
 		if (err < 0)
 			return err;
 		return 0;
@@ -1135,10 +1135,10 @@ static void vma_commit_reservation(struct hstate *h,
 
 	} else if (is_vma_resv_set(vma, HPAGE_RESV_OWNER)) {
 		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
-		struct resv_map *reservations = vma_resv_map(vma);
+		struct resv_map *resv = vma_resv_map(vma);
 
 		/* Mark this page used in the map. */
-		region_add(&reservations->regions, idx, idx + 1);
+		region_add(&resv->regions, idx, idx + 1);
 	}
 }
 
@@ -2188,7 +2188,7 @@ out:
 
 static void hugetlb_vm_op_open(struct vm_area_struct *vma)
 {
-	struct resv_map *reservations = vma_resv_map(vma);
+	struct resv_map *resv = vma_resv_map(vma);
 
 	/*
 	 * This new VMA should share its siblings reservation map if present.
@@ -2198,34 +2198,34 @@ static void hugetlb_vm_op_open(struct vm_area_struct *vma)
 	 * after this open call completes.  It is therefore safe to take a
 	 * new reference here without additional locking.
 	 */
-	if (reservations)
-		kref_get(&reservations->refs);
+	if (resv)
+		kref_get(&resv->refs);
 }
 
 static void resv_map_put(struct vm_area_struct *vma)
 {
-	struct resv_map *reservations = vma_resv_map(vma);
+	struct resv_map *resv = vma_resv_map(vma);
 
-	if (!reservations)
+	if (!resv)
 		return;
-	kref_put(&reservations->refs, resv_map_release);
+	kref_put(&resv->refs, resv_map_release);
 }
 
 static void hugetlb_vm_op_close(struct vm_area_struct *vma)
 {
 	struct hstate *h = hstate_vma(vma);
-	struct resv_map *reservations = vma_resv_map(vma);
+	struct resv_map *resv = vma_resv_map(vma);
 	struct hugepage_subpool *spool = subpool_vma(vma);
 	unsigned long reserve;
 	unsigned long start;
 	unsigned long end;
 
-	if (reservations) {
+	if (resv) {
 		start = vma_hugecache_offset(h, vma, vma->vm_start);
 		end = vma_hugecache_offset(h, vma, vma->vm_end);
 
 		reserve = (end - start) -
-			region_count(&reservations->regions, start, end);
+			region_count(&resv->regions, start, end);
 
 		resv_map_put(vma);
 
