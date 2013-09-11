@@ -1526,7 +1526,7 @@ static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
 	struct hstate *h;
 	NODEMASK_ALLOC(nodemask_t, nodes_allowed, GFP_KERNEL | __GFP_NORETRY);
 
-	err = strict_strtoul(buf, 10, &count);
+	err = kstrtoul(buf, 10, &count);
 	if (err)
 		goto out;
 
@@ -1617,7 +1617,7 @@ static ssize_t nr_overcommit_hugepages_store(struct kobject *kobj,
 	if (h->order >= MAX_ORDER)
 		return -EINVAL;
 
-	err = strict_strtoul(buf, 10, &input);
+	err = kstrtoul(buf, 10, &input);
 	if (err)
 		return err;
 
