@@ -22,7 +22,7 @@ struct ipc_ids {
 	int in_use;
 	unsigned short seq;
 	unsigned short seq_max;
-	struct rw_semaphore rw_mutex;
+	struct rw_semaphore rwsem;
 	struct idr ipcs_idr;
 	int next_id;
 };
