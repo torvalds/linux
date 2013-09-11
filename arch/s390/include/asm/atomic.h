@@ -60,11 +60,7 @@ static inline int atomic_add_return(int i, atomic_t *v)
 #define atomic_inc(_v)			atomic_add_return(1, _v)
 #define atomic_inc_return(_v)		atomic_add_return(1, _v)
 #define atomic_inc_and_test(_v)		(atomic_add_return(1, _v) == 0)
-
-static inline int atomic_sub_return(int i, atomic_t *v)
-{
-	return __CS_LOOP(v, i, "sr");
-}
+#define atomic_sub_return(_i, _v)	atomic_add_return(-(int)(_i), _v)
 #define atomic_sub(_i, _v)		atomic_sub_return(_i, _v)
 #define atomic_sub_and_test(_i, _v)	(atomic_sub_return(_i, _v) == 0)
 #define atomic_dec(_v)			atomic_sub_return(1, _v)
@@ -150,11 +146,6 @@ static inline void atomic64_set(atomic64_t *v, long long i)
 static inline long long atomic64_add_return(long long i, atomic64_t *v)
 {
 	return __CSG_LOOP(v, i, "agr");
-}
-
-static inline long long atomic64_sub_return(long long i, atomic64_t *v)
-{
-	return __CSG_LOOP(v, i, "sgr");
 }
 
 static inline void atomic64_clear_mask(unsigned long mask, atomic64_t *v)
@@ -248,17 +239,6 @@ static inline long long atomic64_add_return(long long i, atomic64_t *v)
 	return new;
 }
 
-static inline long long atomic64_sub_return(long long i, atomic64_t *v)
-{
-	long long old, new;
-
-	do {
-		old = atomic64_read(v);
-		new = old - i;
-	} while (atomic64_cmpxchg(v, old, new) != old);
-	return new;
-}
-
 static inline void atomic64_set_mask(unsigned long long mask, atomic64_t *v)
 {
 	long long old, new;
@@ -319,6 +299,7 @@ static inline long long atomic64_dec_if_positive(atomic64_t *v)
 #define atomic64_inc(_v)		atomic64_add_return(1, _v)
 #define atomic64_inc_return(_v)		atomic64_add_return(1, _v)
 #define atomic64_inc_and_test(_v)	(atomic64_add_return(1, _v) == 0)
+#define atomic64_sub_return(_i, _v)	atomic64_add_return(-(long long)(_i), _v)
 #define atomic64_sub(_i, _v)		atomic64_sub_return(_i, _v)
 #define atomic64_sub_and_test(_i, _v)	(atomic64_sub_return(_i, _v) == 0)
 #define atomic64_dec(_v)		atomic64_sub_return(1, _v)
