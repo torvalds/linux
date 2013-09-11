@@ -37,6 +37,8 @@ my @ignore = ();
 my $help = 0;
 my $configuration_file = ".checkpatch.conf";
 my $max_line_length = 80;
+my $ignore_perl_version = 0;
+my $minimum_perl_version = 5.10.0;
 
 sub help {
 	my ($exitcode) = @_;
@@ -71,6 +73,8 @@ Options:
                              "<inputfile>.EXPERIMENTAL-checkpatch-fixes"
                              with potential errors corrected to the preferred
                              checkpatch style
+  --ignore-perl-version      override checking of perl version.  expect
+                             runtime errors.
   -h, --help, --version      display this help and exit
 
 When FILE is - read standard input.
@@ -123,6 +127,7 @@ GetOptions(
 	'mailback!'	=> \$mailback,
 	'summary-file!'	=> \$summary_file,
 	'fix!'		=> \$fix,
+	'ignore-perl-version!' => \$ignore_perl_version,
 	'debug=s'	=> \%debug,
 	'test-only=s'	=> \$tst_only,
 	'h|help'	=> \$help,
@@ -132,6 +137,13 @@ GetOptions(
 help(0) if ($help);
 
 my $exit = 0;
+
+if ($^V && $^V lt $minimum_perl_version) {
+	printf "$P: requires at least perl version %vd\n", $minimum_perl_version;
+	if (!$ignore_perl_version) {
+		exit(1);
+	}
+}
 
 if ($#ARGV < 0) {
 	print "$P: no input files\n";
