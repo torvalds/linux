@@ -523,6 +523,10 @@ ifndef NO_LIBNUMA
   endif
 endif
 
+ifndef ($(filter -lbfd,$(EXTLIBS)),)
+  CFLAGS += -DHAVE_LIBBFD_SUPPORT
+endif
+
 # Among the variables below, these:
 #   perfexecdir
 #   template_dir
