@@ -2086,6 +2086,7 @@ sub process {
 		if ($realfile =~ m@^(drivers/net/|net/)@ &&
 		    $prevrawline =~ /^\+[ \t]*\/\*/ &&		#starting /*
 		    $prevrawline !~ /\*\/[ \t]*$/ &&		#no trailing */
+		    $rawline =~ /^\+/ &&			#line is new
 		    $rawline !~ /^\+[ \t]*\*/) {		#no leading *
 			WARN("NETWORKING_BLOCK_COMMENT_STYLE",
 			     "networking block comments start with * on subsequent lines\n" . $hereprev);
