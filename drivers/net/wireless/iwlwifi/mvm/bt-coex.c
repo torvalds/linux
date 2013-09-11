@@ -131,6 +131,51 @@ static const __le32 iwl_bt_prio_boost[BT_COEX_BOOST_SIZE] = {
 	cpu_to_le32(0xff00ff00),
 };
 
+static const __le32 iwl_single_shared_ant[BT_COEX_MAX_LUT][BT_COEX_LUT_SIZE] = {
+	{
+		cpu_to_le32(0x40000000),
+		cpu_to_le32(0x00000000),
+		cpu_to_le32(0x44000000),
+		cpu_to_le32(0x00000000),
+		cpu_to_le32(0x40000000),
+		cpu_to_le32(0x00000000),
+		cpu_to_le32(0x44000000),
+		cpu_to_le32(0x00000000),
+		cpu_to_le32(0xc0004000),
+		cpu_to_le32(0xf0005000),
+		cpu_to_le32(0xc0004000),
+		cpu_to_le32(0xf0005000),
+	},
+	{
+		cpu_to_le32(0x40000000),
+		cpu_to_le32(0x00000000),
+		cpu_to_le32(0x44000000),
+		cpu_to_le32(0x00000000),
+		cpu_to_le32(0x40000000),
+		cpu_to_le32(0x00000000),
+		cpu_to_le32(0x44000000),
+		cpu_to_le32(0x00000000),
+		cpu_to_le32(0xc0004000),
+		cpu_to_le32(0xf0005000),
+		cpu_to_le32(0xc0004000),
+		cpu_to_le32(0xf0005000),
+	},
+	{
+		cpu_to_le32(0x40000000),
+		cpu_to_le32(0x00000000),
+		cpu_to_le32(0x44000000),
+		cpu_to_le32(0x00000000),
+		cpu_to_le32(0x40000000),
+		cpu_to_le32(0x00000000),
+		cpu_to_le32(0x44000000),
+		cpu_to_le32(0x00000000),
+		cpu_to_le32(0xc0004000),
+		cpu_to_le32(0xf0005000),
+		cpu_to_le32(0xc0004000),
+		cpu_to_le32(0xf0005000),
+	},
+};
+
 static const __le32 iwl_combined_lookup[BT_COEX_MAX_LUT][BT_COEX_LUT_SIZE] = {
 	{
 		/* Tight */
@@ -354,8 +399,13 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 					    BT_VALID_TXTX_DELTA_FREQ_THRS |
 					    BT_VALID_TXRX_MAX_FREQ_0);
 
-	memcpy(&bt_cmd->decision_lut, iwl_combined_lookup,
-	       sizeof(iwl_combined_lookup));
+	if (mvm->cfg->bt_shared_single_ant)
+		memcpy(&bt_cmd->decision_lut, iwl_single_shared_ant,
+		       sizeof(iwl_single_shared_ant));
+	else
+		memcpy(&bt_cmd->decision_lut, iwl_combined_lookup,
+		       sizeof(iwl_combined_lookup));
+
 	memcpy(&bt_cmd->bt_prio_boost, iwl_bt_prio_boost,
 	       sizeof(iwl_bt_prio_boost));
 	memcpy(&bt_cmd->bt4_multiprio_lut, iwl_bt_mprio_lut,
