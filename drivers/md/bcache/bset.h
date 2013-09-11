@@ -3,6 +3,8 @@
 
 #include <linux/slab.h>
 
+#include "util.h" /* for time_stats */
+
 /*
  * BKEYS:
  *
@@ -190,6 +192,33 @@ struct bset_tree {
 	struct bset	*data;
 };
 
+/* Sorting */
+
+struct bset_sort_state {
+	mempool_t		*pool;
+
+	unsigned		page_order;
+	unsigned		crit_factor;
+
+	struct time_stats	time;
+};
+
+void bch_bset_sort_state_free(struct bset_sort_state *);
+int bch_bset_sort_state_init(struct bset_sort_state *, unsigned);
+void bch_btree_sort_lazy(struct btree *, struct bset_sort_state *);
+void bch_btree_sort_into(struct btree *, struct btree *,
+			 struct bset_sort_state *);
+void bch_btree_sort_and_fix_extents(struct btree *, struct btree_iter *,
+				    struct bset_sort_state *);
+void bch_btree_sort_partial(struct btree *, unsigned,
+			    struct bset_sort_state *);
+
+static inline void bch_btree_sort(struct btree *b,
+				  struct bset_sort_state *state)
+{
+	bch_btree_sort_partial(b, 0, state);
+}
+
 /* Keylists */
 
 struct keylist {
@@ -374,15 +403,6 @@ static inline struct bkey *bch_bset_search(struct btree *b, struct bset_tree *t,
 })
 
 bool bch_bkey_try_merge(struct btree *, struct bkey *, struct bkey *);
-void bch_btree_sort_lazy(struct btree *);
-void bch_btree_sort_into(struct btree *, struct btree *);
-void bch_btree_sort_and_fix_extents(struct btree *, struct btree_iter *);
-void bch_btree_sort_partial(struct btree *, unsigned);
-
-static inline void bch_btree_sort(struct btree *b)
-{
-	bch_btree_sort_partial(b, 0);
-}
 
 int bch_bset_print_stats(struct cache_set *, char *);
 

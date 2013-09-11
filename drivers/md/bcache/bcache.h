@@ -187,6 +187,7 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
+#include "bset.h"
 #include "util.h"
 #include "closure.h"
 
@@ -645,8 +646,7 @@ struct cache_set {
 	 */
 	mempool_t		*fill_iter;
 
-	mempool_t		*sort_pool;
-	unsigned		sort_crit_factor;
+	struct bset_sort_state	sort;
 
 	/* List of buckets we're currently writing data to */
 	struct list_head	data_buckets;
@@ -662,7 +662,6 @@ struct cache_set {
 	unsigned		congested_read_threshold_us;
 	unsigned		congested_write_threshold_us;
 
-	struct time_stats	sort_time;
 	struct time_stats	btree_gc_time;
 	struct time_stats	btree_split_time;
 	struct time_stats	btree_read_time;

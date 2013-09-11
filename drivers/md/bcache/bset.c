@@ -952,6 +952,26 @@ struct bkey *bch_btree_iter_next_filter(struct btree_iter *iter,
 
 /* Mergesort */
 
+void bch_bset_sort_state_free(struct bset_sort_state *state)
+{
+	if (state->pool)
+		mempool_destroy(state->pool);
+}
+
+int bch_bset_sort_state_init(struct bset_sort_state *state, unsigned page_order)
+{
+	spin_lock_init(&state->time.lock);
+
+	state->page_order = page_order;
+	state->crit_factor = int_sqrt(1 << page_order);
+
+	state->pool = mempool_create_page_pool(1, page_order);
+	if (!state->pool)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static void sort_key_next(struct btree_iter *iter,
 			  struct btree_iter_set *i)
 {
@@ -1077,22 +1097,24 @@ static void btree_mergesort(struct btree *b, struct bset *out,
 }
 
 static void __btree_sort(struct btree *b, struct btree_iter *iter,
-			 unsigned start, unsigned order, bool fixup)
+			 unsigned start, unsigned order, bool fixup,
+			 struct bset_sort_state *state)
 {
 	uint64_t start_time;
-	bool remove_stale = !b->written;
 	bool used_mempool = false;
 	struct bset *out = (void *) __get_free_pages(__GFP_NOWARN|GFP_NOIO,
 						     order);
 	if (!out) {
-		out = page_address(mempool_alloc(b->c->sort_pool, GFP_NOIO));
+		BUG_ON(order > state->page_order);
+
+		out = page_address(mempool_alloc(state->pool, GFP_NOIO));
 		used_mempool = true;
 		order = ilog2(bucket_pages(b->c));
 	}
 
 	start_time = local_clock();
 
-	btree_mergesort(b, out, iter, fixup, remove_stale);
+	btree_mergesort(b, out, iter, fixup, false);
 	b->nsets = start;
 
 	if (!start && order == b->page_order) {
@@ -1113,18 +1135,18 @@ static void __btree_sort(struct btree *b, struct btree_iter *iter,
 	}
 
 	if (used_mempool)
-		mempool_free(virt_to_page(out), b->c->sort_pool);
+		mempool_free(virt_to_page(out), state->pool);
 	else
 		free_pages((unsigned long) out, order);
 
-	if (b->written)
-		bset_build_written_tree(b);
+	bset_build_written_tree(b);
 
 	if (!start)
-		bch_time_stats_update(&b->c->sort_time, start_time);
+		bch_time_stats_update(&state->time, start_time);
 }
 
-void bch_btree_sort_partial(struct btree *b, unsigned start)
+void bch_btree_sort_partial(struct btree *b, unsigned start,
+			    struct bset_sort_state *state)
 {
 	size_t order = b->page_order, keys = 0;
 	struct btree_iter iter;
@@ -1148,18 +1170,19 @@ void bch_btree_sort_partial(struct btree *b, unsigned start)
 			order = ilog2(order);
 	}
 
-	__btree_sort(b, &iter, start, order, false);
+	__btree_sort(b, &iter, start, order, false, state);
 
 	EBUG_ON(b->written && oldsize >= 0 && bch_count_data(b) != oldsize);
 }
 
-void bch_btree_sort_and_fix_extents(struct btree *b, struct btree_iter *iter)
+void bch_btree_sort_and_fix_extents(struct btree *b, struct btree_iter *iter,
+				    struct bset_sort_state *state)
 {
-	BUG_ON(!b->written);
-	__btree_sort(b, iter, 0, b->page_order, true);
+	__btree_sort(b, iter, 0, b->page_order, true, state);
 }
 
-void bch_btree_sort_into(struct btree *b, struct btree *new)
+void bch_btree_sort_into(struct btree *b, struct btree *new,
+			 struct bset_sort_state *state)
 {
 	uint64_t start_time = local_clock();
 
@@ -1168,15 +1191,14 @@ void bch_btree_sort_into(struct btree *b, struct btree *new)
 
 	btree_mergesort(b, new->sets->data, &iter, false, true);
 
-	bch_time_stats_update(&b->c->sort_time, start_time);
+	bch_time_stats_update(&state->time, start_time);
 
-	bkey_copy_key(&new->key, &b->key);
 	new->sets->size = 0;
 }
 
 #define SORT_CRIT	(4096 / sizeof(uint64_t))
 
-void bch_btree_sort_lazy(struct btree *b)
+void bch_btree_sort_lazy(struct btree *b, struct bset_sort_state *state)
 {
 	unsigned crit = SORT_CRIT;
 	int i;
@@ -1185,24 +1207,18 @@ void bch_btree_sort_lazy(struct btree *b)
 	if (!b->nsets)
 		goto out;
 
-	/* If not a leaf node, always sort */
-	if (b->level) {
-		bch_btree_sort(b);
-		return;
-	}
-
 	for (i = b->nsets - 1; i >= 0; --i) {
-		crit *= b->c->sort_crit_factor;
+		crit *= state->crit_factor;
 
 		if (b->sets[i].data->keys < crit) {
-			bch_btree_sort_partial(b, i);
+			bch_btree_sort_partial(b, i, state);
 			return;
 		}
 	}
 
 	/* Sort if we'd overflow */
 	if (b->nsets + 1 == MAX_BSETS) {
-		bch_btree_sort(b);
+		bch_btree_sort(b, state);
 		return;
 	}
 
