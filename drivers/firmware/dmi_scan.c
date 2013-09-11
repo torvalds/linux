@@ -504,11 +504,6 @@ void __init dmi_scan_machine(void)
 		}
 	}
 	else {
-		/*
-		 * no iounmap() for that ioremap(); it would be a no-op, but
-		 * it's so early in setup that sucker gets confused into doing
-		 * what it shouldn't if we actually call it.
-		 */
 		p = dmi_ioremap(0xF0000, 0x10000);
 		if (p == NULL)
 			goto error;
