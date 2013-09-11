@@ -1108,16 +1108,21 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr,
 
 	err = -ENOMEM;
 	sfd = kzalloc(sizeof(*sfd), GFP_KERNEL);
-	if (!sfd)
-		goto out_put_dentry;
+	if (!sfd) {
+		path_put(&path);
+		goto out_nattch;
+	}
 
 	file = alloc_file(&path, f_mode,
 			  is_file_hugepages(shp->shm_file) ?
 				&shm_file_operations_huge :
 				&shm_file_operations);
 	err = PTR_ERR(file);
-	if (IS_ERR(file))
-		goto out_free;
+	if (IS_ERR(file)) {
+		kfree(sfd);
+		path_put(&path);
+		goto out_nattch;
+	}
 
 	file->private_data = sfd;
 	file->f_mapping = shp->shm_file->f_mapping;
@@ -1143,7 +1148,7 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr,
 		    addr > current->mm->start_stack - size - PAGE_SIZE * 5)
 			goto invalid;
 	}
-		
+
 	addr = do_mmap_pgoff(file, addr, size, prot, flags, 0, &populate);
 	*raddr = addr;
 	err = 0;
@@ -1167,19 +1172,12 @@ out_nattch:
 	else
 		shm_unlock(shp);
 	up_write(&shm_ids(ns).rw_mutex);
-
-out:
 	return err;
 
 out_unlock:
 	shm_unlock(shp);
-	goto out;
-
-out_free:
-	kfree(sfd);
-out_put_dentry:
-	path_put(&path);
-	goto out_nattch;
+out:
+	return err;
 }
 
 SYSCALL_DEFINE3(shmat, int, shmid, char __user *, shmaddr, int, shmflg)
