@@ -3302,11 +3302,15 @@ sub process {
 			    $var !~ /^(?:Clear|Set|TestClear|TestSet|)Page[A-Z]/ &&
 #Ignore SI style variants like nS, mV and dB (ie: max_uV, regulator_min_uA_show)
 			    $var !~ /^(?:[a-z_]*?)_?[a-z][A-Z](?:_[a-z_]+)?$/) {
-				seed_camelcase_includes() if ($check);
-				if (!defined $camelcase{$var}) {
-					$camelcase{$var} = 1;
-					CHK("CAMELCASE",
-					    "Avoid CamelCase: <$var>\n" . $herecurr);
+				while ($var =~ m{($Ident)}g) {
+					my $word = $1;
+					next if ($word !~ /[A-Z][a-z]|[a-z][A-Z]/);
+					seed_camelcase_includes() if ($check);
+					if (!defined $camelcase{$word}) {
+						$camelcase{$word} = 1;
+						CHK("CAMELCASE",
+						    "Avoid CamelCase: <$word>\n" . $herecurr);
+					}
 				}
 			}
 		}
