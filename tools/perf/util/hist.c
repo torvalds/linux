@@ -535,6 +535,7 @@ void hist_entry__free(struct hist_entry *he)
 {
 	free(he->branch_info);
 	free(he->mem_info);
+	free(he->srcline);
 	free(he);
 }
 
