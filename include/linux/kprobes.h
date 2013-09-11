@@ -268,6 +268,8 @@ extern void kprobes_inc_nmissed_count(struct kprobe *p);
 
 struct kprobe_insn_cache {
 	struct mutex mutex;
+	void *(*alloc)(void);	/* allocate insn page */
+	void (*free)(void *);	/* free insn page */
 	struct list_head pages; /* list of kprobe_insn_page */
 	size_t insn_size;	/* size of instruction slot */
 	int nr_garbage;
