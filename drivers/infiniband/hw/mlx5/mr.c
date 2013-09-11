@@ -680,6 +680,10 @@ static struct mlx5_ib_mr *reg_umr(struct ib_pd *pd, struct ib_umem *umem,
 		err = -ENOMEM;
 		goto error;
 	}
+
+	mlx5_ib_populate_pas(dev, umem, page_shift,
+			     mr_align(mr->pas, MLX5_UMR_ALIGN), 1);
+
 	mr->dma = dma_map_single(ddev, mr_align(mr->pas, MLX5_UMR_ALIGN), size,
 				 DMA_TO_DEVICE);
 	if (dma_mapping_error(ddev, mr->dma)) {
@@ -687,9 +691,6 @@ static struct mlx5_ib_mr *reg_umr(struct ib_pd *pd, struct ib_umem *umem,
 		err = -ENOMEM;
 		goto error;
 	}
-
-	mlx5_ib_populate_pas(dev, umem, page_shift,
-			     mr_align(mr->pas, MLX5_UMR_ALIGN), 1);
 
 	memset(&wr, 0, sizeof(wr));
 	wr.wr_id = (u64)(unsigned long)mr;
