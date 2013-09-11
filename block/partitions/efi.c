@@ -158,7 +158,7 @@ static inline int pmbr_part_valid(gpt_mbr_record *part)
 	if (le32_to_cpu(part->starting_lba) != GPT_PRIMARY_PARTITION_TABLE_LBA)
 		goto invalid;
 
-	return 1;
+	return GPT_MBR_PROTECTIVE;
 invalid:
 	return 0;
 }
@@ -167,21 +167,48 @@ invalid:
  * is_pmbr_valid(): test Protective MBR for validity
  * @mbr: pointer to a legacy mbr structure
  *
- * Description: Returns 1 if PMBR is valid, 0 otherwise.
- * Validity depends on two things:
+ * Description: Checks for a valid protective or hybrid
+ * master boot record (MBR). The validity of a pMBR depends
+ * on all of the following properties:
  *  1) MSDOS signature is in the last two bytes of the MBR
  *  2) One partition of type 0xEE is found
+ *
+ * In addition, a hybrid MBR will have up to three additional
+ * primary partitions, which point to the same space that's
+ * marked out by up to three GPT partitions.
+ *
+ * Returns 0 upon invalid MBR, or GPT_MBR_PROTECTIVE or
+ * GPT_MBR_HYBRID depending on the device layout.
  */
-static int
-is_pmbr_valid(legacy_mbr *mbr)
+static int is_pmbr_valid(legacy_mbr *mbr)
 {
-	int i;
+	int i, ret = 0; /* invalid by default */
+
 	if (!mbr || le16_to_cpu(mbr->signature) != MSDOS_MBR_SIGNATURE)
-                return 0;
+		goto done;
+
+	for (i = 0; i < 4; i++) {
+		ret = pmbr_part_valid(&mbr->partition_record[i]);
+		if (ret == GPT_MBR_PROTECTIVE) {
+			/*
+			 * Ok, we at least know that there's a protective MBR,
+			 * now check if there are other partition types for
+			 * hybrid MBR.
+			 */
+			goto check_hybrid;
+		}
+	}
+
+	if (ret != GPT_MBR_PROTECTIVE)
+		goto done;
+check_hybrid:
 	for (i = 0; i < 4; i++)
-		if (pmbr_part_valid(&mbr->partition_record[i]))
-                        return 1;
-	return 0;
+		if ((mbr->partition_record[i].os_type !=
+			EFI_PMBR_OSTYPE_EFI_GPT) &&
+		    (mbr->partition_record[i].os_type != 0x00))
+			ret = GPT_MBR_HYBRID;
+done:
+	return ret;
 }
 
 /**
@@ -548,17 +575,22 @@ static int find_valid_gpt(struct parsed_partitions *state, gpt_header **gpt,
 
 	lastlba = last_lba(state->bdev);
         if (!force_gpt) {
-                /* This will be added to the EFI Spec. per Intel after v1.02. */
-                legacymbr = kzalloc(sizeof (*legacymbr), GFP_KERNEL);
-                if (legacymbr) {
-                        read_lba(state, 0, (u8 *) legacymbr,
-				 sizeof (*legacymbr));
-                        good_pmbr = is_pmbr_valid(legacymbr);
-                        kfree(legacymbr);
-                }
-                if (!good_pmbr)
-                        goto fail;
-        }
+		/* This will be added to the EFI Spec. per Intel after v1.02. */
+		legacymbr = kzalloc(sizeof(*legacymbr), GFP_KERNEL);
+		if (!legacymbr)
+			goto fail;
+
+		read_lba(state, 0, (u8 *)legacymbr, sizeof(*legacymbr));
+		good_pmbr = is_pmbr_valid(legacymbr);
+		kfree(legacymbr);
+
+		if (!good_pmbr)
+			goto fail;
+
+		pr_debug("Device has a %s MBR\n",
+			 good_pmbr == GPT_MBR_PROTECTIVE ?
+						"protective" : "hybrid");
+	}
 
 	good_pgpt = is_gpt_valid(state, GPT_PRIMARY_PARTITION_TABLE_LBA,
 				 &pgpt, &pptes);
