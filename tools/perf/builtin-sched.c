@@ -737,12 +737,12 @@ static int replay_fork_event(struct perf_sched *sched,
 
 	if (verbose) {
 		printf("fork event\n");
-		printf("... parent: %s/%d\n", parent->comm, parent->tid);
-		printf("...  child: %s/%d\n", child->comm, child->tid);
+		printf("... parent: %s/%d\n", thread__comm_str(parent), parent->tid);
+		printf("...  child: %s/%d\n", thread__comm_str(child), child->tid);
 	}
 
-	register_pid(sched, parent->tid, parent->comm);
-	register_pid(sched, child->tid, child->comm);
+	register_pid(sched, parent->tid, thread__comm_str(parent));
+	register_pid(sched, child->tid, thread__comm_str(child));
 	return 0;
 }
 
@@ -1077,7 +1077,7 @@ static int latency_migrate_task_event(struct perf_sched *sched,
 	if (!atoms) {
 		if (thread_atoms_insert(sched, migrant))
 			return -1;
-		register_pid(sched, migrant->tid, migrant->comm);
+		register_pid(sched, migrant->tid, thread__comm_str(migrant));
 		atoms = thread_atoms_search(&sched->atom_root, migrant, &sched->cmp_pid);
 		if (!atoms) {
 			pr_err("migration-event: Internal tree error");
@@ -1111,13 +1111,13 @@ static void output_lat_thread(struct perf_sched *sched, struct work_atoms *work_
 	/*
 	 * Ignore idle threads:
 	 */
-	if (!strcmp(work_list->thread->comm, "swapper"))
+	if (!strcmp(thread__comm_str(work_list->thread), "swapper"))
 		return;
 
 	sched->all_runtime += work_list->total_runtime;
 	sched->all_count   += work_list->nb_atoms;
 
-	ret = printf("  %s:%d ", work_list->thread->comm, work_list->thread->tid);
+	ret = printf("  %s:%d ", thread__comm_str(work_list->thread), work_list->thread->tid);
 
 	for (i = 0; i < 24 - ret; i++)
 		printf(" ");
@@ -1334,7 +1334,7 @@ static int map_switch_event(struct perf_sched *sched, struct perf_evsel *evsel,
 	printf("  %12.6f secs ", (double)timestamp/1e9);
 	if (new_shortname) {
 		printf("%s => %s:%d\n",
-			sched_in->shortname, sched_in->comm, sched_in->tid);
+		       sched_in->shortname, thread__comm_str(sched_in), sched_in->tid);
 	} else {
 		printf("\n");
 	}

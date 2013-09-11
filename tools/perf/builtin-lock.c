@@ -767,7 +767,7 @@ static void dump_threads(void)
 	while (node) {
 		st = container_of(node, struct thread_stat, rb);
 		t = perf_session__findnew(session, st->tid);
-		pr_info("%10d: %s\n", st->tid, t->comm);
+		pr_info("%10d: %s\n", st->tid, thread__comm_str(t));
 		node = rb_next(node);
 	};
 }

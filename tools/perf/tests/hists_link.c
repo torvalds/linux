@@ -421,7 +421,7 @@ static void print_hists(struct hists *hists)
 		he = rb_entry(node, struct hist_entry, rb_node_in);
 
 		pr_info("%2d: entry: %-8s [%-8s] %20s: period = %"PRIu64"\n",
-			i, he->thread->comm, he->ms.map->dso->short_name,
+			i, thread__comm_str(he->thread), he->ms.map->dso->short_name,
 			he->ms.sym->name, he->stat.period);
 
 		i++;

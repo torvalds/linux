@@ -45,6 +45,11 @@ int thread__set_comm(struct thread *thread, const char *comm)
 	return err;
 }
 
+const char *thread__comm_str(const struct thread *thread)
+{
+	return thread->comm;
+}
+
 int thread__comm_len(struct thread *thread)
 {
 	if (!thread->comm_len) {
@@ -58,7 +63,7 @@ int thread__comm_len(struct thread *thread)
 
 size_t thread__fprintf(struct thread *thread, FILE *fp)
 {
-	return fprintf(fp, "Thread %d %s\n", thread->tid, thread->comm) +
+	return fprintf(fp, "Thread %d %s\n", thread->tid, thread__comm_str(thread)) +
 	       map_groups__fprintf(&thread->mg, verbose, fp);
 }
 
