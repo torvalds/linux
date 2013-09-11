@@ -906,11 +906,11 @@ static struct cpufreq_policy *cpufreq_policy_restore(unsigned int cpu)
 	struct cpufreq_policy *policy;
 	unsigned long flags;
 
-	write_lock_irqsave(&cpufreq_driver_lock, flags);
+	read_lock_irqsave(&cpufreq_driver_lock, flags);
 
 	policy = per_cpu(cpufreq_cpu_data_fallback, cpu);
 
-	write_unlock_irqrestore(&cpufreq_driver_lock, flags);
+	read_unlock_irqrestore(&cpufreq_driver_lock, flags);
 
 	return policy;
 }
