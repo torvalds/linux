@@ -13,6 +13,7 @@
  */
 
 #include <linux/kobject.h>
+#include <linux/kobj_completion.h>
 #include <linux/string.h>
 #include <linux/export.h>
 #include <linux/stat.h>
@@ -748,6 +749,55 @@ const struct sysfs_ops kobj_sysfs_ops = {
 	.show	= kobj_attr_show,
 	.store	= kobj_attr_store,
 };
+
+/**
+ * kobj_completion_init - initialize a kobj_completion object.
+ * @kc: kobj_completion
+ * @ktype: type of kobject to initialize
+ *
+ * kobj_completion structures can be embedded within structures with different
+ * lifetime rules.  During the release of the enclosing object, we can
+ * wait on the release of the kobject so that we don't free it while it's
+ * still busy.
+ */
+void kobj_completion_init(struct kobj_completion *kc, struct kobj_type *ktype)
+{
+	init_completion(&kc->kc_unregister);
+	kobject_init(&kc->kc_kobj, ktype);
+}
+EXPORT_SYMBOL_GPL(kobj_completion_init);
+
+/**
+ * kobj_completion_release - release a kobj_completion object
+ * @kobj: kobject embedded in kobj_completion
+ *
+ * Used with kobject_release to notify waiters that the kobject has been
+ * released.
+ */
+void kobj_completion_release(struct kobject *kobj)
+{
+	struct kobj_completion *kc = kobj_to_kobj_completion(kobj);
+	complete(&kc->kc_unregister);
+}
+EXPORT_SYMBOL_GPL(kobj_completion_release);
+
+/**
+ * kobj_completion_del_and_wait - release the kobject and wait for it
+ * @kc: kobj_completion object to release
+ *
+ * Delete the kobject from sysfs and drop the reference count.  Then wait
+ * until any other outstanding references are also dropped.  This routine
+ * is only necessary once other references may have been taken on the
+ * kobject.  Typically this happens when the kobject has been published
+ * to sysfs via kobject_add.
+ */
+void kobj_completion_del_and_wait(struct kobj_completion *kc)
+{
+	kobject_del(&kc->kc_kobj);
+	kobject_put(&kc->kc_kobj);
+	wait_for_completion(&kc->kc_unregister);
+}
+EXPORT_SYMBOL_GPL(kobj_completion_del_and_wait);
 
 /**
  * kset_register - initialize and add a kset.
