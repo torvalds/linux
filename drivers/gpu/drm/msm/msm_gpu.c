@@ -230,6 +230,8 @@ static void hangcheck_timer_reset(struct msm_gpu *gpu)
 static void hangcheck_handler(unsigned long data)
 {
 	struct msm_gpu *gpu = (struct msm_gpu *)data;
+	struct drm_device *dev = gpu->dev;
+	struct msm_drm_private *priv = dev->dev_private;
 	uint32_t fence = gpu->funcs->last_fence(gpu);
 
 	if (fence != gpu->hangcheck_fence) {
@@ -237,8 +239,6 @@ static void hangcheck_handler(unsigned long data)
 		gpu->hangcheck_fence = fence;
 	} else if (fence < gpu->submitted_fence) {
 		/* no progress and not done.. hung! */
-		struct drm_device *dev = gpu->dev;
-		struct msm_drm_private *priv = dev->dev_private;
 		gpu->hangcheck_fence = fence;
 		dev_err(dev->dev, "%s: hangcheck detected gpu lockup!\n",
 				gpu->name);
@@ -252,6 +252,9 @@ static void hangcheck_handler(unsigned long data)
 	/* if still more pending work, reset the hangcheck timer: */
 	if (gpu->submitted_fence > gpu->hangcheck_fence)
 		hangcheck_timer_reset(gpu);
+
+	/* workaround for missing irq: */
+	queue_work(priv->wq, &gpu->retire_work);
 }
 
 /*
