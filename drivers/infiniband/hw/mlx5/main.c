@@ -164,6 +164,7 @@ int mlx5_vector2eqn(struct mlx5_ib_dev *dev, int vector, int *eqn, int *irqn)
 static int alloc_comp_eqs(struct mlx5_ib_dev *dev)
 {
 	struct mlx5_eq_table *table = &dev->mdev.priv.eq_table;
+	char name[MLX5_MAX_EQ_NAME];
 	struct mlx5_eq *eq, *n;
 	int ncomp_vec;
 	int nent;
@@ -180,11 +181,10 @@ static int alloc_comp_eqs(struct mlx5_ib_dev *dev)
 			goto clean;
 		}
 
-		snprintf(eq->name, MLX5_MAX_EQ_NAME, "mlx5_comp%d", i);
+		snprintf(name, MLX5_MAX_EQ_NAME, "mlx5_comp%d", i);
 		err = mlx5_create_map_eq(&dev->mdev, eq,
 					 i + MLX5_EQ_VEC_COMP_BASE, nent, 0,
-					 eq->name,
-					 &dev->mdev.priv.uuari.uars[0]);
+					 name, &dev->mdev.priv.uuari.uars[0]);
 		if (err) {
 			kfree(eq);
 			goto clean;

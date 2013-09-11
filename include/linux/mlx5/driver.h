@@ -82,7 +82,7 @@ enum {
 };
 
 enum {
-	MLX5_MAX_EQ_NAME	= 20
+	MLX5_MAX_EQ_NAME	= 32
 };
 
 enum {
