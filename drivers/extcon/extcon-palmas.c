@@ -135,7 +135,7 @@ static void palmas_enable_irq(struct palmas_usb *palmas_usb)
 static int palmas_usb_probe(struct platform_device *pdev)
 {
 	struct palmas *palmas = dev_get_drvdata(pdev->dev.parent);
-	struct palmas_usb_platform_data	*pdata = pdev->dev.platform_data;
+	struct palmas_usb_platform_data	*pdata = dev_get_platdata(&pdev->dev);
 	struct device_node *node = pdev->dev.of_node;
 	struct palmas_usb *palmas_usb;
 	int status;
