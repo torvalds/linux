@@ -524,7 +524,6 @@ struct gen_pool *devm_gen_pool_create(struct device *dev, int min_alloc_order,
 /**
  * dev_get_gen_pool - Obtain the gen_pool (if any) for a device
  * @dev: device to retrieve the gen_pool from
- * @name: Optional name for the gen_pool, usually NULL
  *
  * Returns the gen_pool for the device if one is present, or NULL.
  */
