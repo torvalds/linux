@@ -419,21 +419,14 @@ static int sixaxis_usb_output_raw_report(struct hid_device *hid, __u8 *buf,
  */
 static int sixaxis_set_operational_usb(struct hid_device *hdev)
 {
-	struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
-	struct usb_device *dev = interface_to_usbdev(intf);
-	__u16 ifnum = intf->cur_altsetting->desc.bInterfaceNumber;
 	int ret;
 	char *buf = kmalloc(18, GFP_KERNEL);
 
 	if (!buf)
 		return -ENOMEM;
 
-	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
-				 HID_REQ_GET_REPORT,
-				 USB_DIR_IN | USB_TYPE_CLASS |
-				 USB_RECIP_INTERFACE,
-				 (3 << 8) | 0xf2, ifnum, buf, 17,
-				 USB_CTRL_GET_TIMEOUT);
+	ret = hdev->hid_get_raw_report(hdev, 0xf2, buf, 17, HID_FEATURE_REPORT);
+
 	if (ret < 0)
 		hid_err(hdev, "can't set operational mode\n");
 
