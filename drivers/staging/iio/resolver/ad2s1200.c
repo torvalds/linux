@@ -110,8 +110,8 @@ static int ad2s1200_probe(struct spi_device *spi)
 		ret = devm_gpio_request_one(&spi->dev, pins[pn], GPIOF_DIR_OUT,
 					    DRV_NAME);
 		if (ret) {
-			pr_err("%s: request gpio pin %d failed\n",
-						DRV_NAME, pins[pn]);
+			dev_err(&spi->dev, "request gpio pin %d failed\n",
+							pins[pn]);
 			return ret;
 		}
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
