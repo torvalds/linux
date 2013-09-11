@@ -380,6 +380,7 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
 	enum bp_state state = BP_DONE;
 	unsigned long  pfn, i;
 	struct page   *page;
+	struct page   *scratch_page;
 	int ret;
 	struct xen_memory_reservation reservation = {
 		.address_bits = 0,
@@ -399,6 +400,8 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
 	if (nr_pages > ARRAY_SIZE(frame_list))
 		nr_pages = ARRAY_SIZE(frame_list);
 
+	scratch_page = get_balloon_scratch_page();
+
 	for (i = 0; i < nr_pages; i++) {
 		page = alloc_page(gfp);
 		if (page == NULL) {
@@ -416,7 +419,7 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
 		if (xen_pv_domain() && !PageHighMem(page)) {
 			ret = HYPERVISOR_update_va_mapping(
 				(unsigned long)__va(pfn << PAGE_SHIFT),
-				pfn_pte(page_to_pfn(__get_cpu_var(balloon_scratch_page)),
+				pfn_pte(page_to_pfn(scratch_page),
 					PAGE_KERNEL_RO), 0);
 			BUG_ON(ret);
 		}
@@ -432,13 +435,13 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
 		pfn = mfn_to_pfn(frame_list[i]);
 		if (!xen_feature(XENFEAT_auto_translated_physmap)) {
 			unsigned long p;
-			struct page *pg;
-			pg = __get_cpu_var(balloon_scratch_page);
-			p = page_to_pfn(pg);
+			p = page_to_pfn(scratch_page);
 			__set_phys_to_machine(pfn, pfn_to_mfn(p));
 		}
 		balloon_append(pfn_to_page(pfn));
 	}
+
+	put_balloon_scratch_page();
 
 	set_xen_guest_handle(reservation.extent_start, frame_list);
 	reservation.nr_extents   = nr_pages;
