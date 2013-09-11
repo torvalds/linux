@@ -264,6 +264,7 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	if (ret)
 		goto error;
 
+	/* Read the NVM only at driver load time, no need to do this twice */
 	if (read_nvm) {
 		/* Read nvm */
 		ret = iwl_nvm_init(mvm);
@@ -272,6 +273,10 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 			goto error;
 		}
 	}
+
+	/* In case we read the NVM from external file, load it to the NIC */
+	if (iwlwifi_mod_params.nvm_file)
+		iwl_mvm_load_nvm_to_nic(mvm);
 
 	ret = iwl_nvm_check_version(mvm->nvm_data, mvm->trans);
 	WARN_ON(ret);

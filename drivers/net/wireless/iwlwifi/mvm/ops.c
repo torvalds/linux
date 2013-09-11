@@ -409,24 +409,32 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	IWL_INFO(mvm, "Detected %s, REV=0x%X\n",
 		 mvm->cfg->name, mvm->trans->hw_rev);
 
-	err = iwl_trans_start_hw(mvm->trans);
-	if (err)
-		goto out_free;
-
 	iwl_mvm_tt_initialize(mvm);
 
-	mutex_lock(&mvm->mutex);
-	err = iwl_run_init_mvm_ucode(mvm, true);
-	mutex_unlock(&mvm->mutex);
-	/* returns 0 if successful, 1 if success but in rfkill */
-	if (err < 0 && !iwlmvm_mod_params.init_dbg) {
-		IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", err);
-		goto out_free;
-	}
+	/*
+	 * If the NVM exists in an external file,
+	 * there is no need to unnecessarily power up the NIC at driver load
+	 */
+	if (iwlwifi_mod_params.nvm_file) {
+			iwl_nvm_init(mvm);
+	} else {
+		err = iwl_trans_start_hw(mvm->trans);
+		if (err)
+			goto out_free;
 
-	/* Stop the hw after the ALIVE and NVM has been read */
-	if (!iwlmvm_mod_params.init_dbg)
-		iwl_trans_stop_hw(mvm->trans, false);
+		mutex_lock(&mvm->mutex);
+		err = iwl_run_init_mvm_ucode(mvm, true);
+		mutex_unlock(&mvm->mutex);
+		/* returns 0 if successful, 1 if success but in rfkill */
+		if (err < 0 && !iwlmvm_mod_params.init_dbg) {
+			IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", err);
+			goto out_free;
+		}
+
+		/* Stop the hw after the ALIVE and NVM has been read */
+		if (!iwlmvm_mod_params.init_dbg)
+			iwl_trans_stop_hw(mvm->trans, false);
+	}
 
 	scan_size = sizeof(struct iwl_scan_cmd) +
 		mvm->fw->ucode_capa.max_probe_length +
@@ -457,7 +465,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
  out_free:
 	iwl_phy_db_free(mvm->phy_db);
 	kfree(mvm->scan_cmd);
-	iwl_trans_stop_hw(trans, true);
+	if (!iwlwifi_mod_params.nvm_file)
+		iwl_trans_stop_hw(trans, true);
 	ieee80211_free_hw(mvm->hw);
 	return NULL;
 }
