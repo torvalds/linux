@@ -755,17 +755,18 @@ static const char *sense_key_string(__u8 index)
  * A generic sense dump / resolve mechanism should be implemented across
  * all ATAPI + SCSI devices.
  */
-static void pkt_dump_sense(struct packet_command *cgc)
+static void pkt_dump_sense(struct pktcdvd_device *pd,
+			   struct packet_command *cgc)
 {
 	struct request_sense *sense = cgc->sense;
 
 	if (sense)
-		pr_err("%*ph - sense %02x.%02x.%02x (%s)\n",
-		       CDROM_PACKET_SIZE, cgc->cmd,
-		       sense->sense_key, sense->asc, sense->ascq,
-		       sense_key_string(sense->sense_key));
+		pkt_err(pd, "%*ph - sense %02x.%02x.%02x (%s)\n",
+			CDROM_PACKET_SIZE, cgc->cmd,
+			sense->sense_key, sense->asc, sense->ascq,
+			sense_key_string(sense->sense_key));
 	else
-		pr_err("%*ph - no sense\n", CDROM_PACKET_SIZE, cgc->cmd);
+		pkt_err(pd, "%*ph - no sense\n", CDROM_PACKET_SIZE, cgc->cmd);
 }
 
 /*
@@ -808,7 +809,7 @@ static noinline_for_stack int pkt_set_speed(struct pktcdvd_device *pd,
 	cgc.cmd[5] = write_speed & 0xff;
 
 	if ((ret = pkt_generic_packet(pd, &cgc)))
-		pkt_dump_sense(&cgc);
+		pkt_dump_sense(pd, &cgc);
 
 	return ret;
 }
@@ -1700,7 +1701,7 @@ static noinline_for_stack int pkt_set_write_settings(struct pktcdvd_device *pd)
 	init_cdrom_command(&cgc, buffer, sizeof(*wp), CGC_DATA_READ);
 	cgc.sense = &sense;
 	if ((ret = pkt_mode_sense(pd, &cgc, GPMODE_WRITE_PARMS_PAGE, 0))) {
-		pkt_dump_sense(&cgc);
+		pkt_dump_sense(pd, &cgc);
 		return ret;
 	}
 
@@ -1715,7 +1716,7 @@ static noinline_for_stack int pkt_set_write_settings(struct pktcdvd_device *pd)
 	init_cdrom_command(&cgc, buffer, size, CGC_DATA_READ);
 	cgc.sense = &sense;
 	if ((ret = pkt_mode_sense(pd, &cgc, GPMODE_WRITE_PARMS_PAGE, 0))) {
-		pkt_dump_sense(&cgc);
+		pkt_dump_sense(pd, &cgc);
 		return ret;
 	}
 
@@ -1757,7 +1758,7 @@ static noinline_for_stack int pkt_set_write_settings(struct pktcdvd_device *pd)
 
 	cgc.buflen = cgc.cmd[8] = size;
 	if ((ret = pkt_mode_select(pd, &cgc))) {
-		pkt_dump_sense(&cgc);
+		pkt_dump_sense(pd, &cgc);
 		return ret;
 	}
 
@@ -1969,7 +1970,7 @@ static noinline_for_stack int pkt_write_caching(struct pktcdvd_device *pd,
 	ret = pkt_mode_select(pd, &cgc);
 	if (ret) {
 		pkt_err(pd, "write caching control failed\n");
-		pkt_dump_sense(&cgc);
+		pkt_dump_sense(pd, &cgc);
 	} else if (!ret && set)
 		pkt_notice(pd, "enabled write caching\n");
 	return ret;
@@ -2007,7 +2008,7 @@ static noinline_for_stack int pkt_get_max_speed(struct pktcdvd_device *pd,
 			     sizeof(struct mode_page_header);
 		ret = pkt_mode_sense(pd, &cgc, GPMODE_CAPABILITIES_PAGE, 0);
 		if (ret) {
-			pkt_dump_sense(&cgc);
+			pkt_dump_sense(pd, &cgc);
 			return ret;
 		}
 	}
@@ -2066,7 +2067,7 @@ static noinline_for_stack int pkt_media_speed(struct pktcdvd_device *pd,
 	cgc.cmd[8] = 2;
 	ret = pkt_generic_packet(pd, &cgc);
 	if (ret) {
-		pkt_dump_sense(&cgc);
+		pkt_dump_sense(pd, &cgc);
 		return ret;
 	}
 	size = ((unsigned int) buf[0]<<8) + buf[1] + 2;
@@ -2081,7 +2082,7 @@ static noinline_for_stack int pkt_media_speed(struct pktcdvd_device *pd,
 	cgc.cmd[8] = size;
 	ret = pkt_generic_packet(pd, &cgc);
 	if (ret) {
-		pkt_dump_sense(&cgc);
+		pkt_dump_sense(pd, &cgc);
 		return ret;
 	}
 
@@ -2136,7 +2137,7 @@ static noinline_for_stack int pkt_perform_opc(struct pktcdvd_device *pd)
 	cgc.cmd[0] = GPCMD_SEND_OPC;
 	cgc.cmd[1] = 1;
 	if ((ret = pkt_generic_packet(pd, &cgc)))
-		pkt_dump_sense(&cgc);
+		pkt_dump_sense(pd, &cgc);
 	return ret;
 }
 
