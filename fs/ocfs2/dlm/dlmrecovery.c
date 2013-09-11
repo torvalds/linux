@@ -2331,6 +2331,14 @@ static void dlm_do_local_recovery_cleanup(struct dlm_ctxt *dlm, u8 dead_node)
 			} else if (res->owner == dlm->node_num) {
 				dlm_free_dead_locks(dlm, res, dead_node);
 				__dlm_lockres_calc_usage(dlm, res);
+			} else if (res->owner == DLM_LOCK_RES_OWNER_UNKNOWN) {
+				if (test_bit(dead_node, res->refmap)) {
+					mlog(0, "%s:%.*s: dead node %u had a ref, but had "
+						"no locks and had not purged before dying\n",
+						dlm->name, res->lockname.len,
+						res->lockname.name, dead_node);
+					dlm_lockres_clear_refmap_bit(dlm, res, dead_node);
+				}
 			}
 			spin_unlock(&res->spinlock);
 		}
