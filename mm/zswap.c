@@ -409,7 +409,7 @@ static int zswap_get_swap_cache_page(swp_entry_t entry,
 				struct page **retpage)
 {
 	struct page *found_page, *new_page = NULL;
-	struct address_space *swapper_space = &swapper_spaces[swp_type(entry)];
+	struct address_space *swapper_space = swap_address_space(entry);
 	int err;
 
 	*retpage = NULL;
