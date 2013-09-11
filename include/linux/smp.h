@@ -11,7 +11,6 @@
 #include <linux/list.h>
 #include <linux/cpumask.h>
 #include <linux/init.h>
-#include <linux/irqflags.h>
 
 extern void cpu_idle(void);
 
@@ -28,6 +27,11 @@ extern unsigned int total_cpus;
 
 int smp_call_function_single(int cpuid, smp_call_func_t func, void *info,
 			     int wait);
+
+/*
+ * Call a function on all processors
+ */
+int on_each_cpu(smp_call_func_t func, void *info, int wait);
 
 /*
  * Call a function on processors specified by mask, which might include
@@ -112,11 +116,6 @@ static inline void call_function_init(void) { }
 #endif
 
 /*
- * Call a function on all processors
- */
-int on_each_cpu(smp_call_func_t func, void *info, int wait);
-
-/*
  * Mark the boot cpu "online" so that it can call console drivers in
  * printk() and can access its per-cpu storage.
  */
@@ -140,16 +139,6 @@ static inline int up_smp_call_function(smp_call_func_t func, void *info)
 }
 #define smp_call_function(func, info, wait) \
 			(up_smp_call_function(func, info))
-
-static inline int on_each_cpu(smp_call_func_t func, void *info, int wait)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	func(info);
-	local_irq_restore(flags);
-	return 0;
-}
 
 static inline void smp_send_reschedule(int cpu) { }
 #define smp_prepare_boot_cpu()			do {} while (0)
