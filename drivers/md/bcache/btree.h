@@ -201,7 +201,7 @@ static inline bool bkey_written(struct btree *b, struct bkey *k)
 
 static inline void set_gc_sectors(struct cache_set *c)
 {
-	atomic_set(&c->sectors_to_gc, c->sb.bucket_size * c->nbuckets / 8);
+	atomic_set(&c->sectors_to_gc, c->sb.bucket_size * c->nbuckets / 16);
 }
 
 static inline struct bkey *bch_btree_iter_init(struct btree *b,

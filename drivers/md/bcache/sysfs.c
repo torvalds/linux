@@ -489,7 +489,6 @@ lock_root:
 
 	sysfs_print(btree_used_percent,	btree_used(c));
 	sysfs_print(btree_nodes,	c->gc_stats.nodes);
-	sysfs_hprint(dirty_data,	c->gc_stats.dirty);
 	sysfs_hprint(average_key_size,	average_key_size(c));
 
 	sysfs_print(cache_read_races,
@@ -642,7 +641,6 @@ static struct attribute *bch_cache_set_files[] = {
 	&sysfs_cache_available_percent,
 
 	&sysfs_average_key_size,
-	&sysfs_dirty_data,
 
 	&sysfs_errors,
 	&sysfs_io_error_limit,

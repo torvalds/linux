@@ -477,7 +477,6 @@ struct gc_stat {
 
 	size_t			nkeys;
 	uint64_t		data;	/* sectors */
-	uint64_t		dirty;	/* sectors */
 	unsigned		in_use; /* percent */
 };
 
