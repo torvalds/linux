@@ -512,18 +512,18 @@ size_t perf_event__fprintf_comm(union perf_event *event, FILE *fp)
 
 int perf_event__process_comm(struct perf_tool *tool __maybe_unused,
 			     union perf_event *event,
-			     struct perf_sample *sample __maybe_unused,
+			     struct perf_sample *sample,
 			     struct machine *machine)
 {
-	return machine__process_comm_event(machine, event);
+	return machine__process_comm_event(machine, event, sample);
 }
 
 int perf_event__process_lost(struct perf_tool *tool __maybe_unused,
 			     union perf_event *event,
-			     struct perf_sample *sample __maybe_unused,
+			     struct perf_sample *sample,
 			     struct machine *machine)
 {
-	return machine__process_lost_event(machine, event);
+	return machine__process_lost_event(machine, event, sample);
 }
 
 size_t perf_event__fprintf_mmap(union perf_event *event, FILE *fp)
@@ -546,18 +546,18 @@ size_t perf_event__fprintf_mmap2(union perf_event *event, FILE *fp)
 
 int perf_event__process_mmap(struct perf_tool *tool __maybe_unused,
 			     union perf_event *event,
-			     struct perf_sample *sample __maybe_unused,
+			     struct perf_sample *sample,
 			     struct machine *machine)
 {
-	return machine__process_mmap_event(machine, event);
+	return machine__process_mmap_event(machine, event, sample);
 }
 
 int perf_event__process_mmap2(struct perf_tool *tool __maybe_unused,
 			     union perf_event *event,
-			     struct perf_sample *sample __maybe_unused,
+			     struct perf_sample *sample,
 			     struct machine *machine)
 {
-	return machine__process_mmap2_event(machine, event);
+	return machine__process_mmap2_event(machine, event, sample);
 }
 
 size_t perf_event__fprintf_task(union perf_event *event, FILE *fp)
@@ -569,18 +569,18 @@ size_t perf_event__fprintf_task(union perf_event *event, FILE *fp)
 
 int perf_event__process_fork(struct perf_tool *tool __maybe_unused,
 			     union perf_event *event,
-			     struct perf_sample *sample __maybe_unused,
+			     struct perf_sample *sample,
 			     struct machine *machine)
 {
-	return machine__process_fork_event(machine, event);
+	return machine__process_fork_event(machine, event, sample);
 }
 
 int perf_event__process_exit(struct perf_tool *tool __maybe_unused,
 			     union perf_event *event,
-			     struct perf_sample *sample __maybe_unused,
+			     struct perf_sample *sample,
 			     struct machine *machine)
 {
-	return machine__process_exit_event(machine, event);
+	return machine__process_exit_event(machine, event, sample);
 }
 
 size_t perf_event__fprintf(union perf_event *event, FILE *fp)
@@ -611,10 +611,10 @@ size_t perf_event__fprintf(union perf_event *event, FILE *fp)
 
 int perf_event__process(struct perf_tool *tool __maybe_unused,
 			union perf_event *event,
-			struct perf_sample *sample __maybe_unused,
+			struct perf_sample *sample,
 			struct machine *machine)
 {
-	return machine__process_event(machine, event);
+	return machine__process_event(machine, event, sample);
 }
 
 void thread__find_addr_map(struct thread *self,

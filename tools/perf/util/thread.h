@@ -33,11 +33,11 @@ static inline void thread__exited(struct thread *thread)
 	thread->dead = true;
 }
 
-int thread__set_comm(struct thread *self, const char *comm);
+int thread__set_comm(struct thread *thread, const char *comm, u64 timestamp);
 int thread__comm_len(struct thread *self);
 const char *thread__comm_str(const struct thread *thread);
 void thread__insert_map(struct thread *self, struct map *map);
-int thread__fork(struct thread *self, struct thread *parent);
+int thread__fork(struct thread *thread, struct thread *parent, u64 timestamp);
 size_t thread__fprintf(struct thread *thread, FILE *fp);
 
 static inline struct map *thread__find_map(struct thread *self,

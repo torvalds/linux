@@ -31,7 +31,8 @@ void thread__delete(struct thread *thread)
 	free(thread);
 }
 
-int thread__set_comm(struct thread *thread, const char *comm)
+int thread__set_comm(struct thread *thread, const char *comm,
+		     u64 timestamp __maybe_unused)
 {
 	int err;
 
@@ -73,7 +74,8 @@ void thread__insert_map(struct thread *thread, struct map *map)
 	map_groups__insert(&thread->mg, map);
 }
 
-int thread__fork(struct thread *thread, struct thread *parent)
+int thread__fork(struct thread *thread, struct thread *parent,
+		 u64 timestamp __maybe_unused)
 {
 	int i;
 

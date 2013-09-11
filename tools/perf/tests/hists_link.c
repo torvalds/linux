@@ -93,7 +93,7 @@ static struct machine *setup_fake_machine(struct machines *machines)
 		if (thread == NULL)
 			goto out;
 
-		thread__set_comm(thread, fake_threads[i].comm);
+		thread__set_comm(thread, fake_threads[i].comm, 0);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(fake_mmap_info); i++) {
@@ -110,7 +110,7 @@ static struct machine *setup_fake_machine(struct machines *machines)
 		strcpy(fake_mmap_event.mmap.filename,
 		       fake_mmap_info[i].filename);
 
-		machine__process_mmap_event(machine, &fake_mmap_event);
+		machine__process_mmap_event(machine, &fake_mmap_event, NULL);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(fake_symbols); i++) {
