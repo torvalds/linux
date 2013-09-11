@@ -58,9 +58,12 @@ char *get_srcline(struct dso *dso, unsigned long addr)
 {
 	char *file;
 	unsigned line;
-	char *srcline = SRCLINE_UNKNOWN;
+	char *srcline;
 	char *dso_name = dso->long_name;
 	size_t size;
+
+	if (!dso->has_srcline)
+		return SRCLINE_UNKNOWN;
 
 	if (dso_name[0] == '[')
 		goto out;
@@ -81,8 +84,11 @@ char *get_srcline(struct dso *dso, unsigned long addr)
 		srcline = SRCLINE_UNKNOWN;
 
 	free(file);
-out:
 	return srcline;
+
+out:
+	dso->has_srcline = 0;
+	return SRCLINE_UNKNOWN;
 }
 
 void free_srcline(char *srcline)
