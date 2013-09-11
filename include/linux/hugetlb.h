@@ -66,6 +66,8 @@ int hugetlb_reserve_pages(struct inode *inode, long from, long to,
 						vm_flags_t vm_flags);
 void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed);
 int dequeue_hwpoisoned_huge_page(struct page *page);
+bool isolate_huge_page(struct page *page, struct list_head *list);
+void putback_active_hugepage(struct page *page);
 void copy_huge_page(struct page *dst, struct page *src);
 
 #ifdef CONFIG_ARCH_WANT_HUGE_PMD_SHARE
@@ -134,6 +136,8 @@ static inline int dequeue_hwpoisoned_huge_page(struct page *page)
 	return 0;
 }
 
+#define isolate_huge_page(p, l) false
+#define putback_active_hugepage(p)	do {} while (0)
 static inline void copy_huge_page(struct page *dst, struct page *src)
 {
 }

@@ -100,6 +100,10 @@ void putback_movable_pages(struct list_head *l)
 	struct page *page2;
 
 	list_for_each_entry_safe(page, page2, l, lru) {
+		if (unlikely(PageHuge(page))) {
+			putback_active_hugepage(page);
+			continue;
+		}
 		list_del(&page->lru);
 		dec_zone_page_state(page, NR_ISOLATED_ANON +
 				page_is_file_cache(page));
@@ -1025,7 +1029,11 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
 		list_for_each_entry_safe(page, page2, from, lru) {
 			cond_resched();
 
-			rc = unmap_and_move(get_new_page, private,
+			if (PageHuge(page))
+				rc = unmap_and_move_huge_page(get_new_page,
+						private, page, pass > 2, mode);
+			else
+				rc = unmap_and_move(get_new_page, private,
 						page, pass > 2, mode);
 
 			switch(rc) {

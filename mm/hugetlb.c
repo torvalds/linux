@@ -48,7 +48,8 @@ static unsigned long __initdata default_hstate_max_huge_pages;
 static unsigned long __initdata default_hstate_size;
 
 /*
- * Protects updates to hugepage_freelists, nr_huge_pages, and free_huge_pages
+ * Protects updates to hugepage_freelists, hugepage_activelist, nr_huge_pages,
+ * free_huge_pages, and surplus_huge_pages.
  */
 DEFINE_SPINLOCK(hugetlb_lock);
 
@@ -3422,3 +3423,23 @@ int dequeue_hwpoisoned_huge_page(struct page *hpage)
 	return ret;
 }
 #endif
+
+bool isolate_huge_page(struct page *page, struct list_head *list)
+{
+	VM_BUG_ON(!PageHead(page));
+	if (!get_page_unless_zero(page))
+		return false;
+	spin_lock(&hugetlb_lock);
+	list_move_tail(&page->lru, list);
+	spin_unlock(&hugetlb_lock);
+	return true;
+}
+
+void putback_active_hugepage(struct page *page)
+{
+	VM_BUG_ON(!PageHead(page));
+	spin_lock(&hugetlb_lock);
+	list_move_tail(&page->lru, &(page_hstate(page))->hugepage_activelist);
+	spin_unlock(&hugetlb_lock);
+	put_page(page);
+}
