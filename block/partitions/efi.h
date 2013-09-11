@@ -101,11 +101,25 @@ typedef struct _gpt_entry {
 	efi_char16_t partition_name[72 / sizeof (efi_char16_t)];
 } __attribute__ ((packed)) gpt_entry;
 
+typedef struct _gpt_mbr_record {
+	u8	boot_indicator; /* unused by EFI, set to 0x80 for bootable */
+	u8	start_head;     /* unused by EFI, pt start in CHS */
+	u8	start_sector;   /* unused by EFI, pt start in CHS */
+	u8	start_track;
+	u8	os_type;        /* EFI and legacy non-EFI OS types */
+	u8	end_head;       /* unused by EFI, pt end in CHS */
+	u8	end_sector;     /* unused by EFI, pt end in CHS */
+	u8	end_track;      /* unused by EFI, pt end in CHS */
+	__le32	starting_lba;   /* used by EFI - start addr of the on disk pt */
+	__le32	size_in_lba;    /* used by EFI - size of pt in LBA */
+} __packed gpt_mbr_record;
+
+
 typedef struct _legacy_mbr {
 	u8 boot_code[440];
 	__le32 unique_mbr_signature;
 	__le16 unknown;
-	struct partition partition_record[4];
+	gpt_mbr_record partition_record[4];
 	__le16 signature;
 } __attribute__ ((packed)) legacy_mbr;
 

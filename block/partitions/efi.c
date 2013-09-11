@@ -149,12 +149,11 @@ static u64 last_lba(struct block_device *bdev)
 		       bdev_logical_block_size(bdev)) - 1ULL;
 }
 
-static inline int
-pmbr_part_valid(struct partition *part)
+static inline int pmbr_part_valid(gpt_mbr_record *part)
 {
-        if (part->sys_ind == EFI_PMBR_OSTYPE_EFI_GPT &&
-            le32_to_cpu(part->start_sect) == 1UL)
-                return 1;
+	if (part->os_type == EFI_PMBR_OSTYPE_EFI_GPT &&
+	    le32_to_cpu(part->start_sector) == 1UL)
+		return 1;
         return 0;
 }
 
