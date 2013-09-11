@@ -2380,7 +2380,6 @@ detach_vmas_to_be_unmapped(struct mm_struct *mm, struct vm_area_struct *vma,
 static int __split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
 	      unsigned long addr, int new_below)
 {
-	struct mempolicy *pol;
 	struct vm_area_struct *new;
 	int err = -ENOMEM;
 
@@ -2404,12 +2403,9 @@ static int __split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
 		new->vm_pgoff += ((addr - vma->vm_start) >> PAGE_SHIFT);
 	}
 
-	pol = mpol_dup(vma_policy(vma));
-	if (IS_ERR(pol)) {
-		err = PTR_ERR(pol);
+	err = vma_dup_policy(vma, new);
+	if (err)
 		goto out_free_vma;
-	}
-	vma_set_policy(new, pol);
 
 	if (anon_vma_clone(new, vma))
 		goto out_free_mpol;
@@ -2437,7 +2433,7 @@ static int __split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
 		fput(new->vm_file);
 	unlink_anon_vmas(new);
  out_free_mpol:
-	mpol_put(pol);
+	mpol_put(vma_policy(new));
  out_free_vma:
 	kmem_cache_free(vm_area_cachep, new);
  out_err:
@@ -2780,7 +2776,6 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 	struct mm_struct *mm = vma->vm_mm;
 	struct vm_area_struct *new_vma, *prev;
 	struct rb_node **rb_link, *rb_parent;
-	struct mempolicy *pol;
 	bool faulted_in_anon_vma = true;
 
 	/*
@@ -2825,10 +2820,8 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 			new_vma->vm_start = addr;
 			new_vma->vm_end = addr + len;
 			new_vma->vm_pgoff = pgoff;
-			pol = mpol_dup(vma_policy(vma));
-			if (IS_ERR(pol))
+			if (vma_dup_policy(vma, new_vma))
 				goto out_free_vma;
-			vma_set_policy(new_vma, pol);
 			INIT_LIST_HEAD(&new_vma->anon_vma_chain);
 			if (anon_vma_clone(new_vma, vma))
 				goto out_free_mempol;
@@ -2843,7 +2836,7 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 	return new_vma;
 
  out_free_mempol:
-	mpol_put(pol);
+	mpol_put(vma_policy(new_vma));
  out_free_vma:
 	kmem_cache_free(vm_area_cachep, new_vma);
 	return NULL;
