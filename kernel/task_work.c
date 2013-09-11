@@ -4,6 +4,23 @@
 
 static struct callback_head work_exited; /* all we need is ->next == NULL */
 
+/**
+ * task_work_add - ask the @task to execute @work->func()
+ * @task: the task which should run the callback
+ * @work: the callback to run
+ * @notify: send the notification if true
+ *
+ * Queue @work for task_work_run() below and notify the @task if @notify.
+ * Fails if the @task is exiting/exited and thus it can't process this @work.
+ * Otherwise @work->func() will be called when the @task returns from kernel
+ * mode or exits.
+ *
+ * This is like the signal handler which runs in kernel mode, but it doesn't
+ * try to wake up the @task.
+ *
+ * RETURNS:
+ * 0 if succeeds or -ESRCH.
+ */
 int
 task_work_add(struct task_struct *task, struct callback_head *work, bool notify)
 {
@@ -21,6 +38,17 @@ task_work_add(struct task_struct *task, struct callback_head *work, bool notify)
 	return 0;
 }
 
+/**
+ * task_work_cancel - cancel a pending work added by task_work_add()
+ * @task: the task which should execute the work
+ * @func: identifies the work to remove
+ *
+ * Find the last queued pending work with ->func == @func and remove
+ * it from queue.
+ *
+ * RETURNS:
+ * The found work or NULL if not found.
+ */
 struct callback_head *
 task_work_cancel(struct task_struct *task, task_work_func_t func)
 {
@@ -46,6 +74,14 @@ task_work_cancel(struct task_struct *task, task_work_func_t func)
 	return work;
 }
 
+/**
+ * task_work_run - execute the works added by task_work_add()
+ *
+ * Flush the pending works. Should be used by the core kernel code.
+ * Called before the task returns to the user-mode or stops, or when
+ * it exits. In the latter case task_work_add() can no longer add the
+ * new work after task_work_run() returns.
+ */
 void task_work_run(void)
 {
 	struct task_struct *task = current;
