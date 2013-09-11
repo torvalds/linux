@@ -316,10 +316,6 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 				compressed = true;
 				total_len = zipped_len;
 			} else {
-				pr_err("pstore: compression failed for Part %d"
-					" returned %d\n", part, zipped_len);
-				pr_err("pstore: Capture uncompressed"
-					" oops/panic report of Part %d\n", part);
 				compressed = false;
 				total_len = copy_kmsg_to_buffer(hsize, len);
 			}
