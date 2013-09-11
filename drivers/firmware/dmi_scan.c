@@ -14,7 +14,7 @@
  * of and an antecedent to, SMBIOS, which stands for System
  * Management BIOS.  See further: http://www.dmtf.org/standards
  */
-static char dmi_empty_string[] = "        ";
+static const char dmi_empty_string[] = "        ";
 
 static u16 __initdata dmi_ver;
 /*
@@ -49,7 +49,7 @@ static const char * __init dmi_string_nosave(const struct dmi_header *dm, u8 s)
 	return "";
 }
 
-static char * __init dmi_string(const struct dmi_header *dm, u8 s)
+static const char * __init dmi_string(const struct dmi_header *dm, u8 s)
 {
 	const char *bp = dmi_string_nosave(dm, s);
 	char *str;
@@ -133,7 +133,7 @@ static int __init dmi_checksum(const u8 *buf, u8 len)
 	return sum == 0;
 }
 
-static char *dmi_ident[DMI_STRING_MAX];
+static const char *dmi_ident[DMI_STRING_MAX];
 static LIST_HEAD(dmi_devices);
 int dmi_available;
 
@@ -144,7 +144,7 @@ static void __init dmi_save_ident(const struct dmi_header *dm, int slot,
 		int string)
 {
 	const char *d = (const char *) dm;
-	char *p;
+	const char *p;
 
 	if (dmi_ident[slot])
 		return;
@@ -252,7 +252,7 @@ static void __init dmi_save_oem_strings_devices(const struct dmi_header *dm)
 	struct dmi_device *dev;
 
 	for (i = 1; i <= count; i++) {
-		char *devname = dmi_string(dm, i);
+		const char *devname = dmi_string(dm, i);
 
 		if (devname == dmi_empty_string)
 			continue;
