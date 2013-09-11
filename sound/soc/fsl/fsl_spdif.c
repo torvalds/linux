@@ -411,8 +411,8 @@ static int spdif_set_sample_rate(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-int fsl_spdif_startup(struct snd_pcm_substream *substream,
-			struct snd_soc_dai *cpu_dai)
+static int fsl_spdif_startup(struct snd_pcm_substream *substream,
+			     struct snd_soc_dai *cpu_dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct fsl_spdif_priv *spdif_priv = snd_soc_dai_get_drvdata(rtd->cpu_dai);
@@ -546,7 +546,7 @@ static int fsl_spdif_trigger(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-struct snd_soc_dai_ops fsl_spdif_dai_ops = {
+static struct snd_soc_dai_ops fsl_spdif_dai_ops = {
 	.startup = fsl_spdif_startup,
 	.hw_params = fsl_spdif_hw_params,
 	.trigger = fsl_spdif_trigger,
@@ -555,7 +555,6 @@ struct snd_soc_dai_ops fsl_spdif_dai_ops = {
 
 
 /*
- * ============================================
  * FSL SPDIF IEC958 controller(mixer) functions
  *
  *	Channel status get/put control
@@ -563,7 +562,6 @@ struct snd_soc_dai_ops fsl_spdif_dai_ops = {
  *	Valid bit value get control
  *	DPLL lock status get control
  *	User bit sync mode selection control
- * ============================================
  */
 
 static int fsl_spdif_info(struct snd_kcontrol *kcontrol,
@@ -921,7 +919,7 @@ static int fsl_spdif_dai_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
-struct snd_soc_dai_driver fsl_spdif_dai = {
+static struct snd_soc_dai_driver fsl_spdif_dai = {
 	.probe = &fsl_spdif_dai_probe,
 	.playback = {
 		.channels_min = 2,
@@ -942,11 +940,7 @@ static const struct snd_soc_component_driver fsl_spdif_component = {
 	.name		= "fsl-spdif",
 };
 
-/*
- * ================
- * FSL SPDIF REGMAP
- * ================
- */
+/* FSL SPDIF REGMAP */
 
 static bool fsl_spdif_readable_reg(struct device *dev, unsigned int reg)
 {
@@ -1077,9 +1071,9 @@ static int fsl_spdif_probe_txclk(struct fsl_spdif_priv *spdif_priv,
 			break;
 	}
 
-	dev_dbg(&pdev->dev, "use rxtx%d as tx clock source for %dHz sample rate",
+	dev_dbg(&pdev->dev, "use rxtx%d as tx clock source for %dHz sample rate\n",
 			spdif_priv->txclk_src[index], rate[index]);
-	dev_dbg(&pdev->dev, "use divisor %d for %dHz sample rate",
+	dev_dbg(&pdev->dev, "use divisor %d for %dHz sample rate\n",
 			spdif_priv->txclk_div[index], rate[index]);
 
 	return 0;
@@ -1119,10 +1113,8 @@ static int fsl_spdif_probe(struct platform_device *pdev)
 	}
 
 	regs = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(regs)) {
-		dev_err(&pdev->dev, "could not map device resources\n");
+	if (IS_ERR(regs))
 		return PTR_ERR(regs);
-	}
 
 	spdif_priv->regmap = devm_regmap_init_mmio_clk(&pdev->dev,
 			"core", regs, &fsl_spdif_regmap_config);
@@ -1184,7 +1176,7 @@ static int fsl_spdif_probe(struct platform_device *pdev)
 					 &spdif_priv->cpu_dai_drv, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register DAI: %d\n", ret);
-		goto error_dev;
+		return ret;
 	}
 
 	ret = imx_pcm_dma_init(pdev);
@@ -1197,8 +1189,6 @@ static int fsl_spdif_probe(struct platform_device *pdev)
 
 error_component:
 	snd_soc_unregister_component(&pdev->dev);
-error_dev:
-	dev_set_drvdata(&pdev->dev, NULL);
 
 	return ret;
 }
@@ -1207,7 +1197,6 @@ static int fsl_spdif_remove(struct platform_device *pdev)
 {
 	imx_pcm_dma_exit(pdev);
 	snd_soc_unregister_component(&pdev->dev);
-	dev_set_drvdata(&pdev->dev, NULL);
 
 	return 0;
 }

@@ -3174,7 +3174,7 @@ static ssize_t wm8962_beep_set(struct device *dev,
 	long int time;
 	int ret;
 
-	ret = strict_strtol(buf, 10, &time);
+	ret = kstrtol(buf, 10, &time);
 	if (ret != 0)
 		return ret;
 

@@ -959,6 +959,7 @@ static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
 	int pin_nid;
 	int pin_idx;
 	struct hda_jack_tbl *jack;
+	int dev_entry = (res & AC_UNSOL_RES_DE) >> AC_UNSOL_RES_DE_SHIFT;
 
 	jack = snd_hda_jack_tbl_get_from_tag(codec, tag);
 	if (!jack)
@@ -967,8 +968,8 @@ static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
 	jack->jack_dirty = 1;
 
 	_snd_printd(SND_PR_VERBOSE,
-		"HDMI hot plug event: Codec=%d Pin=%d Presence_Detect=%d ELD_Valid=%d\n",
-		codec->addr, pin_nid,
+		"HDMI hot plug event: Codec=%d Pin=%d Device=%d Inactive=%d Presence_Detect=%d ELD_Valid=%d\n",
+		codec->addr, pin_nid, dev_entry, !!(res & AC_UNSOL_RES_IA),
 		!!(res & AC_UNSOL_RES_PD), !!(res & AC_UNSOL_RES_ELDV));
 
 	pin_idx = pin_nid_to_pin_index(spec, pin_nid);
@@ -1992,8 +1993,10 @@ static int patch_generic_hdmi(struct hda_codec *codec)
 		return -EINVAL;
 	}
 	codec->patch_ops = generic_hdmi_patch_ops;
-	if (codec->vendor_id == 0x80862807)
+	if (codec->vendor_id == 0x80862807) {
 		codec->patch_ops.set_power_state = haswell_set_power_state;
+		codec->dp_mst = true;
+	}
 
 	generic_hdmi_init_per_pins(codec);
 

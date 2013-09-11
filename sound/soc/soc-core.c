@@ -203,7 +203,7 @@ static ssize_t pmdown_time_set(struct device *dev,
 	struct snd_soc_pcm_runtime *rtd = dev_get_drvdata(dev);
 	int ret;
 
-	ret = strict_strtol(buf, 10, &rtd->pmdown_time);
+	ret = kstrtol(buf, 10, &rtd->pmdown_time);
 	if (ret)
 		return ret;
 
@@ -248,6 +248,7 @@ static ssize_t codec_reg_write_file(struct file *file,
 	char *start = buf;
 	unsigned long reg, value;
 	struct snd_soc_codec *codec = file->private_data;
+	int ret;
 
 	buf_size = min(count, (sizeof(buf)-1));
 	if (copy_from_user(buf, user_buf, buf_size))
@@ -259,8 +260,9 @@ static ssize_t codec_reg_write_file(struct file *file,
 	reg = simple_strtoul(start, &start, 16);
 	while (*start == ' ')
 		start++;
-	if (strict_strtoul(start, 16, &value))
-		return -EINVAL;
+	ret = kstrtoul(start, 16, &value);
+	if (ret)
+		return ret;
 
 	/* Userspace has been fiddling around behind the kernel's back */
 	add_taint(TAINT_USER, LOCKDEP_NOW_UNRELIABLE);
@@ -1243,9 +1245,6 @@ static int soc_post_component_init(struct snd_soc_card *card,
 	}
 	rtd->card = card;
 
-	/* Make sure all DAPM widgets are instantiated */
-	snd_soc_dapm_new_widgets(&codec->dapm);
-
 	/* machine controls, routes and widgets are not prefixed */
 	temp = codec->name_prefix;
 	codec->name_prefix = NULL;
@@ -1741,8 +1740,6 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 		snd_soc_dapm_add_routes(&card->dapm, card->dapm_routes,
 					card->num_dapm_routes);
 
-	snd_soc_dapm_new_widgets(&card->dapm);
-
 	for (i = 0; i < card->num_links; i++) {
 		dai_link = &card->dai_link[i];
 		dai_fmt = dai_link->dai_fmt;
@@ -1821,11 +1818,11 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 		}
 	}
 
-	snd_soc_dapm_new_widgets(&card->dapm);
-
 	if (card->fully_routed)
 		list_for_each_entry(codec, &card->codec_dev_list, card_list)
 			snd_soc_dapm_auto_nc_codec_pins(codec);
+
+	snd_soc_dapm_new_widgets(card);
 
 	ret = snd_card_register(card->snd_card);
 	if (ret < 0) {

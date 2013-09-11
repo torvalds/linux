@@ -443,8 +443,7 @@ static void snd_interwave_detect_memory(struct snd_gus_card *gus)
 		for (i = 0; i < 8; ++i)
 			iwave[i] = snd_gf1_peek(gus, bank_pos + i);
 #ifdef CONFIG_SND_DEBUG_ROM
-		printk(KERN_DEBUG "ROM at 0x%06x = %*phC\n", bank_pos,
-				  8, iwave);
+		printk(KERN_DEBUG "ROM at 0x%06x = %8phC\n", bank_pos, iwave);
 #endif
 		if (strncmp(iwave, "INTRWAVE", 8))
 			continue;	/* first check */

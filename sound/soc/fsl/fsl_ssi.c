@@ -1114,7 +1114,6 @@ error_dai:
 	snd_soc_unregister_component(&pdev->dev);
 
 error_dev:
-	dev_set_drvdata(&pdev->dev, NULL);
 	device_remove_file(&pdev->dev, dev_attr);
 
 error_clk:

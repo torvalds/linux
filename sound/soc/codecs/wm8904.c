@@ -1202,7 +1202,6 @@ static int wm8904_add_widgets(struct snd_soc_codec *codec)
 		break;
 	}
 
-	snd_soc_dapm_new_widgets(dapm);
 	return 0;
 }
 

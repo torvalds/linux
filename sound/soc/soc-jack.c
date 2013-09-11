@@ -183,8 +183,6 @@ int snd_soc_jack_add_pins(struct snd_soc_jack *jack, int count,
 		list_add(&(pins[i].list), &jack->pins);
 	}
 
-	snd_soc_dapm_new_widgets(&jack->codec->card->dapm);
-
 	/* Update to reflect the last reported status; canned jack
 	 * implementations are likely to set their state before the
 	 * card has an opportunity to associate pins.
