@@ -217,8 +217,6 @@ struct swap_info_struct {
 	unsigned int inuse_pages;	/* number of those currently in use */
 	unsigned int cluster_next;	/* likely index for next allocation */
 	unsigned int cluster_nr;	/* countdown to next cluster search */
-	unsigned int lowest_alloc;	/* while preparing discard cluster */
-	unsigned int highest_alloc;	/* while preparing discard cluster */
 	struct swap_extent *curr_swap_extent;
 	struct swap_extent first_swap_extent;
 	struct block_device *bdev;	/* swap device or bdev of swap file */
@@ -232,14 +230,18 @@ struct swap_info_struct {
 					 * protect map scan related fields like
 					 * swap_map, lowest_bit, highest_bit,
 					 * inuse_pages, cluster_next,
-					 * cluster_nr, lowest_alloc and
-					 * highest_alloc. other fields are only
-					 * changed at swapon/swapoff, so are
-					 * protected by swap_lock. changing
-					 * flags need hold this lock and
-					 * swap_lock. If both locks need hold,
-					 * hold swap_lock first.
+					 * cluster_nr, lowest_alloc,
+					 * highest_alloc, free/discard cluster
+					 * list. other fields are only changed
+					 * at swapon/swapoff, so are protected
+					 * by swap_lock. changing flags need
+					 * hold this lock and swap_lock. If
+					 * both locks need hold, hold swap_lock
+					 * first.
 					 */
+	struct work_struct discard_work; /* discard worker */
+	struct swap_cluster_info discard_cluster_head; /* list head of discard clusters */
+	struct swap_cluster_info discard_cluster_tail; /* list tail of discard clusters */
 };
 
 struct swap_list_t {

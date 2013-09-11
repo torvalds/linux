@@ -175,12 +175,6 @@ static void discard_swap_cluster(struct swap_info_struct *si,
 	}
 }
 
-static int wait_for_discard(void *word)
-{
-	schedule();
-	return 0;
-}
-
 #define SWAPFILE_CLUSTER	256
 #define LATENCY_LIMIT		256
 
@@ -242,6 +236,90 @@ static inline void cluster_set_null(struct swap_cluster_info *info)
 	info->data = 0;
 }
 
+/* Add a cluster to discard list and schedule it to do discard */
+static void swap_cluster_schedule_discard(struct swap_info_struct *si,
+		unsigned int idx)
+{
+	/*
+	 * If scan_swap_map() can't find a free cluster, it will check
+	 * si->swap_map directly. To make sure the discarding cluster isn't
+	 * taken by scan_swap_map(), mark the swap entries bad (occupied). It
+	 * will be cleared after discard
+	 */
+	memset(si->swap_map + idx * SWAPFILE_CLUSTER,
+			SWAP_MAP_BAD, SWAPFILE_CLUSTER);
+
+	if (cluster_is_null(&si->discard_cluster_head)) {
+		cluster_set_next_flag(&si->discard_cluster_head,
+						idx, 0);
+		cluster_set_next_flag(&si->discard_cluster_tail,
+						idx, 0);
+	} else {
+		unsigned int tail = cluster_next(&si->discard_cluster_tail);
+		cluster_set_next(&si->cluster_info[tail], idx);
+		cluster_set_next_flag(&si->discard_cluster_tail,
+						idx, 0);
+	}
+
+	schedule_work(&si->discard_work);
+}
+
+/*
+ * Doing discard actually. After a cluster discard is finished, the cluster
+ * will be added to free cluster list. caller should hold si->lock.
+*/
+static void swap_do_scheduled_discard(struct swap_info_struct *si)
+{
+	struct swap_cluster_info *info;
+	unsigned int idx;
+
+	info = si->cluster_info;
+
+	while (!cluster_is_null(&si->discard_cluster_head)) {
+		idx = cluster_next(&si->discard_cluster_head);
+
+		cluster_set_next_flag(&si->discard_cluster_head,
+						cluster_next(&info[idx]), 0);
+		if (cluster_next(&si->discard_cluster_tail) == idx) {
+			cluster_set_null(&si->discard_cluster_head);
+			cluster_set_null(&si->discard_cluster_tail);
+		}
+		spin_unlock(&si->lock);
+
+		discard_swap_cluster(si, idx * SWAPFILE_CLUSTER,
+				SWAPFILE_CLUSTER);
+
+		spin_lock(&si->lock);
+		cluster_set_flag(&info[idx], CLUSTER_FLAG_FREE);
+		if (cluster_is_null(&si->free_cluster_head)) {
+			cluster_set_next_flag(&si->free_cluster_head,
+						idx, 0);
+			cluster_set_next_flag(&si->free_cluster_tail,
+						idx, 0);
+		} else {
+			unsigned int tail;
+
+			tail = cluster_next(&si->free_cluster_tail);
+			cluster_set_next(&info[tail], idx);
+			cluster_set_next_flag(&si->free_cluster_tail,
+						idx, 0);
+		}
+		memset(si->swap_map + idx * SWAPFILE_CLUSTER,
+				0, SWAPFILE_CLUSTER);
+	}
+}
+
+static void swap_discard_work(struct work_struct *work)
+{
+	struct swap_info_struct *si;
+
+	si = container_of(work, struct swap_info_struct, discard_work);
+
+	spin_lock(&si->lock);
+	swap_do_scheduled_discard(si);
+	spin_unlock(&si->lock);
+}
+
 /*
  * The cluster corresponding to page_nr will be used. The cluster will be
  * removed from free cluster list and its usage counter will be increased.
@@ -287,6 +365,16 @@ static void dec_cluster_info_page(struct swap_info_struct *p,
 		cluster_count(&cluster_info[idx]) - 1);
 
 	if (cluster_count(&cluster_info[idx]) == 0) {
+		/*
+		 * If the swap is discardable, prepare discard the cluster
+		 * instead of free it immediately. The cluster will be freed
+		 * after discard.
+		 */
+		if (p->flags & SWP_PAGE_DISCARD) {
+			swap_cluster_schedule_discard(p, idx);
+			return;
+		}
+
 		cluster_set_flag(&cluster_info[idx], CLUSTER_FLAG_FREE);
 		if (cluster_is_null(&p->free_cluster_head)) {
 			cluster_set_next_flag(&p->free_cluster_head, idx, 0);
@@ -319,7 +407,6 @@ static unsigned long scan_swap_map(struct swap_info_struct *si,
 	unsigned long scan_base;
 	unsigned long last_in_cluster = 0;
 	int latency_ration = LATENCY_LIMIT;
-	int found_free_cluster = 0;
 
 	/*
 	 * We try to cluster swap pages by allocating them sequentially
@@ -340,19 +427,6 @@ static unsigned long scan_swap_map(struct swap_info_struct *si,
 			si->cluster_nr = SWAPFILE_CLUSTER - 1;
 			goto checks;
 		}
-		if (si->flags & SWP_PAGE_DISCARD) {
-			/*
-			 * Start range check on racing allocations, in case
-			 * they overlap the cluster we eventually decide on
-			 * (we scan without swap_lock to allow preemption).
-			 * It's hardly conceivable that cluster_nr could be
-			 * wrapped during our scan, but don't depend on it.
-			 */
-			if (si->lowest_alloc)
-				goto checks;
-			si->lowest_alloc = si->max;
-			si->highest_alloc = 0;
-		}
 check_cluster:
 		if (!cluster_is_null(&si->free_cluster_head)) {
 			offset = cluster_next(&si->free_cluster_head) *
@@ -360,15 +434,27 @@ check_cluster:
 			last_in_cluster = offset + SWAPFILE_CLUSTER - 1;
 			si->cluster_next = offset;
 			si->cluster_nr = SWAPFILE_CLUSTER - 1;
-			found_free_cluster = 1;
 			goto checks;
 		} else if (si->cluster_info) {
+			/*
+			 * we don't have free cluster but have some clusters in
+			 * discarding, do discard now and reclaim them
+			 */
+			if (!cluster_is_null(&si->discard_cluster_head)) {
+				si->cluster_nr = 0;
+				swap_do_scheduled_discard(si);
+				scan_base = offset = si->cluster_next;
+				if (!si->cluster_nr)
+					goto check_cluster;
+				si->cluster_nr--;
+				goto checks;
+			}
+
 			/*
 			 * Checking free cluster is fast enough, we can do the
 			 * check every time
 			 */
 			si->cluster_nr = 0;
-			si->lowest_alloc = 0;
 			goto checks;
 		}
 
@@ -395,7 +481,6 @@ check_cluster:
 				offset -= SWAPFILE_CLUSTER - 1;
 				si->cluster_next = offset;
 				si->cluster_nr = SWAPFILE_CLUSTER - 1;
-				found_free_cluster = 1;
 				goto checks;
 			}
 			if (unlikely(--latency_ration < 0)) {
@@ -416,7 +501,6 @@ check_cluster:
 				offset -= SWAPFILE_CLUSTER - 1;
 				si->cluster_next = offset;
 				si->cluster_nr = SWAPFILE_CLUSTER - 1;
-				found_free_cluster = 1;
 				goto checks;
 			}
 			if (unlikely(--latency_ration < 0)) {
@@ -428,7 +512,6 @@ check_cluster:
 		offset = scan_base;
 		spin_lock(&si->lock);
 		si->cluster_nr = SWAPFILE_CLUSTER - 1;
-		si->lowest_alloc = 0;
 	}
 
 checks:
@@ -470,59 +553,6 @@ checks:
 	si->cluster_next = offset + 1;
 	si->flags -= SWP_SCANNING;
 
-	if (si->lowest_alloc) {
-		/*
-		 * Only set when SWP_PAGE_DISCARD, and there's a scan
-		 * for a free cluster in progress or just completed.
-		 */
-		if (found_free_cluster) {
-			/*
-			 * To optimize wear-levelling, discard the
-			 * old data of the cluster, taking care not to
-			 * discard any of its pages that have already
-			 * been allocated by racing tasks (offset has
-			 * already stepped over any at the beginning).
-			 */
-			if (offset < si->highest_alloc &&
-			    si->lowest_alloc <= last_in_cluster)
-				last_in_cluster = si->lowest_alloc - 1;
-			si->flags |= SWP_DISCARDING;
-			spin_unlock(&si->lock);
-
-			if (offset < last_in_cluster)
-				discard_swap_cluster(si, offset,
-					last_in_cluster - offset + 1);
-
-			spin_lock(&si->lock);
-			si->lowest_alloc = 0;
-			si->flags &= ~SWP_DISCARDING;
-
-			smp_mb();	/* wake_up_bit advises this */
-			wake_up_bit(&si->flags, ilog2(SWP_DISCARDING));
-
-		} else if (si->flags & SWP_DISCARDING) {
-			/*
-			 * Delay using pages allocated by racing tasks
-			 * until the whole discard has been issued. We
-			 * could defer that delay until swap_writepage,
-			 * but it's easier to keep this self-contained.
-			 */
-			spin_unlock(&si->lock);
-			wait_on_bit(&si->flags, ilog2(SWP_DISCARDING),
-				wait_for_discard, TASK_UNINTERRUPTIBLE);
-			spin_lock(&si->lock);
-		} else {
-			/*
-			 * Note pages allocated by racing tasks while
-			 * scan for a free cluster is in progress, so
-			 * that its final discard can exclude them.
-			 */
-			if (offset < si->lowest_alloc)
-				si->lowest_alloc = offset;
-			if (offset > si->highest_alloc)
-				si->highest_alloc = offset;
-		}
-	}
 	return offset;
 
 scan:
@@ -1806,6 +1836,8 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 		goto out_dput;
 	}
 
+	flush_work(&p->discard_work);
+
 	destroy_swap_extents(p);
 	if (p->flags & SWP_CONTINUED)
 		free_swap_count_continuations(p);
@@ -2172,6 +2204,8 @@ static int setup_swap_map_and_extents(struct swap_info_struct *p,
 
 	cluster_set_null(&p->free_cluster_head);
 	cluster_set_null(&p->free_cluster_tail);
+	cluster_set_null(&p->discard_cluster_head);
+	cluster_set_null(&p->discard_cluster_tail);
 
 	for (i = 0; i < swap_header->info.nr_badpages; i++) {
 		unsigned int page_nr = swap_header->info.badpages[i];
@@ -2280,6 +2314,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 	p = alloc_swap_info();
 	if (IS_ERR(p))
 		return PTR_ERR(p);
+
+	INIT_WORK(&p->discard_work, swap_discard_work);
 
 	name = getname(specialfile);
 	if (IS_ERR(name)) {
