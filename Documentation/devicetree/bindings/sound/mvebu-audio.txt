@@ -2,13 +2,17 @@
 
 Required properties:
 
-- compatible: "marvell,mvebu-audio"
+- compatible:
+  "marvell,kirkwood-audio" for Kirkwood platforms
+  "marvell,dove-audio" for Dove platforms
 
 - reg: physical base address of the controller and length of memory mapped
   region.
 
-- interrupts: list of two irq numbers.
-  The first irq is used for data flow and the second one is used for errors.
+- interrupts:
+  with "marvell,kirkwood-audio", the audio interrupt
+  with "marvell,dove-audio", a list of two interrupts, the first for
+  the data flow, and the second for errors.
 
 - clocks: one or two phandles.
   The first one is mandatory and defines the internal clock.
@@ -21,7 +25,7 @@ Required properties:
 Example:
 
 i2s1: audio-controller@b4000 {
-	compatible = "marvell,mvebu-audio";
+	compatible = "marvell,dove-audio";
 	reg = <0xb4000 0x2210>;
 	interrupts = <21>, <22>;
 	clocks = <&gate_clk 13>;
