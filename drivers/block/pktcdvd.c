@@ -2360,8 +2360,8 @@ static void pkt_make_request(struct request_queue *q, struct bio *bio)
 
 	pd = q->queuedata;
 	if (!pd) {
-		pkt_err(pd, "%s incorrect request queue\n",
-			bdevname(bio->bi_bdev, b));
+		pr_err("%s incorrect request queue\n",
+		       bdevname(bio->bi_bdev, b));
 		goto end_io;
 	}
 
@@ -2841,7 +2841,7 @@ static int pkt_remove_dev(dev_t pkt_dev)
 			break;
 	}
 	if (idx == MAX_WRITERS) {
-		pkt_dbg(1, pd, "dev not setup\n");
+		pr_debug("dev not setup\n");
 		ret = -ENXIO;
 		goto out;
 	}
