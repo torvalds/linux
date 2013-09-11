@@ -965,17 +965,43 @@ static void ar9003_hw_manual_peak_cal(struct ath_hw *ah, u8 chain, bool is_2g)
 }
 
 static void ar9003_hw_do_manual_peak_cal(struct ath_hw *ah,
-					 struct ath9k_channel *chan)
+					 struct ath9k_channel *chan,
+					 bool run_rtt_cal)
 {
+	struct ath9k_hw_cal_data *caldata = ah->caldata;
 	int i;
 
 	if (!AR_SREV_9462(ah) && !AR_SREV_9565(ah) && !AR_SREV_9485(ah))
+		return;
+
+	if ((ah->caps.hw_caps & ATH9K_HW_CAP_RTT) && !run_rtt_cal)
 		return;
 
 	for (i = 0; i < AR9300_MAX_CHAINS; i++) {
 		if (!(ah->rxchainmask & (1 << i)))
 			continue;
 		ar9003_hw_manual_peak_cal(ah, i, IS_CHAN_2GHZ(chan));
+	}
+
+	if (caldata)
+		set_bit(SW_PKDET_DONE, &caldata->cal_flags);
+
+	if ((ah->caps.hw_caps & ATH9K_HW_CAP_RTT) && caldata) {
+		if (IS_CHAN_2GHZ(chan)){
+			caldata->caldac[0] = REG_READ_FIELD(ah,
+						    AR_PHY_65NM_RXRF_AGC(0),
+						    AR_PHY_65NM_RXRF_AGC_AGC2G_CALDAC_OVR);
+			caldata->caldac[1] = REG_READ_FIELD(ah,
+						    AR_PHY_65NM_RXRF_AGC(1),
+						    AR_PHY_65NM_RXRF_AGC_AGC2G_CALDAC_OVR);
+		} else {
+			caldata->caldac[0] = REG_READ_FIELD(ah,
+						    AR_PHY_65NM_RXRF_AGC(0),
+						    AR_PHY_65NM_RXRF_AGC_AGC5G_CALDAC_OVR);
+			caldata->caldac[1] = REG_READ_FIELD(ah,
+						    AR_PHY_65NM_RXRF_AGC(1),
+						    AR_PHY_65NM_RXRF_AGC_AGC5G_CALDAC_OVR);
+		}
 	}
 }
 
@@ -1047,13 +1073,18 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 		ar9003_hw_rtt_clear_hist(ah);
 	}
 
-	if (rtt && !run_rtt_cal) {
-		agc_ctrl = REG_READ(ah, AR_PHY_AGC_CONTROL);
-		agc_supp_cals &= agc_ctrl;
-		agc_ctrl &= ~(AR_PHY_AGC_CONTROL_OFFSET_CAL |
-			     AR_PHY_AGC_CONTROL_FLTR_CAL |
-			     AR_PHY_AGC_CONTROL_PKDET_CAL);
-		REG_WRITE(ah, AR_PHY_AGC_CONTROL, agc_ctrl);
+	if (rtt) {
+		if (!run_rtt_cal) {
+			agc_ctrl = REG_READ(ah, AR_PHY_AGC_CONTROL);
+			agc_supp_cals &= agc_ctrl;
+			agc_ctrl &= ~(AR_PHY_AGC_CONTROL_OFFSET_CAL |
+				      AR_PHY_AGC_CONTROL_FLTR_CAL |
+				      AR_PHY_AGC_CONTROL_PKDET_CAL);
+			REG_WRITE(ah, AR_PHY_AGC_CONTROL, agc_ctrl);
+		} else {
+			if (ah->ah_flags & AH_FASTCC)
+				run_agc_cal = true;
+		}
 	}
 
 	if (ah->enabled_cals & TX_CL_CAL) {
@@ -1124,7 +1155,7 @@ skip_tx_iqcal:
 				       AR_PHY_AGC_CONTROL_CAL,
 				       0, AH_WAIT_TIMEOUT);
 
-		ar9003_hw_do_manual_peak_cal(ah, chan);
+		ar9003_hw_do_manual_peak_cal(ah, chan, run_rtt_cal);
 	}
 
 	if (REG_READ(ah, AR_PHY_CL_CAL_CTL) & AR_PHY_CL_CAL_ENABLE) {
@@ -1159,11 +1190,15 @@ skip_tx_iqcal:
 
 	if (run_rtt_cal && caldata) {
 		if (is_reusable) {
-			if (!ath9k_hw_rfbus_req(ah))
+			if (!ath9k_hw_rfbus_req(ah)) {
 				ath_err(ath9k_hw_common(ah),
 					"Could not stop baseband\n");
-			else
+			} else {
 				ar9003_hw_rtt_fill_hist(ah);
+
+				if (test_bit(SW_PKDET_DONE, &caldata->cal_flags))
+					ar9003_hw_rtt_load_hist(ah);
+			}
 
 			ath9k_hw_rfbus_done(ah);
 		}

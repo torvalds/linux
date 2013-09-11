@@ -412,6 +412,7 @@ enum ath9k_cal_flags {
 	NFCAL_INTF,
 	TXIQCAL_DONE,
 	TXCLCAL_DONE,
+	SW_PKDET_DONE,
 };
 
 struct ath9k_hw_cal_data {
@@ -422,6 +423,7 @@ struct ath9k_hw_cal_data {
 	int32_t CalValid;
 	int8_t iCoff;
 	int8_t qCoff;
+	u8 caldac[2];
 	u16 small_signal_gain[AR9300_MAX_CHAINS];
 	u32 pa_table[AR9300_MAX_CHAINS][PAPRD_TABLE_SZ];
 	u32 num_measures[AR9300_MAX_CHAINS];
