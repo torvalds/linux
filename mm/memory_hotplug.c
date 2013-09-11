@@ -1695,9 +1695,8 @@ static int is_memblock_offlined_cb(struct memory_block *mem, void *arg)
 	return ret;
 }
 
-static int check_cpu_on_node(void *data)
+static int check_cpu_on_node(pg_data_t *pgdat)
 {
-	struct pglist_data *pgdat = data;
 	int cpu;
 
 	for_each_present_cpu(cpu) {
@@ -1712,10 +1711,9 @@ static int check_cpu_on_node(void *data)
 	return 0;
 }
 
-static void unmap_cpu_on_node(void *data)
+static void unmap_cpu_on_node(pg_data_t *pgdat)
 {
 #ifdef CONFIG_ACPI_NUMA
-	struct pglist_data *pgdat = data;
 	int cpu;
 
 	for_each_possible_cpu(cpu)
@@ -1724,10 +1722,11 @@ static void unmap_cpu_on_node(void *data)
 #endif
 }
 
-static int check_and_unmap_cpu_on_node(void *data)
+static int check_and_unmap_cpu_on_node(pg_data_t *pgdat)
 {
-	int ret = check_cpu_on_node(data);
+	int ret;
 
+	ret = check_cpu_on_node(pgdat);
 	if (ret)
 		return ret;
 
@@ -1736,11 +1735,18 @@ static int check_and_unmap_cpu_on_node(void *data)
 	 * the cpu_to_node() now.
 	 */
 
-	unmap_cpu_on_node(data);
+	unmap_cpu_on_node(pgdat);
 	return 0;
 }
 
-/* offline the node if all memory sections of this node are removed */
+/**
+ * try_offline_node
+ *
+ * Offline a node if all memory sections and cpus of the node are removed.
+ *
+ * NOTE: The caller must call lock_device_hotplug() to serialize hotplug
+ * and online/offline operations before this call.
+ */
 void try_offline_node(int nid)
 {
 	pg_data_t *pgdat = NODE_DATA(nid);
@@ -1766,7 +1772,7 @@ void try_offline_node(int nid)
 		return;
 	}
 
-	if (stop_machine(check_and_unmap_cpu_on_node, pgdat, NULL))
+	if (check_and_unmap_cpu_on_node(pgdat))
 		return;
 
 	/*
@@ -1803,6 +1809,13 @@ void try_offline_node(int nid)
 }
 EXPORT_SYMBOL(try_offline_node);
 
+/**
+ * remove_memory
+ *
+ * NOTE: The caller must call lock_device_hotplug() to serialize hotplug
+ * and online/offline operations before this call, as required by
+ * try_offline_node().
+ */
 void __ref remove_memory(int nid, u64 start, u64 size)
 {
 	int ret;
