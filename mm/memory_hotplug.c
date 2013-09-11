@@ -1070,6 +1070,23 @@ out:
 	return ret;
 }
 
+static int check_hotplug_memory_range(u64 start, u64 size)
+{
+	u64 start_pfn = start >> PAGE_SHIFT;
+	u64 nr_pages = size >> PAGE_SHIFT;
+
+	/* Memory range must be aligned with section */
+	if ((start_pfn & ~PAGE_SECTION_MASK) ||
+	    (nr_pages % PAGES_PER_SECTION) || (!nr_pages)) {
+		pr_err("Section-unaligned hotplug range: start 0x%llx, size 0x%llx\n",
+				(unsigned long long)start,
+				(unsigned long long)size);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
 int __ref add_memory(int nid, u64 start, u64 size)
 {
@@ -1078,6 +1095,10 @@ int __ref add_memory(int nid, u64 start, u64 size)
 	bool new_node;
 	struct resource *res;
 	int ret;
+
+	ret = check_hotplug_memory_range(start, size);
+	if (ret)
+		return ret;
 
 	lock_memory_hotplug();
 
@@ -1785,6 +1806,8 @@ EXPORT_SYMBOL(try_offline_node);
 void __ref remove_memory(int nid, u64 start, u64 size)
 {
 	int ret;
+
+	BUG_ON(check_hotplug_memory_range(start, size));
 
 	lock_memory_hotplug();
 
