@@ -607,7 +607,7 @@ void bch_btree_insert_async(struct closure *cl)
 	struct btree_op *op = container_of(cl, struct btree_op, cl);
 	struct search *s = container_of(op, struct search, op);
 
-	if (bch_btree_insert(op, op->c)) {
+	if (bch_btree_insert(op, op->c, &op->keys)) {
 		s->error		= -ENOMEM;
 		op->insert_data_done	= true;
 	}

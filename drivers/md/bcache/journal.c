@@ -320,7 +320,7 @@ int bch_journal_replay(struct cache_set *s, struct list_head *list,
 			op->journal = i->pin;
 			atomic_inc(op->journal);
 
-			ret = bch_btree_insert(op, s);
+			ret = bch_btree_insert(op, s, &op->keys);
 			if (ret)
 				goto err;
 

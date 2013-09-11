@@ -311,7 +311,7 @@ static void write_dirty_finish(struct closure *cl)
 		for (i = 0; i < KEY_PTRS(&w->key); i++)
 			atomic_inc(&PTR_BUCKET(dc->disk.c, &w->key, i)->pin);
 
-		bch_btree_insert(&op, dc->disk.c);
+		bch_btree_insert(&op, dc->disk.c, &op.keys);
 		closure_sync(&op.cl);
 
 		if (op.insert_collision)

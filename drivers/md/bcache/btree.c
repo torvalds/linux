@@ -2109,30 +2109,32 @@ out:
 	return ret;
 }
 
-static int bch_btree_insert_recurse(struct btree *b, struct btree_op *op)
+static int bch_btree_insert_recurse(struct btree *b, struct btree_op *op,
+				    struct keylist *keys)
 {
-	if (bch_keylist_empty(&op->keys))
+	if (bch_keylist_empty(keys))
 		return 0;
 
 	if (b->level) {
-		struct bkey *insert = op->keys.bottom;
-		struct bkey *k = bch_next_recurse_key(b, &START_KEY(insert));
+		struct bkey *k;
 
+		k = bch_next_recurse_key(b, &START_KEY(keys->bottom));
 		if (!k) {
 			btree_bug(b, "no key to recurse on at level %i/%i",
 				  b->level, b->c->root->level);
 
-			op->keys.top = op->keys.bottom;
+			keys->top = keys->bottom;
 			return -EIO;
 		}
 
-		return btree(insert_recurse, k, b, op);
+		return btree(insert_recurse, k, b, op, keys);
 	} else {
-		return bch_btree_insert_node(b, op, &op->keys);
+		return bch_btree_insert_node(b, op, keys);
 	}
 }
 
-int bch_btree_insert(struct btree_op *op, struct cache_set *c)
+int bch_btree_insert(struct btree_op *op, struct cache_set *c,
+		     struct keylist *keys)
 {
 	int ret = 0;
 
@@ -2142,11 +2144,11 @@ int bch_btree_insert(struct btree_op *op, struct cache_set *c)
 	 */
 	clear_closure_blocking(&op->cl);
 
-	BUG_ON(bch_keylist_empty(&op->keys));
+	BUG_ON(bch_keylist_empty(keys));
 
-	while (!bch_keylist_empty(&op->keys)) {
+	while (!bch_keylist_empty(keys)) {
 		op->lock = 0;
-		ret = btree_root(insert_recurse, c, op);
+		ret = btree_root(insert_recurse, c, op, keys);
 
 		if (ret == -EAGAIN) {
 			ret = 0;
@@ -2157,7 +2159,7 @@ int bch_btree_insert(struct btree_op *op, struct cache_set *c)
 			pr_err("error %i trying to insert key for %s",
 			       ret, op_type(op));
 
-			while ((k = bch_keylist_pop(&op->keys)))
+			while ((k = bch_keylist_pop(keys)))
 				bkey_put(c, k, 0);
 		}
 	}

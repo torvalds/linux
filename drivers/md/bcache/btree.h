@@ -384,7 +384,7 @@ struct btree *bch_btree_node_get(struct cache_set *, struct bkey *,
 
 int bch_btree_insert_check_key(struct btree *, struct btree_op *,
 			       struct bkey *);
-int bch_btree_insert(struct btree_op *, struct cache_set *);
+int bch_btree_insert(struct btree_op *, struct cache_set *, struct keylist *);
 
 int bch_btree_search_recurse(struct btree *, struct btree_op *);
 
