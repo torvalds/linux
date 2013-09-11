@@ -269,10 +269,7 @@ static int hist_entry__srcline_snprintf(struct hist_entry *self, char *bf,
 	if (!fp)
 		goto out_ip;
 
-	if (getline(&path, &line_len, fp) < 0 || !line_len)
-		goto out_ip;
-	self->srcline = strdup(path);
-	if (self->srcline == NULL)
+	if (getline(&self->srcline, &line_len, fp) < 0 || !line_len)
 		goto out_ip;
 
 	nl = strchr(self->srcline, '\n');
