@@ -990,10 +990,13 @@ int m2p_remove_override(struct page *page,
 				printk(KERN_WARNING "m2p_remove_override: "
 						"pfn %lx mfn %lx, failed to modify kernel mappings",
 						pfn, mfn);
+				put_balloon_scratch_page();
 				return -1;
 			}
 
-			mcs = xen_mc_entry(
+			xen_mc_batch();
+
+			mcs = __xen_mc_entry(
 					sizeof(struct gnttab_unmap_and_replace));
 			unmap_op = mcs.args;
 			unmap_op->host_addr = kmap_op->host_addr;
@@ -1003,12 +1006,11 @@ int m2p_remove_override(struct page *page,
 			MULTI_grant_table_op(mcs.mc,
 					GNTTABOP_unmap_and_replace, unmap_op, 1);
 
-			xen_mc_issue(PARAVIRT_LAZY_MMU);
-
 			mcs = __xen_mc_entry(0);
 			MULTI_update_va_mapping(mcs.mc, scratch_page_address,
-					pfn_pte(page_to_pfn(get_balloon_scratch_page()),
+					pfn_pte(page_to_pfn(scratch_page),
 					PAGE_KERNEL_RO), 0);
+
 			xen_mc_issue(PARAVIRT_LAZY_MMU);
 
 			kmap_op->host_addr = 0;
