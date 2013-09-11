@@ -669,16 +669,14 @@ static int ad2s1210_probe(struct spi_device *spi)
 	if (spi->dev.platform_data == NULL)
 		return -EINVAL;
 
-	indio_dev = iio_device_alloc(sizeof(*st));
-	if (indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
+	if (!indio_dev)
+		return -ENOMEM;
 	st = iio_priv(indio_dev);
 	st->pdata = spi->dev.platform_data;
 	ret = ad2s1210_setup_gpios(st);
 	if (ret < 0)
-		goto error_free_dev;
+		return ret;
 
 	spi_set_drvdata(spi, indio_dev);
 
@@ -709,9 +707,6 @@ static int ad2s1210_probe(struct spi_device *spi)
 
 error_free_gpios:
 	ad2s1210_free_gpios(st);
-error_free_dev:
-	iio_device_free(indio_dev);
-error_ret:
 	return ret;
 }
 
@@ -721,7 +716,6 @@ static int ad2s1210_remove(struct spi_device *spi)
 
 	iio_device_unregister(indio_dev);
 	ad2s1210_free_gpios(iio_priv(indio_dev));
-	iio_device_free(indio_dev);
 
 	return 0;
 }
