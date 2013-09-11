@@ -247,7 +247,12 @@ struct dentry *ramfs_mount(struct file_system_type *fs_type,
 static struct dentry *rootfs_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data)
 {
-	return mount_nodev(fs_type, flags|MS_NOUSER, data, ramfs_fill_super);
+	static unsigned long once;
+
+	if (test_and_set_bit(1, &once))
+		return ERR_PTR(-ENODEV);
+
+	return mount_nodev(fs_type, flags, data, ramfs_fill_super);
 }
 
 static void ramfs_kill_sb(struct super_block *sb)
