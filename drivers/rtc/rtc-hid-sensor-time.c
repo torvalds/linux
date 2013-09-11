@@ -279,9 +279,11 @@ static int hid_time_probe(struct platform_device *pdev)
 					"hid-sensor-time", &hid_time_rtc_ops,
 					THIS_MODULE);
 
-	if (IS_ERR(time_state->rtc)) {
+	if (IS_ERR_OR_NULL(time_state->rtc)) {
+		ret = time_state->rtc ? PTR_ERR(time_state->rtc) : -ENODEV;
+		time_state->rtc = NULL;
+		sensor_hub_remove_callback(hsdev, HID_USAGE_SENSOR_TIME);
 		dev_err(&pdev->dev, "rtc device register failed!\n");
-		return PTR_ERR(time_state->rtc);
 	}
 
 	return ret;
