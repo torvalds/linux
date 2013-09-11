@@ -1399,22 +1399,17 @@ int search_binary_handler(struct linux_binprm *bprm)
 		bprm->recursion_depth++;
 		retval = fmt->load_binary(bprm);
 		bprm->recursion_depth--;
-		if (retval >= 0) {
+		if (retval >= 0 || retval != -ENOEXEC ||
+		    bprm->mm == NULL || bprm->file == NULL) {
 			put_binfmt(fmt);
 			return retval;
 		}
 		read_lock(&binfmt_lock);
 		put_binfmt(fmt);
-		if (retval != -ENOEXEC || bprm->mm == NULL)
-			break;
-		if (!bprm->file) {
-			read_unlock(&binfmt_lock);
-			return retval;
-		}
 	}
 	read_unlock(&binfmt_lock);
 
-	if (need_retry && retval == -ENOEXEC && bprm->mm) {
+	if (need_retry && retval == -ENOEXEC) {
 		if (printable(bprm->buf[0]) && printable(bprm->buf[1]) &&
 		    printable(bprm->buf[2]) && printable(bprm->buf[3]))
 			return retval;
