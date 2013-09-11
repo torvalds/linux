@@ -194,7 +194,7 @@ void register_page_bootmem_info_node(struct pglist_data *pgdat)
 
 	zone = &pgdat->node_zones[0];
 	for (; zone < pgdat->node_zones + MAX_NR_ZONES - 1; zone++) {
-		if (zone->wait_table) {
+		if (zone_is_initialized(zone)) {
 			nr_pages = zone->wait_table_hash_nr_entries
 				* sizeof(wait_queue_head_t);
 			nr_pages = PAGE_ALIGN(nr_pages) >> PAGE_SHIFT;
