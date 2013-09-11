@@ -29,13 +29,14 @@
 static void bs_init(struct msm_gpu *gpu, struct platform_device *pdev)
 {
 	struct drm_device *dev = gpu->dev;
-	struct kgsl_device_platform_data *pdata = pdev->dev.platform_data;
+	struct kgsl_device_platform_data *pdata;
 
 	if (!pdev) {
 		dev_err(dev->dev, "could not find dtv pdata\n");
 		return;
 	}
 
+	pdata = pdev->dev.platform_data;
 	if (pdata->bus_scale_table) {
 		gpu->bsc = msm_bus_scale_register_client(pdata->bus_scale_table);
 		DBG("bus scale client: %08x", gpu->bsc);
