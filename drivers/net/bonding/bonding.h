@@ -430,6 +430,7 @@ static inline bool slave_can_tx(struct slave *slave)
 
 struct bond_net;
 
+int bond_arp_rcv(const struct sk_buff *skb, struct bonding *bond, struct slave *slave);
 struct vlan_entry *bond_next_vlan(struct bonding *bond, struct vlan_entry *curr);
 int bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb, struct net_device *slave_dev);
 void bond_xmit_slave_id(struct bonding *bond, struct sk_buff *skb, int slave_id);
