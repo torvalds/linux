@@ -151,10 +151,19 @@ static u64 last_lba(struct block_device *bdev)
 
 static inline int pmbr_part_valid(gpt_mbr_record *part)
 {
-	if (part->os_type == EFI_PMBR_OSTYPE_EFI_GPT &&
-	    le32_to_cpu(part->start_sector) == 1UL)
-		return 1;
-        return 0;
+	if (part->os_type != EFI_PMBR_OSTYPE_EFI_GPT)
+		goto invalid;
+
+	/* set to 0x00000001 (i.e., the LBA of the GPT Partition Header) */
+	if (le32_to_cpu(part->starting_lba) != GPT_PRIMARY_PARTITION_TABLE_LBA)
+		goto invalid;
+
+	if (le32_to_cpu(part->start_sector) != 1UL)
+		goto invalid;
+
+	return 1;
+invalid:
+	return 0;
 }
 
 /**
