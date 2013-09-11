@@ -4,6 +4,7 @@
 
 #include <linux/kernel.h>
 
+#include "util/dso.h"
 #include "util/util.h"
 #include "util/debug.h"
 
@@ -53,11 +54,12 @@ out:
 	return ret;
 }
 
-char *get_srcline(const char *dso_name, unsigned long addr)
+char *get_srcline(struct dso *dso, unsigned long addr)
 {
 	char *file;
 	unsigned line;
 	char *srcline = SRCLINE_UNKNOWN;
+	char *dso_name = dso->long_name;
 	size_t size;
 
 	if (dso_name[0] == '[')

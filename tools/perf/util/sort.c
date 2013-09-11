@@ -259,7 +259,7 @@ static int hist_entry__srcline_snprintf(struct hist_entry *self, char *bf,
 	if (!self->ms.map)
 		goto out_ip;
 
-	path = get_srcline(self->ms.map->dso->long_name, self->ip);
+	path = get_srcline(self->ms.map->dso, self->ip);
 	self->srcline = path;
 
 out_path:

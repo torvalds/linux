@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include "types.h"
 #include "map.h"
+#include "build-id.h"
 
 enum dso_binary_type {
 	DSO_BINARY_TYPE__KALLSYMS = 0,

@@ -1081,8 +1081,7 @@ static void symbol__free_source_line(struct symbol *sym, int len)
 /* Get the filename:line for the colored entries */
 static int symbol__get_source_line(struct symbol *sym, struct map *map,
 				   struct perf_evsel *evsel,
-				   struct rb_root *root, int len,
-				   const char *filename)
+				   struct rb_root *root, int len)
 {
 	u64 start;
 	int i, k;
@@ -1131,7 +1130,7 @@ static int symbol__get_source_line(struct symbol *sym, struct map *map,
 			goto next;
 
 		offset = start + i;
-		src_line->path = get_srcline(filename, offset);
+		src_line->path = get_srcline(map->dso, offset);
 		insert_source_line(&tmp_root, src_line);
 
 	next:
@@ -1338,7 +1337,6 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map,
 			 bool full_paths, int min_pcnt, int max_lines)
 {
 	struct dso *dso = map->dso;
-	const char *filename = dso->long_name;
 	struct rb_root source_line = RB_ROOT;
 	u64 len;
 
@@ -1348,9 +1346,8 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map,
 	len = symbol__size(sym);
 
 	if (print_lines) {
-		symbol__get_source_line(sym, map, evsel, &source_line,
-					len, filename);
-		print_summary(&source_line, filename);
+		symbol__get_source_line(sym, map, evsel, &source_line, len);
+		print_summary(&source_line, dso->long_name);
 	}
 
 	symbol__annotate_printf(sym, map, evsel, full_paths,
