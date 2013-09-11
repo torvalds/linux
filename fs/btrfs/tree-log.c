@@ -394,6 +394,7 @@ static noinline int overwrite_item(struct btrfs_trans_handle *trans,
 		if (inode_item) {
 			struct btrfs_inode_item *item;
 			u64 nbytes;
+			u32 mode;
 
 			item = btrfs_item_ptr(path->nodes[0], path->slots[0],
 					      struct btrfs_inode_item);
@@ -401,9 +402,19 @@ static noinline int overwrite_item(struct btrfs_trans_handle *trans,
 			item = btrfs_item_ptr(eb, slot,
 					      struct btrfs_inode_item);
 			btrfs_set_inode_nbytes(eb, item, nbytes);
+
+			/*
+			 * If this is a directory we need to reset the i_size to
+			 * 0 so that we can set it up properly when replaying
+			 * the rest of the items in this log.
+			 */
+			mode = btrfs_inode_mode(eb, item);
+			if (S_ISDIR(mode))
+				btrfs_set_inode_size(eb, item, 0);
 		}
 	} else if (inode_item) {
 		struct btrfs_inode_item *item;
+		u32 mode;
 
 		/*
 		 * New inode, set nbytes to 0 so that the nbytes comes out
@@ -411,6 +422,15 @@ static noinline int overwrite_item(struct btrfs_trans_handle *trans,
 		 */
 		item = btrfs_item_ptr(eb, slot, struct btrfs_inode_item);
 		btrfs_set_inode_nbytes(eb, item, 0);
+
+		/*
+		 * If this is a directory we need to reset the i_size to 0 so
+		 * that we can set it up properly when replaying the rest of
+		 * the items in this log.
+		 */
+		mode = btrfs_inode_mode(eb, item);
+		if (S_ISDIR(mode))
+			btrfs_set_inode_size(eb, item, 0);
 	}
 insert:
 	btrfs_release_path(path);
@@ -1497,6 +1517,7 @@ static noinline int insert_one_name(struct btrfs_trans_handle *trans,
 		iput(inode);
 		return -EIO;
 	}
+
 	ret = btrfs_add_link(trans, dir, inode, name, name_len, 1, index);
 
 	/* FIXME, put inode into FIXUP list */
@@ -1535,6 +1556,7 @@ static noinline int replay_one_name(struct btrfs_trans_handle *trans,
 	u8 log_type;
 	int exists;
 	int ret = 0;
+	bool update_size = (key->type == BTRFS_DIR_INDEX_KEY);
 
 	dir = read_one_inode(root, key->objectid);
 	if (!dir)
@@ -1605,6 +1627,10 @@ static noinline int replay_one_name(struct btrfs_trans_handle *trans,
 		goto insert;
 out:
 	btrfs_release_path(path);
+	if (!ret && update_size) {
+		btrfs_i_size_write(dir, dir->i_size + name_len * 2);
+		ret = btrfs_update_inode(trans, root, dir);
+	}
 	kfree(name);
 	iput(dir);
 	return ret;
@@ -1615,6 +1641,7 @@ insert:
 			      name, name_len, log_type, &log_key);
 	if (ret && ret != -ENOENT)
 		goto out;
+	update_size = false;
 	ret = 0;
 	goto out;
 }
