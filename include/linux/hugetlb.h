@@ -381,6 +381,16 @@ static inline pgoff_t basepage_index(struct page *page)
 
 extern void dissolve_free_huge_pages(unsigned long start_pfn,
 				     unsigned long end_pfn);
+int pmd_huge_support(void);
+/*
+ * Currently hugepage migration is enabled only for pmd-based hugepage.
+ * This function will be updated when hugepage migration is more widely
+ * supported.
+ */
+static inline int hugepage_migration_support(struct hstate *h)
+{
+	return pmd_huge_support() && (huge_page_shift(h) == PMD_SHIFT);
+}
 
 #else	/* CONFIG_HUGETLB_PAGE */
 struct hstate {};
@@ -409,6 +419,8 @@ static inline pgoff_t basepage_index(struct page *page)
 	return page->index;
 }
 #define dissolve_free_huge_pages(s, e)	do {} while (0)
+#define pmd_huge_support()	0
+#define hugepage_migration_support(h)	0
 #endif	/* CONFIG_HUGETLB_PAGE */
 
 #endif /* _LINUX_HUGETLB_H */
