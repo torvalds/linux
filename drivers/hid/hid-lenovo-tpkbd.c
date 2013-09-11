@@ -339,7 +339,7 @@ static int tpkbd_probe_tp(struct hid_device *hdev)
 	struct tpkbd_data_pointer *data_pointer;
 	size_t name_sz = strlen(dev_name(dev)) + 16;
 	char *name_mute, *name_micmute;
-	int i, ret;
+	int i;
 
 	/* Validate required reports. */
 	for (i = 0; i < 4; i++) {
@@ -354,7 +354,9 @@ static int tpkbd_probe_tp(struct hid_device *hdev)
 		hid_warn(hdev, "Could not create sysfs group\n");
 	}
 
-	data_pointer = kzalloc(sizeof(struct tpkbd_data_pointer), GFP_KERNEL);
+	data_pointer = devm_kzalloc(&hdev->dev,
+				    sizeof(struct tpkbd_data_pointer),
+				    GFP_KERNEL);
 	if (data_pointer == NULL) {
 		hid_err(hdev, "Could not allocate memory for driver data\n");
 		return -ENOMEM;
@@ -364,20 +366,13 @@ static int tpkbd_probe_tp(struct hid_device *hdev)
 	data_pointer->sensitivity = 0xa0;
 	data_pointer->press_speed = 0x38;
 
-	name_mute = kzalloc(name_sz, GFP_KERNEL);
-	if (name_mute == NULL) {
+	name_mute = devm_kzalloc(&hdev->dev, name_sz, GFP_KERNEL);
+	name_micmute = devm_kzalloc(&hdev->dev, name_sz, GFP_KERNEL);
+	if (name_mute == NULL || name_micmute == NULL) {
 		hid_err(hdev, "Could not allocate memory for led data\n");
-		ret = -ENOMEM;
-		goto err;
+		return -ENOMEM;
 	}
 	snprintf(name_mute, name_sz, "%s:amber:mute", dev_name(dev));
-
-	name_micmute = kzalloc(name_sz, GFP_KERNEL);
-	if (name_micmute == NULL) {
-		hid_err(hdev, "Could not allocate memory for led data\n");
-		ret = -ENOMEM;
-		goto err2;
-	}
 	snprintf(name_micmute, name_sz, "%s:amber:micmute", dev_name(dev));
 
 	hid_set_drvdata(hdev, data_pointer);
@@ -397,12 +392,6 @@ static int tpkbd_probe_tp(struct hid_device *hdev)
 	tpkbd_features_set(hdev);
 
 	return 0;
-
-err2:
-	kfree(name_mute);
-err:
-	kfree(data_pointer);
-	return ret;
 }
 
 static int tpkbd_probe(struct hid_device *hdev,
@@ -449,9 +438,6 @@ static void tpkbd_remove_tp(struct hid_device *hdev)
 	led_classdev_unregister(&data_pointer->led_mute);
 
 	hid_set_drvdata(hdev, NULL);
-	kfree(data_pointer->led_micmute.name);
-	kfree(data_pointer->led_mute.name);
-	kfree(data_pointer);
 }
 
 static void tpkbd_remove(struct hid_device *hdev)
