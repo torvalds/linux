@@ -94,7 +94,6 @@
 #define AUDIO_DAC_CFS_DLY_B		(1 << 10)
 
 struct mc13783_priv {
-	struct snd_soc_codec codec;
 	struct mc13xxx *mc13xxx;
 
 	enum mc13783_ssi_port adc_ssi_port;

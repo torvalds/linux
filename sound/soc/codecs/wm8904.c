@@ -1012,7 +1012,7 @@ static const struct soc_enum liner_enum =
 	SOC_ENUM_SINGLE(WM8904_ANALOGUE_OUT12_ZC, 0, 2, out_mux_text);
 
 static const struct snd_kcontrol_new liner_mux =
-	SOC_DAPM_ENUM("LINEL Mux", liner_enum);
+	SOC_DAPM_ENUM("LINER Mux", liner_enum);
 
 static const char *sidetone_text[] = {
 	"None", "Left", "Right"
