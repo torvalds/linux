@@ -33,6 +33,7 @@ struct search {
 	unsigned		flush_journal:1;
 
 	unsigned		insert_data_done:1;
+	unsigned		replace:1;
 
 	uint16_t		write_prio;
 
@@ -44,6 +45,7 @@ struct search {
 
 	/* Anything past this point won't get zeroed in search_alloc() */
 	struct keylist		insert_keys;
+	BKEY_PADDED(replace_key);
 };
 
 unsigned bch_get_congested(struct cache_set *);

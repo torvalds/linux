@@ -105,8 +105,8 @@ static void write_moving(struct closure *cl)
 		s->writeback		= KEY_DIRTY(&io->w->key);
 		s->csum			= KEY_CSUM(&io->w->key);
 
-		s->op.type = BTREE_REPLACE;
-		bkey_copy(&s->op.replace, &io->w->key);
+		bkey_copy(&s->replace_key, &io->w->key);
+		s->replace = true;
 
 		closure_init(&s->btree, cl);
 		bch_data_insert(&s->btree);

@@ -322,7 +322,7 @@ int bch_journal_replay(struct cache_set *s, struct list_head *list)
 			bkey_copy(keylist.top, k);
 			bch_keylist_push(&keylist);
 
-			ret = bch_btree_insert(&op, s, &keylist, i->pin);
+			ret = bch_btree_insert(&op, s, &keylist, i->pin, NULL);
 			if (ret)
 				goto err;
 

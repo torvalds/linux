@@ -217,6 +217,7 @@ static void bch_data_insert_keys(struct closure *cl)
 {
 	struct search *s = container_of(cl, struct search, btree);
 	atomic_t *journal_ref = NULL;
+	struct bkey *replace_key = s->replace ? &s->replace_key : NULL;
 
 	/*
 	 * If we're looping, might already be waiting on
@@ -235,7 +236,8 @@ static void bch_data_insert_keys(struct closure *cl)
 					  s->flush_journal
 					  ? &s->cl : NULL);
 
-	if (bch_btree_insert(&s->op, s->c, &s->insert_keys, journal_ref)) {
+	if (bch_btree_insert(&s->op, s->c, &s->insert_keys,
+			     journal_ref, replace_key)) {
 		s->error		= -ENOMEM;
 		s->insert_data_done	= true;
 	}
@@ -1056,7 +1058,7 @@ static void cached_dev_read_done(struct closure *cl)
 
 	if (s->cache_bio &&
 	    !test_bit(CACHE_SET_STOPPING, &s->c->flags)) {
-		s->op.type = BTREE_REPLACE;
+		BUG_ON(!s->replace);
 		closure_call(&s->btree, bch_data_insert, NULL, cl);
 	}
 
@@ -1101,12 +1103,14 @@ static int cached_dev_cache_miss(struct btree *b, struct search *s,
 
 	s->cache_bio_sectors = min(sectors, bio_sectors(bio) + reada);
 
-	s->op.replace = KEY(s->inode, bio->bi_sector +
-			    s->cache_bio_sectors, s->cache_bio_sectors);
+	s->replace_key = KEY(s->inode, bio->bi_sector +
+			     s->cache_bio_sectors, s->cache_bio_sectors);
 
-	ret = bch_btree_insert_check_key(b, &s->op, &s->op.replace);
+	ret = bch_btree_insert_check_key(b, &s->op, &s->replace_key);
 	if (ret)
 		return ret;
+
+	s->replace = true;
 
 	miss = bch_bio_split(bio, sectors, GFP_NOIO, s->d->bio_split);
 
