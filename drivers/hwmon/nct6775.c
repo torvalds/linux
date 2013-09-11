@@ -1457,7 +1457,8 @@ static struct nct6775_data *nct6775_update_device(struct device *dev)
 					  = nct6775_read_temp(data,
 						data->reg_temp[j][i]);
 			}
-			if (!(data->have_temp_fixed & (1 << i)))
+			if (i >= NUM_TEMP_FIXED ||
+			    !(data->have_temp_fixed & (1 << i)))
 				continue;
 			data->temp_offset[i]
 			  = nct6775_read_value(data, data->REG_TEMP_OFFSET[i]);
