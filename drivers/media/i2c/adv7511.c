@@ -1126,6 +1126,7 @@ static int adv7511_probe(struct i2c_client *client, const struct i2c_device_id *
 	state->i2c_edid = i2c_new_dummy(client->adapter, state->i2c_edid_addr >> 1);
 	if (state->i2c_edid == NULL) {
 		v4l2_err(sd, "failed to register edid i2c client\n");
+		err = -ENOMEM;
 		goto err_entity;
 	}
 
@@ -1133,6 +1134,7 @@ static int adv7511_probe(struct i2c_client *client, const struct i2c_device_id *
 	state->work_queue = create_singlethread_workqueue(sd->name);
 	if (state->work_queue == NULL) {
 		v4l2_err(sd, "could not create workqueue\n");
+		err = -ENOMEM;
 		goto err_unreg_cec;
 	}
 
