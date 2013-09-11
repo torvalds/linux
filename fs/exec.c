@@ -1373,7 +1373,6 @@ int search_binary_handler(struct linux_binprm *bprm)
 	unsigned int depth = bprm->recursion_depth;
 	int try,retval;
 	struct linux_binfmt *fmt;
-	pid_t old_pid, old_vpid;
 
 	/* This allows 4 levels of binfmt rewrites before failing hard. */
 	if (depth > 5)
@@ -1386,12 +1385,6 @@ int search_binary_handler(struct linux_binprm *bprm)
 	retval = audit_bprm(bprm);
 	if (retval)
 		return retval;
-
-	/* Need to fetch pid before load_binary changes it */
-	old_pid = current->pid;
-	rcu_read_lock();
-	old_vpid = task_pid_nr_ns(current, task_active_pid_ns(current->parent));
-	rcu_read_unlock();
 
 	retval = -ENOENT;
 	for (try=0; try<2; try++) {
@@ -1407,16 +1400,11 @@ int search_binary_handler(struct linux_binprm *bprm)
 			retval = fn(bprm);
 			bprm->recursion_depth = depth;
 			if (retval >= 0) {
-				if (depth == 0) {
-					trace_sched_process_exec(current, old_pid, bprm);
-					ptrace_event(PTRACE_EVENT_EXEC, old_vpid);
-				}
 				put_binfmt(fmt);
 				allow_write_access(bprm->file);
 				if (bprm->file)
 					fput(bprm->file);
 				bprm->file = NULL;
-				current->did_exec = 1;
 				proc_exec_connector(current);
 				return retval;
 			}
@@ -1450,8 +1438,28 @@ int search_binary_handler(struct linux_binprm *bprm)
 	}
 	return retval;
 }
-
 EXPORT_SYMBOL(search_binary_handler);
+
+static int exec_binprm(struct linux_binprm *bprm)
+{
+	pid_t old_pid, old_vpid;
+	int ret;
+
+	/* Need to fetch pid before load_binary changes it */
+	old_pid = current->pid;
+	rcu_read_lock();
+	old_vpid = task_pid_nr_ns(current, task_active_pid_ns(current->parent));
+	rcu_read_unlock();
+
+	ret = search_binary_handler(bprm);
+	if (ret >= 0) {
+		trace_sched_process_exec(current, old_pid, bprm);
+		ptrace_event(PTRACE_EVENT_EXEC, old_vpid);
+		current->did_exec = 1;
+	}
+
+	return ret;
+}
 
 /*
  * sys_execve() executes a new program.
@@ -1541,7 +1549,7 @@ static int do_execve_common(const char *filename,
 	if (retval < 0)
 		goto out;
 
-	retval = search_binary_handler(bprm);
+	retval = exec_binprm(bprm);
 	if (retval < 0)
 		goto out;
 
