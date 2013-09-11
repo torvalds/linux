@@ -2077,8 +2077,10 @@ static int ironlake_update_plane(struct drm_crtc *crtc,
 	else
 		dspcntr &= ~DISPPLANE_TILED;
 
-	/* must disable */
-	dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
+	if (IS_HASWELL(dev))
+		dspcntr &= ~DISPPLANE_TRICKLE_FEED_DISABLE;
+	else
+		dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
 
 	I915_WRITE(reg, dspcntr);
 
@@ -6762,8 +6764,10 @@ static void ivb_update_cursor(struct drm_crtc *crtc, u32 base)
 			cntl &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE);
 			cntl |= CURSOR_MODE_DISABLE;
 		}
-		if (IS_HASWELL(dev))
+		if (IS_HASWELL(dev)) {
 			cntl |= CURSOR_PIPE_CSC_ENABLE;
+			cntl &= ~CURSOR_TRICKLE_FEED_DISABLE;
+		}
 		I915_WRITE(CURCNTR_IVB(pipe), cntl);
 
 		intel_crtc->cursor_visible = visible;
@@ -7309,8 +7313,7 @@ static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 		}
 	}
 
-	pipe_config->adjusted_mode.clock = clock.dot *
-		pipe_config->pixel_multiplier;
+	pipe_config->adjusted_mode.clock = clock.dot;
 }
 
 static void ironlake_crtc_clock_get(struct intel_crtc *crtc,
@@ -7828,12 +7831,6 @@ err:
 	return ret;
 }
 
-/*
- * On gen7 we currently use the blit ring because (in early silicon at least)
- * the render ring doesn't give us interrpts for page flip completion, which
- * means clients will hang after the first flip is queued.  Fortunately the
- * blit ring generates interrupts properly, so use it instead.
- */
 static int intel_gen7_queue_flip(struct drm_device *dev,
 				 struct drm_crtc *crtc,
 				 struct drm_framebuffer *fb,
@@ -7842,9 +7839,13 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_ring_buffer *ring = &dev_priv->ring[BCS];
+	struct intel_ring_buffer *ring;
 	uint32_t plane_bit = 0;
-	int ret;
+	int len, ret;
+
+	ring = obj->ring;
+	if (IS_VALLEYVIEW(dev) || ring == NULL || ring->id != RCS)
+		ring = &dev_priv->ring[BCS];
 
 	ret = intel_pin_and_fence_fb_obj(dev, obj, ring);
 	if (ret)
@@ -7866,9 +7867,33 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 		goto err_unpin;
 	}
 
-	ret = intel_ring_begin(ring, 4);
+	len = 4;
+	if (ring->id == RCS)
+		len += 6;
+
+	ret = intel_ring_begin(ring, len);
 	if (ret)
 		goto err_unpin;
+
+	/* Unmask the flip-done completion message. Note that the bspec says that
+	 * we should do this for both the BCS and RCS, and that we must not unmask
+	 * more than one flip event at any time (or ensure that one flip message
+	 * can be sent by waiting for flip-done prior to queueing new flips).
+	 * Experimentation says that BCS works despite DERRMR masking all
+	 * flip-done completion events and that unmasking all planes at once
+	 * for the RCS also doesn't appear to drop events. Setting the DERRMR
+	 * to zero does lead to lockups within MI_DISPLAY_FLIP.
+	 */
+	if (ring->id == RCS) {
+		intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
+		intel_ring_emit(ring, DERRMR);
+		intel_ring_emit(ring, ~(DERRMR_PIPEA_PRI_FLIP_DONE |
+					DERRMR_PIPEB_PRI_FLIP_DONE |
+					DERRMR_PIPEC_PRI_FLIP_DONE));
+		intel_ring_emit(ring, MI_STORE_REGISTER_MEM(1));
+		intel_ring_emit(ring, DERRMR);
+		intel_ring_emit(ring, ring->scratch.gtt_offset + 256);
+	}
 
 	intel_ring_emit(ring, MI_DISPLAY_FLIP_I915 | plane_bit);
 	intel_ring_emit(ring, (fb->pitches[0] | obj->tiling_mode));
@@ -10022,6 +10047,33 @@ static void i915_disable_vga(struct drm_device *dev)
 	POSTING_READ(vga_reg);
 }
 
+static void i915_enable_vga_mem(struct drm_device *dev)
+{
+	/* Enable VGA memory on Intel HD */
+	if (HAS_PCH_SPLIT(dev)) {
+		vga_get_uninterruptible(dev->pdev, VGA_RSRC_LEGACY_IO);
+		outb(inb(VGA_MSR_READ) | VGA_MSR_MEM_EN, VGA_MSR_WRITE);
+		vga_set_legacy_decoding(dev->pdev, VGA_RSRC_LEGACY_IO |
+						   VGA_RSRC_LEGACY_MEM |
+						   VGA_RSRC_NORMAL_IO |
+						   VGA_RSRC_NORMAL_MEM);
+		vga_put(dev->pdev, VGA_RSRC_LEGACY_IO);
+	}
+}
+
+void i915_disable_vga_mem(struct drm_device *dev)
+{
+	/* Disable VGA memory on Intel HD */
+	if (HAS_PCH_SPLIT(dev)) {
+		vga_get_uninterruptible(dev->pdev, VGA_RSRC_LEGACY_IO);
+		outb(inb(VGA_MSR_READ) & ~VGA_MSR_MEM_EN, VGA_MSR_WRITE);
+		vga_set_legacy_decoding(dev->pdev, VGA_RSRC_LEGACY_IO |
+						   VGA_RSRC_NORMAL_IO |
+						   VGA_RSRC_NORMAL_MEM);
+		vga_put(dev->pdev, VGA_RSRC_LEGACY_IO);
+	}
+}
+
 void intel_modeset_init_hw(struct drm_device *dev)
 {
 	intel_init_power_well(dev);
@@ -10300,6 +10352,7 @@ void i915_redisable_vga(struct drm_device *dev)
 	if (I915_READ(vga_reg) != VGA_DISP_DISABLE) {
 		DRM_DEBUG_KMS("Something enabled VGA plane, disabling it\n");
 		i915_disable_vga(dev);
+		i915_disable_vga_mem(dev);
 	}
 }
 
@@ -10512,6 +10565,8 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	}
 
 	intel_disable_fbc(dev);
+
+	i915_enable_vga_mem(dev);
 
 	intel_disable_gt_powersave(dev);
 

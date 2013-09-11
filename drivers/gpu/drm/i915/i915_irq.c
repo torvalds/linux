@@ -1027,8 +1027,13 @@ static inline void intel_hpd_irq_handler(struct drm_device *dev,
 		dev_priv->display.hpd_irq_setup(dev);
 	spin_unlock(&dev_priv->irq_lock);
 
-	queue_work(dev_priv->wq,
-		   &dev_priv->hotplug_work);
+	/*
+	 * Our hotplug handler can grab modeset locks (by calling down into the
+	 * fb helpers). Hence it must not be run on our own dev-priv->wq work
+	 * queue for otherwise the flush_work in the pageflip code will
+	 * deadlock.
+	 */
+	schedule_work(&dev_priv->hotplug_work);
 }
 
 static void gmbus_irq_handler(struct drm_device *dev)
@@ -1655,7 +1660,13 @@ void i915_handle_error(struct drm_device *dev, bool wedged)
 			wake_up_all(&ring->irq_queue);
 	}
 
-	queue_work(dev_priv->wq, &dev_priv->gpu_error.work);
+	/*
+	 * Our reset work can grab modeset locks (since it needs to reset the
+	 * state of outstanding pagelips). Hence it must not be run on our own
+	 * dev-priv->wq work queue for otherwise the flush_work in the pageflip
+	 * code will deadlock.
+	 */
+	schedule_work(&dev_priv->gpu_error.work);
 }
 
 static void __always_unused i915_pageflip_stall_check(struct drm_device *dev, int pipe)
@@ -2027,9 +2038,9 @@ static void i915_hangcheck_elapsed(unsigned long data)
 
 	for_each_ring(ring, dev_priv, i) {
 		if (ring->hangcheck.score > FIRE) {
-			DRM_ERROR("%s on %s\n",
-				  stuck[i] ? "stuck" : "no progress",
-				  ring->name);
+			DRM_INFO("%s on %s\n",
+				 stuck[i] ? "stuck" : "no progress",
+				 ring->name);
 			rings_hung++;
 		}
 	}

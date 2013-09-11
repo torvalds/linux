@@ -36,20 +36,12 @@
 #define PCI_LBPC 0xf4 /* legacy/combination backlight modes */
 
 void
-intel_fixed_panel_mode(struct drm_display_mode *fixed_mode,
+intel_fixed_panel_mode(const struct drm_display_mode *fixed_mode,
 		       struct drm_display_mode *adjusted_mode)
 {
-	adjusted_mode->hdisplay = fixed_mode->hdisplay;
-	adjusted_mode->hsync_start = fixed_mode->hsync_start;
-	adjusted_mode->hsync_end = fixed_mode->hsync_end;
-	adjusted_mode->htotal = fixed_mode->htotal;
+	drm_mode_copy(adjusted_mode, fixed_mode);
 
-	adjusted_mode->vdisplay = fixed_mode->vdisplay;
-	adjusted_mode->vsync_start = fixed_mode->vsync_start;
-	adjusted_mode->vsync_end = fixed_mode->vsync_end;
-	adjusted_mode->vtotal = fixed_mode->vtotal;
-
-	adjusted_mode->clock = fixed_mode->clock;
+	drm_mode_set_crtcinfo(adjusted_mode, 0);
 }
 
 /* adjusted_mode has been preset to be the panel's fixed mode */
