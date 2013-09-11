@@ -348,24 +348,13 @@ do {								\
 } while (0)
 
 /**
- * __closure_init() - Initialize a closure, skipping the memset()
- *
- * May be used instead of closure_init() when memory has already been zeroed.
- */
-#define __closure_init(cl, parent)				\
-	closure_init_type(cl, parent, true)
-
-/**
  * closure_init() - Initialize a closure, setting the refcount to 1
  * @cl:		closure to initialize
  * @parent:	parent of the new closure. cl will take a refcount on it for its
  *		lifetime; may be NULL.
  */
 #define closure_init(cl, parent)				\
-do {								\
-	memset((cl), 0, sizeof(*(cl)));				\
-	__closure_init(cl, parent);				\
-} while (0)
+	closure_init_type(cl, parent, true)
 
 static inline void closure_init_stack(struct closure *cl)
 {
