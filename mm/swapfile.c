@@ -392,13 +392,78 @@ static void dec_cluster_info_page(struct swap_info_struct *p,
  * It's possible scan_swap_map() uses a free cluster in the middle of free
  * cluster list. Avoiding such abuse to avoid list corruption.
  */
-static inline bool scan_swap_map_recheck_cluster(struct swap_info_struct *si,
+static bool
+scan_swap_map_ssd_cluster_conflict(struct swap_info_struct *si,
 	unsigned long offset)
 {
+	struct percpu_cluster *percpu_cluster;
+	bool conflict;
+
 	offset /= SWAPFILE_CLUSTER;
-	return !cluster_is_null(&si->free_cluster_head) &&
+	conflict = !cluster_is_null(&si->free_cluster_head) &&
 		offset != cluster_next(&si->free_cluster_head) &&
 		cluster_is_free(&si->cluster_info[offset]);
+
+	if (!conflict)
+		return false;
+
+	percpu_cluster = this_cpu_ptr(si->percpu_cluster);
+	cluster_set_null(&percpu_cluster->index);
+	return true;
+}
+
+/*
+ * Try to get a swap entry from current cpu's swap entry pool (a cluster). This
+ * might involve allocating a new cluster for current CPU too.
+ */
+static void scan_swap_map_try_ssd_cluster(struct swap_info_struct *si,
+	unsigned long *offset, unsigned long *scan_base)
+{
+	struct percpu_cluster *cluster;
+	bool found_free;
+	unsigned long tmp;
+
+new_cluster:
+	cluster = this_cpu_ptr(si->percpu_cluster);
+	if (cluster_is_null(&cluster->index)) {
+		if (!cluster_is_null(&si->free_cluster_head)) {
+			cluster->index = si->free_cluster_head;
+			cluster->next = cluster_next(&cluster->index) *
+					SWAPFILE_CLUSTER;
+		} else if (!cluster_is_null(&si->discard_cluster_head)) {
+			/*
+			 * we don't have free cluster but have some clusters in
+			 * discarding, do discard now and reclaim them
+			 */
+			swap_do_scheduled_discard(si);
+			*scan_base = *offset = si->cluster_next;
+			goto new_cluster;
+		} else
+			return;
+	}
+
+	found_free = false;
+
+	/*
+	 * Other CPUs can use our cluster if they can't find a free cluster,
+	 * check if there is still free entry in the cluster
+	 */
+	tmp = cluster->next;
+	while (tmp < si->max && tmp < (cluster_next(&cluster->index) + 1) *
+	       SWAPFILE_CLUSTER) {
+		if (!si->swap_map[tmp]) {
+			found_free = true;
+			break;
+		}
+		tmp++;
+	}
+	if (!found_free) {
+		cluster_set_null(&cluster->index);
+		goto new_cluster;
+	}
+	cluster->next = tmp + 1;
+	*offset = tmp;
+	*scan_base = tmp;
 }
 
 static unsigned long scan_swap_map(struct swap_info_struct *si,
@@ -423,39 +488,15 @@ static unsigned long scan_swap_map(struct swap_info_struct *si,
 	si->flags += SWP_SCANNING;
 	scan_base = offset = si->cluster_next;
 
+	/* SSD algorithm */
+	if (si->cluster_info) {
+		scan_swap_map_try_ssd_cluster(si, &offset, &scan_base);
+		goto checks;
+	}
+
 	if (unlikely(!si->cluster_nr--)) {
 		if (si->pages - si->inuse_pages < SWAPFILE_CLUSTER) {
 			si->cluster_nr = SWAPFILE_CLUSTER - 1;
-			goto checks;
-		}
-check_cluster:
-		if (!cluster_is_null(&si->free_cluster_head)) {
-			offset = cluster_next(&si->free_cluster_head) *
-						SWAPFILE_CLUSTER;
-			last_in_cluster = offset + SWAPFILE_CLUSTER - 1;
-			si->cluster_next = offset;
-			si->cluster_nr = SWAPFILE_CLUSTER - 1;
-			goto checks;
-		} else if (si->cluster_info) {
-			/*
-			 * we don't have free cluster but have some clusters in
-			 * discarding, do discard now and reclaim them
-			 */
-			if (!cluster_is_null(&si->discard_cluster_head)) {
-				si->cluster_nr = 0;
-				swap_do_scheduled_discard(si);
-				scan_base = offset = si->cluster_next;
-				if (!si->cluster_nr)
-					goto check_cluster;
-				si->cluster_nr--;
-				goto checks;
-			}
-
-			/*
-			 * Checking free cluster is fast enough, we can do the
-			 * check every time
-			 */
-			si->cluster_nr = 0;
 			goto checks;
 		}
 
@@ -516,8 +557,10 @@ check_cluster:
 	}
 
 checks:
-	if (scan_swap_map_recheck_cluster(si, offset))
-		goto check_cluster;
+	if (si->cluster_info) {
+		while (scan_swap_map_ssd_cluster_conflict(si, offset))
+			scan_swap_map_try_ssd_cluster(si, &offset, &scan_base);
+	}
 	if (!(si->flags & SWP_WRITEOK))
 		goto no_page;
 	if (!si->highest_bit)
@@ -1884,6 +1927,8 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 	spin_unlock(&swap_lock);
 	frontswap_invalidate_area(type);
 	mutex_unlock(&swapon_mutex);
+	free_percpu(p->percpu_cluster);
+	p->percpu_cluster = NULL;
 	vfree(swap_map);
 	vfree(cluster_info);
 	vfree(frontswap_map);
@@ -2403,6 +2448,16 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 			error = -ENOMEM;
 			goto bad_swap;
 		}
+		p->percpu_cluster = alloc_percpu(struct percpu_cluster);
+		if (!p->percpu_cluster) {
+			error = -ENOMEM;
+			goto bad_swap;
+		}
+		for_each_possible_cpu(i) {
+			struct percpu_cluster *cluster;
+			cluster = per_cpu_ptr(p->percpu_cluster, i);
+			cluster_set_null(&cluster->index);
+		}
 	}
 
 	error = swap_cgroup_swapon(p->type, maxpages);
@@ -2475,6 +2530,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 	error = 0;
 	goto out;
 bad_swap:
+	free_percpu(p->percpu_cluster);
+	p->percpu_cluster = NULL;
 	if (inode && S_ISBLK(inode->i_mode) && p->bdev) {
 		set_blocksize(p->bdev, p->old_block_size);
 		blkdev_put(p->bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
