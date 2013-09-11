@@ -227,6 +227,52 @@ static int __mlock_posix_error_return(long retval)
 }
 
 /*
+ * Prepare page for fast batched LRU putback via putback_lru_evictable_pagevec()
+ *
+ * The fast path is available only for evictable pages with single mapping.
+ * Then we can bypass the per-cpu pvec and get better performance.
+ * when mapcount > 1 we need try_to_munlock() which can fail.
+ * when !page_evictable(), we need the full redo logic of putback_lru_page to
+ * avoid leaving evictable page in unevictable list.
+ *
+ * In case of success, @page is added to @pvec and @pgrescued is incremented
+ * in case that the page was previously unevictable. @page is also unlocked.
+ */
+static bool __putback_lru_fast_prepare(struct page *page, struct pagevec *pvec,
+		int *pgrescued)
+{
+	VM_BUG_ON(PageLRU(page));
+	VM_BUG_ON(!PageLocked(page));
+
+	if (page_mapcount(page) <= 1 && page_evictable(page)) {
+		pagevec_add(pvec, page);
+		if (TestClearPageUnevictable(page))
+			(*pgrescued)++;
+		unlock_page(page);
+		return true;
+	}
+
+	return false;
+}
+
+/*
+ * Putback multiple evictable pages to the LRU
+ *
+ * Batched putback of evictable pages that bypasses the per-cpu pvec. Some of
+ * the pages might have meanwhile become unevictable but that is OK.
+ */
+static void __putback_lru_fast(struct pagevec *pvec, int pgrescued)
+{
+	count_vm_events(UNEVICTABLE_PGMUNLOCKED, pagevec_count(pvec));
+	/*
+	 *__pagevec_lru_add() calls release_pages() so we don't call
+	 * put_page() explicitly
+	 */
+	__pagevec_lru_add(pvec);
+	count_vm_events(UNEVICTABLE_PGRESCUED, pgrescued);
+}
+
+/*
  * Munlock a batch of pages from the same zone
  *
  * The work is split to two main phases. First phase clears the Mlocked flag
@@ -242,6 +288,8 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
 	int i;
 	int nr = pagevec_count(pvec);
 	int delta_munlocked = -nr;
+	struct pagevec pvec_putback;
+	int pgrescued = 0;
 
 	/* Phase 1: page isolation */
 	spin_lock_irq(&zone->lru_lock);
@@ -279,17 +327,34 @@ skip_munlock:
 	__mod_zone_page_state(zone, NR_MLOCK, delta_munlocked);
 	spin_unlock_irq(&zone->lru_lock);
 
-	/* Phase 2: page munlock and putback */
+	/* Phase 2: page munlock */
+	pagevec_init(&pvec_putback, 0);
 	for (i = 0; i < nr; i++) {
 		struct page *page = pvec->pages[i];
 
 		if (page) {
 			lock_page(page);
-			__munlock_isolated_page(page);
-			unlock_page(page);
-			put_page(page); /* pin from follow_page_mask() */
+			if (!__putback_lru_fast_prepare(page, &pvec_putback,
+					&pgrescued)) {
+				/* Slow path */
+				__munlock_isolated_page(page);
+				unlock_page(page);
+			}
 		}
 	}
+
+	/* Phase 3: page putback for pages that qualified for the fast path */
+	if (pagevec_count(&pvec_putback))
+		__putback_lru_fast(&pvec_putback, pgrescued);
+
+	/* Phase 4: put_page to return pin from follow_page_mask() */
+	for (i = 0; i < nr; i++) {
+		struct page *page = pvec->pages[i];
+
+		if (page)
+			put_page(page);
+	}
+
 	pagevec_reinit(pvec);
 }
 
