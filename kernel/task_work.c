@@ -25,7 +25,7 @@ struct callback_head *
 task_work_cancel(struct task_struct *task, task_work_func_t func)
 {
 	struct callback_head **pprev = &task->task_works;
-	struct callback_head *work = NULL;
+	struct callback_head *work;
 	unsigned long flags;
 	/*
 	 * If cmpxchg() fails we continue without updating pprev.
@@ -35,7 +35,7 @@ task_work_cancel(struct task_struct *task, task_work_func_t func)
 	 */
 	raw_spin_lock_irqsave(&task->pi_lock, flags);
 	while ((work = ACCESS_ONCE(*pprev))) {
-		read_barrier_depends();
+		smp_read_barrier_depends();
 		if (work->func != func)
 			pprev = &work->next;
 		else if (cmpxchg(pprev, work, work->next) == work)
