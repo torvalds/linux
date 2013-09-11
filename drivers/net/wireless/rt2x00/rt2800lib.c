@@ -3315,28 +3315,36 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 		rt2800_rfcsr_write(rt2x00dev, 8, 0x80);
 
 	if (rt2x00_rt(rt2x00dev, RT3593)) {
-		if (rt2x00_is_usb(rt2x00dev)) {
-			rt2800_register_read(rt2x00dev, GPIO_CTRL, &reg);
+		rt2800_register_read(rt2x00dev, GPIO_CTRL, &reg);
 
-			/* Band selection. GPIO #8 controls all paths */
+		/* Band selection */
+		if (rt2x00_is_usb(rt2x00dev) ||
+		    rt2x00_is_pcie(rt2x00dev)) {
+			/* GPIO #8 controls all paths */
 			rt2x00_set_field32(&reg, GPIO_CTRL_DIR8, 0);
 			if (rf->channel <= 14)
 				rt2x00_set_field32(&reg, GPIO_CTRL_VAL8, 1);
 			else
 				rt2x00_set_field32(&reg, GPIO_CTRL_VAL8, 0);
+		}
 
+		/* LNA PE control. */
+		if (rt2x00_is_usb(rt2x00dev)) {
+			/* GPIO #4 controls PE0 and PE1,
+			 * GPIO #7 controls PE2
+			 */
 			rt2x00_set_field32(&reg, GPIO_CTRL_DIR4, 0);
 			rt2x00_set_field32(&reg, GPIO_CTRL_DIR7, 0);
 
-			/* LNA PE control.
-			* GPIO #4 controls PE0 and PE1,
-			* GPIO #7 controls PE2
-			*/
 			rt2x00_set_field32(&reg, GPIO_CTRL_VAL4, 1);
 			rt2x00_set_field32(&reg, GPIO_CTRL_VAL7, 1);
-
-			rt2800_register_write(rt2x00dev, GPIO_CTRL, reg);
+		} else if (rt2x00_is_pcie(rt2x00dev)) {
+			/* GPIO #4 controls PE0, PE1 and PE2 */
+			rt2x00_set_field32(&reg, GPIO_CTRL_DIR4, 0);
+			rt2x00_set_field32(&reg, GPIO_CTRL_VAL4, 1);
 		}
+
+		rt2800_register_write(rt2x00dev, GPIO_CTRL, reg);
 
 		/* AGC init */
 		if (rf->channel <= 14)
