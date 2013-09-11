@@ -1400,10 +1400,6 @@ int search_binary_handler(struct linux_binprm *bprm)
 			bprm->recursion_depth--;
 			if (retval >= 0) {
 				put_binfmt(fmt);
-				allow_write_access(bprm->file);
-				if (bprm->file)
-					fput(bprm->file);
-				bprm->file = NULL;
 				return retval;
 			}
 			read_lock(&binfmt_lock);
@@ -1455,6 +1451,12 @@ static int exec_binprm(struct linux_binprm *bprm)
 		ptrace_event(PTRACE_EVENT_EXEC, old_vpid);
 		current->did_exec = 1;
 		proc_exec_connector(current);
+
+		if (bprm->file) {
+			allow_write_access(bprm->file);
+			fput(bprm->file);
+			bprm->file = NULL; /* to catch use-after-free */
+		}
 	}
 
 	return ret;
