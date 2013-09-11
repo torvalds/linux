@@ -168,7 +168,7 @@ static int pstore_decompress(void *in, void *out, size_t inlen, size_t outlen)
 	int err, ret;
 
 	ret = -EIO;
-	err = zlib_inflateInit(&stream);
+	err = zlib_inflateInit2(&stream, WINDOW_BITS);
 	if (err != Z_OK)
 		goto error;
 
