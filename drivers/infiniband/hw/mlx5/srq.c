@@ -295,7 +295,7 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 	mlx5_vfree(in);
 	if (err) {
 		mlx5_ib_dbg(dev, "create SRQ failed, err %d\n", err);
-		goto err_srq;
+		goto err_usr_kern_srq;
 	}
 
 	mlx5_ib_dbg(dev, "create SRQ with srqn 0x%x\n", srq->msrq.srqn);
@@ -316,6 +316,8 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 
 err_core:
 	mlx5_core_destroy_srq(&dev->mdev, &srq->msrq);
+
+err_usr_kern_srq:
 	if (pd->uobject)
 		destroy_srq_user(pd, srq);
 	else
