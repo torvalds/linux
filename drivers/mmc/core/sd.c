@@ -23,6 +23,7 @@
 #include "mmc_ops.h"
 #include "sd.h"
 #include "sd_ops.h"
+#include "host.h"
 
 static const unsigned int tran_exp[] = {
 	10000,		100000,		1000000,	10000000,
@@ -628,7 +629,11 @@ static int mmc_sd_init_uhs_card(struct mmc_card *card)
 		goto out;
 
 	/* SPI mode doesn't define CMD19 */
-	if (!mmc_host_is_spi(card->host) && card->host->ops->execute_tuning)
+	if (!mmc_host_is_spi(card->host) && card->host->ops->execute_tuning &&
+	    (card->sd_bus_speed == UHS_SDR50_BUS_SPEED ||
+	     card->sd_bus_speed == UHS_SDR104_BUS_SPEED))
+
+	    mmc_host_clk_hold(card->host);
 		err = card->host->ops->execute_tuning(card->host,MMC_SEND_TUNING_BLOCK);
 
 out:

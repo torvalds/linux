@@ -22,6 +22,7 @@
 #include "core.h"
 #include "bus.h"
 #include "sd.h"
+#include "host.h"
 #include "sdio_bus.h"
 #include "mmc_ops.h"
 #include "sd_ops.h"
@@ -569,10 +570,18 @@ static int mmc_sdio_init_uhs_card(struct mmc_card *card)
 	if (err)
 		goto out;
 
-	/* Initialize and start re-tuning timer */
-	if (!mmc_host_is_spi(card->host) && card->host->ops->execute_tuning)
-		err = card->host->ops->execute_tuning(card->host,
-						      MMC_SEND_TUNING_BLOCK);
+    
+     /*
+      * SPI mode doesn't define CMD19 and tuning is only valid for SDR50 and
+      * SDR104 mode SD-cards. Note that tuning is mandatory for SDR104.
+      */
+     if (!mmc_host_is_spi(card->host) && card->host->ops->execute_tuning &&
+          ((card->sw_caps.sd3_bus_mode == SD_MODE_UHS_SDR50) ||
+           (card->sw_caps.sd3_bus_mode ==  SD_MODE_UHS_SDR104))) {
+                  mmc_host_clk_hold(card->host);
+                   err = card->host->ops->execute_tuning(card->host,MMC_SEND_TUNING_BLOCK);
+                  mmc_host_clk_release(card->host);
+      }
 
 out:
 
