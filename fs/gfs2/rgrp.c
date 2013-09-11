@@ -262,7 +262,7 @@ static int gfs2_rbm_from_block(struct gfs2_rbm *rbm, u64 block)
 	rbm->bi = rbm->rgd->rd_bits;
 	rbm->offset = (u32)(rblock);
 	/* Check if the block is within the first block */
-	if (rbm->offset < (rbm->bi->bi_start + rbm->bi->bi_len) * GFS2_NBBY)
+	if (rbm->offset < rbm->bi->bi_len * GFS2_NBBY)
 		return 0;
 
 	/* Adjust for the size diff between gfs2_meta_header and gfs2_rgrp */
