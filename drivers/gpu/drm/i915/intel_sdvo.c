@@ -788,6 +788,8 @@ static void intel_sdvo_get_dtd_from_mode(struct intel_sdvo_dtd *dtd,
 	uint16_t h_sync_offset, v_sync_offset;
 	int mode_clock;
 
+	memset(dtd, 0, sizeof(*dtd));
+
 	width = mode->hdisplay;
 	height = mode->vdisplay;
 
@@ -830,48 +832,51 @@ static void intel_sdvo_get_dtd_from_mode(struct intel_sdvo_dtd *dtd,
 	if (mode->flags & DRM_MODE_FLAG_PVSYNC)
 		dtd->part2.dtd_flags |= DTD_FLAG_VSYNC_POSITIVE;
 
-	dtd->part2.sdvo_flags = 0;
 	dtd->part2.v_sync_off_high = v_sync_offset & 0xc0;
-	dtd->part2.reserved = 0;
 }
 
-static void intel_sdvo_get_mode_from_dtd(struct drm_display_mode * mode,
+static void intel_sdvo_get_mode_from_dtd(struct drm_display_mode *pmode,
 					 const struct intel_sdvo_dtd *dtd)
 {
-	mode->hdisplay = dtd->part1.h_active;
-	mode->hdisplay += ((dtd->part1.h_high >> 4) & 0x0f) << 8;
-	mode->hsync_start = mode->hdisplay + dtd->part2.h_sync_off;
-	mode->hsync_start += (dtd->part2.sync_off_width_high & 0xc0) << 2;
-	mode->hsync_end = mode->hsync_start + dtd->part2.h_sync_width;
-	mode->hsync_end += (dtd->part2.sync_off_width_high & 0x30) << 4;
-	mode->htotal = mode->hdisplay + dtd->part1.h_blank;
-	mode->htotal += (dtd->part1.h_high & 0xf) << 8;
+	struct drm_display_mode mode = {};
 
-	mode->vdisplay = dtd->part1.v_active;
-	mode->vdisplay += ((dtd->part1.v_high >> 4) & 0x0f) << 8;
-	mode->vsync_start = mode->vdisplay;
-	mode->vsync_start += (dtd->part2.v_sync_off_width >> 4) & 0xf;
-	mode->vsync_start += (dtd->part2.sync_off_width_high & 0x0c) << 2;
-	mode->vsync_start += dtd->part2.v_sync_off_high & 0xc0;
-	mode->vsync_end = mode->vsync_start +
+	mode.hdisplay = dtd->part1.h_active;
+	mode.hdisplay += ((dtd->part1.h_high >> 4) & 0x0f) << 8;
+	mode.hsync_start = mode.hdisplay + dtd->part2.h_sync_off;
+	mode.hsync_start += (dtd->part2.sync_off_width_high & 0xc0) << 2;
+	mode.hsync_end = mode.hsync_start + dtd->part2.h_sync_width;
+	mode.hsync_end += (dtd->part2.sync_off_width_high & 0x30) << 4;
+	mode.htotal = mode.hdisplay + dtd->part1.h_blank;
+	mode.htotal += (dtd->part1.h_high & 0xf) << 8;
+
+	mode.vdisplay = dtd->part1.v_active;
+	mode.vdisplay += ((dtd->part1.v_high >> 4) & 0x0f) << 8;
+	mode.vsync_start = mode.vdisplay;
+	mode.vsync_start += (dtd->part2.v_sync_off_width >> 4) & 0xf;
+	mode.vsync_start += (dtd->part2.sync_off_width_high & 0x0c) << 2;
+	mode.vsync_start += dtd->part2.v_sync_off_high & 0xc0;
+	mode.vsync_end = mode.vsync_start +
 		(dtd->part2.v_sync_off_width & 0xf);
-	mode->vsync_end += (dtd->part2.sync_off_width_high & 0x3) << 4;
-	mode->vtotal = mode->vdisplay + dtd->part1.v_blank;
-	mode->vtotal += (dtd->part1.v_high & 0xf) << 8;
+	mode.vsync_end += (dtd->part2.sync_off_width_high & 0x3) << 4;
+	mode.vtotal = mode.vdisplay + dtd->part1.v_blank;
+	mode.vtotal += (dtd->part1.v_high & 0xf) << 8;
 
-	mode->clock = dtd->part1.clock * 10;
+	mode.clock = dtd->part1.clock * 10;
 
-	mode->flags &= ~(DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC);
 	if (dtd->part2.dtd_flags & DTD_FLAG_INTERLACE)
-		mode->flags |= DRM_MODE_FLAG_INTERLACE;
+		mode.flags |= DRM_MODE_FLAG_INTERLACE;
 	if (dtd->part2.dtd_flags & DTD_FLAG_HSYNC_POSITIVE)
-		mode->flags |= DRM_MODE_FLAG_PHSYNC;
+		mode.flags |= DRM_MODE_FLAG_PHSYNC;
 	else
-		mode->flags |= DRM_MODE_FLAG_NHSYNC;
+		mode.flags |= DRM_MODE_FLAG_NHSYNC;
 	if (dtd->part2.dtd_flags & DTD_FLAG_VSYNC_POSITIVE)
-		mode->flags |= DRM_MODE_FLAG_PVSYNC;
+		mode.flags |= DRM_MODE_FLAG_PVSYNC;
 	else
-		mode->flags |= DRM_MODE_FLAG_NVSYNC;
+		mode.flags |= DRM_MODE_FLAG_NVSYNC;
+
+	drm_mode_set_crtcinfo(&mode, 0);
+
+	drm_mode_copy(pmode, &mode);
 }
 
 static bool intel_sdvo_check_supp_encode(struct intel_sdvo *intel_sdvo)
