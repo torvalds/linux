@@ -406,7 +406,7 @@ int xenvif_connect(struct xenvif *vif, unsigned long tx_ring_ref,
 
 	init_waitqueue_head(&vif->wq);
 	vif->task = kthread_create(xenvif_kthread,
-				   (void *)vif, vif->dev->name);
+				   (void *)vif, "%s", vif->dev->name);
 	if (IS_ERR(vif->task)) {
 		pr_warn("Could not allocate kthread for %s\n", vif->dev->name);
 		err = PTR_ERR(vif->task);
