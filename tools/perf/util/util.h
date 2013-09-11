@@ -297,4 +297,9 @@ struct parse_tag {
 };
 
 unsigned long parse_tag_value(const char *str, struct parse_tag *tags);
+
+#define SRCLINE_UNKNOWN  ((char *) "??:0")
+
+char *get_srcline(const char *dso_name, unsigned long addr);
+void free_srcline(char *srcline);
 #endif /* GIT_COMPAT_UTIL_H */

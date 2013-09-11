@@ -251,8 +251,7 @@ static int hist_entry__srcline_snprintf(struct hist_entry *self, char *bf,
 					unsigned int width __maybe_unused)
 {
 	FILE *fp = NULL;
-	char cmd[PATH_MAX + 2], *path = self->srcline, *nl;
-	size_t line_len;
+	char *path = self->srcline;
 
 	if (path != NULL)
 		goto out_path;
@@ -263,19 +262,9 @@ static int hist_entry__srcline_snprintf(struct hist_entry *self, char *bf,
 	if (!strncmp(self->ms.map->dso->long_name, "/tmp/perf-", 10))
 		goto out_ip;
 
-	snprintf(cmd, sizeof(cmd), "addr2line -e %s %016" PRIx64,
-		 self->ms.map->dso->long_name, self->ip);
-	fp = popen(cmd, "r");
-	if (!fp)
-		goto out_ip;
+	path = get_srcline(self->ms.map->dso->long_name, self->ip);
+	self->srcline = path;
 
-	if (getline(&self->srcline, &line_len, fp) < 0 || !line_len)
-		goto out_ip;
-
-	nl = strchr(self->srcline, '\n');
-	if (nl != NULL)
-		*nl = '\0';
-	path = self->srcline;
 out_path:
 	if (fp)
 		pclose(fp);

@@ -1070,7 +1070,7 @@ static void symbol__free_source_line(struct symbol *sym, int len)
 			  (sizeof(src_line->p) * (src_line->nr_pcnt - 1));
 
 	for (i = 0; i < len; i++) {
-		free(src_line->path);
+		free_srcline(src_line->path);
 		src_line = (void *)src_line + sizeof_src_line;
 	}
 
@@ -1087,7 +1087,6 @@ static int symbol__get_source_line(struct symbol *sym, struct map *map,
 	u64 start;
 	int i, k;
 	int evidx = evsel->idx;
-	char cmd[PATH_MAX * 2];
 	struct source_line *src_line;
 	struct annotation *notes = symbol__annotation(sym);
 	struct sym_hist *h = annotation__histogram(notes, evidx);
@@ -1115,10 +1114,7 @@ static int symbol__get_source_line(struct symbol *sym, struct map *map,
 	start = map__rip_2objdump(map, sym->start);
 
 	for (i = 0; i < len; i++) {
-		char *path = NULL;
-		size_t line_len;
 		u64 offset;
-		FILE *fp;
 		double percent_max = 0.0;
 
 		src_line->nr_pcnt = nr_pcnt;
@@ -1135,19 +1131,9 @@ static int symbol__get_source_line(struct symbol *sym, struct map *map,
 			goto next;
 
 		offset = start + i;
-		sprintf(cmd, "addr2line -e %s %016" PRIx64, filename, offset);
-		fp = popen(cmd, "r");
-		if (!fp)
-			goto next;
-
-		if (getline(&path, &line_len, fp) < 0 || !line_len)
-			goto next_close;
-
-		src_line->path = path;
+		src_line->path = get_srcline(filename, offset);
 		insert_source_line(&tmp_root, src_line);
 
-	next_close:
-		pclose(fp);
 	next:
 		src_line = (void *)src_line + sizeof_src_line;
 	}
@@ -1188,7 +1174,7 @@ static void print_summary(struct rb_root *root, const char *filename)
 
 		path = src_line->path;
 		color = get_percent_color(percent_max);
-		color_fprintf(stdout, color, " %s", path);
+		color_fprintf(stdout, color, " %s\n", path);
 
 		node = rb_next(node);
 	}
