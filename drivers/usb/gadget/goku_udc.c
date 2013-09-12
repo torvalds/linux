@@ -1701,7 +1701,6 @@ static void goku_remove(struct pci_dev *pdev)
 	if (dev->enabled)
 		pci_disable_device(pdev);
 
-	pci_set_drvdata(pdev, NULL);
 	dev->regs = NULL;
 
 	INFO(dev, "unbind\n");
