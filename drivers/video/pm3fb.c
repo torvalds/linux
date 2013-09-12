@@ -1489,7 +1489,6 @@ static void pm3fb_remove(struct pci_dev *dev)
 		iounmap(par->v_regs);
 		release_mem_region(fix->mmio_start, fix->mmio_len);
 
-		pci_set_drvdata(dev, NULL);
 		kfree(info->pixmap.addr);
 		framebuffer_release(info);
 	}
