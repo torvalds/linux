@@ -145,7 +145,7 @@ static const unsigned int rk3026_reg_defaults[RK3026_PGAR_AGC_CTL5+1] = {
 	[RK3026_HPOUT_CTL] = 0x0000,
 	[RK3026_HPOUTL_GAIN] = 0x0000,
 	[RK3026_HPOUTR_GAIN] = 0x0000,
-	[RK3026_SELECT_CURRENT] = 0x001e,
+	[RK3026_SELECT_CURRENT] = 0x003e,
 	[RK3026_PGAL_AGC_CTL1] = 0x0000,
 	[RK3026_PGAL_AGC_CTL2] = 0x0046,
 	[RK3026_PGAL_AGC_CTL3] = 0x0041,
@@ -447,64 +447,9 @@ bool get_hdmi_state(void)
 
 #ifdef CONFIG_MACH_RK_FAC
 void rk3026_codec_set_spk(bool on)
-{
-	struct snd_soc_codec *codec = rk3026_priv->codec;
-
-	DBG("%s : %s\n", __func__, on ? "enable spk" : "disable spk");
-        
-  if(rk3026_hdmi_ctrl)
-  {
-
-		if (!rk3026_priv || !rk3026_priv->codec) {
-			printk("%s : rk3026_priv or rk3026_priv->codec is NULL\n", __func__);
-			return;
-		}
-	
-		if (on) {
-			if (rk3026_for_mid)
-			{
-			snd_soc_update_bits(codec, RK3026_HPOUT_CTL,
-				RK3026_HPOUTL_MUTE_MSK, RK3026_HPOUTL_MUTE_DIS);
-			snd_soc_update_bits(codec, RK3026_HPOUT_CTL,
-				RK3026_HPOUTR_MUTE_MSK, RK3026_HPOUTR_MUTE_DIS);
-			}
-			else
-			{
-				snd_soc_dapm_enable_pin(&codec->dapm, "Headphone Jack");
-				snd_soc_dapm_enable_pin(&codec->dapm, "Ext Spk");
-			}
-		} else {
-			if (rk3026_priv->spk_ctl_gpio != INVALID_GPIO) {
-				DBG("%s : set spk ctl gpio LOW\n", __func__);
-				gpio_set_value(rk3026_priv->spk_ctl_gpio, GPIO_LOW);
-			}
-	
-			if (rk3026_priv->hp_ctl_gpio != INVALID_GPIO) {
-				DBG("%s : set hp ctl gpio LOW\n", __func__);
-				gpio_set_value(rk3026_priv->hp_ctl_gpio, GPIO_LOW);
-				}
-	
-			if (rk3026_for_mid)
-			{
-			snd_soc_update_bits(codec, RK3026_HPOUT_CTL,
-				RK3026_HPOUTL_MUTE_MSK, RK3026_HPOUTL_MUTE_EN);
-			snd_soc_update_bits(codec, RK3026_HPOUT_CTL,
-				RK3026_HPOUTR_MUTE_MSK, RK3026_HPOUTR_MUTE_EN);
-			}
-			else
-			{
-				snd_soc_dapm_disable_pin(&codec->dapm, "Headphone Jack");
-				snd_soc_dapm_disable_pin(&codec->dapm, "Ext Spk");
-			}
-		}
-		snd_soc_dapm_sync(&codec->dapm);
-	
-		is_hdmi_in = on ? 0 : 1;
-	}
-}
-EXPORT_SYMBOL_GPL(rk3026_codec_set_spk);
 #else
 void codec_set_spk(bool on)
+#endif
 {
 	struct snd_soc_codec *codec = rk3026_priv->codec;
 
@@ -556,6 +501,10 @@ void codec_set_spk(bool on)
 
 	is_hdmi_in = on ? 0 : 1;
 }
+
+#ifdef CONFIG_MACH_RK_FAC
+EXPORT_SYMBOL_GPL(rk3026_codec_set_spk);
+#else
 EXPORT_SYMBOL_GPL(codec_set_spk);
 #endif
 
@@ -1984,6 +1933,8 @@ static int rk3026_suspend(struct snd_soc_codec *codec, pm_message_t state)
 		}
 		rk3026_codec_power_down(RK3026_CODEC_PLAYBACK);
 		rk3026_codec_power_down(RK3026_CODEC_ALL);
+		snd_soc_write(codec, RK3026_SELECT_CURRENT,0x1e);
+		snd_soc_write(codec, RK3026_SELECT_CURRENT,0x3e);
 	}
 	else
 		rk3026_set_bias_level(codec, SND_SOC_BIAS_OFF);
