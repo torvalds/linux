@@ -1194,7 +1194,6 @@ static void i740fb_remove(struct pci_dev *dev)
 		pci_iounmap(dev, info->screen_base);
 		pci_release_regions(dev);
 /*		pci_disable_device(dev); */
-		pci_set_drvdata(dev, NULL);
 		framebuffer_release(info);
 	}
 }
