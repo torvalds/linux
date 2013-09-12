@@ -635,6 +635,7 @@ xfs_da3_root_split(
 	xfs_trans_log_buf(tp, bp, 0, size - 1);
 
 	bp->b_ops = blk1->bp->b_ops;
+	xfs_trans_buf_copy_type(bp, blk1->bp);
 	blk1->bp = bp;
 	blk1->blkno = blkno;
 

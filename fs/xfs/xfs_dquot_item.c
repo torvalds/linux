@@ -142,7 +142,8 @@ xfs_qm_dqunpin_wait(
 STATIC uint
 xfs_qm_dquot_logitem_push(
 	struct xfs_log_item	*lip,
-	struct list_head	*buffer_list)
+	struct list_head	*buffer_list) __releases(&lip->li_ailp->xa_lock)
+					      __acquires(&lip->li_ailp->xa_lock)
 {
 	struct xfs_dquot	*dqp = DQUOT_ITEM(lip)->qli_dquot;
 	struct xfs_buf		*bp = NULL;

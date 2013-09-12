@@ -160,7 +160,8 @@ xfs_extent_busy_update_extent(
 	struct xfs_extent_busy	*busyp,
 	xfs_agblock_t		fbno,
 	xfs_extlen_t		flen,
-	bool			userdata)
+	bool			userdata) __releases(&pag->pagb_lock)
+					  __acquires(&pag->pagb_lock)
 {
 	xfs_agblock_t		fend = fbno + flen;
 	xfs_agblock_t		bbno = busyp->bno;

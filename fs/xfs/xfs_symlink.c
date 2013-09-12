@@ -41,6 +41,7 @@
 #include "xfs_trans_space.h"
 #include "xfs_trace.h"
 #include "xfs_symlink.h"
+#include "xfs_buf_item.h"
 
 /* ----- Kernel only functions below ----- */
 STATIC int
@@ -363,6 +364,7 @@ xfs_symlink(
 			pathlen -= byte_cnt;
 			offset += byte_cnt;
 
+			xfs_trans_buf_set_type(tp, bp, XFS_BLFT_SYMLINK_BUF);
 			xfs_trans_log_buf(tp, bp, 0, (buf + byte_cnt - 1) -
 							(char *)bp->b_addr);
 		}

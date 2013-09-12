@@ -48,7 +48,7 @@ STATIC void __xfs_inode_clear_reclaim_tag(struct xfs_mount *mp,
 /*
  * Allocate and initialise an xfs_inode.
  */
-STATIC struct xfs_inode *
+struct xfs_inode *
 xfs_inode_alloc(
 	struct xfs_mount	*mp,
 	xfs_ino_t		ino)
@@ -98,7 +98,7 @@ xfs_inode_free_callback(
 	kmem_zone_free(xfs_inode_zone, ip);
 }
 
-STATIC void
+void
 xfs_inode_free(
 	struct xfs_inode	*ip)
 {

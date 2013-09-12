@@ -71,7 +71,7 @@ xfs_find_handle(
 	int			hsize;
 	xfs_handle_t		handle;
 	struct inode		*inode;
-	struct fd		f = {0};
+	struct fd		f = {NULL};
 	struct path		path;
 	int			error;
 	struct xfs_inode	*ip;
@@ -456,12 +456,9 @@ xfs_attrlist_by_handle(
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
-	kbuf = kmem_zalloc(al_hreq.buflen, KM_SLEEP | KM_MAYFAIL);
-	if (!kbuf) {
-		kbuf = kmem_zalloc_large(al_hreq.buflen);
-		if (!kbuf)
-			goto out_dput;
-	}
+	kbuf = kmem_zalloc_large(al_hreq.buflen, KM_SLEEP);
+	if (!kbuf)
+		goto out_dput;
 
 	cursor = (attrlist_cursor_kern_t *)&al_hreq.pos;
 	error = -xfs_attr_list(XFS_I(dentry->d_inode), kbuf, al_hreq.buflen,
@@ -472,12 +469,9 @@ xfs_attrlist_by_handle(
 	if (copy_to_user(al_hreq.buffer, kbuf, al_hreq.buflen))
 		error = -EFAULT;
 
- out_kfree:
-	if (is_vmalloc_addr(kbuf))
-		kmem_free_large(kbuf);
-	else
-		kmem_free(kbuf);
- out_dput:
+out_kfree:
+	kmem_free(kbuf);
+out_dput:
 	dput(dentry);
 	return error;
 }
@@ -495,12 +489,9 @@ xfs_attrmulti_attr_get(
 
 	if (*len > XATTR_SIZE_MAX)
 		return EINVAL;
-	kbuf = kmem_zalloc(*len, KM_SLEEP | KM_MAYFAIL);
-	if (!kbuf) {
-		kbuf = kmem_zalloc_large(*len);
-		if (!kbuf)
-			return ENOMEM;
-	}
+	kbuf = kmem_zalloc_large(*len, KM_SLEEP);
+	if (!kbuf)
+		return ENOMEM;
 
 	error = xfs_attr_get(XFS_I(inode), name, kbuf, (int *)len, flags);
 	if (error)
@@ -509,11 +500,8 @@ xfs_attrmulti_attr_get(
 	if (copy_to_user(ubuf, kbuf, *len))
 		error = EFAULT;
 
- out_kfree:
-	if (is_vmalloc_addr(kbuf))
-		kmem_free_large(kbuf);
-	else
-		kmem_free(kbuf);
+out_kfree:
+	kmem_free(kbuf);
 	return error;
 }
 

@@ -371,12 +371,9 @@ xfs_compat_attrlist_by_handle(
 		return PTR_ERR(dentry);
 
 	error = -ENOMEM;
-	kbuf = kmem_zalloc(al_hreq.buflen, KM_SLEEP | KM_MAYFAIL);
-	if (!kbuf) {
-		kbuf = kmem_zalloc_large(al_hreq.buflen);
-		if (!kbuf)
-			goto out_dput;
-	}
+	kbuf = kmem_zalloc_large(al_hreq.buflen, KM_SLEEP);
+	if (!kbuf)
+		goto out_dput;
 
 	cursor = (attrlist_cursor_kern_t *)&al_hreq.pos;
 	error = -xfs_attr_list(XFS_I(dentry->d_inode), kbuf, al_hreq.buflen,
@@ -387,12 +384,9 @@ xfs_compat_attrlist_by_handle(
 	if (copy_to_user(compat_ptr(al_hreq.buffer), kbuf, al_hreq.buflen))
 		error = -EFAULT;
 
- out_kfree:
-	if (is_vmalloc_addr(kbuf))
-		kmem_free_large(kbuf);
-	else
-		kmem_free(kbuf);
- out_dput:
+out_kfree:
+	kmem_free(kbuf);
+out_dput:
 	dput(dentry);
 	return error;
 }

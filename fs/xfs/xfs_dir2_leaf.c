@@ -180,6 +180,11 @@ xfs_dir3_leaf_check_int(
 	return true;
 }
 
+/*
+ * We verify the magic numbers before decoding the leaf header so that on debug
+ * kernels we don't get assertion failures in xfs_dir3_leaf_hdr_from_disk() due
+ * to incorrect magic numbers.
+ */
 static bool
 xfs_dir3_leaf_verify(
 	struct xfs_buf		*bp,
@@ -191,24 +196,25 @@ xfs_dir3_leaf_verify(
 
 	ASSERT(magic == XFS_DIR2_LEAF1_MAGIC || magic == XFS_DIR2_LEAFN_MAGIC);
 
-	xfs_dir3_leaf_hdr_from_disk(&leafhdr, leaf);
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
 		struct xfs_dir3_leaf_hdr *leaf3 = bp->b_addr;
+		__uint16_t		magic3;
 
-		if ((magic == XFS_DIR2_LEAF1_MAGIC &&
-		     leafhdr.magic != XFS_DIR3_LEAF1_MAGIC) ||
-		    (magic == XFS_DIR2_LEAFN_MAGIC &&
-		     leafhdr.magic != XFS_DIR3_LEAFN_MAGIC))
+		magic3 = (magic == XFS_DIR2_LEAF1_MAGIC) ? XFS_DIR3_LEAF1_MAGIC
+							 : XFS_DIR3_LEAFN_MAGIC;
+
+		if (leaf3->info.hdr.magic != cpu_to_be16(magic3))
 			return false;
-
 		if (!uuid_equal(&leaf3->info.uuid, &mp->m_sb.sb_uuid))
 			return false;
 		if (be64_to_cpu(leaf3->info.blkno) != bp->b_bn)
 			return false;
 	} else {
-		if (leafhdr.magic != magic)
+		if (leaf->hdr.info.magic != cpu_to_be16(magic))
 			return false;
 	}
+
+	xfs_dir3_leaf_hdr_from_disk(&leafhdr, leaf);
 	return xfs_dir3_leaf_check_int(mp, &leafhdr, leaf);
 }
 

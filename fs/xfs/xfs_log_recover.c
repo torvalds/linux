@@ -2014,7 +2014,7 @@ xlog_recover_get_buf_lsn(
 	case XFS_ATTR3_RMT_MAGIC:
 		return be64_to_cpu(((struct xfs_attr3_rmt_hdr *)blk)->rm_lsn);
 	case XFS_SB_MAGIC:
-		return be64_to_cpu(((struct xfs_sb *)blk)->sb_lsn);
+		return be64_to_cpu(((struct xfs_dsb *)blk)->sb_lsn);
 	default:
 		break;
 	}
@@ -2629,6 +2629,82 @@ out_release:
 	return error;
 }
 
+/*
+ * Inode fork owner changes
+ *
+ * If we have been told that we have to reparent the inode fork, it's because an
+ * extent swap operation on a CRC enabled filesystem has been done and we are
+ * replaying it. We need to walk the BMBT of the appropriate fork and change the
+ * owners of it.
+ *
+ * The complexity here is that we don't have an inode context to work with, so
+ * after we've replayed the inode we need to instantiate one.  This is where the
+ * fun begins.
+ *
+ * We are in the middle of log recovery, so we can't run transactions. That
+ * means we cannot use cache coherent inode instantiation via xfs_iget(), as
+ * that will result in the corresponding iput() running the inode through
+ * xfs_inactive(). If we've just replayed an inode core that changes the link
+ * count to zero (i.e. it's been unlinked), then xfs_inactive() will run
+ * transactions (bad!).
+ *
+ * So, to avoid this, we instantiate an inode directly from the inode core we've
+ * just recovered. We have the buffer still locked, and all we really need to
+ * instantiate is the inode core and the forks being modified. We can do this
+ * manually, then run the inode btree owner change, and then tear down the
+ * xfs_inode without having to run any transactions at all.
+ *
+ * Also, because we don't have a transaction context available here but need to
+ * gather all the buffers we modify for writeback so we pass the buffer_list
+ * instead for the operation to use.
+ */
+
+STATIC int
+xfs_recover_inode_owner_change(
+	struct xfs_mount	*mp,
+	struct xfs_dinode	*dip,
+	struct xfs_inode_log_format *in_f,
+	struct list_head	*buffer_list)
+{
+	struct xfs_inode	*ip;
+	int			error;
+
+	ASSERT(in_f->ilf_fields & (XFS_ILOG_DOWNER|XFS_ILOG_AOWNER));
+
+	ip = xfs_inode_alloc(mp, in_f->ilf_ino);
+	if (!ip)
+		return ENOMEM;
+
+	/* instantiate the inode */
+	xfs_dinode_from_disk(&ip->i_d, dip);
+	ASSERT(ip->i_d.di_version >= 3);
+
+	error = xfs_iformat_fork(ip, dip);
+	if (error)
+		goto out_free_ip;
+
+
+	if (in_f->ilf_fields & XFS_ILOG_DOWNER) {
+		ASSERT(in_f->ilf_fields & XFS_ILOG_DBROOT);
+		error = xfs_bmbt_change_owner(NULL, ip, XFS_DATA_FORK,
+					      ip->i_ino, buffer_list);
+		if (error)
+			goto out_free_ip;
+	}
+
+	if (in_f->ilf_fields & XFS_ILOG_AOWNER) {
+		ASSERT(in_f->ilf_fields & XFS_ILOG_ABROOT);
+		error = xfs_bmbt_change_owner(NULL, ip, XFS_ATTR_FORK,
+					      ip->i_ino, buffer_list);
+		if (error)
+			goto out_free_ip;
+	}
+
+out_free_ip:
+	xfs_inode_free(ip);
+	return error;
+}
+
 STATIC int
 xlog_recover_inode_pass2(
 	struct xlog			*log,
@@ -2681,8 +2757,7 @@ xlog_recover_inode_pass2(
 	error = bp->b_error;
 	if (error) {
 		xfs_buf_ioerror_alert(bp, "xlog_recover_do..(read#2)");
-		xfs_buf_relse(bp);
-		goto error;
+		goto out_release;
 	}
 	ASSERT(in_f->ilf_fields & XFS_ILOG_CORE);
 	dip = (xfs_dinode_t *)xfs_buf_offset(bp, in_f->ilf_boffset);
@@ -2692,30 +2767,31 @@ xlog_recover_inode_pass2(
 	 * like an inode!
 	 */
 	if (unlikely(dip->di_magic != cpu_to_be16(XFS_DINODE_MAGIC))) {
-		xfs_buf_relse(bp);
 		xfs_alert(mp,
 	"%s: Bad inode magic number, dip = 0x%p, dino bp = 0x%p, ino = %Ld",
 			__func__, dip, bp, in_f->ilf_ino);
 		XFS_ERROR_REPORT("xlog_recover_inode_pass2(1)",
 				 XFS_ERRLEVEL_LOW, mp);
 		error = EFSCORRUPTED;
-		goto error;
+		goto out_release;
 	}
 	dicp = item->ri_buf[1].i_addr;
 	if (unlikely(dicp->di_magic != XFS_DINODE_MAGIC)) {
-		xfs_buf_relse(bp);
 		xfs_alert(mp,
 			"%s: Bad inode log record, rec ptr 0x%p, ino %Ld",
 			__func__, item, in_f->ilf_ino);
 		XFS_ERROR_REPORT("xlog_recover_inode_pass2(2)",
 				 XFS_ERRLEVEL_LOW, mp);
 		error = EFSCORRUPTED;
-		goto error;
+		goto out_release;
 	}
 
 	/*
 	 * If the inode has an LSN in it, recover the inode only if it's less
-	 * than the lsn of the transaction we are replaying.
+	 * than the lsn of the transaction we are replaying. Note: we still
+	 * need to replay an owner change even though the inode is more recent
+	 * than the transaction as there is no guarantee that all the btree
+	 * blocks are more recent than this transaction, too.
 	 */
 	if (dip->di_version >= 3) {
 		xfs_lsn_t	lsn = be64_to_cpu(dip->di_lsn);
@@ -2723,7 +2799,7 @@ xlog_recover_inode_pass2(
 		if (lsn && lsn != -1 && XFS_LSN_CMP(lsn, current_lsn) >= 0) {
 			trace_xfs_log_recover_inode_skip(log, in_f);
 			error = 0;
-			goto out_release;
+			goto out_owner_change;
 		}
 	}
 
@@ -2745,10 +2821,9 @@ xlog_recover_inode_pass2(
 		    dicp->di_flushiter < (DI_MAX_FLUSH >> 1)) {
 			/* do nothing */
 		} else {
-			xfs_buf_relse(bp);
 			trace_xfs_log_recover_inode_skip(log, in_f);
 			error = 0;
-			goto error;
+			goto out_release;
 		}
 	}
 
@@ -2760,13 +2835,12 @@ xlog_recover_inode_pass2(
 		    (dicp->di_format != XFS_DINODE_FMT_BTREE)) {
 			XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(3)",
 					 XFS_ERRLEVEL_LOW, mp, dicp);
-			xfs_buf_relse(bp);
 			xfs_alert(mp,
 		"%s: Bad regular inode log record, rec ptr 0x%p, "
 		"ino ptr = 0x%p, ino bp = 0x%p, ino %Ld",
 				__func__, item, dip, bp, in_f->ilf_ino);
 			error = EFSCORRUPTED;
-			goto error;
+			goto out_release;
 		}
 	} else if (unlikely(S_ISDIR(dicp->di_mode))) {
 		if ((dicp->di_format != XFS_DINODE_FMT_EXTENTS) &&
@@ -2774,19 +2848,17 @@ xlog_recover_inode_pass2(
 		    (dicp->di_format != XFS_DINODE_FMT_LOCAL)) {
 			XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(4)",
 					     XFS_ERRLEVEL_LOW, mp, dicp);
-			xfs_buf_relse(bp);
 			xfs_alert(mp,
 		"%s: Bad dir inode log record, rec ptr 0x%p, "
 		"ino ptr = 0x%p, ino bp = 0x%p, ino %Ld",
 				__func__, item, dip, bp, in_f->ilf_ino);
 			error = EFSCORRUPTED;
-			goto error;
+			goto out_release;
 		}
 	}
 	if (unlikely(dicp->di_nextents + dicp->di_anextents > dicp->di_nblocks)){
 		XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(5)",
 				     XFS_ERRLEVEL_LOW, mp, dicp);
-		xfs_buf_relse(bp);
 		xfs_alert(mp,
 	"%s: Bad inode log record, rec ptr 0x%p, dino ptr 0x%p, "
 	"dino bp 0x%p, ino %Ld, total extents = %d, nblocks = %Ld",
@@ -2794,29 +2866,27 @@ xlog_recover_inode_pass2(
 			dicp->di_nextents + dicp->di_anextents,
 			dicp->di_nblocks);
 		error = EFSCORRUPTED;
-		goto error;
+		goto out_release;
 	}
 	if (unlikely(dicp->di_forkoff > mp->m_sb.sb_inodesize)) {
 		XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(6)",
 				     XFS_ERRLEVEL_LOW, mp, dicp);
-		xfs_buf_relse(bp);
 		xfs_alert(mp,
 	"%s: Bad inode log record, rec ptr 0x%p, dino ptr 0x%p, "
 	"dino bp 0x%p, ino %Ld, forkoff 0x%x", __func__,
 			item, dip, bp, in_f->ilf_ino, dicp->di_forkoff);
 		error = EFSCORRUPTED;
-		goto error;
+		goto out_release;
 	}
 	isize = xfs_icdinode_size(dicp->di_version);
 	if (unlikely(item->ri_buf[1].i_len > isize)) {
 		XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(7)",
 				     XFS_ERRLEVEL_LOW, mp, dicp);
-		xfs_buf_relse(bp);
 		xfs_alert(mp,
 			"%s: Bad inode log record length %d, rec ptr 0x%p",
 			__func__, item->ri_buf[1].i_len, item);
 		error = EFSCORRUPTED;
-		goto error;
+		goto out_release;
 	}
 
 	/* The core is in in-core format */
@@ -2842,7 +2912,7 @@ xlog_recover_inode_pass2(
 	}
 
 	if (in_f->ilf_size == 2)
-		goto write_inode_buffer;
+		goto out_owner_change;
 	len = item->ri_buf[2].i_len;
 	src = item->ri_buf[2].i_addr;
 	ASSERT(in_f->ilf_size <= 4);
@@ -2903,13 +2973,15 @@ xlog_recover_inode_pass2(
 		default:
 			xfs_warn(log->l_mp, "%s: Invalid flag", __func__);
 			ASSERT(0);
-			xfs_buf_relse(bp);
 			error = EIO;
-			goto error;
+			goto out_release;
 		}
 	}
 
-write_inode_buffer:
+out_owner_change:
+	if (in_f->ilf_fields & (XFS_ILOG_DOWNER|XFS_ILOG_AOWNER))
+		error = xfs_recover_inode_owner_change(mp, dip, in_f,
+						       buffer_list);
 	/* re-generate the checksum. */
 	xfs_dinode_calc_crc(log->l_mp, dip);
 
