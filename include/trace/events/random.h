@@ -7,6 +7,25 @@
 #include <linux/writeback.h>
 #include <linux/tracepoint.h>
 
+TRACE_EVENT(add_device_randomness,
+	TP_PROTO(int bytes, unsigned long IP),
+
+	TP_ARGS(bytes, IP),
+
+	TP_STRUCT__entry(
+		__field(	  int,	bytes			)
+		__field(unsigned long,	IP			)
+	),
+
+	TP_fast_assign(
+		__entry->bytes		= bytes;
+		__entry->IP		= IP;
+	),
+
+	TP_printk("bytes %d caller %pF",
+		__entry->bytes, (void *)__entry->IP)
+);
+
 DECLARE_EVENT_CLASS(random__mix_pool_bytes,
 	TP_PROTO(const char *pool_name, int bytes, unsigned long IP),
 
@@ -68,7 +87,7 @@ TRACE_EVENT(credit_entropy_bits,
 		  (void *)__entry->IP)
 );
 
-TRACE_EVENT(get_random_bytes,
+DECLARE_EVENT_CLASS(random__get_random_bytes,
 	TP_PROTO(int nbytes, unsigned long IP),
 
 	TP_ARGS(nbytes, IP),
@@ -84,6 +103,18 @@ TRACE_EVENT(get_random_bytes,
 	),
 
 	TP_printk("nbytes %d caller %pF", __entry->nbytes, (void *)__entry->IP)
+);
+
+DEFINE_EVENT(random__get_random_bytes, get_random_bytes,
+	TP_PROTO(int nbytes, unsigned long IP),
+
+	TP_ARGS(nbytes, IP)
+);
+
+DEFINE_EVENT(random__get_random_bytes, get_random_bytes_arch,
+	TP_PROTO(int nbytes, unsigned long IP),
+
+	TP_ARGS(nbytes, IP)
 );
 
 DECLARE_EVENT_CLASS(random__extract_entropy,
