@@ -126,12 +126,13 @@ int rtc_mips_set_mmss(unsigned long nowtime)
 void __init plat_time_init(void)
 {
 	u32 start, end;
-	int i = HZ / 10;
+	int i = HZ / 8;
 
 	/* Set up the rate of periodic DS1287 interrupts. */
 	ds1287_set_base_clock(HZ);
 
 	if (cpu_has_counter) {
+		ds1287_timer_state();
 		while (!ds1287_timer_state())
 			;
 
@@ -143,7 +144,7 @@ void __init plat_time_init(void)
 
 		end = read_c0_count();
 
-		mips_hpt_frequency = (end - start) * 10;
+		mips_hpt_frequency = (end - start) * 8;
 		printk(KERN_INFO "MIPS counter frequency %dHz\n",
 			mips_hpt_frequency);
 	} else if (IOASIC)

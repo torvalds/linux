@@ -852,9 +852,16 @@ platform:
 	case PRID_IMP_CAVIUM_CN63XX:
 	case PRID_IMP_CAVIUM_CN66XX:
 	case PRID_IMP_CAVIUM_CN68XX:
+	case PRID_IMP_CAVIUM_CNF71XX:
 		c->cputype = CPU_CAVIUM_OCTEON2;
 		__cpu_name[cpu] = "Cavium Octeon II";
 		set_elf_platform(cpu, "octeon2");
+		break;
+	case PRID_IMP_CAVIUM_CN70XX:
+	case PRID_IMP_CAVIUM_CN78XX:
+		c->cputype = CPU_CAVIUM_OCTEON3;
+		__cpu_name[cpu] = "Cavium Octeon III";
+		set_elf_platform(cpu, "octeon3");
 		break;
 	default:
 		printk(KERN_INFO "Unknown Octeon chip!\n");
@@ -899,6 +906,11 @@ static inline void cpu_probe_netlogic(struct cpuinfo_mips *c, int cpu)
 			MIPS_CPU_LLSC);
 
 	switch (c->processor_id & 0xff00) {
+	case PRID_IMP_NETLOGIC_XLP2XX:
+		c->cputype = CPU_XLP;
+		__cpu_name[cpu] = "Broadcom XLPII";
+		break;
+
 	case PRID_IMP_NETLOGIC_XLP8XX:
 	case PRID_IMP_NETLOGIC_XLP3XX:
 		c->cputype = CPU_XLP;
