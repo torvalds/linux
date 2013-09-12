@@ -746,7 +746,6 @@ static void carminefb_remove(struct pci_dev *dev)
 	iounmap(hw->v_regs);
 	release_mem_region(fix.mmio_start, fix.mmio_len);
 
-	pci_set_drvdata(dev, NULL);
 	pci_disable_device(dev);
 	kfree(hw);
 }
