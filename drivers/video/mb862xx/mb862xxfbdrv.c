@@ -1157,7 +1157,6 @@ static void mb862xx_pci_remove(struct pci_dev *pdev)
 
 	device_remove_file(&pdev->dev, &dev_attr_dispregs);
 
-	pci_set_drvdata(pdev, NULL);
 	unregister_framebuffer(fbi);
 	fb_dealloc_cmap(&fbi->cmap);
 
