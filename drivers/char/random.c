@@ -710,12 +710,18 @@ struct timer_rand_state {
 void add_device_randomness(const void *buf, unsigned int size)
 {
 	unsigned long time = random_get_entropy() ^ jiffies;
+	unsigned long flags;
 
 	trace_add_device_randomness(size, _RET_IP_);
-	mix_pool_bytes(&input_pool, buf, size, NULL);
-	mix_pool_bytes(&input_pool, &time, sizeof(time), NULL);
-	mix_pool_bytes(&nonblocking_pool, buf, size, NULL);
-	mix_pool_bytes(&nonblocking_pool, &time, sizeof(time), NULL);
+	spin_lock_irqsave(&input_pool.lock, flags);
+	_mix_pool_bytes(&input_pool, buf, size, NULL);
+	_mix_pool_bytes(&input_pool, &time, sizeof(time), NULL);
+	spin_unlock_irqrestore(&input_pool.lock, flags);
+
+	spin_lock_irqsave(&nonblocking_pool.lock, flags);
+	_mix_pool_bytes(&nonblocking_pool, buf, size, NULL);
+	_mix_pool_bytes(&nonblocking_pool, &time, sizeof(time), NULL);
+	spin_unlock_irqrestore(&nonblocking_pool.lock, flags);
 }
 EXPORT_SYMBOL(add_device_randomness);
 
