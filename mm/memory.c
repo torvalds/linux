@@ -3695,7 +3695,7 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
  * but allow concurrent faults), and pte mapped but not yet locked.
  * We return with mmap_sem still held, but pte unmapped and unlocked.
  */
-int handle_pte_fault(struct mm_struct *mm,
+static int handle_pte_fault(struct mm_struct *mm,
 		     struct vm_area_struct *vma, unsigned long address,
 		     pte_t *pte, pmd_t *pmd, unsigned int flags)
 {
@@ -3774,9 +3774,12 @@ retry:
 	if (!pmd)
 		return VM_FAULT_OOM;
 	if (pmd_none(*pmd) && transparent_hugepage_enabled(vma)) {
+		int ret = VM_FAULT_FALLBACK;
 		if (!vma->vm_ops)
-			return do_huge_pmd_anonymous_page(mm, vma, address,
-							  pmd, flags);
+			ret = do_huge_pmd_anonymous_page(mm, vma, address,
+					pmd, flags);
+		if (!(ret & VM_FAULT_FALLBACK))
+			return ret;
 	} else {
 		pmd_t orig_pmd = *pmd;
 		int ret;
