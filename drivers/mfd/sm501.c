@@ -1660,7 +1660,6 @@ static int sm501_pci_probe(struct pci_dev *dev,
  err3:
 	pci_disable_device(dev);
  err2:
-	pci_set_drvdata(dev, NULL);
 	kfree(sm);
  err1:
 	return err;
@@ -1695,7 +1694,6 @@ static void sm501_pci_remove(struct pci_dev *dev)
 	release_resource(sm->regs_claim);
 	kfree(sm->regs_claim);
 
-	pci_set_drvdata(dev, NULL);
 	pci_disable_device(dev);
 }
 
