@@ -1184,6 +1184,11 @@ static void intel_pmu_disable_fixed(struct hw_perf_event *hwc)
 	wrmsrl(hwc->config_base, ctrl_val);
 }
 
+static inline bool event_is_checkpointed(struct perf_event *event)
+{
+	return (event->hw.config & HSW_IN_TX_CHECKPOINTED) != 0;
+}
+
 static void intel_pmu_disable_event(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
@@ -1197,6 +1202,7 @@ static void intel_pmu_disable_event(struct perf_event *event)
 
 	cpuc->intel_ctrl_guest_mask &= ~(1ull << hwc->idx);
 	cpuc->intel_ctrl_host_mask &= ~(1ull << hwc->idx);
+	cpuc->intel_cp_status &= ~(1ull << hwc->idx);
 
 	/*
 	 * must disable before any actual event
@@ -1271,6 +1277,9 @@ static void intel_pmu_enable_event(struct perf_event *event)
 	if (event->attr.exclude_guest)
 		cpuc->intel_ctrl_host_mask |= (1ull << hwc->idx);
 
+	if (unlikely(event_is_checkpointed(event)))
+		cpuc->intel_cp_status |= (1ull << hwc->idx);
+
 	if (unlikely(hwc->config_base == MSR_ARCH_PERFMON_FIXED_CTR_CTRL)) {
 		intel_pmu_enable_fixed(hwc);
 		return;
@@ -1280,11 +1289,6 @@ static void intel_pmu_enable_event(struct perf_event *event)
 		intel_pmu_pebs_enable(event);
 
 	__x86_pmu_enable_event(hwc, ARCH_PERFMON_EVENTSEL_ENABLE);
-}
-
-static inline bool event_is_checkpointed(struct perf_event *event)
-{
-	return (event->hw.config & HSW_IN_TX_CHECKPOINTED) != 0;
 }
 
 /*
@@ -1389,11 +1393,11 @@ again:
 	}
 
 	/*
-	 * To avoid spurious interrupts with perf stat always reset checkpointed
-	 * counters.
+	 * Checkpointed counters can lead to 'spurious' PMIs because the
+	 * rollback caused by the PMI will have cleared the overflow status
+	 * bit. Therefore always force probe these counters.
 	 */
-	if (cpuc->events[2] && event_is_checkpointed(cpuc->events[2]))
-		status |= (1ULL << 2);
+	status |= cpuc->intel_cp_status;
 
 	for_each_set_bit(bit, (unsigned long *)&status, X86_PMC_IDX_MAX) {
 		struct perf_event *event = cpuc->events[bit];

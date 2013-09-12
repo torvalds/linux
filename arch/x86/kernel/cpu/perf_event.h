@@ -164,6 +164,11 @@ struct cpu_hw_events {
 	struct perf_guest_switch_msr	guest_switch_msrs[X86_PMC_IDX_MAX];
 
 	/*
+	 * Intel checkpoint mask
+	 */
+	u64				intel_cp_status;
+
+	/*
 	 * manage shared (per-core, per-cpu) registers
 	 * used on Intel NHM/WSM/SNB
 	 */
