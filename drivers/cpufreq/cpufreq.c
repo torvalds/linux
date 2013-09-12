@@ -906,11 +906,11 @@ static struct cpufreq_policy *cpufreq_policy_restore(unsigned int cpu)
 	struct cpufreq_policy *policy;
 	unsigned long flags;
 
-	write_lock_irqsave(&cpufreq_driver_lock, flags);
+	read_lock_irqsave(&cpufreq_driver_lock, flags);
 
 	policy = per_cpu(cpufreq_cpu_data_fallback, cpu);
 
-	write_unlock_irqrestore(&cpufreq_driver_lock, flags);
+	read_unlock_irqrestore(&cpufreq_driver_lock, flags);
 
 	return policy;
 }
@@ -945,6 +945,21 @@ static void cpufreq_policy_free(struct cpufreq_policy *policy)
 	free_cpumask_var(policy->related_cpus);
 	free_cpumask_var(policy->cpus);
 	kfree(policy);
+}
+
+static void update_policy_cpu(struct cpufreq_policy *policy, unsigned int cpu)
+{
+	if (cpu == policy->cpu)
+		return;
+
+	policy->last_cpu = policy->cpu;
+	policy->cpu = cpu;
+
+#ifdef CONFIG_CPU_FREQ_TABLE
+	cpufreq_frequency_table_update_policy_cpu(policy);
+#endif
+	blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
+			CPUFREQ_UPDATE_POLICY_CPU, policy);
 }
 
 static int __cpufreq_add_dev(struct device *dev, struct subsys_interface *sif,
@@ -1000,7 +1015,18 @@ static int __cpufreq_add_dev(struct device *dev, struct subsys_interface *sif,
 	if (!policy)
 		goto nomem_out;
 
-	policy->cpu = cpu;
+
+	/*
+	 * In the resume path, since we restore a saved policy, the assignment
+	 * to policy->cpu is like an update of the existing policy, rather than
+	 * the creation of a brand new one. So we need to perform this update
+	 * by invoking update_policy_cpu().
+	 */
+	if (frozen && cpu != policy->cpu)
+		update_policy_cpu(policy, cpu);
+	else
+		policy->cpu = cpu;
+
 	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 	cpumask_copy(policy->cpus, cpumask_of(cpu));
 
@@ -1092,18 +1118,6 @@ static int cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 	return __cpufreq_add_dev(dev, sif, false);
 }
 
-static void update_policy_cpu(struct cpufreq_policy *policy, unsigned int cpu)
-{
-	policy->last_cpu = policy->cpu;
-	policy->cpu = cpu;
-
-#ifdef CONFIG_CPU_FREQ_TABLE
-	cpufreq_frequency_table_update_policy_cpu(policy);
-#endif
-	blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
-			CPUFREQ_UPDATE_POLICY_CPU, policy);
-}
-
 static int cpufreq_nominate_new_policy_cpu(struct cpufreq_policy *policy,
 					   unsigned int old_cpu, bool frozen)
 {
@@ -1182,8 +1196,9 @@ static int __cpufreq_remove_dev_prepare(struct device *dev,
 		cpumask_clear_cpu(cpu, policy->cpus);
 	unlock_policy_rwsem_write(cpu);
 
-	if (cpu != policy->cpu && !frozen) {
-		sysfs_remove_link(&dev->kobj, "cpufreq");
+	if (cpu != policy->cpu) {
+		if (!frozen)
+			sysfs_remove_link(&dev->kobj, "cpufreq");
 	} else if (cpus > 1) {
 
 		new_cpu = cpufreq_nominate_new_policy_cpu(policy, cpu, frozen);
