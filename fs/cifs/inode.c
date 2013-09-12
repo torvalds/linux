@@ -101,7 +101,7 @@ cifs_revalidate_cache(struct inode *inode, struct cifs_fattr *fattr)
 	}
 
 	/* don't bother with revalidation if we have an oplock */
-	if (cifs_i->clientCanCacheRead) {
+	if (CIFS_CACHE_READ(cifs_i)) {
 		cifs_dbg(FYI, "%s: inode %llu is oplocked\n",
 			 __func__, cifs_i->uniqueid);
 		return;
@@ -549,6 +549,10 @@ cifs_all_info_to_fattr(struct cifs_fattr *fattr, FILE_ALL_INFO *info,
 		 * when Unix extensions are disabled - fake it.
 		 */
 		fattr->cf_nlink = 2;
+	} else if (fattr->cf_cifsattrs & ATTR_REPARSE) {
+		fattr->cf_mode = S_IFLNK;
+		fattr->cf_dtype = DT_LNK;
+		fattr->cf_nlink = le32_to_cpu(info->NumberOfLinks);
 	} else {
 		fattr->cf_mode = S_IFREG | cifs_sb->mnt_file_mode;
 		fattr->cf_dtype = DT_REG;
@@ -646,7 +650,7 @@ cifs_get_inode_info(struct inode **inode, const char *full_path,
 	cifs_dbg(FYI, "Getting info on %s\n", full_path);
 
 	if ((data == NULL) && (*inode != NULL)) {
-		if (CIFS_I(*inode)->clientCanCacheRead) {
+		if (CIFS_CACHE_READ(CIFS_I(*inode))) {
 			cifs_dbg(FYI, "No need to revalidate cached inode sizes\n");
 			goto cgii_exit;
 		}
@@ -1657,7 +1661,7 @@ cifs_inode_needs_reval(struct inode *inode)
 	struct cifsInodeInfo *cifs_i = CIFS_I(inode);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 
-	if (cifs_i->clientCanCacheRead)
+	if (CIFS_CACHE_READ(cifs_i))
 		return false;
 
 	if (!lookupCacheEnabled)
@@ -1800,7 +1804,7 @@ int cifs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	 * We need to be sure that all dirty pages are written and the server
 	 * has actual ctime, mtime and file length.
 	 */
-	if (!CIFS_I(inode)->clientCanCacheRead && inode->i_mapping &&
+	if (!CIFS_CACHE_READ(CIFS_I(inode)) && inode->i_mapping &&
 	    inode->i_mapping->nrpages != 0) {
 		rc = filemap_fdatawait(inode->i_mapping);
 		if (rc) {

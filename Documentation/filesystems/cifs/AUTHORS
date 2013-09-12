@@ -39,6 +39,7 @@ Shaggy (Dave Kleikamp) for innumerable small fs suggestions and some good cleanu
 Gunter Kukkukk (testing and suggestions for support of old servers)
 Igor Mammedov (DFS support)
 Jeff Layton (many, many fixes, as well as great work on the cifs Kerberos code)
+Scott Lovenberg
 
 Test case and Bug Report contributors
 -------------------------------------

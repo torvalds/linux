@@ -53,7 +53,6 @@ extern int smb3_calc_signature(struct smb_rqst *rqst,
 				struct TCP_Server_Info *server);
 extern void smb2_echo_request(struct work_struct *work);
 extern __le32 smb2_get_lease_state(struct cifsInodeInfo *cinode);
-extern __u8 smb2_map_lease_to_oplock(__le32 lease_state);
 extern bool smb2_is_valid_oplock_break(char *buffer,
 				       struct TCP_Server_Info *srv);
 
@@ -87,7 +86,6 @@ extern int smb2_create_hardlink(const unsigned int xid, struct cifs_tcon *tcon,
 extern int smb2_open_file(const unsigned int xid,
 			  struct cifs_open_parms *oparms,
 			  __u32 *oplock, FILE_ALL_INFO *buf);
-extern void smb2_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock);
 extern int smb2_unlock_range(struct cifsFileInfo *cfile,
 			     struct file_lock *flock, const unsigned int xid);
 extern int smb2_push_mandatory_locks(struct cifsFileInfo *cfile);
@@ -106,7 +104,8 @@ extern int SMB2_tcon(const unsigned int xid, struct cifs_ses *ses,
 extern int SMB2_tdis(const unsigned int xid, struct cifs_tcon *tcon);
 extern int SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms,
 		     __le16 *path, __u8 *oplock,
-		     struct smb2_file_all_info *buf);
+		     struct smb2_file_all_info *buf,
+		     struct smb2_err_rsp **err_buf);
 extern int SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon,
 		     u64 persistent_fid, u64 volatile_fid, u32 opcode,
 		     bool is_fsctl, char *in_data, u32 indatalen,
