@@ -399,7 +399,6 @@ static void gx1fb_remove(struct pci_dev *pdev)
 	release_mem_region(gx1_gx_base() + 0x8300, 0x100);
 
 	fb_dealloc_cmap(&info->cmap);
-	pci_set_drvdata(pdev, NULL);
 
 	framebuffer_release(info);
 }
