@@ -116,6 +116,7 @@ ip_vs_in_stats(struct ip_vs_conn *cp, struct sk_buff *skb)
 
 	if (dest && (dest->flags & IP_VS_DEST_F_AVAILABLE)) {
 		struct ip_vs_cpu_stats *s;
+		struct ip_vs_service *svc;
 
 		s = this_cpu_ptr(dest->stats.cpustats);
 		s->ustats.inpkts++;
@@ -123,11 +124,14 @@ ip_vs_in_stats(struct ip_vs_conn *cp, struct sk_buff *skb)
 		s->ustats.inbytes += skb->len;
 		u64_stats_update_end(&s->syncp);
 
-		s = this_cpu_ptr(dest->svc->stats.cpustats);
+		rcu_read_lock();
+		svc = rcu_dereference(dest->svc);
+		s = this_cpu_ptr(svc->stats.cpustats);
 		s->ustats.inpkts++;
 		u64_stats_update_begin(&s->syncp);
 		s->ustats.inbytes += skb->len;
 		u64_stats_update_end(&s->syncp);
+		rcu_read_unlock();
 
 		s = this_cpu_ptr(ipvs->tot_stats.cpustats);
 		s->ustats.inpkts++;
@@ -146,6 +150,7 @@ ip_vs_out_stats(struct ip_vs_conn *cp, struct sk_buff *skb)
 
 	if (dest && (dest->flags & IP_VS_DEST_F_AVAILABLE)) {
 		struct ip_vs_cpu_stats *s;
+		struct ip_vs_service *svc;
 
 		s = this_cpu_ptr(dest->stats.cpustats);
 		s->ustats.outpkts++;
@@ -153,11 +158,14 @@ ip_vs_out_stats(struct ip_vs_conn *cp, struct sk_buff *skb)
 		s->ustats.outbytes += skb->len;
 		u64_stats_update_end(&s->syncp);
 
-		s = this_cpu_ptr(dest->svc->stats.cpustats);
+		rcu_read_lock();
+		svc = rcu_dereference(dest->svc);
+		s = this_cpu_ptr(svc->stats.cpustats);
 		s->ustats.outpkts++;
 		u64_stats_update_begin(&s->syncp);
 		s->ustats.outbytes += skb->len;
 		u64_stats_update_end(&s->syncp);
+		rcu_read_unlock();
 
 		s = this_cpu_ptr(ipvs->tot_stats.cpustats);
 		s->ustats.outpkts++;
