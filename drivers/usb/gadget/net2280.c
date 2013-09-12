@@ -2680,7 +2680,6 @@ static void net2280_remove (struct pci_dev *pdev)
 	if (dev->enabled)
 		pci_disable_device (pdev);
 	device_remove_file (&pdev->dev, &dev_attr_registers);
-	pci_set_drvdata (pdev, NULL);
 
 	INFO (dev, "unbind\n");
 }
