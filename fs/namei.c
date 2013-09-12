@@ -660,29 +660,6 @@ static __always_inline void set_root_rcu(struct nameidata *nd)
 	}
 }
 
-static __always_inline int __vfs_follow_link(struct nameidata *nd, const char *link)
-{
-	int ret;
-
-	if (IS_ERR(link))
-		goto fail;
-
-	if (*link == '/') {
-		set_root(nd);
-		path_put(&nd->path);
-		nd->path = nd->root;
-		path_get(&nd->root);
-		nd->flags |= LOOKUP_JUMPED;
-	}
-	nd->inode = nd->path.dentry->d_inode;
-
-	ret = link_path_walk(link, nd);
-	return ret;
-fail:
-	path_put(&nd->path);
-	return PTR_ERR(link);
-}
-
 static void path_put_conditional(struct path *path, struct nameidata *nd)
 {
 	dput(path->dentry);
@@ -874,7 +851,20 @@ follow_link(struct path *link, struct nameidata *nd, void **p)
 	error = 0;
 	s = nd_get_link(nd);
 	if (s) {
-		error = __vfs_follow_link(nd, s);
+		if (unlikely(IS_ERR(s))) {
+			path_put(&nd->path);
+			put_link(nd, link, *p);
+			return PTR_ERR(s);
+		}
+		if (*s == '/') {
+			set_root(nd);
+			path_put(&nd->path);
+			nd->path = nd->root;
+			path_get(&nd->root);
+			nd->flags |= LOOKUP_JUMPED;
+		}
+		nd->inode = nd->path.dentry->d_inode;
+		error = link_path_walk(s, nd);
 		if (unlikely(error))
 			put_link(nd, link, *p);
 	}
@@ -2271,12 +2261,15 @@ mountpoint_last(struct nameidata *nd, struct path *path)
 		dentry = d_alloc(dir, &nd->last);
 		if (!dentry) {
 			error = -ENOMEM;
+			mutex_unlock(&dir->d_inode->i_mutex);
 			goto out;
 		}
 		dentry = lookup_real(dir->d_inode, dentry, nd->flags);
 		error = PTR_ERR(dentry);
-		if (IS_ERR(dentry))
+		if (IS_ERR(dentry)) {
+			mutex_unlock(&dir->d_inode->i_mutex);
 			goto out;
+		}
 	}
 	mutex_unlock(&dir->d_inode->i_mutex);
 
@@ -4236,11 +4229,6 @@ int generic_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 	return res;
 }
 
-int vfs_follow_link(struct nameidata *nd, const char *link)
-{
-	return __vfs_follow_link(nd, link);
-}
-
 /* get the link contents into pagecache */
 static char *page_getlink(struct dentry * dentry, struct page **ppage)
 {
@@ -4352,7 +4340,6 @@ EXPORT_SYMBOL(vfs_path_lookup);
 EXPORT_SYMBOL(inode_permission);
 EXPORT_SYMBOL(unlock_rename);
 EXPORT_SYMBOL(vfs_create);
-EXPORT_SYMBOL(vfs_follow_link);
 EXPORT_SYMBOL(vfs_link);
 EXPORT_SYMBOL(vfs_mkdir);
 EXPORT_SYMBOL(vfs_mknod);
