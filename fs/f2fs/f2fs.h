@@ -544,15 +544,15 @@ static inline void mutex_unlock_all(struct f2fs_sb_info *sbi)
 
 static inline int mutex_lock_op(struct f2fs_sb_info *sbi)
 {
-	unsigned char next_lock = sbi->next_lock_num % NR_GLOBAL_LOCKS;
+	unsigned char next_lock;
 	int i = 0;
 
 	for (; i < NR_GLOBAL_LOCKS; i++)
 		if (mutex_trylock(&sbi->fs_lock[i]))
 			return i;
 
+	next_lock = sbi->next_lock_num++ % NR_GLOBAL_LOCKS;
 	mutex_lock(&sbi->fs_lock[next_lock]);
-	sbi->next_lock_num++;
 	return next_lock;
 }
 
