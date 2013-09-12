@@ -28,6 +28,8 @@
 #include <linux/random.h>
 #include <linux/wakelock.h>
 
+#include <trace/events/mmc.h>
+
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
@@ -162,6 +164,7 @@ void mmc_request_done(struct mmc_host *host, struct mmc_request *mrq)
 			pr_debug("%s:     %d bytes transferred: %d\n",
 				mmc_hostname(host),
 				mrq->data->bytes_xfered, mrq->data->error);
+			trace_mmc_blk_rw_end(cmd->opcode, cmd->arg, mrq->data);
 		}
 
 		if (mrq->stop) {
@@ -356,8 +359,12 @@ struct mmc_async_req *mmc_start_req(struct mmc_host *host,
 		err = host->areq->err_check(host->card, host->areq);
 	}
 
-	if (!err && areq)
+	if (!err && areq) {
+		trace_mmc_blk_rw_start(areq->mrq->cmd->opcode,
+				       areq->mrq->cmd->arg,
+				       areq->mrq->data);
 		start_err = __mmc_start_req(host, areq->mrq);
+	}
 
 	if (host->areq)
 		mmc_post_req(host, host->areq->mrq, 0);
@@ -1541,7 +1548,12 @@ static int mmc_do_erase(struct mmc_card *card, unsigned int from,
 {
 	struct mmc_command cmd = {0};
 	unsigned int qty = 0;
+	unsigned int fr, nr;
 	int err;
+
+	fr = from;
+	nr = to - from + 1;
+	trace_mmc_blk_erase_start(arg, fr, nr);
 
 	/*
 	 * qty is used to calculate the erase timeout which depends on how many
@@ -1634,6 +1646,8 @@ static int mmc_do_erase(struct mmc_card *card, unsigned int from,
 	} while (!(cmd.resp[0] & R1_READY_FOR_DATA) ||
 		 R1_CURRENT_STATE(cmd.resp[0]) == R1_STATE_PRG);
 out:
+
+	trace_mmc_blk_erase_end(arg, fr, nr);
 	return err;
 }
 

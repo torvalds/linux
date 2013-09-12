@@ -35,6 +35,9 @@
 #include <linux/capability.h>
 #include <linux/compat.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/mmc.h>
+
 #include <linux/mmc/ioctl.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
@@ -936,9 +939,12 @@ retry:
 			goto out;
 	}
 
-	if (mmc_can_sanitize(card))
+	if (mmc_can_sanitize(card)) {
+		trace_mmc_blk_erase_start(EXT_CSD_SANITIZE_START, 0, 0);
 		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 				 EXT_CSD_SANITIZE_START, 1, 0);
+		trace_mmc_blk_erase_end(EXT_CSD_SANITIZE_START, 0, 0);
+	}
 out_retry:
 	if (err && !mmc_blk_reset(md, card->host, type))
 		goto retry;

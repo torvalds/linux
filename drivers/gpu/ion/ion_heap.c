@@ -15,8 +15,12 @@
  */
 
 #include <linux/err.h>
+#include <linux/freezer.h>
 #include <linux/ion.h>
+#include <linux/kthread.h>
 #include <linux/mm.h>
+#include <linux/rtmutex.h>
+#include <linux/sched.h>
 #include <linux/scatterlist.h>
 #include <linux/vmalloc.h>
 #include "ion_priv.h"
@@ -51,6 +55,9 @@ void *ion_heap_map_kernel(struct ion_heap *heap,
 	}
 	vaddr = vmap(pages, npages, VM_MAP, pgprot);
 	vfree(pages);
+
+	if (vaddr == NULL)
+		return ERR_PTR(-ENOMEM);
 
 	return vaddr;
 }
@@ -130,6 +137,123 @@ end:
 	return ret;
 }
 
+struct page *ion_heap_alloc_pages(struct ion_buffer *buffer, gfp_t gfp_flags,
+				  unsigned int order)
+{
+	struct page *page = alloc_pages(gfp_flags, order);
+
+	if (!page)
+		return page;
+
+	if (ion_buffer_fault_user_mappings(buffer))
+		split_page(page, order);
+
+	return page;
+}
+
+void ion_heap_free_pages(struct ion_buffer *buffer, struct page *page,
+			 unsigned int order)
+{
+	int i;
+
+	if (!ion_buffer_fault_user_mappings(buffer)) {
+		__free_pages(page, order);
+		return;
+	}
+	for (i = 0; i < (1 << order); i++)
+		__free_page(page + i);
+}
+
+void ion_heap_freelist_add(struct ion_heap *heap, struct ion_buffer * buffer)
+{
+	rt_mutex_lock(&heap->lock);
+	list_add(&buffer->list, &heap->free_list);
+	heap->free_list_size += buffer->size;
+	rt_mutex_unlock(&heap->lock);
+	wake_up(&heap->waitqueue);
+}
+
+size_t ion_heap_freelist_size(struct ion_heap *heap)
+{
+	size_t size;
+
+	rt_mutex_lock(&heap->lock);
+	size = heap->free_list_size;
+	rt_mutex_unlock(&heap->lock);
+
+	return size;
+}
+
+size_t ion_heap_freelist_drain(struct ion_heap *heap, size_t size)
+{
+	struct ion_buffer *buffer, *tmp;
+	size_t total_drained = 0;
+
+	if (ion_heap_freelist_size(heap) == 0)
+		return 0;
+
+	rt_mutex_lock(&heap->lock);
+	if (size == 0)
+		size = heap->free_list_size;
+
+	list_for_each_entry_safe(buffer, tmp, &heap->free_list, list) {
+		if (total_drained >= size)
+			break;
+		list_del(&buffer->list);
+		ion_buffer_destroy(buffer);
+		heap->free_list_size -= buffer->size;
+		total_drained += buffer->size;
+	}
+	rt_mutex_unlock(&heap->lock);
+
+	return total_drained;
+}
+
+int ion_heap_deferred_free(void *data)
+{
+	struct ion_heap *heap = data;
+
+	while (true) {
+		struct ion_buffer *buffer;
+
+		wait_event_freezable(heap->waitqueue,
+				     ion_heap_freelist_size(heap) > 0);
+
+		rt_mutex_lock(&heap->lock);
+		if (list_empty(&heap->free_list)) {
+			rt_mutex_unlock(&heap->lock);
+			continue;
+		}
+		buffer = list_first_entry(&heap->free_list, struct ion_buffer,
+					  list);
+		list_del(&buffer->list);
+		heap->free_list_size -= buffer->size;
+		rt_mutex_unlock(&heap->lock);
+		ion_buffer_destroy(buffer);
+	}
+
+	return 0;
+}
+
+int ion_heap_init_deferred_free(struct ion_heap *heap)
+{
+	struct sched_param param = { .sched_priority = 0 };
+
+	INIT_LIST_HEAD(&heap->free_list);
+	heap->free_list_size = 0;
+	rt_mutex_init(&heap->lock);
+	init_waitqueue_head(&heap->waitqueue);
+	heap->task = kthread_run(ion_heap_deferred_free, heap,
+				 "%s", heap->name);
+	sched_setscheduler(heap->task, SCHED_IDLE, &param);
+	if (IS_ERR(heap->task)) {
+		pr_err("%s: creating thread for deferred free failed\n",
+		       __func__);
+		return PTR_RET(heap->task);
+	}
+	return 0;
+}
+
 struct ion_heap *ion_heap_create(struct ion_platform_heap *heap_data)
 {
 	struct ion_heap *heap = NULL;
@@ -146,6 +270,9 @@ struct ion_heap *ion_heap_create(struct ion_platform_heap *heap_data)
 		break;
 	case ION_HEAP_TYPE_CHUNK:
 		heap = ion_chunk_heap_create(heap_data);
+		break;
+	case ION_HEAP_TYPE_DMA:
+		heap = ion_cma_heap_create(heap_data);
 		break;
 	default:
 		pr_err("%s: Invalid heap type %d\n", __func__,
@@ -182,6 +309,9 @@ void ion_heap_destroy(struct ion_heap *heap)
 		break;
 	case ION_HEAP_TYPE_CHUNK:
 		ion_chunk_heap_destroy(heap);
+		break;
+	case ION_HEAP_TYPE_DMA:
+		ion_cma_heap_destroy(heap);
 		break;
 	default:
 		pr_err("%s: Invalid heap type %d\n", __func__,

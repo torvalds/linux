@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_cdc.c 393623 2013-03-28 06:27:09Z $
+ * $Id: dhd_cdc.c 416698 2013-08-06 07:53:34Z $
  *
  * BDC is like CDC, except it includes a header for data packets to convey
  * packet priority over the bus, and flags (e.g. to indicate checksum status
@@ -117,7 +117,6 @@ dhdcdc_query_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len, uin
 {
 	dhd_prot_t *prot = dhd->prot;
 	cdc_ioctl_t *msg = &prot->msg;
-	void *info;
 	int ret = 0, retries = 0;
 	uint32 id, flags = 0;
 
@@ -177,15 +176,12 @@ retry:
 		goto done;
 	}
 
-	/* Check info buffer */
-	info = (void*)&msg[1];
-
 	/* Copy info buffer */
 	if (buf)
 	{
 		if (ret < (int)len)
 			len = ret;
-		memcpy(buf, info, len);
+		memcpy(buf, (void*) prot->buf, len);
 	}
 
 	/* Check the ERROR flag */
@@ -519,6 +515,8 @@ dhd_prot_detach(dhd_pub_t *dhd)
 {
 #ifdef PROP_TXSTATUS
 	dhd_wlfc_deinit(dhd);
+	if (dhd->plat_deinit)
+		dhd->plat_deinit((void *)dhd);
 #endif
 #ifndef CONFIG_DHD_USE_STATIC_BUF
 	MFREE(dhd->osh, dhd->prot, sizeof(dhd_prot_t));
@@ -558,11 +556,6 @@ dhd_prot_init(dhd_pub_t *dhd)
 	if (dhd_download_fw_on_driverload)
 #endif /* defined(WL_CFG80211) */
 		ret = dhd_preinit_ioctls(dhd);
-
-#ifdef PROP_TXSTATUS
-	ret = dhd_wlfc_init(dhd);
-#endif
-
 	/* Always assumes wl for now */
 	dhd->iswl = TRUE;
 

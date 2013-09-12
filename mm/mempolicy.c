@@ -675,7 +675,7 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
 			((vmstart - vma->vm_start) >> PAGE_SHIFT);
 		prev = vma_merge(mm, prev, vmstart, vmend, vma->vm_flags,
 				  vma->anon_vma, vma->vm_file, pgoff,
-				  new_pol);
+				  new_pol, vma_get_anon_name(name));
 		if (prev) {
 			vma = prev;
 			next = vma->vm_next;

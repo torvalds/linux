@@ -313,6 +313,11 @@ typedef uint16 chanspec_t;
 
 #define LCHSPEC_CREATE(chan, band, bw, sb)  ((uint16)((chan) | (sb) | (bw) | (band)))
 
+#define CH20MHZ_LCHSPEC(channel) \
+	(chanspec_t)((chanspec_t)(channel) | WL_LCHANSPEC_BW_20 | \
+	WL_LCHANSPEC_CTL_SB_NONE | (((channel) <= CH_MAX_2G_CHANNEL) ? \
+	WL_LCHANSPEC_BAND_2G : WL_LCHANSPEC_BAND_5G))
+
 #endif /* D11AC_IOTYPES */
 
 /*
