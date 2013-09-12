@@ -213,8 +213,40 @@ struct dm_md_mempools {
 
 #define RESERVED_BIO_BASED_IOS		16
 #define RESERVED_REQUEST_BASED_IOS	256
+#define RESERVED_MAX_IOS		1024
 static struct kmem_cache *_io_cache;
 static struct kmem_cache *_rq_tio_cache;
+
+/*
+ * Request-based DM's mempools' reserved IOs set by the user.
+ */
+static unsigned reserved_rq_based_ios = RESERVED_REQUEST_BASED_IOS;
+
+static unsigned __dm_get_reserved_ios(unsigned *reserved_ios,
+				      unsigned def, unsigned max)
+{
+	unsigned ios = ACCESS_ONCE(*reserved_ios);
+	unsigned modified_ios = 0;
+
+	if (!ios)
+		modified_ios = def;
+	else if (ios > max)
+		modified_ios = max;
+
+	if (modified_ios) {
+		(void)cmpxchg(reserved_ios, ios, modified_ios);
+		ios = modified_ios;
+	}
+
+	return ios;
+}
+
+unsigned dm_get_reserved_rq_based_ios(void)
+{
+	return __dm_get_reserved_ios(&reserved_rq_based_ios,
+				     RESERVED_REQUEST_BASED_IOS, RESERVED_MAX_IOS);
+}
+EXPORT_SYMBOL_GPL(dm_get_reserved_rq_based_ios);
 
 static int __init local_init(void)
 {
@@ -2878,7 +2910,7 @@ struct dm_md_mempools *dm_alloc_md_mempools(unsigned type, unsigned integrity, u
 		front_pad = roundup(per_bio_data_size, __alignof__(struct dm_target_io)) + offsetof(struct dm_target_io, clone);
 	} else if (type == DM_TYPE_REQUEST_BASED) {
 		cachep = _rq_tio_cache;
-		pool_size = RESERVED_REQUEST_BASED_IOS;
+		pool_size = dm_get_reserved_rq_based_ios();
 		front_pad = offsetof(struct dm_rq_clone_bio_info, clone);
 		/* per_bio_data_size is not used. See __bind_mempools(). */
 		WARN_ON(per_bio_data_size != 0);
@@ -2936,6 +2968,10 @@ module_exit(dm_exit);
 
 module_param(major, uint, 0);
 MODULE_PARM_DESC(major, "The major number of the device mapper");
+
+module_param(reserved_rq_based_ios, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(reserved_rq_based_ios, "Reserved IOs in request-based mempools");
+
 MODULE_DESCRIPTION(DM_NAME " driver");
 MODULE_AUTHOR("Joe Thornber <dm-devel@redhat.com>");
 MODULE_LICENSE("GPL");
