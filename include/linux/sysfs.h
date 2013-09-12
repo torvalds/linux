@@ -173,7 +173,6 @@ struct bin_attribute bin_attr_##_name = __BIN_ATTR_RW(_name, _size)
 struct sysfs_ops {
 	ssize_t	(*show)(struct kobject *, struct attribute *, char *);
 	ssize_t	(*store)(struct kobject *, struct attribute *, const char *, size_t);
-	const void *(*namespace)(struct kobject *, const struct attribute *);
 };
 
 struct sysfs_dirent;
@@ -189,13 +188,15 @@ int __must_check sysfs_rename_dir(struct kobject *kobj, const char *new_name);
 int __must_check sysfs_move_dir(struct kobject *kobj,
 				struct kobject *new_parent_kobj);
 
-int __must_check sysfs_create_file(struct kobject *kobj,
-				   const struct attribute *attr);
+int __must_check sysfs_create_file_ns(struct kobject *kobj,
+				      const struct attribute *attr,
+				      const void *ns);
 int __must_check sysfs_create_files(struct kobject *kobj,
 				   const struct attribute **attr);
 int __must_check sysfs_chmod_file(struct kobject *kobj,
 				  const struct attribute *attr, umode_t mode);
-void sysfs_remove_file(struct kobject *kobj, const struct attribute *attr);
+void sysfs_remove_file_ns(struct kobject *kobj, const struct attribute *attr,
+			  const void *ns);
 void sysfs_remove_files(struct kobject *kobj, const struct attribute **attr);
 
 int __must_check sysfs_create_bin_file(struct kobject *kobj,
@@ -277,8 +278,9 @@ static inline int sysfs_move_dir(struct kobject *kobj,
 	return 0;
 }
 
-static inline int sysfs_create_file(struct kobject *kobj,
-				    const struct attribute *attr)
+static inline int sysfs_create_file_ns(struct kobject *kobj,
+				       const struct attribute *attr,
+				       const void *ns)
 {
 	return 0;
 }
@@ -295,8 +297,9 @@ static inline int sysfs_chmod_file(struct kobject *kobj,
 	return 0;
 }
 
-static inline void sysfs_remove_file(struct kobject *kobj,
-				     const struct attribute *attr)
+static inline void sysfs_remove_file_ns(struct kobject *kobj,
+					const struct attribute *attr,
+					const void *ns)
 {
 }
 
@@ -434,5 +437,17 @@ static inline int __must_check sysfs_init(void)
 }
 
 #endif /* CONFIG_SYSFS */
+
+static inline int __must_check sysfs_create_file(struct kobject *kobj,
+						 const struct attribute *attr)
+{
+	return sysfs_create_file_ns(kobj, attr, NULL);
+}
+
+static inline void sysfs_remove_file(struct kobject *kobj,
+				     const struct attribute *attr)
+{
+	return sysfs_remove_file_ns(kobj, attr, NULL);
+}
 
 #endif /* _SYSFS_H_ */

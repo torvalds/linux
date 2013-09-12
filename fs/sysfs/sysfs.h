@@ -230,8 +230,9 @@ extern const struct file_operations sysfs_file_operations;
 int sysfs_add_file(struct sysfs_dirent *dir_sd,
 		   const struct attribute *attr, int type);
 
-int sysfs_add_file_mode(struct sysfs_dirent *dir_sd,
-			const struct attribute *attr, int type, umode_t amode);
+int sysfs_add_file_mode_ns(struct sysfs_dirent *dir_sd,
+			   const struct attribute *attr, int type,
+			   umode_t amode, const void *ns);
 /*
  * bin.c
  */

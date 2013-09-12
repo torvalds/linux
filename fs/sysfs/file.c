@@ -485,57 +485,14 @@ const struct file_operations sysfs_file_operations = {
 	.poll		= sysfs_poll,
 };
 
-static int sysfs_attr_ns(struct kobject *kobj, const struct attribute *attr,
-			 const void **pns)
-{
-	struct sysfs_dirent *dir_sd = kobj->sd;
-	const struct sysfs_ops *ops;
-	const void *ns = NULL;
-	int err;
-
-	if (!dir_sd) {
-		WARN(1, KERN_ERR "sysfs: kobject %s without dirent\n",
-			kobject_name(kobj));
-		return -ENOENT;
-	}
-
-	err = 0;
-	if (!sysfs_ns_type(dir_sd))
-		goto out;
-
-	err = -EINVAL;
-	if (!kobj->ktype)
-		goto out;
-	ops = kobj->ktype->sysfs_ops;
-	if (!ops)
-		goto out;
-	if (!ops->namespace)
-		goto out;
-
-	err = 0;
-	ns = ops->namespace(kobj, attr);
-out:
-	if (err) {
-		WARN(1, KERN_ERR
-		     "missing sysfs namespace attribute operation for kobject: %s\n",
-		     kobject_name(kobj));
-	}
-	*pns = ns;
-	return err;
-}
-
-int sysfs_add_file_mode(struct sysfs_dirent *dir_sd,
-			const struct attribute *attr, int type, umode_t amode)
+int sysfs_add_file_mode_ns(struct sysfs_dirent *dir_sd,
+			   const struct attribute *attr, int type,
+			   umode_t amode, const void *ns)
 {
 	umode_t mode = (amode & S_IALLUGO) | S_IFREG;
 	struct sysfs_addrm_cxt acxt;
 	struct sysfs_dirent *sd;
-	const void *ns;
 	int rc;
-
-	rc = sysfs_attr_ns(dir_sd->s_dir.kobj, attr, &ns);
-	if (rc)
-		return rc;
 
 	sd = sysfs_new_dirent(attr->name, mode, type);
 	if (!sd)
@@ -559,23 +516,25 @@ int sysfs_add_file_mode(struct sysfs_dirent *dir_sd,
 int sysfs_add_file(struct sysfs_dirent *dir_sd, const struct attribute *attr,
 		   int type)
 {
-	return sysfs_add_file_mode(dir_sd, attr, type, attr->mode);
+	return sysfs_add_file_mode_ns(dir_sd, attr, type, attr->mode, NULL);
 }
 
-
 /**
- *	sysfs_create_file - create an attribute file for an object.
- *	@kobj:	object we're creating for.
- *	@attr:	attribute descriptor.
+ * sysfs_create_file_ns - create an attribute file for an object with custom ns
+ * @kobj: object we're creating for
+ * @attr: attribute descriptor
+ * @ns: namespace the new file should belong to
  */
-int sysfs_create_file(struct kobject *kobj, const struct attribute *attr)
+int sysfs_create_file_ns(struct kobject *kobj, const struct attribute *attr,
+			 const void *ns)
 {
 	BUG_ON(!kobj || !kobj->sd || !attr);
 
-	return sysfs_add_file(kobj->sd, attr, SYSFS_KOBJ_ATTR);
+	return sysfs_add_file_mode_ns(kobj->sd, attr, SYSFS_KOBJ_ATTR,
+				      attr->mode, ns);
 
 }
-EXPORT_SYMBOL_GPL(sysfs_create_file);
+EXPORT_SYMBOL_GPL(sysfs_create_file_ns);
 
 int sysfs_create_files(struct kobject *kobj, const struct attribute **ptr)
 {
@@ -630,17 +589,12 @@ int sysfs_chmod_file(struct kobject *kobj, const struct attribute *attr,
 {
 	struct sysfs_dirent *sd;
 	struct iattr newattrs;
-	const void *ns;
 	int rc;
-
-	rc = sysfs_attr_ns(kobj, attr, &ns);
-	if (rc)
-		return rc;
 
 	mutex_lock(&sysfs_mutex);
 
 	rc = -ENOENT;
-	sd = sysfs_find_dirent(kobj->sd, ns, attr->name);
+	sd = sysfs_find_dirent(kobj->sd, NULL, attr->name);
 	if (!sd)
 		goto out;
 
@@ -655,22 +609,21 @@ int sysfs_chmod_file(struct kobject *kobj, const struct attribute *attr,
 EXPORT_SYMBOL_GPL(sysfs_chmod_file);
 
 /**
- *	sysfs_remove_file - remove an object attribute.
- *	@kobj:	object we're acting for.
- *	@attr:	attribute descriptor.
+ * sysfs_remove_file_ns - remove an object attribute with a custom ns tag
+ * @kobj: object we're acting for
+ * @attr: attribute descriptor
+ * @ns: namespace tag of the file to remove
  *
- *	Hash the attribute name and kill the victim.
+ * Hash the attribute name and namespace tag and kill the victim.
  */
-void sysfs_remove_file(struct kobject *kobj, const struct attribute *attr)
+void sysfs_remove_file_ns(struct kobject *kobj, const struct attribute *attr,
+			  const void *ns)
 {
-	const void *ns;
+	struct sysfs_dirent *dir_sd = kobj->sd;
 
-	if (sysfs_attr_ns(kobj, attr, &ns))
-		return;
-
-	sysfs_hash_and_remove(kobj->sd, ns, attr->name);
+	sysfs_hash_and_remove(dir_sd, ns, attr->name);
 }
-EXPORT_SYMBOL_GPL(sysfs_remove_file);
+EXPORT_SYMBOL_GPL(sysfs_remove_file_ns);
 
 void sysfs_remove_files(struct kobject *kobj, const struct attribute **ptr)
 {
