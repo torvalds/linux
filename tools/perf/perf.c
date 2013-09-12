@@ -456,6 +456,7 @@ int main(int argc, const char **argv)
 {
 	const char *cmd;
 
+	/* The page_size is placed in util object. */
 	page_size = sysconf(_SC_PAGE_SIZE);
 
 	cmd = perf_extract_argv0_path(argv[0]);

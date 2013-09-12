@@ -70,7 +70,6 @@ struct perf_record {
 	struct perf_session	*session;
 	const char		*progname;
 	int			output;
-	unsigned int		page_size;
 	int			realtime_prio;
 	bool			no_buildid;
 	bool			no_buildid_cache;
@@ -119,7 +118,7 @@ static int perf_record__mmap_read(struct perf_record *rec,
 {
 	unsigned int head = perf_mmap__read_head(md);
 	unsigned int old = md->prev;
-	unsigned char *data = md->base + rec->page_size;
+	unsigned char *data = md->base + page_size;
 	unsigned long size;
 	void *buf;
 	int rc = 0;
@@ -359,8 +358,6 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 	bool disabled = false;
 
 	rec->progname = argv[0];
-
-	rec->page_size = sysconf(_SC_PAGE_SIZE);
 
 	on_exit(perf_record__sig_exit, rec);
 	signal(SIGCHLD, sig_handler);
