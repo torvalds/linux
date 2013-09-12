@@ -3015,15 +3015,16 @@ Elong:
 	return ERR_PTR(-ENAMETOOLONG);
 }
 
-static inline void get_fs_root_and_pwd(struct fs_struct *fs, struct path *root,
-				       struct path *pwd)
+static void get_fs_root_and_pwd_rcu(struct fs_struct *fs, struct path *root,
+				    struct path *pwd)
 {
-	spin_lock(&fs->lock);
-	*root = fs->root;
-	path_get(root);
-	*pwd = fs->pwd;
-	path_get(pwd);
-	spin_unlock(&fs->lock);
+	unsigned seq;
+
+	do {
+		seq = read_seqcount_begin(&fs->seq);
+		*root = fs->root;
+		*pwd = fs->pwd;
+	} while (read_seqcount_retry(&fs->seq, seq));
 }
 
 /*
@@ -3053,7 +3054,8 @@ SYSCALL_DEFINE2(getcwd, char __user *, buf, unsigned long, size)
 	if (!page)
 		return -ENOMEM;
 
-	get_fs_root_and_pwd(current->fs, &root, &pwd);
+	rcu_read_lock();
+	get_fs_root_and_pwd_rcu(current->fs, &root, &pwd);
 
 	error = -ENOENT;
 	br_read_lock(&vfsmount_lock);
@@ -3088,8 +3090,7 @@ SYSCALL_DEFINE2(getcwd, char __user *, buf, unsigned long, size)
 	}
 
 out:
-	path_put(&pwd);
-	path_put(&root);
+	rcu_read_unlock();
 	free_page((unsigned long) page);
 	return error;
 }
