@@ -6001,10 +6001,12 @@ static int _nfs4_proc_secinfo(struct inode *dir, const struct qstr *name, struct
 		.rpc_resp = &res,
 	};
 	struct rpc_clnt *clnt = NFS_SERVER(dir)->client;
+	struct rpc_cred *cred = NULL;
 
 	if (use_integrity) {
 		clnt = NFS_SERVER(dir)->nfs_client->cl_rpcclient;
-		msg.rpc_cred = nfs4_get_clid_cred(NFS_SERVER(dir)->nfs_client);
+		cred = nfs4_get_clid_cred(NFS_SERVER(dir)->nfs_client);
+		msg.rpc_cred = cred;
 	}
 
 	dprintk("NFS call  secinfo %s\n", name->name);
@@ -6016,8 +6018,8 @@ static int _nfs4_proc_secinfo(struct inode *dir, const struct qstr *name, struct
 				&res.seq_res, 0);
 	dprintk("NFS reply  secinfo: %d\n", status);
 
-	if (msg.rpc_cred)
-		put_rpccred(msg.rpc_cred);
+	if (cred)
+		put_rpccred(cred);
 
 	return status;
 }
@@ -6151,11 +6153,13 @@ static const struct nfs41_state_protection nfs4_sp4_mach_cred_request = {
 	},
 	.allow.u.words = {
 		[0] = 1 << (OP_CLOSE) |
-		      1 << (OP_LOCKU),
+		      1 << (OP_LOCKU) |
+		      1 << (OP_COMMIT),
 		[1] = 1 << (OP_SECINFO - 32) |
 		      1 << (OP_SECINFO_NO_NAME - 32) |
 		      1 << (OP_TEST_STATEID - 32) |
-		      1 << (OP_FREE_STATEID - 32)
+		      1 << (OP_FREE_STATEID - 32) |
+		      1 << (OP_WRITE - 32)
 	}
 };
 
@@ -7496,11 +7500,13 @@ _nfs41_proc_secinfo_no_name(struct nfs_server *server, struct nfs_fh *fhandle,
 		.rpc_resp = &res,
 	};
 	struct rpc_clnt *clnt = server->client;
+	struct rpc_cred *cred = NULL;
 	int status;
 
 	if (use_integrity) {
 		clnt = server->nfs_client->cl_rpcclient;
-		msg.rpc_cred = nfs4_get_clid_cred(server->nfs_client);
+		cred = nfs4_get_clid_cred(server->nfs_client);
+		msg.rpc_cred = cred;
 	}
 
 	dprintk("--> %s\n", __func__);
@@ -7508,8 +7514,8 @@ _nfs41_proc_secinfo_no_name(struct nfs_server *server, struct nfs_fh *fhandle,
 				&res.seq_res, 0);
 	dprintk("<-- %s status=%d\n", __func__, status);
 
-	if (msg.rpc_cred)
-		put_rpccred(msg.rpc_cred);
+	if (cred)
+		put_rpccred(cred);
 
 	return status;
 }
