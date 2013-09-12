@@ -59,6 +59,1023 @@ config SEC_IRQ_PRIORITY_LEVELS
 	  Divide the total number of interrupt priority levels into sub-levels.
 	  There is 2 ^ (SEC_IRQ_PRIORITY_LEVELS + 1) different levels.
 
+
+comment "System Cross Bar Priority Assignment"
+
+config SCB_PRIORITY
+	bool "Init System Cross Bar Priority"
+	default n
+
+menuconfig	SCB0_MI0
+	bool "SCB0 Master Interface 0 (DDR)"
+	default n
+	depends on SCB_PRIORITY
+	help
+	The slave interface id of each slot should be set according following table.
+	Core 0	-- 0
+	Core 1	-- 2
+	SCB1	-- 9
+	SCB2	-- 10
+	SCB3	-- 11
+	SCB4	-- 12
+	SCB5	-- 5
+	SCB6	-- 6
+	SCB7	-- 8
+	SCB8	-- 7
+	SCB9	-- 4
+	USB	-- 13
+
+if SCB0_MI0
+
+config SCB0_MI0_SLOT0
+	int "Slot 0 slave interface id"
+	default 0
+	range 0 13
+
+config SCB0_MI0_SLOT1
+	int "Slot 1 slave interface id"
+	default 2
+	range 0 13
+
+config SCB0_MI0_SLOT2
+	int "Slot 2 slave interface id"
+	default 4
+	range 0 13
+
+config SCB0_MI0_SLOT3
+	int "Slot 3 slave interface id"
+	default 5
+	range 0 13
+
+config SCB0_MI0_SLOT4
+	int "Slot 4 slave interface id"
+	default 6
+	range 0 13
+
+config SCB0_MI0_SLOT5
+	int "Slot 5 slave interface id"
+	default 7
+	range 0 13
+
+config SCB0_MI0_SLOT6
+	int "Slot 6 slave interface id"
+	default 8
+	range 0 13
+
+config SCB0_MI0_SLOT7
+	int "Slot 7 slave interface id"
+	default 9
+	range 0 13
+
+config SCB0_MI0_SLOT8
+	int "Slot 8 slave interface id"
+	default 10
+	range 0 13
+
+config SCB0_MI0_SLOT9
+	int "Slot 9 slave interface id"
+	default 11
+	range 0 13
+
+config SCB0_MI0_SLOT10
+	int "Slot 10 slave interface id"
+	default 13
+	range 0 13
+
+config SCB0_MI0_SLOT11
+	int "Slot 11 slave interface id"
+	default 12
+	range 0 13
+
+config SCB0_MI0_SLOT12
+	int "Slot 12 slave interface id"
+	default 0
+	range 0 13
+
+config SCB0_MI0_SLOT13
+	int "Slot 13 slave interface id"
+	default 2
+	range 0 13
+
+config SCB0_MI0_SLOT14
+	int "Slot 14 slave interface id"
+	default 4
+	range 0 13
+
+config SCB0_MI0_SLOT15
+	int "Slot 15 slave interface id"
+	default 5
+	range 0 13
+
+config SCB0_MI0_SLOT16
+	int "Slot 16 slave interface id"
+	default 6
+	range 0 13
+
+config SCB0_MI0_SLOT17
+	int "Slot 17 slave interface id"
+	default 7
+	range 0 13
+
+config SCB0_MI0_SLOT18
+	int "Slot 18 slave interface id"
+	default 8
+	range 0 13
+
+config SCB0_MI0_SLOT19
+	int "Slot 19 slave interface id"
+	default 9
+	range 0 13
+
+config SCB0_MI0_SLOT20
+	int "Slot 20 slave interface id"
+	default 10
+	range 0 13
+
+config SCB0_MI0_SLOT21
+	int "Slot 21 slave interface id"
+	default 11
+	range 0 13
+
+config SCB0_MI0_SLOT22
+	int "Slot 22 slave interface id"
+	default 13
+	range 0 13
+
+config SCB0_MI0_SLOT23
+	int "Slot 23 slave interface id"
+	default 12
+	range 0 13
+
+config SCB0_MI0_SLOT24
+	int "Slot 24 slave interface id"
+	default 0
+	range 0 13
+
+config SCB0_MI0_SLOT25
+	int "Slot 25 slave interface id"
+	default 2
+	range 0 13
+
+config SCB0_MI0_SLOT26
+	int "Slot 26 slave interface id"
+	default 4
+	range 0 13
+
+config SCB0_MI0_SLOT27
+	int "Slot 27 slave interface id"
+	default 5
+	range 0 13
+
+config SCB0_MI0_SLOT28
+	int "Slot 28 slave interface id"
+	default 6
+	range 0 13
+
+config SCB0_MI0_SLOT29
+	int "Slot 29 slave interface id"
+	default 7
+	range 0 13
+
+config SCB0_MI0_SLOT30
+	int "Slot 30 slave interface id"
+	default 8
+	range 0 13
+
+config SCB0_MI0_SLOT31
+	int "Slot 31 slave interface id"
+	default 13
+	range 0 13
+
+endif # SCB0_MI0
+
+menuconfig	SCB0_MI1
+	bool "SCB0 Master Interface 1 (SMC)"
+	default n
+	depends on SCB_PRIORITY
+	help
+	The slave interface id of each slot should be set according following table.
+	Core 0	-- 0
+	Core 1	-- 2
+	SCB1	-- 9
+	SCB2	-- 10
+	SCB3	-- 11
+	SCB4	-- 12
+	SCB5	-- 5
+	SCB6	-- 6
+	SCB7	-- 8
+	SCB8	-- 7
+	SCB9	-- 4
+	USB	-- 13
+
+if SCB0_MI1
+
+config SCB0_MI1_SLOT0
+	int "Slot 0 slave interface id"
+	default 0
+	range 0 13
+
+config SCB0_MI1_SLOT1
+	int "Slot 1 slave interface id"
+	default 2
+	range 0 13
+
+config SCB0_MI1_SLOT2
+	int "Slot 2 slave interface id"
+	default 4
+	range 0 13
+
+config SCB0_MI1_SLOT3
+	int "Slot 3 slave interface id"
+	default 5
+	range 0 13
+
+config SCB0_MI1_SLOT4
+	int "Slot 4 slave interface id"
+	default 6
+	range 0 13
+
+config SCB0_MI1_SLOT5
+	int "Slot 5 slave interface id"
+	default 7
+	range 0 13
+
+config SCB0_MI1_SLOT6
+	int "Slot 6 slave interface id"
+	default 8
+	range 0 13
+
+config SCB0_MI1_SLOT7
+	int "Slot 7 slave interface id"
+	default 9
+	range 0 13
+
+config SCB0_MI1_SLOT8
+	int "Slot 8 slave interface id"
+	default 10
+	range 0 13
+
+config SCB0_MI1_SLOT9
+	int "Slot 9 slave interface id"
+	default 11
+	range 0 13
+
+config SCB0_MI1_SLOT10
+	int "Slot 10 slave interface id"
+	default 13
+	range 0 13
+
+config SCB0_MI1_SLOT11
+	int "Slot 11 slave interface id"
+	default 12
+	range 0 13
+
+config SCB0_MI1_SLOT12
+	int "Slot 12 slave interface id"
+	default 0
+	range 0 13
+
+config SCB0_MI1_SLOT13
+	int "Slot 13 slave interface id"
+	default 2
+	range 0 13
+
+config SCB0_MI1_SLOT14
+	int "Slot 14 slave interface id"
+	default 4
+	range 0 13
+
+config SCB0_MI1_SLOT15
+	int "Slot 15 slave interface id"
+	default 5
+	range 0 13
+
+config SCB0_MI1_SLOT16
+	int "Slot 16 slave interface id"
+	default 6
+	range 0 13
+
+config SCB0_MI1_SLOT17
+	int "Slot 17 slave interface id"
+	default 7
+	range 0 13
+
+config SCB0_MI1_SLOT18
+	int "Slot 18 slave interface id"
+	default 8
+	range 0 13
+
+config SCB0_MI1_SLOT19
+	int "Slot 19 slave interface id"
+	default 9
+	range 0 13
+
+config SCB0_MI1_SLOT20
+	int "Slot 20 slave interface id"
+	default 10
+	range 0 13
+
+config SCB0_MI1_SLOT21
+	int "Slot 21 slave interface id"
+	default 11
+	range 0 13
+
+config SCB0_MI1_SLOT22
+	int "Slot 22 slave interface id"
+	default 13
+	range 0 13
+
+config SCB0_MI1_SLOT23
+	int "Slot 23 slave interface id"
+	default 12
+	range 0 13
+
+config SCB0_MI1_SLOT24
+	int "Slot 24 slave interface id"
+	default 0
+	range 0 13
+
+config SCB0_MI1_SLOT25
+	int "Slot 25 slave interface id"
+	default 2
+	range 0 13
+
+config SCB0_MI1_SLOT26
+	int "Slot 26 slave interface id"
+	default 4
+	range 0 13
+
+config SCB0_MI1_SLOT27
+	int "Slot 27 slave interface id"
+	default 5
+	range 0 13
+
+config SCB0_MI1_SLOT28
+	int "Slot 28 slave interface id"
+	default 6
+	range 0 13
+
+config SCB0_MI1_SLOT29
+	int "Slot 29 slave interface id"
+	default 7
+	range 0 13
+
+config SCB0_MI1_SLOT30
+	int "Slot 30 slave interface id"
+	default 8
+	range 0 13
+
+config SCB0_MI1_SLOT31
+	int "Slot 31 slave interface id"
+	default 13
+	range 0 13
+
+endif # SCB0_MI1
+
+menuconfig	SCB0_MI2
+	bool "SCB0 Master Interface 2 (Data L2)"
+	default n
+	depends on SCB_PRIORITY
+	help
+	The slave interface id of each slot should be set according following table.
+	Core 0	-- 0
+	Core 1	-- 2
+	SCB1	-- 9
+	SCB2	-- 10
+	SCB3	-- 11
+	SCB4	-- 12
+	SCB5	-- 5
+	SCB6	-- 6
+	SCB7	-- 8
+	SCB8	-- 7
+	SCB9	-- 4
+	USB	-- 13
+
+if SCB0_MI2
+
+config SCB0_MI2_SLOT0
+	int "Slot 0 slave interface id"
+	default 4
+	range 0 13
+
+config SCB0_MI2_SLOT1
+	int "Slot 1 slave interface id"
+	default 5
+	range 0 13
+
+config SCB0_MI2_SLOT2
+	int "Slot 2 slave interface id"
+	default 6
+	range 0 13
+
+config SCB0_MI2_SLOT3
+	int "Slot 3 slave interface id"
+	default 7
+	range 0 13
+
+config SCB0_MI2_SLOT4
+	int "Slot 4 slave interface id"
+	default 8
+	range 0 13
+
+config SCB0_MI2_SLOT5
+	int "Slot 5 slave interface id"
+	default 9
+	range 0 13
+
+config SCB0_MI2_SLOT6
+	int "Slot 6 slave interface id"
+	default 10
+	range 0 13
+
+config SCB0_MI2_SLOT7
+	int "Slot 7 slave interface id"
+	default 11
+	range 0 13
+
+config SCB0_MI2_SLOT8
+	int "Slot 8 slave interface id"
+	default 13
+	range 0 13
+
+config SCB0_MI2_SLOT9
+	int "Slot 9 slave interface id"
+	default 12
+	range 0 13
+
+config SCB0_MI2_SLOT10
+	int "Slot 10 slave interface id"
+	default 4
+	range 0 13
+
+config SCB0_MI2_SLOT11
+	int "Slot 11 slave interface id"
+	default 5
+	range 0 13
+
+config SCB0_MI2_SLOT12
+	int "Slot 12 slave interface id"
+	default 6
+	range 0 13
+
+config SCB0_MI2_SLOT13
+	int "Slot 13 slave interface id"
+	default 7
+	range 0 13
+
+config SCB0_MI2_SLOT14
+	int "Slot 14 slave interface id"
+	default 8
+	range 0 13
+
+config SCB0_MI2_SLOT15
+	int "Slot 15 slave interface id"
+	default 9
+	range 0 13
+
+config SCB0_MI2_SLOT16
+	int "Slot 16 slave interface id"
+	default 10
+	range 0 13
+
+config SCB0_MI2_SLOT17
+	int "Slot 17 slave interface id"
+	default 11
+	range 0 13
+
+config SCB0_MI2_SLOT18
+	int "Slot 18 slave interface id"
+	default 13
+	range 0 13
+
+config SCB0_MI2_SLOT19
+	int "Slot 19 slave interface id"
+	default 12
+	range 0 13
+
+config SCB0_MI2_SLOT20
+	int "Slot 20 slave interface id"
+	default 4
+	range 0 13
+
+config SCB0_MI2_SLOT21
+	int "Slot 21 slave interface id"
+	default 5
+	range 0 13
+
+config SCB0_MI2_SLOT22
+	int "Slot 22 slave interface id"
+	default 6
+	range 0 13
+
+config SCB0_MI2_SLOT23
+	int "Slot 23 slave interface id"
+	default 7
+	range 0 13
+
+config SCB0_MI2_SLOT24
+	int "Slot 24 slave interface id"
+	default 8
+	range 0 13
+
+config SCB0_MI2_SLOT25
+	int "Slot 25 slave interface id"
+	default 9
+	range 0 13
+
+config SCB0_MI2_SLOT26
+	int "Slot 26 slave interface id"
+	default 10
+	range 0 13
+
+config SCB0_MI2_SLOT27
+	int "Slot 27 slave interface id"
+	default 11
+	range 0 13
+
+config SCB0_MI2_SLOT28
+	int "Slot 28 slave interface id"
+	default 13
+	range 0 13
+
+config SCB0_MI2_SLOT29
+	int "Slot 29 slave interface id"
+	default 12
+	range 0 13
+
+config SCB0_MI2_SLOT30
+	int "Slot 30 slave interface id"
+	default 4
+	range 0 13
+
+config SCB0_MI2_SLOT31
+	int "Slot 31 slave interface id"
+	default 7
+	range 0 13
+
+endif # SCB0_MI2
+
+menuconfig	SCB0_MI3
+	bool "SCB0 Master Interface 3 (L1A)"
+	default n
+	depends on SCB_PRIORITY
+	help
+	The slave interface id of each slot should be set according following table.
+	Core 0	-- 0
+	Core 1	-- 2
+	SCB1	-- 9
+	SCB2	-- 10
+	SCB3	-- 11
+	SCB4	-- 12
+	SCB5	-- 5
+	SCB6	-- 6
+	SCB7	-- 8
+	SCB8	-- 7
+	SCB9	-- 4
+	USB	-- 13
+
+if SCB0_MI3
+
+config SCB0_MI3_SLOT0
+	int "Slot 0 slave interface id"
+	default 4
+	range 0 13
+
+config SCB0_MI3_SLOT1
+	int "Slot 1 slave interface id"
+	default 5
+	range 0 13
+
+config SCB0_MI3_SLOT2
+	int "Slot 2 slave interface id"
+	default 6
+	range 0 13
+
+config SCB0_MI3_SLOT3
+	int "Slot 3 slave interface id"
+	default 7
+	range 0 13
+
+config SCB0_MI3_SLOT4
+	int "Slot 4 slave interface id"
+	default 8
+	range 0 13
+
+config SCB0_MI3_SLOT5
+	int "Slot 5 slave interface id"
+	default 9
+	range 0 13
+
+config SCB0_MI3_SLOT6
+	int "Slot 6 slave interface id"
+	default 10
+	range 0 13
+
+config SCB0_MI3_SLOT7
+	int "Slot 7 slave interface id"
+	default 11
+	range 0 13
+
+config SCB0_MI3_SLOT8
+	int "Slot 8 slave interface id"
+	default 13
+	range 0 13
+
+config SCB0_MI3_SLOT9
+	int "Slot 9 slave interface id"
+	default 12
+	range 0 13
+
+config SCB0_MI3_SLOT10
+	int "Slot 10 slave interface id"
+	default 4
+	range 0 13
+
+config SCB0_MI3_SLOT11
+	int "Slot 11 slave interface id"
+	default 5
+	range 0 13
+
+config SCB0_MI3_SLOT12
+	int "Slot 12 slave interface id"
+	default 6
+	range 0 13
+
+config SCB0_MI3_SLOT13
+	int "Slot 13 slave interface id"
+	default 7
+	range 0 13
+
+config SCB0_MI3_SLOT14
+	int "Slot 14 slave interface id"
+	default 8
+	range 0 13
+
+config SCB0_MI3_SLOT15
+	int "Slot 15 slave interface id"
+	default 9
+	range 0 13
+
+config SCB0_MI3_SLOT16
+	int "Slot 16 slave interface id"
+	default 10
+	range 0 13
+
+config SCB0_MI3_SLOT17
+	int "Slot 17 slave interface id"
+	default 11
+	range 0 13
+
+config SCB0_MI3_SLOT18
+	int "Slot 18 slave interface id"
+	default 13
+	range 0 13
+
+config SCB0_MI3_SLOT19
+	int "Slot 19 slave interface id"
+	default 12
+	range 0 13
+
+config SCB0_MI3_SLOT20
+	int "Slot 20 slave interface id"
+	default 4
+	range 0 13
+
+config SCB0_MI3_SLOT21
+	int "Slot 21 slave interface id"
+	default 5
+	range 0 13
+
+config SCB0_MI3_SLOT22
+	int "Slot 22 slave interface id"
+	default 6
+	range 0 13
+
+config SCB0_MI3_SLOT23
+	int "Slot 23 slave interface id"
+	default 7
+	range 0 13
+
+config SCB0_MI3_SLOT24
+	int "Slot 24 slave interface id"
+	default 8
+	range 0 13
+
+config SCB0_MI3_SLOT25
+	int "Slot 25 slave interface id"
+	default 9
+	range 0 13
+
+config SCB0_MI3_SLOT26
+	int "Slot 26 slave interface id"
+	default 10
+	range 0 13
+
+config SCB0_MI3_SLOT27
+	int "Slot 27 slave interface id"
+	default 11
+	range 0 13
+
+config SCB0_MI3_SLOT28
+	int "Slot 28 slave interface id"
+	default 13
+	range 0 13
+
+config SCB0_MI3_SLOT29
+	int "Slot 29 slave interface id"
+	default 12
+	range 0 13
+
+config SCB0_MI3_SLOT30
+	int "Slot 30 slave interface id"
+	default 4
+	range 0 13
+
+config SCB0_MI3_SLOT31
+	int "Slot 31 slave interface id"
+	default 7
+	range 0 13
+
+endif # SCB0_MI3
+
+menuconfig	SCB0_MI4
+	bool "SCB0 Master Interface 4 (L1B)"
+	default n
+	depends on SCB_PRIORITY
+	help
+	The slave interface id of each slot should be set according following table.
+	Core 0	-- 0
+	Core 1	-- 2
+	SCB1	-- 9
+	SCB2	-- 10
+	SCB3	-- 11
+	SCB4	-- 12
+	SCB5	-- 5
+	SCB6	-- 6
+	SCB7	-- 8
+	SCB8	-- 7
+	SCB9	-- 4
+	USB	-- 13
+
+if SCB0_MI4
+
+config SCB0_MI4_SLOT0
+	int "Slot 0 slave interface id"
+	default 4
+	range 0 13
+
+config SCB0_MI4_SLOT1
+	int "Slot 1 slave interface id"
+	default 5
+	range 0 13
+
+config SCB0_MI4_SLOT2
+	int "Slot 2 slave interface id"
+	default 6
+	range 0 13
+
+config SCB0_MI4_SLOT3
+	int "Slot 3 slave interface id"
+	default 7
+	range 0 13
+
+config SCB0_MI4_SLOT4
+	int "Slot 4 slave interface id"
+	default 8
+	range 0 13
+
+config SCB0_MI4_SLOT5
+	int "Slot 5 slave interface id"
+	default 9
+	range 0 13
+
+config SCB0_MI4_SLOT6
+	int "Slot 6 slave interface id"
+	default 10
+	range 0 13
+
+config SCB0_MI4_SLOT7
+	int "Slot 7 slave interface id"
+	default 11
+	range 0 13
+
+config SCB0_MI4_SLOT8
+	int "Slot 8 slave interface id"
+	default 13
+	range 0 13
+
+config SCB0_MI4_SLOT9
+	int "Slot 9 slave interface id"
+	default 12
+	range 0 13
+
+config SCB0_MI4_SLOT10
+	int "Slot 10 slave interface id"
+	default 4
+	range 0 13
+
+config SCB0_MI4_SLOT11
+	int "Slot 11 slave interface id"
+	default 5
+	range 0 13
+
+config SCB0_MI4_SLOT12
+	int "Slot 12 slave interface id"
+	default 6
+	range 0 13
+
+config SCB0_MI4_SLOT13
+	int "Slot 13 slave interface id"
+	default 7
+	range 0 13
+
+config SCB0_MI4_SLOT14
+	int "Slot 14 slave interface id"
+	default 8
+	range 0 13
+
+config SCB0_MI4_SLOT15
+	int "Slot 15 slave interface id"
+	default 9
+	range 0 13
+
+config SCB0_MI4_SLOT16
+	int "Slot 16 slave interface id"
+	default 10
+	range 0 13
+
+config SCB0_MI4_SLOT17
+	int "Slot 17 slave interface id"
+	default 11
+	range 0 13
+
+config SCB0_MI4_SLOT18
+	int "Slot 18 slave interface id"
+	default 13
+	range 0 13
+
+config SCB0_MI4_SLOT19
+	int "Slot 19 slave interface id"
+	default 12
+	range 0 13
+
+config SCB0_MI4_SLOT20
+	int "Slot 20 slave interface id"
+	default 4
+	range 0 13
+
+config SCB0_MI4_SLOT21
+	int "Slot 21 slave interface id"
+	default 5
+	range 0 13
+
+config SCB0_MI4_SLOT22
+	int "Slot 22 slave interface id"
+	default 6
+	range 0 13
+
+config SCB0_MI4_SLOT23
+	int "Slot 23 slave interface id"
+	default 7
+	range 0 13
+
+config SCB0_MI4_SLOT24
+	int "Slot 24 slave interface id"
+	default 8
+	range 0 13
+
+config SCB0_MI4_SLOT25
+	int "Slot 25 slave interface id"
+	default 9
+	range 0 13
+
+config SCB0_MI4_SLOT26
+	int "Slot 26 slave interface id"
+	default 10
+	range 0 13
+
+config SCB0_MI4_SLOT27
+	int "Slot 27 slave interface id"
+	default 11
+	range 0 13
+
+config SCB0_MI4_SLOT28
+	int "Slot 28 slave interface id"
+	default 13
+	range 0 13
+
+config SCB0_MI4_SLOT29
+	int "Slot 29 slave interface id"
+	default 12
+	range 0 13
+
+config SCB0_MI4_SLOT30
+	int "Slot 30 slave interface id"
+	default 4
+	range 0 13
+
+config SCB0_MI4_SLOT31
+	int "Slot 31 slave interface id"
+	default 7
+	range 0 13
+
+endif # SCB0_MI4
+
+menuconfig	SCB0_MI5
+	bool "SCB0 Master Interface 5 (SMMR)"
+	default n
+	depends on SCB_PRIORITY
+	help
+	The slave interface id of each slot should be set according following table.
+	MMR0	-- 1
+	MMR1	-- 3
+	SCB2	-- 10
+	SCB4	-- 12
+
+if SCB0_MI5
+
+config SCB0_MI5_SLOT0
+	int "Slot 0 slave interface id"
+	default 1
+	range 0 13
+
+config SCB0_MI5_SLOT1
+	int "Slot 1 slave interface id"
+	default 3
+	range 0 13
+
+config SCB0_MI5_SLOT2
+	int "Slot 2 slave interface id"
+	default 10
+	range 0 13
+
+config SCB0_MI5_SLOT3
+	int "Slot 3 slave interface id"
+	default 12
+	range 0 13
+
+config SCB0_MI5_SLOT4
+	int "Slot 4 slave interface id"
+	default 1
+	range 0 13
+
+config SCB0_MI5_SLOT5
+	int "Slot 5 slave interface id"
+	default 3
+	range 0 13
+
+config SCB0_MI5_SLOT6
+	int "Slot 6 slave interface id"
+	default 10
+	range 0 13
+
+config SCB0_MI5_SLOT7
+	int "Slot 7 slave interface id"
+	default 12
+	range 0 13
+
+config SCB0_MI5_SLOT8
+	int "Slot 8 slave interface id"
+	default 1
+	range 0 13
+
+config SCB0_MI5_SLOT9
+	int "Slot 9 slave interface id"
+	default 3
+	range 0 13
+
+config SCB0_MI5_SLOT10
+	int "Slot 10 slave interface id"
+	default 10
+	range 0 13
+
+config SCB0_MI5_SLOT11
+	int "Slot 11 slave interface id"
+	default 12
+	range 0 13
+
+config SCB0_MI5_SLOT12
+	int "Slot 12 slave interface id"
+	default 1
+	range 0 13
+
+config SCB0_MI5_SLOT13
+	int "Slot 13 slave interface id"
+	default 3
+	range 0 13
+
+config SCB0_MI5_SLOT14
+	int "Slot 14 slave interface id"
+	default 10
+	range 0 13
+
+config SCB0_MI5_SLOT15
+	int "Slot 15 slave interface id"
+	default 12
+	range 0 13
+
+endif # SCB0_MI5
+
 endmenu
 
 endif
