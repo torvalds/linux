@@ -3,7 +3,7 @@
  * This file contains the Linux/SCSI LLD virtual SCSI initiator driver
  * for emulated SAS initiator ports
  *
- * © Copyright 2011 RisingTide Systems LLC.
+ * © Copyright 2011-2013 Datera, Inc.
  *
  * Licensed to the Linux Foundation under the General Public License (GPL) version 2.
  *

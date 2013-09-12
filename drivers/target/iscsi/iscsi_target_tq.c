@@ -1,9 +1,7 @@
 /*******************************************************************************
  * This file contains the iSCSI Login Thread and Thread Queue functions.
  *
- * \u00a9 Copyright 2007-2011 RisingTide Systems LLC.
- *
- * Licensed to the Linux Foundation under the General Public License (GPL) version 2.
+ * (c) Copyright 2007-2013 Datera, Inc.
  *
  * Author: Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
@@ -105,12 +103,11 @@ int iscsi_allocate_thread_sets(u32 thread_pair_count)
 		ts->status = ISCSI_THREAD_SET_FREE;
 		INIT_LIST_HEAD(&ts->ts_list);
 		spin_lock_init(&ts->ts_state_lock);
-		init_completion(&ts->rx_post_start_comp);
-		init_completion(&ts->tx_post_start_comp);
 		init_completion(&ts->rx_restart_comp);
 		init_completion(&ts->tx_restart_comp);
 		init_completion(&ts->rx_start_comp);
 		init_completion(&ts->tx_start_comp);
+		sema_init(&ts->ts_activate_sem, 0);
 
 		ts->create_threads = 1;
 		ts->tx_thread = kthread_run(iscsi_target_tx_thread, ts, "%s",
@@ -139,35 +136,44 @@ int iscsi_allocate_thread_sets(u32 thread_pair_count)
 	return allocated_thread_pair_count;
 }
 
+static void iscsi_deallocate_thread_one(struct iscsi_thread_set *ts)
+{
+	spin_lock_bh(&ts->ts_state_lock);
+	ts->status = ISCSI_THREAD_SET_DIE;
+
+	if (ts->rx_thread) {
+		complete(&ts->rx_start_comp);
+		spin_unlock_bh(&ts->ts_state_lock);
+		kthread_stop(ts->rx_thread);
+		spin_lock_bh(&ts->ts_state_lock);
+	}
+	if (ts->tx_thread) {
+		complete(&ts->tx_start_comp);
+		spin_unlock_bh(&ts->ts_state_lock);
+		kthread_stop(ts->tx_thread);
+		spin_lock_bh(&ts->ts_state_lock);
+	}
+	spin_unlock_bh(&ts->ts_state_lock);
+	/*
+	 * Release this thread_id in the thread_set_bitmap
+	 */
+	spin_lock(&ts_bitmap_lock);
+	bitmap_release_region(iscsit_global->ts_bitmap,
+			ts->thread_id, get_order(1));
+	spin_unlock(&ts_bitmap_lock);
+
+	kfree(ts);
+}
+
 void iscsi_deallocate_thread_sets(void)
 {
-	u32 released_count = 0;
 	struct iscsi_thread_set *ts = NULL;
+	u32 released_count = 0;
 
 	while ((ts = iscsi_get_ts_from_inactive_list())) {
 
-		spin_lock_bh(&ts->ts_state_lock);
-		ts->status = ISCSI_THREAD_SET_DIE;
-		spin_unlock_bh(&ts->ts_state_lock);
-
-		if (ts->rx_thread) {
-			send_sig(SIGINT, ts->rx_thread, 1);
-			kthread_stop(ts->rx_thread);
-		}
-		if (ts->tx_thread) {
-			send_sig(SIGINT, ts->tx_thread, 1);
-			kthread_stop(ts->tx_thread);
-		}
-		/*
-		 * Release this thread_id in the thread_set_bitmap
-		 */
-		spin_lock(&ts_bitmap_lock);
-		bitmap_release_region(iscsit_global->ts_bitmap,
-				ts->thread_id, get_order(1));
-		spin_unlock(&ts_bitmap_lock);
-
+		iscsi_deallocate_thread_one(ts);
 		released_count++;
-		kfree(ts);
 	}
 
 	if (released_count)
@@ -187,34 +193,13 @@ static void iscsi_deallocate_extra_thread_sets(void)
 		if (!ts)
 			break;
 
-		spin_lock_bh(&ts->ts_state_lock);
-		ts->status = ISCSI_THREAD_SET_DIE;
-		spin_unlock_bh(&ts->ts_state_lock);
-
-		if (ts->rx_thread) {
-			send_sig(SIGINT, ts->rx_thread, 1);
-			kthread_stop(ts->rx_thread);
-		}
-		if (ts->tx_thread) {
-			send_sig(SIGINT, ts->tx_thread, 1);
-			kthread_stop(ts->tx_thread);
-		}
-		/*
-		 * Release this thread_id in the thread_set_bitmap
-		 */
-		spin_lock(&ts_bitmap_lock);
-		bitmap_release_region(iscsit_global->ts_bitmap,
-				ts->thread_id, get_order(1));
-		spin_unlock(&ts_bitmap_lock);
-
+		iscsi_deallocate_thread_one(ts);
 		released_count++;
-		kfree(ts);
 	}
 
-	if (released_count) {
+	if (released_count)
 		pr_debug("Stopped %d thread set(s) (%d total threads)."
 			"\n", released_count, released_count * 2);
-	}
 }
 
 void iscsi_activate_thread_set(struct iscsi_conn *conn, struct iscsi_thread_set *ts)
@@ -224,37 +209,23 @@ void iscsi_activate_thread_set(struct iscsi_conn *conn, struct iscsi_thread_set 
 	spin_lock_bh(&ts->ts_state_lock);
 	conn->thread_set = ts;
 	ts->conn = conn;
+	ts->status = ISCSI_THREAD_SET_ACTIVE;
 	spin_unlock_bh(&ts->ts_state_lock);
-	/*
-	 * Start up the RX thread and wait on rx_post_start_comp.  The RX
-	 * Thread will then do the same for the TX Thread in
-	 * iscsi_rx_thread_pre_handler().
-	 */
+
 	complete(&ts->rx_start_comp);
-	wait_for_completion(&ts->rx_post_start_comp);
+	complete(&ts->tx_start_comp);
+
+	down(&ts->ts_activate_sem);
 }
 
 struct iscsi_thread_set *iscsi_get_thread_set(void)
 {
-	int allocate_ts = 0;
-	struct completion comp;
-	struct iscsi_thread_set *ts = NULL;
-	/*
-	 * If no inactive thread set is available on the first call to
-	 * iscsi_get_ts_from_inactive_list(), sleep for a second and
-	 * try again.  If still none are available after two attempts,
-	 * allocate a set ourselves.
-	 */
+	struct iscsi_thread_set *ts;
+
 get_set:
 	ts = iscsi_get_ts_from_inactive_list();
 	if (!ts) {
-		if (allocate_ts == 2)
-			iscsi_allocate_thread_sets(1);
-
-		init_completion(&comp);
-		wait_for_completion_timeout(&comp, 1 * HZ);
-
-		allocate_ts++;
+		iscsi_allocate_thread_sets(1);
 		goto get_set;
 	}
 
@@ -263,6 +234,7 @@ get_set:
 	ts->thread_count = 2;
 	init_completion(&ts->rx_restart_comp);
 	init_completion(&ts->tx_restart_comp);
+	sema_init(&ts->ts_activate_sem, 0);
 
 	return ts;
 }
@@ -400,7 +372,8 @@ static void iscsi_check_to_add_additional_sets(void)
 static int iscsi_signal_thread_pre_handler(struct iscsi_thread_set *ts)
 {
 	spin_lock_bh(&ts->ts_state_lock);
-	if ((ts->status == ISCSI_THREAD_SET_DIE) || signal_pending(current)) {
+	if (ts->status == ISCSI_THREAD_SET_DIE || kthread_should_stop() ||
+	    signal_pending(current)) {
 		spin_unlock_bh(&ts->ts_state_lock);
 		return -1;
 	}
@@ -419,7 +392,8 @@ struct iscsi_conn *iscsi_rx_thread_pre_handler(struct iscsi_thread_set *ts)
 		goto sleep;
 	}
 
-	flush_signals(current);
+	if (ts->status != ISCSI_THREAD_SET_DIE)
+		flush_signals(current);
 
 	if (ts->delay_inactive && (--ts->thread_count == 0)) {
 		spin_unlock_bh(&ts->ts_state_lock);
@@ -446,18 +420,19 @@ sleep:
 	if (iscsi_signal_thread_pre_handler(ts) < 0)
 		return NULL;
 
+	iscsi_check_to_add_additional_sets();
+
+	spin_lock_bh(&ts->ts_state_lock);
 	if (!ts->conn) {
 		pr_err("struct iscsi_thread_set->conn is NULL for"
-			" thread_id: %d, going back to sleep\n", ts->thread_id);
-		goto sleep;
+			" RX thread_id: %s/%d\n", current->comm, current->pid);
+		spin_unlock_bh(&ts->ts_state_lock);
+		return NULL;
 	}
-	iscsi_check_to_add_additional_sets();
-	/*
-	 * The RX Thread starts up the TX Thread and sleeps.
-	 */
 	ts->thread_clear |= ISCSI_CLEAR_RX_THREAD;
-	complete(&ts->tx_start_comp);
-	wait_for_completion(&ts->tx_post_start_comp);
+	spin_unlock_bh(&ts->ts_state_lock);
+
+	up(&ts->ts_activate_sem);
 
 	return ts->conn;
 }
@@ -472,7 +447,8 @@ struct iscsi_conn *iscsi_tx_thread_pre_handler(struct iscsi_thread_set *ts)
 		goto sleep;
 	}
 
-	flush_signals(current);
+	if (ts->status != ISCSI_THREAD_SET_DIE)
+		flush_signals(current);
 
 	if (ts->delay_inactive && (--ts->thread_count == 0)) {
 		spin_unlock_bh(&ts->ts_state_lock);
@@ -498,26 +474,19 @@ sleep:
 	if (iscsi_signal_thread_pre_handler(ts) < 0)
 		return NULL;
 
-	if (!ts->conn) {
-		pr_err("struct iscsi_thread_set->conn is NULL for "
-			" thread_id: %d, going back to sleep\n",
-			ts->thread_id);
-		goto sleep;
-	}
-
 	iscsi_check_to_add_additional_sets();
-	/*
-	 * From the TX thread, up the tx_post_start_comp that the RX Thread is
-	 * sleeping on in iscsi_rx_thread_pre_handler(), then up the
-	 * rx_post_start_comp that iscsi_activate_thread_set() is sleeping on.
-	 */
-	ts->thread_clear |= ISCSI_CLEAR_TX_THREAD;
-	complete(&ts->tx_post_start_comp);
-	complete(&ts->rx_post_start_comp);
 
 	spin_lock_bh(&ts->ts_state_lock);
-	ts->status = ISCSI_THREAD_SET_ACTIVE;
+	if (!ts->conn) {
+		pr_err("struct iscsi_thread_set->conn is NULL for"
+			" TX thread_id: %s/%d\n", current->comm, current->pid);
+		spin_unlock_bh(&ts->ts_state_lock);
+		return NULL;
+	}
+	ts->thread_clear |= ISCSI_CLEAR_TX_THREAD;
 	spin_unlock_bh(&ts->ts_state_lock);
+
+	up(&ts->ts_activate_sem);
 
 	return ts->conn;
 }
