@@ -21,32 +21,9 @@
 #ifndef _HDMI_TI_4xxx_H_
 #define _HDMI_TI_4xxx_H_
 
-#include <linux/string.h>
-#include <video/omapdss.h>
 #include "ti_hdmi.h"
 
-/* HDMI Wrapper */
-
-#define HDMI_WP_REVISION			0x0
-#define HDMI_WP_SYSCONFIG			0x10
-#define HDMI_WP_IRQSTATUS_RAW			0x24
-#define HDMI_WP_IRQSTATUS			0x28
-#define HDMI_WP_IRQENABLE_SET			0x2C
-#define HDMI_WP_IRQENABLE_CLR			0x30
-#define HDMI_WP_IRQWAKEEN			0x34
-#define HDMI_WP_PWR_CTRL			0x40
-#define HDMI_WP_DEBOUNCE			0x44
-#define HDMI_WP_VIDEO_CFG			0x50
-#define HDMI_WP_VIDEO_SIZE			0x60
-#define HDMI_WP_VIDEO_TIMING_H			0x68
-#define HDMI_WP_VIDEO_TIMING_V			0x6C
-#define HDMI_WP_WP_CLK				0x70
-#define HDMI_WP_AUDIO_CFG			0x80
-#define HDMI_WP_AUDIO_CFG2			0x84
-#define HDMI_WP_AUDIO_CTRL			0x88
-#define HDMI_WP_AUDIO_DATA			0x8C
-
-/* HDMI IP Core System */
+/* OMAP4 HDMI IP Core System */
 
 #define HDMI_CORE_SYS_VND_IDL			0x0
 #define HDMI_CORE_SYS_DEV_IDL			0x8
@@ -207,25 +184,6 @@
 #define HDMI_CORE_AV_GEN_DBYTE_NELEMS		31
 #define HDMI_CORE_AV_GEN2_DBYTE_NELEMS		31
 
-/* PLL */
-
-#define PLLCTRL_PLL_CONTROL			0x0
-#define PLLCTRL_PLL_STATUS			0x4
-#define PLLCTRL_PLL_GO				0x8
-#define PLLCTRL_CFG1				0xC
-#define PLLCTRL_CFG2				0x10
-#define PLLCTRL_CFG3				0x14
-#define PLLCTRL_SSC_CFG1			0x18
-#define PLLCTRL_SSC_CFG2			0x1C
-#define PLLCTRL_CFG4				0x20
-
-/* HDMI PHY */
-
-#define HDMI_TXPHY_TX_CTRL			0x0
-#define HDMI_TXPHY_DIGITAL_CTRL			0x4
-#define HDMI_TXPHY_POWER_CTRL			0x8
-#define HDMI_TXPHY_PAD_CFG_CTRL			0xC
-
 enum hdmi_core_inputbus_width {
 	HDMI_INPUT_8BIT = 0,
 	HDMI_INPUT_10BIT = 1,
@@ -268,64 +226,6 @@ enum hdmi_core_packet_ctrl {
 	HDMI_PACKETREPEATOFF = 0
 };
 
-/* INFOFRAME_AVI_ and INFOFRAME_AUDIO_ definitions */
-enum hdmi_core_infoframe {
-	HDMI_INFOFRAME_AVI_DB1Y_RGB = 0,
-	HDMI_INFOFRAME_AVI_DB1Y_YUV422 = 1,
-	HDMI_INFOFRAME_AVI_DB1Y_YUV444 = 2,
-	HDMI_INFOFRAME_AVI_DB1A_ACTIVE_FORMAT_OFF = 0,
-	HDMI_INFOFRAME_AVI_DB1A_ACTIVE_FORMAT_ON =  1,
-	HDMI_INFOFRAME_AVI_DB1B_NO = 0,
-	HDMI_INFOFRAME_AVI_DB1B_VERT = 1,
-	HDMI_INFOFRAME_AVI_DB1B_HORI = 2,
-	HDMI_INFOFRAME_AVI_DB1B_VERTHORI = 3,
-	HDMI_INFOFRAME_AVI_DB1S_0 = 0,
-	HDMI_INFOFRAME_AVI_DB1S_1 = 1,
-	HDMI_INFOFRAME_AVI_DB1S_2 = 2,
-	HDMI_INFOFRAME_AVI_DB2C_NO = 0,
-	HDMI_INFOFRAME_AVI_DB2C_ITU601 = 1,
-	HDMI_INFOFRAME_AVI_DB2C_ITU709 = 2,
-	HDMI_INFOFRAME_AVI_DB2C_EC_EXTENDED = 3,
-	HDMI_INFOFRAME_AVI_DB2M_NO = 0,
-	HDMI_INFOFRAME_AVI_DB2M_43 = 1,
-	HDMI_INFOFRAME_AVI_DB2M_169 = 2,
-	HDMI_INFOFRAME_AVI_DB2R_SAME = 8,
-	HDMI_INFOFRAME_AVI_DB2R_43 = 9,
-	HDMI_INFOFRAME_AVI_DB2R_169 = 10,
-	HDMI_INFOFRAME_AVI_DB2R_149 = 11,
-	HDMI_INFOFRAME_AVI_DB3ITC_NO = 0,
-	HDMI_INFOFRAME_AVI_DB3ITC_YES = 1,
-	HDMI_INFOFRAME_AVI_DB3EC_XVYUV601 = 0,
-	HDMI_INFOFRAME_AVI_DB3EC_XVYUV709 = 1,
-	HDMI_INFOFRAME_AVI_DB3Q_DEFAULT = 0,
-	HDMI_INFOFRAME_AVI_DB3Q_LR = 1,
-	HDMI_INFOFRAME_AVI_DB3Q_FR = 2,
-	HDMI_INFOFRAME_AVI_DB3SC_NO = 0,
-	HDMI_INFOFRAME_AVI_DB3SC_HORI = 1,
-	HDMI_INFOFRAME_AVI_DB3SC_VERT = 2,
-	HDMI_INFOFRAME_AVI_DB3SC_HORIVERT = 3,
-	HDMI_INFOFRAME_AVI_DB5PR_NO = 0,
-	HDMI_INFOFRAME_AVI_DB5PR_2 = 1,
-	HDMI_INFOFRAME_AVI_DB5PR_3 = 2,
-	HDMI_INFOFRAME_AVI_DB5PR_4 = 3,
-	HDMI_INFOFRAME_AVI_DB5PR_5 = 4,
-	HDMI_INFOFRAME_AVI_DB5PR_6 = 5,
-	HDMI_INFOFRAME_AVI_DB5PR_7 = 6,
-	HDMI_INFOFRAME_AVI_DB5PR_8 = 7,
-	HDMI_INFOFRAME_AVI_DB5PR_9 = 8,
-	HDMI_INFOFRAME_AVI_DB5PR_10 = 9,
-};
-
-enum hdmi_core_audio_layout {
-	HDMI_AUDIO_LAYOUT_2CH = 0,
-	HDMI_AUDIO_LAYOUT_8CH = 1
-};
-
-enum hdmi_core_cts_mode {
-	HDMI_AUDIO_CTS_MODE_HW = 0,
-	HDMI_AUDIO_CTS_MODE_SW = 1
-};
-
 enum hdmi_audio_i2s_config {
 	HDMI_AUDIO_I2S_MSB_SHIFTED_FIRST = 0,
 	HDMI_AUDIO_I2S_LSB_SHIFTED_FIRST = 1,
@@ -339,17 +239,6 @@ enum hdmi_audio_i2s_config {
 	HDMI_AUDIO_I2S_SD1_EN = 1 << 1,
 	HDMI_AUDIO_I2S_SD2_EN = 1 << 2,
 	HDMI_AUDIO_I2S_SD3_EN = 1 << 3,
-};
-
-enum hdmi_audio_mclk_mode {
-	HDMI_AUDIO_MCLK_128FS = 0,
-	HDMI_AUDIO_MCLK_256FS = 1,
-	HDMI_AUDIO_MCLK_384FS = 2,
-	HDMI_AUDIO_MCLK_512FS = 3,
-	HDMI_AUDIO_MCLK_768FS = 4,
-	HDMI_AUDIO_MCLK_1024FS = 5,
-	HDMI_AUDIO_MCLK_1152FS = 6,
-	HDMI_AUDIO_MCLK_192FS = 7
 };
 
 struct hdmi_core_video_config {
@@ -370,34 +259,6 @@ struct hdmi_core_packet_enable_repeat {
 	u32	gen_cntrl_pkt_repeat;
 	u32	generic_pkt;
 	u32	generic_pkt_repeat;
-};
-
-
-struct hdmi_core_audio_i2s_config {
-	u8 in_length_bits;
-	u8 justification;
-	u8 sck_edge_mode;
-	u8 vbit;
-	u8 direction;
-	u8 shift;
-	u8 active_sds;
-};
-
-struct hdmi_core_audio_config {
-	struct hdmi_core_audio_i2s_config	i2s_cfg;
-	struct snd_aes_iec958			*iec60958_cfg;
-	bool					fs_override;
-	u32					n;
-	u32					cts;
-	u32					aud_par_busclk;
-	enum hdmi_core_audio_layout		layout;
-	enum hdmi_core_cts_mode			cts_mode;
-	bool					use_mclk;
-	enum hdmi_audio_mclk_mode		mclk_mode;
-	bool					en_acr_pkt;
-	bool					en_dsd_audio;
-	bool					en_parallel_aud_input;
-	bool					en_spdif;
 };
 
 int hdmi4_read_edid(struct hdmi_core_data *core, u8 *edid, int len);

@@ -35,40 +35,9 @@
 #endif
 
 #include "ti_hdmi_4xxx_ip.h"
-#include "dss.h"
 #include "dss_features.h"
 
 #define HDMI_CORE_AV		0x500
-
-static inline void hdmi_write_reg(void __iomem *base_addr,
-				const u16 idx, u32 val)
-{
-	__raw_writel(val, base_addr + idx);
-}
-
-static inline u32 hdmi_read_reg(void __iomem *base_addr,
-				const u16 idx)
-{
-	return __raw_readl(base_addr + idx);
-}
-
-#define REG_FLD_MOD(base, idx, val, start, end) \
-	hdmi_write_reg(base, idx, FLD_MOD(hdmi_read_reg(base, idx),\
-							val, start, end))
-#define REG_GET(base, idx, start, end) \
-	FLD_GET(hdmi_read_reg(base, idx), start, end)
-
-static inline int hdmi_wait_for_bit_change(void __iomem *base_addr,
-		const u16 idx, int b2, int b1, u32 val)
-{
-	u32 t = 0;
-	while (val != REG_GET(base_addr, idx, b2, b1)) {
-		udelay(1);
-		if (t++ > 10000)
-			return !val;
-	}
-	return val;
-}
 
 static inline void __iomem *hdmi_av_base(struct hdmi_core_data *core)
 {
