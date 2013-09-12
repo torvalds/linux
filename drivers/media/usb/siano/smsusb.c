@@ -209,8 +209,10 @@ static int smsusb_sendrequest(void *context, void *buffer, size_t size)
 	struct sms_msg_hdr *phdr = (struct sms_msg_hdr *) buffer;
 	int dummy;
 
-	if (dev->state != SMSUSB_ACTIVE)
+	if (dev->state != SMSUSB_ACTIVE) {
+		sms_debug("Device not active yet");
 		return -ENOENT;
+	}
 
 	sms_debug("sending %s(%d) size: %d",
 		  smscore_translate_msg(phdr->msg_type), phdr->msg_type,
@@ -445,14 +447,15 @@ static int smsusb_probe(struct usb_interface *intf,
 	char devpath[32];
 	int i, rc;
 
-	sms_info("interface number %d",
+	sms_info("board id=%lu, interface number %d",
+		 id->driver_info,
 		 intf->cur_altsetting->desc.bInterfaceNumber);
 
 	if (sms_get_board(id->driver_info)->intf_num !=
 	    intf->cur_altsetting->desc.bInterfaceNumber) {
-		sms_err("interface number is %d expecting %d",
-			sms_get_board(id->driver_info)->intf_num,
-			intf->cur_altsetting->desc.bInterfaceNumber);
+		sms_debug("interface %d won't be used. Expecting interface %d to popup",
+			intf->cur_altsetting->desc.bInterfaceNumber,
+			sms_get_board(id->driver_info)->intf_num);
 		return -ENODEV;
 	}
 
@@ -483,12 +486,11 @@ static int smsusb_probe(struct usb_interface *intf,
 	}
 	if ((udev->actconfig->desc.bNumInterfaces == 2) &&
 	    (intf->cur_altsetting->desc.bInterfaceNumber == 0)) {
-		sms_err("rom interface 0 is not used");
+		sms_debug("rom interface 0 is not used");
 		return -ENODEV;
 	}
 
 	if (id->driver_info == SMS1XXX_BOARD_SIANO_STELLAR_ROM) {
-		sms_info("stellar device was found.");
 		snprintf(devpath, sizeof(devpath), "usb\\%d-%s",
 			 udev->bus->busnum, udev->devpath);
 		sms_info("stellar device was found.");
@@ -498,7 +500,7 @@ static int smsusb_probe(struct usb_interface *intf,
 	}
 
 	rc = smsusb_init_device(intf, id->driver_info);
-	sms_info("rc %d", rc);
+	sms_info("Device initialized with return code %d", rc);
 	sms_board_load_modules(id->driver_info);
 	return rc;
 }
