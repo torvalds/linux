@@ -2995,9 +2995,6 @@ error:
 	if (need_free)
 		kmem_free(in_f);
 	return XFS_ERROR(error);
-
-	xfs_buf_relse(bp);
-	goto error;
 }
 
 /*
