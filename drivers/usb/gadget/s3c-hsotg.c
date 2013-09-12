@@ -2475,8 +2475,6 @@ irq_retry:
 	if (gintsts & GINTSTS_ErlySusp) {
 		dev_dbg(hsotg->dev, "GINTSTS_ErlySusp\n");
 		writel(GINTSTS_ErlySusp, hsotg->regs + GINTSTS);
-
-		s3c_hsotg_disconnect(hsotg);
 	}
 
 	/*
