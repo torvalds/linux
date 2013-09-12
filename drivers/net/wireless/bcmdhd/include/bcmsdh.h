@@ -23,7 +23,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh.h 391577 2013-03-18 21:28:17Z $
+ * $Id: bcmsdh.h 414953 2013-07-26 17:36:27Z $
  */
 
 /**
@@ -215,6 +215,7 @@ extern void bcmsdh_unreg_sdio_notify(void);
 extern int bcmsdh_register_oob_intr(void * dhdp);
 extern void bcmsdh_unregister_oob_intr(void);
 extern void bcmsdh_oob_intr_set(bool enable);
+extern bool bcmsdh_is_oob_intr_registered(void);
 #endif 
 
 /* Function to pass device-status bits to DHD. */

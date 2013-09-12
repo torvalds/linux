@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wlioctl.h 395294 2013-04-05 23:44:11Z $
+ * $Id: wlioctl.h 419132 2013-08-19 21:33:05Z $
  */
 
 #ifndef _wlioctl_h_
@@ -1742,7 +1742,7 @@ typedef struct {
 /* WLC_GET_AUTH, WLC_SET_AUTH values */
 #define WL_AUTH_OPEN_SYSTEM		0	/* d11 open authentication */
 #define WL_AUTH_SHARED_KEY		1	/* d11 shared authentication */
-#define WL_AUTH_OPEN_SHARED		3	/* try open, then shared if open failed w/rc 13 */
+#define WL_AUTH_OPEN_SHARED		2	 /* try open, then shared if open failed w/rc 13 */
 #endif /* LINUX_POSTMOGRIFY_REMOVAL */
 
 /* Bit masks for radio disabled status - returned by WL_GET_RADIO */
@@ -3868,7 +3868,9 @@ enum {
 #define ENABLE_ADAPTSCAN_BIT		6
 #define IMMEDIATE_EVENT_BIT		8
 #define SUPPRESS_SSID_BIT		9
-#define ENABLE_NET_OFFLOAD_BIT		10
+#define ENABLE_NET_OFFLOAD_BIT	10
+/* report found/lost events for SSID and BSSID networks seperately */
+#define REPORT_SEPERATELY_BIT 	11
 
 #define SORT_CRITERIA_MASK		0x0001
 #define AUTO_NET_SWITCH_MASK		0x0002
@@ -3881,6 +3883,8 @@ enum {
 #define IMMEDIATE_EVENT_MASK	0x0100
 #define SUPPRESS_SSID_MASK	0x0200
 #define ENABLE_NET_OFFLOAD_MASK	0x0400
+/* report found/lost events for SSID and BSSID networks seperately */
+#define REPORT_SEPERATELY_MASK	0x0800
 
 #define PFN_VERSION		2
 #define PFN_SCANRESULT_VERSION	1
@@ -3893,6 +3897,9 @@ enum {
 #define DEFAULT_MSCAN			0
 #define DEFAULT_REPEAT			10
 #define DEFAULT_EXP			2
+
+#define PFN_PARTIAL_SCAN_BIT		0
+#define PFN_PARTIAL_SCAN_MASK		1
 
 /* PFN network info structure */
 typedef struct wl_pfn_subnet_info {
@@ -3907,6 +3914,22 @@ typedef struct wl_pfn_net_info {
 	int16	RSSI; /* receive signal strength (in dBm) */
 	uint16	timestamp; /* age in seconds */
 } wl_pfn_net_info_t;
+
+typedef struct wl_pfn_lnet_info {
+	wl_pfn_subnet_info_t pfnsubnet; /* BSSID + channel + SSID len + SSID */
+	uint16	flags; /* partial scan, etc */
+	int16	RSSI; /* receive signal strength (in dBm) */
+	uint32	timestamp; /* age in miliseconds */
+	uint16	rtt0; /* estimated distance to this AP in centimeters */
+	uint16	rtt1; /* standard deviation of the distance to this AP in centimeters */
+} wl_pfn_lnet_info_t;
+
+typedef struct wl_pfn_lscanresults {
+	uint32 version;
+	uint32 status;
+	uint32 count;
+	wl_pfn_lnet_info_t netinfo[1];
+} wl_pfn_lscanresults_t;
 
 typedef struct wl_pfn_scanresults {
 	uint32 version;
@@ -3949,13 +3972,17 @@ typedef struct wl_pfn_bssid {
 #define WL_PFN_RSSI_SHIFT		8
 
 typedef struct wl_pfn_cfg {
-	uint32			reporttype;
-	int32			channel_num;
-	uint16			channel_list[WL_NUMCHANNELS];
+	uint32	reporttype;
+	int32	channel_num;
+	uint16	channel_list[WL_NUMCHANNELS];
+	uint32	flags;
 } wl_pfn_cfg_t;
 #define WL_PFN_REPORT_ALLNET    0
 #define WL_PFN_REPORT_SSIDNET   1
 #define WL_PFN_REPORT_BSSIDNET  2
+
+#define WL_PFN_CFG_FLAGS_PROHIBITED	0x00000001	/* Accept and use prohibited channels */
+#define WL_PFN_CFG_FLAGS_RESERVED	0xfffffffe	/* Remaining reserved for future use */
 
 typedef struct wl_pfn {
 	wlc_ssid_t		ssid;		/* ssid name and its length */
@@ -3965,11 +3992,24 @@ typedef struct wl_pfn {
 	int32			wpa_auth;	/* WPA type */
 	int32			wsec;		/* wsec value */
 } wl_pfn_t;
+typedef struct wl_pfn_list {
+	uint32		version;
+	uint32		enabled;
+	uint32		count;
+	wl_pfn_t	pfn[1];
+} wl_pfn_list_t;
 #define WL_PFN_HIDDEN_BIT	2
 #define PNO_SCAN_MAX_FW		508*1000	/* max time scan time in msec */
 #define PNO_SCAN_MAX_FW_SEC	PNO_SCAN_MAX_FW/1000 /* max time scan time in SEC */
 #define PNO_SCAN_MIN_FW_SEC	10		/* min time scan time in SEC */
 #define WL_PFN_HIDDEN_MASK	0x4
+#ifndef BESTN_MAX
+#define BESTN_MAX			3
+#endif
+
+#ifndef MSCAN_MAX
+#define MSCAN_MAX			90
+#endif
 
 #endif /* LINUX_POSTMOGRIFY_REMOVAL */
 
@@ -5451,8 +5491,29 @@ typedef struct txdelay_params {
 #define WL_RELMCAST_FLAG_INBLACKLIST	1
 #define WL_RELMCAST_FLAG_ACTIVEACKER	2
 #define WL_RELMCAST_FLAG_RELMCAST		4
+#define WL_RELMCAST_MAX_TABLE_ENTRY     4
 
 #define WL_RELMCAST_VER					1
+#define WL_RELMCAST_INDEX_ACK_ALL       255
+#define WL_RELMCAST_NUM_OF_MC_STREAMS   4
+#define WL_RELMCAST_MAX_TRS_PER_GROUP   1
+#define WL_RELMCAST_ACK_MCAST0          0x02
+#define WL_RELMCAST_ACK_MCAST_ALL             0x01
+#define WL_RELMCAST_ACTF_TIME_MIN          300	 /* time in ms */
+#define WL_RELMCAST_ACTF_TIME_MAX          20000 /* time in ms */
+
+enum {
+	RELMCAST_ENTRY_OP_DISABLE = 0,
+	RELMCAST_ENTRY_OP_DELETE,
+	RELMCAST_ENTRY_OP_ENABLE,
+	RELMCAST_ENTRY_OP_ACK_ALL
+};
+
+enum {
+	WL_RELMCAST_MODE_RECEIVER = 0,
+	WL_RELMCAST_MODE_TRANSMITTER,
+	WL_RELMCAST_MODE_INITIATOR
+};
 
 typedef struct wl_relmcast_client {
 	uint8 flag;
@@ -5464,8 +5525,42 @@ typedef struct wl_relmcast_st {
 	uint8 ver;
 	uint8 num;
 	wl_relmcast_client_t clients[WL_RELMCAST_MAX_CLIENT];
+	uint16 err;
 } wl_relmcast_status_t;
 
+typedef struct wl_relmcast_entry {
+	int8 flag;
+	struct ether_addr addr;
+} wl_relmcast_entry_t;
+
+typedef struct wl_relmcast_entry_table {
+	int8 index;
+	int8 opcode;
+	wl_relmcast_entry_t entry[WL_RELMCAST_MAX_TABLE_ENTRY];
+} wl_relmcast_entry_table_t;
+
+typedef struct wl_tr_Info {
+	struct ether_addr addr;
+	uint32 timeVal;
+	uint16 seq;
+} wl_tr_Info_t;
+
+typedef struct wl_mcGrpEntry {
+	struct ether_addr mcaddr;
+	struct ether_addr ar;
+	wl_tr_Info_t trInfo[WL_RELMCAST_MAX_TRS_PER_GROUP];
+} wl_mcGrpEntry_t;
+
+typedef struct wl_mcAckAllEntry {
+	struct ether_addr ar;
+	wl_tr_Info_t trInfo[WL_RELMCAST_NUM_OF_MC_STREAMS];
+} wl_mcAckAllEntry_t;
+
+typedef struct wl_relmcast_globalMcTbl {
+	uint8 activeMask;
+	wl_mcAckAllEntry_t ackAll;
+	wl_mcGrpEntry_t mcEntry[WL_RELMCAST_NUM_OF_MC_STREAMS];
+} wl_relmcast_globalMcTbl_t;
 #endif /* LINUX_POSTMOGRIFY_REMOVAL */
 
 /* fbt_cap: FBT assoc / reassoc modes. */

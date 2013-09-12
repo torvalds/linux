@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: linux_osl.c 391003 2013-03-14 19:40:41Z $
+ * $Id: linux_osl.c 412994 2013-07-17 12:38:03Z $
  */
 
 #define LINUX_PORT
@@ -708,6 +708,12 @@ osl_pktfree(osl_t *osh, void *p, bool send)
 {
 	struct sk_buff *skb, *nskb;
 
+	if (osh == NULL)
+	{
+		printk("%s: osh == NULL \n", __FUNCTION__);
+		return;
+	}
+
 	skb = (struct sk_buff*) p;
 
 	if (send && osh->pub.tx_fn)
@@ -858,6 +864,29 @@ osl_pktfree_static(osl_t *osh, void *p, bool send)
 	osl_pktfree(osh, p, send);
 }
 #endif /* CONFIG_DHD_USE_STATIC_BUF */
+
+int osh_pktpadtailroom(osl_t *osh, void* p, int pad)
+{
+	int err;
+	int ntail;
+	struct sk_buff* skb = (struct sk_buff*)p;
+
+	ntail = skb->data_len + pad - (skb->end - skb->tail);
+	if (likely(skb_cloned(skb) || ntail > 0)) {
+		err = pskb_expand_head(skb, 0, ntail, GFP_ATOMIC);
+		if (unlikely(err))
+			goto done;
+	}
+
+	err = skb_linearize(skb);
+	if (unlikely(err))
+		goto done;
+
+	memset(skb->data + skb->len, 0, pad);
+
+done:
+	return err;
+}
 
 uint32
 osl_pci_read_config(osl_t *osh, uint offset, uint size)
@@ -1181,6 +1210,17 @@ osl_delay(uint usec)
 		udelay(d);
 		usec -= d;
 	}
+}
+
+void
+osl_sleep(uint ms)
+{
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36)
+	if (ms < 20)
+		usleep_range(ms*1000, ms*1000 + 1000);
+	else
+#endif
+	msleep(ms);
 }
 
 

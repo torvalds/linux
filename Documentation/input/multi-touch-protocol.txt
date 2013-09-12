@@ -80,6 +80,10 @@ Userspace can detect that a driver can report more total contacts than slots
 by noting that the largest supported BTN_TOOL_*TAP event is larger than the
 total number of type B slots reported in the absinfo for the ABS_MT_SLOT axis.
 
+Velocity tracking and temporal precision can be improved if device provides
+exact timestamp for touches reported through SYN_TIME_SEC and SYN_TIME_NSEC.
+The timestamp should be reported ahead of everything else in the packet.
+
 Protocol Example A
 ------------------
 

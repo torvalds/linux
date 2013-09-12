@@ -20,7 +20,7 @@
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
- * $Id: bcmutils.c 380908 2013-01-24 12:26:18Z $
+ * $Id: bcmutils.c 412804 2013-07-16 16:26:39Z $
  */
 
 #include <bcm_cfg.h>
@@ -1176,7 +1176,29 @@ pktsetprio(void *pkt, bool update_vtag)
 	} else if (eh->ether_type == hton16(ETHER_TYPE_IP)) {
 		uint8 *ip_body = pktdata + sizeof(struct ether_header);
 		uint8 tos_tc = IP_TOS46(ip_body);
-		priority = (int)(tos_tc >> IPV4_TOS_PREC_SHIFT);
+		uint8 dscp = tos_tc >> IPV4_TOS_DSCP_SHIFT;
+		switch (dscp) {
+		case DSCP_EF:
+			priority = PRIO_8021D_VO;
+			break;
+		case DSCP_AF31:
+		case DSCP_AF32:
+		case DSCP_AF33:
+			priority = PRIO_8021D_CL;
+			break;
+		case DSCP_AF21:
+		case DSCP_AF22:
+		case DSCP_AF23:
+		case DSCP_AF11:
+		case DSCP_AF12:
+		case DSCP_AF13:
+			priority = PRIO_8021D_EE;
+			break;
+		default:
+			priority = (int)(tos_tc >> IPV4_TOS_PREC_SHIFT);
+			break;
+		}
+
 		rc |= PKTPRIO_DSCP;
 	}
 
