@@ -5994,7 +5994,6 @@ static int sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if(!ivideo->sisvga_enabled) {
 		if(pci_enable_device(pdev)) {
 			if(ivideo->nbridge) pci_dev_put(ivideo->nbridge);
-			pci_set_drvdata(pdev, NULL);
 			framebuffer_release(sis_fb_info);
 			return -EIO;
 		}
@@ -6211,7 +6210,6 @@ error_3:	vfree(ivideo->bios_abase);
 			pci_dev_put(ivideo->lpcdev);
 		if(ivideo->nbridge)
 			pci_dev_put(ivideo->nbridge);
-		pci_set_drvdata(pdev, NULL);
 		if(!ivideo->sisvga_enabled)
 			pci_disable_device(pdev);
 		framebuffer_release(sis_fb_info);
@@ -6522,8 +6520,6 @@ static void sisfb_remove(struct pci_dev *pdev)
 	if(ivideo->mtrr >= 0)
 		mtrr_del(ivideo->mtrr, ivideo->video_base, ivideo->video_size);
 #endif
-
-	pci_set_drvdata(pdev, NULL);
 
 	/* If device was disabled when starting, disable
 	 * it when quitting.
