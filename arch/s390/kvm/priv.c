@@ -128,6 +128,33 @@ static int handle_skey(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static int handle_test_block(struct kvm_vcpu *vcpu)
+{
+	unsigned long hva;
+	gpa_t addr;
+	int reg2;
+
+	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
+		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
+
+	kvm_s390_get_regs_rre(vcpu, NULL, &reg2);
+	addr = vcpu->run->s.regs.gprs[reg2] & PAGE_MASK;
+	addr = kvm_s390_real_to_abs(vcpu, addr);
+
+	hva = gfn_to_hva(vcpu->kvm, gpa_to_gfn(addr));
+	if (kvm_is_error_hva(hva))
+		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+	/*
+	 * We don't expect errors on modern systems, and do not care
+	 * about storage keys (yet), so let's just clear the page.
+	 */
+	if (clear_user((void __user *)hva, PAGE_SIZE) != 0)
+		return -EFAULT;
+	kvm_s390_set_psw_cc(vcpu, 0);
+	vcpu->run->s.regs.gprs[0] = 0;
+	return 0;
+}
+
 static int handle_tpi(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_interrupt_info *inti;
@@ -444,6 +471,7 @@ static const intercept_handler_t b2_handlers[256] = {
 	[0x29] = handle_skey,
 	[0x2a] = handle_skey,
 	[0x2b] = handle_skey,
+	[0x2c] = handle_test_block,
 	[0x30] = handle_io_inst,
 	[0x31] = handle_io_inst,
 	[0x32] = handle_io_inst,
