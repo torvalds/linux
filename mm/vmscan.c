@@ -2142,10 +2142,11 @@ static inline bool should_continue_reclaim(struct zone *zone,
 	}
 }
 
-static void
+static int
 __shrink_zone(struct zone *zone, struct scan_control *sc, bool soft_reclaim)
 {
 	unsigned long nr_reclaimed, nr_scanned;
+	int groups_scanned = 0;
 
 	do {
 		struct mem_cgroup *root = sc->target_mem_cgroup;
@@ -2163,6 +2164,7 @@ __shrink_zone(struct zone *zone, struct scan_control *sc, bool soft_reclaim)
 		while ((memcg = mem_cgroup_iter_cond(root, memcg, &reclaim, filter))) {
 			struct lruvec *lruvec;
 
+			groups_scanned++;
 			lruvec = mem_cgroup_zone_lruvec(zone, memcg);
 
 			shrink_lruvec(lruvec, sc);
@@ -2190,6 +2192,8 @@ __shrink_zone(struct zone *zone, struct scan_control *sc, bool soft_reclaim)
 
 	} while (should_continue_reclaim(zone, sc->nr_reclaimed - nr_reclaimed,
 					 sc->nr_scanned - nr_scanned, sc));
+
+	return groups_scanned;
 }
 
 
@@ -2197,8 +2201,19 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
 {
 	bool do_soft_reclaim = mem_cgroup_should_soft_reclaim(sc);
 	unsigned long nr_scanned = sc->nr_scanned;
+	int scanned_groups;
 
-	__shrink_zone(zone, sc, do_soft_reclaim);
+	scanned_groups = __shrink_zone(zone, sc, do_soft_reclaim);
+	/*
+         * memcg iterator might race with other reclaimer or start from
+         * a incomplete tree walk so the tree walk in __shrink_zone
+         * might have missed groups that are above the soft limit. Try
+         * another loop to catch up with others. Do it just once to
+         * prevent from reclaim latencies when other reclaimers always
+         * preempt this one.
+	 */
+	if (do_soft_reclaim && !scanned_groups)
+		__shrink_zone(zone, sc, do_soft_reclaim);
 
 	/*
 	 * No group is over the soft limit or those that are do not have
