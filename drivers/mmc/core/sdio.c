@@ -1175,17 +1175,9 @@ int mmc_attach_sdio(struct mmc_host *host)
 		host->ocr |= R4_18V_PRESENT;
 
 	err = mmc_sdio_init_card(host, host->ocr, NULL, 0);
-	if (err) {
-		if (err == -EAGAIN) {
-			/*
-			 * Retry initialization with S18R set to 0.
-			 */
-			host->ocr &= ~R4_18V_PRESENT;
-			err = mmc_sdio_init_card(host, host->ocr, NULL, 0);
-		}
-		if (err)
-			goto err;
-	}
+	if (err)
+		goto err;
+
 	card = host->card;
 
 	/*
