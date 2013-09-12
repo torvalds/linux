@@ -125,12 +125,16 @@ int rtc_mips_set_mmss(unsigned long nowtime)
 
 void __init plat_time_init(void)
 {
+	int ioasic_clock = 0;
 	u32 start, end;
 	int i = HZ / 8;
 
 	/* Set up the rate of periodic DS1287 interrupts. */
 	ds1287_set_base_clock(HZ);
 
+	/* On some I/O ASIC systems we have the I/O ASIC's counter.  */
+	if (IOASIC)
+		ioasic_clock = dec_ioasic_clocksource_init() == 0;
 	if (cpu_has_counter) {
 		ds1287_timer_state();
 		while (!ds1287_timer_state())
@@ -147,9 +151,21 @@ void __init plat_time_init(void)
 		mips_hpt_frequency = (end - start) * 8;
 		printk(KERN_INFO "MIPS counter frequency %dHz\n",
 			mips_hpt_frequency);
-	} else if (IOASIC)
-		/* For pre-R4k systems we use the I/O ASIC's counter.  */
-		dec_ioasic_clocksource_init();
+
+		/*
+		 * All R4k DECstations suffer from the CP0 Count erratum,
+		 * so we can't use the timer as a clock source, and a clock
+		 * event both at a time.  An accurate wall clock is more
+		 * important than a high-precision interval timer so only
+		 * use the timer as a clock source, and not a clock event
+		 * if there's no I/O ASIC counter available to serve as a
+		 * clock source.
+		 */
+		if (!ioasic_clock) {
+			init_r4k_clocksource();
+			mips_hpt_frequency = 0;
+		}
+	}
 
 	ds1287_clockevent_init(dec_interrupt[DEC_IRQ_RTC]);
 }
