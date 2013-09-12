@@ -34,6 +34,9 @@ stext:
 	;	IDENTITY Reg [ 3  2  1  0 ]
 	;	(cpu-id)             ^^^	=> Zero for UP ARC700
 	;					=> #Core-ID if SMP (Master 0)
+	; Note that non-boot CPUs might not land here if halt-on-reset and
+	; instead breath life from @first_lines_of_secondary, but we still
+	; need to make sure only boot cpu takes this path.
 	GET_CPU_ID  r5
 	cmp	r5, 0
 	jnz	arc_platform_smp_wait_to_boot
@@ -97,6 +100,8 @@ stext:
 	.globl first_lines_of_secondary
 
 first_lines_of_secondary:
+
+	sr	@_int_vec_base_lds, [AUX_INTR_VEC_BASE]
 
 	; setup per-cpu idle task as "current" on this CPU
 	ld	r0, [@secondary_idle_tsk]
