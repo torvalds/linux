@@ -167,6 +167,22 @@
 		#size-cells = <1>;
 		ranges;
 
+		emac: ethernet@01c0b000 {
+			compatible = "allwinner,sun4i-emac";
+			reg = <0x01c0b000 0x1000>;
+			interrupts = <0 55 1>;
+			clocks = <&ahb_gates 17>;
+			status = "disabled";
+		};
+
+		mdio@01c0b080 {
+			compatible = "allwinner,sun4i-mdio";
+			reg = <0x01c0b080 0x14>;
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
 		pio: pinctrl@01c20800 {
 			compatible = "allwinner,sun7i-a20-pinctrl";
 			reg = <0x01c20800 0x400>;
@@ -195,6 +211,17 @@
 			uart7_pins_a: uart7@0 {
 				allwinner,pins = "PI20", "PI21";
 				allwinner,function = "uart7";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
+			emac_pins_a: emac0@0 {
+				allwinner,pins = "PA0", "PA1", "PA2",
+						"PA3", "PA4", "PA5", "PA6",
+						"PA7", "PA8", "PA9", "PA10",
+						"PA11", "PA12", "PA13", "PA14",
+						"PA15", "PA16";
+				allwinner,function = "emac";
 				allwinner,drive = <0>;
 				allwinner,pull = <0>;
 			};

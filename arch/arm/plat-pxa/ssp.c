@@ -132,6 +132,7 @@ static int pxa_ssp_probe(struct platform_device *pdev)
 	if (dev->of_node) {
 		struct of_phandle_args dma_spec;
 		struct device_node *np = dev->of_node;
+		int ret;
 
 		/*
 		 * FIXME: we should allocate the DMA channel from this
@@ -140,14 +141,23 @@ static int pxa_ssp_probe(struct platform_device *pdev)
 		 */
 
 		/* rx */
-		of_parse_phandle_with_args(np, "dmas", "#dma-cells",
-					   0, &dma_spec);
+		ret = of_parse_phandle_with_args(np, "dmas", "#dma-cells",
+						 0, &dma_spec);
+
+		if (ret) {
+			dev_err(dev, "Can't parse dmas property\n");
+			return -ENODEV;
+		}
 		ssp->drcmr_rx = dma_spec.args[0];
 		of_node_put(dma_spec.np);
 
 		/* tx */
-		of_parse_phandle_with_args(np, "dmas", "#dma-cells",
-					   1, &dma_spec);
+		ret = of_parse_phandle_with_args(np, "dmas", "#dma-cells",
+						 1, &dma_spec);
+		if (ret) {
+			dev_err(dev, "Can't parse dmas property\n");
+			return -ENODEV;
+		}
 		ssp->drcmr_tx = dma_spec.args[0];
 		of_node_put(dma_spec.np);
 	} else {
