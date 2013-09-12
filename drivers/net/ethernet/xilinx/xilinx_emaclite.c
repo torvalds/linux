@@ -1075,14 +1075,9 @@ static int xemaclite_send(struct sk_buff *orig_skb, struct net_device *dev)
  * This function un maps the IO region of the Emaclite device and frees the net
  * device.
  */
-static void xemaclite_remove_ndev(struct net_device *ndev,
-				  struct platform_device *pdev)
+static void xemaclite_remove_ndev(struct net_device *ndev)
 {
 	if (ndev) {
-		struct net_local *lp = netdev_priv(ndev);
-
-		if (lp->base_addr)
-			devm_iounmap(&pdev->dev, lp->base_addr);
 		free_netdev(ndev);
 	}
 }
@@ -1214,7 +1209,7 @@ static int xemaclite_of_probe(struct platform_device *ofdev)
 	return 0;
 
 error:
-	xemaclite_remove_ndev(ndev, ofdev);
+	xemaclite_remove_ndev(ndev);
 	return rc;
 }
 
@@ -1248,7 +1243,7 @@ static int xemaclite_of_remove(struct platform_device *of_dev)
 		of_node_put(lp->phy_node);
 	lp->phy_node = NULL;
 
-	xemaclite_remove_ndev(ndev, of_dev);
+	xemaclite_remove_ndev(ndev);
 
 	return 0;
 }
