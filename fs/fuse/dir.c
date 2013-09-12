@@ -1678,7 +1678,7 @@ int fuse_do_setattr(struct inode *inode, struct iattr *attr,
 	 * FUSE_NOWRITE, otherwise fuse_launder_page() would deadlock.
 	 */
 	if (S_ISREG(inode->i_mode) && oldsize != outarg.attr.size) {
-		truncate_pagecache(inode, oldsize, outarg.attr.size);
+		truncate_pagecache(inode, outarg.attr.size);
 		invalidate_inode_pages2(inode->i_mapping);
 	}
 

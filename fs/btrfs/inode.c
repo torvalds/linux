@@ -4409,7 +4409,7 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 		inode->i_ctime = inode->i_mtime = current_fs_time(inode->i_sb);
 
 	if (newsize > oldsize) {
-		truncate_pagecache(inode, oldsize, newsize);
+		truncate_pagecache(inode, newsize);
 		ret = btrfs_cont_expand(inode, oldsize, newsize);
 		if (ret)
 			return ret;
