@@ -583,6 +583,76 @@ parse_mipi(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 	dev_priv->vbt.dsi.panel_id = mipi->panel_id;
 }
 
+static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
+			   struct bdb_header *bdb)
+{
+	union child_device_config *it, *child = NULL;
+	struct ddi_vbt_port_info *info = &dev_priv->vbt.ddi_port_info[port];
+	uint8_t hdmi_level_shift;
+	int i, j;
+	/* Each DDI port can have more than one value on the "DVO Port" field,
+	 * so look for all the possible values for each port and abort if more
+	 * than one is found. */
+	int dvo_ports[][2] = {
+		{DVO_PORT_HDMIA, DVO_PORT_DPA},
+		{DVO_PORT_HDMIB, DVO_PORT_DPB},
+		{DVO_PORT_HDMIC, DVO_PORT_DPC},
+		{DVO_PORT_HDMID, DVO_PORT_DPD},
+		{DVO_PORT_CRT, -1 /* Port E can only be DVO_PORT_CRT */ },
+	};
+
+	/* Find the child device to use, abort if more than one found. */
+	for (i = 0; i < dev_priv->vbt.child_dev_num; i++) {
+		it = dev_priv->vbt.child_dev + i;
+
+		for (j = 0; j < 2; j++) {
+			if (dvo_ports[port][j] == -1)
+				break;
+
+			if (it->common.dvo_port == dvo_ports[port][j]) {
+				if (child) {
+					DRM_DEBUG_KMS("More than one child device for port %c in VBT.\n",
+						      port_name(port));
+					return;
+				}
+				child = it;
+			}
+		}
+	}
+	if (!child)
+		return;
+
+	if (bdb->version >= 158) {
+		/* The VBT HDMI level shift values match the table we have. */
+		hdmi_level_shift = child->raw[7] & 0xF;
+		if (hdmi_level_shift < 0xC) {
+			DRM_DEBUG_KMS("VBT HDMI level shift for port %c: %d\n",
+				      port_name(port),
+				      hdmi_level_shift);
+			info->hdmi_level_shift = hdmi_level_shift;
+		}
+	}
+}
+
+static void parse_ddi_ports(struct drm_i915_private *dev_priv,
+			    struct bdb_header *bdb)
+{
+	struct drm_device *dev = dev_priv->dev;
+	enum port port;
+
+	if (!HAS_DDI(dev))
+		return;
+
+	if (!dev_priv->vbt.child_dev_num)
+		return;
+
+	if (bdb->version < 155)
+		return;
+
+	for (port = PORT_A; port < I915_MAX_PORTS; port++)
+		parse_ddi_port(dev_priv, port, bdb);
+}
+
 static void
 parse_device_mapping(struct drm_i915_private *dev_priv,
 		       struct bdb_header *bdb)
@@ -652,6 +722,7 @@ static void
 init_vbt_defaults(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
+	enum port port;
 
 	dev_priv->vbt.crt_ddc_pin = GMBUS_PORT_VGADDC;
 
@@ -670,6 +741,11 @@ init_vbt_defaults(struct drm_i915_private *dev_priv)
 	dev_priv->vbt.lvds_use_ssc = 1;
 	dev_priv->vbt.lvds_ssc_freq = intel_bios_ssc_frequency(dev, 1);
 	DRM_DEBUG_KMS("Set default to SSC at %dMHz\n", dev_priv->vbt.lvds_ssc_freq);
+
+	for (port = PORT_A; port < I915_MAX_PORTS; port++) {
+		/* Recommended BSpec default: 800mV 0dB. */
+		dev_priv->vbt.ddi_port_info[port].hdmi_level_shift = 6;
+	}
 }
 
 static int __init intel_no_opregion_vbt_callback(const struct dmi_system_id *id)
@@ -761,6 +837,7 @@ intel_parse_bios(struct drm_device *dev)
 	parse_driver_features(dev_priv, bdb);
 	parse_edp(dev_priv, bdb);
 	parse_mipi(dev_priv, bdb);
+	parse_ddi_ports(dev_priv, bdb);
 
 	if (bios)
 		pci_unmap_rom(pdev, bios);

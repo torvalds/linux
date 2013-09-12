@@ -648,6 +648,19 @@ int intel_parse_bios(struct drm_device *dev);
 #define		PORT_IDPC	8
 #define		PORT_IDPD	9
 
+/* Possible values for the "DVO Port" field for versions >= 155: */
+#define DVO_PORT_HDMIA	0
+#define DVO_PORT_HDMIB	1
+#define DVO_PORT_HDMIC	2
+#define DVO_PORT_HDMID	3
+#define DVO_PORT_LVDS	4
+#define DVO_PORT_TV	5
+#define DVO_PORT_CRT	6
+#define DVO_PORT_DPB	7
+#define DVO_PORT_DPC	8
+#define DVO_PORT_DPD	9
+#define DVO_PORT_DPA	10
+
 /* MIPI DSI panel info */
 struct bdb_mipi {
 	u16 panel_id;
