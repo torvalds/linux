@@ -4990,17 +4990,11 @@ static int mem_cgroup_force_empty_write(struct cgroup_subsys_state *css,
 					unsigned int event)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
-	int ret;
 
 	if (mem_cgroup_is_root(memcg))
 		return -EINVAL;
-	css_get(&memcg->css);
-	ret = mem_cgroup_force_empty(memcg);
-	css_put(&memcg->css);
-
-	return ret;
+	return mem_cgroup_force_empty(memcg);
 }
-
 
 static u64 mem_cgroup_hierarchy_read(struct cgroup_subsys_state *css,
 				     struct cftype *cft)
