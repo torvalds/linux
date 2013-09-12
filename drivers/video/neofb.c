@@ -2146,12 +2146,6 @@ static void neofb_remove(struct pci_dev *dev)
 		fb_destroy_modedb(info->monspecs.modedb);
 		neo_unmap_mmio(info);
 		neo_free_fb_info(info);
-
-		/*
-		 * Ensure that the driver data is no longer
-		 * valid.
-		 */
-		pci_set_drvdata(dev, NULL);
 	}
 }
 
