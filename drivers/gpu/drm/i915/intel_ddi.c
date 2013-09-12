@@ -1362,6 +1362,17 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	struct drm_encoder *encoder;
 	struct intel_connector *hdmi_connector = NULL;
 	struct intel_connector *dp_connector = NULL;
+	bool init_hdmi, init_dp;
+
+	init_hdmi = (dev_priv->vbt.ddi_port_info[port].supports_dvi ||
+		     dev_priv->vbt.ddi_port_info[port].supports_hdmi);
+	init_dp = dev_priv->vbt.ddi_port_info[port].supports_dp;
+	if (!init_dp && !init_hdmi) {
+		DRM_DEBUG_KMS("VBT says port %c is not DVI/HDMI/DP compatible\n",
+			      port_name(port));
+		init_hdmi = true;
+		init_dp = true;
+	}
 
 	intel_dig_port = kzalloc(sizeof(*intel_dig_port), GFP_KERNEL);
 	if (!intel_dig_port)
@@ -1399,19 +1410,20 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	intel_encoder->cloneable = false;
 	intel_encoder->hot_plug = intel_ddi_hot_plug;
 
-	if (!intel_dp_init_connector(intel_dig_port, dp_connector)) {
+	if (init_dp && !intel_dp_init_connector(intel_dig_port, dp_connector)) {
 		drm_encoder_cleanup(encoder);
 		kfree(intel_dig_port);
 		kfree(dp_connector);
 		return;
 	}
 
-	if (intel_encoder->type != INTEL_OUTPUT_EDP) {
+	/* In theory we don't need the encoder->type check, but leave it just in
+	 * case we have some really bad VBTs... */
+	if (intel_encoder->type != INTEL_OUTPUT_EDP && init_hdmi) {
 		hdmi_connector = kzalloc(sizeof(*hdmi_connector),
 					 GFP_KERNEL);
-		if (!hdmi_connector) {
+		if (!hdmi_connector)
 			return;
-		}
 
 		intel_dig_port->hdmi.hdmi_reg = DDI_BUF_CTL(port);
 		intel_hdmi_init_connector(intel_dig_port, hdmi_connector);

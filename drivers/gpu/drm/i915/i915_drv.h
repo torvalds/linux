@@ -1059,6 +1059,10 @@ enum modeset_restore {
 
 struct ddi_vbt_port_info {
 	uint8_t hdmi_level_shift;
+
+	uint8_t supports_dvi:1;
+	uint8_t supports_hdmi:1;
+	uint8_t supports_dp:1;
 };
 
 struct intel_vbt_data {

@@ -632,6 +632,10 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	is_hdmi = is_dvi && (child->common.device_type & (1 << 11)) == 0;
 	is_edp = is_dp && (child->common.device_type & (1 << 12));
 
+	info->supports_dvi = is_dvi;
+	info->supports_hdmi = is_hdmi;
+	info->supports_dp = is_dp;
+
 	DRM_DEBUG_KMS("Port %c VBT info: DP:%d HDMI:%d DVI:%d EDP:%d CRT:%d\n",
 		      port_name(port), is_dp, is_hdmi, is_dvi, is_edp, is_crt);
 
@@ -792,8 +796,15 @@ init_vbt_defaults(struct drm_i915_private *dev_priv)
 	DRM_DEBUG_KMS("Set default to SSC at %dMHz\n", dev_priv->vbt.lvds_ssc_freq);
 
 	for (port = PORT_A; port < I915_MAX_PORTS; port++) {
+		struct ddi_vbt_port_info *info =
+			&dev_priv->vbt.ddi_port_info[port];
+
 		/* Recommended BSpec default: 800mV 0dB. */
-		dev_priv->vbt.ddi_port_info[port].hdmi_level_shift = 6;
+		info->hdmi_level_shift = 6;
+
+		info->supports_dvi = (port != PORT_A && port != PORT_E);
+		info->supports_hdmi = info->supports_dvi;
+		info->supports_dp = (port != PORT_E);
 	}
 }
 
