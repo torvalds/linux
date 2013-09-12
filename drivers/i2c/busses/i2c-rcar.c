@@ -306,7 +306,7 @@ scgd_find:
 	/*
 	 * keep icccr value
 	 */
-	priv->icccr = (scgd << (cdf_width) | cdf);
+	priv->icccr = scgd << cdf_width | cdf;
 
 	return 0;
 }
