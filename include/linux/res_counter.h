@@ -54,7 +54,7 @@ struct res_counter {
 	struct res_counter *parent;
 };
 
-#define RESOURCE_MAX ULLONG_MAX
+#define RES_COUNTER_MAX ULLONG_MAX
 
 /**
  * Helpers to interact with userspace

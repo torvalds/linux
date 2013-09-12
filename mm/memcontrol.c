@@ -4967,7 +4967,7 @@ static int memcg_update_kmem_limit(struct cgroup_subsys_state *css, u64 val)
 	 */
 	mutex_lock(&memcg_create_mutex);
 	mutex_lock(&set_limit_mutex);
-	if (!memcg->kmem_account_flags && val != RESOURCE_MAX) {
+	if (!memcg->kmem_account_flags && val != RES_COUNTER_MAX) {
 		if (cgroup_task_count(css->cgroup) || memcg_has_children(memcg)) {
 			ret = -EBUSY;
 			goto out;
@@ -4977,7 +4977,7 @@ static int memcg_update_kmem_limit(struct cgroup_subsys_state *css, u64 val)
 
 		ret = memcg_update_cache_sizes(memcg);
 		if (ret) {
-			res_counter_set_limit(&memcg->kmem, RESOURCE_MAX);
+			res_counter_set_limit(&memcg->kmem, RES_COUNTER_MAX);
 			goto out;
 		}
 		static_key_slow_inc(&memcg_kmem_enabled_key);
