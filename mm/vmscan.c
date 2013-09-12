@@ -2205,12 +2205,12 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
 
 	scanned_groups = __shrink_zone(zone, sc, do_soft_reclaim);
 	/*
-         * memcg iterator might race with other reclaimer or start from
-         * a incomplete tree walk so the tree walk in __shrink_zone
-         * might have missed groups that are above the soft limit. Try
-         * another loop to catch up with others. Do it just once to
-         * prevent from reclaim latencies when other reclaimers always
-         * preempt this one.
+	 * memcg iterator might race with other reclaimer or start from
+	 * a incomplete tree walk so the tree walk in __shrink_zone
+	 * might have missed groups that are above the soft limit. Try
+	 * another loop to catch up with others. Do it just once to
+	 * prevent from reclaim latencies when other reclaimers always
+	 * preempt this one.
 	 */
 	if (do_soft_reclaim && !scanned_groups)
 		__shrink_zone(zone, sc, do_soft_reclaim);

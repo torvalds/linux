@@ -279,7 +279,7 @@ struct mem_cgroup {
 	 * Should we move charges of a task when a task is moved into this
 	 * mem_cgroup ? And what type of charges should we move ?
 	 */
-	unsigned long 	move_charge_at_immigrate;
+	unsigned long move_charge_at_immigrate;
 	/*
 	 * set > 0 if pages under this cgroup are moving to other cgroup.
 	 */
@@ -324,7 +324,7 @@ struct mem_cgroup {
 
 	/*
 	 * If true then this group has increased parents' children_in_excess
-         * when it got over the soft limit.
+	 * when it got over the soft limit.
 	 * When a group falls bellow the soft limit, parents' children_in_excess
 	 * is decreased and soft_contributed changed to false.
 	 */
@@ -835,12 +835,12 @@ static bool mem_cgroup_event_ratelimit(struct mem_cgroup *memcg,
 }
 
 /*
- * Called from rate-limitted memcg_check_events when enough
+ * Called from rate-limited memcg_check_events when enough
  * MEM_CGROUP_TARGET_SOFTLIMIT events are accumulated and it makes sure
- * that all the parents up the hierarchy will be noticed that this group
+ * that all the parents up the hierarchy will be notified that this group
  * is in excess or that it is not in excess anymore. mmecg->soft_contributed
  * makes the transition a single action whenever the state flips from one to
- * other.
+ * the other.
  */
 static void mem_cgroup_update_soft_limit(struct mem_cgroup *memcg)
 {
@@ -1881,8 +1881,8 @@ int mem_cgroup_select_victim_node(struct mem_cgroup *memcg)
 /*
  * A group is eligible for the soft limit reclaim under the given root
  * hierarchy if
- * 	a) it is over its soft limit
- * 	b) any parent up the hierarchy is over its soft limit
+ *	a) it is over its soft limit
+ *	b) any parent up the hierarchy is over its soft limit
  *
  * If the given group doesn't have any children over the limit then it
  * doesn't make any sense to iterate its subtree.
@@ -1904,7 +1904,7 @@ mem_cgroup_soft_reclaim_eligible(struct mem_cgroup *memcg,
 	 * If any parent up to the root in the hierarchy is over its soft limit
 	 * then we have to obey and reclaim from this group as well.
 	 */
-	while((parent = parent_mem_cgroup(parent))) {
+	while ((parent = parent_mem_cgroup(parent))) {
 		if (res_counter_soft_limit_excess(&parent->res))
 			return VISIT;
 		if (parent == root)
@@ -2309,7 +2309,7 @@ static void drain_all_stock(struct mem_cgroup *root_memcg, bool sync)
 			flush_work(&stock->work);
 	}
 out:
- 	put_online_cpus();
+	put_online_cpus();
 }
 
 /*
@@ -2741,7 +2741,7 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
 	 * is accessed after testing USED bit. To make pc->mem_cgroup visible
 	 * before USED bit, we need memory barrier here.
 	 * See mem_cgroup_add_lru_list(), etc.
- 	 */
+	 */
 	smp_wmb();
 	SetPageCgroupUsed(pc);
 
@@ -3483,9 +3483,9 @@ __memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **_memcg, int order)
 	 * the page allocator. Therefore, the following sequence when backed by
 	 * the SLUB allocator:
 	 *
-	 * 	memcg_stop_kmem_account();
-	 * 	kmalloc(<large_number>)
-	 * 	memcg_resume_kmem_account();
+	 *	memcg_stop_kmem_account();
+	 *	kmalloc(<large_number>)
+	 *	memcg_resume_kmem_account();
 	 *
 	 * would effectively ignore the fact that we should skip accounting,
 	 * since it will drive us directly to this function without passing
@@ -4514,7 +4514,7 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
 				   MEM_CGROUP_RECLAIM_SHRINK);
 		curusage = res_counter_read_u64(&memcg->res, RES_USAGE);
 		/* Usage is reduced ? */
-  		if (curusage >= oldusage)
+		if (curusage >= oldusage)
 			retry_count--;
 		else
 			oldusage = curusage;
@@ -4535,7 +4535,7 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
 	int enlarge = 0;
 
 	/* see mem_cgroup_resize_res_limit */
- 	retry_count = children * MEM_CGROUP_RECLAIM_RETRIES;
+	retry_count = children * MEM_CGROUP_RECLAIM_RETRIES;
 	oldusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
 	while (retry_count) {
 		if (signal_pending(current)) {
