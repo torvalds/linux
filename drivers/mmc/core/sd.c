@@ -1099,7 +1099,7 @@ static int mmc_sd_resume(struct mmc_host *host)
 	BUG_ON(!host->card);
 
 	mmc_claim_host(host);
-	mmc_power_up(host);
+	mmc_power_up(host, host->ocr);
 	mmc_select_voltage(host, host->ocr);
 	err = mmc_sd_init_card(host, host->ocr, host->card);
 	mmc_release_host(host);
@@ -1144,7 +1144,7 @@ static int mmc_sd_runtime_resume(struct mmc_host *host)
 
 	mmc_claim_host(host);
 
-	mmc_power_up(host);
+	mmc_power_up(host, host->ocr);
 	err = mmc_sd_resume(host);
 	if (err)
 		pr_err("%s: error %d doing aggessive resume\n",

@@ -1479,7 +1479,7 @@ power_cycle:
 	if (err) {
 		pr_debug("%s: Signal voltage switch failed, "
 			"power cycling card\n", mmc_hostname(host));
-		mmc_power_cycle(host);
+		mmc_power_cycle(host, host->ocr);
 	}
 
 	mmc_host_clk_release(host);
@@ -1520,22 +1520,14 @@ void mmc_set_driver_type(struct mmc_host *host, unsigned int drv_type)
  * If a host does all the power sequencing itself, ignore the
  * initial MMC_POWER_UP stage.
  */
-void mmc_power_up(struct mmc_host *host)
+void mmc_power_up(struct mmc_host *host, u32 ocr)
 {
-	int bit;
-
 	if (host->ios.power_mode == MMC_POWER_ON)
 		return;
 
 	mmc_host_clk_hold(host);
 
-	/* If ocr is set, we use it */
-	if (host->ocr)
-		bit = ffs(host->ocr) - 1;
-	else
-		bit = fls(host->ocr_avail) - 1;
-
-	host->ios.vdd = bit;
+	host->ios.vdd = fls(ocr) - 1;
 	if (mmc_host_is_spi(host))
 		host->ios.chip_select = MMC_CS_HIGH;
 	else
@@ -1605,12 +1597,12 @@ void mmc_power_off(struct mmc_host *host)
 	mmc_host_clk_release(host);
 }
 
-void mmc_power_cycle(struct mmc_host *host)
+void mmc_power_cycle(struct mmc_host *host, u32 ocr)
 {
 	mmc_power_off(host);
 	/* Wait at least 1 ms according to SD spec */
 	mmc_delay(1);
-	mmc_power_up(host);
+	mmc_power_up(host, ocr);
 }
 
 /*
@@ -2309,7 +2301,7 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 	pr_info("%s: %s: trying to init card at %u Hz\n",
 		mmc_hostname(host), __func__, host->f_init);
 #endif
-	mmc_power_up(host);
+	mmc_power_up(host, host->ocr_avail);
 
 	/*
 	 * Some eMMCs (with VCCQ always on) may not be reset after power up, so
@@ -2479,7 +2471,7 @@ void mmc_start_host(struct mmc_host *host)
 	if (host->caps2 & MMC_CAP2_NO_PRESCAN_POWERUP)
 		mmc_power_off(host);
 	else
-		mmc_power_up(host);
+		mmc_power_up(host, host->ocr_avail);
 	mmc_detect_change(host, 0);
 }
 
@@ -2558,7 +2550,7 @@ int mmc_power_restore_host(struct mmc_host *host)
 		return -EINVAL;
 	}
 
-	mmc_power_up(host);
+	mmc_power_up(host, host->ocr);
 	ret = host->bus_ops->power_restore(host);
 
 	mmc_bus_put(host);

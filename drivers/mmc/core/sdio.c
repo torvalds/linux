@@ -981,7 +981,7 @@ static int mmc_sdio_resume(struct mmc_host *host)
 
 	/* Restore power if needed */
 	if (!mmc_card_keep_power(host)) {
-		mmc_power_up(host);
+		mmc_power_up(host, host->ocr);
 		mmc_select_voltage(host, host->ocr);
 		/*
 		 * Tell runtime PM core we just powered up the card,
@@ -1108,7 +1108,7 @@ static int mmc_sdio_runtime_suspend(struct mmc_host *host)
 static int mmc_sdio_runtime_resume(struct mmc_host *host)
 {
 	/* Restore power and re-initialize. */
-	mmc_power_up(host);
+	mmc_power_up(host, host->ocr);
 	return mmc_sdio_power_restore(host);
 }
 
