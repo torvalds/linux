@@ -157,6 +157,10 @@ extern void mem_cgroup_replace_page_cache(struct page *oldpage,
  *
  * Toggle whether a failed memcg charge should invoke the OOM killer
  * or just return -ENOMEM.  Returns the previous toggle state.
+ *
+ * NOTE: Any path that enables the OOM killer before charging must
+ *       call mem_cgroup_oom_synchronize() afterward to finalize the
+ *       OOM handling and clean up.
  */
 static inline bool mem_cgroup_toggle_oom(bool new)
 {
@@ -181,6 +185,13 @@ static inline void mem_cgroup_disable_oom(void)
 
 	WARN_ON(old == false);
 }
+
+static inline bool task_in_memcg_oom(struct task_struct *p)
+{
+	return p->memcg_oom.in_memcg_oom;
+}
+
+bool mem_cgroup_oom_synchronize(void);
 
 #ifdef CONFIG_MEMCG_SWAP
 extern int do_swap_account;
@@ -425,6 +436,16 @@ static inline void mem_cgroup_enable_oom(void)
 
 static inline void mem_cgroup_disable_oom(void)
 {
+}
+
+static inline bool task_in_memcg_oom(struct task_struct *p)
+{
+	return false;
+}
+
+static inline bool mem_cgroup_oom_synchronize(void)
+{
+	return false;
 }
 
 static inline void mem_cgroup_inc_page_stat(struct page *page,
