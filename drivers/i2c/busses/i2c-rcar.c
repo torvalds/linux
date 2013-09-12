@@ -234,9 +234,9 @@ static int rcar_i2c_clock_calculate(struct rcar_i2c_priv *priv,
 	u32 cdf_width;
 	unsigned long rate;
 
-	if (!clkp) {
-		dev_err(dev, "there is no peripheral_clk\n");
-		return -EIO;
+	if (IS_ERR(clkp)) {
+		dev_err(dev, "couldn't get clock\n");
+		return PTR_ERR(clkp);
 	}
 
 	switch (priv->devtype) {
