@@ -294,7 +294,7 @@ static inline void user_to_drv(struct v4l2_ctrl *ctrl, s32 value)
 	ctrl->cur.val = ctrl->val = value;
 }
 
-inline struct flite_fmt const *find_flite_format(struct v4l2_mbus_framefmt *mf);
+struct flite_fmt const *find_flite_format(struct v4l2_mbus_framefmt *mf);
 
 /*
  * Add buf to the capture active buffers queue.

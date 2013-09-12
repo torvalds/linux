@@ -122,7 +122,7 @@ static struct flite_fmt *find_format(u32 *pixelformat, u32 *mbus_code, int index
 }
 #endif
 
-inline struct flite_fmt const *find_flite_format(struct v4l2_mbus_framefmt *mf)
+struct flite_fmt const *find_flite_format(struct v4l2_mbus_framefmt *mf)
 {
 	int num_fmt = ARRAY_SIZE(flite_formats);
 
