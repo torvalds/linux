@@ -472,14 +472,11 @@ static int solo_fill_jpeg(struct solo_enc_dev *solo_enc,
 	if (vb2_plane_size(vb, 0) < vop_jpeg_size(vh) + solo_enc->jpeg_len)
 		return -EIO;
 
-	sg_copy_from_buffer(vbuf->sgl, vbuf->nents,
-			solo_enc->jpeg_header,
-			solo_enc->jpeg_len);
-
 	frame_size = (vop_jpeg_size(vh) + solo_enc->jpeg_len + (DMA_ALIGN - 1))
 		& ~(DMA_ALIGN - 1);
 	vb2_set_plane_payload(vb, 0, vop_jpeg_size(vh) + solo_enc->jpeg_len);
 
+	/* may discard all previous data in vbuf->sgl */
 	dma_map_sg(&solo_dev->pdev->dev, vbuf->sgl, vbuf->nents,
 			DMA_FROM_DEVICE);
 	ret = solo_send_desc(solo_enc, solo_enc->jpeg_len, vbuf,
@@ -488,6 +485,11 @@ static int solo_fill_jpeg(struct solo_enc_dev *solo_enc,
 			     SOLO_JPEG_EXT_SIZE(solo_dev));
 	dma_unmap_sg(&solo_dev->pdev->dev, vbuf->sgl, vbuf->nents,
 			DMA_FROM_DEVICE);
+
+	/* add the header only after dma_unmap_sg() */
+	sg_copy_from_buffer(vbuf->sgl, vbuf->nents,
+			    solo_enc->jpeg_header, solo_enc->jpeg_len);
+
 	return ret;
 }
 
@@ -505,12 +507,7 @@ static int solo_fill_mpeg(struct solo_enc_dev *solo_enc,
 
 	/* If this is a key frame, add extra header */
 	if (!vop_type(vh)) {
-		sg_copy_from_buffer(vbuf->sgl, vbuf->nents,
-				solo_enc->vop,
-				solo_enc->vop_len);
-
 		skip = solo_enc->vop_len;
-
 		vb->v4l2_buf.flags |= V4L2_BUF_FLAG_KEYFRAME;
 		vb2_set_plane_payload(vb, 0, vop_mpeg_size(vh) + solo_enc->vop_len);
 	} else {
@@ -524,6 +521,7 @@ static int solo_fill_mpeg(struct solo_enc_dev *solo_enc,
 	frame_size = (vop_mpeg_size(vh) + skip + (DMA_ALIGN - 1))
 		& ~(DMA_ALIGN - 1);
 
+	/* may discard all previous data in vbuf->sgl */
 	dma_map_sg(&solo_dev->pdev->dev, vbuf->sgl, vbuf->nents,
 			DMA_FROM_DEVICE);
 	ret = solo_send_desc(solo_enc, skip, vbuf, frame_off, frame_size,
@@ -531,6 +529,11 @@ static int solo_fill_mpeg(struct solo_enc_dev *solo_enc,
 			SOLO_MP4E_EXT_SIZE(solo_dev));
 	dma_unmap_sg(&solo_dev->pdev->dev, vbuf->sgl, vbuf->nents,
 			DMA_FROM_DEVICE);
+
+	/* add the header only after dma_unmap_sg() */
+	if (!vop_type(vh))
+		sg_copy_from_buffer(vbuf->sgl, vbuf->nents,
+				    solo_enc->vop, solo_enc->vop_len);
 	return ret;
 }
 
