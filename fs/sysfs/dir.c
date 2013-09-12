@@ -630,9 +630,10 @@ struct sysfs_dirent *sysfs_find_dirent(struct sysfs_dirent *parent_sd,
 }
 
 /**
- *	sysfs_get_dirent - find and get sysfs_dirent with the given name
+ *	sysfs_get_dirent_ns - find and get sysfs_dirent with the given name
  *	@parent_sd: sysfs_dirent to search under
  *	@name: name to look for
+ *	@ns: the namespace tag to use
  *
  *	Look for sysfs_dirent with name @name under @parent_sd and get
  *	it if found.
@@ -643,9 +644,9 @@ struct sysfs_dirent *sysfs_find_dirent(struct sysfs_dirent *parent_sd,
  *	RETURNS:
  *	Pointer to sysfs_dirent if found, NULL if not.
  */
-struct sysfs_dirent *sysfs_get_dirent(struct sysfs_dirent *parent_sd,
-				      const void *ns,
-				      const unsigned char *name)
+struct sysfs_dirent *sysfs_get_dirent_ns(struct sysfs_dirent *parent_sd,
+					 const unsigned char *name,
+					 const void *ns)
 {
 	struct sysfs_dirent *sd;
 
@@ -656,7 +657,7 @@ struct sysfs_dirent *sysfs_get_dirent(struct sysfs_dirent *parent_sd,
 
 	return sd;
 }
-EXPORT_SYMBOL_GPL(sysfs_get_dirent);
+EXPORT_SYMBOL_GPL(sysfs_get_dirent_ns);
 
 static int create_dir(struct kobject *kobj, struct sysfs_dirent *parent_sd,
 	const void *ns, const char *name, struct sysfs_dirent **p_sd)

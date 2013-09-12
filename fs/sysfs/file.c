@@ -563,7 +563,7 @@ int sysfs_add_file_to_group(struct kobject *kobj,
 	int error;
 
 	if (group)
-		dir_sd = sysfs_get_dirent(kobj->sd, NULL, group);
+		dir_sd = sysfs_get_dirent(kobj->sd, group);
 	else
 		dir_sd = sysfs_get(kobj->sd);
 
@@ -645,7 +645,7 @@ void sysfs_remove_file_from_group(struct kobject *kobj,
 	struct sysfs_dirent *dir_sd;
 
 	if (group)
-		dir_sd = sysfs_get_dirent(kobj->sd, NULL, group);
+		dir_sd = sysfs_get_dirent(kobj->sd, group);
 	else
 		dir_sd = sysfs_get(kobj->sd);
 	if (dir_sd) {

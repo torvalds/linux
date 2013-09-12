@@ -191,7 +191,7 @@ int sysfs_rename_link_ns(struct kobject *kobj, struct kobject *targ,
 		old_ns = targ->sd->s_ns;
 
 	result = -ENOENT;
-	sd = sysfs_get_dirent(parent_sd, old_ns, old);
+	sd = sysfs_get_dirent_ns(parent_sd, old, old_ns);
 	if (!sd)
 		goto out;
 
