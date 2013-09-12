@@ -491,15 +491,26 @@ static int smsusb_probe(struct usb_interface *intf,
 	}
 
 	if (id->driver_info == SMS1XXX_BOARD_SIANO_STELLAR_ROM) {
+		/* Detected a Siano Stellar uninitialized */
+
 		snprintf(devpath, sizeof(devpath), "usb\\%d-%s",
 			 udev->bus->busnum, udev->devpath);
-		sms_info("stellar device was found.");
-		return smsusb1_load_firmware(
+		sms_info("stellar device in cold state was found at %s.", devpath);
+		rc = smsusb1_load_firmware(
 				udev, smscore_registry_getmode(devpath),
 				id->driver_info);
+
+		/* This device will reset and gain another USB ID */
+		if (!rc)
+			sms_info("stellar device now in warm state");
+		else
+			sms_err("Failed to put stellar in warm state. Error: %d", rc);
+
+		return rc;
+	} else {
+		rc = smsusb_init_device(intf, id->driver_info);
 	}
 
-	rc = smsusb_init_device(intf, id->driver_info);
 	sms_info("Device initialized with return code %d", rc);
 	sms_board_load_modules(id->driver_info);
 	return rc;
@@ -552,10 +563,13 @@ static int smsusb_resume(struct usb_interface *intf)
 }
 
 static const struct usb_device_id smsusb_id_table[] = {
+	/* This device is only present before firmware load */
 	{ USB_DEVICE(0x187f, 0x0010),
-		.driver_info = SMS1XXX_BOARD_SIANO_STELLAR },
+		.driver_info = SMS1XXX_BOARD_SIANO_STELLAR_ROM },
+	/* This device pops up after firmware load */
 	{ USB_DEVICE(0x187f, 0x0100),
 		.driver_info = SMS1XXX_BOARD_SIANO_STELLAR },
+
 	{ USB_DEVICE(0x187f, 0x0200),
 		.driver_info = SMS1XXX_BOARD_SIANO_NOVA_A },
 	{ USB_DEVICE(0x187f, 0x0201),
