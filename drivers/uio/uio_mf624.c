@@ -220,7 +220,6 @@ static void mf624_pci_remove(struct pci_dev *dev)
 	uio_unregister_device(info);
 	pci_release_regions(dev);
 	pci_disable_device(dev);
-	pci_set_drvdata(dev, NULL);
 
 	iounmap(info->mem[0].internal_addr);
 	iounmap(info->mem[1].internal_addr);
