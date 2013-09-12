@@ -779,7 +779,6 @@ static void kyrofb_remove(struct pci_dev *pdev)
 #endif
 
 	unregister_framebuffer(info);
-	pci_set_drvdata(pdev, NULL);
 	framebuffer_release(info);
 }
 
