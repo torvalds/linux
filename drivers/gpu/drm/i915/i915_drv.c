@@ -576,10 +576,19 @@ static void intel_resume_hotplug(struct drm_device *dev)
 	drm_helper_hpd_irq_event(dev);
 }
 
-static int __i915_drm_thaw(struct drm_device *dev)
+static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int error = 0;
+
+	intel_uncore_sanitize(dev);
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET) &&
+	    restore_gtt_mappings) {
+		mutex_lock(&dev->struct_mutex);
+		i915_gem_restore_gtt_mappings(dev);
+		mutex_unlock(&dev->struct_mutex);
+	}
 
 	i915_restore_state(dev);
 	intel_opregion_setup(dev);
@@ -640,19 +649,7 @@ static int __i915_drm_thaw(struct drm_device *dev)
 
 static int i915_drm_thaw(struct drm_device *dev)
 {
-	int error = 0;
-
-	intel_uncore_sanitize(dev);
-
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		mutex_lock(&dev->struct_mutex);
-		i915_gem_restore_gtt_mappings(dev);
-		mutex_unlock(&dev->struct_mutex);
-	}
-
-	__i915_drm_thaw(dev);
-
-	return error;
+	return __i915_drm_thaw(dev, true);
 }
 
 int i915_resume(struct drm_device *dev)
@@ -668,20 +665,12 @@ int i915_resume(struct drm_device *dev)
 
 	pci_set_master(dev->pdev);
 
-	intel_uncore_sanitize(dev);
-
 	/*
 	 * Platforms with opregion should have sane BIOS, older ones (gen3 and
-	 * earlier) need this since the BIOS might clear all our scratch PTEs.
+	 * earlier) need to restore the GTT mappings since the BIOS might clear
+	 * all our scratch PTEs.
 	 */
-	if (drm_core_check_feature(dev, DRIVER_MODESET) &&
-	    !dev_priv->opregion.header) {
-		mutex_lock(&dev->struct_mutex);
-		i915_gem_restore_gtt_mappings(dev);
-		mutex_unlock(&dev->struct_mutex);
-	}
-
-	ret = __i915_drm_thaw(dev);
+	ret = __i915_drm_thaw(dev, !dev_priv->opregion.header);
 	if (ret)
 		return ret;
 
