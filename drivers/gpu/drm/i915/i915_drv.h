@@ -1057,6 +1057,10 @@ enum modeset_restore {
 	MODESET_SUSPENDED,
 };
 
+struct ddi_vbt_port_info {
+	uint8_t hdmi_level_shift;
+};
+
 struct intel_vbt_data {
 	struct drm_display_mode *lfp_lvds_vbt_mode; /* if any */
 	struct drm_display_mode *sdvo_lvds_vbt_mode; /* if any */
@@ -1091,6 +1095,8 @@ struct intel_vbt_data {
 
 	int child_dev_num;
 	union child_device_config *child_dev;
+
+	struct ddi_vbt_port_info ddi_port_info[I915_MAX_PORTS];
 };
 
 enum intel_ddb_partitioning {

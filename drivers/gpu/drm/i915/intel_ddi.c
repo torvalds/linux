@@ -42,7 +42,6 @@ static const u32 hsw_ddi_translations_dp[] = {
 	0x80C30FFF, 0x000B0000,
 	0x00FFFFFF, 0x00040006,
 	0x80D75FFF, 0x000B0000,
-	0x00FFFFFF, 0x00040006		/* HDMI parameters */
 };
 
 static const u32 hsw_ddi_translations_fdi[] = {
@@ -55,7 +54,22 @@ static const u32 hsw_ddi_translations_fdi[] = {
 	0x00C30FFF, 0x001E0000,
 	0x00FFFFFF, 0x00060006,
 	0x00D75FFF, 0x001E0000,
-	0x00FFFFFF, 0x00040006		/* HDMI parameters */
+};
+
+static const u32 hsw_ddi_translations_hdmi[] = {
+				/* Idx	NT mV diff	T mV diff	db  */
+	0x00FFFFFF, 0x0006000E, /* 0:	400		400		0   */
+	0x00E79FFF, 0x000E000C, /* 1:	400		500		2   */
+	0x00D75FFF, 0x0005000A, /* 2:	400		600		3.5 */
+	0x00FFFFFF, 0x0005000A, /* 3:	600		600		0   */
+	0x00E79FFF, 0x001D0007, /* 4:	600		750		2   */
+	0x00D75FFF, 0x000C0004, /* 5:	600		900		3.5 */
+	0x00FFFFFF, 0x00040006, /* 6:	800		800		0   */
+	0x80E79FFF, 0x00030002, /* 7:	800		1000		2   */
+	0x00FFFFFF, 0x00140005, /* 8:	850		850		0   */
+	0x00FFFFFF, 0x000C0004, /* 9:	900		900		0   */
+	0x00FFFFFF, 0x001C0003, /* 10:	950		950		0   */
+	0x80FFFFFF, 0x00030002, /* 11:	1000		1000		0   */
 };
 
 enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
@@ -92,10 +106,16 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 	const u32 *ddi_translations = (port == PORT_E) ?
 		hsw_ddi_translations_fdi :
 		hsw_ddi_translations_dp;
+	int hdmi_level = dev_priv->vbt.ddi_port_info[port].hdmi_level_shift;
 
 	for (i = 0, reg = DDI_BUF_TRANS(port);
 	     i < ARRAY_SIZE(hsw_ddi_translations_fdi); i++) {
 		I915_WRITE(reg, ddi_translations[i]);
+		reg += 4;
+	}
+	/* Entry 9 is for HDMI: */
+	for (i = 0; i < 2; i++) {
+		I915_WRITE(reg, hsw_ddi_translations_hdmi[hdmi_level * 2 + i]);
 		reg += 4;
 	}
 }
