@@ -590,7 +590,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	struct ddi_vbt_port_info *info = &dev_priv->vbt.ddi_port_info[port];
 	uint8_t hdmi_level_shift;
 	int i, j;
-	bool is_dvi, is_dp;
+	bool is_dvi, is_hdmi, is_dp, is_edp, is_crt;
 	uint8_t aux_channel;
 	/* Each DDI port can have more than one value on the "DVO Port" field,
 	 * so look for all the possible values for each port and abort if more
@@ -628,6 +628,28 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 
 	is_dvi = child->common.device_type & (1 << 4);
 	is_dp = child->common.device_type & (1 << 2);
+	is_crt = child->common.device_type & (1 << 0);
+	is_hdmi = is_dvi && (child->common.device_type & (1 << 11)) == 0;
+	is_edp = is_dp && (child->common.device_type & (1 << 12));
+
+	DRM_DEBUG_KMS("Port %c VBT info: DP:%d HDMI:%d DVI:%d EDP:%d CRT:%d\n",
+		      port_name(port), is_dp, is_hdmi, is_dvi, is_edp, is_crt);
+
+	if (is_edp && is_dvi)
+		DRM_DEBUG_KMS("Internal DP port %c is TMDS compatible\n",
+			      port_name(port));
+	if (is_crt && port != PORT_E)
+		DRM_DEBUG_KMS("Port %c is analog\n", port_name(port));
+	if (is_crt && (is_dvi || is_dp))
+		DRM_DEBUG_KMS("Analog port %c is also DP or TMDS compatible\n",
+			      port_name(port));
+	if (is_dvi && (port == PORT_A || port == PORT_E))
+		DRM_DEBUG_KMS("Port %c is TMDS compabile\n", port_name(port));
+	if (!is_dvi && !is_dp && !is_crt)
+		DRM_DEBUG_KMS("Port %c is not DP/TMDS/CRT compatible\n",
+			      port_name(port));
+	if (is_edp && (port == PORT_B || port == PORT_C || port == PORT_E))
+		DRM_DEBUG_KMS("Port %c is internal DP\n", port_name(port));
 
 	if (is_dvi) {
 		if (child->common.ddc_pin == 0x05 && port != PORT_B)
