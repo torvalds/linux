@@ -44,6 +44,8 @@ static bool static_hdmi_pcm;
 module_param(static_hdmi_pcm, bool, 0644);
 MODULE_PARM_DESC(static_hdmi_pcm, "Don't restrict PCM parameters per ELD info");
 
+#define is_haswell(codec)  ((codec)->vendor_id == 0x80862807)
+
 struct hdmi_spec_per_cvt {
 	hda_nid_t cvt_nid;
 	int assigned;
@@ -894,6 +896,11 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec,
 	if (!channels)
 		return;
 
+	if (is_haswell(codec))
+		snd_hda_codec_write(codec, pin_nid, 0,
+					    AC_VERB_SET_AMP_GAIN_MUTE,
+					    AMP_OUT_UNMUTE);
+
 	eld = &per_pin->sink_eld;
 	if (!eld->monitor_present)
 		return;
@@ -1033,10 +1040,10 @@ static void hdmi_unsol_event(struct hda_codec *codec, unsigned int res)
 		hdmi_non_intrinsic_event(codec, res);
 }
 
-static void haswell_verify_pin_D0(struct hda_codec *codec,
+static void haswell_verify_D0(struct hda_codec *codec,
 		hda_nid_t cvt_nid, hda_nid_t nid)
 {
-	int pwr, lamp, ramp;
+	int pwr;
 
 	/* For Haswell, the converter 1/2 may keep in D3 state after bootup,
 	 * thus pins could only choose converter 0 for use. Make sure the
@@ -1051,25 +1058,6 @@ static void haswell_verify_pin_D0(struct hda_codec *codec,
 		pwr = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_POWER_STATE, 0);
 		pwr = (pwr & AC_PWRST_ACTUAL) >> AC_PWRST_ACTUAL_SHIFT;
 		snd_printd("Haswell HDMI audio: Power for pin 0x%x is now D%d\n", nid, pwr);
-	}
-
-	lamp = snd_hda_codec_read(codec, nid, 0,
-				  AC_VERB_GET_AMP_GAIN_MUTE,
-				  AC_AMP_GET_LEFT | AC_AMP_GET_OUTPUT);
-	ramp = snd_hda_codec_read(codec, nid, 0,
-				  AC_VERB_GET_AMP_GAIN_MUTE,
-				  AC_AMP_GET_RIGHT | AC_AMP_GET_OUTPUT);
-	if (lamp != ramp) {
-		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
-				    AC_AMP_SET_RIGHT | AC_AMP_SET_OUTPUT | lamp);
-
-		lamp = snd_hda_codec_read(codec, nid, 0,
-				  AC_VERB_GET_AMP_GAIN_MUTE,
-				  AC_AMP_GET_LEFT | AC_AMP_GET_OUTPUT);
-		ramp = snd_hda_codec_read(codec, nid, 0,
-				  AC_VERB_GET_AMP_GAIN_MUTE,
-				  AC_AMP_GET_RIGHT | AC_AMP_GET_OUTPUT);
-		snd_printd("Haswell HDMI audio: Mute after set on pin 0x%x: [0x%x 0x%x]\n", nid, lamp, ramp);
 	}
 }
 
@@ -1087,8 +1075,8 @@ static int hdmi_setup_stream(struct hda_codec *codec, hda_nid_t cvt_nid,
 	int pinctl;
 	int new_pinctl = 0;
 
-	if (codec->vendor_id == 0x80862807)
-		haswell_verify_pin_D0(codec, cvt_nid, pin_nid);
+	if (is_haswell(codec))
+		haswell_verify_D0(codec, cvt_nid, pin_nid);
 
 	if (snd_hda_query_pin_caps(codec, pin_nid) & AC_PINCAP_HBR) {
 		pinctl = snd_hda_codec_read(codec, pin_nid, 0,
@@ -1227,7 +1215,7 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 			    mux_idx);
 
 	/* configure unused pins to choose other converters */
-	if (codec->vendor_id == 0x80862807)
+	if (is_haswell(codec))
 		haswell_config_cvts(codec, pin_idx, mux_idx);
 
 	snd_hda_spdif_ctls_assign(codec, pin_idx, per_cvt->cvt_nid);
@@ -1358,14 +1346,10 @@ static void hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 		/* Haswell-specific workaround: re-setup when the transcoder is
 		 * changed during the stream playback
 		 */
-		if (codec->vendor_id == 0x80862807 &&
-		    eld->eld_valid && !old_eld_valid && per_pin->setup) {
-			snd_hda_codec_write(codec, pin_nid, 0,
-					    AC_VERB_SET_AMP_GAIN_MUTE,
-					    AMP_OUT_UNMUTE);
+		if (is_haswell(codec) &&
+		    eld->eld_valid && !old_eld_valid && per_pin->setup)
 			hdmi_setup_audio_infoframe(codec, per_pin,
 						   per_pin->non_pcm);
-		}
 	}
 	mutex_unlock(&pin_eld->lock);
 
@@ -1405,7 +1389,7 @@ static int hdmi_add_pin(struct hda_codec *codec, hda_nid_t pin_nid)
 	if (get_defcfg_connect(config) == AC_JACK_PORT_NONE)
 		return 0;
 
-	if (codec->vendor_id == 0x80862807)
+	if (is_haswell(codec))
 		intel_haswell_fixup_connect_list(codec, pin_nid);
 
 	pin_idx = spec->num_pins;
@@ -2014,7 +1998,7 @@ static int patch_generic_hdmi(struct hda_codec *codec)
 	codec->spec = spec;
 	hdmi_array_init(spec, 4);
 
-	if (codec->vendor_id == 0x80862807) {
+	if (is_haswell(codec)) {
 		intel_haswell_enable_all_pins(codec, true);
 		intel_haswell_fixup_enable_dp12(codec);
 	}
@@ -2025,7 +2009,7 @@ static int patch_generic_hdmi(struct hda_codec *codec)
 		return -EINVAL;
 	}
 	codec->patch_ops = generic_hdmi_patch_ops;
-	if (codec->vendor_id == 0x80862807) {
+	if (is_haswell(codec)) {
 		codec->patch_ops.set_power_state = haswell_set_power_state;
 		codec->dp_mst = true;
 	}

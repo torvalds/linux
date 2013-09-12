@@ -169,7 +169,7 @@ static void cs_automute(struct hda_codec *codec)
 
 	snd_hda_gen_update_outputs(codec);
 
-	if (spec->gpio_eapd_hp) {
+	if (spec->gpio_eapd_hp || spec->gpio_eapd_speaker) {
 		spec->gpio_data = spec->gen.hp_jack_present ?
 			spec->gpio_eapd_hp : spec->gpio_eapd_speaker;
 		snd_hda_codec_write(codec, 0x01, 0,
@@ -291,10 +291,11 @@ static int cs_init(struct hda_codec *codec)
 {
 	struct cs_spec *spec = codec->spec;
 
-	/* init_verb sequence for C0/C1/C2 errata*/
-	snd_hda_sequence_write(codec, cs_errata_init_verbs);
-
-	snd_hda_sequence_write(codec, cs_coef_init_verbs);
+	if (spec->vendor_nid == CS420X_VENDOR_NID) {
+		/* init_verb sequence for C0/C1/C2 errata*/
+		snd_hda_sequence_write(codec, cs_errata_init_verbs);
+		snd_hda_sequence_write(codec, cs_coef_init_verbs);
+	}
 
 	snd_hda_gen_init(codec);
 
@@ -307,8 +308,10 @@ static int cs_init(struct hda_codec *codec)
 				    spec->gpio_data);
 	}
 
-	init_input_coef(codec);
-	init_digital_coef(codec);
+	if (spec->vendor_nid == CS420X_VENDOR_NID) {
+		init_input_coef(codec);
+		init_digital_coef(codec);
+	}
 
 	return 0;
 }
@@ -534,6 +537,76 @@ static int patch_cs420x(struct hda_codec *codec)
 
 	snd_hda_pick_fixup(codec, cs420x_models, cs420x_fixup_tbl,
 			   cs420x_fixups);
+	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
+
+	err = cs_parse_auto_config(codec);
+	if (err < 0)
+		goto error;
+
+	codec->patch_ops = cs_patch_ops;
+
+	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PROBE);
+
+	return 0;
+
+ error:
+	cs_free(codec);
+	return err;
+}
+
+/*
+ * CS4208 support:
+ * Its layout is no longer compatible with CS4206/CS4207, and the generic
+ * parser seems working fairly well, except for trivial fixups.
+ */
+enum {
+	CS4208_GPIO0,
+};
+
+static const struct hda_model_fixup cs4208_models[] = {
+	{ .id = CS4208_GPIO0, .name = "gpio0" },
+	{}
+};
+
+static const struct snd_pci_quirk cs4208_fixup_tbl[] = {
+	/* codec SSID */
+	SND_PCI_QUIRK(0x106b, 0x7100, "MacBookPro 6,1", CS4208_GPIO0),
+	SND_PCI_QUIRK(0x106b, 0x7200, "MacBookPro 6,2", CS4208_GPIO0),
+	{} /* terminator */
+};
+
+static void cs4208_fixup_gpio0(struct hda_codec *codec,
+			       const struct hda_fixup *fix, int action)
+{
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
+		struct cs_spec *spec = codec->spec;
+		spec->gpio_eapd_hp = 0;
+		spec->gpio_eapd_speaker = 1;
+		spec->gpio_mask = spec->gpio_dir =
+			spec->gpio_eapd_hp | spec->gpio_eapd_speaker;
+	}
+}
+
+static const struct hda_fixup cs4208_fixups[] = {
+	[CS4208_GPIO0] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = cs4208_fixup_gpio0,
+	},
+};
+
+static int patch_cs4208(struct hda_codec *codec)
+{
+	struct cs_spec *spec;
+	int err;
+
+	spec = cs_alloc_spec(codec, 0); /* no specific w/a */
+	if (!spec)
+		return -ENOMEM;
+
+	spec->gen.automute_hook = cs_automute;
+
+	snd_hda_pick_fixup(codec, cs4208_models, cs4208_fixup_tbl,
+			   cs4208_fixups);
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
 
 	err = cs_parse_auto_config(codec);
@@ -991,6 +1064,7 @@ static int patch_cs4213(struct hda_codec *codec)
 static const struct hda_codec_preset snd_hda_preset_cirrus[] = {
 	{ .id = 0x10134206, .name = "CS4206", .patch = patch_cs420x },
 	{ .id = 0x10134207, .name = "CS4207", .patch = patch_cs420x },
+	{ .id = 0x10134208, .name = "CS4208", .patch = patch_cs4208 },
 	{ .id = 0x10134210, .name = "CS4210", .patch = patch_cs4210 },
 	{ .id = 0x10134213, .name = "CS4213", .patch = patch_cs4213 },
 	{} /* terminator */
@@ -998,6 +1072,7 @@ static const struct hda_codec_preset snd_hda_preset_cirrus[] = {
 
 MODULE_ALIAS("snd-hda-codec-id:10134206");
 MODULE_ALIAS("snd-hda-codec-id:10134207");
+MODULE_ALIAS("snd-hda-codec-id:10134208");
 MODULE_ALIAS("snd-hda-codec-id:10134210");
 MODULE_ALIAS("snd-hda-codec-id:10134213");
 
