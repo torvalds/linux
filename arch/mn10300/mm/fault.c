@@ -171,6 +171,8 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long fault_code,
 	if (in_atomic() || !mm)
 		goto no_context;
 
+	if ((fault_code & MMUFCR_xFC_ACCESS) == MMUFCR_xFC_ACCESS_USR)
+		flags |= FAULT_FLAG_USER;
 retry:
 	down_read(&mm->mmap_sem);
 

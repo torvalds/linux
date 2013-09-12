@@ -199,13 +199,6 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 	unsigned long vm_flags = VM_READ | VM_WRITE | VM_EXEC;
 	unsigned int mm_flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 
-	if (esr & ESR_LNX_EXEC) {
-		vm_flags = VM_EXEC;
-	} else if ((esr & ESR_WRITE) && !(esr & ESR_CM)) {
-		vm_flags = VM_WRITE;
-		mm_flags |= FAULT_FLAG_WRITE;
-	}
-
 	tsk = current;
 	mm  = tsk->mm;
 
@@ -219,6 +212,16 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 	 */
 	if (in_atomic() || !mm)
 		goto no_context;
+
+	if (user_mode(regs))
+		mm_flags |= FAULT_FLAG_USER;
+
+	if (esr & ESR_LNX_EXEC) {
+		vm_flags = VM_EXEC;
+	} else if ((esr & ESR_WRITE) && !(esr & ESR_CM)) {
+		vm_flags = VM_WRITE;
+		mm_flags |= FAULT_FLAG_WRITE;
+	}
 
 	/*
 	 * As per x86, we may deadlock here. However, since the kernel only
