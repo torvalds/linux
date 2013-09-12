@@ -165,41 +165,6 @@ static int micjack_status_check(void *data)
 	return ret;
 }
 
-static void imx_resume_event(struct work_struct *wor)
-{
-	struct imx_priv *priv = &card_priv;
-	struct snd_soc_jack *jack;
-	int enable, report;
-
-	if (gpio_is_valid(priv->hp_gpio)) {
-		jack = imx_hp_jack_gpio.jack;
-
-		enable = gpio_get_value_cansleep(imx_hp_jack_gpio.gpio);
-		if (imx_hp_jack_gpio.invert)
-			enable = !enable;
-
-		report = enable ? imx_hp_jack_gpio.report : 0;
-
-		snd_soc_jack_report(jack, report, imx_hp_jack_gpio.report);
-	}
-
-	if (gpio_is_valid(priv->mic_gpio)) {
-		jack = imx_mic_jack_gpio.jack;
-
-		enable = gpio_get_value_cansleep(imx_mic_jack_gpio.gpio);
-		if (imx_mic_jack_gpio.invert)
-			enable = !enable;
-
-		report = enable ? imx_mic_jack_gpio.report : 0;
-
-		snd_soc_jack_report(jack, report, imx_mic_jack_gpio.report);
-	}
-
-	return;
-}
-
-static DECLARE_DELAYED_WORK(resume_jack_event, imx_resume_event);
-
 
 static const struct snd_soc_dapm_widget imx_wm8962_dapm_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
@@ -401,16 +366,6 @@ static ssize_t show_mic(struct device_driver *dev, char *buf)
 
 static DRIVER_ATTR(microphone, S_IRUGO | S_IWUSR, show_mic, NULL);
 
-static int imx_wm8962_resume(struct snd_soc_card *card)
-{
-	struct imx_priv *priv = &card_priv;
-
-	if (gpio_is_valid(priv->hp_gpio) || gpio_is_valid(priv->mic_gpio))
-		schedule_delayed_work(&resume_jack_event, msecs_to_jiffies(200));
-
-	return 0;
-}
-
 static int imx_wm8962_late_probe(struct snd_soc_card *card)
 {
 	struct snd_soc_dai *codec_dai = card->rtd[0].codec_dai;
@@ -549,7 +504,6 @@ static int imx_wm8962_probe(struct platform_device *pdev)
 	data->card.num_dapm_widgets = ARRAY_SIZE(imx_wm8962_dapm_widgets);
 
 	data->card.late_probe = imx_wm8962_late_probe;
-	data->card.resume_post = &imx_wm8962_resume;
 
 	platform_set_drvdata(pdev, &data->card);
 	snd_soc_card_set_drvdata(&data->card, data);
