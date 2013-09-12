@@ -72,3 +72,12 @@ config BTRFS_DEBUG
 	  performance, or export extra information via sysfs.
 
 	  If unsure, say N.
+
+config BTRFS_ASSERT
+	bool "Btrfs assert support"
+	depends on BTRFS_FS
+	help
+	  Enable run-time assertion checking.  This will result in panics if
+	  any of the assertions trip.  This is meant for btrfs developers only.
+
+	  If unsure, say N.

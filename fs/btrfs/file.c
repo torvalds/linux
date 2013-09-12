@@ -1334,7 +1334,6 @@ fail:
 static noinline int check_can_nocow(struct inode *inode, loff_t pos,
 				    size_t *write_bytes)
 {
-	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_ordered_extent *ordered;
 	u64 lockstart, lockend;
@@ -1356,16 +1355,8 @@ static noinline int check_can_nocow(struct inode *inode, loff_t pos,
 		btrfs_put_ordered_extent(ordered);
 	}
 
-	trans = btrfs_join_transaction(root);
-	if (IS_ERR(trans)) {
-		unlock_extent(&BTRFS_I(inode)->io_tree, lockstart, lockend);
-		return PTR_ERR(trans);
-	}
-
 	num_bytes = lockend - lockstart + 1;
-	ret = can_nocow_extent(trans, inode, lockstart, &num_bytes, NULL, NULL,
-			       NULL);
-	btrfs_end_transaction(trans, root);
+	ret = can_nocow_extent(inode, lockstart, &num_bytes, NULL, NULL, NULL);
 	if (ret <= 0) {
 		ret = 0;
 	} else {
