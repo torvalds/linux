@@ -657,6 +657,7 @@ void intel_opregion_fini(struct drm_device *dev)
 	opregion->swsci = NULL;
 	opregion->asle = NULL;
 	opregion->vbt = NULL;
+	opregion->lid_state = NULL;
 }
 
 static void swsci_setup(struct drm_device *dev)
