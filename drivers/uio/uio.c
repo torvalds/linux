@@ -796,10 +796,9 @@ int __uio_register_device(struct module *owner,
 
 	info->uio_dev = NULL;
 
-	idev = kzalloc(sizeof(*idev), GFP_KERNEL);
+	idev = devm_kzalloc(parent, sizeof(*idev), GFP_KERNEL);
 	if (!idev) {
-		ret = -ENOMEM;
-		goto err_kzalloc;
+		return -ENOMEM;
 	}
 
 	idev->owner = owner;
@@ -809,7 +808,7 @@ int __uio_register_device(struct module *owner,
 
 	ret = uio_get_minor(idev);
 	if (ret)
-		goto err_get_minor;
+		return ret;
 
 	idev->dev = device_create(&uio_class, parent,
 				  MKDEV(uio_major, idev->minor), idev,
@@ -827,7 +826,7 @@ int __uio_register_device(struct module *owner,
 	info->uio_dev = idev;
 
 	if (info->irq && (info->irq != UIO_IRQ_CUSTOM)) {
-		ret = request_irq(info->irq, uio_interrupt,
+		ret = devm_request_irq(parent, info->irq, uio_interrupt,
 				  info->irq_flags, info->name, idev);
 		if (ret)
 			goto err_request_irq;
@@ -841,9 +840,6 @@ err_uio_dev_add_attributes:
 	device_destroy(&uio_class, MKDEV(uio_major, idev->minor));
 err_device_create:
 	uio_free_minor(idev);
-err_get_minor:
-	kfree(idev);
-err_kzalloc:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(__uio_register_device);
@@ -864,13 +860,9 @@ void uio_unregister_device(struct uio_info *info)
 
 	uio_free_minor(idev);
 
-	if (info->irq && (info->irq != UIO_IRQ_CUSTOM))
-		free_irq(info->irq, idev);
-
 	uio_dev_del_attributes(idev);
 
 	device_destroy(&uio_class, MKDEV(uio_major, idev->minor));
-	kfree(idev);
 
 	return;
 }
