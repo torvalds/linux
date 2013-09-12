@@ -111,7 +111,7 @@ static const struct of_device_id dw_mci_socfpga_match[] = {
 };
 MODULE_DEVICE_TABLE(of, dw_mci_socfpga_match);
 
-int dw_mci_socfpga_probe(struct platform_device *pdev)
+static int dw_mci_socfpga_probe(struct platform_device *pdev)
 {
 	const struct dw_mci_drv_data *drv_data;
 	const struct of_device_id *match;
