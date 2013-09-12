@@ -3520,8 +3520,6 @@ static void pciserial_remove_one(struct pci_dev *dev)
 {
 	struct serial_private *priv = pci_get_drvdata(dev);
 
-	pci_set_drvdata(dev, NULL);
-
 	pciserial_remove_ports(priv);
 
 	pci_disable_device(dev);
