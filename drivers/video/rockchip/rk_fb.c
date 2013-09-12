@@ -1235,7 +1235,10 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 	{
 		if(dev_drv->screen0->sscreen_set)
 		{
+			dev_drv->blank(dev_drv,0,FB_BLANK_NORMAL);
+			msleep(100);
 			dev_drv->screen0->sscreen_set(dev_drv->screen0,enable);
+			dev_drv->blank(dev_drv,0,FB_BLANK_UNBLANK);
 		}
 	}
 #if defined(CONFIG_NO_DUAL_DISP)  //close backlight for device whic do not support dual display
