@@ -33,6 +33,7 @@
 #include <linux/i2c/i2c-rcar.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
@@ -638,6 +639,15 @@ static const struct i2c_algorithm rcar_i2c_algo = {
 	.functionality	= rcar_i2c_func,
 };
 
+static const struct of_device_id rcar_i2c_dt_ids[] = {
+	{ .compatible = "renesas,i2c-rcar", .data = (void *)I2C_RCAR_H1 },
+	{ .compatible = "renesas,i2c-r8a7778", .data = (void *)I2C_RCAR_H1 },
+	{ .compatible = "renesas,i2c-r8a7779", .data = (void *)I2C_RCAR_H1 },
+	{ .compatible = "renesas,i2c-r8a7790", .data = (void *)I2C_RCAR_H2 },
+	{},
+};
+MODULE_DEVICE_TABLE(of, rcar_i2c_dt_ids);
+
 static int rcar_i2c_probe(struct platform_device *pdev)
 {
 	struct i2c_rcar_platform_data *pdata = pdev->dev.platform_data;
@@ -661,10 +671,15 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 	}
 
 	bus_speed = 100000; /* default 100 kHz */
-	if (pdata && pdata->bus_speed)
+	ret = of_property_read_u32(dev->of_node, "clock-frequency", &bus_speed);
+	if (ret < 0 && pdata && pdata->bus_speed)
 		bus_speed = pdata->bus_speed;
 
-	priv->devtype = platform_get_device_id(pdev)->driver_data;
+	if (pdev->dev.of_node)
+		priv->devtype = (long)of_match_device(rcar_i2c_dt_ids,
+						      dev)->data;
+	else
+		priv->devtype = platform_get_device_id(pdev)->driver_data;
 
 	ret = rcar_i2c_clock_calculate(priv, bus_speed, dev);
 	if (ret < 0)
@@ -684,6 +699,7 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 	adap->class		= I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	adap->retries		= 3;
 	adap->dev.parent	= dev;
+	adap->dev.of_node	= dev->of_node;
 	i2c_set_adapdata(adap, priv);
 	strlcpy(adap->name, pdev->name, sizeof(adap->name));
 
@@ -731,6 +747,7 @@ static struct platform_driver rcar_i2c_driver = {
 	.driver	= {
 		.name	= "i2c-rcar",
 		.owner	= THIS_MODULE,
+		.of_match_table = rcar_i2c_dt_ids,
 	},
 	.probe		= rcar_i2c_probe,
 	.remove		= rcar_i2c_remove,
