@@ -726,6 +726,7 @@ struct trace {
 	struct intlist		*pid_list;
 	bool			sched;
 	bool			multiple_threads;
+	bool			show_comm;
 	double			duration_filter;
 	double			runtime_ms;
 };
@@ -755,8 +756,11 @@ static size_t trace__fprintf_entry_head(struct trace *trace, struct thread *thre
 	size_t printed = trace__fprintf_tstamp(trace, tstamp, fp);
 	printed += fprintf_duration(duration, fp);
 
-	if (trace->multiple_threads)
+	if (trace->multiple_threads) {
+		if (trace->show_comm)
+			printed += fprintf(fp, "%.14s/", thread->comm);
 		printed += fprintf(fp, "%d ", thread->tid);
+	}
 
 	return printed;
 }
@@ -1503,10 +1507,13 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 			.mmap_pages    = 1024,
 		},
 		.output = stdout,
+		.show_comm = true,
 	};
 	const char *output_name = NULL;
 	const char *ev_qualifier_str = NULL;
 	const struct option trace_options[] = {
+	OPT_BOOLEAN(0, "comm", &trace.show_comm,
+		    "show the thread COMM next to its id"),
 	OPT_STRING('e', "expr", &ev_qualifier_str, "expr",
 		    "list of events to trace"),
 	OPT_STRING('o', "output", &output_name, "file", "output file name"),
