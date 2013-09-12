@@ -51,44 +51,51 @@ static unsigned long get_target_state(struct thermal_instance *instance,
 {
 	struct thermal_cooling_device *cdev = instance->cdev;
 	unsigned long cur_state;
+	unsigned long next_target;
 
+	/*
+	 * We keep this instance the way it is by default.
+	 * Otherwise, we use the current state of the
+	 * cdev in use to determine the next_target.
+	 */
 	cdev->ops->get_cur_state(cdev, &cur_state);
+	next_target = instance->target;
 
 	switch (trend) {
 	case THERMAL_TREND_RAISING:
 		if (throttle) {
-			cur_state = cur_state < instance->upper ?
+			next_target = cur_state < instance->upper ?
 				    (cur_state + 1) : instance->upper;
-			if (cur_state < instance->lower)
-				cur_state = instance->lower;
+			if (next_target < instance->lower)
+				next_target = instance->lower;
 		}
 		break;
 	case THERMAL_TREND_RAISE_FULL:
 		if (throttle)
-			cur_state = instance->upper;
+			next_target = instance->upper;
 		break;
 	case THERMAL_TREND_DROPPING:
 		if (cur_state == instance->lower) {
 			if (!throttle)
-				cur_state = -1;
+				next_target = THERMAL_NO_TARGET;
 		} else {
-			cur_state -= 1;
-			if (cur_state > instance->upper)
-				cur_state = instance->upper;
+			next_target = cur_state - 1;
+			if (next_target > instance->upper)
+				next_target = instance->upper;
 		}
 		break;
 	case THERMAL_TREND_DROP_FULL:
 		if (cur_state == instance->lower) {
 			if (!throttle)
-				cur_state = -1;
+				next_target = THERMAL_NO_TARGET;
 		} else
-			cur_state = instance->lower;
+			next_target = instance->lower;
 		break;
 	default:
 		break;
 	}
 
-	return cur_state;
+	return next_target;
 }
 
 static void update_passive_instance(struct thermal_zone_device *tz,
@@ -132,6 +139,9 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz, int trip)
 
 		old_target = instance->target;
 		instance->target = get_target_state(instance, trend, throttle);
+
+		if (old_target == instance->target)
+			continue;
 
 		/* Activate a passive thermal instance */
 		if (old_target == THERMAL_NO_TARGET &&
