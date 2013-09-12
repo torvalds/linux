@@ -407,6 +407,18 @@ Being able to mmap an export dma-buf buffer object has 2 main use-cases:
    interesting ways depending upong the exporter (if userspace starts depending
    upon this implicit synchronization).
 
+Other Interfaces Exposed to Userspace on the dma-buf FD
+------------------------------------------------------
+
+- Since kernel 3.12 the dma-buf FD supports the llseek system call, but only
+  with offset=0 and whence=SEEK_END|SEEK_SET. SEEK_SET is supported to allow
+  the usual size discover pattern size = SEEK_END(0); SEEK_SET(0). Every other
+  llseek operation will report -EINVAL.
+
+  If llseek on dma-buf FDs isn't support the kernel will report -ESPIPE for all
+  cases. Userspace can use this to detect support for discovering the dma-buf
+  size using llseek.
+
 Miscellaneous notes
 -------------------
 
