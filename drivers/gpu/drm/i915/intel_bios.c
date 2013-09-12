@@ -590,6 +590,8 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	struct ddi_vbt_port_info *info = &dev_priv->vbt.ddi_port_info[port];
 	uint8_t hdmi_level_shift;
 	int i, j;
+	bool is_dvi, is_dp;
+	uint8_t aux_channel;
 	/* Each DDI port can have more than one value on the "DVO Port" field,
 	 * so look for all the possible values for each port and abort if more
 	 * than one is found. */
@@ -621,6 +623,31 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	}
 	if (!child)
 		return;
+
+	aux_channel = child->raw[25];
+
+	is_dvi = child->common.device_type & (1 << 4);
+	is_dp = child->common.device_type & (1 << 2);
+
+	if (is_dvi) {
+		if (child->common.ddc_pin == 0x05 && port != PORT_B)
+			DRM_DEBUG_KMS("Unexpected DDC pin for port B\n");
+		if (child->common.ddc_pin == 0x04 && port != PORT_C)
+			DRM_DEBUG_KMS("Unexpected DDC pin for port C\n");
+		if (child->common.ddc_pin == 0x06 && port != PORT_D)
+			DRM_DEBUG_KMS("Unexpected DDC pin for port D\n");
+	}
+
+	if (is_dp) {
+		if (aux_channel == 0x40 && port != PORT_A)
+			DRM_DEBUG_KMS("Unexpected AUX channel for port A\n");
+		if (aux_channel == 0x10 && port != PORT_B)
+			DRM_DEBUG_KMS("Unexpected AUX channel for port B\n");
+		if (aux_channel == 0x20 && port != PORT_C)
+			DRM_DEBUG_KMS("Unexpected AUX channel for port C\n");
+		if (aux_channel == 0x30 && port != PORT_D)
+			DRM_DEBUG_KMS("Unexpected AUX channel for port D\n");
+	}
 
 	if (bdb->version >= 158) {
 		/* The VBT HDMI level shift values match the table we have. */
