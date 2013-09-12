@@ -752,11 +752,18 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 {
 	int rc, exit_reason;
 
+	/*
+	 * We try to hold kvm->srcu during most of vcpu_run (except when run-
+	 * ning the guest), so that memslots (and other stuff) are protected
+	 */
+	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
+
 	do {
 		rc = vcpu_pre_run(vcpu);
 		if (rc)
 			break;
 
+		srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
 		/*
 		 * As PF_VCPU will be used in fault handler, between
 		 * guest_enter and guest_exit should be no uaccess.
@@ -767,10 +774,12 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 		exit_reason = sie64a(vcpu->arch.sie_block,
 				     vcpu->run->s.regs.gprs);
 		kvm_guest_exit();
+		vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 
 		rc = vcpu_post_run(vcpu, exit_reason);
 	} while (!signal_pending(current) && !rc);
 
+	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
 	return rc;
 }
 
@@ -968,6 +977,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 {
 	struct kvm_vcpu *vcpu = filp->private_data;
 	void __user *argp = (void __user *)arg;
+	int idx;
 	long r;
 
 	switch (ioctl) {
@@ -981,7 +991,9 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		break;
 	}
 	case KVM_S390_STORE_STATUS:
+		idx = srcu_read_lock(&vcpu->kvm->srcu);
 		r = kvm_s390_vcpu_store_status(vcpu, arg);
+		srcu_read_unlock(&vcpu->kvm->srcu, idx);
 		break;
 	case KVM_S390_SET_INITIAL_PSW: {
 		psw_t psw;
