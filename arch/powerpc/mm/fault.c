@@ -223,9 +223,6 @@ int __kprobes do_page_fault(struct pt_regs *regs, unsigned long address,
 	is_write = error_code & ESR_DST;
 #endif /* CONFIG_4xx || CONFIG_BOOKE */
 
-	if (is_write)
-		flags |= FAULT_FLAG_WRITE;
-
 #ifdef CONFIG_PPC_ICSWX
 	/*
 	 * we need to do this early because this "data storage
@@ -287,6 +284,9 @@ int __kprobes do_page_fault(struct pt_regs *regs, unsigned long address,
 	 */
 	if (user_mode(regs))
 		store_update_sp = store_updates_sp(regs);
+
+	if (user_mode(regs))
+		flags |= FAULT_FLAG_USER;
 
 	/* When running in the kernel we expect faults to occur only to
 	 * addresses in user space.  All other faults represent errors in the
@@ -415,6 +415,7 @@ good_area:
 	} else if (is_write) {
 		if (!(vma->vm_flags & VM_WRITE))
 			goto bad_area;
+		flags |= FAULT_FLAG_WRITE;
 	/* a read */
 	} else {
 		/* protection fault */

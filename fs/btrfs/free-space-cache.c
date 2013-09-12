@@ -221,12 +221,10 @@ int btrfs_truncate_free_space_cache(struct btrfs_root *root,
 				    struct btrfs_path *path,
 				    struct inode *inode)
 {
-	loff_t oldsize;
 	int ret = 0;
 
-	oldsize = i_size_read(inode);
 	btrfs_i_size_write(inode, 0);
-	truncate_pagecache(inode, oldsize, 0);
+	truncate_pagecache(inode, 0);
 
 	/*
 	 * We don't need an orphan item because truncating the free space cache

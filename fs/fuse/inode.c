@@ -218,7 +218,7 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
 		bool inval = false;
 
 		if (oldsize != attr->size) {
-			truncate_pagecache(inode, oldsize, attr->size);
+			truncate_pagecache(inode, attr->size);
 			inval = true;
 		} else if (fc->auto_inval_data) {
 			struct timespec new_mtime = {
