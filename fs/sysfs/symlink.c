@@ -144,7 +144,7 @@ void sysfs_delete_link(struct kobject *kobj, struct kobject *targ,
 	if (targ->sd)
 		ns = targ->sd->s_ns;
 	spin_unlock(&sysfs_assoc_lock);
-	sysfs_hash_and_remove(kobj->sd, ns, name);
+	sysfs_hash_and_remove(kobj->sd, name, ns);
 }
 
 /**
@@ -161,7 +161,7 @@ void sysfs_remove_link(struct kobject *kobj, const char *name)
 	else
 		parent_sd = kobj->sd;
 
-	sysfs_hash_and_remove(parent_sd, NULL, name);
+	sysfs_hash_and_remove(parent_sd, name, NULL);
 }
 EXPORT_SYMBOL_GPL(sysfs_remove_link);
 
@@ -201,7 +201,7 @@ int sysfs_rename_link_ns(struct kobject *kobj, struct kobject *targ,
 	if (sd->s_symlink.target_sd->s_dir.kobj != targ)
 		goto out;
 
-	result = sysfs_rename(sd, parent_sd, new_ns, new);
+	result = sysfs_rename(sd, parent_sd, new, new_ns);
 
 out:
 	sysfs_put(sd);

@@ -35,12 +35,12 @@ static DEFINE_IDA(sysfs_ino_ida);
 
 /**
  *	sysfs_name_hash
- *	@ns:   Namespace tag to hash
  *	@name: Null terminated string to hash
+ *	@ns:   Namespace tag to hash
  *
  *	Returns 31 bit hash of ns + name (so it fits in an off_t )
  */
-static unsigned int sysfs_name_hash(const void *ns, const char *name)
+static unsigned int sysfs_name_hash(const char *name, const void *ns)
 {
 	unsigned long hash = init_name_hash();
 	unsigned int len = strlen(name);
@@ -56,8 +56,8 @@ static unsigned int sysfs_name_hash(const void *ns, const char *name)
 	return hash;
 }
 
-static int sysfs_name_compare(unsigned int hash, const void *ns,
-	const char *name, const struct sysfs_dirent *sd)
+static int sysfs_name_compare(unsigned int hash, const char *name,
+			      const void *ns, const struct sysfs_dirent *sd)
 {
 	if (hash != sd->s_hash)
 		return hash - sd->s_hash;
@@ -69,7 +69,7 @@ static int sysfs_name_compare(unsigned int hash, const void *ns,
 static int sysfs_sd_compare(const struct sysfs_dirent *left,
 			    const struct sysfs_dirent *right)
 {
-	return sysfs_name_compare(left->s_hash, left->s_ns, left->s_name,
+	return sysfs_name_compare(left->s_hash, left->s_name, left->s_ns,
 				  right);
 }
 
@@ -451,7 +451,7 @@ int __sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
 	struct sysfs_inode_attrs *ps_iattr;
 	int ret;
 
-	sd->s_hash = sysfs_name_hash(sd->s_ns, sd->s_name);
+	sd->s_hash = sysfs_name_hash(sd->s_name, sd->s_ns);
 	sd->s_parent = sysfs_get(acxt->parent_sd);
 
 	ret = sysfs_link_sibling(sd);
@@ -596,6 +596,7 @@ void sysfs_addrm_finish(struct sysfs_addrm_cxt *acxt)
  *	sysfs_find_dirent - find sysfs_dirent with the given name
  *	@parent_sd: sysfs_dirent to search under
  *	@name: name to look for
+ *	@ns: the namespace tag to use
  *
  *	Look for sysfs_dirent with name @name under @parent_sd.
  *
@@ -606,19 +607,19 @@ void sysfs_addrm_finish(struct sysfs_addrm_cxt *acxt)
  *	Pointer to sysfs_dirent if found, NULL if not.
  */
 struct sysfs_dirent *sysfs_find_dirent(struct sysfs_dirent *parent_sd,
-				       const void *ns,
-				       const unsigned char *name)
+				       const unsigned char *name,
+				       const void *ns)
 {
 	struct rb_node *node = parent_sd->s_dir.children.rb_node;
 	unsigned int hash;
 
-	hash = sysfs_name_hash(ns, name);
+	hash = sysfs_name_hash(name, ns);
 	while (node) {
 		struct sysfs_dirent *sd;
 		int result;
 
 		sd = to_sysfs_dirent(node);
-		result = sysfs_name_compare(hash, ns, name, sd);
+		result = sysfs_name_compare(hash, name, ns, sd);
 		if (result < 0)
 			node = node->rb_left;
 		else if (result > 0)
@@ -651,7 +652,7 @@ struct sysfs_dirent *sysfs_get_dirent_ns(struct sysfs_dirent *parent_sd,
 	struct sysfs_dirent *sd;
 
 	mutex_lock(&sysfs_mutex);
-	sd = sysfs_find_dirent(parent_sd, ns, name);
+	sd = sysfs_find_dirent(parent_sd, name, ns);
 	sysfs_get(sd);
 	mutex_unlock(&sysfs_mutex);
 
@@ -660,7 +661,8 @@ struct sysfs_dirent *sysfs_get_dirent_ns(struct sysfs_dirent *parent_sd,
 EXPORT_SYMBOL_GPL(sysfs_get_dirent_ns);
 
 static int create_dir(struct kobject *kobj, struct sysfs_dirent *parent_sd,
-	const void *ns, const char *name, struct sysfs_dirent **p_sd)
+		      const char *name, const void *ns,
+		      struct sysfs_dirent **p_sd)
 {
 	umode_t mode = S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO;
 	struct sysfs_addrm_cxt acxt;
@@ -691,7 +693,7 @@ static int create_dir(struct kobject *kobj, struct sysfs_dirent *parent_sd,
 int sysfs_create_subdir(struct kobject *kobj, const char *name,
 			struct sysfs_dirent **p_sd)
 {
-	return create_dir(kobj, kobj->sd, NULL, name, p_sd);
+	return create_dir(kobj, kobj->sd, name, NULL, p_sd);
 }
 
 /**
@@ -714,7 +716,7 @@ int sysfs_create_dir_ns(struct kobject *kobj, const void *ns)
 	if (!parent_sd)
 		return -ENOENT;
 
-	error = create_dir(kobj, parent_sd, ns, kobject_name(kobj), &sd);
+	error = create_dir(kobj, parent_sd, kobject_name(kobj), ns, &sd);
 	if (!error)
 		kobj->sd = sd;
 	return error;
@@ -735,7 +737,7 @@ static struct dentry *sysfs_lookup(struct inode *dir, struct dentry *dentry,
 	if (parent_sd->s_flags & SYSFS_FLAG_HAS_NS)
 		ns = sysfs_info(dir->i_sb)->ns;
 
-	sd = sysfs_find_dirent(parent_sd, ns, dentry->d_name.name);
+	sd = sysfs_find_dirent(parent_sd, dentry->d_name.name, ns);
 
 	/* no such entry */
 	if (!sd) {
@@ -823,9 +825,8 @@ void sysfs_remove_dir(struct kobject *kobj)
 	__sysfs_remove_dir(sd);
 }
 
-int sysfs_rename(struct sysfs_dirent *sd,
-	struct sysfs_dirent *new_parent_sd, const void *new_ns,
-	const char *new_name)
+int sysfs_rename(struct sysfs_dirent *sd, struct sysfs_dirent *new_parent_sd,
+		 const char *new_name, const void *new_ns)
 {
 	int error;
 
@@ -837,7 +838,7 @@ int sysfs_rename(struct sysfs_dirent *sd,
 		goto out;	/* nothing to rename */
 
 	error = -EEXIST;
-	if (sysfs_find_dirent(new_parent_sd, new_ns, new_name))
+	if (sysfs_find_dirent(new_parent_sd, new_name, new_ns))
 		goto out;
 
 	/* rename sysfs_dirent */
@@ -858,7 +859,7 @@ int sysfs_rename(struct sysfs_dirent *sd,
 	sysfs_get(new_parent_sd);
 	sysfs_put(sd->s_parent);
 	sd->s_ns = new_ns;
-	sd->s_hash = sysfs_name_hash(sd->s_ns, sd->s_name);
+	sd->s_hash = sysfs_name_hash(sd->s_name, sd->s_ns);
 	sd->s_parent = new_parent_sd;
 	sysfs_link_sibling(sd);
 
@@ -873,7 +874,7 @@ int sysfs_rename_dir_ns(struct kobject *kobj, const char *new_name,
 {
 	struct sysfs_dirent *parent_sd = kobj->sd->s_parent;
 
-	return sysfs_rename(kobj->sd, parent_sd, new_ns, new_name);
+	return sysfs_rename(kobj->sd, parent_sd, new_name, new_ns);
 }
 
 int sysfs_move_dir_ns(struct kobject *kobj, struct kobject *new_parent_kobj,
@@ -886,7 +887,7 @@ int sysfs_move_dir_ns(struct kobject *kobj, struct kobject *new_parent_kobj,
 	new_parent_sd = new_parent_kobj && new_parent_kobj->sd ?
 		new_parent_kobj->sd : &sysfs_root;
 
-	return sysfs_rename(sd, new_parent_sd, new_ns, sd->s_name);
+	return sysfs_rename(sd, new_parent_sd, sd->s_name, new_ns);
 }
 
 /* Relationship between s_mode and the DT_xxx types */

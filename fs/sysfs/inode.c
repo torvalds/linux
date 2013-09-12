@@ -314,8 +314,8 @@ void sysfs_evict_inode(struct inode *inode)
 	sysfs_put(sd);
 }
 
-int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const void *ns,
-			  const char *name)
+int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const char *name,
+			  const void *ns)
 {
 	struct sysfs_addrm_cxt acxt;
 	struct sysfs_dirent *sd;
@@ -328,7 +328,7 @@ int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const void *ns,
 
 	sysfs_addrm_start(&acxt, dir_sd);
 
-	sd = sysfs_find_dirent(dir_sd, ns, name);
+	sd = sysfs_find_dirent(dir_sd, name, ns);
 	if (sd)
 		sysfs_remove_one(&acxt, sd);
 
