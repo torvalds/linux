@@ -122,7 +122,6 @@ good_area:
 			goto bad_area;
 	}
 
-survive:
 	/*
 	 * If for any reason at all we couldn't handle the fault,
 	 * make sure we exit gracefully rather than endlessly redo
@@ -201,10 +200,6 @@ no_context:
 	die("Oops", regs, address);
 
 out_of_memory:
-	if (is_global_init(tsk)) {
-		yield();
-		goto survive;
-	}
 	up_read(&mm->mmap_sem);
 
 	if (user_mode(regs)) {
