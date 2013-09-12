@@ -28,7 +28,7 @@
 DEFINE_MUTEX(sysfs_mutex);
 DEFINE_SPINLOCK(sysfs_assoc_lock);
 
-#define to_sysfs_dirent(X) rb_entry((X), struct sysfs_dirent, s_rb);
+#define to_sysfs_dirent(X) rb_entry((X), struct sysfs_dirent, s_rb)
 
 static DEFINE_SPINLOCK(sysfs_ino_lock);
 static DEFINE_IDA(sysfs_ino_ida);
