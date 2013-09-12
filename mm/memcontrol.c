@@ -2613,7 +2613,7 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
 		return CHARGE_RETRY;
 
 	/* If we don't need to call oom-killer at el, return immediately */
-	if (!oom_check)
+	if (!oom_check || !current->memcg_oom.may_oom)
 		return CHARGE_NOMEM;
 	/* check OOM */
 	if (!mem_cgroup_handle_oom(mem_over_limit, gfp_mask, get_order(csize)))
