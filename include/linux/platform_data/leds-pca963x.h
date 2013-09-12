@@ -1,7 +1,8 @@
 /*
- * PCA9633 LED chip driver.
+ * PCA963X LED chip driver.
  *
  * Copyright 2012 bct electronic GmbH
+ * Copyright 2013 Qtechnology A/S
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -18,18 +19,24 @@
  * 02110-1301 USA
  */
 
-#ifndef __LINUX_PCA9633_H
-#define __LINUX_PCA9633_H
+#ifndef __LINUX_PCA963X_H
+#define __LINUX_PCA963X_H
 #include <linux/leds.h>
 
-enum pca9633_outdrv {
-	PCA9633_OPEN_DRAIN,
-	PCA9633_TOTEM_POLE, /* aka push-pull */
+enum pca963x_outdrv {
+	PCA963X_OPEN_DRAIN,
+	PCA963X_TOTEM_POLE, /* aka push-pull */
 };
 
-struct pca9633_platform_data {
+enum pca963x_blink_type {
+	PCA963X_SW_BLINK,
+	PCA963X_HW_BLINK,
+};
+
+struct pca963x_platform_data {
 	struct led_platform_data leds;
-	enum pca9633_outdrv outdrv;
+	enum pca963x_outdrv outdrv;
+	enum pca963x_blink_type blink_type;
 };
 
-#endif /* __LINUX_PCA9633_H*/
+#endif /* __LINUX_PCA963X_H*/

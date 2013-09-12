@@ -18,7 +18,25 @@ All three channels can be also controlled using the engine micro programs.
 More details of the instructions can be found from the public data sheet.
 
 LP5521 has the internal program memory for running various LED patterns.
-For the details, please refer to 'firmware' section in leds-lp55xx.txt
+There are two ways to run LED patterns.
+
+1) Legacy interface - enginex_mode and enginex_load
+  Control interface for the engines:
+  x is 1 .. 3
+  enginex_mode : disabled, load, run
+  enginex_load : store program (visible only in engine load mode)
+
+  Example (start to blink the channel 2 led):
+  cd   /sys/class/leds/lp5521:channel2/device
+  echo "load" > engine3_mode
+  echo "037f4d0003ff6000" > engine3_load
+  echo "run" > engine3_mode
+
+  To stop the engine:
+  echo "disabled" > engine3_mode
+
+2) Firmware interface - LP55xx common interface
+  For the details, please refer to 'firmware' section in leds-lp55xx.txt
 
 sysfs contains a selftest entry.
 The test communicates with the chip and checks that
