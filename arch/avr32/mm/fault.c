@@ -228,9 +228,9 @@ no_context:
 	 */
 out_of_memory:
 	up_read(&mm->mmap_sem);
-	pagefault_out_of_memory();
 	if (!user_mode(regs))
 		goto no_context;
+	pagefault_out_of_memory();
 	return;
 
 do_sigbus:
