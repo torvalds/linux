@@ -75,7 +75,7 @@ static unsigned int gss_key_expire_timeo = GSS_KEY_EXPIRE_TIMEO;
  * using integrity (two 4-byte integers): */
 #define GSS_VERF_SLACK		100
 
-static DEFINE_HASHTABLE(gss_auth_hash_table, 16);
+static DEFINE_HASHTABLE(gss_auth_hash_table, 4);
 static DEFINE_SPINLOCK(gss_auth_hash_lock);
 
 struct gss_pipe {
