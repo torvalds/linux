@@ -3015,6 +3015,17 @@ Elong:
 	return ERR_PTR(-ENAMETOOLONG);
 }
 
+static inline void get_fs_root_and_pwd(struct fs_struct *fs, struct path *root,
+				       struct path *pwd)
+{
+	spin_lock(&fs->lock);
+	*root = fs->root;
+	path_get(root);
+	*pwd = fs->pwd;
+	path_get(pwd);
+	spin_unlock(&fs->lock);
+}
+
 /*
  * NOTE! The user-level library version returns a
  * character pointer. The kernel system call just
