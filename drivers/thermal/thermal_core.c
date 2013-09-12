@@ -403,7 +403,7 @@ int thermal_zone_get_temp(struct thermal_zone_device *tz, unsigned long *temp)
 	enum thermal_trip_type type;
 #endif
 
-	if (!tz || IS_ERR(tz))
+	if (!tz || IS_ERR(tz) || !tz->ops->get_temp)
 		goto exit;
 
 	mutex_lock(&tz->lock);
@@ -455,6 +455,9 @@ static void update_temperature(struct thermal_zone_device *tz)
 void thermal_zone_device_update(struct thermal_zone_device *tz)
 {
 	int count;
+
+	if (!tz->ops->get_temp)
+		return;
 
 	update_temperature(tz);
 
@@ -1386,7 +1389,7 @@ struct thermal_zone_device *thermal_zone_device_register(const char *type,
 	if (trips > THERMAL_MAX_TRIPS || trips < 0 || mask >> trips)
 		return ERR_PTR(-EINVAL);
 
-	if (!ops || !ops->get_temp)
+	if (!ops)
 		return ERR_PTR(-EINVAL);
 
 	if (trips > 0 && (!ops->get_trip_type || !ops->get_trip_temp))
@@ -1489,6 +1492,9 @@ struct thermal_zone_device *thermal_zone_device_register(const char *type,
 	bind_tz(tz);
 
 	INIT_DELAYED_WORK(&(tz->poll_queue), thermal_zone_device_check);
+
+	if (!tz->ops->get_temp)
+		thermal_zone_device_set_polling(tz, 0);
 
 	thermal_zone_device_update(tz);
 
