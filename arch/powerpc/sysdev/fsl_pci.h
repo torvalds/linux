@@ -16,6 +16,11 @@
 
 struct platform_device;
 
+
+/* FSL PCI controller BRR1 register */
+#define PCI_FSL_BRR1      0xbf8
+#define PCI_FSL_BRR1_VER 0xffff
+
 #define PCIE_LTSSM	0x0404		/* PCIE Link Training and Status */
 #define PCIE_LTSSM_L0	0x16		/* L0 state */
 #define PCIE_IP_REV_2_2		0x02080202 /* PCIE IP block version Rev2.2 */
