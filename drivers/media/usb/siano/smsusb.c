@@ -245,6 +245,9 @@ static int smsusb1_load_firmware(struct usb_device *udev, int id, int board_id)
 	int rc, dummy;
 	char *fw_filename;
 
+	if (id < 0)
+		id = sms_get_board(board_id)->default_mode;
+
 	if (id < DEVICE_MODE_DVBT || id > DEVICE_MODE_DVBT_BDA) {
 		sms_err("invalid firmware id specified %d", id);
 		return -EINVAL;
