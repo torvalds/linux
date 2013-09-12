@@ -30,6 +30,38 @@
 #include "kvm-s390.h"
 #include "trace.h"
 
+/* Handle SCK (SET CLOCK) interception */
+static int handle_set_clock(struct kvm_vcpu *vcpu)
+{
+	struct kvm_vcpu *cpup;
+	s64 hostclk, val;
+	u64 op2;
+	int i;
+
+	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
+		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
+
+	op2 = kvm_s390_get_base_disp_s(vcpu);
+	if (op2 & 7)	/* Operand must be on a doubleword boundary */
+		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
+	if (get_guest(vcpu, val, (u64 __user *) op2))
+		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+
+	if (store_tod_clock(&hostclk)) {
+		kvm_s390_set_psw_cc(vcpu, 3);
+		return 0;
+	}
+	val = (val - hostclk) & ~0x3fUL;
+
+	mutex_lock(&vcpu->kvm->lock);
+	kvm_for_each_vcpu(i, cpup, vcpu->kvm)
+		cpup->arch.sie_block->epoch = val;
+	mutex_unlock(&vcpu->kvm->lock);
+
+	kvm_s390_set_psw_cc(vcpu, 0);
+	return 0;
+}
+
 static int handle_set_prefix(struct kvm_vcpu *vcpu)
 {
 	u64 operand2;
@@ -465,6 +497,7 @@ out_exception:
 
 static const intercept_handler_t b2_handlers[256] = {
 	[0x02] = handle_stidp,
+	[0x04] = handle_set_clock,
 	[0x10] = handle_set_prefix,
 	[0x11] = handle_store_prefix,
 	[0x12] = handle_store_cpu_address,
