@@ -20,11 +20,14 @@
 
 #include <linux/err.h>
 #include <linux/i2c.h>
+#include <linux/input.h>
+#include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/slab.h>
+#include <mach/irqs.h>
 #include <plat/sys_config.h>
 
 #define AXP152_I2C_ADDR		  48
@@ -39,6 +42,12 @@
 #define AXP152_REG_DLDO2	0x2a
 #define AXP152_REG_DCDC4	0x2b
 #define AXP152_REG_POWER	0x32
+#define AXP152_REG_INTEN1	0x40
+#define AXP152_REG_INTEN2	0x41
+#define AXP152_REG_INTEN3	0x42
+#define AXP152_REG_INTSTS1	0x48
+#define AXP152_REG_INTSTS2	0x49
+#define AXP152_REG_INTSTS3	0x4a
 
 /* Bits inside AXP152_REG_OUTPUT_CTRL */
 #define AXP152_DLDO2_ENABLE	0x01
@@ -49,6 +58,10 @@
 
 /* Bits inside AXP152_REG_POWER */
 #define AXP152_POWER_OFF	0x80
+
+/* interrupt bits */
+#define AXP152_IRQ_PEKLONG	(1 << 8)
+#define AXP152_IRQ_PEKSHORT	(1 << 9)
 
 static const struct i2c_device_id axp152_id_table[] = {
 	{ "axp152", 0 },
@@ -69,8 +82,11 @@ enum axp_regulator_ids {
 
 struct axp152_data {
 	struct i2c_client *client;
+	struct input_dev *input;
 	struct regulator_dev *regulator[AXP152_REGULATOR_COUNT];
 	struct mutex mutex;
+	struct work_struct irq_work;
+	int got_irq;
 	u8 regs[256]; /* Register cache to avoid slow i2c transfers */
 };
 
@@ -105,6 +121,83 @@ static int axp152_write_reg(struct axp152_data *axp152, int reg, int val)
 	}
 	axp152->regs[reg] = val;
 	return 0;
+}
+
+static int axp152_read_interrupts(struct axp152_data *axp152, uint8_t start)
+{
+	int ret;
+	uint8_t v[3] = { 0, 0, 0, };
+
+	ret = i2c_smbus_read_i2c_block_data(axp152->client, start, 3, v);
+	if (ret < 0) {
+		dev_err(&axp152->client->dev, "interrupt read 0x%02x error\n",
+			start);
+		return ret;
+	}
+	return (v[2] << 16) | (v[1] << 8) | v[0];
+}
+
+static int axp152_write_interrupts(struct axp152_data *axp152, uint8_t start,
+				   int irqs)
+{
+	int ret;
+	uint8_t v[5];
+
+	v[0] = irqs;
+	v[1] = start + 1;
+	v[2] = irqs >> 8;
+	v[3] = start + 2;
+	v[4] = irqs >> 16;
+
+	ret = i2c_smbus_write_i2c_block_data(axp152->client, start, 3, v);
+	if (ret < 0) {
+		dev_err(&axp152->client->dev, "interrupt write 0x%02x error\n",
+			start);
+		return ret;
+	}
+	return 0;
+}
+
+static void axp152_irq_work(struct work_struct *work)
+{
+	struct axp152_data *axp152 =
+		container_of(work, struct axp152_data, irq_work);
+	int irqs;
+
+	/* read interrupts */
+	irqs = axp152_read_interrupts(axp152, AXP152_REG_INTSTS1);
+	if (irqs < 0) {
+		dev_err(&axp152->client->dev,
+			"interrupt read error leaving interrupts disabled\n");
+		return;
+	}
+
+	/* process interrupts */
+	if (irqs & (AXP152_IRQ_PEKLONG | AXP152_IRQ_PEKSHORT)) {
+		input_report_key(axp152->input, KEY_POWER, 1);
+		input_sync(axp152->input);
+		input_report_key(axp152->input, KEY_POWER, 0);
+		input_sync(axp152->input);
+	}
+
+	/* clear interrupts */
+	irqs = axp152_write_interrupts(axp152, AXP152_REG_INTSTS1, irqs);
+	if (irqs < 0) {
+		dev_err(&axp152->client->dev,
+			"interrupt write error leaving interrupts disabled\n");
+		return;
+	}
+	enable_irq(axp152->client->irq);
+}
+
+static irqreturn_t axp152_irq_handler(int irq, void *data)
+{
+	struct axp152_data *axp152 = data;
+
+	disable_irq_nosync(irq);
+	schedule_work(&axp152->irq_work);
+
+	return IRQ_HANDLED;
 }
 
 static void axp152_power_off(void)
@@ -271,6 +364,14 @@ static int axp152_remove(struct i2c_client *client)
 		if (axp152->regulator[i])
 			regulator_unregister(axp152->regulator[i]);
 
+	if (axp152->got_irq)
+		free_irq(client->irq, axp152);
+
+	cancel_work_sync(&axp152->irq_work);
+
+	if (axp152->input)
+		input_unregister_device(axp152->input);
+
 	i2c_set_clientdata(client, NULL);
 	kfree(axp152);
 	return 0;
@@ -299,6 +400,7 @@ static int __devinit axp152_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	mutex_init(&axp152->mutex);
+	INIT_WORK(&axp152->irq_work, axp152_irq_work);
 	axp152->client = client;
 	i2c_set_clientdata(client, axp152);
 
@@ -311,9 +413,54 @@ static int __devinit axp152_probe(struct i2c_client *client,
 	ret |= axp152_read_reg(axp152, AXP152_REG_DCDC4);
 	ret |= axp152_read_reg(axp152, AXP152_REG_DLDO2);
 	ret |= axp152_read_reg(axp152, AXP152_REG_POWER);
+
+	/* Enable the interrupts we're interested in */
+	if (client->irq != -1) {
+		ret |= axp152_write_interrupts(axp152, AXP152_REG_INTSTS1,
+				AXP152_IRQ_PEKLONG | AXP152_IRQ_PEKSHORT);
+		ret |= axp152_write_interrupts(axp152, AXP152_REG_INTEN1,
+				AXP152_IRQ_PEKLONG | AXP152_IRQ_PEKSHORT);
+	}
+
+	/* Check initialization was successful */
 	if (ret) {
 		axp152_remove(client);
 		return -EIO;
+	}
+
+	if (client->irq != -1) {
+		axp152->input = input_allocate_device();
+		if (!axp152->input) {
+			axp152_remove(client);
+			return -ENOMEM;
+		}
+
+		axp152->input->name = client->name;
+		axp152->input->phys = client->adapter->name;
+		axp152->input->id.bustype = BUS_I2C;
+		axp152->input->dev.parent = &client->dev;
+		set_bit(EV_KEY, axp152->input->evbit);
+		set_bit(KEY_POWER, axp152->input->keybit);
+
+		ret = input_register_device(axp152->input);
+		if (ret) {
+			dev_err(&client->dev, "failed to register input\n");
+			axp152->input->dev.parent = NULL;
+			input_free_device(axp152->input);
+			axp152->input = NULL;
+			axp152_remove(client);
+			return ret;
+		}
+
+		ret = request_irq(client->irq, axp152_irq_handler,
+				  IRQF_DISABLED, "axp152", axp152);
+		if (ret) {
+			dev_err(&client->dev, "failed to request irq %d\n",
+				client->irq);
+			axp152_remove(client);
+			return -EIO;
+		}
+		axp152->got_irq = 1;
 	}
 
 	for (i = 0; i < AXP152_REGULATOR_COUNT; i++) {
@@ -430,6 +577,7 @@ static struct regulator_init_data regl_init_data[AXP152_REGULATOR_COUNT] = {
 static struct i2c_board_info __initdata axp_mfd_i2c_board_info = {
 	.type = "axp152",
 	.addr = AXP152_I2C_ADDR,
+	.irq  = -1,
 	.platform_data = regl_init_data,
 };
 
@@ -467,6 +615,10 @@ static int __init axp_board_init(void)
 		pr_err("Error invalid pmu_twi_addr (%d) in fex\n", val);
 		return -1;
 	}
+
+	ret = script_parser_fetch("pmu_para", "pmu_irq_id", &val, sizeof(int));
+	if (ret == 0)
+		axp_mfd_i2c_board_info.irq = val;
 
 	/* Note we ignore the dcdc2_vol key as dcdc2 is set by the dvfs code */
 
