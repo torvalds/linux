@@ -2159,7 +2159,6 @@ static int cirrusfb_pci_register(struct pci_dev *pdev,
 	if (!ret)
 		return 0;
 
-	pci_set_drvdata(pdev, NULL);
 	iounmap(info->screen_base);
 err_release_legacy:
 	if (release_io_ports)
