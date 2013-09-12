@@ -730,14 +730,14 @@ static enum kobj_ns_type sysfs_read_ns_type(struct kobject *kobj)
 }
 
 /**
- *	sysfs_create_dir - create a directory for an object.
- *	@kobj:		object we're creating directory for.
+ * sysfs_create_dir_ns - create a directory for an object with a namespace tag
+ * @kobj: object we're creating directory for
+ * @ns: the namespace tag to use
  */
-int sysfs_create_dir(struct kobject *kobj)
+int sysfs_create_dir_ns(struct kobject *kobj, const void *ns)
 {
 	enum kobj_ns_type type;
 	struct sysfs_dirent *parent_sd, *sd;
-	const void *ns = NULL;
 	int error = 0;
 
 	BUG_ON(!kobj);
@@ -750,8 +750,6 @@ int sysfs_create_dir(struct kobject *kobj)
 	if (!parent_sd)
 		return -ENOENT;
 
-	if (sysfs_ns_type(parent_sd))
-		ns = kobj->ktype->namespace(kobj);
 	type = sysfs_read_ns_type(kobj);
 
 	error = create_dir(kobj, parent_sd, type, ns, kobject_name(kobj), &sd);
@@ -909,26 +907,21 @@ int sysfs_rename(struct sysfs_dirent *sd,
 	return error;
 }
 
-int sysfs_rename_dir(struct kobject *kobj, const char *new_name)
+int sysfs_rename_dir_ns(struct kobject *kobj, const char *new_name,
+			const void *new_ns)
 {
 	struct sysfs_dirent *parent_sd = kobj->sd->s_parent;
-	const void *new_ns = NULL;
-
-	if (sysfs_ns_type(parent_sd))
-		new_ns = kobj->ktype->namespace(kobj);
 
 	return sysfs_rename(kobj->sd, parent_sd, new_ns, new_name);
 }
 
-int sysfs_move_dir(struct kobject *kobj, struct kobject *new_parent_kobj)
+int sysfs_move_dir_ns(struct kobject *kobj, struct kobject *new_parent_kobj,
+		      const void *new_ns)
 {
 	struct sysfs_dirent *sd = kobj->sd;
 	struct sysfs_dirent *new_parent_sd;
-	const void *new_ns = NULL;
 
 	BUG_ON(!sd->s_parent);
-	if (sysfs_ns_type(sd->s_parent))
-		new_ns = kobj->ktype->namespace(kobj);
 	new_parent_sd = new_parent_kobj && new_parent_kobj->sd ?
 		new_parent_kobj->sd : &sysfs_root;
 
