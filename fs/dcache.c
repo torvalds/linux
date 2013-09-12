@@ -3067,6 +3067,7 @@ SYSCALL_DEFINE2(getcwd, char __user *, buf, unsigned long, size)
 		prepend(&cwd, &buflen, "\0", 1);
 		error = prepend_path(&pwd, &root, &cwd, &buflen);
 		br_read_unlock(&vfsmount_lock);
+		rcu_read_unlock();
 
 		if (error < 0)
 			goto out;
@@ -3087,10 +3088,10 @@ SYSCALL_DEFINE2(getcwd, char __user *, buf, unsigned long, size)
 		}
 	} else {
 		br_read_unlock(&vfsmount_lock);
+		rcu_read_unlock();
 	}
 
 out:
-	rcu_read_unlock();
 	free_page((unsigned long) page);
 	return error;
 }
