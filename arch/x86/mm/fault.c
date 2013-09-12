@@ -1011,9 +1011,7 @@ __do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	unsigned long address;
 	struct mm_struct *mm;
 	int fault;
-	int write = error_code & PF_WRITE;
-	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE |
-					(write ? FAULT_FLAG_WRITE : 0);
+	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 
 	tsk = current;
 	mm = tsk->mm;
@@ -1083,6 +1081,7 @@ __do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	if (user_mode_vm(regs)) {
 		local_irq_enable();
 		error_code |= PF_USER;
+		flags |= FAULT_FLAG_USER;
 	} else {
 		if (regs->flags & X86_EFLAGS_IF)
 			local_irq_enable();
@@ -1108,6 +1107,9 @@ __do_page_fault(struct pt_regs *regs, unsigned long error_code)
 		bad_area_nosemaphore(regs, error_code, address);
 		return;
 	}
+
+	if (error_code & PF_WRITE)
+		flags |= FAULT_FLAG_WRITE;
 
 	/*
 	 * When running in the kernel we expect faults to occur only to
