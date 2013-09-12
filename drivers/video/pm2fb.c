@@ -1744,7 +1744,6 @@ static void pm2fb_remove(struct pci_dev *pdev)
 	iounmap(par->v_regs);
 	release_mem_region(fix->mmio_start, fix->mmio_len);
 
-	pci_set_drvdata(pdev, NULL);
 	fb_dealloc_cmap(&info->cmap);
 	kfree(info->pixmap.addr);
 	framebuffer_release(info);
