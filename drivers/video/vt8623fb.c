@@ -829,7 +829,6 @@ static void vt8623_pci_remove(struct pci_dev *dev)
 		pci_release_regions(dev);
 /*		pci_disable_device(dev); */
 
-		pci_set_drvdata(dev, NULL);
 		framebuffer_release(info);
 	}
 }
