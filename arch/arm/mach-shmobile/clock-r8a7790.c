@@ -310,7 +310,7 @@ static struct clk_lookup lookups[] = {
 
 void __init r8a7790_clock_init(void)
 {
-	u32 mode = r8a7790_read_mode_pins();
+	u32 mode = rcar_gen2_read_mode_pins();
 	int k, ret = 0;
 
 	switch (mode & (MD(14) | MD(13))) {
