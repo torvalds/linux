@@ -3,20 +3,21 @@ config ARM
 	default y
 	select ARCH_BINFMT_ELF_RANDOMIZE_PIE
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
-	select ARCH_HAVE_CUSTOM_GPIO_H
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
+	select ARCH_HAVE_CUSTOM_GPIO_H
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select BUILDTIME_EXTABLE_SORT if MMU
+	select CLONE_BACKWARDS
 	select CPU_PM if (SUSPEND || CPU_IDLE)
 	select DCACHE_WORD_ACCESS if (CPU_V6 || CPU_V6K || CPU_V7) && !CPU_BIG_ENDIAN && MMU
 	select GENERIC_ATOMIC64 if (CPU_V7M || CPU_V6 || !CPU_32v6K || !AEABI)
 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
+	select GENERIC_IDLE_POLL_SETUP
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
 	select GENERIC_PCI_IOMAP
 	select GENERIC_SCHED_CLOCK
 	select GENERIC_SMP_IDLE_THREAD
-	select GENERIC_IDLE_POLL_SETUP
 	select GENERIC_STRNCPY_FROM_USER
 	select GENERIC_STRNLEN_USER
 	select HARDIRQS_SW_RESEND
@@ -25,6 +26,7 @@ config ARM
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_BPF_JIT
+	select HAVE_CONTEXT_TRACKING
 	select HAVE_C_RECORDMCOUNT
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_API_DEBUG
@@ -47,6 +49,7 @@ config ARM
 	select HAVE_KPROBES if !XIP_KERNEL
 	select HAVE_KRETPROBES if (HAVE_KPROBES)
 	select HAVE_MEMBLOCK
+	select HAVE_MOD_ARCH_SPECIFIC if ARM_UNWIND
 	select HAVE_OPROFILE if (HAVE_PERF_EVENTS)
 	select HAVE_PERF_EVENTS
 	select HAVE_REGS_AND_STACK_ACCESS_API
@@ -54,15 +57,14 @@ config ARM
 	select HAVE_UID16
 	select IRQ_FORCED_THREADING
 	select KTIME_SCALAR
+	select MODULES_USE_ELF_REL
+	select OLD_SIGACTION
+	select OLD_SIGSUSPEND3
 	select PERF_USE_VMALLOC
 	select RTC_LIB
 	select SYS_SUPPORTS_APM_EMULATION
-	select HAVE_MOD_ARCH_SPECIFIC if ARM_UNWIND
-	select MODULES_USE_ELF_REL
-	select CLONE_BACKWARDS
-	select OLD_SIGSUSPEND3
-	select OLD_SIGACTION
-	select HAVE_CONTEXT_TRACKING
+	# Above selects are sorted alphabetically; please add new ones
+	# according to that.  Thanks.
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and
@@ -386,8 +388,8 @@ config ARCH_GEMINI
 	bool "Cortina Systems Gemini"
 	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_USES_GETTIMEOFFSET
-	select NEED_MACH_GPIO_H
 	select CPU_FA526
+	select NEED_MACH_GPIO_H
 	help
 	  Support for the Cortina Systems Gemini family SoCs
 
@@ -487,8 +489,8 @@ config ARCH_IXP4XX
 	select GENERIC_CLOCKEVENTS
 	select MIGHT_HAVE_PCI
 	select NEED_MACH_IO_H
-	select USB_EHCI_BIG_ENDIAN_MMIO
 	select USB_EHCI_BIG_ENDIAN_DESC
+	select USB_EHCI_BIG_ENDIAN_MMIO
 	help
 	  Support for Intel's IXP4XX (XScale) family of processors.
 
@@ -498,11 +500,11 @@ config ARCH_DOVE
 	select CPU_PJ4
 	select GENERIC_CLOCKEVENTS
 	select MIGHT_HAVE_PCI
+	select MVEBU_MBUS
 	select PINCTRL
 	select PINCTRL_DOVE
 	select PLAT_ORION_LEGACY
 	select USB_ARCH_HAS_EHCI
-	select MVEBU_MBUS
 	help
 	  Support for the Marvell Dove SoC 88AP510
 
@@ -512,12 +514,12 @@ config ARCH_KIRKWOOD
 	select ARCH_REQUIRE_GPIOLIB
 	select CPU_FEROCEON
 	select GENERIC_CLOCKEVENTS
+	select MVEBU_MBUS
 	select PCI
 	select PCI_QUIRKS
 	select PINCTRL
 	select PINCTRL_KIRKWOOD
 	select PLAT_ORION_LEGACY
-	select MVEBU_MBUS
 	help
 	  Support for the following Marvell Kirkwood series SoCs:
 	  88F6180, 88F6192 and 88F6281.
@@ -527,9 +529,9 @@ config ARCH_MV78XX0
 	select ARCH_REQUIRE_GPIOLIB
 	select CPU_FEROCEON
 	select GENERIC_CLOCKEVENTS
+	select MVEBU_MBUS
 	select PCI
 	select PLAT_ORION_LEGACY
-	select MVEBU_MBUS
 	help
 	  Support for the following Marvell MV78xx0 series SoCs:
 	  MV781x0, MV782x0.
@@ -540,9 +542,9 @@ config ARCH_ORION5X
 	select ARCH_REQUIRE_GPIOLIB
 	select CPU_FEROCEON
 	select GENERIC_CLOCKEVENTS
+	select MVEBU_MBUS
 	select PCI
 	select PLAT_ORION_LEGACY
-	select MVEBU_MBUS
 	help
 	  Support for the following Marvell Orion 5x series SoCs:
 	  Orion-1 (5181), Orion-VoIP (5181L), Orion-NAS (5182),
@@ -758,8 +760,8 @@ config ARCH_S5P64X0
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	select HAVE_S3C_RTC if RTC_CLASS
 	select NEED_MACH_GPIO_H
-	select SAMSUNG_WDT_RESET
 	select SAMSUNG_ATAGS
+	select SAMSUNG_WDT_RESET
 	help
 	  Samsung S5P64X0 CPU based systems, such as the Samsung SMDK6440,
 	  SMDK6450.
@@ -777,8 +779,8 @@ config ARCH_S5PC100
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	select HAVE_S3C_RTC if RTC_CLASS
 	select NEED_MACH_GPIO_H
-	select SAMSUNG_WDT_RESET
 	select SAMSUNG_ATAGS
+	select SAMSUNG_WDT_RESET
 	help
 	  Samsung S5PC100 series based systems
 
@@ -1619,9 +1621,10 @@ config HZ_FIXED
 		ARCH_S5PV210 || ARCH_EXYNOS4
 	default AT91_TIMER_HZ if ARCH_AT91
 	default SHMOBILE_TIMER_HZ if ARCH_SHMOBILE
+	default 0
 
 choice
-	depends on !HZ_FIXED
+	depends on HZ_FIXED = 0
 	prompt "Timer frequency"
 
 config HZ_100
@@ -1646,7 +1649,7 @@ endchoice
 
 config HZ
 	int
-	default HZ_FIXED if HZ_FIXED
+	default HZ_FIXED if HZ_FIXED != 0
 	default 100 if HZ_100
 	default 200 if HZ_200
 	default 250 if HZ_250
