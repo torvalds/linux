@@ -2869,6 +2869,16 @@ static int prepend_unreachable(char **buffer, int *buflen)
 	return prepend(buffer, buflen, "(unreachable)", 13);
 }
 
+static void get_fs_root_rcu(struct fs_struct *fs, struct path *root)
+{
+	unsigned seq;
+
+	do {
+		seq = read_seqcount_begin(&fs->seq);
+		*root = fs->root;
+	} while (read_seqcount_retry(&fs->seq, seq));
+}
+
 /**
  * d_path - return the path of a dentry
  * @path: path to report
@@ -2901,13 +2911,15 @@ char *d_path(const struct path *path, char *buf, int buflen)
 	if (path->dentry->d_op && path->dentry->d_op->d_dname)
 		return path->dentry->d_op->d_dname(path->dentry, buf, buflen);
 
-	get_fs_root(current->fs, &root);
+	rcu_read_lock();
+	get_fs_root_rcu(current->fs, &root);
 	br_read_lock(&vfsmount_lock);
 	error = path_with_deleted(path, &root, &res, &buflen);
 	br_read_unlock(&vfsmount_lock);
+	rcu_read_unlock();
+
 	if (error < 0)
 		res = ERR_PTR(error);
-	path_put(&root);
 	return res;
 }
 EXPORT_SYMBOL(d_path);
