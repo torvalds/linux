@@ -28,8 +28,7 @@ typedef int (*intercept_handler_t)(struct kvm_vcpu *vcpu);
 extern unsigned long *vfacilities;
 
 /* negativ values are error codes, positive values for internal conditions */
-#define SIE_INTERCEPT_RERUNVCPU		(1<<0)
-#define SIE_INTERCEPT_UCONTROL		(1<<1)
+#define SIE_INTERCEPT_UCONTROL		(1<<0)
 int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu);
 
 #define VM_EVENT(d_kvm, d_loglevel, d_string, d_args...)\

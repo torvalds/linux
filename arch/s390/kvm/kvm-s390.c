@@ -749,7 +749,6 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	int rc;
 	sigset_t sigsaved;
 
-rerun_vcpu:
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &vcpu->sigset, &sigsaved);
 
@@ -792,9 +791,6 @@ rerun_vcpu:
 		else
 			rc = kvm_handle_sie_intercept(vcpu);
 	} while (!signal_pending(current) && !rc);
-
-	if (rc == SIE_INTERCEPT_RERUNVCPU)
-		goto rerun_vcpu;
 
 	if (signal_pending(current) && !rc) {
 		kvm_run->exit_reason = KVM_EXIT_INTR;
