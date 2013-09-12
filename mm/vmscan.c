@@ -139,10 +139,20 @@ static bool global_reclaim(struct scan_control *sc)
 {
 	return !sc->target_mem_cgroup;
 }
+
+static bool mem_cgroup_should_soft_reclaim(struct scan_control *sc)
+{
+	return !mem_cgroup_disabled() && global_reclaim(sc);
+}
 #else
 static bool global_reclaim(struct scan_control *sc)
 {
 	return true;
+}
+
+static bool mem_cgroup_should_soft_reclaim(struct scan_control *sc)
+{
+	return false;
 }
 #endif
 
@@ -2130,7 +2140,8 @@ static inline bool should_continue_reclaim(struct zone *zone,
 	}
 }
 
-static void shrink_zone(struct zone *zone, struct scan_control *sc)
+static void
+__shrink_zone(struct zone *zone, struct scan_control *sc, bool soft_reclaim)
 {
 	unsigned long nr_reclaimed, nr_scanned;
 
@@ -2148,6 +2159,12 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
 		memcg = mem_cgroup_iter(root, NULL, &reclaim);
 		do {
 			struct lruvec *lruvec;
+
+			if (soft_reclaim &&
+			    !mem_cgroup_soft_reclaim_eligible(memcg)) {
+				memcg = mem_cgroup_iter(root, memcg, &reclaim);
+				continue;
+			}
 
 			lruvec = mem_cgroup_zone_lruvec(zone, memcg);
 
@@ -2177,6 +2194,24 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
 
 	} while (should_continue_reclaim(zone, sc->nr_reclaimed - nr_reclaimed,
 					 sc->nr_scanned - nr_scanned, sc));
+}
+
+
+static void shrink_zone(struct zone *zone, struct scan_control *sc)
+{
+	bool do_soft_reclaim = mem_cgroup_should_soft_reclaim(sc);
+	unsigned long nr_scanned = sc->nr_scanned;
+
+	__shrink_zone(zone, sc, do_soft_reclaim);
+
+	/*
+	 * No group is over the soft limit or those that are do not have
+	 * pages in the zone we are reclaiming so we have to reclaim everybody
+	 */
+	if (do_soft_reclaim && (sc->nr_scanned == nr_scanned)) {
+		__shrink_zone(zone, sc, false);
+		return;
+	}
 }
 
 /* Returns true if compaction should go ahead for a high-order request */
@@ -2240,8 +2275,6 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
 {
 	struct zoneref *z;
 	struct zone *zone;
-	unsigned long nr_soft_reclaimed;
-	unsigned long nr_soft_scanned;
 	bool aborted_reclaim = false;
 
 	/*
@@ -2281,18 +2314,6 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
 					continue;
 				}
 			}
-			/*
-			 * This steals pages from memory cgroups over softlimit
-			 * and returns the number of reclaimed pages and
-			 * scanned pages. This works for global memory pressure
-			 * and balancing, not for a memcg's limit.
-			 */
-			nr_soft_scanned = 0;
-			nr_soft_reclaimed = mem_cgroup_soft_limit_reclaim(zone,
-						sc->order, sc->gfp_mask,
-						&nr_soft_scanned);
-			sc->nr_reclaimed += nr_soft_reclaimed;
-			sc->nr_scanned += nr_soft_scanned;
 			/* need some check for avoid more shrink_zone() */
 		}
 
@@ -2880,8 +2901,6 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
 {
 	int i;
 	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
-	unsigned long nr_soft_reclaimed;
-	unsigned long nr_soft_scanned;
 	struct scan_control sc = {
 		.gfp_mask = GFP_KERNEL,
 		.priority = DEF_PRIORITY,
@@ -2995,15 +3014,6 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
 				continue;
 
 			sc.nr_scanned = 0;
-
-			nr_soft_scanned = 0;
-			/*
-			 * Call soft limit reclaim before calling shrink_zone.
-			 */
-			nr_soft_reclaimed = mem_cgroup_soft_limit_reclaim(zone,
-							order, sc.gfp_mask,
-							&nr_soft_scanned);
-			sc.nr_reclaimed += nr_soft_reclaimed;
 
 			/*
 			 * There should be no need to raise the scanning
