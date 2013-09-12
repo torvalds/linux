@@ -738,6 +738,13 @@ static int vcpu_post_run(struct kvm_vcpu *vcpu, int exit_reason)
 
 	memcpy(&vcpu->run->s.regs.gprs[14], &vcpu->arch.sie_block->gg14, 16);
 
+	if (rc == 0) {
+		if (kvm_is_ucontrol(vcpu->kvm))
+			rc = -EOPNOTSUPP;
+		else
+			rc = kvm_handle_sie_intercept(vcpu);
+	}
+
 	return rc;
 }
 
@@ -745,21 +752,24 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 {
 	int rc, exit_reason;
 
-	rc = vcpu_pre_run(vcpu);
-	if (rc)
-		return rc;
+	do {
+		rc = vcpu_pre_run(vcpu);
+		if (rc)
+			break;
 
-	/*
-	 * As PF_VCPU will be used in fault handler, between guest_enter
-	 * and guest_exit should be no uaccess.
-	 */
-	preempt_disable();
-	kvm_guest_enter();
-	preempt_enable();
-	exit_reason = sie64a(vcpu->arch.sie_block, vcpu->run->s.regs.gprs);
-	kvm_guest_exit();
+		/*
+		 * As PF_VCPU will be used in fault handler, between
+		 * guest_enter and guest_exit should be no uaccess.
+		 */
+		preempt_disable();
+		kvm_guest_enter();
+		preempt_enable();
+		exit_reason = sie64a(vcpu->arch.sie_block,
+				     vcpu->run->s.regs.gprs);
+		kvm_guest_exit();
 
-	rc = vcpu_post_run(vcpu, exit_reason);
+		rc = vcpu_post_run(vcpu, exit_reason);
+	} while (!signal_pending(current) && !rc);
 
 	return rc;
 }
@@ -801,16 +811,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	}
 
 	might_fault();
-
-	do {
-		rc = __vcpu_run(vcpu);
-		if (rc)
-			break;
-		if (kvm_is_ucontrol(vcpu->kvm))
-			rc = -EOPNOTSUPP;
-		else
-			rc = kvm_handle_sie_intercept(vcpu);
-	} while (!signal_pending(current) && !rc);
+	rc = __vcpu_run(vcpu);
 
 	if (signal_pending(current) && !rc) {
 		kvm_run->exit_reason = KVM_EXIT_INTR;
