@@ -2808,7 +2808,7 @@ uncore_get_event_constraint(struct intel_uncore_box *box, struct perf_event *eve
 			return c;
 	}
 
-	if (event->hw.config == ~0ULL)
+	if (event->attr.config == UNCORE_FIXED_EVENT)
 		return &constraint_fixed;
 
 	if (type->constraints) {
@@ -3112,7 +3112,9 @@ static int uncore_pmu_event_init(struct perf_event *event)
 		 */
 		if (pmu->type->single_fixed && pmu->pmu_idx > 0)
 			return -EINVAL;
-		hwc->config = ~0ULL;
+
+		/* fixed counters have event field hardcoded to zero */
+		hwc->config = 0ULL;
 	} else {
 		hwc->config = event->attr.config & pmu->type->event_mask;
 		if (pmu->type->ops->hw_config) {

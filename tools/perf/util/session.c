@@ -351,6 +351,25 @@ static void perf_event__mmap_swap(union perf_event *event,
 	}
 }
 
+static void perf_event__mmap2_swap(union perf_event *event,
+				  bool sample_id_all)
+{
+	event->mmap2.pid   = bswap_32(event->mmap2.pid);
+	event->mmap2.tid   = bswap_32(event->mmap2.tid);
+	event->mmap2.start = bswap_64(event->mmap2.start);
+	event->mmap2.len   = bswap_64(event->mmap2.len);
+	event->mmap2.pgoff = bswap_64(event->mmap2.pgoff);
+	event->mmap2.maj   = bswap_32(event->mmap2.maj);
+	event->mmap2.min   = bswap_32(event->mmap2.min);
+	event->mmap2.ino   = bswap_64(event->mmap2.ino);
+
+	if (sample_id_all) {
+		void *data = &event->mmap2.filename;
+
+		data += PERF_ALIGN(strlen(data) + 1, sizeof(u64));
+		swap_sample_id_all(event, data);
+	}
+}
 static void perf_event__task_swap(union perf_event *event, bool sample_id_all)
 {
 	event->fork.pid	 = bswap_32(event->fork.pid);
@@ -455,6 +474,7 @@ typedef void (*perf_event__swap_op)(union perf_event *event,
 
 static perf_event__swap_op perf_event__swap_ops[] = {
 	[PERF_RECORD_MMAP]		  = perf_event__mmap_swap,
+	[PERF_RECORD_MMAP2]		  = perf_event__mmap2_swap,
 	[PERF_RECORD_COMM]		  = perf_event__comm_swap,
 	[PERF_RECORD_FORK]		  = perf_event__task_swap,
 	[PERF_RECORD_EXIT]		  = perf_event__task_swap,
@@ -504,6 +524,7 @@ static int flush_sample_queue(struct perf_session *s,
 	u64 limit = os->next_flush;
 	u64 last_ts = os->last_sample ? os->last_sample->timestamp : 0ULL;
 	unsigned idx = 0, progress_next = os->nr_samples / 16;
+	bool show_progress = limit == ULLONG_MAX;
 	int ret;
 
 	if (!tool->ordered_samples || !limit)
@@ -526,7 +547,7 @@ static int flush_sample_queue(struct perf_session *s,
 		os->last_flush = iter->timestamp;
 		list_del(&iter->list);
 		list_add(&iter->list, &os->sample_cache);
-		if (++idx >= progress_next) {
+		if (show_progress && (++idx >= progress_next)) {
 			progress_next += os->nr_samples / 16;
 			ui_progress__update(idx, os->nr_samples,
 					    "Processing time ordered events...");
@@ -850,7 +871,8 @@ static struct machine *
 	     (cpumode == PERF_RECORD_MISC_GUEST_USER))) {
 		u32 pid;
 
-		if (event->header.type == PERF_RECORD_MMAP)
+		if (event->header.type == PERF_RECORD_MMAP
+		    || event->header.type == PERF_RECORD_MMAP2)
 			pid = event->mmap.pid;
 		else
 			pid = sample->pid;
@@ -977,6 +999,8 @@ static int perf_session_deliver_event(struct perf_session *session,
 						    sample, evsel, machine);
 	case PERF_RECORD_MMAP:
 		return tool->mmap(tool, event, sample, machine);
+	case PERF_RECORD_MMAP2:
+		return tool->mmap2(tool, event, sample, machine);
 	case PERF_RECORD_COMM:
 		return tool->comm(tool, event, sample, machine);
 	case PERF_RECORD_FORK:
@@ -1619,52 +1643,26 @@ int __perf_session__set_tracepoints_handlers(struct perf_session *session,
 					     const struct perf_evsel_str_handler *assocs,
 					     size_t nr_assocs)
 {
-	struct perf_evlist *evlist = session->evlist;
-	struct event_format *format;
 	struct perf_evsel *evsel;
-	char *tracepoint, *name;
 	size_t i;
 	int err;
 
 	for (i = 0; i < nr_assocs; i++) {
-		err = -ENOMEM;
-		tracepoint = strdup(assocs[i].name);
-		if (tracepoint == NULL)
-			goto out;
-
-		err = -ENOENT;
-		name = strchr(tracepoint, ':');
-		if (name == NULL)
-			goto out_free;
-
-		*name++ = '\0';
-		format = pevent_find_event_by_name(session->pevent,
-						   tracepoint, name);
-		if (format == NULL) {
-			/*
-			 * Adding a handler for an event not in the session,
-			 * just ignore it.
-			 */
-			goto next;
-		}
-
-		evsel = perf_evlist__find_tracepoint_by_id(evlist, format->id);
+		/*
+		 * Adding a handler for an event not in the session,
+		 * just ignore it.
+		 */
+		evsel = perf_evlist__find_tracepoint_by_name(session->evlist, assocs[i].name);
 		if (evsel == NULL)
-			goto next;
+			continue;
 
 		err = -EEXIST;
 		if (evsel->handler.func != NULL)
-			goto out_free;
+			goto out;
 		evsel->handler.func = assocs[i].handler;
-next:
-		free(tracepoint);
 	}
 
 	err = 0;
 out:
 	return err;
-
-out_free:
-	free(tracepoint);
-	goto out;
 }
