@@ -239,7 +239,7 @@ generic_key_timeout(struct rpc_auth *auth, struct rpc_cred *cred)
 		if (test_and_clear_bit(RPC_CRED_KEY_EXPIRE_SOON,
 					&acred->ac_flags))
 			dprintk("RPC:        UID %d Credential key reset\n",
-				tcred->cr_uid);
+				from_kuid(&init_user_ns, tcred->cr_uid));
 		/* set up fasttrack for the normal case */
 		set_bit(RPC_CRED_NOTIFY_TIMEOUT, &acred->ac_flags);
 	}
