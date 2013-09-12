@@ -1,7 +1,5 @@
 /*
- * ti_hdmi.h
- *
- * HDMI driver definition for TI OMAP4, DM81xx, DM38xx  Processor.
+ * HDMI driver definition for TI OMAP4 Processor.
  *
  * Copyright (C) 2010-2011 Texas Instruments Incorporated - http://www.ti.com/
  *
@@ -18,8 +16,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _TI_HDMI_H
-#define _TI_HDMI_H
+#ifndef _HDMI_H
+#define _HDMI_H
 
 #include <linux/delay.h>
 #include <linux/io.h>

@@ -1,7 +1,5 @@
 /*
- * hdmi.c
- *
- * HDMI interface DSS driver setting for TI's OMAP4 family of processor.
+ * HDMI interface DSS driver for TI's OMAP4 family of SoCs.
  * Copyright (C) 2010-2011 Texas Instruments Incorporated - http://www.ti.com/
  * Authors: Yong Zhi
  *	Mythri pk <mythripk@ti.com>
@@ -36,8 +34,7 @@
 #include <linux/regulator/consumer.h>
 #include <video/omapdss.h>
 
-#include "ti_hdmi.h"
-#include "ti_hdmi_4xxx_ip.h"
+#include "hdmi4_core.h"
 #include "dss.h"
 #include "dss_features.h"
 
@@ -361,8 +358,8 @@ static const struct hdmi_config *hdmi_find_timing(
 
 static const struct hdmi_config *hdmi_get_timings(void)
 {
-       const struct hdmi_config *arr;
-       int len;
+	const struct hdmi_config *arr;
+	int len;
 
 	if (hdmi.cfg.cm.mode == HDMI_DVI) {
 		arr = vesa_timings;
@@ -543,9 +540,8 @@ static int hdmi_display_check_timing(struct omap_dss_device *dssdev,
 	struct hdmi_cm cm;
 
 	cm = hdmi_get_code(timings);
-	if (cm.code == -1) {
+	if (cm.code == -1)
 		return -EINVAL;
-	}
 
 	return 0;
 
@@ -1117,12 +1113,12 @@ static struct platform_driver omapdss_hdmihw_driver = {
 	},
 };
 
-int __init hdmi_init_platform_driver(void)
+int __init hdmi4_init_platform_driver(void)
 {
 	return platform_driver_register(&omapdss_hdmihw_driver);
 }
 
-void __exit hdmi_uninit_platform_driver(void)
+void __exit hdmi4_uninit_platform_driver(void)
 {
 	platform_driver_unregister(&omapdss_hdmihw_driver);
 }

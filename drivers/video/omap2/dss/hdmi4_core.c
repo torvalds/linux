@@ -34,7 +34,7 @@
 #include <sound/asoundef.h>
 #endif
 
-#include "ti_hdmi_4xxx_ip.h"
+#include "hdmi4_core.h"
 #include "dss_features.h"
 
 #define HDMI_CORE_AV		0x500
@@ -223,7 +223,7 @@ static void hdmi_core_init(struct hdmi_core_video_config *video_cfg,
 	avi_cfg->db3_nup_scaling = 0;
 	avi_cfg->db4_videocode = 0;
 	avi_cfg->db5_pixel_repeat = 0;
-	avi_cfg->db6_7_line_eoftop = 0 ;
+	avi_cfg->db6_7_line_eoftop = 0;
 	avi_cfg->db8_9_line_sofbottom = 0;
 	avi_cfg->db10_11_pixel_eofleft = 0;
 	avi_cfg->db12_13_pixel_sofright = 0;

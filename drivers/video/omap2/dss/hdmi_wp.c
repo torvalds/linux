@@ -15,7 +15,7 @@
 #include <video/omapdss.h>
 
 #include "dss.h"
-#include "ti_hdmi.h"
+#include "hdmi.h"
 
 void hdmi_wp_dump(struct hdmi_wp_data *wp, struct seq_file *s)
 {

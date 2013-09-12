@@ -16,7 +16,7 @@
 #include <video/omapdss.h>
 
 #include "dss.h"
-#include "ti_hdmi.h"
+#include "hdmi.h"
 
 #define HDMI_DEFAULT_REGN 16
 #define HDMI_DEFAULT_REGM2 1

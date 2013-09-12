@@ -1,7 +1,5 @@
 /*
- * ti_hdmi_4xxx_ip.h
- *
- * HDMI header definition for DM81xx, DM38xx, TI OMAP4 etc processors.
+ * HDMI header definition for OMAP4 HDMI core IP
  *
  * Copyright (C) 2010-2011 Texas Instruments Incorporated - http://www.ti.com/
  *
@@ -18,10 +16,10 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _HDMI_TI_4xxx_H_
-#define _HDMI_TI_4xxx_H_
+#ifndef _HDMI4_CORE_H_
+#define _HDMI4_CORE_H_
 
-#include "ti_hdmi.h"
+#include "hdmi.h"
 
 /* OMAP4 HDMI IP Core System */
 

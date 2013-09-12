@@ -15,7 +15,7 @@
 #include <video/omapdss.h>
 
 #include "dss.h"
-#include "ti_hdmi.h"
+#include "hdmi.h"
 
 void hdmi_phy_dump(struct hdmi_phy_data *phy, struct seq_file *s)
 {
