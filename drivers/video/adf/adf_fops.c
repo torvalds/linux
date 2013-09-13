@@ -570,6 +570,7 @@ static int adf_intf_get_data(struct adf_interface *intf,
 
 	data.type = intf->type;
 	data.id = intf->idx;
+	data.flags = intf->flags;
 
 	err = adf_interface_get_screen_size(intf, &data.width_mm,
 			&data.height_mm);

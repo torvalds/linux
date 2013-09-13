@@ -47,6 +47,7 @@ struct adf_interface_data32 {
 	__u8 type;
 	__u32 id;
 	/* e.g. type=ADF_INTF_TYPE_DSI, id=1 => DSI.1 */
+	__u32 flags;
 
 	__u8 dpms_state;
 	__u8 hotplug_detect;

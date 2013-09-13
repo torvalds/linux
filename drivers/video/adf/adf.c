@@ -625,6 +625,7 @@ EXPORT_SYMBOL(adf_device_destroy);
  * @type: interface type (see enum @adf_interface_type)
  * @idx: which interface of type @type;
  *	e.g. interface DSI.1 -> @type=%ADF_INTF_TYPE_DSI, @idx=1
+ * @flags: informational flags (bitmask of %ADF_INTF_FLAG_* values)
  * @ops: the interface's associated ops
  * @fmt: formatting string for the display interface's name
  *
@@ -637,11 +638,13 @@ EXPORT_SYMBOL(adf_device_destroy);
  * Returns 0 on success or error code (<0) on failure.
  */
 int adf_interface_init(struct adf_interface *intf, struct adf_device *dev,
-		enum adf_interface_type type, u32 idx,
+		enum adf_interface_type type, u32 idx, u32 flags,
 		const struct adf_interface_ops *ops, const char *fmt, ...)
 {
 	int ret;
 	va_list args;
+	const u32 allowed_flags = ADF_INTF_FLAG_PRIMARY |
+			ADF_INTF_FLAG_EXTERNAL;
 
 	if (dev->n_interfaces == ADF_MAX_INTERFACES) {
 		pr_err("%s: parent device %s has too many interfaces\n",
@@ -651,6 +654,12 @@ int adf_interface_init(struct adf_interface *intf, struct adf_device *dev,
 
 	if (type >= ADF_INTF_MEMORY && type <= ADF_INTF_TYPE_DEVICE_CUSTOM) {
 		pr_err("%s: invalid interface type %u\n", __func__, type);
+		return -EINVAL;
+	}
+
+	if (flags & ~allowed_flags) {
+		pr_err("%s: invalid interface flags 0x%X\n", __func__,
+				flags & ~allowed_flags);
 		return -EINVAL;
 	}
 
@@ -665,6 +674,7 @@ int adf_interface_init(struct adf_interface *intf, struct adf_device *dev,
 
 	intf->type = type;
 	intf->idx = idx;
+	intf->flags = flags;
 	intf->ops = ops;
 	init_waitqueue_head(&intf->vsync_wait);
 	rwlock_init(&intf->vsync_lock);

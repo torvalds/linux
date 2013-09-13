@@ -36,6 +36,9 @@ enum adf_interface_type {
 	ADF_INTF_TYPE_MAX = (~(__u32)0),
 };
 
+#define ADF_INTF_FLAG_PRIMARY (1 << 0)
+#define ADF_INTF_FLAG_EXTERNAL (1 << 1)
+
 enum adf_event_type {
 	ADF_EVENT_VSYNC = 0,
 	ADF_EVENT_HOTPLUG = 1,
@@ -239,6 +242,7 @@ struct adf_device_data {
  * @type: interface type (see enum @adf_interface_type)
  * @id: which interface of type @type;
  *	e.g. interface DSI.1 -> @type=@ADF_INTF_TYPE_DSI, @id=1
+ * @flags: informational flags (bitmask of %ADF_INTF_FLAG_* values)
  * @dpms_state: DPMS state (one of @DRM_MODE_DPMS_* defined in drm_mode.h)
  * @hotplug_detect: whether a display is plugged in
  * @width_mm: screen width in millimeters, or 0 if unknown
@@ -255,6 +259,7 @@ struct adf_interface_data {
 	__u32 type;
 	__u32 id;
 	/* e.g. type=ADF_INTF_TYPE_DSI, id=1 => DSI.1 */
+	__u32 flags;
 
 	__u8 dpms_state;
 	__u8 hotplug_detect;
