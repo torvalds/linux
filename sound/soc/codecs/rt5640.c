@@ -926,7 +926,7 @@ static int rt5640_set_dmic2_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-void hp_amp_power_on(struct snd_soc_codec *codec)
+static void hp_amp_power_on(struct snd_soc_codec *codec)
 {
 	struct rt5640_priv *rt5640 = snd_soc_codec_get_drvdata(codec);
 
