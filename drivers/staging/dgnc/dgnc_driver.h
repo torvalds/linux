@@ -45,7 +45,7 @@
 /*
  * Driver identification, error and debugging statments
  *
- * In theory, you can change all occurances of "digi" in the next
+ * In theory, you can change all occurrences of "digi" in the next
  * three lines, and the driver printk's will all automagically change.
  *
  * APR((fmt, args, ...));	Always prints message

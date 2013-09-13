@@ -1111,7 +1111,7 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 			 * Why would I check EVERY possibility of type of
 			 * interrupt, when we know its TXRDY???
 			 * Becuz for some reason, even tho we got triggered for TXRDY,
-			 * it seems to be occassionally wrong. Instead of TX, which
+			 * it seems to be occasionally wrong. Instead of TX, which
 			 * it should be, I was getting things like RXDY too. Weird.
 			 */
 			neo_parse_isr(brd, port);

@@ -267,7 +267,7 @@ int dgnc_tty_register(struct dgnc_board *brd)
 
 	/*
 	 * If we're doing transparent print, we have to do all of the above
-	 * again, seperately so we don't get the LD confused about what major
+	 * again, separately so we don't get the LD confused about what major
 	 * we are when we get into the dgnc_tty_open() routine.
 	 */
 	brd->PrintDriver.magic = TTY_DRIVER_MAGIC;
@@ -286,7 +286,7 @@ int dgnc_tty_register(struct dgnc_board *brd)
 
 	/*
 	 * The kernel wants space to store pointers to
-	 * tty_struct's and termios's.  Must be seperate from
+	 * tty_struct's and termios's.  Must be separated from
 	 * the Serial Driver so we don't get confused
 	 */
 	brd->PrintDriver.ttys = kzalloc(brd->maxports * sizeof(struct tty_struct *), GFP_KERNEL);
