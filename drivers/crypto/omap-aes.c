@@ -554,7 +554,7 @@ static int omap_aes_crypt_dma_stop(struct omap_aes_dev *dd)
 	return err;
 }
 
-int omap_aes_check_aligned(struct scatterlist *sg)
+static int omap_aes_check_aligned(struct scatterlist *sg)
 {
 	while (sg) {
 		if (!IS_ALIGNED(sg->offset, 4))
@@ -566,7 +566,7 @@ int omap_aes_check_aligned(struct scatterlist *sg)
 	return 0;
 }
 
-int omap_aes_copy_sgs(struct omap_aes_dev *dd)
+static int omap_aes_copy_sgs(struct omap_aes_dev *dd)
 {
 	void *buf_in, *buf_out;
 	int pages;
