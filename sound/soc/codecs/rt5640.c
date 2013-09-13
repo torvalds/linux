@@ -1609,7 +1609,8 @@ static int rt5640_hw_params(struct snd_pcm_substream *substream,
 	rt5640->lrck[dai->id] = params_rate(params);
 	pre_div = get_clk_info(rt5640->sysclk, rt5640->lrck[dai->id]);
 	if (pre_div < 0) {
-		dev_err(codec->dev, "Unsupported clock setting\n");
+		dev_err(codec->dev, "Unsupported clock setting %d for DAI %d\n",
+			rt5640->lrck[dai->id], dai->id);
 		return -EINVAL;
 	}
 	frame_size = snd_soc_params_to_frame_size(params);
