@@ -7432,16 +7432,9 @@ static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 	pipe_config->adjusted_mode.clock = clock.dot;
 }
 
-static void ironlake_crtc_clock_get(struct intel_crtc *crtc,
-				    struct intel_crtc_config *pipe_config)
+int intel_dotclock_calculate(int link_freq,
+			     const struct intel_link_m_n *m_n)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
-	int link_freq;
-	u64 clock;
-	u32 link_m, link_n;
-
 	/*
 	 * The calculation for the data clock is:
 	 * pixel_clock = ((m/n)*(link_clock * nr_lanes))/bpp
@@ -7452,6 +7445,18 @@ static void ironlake_crtc_clock_get(struct intel_crtc *crtc,
 	 * link_clock = (m * link_clock) / n
 	 */
 
+	if (!m_n->link_n)
+		return 0;
+
+	return div_u64((u64)m_n->link_m * link_freq, m_n->link_n);
+}
+
+static void ironlake_crtc_clock_get(struct intel_crtc *crtc,
+				    struct intel_crtc_config *pipe_config)
+{
+	struct drm_device *dev = crtc->base.dev;
+	int link_freq;
+
 	/*
 	 * We need to get the FDI or DP link clock here to derive
 	 * the M/N dividers.
@@ -7460,21 +7465,17 @@ static void ironlake_crtc_clock_get(struct intel_crtc *crtc,
 	 * For DP, it's either 1.62GHz or 2.7GHz.
 	 * We do our calculations in 10*MHz since we don't need much precison.
 	 */
-	if (pipe_config->has_pch_encoder)
+	if (pipe_config->has_pch_encoder) {
 		link_freq = intel_fdi_link_freq(dev) * 10000;
-	else
+
+		pipe_config->adjusted_mode.clock =
+			intel_dotclock_calculate(link_freq, &pipe_config->fdi_m_n);
+	} else {
 		link_freq = pipe_config->port_clock;
 
-	link_m = I915_READ(PIPE_LINK_M1(cpu_transcoder));
-	link_n = I915_READ(PIPE_LINK_N1(cpu_transcoder));
-
-	if (!link_m || !link_n)
-		return;
-
-	clock = ((u64)link_m * (u64)link_freq);
-	do_div(clock, link_n);
-
-	pipe_config->adjusted_mode.clock = clock;
+		pipe_config->adjusted_mode.clock =
+			intel_dotclock_calculate(link_freq, &pipe_config->dp_m_n);
+	}
 }
 
 /** Returns the currently programmed mode of the given pipe. */
