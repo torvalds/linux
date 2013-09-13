@@ -246,28 +246,33 @@ int au_xino_trunc(struct super_block *sb, aufs_bindex_t bindex)
 	unsigned long jiffy;
 	blkcnt_t blocks;
 	aufs_bindex_t bi, bend;
-	struct kstatfs st;
+	struct kstatfs *st;
 	struct au_branch *br;
 	struct file *new_xino, *file;
 	struct super_block *h_sb;
 	struct au_xino_lock_dir ldir;
 
+	err = -ENOMEM;
+	st = kzalloc(sizeof(*st), GFP_NOFS);
+	if (unlikely(!st))
+		goto out;
+
 	err = -EINVAL;
 	bend = au_sbend(sb);
 	if (unlikely(bindex < 0 || bend < bindex))
-		goto out;
+		goto out_st;
 	br = au_sbr(sb, bindex);
 	file = br->br_xino.xi_file;
 	if (!file)
-		goto out;
+		goto out_st;
 
-	err = vfs_statfs(&file->f_path, &st);
+	err = vfs_statfs(&file->f_path, st);
 	if (unlikely(err))
 		AuErr1("statfs err %d, ignored\n", err);
 	jiffy = jiffies;
 	blocks = file_inode(file)->i_blocks;
 	pr_info("begin truncating xino(b%d), ib%llu, %llu/%llu free blks\n",
-		bindex, (u64)blocks, st.f_bfree, st.f_blocks);
+		bindex, (u64)blocks, st->f_bfree, st->f_blocks);
 
 	au_xino_lock_dir(sb, file, &ldir);
 	/* mnt_want_write() is unnecessary here */
@@ -276,7 +281,7 @@ int au_xino_trunc(struct super_block *sb, aufs_bindex_t bindex)
 	err = PTR_ERR(new_xino);
 	if (IS_ERR(new_xino)) {
 		pr_err("err %d, ignored\n", err);
-		goto out;
+		goto out_st;
 	}
 	err = 0;
 	fput(file);
@@ -295,16 +300,18 @@ int au_xino_trunc(struct super_block *sb, aufs_bindex_t bindex)
 		get_file(new_xino);
 	}
 
-	err = vfs_statfs(&new_xino->f_path, &st);
+	err = vfs_statfs(&new_xino->f_path, st);
 	if (!err) {
 		pr_info("end truncating xino(b%d), ib%llu, %llu/%llu free blks\n",
 			bindex, (u64)file_inode(new_xino)->i_blocks,
-			st.f_bfree, st.f_blocks);
+			st->f_bfree, st->f_blocks);
 		if (file_inode(new_xino)->i_blocks < blocks)
 			au_sbi(sb)->si_xino_jiffy = jiffy;
 	} else
 		AuErr1("statfs err %d, ignored\n", err);
 
+out_st:
+	kfree(st);
 out:
 	return err;
 }
