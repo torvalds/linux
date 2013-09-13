@@ -1069,6 +1069,26 @@ static void assert_panel_unlocked(struct drm_i915_private *dev_priv,
 	     pipe_name(pipe));
 }
 
+static void assert_cursor(struct drm_i915_private *dev_priv,
+			  enum pipe pipe, bool state)
+{
+	struct drm_device *dev = dev_priv->dev;
+	bool cur_state;
+
+	if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))
+		cur_state = I915_READ(CURCNTR_IVB(pipe)) & CURSOR_MODE;
+	else if (IS_845G(dev) || IS_I865G(dev))
+		cur_state = I915_READ(_CURACNTR) & CURSOR_ENABLE;
+	else
+		cur_state = I915_READ(CURCNTR(pipe)) & CURSOR_MODE;
+
+	WARN(cur_state != state,
+	     "cursor on pipe %c assertion failure (expected %s, current %s)\n",
+	     pipe_name(pipe), state_string(state), state_string(cur_state));
+}
+#define assert_cursor_enabled(d, p) assert_cursor(d, p, true)
+#define assert_cursor_disabled(d, p) assert_cursor(d, p, false)
+
 void assert_pipe(struct drm_i915_private *dev_priv,
 		 enum pipe pipe, bool state)
 {
@@ -1670,6 +1690,7 @@ static void intel_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe,
 	u32 val;
 
 	assert_planes_disabled(dev_priv, pipe);
+	assert_cursor_disabled(dev_priv, pipe);
 	assert_sprites_disabled(dev_priv, pipe);
 
 	if (HAS_PCH_LPT(dev_priv->dev))
@@ -1731,6 +1752,7 @@ static void intel_disable_pipe(struct drm_i915_private *dev_priv,
 	 * or we might hang the display.
 	 */
 	assert_planes_disabled(dev_priv, pipe);
+	assert_cursor_disabled(dev_priv, pipe);
 	assert_sprites_disabled(dev_priv, pipe);
 
 	/* Don't disable pipe A or pipe A PLLs if needed */
@@ -3867,6 +3889,7 @@ static void intel_crtc_disable(struct drm_crtc *crtc)
 	dev_priv->display.off(crtc);
 
 	assert_plane_disabled(dev->dev_private, to_intel_crtc(crtc)->plane);
+	assert_cursor_disabled(dev_priv, to_intel_crtc(crtc)->pipe);
 	assert_pipe_disabled(dev->dev_private, to_intel_crtc(crtc)->pipe);
 
 	if (crtc->fb) {
