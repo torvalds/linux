@@ -748,7 +748,7 @@ static void fsl_ssi_ac97_init(void)
 	fsl_ssi_setup(fsl_ac97_data);
 }
 
-void fsl_ssi_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
+static void fsl_ssi_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
 		unsigned short val)
 {
 	struct ccsr_ssi *ssi = fsl_ac97_data->ssi;
@@ -770,7 +770,7 @@ void fsl_ssi_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
 	udelay(100);
 }
 
-unsigned short fsl_ssi_ac97_read(struct snd_ac97 *ac97,
+static unsigned short fsl_ssi_ac97_read(struct snd_ac97 *ac97,
 		unsigned short reg)
 {
 	struct ccsr_ssi *ssi = fsl_ac97_data->ssi;
