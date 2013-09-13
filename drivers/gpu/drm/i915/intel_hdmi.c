@@ -713,6 +713,7 @@ static void intel_hdmi_get_config(struct intel_encoder *encoder,
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	u32 tmp, flags = 0;
+	int dotclock;
 
 	tmp = I915_READ(intel_hdmi->hdmi_reg);
 
@@ -727,6 +728,16 @@ static void intel_hdmi_get_config(struct intel_encoder *encoder,
 		flags |= DRM_MODE_FLAG_NVSYNC;
 
 	pipe_config->adjusted_mode.flags |= flags;
+
+	if ((tmp & SDVO_COLOR_FORMAT_MASK) == HDMI_COLOR_FORMAT_12bpc)
+		dotclock = pipe_config->port_clock * 2 / 3;
+	else
+		dotclock = pipe_config->port_clock;
+
+	if (HAS_PCH_SPLIT(dev_priv->dev))
+		ironlake_check_encoder_dotclock(pipe_config, dotclock);
+
+	pipe_config->adjusted_mode.clock = dotclock;
 }
 
 static void intel_enable_hdmi(struct intel_encoder *encoder)

@@ -805,5 +805,7 @@ extern void intel_dp_get_m_n(struct intel_crtc *crtc,
 			     struct intel_crtc_config *pipe_config);
 extern int intel_dotclock_calculate(int link_freq,
 				    const struct intel_link_m_n *m_n);
+extern void ironlake_check_encoder_dotclock(const struct intel_crtc_config *pipe_config,
+					    int dotclock);
 
 #endif /* __INTEL_DRV_H__ */
