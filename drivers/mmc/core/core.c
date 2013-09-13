@@ -1574,9 +1574,10 @@ void mmc_power_off(struct mmc_host *host)
 
 	/*
 	 * Reset ocr mask to be the highest possible voltage supported for
-	 * this mmc host. This value will be used at next power up.
+	 * this card. This value will be used at next power up.
 	 */
-	host->ocr = 1 << (fls(host->ocr_avail) - 1);
+	if (host->card)
+		host->card->ocr = 1 << (fls(host->ocr_avail) - 1);
 
 	if (!mmc_host_is_spi(host)) {
 		host->ios.bus_mode = MMC_BUSMODE_OPENDRAIN;
@@ -2550,7 +2551,7 @@ int mmc_power_restore_host(struct mmc_host *host)
 		return -EINVAL;
 	}
 
-	mmc_power_up(host, host->ocr);
+	mmc_power_up(host, host->card->ocr);
 	ret = host->bus_ops->power_restore(host);
 
 	mmc_bus_put(host);

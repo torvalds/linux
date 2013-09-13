@@ -309,7 +309,6 @@ struct mmc_host {
 	spinlock_t		lock;		/* lock for claim and bus ops */
 
 	struct mmc_ios		ios;		/* current io bus settings */
-	u32			ocr;		/* the current OCR setting */
 
 	/* group bitfields together to minimize padding */
 	unsigned int		use_spi_crc:1;

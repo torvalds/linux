@@ -934,6 +934,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 			goto err;
 		}
 
+		card->ocr = ocr;
 		card->type = MMC_TYPE_MMC;
 		card->rca = 1;
 		memcpy(card->raw_cid, cid, sizeof(card->raw_cid));
@@ -1533,9 +1534,9 @@ static int mmc_resume(struct mmc_host *host)
 	BUG_ON(!host->card);
 
 	mmc_claim_host(host);
-	mmc_power_up(host, host->ocr);
-	mmc_select_voltage(host, host->ocr);
-	err = mmc_init_card(host, host->ocr, host->card);
+	mmc_power_up(host, host->card->ocr);
+	mmc_select_voltage(host, host->card->ocr);
+	err = mmc_init_card(host, host->card->ocr, host->card);
 	mmc_release_host(host);
 
 	return err;
@@ -1579,7 +1580,7 @@ static int mmc_runtime_resume(struct mmc_host *host)
 
 	mmc_claim_host(host);
 
-	mmc_power_up(host, host->ocr);
+	mmc_power_up(host, host->card->ocr);
 	err = mmc_resume(host);
 	if (err)
 		pr_err("%s: error %d doing aggessive resume\n",
@@ -1595,7 +1596,7 @@ static int mmc_power_restore(struct mmc_host *host)
 
 	host->card->state &= ~(MMC_STATE_HIGHSPEED | MMC_STATE_HIGHSPEED_200);
 	mmc_claim_host(host);
-	ret = mmc_init_card(host, host->ocr, host->card);
+	ret = mmc_init_card(host, host->card->ocr, host->card);
 	mmc_release_host(host);
 
 	return ret;
@@ -1640,7 +1641,7 @@ static void mmc_attach_bus_ops(struct mmc_host *host)
 int mmc_attach_mmc(struct mmc_host *host)
 {
 	int err;
-	u32 ocr;
+	u32 ocr, rocr;
 
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
@@ -1677,12 +1678,12 @@ int mmc_attach_mmc(struct mmc_host *host)
 		ocr &= ~0x7F;
 	}
 
-	host->ocr = mmc_select_voltage(host, ocr);
+	rocr = mmc_select_voltage(host, ocr);
 
 	/*
 	 * Can we support the voltage of the card?
 	 */
-	if (!host->ocr) {
+	if (!rocr) {
 		err = -EINVAL;
 		goto err;
 	}
@@ -1690,7 +1691,7 @@ int mmc_attach_mmc(struct mmc_host *host)
 	/*
 	 * Detect and init the card.
 	 */
-	err = mmc_init_card(host, host->ocr, NULL);
+	err = mmc_init_card(host, rocr, NULL);
 	if (err)
 		goto err;
 
