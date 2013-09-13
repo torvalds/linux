@@ -169,7 +169,7 @@ static int get_fan_speed_index(struct gpio_fan_data *fan_data)
 	dev_warn(&fan_data->pdev->dev,
 		 "missing speed array entry for GPIO value 0x%x\n", ctrl_val);
 
-	return -EINVAL;
+	return -ENODEV;
 }
 
 static int rpm_to_speed_index(struct gpio_fan_data *fan_data, int rpm)
@@ -384,7 +384,7 @@ static int fan_ctrl_init(struct gpio_fan_data *fan_data,
 	fan_data->pwm_enable = true; /* Enable manual fan speed control. */
 	fan_data->speed_index = get_fan_speed_index(fan_data);
 	if (fan_data->speed_index < 0)
-		return -ENODEV;
+		return fan_data->speed_index;
 
 	return 0;
 }
