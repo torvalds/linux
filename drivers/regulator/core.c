@@ -1666,16 +1666,6 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 		return ret;
 	}
 
-	/* Cascade always-on state to supply */
-	if (_regulator_is_enabled(rdev)) {
-		ret = regulator_enable(rdev->supply);
-		if (ret < 0) {
-			_regulator_put(rdev->supply);
-			rdev->supply = NULL;
-			return ret;
-		}
-	}
-
 	return 0;
 }
 
