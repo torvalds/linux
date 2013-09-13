@@ -7353,14 +7353,14 @@ static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe = pipe_config->cpu_transcoder;
-	u32 dpll = I915_READ(DPLL(pipe));
+	u32 dpll = pipe_config->dpll_hw_state.dpll;
 	u32 fp;
 	intel_clock_t clock;
 
 	if ((dpll & DISPLAY_RATE_SELECT_FPA1) == 0)
-		fp = I915_READ(FP0(pipe));
+		fp = pipe_config->dpll_hw_state.fp0;
 	else
-		fp = I915_READ(FP1(pipe));
+		fp = pipe_config->dpll_hw_state.fp1;
 
 	clock.m1 = (fp & FP_M1_DIV_MASK) >> FP_M1_DIV_SHIFT;
 	if (IS_PINEVIEW(dev)) {
@@ -7391,7 +7391,6 @@ static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 		default:
 			DRM_DEBUG_KMS("Unknown DPLL mode %08x in programmed "
 				  "mode\n", (int)(dpll & DPLL_MODE_MASK));
-			pipe_config->adjusted_mode.clock = 0;
 			return;
 		}
 
@@ -7491,6 +7490,7 @@ struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 	int hsync = I915_READ(HSYNC(cpu_transcoder));
 	int vtot = I915_READ(VTOTAL(cpu_transcoder));
 	int vsync = I915_READ(VSYNC(cpu_transcoder));
+	enum pipe pipe = intel_crtc->pipe;
 
 	mode = kzalloc(sizeof(*mode), GFP_KERNEL);
 	if (!mode)
@@ -7503,8 +7503,11 @@ struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 	 * Note, if LVDS ever uses a non-1 pixel multiplier, we'll need
 	 * to use a real value here instead.
 	 */
-	pipe_config.cpu_transcoder = (enum transcoder) intel_crtc->pipe;
+	pipe_config.cpu_transcoder = (enum transcoder) pipe;
 	pipe_config.pixel_multiplier = 1;
+	pipe_config.dpll_hw_state.dpll = I915_READ(DPLL(pipe));
+	pipe_config.dpll_hw_state.fp0 = I915_READ(FP0(pipe));
+	pipe_config.dpll_hw_state.fp1 = I915_READ(FP1(pipe));
 	i9xx_crtc_clock_get(intel_crtc, &pipe_config);
 
 	mode->clock = pipe_config.adjusted_mode.clock;
