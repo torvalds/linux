@@ -648,6 +648,15 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 	}
 }
 
+static void hci_init4_req(struct hci_request *req, unsigned long opt)
+{
+	struct hci_dev *hdev = req->hdev;
+
+	/* Check for Synchronization Train support */
+	if (hdev->features[2][0] & 0x04)
+		hci_req_add(req, HCI_OP_READ_SYNC_TRAIN_PARAMS, 0, NULL);
+}
+
 static int __hci_init(struct hci_dev *hdev)
 {
 	int err;
@@ -667,7 +676,11 @@ static int __hci_init(struct hci_dev *hdev)
 	if (err < 0)
 		return err;
 
-	return __hci_req_sync(hdev, hci_init3_req, 0, HCI_INIT_TIMEOUT);
+	err = __hci_req_sync(hdev, hci_init3_req, 0, HCI_INIT_TIMEOUT);
+	if (err < 0)
+		return err;
+
+	return __hci_req_sync(hdev, hci_init4_req, 0, HCI_INIT_TIMEOUT);
 }
 
 static void hci_scan_req(struct hci_request *req, unsigned long opt)

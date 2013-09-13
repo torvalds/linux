@@ -835,6 +835,8 @@ struct hci_cp_write_le_host_supported {
 	__u8	simul;
 } __packed;
 
+#define HCI_OP_READ_SYNC_TRAIN_PARAMS	0x0c77
+
 #define HCI_OP_READ_LOCAL_VERSION	0x1001
 struct hci_rp_read_local_version {
 	__u8     status;
