@@ -922,6 +922,14 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 			else
 				mask &= ~(1 << 30);
 		}
+		if (mac->type == e1000_pch2lan) {
+			/* SHRAH[0,1,2] different than previous */
+			if (i == 7)
+				mask &= 0xFFF4FFFF;
+			/* SHRAH[3] different than SHRAH[0,1,2] */
+			if (i == 10)
+				mask |= (1 << 30);
+		}
 
 		REG_PATTERN_TEST_ARRAY(E1000_RA, ((i << 1) + 1), mask,
 				       0xFFFFFFFF);
