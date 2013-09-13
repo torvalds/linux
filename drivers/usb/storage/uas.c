@@ -53,6 +53,7 @@ struct uas_dev_info {
 	spinlock_t lock;
 	struct work_struct work;
 	struct list_head work_list;
+	struct list_head dead_list;
 };
 
 enum {
@@ -80,6 +81,7 @@ struct uas_cmd_info {
 	struct urb *data_in_urb;
 	struct urb *data_out_urb;
 	struct list_head work;
+	struct list_head dead;
 };
 
 /* I hate forward declarations, but I actually have a loop */
@@ -89,6 +91,7 @@ static void uas_do_work(struct work_struct *work);
 static int uas_try_complete(struct scsi_cmnd *cmnd, const char *caller);
 static void uas_configure_endpoints(struct uas_dev_info *devinfo);
 static void uas_free_streams(struct uas_dev_info *devinfo);
+static void uas_log_cmd_state(struct scsi_cmnd *cmnd, const char *caller);
 
 static void uas_unlink_data_urbs(struct uas_dev_info *devinfo,
 				 struct uas_cmd_info *cmdinfo)
@@ -150,16 +153,12 @@ static void uas_abort_work(struct uas_dev_info *devinfo)
 		struct scsi_pointer *scp = (void *)cmdinfo;
 		struct scsi_cmnd *cmnd = container_of(scp, struct scsi_cmnd,
 						      SCp);
+		uas_log_cmd_state(cmnd, __func__);
+		WARN_ON(cmdinfo->state & COMMAND_ABORTED);
 		cmdinfo->state |= COMMAND_ABORTED;
 		cmdinfo->state &= ~IS_IN_WORK_LIST;
-		if (devinfo->resetting) {
-			/* uas_stat_cmplt() will not do that
-			 * when a device reset is in
-			 * progress */
-			cmdinfo->state &= ~COMMAND_INFLIGHT;
-		}
-		uas_try_complete(cmnd, __func__);
 		list_del(&cmdinfo->work);
+		list_add_tail(&cmdinfo->dead, &devinfo->dead_list);
 	}
 	spin_unlock_irqrestore(&devinfo->lock, flags);
 }
@@ -174,6 +173,28 @@ static void uas_add_work(struct uas_cmd_info *cmdinfo)
 	list_add_tail(&cmdinfo->work, &devinfo->work_list);
 	cmdinfo->state |= IS_IN_WORK_LIST;
 	schedule_work(&devinfo->work);
+}
+
+static void uas_zap_dead(struct uas_dev_info *devinfo)
+{
+	struct uas_cmd_info *cmdinfo;
+	struct uas_cmd_info *temp;
+	unsigned long flags;
+
+	spin_lock_irqsave(&devinfo->lock, flags);
+	list_for_each_entry_safe(cmdinfo, temp, &devinfo->dead_list, dead) {
+		struct scsi_pointer *scp = (void *)cmdinfo;
+		struct scsi_cmnd *cmnd = container_of(scp, struct scsi_cmnd,
+						      SCp);
+		uas_log_cmd_state(cmnd, __func__);
+		WARN_ON(!(cmdinfo->state & COMMAND_ABORTED));
+		/* all urbs are killed, clear inflight bits */
+		cmdinfo->state &= ~(COMMAND_INFLIGHT |
+				    DATA_IN_URB_INFLIGHT |
+				    DATA_OUT_URB_INFLIGHT);
+		uas_try_complete(cmnd, __func__);
+	}
+	spin_unlock_irqrestore(&devinfo->lock, flags);
 }
 
 static void uas_sense(struct urb *urb, struct scsi_cmnd *cmnd)
@@ -263,6 +284,7 @@ static int uas_try_complete(struct scsi_cmnd *cmnd, const char *caller)
 	if (cmdinfo->state & COMMAND_ABORTED) {
 		scmd_printk(KERN_INFO, cmnd, "abort completed\n");
 		cmnd->result = DID_ABORT << 16;
+		list_del(&cmdinfo->dead);
 	}
 	cmnd->scsi_done(cmnd);
 	return 0;
@@ -292,7 +314,13 @@ static void uas_stat_cmplt(struct urb *urb)
 	u16 tag;
 
 	if (urb->status) {
-		dev_err(&urb->dev->dev, "URB BAD STATUS %d\n", urb->status);
+		if (urb->status == -ENOENT) {
+			dev_err(&urb->dev->dev, "stat urb: killed, stream %d\n",
+				urb->stream_id);
+		} else {
+			dev_err(&urb->dev->dev, "stat urb: status %d\n",
+				urb->status);
+		}
 		usb_free_urb(urb);
 		return;
 	}
@@ -743,7 +771,9 @@ static int uas_eh_abort_handler(struct scsi_cmnd *cmnd)
 
 	uas_log_cmd_state(cmnd, __func__);
 	spin_lock_irqsave(&devinfo->lock, flags);
+	WARN_ON(cmdinfo->state & COMMAND_ABORTED);
 	cmdinfo->state |= COMMAND_ABORTED;
+	list_add_tail(&cmdinfo->dead, &devinfo->dead_list);
 	if (cmdinfo->state & IS_IN_WORK_LIST) {
 		list_del(&cmdinfo->work);
 		cmdinfo->state &= ~IS_IN_WORK_LIST;
@@ -776,11 +806,13 @@ static int uas_eh_bus_reset_handler(struct scsi_cmnd *cmnd)
 	struct usb_device *udev = devinfo->udev;
 	int err;
 
+	shost_printk(KERN_INFO, sdev->host, "%s start\n", __func__);
 	devinfo->resetting = 1;
 	uas_abort_work(devinfo);
 	usb_kill_anchored_urbs(&devinfo->cmd_urbs);
 	usb_kill_anchored_urbs(&devinfo->sense_urbs);
 	usb_kill_anchored_urbs(&devinfo->data_urbs);
+	uas_zap_dead(devinfo);
 	uas_free_streams(devinfo);
 	err = usb_reset_device(udev);
 	if (!err)
@@ -988,6 +1020,7 @@ static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	spin_lock_init(&devinfo->lock);
 	INIT_WORK(&devinfo->work, uas_do_work);
 	INIT_LIST_HEAD(&devinfo->work_list);
+	INIT_LIST_HEAD(&devinfo->dead_list);
 	uas_configure_endpoints(devinfo);
 
 	result = scsi_init_shared_tag_map(shost, devinfo->qdepth - 3);
@@ -1036,6 +1069,7 @@ static void uas_disconnect(struct usb_interface *intf)
 	usb_kill_anchored_urbs(&devinfo->cmd_urbs);
 	usb_kill_anchored_urbs(&devinfo->sense_urbs);
 	usb_kill_anchored_urbs(&devinfo->data_urbs);
+	uas_zap_dead(devinfo);
 	scsi_remove_host(shost);
 	uas_free_streams(devinfo);
 	kfree(devinfo);
