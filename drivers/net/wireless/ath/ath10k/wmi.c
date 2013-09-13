@@ -120,8 +120,7 @@ err_pull:
 	return ret;
 }
 
-static void ath10k_wmi_op_ep_tx_credits(struct ath10k *ar,
-					enum ath10k_htc_ep_id eid)
+static void ath10k_wmi_op_ep_tx_credits(struct ath10k *ar)
 {
 	wake_up(&ar->wmi.tx_credits_wq);
 }
