@@ -2645,6 +2645,7 @@ static void __init rk30_reserve(void)
  */
 
 #if defined(CONFIG_ARCH_RK3188)
+#if 0
 //sdk
 static struct cpufreq_frequency_table dvfs_arm_table_volt_level0[] = {
 	{.frequency = 312 * 1000,       .index = 850 * 1000},
@@ -2656,7 +2657,7 @@ static struct cpufreq_frequency_table dvfs_arm_table_volt_level0[] = {
 	{.frequency = 1608 * 1000,      .index = 1300 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
-//default
+//default for rk sdk testing
 static struct cpufreq_frequency_table dvfs_arm_table_volt_level1[] = {
 	{.frequency = 312 * 1000,       .index = 875 * 1000},
 	{.frequency = 504 * 1000,       .index = 925 * 1000},
@@ -2667,10 +2668,11 @@ static struct cpufreq_frequency_table dvfs_arm_table_volt_level1[] = {
 	{.frequency = 1608 * 1000,      .index = 1350 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
-// cube 10'
+#endif
+// for production , fixed: 2013.9.13
 static struct cpufreq_frequency_table dvfs_arm_table_volt_level2[] = {
-	{.frequency = 312 * 1000,       .index = 900 * 1000},
-	{.frequency = 504 * 1000,       .index = 925 * 1000},
+	{.frequency = 312 * 1000,       .index = 925 * 1000},
+	{.frequency = 504 * 1000,       .index = 950 * 1000},
 	{.frequency = 816 * 1000,       .index = 1000 * 1000},
 	{.frequency = 1008 * 1000,      .index = 1075 * 1000},
 	{.frequency = 1200 * 1000,      .index = 1200 * 1000},
@@ -2718,7 +2720,7 @@ static struct cpufreq_frequency_table dvfs_ddr_table_t[] = {
 };
 
 //if you board is good for volt quality,select dvfs_arm_table_volt_level0
-#define dvfs_arm_table dvfs_arm_table_volt_level1
+#define dvfs_arm_table dvfs_arm_table_volt_level2
 #define dvfs_gpu_table dvfs_gpu_table_volt_level1
 #define dvfs_ddr_table dvfs_ddr_table_volt_level0
 
