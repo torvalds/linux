@@ -1236,7 +1236,6 @@ int trinity_dpm_set_power_state(struct radeon_device *rdev)
 		trinity_force_level_0(rdev);
 		trinity_unforce_levels(rdev);
 		trinity_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
-		rdev->pm.dpm.forced_level = RADEON_DPM_FORCED_LEVEL_AUTO;
 	}
 	trinity_release_mutex(rdev);
 
