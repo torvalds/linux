@@ -63,29 +63,26 @@ static int vmbus_exists(void)
 static void get_channel_info(struct hv_device *device,
 			     struct hv_device_info *info)
 {
-	struct vmbus_channel_debug_info debug_info;
+	struct hv_ring_buffer_debug_info inbound;
+	struct hv_ring_buffer_debug_info outbound;
 
 	if (!device->channel)
 		return;
 
-	vmbus_get_debug_info(device->channel, &debug_info);
+	hv_ringbuffer_get_debuginfo(&device->channel->inbound, &inbound);
+	hv_ringbuffer_get_debuginfo(&device->channel->outbound, &outbound);
 
-	info->inbound.int_mask = debug_info.inbound.current_interrupt_mask;
-	info->inbound.read_idx = debug_info.inbound.current_read_index;
-	info->inbound.write_idx = debug_info.inbound.current_write_index;
-	info->inbound.bytes_avail_toread =
-		debug_info.inbound.bytes_avail_toread;
-	info->inbound.bytes_avail_towrite =
-		debug_info.inbound.bytes_avail_towrite;
+	info->inbound.int_mask = inbound.current_interrupt_mask;
+	info->inbound.read_idx = inbound.current_read_index;
+	info->inbound.write_idx = inbound.current_write_index;
+	info->inbound.bytes_avail_toread = inbound.bytes_avail_toread;
+	info->inbound.bytes_avail_towrite = inbound.bytes_avail_towrite;
 
-	info->outbound.int_mask =
-		debug_info.outbound.current_interrupt_mask;
-	info->outbound.read_idx = debug_info.outbound.current_read_index;
-	info->outbound.write_idx = debug_info.outbound.current_write_index;
-	info->outbound.bytes_avail_toread =
-		debug_info.outbound.bytes_avail_toread;
-	info->outbound.bytes_avail_towrite =
-		debug_info.outbound.bytes_avail_towrite;
+	info->outbound.int_mask = outbound.current_interrupt_mask;
+	info->outbound.read_idx = outbound.current_read_index;
+	info->outbound.write_idx = outbound.current_write_index;
+	info->outbound.bytes_avail_toread = outbound.bytes_avail_toread;
+	info->outbound.bytes_avail_towrite = outbound.bytes_avail_towrite;
 }
 
 #define VMBUS_ALIAS_LEN ((sizeof((struct hv_vmbus_device_id *)0)->guid) * 2)

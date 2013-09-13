@@ -60,16 +60,6 @@ static void vmbus_setevent(struct vmbus_channel *channel)
 }
 
 /*
- * vmbus_get_debug_info -Retrieve various channel debug info
- */
-void vmbus_get_debug_info(struct vmbus_channel *channel,
-			      struct vmbus_channel_debug_info *debuginfo)
-{
-	hv_ringbuffer_get_debuginfo(&channel->inbound, &debuginfo->inbound);
-	hv_ringbuffer_get_debuginfo(&channel->outbound, &debuginfo->outbound);
-}
-
-/*
  * vmbus_open - Open the specified channel.
  */
 int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,

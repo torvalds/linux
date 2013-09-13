@@ -899,11 +899,6 @@ enum vmbus_channel_state {
 	CHANNEL_OPENED_STATE,
 };
 
-struct vmbus_channel_debug_info {
-	struct hv_ring_buffer_debug_info inbound;
-	struct hv_ring_buffer_debug_info outbound;
-};
-
 /*
  * Represents each channel msg on the vmbus connection This is a
  * variable-size data structure depending on the msg type itself
@@ -1168,9 +1163,6 @@ extern int vmbus_recvpacket_raw(struct vmbus_channel *channel,
 				     u32 *buffer_actual_len,
 				     u64 *requestid);
 
-
-extern void vmbus_get_debug_info(struct vmbus_channel *channel,
-				     struct vmbus_channel_debug_info *debug);
 
 extern void vmbus_ontimer(unsigned long data);
 
