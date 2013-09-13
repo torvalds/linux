@@ -174,8 +174,7 @@ static int i40e_get_lump(struct i40e_pf *pf, struct i40e_lump_tracking *pile,
 			 u16 needed, u16 id)
 {
 	int ret = -ENOMEM;
-	int i = 0;
-	int j = 0;
+	int i, j;
 
 	if (!pile || needed == 0 || id >= I40E_PILE_VALID_BIT) {
 		dev_info(&pf->pdev->dev,
@@ -186,7 +185,7 @@ static int i40e_get_lump(struct i40e_pf *pf, struct i40e_lump_tracking *pile,
 
 	/* start the linear search with an imperfect hint */
 	i = pile->search_hint;
-	while (i < pile->num_entries && ret < 0) {
+	while (i < pile->num_entries) {
 		/* skip already allocated entries */
 		if (pile->list[i] & I40E_PILE_VALID_BIT) {
 			i++;
@@ -205,6 +204,7 @@ static int i40e_get_lump(struct i40e_pf *pf, struct i40e_lump_tracking *pile,
 				pile->list[i+j] = id | I40E_PILE_VALID_BIT;
 			ret = i;
 			pile->search_hint = i + j;
+			break;
 		} else {
 			/* not enough, so skip over it and continue looking */
 			i += j;
