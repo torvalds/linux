@@ -167,49 +167,6 @@ err:
 	return ret;
 }
 
-static struct sk_buff *ath10k_htc_get_skb_credit_based(struct ath10k_htc *htc,
-						       struct ath10k_htc_ep *ep,
-						       u8 *credits)
-{
-	struct sk_buff *skb;
-	struct ath10k_skb_cb *skb_cb;
-	int credits_required;
-	int remainder;
-	unsigned int transfer_len;
-
-	lockdep_assert_held(&htc->tx_lock);
-
-	skb = __skb_dequeue(&ep->tx_queue);
-	if (!skb)
-		return NULL;
-
-	skb_cb = ATH10K_SKB_CB(skb);
-	transfer_len = skb->len;
-
-	if (likely(transfer_len <= htc->target_credit_size)) {
-		credits_required = 1;
-	} else {
-		/* figure out how many credits this message requires */
-		credits_required = transfer_len / htc->target_credit_size;
-		remainder = transfer_len % htc->target_credit_size;
-
-		if (remainder)
-			credits_required++;
-	}
-
-	ath10k_dbg(ATH10K_DBG_HTC, "Credits required %d got %d\n",
-		   credits_required, ep->tx_credits);
-
-	if (ep->tx_credits < credits_required) {
-		__skb_queue_head(&ep->tx_queue, skb);
-		return NULL;
-	}
-
-	ep->tx_credits -= credits_required;
-	*credits = credits_required;
-	return skb;
-}
-
 static void ath10k_htc_send_work(struct work_struct *work)
 {
 	struct ath10k_htc_ep *ep = container_of(work,
@@ -224,11 +181,16 @@ static void ath10k_htc_send_work(struct work_struct *work)
 			ath10k_htc_send_complete_check(ep, 0);
 
 		spin_lock_bh(&htc->tx_lock);
-		if (ep->tx_credit_flow_enabled)
-			skb = ath10k_htc_get_skb_credit_based(htc, ep,
-							      &credits);
-		else
-			skb = __skb_dequeue(&ep->tx_queue);
+		skb = __skb_dequeue(&ep->tx_queue);
+
+		if (ep->tx_credit_flow_enabled) {
+			credits = DIV_ROUND_UP(skb->len,
+					       htc->target_credit_size);
+			if (ep->tx_credits < credits) {
+				__skb_queue_head(&ep->tx_queue, skb);
+				skb = NULL;
+			}
+		}
 		spin_unlock_bh(&htc->tx_lock);
 
 		if (!skb)
