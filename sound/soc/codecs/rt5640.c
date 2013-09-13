@@ -21,6 +21,7 @@
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
+#include <linux/acpi.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -2081,6 +2082,12 @@ static const struct i2c_device_id rt5640_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rt5640_i2c_id);
 
+static struct acpi_device_id rt5640_acpi_match[] = {
+	{ "INT33CA", 0 },
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, rt5640_acpi_match);
+
 static int rt5640_parse_dt(struct rt5640_priv *rt5640, struct device_node *np)
 {
 	rt5640->pdata.in1_diff = of_property_read_bool(np,
@@ -2200,6 +2207,7 @@ static struct i2c_driver rt5640_i2c_driver = {
 	.driver = {
 		.name = "rt5640",
 		.owner = THIS_MODULE,
+		.acpi_match_table = ACPI_PTR(rt5640_acpi_match),
 	},
 	.probe = rt5640_i2c_probe,
 	.remove   = rt5640_i2c_remove,
