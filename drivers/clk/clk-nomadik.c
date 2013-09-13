@@ -27,6 +27,14 @@
  */
 
 #define SRC_CR			0x00U
+#define SRC_CR_T0_ENSEL		BIT(15)
+#define SRC_CR_T1_ENSEL		BIT(17)
+#define SRC_CR_T2_ENSEL		BIT(19)
+#define SRC_CR_T3_ENSEL		BIT(21)
+#define SRC_CR_T4_ENSEL		BIT(23)
+#define SRC_CR_T5_ENSEL		BIT(25)
+#define SRC_CR_T6_ENSEL		BIT(27)
+#define SRC_CR_T7_ENSEL		BIT(29)
 #define SRC_XTALCR		0x0CU
 #define SRC_XTALCR_XTALTIMEN	BIT(20)
 #define SRC_XTALCR_SXTALDIS	BIT(19)
@@ -543,6 +551,19 @@ void __init nomadik_clk_init(void)
 		       __func__, np->name);
 		return;
 	}
+
+	/* Set all timers to use the 2.4 MHz TIMCLK */
+	val = readl(src_base + SRC_CR);
+	val |= SRC_CR_T0_ENSEL;
+	val |= SRC_CR_T1_ENSEL;
+	val |= SRC_CR_T2_ENSEL;
+	val |= SRC_CR_T3_ENSEL;
+	val |= SRC_CR_T4_ENSEL;
+	val |= SRC_CR_T5_ENSEL;
+	val |= SRC_CR_T6_ENSEL;
+	val |= SRC_CR_T7_ENSEL;
+	writel(val, src_base + SRC_CR);
+
 	val = readl(src_base + SRC_XTALCR);
 	pr_info("SXTALO is %s\n",
 		(val & SRC_XTALCR_SXTALDIS) ? "disabled" : "enabled");
