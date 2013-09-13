@@ -121,6 +121,8 @@ i915_l3_read(struct file *filp, struct kobject *kobj,
 	uint32_t misccpctl;
 	int i, ret;
 
+	count = round_down(count, 4);
+
 	ret = l3_access_valid(drm_dev, offset);
 	if (ret)
 		return ret;
