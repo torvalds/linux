@@ -3379,6 +3379,9 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 	return rc;
 }
 
+/*
+ * cifs_readpage_worker must be called with the page pinned
+ */
 static int cifs_readpage_worker(struct file *file, struct page *page,
 	loff_t *poffset)
 {
@@ -3390,7 +3393,6 @@ static int cifs_readpage_worker(struct file *file, struct page *page,
 	if (rc == 0)
 		goto read_complete;
 
-	page_cache_get(page);
 	read_data = kmap(page);
 	/* for reads over a certain size could initiate async read ahead */
 
@@ -3417,7 +3419,6 @@ static int cifs_readpage_worker(struct file *file, struct page *page,
 
 io_error:
 	kunmap(page);
-	page_cache_release(page);
 
 read_complete:
 	return rc;
