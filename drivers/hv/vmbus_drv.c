@@ -47,7 +47,6 @@ static struct completion probe_event;
 static int irq;
 
 struct hv_device_info {
-	u32 chn_id;
 	u32 chn_state;
 	uuid_le chn_type;
 	uuid_le chn_instance;
@@ -83,7 +82,6 @@ static void get_channel_info(struct hv_device *device,
 
 	vmbus_get_debug_info(device->channel, &debug_info);
 
-	info->chn_id = debug_info.relid;
 	info->chn_state = debug_info.state;
 	memcpy(&info->chn_type, &debug_info.interfacetype,
 	       sizeof(uuid_le));
@@ -156,8 +154,6 @@ static ssize_t vmbus_show_device_attr(struct device *dev,
 		ret = sprintf(buf, "vmbus:%s\n", alias_name);
 	} else if (!strcmp(dev_attr->attr.name, "state")) {
 		ret = sprintf(buf, "%d\n", device_info->chn_state);
-	} else if (!strcmp(dev_attr->attr.name, "id")) {
-		ret = sprintf(buf, "%d\n", device_info->chn_id);
 	} else if (!strcmp(dev_attr->attr.name, "out_intr_mask")) {
 		ret = sprintf(buf, "%d\n", device_info->outbound.int_mask);
 	} else if (!strcmp(dev_attr->attr.name, "out_read_index")) {
@@ -204,9 +200,25 @@ static ssize_t vmbus_show_device_attr(struct device *dev,
 	return ret;
 }
 
+static ssize_t id_show(struct device *dev, struct device_attribute *dev_attr,
+		       char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+
+	if (!hv_dev->channel)
+		return -ENODEV;
+	return sprintf(buf, "%d\n", hv_dev->channel->offermsg.child_relid);
+}
+static DEVICE_ATTR_RO(id);
+
+static struct attribute *vmbus_attrs[] = {
+	&dev_attr_id.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(vmbus);
+
 /* Set up per device attributes in /sys/bus/vmbus/devices/<bus device> */
 static struct device_attribute vmbus_device_attrs[] = {
-	__ATTR(id, S_IRUGO, vmbus_show_device_attr, NULL),
 	__ATTR(state, S_IRUGO, vmbus_show_device_attr, NULL),
 	__ATTR(class_id, S_IRUGO, vmbus_show_device_attr, NULL),
 	__ATTR(device_id, S_IRUGO, vmbus_show_device_attr, NULL),
@@ -384,6 +396,7 @@ static struct bus_type  hv_bus = {
 	.probe =		vmbus_probe,
 	.uevent =		vmbus_uevent,
 	.dev_attrs =	vmbus_device_attrs,
+	.dev_groups =		vmbus_groups,
 };
 
 static const char *driver_name = "hyperv";

@@ -900,7 +900,6 @@ enum vmbus_channel_state {
 };
 
 struct vmbus_channel_debug_info {
-	u32 relid;
 	enum vmbus_channel_state state;
 	uuid_le interfacetype;
 	uuid_le interface_instance;
