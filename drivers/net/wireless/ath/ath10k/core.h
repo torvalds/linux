@@ -204,6 +204,7 @@ struct ath10k_vif {
 	enum wmi_vdev_subtype vdev_subtype;
 	u32 beacon_interval;
 	u32 dtim_period;
+	struct sk_buff *beacon;
 
 	struct ath10k *ar;
 	struct ieee80211_vif *vif;

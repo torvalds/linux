@@ -2075,6 +2075,13 @@ static void ath10k_remove_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&ar->conf_mutex);
 
+	spin_lock_bh(&ar->data_lock);
+	if (arvif->beacon) {
+		dev_kfree_skb_any(arvif->beacon);
+		arvif->beacon = NULL;
+	}
+	spin_unlock_bh(&ar->data_lock);
+
 	ar->free_vdev_map |= 1 << (arvif->vdev_id);
 
 	if (arvif->vdev_type == WMI_VDEV_TYPE_AP) {

@@ -120,8 +120,53 @@ err_pull:
 	return ret;
 }
 
+static void ath10k_wmi_tx_beacon_nowait(struct ath10k_vif *arvif)
+{
+	struct wmi_bcn_tx_arg arg = {0};
+	int ret;
+
+	lockdep_assert_held(&arvif->ar->data_lock);
+
+	if (arvif->beacon == NULL)
+		return;
+
+	arg.vdev_id = arvif->vdev_id;
+	arg.tx_rate = 0;
+	arg.tx_power = 0;
+	arg.bcn = arvif->beacon->data;
+	arg.bcn_len = arvif->beacon->len;
+
+	ret = ath10k_wmi_beacon_send_nowait(arvif->ar, &arg);
+	if (ret)
+		return;
+
+	dev_kfree_skb_any(arvif->beacon);
+	arvif->beacon = NULL;
+}
+
+static void ath10k_wmi_tx_beacons_iter(void *data, u8 *mac,
+				       struct ieee80211_vif *vif)
+{
+	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
+
+	ath10k_wmi_tx_beacon_nowait(arvif);
+}
+
+static void ath10k_wmi_tx_beacons_nowait(struct ath10k *ar)
+{
+	spin_lock_bh(&ar->data_lock);
+	ieee80211_iterate_active_interfaces_atomic(ar->hw,
+						   IEEE80211_IFACE_ITER_NORMAL,
+						   ath10k_wmi_tx_beacons_iter,
+						   NULL);
+	spin_unlock_bh(&ar->data_lock);
+}
+
 static void ath10k_wmi_op_ep_tx_credits(struct ath10k *ar)
 {
+	/* try to send pending beacons first. they take priority */
+	ath10k_wmi_tx_beacons_nowait(ar);
+
 	wake_up(&ar->wmi.tx_credits_wq);
 }
 
@@ -131,6 +176,9 @@ static int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb,
 	int ret = -EINVAL;
 
 	wait_event_timeout(ar->wmi.tx_credits_wq, ({
+		/* try to send pending beacons first. they take priority */
+		ath10k_wmi_tx_beacons_nowait(ar);
+
 		ret = ath10k_wmi_cmd_send_nowait(ar, skb, cmd_id);
 		(ret != -EAGAIN);
 	}), 3*HZ);
@@ -760,10 +808,8 @@ static void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 	int i = -1;
 	struct wmi_bcn_info *bcn_info;
 	struct ath10k_vif *arvif;
-	struct wmi_bcn_tx_arg arg;
 	struct sk_buff *bcn;
 	int vdev_id = 0;
-	int ret;
 
 	ath10k_dbg(ATH10K_DBG_MGMT, "WMI_HOST_SWBA_EVENTID\n");
 
@@ -820,17 +866,17 @@ static void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 		ath10k_wmi_update_tim(ar, arvif, bcn, bcn_info);
 		ath10k_wmi_update_noa(ar, arvif, bcn, bcn_info);
 
-		arg.vdev_id = arvif->vdev_id;
-		arg.tx_rate = 0;
-		arg.tx_power = 0;
-		arg.bcn = bcn->data;
-		arg.bcn_len = bcn->len;
+		spin_lock_bh(&ar->data_lock);
+		if (arvif->beacon) {
+			ath10k_warn("SWBA overrun on vdev %d\n",
+				    arvif->vdev_id);
+			dev_kfree_skb_any(arvif->beacon);
+		}
 
-		ret = ath10k_wmi_beacon_send(ar, &arg);
-		if (ret)
-			ath10k_warn("could not send beacon (%d)\n", ret);
+		arvif->beacon = bcn;
 
-		dev_kfree_skb_any(bcn);
+		ath10k_wmi_tx_beacon_nowait(arvif);
+		spin_unlock_bh(&ar->data_lock);
 	}
 }
 
@@ -1181,6 +1227,7 @@ static void ath10k_wmi_process_rx(struct ath10k *ar, struct sk_buff *skb)
 	 * thus can't be defered to a worker thread */
 	switch (event_id) {
 	case WMI_MGMT_RX_EVENTID:
+	case WMI_HOST_SWBA_EVENTID:
 		ath10k_wmi_event_process(ar, skb);
 		return;
 	default:
@@ -2138,7 +2185,8 @@ int ath10k_wmi_peer_assoc(struct ath10k *ar,
 	return ath10k_wmi_cmd_send(ar, skb, WMI_PEER_ASSOC_CMDID);
 }
 
-int ath10k_wmi_beacon_send(struct ath10k *ar, const struct wmi_bcn_tx_arg *arg)
+int ath10k_wmi_beacon_send_nowait(struct ath10k *ar,
+				  const struct wmi_bcn_tx_arg *arg)
 {
 	struct wmi_bcn_tx_cmd *cmd;
 	struct sk_buff *skb;
@@ -2154,7 +2202,7 @@ int ath10k_wmi_beacon_send(struct ath10k *ar, const struct wmi_bcn_tx_arg *arg)
 	cmd->hdr.bcn_len  = __cpu_to_le32(arg->bcn_len);
 	memcpy(cmd->bcn, arg->bcn, arg->bcn_len);
 
-	return ath10k_wmi_cmd_send(ar, skb, WMI_BCN_TX_CMDID);
+	return ath10k_wmi_cmd_send_nowait(ar, skb, WMI_BCN_TX_CMDID);
 }
 
 static void ath10k_wmi_pdev_set_wmm_param(struct wmi_wmm_params *params,
