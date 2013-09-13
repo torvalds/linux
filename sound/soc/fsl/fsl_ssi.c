@@ -1135,7 +1135,6 @@ static int fsl_ssi_remove(struct platform_device *pdev)
 	if (ssi_private->ssi_on_imx)
 		imx_pcm_dma_exit(pdev);
 	snd_soc_unregister_component(&pdev->dev);
-	dev_set_drvdata(&pdev->dev, NULL);
 	device_remove_file(&pdev->dev, &ssi_private->dev_attr);
 	if (ssi_private->ssi_on_imx)
 		clk_disable_unprepare(ssi_private->clk);
