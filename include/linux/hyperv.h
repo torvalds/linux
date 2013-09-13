@@ -900,9 +900,7 @@ enum vmbus_channel_state {
 };
 
 struct vmbus_channel_debug_info {
-	u32 servermonitor_latency;
 	u32 servermonitor_connectionid;
-	u32 clientmonitor_latency;
 	u32 clientmonitor_connectionid;
 
 	struct hv_ring_buffer_debug_info inbound;

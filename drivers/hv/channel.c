@@ -70,15 +70,11 @@ void vmbus_get_debug_info(struct vmbus_channel *channel,
 	u8 monitor_offset = (u8)channel->offermsg.monitorid % 32;
 
 	monitorpage = vmbus_connection.monitor_pages[0];
-	debuginfo->servermonitor_latency =
-			monitorpage->latency[monitor_group][monitor_offset];
 	debuginfo->servermonitor_connectionid =
 			monitorpage->parameter[monitor_group]
 					[monitor_offset].connectionid.u.id;
 
 	monitorpage = vmbus_connection.monitor_pages[1];
-	debuginfo->clientmonitor_latency =
-			monitorpage->latency[monitor_group][monitor_offset];
 	debuginfo->clientmonitor_connectionid =
 			monitorpage->parameter[monitor_group]
 					[monitor_offset].connectionid.u.id;
