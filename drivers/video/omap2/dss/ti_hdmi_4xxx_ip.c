@@ -527,7 +527,7 @@ static void hdmi_core_init(struct hdmi_core_video_config *video_cfg,
 static void hdmi_core_powerdown_disable(struct hdmi_ip_data *ip_data)
 {
 	pr_debug("Enter hdmi_core_powerdown_disable\n");
-	REG_FLD_MOD(hdmi_core_sys_base(ip_data), HDMI_CORE_CTRL1, 0x0, 0, 0);
+	REG_FLD_MOD(hdmi_core_sys_base(ip_data), HDMI_CORE_SYS_SYS_CTRL1, 0x0, 0, 0);
 }
 
 static void hdmi_core_swreset_release(struct hdmi_ip_data *ip_data)
@@ -550,12 +550,12 @@ static void hdmi_core_video_config(struct hdmi_ip_data *ip_data,
 	void __iomem *core_sys_base = hdmi_core_sys_base(ip_data);
 
 	/* sys_ctrl1 default configuration not tunable */
-	r = hdmi_read_reg(core_sys_base, HDMI_CORE_CTRL1);
-	r = FLD_MOD(r, HDMI_CORE_CTRL1_VEN_FOLLOWVSYNC, 5, 5);
-	r = FLD_MOD(r, HDMI_CORE_CTRL1_HEN_FOLLOWHSYNC, 4, 4);
-	r = FLD_MOD(r, HDMI_CORE_CTRL1_BSEL_24BITBUS, 2, 2);
-	r = FLD_MOD(r, HDMI_CORE_CTRL1_EDGE_RISINGEDGE, 1, 1);
-	hdmi_write_reg(core_sys_base, HDMI_CORE_CTRL1, r);
+	r = hdmi_read_reg(core_sys_base, HDMI_CORE_SYS_SYS_CTRL1);
+	r = FLD_MOD(r, HDMI_CORE_SYS_SYS_CTRL1_VEN_FOLLOWVSYNC, 5, 5);
+	r = FLD_MOD(r, HDMI_CORE_SYS_SYS_CTRL1_HEN_FOLLOWHSYNC, 4, 4);
+	r = FLD_MOD(r, HDMI_CORE_SYS_SYS_CTRL1_BSEL_24BITBUS, 2, 2);
+	r = FLD_MOD(r, HDMI_CORE_SYS_SYS_CTRL1_EDGE_RISINGEDGE, 1, 1);
+	hdmi_write_reg(core_sys_base, HDMI_CORE_SYS_SYS_CTRL1, r);
 
 	REG_FLD_MOD(core_sys_base,
 			HDMI_CORE_SYS_VID_ACEN, cfg->ip_bus_width, 7, 6);
@@ -909,7 +909,7 @@ void ti_hdmi_4xxx_core_dump(struct hdmi_ip_data *ip_data, struct seq_file *s)
 	DUMPCORE(HDMI_CORE_SYS_DEV_IDH);
 	DUMPCORE(HDMI_CORE_SYS_DEV_REV);
 	DUMPCORE(HDMI_CORE_SYS_SRST);
-	DUMPCORE(HDMI_CORE_CTRL1);
+	DUMPCORE(HDMI_CORE_SYS_SYS_CTRL1);
 	DUMPCORE(HDMI_CORE_SYS_SYS_STAT);
 	DUMPCORE(HDMI_CORE_SYS_DE_DLY);
 	DUMPCORE(HDMI_CORE_SYS_DE_CTRL);
