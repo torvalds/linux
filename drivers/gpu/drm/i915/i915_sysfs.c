@@ -127,6 +127,8 @@ i915_l3_read(struct file *filp, struct kobject *kobj,
 	if (ret)
 		return ret;
 
+	count = min_t(int, GEN7_L3LOG_SIZE-offset, count);
+
 	ret = i915_mutex_lock_interruptible(drm_dev);
 	if (ret)
 		return ret;
@@ -134,14 +136,14 @@ i915_l3_read(struct file *filp, struct kobject *kobj,
 	misccpctl = I915_READ(GEN7_MISCCPCTL);
 	I915_WRITE(GEN7_MISCCPCTL, misccpctl & ~GEN7_DOP_CLOCK_GATE_ENABLE);
 
-	for (i = offset; count >= 4 && i < GEN7_L3LOG_SIZE; i += 4, count -= 4)
-		*((uint32_t *)(&buf[i])) = I915_READ(GEN7_L3LOG_BASE + i);
+	for (i = 0; i < count; i += 4)
+		*((uint32_t *)(&buf[i])) = I915_READ(GEN7_L3LOG_BASE + offset + i);
 
 	I915_WRITE(GEN7_MISCCPCTL, misccpctl);
 
 	mutex_unlock(&drm_dev->struct_mutex);
 
-	return i - offset;
+	return i;
 }
 
 static ssize_t
@@ -186,9 +188,7 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	if (temp)
 		dev_priv->l3_parity.remap_info = temp;
 
-	memcpy(dev_priv->l3_parity.remap_info + (offset/4),
-	       buf + (offset/4),
-	       count);
+	memcpy(dev_priv->l3_parity.remap_info + (offset/4), buf, count);
 
 	i915_gem_l3_remap(drm_dev);
 
