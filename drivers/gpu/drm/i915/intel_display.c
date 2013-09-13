@@ -4914,9 +4914,12 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 		num_connectors++;
 	}
 
-	refclk = i9xx_get_refclk(crtc, num_connectors);
+	if (is_dsi)
+		goto skip_dpll;
 
-	if (!is_dsi && !intel_crtc->config.clock_set) {
+	if (!intel_crtc->config.clock_set) {
+		refclk = i9xx_get_refclk(crtc, num_connectors);
+
 		/*
 		 * Returns a set of divisors for the desired target clock with
 		 * the given refclk, or FALSE.  The returned values represent
@@ -4927,28 +4930,25 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 		ok = dev_priv->display.find_dpll(limit, crtc,
 						 intel_crtc->config.port_clock,
 						 refclk, NULL, &clock);
-		if (!ok && !intel_crtc->config.clock_set) {
+		if (!ok) {
 			DRM_ERROR("Couldn't find PLL settings for mode!\n");
 			return -EINVAL;
 		}
-	}
 
-	if (is_lvds && dev_priv->lvds_downclock_avail) {
-		/*
-		 * Ensure we match the reduced clock's P to the target clock.
-		 * If the clocks don't match, we can't switch the display clock
-		 * by using the FP0/FP1. In such case we will disable the LVDS
-		 * downclock feature.
-		*/
-		limit = intel_limit(crtc, refclk);
-		has_reduced_clock =
-			dev_priv->display.find_dpll(limit, crtc,
-						    dev_priv->lvds_downclock,
-						    refclk, &clock,
-						    &reduced_clock);
-	}
-	/* Compat-code for transition, will disappear. */
-	if (!intel_crtc->config.clock_set) {
+		if (is_lvds && dev_priv->lvds_downclock_avail) {
+			/*
+			 * Ensure we match the reduced clock's P to the target
+			 * clock.  If the clocks don't match, we can't switch
+			 * the display clock by using the FP0/FP1. In such case
+			 * we will disable the LVDS downclock feature.
+			 */
+			has_reduced_clock =
+				dev_priv->display.find_dpll(limit, crtc,
+							    dev_priv->lvds_downclock,
+							    refclk, &clock,
+							    &reduced_clock);
+		}
+		/* Compat-code for transition, will disappear. */
 		intel_crtc->config.dpll.n = clock.n;
 		intel_crtc->config.dpll.m1 = clock.m1;
 		intel_crtc->config.dpll.m2 = clock.m2;
@@ -4961,14 +4961,14 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 				has_reduced_clock ? &reduced_clock : NULL,
 				num_connectors);
 	} else if (IS_VALLEYVIEW(dev)) {
-		if (!is_dsi)
-			vlv_update_pll(intel_crtc);
+		vlv_update_pll(intel_crtc);
 	} else {
 		i9xx_update_pll(intel_crtc,
 				has_reduced_clock ? &reduced_clock : NULL,
 				num_connectors);
 	}
 
+skip_dpll:
 	/* Set up the display plane register */
 	dspcntr = DISPPLANE_GAMMA_ENABLE;
 
