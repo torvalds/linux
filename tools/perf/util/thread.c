@@ -54,7 +54,7 @@ void thread__delete(struct thread *thread)
 	free(thread);
 }
 
-static struct comm *thread__comm(const struct thread *thread)
+struct comm *thread__comm(const struct thread *thread)
 {
 	if (list_empty(&thread->comm_list))
 		return NULL;
@@ -69,8 +69,8 @@ int thread__set_comm(struct thread *thread, const char *str, u64 timestamp)
 
 	/* Override latest entry if it had no specific time coverage */
 	if (!curr->start) {
-		list_del(&curr->list);
-		comm__free(curr);
+		comm__override(curr, str, timestamp);
+		return 0;
 	}
 
 	new = comm__new(str, timestamp);

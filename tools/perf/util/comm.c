@@ -94,6 +94,21 @@ struct comm *comm__new(const char *str, u64 timestamp)
 	return comm;
 }
 
+void comm__override(struct comm *comm, const char *str, u64 timestamp)
+{
+	struct comm_str *old = comm->comm_str;
+
+	comm->comm_str = comm_str__findnew(str, &comm_str_root);
+	if (!comm->comm_str) {
+		comm->comm_str = old;
+		return;
+	}
+
+	comm->start = timestamp;
+	comm_str__get(comm->comm_str);
+	comm_str__put(old);
+}
+
 void comm__free(struct comm *comm)
 {
 	comm_str__put(comm->comm_str);
