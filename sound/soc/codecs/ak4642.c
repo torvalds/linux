@@ -352,7 +352,6 @@ static int ak4642_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	 */
 	default:
 		return -EINVAL;
-		break;
 	}
 	snd_soc_update_bits(codec, MD_CTL1, DIF_MASK, data);
 
@@ -405,7 +404,6 @@ static int ak4642_dai_hw_params(struct snd_pcm_substream *substream,
 		break;
 	default:
 		return -EINVAL;
-		break;
 	}
 	snd_soc_update_bits(codec, MD_CTL2, FS_MASK, rate);
 
