@@ -20,6 +20,9 @@ struct perf_gtk_context {
 	guint statbar_ctx_id;
 };
 
+int perf_gtk__init(void);
+void perf_gtk__exit(bool wait_for_ok);
+
 extern struct perf_gtk_context *pgctx;
 
 static inline bool perf_gtk__is_active_context(struct perf_gtk_context *ctx)
@@ -47,5 +50,18 @@ static inline GtkWidget *perf_gtk__setup_info_bar(void)
 	return NULL;
 }
 #endif
+
+struct perf_evsel;
+struct perf_evlist;
+struct hist_entry;
+struct hist_browser_timer;
+
+int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist, const char *help,
+				  struct hist_browser_timer *hbt,
+				  float min_pcnt);
+int hist_entry__gtk_annotate(struct hist_entry *he,
+			     struct perf_evsel *evsel,
+			     struct hist_browser_timer *hbt);
+void perf_gtk__show_annotations(void);
 
 #endif /* _PERF_GTK_H_ */

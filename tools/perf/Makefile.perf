@@ -114,6 +114,7 @@ SPARSE_FLAGS = -D__BIG_ENDIAN__ -D__powerpc__
 BUILTIN_OBJS =
 LIB_H =
 LIB_OBJS =
+GTK_OBJS =
 PYRF_OBJS =
 SCRIPT_SH =
 
@@ -490,13 +491,19 @@ ifndef NO_SLANG
 endif
 
 ifndef NO_GTK2
-  LIB_OBJS += $(OUTPUT)ui/gtk/browser.o
-  LIB_OBJS += $(OUTPUT)ui/gtk/hists.o
-  LIB_OBJS += $(OUTPUT)ui/gtk/setup.o
-  LIB_OBJS += $(OUTPUT)ui/gtk/util.o
-  LIB_OBJS += $(OUTPUT)ui/gtk/helpline.o
-  LIB_OBJS += $(OUTPUT)ui/gtk/progress.o
-  LIB_OBJS += $(OUTPUT)ui/gtk/annotate.o
+  ALL_PROGRAMS += $(OUTPUT)libperf-gtk.so
+
+  GTK_OBJS += $(OUTPUT)ui/gtk/browser.o
+  GTK_OBJS += $(OUTPUT)ui/gtk/hists.o
+  GTK_OBJS += $(OUTPUT)ui/gtk/setup.o
+  GTK_OBJS += $(OUTPUT)ui/gtk/util.o
+  GTK_OBJS += $(OUTPUT)ui/gtk/helpline.o
+  GTK_OBJS += $(OUTPUT)ui/gtk/progress.o
+  GTK_OBJS += $(OUTPUT)ui/gtk/annotate.o
+
+install-gtk: $(OUTPUT)libperf-gtk.so
+	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(libdir_SQ)'
+	$(INSTALL) $(OUTPUT)libperf-gtk.so '$(DESTDIR_SQ)$(libdir_SQ)'
 endif
 
 ifndef NO_LIBPERL
@@ -549,6 +556,12 @@ $(OUTPUT)perf.o: perf.c $(OUTPUT)common-cmds.h $(OUTPUT)PERF-CFLAGS
 $(OUTPUT)perf: $(OUTPUT)perf.o $(BUILTIN_OBJS) $(PERFLIBS)
 	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) $(OUTPUT)perf.o \
                $(BUILTIN_OBJS) $(LIBS) -o $@
+
+$(GTK_OBJS): $(OUTPUT)%.o: %.c $(LIB_H)
+	$(QUIET_CC)$(CC) -o $@ -c -fPIC $(CFLAGS) $(GTK_CFLAGS) $<
+
+$(OUTPUT)libperf-gtk.so: $(GTK_OBJS) $(PERFLIBS)
+	$(QUIET_LINK)$(CC) -o $@ -shared $(ALL_LDFLAGS) $(filter %.o,$^) $(GTK_LIBS)
 
 $(OUTPUT)builtin-help.o: builtin-help.c $(OUTPUT)common-cmds.h $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) \
@@ -632,6 +645,9 @@ $(OUTPUT)tests/python-use.o: tests/python-use.c $(OUTPUT)PERF-CFLAGS
 $(OUTPUT)util/config.o: util/config.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) -DETC_PERFCONFIG='"$(ETC_PERFCONFIG_SQ)"' $<
 
+$(OUTPUT)ui/setup.o: ui/setup.c $(OUTPUT)PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) -DLIBDIR='"$(libdir_SQ)"' $<
+
 $(OUTPUT)ui/browser.o: ui/browser.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(CFLAGS) -DENABLE_SLFUTURE_CONST $<
 
@@ -673,7 +689,8 @@ $(patsubst perf-%,%.o,$(PROGRAMS)): $(LIB_H) $(wildcard */*.h)
 
 # we compile into subdirectories. if the target directory is not the source directory, they might not exists. So
 # we depend the various files onto their directories.
-DIRECTORY_DEPS = $(LIB_OBJS) $(BUILTIN_OBJS) $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h
+DIRECTORY_DEPS = $(LIB_OBJS) $(BUILTIN_OBJS) $(GTK_OBJS)
+DIRECTORY_DEPS += $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h
 $(DIRECTORY_DEPS): | $(sort $(dir $(DIRECTORY_DEPS)))
 # In the second step, we make a rule to actually create these directories
 $(sort $(dir $(DIRECTORY_DEPS))):
@@ -786,7 +803,9 @@ check: $(OUTPUT)common-cmds.h
 
 ### Installation rules
 
-install-bin: all
+install-gtk:
+
+install-bin: all install-gtk
 	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(bindir_SQ)'
 	$(INSTALL) $(OUTPUT)perf '$(DESTDIR_SQ)$(bindir_SQ)'
 	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)'
@@ -831,7 +850,8 @@ config-clean:
 	@$(MAKE) -C config/feature-checks clean
 
 clean: $(LIBTRACEEVENT)-clean $(LIBLK)-clean config-clean
-	$(RM) $(LIB_OBJS) $(BUILTIN_OBJS) $(LIB_FILE) $(OUTPUT)perf-archive $(OUTPUT)perf.o $(LANG_BINDINGS)
+	$(RM) $(LIB_OBJS) $(BUILTIN_OBJS) $(LIB_FILE) $(GTK_OBJS)
+	$(RM) $(OUTPUT)perf-archive $(OUTPUT)perf.o $(LANG_BINDINGS)
 	$(RM) $(ALL_PROGRAMS) perf
 	$(RM) *.spec *.pyc *.pyo */*.pyc */*.pyo $(OUTPUT)common-cmds.h TAGS tags cscope*
 	$(QUIET_SUBDIR0)Documentation $(QUIET_SUBDIR1) clean
@@ -850,7 +870,7 @@ else
     GIT-HEAD-PHONY =
 endif
 
-.PHONY: all install clean config-clean strip
+.PHONY: all install clean config-clean strip install-gtk
 .PHONY: shell_compatibility_test please_set_SHELL_PATH_to_a_more_modern_shell
 .PHONY: $(GIT-HEAD-PHONY) TAGS tags cscope .FORCE-PERF-CFLAGS
 

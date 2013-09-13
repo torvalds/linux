@@ -30,6 +30,7 @@
 #include "util/tool.h"
 #include "arch/common.h"
 
+#include <dlfcn.h>
 #include <linux/bitmap.h>
 
 struct perf_annotate {
@@ -142,8 +143,18 @@ find_next:
 
 		if (use_browser == 2) {
 			int ret;
+			int (*annotate)(struct hist_entry *he,
+					struct perf_evsel *evsel,
+					struct hist_browser_timer *hbt);
 
-			ret = hist_entry__gtk_annotate(he, evsel, NULL);
+			annotate = dlsym(perf_gtk_handle,
+					 "hist_entry__gtk_annotate");
+			if (annotate == NULL) {
+				ui__error("GTK browser not found!\n");
+				return;
+			}
+
+			ret = annotate(he, evsel, NULL);
 			if (!ret || !ann->skip_missing)
 				return;
 
@@ -247,8 +258,17 @@ static int __cmd_annotate(struct perf_annotate *ann)
 		goto out_delete;
 	}
 
-	if (use_browser == 2)
-		perf_gtk__show_annotations();
+	if (use_browser == 2) {
+		void (*show_annotations)(void);
+
+		show_annotations = dlsym(perf_gtk_handle,
+					 "perf_gtk__show_annotations");
+		if (show_annotations == NULL) {
+			ui__error("GTK browser not found!\n");
+			goto out_delete;
+		}
+		show_annotations();
+	}
 
 out_delete:
 	/*

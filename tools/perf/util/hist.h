@@ -228,20 +228,5 @@ static inline int script_browse(const char *script_opt __maybe_unused)
 #define K_SWITCH_INPUT_DATA -3000
 #endif
 
-#ifdef HAVE_GTK2_SUPPORT
-int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist, const char *help,
-				  struct hist_browser_timer *hbt __maybe_unused,
-				  float min_pcnt);
-#else
-static inline
-int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist __maybe_unused,
-				  const char *help __maybe_unused,
-				  struct hist_browser_timer *hbt __maybe_unused,
-				  float min_pcnt __maybe_unused)
-{
-	return 0;
-}
-#endif
-
 unsigned int hists__sort_list_width(struct hists *self);
 #endif	/* __PERF_HIST_H */
