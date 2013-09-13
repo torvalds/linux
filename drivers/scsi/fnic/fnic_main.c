@@ -556,6 +556,13 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	host->transportt = fnic_fc_transport;
 
+	err = fnic_stats_debugfs_init(fnic);
+	if (err) {
+		shost_printk(KERN_ERR, fnic->lport->host,
+				"Failed to initialize debugfs for stats\n");
+		fnic_stats_debugfs_remove(fnic);
+	}
+
 	/* Setup PCI resources */
 	pci_set_drvdata(pdev, fnic);
 
@@ -917,6 +924,7 @@ err_out_release_regions:
 err_out_disable_device:
 	pci_disable_device(pdev);
 err_out_free_hba:
+	fnic_stats_debugfs_remove(fnic);
 	scsi_host_put(lp->host);
 err_out:
 	return err;
@@ -969,6 +977,7 @@ static void fnic_remove(struct pci_dev *pdev)
 
 	fcoe_ctlr_destroy(&fnic->ctlr);
 	fc_lport_destroy(lp);
+	fnic_stats_debugfs_remove(fnic);
 
 	/*
 	 * This stops the fnic device, masks all interrupts. Completed
@@ -1013,6 +1022,14 @@ static int __init fnic_init_module(void)
 	int err = 0;
 
 	printk(KERN_INFO PFX "%s, ver %s\n", DRV_DESCRIPTION, DRV_VERSION);
+
+	/* Create debugfs entries for fnic */
+	err = fnic_debugfs_init();
+	if (err < 0) {
+		printk(KERN_ERR PFX "Failed to create fnic directory "
+				"for tracing and stats logging\n");
+		fnic_debugfs_terminate();
+	}
 
 	/* Allocate memory for trace buffer */
 	err = fnic_trace_buf_init();
@@ -1102,6 +1119,7 @@ err_create_fnic_sgl_slab_max:
 	kmem_cache_destroy(fnic_sgl_cache[FNIC_SGL_CACHE_DFLT]);
 err_create_fnic_sgl_slab_dflt:
 	fnic_trace_free();
+	fnic_debugfs_terminate();
 	return err;
 }
 
@@ -1118,6 +1136,7 @@ static void __exit fnic_cleanup_module(void)
 	kmem_cache_destroy(fnic_io_req_cache);
 	fc_release_transport(fnic_fc_transport);
 	fnic_trace_free();
+	fnic_debugfs_terminate();
 }
 
 module_init(fnic_init_module);
