@@ -1428,6 +1428,7 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum port port = dp_to_dig_port(intel_dp)->port;
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
+	int dotclock;
 
 	if ((port == PORT_A) || !HAS_PCH_CPT(dev)) {
 		tmp = I915_READ(intel_dp->output_reg);
@@ -1459,12 +1460,20 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 
 	intel_dp_get_m_n(crtc, pipe_config);
 
-	if (dp_to_dig_port(intel_dp)->port == PORT_A) {
+	if (port == PORT_A) {
 		if ((I915_READ(DP_A) & DP_PLL_FREQ_MASK) == DP_PLL_FREQ_160MHZ)
 			pipe_config->port_clock = 162000;
 		else
 			pipe_config->port_clock = 270000;
 	}
+
+	dotclock = intel_dotclock_calculate(pipe_config->port_clock,
+					    &pipe_config->dp_m_n);
+
+	if (HAS_PCH_SPLIT(dev_priv->dev) && port != PORT_A)
+		ironlake_check_encoder_dotclock(pipe_config, dotclock);
+
+	pipe_config->adjusted_mode.clock = dotclock;
 }
 
 static bool is_edp_psr(struct intel_dp *intel_dp)

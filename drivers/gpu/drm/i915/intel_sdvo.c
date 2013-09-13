@@ -1325,6 +1325,7 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
 	struct intel_sdvo_dtd dtd;
 	int encoder_pixel_multiplier = 0;
+	int dotclock;
 	u32 flags = 0, sdvox;
 	u8 val;
 	bool ret;
@@ -1362,6 +1363,13 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 			((sdvox & SDVO_PORT_MULTIPLY_MASK)
 			 >> SDVO_PORT_MULTIPLY_SHIFT) + 1;
 	}
+
+	dotclock = pipe_config->port_clock / pipe_config->pixel_multiplier;
+
+	if (HAS_PCH_SPLIT(dev))
+		ironlake_check_encoder_dotclock(pipe_config, dotclock);
+
+	pipe_config->adjusted_mode.clock = dotclock;
 
 	/* Cross check the port pixel multiplier with the sdvo encoder state. */
 	if (intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_CLOCK_RATE_MULT,

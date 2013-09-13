@@ -89,6 +89,7 @@ static void intel_crt_get_config(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	struct intel_crt *crt = intel_encoder_to_crt(encoder);
 	u32 tmp, flags = 0;
+	int dotclock;
 
 	tmp = I915_READ(crt->adpa_reg);
 
@@ -103,6 +104,13 @@ static void intel_crt_get_config(struct intel_encoder *encoder,
 		flags |= DRM_MODE_FLAG_NVSYNC;
 
 	pipe_config->adjusted_mode.flags |= flags;
+
+	dotclock = pipe_config->port_clock;
+
+	if (HAS_PCH_SPLIT(dev_priv->dev))
+		ironlake_check_encoder_dotclock(pipe_config, dotclock);
+
+	pipe_config->adjusted_mode.clock = dotclock;
 }
 
 /* Note: The caller is required to filter out dpms modes not supported by the

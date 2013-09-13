@@ -2075,6 +2075,7 @@
 
 /* Gen 4 SDVO/HDMI bits: */
 #define   SDVO_COLOR_FORMAT_8bpc		(0 << 26)
+#define   SDVO_COLOR_FORMAT_MASK		(7 << 26)
 #define   SDVO_ENCODING_SDVO			(0 << 10)
 #define   SDVO_ENCODING_HDMI			(2 << 10)
 #define   HDMI_MODE_SELECT_HDMI			(1 << 9) /* HDMI only */
