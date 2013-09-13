@@ -62,7 +62,8 @@ int fsfilt_register_ops(struct fsfilt_operations *fs_ops)
 	struct fsfilt_operations *found;
 
 	/* lock fsfilt_types list */
-	if ((found = fsfilt_search_type(fs_ops->fs_type))) {
+	found = fsfilt_search_type(fs_ops->fs_type);
+	if (found) {
 		if (found != fs_ops) {
 			CERROR("different operations for type %s\n",
 			       fs_ops->fs_type);
@@ -103,14 +104,16 @@ struct fsfilt_operations *fsfilt_get_ops(const char *type)
 	struct fsfilt_operations *fs_ops;
 
 	/* lock fsfilt_types list */
-	if (!(fs_ops = fsfilt_search_type(type))) {
+	fs_ops = fsfilt_search_type(type);
+	if (!fs_ops) {
 		char name[32];
 		int rc;
 
 		snprintf(name, sizeof(name) - 1, "fsfilt_%s", type);
 		name[sizeof(name) - 1] = '\0';
 
-		if (!(rc = request_module("%s", name))) {
+		rc = request_module("%s", name);
+		if (!rc) {
 			fs_ops = fsfilt_search_type(type);
 			CDEBUG(D_INFO, "Loaded module '%s'\n", name);
 			if (!fs_ops)
