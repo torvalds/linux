@@ -47,10 +47,8 @@ static struct completion probe_event;
 static int irq;
 
 struct hv_device_info {
-	u32 server_monitor_pending;
 	u32 server_monitor_latency;
 	u32 server_monitor_conn_id;
-	u32 client_monitor_pending;
 	u32 client_monitor_latency;
 	u32 client_monitor_conn_id;
 
@@ -77,11 +75,9 @@ static void get_channel_info(struct hv_device *device,
 
 	vmbus_get_debug_info(device->channel, &debug_info);
 
-	info->server_monitor_pending = debug_info.servermonitor_pending;
 	info->server_monitor_latency = debug_info.servermonitor_latency;
 	info->server_monitor_conn_id = debug_info.servermonitor_connectionid;
 
-	info->client_monitor_pending = debug_info.clientmonitor_pending;
 	info->client_monitor_latency = debug_info.clientmonitor_latency;
 	info->client_monitor_conn_id = debug_info.clientmonitor_connectionid;
 
@@ -155,15 +151,11 @@ static ssize_t vmbus_show_device_attr(struct device *dev,
 	} else if (!strcmp(dev_attr->attr.name, "in_write_bytes_avail")) {
 		ret = sprintf(buf, "%d\n",
 			       device_info->inbound.bytes_avail_towrite);
-	} else if (!strcmp(dev_attr->attr.name, "server_monitor_pending")) {
-		ret = sprintf(buf, "%d\n", device_info->server_monitor_pending);
 	} else if (!strcmp(dev_attr->attr.name, "server_monitor_latency")) {
 		ret = sprintf(buf, "%d\n", device_info->server_monitor_latency);
 	} else if (!strcmp(dev_attr->attr.name, "server_monitor_conn_id")) {
 		ret = sprintf(buf, "%d\n",
 			       device_info->server_monitor_conn_id);
-	} else if (!strcmp(dev_attr->attr.name, "client_monitor_pending")) {
-		ret = sprintf(buf, "%d\n", device_info->client_monitor_pending);
 	} else if (!strcmp(dev_attr->attr.name, "client_monitor_latency")) {
 		ret = sprintf(buf, "%d\n", device_info->client_monitor_latency);
 	} else if (!strcmp(dev_attr->attr.name, "client_monitor_conn_id")) {
@@ -173,6 +165,23 @@ static ssize_t vmbus_show_device_attr(struct device *dev,
 
 	kfree(device_info);
 	return ret;
+}
+
+static u8 channel_monitor_group(struct vmbus_channel *channel)
+{
+	return (u8)channel->offermsg.monitorid / 32;
+}
+
+static u8 channel_monitor_offset(struct vmbus_channel *channel)
+{
+	return (u8)channel->offermsg.monitorid % 32;
+}
+
+static u32 channel_pending(struct vmbus_channel *channel,
+			   struct hv_monitor_page *monitor_page)
+{
+	u8 monitor_group = channel_monitor_group(channel);
+	return monitor_page->trigger_group[monitor_group].pending;
 }
 
 static ssize_t id_show(struct device *dev, struct device_attribute *dev_attr,
@@ -243,6 +252,33 @@ static ssize_t modalias_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(modalias);
 
+static ssize_t server_monitor_pending_show(struct device *dev,
+					   struct device_attribute *dev_attr,
+					   char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+
+	if (!hv_dev->channel)
+		return -ENODEV;
+	return sprintf(buf, "%d\n",
+		       channel_pending(hv_dev->channel,
+				       vmbus_connection.monitor_pages[1]));
+}
+static DEVICE_ATTR_RO(server_monitor_pending);
+
+static ssize_t client_monitor_pending_show(struct device *dev,
+					   struct device_attribute *dev_attr,
+					   char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+
+	if (!hv_dev->channel)
+		return -ENODEV;
+	return sprintf(buf, "%d\n",
+		       channel_pending(hv_dev->channel,
+				       vmbus_connection.monitor_pages[1]));
+}
+static DEVICE_ATTR_RO(client_monitor_pending);
 
 static struct attribute *vmbus_attrs[] = {
 	&dev_attr_id.attr,
@@ -251,17 +287,17 @@ static struct attribute *vmbus_attrs[] = {
 	&dev_attr_class_id.attr,
 	&dev_attr_device_id.attr,
 	&dev_attr_modalias.attr,
+	&dev_attr_server_monitor_pending.attr,
+	&dev_attr_client_monitor_pending.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(vmbus);
 
 /* Set up per device attributes in /sys/bus/vmbus/devices/<bus device> */
 static struct device_attribute vmbus_device_attrs[] = {
-	__ATTR(server_monitor_pending, S_IRUGO, vmbus_show_device_attr, NULL),
 	__ATTR(server_monitor_latency, S_IRUGO, vmbus_show_device_attr, NULL),
 	__ATTR(server_monitor_conn_id, S_IRUGO, vmbus_show_device_attr, NULL),
 
-	__ATTR(client_monitor_pending, S_IRUGO, vmbus_show_device_attr, NULL),
 	__ATTR(client_monitor_latency, S_IRUGO, vmbus_show_device_attr, NULL),
 	__ATTR(client_monitor_conn_id, S_IRUGO, vmbus_show_device_attr, NULL),
 
