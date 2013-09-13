@@ -286,11 +286,13 @@ static void slcan_write_wakeup(struct tty_struct *tty)
 	if (!sl || sl->magic != SLCAN_MAGIC || !netif_running(sl->dev))
 		return;
 
+	spin_lock(&sl->lock);
 	if (sl->xleft <= 0)  {
 		/* Now serial buffer is almost free & we can start
 		 * transmission of another packet */
 		sl->dev->stats.tx_packets++;
 		clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
+		spin_unlock(&sl->lock);
 		netif_wake_queue(sl->dev);
 		return;
 	}
@@ -298,6 +300,7 @@ static void slcan_write_wakeup(struct tty_struct *tty)
 	actual = tty->ops->write(tty, sl->xhead, sl->xleft);
 	sl->xleft -= actual;
 	sl->xhead += actual;
+	spin_unlock(&sl->lock);
 }
 
 /* Send a can_frame to a TTY queue. */
