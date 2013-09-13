@@ -499,6 +499,9 @@ static void rs780_activate_engine_clk_scaling(struct radeon_device *rdev,
 	    (new_state->sclk_low == old_state->sclk_low))
 		return;
 
+	if (new_state->sclk_high == new_state->sclk_low)
+		return;
+
 	rs780_clk_scaling_enable(rdev, true);
 }
 
