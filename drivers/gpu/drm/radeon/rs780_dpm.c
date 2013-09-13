@@ -449,6 +449,12 @@ static int rs780_set_engine_clock_scaling(struct radeon_device *rdev,
 	if (ret)
 		return ret;
 
+	if ((min_dividers.ref_div != max_dividers.ref_div) ||
+	    (min_dividers.post_div != max_dividers.post_div) ||
+	    (max_dividers.ref_div != current_max_dividers.ref_div) ||
+	    (max_dividers.post_div != current_max_dividers.post_div))
+		return -EINVAL;
+
 	rs780_force_fbdiv(rdev, max_dividers.fb_div);
 
 	if (max_dividers.fb_div > min_dividers.fb_div) {
