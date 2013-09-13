@@ -42,5 +42,11 @@ static inline int insn_length(unsigned char code)
 void show_code(struct pt_regs *regs);
 void print_fn_code(unsigned char *code, unsigned long len);
 int insn_to_mnemonic(unsigned char *instruction, char *buf, unsigned int len);
+struct s390_insn *find_insn(unsigned char *code);
+
+static inline int is_known_insn(unsigned char *code)
+{
+	return !!find_insn(code);
+}
 
 #endif /* __ASM_S390_DIS_H__ */

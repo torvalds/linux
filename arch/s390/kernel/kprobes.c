@@ -60,6 +60,8 @@ struct kprobe_insn_cache kprobe_dmainsn_slots = {
 
 static int __kprobes is_prohibited_opcode(kprobe_opcode_t *insn)
 {
+	if (!is_known_insn((unsigned char *)insn))
+		return -EINVAL;
 	switch (insn[0] >> 8) {
 	case 0x0c:	/* bassm */
 	case 0x0b:	/* bsm	 */

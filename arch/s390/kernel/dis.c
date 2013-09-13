@@ -1586,7 +1586,7 @@ static unsigned int extract_operand(unsigned char *code,
 	return val;
 }
 
-static struct s390_insn *find_insn(unsigned char *code)
+struct s390_insn *find_insn(unsigned char *code)
 {
 	unsigned char opfrag = code[1];
 	unsigned char opmask;
