@@ -228,11 +228,14 @@ static void ipmi_flush_tx_msg(struct acpi_ipmi_device *ipmi)
 	struct acpi_ipmi_msg *tx_msg, *temp;
 	int count = HZ / 10;
 	struct pnp_dev *pnp_dev = ipmi->pnp_dev;
+	unsigned long flags;
 
+	spin_lock_irqsave(&ipmi->tx_msg_lock, flags);
 	list_for_each_entry_safe(tx_msg, temp, &ipmi->tx_msg_list, head) {
 		/* wake up the sleep thread on the Tx msg */
 		complete(&tx_msg->tx_complete);
 	}
+	spin_unlock_irqrestore(&ipmi->tx_msg_lock, flags);
 
 	/* wait for about 100ms to flush the tx message list */
 	while (count--) {
@@ -266,11 +269,10 @@ static void ipmi_msg_handler(struct ipmi_recv_msg *msg, void *user_msg_data)
 		}
 	}
 
-	spin_unlock_irqrestore(&ipmi_device->tx_msg_lock, flags);
 	if (!msg_found) {
 		dev_warn(&pnp_dev->dev, "Unexpected response (msg id %ld) is "
 			"returned.\n", msg->msgid);
-		goto out_msg;
+		goto out_lock;
 	}
 
 	/* copy the response data to Rx_data buffer */
@@ -284,6 +286,8 @@ static void ipmi_msg_handler(struct ipmi_recv_msg *msg, void *user_msg_data)
 		tx_msg->msg_done = 1;
 	}
 	complete(&tx_msg->tx_complete);
+out_lock:
+	spin_unlock_irqrestore(&ipmi_device->tx_msg_lock, flags);
 out_msg:
 	ipmi_free_recv_msg(msg);
 };
