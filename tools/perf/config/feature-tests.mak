@@ -61,6 +61,15 @@ int main(void)
 }
 endef
 
+define SOURCE_ELF_GETPHDRNUM
+#include <libelf.h>
+int main(void)
+{
+	size_t dst;
+	return elf_getphdrnum(0, &dst);
+}
+endef
+
 ifndef NO_SLANG
 define SOURCE_SLANG
 #include <slang.h>
