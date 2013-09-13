@@ -886,6 +886,8 @@ void ti_hdmi_4xxx_pll_dump(struct hdmi_ip_data *ip_data, struct seq_file *s)
 	DUMPPLL(PLLCTRL_CFG1);
 	DUMPPLL(PLLCTRL_CFG2);
 	DUMPPLL(PLLCTRL_CFG3);
+	DUMPPLL(PLLCTRL_SSC_CFG1);
+	DUMPPLL(PLLCTRL_SSC_CFG2);
 	DUMPPLL(PLLCTRL_CFG4);
 }
 
