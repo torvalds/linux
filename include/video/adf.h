@@ -355,6 +355,7 @@ struct adf_interface {
 
 	enum adf_interface_type type;
 	u32 idx;
+	u32 flags;
 
 	wait_queue_head_t vsync_wait;
 	ktime_t vsync_timestamp;
@@ -405,9 +406,10 @@ int __printf(4, 5) adf_device_init(struct adf_device *dev,
 		struct device *parent, const struct adf_device_ops *ops,
 		const char *fmt, ...);
 void adf_device_destroy(struct adf_device *dev);
-int __printf(6, 7) adf_interface_init(struct adf_interface *intf,
+int __printf(7, 8) adf_interface_init(struct adf_interface *intf,
 		struct adf_device *dev, enum adf_interface_type type, u32 idx,
-		const struct adf_interface_ops *ops, const char *fmt, ...);
+		u32 flags, const struct adf_interface_ops *ops, const char *fmt,
+		...);
 void adf_interface_destroy(struct adf_interface *intf);
 static inline struct adf_device *adf_interface_parent(
 		struct adf_interface *intf)

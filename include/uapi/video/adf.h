@@ -36,6 +36,9 @@ enum adf_interface_type {
 	ADF_INTF_TYPE_MAX = (~(__u32)0),
 };
 
+#define ADF_INTF_FLAG_PRIMARY (1 << 0)
+#define ADF_INTF_FLAG_EXTERNAL (1 << 1)
+
 enum adf_event_type {
 	ADF_EVENT_VSYNC = 0,
 	ADF_EVENT_HOTPLUG = 1,
@@ -256,6 +259,7 @@ struct adf_interface_data {
 	__u32 type;
 	__u32 id;
 	/* e.g. type=ADF_INTF_TYPE_DSI, id=1 => DSI.1 */
+	__u32 flags;
 
 	__u8 dpms_state;
 	__u8 hotplug_detect;
