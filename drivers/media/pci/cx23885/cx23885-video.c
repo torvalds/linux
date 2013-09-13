@@ -1865,7 +1865,8 @@ int cx23885_video_register(struct cx23885_dev *dev)
 
 			v4l2_subdev_call(sd, tuner, s_type_addr, &tun_setup);
 
-			if (dev->board == CX23885_BOARD_LEADTEK_WINFAST_PXTV1200) {
+			if ((dev->board == CX23885_BOARD_LEADTEK_WINFAST_PXTV1200) ||
+			    (dev->board == CX23885_BOARD_LEADTEK_WINFAST_PXPVR2200)) {
 				struct xc2028_ctrl ctrl = {
 					.fname = XC2028_DEFAULT_FIRMWARE,
 					.max_len = 64
