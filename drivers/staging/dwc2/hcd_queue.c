@@ -251,12 +251,12 @@ void dwc2_hcd_qh_free(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
  *
  * @hsotg: The HCD state structure for the DWC OTG controller
  *
- * Return: 0 if successful, negative error code otherise
+ * Return: 0 if successful, negative error code otherwise
  */
 static int dwc2_periodic_channel_available(struct dwc2_hsotg *hsotg)
 {
 	/*
-	 * Currently assuming that there is a dedicated host channnel for
+	 * Currently assuming that there is a dedicated host channel for
 	 * each periodic transaction plus at least one host channel for
 	 * non-periodic transactions
 	 */

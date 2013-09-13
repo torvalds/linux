@@ -564,7 +564,7 @@ void dwc2_core_host_init(struct dwc2_hsotg *hsotg)
 
 	/*
 	 * This bit allows dynamic reloading of the HFIR register during
-	 * runtime. This bit needs to be programmed during inital configuration
+	 * runtime. This bit needs to be programmed during initial configuration
 	 * and its value must not be changed during runtime.
 	 */
 	if (hsotg->core_params->reload_ctl > 0) {
