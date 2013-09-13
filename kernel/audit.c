@@ -102,7 +102,8 @@ static int	audit_rate_limit;
 
 /* Number of outstanding audit_buffers allowed. */
 static int	audit_backlog_limit = 64;
-static int	audit_backlog_wait_time = 60 * HZ;
+#define AUDIT_BACKLOG_WAIT_TIME (60 * HZ)
+static int	audit_backlog_wait_time = AUDIT_BACKLOG_WAIT_TIME;
 static int	audit_backlog_wait_overflow = 0;
 
 /* The identity of the user shutting down the audit system. */
@@ -1238,6 +1239,8 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 		wake_up(&audit_backlog_wait);
 		return NULL;
 	}
+
+	audit_backlog_wait_time = AUDIT_BACKLOG_WAIT_TIME;
 
 	ab = audit_buffer_alloc(ctx, gfp_mask, type);
 	if (!ab) {
