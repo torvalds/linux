@@ -803,5 +803,7 @@ extern void intel_aux_display_runtime_get(struct drm_i915_private *dev_priv);
 extern void intel_aux_display_runtime_put(struct drm_i915_private *dev_priv);
 extern void intel_dp_get_m_n(struct intel_crtc *crtc,
 			     struct intel_crtc_config *pipe_config);
+extern int intel_dotclock_calculate(int link_freq,
+				    const struct intel_link_m_n *m_n);
 
 #endif /* __INTEL_DRV_H__ */
