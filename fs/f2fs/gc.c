@@ -236,8 +236,8 @@ static unsigned int get_cb_cost(struct f2fs_sb_info *sbi, unsigned int segno)
 	return UINT_MAX - ((100 * (100 - u) * age) / (100 + u));
 }
 
-static unsigned int get_gc_cost(struct f2fs_sb_info *sbi, unsigned int segno,
-					struct victim_sel_policy *p)
+static inline unsigned int get_gc_cost(struct f2fs_sb_info *sbi,
+			unsigned int segno, struct victim_sel_policy *p)
 {
 	if (p->alloc_mode == SSR)
 		return get_seg_entry(sbi, segno)->ckpt_valid_blocks;
@@ -293,7 +293,11 @@ static int get_victim_by_default(struct f2fs_sb_info *sbi,
 			}
 			break;
 		}
-		p.offset = ((segno / p.ofs_unit) * p.ofs_unit) + p.ofs_unit;
+
+		p.offset = segno + p.ofs_unit;
+		if (p.ofs_unit > 1)
+			p.offset -= segno % p.ofs_unit;
+
 		secno = GET_SECNO(sbi, segno);
 
 		if (sec_usage_check(sbi, secno))
@@ -306,10 +310,9 @@ static int get_victim_by_default(struct f2fs_sb_info *sbi,
 		if (p.min_cost > cost) {
 			p.min_segno = segno;
 			p.min_cost = cost;
-		}
-
-		if (cost == max_cost)
+		} else if (unlikely(cost == max_cost)) {
 			continue;
+		}
 
 		if (nsearched++ >= p.max_search) {
 			sbi->last_victim[p.gc_mode] = segno;
