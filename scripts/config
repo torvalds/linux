@@ -82,7 +82,7 @@ txt_subst() {
 	local infile="$3"
 	local tmpfile="$infile.swp"
 
-	sed -e "s/$before/$after/" "$infile" >"$tmpfile"
+	sed -e "s:$before:$after:" "$infile" >"$tmpfile"
 	# replace original file with the edited one
 	mv "$tmpfile" "$infile"
 }
