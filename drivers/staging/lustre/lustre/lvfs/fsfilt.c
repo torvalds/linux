@@ -50,9 +50,8 @@ static struct fsfilt_operations *fsfilt_search_type(const char *type)
 
 	list_for_each(p, &fsfilt_types) {
 		found = list_entry(p, struct fsfilt_operations, fs_list);
-		if (!strcmp(found->fs_type, type)) {
+		if (!strcmp(found->fs_type, type))
 			return found;
-		}
 	}
 	return NULL;
 }
