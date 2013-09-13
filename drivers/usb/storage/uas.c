@@ -85,6 +85,8 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 				struct uas_dev_info *devinfo, gfp_t gfp);
 static void uas_do_work(struct work_struct *work);
 static int uas_try_complete(struct scsi_cmnd *cmnd, const char *caller);
+static void uas_configure_endpoints(struct uas_dev_info *devinfo);
+static void uas_free_streams(struct uas_dev_info *devinfo);
 
 static DECLARE_WORK(uas_work, uas_do_work);
 static DEFINE_SPINLOCK(uas_work_lock);
@@ -800,7 +802,10 @@ static int uas_eh_bus_reset_handler(struct scsi_cmnd *cmnd)
 	usb_kill_anchored_urbs(&devinfo->cmd_urbs);
 	usb_kill_anchored_urbs(&devinfo->sense_urbs);
 	usb_kill_anchored_urbs(&devinfo->data_urbs);
+	uas_free_streams(devinfo);
 	err = usb_reset_device(udev);
+	if (!err)
+		uas_configure_endpoints(devinfo);
 	devinfo->resetting = 0;
 
 	if (err) {
