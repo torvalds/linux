@@ -47,7 +47,6 @@ static struct completion probe_event;
 static int irq;
 
 struct hv_device_info {
-	u32 chn_state;
 	uuid_le chn_type;
 	uuid_le chn_instance;
 
@@ -82,7 +81,6 @@ static void get_channel_info(struct hv_device *device,
 
 	vmbus_get_debug_info(device->channel, &debug_info);
 
-	info->chn_state = debug_info.state;
 	memcpy(&info->chn_type, &debug_info.interfacetype,
 	       sizeof(uuid_le));
 	memcpy(&info->chn_instance, &debug_info.interface_instance,
@@ -152,8 +150,6 @@ static ssize_t vmbus_show_device_attr(struct device *dev,
 	} else if (!strcmp(dev_attr->attr.name, "modalias")) {
 		print_alias_name(hv_dev, alias_name);
 		ret = sprintf(buf, "vmbus:%s\n", alias_name);
-	} else if (!strcmp(dev_attr->attr.name, "state")) {
-		ret = sprintf(buf, "%d\n", device_info->chn_state);
 	} else if (!strcmp(dev_attr->attr.name, "out_intr_mask")) {
 		ret = sprintf(buf, "%d\n", device_info->outbound.int_mask);
 	} else if (!strcmp(dev_attr->attr.name, "out_read_index")) {
@@ -211,15 +207,26 @@ static ssize_t id_show(struct device *dev, struct device_attribute *dev_attr,
 }
 static DEVICE_ATTR_RO(id);
 
+static ssize_t state_show(struct device *dev, struct device_attribute *dev_attr,
+			  char *buf)
+{
+	struct hv_device *hv_dev = device_to_hv_device(dev);
+
+	if (!hv_dev->channel)
+		return -ENODEV;
+	return sprintf(buf, "%d\n", hv_dev->channel->state);
+}
+static DEVICE_ATTR_RO(state);
+
 static struct attribute *vmbus_attrs[] = {
 	&dev_attr_id.attr,
+	&dev_attr_state.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(vmbus);
 
 /* Set up per device attributes in /sys/bus/vmbus/devices/<bus device> */
 static struct device_attribute vmbus_device_attrs[] = {
-	__ATTR(state, S_IRUGO, vmbus_show_device_attr, NULL),
 	__ATTR(class_id, S_IRUGO, vmbus_show_device_attr, NULL),
 	__ATTR(device_id, S_IRUGO, vmbus_show_device_attr, NULL),
 	__ATTR(monitor_id, S_IRUGO, vmbus_show_device_attr, NULL),
