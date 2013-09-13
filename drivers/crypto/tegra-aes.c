@@ -795,7 +795,7 @@ static int tegra_aes_cra_init(struct crypto_tfm *tfm)
 	return 0;
 }
 
-void tegra_aes_cra_exit(struct crypto_tfm *tfm)
+static void tegra_aes_cra_exit(struct crypto_tfm *tfm)
 {
 	struct tegra_aes_ctx *ctx =
 		crypto_ablkcipher_ctx((struct crypto_ablkcipher *)tfm);
