@@ -3044,7 +3044,6 @@ struct wmi_force_fw_hang_cmd {
 
 #define WMI_MAX_EVENT 0x1000
 /* Maximum number of pending TXed WMI packets */
-#define WMI_MAX_PENDING_TX_COUNT 128
 #define WMI_SKB_HEADROOM sizeof(struct wmi_cmd_hdr)
 
 /* By default disable power save for IBSS */
@@ -3057,7 +3056,6 @@ int ath10k_wmi_attach(struct ath10k *ar);
 void ath10k_wmi_detach(struct ath10k *ar);
 int ath10k_wmi_wait_for_service_ready(struct ath10k *ar);
 int ath10k_wmi_wait_for_unified_ready(struct ath10k *ar);
-void ath10k_wmi_flush_tx(struct ath10k *ar);
 
 int ath10k_wmi_connect_htc_service(struct ath10k *ar);
 int ath10k_wmi_pdev_set_channel(struct ath10k *ar,

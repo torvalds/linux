@@ -1224,8 +1224,6 @@ static void ath10k_bss_disassoc(struct ieee80211_hw *hw,
 	/* FIXME: why don't we print error if wmi call fails? */
 	ret = ath10k_wmi_vdev_down(ar, arvif->vdev_id);
 
-	ath10k_wmi_flush_tx(ar);
-
 	arvif->def_wep_key_index = 0;
 }
 
@@ -1664,8 +1662,6 @@ static int ath10k_abort_scan(struct ath10k *ar)
 		return -EIO;
 	}
 
-	ath10k_wmi_flush_tx(ar);
-
 	ret = wait_for_completion_timeout(&ar->scan.completed, 3*HZ);
 	if (ret == 0)
 		ath10k_warn("timed out while waiting for scan to stop\n");
@@ -1698,10 +1694,6 @@ static int ath10k_start_scan(struct ath10k *ar,
 	ret = ath10k_wmi_start_scan(ar, arg);
 	if (ret)
 		return ret;
-
-	/* make sure we submit the command so the completion
-	* timeout makes sense */
-	ath10k_wmi_flush_tx(ar);
 
 	ret = wait_for_completion_timeout(&ar->scan.started, 1*HZ);
 	if (ret == 0) {
@@ -1924,7 +1916,6 @@ static int ath10k_config(struct ieee80211_hw *hw, u32 changed)
 			ret = ath10k_monitor_destroy(ar);
 	}
 
-	ath10k_wmi_flush_tx(ar);
 	mutex_unlock(&ar->conf_mutex);
 	return ret;
 }

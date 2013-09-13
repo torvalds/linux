@@ -23,30 +23,6 @@
 #include "wmi.h"
 #include "mac.h"
 
-void ath10k_wmi_flush_tx(struct ath10k *ar)
-{
-	int ret;
-
-	lockdep_assert_held(&ar->conf_mutex);
-
-	if (ar->state == ATH10K_STATE_WEDGED) {
-		ath10k_warn("wmi flush skipped - device is wedged anyway\n");
-		return;
-	}
-
-	ret = wait_event_timeout(ar->wmi.wq,
-				 atomic_read(&ar->wmi.pending_tx_count) == 0,
-				 5*HZ);
-	if (atomic_read(&ar->wmi.pending_tx_count) == 0)
-		return;
-
-	if (ret == 0)
-		ret = -ETIMEDOUT;
-
-	if (ret < 0)
-		ath10k_warn("wmi flush failed (%d)\n", ret);
-}
-
 int ath10k_wmi_wait_for_service_ready(struct ath10k *ar)
 {
 	int ret;
@@ -85,9 +61,6 @@ static struct sk_buff *ath10k_wmi_alloc_skb(u32 len)
 static void ath10k_wmi_htc_tx_complete(struct ath10k *ar, struct sk_buff *skb)
 {
 	dev_kfree_skb(skb);
-
-	if (atomic_sub_return(1, &ar->wmi.pending_tx_count) == 0)
-		wake_up(&ar->wmi.wq);
 }
 
 static int ath10k_wmi_cmd_send_nowait(struct ath10k *ar, struct sk_buff *skb,
@@ -1243,7 +1216,6 @@ int ath10k_wmi_attach(struct ath10k *ar)
 {
 	init_completion(&ar->wmi.service_ready);
 	init_completion(&ar->wmi.unified_ready);
-	init_waitqueue_head(&ar->wmi.wq);
 	init_waitqueue_head(&ar->wmi.tx_credits_wq);
 
 	skb_queue_head_init(&ar->wmi.wmi_event_list);
@@ -1254,10 +1226,6 @@ int ath10k_wmi_attach(struct ath10k *ar)
 
 void ath10k_wmi_detach(struct ath10k *ar)
 {
-	/* HTC should've drained the packets already */
-	if (WARN_ON(atomic_read(&ar->wmi.pending_tx_count) > 0))
-		ath10k_warn("there are still pending packets\n");
-
 	cancel_work_sync(&ar->wmi.wmi_event_work);
 	skb_queue_purge(&ar->wmi.wmi_event_list);
 }
