@@ -69,10 +69,6 @@ void vmbus_get_debug_info(struct vmbus_channel *channel,
 	u8 monitor_group = (u8)channel->offermsg.monitorid / 32;
 	u8 monitor_offset = (u8)channel->offermsg.monitorid % 32;
 
-	memcpy(&debuginfo->interface_instance,
-	       &channel->offermsg.offer.if_instance,
-	       sizeof(uuid_le));
-
 	monitorpage = (struct hv_monitor_page *)vmbus_connection.monitor_pages;
 
 	debuginfo->servermonitor_pending =
